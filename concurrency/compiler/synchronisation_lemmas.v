@@ -382,9 +382,25 @@ Proof.
   -  rewrite ThreadPool.gsoThreadLPool in H.
      eapply Hcmpt; eassumption.
 Qed.
-
-
-
+Lemma mem_compatible_addThread:
+  forall Sem Tp m st st' f_ptr arg res,
+    permMapLt_pair res (getMaxPerm m) ->
+    st' = ThreadPool.addThread(resources:=dryResources) st f_ptr arg res ->
+    @mem_compatible Sem Tp st m ->
+    @mem_compatible Sem Tp st' m.
+Proof.
+  intros * Hlt HH Hcmpt.
+  subst st'; constructor; intros.
+  - (*Two cases, one of which goes by Hlt*)
+    exploit @ThreadPool.cntAdd'; eauto; intros [[? ?]| ?].
+    + subst. unshelve erewrite ThreadPool.gsoAddRes; auto.
+      eapply Hcmpt.
+    + rewrite ThreadPool.gssAddRes; auto.
+  - rewrite ThreadPool.gsoAddLPool in H.
+    eapply Hcmpt; eassumption.
+  -  rewrite ThreadPool.gsoAddLPool in H.
+     eapply Hcmpt; eassumption.
+Qed.
 
 (** * Lemmas about invariant*)
 
@@ -525,27 +541,27 @@ Qed.
 
 Lemma invariant_updateLock:
   forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalThreadPool)
-    laddr lock_perm,
+         laddr lock_perm,
     st' =
     ThreadPool.updLockSet st laddr lock_perm ->
     invariant st ->
     forall (no_race_lr: forall (laddr': address) (rmap : lock_info),
-          laddr' <> laddr ->
-          ThreadPool.lockRes st laddr' = Some rmap -> permMapsDisjoint2 lock_perm rmap)
-      (no_race3: forall i (cnti : ThreadPool.containsThread st i),
-          permMapsDisjoint2 (ThreadPool.getThreadR cnti) lock_perm)
-      (thread_date_lock_coh5: forall i (cnti : ThreadPool.containsThread st i),
-          permMapCoherence (fst (ThreadPool.getThreadR cnti)) (snd lock_perm) /\
-          permMapCoherence (fst lock_perm) (snd (ThreadPool.getThreadR cnti)))
-      (locks_data_lock_coh1: permMapCoherence (fst lock_perm) (snd lock_perm))
-      (locks_data_lock_coh2: forall laddr0 rmap,
-          laddr0 <> laddr -> ThreadPool.lockRes st laddr0 = Some rmap ->
-          permMapCoherence (fst rmap) (snd lock_perm) /\
-          permMapCoherence (fst lock_perm) (snd rmap))
-      (lockRes_valid: forall ofs0 : Z, snd laddr < ofs0 < (snd laddr) + LKSIZE ->
-                                  lockRes st (fst laddr, ofs0) = None)
-      (lockRes_valid2: forall ofs0 : Z, ofs0 < snd laddr < ofs0 + LKSIZE ->
-                                   lockRes st (fst laddr, ofs0) = None),
+               laddr' <> laddr ->
+               ThreadPool.lockRes st laddr' = Some rmap -> permMapsDisjoint2 lock_perm rmap)
+           (no_race3: forall i (cnti : ThreadPool.containsThread st i),
+               permMapsDisjoint2 (ThreadPool.getThreadR cnti) lock_perm)
+           (thread_date_lock_coh5: forall i (cnti : ThreadPool.containsThread st i),
+               permMapCoherence (fst (ThreadPool.getThreadR cnti)) (snd lock_perm) /\
+               permMapCoherence (fst lock_perm) (snd (ThreadPool.getThreadR cnti)))
+           (locks_data_lock_coh1: permMapCoherence (fst lock_perm) (snd lock_perm))
+           (locks_data_lock_coh2: forall laddr0 rmap,
+               laddr0 <> laddr -> ThreadPool.lockRes st laddr0 = Some rmap ->
+               permMapCoherence (fst rmap) (snd lock_perm) /\
+               permMapCoherence (fst lock_perm) (snd rmap))
+           (lockRes_valid: forall ofs0 : Z, snd laddr < ofs0 < (snd laddr) + LKSIZE ->
+                                            lockRes st (fst laddr, ofs0) = None)
+           (lockRes_valid2: forall ofs0 : Z, ofs0 < snd laddr < ofs0 + LKSIZE ->
+                                             lockRes st (fst laddr, ofs0) = None),
       invariant st'.
 Proof.
   intros * ? Hinv **. constructor.
@@ -656,6 +672,20 @@ Section SimulationTactics.
     eapply mem_compatible_updLock; eauto. clear H1 H2 H3.
     eapply mem_compatible_updthread; eauto.
   Qed.
+  Lemma mem_compatible_fullAddThread:
+    forall Sem Tp m st st' st'' c arg f_ptr
+      i (cnt:ThreadPool.containsThread st i) new_th_res res,
+      @mem_compatible Sem Tp st m ->
+      permMapLt_pair res (getMaxPerm m) ->
+      permMapLt_pair new_th_res (getMaxPerm m) ->
+      st'' = ThreadPool.addThread st' f_ptr arg new_th_res ->
+      st' = ThreadPool.updThread cnt c res ->
+      @mem_compatible Sem Tp st'' m.
+  Proof.
+    intros.
+    eapply mem_compatible_addThread; eauto. clear H1 H2.
+    eapply mem_compatible_updthread; eauto.
+  Qed.
   Lemma mem_compatible_fullThreadUpdate_join1:
     forall {Sem Tp} st c m st' st'' b ofs th_perm lock_perm
       i (cnt:ThreadPool.containsThread st i) ,
@@ -714,9 +744,9 @@ Section SimulationTactics.
     forall hb (st:@ThreadPool (Some hb)) b ofs st',
       invariant st ->
       (forall ofs0 : Z, ofs < ofs0 < ofs + LKSIZE ->
-                   ThreadPool.lockRes st (b, ofs0) = None) ->
+                        ThreadPool.lockRes st (b, ofs0) = None) ->
       (forall ofs0 : Z, ofs0 < ofs < ofs0 + LKSIZE ->
-                   ThreadPool.lockRes st (b, ofs0) = None) ->
+                        ThreadPool.lockRes st (b, ofs0) = None) ->
       st' = ThreadPool.updLockSet st (b, ofs) (pair0 empty_map) ->
       (*coqlib4.isSome (ThreadPool.lockRes st (b, ofs)) ->*)
       invariant st'.
@@ -768,8 +798,8 @@ Section SimulationTactics.
   
   Lemma invariant_update_join_rel:
     forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalThreadPool)
-      h laddr c lock_perm th_perm
-      (Hcnt:ThreadPool.containsThread st h),
+           h laddr c lock_perm th_perm
+           (Hcnt:ThreadPool.containsThread st h),
       coqlib4.isSome (ThreadPool.lockRes st laddr) ->
       st' =
       ThreadPool.updLockSet (ThreadPool.updThread Hcnt c th_perm) laddr lock_perm ->
@@ -842,8 +872,8 @@ Section SimulationTactics.
   
   Lemma invariant_update_join_acq:
     forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalThreadPool)
-      h laddr c lock_perm th_perm
-      (Hcnt:ThreadPool.containsThread st h),
+           h laddr c lock_perm th_perm
+           (Hcnt:ThreadPool.containsThread st h),
       ThreadPool.lockRes st laddr = Some lock_perm ->
       st' =
       ThreadPool.updLockSet (ThreadPool.updThread Hcnt c th_perm) laddr
@@ -873,7 +903,7 @@ Section SimulationTactics.
       @invariant _ (TP (Some hb2)) st1 ->
       set_new_mems b1 ofs (@getThreadR _ _ hb1 st1 cnt) LKSIZE_nat perms ->
       (forall ofs0 : Z, ofs <= ofs0 < ofs + LKSIZE ->
-                   Mem.perm_order' ((thread_perms hb1 st1 cnt) !! b1 ofs0) Writable) ->
+                        Mem.perm_order' ((thread_perms hb1 st1 cnt) !! b1 ofs0) Writable) ->
       @invariant _ (TP (Some hb2)) (@updThread _ (HybridSem (Some hb2))
                                                hb1 st1 cnt c perms).
   Proof.
@@ -891,7 +921,7 @@ Section SimulationTactics.
   Lemma atx_injection Sem: 
     let CoreSem := sem_coresem Sem in
     forall (SelfSim: (self_simulation semC CoreSem))
-      mu b1 b2 delt th_state1 th_state2 m1 m2 FUN ofs,
+           mu b1 b2 delt th_state1 th_state2 m1 m2 FUN ofs,
       mu b1 = Some (b2, delt) ->
       match_self (code_inject semC CoreSem SelfSim) mu th_state1 m1 th_state2 m2 ->
       semantics.at_external CoreSem th_state1 m1 =
@@ -912,9 +942,9 @@ Section SimulationTactics.
   Lemma lock_update_mem_strict_load_inject:
     forall f b b' ofs delt perms1 perms2 m1 m2 m1' vl vs,
     forall (Hinj_b : f b = Some (b', delt))
-      Hlt1 Hlt2
-      (Hinj_lock: Mem.inject f (@restrPermMap perms1 m1 Hlt1)
-                             (@restrPermMap perms2 m2 Hlt2)),
+           Hlt1 Hlt2
+           (Hinj_lock: Mem.inject f (@restrPermMap perms1 m1 Hlt1)
+                                  (@restrPermMap perms2 m2 Hlt2)),
       lock_update_mem_strict_load b ofs perms1 m1 m1' (Vint vl) (Vint vs) ->
       inject_lock' LKSIZE f b ofs m1 m2 ->
       exists m2',
@@ -986,8 +1016,8 @@ Section SimulationTactics.
     forall Sem tpool i st cnt m Hcmpt st' m' ev, 
       @syncStep Sem tpool true i st m cnt Hcmpt st' m' ev ->
       forall p Hlt, let Hcmpt_new:= compat_restr p Hlt Hcmpt in
-               exists p' Hlt',
-                 syncStep true cnt Hcmpt_new st' (@restrPermMap p' m' Hlt') ev.
+                    exists p' Hlt',
+                      syncStep true cnt Hcmpt_new st' (@restrPermMap p' m' Hlt') ev.
   Proof.
     intros.
     inv H; simpl in *; do 2 eexists;
@@ -1069,12 +1099,12 @@ Section SimulationTactics.
 
   Lemma INJ_lock_permissions_None
     : forall (hb : nat) (ocd : option compiler_index) (j : meminj)
-        (cstate1 : ThreadPool (Some hb)) (m1 : mem)
-        (cstate2 : ThreadPool (Some (S hb))) (m2 : mem) ,
+             (cstate1 : ThreadPool (Some hb)) (m1 : mem)
+             (cstate2 : ThreadPool (Some (S hb))) (m2 : mem) ,
       concur_match hb ocd j cstate1 m1 cstate2 m2 ->
       Mem.meminj_no_overlap j m1 ->
       forall (b b' : block) (delt : Z) (rmap : lock_info) ofs
-        (Haccess: Mem.perm m1 b ofs Cur Readable),
+             (Haccess: Mem.perm m1 b ofs Cur Readable),
         j b = Some (b', delt) ->
         lockRes cstate1 (b, ofs) = None ->
         lockRes cstate2 (b', ofs + delt) = None.
@@ -1157,11 +1187,11 @@ Section SimulationTactics.
         lockRes cstate1 (b, ofs) = Some rec ->
         (forall i (cnt:containsThread cstate1 i),
             forall ofs0, ofs <= ofs0 < ofs + LKSIZE -> 
-                    ((thread_perms i cstate1 cnt) !! b ofs0) = Some Nonempty) /\
+                         ((thread_perms i cstate1 cnt) !! b ofs0) = Some Nonempty) /\
         (forall b' ofs' rec',
             lockRes cstate1 (b', ofs') = Some rec' ->
             forall ofs0, ofs <= ofs0 < ofs + LKSIZE ->
-                    ((fst rec') !! b ofs0)  = Some Nonempty ).
+                         ((fst rec') !! b ofs0)  = Some Nonempty ).
   Proof.
     (*This has to be added to concur_match*)
   Admitted.
@@ -1236,41 +1266,41 @@ Section SimulationTactics.
   Inductive strict_evolution_diagram cd mu code1 m1 m1' code2 m2':=
   | build_stric_diagram:
       forall lev1 lev2 j m2
-        (Hcomp_match : compiler_match cd j code1 m1 code2 m2)
-        (Hstrict_evolution : strict_injection_evolution j mu lev1 lev2)
-        (Hinterference1 : mem_interference m1 lev1 m1')
-        (Hinterference2 : mem_interference m2 lev2 m2'),
+             (Hcomp_match : compiler_match cd j code1 m1 code2 m2)
+             (Hstrict_evolution : strict_injection_evolution j mu lev1 lev2)
+             (Hinterference1 : mem_interference m1 lev1 m1')
+             (Hinterference2 : mem_interference m2 lev2 m2'),
         strict_evolution_diagram cd mu code1 m1 m1' code2 m2'.
   
   Inductive interference_diagram_atx i code1 code2 m1 f' m1' m2':Prop :=
   | build_inter_diagram_atx:
       forall f FUN m2 args1 args2  lev1 lev2
-        (Hinj: Mem.inject f m1 m2)
-        (Hinj': Mem.inject f' m1' m2')
-        (Hstrict_evolution: strict_injection_evolution f f' lev1 lev2)
-        (Hmatch_states: compiler_match i f code1 m1 code2 m2)
-        (*Hmatch_states': compiler_match i f' code1 m1' code2 m2'*)
-        (* Probably can also add this, but seems like I don't need it*)
-        (Hinterference1 : mem_interference m1 lev1 m1')
-        (Hinterference2 : mem_interference m2 lev2 m2')
-        (Hat_external1: Clight.at_external (Clight.set_mem code1 m1) =
-                        Some (FUN, args1))
-        (Hat_external1': Clight.at_external (Clight.set_mem code1 m1') =
-                         Some (FUN, args1))
-        (Hat_external2: Asm.at_external Asm_g (Asm.set_mem code2 m2) =
-                        Some (FUN, args2))
-        (Hat_external2': Asm.at_external Asm_g (Asm.set_mem code2 m2') =
-                         Some (FUN, args2))
-        (Hinj_args: Val.inject_list f args1 args2)
+             (Hinj: Mem.inject f m1 m2)
+             (Hinj': Mem.inject f' m1' m2')
+             (Hstrict_evolution: strict_injection_evolution f f' lev1 lev2)
+             (Hmatch_states: compiler_match i f code1 m1 code2 m2)
+             (*Hmatch_states': compiler_match i f' code1 m1' code2 m2'*)
+             (* Probably can also add this, but seems like I don't need it*)
+             (Hinterference1 : mem_interference m1 lev1 m1')
+             (Hinterference2 : mem_interference m2 lev2 m2')
+             (Hat_external1: Clight.at_external (Clight.set_mem code1 m1) =
+                             Some (FUN, args1))
+             (Hat_external1': Clight.at_external (Clight.set_mem code1 m1') =
+                              Some (FUN, args1))
+             (Hat_external2: Asm.at_external Asm_g (Asm.set_mem code2 m2) =
+                             Some (FUN, args2))
+             (Hat_external2': Asm.at_external Asm_g (Asm.set_mem code2 m2') =
+                              Some (FUN, args2))
+             (Hinj_args: Val.inject_list f args1 args2)
       , interference_diagram_atx i code1 code2 m1 f' m1' m2'.
 
   Lemma retroactive_int_diagram_atx:
     forall  i code1 code2 m1 f' m1' m2' FUN 
-       (Hstrict: strict_evolution_diagram i f' code1 m1 m1' code2 m2')
-       (Hinj': Mem.inject f' m1' m2')
-       args1
-       (Hat_external1': Clight.at_external (Clight.set_mem code1 m1') =
-                        Some (FUN, args1)),
+            (Hstrict: strict_evolution_diagram i f' code1 m1 m1' code2 m2')
+            (Hinj': Mem.inject f' m1' m2')
+            args1
+            (Hat_external1': Clight.at_external (Clight.set_mem code1 m1') =
+                             Some (FUN, args1)),
       interference_diagram_atx i code1 code2 m1 f' m1' m2'.
   Proof.
     intros.
@@ -1300,7 +1330,7 @@ Section SimulationTactics.
     containsThread st2 i -> Prop :=
   | Build_same_cnt:
       forall (cnt1: containsThread(Sem:=HybridSem hb1) st1 i)
-        (cnt2: containsThread(Sem:=HybridSem hb2) st2 i),
+             (cnt2: containsThread(Sem:=HybridSem hb2) st2 i),
         same_cnt i st1 st2 cnt1 cnt2.
 
 
@@ -1339,36 +1369,36 @@ Section SimulationTactics.
    *)
   Lemma large_external_diagram:
     forall cd f mu j'' code1 code2 cge age args1 rel_trace m1 m1'''
-      args2 rel_trace2 FUN
-      m2 m2' m2'' m2''' lev1 lev1' lev2 lev2' s1'
-      p Hlt dpm1 dpm2 name signature
-      (Hfun: FUN = AST.EF_external name signature)
-      (Hconsec: consecutive_sem name signature)
-      (Hun_dsnt_ret: doesnt_return FUN)
-      (Hun_dsnt_ret_sig: AST.sig_res signature = None)
-      (Hinj_delts: EventsAux.inject_delta_map mu dpm1 dpm2)
-      (Heqrel_trace1 : rel_trace = Events.Event_acq_rel lev1 dpm1 lev1' :: nil)
-      (Heqrel_trace : rel_trace2 = Events.Event_acq_rel lev2 dpm2 lev2' :: nil)
-      (HAge: age =  (Genv.globalenv Asm_program))
-      (HCge: cge = (Clight.globalenv C_program) )
-      (Hext_rel1 : Events.external_call
-                     FUN (Clight.genv_genv cge) 
-                     args1 m1 rel_trace Vundef m1''')
-      (Hext_rel2 : Events.external_call
-                     FUN age 
-                     args2 m2 rel_trace2 Vundef m2''')
-      (Hnb_eq : Mem.nextblock m2'' = Mem.nextblock m2')
-      (Hstrict_evolution : strict_injection_evolution f mu lev1 lev2)
-      (Hstrict_evolution' : strict_injection_evolution mu j'' lev1' lev2')
-      (Hafter_ext : Clight.after_external None code1 m1''' = Some s1')
-      (Hmatch_states : compiler_match cd f code1 m1 code2 m2)
-      (Hat_external1 : Clight.at_external (Clight.set_mem code1 m1) =
-                       Some (FUN, args1))
-      (Hat_external2 : Asm.at_external Asm_g (Asm.set_mem code2 m2) =
-                       Some (FUN, args2))
-      (Hinterference2' : mem_interference (@restrPermMap p m2'' Hlt) lev2' m2''')
-      (Hconsecutive : consecutive_until (Mem.nextblock m2) lev2 (Mem.nextblock m2'))
-      (Hconsecutive' : consecutive_until (Mem.nextblock m2'') lev2' (Mem.nextblock m2''')),
+           args2 rel_trace2 FUN
+           m2 m2' m2'' m2''' lev1 lev1' lev2 lev2' s1'
+           p Hlt dpm1 dpm2 name signature
+           (Hfun: FUN = AST.EF_external name signature)
+           (Hconsec: consecutive_sem name signature)
+           (Hun_dsnt_ret: doesnt_return FUN)
+           (Hun_dsnt_ret_sig: AST.sig_res signature = None)
+           (Hinj_delts: EventsAux.inject_delta_map mu dpm1 dpm2)
+           (Heqrel_trace1 : rel_trace = Events.Event_acq_rel lev1 dpm1 lev1' :: nil)
+           (Heqrel_trace : rel_trace2 = Events.Event_acq_rel lev2 dpm2 lev2' :: nil)
+           (HAge: age =  (Genv.globalenv Asm_program))
+           (HCge: cge = (Clight.globalenv C_program) )
+           (Hext_rel1 : Events.external_call
+                          FUN (Clight.genv_genv cge) 
+                          args1 m1 rel_trace Vundef m1''')
+           (Hext_rel2 : Events.external_call
+                          FUN age 
+                          args2 m2 rel_trace2 Vundef m2''')
+           (Hnb_eq : Mem.nextblock m2'' = Mem.nextblock m2')
+           (Hstrict_evolution : strict_injection_evolution f mu lev1 lev2)
+           (Hstrict_evolution' : strict_injection_evolution mu j'' lev1' lev2')
+           (Hafter_ext : Clight.after_external None code1 m1''' = Some s1')
+           (Hmatch_states : compiler_match cd f code1 m1 code2 m2)
+           (Hat_external1 : Clight.at_external (Clight.set_mem code1 m1) =
+                            Some (FUN, args1))
+           (Hat_external2 : Asm.at_external Asm_g (Asm.set_mem code2 m2) =
+                            Some (FUN, args2))
+           (Hinterference2' : mem_interference (@restrPermMap p m2'' Hlt) lev2' m2''')
+           (Hconsecutive : consecutive_until (Mem.nextblock m2) lev2 (Mem.nextblock m2'))
+           (Hconsecutive' : consecutive_until (Mem.nextblock m2'') lev2' (Mem.nextblock m2''')),
     exists (cd' : compiler_index) (j''' : meminj) (s2' : Asm.state),
       Asm.after_external Asm_g None code2 m2''' = Some s2' /\
       inject_incr mu j''' /\ compiler_match cd' j''' s1' m1''' s2' m2'''.
@@ -1496,42 +1526,42 @@ Section SimulationTactics.
     eassumption.
   Qed.
 
-    
-    Lemma at_external_sum_sem:
-      forall hb Sem,
-        let CoreSem := sem_coresem Sem in
-        forall th_state2 sum_state2 m1 m2
-          (st1:mach_state hb)
-          (st2:mach_state (S hb)) tid cnt1 cnt2 args'
-          (HState2 : coerce_state_type semC sum_state2 th_state2 
-                                       (CSem, Clight.state) (AsmSem, Asm.state) 
-                                       (Sem, semC))
-          (Hthread_mem1 : access_map_equiv (thread_perms tid st1 cnt1) (getCurPerm m1))
-          (Hthread_mem2 : access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2))
-          (thread_compat2 : thread_compat st2 tid cnt2 m2)
-          (abs_proof : permMapLt (fst (getThreadR cnt2)) (getMaxPerm m2)) F
-          (Hat_external2 : at_external CoreSem th_state2 m2 = Some (F, args')), 
-          at_external
-            (sem_coresem (HybridSem (Some (S hb))))
-            sum_state2 (restrPermMap abs_proof) = Some (F, args').
-    Proof.
-      intros.
-      simpl; unfold at_external_sum, sum_func.
-      rewrite <- (restr_proof_irr (th_comp thread_compat2)).
-      rewrite <- Hat_external2; simpl.
-      inversion HState2; subst.
-      - !goal ( Clight.at_external _ = _ _ m2).
-        replace c with th_state2; auto.
-        2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
-        eapply C_at_external_proper; auto.
-        eapply cur_equiv_restr_mem_equiv; auto.
-      - !goal ( Asm.at_external _ _ = _ _ m2).
-        replace c with th_state2; auto.
-        2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
-        simpl.
-        (* why can't I rewrite?*)
-        eapply Asm_at_external_proper; auto.
-        eapply cur_equiv_restr_mem_equiv; auto.
+  
+  Lemma at_external_sum_sem:
+    forall hb Sem,
+      let CoreSem := sem_coresem Sem in
+      forall th_state2 sum_state2 m1 m2
+             (st1:mach_state hb)
+             (st2:mach_state (S hb)) tid cnt1 cnt2 args'
+             (HState2 : coerce_state_type semC sum_state2 th_state2 
+                                          (CSem, Clight.state) (AsmSem, Asm.state) 
+                                          (Sem, semC))
+             (Hthread_mem1 : access_map_equiv (thread_perms tid st1 cnt1) (getCurPerm m1))
+             (Hthread_mem2 : access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2))
+             (thread_compat2 : thread_compat st2 tid cnt2 m2)
+             (abs_proof : permMapLt (fst (getThreadR cnt2)) (getMaxPerm m2)) F
+             (Hat_external2 : at_external CoreSem th_state2 m2 = Some (F, args')), 
+        at_external
+          (sem_coresem (HybridSem (Some (S hb))))
+          sum_state2 (restrPermMap abs_proof) = Some (F, args').
+  Proof.
+    intros.
+    simpl; unfold at_external_sum, sum_func.
+    rewrite <- (restr_proof_irr (th_comp thread_compat2)).
+    rewrite <- Hat_external2; simpl.
+    inversion HState2; subst.
+    - !goal ( Clight.at_external _ = _ _ m2).
+      replace c with th_state2; auto.
+      2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
+      eapply C_at_external_proper; auto.
+      eapply cur_equiv_restr_mem_equiv; auto.
+    - !goal ( Asm.at_external _ _ = _ _ m2).
+      replace c with th_state2; auto.
+      2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
+      simpl.
+      (* why can't I rewrite?*)
+      eapply Asm_at_external_proper; auto.
+      eapply cur_equiv_restr_mem_equiv; auto.
   Qed.
   
 End SimulationTactics.
@@ -1539,7 +1569,7 @@ End SimulationTactics.
 
 Lemma permMapJoin_pair_inject_rel:
   forall angel m1
-    m2 mu  th_perms1 th_perms2,
+         m2 mu  th_perms1 th_perms2,
     sub_map_virtue angel (getMaxPerm m1) ->
     let newThreadPerm1 := computeMap_pair (th_perms1) (virtueThread angel) in
     permMapJoin_pair newThreadPerm1 (virtueLP angel) (th_perms1) ->
@@ -1594,8 +1624,8 @@ Qed.
 
 Lemma delta_map_join_inject_pair2
   : forall (m : mem) (f : meminj) 
-      (A1 A2 B1 B2 : Pair access_map)
-      (C1 C2 : Pair delta_map),
+           (A1 A2 B1 B2 : Pair access_map)
+           (C1 C2 : Pair delta_map),
     Mem.meminj_no_overlap f m ->
     dmap_vis_filtered_pair C1 m ->
     permMapLt_pair A1 (getMaxPerm m) ->
@@ -1610,11 +1640,11 @@ Qed.
 
 Lemma permMapJoin_pair_inject_acq:
   forall m1 lock_perm
-    (* (st1:  mach_state hb)
+         (* (st1:  mach_state hb)
               (st2:  mach_state (S hb)) *)
-    m2 mu  th_perms1 th_perms2 virtueThread
-    (Hangel_bound:
-       pair21_prop sub_map virtueThread (snd (getMaxPerm m1))),
+         m2 mu  th_perms1 th_perms2 virtueThread
+         (Hangel_bound:
+            pair21_prop sub_map virtueThread (snd (getMaxPerm m1))),
     let newThreadPerm1 := computeMap_pair th_perms1 virtueThread in
     permMapJoin_pair lock_perm th_perms1 newThreadPerm1 ->
     forall
@@ -1759,7 +1789,7 @@ Qed.
 
 Lemma maps_no_overlap_Lt:
   forall mu (x:access_map) (y:delta_map) bound
-    (Hno_overlap_bound:map_no_overlap mu bound),
+         (Hno_overlap_bound:map_no_overlap mu bound),
     permMapLt x bound ->
     sub_map y (snd bound) ->
     maps_no_overlap mu x (fun _ : Z => None, y).
@@ -1799,7 +1829,7 @@ Lemma mi_inv_option_implication:
     Mem.mem_inj f m1 m2 ->
     f b1 = Some(b2,delta) ->
     forall ofs p, (getMaxPerm m1) !! b1 ofs = Some p ->
-             option_implication (snd (getMaxPerm m1)) ! b1 (snd (getMaxPerm m2)) ! b2.
+                  option_implication (snd (getMaxPerm m1)) ! b1 (snd (getMaxPerm m2)) ! b2.
 Proof.
   intros; hnf. do 2 (match_case; auto).
   exploit Mem.mi_perm; eauto.
@@ -1836,9 +1866,9 @@ Qed.
 
 Lemma mi_memval_perm_almosequal:
   forall mu m1 m1' m2 m2' adr1 adr2 p_store p delta
-    (Hreadable: forall ofs, Intv.In ofs (snd adr1, snd adr1 + 4) ->
-                       Mem.perm_order' (p_store !! (fst adr1) ofs) Readable)
-    (Hno_over: maps_no_overlap mu p p_store),
+         (Hreadable: forall ofs, Intv.In ofs (snd adr1, snd adr1 + 4) ->
+                                 Mem.perm_order' (p_store !! (fst adr1) ofs) Readable)
+         (Hno_over: maps_no_overlap mu p p_store),
     content_almost_same m1 m1' adr1 ->
     content_almost_same m2 m2' adr2 ->
     mu (fst adr1) = Some (fst adr2, delta) ->
@@ -1889,27 +1919,27 @@ Proof.
 Qed.
 Lemma mi_memval_perm_store:
   forall (b1 b2 : block) v
-    (m1 m1' m2 m2' lock_mem : mem)
-    (perm1 perm1' perm2' : access_map)
-    (delta ofs : Z)
-    (mu : meminj) 
-    (Hinj_b' : mu b1 = Some (b2, delta))
-    (Hlt_th1 : permMapLt perm1 (getMaxPerm m1))
-    (Hinj' : Mem.inject mu m1 m2)
-    (Hmax_eq: Max_equiv lock_mem m1)
-    (Haccess : Mem.range_perm lock_mem b1 ofs (ofs + LKSIZE) Cur Readable)
-    (Hwritable_lock1 : permMapLt
-                         (setPermBlock (Some Writable) b1 ofs perm1' LKSIZE_nat)
-                         (getMaxPerm m1))
-    (Hwritable_lock0 : permMapLt
-                         (setPermBlock (Some Writable) b2 
-                                       (ofs + delta) perm2' LKSIZE_nat) 
-                         (getMaxPerm m2)),
+         (m1 m1' m2 m2' lock_mem : mem)
+         (perm1 perm1' perm2' : access_map)
+         (delta ofs : Z)
+         (mu : meminj) 
+         (Hinj_b' : mu b1 = Some (b2, delta))
+         (Hlt_th1 : permMapLt perm1 (getMaxPerm m1))
+         (Hinj' : Mem.inject mu m1 m2)
+         (Hmax_eq: Max_equiv lock_mem m1)
+         (Haccess : Mem.range_perm lock_mem b1 ofs (ofs + LKSIZE) Cur Readable)
+         (Hwritable_lock1 : permMapLt
+                              (setPermBlock (Some Writable) b1 ofs perm1' LKSIZE_nat)
+                              (getMaxPerm m1))
+         (Hwritable_lock0 : permMapLt
+                              (setPermBlock (Some Writable) b2 
+                                            (ofs + delta) perm2' LKSIZE_nat) 
+                              (getMaxPerm m2)),
     let m_writable_lock_1 := restrPermMap Hwritable_lock1 : mem in
     let m_writable_lock_0 := restrPermMap Hwritable_lock0 : mem in
     forall (Hstore : Mem.store AST.Mint32 m_writable_lock_1 b1 ofs (Vint v) = Some m1')
-      (Hstore0 : Mem.store AST.Mint32 m_writable_lock_0 b2 (ofs + delta) (Vint v) =
-                 Some m2'),
+           (Hstore0 : Mem.store AST.Mint32 m_writable_lock_0 b2 (ofs + delta) (Vint v) =
+                      Some m2'),
       mi_memval_perm mu perm1 (Mem.mem_contents m1) (Mem.mem_contents m2)
       ->
       mi_memval_perm mu perm1 (Mem.mem_contents m1') (Mem.mem_contents m2').
@@ -2023,14 +2053,14 @@ Proof.
 Qed.
 Lemma mi_perm_inv_perm_compute:
   forall v
-    (mu : meminj)
-    (m1 m1' m2 : mem)
-    (perm1 perm2 : access_map)
-    (Hthread_mem1 : access_map_equiv perm1 (getCurPerm m1))
-    (Hthread_mem2 : access_map_equiv perm2 (getCurPerm m2))
-    (Hangel_bound : sub_map v (snd (getMaxPerm m1)))
-    (Hinj' : Mem.inject mu m1 m2)
-    (Hmax_eq0 : Max_equiv m1 m1'),
+         (mu : meminj)
+         (m1 m1' m2 : mem)
+         (perm1 perm2 : access_map)
+         (Hthread_mem1 : access_map_equiv perm1 (getCurPerm m1))
+         (Hthread_mem2 : access_map_equiv perm2 (getCurPerm m2))
+         (Hangel_bound : sub_map v (snd (getMaxPerm m1)))
+         (Hinj' : Mem.inject mu m1 m2)
+         (Hmax_eq0 : Max_equiv m1 m1'),
     mi_perm_inv_perm mu (computeMap perm1 v)
                      (computeMap perm2 (tree_map_inject_over_mem m2 mu v)) m1'.
 Proof.
@@ -2166,7 +2196,7 @@ Lemma virtue_inject_bounded:
     sub_map virt (snd (getMaxPerm m1)) ->
     Mem.meminj_no_overlap mu m1 ->
     (forall b1 b2 delta, mu b1 = Some (b2, delta) ->
-                    Mem.valid_block m2 b2) -> 
+                         Mem.valid_block m2 b2) -> 
     EventsAux.inject_delta_map mu virt (tree_map_inject_over_mem m2 mu virt).
 Proof.
   intros; eapply virtue_inject; eauto.
@@ -2314,6 +2344,18 @@ Ltac forward_cmpt' H:=
   | solve_permMapLt_pair
   | solve_valid_block ];
   idtac.
+
+
+
+Ltac forward_cmpt_add_th H:=
+  let Hcmpt_update_state:= fresh "Hcmpt_update" in
+  eapply (@mem_compatible_fullAddThread _ (TP _)) in H
+    as Hcmpt_update_state; try reflexivity; simpl;
+  [ idtac
+  | eassumption
+  | solve_permMapLt_pair 
+  | solve_permMapLt_pair ];
+  idtac.
 Ltac forward_state_cmpt_all :=
   repeat unfold_state_forward;
   match goal with
@@ -2329,7 +2371,34 @@ Ltac forward_state_cmpt_all :=
          (let H := fresh in
           assert (H : st' = updLockSet (updThread a b c) d e) by reflexivity;
           forward_cmpt' H; try forward_state_cmpt_all; clear M H)
+           
+       | st' := updThread ?cnt ?c ?res : _,
+                                         st'' := addThread ?st' ?f_ptr ?arg ?new_res : _
+                                                 |- _ => 
+                                                 let M := fresh in
+                                                 (mark M st'';
+                                                  (let H := fresh in
+                                                   assert (H : st'' =
+                                                               addThread (updThread cnt c res) f_ptr arg new_res)
+                                                     by reflexivity;
+                                                   forward_cmpt_add_th H; try forward_state_cmpt_all; clear M H))
   end.
+(*Ltac forward_state_cmpt_all :=
+  repeat unfold_state_forward;
+  match goal with
+  | H:?st' = updLockSet (updThread _ _ _) _ _
+    |- _ =>
+    let M := fresh in
+    mark M st'; forward_cmpt' H;
+    try forward_state_cmpt_all; clear M
+  | st':=updLockSet (updThread ?a ?b ?c) ?d ?e:_
+         |- _ => 
+         let M := fresh in
+         mark M st';
+         (let H := fresh in
+          assert (H : st' = updLockSet (updThread a b c) d e) by reflexivity;
+          forward_cmpt' H; try forward_state_cmpt_all; clear M H)
+  end.*)
 (* TODO move this to the highest place possible (there the lmmas are defined?)*)
 Ltac solve_max_equiv:=
   (* solves the following cases:
@@ -2573,8 +2642,8 @@ Ltac solve_unsigned:=
 
 Lemma set_new_mems_inject:
   forall mu m1 m2 n ofs delt b1 b2
-    (new_perms1 new_perms2: Pair access_map)
-    (new_perms11' new_perms12' new_perms21' new_perms22':access_map),
+         (new_perms1 new_perms2: Pair access_map)
+         (new_perms11' new_perms12' new_perms21' new_perms22':access_map),
   forall Hlt11 Hlt12 Hlt21 Hlt22,
     Mem.inject mu (@restrPermMap (fst new_perms1) m1 Hlt11)
                (@restrPermMap (fst new_perms2) m2 Hlt21) ->
@@ -2596,8 +2665,8 @@ Admitted.
 
 Lemma set_new_mems_inject1:
   forall mu m1 m2 n ofs delt b1 b2
-    (new_perms1 new_perms2: Pair access_map)
-    (new_perms11' new_perms12' new_perms21' new_perms22':access_map),
+         (new_perms1 new_perms2: Pair access_map)
+         (new_perms11' new_perms12' new_perms21' new_perms22':access_map),
   forall Hlt11 Hlt12 Hlt21 Hlt22,
     Mem.inject mu (@restrPermMap (fst new_perms1) m1 Hlt11)
                (@restrPermMap (fst new_perms2) m2 Hlt21) ->
@@ -2617,8 +2686,8 @@ Admitted.
 
 Lemma set_new_mems_inject2:
   forall mu m1 m2 n ofs delt b1 b2
-    (new_perms1 new_perms2: Pair access_map)
-    (new_perms11' new_perms12' new_perms21' new_perms22':access_map),
+         (new_perms1 new_perms2: Pair access_map)
+         (new_perms11' new_perms12' new_perms21' new_perms22':access_map),
   forall Hlt11 Hlt12 Hlt21 Hlt22,
     Mem.inject mu (@restrPermMap (fst new_perms1) m1 Hlt11)
                (@restrPermMap (fst new_perms2) m2 Hlt21) ->
@@ -2649,10 +2718,10 @@ Admitted.
 
 Lemma invariant_update_mk:
   forall (Sem : Semantics) (st st' : ThreadPool.t)
-    (h : nat) (laddr : address) new_perms
-    (c : ctl) tid
-    (cnt1: ThreadPool.containsThread st tid)
-    b ofs (Hcnt : ThreadPool.containsThread st h),
+         (h : nat) (laddr : address) new_perms
+         (c : ctl) tid
+         (cnt1: ThreadPool.containsThread st tid)
+         b ofs (Hcnt : ThreadPool.containsThread st h),
     ThreadPool.lockRes st laddr = None ->
     set_new_mems b ofs (ThreadPool.getThreadR cnt1) LKSIZE_nat new_perms ->
     st' = ThreadPool.updLockSet (ThreadPool.updThread Hcnt c  new_perms) laddr

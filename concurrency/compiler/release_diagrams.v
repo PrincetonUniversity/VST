@@ -254,6 +254,7 @@ Section ReleaseDiagrams.
                   st1 tid cnt1 (Kresume sum_state1 Vundef) angel
                   (b, unsigned ofs)) as st1'.
       forward_state_cmpt_all.
+      
       subst st1' st2' virtueLP1 virtueLP2 .
 
 
@@ -367,11 +368,10 @@ Section ReleaseDiagrams.
           eapply Hinj'.
         - intros ? **. 
           exploit mi_inj_mi_perm_perm_Cur; try eapply Hinj_lock; eauto.
-          rewrite Heqlk_mem1. unfold thread_mems; simpl.
-          rewrite getCur_restr.
-          eauto.
+          { rewrite Heqlk_mem1. unfold thread_mems; simpl.
+          rewrite getCur_restr; eauto. }
           rewrite Heqlk_mem2. unfold thread_mems; simpl.
-          rewrite getCur_restr; auto.
+          rewrite getCur_restr. auto.
         - subst angel2;
             eapply inject_perm_perfect_image_dmap; eauto.
           + eapply sub_map_implication_dmap; eauto.

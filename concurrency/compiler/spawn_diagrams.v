@@ -110,7 +110,7 @@ Section SpawnDiagrams.
 
     Lemma perm_perfect_image_computeMap:
       forall mu A B A' B'
-        (Hno_overlapAB: maps_no_overlap mu A (fun _=> None, B)),
+             (Hno_overlapAB: maps_no_overlap mu A (fun _=> None, B)),
         perm_perfect_image mu A A' ->
         perm_perfect_image_dmap mu  B B' ->
         perm_perfect_image mu (computeMap A B) (computeMap A' B').
@@ -210,33 +210,223 @@ Section SpawnDiagrams.
         + rewrite add_zero; auto.
     Qed.
     Lemma permMapJoin_pair_inject_spawn:
-          forall virtue1 virtue_new1 m1
-            m2 mu  th_perms1 th_perms2,
-            sub_map_pair virtue1 (snd (getMaxPerm m1)) ->
-            sub_map_pair virtue_new1 (snd (getMaxPerm m1)) ->
-            let ThreadPerm1 := computeMap_pair th_perms1 virtue1 in
-            let newThreadPerm1 := computeMap_pair (pair0 empty_map) virtue_new1 in
-            permMapJoin_pair newThreadPerm1 ThreadPerm1 th_perms1 ->
-            forall 
-              (Hlt_th1 : permMapLt (fst th_perms1) (getMaxPerm m1))
-              (Hlt_th2 : permMapLt (fst th_perms2) (getMaxPerm m2))
-              (Hlt_lk1 : permMapLt (snd th_perms1) (getMaxPerm m1))
-              (Hlt_lk2 : permMapLt (snd th_perms2) (getMaxPerm m2)),
-              Mem.inject mu (restrPermMap Hlt_th1) (restrPermMap Hlt_th2) ->
-              Mem.inject mu (restrPermMap Hlt_lk1) (restrPermMap Hlt_lk2) ->
-              injects_dmap_pair mu virtue1   ->
-              injects_dmap_pair mu virtue_new1   ->
-              let virtue2 := virtueThread_inject m2 mu virtue1 in
-              let virtue_new2 := virtueThread_inject m2 mu virtue_new1 in
-              let ThreadPerm2 :=  computeMap_pair th_perms2 virtue2 in
-              let newThreadPerm2 := computeMap_pair (pair0 empty_map) virtue_new2 in
-              permMapJoin_pair newThreadPerm2 ThreadPerm2 th_perms2.
-        Proof.
-          (*Move to synchronization_lemmas next to
+      forall virtue1 virtue_new1 m1
+        m2 mu  th_perms1 th_perms2,
+        sub_map_pair virtue1 (snd (getMaxPerm m1)) ->
+        sub_map_pair virtue_new1 (snd (getMaxPerm m1)) ->
+        let ThreadPerm1 := computeMap_pair th_perms1 virtue1 in
+        let newThreadPerm1 := computeMap_pair (pair0 empty_map) virtue_new1 in
+        permMapJoin_pair newThreadPerm1 ThreadPerm1 th_perms1 ->
+        forall 
+          (Hlt_th1 : permMapLt (fst th_perms1) (getMaxPerm m1))
+          (Hlt_th2 : permMapLt (fst th_perms2) (getMaxPerm m2))
+          (Hlt_lk1 : permMapLt (snd th_perms1) (getMaxPerm m1))
+          (Hlt_lk2 : permMapLt (snd th_perms2) (getMaxPerm m2)),
+          Mem.inject mu (restrPermMap Hlt_th1) (restrPermMap Hlt_th2) ->
+          Mem.inject mu (restrPermMap Hlt_lk1) (restrPermMap Hlt_lk2) ->
+          injects_dmap_pair mu virtue1   ->
+          injects_dmap_pair mu virtue_new1   ->
+          let virtue2 := virtueThread_inject m2 mu virtue1 in
+          let virtue_new2 := virtueThread_inject m2 mu virtue_new1 in
+          let ThreadPerm2 :=  computeMap_pair th_perms2 virtue2 in
+          let newThreadPerm2 := computeMap_pair (pair0 empty_map) virtue_new2 in
+          permMapJoin_pair newThreadPerm2 ThreadPerm2 th_perms2.
+    Proof.
+    (*Move to synchronization_lemmas next to
             permMapJoin_pair_inject_rel               
            the rpoof should be similar.*)
-        Admitted.
-    Lemma spawn_step_diagram_self Sem tid m1 m2:
+    Admitted.
+    Lemma concur_match_add_thread:
+      forall i f ocd st1 m1 st2 m2
+        (cnt1 : containsThread st1 i)
+        (cnt2 : containsThread st2 i)
+        c1 c2 th_perms11 th_perms12 th_perms21 th_perms22
+        new_th_perms11 new_th_perms12 new_th_perms21 new_th_perms22
+        b1 b2 ofs1 ofs2 arg1 arg2 delta,
+        concur_match ocd f st1 m1 st2 m2 ->
+
+        
+        let st1' := updThread cnt1 c1 (th_perms11, th_perms12) in
+        let st1'' := addThread st1' (Vptr b1 ofs1) arg1 (new_th_perms11,new_th_perms12) in
+        let st2' := updThread cnt2 c2 (th_perms21,th_perms22) in
+        let st2'' := addThread st2' (Vptr b2 ofs2) arg2 (new_th_perms21,new_th_perms22) in
+        
+        forall (Hmem_compat1: mem_compatible(tpool:=OrdinalThreadPool) st1'' m1)
+          (Hmem_compat2: mem_compatible(tpool:=OrdinalThreadPool) st2'' m2)
+          
+          (Hlock_ppimage: perm_surj f (th_perms12) (th_perms22))
+          (Hlock_ppimage: perm_surj f (new_th_perms12) (new_th_perms22))
+
+          (* Two mem injects for the OLD thread *)
+          (Hlt1 : permMapLt (th_perms11) (getMaxPerm m1))
+          (Hlt2 : permMapLt (th_perms21) (getMaxPerm m2))
+          (Hinj_perms: Mem.inject f (restrPermMap Hlt1) (restrPermMap Hlt2))
+          
+          (Hlt1_lk : permMapLt (th_perms12) (getMaxPerm m1))
+          (Hlt2_lk : permMapLt (th_perms22) (getMaxPerm m2))
+          (Hinj_lock: Mem.inject f (restrPermMap Hlt1_lk) (restrPermMap Hlt2_lk))
+
+          (* Two mem injects for the NEW thread *)
+          (Hlt1_new : permMapLt (new_th_perms11) (getMaxPerm m1))
+          (Hlt2_new : permMapLt (new_th_perms21) (getMaxPerm m2))
+          (Hinj_new_perms: Mem.inject f (restrPermMap Hlt1_new) (restrPermMap Hlt2_new))
+          
+          (Hlt1_lk_new : permMapLt (new_th_perms12) (getMaxPerm m1))
+          (Hlt2_lk_new : permMapLt (new_th_perms22) (getMaxPerm m2))
+          (Hinj_lock_new: Mem.inject f (restrPermMap Hlt1_lk_new) (restrPermMap Hlt2_lk_new))
+          
+          (Hinv1: invariant(tpool:=OrdinalThreadPool) st1'')
+          (Hinv2: invariant(tpool:=OrdinalThreadPool) st2'')
+
+          (* Match NEW thread *)
+          (Hthread_match: one_thread_match hb hb i ocd f  
+                                           c1 (restrPermMap Hlt1)
+                                           c2 (restrPermMap Hlt2))
+
+          (* Match NEW thread *)
+          (Hinj_args: val_inject f arg1 arg2)
+          (Hinj_ptr: f b1 = Some (b2 , delta))
+          (Hinj_ptr: ofs2 = add ofs1 (repr delta)),
+          concur_match ocd f st1'' m1 st2'' m2.
+    Proof.
+      (*This should go in concur_match *)
+    Admitted.
+    Lemma perm_surj_empty:
+      forall mu,
+        perm_surj mu empty_map empty_map.
+    Admitted.
+    (* probably go to advanced permissions *)
+    
+      Definition mi_perm_perm_pair mu:= pair2_prop (mi_perm_perm mu).
+      Hint Unfold mi_perm_perm_pair:pair.
+      Definition dmap_map (dmp:delta_map): PMap.t _ :=
+        (fun _ : Z => None, dmp).
+      Definition dmap_map_pair := pair1 dmap_map.
+      Hint Unfold dmap_map_pair:pair.
+      Hint Unfold sub_map_pair: pair.
+      Lemma computeMap_mi_perm_perm_perfect_pair:
+        forall mu x1 y1 x2 y2,
+        maps_no_overlap_pair mu x1 (dmap_map_pair y1) ->
+       mi_perm_perm_pair mu x1 x2 ->
+       perm_perfect_image_dmap_pair mu y1 y2 ->
+       mi_perm_perm_pair mu (computeMap_pair x1 y1) (computeMap_pair x2 y2).
+      Proof.
+        intros mu. solve_pair.
+        apply computeMap_mi_perm_perm_perfect.
+      Qed.
+      Lemma maps_no_overlap_Lt_pair:
+          forall (mu : meminj) bound,
+            map_no_overlap mu bound ->
+            forall x y,
+            permMapLt_pair x bound ->
+            sub_map_pair y (snd bound) ->
+            maps_no_overlap_pair mu x (dmap_map_pair y).
+        Proof.
+          intros mu bound Hno_over.
+          solve_pair.
+          intros; eapply maps_no_overlap_Lt; eauto.
+        Qed.
+        Lemma empty_LT_pair:
+            forall pmap,
+              permMapLt_pair (pair0 empty_map) pmap.
+          Proof. intros; solve_pair. apply empty_LT. Qed.
+          Lemma mi_perm_perm_empty:
+          forall mu, mi_perm_perm mu (empty_map) (empty_map).
+        Proof. intros ? ? **.
+               rewrite empty_is_empty in H0; inv H0. Qed.
+        Lemma mi_perm_perm_empty_pair:
+          forall mu,
+          mi_perm_perm_pair mu (pair0 empty_map) (pair0 empty_map).
+        Proof. intros mu; solve_pair. apply mi_perm_perm_empty. Qed.
+        Hint Unfold injects_dmap_pair: pair.
+        Lemma inject_perm_perfect_image_dmap_pair:
+          forall (mu : meminj) (m1 m2 : mem), 
+            Mem.inject mu m1 m2 ->
+            forall (dmap : Pair delta_map),
+            option_implication_dmap_access_pair dmap (getMaxPerm m1) ->
+            injects_dmap_pair mu dmap ->
+            perm_perfect_image_dmap_pair mu dmap
+                                         (pair1 (tree_map_inject_over_mem m2 mu) dmap).
+        Proof.
+          intros ??? ?.
+          solve_pair. intros; eapply inject_perm_perfect_image_dmap; eauto.
+        Qed.
+        (* end of advanced_permissions's lemmas*)
+Lemma mi_inj_mi_perm_perm_Cur_backwards:
+            forall mu p1 p2 m1 m2 Hlt1 Hlt2,
+            Mem.mem_inj mu (@restrPermMap p1 m1 Hlt1)
+                        (@restrPermMap p2 m2 Hlt2) ->
+            mi_perm_perm mu p1 p2.
+          Proof.
+            intros. apply mi_inj_mi_perm_perm_Cur in H.
+            do 2 rewrite getCur_restr in H; auto.
+          Qed.
+    
+      Definition mi_memval_perm_pair mu x cont1 cont2:=
+        pair1_prop (fun x=> mi_memval_perm mu x cont1 cont2) x.
+      
+          Definition mi_perm_inv_perm_pair mu pp1 pp2 m:=
+            pair2_prop (fun p1 p2 => mi_perm_inv_perm mu p1 p2 m) pp1 pp2.
+          Lemma mi_memval_perm_computeMap_Lt_pair:
+            forall mu cont1 cont2 p p',
+            mi_memval_perm_pair mu p cont1 cont2 ->
+            permMapLt_pair2 p' p ->
+            mi_memval_perm_pair mu p' cont1 cont2.
+          Proof.
+            unfold mi_memval_perm_pair,permMapLt_pair2.
+            intros ? ? ?. solve_pair.
+            eapply mi_memval_perm_computeMap_Lt.
+          Qed.
+          Lemma mi_inj_mi_memval_perm_backwards:
+              forall (f : meminj) (m1 m2 : mem) p1 p2 Hlt1 Hlt2,
+                Mem.mem_inj f
+                            (@restrPermMap p1 m1 Hlt1)
+                            (@restrPermMap p2 m2 Hlt2) ->
+                mi_memval_perm f p1
+                               (Mem.mem_contents m1) (Mem.mem_contents m2).
+            Proof.
+              intros. eapply mi_inj_mi_memval_perm in H.
+              rewrite getCur_restr in H. simpl in H; eauto.
+            Qed.      
+            Lemma mi_perm_inv_perm_compute_pair:
+              forall mu m1 m2 perm1 perm2 v Hlt11 Hlt12 Hlt21 Hlt22,
+              Mem.inject mu (@restrPermMap (fst perm1) m1 Hlt11)
+                         (@restrPermMap (fst perm2) m2 Hlt21) ->
+              Mem.inject mu (@restrPermMap (snd perm1) m1 Hlt12)
+                         (@restrPermMap (snd perm2) m2 Hlt22) ->
+              sub_map_pair v (snd (getMaxPerm m1)) ->
+              mi_perm_inv_perm_pair
+                mu
+                (computeMap_pair perm1 v)
+                (computeMap_pair perm2
+                                 (pair1 (tree_map_inject_over_mem m2 mu) v)) m1.
+            Proof.
+              intros. split.
+              - simpl; erewrite tree_map_inject_restr.
+                eapply (mi_perm_inv_perm_compute);
+                  try (symmetry; apply getCur_restr);
+                  eauto.
+                + rewrite restr_Max_eq; apply H1.
+                + eapply restr_Max_equiv.
+              - simpl; erewrite tree_map_inject_restr.
+                eapply (mi_perm_inv_perm_compute);
+                  try (symmetry; apply getCur_restr);
+                  eauto.
+                + rewrite restr_Max_eq; apply H1.
+                + eapply restr_Max_equiv.
+            Qed.
+            Lemma inject_empty:
+            forall mu m1 m2 Hlt1 Hlt2,
+               Mem.inject mu m1 m2 ->
+              Mem.inject mu (@restrPermMap empty_map m1 Hlt1)
+                         (@restrPermMap empty_map m2 Hlt2).
+          Proof.
+            intros; eapply inject_restr; auto.
+            - apply mi_perm_perm_empty.
+            - intros ? **. rewrite  empty_is_empty in H1; inv H1.
+            -  intros ? **. rewrite  empty_is_empty in H1; inv H1.
+          Qed.
+            Lemma spawn_step_diagram_self Sem tid m1 m2:
       let CoreSem:= sem_coresem Sem in
       forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
         virtue1 virtue_new1  cd
@@ -272,14 +462,14 @@ Section SpawnDiagrams.
         let st1':= (ThreadPool.updThread cnt1 (Kresume sum_state1 Vundef) ThreadPerm1) in
         let st1'':= (ThreadPool.addThread st1' (Vptr b1 ofs) arg newThreadPerm1) in
         forall (Hcmpt : mem_compatible  st1'' m1)
-               (Hinv' : invariant st1'')
-               (Hangel_bound: sub_map_pair virtue1 (snd (getMaxPerm m1)))
-               (Hangel_bound_new : sub_map_pair virtue_new1 (snd (getMaxPerm m1)))
-               (Amatch : match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2)
-               (Hmatch_mem: match_mem mu m1 m2)
-               (Hat_external: semantics.at_external CoreSem th_state1 m1 =
-                              Some (CREATE, (Vptr b1 ofs :: arg :: nil)%list))
-               (Hjoin_angel: permMapJoin_pair newThreadPerm1 ThreadPerm1 (getThreadR cnt1)),
+          (Hinv' : invariant st1'')
+          (Hangel_bound: sub_map_pair virtue1 (snd (getMaxPerm m1)))
+          (Hangel_bound_new : sub_map_pair virtue_new1 (snd (getMaxPerm m1)))
+          (Amatch : match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2)
+          (Hmatch_mem: match_mem mu m1 m2)
+          (Hat_external: semantics.at_external CoreSem th_state1 m1 =
+                         Some (CREATE, (Vptr b1 ofs :: arg :: nil)%list))
+          (Hjoin_angel: permMapJoin_pair newThreadPerm1 ThreadPerm1 (getThreadR cnt1)),
 
         exists evnt2 (st2'' : t) m2',
           let evnt:= build_spwan_event (b1, unsigned ofs)
@@ -328,12 +518,8 @@ Section SpawnDiagrams.
       
       set (st2' := updThread cnt2 (Kresume sum_state2 Vundef) ThreadPerm2).
       set (st2'' := addThread st2' (Vptr b2 ofs2) arg2 newThreadPerm2).
-      
-      assert (Hcmpt2': mem_compatible(tpool:=OrdinalThreadPool) st2'' m2).
-      { (* Make a Lemma *) 
 
-        admit.  }
-      
+
       remember (build_spwan_event (b2, unsigned ofs2)
                                   (fst virtue2)
                                   (fst virtue_new2)
@@ -360,29 +546,169 @@ Section SpawnDiagrams.
           + apply join_dmap_valid_pair.
             eapply Hangel_bound_new. }
 
+
+      forward_state_cmpt_all.
+      rename Hcmpt_update into Hcmpt2'.
+      rename Hcmpt_update0 into Hcmpt1'.
+
+      assert (Hlt1': permMapLt_pair (ThreadPerm1) (getMaxPerm m1)) by
+          solve_permMapLt_pair.
+      destruct Hlt1' as [Hlt1' Hlt1_lk']. 
+      assert (Hlt2': permMapLt_pair (ThreadPerm2) (getMaxPerm m2)) by
+          solve_permMapLt_pair.
+      destruct Hlt2' as [Hlt2' Hlt2_lk'].
+      assert (Hlt1_new: permMapLt_pair (newThreadPerm1) (getMaxPerm m1)) by
+          solve_permMapLt_pair.
+      destruct Hlt1_new as [Hlt1_new Hlt1_lk_new]. 
+      assert (Hlt2_new: permMapLt_pair (newThreadPerm2) (getMaxPerm m2)) by
+          solve_permMapLt_pair.
+      destruct Hlt2_new as [Hlt2_new Hlt2_lk_new].
+      simpl in *.
+
+      assert (Hmi_perm_perm_new: mi_perm_perm_pair mu newThreadPerm1 newThreadPerm2).
+      { eapply computeMap_mi_perm_perm_perfect_pair.
+        - eapply maps_no_overlap_Lt_pair; eauto.
+          + eapply no_overlap_mem_perm, Hinj.
+          + exact (empty_LT_pair _).
+          + eapply Hangel_bound_new.
+      - exact (mi_perm_perm_empty_pair _).
+      - eapply inject_perm_perfect_image_dmap_pair; eauto.
+        + eapply sub_map_implication_dmap_pair; eauto.
+        + eapply full_inject_dmap_pair; eauto.
+          eapply CMatch.
+          eapply join_dmap_valid_pair, Hangel_bound_new. }
+      
+      assert (Hmi_perm_perm: mi_perm_perm_pair mu ThreadPerm1 ThreadPerm2).
+      { eapply computeMap_mi_perm_perm_perfect_pair.
+        - eapply maps_no_overlap_Lt_pair; eauto.
+          + eapply no_overlap_mem_perm, Hinj.
+          + eapply CMatch.
+          + eapply Hangel_bound.
+        - split; eapply mi_inj_mi_perm_perm_Cur_backwards;
+            eauto.
+          + apply Hinj_th.
+          + apply Hinj_lock.
+      - eapply inject_perm_perfect_image_dmap_pair; eauto.
+        + eapply sub_map_implication_dmap_pair; eauto.
+        + eapply full_inject_dmap_pair; eauto.
+          eapply CMatch.
+          eapply join_dmap_valid_pair, Hangel_bound. }
+
+            
+          assert (Hmemval:
+                    mi_memval_perm_pair mu ThreadPerm1
+                                        (Mem.mem_contents m1) (Mem.mem_contents m2)).
+          { eapply mi_memval_perm_computeMap_Lt_pair.
+            - split; eapply mi_inj_mi_memval_perm_backwards.
+              + eapply Hinj_th.
+              + eapply Hinj_lock.  
+            - eapply permMapJoin_lt_pair2; eauto. }
+          
+          assert (Hmemval_new:
+                    mi_memval_perm_pair mu newThreadPerm1
+                                        (Mem.mem_contents m1) (Mem.mem_contents m2)).
+          { eapply mi_memval_perm_computeMap_Lt_pair.
+            - split; eapply mi_inj_mi_memval_perm_backwards.
+              + eapply Hinj_th.
+              + eapply Hinj_lock.  
+            - eapply permMapJoin_lt_pair2, permMapJoin_pair_comm; eauto. }
+
+          assert (Hmi_perm_inv_perm: (mi_perm_inv_perm_pair
+                                        mu ThreadPerm1
+                                        ThreadPerm2 m1)) by
+              (eapply mi_perm_inv_perm_compute_pair; eauto).
+          
+          assert (Hmi_perm_inv_perm_new: (mi_perm_inv_perm_pair
+                                        mu newThreadPerm1
+                                        newThreadPerm2 m1)).
+          { eapply mi_perm_inv_perm_compute_pair; eauto;
+              eapply inject_empty; eauto. }
+
+      assert (Hinj': Mem.inject mu (restrPermMap Hlt1') (restrPermMap Hlt2')).
+      { apply inject_restr; simpl; eauto.
+        - apply Hmi_perm_perm.
+        - apply Hmemval.
+        - apply Hmi_perm_inv_perm. }
+      
+      assert (Hinj1_lk': Mem.inject mu (restrPermMap Hlt1_lk') (restrPermMap Hlt2_lk')).
+      { apply inject_restr; simpl; eauto.
+        - apply Hmi_perm_perm.
+        - apply Hmemval.
+        - apply Hmi_perm_inv_perm. }
+
+      assert (Hinj_new': Mem.inject mu (restrPermMap Hlt1_new) (restrPermMap Hlt2_new)).
+      { apply inject_restr; simpl; eauto.
+        - apply Hmi_perm_perm_new.
+        - apply Hmemval_new.
+        - apply Hmi_perm_inv_perm_new. }
+      
+      assert (Hinj_new_lk': Mem.inject mu (restrPermMap Hlt1_lk_new) (restrPermMap Hlt2_lk_new)).
+      { apply inject_restr; simpl; eauto.
+        - apply Hmi_perm_perm_new.
+        - apply Hmemval_new.
+        - apply Hmi_perm_inv_perm_new. } 
+
+      
       exists event2, st2'', m2.  
       repeat weak_split. (* 4 goal*)
       - !goal(concur_match _ _ _ _ _ _ ).
-        admit. (* Lemma concur_spawn*)
+
+        unshelve eapply concur_match_add_thread
+          with (Hlt1:=Hlt1')
+            (Hlt2:=Hlt2')
+            (Hlt1_lk:=Hlt1_lk')
+            (Hlt2_lk:=Hlt2_lk')
+            (Hlt1_new:=Hlt1_new)
+            (Hlt2_new:=Hlt2_new)
+            (Hlt1_lk_new:=Hlt1_lk_new)
+            (Hlt2_lk_new:=Hlt2_lk_new); eauto;
+          subst ThreadPerm1 ThreadPerm2; simpl.
+        + !goal(perm_surj _ _ _).
+          eapply perm_surj_compute.
+          * eapply CMatch.
+          * eapply inject_perm_perfect_image_dmap; eauto.
+            -- eapply sub_map_implication_dmap; eapply Hangel_bound.
+            -- eapply full_inject_dmap.
+               ++ eapply CMatch.
+               ++ eapply join_dmap_valid; eapply Hangel_bound.
+        + !goal(perm_surj _ _ _).
+          eapply perm_surj_compute.
+          * simpl. 
+            exact (perm_surj_empty _).
+          * eapply inject_perm_perfect_image_dmap; eauto.
+            -- eapply sub_map_implication_dmap; eapply Hangel_bound_new.
+            -- eapply full_inject_dmap.
+               ++ eapply CMatch.
+               ++ eapply join_dmap_valid; eapply Hangel_bound_new.
+        + !goal(invariant _). admit. (* HERE sat *)
+        + !context_goal one_thread_match. admit.
+          
       - subst event2. repeat econstructor; eauto.
       - !goal (syncStep _ _ _ _ _ _).
         
         (* Goal: show the source-external-step*)
         (* get the memory and injection *)
 
-        subst event2 ; unfold build_release_event.
-        
+        (* set the event in the right shape *)
+        match goal with
+          |- syncStep _ _ _ _ _ ?ev =>
+          match type of ev with
+            ?T => evar (ev_new: T);
+                   replace ev with ev_new; unfold ev_new
+          end
+        end.
+
         eapply step_create;
           match goal with
             |- val_inject _ _ _ => idtac
           | |- _ => eauto; try reflexivity
           end.
-        + eapply inject_virtue_sub_map_pair'; eauto.
+        + eapply inject_virtue_sub_map_pair'; eauto. (*
           * apply Hinj_lock.
-          * apply Hangel_bound.
-        + eapply inject_virtue_sub_map_pair'; eauto.
+          * apply Hangel_bound. *)
+        + eapply inject_virtue_sub_map_pair'; eauto. (*
           * apply Hinj_lock.
-          * apply Hangel_bound_new.
+          * apply Hangel_bound_new. *)
         + eapply CMatch.
         + !goal (semantics.at_external _ _ _ = Some (CREATE, _)).
           { eapply at_external_sum_sem; eauto. }
@@ -392,6 +718,7 @@ Section SpawnDiagrams.
             eapply Hjoin_angel2. }
         + { simpl. subst ThreadPerm2 newThreadPerm2 virtue2 virtue_new2.
             eapply Hjoin_angel2. }
+          
     Admitted.
 
     Lemma spawn_step_diagram_compiled:
@@ -423,13 +750,13 @@ Section SpawnDiagrams.
         let st1':= (ThreadPool.updThread cnt1 (Kresume c Vundef) ThreadPerm1) in
         let st1'':= (ThreadPool.addThread st1' (Vptr b1 ofs) arg newThreadPerm1) in
         forall (Hcmpt : mem_compatible  st1'' m1)
-          (Hinv' : invariant st1'')
-          (Hangel_bound: pair21_prop sub_map virtue1 (snd (getMaxPerm m1)))
-          (Hangel_bound_new : pair21_prop sub_map virtue_new1 (snd (getMaxPerm m1)))
-          (Hat_external: semantics.at_external hybrid_sem (SST code1) m1 =
-                         Some (CREATE, (Vptr b1 ofs :: arg :: nil)%list))
-          (Hjoin_angel: permMapJoin_pair newThreadPerm1 ThreadPerm1 (getThreadR cnt1))
-          (Hstrict: strict_evolution_diagram cd mu code1 m10 m1 code2 m2),
+               (Hinv' : invariant st1'')
+               (Hangel_bound: pair21_prop sub_map virtue1 (snd (getMaxPerm m1)))
+               (Hangel_bound_new : pair21_prop sub_map virtue_new1 (snd (getMaxPerm m1)))
+               (Hat_external: semantics.at_external hybrid_sem (SST code1) m1 =
+                              Some (CREATE, (Vptr b1 ofs :: arg :: nil)%list))
+               (Hjoin_angel: permMapJoin_pair newThreadPerm1 ThreadPerm1 (getThreadR cnt1))
+               (Hstrict: strict_evolution_diagram cd mu code1 m10 m1 code2 m2),
 
         exists evnt2 (st2'' : t) m2',
           let evnt:= build_spwan_event (b1, unsigned ofs)
@@ -483,11 +810,6 @@ Section SpawnDiagrams.
       { eapply address_inject_max; eauto. } 
 
       
-      assert (Hcmpt2': mem_compatible(tpool:=OrdinalThreadPool) st2'' m2).
-      { (* Make a Lemma *) 
-
-        admit.  }
-
       
       remember (build_spwan_event (b2, unsigned ofs2)
                                   (fst virtue2)
@@ -513,7 +835,11 @@ Section SpawnDiagrams.
           + apply CMatch.
           + apply join_dmap_valid_pair.
             eapply Hangel_bound_new. }
-
+      
+      forward_state_cmpt_all.
+      rename Hcmpt_update into Hcmpt2'.
+      rename Hcmpt_update0 into Hcmpt1'.
+      
       
       (** * 4. Finally we proceed with the goal: existentials. *)
       
@@ -556,26 +882,26 @@ Section SpawnDiagrams.
 
           Unshelve.
           all: auto.
-      
-      
+          
+          
     Admitted.
 
     
     Lemma spawn_step_diagram:
       let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
       forall virtue1 virtue_new1 (m1 m2 : mem) (tid : nat) cd
-        (mu : meminj) (st1 : ThreadPool (Some hb)) 
-        (st2 : ThreadPool (Some (S hb)))
-        (cnt1 : ThreadPool.containsThread(Sem:=HybridSem _) st1 tid)
-        (cnt2 : containsThread(Sem:=HybridSem _) st2 tid)
-        (c : semC) (b : block) (ofs : int) arg
-        (Hthread_mem1: access_map_equiv (thread_perms _ _ cnt1) (getCurPerm m1))
-        (Hthread_mem2: access_map_equiv (thread_perms _ _ cnt2) (getCurPerm m2))
-        (CMatch: concur_match cd mu st1 m1 st2 m2)
-        (Hvalid_pointer: Mem.perm m1 b (unsigned ofs) Max Nonempty)
-        (Hnot_undef_arg: arg <> Vundef)
-        (Hcode: getThreadC cnt1 = Kblocked c)
-        (Harg : val_inject (Mem.flat_inj (Mem.nextblock m1)) arg arg),
+             (mu : meminj) (st1 : ThreadPool (Some hb)) 
+             (st2 : ThreadPool (Some (S hb)))
+             (cnt1 : ThreadPool.containsThread(Sem:=HybridSem _) st1 tid)
+             (cnt2 : containsThread(Sem:=HybridSem _) st2 tid)
+             (c : semC) (b : block) (ofs : int) arg
+             (Hthread_mem1: access_map_equiv (thread_perms _ _ cnt1) (getCurPerm m1))
+             (Hthread_mem2: access_map_equiv (thread_perms _ _ cnt2) (getCurPerm m2))
+             (CMatch: concur_match cd mu st1 m1 st2 m2)
+             (Hvalid_pointer: Mem.perm m1 b (unsigned ofs) Max Nonempty)
+             (Hnot_undef_arg: arg <> Vundef)
+             (Hcode: getThreadC cnt1 = Kblocked c)
+             (Harg : val_inject (Mem.flat_inj (Mem.nextblock m1)) arg arg),
         let ThreadPerm1:= (computeMap_pair (getThreadR cnt1) virtue1) in
         let newThreadPerm1:= (computeMap_pair (pair0 empty_map) virtue_new1) in
 
