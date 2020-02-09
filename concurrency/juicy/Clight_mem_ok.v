@@ -876,6 +876,87 @@ auto.
 rewrite H9 in H4; auto.
 Qed.
 
+Lemma perm_maxedmem:
+ forall m b z k p,
+  Mem.perm (maxedmem m) b z k p = Mem.perm m b z Max p.
+Proof.
+intros.
+unfold Mem.perm.
+f_equal.
+unfold maxedmem.
+forget (mem_max_lt_max m) as H.
+Admitted.
+
+Lemma perm_eq_maxedmem_perm_eq:
+  forall m m',
+  Mem.perm m = Mem.perm m' ->
+  Mem.perm (maxedmem m) = Mem.perm (maxedmem m').
+Proof.
+intros.
+extensionality b z k p.
+assert (Mem.perm m b z Max p = Mem.perm m' b z Max p) by (intros; congruence).
+clear H.
+rewrite !perm_maxedmem.
+auto.
+Qed.
+
+Lemma storebytes_wellformed:
+ forall m b z ch v m',
+ Mem.inject_neutral (Mem.nextblock m) (maxedmem m) ->
+ val_wellformed (Mem.nextblock m) v ->
+ Mem.storebytes m b z (encode_val ch v)  = Some m' ->
+ Mem.inject_neutral (Mem.nextblock m') (maxedmem m').
+Proof.
+intros.
+assert (Hnext := Mem.nextblock_storebytes _ _ _ _ _ H1).
+rewrite Hnext.
+assert (Hperm: Mem.perm m' = Mem.perm m). {
+  extensionality b' z' k p.
+  apply prop_ext.
+  split. eapply Mem.perm_storebytes_2; eauto.
+      eapply Mem.perm_storebytes_1; eauto.
+}
+constructor.
+-
+intros.
+apply mem_lemmas.flatinj_E in H2.
+destruct H2 as [? [? ?]]; subst.
+rewrite Z.add_0_r.
+auto.
+-
+intros.
+apply mem_lemmas.flatinj_E in H2.
+destruct H2 as [? [? ?]]; subst.
+apply Z.divide_0_r.
+-
+intros.
+apply mem_lemmas.flatinj_E in H2.
+destruct H2 as [? [? ?]]; subst.
+simpl.
+apply Mem.storebytes_mem_contents in H1.
+rewrite H1.
+clear H1.
+destruct (eq_block b1 b).
+subst.
+rewrite PMap.gss.
+rewrite <- (Z.add_0_r z) at 2.
+eapply (Mem.setN_inj (fun q => Mem.perm (maxedmem m) b q Cur Readable)).
+apply encode_val_inject; auto.
+intros.
+apply H; auto.
+apply mem_lemmas.flatinj_I; auto.
+rewrite perm_maxedmem in H3|-*.
+rewrite <- Hperm; auto.
+rewrite PMap.gso by auto.
+change (Mem.mem_contents m) with (Mem.mem_contents (maxedmem m)).
+hnf in H.
+apply Mem.mi_memval; auto.
+apply mem_lemmas.flatinj_I; auto.
+replace (Mem.perm (maxedmem m)) with (Mem.perm (maxedmem m')); auto.
+clear - Hperm.
+apply perm_eq_maxedmem_perm_eq; auto.
+Qed.
+
 Lemma maxedmem_neutral_x:
   forall m : mem,
   Mem.inject_neutral (Mem.nextblock m) m ->
@@ -1141,15 +1222,17 @@ replace (Mem.nextblock m') with (Mem.nextblock m).
     apply Mem.nextblock_storebytes in H9; auto.
 }
 split; [ | split3]; auto.
-clear - H2 H4.
+apply eval_expr_wellformed in H1; auto.
+eapply sem_cast_wellformed in H3; eauto.
+clear - H2 H4 H3.
 inv H4; destruct H2; split; auto.
-clear - H0 H1.
-unfold Mem.storev in H0.
-admit.
+clear - H0 H1 H3.
+apply Mem.store_storebytes in H0.
+eapply storebytes_wellformed; eauto.
 apply Mem.nextblock_store in H0; rewrite H0; auto.
-clear - H2 H6.
-admit.
-apply Mem.nextblock_storebytes in H6; rewrite H6; auto.
+eapply loadbytes_storebytes_wellformed; try eassumption.
+split; eauto.
+apply Mem.nextblock_storebytes in H7; rewrite H7; auto.
 - (* set *)
 eapply eval_expr_wellformed in H; eauto.
 intros ? ? ?.
@@ -1226,7 +1309,7 @@ split3; auto.
 split; auto.
 destruct optid; simpl; auto.
 apply set_tenv_wellformed; auto.
-Admitted.
+Qed.
 
 Lemma initial_core_wellformed:
   forall ge v args c m,
@@ -1234,8 +1317,28 @@ Lemma initial_core_wellformed:
      Clight_core.arg_well_formed args m ->
      Smallstep.globals_not_fresh ge m ->
      core_wellformed (Mem.nextblock m) c.
-Proof.
   (* Clight_self_simulation needs a weaker version of this, 
      where the initial state is injected (by any injection, not necessarily flat. *)
-Admitted.
+Proof.
+intros.
+hnf in H.
+destruct v; try contradiction.
+if_tac in H; try contradiction.
+subst i.
+destruct (Genv.find_funct_ptr ge b) eqn:?H; try contradiction.
+destruct (type_of_fundef f) eqn:?H; try contradiction.
+destruct H as [? [? [? [? [? ?]]]]]; subst.
+split.
+-
+hnf in H0.
+clear - H0.
+induction args.
+constructor.
+inv H0.
+apply IHargs in H5.
+constructor; auto.
+-
+apply I.
+Qed.
+
 
