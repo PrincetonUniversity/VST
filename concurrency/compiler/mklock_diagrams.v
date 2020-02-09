@@ -821,8 +821,7 @@ Section MklockDiagrams.
             
             eapply large_external_diagram; try reflexivity; eauto.
             - eapply makelock_is_consec.
-            - 
-              eapply mklock_doesnt_return.
+            - eapply mklock_doesnt_return.
             - reflexivity.
             - eapply inject_delta_map_empty.
             - simpl. rewrite MakeLockExists.
