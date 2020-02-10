@@ -75,12 +75,23 @@ Proof.
 Qed.
 
 
+
+
+
 (*sync steps semantics *)
 
 Definition build_release_event addr dmap m:=
   Events.release addr (Some (build_delta_content dmap m)).
 Definition build_acquire_event addr dmap m:=
   Events.acquire addr (Some (build_delta_content dmap m)).
+Definition build_spwan_event addr dmap1 dmap2 m:=
+  Events.spawn addr (Some (build_delta_content dmap1 m))
+               (Some (build_delta_content dmap2 m)).
+    
+    
+
+
+
 
 (*TODO: Check if these guys are used/useful*)
 Inductive release: val -> mem -> delta_map ->  mem -> Prop  :=
@@ -135,6 +146,10 @@ Inductive freelock: val -> mem ->  mem -> Prop  :=
       m'' = @restrPermMap new_perm m' Hlt ->
       freelock (Vptr b ofs) m m''.
 
+Inductive spawn: val -> mem -> delta_map -> mem -> Prop :=
+  SpawnAngel: forall b ofs dpm m m' new_perms,
+    new_perms = computeMap (getCurPerm m) dpm ->
+    spawn (Vptr b ofs) m dpm m'.
 
 Inductive extcall_release: Events.extcall_sem:=
 | ExtCallRelease:
@@ -174,6 +189,20 @@ Inductive extcall_freelock: Events.extcall_sem:=
       extcall_freelock ge (Vptr b ofs :: nil) m
                        (Events.Event_acq_rel e empty_dmap e' :: nil)
                        Vundef m'''.
+Inductive extcall_spawn : Events.extcall_sem:=
+      ExtCallSpawn : forall 
+        (ge : Senv.t) (m m' m'' m''' : mem)
+        (b : block) (ofs : ptrofs) arg
+        (e : list Events.mem_effect)
+        (dpm : delta_map)
+        (e' : list Events.mem_effect),
+        mem_interference m e m' ->
+        spawn (Vptr b ofs) m' dpm m'' ->
+        mem_interference m'' e' m''' ->
+        extcall_spawn ge (Vptr b ofs::arg :: nil)
+                      m (Events.Event_acq_rel e dpm e' :: nil)
+                      Vundef m'''.
+
 
 Axiom ReleaseExists:
   forall ge args m ev r m',
@@ -195,6 +224,11 @@ Axiom FreeLockExists:
     Events.external_functions_sem "freelock" UNLOCK_SIG
                                   ge args m ev r m' =
     extcall_freelock ge args m ev r m'.
+Axiom SpawnExists
+  : forall (ge : Senv.t) (args : list val) (m : mem) (ev : Events.trace) 
+      (r : val) (m' : mem),
+    Events.external_functions_sem "spawn" CREATE_SIG ge args m ev r m' =
+    extcall_spawn ge args m ev r m'.
 
 
 
@@ -239,6 +273,8 @@ Proof.
   rewrite FreeLockExists in Hext_call.
   inversion Hext_call; reflexivity.
 Qed.
+Lemma spawn_doesnt_return: doesnt_return CREATE.
+Admitted.
 
 (* "consecutive" *)
 
@@ -295,3 +331,7 @@ Proof. pose proof FreeLockExists; intros ? **; subst.
            apply Mem.nextblock_store in Hstore; rewrite Hstore.
            reflexivity.
 Qed.
+
+Lemma spawn_is_consec: consecutive_sem "spawn" CREATE_SIG.
+Admitted. 
+    

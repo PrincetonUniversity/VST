@@ -980,7 +980,65 @@ Section ConcurMatch.
           admit.
         - intros. admit.
       Admitted.
+      
 
+    Lemma concur_match_add_thread: 
+      forall i f (ocd: option (@compiler_index CC_correct Args))
+        st1 m1 st2 m2
+        (cnt1 : containsThread st1 i)
+        (cnt2 : containsThread st2 i)
+        c1 c2 th_perms11 th_perms12 th_perms21 th_perms22
+        new_th_perms11 new_th_perms12 new_th_perms21 new_th_perms22
+        b1 b2 ofs1 ofs2 arg1 arg2 delta,
+        concur_match ocd f st1 m1 st2 m2 ->
+
+        
+        let st1' := updThread cnt1 c1 (th_perms11, th_perms12) in
+        let st1'' := addThread st1' (Vptr b1 ofs1) arg1 (new_th_perms11,new_th_perms12) in
+        let st2' := updThread cnt2 c2 (th_perms21,th_perms22) in
+        let st2'' := addThread st2' (Vptr b2 ofs2) arg2 (new_th_perms21,new_th_perms22) in
+        
+        forall (Hmem_compat1: mem_compatible(tpool:=OrdinalThreadPool) st1'' m1)
+               (Hmem_compat2: mem_compatible(tpool:=OrdinalThreadPool) st2'' m2)
+               
+               (Hlock_ppimage: perm_surj f (th_perms12) (th_perms22))
+               (Hlock_ppimage: perm_surj f (new_th_perms12) (new_th_perms22))
+
+               (* Two mem injects for the OLD thread *)
+               (Hlt1 : permMapLt (th_perms11) (getMaxPerm m1))
+               (Hlt2 : permMapLt (th_perms21) (getMaxPerm m2))
+               (Hinj_perms: Mem.inject f (restrPermMap Hlt1) (restrPermMap Hlt2))
+               
+               (Hlt1_lk : permMapLt (th_perms12) (getMaxPerm m1))
+               (Hlt2_lk : permMapLt (th_perms22) (getMaxPerm m2))
+               (Hinj_lock: Mem.inject f (restrPermMap Hlt1_lk) (restrPermMap Hlt2_lk))
+
+               (* Two mem injects for the NEW thread *)
+               (Hlt1_new : permMapLt (new_th_perms11) (getMaxPerm m1))
+               (Hlt2_new : permMapLt (new_th_perms21) (getMaxPerm m2))
+               (Hinj_new_perms: Mem.inject f (restrPermMap Hlt1_new) (restrPermMap Hlt2_new))
+               
+               (Hlt1_lk_new : permMapLt (new_th_perms12) (getMaxPerm m1))
+               (Hlt2_lk_new : permMapLt (new_th_perms22) (getMaxPerm m2))
+               (Hinj_lock_new: Mem.inject f (restrPermMap Hlt1_lk_new) (restrPermMap Hlt2_lk_new))
+               
+               (Hinv1: invariant(tpool:=OrdinalThreadPool) st1'')
+               (Hinv2: invariant(tpool:=OrdinalThreadPool) st2'')
+
+               (* Match NEW thread *)
+               (Hthread_match: one_thread_match hb i ocd f  
+                                                c1 (restrPermMap Hlt1)
+                                                c2 (restrPermMap Hlt2))
+
+               (* Match NEW thread *)
+               (Hinj_args: Val.inject f arg1 arg2)
+               (Hinj_ptr: f b1 = Some (b2 , delta))
+               (Hinj_ptr: ofs2 = add ofs1 (repr delta)),
+          concur_match ocd f st1'' m1 st2'' m2.
+    Proof.
+      (*This should go in concur_match *)
+    Admitted.
+    
       Lemma mem_compat_upd:
         forall hb tid st cnt c m,
           @mem_compatible (HybridSem hb) _ st m ->

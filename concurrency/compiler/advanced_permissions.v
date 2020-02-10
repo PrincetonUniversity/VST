@@ -2967,3 +2967,347 @@ Proof.
   specialize (H1 b ofs). normal_hyp.
   eexists. rewrite <- H, <- H0; eauto.
 Qed.
+
+
+Lemma perm_perfect_image_computeMap:
+  forall mu A B A' B'
+    (Hno_overlapAB: maps_no_overlap mu A (fun _=> None, B)),
+    perm_perfect_image mu A A' ->
+    perm_perfect_image_dmap mu  B B' ->
+    perm_perfect_image mu (computeMap A B) (computeMap A' B').
+Proof.
+  intros.
+  econstructor;
+    intros ? **; unfold at_least_Some in *;
+    simpl in *.
+  - match_case in H1; clear H1.
+    rewrite computeMap_get in Heqo.
+    match_case in Heqo.
+    + exploit @p_image_dmap; eauto.
+      { rewrite Heqo0; constructor. }
+      intros HH; normal; eauto.
+      rewrite computeMap_get.
+      rewrite <- H2, Heqo0; auto.
+    + exploit @p_image; eauto.
+      { rewrite Heqo; constructor. }
+      intros HH; normal; eauto.
+      rewrite computeMap_get.
+      rewrite <- H2, Heqo.
+      match_case; auto.
+      exploit @ppre_perfect_image_dmap; eauto.
+      { rewrite Heqo1; constructor. }
+      intros HH; normal.
+      rewrite Heqo1 in H5; symmetry in H5.
+      destruct (peq b1 x1).
+      * subst; unify_injection.
+        replace x2 with ofs in H5 by omega.
+        rewrite H5 in Heqo0; congruence.
+      * (* NO OVERLAP *)
+        clear - Heqo0 Hno_overlapAB n Heqo H5 H4 H1 H3.
+        exploit Hno_overlapAB; try exact n; eauto;
+          try (rewrite Heqo; constructor);
+          try rewrite computeMap_get.
+        -- unfold dmap_get in H5.
+           instantiate(1:=x2).
+           unfold delta_map in *.
+           rewrite H5. constructor.
+        -- intros [ | ]; congruence.
+  - match_case in H1; clear H1.
+    rewrite computeMap_get in Heqo.
+    match_case in Heqo.
+    + exploit @ppre_perfect_image_dmap; eauto.
+      { rewrite Heqo0; constructor. }
+      intros HH; normal; eauto.
+      rewrite computeMap_get.
+      rewrite <- H3, Heqo0; auto.
+    + exploit @ppre_perfect_image; eauto.
+      { rewrite Heqo; constructor. }
+      intros HH; normal; eauto.
+      rewrite computeMap_get.
+      rewrite <- H3, Heqo.
+      match_case; auto.
+      exploit @p_image_dmap; eauto.
+      { rewrite Heqo1; constructor. }
+      intros HH; normal.
+      unify_injection. subst.
+      rewrite <- H5,Heqo1 in Heqo0. congruence.
+
+Qed.
+Lemma maps_no_overlap_option_impl:
+  forall {A B1 B2} mu m p1 p2,
+    map_no_overlap mu m ->
+    (forall b ofs, @option_implication B1 A (p1 !! b ofs) (m !! b ofs)) ->
+    (forall b ofs, @option_implication B2 A (p2 !! b ofs) (m !! b ofs)) ->
+    maps_no_overlap mu p1 p2.
+Proof.
+  intros ** ? **; eapply H; eauto.
+  - unfold at_least_Some in *; simpl in *.
+    specialize (H0 b1 ofs1).
+    match_case in H5.
+  - unfold at_least_Some in *; simpl in *.
+    specialize (H1 b2 ofs2).
+    match_case in H6.
+Qed.
+Lemma perm_perfect_imageempty_map:
+  forall mu, perm_perfect_image mu empty_map empty_map.
+Proof.
+Admitted.
+Lemma perm_surj_empty:
+  forall mu,
+    perm_surj mu empty_map empty_map.
+Admitted.
+
+Lemma computeMap_mi_perm_perm_perfect:
+  forall mu x1 y1 x2 y2,
+    @maps_no_overlap permission _ mu x1 (fun _ : Z => None, y1) ->
+    mi_perm_perm mu x1 x2 ->
+    perm_perfect_image_dmap mu y1 y2 ->
+    mi_perm_perm mu (computeMap x1 y1) (computeMap x2 y2).
+Proof.
+  intros ** ????? HH;
+    unfold Mem.perm_order'; simpl; intros.
+  rename H into Hno_overlap.
+  rename H0 into Hperm.
+  rename H1 into HHH.
+  rename H2 into H.
+  match_case in H.
+  rewrite computeMap_get in *.
+  match_case in Heqo; subst.
+  - match_case.
+    + exploit HHH; clear HHH; eauto. 
+      intros HHH; destruct HHH.
+      exploit @p_image_dmap;
+        try eapply at_least_Some_trivial; eauto.
+      econstructor; eauto.
+      intros; normal.
+      unify_injection.
+      rewrite <- H1, Heqo0 in Heqo; inv Heqo; auto.
+    + exploit HHH; clear HHH; eauto. 
+      intros HHH; destruct HHH.
+      exploit @p_image_dmap; try 
+                              eapply at_least_Some_trivial; eauto.
+      econstructor; eauto.
+      intros; normal.
+      unify_injection.
+      rewrite <- H1, Heqo0 in Heqo; inv Heqo; auto.
+  - match_case.
+    + exploit HHH; clear HHH; eauto. 
+      intros HHH; destruct HHH.
+      match_case in Heqo1; subst.
+      * exploit @ppre_perfect_image_dmap;
+          try eapply at_least_Some_trivial; eauto.
+        econstructor; eauto.
+      
+        intros; normal.
+        rewrite Heqo2 in H2; symmetry in H2.
+        (*  H2 : dmap_get y1    x  x0  = Some (Some p1)
+                          Heqo :     x1 !!    b1 ofs = Some p0 *)
+        destruct (base.block_eq_dec b1 x); subst.
+        { (* b1 = x *)
+          unify_injection.
+          replace x0 with ofs in H2 by omega.
+          rewrite H2 in Heqo0. inv Heqo0; inv Heqo0.
+        }
+        {(*b1 <> x, use no_overlap*)
+          unfold dmap_get in *.
+          exploit Hno_overlap; try rewrite Heqo; try rewrite H2; eauto.
+          constructor.
+          replace ((fun _ : Z => None, y1) !! x _) with (Some (Some p1)); eauto.
+          constructor.
+          intros [? | ?]; tauto.
+        }
+      * exploit Hperm; eauto.
+        rewrite Heqo; constructor.
+        rewrite Heqo1; intros.
+        eapply perm_order_trans; eauto.
+    + match_case in Heqo1; subst.
+      * destruct HHH.
+        exploit @ppre_perfect_image_dmap.
+        econstructor; eauto.
+        rewrite Heqo2; constructor.
+        
+        intros; normal.
+        rewrite Heqo2 in H2; symmetry in H2.
+        destruct (base.block_eq_dec b1 x); subst.
+        { (* b1 = x *)
+          unify_injection.
+          replace x0 with ofs in H2 by omega.
+          rewrite H2 in Heqo0. inv Heqo0; inv Heqo0.
+        }
+        { (* b1 <> x *)
+          
+          (*
+                        y1 !! b1 ofs = None     \
+                        x1 !! b1 ofs = Some p0  / (x1+y1) !! b1 ofs = Some p0
+                        
+                        y1 !! x  x0  = Some None
+                        
+                        x2 !! b2 (ofs + delta) = ??         \
+                        y2 !! b2 (ofs + delta) = Some None  /  (x2+y2) !! b2 (ofs+delta) = None
+ 
+
+           *)
+          unfold dmap_get in *.
+          exploit Hno_overlap; try rewrite Heqo; try rewrite H2; eauto.
+          constructor.
+          replace ((fun _ : Z => None, y1) !! x _) with
+              (Some (@None permission)); eauto.
+          constructor.
+          intros [? | ?]; tauto.
+        }
+      * exploit Hperm; eauto.
+        rewrite Heqo; constructor.
+        rewrite Heqo1; intros. inv H1.
+Qed.
+
+ Definition mi_perm_perm_pair mu:= pair2_prop (mi_perm_perm mu).
+    Hint Unfold mi_perm_perm_pair:pair.
+    Definition dmap_map (dmp:delta_map): PMap.t _ := (fun _ : Z => None, dmp).
+    Definition dmap_map_pair := pair1 dmap_map.
+    Hint Unfold dmap_map_pair:pair.
+    Hint Unfold sub_map_pair: pair.
+    Lemma computeMap_mi_perm_perm_perfect_pair:
+      forall mu x1 y1 x2 y2,
+        maps_no_overlap_pair mu x1 (dmap_map_pair y1) ->
+        mi_perm_perm_pair mu x1 x2 ->
+        perm_perfect_image_dmap_pair mu y1 y2 ->
+        mi_perm_perm_pair mu (computeMap_pair x1 y1) (computeMap_pair x2 y2).
+    Proof.
+      intros mu. solve_pair.
+      apply computeMap_mi_perm_perm_perfect.
+    Qed.
+
+    
+Lemma sub_map_sub_map':
+  forall A B x y, @sub_map A B x y -> sub_map' x y.
+Proof.
+  intros **?**.
+  repeat hnf in *.
+  revert p y H H0.
+  induction x.
+  - intros; simpl in H0.
+    unfold PTree.get in H0; simpl in H0.
+    destruct p; try congruence.
+  - intros; hnf in H; match_case in H; subst y.
+    normal_hyp.
+    destruct p; simpl in H0.
+    + simpl; exploit IHx2; eauto.
+    + simpl; exploit IHx1; eauto.
+    + subst o.
+      simpl in H; match_case in H.
+      subst o0. simpl.
+      do 2 econstructor; eauto.
+Qed.
+Lemma maps_no_overlap_Lt:
+  forall mu (x:access_map) (y:delta_map) bound
+         (Hno_overlap_bound:map_no_overlap mu bound),
+    permMapLt x bound ->
+    sub_map y (snd bound) ->
+    maps_no_overlap mu x (fun _ : Z => None, y).
+Proof.
+  intros ** ? **.
+  assert (Hb1:at_least_Some (bound !! b1 ofs1)).
+  { clear - H H4.
+    hnf in H4; match_case in H4.
+    specialize (H b1 ofs1).
+    rewrite Heqo in H.
+    hnf; match_case. inv H.
+  }
+  assert (Hb2:at_least_Some (bound !! b2 ofs2)).
+  { clear - H5 H0.
+    hnf in H5; match_case in H5.
+    hnf; match_case.
+    unfold PMap.get in *. match_case in Heqo.
+    simpl in *.
+    eapply sub_map_sub_map' in H0. exploit H0; eauto.
+    intros; normal.
+    rewrite H in Heqo0.
+    specialize (H1 ofs2).
+    rewrite Heqo0, Heqo in H1; simpl in H1.
+    eapply ssrbool.not_false_is_true; eauto. }
+  eapply Hno_overlap_bound; eauto.
+Qed.
+    Lemma maps_no_overlap_Lt_pair:
+      forall (mu : meminj) bound,
+        map_no_overlap mu bound ->
+        forall x y,
+          permMapLt_pair x bound ->
+          sub_map_pair y (snd bound) ->
+          maps_no_overlap_pair mu x (dmap_map_pair y).
+    Proof.
+      intros mu bound Hno_over.
+      solve_pair.
+      intros; eapply maps_no_overlap_Lt; eauto.
+    Qed.
+    Lemma empty_LT_pair:
+      forall pmap,
+        permMapLt_pair (pair0 empty_map) pmap.
+    Proof. intros; solve_pair. apply empty_LT. Qed.
+    Lemma mi_perm_perm_empty:
+      forall mu, mi_perm_perm mu (empty_map) (empty_map).
+    Proof. intros ? ? **.
+           rewrite empty_is_empty in H0; inv H0. Qed.
+    Lemma mi_perm_perm_empty_pair:
+      forall mu,
+        mi_perm_perm_pair mu (pair0 empty_map) (pair0 empty_map).
+    Proof. intros mu; solve_pair. apply mi_perm_perm_empty. Qed.
+    
+
+        Lemma mi_inj_mi_perm_perm_Cur_backwards:
+      forall mu p1 p2 m1 m2 Hlt1 Hlt2,
+        Mem.mem_inj mu (@restrPermMap p1 m1 Hlt1)
+                    (@restrPermMap p2 m2 Hlt2) ->
+        mi_perm_perm mu p1 p2.
+    Proof.
+      intros. apply mi_inj_mi_perm_perm_Cur in H.
+      do 2 rewrite getCur_restr in H; auto.
+    Qed.
+    
+    Definition mi_memval_perm_pair mu x cont1 cont2:=
+      pair1_prop (fun x=> mi_memval_perm mu x cont1 cont2) x.
+    
+    Definition mi_perm_inv_perm_pair mu pp1 pp2 m:=
+      pair2_prop (fun p1 p2 => mi_perm_inv_perm mu p1 p2 m) pp1 pp2.
+    
+Lemma mi_memval_perm_computeMap_Lt:
+  forall mu cont1 cont2 p p',
+    mi_memval_perm mu p cont1 cont2 ->
+    permMapLt p' p ->
+    mi_memval_perm mu p' cont1 cont2.
+Proof.
+  intros; hnf; intros.
+  eapply H; eauto.
+  eapply perm_order_trans211; eauto.
+Qed.    
+    Lemma mi_memval_perm_computeMap_Lt_pair:
+      forall mu cont1 cont2 p p',
+        mi_memval_perm_pair mu p cont1 cont2 ->
+        permMapLt_pair2 p' p ->
+        mi_memval_perm_pair mu p' cont1 cont2.
+    Proof.
+      unfold mi_memval_perm_pair,permMapLt_pair2.
+      intros ? ? ?. solve_pair.
+      eapply mi_memval_perm_computeMap_Lt.
+    Qed.
+    Lemma mi_inj_mi_memval_perm_backwards:
+      forall (f : meminj) (m1 m2 : mem) p1 p2 Hlt1 Hlt2,
+        Mem.mem_inj f
+                    (@restrPermMap p1 m1 Hlt1)
+                    (@restrPermMap p2 m2 Hlt2) ->
+        mi_memval_perm f p1
+                       (Mem.mem_contents m1) (Mem.mem_contents m2).
+    Proof.
+      intros. eapply mi_inj_mi_memval_perm in H.
+      rewrite getCur_restr in H. simpl in H; eauto.
+    Qed.    
+    Lemma inject_empty:
+      forall mu m1 m2 Hlt1 Hlt2,
+        Mem.inject mu m1 m2 ->
+        Mem.inject mu (@restrPermMap empty_map m1 Hlt1)
+                   (@restrPermMap empty_map m2 Hlt2).
+    Proof.
+      intros; eapply inject_restr; auto.
+      - apply mi_perm_perm_empty.
+      - intros ? **. rewrite  empty_is_empty in H1; inv H1.
+      -  intros ? **. rewrite  empty_is_empty in H1; inv H1.
+    Qed.

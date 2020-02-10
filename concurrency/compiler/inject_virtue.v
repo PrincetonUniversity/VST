@@ -1033,6 +1033,23 @@ Proof.
   eassumption.
 Qed.
 
-End VirtueInject.
-Hint Unfold injects_map_pair: pair.
 
+    Lemma inject_perm_perfect_image_dmap_pair:
+      forall (mu : meminj) (m1 m2 : mem), 
+        Mem.inject mu m1 m2 ->
+        forall (dmap : Pair delta_map),
+          option_implication_dmap_access_pair dmap (getMaxPerm m1) ->
+          injects_dmap_pair mu dmap ->
+          perm_perfect_image_dmap_pair
+            mu dmap
+            (pair1 (tree_map_inject_over_mem m2 mu) dmap).
+    Proof.
+      intros ??? ?.
+      solve_pair. intros; eapply inject_perm_perfect_image_dmap; eauto.
+    Qed.
+
+End VirtueInject.
+Hint Unfold injects_dmap_pair: pair.
+Hint Unfold injects_map_pair: pair.
+Hint Unfold virtueThread_inject: pair.
+      

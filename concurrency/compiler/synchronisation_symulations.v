@@ -382,6 +382,18 @@ Section SyncSimulation.
         + subst m1 m2; apply concur_match_perm_restrict; auto.
         + subst m1 m2; rewrite getCur_restr; reflexivity.
         + subst m1 m2; rewrite getCur_restr; reflexivity.
+        + !goal(Mem.perm m1 b (unsigned ofs) Max Nonempty).
+          Lemma spawn_function_nonemty:
+            forall (temporary_fix_while_we_add_this_to_semantics: unit),
+            forall m1 b ofs, Mem.perm m1 b (unsigned ofs) Max Nonempty.
+          Admitted.
+          eapply spawn_function_nonemty; try constructor.
+        + !goal(arg <> Vundef).
+          Lemma spawn_arg_not_unfed:
+            forall (temporary_fix_while_we_add_this_to_semantics: unit),
+            forall arg, arg <> Vundef.
+          Admitted.
+          apply spawn_arg_not_unfed; constructor.
         + subst m1 m2; apply mem_compat_restrPermMap; auto.
         + clean_proofs.
           assert (Hlt2': permMapLt (getCurPerm m2_base) (getMaxPerm m2)).

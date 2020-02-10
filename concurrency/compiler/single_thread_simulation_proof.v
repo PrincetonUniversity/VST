@@ -155,10 +155,43 @@ Proof.
   (* This is proven somwhere *)
 Admitted.
 
+
+Inductive sync_event: Events.event -> Prop:=
+| sync_Event_acq_rel: forall e dmp e',
+    sync_event (Events.Event_acq_rel e dmp e')
+| sync_Event_spawn: forall b dmp1 dmp2,
+    sync_event (Events.Event_spawn b dmp1 dmp2).
+Definition not_sync_event (ev:Events.event):= ~ sync_event ev.
+Definition not_sync_trace := Forall not_sync_event.
+
+
 Lemma step_nil_trace_not_atx:
-  forall ge s1 s2,
-    Asm.step ge s1 nil s2 ->
+  forall s1 s2 t,
+    Asm.step Asm_g s1 t s2 ->
+    not_sync_trace t ->
     Asm.at_external Asm_g s1 = None.
+Proof.
+  intros. unfold Asm.at_external.
+  inv H.
+  - rewrite H1.
+    match_case. rewrite H2; auto.
+  - rewrite H1.
+    match_case. rewrite H2; auto.
+  - rewrite H1.
+    match_case. rewrite H2; auto.
+    match_case.
+    admit.
+    
+  (* Needs to add something about externall calls
+     Or force such that at_ext only works for synchronisations:
+     What I mean is that our at_external... really only means 
+     "at_sync".
+   *)
+Admitted.
+Lemma C_step_nil_trace_not_atx:
+  forall ge s1 s2,
+    Clight.step2 ge s1 nil s2 ->
+    Clight.at_external s1 = None.
 Proof.
   (* Needs to add something about externall calls
      Or force such that at_ext only works for synchronisations:
@@ -462,6 +495,7 @@ Admitted.
                 rewrite asm_set_mem_get_mem; eauto.
                 rewrite asm_set_mem_get_mem;
                   eapply step_nil_trace_not_atx; eauto.
+                constructor.
               + eauto.
           Qed.
       Lemma step2corestep_plus:
@@ -479,6 +513,7 @@ Admitted.
           do 2 eexists; split; try reflexivity.
           econstructor; eauto.
           + eapply step_nil_trace_not_atx; eauto.
+            constructor.
         - apply step2corestep_star in H1. simpl.
           destruct s3; eassumption.
       Qed.
@@ -506,6 +541,7 @@ Admitted.
                machine_semantics_lemmas.thread_step_star
                  (HybConcSem (Some (S hb)) m) tge U st2 m2 st2' m2' /\
                opt_rel' (InjorderX compiler_sim) cd' cd).
+      Set Printing All.
       Proof.
         intros.
         inversion H; subst.
@@ -606,7 +642,9 @@ Admitted.
           destruct HH as (cd' & s2' & j2' & t'' & step &
                           comp_match & Hincr2 & inj_event).
           assert (Ht0: t0 = nil).
-          { admit. } subst t0.
+          {  
+
+            admit. } subst t0.
           assert (Ht'': t'' = nil).
           { inv inj_event; reflexivity. } subst t''.
           
