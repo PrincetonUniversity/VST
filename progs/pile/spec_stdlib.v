@@ -157,7 +157,7 @@ apply andp_right.
 + if_tac.
   entailer!.
   entailer!. simpl in H0.
-  unfold malloc_token. unfold LAMBDAx, argsassert2assert, PROPx, LOCALx, SEPx. simpl. entailer!.
+  unfold malloc_token. unfold GLOBALSx, PARAMSx, argsassert2assert, PROPx, LOCALx, SEPx. simpl. entailer!.
   apply andp_derives. trivial.
   apply sepcon_derives; trivial.
   apply data_at__memory_block_cancel.

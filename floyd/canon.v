@@ -60,14 +60,43 @@ Definition SEPx {A} (R: list mpred) : A->mpred :=
 Arguments SEPx A R _ : simpl never.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
-         (at level 8).
+         (at level 7).
 
-Notation " 'SEP' ( ) " := (SEPx nil) (at level 8).
-Notation " 'SEP' () " := (SEPx nil) (at level 8).
+Notation " 'SEP' ( ) " := (SEPx nil) (at level 7).
+Notation " 'SEP' () " := (SEPx nil) (at level 7).
 
 Declare Scope assert.
 Delimit Scope assert with assert.
 
+Definition GLOBALSx (gs : list globals) (X : argsassert): argsassert := 
+ fun (gvals : argsEnviron) =>
+           LOCALx (map gvars gs) 
+                  (argsassert2assert nil X)
+                  (Clight_seplog.mkEnv (fst gvals) nil nil).
+Arguments GLOBALSx gs _ : simpl never.
+
+Notation " 'GLOBALS' ( x ; .. ; y )  z" := (GLOBALSx (cons x%logic .. (cons y%logic nil) ..) z)
+         (at level 8).
+
+Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z) (at level 8).
+Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z) (at level 8).
+
+Definition PARAMSx (vals:list val)(X : argsassert): argsassert :=
+ fun (gvals : argsEnviron) => !! (snd gvals = vals /\ Forall (fun v : val => v <> Vundef) vals) && X gvals.
+Arguments PARAMSx vals _ : simpl never.
+
+Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%logic .. (cons y%logic nil) ..) z)
+         (at level 9).
+
+Notation " 'PARAMS' ( )  z" := (PARAMSx nil z) (at level 9).
+Notation " 'PARAMS' ()  z" := (PARAMSx nil z) (at level 9).
+
+(*
+Definition testpre X gv vals Y :=
+  PROPx X (PARAMSx vals (GLOBALSx gv (SEPx Y))).
+*)
+
+(*
 Definition LAMBDAx (gs : list globals) (vals:list val) (X : argsassert): argsassert := 
  fun (gvals : argsEnviron) =>
            LOCALx (map gvars gs) 
@@ -78,9 +107,14 @@ Notation " 'LAMBDA' ()   z" := (LAMBDAx nil nil z)  (at level 9).
 
 Notation " 'LAMBDA' u ( x ; .. ; y )   z" := (LAMBDAx u (cons x%type .. (cons y%type nil) ..) z)
          (at level 9).
-(*
-Definition testpre X globs vals Y :=
-  PROPx X (LAMBDAx globs vals (SEPx Y)).*)
+
+Lemma LAMBDA_char gs vals X: LAMBDAx gs vals X = (PARAMSx vals (GLOBALSx gs X)).
+Proof. 
+  unfold LAMBDAx, GLOBALSx, PARAMSx, LOCALx,
+         local, lift1, liftx, lift, argsassert2assert.
+  extensionality gvals; simpl.
+  apply pred_ext; normalize; apply andp_right; trivial; apply prop_right; intuition.
+Qed.*)
 
 Declare Scope argsassert.
 Delimit Scope argsassert with argsassert.

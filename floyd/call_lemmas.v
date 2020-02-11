@@ -1158,17 +1158,18 @@ apply andp_right.
 { apply prop_right; trivial.
   clear - PPRE.
   revert PPRE; induction Ppre; simpl; intuition. }
-unfold LAMBDAx, PROPx, LOCALx, SEPx, argsassert2assert. simpl. normalize.
+unfold PARAMSx, GLOBALSx, PROPx, LOCALx, SEPx, argsassert2assert. simpl. normalize.
 unfold local, liftx, lift1, lift; simpl. normalize.
 eapply derives_trans; [ apply FRAME | clear FRAME].
 apply andp_right; [ apply prop_right | trivial].
 split; trivial.
 rewrite local2ptree_gvars in PTREE'.
-split3; trivial.
+split3; intuition.
+simpl.
 destruct gv; inv PTREE'.
 + simpl; trivial.
-+ apply rev_nil_elim in H2. apply map_eq_nil in H2. subst. simpl. split; trivial.
-  simpl in CHECKG. subst GV.
++ simpl in CHECKG; subst GV. apply rev_nil_elim in H2. apply map_eq_nil in H2.
+  subst. simpl.
   apply (local2ptree_aux_elim _ _ H0 _ _ _ _ _ _ _ _ PTREE); trivial.
 Qed.
 

@@ -819,7 +819,7 @@ Lemma main_pre_start:
 Proof.
 intros.
 unfold main_pre.
-unfold gglobvars2pred, globvars2pred, PROPx, LAMBDAx, LOCALx, SEPx, argsassert2assert. simpl.
+unfold gglobvars2pred, globvars2pred, PROPx, GLOBALSx, PARAMSx, LOCALx, SEPx, argsassert2assert. simpl.
 unfold lift2. simpl.
 extensionality rho.
 simpl.

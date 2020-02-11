@@ -4218,7 +4218,7 @@ Lemma compute_close_precondition_entails1:
   |-- close_precondition ids (PROPx P (LAMBDAx gv vals (SEPx R))).
 Proof.
 intros. rewrite <- insert_locals. intros rho. unfold close_precondition; normalize. 
-Exists vals. unfold LAMBDAx. simpl.
+Exists vals. unfold GLOBALSx, PARAMSx. simpl.
   unfold argsassert2assert.
   unfold PROPx, LOCALx, SEPx. simpl. normalize.  
   apply andp_right.
@@ -4253,7 +4253,7 @@ Lemma compute_close_precondition_entails2:
   |--  (PROPx P (LOCALx ((map gvars gv)++Q) (SEPx R))).
 Proof.
 intros. rewrite <- insert_locals. intros rho. unfold close_precondition; normalize.
-unfold LAMBDAx, argsassert2assert, PROPx, LOCALx, SEPx. simpl. normalize. 
+unfold GLOBALSx, PARAMSx, argsassert2assert, PROPx, LOCALx, SEPx. simpl. normalize. 
   apply andp_right.
   { apply andp_left1. unfold Clight_seplog.mkEnv. simpl.
     unfold seplog.globals_only; simpl. unfold local, liftx, lift1, lift; simpl. clear.

@@ -1377,6 +1377,8 @@ Declare Scope formals.
 Notation " a 'OF' ta " := (a%positive,ta%type) (at level 100, only parsing): formals.
 Delimit Scope formals with formals.
 
+Notation LAMBDAx gs vals X := (PARAMSx vals (GLOBALSx gs X)).
+
 (*Attempt to tweak the WITH notation such that it yields a nameless funspec;
   However, the match against 'PROP' PP 'LOCAL' QQ 'SEP' SS seems to be slightly incorrect.
   The original definition of the WITH notation is retained later in the file, but commented out. *) 
