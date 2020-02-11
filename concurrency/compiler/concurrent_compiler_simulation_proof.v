@@ -44,7 +44,7 @@ Require Import VST.concurrency.common.x86_context.
 
 
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
-Require Import VST.concurrency.compiler.single_thread_simulation_proof.
+Require Import VST.concurrency.compiler.multiple_thread_simulation_proof.
 
 
 Section Concurrent_correctness.
@@ -710,7 +710,8 @@ Section Concurrent_correctness.
           eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
         end.
   Lemma ConcurrentCompilerCorrectness:
-    forall (tp:Asm.program) ,
+    forall (tp:Asm.program)
+      (Hextern: single_thread_simulation_proof.Asm_externals_have_events Asm_g),
       CompCert_compiler C_program = Some tp ->
       forall asm_genv_safety MSS MST,
         ConcurrentCompilerCorrectness_specification
@@ -729,6 +730,9 @@ Section Concurrent_correctness.
                   (eapply initial_memories_are_equal; eauto).
         pose proof trivial_asm_simulation.
         eapply trivial_asm_simulation; eauto.
+
+        Unshelve.
+        auto.
   Qed.
   
 End Concurrent_correctness.

@@ -2143,3 +2143,21 @@ Module OrdinalPool.
 
   End OrdinalThreadPool.
 End OrdinalPool.
+
+
+
+
+Inductive state_type:=
+|  STrun
+| STblocked
+| STresume
+| STinit.
+Show Match state_type.
+Show Match ctl.
+Definition get_state_type {cT} (C:@ctl cT):=
+  match C with
+  | Krun x => STrun
+  | Kblocked x => STblocked
+  | Kresume x x0 => STresume
+  | Kinit x x0 => STinit
+  end.

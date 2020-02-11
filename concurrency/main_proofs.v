@@ -56,7 +56,9 @@ Section Main.
   Definition Main_ptr:= Values.Vptr fb Integers.Ptrofs.zero.
   Context (compilation : CompCert_compiler C_program = Some Asm_program).
   
-  Context (asm_genv_safe: Asm_core.safe_genv (@x86_context.X86Context.the_ge Asm_program)).
+  Context (asm_genv_safe: Asm_core.safe_genv
+                            (@x86_context.X86Context.the_ge Asm_program))
+          (Hextern: single_thread_simulation_proof.Asm_externals_have_events Asm_g).
   Instance SemTarget : Semantics:= @x86_context.X86Context.X86Sem Asm_program asm_genv_safe.
   Existing Instance X86Inj.X86Inj.
 
@@ -126,7 +128,7 @@ Section Main.
   Proof.
     intros.
     assert(compilation':= compilation).  
-    pose proof (ConcurrentCompilerSafety compilation' asm_genv_safe) as H.
+    pose proof (ConcurrentCompilerSafety compilation' asm_genv_safe Hextern) as H.
     unfold concurrent_compiler_safety.concurrent_simulation_safety_preservation in *.
     specialize (H U (erasure_safety.init_mem CPROOF) (erasure_safety.init_mem CPROOF) (Clight_safety.initial_Clight_state CPROOF) Main_ptr nil).
     rewrite <- program_proof in *.
@@ -301,7 +303,8 @@ Section Main.
         CSL_init_setup C_program src_m src_cpm ->
         
         (* ASM memory good. *)
-        forall (limited_builtins:Asm_core.safe_genv x86_context.X86Context.the_ge),
+        forall (limited_builtins:Asm_core.safe_genv x86_context.X86Context.the_ge)
+          (Hextern: single_thread_simulation_proof.Asm_externals_have_events Asm_g),
           Genv.find_symbol (Genv.globalenv Asm_program) main_ident_tgt = Some main ->
         asm_prog_well_formed Asm_program limited_builtins ->
         
@@ -314,7 +317,8 @@ Section Main.
             (*it's spinlock safe: well synchronized and safe *)
             spinlock_safe U tgt_cpm tgt_m.
   Proof.
-    intros * Hcsafe * Hcompiled * HCSL_init Hlimit_biltin  Hfind_main Hasm_wf *.
+    intros * Hcsafe * Hcompiled * HCSL_init Hlimit_biltin
+                                            Hextern_trace  Hfind_main Hasm_wf *.
     
     inv Hcsafe.
     rename H into Hprog.
@@ -370,7 +374,7 @@ Section Main.
         destruct (spr CPROOF) as (?&?&(?&?)&?); simpl.
         rewrite H4 in e; inv e; auto.
           
-    - simpl; intros;
+    - simpl; intros.
         (*The following line constructs the machine with [init_tp] *)
         (unshelve normal; try eapply init_tp; shelve_unifiable); eauto.
       (*spinlock_safe*)
@@ -394,6 +398,8 @@ Section Main.
   Notation CPM:=t.
   Record static_validation (asm_prog:Asm.program) (main:AST.ident) :=
     {   limited_builtins:> Asm_core.safe_genv (Genv.globalenv asm_prog)
+        ; limited_externals: single_thread_simulation_proof.Asm_externals_have_events
+                               (Genv.globalenv asm_prog) 
         ; init_mem_no_dangling: forall init_mem_target,
             Genv.init_mem asm_prog = Some init_mem_target ->
                               valid_mem init_mem_target

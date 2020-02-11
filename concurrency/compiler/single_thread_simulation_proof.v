@@ -65,7 +65,11 @@ Import bounded_maps.
 (* End MIGRATION! *)
 
 
-
+ Ltac subst_sig:=
+   match goal with
+     H': existT _ _ _ = existT _ _ _ |- _ =>
+     eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
+   end.
 
 
 
@@ -165,40 +169,31 @@ Definition not_sync_event (ev:Events.event):= ~ sync_event ev.
 Definition not_sync_trace := Forall not_sync_event.
 
 
-Lemma step_nil_trace_not_atx:
-  forall s1 s2 t,
-    Asm.step Asm_g s1 t s2 ->
-    not_sync_trace t ->
+Definition Asm_externals_have_events {F V} (ge:Genv.t (AST.fundef F) V):=
+  forall b f ef args res m t m',
+    Genv.find_funct_ptr ge b = Some (AST.External f) ->
+    Events.external_call ef Asm_g args m t res m' ->
+    t <> nil.
+Context (Hexterns_have_events: Asm_externals_have_events Asm_g).
+
+  Lemma step_nil_trace_not_atx:
+  forall s1 s2,
+    Asm.step Asm_g s1 nil s2 ->
     Asm.at_external Asm_g s1 = None.
 Proof.
   intros. unfold Asm.at_external.
   inv H.
-  - rewrite H1.
-    match_case. rewrite H2; auto.
-  - rewrite H1.
-    match_case. rewrite H2; auto.
-  - rewrite H1.
-    match_case. rewrite H2; auto.
-    match_case.
-    admit.
-    
-  (* Needs to add something about externall calls
-     Or force such that at_ext only works for synchronisations:
-     What I mean is that our at_external... really only means 
-     "at_sync".
-   *)
-Admitted.
-Lemma C_step_nil_trace_not_atx:
-  forall ge s1 s2,
-    Clight.step2 ge s1 nil s2 ->
-    Clight.at_external s1 = None.
-Proof.
-  (* Needs to add something about externall calls
-     Or force such that at_ext only works for synchronisations:
-     What I mean is that our at_external... really only means 
-     "at_sync".
-   *)
-Admitted.
+  - rewrite H0.
+    match_case. rewrite H1; auto.
+  - rewrite H0.
+    match_case. rewrite H1; auto.
+  - rewrite H0.
+    match_case. rewrite H1; auto.
+    eapply Asm.get_arguments_correct in H2.
+    rewrite H2.
+    eapply Hexterns_have_events in H3; eauto.
+    congruence.
+Qed.
 
       (* Where to move this:*)
       
@@ -495,7 +490,6 @@ Admitted.
                 rewrite asm_set_mem_get_mem; eauto.
                 rewrite asm_set_mem_get_mem;
                   eapply step_nil_trace_not_atx; eauto.
-                constructor.
               + eauto.
           Qed.
       Lemma step2corestep_plus:
@@ -513,7 +507,6 @@ Admitted.
           do 2 eexists; split; try reflexivity.
           econstructor; eauto.
           + eapply step_nil_trace_not_atx; eauto.
-            constructor.
         - apply step2corestep_star in H1. simpl.
           destruct s3; eassumption.
       Qed.
@@ -541,7 +534,6 @@ Admitted.
                machine_semantics_lemmas.thread_step_star
                  (HybConcSem (Some (S hb)) m) tge U st2 m2 st2' m2' /\
                opt_rel' (InjorderX compiler_sim) cd' cd).
-      Set Printing All.
       Proof.
         intros.
         inversion H; subst.
@@ -643,7 +635,25 @@ Admitted.
                           comp_match & Hincr2 & inj_event).
           assert (Ht0: t0 = nil).
           {  
+            Lemma Clight_step_nil_trace_not_atx:
+              forall s1 s2 f,
+                Clight.step Clight_g f s1 nil s2 ->
+                Clight.at_external s1 = None.
+            Proof.
+              intros. unfold Asm.at_external.
+              inv H; try reflexivity.
+              simpl. match_case.
+              hnf in H0. match_case in H0;
+                           simpl in Heqb; try congruence.
+              admit.
+              admit.
+              admit. (*!*)
+              admit. (*!*)
+              
+              
+            Admitted.
 
+            
             admit. } subst t0.
           assert (Ht'': t'' = nil).
           { inv inj_event; reflexivity. } subst t''.
@@ -758,49 +768,10 @@ Admitted.
 
       (** *Diagrams for machine steps*)
       
-      (*Here 1*)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
-      
-
       
       (* What to do with this? *)
-      Hint Resolve inject_incr_refl.
+      Hint Resolve inject_incr_refl: core.
 
-            
-
-
-      
       Lemma start_step_diagram:
         forall (m : option mem) (tge : HybridMachineSig.G) 
                (U : list nat) (st1 : ThreadPool (Some hb)) 
@@ -827,6 +798,7 @@ Admitted.
       Proof.
         intros.
         inv H2.
+        
         
         
       Admitted.
@@ -865,6 +837,7 @@ Admitted.
         - (* tid < hb *)
           intros. inv Hresume; normal; try solve[eauto].
           + unshelve eapply concur_match_updateC; eauto; shelve_unifiable.
+            
             admit.
           + replace U with
                 (@HybridMachineSig.yield HybridMachineSig.HybridCoarseMachine.scheduler U)
@@ -1056,44 +1029,7 @@ Admitted.
         + admit. (*should follow from compiler simulation*)
       Admitted.
 
-      Inductive state_type:=
-      |  STrun
-      | STblocked
-      | STresume
-      | STinit.
-      Show Match state_type.
-      Show Match ctl.
-      Definition get_state_type {cT} (C:@ctl cT):=
-        match C with
-        | Krun x => STrun
-        | Kblocked x => STblocked
-        | Kresume x x0 => STresume
-        | Kinit x x0 => STinit
-        end.
-      Lemma match_same_state_type:
-        forall dp j tp1 m1 tp2 m2,
-          concur_match dp j tp1 m1 tp2 m2 ->
-          forall i (cnti1 : ThreadPool.containsThread tp1 i)
-            (cnti2 : ThreadPool.containsThread tp2 i),
-          get_state_type (ThreadPool.getThreadC cnti1) =
-          get_state_type (ThreadPool.getThreadC cnti2).
-      Proof.
-        intros.
-        inv H. 
-        destruct (gt_eq_gt_dec hb i) as [[?|?]|?].
-        - unshelve exploit mtch_source; eauto;
-            try eapply memcompat1;
-            try eapply memcompat2. simpl.
-          intros HH. inv HH; reflexivity.
-        - unshelve exploit mtch_compiled; eauto;
-            try eapply memcompat1;
-            try eapply memcompat2. simpl.
-          intros HH. inv HH; reflexivity.
-        - unshelve exploit mtch_target; eauto;
-            try eapply memcompat1;
-            try eapply memcompat2. simpl.
-          intros HH. inv HH; reflexivity.
-      Qed.
+      
       Lemma compile_one_thread:
         forall m,
           HybridMachine_simulation_properties
@@ -1123,26 +1059,7 @@ Admitted.
           eexists; reflexivity.
 
         (*Same running *)
-        - unfold machine_semantics.running_thread; simpl.
-          intros.
-          unfold HybridMachineSig.unique_Krun.
-          split; intros.
-          + assert (cnti': containsThread c1 j).
-            { eapply contains21; eauto. }
-            unshelve exploit match_same_state_type;
-              try eapply H; eauto.
-            erewrite H1; simpl.
-            unfold get_state_type; match_case.
-            intros.
-            unshelve eapply H0; eauto.
-          + assert (cnti': containsThread c2 j).
-            { eapply contains12; eauto. }
-            unshelve exploit match_same_state_type;
-              try eapply H; eauto.
-            erewrite H1; simpl.
-            unfold get_state_type; match_case.
-            intros.
-            unshelve eapply H0; eauto.
+        - eapply concur_match_same_running.
       Qed.
       
       
@@ -1163,6 +1080,7 @@ Admitted.
           Values.Val.meminj ->
           ThreadPool (Some 0)%nat -> Memory.Mem.mem -> ThreadPool (Some n) -> Memory.Mem.mem -> Prop:=
       | refl_match: forall tp m,
+          (* mem_compatible tp m -> *)
           match_state 0 nil (Mem.flat_inj (Mem.nextblock m)) tp m tp m
       | step_match_state:
           forall n ocd ils jn jSn tp0 m0 tpn mn tpSn mSn,
@@ -1206,11 +1124,7 @@ Admitted.
         match_case.
         xomega.
       Qed.
-      Local Ltac subst_sig:=
-        match goal with
-          H': existT _ _ _ = existT _ _ _ |- _ =>
-          eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
-        end.
+     
       Local Ltac inv_match0:=
         match goal with
               H: match_state 0 _ _ _ _ _ _ |- _ =>
@@ -1467,7 +1381,9 @@ Lemma inject_mevent_compose:
             Unshelve.
             all: assumption.
       Admitted.
+
       
+      Context (Hexterns_have_events: Asm_externals_have_events Asm_g).
       Lemma compile_n_threads:
         forall n m,
           HybridMachine_simulation.HybridMachine_simulation_properties
@@ -1481,13 +1397,14 @@ Lemma inject_mevent_compose:
         - (*trivial reflexive induction*)
           apply trivial_self_injection.
         - eapply simulation_inductive_case; eauto.
-          eapply compile_one_thread.
+          eapply compile_one_thread; auto.
       Qed.
 
     End CompileNThreads.
 
     Section CompileInftyThread.
-
+      Context {Hasm_externals: Asm_externals_have_events Asm_g}.
+      
       Definition lift_state': forall {on on'},
          ThreadPool on -> ThreadPool on'.
       Proof.
@@ -1495,10 +1412,24 @@ Lemma inject_mevent_compose:
       Defined.
                                    
       Inductive lift_state: forall on, ThreadPool on -> forall on', ThreadPool on' -> Prop:=
-        | build_lift_state: forall on on' st st',
-            st' = lift_state' st ->
-            lift_state on st on' st'.
-            
+      | build_lift_state: forall on on' st st',
+          st' = lift_state' st ->
+          lift_state on st on' st'.
+      
+      Lemma lift_invariant:
+        forall hb1 hb2 st st',
+          lift_state hb1 st hb2 st' ->
+          invariant st ->
+          invariant st'.
+      Admitted.
+      Lemma cmpt_invariant:
+        forall hb1 hb2 st st' m,
+          lift_state hb1 st hb2 st' ->
+          mem_compatible st m ->
+          mem_compatible st' m.
+      Admitted.
+
+      
       Inductive infty_match:
         nth_index -> meminj ->
         ThreadPool (Some 0)%nat -> mem ->
@@ -1566,8 +1497,11 @@ Lemma inject_mevent_compose:
           (st1' : ThreadPool (Some 0)%nat) (m1' : mem),
           machine_semantics.machine_step (HybConcSem (Some 0)%nat m) sge U tr1
                                          st1 m1 U' tr1' st1' m1' ->
+          
           forall (cd : nth_index) tr2 (st2 : ThreadPool None) 
-                 (mu : meminj) (m2 : mem),
+            (mu : meminj) (m2 : mem)
+            (Hinv1': invariant st1')
+            (Hcmpt1': mem_compatible st1' m1'),
             infty_match cd mu st1 m1 st2 m2 ->
             List.Forall2 (inject_mevent mu) tr1 tr2 ->
             exists
@@ -1578,6 +1512,14 @@ Lemma inject_mevent_compose:
               machine_semantics.machine_step (HybConcSem None m) tge U tr2 st2
                                              m2 U' tr2' st2' m2'.
       Proof.
+        intros. inv H0.
+        pose proof (compile_n_threads Hasm_externals n m) as HH.
+        eapply machine_diagram in HH; eauto.
+        normal_hyp.
+        normal; eauto.
+        - econstructor; eauto. econstructor; eauto.
+        - 
+        
         (* Same as the other step diagram.*)
       Admitted.
 
@@ -1593,10 +1535,42 @@ Lemma inject_mevent_compose:
             machine_semantics.conc_halted (HybConcSem None m) U c2 =
             Some v2.
       Proof.
-        intros m.
-        (* Should follow easily from the match. *)
-      Admitted.
-
+        intros. inv H.
+        exploit thread_halted; eauto.
+        eapply compile_n_threads, Hasm_externals.
+      Qed.
+Lemma lift_contains:
+            forall {on on'} st j,
+              ThreadPool.containsThread st j <->
+              ThreadPool.containsThread (@lift_state' on on' st) j.
+          Proof.
+            intros. simpl.
+            unfold OrdinalPool.containsThread; simpl.
+            destruct st; simpl. reflexivity.
+          Qed.
+          Lemma lift_unique_Krun:
+            forall {on on'} st i,
+              HybridMachineSig.unique_Krun st i <->
+              HybridMachineSig.unique_Krun (@lift_state' on on' st) i.
+          Proof.
+            intros; split; intros ** ? **.
+            - unshelve eapply H; eauto.
+              eapply (@lift_contains on on' st j); auto.
+              simpl. match_case; simpl.
+              clear - H0.
+              destruct st; simpl in *.
+              replace (c0 cnti) with cnti by apply Axioms.proof_irr.
+              rewrite H0.
+              reflexivity.
+            - unshelve eapply H; eauto.
+              eapply (@lift_contains on on' st j); auto.
+              simpl. match_case; simpl.
+              clear - H0.
+              destruct st; simpl in *.
+              replace (c cnti) with (cnti) by apply Axioms.proof_irr.
+              rewrite H0.
+              reflexivity.
+          Qed.
       Lemma infinite_running:
         forall (m : option mem) (cd : nth_index) (mu : meminj)
           (c1 : ThreadPool (Some 0)%nat) (m1 : mem) (c2 : ThreadPool None)
@@ -1606,14 +1580,23 @@ Lemma inject_mevent_compose:
             machine_semantics.running_thread (HybConcSem (Some 0)%nat m) c1 i <->
             machine_semantics.running_thread (HybConcSem None m) c2 i.
       Proof.
-        intros m.
-        (*When you solve this, first check where "running thread" is used. And how is this usefull!
-          If it is, write it in the thesis. If it's not delete.
-         *)
-      (* Should follow from the match relation. And there should be a similar lemma 
-             for the [match_states]
-       *)
-      Admitted.
+        intros. inv H.
+        inv H1.
+        subst_sig.
+        etransitivity.
+        instantiate(1:= machine_semantics.running_thread
+                          (HybConcSem (Some n%nat) m)
+                          stn i).
+        - clear H st. revert n mu cd i m c1 m1 stn m2 H0.
+          induction n.
+          + intros. inv H0. subst_sig; reflexivity.
+          + intros. inv H0. etransitivity.
+            * eapply IHn; eauto.
+            * eapply concur_match_same_running; eauto.
+        - eauto; subst_sig.
+          simpl.
+          apply lift_unique_Krun.
+      Qed.
       Lemma compile_all_threads':
         forall m,
           HybridMachine_simulation.HybridMachine_simulation_properties
@@ -1634,9 +1617,40 @@ Lemma inject_mevent_compose:
             eauto.
         - apply infinite_halted.
         - apply infinite_running.
-
       Qed.
       
+      Lemma infty_match_invariant:
+        forall cd mu st1 m1 st2 m2,
+          infty_match cd mu st1 m1 st2 m2 ->
+          invariant st1 ->
+          invariant st2.
+      Proof.
+        intros. inv H.
+        assert (invariant stn).
+        { clear H2; revert n st1 m1 st2 m2 cd mu stn H1 H0. clear.
+          induction n; intros.
+          - inv H1; auto.
+          - inv H1; eauto. subst_sig.
+            eapply H8.
+        }
+        eapply lift_invariant; eauto.
+      Qed.
+      Lemma infty_match_cmpt:
+        forall cd mu st1 m1 st2 m2,
+          infty_match cd mu st1 m1 st2 m2 ->
+          mem_compatible st1 m1 ->
+          mem_compatible st2 m2.
+      Proof.
+        intros. inv H.
+        assert (mem_compatible stn m2).
+        { revert n  st1 m1 H0  st2 m2 cd mu stn H2 H1. clear.
+          induction n; intros.
+          - inv H1; auto.
+          - inv H1; eauto. subst_sig.
+            eapply H9.
+        }
+        eapply cmpt_invariant; eauto.
+      Qed.
       Lemma compile_all_threads:
         forall m,
           HybridMachine_simulation'
@@ -1648,33 +1662,9 @@ Lemma inject_mevent_compose:
             mem_compatible.
       Proof.
         intros. econstructor; swap 1 3; swap 2 3.
-        {
-         
-        (*All the proofs use the following lemma*)
-        pose proof compile_n_threads as HH.
-        econstructor.
-        - eapply list_lt_wf.
-        - apply initial_infty.
-        - apply infinite_step_diagram.
-        - intros; eapply infinite_machine_step_diagram;
-            eauto.
-        - apply infinite_halted.
-        - apply infinite_running. }
-
-        - intros.
-          Lemma infty_match_invariant:
-            forall cd mu st1 m1 st2 m2,
-            infty_match cd mu st1 m1 st2 m2 ->
-            invariant st2.
-          Admitted.
-          eapply infty_match_invariant; eauto.
-        - Lemma infty_match_cmpt:
-            forall cd mu st1 m1 st2 m2,
-            infty_match cd mu st1 m1 st2 m2 ->
-            mem_compatible st2 m2.
-          Admitted.
-          intros; eapply infty_match_cmpt; eauto.
-
+        { eapply compile_all_threads'. }
+        - intros; eapply infty_match_invariant; eauto.
+        - intros; eapply infty_match_cmpt; eauto.
       Qed.
 
     End CompileInftyThread.

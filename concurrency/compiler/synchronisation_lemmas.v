@@ -2115,7 +2115,7 @@ Proof.
   destruct Archi.ptr64;
     eapply Z2Nat.inj_lt; eauto; try omega.
 Qed.
-Hint Resolve LKSIZE_nat_pos'.
+Hint Resolve LKSIZE_nat_pos': core.
 
 
 (* MOVE this within the file. Probably add a section for update lemmas? *)
