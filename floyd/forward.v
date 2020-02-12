@@ -972,7 +972,7 @@ eapply (semax_call_id00_wow_nil _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
  [ check_result_type 
  | cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0;
+(*Commented out to resolve match the modification in tactic forward_call_id00_wow below   try rewrite no_post_exists0;*)
     (* apply equal_f; *)
     apply exp_congr; intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
@@ -992,7 +992,7 @@ eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
  | (*match_postcondition*)
     cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0;
+ (*Commented out to resolve GIT issue 385    try rewrite no_post_exists0;*)
     (* apply equal_f; *)
     apply exp_congr; intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
