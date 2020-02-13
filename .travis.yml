@@ -64,8 +64,8 @@ install:
 - opam repo add coq-released https://coq.inria.fr/opam/released
 - opam update
 - opam show coq
-- travis_wait 15 opam install -j ${NJOBS} -y coq=${COQ_VERSION} coq-ext-lib
-- opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
+- travis_wait 15 opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
+- opam install -j ${NJOBS} -y coq=${COQ_VERSION} coq-ext-lib
 - opam list
 - file `which coqc`
 
