@@ -894,12 +894,14 @@ unfold main_pre, main_pre_old; simpl snd.
 forget (prog_vars p) as vars. clear p.
 remember (globvars2pred gv vars rho) as G.
 apply pred_ext.
-+ apply exp_left. intros vals. normalize. clear H.
++ apply exp_left. intros vals. normalize.
   apply sepcon_derives; trivial.
   unfold gglobvars2pred; subst; simpl.
   apply derives_refl'. apply globvars2pred_ge_eq. reflexivity.
-+ Exists (@nil val). apply andp_right; normalize.
++ Exists (@nil val). 
+  apply andp_right. apply prop_right; split; [trivial | constructor].
   apply sepcon_derives; trivial.
+  apply andp_right. apply prop_right; trivial.
   unfold gglobvars2pred; subst; simpl.
   apply derives_refl'. apply globvars2pred_ge_eq. reflexivity.
 Qed.

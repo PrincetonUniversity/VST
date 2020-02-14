@@ -82,7 +82,7 @@ Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z) (at level 8).
 Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z) (at level 8).
 
 Definition PARAMSx (vals:list val)(X : argsassert): argsassert :=
- fun (gvals : argsEnviron) => !! (snd gvals = vals /\ Forall (fun v : val => v <> Vundef) vals) && X gvals.
+ fun (gvals : argsEnviron) => !! (snd gvals = vals (*/\ Forall (fun v : val => v <> Vundef) vals*)) && X gvals.
 Arguments PARAMSx vals _ : simpl never.
 
 Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%logic .. (cons y%logic nil) ..) z)

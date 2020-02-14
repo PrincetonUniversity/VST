@@ -89,7 +89,8 @@ Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
 Definition close_precondition (bodyparams: list ident) 
     (P: argsEnviron -> mpred) (rho:environ) : mpred :=
  EX vals,
-   !!(map (Map.get (te_of rho)) bodyparams = map Some vals) &&
+   !!(map (Map.get (te_of rho)) bodyparams = map Some vals /\
+      Forall (fun v : val => v <> Vundef) vals) &&
    P (ge_of rho, vals).
 
 Definition precondition_closed (fs: list (ident*type)) {A: TypeTree}
@@ -102,9 +103,34 @@ Lemma close_precondition_e':
    forall al (P: argsEnviron -> pred rmap) (rho: environ) ,
    close_precondition al P rho |-- 
    exp (fun vals =>
-   !!(map (Map.get (te_of rho)) al = map Some vals) &&
+     !!(map (Map.get (te_of rho)) al = map Some vals/\
+        Forall (fun v : val => v <> Vundef) vals) &&
    P (ge_of rho, vals)).
 Proof. intros. intros u p. simpl in p. simpl; trivial. Qed.
+
+Lemma Forall_eval_id_get: forall {vals: list val} (V:Forall (fun v : val => v = Vundef -> False) vals), 
+  forall ids rho, map (Map.get (te_of rho)) ids = map Some vals <-> map (fun i : ident => eval_id i rho) ids = vals.
+Proof.
+induction vals; simpl; intros; split; intros; destruct ids; inv H; simpl in *; trivial.
++ inv V. destruct (IHvals H4 ids rho) as [X _]. rewrite (X H2); clear X H2. f_equal.
+  unfold eval_id; rewrite H1; simpl; trivial. 
++ inv V. destruct (IHvals H2 ids rho) as [_ X]. rewrite X; clear X; trivial. f_equal.
+  clear - H1. unfold eval_id, force_val in *.
+  destruct (Map.get (te_of rho) p); trivial. elim H1; trivial.
+Qed.
+
+Lemma close_precondition_eval_id ids P rho:
+   close_precondition ids P rho = 
+   EX vals:_,
+     !!(map (fun i => eval_id i rho) ids = vals /\
+        Forall (fun v : val => v <> Vundef) vals) &&
+   P (ge_of rho, vals).
+Proof.
+unfold close_precondition. apply pred_ext; apply exp_derives; intros vals m M; simpl in *; intuition.
+apply (Forall_eval_id_get H2); trivial.
+apply (Forall_eval_id_get H2); trivial.
+Qed.
+
 (*
 Lemma close_precondition_e:
    forall al (A: TypeTree) (P:  forall ts, dependent_type_functor_rec ts (AssertTT A) mpred),

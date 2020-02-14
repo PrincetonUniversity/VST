@@ -976,9 +976,14 @@ eapply (semax_call_id00_wow_nil H);
  [ check_result_type 
  | cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0;
-    (* apply equal_f; *)
-    apply exp_congr; intros ?vret;
+
+    (*Replaced to resolve GIT issue 385: 
+      try rewrite no_post_exists0;
+      (* apply equal_f; *)
+      apply exp_congr*)
+    first [ apply exp_congr | try rewrite no_post_exists0; apply exp_congr];
+
+    intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
     (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
@@ -996,9 +1001,14 @@ eapply (semax_call_id00_wow H);
  | (*match_postcondition*)
     cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0;
-    (* apply equal_f; *)
-    apply exp_congr; intros ?vret;
+
+    (*Replaced to resolve GIT issue 385: 
+      try rewrite no_post_exists0;
+      (* apply equal_f; *)
+      apply exp_congr*)
+    first [ apply exp_congr | try rewrite no_post_exists0; apply exp_congr];
+
+    intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
     (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
@@ -4261,12 +4271,12 @@ unfold GLOBALSx, PARAMSx, argsassert2assert, PROPx, LOCALx, SEPx. simpl. normali
     induction gv; simpl in *; trivial.
     unfold gvars_denote in *; simpl in *; destruct H. split; auto. } 
   apply andp_derives; trivial.
-  unfold local, liftx ,lift1, lift; simpl. apply prop_right. clear - H H0 H1 H2 H3. 
+  unfold local, liftx ,lift1, lift; simpl. apply prop_right. clear - H H0 H1 H2.
   generalize dependent Q. generalize dependent vals.
   induction ids; simpl; intros.
   - destruct vals; inv H0. simpl; trivial.
-  - destruct vals; inv H0. remember (computeQ ids vals) as t; destruct t; try discriminate. inv H5.
-    symmetry in Heqt. inv H; inv H1; inv H3.
+  - destruct vals; inv H0. remember (computeQ ids vals) as t; destruct t; try discriminate. inv H4.
+    symmetry in Heqt. inv H; inv H1; inv H2.
     remember (id_in_list a ids) as b; symmetry in Heqb; destruct b. discriminate.
     split; [ red | eauto].
     unfold liftx, lift; simpl. unfold eval_id. rewrite H0. split; trivial.
