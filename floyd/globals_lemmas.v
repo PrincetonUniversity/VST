@@ -137,7 +137,7 @@ Definition init_data2pred' {cs: compspecs}
   | Init_int64 i => mapsto sh tulong v (Vlong i)
   | Init_float32 r =>  mapsto sh tfloat v (Vsingle r)
   | Init_float64 r =>  mapsto sh tdouble v (Vfloat r)
-  | Init_space n =>  memory_block sh n v
+  | Init_space n =>  mapsto_zeros n sh v
   | Init_addrof symb ofs =>
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
       | None, Some (Tarray t n' att) =>
@@ -216,12 +216,13 @@ assert (H6:=I).
  clear H8'.
  simpl.
  destruct idata; super_unfold_lift; try apply derives_refl.
-*  unfold init_data_size in H6.
+(**  unfold init_data_size in H6.
     assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable.
     pose proof (Z.le_max_l z 0).
     rewrite H8.
     apply mapsto_zeros_memory_block; auto.
-* destruct_var_types i eqn:Hv&Hv'; rewrite ?Hv, ?Hv';
+*
+*) destruct_var_types i eqn:Hv&Hv'; rewrite ?Hv, ?Hv';
   destruct_glob_types i eqn:Hg&Hg'; rewrite ?Hg, ?Hg';
 try solve [simpl; apply TT_right].
  + rewrite H8. cancel.
@@ -874,7 +875,9 @@ unfold_lift in H7. unfold local, lift1 in H7.
 simpl in H7.
 rewrite prop_true_andp in H7 by auto.
 eapply derives_trans; [ apply H7  | ].
-unfold_lift.
+Search mapsto_zeros memory_block.
+eapply derives_trans. apply mapsto_zeros_memory_block.
+destruct (gvar_readonly gv); simpl; auto. apply readable_Ers.
 assert_PROP (isptr (globals_of_env rho i)) by (saturate_local; apply prop_right; auto).
 assert (headptr (globals_of_env rho i)).
 hnf. unfold globals_of_env in H9|-*. destruct (Map.get (ge_of rho) i); try contradiction. eauto.
@@ -887,6 +890,89 @@ apply I.
 assert (Ptrofs.modulus = Ptrofs.max_unsigned + 1) by computable.
 omega.
 Qed.
+
+Lemma process_globvar_ptrarray_space:
+  forall {cs: compspecs} {Espec: OracleKind} Delta P Q R (i: ident)
+          gz gv gvs SF c Post t t' n,
+       t = Tarray (Tpointer t' noattr) n noattr ->
+       gvar_info gv = t ->
+       (var_types Delta) ! i = None ->
+       (glob_types Delta) ! i = Some t ->
+  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
+       gvar_volatile gv = false ->
+       gvar_init gv = (Init_space (sizeof t)::nil) ->
+       sizeof t <= Ptrofs.max_unsigned ->
+  semax Delta (PROPx P (LOCALx (gvars gz::Q) 
+                       (SEPx (data_at  (readonly2share (gvar_readonly gv)) (Tarray (Tpointer t' noattr) n noattr)
+                                  (list_repeat (Z.to_nat n) nullval)  (gz i) :: R)))
+                       * globvars2pred gz gvs * SF)
+     c Post ->
+ semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx R))
+                      * globvars2pred gz ((i,gv)::gvs) * SF)
+     c Post.
+Proof.
+intros until n. intros Ht H3; intros.
+eapply semax_pre; [ | apply H6]; clear H6.
+rewrite <- insert_SEP.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+assert (H7 := unpack_globvar Delta gz i t gv _ H H0 H1 H2 H3 H4).
+spec H7.
+simpl. pose proof (sizeof_pos t). rewrite Z.max_l by omega. omega.
+specialize (H7 H5).
+go_lowerx.
+unfold globvars2pred; fold globvars2pred.
+simpl map.
+unfold fold_right; fold (fold_right sepcon emp  (map (globvar2pred gz) gvs)).
+unfold lift2.
+normalize.
+apply sepcon_derives; auto.
+pull_left (PQR rho).
+rewrite sepcon_assoc. 
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+specialize (H7 rho).
+unfold_lift in H7. unfold local, lift1 in H7.
+simpl in H7.
+rewrite prop_true_andp in H7 by auto.
+eapply derives_trans; [ apply H7  | ].
+subst t; simpl.
+destruct (zlt n 0).
+-
+rewrite Z.max_l by omega.
+rewrite Z2Nat_neg by omega.
+simpl.
+admit.  (* easy *)
+-
+rewrite Z.max_r by omega.
+unfold data_at.
+erewrite field_at_Tarray with (n0:=n);
+  [ | apply I | reflexivity | omega | apply JMeq_refl].
+admit.  (* plausible *)
+(*
+unfold mapsto_zeros.
+destruct (globals_of_env rho i) eqn:?H;
+ try apply FF_left.
+normalize.
+Search mapsto_memory_block.address_mapsto_zeros'.
+assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) [ArraySubsc 0] (globals_of_env rho i)).
+ admit.
+forget (globals_of_env rho i) as p.
+forget (readonly2share (gvar_readonly gv)) as sh.
+rewrite <- (Z2Nat.id n) at 1 3 by omega.
+assert (Z.of_nat (Z.to_nat n) <= n).
+rewrite Z2Nat.id by omega. omega.
+clear - H9.
+revert p H9; induction (Z.to_nat n); intros.
+simpl.
+rewrite array_at_len_0.
+normalize.
+unfold mapsto_zeros. destruct p; simpl; normalize.
+apply derives_refl.
+simpl mapsto
+simpl.
+*)
+Admitted.
 
 Lemma process_globvar_extern:
  forall {Espec: OracleKind} {CS: compspecs} Delta P gz Q R i gv gvs SF c Post,
@@ -919,6 +1005,11 @@ Qed.
 Ltac process_one_globvar :=
  first
   [ simple eapply process_globvar_extern; [reflexivity | reflexivity | ]
+  | simple eapply process_globvar_ptrarray_space;
+     [  reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+     | compute; clear; congruence
+     |
+     ]
   | simple eapply process_globvar_space;
     [simpl; reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | simpl; computable | ]
   | simple eapply process_globvar';
