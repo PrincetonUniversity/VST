@@ -1185,7 +1185,7 @@ Ltac expand_main_pre :=
    || rewrite prog_defs_Clight_mkprogram);
  simpl globvars2pred;
  repeat  process_idstar;
- apply eliminate_globvars2pred_nil;
+ simple apply eliminate_globvars2pred_nil;
  rewrite ?offset_val_unsigned_repr;
  simpl readonly2share.
 
