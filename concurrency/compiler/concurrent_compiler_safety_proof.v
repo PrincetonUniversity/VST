@@ -278,7 +278,8 @@ Section Concurrent_Safety.
         pose proof Hstep as HstepS.
         eapply (thread_diagram SIM) with (sge := Clight.globalenv p) (tge := the_ge) in Hstep;
           eauto.
-        destruct Hstep as [C_target' [m_t' [cd' [j' [Hmatch' [Hevs' HstepT]]]]]].
+        destruct Hstep as (C_target' & m_t' &cd' & j'
+                           & Hmatch' &Hevs' &HstepT& Hincr).
         destruct HstepT as [HstepT | [HstepT Hdec]].
         + (* Step Plus case *)
           destruct HstepT as [n HstepN].
@@ -356,7 +357,9 @@ Section Concurrent_Safety.
         pose proof Hstep as HstepS.
         eapply (machine_diagram SIM) with (sge := Clight.globalenv p) (tge := the_ge) in Hstep;
           eauto.
-        + destruct Hstep as [tr2' [C_target' [m_t' [cd' [j' [Hmatch' [Hevs' HstepT]]]]]]].
+        + destruct Hstep as
+              (tr2' & C_target' & m_t' & cd' &
+               j' & Hmatch' &Hevs' & HstepT &Hincr). 
           simpl in HstepT.
           pfold.
           econstructor 3 with (y' := (tr2', C_target', m_t'));

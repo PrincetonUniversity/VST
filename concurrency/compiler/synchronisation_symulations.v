@@ -180,24 +180,31 @@ Section SyncSimulation.
             HybridMachineSig.external_step
               (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
               U tr2 st2 m2 (HybridMachineSig.schedSkip U)
-              (seq.cat tr2 (Events.external tid ev' :: nil)) st2' m2'.
+              (seq.cat tr2 (Events.external tid ev' :: nil)) st2' m2'/\
+      inject_incr mu mu'.
     Proof.
       intros.
+      (*
+
+
+        
+
+       *)
+      
       match goal with
         |- exists (a:?A) (b:?B) (c:?C) (d:?D) (e:?E),
-          ?H1 /\
+          concur_match d e ?w ?x ?y ?z /\
           (Forall2 (inject_mevent e) (_ ++ (?ev1::nil)) (_ ++ (?ev1'::nil))) /\
-          ?H3 =>
-        cut (exists (a:A) (b:B) (c:C) (d:D) (e:E),
-                H1 /\ 
-                inject_incr mu e /\
-                (inject_mevent e ev1 ev1') /\
-                H3)
+          ?H3 /\ _
+        => cut (exists (a:A) (b:B) (c:C),
+                  concur_match cd mu w x y z /\ 
+                  (inject_mevent mu ev1 ev1') /\
+                  H3)
       end.
-      { intros (a&b&c&d&e&(HH1 & HH2 & HH3 & HH4)).
-        exists a, b, c, d, e; repeat weak_split (try assumption).
+      { intros (a&b&c&(HH1 & HH2 & HH3)).
+        exists a, b, c, cd, mu; repeat weak_split (try assumption).
         eapply List.Forall2_app; auto.
-        eapply inject_incr_trace; eauto. }
+        eapply inject_incr_refl. }
       
       assert (thread_compat1:thread_compat _ _ cnt1 m1) by
           (apply mem_compatible_thread_compat; assumption).
@@ -266,16 +273,16 @@ Section SyncSimulation.
           clean_proofs.
           apply syncStep_restr with (Hlt:=Hlt2') in H5.
           destruct H5 as (?&?&Hstep).
-          do 5 econstructor; repeat (weak_split idtac);
+          do 3 econstructor; repeat (weak_split idtac);
             try eapply Hstep.
           * eapply concur_match_perm_restrict2; eauto.
-          * apply inject_incr_refl.
           * econstructor; eauto.
           * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
             econstructor; eauto; simpl.
             symmetry; subst.
             erewrite <- restrPermMap_idempotent_eq.
             eapply mem_is_restr_eq.
+            
             
             
       - (*Release*)
@@ -330,9 +337,8 @@ Section SyncSimulation.
 
           apply syncStep_restr with (Hlt:=Hlt2') in H5.
           destruct H5 as (?&?&Hstep).
-          do 5 econstructor; repeat (weak_split idtac).
+          do 3 econstructor; repeat (weak_split idtac).
           * eapply concur_match_perm_restrict2; eauto.
-          * apply inject_incr_refl.
           * econstructor. debug eauto.
           * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
             econstructor; eauto; simpl.
@@ -454,9 +460,8 @@ Section SyncSimulation.
           destruct H5 as (?&?&?).
           clean_proofs.
           
-          do 5 econstructor; repeat (weak_split idtac).
+          do 3 econstructor; repeat (weak_split idtac).
           * eapply concur_match_perm_restrict2; eauto.
-          * apply inject_incr_refl.
           * econstructor; eauto.
           * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
             econstructor; eauto; simpl.
@@ -510,14 +515,13 @@ Section SyncSimulation.
           
           apply syncStep_restr with (Hlt:=Hlt2') in H5.
           destruct H5 as (?&?&Hstep).
-          do 5 econstructor; repeat (weak_split idtac).
+          do 3 econstructor; repeat (weak_split idtac).
           * replace m1_base with (@restrPermMap (getCurPerm m1_base) m1 Hlt1').
             eapply concur_match_perm_restrict; eauto.
             { subst m1.
               rewrite mem_is_restr_eq.
               symmetry. eapply restrPermMap_idempotent_eq. }
             
-          * apply inject_incr_refl.
           * econstructor; eauto.
           * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
             econstructor; eauto; simpl.
@@ -548,7 +552,7 @@ Section SyncSimulation.
         + clean_proofs.
           match type of H5 with
             forall Hcmpt2, syncStep _ _ _ ?st2' ?m2' ?ev2 =>
-            exists ev2, st2', m2', cd, mu
+            exists ev2, st2', m2'
           end; repeat (weak_split eauto).
           * subst m1_restr.
             clean_proofs.

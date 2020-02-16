@@ -411,7 +411,12 @@ Section Concurrent_correctness.
             destruct st; simpl in *.
             clean_proofs. reflexivity. }
         + simpl; split.
-          * !goal (tid <= 0)%nat. admit.  (* This is backwards! flip it. *)
+          * !goal (~ (tid < 0)%nat).
+            clear - ctn. intros HH.
+            hnf in ctn; simpl in *.
+            pose proof (@ssrnat.ltP (tid) (pos.n (OrdinalPool.num_threads st))).
+            rewrite ctn in H; inv H.
+            omega.
           * destruct Hinitial as [Hinitial  Hinitial_mem].
             econstructor; eauto. simpl.
             simpl in Hinitial.
@@ -565,13 +570,15 @@ Section Concurrent_correctness.
             simpl in *.
         destruct r1; inv H1.
         econstructor; simpl in *.
-        normal.
+        normal_hyp. split.
         2: { simpl. unfold lift_state.
              rewrite e; simpl.
              unfold  OrdinalPool.mkPool.
              f_equal. }
-        econstructor; simpl; auto.
-
+        simpl.
+        econstructor ; simpl; auto.
+        intros HH; omega.
+        
       - (*thread_diagram*)
         intros; unfold Clight_g; auto.
         exists (lift_c_state st1').
@@ -583,6 +590,13 @@ Section Concurrent_correctness.
         + left. exists 0%nat; simpl.
           do 2 eexists; split; eauto.
           apply internal_step_lift_c_state; auto.
+        + simpl in H. inv H. inv Htstep. simpl in *.
+          eapply flat_inj_lt.
+          eapply ClightSemanticsForMachines.CLC_evsem_obligation_3,
+          Clight_core.ev_elim_mem_step, mem_step_nextblock
+            in Hcorestep.
+          apply Hcorestep.
+          
       - (*machine_diagram*)
         intros; unfold Clight_g; auto.
         unshelve (exploit machine_step_trace_C;
@@ -602,6 +616,8 @@ Section Concurrent_correctness.
           eauto; simpl in *.
           eapply external_step_anytrace in H.
           eapply external_step_lift_c_state; eauto.
+        + inv H2. 
+          eapply flat_inj_lt, machine_step_nextblock; eassumption.
       - intros. revert H0.
         inv H. simpl.
         intros. exists v1. simpl in *.

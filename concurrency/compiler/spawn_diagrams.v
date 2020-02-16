@@ -830,19 +830,37 @@ Section SpawnDiagrams.
             intros Hstrict_evolution' (*Hincr'*) Hinterference1' Hinterference2'
                    Hafter_ext.
             
-            eapply large_external_diagram; try reflexivity; eauto.
-            - 
-              exact spawn_is_consec.
+            eapply large_external_diagram; try reflexivity; eauto;
+              swap 4 5.
+            - exact spawn_is_consec.
             - exact spawn_doesnt_return.
             - reflexivity.
-            - eapply inject_delta_map_empty.
             - simpl.
-              
               rewrite SpawnExists.
-              do 2 (econstructor; eauto).
+              econstructor; try eassumption.
+              (*HERE CHANGED SPAWN*)
               
-            - simpl; rewrite SpawnExists.
-              do 2 (econstructor; eauto).
+              unshelve erewrite restre_equiv_eq by (
+              rewrite Hthread_mem1; reflexivity).
+              rewrite <- Hthread_mem1; auto.
+              simpl. econstructor; eauto.
+            - eapply virtue_inject_bounded.
+              + eapply Hinj'0.
+              + eapply full_inject_dmap; eauto.
+                eapply CMatch.
+                apply join_dmap_valid, Hangel_bound.
+              + apply Hangel_bound.
+              + apply Hinj'0.
+              + eapply Hinj'0.
+            - simpl.
+              rewrite SpawnExists.
+              econstructor; try eassumption.
+              (*HERE CHANGED SPAWN*)
+              
+              unshelve erewrite restre_equiv_eq by (
+              rewrite Hthread_mem2; reflexivity).
+              rewrite <- Hthread_mem2; auto.
+              simpl. econstructor; eauto.
             - apply (interference_consecutive_until _ _ _  Hinterference2).
             - apply (interference_consecutive_until _ _ _ Hinterference2').
               

@@ -3311,3 +3311,93 @@ Qed.
       - intros ? **. rewrite  empty_is_empty in H1; inv H1.
       -  intros ? **. rewrite  empty_is_empty in H1; inv H1.
     Qed.
+
+    
+    Lemma perm_order_perm_impl:
+      forall m1 b1 ofs1 m2 b2 ofs2,
+        (forall p,
+            Mem.perm m1 b1 ofs1 Max p -> Mem.perm m2 b2 ofs2 Max p) ->
+        Mem.perm_order'' ((getMaxPerm m2) !! b2 ofs2)
+                         ((getMaxPerm m1) !! b1 ofs1).
+    Proof.
+      unfold Mem.perm.
+      intros; repeat rewrite_getPerm.
+      remember ((getMaxPerm m1) !! b1 ofs1) as X.
+      destruct X; try  eapply event_semantics.po_None.
+      specialize (H p).
+      repeat rewrite po_oo in H. eapply H. constructor.
+    Qed.
+    
+    Lemma perm_surj_setPermBlock_all : 
+      forall (mu : meminj) (perm1 perm2 : access_map),
+        perm_surj mu perm1 perm2 ->
+        forall (b1 b2 : block) (delt : Z),
+          mu b1 = Some (b2, delt) ->
+          forall (ofs : Z) (n : nat) p,
+            (0 < n)%nat ->
+            perm_surj mu (setPermBlock p b1 ofs perm1 n)
+                      (setPermBlock p b2 (ofs + delt) perm2 n).
+    (* put in  compiler.synchronisation_lemmas.v
+                next to [perm_surj_setPermBlock_Nonempty] *)
+    Admitted.
+    Lemma perm_surj_setPermBlock_var_all : 
+      forall (mu : meminj) (perm1 perm2 : access_map),
+        perm_surj mu perm1 perm2 ->
+        forall (b1 b2 : block) (delt : Z),
+          mu b1 = Some (b2, delt) ->
+          forall (ofs : Z) (n : nat) p,
+            (0 < n)%nat ->
+            perm_surj mu (setPermBlock_var p b1 ofs perm1 n)
+                      (setPermBlock_var p b2 (ofs + delt) perm2 n).
+    (* put in  compiler.synchronisation_lemmas.v
+                next to [perm_surj_setPermBlock_Nonempty] *)
+    Admitted.
+
+    
+    Instance setPermBlock_var_proper:
+            Proper (Logic.eq ==>
+                             Logic.eq ==>
+                             Logic.eq ==>
+                             access_map_equiv ==>
+                             Logic.eq ==>
+                             access_map_equiv) setPermBlock_var.
+Admitted.
+
+    Lemma mi_perm_perm_setPermBlock_var:
+          forall (n : nat) (mu : meminj) (perms1 : access_map)
+            (perms2 : PMap.t (Z -> option permission)) (p : nat -> option permission) 
+            (b1 b2 : block) (ofs delta : Z) (m1 : mem),
+           Mem.meminj_no_overlap mu m1 ->
+            permMapLt (setPermBlock_var p b1 ofs perms1 n) (getMaxPerm m1) ->
+            mu b1 = Some (b2, delta) ->
+            mi_perm_perm mu perms1 perms2 ->
+            mi_perm_perm mu (setPermBlock_var p b1 ofs perms1 n)
+                         (setPermBlock_var p b2 (ofs + delta) perms2 n).
+        Proof.
+        Admitted.
+        Lemma  mi_memval_perm_setPermBlock_var:
+            forall mu m1 m2  b_lock1 b_lock2 ofs_lock1 delt size p perm0,
+              mi_memval_perm mu perm0
+                             (Mem.mem_contents m1)
+              (Mem.mem_contents m2) ->
+              mu b_lock1 = Some (b_lock2, delt) ->
+              (forall ofs0 : Z,
+                  Intv.In ofs0 (ofs_lock1, ofs_lock1 + size) ->
+                  memval_inject mu (ZMap.get ofs0 (Mem.mem_contents m1) !! b_lock1)
+                                (ZMap.get (ofs0 + delt) (Mem.mem_contents m2) !! b_lock2)) ->
+                mi_memval_perm mu
+              (setPermBlock_var p b_lock1 ofs_lock1 perm0 (Z.to_nat size))
+              (Mem.mem_contents m1) (Mem.mem_contents m2).
+          Proof.
+          Admitted.
+        Lemma mi_perm_inv_perm_setPermBlock_var:
+            forall (mu : block -> option (block * Z))
+              (m1 m2 : mem) (b1 b2 : block) delta 
+              (ofs z : Z) n p,
+              mu b1 = Some (b2, delta) ->
+              mi_perm_inv_perm mu (getCurPerm m1) (getCurPerm m2) m1 ->
+              Mem.meminj_no_overlap mu m1 ->
+              mi_perm_inv_perm mu (setPermBlock_var p b1 ofs (getCurPerm m1) n)
+                               (setPermBlock_var p b2 (ofs + delta) (getCurPerm m2) n) m1.
+          Proof.
+          Admitted.

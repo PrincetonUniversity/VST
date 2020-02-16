@@ -2675,3 +2675,78 @@ Admitted.
         + rewrite restr_Max_eq; apply H1.
         + eapply restr_Max_equiv.
     Qed.
+
+    
+    Lemma mem_compat_remLockSet:
+      forall Sem m st adr,
+        mem_compatible(Sem:=Sem)(tpool:=OrdinalThreadPool) st m ->
+        mem_compatible(tpool:=OrdinalThreadPool) (ThreadPool.remLockSet st adr) m.
+    Proof.
+      intros. inv H.
+      econstructor.
+      - intros *. erewrite ThreadPool.gRemLockSetRes; eauto.
+      - intros * HH.
+        destruct (addressFiniteMap.AMap.E.eq_dec adr l).
+        + subst; rewrite ThreadPool.gsslockResRemLock in HH; congruence.
+        + subst; rewrite ThreadPool.gsolockResRemLock in HH; eauto.
+      - intros * HH.
+        destruct (addressFiniteMap.AMap.E.eq_dec adr l).
+        + subst; rewrite ThreadPool.gsslockResRemLock in HH; congruence.
+        + subst; rewrite ThreadPool.gsolockResRemLock in HH; eauto.
+          Unshelve.
+          eapply cnt.
+    Qed.
+    
+        Lemma invariant_update_free:
+             forall (Sem : Semantics) (st st' : ThreadPool.t)
+                (c : ctl) 
+                (tid : nat) (cnt1 : ThreadPool.containsThread st tid) 
+                (b : block) (ofs : Z) (Hcnt : containsThread st tid)
+                pdata perms,
+                ThreadPool.lockRes st (b, ofs) = Some perms ->
+                permMapLt_range (lock_perms st tid Hcnt) b ofs
+                                (ofs + Z.of_nat LKSIZE_nat) (Some Writable) ->
+                let new_perms := setPermBlock_var_pair
+                                   b ofs LKSIZE_nat (pdata, fun _ : nat => None)
+                                   (getThreadR Hcnt) in
+                st' = remLockfFullUpdate st tid Hcnt c new_perms (b, ofs) ->
+                invariant st ->
+                invariant st'.
+        Admitted.
+
+        
+Lemma concur_match_free_lock:
+  forall (CC_correct: CompCert_correctness)
+    (Args: ThreadSimulationArguments)
+    ocd hb f st1 m1 st2 m2,
+    concur_match.concur_match hb ocd f st1 m1 st2 m2 ->
+    forall st1' m1' st2' m2' b_lock1 b_lock2 ofs_lock delta
+      th_perms1 th_perms2 c1 c2 tid,
+    forall (Hlt1 : permMapLt th_perms1 (getMaxPerm m1'))
+      (Hlt2 : permMapLt th_perms2 (getMaxPerm m2')),
+      Mem.inject f (restrPermMap Hlt1) (restrPermMap Hlt2) ->
+      invariant(tpool:=OrdinalThreadPool) st1' ->
+      invariant(tpool:=OrdinalThreadPool) st2' ->
+      mem_compatible(Sem:=HybridSem (Some hb)) st1' m1 ->
+      mem_compatible(Sem:=HybridSem (Some (S hb))) st2' m2 ->
+      forall (th_lock_perms1 th_lock_perms2 : access_map)
+        (Hlt_lock1 : permMapLt th_lock_perms1 (getMaxPerm m1'))
+        (Hlt_lock2 : permMapLt th_lock_perms2 (getMaxPerm m2'))
+        cnt1 cnt2,
+        Mem.inject f (restrPermMap Hlt_lock1) (restrPermMap Hlt_lock2) ->
+        perm_surj f th_lock_perms1 th_lock_perms2 ->
+        let st1':=
+            (remLockfFullUpdate
+               st1 tid cnt1 c1 (th_perms1, th_lock_perms1)
+               (b_lock1, ofs_lock)) in
+        let st2':=
+            (remLockfFullUpdate
+               st2 tid cnt2 c2 (th_perms2, th_lock_perms2)
+               (b_lock2, ofs_lock + delta)) in
+        f b_lock1 = Some (b_lock2, delta) ->
+        one_thread_match hb hb tid ocd f c1 (restrPermMap Hlt1) c2
+                         (restrPermMap Hlt2) ->
+        concur_match.concur_match hb ocd f st1' m1' st2' m2'.
+Proof.
+  
+Admitted.

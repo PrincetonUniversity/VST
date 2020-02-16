@@ -136,7 +136,7 @@ Inductive mklock: val -> mem ->  mem -> Prop  :=
       m'' = @restrPermMap new_perm m' Hlt ->
       mklock (Vptr b ofs) m m''.
 
-Inductive freelock: val -> mem ->  mem -> Prop  :=
+(*Inductive freelock: val -> mem ->  mem -> Prop  :=
 | FreeLockSem:
     forall b ofs m new_perm m' m'' Hlt,
       lock_update_mem_strict b (unsigned ofs) m m' vone ->
@@ -144,12 +144,26 @@ Inductive freelock: val -> mem ->  mem -> Prop  :=
       setPermBlock (Some Nonempty) b (unsigned ofs)
                    (getCurPerm m') LKSIZE_nat ->
       m'' = @restrPermMap new_perm m' Hlt ->
-      freelock (Vptr b ofs) m m''.
+      freelock (Vptr b ofs) m m''.*)
 
-Inductive spawn: val -> mem -> delta_map -> mem -> Prop :=
+Inductive freelock : val -> mem -> mem -> Prop :=
+| FreeLockSem :
+    forall b ofs pdata new_perm m m'
+      (Hlt : permMapLt new_perm (getMaxPerm m)),
+    new_perm =
+    setPermBlock_var pdata b (unsigned ofs) (getCurPerm m) LKSIZE_nat ->
+    m' = restrPermMap Hlt ->
+    freelock (Vptr b ofs) m m'.
+(*Inductive spawn: val -> mem -> delta_map -> mem -> Prop :=
   SpawnAngel: forall b ofs dpm m m' new_perms,
     new_perms = computeMap (getCurPerm m) dpm ->
-    spawn (Vptr b ofs) m dpm m'.
+    spawn (Vptr b ofs) m dpm m'.*)
+Inductive spawn: val -> mem -> delta_map -> mem -> Prop :=
+  SpawnAngel: forall b ofs dpm m new_perms
+                (Hlt: permMapLt new_perms (getMaxPerm m)),
+    new_perms = computeMap (getCurPerm m) dpm ->
+    spawn (Vptr b ofs) m dpm (restrPermMap Hlt).
+
 
 Inductive extcall_release: Events.extcall_sem:=
 | ExtCallRelease:
@@ -180,15 +194,6 @@ Inductive extcall_mklock: Events.extcall_sem:=
                      (Events.Event_acq_rel e empty_dmap e' :: nil)
                      Vundef m'''.
 
-Inductive extcall_freelock: Events.extcall_sem:=
-| ExtCallFreelock:
-    forall ge m m' m'' m''' b ofs e e',
-      mem_interference m e m' ->
-      freelock (Vptr b ofs) m' m'' ->
-      mem_interference m'' e' m''' ->
-      extcall_freelock ge (Vptr b ofs :: nil) m
-                       (Events.Event_acq_rel e empty_dmap e' :: nil)
-                       Vundef m'''.
 Inductive extcall_spawn : Events.extcall_sem:=
       ExtCallSpawn : forall 
         (ge : Senv.t) (m m' m'' m''' : mem)
@@ -202,7 +207,14 @@ Inductive extcall_spawn : Events.extcall_sem:=
         extcall_spawn ge (Vptr b ofs::arg :: nil)
                       m (Events.Event_acq_rel e dpm e' :: nil)
                       Vundef m'''.
-
+Inductive extcall_freelock : Events.extcall_sem :=
+  ExtCallFreelock : forall (ge : Senv.t) (m m' m'' m''' : mem) (b : block) 
+                      (ofs : ptrofs) (e e' : list Events.mem_effect),
+    mem_interference m e m' ->
+    freelock (Vptr b ofs) m' m'' ->
+    mem_interference m'' e' m''' ->
+    extcall_freelock ge (Vptr b ofs :: nil) m
+                     (Events.Event_acq_rel e empty_dmap e' :: nil) Vundef m'''.
 
 Axiom ReleaseExists:
   forall ge args m ev r m',
@@ -219,10 +231,10 @@ Axiom MakeLockExists:
     Events.external_functions_sem "makelock" UNLOCK_SIG
                                   ge args m ev r m' =
     extcall_mklock ge args m ev r m'. 
-Axiom FreeLockExists:
-  forall ge args m ev r m',
-    Events.external_functions_sem "freelock" UNLOCK_SIG
-                                  ge args m ev r m' =
+Axiom FreeLockExists
+  : forall (ge : Senv.t) (args : list val) (m : mem) (ev : Events.trace) 
+      (r : val) (m' : mem),
+    Events.external_functions_sem "freelock" UNLOCK_SIG ge args m ev r m' =
     extcall_freelock ge args m ev r m'.
 Axiom SpawnExists
   : forall (ge : Senv.t) (args : list val) (m : mem) (ev : Events.trace) 
@@ -274,7 +286,12 @@ Proof.
   inversion Hext_call; reflexivity.
 Qed.
 Lemma spawn_doesnt_return: doesnt_return CREATE.
-Admitted.
+Proof. 
+  intros ? * Hext_call.
+  unfold Events.external_call in Hext_call.
+  rewrite SpawnExists in Hext_call.
+  inversion Hext_call; reflexivity.
+Qed.
 
 (* "consecutive" *)
 
@@ -327,11 +344,15 @@ Proof. pose proof FreeLockExists; intros ? **; subst.
        - eapply interference_consecutive_until; eauto.
        - replace (Mem.nextblock m') with (Mem.nextblock m'').
          + eapply interference_consecutive_until; eauto.
-         + inv H11. inv H2. simpl.
-           apply Mem.nextblock_store in Hstore; rewrite Hstore.
-           reflexivity.
+         + inv H11. simpl. reflexivity.
 Qed.
 
 Lemma spawn_is_consec: consecutive_sem "spawn" CREATE_SIG.
-Admitted. 
-    
+  pose proof SpawnExists; intros ? **; subst.
+       rewrite H in H0; inv H0.
+       eapply consecutive_until_consecutive,consecutive_until_cat.
+       - eapply interference_consecutive_until; eauto.
+       - replace (Mem.nextblock m') with (Mem.nextblock m'').
+         + eapply interference_consecutive_until; eauto.
+         + inv H11; reflexivity.
+Qed.

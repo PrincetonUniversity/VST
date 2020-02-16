@@ -214,8 +214,9 @@ Section HybridSimulation.
               exists st2', exists m2', exists cd', exists mu',
                       match_state cd' mu' st1' m1' st2' m2'
                       /\ Forall2 (inject_mevent mu') tr1 tr2
-                      /\ (thread_step_plus (TargetHybridMachine) tge U st2 m2 st2' m2'
-               \/ (thread_step_star (TargetHybridMachine) tge U st2 m2 st2' m2' /\ core_ord cd' cd))
+                      /\ ((thread_step_plus (TargetHybridMachine) tge U st2 m2 st2' m2'
+                         \/ (thread_step_star (TargetHybridMachine) tge U st2 m2 st2' m2' /\ core_ord cd' cd)))
+                          /\ inject_incr mu mu' 
       ; machine_diagram :
           forall sge tge U tr1 st1 m1 U' tr1' st1' m1',
             machine_step SourceHybridMachine sge U tr1 st1 m1 U' tr1' st1' m1' ->
@@ -228,6 +229,7 @@ Section HybridSimulation.
                       match_state cd' mu' st1' m1' st2' m2'
                       /\ Forall2 (inject_mevent mu') tr1' tr2'
                       /\ machine_step (TargetHybridMachine) tge U tr2 st2 m2 U' tr2' st2' m2'
+                      /\ inject_incr mu mu' 
       ; thread_halted :
           forall cd mu U c1 m1 c2 m2 v1,
             match_state cd mu c1 m1 c2 m2 ->
@@ -239,6 +241,14 @@ Section HybridSimulation.
             match_state cd mu c1 m1 c2 m2 ->
             forall i, running_thread SourceHybridMachine c1 i <-> running_thread TargetHybridMachine c2 i
     }.
+  Record simulation_properties_exposed
+         Hinv Hcmpt {index}
+         match_state order:=
+    { xSIM:> @HybridMachine_simulation_properties
+             Hinv Hcmpt
+             index match_state;
+      Hexpose_order: core_ord xSIM = order }.
+      
 
   Record HybridMachine_simulation'
          (inv1: SC -> Prop)
