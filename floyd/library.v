@@ -57,7 +57,7 @@ Definition exit_spec' :=
    PROP(False) LOCAL() SEP().
 *)
 Definition exit_spec' :=
- FOR u: unit
+ WITH u: unit
  PRE [tint]
    PROP () (LAMBDAx nil nil (SEP()))
  POST [ tvoid ]
@@ -119,7 +119,7 @@ Definition malloc_spec'  {cs: compspecs} :=
              if eq_dec p nullval then emp
             else (malloc_token Ews t p * data_at_ Ews t p)).*)
 Definition malloc_spec'  {cs: compspecs} :=
-   FOR t:type, gv: globals
+   WITH t:type, gv: globals
    PRE [ size_t ]
        PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
@@ -150,7 +150,7 @@ Definition free_spec'  {cs: compspecs} :=
        LOCAL ()
        SEP (mem_mgr gv).*)
 Definition free_spec'  {cs: compspecs} :=
-   FOR t: type, p:val, gv: globals
+   WITH t: type, p:val, gv: globals
    PRE [ tvoid ]
        PROP ()
        (LAMBDAx (gv::nil) (p::nil)

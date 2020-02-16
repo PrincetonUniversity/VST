@@ -4309,7 +4309,7 @@ Ltac start_function1 :=
     | s := (_, ?a) |- _ => unfold a in s
     end;
     lazymatch goal with
-    | s :=  (_,  (*WITH _: globals*) FOR _: globals
+    | s :=  (_,  WITH _: globals
                PRE  [] main_pre _ _ _
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
