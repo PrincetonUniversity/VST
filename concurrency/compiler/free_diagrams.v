@@ -1078,12 +1078,7 @@ Section FreeDiagrams.
                clean_proofs; eauto.
         + exists e'; eexists; exists m2.
           repeat weak_split eauto.
-          (*
-           * (* reestablish concur *)
-            rename b into BB.
-            !goal (concur_match _ _ (remLockfFullUpdate _ _ _ _ _ _ ) _ _ _).
-            adm it.
-          * clear - Htrace_inj; auto. *)
+          (*  *)
           * clean_proofs; eauto.
 
             Unshelve.

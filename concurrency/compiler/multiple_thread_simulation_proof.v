@@ -23,6 +23,8 @@ Require Import VST.concurrency.compiler.list_order.
 Require Import VST.concurrency.compiler.Asm_lemmas.
 Require Import VST.concurrency.compiler.synchronisation_symulations.
 Require Import VST.concurrency.compiler.single_thread_simulation_proof.
+Require Import VST.concurrency.compiler.Lift.
+Require Import VST.concurrency.compiler.CPM_self_simulation.
 
 
 
@@ -105,6 +107,8 @@ Section ThreadedSimulation.
             match_state n ils jn tp0 m0 tpn mn ->
             concur_match n ocd jSn tpn mn tpSn mSn ->
             match_state (S n) (cons ocd ils) (compose_meminj jn jSn) tp0 m0 tpSn mSn.
+
+      
       Lemma thread_step_mem_fwd:
         forall hb m sge U st1 m1 st1' m1',
           machine_semantics.thread_step (HybConcSem hb m) sge U st1 m1 st1' m1' ->
@@ -469,588 +473,10 @@ Section ThreadedSimulation.
 
     End CompileNThreads.
 
-    Section Lift.
-      (* We lift states to a different semantics: 
-         The state content is exactly the same, 
-         but the type is of a hybrid machine of higher order.
-       *)
-
-      
-      (* Create a database for eauto and autorewrite
-       *)
-      Create HintDb lift.
-      Tactic Notation "lift":= eauto with lift.
-      Tactic Notation "rw_lift":= autorewrite with lift.
-
-
-      (** *Definitions*)
-      Definition lift_state': forall {on on'},
-          ThreadPool on -> ThreadPool on'.
-      Proof.  intros; inv X; econstructor; eauto. Defined.
-      Inductive lift_state: forall on, ThreadPool on -> forall on', ThreadPool on' -> Prop:=
-      | build_lift_state: forall on on' st st',
-          st' = lift_state' st -> lift_state on st on' st'.
-      Hint Constructors lift_state: lift.
-
-
-      (** *Core lemmas *)
-      Lemma lift_state_refl:
-        forall n st, @lift_state' n n st = st.
-      Proof. intros; destruct st; simpl. f_equal. Qed.
-      Hint Resolve lift_state_refl: lift.
-      Lemma lift_contains:
-        forall {on on'} st j,
-          OrdinalPool.containsThread st j <->
-          OrdinalPool.containsThread (@lift_state' on on' st) j.
-      Proof.
-        intros. simpl.
-        unfold OrdinalPool.containsThread; simpl.
-        destruct st; simpl. reflexivity.
-      Qed.
-      Lemma lift_contains1:
-        forall {on on'} st j,
-          OrdinalPool.containsThread st j ->
-          OrdinalPool.containsThread (@lift_state' on on' st) j.
-      Proof. intros; eapply lift_contains in H; eauto. Qed.
-      Hint Resolve lift_contains1: lift.
-      (* this version is better to use in statement of lemmas to rewrite*)
-      Lemma unlift_cnt:
-        forall on on' {st j},
-          OrdinalPool.containsThread (@lift_state' on on' st) j ->
-          OrdinalPool.containsThread st j.
-      Proof. intros; eapply lift_contains in H; eauto. Qed.
-      Lemma lift_contains2:
-        forall {on on'} st j,
-          OrdinalPool.containsThread (@lift_state' on on' st) j ->
-          OrdinalPool.containsThread st j.
-      Proof. intros; eapply lift_contains in H; eauto. Qed.
-      Lemma lift_getC:
-        forall on on' st tid
-          (Htid: OrdinalPool.containsThread st tid)
-          (Htid': OrdinalPool.containsThread (@lift_state' on on' st) tid),
-          OrdinalPool.getThreadC Htid' = OrdinalPool.getThreadC Htid.
-      Proof.
-        intros. destruct st; simpl in *.
-        replace Htid' with Htid by apply Axioms.proof_irr; auto.
-      Qed.
-      Lemma lift_getC':
-        forall on on' st tid
-          (Htid': OrdinalPool.containsThread (@lift_state' on on' st) tid),
-          OrdinalPool.getThreadC Htid' = OrdinalPool.getThreadC (unlift_cnt on on' Htid').
-      Proof. intros; eapply lift_getC; auto. Qed.
-      Hint Rewrite lift_getC': lift.
-      Lemma lift_getR:
-        forall on on' st tid
-          (Htid: OrdinalPool.containsThread st tid)
-          (Htid': OrdinalPool.containsThread (@lift_state' on on' st) tid),
-          OrdinalPool.getThreadR Htid' = OrdinalPool.getThreadR Htid.
-      Proof.
-        intros. destruct st; simpl in *.
-        replace Htid' with Htid by apply Axioms.proof_irr; auto.
-      Qed.
-      Lemma lift_getR':
-        forall on on' st tid
-          (Htid': OrdinalPool.containsThread (@lift_state' on on' st) tid),
-          OrdinalPool.getThreadR Htid' = OrdinalPool.getThreadR (unlift_cnt on on' Htid').
-      Proof. intros; eapply lift_getR; auto. Qed.
-      Hint Rewrite lift_getR': lift.
-      Lemma lift_lockRes:
-        forall on on' st l,
-          OrdinalPool.lockRes (@lift_state' on on' st) l =
-          OrdinalPool.lockRes st l.
-      Proof.
-        intros; destruct st; simpl.
-        unfold OrdinalPool.lockRes; simpl; reflexivity.
-      Qed.
-      Hint Rewrite lift_lockRes: lift.
-      
-      
-      
-      
-      Lemma lift_invariant:
-        forall hb1 hb2 st st',
-          lift_state hb1 st hb2 st' ->
-          invariant st -> invariant st'.
-      Admitted.
-      Lemma lift_invariant':
-        forall hb1 hb2 st,
-          invariant st -> invariant (@lift_state' hb1 hb2 st).
-      Proof.
-        intros. eapply lift_invariant; eauto.
-        econstructor; eauto.
-      Qed.
-      Hint Resolve lift_invariant': lift.
-      Lemma lift_cmpt:
-        forall hb1 hb2 st m,
-          mem_compatible st m ->
-          mem_compatible (@lift_state' hb1 hb2 st) m.
-      Proof.
-        intros. inv H; simpl in *.
-        econstructor; simpl;
-          intros; simpl; autorewrite with lift in *;
-            clean_proofs_goal; eauto.
-      Qed.
-      Hint Resolve lift_cmpt: lift.
-      
-      Lemma lift_state_idempotent:
-        forall base n top st,
-          @lift_state' (Some n) top
-                       (@lift_state' base (Some n) st) =
-          @lift_state' base top st.
-      Proof. intros. destruct st; eauto. Qed.
-      Hint Rewrite lift_state_idempotent: lift.
-
-      
-      (* for some reason, getC doesn't autorewrite
-         it seems like it unifies on = on' before rewriteting,
-         unless given explicitly...
-       *)
-      Ltac rewrite_getC:=
-        match goal with
-          |- @OrdinalPool.getThreadC
-              _ _ ?i
-              (@lift_state' ?on ?on'  ?st) ?cnt
-            = _ =>
-          rewrite (lift_getC' on on');
-          clean_proofs_goal; lift
-        end.
-      
-      Ltac lift_tac:=
-        autorewrite with lift in *;
-        try rewrite_getC; 
-        clean_proofs_goal; lift.
-      
-      
-      Lemma unlift_permMapLt:
-        forall on on' {st tid m}
-          {Htid': ThreadPool.containsThread
-                    (@lift_state' on on' st) tid}
-          (Hlt': permMapLt
-                   (thread_perms (lift_state' st) tid Htid')
-                   (getMaxPerm m)),
-          permMapLt
-            (thread_perms st tid (unlift_cnt _ _ Htid'))
-            (getMaxPerm m).
-      Proof. intros; lift_tac. Qed.
-      Hint Resolve @unlift_permMapLt: lift.
-      Lemma unlift_permMapLt_lock:
-        forall on on' {st tid m}
-               {Htid': ThreadPool.containsThread
-                         (@lift_state' on on' st) tid}
-               (Hlt': permMapLt
-                        (lock_perms (lift_state' st) tid Htid')
-                        (getMaxPerm m)),
-          permMapLt
-            (lock_perms st tid (unlift_cnt _ _ Htid'))
-            (getMaxPerm m).
-      Proof. intros; lift_tac. Qed.
-      Hint Resolve @unlift_permMapLt_lock: lift.
-      
-      Lemma lift_restrPermMap:
-        forall on on' st tid m
-               (Htid': ThreadPool.containsThread
-                         (@lift_state' on on' st) tid)
-               (Hlt': permMapLt
-                        (thread_perms (lift_state' st) tid Htid')
-                        (getMaxPerm m)),
-          restrPermMap Hlt' =
-          restrPermMap (unlift_permMapLt _ _ Hlt').
-      Proof.
-        intros.
-        eapply restre_equiv_eq; lift_tac;
-          reflexivity.
-      Qed.
-      Hint Rewrite lift_restrPermMap: lift.
-      
-      Lemma lift_restrPermMap_lk:
-        forall on on' st tid m
-          (Htid': ThreadPool.containsThread
-                    (@lift_state' on on' st) tid)
-          (Hlt': permMapLt
-                   (lock_perms (lift_state' st) tid Htid')
-                   (getMaxPerm m)),
-          restrPermMap Hlt' =
-          restrPermMap (unlift_permMapLt_lock _ _ Hlt').
-      Proof.
-        intros.
-        eapply restre_equiv_eq; lift_tac;
-          reflexivity.
-      Qed.
-      Hint Rewrite lift_restrPermMap_lk: lift.
-
-      
-      
-      
-      (** *Regular lemmas
-          i.e. don't go in the database 
-       *)
-      Lemma lift_unique_Krun:
-        forall {on on'} st i,
-          HybridMachineSig.unique_Krun st i <->
-          HybridMachineSig.unique_Krun (@lift_state' on on' st) i.
-      Proof.
-        intros; split; intros ** ? **; simpl in *.
-        - unshelve eapply H; eauto; simpl.
-          eapply lift_contains2; eauto.
-          destruct st; simpl in *.
-          rewrite <- H0; f_equal.
-          clean_proofs_goal; reflexivity.
-        - unshelve eapply H; eauto; simpl.
-          lift.
-          destruct st; simpl in *.
-          rewrite <- H0; f_equal.
-          clean_proofs_goal; reflexivity.
-      Qed.
-
-      Lemma lift_updThread:
-        forall on on' st tid
-          (Htid: ThreadPool.containsThread st tid)
-          (Htid': ThreadPool.containsThread (@lift_state' on on' st) tid)
-          c res st',
-          OrdinalPool.updThread Htid c res = st' ->
-          OrdinalPool.updThread Htid' c res = lift_state' st'.
-      Proof.
-        intros.
-        subst st'. destruct st; simpl.
-        unfold OrdinalPool.updThread; simpl.
-        f_equal.
-      Qed.
-      Lemma lift_updThread':
-        forall on on' st tid
-               (Htid': ThreadPool.containsThread (@lift_state' on on' st) tid)
-               c res st',
-          OrdinalPool.updThread (unlift_cnt on on' Htid') c res = st' ->
-          OrdinalPool.updThread Htid' c res = lift_state' st'.
-      Proof.
-        intros.
-        subst st'. destruct st; simpl.
-        unfold OrdinalPool.updThread; simpl.
-        f_equal.
-      Qed.
-      Hint Resolve lift_updThread: lift.
-      Hint Rewrite lift_updThread' using eauto: lift.
-
-      Lemma lift_updThreadC:
-        forall on on' st tid
-               (Htid: ThreadPool.containsThread st tid)
-               (Htid': ThreadPool.containsThread (@lift_state' on on' st) tid)
-               res st',
-          OrdinalPool.updThreadC Htid res = st' ->
-          OrdinalPool.updThreadC Htid' res = lift_state' st'.
-      Proof.
-        intros.
-        subst st'. destruct st; simpl in *.
-        unfold lift_state' in *.
-        unfold OrdinalPool.updThreadC; simpl.
-        f_equal.
-      Qed.
-      Hint Resolve lift_updThreadC: lift.
-      Hint Rewrite lift_updThreadC: lift.
-      
-      Notation MachineSig_n on:= (@DryHybridMachineSig
-                                    (@HybridSem CC_correct Args on) (TP on)).
-      
-      Lemma lift_install_perm:
-        forall on on' st tid m m'
-          (Htid: ThreadPool.containsThread st tid)
-          (Htid': ThreadPool.containsThread (@lift_state' on on' st) tid)
-          (Hcmpt : HybridMachineSig.mem_compatible st m)
-          (Hcmpt' : HybridMachineSig.mem_compatible (@lift_state' on on' st) m),
-          @HybridMachineSig.install_perm _ _ _
-                                         (MachineSig_n on)  _ _ _ Hcmpt Htid m' ->
-          @HybridMachineSig.install_perm _ _ _
-                                         (MachineSig_n on')  _ _ _ Hcmpt' Htid' m'.
-      Proof.
-        simpl in *. 
-        unfold HybridMachineSig.install_perm, install_perm; simpl;
-          unfold install_perm; intros.
-        clean_proofs_goal.
-        subst m'; f_equal.
-        simpl.
-        eapply synchronisation_lemmas.restrPermMap_access_equiv.
-        unfold thread_perms; simpl.
-        remember (OrdinalPool.getThreadR Htid) as X.
-        symmetry in HeqX.
-        erewrite lift_getR; auto.
-        subst X; reflexivity.
-      Qed.
-      Lemma lift_install_perm':
-        forall on on' (st: OrdinalPool.t) tid m  m'
-          (Htid: OrdinalPool.containsThread st tid)
-          (Htid': OrdinalPool.containsThread (@lift_state' on on' st) tid)
-          (Hcmpt : @mem_compatible _ (@OrdinalPool.OrdinalThreadPool
-                                        _
-                                        (@HybridSem CC_correct Args on)) st m)
-          (Hcmpt' : mem_compatible (@lift_state' on on' st) m),
-          install_perm _ _ _ Hcmpt Htid m' ->
-          install_perm  _ _ _ Hcmpt' Htid' m'.
-      Proof. eapply lift_install_perm. Qed.
-      Hint Resolve lift_install_perm': lift.
-      Hint Resolve lift_install_perm: lift.
-      
-      Definition hb_le (hb1 hb2: option nat):=
-        match hb1, hb2 with
-        | Some n1, Some n2 => (n1 <= n2)%nat
-        | _, None => True
-        | _ , _ => False
-        end.
-      Lemma  lt_op_hb_le:
-        forall tid on1 on2,
-          lt_op tid on1 ->
-          hb_le on1 on2 ->
-          lt_op tid on2.
-      Proof.
-        intros. unfold hb_le in H0.
-        repeat match_case in H0; subst; simpl in *.
-        omega.
-      Qed.
-      
-      Lemma lift_initial_core:
-        forall on on' tid m c m' vf arg,
-          lt_op tid on -> hb_le on on' ->
-          initial_core (sem_coresem (HybridSem on)) tid m c m' vf arg ->
-          initial_core (sem_coresem (HybridSem on')) tid m
-                       c m' vf arg.
-      Proof.
-        unfold HybridSem; simpl.
-        intros. simpl in H1.
-        unfold initial_core_sum in H1.
-        match_case in H1.
-        - normal. contradict H1; apply H.
-        - simpl. normal; eauto.
-          eapply lt_op_hb_le; eauto.
-      Qed.
-      Hint Resolve lift_initial_core: lift.
-      
-      Definition ThreadPool_num_threads {hb1} (st:ThreadPool hb1): nat.
-        apply pos.n.
-        eapply @OrdinalPool.num_threads.
-        simpl in st. eauto.
-      Defined.
-      
-      Lemma  lt_op_lt:
-        forall tid x on2,
-          lt_op x on2 ->
-          (tid < x)%nat ->
-          lt_op tid on2.
-      Proof.
-        intros. unfold lt_op in *.
-        match_case; eauto.
-        omega.
-      Qed.
-      Lemma cnt_pos_threads_lt:
-        forall hb (st: ThreadPool (hb)) tid, 
-          ThreadPool.containsThread st tid ->
-          (tid < ThreadPool_num_threads st)%nat.
-      Proof.
-        unfold ThreadPool_num_threads in *.
-        intros. 
-        apply (Nat.lt_le_trans _ (S tid)); try omega.
-        exploit (@ssrnat.leP (S tid) (pos.n (OrdinalPool.num_threads st))). 
-        hnf in H. intros HH; inv HH; auto.
-        rewrite H in H0; congruence.
-      Qed.
-      Lemma lift_start_thread:
-        forall on on' m st st' m' tid
-          (Htid: ThreadPool.containsThread st tid)
-          (Htid': ThreadPool.containsThread (lift_state' st) tid)
-          (Hltop: lt_op (ThreadPool_num_threads st) on)
-          (Hhb_le: hb_le on on'),
-          start_thread(machineSig:=MachineSig_n on)
-                      m Htid st' m' ->
-          start_thread(machineSig:=MachineSig_n on')
-                      m Htid' (lift_state' st') m'.
-      Proof.
-        intros.
-        inv H; econstructor; simpl in *;
-          lift_tac.
-        - instantiate (1:= c_new).
-          hnf in Hinitial.
-          match_case in Hinitial.
-          normal_hyp.
-          contradict H.
-          + eapply lt_op_lt; eauto.
-            eapply cnt_pos_threads_lt; auto.
-          + simpl. normal; eauto.
-            eapply lt_op_hb_le; eassumption.
-        - unfold add_block; simpl.
-          autorewrite with lift; simpl.
-          erewrite lift_updThread; eauto; simpl.
-          autorewrite with lift in *;
-            clean_proofs_goal; lift.
-
-          Unshelve.
-          simpl; lift.
-      Qed.
-      Lemma lift_resume_thread:
-        forall on on' m st st' tid
-          (Htid: ThreadPool.containsThread st tid)
-          (Htid': ThreadPool.containsThread (lift_state' st) tid)
-          (Hltop: lt_op (ThreadPool_num_threads st) on)
-          (Hhb_le: hb_le on on'),
-          resume_thread(machineSig:=MachineSig_n on)
-                       m Htid st' ->
-          resume_thread(machineSig:=MachineSig_n on')
-                       m Htid' (lift_state' st').
-      Proof.
-        intros.
-        inv H; econstructor; simpl in *; lift_tac.
-        erewrite lift_updThreadC; eauto; reflexivity.
-
-        Unshelve.
-        all: simpl; lift.
-        
-      Qed.
-      
-      Lemma lift_suspend_thread:
-        forall on on' m st st' tid
-          (Htid: ThreadPool.containsThread st tid)
-          (Htid': ThreadPool.containsThread (lift_state' st) tid)
-          (Hltop: lt_op (ThreadPool_num_threads st) on)
-          (Hhb_le: hb_le on on'),
-          suspend_thread(machineSig:=MachineSig_n on)
-                        m Htid st' ->
-          suspend_thread(machineSig:=MachineSig_n on')
-                        m Htid' (lift_state' st').
-      Proof.
-        intros.
-        inv H; econstructor; simpl in *;lift_tac.
-        erewrite lift_updThreadC; eauto; reflexivity.
-
-        Unshelve.
-        all: simpl; lift.
-      Qed.
-      Lemma lift_syncStep:
-        forall on on' m st m' st' tid ev
-          (Htid: ThreadPool.containsThread st tid)
-          (Htid': ThreadPool.containsThread (@lift_state' on on' st) tid)
-          (Hltop: lt_op (ThreadPool_num_threads st) on)
-          (Hcmpt : @mem_compatible _ (@OrdinalPool.OrdinalThreadPool
-                                        _
-                                        (@HybridSem CC_correct Args on)) st m)
-          (Hcmpt' : mem_compatible (lift_state' st) m),
-          syncStep true Htid Hcmpt st' m' ev ->
-          syncStep true Htid' Hcmpt' (lift_state' st') m' ev.
-      Proof.
-        intros.
-        inv H;
-          [ econstructor 1 |
-            econstructor 2 |
-            econstructor 3 |
-            econstructor 4 |
-            econstructor 5 |
-            econstructor 6]; eauto;
-            simpl in *; lift_tac; (* 7! goals *)
-              try solve[destruct st; simpl; eauto];
-              clean_proofs; eauto.
-        1,2: rewrite <- Hstore; f_equal;
-          eapply restre_equiv_eq; lift_tac;
-            reflexivity.
-
-        Unshelve.
-        all: simpl in *; lift_tac. 
-      Qed.
-      Lemma lift_thread_step:
-        forall on on' tge U st st' m2 x1 m,
-          machine_semantics.thread_step
-            (HybConcSem on m) tge U st m2 st' x1 ->
-          machine_semantics.thread_step
-            (HybConcSem on' m) tge U (@lift_state' on on' st) m2
-            (@lift_state' on on' st') x1.
-      Proof.
-        intros.
-        unshelve (inv H; econstructor; eauto);
-                  try eapply lift_contains1; eauto;
-                    simpl in *; lift.
-        inv Htstep; simpl in *;
-          econstructor; simpl in *; lift_tac.
-        clean_proofs_goal. lift.
-        simpl.
-        unfold OrdinalPool.updThread; simpl in *.
-        rw_lift. destruct st; f_equal.
-      Qed.
-      Lemma lift_thread_Nstep:
-        forall on on' tge x
-          (U : list nat) (st st' : ThreadPool on) (m2 x1 : mem) (m : option mem),
-          machine_semantics_lemmas.thread_stepN (HybConcSem on m) tge x U st m2 st' x1 ->
-          machine_semantics_lemmas.thread_stepN (HybConcSem on' m) tge x U 
-                                                (lift_state' st) m2 (lift_state' st') x1.
-        intros until x. induction x.
-        
-        - intros. inv H; simpl. reflexivity.
-        - intros.
-          simpl in H; normal_hyp.
-          do 2 eexists; split; eauto.
-          simpl; eauto.
-          eapply lift_thread_step; eauto.
-
-          Unshelve.
-          all: auto.
-      Qed.
-      Lemma lift_thread_step_star:
-        forall on on' tge U st st' m2 x1 m,
-          machine_semantics_lemmas.thread_step_star
-            (HybConcSem on m) tge U st m2 st' x1 ->
-          machine_semantics_lemmas.thread_step_star
-            (HybConcSem on' m) tge U (@lift_state' on on' st) m2
-            (@lift_state' on on' st') x1.
-      Proof.
-        intros. inv H. exists x.
-        apply lift_thread_Nstep; auto.
-      Qed.
-      
-      Lemma lift_thread_step_plus:
-        forall on on' tge U st st' m2 x1 m,
-          machine_semantics_lemmas.thread_step_plus
-            (HybConcSem on m) tge U st m2 st' x1 ->
-          machine_semantics_lemmas.thread_step_plus
-            (HybConcSem on' m) tge U (@lift_state' on on' st) m2
-            (@lift_state' on on' st') x1.
-      Proof.
-        intros. inv H. exists x.
-        eapply lift_thread_Nstep; auto.
-      Qed.
-        
-      Lemma lift_machine_step:
-        forall on on' tge U tr2 st st' m2 U' x x1 m
-          (Hhb_le: hb_le on on')
-          (Hltop: lt_op (ThreadPool_num_threads st) on),
-          machine_semantics.machine_step
-            (HybConcSem on m) tge U tr2 st m2 U' x st' x1 ->
-          machine_semantics.machine_step
-            (HybConcSem on' m) tge U tr2 (@lift_state' on on' st) m2 U' x
-            (@lift_state' on on' st') x1.
-      Proof.
-        intros. unshelve (inv H;
-                          [ econstructor 1 |
-                            econstructor 2 |
-                            econstructor 3 |
-                            econstructor 4 |
-                            econstructor 5]; eauto);
-                  try eapply lift_contains1; eauto;
-                    simpl in *; lift.
-        - eapply lift_start_thread; eauto.
-        - eapply lift_resume_thread; eauto.
-        - eapply lift_suspend_thread; eauto.
-        - eapply lift_syncStep; eauto.
-          
-        - destruct Htid; [left|right].
-          + intros HH; apply H; eapply unlift_cnt; eauto.
-          + normal; lift_tac.
-            
-            Unshelve.
-            all: lift.
-      Qed.
-      
-    End Lift.
     
     Section CompileInftyThread.
       Context {Hasm_externals: Asm_externals_have_events Asm_g}.
 
-      
-      Definition self_simulates:
-        forall n, ThreadPool (Some n) -> mem -> Prop:=
-        fun _ _ _ => True.
       
       Inductive infty_match:
         nth_index -> meminj ->
@@ -1063,6 +489,7 @@ Section ThreadedSimulation.
             match_state n cd j st0 m0 stn mn ->
             lift_state (Some n) stn None st ->
             infty_match cd j st0 m0 st mn.
+      
 
 
       Lemma initial_infty:
@@ -1082,35 +509,24 @@ Section ThreadedSimulation.
         can be "lifted" (lift_state) *)
       Admitted.
       
-      Lemma self_simulates_match:
-        forall hb1 (st:ThreadPool (Some hb1)) m,
-          (ThreadPool_num_threads st < hb1)%nat ->  
-          self_simulates hb1 st m ->
-          concur_match hb1 None (Mem.flat_inj (Mem.nextblock m)) st m (lift_state' st) m.
-      Proof.
-      Admitted.
-      Lemma lift_self_simulates:
-        forall hb1 hb2 st m, 
-          self_simulates hb1 st m ->
-          (ThreadPool_num_threads st < hb1)%nat -> 
-          (hb1 <= hb2)%nat ->
-          self_simulates hb2 (lift_state' st) m.
-      Admitted.
-      Lemma machine_step_preserves_self_simulates:
-        forall n m0 ge U tr st m U' tr' st' m',
-          self_simulates n st m ->
-          machine_semantics.machine_step (HybConcSem (Some n) m0)
-                                         ge U tr st m U' tr' st' m' ->
-          self_simulates n st' m'.
-      Proof.
-      Admitted.
-      Fixpoint Nones {A} (n:nat):=
-        match n with
-          O => nil
-        | S n' => @None A :: (Nones n')
-        end.
       
-      Definition mappedblocks f m2:=
+      Lemma match_state_num_threads:
+        forall n ocd mu st1 m1 st2 m2,
+          match_state n ocd mu st1 m1 st2 m2 ->
+          ThreadPool_num_threads st1 =
+          ThreadPool_num_threads st2.
+      Proof.
+        induction n.
+        - intros. inv H. subst_sig; reflexivity.
+        - intros * H. inv H. subst_sig.
+          etransitivity.
+          eapply IHn; eauto.
+          unfold ThreadPool_num_threads.
+          apply same_length in H7.
+          f_equal.
+          destruct tpn, st2; simpl in *; auto.
+      Qed.
+            Definition mappedblocks f m2:=
         forall (b b' : block) (delta : Z),
           f b = Some (b', delta) -> Mem.valid_block m2 b'.
       Lemma mappedblocks_compose_meminj:
@@ -1131,22 +547,8 @@ Section ThreadedSimulation.
           clear Heqs.
           contradict n. apply Heqo.
       Qed.
-      Lemma match_state_num_threads:
-        forall n ocd mu st1 m1 st2 m2,
-          match_state n ocd mu st1 m1 st2 m2 ->
-          ThreadPool_num_threads st1 =
-          ThreadPool_num_threads st2.
-      Proof.
-        induction n.
-        - intros. inv H. subst_sig; reflexivity.
-        - intros * H. inv H. subst_sig.
-          etransitivity.
-          eapply IHn; eauto.
-          unfold ThreadPool_num_threads.
-          apply same_length in H7.
-          f_equal.
-          destruct tpn, st2; simpl in *; auto.
-      Qed.
+
+
       Lemma mappedblocks_flat:
         forall m2, 
           mappedblocks (Mem.flat_inj (Mem.nextblock m2)) m2.
@@ -1198,80 +600,12 @@ Section ThreadedSimulation.
           erewrite <- match_state_num_threads; eauto.
       Qed.
       
-      Lemma pump_match_state:
-        forall m n ocd mu st1 m1 st2 m2
-          (Hpos: (0 < ThreadPool_num_threads st1)%nat),
-          match_state n ocd mu st1 m1 st2 m2 ->
-          self_simulates _ st2 m2 ->
-          (ThreadPool_num_threads st2 < n)%nat -> 
-          (n <= m)%nat ->
-          match_state m ((Nones (m-n)) ++ ocd) mu st1 m1 (lift_state' st2) m2.
-      Proof.
-        intros. 
-        assert (exists x, m = x + n)%nat.
-        { exists (m - n)%nat. omega. }
-        normal_hyp; subst.
-        clear H2.
-        replace (x + n - n)%nat with x by omega.
-        revert n mu ocd st1 st2 m1 m2 Hpos H H1 H0.
-        induction x.
-        - simpl.
-          intros; rewrite lift_state_refl; auto.
-        - intros.
-          exploit IHx; eauto. clear IHx.
-          intros HH.
-          simpl.
-          replace mu with (compose_meminj mu (Mem.flat_inj (Mem.nextblock m2))).
-          2: { symmetry; apply mappedblocks_compose_meminj.
-               eapply match_state_mappedblocks; eauto. }
+      
 
-          simpl.
-          eapply step_match_state; eauto.
-          erewrite <- (lift_state_idempotent (Some n) (x + n) (Some (S (x + n)))).
-          + eapply self_simulates_match; eauto.
-            destruct st2; unfold ThreadPool_num_threads in *; simpl in *.
-            omega.
-      Qed.
-
-            Lemma thread_step_preserves_self_simulates:
-              forall n m0 ge U st m st' m',
-                self_simulates n st m ->
-                machine_semantics.thread_step (HybConcSem (Some n) m0)
-                                               ge U st m st' m' ->
-                self_simulates n st' m'.
-            Proof.
-            Admitted.
-            Lemma thread_step_star_preserves_self_simulates:
-              forall n m0 ge U st m st' m',
-                self_simulates n st m ->
-                machine_semantics_lemmas.thread_step_star (HybConcSem (Some n) m0)
-                                               ge U st m st' m' ->
-                self_simulates n st' m'.
-            Proof.
-              intros. inv H0.
-              revert dependent m.
-              revert U st st' m'.
-              induction x.
-              - simpl. intros. inv H1; assumption.
-              - simpl; intros. normal_hyp.
-                eapply IHx; try eapply H1.
-                eapply thread_step_preserves_self_simulates; eauto.
-                simpl; eassumption.
-
-                Unshelve.
-                all: eauto.
-            Qed.
             
-            Lemma thread_step_plus_preserves_self_simulates:
-              forall n m0 ge U st m st' m',
-                self_simulates n st m ->
-                machine_semantics_lemmas.thread_step_plus (HybConcSem (Some n) m0)
-                                               ge U st m st' m' ->
-                self_simulates n st' m'.
-            Proof.
-              intros. eapply thread_step_star_preserves_self_simulates; eauto.
-              apply machine_semantics_lemmas.thread_step_plus_star; eassumption.
-            Qed.
+           
+            
+
       Lemma infinite_step_diagram:
         forall (m : option mem) (sge tge : HybridMachineSig.G)
           (U : list nat) tr1 (st1 : ThreadPool (Some 0)%nat) 
@@ -1364,7 +698,48 @@ Section ThreadedSimulation.
         intros. unfold ThreadPool_num_threads in *.
         inv H0; eauto;
           inv Htstep; simpl; auto.
-      Qed.  
+      Qed.
+      
+      Fixpoint Nones {A} (n:nat):=
+        match n with
+          O => nil
+        | S n' => @None A :: (Nones n')
+        end.
+      
+Lemma pump_match_state:
+  forall m n ocd mu st1 m1 st2 m2
+    (Hpos: (0 < ThreadPool_num_threads st1)%nat),
+    match_state n ocd mu st1 m1 st2 m2 ->
+    self_simulates _ st2 m2 ->
+    (ThreadPool_num_threads st2 < n)%nat -> 
+    (n <= m)%nat ->
+    match_state m ((Nones (m-n)%nat) ++ ocd) mu st1 m1 (lift_state' st2) m2.
+Proof.
+  intros. 
+  assert (exists x, m = x + n)%nat.
+  { exists (m - n)%nat. omega. }
+  normal_hyp; subst.
+  clear H2.
+  replace (x + n - n)%nat with x by omega.
+  revert n mu ocd st1 st2 m1 m2 Hpos H H1 H0.
+  induction x.
+  - simpl.
+    intros; rewrite lift_state_refl; auto.
+  - intros.
+    exploit IHx; eauto. clear IHx.
+    intros HH.
+    simpl.
+    replace mu with (compose_meminj mu (Mem.flat_inj (Mem.nextblock m2))).
+    2: { symmetry; apply mappedblocks_compose_meminj.
+         eapply match_state_mappedblocks; eauto. }
+
+    simpl.
+    eapply step_match_state; eauto.
+    erewrite <- (lift_state_idempotent (Some n) (x + n) (Some (S (x + n)))).
+    + eapply self_simulates_match; eauto.
+      destruct st2; unfold ThreadPool_num_threads in *; simpl in *.
+      omega.
+Qed.
       Lemma infinite_machine_step_diagram:
         forall (m : option mem) (sge tge : HybridMachineSig.G)
           (U : list nat) (tr1 : HybridMachineSig.event_trace)
