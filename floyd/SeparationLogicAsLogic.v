@@ -2343,66 +2343,79 @@ Lemma semax_body_funspec_sub {V G cs f i phi phi'} (SB: @semax_body V G cs f (i,
   @semax_body V G cs f (i, phi').
 Proof.
 (* apply funspec_sub_elim in Sub.*)
- destruct phi as [sig cc A P Q Pne Qne].
- destruct phi' as [sig' cc' A' P' Q' Pne' Qne'].
- destruct Sub as [[Tsigs CC] Sub]. subst cc' sig'. simpl in Sub.
- destruct SB as [SB1 [SB2 SB3]].
- (*apply typesigs_match_typesigs_eq in Tsigs. subst sig'.*)
- split3; trivial. intros.
- specialize (Sub ts x).
- eapply semax_adapt
+destruct phi as [sig cc A P Q Pne Qne].
+destruct phi' as [sig' cc' A' P' Q' Pne' Qne'].
+destruct Sub as [[Tsigs CC] Sub]. subst cc' sig'. simpl in Sub.
+destruct SB as [SB1 [SB2 SB3]].
+(*apply typesigs_match_typesigs_eq in Tsigs. subst sig'.*)
+split3; trivial. intros.
+specialize (Sub ts x).
+eapply semax_adapt
  with
   (Q'0:= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' ts x))
            (stackframe_of f))
   (P'0 := EX vals:list val,
     EX ts1:list Type, EX x1 : _,
     EX FR: mpred, 
-    !!(forall tau, @derives mpred Nveric
+    !!((tc_vals (map snd (fn_params f)) vals) /\
+       forall tau, @derives mpred Nveric
        (@andp mpred Nveric
           (@prop mpred Nveric
              (seplog.tc_environ
                 (rettype_tycontext (@snd (list (prod ident type)) type (fn_funsig f))) tau))
           (@sepcon mpred Nveric Sveric FR (Q ts1 x1 tau))) (Q' ts x tau)) &&
-(*      !! seplog.tc_environ (rettype_tycontext (snd sig)) tau && (FR * Q ts1 x1 tau |-- Q' ts x tau)) && *)
       (stackframe_of f * (fun tau => FR * P ts1 x1 (ge_of tau, vals)) &&
           (fun tau =>  !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals)))).
- + intros omega. clear SB3. normalize. simpl. simpl in Sub. rewrite SB2 in *. 
-   apply andp_left2.
-   eapply derives_trans. apply sepcon_derives. apply close_precondition_e'. apply derives_refl.
-   normalize. apply (exp_right vals).
-   specialize (Sub (ge_of omega, vals)).
-   eapply derives_trans. apply sepcon_derives. 2: apply derives_refl.
-   eapply derives_trans; [ clear Sub | apply Sub]. 
-   { apply andp_right; trivial.
-     apply prop_right.
-     simpl; split.
-     + clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
-     + rewrite SB1. simpl in H. destruct H as [TC1 [TC2 TC3]].
-       unfold fn_funsig. simpl. clear - TC1 H0 LNR.
-     specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). clear - H0; intros TE.
-     forget (fn_params f) as params. generalize dependent vals.
-     induction params; simpl; intros.
-     - destruct vals; inv H0. constructor.
-     - destruct vals; inv H0. constructor.
-       * destruct (TE (fst a) (snd a)) as [w [W Tw]].
+  + intros omega. clear SB3. normalize. simpl. simpl in Sub. rewrite SB2 in *. 
+    apply andp_left2.
+    eapply derives_trans. apply sepcon_derives. apply close_precondition_e'. apply derives_refl.
+    normalize. destruct H0 as [Hvals VUNDEF].
+    specialize (semax_prog.typecheck_environ_eval_id LNR H); intros X. 
+    apply (exp_right (map (fun i0 : ident => eval_id i0 omega) (map fst (fn_params f)))).
+    specialize (Sub (ge_of omega,  map (fun i0 : ident => eval_id i0 omega) (map fst (fn_params f)))).
+    eapply derives_trans. apply sepcon_derives. 2: apply derives_refl.
+    eapply derives_trans; [ clear Sub | apply Sub]. 
+    - apply andp_right; trivial.
+      apply prop_right.
+      simpl; split.
+      * clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
+      * rewrite SB1. simpl in H. destruct H as [TC1 [TC2 TC3]].
+        unfold fn_funsig. simpl. 
+        specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1).
+        clear -X; intros TE.
+        forget (fn_params f) as params.
+        induction params; simpl; intros; [ | inv X]; constructor.
+        ++ clear IHparams H1. destruct (TE (fst a) (snd a)) as [w [W Tw]]; clear TE.
            left; destruct a; trivial.
-         rewrite W in H1. inv H1. apply Tw.
-       * apply IHparams; trivial.
-         intros. apply TE. right; trivial. }
-    normalize. apply (exp_right ts1).
-    normalize. apply (exp_right x1).
-    normalize. apply (exp_right F). normalize. rewrite sepcon_comm.
-    apply andp_right; [ | apply prop_right; trivial].
-    apply andp_right; [ | apply prop_right; intros; normalize].
-    apply andp_right; [ | apply prop_right; intros; normalize]. 
-    apply andp_right. trivial.
-    apply prop_right; trivial.
+           rewrite W in H0; inv H0. apply Tw.
+        ++ apply IHparams; trivial.
+           intros. apply TE. right; trivial. 
+      * rewrite Hvals in X. apply semax_prog.map_Some_inv in X. rewrite <- X. trivial.
+    - normalize. apply (exp_right ts1).
+      normalize. apply (exp_right x1).
+      normalize. apply (exp_right F). normalize. rewrite sepcon_comm.
+      apply andp_right; [ | apply prop_right; trivial].
+      apply andp_right; [ | apply prop_right; intros; normalize].
+      apply andp_right; [ | apply prop_right; intros; normalize]. 
+      apply andp_right; [ apply andp_right | apply prop_right]; trivial.
+      apply prop_right; split; trivial.
+      clear - X Hvals VUNDEF H LNR.
+      destruct H as [TC _]. simpl in TC. red in TC.
+      rewrite X in Hvals. apply semax_prog.map_Some_inv in Hvals. subst.
+      forget (fn_params f) as params. induction params.
+      { constructor. }
+      inv LNR. inv VUNDEF. inv X. constructor.
+      * clear IHparams. destruct (TC (fst a) (snd a)) as [u [U HU]]. apply PTree.gss.
+        unfold eval_id in *. rewrite U in *. simpl in *. apply HU; trivial.
+      * apply IHparams; clear IHparams; trivial.
+        intros. apply TC. simpl. rewrite PTree.gso; trivial.
+        intros ?; subst id. apply H1. apply (make_context_t_get H).
   + clear Sub. normalize.
     apply semax_extract_exists; intros vals.
     apply semax_extract_exists; intros ts1.
     apply semax_extract_exists; intros x1.
     apply semax_extract_exists; intros FRM.
-    apply semax_extract_prop; intros QPOST.
+    apply semax_extract_prop; intros [TCvals QPOST].
     unfold fn_funsig in *. simpl in SB1, SB2(*; rewrite SB2 in **).
     apply (semax_frame (func_tycontext f V G nil)
       (fun rho : environ =>
@@ -2413,26 +2426,20 @@ Proof.
       (fun rho => FRM)) in SB3.
     - eapply semax_pre_post.
       6: apply SB3.
-      all: clear SB3; intros; simpl; try solve [normalize]. 
-      * intros tau. rewrite <- andp_assoc. normalize.
-        unfold local, lift1; normalize. 
-        eapply derives_trans. 
-        2:{ rewrite sepcon_assoc. apply sepcon_derives; [ | apply derives_refl ].
-            apply (@close_argsassert_inv (map fst (fn_params f)) (P ts1 x1)). }
-        simpl. unfold local, lift1; normalize.
-        apply andp_right. apply prop_right.
-        { clear - H. rewrite ! map_map. forget (fn_params f) as l.
-          generalize dependent vals. induction l; simpl; intros. trivial.
-          destruct vals; inv H.
-          f_equal. 2: eapply IHl; eauto.
-          clear IHl H2. unfold eval_id. rewrite H1. trivial. } 
-        rewrite  <- sepcon_assoc, sepcon_comm. apply sepcon_derives; trivial.
-        unfold argsassert2assert. apply derives_refl'. f_equal. f_equal.
-        clear - H. forget (fn_params f) as l.
-          generalize dependent vals.
-          induction l; simpl; intros; destruct vals; inv H; trivial.
-          f_equal. 2: eapply IHl; eauto.
-          clear IHl H2. unfold eval_id. rewrite H1. trivial.
+      all: clear SB3; intros; simpl; try solve [normalize].
+      * intros tau.
+        unfold local, lift1; normalize.
+        destruct H as [TC1 _]. simpl in TC1. red in TC1.
+        rewrite <- sepcon_assoc, sepcon_comm, sepcon_assoc.
+        eapply derives_trans.
+        2:{ apply sepcon_derives; [ | apply derives_refl].
+            apply (close_argsassert f (P ts1 x1) tau vals LNR). }
+        apply sepcon_derives; trivial.
+        apply andp_right.
+        ++ apply prop_right. intuition.
+        ++ unfold argsassert2assert. 
+          specialize (semax_prog.typecheck_temp_environ_eval_id LNR TC1); intros X. 
+          rewrite X in H0.  apply semax_prog.map_Some_inv in H0. rewrite H0; trivial.
       * clear - QPOST; intros tau. 
         destruct (fn_return f); normalize. simpl in QPOST. unfold local, tc_environ, lift1; normalize.
         rewrite sepcon_comm, <- sepcon_assoc.

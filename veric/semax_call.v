@@ -2353,22 +2353,25 @@ Lemma make_args_close_precondition:
   forall bodyparams args ge tx ve' te' P,
     list_norepet (map fst bodyparams) ->
     bind_parameter_temps bodyparams args tx = Some te' ->
+    Forall (fun v : val => v <> Vundef) args ->
     P (filter_genv ge, args)
    |-- close_precondition (map fst bodyparams) P
            (construct_rho (filter_genv ge) ve' te').
 Proof.
-intros *. intros LNR BP. intros.
+intros *. intros LNR BP VUNDEF.
 intros phi ?.
 exists args. split; simpl; trivial.
-clear - LNR BP.
+clear - LNR BP VUNDEF.
 generalize dependent te'. generalize dependent tx. generalize dependent args.
-induction bodyparams; simpl; intros; destruct args.
-inv BP; trivial. inv BP. destruct a; inv BP. destruct a; inv BP. inv LNR.
-simpl in *. f_equal.
-+ clear IHbodyparams H3.
-  specialize (bind_parameter_temps_excludes _ _ _ _ _ H2 H0); intros.
-  rewrite PTree.gss in H. apply H.
-+ apply (IHbodyparams H3 _ _ _ H0).
+induction bodyparams; simpl; intros; destruct args; inv BP; simpl.
++ split; auto.
++ destruct a; discriminate.
++ destruct a. inv LNR. inv VUNDEF. simpl. destruct (IHbodyparams H3 _ H5 _ _ H0) as [X Y]; clear IHbodyparams.
+  rewrite X; simpl; clear X; split.
+  - f_equal.
+(*    specialize (bind_parameter_temps_excludes _ _ _ _ _ H2 H0); intros Q.*)
+    rewrite (pass_params_ni _ _ _ _ _ H0 H2), PTree.gss; trivial.
+  - constructor; trivial.
 Qed.
 (* 
 Lemma make_args_close_precondition:
@@ -3134,6 +3137,13 @@ Lemma eval_exprlist_relate' {CS}:
      (eval_exprlist tys' bl rho). 
 Proof. intros. subst tys'. eapply eval_exprlist_relate; eassumption. Qed.
 
+Lemma tc_vals_Vundef {args ids} (TC:tc_vals ids args): Forall (fun v : val => v <> Vundef) args. 
+Proof.
+generalize dependent ids. induction args; intros. constructor.
+destruct ids; simpl in TC. contradiction. destruct TC.
+constructor; eauto. intros N; subst. apply (tc_val_Vundef _ H).
+Qed.
+
 Lemma semax_call_aux {CS Espec}
   (Delta : tycontext) (psi : genv) (ora : OK_ty) (jm : juicy_mem) (b : block) (id : ident) cc
   A deltaP deltaQ NEP' NEQ' retty clientparams
@@ -3231,11 +3241,12 @@ assert (Hargs: Datatypes.length clientparams =
 subst args.
 set (args := eval_exprlist clientparams bl rho) in *.
 clearbody args.
-
+assert (ArgsNotVundef:= tc_vals_Vundef TC8).
 assert (H11': forall vl : environ, (! |> (deltaQ ts x vl <=> nQ ts x vl)) (m_phi jm2)). {
-  intro vl.  
- apply (pred_nec_hereditary _ _ _ (laterR_necR (age_laterR (age_jm_phi H13)))); auto.
+  intro vl.
+  apply (pred_nec_hereditary _ _ _ (laterR_necR (age_laterR (age_jm_phi H13)))); auto.
 }
+
 clear PostAdapt; rename H11' into H11.
 
 apply (pred_nec_hereditary _ _ _ (laterR_necR (age_laterR (age_jm_phi H13)))) in HR.
@@ -3442,7 +3453,7 @@ spec H19; [clear H19|]. {
  simpl @fst in *.
  apply (alloc_juicy_variables_age H13 H20x) in AJV.
  forget (fn_params f) as fparams.
- clear - H18 H21 PRE AJV H17 H17' Hrho Hvars CSUB COMPLETE H13.
+ clear - H18 H21 PRE AJV H17 H17' Hrho Hvars CSUB COMPLETE H13 ArgsNotVundef.
 
  assert (app_pred (Frame * close_precondition (map fst fparams)
                               (deltaP ts x)
@@ -3450,7 +3461,8 @@ spec H19; [clear H19|]. {
    eapply pred_nec_hereditary.
    - apply laterR_necR. apply age_laterR. eapply age_jm_phi. apply H13.
    - eapply sepcon_derives; try apply PRE; auto.
-     subst rho. apply list_norepet_app in H17; destruct H17. 
+     subst rho. apply list_norepet_app in H17; destruct H17.
+     clear - H21 ArgsNotVundef H.
      eapply make_args_close_precondition; eassumption.
   }
   clear PRE.

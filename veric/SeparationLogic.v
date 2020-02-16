@@ -129,38 +129,35 @@ Qed.
 Definition close_precondition (bodyparams: list ident) 
     (P: argsEnviron -> mpred) (rho:environ) : mpred :=
  EX vals,
-   !!(map (Map.get (te_of rho)) bodyparams = map Some vals) &&
+   !!(map (Map.get (te_of rho)) bodyparams = map Some vals /\
+      Forall (fun v : val => v <> Vundef) vals) &&
    P (ge_of rho, vals).
 
 Lemma close_precondition_e':
    forall al (P: argsEnviron -> mpred) (rho: environ) ,
    close_precondition al P rho |-- 
    exp (fun vals =>
-   !!(map (Map.get (te_of rho)) al = map Some vals) &&
+   !!(map (Map.get (te_of rho)) al = map Some vals /\
+      Forall (fun v : val => v <> Vundef) vals) &&
    P (ge_of rho, vals)).
 Proof. intros. intros u p. simpl in p. simpl; trivial. Qed.
 
 Definition argsassert2assert (ids: list ident) (M:argsassert):assert :=
   fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids).
 
-Lemma close_argsassert al P rho: close_precondition al P rho |-- 
-      (!!(map (Map.get (te_of rho)) al = map Some (map (fun i => eval_id i rho) al)) 
-          && argsassert2assert al P rho).
-Proof. unfold close_precondition, argsassert2assert. intros u [vals [U1 U2]].
-assert (vals = map (fun i : ident => eval_id i rho) al).
-{ clear -U1. generalize dependent vals.
-  induction al; simpl; intros; destruct vals; inv U1; trivial.
-  rewrite (IHal _ H1). f_equal. unfold eval_id; rewrite H0. simpl; trivial. }
-  simpl in U1.
-rewrite <- H. split; trivial.
-Qed.
-
-Lemma close_argsassert_inv al P rho: 
-  (!!(map (Map.get (te_of rho)) al = map Some (map (fun i => eval_id i rho) al)) 
-   && argsassert2assert al P rho)
- |-- close_precondition al P rho.
-Proof. unfold close_precondition, argsassert2assert. intros u [U1 U2].
-exists (map (fun i : ident => eval_id i rho) al). split; trivial.
+Lemma close_argsassert f P rho vals (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))):
+  (!!(typecheck_temp_environ (te_of rho) (make_tycontext_t (fn_params f) (fn_temps f)) /\
+      map (Map.get (te_of rho)) (map fst (fn_params f)) = map Some vals /\
+      tc_vals (map snd (fn_params f)) vals)
+   && argsassert2assert (map fst (fn_params f))  P rho)
+ |-- close_precondition (map fst (fn_params f))  P rho.
+Proof.
+unfold close_precondition, argsassert2assert. normalize; destruct H as [TCE [EVAL TCV]].
+exists (map (fun i : ident => eval_id i rho) (map fst (fn_params f))).
+split; simpl; trivial. clear - LNR TCV TCE EVAL. 
+specialize (semax_prog.typecheck_temp_environ_eval_id LNR TCE); intros X.
+split; trivial. apply (@semax_call.tc_vals_Vundef _ (map snd (fn_params f))).
+rewrite X in EVAL; clear X. apply semax_prog.map_Some_inv in EVAL. rewrite EVAL; trivial.
 Qed.
 
 (* BEGIN from expr2.v *)

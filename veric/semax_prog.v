@@ -2003,6 +2003,7 @@ assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
  assert (list_norepet (map fst (fn_params f))).
  { apply list_norepet_app in H17. apply H17. }
  eapply sepcon_derives.
+ assert (VUNDEF:= tc_vals_Vundef arg_p).
  eapply make_args_close_precondition; eauto.
  apply derives_refl.
  eapply alloc_juicy_variables_lem2; eauto.
@@ -2554,6 +2555,30 @@ Proof.
   destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
 Qed.
 
+Lemma typecheck_temp_environ_eval_id {f omega} 
+          (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
+          (TC : typecheck_temp_environ (te_of omega) (make_tycontext_t (fn_params f) (fn_temps f))):
+      map (Map.get (te_of omega)) (map fst (fn_params f)) =
+      map Some (map (fun i : ident => eval_id i omega) (map fst (fn_params f))).
+Proof.
+  specialize (tc_temp_environ_elim LNR TC).
+  forget (fn_params f) as l. clear.
+  induction l; unfold eval_id; simpl; intros; trivial.
+  rewrite IHl; clear IHl; [ f_equal | intros; apply H; right; trivial].
+  unfold force_val; destruct a; simpl in *.
+  destruct (H i t) as [v [Hv Tv]]. left; trivial.
+  rewrite Hv; trivial.
+Qed.
+
+Lemma typecheck_environ_eval_id {f V G omega} (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
+                                (TC : typecheck_environ (func_tycontext f V G nil) omega):
+      map (Map.get (te_of omega)) (map fst (fn_params f)) =
+      map Some (map (fun i : ident => eval_id i omega) (map fst (fn_params f))).
+Proof. apply typecheck_temp_environ_eval_id; trivial. apply TC. Qed.
+
+Lemma map_Some_inv {A}: forall {l l':list A}, map Some l = map Some l' -> l=l'.
+Proof. induction l; simpl; intros; destruct l'; inv H; trivial. f_equal; auto. Qed. 
+
 Lemma semax_body_funspec_sub {V G cs f i phi phi'} (SB: @semax_body V G cs f (i, phi))
   (Sub: funspec_sub phi phi')
   (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))):
@@ -2577,32 +2602,44 @@ Proof.
     !!(forall rho' : environ,
               !! tc_environ (rettype_tycontext (snd sig)) rho' && (FR * Q ts1 x1 rho') |-- Q' ts x rho') &&
       (stackframe_of f tau * FR * P ts1 x1 (ge_of tau, vals) &&
-            !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals))).
- + intros omega m [TC [OM [m1 [m2 [JM [[vals [MAP HP']] M2]]]]]].
+            !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
+ + intros omega m [TC [OM [m1 [m2 [JM [[vals [[MAP VUNDEF] HP']] M2]]]]]].
    destruct (Sub (ge_of omega, vals) m1) as [ts1 [x1 [FR1 [M1 RetQ]]]]; clear Sub.
    { split; trivial.
      simpl; split.
      + clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
      + rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
-       unfold fn_funsig. simpl. clear - TC1 MAP LNR. Locate tc_temp_environ_elim .
-     specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). clear - MAP; intros TE.
-     forget (fn_params f) as params. generalize dependent vals.
-     induction params; simpl; intros.
-     - destruct vals; inv MAP. constructor.
-     - destruct vals; inv MAP. constructor.
-       * destruct (TE (fst a) (snd a)) as [w [W Tw]].
+       unfold fn_funsig. simpl. clear - TC1 MAP LNR VUNDEF.
+       specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). simpl in TC1.  red in TC1. clear - MAP (*VUNDEF*); intros TE.
+       forget (fn_params f) as params. generalize dependent vals.
+       induction params; simpl; intros.
+       - destruct vals; inv MAP. constructor.
+       - destruct vals; inv MAP. constructor.
+         * clear IHparams. destruct (TE (fst a) (snd a)) as [w [W Tw]].
            left; destruct a; trivial.
-         rewrite W in H0. inv H0. apply Tw.
-       * apply IHparams; trivial.
-         intros. apply TE. right; trivial. }
+           rewrite W in H0. inv H0. apply Tw.
+         * apply IHparams; simpl; trivial.
+           intros. apply TE. right; trivial. }
     split; [ | simpl; trivial].
     split; [ | simpl; trivial].
     split; [ | simpl; trivial].
     split; [| simpl; trivial].
-    exists vals, ts1, x1, FR1.
+    exists vals, ts1, x1, FR1. simpl in MAP.
     split3; trivial.
-    apply join_comm in JM. rewrite sepcon_assoc.
-    exists m2, m1; split3; trivial.
+    - apply join_comm in JM. rewrite sepcon_assoc.
+      exists m2, m1; split3; trivial.
+    - split; trivial. destruct TC as [TC1 _]. simpl in TC1. red in TC1.
+      clear - MAP VUNDEF TC1 LNR. forget (fn_params f) as params. forget (fn_temps f) as temps. forget (te_of omega) as tau.
+      clear f omega. generalize dependent vals. induction params; simpl; intros; destruct vals; inv MAP; trivial.
+      inv VUNDEF. inv LNR. destruct a; simpl in *.
+      assert (X: forall id ty, (make_tycontext_t params temps) ! id = Some ty ->
+                 exists v : val, Map.get tau id = Some v /\ tc_val' ty v).
+      { intros. apply TC1. simpl.  rewrite PTree.gso; trivial.
+        apply make_context_t_get in H. intros ?; subst id. contradiction. } 
+      split; [ clear IHparams | apply (IHparams H6 X _ H1 H4)].
+      destruct (TC1 i t) as [u [U TU]]; clear TC1. rewrite PTree.gss; trivial.
+      rewrite U in H0; inv H0. apply TU; trivial.
+    (*apply (typecheck_environ_eval_id LNR TC).*)
   + clear Sub.
     apply extract_exists_pre; intros vals.
     apply extract_exists_pre; intros ts1.
@@ -2620,10 +2657,12 @@ Proof.
     - eapply semax_pre_post.
       6: apply SB3.
       all: clear SB3; intros; simpl; try solve [normalize]. 
-      * intros m [M1 [[n1 [n2 [JN [N1 N2]]]] VALS]].
-        unfold close_precondition. apply join_comm in JN. rewrite sepcon_assoc.
+      * intros m [TC [[n1 [n2 [JN [N1 N2]]]] [VALS TCVals]]].
+        unfold close_precondition. apply join_comm in JN. rewrite sepcon_assoc. 
         exists n2, n1; split3; trivial.
-        exists vals. split; trivial.
+        exists vals. simpl in *. split; trivial. split; trivial.
+        (*rewrite (typecheck_environ_eval_id LNR TC) in VALS. apply map_Some_inv in VALS; trivial.*)
+        apply (tc_vals_Vundef TCVals).
       * intros m [TC M].
         destruct (fn_return f); 
         try solve [rewrite sepcon_assoc in M; 

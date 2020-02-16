@@ -162,7 +162,11 @@ intros.
                  reflexivity).
   forget (mbed_tls_aes_enc plaintext buf) as Res.
   unfold tables_initialized.
+<<<<<<< HEAD
   (* return None *)
   (*forward.*) entailer.
   cancel.
+=======
+  entailer!.
+>>>>>>> origin/master
 Time Qed.  (* On Andrew's machine: takes 32.8 seconds, 1.138 gigabytes, which is just under the limit for ocaml32 on Windows which is 1.278 gigabytes *)
