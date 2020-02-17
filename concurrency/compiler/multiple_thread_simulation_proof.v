@@ -1,6 +1,7 @@
 Require Import Omega.
 
 Require Import Coq.Classes.Morphisms.
+Require Import Coq.Classes.RelationClasses.
 Require Import Relation_Definitions.
 
 Require Import compcert.common.Globalenvs.
@@ -87,10 +88,11 @@ Section ThreadedSimulation.
     
     Section CompileNThreads.
 
+      
       Fixpoint nth_index (n: nat): Type:=
         match n with
         | O => unit
-        | S n' => ((option compiler_index) * (nth_index n'))%type
+        | S n' => ( (option compiler_index) * (nth_index n'))%type
         end.
 
       (* rewrite tt to avoid univers inconcistencies *)
@@ -106,22 +108,30 @@ Section ThreadedSimulation.
       Definition trivial_ord: unit -> unit -> Prop:=
         fun _ _ => False.
       
+      Definition comp_ord:= Relation_Operators.clos_trans
+                              _ (opt_rel' (InjorderX compiler_sim)).
+      Instance comp_ord_trans:
+        Transitive comp_ord.
+      Proof. intros. econstructor 2; eauto. Qed.
+      
       (*Definition nth_index:= (list (option compiler_index)).*)
       Fixpoint list_lt (n:nat): nth_index n -> nth_index n -> Prop:=
        match n as n0 return (nth_index n0 -> nth_index n0 -> Prop) with
        | O => trivial_ord
-       | S n0 => lex_ord (opt_rel' (InjorderX compiler_sim)) (list_lt n0)
+       | S n0 => lex_ord comp_ord (list_lt n0)
        end.
 
       Lemma trivial_well_founded:
         well_founded trivial_ord.
       Proof. constructor. intros. inv H. Qed.
-        
+        Lemma comp_ord_wd: well_founded comp_ord.
+              apply Transitive_Closure.wf_clos_trans, option_wf, Injfsim_order_wfX.
+            Qed.
       Lemma list_lt_wf: forall n, well_founded (list_lt n).
       Proof. induction n.
              - apply trivial_well_founded.
              - apply wf_lex_ord; simpl; eauto.
-               apply option_wf, Injfsim_order_wfX.
+               apply comp_ord_wd.
       Qed.
       
       
@@ -253,8 +263,9 @@ Section ThreadedSimulation.
       
       
       Lemma step_diagram_helper:
-        forall mu hb (ord: relation (nth_index hb)) tr1 tr2 m U cd m1' st1' tge st2 m2, 
-          (exists (st2' : ThreadPool (Some hb)) (m2' : mem) (cd' : (nth_index hb)) 
+        forall mu hb0 hb (ord: relation (nth_index hb)) tr1 tr2 m U cd (m1':mem) (st1':ThreadPool (Some hb0)) tge st2 m2
+          match_state, 
+          (exists (st2' : ThreadPool (Some hb)) (m2' : mem) cd' 
              (mu' : meminj),
               match_state hb cd' mu' st1' m1' st2' m2' /\
               Forall2 (inject_mevent mu') tr1 tr2 /\
@@ -266,7 +277,7 @@ Section ThreadedSimulation.
                  tge U st2 m2 st2' m2' /\ ord cd' cd) /\
           inject_incr mu mu')
           <->
-          exists (st2' : ThreadPool (Some hb)) (m2' : mem) (cd' : (nth_index hb)) 
+          exists (st2' : ThreadPool (Some hb)) (m2' : mem) cd' 
             (mu' : meminj),
             match_state hb cd' mu' st1' m1' st2' m2' /\
             Forall2 (inject_mevent mu') tr1 tr2 /\
@@ -384,66 +395,11 @@ Section ThreadedSimulation.
                 eapply H8.
             Qed.
 
-            
-            
-      
-      (* Not this lemma can be generalized away from 
-         splicit index and orders (given here by list_lt).
-         Since it's only used once, we live this form for now.
-       *)
-      
-      Lemma simulation_inductive_case:
-        forall n : nat,
-          (forall m : option mem,
-              simulation_properties_exposed
-                (HybConcSem (Some 0)%nat m)
-                (HybConcSem (Some n) m)
-                invariant
-                mem_compatible
-                (match_state n)
-                (list_lt n)) ->
-          (forall m : option mem,
-              simulation_properties_exposed
-                (HybConcSem (Some n) m)
-                (HybConcSem (Some (S n)) m)
-                invariant
-                mem_compatible
-                (concur_match n)
-                 (opt_rel' (InjorderX compiler_sim))) ->
-          forall m : option mem,
-            simulation_properties_exposed
-              (HybConcSem (Some 0)%nat m)
-              (HybConcSem (Some (S n)) m)
-              invariant
-              mem_compatible
-              (match_state (S n))
-                (list_lt (S n)).
-      Proof.
-        intros n Hsim0 Hsimn m.
-        specialize (Hsim0 m). destruct Hsim0 as [Hsim0 Hordr0].
-        specialize (Hsimn m). destruct Hsimn as [Hsimn Hordrn].
-        unshelve econstructor;
-          [econstructor| ].
-        - !goal (well_founded _).
-          eapply list_lt_wf.
-          (* eapply Hsimn.
-          eapply Hsim0. *)
-        - intros.
-          eapply Hsim0 in H; normal_hyp.
-          eapply Hsimn in H; eauto.
-          normal; eauto.
-          !goal(match_state _ _ _ _ _ _ _). econstructor; eauto.
-        - intros.
-          inv H0. repeat subst_sig.
-          eapply Hsim0 in H; eauto.
-          apply step_diagram_helper in H.
-          apply step_diagram_helper.
-          normal_hyp. destruct H2.
-          +  clear H4.
             (* this lemma looks very loooong but it says:
                Step diagrams can be stiched together
              *)
-            Lemma step_diagram_step_plus (m: option mem) n ord:
+             Lemma step_diagram_step_plus (m: option mem) n ord:
+               Transitive ord ->
               (forall (sge tge : G) (U : list nat) (tr1 : list Events.machine_event)
          (st1 : ThreadPool (Some n)) (m1 : mem) (st1' : ThreadPool (Some n))
          (m1' : mem),
@@ -484,8 +440,108 @@ Section ThreadedSimulation.
             (HybConcSem (Some (S n)) m) tge U st2 m2 st2' m2' \/
           m2 = m2' /\
           st2 = st2' /\
-          ord cd' cd) /\ inject_incr mu mu'). 
-            Admitted.
+          ord cd' cd) /\ inject_incr mu mu').
+             Proof.
+               intros Htrans;
+              intros until m1'; intros HH.
+              destruct HH as [N HH]. revert HH.
+              revert sge tge U tr1 st1 m1 st1' m1'.
+              induction N.
+              - simpl. intros; normal_hyp.
+                inv H3.
+                eapply H in H2; eauto.
+                normal_hyp.
+                normal; eauto.
+                destruct H4; eauto.
+                destruct H4. destruct H4.
+                destruct x3.
+                + (* x3 = 0 *)
+                  right; inv H4; auto.
+                + left; econstructor; eauto.
+                
+              - intros.
+                destruct HH as (st1'' & m1'' & Hstep & Hstep').
+                eapply H in Hstep; eauto.
+                normal_hyp.
+                eapply IHN in Hstep'.
+                2:{ eassumption. } 
+                2:{ eassumption. }
+                normal_hyp.
+
+                exists x3, x4, x5, x6; repeat weak_split; eauto.
+                2:{  eapply inject_incr_trans; eauto. }
+
+                (* The stepping *)
+                instantiate(1:= tge) in H8.
+                instantiate(1:= tge) in H4.
+                clear - H8 H4 Htrans.
+                destruct H8; destruct H4; normal_hyp.
+                + left; eapply machine_semantics_lemmas.thread_step_plus_trans; eauto.
+                + left; eapply machine_semantics_lemmas.thread_step_star_plus_trans; eauto.
+                + subst; left; eauto.
+                + subst. destruct H0. destruct x.
+                  * inv H.
+                    right; repeat weak_split eauto.
+                    
+                  * left. econstructor; eauto.
+                    
+            Qed.
+            
+            
+      
+      (* Not this lemma can be generalized away from 
+         splicit index and orders (given here by list_lt).
+         Since it's only used once, we live this form for now.
+       *)
+      
+      Lemma simulation_inductive_case:
+        forall n : nat,
+          (forall m : option mem,
+              simulation_properties_exposed
+                (HybConcSem (Some 0)%nat m)
+                (HybConcSem (Some n) m)
+                invariant
+                mem_compatible
+                (match_state n)
+                (list_lt n)) ->
+          (forall m : option mem,
+              simulation_properties_exposed
+                (HybConcSem (Some n) m)
+                (HybConcSem (Some (S n)) m)
+                invariant
+                mem_compatible
+                (concur_match n)
+                 comp_ord) ->
+          forall m : option mem,
+            simulation_properties_exposed
+              (HybConcSem (Some 0)%nat m)
+              (HybConcSem (Some (S n)) m)
+              invariant
+              mem_compatible
+              (match_state (S n))
+                (list_lt (S n)).
+      Proof.
+        intros n Hsim0 Hsimn m.
+        specialize (Hsim0 m). destruct Hsim0 as [Hsim0 Hordr0].
+        specialize (Hsimn m). destruct Hsimn as [Hsimn Hordrn].
+        unshelve econstructor;
+          [econstructor| ].
+        - !goal (well_founded _).
+          eapply list_lt_wf.
+          (* eapply Hsimn.
+          eapply Hsim0. *)
+        - intros.
+          eapply Hsim0 in H; normal_hyp.
+          eapply Hsimn in H; eauto.
+          normal; eauto.
+          !goal(match_state _ _ _ _ _ _ _). econstructor; eauto.
+        - intros.
+          inv H0. repeat subst_sig.
+          eapply Hsim0 in H; eauto.
+          apply step_diagram_helper in H.
+          apply step_diagram_helper.
+          normal_hyp. destruct H2.
+          +  clear H4.
             pose proof (thread_diagram Hsimn) as HH.
             unshelve (eapply step_diagram_step_plus in HH; eauto);
               eauto.
@@ -494,12 +550,13 @@ Section ThreadedSimulation.
             * destruct H6; eauto. right.
               normal; eauto.
               econstructor 1; eauto.
+              instantiate(1:= x5).
               rewrite <- Hordrn; eauto.
             * eapply inject_incr_trace.
               eapply compose_meminj_inject_incr; eauto.
               eauto.
             * econstructor; eauto.
-              
+            * rewrite Hordrn. eapply comp_ord_trans.
               
           + normal_hyp; subst.
             assert (Forall2 (inject_mevent (compose_meminj x2 jSn)) tr1 tr2).
@@ -548,7 +605,7 @@ Section ThreadedSimulation.
           
           Unshelve.
           all: assumption.
-      Qed. (* Just one silly admit. *)
+      Qed. 
 
       
       Context (Hexterns_have_events: Asm_externals_have_events Asm_g).
@@ -565,7 +622,39 @@ Section ThreadedSimulation.
         - (*trivial reflexive induction*)
           apply trivial_self_injection.
         - eapply simulation_inductive_case; eauto.
-          eapply compile_one_thread; auto.
+          intros.
+          Lemma simulation_properties_exposed_order_inclusion:
+            forall SG TG TID SCH SC TC R1 R2 Sem1 Sem2
+                                           Hinv Hcmpt index match_state order1 order2,
+            @simulation_properties_exposed SG TG TID SCH SC TC R1 R2 Sem1 Sem2
+                                           Hinv Hcmpt index match_state order1 ->
+            inclusion _ order1 order2 ->
+            well_founded order2 ->
+            @simulation_properties_exposed SG TG TID SCH SC TC R1 R2 Sem1 Sem2
+                                           Hinv Hcmpt index match_state order2.
+          Proof.
+            intros.
+            inversion X.
+            unshelve econstructor.
+            destruct xSIM; simpl in *.
+            eapply Build_HybridMachine_simulation_properties with (core_ord:= order2);
+              eauto.
+            - clear - H thread_diagram Hexpose_order.
+              intros; exploit thread_diagram; eauto.
+              intros; normal_hyp.
+              normal; eauto.
+              destruct H5 as [ ? | [? ?]]; eauto.
+              right; split; eauto.
+              apply H; eauto.
+              rewrite <- Hexpose_order; auto.
+            - simpl. repeat match_case; reflexivity.
+          Qed.
+          eapply simulation_properties_exposed_order_inclusion.
+          + eapply compile_one_thread; auto.
+          + constructor 1; auto.
+          + 
+            apply comp_ord_wd.
+              
       Qed.
 
     End CompileNThreads.
