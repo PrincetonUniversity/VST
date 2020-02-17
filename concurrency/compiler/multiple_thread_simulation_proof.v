@@ -19,7 +19,7 @@ Require Import VST.concurrency.compiler.advanced_permissions.
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
 Require Import VST.concurrency.common.HybridMachine.
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
-Require Import VST.concurrency.compiler.list_order.
+(*Require Import VST.concurrency.compiler.list_order.*)
 Require Import VST.concurrency.compiler.Asm_lemmas.
 Require Import VST.concurrency.compiler.synchronisation_symulations.
 Require Import VST.concurrency.compiler.single_thread_simulation_proof.
@@ -86,27 +86,58 @@ Section ThreadedSimulation.
     (*Import MySimulationTactics.MyConcurMatch.*)
     
     Section CompileNThreads.
-      
-      Definition nth_index:= (list (option compiler_index)).
-      Definition list_lt: nth_index -> nth_index -> Prop:=
-        list_ord (opt_rel' (InjorderX compiler_sim)).
 
-      Lemma list_lt_wf: well_founded list_lt.
-      Proof. eapply list_ord_wf, option_wf, Injfsim_order_wfX. Qed.
+      Fixpoint nth_index (n: nat): Type:=
+        match n with
+        | O => unit
+        | S n' => ((option compiler_index) * (nth_index n'))%type
+        end.
+
+      (* rewrite tt to avoid univers inconcistencies *)
+      Lemma zero_index:
+        @Logic.eq Type (nth_index O) unit.
+      Proof. reflexivity. Qed.
+      Definition tt': nth_index O:= tt.
+
+      Notation tt:=tt'.
+      
+      Definition nth_pair {n} (cd: option compiler_index) (nth: nth_index n):
+        nth_index (S n):= (cd, nth).
+      Definition trivial_ord: unit -> unit -> Prop:=
+        fun _ _ => False.
+      
+      (*Definition nth_index:= (list (option compiler_index)).*)
+      Fixpoint list_lt (n:nat): nth_index n -> nth_index n -> Prop:=
+       match n as n0 return (nth_index n0 -> nth_index n0 -> Prop) with
+       | O => trivial_ord
+       | S n0 => lex_ord (opt_rel' (InjorderX compiler_sim)) (list_lt n0)
+       end.
+
+      Lemma trivial_well_founded:
+        well_founded trivial_ord.
+      Proof. constructor. intros. inv H. Qed.
+        
+      Lemma list_lt_wf: forall n, well_founded (list_lt n).
+      Proof. induction n.
+             - apply trivial_well_founded.
+             - apply wf_lex_ord; simpl; eauto.
+               apply option_wf, Injfsim_order_wfX.
+      Qed.
+      
       
       Inductive match_state:
-        forall n, nth_index ->
+        forall n, nth_index n ->
              Values.Val.meminj ->
              ThreadPool (Some 0)%nat -> Memory.Mem.mem ->
              ThreadPool (Some n) -> Memory.Mem.mem -> Prop:=
       | refl_match: forall tp m,
           (* mem_compatible tp m -> *)
-          match_state 0 nil (Mem.flat_inj (Mem.nextblock m)) tp m tp m
+          match_state 0 tt (Mem.flat_inj (Mem.nextblock m)) tp m tp m
       | step_match_state:
           forall n ocd ils jn jSn tp0 m0 tpn mn tpSn mSn,
             match_state n ils jn tp0 m0 tpn mn ->
             concur_match n ocd jSn tpn mn tpSn mSn ->
-            match_state (S n) (cons ocd ils) (compose_meminj jn jSn) tp0 m0 tpSn mSn.
+            match_state (S n) (nth_pair ocd ils) (compose_meminj jn jSn) tp0 m0 tpSn mSn.
 
       
       Lemma thread_step_mem_fwd:
@@ -183,17 +214,17 @@ Section ThreadedSimulation.
             invariant
             mem_compatible
             (match_state 0)
-            list_lt.
+            (list_lt 0).
       Proof.
-        simpl; intros.
+        intros.
         unshelve econstructor; [econstructor|].
-        - eapply list_lt_wf.
+        - eapply (list_lt_wf 0).
         - intros; normal; eauto.
           + econstructor.
         - intros; normal_hyp.
           assert (inject_incr mu (Mem.flat_inj (Mem.nextblock m1'))).
-            { inv_match0; eapply flat_inj_lt.
-              eapply thread_step_mem_fwd; apply H. }
+          { inv_match0; eapply flat_inj_lt.
+            eapply thread_step_mem_fwd; apply H. }
           normal.
           + econstructor.
           + eapply inject_incr_trace; try eassumption.  
@@ -222,8 +253,8 @@ Section ThreadedSimulation.
       
       
       Lemma step_diagram_helper:
-        forall mu (ord: relation nth_index) tr1 tr2 m U hb cd m1' st1' tge st2 m2, 
-          (exists (st2' : ThreadPool (Some hb)) (m2' : mem) (cd' : nth_index) 
+        forall mu hb (ord: relation (nth_index hb)) tr1 tr2 m U cd m1' st1' tge st2 m2, 
+          (exists (st2' : ThreadPool (Some hb)) (m2' : mem) (cd' : (nth_index hb)) 
              (mu' : meminj),
               match_state hb cd' mu' st1' m1' st2' m2' /\
               Forall2 (inject_mevent mu') tr1 tr2 /\
@@ -235,7 +266,7 @@ Section ThreadedSimulation.
                  tge U st2 m2 st2' m2' /\ ord cd' cd) /\
           inject_incr mu mu')
           <->
-          exists (st2' : ThreadPool (Some hb)) (m2' : mem) (cd' : nth_index) 
+          exists (st2' : ThreadPool (Some hb)) (m2' : mem) (cd' : (nth_index hb)) 
             (mu' : meminj),
             match_state hb cd' mu' st1' m1' st2' m2' /\
             Forall2 (inject_mevent mu') tr1 tr2 /\
@@ -352,6 +383,8 @@ Section ThreadedSimulation.
               - intros. inv H0. subst_sig.
                 eapply H8.
             Qed.
+
+            
             
       
       (* Not this lemma can be generalized away from 
@@ -368,7 +401,7 @@ Section ThreadedSimulation.
                 invariant
                 mem_compatible
                 (match_state n)
-                list_lt) ->
+                (list_lt n)) ->
           (forall m : option mem,
               simulation_properties_exposed
                 (HybConcSem (Some n) m)
@@ -384,7 +417,7 @@ Section ThreadedSimulation.
               invariant
               mem_compatible
               (match_state (S n))
-                list_lt.
+                (list_lt (S n)).
       Proof.
         intros n Hsim0 Hsimn m.
         specialize (Hsim0 m). destruct Hsim0 as [Hsim0 Hordr0].
@@ -392,22 +425,82 @@ Section ThreadedSimulation.
         unshelve econstructor;
           [econstructor| ].
         - !goal (well_founded _).
-          eapply list_ord_part_wf.
-          eapply Hsimn.
-          eapply Hsim0.
+          eapply list_lt_wf.
+          (* eapply Hsimn.
+          eapply Hsim0. *)
         - intros.
           eapply Hsim0 in H; normal_hyp.
           eapply Hsimn in H; eauto.
           normal; eauto.
           !goal(match_state _ _ _ _ _ _ _). econstructor; eauto.
         - intros.
-          inv H0. subst_sig.
+          inv H0. repeat subst_sig.
           eapply Hsim0 in H; eauto.
           apply step_diagram_helper in H.
           apply step_diagram_helper.
           normal_hyp. destruct H2.
-          + revert H H0.
-            admit.
+          +  clear H4.
+            (* this lemma looks very loooong but it says:
+               Step diagrams can be stiched together
+             *)
+            Lemma step_diagram_step_plus (m: option mem) n ord:
+              (forall (sge tge : G) (U : list nat) (tr1 : list Events.machine_event)
+         (st1 : ThreadPool (Some n)) (m1 : mem) (st1' : ThreadPool (Some n))
+         (m1' : mem),
+       machine_semantics.thread_step (HybConcSem (Some n) m) sge U st1 m1 st1'
+         m1' ->
+       forall (cd : option compiler_index) (tr2 : list Events.machine_event)
+         (st2 : ThreadPool (Some (S n))) (mu : meminj) 
+         (m2 : mem),
+       concur_match n cd mu st1 m1 st2 m2 ->
+       Forall2 (inject_mevent mu) tr1 tr2 ->
+       exists
+         (st2' : ThreadPool (Some (S n))) (m2' : mem) 
+       (cd' : option compiler_index) (mu' : meminj),
+         concur_match n cd' mu' st1' m1' st2' m2' /\
+         Forall2 (inject_mevent mu') tr1 tr2 /\
+         (machine_semantics_lemmas.thread_step_plus
+            (HybConcSem (Some (S n)) m) tge U st2 m2 st2' m2' \/
+          machine_semantics_lemmas.thread_step_star
+            (HybConcSem (Some (S n)) m) tge U st2 m2 st2' m2' /\
+          ord cd' cd) /\ inject_incr mu mu') ->
+
+              (forall sge tge (U : list nat) (tr1 : list Events.machine_event)
+         (st1 : ThreadPool (Some n)) (m1 : mem) (st1' : ThreadPool (Some n))
+         (m1' : mem),
+       machine_semantics_lemmas.thread_step_plus (HybConcSem (Some n) m) sge U st1 m1 st1'
+         m1' ->
+       forall (cd : option compiler_index) (tr2 : list Events.machine_event)
+         (st2 : ThreadPool (Some (S n))) (mu : meminj) 
+         (m2 : mem),
+       concur_match n cd mu st1 m1 st2 m2 ->
+       Forall2 (inject_mevent mu) tr1 tr2 ->
+       exists
+         (st2' : ThreadPool (Some (S n))) (m2' : mem) 
+       (cd' : option compiler_index) (mu' : meminj),
+         concur_match n cd' mu' st1' m1' st2' m2' /\
+         Forall2 (inject_mevent mu') tr1 tr2 /\
+         (machine_semantics_lemmas.thread_step_plus
+            (HybConcSem (Some (S n)) m) tge U st2 m2 st2' m2' \/
+          m2 = m2' /\
+          st2 = st2' /\
+          ord cd' cd) /\ inject_incr mu mu'). 
+            Admitted.
+            pose proof (thread_diagram Hsimn) as HH.
+            unshelve (eapply step_diagram_step_plus in HH; eauto);
+              eauto.
+            normal_hyp. normal_goal; swap 1 4; swap 2 3.
+            * eapply compose_meminj_inject_incr; eauto.
+            * destruct H6; eauto. right.
+              normal; eauto.
+              econstructor 1; eauto.
+              rewrite <- Hordrn; eauto.
+            * eapply inject_incr_trace.
+              eapply compose_meminj_inject_incr; eauto.
+              eauto.
+            * econstructor; eauto.
+              
+              
           + normal_hyp; subst.
             assert (Forall2 (inject_mevent (compose_meminj x2 jSn)) tr1 tr2).
             { eapply inject_incr_trace; try eassumption.
@@ -416,7 +509,8 @@ Section ThreadedSimulation.
             normal_goal; eauto.
             * econstructor; eauto.
             * right; repeat weak_split auto.
-              constructor; auto.
+              constructor 2; auto.
+              rewrite <- Hordr0; eauto.
             * eapply compose_meminj_inject_incr; eauto.
         - intros.
           inv H2; subst_sig.
@@ -442,16 +536,19 @@ Section ThreadedSimulation.
         - econstructor; simpl in *.
           unfold halted_machine in *; simpl in *.
           match_case in H0.
-          (* - intros * Hmatch i. inv Hmatch.
-          (eapply thread_running with (i:=i) in Hsimn); eauto. 
-          (eapply thread_running with (i:=i)  in Hsim0); eauto.
-          split; intros HH; eauto.
-          + eapply Hsimn; eapply Hsim0; assumption.
-          + eapply Hsim0; eapply Hsimn; assumption. *)
-
+          
+        - intros * Hmatch i.
+          !goal (machine_semantics.running_thread _ _ _ <->
+                 machine_semantics.running_thread _ _ _).
+          inv Hmatch.
+          repeat subst_sig.
+          etransitivity;
+            eapply thread_running; eauto.
+        - reflexivity. (* the two orders are the same. *)
+          
           Unshelve.
           all: assumption.
-      Admitted. (* Just one silly admit. *)
+      Qed. (* Just one silly admit. *)
 
       
       Context (Hexterns_have_events: Asm_externals_have_events Asm_g).
@@ -462,7 +559,7 @@ Section ThreadedSimulation.
             (HybConcSem (Some n) m)
             invariant
             mem_compatible
-            (match_state n) list_lt.
+            (match_state n) (list_lt n).
       Proof.
         induction n.
         - (*trivial reflexive induction*)
@@ -478,8 +575,53 @@ Section ThreadedSimulation.
       Context {Hasm_externals: Asm_externals_have_events Asm_g}.
 
       
+      Inductive infty_index: Type:=
+        | index_n: forall n (cd: nth_index n), infty_index.
+
+      Inductive infty_ord: infty_index -> infty_index -> Prop:=
+      | infty_ord_n: forall n (cd1 cd2: nth_index n),
+          list_lt n cd1 cd2 ->
+          infty_ord (index_n _ cd1) (index_n _ cd2).
+      Inductive infty_ord_strict n: infty_index -> infty_index -> Prop:=
+      | infty_ord_n': forall (cd1 cd2: nth_index n),
+          list_lt n cd1 cd2 ->
+          infty_ord_strict n (index_n _ cd1) (index_n _ cd2).
+      Inductive is_nth n: infty_index -> Prop :=
+      | is_nth_intro: forall cd, is_nth n (index_n n cd).
+
+      Lemma Acc_filter: forall {A} (R1 R2 : A -> A -> Prop)
+          (F: A -> Prop),
+        (forall x, F x -> forall y, R1 y x -> F y) ->
+        (forall x y, F x -> R1 x y -> R2 x y) ->
+        forall x, F x -> Acc R2 x -> Acc R1 x.
+      Proof.
+        intros. induction H2.
+        constructor; intros.
+        assert (F y). { eapply H; eauto. }
+                      eapply H3; auto.
+      Qed.
+        
+        
+        
+      Lemma infty_ord_wf:  well_founded infty_ord.
+      Proof. constructor; intros.
+             inv H.
+             eapply (Acc_filter _ (infty_ord_strict n) (is_nth n)).
+             - intros. inv H. inv H1. subst_sig. constructor.
+             - intros. inv H. inv H1. subst_sig. constructor; assumption.
+             - constructor.
+             - simpl.
+               clear.
+               pose proof (list_lt_wf n cd1) as HW.
+               induction HW.
+               econstructor.
+               intros.
+               inv H1; subst_sig.
+               eapply H0; auto.
+      Qed.
+           
       Inductive infty_match:
-        nth_index -> meminj ->
+        infty_index -> meminj ->
         ThreadPool (Some 0)%nat -> mem ->
         ThreadPool None -> mem -> Prop:=
       | Build_infty_match:
@@ -488,10 +630,21 @@ Section ThreadedSimulation.
             (Hhb_bound: (0 < ThreadPool_num_threads st0 < n)%nat),
             match_state n cd j st0 m0 stn mn ->
             lift_state (Some n) stn None st ->
-            infty_match cd j st0 m0 st mn.
+            infty_match (index_n _ cd) j st0 m0 st mn.
       
 
 
+      
+      Lemma initial_machine_has_one_thread:
+        forall hb r om m st m' main main_args,
+          machine_semantics.initial_machine (HybConcSem hb om) 
+                                            r m st m' main main_args ->
+          ThreadPool_num_threads st = 1%nat.
+      Proof.
+        intros.
+        inv H. match_case in H1; subst.
+        inv H1. normal. subst. simpl. reflexivity.
+      Qed.
       Lemma initial_infty:
         forall (m : option mem) (s_mem s_mem' : mem) 
           (main : val) (main_args : list val)
@@ -499,7 +652,7 @@ Section ThreadedSimulation.
           machine_semantics.initial_machine (HybConcSem (Some 0)%nat m) r1
                                             s_mem s_mach_state s_mem' main main_args ->
           exists
-            (j : meminj) (cd : nth_index) (t_mach_state : ThreadPool None) 
+            (j : meminj) (cd : infty_index) (t_mach_state : ThreadPool None) 
             (t_mem t_mem' : mem) (r2 : option res),
             machine_semantics.initial_machine (HybConcSem None m) r2 t_mem
                                               t_mach_state t_mem' main main_args /\
@@ -507,7 +660,24 @@ Section ThreadedSimulation.
       Proof.
       (* Follows from any initial diagram and a missing lemma showing that the initial state
         can be "lifted" (lift_state) *)
-      Admitted.
+        intros.
+        assert (Hone:ThreadPool_num_threads s_mach_state = 1%nat).
+        { eapply initial_machine_has_one_thread; eassumption. }
+          
+        eapply (compile_n_threads _ 2) in H; eauto.
+        normal_hyp.
+        normal_goal; eauto.
+        { eapply lift_initial; eauto. }
+        econstructor; swap 1 4.
+        + econstructor. reflexivity.
+        + rewrite Hone; auto.
+        + eauto.
+        + simpl in H.
+          eapply self_simulates_initial; eauto.
+          
+          Unshelve.
+          assumption.
+      Qed.
       
       
       Lemma match_state_num_threads:
@@ -613,12 +783,12 @@ Section ThreadedSimulation.
           (m1' : mem),
           machine_semantics.thread_step (HybConcSem (Some 0)%nat m) sge U st1
                                         m1 st1' m1' ->
-          forall (cd : nth_index) tr2 (st2 : ThreadPool None) 
+          forall (cd : infty_index) tr2 (st2 : ThreadPool None) 
             (mu : meminj) (m2 : mem),
             infty_match cd mu st1 m1 st2 m2 ->
             List.Forall2 (inject_mevent mu) tr1 tr2 ->
             exists
-              (st2' : ThreadPool None) (m2' : mem) (cd' : nth_index) 
+              (st2' : ThreadPool None) (m2' : mem) (cd' : infty_index) 
               (mu' : meminj),
               infty_match cd' mu' st1' m1' st2' m2' /\
               List.Forall2 (inject_mevent mu') tr1 tr2 /\
@@ -626,7 +796,7 @@ Section ThreadedSimulation.
                  (HybConcSem None m) tge U st2 m2 st2' m2' \/
                machine_semantics_lemmas.thread_step_star 
                  (HybConcSem None m) tge U st2 m2 st2' m2' /\ 
-               list_lt cd' cd) /\ inject_incr mu mu' .
+               infty_ord cd' cd) /\ inject_incr mu mu' .
       Proof.
       (*Proof sketch:
             infty_match defines an intermediate machine Mn at level n, matching the 0 machine.
@@ -658,6 +828,8 @@ Section ThreadedSimulation.
           destruct H4 as [ H4| [H4 ?] ];
             [ left;eapply lift_thread_step_plus |
               right; split; try eapply lift_thread_step_star]; eauto.
+          + econstructor; auto.
+
       Qed.
 
       Lemma cnt_pos_threads:
@@ -680,7 +852,7 @@ Section ThreadedSimulation.
       Proof.
         unfold ThreadPool_num_threads.
         induction hb.
-        - simpl; intros; auto. inv H; subst_sig; auto.
+        - intros; auto. inv H; subst_sig; auto.
         - intros. inv H; subst_sig.
           etransitivity; swap 1 2.
           eapply IHhb; eauto.
@@ -705,41 +877,67 @@ Section ThreadedSimulation.
           O => nil
         | S n' => @None A :: (Nones n')
         end.
+      Fixpoint None_prefix k {n} (cd:nth_index n): nth_index (k + n):=
+        match k as k0 return nth_index (k0+ n) with
+          O => cd
+        | S k' => nth_pair None (None_prefix k' cd)
+        end.
+      Definition Prepend_Nones (m n : nat)(cd:nth_index n)(P:(n <= m)%nat): nth_index m.
+        replace m with (m - n + n)%nat.
+        2: { omega. }
+        eapply None_prefix; auto.
+      Defined.
       
-Lemma pump_match_state:
-  forall m n ocd mu st1 m1 st2 m2
-    (Hpos: (0 < ThreadPool_num_threads st1)%nat),
-    match_state n ocd mu st1 m1 st2 m2 ->
-    self_simulates _ st2 m2 ->
-    (ThreadPool_num_threads st2 < n)%nat -> 
-    (n <= m)%nat ->
-    match_state m ((Nones (m-n)%nat) ++ ocd) mu st1 m1 (lift_state' st2) m2.
-Proof.
-  intros. 
-  assert (exists x, m = x + n)%nat.
-  { exists (m - n)%nat. omega. }
-  normal_hyp; subst.
-  clear H2.
-  replace (x + n - n)%nat with x by omega.
-  revert n mu ocd st1 st2 m1 m2 Hpos H H1 H0.
-  induction x.
-  - simpl.
-    intros; rewrite lift_state_refl; auto.
-  - intros.
-    exploit IHx; eauto. clear IHx.
-    intros HH.
-    simpl.
-    replace mu with (compose_meminj mu (Mem.flat_inj (Mem.nextblock m2))).
-    2: { symmetry; apply mappedblocks_compose_meminj.
-         eapply match_state_mappedblocks; eauto. }
-
-    simpl.
-    eapply step_match_state; eauto.
-    erewrite <- (lift_state_idempotent (Some n) (x + n) (Some (S (x + n)))).
-    + eapply self_simulates_match; eauto.
-      destruct st2; unfold ThreadPool_num_threads in *; simpl in *.
-      omega.
-Qed.
+      Lemma pump_match_state':
+        forall m n ocd mu st1 m1 st2 m2
+          (Hpos: (0 < ThreadPool_num_threads st1)%nat),
+          match_state n ocd mu st1 m1 st2 m2 ->
+          self_simulates _ st2 m2 ->
+          (ThreadPool_num_threads st2 < n)%nat ->
+          match_state (m + n) (None_prefix m ocd) mu st1 m1 (lift_state' st2) m2.
+      Proof.
+        intros. 
+        revert n mu ocd st1 st2 m1 m2 Hpos H H1 H0.
+        induction m.
+        - simpl.
+          intros; rewrite lift_state_refl; auto.
+          
+        - intros.
+          exploit IHm; eauto. clear IHm.
+          intros HH.
+          simpl.
+          replace mu with (compose_meminj mu (Mem.flat_inj (Mem.nextblock m2))).
+          2: { symmetry; apply mappedblocks_compose_meminj.
+               eapply match_state_mappedblocks; eauto. }
+          
+          simpl.
+          eapply step_match_state; eauto.
+          erewrite <- (lift_state_idempotent (Some n) (m + n) (Some (S (m + n)))).
+          + eapply self_simulates_match; eauto.
+            destruct st2; unfold ThreadPool_num_threads in *; simpl in *.
+            omega.
+      Qed.
+      
+      Lemma pump_match_state:
+        forall m n ocd mu st1 m1 st2 m2
+          (Hpos: (0 < ThreadPool_num_threads st1)%nat),
+          match_state n ocd mu st1 m1 st2 m2 ->
+          self_simulates _ st2 m2 ->
+          (ThreadPool_num_threads st2 < n)%nat ->
+          (m >= n)%nat ->
+          exists cd,
+          match_state m cd mu st1 m1 (lift_state' st2) m2.
+      Proof.
+        intros.  exploit (pump_match_state' (m-n) n); eauto.
+        clear - H2.
+        remember (None_prefix (m - n) ocd) as CD; clear HeqCD.
+        remember (m - n + n)%nat as K.
+        assert (K = m) by (subst; omega).
+        clear HeqK. subst K.
+        exists CD; auto.
+      Qed.
+        
+        
       Lemma infinite_machine_step_diagram:
         forall (m : option mem) (sge tge : HybridMachineSig.G)
           (U : list nat) (tr1 : HybridMachineSig.event_trace)
@@ -749,14 +947,14 @@ Qed.
           machine_semantics.machine_step (HybConcSem (Some 0)%nat m) sge U tr1
                                          st1 m1 U' tr1' st1' m1' ->
           
-          forall (cd : nth_index) tr2 (st2 : ThreadPool None) 
+          forall (cd : infty_index) tr2 (st2 : ThreadPool None) 
             (mu : meminj) (m2 : mem)
             (Hinv1': invariant st1')
             (Hcmpt1': mem_compatible st1' m1'),
             infty_match cd mu st1 m1 st2 m2 ->
             List.Forall2 (inject_mevent mu) tr1 tr2 ->
             exists
-              tr2' (st2' : ThreadPool None) (m2' : mem) (cd' : nth_index) 
+              tr2' (st2' : ThreadPool None) (m2' : mem) (cd' : infty_index) 
               (mu' : meminj),
               infty_match cd' mu' st1' m1' st2' m2' /\
               List.Forall2 (inject_mevent mu') tr1' tr2' /\
@@ -773,23 +971,24 @@ Qed.
         assert (Hnew_hb_spec1: (n <= new_hb)%nat) by apply Nat.le_max_l.
         
         rename stn into old_stn.
-        exploit (pump_match_state new_hb); eauto.
+        exploit (pump_match_state (new_hb)); eauto.
         { apply Hhb_bound. }
         { erewrite lift_ThreadPool_num_threads; eauto.
           apply Hhb_bound. }
-        remember (lift_state' old_stn) as stn.
-
+        remember (lift_state'(on':=Some new_hb) old_stn) as stn.
+        
+        
         rename H3 into H3'.
         assert (H3: lift_state _ stn None st2).
         { econstructor; subst.
           erewrite lift_state_idempotent.
           inv H3'; repeat subst_sig; auto. }
         clear H3'.
-
+        
         eapply (lift_self_simulates n new_hb) in Hself_inj; eauto.
         2:{ erewrite lift_ThreadPool_num_threads; eauto. apply Hhb_bound. }
         rewrite <- Heqstn in Hself_inj.
-        clear H2 Heqstn old_stn; intros H2.
+        clear H2 cd0 Heqstn old_stn; intros [cd H2].
 
         (* Now everything is the same, but with a larger bound!*)
         
@@ -816,7 +1015,7 @@ Qed.
       
 
       Lemma infinite_halted:
-        forall (m : option mem) (cd : nth_index) (mu : meminj)
+        forall (m : option mem) (cd : infty_index) (mu : meminj)
           (U : list nat) (c1 : ThreadPool (Some 0)%nat) 
           (m1 : mem) (c2 : ThreadPool None) (m2 : mem) 
           (v1 : val),
@@ -833,7 +1032,7 @@ Qed.
       Qed.
       
       Lemma infinite_running:
-        forall (m : option mem) (cd : nth_index) (mu : meminj)
+        forall (m : option mem) (cd : infty_index) (mu : meminj)
           (c1 : ThreadPool (Some 0)%nat) (m1 : mem) (c2 : ThreadPool None)
           (m2 : mem),
           infty_match cd mu c1 m1 c2 m2 ->
@@ -848,7 +1047,7 @@ Qed.
         instantiate(1:= machine_semantics.running_thread
                           (HybConcSem (Some n%nat) m)
                           stn i).
-        - clear H st Hself_inj Hhb_bound. revert n mu cd i m c1 m1 stn m2 H0.
+        - clear H st Hself_inj Hhb_bound. revert n mu cd0 i m c1 m1 stn m2 H0.
           induction n.
           + intros. inv H0. subst_sig; reflexivity.
           + intros. inv H0. etransitivity.
@@ -865,7 +1064,7 @@ Qed.
             (HybConcSem None m)
             invariant
             mem_compatible
-            infty_match list_lt.
+            infty_match infty_ord.
       Proof.
         intros. 
         (*All the proofs use the following lemma*)
@@ -873,7 +1072,7 @@ Qed.
         
         unshelve econstructor;
           [econstructor| ].
-        - eapply list_lt_wf.
+        - eapply infty_ord_wf.
         - apply initial_infty.
         - apply infinite_step_diagram.
         - intros; eapply infinite_machine_step_diagram;

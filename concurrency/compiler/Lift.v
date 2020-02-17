@@ -19,7 +19,6 @@ Require Import VST.concurrency.compiler.advanced_permissions.
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
 Require Import VST.concurrency.common.HybridMachine.
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
-Require Import VST.concurrency.compiler.list_order.
 Require Import VST.concurrency.compiler.Asm_lemmas.
 Require Import VST.concurrency.compiler.synchronisation_symulations.
 Require Import VST.concurrency.compiler.single_thread_simulation_proof.
@@ -477,14 +476,9 @@ Section Lift.
         inv H; econstructor; simpl in *;
           lift_tac.
         - instantiate (1:= c_new).
-          hnf in Hinitial.
-          match_case in Hinitial.
-          normal_hyp.
-          contradict H.
-          + eapply lt_op_lt; eauto.
-            eapply cnt_pos_threads_lt; auto.
-          + simpl. normal; eauto.
-            eapply lt_op_hb_le; eassumption.
+          eapply lift_initial_core; eauto.
+          eapply lt_op_lt; eauto.
+          apply cnt_pos_threads_lt; auto.
         - unfold add_block; simpl.
           autorewrite with lift; simpl.
           erewrite lift_updThread; eauto; simpl.
@@ -653,5 +647,31 @@ Section Lift.
             Unshelve.
             all: lift.
       Qed.
+
+      
+        Lemma lift_initial:
+        forall n (m : option mem) (s_mem s_mem' : mem) 
+          (main : val) (main_args : list val)
+          (s_mach_state : ThreadPool (Some (S n))%nat) (r1 : option res),
+          machine_semantics.initial_machine (HybConcSem (Some (S n))%nat m) r1
+                                            s_mem s_mach_state s_mem' main main_args ->
+            machine_semantics.initial_machine (HybConcSem None m) r1 s_mem
+                                              (lift_state' s_mach_state) s_mem' main main_args.
+        Proof.
+          intros; simpl in *.
+          inv H. match_case in H1; subst.
+          constructor; auto.
+          
+          simpl in *. inv H1; normal_hyp; subst. 
+          
+          econstructor; split.
+          - instantiate(1:=x).
+            apply lift_initial_core; eauto.
+            + simpl; omega.
+            + constructor.
+          - simpl; unfold OrdinalPool.mkPool.
+            f_equal.
+        Qed.
+
       
     End Lift.

@@ -19,7 +19,6 @@ Require Import VST.concurrency.compiler.advanced_permissions.
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
 Require Import VST.concurrency.common.HybridMachine.
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
-Require Import VST.concurrency.compiler.list_order.
 Require Import VST.concurrency.compiler.Asm_lemmas.
 Require Import VST.concurrency.compiler.synchronisation_symulations.
 Require Import VST.concurrency.compiler.single_thread_simulation_proof.
@@ -61,7 +60,7 @@ Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitio
 Import bounded_maps.
 
 
-Import HybridMachineSig.
+Import HybridMachineSig.HybridMachineSig.
 
 
 (* The self simulation of the CPM 
@@ -98,50 +97,71 @@ Section CPM_SelfSimulation.
                                      ge U tr st m U' tr' st' m' ->
       self_simulates n st' m'.
   Proof.
-Admitted.
+  Admitted.
 
 
-Lemma thread_step_preserves_self_simulates:
-  forall n m0 ge U st m st' m',
-    self_simulates n st m ->
-    machine_semantics.thread_step (HybConcSem (Some n) m0)
-                                  ge U st m st' m' ->
-    self_simulates n st' m'.
-Proof.
-  
-Admitted.
+  Lemma thread_step_preserves_self_simulates:
+    forall n m0 ge U st m st' m',
+      self_simulates n st m ->
+      machine_semantics.thread_step (HybConcSem (Some n) m0)
+                                    ge U st m st' m' ->
+      self_simulates n st' m'.
+  Proof.
+    
+  Admitted.
 
 
-Lemma thread_step_star_preserves_self_simulates:
-  forall n m0 ge U st m st' m',
-    self_simulates n st m ->
-    machine_semantics_lemmas.thread_step_star (HybConcSem (Some n) m0)
-                                              ge U st m st' m' ->
-    self_simulates n st' m'.
-Proof.
-  intros. inv H0.
-  revert dependent m.
-  revert U st st' m'.
-  induction x.
-  - simpl. intros. inv H1; assumption.
-  - simpl; intros. normal_hyp.
-    eapply IHx; try eapply H1.
-    eapply thread_step_preserves_self_simulates; eauto.
-    simpl; eassumption.
+  Lemma thread_step_star_preserves_self_simulates:
+    forall n m0 ge U st m st' m',
+      self_simulates n st m ->
+      machine_semantics_lemmas.thread_step_star (HybConcSem (Some n) m0)
+                                                ge U st m st' m' ->
+      self_simulates n st' m'.
+  Proof.
+    intros. inv H0.
+    revert dependent m.
+    revert U st st' m'.
+    induction x.
+    - simpl. intros. inv H1; assumption.
+    - simpl; intros. normal_hyp.
+      eapply IHx; try eapply H1.
+      eapply thread_step_preserves_self_simulates; eauto.
+      simpl; eassumption.
 
-    Unshelve.
-    all: eauto.
-Qed.
-Lemma thread_step_plus_preserves_self_simulates:
-  forall n m0 ge U st m st' m',
-    self_simulates n st m ->
-    machine_semantics_lemmas.thread_step_plus (HybConcSem (Some n) m0)
-                                              ge U st m st' m' ->
-    self_simulates n st' m'.
-Proof.
-  intros. eapply thread_step_star_preserves_self_simulates; eauto.
-  apply machine_semantics_lemmas.thread_step_plus_star; eassumption.
-Qed.
+      Unshelve.
+      all: eauto.
+  Qed.
+  Lemma thread_step_plus_preserves_self_simulates:
+    forall n m0 ge U st m st' m',
+      self_simulates n st m ->
+      machine_semantics_lemmas.thread_step_plus (HybConcSem (Some n) m0)
+                                                ge U st m st' m' ->
+      self_simulates n st' m'.
+  Proof.
+    intros. eapply thread_step_star_preserves_self_simulates; eauto.
+    apply machine_semantics_lemmas.thread_step_plus_star; eassumption.
+  Qed.
 
+  Lemma self_simulates_initial: 
+    forall hb m x4 x2 (x1:ThreadPool (Some hb)) x3 main main_args,
+      (hb > 0)%nat ->
+      @init_machine'' dryResources
+                      (@HybridSem CC_correct Args (@Some nat hb)) 
+                      (TP (Some hb))
+                      (@DryHybridMachineSig
+                         (@HybridSem CC_correct Args (@Some nat hb))
+                         (TP (@Some nat hb)))
+                      m x4 x2 x1 x3 main main_args ->
+      self_simulates hb x1 x3.
+  Proof.
+    intros * Hpos **.
+    inv H. match_case in H1; subst.
+    simpl in H1. unfold DryHybridMachine.init_mach in *.
+    normal_hyp.
+    simpl in *. unfold initial_core_sum in *.
+    match_case in H; normal_hyp.
+    { contradict H; simpl; omega. }
+    subst. simpl.          
+  Admitted.
 
 End CPM_SelfSimulation.

@@ -7,6 +7,12 @@ Import Relation_Operators.
 Require Import compcert.lib.Coqlib.
 
 
+(*+ THIS FILE IS DEPRECATED*)
+(* The proofs contained in this file are pretty cool...
+   but are not used anywhere... I just don't have the heart 
+   to delet them 
+ *)
+
 
      (*  The order on the lists is not lexicographic!
          It's Every element is smaller or equal.
