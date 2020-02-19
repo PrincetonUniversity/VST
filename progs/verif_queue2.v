@@ -5,6 +5,7 @@ Require Import VST.progs.queue2.
 
 Open Scope logic.
 
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -147,7 +148,7 @@ Proof.
     subst p. entailer!.
     entailer!.
 *
-    forward_call tt.
+    forward_call 1.
     contradiction.
 *
     if_tac.

@@ -3,6 +3,7 @@ Require Import wand_demo.wand_frame.
 Require Import wand_demo.wand_frame_tactic.
 Require Import wand_demo.bst.
 
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

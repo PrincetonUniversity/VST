@@ -33,6 +33,7 @@ Open Scope logic.
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
 ** line (which looks identical for any program) builds this
 ** interpretation, called "CompSpecs" *)
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

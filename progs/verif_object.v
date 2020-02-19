@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.progs.object.
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -171,7 +172,7 @@ forward_if
 change (Memory.EqDec_val p nullval) with (eq_dec p nullval).
 if_tac; entailer!.
 *
-forward_call tt.
+forward_call 1.
 contradiction.
 *
 rewrite if_false by auto.
@@ -288,11 +289,7 @@ sep_apply (make_object_methods Ews foo_invariant(gv _foo_reset) (gv _foo_twiddle
 forward_call (* p = make_foo(); *)
         gv.
 Intros p.
-
-(* 3. Done with object_methods for the foreseeable future *)
-freeze [2]  MT.
- gather_SEP 1.
-
+assert_PROP (p<>Vundef) by entailer!.
 (* Illustration of an alternate method to prove the method calls.
    Method 1:  comment out lines AA and BB and the entire range CC-DD.
    Method 2:  comment out lines AA-BB, inclusive.
@@ -327,6 +324,7 @@ forward.  (* mtable = p->mtable; *)
 unfold object_methods at 1.
 Intros sh r0 t0.
 forward.   (* p_twiddle = mtable->twiddle; *)
+assert_PROP (p<>Vundef) by entailer!.
 forward_call (* i = p_twiddle(p,3); *)
       (p, 3, @nil Z).
   simpl. computable.
@@ -334,7 +332,8 @@ Intros i.
 simpl in H0.
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
 sep_apply (object_mpred_i [3] p instance mtable0).
-deadvars!. clear - H0.
+deadvars!.
+simpl in H1.
 
 (* DD *)
 

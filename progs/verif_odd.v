@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.odd.
 Require Import VST.progs.verif_evenodd_spec.
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Definition Gprog : funspecs :=

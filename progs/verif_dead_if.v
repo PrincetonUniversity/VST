@@ -3,6 +3,7 @@ Require Import VST.progs.dead_if.
 Require Import VST.floyd.deadvars.
 
 Instance CompSpecs : compspecs.
+Global Open Scope old_funspec_scope.
 Proof. make_compspecs prog. Defined.
 
 Local Open Scope logic.

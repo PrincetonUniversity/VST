@@ -5,6 +5,7 @@ Require Import VST.floyd.library.
 Require Import VST.progs.lock_coupling.
 Require Import Sorting.
 
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

@@ -22,9 +22,11 @@ Require Import VST.floyd.field_at.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
+Require Import VST.floyd.funspec_old.
 Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.semax_conc_pred.
 Import String.
+Open Scope old_funspec_scope.
 
 Set Bullet Behavior "Strict Subproofs".
 

@@ -48,11 +48,14 @@ Require VST.msl.iter_sepcon.
 Require VST.msl.wand_frame.
 Require VST.msl.wandQ_frame.
 Require VST.floyd.linking.
+Require Export VST.floyd.funspec_old.
+
+Global Close Scope funspec_scope.
 
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
 Export Clight_Cop2.
-
+ 
 Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
 Hint Rewrite ptrofs_add_repr ptrofs_mul_repr ptrofs_sub_repr : entailer_rewrite.
 Hint Rewrite mul64_repr add64_repr sub64_repr or64_repr and64_repr : entailer_rewrite.

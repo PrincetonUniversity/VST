@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.load_demo.
 
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -102,8 +103,7 @@ assert_PROP (Zlength contents = n) as LEN. {
   entailer!.
   forget (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) as n.
   clear - H0.
-  rewrite !Zlength_map in H0.
-  rewrite Zlength_cons in H0.
+  rewrite Zlength_cons, !Zlength_map in H0.
   destruct (zlt n 0); [elimtype False | ].
   rewrite Z.max_l in H0 by omega.
   pose proof (Zlength_nonneg contents).

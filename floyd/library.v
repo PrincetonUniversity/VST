@@ -57,9 +57,9 @@ Definition exit_spec' :=
    PROP(False) LOCAL() SEP().
 *)
 Definition exit_spec' :=
- WITH u: unit
+ WITH arg: Z
  PRE [tint]
-   PROP () (LAMBDAx nil nil (SEP()))
+   PROP () (LAMBDAx nil [Vint (Int.repr arg)] (SEP()))
  POST [ tvoid ]
    PROP(False) LOCAL() SEP().
 
@@ -151,7 +151,7 @@ Definition free_spec'  {cs: compspecs} :=
        SEP (mem_mgr gv).*)
 Definition free_spec'  {cs: compspecs} :=
    WITH t: type, p:val, gv: globals
-   PRE [ tvoid ]
+   PRE [ tptr tvoid ]
        PROP ()
        (LAMBDAx (gv::nil) (p::nil)
        (SEP (mem_mgr gv;

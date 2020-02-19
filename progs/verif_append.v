@@ -4,6 +4,7 @@ Require Import VST.progs.append.
 
 Open Scope logic.
 
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance LS: listspec _list _tail (fun _ _ => emp).

@@ -6,6 +6,7 @@ Require Import VST.floyd.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

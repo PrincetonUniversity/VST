@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.message.
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -32,6 +33,18 @@ Arguments mf_assert {t}.
 Arguments mf_bufprop {t}.
 Arguments mf_size_range {t}.
 Arguments mf_restbuf {t}.
+
+Lemma mf_assert_local_facts: forall t (mf: message_format t) sh buf len (data: reptype t),
+   mf_assert mf sh buf len data |-- 
+    !! (0 <= len <= mf_size mf /\ isptr buf).
+Proof.
+intros.
+eapply derives_trans;[ apply mf_bufprop | ].
+entailer!.
+Qed.
+
+Hint Resolve mf_assert_local_facts : saturate_local.
+
 
 Definition t_struct_intpair := Tstruct _intpair noattr.
 Definition t_struct_message := Tstruct _message noattr.

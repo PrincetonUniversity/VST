@@ -30,6 +30,7 @@ Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.freezer.
+Require Import VST.floyd.funspec_old.
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
@@ -642,11 +643,29 @@ first [
    repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
-   repeat erewrite unfold_reptype_elim in * by reflexivity;
+ repeat erewrite unfold_reptype_elim in * by reflexivity;
    try autorewrite with entailer_rewrite in *;
    simpl; auto;
-   first [ solve [ apply prop_derives; reflexivity] |
-           solve [normalize] ]
+ apply prop_right;
+ match goal with
+ | |- ?A = ?B =>
+    unify (Datatypes.length A) (Datatypes.length B)
+ | |- @eq (list val) _ _ =>
+    fail 100 "Length of PARAMS list is not equal to the number of formal parameters of the funsig"
+ | |- _ => fail 100 "Mysterious error in check_vl_eq_args"
+ end;    
+ repeat match goal with |- _ :: _ = _ :: _ => f_equal end;
+ normalize;
+ unfold field_address, field_address0;
+ rewrite if_true; auto;
+ auto with field_compatible;
+ match goal with |- ?G => 
+  match G with
+  | field_compatible0 _ _ _ => idtac
+  | field_compatible _ _ _ => idtac
+  end;
+  fail 100 "Before forward_call, assert and prove" G
+ end
   | fail 99 "Fail in tactic check_vl_eq_args"] .
 
 Lemma exp_uncurry2:
@@ -1341,7 +1360,7 @@ Ltac prove_call_setup_aux  ts witness :=
  let R := strip1_later R' in
  exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ H witness Frame); clear H;
  simpl functors.MixVariantFunctor._functor;
- [ reflexivity
+ [ try_convertPreElim
  | check_prove_local2ptree
  | check_vl_eq_args (*WAS: Forall_pTree_from_elements*)
  | auto 50 with derives
@@ -4324,7 +4343,8 @@ Ltac start_function1 :=
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
-   change (semax_body V G F s); subst s
+   change (semax_body V G F s); subst s;
+   unfold NDmk_funspec'
  end;
  let DependedTypeList := fresh "DependedTypeList" in
  unfold NDmk_funspec; 
@@ -4336,7 +4356,8 @@ Ltac start_function1 :=
          |];*)
    (*NOW:*)split3; [check_parameter_types' | check_return_type | ];
 
-   match Pre with
+    match Pre with
+   | (fun _ => convertPre _ _ (fun i => _)) =>  intros Espec DependedTypeList i
    | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
    | (fun _ i => _) => intros Espec DependedTypeList i
    end;
@@ -4348,6 +4369,7 @@ Ltac start_function1 :=
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
  clear DependedTypeList;
+ rewrite ?old_main_pre_eq;  unfold convertPre;
  repeat match goal with
  | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
@@ -4357,7 +4379,12 @@ Ltac start_function1 :=
              destruct p as [a b]
  | |- @semax _ _ _ (close_precondition _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
              destruct p as [a b]
-       end.
+ | |- semax _ (close_precondition _
+                                                (fun ae => !! (Datatypes.length (snd ae) = ?A) && ?B
+                                                      (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) * _) _ _ =>
+          match B with match ?p with (a,b) => _ end => destruct p as [a b] end
+       end;
+ try start_func_convert_precondition.
 
 (* first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
         | erewrite compute_close_precondition by reflexivity];*)
@@ -4838,7 +4865,7 @@ Ltac prove_semax_prog_aux tac :=
  | match goal with
      |- match initial_world.find_id (prog_main ?prog) ?Gprog with _ => _ end =>
      unfold prog at 1; (rewrite extract_prog_main || rewrite extract_prog_main');
-     ((eexists; reflexivity) || 
+     ((eexists; try (unfold NDmk_funspec'; rewrite old_main_pre_eq); reflexivity) || 
         fail "Funspec of _main is not in the proper form")
     end
  ]; 

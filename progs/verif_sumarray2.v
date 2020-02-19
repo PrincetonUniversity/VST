@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
 Require Import VST.progs.sumarray2. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -114,10 +115,6 @@ Intros.
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tuint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
-+
- entailer!.
- rewrite field_address0_offset by auto with field_compatible.
- normalize.
 + split. auto. computable.
 +
   gather_SEP (data_at Ews (tarray tuint 2) (sublist 0 2 contents) _) 

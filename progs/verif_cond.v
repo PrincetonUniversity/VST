@@ -1,6 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.progs.cond.
 
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

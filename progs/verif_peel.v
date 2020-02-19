@@ -19,6 +19,7 @@ Notice that the variable [a] is uninitialized until the middle of the first iter
 
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.peel.
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
