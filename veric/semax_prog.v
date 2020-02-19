@@ -2374,6 +2374,14 @@ destruct g as [j fs]; simpl in *.
 rewrite PTree.gsspec. destruct (peq i j); subst; auto.
 Qed.
 
+Lemma make_tycontext_g_G_None V i: forall G, find_id i G = None ->
+   (make_tycontext_g V G) ! i = find_id i V.
+Proof. induction G; intros.
++ apply semax_prog.make_tycontext_g_nilG_find_id. 
++ simpl in H. destruct a as [j a]; simpl. rewrite PTree.gsspec.
+  if_tac in H; subst. inv H. rewrite if_false; auto.
+Qed.
+
 Lemma list_norepet_cut_middle {A:Set} l1 l2 (a:A) (Ha: list_norepet (l1 ++ (a :: l2))): list_norepet (l1 ++ l2).
 Proof.
 apply list_norepet_append_inv in Ha. destruct Ha as [VH1 [VH2 D]]. inv VH2.

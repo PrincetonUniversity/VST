@@ -887,9 +887,17 @@ Lemma binary_intersection_typesig {phi1 phi2 phi} (BI : binary_intersection phi1
 Proof.
   destruct phi1; destruct phi2. simpl in *.
   if_tac in BI; [ subst | inv BI].
-  if_tac in BI; [ inv BI | discriminate]; trivial.
+  if_tac in BI; [ inv BI | discriminate]. trivial.
 Qed. 
 
+Lemma binary_intersection_typesigs {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      typesig_of_funspec phi1 = typesig_of_funspec phi /\ typesig_of_funspec phi2 = typesig_of_funspec phi.
+Proof.
+  destruct phi1; destruct phi2. simpl in *.
+  if_tac in BI; [ subst | inv BI].
+  if_tac in BI; [ inv BI | discriminate]; split; trivial.
+Qed.
+ 
 Lemma binaryintersection_sub phi psi omega:
   binary_intersection phi psi = Some omega ->
   funspec_sub omega phi /\  funspec_sub omega psi.
