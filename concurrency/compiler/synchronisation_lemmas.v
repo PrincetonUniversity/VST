@@ -1901,6 +1901,161 @@ Proof.
      unfold Max_equiv in *; rewrite Hmax_eq; auto.
 Qed.
 
+       Lemma range_mem_permMapLt_max:
+            forall b lo hi p m,
+              Mem.range_perm m b lo hi Max p ->
+              permMapLt_range (getMaxPerm m) b lo hi (Some p).
+          Proof.
+            unfold Mem.range_perm, Mem.perm.
+            intros ** ??.
+            exploit H; eauto.
+            rewrite_getPerm.
+            eauto.
+          Qed.
+          Lemma range_perm_cur_max:
+            forall (m : mem) (b : block) (ofs ofs2 : Z) (p : permission),
+              Mem.range_perm m b ofs ofs2 Cur p ->
+              Mem.range_perm m b ofs ofs2 Max p.
+          Proof.
+            intros ** ? **. eapply H in H0.
+            eapply Mem.perm_cur_max; auto.
+          Qed.
+          Lemma set_new_mems_LT1:
+          forall b ofs m perms new_perms n_z
+            (Hpos: 0 <= n_z),
+            permMapLt (fst perms) (getMaxPerm m) ->
+            set_new_mems b ofs perms (Z.to_nat n_z) new_perms ->
+            Mem.range_perm m b ofs (ofs + n_z) Cur Writable ->
+            permMapLt (fst new_perms) (getMaxPerm m). 
+        Proof.
+          intros. inv H0; simpl.
+          eapply permMapLt_setPermBlock; eauto.
+          rewrite Z2Nat.id; eauto.
+          apply range_mem_permMapLt_max; eauto.
+          eapply range_perm_cur_max; eauto.
+          eapply Mem.range_perm_implies; eauto. constructor.
+        Qed.
+        Lemma set_new_mems_LT2:
+          forall b ofs m perms new_perms n_z
+            (Hpos: 0 <= n_z),
+            permMapLt (snd perms) (getMaxPerm m) ->
+            set_new_mems b ofs perms (Z.to_nat n_z) new_perms ->
+            Mem.range_perm m b ofs (ofs + n_z) Cur Writable ->
+            permMapLt (snd new_perms) (getMaxPerm m). 
+        Proof.
+          intros. inv H0; simpl.
+          eapply permMapLt_setPermBlock; eauto.
+          rewrite Z2Nat.id; eauto.
+          apply range_mem_permMapLt_max; eauto.
+          eapply range_perm_cur_max; eauto.
+        Qed.
+Lemma mi_memval_perm_store':
+  forall (b1 b2 : block) v
+         (m1 m1' m2 m2' lock_mem : mem)
+         (perm1 : access_map)
+         (delta ofs : Z)
+         (mu : meminj) 
+         (Hinj_b' : mu b1 = Some (b2, delta))
+         (Hlt_th1 : permMapLt perm1 (getMaxPerm m1))
+         (Hinj' : Mem.inject mu m1 m2)
+         (Hmax_eq: Max_equiv lock_mem m1)
+         pp1 pp2
+         (Haccess : Mem.range_perm lock_mem b1 ofs (ofs + LKSIZE) Cur Writable)
+         (Hwritable_lock1 : permMapLt
+                              pp1
+                              (getMaxPerm m1))
+         (Hwritable_lock0 : permMapLt
+                              pp2
+                              (getMaxPerm m2)),
+    let m_writable_lock_1 := restrPermMap Hwritable_lock1 : mem in
+    let m_writable_lock_0 := restrPermMap Hwritable_lock0 : mem in
+    forall (Hstore : Mem.store AST.Mint32 m_writable_lock_1 b1 ofs (Vint v) = Some m1')
+           (Hstore0 : Mem.store AST.Mint32 m_writable_lock_0 b2 (ofs + delta) (Vint v) =
+                      Some m2'),
+      mi_memval_perm mu perm1 (Mem.mem_contents m1) (Mem.mem_contents m2)
+      ->
+      mi_memval_perm mu perm1 (Mem.mem_contents m1') (Mem.mem_contents m2').
+Proof.
+  intros; subst_set.
+  eapply (mi_memval_perm_almosequal) with
+      (adr1:= (b1,ofs))(adr2:= (b2,ofs+delta)); eauto.
+  
+  ++ simpl; intros.
+     unfold Mem.range_perm in Haccess.
+     rewrite getCur_restr.
+     rewrite setPermBlock_same.
+     instantiate(1:=Some Writable). constructor.
+     assert (4< Z.of_nat LKSIZE_nat).
+     { unfold LKSIZE_nat, LKSIZE in *.
+       rewrite size_chunk_Mptr.
+       clear - H0. red in H0; simpl in H0. match_case; simpl; omega. }
+     !goal (ofs <= ofs0 < ofs + Z.of_nat LKSIZE_nat)%Z.
+     clear - H0 H1. hnf in H0; simpl in H0.
+     omega. 
+  ++ !goal(maps_no_overlap _ _ _).
+     eapply maps_no_overlap_under_mem; eauto.
+     apply Hinj'. 
+     rewrite getCur_restr.
+     eapply permMapLt_setPermBlock; eauto.
+     eapply range_mem_permMapLt_max.
+     rewrite <- Hmax_eq; eauto.
+     replace (Z.of_nat LKSIZE_nat) with LKSIZE; eauto.
+     apply range_perm_cur_max; eauto.
+  ++ !goal(content_almost_same _ m1' _).
+     pose proof (@restr_content_equiv _  _ Hwritable_lock1) as H0; symmetry in H0.
+     eapply content_almost_same_proper; try eassumption; try reflexivity.
+     eapply store_almost_same; eassumption.
+  ++ !goal(content_almost_same _ m2' (b2, (ofs + delta))).
+     pose proof (@restr_content_equiv _  _ Hwritable_lock0) as H0; symmetry in H0.
+     eapply content_almost_same_proper; try eassumption; try reflexivity.
+     eapply store_almost_same; eassumption.
+  ++ simpl; intros.
+     {   clear - H0 Hstore Hstore0.
+         move Hstore at bottom.
+         eapply Mem.loadbytes_store_same,loadbytes_D in Hstore.
+         destruct Hstore as [? Hstore].
+         eapply Mem.loadbytes_store_same,loadbytes_D in Hstore0.
+         destruct Hstore0 as [? HH].
+         rewrite Hstore in HH.
+         simpl in HH.
+         assert (Heq_range: forall ofs0,
+                    Intv.In ofs0 (ofs, ofs + 4) -> 
+                    ZMap.get ofs0 (Mem.mem_contents m1') !! b1 =
+                    ZMap.get (ofs0+delta) (Mem.mem_contents m2') !! b2
+                ).
+         { eapply fun_range4; eauto.
+           repeat match goal with
+                  | |- context [ ?x + delta ] =>
+                    replace (x + delta) with (delta + x) in * by omega
+                  end;
+             repeat rewrite Z.add_assoc; auto. }
+         clear HH.
+         rewrite <- Heq_range; auto.
+         assert (Heq_range_bytes: forall ofs0,
+                    Intv.In ofs0 (ofs, ofs + 4) -> 
+                    exists bl,
+                      ZMap.get ofs0 (Mem.mem_contents m1') !! b1 =
+                      Byte bl
+                ).
+         { eapply (forall_range 4 (fun (X:memval) => exists bl:byte, X = Byte bl)).
+           simpl in *. rewrite <- Hstore.
+           repeat econstructor. }
+         exploit Heq_range_bytes; eauto;
+           intros (bl& -> ).
+         econstructor.
+         
+     }
+     Unshelve.
+     eauto.
+     { eapply permMapLt_setPermBlock; eauto.
+       - eapply range_mem_permMapLt_max.
+         replace (Z.of_nat LKSIZE_nat) with LKSIZE; eauto.
+         apply range_perm_cur_max; eauto.
+       - unfold Max_equiv in *; rewrite Hmax_eq; auto.
+     }
+     
+Qed.
+
 Lemma sub_map_implictaion':
   forall (A B : Type) (x : PMap.t (Z -> option A)) (y : PMap.t (Z -> option B)),
     fst x = (fun _ : Z => None) ->

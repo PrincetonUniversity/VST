@@ -1,3 +1,12 @@
+(*
+This file doesn't seem to be need and will be deleted in the next cleaning.
+
+First we need to make sure that we don't needed...
+
+It seems to be a copy of other files with proofs for single thread, N threads and infinit threads at the end...
+*)
+
+fail "This file was discontinued. If you see this error, it needs to be added again!".
 Require Import compcert.common.AST.
 Require Import Coq.omega.Omega.
 Require Import compcert.cfrontend.Clight.
@@ -483,7 +492,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                    * for thread j is disjoint from the visible memory for thread i
                    * Concluding that visible memory for i is unmodified.  
                    *)
-                Admitted.
+                Admit ted.
                 
                 Lemma match_thread_source_same_vis:
                   forall f f' m1 m1' m2 m2' cs ct,
@@ -497,7 +506,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                    * There are some holes with regards to at_ext and after_ext
                    * Otherwise, source_match is invariant under changes to non_visible memory.
                    *)
-                Admitted.
+                Admit ted.
                 Lemma match_thread_compiled_same_vis:
                   forall f f' m1 m1' m2 m2' cs ct cd,
                   same_visible m1 m1' ->
@@ -510,7 +519,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                    * There are some holes with regards to at_ext and after_ext
                    * Otherwise, source_match is invariant under changes to non_visible memory.
                    *)
-                Admitted.
+                Admit ted.
                 Lemma match_thread_target_same_vis:
                   forall f f' m1 m1' m2 m2' cs ct,
                   same_visible m1 m1' ->
@@ -523,7 +532,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                    * There are some holes with regards to at_ext and after_ext
                    * Otherwise, source_match is invariant under changes to non_visible memory.
                    *)
-                Admitted.
+                Admit ted.
 
                 
             Lemma mem_step_compatible:
@@ -535,7 +544,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                                                (updThread cnti
                                                           code_i
                                                           (getCurPerm m', (snd (getThreadR cnti)))) m'.
-            Admitted.
+            Admit ted.
             Lemma gss_restrPermMap:
               forall Sems Semt hb i (tp: t_ (ThreadPool hb Sems Semt)) m c
                 (cnti: containsThread tp i)
@@ -735,7 +744,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                 (Astep: Asm.step genv (Asm.State c1 m1) t (Asm.State c2 m2)),
                 semantics.mem_step m1 m2.
             Proof. intros. 
-            Admitted.
+            Admit ted.
             
             
                 
@@ -940,7 +949,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                 concur_match cd f'
                              (updThread Htid1  (Krun (SState _ _ c1')) (getCurPerm m1', (getThreadR Htid1)#2))  m1'
                              (updThread Htid2 (Krun (SState _ _ c2')) (getCurPerm m2', (getThreadR Htid2)#2)) m2'.
-            Admitted.
+            Admit ted.
         eapply concur_stable_thread_step_source; eauto.
         
          -- admit. (*Follows from mem_sem and the step proven in the follwoing goal*)
@@ -957,7 +966,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
            (*Have the step STEP, but have to show it's an internal step!*)
            admit.
          * simpl; repeat f_equal. apply proof_irr. apply proof_irr.
-    Admitted.
+    Admit ted.
     
   End HybridThreadDiagram.
 
@@ -1137,7 +1146,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
             *)
            
            
-         Admitted.
+         Admit ted.
          eapply Lock_HybridStep_simulation; eauto.
 
          * admit. * admit.  * admit.  * admit.  * admit.  
@@ -1145,7 +1154,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
           admit.
         + (*schedfail'*)
           admit.
-    Admitted. 
+    Admit ted. 
     
   End MachineThreadDiagram.
 
@@ -1189,7 +1198,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
     
   - (*thread_running*)
     admit.
-  Admitted.
+  Admit ted.
 
 End OneThreadCompiledyesProofs.
 
@@ -1241,7 +1250,7 @@ Section NThredCompiled.
       + admit. (* easy one step machine diagram *)
       + admit. (* haltd*)
       + admit.
-  Admitted.
+  Admit ted.
   
 End NThredCompiled.
 
@@ -1259,7 +1268,7 @@ Section AllThredCompiled.
   (*Remember to use (match_states compiler_match) insted of compiler_match directly*)
   Definition All_concur_match':
     list compiler_index -> meminj -> C0 -> mem -> Call -> mem -> Prop.
-  Admitted. 
+  Admit ted. 
 
   Notation Nconcur_match:=(All_concur_match').
 
@@ -1269,7 +1278,7 @@ Section AllThredCompiled.
             (list compiler_index) (list_order) 
             (Nconcur_match) Vundef.  
   Proof.
-  Admitted.
+  Admit ted.
   
 End AllThredCompiled.
 

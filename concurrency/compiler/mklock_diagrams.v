@@ -205,24 +205,26 @@ Section MklockDiagrams.
           + eauto.
           + intros [? | ?]; congruence. }
 
-      
+        
+      pose proof (LKSIZE_pos) as Hpos.
       assert (Hlt1': permMapLt_pair (new_perms1) (getMaxPerm m1')).
       { inv Hlock_update_mem_strict.
         unfold Max_equiv in *. rewrite <- Hmax_equiv.
-        eapply permMapLt_pair_trans211 with (pb:=(getCurPerm m1,getCurPerm m1)).
-        - split; simpl.
-          + eapply set_new_mems_LT1; eauto. symmetry; eauto.
-          + eapply set_new_mems_LT2; eauto. symmetry; eauto.
-        - split; apply mem_cur_lt_max. }
+        split.
+        - simpl; eapply set_new_mems_LT1; eauto.
+          pose proof LKSIZE_pos; omega.
+        - simpl. eapply set_new_mems_LT2; eauto.
+          pose proof LKSIZE_pos; omega. }
+      
       destruct Hlt1' as [Hlt11' Hlt12'].
       assert (Hlt2: permMapLt_pair new_perms2 (getMaxPerm m2)).
       { inv Hlock_update_mem_strict2; simpl in Haccess.
         rewrite self_restre_eq in Haccess; eauto.
-        eapply permMapLt_pair_trans211 with (pb:=(getCurPerm m2,getCurPerm m2)).
-        - split; simpl.
-          + eapply set_new_mems_LT1; eauto. symmetry; eauto.
-          + eapply set_new_mems_LT2; eauto. symmetry; eauto.
-        - split; apply mem_cur_lt_max. }
+        split.
+        - simpl; eapply set_new_mems_LT1; eauto.
+          pose proof LKSIZE_pos; omega.
+        - simpl. eapply set_new_mems_LT2; eauto.
+          pose proof LKSIZE_pos; omega. }
       assert (Hlt2': permMapLt_pair (new_perms2) (getMaxPerm m2'))
         by (unfold Max_equiv in *; rewrite <- Hmax_equiv2; eauto ).
       destruct Hlt2' as [Hlt21' Hlt22'].
@@ -610,12 +612,14 @@ Section MklockDiagrams.
               apply Hinj'0.
             rewrite Hthread_mem1.
             inv Hlock_update_mem_strict1.
-            eapply set_new_mems_LT1; eauto.
+            eapply advanced_permissions.set_new_mems_LT1; eauto.
+            pose LKSIZE_pos; omega.
             symmetry; eauto.  
           * !goal (mi_perm_inv_perm mu _ _ _).
             rewrite <- Hmax_eq0.
             inv Hlock_update_mem_strict1.
             eapply mi_perm_inv_perm_setPerm1; eauto.
+            exact LKSIZE_pos.
             rewrite Hthread_mem1, Hthread_mem2.
             eapply inject_mi_perm_inv_perm_Cur; eauto.
             apply Hinj'0.
@@ -778,22 +782,52 @@ Section MklockDiagrams.
                 eapply mi_inj_mi_perm_perm_Cur; eapply Hinj_lock. }
           * !goal (mi_memval_perm mu (snd new_perms1)
                                   (Mem.mem_contents m1'') (Mem.mem_contents m2'')).
-            { 
-              eapply mi_memval_perm_computeMap_Lt with (p:=fst (getThreadR Hcnt1)).
-              rewrite Hthread_mem1.
-              inv Hlock_update_mem_strict1;
-                inv Hlock_update_mem_strict2.
-              eapply mi_memval_perm_store_easy; eauto;
-                try apply mi_inj_mi_memval_perm;
-                apply Hinj'0.
-              rewrite Hthread_mem1.
-              inv Hlock_update_mem_strict1.
-              eapply set_new_mems_LT2; eauto.
-              symmetry; eauto.   }
+            { inv Hlock_update_mem_strict1;
+                inv Hlock_update_mem_strict2;
+                inv HH1; simpl.
+              
+
+              
+              (*eapply Mem.store_mem_contents in Hstore;
+                eapply Mem.store_mem_contents in Hstore0. *)
+
+              
+
+
+
+
+
+
+              eapply mi_memval_perm_store'; try eapply Hstore; try eapply Hstore0.
+              - eauto.
+              - simpl. eapply permMapLt_setPermBlock; eauto.
+                + eapply range_mem_permMapLt_max.
+                  replace (Z.of_nat LKSIZE_nat) with LKSIZE; eauto.
+                  apply range_perm_cur_max; eauto.
+              - eauto.
+              - symmetry; eapply store_max_equiv; eauto.
+              - rewrite <- store_cur_equiv; eauto.
+              - rewrite <- mem_is_restr_eq; eauto.
+              - rewrite <- mem_is_restr_eq; eauto.
+              - simpl.
+
+                
+                eapply mi_memval_perm_setPermBlock; eauto.
+                + eapply LKSIZE_pos.
+                + move Hinj_lock at bottom.
+                  pose proof (mi_inj_mi_memval_perm
+                                _ _ _
+                                (Mem.mi_inj _ _ _ Hinj_lock)).
+                  simpl in H.
+                  rewrite getCur_restr in H; auto.
+                + intros. eapply Hinj'; eauto.
+                  eapply Mem.perm_implies; eauto. constructor.
+            }
           * !goal (mi_perm_inv_perm mu (snd new_perms1) (snd new_perms2) m1'').
             { rewrite <- Hmax_eq0.
               inv Hlock_update_mem_strict1.
               eapply mi_perm_inv_perm_setPerm2; eauto.
+              exact LKSIZE_pos.
               2: apply Hinj'0.
               erewrite <- getCur_restr.
               erewrite <- (getCur_restr (lock_perms hb st2 Hcnt2)).

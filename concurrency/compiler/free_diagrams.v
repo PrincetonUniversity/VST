@@ -291,15 +291,30 @@ Section FreeDiagrams.
       destruct Hdatalt1 as [Hdatalt11 Hdatalt12].
       destruct Hdatalt2 as [Hdatalt21 Hdatalt22]. simpl in *.
       
+      assert (Hrange_m1:
+                Mem.range_perm m1 b1 (unsigned ofs)
+                               (unsigned ofs + Z.of_nat LKSIZE_nat) Max Nonempty).
+      {
+        
+        intros ? ?.
+        unfold Mem.perm.
+        eapply perm_order_trans211.
+        move Hlt_lk1 at bottom. hnf in Hlt_lk1.
+        rewrite_getPerm.
+        eapply Hlt_lk1.
+        eapply Hrange_perm in H; subst lk_mem1.
+        unfold Mem.perm in H. rewrite_getPerm.
+        rewrite getCur_restr in H; auto.
+        eapply perm_order_trans101; eauto; constructor. }
+      
       assert (Hin1:Mem.inject mu (restrPermMap Hdatalt11) (restrPermMap Hdatalt21)).
       {  eapply inject_restr; eauto.
-        - eapply mi_perm_perm_setPermBlock_var; eauto.
-         (* + intros; eapply perm_order_trans101. eapply HH; eauto.
-            constructor. *)
-          + eapply Hinj.
-          + rewrite Hthread_mem1, Hthread_mem2.
+         - eapply mi_perm_perm_setPermBlock_var; eauto.
+           + eapply Hinj.
+           + rewrite Hthread_mem1, Hthread_mem2.
             eapply mi_inj_mi_perm_perm_Cur. eapply Hinj.
         - eapply mi_memval_perm_setPermBlock_var; eauto.
+          + exact LKSIZE_pos.
           + rewrite Hthread_mem1.
             eapply mi_inj_mi_memval_perm. eapply Hinj.
           + intros. exploit INJ_lock_content; eauto.    
@@ -329,6 +344,7 @@ Section FreeDiagrams.
             eapply mi_inj_mi_perm_perm_Cur, Hinj_lock.
         - erewrite Hlock_mem1.
           eapply mi_memval_perm_setPermBlock_var; eauto.
+          + exact LKSIZE_pos.
           + replace (Mem.mem_contents m1) with
                 (Mem.mem_contents lk_mem1).
             replace (Mem.mem_contents m2) with
@@ -347,8 +363,19 @@ Section FreeDiagrams.
               (subst lk_mem1; symmetry; eapply restr_Max_equiv). 
           rewrite HMaxlk.
           eapply mi_perm_inv_perm_setPermBlock_var; eauto.
-          eapply inject_mi_perm_inv_perm_Cur; eauto.
-          eapply Hinj_lock. }
+          + move Hrange_perm at bottom.
+            eapply Mem.range_perm_max.
+            Lemma perm_interval_range_perm:
+              forall m b ofs size k p,
+                perm_interval m b ofs size k p ->
+                Mem.range_perm m b ofs (ofs + size) k p.
+            Proof. intros ** ? **. eauto. Qed.
+            eapply Mem.range_perm_implies.
+            eapply perm_interval_range_perm.
+            eauto. constructor.
+          
+          + eapply inject_mi_perm_inv_perm_Cur; eauto.
+          + eapply Hinj_lock. }
 
 
         
@@ -685,17 +712,35 @@ Section FreeDiagrams.
       destruct Hdatalt2 as [Hdatalt21 Hdatalt22]. simpl in *.
 
       
+      assert (Hrange_m1:
+                Mem.range_perm m1' b1 (unsigned ofs)
+                               (unsigned ofs + Z.of_nat LKSIZE_nat) Max Nonempty).
+      {
+        
+        intros ? ?.
+        unfold Mem.perm.
+        eapply perm_order_trans211.
+        move Hlt_lk1 at bottom. hnf in Hlt_lk1.
+        rewrite_getPerm.
+        eapply Hlt_lk1.
+        eapply Hrange_perm in H; subst lk_mem1.
+        unfold Mem.perm in H. rewrite_getPerm.
+        rewrite getCur_restr in H; auto.
+        eapply perm_order_trans101; eauto; constructor. }
+      
       assert (Hin1:Mem.inject mu (restrPermMap Hdatalt11) (restrPermMap Hdatalt21)).
       { subst ofs2; rewrite Heq in *.
         eapply inject_restr; eauto.
         - rewrite Heq.
           eapply mi_perm_perm_setPermBlock_var; eauto.
+          
          (* + intros; eapply perm_order_trans101. eapply HH; eauto.
             constructor. *)
           + eapply Hinj'.
           + rewrite Hthread_mem1, Hthread_mem2.
             eapply mi_inj_mi_perm_perm_Cur. eapply Hinj'.
         - eapply mi_memval_perm_setPermBlock_var; eauto.
+          + exact LKSIZE_pos.
           + rewrite Hthread_mem1.
             eapply mi_inj_mi_memval_perm. eapply Hinj'.
           + intros. exploit INJ_lock_content; eauto.    
@@ -724,6 +769,7 @@ Section FreeDiagrams.
             eapply mi_inj_mi_perm_perm_Cur, Hinj_lock.
         - erewrite Hlock_mem1.
           eapply mi_memval_perm_setPermBlock_var; eauto.
+          + exact LKSIZE_pos.
           + replace (Mem.mem_contents m1') with
                 (Mem.mem_contents lk_mem1).
             replace (Mem.mem_contents m2') with
@@ -742,8 +788,12 @@ Section FreeDiagrams.
               (subst lk_mem1; symmetry; eapply restr_Max_equiv). 
           rewrite HMaxlk.
           eapply mi_perm_inv_perm_setPermBlock_var; eauto.
-          eapply inject_mi_perm_inv_perm_Cur; eauto.
-          eapply Hinj_lock. }
+          + eapply Mem.range_perm_max.
+            eapply Mem.range_perm_implies.
+            eapply perm_interval_range_perm.
+            eauto. constructor.
+          + eapply inject_mi_perm_inv_perm_Cur; eauto.
+          + eapply Hinj_lock. }
 
 
       
