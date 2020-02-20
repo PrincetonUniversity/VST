@@ -592,3 +592,107 @@ Proof.
   intros. inv H. intros ?.
   eapply store_cur_equiv; eauto.
 Qed.
+
+
+Lemma mem_inj_update:
+  forall (f:meminj) m1 m2 m1' m2' adr1 adr2
+    (Hno_overlap:
+       meminj_no_overlap_one f m1 adr1 adr2)
+    (Hmax_eq1: Max_equiv m1 m1')
+    (Hmax_eq2: Max_equiv m2 m2')
+    (Hcur_eq1: Cur_equiv m1 m1')
+    (Hcur_eq2: Cur_equiv m2 m2')
+    (Hadr_inj: inject_address f adr1 adr2)
+    (Halmost1: content_almost_same m1 m1' adr1)
+    (Halmost2: content_almost_same m2 m2' adr2)
+    (Hsame12: (Forall2 (memval_inject f))
+                (get_vals_at m1' adr1) (get_vals_at m2' adr2))
+    (Hmem_inj: Mem.mem_inj f m1 m2),
+    Mem.mem_inj f m1' m2'.
+Proof.
+  econstructor; intros.
+  - destruct k;
+      first [rewrite <- Hmax_eq2 |rewrite <- Hcur_eq2];
+      eapply Hmem_inj; eauto;
+        first [rewrite Hmax_eq1 |rewrite Hcur_eq1];
+        assumption.
+  - eapply Hmem_inj; eauto.
+    rewrite Hmax_eq1; eassumption.
+  - rewrite <- Hcur_eq1 in H0.
+    unfold get_vals_at in Hsame12.
+    destruct (address_range_dec (b1, ofs) adr1 4).
+    (*destruct (adddress_eq_dec (b1, ofs) adr1). *)
+    + (* (b1,ofs) \in (adr1, adr1+LKSIZE) *)
+      simpl in H1; destruct H1; subst.
+      (*subst adr1; eauto.*)
+      inv Hadr_inj. simpl in *; unify_injection.
+      eapply inj_getN_range; eauto.
+    + (*eapply getN_content_equiv in Halmost1.*)
+      (* (b1,ofs) \not \in (adr1, adr1+LKSIZE) *)
+      simpl in H1. destruct (peq b1 (fst adr1)).
+      * subst; destruct H1 as [H1 | H1];
+          try solve [exfalso; apply H1; auto].
+        erewrite Halmost1; eauto.
+        erewrite Halmost2; eauto.
+        2:{ right. inv Hadr_inj; simpl in *.
+            unify_injection. clear - H1.
+            intros [HH1 HH2]; eapply H1; split; simpl in *.
+            omega. clear - HH2.
+            rewrite <- Z.add_assoc in HH2.
+            rewrite (Z.add_comm delt) in HH2.
+            rewrite Z.add_assoc in HH2. 
+            omega.
+        }
+        eapply Hmem_inj; eauto.
+      * clear H1.
+        erewrite Halmost1; eauto.
+        destruct (address_range_dec (b2, ofs + delta) adr2 (size_chunk AST.Mint32)).
+        -- (* (b2,ofs+delta) \in (adr2, adr2+LKSIZE) *)
+          destruct H1; subst.
+          inv Hadr_inj.
+          simpl snd in Hsame12.
+          simpl fst in Hsame12.
+          simpl in H1, n , H3; inv H1.
+          exploit (Hno_overlap delt b1); simpl; eauto.
+          ++ eapply Mem.perm_cur_max, Mem.perm_implies; eauto; constructor.
+          ++ intros HH; contradict n; auto.
+             
+        -- rewrite Halmost2; eauto.
+           eapply Hmem_inj; eauto.
+Qed.
+
+Lemma injection_update:
+  forall f m1 m2 m1' m2' adr1 adr2
+    (Hnonempty: max_valid_perm m1 AST.Mint32 (fst adr1) (snd adr1) Writable)
+    (Hsame_nb1: Mem.nextblock m1 = Mem.nextblock m1')
+    (Hsame_nb2: Mem.nextblock m2 = Mem.nextblock m2')
+    (Hmax_eq1: Max_equiv m1 m1')
+    (Hmax_eq2: Max_equiv m2 m2')
+    (Hcur_eq1: Cur_equiv m1 m1')
+    (Hcur_eq2: Cur_equiv m2 m2')
+    (Hadr_inj: inject_address f adr1 adr2)
+    (Halmost1: content_almost_same m1 m1' adr1)
+    (Halmost2: content_almost_same m2 m2' adr2)
+    (Hsame12: Forall2 (memval_inject f)
+                      (get_vals_at m1' adr1) (get_vals_at m2' adr2))
+    (Hmem_inj: Mem.inject f m1 m2),
+    Mem.inject f m1' m2'.
+Proof.
+  econstructor; intros.
+  - eapply mem_inj_update; try eassumption. 2: apply Hmem_inj.
+    eapply meminj_no_overlap_to_on. 2: apply Hmem_inj.
+    auto.
+  - eapply Hmem_inj.
+    unfold Mem.valid_block in *. rewrite Hsame_nb1; assumption.
+  - unfold Mem.valid_block; rewrite <- Hsame_nb2.
+    eapply Hmem_inj; eassumption.
+  - rewrite <- Hmax_eq1. apply Hmem_inj.
+  - eapply Hmem_inj; eauto.
+    rewrite Hmax_eq1; auto.
+  - destruct k;
+      first [rewrite <- Hmax_eq2 in H0 |rewrite <- Hcur_eq2 in H0];
+      eapply Hmem_inj in H0; eauto.
+    + rewrite <- Hmax_eq1; auto.
+    + destruct H0; 
+        first [left; rewrite <- Hcur_eq1;assumption |right; rewrite <- Hmax_eq1; assumption].
+Qed.

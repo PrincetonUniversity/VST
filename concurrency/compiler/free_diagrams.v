@@ -365,11 +365,6 @@ Section FreeDiagrams.
           eapply mi_perm_inv_perm_setPermBlock_var; eauto.
           + move Hrange_perm at bottom.
             eapply Mem.range_perm_max.
-            Lemma perm_interval_range_perm:
-              forall m b ofs size k p,
-                perm_interval m b ofs size k p ->
-                Mem.range_perm m b ofs (ofs + size) k p.
-            Proof. intros ** ? **. eauto. Qed.
             eapply Mem.range_perm_implies.
             eapply perm_interval_range_perm.
             eauto. constructor.

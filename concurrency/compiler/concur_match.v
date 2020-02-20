@@ -620,7 +620,7 @@ Section ConcurMatch.
         eapply (contains21); eassumption.
         eapply (contains12); eassumption.
       Qed. *)
-      Admitted. *)
+      Admi tted. *)
       
       Inductive individual_match i:
         (option compiler_index) -> meminj -> ctl -> mem -> ctl -> mem -> Prop:= 
@@ -668,108 +668,6 @@ Section ConcurMatch.
 
 
       
-      Lemma mem_inj_update:
-        forall (f:meminj) m1 m2 m1' m2' adr1 adr2
-          (Hno_overlap:
-             meminj_no_overlap_one f m1 adr1 adr2)
-          (Hmax_eq1: Max_equiv m1 m1')
-          (Hmax_eq2: Max_equiv m2 m2')
-          (Hcur_eq1: Cur_equiv m1 m1')
-          (Hcur_eq2: Cur_equiv m2 m2')
-          (Hadr_inj: inject_address f adr1 adr2)
-          (Halmost1: content_almost_same m1 m1' adr1)
-          (Halmost2: content_almost_same m2 m2' adr2)
-          (Hsame12: (Forall2 (memval_inject f))
-                      (get_vals_at m1' adr1) (get_vals_at m2' adr2))
-          (Hmem_inj: Mem.mem_inj f m1 m2),
-          Mem.mem_inj f m1' m2'.
-      Proof.
-        econstructor; intros.
-        - destruct k;
-            first [rewrite <- Hmax_eq2 |rewrite <- Hcur_eq2];
-            eapply Hmem_inj; eauto;
-              first [rewrite Hmax_eq1 |rewrite Hcur_eq1];
-              assumption.
-        - eapply Hmem_inj; eauto.
-          rewrite Hmax_eq1; eassumption.
-        - rewrite <- Hcur_eq1 in H0.
-          unfold get_vals_at in Hsame12.
-          destruct (address_range_dec (b1, ofs) adr1 4).
-          (*destruct (adddress_eq_dec (b1, ofs) adr1). *)
-          + (* (b1,ofs) \in (adr1, adr1+LKSIZE) *)
-            simpl in H1; destruct H1; subst.
-            (*subst adr1; eauto.*)
-            inv Hadr_inj. simpl in *; unify_injection.
-            eapply inj_getN_range; eauto.
-          + (*eapply getN_content_equiv in Halmost1.*)
-            (* (b1,ofs) \not \in (adr1, adr1+LKSIZE) *)
-            simpl in H1. destruct (base.block_eq_dec b1 (fst adr1)).
-            * subst; destruct H1 as [H1 | H1];
-                try solve [exfalso; apply H1; auto].
-              erewrite Halmost1; eauto.
-              erewrite Halmost2; eauto.
-              2:{ right. inv Hadr_inj; simpl in *.
-                  unify_injection. clear - H1.
-                  intros [HH1 HH2]; eapply H1; split; simpl in *.
-                  omega. clear - HH2.
-                  rewrite <- Z.add_assoc in HH2.
-                  rewrite (Z.add_comm delt) in HH2.
-                  rewrite Z.add_assoc in HH2. 
-                  omega.
-              }
-              eapply Hmem_inj; eauto.
-            * clear H1.
-              erewrite Halmost1; eauto.
-              destruct (address_range_dec (b2, ofs + delta) adr2 LKSIZE).
-              -- (* (b2,ofs+delta) \in (adr2, adr2+LKSIZE) *)
-                
-                simpl in *. destruct H1; subst.
-                inv Hadr_inj; simpl in *.
-                assert (HH: exists x, ofs+delta = (ofs1+delt +x) /\ x>=0 ).
-                { exists (ofs + delta - (ofs1 + delt)); split; try omega.
-                  clear - H2.
-                  destruct H2; simpl in *. omega. }
-                destruct HH as (x&HH1&HH2).
-                admit.
-              -- (* (b2,ofs+delta) \not \in (adr2, adr2+LKSIZE) *)
-                admit.
-      Admitted.
-      
-      Lemma injection_update:
-        forall f m1 m2 m1' m2' adr1 adr2
-               (Hnonempty: max_valid_perm m1 AST.Mint32 (fst adr1) (snd adr1) Writable)
-               (Hsame_nb1: Mem.nextblock m1 = Mem.nextblock m1')
-               (Hsame_nb2: Mem.nextblock m2 = Mem.nextblock m2')
-               (Hmax_eq1: Max_equiv m1 m1')
-               (Hmax_eq2: Max_equiv m2 m2')
-               (Hcur_eq1: Cur_equiv m1 m1')
-               (Hcur_eq2: Cur_equiv m2 m2')
-               (Hadr_inj: inject_address f adr1 adr2)
-               (Halmost1: content_almost_same m1 m1' adr1)
-               (Halmost2: content_almost_same m2 m2' adr2)
-               (Hsame12: Forall2 (memval_inject f)
-                                 (get_vals_at m1' adr1) (get_vals_at m2' adr2))
-               (Hmem_inj: Mem.inject f m1 m2),
-          Mem.inject f m1' m2'.
-      Proof.
-        econstructor; intros.
-        - eapply mem_inj_update; try eassumption. 2: apply Hmem_inj.
-          eapply meminj_no_overlap_to_on. 2: apply Hmem_inj.
-          auto.
-        - eapply Hmem_inj.
-          unfold Mem.valid_block in *. rewrite Hsame_nb1; assumption.
-        - unfold Mem.valid_block; rewrite <- Hsame_nb2.
-          eapply Hmem_inj; eassumption.
-        - rewrite <- Hmax_eq1. apply Hmem_inj.
-        - eapply Hmem_inj; eauto.
-          rewrite Hmax_eq1; auto.
-        - destruct k;
-            first [rewrite <- Hmax_eq2 in H0 |rewrite <- Hcur_eq2 in H0];
-            eapply Hmem_inj in H0; eauto.
-          + rewrite <- Hmax_eq1; auto.
-          + destruct H0; 
-              first [left; rewrite <- Hcur_eq1;assumption |right; rewrite <- Hmax_eq1; assumption].
-      Qed.
       
       
       Inductive update_mem (m m':mem) (adr:block * Z): Prop:=
@@ -979,7 +877,7 @@ Section ConcurMatch.
           lock_update_rewrite.
           admit.
         - intros. admit.
-      Admitted.
+      Admitted. (* concur_match_update_lock *)
       
 
       Lemma concur_match_add_thread: 
@@ -1037,7 +935,7 @@ Section ConcurMatch.
             concur_match ocd f st1'' m1 st2'' m2.
       Proof.
         (*This should go in concur_match *)
-      Admitted.
+      Admitted. (* concur_match_add_thread *)
       
       Lemma mem_compat_upd:
         forall hb tid st cnt c m,
@@ -1155,7 +1053,7 @@ Section ConcurMatch.
           + do 2 (erewrite <- gsoThreadCC; auto).
             eapply Hconcur in H0. 
             (* TODO! *)
-      Admitted.
+      Admitted. (* concur_match_updateC *)
       
       Lemma concur_match_update1:
         forall (st1: ThreadPool.t) (m1 m1' : mem) (tid : nat) (Htid : ThreadPool.containsThread st1 tid)
@@ -1181,7 +1079,7 @@ Section ConcurMatch.
                                   (getCurPerm m2', snd (getThreadR Htid'))) m2'.
       Proof.
         (* TODO! *)
-      Admitted.
+      Admitted. (* concur_match_update1 *)
 
       
       (* concur_match *)

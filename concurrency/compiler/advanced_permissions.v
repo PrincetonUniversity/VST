@@ -141,8 +141,8 @@ Definition perm_surj (mu:meminj) (a1 a2: access_map):=
   forall b2 ofs_delt,
     at_least_Some (a2 !! b2 ofs_delt) ->
     exists b1 ofs delt, mu b1 = Some (b2, delt) /\
-                   ofs_delt = ofs + delt /\
-                   a2 !! b2 ofs_delt = a1 !! b1 ofs.
+                        ofs_delt = ofs + delt /\
+                        a2 !! b2 ofs_delt = a1 !! b1 ofs.
 
 
 
@@ -279,7 +279,7 @@ Lemma setPermBlock_extensionality:
     (0 < n)%nat ->
     (forall b0, perm_map1 !! b0 = perm_map2 !! b0) -> 
     forall b0, (setPermBlock perm b ofs perm_map1 n) !! b0=
-          (setPermBlock perm b ofs perm_map2 n) !! b0.
+               (setPermBlock perm b ofs perm_map2 n) !! b0.
 Proof.
   intros.
   extensionality ofs0.
@@ -2292,8 +2292,8 @@ Proof.
 Qed.
 Lemma perm_order_inequality:
   forall a b, perm_order a b ->
-         perm_order b a ->
-         a = b.
+              perm_order b a ->
+              a = b.
 Proof. intros. inv H; inv H0; eauto. Qed.
 
 Lemma inject_almost_perfect:
@@ -2349,7 +2349,7 @@ Qed.
 
 Lemma inject_almost_perfect_pair
   : forall (f : meminj) (m1 m2 : mem)
-      p11 p12 p21 p22 Hlt11 Hlt12 Hlt21 Hlt22,
+           p11 p12 p21 p22 Hlt11 Hlt12 Hlt21 Hlt22,
     Mem.inject f (@restrPermMap p12 m1 Hlt12) (@restrPermMap p22 m2 Hlt22) ->
     Mem.inject f (@restrPermMap p11 m1 Hlt11) (@restrPermMap p21 m2 Hlt21) ->
     almost_perfect_image_pair f (getMaxPerm m1) (p11,p12) (p21,p22). 
@@ -2401,7 +2401,7 @@ Proof. intros m; solve_pair.
 
 Definition permMapLt_range (perms:access_map) b lo hi p:=
   forall ofs : Z, lo <= ofs < hi ->
-             Mem.perm_order'' (perms !! b ofs) p.
+                  Mem.perm_order'' (perms !! b ofs) p.
 
 (*Lookup : 
                 setPermBlock_range_perm  *)
@@ -2605,12 +2605,12 @@ Proof.
     destruct k; auto.
   - match goal with
       |- context[
-            PTree.map ?access _
-          ] => replace access with
+             PTree.map ?access _
+           ] => replace access with
         (fun b f ofs k => match k with
-                       | Max => f ofs Max
-                       | Cur => (o, t) !! b ofs Cur
-                       end)
+                          | Max => f ofs Max
+                          | Cur => (o, t) !! b ofs Cur
+                          end)
         
     end.
     2: { extensionality b.
@@ -2645,9 +2645,9 @@ Proof.
 Qed.
 Lemma restrPermMap_idempotent_eq:
   forall {perm0 perm1 m1}
-    (Hlt0 : permMapLt perm0 (getMaxPerm m1))
-    (Hlt1 : permMapLt perm1 (getMaxPerm m1))
-    (Hlt2 : permMapLt perm1 (getMaxPerm (restrPermMap Hlt0))),
+         (Hlt0 : permMapLt perm0 (getMaxPerm m1))
+         (Hlt1 : permMapLt perm1 (getMaxPerm m1))
+         (Hlt2 : permMapLt perm1 (getMaxPerm (restrPermMap Hlt0))),
     (restrPermMap Hlt1) = (restrPermMap Hlt2).
 Proof.
   intros.
@@ -2685,7 +2685,7 @@ Qed.
 Definition maps_no_overlap_range 
            (f : meminj) (perm1 perm2 : access_map):=
   forall (b1 b1' : block) (delta1 : Z) (b2 b2' : block)
-    (delta2 ofs1 ofs2 SZ : Z),
+         (delta2 ofs1 ofs2 SZ : Z),
     0 < SZ ->
     b1 <> b2 ->
     f b1 = Some (b1', delta1) ->
@@ -2693,9 +2693,9 @@ Definition maps_no_overlap_range
     Mem.perm_order' (perm1 !! b1 ofs1) Nonempty ->
     (forall ofs2' : Z,
         0 <= ofs2' < SZ -> Mem.perm_order' (perm2 !! b2 (ofs2 + ofs2'))
-                                         Nonempty) ->
+                                           Nonempty) ->
     b1' <> b2' \/ ~ Intv.In (ofs1 + delta1)
-                  (ofs2 + delta2, ofs2 + delta2 + SZ).
+                    (ofs2 + delta2, ofs2 + delta2 + SZ).
 Lemma perms_no_over_point_to_range
   : forall (f : meminj) (p1 p2 : PMap.t (Z -> option permission)),
     maps_no_overlap f p1 p2 -> maps_no_overlap_range f p1 p2.
@@ -2733,10 +2733,10 @@ Qed.
 
 Lemma join_to_readable:
   forall A B C, permMapJoin A B C ->
-           forall b ofs,
-             Mem.perm_order' (C !! b ofs) Readable ->
-             Mem.perm_order' (A !! b ofs) Readable \/
-             Mem.perm_order' (B !! b ofs) Readable.
+                forall b ofs,
+                  Mem.perm_order' (C !! b ofs) Readable ->
+                  Mem.perm_order' (A !! b ofs) Readable \/
+                  Mem.perm_order' (B !! b ofs) Readable.
 Proof.
   intros. specialize (H b ofs).
   match type of H with
@@ -2791,7 +2791,7 @@ Proof. solve_pair; apply empty_is_empty. Qed.
 
 Lemma mi_perm_perm_setPermBlock:
   forall n mu perms1 perms2 p b1 b2 ofs delta m1
-    (Hnonempty: Mem.perm_order' p Nonempty),
+         (Hnonempty: Mem.perm_order' p Nonempty),
     (* follwoing two is for no overlap*)
     Mem.meminj_no_overlap mu m1 ->
     permMapLt  (setPermBlock p b1 ofs perms1 n) (getMaxPerm m1) ->
@@ -2859,11 +2859,11 @@ Inductive set_new_mems: block -> Z -> (Pair access_map) -> nat -> (Pair access_m
 Definition perm_interval m b ofs size k p:=
   Mem.range_perm m b ofs (ofs+size) k p.
 Lemma perm_interval_range_perm:
-              forall m b ofs size k p,
-                perm_interval m b ofs size k p ->
-                Mem.range_perm m b ofs (ofs + size) k p.
-            Proof. intros ** ? **. eauto. Qed.
-            
+  forall m b ofs size k p,
+    perm_interval m b ofs size k p ->
+    Mem.range_perm m b ofs (ofs + size) k p.
+Proof. intros ** ? **. eauto. Qed.
+
 
 
 Lemma  mi_memval_perm_store_easy:
@@ -2930,7 +2930,7 @@ Proof. intros p ? ?. apply po_refl. Qed.
 
 Lemma set_new_mems_LT1:
   forall b ofs m perms new_perms n_z
-    (Hpos: 0 <= n_z),
+         (Hpos: 0 <= n_z),
     set_new_mems b ofs perms (Z.to_nat n_z) new_perms ->
     Mem.range_perm m b ofs (ofs + n_z) Cur Writable ->
     access_map_equiv (getCurPerm m) (fst perms) ->
@@ -2947,7 +2947,7 @@ Qed.
 
 Lemma mi_perm_inv_perm_setPerm1:
   forall mu p1 p2 p1' p2' m1 b1 b2 delt ofs z
-    (Hpos: 0 < z),
+         (Hpos: 0 < z),
     mi_perm_inv_perm mu (fst p1) (fst p2) m1 ->
     (* For using no_overlap*)
     Mem.range_perm m1 b1 ofs (ofs + z) Cur Writable ->
@@ -3001,7 +3001,7 @@ Qed.
 
 Lemma mi_perm_inv_perm_setPerm2:
   forall mu p1 p2 p1' p2' m1 b1 b2 delt ofs z
-    (Hpos: 0 < z),
+         (Hpos: 0 < z),
     mi_perm_inv_perm mu (snd p1) (snd p2) m1 ->
     (* For using no_overlap*)
     Mem.range_perm m1 b1 ofs (ofs + z) Cur Writable ->
@@ -3154,7 +3154,7 @@ Qed.
 
 Lemma perm_perfect_image_computeMap:
   forall mu A B A' B'
-    (Hno_overlapAB: maps_no_overlap mu A (fun _=> None, B)),
+         (Hno_overlapAB: maps_no_overlap mu A (fun _=> None, B)),
     perm_perfect_image mu A A' ->
     perm_perfect_image_dmap mu  B B' ->
     perm_perfect_image mu (computeMap A B) (computeMap A' B').
@@ -3389,7 +3389,7 @@ Proof.
 Qed.
 Lemma maps_no_overlap_Lt:
   forall mu (x:access_map) (y:delta_map) bound
-    (Hno_overlap_bound:map_no_overlap mu bound),
+         (Hno_overlap_bound:map_no_overlap mu bound),
     permMapLt x bound ->
     sub_map y (snd bound) ->
     maps_no_overlap mu x (fun _ : Z => None, y).
@@ -3562,9 +3562,9 @@ Qed.
 
 Lemma mi_perm_perm_setPermBlock_var:
   forall (n : nat) (mu : meminj) (perms1 : access_map)
-    (perms2 : PMap.t (Z -> option permission)) (p : nat -> option permission) 
-    (b1 b2 : block) (ofs delta : Z) (m1 : mem)
-    (Hrange: Mem.range_perm m1 b1 ofs (ofs + Z.of_nat n) Max Nonempty),
+         (perms2 : PMap.t (Z -> option permission)) (p : nat -> option permission) 
+         (b1 b2 : block) (ofs delta : Z) (m1 : mem)
+         (Hrange: Mem.range_perm m1 b1 ofs (ofs + Z.of_nat n) Max Nonempty),
     Mem.meminj_no_overlap mu m1 ->
     permMapLt (setPermBlock_var p b1 ofs perms1 n) (getMaxPerm m1) ->
     mu b1 = Some (b2, delta) ->
@@ -3609,7 +3609,7 @@ Qed.
 
 Lemma  mi_memval_perm_setPermBlock_var:
   forall mu m1 m2  b_lock1 b_lock2 ofs_lock1 delt size p perm0
-    (Hpos:0 < size),
+         (Hpos:0 < size),
     mi_memval_perm mu perm0
                    (Mem.mem_contents m1)
                    (Mem.mem_contents m2) ->
@@ -3642,7 +3642,7 @@ Proof.
 Qed.
 Lemma  mi_memval_perm_setPermBlock:
   forall mu m1 m2  b_lock1 b_lock2 ofs_lock1 delt size p perm0
-    (Hpos:0 < size),
+         (Hpos:0 < size),
     mi_memval_perm mu perm0
                    (Mem.mem_contents m1)
                    (Mem.mem_contents m2) ->
@@ -3660,9 +3660,9 @@ Proof.
 Qed.
 Lemma mi_perm_inv_perm_setPermBlock_var:
   forall (mu : block -> option (block * Z))
-    (m1 m2 : mem) (b1 b2 : block) delta 
-    (ofs z : Z) n p
-    (Hrange: Mem.range_perm m1 b1 ofs (ofs + Z.of_nat n) Max Nonempty),
+         (m1 m2 : mem) (b1 b2 : block) delta 
+         (ofs z : Z) n p
+         (Hrange: Mem.range_perm m1 b1 ofs (ofs + Z.of_nat n) Max Nonempty),
     mu b1 = Some (b2, delta) ->
     mi_perm_inv_perm mu (getCurPerm m1) (getCurPerm m2) m1 ->
     Mem.meminj_no_overlap mu m1 ->
@@ -3706,4 +3706,3 @@ Proof.
         exploit range_no_overlap; try apply n1; eauto.
         intros [?| [? ?]]; try congruence.
 Qed.
-      

@@ -414,11 +414,6 @@ Section Concurrent_Safety.
     Proof.
       intros. eapply explicit_safety_step'; eauto.
     Qed.
-      
-    (* There is a similar theorem [explicit_safety_step] proven bellow,
-       How are they different? Could reuse lemma? Could reuse proof? 
-     *)
-    (* Admitted. *)
     
     Lemma Clight_finite_branching:
       let ClightSem:= ClightSemanticsForMachines.ClightSem in 

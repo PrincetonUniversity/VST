@@ -9,12 +9,29 @@ Lemma inline_assembly_memstep:
   forall text sg g vargs m t vres m'
     (IA:Events.inline_assembly_sem text sg g vargs m t vres m'),
     mem_step m m'.
+Proof.
+  (* EXPLANATION: this should comes from an assumption:
+   Either we add an axiom saying our semantics only calls such externals OR
+   we add this to the properties of external funtioncs.
+   
+   Either way, make sure it's not already assumed somwehre else.
+same as: 
+   + concurrency/common/ClightSemanticsForMachines/extcall_ev_elim
+   + concurrency/common/Clightcore_coop/inline_assembly_memstep  
+   + concurrency/common/Clightcore_coop/extcall_sem_mem_step
+   + extcall_sem_mem_step bellow
+ *)
 Admitted. (*Maybe include mem_step in Events.extcall_properties.?*)
 
 Lemma extcall_sem_mem_step:
   forall name sg g vargs m t vres m'
     (E:Events.external_functions_sem name sg g vargs m t vres m'),
-  mem_step m m'.
+    mem_step m m'.
+Proof.
+  (* EXPLANATION: see inline_assembly_memstep above and 
+   concurrency/common/ClightSemanticsForMachines/extcall_ev_elim
+   
+ *)
 Admitted. (*Maybe include mem_step in Events.extcall_properties.?*)
 
 Lemma extcall_mem_step g: forall ef vargs m t vres m' (E:Events.external_call ef g vargs m t vres m'),

@@ -182,7 +182,28 @@ Section Lift.
         forall hb1 hb2 st st',
           lift_state hb1 st hb2 st' ->
           invariant st -> invariant st'.
-      Admitted.
+      Proof.
+        intros * Hlift Hinv. inv Hlift; do 2 subst_sig.
+        econstructor; simpl; intros *;
+          autorewrite with lift in *;
+          try solve[eapply Hinv; eauto].
+        - intros; exploit @no_race; eauto; simpl; eauto. 
+        - split; intros; autorewrite with lift in *;
+            exploit @thread_data_lock_coh; eauto;
+              intros [HH HH'];
+              first[ now eapply HH; eauto |
+                     now eapply HH'; eauto].
+        - intros; exploit @locks_data_lock_coh; eauto;
+              intros [HH HH'].
+          split; intros; eauto; autorewrite with lift in *.
+          + eapply HH; eauto.
+          + eapply HH'; eauto.
+        - intros ? ?; autorewrite with lift in *.
+          match_case; auto.
+          exploit @lockRes_valid; eauto.
+          simpl; rewrite Heqo; eauto.
+          intros; autorewrite with lift; eauto.
+      Qed.
       Lemma lift_invariant':
         forall hb1 hb2 st,
           invariant st -> invariant (@lift_state' hb1 hb2 st).

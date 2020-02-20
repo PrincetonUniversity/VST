@@ -9,6 +9,14 @@ Require Import compcert.common.Values.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Maps.
 Require Import compcert.common.Memory.
+(* NOTE:
+   This is an old proof and is not being used,
+   BUT it can be mostly reused and is mostly correct. 
+
+*)
+
+(*+ DO NOT DELETE *)
+
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.cfrontend.Ctypes.

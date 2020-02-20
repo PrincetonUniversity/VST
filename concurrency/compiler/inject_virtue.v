@@ -20,6 +20,7 @@ Require Import VST.concurrency.memsem_lemmas.
 Require Import VST.concurrency.common.bounded_maps.
 Require Import VST.concurrency.lib.Coqlib3.
 
+Set Bullet Behavior "Strict Subproofs".
 
 Section VirtueInject.
   
@@ -128,9 +129,9 @@ Section VirtueInject.
     forall {A} (mu:meminj) b2 ofs_delt perm elements,
       @build_function_for_a_block mu A b2 elements ofs_delt = Some perm ->
       exists b1 delt ofs f, mu b1 = Some (b2, delt) /\
-                            ofs_delt = ofs + delt /\
-                            In (b1,f) elements /\
-                            f ofs = Some perm.
+                       ofs_delt = ofs + delt /\
+                       In (b1,f) elements /\
+                       f ofs = Some perm.
   Proof.
     intros *.
     induction elements; simpl; intros HH.
@@ -255,9 +256,9 @@ Section VirtueInject.
       (@tree_map_inject_over_mem A m2 mu dmap) ! b2 = Some fp ->
       fp ofs_delta = Some p ->
       exists b1 (delt ofs:Z) fp1, mu b1 = Some (b2, delt) /\
-                                  ofs_delta = ofs + delt /\
-                                  dmap ! b1 = Some fp1 /\
-                                  fp1 ofs = Some p.
+                             ofs_delta = ofs + delt /\
+                             dmap ! b1 = Some fp1 /\
+                             fp1 ofs = Some p.
   Proof.
     unfold tree_map_inject_over_mem,
     tree_map_inject_over_tree,dmap_get; simpl; intros.
@@ -376,8 +377,8 @@ Section VirtueInject.
     forall m2 mu dmap b2 ofs_delt p,
       dmap_get (tree_map_inject_over_mem m2 mu dmap) b2 (ofs_delt) = Some p ->
       exists b1 delt ofs, mu b1 = Some (b2, delt) /\
-                          ofs_delt = ofs + delt /\
-                          dmap_get dmap b1 ofs = Some p.
+                     ofs_delt = ofs + delt /\
+                     dmap_get dmap b1 ofs = Some p.
   Proof.
     unfold dmap_get, PMap.get; intros.
     repeat match_case in H.
@@ -389,8 +390,8 @@ Section VirtueInject.
     forall m2 mu perms b2 ofs_delt p,
       (inject_access_map m2 mu perms) !! b2 (ofs_delt) = Some p ->
       exists b1 delt ofs, mu b1 = Some (b2, delt) /\
-                          ofs_delt = ofs + delt /\
-                          perms !! b1 ofs = Some p.
+                     ofs_delt = ofs + delt /\
+                     perms !! b1 ofs = Some p.
   Proof.
     unfold PMap.get; intros. repeat match_case in H; try congruence.
     simpl in *.
@@ -404,7 +405,7 @@ Section VirtueInject.
       isCanonical perms ->
       perms !! b1 ofs = Some p ->
       (forall ofs, Mem.perm_order''
-                     ((getMaxPerm m2) !! b2 (ofs+delta)) (perms !! b1 ofs)) ->
+                ((getMaxPerm m2) !! b2 (ofs+delta)) (perms !! b1 ofs)) ->
       no_overlap mu perms ->
       (inject_access_map m2 mu perms) !! b2 (ofs + delta) = Some p.
   Proof.
@@ -457,8 +458,8 @@ Section VirtueInject.
     extensionality AA.
     apply virtueLP_inject_max_eq; assumption.
   Qed.
-      
-      
+  
+  
   
   Lemma inject_virtue_sub_map:
     forall (m1 m2 : mem)
@@ -477,25 +478,25 @@ Section VirtueInject.
     rename injmem' into injmem.
     replace  (snd (getMaxPerm m2)) with
         (PTree.map (fun _ a => a)  (snd (getMaxPerm m2))) by eapply trivial_map.
-      unfold tree_map_inject_over_mem, tree_map_inject_over_tree.
-      pose proof (@strong_tree_leq_map') as HHH.
-      specialize (HHH _ (Z -> option AT)
-                      (fun (b : positive) _ =>
-                         build_function_for_a_block mu b (PTree.elements virtue1))
-                      (fun (_ : positive) a => a)
-                      (snd (getMaxPerm m2))
-                      fun_leq ).
-      unfold sub_map.
-      eapply HHH; eauto; try constructor.
-      clear HHH.
-      
-      intros; simpl. intros p HH.        
-      pose proof (PTree.elements_complete virtue1).
-      remember (PTree.elements virtue1) as Velmts.
-      clear HeqVelmts.
-      induction Velmts as [|[b0 fb]]; try solve[inversion HH].
-      simpl in HH.
-      destruct (mu b0) as [[b1 delt]|] eqn:Hinj.
+    unfold tree_map_inject_over_mem, tree_map_inject_over_tree.
+    pose proof (@strong_tree_leq_map') as HHH.
+    specialize (HHH _ (Z -> option AT)
+                    (fun (b : positive) _ =>
+                       build_function_for_a_block mu b (PTree.elements virtue1))
+                    (fun (_ : positive) a => a)
+                    (snd (getMaxPerm m2))
+                    fun_leq ).
+    unfold sub_map.
+    eapply HHH; eauto; try constructor.
+    clear HHH.
+    
+    intros; simpl. intros p HH.        
+    pose proof (PTree.elements_complete virtue1).
+    remember (PTree.elements virtue1) as Velmts.
+    clear HeqVelmts.
+    induction Velmts as [|[b0 fb]]; try solve[inversion HH].
+    simpl in HH.
+    destruct (mu b0) as [[b1 delt]|] eqn:Hinj.
     - unfold merge_func in HH.
 
       destruct (PMap.elt_eq p0 b1); subst.
@@ -565,491 +566,511 @@ Section VirtueInject.
       (virtueLP_inject m mu (virtueLP angel)).
 
   
-      Lemma inject_is_empty_map:
-        forall  m mu empty_perms
-                (Hempty_map : is_empty_map empty_perms),
-          is_empty_map (inject_access_map m mu empty_perms).
-      Proof.
-        intros ** b ofs.
-        unfold inject_access_map,
-        tree_map_inject_over_mem,
-        tree_map_inject_over_tree.
-        unfold PMap.get; simpl.
-        rewrite PTree.gmap, PTree.gmap1.
-        destruct ((snd (Mem.mem_access m)) ! b); simpl; auto.
-        - 
-          unfold build_function_for_a_block,merge_func.
-          remember (PTree.elements (snd empty_perms)) as elemts eqn:HH.
-          assert (forall b1 f, In (b1, f) elemts -> forall ofs, f ofs = None).
-          { intros * Hin ofs0. subst; eapply PTree.elements_complete in Hin.
-            specialize (Hempty_map b1 ofs0).
-            unfold PMap.get in *; match_case in Hempty_map.  }
-          clear Hempty_map HH. revert H.
-          induction elemts.
-          + simpl; auto.
-          + simpl.
-            intros.
-            repeat match_case; subst; auto.
-            * specialize (H p o0 ltac:(auto) ).
-              rewrite H in Heqo0; try congruence.
-            * eapply IHelemts. intros. eapply H; eauto.
-            * eapply IHelemts. intros. eapply H; eauto.
-            * eapply IHelemts. intros. eapply H; eauto.
-      Qed.
-      
-      Lemma inject_empty_maps:
-        forall  m mu empty_perms
-           (Hempty_map : empty_doublemap empty_perms),
-          empty_doublemap (virtueLP_inject m mu empty_perms).
-      Proof. intros ??. solve_pair.
-             eapply inject_is_empty_map.
-      Qed.
-
-      
-      Lemma no_overla_dmap_mem:
-        forall mu m dmap,
-          (forall (b : positive) (ofs : Z),
-              option_implication
-                (dmap_get dmap b ofs)
-                ((getMaxPerm m) !! b ofs)) ->
-          Mem.meminj_no_overlap mu m ->
-          dmap_no_overlap mu dmap.
-      Proof.
-        intros ** ? **.
-        eapply H0; eauto.
-        + specialize (H b1 ofs1).
-          unfold Mem.perm; rewrite_getPerm.
-          unfold option_implication in *.
-          repeat match_case in H.
-          constructor.
-          unfold dmap_get in *.
-          rewrite Heqo in H4.
-          inversion H4.
-        + specialize (H b2 ofs2).
-          unfold Mem.perm; rewrite_getPerm.
-          unfold option_implication in *.
-          repeat match_case in H.
-          constructor.
-          unfold dmap_get in *.
-          rewrite Heqo in H5.
-          inv H5.
-      Qed.
-
-      
-      Inductive injects (mu:meminj) (b:block): Prop:=
-      | InjectsBlock: forall b2 delta, mu b = Some (b2, delta) -> injects mu b.
-      Definition injects_map mu (m:access_map): Prop := forall b ofs p,
-          m !! b ofs = Some p -> injects mu b.
-      Definition injects_map_pair mu:= pair1_prop (injects_map mu).
-      Hint Unfold injects_map_pair: pair.
-      Definition injects_dmap mu (m:delta_map) := forall b ofs p,
-          dmap_get m b ofs = Some p -> injects mu b.
-      Definition injects_dmap_pair mu:= pair1_prop (injects_dmap mu).
-      Hint Unfold injects_dmap_pair: pair.
-      Lemma inject_virtue_sub_map_pair':
-        forall (m1 m2 : mem)
-          (mu : meminj) angel
-          perm1 perm2 Hlt1 Hlt2,
-          Mem.inject mu (@restrPermMap perm1 m1 Hlt1 ) 
-                     (@restrPermMap perm2 m2 Hlt2 ) ->
-          sub_map_pair angel (snd (getMaxPerm m1)) ->
-          sub_map_pair (virtueThread_inject m2 mu angel) (snd (getMaxPerm m2)).
-      Proof.
+  Lemma inject_is_empty_map:
+    forall  m mu empty_perms
+       (Hempty_map : is_empty_map empty_perms),
+      is_empty_map (inject_access_map m mu empty_perms).
+  Proof.
+    intros ** b ofs.
+    unfold inject_access_map,
+    tree_map_inject_over_mem,
+    tree_map_inject_over_tree.
+    unfold PMap.get; simpl.
+    rewrite PTree.gmap, PTree.gmap1.
+    destruct ((snd (Mem.mem_access m)) ! b); simpl; auto.
+    - 
+      unfold build_function_for_a_block,merge_func.
+      remember (PTree.elements (snd empty_perms)) as elemts eqn:HH.
+      assert (forall b1 f, In (b1, f) elemts -> forall ofs, f ofs = None).
+      { intros * Hin ofs0. subst; eapply PTree.elements_complete in Hin.
+        specialize (Hempty_map b1 ofs0).
+        unfold PMap.get in *; match_case in Hempty_map.  }
+      clear Hempty_map HH. revert H.
+      induction elemts.
+      + simpl; auto.
+      + simpl.
         intros.
-        remember (snd (getMaxPerm m2)) as TEMP.
-        destruct angel as (virtueT_A & virtueT_B).
-        simpl; subst.
-        constructor; simpl;
-          eapply inject_virtue_sub_map; eauto; eapply H0.
-      Qed.
-      Lemma inject_virtue_sub_map_pair:
-        forall (m1 m2 : mem)
-          (mu : meminj)
-          (angel : virtue)
-          perm1 perm2 Hlt1 Hlt2,
-          Mem.inject mu (@restrPermMap perm1 m1 Hlt1 ) 
-                     (@restrPermMap perm2 m2 Hlt2 ) ->
-          sub_map_pair (virtueThread angel) (snd (getMaxPerm m1)) ->
-          sub_map_pair (virtueThread (inject_virtue m2 mu angel)) (snd (getMaxPerm m2)).
-      Proof.
-        intros. simpl. eapply inject_virtue_sub_map_pair'; eauto. Qed.
-
-      
-      Lemma inject_perm_inj_dmap':
-        forall mu m1 m2 dmap
-               (Hinj_dmap: injects_dmap mu dmap)
-               (Himpl:
-                  forall b1 b2 delta ofs o,
-                    mu b1 = Some (b2, delta) ->
-                    dmap_get dmap b1 ofs = Some o ->
-                    option_implication dmap ! b1 (snd (getMaxPerm m2)) ! b2)
-               (Hmi_inj:Mem.mem_inj mu m1 m2)
-               (Hnon_over: dmap_no_overlap mu dmap),
-          perm_inj_dmap
-            mu dmap (tree_map_inject_over_mem m2 mu dmap).
-      Proof.
-        intros ** b1 ** .
-        destruct (dmap_get dmap b1 ofs) eqn:Hdmap; try solve[inv H].
-        specialize (Hinj_dmap _ _ _ Hdmap).
-        inv Hinj_dmap. normal; eauto.
-        erewrite tree_map_inject_over_mem_correct_forward'; eauto.
-      Qed.
-
-      
-      Lemma inject_perm_inj':
-        forall mu m1 m2 perm
-          (Hcanon: isCanonical perm)
-          (Hinj_dmap: injects_map mu perm)
-          (Himpl:
-             forall b1 b2 delta ofs o,
-               mu b1 = Some (b2, delta) ->
-               perm !! b1 ofs = Some o ->
-               option_implication (snd perm) ! b1 (snd (getMaxPerm m2)) ! b2)
-          (Hmi_inj:Mem.mem_inj mu m1 m2)
-          (Hnon_over: no_overlap mu perm),
-          perm_inj
-            mu perm (inject_access_map m2 mu perm).
-      Proof.
-        unfold inject_access_map; intros ** b1 **. 
-        destruct (perm !! b1 ofs) eqn:Hdmap; try solve[inv H].
-        specialize (Hinj_dmap _ _ _ Hdmap).
-        inv Hinj_dmap. normal; eauto.
-        
-        exploit Himpl; eauto; intros HH.
-        unfold option_implication in *.
-        unfold PMap.get in *; simpl.
-        repeat match_case in Hdmap.
-        2:{ rewrite Hcanon in Hdmap; congruence. }
-        exploit tree_map_inject_over_mem_correct_forward_perm; eauto.
-        - unfold PMap.get; rewrite Heqo; auto.
-        - match_case in HH. unfold option_implication; match_case.
-      Qed.
-      
-      Lemma inject_perm_inj_dmap:
-        forall mu m1 m2 dmap
-          (Hinj_dmap: injects_dmap mu dmap)
-          (Himpl: forall b ofs,
-              option_implication
-                (dmap_get dmap b ofs)
-                ((getMaxPerm m1) !! b ofs))
-          (Hmi_inj:Mem.inject mu m1 m2),
-          perm_inj_dmap
-            mu dmap (tree_map_inject_over_mem m2 mu dmap).
-      Proof.
-        intros.
-        eapply inject_perm_inj_dmap'; intros; eauto.
-        - eapply option_implication_injection_dmap; eauto.
-          eapply Hmi_inj.
-        - eapply Hmi_inj.
-        - eapply no_overla_dmap_mem; auto.
-          eapply Hmi_inj.
-      Qed.
-
-      
-Lemma inject_perm_inj:
-  forall mu m1 m2 perm
-    (Hinj_dmap: injects_map mu perm)
-    (Himpl: forall b ofs,
-        option_implication
-          (perm !! b ofs)
-          ((getMaxPerm m1) !! b ofs))
-    (Hmi_inj:Mem.inject mu m1 m2),
-    perm_inj
-      mu perm (inject_access_map m2 mu perm).
-Proof.
-  intros.
-  eapply inject_perm_inj'; intros; eauto.
-  - eapply option_impl_isCanon; eauto.
-  - eapply option_implication_injection; eauto.
-    + unfold isCanonical'. extensionality ofs0.
-      eapply option_implication_fst in Himpl.
-      instantiate(1:=ofs0) in Himpl.
-      rewrite Max_isCanonical in Himpl.
-      unfold option_implication in *.
-      match_case in Himpl.
-    + eapply Hmi_inj.
-  - eapply Hmi_inj.
-  - eapply no_overla_perm_mem; auto.
-    eapply Hmi_inj.
-Qed.
-
-
-Lemma inject_dmap_preimage:
-  forall mu m2 dmap,
-    dmap_preimage
-      mu dmap (tree_map_inject_over_mem m2 mu dmap).
-Proof.
-  unfold dmap_preimage; intros.
-  unfold at_least_Some, option_implication in *.
-  match_case in H.
-  apply dmap_inject_correct_backwards in Heqo.
-  normal; eauto.
-Qed.
-Lemma inject_preimage:
-  forall mu m2 perm,
-    perm_surj
-      mu perm (inject_access_map m2 mu perm).
-Proof.
-  unfold perm_surj; intros.
-  unfold at_least_Some, option_implication in *.
-  match_case in H.
-  eapply inject_access_map_correct_backwards in Heqo.
-  normal; eauto.
-Qed.
-
-
-Lemma inject_perm_perfect_image_dmap:
-  forall mu m1 m2 dmap
-    (Hmi_inj:Mem.inject mu m1 m2)
-    (Himpl: option_implication_dmap_access
-              dmap (getMaxPerm m1))
-    (Hinj_dmap: injects_dmap mu dmap),
-    perm_perfect_image_dmap
-      mu dmap (tree_map_inject_over_mem m2 mu dmap).
-Proof.
-  intros; constructor.
-  - eapply inject_perm_inj_dmap; auto.
-  - eapply inject_dmap_preimage.
-Qed.
-
-
-Lemma inject_perm_perfect_image:
-  forall mu m1 m2 (m : access_map),
-    Mem.inject mu m1 m2 ->
-    injects_map mu m ->
-    perm_perfect_image mu m (inject_access_map m2 mu m).
-Proof.
-  intros; constructor.
-  - eapply inject_perm_inj; auto.
-Admitted.
-
-Lemma sub_map_implication_dmap:
-  forall m a,
-    sub_map a (snd (getMaxPerm m)) ->
-    option_implication_dmap_access a (getMaxPerm m).
-Proof.
-  intros ** ? **.
-  hnf.
-  eapply sub_map_filtered in H.
-  match_case; auto.
-  apply H in Heqo. unfold Mem.perm in *.
-  rewrite getMaxPerm_correct.
-  unfold permission_at.
-  match_case; auto.
-Qed.
-Lemma sub_map_implication_dmap_pair:
-  forall m a,
-    pair21_prop sub_map a (snd (getMaxPerm m)) ->
-    option_implication_dmap_access_pair a (getMaxPerm m).
-Proof.
-  intros m. solve_pair.
-  apply sub_map_implication_dmap.
-Qed.
-Lemma inject_virtue_max_eq:
-  forall m1 m2 mu angel,
-    (getMaxPerm m1) = (getMaxPerm m2) ->
-    inject_virtue m1 mu angel = inject_virtue m2 mu angel.
-Proof.
-  intros.
-  unfold inject_virtue, virtueThread_inject, virtueLP_inject.
-  unfold inject_access_map, tree_map_inject_over_mem.
-  rewrite H; auto.
-Qed.
-Lemma inject_virtue_perm_perfect_image_dmap':
-  forall mu m1 m2 virtue ,
-    Mem.inject mu m1 m2 ->
-    (option_implication_dmap_access_pair
-       virtue (getMaxPerm m1)) ->
-    injects_dmap_pair mu virtue ->
-    perm_perfect_image_dmap_pair mu
-                                 virtue
-                                 (virtueThread_inject m2 mu virtue).
-Proof.
-  intros *. 
-  revert virtue.
-  solve_pair.
-  eapply inject_perm_perfect_image_dmap.
-Qed.
-Lemma inject_virtue_perm_perfect_image_dmap :
-  forall mu m1 m2 virtue,
-    Mem.inject mu m1 m2 ->
-    (pair21_prop sub_map virtue (snd (getMaxPerm m1))) ->
-    injects_dmap_pair mu virtue ->
-    perm_perfect_image_dmap_pair mu virtue (virtueThread_inject m2 mu virtue).
-Proof.
-  intros **. eapply inject_virtue_perm_perfect_image_dmap';
-               try eapply sub_map_implication_dmap_pair; eassumption.
-Qed.
-
-Lemma full_inject_dmap:
-  forall f m dm,
-    Events.injection_full f m ->
-    dmap_valid m dm ->
-    injects_dmap f dm.
-Proof.
-  intros ** ? **.
-  eapply H0 in H1.
-  eapply H in H1.
-  destruct (f b) as [[? ?]|] eqn:HHH; try contradiction.
-  econstructor; eauto.
-Qed.
-
-
-Lemma full_inject_dmap_pair:
-  forall f m dm,
-    Events.injection_full f m ->
-    dmap_valid_pair m dm ->
-    injects_dmap_pair f dm.
-Proof. intros ??; solve_pair; eapply full_inject_dmap. Qed.
-
-
-Lemma inject_virtue_perm_perfect_image_oneinject_preimage:
-  forall mu m1 m2, forall a : access_map,
-  Mem.inject mu m1 m2 ->
-  injects_map mu a ->
-  (forall (b : positive) (ofs : Z),
-        option_implication (a !! b ofs) ((getMaxPerm m1) !! b ofs)) ->
-  perm_perfect_image mu a (inject_access_map m2 mu a).
-Proof.
-  intros.
-  constructor.
-  - eapply inject_perm_inj; eauto.
-  - eapply inject_preimage.
-Qed.
-
-Definition full_map_option_implication {A B} x y: Prop :=
-  forall b (ofs:Z),
-      @option_implication A B (x !! b ofs) (y !! b ofs).
+        repeat match_case; subst; auto.
+        * specialize (H p o0 ltac:(auto) ).
+          rewrite H in Heqo0; try congruence.
+        * eapply IHelemts. intros. eapply H; eauto.
+        * eapply IHelemts. intros. eapply H; eauto.
+        * eapply IHelemts. intros. eapply H; eauto.
+  Qed.
   
-Lemma inject_virtue_perm_perfect_image:
-  forall (mu : meminj) (m1 m2 : mem) virtueLP,
-  Mem.inject mu m1 m2 ->
-  injects_map_pair mu virtueLP ->
-  pair21_prop full_map_option_implication virtueLP (getMaxPerm m1) ->
-  perm_perfect_image_pair mu virtueLP (virtueLP_inject m2 mu virtueLP).
-Proof.
-  intros mu m1 m2 virtueLP.
-  unfold inject_virtue; simpl.
-  generalize virtueLP.
-  solve_pair.
-  intros; eapply inject_virtue_perm_perfect_image_oneinject_preimage; eauto.
-Qed.
- 
+  Lemma inject_empty_maps:
+    forall  m mu empty_perms
+       (Hempty_map : empty_doublemap empty_perms),
+      empty_doublemap (virtueLP_inject m mu empty_perms).
+  Proof. intros ??. solve_pair.
+         eapply inject_is_empty_map.
+  Qed.
+
+  
+  Lemma no_overla_dmap_mem:
+    forall mu m dmap,
+      (forall (b : positive) (ofs : Z),
+          option_implication
+            (dmap_get dmap b ofs)
+            ((getMaxPerm m) !! b ofs)) ->
+      Mem.meminj_no_overlap mu m ->
+      dmap_no_overlap mu dmap.
+  Proof.
+    intros ** ? **.
+    eapply H0; eauto.
+    + specialize (H b1 ofs1).
+      unfold Mem.perm; rewrite_getPerm.
+      unfold option_implication in *.
+      repeat match_case in H.
+      constructor.
+      unfold dmap_get in *.
+      rewrite Heqo in H4.
+      inversion H4.
+    + specialize (H b2 ofs2).
+      unfold Mem.perm; rewrite_getPerm.
+      unfold option_implication in *.
+      repeat match_case in H.
+      constructor.
+      unfold dmap_get in *.
+      rewrite Heqo in H5.
+      inv H5.
+  Qed.
+
+  
+  Inductive injects (mu:meminj) (b:block): Prop:=
+  | InjectsBlock: forall b2 delta, mu b = Some (b2, delta) -> injects mu b.
+  Definition injects_map mu (m:access_map): Prop := forall b ofs p,
+      m !! b ofs = Some p -> injects mu b.
+  Definition injects_map_pair mu:= pair1_prop (injects_map mu).
+  Hint Unfold injects_map_pair: pair.
+  Definition injects_dmap mu (m:delta_map) := forall b ofs p,
+      dmap_get m b ofs = Some p -> injects mu b.
+  Definition injects_dmap_pair mu:= pair1_prop (injects_dmap mu).
+  Hint Unfold injects_dmap_pair: pair.
+  Lemma inject_virtue_sub_map_pair':
+    forall (m1 m2 : mem)
+      (mu : meminj) angel
+      perm1 perm2 Hlt1 Hlt2,
+      Mem.inject mu (@restrPermMap perm1 m1 Hlt1 ) 
+                 (@restrPermMap perm2 m2 Hlt2 ) ->
+      sub_map_pair angel (snd (getMaxPerm m1)) ->
+      sub_map_pair (virtueThread_inject m2 mu angel) (snd (getMaxPerm m2)).
+  Proof.
+    intros.
+    remember (snd (getMaxPerm m2)) as TEMP.
+    destruct angel as (virtueT_A & virtueT_B).
+    simpl; subst.
+    constructor; simpl;
+      eapply inject_virtue_sub_map; eauto; eapply H0.
+  Qed.
+  Lemma inject_virtue_sub_map_pair:
+    forall (m1 m2 : mem)
+      (mu : meminj)
+      (angel : virtue)
+      perm1 perm2 Hlt1 Hlt2,
+      Mem.inject mu (@restrPermMap perm1 m1 Hlt1 ) 
+                 (@restrPermMap perm2 m2 Hlt2 ) ->
+      sub_map_pair (virtueThread angel) (snd (getMaxPerm m1)) ->
+      sub_map_pair (virtueThread (inject_virtue m2 mu angel)) (snd (getMaxPerm m2)).
+  Proof.
+    intros. simpl. eapply inject_virtue_sub_map_pair'; eauto. Qed.
+
+  
+  Lemma inject_perm_inj_dmap':
+    forall mu m1 m2 dmap
+      (Hinj_dmap: injects_dmap mu dmap)
+      (Himpl:
+         forall b1 b2 delta ofs o,
+           mu b1 = Some (b2, delta) ->
+           dmap_get dmap b1 ofs = Some o ->
+           option_implication dmap ! b1 (snd (getMaxPerm m2)) ! b2)
+      (Hmi_inj:Mem.mem_inj mu m1 m2)
+      (Hnon_over: dmap_no_overlap mu dmap),
+      perm_inj_dmap
+        mu dmap (tree_map_inject_over_mem m2 mu dmap).
+  Proof.
+    intros ** b1 ** .
+    destruct (dmap_get dmap b1 ofs) eqn:Hdmap; try solve[inv H].
+    specialize (Hinj_dmap _ _ _ Hdmap).
+    inv Hinj_dmap. normal; eauto.
+    erewrite tree_map_inject_over_mem_correct_forward'; eauto.
+  Qed.
+
+  
+  Lemma inject_perm_inj':
+    forall mu m1 m2 perm
+      (Hcanon: isCanonical perm)
+      (Hinj_dmap: injects_map mu perm)
+      (Himpl:
+         forall b1 b2 delta ofs o,
+           mu b1 = Some (b2, delta) ->
+           perm !! b1 ofs = Some o ->
+           option_implication (snd perm) ! b1 (snd (getMaxPerm m2)) ! b2)
+      (Hmi_inj:Mem.mem_inj mu m1 m2)
+      (Hnon_over: no_overlap mu perm),
+      perm_inj
+        mu perm (inject_access_map m2 mu perm).
+  Proof.
+    unfold inject_access_map; intros ** b1 **. 
+    destruct (perm !! b1 ofs) eqn:Hdmap; try solve[inv H].
+    specialize (Hinj_dmap _ _ _ Hdmap).
+    inv Hinj_dmap. normal; eauto.
+    
+    exploit Himpl; eauto; intros HH.
+    unfold option_implication in *.
+    unfold PMap.get in *; simpl.
+    repeat match_case in Hdmap.
+    2:{ rewrite Hcanon in Hdmap; congruence. }
+    exploit tree_map_inject_over_mem_correct_forward_perm; eauto.
+    - unfold PMap.get; rewrite Heqo; auto.
+    - match_case in HH. unfold option_implication; match_case.
+  Qed.
+  
+  Lemma inject_perm_inj_dmap:
+    forall mu m1 m2 dmap
+      (Hinj_dmap: injects_dmap mu dmap)
+      (Himpl: forall b ofs,
+          option_implication
+            (dmap_get dmap b ofs)
+            ((getMaxPerm m1) !! b ofs))
+      (Hmi_inj:Mem.inject mu m1 m2),
+      perm_inj_dmap
+        mu dmap (tree_map_inject_over_mem m2 mu dmap).
+  Proof.
+    intros.
+    eapply inject_perm_inj_dmap'; intros; eauto.
+    - eapply option_implication_injection_dmap; eauto.
+      eapply Hmi_inj.
+    - eapply Hmi_inj.
+    - eapply no_overla_dmap_mem; auto.
+      eapply Hmi_inj.
+  Qed.
+
+  
+  Lemma inject_perm_inj:
+    forall mu m1 m2 perm
+      (Hinj_dmap: injects_map mu perm)
+      (Himpl: forall b ofs,
+          option_implication
+            (perm !! b ofs)
+            ((getMaxPerm m1) !! b ofs))
+      (Hmi_inj:Mem.inject mu m1 m2),
+      perm_inj
+        mu perm (inject_access_map m2 mu perm).
+  Proof.
+    intros.
+    eapply inject_perm_inj'; intros; eauto.
+    - eapply option_impl_isCanon; eauto.
+    - eapply option_implication_injection; eauto.
+      + unfold isCanonical'. extensionality ofs0.
+        eapply option_implication_fst in Himpl.
+        instantiate(1:=ofs0) in Himpl.
+        rewrite Max_isCanonical in Himpl.
+        unfold option_implication in *.
+        match_case in Himpl.
+      + eapply Hmi_inj.
+    - eapply Hmi_inj.
+    - eapply no_overla_perm_mem; auto.
+      eapply Hmi_inj.
+  Qed.
 
 
-
-Record injects_angel mu angel:=
-  { Hinj_map : injects_map_pair mu (virtueLP angel);
-    Hinj_dmap : injects_dmap_pair mu (virtueThread angel)}.
-
-Lemma inject_virtue_perm_perfect:
-  forall f angel1 m1 m2,
-    Mem.inject f m1 m2 ->
-    injects_angel f angel1 ->
-    pair21_prop full_map_option_implication (virtueLP angel1)(getMaxPerm m1) ->
-    option_implication_dmap_access_pair (virtueThread angel1) (getMaxPerm m1) ->
-    perm_perfect_virtue f angel1 (inject_virtue m2 f angel1).
-Proof.
-  intros ? ? ? ? Hinj [? ?]; econstructor.
-  - eapply inject_virtue_perm_perfect_image; eauto.
-  - eapply inject_virtue_perm_perfect_image_dmap'; eauto.
-Qed.
-
-
-Lemma full_inject_map:
-  forall f m dm,
-    Events.injection_full f m ->
-    map_valid m dm ->
-    injects_map f dm.
-Proof.
-  intros ** ? **.
-  eapply H0 in H1.
-  eapply H in H1.
-  destruct (f b) as [[? ?]| ] eqn:HHH; try contradiction.
-  econstructor; eauto.
-Qed.
-Lemma full_inject_map_pair:
-  forall f m dm,
-    Events.injection_full f m ->
-    map_valid_pair m dm ->
-    injects_map_pair f dm.
-Proof.
-  intros ??; solve_pair. eapply full_inject_map.
-Qed.
+  Lemma inject_dmap_preimage:
+    forall mu m2 dmap,
+      dmap_preimage
+        mu dmap (tree_map_inject_over_mem m2 mu dmap).
+  Proof.
+    unfold dmap_preimage; intros.
+    unfold at_least_Some, option_implication in *.
+    match_case in H.
+    apply dmap_inject_correct_backwards in Heqo.
+    normal; eauto.
+  Qed.
+  Lemma inject_preimage:
+    forall mu m2 perm,
+      perm_surj
+        mu perm (inject_access_map m2 mu perm).
+  Proof.
+    unfold perm_surj; intros.
+    unfold at_least_Some, option_implication in *.
+    match_case in H.
+    eapply inject_access_map_correct_backwards in Heqo.
+    normal; eauto.
+  Qed.
 
 
-Lemma full_injects_angel:
-  forall mu m1 angel,
-    Events.injection_full mu m1 -> 
-    sub_map_virtue angel (getMaxPerm m1) ->
-    injects_angel mu angel.
-Proof.
-  intros * Hfull Hsub_map.
-  constructor.
-  - eapply full_inject_map_pair; try eassumption.
-    assert (isCanonical_pair (virtueLP angel)).
-    { inv Hsub_map. destruct virtueLP_sub_map as (?&?&?).
-      split; simpl; eauto. }
-    eapply sub_map_valid_pair; eauto; try apply Hsub_map.
-  - eapply full_inject_dmap_pair; try eassumption.
-    apply join_dmap_valid_pair, Hsub_map.
-Qed.
+  Lemma inject_perm_perfect_image_dmap:
+    forall mu m1 m2 dmap
+      (Hmi_inj:Mem.inject mu m1 m2)
+      (Himpl: option_implication_dmap_access
+                dmap (getMaxPerm m1))
+      (Hinj_dmap: injects_dmap mu dmap),
+      perm_perfect_image_dmap
+        mu dmap (tree_map_inject_over_mem m2 mu dmap).
+  Proof.
+    intros; constructor.
+    - eapply inject_perm_inj_dmap; auto.
+    - eapply inject_dmap_preimage.
+  Qed.
 
 
-Lemma deltaMapLt2_inject:
-  forall p1 p2 m1 m2 Hlt1 Hlt2 mu virtue,
-    Mem.inject mu (@restrPermMap p1 m1 Hlt1) (@restrPermMap p2 m2 Hlt2) ->
-    deltaMapLt2 virtue (getMaxPerm m1) ->
-    deltaMapLt2 (tree_map_inject_over_mem m2 mu virtue) (getMaxPerm m2).
-Proof.
-Admitted.
-Lemma deltaMapLt2_inject_pair:
-  forall p1 p2 m1 m2 Hlt1 Hlt2 mu virtue,
-    Mem.inject mu (@restrPermMap p1 m1 Hlt1) (@restrPermMap p2 m2 Hlt2) ->
-    deltaMapLt2_pair1 virtue (getMaxPerm m1) ->
-    deltaMapLt2_pair1 (virtueThread_inject m2 mu virtue) (getMaxPerm m2).
-Proof.
-  intros until mu. unfold virtueThread_inject.
-  destruct virtue.
-  solve_pair.
-  split; eapply deltaMapLt2_inject.
-Qed.
+  Lemma inject_perm_perfect_image:
+    forall mu m1 m2 (m : access_map)
+      (Himpl: option_implication_access
+                m (getMaxPerm m1)),
+      Mem.inject mu m1 m2 ->
+      injects_map mu m ->
+      perm_perfect_image mu m (inject_access_map m2 mu m).
+  Proof.
+    intros; constructor.
+    - eapply inject_perm_inj; eauto.
+    - eapply inject_preimage; eauto.
+  Qed.
+
+  Lemma sub_map_implication_dmap:
+    forall m a,
+      sub_map a (snd (getMaxPerm m)) ->
+      option_implication_dmap_access a (getMaxPerm m).
+  Proof.
+    intros ** ? **.
+    hnf.
+    eapply sub_map_filtered in H.
+    match_case; auto.
+    apply H in Heqo. unfold Mem.perm in *.
+    rewrite getMaxPerm_correct.
+    unfold permission_at.
+    match_case; auto.
+  Qed.
+  Lemma sub_map_implication_dmap_pair:
+    forall m a,
+      pair21_prop sub_map a (snd (getMaxPerm m)) ->
+      option_implication_dmap_access_pair a (getMaxPerm m).
+  Proof.
+    intros m. solve_pair.
+    apply sub_map_implication_dmap.
+  Qed.
+  Lemma inject_virtue_max_eq:
+    forall m1 m2 mu angel,
+      (getMaxPerm m1) = (getMaxPerm m2) ->
+      inject_virtue m1 mu angel = inject_virtue m2 mu angel.
+  Proof.
+    intros.
+    unfold inject_virtue, virtueThread_inject, virtueLP_inject.
+    unfold inject_access_map, tree_map_inject_over_mem.
+    rewrite H; auto.
+  Qed.
+  Lemma inject_virtue_perm_perfect_image_dmap':
+    forall mu m1 m2 virtue ,
+      Mem.inject mu m1 m2 ->
+      (option_implication_dmap_access_pair
+         virtue (getMaxPerm m1)) ->
+      injects_dmap_pair mu virtue ->
+      perm_perfect_image_dmap_pair mu
+                                   virtue
+                                   (virtueThread_inject m2 mu virtue).
+  Proof.
+    intros *. 
+    revert virtue.
+    solve_pair.
+    eapply inject_perm_perfect_image_dmap.
+  Qed.
+  Lemma inject_virtue_perm_perfect_image_dmap :
+    forall mu m1 m2 virtue,
+      Mem.inject mu m1 m2 ->
+      (pair21_prop sub_map virtue (snd (getMaxPerm m1))) ->
+      injects_dmap_pair mu virtue ->
+      perm_perfect_image_dmap_pair mu virtue (virtueThread_inject m2 mu virtue).
+  Proof.
+    intros **. eapply inject_virtue_perm_perfect_image_dmap';
+                 try eapply sub_map_implication_dmap_pair; eassumption.
+  Qed.
+
+  Lemma full_inject_dmap:
+    forall f m dm,
+      Events.injection_full f m ->
+      dmap_valid m dm ->
+      injects_dmap f dm.
+  Proof.
+    intros ** ? **.
+    eapply H0 in H1.
+    eapply H in H1.
+    destruct (f b) as [[? ?]|] eqn:HHH; try contradiction.
+    econstructor; eauto.
+  Qed.
 
 
-Lemma permMapLt_compute_inject_pair:
-  forall mu p1 p2 m1 m2 Hlt1 Hlt2,
-    Mem.inject mu (@restrPermMap p1 m1 Hlt1) (@restrPermMap p2 m2 Hlt2) ->
-    forall a1 a2 b1 b2,
-      permMapLt_pair (computeMap_pair a1 b1) (getMaxPerm m1) ->
-      permMapLt_pair a2 (getMaxPerm m2) ->
-      b2 = virtueThread_inject m2 mu b1 ->
-      permMapLt_pair (computeMap_pair a2 b2) (getMaxPerm m2).
-Proof.
-  intros **.
-  eapply permMapLt_computeMap_pair; eauto.
-  subst b2; eapply deltaMapLt2_inject_pair;
-    try eassumption.
-  eapply permMapLt_computeMap_pair'.
-  eassumption.
-Qed.
+  Lemma full_inject_dmap_pair:
+    forall f m dm,
+      Events.injection_full f m ->
+      dmap_valid_pair m dm ->
+      injects_dmap_pair f dm.
+  Proof. intros ??; solve_pair; eapply full_inject_dmap. Qed.
 
 
-    Lemma inject_perm_perfect_image_dmap_pair:
-      forall (mu : meminj) (m1 m2 : mem), 
+  Lemma inject_virtue_perm_perfect_image_oneinject_preimage:
+    forall mu m1 m2, forall a : access_map,
         Mem.inject mu m1 m2 ->
-        forall (dmap : Pair delta_map),
-          option_implication_dmap_access_pair dmap (getMaxPerm m1) ->
-          injects_dmap_pair mu dmap ->
-          perm_perfect_image_dmap_pair
-            mu dmap
-            (pair1 (tree_map_inject_over_mem m2 mu) dmap).
-    Proof.
-      intros ??? ?.
-      solve_pair. intros; eapply inject_perm_perfect_image_dmap; eauto.
-    Qed.
+        injects_map mu a ->
+        (forall (b : positive) (ofs : Z),
+            option_implication (a !! b ofs) ((getMaxPerm m1) !! b ofs)) ->
+        perm_perfect_image mu a (inject_access_map m2 mu a).
+  Proof.
+    intros.
+    constructor.
+    - eapply inject_perm_inj; eauto.
+    - eapply inject_preimage.
+  Qed.
+
+  Definition full_map_option_implication {A B} x y: Prop :=
+    forall b (ofs:Z),
+      @option_implication A B (x !! b ofs) (y !! b ofs).
+
+  Lemma inject_virtue_perm_perfect_image:
+    forall (mu : meminj) (m1 m2 : mem) virtueLP,
+      Mem.inject mu m1 m2 ->
+      injects_map_pair mu virtueLP ->
+      pair21_prop full_map_option_implication virtueLP (getMaxPerm m1) ->
+      perm_perfect_image_pair mu virtueLP (virtueLP_inject m2 mu virtueLP).
+  Proof.
+    intros mu m1 m2 virtueLP.
+    unfold inject_virtue; simpl.
+    generalize virtueLP.
+    solve_pair.
+    intros; eapply inject_virtue_perm_perfect_image_oneinject_preimage; eauto.
+  Qed.
+
+
+
+
+  Record injects_angel mu angel:=
+    { Hinj_map : injects_map_pair mu (virtueLP angel);
+      Hinj_dmap : injects_dmap_pair mu (virtueThread angel)}.
+
+  Lemma inject_virtue_perm_perfect:
+    forall f angel1 m1 m2,
+      Mem.inject f m1 m2 ->
+      injects_angel f angel1 ->
+      pair21_prop full_map_option_implication (virtueLP angel1)(getMaxPerm m1) ->
+      option_implication_dmap_access_pair (virtueThread angel1) (getMaxPerm m1) ->
+      perm_perfect_virtue f angel1 (inject_virtue m2 f angel1).
+  Proof.
+    intros ? ? ? ? Hinj [? ?]; econstructor.
+    - eapply inject_virtue_perm_perfect_image; eauto.
+    - eapply inject_virtue_perm_perfect_image_dmap'; eauto.
+  Qed.
+
+
+  Lemma full_inject_map:
+    forall f m dm,
+      Events.injection_full f m ->
+      map_valid m dm ->
+      injects_map f dm.
+  Proof.
+    intros ** ? **.
+    eapply H0 in H1.
+    eapply H in H1.
+    destruct (f b) as [[? ?]| ] eqn:HHH; try contradiction.
+    econstructor; eauto.
+  Qed.
+  Lemma full_inject_map_pair:
+    forall f m dm,
+      Events.injection_full f m ->
+      map_valid_pair m dm ->
+      injects_map_pair f dm.
+  Proof.
+    intros ??; solve_pair. eapply full_inject_map.
+  Qed.
+
+
+  Lemma full_injects_angel:
+    forall mu m1 angel,
+      Events.injection_full mu m1 -> 
+      sub_map_virtue angel (getMaxPerm m1) ->
+      injects_angel mu angel.
+  Proof.
+    intros * Hfull Hsub_map.
+    constructor.
+    - eapply full_inject_map_pair; try eassumption.
+      assert (isCanonical_pair (virtueLP angel)).
+      { inv Hsub_map. destruct virtueLP_sub_map as (?&?&?).
+        split; simpl; eauto. }
+      eapply sub_map_valid_pair; eauto; try apply Hsub_map.
+    - eapply full_inject_dmap_pair; try eassumption.
+      apply join_dmap_valid_pair, Hsub_map.
+  Qed.
+
+
+  Lemma deltaMapLt2_inject:
+    forall p1 p2 m1 m2 Hlt1 Hlt2 mu virtue,
+      Mem.inject mu (@restrPermMap p1 m1 Hlt1) (@restrPermMap p2 m2 Hlt2) ->
+      deltaMapLt2 virtue (getMaxPerm m1) ->
+      deltaMapLt2 (tree_map_inject_over_mem m2 mu virtue) (getMaxPerm m2).
+  Proof.
+    intros ** ? **; simpl.
+    match goal with
+      |- opt_rel _ _ ?X => destruct X as [o|] eqn:HH;
+                           [destruct o|]
+    end; simpl; try constructor;
+      try now apply event_semantics.po_None.
+    exploit dmap_inject_correct_backwards; eauto.
+    intros (?&?&?&?&?&?); subst.
+    specialize (H0 x x1).
+    rewrite H3 in H0.
+    inv H0; simpl in *.
+    eapply Mem.mi_perm with (k:=Max) in H1; try eapply H.
+    - hnf; hnf in H1; eauto.
+      rewrite_getPerm.
+      rewrite restr_Max_eq in H1; eauto.
+    - rewrite restr_Max_equiv.
+      hnf. rewrite_getPerm. apply H5.
+  Qed.
+  Lemma deltaMapLt2_inject_pair:
+    forall p1 p2 m1 m2 Hlt1 Hlt2 mu virtue,
+      Mem.inject mu (@restrPermMap p1 m1 Hlt1) (@restrPermMap p2 m2 Hlt2) ->
+      deltaMapLt2_pair1 virtue (getMaxPerm m1) ->
+      deltaMapLt2_pair1 (virtueThread_inject m2 mu virtue) (getMaxPerm m2).
+  Proof.
+    intros until mu. unfold virtueThread_inject.
+    destruct virtue.
+    solve_pair.
+    split; eapply deltaMapLt2_inject.
+  Qed.
+
+
+  Lemma permMapLt_compute_inject_pair:
+    forall mu p1 p2 m1 m2 Hlt1 Hlt2,
+      Mem.inject mu (@restrPermMap p1 m1 Hlt1) (@restrPermMap p2 m2 Hlt2) ->
+      forall a1 a2 b1 b2,
+        permMapLt_pair (computeMap_pair a1 b1) (getMaxPerm m1) ->
+        permMapLt_pair a2 (getMaxPerm m2) ->
+        b2 = virtueThread_inject m2 mu b1 ->
+        permMapLt_pair (computeMap_pair a2 b2) (getMaxPerm m2).
+  Proof.
+    intros **.
+    eapply permMapLt_computeMap_pair; eauto.
+    subst b2; eapply deltaMapLt2_inject_pair;
+      try eassumption.
+    eapply permMapLt_computeMap_pair'.
+    eassumption.
+  Qed.
+
+
+  Lemma inject_perm_perfect_image_dmap_pair:
+    forall (mu : meminj) (m1 m2 : mem), 
+      Mem.inject mu m1 m2 ->
+      forall (dmap : Pair delta_map),
+        option_implication_dmap_access_pair dmap (getMaxPerm m1) ->
+        injects_dmap_pair mu dmap ->
+        perm_perfect_image_dmap_pair
+          mu dmap
+          (pair1 (tree_map_inject_over_mem m2 mu) dmap).
+  Proof.
+    intros ??? ?.
+    solve_pair. intros; eapply inject_perm_perfect_image_dmap; eauto.
+  Qed.
 
 End VirtueInject.
 Hint Unfold injects_dmap_pair: pair.
 Hint Unfold injects_map_pair: pair.
 Hint Unfold virtueThread_inject: pair.
-      
+

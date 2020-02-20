@@ -1027,7 +1027,12 @@ Section CLC_SEM.
   Proof.
     intros.
     inv Hev; simpl in Hef; try solve [inv Hef].
-    
+    (* EXPLANATION: this should comes from an assumption:
+       Either we add an axiom saying our semantics only calls such externals OR
+       we add this to the properties of external funtioncs.
+
+       Either way, make sure it's not already assumed somwehre else.
+     *)
     
   Admitted.
 
