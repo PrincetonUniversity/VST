@@ -10667,9 +10667,10 @@ relation*)
         now rewrite Ptrofs.add_zero.
       } 
       assert (HsyncStepF: syncStep false pff (mem_compf Hsim) tpf' mf
-                                   (spawn (b2,Ptrofs.intval ofs) (Some ((build_delta_content virtue1F#1 mf))) (Some (build_delta_content virtue2F#1 mf))))
-        by (eapply step_create;
-            now eauto).
+                                   (spawn (b2,Ptrofs.intval ofs) (Some ((build_delta_content virtue1F#1 mf))) (Some (build_delta_content virtue2F#1 mf)))).
+      { eapply step_create with (arg0:=v'); eauto.
+        destruct v' ; try solve[clear; intros; congruence].
+        inversion H1; subst; congruence. }
 
       econstructor; now eauto.
       (** Proof that the new coarse and fine state are in simulation*)

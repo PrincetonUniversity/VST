@@ -888,7 +888,7 @@ Section SimulationTactics.
       invariant st ->
       permMapJoin_pair new_th_perm old_th_perm  (getThreadR Hcnt) ->
       invariant st'.
-          Admitted.
+    Admitted.
     
   
     
@@ -1078,6 +1078,7 @@ Section SimulationTactics.
         repeat rewrite restr_Max_eq; eauto;
           try (erewrite <- restrPermMap_idempotent_eq;
                eauto).
+      rewrite restr_Max_equiv; eauto.
     - (*mklock*)
       econstructor; eauto;
         repeat rewrite restr_Max_eq; eauto;

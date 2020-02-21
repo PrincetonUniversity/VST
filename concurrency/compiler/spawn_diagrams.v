@@ -391,7 +391,8 @@ Section SpawnDiagrams.
 
         eapply step_create;
           match goal with
-            |- val_inject _ _ _ => idtac
+          | |- val_inject _ _ _ => idtac
+          | |- _ <> _ => idtac
           | |- _ => eauto; try reflexivity
           end.
         + eapply inject_virtue_sub_map_pair'; eauto. (*
@@ -401,6 +402,9 @@ Section SpawnDiagrams.
                                                       * apply Hinj_lock.
                                                       * apply Hangel_bound_new. *)
         + eapply CMatch.
+        + subst ofs2; erewrite Heq; eapply Mem.mi_perm; eauto. apply Hinj.
+        + destruct arg2; try solve[intros HH; congruence].
+          inv H1; congruence.
         + !goal (semantics.at_external _ _ _ = Some (CREATE, _)).
           { eapply at_external_sum_sem; eauto. }
         + !goal(val_inject  _ arg2 arg2).
@@ -773,11 +777,15 @@ Section SpawnDiagrams.
         eapply step_create;
           match goal with
             |- val_inject _ _ _ => idtac
+          | |- _ <> _ => idtac
           | |- _ => eauto; try reflexivity
           end.
         + eapply inject_virtue_sub_map_pair'; eauto.
         + eapply inject_virtue_sub_map_pair'; eauto.
         + eapply CMatch.
+        + subst ofs2; erewrite Heq; eapply Mem.mi_perm; eauto. apply Hinj'.
+        + destruct arg0; try solve[intros HH; congruence].
+          inv H1; congruence.
         + !goal (semantics.at_external _ _ _ = Some (CREATE, _)).
           { simpl. subst ofs2.
             rewrite self_restre_eq; eauto. }

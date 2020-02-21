@@ -806,7 +806,6 @@ Qed.
         
         
       Admitted.
-
       
       Lemma resume_step_diagram:
         forall (m : option mem) (tge : HybridMachineSig.G) 

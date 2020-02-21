@@ -448,7 +448,9 @@ Proof.
     pose proof (restrPerm_sub_map _ _ Hlt).
     destruct Hbounded, Hbounded_new.
     rewrite !build_delta_content_restr.
-    eapply step_create; eauto; simpl; auto; split; eapply sub_map_trans; eauto.
+    eapply step_create; eauto; simpl; auto; try (split; eapply sub_map_trans; eauto).
+    clear - Hf_ptr_nonempty.
+    rewrite mem_equiv.restr_Max_equiv in Hf_ptr_nonempty; eauto.
   - erewrite restrPermMap_twice in *.
     eapply AngelSafe; eauto.
     hnf; simpl.

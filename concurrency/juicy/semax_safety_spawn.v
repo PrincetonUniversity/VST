@@ -422,6 +422,12 @@ clear - Initcore.
       (Hcompatible := mem_compatible_forget compat)
       (phi' := phi1)
       (d_phi := phi0); try reflexivity; try eassumption; simpl; auto.
+    + admit. (* add these to spawn rule? 
+                ** *NOTE: I'm not familliar with how youVST handles 
+                function pointers but it might be already derivable
+                from what is given hre.                
+              *)
+    + admit. (* add these to spawn rule? *)
   }
   (* "progress" part finished. *)
 

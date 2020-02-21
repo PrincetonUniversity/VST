@@ -1219,7 +1219,7 @@ Qed.
         invariant ds' /\ match_st js' ds' /\
         syncStep true (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m' ev'.
   Proof.
-    intros.
+    intros. 
     inversion Htstep; try subst.
     
     (* step_acquire  *)
@@ -3565,6 +3565,8 @@ SearchAbout access_map delta_map.
 
         - assumption.
         - inversion MATCH. erewrite <- mtch_gtc; eassumption.
+        - eassumption.
+        - eassumption.
         - reflexivity.
         - eassumption.
         - eassumption.

@@ -541,14 +541,6 @@ Section Csafe_KSafe.
     rewrite H, UU; f_equal.
     eapply valid_unique_running; eauto.
   Qed.
-  (* Lemma step_contains:
-    forall U tr tp m U' tr' tp' m' i,
-      MachStep (U, tr, tp) m (U', tr', tp') m' ->
-      ThreadPool.containsThread tp i ->
-      ThreadPool.containsThread tp' i.
-  Proof.
-    eapply step_contains.
-  Admitted. *)
   Lemma failedStep_no_change:
     forall U tr tp m U' tr' tp' m' i,
       MachStep (U, tr, tp) m (U', tr', tp') m' ->
@@ -1491,10 +1483,10 @@ Section Clight_safety.
         split; auto; simpl.
         rewrite getCurPerm_correct.
         
-        admit. (* quite true *)
+        ad mit. (* quite true *)
       - unfold ErasureSafety.ErasureProof.no_locks_perm.
          intros.
-         admit. (* quite true *)
+         ad mit. (* quite true *)
  Adm itted.
 
 

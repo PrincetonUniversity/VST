@@ -1332,6 +1332,8 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
+            (Hf_ptr_nonempty : Mem.perm m b (Ptrofs.unsigned ofs) Max Nonempty)
+            (Harg_defined: arg <> Vundef)
             (Hat_external: at_external the_sem c m =
                            Some (CREATE, vf::arg::nil))
             (Harg: Val.inject (Mem.flat_inj (Mem.nextblock m)) arg arg)
