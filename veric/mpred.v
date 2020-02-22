@@ -162,7 +162,7 @@ Definition args_super_non_expansive {A: TypeTree}
     (x: functors.MixVariantFunctor._functor
                          (rmaps.dependent_type_functor_rec ts A) mpred)
     (gargs: argsEnviron),
-  approx n (P ts x gargs) = approx n (P ts (fmap _ (approx n) (approx n) x) gargs).
+  @eq mpred (approx n (P ts x gargs)) (approx n (P ts (fmap _ (approx n) (approx n) x) gargs)).
 
 Definition const_super_non_expansive: forall (T: Type) P,
   @super_non_expansive (ConstType T) P :=
@@ -437,3 +437,11 @@ Set Warnings "projection-no-head-constant,redundant-canonical-projection".
 Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron LiftAEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3 alift0 alift1 alift2 alift3] beta iota in *.
+
+Lemma approx_hered_derives_e n P Q: predicates_hered.derives P Q -> predicates_hered.derives (approx n P) (approx n Q).
+Proof. intros. unfold approx. intros m. simpl. intros [? ?]. split; auto. Qed.
+Lemma approx_derives_e n P Q: P |-- Q -> approx n P |-- approx n Q.
+Proof. intros. apply approx_hered_derives_e. apply H. Qed. 
+
+Lemma hered_derives_derives P Q: predicates_hered.derives P Q -> derives P Q.
+Proof. trivial. Qed.

@@ -10,7 +10,7 @@ Import LiftNotation.
 Local Open Scope logic.
 
 Ltac unfold_for_go_lower :=
-  cbv delta [PROPx LOCALx SEPx locald_denote
+  cbv delta [PROPx LAMBDAx PARAMSx GLOBALSx LOCALx SEPx argsassert2assert locald_denote
                        eval_exprlist eval_expr eval_lvalue cast_expropt
                        eval_binop eval_unop force_val1 force_val2
                       msubst_tc_expropt msubst_tc_expr msubst_tc_exprlist msubst_tc_lvalue msubst_tc_LR (* msubst_tc_LR_strong *) msubst_tc_efield msubst_simpl_tc_assert 

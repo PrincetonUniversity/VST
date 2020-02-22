@@ -833,6 +833,11 @@ Admitted.  (* This is an exercise in Verified Functional Algorithms *)
 Definition tmap_rep (m: total_map val) (p: val) : mpred :=
    EX t: tree val, !! Abs t m && treebox_rep t p.
 
+Lemma tmap_rep_isptr m p: tmap_rep m p |-- !!(isptr p) && tmap_rep m p.
+Proof. entailer.
+unfold tmap_rep. Intros t. entailer!.
+Qed.
+
 Definition abs_insert_spec :=
  DECLARE _insert
   WITH b: val, x: Z, v: val, m: total_map val
@@ -876,39 +881,27 @@ Definition main_spec :=
 Lemma subsume_insert:
  funspec_sub (snd insert_spec) (snd abs_insert_spec).
 Proof.
-apply NDsubsume_subsume.
-split; reflexivity.
-split3; auto.
-intros [[[b x] v] m].
+do_funspec_sub. destruct w as [[[b x] v] m]. simpl.
+unfold convertPre. simpl; normalize. clear H.
+destruct args. inv H0. 
+destruct args. inv H0.
+destruct args. inv H0. 
+destruct args; inv H0. simpl in *.
+unfold env_set, eval_id in *. simpl in *. subst v0. 
 unfold tmap_rep.
 Intros t.
-Exists (b, x, v, t).
-Exists emp.
-change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
-apply andp_right; auto.
-entailer!.
-apply prop_right.
-simplify_Delta.
-Exists (insert x v t).
-entailer!.
-apply insert_relate; auto.
+Exists (v, x, v1, t) emp. simpl. entailer!.
+intros. Exists (insert x v1 t).
+entailer!. apply insert_relate; trivial.
 Qed.
 
 Lemma subsume_treebox_new:
  funspec_sub (snd treebox_new_spec) (snd abs_treebox_new_spec).
 Proof.
-apply NDsubsume_subsume.
-split; reflexivity.
-split3; auto.
-intros x. simpl in x.
-Exists x.
-Exists emp.
-change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
-apply andp_right; auto.
-apply prop_right.
-simplify_Delta.
-Intros v.
-Exists v.
+do_funspec_sub. unfold convertPre. simpl; normalize. clear H.
+destruct args; inv H0.
+Exists emp. entailer!.
+intros tau ? ?. Exists (eval_id ret_temp tau). entailer!.
 unfold tmap_rep.
 Exists (empty_tree val).
 unfold treebox_rep.
@@ -921,19 +914,12 @@ Qed.
 Lemma subsume_treebox_free:
  funspec_sub (snd treebox_free_spec) (snd abs_treebox_free_spec).
 Proof.
-apply NDsubsume_subsume.
-split; reflexivity.
-split3; auto.
-intros [m p].
+do_funspec_sub. destruct w as [m p]. clear H. unfold convertPre. simpl; normalize.
+destruct args; inv H. destruct args; inv H2.
+unfold env_set, eval_id in *. simpl in *. 
 unfold tmap_rep.
 Intros t.
-Exists (t,p).
-Exists emp.
-change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
-apply andp_right; auto.
-apply prop_right.
-simplify_Delta.
-entailer!.
+Exists (t,v) emp. entailer!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
@@ -945,7 +931,8 @@ assert_PROP (isptr (gv ___stringlit_3)) by entailer!.
 assert_PROP (isptr (gv ___stringlit_4)) by entailer!.
 freeze [0;1;2;3] FR1.
 forward_call subsume_treebox_new tt.
-Intros p.
+Intros p. 
+sep_apply tmap_rep_isptr; Intros. 
 forward_call subsume_insert (p, 3, gv ___stringlit_1, t_empty nullval).
 split. computable. auto.
 forward_call subsume_insert (p, 1, gv ___stringlit_2, (t_update (t_empty nullval) 3 (gv ___stringlit_1))).

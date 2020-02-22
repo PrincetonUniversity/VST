@@ -4,6 +4,7 @@ Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
+Open Scope funspec_scope.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -23,11 +24,11 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ _n OF tuint ]
+   PRE [ tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
@@ -37,9 +38,9 @@ Definition surely_malloc_spec :=
 Definition memset_spec :=
  DECLARE _memset
   WITH sh : share, t : type, p : val, c : Z, n : Z
-  PRE [ _s OF tptr tvoid, _c OF tint, _n OF tuint ]
+  PRE [ tptr tvoid, tint, tuint ]
    PROP (writable_share sh; sizeof t = (4 * n)%Z; align_compatible tint p)
-   LOCAL (temp _s p; temp _c (vint c); temp _n (vint (4 * n)%Z))
+   PARAMS (p; vint c; vint (4 * n)%Z) GLOBALS ()
    SEP (data_at_ sh t p)
   POST [ tptr tvoid ]
    PROP ()
@@ -114,7 +115,7 @@ Definition initialize_channels_spec :=
   WITH sh1 : share, shs : list share, gv: globals
   PRE [ ]
    PROP (Zlength shs = N; sepalg_list.list_join sh1 shs Ews)
-   LOCAL (gvars gv)
+   PARAMS () GLOBALS (gv)
    SEP (data_at_ Ews (tarray (tptr tint) N) (gv _comm); data_at_ Ews (tarray (tptr tlock) N) (gv _lock);
         data_at_ Ews (tarray (tptr tbuffer) B) (gv _bufs);
         data_at_ Ews (tarray (tptr tint) N) (gv _reading); data_at_ Ews (tarray (tptr tint) N) (gv _last_read);
@@ -151,9 +152,9 @@ Definition initialize_channels_spec :=
 Definition initialize_reader_spec :=
  DECLARE _initialize_reader
   WITH r : Z, reads : list val, lasts : list val, sh : share, gv: globals
-  PRE [ _r OF tint ]
+  PRE [ tint ]
    PROP (readable_share sh)
-   LOCAL (temp _r (vint r); gvars gv)
+   PARAMS (vint r) GLOBALS (gv)
    SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at sh (tarray (tptr tint) N) lasts (gv _last_read);
         data_at_ Ews tint (Znth r reads); data_at_ Ews tint (Znth r lasts))
   POST [ tvoid ]
@@ -174,9 +175,9 @@ Definition start_read_spec :=
   WITH r : Z, reads : list val, lasts : list val,
     locks : list val, comms : list val, bufs : list val, sh : share, sh1 : share, sh2 : share, b0 : Z,
     g : gname, g0 : gname, g1 : gname, g2 : gname, h : hist, gv: globals
-  PRE [ _r OF tint ]
+  PRE [ tint ]
    PROP (0 <= b0 < B; readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms); latest_read h (vint b0))
-   LOCAL (temp _r (vint r); gvars gv)
+   PARAMS (vint r) GLOBALS (gv)
    SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
         data_at_ Ews tint (Znth r reads); data_at Ews tint (vint b0) (Znth r lasts);
@@ -200,9 +201,9 @@ Definition start_read_spec :=
 Definition finish_read_spec :=
  DECLARE _finish_read
   WITH r : Z, reads : list val, sh : share, gv: globals
-  PRE [ _r OF tint ]
+  PRE [ tint ]
    PROP (readable_share sh)
-   LOCAL (temp _r (vint r); gvars gv)
+   PARAMS (vint r) GLOBALS (gv)
    SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at_ Ews tint (Znth r reads))
   POST [ tvoid ]
    PROP ()
@@ -214,7 +215,7 @@ Definition initialize_writer_spec :=
   WITH gv: globals
   PRE [ ]
    PROP ()
-   LOCAL (gvars gv)
+   PARAMS () GLOBALS (gv)
    SEP (data_at_ Ews tint (gv _writing); data_at_ Ews tint (gv _last_given);
         data_at_ Ews (tarray tint N) (gv _last_taken))
   POST [ tvoid ]
@@ -228,7 +229,7 @@ Definition start_write_spec :=
   WITH b0 : Z, lasts : list Z, gv: globals
   PRE [ ]
    PROP (0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts)
-   LOCAL (gvars gv)
+   PARAMS () GLOBALS (gv)
    SEP (data_at_ Ews tint (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken))
   POST [ tint ]
@@ -256,7 +257,7 @@ Definition finish_write_spec :=
    PROP (0 <= b < B; 0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; Zlength shs = N;
          readable_share sh1; readable_share lsh; Forall readable_share shs;
          sepalg_list.list_join sh0 shs Ews; Forall isptr comms; b <> b0; ~In b lasts; ~In b0 lasts)
-   LOCAL (gvars gv)
+   PARAMS () GLOBALS (gv)
    SEP (data_at Ews tint (vint b) (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
@@ -293,10 +294,10 @@ Definition reader_spec :=
  DECLARE _reader
   WITH arg : val, x : Z * list val * list val * list val * list val * list val *
                       share * share * share * gname * gname * gname * gname * globals
-  PRE [ _arg OF tptr tvoid ]
+  PRE [ tptr tvoid ]
    let '(r, reads, lasts, locks, comms, bufs, sh1, sh2, sh, g, g0, g1, g2, gv) := x in
    PROP (readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms))
-   LOCAL (temp _arg arg; gvars gv)
+   PARAMS (arg) GLOBALS (gv)
    SEP (data_at Ews tint (vint r) arg; malloc_token Ews tint arg;
         data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
@@ -311,11 +312,11 @@ Definition writer_spec :=
  DECLARE _writer
   WITH arg : val, x : list val * list val * list val * share * share *
                       share * list share * list gname * list gname * list gname * list gname * globals
-  PRE [ _arg OF tptr tvoid ]
+  PRE [ tptr tvoid ]
    let '(locks, comms, bufs, sh1, lsh, sh0, shs, g, g0, g1, g2, gv) := x in
    PROP (Zlength shs = N; readable_share sh1; readable_share lsh; Forall readable_share shs;
          sepalg_list.list_join sh0 shs Ews; Zlength g1 = N; Zlength g2 = N; Forall isptr comms)
-   LOCAL (temp _arg arg; gvars gv)
+   PARAMS (arg) GLOBALS (gv)
    SEP (data_at_ Ews tint (gv _writing); data_at_ Ews tint (gv _last_given); data_at_ Ews (tarray tint N) (gv _last_taken);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
         data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);

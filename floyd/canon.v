@@ -317,6 +317,18 @@ Proof.
   apply const_nonexpansive.
 Qed.
 
+Lemma PARAMSx_nonexpansive: forall Q R rho,
+  nonexpansive (fun S => R S rho) ->
+  nonexpansive (fun S => PARAMSx Q (R S) rho).
+Proof.
+  intros.
+  unfold PARAMSx.
+  specialize (conj_nonexpansive (fun S => (!! (snd rho = Q)) rho) (fun S => R S rho)).
+  intros CN; apply CN; clear CN; trivial.
+   red; intros. red; intros. simpl in *; intros. destruct (H0 y H1); clear H0.
+   split; trivial.
+Qed.
+
 Lemma PROPx_nonexpansive {A}: forall P Q rho,
   Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
   nonexpansive (fun S => Q S rho) ->
@@ -354,6 +366,18 @@ Lemma PROP_LOCAL_SEP_nonexpansive: forall P Q R rho,
 Proof.
   intros.
   apply PROPx_nonexpansive; auto.
+  apply LOCALx_nonexpansive.
+  apply SEPx_nonexpansive; auto.
+Qed.
+
+Lemma PROP_PARAMS_GLOBALS_SEP_nonexpansive: forall P U Q R rho,
+  Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
+  Forall (fun R0 => nonexpansive R0) R ->
+  nonexpansive (fun S => PROPx (map (fun P0 => P0 S) P) (PARAMSx U (GLOBALSx Q (SEPx (map (fun R0 => R0 S) R)))) rho).
+Proof.
+  intros.
+  apply PROPx_nonexpansive; auto.
+  apply PARAMSx_nonexpansive.
   apply LOCALx_nonexpansive.
   apply SEPx_nonexpansive; auto.
 Qed.

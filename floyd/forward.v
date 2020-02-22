@@ -471,7 +471,7 @@ Ltac semax_func_cons L :=
            | try solve [apply L]; apply_semax_body L
            | ]
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             [reflexivity | reflexivity | reflexivity
              | left; reflexivity
              | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
              ]
@@ -510,7 +510,7 @@ Qed.
 Ltac semax_func_cons_ext :=
  repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]);
   eapply semax_func_cons_ext;
-    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    [ reflexivity | reflexivity |  reflexivity 
     | left; reflexivity
     | semax_func_cons_ext_tc;
       try solve [apply typecheck_return_value; auto]
@@ -518,7 +518,6 @@ Ltac semax_func_cons_ext :=
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
-          | reflexivity
           | reflexivity ]]]
       || fail "Try 'eapply semax_func_cons_ext.'"
               "To solve [semax_external] judgments, do 'eapply semax_ext.'"
@@ -666,7 +665,7 @@ first [
   end;
   fail 100 "Before forward_call, assert and prove" G
  end
-  | fail 99 "Fail in tactic check_vl_eq_args"] .
+  | idtac (*alternative: fail 99 "Fail in tactic check_vl_eq_args"*)] .
 
 Lemma exp_uncurry2:
   forall {T} {ND: NatDed T} A B C F,
@@ -4906,3 +4905,10 @@ Tactic Notation "assert_after" constr(n) constr(PQR) :=
  end;
  apply semax_seq' with PQR; abbreviate_semax.
 
+Ltac do_funspec_sub :=
+intros;
+apply NDsubsume_subsume;
+[ split; extensionality gv; reflexivity
+| split; [ split; reflexivity | intros w; simpl in w; intros [g args]; normalize;
+                                unfold_for_go_lower; simpl; entailer! ]
+].

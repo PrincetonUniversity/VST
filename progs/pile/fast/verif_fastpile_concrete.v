@@ -91,19 +91,14 @@ start_function.
 forward_call (malloc_spec_sub t) gv.
 Intros p.
 if_tac.
-forward_if False.
-forward_call tt.
-contradiction.
-forward.
-contradiction.
+{ subst.
+  forward_if False.
+  - forward_call 1. contradiction.
+  - inv H2. }
 forward_if True.
-forward_call tt.
-contradiction.
-forward.
-entailer!.
-forward.
-Exists p.
-entailer!.
++ contradiction.
++ forward. entailer!.
++ forward. Exists p. entailer!.
 Qed.
 
 Definition module := 

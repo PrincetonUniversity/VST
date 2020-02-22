@@ -22,8 +22,8 @@ Definition HFalsePostCond FR t y x w nonce out c k h xs ys :=
 PROP  ()
  LOCAL  (lvar _t (tarray tuint 4) t;
  lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
- lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
- temp _k k; temp _h (Vint (Int.repr h)))
+ lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+ temp _h (Vint (Int.repr h)))
  SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
  data_at Tsh (tarray tuint 16) (map Vint ys) y;
  EX  l : list val,
@@ -58,8 +58,8 @@ Lemma verif_fcore_epilogue_hfalse Espec FR t y x w nonce out c k h OUT xs ys:
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
+   temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuchar 64) OUT out;
          data_at Tsh (tarray tuint 16) (map Vint ys) y;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
@@ -71,8 +71,8 @@ Proof. intros. abbreviate_semax.
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP
    (FR; @data_at CompSpecs Tsh (tarray tuint 16) (map Vint xs) x;
    @data_at CompSpecs Tsh (tarray tuint 16) (map Vint ys) y;

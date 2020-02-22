@@ -730,7 +730,7 @@ Proof.
       with lasts.
     rewrite sublist_nil; entailer!.
     apply derives_refl'; f_equal; f_equal.
-    { f_equal.
+    { f_equal. f_equal.
       apply map_ext_in.
       intros; rewrite In_upto in *.
       destruct (zlt a 0); [omega | rewrite map_add_empty; auto]. }

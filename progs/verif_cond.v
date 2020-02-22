@@ -1,7 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.progs.cond.
 
-Global Open Scope old_funspec_scope.
+Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -25,10 +25,10 @@ Definition tlock_inv sh lockt lock cond data :=
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : share * globals
-  PRE [ _args OF (tptr tvoid) ]
+  PRE [ (*_args OF *)(tptr tvoid) ]
          let '(sh, gv) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvars gv)
+         (*LOCAL (temp _args y; gvars gv)*)PARAMS (y) GLOBALS (gv)
          SEP   (cond_var sh (gv _cond);
                 lock_inv sh (gv _mutex) (dlock_inv (gv _data));
                 lock_inv sh (gv _tlock) (tlock_inv sh (gv _tlock) (gv _mutex) (gv _cond) (gv _data)))
@@ -142,6 +142,7 @@ Proof.
     { rewrite sepcon_comm. rewrite !sepcon_assoc.
       erewrite cond_var_share_join; eauto; cancel. }
     forward.
+Unshelve. apply xH. (*TODO: fix (I believe) the forward_spawn tactic  so that this ident is not introduces. Is it the y?*)
 Qed.
 
 Definition extlink := ext_link_prog prog.

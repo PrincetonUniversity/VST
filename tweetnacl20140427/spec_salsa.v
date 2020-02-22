@@ -12,6 +12,8 @@ Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.Snuffle.
 Require Import VST.floyd.library.
 
+Global Open Scope funspec_scope.
+
 Definition CoreInSEP (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
                      (v: val * val * val) : mpred :=
   match data with (Nonce, C, K) =>
@@ -98,14 +100,9 @@ Definition core_spec :=
    WITH c : val, k:val, h:Z,
         nonce:val, out:val, OUT:list val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
-   PRE [ _out OF tptr tuchar,
-         _in OF tptr tuchar,
-         _k OF tptr tuchar,
-         _c OF tptr tuchar,
-         _h OF tint ]
+   PRE [ tptr tuchar, tptr tuchar, tptr tuchar, tptr tuchar, tint ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out;
-             temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+      PARAMS (out; nonce; k; c; Vint (Int.repr h)) GLOBALS ()
       SEP (CoreInSEP data (nonce, c, k);
            data_at Tsh (tarray tuchar (OutLen h)) OUT out)
   POST [ tvoid ] (f_core_POST (nonce, c, k) out h data).
@@ -113,9 +110,9 @@ Definition core_spec :=
 Definition ld32_spec :=
   DECLARE _ld32
    WITH x : val, B:QuadByte
-   PRE [ _x OF tptr tuchar ]
+   PRE [ tptr tuchar ]
       PROP ()
-      LOCAL (temp _x x)
+      PARAMS (x) GLOBALS ()
       SEP (data_at Tsh (tarray tuchar 4) (QuadByte2ValList B) x)
   POST [ tuint ] 
      PROP ()
@@ -125,9 +122,9 @@ Definition ld32_spec :=
 Definition st32_spec :=
   DECLARE _st32
    WITH x : val, u:int
-   PRE [ _x OF tptr tuchar, _u OF tuint ]
+   PRE [ tptr tuchar, tuint ]
       PROP ()
-      LOCAL (temp _x x; temp _u (Vint u))
+      PARAMS (x; Vint u) GLOBALS ()
       SEP (data_at_ Tsh (tarray tuchar 4) x)
   POST [ tvoid ] 
      PROP ()
@@ -137,9 +134,9 @@ Definition st32_spec :=
 Definition L32_spec :=
   DECLARE _L32
    WITH x : int, c: int
-   PRE [ _x OF tuint, _c OF tint ]
+   PRE [ tuint, tint ]
       PROP (0 < Int.signed c < 32) (*yes, c=Int.zero needs to be ruled out - it leads to undefined behaviour in the shift-right operation*)
-      LOCAL (temp _x (Vint x); temp _c (Vint c))
+      PARAMS (Vint x; Vint c) GLOBALS ()
       SEP ()
   POST [ tuint ]
      PROP ()
@@ -163,9 +160,9 @@ Definition bigendian64 (b c:QuadByte): int64 :=
 Definition dl64_spec :=
   DECLARE _dl64
    WITH x : val, B:QuadByte, C: QuadByte
-   PRE [ _x OF tptr tuchar ]
+   PRE [ tptr tuchar ]
       PROP ()
-      LOCAL (temp _x x)
+      PARAMS (x) GLOBALS ()
       SEP (data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x)
   POST [ tulong ] 
      PROP ()
@@ -333,9 +330,9 @@ Qed.
 Definition ts64_spec :=
   DECLARE _ts64
    WITH x : val, u:int64
-   PRE [ _x OF tptr tuchar, _u OF tulong ]
+   PRE [ tptr tuchar, tulong ]
       PROP ()
-      LOCAL (temp _x x; temp _u (Vlong u))
+      PARAMS (x; Vlong u) GLOBALS ()
       SEP (data_at_ Tsh (tarray tuchar 8) x)
   POST [ tvoid ] 
      PROP ()
@@ -343,19 +340,14 @@ Definition ts64_spec :=
      SEP (let (B, C) := bigendian64_invert u in
           data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x).
 
-
 Definition crypto_core_salsa20_spec :=
   DECLARE _crypto_core_salsa20_tweet
    WITH c : val, k:val,
         nonce:val, out:val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
-   PRE [ _out OF tptr tuchar,
-         _in OF tptr tuchar,
-         _k OF tptr tuchar,
-         _c OF tptr tuchar ]
+   PRE [ tptr tuchar, tptr tuchar, tptr tuchar, tptr tuchar ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out;
-             temp _c c; temp _k k)
+      PARAMS (out; nonce; k; c) GLOBALS ()
       SEP ( CoreInSEP data (nonce, c, k);
             data_at_ Tsh (tarray tuchar 64) out)
   POST [ tint ]
@@ -380,13 +372,9 @@ Definition crypto_core_hsalsa20_spec :=
    WITH c : val, k:val,
         nonce:val, out:val, OUT: list val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
-   PRE [ _out OF tptr tuchar,
-         _in OF tptr tuchar,
-         _k OF tptr tuchar,
-         _c OF tptr tuchar ]
+   PRE [ tptr tuchar, tptr tuchar, tptr tuchar,tptr tuchar ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out;
-             temp _c c; temp _k k)
+      PARAMS (out; nonce; k; c) GLOBALS ()
       SEP (CoreInSEP data (nonce, c, k);
            data_at Tsh (tarray tuchar 32) OUT out)
   POST [ tint ]
@@ -552,11 +540,10 @@ Definition crypto_stream_salsa20_xor_spec :=
    WITH c : val, k:val, m:val, nonce:val, b:int64,
         Nonce : SixteenByte, K: SixteenByte * SixteenByte,
         mCont: list byte, gv: globals
-   PRE [ _c OF tptr tuchar, _m OF tptr tuchar, _b OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
+   PRE [ tptr tuchar, tptr tuchar, tulong,
+         tptr tuchar, tptr tuchar]
       PROP (Zlength mCont = Int64.unsigned b)
-      LOCAL (temp _c c; temp _m m; temp _b (Vlong b);
-             temp _n nonce; temp _k k; gvars gv)
+      PARAMS (c; m; Vlong b; nonce; k) GLOBALS (gv)
       SEP ( SByte Nonce nonce;
             data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c;
             ThirtyTwoByte K k;
@@ -574,11 +561,9 @@ Definition f_crypto_stream_xsalsa20_tweet_xor_spec :=
    WITH c : val, k:val, nonce:val, m:val, d:int64, mCont: list byte,
         Nonce : SixteenByte, Nonce2 : SixteenByte, K: SixteenByte * SixteenByte,
         gv: globals
-   PRE [ _c OF tptr tuchar, _m OF tptr tuchar,  _d OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
+   PRE [ tptr tuchar, tptr tuchar, tulong, tptr tuchar, tptr tuchar]
       PROP (Zlength mCont = Int64.unsigned d)
-      LOCAL (temp _c c; temp _m m; temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvars gv)
+      PARAMS (c; m; Vlong d; nonce; k) GLOBALS (gv)
       SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val 16 nonce);
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
@@ -600,11 +585,9 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
    WITH c : val, k:val, nonce:val, d:int64,
         Nonce : SixteenByte, Nonce2 : SixteenByte, K: SixteenByte * SixteenByte,
         gv: globals
-   PRE [ _c OF tptr tuchar,  _d OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
+   PRE [ tptr tuchar, tulong, tptr tuchar, tptr tuchar]
       PROP ()
-      LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvars gv)
+      PARAMS (c; Vlong d; nonce; k) GLOBALS (gv)
       SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val 16 nonce);
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
@@ -629,11 +612,9 @@ Definition f_crypto_stream_salsa20_tweet_spec :=
    WITH c : val, k:val, nonce:val, d:int64,
         Nonce : SixteenByte, K: SixteenByte * SixteenByte,
         (*mCont: list byte, *) gv: globals
-   PRE [ _c OF tptr tuchar, (*_m OF tptr tuchar,*) _d OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
+   PRE [ tptr tuchar, tulong, tptr tuchar, tptr tuchar]
       PROP ((*Zlength mCont = Int64.unsigned b*))
-      LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvars gv)
+      PARAMS (c; Vlong d; nonce; k) GLOBALS (gv)
       SEP ( SByte Nonce nonce;
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
@@ -649,23 +630,23 @@ Definition f_crypto_stream_salsa20_tweet_spec :=
 Definition vn_spec :=
   DECLARE _vn
   WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
-  PRE [_x OF tptr tuchar, _y OF tptr tuchar, _n OF tint]
+  PRE [ tptr tuchar, tptr tuchar, tint]
     PROP (readable_share xsh; readable_share ysh; 0<=n<= Int.max_unsigned)
-    LOCAL (temp _x x; temp _y y; temp _n (Vint (Int.repr n)))
+    PARAMS (x; y; Vint (Int.repr n)) GLOBALS ()
     SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
          data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
   POST [tint]
     PROP ()
     LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
     SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
-         data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y). 
+         data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).
     
 Definition verify16_spec :=
   DECLARE _crypto_verify_16_tweet
   WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
-  PRE [_x OF tptr tuchar, _y OF tptr tuchar]
+  PRE [ tptr tuchar, tptr tuchar]
     PROP (readable_share xsh; readable_share ysh)
-    LOCAL (temp _x x; temp _y y)
+    PARAMS (x; y) GLOBALS ()
     SEP (data_at xsh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
          data_at ysh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
   POST [tint]
@@ -677,16 +658,16 @@ Definition verify16_spec :=
 Definition verify32_spec :=
   DECLARE _crypto_verify_32_tweet
   WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
-  PRE [_x OF tptr tuchar, _y OF tptr tuchar]
+  PRE [tptr tuchar, tptr tuchar]
     PROP (readable_share xsh; readable_share ysh)
-    LOCAL (temp _x x; temp _y y)
+    PARAMS (x; y) GLOBALS ()
     SEP (data_at xsh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
          data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
   POST [tint]
     PROP ()
     LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
     SEP (data_at xsh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
-         data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).       
+         data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).
 
 Definition SalsaVarSpecs : varspecs := (_sigma, tarray tuchar 16)::nil.
 

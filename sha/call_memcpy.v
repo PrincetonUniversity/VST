@@ -192,22 +192,22 @@ Lemma semax_call_id0_alt:
    (GLBL: (var_types Delta) ! id = None),
        (glob_specs Delta) ! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
        (glob_types Delta) ! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
-   tfun = type_of_params argsig ->
-  @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
-                  && |>((`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))
-                         * PROPx P (LOCALx Q (SEPx R)))))
+   (*tfun = type_of_params argsig ->*)tfun =typelist_of_type_list argsig ->
+  @semax cs Espec Delta (tc_exprlist Delta argsig bl
+                  && |>((fun rho : environ =>
+               Pre x (ge_of rho, eval_exprlist argsig bl rho)) *
+              PROPx P (LOCALx Q (SEPx R))))
     (Scall None (Evar id (Tfunction tfun retty cc)) bl)
     (normal_ret_assert
        ((ifvoid retty (`(Post x) (make_args nil nil))
-                                                   (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))))
+           (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))))
          * PROPx P (LOCALx Q (SEPx R)))).
 Proof.
 intros.
 subst tfun.
-apply (@semax_call_id0 Espec cs Delta P Q R id bl (NDmk_funspec (argsig, retty) cc A Pre Post) argsig retty cc (rmaps.ConstType A) nil x
-                  (fun _ => Pre) (fun _ => Post)
-               (const_super_non_expansive _ _)
-               (const_super_non_expansive _ _)); auto.
+eapply (@semax_call_id0 Espec cs Delta P Q R id bl (NDmk_funspec (argsig, retty) cc A Pre Post)
+           argsig retty cc (rmaps.ConstType A) nil x
+                  (fun _ => Pre) (fun _ => Post)); eauto. 
 apply funspec_sub_refl.
 Qed.
 
@@ -309,7 +309,7 @@ eapply semax_pre_post';
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 
-*
+* unfold convertPre. simpl fst; simpl snd.
  rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
  eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
  rewrite !andp_assoc.
@@ -346,30 +346,33 @@ eapply semax_pre_post';
  apply andp_left2, andp_left2.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
- autorewrite with norm1 norm2.
- rewrite PROP_combine.
- unfold app at 1.
- instantiate (1:=Frame).
+ autorewrite with norm1 norm2. 
+ instantiate (1:=Frame). simpl. unfold env_set, local, lift1, liftx, lift. simpl. intros tau. entailer!. 
+
+(* rewrite PROP_combine.*)
+(* unfold app at 1.*)
+(* instantiate (1:=Frame).
  unfold app at 2.
  go_lowerx.
  apply andp_right.
  apply prop_right.
  unfold make_args'. simpl.
- unfold eval_id, env_set.
+ unfold eval_id, env_set.*)
  rewrite TCp, TCq, TCn.  simpl.
  unfold_lift; simpl.
- rewrite <- H6, <- H7, <- H8.
- split3; try (repeat split; auto; congruence).
+ (*rewrite <- H6, <- H7, <- H8.*)
+ normalize. unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift. simpl. unfold liftx, lift. simpl. normalize.
+ 
+(* split3; try (repeat split; auto; congruence).*)
  apply andp_right.
- apply prop_right; split3; auto.
+ { apply prop_right; split3; auto. repeat split; trivial.  congruence.  }
  subst Frame.
- normalize.
  cancel.
  rewrite !field_at_data_at.
  rewrite (data_at_type_changable _ _ _ _ _ H0 H3).
  rewrite (data_at_type_changable _ _ _ _ _ H1 H2).
- sep_apply (array_with_hole_intro shp tuchar lop (lop + len) np vp' (field_address tp pathp p)); [omega | ].
- sep_apply (array_with_hole_intro shq tuchar loq (loq + len) nq (map Vint contents) (field_address tq pathq q)); [omega | ].
+ sep_apply (array_with_hole_intro shp tuchar lop (lop + len) (*np*)(Zlength vp') vp' (field_address tp pathp p)); [omega | ].
+ sep_apply (array_with_hole_intro shq tuchar loq (loq + len) (*nq*)(Zlength contents)  (map Vint contents) (field_address tq pathq q)); [omega | ].
  cancel.
  apply sepcon_derives.
  - apply derives_refl'.
@@ -551,7 +554,7 @@ eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
-*
+* unfold convertPre. simpl fst; simpl snd.
  rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
  eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
  rewrite !andp_assoc.
@@ -575,6 +578,34 @@ eapply semax_pre_post';
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.
+
+ instantiate (1:=Frame). simpl. unfold env_set, local, lift1, liftx, lift. simpl. intros tau. entailer!.
+
+(* rewrite PROP_combine.*)
+(* unfold app at 1.*)
+(* instantiate (1:=Frame).
+ unfold app at 2.
+ go_lowerx.
+ apply andp_right.
+ apply prop_right.
+ unfold make_args'. simpl.
+ unfold eval_id, env_set.*)
+ rewrite TCp, TCc, TCn.  simpl.
+ (*rewrite <- H6, <- H7, <- H8.*)
+ unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift. simpl. unfold liftx, lift. simpl. normalize.
+ 
+(* split3; try (repeat split; auto; congruence).*)
+ apply andp_right.
+ { apply prop_right; split3; auto. repeat split; trivial; congruence. }
+ subst Frame.
+ cancel. (*
+ rewrite !field_at_data_at.
+ rewrite (data_at_type_changable _ _ _ _ _ H0 H3).
+ rewrite (data_at_type_changable _ _ _ _ _ H1 H2).
+ sep_apply (array_with_hole_intro shp tuchar lop (lop + len) (*np*)(Zlength vp') vp' (field_address tp pathp p)); [omega | ].
+ sep_apply (array_with_hole_intro shq tuchar loq (loq + len) (*nq*)(Zlength contents)  (map Vint contents) (field_address tq pathq q)); [omega | ].
+ cancel.
+
  rewrite PROP_combine.
  unfold app at 1.
  instantiate (1:=Frame).
@@ -588,7 +619,7 @@ eapply semax_pre_post';
  apply prop_right. split3; try (repeat split; auto; congruence).
  normalize.
  subst Frame.
- cancel.
+ cancel.*)
  rewrite array_at_data_at' by  (try solve [clear - FC; intuition]; omega).
  eapply derives_trans; [apply data_at_data_at_ | ].
  eapply derives_trans; [apply data_at__memory_block_cancel | ].

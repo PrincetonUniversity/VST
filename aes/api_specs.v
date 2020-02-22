@@ -7,6 +7,7 @@ Require Export aes.spec_utils_LL.
 Require Export aes.list_utils.
 Require Export aes.spec_encryption_LL.
 
+Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.

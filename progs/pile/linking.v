@@ -212,7 +212,7 @@ Ltac semax_func_cons' L H :=
                apply_semax_body L
            | ]
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             [reflexivity | reflexivity | reflexivity
              | left; reflexivity
              | apply H | LookupID | LookupB | apply L |
              ]

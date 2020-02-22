@@ -222,8 +222,7 @@ Proof.
  apply derives_refl.
  repeat split; auto; try reflexivity.
  apply align_compatible_tarray_tuchar.
-*
-  forward. (* ll=(c)->h[xn]; *)
+* forward. (* ll=(c)->h[xn]; *)
   pose (w := Znth i hashedmsg).
   pose (bytes := intlist_to_bytelist [w]).
   assert (BYTES: bytes =
@@ -237,85 +236,77 @@ Proof.
   f_equal.
   rewrite sublist_len_1 by omega.
   reflexivity.
- }
- unfold data_at.
- assert_PROP (field_compatible (tarray tuchar 32) [] md)
-     as FCmd by entailer!.
- change WORD with 4.
- erewrite (field_at_Tarray _ (tarray tuchar 32)) by (try (apply JMeq_refl; reflexivity); try reflexivity; computable).
-     rewrite (split2_array_at _ _ _ 0 (i*4)) by (autorewrite with sublist; omega).
-     rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; omega).
- autorewrite with sublist.
- replace (32 - 4 * i - 4)  with (32 - (i*4+4)) by (clear; omega).
+  }
+  unfold data_at.
+  assert_PROP (field_compatible (tarray tuchar 32) [] md)
+      as FCmd by entailer!.
+  change WORD with 4.
+  erewrite (field_at_Tarray _ (tarray tuchar 32)) by (try (apply JMeq_refl; reflexivity); try reflexivity; computable).
+      rewrite (split2_array_at _ _ _ 0 (i*4)) by (autorewrite with sublist; omega).
+      rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; omega).
+  autorewrite with sublist.
+  replace (32 - 4 * i - 4)  with (32 - (i*4+4)) by (clear; omega).
   Intros.
   change 64 with CBLOCKz. set (N32 := 32).
   change (Z.to_nat 4) with (Z.to_nat WORD).
- assert (COMPAT: field_compatible0 (tarray tuchar 32) [ArraySubsc (i * 4)] md).
+  assert (COMPAT: field_compatible0 (tarray tuchar 32) [ArraySubsc (i * 4)] md).
      repeat split; auto; try omega.
      hnf in FCmd; intuition. apply align_compatible_tarray_tuchar.
   replace (N32-(i*4+4)) with (N32 - i*4 - WORD)
    by (change WORD with 4; omega).
   forward_call (* builtin_write32_reversed *)
      (field_address0 (tarray tuchar 32) [ArraySubsc (i*4)] md, shmd, bytes).
- +
-  apply prop_right.
-  split.
-  rewrite Znth_big_endian_integer by omega.
-  f_equal. simpl. f_equal. f_equal.
-  rewrite BYTES. f_equal.
-  change WORD with 4; clear; omega.
-  simpl; f_equal.
-  rewrite field_address0_offset by auto with field_compatible.
-  simpl. normalize.
- +
-sep_apply (array_at_memory_block shmd (tarray tuchar N32) nil (i*4)).
-omega. simpl. normalize. replace  (i * 4 + 4 - i * 4) with 4 by omega.
-cancel.
-+
-     split; auto. subst bytes. simpl. autorewrite with sublist. clear; omega.
- +
-  forward. (* md += 4; *)
-  replace (32 - WORD * (i+1)) with (N32 - i*4-WORD)
-    by  (subst N32; change WORD with 4; omega).
-  change 64 with CBLOCKz.
-  set (vbytes := map Vubyte bytes).
-  entailer!.
-  f_equal. omega.
-   unfold data_at.
-   erewrite field_at_Tarray; try (apply JMeq_refl); try reflexivity; try omega.
-   erewrite field_at_Tarray; try (apply JMeq_refl); try reflexivity; try omega.
-  unfold N32; change WORD with 4.
-  rewrite (split2_array_at _ _ _ 0 (i*4) 32) by (autorewrite with sublist; omega).
-  rewrite (split2_array_at _ _ _ (i*4) (i*4+4) 32) by (autorewrite with sublist; omega).
+  + apply prop_right. simpl.
+    rewrite Znth_big_endian_integer by omega.
+    rewrite field_address0_offset by auto with field_compatible.
+    rewrite BYTES.
+    change WORD with 4. simpl.
+    f_equal; f_equal; [ | do 3 f_equal]; omega.
+  + sep_apply (array_at_memory_block shmd (tarray tuchar N32) nil (i*4)).
+    omega. simpl. normalize. replace  (i * 4 + 4 - i * 4) with 4 by omega.
+    cancel.
+  + split; auto. subst bytes. simpl. autorewrite with sublist. clear; omega.
+  + forward. (* md += 4; *)
+    replace (32 - WORD * (i+1)) with (N32 - i*4-WORD)
+      by  (subst N32; change WORD with 4; omega).
+    change 64 with CBLOCKz.
+    set (vbytes := map Vubyte bytes).
+    entailer!.
+    f_equal. omega.
+    unfold data_at.
+    erewrite field_at_Tarray; try (apply JMeq_refl); try reflexivity; try omega.
+    erewrite field_at_Tarray; try (apply JMeq_refl); try reflexivity; try omega.
+    unfold N32; change WORD with 4.
+    rewrite (split2_array_at _ _ _ 0 (i*4) 32) by (autorewrite with sublist; omega).
+    rewrite (split2_array_at _ _ _ (i*4) (i*4+4) 32) by (autorewrite with sublist; omega).
+    autorewrite with sublist.
+    replace (32 - i * 4 - 4 - (4 + i * 4 - (i + 1) * 4))
+          with (32-i*4-4)
+     by (clear; rewrite Z.mul_add_distr_r; omega).
+    rewrite !sublist_map.
+    rewrite <- (sublist_intlist_to_bytelist 0 (i+1)). change WORD with 4.
+    autorewrite with sublist.
+    change (@sublist byte 0 (i*4)) with (@sublist byte (0*WORD) (i*WORD)).
+    rewrite sublist_intlist_to_bytelist.
+    rewrite (Z.add_comm 4 (i*4)).
+    rewrite <- BYTES.
+    fold vbytes.
+    change (32 - i*4 - 4) with (N32 - i*4 - WORD).
+    cancel.
+    rewrite !array_at_data_at' by (auto with field_compatible; omega).
+    simpl.
+    autorewrite with sublist.
+    apply derives_refl'.
+    f_equal.
+    rewrite field_address0_offset by auto with field_compatible.
+    normalize.
+* change 64%Z with CBLOCKz.
   autorewrite with sublist.
-   replace (32 - i * 4 - 4 - (4 + i * 4 - (i + 1) * 4))
-        with (32-i*4-4)
-  by (clear; rewrite Z.mul_add_distr_r; omega).
-  rewrite !sublist_map.
-  rewrite <- (sublist_intlist_to_bytelist 0 (i+1)). change WORD with 4.
-  autorewrite with sublist.
-  change (@sublist byte 0 (i*4)) with (@sublist byte (0*WORD) (i*WORD)).
-  rewrite sublist_intlist_to_bytelist.
-  rewrite (Z.add_comm 4 (i*4)).
-  rewrite <- BYTES.
-  fold vbytes.
-  change (32 - i*4 - 4) with (N32 - i*4 - WORD).
-  cancel.
-rewrite !array_at_data_at' by (auto with field_compatible; omega).
-simpl.
-autorewrite with sublist.
-apply derives_refl'.
-f_equal.
-rewrite field_address0_offset by auto with field_compatible.
-normalize.
-*
-  change 64%Z with CBLOCKz.
-  autorewrite with sublist.
-Time  forward. (* return; *)  (* 60 seconds -> 4.7 seconds*)
+  Time forward. (* return; *)  (* 60 seconds -> 4.7 seconds*)
   unfold data_block.
-   rewrite Zlength_intlist_to_bytelist. rewrite H.
+  rewrite Zlength_intlist_to_bytelist. rewrite H.
   cancel.
-Time Qed. (* 64 sec *)
+Time Qed. (*02/21/20: 1.9s (WAS: 64 sec) *)
 
 Lemma final_part2:
 forall (Espec : OracleKind) (hashed : list int) (md c : val) (wsh shmd : share) gv
@@ -392,13 +383,12 @@ Proof.
      (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c,
       wsh, hibytes). (*9*)
-  apply prop_right; repeat constructor; hnf; simpl.
-  rewrite (nth_big_endian_integer 0 [hi_part bitlen]) at 1; reflexivity.
-  rewrite field_address_offset by auto.
-  rewrite field_address0_offset by auto with field_compatible.
-  reflexivity.
-  split; auto.
-  clear; compute; congruence.
+  { apply prop_right; repeat constructor; hnf; simpl.
+    rewrite (nth_big_endian_integer 0 [hi_part bitlen]) at 1 by reflexivity.
+    rewrite field_address_offset.
+    rewrite field_address0_offset by auto with field_compatible; reflexivity.
+    red in FC; red. simpl in FC; simpl. intuition. }
+  { split; auto. clear; compute; congruence. }
   Time forward. (* p += 4; *) (*11 secs*)
   replace (force_val _) 
    with  (field_address t_struct_SHA256state_st [ArraySubsc 60; StructField _data] c)
@@ -410,13 +400,12 @@ Proof.
     (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 60; StructField _data] c,
      wsh, lobytes). (*8.8*)
-  apply prop_right; repeat constructor; hnf; simpl.
-  rewrite (nth_big_endian_integer 0 [lo_part bitlen]) at 1; reflexivity.
-
-  rewrite field_address0_offset by auto with field_compatible.
-  rewrite field_address_offset by (pose proof CBLOCKz_eq; auto with field_compatible).
-  reflexivity.
-  split; auto. clear; compute; congruence.
+  { apply prop_right; repeat constructor; hnf; simpl.
+    rewrite (nth_big_endian_integer 0 [lo_part bitlen]) at 1 by reflexivity.
+    rewrite field_address0_offset by auto with field_compatible.
+    rewrite field_address_offset by (pose proof CBLOCKz_eq; auto with field_compatible).
+    reflexivity. }
+  { split; auto. clear; compute; congruence. }
 
   match goal with |- context [SEPx (?A :: _)] =>
    replace A with (array_at wsh t_struct_SHA256state_st [StructField _data] 60 64

@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import fastapile.
 Require Import spec_stdlib.
 Require Import spec_fastpile.
+Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -13,9 +14,9 @@ Local Open Scope assert.
 Definition Apile_add_spec :=
  DECLARE _Apile_add
  WITH n: Z, sigma: list Z, gv: globals
- PRE [ _n OF tint  ]
+ PRE [ tint  ]
     PROP(0 <= n <= Int.max_signed)
-    LOCAL(temp _n (Vint (Int.repr n)); gvars gv)
+    PARAMS (Vint (Int.repr n)) GLOBALS (gv)
     SEP(apile gv sigma; mem_mgr gv)
  POST[ tvoid ]
     PROP() LOCAL()
@@ -28,7 +29,7 @@ Definition Apile_count_spec :=
  WITH sigma: list Z, gv: globals
  PRE [  ]
     PROP(0 <= sumlist sigma <= Int.max_signed)
-    LOCAL(gvars gv)
+    PARAMS () GLOBALS (gv)
     SEP(apile gv sigma; mem_mgr gv)
  POST[ tint ]
       PROP() 

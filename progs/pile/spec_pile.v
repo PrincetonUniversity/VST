@@ -3,6 +3,7 @@ Require Import pile.
 Require Import spec_stdlib.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Global Open Scope funspec_scope.
 
 
 Definition tlist := Tstruct _list noattr.
@@ -82,7 +83,7 @@ Local Open Scope assert.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
-   FOR t:type, gv: globals
+   WITH t:type, gv: globals
    PRE [ tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
@@ -96,7 +97,7 @@ Definition surely_malloc_spec :=
 
 Definition Pile_new_spec :=
  DECLARE _Pile_new
- FOR gv: globals
+ WITH gv: globals
  PRE [ ] PROP() (LAMBDAx [gv] [] (SEP(mem_mgr gv)))
  POST[ tptr tpile ]
    EX p: val,
@@ -105,7 +106,7 @@ Definition Pile_new_spec :=
 
 Definition Pile_add_spec :=
  DECLARE _Pile_add
- FOR p: val, n: Z, sigma: list Z, gv: globals
+ WITH p: val, n: Z, sigma: list Z, gv: globals
  PRE [ tptr tpile, tint  ]
     PROP(0 <= n <= Int.max_signed)
     (LAMBDAx [gv] [p; Vint (Int.repr n)]
@@ -118,7 +119,7 @@ Definition sumlist : list Z -> Z := List.fold_right Z.add 0.
 
 Definition Pile_count_spec :=
  DECLARE _Pile_count
- FOR p: val, sigma: list Z
+ WITH p: val, sigma: list Z
  PRE [ tptr tpile  ]
     PROP(0 <= sumlist sigma <= Int.max_signed)
     (LAMBDAx [] [p]
@@ -130,7 +131,7 @@ Definition Pile_count_spec :=
 
 Definition Pile_free_spec :=
  DECLARE _Pile_free
- FOR p: val, sigma: list Z, gv: globals
+ WITH p: val, sigma: list Z, gv: globals
  PRE [ tptr tpile  ]
     PROP()
     (LAMBDAx [gv] [p]

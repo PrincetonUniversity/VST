@@ -23,7 +23,7 @@ Proof.
     subst p. entailer!.
     entailer!.
 *
-    forward_call tt.
+    forward_call 1.
     contradiction.
 *
     if_tac.
@@ -259,4 +259,5 @@ Proof.
   rewrite !app_nil_r.
   Exists comms locks bufs reads lasts g g0 g1 g2.
   entailer!.
+  apply derives_refl.
 Qed.
