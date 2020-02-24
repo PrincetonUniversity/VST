@@ -61,6 +61,8 @@ Section Concurrent_correctness.
     
   
   Section TrivialSimulations.
+    Notation scheduler:=HybridMachineSig.HybridMachineSig.HybridCoarseMachine.scheduler.
+    
     Definition ctl_lifting {c1 c2} (f:c1 -> c2) (C:@ctl c1) :=
       match C with
       | Krun X0 => Krun (f X0)
@@ -238,12 +240,12 @@ Section Concurrent_correctness.
       - reflexivity.
     Qed.
     Lemma external_step_event_injectable:
-      forall SM Sch U tr st m U' tr_tail st' m',
+      forall SM U tr st m U' tr_tail st' m',
         @HybridMachineSig.HybridMachineSig.external_step
           _ _ (@OrdinalPool.OrdinalThreadPool dryResources (@ClightMachine.DMS.DSem Clight_g))
           SM (@DryHybridMachineSig (@ClightMachine.DMS.DSem Clight_g)
            (@OrdinalPool.OrdinalThreadPool dryResources
-              (@ClightMachine.DMS.DSem Clight_g))) Sch
+              (@ClightMachine.DMS.DSem Clight_g))) scheduler
           U tr st m U' (tr ++ tr_tail) st' m' ->
         Forall2 (inject_mevent (Mem.flat_inj (Mem.nextblock m'))) tr_tail tr_tail.
       intros. inv H;
@@ -278,8 +280,10 @@ Section Concurrent_correctness.
         + econstructor. unfold Mem.flat_inj. 
           * match_case; eauto.
             clear Heqs. contradict n.
-        (* need to know that b is valid, could add it to the semantics? *)
-            admit.
+            move Hf_ptr_nonempty at bottom.
+            simpl in Hf_ptr_nonempty.
+            unfold HybridMachineSig.HybridMachineSig.isCoarse in Hf_ptr_nonempty.
+            eapply Mem.perm_valid_block; eauto.
           * omega.
         + econstructor.
         + econstructor.
@@ -315,9 +319,8 @@ Section Concurrent_correctness.
             eapply memory_lemmas.MemoryLemmas.load_valid_block in Hload as HH.
             eapply HH.
           * omega.
-    Admitted. (*Checked 1/16/20: only one admit, needs some work *)
-    
-    Notation scheduler:=HybridMachineSig.HybridMachineSig.HybridCoarseMachine.scheduler.
+
+    Qed.
     Local Ltac cat_find_and_replace_nil:=
         match goal with
         | [H: ?t = ?t ++ ?x |- _ ] =>
@@ -364,6 +367,75 @@ Section Concurrent_correctness.
       let HH:=fresh in
                 pose proof H as HH;
                 simpl in HH; erewrite HH.
+
+
+    Lemma lift_c_lockRes:
+          forall st b ofs,
+            OrdinalPool.lockRes (lift_c_state st) (b, intval ofs) =
+            OrdinalPool.lockRes st (b, intval ofs).
+        Proof.
+          intros.
+          destruct st. simpl.
+          unfold OrdinalPool.lockRes, OrdinalPool.lockGuts;
+            reflexivity.
+        Qed.
+    Lemma sync_step_lift_c_state:
+      forall st tid m st' m' ev
+        (Hcnt: OrdinalPool.containsThread st tid)
+        (Hcmpt: @HybridMachineSig.HybridMachineSig.mem_compatible
+                  _ _ _
+                  (@DryHybridMachineSig _ OrdinalPool.OrdinalThreadPool)
+                  st m),
+        @HybridMachineSig.HybridMachineSig.syncStep
+          _ _ _ (@DryHybridMachineSig _ OrdinalPool.OrdinalThreadPool)
+          true tid st m  Hcnt Hcmpt st' m' ev ->
+        forall (Hcnt': OrdinalPool.containsThread (lift_c_state st) tid)
+          (Hcmpt': @HybridMachineSig.HybridMachineSig.mem_compatible
+                     _ _ _
+                     (@DryHybridMachineSig (HybridSem _) _)
+                     (lift_c_state st) m),
+          @HybridMachineSig.HybridMachineSig.syncStep
+            _ (HybridSem _) _ _ true tid 
+            (lift_c_state st) m  Hcnt' Hcmpt' (lift_c_state st') m' ev.
+    Proof.
+      intros.
+      inv H; simpl in *;
+        [ econstructor 1|
+          econstructor 2|
+          econstructor 3|
+          econstructor 4|
+          econstructor 5|
+          econstructor 6]; simpl; eauto.
+      all: try (erewrite Compcert_lemmas.restre_equiv_eq; eauto;
+            erewrite getR_lift_c_state; reflexivity).
+      all: try now eapply invariant_lift_c_state; eauto.
+      all: try solve[ exploit getC_lift_c_state; eauto].
+      all: try (erewrite Compcert_lemmas.restre_equiv_eq; eauto;
+            erewrite getR_lift_c_state; reflexivity).
+      all: try (erewrite getR_lift_c_state; eassumption).
+      all: try now rewrite lift_c_lockRes; eassumption.
+      all: destruct st; simpl; eauto.
+      - unfold OrdinalPool.updLockSet, OrdinalPool.updThread; simpl.
+        f_equal; extensionality h;
+          clean_proofs_goal; match_case; reflexivity.
+      - unfold OrdinalPool.updLockSet, OrdinalPool.updThread; simpl.
+        f_equal; extensionality h;
+        clean_proofs_goal; match_case; reflexivity.
+      - subst_set.
+        unfold OrdinalPool.addThread, OrdinalPool.updThread; simpl.
+        f_equal; extensionality h;
+          clean_proofs_goal; repeat (match_case; try reflexivity).
+      - unfold OrdinalPool.updLockSet, OrdinalPool.updThread; simpl.
+        f_equal; extensionality h;
+        clean_proofs_goal; match_case; reflexivity.
+      - unfold OrdinalPool.remLockSet, OrdinalPool.updThread; simpl.
+        f_equal; extensionality h;
+          clean_proofs_goal; match_case; reflexivity.
+
+        Unshelve.
+        all: try (erewrite getR_lift_c_state; eassumption).
+    Qed.
+    
     Lemma external_step_lift_c_state:
       forall U U' tr tr' m st st' m',
         @HybridMachineSig.HybridMachineSig.external_step
@@ -466,7 +538,8 @@ Section Concurrent_correctness.
           eauto; intros Hsame_R.
         unshelve econstructor 4; eauto.
         + eapply mem_compatible_lift_c_state; eauto.
-        + admit. (* Same Lemma (AS THIS CURRENT ONE) for syncStep*)
+        + clean_proofs_goal.
+          eapply sync_step_lift_c_state; eauto.
       - (*schedfail*)
         unshelve econstructor 5; eauto.
         + destruct Htid; [left| right].
@@ -481,10 +554,7 @@ Section Concurrent_correctness.
 
           Unshelve.
           eapply contains_lift_c_state; eauto.
-    Admitted. (*Checked 1/16/20. adm its: 
-                1. First admit is a mistake in the semantics of sum_sem: fix it and done.
-                2. Its a full new similar to the present one, but for sync_steps. 
-               *)
+    Qed. 
     
     Lemma external_step_anytrace:
       forall U U' tr1 tr_trail m st st' m',
@@ -655,7 +725,7 @@ Section Concurrent_correctness.
     (* NOTE: This section could be moved to where the simulations are defined. *) 
     Section SimulationTransitivity.
       Lemma HBSimulation_transitivity:
-        forall G1 G2 G3 TID SCH C1 C2 C3 res,
+        forall G1 G2 G3 TID SCH C1 C2 C3 res (ge2:G2),
         forall (Machine1 : @machine_semantics.ConcurSemantics G1 TID SCH _ C1 mem res)
                (Machine2 : @machine_semantics.ConcurSemantics G2 TID SCH _ C2 mem res)
                (Machine3 : @machine_semantics.ConcurSemantics G3 TID SCH _ C3 mem res)
@@ -664,36 +734,86 @@ Section Concurrent_correctness.
           HybridMachine_simulation' Machine2 Machine3 inv2 inv3 cmpt2 cmpt3 ->
           HybridMachine_simulation' Machine1 Machine3 inv1 inv3 cmpt1 cmpt3.
       Proof.
-        destruct 1 as [index1 match_state1 match_inv1 match_cmpt1 SIM1].
+        destruct 2 as [index1 match_state1 match_inv1 match_cmpt1 SIM1].
         destruct 1 as [index2 match_state2 match_inv2 match_cmpt2 SIM2].
+        set (match_state := fun a j c1 m1 c3 m3 =>
+                              exists j1 j2 c2 m2, j =
+                                             compose_meminj j1 j2 /\
+                                             match_state1 (fst a) j1 c1 m1 c2 m2 /\
+                                             match_state2 (snd a) j2 c2 m2 c3 m3).
         eapply Build_HybridMachine_simulation' with
             (index := (index1 * index2)%type)
-            (match_state := fun a j c1 m1 c3 m3 => exists j1 j2 c2 m2, j =
-                                                               compose_meminj j1 j2 /\
-                                                               match_state1 (fst a) j1 c1 m1 c2 m2 /\
-                                                               match_state2 (snd a) j2 c2 m2 c3 m3).
-        { intros; normal_hyp; eauto.  }
-        { intros; normal_hyp; eauto. }
-
+            (match_state := match_state).
+        { subst match_state; simpl. intros; normal_hyp; eauto.  }
+        { subst match_state; simpl. intros; normal_hyp; eauto. }
+        
         { inversion SIM1; inversion SIM2; econstructor.
         - apply Coqlib.wf_lex_ord; eauto.
-        - intros.
+        - subst match_state; simpl; intros.
           destruct (initial_setup _ _ _ _ _ _ H) as (? & ? & ? & ? & ? & ? & H2 & ?).
           destruct (initial_setup0 _ _ _ _ _ _ H2) as (? & ? & ? & ? & ? & ? & ? & ?).
           eexists; eexists (_, _); eauto 12.
         - intros.
-          (* Where should the second ge come from?
-      destruct (thread_diagram _ _ _ _ _ _ _ H _ _ _ _ H0) as (? & ? & ? & ? & ? & ?). *)
-          admit.
-        (*      edestruct thread_diagram0 as (? & ? & ? & ? & ? & ?); eauto.*)
+          unfold match_state in H0; simpl in H0.
+          normal_hyp; subst.
+          eapply thread_diagram in H; eauto.
+          normal_hyp.
+          Lemma step_diagram_helper':
+            forall{G TID SCH TR C M res inx : Type}
+              Machine2 tge U st m st' m' (x1 x2:inx) ord,
+              (machine_semantics_lemmas.thread_step_plus Machine2 tge U st m st' m' \/
+              machine_semantics_lemmas.thread_step_star Machine2 tge U st m st' m' /\
+               ord x1 x2) <->
+              (@machine_semantics_lemmas.thread_step_plus
+                 G TID SCH TR C M res
+                 Machine2 tge U st m st' m' \/
+               st = st' /\ m = m' /\ ord x1 x2).
+          Proof.
+            intros; split.
+            - intros [|[]]; eauto.
+              destruct H as [n H]. destruct n.
+              + inv H; eauto.
+              + left; econstructor; eauto.
+            - intros [|]; eauto.
+              normal; subst. right; split; eauto.
+              exists 0%nat. econstructor.
+          Qed.
+          eapply step_diagram_helper' in H4. destruct H4 as [H4|(?&?&?)]; swap 1 2.
+          + normal; subst.
+            * subst match_state; simpl.
+              do 4 eexists; repeat weak_split.
+              -- reflexivity.
+              -- instantiate (4:=(x5, snd cd)).
+                 simpl; eauto.
+              -- simpl; eauto.
+            * eapply inject_incr_trace; try eapply H1.
+              apply mem_lemmas.compose_meminj_inject_incr; eauto.
+            * eapply step_diagram_helper'.
+              right.
+              repeat weak_split eauto.
+              simpl.
+              destruct cd; simpl.
+              constructor; eauto.
+            * apply mem_lemmas.compose_meminj_inject_incr; eauto.
+          + admit. (* The step_plus lemma just like in multiple_thread_simulation_proof.v *)
         - intros.
-          (* Where should the second ge come from?
-      destruct (machine_diagram _ _ _ _ _ _ _ _ _ _ H _ _ _ _ H0) as (? & ? & ? & ? & ? & ?). *)
-          admit.
+          subst match_state; simpl in *; normal_hyp.
+          subst mu. apply list_inject_mevent_interpolation in H3.
+          normal_hyp. eauto.
+          eapply machine_diagram in H; eauto; normal_hyp.
+          eapply machine_diagram0 in H7; eauto; normal_hyp.
+          exists x9, x10, x11, (x7, x12), (compose_meminj x8 x13). 
+          repeat weak_split eauto.
+          + normal; eauto.
+          + eapply forall_inject_mevent_compose; eauto.
+          + apply mem_lemmas.compose_meminj_inject_incr; assumption.
         - intros ???????? (? & ? & ? & ? & ? & ? & ?) ?.
           edestruct thread_halted; eauto.
-       (* - intros ?????? (? & ? & ? & ? & ? & ? & ?) ?.
-          erewrite thread_running; eauto. *)
+        - intros ?????? (? & ? & ? & ? & ? & ? & ?) ?.
+          erewrite thread_running; eauto.
+
+          Unshelve.
+          all: eauto.          
       Admitted. (* Checked 1/16/20. adm its: 
                    Transitivity should be true... 
                  *)
@@ -707,10 +827,17 @@ Section Concurrent_correctness.
     intros **.
     eapply simpl_clight_semantic_preservation in H.
     inv H. clear - Injfsim_match_entry_pointsX.
+
+    unfold Genv.init_mem; simpl.
+    unfold Genv.globalenv; simpl.
+    
+    
+    
     exploit Injfsim_match_entry_pointsX; simpl.
+    
     simpl.
     econstructor; simpl; eauto.
-    (* This is not true yet. 
+    (* This can be a static check.
        Maybe you want to go to compcert and prove this directly, 
        it will break when remove globals is introduced...
      *)

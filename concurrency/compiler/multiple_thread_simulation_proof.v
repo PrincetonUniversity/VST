@@ -289,15 +289,8 @@ Section ThreadedSimulation.
         - econstructor.
           2: constructor. 2: constructor.
           eapply lockRes_valid in Hinv. simpl in *.
-          eapply valid_inject_address, Mem.perm_valid_block. 
-          Lemma spawn_function_nonemty:
-            (* this also appears in synchronisation_symulations
-                 To be removed by adding it to the create_step.
-             *)
-            forall (temporary_fix_while_we_add_this_to_semantics: unit),
-            forall m1 b ofs, Mem.perm m1 b (unsigned ofs) Max Nonempty.
-          Admitted.
-          apply spawn_function_nonemty; constructor.
+          eapply valid_inject_address, Mem.perm_valid_block.
+          eauto.
         - constructor.
           eapply lockRes_valid in Hinv. simpl in *.
           eapply valid_inject_address.
@@ -316,8 +309,7 @@ Section ThreadedSimulation.
           eapply valid_inject_address.
           eapply memory_lemmas.MemoryLemmas.load_valid_block in Hload; eauto.
 
-          Unshelve.
-          eauto.
+          
 
       Qed.
       Lemma machine_step_trace_wf:
@@ -436,26 +428,27 @@ Section ThreadedSimulation.
       
       
       Lemma step_diagram_helper:
-        forall mu hb0 hb (ord: relation (nth_index hb)) tr1 tr2 m U cd (m1':mem) (st1':ThreadPool (Some hb0)) tge st2 m2
+        forall mu (hb0 hb:option nat) index (ord: relation index ) tr1 tr2 m U cd (m1':mem)
+          (st1':ThreadPool hb0) tge st2 m2
           match_state, 
-          (exists (st2' : ThreadPool (Some hb)) (m2' : mem) cd' 
+          (exists (st2' : ThreadPool hb) (m2' : mem) cd' 
              (mu' : meminj),
-              match_state hb cd' mu' st1' m1' st2' m2' /\
+              match_state cd' mu' st1' m1' st2' m2' /\
               Forall2 (inject_mevent mu') tr1 tr2 /\
               (machine_semantics_lemmas.thread_step_plus
-                 (HybConcSem (Some hb) m) 
+                 (HybConcSem hb m) 
                  tge U st2 m2 st2' m2' \/
                machine_semantics_lemmas.thread_step_star
-                 (HybConcSem (Some hb) m) 
+                 (HybConcSem hb m) 
                  tge U st2 m2 st2' m2' /\ ord cd' cd) /\
               inject_incr mu mu')
           <->
-          exists (st2' : ThreadPool (Some hb)) (m2' : mem) cd' 
+          exists (st2' : ThreadPool hb) (m2' : mem) cd' 
             (mu' : meminj),
-            match_state hb cd' mu' st1' m1' st2' m2' /\
+            match_state cd' mu' st1' m1' st2' m2' /\
             Forall2 (inject_mevent mu') tr1 tr2 /\
             (machine_semantics_lemmas.thread_step_plus
-               (HybConcSem (Some hb) m) 
+               (HybConcSem hb m) 
                tge U st2 m2 st2' m2' \/  m2=m2' /\ st2=st2' /\ ord cd' cd) /\
             inject_incr mu mu'.
       Proof.
@@ -891,6 +884,32 @@ Section ThreadedSimulation.
           all: assumption.
       Qed. 
 
+      Lemma simulation_properties_exposed_order_inclusion:
+        forall SG TG TID SCH SC TC R1 R2 Sem1 Sem2
+          Hinv Hcmpt index match_state order1 order2,
+          @simulation_properties_exposed SG TG TID SCH SC TC R1 R2 Sem1 Sem2
+                                         Hinv Hcmpt index match_state order1 ->
+          inclusion _ order1 order2 ->
+          well_founded order2 ->
+          @simulation_properties_exposed SG TG TID SCH SC TC R1 R2 Sem1 Sem2
+                                         Hinv Hcmpt index match_state order2.
+      Proof.
+        intros.
+        inversion X.
+        unshelve econstructor.
+        destruct xSIM; simpl in *.
+        eapply Build_HybridMachine_simulation_properties with (core_ord:= order2);
+          eauto.
+        - clear - H thread_diagram Hexpose_order.
+          intros; exploit thread_diagram; eauto.
+          intros; normal_hyp.
+          normal; eauto.
+          destruct H5 as [ ? | [? ?]]; eauto.
+          right; split; eauto.
+          apply H; eauto.
+          rewrite <- Hexpose_order; auto.
+        - simpl. repeat match_case; reflexivity.
+      Qed.
       
       Context (Hexterns_have_events: Asm_externals_have_events Asm_g).
       Lemma compile_n_threads:
@@ -907,32 +926,6 @@ Section ThreadedSimulation.
           apply trivial_self_injection.
         - eapply simulation_inductive_case; eauto.
           intros.
-          Lemma simulation_properties_exposed_order_inclusion:
-            forall SG TG TID SCH SC TC R1 R2 Sem1 Sem2
-              Hinv Hcmpt index match_state order1 order2,
-              @simulation_properties_exposed SG TG TID SCH SC TC R1 R2 Sem1 Sem2
-                                             Hinv Hcmpt index match_state order1 ->
-              inclusion _ order1 order2 ->
-              well_founded order2 ->
-              @simulation_properties_exposed SG TG TID SCH SC TC R1 R2 Sem1 Sem2
-                                             Hinv Hcmpt index match_state order2.
-          Proof.
-            intros.
-            inversion X.
-            unshelve econstructor.
-            destruct xSIM; simpl in *.
-            eapply Build_HybridMachine_simulation_properties with (core_ord:= order2);
-              eauto.
-            - clear - H thread_diagram Hexpose_order.
-              intros; exploit thread_diagram; eauto.
-              intros; normal_hyp.
-              normal; eauto.
-              destruct H5 as [ ? | [? ?]]; eauto.
-              right; split; eauto.
-              apply H; eauto.
-              rewrite <- Hexpose_order; auto.
-            - simpl. repeat match_case; reflexivity.
-          Qed.
           eapply simulation_properties_exposed_order_inclusion.
           + eapply compile_one_thread; auto.
           + constructor 1; auto.
