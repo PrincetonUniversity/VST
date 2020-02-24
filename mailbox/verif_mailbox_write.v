@@ -697,7 +697,7 @@ Qed.
 
 Lemma body_finish_write : semax_body Vprog Gprog f_finish_write finish_write_spec.
 Proof.
-  start_function.
+  start_function. simpl map.
   rewrite sepcon_map; Intros.
   forward.
   forward.

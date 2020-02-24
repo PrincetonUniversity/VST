@@ -540,25 +540,32 @@ Next Obligation.
   intro cs; hnf.
   intros.
   destruct x as [[v sh] R]; simpl in *.
-Admitted. (* super_non_expansive obligation of freelock_spec' *)
-(*
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP (writable_share sh)
-    LOCAL (temp _lock v)
-    SEP (weak_positive_mpred R && emp; lock_inv sh v R; R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          ((fun _ => writable_share sh) :: nil)
-          (temp _lock v :: nil)
-          ((fun R => weak_positive_mpred R && emp)%logic :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply const_nonexpansive.
-  + apply (conj_nonexpansive weak_positive_mpred).
-    - apply positive_mpred_nonexpansive.
-    - apply const_nonexpansive.
-  + apply nonexpansive_lock_inv.
-  + apply identity_nonexpansive.
+  apply (nonexpansive_super_non_expansive (fun R => (PROP (writable_share sh)
+   (LAMBDAx nil (v :: nil) 
+    SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)) gargs))).
+  unfold LAMBDAx, GLOBALSx, SEPx, PROPx, LOCALx, argsassert2assert. simpl. 
+  apply (conj_nonexpansive (fun R0 : mpred => (!! (writable_share sh /\ True)))
+    (fun R0 => (!! (snd gargs = v :: nil) &&
+     (local (liftx True) (Clight_seplog.mkEnv (fst gargs) nil nil) &&
+      (weak_exclusive_mpred R0 && emp * (lock_inv sh v R0 * (R0 * emp)))))))%logic.
+  apply const_nonexpansive.
+  apply (conj_nonexpansive (fun R0 : pred rmap => (!! (snd gargs = v :: nil)))
+          (fun R0 => (local (liftx True) (Clight_seplog.mkEnv (fst gargs) nil nil) &&
+     (weak_exclusive_mpred R0 && emp * (lock_inv sh v R0 * (R0 * emp))))))%logic.
+  apply const_nonexpansive.
+  apply (conj_nonexpansive
+         (fun R0 : pred rmap => (local (liftx True) (Clight_seplog.mkEnv (fst gargs) nil nil)))
+         (fun R0 : pred rmap => (weak_exclusive_mpred R0 && emp * (lock_inv sh v R0 * (R0 * emp)))))%logic.
+  apply const_nonexpansive.
+  apply sepcon_nonexpansive.
+  apply (conj_nonexpansive (fun x =>weak_exclusive_mpred x) (fun x => emp)). apply exclusive_mpred_nonexpansive.
+  apply const_nonexpansive.
+  apply sepcon_nonexpansive.
+  apply nonexpansive_lock_inv.
+  apply sepcon_nonexpansive. 
+  apply identity_nonexpansive.
+  apply const_nonexpansive.
 Qed.
-*)
 Next Obligation.
   intro cs; hnf.
   intros.
@@ -928,6 +935,9 @@ Proof.
   rewrite compcert_rmaps.RML.approx_oo_approx; auto.
 Qed.
 
+Lemma approx_idem' : forall n P, approx n (approx n P) =
+  approx n P.
+Proof. intros. apply approx_idem. Qed.
 (*
 Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
 Proof.
@@ -947,90 +957,35 @@ Qed.*)
 Lemma approx_derives_e {n P Q}: @derives mpred Nveric  P Q -> @derives mpred Nveric (approx n P) (approx n Q).
 Proof. intros. apply approx_hered_derives_e. apply H. Qed.
 
+Lemma funcptr_f_equal' fs fs' v v': fs=fs' -> v=v' -> func_ptr' fs v = func_ptr' fs' v'.
+Proof. intros; subst; trivial. Qed.
+
 Lemma spawn_pre_nonexpansive: @args_super_non_expansive spawn_arg_type spawn_pre.
-Proof.
-  repeat intro.
+Proof. repeat intro.
   destruct x as ((((?, ?), ?), ?), ?); simpl.
-  unfold PROPx. simpl. rewrite !approx_andp.
-  change (@andp (@pred rmap ag_rmap)) with (@andp mpred) in *.
-  unfold LAMBDAx, GLOBALSx.
-  unfold LOCALx; simpl; rewrite !approx_andp. f_equal.
-  change (@andp (@pred rmap ag_rmap)) with (@andp mpred) in *.
-  change (@eq (@pred rmap ag_rmap)) with (@eq mpred) in *.
-  unfold SEPx, argsassert2assert ; simpl.
-  rewrite !sepcon_emp, !approx_sepcon, ?approx_idem.
-  apply pred_ext. 
-  + apply andp_derives; trivial. apply derives_refl.
-    apply andp_derives. apply derives_refl.
-    apply sepcon_derives. 2: apply derives_refl.
-    rewrite !approx_exp. apply exp_derives; intros y. 
+  unfold PROPx; simpl; rewrite !approx_andp; f_equal.
+  unfold LAMBDAx. rewrite !approx_andp; f_equal.
+  unfold GLOBALSx, LOCALx; simpl. rewrite !approx_andp. f_equal.
+  unfold argsassert2assert. simpl.
+  unfold SEPx; simpl. rewrite !sepcon_emp.
+  rewrite !approx_sepcon. rewrite approx_idem.
+  apply pred_ext; apply sepcon_derives; trivial; apply derives_refl'.
+  (* f_equal.*)
+  + rewrite !approx_exp; apply f_equal; extensionality y.
     rewrite approx_func_ptr'.
-    setoid_rewrite approx_func_ptr' at 2. (* apply approx_derives_e.*)
-    unfold func_ptr', func_ptr, func_ptr_si.
-    change (@andp (@pred rmap ag_rmap)) with (@andp mpred) in *.
-    apply approx_derives_e. apply andp_derives; trivial. simpl. 
-    change (@predicates_hered.exp rmap ag_rmap) with (@exp mpred Nveric).
-    apply exp_derives. intros b.
-    change (@predicates_hered.andp rmap ag_rmap) with (@andp mpred Nveric) in *.
-    change (@predicates_hered.prop rmap ag_rmap) with (@prop mpred Nveric) in *.
-    apply andp_derives; trivial.
-    apply exp_derives. intros fs. apply hered_derives_derives. 
-(*    apply funspec_sub_sub_si'.*)
-(*apply funspec_sub_si_refl.*)
-Admitted. (*
- 
-Search @predicates_hered.derives seplog.funspec_sub_si . apply derives_refl. f_equal. trivial.
- Check Nveric. NatDed mpredapply andp_derives; trivial.
- apply exp_derives.
-Search ageable. Print mpred.
-    repeat change (@predicates_hered.exp (@pred rmap ag_rmap)) with (@exp mpred) in *.
-    apply andp_derives; trivial. eapply hered_derives_derives. Search derives predicates_hered.derives.x  unfold derives. simpl. apply andp_derives. apply exp_derives.    f_equal.  Search approx derives.
-    remember (WITH a : val * nth 0 ts unit PRE
-      [tptr tvoid] (fun rho0 : arsEnviron =>
-                    approx n
-                      ((let (y0, x) := a in
-                        fun x0 : argsEnviron =>
-                        !! True &&
-                        (!! (snd x0 = y0 :: nil) &&
-                         (local (liftx and (gvars_denote (_f0 x)) (liftx True))
-                            (Clight_seplog.mkEnv (fst x0) nil nil) &&
-                          argsassert2assert nil (fun _ : argsEnviron => _f2 x y0 * emp)
-                            (Clight_seplog.mkEnv (fst x0) nil nil)))) rho0))
-      POST [tptr tvoid] (fun rho0 : environ =>
-                         approx n
-                           ((let (_, _) := a in
-                             fun x0 : environ => !! True && (local (liftx True) x0 && emp)) rho0))). 
-( (fun rho0 : argsEnviron =>
-                    approx n
-                      ((let (y0, x) := a in
-                        fun x0 : argsEnviron =>
-                        !! True &&
-                        (!! (snd x0 = y0 :: nil) &&
-                         (local (liftx and (gvars_denote (_f0 x)) (liftx True))
-                            (Clight_seplog.mkEnv (fst x0) nil nil) &&
-                          argsassert2assert nil (fun _ : argsEnviron => _f2 x y0 * emp)
-                            (Clight_seplog.mkEnv (fst x0) nil nil)))) rho0))).
-Search approx derives.
-    apply  f_equal.
-  do 3 f_equal.
-  extensionality a rho'; destruct a.
-  rewrite !approx_andp, !approx_sepcon, approx_idem; auto. apply exp_derives; intros y.
+    setoid_rewrite approx_func_ptr' at 2. apply f_equal.
+    apply funcptr_f_equal'; trivial. simpl.
+    apply semax_prog.funspec_eq; trivial.
+    extensionality tss a rho'; destruct a.
+    rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
+  + rewrite !approx_exp; apply f_equal; extensionality y.
     rewrite approx_func_ptr'.
-    setoid_rewrite approx_func_ptr' at 2.
-  do 3 f_equal.
-  extensionality a rho'; destruct a.
-  rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
-     f_equal.
-  assert (RR: compcert_rmaps.R.approx n (_f2 _f1 v0) = approx n (_f2 _f1 v0)) by reflexivity.
-  rewrite <- RR. f_equal. unfold approx.
-Locate rmap. (*f_equal.*)
-  rewrite !approx_exp; apply f_equal; extensionality y.
-  rewrite approx_func_ptr'.
-  setoid_rewrite approx_func_ptr' at 2.
-  do 3 f_equal.
-  extensionality a rho'; destruct a.
-  rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
-Qed.*)
+    setoid_rewrite approx_func_ptr' at 2. apply f_equal.
+    apply funcptr_f_equal'; trivial. simpl.
+    apply semax_prog.funspec_eq; trivial.
+    extensionality tss a rho'; destruct a.
+    rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
+Qed.
 
 Lemma spawn_post_nonexpansive: @super_non_expansive spawn_arg_type spawn_post.
 Proof.

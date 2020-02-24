@@ -97,7 +97,7 @@ Qed.
 
 Lemma body_fiddle: semax_body Vprog Gprog f_fiddle fiddle_spec.
 Proof.
-start_function.
+start_function. simpl map.
 rename H into Htag.
 assert_PROP (Zlength contents = n) as LEN. {
   entailer!.

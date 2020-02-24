@@ -50,7 +50,10 @@ Require VST.msl.wandQ_frame.
 Require VST.floyd.linking.
 Require Export VST.floyd.funspec_old.
 
-Global Close Scope funspec_scope.
+(*funspec scope is the default, so remains open.
+  User who wnt ot use old funspecs should 
+  "Require Import Require Import VST.floyd.Funspec_old_Notation."
+  Global Close Scope funspec_scope.*)
 
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.

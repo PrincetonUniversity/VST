@@ -27,13 +27,16 @@ Require Import VST.progs.reverse.
 
 Open Scope logic.
 
+Require Import VST.floyd.Funspec_old_Notation. (*This line is needed as the specs below
+are "old funspecs", as described in the tutrial etc. A more moden approach is to use
+(new) funspecs, in which function parameters are not named.*)
+
 (* The C programming language has a special namespace for struct
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators
 ** in the program logic need access to an interpretation of this namespace,
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
 ** line (which looks identical for any program) builds this
 ** interpretation, called "CompSpecs" *)
-Global Open Scope old_funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

@@ -17,6 +17,8 @@ Require Import VST.floyd.library.
 
 Require Export hmacdrbg.hmac_drbg_compspecs.
 
+Require Import VST.floyd.Funspec_old_Notation.
+
 Ltac fix_hmacdrbg_compspecs :=
   rewrite (@data_at__change_composite spec_hmac.CompSpecs hmac_drbg_compspecs.CompSpecs
             hmac_drbg_compspecs.CompSpecs_Preserve) by reflexivity.

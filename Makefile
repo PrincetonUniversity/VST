@@ -255,7 +255,7 @@ FLOYD_FILES= \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
-   call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
+   call_lemmas.v extcall_lemmas.v forward_lemmas.v funspec_old.v forward.v \
    entailer.v globals_lemmas.v \
    local2ptree_denote.v local2ptree_eval.v local2ptree_typecheck.v \
    fieldlist.v mapsto_memory_block.v\
@@ -264,7 +264,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   funspec_old.v subsume_funspec.v linking.v list_solver.v data_at_lemmas.v
+   subsume_funspec.v linking.v list_solver.v data_at_lemmas.v Funspec_old_Notation.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and

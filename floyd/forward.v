@@ -4389,7 +4389,7 @@ Ltac start_function1 :=
         | erewrite compute_close_precondition by reflexivity];*)
 
 Ltac start_function2 :=
-(*NEW*) simpl map; simpl app;
+(*NEW simpl map;*) simpl app;
  simplify_func_tycontext;
  repeat match goal with
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>

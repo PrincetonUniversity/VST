@@ -453,8 +453,8 @@ induction (prog_vars prog); simpl; auto.
 f_equal; auto.
 Qed.
 
-Notation "'main_pre'" := (old_main_pre) : old_funspec_scope.
-Notation "'main_pre'" := (SeparationLogic.main_pre) : funspec_scope.
+(*Notation "'main_pre'" := (old_main_pre) : old_funspec_scope.
+Notation "'main_pre'" := (SeparationLogic.main_pre) : funspec_scope.*)
 
 Lemma convertPre_helper1:
   forall P1 P Q R x,

@@ -1,6 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.logical_compare.
-Global Open Scope old_funspec_scope.
+
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
 
 (****  START *)

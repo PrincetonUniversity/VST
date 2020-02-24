@@ -1,7 +1,9 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.progs.object.
-Global Open Scope old_funspec_scope.
+
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

@@ -259,5 +259,4 @@ Proof.
   rewrite !app_nil_r.
   Exists comms locks bufs reads lasts g g0 g1 g2.
   entailer!.
-  apply derives_refl.
 Qed.

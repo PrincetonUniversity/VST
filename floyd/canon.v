@@ -60,10 +60,10 @@ Definition SEPx {A} (R: list mpred) : A->mpred :=
 Arguments SEPx A R _ : simpl never.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
-         (at level 7).
+         (at level 8).
 
-Notation " 'SEP' ( ) " := (SEPx nil) (at level 7).
-Notation " 'SEP' () " := (SEPx nil) (at level 7).
+Notation " 'SEP' ( ) " := (SEPx nil) (at level 8).
+Notation " 'SEP' () " := (SEPx nil) (at level 8).
 
 Declare Scope assert.
 Delimit Scope assert with assert.
@@ -76,10 +76,10 @@ Definition GLOBALSx (gs : list globals) (X : argsassert): argsassert :=
 Arguments GLOBALSx gs _ : simpl never.
 
 Notation " 'GLOBALS' ( x ; .. ; y )  z" := (GLOBALSx (cons x%logic .. (cons y%logic nil) ..) z)
-         (at level 8).
+         (at level 9).
 
-Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z) (at level 8).
-Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z) (at level 8).
+Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z) (at level 9).
+Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z) (at level 9).
 
 Definition PARAMSx (vals:list val)(X : argsassert): argsassert :=
  fun (gvals : argsEnviron) => !! (snd gvals = vals (*/\ Forall (fun v : val => v <> Vundef) vals*)) && X gvals.

@@ -9,7 +9,6 @@ Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac.
 Require Import VST.veric.change_compspecs.
 
-Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
   make_cs_preserve spec_sha.CompSpecs CompSpecs.

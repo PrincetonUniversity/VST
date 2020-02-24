@@ -4,7 +4,9 @@ Require Import sha.sha.
 Require Import sha.general_lemmas.
 Require Import sha.vst_lemmas.
 Require Import sha.SHA256.
-Global Open Scope old_funspec_scope.
+
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Open Scope logic.
