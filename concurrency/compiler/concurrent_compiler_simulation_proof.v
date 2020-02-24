@@ -724,40 +724,7 @@ Section Concurrent_correctness.
 
     (* NOTE: This section could be moved to where the simulations are defined. *) 
     Section SimulationTransitivity.
-      Lemma HBSimulation_transitivity:
-        forall G1 G2 G3 TID SCH C1 C2 C3 res (ge2:G2),
-        forall (Machine1 : @machine_semantics.ConcurSemantics G1 TID SCH _ C1 mem res)
-               (Machine2 : @machine_semantics.ConcurSemantics G2 TID SCH _ C2 mem res)
-               (Machine3 : @machine_semantics.ConcurSemantics G3 TID SCH _ C3 mem res)
-        inv1 inv2 inv3 cmpt1 cmpt2 cmpt3,
-          HybridMachine_simulation' Machine1 Machine2 inv1 inv2 cmpt1 cmpt2 -> 
-          HybridMachine_simulation' Machine2 Machine3 inv2 inv3 cmpt2 cmpt3 ->
-          HybridMachine_simulation' Machine1 Machine3 inv1 inv3 cmpt1 cmpt3.
-      Proof.
-        destruct 2 as [index1 match_state1 match_inv1 match_cmpt1 SIM1].
-        destruct 1 as [index2 match_state2 match_inv2 match_cmpt2 SIM2].
-        set (match_state := fun a j c1 m1 c3 m3 =>
-                              exists j1 j2 c2 m2, j =
-                                             compose_meminj j1 j2 /\
-                                             match_state1 (fst a) j1 c1 m1 c2 m2 /\
-                                             match_state2 (snd a) j2 c2 m2 c3 m3).
-        eapply Build_HybridMachine_simulation' with
-            (index := (index1 * index2)%type)
-            (match_state := match_state).
-        { subst match_state; simpl. intros; normal_hyp; eauto.  }
-        { subst match_state; simpl. intros; normal_hyp; eauto. }
-        
-        { inversion SIM1; inversion SIM2; econstructor.
-        - apply Coqlib.wf_lex_ord; eauto.
-        - subst match_state; simpl; intros.
-          destruct (initial_setup _ _ _ _ _ _ H) as (? & ? & ? & ? & ? & ? & H2 & ?).
-          destruct (initial_setup0 _ _ _ _ _ _ H2) as (? & ? & ? & ? & ? & ? & ? & ?).
-          eexists; eexists (_, _); eauto 12.
-        - intros.
-          unfold match_state in H0; simpl in H0.
-          normal_hyp; subst.
-          eapply thread_diagram in H; eauto.
-          normal_hyp.
+      
           Lemma step_diagram_helper':
             forall{G TID SCH TR C M res inx : Type}
               Machine2 tge U st m st' m' (x1 x2:inx) ord,
@@ -778,12 +745,50 @@ Section Concurrent_correctness.
               normal; subst. right; split; eauto.
               exists 0%nat. econstructor.
           Qed.
+      Lemma HBSimulation_transitivity:
+        forall G1 G2 G3 TID SCH C1 C2 C3 res (ge2:G2),
+        forall (Machine1 : @machine_semantics.ConcurSemantics G1 TID SCH _ C1 mem res)
+               (Machine2 : @machine_semantics.ConcurSemantics G2 TID SCH _ C2 mem res)
+               (Machine3 : @machine_semantics.ConcurSemantics G3 TID SCH _ C3 mem res)
+        inv1 inv2 inv3 cmpt1 cmpt2 cmpt3,
+          HybridMachine_simulation' Machine1 Machine2 inv1 inv2 cmpt1 cmpt2 -> 
+          HybridMachine_simulation' Machine2 Machine3 inv2 inv3 cmpt2 cmpt3 ->
+          HybridMachine_simulation' Machine1 Machine3 inv1 inv3 cmpt1 cmpt3.
+      Proof.
+        destruct 2 as [index1 match_state1 match_inv1 match_cmpt1 SIM1].
+        destruct 1 as [index2 match_state2 match_inv2 match_cmpt2 SIM2].
+        set (match_state := fun a j c1 m1 c3 m3 =>
+                              exists j1 j2 c2 m2, j =
+                                             compose_meminj j1 j2 /\
+                                             match_state1 (snd a) j1 c1 m1 c2 m2 /\
+                                             match_state2 (fst a) j2 c2 m2 c3 m3).
+        eapply Build_HybridMachine_simulation' with
+            (index := (index2 * index1)%type)
+            (match_state := match_state).
+        { subst match_state; simpl. intros; normal_hyp; eauto.  }
+        { subst match_state; simpl. intros; normal_hyp; eauto. }
+        
+        { inversion SIM1; inversion SIM2; econstructor.
+          - apply Coqlib.wf_lex_ord.
+            eapply Transitive_Closure.wf_clos_trans; eauto.
+            eauto.
+        - subst match_state; simpl; intros.
+          destruct (initial_setup _ _ _ _ _ _ H) as (? & ? & ? & ? & ? & ? & H2 & ?).
+          destruct (initial_setup0 _ _ _ _ _ _ H2) as (? & ? & ? & ? & ? & ? & ? & ?).
+          eexists; eexists (_, _); eauto 12.
+        - intros.
+          dup H0 as HH.
+          unfold match_state in H0; simpl in H0.
+          normal_hyp; subst.
+          eapply thread_diagram in H; eauto.
+          instantiate(1:=ge2) in H.
+          normal_hyp.
           eapply step_diagram_helper' in H4. destruct H4 as [H4|(?&?&?)]; swap 1 2.
           + normal; subst.
             * subst match_state; simpl.
               do 4 eexists; repeat weak_split.
               -- reflexivity.
-              -- instantiate (4:=(x5, snd cd)).
+              -- instantiate (4:=(fst cd, x5)).
                  simpl; eauto.
               -- simpl; eauto.
             * eapply inject_incr_trace; try eapply H1.
@@ -793,16 +798,65 @@ Section Concurrent_correctness.
               repeat weak_split eauto.
               simpl.
               destruct cd; simpl.
-              constructor; eauto.
+              constructor 2; eauto.
             * apply mem_lemmas.compose_meminj_inject_incr; eauto.
-          + admit. (* The step_plus lemma just like in multiple_thread_simulation_proof.v *)
+          + destruct cd as (cd2&cd1).
+            cut (exists (st2' : C3) (m2' : mem) (cd' : index2 ) (j2' : meminj),
+                    match_state2 cd' j2' x3 x4 st2' m2' /\
+                    (machine_semantics_lemmas.thread_step_plus Machine3 tge U st2 m2 st2' m2' \/
+                     machine_semantics_lemmas.thread_step_star Machine3 tge U st2 m2 st2' m2' /\
+                     Relation_Operators.clos_trans _ core_ord0 cd' (cd2)) /\ inject_incr x0 j2').
+            { intros; normal.
+              - hnf. do 4 eexists. repeat weak_split.
+                reflexivity.
+                instantiate (4:=(x9, x5)); eauto.
+                eauto.
+              - eapply inject_incr_trace; try eapply H1.
+                apply mem_lemmas.compose_meminj_inject_incr; eauto.
+              - destruct H7; normal_hyp; eauto. right; split; eauto.
+                econstructor; eauto. 
+              - apply mem_lemmas.compose_meminj_inject_incr; eauto. }
+
+            destruct H4.
+            revert H4.
+            clear - H3 x7 thread_diagram0.
+            exploit list_inject_mevent_interpolation; eauto.
+            intros; normal_hyp.
+            inv H.
+            revert tge cd2 st2 m2 x1 x2 x0 x3 x4 H0 H3 H4.
+            clear - x7 thread_diagram0.
+            induction x7.
+            * intros. simpl in H4; normal_hyp.
+              inv H1.
+              eapply thread_diagram0 in H; eauto.
+              normal_hyp.
+              normal; eauto.
+              { destruct H2; eauto. right;normal_hyp.
+                split; eauto. constructor; eauto. } 
+            * intros. inv H4. normal_hyp.
+              eapply thread_diagram0 in H; eauto.
+              normal_hyp. 
+              exploit IHx7; eauto.
+              intros; normal_hyp.
+              instantiate(1:=tge) in H4.
+              unshelve eapply step_diagram_helper' in H4; eauto.
+              unshelve eapply step_diagram_helper' in H7; eauto.
+              normal; eauto.
+              2:{ eapply inject_incr_trans; eauto. }
+              
+              eapply step_diagram_helper'.
+              clear - H4 H7.
+              destruct H4; destruct H7; normal_hyp; subst; eauto.
+              -- left. eapply machine_semantics_lemmas.thread_step_plus_trans; eauto.
+              -- right; normal; eauto. 
+                 econstructor 2; eauto. constructor; eauto.
         - intros.
           subst match_state; simpl in *; normal_hyp.
           subst mu. apply list_inject_mevent_interpolation in H3.
           normal_hyp. eauto.
           eapply machine_diagram in H; eauto; normal_hyp.
           eapply machine_diagram0 in H7; eauto; normal_hyp.
-          exists x9, x10, x11, (x7, x12), (compose_meminj x8 x13). 
+          exists x9, x10, x11, (x12, x7), (compose_meminj x8 x13). 
           repeat weak_split eauto.
           + normal; eauto.
           + eapply forall_inject_mevent_compose; eauto.
@@ -813,10 +867,8 @@ Section Concurrent_correctness.
           erewrite thread_running; eauto.
 
           Unshelve.
-          all: eauto.          
-      Admitted. (* Checked 1/16/20. adm its: 
-                   Transitivity should be true... 
-                 *)
+          all: eauto. }          
+      Qed. 
     End SimulationTransitivity.
 
   Lemma initial_memories_are_equal:
