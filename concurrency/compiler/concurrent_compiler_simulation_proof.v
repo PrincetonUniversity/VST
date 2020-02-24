@@ -868,7 +868,7 @@ Section Concurrent_correctness.
 
           Unshelve.
           all: eauto. }          
-      Qed. 
+      Qed.
     End SimulationTransitivity.
 
   Lemma initial_memories_are_equal:
@@ -916,15 +916,26 @@ Section Concurrent_correctness.
   Proof.
     unfold ConcurrentCompilerCorrectness_specification.
     intros.
-    eapply HBSimulation_transitivity.
-    - eapply trivial_clight_simulation; eauto. 
-    - eapply HBSimulation_transitivity.
-         + eapply compile_all_threads.
-         + replace (Genv.init_mem (Ctypes.program_of_program C_program))
+    eapply HBSimulation_transitivity; swap 1 2.
+    - eapply trivial_clight_simulation; eauto.
+    - hnf. repeat (unshelve econstructor).
+        all: intros *; try rewrite PTree.gleaf;
+          try now intros; congruence.
+        (* Its werid that I need a witness to the 
+           gloabals, but it's never used.
+           It must be a phantom of the ay the semantics is defined.
+         *)
+
+    - eapply HBSimulation_transitivity; swap 1 2; swap 2 3.
+      + eapply compile_all_threads.
+      + replace (Genv.init_mem (Ctypes.program_of_program C_program))
                 with (Genv.init_mem tp) by
                   (eapply initial_memories_are_equal; eauto).
         pose proof trivial_asm_simulation.
         eapply trivial_asm_simulation; eauto.
+      + hnf. repeat (unshelve econstructor).
+        all: intros *; try rewrite PTree.gleaf;
+          try now intros; congruence.
 
         Unshelve.
         auto.
