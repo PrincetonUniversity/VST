@@ -519,6 +519,70 @@ Proof.
       all: auto.
 Qed.
 
+Lemma invariant_update_thread:
+  forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalPool.OrdinalThreadPool) h c th_perm
+    (Hcnt:ThreadPool.containsThread st h),
+    st' = ThreadPool.updThread Hcnt c th_perm ->
+    invariant st ->
+    forall (no_race_thr0: forall j (cntj : ThreadPool.containsThread st j),
+          (j <> h) ->
+          permMapsDisjoint2 th_perm (ThreadPool.getThreadR cntj))
+      (no_race2: forall laddr0 rmap,
+          ThreadPool.lockRes st laddr0 = Some rmap ->
+          permMapsDisjoint2 th_perm rmap)
+      (thread_date_lock_coh1: permMapCoherence (fst th_perm) (snd th_perm))
+      (thread_date_lock_coh4: forall i (cnti : ThreadPool.containsThread st i),
+          i <> h ->
+          permMapCoherence (fst th_perm) (snd (ThreadPool.getThreadR cnti)) /\
+          permMapCoherence (fst (ThreadPool.getThreadR cnti)) (snd th_perm))
+      (thread_date_lock_coh6: forall laddr0 rmap,
+          ThreadPool.lockRes st laddr0 = Some rmap ->
+          permMapCoherence (fst rmap) (snd th_perm) /\
+          permMapCoherence (fst th_perm) (snd rmap)),
+      invariant st'.
+Proof.
+  intros * ? Hinv **. constructor.
+  - intros * ?.
+    destruct (Nat.eq_dec i h);
+      destruct (Nat.eq_dec j h); subst; rewrite_getupd.
+    + contradict Hneq; reflexivity.
+    + rewrite_getupd. auto.
+    + apply permMapsDisjoint2_comm; auto.
+    + eapply no_race_thr; eauto.
+  - intros * ?. subst st'. repeat rewrite ThreadPool.gsoThreadLPool.
+    apply Hinv; assumption.
+  - intros *.  subst st'. repeat rewrite ThreadPool.gsoThreadLPool. 
+    destruct (Nat.eq_dec i h);
+      subst; rewrite_getupd; intros.
+    + eauto.
+    + eapply no_race; eauto.
+  - intros *; split; intros *.
+    + destruct (Nat.eq_dec i h);
+        destruct (Nat.eq_dec j h); subst; intros; rewrite_getupd.
+      * assumption.
+      * apply thread_date_lock_coh4; auto.
+      * apply thread_date_lock_coh4; auto.
+      * exploit @thread_data_lock_coh; eauto. intros [HH ?].
+        apply HH.
+    + subst st'. repeat rewrite ThreadPool.gsoThreadLPool.
+      destruct (Nat.eq_dec i h);
+        subst; rewrite_getupd; intros.
+      * eapply thread_date_lock_coh6; eauto.
+      * eapply Hinv; eauto.
+  - intros *; split; intros *; revert Hres.
+    + destruct (Nat.eq_dec j h); subst; rewrite_getupd; intros.
+      * eapply thread_date_lock_coh6; eauto.
+      * exploit @locks_data_lock_coh; eauto. intros [HH ?].
+        apply HH.
+    + subst; rewrite_getupd; intros.
+      eapply Hinv; eauto.
+  - hnf; intros; subst; rewrite_getupd.
+    eapply Hinv.
+    
+    Unshelve.
+    all: auto.
+Qed.
+
 Lemma invariant_updateLock:
   forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalThreadPool)
          laddr lock_perm,

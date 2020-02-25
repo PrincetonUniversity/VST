@@ -85,12 +85,20 @@ Section Concurrent_Safety.
       intros.
       unfold valid. simpl.
       unfold correct_schedule.
-      inversion SIM.
-      destruct (schedPeek U); [|now auto].
+      match_case; try reflexivity.
+      destruct SIM; simpl in *.
       unfold unique_Krun; split; intros HH.
-      - 
-        (* now eapply (thread_running _ _ j _ _ _ _ Hmatch).  *)
-    Admitted.
+      - intros; dup SIM' as Hunique.
+        eapply thread_running in Hunique; eauto.
+        simpl in *.
+        unfold unique_Krun in *.
+        eapply Hunique in H; eauto.
+      - intros; dup SIM' as Hunique.
+        eapply thread_running in Hunique; eauto.
+        simpl in *.
+        unfold unique_Krun in *.
+        eapply Hunique in H; eauto.
+    Qed.
 
 
     (* Note, unused right now *)
@@ -429,8 +437,12 @@ Section Concurrent_Safety.
                        exists y' : schedule,
                          kstep dryResources (ClightSem (Clight.globalenv p)) OrdinalPool.OrdinalThreadPool
                                DryHybridMachineSig x0 y x' y') (valid (ClightSem (Clight.globalenv p))) x).
-          Proof.
-          Admitted.
+    Proof.
+      simpl. intros. destruct x as [[? ?] ?].
+      unfold kstep; simpl.
+      
+    Admitted.
+    
     Lemma csafety_step:
       forall (p : Clight.program) (tp : Asm.program) (asm_genv_safety : Asm_core.safe_genv the_ge),
         let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)) in
@@ -525,11 +537,31 @@ Section Concurrent_Safety.
           eapply semax_invariant.ssr_leP_inv in cnti.
           destruct j; simpl; [auto| omega]. }
           apply (H _ 1) in H0.
-          admit. (*Should be able to pull the invariant from H0*)
-        * admit. (*Should be able to pull the mem_compat from H0*)
-        * eapply IHn.
-    Admitted.
+          { !goal (invariant _).
 
+            inversion H0; subst.
+            - inversion H1.
+            - eapply step_invariant, Hstep.
+            - eapply step_invariant, Hstep. }
+              
+        *  assert ((valid SemTarget) (tr, tp, m) (cons 0 nil) ).
+          { subst tp; auto.
+          unfold safety_equivalence.valid, correct_schedule; simpl.
+          intros ????.
+          simpl in cnti.
+          unfold OrdinalPool.containsThread in cnti; simpl in cnti.
+          clear - cnti.
+          eapply semax_invariant.ssr_leP_inv in cnti.
+          destruct j; simpl; [auto| omega]. }
+          apply (H _ 1) in H0.
+          { !goal (mem_compatible _ _).
+
+            inversion H0; subst.
+            - inversion H1.
+            - eapply step_cmpt, Hstep.
+            - eapply step_cmpt, Hstep. }
+        * eapply IHn.
+    Qed.
     
     Lemma ConcurrentCompilerSafety:
       CompCert_compiler C_program = Some Asm_program ->
@@ -609,7 +641,15 @@ Section Concurrent_Safety.
   Definition SourceSemantics:= (fun m => ConcurMachineSemantics(HybridMachine:=SourceHybridMachine) m).
   Definition TargetSemantics ags:= (fun m => ConcurMachineSemantics(HybridMachine:=TargetHybridMachine ags) m).
   
-    Lemma clean_theorem_equivalence:
+    (* Ok this lemma is not used right now.
+       As it stands, it has several problems, 
+       the order of the schedule in the conclusion doesn't match the order in
+       concurrent_simulation_safety_preservation  
+       Have to reconsider!
+
+      
+
+ Lemma clean_theorem_equivalence:
       forall asm_genv_safety : Asm_core.safe_genv (@the_ge Asm_program),
         let SemSource:= (ClightSemanticsForMachines.ClightSem
                            (Clight.globalenv C_program)) in
@@ -629,10 +669,22 @@ Section Concurrent_Safety.
         concurrent_simulation_safety_preservation.
         intros * HSafety1 Asm_prog C_prog * Hinit Hsafe.
 
-
+        (*
+        (* pull the schedule out of the existensial *)
+        cut (  forall (U : schedule),
+               exists (tgt_tp : ThreadPool.t) (tgt_m' : Memory.Mem.mem),
+                initial_machine_state (TargetSemantics asm_genv_safety) tgt_m' tgt_tp ->
+                forall (n : nat),
+                  HybridCoarseMachine.csafe (U, empty_trace, tgt_tp) tgt_m' n).
+        { clear. intros. destruct (H nil) as (tp&m&?).
+          exists tp, m. intros HH n U.
+          destruct (H U) as (tp'&m'&H0').
+          eapply H0'. *)
+          
         inversion Hinit; subst; clear Hinit.
-        simpl in H0; unfold init_machine'' in *.
+        simpl in H0; unfold init_machine'' in H0.
         destruct H0 as (_ & Hinit_mach); simpl in *.
+        dup Hinit_mach as Hinit_save.
         destruct Hinit_mach as (c&(Hinit&Hmem)&HH); simpl in *.
         assert (c = src_tp0).
         { clear - HH; inversion HH.
@@ -643,9 +695,24 @@ Section Concurrent_Safety.
         }
         subst c; clear HH.
 
+        do 2 eexists; intros.
+
+        inversion H; subst; simpl in *.
+        hnf in H1. destruct H1 as [_ Hinit_mach].
+        dup Hinit_mach as Hinit_save'.
+        destruct Hinit_mach as (c_tgt&(Hinit_tgt&Hmem_tgt)&HH_tgt); simpl in *.
+        
         inversion Hinit; subst; simpl in *.
         exploit HSafety1.
-      Admitted.
+        - shelve. (* SHELVED: init memory*)
+        - econstructor; simpl; eauto.
+        - eapply Hsafe.
+        - (* The equivalence *)
+          instantiate(3:=U0).
+          clear.
+          intros HH; normal_hyp.
+          
+      Adm itted.*)      
 
     
 End Concurrent_Safety.
