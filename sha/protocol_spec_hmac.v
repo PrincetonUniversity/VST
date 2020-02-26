@@ -445,8 +445,11 @@ apply semax_pre with (P':=EX h1:hmacabs,
    initPre sh sh c nullval h1 l key))). 
 { unfold FULL. Intros h1. Exists h1. (*red in H.*)  entailer!. }
 Intros h1.
-eapply semax_post.
-5: apply (initbodyproof Espec c nullval l sh sh key gv h1 pad ctxkey); auto.
+eapply semax_pre_post.
+6: apply (initbodyproof Espec c nullval l sh sh key gv h1 pad ctxkey); auto.
+all: try apply ENTAIL_refl.
++
+entailer!.
 +
 subst POSTCONDITION; unfold abbreviate;
 simpl_ret_assert.
@@ -456,10 +459,6 @@ apply sepcon_derives; auto.
   entailer!.
   unfold hmacstate_, REP. Intros r. Exists r. entailer!.
   red. rewrite hmacUpdate_nil. assumption. 
-+
-simpl_ret_assert; normalize.
-+
-simpl_ret_assert; normalize.
 +
   intros.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert. auto.
