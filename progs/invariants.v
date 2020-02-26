@@ -12,12 +12,12 @@ Definition cored : mpred := own.cored.
 
 Lemma cored_dup : forall P, P && cored |-- (P && cored) * (P && cored).
 Proof.
-  apply own.cored_dup.
+  constructor; apply own.cored_dup.
 Qed.
 
 Lemma cored_dup_cored : forall P, P && cored |-- ((P && cored) * (P && cored)) && cored.
 Proof.
-  exact cored_dup_cored.
+  constructor; apply cored_dup_cored.
 Qed.
 
 Lemma cored_duplicable : cored = cored * cored.
@@ -27,27 +27,27 @@ Qed.
 
 Lemma own_cored: forall {RA: Ghost} g a pp, join a a a -> own g a pp |-- cored.
 Proof.
-  intros; apply own.own_cored; auto.
+  intros; constructor; apply own.own_cored; auto.
 Qed.
 
 Lemma cored_sepcon: forall P Q, (P && cored) * (Q && cored) |-- (P * Q) && cored.
 Proof.
-  exact cored_sepcon.
+  constructor; apply cored_sepcon.
 Qed.
 
 Lemma cored_dup_gen : forall P, P |-- cored -> P |-- P * P.
 Proof.
-  exact cored_dup_gen.
+  unseal_derives; exact cored_dup_gen.
 Qed.
 
 Lemma cored_emp: (cored |-- |==> emp)%I.
 Proof.
-  apply own.cored_emp.
+  constructor; apply own.cored_emp.
 Qed.
 
 Lemma emp_cored : (emp |-- cored)%I.
 Proof.
-  apply own.emp_cored.
+  constructor; apply own.emp_cored.
 Qed.
 
 Lemma iter_sepcon_eq : forall A, @invariants.iter_sepcon A = @iter_sepcon mpred A _ _.
@@ -82,7 +82,7 @@ Qed.
 
 Lemma invariant_cored : forall i P, invariant i P |-- cored.
 Proof.
-  exact invariant_cored.
+  constructor; apply invariant_cored.
 Qed.
 
 Lemma wsat_alloc : forall P, (wsat * |> P |-- |==> wsat * EX i : _, invariant i P)%I.
@@ -178,6 +178,16 @@ Proof.
         rewrite Zlength_repeat; lia.
   - iExists (length l + i)%nat; unfold invariant.
     iExists g; rewrite H; iFrame.
+Qed.
+
+Lemma agree_join : forall g P1 P2, agree g P1 * agree g P2 |-- (|> P1 -* |> P2) * agree g P1.
+Proof.
+  constructor; apply agree_join.
+Qed.
+
+Lemma agree_join2 : forall g P1 P2, agree g P1 * agree g P2 |-- (|> P1 -* |> P2) * agree g P2.
+Proof.
+  constructor; apply agree_join2.
 Qed.
 
 Existing Instance token_PCM.
@@ -276,7 +286,7 @@ Proof.
   assert (nth i lb None = Some b) as Hi' by (rewrite <- nth_Znth' in Hi; auto).
   destruct b.
   { iCombine "dis dis1" as "dis".
-    iDestruct (own_valid_2(RA := list_PCM _) with "dis") as %H2.
+    iDestruct (own_valid_2(RA := list_PCM _) with "[$dis]") as %H2.
     destruct H2 as (? & J & _).
     apply list_join_nth with (n := i) in J.
     erewrite nth_singleton, nth_map' with (d' := None) in J by lia.
@@ -319,7 +329,7 @@ Proof.
     erewrite !Znth_upto, !Znth_replace_nth by lia.
     rewrite Hi.
     iDestruct "I" as "[agree' I]".
-    subst; iDestruct (agree_join2 with "[agree' agree]") as "[imp agree]"; first iFrame.
+    subst; iDestruct (agree_join2 with "[agree' agree]") as "[imp agree]"; first by iFrame.
     iPoseProof ("imp" with "HP") as "?"; iFrame.
     erewrite iter_sepcon_func_strong; eauto.
     unfold remove_Znth; intros ? Hin.
@@ -329,9 +339,9 @@ Proof.
   - unfold Ensembles.In; auto.
 Qed.
 
-Lemma invariant_dealloc : forall i P, (invariant i P |-- |==> emp)%I.
+Lemma invariant_dealloc : forall i P, invariant i P |-- |==> emp.
 Proof.
-  exact invariant_dealloc.
+  constructor; apply invariant_dealloc.
 Qed.
 
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
@@ -339,7 +349,7 @@ Qed.
 
 End Invariants.
 
-Lemma make_wsat : (emp |-- |==> EX inv_names : invG, wsat)%I.
+Lemma make_wsat : emp |-- |==> EX inv_names : invG, wsat.
 Proof.
   unfold wsat.
   iIntros.

@@ -24,6 +24,7 @@ Require Import Coq.Logic.JMeq.
 
 Require Import Coq.Logic.JMeq.
 Require Import VST.veric.ghost_PCM.
+Require Import VST.msl.seplog.
 Import compcert.lib.Maps.
 
 Import Ctypes Clight.
@@ -385,7 +386,7 @@ revert H; induction H0; intros.
   clear - H1.
   assert (forall w, app_pred (approx (level (S y)) (P x)) w <-> app_pred (approx (level (S y)) (P' x)) w).
   { intros; rewrite H1; intuition. }
-  apply pred_ext; intros w ?; destruct (H w); simpl in *; intuition.
+  apply pred_ext; constructor; intros w ?; destruct (H w); simpl in *; intuition.
   apply H0; auto. clear - H4.  unfold natLevel in *. omega.
   apply H2; auto. clear - H4.  unfold natLevel in *. omega. }
 unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
@@ -585,7 +586,7 @@ destruct H3 as [_ H3]; specialize (H3 Espec ts x).
 rename H3 into H4. (* destruct H3 as [Ann H4].*)
 pose proof I.
 (*specialize (H4 n).*)specialize (H4 k).
-apply now_later. 
+apply predicates_hered.now_later. 
 rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
 apply (semax'_cenv_sub CSUB). (*apply (semax'_cssub CSUB).*)
 (*rewrite HGG.*)
@@ -607,10 +608,10 @@ eapply allp_derives; intro vx.
 eapply subp_derives; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
-apply sepcon_derives; auto.
-apply andp_left1.
-apply sepcon_derives; auto.
-apply andp_left2.
+apply predicates_sl.sepcon_derives; auto.
+apply predicates_hered.andp_left1.
+apply predicates_sl.sepcon_derives; auto.
+apply predicates_hered.andp_left2.
 auto.
 * (***   Vptr b Ptrofs.zero <> v'  ********)
 apply (HG n v fsig cc' A' P' Q'); auto.
@@ -1055,7 +1056,7 @@ Qed.
 (* there's a place this lemma should be applied, perhaps in proof of semax_call *)
 Lemma funassert_rho:
 forall G rho rho', ge_of rho = ge_of rho' -> funassert G rho |-- funassert G rho'.
-Proof. intros. apply funspecs_assert_rho; trivial. Qed.
+Proof. intros. constructor; apply funspecs_assert_rho; trivial. Qed.
 (*Lenb: maybe move to seplog?*)
 
 Lemma core_inflate_initial_mem:
@@ -1650,11 +1651,11 @@ destruct H5 as [H5|H5].
  apply tc_val_has_type; auto.
  simpl fst.
  clear H3 H7.
- Opaque sepcon. simpl. Transparent sepcon.
- eapply sepcon_derives.
- apply derives_refl.
- instantiate (1:=emp); auto.
- rewrite sepcon_emp.
+ Opaque predicates_sl.sepcon. simpl. Transparent predicates_sl.sepcon.
+ eapply predicates_sl.sepcon_derives.
+ apply predicates_hered.derives_refl.
+ instantiate (1:=emp); intro; simpl; auto.
+ setoid_rewrite predicates_sl.sepcon_emp.
  rewrite fst_split.
  auto.
 }
@@ -1776,8 +1777,8 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
    simpl exit_cont.
    unfold proj_ret_assert, frame_ret_assert,
    function_body_ret_assert, RA_return in H9.
-     rewrite sepcon_assoc in H9.
-    rewrite sepcon_comm in H9. 
+     rewrite predicates_sl.sepcon_assoc in H9.
+    rewrite predicates_sl.sepcon_comm in H9. 
    rewrite Hret in *.
    intros ? ?. exists (ghost_of a'); split; auto.
    exists a'; split; auto. split; auto. split; auto.
@@ -1792,7 +1793,8 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
   - apply H8.
   -
     subst a'.
-     eapply sepcon_derives; try apply H9; auto.
+     eapply predicates_sl.sepcon_derives; try apply H9; auto.
+     intro; simpl; auto.
   - 
      clear H4.
      set (rho' := construct_rho (filter_genv psi)
@@ -1802,11 +1804,11 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
  assert (SFFB := stackframe_of_freeable_blocks Delta f rho' (globalenv prog) ve
      HGG COMPLETE H17'  (eq_refl _) H8).
   subst a'.
-  exploit sepcon_derives; [ | | apply H9 |].
-   2:  apply SFFB.  apply derives_refl.  clear H9.
+  exploit predicates_sl.sepcon_derives; [ | | apply H9 |].
+   2:  apply SFFB.  apply predicates_hered.derives_refl.  clear H9.
   pull_left (freeable_blocks (blocks_of_env (globalenv prog) ve)).
  intro H13.
-  rewrite sepcon_assoc in H13.
+  rewrite predicates_sl.sepcon_assoc in H13.
   destruct (free_list_juicy_mem_i _ _ _ _ H12 H13) as [jm2 [? [? ?]]].
   change (level (m_phi jm0)) with (level jm0).
   destruct (age1 jm0) as [jm0' | ] eqn:?.
@@ -1845,8 +1847,8 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
  specialize (EXIT vl ora0 jm2').
  assert (tc_option_val retty vl). {
   clear - H13.
-  rewrite sepcon_comm in H13.
-  rewrite !sepcon_assoc in H13.
+  rewrite predicates_sl.sepcon_comm in H13.
+  rewrite !predicates_sl.sepcon_assoc in H13.
   destruct H13 as [? [? [? [? _]]]].
   subst retty.  destruct vl; simpl in H0; try contradiction.
   destruct H0 as [? _]. destruct v; try contradiction. eauto.
@@ -1947,7 +1949,7 @@ spec H11; [clear H11|]. {
  subst rho.
  rewrite ge_of_make_args in H23. auto.
  clear H23.
- rewrite <- sepcon_assoc.
+ rewrite <- predicates_sl.sepcon_assoc.
  apply (pred_nec_hereditary  _ _ _ (laterR_necR (age_laterR (age_jm_phi H20x)))).
  unfold bind_args.
  unfold tc_formals.
@@ -1976,17 +1978,17 @@ spec H11; [clear H11|]. {
   rewrite PTree.gss. reflexivity. 
  eapply IHfn_params; try eassumption.
 +
- rewrite sepcon_assoc.
- eapply sepcon_derives.
- instantiate (1:=emp); auto. apply derives_refl.
- rewrite emp_sepcon.
+ rewrite predicates_sl.sepcon_assoc.
+ eapply predicates_sl.sepcon_derives.
+ instantiate (1:=emp); intro; simpl; auto. apply predicates_hered.derives_refl.
+ setoid_rewrite predicates_sl.emp_sepcon.
 (* apply (alloc_juicy_variables_age H13 H20x) in AJV.*)
  assert (list_norepet (map fst params) /\ list_norepet (map fst (fn_params f))). {
    clear - H17 H18. destruct H18 as [[_ [_ ?]] _].
    subst fspec. simpl in *. split; auto.
    apply list_norepet_app in H17. destruct H17; auto.
  }
- eapply sepcon_derives.
+ eapply predicates_sl.sepcon_derives.
  eapply make_args_close_precondition; eauto.
  clear - Pf. destruct f; simpl in *.
  transitivity (Datatypes.length (map snd fn_params)).
@@ -1994,7 +1996,7 @@ spec H11; [clear H11|]. {
  rewrite map_length; auto.
  destruct H; auto.
  destruct H; auto.
- apply derives_refl.
+ apply predicates_hered.derives_refl.
   change (fst (funsig_of_funspec fspec))
    with  params.
   instantiate (1:=empty_tenv).

@@ -198,7 +198,7 @@ Lemma ashift_derives : forall {A A' B B'} P (a : A -> mpred) (a' : A' -> mpred) 
   (Ha : (forall x, a x  |-- |={Ei}=> EX x' : A', a' x' *
     (((a' x' * (ashift P a Ei Eo b Q && cored)) -* |={Ei}=> a x) &&
      ALL y' : _, (b' x' y' * (ashift P a Ei Eo b Q && cored)) -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
-  ashift P a Ei Eo b Q && cored |-- ashift P a' Ei Eo b' Q' && cored.
+  (ashift P a Ei Eo b Q && cored |-- ashift P a' Ei Eo b' Q' && cored)%logic.
 Proof.
   intros.
   sep_apply cored_dup_cored.

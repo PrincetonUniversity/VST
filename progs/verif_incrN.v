@@ -143,14 +143,14 @@ Proof.
     Exists 0 (repeat 0 (length lg)); entailer!.
     { symmetry; apply sum_0. }
     rewrite iter_sepcon_sepcon with (g1 := ghost_var gsh1 0)(g2 := ghost_var gsh2 0)
-      by (intro; erewrite ghost_var_share_join; auto).
+      by (intro; erewrite ghost_var_share_join; auto with share).
     rewrite iter_sepcon2_spec.
     Exists (map (fun g => (g, 0)) lg); entailer!.
     { rewrite !map_map; simpl.
       rewrite map_id_eq, map_const; auto. }
     apply sepcon_derives; [|cancel].
     clear; induction lg; unfold uncurry; simpl; entailer!. }
-  forward.
+  (*forward.*)
   Exists lg; entailer!.
 Qed.
 
@@ -173,7 +173,7 @@ Proof.
       Intros l.
       destruct a as (g, v), p as (g', v'); simpl in *; subst.
       unfold uncurry at 2 3; simpl.
-      erewrite ghost_var_share_join' by eauto; Intros; subst.
+      erewrite ghost_var_share_join' by (eauto with share); Intros; subst.
       Exists ((g', v') :: l); simpl; entailer!.
       { repeat split; congruence. }
       apply derives_refl. }
@@ -182,6 +182,7 @@ Proof.
   { go_lower.
     rewrite iter_sepcon2_spec.
     Intros l; apply own_list_dealloc'. }
+
   forward.
   cancel.
 Qed.
@@ -290,7 +291,8 @@ Proof.
          iter_sepcon (fun j => lock_inv sh2 (thread_lock j)
            (thread_lock_inv sh1 (Znth j shs) lg j (gv _ctr) (gv _ctr_lock) (thread_lock j)))
            (upto (Z.to_nat i));
-         data_at_ Ews (tarray tlock (N - i)) (thread_lock i))).
+         data_at_ Ews (tarray tlock (N - i)) (thread_lock i);
+          has_ext tt)).
   { unfold N; computable. }
   { Exists Ews.
     subst thread_lock.

@@ -106,8 +106,6 @@ Proof.
   intros; rewrite wand_nonexpansive_l wand_nonexpansive_r; reflexivity.
 Qed.
 
-Ltac unseal_derives := match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
-
 (*Program Definition persistently (P : mpred) : mpred := fun w => P (ghost_core2 w).
 Next Obligation.
 Proof.
@@ -173,7 +171,6 @@ Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistent
 Proof.
   intros.
   unseal_derives; intros ??; simpl in *.
-  change (predicates_hered.derives P Q) in H.
   apply H; auto.
 Qed.
 
@@ -320,12 +317,12 @@ Proof.
     + transitivity y; [apply (dist_le n); auto; lia|].
       transitivity y0; eauto.
       apply (dist_le n); auto; lia.
-  - intros.
-    change (predicates_hered.derives P (internal_eq a a)).
+  - intros; unseal_derives.
     repeat intro; hnf.
     reflexivity.
   - intros.
-    match goal with |- ?P |-- (?A --> ?B)%logic =>
+    unseal_derives.
+    match goal with |- predicates_hered.derives ?P (?A --> ?B)%logic =>
       change (predicates_hered.derives P (predicates_hered.imp A B)) end.
     repeat intro; simpl in *.
     assert ((approx (S (level a')) (Ψ b)) a') as []; auto.
@@ -342,14 +339,16 @@ Proof.
     unseal_derives; repeat intro; simpl in *.
     rewrite discrete_iff; apply H0.
   - intros.
-    match goal with |- ?P |-- (|> ?Q)%logic => change (predicates_hered.derives P (box laterM Q)) end.
+    unseal_derives.
+    match goal with |- predicates_hered.derives ?P (|> ?Q)%logic => change (predicates_hered.derives P (box laterM Q)) end.
     repeat intro; simpl in *.
     hnf in H; simpl in H.
     apply laterR_level in H0.
     destruct (level a); [lia|].
     eapply dist_le; eauto; lia.
   - intros.
-    match goal with |- (|> ?P)%logic |-- ?Q => change (predicates_hered.derives (box laterM P) Q) end.
+    unseal_derives.
+    match goal with |- predicates_hered.derives (|> ?P)%logic ?Q => change (predicates_hered.derives (box laterM P) Q) end.
     repeat intro; simpl in *.
     hnf.
     destruct (level a) eqn: Ha; [auto | simpl].
@@ -377,6 +376,7 @@ Proof.
     apply laterR_core in Hlater.
     apply (H _ Hlater).
   - intros.
+    unseal_derives.
     change (predicates_hered.derives (box laterM P)
       (box laterM (prop False) || predicates_hered.imp (box laterM (prop False)) P)).
    repeat intro; simpl in *.
@@ -395,15 +395,15 @@ Canonical Structure mpredSI : sbi :=
   {| sbi_ofe_mixin := mpred_ofe_mixin;
      sbi_bi_mixin := mpred_bi_mixin; sbi_sbi_mixin := mpred_sbi_mixin |}.
 
-Lemma mpred_bupd_mixin : BiBUpdMixin mpredI own.bupd.
+Lemma mpred_bupd_mixin : BiBUpdMixin mpredI ghost_seplog.bupd.
 Proof.
   split.
   - repeat intro; hnf in *.
     rewrite !approx_bupd; congruence.
-  - exact: own.bupd_intro.
-  - exact: own.bupd_mono.
-  - exact: own.bupd_trans.
-  - exact: own.bupd_frame_r.
+  - exact: bupd_intro.
+  - exact: bupd_mono.
+  - exact: bupd_trans.
+  - exact: bupd_frame_r.
 Qed.
 Global Instance mpred_bi_bupd : BiBUpd mpredI := {| bi_bupd_mixin := mpred_bupd_mixin |}.
 

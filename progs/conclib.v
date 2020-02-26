@@ -1254,7 +1254,7 @@ Proof.
   destruct (age_sepalg.join_level _ _ _ H), (age_sepalg.join_level _ _ _ Hj).
   apply Hemp in Hj; subst.
   simpl in Hexclusive.
-  match goal with H : exclusive_mpred ?P |- _ => change (predicates_hered.derives (P * P) FF) in H end.
+  inv Hexclusive; rename derivesI into Hexclusive.
   apply Hexclusive.
   do 3 eexists; eauto; repeat split; auto; omega.
 Qed.
@@ -1288,7 +1288,7 @@ Proof.
   Transparent mpred. Intros b1 ofs1 b2 ofs2. Opaque mpred.
   subst.
   inv H0.
-  match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+  match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
   intros ? (? & ? & ? & Hlock1 & Hlock2).
   exploit (res_predicates.LKspec_precise _ _ _ _ a _ _ Hlock1 Hlock2); try (eexists; eauto).
   intros; subst.
@@ -2006,7 +2006,7 @@ Proof.
   rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
   rewrite !prop_false_andp with (P := v2 = Vundef), !orp_FF; auto; Intros.
   Opaque mpred.
-  apply res_predicates.address_mapsto_value_cohere.
+  constructor; apply res_predicates.address_mapsto_value_cohere.
 Qed.
 
 Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2, readable_share sh1 ->
@@ -2040,7 +2040,7 @@ Proof.
       * rewrite prop_false_andp with (P := v2 = Vundef), orp_FF; auto; Intros.
         Exists v2; auto.
     + Intro v2'.
-      assert_PROP (v1 = v2') by (apply res_predicates.address_mapsto_value_cohere).
+      assert_PROP (v1 = v2') by (constructor; apply res_predicates.address_mapsto_value_cohere).
       subst. apply sepcon_derives; auto. apply andp_right; auto.
       apply prop_right; auto.
     + apply sepcon_derives; auto.

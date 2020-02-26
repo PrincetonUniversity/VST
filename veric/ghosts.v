@@ -417,7 +417,6 @@ Proof.
   intros ? (x & Hj & _); simpl in Hj.
   exists (Tsh, v'); simpl; split; auto.
   destruct Hj as [Hsh Hj]; simpl in *.
-SearchAbout join Tsh.
   apply join_Tsh in Hsh as []; destruct c, x; simpl in *; subst.
   split; auto; simpl.
   fold share in *; destruct (eq_dec Tsh Share.bot); [contradiction Share.nontrivial|].

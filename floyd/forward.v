@@ -772,7 +772,7 @@ Proof.
   rewrite <- !sepcon_andp_prop'.
   specialize (H rho).
   eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
-  apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
+  constructor; apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
 Qed.
 
 Ltac delete_FRZR_from_SEP :=
@@ -4005,7 +4005,7 @@ intros.
  apply andp_left2.
  apply sepcon_derives; [ | apply derives_refl].
  intro rho.
- apply Clight_seplog.close_precondition_e'; auto.
+ constructor; apply Clight_seplog.close_precondition_e'; auto.
 Qed.
 
 Ltac check_parameter_types' :=

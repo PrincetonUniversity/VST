@@ -147,7 +147,7 @@ Program Definition set_item_spec := DECLARE _set_item
     PROP (readable_share sh; repable_signed k; repable_signed v; k <> 0; v <> 0;
       Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
     LOCAL (temp _key (vint k); temp _value (vint v); gvars gv)
-    SEPS (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tvoid ]
    EX r : unit,
     PROP ()

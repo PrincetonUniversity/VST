@@ -96,7 +96,7 @@ Lemma own_list_dealloc' : forall {A} g a p (l : list A),
   iter_sepcon (fun x => own (g x) (a x) (p x)) l |-- |==> emp.
 Proof.
   intros; apply own_list_dealloc.
-  repeat eexists; apply derives_refl.
+  do 3 eexists; apply derives_refl.
 Qed.
 
 End ghost.

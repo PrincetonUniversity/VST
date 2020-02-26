@@ -662,7 +662,7 @@ Lemma OLDcall_setup1_i:
 Proof. intros.
 assert (H18 := @msubst_eval_expr_eq cs Delta P Qtemp Qvar GV R' a v H0).
 assert (H19 := local2ptree_soundness P Q R' Qtemp Qvar nil GV H).
-repeat split; auto.
+split; repeat match goal with |- _ /\ _ => split end; auto.
 hnf; intros.
 eapply semax_pre; [ | eassumption].
 clear c Post0 H9.
@@ -709,7 +709,7 @@ Lemma call_setup1_i:
 Proof. intros.
 assert (H18 := @msubst_eval_expr_eq cs Delta P Qtemp Qvar GV (*R'*)R a v H0).
 assert (H19 := local2ptree_soundness P Q (*R'*)R Qtemp Qvar nil GV H).
-repeat split; auto.
+split; repeat match goal with |- _ /\ _ => split end; auto.
 hnf; intros.
 eapply semax_pre; [ | eassumption].
 clear c Post0 H8.
@@ -752,7 +752,7 @@ Lemma OLDcall_setup1_i2:
   pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals ->
  OLDcall_setup1 cs Qtemp Qvar GV (Evar id ty) Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals.
 Proof. intros.
- repeat split; auto.
+split; repeat match goal with |- _ /\ _ => split end; auto.
 Qed.
 Lemma call_setup1_i2:
  forall (cs: compspecs) Delta P Q R (*R'*) (id: ident) (ty: type) (bl: list expr)
@@ -780,7 +780,7 @@ Lemma call_setup1_i2:
   pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals ->
  call_setup1 cs Qtemp Qvar GV (Evar id ty) Delta P Q R (*R'*) fs argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals.
 Proof. intros.
- repeat split; auto.
+split; repeat match goal with |- _ /\ _ => split end; auto.
 Qed.
 
 Lemma can_assume_funcptr1:
@@ -867,7 +867,7 @@ Lemma call_setup2_i:
   call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness' Frame Ppre Qpre Rpre Qpre_temp GV'.
 Proof.
- intros. split. auto. repeat split; auto.
+ intros. split. auto. split; repeat match goal with |- _ /\ _ => split end; auto.
 Qed.
 
 Definition call_setup2_nil 
@@ -925,7 +925,7 @@ Lemma call_setup2_i_nil:
   call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals
       witness' Frame Ppre Qpre Rpre Qpre_temp GV'.
 Proof.
- intros. split. auto. repeat split; auto.
+ intros. split. auto. split; repeat match goal with |- _ /\ _ => split end; auto.
 Qed.
 
 Lemma actual_value_not_Vundef:

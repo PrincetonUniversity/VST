@@ -545,16 +545,16 @@ Qed.
 
 Lemma semax_conseq {CS: compspecs} {Espec: OracleKind}:
  forall Delta P' (R': ret_assert) P c (R: ret_assert) ,
-   (forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- bupd (|> FF || P' rho) )%pred ->
-   (forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_normal R' rho)
-                   |-- bupd (|> FF || RA_normal R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_break R' rho)
-                   |-- bupd (|> FF || RA_break R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_continue R' rho)
-                   |-- bupd (|> FF || RA_continue R rho)) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_return R' vl rho)
-                   |-- bupd (|> FF || RA_return R vl rho)) ->
+   (forall rho,  seplog.derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
+                   (bupd (|> FF || P' rho)) ) ->
+   (forall rho,  seplog.derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_normal R' rho))
+                   (bupd (|> FF || RA_normal R rho))) ->
+   (forall rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_break R' rho))
+                   (bupd (|> FF || RA_break R rho))) ->
+   (forall rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_continue R' rho))
+                   (bupd (|> FF || RA_continue R rho))) ->
+   (forall vl rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_return R' vl rho))
+                   (bupd (|> FF || RA_return R vl rho))) ->
    semax Espec Delta P' c R' ->  semax Espec Delta P c R.
 Proof.
   intros.
@@ -584,7 +584,7 @@ Proof.
          | rename H1 into Hx; pose (ek:=RA_break)
          | rename H2 into Hx ; pose (ek:=RA_continue)
          | apply H3]; clear H3.
-all:    specialize (Hx rho);  simpl in *;
+all:    specialize (Hx rho); inv Hx; simpl in *;
     apply derives_trans with (!! (vl = None) && 
        (!! typecheck_environ Delta rho &&
         (allp_fun_id Delta rho && ek R' rho))); subst ek;
@@ -598,6 +598,7 @@ all:    specialize (Hx rho);  simpl in *;
     apply guard_mono.
     intros.
     apply sepcon_derives; auto.
+    specialize (H rho); inv H; auto.
 Qed.
 
 (* Part 2: Deriving simpler and older version of consequence rules from semax_conseq. *)

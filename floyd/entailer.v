@@ -274,7 +274,7 @@ intros.
  unfold valid_pointer.
  pose proof (extend_tc.extend_valid_pointer' p 0).
  pose proof (predicates_hered.boxy_e _ _ H).
- change (_ |-- _) with (predicates_hered.derives (valid_pointer' p 0 * Q) (valid_pointer' p 0)).
+ constructor; change (predicates_hered.derives (valid_pointer' p 0 * Q) (valid_pointer' p 0)).
  intros ? (w1 & w2 & Hj & Hp & ?).
  apply (H0 w1); auto.
  hnf; eauto.
@@ -288,7 +288,7 @@ Proof.
   pose proof (predicates_hered.boxy_e _ _ H). 
   pose proof (extend_tc.extend_valid_pointer' p (-1)).
   pose proof (predicates_hered.boxy_e _ _ H1).
-  change (_ |-- _) with
+  constructor; change
       (predicates_hered.derives
          (predicates_hered.orp (valid_pointer' p 0) (valid_pointer' p (-1)) * Q)
          (predicates_hered.orp (valid_pointer' p 0) (valid_pointer' p (-1)))).

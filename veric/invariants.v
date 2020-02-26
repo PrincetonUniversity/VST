@@ -29,7 +29,7 @@ Qed.
 Lemma cored_dup_gen : forall P, P |-- cored -> P |-- P * P.
 Proof.
   intros.
-  erewrite (log_normalize.add_andp P) by apply H; apply cored_dup.
+  erewrite (log_normalize.add_andp P) by (constructor; apply H); apply cored_dup.
 Qed.
 
 Section Invariants.
@@ -481,7 +481,7 @@ Proof.
                     destruct (nth_error b (length (removelast a))) eqn: Hb; setoid_rewrite Hb; constructor.
                     destruct o; constructor.
                     destruct H0 as [_ Hc].
-                    erewrite nth_error_nth in Hb by auto.
+                    erewrite sublist.nth_error_nth in Hb by omega.
                     inv Hb.
                     apply Hc in H7.
                     destruct H as [_ Hc'].

@@ -19,7 +19,7 @@ Definition timeless' (P : mpred) := forall (a a' : rmap),
 Lemma timeless'_timeless : forall P, timeless' P -> Timeless P.
 Proof.
   unfold Timeless; intros; simpl.
-  change (_ -∗ _) with (predicates_hered.derives (|>P) (|>FF || P)); intros ? HP.
+  constructor; change (predicates_hered.derives (|>P) (|>FF || P)); intros ? HP.
   destruct (level a) eqn: Ha.
   - left; intros ? ?%laterR_level.
     rewrite Ha in H1; apply Nat.nlt_0_r in H1; contradiction H1.
@@ -279,12 +279,13 @@ Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
 Proof.
   intros.
   assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) emp)) a) as HP'.
-  { apply (fupd_frame_r _ _ _ _ a).
+  { pose proof (fupd_frame_r E1 E2 P (approx (S (level a)) emp)) as Hframe.
+    inv Hframe; rename derivesI into Hframe; apply Hframe.
     do 3 eexists; [apply join_comm, core_unit | split; auto].
     split; [|apply core_identity].
     rewrite level_core; auto. }
   eapply fupd_mono in HP'; eauto.
-  change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
+  constructor; change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
   intros a0 (? & ? & J & HP & [? Hemp]).
   destruct (join_level _ _ _ J).
   apply join_comm, Hemp in J; subst.
@@ -414,7 +415,7 @@ Qed.
 
 Lemma bupd_except_0 : forall P, ((|==> sbi_except_0 P) |-- sbi_except_0 (|==> P))%I.
 Proof.
-  intros; change (predicates_hered.derives (own.bupd (sbi_except_0 P)) (sbi_except_0 (own.bupd P : mpred))).
+  intros; constructor; change (predicates_hered.derives (own.bupd (sbi_except_0 P)) (sbi_except_0 (own.bupd P : mpred))).
   intros ??; simpl in H.
   destruct (level a) eqn: Hl.
   + left.

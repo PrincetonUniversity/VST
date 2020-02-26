@@ -1399,7 +1399,7 @@ Proof.
     apply andp_ENTAIL; [apply ENTAIL_refl |].
     intro rho; simpl.
     unfold local, lift1; normalize.
-    apply Clight_assert_lemmas.tc_expr_sub; auto.
+    constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
     eapply semax_lemmas.typecheck_environ_sub; eauto.
   + eapply AuxDefs.semax_seq; eauto.
   + eapply AuxDefs.semax_break; eauto.
@@ -1411,7 +1411,7 @@ Proof.
       rewrite (add_andp _ _ (H0 _)).
       unfold local, lift1; normalize.
       apply andp_left2.
-      apply Clight_assert_lemmas.tc_expr_sub; auto.
+      constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
     - intros.
       eapply semax_pre; [| apply H2].
@@ -1444,11 +1444,11 @@ Proof.
         eapply semax_lemmas.typecheck_environ_sub; eauto.*)
       apply andp_right. 
       * rewrite <- andp_assoc. apply andp_left1. intro rho; simpl; unfold local, lift1; normalize.
-        apply Clight_assert_lemmas.tc_expr_sub; auto.
+        constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * rewrite (andp_comm (tc_expr Delta a)). rewrite <- andp_assoc. apply andp_left1.
         intro rho; simpl; unfold local, lift1; normalize.
-        apply Clight_assert_lemmas.tc_exprlist_sub; auto.
+        constructor; apply Clight_assert_lemmas.tc_exprlist_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
         
     - apply ENTAIL_refl.
@@ -1467,7 +1467,7 @@ Proof.
     intro rho; simpl.
     unfold local, lift1; normalize.
     destruct ret.
-    - apply Clight_assert_lemmas.tc_expr_sub; auto.
+    - constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
     - simpl; auto.
   + eapply semax_pre; [| apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward].
@@ -1476,10 +1476,10 @@ Proof.
       apply andp_ENTAIL; [| apply ENTAIL_refl].
       apply andp_ENTAIL.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply Clight_assert_lemmas.tc_expr_sub; auto.
+        constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply Clight_assert_lemmas.tc_temp_id_sub; auto.
+        constructor; apply Clight_assert_lemmas.tc_temp_id_sub; auto.
     - apply exp_ENTAIL; intro cmp.
       apply exp_ENTAIL; intro e1.
       apply exp_ENTAIL; intro e2.
@@ -1497,10 +1497,10 @@ unfold local, lift1; intro rho; simpl; normalize.
         destruct H6; split; auto.
         eapply typecheck_tid_ptr_compare_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply Clight_assert_lemmas.tc_expr_sub; auto.
+        constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply Clight_assert_lemmas.tc_expr_sub; auto.
+        constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * apply ENTAIL_refl.
       * apply ENTAIL_refl.
@@ -1514,7 +1514,7 @@ unfold local, lift1; intro rho; simpl; normalize.
         destruct H1; split; auto.
         eapply Clight_assert_lemmas.typeof_temp_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply Clight_assert_lemmas.tc_lvalue_sub; auto.
+        constructor; apply Clight_assert_lemmas.tc_lvalue_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * apply ENTAIL_refl.
       * apply ENTAIL_refl.
@@ -1529,7 +1529,7 @@ unfold local, lift1; intro rho; simpl; normalize.
         destruct H2; split; auto.
         eapply Clight_assert_lemmas.typeof_temp_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply Clight_assert_lemmas.tc_lvalue_sub; auto.
+        constructor; apply Clight_assert_lemmas.tc_lvalue_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * apply ENTAIL_refl.
       * apply ENTAIL_refl.
@@ -1541,10 +1541,10 @@ unfold local, lift1; intro rho; simpl; normalize.
     apply andp_ENTAIL; [| apply ENTAIL_refl].
     apply andp_ENTAIL.
     - unfold local, lift1; intro rho; simpl; normalize.
-      apply Clight_assert_lemmas.tc_lvalue_sub; auto.
+      constructor; apply Clight_assert_lemmas.tc_lvalue_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
     - unfold local, lift1; intro rho; simpl; normalize.
-      apply Clight_assert_lemmas.tc_expr_sub; auto.
+      constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
   + apply AuxDefs.semax_skip.
   + apply AuxDefs.semax_builtin.
@@ -1555,28 +1555,28 @@ unfold local, lift1; intro rho; simpl; normalize.
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H1].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H2].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H3].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
     - intros.
       eapply derives_trans; [| apply H4].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
 Qed.
 
 Lemma rvalue_cenv_sub: forall {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta e rho,
@@ -2004,7 +2004,7 @@ Proof.
       apply andp_left2, andp_right.
       * eapply derives_trans; [apply sepcon_derives; [apply andp_left1 |]; apply derives_refl |].
         intro rho.
-        apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho)).
+        constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho)).
       * eapply derives_trans; [apply sepcon_derives; [apply andp_left2 |]; apply derives_refl |].
         auto.
     - rewrite semax_lemmas.closed_Sifthenelse in H; destruct H.
@@ -2038,7 +2038,7 @@ Proof.
     eapply AuxDefs.semax_switch; auto.
     - intro.
       eapply derives_trans; [apply sepcon_derives; [apply H0 | apply derives_refl] |].
-      apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expr Delta a rho)).
+      constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expr Delta a rho)).
     - intros.
       rewrite <- corable_andp_sepcon1 by (intro; apply corable_prop).
       replace (switch_ret_assert (frame_ret_assert R F)) with
@@ -2070,7 +2070,7 @@ Proof.
         apply later_derives.*)
         intro rho.
         simpl.
-        apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta a rho) (extend_tc.extend_tc_exprlist Delta (snd (split argsig)) bl rho))).
+        constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta a rho) (extend_tc.extend_tc_exprlist Delta (snd (split argsig)) bl rho))).
       * apply wand_sepcon_adjoint.
         apply andp_left1, andp_left2.
         apply wand_sepcon_adjoint.
@@ -2099,7 +2099,7 @@ Proof.
     apply andp_right.
     - intro rho; simpl.
       eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, derives_refl |].
-      apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expropt Delta ret (ret_type Delta) rho)).
+      constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expropt Delta ret (ret_type Delta) rho)).
     - intro rho; simpl.
       eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
       destruct R; simpl.
@@ -2115,7 +2115,7 @@ Proof.
       apply andp_right.
       * intro rho; simpl.
         eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, derives_refl |].
-        apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta e rho) (extend_tc.extend_tc_temp_id id (typeof e) Delta e rho))).
+        constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta e rho) (extend_tc.extend_tc_temp_id id (typeof e) Delta e rho))).
       * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
         rewrite subst_sepcon.
         rewrite (closed_wrt_subst _ _ F); auto.
@@ -2135,7 +2135,7 @@ Proof.
       apply andp_right; [apply andp_right; [apply andp_right; [apply andp_right |] |] |].
       * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left1, andp_left1, derives_refl |].
         intro rho; simpl.
-        apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta e1 rho) (extend_tc.extend_tc_expr Delta e2 rho))).
+        constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta e1 rho) (extend_tc.extend_tc_expr Delta e2 rho))).
       * unfold local, lift1; unfold_lift; intro rho; simpl.
         eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left1, andp_left2, derives_refl |].
         rewrite <- (andp_TT (prop _)) at 1.
@@ -2162,7 +2162,7 @@ Proof.
       apply andp_right; [apply andp_right; [apply andp_right |] |].
       * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left1, derives_refl |].
         intro rho; simpl.
-        apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_lvalue Delta e rho)).
+        constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_lvalue Delta e rho)).
       * unfold local, lift1; unfold_lift; intro rho; simpl.
         eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left2, derives_refl |].
         rewrite <- (andp_TT (prop _)) at 1.
@@ -2187,7 +2187,7 @@ Proof.
       apply andp_right; [apply andp_right; [apply andp_right |] |].
       * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left1, derives_refl |].
         intro rho; simpl.
-        apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_lvalue Delta e1 rho)).
+        constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_lvalue Delta e1 rho)).
       * unfold local, lift1; unfold_lift; intro rho; simpl.
         eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left2, derives_refl |].
         rewrite <- (andp_TT (prop _)) at 1.
@@ -2212,7 +2212,7 @@ Proof.
     apply andp_right.
     - eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, derives_refl |].
       intro rho; simpl.
-      apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_lvalue Delta e1 rho) (extend_tc.extend_tc_expr Delta (Ecast e2 (typeof e1)) rho))).
+      constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_lvalue Delta e1 rho) (extend_tc.extend_tc_expr Delta (Ecast e2 (typeof e1)) rho))).
     - eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
       rewrite sepcon_assoc; apply sepcon_derives; auto.
       rewrite <- (sepcon_emp ((` (mapsto sh (typeof e1))) (eval_lvalue e1)
@@ -2900,7 +2900,7 @@ Proof.
   unfold local, lift1; unfold_lift; simpl. normalize.
   rewrite <- imp_andp_adjoint.
   rewrite <- imp_andp_adjoint. normalize. 
-  unfold derives. apply predicates_hered.exp_right with (x:=b). eapply predicates_hered.prop_andp_right.
+  unfold derives. constructor; apply predicates_hered.exp_right with (x:=b). eapply predicates_hered.prop_andp_right.
   - unfold eval_var. rewrite H3.
     destruct H4 as [_ [? _]].
     specialize (H4 id).

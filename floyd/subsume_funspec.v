@@ -53,7 +53,7 @@ apply predicates_hered.exp_derives; intros F.
 apply predicates_hered.andp_derives; trivial. hnf. rewrite H0'.
 intros; simpl in *.
 intros; eapply predicates_hered.derives_trans, own.bupd_intro.
-specialize (H1 rho'); auto.
+specialize (H1 rho'); inv H1; auto.
 Qed.
 
 Definition funspec_sub' (f1 f2 : funspec):Prop :=
@@ -80,7 +80,8 @@ Lemma subsume_subsume:
    funspec_sub' f1 f2 ->
    funspec_sub f1 f2.
 Proof.
-  auto.
+  unfold funspec_sub', funspec_sub.
+  rewrite <- derives_eq; auto.
 Qed.
 
 Inductive empty_type : Type := .
@@ -221,7 +222,7 @@ Proof. intros.
 eapply semax_pre. 2: apply semax_call with (P0:=P)(NEP0:=NEP)(NEQ0:=NEQ); trivial; eassumption.
 apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. clear. intros rho.
-rewrite andp_comm. apply func_ptr_si_mono.
+rewrite andp_comm. constructor; apply func_ptr_si_mono.
 Qed.
 
 Lemma semax_call_NDsubsume :

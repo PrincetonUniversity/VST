@@ -131,13 +131,13 @@ Qed.*)
 
 Lemma approx_derives_ge : forall n m P, (n <= m)%nat -> approx n P |-- approx m P.
 Proof.
-  intros; change (predicates_hered.derives (approx n P) (approx m P)).
+  intros; constructor; change (predicates_hered.derives (approx n P) (approx m P)).
   intros ? []; split; auto; omega.
 Qed.
 
 Lemma approx_derives : forall P n, approx n P |-- P.
 Proof.
-  exact approx_p.
+  constructor; intro; apply approx_p.
 Qed.
 
 Definition exclusive_mpred (R : mpred) :=
@@ -178,14 +178,14 @@ Proof.
   intros; split; intros.
   + unfold exclusive_mpred in *.
     eapply derives_trans, H2.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+    match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
     intros ? (? & ? & J & [] & []).
     pose proof (join_level _ _ _ J) as [].
     apply necR_level in H1.
     do 3 eexists; eauto; split; split; try omega; apply H0; auto; omega.
   + unfold exclusive_mpred in *.
     eapply derives_trans, H2.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+    match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
     intros ? (? & ? & J & [] & []).
     pose proof (join_level _ _ _ J) as [].
     apply necR_level in H1.
@@ -228,7 +228,7 @@ Lemma unfash_fash_equiv: forall P Q: mpred,
   (subtypes.unfash (subtypes.fash P): mpred) <=> (subtypes.unfash (subtypes.fash Q): mpred))%pred.
 Proof.
   intros.
-  hnf; intros.
+  constructor; hnf; intros.
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P y <-> app_pred Q y)).
   {
     intros; specialize (H y H0).
@@ -251,7 +251,7 @@ Lemma iffp_equiv: forall P1 Q1 P2 Q2: mpred,
   ((P1 <=> Q1) && (P2 <=> Q2) |-- (P1 <--> P2) <=> (Q1 <--> Q2))%pred.
 Proof.
   intros.
-  hnf; intros.
+  constructor; hnf; intros.
   destruct H.
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P1 y <-> app_pred Q1 y)).
   {
@@ -294,7 +294,7 @@ Lemma sepcon_equiv: forall P1 Q1 P2 Q2: mpred,
   ((P1 <=> Q1) && (P2 <=> Q2) |-- (P1 * P2) <=> (Q1 * Q2))%pred.
 Proof.
   intros.
-  hnf; intros.
+  constructor; hnf; intros.
   destruct H.
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P1 y <-> app_pred Q1 y)).
   {
@@ -335,7 +335,7 @@ Lemma later_equiv: forall P Q: mpred,
   (P <=> Q |-- |> P <=> |> Q)%pred.
 Proof.
   intros.
-  hnf; intros.
+  constructor; hnf; intros.
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P y <-> app_pred Q y)).
   {
     intros; specialize (H y H0).
@@ -455,7 +455,7 @@ Lemma exclusive_weak_exclusive: forall R,
   TT |-- weak_exclusive_mpred R.
 Proof.
   intros.
-  change (predicates_hered.derives TT (weak_exclusive_mpred R)).
+  constructor; change (predicates_hered.derives TT (weak_exclusive_mpred R)).
   intros w _.
   simpl.
   eapply derives_trans, H.
@@ -467,7 +467,7 @@ Lemma rec_inv_weak_rec_inv: forall sh v Q R,
   TT |-- weak_rec_inv sh v Q R.
 Proof.
   intros.
-  change (predicates_hered.derives TT (weak_rec_inv sh v Q R)).
+  constructor; change (predicates_hered.derives TT (weak_rec_inv sh v Q R)).
   intros w _.
   hnf in H |- *.
   intros.

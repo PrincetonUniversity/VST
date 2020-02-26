@@ -620,9 +620,7 @@ Proof.
         address_mapsto m v0 sh2 (b, Ptrofs.unsigned i)).
       * apply pred_ext; [| apply (exp_right v0); auto].
         apply exp_left; intro.
-        pose proof (fun sh0 sh3 a => 
-            (@add_andp (pred rmap) (algNatDed _) _ _ (address_mapsto_value_cohere m v0 x sh0 sh3 a))).
-        simpl in H0; rewrite H0; clear H0.
+        erewrite add_andp at 1 by (constructor; apply address_mapsto_value_cohere).
         apply normalize.derives_extract_prop'; intro; subst; auto.
       * apply address_mapsto_share_join; auto.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
@@ -825,7 +823,7 @@ Lemma mapsto_conflict:
   mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
 Proof.
   intros.
-  rewrite (@add_andp (pred rmap) (algNatDed _) _ _ (mapsto_pure_facts sh t v v3)).
+  setoid_rewrite add_andp at 4; [|constructor; apply mapsto_pure_facts].
   simpl.
   rewrite andp_comm.
   rewrite sepcon_andp_prop.

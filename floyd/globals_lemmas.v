@@ -172,12 +172,12 @@ simple_if_tac.
 apply FF_left.
 apply orp_left. normalize. clear H H0.
 rewrite (res_predicates.address_mapsto_align).
-match goal with |- ?A |-- ?B => change (predicates_hered.derives A B) end.
+match goal with |- ?A |-- ?B => constructor; change (predicates_hered.derives A B) end.
 intros ? ?. destruct H. apply H0.
 normalize.
 clear.
 rewrite (res_predicates.address_mapsto_align).
-match goal with |- ?A |-- ?B => change (predicates_hered.derives A B) end.
+match goal with |- ?A |-- ?B => constructor; change (predicates_hered.derives A B) end.
 intros ? ?. destruct H. apply H0.
 simple_if_tac.
 apply FF_left.
