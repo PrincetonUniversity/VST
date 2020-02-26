@@ -205,6 +205,7 @@ Parameter body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs
 
 End HMAC_ABSTRACT_SPEC.
 
+
 Lemma haslengthK_simple: forall l, 0 < l <= Int.max_signed -> l * 8 < two_p 64.
 intros. 
 assert (l < Int.half_modulus). unfold Int.max_signed in H. omega. clear H.
@@ -295,6 +296,7 @@ Proof.
   apply FULL_isptr.
 Qed.
 
+Hint Resolve EMPTY_isptr FULL_isptr REP_isptr : saturate_local.
 (************************ Abstract specifications of HMAC_init *******************************************************)
 
 Definition hmac_reset_spec :=

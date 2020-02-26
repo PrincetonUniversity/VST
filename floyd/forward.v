@@ -30,7 +30,7 @@ Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.freezer.
-Require Import VST.floyd.funspec_old.
+(*Require Import VST.floyd.funspec_old.*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
@@ -1350,6 +1350,8 @@ Ltac check_gvars :=
               fail 100 "The function precondition requires (gvars" gv ")" "which is not present in your current assertion's LOCAL clause"
            end
          ].
+
+Ltac try_convertPreElim := reflexivity.
 
 Ltac prove_call_setup_aux  ts witness :=
  let H := fresh "SetupOne" in
@@ -4321,6 +4323,9 @@ Proof.
 intros. erewrite compute_close_precondition_eq; [ | eassumption | eassumption ]; trivial.
 Qed.
 
+Ltac start_func_convert_precondition := idtac.
+Ltac rewrite_old_main_pre := idtac.
+
 Ltac start_function1 :=
  leaf_function;
  match goal with |- semax_body ?V ?G ?F ?spec =>
@@ -4368,7 +4373,7 @@ Ltac start_function1 :=
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
  clear DependedTypeList;
- rewrite ?old_main_pre_eq;  unfold convertPre;
+ rewrite_old_main_pre;
  repeat match goal with
  | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
@@ -4864,7 +4869,7 @@ Ltac prove_semax_prog_aux tac :=
  | match goal with
      |- match initial_world.find_id (prog_main ?prog) ?Gprog with _ => _ end =>
      unfold prog at 1; (rewrite extract_prog_main || rewrite extract_prog_main');
-     ((eexists; try (unfold NDmk_funspec'; rewrite old_main_pre_eq); reflexivity) || 
+     ((eexists; try (unfold NDmk_funspec'; rewrite_old_main_pre); reflexivity) || 
         fail "Funspec of _main is not in the proper form")
     end
  ]; 

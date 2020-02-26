@@ -2,7 +2,7 @@ Require Import floyd.proofauto. (* Import the Verifiable C system *)
 Require Import verif_bin_search.
 Require Import progs.btree. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
-Global Open Scope old_funspec_scope.
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 

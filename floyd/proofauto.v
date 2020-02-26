@@ -48,7 +48,6 @@ Require VST.msl.iter_sepcon.
 Require VST.msl.wand_frame.
 Require VST.msl.wandQ_frame.
 Require VST.floyd.linking.
-Require Export VST.floyd.funspec_old.
 
 (*funspec scope is the default, so remains open.
   User who wnt ot use old funspecs should 

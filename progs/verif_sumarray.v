@@ -3,7 +3,6 @@ Require Import VST.progs.sumarray. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
-Open Scope funspec_scope.
 
 (* Functional spec of this program.  *)
 Definition sum_Z : list Z -> Z := fold_right Z.add 0.
@@ -13,18 +12,6 @@ Lemma sum_Z_app:
 Proof.
   intros. induction a; simpl; omega.
 Qed.
-
-Definition sumarray_spec_old : ident * funspec :=
- (DECLARE _sumarray
-  WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tuint), _n OF tint ]
-          PROP  (readable_share sh; 0 <= size <= Int.max_signed;
-          Forall (fun x => 0 <= x <= Int.max_unsigned) contents)
-          LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
-          SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
-  POST [ tuint ]
-        PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
-           SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a))%old_funspec.
 
 Definition sumarray_spec : ident * funspec :=
  DECLARE _sumarray

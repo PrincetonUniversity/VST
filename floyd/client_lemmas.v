@@ -966,6 +966,19 @@ intros. rewrite later_sepcon. apply sepcon_derives; auto. Qed.
 Hint Resolve @andp_later_derives @sepcon_later_derives @sepcon_derives
               @andp_derives @imp_derives @now_later @derives_refl: derives.
 
+(* Definitions of convertPre and NDmk_funspec' are to support
+  compatibility with old-style funspecs (see funspec_old.v) *)
+Definition convertPre (f: funsig) A
+  (Pre: A -> environ -> mpred)  (w: A) (ae: argsEnviron) : mpred :=
+ !! (length (snd ae) = length (fst f)) && 
+ Pre w (make_args (map fst (fst f)) (snd ae) 
+    (mkEnviron (fst ae)   (Map.empty (block*type)) (Map.empty val))).
+
+Definition NDmk_funspec' (f: funsig) (cc: calling_convention)
+  (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
+  NDmk_funspec (compcert_rmaps.typesig_of_funsig f) cc 
+  A (convertPre f A Pre) Post.
+
 Declare Scope funspec_scope.
 Delimit Scope funspec_scope with funspec.
 Global Open Scope funspec_scope.
@@ -977,7 +990,6 @@ Definition NDsemax_external {Hspec: OracleKind} (*(ids: list ident)*) (ef: exter
   (A: Type) (P:A -> argsEnviron -> mpred) (Q: A -> environ -> mpred): Prop :=
   @semax_external Hspec ef (rmaps.ConstType A) (fun _ => P) (fun _ => Q).
 
-(*Original WITH-notation is below, commented out*)
 Notation "'WITH' x : tx 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (NDmk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default tx (fun x => P%argsassert) (fun x => Q%assert))
             (at level 200, x at level 0, P at level 100, Q at level 100) : funspec_scope.

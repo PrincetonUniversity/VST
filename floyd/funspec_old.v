@@ -8,25 +8,15 @@ Require Import VST.floyd.semax_tactics.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
-Require Export VST.floyd.call_lemmas.
-Require Export VST.floyd.globals_lemmas.
+Require Import VST.floyd.call_lemmas.
+Require Import VST.floyd.globals_lemmas.
+Require Import VST.floyd.forward.
 Import ListNotations.
 Import LiftNotation.
 Local Open Scope logic.
 
 Declare Scope old_funspec_scope.
 Delimit Scope old_funspec_scope with old_funspec.
-
-Definition convertPre (f: funsig) A
-  (Pre: A -> environ -> mpred)  (w: A) (ae: argsEnviron) : mpred :=
- !! (length (snd ae) = length (fst f)) && 
- Pre w (make_args (map fst (fst f)) (snd ae) 
-    (mkEnviron (fst ae)   (Map.empty (block*type)) (Map.empty val))).
-
-Definition NDmk_funspec' (f: funsig) (cc: calling_convention)
-  (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
-  NDmk_funspec (compcert_rmaps.typesig_of_funsig f) cc 
-  A (convertPre f A Pre) Post.
 
 Declare Scope formals.
 Notation " a 'OF' ta " := (a%positive,ta%type) (at level 100, only parsing): formals.
@@ -411,16 +401,18 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
              x20 at level 0, x21 at level 0, x22 at level 0,
              P at level 100, Q at level 100) : old_funspec_scope.
 
-Definition old_main_pre {Z: Type} (prog: Clight.program) (ora: Z) : globals -> environ -> mpred :=
+Definition main_pre {Z: Type} (prog: Clight.program) (ora: Z) : globals -> environ -> mpred :=
 (fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
+
+
 Lemma old_main_pre_eq:
- forall prog,  convertPre (nil,tint) globals (old_main_pre prog tt) = main_pre prog tt.
+ forall prog,  convertPre (nil,tint) globals (main_pre prog tt) = SeparationLogic.main_pre prog tt.
 Proof.
 intros.
 unfold convertPre.
 extensionality gv.
-unfold main_pre, old_main_pre.
+unfold SeparationLogic.main_pre, main_pre.
 extensionality ae.
 destruct ae as [g args].
 simpl.
@@ -453,8 +445,13 @@ induction (prog_vars prog); simpl; auto.
 f_equal; auto.
 Qed.
 
-(*Notation "'main_pre'" := (old_main_pre) : old_funspec_scope.
-Notation "'main_pre'" := (SeparationLogic.main_pre) : funspec_scope.*)
+Ltac rewrite_old_main_pre ::= rewrite ?old_main_pre_eq; unfold convertPre.
+
+(*Notation "'main_pre'" := (old_main_pre) : old_funspec_scope. *)
+(*
+Definition main_pre := @SeparationLogic.main_pre.
+Arguments main_pre {Z} _ _ _.
+*)
 
 Lemma convertPre_helper1:
   forall P1 P Q R x,
@@ -592,6 +589,11 @@ intros.
 unfold Vbyte. congruence.
 Qed.
 
+Lemma nullval_neq_Vundef: nullval <> Vundef.
+Proof.
+intro; inv H.
+Qed.
+
 Ltac prove_all_defined := 
  red; simpl makePARAMS;
 match goal with |- !! ?A _ _ _ && _ |-- !! ?B=>
@@ -609,6 +611,7 @@ let H := fresh in
 try congruence; 
 try apply Vptrofs_neq_Vundef;
 try apply Vbyte_neq_Vundef;
+try apply nullval_neq_Vundef;
 try (intro H; rewrite H in *;
       (contradiction || eapply field_compatible_Vundef; eassumption));
 match goal with  |- ?A <> Vundef =>
@@ -660,7 +663,7 @@ Ltac convertPreElim :=
   match goal with |- convertPre _ _ _ _ = _ => idtac end;
   convertPreElim' || fail 100 "Could not convert old-style precondition to new-style".
 
-Ltac try_convertPreElim := 
+Ltac try_convertPreElim ::= 
   lazymatch goal with
   | |- convertPre _ _ _ _ = _ =>  convertPreElim
   | |- _ => reflexivity
@@ -699,6 +702,7 @@ destruct ae as [g args].
 simpl snd.
 simpl fst.
 (*
+
 split.
 -
 clear Hloc Hglob Hdef.
@@ -709,6 +713,8 @@ revert H1 args H3 Q H0 H2 H4;
 induction (fst fsig) as [|[??]];
 simpl; intros.
 destruct args; inv H3; auto.
+split; auto.
+admit.  (* plausible *)
 destruct args as [ | a1 args]. inv H3.
 simpl in H3. injection H3 as H3.
 pose (Q' := remove_localdef_temp i Q).
@@ -737,6 +743,8 @@ induction Q; simpl in *; auto; try contradiction.
 destruct a.
 *
 destruct H4.
+split.
+--
 if_tac.
 subst i0.
 hnf in H0.
@@ -902,7 +910,7 @@ Ltac prove_norepet :=
       repeat match goal with H: _ = _ |- _ => inv H end; auto.
 
 
-Ltac start_func_convert_precondition :=
+Ltac start_func_convert_precondition ::=
 erewrite convertPre_helper3;
  [ 
  | reflexivity || fail 100 "makePARAMS filed in start_func_convert_precondition"

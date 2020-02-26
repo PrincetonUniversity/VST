@@ -7,7 +7,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.bst.
 
-Global Open Scope old_funspec_scope.
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Definition a : environ->mpred := 
