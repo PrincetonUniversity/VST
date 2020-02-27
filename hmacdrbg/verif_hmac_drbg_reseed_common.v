@@ -70,8 +70,8 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list byte) additional
         HmacDrbgFunSpecs nil)
   (PROP ( )
    LOCAL (temp _entropy_len (Vint (Int.repr entropy_len));
-   lvar _seed (tarray tuchar 384) seed; temp _ctx ctx; temp _additional additional;
-   temp _len (Vint (Int.repr add_len)); gvars gv)
+   lvar _seed (tarray tuchar 384) seed; gvars gv; temp _ctx ctx; temp _additional additional;
+   temp _len (Vint (Int.repr add_len)))
    SEP (Stream (get_stream_result (get_entropy 0 entropy_len entropy_len false s));
    data_at Tsh (tarray tuchar entropy_len) (map Vubyte entropy_bytes) seed;
    data_at Tsh (tarray tuchar (384 - entropy_len))
@@ -478,6 +478,7 @@ Proof.
   rewrite <- Heqp in *. inv Heqq. 
 idtac "Timing the Qed of REST (goal: 25secs)". 
   cancel.
-Time Qed. (*Coq8.6 May23rd: 23s
+Time Qed. (*Coq 8.10.1: 3s;
+          Coq8.6 May23rd: 23s
           Feb 23 2017: 216.218 secs (135.625u,0.046s) (successful)*)
          (*was: Coq8.5pl2: 44secs*)

@@ -46,7 +46,7 @@ Proof.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto.  }
   subst v; clear Hv. rewrite if_true; trivial.
   Intros. Intros p.
-  forward_call tt.
+  forward_call info.
 
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. Intros; subst.
   rename V0 into V. rename H0 into lenV.
@@ -62,7 +62,7 @@ Proof.
   }
   Intros.
 
-  forward_call tt.
+  forward_call info.
 
   freeze [0;1;3;4;5] FR3. rewrite lenV.
   forward_call (shc, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
@@ -116,7 +116,7 @@ Proof.
   destruct HH as [KEY VALUE]. simpl.
   Exists KEY VALUE p. normalize.
   apply andp_right; [apply prop_right; repeat split; auto | cancel].
-Time Qed.
+Time Qed. (*Coq 8.10.1: 3.2s*)
           (*Coq8.6: 13secs*)
           (*Feb22nd, 2017: 116.921 secs (111.953u,0.015s) (successful)*)
           (*earlier: 26.657 secs (26.656u,0.s) (successful)*)

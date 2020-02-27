@@ -17,7 +17,7 @@ Require Import VST.floyd.library.
 
 Require Export hmacdrbg.hmac_drbg_compspecs.
 
-Require Import VST.floyd.Funspec_old_Notation.
+(*Require Import VST.floyd.Funspec_old_Notation.*)
 
 Ltac fix_hmacdrbg_compspecs :=
   rewrite (@data_at__change_composite spec_hmac.CompSpecs hmac_drbg_compspecs.CompSpecs
@@ -78,9 +78,10 @@ Hint Resolve UNDER_SPEC.REP_isptr : saturate_local.
 Definition md_free_spec :=
  DECLARE _mbedtls_md_free
   WITH ctx:val, r:mdstate, sh: share, gv: globals
-  PRE  [ _ctx OF tptr t_struct_md_ctx_st ]
+  PRE  [ (*_ctx OF*) tptr t_struct_md_ctx_st ]
        PROP(writable_share sh) 
-       LOCAL(temp _ctx ctx; gvars gv) 
+       (*LOCAL(temp _ctx ctx; gvars gv) *)
+       PARAMS (ctx) GLOBALS (gv)
        SEP (data_at sh t_struct_md_ctx_st r ctx;
             md_empty r;
              mem_mgr gv)
@@ -90,9 +91,10 @@ Definition md_free_spec :=
 Definition mbedtls_zeroize_spec :=
   DECLARE _mbedtls_zeroize
    WITH n: Z, v:val, sh: share
-    PRE [_v OF tptr tvoid, _n OF tuint ] 
+    PRE [(*_v OF*) tptr tvoid, (*_n OF*) tuint ] 
        PROP (writable_share sh; 0<=n<= Ptrofs.max_unsigned)
-       LOCAL (temp _n (Vint (Int.repr n)); temp _v v)
+       (*LOCAL (temp _n (Vint (Int.repr n)); temp _v v)*)
+       PARAMS (v;Vint (Int.repr n)) GLOBALS ()
        SEP (data_at_ sh (tarray tuchar n ) v)
     POST [ tvoid ]
        PROP () LOCAL () SEP (data_block sh (list_repeat (Z.to_nat n) Byte.zero) v).
@@ -100,9 +102,10 @@ Definition mbedtls_zeroize_spec :=
 Definition drbg_memcpy_spec :=
   DECLARE _memcpy
    WITH qsh : share, psh: share, p: val, q: val, n: Z, contents: list int
-   PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
+   PRE [ (*1%positive OF*) tptr tvoid, (*2%positive OF*) tptr tvoid, (*3%positive OF*) tuint ]
        PROP (readable_share qsh; writable_share psh; 0 <= n <= Int.max_unsigned)
-       LOCAL (temp 1%positive p; temp 2%positive q; temp 3%positive (Vint (Int.repr n)))
+       (*LOCAL (temp 1%positive p; temp 2%positive q; temp 3%positive (Vint (Int.repr n)))*)
+       PARAMS (p;q;Vint (Int.repr n)) GLOBALS ()
        SEP (data_at qsh (tarray tuchar n) (map Vint contents) q;
               memory_block psh n p)
     POST [ tptr tvoid ]
@@ -113,10 +116,11 @@ Definition drbg_memcpy_spec :=
 Definition drbg_memset_spec :=
   DECLARE _memset
    WITH sh : share, p: val, n: Z, c: int 
-   PRE [ 1%positive OF tptr tvoid, 2%positive OF tint, 3%positive OF tuint ]
+   PRE [ (*1%positive OF*) tptr tvoid, (*2%positive OF*) tint, (*3%positive OF*) tuint ]
        PROP (writable_share sh; 0 <= n <= Ptrofs.max_unsigned)
-       LOCAL (temp 1%positive p; temp 2%positive (Vint c);
-                   temp 3%positive (Vint (Int.repr n)))
+       (*LOCAL (temp 1%positive p; temp 2%positive (Vint c);
+                   temp 3%positive (Vint (Int.repr n)))*)
+       PARAMS (p;Vint c; Vint (Int.repr n)) GLOBALS ()
        SEP (memory_block sh n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
@@ -128,10 +132,11 @@ Definition drbg_memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec).
 
 Definition md_get_size_spec :=
   DECLARE _mbedtls_md_get_size
-   WITH u:unit
-   PRE [ _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr)]
+   WITH (*u:unit*)v:val
+   PRE [ (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr)]
          PROP ()
-         LOCAL ()
+         (*LOCAL ()*)
+         PARAMS (v) GLOBALS () 
          SEP ()
   POST [ tuchar ] 
      PROP ()
@@ -141,9 +146,10 @@ Definition md_get_size_spec :=
 Definition md_reset_spec :=
   DECLARE _mbedtls_md_hmac_reset
    WITH c : val, r: mdstate, sh: share, key:list byte, gv:globals
-   PRE [ _ctx OF tptr (Tstruct _mbedtls_md_context_t noattr)]
+   PRE [ (*_ctx OF*) tptr (Tstruct _mbedtls_md_context_t noattr)]
          PROP (writable_share sh)
-         LOCAL (temp _ctx c; gvars gv)
+         (*LOCAL (temp _ctx c; gvars gv)*)
+         PARAMS (c) GLOBALS (gv)
          SEP (md_full key r; 
               data_at sh (Tstruct _mbedtls_md_context_t noattr) r c; K_vector gv)
   POST [ tint ] 
@@ -156,13 +162,14 @@ Definition md_reset_spec :=
 Definition md_starts_spec :=
   DECLARE _mbedtls_md_hmac_starts
    WITH c : val, shc: share, r: mdstate, l:Z, key:list byte, b:block, i:ptrofs, shk: share, gv: globals
-   PRE [ _ctx OF tptr t_struct_md_ctx_st,
-         _key OF tptr tuchar,
-         _keylen OF tuint ]
+   PRE [ (*_ctx OF*) tptr t_struct_md_ctx_st,
+         (*_key OF*) tptr tuchar,
+         (*_keylen OF*) tuint ]
          PROP (writable_share shc; readable_share shk;
                    sha.spec_hmac.has_lengthK l key)
-         LOCAL (temp _ctx c; temp _key (Vptr b i); temp _keylen (Vint (Int.repr l));
-                gvars gv)
+         (*LOCAL (temp _ctx c; temp _key (Vptr b i); temp _keylen (Vint (Int.repr l));
+                gvars gv)*)
+         PARAMS (c; Vptr b i;Vint (Int.repr l)) GLOBALS (gv)
          SEP (md_empty r;
               data_at shc t_struct_md_ctx_st r c;
               data_at shk (tarray tuchar (Zlength key)) (map Vubyte key) (Vptr b i); K_vector gv)
@@ -177,13 +184,14 @@ Definition md_starts_spec :=
 Definition md_update_spec :=
   DECLARE _mbedtls_md_hmac_update
    WITH key: list byte, c : val, r:mdstate, wsh: share, d:val, sh: share, data:list byte, data1:list byte, gv: globals
-   PRE [ _ctx OF tptr t_struct_md_ctx_st, 
-         _input OF tptr tuchar, 
-         _ilen OF tuint]
+   PRE [ (*_ctx OF*) tptr t_struct_md_ctx_st, 
+         (*_input OF*) tptr tuchar, 
+         (*_ilen OF*) tuint]
          PROP (writable_share wsh; readable_share sh;
                Zlength data1 + Zlength data + 64 < two_power_pos 61)
-         LOCAL (temp _ctx c; temp _input d; temp  _ilen (Vint (Int.repr (Zlength data1)));
-                gvars gv)
+         (*LOCAL (temp _ctx c; temp _input d; temp  _ilen (Vint (Int.repr (Zlength data1)));
+                gvars gv)*)
+         PARAMS (c;d;Vint (Int.repr (Zlength data1))) GLOBALS (gv)
          SEP(md_relate key data r;
              data_at wsh t_struct_md_ctx_st r c;
              data_at sh (tarray tuchar (Zlength data1)) (map Vubyte data1) d; K_vector gv)
@@ -197,10 +205,11 @@ Definition md_update_spec :=
 Definition md_final_spec :=
   DECLARE _mbedtls_md_hmac_finish
    WITH data:list byte, key:list byte, c : val, r:mdstate, wsh: share, md:val, shmd: share, gv: globals
-   PRE [ _ctx OF tptr t_struct_md_ctx_st,
-         _output OF tptr tuchar ]
+   PRE [ (*_ctx OF*) tptr t_struct_md_ctx_st,
+         (*_output OF*) tptr tuchar ]
        PROP (writable_share wsh; writable_share shmd) 
-       LOCAL (temp _output md; temp _ctx c; gvars gv)
+       (*LOCAL (temp _output md; temp _ctx c; gvars gv)*)
+       PARAMS (c;md) GLOBALS (gv)
        SEP(md_relate key data r;
              data_at wsh t_struct_md_ctx_st r c;
              K_vector gv;
@@ -216,11 +225,12 @@ Definition md_final_spec :=
 Definition md_setup_spec :=
   DECLARE _mbedtls_md_setup
    WITH md_ctx : mdstate, c:val, wsh: share, h:val, info:val, gv: globals
-   PRE [ _ctx OF tptr (Tstruct _mbedtls_md_context_t noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _hmac OF tint]
+   PRE [ (*_ctx OF*) tptr (Tstruct _mbedtls_md_context_t noattr),
+         (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr),
+         (*_hmac OF*) tint]
        PROP (writable_share wsh) 
-       LOCAL (temp _md_info info; temp _ctx c; temp _hmac h; gvars gv)
+       (*LOCAL (temp _md_info info; temp _ctx c; temp _hmac h; gvars gv)*)
+       PARAMS (c; info;h) GLOBALS (gv)
        SEP(data_at wsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c;
              mem_mgr gv)
   POST [ tint ] EX r:_,
@@ -343,17 +353,18 @@ Definition hmac_drbg_update_spec :=
         ctx: val, shc: share, initial_state: hmac256drbgstate,
         I: hmac256drbgabs,
         info_contents: md_info_state, gv: globals
-     PRE [ _ctx OF (tptr t_struct_hmac256drbg_context_st),
-           _additional OF (tptr tuchar), _add_len OF tuint ]
+     PRE [ (*_ctx OF*) (tptr t_struct_hmac256drbg_context_st),
+           (*_additional OF*) (tptr tuchar), (*_add_len OF*) tuint ]
        PROP (readable_share sha; writable_share shc;
          0 <= add_len <= Ptrofs.max_unsigned;
          Zlength (hmac256drbgabs_value I) = 32 (*Z.of_nat SHA256.DigestLength*);
          add_len = Zlength contents \/ add_len = 0
        )
-       LOCAL (temp _ctx ctx;
+       (*LOCAL (temp _ctx ctx;
               temp _additional additional;
               temp _add_len (Vint (Int.repr add_len));
-              gvars gv)
+              gvars gv)*)
+       PARAMS (ctx; additional; Vint (Int.repr add_len)) GLOBALS (gv)
        SEP (
          da_emp sha (tarray tuchar (Zlength contents)) (map Vubyte contents) additional;
          data_at shc t_struct_hmac256drbg_context_st initial_state ctx;
@@ -446,7 +457,7 @@ Definition hmac_drbg_reseed_spec :=
         I: hmac256drbgabs,
         info_contents: md_info_state,
         s: ENTROPY.stream, gv: globals
-    PRE [ _ctx OF (tptr t_struct_hmac256drbg_context_st), _additional OF (tptr tuchar), _len OF tuint ]
+    PRE [ (*_ctx OF*) (tptr t_struct_hmac256drbg_context_st), (*_additional OF*) (tptr tuchar), (*_len OF*) tuint ]
        PROP (readable_share sha; writable_share shc;
          0 <= add_len <= Ptrofs.max_unsigned;
          Zlength (hmac256drbgabs_value I) = 32 (*Z.of_nat SHA256.DigestLength*);
@@ -455,7 +466,8 @@ Definition hmac_drbg_reseed_spec :=
          hmac256drbgabs_entropy_len I+ Zlength contents < Ptrofs.modulus;
          0 < hmac256drbgabs_entropy_len I + Zlength (contents_with_add additional add_len contents) < Ptrofs.modulus
        )
-       LOCAL (temp _ctx ctx; temp _additional additional; temp _len (Vint (Int.repr add_len)); gvars gv)
+       (*LOCAL (temp _ctx ctx; temp _additional additional; temp _len (Vint (Int.repr add_len)); gvars gv)*)
+       PARAMS (ctx; additional; Vint (Int.repr add_len)) GLOBALS (gv)
        SEP (
          da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional;
          data_at shc t_struct_hmac256drbg_context_st initial_state ctx;
@@ -538,7 +550,7 @@ Definition hmac_drbg_generate_spec :=
         I: hmac256drbgabs,
         info_contents: md_info_state,
         s: ENTROPY.stream, gv: globals
-    PRE [ _p_rng OF (tptr tvoid), _output OF (tptr tuchar), _out_len OF tuint, _additional OF (tptr tuchar), _add_len OF tuint ]
+    PRE [ (*_p_rng OF*) (tptr tvoid), (*_output OF*) (tptr tuchar), (*_out_len OF*) tuint, (*_additional OF*) (tptr tuchar), (*_add_len OF*) tuint ]
        PROP (readable_share sha; writable_share shc; writable_share sho;
          0 <= add_len <= Ptrofs.max_unsigned;
          0 <= out_len <= Ptrofs.max_unsigned;
@@ -550,8 +562,9 @@ Definition hmac_drbg_generate_spec :=
          RI_range (hmac256drbgabs_reseed_interval I) /\
          0 <= hmac256drbgabs_reseed_counter I < Int.max_signed
        )
-       LOCAL (temp _p_rng ctx; temp _output output; temp _out_len (Vint (Int.repr out_len)); 
-              temp _additional additional; temp _add_len (Vint (Int.repr add_len)); gvars gv)
+       (*LOCAL (temp _p_rng ctx; temp _output output; temp _out_len (Vint (Int.repr out_len)); 
+              temp _additional additional; temp _add_len (Vint (Int.repr add_len)); gvars gv)*)
+       PARAMS (ctx; output; Vint (Int.repr out_len); additional; Vint (Int.repr add_len)) GLOBALS (gv)
        SEP (
          data_at_ sho (tarray tuchar out_len) output;
          da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional;
@@ -572,14 +585,15 @@ Definition hmac_drbg_seed_buf_spec :=
         Ctx: hmac256drbgstate,
         CTX: hmac256drbgabs,
         Info: md_info_state, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF (tptr (Tstruct _mbedtls_md_info_t noattr)),
-         _data OF tptr tuchar, _data_len OF tuint ]
+    PRE [(*_ctx OF *)tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_md_info OF*) (tptr (Tstruct _mbedtls_md_info_t noattr)),
+         (*_data OF*) tptr tuchar, (*_data_len OF*) tuint ]
        PROP (writable_share shc; readable_share shd;
                  (d_len = Zlength Data \/ d_len=0) /\
               0 <= d_len <= Ptrofs.max_unsigned)
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _data_len (Vint (Int.repr d_len)); temp _data data; gvars gv)
+       (*LOCAL (temp _ctx ctx; temp _md_info info;
+              temp _data_len (Vint (Int.repr d_len)); temp _data data; gvars gv)*)
+       PARAMS (ctx; info; data; Vint (Int.repr d_len)) GLOBALS (gv)
        SEP (data_at shc t_struct_hmac256drbg_context_st Ctx ctx;
          hmac256drbg_relate CTX Ctx;
          data_at shc t_struct_mbedtls_md_info Info info;
@@ -619,12 +633,13 @@ Definition get_entropy_spec :=
         sh: share,
         s: ENTROPY.stream,
         buf: val, len: Z
-    PRE [ 1%positive OF (tptr tuchar), 2%positive OF tuint ]
+    PRE [ (*1%positive OF*) (tptr tuchar), (*2%positive OF*) tuint ]
        PROP (
          0 <= len <= Ptrofs.max_unsigned;
          writable_share sh
        )
-       LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr len)))
+       (*LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr len)))*)
+       PARAMS (buf; Vint (Int.repr len)) GLOBALS ()
        SEP (
          memory_block sh len buf;
          (Stream s)
@@ -651,9 +666,10 @@ Definition size_of_HMACDRBGCTX:Z:= sizeof (Tstruct _mbedtls_hmac_drbg_context no
 Definition hmac_drbg_init_spec :=
   DECLARE _mbedtls_hmac_drbg_init
    WITH c : val, shc: share
-   PRE [ _ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr) ]
+   PRE [ (*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr) ]
          PROP (writable_share shc) 
-         LOCAL (temp _ctx c)
+         (*LOCAL (temp _ctx c)*)
+         PARAMS (c) GLOBALS ()
          SEP(memory_block shc size_of_HMACDRBGCTX c)
   POST [ tvoid ]  
           PROP () 
@@ -668,15 +684,16 @@ Definition hmac_drbg_random_spec :=
         I: hmac256drbgabs,
         info_contents: md_info_state,
         s: ENTROPY.stream, gv: globals
-    PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
+    PRE [(*_p_rng OF*) tptr tvoid, (*_output OF*) tptr tuchar, (*_out_len OF*) tuint ]
        PROP (writable_share sho; writable_share shc;
          0 <= out_len <= Ptrofs.max_unsigned;
          Zlength (hmac256drbgabs_value I) = 32 (*Z.of_nat SHA256.DigestLength*);
          0 < hmac256drbgabs_entropy_len I <= 384;
          RI_range (hmac256drbgabs_reseed_interval I);
          0 <= hmac256drbgabs_reseed_counter I < Int.max_signed)
-       LOCAL (temp _p_rng ctx; temp _output output;
-              temp _out_len (Vint (Int.repr out_len)); gvars gv)
+       (*LOCAL (temp _p_rng ctx; temp _output output;
+              temp _out_len (Vint (Int.repr out_len)); gvars gv)*)
+       PARAMS (ctx; output; Vint (Int.repr out_len)) GLOBALS (gv)
        SEP (
          data_at_ sho (tarray tuchar out_len) output;
          data_at shc t_struct_hmac256drbg_context_st initial_state ctx;
@@ -745,15 +762,16 @@ Definition hmac_drbg_seed_inst256_spec :=
         Ctx: hmac256drbgstate,
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
         handle_ss: DRBG_state_handle * ENTROPY.stream, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _custom OF tptr tuchar, _len OF tuint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr),
+         (*_custom OF*) tptr tuchar, (*_len OF*) tuint ]
        PROP (writable_share shc; readable_share shd;
              len = Zlength Data /\ 0 <= len <=256 /\ 
              instantiate_function_256 s pr_flag (contents_with_add data (Zlength Data) Data)
                = ENTROPY.success (fst handle_ss) (snd handle_ss))
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
+       (*LOCAL (temp _ctx ctx; temp _md_info info;
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)*)
+       PARAMS (ctx; info; data; Vint (Int.repr len)) GLOBALS (gv)
        SEP (
          data_at shc t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate dp rc pr_flag ri Ctx;
@@ -797,10 +815,11 @@ Definition setPR_CTX res (r: hmac256drbgstate): hmac256drbgstate :=
 Definition hmac_drbg_setPredictionResistance_spec :=
   DECLARE _mbedtls_hmac_drbg_set_prediction_resistance 
    WITH ctx:val, shc: share, CTX:hmac256drbgstate, ABS:_, r:bool
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _resistance OF tint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_resistance OF*) tint ]
        PROP ( writable_share shc)
-       LOCAL (temp _ctx ctx; temp _resistance (Val.of_bool r))
+       (*LOCAL (temp _ctx ctx; temp _resistance (Val.of_bool r))*)
+       PARAMS (ctx; Val.of_bool r) GLOBALS ()
        SEP (data_at shc t_struct_hmac256drbg_context_st CTX ctx;
             hmac256drbg_relate ABS CTX)
     POST [ tvoid ]
@@ -822,10 +841,11 @@ Definition setEL_CTX el (r: hmac256drbgstate): hmac256drbgstate :=
 Definition hmac_drbg_setEntropyLen_spec :=
   DECLARE _mbedtls_hmac_drbg_set_entropy_len
    WITH ctx:val, shc: share, CTX:hmac256drbgstate, ABS:_, l:_
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _len OF tuint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_len OF*) tuint ]
        PROP (writable_share shc )
-       LOCAL (temp _ctx ctx; temp _len (Vint (Int.repr l)))
+       (*LOCAL (temp _ctx ctx; temp _len (Vint (Int.repr l)))*)
+       PARAMS (ctx; Vint (Int.repr l)) GLOBALS ()
        SEP (data_at shc t_struct_hmac256drbg_context_st CTX ctx;
             hmac256drbg_relate ABS CTX)
     POST [ tvoid ]
@@ -847,10 +867,11 @@ Definition setRI_CTX ri (r: hmac256drbgstate): hmac256drbgstate :=
 Definition hmac_drbg_setReseedInterval_spec :=
   DECLARE _mbedtls_hmac_drbg_set_reseed_interval
    WITH ctx:val, shc: share, CTX:hmac256drbgstate, ABS:_, l:_
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _interval OF tint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_interval OF*) tint ]
        PROP (writable_share shc )
-       LOCAL (temp _ctx ctx; temp _interval (Vint (Int.repr l)))
+       (*LOCAL (temp _ctx ctx; temp _interval (Vint (Int.repr l)))*)
+       PARAMS (ctx; Vint (Int.repr l)) GLOBALS ()
        SEP (data_at shc t_struct_hmac256drbg_context_st CTX ctx;
             hmac256drbg_relate ABS CTX)
     POST [ tvoid ]
@@ -862,9 +883,10 @@ Definition hmac_drbg_setReseedInterval_spec :=
 Definition hmac_drbg_free_spec :=
   DECLARE _mbedtls_hmac_drbg_free
    WITH ctx:val, shc: share, CTX:hmac256drbgstate, ABS:_, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr) ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr) ]
        PROP (writable_share shc )
-       LOCAL (temp _ctx ctx; gvars gv)
+       (*LOCAL (temp _ctx ctx; gvars gv)*)
+       PARAMS (ctx) GLOBALS (gv)
        SEP (da_emp shc t_struct_hmac256drbg_context_st CTX ctx;
             if Val.eq ctx nullval then emp else
                  hmac256drbg_relate ABS CTX;
@@ -889,7 +911,7 @@ destruct (eq_dec fA fB); subst.
 Defined.
 (*
 Definition fs_merge (fA fB: funspec): option funspec :=
- match fA, fB with (mk_funspec sgA ccA A PreA PostA), (mk_funspec sgB ccB B PreB PostB) =>
+ match fA, fB with (mk_funspec sgA ccA A PreA PostA _ _ ), (mk_funspec sgB ccB B PreB PostB _ _ ) =>
   if eq_dec sgA sgB 
   then if eq_dec ccA ccB
        then Some (mk_funspec sgB ccB (A+B)
@@ -903,20 +925,24 @@ Definition fs_merge (fA fB: funspec): option funspec :=
 Definition hmac_init_funspec:=
     (WITH x : val * share * Z * list byte * globals + val * share * Z * list byte * block * ptrofs * share * globals
      PRE
-     [(hmac._ctx, tptr spec_hmac.t_struct_hmac_ctx_st), (hmac._key, tptr tuchar),
-     (hmac._len, tint)] match x with
+     (*[(hmac._ctx, tptr spec_hmac.t_struct_hmac_ctx_st), (hmac._key, tptr tuchar),
+      (hmac._len, tint)] *)
+     [ tptr spec_hmac.t_struct_hmac_ctx_st, tptr tuchar, tint]
+      match x with
                         | inl (c, sh, l, key, gv) =>
                             PROP (writable_share sh)
-                            LOCAL (temp hmac._ctx c; temp hmac._key nullval;
+                            (*LOCAL (temp hmac._ctx c; temp hmac._key nullval;
                             temp hmac._len (Vint (Int.repr l)); 
-                            gvars gv)
+                            gvars gv)*)
+                            PARAMS (c; nullval;Vint (Int.repr l)) GLOBALS (gv)
                             SEP (UNDER_SPEC.FULL sh key c;
                             spec_sha.K_vector gv)
                         | inr (c, sh, l, key, b0, i, shk, gv) =>
                             PROP (writable_share sh; readable_share shk; spec_hmac.has_lengthK l key)
-                            LOCAL (temp hmac._ctx c; temp hmac._key (Vptr b0 i);
+                            (*LOCAL (temp hmac._ctx c; temp hmac._key (Vptr b0 i);
                             temp hmac._len (Vint (Int.repr l)); 
-                            gvars gv)
+                            gvars gv)*)
+                            PARAMS (c; Vptr b0 i; Vint (Int.repr l)) GLOBALS (gv)
                             SEP (UNDER_SPEC.EMPTY sh c;
                             data_block shk key (Vptr b0 i); 
                             spec_sha.K_vector gv)
@@ -936,13 +962,73 @@ Definition hmac_init_funspec:=
                       data_block shk key (Vptr b0 i); 
                       spec_sha.K_vector gv)
                   end).
-(*
+
+Lemma hmac_init_merge: 
+      ndfs_merge _ _ _ _ _ (snd UNDER_SPEC.hmac_reset_spec) (eq_refl _)
+                 _ _ _ _ _ (snd UNDER_SPEC.hmac_starts_spec) (eq_refl _)
+      = Some hmac_init_funspec.
+Proof. unfold ndfs_merge. simpl. rewrite if_true by trivial.
+f_equal. unfold hmac_init_funspec. simpl. 
+  apply semax_prog.funspec_eq; simpl.
+  + extensionality ts x.
+    destruct x as [[[[[c sh] l] key] gv] | [[[[[[[c sh] l] key] b] i] shk] gv]].
+    - unfold convertPre. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
+      apply pred_ext; simpl; intros.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
+        normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
+        destruct args; [ | inv H]. 
+        unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
+        normalize. entailer!. split; discriminate. 
+    - unfold convertPre. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx. change_compspecs CompSepcs.
+      apply pred_ext; simpl; intros.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
+        normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
+        destruct args; [ | inv H]. 
+        unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
+        normalize. entailer!. split; discriminate. 
+  + extensionality ts x.
+    destruct x as [[[[[c sh] l] key] gv] | [[[[[[[c sh] l] key] b] i] shk] gv]].
+    - auto.
+    - change_compspecs CompSepcs.
+      auto.
+Qed.
+
+(*(*
 Lemma hmac_init_merge: 
   fs_merge (snd UNDER_SPEC.hmac_reset_spec)
            (snd UNDER_SPEC.hmac_starts_spec)
   = Some hmac_init_funspec.
+Proof. simpl. rewrite if_true; trivial. Qed.
+Locate UNDER_SPEC.hmac_reset_spec.
+Lemma hmac_init_merge: 
+  ndfs_merge (snd UNDER_SPEC.hmac_reset_spec)
+           (snd UNDER_SPEC.hmac_starts_spec)
+  = Some hmac_init_funspec.
 Proof. simpl. rewrite if_true; trivial. Qed.*)
-
+Lemma hmac_init_merge: 
+      binary_intersection (snd UNDER_SPEC.hmac_reset_spec)
+                          (snd UNDER_SPEC.hmac_starts_spec)
+  = Some hmac_init_funspec.
+Proof.
+  simpl. rewrite if_true by trivial. f_equal.
+  unfold hmac_init_funspec. simpl. 
+  apply semax_prog.funspec_eq. ndfs_merge. simpl. rewrite if_true; trivial.
+  f_equal.
+  unfold hmac_init_funspec.
+  f_equal.
+  + extensionality.
+    destruct x as [[[[c l] key] gv] | [[[[[c l] key] b0] i] gv]].
+    - auto.
+    - change_compspecs CompSepcs.
+      auto.
+  + extensionality.
+    destruct x as [[[[c l] key] gv] | [[[[[c l] key] b0] i] gv]].
+    - auto.
+    - change_compspecs CompSepcs.
+      auto.
+Qed.
 Lemma hmac_init_merge: 
   ndfs_merge _ _ _ _ _ (snd UNDER_SPEC.hmac_reset_spec) (eq_refl _)
              _ _ _ _ _ (snd UNDER_SPEC.hmac_starts_spec) (eq_refl _)
@@ -964,6 +1050,15 @@ Proof.
       auto.
 Qed.
 
+Definition hmac_init_funspec: funspec.
+Proof.
+  remember (binary_intersection (snd UNDER_SPEC.hmac_reset_spec)
+                                (snd UNDER_SPEC.hmac_starts_spec)).
+  destruct o. apply f.
+  simpl in Heqo. rewrite if_true in Heqo by trivial. congruence.
+Defined.*)
+  
+
 Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
   md_free_spec ::hmac_drbg_free_spec::mbedtls_zeroize_spec::
   hmac_drbg_setReseedInterval_spec::hmac_drbg_setEntropyLen_spec::
@@ -982,3 +1077,8 @@ Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
 
   drbg_memcpy_spec:: drbg_memset_spec::
   sha.spec_hmac.sha256init_spec::sha.spec_hmac.sha256update_spec::sha.spec_hmac.sha256final_spec::nil)).
+
+Lemma datablock_NoVundef sh bytes v: data_block sh  bytes v |-- !!(v <> Vundef).
+Proof. unfold data_block. entailer!. Qed.
+
+Hint Resolve datablock_NoVundef : saturate_local.

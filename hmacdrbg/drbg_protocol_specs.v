@@ -56,15 +56,14 @@ Definition drbg_seed_inst256_spec_abs :=
    WITH sh: share, dp:_, ctx: val, info:val, len: Z, data:val, Data: list byte,
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
         handle_ss: DRBG_functions.DRBG_state_handle * ENTROPY.stream, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _custom OF tptr tuchar, _len OF tuint ]
+    PRE [tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         tptr (Tstruct _mbedtls_md_info_t noattr),
+         tptr tuchar, tuint ]
        PROP (writable_share sh; 
                  len = Zlength Data /\ 0 <= len <=256 /\
              instantiate_function_256 s pr_flag (contents_with_add data (Zlength Data) Data)
                = ENTROPY.success (fst handle_ss) (snd handle_ss))
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
+       PARAMS (ctx; info; data; Vint (Int.repr len)) GLOBALS (gv)
        SEP (seedREP sh dp rc pr_flag ri gv Info info ctx; Stream s;
             da_emp sh (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
             mem_mgr gv)
@@ -88,14 +87,13 @@ Definition drbg_seed_buf_abs_spec :=
    WITH sh: share, ctx: val, info:val, d_len: Z, data:val, Data: list byte,
         I: hmac256drbgabs, Info:md_info_state,
         gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF (tptr (Tstruct _mbedtls_md_info_t noattr)),
-         _data OF tptr tuchar, _data_len OF tuint ]
+    PRE [ tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+          tptr (Tstruct _mbedtls_md_info_t noattr),
+          tptr tuchar,  tuint ]
        PROP (writable_share sh; 
                 d_len = Zlength Data \/ d_len=0;
              0 <= d_len <= Int.max_unsigned)
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _data_len (Vint (Int.repr d_len)); temp _data data; gvars gv)
+       PARAMS (ctx; info; data; Vint (Int.repr d_len)) GLOBALS (gv)
        SEP (seedbufREP sh gv Info info I ctx;
             da_emp sh (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
             mem_mgr gv)
@@ -116,24 +114,21 @@ Definition drbg_seed_buf_abs_spec :=
 Definition drbg_setPredictionResistance_spec_abs :=
   DECLARE _mbedtls_hmac_drbg_set_prediction_resistance 
    WITH sh: share, ctx:val, A:_, r:bool, gv:globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _resistance OF tint ]
+    PRE [ tptr (Tstruct _mbedtls_hmac_drbg_context noattr), tint ]
        PROP (writable_share sh)
-       LOCAL (temp _ctx ctx; temp _resistance (Val.of_bool r))
+       PARAMS (ctx; Val.of_bool r) GLOBALS ()
        SEP (AREP sh gv A ctx)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
        SEP (AREP sh gv (setPR_ABS r A) ctx).
 
-
 Definition drbg_setEntropyLen_spec_abs :=
   DECLARE _mbedtls_hmac_drbg_set_entropy_len
    WITH sh: share, ctx:val, A:_, l:_, gv:globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _len OF tuint ]
+    PRE [ tptr (Tstruct _mbedtls_hmac_drbg_context noattr), tuint ]
        PROP (writable_share sh; 0 < l <= 384 )
-       LOCAL (temp _ctx ctx; temp _len (Vint (Int.repr l)))
+       PARAMS (ctx;Vint (Int.repr l)) GLOBALS()
        SEP (AREP sh gv A ctx)
     POST [ tvoid ]
        PROP ()
@@ -143,10 +138,9 @@ Definition drbg_setEntropyLen_spec_abs :=
 Definition drbg_setReseedInterval_spec_abs :=
   DECLARE _mbedtls_hmac_drbg_set_reseed_interval
    WITH sh: share, ctx:val, A:_, ri:_, gv:globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _interval OF tint ]
+    PRE [ tptr (Tstruct _mbedtls_hmac_drbg_context noattr), tint ]
        PROP (writable_share sh; RI_range ri )
-       LOCAL (temp _ctx ctx; temp _interval (Vint (Int.repr ri)))
+       PARAMS (ctx; Vint (Int.repr ri)) GLOBALS ()
        SEP (AREP sh gv A ctx)
     POST [ tvoid ]
        PROP ()
@@ -159,14 +153,12 @@ Definition drbg_update_abs_spec :=
         additional: val, sha: share, add_len: Z,
         ctx: val, shc: share, I: hmac256drbgabs,
         gv: globals
-     PRE [ _ctx OF (tptr t_struct_hmac256drbg_context_st),
-           _additional OF (tptr tuchar), _add_len OF tuint ]
+     PRE [tptr t_struct_hmac256drbg_context_st,
+         tptr tuchar, tuint ]
        PROP (readable_share sha; writable_share shc; 0 <= add_len <= Int.max_unsigned;
              add_len = Zlength contents \/ add_len = 0)
-       LOCAL (temp _ctx ctx;
-              temp _additional additional;
-              temp _add_len (Vint (Int.repr add_len));
-              gvars gv)
+       PARAMS (ctx; additional; Vint (Int.repr add_len))
+       GLOBALS (gv)
        SEP (AREP shc gv I ctx;
             da_emp sha (tarray tuchar (Zlength contents)) (map Vubyte contents) additional)
     POST [ tvoid ]
@@ -181,11 +173,11 @@ Definition drbg_reseed_spec_abs :=
         additional: val, sha: share, add_len: Z,
         ctx: val, shc: share, I: hmac256drbgabs,
         s: ENTROPY.stream, gv: globals
-    PRE [ _ctx OF (tptr t_struct_hmac256drbg_context_st), _additional OF (tptr tuchar), _len OF tuint ]
+    PRE [ tptr t_struct_hmac256drbg_context_st, tptr tuchar, tuint ]
        PROP (readable_share sha; writable_share shc; 0 <= add_len <= Int.max_unsigned;
              add_len = Zlength contents;
              0 < hmac256drbgabs_entropy_len I + Zlength (contents_with_add additional add_len contents) < Int.modulus)
-       LOCAL (temp _ctx ctx; temp _additional additional; temp _len (Vint (Int.repr add_len)); gvars gv)
+       PARAMS (ctx; additional; Vint (Int.repr add_len)) GLOBALS (gv)
        SEP ( da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional;
               AREP shc gv I ctx; Stream s)
     POST [ tint ]
@@ -235,15 +227,15 @@ Definition hmac_drbg_generate_abs_spec :=
         ctx: val, shc: share,
         I: hmac256drbgabs,
         s: ENTROPY.stream, gv: globals
-    PRE [ _p_rng OF (tptr tvoid), _output OF (tptr tuchar), _out_len OF tuint, 
-          _additional OF (tptr tuchar), _add_len OF tuint ]
+    PRE [ tptr tvoid, tptr tuchar, tuint, 
+          tptr tuchar, tuint ]
        PROP (readable_share sha; writable_share shc; writable_share sho;
              0 <= add_len <= Int.max_unsigned;
              0 <= out_len <= Int.max_unsigned;
              add_len = Zlength contents;
              hmac256drbgabs_entropy_len I + Zlength contents <= 384)
-       LOCAL (temp _p_rng ctx; temp _output output; temp _out_len (Vint (Int.repr out_len)); 
-              temp _additional additional; temp _add_len (Vint (Int.repr add_len)); gvars gv)
+       PARAMS (ctx; output; Vint (Int.repr out_len); additional; Vint (Int.repr add_len))
+       GLOBALS (gv)
        SEP (data_at_ sho (tarray tuchar out_len) output;
             da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional;
             AREP shc gv I ctx; Stream s)
@@ -258,12 +250,11 @@ Definition drbg_random_abs_spec :=
    WITH output: val, sho: share, n: Z, ctx: val, shc: share,
         I: hmac256drbgabs,
         s: ENTROPY.stream, bytes:_, F:_, ss:_, gv: globals
-    PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
+    PRE [ tptr tvoid, tptr tuchar, tuint ]
        PROP (writable_share sho; writable_share shc;
          0 <= n <= 1024;
          mbedtls_generate s I n = Some(bytes, ss, F))
-       LOCAL (temp _p_rng ctx; temp _output output;
-              temp _out_len (Vint (Int.repr n)); gvars gv)
+       PARAMS (ctx; output; Vint (Int.repr n)) GLOBALS (gv)
        SEP (data_at_ sho (tarray tuchar n) output;
             AREP shc gv I ctx; Stream s)
     POST [ tint ] 
@@ -277,12 +268,11 @@ Definition drbg_random_abs_spec1 :=
    WITH output: val, sho: share, n: Z, ctx: val, shc: share,
         I: hmac256drbgabs,
         s: ENTROPY.stream, bytes:_, J:_, ss:_, gv: globals
-    PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
+    PRE [ tptr tvoid, tptr tuchar, tuint ]
        PROP (writable_share sho; writable_share shc;
          0 <= n <= 1024;
          mbedtls_HMAC256_DRBG_generate_function s I n [] = ENTROPY.success (bytes, J) ss)
-       LOCAL (temp _p_rng ctx; temp _output output;
-              temp _out_len (Vint (Int.repr n)); gvars gv)
+       PARAMS (ctx; output; Vint (Int.repr n)) GLOBALS (gv)
        SEP (data_at_ sho (tarray tuchar n) output;
             AREP shc gv I ctx; Stream s)
     POST [ tint ] EX F: hmac256drbgabs,  
