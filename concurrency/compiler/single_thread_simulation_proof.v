@@ -64,11 +64,11 @@ Import bounded_maps.
 (* End MIGRATION! *)
 
 
- Ltac subst_sig:=
-   match goal with
-     H': existT _ _ _ = existT _ _ _ |- _ =>
-     eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
-   end.
+Ltac subst_sig:=
+  match goal with
+    H': existT _ _ _ = existT _ _ _ |- _ =>
+    eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
+  end.
 
 
 
@@ -114,153 +114,211 @@ Section ThreadedSimulation.
       Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
       Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
       
-    Existing Instance HybridSem.
-    Existing Instance dryResources.
-    Existing Instance DryHybridMachineSig.
-    
+      Existing Instance HybridSem.
+      Existing Instance dryResources.
+      Existing Instance DryHybridMachineSig.
+      
 
-Definition cast_t {Sem}:
-                @OrdinalPool.t _ Sem -> @ThreadPool.t _ Sem (@OrdinalThreadPool dryResources _):=
-  fun X => X.
+      Definition cast_t {Sem}:
+        @OrdinalPool.t _ Sem -> @ThreadPool.t _ Sem (@OrdinalThreadPool dryResources _):=
+        fun X => X.
 
-    Lemma free_perms:
-      forall m b0 lo hi m', Mem.free m b0 lo hi = Some m' ->
-                       forall b ofs,
-                         (getCurPerm m') !! b ofs =
-                         (getCurPerm m) !! b ofs /\
-                         (getMaxPerm m') !! b ofs =
-                         (getMaxPerm m) !! b ofs
-                         \/
-                         (getCurPerm m) !! b ofs = Some Freeable.
-    Proof.
-      intros.
-      repeat rewrite getCurPerm_correct, getMaxPerm_correct.
-      unfold permission_at.
-      pose proof (juicy_mem.free_not_freeable_eq m b0 lo hi m' b ofs H).
-      unfold Memory.access_at in *; simpl in *.
-      eapply Mem.free_result in H as HH.
-      unfold Mem.unchecked_free in H; subst m'; simpl in *.
-      clear H0.
-      destruct (peq b b0); subst.
-      - rewrite PMap.gss. 
-        match_case; eauto.
-        right. eapply Mem.free_range_perm in H. 
-        exploit (H ofs).
-        + eapply andb_prop in Heqb; normal_hyp.
-          simpl in *.
-          destruct (zle lo ofs); simpl in *; try congruence.
-          destruct (zlt ofs hi); simpl in *; try congruence.
-          omega.
-        + unfold Mem.perm.
-          destruct ((Mem.mem_access m) !! b0 ofs Cur);
-            intros HH; inv HH; eauto.
-      - rewrite PMap.gso; auto.
-    Qed.
-    Lemma mem_step_perms:
-      forall m m', mem_step m m' ->
-              forall b ofs,
-                (getCurPerm m') !! b ofs = (getCurPerm m) !! b ofs /\
-                (getMaxPerm m') !! b ofs = (getMaxPerm m) !! b ofs \/
-                (getMaxPerm m) !! b ofs = None \/
-                (getCurPerm m) !! b ofs = Some Freeable.
-    Proof.
-      intros. induction H.
-      - left. split; symmetry;
-                try eapply memory_lemmas.MemoryLemmas.mem_storebytes_cur; eauto.
-        do 2 erewrite getMaxPerm_correct; unfold permission_at.
-        symmetry; erewrite Mem.storebytes_access; eauto.
-      - destruct (peq b b').
-        + subst; right; left.
-          apply Mem.alloc_result in H.
-          pose proof (Mem.nextblock_noaccess m b' ofs Max).
-          rewrite_getPerm; apply H0.
-          subst; apply Plt_strict.
-        + left. 
-          pose proof (Memory.alloc_access_other m lo hi m' b' H b ofs).
-          pose proof (H0 Cur ltac:(left; eauto)).
-          pose proof (H0 Max ltac:(left; eauto)).
-          unfold Memory.access_at in *. repeat rewrite_getPerm.
-          simpl in *; eauto.
-      - revert  m m' H b ofs.
-        induction l.
-        + simpl; intros. inv H; eauto.
-        + intros. simpl in H.
-          destruct a as (p0, hi); destruct p0 as (b0, lo).
-          match_case in H.
-          exploit free_perms; eauto. intros HH.
-          destruct HH as [ [HH1 HH2] |]; eauto.
-          repeat rewrite <- HH1; rewrite <- HH2.
-          clear HH1 HH2.
-          eapply IHl; eauto.
-      - destruct IHmem_step1 as [[HH1 HH2]|[?|?]]; eauto.
-        repeat rewrite <- HH1, <- HH2; eauto.
-    Qed.
-    
-    Lemma mem_step_perms':
-      forall m m', mem_step m m' ->
-              forall b ofs,
-                (getCurPerm m') !! b ofs = (getCurPerm m) !! b ofs \/
-                (getMaxPerm m) !! b ofs = None \/
-                (getCurPerm m) !! b ofs = Some Freeable.
-    Proof.
-      intros; exploit mem_step_perms; eauto;
-        intros [[]|[?|?]]; eauto.
-    Qed.
-    
-    Lemma perms_permMapsDisjoint:
-      forall A A' M B,
-      (forall b ofs, A' !! b ofs = A !! b ofs \/
-                M !! b ofs = None \/
-                A !! b ofs = Some Freeable) ->
-      permMapLt B M ->
-      permMapsDisjoint A B ->
-      permMapsDisjoint A'  B.
-    Proof.
-      intros * HH Hlt Hdisj b ofs.
-      specialize (HH b ofs).
-      destruct HH as [?|[? | ?]].
-      - rewrite H; eapply Hdisj.
-      - specialize (Hlt b ofs).
-        rewrite H in Hlt; simpl in Hlt.
-        match_case in Hlt.
-        unfold perm_union. econstructor; simpl.
-        match_case; eauto.
-      - specialize (Hdisj b ofs);
-          destruct Hdisj. rewrite H in H0.
-        simpl in H0. match_case in H0.
-        unfold perm_union. econstructor; simpl.
-        match_case; eauto.
-    Qed.
-    
-    Lemma perms_permMapCoherence:
-      forall A A' M B,
-      (forall b ofs, A' !! b ofs = A !! b ofs \/
-                M !! b ofs = None \/
-                A !! b ofs = Some Freeable) ->
-      permMapLt B M ->
-      permMapCoherence A B ->
-      permMapCoherence A'  B.
-    Proof.
-      intros * HH Hlt Hdisj b ofs.
-      specialize (HH b ofs).
-      destruct HH as [?|[? | ?]].
-      - rewrite H; eapply Hdisj.
-      - specialize (Hlt b ofs).
-        rewrite H in Hlt; simpl in Hlt.
-        match_case in Hlt.
-        unfold perm_coh. 
-        repeat match_case; eauto.
-      - specialize (Hdisj b ofs); hnf in Hdisj.
-        rewrite H in Hdisj; match_case in Hdisj.
-        unfold perm_coh. repeat match_case; eauto.
-    Qed.
-    Instance permMapCoherence_Proper:
+      Lemma free_perms:
+        forall m b0 lo hi m', Mem.free m b0 lo hi = Some m' ->
+                         forall b ofs,
+                           (getCurPerm m') !! b ofs =
+                           (getCurPerm m) !! b ofs /\
+                           (getMaxPerm m') !! b ofs =
+                           (getMaxPerm m) !! b ofs
+                           \/
+                           (getCurPerm m) !! b ofs = Some Freeable.
+      Proof.
+        intros.
+        repeat rewrite getCurPerm_correct, getMaxPerm_correct.
+        unfold permission_at.
+        pose proof (juicy_mem.free_not_freeable_eq m b0 lo hi m' b ofs H).
+        unfold Memory.access_at in *; simpl in *.
+        eapply Mem.free_result in H as HH.
+        unfold Mem.unchecked_free in H; subst m'; simpl in *.
+        clear H0.
+        destruct (peq b b0); subst.
+        - rewrite PMap.gss. 
+          match_case; eauto.
+          right. eapply Mem.free_range_perm in H. 
+          exploit (H ofs).
+          + eapply andb_prop in Heqb; normal_hyp.
+            simpl in *.
+            destruct (zle lo ofs); simpl in *; try congruence.
+            destruct (zlt ofs hi); simpl in *; try congruence.
+            omega.
+          + unfold Mem.perm.
+            destruct ((Mem.mem_access m) !! b0 ofs Cur);
+              intros HH; inv HH; eauto.
+        - rewrite PMap.gso; auto.
+      Qed.
+      Lemma mem_step_perms_max:
+        forall m m', mem_step m m' ->
+                forall b ofs,
+                  (getCurPerm m') !! b ofs = (getCurPerm m) !! b ofs /\
+                  (getMaxPerm m') !! b ofs = (getMaxPerm m) !! b ofs \/
+                  (getMaxPerm m) !! b ofs = None \/
+                  (getCurPerm m) !! b ofs = Some Freeable.
+      Proof.
+        intros. induction H.
+        - left. split; symmetry;
+                  try eapply memory_lemmas.MemoryLemmas.mem_storebytes_cur; eauto.
+          do 2 erewrite getMaxPerm_correct; unfold permission_at.
+          symmetry; erewrite Mem.storebytes_access; eauto.
+        - destruct (peq b b').
+          + subst; right; left.
+            apply Mem.alloc_result in H.
+            pose proof (Mem.nextblock_noaccess m b' ofs Max).
+            rewrite_getPerm; apply H0.
+            subst; apply Plt_strict.
+          + left. 
+            pose proof (Memory.alloc_access_other m lo hi m' b' H b ofs).
+            pose proof (H0 Cur ltac:(left; eauto)).
+            pose proof (H0 Max ltac:(left; eauto)).
+            unfold Memory.access_at in *. repeat rewrite_getPerm.
+            simpl in *; eauto.
+        - revert  m m' H b ofs.
+          induction l.
+          + simpl; intros. inv H; eauto.
+          + intros. simpl in H.
+            destruct a as (p0, hi); destruct p0 as (b0, lo).
+            match_case in H.
+            exploit free_perms; eauto. intros HH.
+            destruct HH as [ [HH1 HH2] |]; eauto.
+            repeat rewrite <- HH1; rewrite <- HH2.
+            clear HH1 HH2.
+            eapply IHl; eauto.
+        - destruct IHmem_step1 as [[HH1 HH2]|[?|?]]; eauto.
+          repeat rewrite <- HH1, <- HH2; eauto.
+      Qed.
+      
+      Lemma mem_step_perms:
+        forall m m', mem_step m m' ->
+                forall b ofs,
+                  (getCurPerm m') !! b ofs = (getCurPerm m) !! b ofs \/
+                  (getMaxPerm m) !! b ofs = None \/
+                  (getCurPerm m) !! b ofs = Some Freeable.
+      Proof.
+        intros; exploit mem_step_perms_max; eauto;
+          intros [[]|[?|?]]; eauto.
+      Qed.
+      
+      Lemma perms_permMapsDisjoint:
+        forall A A' M B,
+          (forall b ofs, A' !! b ofs = A !! b ofs \/
+                    M !! b ofs = None \/
+                    A !! b ofs = Some Freeable) ->
+          permMapLt B M ->
+          permMapsDisjoint A B ->
+          permMapsDisjoint A'  B.
+      Proof.
+        intros * HH Hlt Hdisj b ofs.
+        specialize (HH b ofs).
+        destruct HH as [?|[? | ?]].
+        - rewrite H; eapply Hdisj.
+        - specialize (Hlt b ofs).
+          rewrite H in Hlt; simpl in Hlt.
+          match_case in Hlt.
+          unfold perm_union. econstructor; simpl.
+          match_case; eauto.
+        - specialize (Hdisj b ofs);
+            destruct Hdisj. rewrite H in H0.
+          simpl in H0. match_case in H0.
+          unfold perm_union. econstructor; simpl.
+          match_case; eauto.
+      Qed.
+      
+      Lemma perms_permMapCoherence:
+        forall A A' M B,
+          (forall b ofs, A' !! b ofs = A !! b ofs \/
+                    M !! b ofs = None \/
+                    A !! b ofs = Some Freeable) ->
+          permMapLt B M ->
+          permMapCoherence A B ->
+          permMapCoherence A'  B.
+      Proof.
+        intros * HH Hlt Hdisj b ofs.
+        specialize (HH b ofs).
+        destruct HH as [?|[? | ?]].
+        - rewrite H; eapply Hdisj.
+        - specialize (Hlt b ofs).
+          rewrite H in Hlt; simpl in Hlt.
+          match_case in Hlt.
+          unfold perm_coh. 
+          repeat match_case; eauto.
+        - specialize (Hdisj b ofs); hnf in Hdisj.
+          rewrite H in Hdisj; match_case in Hdisj.
+          unfold perm_coh. repeat match_case; eauto.
+      Qed.
+      Instance permMapCoherence_Proper:
         Proper (access_map_equiv ==> access_map_equiv ==> iff) permMapCoherence.
       Proof.
         setoid_help.proper_iff; setoid_help.proper_intros.
         intros b ofs; unfold permMapCoherence in *.
         rewrite <- H, <- H0. apply H1.
       Qed.
+      
+      Lemma mem_step_preserves_invariant:
+        forall (st st': @t dryResources (HybridSem (@Some nat (S hb))))
+          i cnt m m' c
+          (Hcur: access_map_equiv (getCurPerm m) (thread_perms i st cnt)),
+          @mem_compatible (HybridSem _) _ st m ->
+          @invariant  (HybridSem _) _ st ->
+          mem_step m m' ->
+          st' = updThread cnt c (getCurPerm m', snd (@getThreadR dryResources _ i st cnt)) ->
+          @invariant (HybridSem _) _ st'.
+      Proof.
+        intros.
+        rename H into Hcmpt.
+        rename H0 into Hinv.
+
+        pose proof (mem_step_perms _ _ H1) as Hperms; clear H1.
+        
+        eapply synchronisation_lemmas.invariant_update_thread; simpl; eauto.
+        - intros. assert (Hneq: i <> j) by eauto; clear H.
+          unshelve exploit @no_race_thr; try eapply Hneq; simpl; eauto.
+          intros [? ?]; split; simpl in *; eauto.
+          
+          eapply perms_permMapsDisjoint; eauto.
+          + eapply Hcmpt.
+          + eapply permMapsDisjoint_Proper; try eapply Hcur; try eassumption; try reflexivity.
+            
+        - intros. 
+          unshelve exploit @no_race; simpl; eauto.
+          intros [? ?]; split; simpl in *; eauto.
+          
+          eapply perms_permMapsDisjoint; eauto.
+          + eapply Hcmpt; eauto.
+          + eapply permMapsDisjoint_Proper; try eapply Hcur; try eassumption; reflexivity.
+        - simpl. eapply perms_permMapCoherence; eauto.
+          + eapply Hcmpt; eauto.
+          + rewrite Hcur. exploit @thread_data_lock_coh; eauto.
+            intros [? ?]. eapply H.
+        - simpl; intros.
+          split.
+          + exploit @thread_data_lock_coh; eauto. intros [? _].
+            eapply perms_permMapCoherence; eauto.
+            * eapply Hcmpt; eauto.
+            * rewrite Hcur. exploit @thread_data_lock_coh; eauto.
+              intros [? ?]. simpl in *. eapply H1.
+          + exploit @thread_data_lock_coh; eauto. intros [? _].
+            simpl in *; eapply H0.
+        - simpl; intros. split.
+    + eapply Hinv; eauto.
+    + exploit @locks_data_lock_coh; eauto. intros [? _].
+      eapply perms_permMapCoherence; eauto.
+      * eapply Hcmpt; eauto.
+      * rewrite Hcur. apply H0.
+
+        Unshelve.
+        all: simpl; eauto.
+      Qed.
+
+        
     Lemma Asm_preserves_invariant:
   forall g i (st: @t dryResources (HybridSem (@Some nat (S hb))))
     cnt st' (th_st: Smallstep.state (Asm.part_semantics g)) c2 m Hlt t0
@@ -281,94 +339,243 @@ Proof.
   intros.
   rename H into Hcmpt.
   rename H0 into Hinv.
-  simpl in H1.
-  exploit Asm_core.asm_mem_step.
-  { simpl; econstructor; simpl; eauto. }
-  { assumption. }
 
-  intros HH. 
-  remember (Asm.get_mem th_st) as m0.
-  remember (Smallstep.get_mem th_st) as m1.
-  match type of HH with
-  | mem_step th_m ?x =>
-    remember x as Xm
-  end.
-  assert (Xm = m1) by (subst; reflexivity).
-  rewrite H in HH.
-  rewrite HeqXm in H.
-  subst Xm. 
-  pose proof (mem_step_perms' _ _ HH) as Hperms; clear HH.
-  assert (Hmax: Max_equiv m th_m).
-  { subst; subst_set. symmetry; apply restr_Max_equiv. }
-  unfold Max_equiv in *.
-  assert (Hcur: access_map_equiv (getCurPerm th_m)  (thread_perms i st cnt)).
-  { subst th_m. rewrite getCur_restr; eauto. subst_set; reflexivity. }
-
-  
-  eapply synchronisation_lemmas.invariant_update_thread; simpl; eauto.
-  - intros. assert (Hneq: i <> j) by eauto; clear H3.
-    unshelve exploit @no_race_thr; try eapply Hneq; simpl; eauto.
-    intros [? ?]; split; simpl in *; eauto.
-    
-    eapply perms_permMapsDisjoint; eauto.
-    + rewrite <- Hmax; eapply Hcmpt.
-    + eapply permMapsDisjoint_Proper; try eapply Hcur; try eassumption; reflexivity.
-  - intros. 
-    unshelve exploit @no_race; simpl; eauto.
-    intros [? ?]; split; simpl in *; eauto.
-    
-    eapply perms_permMapsDisjoint; eauto.
-    + rewrite <- Hmax; eapply Hcmpt; eauto.
-    + eapply permMapsDisjoint_Proper; try eapply Hcur; try eassumption; reflexivity.
-  - simpl. eapply perms_permMapCoherence; eauto.
-    + rewrite <- Hmax; eapply Hcmpt; eauto.
-    + rewrite Hcur. exploit @thread_data_lock_coh; eauto.
-      intros [? ?]. eapply H0.
-  - simpl; intros.
-    split.
-    + exploit @thread_data_lock_coh; eauto. intros [? _].
-      eapply perms_permMapCoherence; eauto.
-      * rewrite <- Hmax; eapply Hcmpt; eauto.
-      * rewrite Hcur. exploit @thread_data_lock_coh; eauto.
-        intros [? ?]. simpl in *. eapply H4.
-    + exploit @thread_data_lock_coh; eauto. intros [? _].
-      simpl in *; eapply H4.
-  - simpl; intros. split.
-    + eapply Hinv; eauto.
-    + exploit @locks_data_lock_coh; eauto. intros [? _].
-      eapply perms_permMapCoherence; eauto.
-      * rewrite <- Hmax. eapply Hcmpt; eauto.
-      * rewrite Hcur. apply H4.
-
-        Unshelve.
-        all: simpl; eauto.
+  eapply (mem_step_preserves_invariant _ _ _ _ th_m); eauto.
+  - subst_set. eapply getCur_restr.
+  - subst_set; eapply synchronisation_lemmas.compat_restr; eauto.
+  - exploit Asm_core.asm_mem_step.
+    + simpl; econstructor; simpl; eauto. 
+    + assumption. 
+    + auto.
 Qed.
+        
+    Lemma Clight_preserves_invariant:
+  forall g i (st: @t dryResources (HybridSem (@Some nat (S hb))))
+    cnt st' (th_st: Smallstep.state (Clight.part_semantics2 g)) c2 m Hlt t0,
+    @mem_compatible (HybridSem _) _ st m ->
+    @invariant  (HybridSem _) _ st ->
+    @getThreadC _ (HybridSem _) _ _ cnt =
+    (Krun (SST c2)) ->
+    let th_perm:= @getThreadR _ _ i st cnt in
+    let th_m:= @restrPermMap (fst th_perm) m Hlt in
+    forall (Hext:Clight.at_external (Clight.set_mem c2 th_m) = None),
+    Clight.step2 g (Clight.set_mem c2 th_m) t0 th_st ->
+    st' = updThread cnt (Krun (SST th_st))
+                    (getCurPerm (Smallstep.get_mem th_st),
+                     snd (getThreadR cnt)) ->
+    @invariant (HybridSem _) _ st'.
+Proof.
+  intros.
+  rename H into Hcmpt.
+  rename H0 into Hinv.
+
+  eapply (mem_step_preserves_invariant _ _ _ _ th_m); eauto.
+  - subst_set. eapply getCur_restr.
+  - subst_set; eapply synchronisation_lemmas.compat_restr; eauto.
+  - eapply Clight_core.ev_elim_mem_step, ClightSemanticsForMachines.CLN_evstep_elim.
+    simpl.
+    
+    
+
+    (* ClightSemanticsForMachines.CLC_evsem_obligation_3.
+    exploit Asm_core.asm_mem_step.
+    + simpl; econstructor; simpl; eauto. 
+    + assumption. 
+    + auto. *) admit.
+Admitted.
+
+Definition cmpt_valid_blocks (Sem : Semantics) (tpool : ThreadPool.ThreadPool)
+       (tp : ThreadPool.t) (m : mem):=
+  forall (l : address) (rmap : lock_info),
+                     ThreadPool.lockRes tp l = Some rmap ->
+                     Mem.valid_block m (fst l).
+Record factored_compt(Sem : Semantics) (tpool : ThreadPool.ThreadPool)
+       (tp : ThreadPool.t) (m : mem) b ofs : Prop :=
+  { compat_th : forall (tid : nat) (cnt : ThreadPool.containsThread tp tid),
+      Mem.perm_order'' ((getMaxPerm m)!! b ofs)
+                       ((fst (ThreadPool.getThreadR cnt)) !! b ofs)  /\
+      Mem.perm_order'' ((getMaxPerm m)!! b ofs)
+                       ((snd (ThreadPool.getThreadR cnt)) !! b ofs);
+    compat_lp : forall (l : address) (pmaps : lock_info),
+        ThreadPool.lockRes tp l = Some pmaps ->
+        Mem.perm_order'' ((getMaxPerm m)!! b ofs)
+                         ((fst pmaps) !! b ofs)  /\
+        Mem.perm_order'' ((getMaxPerm m)!! b ofs)
+                         ((snd pmaps) !! b ofs)}.
+
+
+Lemma factor_compt:
+  forall Sem tpool tp m,
+    (@mem_compatible Sem tpool tp m) <->
+    (cmpt_valid_blocks Sem tpool tp m /\
+      forall b ofs, @factored_compt Sem tpool tp m b ofs).
+Proof.
+  intros; split; intros * HH.
+  - inv HH; econstructor; intros; eauto.
+    econstructor; intros; eauto.
+    + split; eapply compat_th0.
+    + split; eapply compat_lp0; eauto.
+  - econstructor; intros; eauto.
+    + split; intros ??; eapply HH.
+    + split; intros ??; eapply HH; eauto.
+    + eapply HH; eauto. 
+Qed.
+Lemma useful_disjoint:
+  forall A B X b ofs,
+    permMapsDisjoint A B ->
+    B !! b ofs = Some Freeable ->
+    Mem.perm_order'' X (A !! b ofs).
+Proof.
+  intros.
+  specialize (H b ofs); rewrite H0 in H.
+  inv H. unfold perm_union in H1; repeat match_case in H1.
+  apply event_semantics.po_None.
+Qed.
+Lemma useful_coherence:
+  forall A B X b ofs,
+    permMapCoherence B A ->
+    B !! b ofs = Some Freeable ->
+    Mem.perm_order'' X (A !! b ofs).
+Proof.
+  intros.
+  specialize (H b ofs); rewrite H0 in H.
+  simpl in H. repeat match_case in H.
+  apply event_semantics.po_None.
+Qed.
+Lemma mem_step_preserves_compat:
+  forall i (st: @t dryResources (HybridSem (@Some nat (S hb))))
+    cnt st' c2 m m' c
+    (Hcur: access_map_equiv (getCurPerm m) (thread_perms i st cnt)),
+    @invariant (HybridSem _) _ st -> 
+    @mem_compatible (HybridSem _) _ st m ->
+    @getThreadC _ (HybridSem _) i st cnt =
+    (Krun (TST c2)) ->
+    mem_step m m' ->
+    st' = updThread cnt c
+                    (getCurPerm m',
+                     snd (getThreadR cnt)) ->
+      @mem_compatible (HybridSem _) _ st' m'.
+Proof.
+    intros.
+    rename H0 into Hcmpt.
+    rename H into Hinv.
+    pose proof (mem_step_perms_max _ _ H2) as Hperms; clear H1.
+
+    eapply factor_compt in Hcmpt as [Hlock_valid Hcmpt].
+  
+    eapply factor_compt; split.
+    {!goal(cmpt_valid_blocks _ _ _ _ ).
+     eapply mem_step_nextblock' in H2.
+     hnf; intros. unfold Mem.valid_block.
+     
+     subst st'; simpl in *; rewrite gsoThreadLPool in H.
+     eapply Hlock_valid in H; eauto. unfold Mem.valid_block in H.
+     eapply Plt_Ple_trans; try eassumption. }
+
+    
+    intros b ofs. specialize (Hcmpt b ofs).
+    
+  specialize (Hperms b ofs);
+    destruct Hperms as [?|[?|?]]; normal_hyp; swap 1 2.
+    -  inv Hcmpt. rewrite H in *.
+     econstructor.
+     + intros tid cnt'.
+       destruct (Nat.eq_dec i tid).
+       * subst; unshelve exploit @gssThreadRes; try eapply cnt'.
+         simpl; intros HH; rewrite HH; simpl.
+         split.
+         -- simpl. eapply cur_lt_max.
+         -- simpl; eapply perm_order''_trans; eauto.
+            apply event_semantics.po_None.
+            eapply compat_th0.
+       * assert (cnt0:containsThread st tid) by eauto.
+         exploit (gsoThreadRes cnt0 n cnt'); simpl;
+           intros HH; rewrite HH; clear HH.
+         split; simpl; eapply perm_order''_trans; eauto;
+         try eapply event_semantics.po_None;
+         eapply compat_th0.
+     + simpl. intros. rewrite gsoThreadLPool in H0.
+         split; simpl; eapply perm_order''_trans; eauto;
+         try eapply event_semantics.po_None;
+         eapply compat_lp0; eauto.
+  - inv Hcmpt. rewrite <- H0 in *. 
+    econstructor.
+    + intros tid cnt'.
+       destruct (Nat.eq_dec i tid).
+       * subst; unshelve exploit @gssThreadRes; try eapply cnt'.
+         simpl; intros HH; rewrite HH; simpl.
+         split.
+         -- simpl. eapply cur_lt_max.
+         -- eapply compat_th0.
+      * assert (cnt0:containsThread st tid) by eauto.
+         exploit (gsoThreadRes cnt0 n cnt'); simpl;
+           intros HH; rewrite HH; clear HH.
+         eapply compat_th0.
+    + simpl. intros. rewrite gsoThreadLPool in H1.
+      eapply compat_lp0; eauto.
+  - econstructor.
+    + intros tid cnt'.
+       rewrite Hcur in H.
+       destruct (Nat.eq_dec i tid).
+       * subst; unshelve exploit @gssThreadRes; try eapply cnt'.
+         simpl; intros HH; rewrite HH; simpl.
+         split.
+         -- simpl. eapply cur_lt_max.
+         -- eapply useful_coherence; eauto.
+            inv Hinv.
+            specialize (thread_data_lock_coh0 _ cnt) as (? & _).
+            eapply H0.
+       * subst st'; assert (cnt0:containsThread st tid).
+         { simpl in cnt'. eapply cntUpdate'; eauto . }
+         exploit (gsoThreadRes cnt0 n cnt'); simpl;
+           intros HH; rewrite HH; clear HH.
+         split; [eapply useful_disjoint| eapply useful_coherence]; try eassumption.
+         -- apply permMapsDisjoint_comm.
+            eapply Hinv; auto.
+         -- inv Hinv; simpl in *.
+            specialize (thread_data_lock_coh0 _ cnt0) as (? & _).
+            eapply H0.
+    + rewrite Hcur in H.
+      subst; simpl. intros. rewrite gsoThreadLPool in H0.
+      split; [eapply useful_disjoint| eapply useful_coherence]; try eassumption.
+      * apply permMapsDisjoint_comm.
+        inv Hinv. eapply no_race0; eauto.
+      * inv Hinv; simpl in *.
+        specialize (locks_data_lock_coh0 _ _ H0) as (? & _).
+        eapply H1.
+  Qed.
 
   Lemma Asm_preserves_compat:
   forall g i (st: @t dryResources (HybridSem (@Some nat (S hb))))
-    cnt st' (th_st: Smallstep.state (Asm.part_semantics g)) c2 m Hlt t0,
+    cnt st' (th_st: Smallstep.state (Asm.part_semantics g)) c2 m Hlt t0
+    (Hgenv:Asm_core.safe_genv Asm_g),
     @invariant (HybridSem _) _ st -> 
     @mem_compatible (HybridSem _) _ st m ->
     @getThreadC _ (HybridSem _) _ _ cnt =
     (Krun (TST c2)) ->
     let th_perm:= @getThreadR _ _ i st cnt in
     let th_m:= @restrPermMap (fst th_perm) m Hlt in
+    forall (Hext:Asm.at_external Asm_g (Asm.set_mem c2 th_m) = None),
     Asm.step Asm_g (Asm.set_mem c2 th_m) t0 th_st ->
     st' = updThread cnt (Krun (TST th_st))
                     (getCurPerm (Smallstep.get_mem th_st),
                      snd (getThreadR cnt)) ->
     @mem_compatible (HybridSem _) _ st' (Asm.get_mem th_st).
-Proof.
+  Proof.
+  
   intros.
-  econstructor; simpl.
-  - intros **. destruct (Nat.eq_dec tid i).
-    + subst. rewrite gssThreadRes; simpl.
-      intros. try weak_split; try eapply H.
-      2:{ eapply H.
-      
-  (* This is proven somwhere *)
-Admitted.
+  rename H into Hinv.
+  rename H0 into Hcmpt.
+  simpl in H1.
+  exploit Asm_core.asm_mem_step.
+  { simpl; econstructor; simpl; eauto. }
+  { assumption. }
+  intros HH.
 
+  eapply mem_step_preserves_compat; try eapply HH; eauto.
+  - subst_set. apply getCur_restr.
+  - subst_set; apply mem_compat_restrPermMap; assumption.
+  Qed.
 
 Inductive sync_event: Events.event -> Prop:=
 | sync_Event_acq_rel: forall e dmp e',
@@ -384,7 +591,8 @@ Definition Asm_externals_have_events {F V} (ge:Genv.t (AST.fundef F) V):=
     Genv.find_funct_ptr ge b = Some (AST.External f) ->
     Events.external_call ef Asm_g args m t res m' ->
     t <> nil.
-Context (Hexterns_have_events: Asm_externals_have_events Asm_g).
+Context (Hexterns_have_events: Asm_externals_have_events Asm_g)
+        (Hrestricted_builtins: Asm_core.safe_genv Asm_g).
 
   Lemma step_nil_trace_not_atx:
   forall s1 s2,
@@ -581,7 +789,7 @@ Qed.
             { eapply Asm_preserves_invariant; eauto. }
             exploit IHNN.
             * apply Hinv'.
-            * eapply Asm_preserves_compat; eauto.
+            * eapply Asm_preserves_compat; try eapply Hcmpt; eauto.
             * pose proof (mem_is_restr_eq (Asm.get_mem x)).
               clean_proofs.
               remember (getCurPerm (Asm.get_mem x))  as TEMP.
@@ -728,6 +936,13 @@ Qed.
        *)
       
       
+      Lemma Clight_step_nil_trace_not_atx:
+        forall s1 s2 f t,
+          Clight.at_external s1 = None ->
+          Clight.step Clight_g f s1 t s2 ->
+          t = nil.
+      Proof.
+      Admitted.
       (* When a thread takes an internal step (i.e. not changing the schedule) *)
       Lemma internal_step_diagram:
         forall (m : option mem) (sge tge : HybridMachineSig.G) (U : list nat) tr1
@@ -839,34 +1054,13 @@ Qed.
           rename H2 into CoreStep.
           simpl in CoreStep.
           inversion CoreStep. subst s1 m0 s2.
-          pose fsim_properties_inj_relaxed.
-
+          
           eapply compiler_sim in H1 as HH; simpl in *; eauto.
           2: { erewrite restr_proof_irr; eassumption. }
           destruct HH as (cd' & s2' & j2' & t'' & step &
                           comp_match & Hincr2 & inj_event).
           assert (Ht0: t0 = nil).
-          {  
-            Lemma Clight_step_nil_trace_not_atx:
-              forall s1 s2 f,
-                Clight.step Clight_g f s1 nil s2 ->
-                Clight.at_external s1 = None.
-            Proof.
-              intros. unfold Asm.at_external.
-              inv H; try reflexivity.
-              simpl. match_case.
-              hnf in H0. match_case in H0;
-                           simpl in Heqb; try congruence.
-              admit.
-              admit.
-              admit. (*!*)
-              admit. (*!*)
-              
-              
-            Admitted.
-
-            
-            admit. } subst t0.
+          { eapply Clight_step_nil_trace_not_atx; eauto. } subst t0.
           assert (Ht'': t'' = nil).
           { inv inj_event; reflexivity. } subst t''.
           
@@ -878,13 +1072,54 @@ Qed.
           pose proof (contains12 H0 Htid) as Htid'.
           
           destruct step as [plus_step | (? & ? & ?)].
-          + exists (updThread Htid' (Krun (TState Clight.state Asm.state s2'))
-                         (getCurPerm m2', snd (getThreadR Htid'))), m2', (Some i), mu.
+          +
+            (*assert (@invariant
+                      _ (TP (Some _))
+                      (updThread Htid (Krun (SState Clight.state Asm.state s'))
+                                 (getCurPerm (Clight.get_mem s'), lock_perms hb st1 Htid))).
+            { *)
+
+            
+            exists (updThread Htid' (Krun (TState Clight.state Asm.state s2'))
+                         (getCurPerm m2', snd (getThreadR Htid'))), m2', (Some i), j2'.
             repeat weak_split.
             * assert (CMatch := H0). inversion H0; subst.
-              simpl. admit. (*reestablish concur*)
+              simpl. intros.
+              Lemma concur_match_thread_step:
+                forall (st1 st1': ThreadPool.t) (m1 m1' m2 m2' : mem) (tid : nat)
+                  (Htid1 : ThreadPool.containsThread st1 tid)
+                  c1 (cd cd' : option compiler_index) (st2 st2' : ThreadPool.t) 
+                  (mu mu' : meminj)
+                  c2 (Htid2 : ThreadPool.containsThread st2 tid)
+                  (Hconcur:concur_match cd mu st1 m1 st2 m2),
+                  individual_match hb tid cd mu' c1 (thmem_from_concur1 _ Hconcur Htid1)
+                                   c2 (thmem_from_concur2 _ Hconcur Htid2) ->
+                  Mem.inject mu' m1' m2' ->
+                  inject_incr mu mu' ->
+                  Events.injection_full mu' m1' ->
+                  @invariant (HybridSem (Some hb)) _ st1' ->
+                  @invariant (HybridSem (Some (S hb))) _ st2' ->
+                  mem_compatible st1' m1' ->
+                  mem_compatible st2' m2' -> 
+                  Events.injection_full mu' m1' ->
+                  st1' = (updThread Htid1 c1
+                                    (getCurPerm m1', (snd (getThreadR Htid1)))) ->
+                  st2' = (updThread Htid2 c2
+                               (getCurPerm m2', (snd (getThreadR Htid2)))) ->
+                  concur_match cd' mu' st1 m1 st2 m2.
+              Proof.
+                (* Need to use the invariants and memcompat1-compat to
+                   reestablish the injections.
+                 *)
+              Admitted.
+              eapply concur_match_thread_step; try reflexivity;
+                eauto; try now eapply compiler_sim; eauto.
+              -- admit.
+              -- admit.
+              -- admit.
+              -- admit.
+              -- admit.
             * eapply inject_incr_trace; try eassumption.
-              apply inject_incr_refl.
             * left.
               eapply thread_step_plus_from_corestep; eauto.
               -- symmetry; clean_proofs; eauto.
@@ -895,12 +1130,18 @@ Qed.
                  instantiate(1:=Hlt2).
                  eapply step2corestep_plus; simpl in *. 
                  eauto.
-            * apply inject_incr_refl.
+            * assumption.
                  
           + exists st2, m2, (Some cd'), mu.
             repeat weak_split.
             * assert (CMatch := H0). inversion H0; subst.
-              admit. (*reestablish concur*)
+              eapply concur_match_thread_step; try reflexivity;
+                eauto; try now eapply compiler_sim; eauto.
+              -- admit.
+              -- admit.
+              -- admit.
+              -- admit.
+              -- admit.
             * eapply inject_incr_trace; try eassumption.
               apply inject_incr_refl.
             * right; split.
