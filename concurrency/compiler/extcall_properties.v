@@ -671,7 +671,9 @@ Proof.
     eapply mem_interference_valid in H2; eauto.
     eapply nextblock_eq_valid; try eassumption.
     symmetry;eapply release_preserves_nextblock; eassumption.
-  - eapply extcall_release_readonly.
+  - admit. (*This changed thanks to Xavier's patch *)
+
+    (*eapply extcall_release_readonly.
   - eapply extcall_release_mem_extends.
   -
     

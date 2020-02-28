@@ -91,10 +91,11 @@ Section ConcurMatch.
         match_state j code1 m1 code2 m2 ->
         match_thread state_type1 state_type2 match_state j (Kblocked (state_type1 code1)) m1
                      (Kblocked (state_type2 code2)) m2
-    | Thread_Resume: forall j code1 m1 code2 m2 v v',
+    | Thread_Resume: forall j code1 m1 code2 m2,
         match_state j code1 m1 code2 m2 ->
-        match_thread state_type1 state_type2 match_state j (Kresume (state_type1 code1) v) m1
-                     (Kresume (state_type2 code2) v') m2
+        match_thread state_type1 state_type2 match_state j
+                     (Kresume (state_type1 code1) Vundef) m1
+                     (Kresume (state_type2 code2) Vundef) m2
     | Thread_Init: forall j m1 m2 v1 v1' v2 v2',
         Val.inject j v1 v2 ->
         Val.inject j v1' v2' ->

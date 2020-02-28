@@ -86,8 +86,9 @@ Section ThreadedSimulation.
   Section ThreadedSimulation.
     (*Import MySimulationTactics.MyConcurMatch.*)
     
+    Context (Hlimited_builtins: Asm_core.safe_genv Asm_g).
+    
     Section CompileNThreads.
-
       
       Fixpoint nth_index (n: nat): Type:=
         match n with
