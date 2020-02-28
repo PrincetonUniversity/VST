@@ -5,7 +5,6 @@ Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition tlist := Tstruct _list noattr.
 Definition tpile := Tstruct _pile noattr.
 
 Definition countrep (s: Z) (p: val) : mpred :=

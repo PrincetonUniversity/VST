@@ -51,7 +51,7 @@ entailer!.
 destruct (zle 0 n); try omega. clear l.
 destruct (zle n (Int.max_signed - s)).
 -
-forward_if (PROP()LOCAL (temp _p p)
+forward_if (PROP()LOCAL (temp _pp p)
    SEP(data_at Ews tpile (Vint (Int.repr (s+n))) p;
          mem_mgr gv)).
 forward.
@@ -68,7 +68,7 @@ rewrite H2.
 omega.
 apply sumlist_nonneg in H1; omega.
 -
-forward_if (PROP()LOCAL (temp _p p)
+forward_if (PROP()LOCAL (temp _pp p)
    SEP(data_at Ews tpile (Vint (Int.repr s)) p;
          mem_mgr gv)).
 contradiction H3'; auto.
@@ -87,7 +87,7 @@ Qed.
 
 Lemma body_Pile_count: semax_body Vprog Gprog f_Pile_count Pile_count_spec.
 Proof.
-start_function.
+start_function. 
 unfold pilerep. Intros s.
 forward.
 forward.

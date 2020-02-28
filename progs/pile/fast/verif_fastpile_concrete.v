@@ -44,7 +44,7 @@ forward.
 entailer!.
 -
 destruct (zle 0 n); try omega.
-forward_if (PROP()LOCAL (temp _p p)
+forward_if (PROP()LOCAL (temp _pp p)
    SEP(countrep (n+s) p; mem_mgr gv)).
 +
 if_tac in H3; inv H3.
