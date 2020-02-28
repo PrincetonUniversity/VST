@@ -128,7 +128,7 @@ Section Main.
   Proof.
     intros.
     assert(compilation':= compilation).  
-    pose proof (ConcurrentCompilerSafety compilation' asm_genv_safe Hextern) as H.
+    pose proof (ConcurrentCompilerSafety asm_genv_safe compilation' asm_genv_safe Hextern) as H.
     unfold concurrent_compiler_safety.concurrent_simulation_safety_preservation in *.
     specialize (H U (erasure_safety.init_mem CPROOF) (erasure_safety.init_mem CPROOF) (Clight_safety.initial_Clight_state CPROOF) Main_ptr nil).
     rewrite <- program_proof in *.

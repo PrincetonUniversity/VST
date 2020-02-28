@@ -32,7 +32,9 @@ Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitio
 
 Section Concurrent_Safety.
          Context {CC_correct: CompCert_correctness}
-          {Args: ThreadSimulationArguments}.
+                 {Args: ThreadSimulationArguments}.
+         Context (Hlimited_builtins: Asm_core.safe_genv Asm_g).
+  
   (*Import the Clight Hybrid Machine*)
   Import ClightMachine.
   Import DMS.
@@ -584,7 +586,8 @@ Section Concurrent_Safety.
       (* destruct H0. simpl in H2.
          unfold init_mach in *.
       *)
-      pose proof (ConcurrentCompilerCorrectness Asm_program Hextern H asm_genv_safety)
+      pose proof (ConcurrentCompilerCorrectness Hlimited_builtins
+                                                 Asm_program Hextern H asm_genv_safety)
         as SIM.
       unfold ConcurrentCompilerCorrectness_specification in SIM.
       (*Construct the initial state*)

@@ -50,6 +50,8 @@ Require Import VST.concurrency.compiler.multiple_thread_simulation_proof.
 Section Concurrent_correctness.
   Context {CC_correct: CompCert_correctness}
           {Args: ThreadSimulationArguments}.
+  Context (Hlimited_builtins: Asm_core.safe_genv Asm_g).
+    
   (*Import TSim.
   Import MySyncSimulation.MySimulationTactics.MyConcurMatch.MyThreadSimulationDefinitions.
 *)
@@ -927,7 +929,7 @@ Section Concurrent_correctness.
          *)
 
     - eapply HBSimulation_transitivity; swap 1 2; swap 2 3.
-      + eapply compile_all_threads.
+      + eapply compile_all_threads; eauto.
       + replace (Genv.init_mem (Ctypes.program_of_program C_program))
                 with (Genv.init_mem tp) by
                   (eapply initial_memories_are_equal; eauto).
@@ -937,8 +939,7 @@ Section Concurrent_correctness.
         all: intros *; try rewrite PTree.gleaf;
           try now intros; congruence.
 
-        Unshelve.
-        auto.
+        
   Qed.
   
 End Concurrent_correctness.
