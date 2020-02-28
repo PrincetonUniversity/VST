@@ -1435,12 +1435,12 @@ Qed.
           intros; normal_hyp. destruct H0 as (Hasm_match' & Hmem_match').
 
           (* get the second at_external*)
-          destruct X as (FUN & args).
+          (*destruct X as (FUN & args).
           exploit ssim_external; simpl; try exact Hasm_match;
             eauto.
           { eapply Hconcur. }
           { simpl; eauto. }
-          intros ; normal_hyp.
+          intros ; normal_hyp. *)
 
                         
           
@@ -1463,13 +1463,15 @@ Qed.
             unshelve eapply HybridMachineSig.resume_step'; eauto.
             econstructor.
             * simpl. reflexivity.
-            * simpl.
-              instantiate(3:=TST code2); simpl. simpl in H2; eauto.
+            (* * simpl.; simpl. simpl in *; eauto. *)
             * simpl; eauto.
               unfold state_sum_optiont. simpl in H.
+              instantiate(3:=TST code2).
               instantiate(2:= (memcompat2 Hconcur)).
               revert H; clean_proofs_goal.
-              intros Hafter. unfold Asm_g in *; rewrite Hafter.
+              simpl. intros Hafter.
+              unfold state_sum_optiont. 
+              unfold Asm_g in *; rewrite Hafter.
               reflexivity.
             * simpl; eauto. 
             * eapply Hconcur.
@@ -1565,12 +1567,16 @@ Qed.
             symmetry in Heqst2'.
             symmetry in H2.
             
-            econstructor; simpl;
+            unshelve econstructor; simpl; try eapply memcompat2;
+              shelve_unifiable;
               try eapply Heqst2'; try eapply H2; simpl.
             * reflexivity.
             * simpl in *.
-              admit. (* HERE *)
-            * admit.
+              unfold state_sum_optiont.
+              unfold Asm_g in *.
+              move Hafter_x2 at bottom.
+              clean_proofs_goal.
+              rewrite Hafter_x2; reflexivity.
             * apply Hconcur.
             
         - (* hb < tid *)

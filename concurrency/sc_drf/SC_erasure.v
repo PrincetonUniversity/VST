@@ -2498,10 +2498,10 @@ Module SCErasure.
         end; try (by exfalso).
       destruct Hthreads as [HeraseCores Heq]. subst v.
       inversion Hperm; subst.
-      destruct X.
+      (*destruct X.
       pose proof (at_external_erase _ _ HeraseCores
                                     (mem_erasure_restr (DryHybridMachine.compat_th tp1 m1 Hcmpt cnti)#1 Herase_mem) Hat_external) as Hat_external'.
-      destruct Hat_external' as [vs' [Hat_external' Hval_erasure]].
+      destruct Hat_external' as [vs' [Hat_external' Hval_erasure]]. *)
       eapply after_external_erase with (v' := None) in Hafter_external;
         eauto with val_erasure erased.
       destruct Hafter_external as [c2' [Hafter_external' Hcore_erasure']].

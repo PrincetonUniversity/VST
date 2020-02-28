@@ -295,11 +295,11 @@ Module HybridMachineSig.
        at_external) *)
    Inductive resume_thread' : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
-  | ResumeThread: forall m tid0 ms ms' c c' X m'
+  | ResumeThread: forall m tid0 ms ms' c c' (* X *) m'
                     (ctn: containsThread ms tid0)
                     (Hcmpt: mem_compatible ms m)
                     (Hperm: install_perm Hcmpt ctn m')
-                    (Hat_external: at_external semSem c m' = Some X)
+                    (*Hat_external: at_external semSem c m' = Some X*)
                     (Hafter_external: after_external semSem None c m' = Some c')
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)

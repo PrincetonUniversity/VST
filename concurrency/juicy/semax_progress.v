@@ -1498,8 +1498,8 @@ Section Progress.
               simpl in *; try rewrite ClightSemanticsForMachines.CLN_msem in *;
               simpl.
             -- reflexivity.
-            -- rewrite H.
-               reflexivity.
+          (*  -- rewrite H.
+               reflexivity.*)
             -- auto.
             -- setoid_rewrite Eci.
                f_equal.

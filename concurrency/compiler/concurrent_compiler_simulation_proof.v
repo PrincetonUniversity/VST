@@ -507,9 +507,9 @@ Section Concurrent_correctness.
         unshelve econstructor 2; eauto.
         inv Htstep; unshelve econstructor;
           lift_subgoals; shelve_unifiable; simpl in  *.
-          * rewrite <- Hat_external. repeat f_equal.
+          (* * rewrite <- Hat_external. repeat f_equal.
             inv Hperm. eapply restrPermMap_irr'.
-            erewrite getR_lift_c_state; reflexivity.
+            erewrite getR_lift_c_state; reflexivity. *)
           * unfold state_sum_options.
             inv Hperm. simpl in *.
             clean_proofs.

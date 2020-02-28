@@ -789,11 +789,11 @@ Module X86Inj.
   Qed.
     
   Lemma after_external_wd :
-    forall the_ge m (c c' : state) (f : memren) (ef : external_function)
-      (args : seq val) (ov : option val)
-      (Hat_external: semantics.at_external (Asm_core_sem the_ge) c m = Some (ef, args))
+    forall the_ge m (c c' : state) (f : memren) (*ef : external_function*)
+      (*args : seq val*) (ov : option val)
+      (*Hat_external: semantics.at_external (Asm_core_sem the_ge) c m = Some (ef, args)*)
       (Hcore_wd: core_wd f c)
-      (Hvalid_list: valid_val_list f args)
+      (*Hvalid_list: valid_val_list f args*)
       (Hafter_external: semantics.after_external (Asm_core_sem the_ge) ov c m = Some c')
       (Hov: match ov with
             | Some v => valid_val f v
@@ -809,7 +809,7 @@ Module X86Inj.
     destruct (find_funct_ptr _ _) eqn: Hfind; try discriminate.
     destruct f0; try discriminate.
     simpl in *.
-    destruct (get_extcall_arguments _ _ _) eqn: Hargs; inv Hat_external.
+    (* destruct (get_extcall_arguments _ _ _) eqn: Hargs. inv Hat_e xternal. *)
     destruct ov; inversion Hafter_external; subst.
     - intros r1.
       unfold regset_wd, Pregmap.get in Hcore_wd.
@@ -821,7 +821,7 @@ Module X86Inj.
     for set_regs (are the registers unique and more similar problems)*)
       apply undef_caller_save_regs_wf in Hcore_wd.
 
-      destruct (loc_external_result (ef_sig ef)) as [|r' regs];
+      destruct (loc_external_result (ef_sig e0)) as [|r' regs];
         simpl; eapply valid_val_reg_set; eauto.
       + eapply valid_val_loword; auto.
       + eapply regset_wd_set; eauto.
@@ -2802,9 +2802,11 @@ Qed.
   Context (Hsafe : safe_genv the_ge).
 
   Instance X86Inj : @CoreInj (@X86Sem the_program Hsafe).
-  eapply (@Build_CoreInj (@X86Sem the_program Hsafe) core_wd ge_wd ge_wd_incr ge_wd_domain
-      core_wd_incr core_wd_domain (at_external_wd the_ge) (@after_external_wd the_ge) (@initial_core_wd the_ge)
-      core_inj _ (@core_inj_after_ext the_ge)
+  eapply (@Build_CoreInj
+            (@X86Sem the_program Hsafe) core_wd ge_wd ge_wd_incr ge_wd_domain
+            core_wd_incr core_wd_domain (at_external_wd the_ge)
+            (@after_external_wd the_ge) (@initial_core_wd the_ge)
+            core_inj _ (@core_inj_after_ext the_ge)
       (core_inj_halted the_ge) (@core_inj_init the_ge) core_inj_id core_inj_trans (corestep_obs_eq Hsafe) (corestep_wd Hsafe)).
   Unshelve.
     intros; eapply core_inj_ext; eauto using core_inj_wd.    

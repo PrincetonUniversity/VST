@@ -1204,24 +1204,33 @@ Proof.
       eauto.
     }
     
-  - inv Htstep.
+  - (* resume case*)
+
+    inv Htstep.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
     simpl in *.
-    destruct c'0; inv Hat_external; inv H1.
-    destruct fd; try discriminate.
-    destruct (AST.ef_inline e) eqn:Hinline; inv H2.
+    (* destruct c'0; inv Hat_external; inv H1. *)
+    (*destruct fd; try discriminate.
+    destruct (AST.ef_inline e0) eqn:Hinline; inv H2.*)
+
+    (* build after_external*)
+    revert Hafter_external.
+    unfold Clight_core.cl_after_external,
+    Clight.after_external; simpl.
+    destruct c'0; simpl; intros ; try discriminate.
+    match_case in Hafter_external. inv Hafter_external.
+
+    
     eapply CoreSafe.
     { hnf; simpl.
       rewrite <- H5.
       change sch with (yield sch) at 2.
       eapply resume_step; eauto; econstructor; eauto; simpl; eauto.
       - eapply MTCH_install_perm, Hperm.
-      - match_case; reflexivity.
-      - eapply MTCH_invariant; eauto. }
+      - eapply MTCH_invariant; eauto.   }
     eapply IHn; eauto.
-    apply MTCH_updThreadC; auto. constructor. simpl.
-    inv Hafter_external; auto.
+    apply MTCH_updThreadC; auto. constructor. simpl; auto.
   - inv Htstep.
     inversion H0.
     pose proof (mtch_gtc _ Htid (mtch_cnt _ Htid)) as Hc; rewrite Hcode in Hc; inv Hc.

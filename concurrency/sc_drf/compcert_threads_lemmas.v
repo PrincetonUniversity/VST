@@ -1403,17 +1403,16 @@ Module SimProofs.
         Tactics.pf_cleanup.
         specialize (Htp_wd _ ctn).
         rewrite Hcode in Htp_wd.
-      destruct X as [? ?].
+      (* destruct X as [? ?]. *)
       simpl in *.
       destruct Htp_wd as [Hcore_wd _].
       inversion Hperm; subst.
       erewrite restrPermMap_domain with (Hlt := (compat_th _ _ Hcomp ctn)#1) in Hdomain.
       erewrite restrPermMap_mem_valid with (Hlt := (compat_th _ _ Hcomp ctn)#1) in Hmem_wd.
-      assert (Hargs:= at_external_wd _ Hmem_wd Hdomain Hcore_wd Hat_external).
+      (* assert (Hargs:= at_external_wd _ Hmem_wd Hdomain Hcore_wd Hat_external).
+       *)
       eapply after_external_wd; eauto.
       eapply core_wd_incr; eauto.
-      eapply valid_val_list_incr;
-        by eauto.
       simpl; auto.
       + erewrite <- @gsoThreadCC with (cntj := cntj); eauto.
         specialize (Htp_wd _ cntj).
@@ -1915,14 +1914,14 @@ Module SimProofs.
       erewrite restrPermMap_mem_valid with (Hlt := (compat_th _ _ Hcompc pfc)#1) in Hmem_wd.
       (* cf is at external*)
       assert (Hat_externalF_spec := core_inj_ext _ _  Hfg Hge_wd Hren_incr Hmem_wd Hcode_eq memObsEq).
-      rewrite Hat_external in Hat_externalF_spec.
+      (*rewrite Hat_external in Hat_externalF_spec.
       simpl in Hat_externalF_spec.
-      destruct X as [ef val].
+      destruct X as [ef val]. 
       destruct (at_external semSem cf (restrPermMap (proj1 (compat_th _ _ Hcompf pff))))
         as [[ef' val']|] eqn:Hat_externalF;
         rewrite Hat_externalF in Hat_externalF_spec;
-        try by exfalso.
-      destruct Hat_externalF_spec as [? Harg_obs]; subst.
+        try by exfalso. 
+      destruct Hat_externalF_spec as [? Harg_obs]; subst. *)
       remember (updThreadC pff (Krun cf')) as tpf' eqn:Hupd.
       exists tpf', mf, fi, tr.
       split.
@@ -3160,12 +3159,12 @@ Module SimProofs.
         by (erewrite <- restrPermMap_mem_valid; eauto).
       assert (Hat_external_spec := core_inj_ext _ _ Hfg Hge_wd Hge_incr Hvalid_mem'
                                                 Hcode_eq Hmem_obs_eq).
-      rewrite Hat_external in Hat_external_spec.
+      (* rewrite Hat_external in Hat_external_spec.
       destruct X as [ef vs].
       destruct (at_external semSem c1' (restrPermMap (compat_th _ _ Hcomp1' pf1j')#1))
         as [[? ?] | ] eqn:Hat_external';
         try by exfalso.
-      destruct Hat_external_spec as [? ?]; subst.
+      destruct Hat_external_spec as [? ?]; subst. *)
       assert (Hvalid_val: match (Some (Vint Int.zero)) with
                           | Some v1 => valid_val f v1
                           | None => True
@@ -3181,7 +3180,7 @@ Module SimProofs.
       exists (updThreadC pf1j' (Krun c2')), m1', f.
       assert (Hinternal':
                 internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c2')) m1'). {
-          clear - Hat_external' Hafter_external' Hcode' Hinv.
+          clear - Hafter_external' Hcode' Hinv.
           right; left; split; econstructor; eauto.
           simpl; unfold DryHybridMachine.install_perm.
           reflexivity.
@@ -3618,12 +3617,12 @@ Module SimProofs.
         by (erewrite <- restrPermMap_mem_valid; eauto).
       assert (Hat_external_spec := core_inj_ext _ _  Hfg Hge_wd Hge_incr Hvalid_mem' Hcode_eq Hmem_obs_eq).
       inversion Hperm; subst.
-      rewrite Hat_external in Hat_external_spec.
+      (* rewrite Hat_external in Hat_external_spec.
       destruct X as [? vs].
       destruct (at_external semSem c1' (restrPermMap (compat_th _ _ Hcomp1' pf1j')#1))
         as [[? ?] | ] eqn:Hat_external';
-        try by exfalso.
-      destruct Hat_external_spec as [?  ?]; subst.
+        try by exfalso. 
+      destruct Hat_external_spec as [?  ?]; subst. *)
       assert (Hvalid_val: match (Some (Vint Int.zero)) with
                           | Some v1 => valid_val f v1
                           | None => True
@@ -3639,7 +3638,7 @@ Module SimProofs.
       exists (updThreadC pf1j' (Krun c2')), m1', f.
       assert (Hinternal':
                 internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c2')) m1'). {
-         { clear - Hat_external' Hafter_external' Hcode' Hinv.
+         { clear - Hafter_external' Hcode' Hinv.
              right; left; econstructor; eauto.
              eapply ResumeThread with (Hcmpt := Hcomp1');
                now eauto.

@@ -4589,11 +4589,11 @@ Module CoreInjections.
             valid_val_list f args;
 
         after_external_wd:
-          forall m (c c' : semC) (f : memren) (ef : external_function)
-            (args : seq val) (ov : option val)
-            (Hat_external: at_external semSem c m = Some (ef, args))
+          forall m (c c' : semC) (f : memren) (*ef : external_function*)
+            (*args : seq val*) (ov : option val)
+            (*Hat_external: at_external semSem c m = Some (ef, args)*)
             (Hcore_wd: core_wd f c)
-            (Hvalid_list: valid_val_list f args)
+            (*Hvalid_list: valid_val_list f args*)
             (Hafter_external: after_external semSem ov c m = Some c')
             (Hov: match ov with
                   | Some v => valid_val f v
