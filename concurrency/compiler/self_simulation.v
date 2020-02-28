@@ -264,6 +264,15 @@ Section SelfSimulation.
           exists (c2' : state),
             semantics.after_external Sem None c2 m2 = Some c2' /\
             match_self code_inject f c1' m1 c2' m2
+     ; ssim_halted:
+        forall (f : meminj)
+          (c1 : state)
+          (m1 : mem)
+          (c2 : state)
+          (m2 : mem) ret ,
+          match_self code_inject f c1 m1 c2 m2 ->
+          semantics.halted Sem c1 ret ->
+          semantics.halted Sem c2 ret
       ; ssim_preserves_atx:
           self_preserves_atx_inj Sem (match_self code_inject)
       (* ; ssim_visible_atx:

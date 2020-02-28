@@ -1815,11 +1815,71 @@ Qed.
       /\
       inject_incr mu mu'.
       Proof.
-        intros.
-        
-        admit.
-        (* Easy  since there is no changes to memory. *)
-      Admitted.
+        intros * Hconcur Htrace Hsch HH Hinv Hcmpt.
+        destruct HH as [HH | HH].
+        - exists st2, m2, cd, mu.
+          repeat weak_split eauto.
+          hnf. econstructor 5; eauto;
+                 try now apply Hconcur.
+          left; intros ?. eapply HH.
+          simpl. eapply contains21; eauto.
+        - normal_hyp.
+          exists st2, m2, cd, mu.
+          repeat weak_split eauto.
+          hnf. econstructor 5; eauto;
+                 try now apply Hconcur.
+          right.
+          
+          assert (cnt2: containsThread st2 tid).
+          { eapply contains12; eauto. }
+          
+          unshelve econstructor; eauto.
+          destruct (Compare_dec.lt_eq_lt_dec tid hb) as [[HH|HH]|HH];
+            unshelve eapply Hconcur in HH as Hmatch; eauto;
+              simpl in *; try now apply Hconcur; simpl in *.
+          + revert Hmatch. simpl; clean_proofs_goal.
+            repeat match_case; clean_proofs_goal.
+            intros. rewrite H in Hmatch; inv Hmatch.
+            do 2 eexists; split; eauto.
+            simpl.
+            eapply Aself_simulation; try eapply H0; eauto.
+          + revert Hmatch. simpl; clean_proofs_goal.
+            repeat match_case; clean_proofs_goal.
+            intros. rewrite H in Hmatch; inv Hmatch.
+            do 2 eexists; split; eauto.
+            simpl.
+            Lemma Asm_final_mem:
+              (* it would be more elegant to not need this.
+                 SOLUTION: change the core_semantics, 
+                 such that halted takes a memory (and sets it in the state)
+                 just like the step and other things.
+               *)
+              forall st m ret,
+                Asm.final_state (Asm.set_mem st m) ret <->
+                Asm.final_state st ret.
+            Proof. split; intros HH; destruct st; inv HH;
+                   econstructor; eauto. Qed.
+            Lemma Csm_final_mem:
+              (* it would be more elegant to not need this.
+                 SOLUTION: change the core_semantics, 
+                 such that halted takes a memory (and sets it in the state)
+                 just like the step and other things.
+               *)
+              forall st m ret,
+                Clight.final_state (Clight.set_mem st m) ret <->
+                Clight.final_state st ret.
+            Proof. split; intros HH; destruct st; inv HH;
+                   econstructor; eauto. Qed.
+            eapply Asm_final_mem.
+            exploit (Injfsim_match_final_statesX compiler_sim); simpl;
+              try (eapply Csm_final_mem; eapply H0); eauto.
+          + revert Hmatch. simpl; clean_proofs_goal.
+            repeat match_case; clean_proofs_goal.
+            intros. rewrite H in Hmatch; inv Hmatch.
+            do 2 eexists; split; eauto.
+            simpl.
+            eapply Cself_simulation; try eapply H0; eauto.
+      Qed.
       
       Lemma machine_step_diagram:
         forall (m : option mem) (sge tge : HybridMachineSig.G) (U : list nat)
@@ -1871,8 +1931,9 @@ Qed.
           exists
             (j : meminj) (cd : option compiler_index) (t_mach_state : ThreadPool (Some (S hb))) 
             (t_mem t_mem' : mem) (r2 : option res),
-            machine_semantics.initial_machine (HybConcSem (Some (S hb)) m) r2 t_mem t_mach_state
-                                              t_mem' main main_args /\ concur_match cd j s_mach_state s_mem' t_mach_state t_mem'.
+            machine_semantics.initial_machine
+              (HybConcSem (Some (S hb)) m) r2 t_mem t_mach_state
+              t_mem' main main_args /\ concur_match cd j s_mach_state s_mem' t_mach_state t_mem'.
       Proof.
         intros m.
         
