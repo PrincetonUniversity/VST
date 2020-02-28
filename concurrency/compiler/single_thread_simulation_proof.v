@@ -1428,7 +1428,7 @@ Qed.
                       exists (c2' : Smallstep.state (Asm.part_semantics Asm_g)),
                         Asm.after_external Asm_g None c2 m2 = Some c2' /\
                         match_self (code_inject _ _ Aself_simulation) f c1' m1 c2' m2).
-          { admit. }
+          { eapply ssim_after_ext. }
           exploit ssim_after_ext; simpl.
           2:{ eauto. }
           { econstructor; eauto. }
@@ -1580,9 +1580,75 @@ Qed.
             * apply Hconcur.
             
         - (* hb < tid *)
-          admit.
-      Admitted.
+          intros. inv Hresume.
+          hnf in Hperm; subst m'.
 
+          (* get the match for this thread *)
+          exploit @mtch_source; eauto.
+          simpl in *; rewrite Hcode.
+          intros HH.
+          hnf in HH. inv HH; simpl in *.
+          destruct H3 as  (Hasm_match & Hmem_match).
+
+          (* get the first after_external*)
+          revert Hafter_external.
+          unfold after_external_sum,
+          state_sum_optiont,
+          sum_func_option,
+          state_sum_options.
+          match_case. intros HH; inv HH.
+
+          (* get the second after_external, construct the new state*)
+          pose proof (ssim_after_ext _ _ Cself_simulation) as
+              ssim_after_ext.
+          exploit ssim_after_ext; simpl.
+          2:{ eauto. }
+          { econstructor; eauto. }
+          intros; normal_hyp. destruct H0 as (Hasm_match' & Hmem_match').
+
+          (* get the second at_external*)
+          (*destruct X as (FUN & args).
+          exploit ssim_external; simpl; try exact Hasm_match;
+            eauto.
+          { eapply Hconcur. }
+          { simpl; eauto. }
+          intros ; normal_hyp. *)
+
+                        
+          
+          intros; normal; eauto.
+          + unshelve eapply concur_match_updateC; eauto; shelve_unifiable.
+            hnf; simpl.
+            
+            econstructor 1; eauto.
+            econstructor; econstructor; eauto.
+            simpl.
+            clean_proofs; eauto.
+            unfold thmem_from_concur1, thmem_from_concur2.
+            instantiate(1:= (th_comp
+                               (mem_compatible_thread_compat st2 m2 tid Hcnt2
+             (memcompat2 Hconcur)))) in Hmem_match'.
+            revert Hmem_match'; clean_proofs_goal; eauto.
+          + replace U with
+                (@HybridMachineSig.yield HybridMachineSig.HybridCoarseMachine.scheduler U)
+              by reflexivity.
+            unshelve eapply HybridMachineSig.resume_step'; eauto.
+            econstructor.
+            * simpl. reflexivity.
+            (* * simpl.; simpl. simpl in *; eauto. *)
+            * simpl; eauto.
+              unfold state_sum_optiont. simpl in H.
+              instantiate(3:=SST code2).
+              instantiate(2:= (memcompat2 Hconcur)).
+              revert H; clean_proofs_goal.
+              simpl. intros Hafter.
+              unfold state_sum_optiont. 
+              rewrite Hafter.
+              reflexivity.
+            * simpl; eauto. 
+            * eapply Hconcur.
+            * simpl. eauto.
+      Qed.
       
       
       
@@ -1607,8 +1673,122 @@ Qed.
                                            U tr2 st2 m2 (HybridMachineSig.schedSkip U) tr2 st2' m2'/\
       inject_incr mu mu'.
       Proof.
-        admit. (* Easy  since there is no changes to memory. *)
-      Admitted.
+        intros * Hconcur Htrace Hchs_peek Hresume.
+
+        assert (Hcnt2: containsThread st2 tid).
+        { eapply contains12; eauto. }
+        inv Hresume.
+
+        exploit match_same_state_type; eauto.
+        intros HH. rewrite Hcode in HH.
+        simpl in HH. unfold get_state_type in HH. match_case in HH.
+        clear HH.
+
+        assert (Hmatch:individual_match
+                  hb tid cd mu (Krun c)
+                  (thmem_from_concur1 hb Hconcur ctn) (Krun s)
+                  (thmem_from_concur2 hb Hconcur Hcnt2)).
+        { unfold thmem_from_concur1, thmem_from_concur2;
+              simpl; clean_proofs_goal.
+            destruct (Compare_dec.lt_eq_lt_dec tid hb) as [[HH|HH]|HH];
+              unshelve eapply Hconcur in HH as Hmatch; eauto;
+                simpl in *; rewrite Hcode in Hmatch; inv Hmatch;
+                  [ econstructor 2 |
+             econstructor 3 |
+             econstructor 1 ]; eauto.
+            * rewrite <- H1 in Heqc0; inv Heqc0.
+              econstructor; eauto.
+            * rewrite <- H2 in Heqc0; inv Heqc0.
+              repeat (econstructor; eauto).
+            * rewrite <- H1 in Heqc0; inv Heqc0.
+              econstructor; eauto. }
+        
+        assert (Hmatch':individual_match
+                  hb tid cd mu (Kblocked c)
+                  (thmem_from_concur1 hb Hconcur ctn) (Kblocked s)
+                  (thmem_from_concur2 hb Hconcur Hcnt2)).
+        { unfold thmem_from_concur1, thmem_from_concur2;
+            simpl; clean_proofs_goal.
+
+          inv Hmatch.
+          * revert H0;
+            unfold thmem_from_concur1, thmem_from_concur2;
+            clean_proofs_goal. intros Hmatch.
+            inv Hmatch.  econstructor; eauto.
+            econstructor; eauto.
+          * revert H0;
+            unfold thmem_from_concur1, thmem_from_concur2;
+            clean_proofs_goal. intros Hmatch.
+            inv Hmatch.  econstructor 2; eauto.
+            econstructor; eauto.
+          * revert H0;
+            unfold thmem_from_concur1, thmem_from_concur2;
+            clean_proofs_goal. intros Hmatch.
+            inv Hmatch.  econstructor 3; eauto.
+            repeat (econstructor; eauto). }
+            
+            
+        eexists ; exists m2, cd, mu;
+          repeat weak_split; eauto.
+        - unshelve eapply concur_match_updateC; eauto.
+          unfold upd_cd; match_case; reflexivity.
+        - econstructor; simpl; eauto.
+          simpl in *. inv Hperm.
+          inv Hmatch. 
+          + (* First get the at_external*)
+            inv H0; simpl. destruct X.
+            exploit (ssim_external _ _ Cself_simulation);
+              eauto; try eapply H5; simpl.
+            { unfold thmem_from_concur1.
+              revert Hat_external.
+              simpl; clean_proofs_goal; eauto. }
+            unfold thmem_from_concur1, thmem_from_concur2 in *.
+            clean_proofs_goal.
+            intros;  normal_hyp.
+            
+            unshelve econstructor; try reflexivity; simpl;
+              shelve_unifiable; eauto; swap 2 3. 
+            * apply Hconcur.
+            * erewrite <- H1. repeat f_equal.
+              eapply Axioms.proof_irr.
+          + (* First get the at_external*)
+            inv H0; simpl. destruct X.
+            exploit (ssim_external _ _ Aself_simulation);
+              eauto; try eapply H5; simpl.
+            { unfold thmem_from_concur1.
+              revert Hat_external. unfold Asm_g.
+              simpl; clean_proofs_goal; eauto. }
+            unfold thmem_from_concur1, thmem_from_concur2 in *.
+            clean_proofs_goal.
+            intros;  normal_hyp.
+            
+            unshelve econstructor; try reflexivity; simpl;
+              shelve_unifiable; eauto; swap 2 3. 
+            * apply Hconcur.
+            * erewrite <- H1. repeat f_equal.
+              eapply Axioms.proof_irr.
+          + (* First get the at_external*)
+            inv H0; simpl. destruct X.
+            exploit (Injsim_atxX compiler_sim). 
+            * simpl. eapply H5.
+            * { unfold thmem_from_concur1.
+              revert Hat_external. 
+              simpl; clean_proofs_goal; eauto. }
+
+            * intros; normal_hyp.
+              
+              unshelve econstructor; try reflexivity; simpl;
+                shelve_unifiable; eauto; swap 2 3. 
+              -- apply Hconcur.
+              -- erewrite <- H; simpl. unfold thmem_from_concur2.
+                 repeat f_equal.
+                 eapply Axioms.proof_irr.
+
+
+
+                 Unshelve.
+                 all: apply Hconcur.
+      Qed.
 
       Lemma schedfail_step_diagram:
         forall (m : option mem) (tge : HybridMachineSig.G) 
@@ -1635,6 +1815,8 @@ Qed.
       /\
       inject_incr mu mu'.
       Proof.
+        intros.
+        
         admit.
         (* Easy  since there is no changes to memory. *)
       Admitted.
