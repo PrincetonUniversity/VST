@@ -1360,7 +1360,11 @@ Qed.
         
         
       Admitted.
-      
+      Lemma Clight_get_mem_set_mem:
+              forall (s : Clight.state) (m : mem),
+                Clight.get_mem (Clight.set_mem s m) = m.
+            Proof. intros st ?; destruct st; reflexivity. Qed.
+            
       Lemma resume_step_diagram:
         forall (m : option mem) (tge : HybridMachineSig.G) 
                (U : list nat) (st1 : ThreadPool (Some hb))
@@ -1493,31 +1497,64 @@ Qed.
              current values. All the precontidions are refelxive.
 
            *)
-          simpl in H6.
+          simpl in H4.
           inv Hafter_external.
-          erewrite (restr_proof_irr m1_restr) in H6.
+          erewrite (restr_proof_irr m1_restr) in H4.
           destruct ((Clight.after_external None code1 m')) eqn:Hafter_x1; inv H0.
           rewrite Hperm in Hafter_x1.
-          specialize (H6 mu s (restrPermMap _) (restrPermMap m2_restr) nil nil
+          specialize (H4 mu s (restrPermMap _) (restrPermMap m2_restr) nil nil
                           ltac:(constructor)
                                  ltac:(constructor)
                                         ltac:(constructor)
                                                Hafter_x1
                      ).
-          destruct H6 as (cd' & mu' & s2' & Hafter_x2 & INJ1 & Hcompiler_match).
+          destruct H4 as (cd' & mu' & s2' & Hafter_x2 & INJ1 & Hcompiler_match).
           remember 
             (updThreadC Hcnt2 (Krun (TState Clight.state Asm.state s2'))) as st2'.
-          exists st2',m2,(Some cd0), mu'. 
-          repeat weak_split.
-          + !goal (concur_match _ mu' _ _ _ _).
-            (* subst st2'.
-            unshelve eapply @concur_match_updateC; eauto. eauto.
-            eapply Hconcur. *)
+
+          (* We can probbaly do better than this. 
+             (Without using full injection)
+           *)
+            assert (mu = mu').
+            { (extensionality b).
+              destruct (mu b) eqn:HH.
+              - destruct p.
+                eapply INJ1 in HH. eauto.
+              - destruct (valid_block_dec m1' b).
+                + eapply full_inj in v.
+                  contradict v; eauto.
+                + eapply Injfsim_match_meminjX in Hcompiler_match as
+                      Hinj.
+                  simpl in Hinj.
+                  rewrite Clight_get_mem_set_mem,
+                  asm_get_mem_set_mem
+                    in Hinj.
+                  erewrite Mem.mi_freeblocks; eauto.
+            } subst mu'.
             
+            exists st2',m2,(Some cd'), mu.
+
+          
+          
+          repeat weak_split eauto.
+          + !goal (concur_match _ mu _ _ _ _).
+
             
-            admit.
-          + !goal (Forall2 (inject_mevent mu') tr1 tr2).
-            admit.
+            subst st2'; unshelve eapply @concur_match_updateC; eauto;
+              shelve_unifiable; swap 1 2.
+            { unfold upd_cd; match_case; reflexivity. }
+            eapply Injfsim_match_fullX in Hcompiler_match as
+                Hfull'.
+            simpl in Hfull'.
+            rewrite Clight_get_mem_set_mem in Hfull'.
+            
+            eauto. simpl; unfold thmem_from_concur1.
+            repeat (clean_proofs_goal; simpl).
+
+            econstructor 3; eauto.
+            econstructor.
+            revert Hcompiler_match.
+            unfold thmem_from_concur2; simpl; clean_proofs_goal; simpl; eauto.
           + (* Step *)
             !goal (HybridMachineSig.external_step _ _ _ _ _ _ _ _).
             assert (HH: U = (HybridMachineSig.yield
@@ -1525,10 +1562,17 @@ Qed.
               by reflexivity.
             rewrite HH at 2.
             eapply HybridMachineSig.resume_step'; eauto.
-            admit.
-          + assumption.
-        (* econstructor; eauto. *)
-
+            symmetry in Heqst2'.
+            symmetry in H2.
+            
+            econstructor; simpl;
+              try eapply Heqst2'; try eapply H2; simpl.
+            * reflexivity.
+            * simpl in *.
+              admit. (* HERE *)
+            * admit.
+            * apply Hconcur.
+            
         - (* hb < tid *)
           admit.
       Admitted.

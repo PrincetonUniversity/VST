@@ -296,7 +296,7 @@ Section ConcurMatch.
         mem_interference m2 lev2 m2' ->
         match_thread_compiled (Some i) j' (Kblocked (SST code1)) m1'
                               (Kblocked (TST code2)) m2'
-    | CThread_Resume: forall j' cd code1 m1 code2 m2 v v',
+    | CThread_Resume: forall j' cd code1 m1 code2 m2,
         (* there are some extra conditions  
            for the next steps.
          *)
@@ -313,8 +313,8 @@ Section ConcurMatch.
                  None code2 m2' = Some s2' /\
                inject_incr j' j''' /\
                compiler_match cd' j''' s1' (*Smallstep.get_mem s1'*) m1' s2' (*Smallstep.get_mem s2'*) m2' )) ->
-        match_thread_compiled (Some cd) j' (Kresume (SST code1) v) m1
-                              (Kresume (TST code2) v') m2
+        match_thread_compiled (Some cd) j' (Kresume (SST code1) Vundef) m1
+                              (Kresume (TST code2) Vundef) m2
     | CThread_Init: forall j m1 m2 v1 v1' v2 v2',
         Val.inject j v1 v2 ->
         Val.inject j v1' v2' ->
@@ -997,20 +997,23 @@ Section ConcurMatch.
                   mem_compatible_thread_compat, memcompat2;  eassumption).
         2: eassumption.
       Defined.
+      Definition upd_cd tid (cd cd': option compiler_index):=
+        if Nat.eq_dec hb tid then cd' else cd. 
       Lemma concur_match_updateC:
         forall (st1: ThreadPool.t) (m1 : mem) (tid : nat)
                (Htid : ThreadPool.containsThread st1 tid)
-               c1 (cd : option compiler_index) (st2 : ThreadPool.t) 
+               c1 (cd cd': option compiler_index) (st2 : ThreadPool.t) 
                (mu : meminj) (m2 : mem)
                c2 (Htid' : ThreadPool.containsThread st2 tid)
-               (Hconcur:concur_match cd mu st1 m1 st2 m2),
-          individual_match tid cd mu c1 (thmem_from_concur1 Hconcur Htid)
+               updated_cd (Hconcur:concur_match cd mu st1 m1 st2 m2),
+          individual_match tid cd' mu c1 (thmem_from_concur1 Hconcur Htid)
                            c2 (thmem_from_concur2 Hconcur Htid') ->
-          concur_match cd mu
+          updated_cd = (upd_cd tid cd cd') ->
+          concur_match updated_cd mu
                        (updThreadC Htid  c1) m1
                        (updThreadC Htid' c2) m2.
       Proof.
-        intros **.
+        intros **. subst updated_cd.
         (econstructor; try solve[simpl; eauto]);
           try (simpl; eapply Hconcur).
         - eapply mem_compat_upd; apply Hconcur.
@@ -1050,9 +1053,10 @@ Section ConcurMatch.
             unfold thmem_from_concur1,
             thmem_from_concur2 in *.
             clean_proofs.
-            assumption.
+            simpl.
+            unfold upd_cd. match_case; eauto. 
           + do 2 (erewrite <- gsoThreadCC; auto).
-            eapply Hconcur in H0. 
+            eapply Hconcur in H0.
             (* TODO! *)
       Admitted. (* concur_match_updateC *)
       
