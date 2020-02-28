@@ -50,13 +50,11 @@ intros [[[[[[[[[[[[[sh dp] ctx] info] len] data] Data]
                          Info] s] rc] pr_flag] ri] handle_ss] gv].
 unfold seedREP.
 intros [g args]. entailer. clear H.
-unfold LAMBDAx, PROPx, GLOBALSx, LOCALx, SEPx, argsassert2assert. simpl. entailer.
-(*Intros a.*)
+unfold LAMBDAx, PROPx, GLOBALSx, LOCALx, SEPx, argsassert2assert. simpl. Intros a.
 Exists (dp,  ctx, sh, info, Zlength Data, data, sh, Data, a, 
               Info, s, rc, pr_flag, ri, handle_ss, gv).
 Exists emp.
-rewrite emp_sepcon. (*
-change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.*)
+rewrite emp_sepcon.
 apply andp_right.
 *
 entailer!. apply andp_derives. trivial. cancel.
@@ -70,8 +68,7 @@ destruct (Int.eq ret_value (Int.repr (-20864))).
 +  Exists a. cancel.
 +
 Intros.
-Intros p. entailer. cancel.
-(*Exists p.*)
+Intros p. entailer!.
 destruct (fst a) as [d [M2 p0]].
 destruct (fst handle_ss) as [[[[newV newK] newRc] ?] newPR].
 entailer!.
@@ -83,12 +80,12 @@ Exists (info, (M2, p),
   (Vint (Int.repr newRc),
   (Vint (Int.repr 32),
   (Val.of_bool newPR, Vint (Int.repr 10000)))))).
-unfold instantiate_function_256 in H2.
+unfold instantiate_function_256 in H3.
 destruct (Zlength (contents_with_add data (Zlength Data) Data) >?
        max_personalization_string_length) eqn:?.
-inv H2.
+inv H3.
 destruct (get_entropy (32 + 32 / 2) (32 + 32 / 2) max_elength
-         pr_flag s); inv H2.
+         pr_flag s); inv H3.
 simpl; entailer!.
 split3; auto.
 split; auto.
