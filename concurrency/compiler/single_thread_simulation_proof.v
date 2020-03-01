@@ -1309,8 +1309,14 @@ Qed.
          Before thread hb gets initialized, 
          all threads have same content and memories are equal.
          
-         
+         See if we can push that as a separate simulation proof 
+         and merge them (don't want to change concur_match 
+         an break perfectly nice proofs.
 
+         Look at CPM_self_simulations and strengthen them      
+         lemmas to inlcude not only [num_threads < hb]
+         but also [getThreadC hb = Krun _] then we might be able to merge
+         witht he present proofs.
        *)
       Lemma start_step_diagram:
         forall (m : option mem) (tge : HybridMachineSig.G) 
