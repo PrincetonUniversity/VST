@@ -393,7 +393,7 @@ Proof.
       erewrite hardware_alignof_by_value in H0 by eauto.
       apply Z.divide_add_r; auto.
   } 
-  intro t; type_induction t cenv CENV_CONS; intros.
+  intros t; type_induction t cenv CENV_CONS; intros.
   + split; intros; inv H1; inv H2.
   + eapply BY_VALUE; auto.
     destruct s, i; eexists; reflexivity.
@@ -406,11 +406,11 @@ Proof.
   + simpl in H0.
     split; intros; apply align_compatible_rec_Tarray; intros;
     eapply align_compatible_rec_Tarray_inv in H1; eauto.
-    - specialize (IH (z1 + sizeof cenv t0 * i) (z2 + sizeof cenv t0 * i)).
-      replace (z1 + sizeof cenv t0 * i - (z2 + sizeof cenv t0 * i)) with (z1 - z2) in IH by omega.
+    - specialize (IH (z1 + sizeof cenv t * i) (z2 + sizeof cenv t * i)).
+      replace (z1 + sizeof cenv t * i - (z2 + sizeof cenv t * i)) with (z1 - z2) in IH by omega.
       tauto.
-    - specialize (IH (z1 + sizeof cenv t0 * i) (z2 + sizeof cenv t0 * i)).
-      replace (z1 + sizeof cenv t0 * i - (z2 + sizeof cenv t0 * i)) with (z1 - z2) in IH by omega.
+    - specialize (IH (z1 + sizeof cenv t * i) (z2 + sizeof cenv t * i)).
+      replace (z1 + sizeof cenv t * i - (z2 + sizeof cenv t * i)) with (z1 - z2) in IH by omega.
       tauto.
   + split; intros; inv H1; inv H2; econstructor.
   + simpl in H, H0.
