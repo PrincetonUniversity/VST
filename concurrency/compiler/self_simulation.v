@@ -50,11 +50,41 @@ Section SelfSim.
   
   (*extension of a mem_injection 
   (slightly stengthens the old inject_separated - LENB: not sure you need the stronger prop*)
-  Definition is_ext (f1:meminj)(nb1: positive)(f2:meminj)(nb2:positive) : Prop:=
+  Definition is_ext' (f1:meminj)(nb1 nb1': positive)(f2:meminj)(nb2:positive) : Prop:=
     forall b1 b2 ofs,
       f2 b1 = Some (b2, ofs) ->
       f1 b1 = None -> 
       (ofs = 0 /\ ~ Plt b1 nb1 /\  ~ Plt b2 nb2).
+  Definition upd_inj (f:meminj) (b1:block) b2 delt :=
+    fun b => if peq b b1 then Some (b2, delt) else f b.
+  Inductive is_ext: meminj -> positive -> positive -> meminj -> positive -> Prop :=
+  | is_ext_refl: forall j p1 p2, is_ext j p1 p1 j p2 
+  | is_ext_step: forall j j' p1 p1' p2',
+      is_ext j p1 p1' j' p2' ->
+      is_ext j p1 (Pos.succ p1') (upd_inj j' p1' p2' 0) (Pos.succ p2').
+  Definition is_ext_mem f m1 m1' f' m2':=
+    is_ext f (Mem.nextblock m1) (Mem.nextblock m1') f' (Mem.nextblock m2').
+  Lemma is_ext_full:
+    forall f f' m m' m2',
+      is_ext_mem f m m' f' m2' ->
+      Events.injection_full f m ->
+      Events.injection_full f' m'.
+  Proof.
+    unfold is_ext_mem.
+    intros * H.
+    unfold injection_full,Mem.valid_block.
+    remember (Mem.nextblock m) as p1.
+    remember (Mem.nextblock m') as p1'.
+    remember (Mem.nextblock m2') as p2'.
+    clear Heqp1 Heqp1' Heqp2'.
+    induction H; eauto.
+
+    intros. unfold upd_inj. match_case.
+    eapply IHis_ext; eauto.
+    clear - n H1. simpl in H1.
+    eapply Plt_succ_inv in H1 as [|]; auto.
+    contradiction.
+  Qed.
   
   (*The code is also injected*)
   Variable code_inject: meminj -> core -> core -> Prop.
@@ -243,7 +273,7 @@ Section SelfSimulation.
           semantics.corestep Sem c2 m2  c2' m2'  /\
           match_self code_inject f' c1' m1' c2' m2' /\
           inject_incr f f' /\
-          is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) /\
+          is_ext_mem f m1 m1' f' m2' /\
           Events.inject_trace f' t t'
       ; ssim_external: forall c1 c2 m1 m2 j args1 func_name, 
         code_inject j c1 c2 ->
@@ -273,6 +303,20 @@ Section SelfSimulation.
           match_self code_inject f c1 m1 c2 m2 ->
           semantics.halted Sem c1 ret ->
           semantics.halted Sem c2 ret
+     ; ssim_initial:
+         forall (c1 : state)
+           (mu: meminj)
+           (m1 m2 m1': mem) main1 main2 main_args1 main_args2 h,
+           semantics.initial_core Sem h m1 c1 m1' main1 main_args1 ->
+           match_mem mu m1 m2 ->
+           Forall2 (mem_lemmas.val_inject mu) main_args1 main_args2 ->
+           mem_lemmas.val_inject mu main1 main2 ->
+           exists c2 m2' mu',
+             semantics.initial_core Sem h m2 c2 m2' main2 main_args2 /\
+             match_self code_inject mu' c1 m1' c2 m2' /\
+             inject_incr mu mu' /\
+             is_ext_mem mu m1 m1' mu' m2'
+             
       ; ssim_preserves_atx:
           self_preserves_atx_inj Sem (match_self code_inject)
       (* ; ssim_visible_atx:

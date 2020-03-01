@@ -100,7 +100,7 @@ Section ConcurMatch.
         Val.inject j v1 v2 ->
         Val.inject j v1' v2' ->
         match_thread state_type1 state_type2 match_state j (Kinit v1 v1') m1
-                     (Kinit v1 v1') m2.
+                     (Kinit v2 v2') m2.
     
     Definition SST := SState (@semC CSem) (@semC AsmSem).
     Definition TST := TState (@semC CSem) (@semC AsmSem).
@@ -1076,7 +1076,8 @@ Section ConcurMatch.
           invariant st2 ->
           concur_match cd mu st1 m1 st2 m2 ->
           individual_match tid cd' f' c1 m1' c2 m2' ->
-          self_simulation.is_ext mu (Mem.nextblock m1) f' (Mem.nextblock m2) ->
+          self_simulation.is_ext mu (Mem.nextblock m1)
+                                 (Mem.nextblock m1') f' (Mem.nextblock m2') ->
           concur_match cd' f'
                        (updThread Htid c1
                                   (getCurPerm m1', snd (getThreadR Htid))) m1'
@@ -1328,3 +1329,50 @@ Proof.
     unshelve eapply H0; eauto.
 Qed.
 
+Lemma concur_match_thread_step
+      {CC_correct : CompCert_correctness}
+      {Args : ThreadSimulationArguments}:
+  forall hb (st2 : ThreadPool.t) (st1 st1': ThreadPool.t) (m1 m1' m2 m2' : mem) (tid : nat)
+    (Htid1 : ThreadPool.containsThread st1 tid)
+    c1 (cd cd' : option compiler_index) (st2' : ThreadPool.t) 
+    (mu mu' : meminj)
+    c2 (Htid2 : ThreadPool.containsThread st2 tid),
+    concur_match hb cd mu st1 m1 st2 m2 ->
+    individual_match hb tid cd' mu' c1 m1' c2 m2' ->
+    Mem.inject mu' m1' m2' ->
+    inject_incr mu mu' ->
+    @invariant (HybridSem (Some hb)) _ st1' ->
+    @invariant (HybridSem (Some (S hb))) _ st2' ->
+    mem_compatible st1' m1' ->
+    mem_compatible st2' m2' -> 
+    Events.injection_full mu' m1' ->
+    forall p2,
+      (* we do this to cover the case where st2' = st2*)
+      access_map_equiv (getCurPerm m2') p2 ->  
+      st1' = (ThreadPool.updThread Htid1 c1
+                        (getCurPerm m1', (snd (getThreadR Htid1)))) ->
+      st2' = (ThreadPool.updThread Htid2 c2
+                        (p2, (snd (getThreadR Htid2)))) ->
+      concur_match hb cd' mu' st1' m1' st2' m2'.
+Proof.
+(* Need to use the invariants and memcompat1-compat to
+                   reestablish the injections.
+ *)
+Admitted.
+
+Lemma concur_match_initial
+      {CC_correct : CompCert_correctness}
+      {Args : ThreadSimulationArguments}:
+  forall hb0 (st1 : t) (st2: t) (m1 m2 : mem)
+    c1 (cd : option compiler_index) 
+    (mu : meminj) c2 ,
+    individual_match hb0 0 cd mu c1 m1 c2 m2 ->
+    Mem.inject mu m1 m2 ->
+    Events.injection_full mu m1 ->
+    st1 = (@mkPool dryResources _ c1 (getCurPerm m1, empty_map)) ->
+    st2 = (@mkPool dryResources _ c2
+                   (getCurPerm m2, empty_map)) ->
+    concur_match hb0 cd mu st1 m1 st2 m2.
+Proof using .
+  (* mem_compat and invariant should be trivial. *)
+Admitted.

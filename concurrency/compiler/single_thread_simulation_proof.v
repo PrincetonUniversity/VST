@@ -991,13 +991,7 @@ Qed.
        *)
       
       
-      Lemma Clight_step_nil_trace_not_atx:
-        forall s1 s2 f t,
-          Clight.at_external s1 = None ->
-          Clight.step Clight_g f s1 t s2 ->
-          t = nil.
-      Proof.
-      Admitted.
+      
       (* When a thread takes an internal step (i.e. not changing the schedule) *)
       Lemma asm_get_mem_set_mem:
         forall s m, Asm.get_mem (Asm.set_mem s m) = m.
@@ -1124,7 +1118,9 @@ Qed.
           destruct HH as (cd' & s2' & j2' & t'' & step &
                           comp_match & Hincr2 & inj_event).
           assert (Ht0: t0 = nil).
-          { eapply Clight_step_nil_trace_not_atx; eauto. } subst t0.
+          { eapply ClightSemanticsForMachines.Clight_step_nil_trace_not_atx;
+            eauto.  }
+          subst t0.
           assert (Ht'': t'' = nil).
           { inv inj_event; reflexivity. } subst t''.
           eapply simulation_equivlanence in step.
@@ -1154,36 +1150,8 @@ Qed.
             * (*assert (CMatch := H0). inversion H0;*)
               rename H0 into CMatch.
               subst. simpl. intros.
-              Lemma concur_match_thread_step:
-                forall (st2 : ThreadPool.t) (st1 st1': ThreadPool.t) (m1 m1' m2 m2' : mem) (tid : nat)
-                  (Htid1 : ThreadPool.containsThread st1 tid)
-                  c1 (cd cd' : option compiler_index) (st2' : ThreadPool.t) 
-                  (mu mu' : meminj)
-                  c2 (Htid2 : ThreadPool.containsThread st2 tid),
-                  concur_match cd mu st1 m1 st2 m2 ->
-                  individual_match hb tid cd' mu' c1 m1' c2 m2' ->
-                  Mem.inject mu' m1' m2' ->
-                  inject_incr mu mu' ->
-                  Events.injection_full mu' m1' ->
-                  @invariant (HybridSem (Some hb)) _ st1' ->
-                  @invariant (HybridSem (Some (S hb))) _ st2' ->
-                  mem_compatible st1' m1' ->
-                  mem_compatible st2' m2' -> 
-                  Events.injection_full mu' m1' ->
-                  forall p2,
-                    (* we do this to cover the case where st2' = st2*)
-                    access_map_equiv (getCurPerm m2') p2 ->  
-                  st1' = (updThread Htid1 c1
-                                    (getCurPerm m1', (snd (getThreadR Htid1)))) ->
-                  st2' = (updThread Htid2 c2
-                               (p2, (snd (getThreadR Htid2)))) ->
-                  concur_match cd' mu' st1' m1' st2' m2'.
-              Proof.
-                (* Need to use the invariants and memcompat1-compat to
-                   reestablish the injections.
-                 *)
-              Admitted.
-              eapply (concur_match_thread_step st2 st1);
+              
+              eapply (concur_match_thread_step _ st2 st1);
                 try reflexivity; eauto; try now eapply compiler_sim; eauto.
               -- econstructor 3; auto. constructor; eauto.
                  unfold compiler_match.
@@ -1328,7 +1296,22 @@ Qed.
       
       (* What to do with this? *)
       Hint Resolve inject_incr_refl: core.
+      Lemma asm_init_mem_step:
+        forall g m st v args,
+          Asm.entry_point g m st v args ->
+          mem_step m (Asm.get_mem st).
+      Proof.
+        intros. inv H; simpl.
+      Admitted.
 
+
+      (* We can keep track of thread hb. 
+         Before thread hb gets initialized, 
+         all threads have same content and memories are equal.
+         
+         
+
+       *)
       Lemma start_step_diagram:
         forall (m : option mem) (tge : HybridMachineSig.G) 
                (U : list nat) (st1 : ThreadPool (Some hb)) 
@@ -1341,6 +1324,8 @@ Qed.
           List.Forall2 (inject_mevent mu) tr1 tr2 ->
           HybridMachineSig.schedPeek U = Some tid ->
           HybridMachineSig.start_thread m1 Htid st1' m' ->
+          invariant st1' ->
+          mem_compatible st1' m' ->
           exists
             (st2' : ThreadPool (Some (S hb))) (m2' : mem) 
             (cd' : option compiler_index) (mu' : meminj),
@@ -1354,12 +1339,141 @@ Qed.
                                              U) tr2 st2' m2'
       /\ inject_incr mu mu'.
       Proof.
-        intros.
-        inv H2.
+        intros * CMatch Htrace Hsch Hstart.
+        inversion Hstart; subst.
+        inv Hperm.
+
+        assert (cnt2:containsThread st2 tid).
+        {eapply contains12; eauto. }
         
-        
-        
-      Admitted.
+        destruct (Compare_dec.lt_eq_lt_dec tid hb) as [[?|?]|?].  
+        - eapply CMatch in l as HH.
+          simpl in Hcode; rewrite Hcode in HH; inv HH.
+          hnf in Hinitial.
+          match_case in Hinitial; normal_hyp.
+          { contradict n; hnf. omega. }
+          exploit (ssim_initial _ _ Aself_simulation);
+            try eapply H4.
+          + !goal(initial_core _ _ _ _ _ _ _).
+            simpl in *; split; eauto; eapply i.
+          + !goal (match_mem _ _ _). (* HERE *)
+            econstructor; eauto.
+            * unshelve eapply CMatch; simpl; eauto.
+              -- eapply CMatch.
+            * admit. (* maybe add to the match for Kinit *)
+            * admit. (* maybe add to the match for Kinit *)
+          + econstructor; eauto.
+          + intros ?; normal_hyp.
+            simpl; unfold add_block. 
+            simpl in H. match_case in H.
+            destruct H as (?&?).
+            eexists; exists (HybridMachineSig.diluteMem x0), cd, x1;
+              repeat weak_split eauto.
+            * unfold add_block; simpl.
+              assert (m' = Asm.get_mem c).
+              { inversion i; subst m'; reflexivity. }
+              eapply concur_match_thread_step;
+                try eassumption; try reflexivity.
+              -- econstructor 2; eauto.
+                 subst m'; eauto.
+                 econstructor; eauto.
+              -- subst m'; apply H0. 
+              -- !goal (invariant _). 
+                 eapply mem_step_preserves_invariant;
+                   try reflexivity.
+                 ++ eapply getCur_restr.
+                 ++ eapply mem_compat_restrPermMap, CMatch.
+                 ++ eapply CMatch.
+                 ++ subst x0; eapply asm_init_mem_step; eauto.
+              -- !goal (mem_compatible _ _).
+                 
+                 eapply mem_step_preserves_compat;
+                   try reflexivity.
+                 ++ eapply getCur_restr.
+                 ++ eapply CMatch.
+                 ++ eapply mem_compat_restrPermMap, CMatch.
+                 ++ subst x0; eapply asm_init_mem_step; eauto.
+              -- subst m'; eapply is_ext_full; eauto.
+                 apply full_inj_restr, CMatch.
+            * eapply inject_incr_trace; eauto.
+            * unshelve eapply @HybridMachineSig.start_state'; eauto.
+              econstructor; simpl; try eassumption; eauto.
+              -- reflexivity.
+              -- simpl; hnf. simpl in *.
+                 simpl;
+                   repeat weak_split eauto.
+                 clean_proofs_goal. eauto.  
+              -- apply CMatch.
+        - (* If the first "compiled" thread is being initialized, 
+             then everything should be equal source and target,
+             up to this point.
+           *)
+
+          eapply CMatch in e as HH.
+          simpl in Hcode; rewrite Hcode in HH; inv HH.
+          hnf in Hinitial.
+          match_case in Hinitial; normal_hyp.
+          2: { exfalso. contradict l; hnf. simpl; omega. }
+          destruct i.
+          exploit (Injfsim_match_entry_pointsX  compiler_sim); eauto.
+          simpl. intros; normal_hyp.
+          simpl; unfold add_block. simpl in H2.
+          revert H2; clean_proofs_goal; intros H2.
+          
+          eexists; exists (HybridMachineSig.diluteMem (Asm.get_mem x1)),
+                   (Some x), x0;
+          repeat weak_split eauto.
+          + !goal (concur_match _ _ _ _ _ _).
+            assert (HH: mem_compatible st2 m2) by apply CMatch.
+            unfold add_block; simpl.
+            instantiate(1:=cnt2) in H3.
+
+            unshelve (eapply concur_match_thread_step;
+              try eassumption; try reflexivity); shelve_unifiable.
+            * econstructor 3; eauto.
+              econstructor. unfold compiler_match.
+              subst m'; simpl.
+              rewrite Clight_set_mem_get_mem,  asm_set_mem_get_mem.
+              auto.
+            * subst m'. eapply (Injfsim_match_meminjX compiler_sim); eauto.
+            * admit. (* this is missing from the compiler simulation *)
+            * !goal (invariant _). 
+              eapply mem_step_preserves_invariant; try reflexivity.
+              ++ unshelve eapply getCur_restr; eauto.
+                 eapply HH.
+              ++ eapply mem_compat_restrPermMap, CMatch.
+              ++ eapply CMatch.
+              ++ simpl.
+                 admit. (* the memories are expected to be equal! *)
+            * !goal (mem_compatible _ _). 
+              eapply mem_step_preserves_compat; try reflexivity.
+              ++ unshelve eapply getCur_restr; eauto.
+                 eapply HH.
+              ++ eapply CMatch.
+              ++ eapply mem_compat_restrPermMap, CMatch.
+              ++ simpl.
+                 admit. (* the memories are expected to be equal! *)
+            * subst m'; eapply (Injfsim_match_fullX compiler_sim); eauto.
+          + eauto.
+            eapply inject_incr_trace; try eassumption.
+            admit. (* mu is expected to be trivial 
+                      but it should exists (someone should carry it...
+                    *)
+          + econstructor; eauto.
+            econstructor; eauto.
+            * reflexivity.
+            * hnf. instantiate(3:=TST x1); simpl.
+              repeat weak_split eauto.
+              admit. (* again, the memories are expected to be equal!*)
+            * eapply CMatch.
+            * simpl. reflexivity.
+          + admit. (* mu is expected to be trivial 
+                      but it should exists (someone should carry it...
+                    *)
+        - admit. (* just like the ASM case, easy*)
+                
+      Admitted. (* start_step_diagram *)
+      
       Lemma Clight_get_mem_set_mem:
               forall (s : Clight.state) (m : mem),
                 Clight.get_mem (Clight.set_mem s m) = m.
@@ -1936,16 +2050,72 @@ Qed.
               t_mem' main main_args /\ concur_match cd j s_mach_state s_mem' t_mach_state t_mem'.
       Proof.
         intros m.
-        
         simpl; unfold HybridMachineSig.init_machine''.
         intros ? ? ? ? ? ? (?&?).
         destruct r1; try solve[inversion H0].
-        simpl in H0.
+        subst; simpl in *.
         destruct H0 as (init_thread&?&?); simpl in *.
         unfold initial_core_sum in *.
-        destruct init_thread; destruct H0 as (LT&H0); simpl in LT.
-        + admit. (*identical start!*)
-        + admit. (*should follow from compiler simulation*)
+        (* destruct (Compare_dec.lt_eq_lt_dec 0 hb) as [[HH|HH]|HH].
+         *)
+        destruct init_thread; destruct H as (LT&H&Hm); simpl in LT.
+        + assert (hb = 0%nat).
+          { clear - LT; omega. }
+          subst hb.
+
+          exploit (Injfsim_match_entry_pointsX compiler_sim);
+            eauto.
+          intros ; normal_hyp.
+          do 5 econstructor.
+          exists (Some p); eauto;
+            repeat weak_split eauto.
+          * econstructor; repeat weak_split eauto.
+            hnf. instantiate(3:= TST x1); simpl;
+                   repeat weak_split eauto.
+          * (* initial concur! *)
+            instantiate(1:=x0).
+            instantiate(1:=Some x).
+            subst s_mach_state s_mem'.
+            eapply concur_match_initial; simpl; eauto.
+            -- econstructor 3; eauto.
+               econstructor. unfold compiler_match.
+               simpl. rewrite Clight_set_mem_get_mem,
+                      asm_set_mem_get_mem.
+               eauto.
+            -- eapply Injfsim_match_meminjX in H2; eauto.
+            -- eapply Injfsim_match_fullX in H2; eauto.
+        + (* 0 < hb *)
+          exploit (ssim_initial _ _ Aself_simulation);
+            simpl; eauto.
+          admit. (* can we assume entry mem is well defined? *)
+          admit.        (* and also assume args are well defined *)
+          admit. (* same with main *)
+
+          intros HH; normal_hyp.
+
+          exists x1, None.
+          unshelve eexists.
+          { eapply mkPool.
+            + eapply Krun. eapply TState. exact x.
+            + exact (getCurPerm (Asm.get_mem x), empty_map). }
+          exists s_mem,x0, (Some p).
+          repeat weak_split eauto.
+          * subst x0; eexists; simpl; repeat weak_split eauto.
+            hnf; repeat weak_split eauto.
+            hnf; omega.
+          * simpl.
+            (* initial match! *)
+            eapply concur_match_initial; simpl; eauto.
+            -- econstructor 2; eauto.
+               econstructor; eauto.
+            -- admit. (* can reconsider doing this
+                         with identical memories and states
+                       *)
+            -- admit. (* again depends on the initial mem*)
+            -- subst x0;reflexivity.
+
+               Unshelve.
+               all: eauto. repeat constructor.
       Admitted.
 
       Lemma compile_one_thread:

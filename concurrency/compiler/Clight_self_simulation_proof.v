@@ -426,7 +426,7 @@ apply eval_expr_lvalue_ind; intros; red; intros; simpl in *.
   - eapply eval_Efield_union; eauto.
     (*rewrite <- (expr_inject_type_of _ _ _ H3); eauto.*)
   - econstructor; eauto.
-Admitted. (*one admit, on injection of globals*)
+Admi tted. (*one admit, on injection of globals*)
 
 Lemma eval_expr_inject (g:genv) e te m a v:
    eval_expr g e te m a v -> myP g e te m a v.
@@ -688,7 +688,7 @@ Proof.
          exploit (find_label_inject s0 j (Kseq (seq_of_labeled_statement ls') k) (Kseq (seq_of_labeled_statement ls') k')).
          simpl; split; trivial. apply seq_of_lbldl_stmt_inject; trivial. reflexivity.
          instantiate (1:=lbl); rewrite Heqq. intros X; rewrite X; trivial.
-Admitted. (*Cannot guess decreasing argument of fix.*)
+Admi tted. (*Cannot guess decreasing argument of fix.*)
 
 Lemma exprlist_inject_refl: forall l, exprlist_inject l l.
 Proof. induction l; econstructor. reflexivity. apply IHl. Qed.
@@ -1021,7 +1021,7 @@ Proof.
 - split. auto.
   intros. rewrite <- H0. eapply Mem.load_storebytes_other; eauto. 
   left. congruence.
-Admitted. (*all admits are bout storebytes nil*)
+Admi tted. (*all admits are bout storebytes nil*)
 
 Lemma assign_loc_inject_match_mem g:
   forall f ty m loc ofs v m' tm loc' ofs' v',
@@ -1115,7 +1115,7 @@ Proof.
           exists b, d, z. split; trivial. split; trivial. eapply Mem.perm_storebytes_1; eauto.
   * intros. rewrite <- H0. eapply Mem.load_storebytes_other; eauto. 
     left. congruence.
-Admitted. (*all admits are about storebytes nil*) 
+Admi tted. (*all admits are about storebytes nil*) 
 
 Axiom external_call_match_mem_inject:
   forall (ef : AST.external_function) (ge1 ge2 : Senv.t)
@@ -1445,6 +1445,6 @@ Proof.
       * split. split; intuition. split; trivial.
       * split. red; intros; congruence.
         constructor.
-Admitted.
+Admi tted.
     
     

@@ -1035,6 +1035,13 @@ Section CLC_SEM.
      *)
     
   Admitted.
+  Lemma Clight_step_nil_trace_not_atx:
+        forall s1 s2 f t,
+          Clight.at_external s1 = None ->
+          Clight.step g f s1 t s2 ->
+          t = nil.
+      Proof using g.
+      Admitted.
 
   Lemma clc_ev_elim (FE: forall f vargs m e le m1 T (E:function_entryT f vargs m e le m1 T), ev_elim m T m1):
     forall c m T c' m' (E: clc_evstep c m T c' m'), ev_elim m T m'.

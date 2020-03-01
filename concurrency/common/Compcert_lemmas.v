@@ -696,3 +696,13 @@ Proof.
     + destruct H0; 
         first [left; rewrite <- Hcur_eq1;assumption |right; rewrite <- Hmax_eq1; assumption].
 Qed.
+
+Lemma full_inj_restr:
+  forall mu m p,
+    Events.injection_full mu m ->
+    forall (Hlt: permMapLt p (getMaxPerm m)), 
+      Events.injection_full mu (restrPermMap Hlt).
+Proof.
+  intros ** ? **. eapply H.
+  unshelve  eapply restrPermMap_valid; eauto.
+Qed.
