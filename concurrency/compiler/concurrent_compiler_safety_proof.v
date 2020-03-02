@@ -593,13 +593,14 @@ Section Concurrent_Safety.
       (*Construct the initial state*)
       exploit HybridMachine_simulation.initial_setup.
       { eapply SIM. }
+      { eapply Genv.initmem_inject; eauto. }
       { match goal with
         [H: machine_semantics.initial_machine ?SEM1 _ _ _ _ _ _ |-
          machine_semantics.initial_machine ?SEM2 _ _ _ _ _ _] =>
         replace SEM2 with SEM1 by (rewrite H0; reflexivity)
       end.
         eapply H1. }
-      intro HH; destruct HH as (j&cd&t_mach_state&t_mem&t_mem'&r2&(INIT_mem & INIT)&?).
+      intro HH; destruct HH as (j&cd&t_mach_state&t_mem&r2&(INIT_mem & INIT)&?).
       assert(INIT':= INIT).
       destruct r2; try solve[inversion INIT'].
       destruct INIT' as (c&?&?).
@@ -618,7 +619,6 @@ Section Concurrent_Safety.
       Unshelve.
       { eapply DryHybridMachineSig. }
       { eapply DryHybridMachineSig. }
-
     Qed.
 
     Definition SemSource:= (ClightSemanticsForMachines.ClightSem

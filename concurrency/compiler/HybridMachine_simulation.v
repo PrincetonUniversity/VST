@@ -194,17 +194,14 @@ Section HybridSimulation.
 
       (* This is the match relation for initial state of the initial core:*)
       (* That is property given by sequential theorem about inital_states *)
-      (*; initial_source_thread:
-          mem -> s_thread_type -> val -> seq.seq val -> Prop
-      ; initial_target_thread:
-          mem -> t_thread_type -> val -> seq.seq val -> Prop *)
       ; initial_setup :
-          forall (*s_init_thread*) s_mem s_mem' main main_args s_mach_state r1,
+          forall (*s_init_thread*) m0 s_mem main main_args s_mach_state r1,
             (*initial_source_thread s_mem s_init_thread main main_args -> *)
-            machine_semantics.initial_machine SourceHybridMachine r1 s_mem s_mach_state s_mem' main main_args ->
-            exists j cd t_mach_state t_mem t_mem' r2,
-              machine_semantics.initial_machine TargetHybridMachine r2 t_mem t_mach_state t_mem' main main_args
-           /\ match_state cd j s_mach_state s_mem' t_mach_state t_mem'
+            Mem.mem_wd m0 ->
+            machine_semantics.initial_machine SourceHybridMachine r1 m0 s_mach_state s_mem main main_args ->
+            exists j cd t_mach_state t_mem r2,
+              machine_semantics.initial_machine TargetHybridMachine r2 m0 t_mach_state t_mem main main_args
+           /\ match_state cd j s_mach_state s_mem t_mach_state t_mem
       ; thread_diagram :
           forall sge tge U tr1 st1 m1 st1' m1',
             thread_step SourceHybridMachine sge U st1 m1 st1' m1' ->

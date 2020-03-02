@@ -2042,22 +2042,38 @@ Qed.
       Qed.
 
 
+      Lemma getCurPerm_valid:
+        forall m b1 ofs,
+          at_least_Some ((getCurPerm m) !! b1 ofs) ->
+          Mem.valid_block m b1.
+      Proof.
+        unfold at_least_Some in *; simpl in *.
+        intros *; match_case; intros HH; try solve[inv HH].
+        unfold Mem.valid_block, Plt.
+        destruct (plt b1 (Mem.nextblock m)); eauto.
+        eapply m in n.
+        instantiate(1:=Cur) in n;
+          instantiate(1:=ofs) in n.
+        rewrite_getPerm. rewrite Heqo in n.
+        congruence.
+      Qed.
       
       Lemma initial_diagram:
-        forall (m : option mem) (s_mem s_mem' : mem) (main : val) (main_args : list val)
-               (s_mach_state : ThreadPool (Some hb)) (r1 : option res),
-          machine_semantics.initial_machine (HybConcSem (Some hb) m) r1 s_mem s_mach_state s_mem'
+        forall (m : option mem) (m0 s_mem : mem) (main : val) (main_args : list val)
+          (s_mach_state : ThreadPool (Some hb)) (r1 : option res),
+          Mem.mem_wd m0 ->
+          machine_semantics.initial_machine (HybConcSem (Some hb) m) r1 m0 s_mach_state s_mem
                                             main main_args ->
           exists
             (j : meminj) (cd : option compiler_index) (t_mach_state : ThreadPool (Some (S hb))) 
-            (t_mem t_mem' : mem) (r2 : option res),
+            (t_mem : mem) (r2 : option res),
             machine_semantics.initial_machine
-              (HybConcSem (Some (S hb)) m) r2 t_mem t_mach_state
-              t_mem' main main_args /\ concur_match cd j s_mach_state s_mem' t_mach_state t_mem'.
+              (HybConcSem (Some (S hb)) m) r2 m0 t_mach_state
+              t_mem main main_args /\ concur_match cd j s_mach_state s_mem t_mach_state t_mem.
       Proof.
         intros m.
         simpl; unfold HybridMachineSig.init_machine''.
-        intros ? ? ? ? ? ? (?&?).
+        intros * Hwd (?&?).
         destruct r1; try solve[inversion H0].
         subst; simpl in *.
         destruct H0 as (init_thread&?&?); simpl in *.
@@ -2072,7 +2088,7 @@ Qed.
           exploit (Injfsim_match_entry_pointsX compiler_sim);
             eauto.
           intros ; normal_hyp.
-          do 5 econstructor.
+          do 4 econstructor.
           exists (Some p); eauto;
             repeat weak_split eauto.
           * econstructor; repeat weak_split eauto.
@@ -2081,7 +2097,7 @@ Qed.
           * (* initial concur! *)
             instantiate(1:=x0).
             instantiate(1:=Some x).
-            subst s_mach_state s_mem'.
+            subst s_mach_state s_mem.
             eapply concur_match_initial; simpl; eauto.
             -- econstructor 3; eauto.
                econstructor. unfold compiler_match.
@@ -2093,35 +2109,51 @@ Qed.
         + (* 0 < hb *)
           exploit (ssim_initial _ _ Aself_simulation);
             simpl; eauto.
-          admit. (* can we assume entry mem is well defined? *)
-          admit.        (* and also assume args are well defined *)
-          admit. (* same with main *)
+          * constructor.
+            -- eapply Mem.mem_wd_inject; eauto.
+            --  intros ? **.
+                eapply getCurPerm_valid in H1.
+                unfold Mem.flat_inj.
+                match_case.
+                do 2 eexists; eauto.
+            -- intros ? * H1. 
+                eapply getCurPerm_valid in H1.
+                unfold Mem.flat_inj.
+                exists b2, ofs_delt, 0.
+                match_case. repeat weak_split eauto.
+                omega.
+          * simpl. instantiate(1:=main_args).
+            admit. (* are we taking no argumetns ? 
+                      if it does, they must be valid!
+                      Check the soundness proof to see what they do
+                    *)
+          * instantiate(1:=main).
+            admit. (* just like above, main has to be valid! *)
 
-          intros HH; normal_hyp.
+          * intros ? ; normal_hyp.
 
           exists x1, None.
           unshelve eexists.
           { eapply mkPool.
             + eapply Krun. eapply TState. exact x.
             + exact (getCurPerm (Asm.get_mem x), empty_map). }
-          exists s_mem,x0, (Some p).
+          exists x0, (Some p).
           repeat weak_split eauto.
-          * subst x0; eexists; simpl; repeat weak_split eauto.
-            hnf; repeat weak_split eauto.
-            hnf; omega.
-          * simpl.
-            (* initial match! *)
-            eapply concur_match_initial; simpl; eauto.
-            -- econstructor 2; eauto.
+          -- subst x0; eexists; simpl; repeat weak_split eauto.
+             hnf; repeat weak_split eauto.
+             hnf; omega.
+          -- simpl.
+             (* initial match! *)
+             eapply concur_match_initial; simpl; eauto.
+            ++ econstructor 2; eauto.
                econstructor; eauto.
-            -- admit. (* can reconsider doing this
-                         with identical memories and states
-                       *)
-            -- admit. (* again depends on the initial mem*)
-            -- subst x0;reflexivity.
+            ++ eapply H2.
+            ++ eapply is_ext_full; eauto.
+               apply Events.flat_injection_full.
+            ++ subst x0;reflexivity.
 
                Unshelve.
-               all: eauto. repeat constructor.
+               all: eauto. 
       Admitted.
 
       Lemma compile_one_thread:

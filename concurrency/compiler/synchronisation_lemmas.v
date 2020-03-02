@@ -928,7 +928,7 @@ Section SimulationTactics.
   Proof.
     intros * ? ? Hinv Hjoin; eapply invariant_update; eauto.
     - intros.
-  (* This is wrong: 
+  (* This is almost right: 
            IF Nonempty + Writable = Freeable
            we know: 
               disjoin Nonempty Nonempty    
@@ -939,9 +939,34 @@ Section SimulationTactics.
                to the lemmas statement.     
                with  an extra safety step, we know the second 
            state satisfies the invariant.
+           Then to establish invariant for the target, 
+           use the Mem.inject of each thread to move it 
+           back to the source, then use the relations 
+           in the source!
    *)
   Admitted.
   
+      Lemma invariant_add_thread_only:
+        forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalPool.OrdinalThreadPool) th_perm
+          f_ptr arg,
+          st' = ThreadPool.addThread st f_ptr arg th_perm ->
+          invariant st ->
+          forall (no_race_thr0: forall j (cntj : ThreadPool.containsThread st j),
+                permMapsDisjoint2 th_perm (ThreadPool.getThreadR cntj))
+            (no_race2: forall laddr0 rmap,
+                ThreadPool.lockRes st laddr0 = Some rmap ->
+                permMapsDisjoint2 th_perm rmap)
+            (thread_date_lock_coh1: permMapCoherence (fst th_perm) (snd th_perm))
+            (thread_date_lock_coh4: forall i (cnti : ThreadPool.containsThread st i),
+                permMapCoherence (fst th_perm) (snd (ThreadPool.getThreadR cnti)) /\
+                permMapCoherence (fst (ThreadPool.getThreadR cnti)) (snd th_perm))
+            (thread_date_lock_coh6: forall laddr0 rmap,
+                ThreadPool.lockRes st laddr0 = Some rmap ->
+                permMapCoherence (fst rmap) (snd th_perm) /\
+                permMapCoherence (fst th_perm) (snd rmap)),
+            invariant st'.
+      Proof.
+      Admitted.
     Lemma invariant_add_thread:
             forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalThreadPool)
               h c old_th_perm  new_th_perm f_ptr arg
@@ -952,7 +977,88 @@ Section SimulationTactics.
       invariant st ->
       permMapJoin_pair new_th_perm old_th_perm  (getThreadR Hcnt) ->
       invariant st'.
-    Admitted.
+    Proof.
+      intros * Hst1' Hinv Hjoin.
+      assert (Hinv':invariant (ThreadPool.updThread Hcnt c old_th_perm)).
+      { simpl. eapply invariant_update_thread; eauto. 
+        - simpl; eauto.
+        - simpl; intros. eapply disjoint_lt_pair.
+          + eapply permMapJoin_lt_pair2; eassumption.
+          + eapply Hinv; auto.
+        - intros. eapply disjoint_lt_pair.
+          + eapply permMapJoin_lt_pair2; eassumption.
+          + eapply no_race in H; simpl in *; eauto.
+        - eapply permMapCoherence_Lt.
+          + exploit thread_data_lock_coh; eauto.
+            intros [HH ?]. eapply HH.
+          + eapply permMapJoin_lt, permMapJoin_comm, Hjoin.
+          + eapply permMapJoin_lt, permMapJoin_comm, Hjoin.
+        - intros; split.
+          + eapply permMapCoherence_Lt.
+            * exploit thread_data_lock_coh; eauto.
+              intros [HH ?]. eapply HH.
+            * eapply permMapJoin_lt, permMapJoin_comm, Hjoin.
+            * reflexivity.
+          + eapply permMapCoherence_Lt.
+            * exploit thread_data_lock_coh; eauto.
+              intros [HH ?]. eapply HH.
+            * reflexivity.
+            * eapply permMapJoin_lt, permMapJoin_comm, Hjoin.
+        - intros; split.
+          + eapply permMapCoherence_Lt.
+            2:{ reflexivity. }
+            * exploit thread_data_lock_coh; eauto.
+              intros [HH ?]. eapply H0; eauto.
+            * eapply permMapJoin_lt, permMapJoin_comm, Hjoin.
+          + eapply permMapCoherence_Lt.
+            3:{ reflexivity. }
+            * exploit locks_data_lock_coh; eauto.
+              intros [HH ?]. eapply HH.
+            * eapply permMapJoin_lt, permMapJoin_comm, Hjoin. }
+      eapply invariant_add_thread_only; try eexact Hinv'.
+      - subst st'; simpl; reflexivity.
+      - intros. destruct (Nat.eq_dec h j).
+        + subst. rewrite ThreadPool.gssThreadRes.
+          eapply join_disjoint_pair; eauto.
+        + subst. unshelve erewrite ThreadPool.gsoThreadRes; eauto.
+          simpl; intros. eapply disjoint_lt_pair.
+          * eapply permMapJoin_lt_pair1; eassumption.
+          * eapply Hinv; auto.
+      - intros *. rewrite ThreadPool.gsoThreadLPool; intros.
+        eapply disjoint_lt_pair.
+          + eapply permMapJoin_lt_pair1; eassumption.
+          + eapply no_race in H; simpl in *; eauto.
+      - eapply permMapCoherence_Lt.
+        * exploit thread_data_lock_coh; try eapply Hinv.
+          intros [HH ?]. eapply HH.
+        * eapply permMapJoin_lt, Hjoin.
+        * eapply permMapJoin_lt, Hjoin.
+      - intros i ?. destruct (Nat.eq_dec h i).
+        + subst. rewrite ThreadPool.gssThreadRes.
+          split; eapply permMapCoherence_Lt;
+            try now eapply permMapJoin_lt, Hjoin.
+          2,4: try now eapply permMapJoin_lt, permMapJoin_comm, Hjoin.
+          * exploit thread_data_lock_coh; try eapply Hinv.
+            intros [HH ?]. eapply HH.
+          * exploit thread_data_lock_coh; try eapply Hinv.
+            intros [HH ?]. eapply HH.
+        + subst. unshelve erewrite ThreadPool.gsoThreadRes; eauto.
+          split; eapply permMapCoherence_Lt;
+            try now eapply permMapJoin_lt, Hjoin.
+          2,4: reflexivity.
+          * exploit thread_data_lock_coh; try eapply Hinv.
+            intros [HH ?]. eapply HH.
+          * exploit thread_data_lock_coh; try eapply Hinv.
+            intros [HH ?]. eapply HH.
+      - intros *. rewrite ThreadPool.gsoThreadLPool; intros.
+        split; eapply permMapCoherence_Lt;
+          try now eapply permMapJoin_lt, Hjoin.
+          2,4: reflexivity.
+          * exploit thread_data_lock_coh; try eapply Hinv.
+            intros [? HH]. eapply HH; eauto.
+          * exploit locks_data_lock_coh; try eapply Hinv; eauto.
+            intros [HH ?]. eapply HH.
+    Qed.
     
   
     
@@ -2917,22 +3023,22 @@ Admitted.
           eapply cnt.
     Qed.
     
-        Lemma invariant_update_free:
-             forall (Sem : Semantics) (st st' : ThreadPool.t)
-                (c : ctl) 
-                (tid : nat) (cnt1 : ThreadPool.containsThread st tid) 
-                (b : block) (ofs : Z) (Hcnt : containsThread st tid)
-                pdata perms,
-                ThreadPool.lockRes st (b, ofs) = Some perms ->
-                permMapLt_range (lock_perms st tid Hcnt) b ofs
-                                (ofs + Z.of_nat LKSIZE_nat) (Some Writable) ->
-                let new_perms := setPermBlock_var_pair
-                                   b ofs LKSIZE_nat (pdata, fun _ : nat => None)
-                                   (getThreadR Hcnt) in
-                st' = remLockfFullUpdate st tid Hcnt c new_perms (b, ofs) ->
-                invariant st ->
-                invariant st'.
-        Admitted.
+    Lemma invariant_update_free:
+      forall (Sem : Semantics) (st st' : ThreadPool.t)
+        (c : ctl) 
+        (tid : nat) (cnt1 : ThreadPool.containsThread st tid) 
+        (b : block) (ofs : Z) (Hcnt : containsThread st tid)
+        pdata perms,
+        ThreadPool.lockRes st (b, ofs) = Some perms ->
+        permMapLt_range (lock_perms st tid Hcnt) b ofs
+                        (ofs + Z.of_nat LKSIZE_nat) (Some Writable) ->
+        let new_perms := setPermBlock_var_pair
+                           b ofs LKSIZE_nat (pdata, fun _ : nat => None)
+                           (getThreadR Hcnt) in
+        st' = remLockfFullUpdate st tid Hcnt c new_perms (b, ofs) ->
+        invariant st ->
+        invariant st'.
+    Admitted.
 
         
 Lemma concur_match_free_lock:

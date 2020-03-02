@@ -634,13 +634,13 @@ Section Concurrent_correctness.
           - exact trivial_order_wf.
           - (*initial_setup*)
             simpl; intros.
-            exists (Mem.flat_inj (Mem.nextblock s_mem')), tt.
+            exists (Mem.flat_inj (Mem.nextblock s_mem)), tt.
             unshelve eexists. eapply lift_c_state; eauto.
-            exists s_mem, s_mem', r1; split.
+            exists s_mem, r1; split.
             2: { econstructor. }
-            inv H; econstructor; eauto.
+            inv H0; econstructor; eauto.
             simpl in *.
-        destruct r1; inv H1.
+        destruct r1; inv H2.
         econstructor; simpl in *.
         normal_hyp. split.
         2: { simpl. unfold lift_state.
@@ -775,8 +775,8 @@ Section Concurrent_correctness.
             eapply Transitive_Closure.wf_clos_trans; eauto.
             eauto.
         - subst match_state; simpl; intros.
-          destruct (initial_setup _ _ _ _ _ _ H) as (? & ? & ? & ? & ? & ? & H2 & ?).
-          destruct (initial_setup0 _ _ _ _ _ _ H2) as (? & ? & ? & ? & ? & ? & ? & ?).
+          destruct (initial_setup _ _ _ _ _ _ H H0) as (? & ? & ? & ? & ? & H2 & ?).
+          destruct (initial_setup0 _ _ _ _ _ _ H H2) as (? & ?  & ? & ? & ? & ? & ?).
           eexists; eexists (_, _); eauto 12.
         - intros.
           dup H0 as HH.

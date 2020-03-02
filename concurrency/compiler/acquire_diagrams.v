@@ -137,6 +137,9 @@ Section AcquireDiagrams.
              (Hthread_mem2: access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2)),
         let Hcmpt2:= memcompat2 CMatch in
         let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
+        let new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map) in
+        let st1':= fullThUpd_comp st1 tid cnt1 (Kresume sum_state1 Vundef)
+                                  new_perms (b, unsigned ofs) in
         forall (Hjoin_angel: permMapJoin_pair lock_perm (getThreadR cnt1) newThreadPerm1)
           (Hlt_new: permMapLt_pair newThreadPerm1 (getMaxPerm m1))
           (Hlock_update_mem_strict_load:
@@ -144,7 +147,8 @@ Section AcquireDiagrams.
                                          m1 m1' vone vzero)
           (Amatch : match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2)
           (Hat_external: semantics.at_external CoreSem th_state1 m1 =
-                         Some (LOCK, (Vptr b ofs :: nil)%list)),
+                         Some (LOCK, (Vptr b ofs :: nil)%list))
+          (Hinv': @invariant (HybridSem _) _ st1'),
           let event1 := build_acquire_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
           exists event2 (m2' : mem),
             match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2 /\
@@ -154,9 +158,6 @@ Section AcquireDiagrams.
             let st2':= fullThUpd_comp st2 tid cnt2 (Kresume sum_state2 Vundef)
                                        new_perms2 (b', unsigned (add ofs (repr delt))) in
             syncStep(Sem:=HybridSem (Some (S hb))) true cnt2 Hcmpt2 st2' m2' event2 /\
-            let new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map) in
-            let st1':= fullThUpd_comp st1 tid cnt1 (Kresume sum_state1 Vundef)
-                                      new_perms (b, unsigned ofs) in
             concur_match i mu st1' m1' st2' m2'.
     Proof.
       (*  4535 - 4490 = 45 *)
@@ -250,9 +251,9 @@ Section AcquireDiagrams.
       set (new_perms2:= Build_virtue (virtueThread angel2) (empty_map, empty_map)).
       set (st2':= fullThUpd_comp st2 tid cnt2 (Kresume sum_state2 Vundef)
                                  new_perms2 (b', unsigned (add ofs (repr delt)))).
-      set (new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map)).
+      (* set (new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map)).
       remember (fullThUpd_comp st1 tid cnt1 (Kresume sum_state1 Vundef)
-                                      new_perms (b, unsigned ofs)) as st1'.
+                                      new_perms (b, unsigned ofs)) as st1'. *)
       assert (Hmi_perm_perm1:
                 mi_perm_perm mu (fst newThreadPerm1) (fst newThreadPerm2)).
       { unfold newThreadPerm1, newThreadPerm2; simpl.
@@ -551,14 +552,21 @@ Section AcquireDiagrams.
           * eapply lock_update_mem_strict_load_restr.
             eapply Hlock_update_mem_strict_load2.
           * eapply getCur_restr.
-        + !goal (@invariant (HybridSem _) _ _).
+       (* + !goal (@invariant (HybridSem _) _ _).
           (* simpl in Heqst1'. *) simpl.
-          eapply invariant_update_join_acq; eauto.
+          eapply invariant_ update_join_acq; eauto.
           2: eapply CMatch.
           unfold fullThUpd_comp, fullThreadUpdate; simpl.
-          reflexivity. 
+          reflexivity. *)
         + !goal (@invariant (HybridSem _ ) _ _).
           subst newThreadPerm2 angel2.
+          (*need to use the invariant st1' insted! 
+            Here's how: the new permission is built by an inject_virtue,
+            so, it only "exists" where the injection maps.
+            wherever the injection maps
+            we can use mi_perm_inv from the Mem.inject
+            and move the Disjoint relation to the source, where we have it!s
+           *)
           eapply invariant_update_join_acq; try reflexivity.
           * simpl in *; rewrite <- Hpmap; repeat f_equal.
             subst ofs2; assumption.
@@ -733,14 +741,16 @@ Section AcquireDiagrams.
         (Hvirtue_locks: virtueLP angel= lock_perm),
         let newThreadPerm1:= (computeMap_pair (getThreadR Hcnt1) (virtueThread angel)) in
         let new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map) in
+        let st1':= fullThUpd_comp st1 hb Hcnt1 (Kresume (SST code1) Vundef) new_perms (b1, unsigned ofs)  in
         forall (Hjoin_angel: permMapJoin_pair lock_perm (getThreadR Hcnt1) newThreadPerm1)
           (Hlt_new: permMapLt_pair newThreadPerm1 (getMaxPerm m1'))
           (Hlt1 : permMapLt (thread_perms _ _ Hcnt1) (getMaxPerm m1'))
           (Hlt2 : permMapLt (thread_perms _ _ Hcnt2) (getMaxPerm m2'))
-          (Hstrict: strict_evolution_diagram cd mu code1 m1 m1' code2 m2'),
+          (Hstrict: strict_evolution_diagram cd mu code1 m1 m1' code2 m2')
+          (Hinv': @invariant (HybridSem _) _ st1'),
         exists evnt2 (st2' : t) (m2'' : mem),
           let evnt:= build_acquire_event (b1, unsigned ofs) (fst (virtueThread angel)) m1'' in 
-          let st1':= fullThUpd_comp st1 hb Hcnt1 (Kresume (SST code1) Vundef) new_perms (b1, unsigned ofs)  in
+          
           concur_match (Some cd) mu st1' m1'' st2' m2'' /\
           inject_sync_event mu evnt evnt2 /\
           let Hcmpt2:= memcompat2 CMatch in
@@ -791,8 +801,8 @@ Section AcquireDiagrams.
       set (st2':= (updLockSet
                      (updThread Hcnt2 (Kresume (TST code2) Vundef) new_cur2)
                      (b2, unsigned ofs2) (pair0 empty_map))).
-      remember (fullThUpd_comp st1 hb Hcnt1 (Kresume (SST code1) Vundef) new_perms
-                               (b1, unsigned ofs)) as st1'.
+      (* remember (fullThUpd_comp st1 hb Hcnt1 (Kresume (SST code1) Vundef) new_perms
+                               (b1, unsigned ofs)) as st1''. *)
       
       assert (H: ThreadPool (Some (S hb)) =
                  @t dryResources (HybridSem (@Some nat (S hb)))).
@@ -946,13 +956,13 @@ Section AcquireDiagrams.
               eapply mi_perm_inv_perm_compute with (m1:=m1'); eauto.
               -- eapply Hangel_bound. }
             
-        + !goal (@invariant (HybridSem _) _ _).
-          
-          simpl in Heqst1'.
-          eapply invariant_update_join_acq; eauto; simpl; try reflexivity.
-          eapply CMatch.
-          
-        + !goal (invariant st2'). 
+        + !goal (invariant st2').
+          (*need to use the invariant st1' insted! 
+            Here's how: the new permission is built by an inject_virtue,
+            so, it only "exists" where the injection maps.
+            wherever the injection maps
+            we can use mi_perm_inv from the Mem.inject
+            and move the Disjoint relation to the source, where we have it!s*)
           eapply invariant_update_join_acq.
           4: eassumption.
           2: reflexivity.
@@ -1361,11 +1371,15 @@ Section AcquireDiagrams.
         (HisLock: lockRes st1 (b, unsigned ofs) = Some lock_perm),
         let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
         let new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map) in
+        let st1':= fullThUpd_comp
+                     st1 tid cnt1 (Kresume c Vundef)
+                     new_perms (b, unsigned ofs) in
         forall (Hjoin_angel: permMapJoin_pair lock_perm (getThreadR cnt1) newThreadPerm1)
-          (Hlt_new: permMapLt_pair newThreadPerm1 (getMaxPerm m1)),
+          (Hlt_new: permMapLt_pair newThreadPerm1 (getMaxPerm m1))
+          (Hinv': @invariant (HybridSem _) _ st1'),
         exists evnt2 (st2' : t) (m2' : mem),
           let evnt:= build_acquire_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
-          let st1':= fullThUpd_comp st1 tid cnt1 (Kresume c Vundef) new_perms (b, unsigned ofs) in
+         
           concur_match cd mu st1' m1' st2' m2' /\
           inject_sync_event mu evnt evnt2 /\
           let Hcmpt2:=  (memcompat2 CMatch) in
@@ -1458,26 +1472,27 @@ Section AcquireDiagrams.
         rewrite RPM in Hinterference1.
         symmetry in H0.
         clean_proofs.
-        exploit acquire_step_diagram_compiled;
+         (exploit acquire_step_diagram_compiled;
           try eapply Hthread_mem1;
           try eapply Hthread_mem2;
           try solve[eapply CMatch; eauto; try reflexivity];
-          debug eauto; try reflexivity.
+          eauto; try reflexivity).
         + econstructor; eassumption.
         + subst virtueThread1; eassumption.
         + subst newThreadPerm1 virtueThread1; eassumption.
-        + subst newThreadPerm1 virtueThread1; eassumption.
+        + subst newThreadPerm1 virtueThread1; simpl;
+          eassumption.
         + econstructor; eauto; simpl.
           * !goal(mem_interference m1 lev1 m1').
             rewrite self_restre_eq in Hinterference1; eauto.
           * !goal(mem_interference m2 lev2 m2'). 
             rewrite self_restre_eq in Hinterference2; eauto.
-        + subst virtueThread1.  
-          intros (?&?&?&?&?&?).
-          do 3 eexists; repeat weak_split eauto.
-          clear - H2.
-          clean_proofs; eauto.
-          
+        + subst st1' new_perms virtueThread1; assumption.
+        + subst st1' new_perms virtueThread1; simpl.
+          Unshelve.
+          2: { eauto. }
+          2: { eauto. } 
+          simpl.  clean_proofs_goal. eauto.
       (* tid > hb *)
       - pose proof (mtch_source _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1))
           as match_thread.

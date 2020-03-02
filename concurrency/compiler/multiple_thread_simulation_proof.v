@@ -809,10 +809,11 @@ Section ThreadedSimulation.
         (* eapply Hsimn.
           eapply Hsim0. *)
         - intros.
-          eapply Hsim0 in H; normal_hyp.
-          eapply Hsimn in H; eauto.
+          eapply Hsim0 in H0; normal_hyp.
+          eapply Hsimn in H0; eauto.
           normal; eauto.
           !goal(match_state _ _ _ _ _ _ _). econstructor; eauto.
+          eauto.
         - intros.
           inv H0. repeat subst_sig.
           eapply Hsim0 in H; eauto.
@@ -1012,17 +1013,18 @@ Section ThreadedSimulation.
         inv H1. normal. subst. simpl. reflexivity.
       Qed.
       Lemma initial_infty:
-        forall (m : option mem) (s_mem s_mem' : mem) 
+        forall (m : option mem) (m0 s_mem : mem) 
           (main : val) (main_args : list val)
           (s_mach_state : ThreadPool (Some 0)%nat) (r1 : option res),
+          Mem.mem_wd m0 ->
           machine_semantics.initial_machine (HybConcSem (Some 0)%nat m) r1
-                                            s_mem s_mach_state s_mem' main main_args ->
+                                            m0 s_mach_state s_mem main main_args ->
           exists
             (j : meminj) (cd : infty_index) (t_mach_state : ThreadPool None) 
-            (t_mem t_mem' : mem) (r2 : option res),
-            machine_semantics.initial_machine (HybConcSem None m) r2 t_mem
-                                              t_mach_state t_mem' main main_args /\
-            infty_match cd j s_mach_state s_mem' t_mach_state t_mem'.
+            (t_mem : mem) (r2 : option res),
+            machine_semantics.initial_machine (HybConcSem None m) r2 m0
+                                              t_mach_state t_mem main main_args /\
+            infty_match cd j s_mach_state s_mem t_mach_state t_mem.
       Proof.
         (* Follows from any initial diagram and a missing lemma showing that the initial state
         can be "lifted" (lift_state) *)

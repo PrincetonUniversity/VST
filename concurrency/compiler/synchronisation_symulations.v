@@ -184,12 +184,6 @@ Section SyncSimulation.
       inject_incr mu mu'.
     Proof.
       intros.
-      (*
-
-
-        
-
-       *)
       
       match goal with
         |- exists (a:?A) (b:?B) (c:?C) (d:?D) (e:?E),
