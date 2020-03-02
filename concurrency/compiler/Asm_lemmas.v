@@ -235,3 +235,70 @@ Instance Asm_get_extcall_arg_visible:
       rewrite HnoReturn.
       reflexivity.
   Qed.
+
+  (*Move this somewhere with asm lemmas *)
+  Lemma make_arg_mem_step:
+    forall m v r rs l m',
+      Asm.make_arg r m l v = Some (rs, m') ->
+      mem_step m m' \/ m = m'.
+  Proof.
+    intros.
+    unfold Asm.make_arg in H.
+    match_case in H.
+    * inv H; eauto.
+    * match_case in H. inv H.
+      unfold Mem.storev in *.
+      match_case in Heqo.
+      exploit mem_step_storebytes.
+      apply Mem.store_storebytes; eauto.
+      eauto.
+  Qed.
+  Lemma make_arguments_mem_step:
+    forall conv rs0 m args rs m',
+      Asm.make_arguments rs0 m conv args = Some (rs, m') ->
+      mem_step m m' \/ m = m'.
+  Proof.
+    induction conv; intros.
+    - simpl in H. match_case in H. inv H; auto.
+    - simpl in H. do 3 match_case in H.
+      match_case in H.
+      +
+        
+        exploit make_arg_mem_step; eauto.
+        exploit IHconv; eauto.
+        intros [? | ?] [?|?]; subst; eauto.
+        * left; econstructor 4; eauto.
+      + do 2 match_case in H; subst.
+        eapply make_arg_mem_step in H.
+        eapply make_arg_mem_step in Heqo0.
+        assert (mem_step m0 m' \/ m0 = m').
+        { destruct H; destruct Heqo0; subst; eauto.
+          left; econstructor 4; eauto. }
+        clear Heqo0 H.
+
+        exploit IHconv; eauto.
+        destruct H0;
+          intros [? | ?]; subst; eauto.
+        left; econstructor 4; eauto.
+  Qed.
+  Lemma asm_init_mem_step:
+    forall g m st v args,
+      Asm.entry_point g m st v args ->
+      mem_step m (Asm.get_mem st).
+  Proof.
+    intros. inv H; simpl.
+    eapply make_arguments_mem_step in H5.
+    eapply mem_step_trans; [eapply mem_step_trans|].
+    - (* m -> m1 *)
+      econstructor 2; eauto.
+    - unfold Asm.store_stack,Mem.storev in *.
+      match_case in H3. 
+      econstructor. apply Mem.store_storebytes; eauto.
+    - unfold Asm.store_stack,Mem.storev in *.
+      match_case in H4. 
+      exploit mem_step_storebytes. apply Mem.store_storebytes; eauto.
+
+
+      destruct H5; subst; eauto.
+      econstructor 4; eauto.
+  Qed.

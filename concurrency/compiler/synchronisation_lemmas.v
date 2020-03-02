@@ -946,6 +946,34 @@ Section SimulationTactics.
    *)
   Admitted.
   
+        Lemma contains_addThread_neq:
+          forall res Sem st st' f_ptr arg th_perm i,
+            st' = addThread st f_ptr arg th_perm ->
+            @containsThread res Sem st' i ->
+            i <> latestThread st ->
+            containsThread st i.
+        Proof.
+          unfold containsThread.
+          intros; subst st'.
+          simpl in H0. simpl.
+          unfold latestThread in H1.
+          remember ( pos.n (num_threads st))  as K.
+          clear - H0 H1. 
+          pose proof (@ssrnat.leP (S i) (S K)) ; eauto.
+          rewrite H0 in H.
+          pose proof (@ssrnat.leP (S i) (K)) ; eauto.
+          destruct H2; eauto.
+          exfalso; apply n. inv H. omega.
+        Qed.          
+        Lemma contains_addThread_disj:
+          forall res Sem st f_ptr arg th_perm i,
+            @containsThread res Sem (addThread st f_ptr arg th_perm) i ->
+            containsThread st i \/ i = latestThread st.
+        Proof.
+          intros.
+          destruct (Nat.eq_dec i (latestThread st)); eauto.
+          exploit contains_addThread_neq; eauto.
+        Qed.
       Lemma invariant_add_thread_only:
         forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalPool.OrdinalThreadPool) th_perm
           f_ptr arg,
@@ -966,7 +994,48 @@ Section SimulationTactics.
                 permMapCoherence (fst th_perm) (snd rmap)),
             invariant st'.
       Proof.
-      Admitted.
+        simpl; intros * Hst Hinv **.
+        
+        econstructor; simpl; subst st'.
+
+        
+        Ltac addThread_rewrite_getR cnti:=
+          let cnti0:= fresh "cnti0" in
+          let His_last:= fresh "His_last"  in
+          eapply contains_addThread_disj in cnti as cnti0;
+          destruct cnti0 as [cnti0 | His_last];
+          [ repeat rewrite (gsoAddRes cnti0 cnti) in * |
+            repeat rewrite gssAddRes in * by assumption ].
+        - intros. addThread_rewrite_getR cnti;
+            addThread_rewrite_getR cntj; eauto.
+          + eapply Hinv; auto.
+          + apply permMapsDisjoint2_comm; eauto.
+          + subst; contradict Hneq; reflexivity.
+        - intros *; do 2 rewrite gsoAddLPool; eapply Hinv.
+        - intros *; rewrite gsoAddLPool.
+          addThread_rewrite_getR cnti; eauto.
+          + intros; exploit no_race; simpl; eauto.
+        - split.
+          + intros *. addThread_rewrite_getR cnti;
+                        addThread_rewrite_getR cntj; eauto.
+            * exploit thread_data_lock_coh; eauto; intros [HH _].
+              eapply HH.
+            * eapply thread_date_lock_coh4.
+            * erewrite gssAddRes by assumption. eapply thread_date_lock_coh4.
+          + intros *. rewrite gsoAddLPool. addThread_rewrite_getR cnti.
+            * eapply Hinv.
+            * intros; eapply thread_date_lock_coh6; eauto.
+        - intros *; rewrite gsoAddLPool; split.
+          + intros *. addThread_rewrite_getR cntj; eauto.
+            * exploit locks_data_lock_coh; eauto; intros [HH _].
+              eapply HH.
+            * eapply thread_date_lock_coh6; eauto.
+          + intros *. rewrite gsoAddLPool. eapply Hinv; simpl; eauto.
+        - intros ? ?; match_case; auto.
+          intros. rewrite gsoAddLPool in *.
+          exploit lockRes_valid; try eapply Hinv; simpl.
+          rewrite Heqo. eauto.
+      Qed.
     Lemma invariant_add_thread:
             forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalThreadPool)
               h c old_th_perm  new_th_perm f_ptr arg
@@ -1061,10 +1130,69 @@ Section SimulationTactics.
     Qed.
     
   
-    
+    Lemma tree_map_inject_over_mem_structure:
+            forall {A} m1 m2 mu virt ,
+            (getMaxPerm m1) = (getMaxPerm m2) ->
+            tree_map_inject_over_mem(A:=A) m1 mu virt =
+            tree_map_inject_over_mem m2 mu virt.
+          Proof.
+            unfold tree_map_inject_over_mem.
+            intros * ->; auto.
+          Qed.
+          
+    Lemma permMapJoin_pair_inject_spawn_simpl:
+      forall mu m1 m2
+        virtue1 virtue_new1 th_perms1 th_perms2,
+        sub_map virtue1 (snd (getMaxPerm m1)) ->
+        sub_map virtue_new1 (snd (getMaxPerm m1)) ->
+        let ThreadPerm1 := computeMap th_perms1 virtue1 in
+        let newThreadPerm1 := computeMap empty_map virtue_new1 in
+        permMapJoin newThreadPerm1 ThreadPerm1 th_perms1 ->
+        forall 
+          (Hlt_th1 : permMapLt (th_perms1) (getMaxPerm m1))
+          (Hlt_th2 : permMapLt (th_perms2) (getMaxPerm m2)),
+          Mem.inject mu (restrPermMap Hlt_th1) (restrPermMap Hlt_th2) ->
+          injects_dmap mu virtue1   ->
+          injects_dmap mu virtue_new1   ->
+          let virtue2 := (tree_map_inject_over_mem m2 mu) virtue1 in
+          let virtue_new2 := (tree_map_inject_over_mem m2 mu) virtue_new1 in
+          let ThreadPerm2 :=  computeMap th_perms2 virtue2 in
+          let newThreadPerm2 := computeMap (empty_map) virtue_new2 in
+          permMapJoin newThreadPerm2 ThreadPerm2 th_perms2.
+    Proof.
+      intros. subst_set.
+      assert (Hmax2: getMaxPerm m2 = getMaxPerm (restrPermMap Hlt_th2)).
+      { symmetry; apply getMax_restr_eq. }
+      assert (Hmax1: getMaxPerm m1 = getMaxPerm (restrPermMap Hlt_th1)).
+      { symmetry; apply getMax_restr_eq. }
+      
+      apply permMapJoin_comm, compute_map_join_fwd.
+      eapply delta_map_join_inject.
+      4: erewrite tree_map_inject_over_mem_structure;
+          try eapply inject_perm_perfect_image_dmap; eauto. 
+      - eapply H2.
+      - apply sub_map_filtered.
+        erewrite getMax_restr_eq; eassumption.
+      - erewrite getMax_restr_eq; apply Hlt_th1.
+      - eapply sub_map_implication_dmap.
+        rewrite <- Hmax1; auto.
+      - eapply perm_perfect_image_computeMap.
+        + intros ? **. rewrite empty_is_empty in *. inv H8.
+        + apply perm_perfect_imageempty_map. 
+        + erewrite tree_map_inject_over_mem_structure;
+            try eapply inject_perm_perfect_image_dmap; eauto.
+          eapply sub_map_implication_dmap.
+        rewrite <- Hmax1; auto.
+          
+      - eapply inject_almost_perfect in H2.
+        eapply almost_perfect_image_proper; try eassumption;
+        eauto; try reflexivity.
+        1,2: symmetry; eapply getCur_restr.
+      - eapply compute_map_join_bkw, permMapJoin_comm; eauto.
+    Qed.
     Lemma permMapJoin_pair_inject_spawn:
-      forall virtue1 virtue_new1 m1
-             m2 mu  th_perms1 th_perms2,
+      forall mu m1 m2
+        virtue1 virtue_new1 th_perms1 th_perms2,
         sub_map_pair virtue1 (snd (getMaxPerm m1)) ->
         sub_map_pair virtue_new1 (snd (getMaxPerm m1)) ->
         let ThreadPerm1 := computeMap_pair th_perms1 virtue1 in
@@ -1085,12 +1213,131 @@ Section SimulationTactics.
           let newThreadPerm2 := computeMap_pair (pair0 empty_map) virtue_new2 in
           permMapJoin_pair newThreadPerm2 ThreadPerm2 th_perms2.
     Proof.
-    (*Move to synchronization_lemmas next to
-            permMapJoin_pair_inject_rel               
-           the rpoof should be similar.*)
-    Admitted.
+      simpl; intros; split; simpl.
+      - eapply permMapJoin_pair_inject_spawn_simpl; eauto.
+        + eapply H.
+        + eapply H0.
+        + eapply H1.
+        + eapply H4.
+        + eapply H5.
+      - eapply permMapJoin_pair_inject_spawn_simpl; eauto.
+        + eapply H.
+        + eapply H0.
+        + eapply H1.
+        + eapply H4.
+        + eapply H5.
+    Qed.
   
-  Lemma invariant_makelock:
+      Lemma permMapsDisjoint_setPermBlock:
+        forall b ofs p P1 size P2,
+          0 < size ->
+        permMapsDisjoint P1 P2 ->
+        (forall ofs0 : Z,
+            ofs <= ofs0 < ofs + size ->
+            exists pu, perm_union p 
+                         (P2 !! b ofs0) = Some pu) ->
+        permMapsDisjoint
+        (setPermBlock p b ofs P1 ((Z.to_nat size))) P2.
+      Proof.
+        intros ** b ofs0.
+        assert (Hnneg: 0 <= size0) by omega.        
+        destruct (peq b0 b).
+        - subst.
+          destruct (Intv.In_dec ofs0 (ofs, ofs + size0)).
+          + rewrite setPermBlock_same; eauto.
+            rewrite Z2Nat.id; eauto.
+          + rewrite setPermBlock_other_1; eauto.
+            rewrite Z2Nat.id; eauto.
+            apply Intv.range_notin in n; simpl in n; eauto.
+            simpl. omega.
+        - rewrite setPermBlock_other_2; eauto.
+      Qed.
+      Lemma permMapsDisjoint_setPermBlock_pair:
+        forall b ofs p P1 size P2,
+          0 < size ->
+        permMapsDisjoint2 P1 P2 ->
+        (forall ofs0 : Z,
+            ofs <= ofs0 < ofs + size ->
+            exists pu, perm_union (fst p)
+                         ((fst P2) !! b ofs0) = Some pu) ->
+        (forall ofs0 : Z,
+            ofs <= ofs0 < ofs + size ->
+            exists pu, perm_union (snd p)
+                         ((snd P2) !! b ofs0) = Some pu) ->
+        permMapsDisjoint2
+        (setPermBlock_pair b ofs p P1 (pair0 (Z.to_nat size))) P2.
+      Proof.
+        intros; split; simpl; eapply permMapsDisjoint_setPermBlock;
+          try eapply H0; eauto.
+      Qed.
+      Lemma permMapCoherence_setPermBlock1:
+        forall p1 b ofs P1 P2 size,
+          0 < size ->
+        (forall ofs0 : Z,
+            ofs <= ofs0 < ofs + size ->
+            Mem.perm_order'' (P1 !! b ofs0) p1) -> 
+        permMapCoherence P1 P2 ->
+        permMapCoherence
+          (setPermBlock p1 b ofs P1 (Z.to_nat size)) P2.
+      Proof.
+        intros ** b' ofs0.
+        assert (Hnneg: 0 <= size0) by omega.        
+        destruct (peq b b').
+        - subst; destruct (Intv.In_dec ofs0 (ofs, ofs + (size0))).
+          + rewrite setPermBlock_same; eauto.
+            2: erewrite Z2Nat.id; eauto.
+            eapply perm_coh_lower; try eapply H1; eauto.
+            apply po_refl.
+          + apply Intv.range_notin in n; simpl in n.
+            * repeat rewrite setPermBlock_other_1; eauto.
+              erewrite Z2Nat.id; eauto.
+            * simpl; omega.
+        - repeat rewrite setPermBlock_other_2; eauto.
+      Qed.
+      Lemma permMapCoherence_setPermBlock2:
+        forall p2 b ofs P1 P2 size,
+          0 < size ->
+        (forall ofs0 : Z,
+            ofs <= ofs0 < ofs + size ->
+             perm_coh (P1 !! b ofs0) p2) -> 
+        permMapCoherence P1 P2 ->
+        permMapCoherence P1
+          (setPermBlock p2 b ofs P2 (Z.to_nat size)).
+      Proof.
+        intros ** b' ofs0.
+        assert (Hnneg: 0 <= size0) by omega.        
+        destruct (peq b b').
+        - subst; destruct (Intv.In_dec ofs0 (ofs, ofs + (size0))).
+          + rewrite setPermBlock_same; eauto.
+            erewrite Z2Nat.id; eauto.
+          + apply Intv.range_notin in n; simpl in n.
+            * repeat rewrite setPermBlock_other_1; eauto.
+              erewrite Z2Nat.id; eauto.
+            * simpl; omega.
+        - repeat rewrite setPermBlock_other_2; eauto.
+      Qed.
+      Lemma permMapCoherence_setPermBlock_double:
+        forall p1 p2 b ofs P1 P2 size,
+          0 <  (size) ->
+        permMapCoherence P1 P2 ->
+        perm_coh p1 p2 ->
+        permMapCoherence
+          (setPermBlock p1 b ofs P1 (Z.to_nat size))
+          (setPermBlock p2 b ofs P2 (Z.to_nat size)).
+      Proof.
+        intros ** b' ofs0.
+        assert (Hnneg: 0 <= size0) by omega.        
+        destruct (peq b b').
+        - subst; destruct (Intv.In_dec ofs0 (ofs, ofs + (size0))).
+          + repeat rewrite setPermBlock_same; eauto.
+            1,2: erewrite Z2Nat.id; eauto.
+          + apply Intv.range_notin in n; simpl in n.
+            * repeat rewrite setPermBlock_other_1; eauto.
+              1,2: erewrite Z2Nat.id; eauto.
+            * simpl; omega.
+        - repeat rewrite setPermBlock_other_2; eauto.
+      Qed.
+      Lemma invariant_makelock:
     forall (hb1 hb2:nat) c st1 b1 ofs cnt perms,
       @invariant _ (TP (Some hb2)) st1 ->
       set_new_mems b1 ofs (@getThreadR _ _ hb1 st1 cnt) LKSIZE_nat perms ->
@@ -1098,14 +1345,89 @@ Section SimulationTactics.
                         Mem.perm_order' ((thread_perms hb1 st1 cnt) !! b1 ofs0) Writable) ->
       @invariant _ (TP (Some hb2)) (@updThread _ (HybridSem (Some hb2))
                                                hb1 st1 cnt c perms).
-  Proof.
-    (* CHECKED: EASY*)
-  (* Before solving, solve the lemma invariant preservation for acquire
-   ** *we are adding [invariant st1'] to the lemmas, preserved from the CSL proof*
-         We might want to remove the necessity to preserve invariant for source.
-   *)
-    (* Consider moving this where the invariant lemmas are. *)
-  Admitted.
+      Proof.
+        pose proof (LKSIZE_pos) as Hpos.
+    intros * Hinv Hset Hrange. inv Hset.
+    eapply invariant_update_thread; simpl; eauto; simpl.
+    - intros **.
+      eapply permMapsDisjoint_setPermBlock_pair; auto.
+      + eapply Hinv; auto.
+      + simpl; intros.
+        exploit Hrange; eauto; intros.
+        unshelve exploit @no_race_thr; simpl; try apply H; eauto.
+        intros [HH1 _]. specialize (HH1 b1 ofs0).
+        do 2 (match_case; eauto); simpl in *.
+        match_case in HH1. inv H1.
+      + simpl; intros.
+        exploit Hrange; eauto; intros.
+        unshelve exploit @thread_data_lock_coh; simpl; try apply H; eauto.
+        intros [HH1 _]. specialize (HH1 _ cnt b1 ofs0).
+        do 2 (match_case; eauto); simpl in *.
+        1,2,3: hnf in HH1; repeat match_case in HH1; try inv H1.
+    - intros **.
+      eapply permMapsDisjoint_setPermBlock_pair;auto.
+      + exploit @no_race; simpl; eauto.
+      + simpl; intros.
+        exploit Hrange; eauto; intros.
+        unshelve exploit @no_race; simpl; try apply H; eauto.
+        intros [HH1 _]. specialize (HH1 b1 ofs0).
+        do 2 (match_case; eauto); simpl in *.
+        unfold perm_union in HH1.
+        repeat match_case in HH1; try inv H1.
+      + simpl; intros.
+        exploit Hrange; eauto; intros.
+        unshelve exploit @locks_data_lock_coh; simpl; try apply H; eauto.
+        intros [HH1 _]. specialize (HH1 _ cnt b1 ofs0).
+        do 2 (match_case; eauto).
+        1,2,3: hnf in HH1; repeat match_case in HH1; try inv H1.
+    - eapply permMapCoherence_setPermBlock_double; eauto.
+      + exploit @thread_data_lock_coh; eauto.
+        intros [HH _]; eapply HH.
+      + constructor.
+    - intros; split.
+      + eapply permMapCoherence_setPermBlock1; auto.
+        * intros. eapply perm_order''_trans.  
+          -- rewrite <- po_oo; eauto.
+          -- constructor.
+        * exploit @thread_data_lock_coh; simpl; try apply H; eauto.
+          intros [HH1 _]. eapply HH1.
+      + eapply permMapCoherence_setPermBlock2; auto.
+        * intros; exploit Hrange; eauto.
+          intros HH.
+          unshelve exploit @no_race_thr; try eapply H; simpl; eauto.
+          intros [Hjoin _]; specialize (Hjoin b1 ofs0).
+          normal_hyp.
+          hnf; repeat (match_case; eauto); simpl in H2.
+          all: repeat (match_case in H2; try now inv HH).
+        * exploit @thread_data_lock_coh; eauto.
+          simpl; intros [HH _]; eauto.
+    - intros; split.
+      + eapply permMapCoherence_setPermBlock2; auto.
+        * Lemma perm_coh_union_writable:
+            forall x z,
+            Mem.perm_order'' z (Some Writable) ->
+            (exists pu,
+              perm_union x z = Some pu) ->
+            perm_coh x (Some Writable).
+          Proof.
+            intros * H1 [pu H2].
+            unfold Mem.perm_order'', perm_union, perm_coh in *.
+            repeat (match_case in H2; try now inv H1).
+          Qed.
+          intros; eapply perm_coh_union_writable; eauto.
+          -- rewrite <- po_oo; eauto.
+          -- eapply permMapsDisjoint_comm.
+             exploit @no_race; simpl; eauto.
+             intros [HH _]; simpl in HH; eauto.
+        * exploit @thread_data_lock_coh; eauto; intros  [_ HH]; eauto.
+          specialize (HH _ _ H). simpl in HH; eauto.
+      + eapply permMapCoherence_setPermBlock1; auto.
+        * intros. eapply perm_order''_trans.  
+          -- rewrite <- po_oo; eauto.
+          -- constructor.
+        * exploit @locks_data_lock_coh; simpl; try apply H; eauto.
+          intros [HH1 _]. eapply HH1.
+      Qed.   
   
   (* END of invariant lemmas*)
 

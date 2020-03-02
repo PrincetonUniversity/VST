@@ -71,8 +71,6 @@ Ltac subst_sig:=
   end.
 
 
-
-
 Section ThreadedSimulation.
   Context {CC_correct: CompCert_correctness}
           {Args: ThreadSimulationArguments}.
@@ -1296,13 +1294,7 @@ Qed.
       
       (* What to do with this? *)
       Hint Resolve inject_incr_refl: core.
-      Lemma asm_init_mem_step:
-        forall g m st v args,
-          Asm.entry_point g m st v args ->
-          mem_step m (Asm.get_mem st).
-      Proof.
-        intros. inv H; simpl.
-      Admitted.
+      
 
 
       (* We can keep track of thread hb. 
