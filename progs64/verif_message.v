@@ -185,6 +185,7 @@ set (ser := gv _intpair_serialize).
 match goal with 
  |- context [memory_block Ews 4 _] => 
   (* 64-bit mode *)
+  sep_apply mapsto_zeros_memory_block; auto;
   gather_SEP (mapsto _ _ _ (offset_val 0 des))
       (mapsto _ _ _ (offset_val 0 ser))
       (memory_block Ews 4 _)
