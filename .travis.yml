@@ -45,7 +45,7 @@ notifications:
     - vst-push@lists.cs.princeton.edu
 git:
   depth: 3
-#  submodules: false
+  submodules: false
   
 # Use sed to replace the SSH URL with the public URL, then initialize submodules
 before_install:
