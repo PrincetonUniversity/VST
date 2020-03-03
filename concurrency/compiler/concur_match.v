@@ -344,51 +344,83 @@ Section ConcurMatch.
           (*; INJ: Mem.inject j m1 m2 *)
           ; lock_perm_preimage:
               forall i (cnt1: ThreadPool.containsThread cstate1 i)
-                     (cnt2: ThreadPool.containsThread cstate2 i),
+                (cnt2: ThreadPool.containsThread cstate2 i),
                 perm_surj j (lock_perms _ _ cnt1) (lock_perms _ _  cnt2)
           ; INJ_threads:
               forall i (cnt1: ThreadPool.containsThread cstate1 i)
-                     (cnt2: ThreadPool.containsThread cstate2 i)
-                     Hlt1 Hlt2,
+                (cnt2: ThreadPool.containsThread cstate2 i)
+                Hlt1 Hlt2,
                 Mem.inject j
                            (@restrPermMap (fst (ThreadPool.getThreadR cnt1)) m1 Hlt1)
                            (@restrPermMap (fst (ThreadPool.getThreadR cnt2)) m2 Hlt2)
           ; INJ_locks:
               forall i (cnt1: ThreadPool.containsThread cstate1 i)
-                     (cnt2: ThreadPool.containsThread cstate2 i)
-                     Hlt1 Hlt2,
+                (cnt2: ThreadPool.containsThread cstate2 i)
+                Hlt1 Hlt2,
                 Mem.inject j
                            (@restrPermMap (snd (ThreadPool.getThreadR cnt1)) m1 Hlt1)
                            (@restrPermMap (snd (ThreadPool.getThreadR cnt2)) m2 Hlt2)
           ; writable_locks:
               forall b ofs rec1, lockRes cstate1 (b, ofs) = Some rec1 ->
-                                 Mem.perm m1 b ofs Max Writable
+                            forall ofs0, ofs <= ofs0 < ofs + LKSIZE ->
+                            Mem.perm m1 b ofs0 Max Writable
+          (* Properties about locks.
+             This could potentially go in a nested record?*)
           ; INJ_lock_permissions_image:
               forall b b' delt,
                 j b = Some (b', delt) ->
                 forall ofs rec1, lockRes cstate1 (b, ofs) = Some rec1 ->
-                                 exists rec2,
-                                   lockRes cstate2 (b', ofs + delt) = Some rec2 /\
-                                   access_map_equiv_pair (virtueLP_inject m2 j rec1) rec2            
+                            exists rec2,
+                              lockRes cstate2 (b', ofs + delt) = Some rec2 /\
+                              access_map_equiv_pair (virtueLP_inject m2 j rec1) rec2            
           ; INJ_lock_permissions_preimage:
               forall b2 ofs_delt rec2, lockRes cstate2 (b2, ofs_delt) = Some rec2 ->
-                                       exists rec1 b1 ofs delt,
-                                         j b1 = Some (b2, delt) /\
-                                         lockRes cstate1 (b1, ofs) = Some rec1 /\
-                                         (pair2_prop access_map_equiv) (virtueLP_inject m2 j rec1) rec2 /\
-                                         ofs_delt = ofs + delt          
+                                  exists rec1 b1 ofs delt,
+                                    j b1 = Some (b2, delt) /\
+                                    lockRes cstate1 (b1, ofs) = Some rec1 /\
+                                    (pair2_prop access_map_equiv) (virtueLP_inject m2 j rec1) rec2 /\
+                                    ofs_delt = ofs + delt          
           ; INJ_lock_content:
               forall b ofs rmap,
                 lockRes cstate1 (b, ofs) = Some rmap ->
-                inject_lock j b ofs m1 m2    
+                inject_lock j b ofs m1 m2
+
+          ; INJ_lock_content1:
+              forall (b : block) (ofs : Z) (rmap : lock_info),
+                lockRes cstate1 (b, ofs) = Some rmap ->
+                mi_memval_perm j
+                               (fst rmap) (*LOCKED DATA*)
+                               (Mem.mem_contents m1)
+                               (Mem.mem_contents m2)
+          ; INJ_lock_content2:
+              (forall (b : block) (ofs : Z) (rmap : lock_info),
+                  lockRes cstate1 (b, ofs) = Some rmap ->
+                  mi_memval_perm j
+                                 (snd rmap)
+                                 (Mem.mem_contents m1)
+                                 (Mem.mem_contents m2))
+          ; lockSet_is_not_readable:
+              forall b (ofs : Z) (rec : lock_info),
+                lockRes cstate1 (b, ofs) = Some rec ->
+                (forall i (cnt:containsThread cstate1 i),
+                    forall ofs0, ofs <= ofs0 < ofs + LKSIZE ->
+                            Mem.perm_order''
+                              (Some Nonempty)
+                              ((thread_perms cstate1 i cnt) !! b ofs0)) /\
+                (forall b' ofs' rec',
+                    lockRes cstate1 (b', ofs') = Some rec' ->
+                    forall ofs0, ofs <= ofs0 < ofs + LKSIZE ->
+                            Mem.perm_order''
+                              (Some Nonempty)
+                              ((fst rec') !! b ofs0))
           ; source_invariant: invariant cstate1    
           ; target_invariant: invariant cstate2
           ; mtch_source:
               forall (i:nat),
                 (i > hb)%nat ->
                 forall  (cnt1: ThreadPool.containsThread cstate1 i)
-                        (cnt2: ThreadPool.containsThread cstate2 i)
-                        Hlt1 Hlt2,
+                   (cnt2: ThreadPool.containsThread cstate2 i)
+                   Hlt1 Hlt2,
                   match_thread_source j
                                       (getThreadC cnt1)
                                       (@restrPermMap (fst (ThreadPool.getThreadR cnt1)) m1 Hlt1)
@@ -398,8 +430,8 @@ Section ConcurMatch.
               forall (i:nat),
                 (i < hb)%nat ->
                 forall (cnt1: ThreadPool.containsThread cstate1 i)
-                       (cnt2: ThreadPool.containsThread cstate2 i)
-                       Hlt1 Hlt2,
+                  (cnt2: ThreadPool.containsThread cstate2 i)
+                  Hlt1 Hlt2,
                   match_thread_target  j
                                        (getThreadC cnt1)
                                        (@restrPermMap (fst (ThreadPool.getThreadR cnt1)) m1 Hlt1)
@@ -409,8 +441,8 @@ Section ConcurMatch.
               forall (i:nat),
                 (i = hb)%nat ->
                 forall (cnt1: ThreadPool.containsThread cstate1 i)
-                       (cnt2: ThreadPool.containsThread cstate2 i)
-                       Hlt1 Hlt2,
+                  (cnt2: ThreadPool.containsThread cstate2 i)
+                  Hlt1 Hlt2,
                   match_thread_compiled ocd j
                                         (getThreadC cnt1)
                                         (@restrPermMap (fst (ThreadPool.getThreadR cnt1)) m1 Hlt1)
@@ -419,7 +451,51 @@ Section ConcurMatch.
       Arguments INJ_locks {ocd j cstate1 m1 cstate2 m2}.
       Arguments memcompat1 {ocd j cstate1 m1 cstate2 m2}. 
       Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
+      Lemma writable_locks':
+              forall ocd j cstate1 m1 cstate2 m2,
+                concur_match ocd j cstate1 m1 cstate2 m2 ->
+                forall b ofs rec1, lockRes cstate1 (b, ofs) = Some rec1 ->
+                              Mem.perm m1 b ofs Max Writable.
+      Proof. intros. eapply writable_locks; eauto.
+             pose proof LKSIZE_pos; omega. Qed.
+      Lemma INJ_lock_content':
+    forall ocd j cstate1 m1 cstate2 m2,
+      concur_match ocd j cstate1 m1 cstate2 m2 ->
+      forall (b : block) (ofs : Z) (rmap : lock_info),
+        lockRes cstate1 (b, ofs) = Some rmap ->
+        mi_memval_perm j
+                       (fst rmap) (*LOCKED DATA*)
+                       (Mem.mem_contents m1)
+                       (Mem.mem_contents m2).
+  Proof. intros * H; eapply H. Qed.
+  Lemma INJ_lock_content'':
+    forall ocd j cstate1 m1 cstate2 m2,
+      concur_match ocd j cstate1 m1 cstate2 m2 ->
+      forall (b : block) (ofs : Z) (rmap : lock_info),
+        lockRes cstate1 (b, ofs) = Some rmap ->
+        mi_memval_perm j
+                       (snd rmap)
+                       (Mem.mem_contents m1)
+                       (Mem.mem_contents m2).
+  Proof. intros * H; eapply H. Qed.
 
+  (* This is slightly wrong. 
+     Should be less than!
+   *)
+  Lemma lockSet_is_not_readable':
+    forall ocd j cstate1 m1 cstate2 m2,
+      concur_match ocd j cstate1 m1 cstate2 m2 ->
+      forall b (ofs : Z) (rec : lock_info),
+        lockRes cstate1 (b, ofs) = Some rec ->
+        (forall i (cnt:containsThread cstate1 i),
+            forall ofs0, ofs <= ofs0 < ofs + LKSIZE -> 
+                         ((thread_perms cstate1 i cnt) !! b ofs0) = Some Nonempty) /\
+        (forall b' ofs' rec',
+            lockRes cstate1 (b', ofs') = Some rec' ->
+            forall ofs0, ofs <= ofs0 < ofs + LKSIZE ->
+                         ((fst rec') !! b ofs0)  = Some Nonempty ).
+  Proof. Admitted.
+  
 
       Lemma INJ_lock_permissions_Some:
         forall ocd j cstate1 m1 cstate2 m2,
@@ -459,8 +535,8 @@ Section ConcurMatch.
             erewrite <- (restrPermMap_idempotent _ _ Hlt1),
             <- (restrPermMap_idempotent _ _ Hlt2)).
           eapply INJ_locks0. 
-        - intros *; erewrite restr_Max_equiv.
-          apply writable_locks0.
+        - intros **; erewrite restr_Max_equiv.
+          eapply writable_locks0; eauto.
         - erewrite virtueLP_inject_max_eq_exteny. eauto.
           eapply getMax_restr_eq.
         - erewrite virtueLP_inject_max_eq_exteny; eauto.
@@ -735,6 +811,10 @@ Section ConcurMatch.
                                                   c2 (restrPermMap Hlt2))
                  (Hval_inj: Forall2 (memval_inject f) v1 v2),
           forall lock_perms1
+            (His_loc_or_has_perm:
+               (exists res, lockRes st1 (b_lock1, ofs_lock) = Some res) \/
+                      forall ofs0, ofs_lock<= ofs0 < ofs_lock + LKSIZE ->
+            Mem.perm m1 b_lock1 ofs0 Max Writable)
                  (cnt1 : containsThread st1 i)
                  (cnt2 : containsThread st2 i) pmap
                  (Hpmap_equiv: access_map_equiv_pair (virtueLP_inject m2' f lock_perms1) pmap),
@@ -750,7 +830,6 @@ Section ConcurMatch.
         { inv H0; reflexivity. }
         assert (Hsame_lenght2: num_threads st2 = num_threads st2').
         { inv H1; reflexivity. }
-        
         repeat destruct_lock_update_getters.
         assert (Hmax_equiv0': Max_equiv m1 m1').
         { intros ?; rewrite Hmax_equiv0; auto. }
@@ -796,13 +875,16 @@ Section ConcurMatch.
                   try reflexivity; simpl.
             erewrite gtlo0; eauto; reflexivity.
             erewrite gtlo; eauto; reflexivity.
-        - intros *.
-          rewrite  <- Hmax_equiv0'.
-          destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, ofs) ) as [e|n].
-          + inv e; intros _.
-            eapply Hmax_wrt0; eauto. simpl; omega.
-          + simpl in *; rewrite glo0; auto.
-            eapply writable_locks; eauto. 
+        - intros **; rewrite  <- Hmax_equiv0'.
+          destruct (addressFiniteMap.AMap.E.eq_dec
+                      (b_lock1, ofs_lock) (b, ofs) ) as [e|n];
+            swap 1 2.
+          + eapply writable_locks; eauto.
+            simpl in glo0; rewrite <- glo0; eauto.
+          + inv e; destruct His_loc_or_has_perm as [HH | HH];
+              eauto.
+            * destruct HH as (?&HH).
+              eapply writable_locks; eauto.
         - intros until rec1.
           lock_update_rewrite; simpl.
           destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, ofs) ) as [e|n].
@@ -835,7 +917,7 @@ Section ConcurMatch.
                    [eapply Hmax_wrt0| constructor]; simpl; omega. }
               assert (Mem.perm (restrPermMap Hlt1) b ofs Max Nonempty).
               {  rewrite restr_Max_equiv , <- Hmax_equiv0'; eapply Mem.perm_implies.
-                 eapply writable_locks; eauto. constructor. }
+                 eapply writable_locks'; eauto. constructor. }
               
               exploit Mem.mi_no_overlap; try eapply Hinj_perms;
                 try eassumption.
@@ -869,15 +951,21 @@ Section ConcurMatch.
             admit. (* Check do we need this property? *)
           + unfold inject_lock, inject_lock'.
             admit.
-        - intros ? Hneq ??.
+        - !context_goal (mi_memval_perm). admit.
+        - !context_goal (mi_memval_perm). admit.
+        - !context_goal (@lockRes). admit.
+        - !context_goal (@match_thread_source).
+          intros ? Hneq ??.
           assert (Hneq': i0 <> hb) by omega.
           lock_update_rewrite.
           admit.
-        - intros ? Hneq ??.
+        - !context_goal (@match_thread_target).
+          intros ? Hneq ??.
           assert (Hneq': i0 <> hb) by omega.
           lock_update_rewrite.
           admit.
-        - intros. admit.
+        - !context_goal (@match_thread_compiled).
+          intros. admit.
       Admitted. (* concur_match_update_lock *)
       
 

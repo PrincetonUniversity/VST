@@ -1637,7 +1637,7 @@ Section SimulationTactics.
       omega.
     - exploit H0; try eapply n; eauto.
       -- eapply Mem.perm_implies.
-         eapply writable_locks; eauto. constructor.
+         eapply writable_locks'; eauto. constructor.
       -- instantiate(1:= ofs).
          eapply Mem.perm_implies. eapply Mem.perm_cur_max.
          eauto.
@@ -1669,47 +1669,26 @@ Section SimulationTactics.
     * rewrite getMax_restr.
       apply mem_cur_lt_max.
   Qed.
-  Lemma INJ_lock_content':
-    forall hb ocd j cstate1 m1 cstate2 m2,
-      concur_match hb ocd j cstate1 m1 cstate2 m2 ->
-      forall (b : block) (ofs : Z) (rmap : lock_info),
-        lockRes cstate1 (b, ofs) = Some rmap ->
-        mi_memval_perm j
-                       (fst rmap) (*LOCKED DATA*)
-                       (Mem.mem_contents m1)
-                       (Mem.mem_contents m2).
-  Proof.
-    intros. 
-    (* Seems like I need to add this to the concur_match*)
-  Admitted.
-  Lemma INJ_lock_content'':
-    forall hb ocd j cstate1 m1 cstate2 m2,
-      concur_match hb ocd j cstate1 m1 cstate2 m2 ->
-      forall (b : block) (ofs : Z) (rmap : lock_info),
-        lockRes cstate1 (b, ofs) = Some rmap ->
-        mi_memval_perm j
-                       (snd rmap)
-                       (Mem.mem_contents m1)
-                       (Mem.mem_contents m2).
-  Proof.
-    (* Seems like I need to add this to the concur_match*)
-  Admitted.
-  
+  (*
   Lemma lockSet_is_not_readable:
     forall hb ocd j cstate1 m1 cstate2 m2,
       concur_match hb ocd j cstate1 m1 cstate2 m2 ->
       forall b (ofs : Z) (rec : lock_info),
         lockRes cstate1 (b, ofs) = Some rec ->
         (forall i (cnt:containsThread cstate1 i),
-            forall ofs0, ofs <= ofs0 < ofs + LKSIZE -> 
-                         ((thread_perms i cstate1 cnt) !! b ofs0) = Some Nonempty) /\
+            forall ofs0, ofs <= ofs0 < ofs + LKSIZE ->
+                    Mem.perm_order''
+                      (Some Nonempty)
+                      ((thread_perms i cstate1 cnt) !! b ofs0)) /\
         (forall b' ofs' rec',
             lockRes cstate1 (b', ofs') = Some rec' ->
             forall ofs0, ofs <= ofs0 < ofs + LKSIZE ->
-                         ((fst rec') !! b ofs0)  = Some Nonempty ).
+                    Mem.perm_order''
+                      (Some Nonempty)
+                         ((fst rec') !! b ofs0)).
   Proof.
     (*This has to be added to concur_match*)
-  Admitted.
+  Adm itted. *)
 
   
   Lemma writable_is_not_lock:
@@ -1721,8 +1700,9 @@ Section SimulationTactics.
   Proof.
     intros. destruct_lhs; eauto.
     eapply lockSet_is_not_readable in Heqo as (?&?); eauto.
-    rewrite H1 in H0; eauto. inv H0.
-    pose proof LKSIZE_pos; omega.
+    exploit perm_order_trans211; eauto.
+    eapply H1. pose proof LKSIZE_pos; omega.
+    intros HH; inv HH.
   Qed.
 
 

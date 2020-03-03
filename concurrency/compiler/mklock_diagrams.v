@@ -189,7 +189,7 @@ Section MklockDiagrams.
         - subst; unify_injection.  move HisLock at bottom.
           assert (x1 = unsigned ofs) by omega.
           subst x1. rewrite HisLock in H0. congruence.
-        - eapply writable_locks in H0; eauto.
+        - eapply writable_locks' in H0; eauto.
           exploit Mem.mi_no_overlap; try eapply n;
             swap 1 5; first [exact H|exact Hinj_b|idtac].
           + eapply lock_update_mem_permMapLt_range_Max in Hlock_update_mem_strict.
@@ -203,7 +203,7 @@ Section MklockDiagrams.
           + eapply Mem.perm_implies; eauto.
             constructor.
           + eauto.
-          + intros [? | ?]; congruence. }
+          + intros [? | ?]; try congruence. }
 
         
       pose proof (LKSIZE_pos) as Hpos.
@@ -369,6 +369,8 @@ Section MklockDiagrams.
         + shelve.
         + !context_goal memval_inject.
           repeat econstructor.
+        + right; intros; eauto. apply Mem.perm_cur_max.
+          inv Hlock_update_mem_strict; eauto.
         + !goal (access_map_equiv_pair _ (pair0 empty_map)).
           eapply empty_map_is_empty_pair, inject_empty_maps, empty_is_empty_pair.
         + !context_goal @lock_update.
@@ -655,11 +657,13 @@ Section MklockDiagrams.
             eapply perm_order_trans101; try (eapply Haccess'; omega).
             constructor.
           * simpl; intros; rewrite gsoThreadLPool.
-            destruct_lhs; eauto.
+            destruct_lhs; eauto. (* HERE *)
             eapply lockSet_is_not_readable in Heqo as [HH3 _]; eauto.
             exploit Haccess'.  instantiate(1:= unsigned ofs); omega.
-            exploit HH3. instantiate(1:= unsigned ofs). omega.
-            intros ->. intros HH; inv HH.
+            intros. exploit perm_order_trans211.
+            eapply HH3; try eapply H.
+            instantiate(1:= unsigned ofs). omega.
+            eauto. intros HH; inv HH.
         + !goal (invariant st2').
           assert (Haccess2': forall ofs0 : Z,
                      unsigned ofs + delta <= ofs0 < unsigned ofs + delta + LKSIZE ->
@@ -712,7 +716,7 @@ Section MklockDiagrams.
           * simpl. intros; rewrite gsoThreadLPool.
             (*by contradiction*)
             destruct_lhs; eauto; exfalso.
-
+            
             (* First we show b1 maps to b2
                and there is a lockRes b1 ofs = Some _ 
              *)
@@ -725,33 +729,47 @@ Section MklockDiagrams.
             exploit @no_overlapp_iff'.
             intros [HH _].
             specialize (HH ltac:(eapply no_overlap_mem_perm; eauto; eapply Hinj2)).
-            exploit HH. apply H0. apply Hinj_b'.
-            1, 2: erewrite at_least_perm_order.
-            -- eapply perm_order_trans211; swap 1 2.
-               instantiate(1:=Some Nonempty); econstructor.
-               eapply lockSet_is_not_readable in H2 as [HH' _];eauto.
-               exploit HH'. instantiate(1:= (unsigned ofs + delta) - x2).
-               rewrite Hunsign in *.
-               subst; clear - H1 H. omega. intros <-.
-               rewrite <- Hmax_eq0. eapply Hlt_th1.
-            -- inv HH1; simpl in *.
-               exploit setPermBlock_range_perm; eauto.
-               split; try reflexivity. pose proof LKSIZE_nat_pos'; omega.
-               unfold Mem.perm; rewrite_getPerm; eauto.
-            -- omega.
-            -- intros; normal_hyp.
-               move HisLock at bottom.
-               subst. unify_injection.
-               rewrite Hunsign in *.
-               
-               eapply lockSet_is_not_readable in H2 as [H2 _]; eauto.
-               exploit H2. instantiate(1:=unsigned ofs); omega.
+            move HisLock at bottom.
+            move H2 at bottom.
+            move H0 at bottom.
+            move Hinj_b' at bottom.
+            subst ofs0. rewrite Hunsign in *.
+            eapply no_overlapp_iff',
+            perm_no_over_point_to_range in HH.
 
-               inv Hlock_update_mem_strict1.
-               rewrite Hthread_mem1. intros contra.
-               exploit Haccess. split; try reflexivity; omega.
-               unfold Mem.perm. rewrite_getPerm. rewrite contra.
-               intros contra'; inversion contra'.
+
+            assert (b1 <> x0).
+             { intros n; subst x0. unify_injection.
+              exploit lockSet_is_not_readable; eauto.
+              intros AA; destruct AA.
+              exploit H4. instantiate(1:=unsigned ofs); omega.
+              intros H'. eapply perm_order_trans211 in H'.
+              2:{ eapply Haccess1'. pose proof LKSIZE_pos; omega. }
+              inv H'. }
+            
+             exploit HH.
+            -- exact LKSIZE_pos.
+            -- eassumption.
+            -- apply Hinj_b'.
+            -- apply H0.
+            --  { intros. exploit Haccess1'.
+                  instantiate(1:= unsigned ofs).
+                  pose proof LKSIZE_pos; omega.
+                  intros; eapply perm_order_trans211; swap 1 2.
+                  - eapply perm_order_trans101.
+                    exact H5. constructor.
+                  - rewrite <- Hmax_eq0.
+                    eapply Hlt_th1. }
+                
+            -- { intros. exploit writable_locks; eauto.
+                 { instantiate(1:= (x1 + ofs2')); omega. }
+                 unfold Mem.perm. rewrite_getPerm.
+                 rewrite <- Hmax_eq0.
+               intros; eapply perm_order_trans101. eapply H6.
+               constructor. }
+            -- intros [contra | contra]; eauto.
+               eapply contra; hnf; simpl. omega.
+
         + !goal(perm_surj mu _ _).
           instantiate(1:=snd new_perms2); instantiate(1:=snd new_perms1).
           inv HH1; inv HH2; simpl.
@@ -897,6 +915,8 @@ Section MklockDiagrams.
         + !context_goal Forall2.
           simpl. unfold encode_int; simpl.
           repeat econstructor.
+        + right; intros; eauto. apply Mem.perm_cur_max.
+          inv Hlock_update_mem_strict1; eauto. 
         + !goal (access_map_equiv_pair _ _ ).
           instantiate(1:= pair0 empty_map).
           eapply empty_map_is_empty_pair, inject_empty_maps.
