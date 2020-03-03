@@ -246,17 +246,27 @@ Section MklockDiagrams.
       assert (Hinj1': Mem.inject mu (restrPermMap Hlt11') (restrPermMap Hlt21')).
       { destruct new_perms1,new_perms2; simpl in *.
         inv Hlock_update_mem_strict; inv Hlock_update_mem_strict2.
-        eapply set_new_mems_inject1; eauto.
+        
+        
+        eapply set_new_mems_inject1; eauto; swap 1 2.
         - eapply store_inject_other_perm; eauto.
           rewrite <- mem_is_restr_eq; eauto.
-        - eapply store_inject_other_perm; eauto.
-          rewrite <- mem_is_restr_eq; eauto. }
+        - intros. eapply Haccess in H2.
+          eapply Hinj2; eauto.
+          assert (Hcur:Cur_equiv m1' m1)
+                 by (symmetry; eapply store_cur_equiv; eauto).
+          rewrite Hcur.
+          eapply Mem.perm_implies; eauto. constructor. }
       assert (Hinj2': Mem.inject mu (restrPermMap Hlt12') (restrPermMap Hlt22')).
       { destruct new_perms1,new_perms2; simpl in *.
         inv Hlock_update_mem_strict; inv Hlock_update_mem_strict2.
-        eapply set_new_mems_inject; eauto.
-        - eapply store_inject_other_perm; eauto.
-          rewrite <- mem_is_restr_eq; eauto.
+        eapply set_new_mems_inject2; eauto.
+        - intros. eapply Haccess in H2.
+          eapply Hinj2; eauto.
+          assert (Hcur:Cur_equiv m1' m1)
+                 by (symmetry; eapply store_cur_equiv; eauto).
+          rewrite Hcur.
+          eapply Mem.perm_implies; eauto. constructor.
         - eapply store_inject_other_perm; eauto.
           rewrite <- mem_is_restr_eq; eauto. }
       forward_cmpt_all.
@@ -589,13 +599,14 @@ Section MklockDiagrams.
           rewrite RPM.
           instantiate(2:=fst new_perms2);
             instantiate(3:=fst new_perms1).
+
           apply inject_restr; auto.
           * !goal (mi_perm_perm mu _ _).
             { repeat match goal with
                      | [ H: set_new_mems _ _ _ _ _  |- _ ] =>
                        inv H
                      end; simpl in *.
-              eapply mi_perm_perm_setPermBlock; eauto;
+              eapply advanced_permissions.mi_perm_perm_setPermBlock; eauto;
                 try now econstructor.
               - rewrite <- Hmax_eq0.
                 eapply Mem.mi_no_overlap.
@@ -754,7 +765,7 @@ Section MklockDiagrams.
                      | [ H: set_new_mems _ _ _ _ _  |- _ ] =>
                        inv H
                      end; simpl in *.
-              eapply mi_perm_perm_setPermBlock; eauto;
+              eapply advanced_permissions.mi_perm_perm_setPermBlock; eauto;
                 try now econstructor.
               - rewrite <- Hmax_eq0.
                 eapply Mem.mi_no_overlap.
