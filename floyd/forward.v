@@ -748,7 +748,7 @@ Ltac lookup_spec id :=
       t2 t1)]
       end]
    end
- else elimtype  (Cannot_find_function_spec_in_Delta id).
+ else fail 100 "Your Gprog contains no funspec with the name" id.
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 
@@ -972,9 +972,14 @@ eapply (semax_call_id00_wow_nil _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
  [ check_result_type 
  | cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0;
-    (* apply equal_f; *)
-    apply exp_congr; intros ?vret;
+
+    (*Replaced to resolve GIT issue 385: 
+      try rewrite no_post_exists0;
+      (* apply equal_f; *)
+      apply exp_congr*)
+    first [ apply exp_congr | try rewrite no_post_exists0; apply exp_congr];
+
+    intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
     (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
@@ -992,9 +997,14 @@ eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
  | (*match_postcondition*)
     cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0;
-    (* apply equal_f; *)
-    apply exp_congr; intros ?vret;
+
+    (*Replaced to resolve GIT issue 385: 
+      try rewrite no_post_exists0;
+      (* apply equal_f; *)
+      apply exp_congr*)
+    first [ apply exp_congr | try rewrite no_post_exists0; apply exp_congr];
+
+    intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
     (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
@@ -2560,7 +2570,7 @@ Lemma semax_convert_for_while:
   @semax CS Espec Delta Pre (Sfor s1 e2 s4 s3) Post.
 Proof.
 intros.
-Locate semax_extract_prop.
+
 pose proof (semax_convert_for_while' CS Espec Delta Pre s1 e2 s3 s4 Sskip Post H).
 spec H2; auto.
 apply -> semax_seq_skip in H1; auto.
