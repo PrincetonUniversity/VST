@@ -83,7 +83,7 @@ rewrite (Zlength_intlist_to_bytelist bl).
 rewrite Zlength_correct.
 omega.
 }
-unfold sublist.
+unfold_sublist_old.
 replace (Z.to_nat (Z.of_nat i * 4)) with (4 * i)%nat.
 2:{ rewrite Z2Nat.inj_mul by omega. 
      rewrite Nat2Z.id. simpl. omega.

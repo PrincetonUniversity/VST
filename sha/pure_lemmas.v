@@ -58,16 +58,15 @@ Proof.
 intros.
 unfold sublist.
 change WORD with 4.
-rewrite <- Z.mul_sub_distr_r.
-destruct (zlt (j-i) 0).
+destruct (zlt j 0).
 rewrite (Z2Nat_neg _ l).
-rewrite (Z2Nat_neg ((j-i)*4)) by omega.
+rewrite (Z2Nat_neg (j*4)) by omega.
+rewrite !skipn_nil.
 reflexivity.
 rewrite ?(Z.mul_comm _ 4).
-rewrite ?Z2Nat.inj_mul by omega.
+rewrite (Z2Nat.inj_mul 4 j) by omega.
 change (Z.to_nat 4) with 4%nat.
-rewrite <- firstn_intlist_to_bytelist.
-f_equal.
+rewrite -> firstn_intlist_to_bytelist.
 destruct (zlt i 0).
 rewrite (Z2Nat_neg _ l).
 rewrite (Z2Nat_neg (4*i)) by omega.
