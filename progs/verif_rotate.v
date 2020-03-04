@@ -38,6 +38,9 @@ Definition rotate_spec :=
 
 Arguments sorted {_ _}.
 
+Definition sorted_rotate (l : list Z) k N :=
+  sublist k (Zlength l) l ++ map (Z.add N) (sublist 0 k l).
+
 Definition sorted_rotate_spec :=
  DECLARE _sorted_rotate
   WITH sh : share, a : val, s : list Z, n : Z, k : Z, N : Z, gv : globals
@@ -50,10 +53,9 @@ Definition sorted_rotate_spec :=
      LOCAL (temp _a a; temp _n (Vint (Int.repr n)); temp _k (Vint (Int.repr k)); temp _N (Vint (Int.repr N)); gvars gv)
      SEP (mem_mgr gv; data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
   POST [ tvoid ]
-    EX s' : list Z,
-     PROP(sorted Z.le s')
+     PROP(sorted Z.le (sorted_rotate s k N))
      LOCAL()
-     SEP (mem_mgr gv; (data_at sh (tarray tint n) (map Vint (map Int.repr s')) a)).
+     SEP (mem_mgr gv; (data_at sh (tarray tint n) (map Vint (map Int.repr (sorted_rotate s k N))) a)).
 
 Definition Gprog : funspecs :=
         ltac:(with_library prog [rotate_spec; sorted_rotate_spec]).
@@ -154,7 +156,14 @@ Proof.
     }
     entailer!. Time list_solve2.
   }
-  EExists. entailer!.
-  unfold sorted. intros.
-  Time list_prop_solve'.
+  unfold sorted_rotate. entailer!.
+  {
+    unfold sorted. intros.
+    Time list_prop_solve'.
+  }
+  {
+    Time list_solve2'.
+    (* A proof goal is remained because the base solver is incomplete. *)
+    apply data_subsume_refl'. rewrite Z.add_comm. repeat f_equal. list_solve.
+  }
 Time Qed.
