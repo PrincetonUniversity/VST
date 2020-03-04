@@ -960,7 +960,7 @@ Proof.
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
   unfold_data_at 1%nat.
-  freeze [0;1;2;4;5;6;7;8] FR. forward. entailer.
+  freeze [0;1;2;4;5;6;7;8] FR. forward. entailer!.
   unfold AREP, REP. 
   Exists Info (md_ctx,
      (map Vubyte VV,
@@ -984,7 +984,7 @@ Proof.
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
   unfold_data_at 1%nat. 
-  freeze [0;1;2;3;5;6;7;8] FR. forward. entailer.
+  freeze [0;1;2;3;5;6;7;8] FR. forward. entailer!.
   unfold AREP, REP. 
   Exists Info (md_ctx,
      (map Vubyte VV,
@@ -1007,7 +1007,7 @@ Proof.
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
   unfold_data_at 1%nat.
-  freeze [0;1;2;3;4;6;7;8] FR. forward. entailer.
+  freeze [0;1;2;3;4;6;7;8] FR. forward. entailer!.
   unfold AREP, REP. 
   Exists Info (md_ctx,
      (map Vubyte VV,

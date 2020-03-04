@@ -46,15 +46,39 @@ Qed.
 Lemma sublist_hi_plus {A} (l:list A) lo a b: 0<=lo<=a -> 0<=b -> sublist lo (a + b) l =
    sublist lo a l ++ sublist a (a+b) l.
 Proof. intros.
+  destruct (zle (a+b) (Zlength l)).
+  autorewrite with sublist; auto.
+  transitivity (sublist lo (Zlength l) l).
+-
+  unfold sublist. f_equal.
+  rewrite !firstn_same; auto.
+  rewrite ZtoNat_Zlength. omega.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
+-
+  destruct (zle a (Zlength l)).
+  replace (sublist a (a+b) l) with (sublist a (Zlength l) l).
+  autorewrite with sublist; auto.
+  unfold sublist. f_equal.
+  rewrite !firstn_same; auto.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
+  rewrite ZtoNat_Zlength. omega.
+  replace (sublist a (a+b) l) with (@nil A).
+  rewrite <- app_nil_end.
+  unfold sublist. f_equal.
+  rewrite !firstn_same; auto.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
   unfold sublist.
-  assert (X: a+b -lo = a-lo + b) by omega. rewrite X; clear X.
-  rewrite Z2Nat.inj_add; try omega.
-  assert (Y: a + b - a = b) by omega. rewrite Y; clear Y.
-  rewrite <- Z2Nat.inj_add; try omega.
-  rewrite <- Zfirstn_app; try omega. f_equal.
-  rewrite skipn_skipn, Z2Nat.inj_sub; try omega.
-  f_equal. f_equal. rewrite <- le_plus_minus; trivial.
-  apply Z2Nat.inj_le; omega.
+  rewrite skipn_short; auto.
+  rewrite firstn_same.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
 Qed.
 
 Lemma sublist0_hi_plus {A} (l:list A) a b: 0<=a -> 0<=b -> sublist 0 (a + b) l =
@@ -107,15 +131,22 @@ Lemma Znth_sublist':
   0 <= lo ->
   Zlength al <= hi ->
   0 <= i <= hi - lo -> Znth i (sublist lo hi al) = Znth (i + lo) al.
-Proof. intros. unfold Znth. destruct (zlt i 0). omega.
-destruct (zlt (i + lo) 0). omega. unfold sublist.
-destruct (zeq i (hi-lo)).
-2:{ rewrite nth_firstn. 2: apply Z2Nat.inj_lt; try omega. rewrite nth_skipn, Z2Nat.inj_add; trivial. omega. }
-rewrite <- e. rewrite nth_overflow. 2:{ rewrite firstn_length, skipn_length. apply Min.le_min_l. }
-rewrite nth_overflow; trivial. subst i.
-assert(hi - lo + lo= hi). omega. rewrite H2.
-apply Z2Nat.inj_le in H0; try omega. rewrite ZtoNat_Zlength in H0. apply H0.
-apply Zlength_nonneg.
+Proof. intros.
+destruct (zeq i (hi-lo)); [ | apply Znth_sublist; omega].
+subst.
+assert (0 <= lo <= hi) by  omega.
+clear H H1.
+unfold Znth. rewrite !if_false by omega.
+unfold sublist.
+rewrite Z.sub_add.
+rewrite nth_skipn.
+replace (Z.to_nat (hi-lo) + Z.to_nat lo)%nat with (Z.to_nat hi).
+f_equal.
+apply firstn_same.
+rewrite <- ZtoNat_Zlength.
+apply Z_to_nat_monotone; auto.
+rewrite <- Z2Nat.inj_add; try omega.
+f_equal. omega.
 Qed.
 
 Lemma xor_byte_int b1 b2: Int.xor (Int.repr (Byte.unsigned b1)) (Int.repr (Byte.unsigned b2)) =

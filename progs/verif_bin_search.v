@@ -48,9 +48,8 @@ Definition Gprog : funspecs :=
 
 Lemma sublist_nil1 : forall A i j (l : list A), j <= i -> sublist i j l = [].
 Proof.
-  intros; destruct (eq_dec i j).
-  - subst; apply sublist_nil.
-  - unfold sublist; rewrite Z2Nat_neg; auto; omega.
+  intros *.
+  apply sublist_nil_gen.
 Qed.
 
 Lemma Znth_In : forall A (d: Inhabitant A) i (l : list A) x (Hrange : 0 <= i < Zlength l)
@@ -78,7 +77,7 @@ Qed.
 Lemma sublist_of_nil : forall A i j, sublist i j (nil : list A) = [].
 Proof.
   intros; unfold sublist.
-  rewrite skipn_nil, firstn_nil; auto.
+  rewrite firstn_nil, skipn_nil; auto.
 Qed.
 
 Fixpoint sorted2 l :=

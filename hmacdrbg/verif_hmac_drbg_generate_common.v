@@ -1538,8 +1538,10 @@ Proof. intros.
         rewrite zlt_true by assumption. simpl.
         rewrite sublist_same; repeat rewrite Zlength_map; try rewrite hmac_common_lemmas.HMAC_Zlength; try omega.
         remember (map Vubyte (HMAC256 V0' key0)) as data.
-        apply data_at_complete_split; subst data; repeat rewrite Zlength_map; try rewrite ZL_H256, Zlength_nil; auto; try omega.
-        unfold Vubyte.  rewrite app_nil_r. rewrite !map_map. reflexivity.
+        apply data_at_complete_split; subst data; autorewrite with sublist; 
+        repeat rewrite Zlength_map; try rewrite ZL_H256, Zlength_nil; autorewrite with sublist; auto; try omega.
+        rewrite ZL_H256. auto. 
+        unfold Vubyte. rewrite !map_map. reflexivity.
       }
       {
         rewrite zlt_false by assumption.

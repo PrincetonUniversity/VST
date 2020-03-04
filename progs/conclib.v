@@ -69,23 +69,13 @@ Proof.
 Qed.
 Hint Resolve repable_0.
 
-Definition complete MAX l := l ++ repeat (vptrofs 0) (Z.to_nat MAX - length l).
+Definition complete MAX l := l ++ Zrepeat (MAX - Zlength l) (vptrofs 0).
 
 Lemma upd_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX l) x = complete MAX (l ++ [x]).
 Proof.
-  intros; unfold complete.
-  rewrite upd_Znth_app2, Zminus_diag.
-  rewrite app_length; simpl plus.
-  rewrite Zlength_correct, Z2Nat.inj_lt, Nat2Z.id in H; try omega.
-  destruct (Z.to_nat MAX - length l)%nat eqn: Hminus; [omega|].
-  replace (Z.to_nat MAX - (length l + 1))%nat with n by omega.
-  unfold upd_Znth, sublist; simpl.
-  rewrite Zlength_cons.
-  unfold Z.succ; rewrite Z.add_simpl_r.
-  rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
-  rewrite <- app_assoc; auto.
-  { repeat rewrite Zlength_correct; omega. }
+  intros. unfold complete.
+  list_solve!.
 Qed.
 
 Lemma Znth_complete : forall n l MAX, n < Zlength l -> 
@@ -98,16 +88,7 @@ Lemma remove_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX (l ++ [x])) (vptrofs 0) = complete MAX l.
 Proof.
   intros; unfold complete.
-  rewrite upd_Znth_app1 by (rewrite Zlength_app, ?Zlength_cons; rep_omega).
-  rewrite app_length; simpl plus.
-  rewrite upd_Znth_app2, Zminus_diag; [|rewrite Zlength_cons; simpl; omega].
-  unfold upd_Znth, sublist.sublist.
-  rewrite Zminus_diag; simpl firstn.
-  rewrite Zlength_correct, Z2Nat.inj_lt, Nat2Z.id in H; try omega.
-  destruct (Z.to_nat MAX - length l)%nat eqn: Hminus; [omega|].
-  replace (Z.to_nat MAX - (length l + 1))%nat with n by omega.
-  simpl.
-  rewrite <- app_assoc; auto.
+  list_solve!.
 Qed.
 
 Lemma Forall_app : forall {A} (P : A -> Prop) l1 l2,
@@ -275,13 +256,13 @@ Definition rotate {A} (l : list A) n m := sublist (m - n) (Zlength l) l ++
 Lemma sublist_of_nil : forall {A} i j, sublist i j (@nil A) = [].
 Proof.
   intros; unfold sublist.
-  rewrite skipn_nil, firstn_nil; auto.
+  rewrite firstn_nil, skipn_nil; auto.
 Qed.
 
 Lemma sublist_0_cons : forall {A} j x (l : list A), j > 0 ->
   sublist 0 j (x :: l) = x :: sublist 0 (j - 1) l.
 Proof.
-  intros; unfold sublist; simpl.
+  intros. unfold_sublist_old.
   destruct (Z.to_nat (j - 0)) eqn: Hminus.
   - apply Z.gt_lt in H; rewrite Z2Nat.inj_lt in H; try omega.
     rewrite Z2Nat.inj_sub in Hminus; omega.
@@ -293,7 +274,7 @@ Qed.
 Lemma sublist_S_cons : forall {A} i j x (l : list A), i > 0 ->
   sublist i j (x :: l) = sublist (i - 1) (j - 1) l.
 Proof.
-  intros; unfold sublist; simpl.
+  intros; unfold_sublist_old.
   destruct (Z.to_nat i) eqn: Hi.
   - apply Z.gt_lt in H; rewrite Z2Nat.inj_lt in H; omega.
   - simpl.
@@ -446,7 +427,7 @@ Lemma rotate_inj : forall {A} (l1 l2 : list A) n m, rotate l1 n m = rotate l2 n 
 Proof.
   unfold rotate; intros.
   destruct (app_eq_inv _ _ _ _ H) as (Hskip & Hfirst).
-  { unfold sublist; repeat rewrite firstn_length, skipn_length.
+  { unfold sublist; repeat rewrite skipn_length, firstn_length.
     repeat rewrite Zlength_correct; rewrite H0; omega. }
   erewrite <- sublist_same with (al := l1), <- sublist_rejoin with (mid := m - n); auto; try omega.
   rewrite Hfirst, Hskip, sublist_rejoin, sublist_same; auto; try omega.
@@ -463,8 +444,9 @@ Qed.
 Lemma length_complete : forall l m, Zlength l <= m -> length (complete m l) = Z.to_nat m.
 Proof.
   intros; unfold complete.
-  rewrite app_length, repeat_length; rewrite Zlength_correct in H.
-  rep_omega.
+  rewrite <- ZtoNat_Zlength.
+  f_equal.
+  list_solve!.
 Qed.
 
 Lemma Zlength_rotate : forall {A} (l : list A) n m, 0 <= n <= m -> m <= Zlength l ->
@@ -482,7 +464,7 @@ Qed.
 Lemma Zlength_complete : forall l m, Zlength l <= m -> Zlength (complete m l) = m.
 Proof.
   intros; unfold complete.
-  rewrite Zlength_app, Zlength_repeat; rewrite Zlength_correct in *; rep_omega.
+  list_solve!.
 Qed.
 
 Lemma combine_eq : forall {A B} (l : list (A * B)), combine (map fst l) (map snd l) = l.
@@ -557,39 +539,14 @@ Lemma rotate_1 : forall v l n m, 0 <= n < m -> Zlength l < m ->
   rotate (complete m l) ((n + 1) mod m) m.
 Proof.
   intros.
-  unfold complete at 1; simpl.
-  unfold upd_Znth; simpl.
-  rewrite Zlength_cons; simpl.
-  rewrite sublist_1_cons, sublist_same; auto; [|omega].
-  unfold rotate.
-  rewrite Zlength_cons; simpl.
-  rewrite sublist_S_cons; [|omega].
-  rewrite sublist_0_cons; [|omega].
-  destruct (eq_dec (n + 1) m).
-  - subst; rewrite Z.mod_same; [|omega].
-    autorewrite with sublist.
-    rewrite Zlength_complete, sublist_nil; [|omega].
-    rewrite sublist_same; auto; [|rewrite Zlength_complete; omega].
-    rewrite <- app_assoc; unfold complete.
-    repeat rewrite Z2Nat.inj_add; try omega.
-    rewrite NPeano.Nat.add_sub_swap with (p := length l); [|rewrite Zlength_correct in *; rep_omega].
-    rewrite repeat_plus; simpl; do 3 f_equal; omega.
-  - rewrite Zmod_small; [|omega].
-    rewrite (sublist_split (m - (n + 1)) (Zlength (complete m l) - 1)); try rewrite Zlength_complete; try omega.
-    rewrite <- app_assoc, (sublist_one (m - 1)); try rewrite Zlength_complete; try omega; simpl.
-    assert (length l < Z.to_nat m)%nat by (rewrite Zlength_correct in *; rep_omega).
-    unfold complete.
-    replace (Z.to_nat m - length l)%nat with (Z.to_nat m - S (length l) + 1)%nat; [|omega].
-    rewrite repeat_plus, app_assoc; simpl.
-    repeat rewrite Zlength_app.
-    assert (m - 1 = Zlength l + Zlength (repeat (vptrofs 0) (Z.to_nat m - S (Datatypes.length l)))) as Heq.
-    { rewrite Zlength_repeat, Nat2Z.inj_sub, Z2Nat.id, Nat2Z.inj_succ, <- Zlength_correct; omega. }
-    rewrite (sublist_app1 _ _ _ (_ ++ _)%list); rewrite ?Zlength_app; try omega.
-    rewrite (sublist_app1 _ _ _ (_ ++ _)%list); try rewrite Zlength_app; try omega.
-    f_equal; f_equal; try omega.
-    + rewrite app_Znth2, Zlength_app, Heq, Zminus_diag, Znth_0_cons; auto.
-      rewrite Zlength_app; omega.
-    + f_equal; omega.
+  unfold complete, rotate.
+  destruct (eq_dec n (m-1)).
+  - subst n.
+    replace (m - 1 + 1) with m by omega.
+    replace (m mod m) with 0 by (rewrite Z_mod_same_full; auto).
+    list_solve!.
+  - replace ((n+1) mod m) with (n+1) by (rewrite Z.mod_small; omega).
+    list_solve!.
 Qed.
 
 Lemma upd_complete_gen : forall {A} (l : list A) x n y, Zlength l < n ->
@@ -748,7 +705,7 @@ Qed.
 Lemma upd_Znth_cons : forall {A} i a l (x : A), i > 0 ->
   upd_Znth i (a :: l) x = a :: upd_Znth (i - 1) l x.
 Proof.
-  intros; unfold upd_Znth, sublist.sublist; simpl.
+  intros; unfold upd_Znth; unfold_sublist_old.
   repeat rewrite Z.sub_0_r.
   destruct (Z.to_nat i) eqn: Hi.
   { exploit Z2Nat_inj_0; eauto; omega. }
@@ -766,10 +723,11 @@ Qed.
 Lemma upd_Znth_triv : forall {A}{d: Inhabitant A} i (l : list A) x (Hi : 0 <= i < Zlength l),
   Znth i l = x -> upd_Znth i l x = l.
 Proof.
+  (* This cannot be solve by list_solve! because list_solve! cannot handle congruence like i = j -> Znth i l = Znth j l. *)
   intros; unfold upd_Znth.
   setoid_rewrite <- (firstn_skipn (Z.to_nat i) l) at 4.
   erewrite skipn_cons, Z2Nat.id, H; try omega; [|rewrite Zlength_correct in *; rep_omega].
-  unfold sublist.
+  unfold_sublist_old.
   rewrite Z.sub_0_r, Z2Nat.inj_add, NPeano.Nat.add_1_r; try omega.
   setoid_rewrite firstn_same at 2; auto.
   rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id, Z2Nat.inj_add, skipn_length; simpl; omega.
@@ -1064,7 +1022,7 @@ Proof.
     erewrite <- !sublist_sublist with (j := Zlength l1); try omega.
     inversion Hall as [Hl1 Hl2 | ?????? Hl1 Hl2].
     + rewrite !Hlen, <- Hl2.
-      unfold sublist; rewrite !skipn_nil, !firstn_nil; auto.
+      unfold sublist; rewrite !firstn_nil, !skipn_nil; auto.
     + rewrite sublist_1_cons, !Hlen, <- Hl2, sublist_1_cons.
       unfold sublist; simpl; apply Forall2_firstn; auto.
   - apply Nat2Z.inj; rewrite <- !Zlength_correct.
@@ -1115,14 +1073,29 @@ Proof.
   intros; rewrite <- (map_id_eq l1) at 1; apply Forall2_map.
 Qed.
 
+Lemma firstn_max_length : forall {A} n (al : list A), Zlength (firstn n al) <= Zlength al.
+Proof.
+  intros; revert n; induction al; intros.
+  - rewrite firstn_nil. list_solve!.
+  - destruct n.
+    + simpl. list_solve!.
+    + simpl. specialize (IHal n). list_solve!.
+Qed.
+
+Lemma skipn_max_length : forall {A} n (al : list A), Zlength (skipn n al) <= Zlength al.
+Proof.
+  intros; revert n; induction al; intros.
+  - rewrite skipn_nil. list_solve!.
+  - destruct n.
+    + simpl. list_solve!.
+    + simpl. specialize (IHal n). list_solve!.
+Qed.
+
 Lemma sublist_max_length : forall {A} i j (al : list A), Zlength (sublist i j al) <= Zlength al.
 Proof.
   intros; unfold sublist.
-  rewrite Zlength_firstn, Zlength_skipn.
-  rewrite Z.min_le_iff; right.
-  pose proof (Zlength_nonneg al).
-  apply Z.max_lub; try omega.
-  rewrite <- Z.le_sub_nonneg; apply Z.le_max_l.
+  rewrite skipn_max_length.
+  apply firstn_max_length.
 Qed.
 
 Lemma Forall2_sublist : forall {A B} (P : A -> B -> Prop) l1 l2 i j, Forall2 P l1 l2 -> 0 <= i ->
@@ -1535,7 +1508,7 @@ Lemma In_sublist_upto : forall n x i j, In x (sublist i j (upto n)) -> 0 <= i ->
   i <= x < j /\ x < Z.of_nat n.
 Proof.
   induction n; intros.
-  - unfold sublist in H; rewrite skipn_nil, firstn_nil in H; contradiction.
+  - unfold sublist in H; simpl in H; rewrite firstn_nil, skipn_nil in H; contradiction.
   - rewrite Nat2Z.inj_succ; simpl in *.
     destruct (zlt 0 j).
     destruct (eq_dec i 0).
@@ -1573,7 +1546,7 @@ Qed.
 
 Lemma sublist_all : forall {A} i (l : list A), Zlength l <= i -> sublist 0 i l = l.
 Proof.
-  intros; unfold sublist; simpl.
+  intros; unfold_sublist_old; simpl.
   apply firstn_all.
   rewrite Zlength_correct in *; rep_omega.
 Qed.
@@ -1740,30 +1713,39 @@ Proof.
   - apply IHfold_rel; left; eapply readable_share_join; eauto.
 Qed.
 
-Lemma sublist_0_cons' : forall {A} i j (x : A) l, i <= 0 -> j > i -> sublist i j (x :: l) =
+
+Lemma sublist_0_cons' : forall {A} i j (x : A) l, i <= 0 -> j > 0 -> sublist i j (x :: l) =
   x :: sublist i (j - 1) l.
 Proof.
   intros; unfold sublist.
   replace (Z.to_nat i) with O; simpl.
-  assert (0 < j - i) as Hgt by omega.
-  rewrite Z2Nat.inj_lt in Hgt; try omega.
-  destruct (Z.to_nat (j - i)) eqn: Hj; [omega|].
+  assert (Z.to_nat j > 0)%nat by (apply (Z2Nat.inj_lt 0 j); omega).
+  destruct (Z.to_nat j) eqn: Hj; [omega|].
   simpl; f_equal; f_equal.
-  replace (j - 1 - i) with (j - i - 1) by omega.
   rewrite Z2Nat.inj_sub; simpl; omega.
   destruct (eq_dec i 0); subst; auto.
   rewrite Z2Nat_neg; auto; omega.
+Qed.
+
+(* locally overwriting sublist_nil_gen *)
+Local Lemma sublist_nil_gen : forall {A} (l : list A) i j, j <= 0 -> sublist i j l = [].
+Proof.
+  intros.
+  unfold sublist.
+  replace (Z.to_nat j) with O by (symmetry; apply Z_to_nat_neg; auto).
+  rewrite skipn_nil.
+  auto.
 Qed.
 
 Lemma sublist_combine : forall {A B} (l1 : list A) (l2 : list B) i j,
   sublist i j (combine l1 l2) = combine (sublist i j l1) (sublist i j l2).
 Proof.
   induction l1; simpl; intros.
-  - unfold sublist; rewrite !skipn_nil, !firstn_nil; auto.
+  - unfold sublist; rewrite !firstn_nil, !skipn_nil; auto.
   - destruct l2.
-    + unfold sublist at 1 3; rewrite !skipn_nil, !firstn_nil.
+    + unfold sublist at 1 3; rewrite !firstn_nil, !skipn_nil.
       destruct (sublist i j (a :: l1)); auto.
-    + destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto|].
+    + destruct (Z_le_dec j 0); [rewrite !sublist_nil_gen; auto|].
       destruct (Z_le_dec i 0).
       * subst; rewrite !sublist_0_cons'; try omega.
         simpl; rewrite IHl1; auto.
@@ -1786,10 +1768,10 @@ Lemma sublist_extend : forall {A} (l : list A) ls i j,
   sublist i j (extend l ls) = extend (sublist i j l) (sublist i j ls).
 Proof.
   induction l; simpl; intros.
-  - unfold sublist; rewrite skipn_nil, firstn_nil; auto.
+  - unfold sublist; rewrite firstn_nil, skipn_nil; auto.
   - destruct ls.
-    + unfold sublist; rewrite skipn_nil, firstn_nil, extend_nil; auto.
-    + destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto|].
+    + unfold sublist; rewrite firstn_nil, skipn_nil, extend_nil; auto.
+    + destruct (Z_le_dec j 0); [rewrite !sublist_nil_gen; auto|].
       destruct (Z_le_dec i 0).
       * subst; rewrite !sublist_0_cons'; try omega.
         rewrite IHl; auto.
@@ -1811,10 +1793,10 @@ Lemma sublist_extendr : forall {A} (l : list A) ls i j,
   sublist i j (extendr l ls) = extendr (sublist i j l) (sublist i j ls).
 Proof.
   induction l; simpl; intros.
-  - unfold sublist; rewrite skipn_nil, firstn_nil; auto.
+  - unfold sublist; rewrite firstn_nil, skipn_nil; auto.
   - destruct ls.
-    + unfold sublist; rewrite skipn_nil, firstn_nil, extendr_nil; auto.
-    + destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto|].
+    + unfold sublist; rewrite firstn_nil, skipn_nil, extendr_nil; auto.
+    + destruct (Z_le_dec j 0); [rewrite !sublist_nil_gen; auto|].
       destruct (Z_le_dec i 0).
       * subst; rewrite !sublist_0_cons'; try omega.
         rewrite IHl; auto.
@@ -1823,7 +1805,7 @@ Qed.
 
 Lemma sublist_over : forall {A} (l : list A) i j, Zlength l <= i -> sublist i j l = [].
 Proof.
-  intros; unfold sublist.
+  intros. assert (i >= 0) by rep_omega; unfold_sublist_old.
   rewrite skipn_short, firstn_nil; auto.
   rewrite Zlength_correct in *; rep_omega.
 Qed.
