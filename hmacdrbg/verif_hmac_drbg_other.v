@@ -444,8 +444,8 @@ Proof.
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward.
-  simpl.
+  unfold_data_at 1%nat. forward.
+  entailer!. simpl.
   unfold_data_at 1%nat. entailer!.
 Qed.
 
@@ -459,7 +459,7 @@ Proof.
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward. simpl; entailer!.
+  unfold_data_at 1%nat. forward. entailer!. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
 
@@ -473,7 +473,7 @@ Proof.
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward. simpl; entailer!.
+  unfold_data_at 1%nat. forward. entailer!. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
 
