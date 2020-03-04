@@ -13,6 +13,9 @@ Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   sep_apply (create_mem_mgr gv).
+  do 3 sep_apply (data_at_data_at_ Ews (tarray (tptr tint) 3)).
+  sep_apply (data_at_data_at_ Ews (tarray (tptr (Tstruct _lock_t noattr)) 3)).
+  sep_apply (data_at_data_at_ Ews (tarray (tptr (Tstruct _buffer noattr)) 5)).
   simpl readonly2share.  (* TODO: delete this line when possible *)
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
