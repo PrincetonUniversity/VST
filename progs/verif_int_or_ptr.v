@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.int_or_ptr.
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -220,6 +221,10 @@ Proof.
    Intros p2.
    forward.
    deadvars.
+  assert_PROP (p1 <> Vundef).
+  entailer!.
+  assert_PROP (p2 <> Vundef).
+  entailer!.
    forward_call (p1,p2).
   Intros r.
   assert_PROP (valid_int_or_ptr r). {

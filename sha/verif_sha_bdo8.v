@@ -38,8 +38,7 @@ Lemma sha256_block_load8:
      semax
          (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
-   LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
-                gvars gv)
+   LOCAL  (temp _data data; gvars gv; temp _ctx ctx; temp _in data)
    SEP  (field_at wsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)

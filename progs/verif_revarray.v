@@ -2,8 +2,11 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.revarray.
 Require Import VST.floyd.sublist.
 
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Open Scope old_funspec_scope.
 
 Definition reverse_spec :=
  DECLARE _reverse
@@ -17,10 +20,10 @@ Definition reverse_spec :=
      SEP(data_at sh (tarray tint size) (map Vint (rev contents)) a0).
 
 Definition main_spec :=
- DECLARE _main
+  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [reverse_spec; main_spec]).
 
@@ -199,7 +202,6 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name four _four.
 start_function.
-
 forward_call  (*  revarray(four,4); *)
   (gv _four, Ews, four_contents, 4).
    split; [computable | auto].

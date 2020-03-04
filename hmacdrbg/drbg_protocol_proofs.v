@@ -44,32 +44,31 @@ Lemma drb_seed_256_subsume:
        (snd hmac_drbg_seed_inst256_spec)
        (snd drbg_seed_inst256_spec_abs).
 Proof.
-split3; auto.
+red. simpl.
+split. split; trivial.
 intros [[[[[[[[[[[[[sh dp] ctx] info] len] data] Data] 
                          Info] s] rc] pr_flag] ri] handle_ss] gv].
 unfold seedREP.
-Intros a.
-Exists (dp,  ctx, sh, info, len, data, sh, Data, a, 
+intros [g args]. entailer. clear H.
+unfold LAMBDAx, PROPx, GLOBALSx, LOCALx, SEPx, argsassert2assert. simpl. Intros a.
+Exists (dp,  ctx, sh, info, Zlength Data, data, sh, Data, a, 
               Info, s, rc, pr_flag, ri, handle_ss, gv).
 Exists emp.
-change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
+rewrite emp_sepcon.
 apply andp_right.
 *
-entailer!.
+entailer!. apply andp_derives. trivial. cancel.
 *
-apply prop_right.
+apply prop_right.  intros rho.
 Intros ret_value.
-Exists ret_value.
+Exists ret_value. rewrite emp_sepcon.
+apply andp_derives; trivial. 
+apply andp_derives; trivial.
 destruct (Int.eq ret_value (Int.repr (-20864))).
-+
-go_lower.
-entailer!.
-Exists a.
-cancel.
++  Exists a. cancel.
 +
 Intros.
-Intros p.
-Exists p.
+Intros p. entailer!.
 destruct (fst a) as [d [M2 p0]].
 destruct (fst handle_ss) as [[[[newV newK] newRc] ?] newPR].
 entailer!.
@@ -81,21 +80,21 @@ Exists (info, (M2, p),
   (Vint (Int.repr newRc),
   (Vint (Int.repr 32),
   (Val.of_bool newPR, Vint (Int.repr 10000)))))).
-unfold instantiate_function_256 in H2.
+unfold instantiate_function_256 in H3.
 destruct (Zlength (contents_with_add data (Zlength Data) Data) >?
        max_personalization_string_length) eqn:?.
-inv H2.
+inv H3.
 destruct (get_entropy (32 + 32 / 2) (32 + 32 / 2) max_elength
-         pr_flag s); inv H2.
+         pr_flag s); inv H3.
 simpl; entailer!.
 split3; auto.
 split; auto.
 simpl.
 hnf. rep_omega.
 unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_instantiate_algorithm,
-  HMAC_DRBG_instantiate_algorithm in H3.
+  HMAC_DRBG_instantiate_algorithm in H10.
 destruct (HMAC_DRBG_update HMAC256) as [key value].
-inv H3.
+inv H10.
 simpl.
 computable.
 Qed.
@@ -104,7 +103,6 @@ Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_seed_buf drbg_seed_buf_abs_spec.
 Proof.
   start_function.
-  abbreviate_semax.
   rename H into HDlen1; rename H0 into HDlen2.
   unfold seedbufREP.
   rewrite extract_exists_in_SEP. Intros Ctx.
@@ -134,7 +132,7 @@ Proof.
   subst v; clear Hv. rewrite if_true; trivial.
   Intros p.
 
-  forward_call tt.
+  forward_call info.
 
   thaw FR0. unfold hmac256drbg_relate. destruct I. Intros; subst.
   rename V0 into V. rename H0 into lenV.
@@ -151,7 +149,7 @@ Proof.
   }
   Intros.
 
-  forward_call tt.
+  forward_call info.
 
   freeze [0;1;3;4;5] FR3. rewrite lenV.
   forward_call (sh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
@@ -213,7 +211,7 @@ Proof.
           (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))); simpl.
   entailer!.
   red; simpl. intuition.
-Time Qed. (*Coq8.6: 12secs*)
+Time Qed. (*Coq 8.10.1: 2.5s; Coq8.6: 12secs*)
 
 Require Import hmacdrbg.verif_hmac_drbg_reseed_common. 
 Opaque hmac256drbgabs_reseed.
@@ -476,15 +474,14 @@ Opaque  hmac256drbgabs_reseed.
   destruct d as [[[[? ?] ?] ?] ?].
   symmetry in Heqr.
   apply mbedtls_HMAC256_DRBG_reseed_functionWFaux in Heqr. 
-  red; simpl. intuition. 
-Time Qed. (*Coq8.6 May23rd: 15s*) 
+  red; simpl. intuition.
+Time Qed. (*Coq 8.10.1: 3s; Coq8.6 May23rd: 15s*) 
 
 Opaque hmac256drbgabs_generate.
 Lemma body_hmac_drbg_random_abs: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_random drbg_random_abs_spec.
 Proof.
   start_function.
-  abbreviate_semax.
   rename H0 into M. destruct H as [N1 N2].
   unfold AREP. focus_SEP 1.
   rewrite extract_exists_in_SEP. Intros Info. unfold REP.
@@ -527,7 +524,6 @@ Lemma body_hmac_drbg_random_abs1: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_random drbg_random_abs_spec1.
 Proof.
   start_function.
-  abbreviate_semax.
   destruct H as [N1 N2]. rename H0 into M.
   unfold AREP. focus_SEP 1.
   rewrite extract_exists_in_SEP. Intros Info. unfold REP.
@@ -608,7 +604,7 @@ Proof. start_function.
 
   (* md_len = mbedtls_md_get_size( info ); *)
   freeze [0;1] FR1.
-  forward_call tt.
+  forward_call IS1a.
 
   remember (andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))) as na.
   freeze [0;1] FR2. clear PIS1a.
@@ -868,7 +864,7 @@ Proof. start_function.
       (* prove the function parameters match up *)
       apply prop_right. 
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
-      rewrite offset_val_force_ptr, isptr_force_ptr; trivial. auto.
+      rewrite offset_val_force_ptr, isptr_force_ptr; trivial.
     }
     rewrite hmac_common_lemmas.HMAC_Zlength. cancel. 
     { split3; auto.
@@ -888,7 +884,9 @@ Proof. start_function.
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc, @nil byte, V, gv). (*9 *)
     {
       (* prove the function parameters match up *)
-      rewrite H4, FA_ctx_V. apply prop_right. destruct ctx; try contradiction. normalize.
+      rewrite H4, FA_ctx_V, FA_ctx_MDCTX. apply prop_right. simpl.
+      destruct ctx; try contradiction. simpl. 
+      rewrite ptrofs_add_repr_0_r; trivial.
     }
     { split3; auto.
       (* prove the PROP clauses *)
@@ -947,14 +945,13 @@ Proof. start_function.
 
   unfold hmac256drbgabs_common_mpreds; simpl. normalize.
   apply andp_right; [apply prop_right; apply update_WF; trivial | cancel].
-Time Qed. (*Coq8.6: 31secs*)
+Time Qed. (*Coq 8.10.1: 6.8s; Coq8.6: 31secs*)
 
 Lemma body_hmac_drbg_setEntropyLen:
       semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_set_entropy_len drbg_setEntropyLen_spec_abs.
 Proof.
-  start_function.
-  abbreviate_semax. unfold AREP.
+  start_function. unfold AREP.
   rewrite extract_exists_in_SEP. Intros Info.
   unfold REP. 
   rewrite extract_exists_in_SEP. Intros a.
@@ -978,8 +975,7 @@ Lemma body_hmac_drbg_setPredictionResistance:
       semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_set_prediction_resistance drbg_setPredictionResistance_spec_abs.
 Proof.
-  start_function.
-  abbreviate_semax. unfold AREP.
+  start_function. unfold AREP.
   rewrite extract_exists_in_SEP. Intros Info.
   unfold REP. 
   rewrite extract_exists_in_SEP. Intros a.
@@ -1002,8 +998,7 @@ Lemma body_hmac_drbg_setReseedInterval:
       semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_set_reseed_interval drbg_setReseedInterval_spec_abs.
 Proof.
-  start_function.
-  abbreviate_semax. unfold AREP.
+  start_function. unfold AREP.
   rewrite extract_exists_in_SEP. Intros Info.
   unfold REP. 
   rewrite extract_exists_in_SEP. Intros a.

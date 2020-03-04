@@ -44,7 +44,7 @@ forward.
 entailer!.
 -
 destruct (zle 0 n); try omega.
-forward_if (PROP()LOCAL (temp _p p)
+forward_if (PROP()LOCAL (temp _pp p)
    SEP(countrep (n+s) p; mem_mgr gv)).
 +
 if_tac in H3; inv H3.
@@ -91,19 +91,14 @@ start_function.
 forward_call (malloc_spec_sub t) gv.
 Intros p.
 if_tac.
-forward_if False.
-forward_call tt.
-contradiction.
-forward.
-contradiction.
+{ subst.
+  forward_if False.
+  - forward_call 1. contradiction.
+  - inv H2. }
 forward_if True.
-forward_call tt.
-contradiction.
-forward.
-entailer!.
-forward.
-Exists p.
-entailer!.
++ contradiction.
++ forward. entailer!.
++ forward. Exists p. entailer!.
 Qed.
 
 Definition module := 

@@ -128,15 +128,16 @@ Definition hmac_drbg_seed_simple_spec :=
         Ctx: hmac256drbgstate,
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
         handle_ss: DRBG_state_handle * ENTROPY.stream, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _custom OF tptr tuchar, _len OF tuint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr),
+         (*_custom OF*) tptr tuchar, (*_len OF*) tuint ]
        PROP (len = Zlength Data /\ 0 <= len <=256 /\
              mbedtls_HMAC256_DRBG_instantiate_function s entlen pr_flag
                                        (contents_with_add data (Zlength Data) Data)
              = ENTROPY.success (fst handle_ss) (snd handle_ss))
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
+       (*LOCAL (temp _ctx ctx; temp _md_info info;
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)*)
+       PARAMS (ctx; info; data; Vint (Int.repr len)) GLOBALS (gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate dp rc pr_flag ri Ctx;
@@ -196,7 +197,7 @@ Proof.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
-  forward_call tt.
+  forward_call (info).
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
   thaw FR0. subst.
@@ -355,15 +356,14 @@ Definition hmac_drbg_seed_full_spec :=
    WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list byte,
         Ctx: hmac256drbgstate,
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _custom OF tptr tuchar, _len OF tuint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr),
+         (*_custom OF*) tptr tuchar, (*_len OF*) tuint ]
        PROP ( (len = Zlength Data) /\
               0 <= len /\
               48 + len < Int.modulus /\
               0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus)
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
+       PARAMS (ctx; info; data; Vint (Int.repr len)) GLOBALS (gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate dp rc pr_flag ri Ctx;
@@ -448,7 +448,7 @@ Proof.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
-  forward_call tt.
+  forward_call info.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
   thaw FR0. subst.
@@ -652,15 +652,16 @@ Definition hmac_drbg_seed_spec :=
         Ctx: hmac256drbgstate,
         (*CTX: hmac256drbgabs,*)
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr:bool, ri:Z, VV:list byte, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _custom OF tptr tuchar, _len OF tuint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr),
+         (*_custom OF*) tptr tuchar, (*_len OF*) tuint ]
        PROP ( (len = Zlength Data) /\
               0 <= len (*<= 336 Int.max_unsigned*) /\
               48 + len < Int.modulus /\
               0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus)
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
+       (*LOCAL (temp _ctx ctx; temp _md_info info;
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)*)
+       PARAMS (ctx; info; data; Vint (Int.repr len)) GLOBALS (gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate VV rc pr ri Ctx;
@@ -750,7 +751,7 @@ Proof.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!. 
-  forward_call tt.
+  forward_call info.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
   thaw FR0. subst.
@@ -762,8 +763,7 @@ Proof.
   rewrite <- ZL_VV.
   freeze [0;4;5;6;8] FR2.
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, VV, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
-  { rewrite ZL_VV, ptrofs_add_repr_0_r; simpl.
-    apply prop_right; repeat split; trivial.
+  { entailer!. simpl. rewrite ZL_VV, ptrofs_add_repr_0_r; trivial. 
   }
   { split3; auto. split; auto.
   }

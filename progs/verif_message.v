@@ -1,5 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.message.
+
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -32,6 +35,18 @@ Arguments mf_assert {t}.
 Arguments mf_bufprop {t}.
 Arguments mf_size_range {t}.
 Arguments mf_restbuf {t}.
+
+Lemma mf_assert_local_facts: forall t (mf: message_format t) sh buf len (data: reptype t),
+   mf_assert mf sh buf len data |-- 
+    !! (0 <= len <= mf_size mf /\ isptr buf).
+Proof.
+intros.
+eapply derives_trans;[ apply mf_bufprop | ].
+entailer!.
+Qed.
+
+Hint Resolve mf_assert_local_facts : saturate_local.
+
 
 Definition t_struct_intpair := Tstruct _intpair noattr.
 Definition t_struct_message := Tstruct _message noattr.
@@ -90,8 +105,8 @@ Definition intpair_deserialize_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition message (sh: share) {t: type} (format: message_format t) (m: val) : mpred :=
   EX fg: val*val,
@@ -167,8 +182,9 @@ make_func_ptr _intpair_serialize.
 set (des := gv _intpair_deserialize).
 set (ser := gv _intpair_serialize).
 match goal with 
- |- context [memory_block Ews 4 _] => 
+ |- context [mapsto_zeros 4 Ews _] => 
   (* 64-bit mode *)
+  sep_apply mapsto_zeros_memory_block; auto;
   gather_SEP (mapsto _ _ _ (offset_val 0 des))
       (mapsto _ _ _ (offset_val 0 ser))
       (memory_block Ews 4 _)

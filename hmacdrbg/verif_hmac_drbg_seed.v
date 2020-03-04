@@ -60,7 +60,7 @@ Proof.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
-  forward_call tt.
+  forward_call info.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
   thaw FR0. subst.
@@ -219,4 +219,4 @@ Proof.
   cancel; entailer!.
   unfold_data_at 1%nat. cancel.
   apply hmac_interp_empty.
-Time Qed. (*Coq8.6: 32secs*)
+Time Qed. (*Coq8.10.1: 6.3s; Coq8.6: 32secs*)

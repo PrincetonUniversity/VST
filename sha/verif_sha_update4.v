@@ -64,12 +64,15 @@ Lemma update_outer_if_proof:
 semax
      (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (PROP  ()
-   LOCAL
+   LOCAL (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
+   temp _n (Vint (Int.repr (Zlength dd))); temp _data d; gvars gv; temp _c c; 
+   temp _data_ d; temp _len (Vint (Int.repr len)))
+   (*LOCAL
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _n (Vint (Int.repr (Zlength dd)));
     temp _data d; temp _c c;temp _data_ d;
     temp _len (Vint (Int.repr len));
-    gvars gv)
+    gvars gv)*)
    SEP  (data_at wsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
@@ -96,12 +99,13 @@ forward_if (sha_update_inv wsh sh hashed len c d dd data gv false).
 * (* then clause *)
 
 Time forward.  (* fragment = SHA_CBLOCK-n; *) (*2.2*)
-drop_LOCAL 5%nat.
+(*drop_LOCAL 5%nat.*)
 rewrite semax_seq_skip.
 fold (inv_at_inner_if wsh sh hashed len c d dd data gv).
 apply semax_seq with (sha_update_inv wsh sh hashed len c d dd data gv false).
 weak_normalize_postcondition.
 normalize. change (16*4)%Z with 64.
+Locate update_inner_if_proof.
 simple apply (update_inner_if_proof Espec hashed dd data c d wsh sh len gv);
   try assumption.
 forward.

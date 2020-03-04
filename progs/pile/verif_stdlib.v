@@ -83,8 +83,8 @@ Qed.
 
 
 Lemma tcret_exit: 
-  tcret_proof tvoid (rmaps.ConstType unit)
-  (fun (_ : list Type) (_ : unit) => PROP (False)  LOCAL ()  SEP ()).
+  tcret_proof tvoid (rmaps.ConstType Z)
+  (fun (_ : list Type) (_ : Z) => PROP (False)  LOCAL ()  SEP ()).
 Proof.
 hnf; intros; normalize.
 Qed.

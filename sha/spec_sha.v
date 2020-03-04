@@ -4,6 +4,9 @@ Require Import sha.sha.
 Require Import sha.general_lemmas.
 Require Import sha.vst_lemmas.
 Require Import sha.SHA256.
+
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Open Scope logic.
@@ -46,6 +49,10 @@ Definition t_struct_SHA256state_st := Tstruct _SHA256state_st noattr.
 Definition sha256state_ (sh: share) (a: s256abs) (c: val) : mpred :=
    EX r:s256state,
     !!  s256_relate a r  &&  data_at sh t_struct_SHA256state_st r c.
+
+Lemma sha256_state__isptr sh a c: sha256state_ sh a c |-- !!isptr c.
+Proof. unfold sha256state_. Intros r. entailer!. Qed.
+Hint Resolve @sha256_state__isptr : saturate_local.
 
 Definition _ptr : ident := 81%positive.
 Definition _x : ident := 82%positive.
@@ -203,7 +210,7 @@ Definition Gprog : funspecs :=
 Fixpoint do_builtins (n: nat) (defs : list (ident * globdef Clight.fundef type)) : funspecs :=
  match n, defs with
   | S n', (id, Gfun (External (EF_builtin _ sig) argtys resty cc_default))::defs' =>
-     (id, NDmk_funspec (iota_formals 1%positive argtys, resty) cc_default unit FF FF)
+     (id, NDmk_funspec ((*iota_formals 1%positive*) typelist2list argtys, resty) cc_default unit FF FF)
       :: do_builtins n' defs'
   | _, _ => nil
  end.

@@ -742,7 +742,7 @@ Proof.
   forward.
 
   (* md_len = mbedtls_md_get_size(info); *)
-  forward_call tt.
+  forward_call mc1.
 
   (* if( out_len > MBEDTLS_HMAC_DRBG_MAX_REQUEST ) *)
   forward_if (out_len <= 1024).
@@ -1340,4 +1340,4 @@ Opaque hmac256drbgabs_generate. rewrite <- Heqr.
     destruct r.
     - destruct p as [? [? ?]]. destruct p as [[[? ?] ?] ?]. simpl. entailer!. 
     - simpl. entailer!.
-Time Qed. (*Desktop:83ss*) 
+Time Qed. (*Coq 8.10.1: 26s; was: Desktop:83ss*) 

@@ -16,17 +16,17 @@ Pile Pile_new(void) {
   return p;
 }
 
-void Pile_add(Pile p, int n) {
-  int s = p->sum;
-  if (0<=n && n<=(INT_MAX-s)) p->sum = s+n;
+void Pile_add(Pile pp, int n) {
+  int s = pp->sum;
+  if (0<=n && n<=(INT_MAX-s)) pp->sum = s+n;
 }
 
-int Pile_count(Pile p) {
-  return p->sum;
+int Pile_count(Pile pp) {
+  return pp->sum;
 }
 
-void Pile_free(Pile p) {
-   free(p);
+void Pile_free(Pile pp) {
+   free(pp);
 }
 
 

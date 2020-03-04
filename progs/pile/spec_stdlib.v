@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import stdlib. 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Global Open Scope funspec_scope.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope assert.
@@ -34,9 +35,9 @@ Hint Resolve malloc_token_local_facts : saturate_local.
 Definition malloc_spec' :=
  DECLARE _malloc
    WITH n:Z, gv: globals
-   PRE [ 1%positive OF size_t ]
+   PRE [ size_t ]
        PROP (0 <= n <= Ptrofs.max_unsigned)
-       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr n)); gvars gv)
+       PARAMS (Vptrofs (Ptrofs.repr n)) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
@@ -48,9 +49,9 @@ Definition malloc_spec' :=
 Definition free_spec' :=
  DECLARE _free
    WITH n:Z, p:val, gv: globals
-   PRE [ 1%positive OF tptr tvoid ]
+   PRE [ tptr tvoid ]
        PROP ()
-       LOCAL (temp 1%positive p; gvars gv)
+       PARAMS (p) GLOBALS (gv)
        SEP (mem_mgr gv;
               if eq_dec p nullval then emp
               else (malloc_token' Ews n p * memory_block Ews n p))
@@ -61,9 +62,9 @@ Definition free_spec' :=
 
 Definition exit_spec :=
  DECLARE _exit
- WITH u: unit
- PRE [1%positive OF tint]
-   PROP () LOCAL() SEP()
+ WITH i: Z
+ PRE [tint]
+   PROP () PARAMS (Vint (Int.repr i)) GLOBALS () SEP()
  POST [ tvoid ]
    PROP(False) LOCAL() SEP().
 
@@ -71,7 +72,7 @@ Definition placeholder_spec :=
  DECLARE _placeholder
  WITH u: unit
  PRE [ ]
-   PROP (False) LOCAL() SEP()
+   PROP (False) PARAMS () GLOBALS () SEP()
  POST [ tint ]
    PROP() LOCAL() SEP().
 
@@ -81,11 +82,11 @@ Definition specs := [malloc_spec'; free_spec'; exit_spec].
 Definition malloc_spec  {cs: compspecs} (t: type) :=
  DECLARE _malloc
    WITH gv: globals
-   PRE [ 1%positive OF size_t ]
+   PRE [ size_t ]
        PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
@@ -97,9 +98,9 @@ Definition malloc_spec  {cs: compspecs} (t: type) :=
 Definition free_spec  {cs: compspecs} (t: type) :=
  DECLARE _free
    WITH p: val, gv: globals
-   PRE [ 1%positive OF tptr tvoid ]
+   PRE [ tptr tvoid ]
        PROP ()
-       LOCAL (temp 1%positive p; gvars gv)
+       PARAMS (p) GLOBALS (gv)
        SEP (mem_mgr gv;
               if eq_dec p nullval then emp
               else (malloc_token Ews t p * data_at_ Ews t p))
@@ -112,28 +113,15 @@ Lemma malloc_spec_sub:
  forall {cs: compspecs} (t: type), 
    funspec_sub (snd malloc_spec') (snd (malloc_spec t)).
 Proof.
-intros.
-apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
-split3; auto.
-intros gv.
-simpl in gv.
-Exists (sizeof t, gv) emp.
-change (liftx emp) with (@emp (environ->mpred) _ _).
-rewrite !emp_sepcon.
-apply andp_right.
-entailer!.
-match goal with |- _ |-- prop ?PP => set (P:=PP) end.
-entailer!.
-subst P.
-Intros p.
-Exists p.
+do_funspec_sub. rename w into gv. clear H.
+Exists (sizeof t, gv) emp. simpl; entailer!.
+intros tau ? ?. Exists (eval_id ret_temp tau).
 entailer!.
 if_tac; auto.
 unfold malloc_token.
-assert_PROP (field_compatible t [] p).
-entailer!.
-apply malloc_compatible_field_compatible; auto.
+assert_PROP (field_compatible t [] (eval_id ret_temp tau)).
+{ entailer!.
+  apply malloc_compatible_field_compatible; auto. }
 entailer!.
 rewrite memory_block_data_at_; auto.
 Qed.
@@ -142,22 +130,10 @@ Lemma free_spec_sub:
  forall {cs: compspecs} (t: type), 
    funspec_sub (snd free_spec') (snd (free_spec t)).
 Proof.
-intros.
-apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
-split3; auto.
-intros (p,gv).
-simpl in gv.
-Exists (sizeof t, p, gv) emp.
-change (liftx emp) with (@emp (environ->mpred) _ _).
-rewrite !emp_sepcon.
-apply andp_right.
-if_tac.
-entailer!.
-entailer!. simpl in H0.
-unfold malloc_token. entailer!.
-apply data_at__memory_block_cancel.
-apply prop_right.
-entailer!.
+do_funspec_sub. destruct w as [p gv]. clear H.
+Exists (sizeof t, p, gv) emp. simpl; entailer!.
+if_tac; trivial.
+sep_apply data_at__memory_block_cancel.
+unfold malloc_token; entailer!.
 Qed.
 

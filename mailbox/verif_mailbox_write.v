@@ -697,7 +697,7 @@ Qed.
 
 Lemma body_finish_write : semax_body Vprog Gprog f_finish_write finish_write_spec.
 Proof.
-  start_function.
+  start_function. simpl map.
   rewrite sepcon_map; Intros.
   forward.
   forward.
@@ -730,7 +730,7 @@ Proof.
       with lasts.
     rewrite sublist_nil; entailer!.
     apply derives_refl'; f_equal; f_equal.
-    { f_equal.
+    { f_equal. f_equal.
       apply map_ext_in.
       intros; rewrite In_upto in *.
       destruct (zlt a 0); [omega | rewrite map_add_empty; auto]. }

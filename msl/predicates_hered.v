@@ -364,6 +364,10 @@ Lemma orp_right2{A}{agA: ageable A}: forall P Q R: pred A,  P |-- R -> P |-- Q |
 Proof. repeat intro. right; auto.
 Qed.
 
+Lemma orp_assoc {A} `{ageable A} : forall P Q R: pred A, (P || Q) || R = P || (Q || R).
+Proof.
+  intros; apply pred_ext; auto; unfold derives, andp; simpl; intuition.
+Qed.
 
 Lemma derives_trans {A}`{ageable A}:
     forall P Q R: pred A, P |-- Q -> Q |-- R -> P |-- R.

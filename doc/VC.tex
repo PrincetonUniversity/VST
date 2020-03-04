@@ -446,11 +446,11 @@ corresponding to the function prototypes.
 Definition sumarray_spec : ident * funspec  :=
 DECLARE _sumarray
  WITH a: val, sh : share, contents : list Z, size: Z
- PRE [ _a OF (tptr tuint), _n OF tint ]
+ PRE [ (tptr tuint), tint ]
     PROP  (readable_share sh;
           0 $\le$ size $\le$ Int.max_signed;
           Forall (fun x => 0 $\le$ x $\le$ Int.max_unsigned) contents)
-    LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+    PARAMS (a; Vint (Int.repr size)) GLOBALS ()
     SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
     PROP ()
@@ -484,14 +484,24 @@ true \emph{just within the scope of the quantification of
 \lstinline{WITH}, and spans the \lstinline{PRE} and
 \lstinline{POST} assertions.
 
-The \lstinline{LOCAL} propositions $\vec{Q}$ are \emph{variable
-  bindings} of type \lstinline{localdef}.  Here, the
-function-parameters $a$ and $n$ are treated as nonaddressable local
-variables, or ``temp'' variables.  The localdef
-\lstinline{(temp _a  a)}
-says that (in this program state) the contents of C local
-variable \lstinline{_a} is the Coq value \lstinline{a}.  In general,
-a C scalar variable holds something of type \lstinline{val}; this
+\emph{If you see a precondition (PRE) with \LOCAL{} instead
+  of \PARAMS{}, it is an old-style funspec; see \autoref{refcard:old-funspec}.}
+
+Function preconditions are based on nameless, \emph{positional} parameter
+notation.  That is, $ \mathrm{PRE} [ \vec{\tau} ]$ gives the
+C-language types (but not the names) of the formal parameters,
+and $\PARAMS(\vec{v})$ gives the abstract values (but not the names) of
+those parameters.  As you can see, the abstract values are usually
+based on variables bound in the \textsc{with} clause.
+
+\lstinline{LOCAL} propositions $\vec{Q}$ are \emph{variable
+  bindings} of type \lstinline{localdef}.  In the
+\lstinline{LOCAL} clause of the postcondition,
+the special \lstinline{ret_temp} variable is bound to the return
+value of the function.
+
+Values of \PARAMS{} and of \LOCAL{} \lstinline{temp} variables
+are C scalar variables, values whose Coq type is \lstinline{val}; this
 type is defined by CompCert as,
 
 \begin{lstlisting}
@@ -528,8 +538,8 @@ So, overall, the specification for \lstinline{sumarray} is this:
 \mathit{contents},\mathit{size}$
 such that $\mathit{sh}$ gives at least read-permission;
 $\mathit{size}$ is representable as a nonnegative 32-bit signed integer;
-function-parameter \lstinline{_a} contains value $a$
-and \lstinline{_n} contains the 32-bit representation of $\mathit{size}$;
+the first function-parameter contains value $a$
+and the second contains the 32-bit representation of $\mathit{size}$;
 and there's an array in memory at address $a$
 with permission $\mathit{sh}$ containing $\mathit{contents}$.
 The function returns a value equal to \lstinline{sum_int($\mathit{contents}$)},
@@ -4181,8 +4191,8 @@ Definition MyModuleGlobs (gv: globals) : mpred :=
 
 DECLARE _myfunction
 WITH $\ldots$, gv: globals
-PRE [ $\ldots$ ]
-   PROP($\ldots$) LOCAL ($\ldots$; gvars gv) SEP($\ldots$; MyModuleGlobs gv)
+PRE [ $t_1,t_2$ ]
+   PROP($\ldots$) PARAMS ($v_1;v_2$) GLOBALS(gv) SEP($\ldots$; MyModuleGlobs gv)
 POST [ $\ldots$ ]
    PROP() LOCAL (temp ret_temp $\ldots$) SEP($\ldots$; MyModuleGlobs gv).
 \end{lstlisting}
@@ -4193,6 +4203,18 @@ that (presumably) uses some global variables of MyModule,
 but it does not see their names.
 
 \newthought{The file} \file{progs/verif\_libglob.v} demonstrates the verification of a module that uses private global variables.
+
+Inside the \lstinline{semax_body} proof of \lstinline{_myfunction},
+the \PARAMS{}/\GLOBALS{} is transformed as follows:
+
+\begin{lstlisting}
+PROP($\ldots$)
+LOCAL(temp _x1 $v_1$; temp _x2 $v_2$; gvars gv)
+SEP($\ldots$; MyModuleGlobs gv)  
+\end{lstlisting}
+That is, the \lstinline{temp} components of the \LOCAL{} give access to
+specific local variables, and the \lstinline{gvars} component
+gives access to \emph{all} the global variables.
 
 
 \chapter{\textsf{with\_library}: Library functions}
@@ -4289,6 +4311,55 @@ DECLARE _exit
  POST [ tvoid ]
    PROP(False) LOCAL() SEP().
 \end{lstlisting}
+
+\chapter{Old-style funspecs}
+\label{refcard:old-funspec}
+
+Until VST version 2.5, function preconditions were written a different way.
+Instead of writing $\PROP/\PARAMS/\GLOBALS/\SEP$ they were written
+as $\PROP/\LOCAL/\SEP$.  Here's an example; compare with the new-style
+funspec on \autopageref{refcard:sumarray-spec}.
+
+\begin{lstlisting}
+Definition sumarray_spec : ident * funspec  :=
+DECLARE _sumarray
+ WITH a: val, sh : share, contents : list Z, size: Z
+ PRE [ _a OF (tptr tuint), _n OF tint ]
+    PROP  (readable_share sh;
+          0 $\le$ size $\le$ Int.max_signed;
+          Forall (fun x => 0 $\le$ x $\le$ Int.max_unsigned) contents)
+    LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+    SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
+  POST [ tuint ]
+    PROP ()
+    LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+    SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
+\end{lstlisting}
+
+Notice also that the PRE list is different: each parameter is written
+\lstinline{_x OF t}, where \lstinline{_x} is the C-language identifier
+used in the program.
+
+VST proofs that use old-style funspecs should access the
+old-style notation and old-style definitions by,
+\begin{lstlisting}
+Require Import VST.floyd.Funspec_old_Notation.
+\end{lstlsting}
+
+This brings in a different notation scope, in which WITH/PRE/POST works
+differently.
+
+Whenever you do \lstinline{start_function} (in the \lstinline{semax_body}
+of an old-style funspec)
+or \lstinline{forward_call} (calling a function with an old-style funspec),
+the Floyd tactics automatically convert to a new-style funspec.
+For that conversion to work, the tactics must be able to prove
+(from what's above the line, and from the PROP and SEP clauses)
+that each of the \lstinline{temp} values is not \lstinline{Vundef}.
+
+
+
+
 
 \chapter{Function pointers}
 \label{refcard:funcptr}

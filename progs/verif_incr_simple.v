@@ -1,6 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.progs.incr.
 
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

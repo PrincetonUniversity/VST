@@ -32,8 +32,8 @@ Definition funsig_of_fundef (fd: Clight.fundef) : funsig :=
  end.
 
 Definition vacuous_funspec (fd: Clight.fundef): funspec :=
-   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) 
-   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+   mk_funspec (compcert_rmaps.typesig_of_funsig (funsig_of_fundef fd)) (cc_of_fundef fd) 
+   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) (args_const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Fixpoint augment_funspecs' (fds: list (ident * Clight.fundef)) (G:funspecs) : option funspecs :=
  match fds with
