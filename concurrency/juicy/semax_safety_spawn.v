@@ -176,6 +176,8 @@ Proof.
   intro p. apply p.
 Qed.
 
+Import SeparationLogic Clight_initial_world Clightdefs. 
+
 Lemma safety_induction_spawn ge Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)
@@ -196,47 +198,52 @@ Lemma safety_induction_spawn ge Gamma n state
     (state_invariant Jspec' Gamma n state' \/
      state_invariant Jspec' Gamma (S n) state').
 Proof.
+  subst Jspec'.
+  clear personal_mem_equiv_spec.
   intros isspawn I.
-  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
-  unfold blocked_at_external in *.
+  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. 
+  subst state.
   destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
-  pose proof (safety i cnti tt) as safei.
-
-  rewrite Eci in safei.
+  pose proof (safety i cnti tt) as safei; rewrite Eci in safei.
+  destruct ci; try destruct f; simpl in atex; try discriminate.
+  destruct (ef_inline e); inv atex.
+ match type of Eci with _ = Kblocked ?CI => set (ci := CI) in * end.
 
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
-  apply (corestep_not_at_external (juicy_core_sem _)) in bad. elimtype False; subst; clear - bad atex.
-   simpl in bad. congruence.
+    as [ | ?????? bad | n0 z c' m0 e args0 x at_ex Pre SafePost | ????? bad ];
+  [apply (corestep_not_at_external (juicy_core_sem _)) in bad; inv bad | | inv bad ];
   subst.
-  simpl in at_ex.
-  unfold cl_at_external in atex, at_ex.
-  assert (args0 = args) by congruence; subst args0.
-  assert (e = CREATE) by congruence; subst e.
-  hnf in x.
+  symmetry in at_ex; inv at_ex.
+
   revert x Pre SafePost.
-
-  assert (H_spawn : Some (ext_link "spawn", ef_sig CREATE) = ef_id_sig ext_link CREATE). reflexivity.
-
+  assert (H_spawn : Some (ext_link "spawn", ef_sig CREATE) = ef_id_sig ext_link CREATE) by reflexivity.
   (* dependent destruction *)
-  funspec_destruct "acquire".
-  funspec_destruct "release".
-  funspec_destruct "makelock".
-  funspec_destruct "freelock".
-  funspec_destruct "spawn".
+  funspec_destruct "acquire"; clear Heq_name.
+  funspec_destruct "release"; clear Heq_name.
+  funspec_destruct "makelock"; clear Heq_name.
+  funspec_destruct "freelock"; clear Heq_name.
+  funspec_destruct "spawn"; clear Heq_name.
+  clear ext_link_inj.
+  clear H_spawn.
+
   intros (phix, (ts, ((((f,b), globals), f_with_x) , f_with_Pre)))  (Hargsty, Pre) Post.
-(*  intros (phix, (ts, ((((xf, xarg), globals), f_with_x), f_with_Pre))) (Hargsty, Pre). *)
   simpl (and _) in Post.
   destruct Pre as (phi0 & phi1 & jphi & A). simpl in A.
-  destruct A as (((PreA & PreA') & (([PreB1 _] & [PreB2 _] & PreB3) & [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]])) & necr).
-  change Logic.True in PreA'. clear PreA'.
-(*destruct A as ((PreA & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).*)
-  simpl in fPRE.
+  destruct A as (((PreA & _) & (([PreB1 _] & [PreB2 _] & [PreB3 _]) & [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]])) & necr).
   rewrite seplog.sepcon_emp in fPRE.
   hnf in PreB1,  PreB2.
-  clear Heq_name Heq_name0 Heq_name1 Heq_name2 Heq_name3.
-
+  destruct args as [ | args1 args]; [contradiction Hargsty | ].
+  destruct args as [ | args2 args]; [destruct Hargsty; contradiction | ].
+  destruct args as [ | args]; [ | destruct Hargsty as [_ [_ Hargsty]]; contradiction ].
+  pose proof func_ptr_isptr _ _ _ Func as isp.
+  destruct f as [ | | | | | f_b f_ofs]; try contradiction isp.
+  clear isp.
+ apply  (shape_of_args3 _ _ (args1 :: args2 :: nil) _ ge) in PreB1; auto; [ | congruence].
+  apply (shape_of_args2 _ _ (args1 :: args2 :: nil) _ ge) in PreB2; auto.
+   2: clear - PreA; hnf in PreA; destruct b; try contradiction; congruence.
+  destruct PreB1 as (arg1, Eargs). symmetry in Eargs; inv Eargs.
+  destruct PreB2 as [arg1 PreB2]. inv PreB2.
 
   assert (li : level (getThreadR i tp cnti) = S n).
   { rewrite <-En. apply join_sub_level, compatible_threadRes_sub, compat. }
@@ -248,42 +255,14 @@ Proof.
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
   assert (l01 : level phi01 = S n).
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
-Print Module SeparationLogicSoundness.VericSound.
-  Import SeparationLogic Clight_initial_world Clightdefs. 
-(*  Import VericMinimumSeparationLogic.CSHL_Defs *)
-(*   Import SeparationLogicSoundness.VericSound.CSHL_Defs. *)
   assert (phi01 = phi0). {
     eapply join_unit1_e; eauto.
     assumption.
   }
-  pose proof func_ptr_isptr _ _ _ Func as isp.
-  unfold val_lemmas.isptr in *.
-  destruct f as [ | | | | | f_b f_ofs]; try contradiction.
-(*  destruct b as [ | | | | | b_b b_ofs]; try contradiction. *)
-  clear isp.
-  destruct args as [ | args1 args]; [contradiction Hargsty | ].
-  destruct args as [ | args2 args]; [destruct Hargsty; contradiction | ].
-  destruct args as [ | args]; [ | destruct Hargsty as [_ [_ Hargsty]]; contradiction ].
-
- apply  (shape_of_args3 _ _ (args1 :: args2 :: nil) _ ge) in PreB1; auto.
-     2: congruence.
-  apply (shape_of_args2 _ _ (args1 :: args2 :: nil) _ ge) in PreB2; auto.
-   2: clear - PreA; hnf in PreA; destruct b; try contradiction; congruence.
-
-  destruct PreB1 as (arg1, Eargs). symmetry in Eargs; inv Eargs.
-  destruct PreB2 as [arg1 PreB2]. inv PreB2.
+  subst.
 
   destruct ((fun x => x) envcoh) as (gam, SP).
   destruct SP as (prog & CS_ & ora & V & semaxprog & Ege & FA).
-
-  unfold SeparationLogic.NDmk_funspec in Func.
-  match type of Func with
-    context [mk_funspec ?fsig_ ?cc_ ?A_ ?P_ ?Q_ ?NEP_ ?NEQ_] =>
-    set (fsig := fsig_); set (cc := cc_); set (A := A_);
-      set (P := P_); set (Q := Q_);
-      set (NEP := NEP_); set (NEQ := NEQ_)
-  end.
-
   assert (gam0 : matchfunspecs ge Gamma phi00). {
     revert gam. apply pures_same_matchfunspecs.
     join_level_tac.
@@ -292,36 +271,24 @@ Print Module SeparationLogicSoundness.VericSound.
     apply join_sub_trans with (getThreadR i tp cnti). exists phi1. auto.
     join_sub_tac.
   }
+  clear gam.
+  set (ts0 := nth 0 ts unit) in *.
+  unfold SeparationLogic.NDmk_funspec in Func.
+  match type of Func with
+    context [mk_funspec ?fsig_ _ ?A_ ?P_ ?Q_ ?NEP_ ?NEQ_] =>
+    set (fsig := fsig_) in *; set (A := A_) in *; set (P := P_) in *; set (Q := Q_) in *
+  end.
+  match type of Func with app_pred (func_ptr ?FS _) _ => set (spawn_spec := FS) in * end.
 
   specialize (gam0 f_b ((_y, tptr tvoid) :: nil, tint) cc_default).
 
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
-
-  unfold SeparationLogic.NDmk_funspec in *.
   (* before merge, FAT had the following type.
      We will use that in the mean time.
    *)
-  assert (FAT': (func_at
-           (mk_funspec ((_y, tptr tvoid) :: nil, tint) cc_default
-              (rmaps.ConstType (val * nth 0 ts unit))
-              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-               let (y, x) := x0 in
-               canon.PROPx nil
-                 (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
-                    (canon.SEPx (f_with_Pre x y :: nil))))
-              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-               let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil)))
-              (const_super_non_expansive (val * nth 0 ts unit)
-                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-                  let (y, x) := x0 in
-                  canon.PROPx nil
-                    (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
-                       (canon.SEPx (f_with_Pre x y :: nil)))))
-              (const_super_non_expansive (val * nth 0 ts unit)
-                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-                  let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil))))) 
-           (f_b, 0)) phi00) by admit.
-  specialize (gam0 _ _ _ FAT').
+  assert (FAT': (func_at spawn_spec (f_b, 0)) phi00)
+  by admit.
+  specialize (gam0 _ _ _ FAT'). clear FAT' FAT.
   destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q).
   unfold filter_genv in *.
   assert (PAE: postcondition_allows_exit
@@ -336,36 +303,11 @@ Print Module SeparationLogicSoundness.VericSound.
   spec HEP. auto.
 
   spec HEP. {
-    unfold A. simpl fst.
+   simpl fst.
     rewrite <-Eid.
     apply make_tycontext_s_find_id.
   }
 
-  (*
-  spec HEP. {
-    (* here Q' is related to Q through Heq_Q, and Q is "emp". *)
-    (* obviously emp does not imply false, so we'll have to change that in semax_conc *)
-
-    (* adding a {emp}exit{FF} does not help, because the frame rule
-    also applies on exit.  But exit is a more desirable solution
-    rather than just returning from the function anyway. Maybe we can
-    make do with {emp}, but we leave that for later *)
-    intros ts0 a rho phi ff. hnf.
-    apply cond_approx_eq_sym in Heq_Q.
-    pose proof @cond_approx_eq_app _ (rmaps.ConstType (val * nth 0 ts unit)) _ _ (age_to n phi) Heq_Q as HQ.
-    spec HQ. eapply le_lt_trans with n. 2:omega.
-    { apply level_age_to_le'. }
-    spec HQ ts0 a rho.
-    spec HQ. now apply age_to_pred, ff.
-    simpl in HQ.
-    unfold canon.PROPx in *.
-    unfold canon.SEPx in *.
-    unfold base.fold_right_sepcon in *.
-    destruct a.
-    rewrite seplog.sepcon_emp in HQ.
-    destruct HQ as (_ & _ & []).
-  }
-  *)
   specialize (HEP (conj PreA Logic.I)).
   spec HEP. {
    subst fsig args; simpl. repeat constructor; auto.
@@ -373,14 +315,10 @@ Print Module SeparationLogicSoundness.VericSound.
    try constructor; reflexivity.
   }
   destruct HEP as (q_new & Initcore & Safety). {
-    destruct ci; inv at_ex. clear FAT' FAT. clear NEP NEQ Post P Q.
+    clear Post.
     subst fsig; simpl. hnf. unfold Conventions1.size_arguments. simpl.
     destruct Archi.ptr64; reflexivity.
   }
-(*  specialize (Initcore (jm_ cnti compat)). 
-clear - Initcore.
-  change (initial_core (juicy_core_sem cl_core_sem) _) with cl_initial_core in Initcore.
-*)
 
   apply join_comm in jphi0.
   destruct (join_assoc jphi0 jphi) as (phi1' & jphi1' & jphi').
@@ -417,7 +355,6 @@ clear - Initcore.
     { eexists; eauto. }
     { reflexivity. }
     { reflexivity. }
-
     eapply step_create with
       (Hcompatible := mem_compatible_forget compat)
       (phi' := phi1)
@@ -454,8 +391,7 @@ clear - Initcore.
   replace (S n - 1)%nat with n by omega.
 
   apply state_invariant_c with (mcompat := compat').
-
-  - (* level *)
+  (* level *)
     apply level_age_to. cleanup. omega.
 
   - (* env_coherence *)
@@ -496,11 +432,12 @@ clear - Initcore.
 {
       destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
       subst args; repeat constructor; auto.
-      clear Initcore Post lj ora Safety FAT' Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' NEQ NEP P Q FA semaxprog.
-      clear jphi' jphi1' q_new id_fun A cc fsig CS_ V gam.
-      clear l1 l0 l00 l01 necr li fPRE FAT PreA PreB3.
-      clear Hargsty f_with_Pre f_with_x Hphi00 _y globals ts H_spawn unique wellformed at_ex En.
-      clear atex safei safety lock_coh.
+      clear Initcore Post lj ora Safety Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' semaxprog.
+       subst fsig A P Q.
+      clear jphi' jphi1' q_new id_fun CS_ V FA.
+      clear l1 l0 l00 l01 necr li fPRE PreA PreB3.
+      clear spawn_spec Hargsty f_with_Pre f_with_x Hphi00 _y globals ts ts0 unique wellformed En.
+      clear safei safety lock_coh.
       simpl Mem.nextblock.
       destruct mwellformed. split; auto.
       clear - H.
@@ -511,7 +448,7 @@ clear - Initcore.
                   (maxedmem m))
        by apply mem_equiv_restr_max.
   red. simpl Mem.nextblock. rewrite H0. auto.
-  clear Safety jphi' jphi1' Initcore Post FAT PreB3 FAT' Heq_P Heq_Q NEQ NEP.
+  clear Safety jphi' jphi1' Initcore Post PreB3 Heq_P Heq_Q.
   simpl. red; simpl. 
   clear - I. inv I. destruct mwellformed. apply H0.
   clear -mwellformed; destruct mwellformed as [? _].
@@ -525,8 +462,8 @@ simpl.
       intros jm. REWR. rewrite gssAddRes by reflexivity.
       specialize (Safety jm ts).
       intros Ejm.
-      replace (level jm) with n in Safety; swap 1 2.
-      { rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
+      replace (level jm) with n in Safety.
+      2:{ rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
         cut (level phi0 = level Phi). cleanup. intros ->. omega.
         apply join_sub_level.
         apply join_sub_trans with (getThreadR _ _ cnti). exists phi1. auto.
@@ -570,7 +507,7 @@ simpl.
 
        --  (* LOCAL 2 : locald_denote of global variables *)
         split3. hnf.
-        clear - PreB3. destruct PreB3 as [PreB3 _].
+        clear - PreB3.
         hnf in PreB3. rewrite PreB3; clear PreB3.
         unfold Map.get, make_args. unfold env_set. 
         unfold ge_of.
@@ -645,7 +582,7 @@ simpl.
       REWR. REWR. REWR. REWR.
       destruct (getThreadC j tp cntj) eqn:Ej.
       -- destruct (cl_halted s) eqn:Halted.
-           destruct s; inv Halted. destruct v0; inv H0; destruct c; inv H1.
+           destruct s; inv Halted. destruct v0; inv H0; destruct c1; inv H1.
            eapply jsafeN_halted; eauto. simpl. reflexivity.
            apply Logic.I.  
            edestruct (unique_Krun_neq(ge := globalenv prog) i j); try split; eauto.
@@ -664,10 +601,9 @@ simpl.
     intros j cntj.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
     + subst j. REWR. rewrite gssAddCode. 2:reflexivity.
-        clear - atex Hinj wellformed Eci.
+        clear - Hinj wellformed Eci.
         specialize (wellformed _ cnti). rewrite Eci in  wellformed.
-        destruct wellformed. destruct ci; inv atex. destruct f; inv H2.
-        destruct (ef_inline e); inv H3.
+        subst ci.   destruct wellformed. 
         clear - H. simpl in H. destruct H. inv H. inv H4.
         split; auto.
     + subst j. REWR. REWR. REWR.
@@ -691,6 +627,5 @@ simpl.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       intros ? [Hx _]; inv Hx.
- -
-    subst. clear - bad atex. destruct ci; simpl in *; try discriminate; try congruence.
+all: fail.
 Admitted. (* safety_induction_spawn *)
