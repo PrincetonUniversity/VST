@@ -347,6 +347,18 @@ Section MklockDiagrams.
           inv Hset_block. inv Hset_block0.
           eapply perm_surj_setPermBlock; eauto.
           eapply CMatch; eauto. }
+
+        
+        assert(Hrange1:
+                 forall ofs0,
+                   unsigned ofs <= ofs0 < unsigned ofs + LKSIZE ->
+                   Mem.perm_order'
+                     ((thread_perms tid st1 cnt1) !! b1 ofs0)
+                     Writable).
+        { intros * H2. rewrite Hthread_mem1.
+          inv Hlock_update_mem_strict.
+          eapply Haccess in H2.
+          hnf in H2. rewrite_getPerm; eauto. }
         
         eapply concur_match_update_lock  with
             (Hlt1:= Hlt11')(Hlt3:= Hlt21')
@@ -359,13 +371,138 @@ Section MklockDiagrams.
           rewrite self_restre_eq in Hlock_update_mem_strict2; eauto.
           eapply lock_update_mem_strict_mem_update; eauto.          
         + !goal (invariant _). unfold fullThreadUpdate; simpl.
-          eapply invariant_update_mk; eauto.
-          reflexivity.
-          eapply CMatch.
+          
+
+          eapply invariant_update_mk.
+          4: eauto.
+          4: reflexivity.
+          4: eapply CMatch.
+          * intros. eapply Hrange1; eauto.
+          * intros. exploit (Hrange1 ofs0). omega.
+            intros. eapply writable_is_not_lock; eauto.
+            eapply perm_order_trans101; eauto.
+            constructor.
+          * intros. simpl. destruct_lhs; auto.
+            eapply lockSet_is_not_readable in Heqo; eauto.
+            destruct Heqo as [HH _].
+            exploit HH. instantiate(1:=unsigned ofs); omega.
+            intros AA. eapply perm_order''_trans in AA.
+            exploit (Hrange1 (unsigned ofs)).
+            { pose proof LKSIZE_pos; omega. }
+            intros BB. rewrite po_oo in BB.
+            eapply AA in BB. inv BB.
         + !goal (@invariant (HybridSem _ ) _ _).
+
+          assert(Hrange2:
+                   forall ofs0,
+                     unsigned ofs + delt <=
+                     ofs0 < unsigned ofs + delt + LKSIZE ->
+                     Mem.perm_order'
+                       ((thread_perms tid st2 cnt2) !! b2 (ofs0))
+                       Writable).
+          { intros * H2. rewrite Hthread_mem2.
+            inv Hlock_update_mem_strict2.
+            eapply Haccess in H2.
+            hnf in H2. rewrite_getPerm; eauto.
+            rewrite getCur_restr in H2.
+            rewrite Hthread_mem2 in H2. eauto. }
+          
           eapply invariant_update_mk; eauto.
-          * reflexivity.
-          * eapply CMatch.
+          3: subst; reflexivity.
+          3: eapply CMatch.
+          * simpl. intros.
+            destruct_lhs; auto.
+            eapply INJ_lock_permissions_preimage in Heqo; eauto.
+            normal_hyp.
+
+            pose proof (writable_locks
+                          _ _ _ _ _ _ _ CMatch _ _ _ H5).
+            move H4 at bottom.
+            move Hinj_b at bottom.
+            exploit (H8 x1). omega.
+            intros Hrange1'.
+
+            eapply Mem.mi_no_overlap in Hinj as Hno_over.
+            eapply no_overlap_mem_perm,
+              perm_no_over_point_to_range in Hno_over.
+
+            destruct (peq x0 b1).
+            { subst x0. unify_injection.
+              eapply lockSet_is_not_readable in H5; eauto.
+              destruct H5.
+              exploit H5. instantiate(1:=x1); omega.
+              intros HH. eapply perm_order''_trans in HH.
+              exploit Hrange1.
+              instantiate(1:=x1). omega.
+              intros AA. rewrite po_oo in AA.
+              eapply HH in AA. inv AA. }
+
+            exploit Hno_over;
+              try eapply n; eauto.
+            3:{ rewrite H7 in H2.
+                rewrite H7 in H3.
+                intros [ ? | ? ]; exfalso; eauto.
+                eapply H9. hnf; simpl.
+                split; try eassumption.
+                omega. }
+            -- exploit H8. instantiate(1:=x1);
+                             pose proof LKSIZE_pos; omega.
+               unfold Mem.perm.
+               rewrite_getPerm.
+               intros; eapply perm_order_trans101; eauto.
+               constructor.
+            -- intros. eapply perm_order_trans211.
+               apply getCur_Max.
+               eapply perm_order_trans101.
+               rewrite <- Hthread_mem1; eapply Hrange1.
+               omega.
+               constructor.
+          * simpl. intros.
+            destruct_lhs; auto.
+            eapply INJ_lock_permissions_preimage in Heqo; eauto.
+            revert H2; normal_hyp; intros HH2.
+            subst ofs0.
+            
+            pose proof (writable_locks
+                          _ _ _ _ _ _ _ CMatch _ _ _ H3).
+            exploit (H5 x1). omega.
+            intros Hrange1'.
+
+            eapply Mem.mi_no_overlap in Hinj as Hno_over.
+            eapply no_overlap_mem_perm,
+              perm_no_over_point_to_range in Hno_over.
+
+            destruct (peq b1 x0).
+            { subst x0. unify_injection.
+              eapply lockSet_is_not_readable in H3; eauto.
+              destruct H3.
+              exploit H3. instantiate(1:=unsigned ofs); omega.
+              intros HH. eapply perm_order''_trans in HH.
+              exploit Hrange1.
+              instantiate(1:=unsigned ofs). omega.
+              intros AA. rewrite po_oo in AA.
+              eapply HH in AA. inv AA. }
+
+            exploit Hno_over;
+              try eapply n; eauto.
+            3:{ intros [ ? | ? ]; exfalso; eauto.
+                eapply H6. hnf; simpl.
+                instantiate(1:=x1).
+                instantiate(1:=unsigned ofs).
+                omega.  }
+            -- eapply perm_order_trans211.
+               apply getCur_Max.
+               eapply perm_order_trans101.
+               rewrite <- Hthread_mem1; eapply Hrange1.
+               omega.
+               constructor.
+            -- intros. exploit H5. instantiate(1:=x1+ofs2');
+                             pose proof LKSIZE_pos; omega.
+               unfold Mem.perm.
+               rewrite_getPerm.
+               intros; eapply perm_order_trans101; eauto.
+               constructor.
+            
         + shelve.
         + !context_goal memval_inject.
           repeat econstructor.

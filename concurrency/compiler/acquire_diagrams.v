@@ -104,9 +104,6 @@ Section AcquireDiagrams.
     
 
 
-  
-
-    
     (* 4490 *)
     Lemma acquire_step_diagram_self Sem tid:
       let CoreSem:= sem_coresem Sem in
@@ -560,14 +557,103 @@ Section AcquireDiagrams.
           reflexivity. *)
         + !goal (@invariant (HybridSem _ ) _ _).
           subst newThreadPerm2 angel2.
-          (*need to use the invariant st1' insted! 
-            Here's how: the new permission is built by an inject_virtue,
-            so, it only "exists" where the injection maps.
-            wherever the injection maps
-            we can use mi_perm_inv from the Mem.inject
-            and move the Disjoint relation to the source, where we have it!s
-           *)
-          eapply invariant_update_join_acq; try reflexivity.
+          
+          unfold fullThUpd_comp, fullThreadUpdate; simpl.
+          unshelve erewrite updLockSet_updThread_comm.
+          { apply cntUpdateL; auto. }
+
+          
+          
+          clean_proofs_goal.
+          eapply (invariant_upd_computeMap
+                     _ _ (updLockSet st2 (b', unsigned ofs2) (empty_map, empty_map))).
+          { eapply invariant_empty_updLockSet_upd; try reflexivity.
+            - eapply CMatch.
+            - simpl. subst ofs2. rewrite Heq,  Hpmap; constructor. }
+          * intros b0 ofs0 p HH.
+            !goal(invariant_one_permission _ _ _ _ _).
+            revert b0 ofs0 p HH.
+            simpl.
+            eapply (@inject_invariant_one_permission_virtue).
+            { eapply cntUpdateL; exact cnt1. }
+            eapply (concur_match_updLock_empty _ i); eauto.
+            { eapply concur_match_perm_restrict', CMatch. }
+            { econstructor; eauto. }
+            { subst ofs2. rewrite Heq; eassumption. }
+            
+            intros b0 ofs0 p HH.
+            unshelve exploit (invariant_invariant_one_permission
+                       _ _ (Hinv') tid b0 ofs0 ). 
+            { apply cntUpdateL, cntUpdate; assumption. }
+            erewrite gLockSetRes, gssThreadRes. simpl fst.
+            rewrite computeMap_get. unfold delta_map; simpl. rewrite HH.
+            erewrite updLockSet_updThread_comm.
+
+            eapply invariant_one_permission_updThread.
+            
+          * intros b0 ofs0 p HH.
+            !goal(invariant_one_permission2 _ _ _ _ _).
+            revert b0 ofs0 p HH.
+            simpl.
+            eapply (@inject_invariant_one_permission2_virtue).
+            { eapply cntUpdateL; exact cnt1. }
+            eapply (concur_match_updLock_empty _ i); eauto.
+            { eapply concur_match_perm_restrict', CMatch. }
+            { econstructor; eauto. }
+            { subst ofs2. rewrite Heq; eassumption. }
+            
+            intros b0 ofs0 p HH.
+            unshelve exploit (invariant_invariant_one_permission2
+                       _ _ (Hinv') tid b0 ofs0 ). 
+            { apply cntUpdateL, cntUpdate; assumption. }
+            erewrite gLockSetRes, gssThreadRes. simpl snd.
+            rewrite computeMap_get. unfold delta_map; simpl. rewrite HH.
+            erewrite updLockSet_updThread_comm.
+            
+            eapply invariant_one_permission2_updThread.
+            
+          * simpl. intros.
+            eapply dmap_inject_correct_backwards in H.
+            eapply dmap_inject_correct_backwards in H0.
+            normal_hyp.
+            assert (x = x2).
+            { destruct Hangel_bound as (Hsub1 & Hsub2).
+              
+              destruct (peq x x2); auto.
+              assert (Mem.meminj_no_overlap mu m1).
+              { erewrite <- restr_Max_equiv.
+                eapply Mem.mi_no_overlap; eauto.
+                subst th_mem1. eapply Hinj_th. }
+              exploit H5;
+                try apply n;
+                try eapply H0;
+                try eapply H; swap 1 3.
+              - intros [? | ?]; exfalso; eauto.
+                eapply H6. subst ofs0; eauto.
+              - eapply sum_map_perm_max; eauto.
+              - eapply sum_map_perm_max; eauto. }
+            subst; unify_injection.
+            assert (x4 = x1) by omega; subst x1.
+            
+            unshelve exploit (thread_data_lock_coh _ Hinv').
+            { eapply cntUpdateL, cntUpdate; eauto. } 
+            intros [HH _]; unshelve exploit HH;
+              try (now eapply cntUpdateL, cntUpdate; eauto);
+              shelve_unifiable.
+            unfold ThreadPool.getThreadR,TP.
+            repeat erewrite gLockSetRes.
+            repeat rewrite gssThreadRes; simpl.
+            repeat rewrite computeMap_get.
+            simpl.
+            instantiate(1:=x4).
+            instantiate(1:=x2).
+            unfold delta_map in *; simpl in *;
+              rewrite H4, H2; auto.
+            
+          
+          (*    
+          fail "the following was the old invariant".
+          eapply invariant_update_join_ acq; try reflexivity.
           * simpl in *; rewrite <- Hpmap; repeat f_equal.
             subst ofs2; assumption.
           * apply CMatch.
@@ -575,10 +661,20 @@ Section AcquireDiagrams.
             simpl in *. split; simpl.
             rewrite <- Hpmap_equiv1; eauto; apply Hjoin_angel2.
             rewrite <- Hpmap_equiv2; eauto; apply Hjoin_angel2.
+
+
+
+            (*HERE STARTS THE NEW + goal *)
        (* + !goal (mem_compatible _ m1').
           unfold fullThUpd_comp,fullThreadUpdate; eauto; simpl in *.
           subst angel2 newThreadPerm2; simpl in *; eauto.
-           *)
+        *) *)
+
+
+
+
+
+            
         + !goal (mem_compatible _ m2').
           unfold fullThUpd_comp,fullThreadUpdate; eauto; simpl in *.
           subst angel2 newThreadPerm2; simpl in *; eauto.
@@ -851,7 +947,9 @@ Section AcquireDiagrams.
       rename Hcmpt_mem_fwd0 into Hcmpt1'.
       
       (** * 4. Finally we proceed with the goal: existentials. *)
-      
+      assert (Heq: unsigned (add ofs (repr delta)) = unsigned ofs + delta).
+        { solve_unsigned. }
+        
       eexists.
       exists st2', m2''.
       split; [|split].
@@ -883,6 +981,7 @@ Section AcquireDiagrams.
         1,2: unfold Max_equiv in *; first [rewrite <- Hmax_eq0|rewrite <- Hmax_eq];
           apply mem_cur_lt_max. 
         clean_proofs_goal.
+
         
         eapply concur_match_update_lock; 
           try match goal with |- context[Forall2] => idtac
@@ -963,14 +1062,110 @@ Section AcquireDiagrams.
             wherever the injection maps
             we can use mi_perm_inv from the Mem.inject
             and move the Disjoint relation to the source, where we have it!s*)
-          eapply invariant_update_join_acq.
+          !goal (@invariant (HybridSem _ ) _ _).
+          subst new_cur2 virtueThread2 st2' st1'.
+          
+          unfold fullThUpd_comp, fullThreadUpdate; simpl.
+          unshelve erewrite updLockSet_updThread_comm.
+          { apply cntUpdateL; auto. }
+
+          
+          
+          clean_proofs_goal.
+          eapply (invariant_upd_computeMap
+                     _ _ (updLockSet st2 (b2, unsigned ofs2) (empty_map, empty_map))).
+          { eapply invariant_empty_updLockSet_upd; try reflexivity.
+            - eapply CMatch.
+            - simpl. subst ofs2. rewrite Heq,  Hpmap; constructor. }
+          * intros b0 ofs0 p HH.
+            !goal(invariant_one_permission _ _ _ _ _).
+            revert b0 ofs0 p HH.
+            simpl.
+            eapply (@inject_invariant_one_permission_virtue).
+            { eapply cntUpdateL; exact Hcnt1. }
+            eapply (concur_match_updLock_empty _ (Some cd)); eauto.
+            { econstructor; eauto. }
+            { subst ofs2. rewrite Heq; eassumption. }
+            
+            intros b0 ofs0 p HH.
+            unshelve exploit (invariant_invariant_one_permission
+                       _ _ (Hinv') hb b0 ofs0 ). 
+            { apply cntUpdateL, cntUpdate; assumption. }
+            simpl snd.
+            erewrite gLockSetRes, gssThreadRes. simpl fst.
+            rewrite computeMap_get. unfold delta_map; simpl. rewrite HH.
+            erewrite updLockSet_updThread_comm.
+
+            eapply invariant_one_permission_updThread.
+            
+          * intros b0 ofs0 p HH.
+            !goal(invariant_one_permission2 _ _ _ _ _).
+            revert b0 ofs0 p HH.
+            simpl.
+            eapply (@inject_invariant_one_permission2_virtue).
+            { eapply cntUpdateL; exact Hcnt1. }
+            eapply (concur_match_updLock_empty _ (Some cd)); eauto.
+            { econstructor; eauto. }
+            { subst ofs2. rewrite Heq; eassumption. }
+            
+            intros b0 ofs0 p HH.
+            unshelve exploit (invariant_invariant_one_permission2
+                       _ _ (Hinv') hb b0 ofs0 ). 
+            { apply cntUpdateL, cntUpdate; assumption. }
+            erewrite gLockSetRes, gssThreadRes. simpl snd.
+            rewrite computeMap_get. unfold delta_map; simpl. rewrite HH.
+            erewrite updLockSet_updThread_comm.
+            
+            eapply invariant_one_permission2_updThread.
+            
+          * simpl. intros.
+            eapply dmap_inject_correct_backwards in H0.
+            eapply dmap_inject_correct_backwards in H1.
+            normal_hyp.
+            assert (x = x2).
+            { destruct Hangel_bound as (Hsub1 & Hsub2).
+              
+              destruct (peq x x2); auto.
+              assert (Mem.meminj_no_overlap mu m1').
+              { erewrite <- restr_Max_equiv.
+                eapply Mem.mi_no_overlap; eauto.
+                subst th_mem1. eapply Hinj_th. }
+              exploit H6;
+                try apply n;
+                try eapply H0;
+                try eapply H1; swap 1 3.
+              - intros [? | ?]; exfalso; eauto.
+                eapply H7. subst ofs0; eauto.
+              - eapply sum_map_perm_max; eauto.
+              - eapply sum_map_perm_max; eauto. }
+            subst; unify_injection.
+            assert (x4 = x1) by omega; subst x1.
+            
+            unshelve exploit (thread_data_lock_coh _ Hinv').
+            { eapply cntUpdateL, cntUpdate; eauto. } 
+            intros [HH _]; unshelve exploit HH;
+              try (now eapply cntUpdateL, cntUpdate; eauto);
+              shelve_unifiable.
+            unfold ThreadPool.getThreadR,TP.
+            repeat erewrite gLockSetRes.
+            repeat rewrite gssThreadRes; simpl.
+            repeat rewrite computeMap_get.
+            simpl.
+            instantiate(1:=x4).
+            instantiate(1:=x2).
+            unfold delta_map in *; simpl in *;
+              rewrite H5, H3; auto.
+            
+
+
+          (* eapply invariant_update_join_ acq.
           4: eassumption.
           2: reflexivity.
           2: apply CMatch.
           subst virtueLP2. simpl in *; rewrite <- Hpmap.
           repeat f_equal.
           subst ofs2.
-          solve_unsigned.
+           *)
           
         + !goal (mem_compatible _ _ ).
           subst st1'; apply mem_compat_restrPermMap; auto.
@@ -1133,8 +1328,7 @@ Section AcquireDiagrams.
                    rewrite Hthread_mem2; reflexivity. }
               - clear - Hstore.
                 move Hstore at bottom.
-                replace (unsigned ofs2) with (unsigned ofs + delta) by
-                    (subst ofs2; solve_unsigned).
+                subst ofs2; rewrite Heq. 
                 eassumption.
               - subst new_cur2; simpl.
                 !goal (computeMap _ _ = computeMap _ _).
@@ -1189,13 +1383,10 @@ Section AcquireDiagrams.
           reflexivity.
 
         + !goal(lock_update _ st2 _ _ _ _ st2'). simpl.
+          subst ofs2. rewrite <- Heq.
           econstructor;
-            subst st2' new_cur2 virtueLP2  ofs2;
-            unfold fullThUpd_comp, fullThreadUpdate.
-          repeat f_equal.
-          * f_equal.
-            !goal (unsigned (add ofs (repr delta)) = unsigned ofs + delta).
-            solve_unsigned.
+            subst st2' new_cur2 virtueLP2;
+            unfold fullThUpd_comp, fullThreadUpdate; reflexivity.
       - econstructor.
         + econstructor; eauto.
         + instantiate (1:= Some (build_delta_content (fst virtueThread2) m2'')).
@@ -1207,8 +1398,8 @@ Section AcquireDiagrams.
       (* Should be obvious by construction *)
       - (* HybridMachineSig.external_step *)
         assert (Hofs2: intval ofs2 = unsigned ofs + delta).
-        { subst ofs2; solve_unsigned. }
-        rewrite <- Hofs2.
+        { subst ofs2. eapply Heq. }
+        (* rewrite <- Hofs2. *)
         
         eapply step_acquire;
           eauto; try reflexivity;
@@ -1253,7 +1444,7 @@ Section AcquireDiagrams.
           (* Can read the lock *)
           !goal(Mem.range_perm _ _ _ (intval ofs2 + LKSIZE) Cur Readable).
           inversion Hlock_update_mem_strict_load2; subst vload vstore.
-          rewrite Hofs2.
+          unfold unsigned in *; rewrite Heq.
           eapply range_perm_mem_equiv_Cur; try apply eq_refl; eauto.
           * subst lock_mem.
             eapply Cur_equiv_restr; simpl; reflexivity.
@@ -1261,8 +1452,8 @@ Section AcquireDiagrams.
         + (* The load. *)
           inversion Hlock_update_mem_strict_load1; subst vload vstore.
           !goal ( Mem.load AST.Mint32 _ _ _ = Some _ ).
-          
-          replace (intval ofs2) with (unsigned ofs + delta) by assumption.
+
+          unfold unsigned in Heq; rewrite Heq.
           eapply (load_inject' mu); eauto; try congruence.
           unfold thread_mems; simpl.
           unshelve eapply INJ_locks; eauto.
@@ -1293,7 +1484,7 @@ Section AcquireDiagrams.
                    ANSWER: the 'RMAP' is empty, so its injection is also empty... 
            *)
           !goal (ThreadPool.lockRes _ _ = Some _).
-          rewrite Hofs2; eauto.
+          unfold unsigned in *; rewrite Heq; eauto.
         + (* permissions join FST*)
           !goal(permMapJoin _ _ _ ). 
           subst new_cur2.
@@ -1338,7 +1529,7 @@ Section AcquireDiagrams.
             -- eapply cur_lt_max.
           }
 
-          { rewrite Hofs2.
+          { unfold unsigned in Heq; rewrite Heq.
             clear - Hlock_update_mem_strict_load2;
               inv Hlock_update_mem_strict_load2; eauto. }
 
