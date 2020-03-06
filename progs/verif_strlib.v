@@ -183,7 +183,8 @@ forward_loop (EX i : Z,
 -
   Intros i.
   forward.
-  { entailer!. }
+  { omega. }
+  { rep_omega. }
   { entailer!. autorewrite with sublist. normalize.  }
   autorewrite with sublist; normalize.
   forward.
@@ -217,7 +218,8 @@ forward_loop (EX i : Z,
   forward. normalize.
   forward. fold_Vbyte.
   forward.
-  entailer!.
+  { rep_omega. }
+  { omega. }
   clear H3.
   rewrite upd_Znth_app2 by list_solve.
   autorewrite with sublist.
