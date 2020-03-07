@@ -337,6 +337,25 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: types
   | _ => FF
   end.
 
+Lemma believe_external_funspec_sub {Espec gx v sig cc A P Q Pne Qne A' P' Q' Pne' Qne'}
+      (Hsub: funspec_sub (mk_funspec sig cc A P Q Pne Qne)(mk_funspec sig cc A' P' Q' Pne' Qne') )
+      (WTE: withtype_empty A -> (*ef_inline e = false \/*) withtype_empty A'):
+      believe_external Espec gx v sig cc A P Q |-- believe_external Espec gx v sig cc A' P' Q'.
+Proof.
+  unfold believe_external; intros n N.
+  destruct (Genv.find_funct gx v); trivial.
+  destruct f; trivial. destruct sig as [argtypes rtype].
+  destruct N as [[[N1a [N1b [N1c N1d]]] N2] N3].
+  inv N1a. simpl in N1c; rewrite TTL2 in *; split.
++ split.
+  - split3; trivial. split; trivial.
+    destruct N1d; [ left; trivial | right; auto].
+  - eapply semax_external_funspec_sub; eassumption.
++ simpl; intros. simpl in N3. simpl in Hsub.
+  destruct Hsub as [_ Hsub].
+  specialize (Hsub b b0).
+Abort.
+
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) :=
