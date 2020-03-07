@@ -3717,8 +3717,8 @@ specialize (ClientAdaptation ts x (ge_of rho, args)). simpl in ClientAdaptation.
 
 destruct (ClientAdaptation w2') as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear ClientAdaptation.
 {(* clear - LENargs (*TCARGS*) Age2 W2.*)
-  simpl; split; [ split |]. 
-  + red. simpl. apply TRIV.
+  simpl; split. 
+(*  + red. simpl. apply TRIV.*)
   + clear - TC3 LENargs TC2 W2 Hage. destruct TC3. 
     apply age_laterR in Hage. specialize (TC2 w' Hage).
     specialize (tc_eval_exprlist _ _ _ _ _ H TC2).
@@ -3730,7 +3730,8 @@ destruct (ClientAdaptation w2') as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear Cl
     clear. induction args; simpl; intros.
     - destruct clientparams; simpl in *. constructor. contradiction.
     - destruct clientparams; simpl in *. contradiction. destruct H.
-      constructor; eauto. red; intros. apply H.
+      apply tc_val_has_type in H. apply IHargs in H0.
+      constructor; eauto.
   + apply age_laterR in Age2. apply (W2 _ Age2). }
 simpl in PostAdapt.
 
@@ -3803,8 +3804,8 @@ eapply (@semax_call_aux' CS') with (F := fun rho' => F rho' * G)
     simpl. simpl in M2. destruct M2. split; trivial.
     apply PostAdapt; simpl.
     split.
-    - simpl. red. unfold get_result1; simpl; unfold env_set; simpl. constructor; simpl. red; intros. rewrite PTree.gempty in H3; discriminate.
-      split; apply TRIV.
+    - trivial. (*simpl; red. unfold get_result1; simpl; unfold env_set; simpl. constructor; simpl. red; intros. rewrite PTree.gempty in H3; discriminate.
+      split; apply TRIV.*)
     - exists u2, m2; split3; trivial.
   + simpl substopt in *. 
     destruct M1 as [u1 [u2 [JU [U1 U2]]]]. 
@@ -3812,66 +3813,66 @@ eapply (@semax_call_aux' CS') with (F := fun rho' => F rho' * G)
     exists u1, q1; split3; trivial. simpl. clear - TRIV TC5 TC7' PostAdapt M2 Q2 U2.
     destruct retty.
     - apply PostAdapt; split; [ | exists u2, m2; split3; trivial]. 
-      unfold rettype_tycontext.  split3; simpl; intros ?; intros.
+      reflexivity. (* unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       apply PostAdapt; split. 2: exists u2, m2; split3; trivial.
-      split3; simpl; intros ?; intros.
+      reflexivity. (*split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       apply PostAdapt; split. 2: exists u2, m2; split3; trivial.
-      split3; simpl; intros ?; intros.
+      reflexivity. (*split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       apply PostAdapt; split. 2: exists u2, m2; split3; trivial.
-      split3; simpl; intros ?; intros.
+      reflexivity. (*split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       apply PostAdapt; split. 2: exists u2, m2; split3; trivial.
-      split3; simpl; intros ?; intros.
+      reflexivity. (* split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       apply PostAdapt; split. 2: exists u2, m2; split3; trivial.
-      split3; simpl; intros ?; intros.
+      reflexivity. (*split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       apply PostAdapt; split. 2: exists u2, m2; split3; trivial.
-      split3; simpl; intros ?; intros.
+      reflexivity. (*split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       apply PostAdapt; split. 2: exists u2, m2; split3; trivial.
-      split3; simpl; intros ?; intros.
+      reflexivity. (*split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       apply PostAdapt; split. 2: exists u2, m2; split3; trivial.
-      split3; simpl; intros ?; intros.
+      reflexivity. (*split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence. }
+      rewrite PTree.gempty in H; congruence.*) }
 Qed.
 
 Lemma semax_call_si {CS Espec}:
@@ -4056,8 +4057,8 @@ specialize (ClientAdaptation ts x (ge_of rho, args)). (*simpl in ClientAdaptatio
 assert (LW2': (level w >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); omega. }
 
 destruct (ClientAdaptation w2' LW2' _ (necR_refl _)) as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear ClientAdaptation.
-{ (*clear - LENargs Age2 W2.*)simpl; split; [ split |]. 
-  + red. simpl. apply TRIV.
+{ (*clear - LENargs Age2 W2.*)simpl; split. 
+  (*+ red. simpl. apply TRIV.*)
   + clear - TC3 LENargs TC2 W2 Hage. destruct TC3. 
     apply age_laterR in Hage. specialize (TC2 w' Hage).
     specialize (tc_eval_exprlist _ _ _ _ _ H TC2).
@@ -4069,7 +4070,8 @@ destruct (ClientAdaptation w2' LW2' _ (necR_refl _)) as [ts1 [x1 [G [PreAdapt Po
     clear. induction args; simpl; intros.
     - destruct clientparams; simpl in *. constructor. contradiction.
     - destruct clientparams; simpl in *. contradiction. destruct H.
-      constructor; eauto. red; intros. apply H.
+      apply tc_val_has_type in H. apply IHargs in H0.
+      constructor; eauto.
   + apply age_laterR in Age2. apply (W2 _ Age2). }
 simpl te_of in PreAdapt; simpl in PostAdapt.
 
@@ -4156,10 +4158,10 @@ clear - PostAdapt LEVz Z.
     simpl. simpl in M2. destruct M2. split; trivial.
     destruct (join_level _ _ _ Q1).
     eapply PostAdapt. 2: apply necR_refl. omega. split.
-    - simpl. red. unfold get_result1; simpl; unfold env_set; simpl. constructor; simpl. red; intros. rewrite PTree.gempty in H3; discriminate.
+    - reflexivity. (*simpl. red. unfold get_result1; simpl; unfold env_set; simpl. constructor; simpl. red; intros. rewrite PTree.gempty in H3; discriminate.
       clear. split.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      red; intros. rewrite PTree.gempty in H; congruence.
+      red; intros. rewrite PTree.gempty in H; congruence.*)
     - exists u2, m2; split3; trivial.
   + simpl substopt in *. 
     destruct M1 as [u1 [u2 [JU [U1 U2]]]]. 
@@ -4168,75 +4170,75 @@ clear - PostAdapt LEVz Z.
     destruct (join_level _ _ _ Q1) as [_ LEVq1]. clear - M2 LEVq1 LEVz PostAdapt M2 Q2 U2.
     destruct retty.
     - apply (PostAdapt _ q1); [omega | apply necR_refl | split; [ | exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence.
+      rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
       eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
-      red; simpl; trivial. 
+      reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
-      rewrite PTree.gempty in H; congruence. }
+      rewrite PTree.gempty in H; congruence.*) }
 Qed.
 
 (*

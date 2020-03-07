@@ -2614,18 +2614,19 @@ Proof.
  + intros omega m [TC [OM [m1 [m2 [JM [[vals [[MAP VUNDEF] HP']] M2]]]]]].
    destruct (Sub (ge_of omega, vals) m1) as [ts1 [x1 [FR1 [M1 RetQ]]]]; clear Sub.
    { split; trivial.
-     simpl; split.
-     + clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
-     + rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
+     simpl(*; split*).
+     (*+ clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
+     + *)rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
        unfold fn_funsig. simpl. clear - TC1 MAP LNR VUNDEF.
        specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). simpl in TC1.  red in TC1. clear - MAP (*VUNDEF*); intros TE.
        forget (fn_params f) as params. generalize dependent vals.
        induction params; simpl; intros.
        - destruct vals; inv MAP. constructor.
        - destruct vals; inv MAP. constructor.
-         * clear IHparams. destruct (TE (fst a) (snd a)) as [w [W Tw]].
+         * clear IHparams. intros. destruct (TE (fst a) (snd a)) as [w [W Tw]].
            left; destruct a; trivial.
-           rewrite W in H0. inv H0. apply Tw.
+           rewrite W in H0. inv H0. 
+           (*apply Tw*) apply tc_val_has_type; apply Tw; trivial.
          * apply IHparams; simpl; trivial.
            intros. apply TE. right; trivial. }
     split; [ | simpl; trivial].
@@ -2633,7 +2634,17 @@ Proof.
     split; [ | simpl; trivial].
     split; [| simpl; trivial].
     exists vals, ts1, x1, FR1. simpl in MAP.
-    split3; trivial.
+    split3.
+    - (*trivial*) simpl; intros. eapply derives_trans. 2: apply RetQ.
+      (*similar proof as in seplog*)
+      intros ? [? ?]. split; trivial. simpl.
+      simpl in H. clear - H. destruct H as [_ [Hve _]].
+      simpl in *. red in Hve. destruct rho'; simpl in *.
+      apply Map.ext; intros x. specialize (Hve x).
+      destruct (Map.get ve x); simpl.
+      * destruct p; simpl in *. destruct (Hve t) as [_ H]; clear Hve. 
+        exploit H. exists b; trivial. rewrite PTree.gempty. congruence.
+      * reflexivity.
     - apply join_comm in JM. rewrite sepcon_assoc.
       exists m2, m1; split3; trivial.
     - split; trivial. destruct TC as [TC1 _]. simpl in TC1. red in TC1.

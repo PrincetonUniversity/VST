@@ -133,8 +133,7 @@ Definition tc_argsenv Delta tys (gargs:argsEnviron):Prop :=
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this
    definition (and in NDfunspec_sub). *)
-
-Definition funspec_sub_si (f1 f2 : funspec):mpred :=
+Definition funspec_sub_si_ORIG (f1 f2 : funspec):mpred :=
 let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
 | mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
@@ -150,37 +149,126 @@ match f1 with
                          >=> (Q2 ts2 x2 rho')))))
     end
 end.
-(*Deprecated
-Definition funspec_sub_early (f1 f2 : funspec):mpred :=
-let Delta := funsig_tycontext (funsig_of_funspec f1) in
+Definition funspec_sub_si_AUX1 (f1 f2 : funspec):mpred :=
 match f1 with
-| mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
     match f2 with
-    | mk_funspec fsig2 cc2 A2 P2 Q2 _ _ =>
-        !!(fsig1 = fsig2 /\ cc1=cc2) &&
-        ! (ALL ts2 :_, ALL x2:_, ALL rho:_, EX ts1:_,  EX x1:_, EX F:_,
-        (((local (tc_environ Delta) rho) && (P2 ts2 x2 rho))
-         >=> (*EX ts1:_,  EX x1:_, EX F:_, *)
-            (F * (P1 ts1 x1 rho)) &&
-            ALL rho':_, (     !( ((local (tc_environ (ret0_tycon Delta)) rho') && (F * (Q1 ts1 x1 rho')))
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+       let Delta := rettype_tycontext (snd tpsig1) in
+        !!(tpsig1=tpsig2 /\ cc1=cc2) &&
+        ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
+             ALL gargs:genviron * list val,
+        ((!!(tc_argsenv Delta (fst tpsig1) gargs) && P2 ts2 x2 gargs)
+         >=> EX ts1:_,  EX x1:_, EX F:_, 
+            (F * (P1 ts1 x1 gargs)) &&
+            ALL rho':_, (     !( ((local (tc_environ Delta) rho') && (F * (Q1 ts1 x1 rho')))
+                         >=> (Q2 ts2 x2 rho')))))
+    end
+end. 
+Lemma fssubAUX1: funspec_sub_si_AUX1 = funspec_sub_si_ORIG.
+extensionality fs1; extensionality fs2.
+destruct fs1; destruct fs2. destruct t; destruct t0.
+apply pred_ext; simpl. 
++ intros ? [? ?]. split; trivial. 
+  destruct H. inv H. apply H0. 
++ intros ? [? ?]. split; trivial. 
+  destruct H. inv H. apply H0.
+Qed.
+
+Lemma fssub_prop1: forall rt ptypes gargs, 
+    tc_argsenv (rettype_tycontext rt) ptypes gargs = 
+     Forall2 tc_val' ptypes (snd gargs).
+intros. destruct gargs. unfold tc_argsenv. simpl.
+unfold tc_genv. simpl.
+unfold typecheck_glob_environ. apply prop_ext; split; intros. apply H.
+split; trivial. intros. rewrite PTree.gempty in H0. congruence.
+Qed.
+
+Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) = !!(ve_of rho = Map.empty (block * type)).
+intros. unfold local, tc_environ, lift1.
+unfold rettype_tycontext, typecheck_environ, typecheck_temp_environ,
+typecheck_var_environ, typecheck_glob_environ.
+simpl.
+destruct rho; simpl. apply pred_ext. 
+intros u U. simpl in U. simpl. destruct U as [? [? ?]].
+apply Map.ext. intros. clear H H1. specialize (H0 x).
+destruct (Map.get ve); simpl in *. 
+destruct p.  destruct (H0 t); clear H0. clear H.
+exfalso. exploit H1. eexists; reflexivity. rewrite PTree.gempty. congruence.
+reflexivity.
+intros u U. simpl in *. subst. split3; intros.
+ rewrite PTree.gempty in H; congruence.
+ split; intros. rewrite PTree.gempty in H; congruence.
+ destruct H.  inv H.
+ rewrite PTree.gempty in H. congruence.
+Qed.
+
+Definition funspec_sub_si_AUX2 (f1 f2 : funspec):mpred :=
+match f1 with
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+        !!(tpsig1=tpsig2 /\ cc1=cc2) &&
+        ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
+             ALL gargs:genviron * list val,
+        ((!!(Forall2 tc_val' (fst tpsig1) (snd gargs)) && P2 ts2 x2 gargs)
+         >=> EX ts1:_,  EX x1:_, EX F:_, 
+            (F * (P1 ts1 x1 gargs)) &&
+            ALL rho':_, (     !( ((!!(ve_of rho' = Map.empty (block * type))) && (F * (Q1 ts1 x1 rho')))
+                         >=> (Q2 ts2 x2 rho')))))
+    end
+end. 
+Lemma fssubAUX2: funspec_sub_si_AUX2 = funspec_sub_si_ORIG.
+rewrite <- fssubAUX1.
+extensionality fs1; extensionality fs2.
+destruct fs1; destruct fs2. destruct t; destruct t0. simpl.
+apply pred_ext; simpl. 
++ intros ? [? ?]. split; trivial. 
+  destruct H. inv H. intros ? ? ? ? ? ? ? ?.
+  rewrite fssub_prop1 in H2.
+  destruct (H0 b b0 b1 y H a' H1 H2) as [ts1 [x1 [FRM [AA BB]]]]; clear H0.
+  exists ts1, x1, FRM; split; trivial. simpl; intros.
+  apply (BB b2 y0 H0 _ H3); clear BB. rewrite <- (fssub_prop2 t0). apply H4.
++ intros ? [? ?]. split; trivial. 
+  destruct H. inv H. intros ? ? ? ? ? ? ? ?.
+  rewrite <- (fssub_prop1 t0) in H2.
+  destruct (H0 b b0 b1 y H a' H1 H2) as [ts1 [x1 [FRM [AA BB]]]]; clear H0.
+  exists ts1, x1, FRM; split; trivial. simpl; intros.
+  apply (BB b2 y0 H0 _ H3); clear BB. rewrite (fssub_prop2 t0). apply H4.
+Qed.
+
+(*fssubAUX2 MOTIVATES the following new definitions of funspec_sub_si and funspec_sub*)
+Definition argsHaveTyps (vals:list val) (types: list type): Prop:=
+  Forall2 (fun v t => v<>Vundef -> Val.has_type v t) vals (map typ_of_type types).
+
+Definition funspec_sub_si (f1 f2 : funspec):mpred :=
+match f1 with
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+        !!(tpsig1=tpsig2 /\ cc1=cc2) &&
+        ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
+             ALL gargs:genviron * list val,
+        ((!!((*Forall2 tc_val' (fst tpsig1) (snd gargs)*)argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
+         >=> EX ts1:_,  EX x1:_, EX F:_, 
+            (F * (P1 ts1 x1 gargs)) &&
+            ALL rho':_, (     !( ((!!(ve_of rho' = Map.empty (block * type))) && (F * (Q1 ts1 x1 rho')))
                          >=> (Q2 ts2 x2 rho')))))
     end
 end.
-*)
 
 Definition funspec_sub (f1 f2 : funspec): Prop :=
-let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
 | mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
     match f2 with
     | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
         (tpsig1=tpsig2 /\ cc1=cc2) /\
-        forall ts2 (x2:dependent_type_functor_rec ts2 A2 mpred) (rho:argsEnviron),
-        ((!! (tc_argsenv Delta2 (fst tpsig2)) rho) && P2 ts2 x2 rho)
+        forall ts2 (x2:dependent_type_functor_rec ts2 A2 mpred) (gargs:argsEnviron),
+        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
          |-- (EX ts1:_,  EX (x1:dependent_type_functor_rec ts1 A1 mpred), EX F:_, 
-                           (F * (P1 ts1 x1 rho)) &&
+                           (F * (P1 ts1 x1 gargs)) &&
                                (!! (forall rho',
-                                           ((!! (tc_environ (rettype_tycontext (snd tpsig1)) rho') &&
+                                           ((!!(ve_of rho' = Map.empty (block * type))) &&
                                                  (F * (Q1 ts1 x1 rho')))
                                          |-- (Q2 ts2 x2 rho')))))
     end
@@ -225,45 +313,11 @@ destruct (H12 ts1 x1 rho m2) as [ts2 [x2 [G [X12 Y12]]]]; clear H12; try hnf in 
 exists ts2, x2, (F*G); split.
 + rewrite sepcon_assoc. exists m1, m2; auto.
 + intros rho'. simpl. unfold local, lift1.
-   specialize (derives_extract_prop (tc_environ (rettype_tycontext (snd t)) rho')
-              (sepcon (sepcon F G) (Q ts2 x2 rho')) (Q1 ts x rho')). intros.
-   unfold seplog.derives in H. apply H; clear H. simpl. intros.
-   eapply derives_trans. 2: apply Y23. clear Y23.
-   unfold local, lift1; simpl.  rewrite <- sepcon_andp_prop, sepcon_assoc.
-   apply sepcon_derives; trivial. apply andp_right.
-   intros w W; apply H.
-   eapply derives_trans. 2: apply Y12. simpl. apply prop_andp_right; trivial.
+  eapply derives_trans. 2: apply Y23.
+  intros ? [? ?]. split. apply H.
+  rewrite sepcon_assoc in H0. eapply sepcon_derives. 3: apply H0. trivial.
+  eapply derives_trans. 2: apply Y12. split. apply H. trivial.
 Qed.
-(*
-Lemma funspec_sub_early_refl f: TT |-- funspec_sub_early f f.
-Proof. destruct f; split; [ split; trivial | clear H]. intros ts2 x2 rho.
-exists ts2, x2, emp. intros y AY m YM [M1 M2]. rewrite emp_sepcon. split; trivial.
-intros rho' k WK u necKU U. rewrite emp_sepcon in U. apply U.
-Qed.
-
-Lemma funspec_sub_early_trans f1 f2 f3: funspec_sub_early f1 f2 && funspec_sub_early f2 f3 |--
-      funspec_sub_early f1 f3.
-Proof. destruct f1; destruct f2; destruct f3.
-intros w [[X H12] [Y H23]]; destruct X; subst; destruct Y; subst; split; [split; trivial|].
-intros ts x rho. 
-destruct (H23 ts x rho) as [ts1 [x1 [F X23]]]; clear H23. hnf in X23.
-destruct (H12 ts1 x1 rho) as [ts3 [x3 [G X12]]]; clear H12. hnf in X12.
-exists ts3, x3, (F * G). intros y WY m YM M.
-destruct (X23 _ WY _ YM M) as [A23 B23]; clear X23.
-destruct A23 as [m1 [m2 [JM [M1 M2]]]]; destruct (join_level _ _ _ JM) as [Lev_m1 Lev_m2].
-assert (Wm2: (level w >= level m2)%nat) by (apply necR_level in YM; omega).
-specialize (X12 _ Wm2 _ (necR_refl _)). destruct X12 as [A12 B12].
-{ destruct M as [HM1 HM2]; simpl in HM1. split; simpl; trivial. }
-split.
-+ rewrite sepcon_assoc. exists m1, m2; auto. 
-+ intros rho' k MK v KV [Z V]. rewrite sepcon_assoc in V.
-  destruct V as [v1 [v2 [JV [V1 V2]]]]; destruct (join_level _ _ _ JV) as [Lev_v1 Lev_v2].
-  assert (M2v2: (level m2 >= level v2)%nat) by (apply necR_level in KV; omega).
-  specialize (B12 rho' _ M2v2 _ (necR_refl _)). spec B12.
-  { split; trivial. }
-  assert (Mv: (level m >= level v)%nat) by (apply necR_level in KV; omega).
-  apply (B23 rho' _ Mv _ (necR_refl _)). split; [ trivial | exists v1, v2; auto].
-Qed.*)
 
 Lemma funspec_sub_si_refl f: TT |-- funspec_sub_si f f.
 Proof. destruct f; split; [ split; trivial | clear H; intros ts2 x2 rho].
@@ -309,18 +363,10 @@ Definition sigcc_at (fsig: typesig) (cc:calling_convention) (loc: address) : pre
 
 Definition func_ptr_si (f: funspec) (v: val): mpred :=
   EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, funspec_sub_si gs f && func_at gs (b, 0)).
-(*
-Definition func_ptr_early (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, funspec_sub_early gs f && func_at gs (b, 0)).
-*)
+
 Definition func_ptr (f: funspec) (v: val): mpred :=
   EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, !!(funspec_sub gs f) && func_at gs (b, 0)).
-(*
-Lemma func_ptr_early_func_ptr_si f v: func_ptr_early f v |-- func_ptr_si f v.
-Proof. apply exp_derives; intros b. apply andp_derives; trivial.
- apply exp_derives; intros gs. apply andp_derives; trivial. apply funspec_sub_early_sub_si.
-Qed.
-*)
+
 Lemma func_ptr_fun_ptr_si f v: func_ptr f v |-- func_ptr_si f v.
 Proof. apply exp_derives; intros b. apply andp_derives; trivial.
  apply exp_derives; intros gs. apply andp_derives; trivial. apply funspec_sub_sub_si'.
@@ -334,16 +380,7 @@ Proof. unfold func_ptr_si. rewrite exp_andp2. apply exp_derives; intros b.
   rewrite <- andp_assoc. apply andp_derives; trivial.
   rewrite andp_comm. apply funspec_sub_si_trans.
 Qed.
-(*
-Lemma func_ptr_early_mono fs gs v: 
-      funspec_sub_early fs gs && func_ptr_early fs v |-- func_ptr_early gs v.
-Proof.  unfold func_ptr_early. rewrite exp_andp2. apply exp_derives; intros b.
-  rewrite andp_comm, andp_assoc. apply andp_derives; trivial.
-  rewrite andp_comm, exp_andp2. apply exp_derives; intros hs.
-  rewrite <- andp_assoc. apply andp_derives; trivial.
-  rewrite andp_comm. apply funspec_sub_early_trans.
-Qed.
-*)
+
 Lemma func_ptr_mono fs gs v: funspec_sub fs gs -> 
       func_ptr fs v |-- func_ptr gs v.
 Proof. intros. unfold func_ptr. apply exp_derives; intros b.
@@ -351,14 +388,7 @@ Proof. intros. unfold func_ptr. apply exp_derives; intros b.
   apply andp_derives; trivial.
   intros w W. eapply funspec_sub_trans. apply W. apply H.
 Qed.
-(*
-Lemma funspec_sub_early_implies_func_prt_si_mono fs gs v: 
-      funspec_sub_early fs gs && func_ptr_si fs v |-- func_ptr_si gs v.
-Proof. 
-  eapply derives_trans. 2: apply func_ptr_si_mono.
-  apply andp_derives. 2: apply derives_refl. apply funspec_sub_early_sub_si.
-Qed.
-*)
+
 Lemma funspec_sub_implies_func_prt_si_mono' fs gs v: 
       !!(funspec_sub fs gs) && func_ptr_si fs v |-- func_ptr_si gs v.
 Proof.
@@ -393,13 +423,7 @@ Proof.
 intros w W.
 destruct fs1, fs2. destruct W as [[? ?] _]. subst; simpl; auto.
 Qed.
-(*
-Lemma type_of_funspec_sub_early fs1 fs2:
-  funspec_sub_early fs1 fs2 |-- !!(type_of_funspec fs1 = type_of_funspec fs2).
-Proof.
-eapply derives_trans. apply funspec_sub_early_sub_si. apply type_of_funspec_sub_si.
-Qed.
-*)
+
 (* Definition assert: Type := environ -> pred rmap. *)
 
 Bind Scope pred with assert.
@@ -449,14 +473,7 @@ Proof.
   unfold func_ptr_si.
   destruct spec. intros ? ?. destruct H as [b [Hb _]]; simpl in Hb; subst. unfold val_lemmas.isptr; simpl; trivial.
 Qed.
-(*
-Lemma func_ptr_early_isptr: forall spec f, func_ptr_early spec f |-- !! val_lemmas.isptr f.
-Proof.
-  intros.
-  unfold func_ptr_early.
-  destruct spec. intros ? ?. destruct H as [b [Hb _]]; simpl in Hb; subst. unfold val_lemmas.isptr; simpl; trivial.
-Qed.
-*)
+
 Lemma  subst_extens:
  forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.
 Proof.
@@ -553,30 +570,6 @@ Proof.
   + intros w ?. simpl in *. if_tac; firstorder.
   + intros w ?. simpl in *. if_tac; firstorder.
 Qed.
-(*
-Lemma approx_func_ptr_early: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
-  approx n (func_ptr_early (NDmk_funspec fsig0 cc A P Q) v) = approx n (func_ptr_early (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
-Proof.
-  intros.
-  unfold func_ptr_early.
-  rewrite !approx_exp; f_equal; extensionality b.
-  rewrite !approx_andp; f_equal.
-  unfold func_at, NDmk_funspec.
-  simpl.
-  apply pred_ext; intros w; simpl; intros [? [g [G ?]]]; split; auto.
-  + exists g. split; trivial. destruct g; clear H0; hnf; hnf in G; destruct G; split; trivial.
-    intros ts x rho. destruct (H1 ts x rho) as [ts1 [x1 [F HF]]]; clear H1.
-    exists ts1, x1, F. hnf; intros y Y z YZ [Z1 Z2]; specialize (HF _ Y _ YZ). apply approx_p in Z2.
-    destruct HF as [HF1 HF2]. { split; trivial. }
-    split. apply HF1. intros rho' u YU m UM M. specialize (HF2 rho' u YU m UM M).
-    apply approx_lt; trivial. apply necR_level in UM. apply necR_level in YZ. omega.
-  + exists g; split; trivial. destruct g; clear H0; hnf; hnf in G; destruct G; split; trivial.
-    intros ts x rho. destruct (H1 ts x rho) as [ts1 [x1 [F HF]]]; clear H1.
-    exists ts1, x1, F. hnf; intros y Y z YZ [Z1 Z2]; specialize (HF _ Y _ YZ).
-    destruct HF as [HF1 HF2]. { split; trivial. apply approx_lt; trivial. apply necR_level in YZ. omega. }
-    split. apply HF1. intros rho' u YU m UM M. specialize (HF2 rho' u YU m UM M).
-    apply approx_p in HF2. trivial.
-Qed.*)
 
 Lemma approx_func_ptr_si: forall (A: Type) fsig0 cc (P: A -> argsEnviron -> mpred) (Q: A -> environ -> mpred)(v: val) (n: nat),
   approx n (func_ptr_si (NDmk_funspec fsig0 cc A P Q) v) = approx n (func_ptr_si (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
@@ -744,7 +737,7 @@ Proof.
   assert (HIi := HI i). destruct g. destruct HIi as [[? ?] Hi]; subst t c.
   split. split; trivial.
   simpl; intros. clear i Hi. destruct x2 as [i Ai].
-  specialize (HI i). destruct HI as [[_ _] Hi]. apply (Hi ts2 Ai rho).
+  specialize (HI i). destruct HI as [[_ _] Hi]. apply (Hi ts2 Ai gargs).
 Qed.
 
 (*Specialization of funspec_Sigma_ND to binary case, i.e. I=bool*)
@@ -1079,7 +1072,7 @@ Proof.
   forget (phi i) as zz. clear phi.
   destruct zz. simpl in *.
   destruct H0 as [[? ?] ?]; subst.
-  apply (H1 ts2 Hi rho). 
+  apply (H1 ts2 Hi gargs). 
 Qed.
 
 Lemma make_context_t_get: forall {params temps i ty} 

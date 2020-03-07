@@ -249,6 +249,56 @@ Definition semax_external
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
 
+Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
+  forall l t, Forall2 P l t -> Forall2 Q l t.
+Proof. intros. induction H; constructor; auto. Qed.
+Lemma has_type_list_Forall2: forall vals ts, Val.has_type_list vals ts <-> Forall2 Val.has_type vals ts.
+Proof.
+  induction vals; destruct ts; simpl; split; intros; trivial; try contradiction.
+  inv H. inv H.
+  destruct H. apply IHvals in H0. constructor; trivial. 
+  inv H. apply IHvals in H5. split; trivial.
+Qed.
+
+Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
+  (BI: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
+                   (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
+  (HSIG: ef_sig ef = 
+         mksignature (*(typlist_of_typelist (typelist_of_type_list argtypes))*)
+                     (map typ_of_type argtypes)
+                     (opttyp_of_type rtype) cc):
+  @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
+Proof.
+apply allp_derives; intros g.
+apply allp_right; intros ts.
+apply allp_right; intros x.
+destruct BI as [_ H]; simpl in H.
+intros n N m NM F typs vals y MY z YZ [HT [z1 [z2 [JZ [Z1 Z2]]]]].
+specialize (H ts x (filter_genv g, vals) z1).
+(*rewrite TTL2 in HSIG.*)
+simpl in H. simpl in N. rewrite HSIG in HT; simpl in HT.
+destruct H as [ts1 [x1 [FRM [[z11 [z12 [JZ1 [H_FRM H_P1]]]] HQ]]]].
+{ split; trivial. clear -HT. 
+  apply has_type_list_Forall2 in HT.
+  eapply Forall2_implication; [ | apply HT]; auto.
+}
+specialize (N ts1 x1). apply join_comm in JZ1.
+destruct (join_assoc JZ1 JZ) as [zz [JJ JJzz]]. apply join_comm in JJ.
+destruct (N _ NM (sepcon F FRM) typs vals _ MY _ YZ) as [est [EST1 EST2]]; clear N.
+{ rewrite HSIG; simpl. split; trivial.
+  exists z12, zz; split3. trivial. trivial.
+  exists z2, z11; split3; trivial. }
+exists est; split; trivial. 
+simpl; intros.
+destruct (EST2 b b0 b1 _ H _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
+destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.
+destruct (join_assoc JW JU) as [v [JV V]]. apply join_comm in V.
+exists v, w1; split3; trivial.
+apply HQ; clear HQ; split.
++ simpl. destruct b0; reflexivity.
++ exists w2, u1; split3; trivial.
+Qed. 
+
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
     | Tvoid, None => True
