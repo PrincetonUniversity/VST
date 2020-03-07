@@ -1190,6 +1190,24 @@ Section SimulationTactics.
           (Hres: lockRes tp laddr = Some rmap),
           ( perm_coh perm ((snd rmap) !! b ofs))
     }.
+  
+  Record invariant_one_permission2
+         {Sem} (tp: @t dryResources Sem) h (perm:option permission) b ofs:=
+    { no_race_thr_one2 : forall (j : scheduler.NatTID.tid) (cntj : containsThread tp j),
+        h <> j -> exists pu : option permission,
+          perm_union ((lock_perms j tp cntj) !! b ofs) perm = Some pu;
+      no_race2 : forall (laddr : address) (rmap : lock_info),
+          lockRes tp laddr = Some rmap ->
+          exists pu : option permission,
+            perm_union perm ((snd rmap) !! b ofs) = Some pu;
+      thread_data_lock_coh_one21 :
+        (forall (j : nat) (cntj : ThreadPool.containsThread tp j),
+            j <> h ->
+            perm_coh ((thread_perms j tp cntj) !! b ofs) perm );
+      thread_data_lock_coh_one22 :
+        (forall (laddr : address) (rmap : lock_info),
+            lockRes tp laddr = Some rmap ->
+            perm_coh ((fst rmap) !! b ofs) perm) }.
 
   
   
@@ -1235,6 +1253,25 @@ Section SimulationTactics.
          rewrite Heqo,Heqo0 in *.
          exfalso; apply H'; constructor.
   Qed.
+  
+Lemma inject_identical_perm:
+  forall mu m1 m2 b1 b2 delt,
+    Mem.inject mu m1 m2 ->
+    mu b1 = Some (b2, delt) ->
+    forall ofs p,
+      Mem.perm m1 b1 ofs Max p -> 
+      (getCurPerm m1) !! b1 ofs =
+      (getCurPerm m2) !! b2 (ofs + delt).
+Proof.
+  intros; eapply perm_eq_cur.
+  split; intros HH.
+  - eapply Mem.mi_perm in HH; eauto.
+    eapply H.
+  - eapply Mem.mi_perm_inv in HH; eauto.
+    destruct HH; eauto.
+    exfalso; eapply H2.
+    eapply Mem.perm_implies; eauto; constructor.
+Qed.
   Lemma inject_surj_th:
     forall {Sem1 Sem2} j
       (st1: @t dryResources Sem1)
@@ -1686,6 +1723,21 @@ Section SimulationTactics.
       try now apply H; eauto.
     - eapply no_race'; eauto.
     - eapply  locks_data_lock_coh1; eauto.
+  Qed.
+  Lemma invariant_invariant_one_permission2:
+    forall hb st,
+      @invariant (HybridSem hb) _ st ->
+      forall h b (ofs:Z) cnt,
+        @invariant_one_permission2
+          (HybridSem hb)
+          st h ((lock_perms h st cnt) !! b ofs)
+          b ofs.
+  Proof.
+    intros.  eapply invariant_invariant' in H.
+    econstructor; intros;
+      try now apply H; eauto.
+    - eapply no_race'; eauto.
+    - eapply thread_data_lock_coh2; eauto.
   Qed.
   
   Lemma invariant_one_permission_updThread:
@@ -2849,21 +2901,94 @@ Section SimulationTactics.
     intros Sem st. destruct st; simpl in *.
     reflexivity.
   Qed.
-  Record invariant_one_permission2
-         {Sem} (tp: @t dryResources Sem) h (perm:option permission) b ofs:=
-    { no_race_thr_one2 : forall (j : scheduler.NatTID.tid) (cntj : containsThread tp j),
-        h <> j -> exists pu : option permission,
-          perm_union ((lock_perms j tp cntj) !! b ofs) perm = Some pu;
-      no_race : forall (laddr : address) (rmap : lock_info),
-          lockRes tp laddr = Some rmap ->
-          exists pu : option permission,
-            perm_union perm ((snd rmap) !! b ofs) = Some pu;
-      thread_data_lock_coh_one2 :
-        (forall (j : nat) (cntj : ThreadPool.containsThread tp j),
-            perm_coh ((thread_perms j tp cntj) !! b ofs) perm ) /\
-        (forall (laddr : address) (rmap : lock_info),
-            lockRes tp laddr = Some rmap ->
-            perm_coh ((fst rmap) !! b ofs) perm) }.
+  
+  Lemma invariant_upd:
+    forall hb h (st: @t dryResources (HybridSem _)) cnt c
+      newperms1 newperms2,
+      @invariant (HybridSem _) (TP _) st ->
+      (forall b ofs,
+          @invariant_one_permission (HybridSem hb) st h
+                                    (newperms1 !! b ofs) b ofs) ->
+      (forall b ofs,
+          @invariant_one_permission2 (HybridSem hb) st h
+                                     (newperms2 !! b ofs) b ofs) ->
+      (permMapCoherence newperms1 newperms2) ->
+      @invariant (HybridSem hb) (TP _) 
+                 (@updThread
+                    _ (HybridSem _) h st
+                    cnt c
+                    (newperms1, newperms2)).
+  Proof.
+    intros. eapply invariant_invariant'.
+    eapply invariant_invariant' in H.
+    econstructor.
+    - intros; rewrite_getR h.
+      + split; intros; simpl; intros ??.
+        * eapply no_race_thr_one; eauto.
+        * rewrite perm_union_comm; eapply no_race_thr_one2; eauto.
+      + eapply permMapsDisjoint2_comm.
+        split; intros; simpl; intros ??.
+        * eapply no_race_thr_one; eauto.
+        * rewrite perm_union_comm; eapply no_race_thr_one2; eauto.
+      + eapply H; auto.
+    - intros *; repeat rewrite gsoThreadLPool.
+      eapply H.
+    - intros *; repeat rewrite gsoThreadLPool.
+      intros; rewrite_getR h.
+      + split; intros; simpl; intros ??.
+        * eapply no_race_one; eauto.
+        * eapply no_race2; eauto.
+      + eapply no_race'; eauto.
+    - intros; rewrite_getR h; simpl; eauto.
+      + intros ??; eapply H0; eauto.
+      + intros ??; eapply H1; eauto.
+      + eapply H.
+    - intros *; repeat rewrite gsoThreadLPool.
+      intros; rewrite_getR h; simpl.
+      + intros??; eapply thread_data_lock_coh_one22; eauto.
+      + eapply H; eauto.
+    - intros *; repeat rewrite gsoThreadLPool.
+      intros; rewrite_getR h; simpl.
+      + intros ??; eapply locks_data_lock_coh_one; eauto.
+      + eapply H; eauto.
+    - intros *; repeat rewrite gsoThreadLPool.
+      intros ? *; repeat rewrite gsoThreadLPool; intros.
+      eapply H; eauto.
+    - eapply updThread_lr_valid; apply H.
+
+      Unshelve.
+      all: eauto.
+  Qed.
+  
+      Lemma invariant_one_upd_computeMap:
+        forall hb st h cnt virtue b ofs,
+        (forall (b : positive) (ofs : Z) (p : option permission),
+       dmap_get virtue b ofs = Some p ->
+       @invariant_one_permission (HybridSem hb) st h p b ofs) ->
+        invariant_one_permission st h ((thread_perms h st cnt) !! b ofs) b ofs ->
+        invariant_one_permission st h
+                                 ((computeMap (thread_perms h st cnt) virtue) !! b ofs) b
+                                 ofs.
+      Proof.
+        intros; econstructor; intros *;
+          intros; repeat rewrite computeMap_get;
+            match_case; first [now eapply H; eauto | now eapply H0; eauto| idtac].
+      Qed.
+      
+      Lemma invariant_one2_upd_computeMap:
+        forall hb st h cnt virtue b ofs,
+        (forall (b : positive) (ofs : Z) (p : option permission),
+       dmap_get virtue b ofs = Some p ->
+       @invariant_one_permission2 (HybridSem hb) st h p b ofs) ->
+        invariant_one_permission2 st h ((lock_perms h st cnt) !! b ofs) b ofs ->
+        invariant_one_permission2 st h
+                                 ((computeMap (lock_perms h st cnt) virtue) !! b ofs) b
+                                 ofs.
+      Proof.
+        intros; econstructor; intros *;
+          intros; repeat rewrite computeMap_get;
+            match_case; first [now eapply H; eauto | now eapply H0; eauto| idtac].
+      Qed.
   Lemma invariant_upd_computeMap:
     forall hb h (st: @t dryResources (HybridSem _)) cnt c virtue,
       @invariant (HybridSem _) (TP _) st ->
@@ -2873,23 +2998,65 @@ Section SimulationTactics.
       (forall b ofs p,
           dmap_get (snd virtue) b ofs = Some p ->
           @invariant_one_permission2 (HybridSem hb) st h p b ofs) ->
-      (forall b ofs p1 p2,
-          dmap_get (fst virtue) b ofs = Some p1 ->
-          dmap_get (snd virtue) b ofs = Some p2 ->
-          perm_coh p1 p2) ->
+      (permMapCoherence (computeMap (thread_perms h st cnt) (fst virtue))
+                        (computeMap (lock_perms h st cnt) (snd virtue))) ->
       @invariant (HybridSem hb) (TP _) 
                  (@updThread
                     _ (HybridSem _) h st
                     cnt c
                     (computeMap_pair (getThreadR cnt) virtue)).
   Proof.
-    
-  Admitted.
-  
+    intros; eapply invariant_upd; eauto.
+
+    - (* 1) Thread permissions *) 
+      intros. simpl.
+      eapply invariant_one_upd_computeMap; eauto.
+      apply invariant_invariant_one_permission; assumption.
+    - (* 2) Lock permissions *) 
+      intros. simpl.
+      eapply invariant_one2_upd_computeMap; eauto.
+      apply invariant_invariant_one_permission2; assumption.
+  Qed.
+  Lemma no_overlap_usefull_dmap:
+            forall mu b1 b1' b2 delt delt' P P'
+              p p' m ofs ofs',
+            mu b1 = Some (b2, delt) ->
+            mu b1' = Some (b2, delt') ->
+            dmap_get P b1 ofs = Some p ->
+            P' !! b1' ofs' = Some p' ->
+            ofs + delt = ofs' + delt' ->
+            sub_map P (snd (getMaxPerm m)) ->
+            permMapLt P' (getMaxPerm m) ->
+            Mem.meminj_no_overlap mu m ->
+            b1 = b1'.
+  Proof.
+    intros.
+    destruct (peq b1 b1'); auto.
+    exploit H6; try eapply n; eauto; swap 1 3.
+    intros [ HH | HH ]; contradict HH; eauto.
+    all: hnf; rewrite_getPerm.
+    - specialize (H5 b1' ofs').
+      rewrite H2 in H5.
+      match_case; simpl in *; try now inv H5.
+      eapply perm_order_trans; eauto. constructor.
+    - eapply sub_map_lt in H4.
+      instantiate(1:=b1) in H4.
+      clear - H4 H1.
+      unfold dmap_get, "!!" in *.
+      hnf in H4.
+      simpl in H1.
+      match_case in H1.
+      match_case in H4.
+      specialize (H4 ofs).
+      rewrite H1 in H4. exploit H4; eauto.
+      match_case; intros HH; inv HH.
+      constructor.
+  Qed.
   Lemma inject_invariant_one_permission_virtue:
     forall hb cd h st1 st2 mu m1 m2 virtue,
       containsThread st1 h ->
       concur_match hb cd mu st1 m1 st2 m2 ->
+      sub_map virtue (snd (getMaxPerm m1)) ->
       (forall (b0 : positive) (ofs0 : Z) (p : option permission),
           dmap_get virtue b0 ofs0 = Some p ->
           @invariant_one_permission _ st1 h p b0 ofs0) ->
@@ -2898,13 +3065,104 @@ Section SimulationTactics.
                  b0 ofs0 = Some p ->
         @invariant_one_permission _ st2 h p b0 ofs0.
   Proof.
-    intros.
-  Admitted.
+    intros * cnt CMatch Hsub HH * Hget.
+    exploit dmap_inject_correct_backwards;
+      eauto; intros; normal_hyp.
+
+    assert (Hcur: forall i cnt1 cnt2,
+               (thread_perms i st1 cnt1) !! x x1 =
+               (thread_perms i st2 cnt2) !! b0 (x1 + x0)).
+    { intros; exploit inject_identical_perm; eauto.
+      - eapply CMatch.
+    - eapply sub_map_implication_dmap in Hsub.
+      hnf in Hsub. specialize (Hsub x x1); rewrite H1 in Hsub.
+      simpl in Hsub. match_case in Hsub.
+      apply at_least_Some_perm_Max. rewrite restr_Max_equiv, Heqo.
+      constructor.
+    - repeat rewrite getCur_restr; simpl; eauto. }
+
+    
+    assert (Hcur_lk: forall i cnt1 cnt2,
+               (lock_perms i st1 cnt1) !! x x1 =
+               (lock_perms i st2 cnt2) !! b0 (x1 + x0)).
+    { intros; exploit inject_identical_perm; eauto.
+      - eapply INJ_locks; eauto.
+      - eapply sub_map_implication_dmap in Hsub.
+        hnf in Hsub. specialize (Hsub x x1); rewrite H1 in Hsub.
+        simpl in Hsub. match_case in Hsub.
+        apply at_least_Some_perm_Max. rewrite restr_Max_equiv, Heqo.
+        constructor.
+      - repeat rewrite getCur_restr; simpl; eauto. }
+    symmetry in Hcur_lk.
+    symmetry in Hcur.
+    
+    subst ofs0.
+    econstructor; intros.
+    - erewrite Hcur; eapply HH; eauto.
+    - { destruct laddr;
+        eapply INJ_lock_permissions_preimage in Hres; eauto.
+        normal_hyp.
+        destruct ((fst rmap) !! b0 (x1 + x0)) eqn:Hrmap;
+          try now (econstructor; destruct p; eauto).
+        destruct H3; simpl in *.
+        erewrite <- H3 in Hrmap.
+        eapply inject_access_map_correct_backwards in Hrmap; eauto.
+        normal_hyp.
+
+        assert (x = x6).
+        { eapply no_overlap_usefull_dmap; eauto.
+          eapply Hsub.
+          eapply CMatch.
+          simpl; eauto.
+          erewrite <- restr_Max_equiv;
+            eapply INJ_threads; eauto.
+          simpl. eapply CMatch. }
+        subst x6; unify_injection.
+        assert (x1 = x8) by omega; subst.
+        
+        rewrite <- H8.
+        eapply HH; eauto. }
+        
+        
+    - erewrite Hcur_lk; eapply HH; eauto.
+    -  { destruct laddr;
+        eapply INJ_lock_permissions_preimage in Hres; eauto.
+        normal_hyp.
+        destruct ((snd rmap) !! b0 (x1 + x0)) eqn:Hrmap;
+          try now (econstructor; destruct p; eauto).
+        destruct H3; simpl in *.
+        subst z. erewrite <- H5 in Hrmap.
+        eapply inject_access_map_correct_backwards in Hrmap; eauto.
+        normal_hyp.
+
+        assert (x = x6).
+        { eapply no_overlap_usefull_dmap; eauto.
+          eapply Hsub.
+          eapply CMatch.
+          simpl; eauto.
+          erewrite <- restr_Max_equiv;
+            eapply INJ_threads; eauto.
+          simpl. eapply CMatch. }
+        subst x6; unify_injection.
+        assert (x1 = x8) by omega; subst.
+        
+        rewrite <- H7.
+        eapply HH; eauto.
+        apply perm_coh_empty_1.
+       }
+
+       Unshelve.
+       all: simpl; eauto.
+       all: try now apply CMatch.
+       all: try now eapply contains21; eauto.
+       all: try now eapply contains12; eauto.
+  Qed.
   
   Lemma inject_invariant_one_permission2_virtue:
     forall hb cd h st1 st2 mu m1 m2 virtue,
       containsThread st1 h ->
       concur_match hb cd mu st1 m1 st2 m2 ->
+      sub_map virtue (snd (getMaxPerm m1)) ->
       (forall (b0 : positive) (ofs0 : Z) (p : option permission),
           dmap_get virtue b0 ofs0 = Some p ->
           @invariant_one_permission2 _ st1 h p b0 ofs0) ->
@@ -2913,32 +3171,104 @@ Section SimulationTactics.
                  b0 ofs0 = Some p ->
         @invariant_one_permission2 _ st2 h p b0 ofs0.
   Proof.
-    intros.
-  Admitted.
-  
-  Lemma concur_match_updLock_empty:
-    forall hb cd mu st1 m1 st2 m2 l1 l2 lmap1 lmap2,
-      concur_match hb  cd mu st1 m1 st2 m2 ->
-      inject_address mu l1 l2 ->
-      lockRes st1 l1 = Some lmap1 -> 
-      lockRes st2 l2 = Some lmap2 ->
-      concur_match hb cd mu (updLockSet st1 l1 (empty_map, empty_map)) m1
-                   (updLockSet st2 l2 (empty_map, empty_map)) m2.
-  Admitted.
+    intros * cnt CMatch Hsub HH * Hget.
+    exploit dmap_inject_correct_backwards;
+      eauto; intros; normal_hyp.
 
-  
-  
-  
-  
-  Lemma invariant_invariant_one_permission2:
-    forall hb st,
-      @invariant (HybridSem hb) _ st ->
-      forall h b (ofs:Z) cnt,
-        @invariant_one_permission2 (HybridSem hb)
-                                   st h ((lock_perms h st cnt) !! b ofs)
-                                   b ofs. 
-  Admitted.
-  
+    assert (Hcur: forall i cnt1 cnt2,
+               (thread_perms i st1 cnt1) !! x x1 =
+               (thread_perms i st2 cnt2) !! b0 (x1 + x0)).
+    { intros; exploit inject_identical_perm; eauto.
+      - eapply CMatch.
+    - eapply sub_map_implication_dmap in Hsub.
+      hnf in Hsub. specialize (Hsub x x1); rewrite H1 in Hsub.
+      simpl in Hsub. match_case in Hsub.
+      apply at_least_Some_perm_Max. rewrite restr_Max_equiv, Heqo.
+      constructor.
+    - repeat rewrite getCur_restr; simpl; eauto. }
+
+    
+    assert (Hcur_lk: forall i cnt1 cnt2,
+               (lock_perms i st1 cnt1) !! x x1 =
+               (lock_perms i st2 cnt2) !! b0 (x1 + x0)).
+    { intros; exploit inject_identical_perm; eauto.
+      - eapply INJ_locks; eauto.
+      - eapply sub_map_implication_dmap in Hsub.
+        hnf in Hsub. specialize (Hsub x x1); rewrite H1 in Hsub.
+        simpl in Hsub. match_case in Hsub.
+        apply at_least_Some_perm_Max. rewrite restr_Max_equiv, Heqo.
+        constructor.
+      - repeat rewrite getCur_restr; simpl; eauto. }
+    symmetry in Hcur_lk.
+    symmetry in Hcur.
+    
+    subst ofs0.
+    econstructor; intros.
+    - erewrite Hcur_lk; eapply HH; eauto.
+      
+    -  { destruct laddr;
+        eapply INJ_lock_permissions_preimage in H0; eauto.
+        normal_hyp.
+        destruct ((snd rmap) !! b0 (x1 + x0)) eqn:Hrmap;
+          try now (econstructor; destruct p; eauto).
+        destruct H3; simpl in *.
+        subst z. erewrite <- H5 in Hrmap.
+        eapply inject_access_map_correct_backwards in Hrmap; eauto.
+        normal_hyp.
+
+        assert (x = x6).
+        { eapply no_overlap_usefull_dmap; eauto.
+          eapply Hsub.
+          eapply CMatch.
+          simpl; eauto.
+          erewrite <- restr_Max_equiv;
+            eapply INJ_threads; eauto.
+          simpl. eapply CMatch. }
+        subst x6; unify_injection.
+        assert (x1 = x8) by omega; subst.
+        
+        rewrite <- H7.
+        eapply HH; eauto.
+       }
+        
+    - erewrite Hcur; eapply HH; eauto.
+      
+    - { destruct laddr;
+        eapply INJ_lock_permissions_preimage in H0; eauto.
+        normal_hyp.
+        destruct ((fst rmap) !! b0 (x1 + x0)) eqn:Hrmap;
+          try now (econstructor; destruct p; eauto).
+        destruct H3.
+        erewrite <- H3 in Hrmap.
+        eapply inject_access_map_correct_backwards in Hrmap; eauto.
+        normal_hyp.
+
+        assert (x = x6).
+        { simpl in *.
+          eapply no_overlap_usefull_dmap; eauto.
+          eapply Hsub.
+          eapply CMatch.
+          simpl; eauto.
+          erewrite <- restr_Max_equiv;
+            eapply INJ_threads; eauto.
+          simpl. eapply CMatch. }
+        subst x6; unify_injection.
+        assert (x1 = x8) by omega; subst.
+
+        
+        rewrite <- H8.
+        eapply HH; eauto.
+        eapply perm_coh_None_not_Free.
+        eapply perm_coh_not_freeable.
+        eapply thread_data_lock_coh_one22;
+          eauto. }
+        
+       Unshelve.
+       all: simpl; eauto.
+       all: try now apply CMatch.
+       all: try now eapply contains21; eauto.
+       all: try now eapply contains12; eauto.
+  Qed.
   
   Lemma invariant_one_permission2_updThread:
     forall Sem st h p b ofs cnt c p', 
@@ -2954,7 +3284,19 @@ Section SimulationTactics.
       erewrite <- (@updThread_same _ _ st),  <- updThread_twice.
       eapply H; eauto. }
     
-  Admitted.
+
+    intros.
+    econstructor; intros;
+      repeat erewrite gsoThreadRes by eauto;
+      try now eapply H; eauto.
+    
+
+    Unshelve.
+    all: eauto.
+    
+  Qed.
+  
+  
   Lemma sum_map_perm_max:
     forall virtue b ofs p m,
       dmap_get virtue b ofs = Some p ->
@@ -4640,4 +4982,101 @@ Proof.
 Qed.
 
 
+            Lemma permMapCoherence_compute_inject:
+              forall mu m1 m2 virtue1 virtue2
+                th_perm1 th_perm2 lk_perm1 lk_perm2
+                (Hangel_bound : pair21_prop sub_map virtue1 (snd (getMaxPerm m1))),
+                perm_perfect_image_dmap_pair mu (virtue1) (virtue2) ->
+                forall Hlt11 Hlt12 Hlt21 Hlt22,
+                  Mem.inject mu (@restrPermMap th_perm1 m1 Hlt11)
+                             (@restrPermMap th_perm2 m2 Hlt21) ->
+                  Mem.inject mu (@restrPermMap lk_perm1 m1 Hlt12)
+                             (@restrPermMap lk_perm2 m2 Hlt22) ->
+                  permMapCoherence th_perm2 lk_perm2 ->
+                  permMapCoherence
+                    (computeMap th_perm1 (fst virtue1))
+                    (computeMap lk_perm1 (snd virtue1)) ->
+                  permMapCoherence
+                    (computeMap th_perm2 (fst virtue2))
+                    (computeMap lk_perm2 (snd virtue2)).
+            Proof.
+              intros.
+              destruct H as [[? ?] [? ?]].
+              intros b ofs.
+              do 2 rewrite computeMap_get.
+              do 2 match_case; eauto.
+              - simpl.
+                exploit ppre_perfect_image_dmap;
+                  try now rewrite Heqo; econstructor.
+                exploit ppre_perfect_image_dmap0;
+                  try now rewrite Heqo0; econstructor.
+                intros; normal_hyp.
 
+                assert (x = x2).
+                { destruct Hangel_bound as (Hsub1 & Hsub2).
+                  destruct (peq x x2); auto.
+                  assert (Mem.meminj_no_overlap mu m1).
+                  { erewrite <- restr_Max_equiv.
+                    eapply Mem.mi_no_overlap; eauto. }
+                  exploit H9;
+                    try apply n;
+                    try eapply H4;
+                    try eapply H; swap 1 3.
+                  - intros [? | ?]; exfalso; eauto.
+                    eapply H10. subst ofs; eauto.
+                  - eapply sum_map_perm_max; eauto.
+                    rewrite <- H8; eauto.
+                    eapply Hsub2.
+                  - eapply sum_map_perm_max; eauto.
+                    rewrite <- H6; eauto.
+                    eapply Hsub1. }
+                subst x. rewrite H in H4; inv H4.
+                assert (x3 = x0) by omega; subst x3. clear H5.
+
+                specialize (H3 x2 x0).
+                repeat rewrite computeMap_get in H3.
+                unfold delta_map in *.
+                rewrite <- H6, <- H8, Heqo, Heqo0 in H3; exact H3.
+                
+              - simpl.
+                exploit ppre_perfect_image_dmap;
+                  try now rewrite Heqo; econstructor.
+                intros; normal_hyp; subst ofs.
+                specialize (H3 x x0).
+                repeat rewrite computeMap_get in H3.
+                unfold delta_map in *.
+                rewrite <- H5, Heqo in H3.
+                match_case in H3; eauto.
+                + exploit p_image_dmap0; try now rewrite Heqo1; eauto.
+                  intros; normal_hyp.
+                  unify_injection.
+                  rewrite Heqo0, Heqo1 in H6; congruence.
+                + eapply inject_identical_perm in H1; eauto.
+                  * repeat rewrite getCur_restr in H1.
+                    rewrite <- H1; eauto.
+                  * rewrite restr_Max_equiv.
+                    eapply sum_map_perm_max; eauto.
+                    -- rewrite <- H5; eauto.
+                    -- eapply Hangel_bound.
+              - simpl.
+                exploit ppre_perfect_image_dmap0;
+                  try now rewrite Heqo0; econstructor.
+                intros; normal_hyp; subst ofs.
+                specialize (H3 x x0).
+                repeat rewrite computeMap_get in H3.
+                unfold delta_map in *.
+                rewrite <- H5, Heqo0 in H3.
+                match_case in H3; eauto.
+                + exploit p_image_dmap; try now rewrite Heqo1; eauto.
+                  intros; normal_hyp.
+                  unify_injection.
+                  rewrite Heqo, Heqo1 in H6; congruence.
+                + eapply inject_identical_perm in H0; eauto.
+                  * repeat rewrite getCur_restr in H0.
+                    rewrite <- H0; eauto.
+                  * rewrite restr_Max_equiv.
+                    eapply sum_map_perm_max; eauto.
+                    -- rewrite <- H5; eauto.
+                    -- eapply Hangel_bound.
+            Qed.
+            

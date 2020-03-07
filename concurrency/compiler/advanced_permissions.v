@@ -120,7 +120,7 @@ Lemma at_least_Some_perm_Max:
   forall m1 b1 ofs,
     at_least_Some ((getMaxPerm m1) !! b1 ofs) <->
     Mem.perm m1 b1 ofs Max Nonempty.
-Proof.
+Proof.s
   intros *. rewrite getMaxPerm_correct; auto.
   unfold at_least_Some,Mem.perm, permission_at in *.
   destruct ((Mem.mem_access m1) !! b1 ofs Max);

@@ -612,68 +612,29 @@ Section AcquireDiagrams.
             
             eapply invariant_one_permission2_updThread.
             
-          * simpl. intros.
-            eapply dmap_inject_correct_backwards in H.
-            eapply dmap_inject_correct_backwards in H0.
-            normal_hyp.
-            assert (x = x2).
-            { destruct Hangel_bound as (Hsub1 & Hsub2).
-              
-              destruct (peq x x2); auto.
-              assert (Mem.meminj_no_overlap mu m1).
-              { erewrite <- restr_Max_equiv.
-                eapply Mem.mi_no_overlap; eauto.
-                subst th_mem1. eapply Hinj_th. }
-              exploit H5;
-                try apply n;
-                try eapply H0;
-                try eapply H; swap 1 3.
-              - intros [? | ?]; exfalso; eauto.
-                eapply H6. subst ofs0; eauto.
-              - eapply sum_map_perm_max; eauto.
-              - eapply sum_map_perm_max; eauto. }
-            subst; unify_injection.
-            assert (x4 = x1) by omega; subst x1.
-            
-            unshelve exploit (thread_data_lock_coh _ Hinv').
-            { eapply cntUpdateL, cntUpdate; eauto. } 
-            intros [HH _]; unshelve exploit HH;
-              try (now eapply cntUpdateL, cntUpdate; eauto);
-              shelve_unifiable.
-            unfold ThreadPool.getThreadR,TP.
-            repeat erewrite gLockSetRes.
-            repeat rewrite gssThreadRes; simpl.
-            repeat rewrite computeMap_get.
-            simpl.
-            instantiate(1:=x4).
-            instantiate(1:=x2).
-            unfold delta_map in *; simpl in *;
-              rewrite H4, H2; auto.
-            
-          
-          (*    
-          fail "the following was the old invariant".
-          eapply invariant_update_join_ acq; try reflexivity.
-          * simpl in *; rewrite <- Hpmap; repeat f_equal.
-            subst ofs2; assumption.
-          * apply CMatch.
-          * simpl. eauto.
-            simpl in *. split; simpl.
-            rewrite <- Hpmap_equiv1; eauto; apply Hjoin_angel2.
-            rewrite <- Hpmap_equiv2; eauto; apply Hjoin_angel2.
-
-
-
-            (*HERE STARTS THE NEW + goal *)
-       (* + !goal (mem_compatible _ m1').
-          unfold fullThUpd_comp,fullThreadUpdate; eauto; simpl in *.
-          subst angel2 newThreadPerm2; simpl in *; eauto.
-        *) *)
-
-
-
-
-
+          * erewrite gLockSetRes.
+            eapply permMapCoherence_compute_inject.
+            3:{ eapply INJ_threads; eauto. }
+            3:{ eapply INJ_locks; eauto. }
+            3:{  eapply thread_data_lock_coh1,
+                 invariant_invariant', CMatch. }
+            3:{ eapply invariant_invariant' in Hinv'.
+                pose proof (thread_data_lock_coh1
+                              _ Hinv'
+                              tid ltac:(simpl; eauto)
+                                         tid ltac:(simpl; eauto)) as H.
+                erewrite gLockSetRes in H.
+                erewrite gssThreadRes in H; simpl in *; eauto. }
+            -- rewrite restr_Max_eq; eauto.
+            -- eapply inject_virtue_perm_perfect_image_dmap; eauto.
+               eapply full_inject_dmap_pair.
+               ++ !goal (Events.injection_full mu _ ).
+                  eapply CMatch.
+               ++ !goal (dmap_valid_pair _ _).
+                  apply join_dmap_valid_pair.
+                  move Hangel_bound at bottom.
+                  rewrite getMax_restr_eq.
+                  eapply Hangel_bound.
             
         + !goal (mem_compatible _ m2').
           unfold fullThUpd_comp,fullThreadUpdate; eauto; simpl in *.

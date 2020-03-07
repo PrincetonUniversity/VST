@@ -1485,3 +1485,24 @@ Lemma concur_match_free_lock:
 Proof.
   
 Admitted.
+
+
+  Lemma concur_match_updLock_empty:
+    forall (CC_correct: CompCert_correctness)
+      (Args: ThreadSimulationArguments)
+      hb cd mu st1 m1 st2 m2 l1 l2 lmap1 lmap2,
+      concur_match hb  cd mu st1 m1 st2 m2 ->
+      inject_address mu l1 l2 ->
+      lockRes st1 l1 = Some lmap1 -> 
+      lockRes st2 l2 = Some lmap2 ->
+      concur_match hb cd mu (updLockSet st1 l1 (empty_map, empty_map)) m1
+                   (updLockSet st2 l2 (empty_map, empty_map)) m2.
+  Proof.
+    intros * CMatch Hinj_l Hl1 Hl2 .
+    econstructor.
+    - simpl. eapply CMatch.
+    - simpl. eapply CMatch.
+    - admit.
+    - admit.
+    
+  Admitted.

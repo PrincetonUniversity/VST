@@ -16,6 +16,7 @@ Require Import List. Import ListNotations.
 Require Import VST.msl.Coqlib2.
 Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.common.threadPool.
+Require Import VST.concurrency.common.Compcert_lemmas.
 Set Bullet Behavior "Strict Subproofs".
 Import Memory.
 Import ThreadPool.
@@ -492,9 +493,14 @@ Qed.
 
 Lemma cur_perm_maxedmem:
  forall m loc ofs p,
-  Mem.perm m loc ofs Cur p -> Mem.perm (maxedmem m) loc ofs Cur p.
-Admitted.
-
+   Mem.perm m loc ofs Cur p -> Mem.perm (maxedmem m) loc ofs Cur p.
+Proof.
+  unfold maxedmem.
+  intros. eapply Mem.perm_cur_max in H.
+  hnf;hnf in H.
+  repeat rewrite_getPerm. rewrite getCur_restr; auto.
+Qed.
+  
 Lemma loadbytes_proj_wellformed:
   forall ge m loc ofs sz bl ch q,
   block_wellformed (Mem.nextblock m) loc ->
@@ -877,15 +883,18 @@ rewrite H9 in H4; auto.
 Qed.
 
 Lemma perm_maxedmem:
- forall m b z k p,
-  Mem.perm (maxedmem m) b z k p = Mem.perm m b z Max p.
+  forall m b z k p,
+    Mem.perm (maxedmem m) b z k p = Mem.perm m b z Max p.
 Proof.
-intros.
-unfold Mem.perm.
-f_equal.
-unfold maxedmem.
-forget (mem_max_lt_max m) as H.
-Admitted.
+  intros.
+  unfold Mem.perm.
+  f_equal.
+  unfold maxedmem.
+  forget (mem_max_lt_max m) as H.
+  destruct k; repeat rewrite_getPerm.
+  - rewrite getMax_restr; auto.
+  - rewrite getCur_restr; auto.
+Qed.
 
 Lemma perm_eq_maxedmem_perm_eq:
   forall m m',
@@ -980,10 +989,213 @@ pose proof (Mem.nextblock_free _ _ _ _ _ H1).
 split; rewrite H2; auto.
 Search Mem.inject_neutral.
 Search Mem.inject_neutral maxedmem.
-apply (mem_lemmas.free_neutral (Mem.nextblock m) (maxedmem m) z z0 b); auto.
-clear - H1.
-admit. (* seems OK, but difficult to prove; and might need to be module mem_equiv *)
-Admitted.
+
+Set Nested Proofs Allowed.
+Lemma trivial_free:
+    forall (b : block) (z z0 : Z) (m m0 : mem),
+      Mem.free m b z z0 = Some m0 ->
+      ~ z < z0 ->
+      mem_equiv m m0.
+Proof.
+  intros.
+  Transparent Mem.free.
+  unfold Mem.free in *.
+  match_case in H.
+  inv H.
+
+  assert (forall b0, (Mem.mem_access m) !! b0 =
+               (Mem.mem_access (Mem.unchecked_free m b z z0)) !! b0).
+  { intros. unfold Mem.unchecked_free; simpl.
+    destruct (peq b b0).
+    - subst. rewrite PMap.gss.
+      extensionality ofs. extensionality k.
+      match_case; eauto.
+      contradict H0.
+      destruct (zle z ofs);
+        destruct (zlt ofs z0);
+        try now inv Heqb.
+      omega.
+    - rewrite PMap.gso; auto. }
+  
+  econstructor; swap 1 3; swap 2 4.
+  - intros ??; unfold Mem.unchecked_free; auto.
+  - reflexivity.
+  - intros ?.
+    unfold getCurPerm.
+    do 2 rewrite PMap.gmap. 
+    rewrite H. auto.
+  - intros ?.
+    unfold getMaxPerm.
+    do 2 rewrite PMap.gmap. 
+    rewrite H. auto.
+Qed.
+Lemma pos_lt_dec:
+  forall z z0, {z < z0} + {~ z < z0}.
+Proof. intros. unfold "<".
+       destruct (z ?= z0); auto;
+         right; intros; congruence.
+Qed.
+       
+Lemma maxedmem_free:
+    forall (b : block) (z z0 : Z) (m m0 : mem),
+      Mem.free m b z z0 = Some m0 ->
+      exists max_m0,
+        Mem.free (maxedmem m) b z z0 = Some max_m0 /\
+        mem_equiv (maxedmem m0) max_m0.
+Proof.
+  intros.
+  remember (Mem.unchecked_free (maxedmem m) b z z0)
+    as max_m0.
+  assert (Mem.free (maxedmem m) b z z0 = Some max_m0).
+  { 
+    assert (HH:=H).
+    unfold Mem.free in H.
+    unfold Mem.free.
+    match_case in H; inv H.
+    match_case; auto.
+
+    clear Heqs Heqs0; contradict n. 
+    unfold Mem.range_perm in *.
+    intros **.  apply cur_perm_maxedmem; auto. }
+  eexists; split; eauto.
+
+  
+  destruct (pos_lt_dec z z0); swap 1 2.
+  { eapply trivial_free in H; auto.
+    eapply trivial_free in H0; auto.
+    erewrite <- H0.
+    Lemma mem_equiv_maxedmem:
+      forall m1 m2,
+        mem_equiv m1 m2 ->
+        mem_equiv (maxedmem m1) (maxedmem  m2).
+    Proof.
+      intros. unfold maxedmem.
+      econstructor.
+      - intros ?.
+        do 2 rewrite getCur_restr.
+        apply H.
+      - intros ?.
+        do 2 rewrite getMax_restr.
+        apply H.
+      - do 2 rewrite restr_content_equiv;
+          apply H.
+      - simpl. apply H.
+    Qed.
+    eapply mem_equiv_maxedmem; symmetry; eauto.
+    }
+       
+        
+        
+  
+
+  exploit Mem.free_result; try eapply H.
+  intros HH.
+  
+  econstructor; swap 1 3; swap 2 4.
+  - subst max_m0 m0; intros ??.
+    unfold maxedmem, Mem.unchecked_free;
+      destruct m; simpl; reflexivity.
+  - subst max_m0 m0; reflexivity.
+  - clear HH .
+    intros ?. extensionality ofs.
+    unfold maxedmem.
+    rewrite getCur_restr.
+        
+    destruct (peq b0 b).
+    
+    
+    + subst.
+      destruct (Intv.In_dec ofs (z, z0)).
+      * hnf in i; simpl in i.
+        eapply free_access in H; eauto.
+        eapply free_access in H0; eauto.
+        unfold access_at in *. repeat rewrite_getPerm.
+        destruct H; destruct H0; simpl in *.
+    
+        rewrite H1.
+        exploit mem_cur_lt_max.
+        rewrite H2. simpl.
+        intros HH; match_case in HH; eauto.
+      * eapply Intv.range_notin in n;
+          simpl in *; auto.
+        eapply free_access_other in H; eauto.
+        eapply free_access_other in H0; eauto.
+        { unfold access_at in *. repeat rewrite_getPerm.
+          simpl fst in *; simpl snd in *.
+          instantiate(1:=Max) in H.
+          instantiate(1:=Cur) in H0.
+          repeat rewrite_getPerm.
+          rewrite <- H. unfold maxedmem in H0.
+          rewrite getCur_restr in H0.
+          rewrite H0 in H. auto. }
+        right; omega.
+        right; omega.
+    +   eapply free_access_other in H; eauto.
+        eapply free_access_other in H0; eauto.
+        { unfold access_at in *. repeat rewrite_getPerm.
+          simpl fst in *; simpl snd in *.
+          instantiate(1:=Max) in H.
+          instantiate(1:=Cur) in H0.
+          repeat rewrite_getPerm.
+          rewrite <- H. unfold maxedmem in H0.
+          rewrite getCur_restr in H0.
+          rewrite H0 in H. auto. }
+  - clear HH .
+    intros ?. extensionality ofs.
+    unfold maxedmem.
+    rewrite getMax_restr.
+        
+    destruct (peq b0 b).
+    
+    
+    + subst.
+      destruct (Intv.In_dec ofs (z, z0)).
+      * hnf in i; simpl in i.
+        eapply free_access in H; eauto.
+        eapply free_access in H0; eauto.
+        unfold access_at in *. repeat rewrite_getPerm.
+        destruct H; destruct H0; simpl in *.
+    
+        rewrite H1.
+        exploit mem_cur_lt_max.
+        rewrite H2. simpl.
+        intros HH; match_case in HH; eauto.
+      * eapply Intv.range_notin in n;
+          simpl in *; auto.
+        eapply free_access_other in H; eauto.
+        eapply free_access_other in H0; eauto.
+        { unfold access_at in *. repeat rewrite_getPerm.
+          simpl fst in *; simpl snd in *.
+          instantiate(1:=Max) in H.
+          instantiate(1:=Max) in H0.
+          repeat rewrite_getPerm.
+          rewrite <- H. unfold maxedmem in H0.
+          rewrite getMax_restr in H0.
+          rewrite H0 in H. auto. }
+        right; omega.
+        right; omega.
+    +   eapply free_access_other in H; eauto.
+        eapply free_access_other in H0; eauto.
+        { unfold access_at in *. repeat rewrite_getPerm.
+          simpl fst in *; simpl snd in *.
+          instantiate(1:=Max) in H.
+          instantiate(1:=Max) in H0.
+          repeat rewrite_getPerm.
+          rewrite <- H. unfold maxedmem in H0.
+          rewrite getMax_restr in H0.
+          rewrite H0 in H. auto. }
+
+Qed.
+
+eapply maxedmem_free in H1.
+destruct H1 as (max_m0 & H1 & ?).
+exploit (mem_lemmas.free_neutral
+           (Mem.nextblock m) (maxedmem m) z z0 b);
+  eauto.
+intros. hnf. rewrite H3; eauto.
+
+
+Qed.
 
 
 Lemma maxedmem_neutral':
@@ -1001,16 +1213,24 @@ constructor; intros; simpl in *.
 unfold Mem.flat_inj in H.
 if_tac in H; inv H.
 rewrite Z.add_0_r. auto.
--
-eapply mi_align.
-eassumption.
-instantiate (1:=p); instantiate (1:=ofs).
-clear - H0.
-hnf; intros.
-specialize (H0 _ H).
-clear - H0.
-admit. (* OKish: Compiler.mem_equiv might have relevant lemmas *)
-Admitted.
+- eapply mi_align.
+  eassumption.
+  instantiate (1:=p); instantiate (1:=ofs).
+  clear - H0.
+  hnf; intros.
+  specialize (H0 _ H).
+  clear - H0.
+
+  unfold maxedmem in *.
+  rewrite restr_Max_equiv.
+  do 2 rewrite restr_Max_equiv in H0; auto.
+
+- eapply mi_memval; eauto.
+  rewrite perm_maxedmem,restr_Max_equiv in H0.
+  rewrite perm_maxedmem; auto.
+Qed.
+
+
 
 Lemma alloc_variables_wellformed: 
   forall ge ve m vl ve' m',
@@ -1037,8 +1257,139 @@ Proof.
 (*  pose proof (@Mem.alloc_inject_neutral (Mem.nextblock m1) m 0 (@sizeof ge ty) b1 m1 H6).
   ??
 *)
-  admit.
-  apply Mem.nextblock_alloc in H6. rewrite H6. 
+  { Lemma alloc_maxedmem:
+      forall m m1 lo hi b1,
+      Mem.alloc m lo hi = (m1, b1) ->
+      exists max_m1, Mem.alloc (maxedmem m) lo hi = (max_m1, b1) /\
+                mem_equiv max_m1 (maxedmem m1).
+    Proof.
+      intros. exploit Mem.alloc_result; eauto. intros; subst b1.
+      assert (HH:Mem.alloc (maxedmem m) lo hi =
+                 (fst (Mem.alloc (maxedmem m) lo hi), Mem.nextblock m)).
+      { Transparent Mem.alloc.
+        unfold Mem.alloc; intros. destruct m; simpl in *.
+        f_equal. }
+
+      remember (fst (Mem.alloc (maxedmem m) lo hi)) as max_m1.
+      remember (Mem.nextblock m) as b1.
+
+      eexists max_m1.
+      split; auto.
+      simpl. econstructor; swap 1 3; swap 2 4.
+      - intros ?. inv H. simpl; reflexivity.
+      - subst; simpl.
+        symmetry; eapply Mem.nextblock_alloc; eauto.
+      - hnf; intros.
+        
+        
+        extensionality ofs.
+        destruct (peq b1 b).
+        + subst b.
+          destruct (Intv.In_dec ofs (lo, hi)).
+          * hnf in i; simpl in i.
+            exploit alloc_access_same; try eapply H; eauto.
+            exploit alloc_access_same; try eapply HH; eauto.
+            unfold access_at. instantiate(1:=Max).
+            instantiate(1:=Cur).
+            repeat rewrite_getPerm.
+            replace (fst (b1, ofs))  with b1 by reflexivity.
+            replace (snd (b1, ofs))  with ofs by reflexivity.
+            intros -> <- . unfold maxedmem.
+            rewrite getCur_restr; reflexivity.
+          * Lemma range_notin:
+              forall (x : Z) (i : Intv.interv),
+                ~ Intv.In x i -> x < fst i \/ x >= snd i.
+              intros.
+              destruct i.
+              unfold Intv.In in H; simpl in *.
+              apply Classical_Prop.not_and_or in H.
+              destruct H; omega.
+            Qed.
+            eapply range_notin in n; simpl in n.
+            exploit alloc_access_other; try eapply H; eauto.
+            exploit alloc_access_other; try eapply HH; eauto.
+            unfold access_at. instantiate(1:=Max).
+            instantiate(5:=Cur).
+            repeat rewrite_getPerm.
+            instantiate(1:=b1).
+            instantiate(1:=b1).
+            replace (fst (b1, ofs))  with b1 by reflexivity.
+            replace (snd (b1, ofs))  with ofs by reflexivity.
+            intros <-. unfold maxedmem.
+            do 2 rewrite getCur_restr; auto.
+        +   exploit alloc_access_other; try eapply H; eauto.
+            exploit alloc_access_other; try eapply HH; eauto.
+            unfold access_at. instantiate(1:=Max).
+            instantiate(5:=Cur).
+            repeat rewrite_getPerm.
+            instantiate(1:=ofs).
+            instantiate(1:=ofs).
+            simpl.
+            intros <-. unfold maxedmem.
+            do 2 rewrite getCur_restr; auto. 
+      - hnf; intros.
+        
+        
+        extensionality ofs.
+        destruct (peq b1 b).
+        + subst b.
+          destruct (Intv.In_dec ofs (lo, hi)).
+          * hnf in i; simpl in i.
+            exploit alloc_access_same; try eapply H; eauto.
+            exploit alloc_access_same; try eapply HH; eauto.
+            unfold access_at. instantiate(1:=Max).
+            instantiate(1:=Max).
+            repeat rewrite_getPerm.
+            replace (fst (b1, ofs))  with b1 by reflexivity.
+            replace (snd (b1, ofs))  with ofs by reflexivity.
+            intros -> <- . unfold maxedmem.
+            rewrite getMax_restr; reflexivity.
+          * eapply range_notin in n; simpl in n.
+            exploit alloc_access_other; try eapply H; eauto.
+            exploit alloc_access_other; try eapply HH; eauto.
+            unfold access_at. instantiate(1:=Max).
+            instantiate(5:=Max).
+            repeat rewrite_getPerm.
+            instantiate(1:=b1).
+            instantiate(1:=b1).
+            replace (fst (b1, ofs))  with b1 by reflexivity.
+            replace (snd (b1, ofs))  with ofs by reflexivity.
+            intros <-. unfold maxedmem.
+            do 2 rewrite getMax_restr; auto.
+        +   exploit alloc_access_other; try eapply H; eauto.
+            exploit alloc_access_other; try eapply HH; eauto.
+            unfold access_at. instantiate(1:=Max).
+            instantiate(5:=Max).
+            repeat rewrite_getPerm.
+            instantiate(1:=ofs).
+            instantiate(1:=ofs).
+            simpl.
+            intros <-. unfold maxedmem.
+            do 2 rewrite getMax_restr; auto.
+    Qed.
+
+    exploit alloc_maxedmem; eauto; intros (max_m1 & HH & Hequiv).
+    hnf. rewrite <- Hequiv. clear H6. rename HH into H6.
+    
+    
+    assert (Plt (Mem.nextblock m) (Mem.nextblock m1)).
+    { eapply Mem.nextblock_alloc in H6.
+      replace (Mem.nextblock m1) with (Mem.nextblock max_m1).
+      rewrite H6. apply Plt_succ.
+      apply Hequiv.
+    }
+
+    eapply Mem.alloc_inject_neutral; eauto.
+    { eapply Mem.inject_neutral_empty_blocks; simpl; eauto.
+      apply Plt_Ple; assumption. }
+
+  }
+  
+    
+    
+
+
+    apply Mem.nextblock_alloc in H6. rewrite H6. 
   eapply Ple_trans; try eassumption.
   apply Plt_Ple; apply Plt_succ.
 -
@@ -1047,7 +1398,7 @@ Proof.
   eapply alloc_venv_wellformed; try eassumption.
   apply Mem.nextblock_alloc in H6. rewrite H6.
   apply Ple_succ.
-Admitted.
+Qed.
 
 Lemma bind_parameter_temps_wellformed:
   forall m fl vl te te',
