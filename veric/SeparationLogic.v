@@ -75,7 +75,7 @@ Hint Resolve any_environ : typeclass_instances.
 Local Open Scope logic.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
-
+(*
 Definition funspec_sub_si (f1 f2 : funspec):mpred :=
 let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
@@ -106,6 +106,41 @@ match f1 with
                            (F * (P1 ts1 x1 rho)) &&
                                (!! (forall rho',
                                            ((!! (tc_environ (rettype_tycontext (snd tpsig1)) rho') &&
+                                                 (F * (Q1 ts1 x1 rho')))
+                                         |-- (Q2 ts2 x2 rho')))))
+    end
+end.*)
+Definition argsHaveTyps (vals:list val) (types: list type): Prop:=
+  Forall2 (fun v t => v<>Vundef -> Val.has_type v t) vals (map typ_of_type types).
+
+Definition funspec_sub_si (f1 f2 : funspec):mpred :=
+match f1 with
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+        !!(tpsig1=tpsig2 /\ cc1=cc2) &&
+        ! (ALL ts2 :_, ALL x2:_,
+             ALL gargs:genviron * list val,
+        ((!!((*Forall2 tc_val' (fst tpsig1) (snd gargs)*)argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
+         >=> EX ts1:_,  EX x1:_, EX F:_, 
+            (F * (P1 ts1 x1 gargs)) &&
+            ALL rho':_, (     !( ((!!(ve_of rho' = Map.empty (block * type))) && (F * (Q1 ts1 x1 rho')))
+                         >=> (Q2 ts2 x2 rho')))))
+    end
+end.
+
+Definition funspec_sub (f1 f2 : funspec): Prop :=
+match f1 with
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+        (tpsig1=tpsig2 /\ cc1=cc2) /\
+        forall ts2 x2 (gargs:argsEnviron),
+        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
+         |-- (EX ts1:_,  EX x1:_, EX F:_, 
+                           (F * (P1 ts1 x1 gargs)) &&
+                               (!! (forall rho',
+                                           ((!!(ve_of rho' = Map.empty (block * type))) &&
                                                  (F * (Q1 ts1 x1 rho')))
                                          |-- (Q2 ts2 x2 rho')))))
     end
@@ -1670,6 +1705,14 @@ forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne
   (LENef: length (fst sig) = length (sig_args (ef_sig ef)))
  (* (IDS: ids = map fst (fst sig))*),
   @semax_external Espec (*ids*) ef A P Q.
+
+Axiom semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
+  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
+                   (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
+  (HSIG: ef_sig ef = 
+         mksignature (map typ_of_type argtypes)
+                     (opttyp_of_type rtype) cc),
+  @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
 
 Axiom semax_body_binaryintersection:
 forall {V G cs} f sp1 sp2 phi

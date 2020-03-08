@@ -6,7 +6,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Import LiftNotation.
 Local Open Scope logic.
-
+(*
 Definition NDfunspec_sub (f1 f2 : funspec) :=
 let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
@@ -20,6 +20,24 @@ match f1 with
                            (F * (P1 nil x1 rho)) &&
                                (!! (forall rho',
                                            ((!! (tc_environ (rettype_tycontext (snd tpsig1)) rho') &&
+                                                 (F * (Q1 nil x1 rho')))
+                                         |-- (Q2 nil x2 rho')))))
+ | _ => False end
+ | _ => False end.*)
+
+Definition NDfunspec_sub (f1 f2 : funspec) :=
+let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
+match f1 with
+| mk_funspec tpsig1 cc1 (rmaps.ConstType A1) P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 (rmaps.ConstType As) P2 Q2 _ _ =>
+        (tpsig1=tpsig2 /\ cc1=cc2) /\
+        forall x2 (gargs:argsEnviron),
+        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 nil x2 gargs)
+         |-- (EX x1:_, EX F:_, 
+                           (F * (P1 nil x1 gargs)) &&
+                               (!! (forall rho',
+                                           ((!! (ve_of rho' = Map.empty (block * type))) &&
                                                  (F * (Q1 nil x1 rho')))
                                          |-- (Q2 nil x2 rho')))))
  | _ => False end
@@ -53,8 +71,7 @@ apply (exp_right (@nil Type)). simpl.
 apply exp_derives; intros x2.
 apply exp_derives; intros F.
 apply andp_derives; trivial. simpl. apply prop_derives. intros.
-rewrite H0'. eapply derives_trans. 2: apply H1. clear H1. apply andp_derives; trivial.
-apply derives_refl.
+rewrite H0'. eapply derives_trans. 2: apply H1. clear H1. apply andp_derives; trivial; try apply derives_refl.
 Qed.
 
 Inductive empty_type : Type := .
@@ -111,12 +128,12 @@ destruct H0 as [[?F ?F'] H0].
 subst.
 split; auto.
 intro x3; simpl in x3. simpl in H, H0. simpl. intros.
-specialize (H0 x3 rho).
+specialize (H0 x3 gargs).
 eapply derives_trans. apply andp_right. apply andp_left1. apply derives_refl. apply H0. clear H0.
 (*eapply ENTAIL_trans; [apply H0 | ].
 clear H0.*)
 normalize. rename x1 into x2.
-specialize (H x2 rho).
+specialize (H x2 gargs).
 eapply derives_trans.
 (*apply sepcon_ENTAIL.*) apply sepcon_derives.
 (*apply ENTAIL_refl.*) apply derives_refl.

@@ -1288,7 +1288,9 @@ Definition semax_ext := @MinimumLogic.semax_ext.
 Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
+Definition semax_external_funspec_sub := @MinimumLogic.semax_external_funspec_sub.
 Definition semax_external_binaryintersection := @MinimumLogic.semax_external_binaryintersection.
+
 Definition semax_body_binaryintersection:
 forall {V G cs} f sp1 sp2 phi
   (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
@@ -2337,6 +2339,8 @@ Proof.
   rewrite PTree.gempty in H. congruence.
 Qed.
  
+(*This proof can now be cleanup up, by replacing
+use of tcvals in the argument to semax_adapt by hasType*)
 Lemma semax_body_funspec_sub {V G cs f i phi phi'} (SB: @semax_body V G cs f (i, phi))
   (Sub: funspec_sub phi phi')
   (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))):
@@ -2366,17 +2370,31 @@ eapply semax_adapt
           (@sepcon mpred Nveric Sveric FR (Q ts1 x1 tau))) (Q' ts x tau)) &&
       (stackframe_of f * (fun tau => FR * P ts1 x1 (ge_of tau, vals)) &&
           (fun tau =>  !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals)))).
-  + intros omega. clear SB3. normalize. simpl. simpl in Sub. rewrite SB2 in *. 
+  + intros omega. clear SB3. normalize. simpl. simpl in Sub. (* rewrite SB2 in *. *)
     apply andp_left2.
     eapply derives_trans. apply sepcon_derives. apply close_precondition_e'. apply derives_refl.
     normalize. destruct H0 as [Hvals VUNDEF].
     specialize (semax_prog.typecheck_environ_eval_id LNR H); intros X. 
     apply (exp_right (map (fun i0 : ident => eval_id i0 omega) (map fst (fn_params f)))).
     specialize (Sub (ge_of omega,  map (fun i0 : ident => eval_id i0 omega) (map fst (fn_params f)))).
+    rewrite Hvals in X. apply semax_prog.map_Some_inv in X.  rewrite <- X in *.
     eapply derives_trans. apply sepcon_derives. 2: apply derives_refl.
-    eapply derives_trans; [ clear Sub | apply Sub]. 
-    - apply andp_right; trivial.
-      apply prop_right.
+    eapply derives_trans; [ clear Sub | apply Sub].
+    - simpl. apply andp_right; trivial.
+      apply prop_right. red. rewrite SB1 in *. subst vals.
+      clear - H VUNDEF LNR. destruct H as [TC1 [TC2 TC3]].
+        unfold fn_funsig. simpl. 
+        specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1).
+        clear -(*X*)VUNDEF; intros TE.
+        forget (fn_params f) as params.
+        induction params; simpl; intros. constructor.
+        inv VUNDEF; constructor.
+        ++ clear IHparams H1. destruct (TE (fst a) (snd a)) as [w [W Tw]]; clear TE.
+           left; destruct a; trivial.
+           unfold eval_id. rewrite W; simpl.
+           intros. apply tc_val_has_type. apply (Tw H).
+        ++ apply IHparams; trivial.
+           intros. apply TE. right; trivial. (*
       simpl; split.
       * clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
       * rewrite SB1. simpl in H. destruct H as [TC1 [TC2 TC3]].
@@ -2390,7 +2408,7 @@ eapply semax_adapt
            rewrite W in H0; inv H0. apply Tw.
         ++ apply IHparams; trivial.
            intros. apply TE. right; trivial. 
-      * rewrite Hvals in X. apply semax_prog.map_Some_inv in X. rewrite <- X. trivial.
+      * rewrite Hvals in X. apply semax_prog.map_Some_inv in X. rewrite <- X. trivial.*)
     - normalize. apply (exp_right ts1).
       normalize. apply (exp_right x1).
       normalize. apply (exp_right F). normalize. rewrite sepcon_comm.
@@ -2398,18 +2416,24 @@ eapply semax_adapt
       apply andp_right; [ | apply prop_right; intros; normalize].
       apply andp_right; [ | apply prop_right; intros; normalize]. 
       apply andp_right; [ apply andp_right | apply prop_right]; trivial.
-      apply prop_right; split; trivial.
-      clear - X Hvals VUNDEF H LNR.
-      destruct H as [TC _]. simpl in TC. red in TC.
-      rewrite X in Hvals. apply semax_prog.map_Some_inv in Hvals. subst.
-      forget (fn_params f) as params. induction params.
-      { constructor. }
-      inv LNR. inv VUNDEF. inv X. constructor.
-      * clear IHparams. destruct (TC (fst a) (snd a)) as [u [U HU]]. apply PTree.gss.
-        unfold eval_id in *. rewrite U in *. simpl in *. apply HU; trivial.
-      * apply IHparams; clear IHparams; trivial.
-        intros. apply TC. simpl. rewrite PTree.gso; trivial.
-        intros ?; subst id. apply H1. apply (make_context_t_get H).
+      apply prop_right; split.
+      * subst vals; clear - Hvals VUNDEF H LNR.
+        destruct H as [TC _]. simpl in TC. red in TC.
+        forget (fn_params f) as params. induction params.
+        { constructor. }
+        inv LNR. inv VUNDEF. inv Hvals. constructor.
+        ++ clear IHparams. destruct (TC (fst a) (snd a)) as [u [U HU]]. apply PTree.gss.
+           unfold eval_id in *. rewrite U in *. simpl in *. apply HU; trivial.
+        ++ apply IHparams; clear IHparams; trivial.
+           intros. apply TC. simpl. rewrite PTree.gso; trivial.
+           intros ?; subst id. apply H1. apply (make_context_t_get H).
+      * intros. eapply derives_trans. 2: apply H0.
+        apply andp_derives; trivial. apply prop_derives.
+        intros; destruct tau; simpl in *. apply Map.ext.
+        clear - H1; intros y. destruct H1 as [_ [? _]]. simpl in H. red in H.
+        specialize (H y). destruct (Map.get ve y); trivial. 
+        destruct p. destruct (H t) as [_ ?].
+        exploit H0. exists b; trivial. rewrite PTree.gempty. congruence.
   + clear Sub. normalize.
     apply semax_extract_exists; intros vals.
     apply semax_extract_exists; intros ts1.

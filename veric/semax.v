@@ -261,7 +261,7 @@ Proof.
 Qed.
 
 Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
-  (BI: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
+  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
                    (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
          mksignature (*(typlist_of_typelist (typelist_of_type_list argtypes))*)
@@ -272,7 +272,7 @@ Proof.
 apply allp_derives; intros g.
 apply allp_right; intros ts.
 apply allp_right; intros x.
-destruct BI as [_ H]; simpl in H.
+destruct Hsub as [_ H]; simpl in H.
 intros n N m NM F typs vals y MY z YZ [HT [z1 [z2 [JZ [Z1 Z2]]]]].
 specialize (H ts x (filter_genv g, vals) z1).
 (*rewrite TTL2 in HSIG.*)
