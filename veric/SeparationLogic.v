@@ -1711,8 +1711,9 @@ Axiom semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1
                    (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
          mksignature (map typ_of_type argtypes)
-                     (opttyp_of_type rtype) cc),
-  @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
+                     (opttyp_of_type rtype) cc)
+  (SE: @semax_external Espec ef A1 P1 Q1),
+  @semax_external Espec ef A P Q.
 
 Axiom semax_body_binaryintersection:
 forall {V G cs} f sp1 sp2 phi

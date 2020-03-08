@@ -120,14 +120,15 @@ Lemma semax_external_binaryintersection: forall
   @CSHL_Def.semax_external Espec (*ids*) ef A P Q. 
 Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.
 
-Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
+Lemma semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
                    (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
          mksignature (map typ_of_type argtypes)
-                     (opttyp_of_type rtype) cc):
-  @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
-Proof. intros. eapply semax_external_funspec_sub. apply Hsub. trivial. Qed.
+                     (opttyp_of_type rtype) cc)
+  (SE: @CSHL_Def.semax_external Espec ef A1 P1 Q1),
+  @CSHL_Def.semax_external Espec ef A P Q.
+Proof. intros. intros n. eapply semax_external_funspec_sub. apply Hsub. trivial. trivial. Qed.
 
 Definition semax_body_binaryintersection := @semax_body_binaryintersection.
 
