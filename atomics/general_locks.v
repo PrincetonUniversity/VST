@@ -67,62 +67,47 @@ Qed.
 Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R g (x0 x' : C)
   {HR : Timeless R}
   (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * a' x x1)%I)
-  (Ha' : (forall x x1, public_half g x1 * a' x x1 |-- |==> R * a x)%I)
-  (Hb : (forall x x1, !!(x1 = x0) && public_half g x' * a' x x1 |-- |==> EX y, b x y)%I),
+  (Ha' : (forall x, public_half g x0 * a' x x0 |-- |==> R * a x)%I)
+  (Hb : (forall x, public_half g x' * a' x x0 |-- |==> EX y, b x y)%I),
   (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- |==> (EX y, Q y) * my_half g x')%I.
 Proof.
-  intros; eapply derives_trans, sync_commit_simple with (x1 := x0); cancel.
-  eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
-  apply atomic_shift_derives_frame; intros.
-  iIntros "[a >R]".
-  iMod (Ha with "[$R $a]") as (x1) "[g a']".
-  iExists x1; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "g".
-    iMod (Ha' with "[$g $a']") as "[$ $]"; auto.
-  - iIntros (_) "g".
-    iMod (Hb with "[$g $a']") as (y) "b".
-    iExists y; iFrame.
-    iIntros "!> ?".
-    iExists y; auto.
+  intros; rewrite sepcon_assoc; apply atomic_commit.
+  intros; iIntros "((my & R) & a)".
+  iMod (Ha with "[$]") as (?) "[public a']".
+  iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
+  iApply Hb; iFrame; auto.
 Qed.
 
 Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R g (x0 x' : C)
   {HR : Timeless R}
   (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * a' x x1)%I)
-  (Ha' : (forall x x1, public_half g x1 * a' x x1 |-- |==> R * a x)%I)
-  (Hb : (forall x x1, !!(x1 = x0) && public_half g x' * a' x x1 |-- |==> EX y, b x y)%I),
+  (Ha' : (forall x, public_half g x0 * a' x x0 |-- |==> R * a x)%I)
+  (Hb : (forall x, public_half g x' * a' x x0 |-- |==> EX y, b x y)%I),
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g x0 * R |-- |==> Q * my_half g x')%I.
 Proof.
-  intros; eapply derives_trans, sync_commit_simple with (x1 := x0); cancel.
-  eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
-  apply atomic_shift_derives_frame; intros.
-  iIntros "[a >R]".
-  iMod (Ha with "[$R $a]") as (x1) "[g a']".
-  iExists x1; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "g".
-    iMod (Ha' with "[$g $a']") as "[$ $]"; auto.
-  - iIntros (_) "g".
-    iMod (Hb with "[$g $a']") as (y) "b".
-    iExists y; iFrame.
-    iIntros "!> ?"; auto.
+  intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R' := my_half g x')|].
+  - intros; iIntros "((my & R) & a)".
+    iMod (Ha with "[$]") as (?) "[public a']".
+    iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
+    iApply Hb; iFrame; auto.
+  - iApply bupd_mono.
+    iIntros "[Q $]"; iDestruct "Q" as (?) "$".
 Qed.
 
 (* These are useful when the shared resource matches the lock invariant exactly. *)
 Lemma sync_commit1 : forall {A} {inv_names : invG} Ei Eo (b : A -> unit -> mpred) Q g (x0 x' : A)
-  (Hb : (forall x, !!(x = x0) && public_half g x' |-- |==> b x tt)%I),
+  (Hb : (public_half g x' |-- |==> b x0 tt)%I),
   (atomic_shift (fun x => public_half g x) Ei Eo b (fun _ => Q) * my_half g x0 |-- |==> Q * my_half g x')%I.
 Proof.
   intros; eapply derives_trans, sync_commit_simple.
   apply sepcon_derives, derives_refl.
   apply atomic_shift_derives_simple; intros; try solve [by iIntros].
   destruct y.
-  iIntros "H"; iMod (Hb with "H"); auto.
+  iIntros "[% H]"; subst; iMod (Hb with "H"); auto.
 Qed.
 
 Lemma sync_commit2 : forall {A} {inv_names : invG} Ei Eo (b : A -> A -> mpred) Q g (x0 x' : A)
-  (Hb : (forall x, !!(x = x0) && public_half g x' |-- |==> b x x0)%I),
+  (Hb : (public_half g x' |-- |==> b x0 x0)%I),
   (atomic_shift (fun x => public_half g x) Ei Eo b Q * my_half g x0 |-- |==> Q x0 * my_half g x')%I.
 Proof.
   intros; eapply derives_trans, sync_commit_simple.
@@ -133,7 +118,7 @@ Proof.
   iIntros "!>"; iSplit.
   - iIntros "g"; auto.
   - iIntros (_) "[% g]"; subst.
-    iMod (Hb with "[$g]") as "b"; first by auto.
+    iMod (Hb with "[$g]") as "b".
     iExists x0; iFrame.
     iIntros "!> ?"; auto.
 Qed.

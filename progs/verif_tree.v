@@ -49,8 +49,8 @@ Qed.
 
 End LISTS.
 Arguments list_rep {V} _ _ _.
-Arguments list_rep_valid_pointer {V} _ _ _ _ _ _.
-Arguments list_rep_local_facts {V} _ _ _ _ _ _.
+Arguments list_rep_valid_pointer {V} _ _ _ _.
+Arguments list_rep_local_facts {V} _ _ _ _.
 
 Section TREES.
 Variable V : Type.
@@ -93,8 +93,8 @@ End TREES.
 Arguments E {V}.
 Arguments T {V} _ _ _.
 Arguments tree_rep {V} _ _ _.
-Arguments tree_rep_valid_pointer {V} _ _ _ _ _ _.
-Arguments tree_rep_local_facts {V} _ _ _ _ _ _.
+Arguments tree_rep_valid_pointer {V} _ _ _ _.
+Arguments tree_rep_local_facts {V} _ _ _ _.
 
 Definition map_tree {V1 V2: Type} (f: V1 -> V2): tree V1 -> tree V2 :=
   fix map_tree (t: tree V1) :=
