@@ -144,7 +144,7 @@ match f1 with
         ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
              ALL gargs:genviron * list val,
         ((!!(tc_argsenv Delta2 (fst tpsig2) gargs) && P2 ts2 x2 gargs)
-         >=> EX ts1:_,  EX x1:_, EX F:_, 
+         >=> EX ts1:_,  EX x1:dependent_type_functor_rec ts1 A1 mpred, EX F:_, 
             (F * (P1 ts1 x1 gargs)) &&
             ALL rho':_, (     !( ((local (tc_environ (rettype_tycontext (snd tpsig1))) rho') && (F * (Q1 ts1 x1 rho')))
                          >=> (Q2 ts2 x2 rho')))))
