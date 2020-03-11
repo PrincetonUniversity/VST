@@ -811,28 +811,6 @@ Proof.
   apply E.
 Qed.
 
-Lemma shape_of_args F V args b ofs ge :
-  Val.has_type_list args (AST.Tint :: nil) ->
-  Vptr b ofs = mpred.eval_id _lock
-     (make_args (_lock :: nil) args
-    (empty_environ ((symb2genv (@genv_symb_injective F V ge))))) ->
-  args = Vptr b ofs :: nil.
-Proof.
-  intros Hargsty.
-  assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
-  unfold mpred.eval_id.
-  unfold val_lemmas.force_val.
-  intros Preb.
-  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-  subst v. 2: discriminate.
-  pose  (gx := (filter_genv (symb2genv (genv_symb_injective ge)))). fold gx in E.
-  destruct args as [ | arg [ | ar args ]].
-  + now inversion E.
-  + simpl in E. inversion E. reflexivity.
-  + inversion E. f_equal.
-    inversion L.
-Qed.
-
 Lemma join_all_res : forall ge i (tp : jstate ge) (cnti : containsThread tp i) c Phi,
   join_all (updThread cnti (Krun c) (getThreadR cnti)) Phi <->
   join_all tp Phi.

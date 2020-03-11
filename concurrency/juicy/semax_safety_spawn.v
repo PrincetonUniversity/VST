@@ -76,54 +76,6 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
-Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
-  Val.has_type_list args (sig_args (ef_sig CREATE)) ->
-  v <> Vundef ->
-  v =
-  eval_id _args (make_args (_f :: _args :: nil) args
-                    (empty_environ (symb2genv (genv_symb_injective ge))) ) ->
-  exists arg1, args = arg1 :: v :: nil.
-Proof.
-  intros Hargsty Nu.
-  assert (L: length args = 2%nat) by (destruct args as [|? [|? [|]]]; simpl in *; tauto).
-  unfold eval_id.
-  unfold val_lemmas.force_val.
-  intros Preb.
-  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-  subst v. 2: tauto.
-  pose  (gx := (filter_genv (symb2genv (genv_symb_injective ge)))). fold gx in E.
-  destruct args as [ | arg [ | ar [ | ar2 args ] ]].
-  + now inversion E.
-  + now inversion E.
-  + simpl in E. inversion E. eauto.
-  + inversion E. f_equal.
-    inversion L.
-Qed.
-
-Lemma shape_of_args3 (F V : Type) (args : list val) v (ge : Genv.t F V) :
-  Val.has_type_list args (sig_args (ef_sig CREATE)) ->
-  v <> Vundef ->
-  v =
-  eval_id _f (make_args (_f :: _args :: nil) args
-                   (empty_environ (symb2genv (genv_symb_injective ge))) ) ->
-  exists arg2, args = v :: arg2 :: nil.
-Proof.
-  intros Hargsty Nu.
-  assert (L: length args = 2%nat) by (destruct args as [|? [|? [|]]]; simpl in *; tauto).
-  unfold eval_id.
-  unfold val_lemmas.force_val.
-  intros Preb.
-  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-  subst v. 2: tauto.
-  pose  (gx := (filter_genv (symb2genv (genv_symb_injective ge)))). fold gx in E.
-  destruct args as [ | arg [ | ar [ | ar2 args ] ]].
-  + now inversion E.
-  + now inversion E.
-  + simpl in E. inversion E. eauto.
-  + inversion E. f_equal.
-    inversion L.
-Qed.
-
 Lemma lock_coherence_age_to ge n m (tp : jstate ge) Phi :
   lock_coherence (lset tp) Phi m ->
   lock_coherence (AMap.map (option_map (age_to n)) (lset tp)) (age_to n Phi) m.
@@ -237,6 +189,11 @@ Proof.
   pose proof func_ptr_isptr _ _ _ Func as isp.
   destruct f as [ | | | | | f_b f_ofs]; try contradiction isp.
   clear isp.
+  assert (phi01 = phi0). {
+    eapply join_unit1_e; eauto.
+    assumption.
+  }
+  subst.
 
   assert (li : level (getThreadR i tp cnti) = S n).
   { rewrite <-En. apply join_sub_level, compatible_threadRes_sub, compat. }
@@ -246,13 +203,6 @@ Proof.
   { rewrite <-li. apply join_sub_level. eexists; eauto. }
   assert (l00 : level phi00 = S n).
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
-  assert (l01 : level phi01 = S n).
-  { rewrite <-l0. apply join_sub_level. eexists; eauto. }
-  assert (phi01 = phi0). {
-    eapply join_unit1_e; eauto.
-    assumption.
-  }
-  subst.
 
   destruct ((fun x => x) envcoh) as (gam, SP).
   destruct SP as (prog & CS_ & ora & V & semaxprog & Ege & FA).
@@ -272,13 +222,71 @@ Proof.
     set (fsig := fsig_) in *; set (A := A_) in *; set (P := P_) in *; set (Q := Q_) in *
   end.
   match type of Func with app_pred (func_ptr ?FS _) _ => set (spawn_spec := FS) in * end.
+  subst ge.
+  change (?A) with (@client_lemmas.abbreviate _ A) in Post.
+ assert (HP: app_pred (P ts
+                        (fmap  (rmaps.dependent_type_functor_rec ts
+                                       (rmaps.ConstType (val * ts0)))
+                           (approx (level phi00)) (approx (level phi00))
+                           (b, f_with_x))
+                        (filter_genv (globalenv prog), b::nil))
+                   (age_to n phi0)). {
+        (* PROP / PARAMS / GLOBAL  / SEP *)
+        simpl.
+        apply age_to_pred.
+        split; [ | split3].
 
+        -- (* nothing in PROP *) apply Logic.I. 
+        -- (* PARAMS *)
+            reflexivity.
+        -- (* GLOBAL locald_denote of global variables *)
+        split3. hnf.
+        clear - PreB3.
+        hnf in PreB3. rewrite PreB3; clear PreB3.
+        unfold Map.get, make_args. unfold env_set. 
+        unfold ge_of.
+        unfold filter_genv.
+        extensionality i. unfold Genv.find_symbol. simpl. auto.
+       
+
+        -- (* SEP: only precondition of spawned condition *)
+        unfold canon.SEPx in *.
+        simpl.
+        rewrite seplog.sepcon_emp.
+        destruct fPRE; assumption.
+  }
+  clearbody P.
+  clearbody Q.
+  clear PreB3.
+  destruct fPRE as [Hvalid _].
   specialize (gam0 f_b (tptr tvoid :: nil, tint) cc_default).
-
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
+
+(*
+  destruct Func as (b' & E' & [gs [?H FAT]]). injection E' as <- ->.
   (* before merge, FAT had the following type.
      We will use that in the mean time.
    *)
+  destruct gs. destruct H as [[Hf Hc1] H]. subst t2 c1.
+ specialize (H ts
+        (fmap
+             (rmaps.dependent_type_functor_rec ts (rmaps.ConstType (val * ts0)))
+             (approx (level phi00)) (approx (level phi00)) 
+             (b, f_with_x))
+          (filter_genv (globalenv prog), (b::nil))
+         (age_to n phi0)).
+      spec H. admit. (* OK *)
+      specialize (H _ (necR_refl _)).
+      spec H. {
+        split; [ | apply HP].
+        unfold fsig; simpl.
+        split. 
+        admit. (* ? *)
+        repeat constructor; auto.
+        hnf; intros; auto.     
+      }
+
+*)
   assert (FAT': (func_at spawn_spec (f_b, 0)) phi00)
   by admit.
   specialize (gam0 _ _ _ FAT'). clear FAT' FAT.
@@ -291,7 +299,6 @@ Proof.
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
        id_fun (fst fsig) args A P' Q' NEP' NEQ' 0 ora semaxprog as HEP.
   clear PAE.
-  subst ge.
   rewrite <-make_tycontext_s_find_id in HEP.
   spec HEP. auto.
 
@@ -322,8 +329,7 @@ Proof.
   subst phi1'.
 
   assert (val_inject (Mem.flat_inj (Mem.nextblock m)) b b) as Hinj.
-  { destruct fPRE as [Hvalid _].
-    destruct b; try constructor; simpl in Hvalid.
+  { destruct b; try constructor; simpl in Hvalid.
     destruct (compatible_threadRes_cohere cnti (mem_compatible_forget compat)).
     destruct (plt b (Mem.nextblock m)).
     econstructor; [|symmetry; apply Ptrofs.add_zero].
@@ -426,10 +432,10 @@ Proof.
       destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
       subst args; repeat constructor; auto.
       clear Initcore Post lj ora Safety Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' semaxprog.
-       subst fsig A P Q.
+       subst fsig A.
       clear jphi' jphi1' q_new id_fun CS_ V FA.
-      clear l1 l0 l00 l01 necr li fPRE PreA PreB3.
-      clear spawn_spec Hargsty f_with_Pre f_with_x Hphi00 _y globals ts ts0 unique wellformed En.
+      clear l1 l0 l00 necr li PreA.
+      clear spawn_spec Hargsty Hphi00 _y unique wellformed En.
       clear safei safety lock_coh.
       simpl Mem.nextblock.
       destruct mwellformed. split; auto.
@@ -441,7 +447,7 @@ Proof.
                   (maxedmem m))
        by apply mem_equiv_restr_max.
   red. simpl Mem.nextblock. rewrite H0. auto.
-  clear Safety jphi' jphi1' Initcore Post PreB3 Heq_P Heq_Q.
+  clear Safety jphi' jphi1' Initcore Post Heq_P Heq_Q.
   simpl. red; simpl. 
   clear - I. inv I. destruct mwellformed. apply H0.
   clear -mwellformed; destruct mwellformed as [? _].
@@ -483,28 +489,7 @@ simpl.
         rewrite level_age_to. omega. cleanup. omega.
 
         (* PROP / PARAMS / GLOBAL  / SEP *)
-        simpl.
-        apply age_to_pred.
-        split; [ | split3].
-
-        -- (* nothing in PROP *) apply Logic.I. 
-        -- (* PARAMS *)
-            reflexivity.
-        -- (* GLOBAL locald_denote of global variables *)
-        split3. hnf.
-        clear - PreB3.
-        hnf in PreB3. rewrite PreB3; clear PreB3.
-        unfold Map.get, make_args. unfold env_set. 
-        unfold ge_of.
-        unfold filter_genv.
-        extensionality i. unfold Genv.find_symbol. simpl. auto.
-       
-
-        -- (* SEP: only precondition of spawned condition *)
-        unfold canon.SEPx in *.
-        simpl.
-        rewrite seplog.sepcon_emp.
-        destruct fPRE; assumption.
+        apply HP.
       * hnf. rewrite Ejm; simpl.
          rewrite age_to_ghost_of.
          destruct ora.
