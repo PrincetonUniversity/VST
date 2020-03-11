@@ -134,4 +134,5 @@ Proof.
     forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
     entailer!.
     forward. entailer!.
+Unshelve. apply xH. apply xH. (*TODO: fix (I believe) the forward_spawn tactic  so that this ident is not introduces. Is it the y?*)
 Qed.

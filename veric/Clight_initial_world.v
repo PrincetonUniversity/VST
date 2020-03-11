@@ -758,7 +758,7 @@ Definition matchfunspecs (ge : genv) (G : funspecs) (Phi : rmap) : Prop :=
     exists id P' Q' P'_ne Q'_ne,
       Genv.find_symbol ge id = Some b /\
       find_id id G = Some (mk_funspec fsig cc A P' Q' P'_ne Q'_ne) /\
-      cond_approx_eq (level Phi) A P P' /\
+      args_cond_approx_eq (level Phi) A P P' /\
       cond_approx_eq (level Phi) A Q Q'.
 
 Lemma initial_jm_matchfunspecs prog m G n H H1 H2:

@@ -452,7 +452,7 @@ Definition initial_core' {F} (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat)
            | Some id =>
                   match find_id id G with
                   | Some (mk_funspec fsig cc A P Q _ _) =>
-                           PURE (FUN fsig cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
+                           PURE (FUN fsig cc) (SomeP (SpecArgsTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
                   | None => NO Share.bot bot_unreadable
                   end
            | None => NO Share.bot bot_unreadable
@@ -1266,6 +1266,43 @@ Proof.
   reflexivity.
 Qed.
 
+Definition args_cond_approx_eq n A P1 P2 :=
+  (forall ts,
+      fmap (dependent_type_functor_rec ts (ArgsTT A)) (approx n) (approx n) (P1 ts) =
+      fmap (dependent_type_functor_rec ts (ArgsTT A)) (approx n) (approx n) (P2 ts)).
+
+Lemma args_cond_approx_eq_sym n A P1 P2 :
+  args_cond_approx_eq n A P1 P2 ->
+  args_cond_approx_eq n A P2 P1.
+Proof.
+  unfold args_cond_approx_eq; auto.
+Qed.
+
+Lemma args_cond_approx_eq_trans n A P1 P2 P3 :
+  args_cond_approx_eq n A P1 P2 ->
+  args_cond_approx_eq n A P2 P3 ->
+  args_cond_approx_eq n A P1 P3.
+Proof.
+  unfold args_cond_approx_eq in *.
+  intros E1 E2 ts; rewrite E1, E2. reflexivity.
+Qed.
+
+Lemma args_cond_approx_eq_weakening n n' A P1 P2 :
+  (n' <= n)%nat ->
+  args_cond_approx_eq n A P1 P2 ->
+  args_cond_approx_eq n' A P1 P2.
+Proof.
+  intros l.
+  intros E ts; specialize (E ts).
+  rewrite <-approx_oo_approx' with (n' := n) at 1; try omega.
+  rewrite <-approx'_oo_approx with (n' := n) at 2; try omega.
+  rewrite <-approx_oo_approx' with (n' := n) at 3; try omega.
+  rewrite <-approx'_oo_approx with (n' := n) at 4; try omega.
+  rewrite <-fmap_comp. unfold compose.
+  rewrite E.
+  reflexivity.
+Qed.
+
 Lemma level_initial_core {F} ge G n : level (@initial_core F ge G n) = n.
 Proof.
   apply level_make_rmap.
@@ -1273,4 +1310,4 @@ Qed.
 
 (* func_at'': func_at without requiring a proof of non-expansiveness *)
 Definition func_at'' fsig cc A P Q :=
-  pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc).
+  pureat (SomeP (SpecArgsTT A) (packPQ P Q)) (FUN fsig cc).

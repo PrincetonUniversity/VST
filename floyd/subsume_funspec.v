@@ -8,16 +8,20 @@ Import LiftNotation.
 Local Open Scope logic.
 
 Definition NDfunspec_sub (f1 f2 : funspec) :=
- let Delta := (funsig_tycontext (funsig_of_funspec f1)) in
- match f1 with
- | mk_funspec fsig1 cc1 (rmaps.ConstType A1) P1 Q1 _ _ =>
- match f2 with
- | mk_funspec fsig2 cc2 (rmaps.ConstType A2) P2 Q2 _ _ =>
-   fsig1 = fsig2 /\ cc1 = cc2 /\  forall x2,
-        ENTAIL Delta, P2 nil x2 |-- EX x1:_, EX F:mpred,
-                             ((`F * P1 nil x1) &&
-                             (!! (ENTAIL (ret0_tycon Delta), `F * Q1 nil x1 
-                                      |-- Q2 nil x2)))
+let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
+match f1 with
+| mk_funspec tpsig1 cc1 (rmaps.ConstType A1) P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 (rmaps.ConstType As) P2 Q2 _ _ =>
+        (tpsig1=tpsig2 /\ cc1=cc2) /\
+        forall x2 (rho:argsEnviron),
+        ((!! (tc_argsenv Delta2 (fst tpsig2)) rho) && P2 nil x2 rho)
+         |-- (EX x1:_, EX F:_, 
+                           (F * (P1 nil x1 rho)) &&
+                               (!! (forall rho',
+                                           ((!! (tc_environ (rettype_tycontext (snd tpsig1)) rho') &&
+                                                 (F * (Q1 nil x1 rho')))
+                                         |-- (Q2 nil x2 rho')))))
  | _ => False end
  | _ => False end.
 
@@ -37,18 +41,20 @@ Proof.
 intros f1 f2. pose proof I. intros H0 H1.
 destruct f1, f2; hnf in H1.
 destruct A; try contradiction. destruct A0; try contradiction.
-destruct H1 as [? [? ?]]; split3; auto.
-subst f0 c0.
+destruct H1 as [[? ?] ?]; split; auto.
+subst t0 c0.
 intros ts1 x1 rho.
 specialize (H3 x1).
 simpl in H0.
 specialize (H0 ts1). destruct H0 as [H0 H0'].
 rewrite H0.
-eapply predicates_hered.derives_trans; [apply H3 | clear H3 ].
-apply (predicates_hered.exp_right (@nil Type)).
-apply predicates_hered.exp_derives; intros x2.
-apply predicates_hered.exp_derives; intros F.
-apply predicates_hered.andp_derives; trivial. hnf. rewrite H0'. auto.
+eapply derives_trans; [apply H3 | clear H3 ].
+apply (exp_right (@nil Type)). simpl.
+apply exp_derives; intros x2.
+apply exp_derives; intros F.
+apply andp_derives; trivial. simpl. apply prop_derives. intros.
+rewrite H0'. eapply derives_trans. 2: apply H1. clear H1. apply andp_derives; trivial.
+apply derives_refl.
 Qed.
 
 Inductive empty_type : Type := .
@@ -80,7 +86,7 @@ Lemma NDfunspec_sub_refl:
 Proof.
 intros.
 simpl.
-split3; auto.
+split; auto.
 intros.
 Exists x2. Exists emp.
 unfold_lift.
@@ -100,38 +106,31 @@ Lemma NDfunspec_sub_trans:
    NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig3 cc3 A3 P3 Q3).
 Proof.
 intros.
-destruct H as [?E [?E H]]. 
-destruct H0 as [?E [?E H0]].
+destruct H as [[?E ?E'] H]. 
+destruct H0 as [[?F ?F'] H0].
 subst.
-split3; auto.
-intro x3; simpl in x3.
-specialize (H0 x3).
-eapply ENTAIL_trans; [apply H0 | ].
-clear H0.
-Intros x2 F.
-simpl in x2.
-specialize (H x2).
+split; auto.
+intro x3; simpl in x3. simpl in H, H0. simpl. intros.
+specialize (H0 x3 rho).
+eapply derives_trans. apply andp_right. apply andp_left1. apply derives_refl. apply H0. clear H0.
+(*eapply ENTAIL_trans; [apply H0 | ].
+clear H0.*)
+normalize. rename x1 into x2.
+specialize (H x2 rho).
 eapply derives_trans.
-apply sepcon_ENTAIL.
-apply ENTAIL_refl.
-apply H.
+(*apply sepcon_ENTAIL.*) apply sepcon_derives.
+(*apply ENTAIL_refl.*) apply derives_refl.
+apply andp_right. apply prop_right. apply H0. apply derives_refl. 
+eapply derives_trans. apply sepcon_derives. apply derives_refl.  apply H. 
 clear H.
-Intros x1. simpl in x1.
+Intros x1.
 Intros F1.
-Exists x1 (F*F1).
-apply andp_right.
-intro rho.
-unfold_lift. unfold local, lift1. simpl. normalize.
-rewrite sepcon_assoc. auto.
+Exists x1 (F*F1). rewrite sepcon_assoc. apply andp_right; trivial.
 apply prop_right.
-apply ENTAIL_trans with (`F * (`F1 * Q1 x1)).
-apply andp_left2.
-clear. unfold_lift; intro rho; simpl. rewrite sepcon_assoc; auto.
-simpl funsig_tycontext in *.
-eapply ENTAIL_trans; [ | apply H0].
-apply sepcon_ENTAIL.
-apply ENTAIL_refl.
- auto.
+intro tau.
+eapply derives_trans. 2: apply H1. clear H1. normalize.
+rewrite sepcon_assoc. apply sepcon_derives; trivial.
+eapply derives_trans. 2: apply H. clear H. normalize.
 Qed.
 
 Lemma later_exp'' (A: Type) (ND: NatDed A)(Indir: Indir A):
@@ -150,13 +149,13 @@ Lemma semax_call_subsume:
     funspec_sub fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)  ->
    forall {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->   
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
          (`(func_ptr fs1) (eval_expr a) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          |>(F * (fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
@@ -168,20 +167,21 @@ remember (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) as gs.
 remember (eval_expr a rho) as v.
 unfold func_ptr.
 apply func_ptr_mono; trivial.
+apply derives_refl.
 Qed.
 
 Lemma semax_call_subsume_si:
   forall (fs1: funspec) A P Q NEP NEQ argsig retsig cc,
    forall {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc  ->
            (retsig = Tvoid -> ret = None) ->   
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  && 
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  && 
           
          (`(func_ptr fs1) (eval_expr a) && `(funspec_sub_si fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          |>(F * (fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
@@ -190,6 +190,7 @@ eapply semax_pre. 2: apply semax_call with (P0:=P)(NEP0:=NEP)(NEQ0:=NEQ); trivia
 apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. clear. intros rho.
 rewrite andp_comm. apply func_ptr_si_mono.
+apply derives_refl.
 Qed.
 
 Lemma semax_call_NDsubsume :
@@ -199,20 +200,20 @@ Lemma semax_call_NDsubsume :
      forall {CS: compspecs} {Espec: OracleKind},
     forall  Delta  x (F: environ -> mpred) ret a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
          (`(func_ptr fs1) (eval_expr a) &&
-          |>(F * `(P x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          |>(F * (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q x) retsig ret)).
 Proof.
 intros.
 apply (semax_call_subsume fs1 (rmaps.ConstType A) (fun _ => P) (fun _ => Q)
-   (const_super_non_expansive A _) (const_super_non_expansive A _)
+   (args_const_super_non_expansive A _) (const_super_non_expansive A _)
     argsig retsig cc); auto.
 clear - H.
 apply NDsubsume_subsume. simpl; auto. apply H. apply nil.

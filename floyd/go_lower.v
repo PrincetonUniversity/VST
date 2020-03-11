@@ -10,7 +10,7 @@ Import LiftNotation.
 Local Open Scope logic.
 
 Ltac unfold_for_go_lower :=
-  cbv delta [PROPx LOCALx SEPx locald_denote
+  cbv delta [PROPx LAMBDAx PARAMSx GLOBALSx LOCALx SEPx argsassert2assert locald_denote
                        eval_exprlist eval_expr eval_lvalue cast_expropt
                        eval_binop eval_unop force_val1 force_val2
                       msubst_tc_expropt msubst_tc_expr msubst_tc_exprlist msubst_tc_lvalue msubst_tc_LR (* msubst_tc_LR_strong *) msubst_tc_efield msubst_simpl_tc_assert 
@@ -318,7 +318,7 @@ Lemma go_lower_localdef_one_step_canon_left: forall Delta Ppre l Qpre Rpre post 
 Proof.
   intros.
   apply derives_trans with (local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta gvar_ident l) (LOCALx (l :: Qpre) (SEPx Rpre))); auto.
-  replace (PROPx (Ppre ++ localdef_tc Delta gvar_ident l)) with (PROPx (localdef_tc Delta gvar_ident l ++ Ppre)).
+  replace (PROPx (Ppre ++ localdef_tc Delta gvar_ident l)) with (@PROPx environ (localdef_tc Delta gvar_ident l ++ Ppre)).
   2:{
     apply PROPx_Permutation.
     apply Permutation_app_comm.
@@ -337,7 +337,7 @@ Proof.
     apply andp_left2; auto.
   + simpl fold_right.
     rewrite !prop_and, !andp_assoc.
-    apply andp_derives; auto.
+    apply andp_derives; auto; try apply derives_refl.
 Qed.
 
 Definition localdefs_tc (Delta: tycontext) gvar_ident (Pre: list localdef): list Prop :=
@@ -411,7 +411,7 @@ Lemma go_lower_localdef_one_step_canon_canon {cs: compspecs} : forall Delta Ppre
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) && PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil) (LOCALx Qpost (SEPx Rpost)) |-- PROPx Ppost (LOCALx (l :: Qpost) (SEPx Rpost)).
 Proof.
   intros.
-  replace (PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil)) with (PROPx (msubst_extract_local Delta T1 T2 GV l :: Ppost)).
+  replace (PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil)) with (@PROPx environ (msubst_extract_local Delta T1 T2 GV l :: Ppost)).
   2:{
     apply PROPx_Permutation.
     eapply Permutation_trans; [| apply Permutation_app_comm].

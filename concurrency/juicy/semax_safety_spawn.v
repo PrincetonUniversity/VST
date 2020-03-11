@@ -156,8 +156,8 @@ Proof.
   destruct fs; auto.
 Qed.
 
-Lemma cond_approx_eq_app n A P1 P2 phi :
-  cond_approx_eq n A P1 P2 ->
+Lemma args_cond_approx_eq_app n A P1 P2 phi :
+  args_cond_approx_eq n A P1 P2 ->
   (level phi < n)%nat ->
   forall ts y z,
     app_pred (P1 ts (fmap (rmaps.dependent_type_functor_rec ts A) (approx n) (approx n) y) z) phi ->
@@ -230,20 +230,13 @@ Proof.
   intros (phix, (ts, ((((f,b), globals), f_with_x) , f_with_Pre)))  (Hargsty, Pre) Post.
   simpl (and _) in Post.
   destruct Pre as (phi0 & phi1 & jphi & A). simpl in A.
-  destruct A as (((PreA & _) & (([PreB1 _] & [PreB2 _] & [PreB3 _]) & [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]])) & necr).
+  destruct A as [[[PreA _] [PreB1 [[PreB3 _] [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]]]]] necr].
   rewrite seplog.sepcon_emp in fPRE.
-  hnf in PreB1,  PreB2.
-  destruct args as [ | args1 args]; [contradiction Hargsty | ].
-  destruct args as [ | args2 args]; [destruct Hargsty; contradiction | ].
-  destruct args as [ | args]; [ | destruct Hargsty as [_ [_ Hargsty]]; contradiction ].
+  change (args = f::b::nil) in PreB1.
+  subst args.
   pose proof func_ptr_isptr _ _ _ Func as isp.
   destruct f as [ | | | | | f_b f_ofs]; try contradiction isp.
   clear isp.
- apply  (shape_of_args3 _ _ (args1 :: args2 :: nil) _ ge) in PreB1; auto; [ | congruence].
-  apply (shape_of_args2 _ _ (args1 :: args2 :: nil) _ ge) in PreB2; auto.
-   2: clear - PreA; hnf in PreA; destruct b; try contradiction; congruence.
-  destruct PreB1 as (arg1, Eargs). symmetry in Eargs; inv Eargs.
-  destruct PreB2 as [arg1 PreB2]. inv PreB2.
 
   assert (li : level (getThreadR i tp cnti) = S n).
   { rewrite <-En. apply join_sub_level, compatible_threadRes_sub, compat. }
@@ -280,7 +273,7 @@ Proof.
   end.
   match type of Func with app_pred (func_ptr ?FS _) _ => set (spawn_spec := FS) in * end.
 
-  specialize (gam0 f_b ((_y, tptr tvoid) :: nil, tint) cc_default).
+  specialize (gam0 f_b (tptr tvoid :: nil, tint) cc_default).
 
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
   (* before merge, FAT had the following type.
@@ -471,8 +464,17 @@ simpl.
 
       eapply Safety.
       * apply juicy_postcondition_allows_exit_i0. hnf; intros. hnf. auto.
+      * (* funnassert *)
+        rewrite Ejm.
+        apply fungassert_pures_eq with Phi.
+        { rewrite level_age_to. omega. cleanup. omega. }
+        { apply pures_same_eq_l with phi0. 2: now apply pures_eq_age_to; omega.
+          apply join_sub_pures_same. subst.
+          apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
+          apply compatible_threadRes_sub, compat. }
+        apply FA.
       * rewrite Ejm.
-        eapply cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
+        eapply args_cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
 
         (* cond_approx_eq *)
         eauto.
@@ -480,32 +482,15 @@ simpl.
         (* level *)
         rewrite level_age_to. omega. cleanup. omega.
 
-        (* PROP / LOCAL / SEP *)
+        (* PROP / PARAMS / GLOBAL  / SEP *)
         simpl.
         apply age_to_pred.
-        split.
+        split; [ | split3].
 
-        (* nothing in PROP *)
-        now constructor.
-
-        split.
-        unfold SeparationLogic.local, lift1.
-
-        split.
-
-        -- (* LOCAL 1 : value of xarg *)
-        split.
-        simpl.
-        unfold liftx, lift. simpl.
-        unfold eval_id in *.
-        unfold val_lemmas.force_val in *.
-        unfold te_of in *. simpl.
-        rewrite Map.gss.
-        reflexivity.
-       do 8 red. intro Hx; subst; contradiction PreA.
-      
-
-       --  (* LOCAL 2 : locald_denote of global variables *)
+        -- (* nothing in PROP *) apply Logic.I. 
+        -- (* PARAMS *)
+            reflexivity.
+        -- (* GLOBAL locald_denote of global variables *)
         split3. hnf.
         clear - PreB3.
         hnf in PreB3. rewrite PreB3; clear PreB3.
@@ -520,15 +505,6 @@ simpl.
         simpl.
         rewrite seplog.sepcon_emp.
         destruct fPRE; assumption.
-      * (* funnassert *)
-        rewrite Ejm.
-        apply funassert_pures_eq with Phi.
-        { rewrite level_age_to. omega. cleanup. omega. }
-        { apply pures_same_eq_l with phi0. 2: now apply pures_eq_age_to; omega.
-          apply join_sub_pures_same. subst.
-          apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
-          apply compatible_threadRes_sub, compat. }
-        apply FA.
       * hnf. rewrite Ejm; simpl.
          rewrite age_to_ghost_of.
          destruct ora.

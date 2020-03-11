@@ -54,8 +54,9 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil) (*Delta*)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-           lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-           temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+           lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; 
+           temp _out out; temp _in nonce; temp _k k; 
+           temp _c c; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 16) x;
          CoreInSEP data (nonce, c, k)))
 
@@ -124,8 +125,8 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
 PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 4)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR;
          EX  l : list val, !!X_content data 4 l &&
                  data_at Tsh (tarray tuint 16) l x;
@@ -135,8 +136,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
    PROP  ()
    LOCAL  (
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; 
+   temp _out out; temp _in nonce; temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
    SEP  (FR;
          EX l:_, !!(X_content data i l) && data_at Tsh (tarray tuint 16) l x;
          CoreInSEP data (nonce, c, k))). (*0.8 versus 2.1*)
@@ -185,8 +186,9 @@ Time forward_for_simple_bound 4 (EX i:Z,
    LOCAL  ( temp _t'1 (Vint (littleendian (Select16Q C i)));
    temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; 
+   temp _out out; temp _in nonce;temp _k k; 
+   temp _c c; temp _h (Vint (Int.repr h)))
    SEP
    (FRZL FR2; data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c))).
   { rewrite (Select_SplitSelect16Q C i _ _ HeqFB). unfold QByte.
@@ -303,8 +305,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
    temp _t'3 (Vint (littleendian (Select16Q Nonce i)));
    temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
+   temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
    SEP (FRZL FR7; SByte Nonce nonce))).
   { Time entailer!. (*1.8 versus 9.5*)
 

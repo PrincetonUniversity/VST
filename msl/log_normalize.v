@@ -77,6 +77,18 @@ apply orp_right1; apply H.
 apply orp_right2; apply H0.
 Qed.
 
+Lemma orp_assoc {A} {NA: NatDed A} : forall P Q R : A,
+  (P || Q) || R = P || (Q || R).
+Proof.
+  intros; apply pred_ext;   repeat apply orp_left.
+  apply orp_right1; trivial.
+  apply orp_right2; apply orp_right1; trivial.
+  do 2 apply orp_right2; auto.
+  do 2 apply orp_right1; trivial. 
+  apply orp_right1. apply orp_right2; trivial.
+  apply orp_right2; auto.
+Qed.
+
 Class CCCviaNatDed (A: Type) (prod expo: A -> A -> A) {ND: NatDed A}: Prop :=
   isCCC: CartesianClosedCat.CCC A derives eq prod expo.
 

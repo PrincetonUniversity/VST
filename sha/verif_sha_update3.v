@@ -69,13 +69,17 @@ Definition update_inner_if :=
 
 Definition inv_at_inner_if wsh sh hashed len c d dd data gv :=
  (PROP ()
-   (LOCAL
+  (LOCAL (temp _fragment (Vint (Int.repr (64 - Zlength dd)));
+   temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
+   temp _n (Vint (Int.repr (Zlength dd))); temp _data d; gvars gv; temp _c c; temp _data_ d;
+   temp _len (Vint (Int.repr len)))
+   (*(LOCAL
       (temp _fragment (Vint (Int.repr (64- Zlength dd)));
        temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
        temp _n (Vint (Int.repr (Zlength dd)));
        temp _data d; temp _c c;
        temp _len (Vint (Int.repr len));
-       gvars gv)
+       gvars gv)*)
    SEP  (data_at wsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),

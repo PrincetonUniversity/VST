@@ -462,8 +462,8 @@ Section Progress.
         intros Post.
 
         (* relate lset to val *)
-        destruct Precond as [PREA [[[PREB _] _] PREC]].
-        hnf in PREB.
+        destruct Precond as [[PREA _] [Hargs [_ PREC]]].
+        change (args = vx::nil) in Hargs. subst args.
         unfold canon.SEPx in PREC.
         simpl in PREC.
         rewrite seplog.sepcon_emp in PREC.
@@ -564,16 +564,11 @@ Section Progress.
 
             assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
 
-            assert (Eargs : args = Vptr b ofs :: nil). {
-              subst sg.
-              eapply shape_of_args; eauto.
-            }
-
             assert (Ecall: EF_external name sg = LOCK) by congruence.
             pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
             assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
                                        (Callstate (External (EF_external name sg) 
-                                               tyl Tvoid cc_default) args c) m =
+                                               tyl Tvoid cc_default) (Vptr b ofs :: nil) c) m =
                     Some (LOCK, Vptr b ofs :: nil)). {
               simpl.
               repeat f_equal; congruence.
@@ -641,16 +636,11 @@ Section Progress.
 
           assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
 
-          assert (Eargs : args = Vptr b ofs :: nil). {
-            subst sg.
-            eapply shape_of_args; eauto.
-          }
-
           assert (Ecall: EF_external name sg = LOCK) by congruence.
           pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
           assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
                                        (Callstate (External (EF_external name sg) 
-                                               tyl Tvoid cc_default) args c) m =
+                                               tyl Tvoid cc_default) (Vptr b ofs :: nil) c) m =
                     Some (LOCK, Vptr b ofs :: nil)). {
             simpl.
             repeat f_equal; congruence.
@@ -776,9 +766,8 @@ Section Progress.
         intros Post.
 
         (* relate lset to val *)
-        destruct Precond as ((Hreadable & PreA2) & ([PreB1 _] & PreB2) & PreC).
-        change Logic.True in PreA2. clear PreA2.
-        change Logic.True in PreB2. clear PreB2.
+        destruct Precond as [[Hreadable _] [Eargs [_ PreC]]].
+        change (args = vx::nil) in Eargs.
         unfold canon.SEPx in PreC.
         unfold base.fold_right_sepcon in *.
         rewrite seplog.sepcon_emp in PreC.
@@ -835,12 +824,6 @@ Section Progress.
           }
 
           assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
-
-          assert (Eargs : args = Vptr b ofs :: nil). {
-            subst sg.
-            hnf in PreB1.
-            eapply shape_of_args; eauto.
-          }
 
           assert (Ecall: EF_external name sg = UNLOCK) by congruence.
             pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
@@ -1065,8 +1048,8 @@ Section Progress.
         }
 
         assert (Esg : sg = UNLOCK_SIG) by (unfold ef_id_sig, ef_sig in *; congruence).
-
-        destruct Precond as [[Hwritable _] [[[B1 _] _] AT]].
+        destruct Precond as [[Hwritable _] [Eargs [_ AT]]].
+       change (args = vx::nil) in Eargs.
         assert (Hreadable : readable_share shx) by (apply writable0_readable; auto).
 
         (* [data_at_] from the precondition *)
@@ -1075,17 +1058,9 @@ Section Progress.
         rewrite seplog.sepcon_emp in AT.
 
         (* value of [vx] *)
-        simpl in B1.
-        unfold lift, liftx in B1. simpl in B1.
-        unfold lift, liftx in B1. simpl in B1.
         rewrite data_at__isptr in AT.
         destruct AT as (IsPtr, AT).
         destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
-
-        assert (Eargs : args = Vptr b ofs :: nil). {
-          subst sg.
-          eapply shape_of_args; eauto.
-        }
 
         assert (Ecall: EF_external name sg = MKLOCK) by congruence.
         pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
@@ -1208,10 +1183,8 @@ Section Progress.
         }
 
         assert (Esg : sg = UNLOCK_SIG) by (unfold ef_id_sig, ef_sig in *; congruence).
-
-        destruct Precond as ((Hwritable & PreA2) & ([B1 _] & PreB2) & PreC).
-        change Logic.True in PreA2. clear PreA2.
-        change Logic.True in PreB2. clear PreB2.
+        destruct Precond as [[Hwritable _] [Eargs [_ PreC]]].
+        change (args=vx::nil) in Eargs.
         unfold canon.SEPx in PreC.
         unfold base.fold_right_sepcon in *.
         rewrite seplog.sepcon_emp in PreC.
@@ -1229,18 +1202,10 @@ Section Progress.
         simpl in AT.
 
         (* value of [vx] *)
-        simpl in B1.
-        unfold lift, liftx in B1. simpl in B1.
-        unfold lift, liftx in B1. simpl in B1.
         rewrite lockinv_isptr in AT.
 
         destruct AT as (phi0lockinv & phi0sat & jphi0 & (IsPtr & Hlockinv) & Hsat).
         destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
-
-        assert (Eargs : args = Vptr b ofs :: nil). {
-          subst sg.
-          eapply shape_of_args; eauto.
-        }
 
         assert (Ecall: EF_external name sg = FREE_LOCK) by congruence.
         pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).

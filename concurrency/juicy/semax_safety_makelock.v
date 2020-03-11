@@ -137,7 +137,8 @@ Proof.
   simpl (and _).
   intros Post.
 
-  destruct Precond as [[Hwritable _] [[[B1 _] _] AT]].
+  destruct Precond as [[Hwritable _] [Eargs [_ AT]]].
+(*  destruct Precond as [[Hwritable _] [[[B1 _] _] AT]]. *)
   assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
 
   (* [data_at_] from the precondition *)
@@ -146,15 +147,10 @@ Proof.
   rewrite seplog.sepcon_emp in AT.
 
   (* value of [vx] *)
-  simpl in B1.
-  unfold lift, liftx in B1. simpl in B1.
-  unfold lift, liftx in B1. simpl in B1.
+  change (args = vx :: nil) in Eargs.
   rewrite data_at__isptr in AT.
   destruct AT as (IsPtr, AT).
   destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
-
-  assert (Eargs : args = Vptr b ofs :: nil)
-    by (eapply shape_of_args; eauto).
 
   assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem _ _ (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Ptrofs.intval ofs) (Vint Int.zero) = Some m'). {
     clear -AT Join Hwritable.
@@ -786,7 +782,7 @@ Proof.
           split. now constructor.
           simpl. rewrite seplog.sepcon_emp.
           unfold semax_conc_pred.lock_inv in *.
-          exists b, ofs; split. auto.
+          exists b, ofs; split. reflexivity.
           destruct RL0 as (Lphi0 & outside & inside & Hg).
           split.
           intros loc. simpl.

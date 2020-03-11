@@ -23,7 +23,7 @@ Proof.
     subst p. entailer!.
     entailer!.
 *
-    forward_call tt.
+    forward_call 1.
     contradiction.
 *
     if_tac.

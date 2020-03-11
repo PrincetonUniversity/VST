@@ -247,14 +247,14 @@ Proof.
 + intros ts. rewrite level_core. specialize (H0 ts); auto.
 + intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
 Qed.
-
+(*
 Lemma corable_funspec_sub_early f g: corable (funspec_sub_early f g).
 Proof.
  intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
 + intros ts. rewrite level_core. specialize (H0 ts); auto.
 + intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
 Qed.
-
+*)
 Lemma corable_pureat: forall pp k loc, corable (pureat pp k loc).
 Proof.
  intros. intro w.
@@ -303,6 +303,7 @@ Proof.
   apply corable_andp. apply corable_funspec_sub_si.
   apply corable_func_at.
 Qed.
+(*
 Lemma corable_func_ptr_early : forall f v, corable (func_ptr_early f v).
 Proof.
   intros.
@@ -312,11 +313,11 @@ Proof.
   apply corable_exp; intro.
   apply corable_andp. apply corable_funspec_sub_early.
   apply corable_func_at.
-Qed.
+Qed.*)
 Lemma corable_func_ptr : forall f v, corable (func_ptr f v).
 Proof.
   intros.
-  unfold func_ptr_early.
+  unfold func_ptr.
   apply corable_exp; intro.
   apply corable_andp; auto.
   apply corable_exp; intro.
@@ -324,7 +325,7 @@ Proof.
   apply corable_func_at.
 Qed.
 
-Hint Resolve corable_func_ptr corable_func_ptr_si corable_func_ptr_early : core.
+Hint Resolve corable_func_ptr corable_func_ptr_si (*corable_func_ptr_early*) : core.
 
 Lemma corable_funspecs_assert:
   forall FS rho, corable (funspecs_assert FS rho).

@@ -1,5 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.even.
+
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -25,6 +28,6 @@ Definition even_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]
     PROP() LOCAL(temp ret_temp (Vint (if Z.even 42 then Int.one else Int.zero))) SEP(has_ext tt).

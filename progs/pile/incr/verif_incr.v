@@ -6,9 +6,9 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition incr1_spec :=
  DECLARE _incr1
  WITH i: Z, a: val, sh: share, private: list val
- PRE [ _i OF tint, _auxdata OF tptr tuint ]
+ PRE [ tint, tptr tuint ]
     PROP (0 <= i < Int.max_signed; writable_share sh)
-    LOCAL(temp _i (Vint (Int.repr i)); temp _auxdata a)
+    PARAMS (Vint (Int.repr i); a) GLOBALS ()
     SEP(data_at sh (tarray tuint 10) private a)
  POST [ tint ]
    EX private':list val,
@@ -18,10 +18,10 @@ Definition incr1_spec :=
 
 Definition incr2_spec :=
  DECLARE _incr2
- WITH i: Z
- PRE [ _i OF tint, _auxdata OF tptr tuint ]
+ WITH i: Z, a: val
+ PRE [ tint, tptr tuint ]
     PROP (0 <= i < Int.max_signed)
-    LOCAL(temp _i (Vint (Int.repr i)))
+    PARAMS (Vint (Int.repr i); a) GLOBALS ()
     SEP()
  POST [ tint ]
     PROP()
@@ -31,25 +31,18 @@ Definition incr2_spec :=
 Lemma sub_incr12:
   funspec_sub (snd incr2_spec)  (snd incr1_spec).
 Proof.
-apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
-split3; auto.
-intros [[[i a] sh] private].
-Exists i (data_at sh (tarray tuint 10) private a).
-rewrite !insert_SEP.
-apply andp_right.
-entailer!.
-apply prop_right.
-Exists private.
+do_funspec_sub. destruct w as [[[i a] sh] data]. clear H.
+Exists (i,a) (data_at sh (tarray tuint 10) data a). simpl; entailer!.
+intros tau ? ?. Exists data.
 entailer!.
 Qed.
 
 Definition incr3_spec :=
  DECLARE _incr3
  WITH i: Z, gv: globals, sh: share, private: list val
- PRE [ _i OF tint ]
+ PRE [ tint ]
     PROP (0 <= i < Int.max_signed; writable_share sh)
-    LOCAL(temp _i (Vint (Int.repr i)); gvars gv)
+    PARAMS (Vint (Int.repr i)) GLOBALS (gv)
     SEP(data_at sh (tarray tuint 10) private (gv _global_auxdata))
  POST [ tint ]
    EX private':list val,
@@ -60,9 +53,9 @@ Definition incr3_spec :=
 Definition incr4_spec :=
  DECLARE _incr4
  WITH i: Z
- PRE [ _i OF tint ]
+ PRE [ tint ]
     PROP (0 <= i < Int.max_signed)
-    LOCAL(temp _i (Vint (Int.repr i)))
+    PARAMS (Vint (Int.repr i)) GLOBALS ()
     SEP()
  POST [ tint ]
     PROP()
@@ -72,17 +65,9 @@ Definition incr4_spec :=
 Lemma sub_incr34:
   funspec_sub (snd incr4_spec)  (snd incr3_spec).
 Proof.
-apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
-split3; auto.
-intros [[[i gv] sh] private].
-Exists i (data_at sh (tarray tuint 10) private (gv _global_auxdata)).
-rewrite !insert_SEP.
-simpl funsig_tycontext.
-apply andp_right.
-forget (gv _global_auxdata) as p.
-entailer!.
-apply prop_right.
-Exists private.
+do_funspec_sub. destruct w as [[[i gv] sh] data]. clear H.
+Exists i (data_at sh (tarray tuint 10) data (gv _global_auxdata)).
+simpl; entailer!.
+intros tau ? ?. Exists data.
 entailer!.
 Qed.

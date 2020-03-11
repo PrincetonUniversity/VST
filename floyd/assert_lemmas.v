@@ -604,9 +604,13 @@ Lemma globvars2pred_unfold: forall gv vl rho,
 Proof. intros. unfold globvars2pred.
   unfold lift2. f_equal.
    induction vl; simpl; auto. normalize; f_equal; auto.
-Qed.
+Qed. (*
+Lemma gglobvars2pred_unfold: forall gv vl,
+    globvars2pred gv vl = 
+    alift2 andp (fun gvals => prop (gv = globals_of_genv (fst gvals)))
+      (fold_right (alift2 sepcon) (alift0 emp) (map (gglobvar2pred gv) vl)).
+Proof. reflexivity. Qed.*)
 Hint Rewrite globvars2pred_unfold : norm.
-
 Hint Rewrite @exp_trivial : norm.
 
 Lemma eval_var_isptr:

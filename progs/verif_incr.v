@@ -2,6 +2,7 @@ Require Import VST.progs.conclib.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.incr.
 
+Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -21,7 +22,7 @@ Definition incr_spec :=
   WITH sh : share, g1 : gname, g2 : gname, left : bool, n : Z, gv: globals
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvars gv)
+         PARAMS () GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n (if left then g1 else g2))
   POST [ tvoid ]
          PROP ()
@@ -33,7 +34,7 @@ Definition read_spec :=
   WITH sh : share, g1 : gname, g2 : gname, n1 : Z, n2 : Z, gv: globals
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvars gv)
+         PARAMS () GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2)
   POST [ tuint ]
          PROP ()
@@ -49,10 +50,10 @@ Definition thread_lock_inv sh g1 g2 ctr lockc lockt :=
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : share * gname * gname * globals
-  PRE [ _args OF (tptr tvoid) ]
+  PRE [ (*_args OF*) (tptr tvoid) ]
          let '(sh, g1, g2, gv) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvars gv)
+         PARAMS (y) GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr));
                 ghost_var gsh2 0 g1;
                 lock_inv sh (gv _thread_lock) (thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)))
@@ -64,8 +65,8 @@ Definition thread_func_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
@@ -207,6 +208,7 @@ Proof.
   { lock_props.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward.
+Unshelve. apply xH. (*TODO: fix (I believe) the forward_spawn tactic  so that this ident is not introduces. Is it the y?*)
 Qed.
 
 Definition extlink := ext_link_prog prog.

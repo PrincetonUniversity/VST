@@ -57,6 +57,7 @@ install:
 - "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
 - opam switch list
 - opam switch ${COMPILER}
+- opam switch --unlock-base
 - eval $(opam config env)
 - opam config list
 - opam config var root

@@ -25,8 +25,8 @@ Delta
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 4)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 16) y;
          data_at Tsh (tarray tuint 16) xInit x))(Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 16) tint) tint)
@@ -45,8 +45,8 @@ Delta
 (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) xInit x;
    EX  l : list val,
      !!Y_content xInit 16 l
@@ -58,8 +58,8 @@ Proof. intros. abbreviate_semax.
     PROP  ()
     LOCAL  (
       lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-      lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-      temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+      lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
+      temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
     SEP  (FR; data_at Tsh (tarray tuint 16) xInit x;
           EX l:_, !!(Y_content xInit i l (list_repeat 16 Vundef)) &&
               data_at Tsh (tarray tuint 16) l y)).

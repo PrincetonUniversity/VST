@@ -41,9 +41,9 @@ Lemma initbodyproof Espec c k l wsh sh key gv h1 pad ctxkey
   (Hsh: readable_share sh):
 @semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
-   LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
-           lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key k;
-           temp _len (Vint (Int.repr l)); gvars gv)
+   LOCAL (lvar _ctx_key (tarray tuchar 64) ctxkey;
+   lvar _pad (tarray tuchar 64) pad; gvars gv; temp _ctx c; 
+   temp _key k; temp _len (Vint (Int.repr l)))
    SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
          data_at_ Tsh (tarray tuchar 64) pad;
          K_vector gv; initPre wsh sh c k h1 l key))

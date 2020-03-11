@@ -159,7 +159,7 @@ Proof.
   pose proof resource_at_approx Phi (b, Z0) as RA. symmetry in RA. rewrite EPhi in RA.
   rewrite EPhi in PS.
   simpl in PS.
-  assert (A' = SpecTT A) by (injection PS; auto). subst A'.
+  assert (A' = SpecArgsTT A) by (injection PS; auto). subst A'.
   apply PURE_SomeP_inj2 in PS.
   simpl in RA. injection RA as RA. apply inj_pair2 in RA.
 
@@ -191,7 +191,8 @@ Proof.
 
   exists id, P', Q', P'_ne, Q'_ne. split; auto. split; auto.
   split.
-  all: eapply cond_approx_eq_trans; [ | eapply cond_approx_eq_weakening; eauto ].
+1:  eapply args_cond_approx_eq_trans; [ | eapply args_cond_approx_eq_weakening; eauto ].
+2:  eapply cond_approx_eq_trans; [ | eapply cond_approx_eq_weakening; eauto ].
   all: intros ts.
   all: extensionality a e'; simpl.
   all: apply equal_f_dep with (x := ts) in PS.
@@ -263,6 +264,34 @@ Lemma resource_decay_matchfunspecs e Gamma b Phi Phi' :
 Proof.
   intros l rd; apply pures_eq_matchfunspecs; auto.
   eapply resource_decay_pures_eq; eauto.
+Qed.
+
+Lemma fungassert_pures_eq G rho phi1 phi2 :
+  (level phi1 >= level phi2)%nat ->
+  pures_eq phi1 phi2 ->
+  app_pred (fungassert G rho) phi1 ->
+  app_pred (fungassert G rho) phi2.
+Proof.
+  intros lev (PS, SP) (FA1, FA2); split.
+  - intros id fs phi2' necr Gid.
+    specialize (FA1 id fs phi1 (necR_refl phi1) Gid).
+    destruct FA1 as (b & ? & FAT). exists b; split; auto.
+    apply pred_nec_hereditary with phi2; auto.
+    clear -lev PS FAT. destruct fs; simpl in *.
+    specialize (PS (b, Z0)). rewrite FAT in PS.
+    exact_eq PS. f_equal. f_equal.
+    simpl. f_equal. extensionality i a b' a1.
+    rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)), fmap_comp.
+    rewrite !(compose_rewr (approx _) (approx _)).
+    rewrite approx_oo_approx'; auto.
+    rewrite approx'_oo_approx; auto.
+  - intros b fs cc phi2'  necr. destruct fs eqn:Efs. intros [pp pat].
+    specialize (FA2 b fs cc phi1 (necR_refl phi1)). subst fs.
+    spec FA2; [ | auto]. simpl. clear -pat necr SP.
+    simpl in pat. specialize (SP (b, Z0)).
+    destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E).
+    rewrite E in SP. destruct SP as (pp'', SP). exists pp''.
+    rewrite <-resource_at_approx, SP. reflexivity.
 Qed.
 
 Lemma funassert_pures_eq G rho phi1 phi2 :

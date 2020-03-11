@@ -2523,7 +2523,7 @@ Proof.
   icase (bool_dec b b0).
   subst.
   elimtype False.
-  icase b0;compute in  H;compute in H0; firstorder.
+  icase b0;compute in  H;compute in H0; firstorder with bool.
 Qed.
 
 Lemma identity_tree: identity (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _)).
@@ -3096,7 +3096,7 @@ Proof.
     icase x2_1;icase x2_2.
     icase b;icase b0;
     simpl;
-    elimtype False;firstorder.
+    elimtype False; firstorder with bool.
   rewrite H1.
   simpl.
   destruct H0 as [? [? [? ?]]].
@@ -3179,7 +3179,7 @@ Qed.
     icase x1_1;icase x1_2.
     icase b;icase b0;
     simpl;
-    elimtype False;firstorder.
+    elimtype False; firstorder with bool.
   rewrite H1.
   simpl.
   destruct H0 as [? [? [? ?]]].
@@ -5547,9 +5547,8 @@ Qed.
     simpl.
     icase (mkCanon s1);
     icase (mkCanon s2).
-    icase b; icase b0;simpl in *.
-    elimtype False; firstorder.
-    elimtype False; firstorder.
+    icase b; icase b0;simpl in *;
+    elimtype False; firstorder with bool.
   Qed.
 
   (*L30*)
@@ -6266,7 +6265,7 @@ Qed.
     icase (bool_dec b b0);try subst b0;
     simpl;
     apply exist_ext;trivial.
-    icase b;elimtype False;firstorder.
+    icase b; elimtype False; firstorder with bool.
 
     f_equal;
     apply proof_irr.
@@ -6313,9 +6312,8 @@ Qed.
   generalize (mkCanon_identity _ c2);intro.
   rewrite H;rewrite H0.
   icase x1;icase x2.
-  icase b;icase b0.
-  elimtype False;firstorder.
-  elimtype False;firstorder.
+  icase b;icase b0;
+  elimtype False; firstorder with bool.
   f_equal;apply exist_ext;
   rewrite H in H1;rewrite H0 in H1;
   icase x1;icase x2;try icase b;try icase b0;inv H1;auto.

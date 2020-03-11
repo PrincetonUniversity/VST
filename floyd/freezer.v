@@ -562,10 +562,10 @@ Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) u
 
 (****************************************************************************)
 
-Lemma flatten_emp_in_mpreds':
+Lemma flatten_emp_in_mpreds' {A}:
   forall n (R: list mpred),
    nth_error R n = Some emp ->
-   SEPx R = SEPx (firstn n R ++ skipn (S n) R).
+   @SEPx A R = SEPx (firstn n R ++ skipn (S n) R).
 Proof.
 unfold SEPx. intros. extensionality rho.
 revert R H. clear.

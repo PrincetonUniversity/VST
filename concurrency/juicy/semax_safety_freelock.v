@@ -138,7 +138,8 @@ Proof.
   simpl (and _).
   intros Post.
 
-  destruct Precond as [[Hwritable _] [[[B1 _] _] AT]].
+  destruct Precond as [[Hwritable _] [Eargs [_ AT]]].
+  change (args = vx::nil) in Eargs.
   assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
 
   (* [data_at_] from the precondition *)
@@ -147,9 +148,6 @@ Proof.
   rewrite seplog.sepcon_emp in AT.
 
   (* value of [vx] *)
-  simpl in B1.
-  unfold lift, liftx in B1. simpl in B1.
-  unfold lift, liftx in B1. simpl in B1.
   rewrite lockinv_isptr in AT.
   rewrite log_normalize.sepcon_andp_prop' in AT.
   rewrite seplog.corable_andp_sepcon1 in AT; swap 1 2.
@@ -159,9 +157,6 @@ Proof.
   rewrite seplog.sepcon_emp in AT.
   destruct AT as (IsPtr, AT).
   destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
-
-  assert (Eargs : args = Vptr b ofs :: nil)
-    by (eapply shape_of_args; eauto).
 
   destruct AT as (phi0lockinv & phi0sat & jphi0 & Hlockinv & Hsat).
 
@@ -340,7 +335,7 @@ Proof.
       assert (cnti' : containsThread (remLockSet tp (b, Ptrofs.unsigned ofs)) i) by auto.
       rewrite maps_getthread with (i0 := i) (cnti0 := cnti') in j.
       change Ptrofs.intval with Ptrofs.unsigned.
-      clear Post B1.
+      clear Post.
       eapply (joinlist_merge phi0' phi1). apply j'.
       apply join_comm in jphi0'.
       eapply (joinlist_merge _ phi0lockinv' phi0'). apply jphi0'.
@@ -689,7 +684,7 @@ Proof.
 
       * (* Lock not found, unlocked *)
         rewrite age_to_resource_at.
-        destruct Hrmap' as (_ & inside & outside & _). clear Post B1 Phi'rev.
+        destruct Hrmap' as (_ & inside & outside & _). clear Post Phi'rev.
         intros LK. specialize (inside loc). specialize (outside loc). spec inside.
         { intros r. specialize (outside r). destruct LK as (sh & sh' & z & pp & E).
           breakhyps. rewr (Phi' @ loc) in E. breakhyps. }

@@ -125,8 +125,11 @@ Zlength r_data = CBLOCKz ->
 semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP ( )
    LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
+   temp _p (field_address t_struct_SHA256state_st [StructField _data] c); 
+   gvars gv; temp _md md; temp _c c)
+   (*LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
    temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-   temp _md md; temp _c c; gvars gv)
+   temp _md md; temp _c c; gvars gv)*)
    SEP (K_vector gv;
    field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint (s256a_regs a)) c;
    field_at wsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (s256a_len a))) c;

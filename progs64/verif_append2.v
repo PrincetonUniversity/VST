@@ -4,6 +4,7 @@ Require Import VST.progs64.append.
 
 Open Scope logic.
 
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.

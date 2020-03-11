@@ -1,6 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.libglob.
 
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -161,7 +163,7 @@ Definition client_spec :=
 Definition main_spec :=
   DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]  
      PROP() 
      LOCAL (temp ret_temp (Vint (Int.repr 5))) 

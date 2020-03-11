@@ -136,9 +136,8 @@ Proof.
   simpl (and _).
   intros Post.
   unfold release_pre in Pre.
-  destruct Pre as ((Hreadable & PreA2) & ([PreB1 _] & PreB2) & PreC).
-  change (Logic.True) in PreA2. clear PreA2.
-  change (Logic.True) in PreB2. clear PreB2.
+  destruct Pre as [[Hreadable _] [Eargs [_ PreC]]].
+  change (args = vx::nil) in Eargs.  
   unfold canon.SEPx in PreC.
   unfold base.fold_right_sepcon in *.
   rewrite seplog.sepcon_emp in PreC.
@@ -167,7 +166,6 @@ Proof.
   }
   clear dependent d_phi; clear dependent phi'.
 
-  inv PreB1.
   assert (Htid = cnti) by apply proof_irr; subst.
 
   assert (pack_res_inv R = pack_res_inv (approx (level phi0') Rx)) as HR.

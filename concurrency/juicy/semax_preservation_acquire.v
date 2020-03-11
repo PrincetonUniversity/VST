@@ -20,7 +20,7 @@ Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_core.
 Require Import VST.concurrency.common.Clightcore_coop.
-Require Import VST.veric.semax.
+Require Import VST.veric.semax.  
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_safety.
@@ -254,27 +254,16 @@ Proof.
             contradiction Heq_name; auto. }
           intros (? & ? & [] & ? & ?) (Hargsty, Pre) Post.
           destruct Pre as (phi0 & phi1 & j & Pre & H88).
-          simpl in Pre.
-          destruct Pre as [_ [[[Hv _] _] Hlk]]; simpl in Hv, Hlk.
+          simpl in Pre. subst.
+          destruct Pre as [_ [Hargs [_ Hlk]]].
           unfold canon.SEPx in Hlk; simpl in Hlk.
           rewrite seplog.sepcon_emp in Hlk.
-          assert (args = Vptr b ofs :: nil). {
+          change (args = v::nil) in Hargs; subst args.
+          assert (v = Vptr b ofs). {
             revert Hat_external ae; clear.
             rewrite ClightSemanticsForMachines.CLN_msem. simpl.
             intros. unfold cl_at_external in *.
             congruence.
-          }
-          subst args.
-          assert (v = Vptr b ofs). {
-            rewrite Hv.
-            clear.
-            unfold mpred.eval_id in *.
-            unfold val_lemmas.force_val in *.
-            unfold te_of in *.
-            unfold Genv.find_symbol in *.
-            unfold mpred.env_set in *.
-            rewrite Map.gss.
-            auto.
           }
           subst v.
           destruct Hlk as (? & ? & Heq & ?); inv Heq.
@@ -627,8 +616,8 @@ Proof.
                 simpl (fst _) in *; simpl (snd _) in *; simpl (projT2 _) in *.
               clear ts.
               cbv iota beta in Pre.
-              Unset Printing Implicit.
-              destruct Pre as [[[A B] [[C _] D]] E].
+              destruct Pre as [[[A _] [C [_ D]]] E].
+              change (args = vx::nil) in C; subst args.
 Opaque age_tp_to.
               simpl in *.
               split3. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
@@ -647,22 +636,10 @@ Opaque age_tp_to.
                  destruct lock_coh as [_ (align & bound & R' & lkat & sat)].
                  destruct sat as [sat | ?]. 2:congruence.
                  pose proof predat6 lkat as ER'.
-                 assert (args = Vptr b ofs :: nil). {
+                 assert (vx = Vptr b ofs). {
                    revert Hat_external ae; clear.
                    intros. unfold cl_at_external in *.
                    congruence.
-                 }
-                 subst args.
-                 assert (vx = Vptr b ofs). {
-                   destruct C as [-> _].
-                   clear.
-                   unfold eval_id in *.
-                   unfold val_lemmas.force_val in *.
-                   unfold te_of in *.
-                   unfold Genv.find_symbol in *.
-                   unfold env_set in *.
-                   rewrite Map.gss.
-                   auto.
                  }
                  subst vx.
                  pose proof predat4 D as ERx.
