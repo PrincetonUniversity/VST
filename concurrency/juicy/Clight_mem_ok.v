@@ -1405,6 +1405,7 @@ apply IHfl in H2; auto.
 apply set_tenv_wellformed; auto.
 Qed.
 
+(*
 Lemma inline_external_call_mem_wd: (* this whole lemma is probably obsolete *)
   forall (ge: genv) ef vargs m vres m',
   Events.external_call ef ge vargs m Events.E0 vres m' ->
@@ -1505,7 +1506,7 @@ inv H.
 split3; auto.
 constructor.
 apply Ple_refl.
-Admitted. (* but this whole lemma is probably obsolete *)
+Admitt ed. (* but this whole lemma is probably obsolete *) *)
 
 Require VST.concurrency.juicy.JuicyMachineModule. (* for Module Test *)
 Module Test.

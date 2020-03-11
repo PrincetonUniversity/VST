@@ -576,10 +576,11 @@ Section AcquireDiagrams.
             simpl.
             eapply (@inject_invariant_one_permission_virtue).
             { eapply cntUpdateL; exact cnt1. }
-            eapply (concur_match_updLock_empty _ i); eauto.
+            eapply (concur_match_updLock_empty _ _ _ i); eauto.
             { eapply concur_match_perm_restrict', CMatch. }
             { econstructor; eauto. }
             { subst ofs2. rewrite Heq; eassumption. }
+            { eapply Hangel_bound. }
             
             intros b0 ofs0 p HH.
             unshelve exploit (invariant_invariant_one_permission
@@ -597,11 +598,12 @@ Section AcquireDiagrams.
             simpl.
             eapply (@inject_invariant_one_permission2_virtue).
             { eapply cntUpdateL; exact cnt1. }
-            eapply (concur_match_updLock_empty _ i); eauto.
+            eapply (concur_match_updLock_empty _ _ _ i); eauto.
             { eapply concur_match_perm_restrict', CMatch. }
             { econstructor; eauto. }
             { subst ofs2. rewrite Heq; eassumption. }
-            
+            { apply Hangel_bound. }
+              
             intros b0 ofs0 p HH.
             unshelve exploit (invariant_invariant_one_permission2
                        _ _ (Hinv') tid b0 ofs0 ). 
@@ -1043,10 +1045,11 @@ Section AcquireDiagrams.
             revert b0 ofs0 p HH.
             simpl.
             eapply (@inject_invariant_one_permission_virtue).
-            { eapply cntUpdateL; exact Hcnt1. }
-            eapply (concur_match_updLock_empty _ (Some cd)); eauto.
+            { eapply cntUpdateL; exact Hcnt1. } 
+            eapply (concur_match_updLock_empty _ _ _ (Some cd)); eauto.
             { econstructor; eauto. }
             { subst ofs2. rewrite Heq; eassumption. }
+            { apply Hangel_bound. }
             
             intros b0 ofs0 p HH.
             unshelve exploit (invariant_invariant_one_permission
@@ -1065,9 +1068,10 @@ Section AcquireDiagrams.
             simpl.
             eapply (@inject_invariant_one_permission2_virtue).
             { eapply cntUpdateL; exact Hcnt1. }
-            eapply (concur_match_updLock_empty _ (Some cd)); eauto.
+            eapply (concur_match_updLock_empty _ _ _ (Some cd)); eauto.
             { econstructor; eauto. }
             { subst ofs2. rewrite Heq; eassumption. }
+            { apply Hangel_bound. }
             
             intros b0 ofs0 p HH.
             unshelve exploit (invariant_invariant_one_permission2
@@ -1078,8 +1082,35 @@ Section AcquireDiagrams.
             erewrite updLockSet_updThread_comm.
             
             eapply invariant_one_permission2_updThread.
-            
-          * simpl. intros.
+
+          * !goal(permMapCoherence _ _ ).
+            eapply permMapCoherence_compute_inject.
+            -- apply Hangel_bound.
+            -- eapply inject_virtue_perm_perfect_image_dmap;
+               try eapply Hangel_bound; eauto.
+               eapply full_inject_dmap_pair.
+               ** !goal (Events.injection_full mu _ ).
+                  eapply CMatch.
+               ** !goal (dmap_valid_pair _ _).
+                  apply join_dmap_valid_pair.
+                  eapply Hangel_bound.
+            -- subst; eapply Hinj_th.
+            -- subst; eapply Hinj_lock.
+            -- eapply thread_data_lock_coh1,
+               invariant_invariant'.
+               eapply invariant_empty_updLockSet_upd;
+                 simpl; try reflexivity.
+               ++ eapply CMatch.
+               ++ subst ofs2. rewrite Heq.
+                  rewrite Hpmap. constructor.
+            -- eapply invariant_invariant' in Hinv'.
+                pose proof (thread_data_lock_coh1
+                              _ Hinv'
+                              hb ltac:(simpl; eauto)
+                                         hb ltac:(simpl; eauto)) as HH.
+                erewrite gLockSetRes in HH.
+                erewrite gssThreadRes in HH; simpl in *; eauto.
+            (* simpl. intros ? ?.
             eapply dmap_inject_correct_backwards in H0.
             eapply dmap_inject_correct_backwards in H1.
             normal_hyp.
@@ -1115,11 +1146,11 @@ Section AcquireDiagrams.
             instantiate(1:=x4).
             instantiate(1:=x2).
             unfold delta_map in *; simpl in *;
-              rewrite H5, H3; auto.
+              rewrite H5, H3; auto. *)
             
 
 
-          (* eapply invariant_update_join_ acq.
+          (* eapply invariant_update_join_acq.
           4: eassumption.
           2: reflexivity.
           2: apply CMatch.

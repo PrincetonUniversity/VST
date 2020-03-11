@@ -437,14 +437,14 @@ Qed.
             mem_interference m1' e m2' /\
             Mem.extends m2 m2' /\ Mem.unchanged_on (not_In_list_events e) m1' m2'.
       Proof.
-      Admitted.
+      Admi tted.
 
 (* STOP moving to diagrams.v *)
 
 
 (*Move the following to synchronisation_steps_semantics.v*)
 
-Lemma release_preserves_nextblock:
+Lemma release_preserves_nextblsock:
   forall ptr m1 dpm m2,
     release ptr m1 dpm m2 ->
     (Mem.nextblock m1) = (Mem.nextblock m2).
@@ -546,7 +546,7 @@ Lemma release_valid_block:
              exfalso; apply H0.
              eapply Hwrit; eauto.
           -- rewrite PMap.gso; eauto.
-    Admitted.
+    Admi tted.
     
       Lemma release_determ:
         forall ptr m1 dpm m2 m2' ,
@@ -595,7 +595,7 @@ Lemma release_valid_block:
           release (Vptr b0 ofs0) m1' dmp m2' /\
           Mem.extends m2 m2' /\ Mem.unchanged_on (not_In_deltamap dmp (b0,unsigned ofs0)) m1' m2'.
       Proof.
-      Admitted.
+      Admi tted.
       Lemma interference_release_not_in_event:
         forall m1 m2 m3 m4 b0 ofs0 e dpm e',
           mem_interference m1 e m2 ->
@@ -604,7 +604,7 @@ Lemma release_valid_block:
           forall b ofs, Events.loc_out_of_bounds m1 b ofs ->
                    not_In_acq_rel e (b0,unsigned ofs0) dpm e' b ofs.     
       Proof.
-      Admitted.
+      Admi tted.
       Lemma extcall_release_mem_extends:
       forall (ge : Senv.t) (vargs : list val) (m1 : mem) (t : Events.trace)
         (vres : val) (m2 m1' : mem) (vargs' : list val),
@@ -715,7 +715,7 @@ Proof.
             EventsAux.inject_delta_map f dpm dpm'.
     Proof.
       
-    Admitted.
+    Admi tted.
     
     Lemma mem_interference_mem_inject:
       forall (m1 : mem) e (m2 m1' : mem) f,
@@ -731,7 +731,7 @@ Proof.
           Events.list_inject_mem_effect_strong f' e e' /\
           (Events.injection_full f m1 -> Events.injection_full f' m2).
     Proof.
-    Admitted.
+    Admi tted.
       Lemma injectable_trace_not_in_trace:
             forall f m1 e1 b ofs dpm e2,
               f b <> None ->
@@ -822,7 +822,7 @@ Proof.
               mem_interference m1 e m2 ->
               Mem.perm m1 b0 ofs0 Max Nonempty. 
           Proof.
-          Admitted.
+          Admi tted.
           Lemma interf_no_incr_Max:
             forall m1 e m2,
               mem_interference m1 e m2 ->
@@ -830,7 +830,7 @@ Proof.
               Mem.perm m2 b0 ofs0 Max p ->
               Mem.perm m1 b0 ofs0 Max p.
           Proof.
-          Admitted.
+          Admi tted.
           Definition max_incr m m':=
             forall b ofs p,
               Mem.perm m b ofs Max p ->
@@ -859,7 +859,7 @@ Proof.
             eapply H1; swap 1 2.
             - eapply H0; eauto. 
             - admit. (*because it's valid. *)
-          Admitted.
+          Admi tted.
 
           cut (exists b delt, f b = Some (b0, delt) /\ Mem.perm m1 b (ofs0 - delt) Max Nonempty).
           { intros; normal_hyp; eapply H24; eauto. }
@@ -894,7 +894,7 @@ Proof.
       - !goal (injectable_mem_effect x m3 e2). admit.
       - !goal (injectable_dpm x m2 dpm). admit.
       - !goal(injectable_mem_effect f m1 e1). admit.
-    Admitted.
+    Admi tted.
     intros; exploit extcall_release_mem_inject; eauto.
     admit. (* ADD to extcall_properties. *)
     intros. normal_hyp; repeat (econstructor; eauto).
@@ -913,7 +913,7 @@ Proof.
       eapply release_determ in H7; try eapply H2. subst.
       eapply mem_interference_determ; eauto.
     +  (*need to add reflexive match for traces *)
-Admitted.  
+Admi tted.  
       
     
            
@@ -928,4 +928,4 @@ Lemma extcall_properties_acquire:
 Proof.
 (* this is given axiomatically in compcert, 
                      but we must prove it*)
-Admitted.
+Admi tted.
