@@ -478,25 +478,6 @@ Section ConcurMatch.
                        (Mem.mem_contents m1)
                        (Mem.mem_contents m2).
   Proof. intros * H; eapply H. Qed.
-
-  (* This is slightly wrong. 
-     Should be less than!
-   *)
-  Lemma lockSet_is_not_readable':
-    forall ocd j cstate1 m1 cstate2 m2,
-      concur_match ocd j cstate1 m1 cstate2 m2 ->
-      forall b (ofs : Z) (rec : lock_info),
-        lockRes cstate1 (b, ofs) = Some rec ->
-        (forall i (cnt:containsThread cstate1 i),
-            forall ofs0, ofs <= ofs0 < ofs + LKSIZE -> 
-                         ((thread_perms cstate1 i cnt) !! b ofs0) = Some Nonempty) /\
-        (forall b' ofs' rec',
-            lockRes cstate1 (b', ofs') = Some rec' ->
-            forall ofs0, ofs <= ofs0 < ofs + LKSIZE ->
-                         ((fst rec') !! b ofs0)  = Some Nonempty ).
-  Proof. Admitted.
-  
-
       Lemma INJ_lock_permissions_Some:
         forall ocd j cstate1 m1 cstate2 m2,
           concur_match ocd j cstate1 m1 cstate2 m2 -> 
@@ -1464,3 +1445,64 @@ Lemma concur_match_initial
 Proof using .
   (* mem_compat and invariant should be trivial. *)
 Admitted.
+
+
+Definition remLockfFullUpdate {sem} st i cnt th_st new_perms adr  :=
+  (remLockSet
+     (@updThread dryResources sem i st cnt th_st (new_perms)) adr).
+
+Lemma concur_match_free_lock:
+  forall (CC_correct: CompCert_correctness)
+    (Args: ThreadSimulationArguments)
+    ocd hb f st1 m1 st2 m2,
+    concur_match hb ocd f st1 m1 st2 m2 ->
+    forall m1' m2' b_lock1 b_lock2 ofs_lock delta
+      tid cnt1 cnt2 th_perms1 th_perms2 c1 c2,
+    forall (Hlt1 : permMapLt th_perms1 (getMaxPerm m1'))
+      (Hlt2 : permMapLt th_perms2 (getMaxPerm m2'))
+      (th_lock_perms1 th_lock_perms2 : access_map),
+      Mem.inject f (restrPermMap Hlt1) (restrPermMap Hlt2) ->
+      let st1':=
+          (remLockfFullUpdate
+             st1 tid cnt1 c1 (th_perms1, th_lock_perms1)
+             (b_lock1, ofs_lock)) in
+      let st2':=
+          (remLockfFullUpdate
+             st2 tid cnt2 c2 (th_perms2, th_lock_perms2)
+               (b_lock2, ofs_lock + delta)) in
+      invariant(tpool:=OrdinalThreadPool) st1' ->
+      invariant(tpool:=OrdinalThreadPool) st2' ->
+      mem_compatible(Sem:=HybridSem (Some hb)) st1' m1 ->
+      mem_compatible(Sem:=HybridSem (Some (S hb))) st2' m2 ->
+      forall (Hlt_lock1 : permMapLt th_lock_perms1 (getMaxPerm m1'))
+        (Hlt_lock2 : permMapLt th_lock_perms2 (getMaxPerm m2')),
+        Mem.inject f (restrPermMap Hlt_lock1) (restrPermMap Hlt_lock2) ->
+        perm_surj f th_lock_perms1 th_lock_perms2 ->
+        f b_lock1 = Some (b_lock2, delta) ->
+        one_thread_match hb hb tid ocd f c1 (restrPermMap Hlt1) c2
+                         (restrPermMap Hlt2) ->
+        concur_match hb ocd f st1' m1' st2' m2'.
+Proof.
+  
+Admitted.
+
+
+  Lemma concur_match_updLock_empty:
+    forall (CC_correct: CompCert_correctness)
+      (Args: ThreadSimulationArguments)
+      hb cd mu st1 m1 st2 m2 l1 l2 lmap1 lmap2,
+      concur_match hb  cd mu st1 m1 st2 m2 ->
+      inject_address mu l1 l2 ->
+      lockRes st1 l1 = Some lmap1 -> 
+      lockRes st2 l2 = Some lmap2 ->
+      concur_match hb cd mu (updLockSet st1 l1 (empty_map, empty_map)) m1
+                   (updLockSet st2 l2 (empty_map, empty_map)) m2.
+  Proof.
+    intros * CMatch Hinj_l Hl1 Hl2 .
+    econstructor.
+    - simpl. eapply CMatch.
+    - simpl. eapply CMatch.
+    - admit.
+    - admit.
+    
+  Admitted.

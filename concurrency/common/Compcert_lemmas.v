@@ -706,3 +706,4 @@ Proof.
   intros ** ? **. eapply H.
   unshelve  eapply restrPermMap_valid; eauto.
 Qed.
+

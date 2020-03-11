@@ -102,7 +102,7 @@ Section FreeDiagrams.
     Notation mtch_compiled:= (mtch_compiled hb).
     Notation mtch_source:= (mtch_source hb).
 
-        
+              
     Lemma free_step_diagram_self Sem tid:
       let CoreSem:= sem_coresem Sem in
       forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
@@ -161,7 +161,7 @@ Section FreeDiagrams.
             concur_match i mu st1' m1 st2' m2 /\
             inject_sync_event mu evnt1 event2 /\
             syncStep(Sem:=HybridSem (Some (S hb))) true cnt2 Hcmpt2 st2' m2 event2.
-    Proof.
+    Proof. 
       intros; simpl in *.
       (*Add all the memories and theeir relations *)
       get_mem_compatible.
@@ -381,26 +381,62 @@ Section FreeDiagrams.
         inversion Amatch. constructor; eassumption.
       - !goal(concur_match _ _ _ _ _ _ ).
         
-        { eapply INJ_lock_permissions_image in Hlock_map; eauto.
+        { dup Hlock_map as Hlock_map'.
+          eapply INJ_lock_permissions_image in Hlock_map; eauto.
           normal_hyp.
           unshelve (eapply (concur_match_free_lock CC_correct Args i); eauto);
             simpl; try eassumption.
           + !goal (invariant _ ).
+            subst st2'. unfold remLockfFullUpdate in *.
+
+            (*recover the intermediate invariant for source*)
+            match goal with [st1' := remLockSet ?st1m _: _ |- _] =>
+                            remember st1m as st1m'
+            end.
+            assert (@invariant (HybridSem _) _ st1m').
+            { eapply invariant_remLock_back; eauto.
+              4,5: intros b ofs1;
+                specialize (Hempty_lock b ofs1);
+                inv (Hempty_lock); eauto.
+              - simpl; intros ofs0 Hin.
+                subst st1m'. rewrite gsoThreadLPool.
+                exploit (lockRes_valid st1 ltac:(apply CMatch)).
+                simpl; rewrite Hlock_map'; eauto.
+              - simpl; intros.
+                destruct_lhs; eauto.
+                exploit (lockRes_valid st1 ltac:(apply CMatch)); simpl.
+                subst st1m'; rewrite gsoThreadLPool in Heqo.
+                rewrite Heqo. intros X; exploit X; eauto.  
+                rewrite  Hlock_map'. intros; congruence.
+              - subst st1m'. simpl.
+                rewrite gsoThreadLPool; eauto. } subst st1m'.
+
+            (*get the invariant for the new permission *)
+            pose proof (invariant_one_permission_update
+                              _ _ _ _ _ _ _ _ _ H1 ltac:(reflexivity)).
+            
+            eapply invariant_remLock.
+              
             move Hrange_perm at bottom.
             unfold perm_interval in Hrange_perm.
+            
             eapply invariant_update_free; eauto.
+            * instantiate(3:=pdata).
+              subst th_mem1.
+              eapply Mem.mi_no_overlap in Hinj_th as
+                       Hno_over; rewrite restr_Max_equiv in Hno_over.
+              eapply inject_invariant_one; eauto.
+              
             * intros ? **.
               cut (Mem.perm lk_mem2 b2 ofs0 Cur (Writable)).
-              
-              unfold Mem.perm.
-              rewrite_getPerm.
-              rewrite <- Hlock_mem2. eauto.
+              unfold Mem.perm; rewrite_getPerm.
+              rewrite <- Hlock_mem2. rewrite po_oo; eauto.
 
               replace (ofs0) with ((ofs0 - delt) + delt) by omega.
               eapply Hinj_lock; eauto.
               eapply Hrange_perm; eauto.
-              subst ofs2. clear - H1. unfold LKSIZE_nat in *.
-              erewrite Z2Nat.id in H1. omega.
+              subst ofs2. clear - H3. unfold LKSIZE_nat in *.
+              erewrite Z2Nat.id in H3. omega.
               pose LKSIZE_pos. omega.
             * reflexivity.
             * eapply CMatch.
@@ -835,34 +871,72 @@ Section FreeDiagrams.
 
         !goal(concur_match _ _ _ _ _ _ ).
         
-        { eapply INJ_lock_permissions_image in Hlock_map; eauto.
+        { dup Hlock_map as Hlock_map'.
+          eapply INJ_lock_permissions_image in Hlock_map; eauto.
           normal_hyp.
           subst st1' st2' ofs2.
           (* destruct new_perms1 as [new_perms11 new_perms12];
             destruct new_perms2 as [new_perms21 new_perms22]. *)
-          unshelve (eapply (concur_match_free_lock CC_correct Args (Some cd)); eauto);
+          unshelve (eapply (concur_match_free_lock CC_correct Args (Some cd));
+                    eauto);
             simpl; try eassumption.
-          + eapply CMatch.
-(*          
           + !goal (invariant _ ).
+            unfold remLockfFullUpdate in *.
+
+            (*recover the intermediate invariant for source*)
+            match type of Hinv1' with
+              invariant (remLockSet ?st1m _) =>
+              remember st1m as st1m'
+            end.
+            assert (@invariant (HybridSem _) _ st1m').
+            { eapply invariant_remLock_back; eauto.
+              4,5: intros b ofs1;
+                specialize (Hempty_lock b ofs1);
+                inv (Hempty_lock); eauto.
+              - simpl; intros ofs0 Hin.
+                subst st1m'. rewrite gsoThreadLPool.
+                pose proof (source_invariant _ _ _ _ _ _ _ CMatch) as Sinv.
+                exploit (lockRes_valid _ Sinv); simpl.
+                simpl; rewrite Hlock_map'; eauto.
+              - simpl; intros.
+                destruct_lhs; eauto.
+                pose proof (source_invariant _ _ _ _ _ _ _ CMatch) as Sinv.
+                exploit (lockRes_valid _ Sinv); simpl.
+                subst st1m'; rewrite gsoThreadLPool in Heqo.
+                rewrite Heqo. intros X; exploit X; eauto.  
+                rewrite  Hlock_map'. intros; congruence.
+              - subst st1m'. simpl.
+                rewrite gsoThreadLPool; eauto. }  subst st1m'.
+
+            (*get the invariant for the new permission *)
+            pose proof (invariant_one_permission_update
+                              _ _ _ _ _ _ _ _ _ H1 ltac:(reflexivity)).
+            
+            eapply invariant_remLock.
+              
             move Hrange_perm at bottom.
             unfold perm_interval in Hrange_perm.
+            
             eapply invariant_update_free; eauto.
+            * instantiate(3:=pdata).
+              subst th_mem1.
+              eapply Mem.mi_no_overlap in Hinj_th as
+                       Hno_over; rewrite restr_Max_equiv in Hno_over.
+              eapply inject_invariant_one; eauto.
+              
             * intros ? **.
               cut (Mem.perm lk_mem2 b2 ofs0 Cur (Writable)).
-              
-              unfold Mem.perm.
-              rewrite_getPerm.
-              rewrite <- Hlock_mem2. eauto.
+              unfold Mem.perm; rewrite_getPerm.
+              rewrite <- Hlock_mem2. rewrite po_oo; eauto.
 
               replace (ofs0) with ((ofs0 - delta) + delta) by omega.
               eapply Hinj_lock; eauto.
               eapply Hrange_perm; eauto.
-              clear - H2. unfold LKSIZE_nat in *.
-              erewrite Z2Nat.id in H2. omega.
+              clear - H3. unfold LKSIZE_nat in *.
+              erewrite Z2Nat.id in H3. omega.
               pose LKSIZE_pos. omega.
-            * reflexivity.
-            * eapply CMatch.*)
+            * repeat rewrite Heq. reflexivity.
+            * eapply CMatch.
           + rewrite Heq. eapply perm_surj_setPermBlock_var_all; eauto.
             eapply CMatch.
         + !context_goal one_thread_match.
