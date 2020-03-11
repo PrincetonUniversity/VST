@@ -973,24 +973,6 @@ Lemma maxedmem_neutral_x:
 Proof.
 Abort.  (* Not true *)
 
-Lemma mem_wellformed_freelist:
-  forall ge m bl m', Mem.free_list m bl = Some m' -> 
-  mem_wellformed ge m -> mem_wellformed ge m'.
-Proof.
-intros.
-revert  bl m H H0; induction bl; simpl; intros.
-inv H; auto.
-destruct a as [[??]?].
-destruct (Mem.free m b z z0) eqn:?H; inv H.
-apply IHbl with m0; auto.
-clear - H0 H1.
-destruct H0.
-pose proof (Mem.nextblock_free _ _ _ _ _ H1).
-split; rewrite H2; auto.
-Search Mem.inject_neutral.
-Search Mem.inject_neutral maxedmem.
-
-Set Nested Proofs Allowed.
 Lemma trivial_free:
     forall (b : block) (z z0 : Z) (m m0 : mem),
       Mem.free m b z z0 = Some m0 ->
@@ -1029,13 +1011,32 @@ Proof.
     do 2 rewrite PMap.gmap. 
     rewrite H. auto.
 Qed.
+
 Lemma pos_lt_dec:
   forall z z0, {z < z0} + {~ z < z0}.
 Proof. intros. unfold "<".
        destruct (z ?= z0); auto;
          right; intros; congruence.
 Qed.
-       
+
+    Lemma mem_equiv_maxedmem:
+      forall m1 m2,
+        mem_equiv m1 m2 ->
+        mem_equiv (maxedmem m1) (maxedmem  m2).
+    Proof.
+      intros. unfold maxedmem.
+      econstructor.
+      - intros ?.
+        do 2 rewrite getCur_restr.
+        apply H.
+      - intros ?.
+        do 2 rewrite getMax_restr.
+        apply H.
+      - do 2 rewrite restr_content_equiv;
+          apply H.
+      - simpl. apply H.
+    Qed.
+
 Lemma maxedmem_free:
     forall (b : block) (z z0 : Z) (m m0 : mem),
       Mem.free m b z z0 = Some m0 ->
@@ -1064,30 +1065,8 @@ Proof.
   { eapply trivial_free in H; auto.
     eapply trivial_free in H0; auto.
     erewrite <- H0.
-    Lemma mem_equiv_maxedmem:
-      forall m1 m2,
-        mem_equiv m1 m2 ->
-        mem_equiv (maxedmem m1) (maxedmem  m2).
-    Proof.
-      intros. unfold maxedmem.
-      econstructor.
-      - intros ?.
-        do 2 rewrite getCur_restr.
-        apply H.
-      - intros ?.
-        do 2 rewrite getMax_restr.
-        apply H.
-      - do 2 rewrite restr_content_equiv;
-          apply H.
-      - simpl. apply H.
-    Qed.
     eapply mem_equiv_maxedmem; symmetry; eauto.
     }
-       
-        
-        
-  
-
   exploit Mem.free_result; try eapply H.
   intros HH.
   
@@ -1187,14 +1166,26 @@ Proof.
 
 Qed.
 
+Lemma mem_wellformed_freelist:
+  forall ge m bl m', Mem.free_list m bl = Some m' -> 
+  mem_wellformed ge m -> mem_wellformed ge m'.
+Proof.
+intros.
+revert  bl m H H0; induction bl; simpl; intros.
+inv H; auto.
+destruct a as [[??]?].
+destruct (Mem.free m b z z0) eqn:?H; inv H.
+apply IHbl with m0; auto.
+clear - H0 H1.
+destruct H0.
+pose proof (Mem.nextblock_free _ _ _ _ _ H1).
+split; rewrite H2; auto.
 eapply maxedmem_free in H1.
 destruct H1 as (max_m0 & H1 & ?).
 exploit (mem_lemmas.free_neutral
            (Mem.nextblock m) (maxedmem m) z z0 b);
   eauto.
 intros. hnf. rewrite H3; eauto.
-
-
 Qed.
 
 
@@ -1230,34 +1221,16 @@ rewrite Z.add_0_r. auto.
   rewrite perm_maxedmem; auto.
 Qed.
 
-
-
-Lemma alloc_variables_wellformed: 
-  forall ge ve m vl ve' m',
-   mem_wellformed ge m ->
-   venv_wellformed (Mem.nextblock m) ve ->
-   alloc_variables ge ve m vl ve' m' ->
-   venv_wellformed (Mem.nextblock m') ve' /\ mem_wellformed ge m' /\ (Mem.nextblock m <= Mem.nextblock m')%positive.
-Proof.
-  intros.
-  revert ve m H H0 H1; induction vl; simpl; intros.
-  inv H1. split3; auto. apply Pos.le_refl.
-  inv H1.
-  apply IHvl in H9.
--
-  destruct H9 as [? [? ?]].
-  split3; auto.
-  eapply Pos.le_trans; try apply H3.
-  apply Mem.nextblock_alloc in H6. rewrite H6.
-  apply Ple_succ.
--
-  clear - H6 H.
-  destruct H.
-  split.
-(*  pose proof (@Mem.alloc_inject_neutral (Mem.nextblock m1) m 0 (@sizeof ge ty) b1 m1 H6).
-  ??
-*)
-  { Lemma alloc_maxedmem:
+Lemma range_notin:
+              forall (x : Z) (i : Intv.interv),
+                ~ Intv.In x i -> x < fst i \/ x >= snd i.
+              intros.
+              destruct i.
+              unfold Intv.In in H; simpl in *.
+              apply Classical_Prop.not_and_or in H.
+              destruct H; omega.
+            Qed.
+Lemma alloc_maxedmem:
       forall m m1 lo hi b1,
       Mem.alloc m lo hi = (m1, b1) ->
       exists max_m1, Mem.alloc (maxedmem m) lo hi = (max_m1, b1) /\
@@ -1296,15 +1269,7 @@ Proof.
             replace (snd (b1, ofs))  with ofs by reflexivity.
             intros -> <- . unfold maxedmem.
             rewrite getCur_restr; reflexivity.
-          * Lemma range_notin:
-              forall (x : Z) (i : Intv.interv),
-                ~ Intv.In x i -> x < fst i \/ x >= snd i.
-              intros.
-              destruct i.
-              unfold Intv.In in H; simpl in *.
-              apply Classical_Prop.not_and_or in H.
-              destruct H; omega.
-            Qed.
+          * 
             eapply range_notin in n; simpl in n.
             exploit alloc_access_other; try eapply H; eauto.
             exploit alloc_access_other; try eapply HH; eauto.
@@ -1368,6 +1333,33 @@ Proof.
             do 2 rewrite getMax_restr; auto.
     Qed.
 
+Lemma alloc_variables_wellformed: 
+  forall ge ve m vl ve' m',
+   mem_wellformed ge m ->
+   venv_wellformed (Mem.nextblock m) ve ->
+   alloc_variables ge ve m vl ve' m' ->
+   venv_wellformed (Mem.nextblock m') ve' /\ mem_wellformed ge m' /\ (Mem.nextblock m <= Mem.nextblock m')%positive.
+Proof.
+  intros.
+  revert ve m H H0 H1; induction vl; simpl; intros.
+  inv H1. split3; auto. apply Pos.le_refl.
+  inv H1.
+  apply IHvl in H9.
+-
+  destruct H9 as [? [? ?]].
+  split3; auto.
+  eapply Pos.le_trans; try apply H3.
+  apply Mem.nextblock_alloc in H6. rewrite H6.
+  apply Ple_succ.
+-
+  clear - H6 H.
+  destruct H.
+  split.
+(*  pose proof (@Mem.alloc_inject_neutral (Mem.nextblock m1) m 0 (@sizeof ge ty) b1 m1 H6).
+  ??
+*)
+  { 
+
     exploit alloc_maxedmem; eauto; intros (max_m1 & HH & Hequiv).
     hnf. rewrite <- Hequiv. clear H6. rename HH into H6.
     
@@ -1385,10 +1377,6 @@ Proof.
 
   }
   
-    
-    
-
-
     apply Mem.nextblock_alloc in H6. rewrite H6. 
   eapply Ple_trans; try eassumption.
   apply Plt_Ple; apply Plt_succ.
@@ -1519,8 +1507,9 @@ constructor.
 apply Ple_refl.
 Admitted. (* but this whole lemma is probably obsolete *)
 
+Require VST.concurrency.juicy.JuicyMachineModule. (* for Module Test *)
 Module Test.
-Require Import VST.concurrency.juicy.JuicyMachineModule.
+Import VST.concurrency.juicy.JuicyMachineModule.
 Definition juicy_threads_wellformed ge m tp :=
    @threads_wellformed _ (@THE_JUICY_MACHINE.JSem ge) core_wellformed m tp.
 
