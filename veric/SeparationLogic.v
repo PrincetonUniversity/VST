@@ -145,6 +145,11 @@ match f1 with
                                          |-- (Q2 ts2 x2 rho')))))
     end
 end.
+ 
+(*Redefining this lemma ensures that is uses @derives mpred Nveric, not @derives rmap...
+  Maybe do this with other lemmas, too?*)
+Lemma funspec_sub_sub_si f1 f2: funspec_sub f1 f2 -> TT |-- funspec_sub_si f1 f2.
+Proof. apply funspec_sub_sub_si. Qed.
 
 Lemma type_of_funspec_sub:
   forall fs1 fs2, funspec_sub fs1 fs2 ->

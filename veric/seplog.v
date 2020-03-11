@@ -129,10 +129,39 @@ Definition tc_args (tys: list type) (vals: list val):Prop := Forall2 tc_val' tys
 Definition tc_argsenv Delta tys (gargs:argsEnviron):Prop := 
   match gargs with (g, args) => tc_genv g Delta /\ Forall2 tc_val' tys args end.
 
+Lemma fssub_prop1: forall rt ptypes gargs, 
+    tc_argsenv (rettype_tycontext rt) ptypes gargs = 
+     Forall2 tc_val' ptypes (snd gargs).
+intros. destruct gargs. unfold tc_argsenv. simpl.
+unfold tc_genv. simpl.
+unfold typecheck_glob_environ. apply prop_ext; split; intros. apply H.
+split; trivial. intros. rewrite PTree.gempty in H0. congruence.
+Qed.
+
+Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) = !!(ve_of rho = Map.empty (block * type)).
+intros. unfold local, tc_environ, lift1.
+unfold rettype_tycontext, typecheck_environ, typecheck_temp_environ,
+typecheck_var_environ, typecheck_glob_environ.
+simpl.
+destruct rho; simpl. apply pred_ext. 
+intros u U. simpl in U. simpl. destruct U as [? [? ?]].
+apply Map.ext. intros. clear H H1. specialize (H0 x).
+destruct (Map.get ve); simpl in *. 
+destruct p.  destruct (H0 t); clear H0. clear H.
+exfalso. exploit H1. eexists; reflexivity. rewrite PTree.gempty. congruence.
+reflexivity.
+intros u U. simpl in *. subst. split3; intros.
+ rewrite PTree.gempty in H; congruence.
+ split; intros. rewrite PTree.gempty in H; congruence.
+ destruct H.  inv H.
+ rewrite PTree.gempty in H. congruence.
+Qed.
+
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this
    definition (and in NDfunspec_sub). *)
+(*
 Definition funspec_sub_si_ORIG (f1 f2 : funspec):mpred :=
 let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
@@ -175,34 +204,6 @@ apply pred_ext; simpl.
   destruct H. inv H. apply H0.
 Qed.
 
-Lemma fssub_prop1: forall rt ptypes gargs, 
-    tc_argsenv (rettype_tycontext rt) ptypes gargs = 
-     Forall2 tc_val' ptypes (snd gargs).
-intros. destruct gargs. unfold tc_argsenv. simpl.
-unfold tc_genv. simpl.
-unfold typecheck_glob_environ. apply prop_ext; split; intros. apply H.
-split; trivial. intros. rewrite PTree.gempty in H0. congruence.
-Qed.
-
-Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) = !!(ve_of rho = Map.empty (block * type)).
-intros. unfold local, tc_environ, lift1.
-unfold rettype_tycontext, typecheck_environ, typecheck_temp_environ,
-typecheck_var_environ, typecheck_glob_environ.
-simpl.
-destruct rho; simpl. apply pred_ext. 
-intros u U. simpl in U. simpl. destruct U as [? [? ?]].
-apply Map.ext. intros. clear H H1. specialize (H0 x).
-destruct (Map.get ve); simpl in *. 
-destruct p.  destruct (H0 t); clear H0. clear H.
-exfalso. exploit H1. eexists; reflexivity. rewrite PTree.gempty. congruence.
-reflexivity.
-intros u U. simpl in *. subst. split3; intros.
- rewrite PTree.gempty in H; congruence.
- split; intros. rewrite PTree.gempty in H; congruence.
- destruct H.  inv H.
- rewrite PTree.gempty in H. congruence.
-Qed.
-
 Definition funspec_sub_si_AUX2 (f1 f2 : funspec):mpred :=
 match f1 with
 | mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
@@ -235,7 +236,7 @@ apply pred_ext; simpl.
   destruct (H0 b b0 b1 y H a' H1 H2) as [ts1 [x1 [FRM [AA BB]]]]; clear H0.
   exists ts1, x1, FRM; split; trivial. simpl; intros.
   apply (BB b2 y0 H0 _ H3); clear BB. rewrite (fssub_prop2 t0). apply H4.
-Qed.
+Qed.*)
 
 (*fssubAUX2 MOTIVATES the following new definitions of funspec_sub_si and funspec_sub*)
 Definition argsHaveTyps (vals:list val) (types: list type): Prop:=
