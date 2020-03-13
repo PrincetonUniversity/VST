@@ -31,8 +31,8 @@ env:
   global:
   - NJOBS=2
   # system is == 4.02.3
-#  - COMPILER="4.02.3+32bit"
-  - COMPILER="default"
+  - COMPILER="4.07.1"
+#  - COMPILER="default"
   - COQ_VERSION="8.11.0"
   - NEXT_VERSION="8.11.0"
 
@@ -57,7 +57,7 @@ install:
 - "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
 - opam switch list
 - opam switch ${COMPILER}
-- opam switch --unlock-base
+# - opam switch --unlock-base
 - eval $(opam config env)
 - opam config list
 - opam config var root
