@@ -3028,6 +3028,24 @@ Proof.
     rewrite if_false; trivial. auto.
 Qed.
 
+Lemma augment_funspecs_eq: forall p G, map fst G = map fst (prog_funct p) ->
+  (augment_funspecs p G) = G.
+Proof. intros.
+unfold augment_funspecs. rewrite progfunct_eq.
+forget (prog_funct p) as fds.
+clear p.
+revert G H; induction fds; destruct G; simpl; intros; inv H. trivial.
+destruct a.
+destruct p.
+simpl in H1; subst i0.
+rewrite if_true by auto.
+specialize (IHfds G H2).
+destruct (augment_funspecs' fds G) as [G' | ] eqn:?H.
+2:{ destruct G; inv IHfds. destruct fds; inv H2. inv H. }
+subst; trivial.
+Qed.
+
+(*Now trivial*)
 Lemma augment_funspecs_sub: forall p G, map fst G = map fst (prog_funct p) ->
 Forall2 (fun fs1 fs2 : ident * funspec => fst fs1 = fst fs2 /\ funspec_sub (snd fs1) (snd fs2)) G
   (augment_funspecs p G).

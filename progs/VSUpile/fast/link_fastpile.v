@@ -32,7 +32,7 @@ remember (find_id i AGG) as d; symmetry in Heqd. destruct d.
   repeat (destruct X as [Hi | X]; [ subst i; inv Heqd |]).
   contradiction.
 Qed.
-
+(*
 Axiom ExternalInfo_funspec_sub: forall {Espec ge i e ts t c phi}
 (SFE: semaxfunc_ExternalInfo Espec ge i e ts t c phi)
 (phi' : funspec)
@@ -54,7 +54,7 @@ Proof. induction funs; intros; inv H; inv H0. constructor.
   eapply ExternalInfo_funspec_sub; eassumption.
   eauto.
 Qed.
-
+*)
 Lemma prog_correct: 
  @semax_prog NullExtension.Espec LinkedCompSpecs linked_prog tt Vprog Gprog.
 Proof.
@@ -80,8 +80,9 @@ Proof.
         fail "Funspec of _main is not in the proper form")
     end*)
  ].
+  all: rewrite augment_funspecs_eq by reflexivity.
   2:{ assert (prog_main linked_prog = _main) by reflexivity. rewrite H.
-      rewrite AGG_char.
+      (*rewrite AGG_char.*)
       simpl. eexists; try (unfold NDmk_funspec'; rewrite_old_main_pre); reflexivity. }
  (*
  match goal with |- semax_func ?V ?G ?g ?D ?G' =>
@@ -92,20 +93,19 @@ Proof.
  tac.*)
 (*finish_semax_prog. *)
 specialize APPLIC; intros APP.
-eapply (semaxfunc_funspec_sub _ _ (augment_funspecs linked_prog Gprog)) in APP.
+(*eapply (semaxfunc_funspec_sub _ _ (augment_funspecs linked_prog Gprog)) in APP.*)
 + apply semaxfunc_sound in APP.
-  assert (Comp_G LinkCanonicalComponent1 = Gprog) by reflexivity. unfold Imports in H.
+  assert (HG: Comp_G LinkCanonicalComponent1 = Gprog) by reflexivity. unfold Imports in HG.
   rewrite filter_true in APP. 
   - eapply semax_func_subsumption. 3: apply APP.
-    * clear APP. rewrite H; clear H.
+    * clear APP. rewrite HG; clear HG.
       assert (HH: nofunc_tycontext Vprog Gprog = nofunc_tycontext Vprog G) by trivial.
       rewrite HH; trivial.
       apply tycontext_sub_refl.
-    * clear APP. rewrite H; clear H.
+    * clear APP. rewrite HG; clear HG.
       assert (HH: make_tycontext_g Vprog Gprog = make_tycontext_g Vprog G) by trivial.
       rewrite HH. intros. apply sub_option_refl.
   - clear APP; intros [i fd] Hi. cbv in Hi.
     repeat ( destruct Hi as [X | Hi]; [ inv X; reflexivity |] ).
     contradiction.
-+ apply augment_funspecs_sub. reflexivity.
 Qed.
