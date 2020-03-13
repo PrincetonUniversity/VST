@@ -88,14 +88,14 @@ incr/verif_incr.vo: incr/incr.vo
 fast/spec_fastpile.vo: fast/fastpile.vo spec_stdlib.vo
 fast/spec_fastpile_private.vo: fast/spec_fastpile.vo spec_stdlib.vo 
 fast/spec_fastpile_concrete.vo: fast/fastpile.vo spec_stdlib.vo
-fast/subsume_fastpile.vo: fast/fastpile.vo spec_stdlib.vo fast/spec_fastpile.vo fast/spec_fastpile_concrete.vo
+fast/subsume_fastpile.vo: fast/fastpile.vo spec_stdlib.vo fast/spec_fastpile.vo fast/verif_fastpile_concrete.vo
 fast/verif_fastpile.vo: linking.vo fast/fastpile.vo spec_stdlib.vo fast/spec_fastpile.vo
 fast/verif_fastpile_concrete.vo: linking.vo fast/fastpile.vo spec_stdlib.vo fast/spec_fastpile_concrete.vo
 fast/spec_fastapile.vo: fast/fastapile.vo spec_stdlib.vo fast/spec_fastpile.vo
 fast/verif_fastapile.vo: linking.vo fast/fastapile.vo spec_stdlib.vo spec_pile.vo fast/spec_fastapile.vo
 fast/spec_fastonepile.vo: onepile.vo spec_stdlib.vo fast/spec_fastpile.vo
 fast/verif_fastonepile.vo: linking.vo onepile.vo spec_stdlib.vo fast/spec_fastpile.vo spec_onepile.vo
-fst/verif_fastcore.vo: linking.vo main.vo verif_stdlib.vo fast/spec_fastpile_private.vo fast/verif_fastpile.vo fast/verif_fastonepile.vo fast/verif_fastapile.vo fast/verif_fasttriang.vo 
+fast/verif_fastcore.vo: linking.vo main.vo verif_stdlib.vo fast/spec_fastpile_private.vo fast/verif_fastpile.vo fast/verif_fastonepile.vo fast/verif_fastapile.vo fast/verif_fasttriang.vo 
 fast/spec_fastmain.vo: main.vo spec_stdlib.vo fast/spec_fastonepile.vo fast/spec_fastapile.vo fast/spec_fasttriang.vo
 fast/verif_fastmain.vo: linking.vo main.vo fast/spec_fastmain.vo fast/verif_fastcore.vo
 fast/link_fastpile.vo: fast/verif_fastmain.vo

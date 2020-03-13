@@ -3068,3 +3068,8 @@ simpl.
 apply funspec_sub_refl.
 auto.
 Qed.
+
+Definition LinkedProgVSU {Espec V cs} E Imports p Exports :=
+  sigT (fun G => @CanonicalComponent Espec V cs E Imports p Exports G /\
+          exists post ora, find_id (prog_main p) G = 
+           Some (@main_spec_ext' (@OK_ty Espec) p ora post)).

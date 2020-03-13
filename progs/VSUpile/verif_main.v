@@ -253,8 +253,8 @@ Ltac do_internal_lookups J :=
           | eexists; split; [ LookupID | LookupB ] ].
        
   Definition LinkComponent: @Component NullExtension.Espec Vprog _ 
-      MainE Imports linked_prog Exports Gprog.
-  Proof.  
+      MainE Imports linked_prog (main_spec linked_prog::nil(*Exports*)) Gprog.
+  Proof.
   eapply Build_Component.
    - intros i H; 
      first [ repeat (destruct H; [subst; do 4 eexists; findentry; reflexivity  |]); contradiction
@@ -310,5 +310,11 @@ cbv; reflexivity.
 Qed.
 (*Print Link_SortedComponent. *)
 (*Print Link_SortedComponent1. (avoids double sorting, so lket's use that one in the APPLIC definition*) 
+
+
+Program Definition PileVSU:@LinkedProgVSU NullExtension.Espec Vprog LinkedCompSpecs
+      MainE Imports linked_prog (main_spec linked_prog::nil(*Exports*)).
+eexists. split. apply LinkCanonicalComponent1. simpl. eexists; eexists; reflexivity.
+Qed.
 
 End MainComponent_with_ExtsInE.
