@@ -54,10 +54,8 @@ before_install:
 
 install:
 - opam --version
-- "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
+- "[ -e .opam ] || opam init -j ${NJOBS} -n -y --compiler=${COMPILER}"
 - opam switch list
-- opam switch ${COMPILER}
-# - opam switch --unlock-base
 - eval $(opam config env)
 - opam config list
 - opam config var root

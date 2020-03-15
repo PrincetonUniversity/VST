@@ -173,7 +173,7 @@ Lemma semax_call {CS Espec}:
   @semax CS Espec Delta
        (fun rho => ((*|>*)(tc_expr Delta a rho && tc_exprlist Delta argsig bl rho))  &&
            (func_ptr (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) &&
-          (|>(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
+          (|>(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))%pred
          (Scall ret a bl)
          (normal_ret_assert
             (@exp
