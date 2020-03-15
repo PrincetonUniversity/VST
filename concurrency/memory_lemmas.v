@@ -398,7 +398,7 @@ Module MemoryLemmas.
         destruct H.
         clear - H0 H.
         zify.
-        erewrite Z2Nat.id in * by omega.
+try        erewrite Z2Nat.id in * by omega.  (* Coq 8.10 compatibility *)
         omega.
   Qed.
 
