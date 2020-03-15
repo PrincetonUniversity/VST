@@ -5,6 +5,7 @@ Require Import compcert.lib.Integers.
 Require Import BinNums.
 Require Import VST.msl.Axioms.
 Require Import FCF.Blist.
+Import List.
 
 Require Import sha.ByteBitRelations.
 Require Import sha.hmac_pure_lemmas.
