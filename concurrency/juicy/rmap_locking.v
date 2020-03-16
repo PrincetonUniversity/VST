@@ -739,7 +739,8 @@ Proof.
       destruct Hbefore as (val & ->).
       exists val, sh, (writable0_readable Hwritable).
       repeat split; auto; reflexivity.
-  - intros x.
+  -
+Transparent Nveric. intros x. Opaque Nveric.
     simpl.
     unfold Ptrofs.unsigned in *.
     specialize (Hbefore x).

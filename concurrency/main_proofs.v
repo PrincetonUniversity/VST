@@ -26,6 +26,7 @@ Require Import VST.concurrency.common.HybridMachineSig.
 
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
 Require Import VST.concurrency.main_definitions. Import main_definitions.
+Import FunctionalExtensionality sepcomp.semantics.
 
 Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.

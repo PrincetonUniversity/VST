@@ -58,6 +58,7 @@ Import ThreadPool.
 Import OrdinalPool.
 
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
+Import Address sepcomp.semantics mem_lemmas extspec.
 
 (* TODO: to organize this file:
    - move things that don't belong (bellow)   

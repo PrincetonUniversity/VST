@@ -54,6 +54,7 @@ Require Import VST.concurrency.juicy.semax_safety_release.
 Require Import VST.concurrency.juicy.semax_safety_freelock.
 Require Import VST.concurrency.juicy.semax_preservation.
 Require Import VST.concurrency.juicy.semax_simlemmas.
+Import sepcomp.semantics mem_lemmas extspec.
 
 Set Bullet Behavior "Strict Subproofs".
 

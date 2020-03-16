@@ -39,6 +39,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import PreOmega.
 Require Import VST.concurrency.common.ssromega. (*omega in ssrnat *)
 From mathcomp.ssreflect Require Import ssreflect seq.
+Import sepcomp.semantics mem_lemmas extspec.
 
 (*The simulations*)
 (* Require Import VST.concurrency.common.machine_simulation.*)

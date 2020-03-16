@@ -61,7 +61,8 @@ Lemma resource_decay_aux_spec b phi1 phi2 :
   resource_decay b phi1 phi2 -> resource_decay_aux b phi1 phi2.
 Proof.
   intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
-  assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
+  assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive})
+     by (pose proof (zlt (Zpos (fst loc)) (Zpos b)); eauto).
   split. apply rd. destruct rd as [nn rd].
   remember (phi1 @ loc) as r1.
   remember (phi2 @ loc) as r2.
@@ -243,7 +244,8 @@ Proof.
   {
     intros loc.
     specialize (rd loc).
-    assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
+    assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive})
+     by (pose proof (zlt (Zpos (fst loc)) (Zpos b)); eauto).
     apply resource_at_join with (loc := loc) in J.
 
     unfold phi2'; clear phi2'; rewrite age_to_resource_at.

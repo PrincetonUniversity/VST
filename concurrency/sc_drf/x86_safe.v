@@ -43,6 +43,7 @@ Require Import VST.concurrency.sc_drf.spinlocks.
 
 Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
+Import sepcomp.semantics mem_lemmas extspec.
 
 Module InitialMemWD.
 
@@ -387,7 +388,7 @@ Module X86Safe.
 
     Context {U: seq.seq nat}
             {the_program: Asm.program}
-            {Hsafe: Asm_core.safe_genv (@the_ge the_program)}.
+            {Hsafe: Asm_core.safe_genv (@X86Context.the_ge the_program)}.
     
     Instance X86Sem : Semantics := @X86Sem the_program Hsafe.
     Instance X86Axioms : CoreLanguage.SemAxioms := @X86Axioms the_program Hsafe.

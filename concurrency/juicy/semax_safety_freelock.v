@@ -58,6 +58,7 @@ Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.rmap_locking.
 Require Import VST.concurrency.juicy.semax_conc_pred.
 Import Events.
+Import sepcomp.semantics mem_lemmas.
 
 Local Arguments getThreadR {_} {_} {_} _ _ _.
 Local Arguments getThreadC {_} {_} {_} _ _ _.

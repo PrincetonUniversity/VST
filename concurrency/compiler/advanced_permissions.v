@@ -25,7 +25,7 @@ Require Import VST.concurrency.common.bounded_maps.
 Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.lib.setoid_help.
-
+Import mem_lemmas.
 Set Bullet Behavior "Strict Subproofs".
 
 Ltac unify_injection:=

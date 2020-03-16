@@ -51,6 +51,9 @@ Import StepType InternalSteps.
 Import MemObsEq ValObsEq MemoryLemmas.
 Import CoreInjections ValueWD MemoryWD Renamings.
 
+Import sepcomp.semantics mem_lemmas extspec.
+Open Scope nat_scope.
+
 Module SimDefs.
 
   Section SimDefs.
@@ -5839,8 +5842,7 @@ into mcj' with an extension of the id injection (fij). *)
                         clear - Hcontra Hlt n;
                         unfold Mem.valid_block, Coqlib.Plt in *;
                         zify;
-                        destruct H2 as [[? ?] | [? ?]];
-                        subst;
+                        try (destruct H2 as [[? ?] | [? ?]]; subst); (* Coq 8.10 compatibility *)
                         omega).
                   erewrite Z.pos_sub_gt by (zify; omega).
                   rewrite Pos.add_sub.

@@ -34,6 +34,7 @@ Import HybridCoarseMachine.
 Import ListNotations.
 Import ThreadPool.
 Import event_semantics.
+Import Address msl.Extensionality sepcomp.semantics mem_lemmas extspec.
 
 Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.

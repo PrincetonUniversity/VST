@@ -30,7 +30,7 @@ Require Import VST.concurrency.common.x86_context.
 Require Import VST.concurrency.common.core_semantics.
 
 Import ValObsEq Renamings MemObsEq event_semantics.
-
+Import sepcomp.semantics mem_lemmas extspec.
 Set Bullet Behavior "Strict Subproofs".
 
 (** ** Well defined X86 cores *)

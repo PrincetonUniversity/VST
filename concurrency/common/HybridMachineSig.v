@@ -51,6 +51,7 @@ Require Import VST.concurrency.common.permissions.
 
 Require Import VST.concurrency.common.addressFiniteMap.
 Require Import Coq.Program.Program.
+Import Address.
 
 (*Require Import VST.concurrency.safety.
 Require Import VST.concurrency.coinductive_safety.*)

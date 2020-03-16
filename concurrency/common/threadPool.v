@@ -15,7 +15,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import VST.msl.Coqlib2.
 
 Require Import VST.concurrency.common.lksize.
-
+Import Address.
 Set Implicit Arguments.
 
 
@@ -553,6 +553,7 @@ Module OrdinalPool.
       match goal with |- context [List.fold_right ?F ?Z ?A] =>
                       set (f := F); set (z:=Z) end.
       revert H1; induction el; intros.
+
       inv H1.
       apply SetoidList.InA_cons in H1.
       destruct H1.
@@ -1008,7 +1009,7 @@ Module OrdinalPool.
       clear - H2.
       induction l as [| [b ?]]; simpl in *; auto.
       destruct (AddressOrdered.compare a b); simpl; address_ordered_auto.
-      contradiction H2. left; auto.
+      contradiction H2. left. reflexivity.
     Qed.
 
 
@@ -2152,8 +2153,7 @@ Inductive state_type:=
 | STblocked
 | STresume
 | STinit.
-Show Match state_type.
-Show Match ctl.
+
 Definition get_state_type {cT} (C:@ctl cT):=
   match C with
   | Krun x => STrun

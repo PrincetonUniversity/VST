@@ -63,7 +63,7 @@ Import bounded_maps.
 
 
 Import HybridMachineSig.
-
+Import sepcomp.semantics mem_lemmas extspec.
 
 Section ThreadedSimulation.
   Context {CC_correct: CompCert_correctness}

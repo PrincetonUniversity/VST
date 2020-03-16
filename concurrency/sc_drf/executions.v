@@ -1903,10 +1903,8 @@ Module Executions.
                 (Z.to_nat (ofs - Ptrofs.intval ofs0 +1)) in Hneq_perms.
             eapply po_trans;
               eauto; simpl; now constructor.
-            destruct i.
+            destruct i. simpl in H,H0.
             zify.
-            erewrite! Z2Nat.id
-              by (unfold lksize.LKSIZE in *; simpl in *; ssromega).
             omega.
             rewrite setPermBlock_var_other_1 in Hperm'.
             now auto.

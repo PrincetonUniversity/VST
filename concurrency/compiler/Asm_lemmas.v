@@ -35,6 +35,7 @@ Set Bullet Behavior "Strict Subproofs".
 (*Asm Machine*)
 Require Import VST.concurrency.common.x86_context.
 Import bounded_maps.
+Import sepcomp.semantics mem_lemmas.
 
 Instance Asm_get_extcall_arg:
   Proper (Logic.eq ==> mem_equiv ==> Logic.eq ==> Logic.eq) Asm.get_extcall_arg.

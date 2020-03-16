@@ -795,10 +795,7 @@ Module SpinLocks.
                   ssromega).
             replace ((Z.to_nat (ofs' - Ptrofs.intval ofs)).+1) with
             (Z.to_nat (ofs' - Ptrofs.intval ofs +1)) in Hneq_perms
-              by (zify;
-                  erewrite! Z2Nat.id
-                    by (unfold lksize.LKSIZE in *; simpl in *; ssromega);
-                  omega).
+              by (zify; omega).
             now eauto.
         }
         split; auto.
@@ -891,8 +888,6 @@ Module SpinLocks.
           replace ((Z.to_nat (ofs' - Ptrofs.intval ofs)).+1) with
           (Z.to_nat (ofs' - Ptrofs.intval ofs +1)) in Hneq_perms
             by (zify;
-                erewrite! Z2Nat.id
-                  by (unfold lksize.LKSIZE in *; simpl in *; ssromega);
                 omega).
           eapply po_trans; eauto; simpl;
           eauto using perm_order.

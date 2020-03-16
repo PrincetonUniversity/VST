@@ -14,7 +14,7 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
-
+Import mem_lemmas sepcomp.semantics.
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 

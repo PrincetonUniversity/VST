@@ -26,6 +26,8 @@ Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.common.dry_context.
 Require Import VST.concurrency.common.semantics.
 Require Import VST.sepcomp.mem_wd.
+Import sepcomp.semantics mem_lemmas extspec.
+Open Scope Z.
 
 Set Nested Proofs Allowed.
 

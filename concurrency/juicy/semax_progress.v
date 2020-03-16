@@ -56,6 +56,7 @@ Require Import VST.concurrency.common.lksize.
 Set Bullet Behavior "Strict Subproofs".
 
 Import Mem.
+Import sepcomp.semantics mem_lemmas extspec.
 
 Lemma load_at_phi_restrict ge i (tp : jstate ge) (cnti : containsThread tp i) m
       (compat : mem_compatible tp m) b ofs v sh R phi0 o :
@@ -567,7 +568,7 @@ Section Progress.
             assert (Ecall: EF_external name sg = LOCK) by congruence.
             pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
             assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
-                                       (Callstate (External (EF_external name sg) 
+                                       (Callstate (Ctypes.External (EF_external name sg) 
                                                tyl Tvoid cc_default) (Vptr b ofs :: nil) c) m =
                     Some (LOCK, Vptr b ofs :: nil)). {
               simpl.
@@ -639,7 +640,7 @@ Section Progress.
           assert (Ecall: EF_external name sg = LOCK) by congruence.
           pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
           assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
-                                       (Callstate (External (EF_external name sg) 
+                                       (Callstate (Ctypes.External (EF_external name sg) 
                                                tyl Tvoid cc_default) (Vptr b ofs :: nil) c) m =
                     Some (LOCK, Vptr b ofs :: nil)). {
             simpl.
@@ -828,7 +829,7 @@ Section Progress.
           assert (Ecall: EF_external name sg = UNLOCK) by congruence.
             pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
             assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
-                                       (Callstate (External (EF_external name sg) 
+                                       (Callstate (Ctypes.External (EF_external name sg) 
                                                tyl Tvoid cc_default) args c) m =
                     Some (UNLOCK, Vptr b ofs :: nil)). {
             simpl.
@@ -836,7 +837,7 @@ Section Progress.
           }
           subst z.
           assert (E1: exists sh, lock_at_least sh (approx (level phi_lockinv) Rx) (getThreadR cnti) b (Ptrofs.intval ofs)).
-          { exists shx. hnf; intros. SearchAbout phi_lockinv.
+          { exists shx. hnf; intros.
             clear - Join jphi Hlockinv H0. rename H0 into H.
             assert (join_sub phi_lockinv  (getThreadR cnti)).
             eapply join_sub_trans. eexists; apply jphi. eexists; eassumption.
@@ -910,7 +911,7 @@ Section Progress.
           eapply JuicyMachine.sync_step with (Htid := cnti); auto.
           eapply step_release
           with (c1 := Callstate
-                               (External (EF_external name sg) t0 t1
+                               (Ctypes.External (EF_external name sg) t0 t1
                                c0) args c)
                  (Hcompat := mem_compatible_forget compat);
               try apply Eci;
@@ -1065,7 +1066,7 @@ Section Progress.
         assert (Ecall: EF_external name sg = MKLOCK) by congruence.
         pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
         assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
-                                       (Callstate (External (EF_external name sg) 
+                                       (Callstate (Ctypes.External (EF_external name sg) 
                                                tyl Tvoid cc_default) args c) m =
                     Some (MKLOCK, Vptr b ofs :: nil)). {
           simpl.
@@ -1135,7 +1136,7 @@ Section Progress.
 
         eapply step_mklock
           with (c1 := Callstate
-                               (External (EF_external name sg) t0 t1 c0) args c)
+                               (Ctypes.External (EF_external name sg) t0 t1 c0) args c)
                (Hcompatible := mem_compatible_forget compat)
                (R := Rx)
                (phi'0 := phi')
@@ -1210,7 +1211,7 @@ Section Progress.
         assert (Ecall: EF_external name sg = FREE_LOCK) by congruence.
         pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
         assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
-                                       (Callstate (External (EF_external name sg) 
+                                       (Callstate (Ctypes.External (EF_external name sg) 
                                                tyl Tvoid cc_default) args c) m =
                     Some (FREE_LOCK, Vptr b ofs :: nil)). {
           simpl.
@@ -1367,7 +1368,7 @@ Section Progress.
 
         eapply step_freelock
           with (c1 := Callstate
-                               (External (EF_external name sg) t0 t1 c0) args c)
+                               (Ctypes.External (EF_external name sg) t0 t1 c0) args c)
                (Hcompat := mem_compatible_forget compat)
                (R := Rx)
                (phi'0 := phi')
@@ -1458,7 +1459,7 @@ Section Progress.
           apply @JuicyMachine.resume_step with (tid := i) (Htid := cnti).
           * reflexivity.
           * eapply JuicyMachine.ResumeThread with (Hcmpt := mem_compatible_forget compat)
-              (c := Callstate (External ef t0 t1 c0) args k)
+              (c := Callstate (Ctypes.External ef t0 t1 c0) args k)
              (c' := Returnstate Vundef k);
               simpl in *; try rewrite ClightSemanticsForMachines.CLN_msem in *;
               simpl.

@@ -19,6 +19,7 @@ Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.memsem_lemmas.
 Require Import VST.concurrency.common.bounded_maps.
 Require Import VST.concurrency.lib.Coqlib3.
+Import VST.msl.Extensionality.
 
 Set Bullet Behavior "Strict Subproofs".
 

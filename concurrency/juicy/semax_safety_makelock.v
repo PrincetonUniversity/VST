@@ -59,6 +59,7 @@ Require Import VST.concurrency.juicy.sync_preds.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.rmap_locking.
 Import Events.
+Import sepcomp.semantics mem_lemmas extspec.
 
 Local Arguments getThreadR {_} {_} {_} _ _ _.
 Local Arguments getThreadC {_} {_} {_} _ _ _.
@@ -411,7 +412,8 @@ Proof.
       change (size_chunk Mptr * 2) with LKSIZE in *.
       clear - Hpos I compat sparse lock_coh AT HnecR RL0 Hlkat RLphi j' jpsi1 jpsi J' notfound APhi' ne H0 E'.
       specialize (Hlkat (fst loc, snd loc + i0)).
-      intro. rewrite if_true in Hlkat by apply H. destruct Hlkat as [?rsh Hlkat]. simpl in Hlkat.
+      intro. unfold jam in Hlkat. simpl in Hlkat.
+      rewrite if_true in Hlkat by apply H. destruct Hlkat as [?rsh Hlkat]. simpl in Hlkat.
       assert (join_sub phi0' Phi') by (eapply join_sub_trans; eexists; eassumption).
       apply (resource_at_join_sub _ _ (fst loc, snd loc + i0)) in H1.
       rewrite Hlkat, E' in H1. inv H1.

@@ -57,6 +57,7 @@ Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
 Require Import VST.concurrency.common.lksize.
 Import Events.
+Import sepcomp.semantics mem_lemmas.
 
 Local Arguments getThreadR {_} {_} {_} _ _ _.
 Local Arguments getThreadC {_} {_} {_} _ _ _.

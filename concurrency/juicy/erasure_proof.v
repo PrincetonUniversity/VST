@@ -37,6 +37,7 @@ Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.common.ClightMachine.
 (*Erasure specification*)
 Require Import VST.concurrency.juicy.erasure_signature.
+Import mem_lemmas.
 
 (*SSReflect*)
 From mathcomp.ssreflect Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq.
@@ -47,6 +48,8 @@ From mathcomp.ssreflect Require Import ssreflect seq.
 
 Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.
+
+Open Scope Z.
 
 Module Parching <: ErasureSig.
   Import THE_JUICY_MACHINE.
@@ -235,7 +238,7 @@ Module Parching <: ErasureSig.
     - intros tid cnt.
       assert (th_coh:= Concur.thread_mem_compatible mc).
       specialize (th_coh tid (mtch_cnt' _ cnt)).
-      inversion th_coh.
+      inversion th_coh. 
       unfold permMapLt;
         split; intros b ofs; rewrite getMaxPerm_correct; eapply po_trans;
       try solve [eapply (max_coh (b,ofs))].
@@ -784,13 +787,13 @@ Module Parching <: ErasureSig.
           by ssromega.
         erewrite IHn; eauto.
         intros; split; intro H.
-        assert (i.+1 < n.+1) by ssromega.
-        specialize (proj1 (Hcnt (i.+1)) H0).
+        assert (i.+1 < n.+1)%nat by ssromega.
+        specialize (proj1 (Hcnt (i.+1))%nat H0).
         intros.
         clear -H1;
           by ssromega.
-        assert (i.+1 < n0.+1) by ssromega.
-        specialize (proj2 (Hcnt (i.+1)) H0).
+        assert (i.+1 < n0.+1)%nat by ssromega.
+        specialize (proj2 (Hcnt (i.+1))%nat H0).
         intros.
         clear -H1;
           by ssromega. }
@@ -4116,7 +4119,7 @@ Here be dragons
 
           pose (pmap_tid  := getThreadR Htid').
           pose (pdata:= fun i:nat =>
-                          if (i > LKSIZE_nat)%N  then
+                          if (i > LKSIZE_nat)%nat  then
                             None
                           else
                             perm_of_res (phi' @ (b, Ptrofs.intval ofs + Z.of_nat (i)-1))
@@ -4145,7 +4148,7 @@ Here be dragons
                 (Ptrofs.intval ofs + Z.of_nat (Z.to_nat (ofs0 - Ptrofs.intval ofs + 1)) -1)
               with
               ofs0.
-              assert ((LKSIZE_nat < Z.to_nat (ofs0 - Ptrofs.intval ofs + 1) )%N = false).
+              assert ((LKSIZE_nat < Z.to_nat (ofs0 - Ptrofs.intval ofs + 1) )%nat = false).
               {
                 move: i0. clear.
                 move => [] /= A B.
@@ -4468,12 +4471,12 @@ Here be dragons
             + intros indx ineq.
               (* instantiate (1:=pdata). *)
               unfold pdata.
-              assert ((LKSIZE_nat < indx.+1)%N = false).
+              assert ((LKSIZE_nat < indx.+1)%nat = false).
               { destruct ineq.
                 move: H0.
                 simpl.
-                destruct (LKSIZE_nat < indx.+1)%N eqn:NN; auto.
-                assert ((LKSIZE_nat < indx.+1)%N) by
+                destruct (LKSIZE_nat < indx.+1)%nat eqn:NN; auto.
+                assert ((LKSIZE_nat < indx.+1)%nat) by
                 (rewrite NN; auto).
                 move: H0 => /ltP.
                 intros. unfold LKSIZE_nat in *. apply Z2Nat.inj_lt in H0; try omega. rewrite Nat2Z.id in H0; omega. }
@@ -4695,11 +4698,11 @@ Qed.
       (m' : Mem.mem),
       match_st js ds ->
       invariant ds ->
-      corestep (JMachineSem U0 rmap) (U, jtr, js) m (U', jtr', js') m' ->
+      semantics.corestep (JMachineSem U0 rmap) (U, jtr, js) m (U', jtr', js') m' ->
       exists (ds' : dstate),
         invariant ds' /\
         match_st js' ds' /\
-        exists dtr', corestep (ClightMachineSem U0 pmap) (U, dtr, ds) m (U', dtr ++ dtr', ds') m'.
+        exists dtr', semantics.corestep (ClightMachineSem U0 pmap) (U, dtr, ds) m (U', dtr ++ dtr', ds') m'.
   Proof.
     intros m U0 U U' ds dtr js js' jtr jtr' rmap pmap m' MATCH dinv.
     unfold JuicyMachine.MachineSemantics; simpl.
@@ -5012,13 +5015,13 @@ inversion MATCH; subst.
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap
       (ds : dstate) dtr (js js': jstate) jtr jtr'
       (m' : Mem.mem),
-      corestep (JMachineSem U0 rmap) (U, jtr, js) m (U', jtr', js') m' ->
+      semantics.corestep (JMachineSem U0 rmap) (U, jtr, js) m (U', jtr', js') m' ->
       match_st js ds ->
       invariant ds ->
       exists (ds' : dstate),
         invariant ds' /\
         match_st js' ds' /\
-        exists dtr', corestep (ClightMachineSem U0 pmap) (U, dtr, ds) m (U', dtr ++ dtr', ds') m'.
+        exists dtr', semantics.corestep (ClightMachineSem U0 pmap) (U, dtr, ds) m (U', dtr ++ dtr', ds') m'.
   Proof.
     intros. destruct (core_diagram' m U0 U U' ds dtr js js' jtr jtr' rmap0 pmap m' H0 H1 H) as [ds' [A[B C]]].
     exists ds'; split;[|split]; try assumption.
@@ -5028,7 +5031,7 @@ inversion MATCH; subst.
   Lemma halted_diagram:
     forall U ds js rmap pmap,
       fst (fst js) = fst (fst ds) ->
-      halted (JMachineSem(ge := ge) U rmap) js = halted (ClightMachineSem(ge := ge) U pmap) ds.
+      semantics.halted (JMachineSem(ge := ge) U rmap) js = semantics.halted (ClightMachineSem(ge := ge) U pmap) ds.
         intros until pmap. destruct ds as [dp ?], js as [jp ?]; destruct dp, jp; simpl; intros HH; rewrite HH.
         reflexivity.
   Qed.

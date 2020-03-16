@@ -109,18 +109,18 @@ Module Type ErasureSig.
     forall ge (m : mem)  (U0 U U': _) rmap pmap
       (ds : dstate ge) dtr (js js': jstate ge) jtr jtr'
       (m' : mem),
-      corestep (JMachineSem ge U0 rmap) (U, jtr, js) m (U', jtr', js') m' ->
+      semantics.corestep (JMachineSem ge U0 rmap) (U, jtr, js) m (U', jtr', js') m' ->
       match_st ge js ds ->
       invariant ds ->
       exists (ds' : dstate ge),
         invariant ds' /\
         match_st ge js' ds' /\
-        exists dtr', corestep (DMachineSem ge U0 pmap) (U, dtr, ds) m (U', app dtr dtr', ds') m'.
+        exists dtr', semantics.corestep (DMachineSem ge U0 pmap) (U, dtr, ds) m (U', app dtr dtr', ds') m'.
 
   Axiom halted_diagram:
     forall ge U (ds : dmachine_state ge) (js : jmachine_state ge)  rmap pmap,
       fst (fst js) = fst (fst ds) ->
-      halted (JMachineSem ge U rmap) js = halted (DMachineSem ge U pmap) ds.
+      semantics.halted (JMachineSem ge U rmap) js = semantics.halted (DMachineSem ge U pmap) ds.
 
 End ErasureSig.
 

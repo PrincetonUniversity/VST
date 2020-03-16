@@ -39,7 +39,6 @@ Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.jstep.
 
-
 Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.
 
@@ -219,6 +218,7 @@ Module Concur.
         join_locks tp r1 ->
         join (Some r0) r1 (Some r) ->
         join_all tp r.
+Open Scope Z.
 
     Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap):=
       forall loc, 

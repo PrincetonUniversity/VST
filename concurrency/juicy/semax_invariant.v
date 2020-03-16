@@ -42,7 +42,7 @@ Require Import VST.concurrency.juicy.sync_preds_defs.
 Require Import VST.concurrency.juicy.join_lemmas.
 Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.common.lksize.
-Import threadPool Events.
+Import threadPool Events mem_lemmas extspec.
 
 (*! Instantiation of modules *)
 Export THE_JUICY_MACHINE.
