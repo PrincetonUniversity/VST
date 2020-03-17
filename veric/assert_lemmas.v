@@ -244,8 +244,10 @@ Qed.
 Lemma corable_funspec_sub_si f g: corable (funspec_sub_si f g).
 Proof.
  intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
-+ intros ts. rewrite level_core. specialize (H0 ts); auto.
-+ intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
++ rewrite later_unfash in H0|-*.
+    intros n ?. rewrite level_core in H1. apply (H0 _ H1).
++ rewrite later_unfash in H0|-*.
+    intros n ?. rewrite <- level_core in H1. apply (H0 _ H1).
 Qed.
 (*
 Lemma corable_funspec_sub_early f g: corable (funspec_sub_early f g).

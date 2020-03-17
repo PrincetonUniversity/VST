@@ -141,7 +141,7 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
         !!(tpsig1=tpsig2 /\ cc1=cc2) &&
-        ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
+    |>   ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
              ALL gargs:genviron * list val,
         ((!!(tc_argsenv Delta2 (fst tpsig2) gargs) && P2 ts2 x2 gargs)
          >=> EX ts1:_,  EX x1:dependent_type_functor_rec ts1 A1 mpred, EX F:_, 
@@ -189,6 +189,7 @@ end.
 Lemma funspec_sub_sub_si f1 f2: funspec_sub f1 f2 -> TT |-- funspec_sub_si f1 f2.
 Proof. intros. destruct f1; destruct f2; simpl in *.
 destruct H as [[? ?] H']; subst. intros w _. split; [split; trivial |].
+intros w' Hw'.
 intros ts2 x2 rho y WY k YK K.
 destruct (H' ts2 x2 rho _ K) as [ts1 [x1 [F [HF1 HF2]]]]; clear H'.
 exists ts1, x1, F; split; trivial.
@@ -266,8 +267,12 @@ split.
 Qed.*)
 
 Lemma funspec_sub_si_refl f: TT |-- funspec_sub_si f f.
-Proof. destruct f; split; [ split; trivial | clear H; intros ts2 x2 rho].
-exists ts2, x2, emp; rewrite emp_sepcon. split. apply H1. 
+Proof.
+destruct f; split; [ split; trivial |  ].
+intros a' Ha'.
+clear H. intros ts2 x2 rho.
+intros y Hy z Hz [_ ?].
+exists ts2, x2, emp; rewrite emp_sepcon. split; auto.
 intros rho' k WK u necKU Z. 
 rewrite emp_sepcon in Z. apply Z.
 Qed.
@@ -275,13 +280,19 @@ Qed.
 Lemma funspec_sub_si_trans f1 f2 f3: funspec_sub_si f1 f2 && funspec_sub_si f2 f3 |--
       funspec_sub_si f1 f3.
 Proof. destruct f1; destruct f2; destruct f3.
-intros w [[X H12] [Y H23]]; destruct X; subst; destruct Y; subst; split; [split; trivial|].
+intros w [[[? ?] H12] [[? ?] H23]]. subst.
+split; [split; trivial |].
+intros w' Hw'.
+specialize (H12 _ Hw').
+specialize (H23 _ Hw').
 intros ts x rho y WY m YM M. 
 destruct (H23 ts x rho _ WY _ YM M) as [ts1 [x1 [F [A23 B23]]]]; clear H23. hnf in B23.
 destruct A23 as [m1 [m2 [JM [M1 M2]]]]; destruct (join_level _ _ _ JM) as [Lev_m1 Lev_m2].
-assert (Wm2: (level w >= level m2)%nat) by (apply necR_level in YM; omega).
+assert (Wm2: (level w' >= level m2)%nat) by (apply necR_level in YM; omega).
 destruct (H12 ts1 x1 rho _ Wm2 _ (necR_refl _)) as [ts3 [x3 [G [A12 B12]]]]; clear H12.
-{ split; trivial; apply M. }
+-
+  split; trivial; apply M.
+-
 exists ts3, x3, (F * G); split.
 + rewrite sepcon_assoc. exists m1, m2; auto.
 + intros rho' k MK v KV [Z V]. rewrite sepcon_assoc in V.
@@ -391,7 +402,8 @@ Lemma type_of_funspec_sub_si fs1 fs2:
   funspec_sub_si fs1 fs2 |-- !!(type_of_funspec fs1 = type_of_funspec fs2).
 Proof.
 intros w W.
-destruct fs1, fs2. destruct W as [[? ?] _]. subst; simpl; auto.
+destruct fs1, fs2.
+destruct W as [[? ?] _]. subst; simpl; auto.
 Qed.
 (*
 Lemma type_of_funspec_sub_early fs1 fs2:
@@ -579,7 +591,7 @@ Proof.
 Qed.*)
 
 Lemma approx_func_ptr_si: forall (A: Type) fsig0 cc (P: A -> argsEnviron -> mpred) (Q: A -> environ -> mpred)(v: val) (n: nat),
-  approx n (func_ptr_si (NDmk_funspec fsig0 cc A P Q) v) = approx n (func_ptr_si (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
+  approx (S n) (func_ptr_si (NDmk_funspec fsig0 cc A P Q) v) = approx (S n) (func_ptr_si (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
 Proof.
   intros.
   unfold func_ptr_si.
@@ -588,25 +600,21 @@ Proof.
   unfold func_at, NDmk_funspec.
   simpl.
   apply pred_ext; intros w; simpl; intros [? ?]; split; auto.
-  + (*destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply funspec_sub_trans; split. apply SUBS. clear SUBS H0; hnf.
-    split. split; trivial.
-    intros ts2 a rho m WM u necU U. simpl in U.
-    exists ts2, a, emp. rewrite emp_sepcon. split; intros; [ apply U | intros rho' k UP j KJ J; hnf].
-    rewrite emp_sepcon in J. simpl in J. intuition. apply necR_level in KJ. apply necR_level in necU. omega. *)
-    destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
-    split. split; trivial. 
-    intros ts2 a rho m WM u necU [U1 U2]. simpl in U1.
-    exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. } 
-    intros rho' y UY k YK K; hnf; intros. rewrite emp_sepcon in K. simpl in K.
-    apply necR_level in necU.  apply necR_level in YK. split; [ omega | apply K]. 
   + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
     eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
-    intros ts2 a rho m WM u necU [U1 U2]. simpl in U1.
+   intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
+    exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. } 
+    intros rho' y UY k YK K; hnf; intros. rewrite emp_sepcon in K. simpl in K.
+    apply necR_level in necU.  apply necR_level in YK.
+    split; [ | apply K]. apply laterR_level in Hw'.  omega. 
+  + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
+    eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
+    split. split; trivial.
+    intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
     exists ts2, a, emp. rewrite emp_sepcon; split. 
-    - apply necR_level in necU. apply approx_lt; trivial; omega.
+    - apply necR_level in necU. apply approx_lt; trivial.
+       apply laterR_level in Hw'. omega.
     - intros rho' k UP j KJ J.
       rewrite emp_sepcon in J. simpl in J. apply J.
 Qed. 
