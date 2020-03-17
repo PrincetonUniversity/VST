@@ -34,9 +34,9 @@ Proof.
   iApply (ref_update(P := discrete_PCM A)); eauto.
 Qed.
 
-Definition sync_inv {A} g R := EX a : A, R a * my_half g a.
+Definition sync_inv {A} g R := EX a : A, R g a * my_half g a.
 
-Lemma sync_inv_exclusive : forall {A} g (R : A -> mpred), exclusive_mpred (sync_inv g R).
+Lemma sync_inv_exclusive : forall {A} g (R : gname -> A -> mpred), exclusive_mpred (sync_inv g R).
 Proof.
   intros; unfold exclusive_mpred, sync_inv.
   iIntros "[g1 g2]".
