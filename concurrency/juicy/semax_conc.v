@@ -839,6 +839,29 @@ Proof. intros. apply approx_hered_derives_e. apply H. Qed.
 Lemma funcptr_f_equal' fs fs' v v': fs=fs' -> v=v' -> func_ptr' fs v = func_ptr' fs' v'.
 Proof. intros; subst; trivial. Qed.
 
+Lemma approx_Sn_eq_weaken:
+  forall n a b, approx (S n) a = approx (S n) b -> approx n a = approx n b.
+Proof.
+intros.
+apply predicates_hered.pred_ext.
+-
+intros ? ?.
+destruct H0.
+split; auto.
+assert (approx (S n) b a0).
+rewrite <- H.
+split; auto.
+apply H2.
+-
+intros ? ?.
+destruct H0.
+split; auto.
+assert (approx (S n) a a0).
+rewrite H.
+split; auto.
+apply H2.
+Qed.
+
 Lemma spawn_pre_nonexpansive: @args_super_non_expansive spawn_arg_type spawn_pre.
 Proof. repeat intro.
   destruct x as ((((?, ?), ?), ?), ?); simpl.
@@ -851,6 +874,7 @@ Proof. repeat intro.
   apply pred_ext; apply sepcon_derives; trivial; apply derives_refl'.
   (* f_equal.*)
   + rewrite !approx_exp; apply f_equal; extensionality y.
+    apply approx_Sn_eq_weaken.
     rewrite approx_func_ptr'.
     setoid_rewrite approx_func_ptr' at 2. apply f_equal.
     apply funcptr_f_equal'; trivial. simpl.
@@ -858,6 +882,7 @@ Proof. repeat intro.
     extensionality tss a rho'; destruct a.
     rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
   + rewrite !approx_exp; apply f_equal; extensionality y.
+    apply approx_Sn_eq_weaken.
     rewrite approx_func_ptr'.
     setoid_rewrite approx_func_ptr' at 2. apply f_equal.
     apply funcptr_f_equal'; trivial. simpl.
@@ -865,7 +890,6 @@ Proof. repeat intro.
     extensionality tss a rho'; destruct a.
     rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
 Qed.
-
 
 Lemma spawn_post_nonexpansive: @super_non_expansive spawn_arg_type spawn_post.
 Proof.
@@ -922,8 +946,6 @@ Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i)
 Proof.
   apply IH; induction n; intros i li; inversion li; eauto.
 Qed.
-
-Set Printing Implicit.
 
 Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::

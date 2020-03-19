@@ -260,7 +260,7 @@ Proof.
   clearbody Q.
   clear PreB3.
   destruct fPRE as [Hvalid _].
-  specialize (gam0 f_b (tptr tvoid :: nil, tint) cc_default).
+  specialize (gam0 f_b spawn_spec _ (necR_refl _)).
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
 
 (*
@@ -290,21 +290,26 @@ Proof.
 *)
   assert (FAT': (func_at spawn_spec (f_b, 0)) phi00)
   by admit.
-  specialize (gam0 _ _ _ FAT'). clear FAT' FAT.
-  destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q).
+  specialize (gam0 FAT'). clear FAT' FAT.
+  destruct gam0 as [id_fun [fs' [[? Eid] ?]]].
+  destruct fs' as [t2 c2 A' P' Q' NEP' NEQ'].
+(*  destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q). *)
   unfold filter_genv in *.
   assert (PAE: postcondition_allows_exit
     (Concurrent_Espec unit CS ext_link) tint)
      by (hnf; intros; hnf; auto).
   pose (args := b::nil).
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
-       id_fun (fst fsig) args A P' Q' NEP' NEQ' 0 ora semaxprog as HEP.
+       id_fun (fst fsig) args A' P' Q' NEP' NEQ' 0 ora semaxprog as HEP.
   clear PAE.
   rewrite <-make_tycontext_s_find_id in HEP.
   spec HEP. auto.
+Print spawn_spec.
+  assert (t2 = fsig /\ c2 = cc_default) by (destruct H0; assumption).
+  destruct H1; subst t2 c2.
 
   spec HEP. {
-   simpl fst.
+   simpl fst. fold fsig.
     rewrite <-Eid.
     apply make_tycontext_s_find_id.
   }
@@ -432,9 +437,9 @@ Proof.
 {
       destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
       subst args; repeat constructor; auto.
-      clear Initcore Post lj ora Safety Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' semaxprog.
+      clear Initcore Post lj ora Safety Eid NEP' NEQ' H0 P' Q' semaxprog.
        subst fsig A.
-      clear jphi' jphi1' q_new id_fun CS_ V FA.
+      clear jphi' jphi1' q_new H id_fun CS_ V FA.
       clear l1 l0 l00 necr li PreA.
       clear spawn_spec Hargsty Hphi00 _y unique wellformed En.
       clear safei safety lock_coh.
@@ -448,7 +453,7 @@ Proof.
                   (maxedmem m))
        by apply mem_equiv_restr_max.
   red. simpl Mem.nextblock. rewrite H0. auto.
-  clear Safety jphi' jphi1' Initcore Post Heq_P Heq_Q.
+  clear Safety jphi' jphi1' Initcore Post.
   simpl. red; simpl. 
   clear - I. inv I. destruct mwellformed. apply H0.
   clear -mwellformed; destruct mwellformed as [? _].
@@ -480,8 +485,11 @@ simpl.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
         apply FA.
-      * rewrite Ejm.
-        eapply args_cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
+      *  match goal with |- app_pred (P' ts _ _) (m_phi jm) => admit end.
+          
+     (*rewrite Ejm.
+        eapply args_cond_approx_eq_app 
+                 with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
 
         (* cond_approx_eq *)
         eauto.
@@ -491,6 +499,7 @@ simpl.
 
         (* PROP / PARAMS / GLOBAL  / SEP *)
         apply HP.
+*)
       * hnf. rewrite Ejm; simpl.
          rewrite age_to_ghost_of.
          destruct ora.
@@ -544,7 +553,7 @@ simpl.
       REWR. REWR. REWR. REWR.
       destruct (getThreadC j tp cntj) eqn:Ej.
       -- destruct (cl_halted s) eqn:Halted.
-           destruct s; inv Halted. destruct v0; inv H0; destruct c1; inv H1.
+           destruct s; inv Halted. destruct v0; inv H2.  destruct c1; inv H3.
            eapply jsafeN_halted; eauto. simpl. reflexivity.
            apply Logic.I.  
            edestruct (unique_Krun_neq(ge := globalenv prog) i j); try split; eauto.

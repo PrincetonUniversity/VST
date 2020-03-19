@@ -149,67 +149,34 @@ Lemma pures_eq_matchfunspecs e Gamma Phi Phi' :
   matchfunspecs e Gamma Phi ->
   matchfunspecs e Gamma Phi'.
 Proof.
-  intros lev (PS, SP) MFS b fsig cc A P Q E.
-  simpl in E.
-  specialize (PS (b, Z0)). specialize (SP (b, Z0)). rewrite E in PS, SP.
-  specialize (MFS b fsig cc A).
-  simpl (func_at'' _ _ _ _ _ _ _) in MFS.
-  destruct SP as (pp, EPhi).
-  destruct pp as (A', pp').
-  pose proof resource_at_approx Phi (b, Z0) as RA. symmetry in RA. rewrite EPhi in RA.
-  rewrite EPhi in PS.
-  simpl in PS.
-  assert (A' = SpecArgsTT A) by (injection PS; auto). subst A'.
-  apply PURE_SomeP_inj2 in PS.
-  simpl in RA. injection RA as RA. apply inj_pair2 in RA.
-
-  edestruct MFS with (P := fun i a e' => pp' i
-    (fmap (rmaps.dependent_type_functor_rec i A) (compcert_rmaps.R.approx (level Phi))
-          (compcert_rmaps.R.approx (level Phi)) a) true e')
-                       (Q := fun i a e' => pp' i
-    (fmap (rmaps.dependent_type_functor_rec i A) (compcert_rmaps.R.approx (level Phi))
-          (compcert_rmaps.R.approx (level Phi)) a) false e')
-    as (id & P' & Q' & P'_ne & Q'_ne & Ee & EG & EP' & EQ').
-  { rewrite EPhi.
-    f_equal. f_equal. rewrite RA. extensionality i a b' e'.
-    apply equal_f_dep with (x := i) in PS.
-    apply equal_f_dep with (x := (fmap (rmaps.dependent_type_functor_rec i A) (approx (level Phi)) (approx (level Phi)) a)) in PS.
-    apply equal_f_dep with (x := b') in PS.
-    apply equal_f_dep with (x := e') in PS.
-    destruct b'.
-    all:simpl.
-    all:change compcert_rmaps.R.approx with approx in *.
-    all:repeat rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)).
-    all:repeat rewrite fmap_comp.
-    all:rewrite (compose_rewr (approx _) (approx _)).
-    all:repeat rewrite approx_oo_approx.
-    all:rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)).
-    all:rewrite fmap_comp.
-    all:rewrite approx_oo_approx.
-    all:change compcert_rmaps.R.approx with approx in *.
-    all:reflexivity. }
-
-  exists id, P', Q', P'_ne, Q'_ne. split; auto. split; auto.
-  split.
-1:  eapply args_cond_approx_eq_trans; [ | eapply args_cond_approx_eq_weakening; eauto ].
-2:  eapply cond_approx_eq_trans; [ | eapply cond_approx_eq_weakening; eauto ].
-  all: intros ts.
-  all: extensionality a e'; simpl.
-  all: apply equal_f_dep with (x := ts) in PS.
-  all: apply equal_f_dep with (x := a) in PS.
-
-  1: apply equal_f_dep with (x := true) in PS.
-  2: apply equal_f_dep with (x := false) in PS.
-
-  all: apply equal_f_dep with (x := e') in PS.
-  all: simpl in PS.
-  all: change compcert_rmaps.R.approx with approx in *.
-  all: rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)), fmap_comp.
-  all: rewrite approx'_oo_approx; auto.
-  all: rewrite approx_oo_approx'; auto.
-  all: change compcert_rmaps.R.approx with approx in *.
-  all: rewrite PS.
-  all: rewrite level_age_to; auto.
+  intros lev (PS, SP) MFS b fs phi2 Hphi2 ?.
+  specialize (MFS b fs). cbv beta in MFS.
+  specialize (MFS (age_to (level phi2) Phi) (age_to_necR _ _)).
+  spec MFS. { 
+          clear - H Hphi2 PS SP lev.
+          destruct fs; simpl in *.
+          rewrite level_age_to by (apply necR_level in Hphi2; omega).
+          match type of H with _ = PURE ?A ?B => forget A as k; forget B as pp end.
+          specialize (PS (b,0)). specialize (SP (b,0)).
+          clear - PS SP Hphi2 H lev.
+          destruct (necR_PURE' _ _ _ _ _ Hphi2 H). rewrite H0 in SP.
+          destruct SP.           
+          rewrite age_to_resource_at. rewrite H1 in *.
+          rewrite PS in *. simpl; auto.
+          pose proof (necR_PURE _ _ _ _ _ Hphi2 PS).
+          rewrite <- H; rewrite H2. f_equal.
+          rewrite preds_fmap_fmap. f_equal.
+          symmetry; apply approx_oo_approx'. apply necR_level; auto.
+          symmetry; apply approx'_oo_approx. apply necR_level; auto.
+   }
+   destruct MFS as [id [fs' [? ?]]]; exists id, fs'; split; auto.
+   clear - H1 lev Hphi2.
+   unfold funspec_sub_si in *.
+   destruct fs, fs'. destruct H1; split; auto.
+   rewrite later_unfash in *.
+   intros ? ?; apply H0; auto.
+   rewrite level_age_to; auto.
+   apply necR_level in Hphi2; omega.
 Qed.
 
 Lemma pures_eq_age_to phi n :

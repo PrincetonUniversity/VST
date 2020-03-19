@@ -639,9 +639,24 @@ Proof.
   apply state_invariant_c with (mcompat := mcompat').
   - auto.
   - destruct envcoh as [mtch coh]; split.
-    + repeat intro.
-      simpl in H0.
-      rewrite Hl, Hr in H0; rewrite Hl; auto.
+    + clear - Hl Hr mtch.
+      intros ? fs a' Ha' FAT. 
+     specialize (mtch b fs (age_to (level a') PHI) (age_to_necR _ _)).
+     spec mtch. { clear mtch; destruct fs; simpl in FAT|-*.
+         rewrite (necR_age_to _ _ Ha') in FAT at 1.
+         rewrite age_to_resource_at.age_to_resource_at in FAT|-*.
+         rewrite level_age_to.
+         rewrite Hr in FAT. auto.
+         rewrite <- Hl. apply necR_level in Ha'. omega.
+      }
+     destruct mtch as [id [fs' [[? ?] ?]]]. exists id,fs'. split. split; auto.
+     unfold funspec_sub_si in H1|-*.
+     destruct fs, fs'. destruct H1; split; auto. destruct H1; subst.
+     rewrite later_unfash in H2|-*.
+     intros n' ?. specialize (H2 n'). rewrite level_age_to in H2.
+     specialize (H2 H1). apply laterR_nat in H1.
+     auto.
+     apply necR_level in Ha'; omega.
     + destruct coh as (? & ? & ? & ? & ? & [Hge Happ]).
       exists x, x0, x1, x2. split3; auto.
       eapply semax_lemmas.funassert_resource, Happ; auto.
