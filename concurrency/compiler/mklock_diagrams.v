@@ -506,8 +506,14 @@ Section MklockDiagrams.
         + shelve.
         + !context_goal memval_inject.
           repeat econstructor.
-        + right; intros; eauto. apply Mem.perm_cur_max.
-          inv Hlock_update_mem_strict; eauto.
+        + right; intros; eauto; split.
+          * apply Mem.perm_cur_max.
+            inv Hlock_update_mem_strict; eauto.
+          * eapply Hinj; eauto.
+            eapply Mem.perm_implies.
+            unfold Mem.perm. rewrite_getPerm.
+            rewrite <- Hthread_mem1. eapply Hrange1; eauto.
+            constructor.
         + !goal (access_map_equiv_pair _ (pair0 empty_map)).
           eapply empty_map_is_empty_pair, inject_empty_maps, empty_is_empty_pair.
         + !context_goal @lock_update.
@@ -1052,8 +1058,13 @@ Section MklockDiagrams.
         + !context_goal Forall2.
           simpl. unfold encode_int; simpl.
           repeat econstructor.
-        + right; intros; eauto. apply Mem.perm_cur_max.
-          inv Hlock_update_mem_strict1; eauto. 
+        + right; intros; eauto. split.
+          * apply Mem.perm_cur_max.
+            inv Hlock_update_mem_strict1; eauto.
+          * eapply Hinj'; eauto.
+            eapply Mem.perm_implies.
+            inv Hlock_update_mem_strict1; eauto.
+            constructor.
         + !goal (access_map_equiv_pair _ _ ).
           instantiate(1:= pair0 empty_map).
           eapply empty_map_is_empty_pair, inject_empty_maps.
