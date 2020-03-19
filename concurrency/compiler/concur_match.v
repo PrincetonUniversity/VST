@@ -761,7 +761,36 @@ Section ConcurMatch.
           rewrite restr_Max_equiv; simpl in *.
           eapply Mem.perm_implies; eauto. constructor.
       Qed.
-      
+      Lemma Forall_memval_inject:
+                forall f m1 m2 b1 ofs b2 delta,
+                Forall2 (memval_inject f) (get_vals_at m1 (b1,ofs))
+                        (get_vals_at m2 (b2,ofs + delta)) ->
+                forall ofs0, Intv.In ofs0 (ofs, ofs+4) ->
+                        memval_inject
+                          f
+                          (ZMap.get ofs0 (Mem.mem_contents m1) !! b1)
+                          (ZMap.get (ofs0 + delta) (Mem.mem_contents m2) !! b2).
+              Proof.
+                replace 4 with (Z.of_nat 4%nat) by reflexivity.
+                unfold get_vals_at. remember 4%nat as n.
+                clear Heqn. induction n.
+                - intros. simpl in H0.
+                  replace (ofs + 0) with ofs in H0 by omega. 
+                  destruct H0; simpl in *. omega.
+                - intros. simpl in H. inv H.
+                  destruct (zeq ofs0 ofs).
+                  + subst; eauto.
+                  + eapply IHn; simpl; eauto.
+                    replace (ofs + delta + 1 ) with (ofs + 1 + delta) in H6
+                      by omega; eauto.
+                    clear - n0 H0.
+                    hnf; hnf in H0. 
+                    simpl in *.
+                    replace (ofs + 1 + Z.of_nat n)
+                        with (ofs + Z.pos (Pos.of_succ_nat n)).
+                    * omega.
+                    * rewrite Zpos_P_of_succ_nat; simpl. omega.
+              Qed.
       Lemma concur_match_update_lock:
         forall i f ocd st1 m1 st2 m2,
           concur_match ocd f st1 m1 st2 m2 ->
@@ -785,7 +814,8 @@ Section ConcurMatch.
                  (Hlock_ppimage: perm_surj f th_lock_perms1 th_lock_perms2)
                  (Hlt_lock1 : permMapLt th_lock_perms1 (getMaxPerm m1'))
                  (Hlt_lock2 : permMapLt th_lock_perms2 (getMaxPerm m2'))
-                 (Hinj_locks: Mem.inject f (restrPermMap Hlt_lock1) (restrPermMap Hlt_lock2))
+                 (Hinj_locks: Mem.inject f (restrPermMap Hlt_lock1)
+                                         (restrPermMap Hlt_lock2))
                  (Hinj_lock: f b_lock1 = Some (b_lock2, delta)) c1 c2
                  (Hthread_match: one_thread_match hb i ocd f  
                                                   c1 (restrPermMap Hlt1)
@@ -795,7 +825,9 @@ Section ConcurMatch.
             (His_loc_or_has_perm:
                (exists res, lockRes st1 (b_lock1, ofs_lock) = Some res) \/
                       forall ofs0, ofs_lock<= ofs0 < ofs_lock + LKSIZE ->
-            Mem.perm m1 b_lock1 ofs0 Max Writable)
+                              Mem.perm m1 b_lock1 ofs0 Max Writable /\
+            memval_inject f (ZMap.get ofs0 (Mem.mem_contents m1) !! b_lock1)
+                          (ZMap.get (ofs0 + delta) (Mem.mem_contents m2) !! b_lock2))
                  (cnt1 : containsThread st1 i)
                  (cnt2 : containsThread st2 i) pmap
                  (Hpmap_equiv: access_map_equiv_pair (virtueLP_inject m2' f lock_perms1) pmap),
@@ -866,6 +898,7 @@ Section ConcurMatch.
               eauto.
             * destruct HH as (?&HH).
               eapply writable_locks; eauto.
+            * eapply HH; eauto.
         - intros until rec1.
           lock_update_rewrite; simpl.
           destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, ofs) ) as [e|n].
@@ -929,9 +962,68 @@ Section ConcurMatch.
           + inv e.
             unfold inject_lock,inject_lock'.
             do 2 eexists. repeat weak_split eauto.
-            admit. (* Check do we need this property? *)
+            intros.
+            destruct (Intv.In_dec ofs0 (ofs_lock,ofs_lock+4)).
+            * eapply Forall_memval_inject; eauto.
+            * rewrite Hcontent_almost_equiv0,
+              Hcontent_almost_equiv; eauto.
+              2:{ right. hnf; simpl; intros Hn. clear - Hn n.
+                  apply n; hnf; hnf in Hn ; simpl in *.
+                  omega. }
+
+              destruct His_loc_or_has_perm as [[? HH] | HH].
+              -- eapply INJ_lock_content in HH; eauto.
+                 inv HH; normal_hyp. unify_injection.
+                 eapply H3. auto.
+              -- eapply HH; eauto.
           + unfold inject_lock, inject_lock'.
+            dup H0 as Hlock.
+            simpl in glo0. rewrite glo0 in H0; eauto.
+            eapply INJ_lock_content in H0; try eapply H; eauto.
+            destruct H0 as (b2 & delt' & Hinj0 & HH).
+            do 2 eexists; split; eauto.
+            intros.
+            eapply Coqlib3.neq_prod in n.
+            2: apply Classical_Prop.classic.
+            destruct n.
+            { (* now we consider the cases for b_lock2 =? b2*)
+              destruct (peq b2 b_lock2); swap 1 2.
+              - rewrite Hcontent_almost_equiv,
+                Hcontent_almost_equiv0; eauto.
+              - subst. destruct (Intv.In_dec
+                                   (ofs0 + delt')
+                                   (ofs_lock + delta, ofs_lock + delta + 4));
+                         swap 1 2.
+                + rewrite Hcontent_almost_equiv,
+                  Hcontent_almost_equiv0; eauto.
+                + exfalso.
+                  pose proof Mem.mi_no_overlap.
+                  specialize (H2 _ _ _ Hinj_perms).
+                  rewrite restr_Max_equiv, <- Hmax_equiv0' in H2.
+                  apply no_overlap_mem_perm, perm_no_over_point_to_range in H2.
+                  exploit H2; eauto; swap 1 2.
+                  4: intros [Hcontra | Hcontra]; eapply Hcontra; eauto.
+                  2: omega.
+                  
+                  * exploit writable_locks; simpl; eauto; simpl; eauto.
+                    simpl. rewrite <- glo0; eauto. eauto.
+                    intros HHH; inv HHH. contradict H1; reflexivity.
+                    unfold Mem.perm. rewrite_getPerm; intros.
+                    eapply perm_order_trans101; eauto.
+                    constructor.
+                  * intros.
+                    destruct His_loc_or_has_perm as
+                        [(? & AA) | AA].
+                    -- admit.
+                    -- admit. }
+
+            destruct H1; subst b.
             admit.
+
+            
+            
+            
+            
         - !context_goal (mi_memval_perm). admit.
         - !context_goal (mi_memval_perm). admit.
         - !context_goal (@lockRes). admit.
