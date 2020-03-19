@@ -1039,9 +1039,22 @@ Section ConcurMatch.
                 + eapply Forall_memval_inject; eauto.
                   hnf; hnf in i0; simpl in *; omega. }
         - !context_goal (mi_memval_perm).
-          intros. destruct (addressFiniteMap.AMap.E.eq_dec (b,ofs) (b_lock1, ofs_lock));
+          intros. destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b,ofs));
                     swap 1 2.
-          + simpl in glo0; rewrite glo0 in H0.
+          + simpl in glo0; rewrite glo0 in H0; auto.
+            eapply INJ_lock_content1 in H0; try eapply H; try assumption.
+            intros ? **. exploit H0; eauto.
+            clear H2. revert b1 b2 ofs0 delta0 H1. 
+
+            assert (forall (b1 b2 : block) (ofs0 delta0 : Z),
+  f b1 = Some (b2, delta0) ->
+  memval_inject f (ZMap.get ofs0 (Mem.mem_contents m1) !! b1)
+    (ZMap.get (ofs0 + delta0) (Mem.mem_contents m2) !! b2) ->
+  memval_inject f (ZMap.get ofs0 (Mem.mem_contents m1') !! b1)
+                (ZMap.get (ofs0 + delta0) (Mem.mem_contents m2') !! b2)).
+            { admit. }
+            eauto.
+          + admit.
             
             
         - !context_goal (mi_memval_perm). admit.
