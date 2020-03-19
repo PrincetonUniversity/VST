@@ -678,7 +678,7 @@ Section ConcurMatch.
         eapply (contains21); eassumption.
         eapply (contains12); eassumption.
       Qed. *)
-      Admi tted. *)
+      Admi tted.  *)
       
       Inductive individual_match i:
         (option compiler_index) -> meminj -> ctl -> mem -> ctl -> mem -> Prop:= 
