@@ -986,7 +986,7 @@ Section ConcurMatch.
             eapply Coqlib3.neq_prod in n.
             2: apply Classical_Prop.classic.
             destruct n.
-            { (* now we consider the cases for b_lock2 =? b2*)
+            -- { (* now we consider the cases for b_lock2 =? b2*)
               destruct (peq b2 b_lock2); swap 1 2.
               - rewrite Hcontent_almost_equiv,
                 Hcontent_almost_equiv0; eauto.
@@ -1012,19 +1012,38 @@ Section ConcurMatch.
                     eapply perm_order_trans101; eauto.
                     constructor.
                   * intros.
+                       assert (4<= LKSIZE).
+                       { pose proof LKSIZE_int.
+                         simpl in H4; omega. }
                     destruct His_loc_or_has_perm as
                         [(? & AA) | AA].
-                    -- admit.
-                    -- admit. }
-
-            destruct H1; subst b.
-            admit.
-
+                    -- exploit writable_locks; try eassumption; swap 1 2.
+                       unfold Mem.perm; rewrite_getPerm_goal.
+                       intros ?; eapply perm_order_trans101; eauto.
+                       constructor. omega.
+                    -- exploit AA; swap 1 2.
+                       unfold Mem.perm; rewrite_getPerm_goal.
+                       intros ?; eapply perm_order_trans101; eauto.
+                       eapply H5. constructor. omega. 
+            }
+            -- { destruct H1; subst b.
+                 unify_injection.
+                 subst. destruct (Intv.In_dec
+                                   (ofs0 + delt')
+                                   (ofs_lock + delt', ofs_lock + delt' + 4));
+                         swap 1 2.
+                + rewrite Hcontent_almost_equiv,
+                  Hcontent_almost_equiv0; simpl; eauto.
+                  right; intros AA. apply n. hnf; hnf in AA.
+                  simpl in *; omega.
+                + eapply Forall_memval_inject; eauto.
+                  hnf; hnf in i0; simpl in *; omega. }
+        - !context_goal (mi_memval_perm).
+          intros. destruct (addressFiniteMap.AMap.E.eq_dec (b,ofs) (b_lock1, ofs_lock));
+                    swap 1 2.
+          + simpl in glo0; rewrite glo0 in H0.
             
             
-            
-            
-        - !context_goal (mi_memval_perm). admit.
         - !context_goal (mi_memval_perm). admit.
         - !context_goal (@lockRes). admit.
         - !context_goal (@match_thread_source).
