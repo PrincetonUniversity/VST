@@ -752,6 +752,14 @@ Proof.
   apply level_make_rmap.
 Qed.*)
 
+Definition matchfunspecs (ge : genv) (G : funspecs) : pred rmap :=
+  ALL b:block, ALL fs: funspec,
+  func_at fs (b,0%Z) -->
+  EX id:ident, EX fs0: funspec, 
+   !! (Genv.find_symbol ge id = Some b /\ find_id id G = Some fs0) &&
+     funspec_sub_si fs0 fs.
+
+(*
 Definition matchfunspecs (ge : genv) (G : funspecs) (Phi : rmap) : Prop :=
   forall (b : block) fs,
     app_pred (func_at fs (b, 0%Z)) Phi ->
@@ -759,182 +767,186 @@ Definition matchfunspecs (ge : genv) (G : funspecs) (Phi : rmap) : Prop :=
       Genv.find_symbol ge id = Some b /\
       find_id id G = Some fs0 /\
       app_pred (funspec_sub_si fs0 fs) Phi.
+*)
+
+Lemma approx_min: forall i j, approx i oo approx j = approx (min i j).
+Proof.
+intros.
+extensionality a.
+unfold compose.
+apply pred_ext.
+intros ? [? [? ?]].
+split; auto.
+apply Nat.min_glb_lt; auto.
+intros ? [? ?].
+apply Nat.min_glb_lt_iff in H.
+destruct H.
+split; auto.
+split; auto.
+Qed.
 
 Lemma initial_jm_matchfunspecs prog m G n H H1 H2:
   matchfunspecs (globalenv prog) G (m_phi (initial_jm prog m G n H H1 H2)).
 Proof.
-  simpl.
-  unfold inflate_initial_mem; simpl.
-  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
-  unfold inflate_initial_mem' in E.
-  unfold resource_at in E.
-  intros b fs FAT.
-  unfold func_at in *.
-  rewrite level_initial_core in lev.
-  destruct fs as [fsig cc A P Q ? ?].
-
-  set (pp := SomeP _ _) in FAT.
-  assert (Pi :
-            initial_core (Genv.globalenv prog) G n @ (b, 0)
-            = PURE (FUN fsig cc) (preds_fmap (approx n) (approx n) pp)).
-  {
-    simpl in FAT.
-    pose proof FAT as E2.
-    unfold "@" in *.
-    rewrite E in FAT.
-    destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := fst ( _) _) in FAT at 2.
-    destruct (fst ( (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) (b, 0))
-      as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
-    subst r.
-    injection FAT as -> ->; f_equal. subst pp. f_equal.
-    simpl. f_equal.
-    repeat extensionality.
-    repeat (f_equal; auto).
-  }
-
-  clear -Pi lev.
-
-  unfold initial_core in *.
-  rewrite resource_at_make_rmap in Pi.
-  unfold initial_core' in *.
-  rewrite if_true in Pi by auto.
-  simpl fst in Pi.
-  destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb; [ | congruence].
-  destruct (find_id i G) as [f0 |] eqn:Ei; [ | congruence].
-(*  unfold fundef in *. *)
-  destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
-
-  subst pp.
-  injection Pi as <- -> -> EE.
-  apply inj_pair2 in EE.
-  apply Genv.invert_find_symbol in Eb.
-  unfold filter_genv in *.
-  exists i,  (mk_funspec f1 cc A P0 Q0 P_ne0 Q_ne0).
-  split. assumption.
-  split. assumption.
-  subst n.
-
-  clear - EE P_ne0 Q_ne0.
-  split; simpl; auto.
-  intros phi' Hphi' ts ftor g y ?H z ?H [?H ?H].
-  assert (Hz: (level z < level phi)%nat)
-    by (apply necR_level in H0; apply laterR_level in Hphi'; omega).
-  apply equal_f_dep with (x := ts) in EE.
-  apply equal_f_dep with (x := ftor) in EE.
-  exists ts, ftor, emp.
-  split.
-- 
-  apply equal_f_dep with (x := true) in EE.
-  all: apply equal_f_dep with (x := g) in EE.
-  exists (core z); exists z; split3.
- apply join_unit1. apply core_unit. auto. apply core_identity.
-  simpl in EE.
-  assert (H3: approx (level phi) (P0 ts ftor g) z); [ | destruct H3; auto].
-  rewrite P_ne0. rewrite EE. rewrite <- P_ne.
+  intros b  [fsig cc A P Q ? ?].
+  simpl m_phi.
+  intros phi' H0 FAT.
+  simpl in FAT.
+  assert (H3 := proj2 (necR_PURE' _ _ (b,0) (FUN fsig cc) H0)).
+  spec H3. eauto.
+  destruct H3 as [pp H3].
+  unfold inflate_initial_mem at 1 in H3. rewrite resource_at_make_rmap in H3.
+  unfold inflate_initial_mem' in H3. 
+  destruct (access_at m (b,0) Cur) eqn:Haccess; [ | inv H3].
+  destruct p; try discriminate H3.
+  destruct (initial_core (Genv.globalenv prog) G n @ (b, 0)) eqn:?H; try discriminate H3.
+  inv H3.
+  assert (H3: inflate_initial_mem m (initial_core (Genv.globalenv prog) G n) @ (b,0) = PURE (FUN fsig cc) pp).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4. rewrite Haccess. auto.
+  unfold initial_core in H4. rewrite resource_at_make_rmap in H4.
+  unfold initial_world.initial_core' in H4. simpl in H4.
+  destruct (Genv.invert_symbol (Genv.globalenv prog) b) eqn:?H; try discriminate.
+  destruct (find_id i G) eqn:?H; try discriminate.
+  destruct f; inv H4.
+  assert (H8 := necR_PURE _ _ _ _ _ H0 H3). clear H0 H3.
+  rewrite FAT in H8.
+  injection H8; intro. subst A0.
+  apply PURE_inj in H8. destruct H8 as [_ H8].
+  simpl in H8.
+  do 2 eexists. split. split. 
+  apply Genv.invert_find_symbol; eauto. eauto.
+  split. split; auto.
+  clear H6 H5 i.
+  rewrite later_unfash.
+  do 3 red.
+  clear FAT. forget (level phi') as n'. clear phi'.
+  intros n1' Hn1'. apply laterR_nat in Hn1'.
+  intros ts ftor garg.
+  intros phi Hphi phi' Hphi'.
+  apply necR_level in Hphi'.
+  assert (n' > level phi')%nat by omega.
+  clear n1' Hphi phi Hphi' Hn1'.
+  rename phi' into phi.
+  intros [_ ?].
+  assert (approx n' (P ts ftor garg) phi).
   split; auto.
--
-  intros rho w ? w' ? [? [? [? [? [? ?]]]]].
-  apply join_unit1_e in H6; eauto. subst. clear x H7.
-  apply equal_f_dep with (x := false) in EE.
-  apply equal_f_dep with (x := rho) in EE.
-  simpl in EE.
-  assert (H9: approx (level phi) (Q ts ftor rho) w'); [ | destruct H9; auto].
-  rewrite Q_ne. rewrite <- EE. rewrite <- Q_ne0.
-  split; auto. apply necR_level in H4; omega.
+  clear H3.
+  exists ts.
+  assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
+  simpl in H5.
+  assert (HP := equal_f (equal_f_dep H5 true) garg).
+  assert (HQ := equal_f_dep H5 false).
+  clear H5.
+   simpl in HP, HQ.
+   rewrite P_ne in H4. rewrite HP in H4. clear HP.
+   change (approx _ (approx _ ?A) _) with ((approx n' oo approx n) A phi) in H4.
+   rewrite fmap_app in H4.
+   rewrite fmap_app in HQ.
+   change (approx _ (approx _ ?A)) with ((approx n' oo approx n) A) in HQ.
+   exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
+             (approx n' oo approx n) ftor).
+  rewrite (approx_min n' n) in *.
+  exists emp. rewrite !emp_sepcon.
+  destruct H4.
+  split. auto.
+  intro rho.
+  pose proof (equal_f HQ rho). simpl in H5.
+  intros phi' Hphi'.
+  rewrite emp_sepcon.
+  intros phi'' Hphi''.
+  intros [_ ?].
+  rewrite (approx_min n n') in *.
+  rewrite (Nat.min_comm n n') in *.
+  assert (approx (min n' n) (Q0 ts
+       (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
+          (approx (Init.Nat.min n' n)) ftor) rho) phi'').
+  split; auto.
+  apply necR_level in Hphi''; omega.
+  rewrite <- H5 in H7; clear H5.
+  rewrite <- Q_ne in H7.
+  destruct H7; auto.
 Qed.
 
 Lemma initial_jm_ext_matchfunspecs {Z} (ora : Z) prog m G n H H1 H2:
   matchfunspecs (globalenv prog) G (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
 Proof.
-  simpl.
-  unfold inflate_initial_mem; simpl.
-  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
-  unfold inflate_initial_mem' in E.
-  unfold resource_at in E.
-  intros b fs FAT.
-  unfold initial_core_ext in lev; rewrite level_make_rmap in lev.
-
-  destruct fs as [fsig cc A P Q ? ?].
+  intros b  [fsig cc A P Q ? ?].
+  simpl m_phi.
+  intros phi' H0 FAT.
   simpl in FAT.
-  set (pp := SomeP _ _) in FAT.
-  assert (Pi :
-            initial_core_ext ora (Genv.globalenv prog) G n @ (b, 0)
-            = PURE (FUN fsig cc) (preds_fmap (approx n) (approx n) pp)).
-  {
-    pose proof FAT as E2.
-    unfold "@" in *.
-    rewrite E in FAT.
-    destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := fst ( _) _) in FAT at 2.
-    destruct (fst ( (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) (b, 0))
-      as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
-    subst r.
-    rewrite FAT. f_equal. subst pp.
-    simpl. f_equal. rewrite lev.
-    repeat extensionality.
-    change (approx n (approx n ?A)) with ((approx n oo approx n) A).
-    rewrite approx_oo_approx.
-    f_equal. f_equal. rewrite fmap_app.
-    rewrite approx_oo_approx.
-    auto.
-  }
-
-  clear -Pi lev.
-
-  unfold initial_core_ext in *.
-  rewrite resource_at_make_rmap in Pi.
-  unfold initial_core' in *.
-  if_tac in Pi. 2:tauto.
-  simpl fst in Pi.
-  unfold fundef in *.
-  destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb. 2: congruence.
-  destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence.
-  destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
-
-  subst pp.
-  injection Pi as <- -> -> EE.
-  apply inj_pair2 in EE.
-  apply Genv.invert_find_symbol in Eb.
-  unfold filter_genv in *.
-  exists i, (mk_funspec f1 cc A P0 Q0 P_ne0 Q_ne0).
-  split. assumption.
-  split. assumption.
-  subst n.
-
-  clear - EE P_ne0 Q_ne0.
-  split; simpl; auto.
-  intros phi' Hphi' ts ftor g y ?H z ?H [?H ?H].
-  assert (Hz: (level z < level phi)%nat)
-    by (apply necR_level in H0; apply laterR_level in Hphi'; omega).
-  apply equal_f_dep with (x := ts) in EE.
-  apply equal_f_dep with (x := ftor) in EE.
-  exists ts, ftor, emp.
-  split.
-- 
-  apply equal_f_dep with (x := true) in EE.
-  all: apply equal_f_dep with (x := g) in EE.
-  change (approx ?n (approx ?n ?A)) with ((approx n oo approx n) A) in EE.
-  rewrite approx_oo_approx in EE.
-  rewrite fmap_app in EE.
-  rewrite approx_oo_approx in EE.
-  exists (core z); exists z; split3.
- apply join_unit1. apply core_unit. auto. apply core_identity.
-  simpl in EE.
-  assert (H3: approx (level phi) (P0 ts ftor g) z); [ | destruct H3; auto].
-  rewrite P_ne0. rewrite EE. rewrite <- P_ne.
+  assert (H3 := proj2 (necR_PURE' _ _ (b,0) (FUN fsig cc) H0)).
+  spec H3. eauto.
+  destruct H3 as [pp H3].
+  unfold inflate_initial_mem at 1 in H3. rewrite resource_at_make_rmap in H3.
+  unfold inflate_initial_mem' in H3. 
+  destruct (access_at m (b,0) Cur) eqn:Haccess; [ | inv H3].
+  destruct p; try discriminate H3.
+  destruct (initial_core_ext ora (Genv.globalenv prog) G n @ (b, 0)) eqn:?H; try discriminate H3.
+  inv H3.
+  assert (H3: inflate_initial_mem m (initial_core_ext ora (Genv.globalenv prog) G n) @ (b,0) = PURE (FUN fsig cc) pp).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4. rewrite Haccess. auto.
+  unfold initial_core_ext in H4. rewrite resource_at_make_rmap in H4.
+  unfold initial_world.initial_core' in H4. simpl in H4.
+  destruct (Genv.invert_symbol (Genv.globalenv prog) b) eqn:?H; try discriminate.
+  destruct (find_id i G) eqn:?H; try discriminate.
+  destruct f; inv H4.
+  assert (H8 := necR_PURE _ _ _ _ _ H0 H3). clear H0 H3.
+  rewrite FAT in H8.
+  injection H8; intro. subst A0.
+  apply PURE_inj in H8. destruct H8 as [_ H8].
+  simpl in H8.
+  do 2 eexists. split. split. 
+  apply Genv.invert_find_symbol; eauto. eauto.
+  split. split; auto.
+  clear H6 H5 i.
+  rewrite later_unfash.
+  do 3 red.
+  clear FAT. forget (level phi') as n'. clear phi'.
+  intros n1' Hn1'. apply laterR_nat in Hn1'.
+  intros ts ftor garg.
+  intros phi Hphi phi' Hphi'.
+  apply necR_level in Hphi'.
+  assert (n' > level phi')%nat by omega.
+  clear n1' Hphi phi Hphi' Hn1'.
+  rename phi' into phi.
+  intros [_ ?].
+  assert (approx n' (P ts ftor garg) phi).
   split; auto.
--
-  intros rho w ? w' ? [? [? [? [? [? ?]]]]].
-  apply join_unit1_e in H6; eauto. subst. clear x H7.
-  apply equal_f_dep with (x := false) in EE.
-  apply equal_f_dep with (x := rho) in EE.
-  change (approx ?n (approx ?n ?A)) with ((approx n oo approx n) A) in EE.
-  rewrite approx_oo_approx in EE.
-  rewrite fmap_app in EE.
-  rewrite approx_oo_approx in EE.
-  simpl in EE.
-  assert (H9: approx (level phi) (Q ts ftor rho) w'); [ | destruct H9; auto].
-  rewrite Q_ne. rewrite <- EE. rewrite <- Q_ne0.
-  split; auto. apply necR_level in H4; omega.
+  clear H3.
+  exists ts.
+  assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
+  simpl in H5.
+  assert (HP := equal_f (equal_f_dep H5 true) garg).
+  assert (HQ := equal_f_dep H5 false).
+  clear H5.
+   simpl in HP, HQ.
+   rewrite P_ne in H4. rewrite HP in H4. clear HP.
+   change (approx _ (approx _ ?A) _) with ((approx n' oo approx n) A phi) in H4.
+   rewrite fmap_app in H4.
+   rewrite fmap_app in HQ.
+   change (approx _ (approx _ ?A)) with ((approx n' oo approx n) A) in HQ.
+   exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
+             (approx n' oo approx n) ftor).
+  rewrite (approx_min n' n) in *.
+  exists emp. rewrite !emp_sepcon.
+  destruct H4.
+  split. auto.
+  intro rho.
+  pose proof (equal_f HQ rho). simpl in H5.
+  intros phi' Hphi'.
+  rewrite emp_sepcon.
+  intros phi'' Hphi''.
+  intros [_ ?].
+  rewrite (approx_min n n') in *.
+  rewrite (Nat.min_comm n n') in *.
+  assert (approx (min n' n) (Q0 ts
+       (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
+          (approx (Init.Nat.min n' n)) ftor) rho) phi'').
+  split; auto.
+  apply necR_level in Hphi''; omega.
+  rewrite <- H5 in H7; clear H5.
+  rewrite <- Q_ne in H7.
+  destruct H7; auto.
 Qed.
