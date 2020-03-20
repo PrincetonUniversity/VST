@@ -129,6 +129,24 @@ Proof.
   intro p. apply p.
 Qed.
 
+Definition Espec_permits_framing (Espec: OracleKind) :=
+  forall ge (n: nat) (ora: @OK_ty Espec) (q: CC_core) (phi phi': rmap),
+   join_sub phi phi' ->
+   @jsafe_phi (@OK_ty Espec) (@OK_spec Espec) ge n ora q phi ->
+   @jsafe_phi (@OK_ty Espec) (@OK_spec Espec) ge n ora q phi'.
+
+Lemma Concurrent_Espec_permits_framing:
+   forall t cs ext_link, Espec_permits_framing (Concurrent_Espec t cs ext_link).
+(* This is true and provable.  Here's how:
+   to the Record juicy_ext_spec defined in VST.veric.juicy_extspec,
+   add some more properties specifying that (exists t', ext_spec_type e = (rmap * t'))
+   and about the fact that each of the external functions has
+   pre/postcondition pair that satisfies the frame rule.
+   Then prove that in Concurrent_Espec (or any Espec built using add_funspecs_rec),
+    each of the external functions does satisfy this spec.  Voila!  
+*)
+Admitted.
+
 Import SeparationLogic Clight_initial_world Clightdefs. 
 
 Lemma safety_induction_spawn ge Gamma n state
@@ -182,6 +200,7 @@ Proof.
 
   intros (phix, (ts, ((((f,b), globals), f_with_x) , f_with_Pre)))  (Hargsty, Pre) Post.
   simpl (and _) in Post.
+  unfold fst, snd, projT1, projT2 in Pre.
   destruct Pre as (phi0 & phi1 & jphi & A). simpl in A.
   destruct A as [[[PreA _] [PreB1 [[PreB3 _] [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]]]]] necr].
   rewrite seplog.sepcon_emp in fPRE.
@@ -261,7 +280,27 @@ Proof.
   clear PreB3.
   destruct fPRE as [Hvalid _].
   destruct Func as (b' & E' & [fs' [Fsub FAT]]). injection E' as <- ->.  
-  specialize (gam0 f_b fs' _ (necR_refl _) FAT); clear FAT.
+  specialize (gam0 f_b fs' _ (necR_refl _) FAT).
+  assert (Hperm: Mem.perm m f_b 0 Max Nonempty). {
+     clear - jphi jphi0 FAT compat.
+     pose proof (@compatible_threadRes_sub _ _ _ cnti Phi (juice_join compat)).
+     assert (join_sub phi00 Phi).
+     eapply join_sub_trans; try eassumption. clear H.
+     apply join_sub_trans with phi0; eexists; eauto.
+     pose proof (max_coh (all_cohere compat) (f_b,0)).
+     clear - H0 H1 FAT.
+     destruct fs'. hnf in FAT.
+     pose proof (resource_at_join_sub _ _ (f_b,0) H0).
+     rewrite FAT in H; clear FAT H0.
+     destruct H.
+     inv H.
+     match type of H5 with PURE ?K ?PP = _ => forget K as k; forget PP as pp end.
+     symmetry in H5.
+     clear - H1 H5. 
+     rewrite H5 in H1. clear H5. simpl in H1.
+     hnf in H1. hnf.  unfold max_access_at, access_at in H1. simpl in *. auto.
+  }
+  clear FAT.
   destruct gam0 as [id_fun [fs'' [[? Eid] ?]]].
   assert (app_pred (seplog.funspec_sub_si fs'' spawn_spec) phi00).
   eapply funspec_sub_si_trans. split; eauto.
@@ -337,12 +376,7 @@ Proof.
       (Hcompatible := mem_compatible_forget compat)
       (phi' := phi1)
       (d_phi := phi0); try reflexivity; try eassumption; simpl; auto.
-    + admit. (* add these to spawn rule? 
-                ** *NOTE: I'm not familliar with how youVST handles 
-                function pointers but it might be already derivable
-                from what is given hre.                
-              *)
-    + clear - PreA. destruct b; try contradiction; congruence.
+      clear - PreA. destruct b; try contradiction; congruence.
   }
   (* "progress" part finished. *)
 
@@ -437,7 +471,8 @@ simpl.
      (acc_coh (thread_mem_compatible (mem_compatible_forget compat) cnti)))).
   apply maxedmem_neutral'; auto.
  }
-      intros jm. REWR. rewrite gssAddRes by reflexivity.
+
+
          destruct Fsub as [_ Fsub].
          rewrite subtypes.later_unfash in Fsub.
          do 3 red in Fsub. rewrite l00 in Fsub.
@@ -457,33 +492,41 @@ simpl.
         repeat constructor; auto. intro. apply PreA.
         assumption.
         destruct Fsub as [ts1 [ftor1 [F [HP']]]].
+        REWR. rewrite gssAddRes by reflexivity.
+      destruct HP' as [phi_frame [phi_thread [?HP [?HP ?HP]]]].
+      apply Concurrent_Espec_permits_framing with phi_thread.
+      eexists; eauto.
+      intros jm Ejm.
       specialize (Safety jm ts1 ftor1).
-      intros Ejm.
-      replace (level jm) with n in Safety.
-      2:{ rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
-        cut (level phi0 = level Phi). cleanup. intros ->. omega.
-        apply join_sub_level.
-        apply join_sub_trans with (getThreadR _ _ cnti). exists phi1. auto.
-        apply compatible_threadRes_sub. apply compat. }
-
+      replace n with (level jm).
+     2:{ rewrite <- level_m_phi. rewrite Ejm. destruct (join_level _ _ _ HP0). rewrite H2; apply level_age_to. omega. }
       apply Safety.
       * apply juicy_postcondition_allows_exit_i0. hnf; intros. hnf. auto.
       * (* funnassert *)
         rewrite Ejm.
         apply fungassert_pures_eq with Phi.
-        { rewrite level_age_to. omega. cleanup. omega. }
-        { apply pures_same_eq_l with phi0. 2: now apply pures_eq_age_to; omega.
+        { destruct (join_level _ _ _ HP0) as [_ HP3]; rewrite HP3, level_age_to.
+            omega. cleanup. omega. }
+        { apply pures_eq_trans with (age_to n phi0).
+           destruct (join_level _ _ _ HP0) as [_ ?]; omega.
+          apply pures_same_eq_l with phi0.
+           2: now apply pures_eq_age_to; omega.
           apply join_sub_pures_same. subst.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
-          apply compatible_threadRes_sub, compat. }
+          apply compatible_threadRes_sub, compat.
+          apply pures_same_pures_eq.
+           destruct (join_level _ _ _ HP0) as [_ ?]; auto.
+          apply pures_same_sym.
+          apply join_sub_pures_same. eexists; eauto.
+          }
         apply FA.
       * 
          rewrite Ejm. clear compat' lj Hinj Safety Initcore.
-        clear - HP'.
-        replace F with predicates_sl.emp in HP' by admit.  (* Oops! must deal with framing! *)
-        rewrite predicates_sl.emp_sepcon in HP'.
-        assumption.
-      * hnf. rewrite Ejm; simpl.
+         assumption.
+      * do 3 red.
+         rewrite Ejm.
+         apply @join_sub_joins_trans with (ghost_of (age_to n phi0)); auto with typeclass_instances.
+         exists (ghost_of phi_frame). apply ghost_of_join; auto.
          rewrite age_to_ghost_of.
          destruct ora.
          eapply join_sub_joins_trans, ext_join_approx, extcompat.
@@ -581,5 +624,4 @@ simpl.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       intros ? [Hx _]; inv Hx.
-all: fail.
-Admitted. (* safety_induction_spawn *)
+Qed. (* safety_induction_spawn *)
