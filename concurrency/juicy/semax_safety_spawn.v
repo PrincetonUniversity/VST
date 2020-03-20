@@ -260,40 +260,14 @@ Proof.
   clearbody Q.
   clear PreB3.
   destruct fPRE as [Hvalid _].
-  specialize (gam0 f_b spawn_spec _ (necR_refl _)).
-  destruct Func as (b' & E' & FAT). injection E' as <- ->.
-
-(*
-  destruct Func as (b' & E' & [gs [?H FAT]]). injection E' as <- ->.
-  (* before merge, FAT had the following type.
-     We will use that in the mean time.
-   *)
-  destruct gs. destruct H as [[Hf Hc1] H]. subst t2 c1.
- specialize (H ts
-        (fmap
-             (rmaps.dependent_type_functor_rec ts (rmaps.ConstType (val * ts0)))
-             (approx (level phi00)) (approx (level phi00)) 
-             (b, f_with_x))
-          (filter_genv (globalenv prog), (b::nil))
-         (age_to n phi0)).
-      spec H. admit. (* OK *)
-      specialize (H _ (necR_refl _)).
-      spec H. {
-        split; [ | apply HP].
-        unfold fsig; simpl.
-        split. 
-        admit. (* ? *)
-        repeat constructor; auto.
-        hnf; intros; auto.     
-      }
-
-*)
-  assert (FAT': (func_at spawn_spec (f_b, 0)) phi00)
-  by admit.
-  specialize (gam0 FAT'). clear FAT' FAT.
-  destruct gam0 as [id_fun [fs' [[? Eid] ?]]].
+  destruct Func as (b' & E' & [fs' [Fsub FAT]]). injection E' as <- ->.  
+  specialize (gam0 f_b fs' _ (necR_refl _) FAT); clear FAT.
+  destruct gam0 as [id_fun [fs'' [[? Eid] ?]]].
+  assert (app_pred (seplog.funspec_sub_si fs'' spawn_spec) phi00).
+  eapply funspec_sub_si_trans. split; eauto.
+  clear H0 Fsub fs'; rename H1 into Fsub.
+  rename fs'' into fs'.
   destruct fs' as [t2 c2 A' P' Q' NEP' NEQ'].
-(*  destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q). *)
   unfold filter_genv in *.
   assert (PAE: postcondition_allows_exit
     (Concurrent_Espec unit CS ext_link) tint)
@@ -304,9 +278,8 @@ Proof.
   clear PAE.
   rewrite <-make_tycontext_s_find_id in HEP.
   spec HEP. auto.
-Print spawn_spec.
-  assert (t2 = fsig /\ c2 = cc_default) by (destruct H0; assumption).
-  destruct H1; subst t2 c2.
+  assert (Hx: t2 = fsig /\ c2 = cc_default) by (destruct Fsub; assumption).
+  destruct Hx; subst t2 c2.
 
   spec HEP. {
    simpl fst. fold fsig.
@@ -369,7 +342,7 @@ Print spawn_spec.
                 function pointers but it might be already derivable
                 from what is given hre.                
               *)
-    + admit. (* add these to spawn rule? *)
+    + clear - PreA. destruct b; try contradiction; congruence.
   }
   (* "progress" part finished. *)
 
@@ -437,7 +410,7 @@ Print spawn_spec.
 {
       destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
       subst args; repeat constructor; auto.
-      clear Initcore Post lj ora Safety Eid NEP' NEQ' H0 P' Q' semaxprog.
+      clear Initcore Post lj ora Safety Eid NEP' NEQ' Fsub P' Q' semaxprog.
        subst fsig A.
       clear jphi' jphi1' q_new H id_fun CS_ V FA.
       clear l1 l0 l00 necr li PreA.
@@ -465,7 +438,26 @@ simpl.
   apply maxedmem_neutral'; auto.
  }
       intros jm. REWR. rewrite gssAddRes by reflexivity.
-      specialize (Safety jm ts).
+         destruct Fsub as [_ Fsub].
+         rewrite subtypes.later_unfash in Fsub.
+         do 3 red in Fsub. rewrite l00 in Fsub.
+         specialize (Fsub n).
+         spec Fsub. { apply laterR_nat; omega. }
+         specialize (Fsub ts   (fmap (rmaps.dependent_type_functor_rec ts (rmaps.ConstType (val * ts0)))
+                                                  (approx (level phi00)) (approx (level phi00))   (b, f_with_x))
+                               (Genv.find_symbol (globalenv prog), b :: nil)).
+        cbv beta in Fsub.
+        specialize (Fsub (age_to n phi0)).
+        spec Fsub.  {rewrite level_age_to.  clear; omega. omega. }
+        specialize (Fsub _ (necR_refl _)).
+        spec Fsub.
+        split. simpl.
+        split.
+        hnf; intros. simpl in H0. rewrite PTree.gempty in H0; inv H0.
+        repeat constructor; auto. intro. apply PreA.
+        assumption.
+        destruct Fsub as [ts1 [ftor1 [F [HP']]]].
+      specialize (Safety jm ts1 ftor1).
       intros Ejm.
       replace (level jm) with n in Safety.
       2:{ rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
@@ -474,7 +466,7 @@ simpl.
         apply join_sub_trans with (getThreadR _ _ cnti). exists phi1. auto.
         apply compatible_threadRes_sub. apply compat. }
 
-      eapply Safety.
+      apply Safety.
       * apply juicy_postcondition_allows_exit_i0. hnf; intros. hnf. auto.
       * (* funnassert *)
         rewrite Ejm.
@@ -485,21 +477,12 @@ simpl.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
         apply FA.
-      *  match goal with |- app_pred (P' ts _ _) (m_phi jm) => admit end.
-          
-     (*rewrite Ejm.
-        eapply args_cond_approx_eq_app 
-                 with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
-
-        (* cond_approx_eq *)
-        eauto.
-
-        (* level *)
-        rewrite level_age_to. omega. cleanup. omega.
-
-        (* PROP / PARAMS / GLOBAL  / SEP *)
-        apply HP.
-*)
+      * 
+         rewrite Ejm. clear compat' lj Hinj Safety Initcore.
+        clear - HP'.
+        replace F with predicates_sl.emp in HP' by admit.  (* Oops! must deal with framing! *)
+        rewrite predicates_sl.emp_sepcon in HP'.
+        assumption.
       * hnf. rewrite Ejm; simpl.
          rewrite age_to_ghost_of.
          destruct ora.
@@ -553,7 +536,7 @@ simpl.
       REWR. REWR. REWR. REWR.
       destruct (getThreadC j tp cntj) eqn:Ej.
       -- destruct (cl_halted s) eqn:Halted.
-           destruct s; inv Halted. destruct v0; inv H2.  destruct c1; inv H3.
+           destruct s; inv Halted. destruct v0; inv H1.  destruct c1; inv H2.
            eapply jsafeN_halted; eauto. simpl. reflexivity.
            apply Logic.I.  
            edestruct (unique_Krun_neq(ge := globalenv prog) i j); try split; eauto.
