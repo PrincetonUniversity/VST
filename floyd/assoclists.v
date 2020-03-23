@@ -299,3 +299,39 @@ Proof. intros. rewrite find_id_filter_char, H; trivial. Qed.
 
 Lemma filter_fg {A f g} (l: list A) (FG: forall x, In x l -> f x = g x): filter f l = filter g l.
 Proof. induction l; simpl; trivial. rewrite IHl, FG. trivial. left; trivial. intros. apply FG. right; trivial. Qed.
+
+Lemma filter_cons {A P a} {l:list A}: filter P (a::l) = filter P (a::nil) ++ filter P l. 
+Proof. simpl. destruct (P a); trivial. Qed.
+
+Lemma Indec1 i l: In i l -> true = in_dec ident_eq i l.
+Proof. destruct (in_dec ident_eq i l); intros. reflexivity. elim (n H). Qed.
+
+Lemma Indec2 i l: true = in_dec ident_eq i l -> In i l.
+Proof. destruct (in_dec ident_eq i l); intros. trivial. inv H. Qed.
+
+Lemma In_map_fst_filter {A}: forall (L: list (ident * A)) i l, 
+      In i l -> In i (map fst L) -> 
+      In i (map fst (filter (fun a : positive * A =>  in_dec ident_eq (fst a) l) L)) .
+Proof. induction L; simpl; intros; trivial. unfold ident in *. 
+  destruct H0; subst; simpl.
+  + clear IHL. rewrite <- (Indec1 _ _ H). simpl; left; trivial.
+  +  specialize (IHL _ _ H H0).
+  remember (@proj_sumbool (@In positive (@fst positive A a) l)
+         (~ @In positive (@fst positive A a) l)
+         (@in_dec positive ident_eq (@fst positive A a) l)).
+  destruct b; trivial. right; trivial.
+Qed. 
+
+Lemma In_map_fst_filter2 {A i l}: forall {L: list (ident * A)}, 
+      In i (map fst (filter (fun a : positive * A =>  in_dec ident_eq (fst a) l) L)) ->
+      In i l /\ In i (map fst L).
+Proof. induction L; simpl; intros; trivial. contradiction. unfold ident in *.
+  remember (@proj_sumbool (@In positive (@fst positive A a) l)
+         (~ @In positive (@fst positive A a) l)
+         (@in_dec positive ident_eq (@fst positive A a) l)).
+  destruct b. 
+  + apply Indec2 in Heqb. simpl in H.
+    destruct H. subst. split; trivial. left; trivial.
+    destruct (IHL H). split; trivial. right; trivial.
+  + simpl in H. destruct (IHL H). split; trivial. right; trivial.
+Qed.

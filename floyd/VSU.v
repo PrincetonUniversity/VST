@@ -6,6 +6,13 @@ Definition genv_find_func (ge:Genv.t Clight.fundef type) i f :=
   exists b, Genv.find_symbol ge i = Some b /\
         Genv.find_funct_ptr ge b = Some f.
 
+  Lemma progfunct_GFF {p i fd}: list_norepet (map fst (prog_defs p)) ->
+        find_id i (prog_funct p) = Some fd -> genv_find_func (Genv.globalenv p) i fd.
+  Proof. intros. apply find_id_e in H0. 
+    apply semax_prog.find_funct_ptr_exists; trivial.
+    apply (semax_prog.in_prog_funct_in_prog_defs _ _ _ H0). 
+  Qed.
+
 Lemma funspec_sub_cc phi psi: funspec_sub phi psi ->
       callingconvention_of_funspec phi = callingconvention_of_funspec psi.
 Proof. destruct phi; destruct psi; simpl. intros [[_ ?] _]; trivial. Qed.
@@ -2155,6 +2162,21 @@ Qed.
 
 End VSUJoin.
 
+Lemma SF_ctx_subsumption {Espec cs} V G ge i fd phi (HSF:  @SF Espec cs V ge G i fd phi)
+  (LNR_G: list_norepet (map fst G)) G' V' ge' cs'
+  (SubCS: cspecs_sub cs cs')
+  (FD: genv_find_func ge' i fd)
+  (SubFG: forall j, sub_option (make_tycontext_g V G) ! j (make_tycontext_g V' G') ! j)
+  (SubG: forall j : ident, subsumespec (find_id j G) (find_id j G')):
+  @SF Espec cs' V' ge' G' i fd phi.
+Proof.
+  destruct fd; simpl.
+ + eapply InternalInfo_subsumption.
+    4: eapply (@InternalInfo_envs_sub cs cs' SubCS); eassumption.
+    assumption. assumption. assumption. 
+ + eapply ExternalInfo_envs_sub; eassumption.
+Qed.
+
 Lemma SF_ctx_extensional {Espec cs} V G ge i fd phi (HSF:  @SF Espec cs V ge G i fd phi)
   (LNR_G: list_norepet (map fst G)) G'
   (GG': forall j, find_id j G = find_id j G'):
@@ -2174,7 +2196,6 @@ Proof.
       rewrite semax_prog.make_tycontext_g_G_None in Heqq; trivial.
   + intros j; rewrite GG'. apply subsumespec_refl.
 Qed.
-
 Record CanonicalComponent {Espec V cs} Externs Imports p Exports G:= {
   CC_component :> @Component Espec V(*(mk_varspecs' p)*) cs(*make _compspecs p)*) Externs Imports p Exports G;
   CC_canonical: map fst (Comp_G CC_component) = 
@@ -2331,22 +2352,21 @@ Proof.
   destruct (in_dec ident_eq i (IntIDs p ++ map fst Ext)). trivial. inv H0.
 Qed.*)
 
-Definition CanonicalVSU {Espec V cs} E Imports p Exports :=
-  sigT (fun G => @CanonicalComponent Espec V cs E Imports p Exports G).
 
-Lemma VSU_to_CanonicalVSU {Espec V cs Ext Imp p Exp} (vsu: @VSU Espec V cs Ext Imp p Exp):
-      @CanonicalVSU Espec V cs Ext Imp p Exp.
+Lemma Comp_to_CanComp {Espec V cs Ext Imp p Exp G} (C: @Component Espec V cs Ext Imp p Exp G):
+  sigT (fun GG => @CanonicalComponent Espec V cs Ext Imp p Exp GG /\
+                  find_id (prog_main p) GG = find_id (prog_main p) G).
 Proof.
-  destruct vsu as [GG c]. 
-  remember (order (Comp_G c) 
+  assert (HG: G = Comp_G C). reflexivity.
+  remember (order (Comp_G C) 
                   (map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ (map fst Ext))) (prog_defs p)))) as Gopt.
-  destruct Gopt as [G |]; symmetry in HeqGopt.
-+ specialize (LNR_Internals_Externs c); intros LNR_IEc.
-  assert (X6: forall i : ident, In i (IntIDs p ++ map fst Ext) <-> In i (map fst G)).
+  destruct Gopt as [GG |]; symmetry in HeqGopt.
++ specialize (LNR_Internals_Externs C); intros LNR_IEc.
+  assert (X6: forall i : ident, In i (IntIDs p ++ map fst Ext) <-> In i (map fst GG)).
   { intros. rewrite <- (order_dom HeqGopt).
     remember (prog_defs p) as l. remember (IntIDs p ++ map fst Ext) as l'.
     assert (forall j, In j l' -> In j (map fst l)).
-    { subst. clear -c. intros. apply c in H. destruct (@Comp_G_in_progdefs _ _ _ _ _ _ _ _ c j H).
+    { subst. clear -C. intros. apply C in H. destruct (@Comp_G_in_progdefs _ _ _ _ _ _ _ _ C j H).
       apply find_id_In_map_fst in H0; trivial. }
     clear - H.
     split; intros. 
@@ -2356,26 +2376,26 @@ Proof.
     + apply in_map_iff in H0. destruct H0 as [[j d] [J HJ]]; simpl in *; subst.
       apply filter_In in HJ; simpl in HJ; destruct HJ. 
       destruct (in_dec ident_eq i l'); trivial. discriminate. }
-  assert (X7: list_norepet (map fst G)).
-  { rewrite <- (order_dom HeqGopt). apply list_norepet_map_fst_filter. apply c. }
-  assert (Y: forall i, find_id i (Comp_G c) = find_id i G).
+  assert (X7: list_norepet (map fst GG)).
+  { rewrite <- (order_dom HeqGopt). apply list_norepet_map_fst_filter. apply C. }
+  assert (Y: forall i, find_id i (Comp_G C) = find_id i GG).
   { clear - HeqGopt X6. apply (order_SOC HeqGopt); trivial.
-    apply list_norepet_map_fst_filter. apply c.
-    intros. rewrite (order_dom HeqGopt). apply X6. apply c. trivial. }
-  assert (X8: forall i, In i (map fst Ext) -> find_id i Ext = find_id i G).
-  { intros. rewrite (Comp_G_E c _ H); trivial. }
+    apply list_norepet_map_fst_filter. apply C.
+    intros. rewrite (order_dom HeqGopt). apply X6. apply C. trivial. }
+  assert (X8: forall i, In i (map fst Ext) -> find_id i Ext = find_id i GG).
+  { intros. rewrite (Comp_G_E C _ H); trivial. }
 
   assert (X1: forall i, In i (map fst Imp) ->
       exists
         (f : external_function) (ts : typelist) (t : type) (cc : calling_convention),
-        find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply c.
+        find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
 
-  assert (X2: list_norepet (map fst (prog_defs p))) by apply c.
-  assert (X3: list_norepet (map fst (Ext ++ Imp))) by apply c.
+  assert (X2: list_norepet (map fst (prog_defs p))) by apply C.
+  assert (X3: list_norepet (map fst (Ext ++ Imp))) by apply C.
 
-  assert (X4: list_norepet (map fst Exp)) by apply c.
+  assert (X4: list_norepet (map fst Exp)) by apply C.
   assert (X5: forall i, In i (map fst Ext) -> exists f ts t cc,
-    find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply c.
+    find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
 
   (*assert (X11: forall i : ident, params_LNR (find_id i Imp)).
   { clear -c. intros j.
@@ -2383,12 +2403,12 @@ Proof.
     specialize (Imports_paramsLNR' c j); rewrite Heqq.
     intros X; apply X; trivial. }*)
   assert (X9: forall i phi fd,
-    find_id i (prog_funct p) = Some fd -> find_id i G = Some phi -> 
-   @SF Espec cs V (Genv.globalenv p) (Imp ++ G) i fd phi).
+    find_id i (prog_funct p) = Some fd -> find_id i GG = Some phi -> 
+   @SF Espec cs V (Genv.globalenv p) (Imp ++ GG) i fd phi).
   { intros.
     eapply SF_ctx_extensional. 
-    + rewrite <- Y in H0; apply (Comp_G_justified c _ phi _ H H0).
-    + apply (Comp_ctx_LNR c).
+    + rewrite <- Y in H0; apply (Comp_G_justified C _ phi _ H H0).
+    + apply (Comp_ctx_LNR C).
 (*    + clear H H0. intros j. unfold Comp_G in *. remember (find_id j (Imp ++ GG)) as q; destruct q; simpl; [symmetry in Heqq | trivial].
       rewrite find_id_app_char in Heqq. (* specialize (X11 j).*)
       destruct (find_id j Imp).
@@ -2397,21 +2417,32 @@ Proof.
     + intros j. rewrite 2 find_id_app_char, Y; trivial. }
 
   assert (X10: forall i phi, find_id i Exp = Some phi -> 
-          exists phi', find_id i G = Some phi' /\ funspec_sub phi' phi).
-  { intros. destruct (Comp_G_Exports c _ _ H) as [phi' [Phi' Sub]].
+          exists phi', find_id i GG = Some phi' /\ funspec_sub phi' phi).
+  { intros. destruct (Comp_G_Exports C _ _ H) as [phi' [Phi' Sub]].
     exists phi'; split; trivial. rewrite <- (order_SOC HeqGopt); trivial.
-    apply list_norepet_map_fst_filter. apply c.
-    intros. rewrite (order_dom HeqGopt). apply X6. apply c. trivial. }
+    apply list_norepet_map_fst_filter. apply C.
+    intros. rewrite (order_dom HeqGopt). apply X6. apply C. trivial. }
 
-  remember (@Build_Component Espec V cs Ext Imp p Exp G X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 (*X11*)) as cc.
-  exists G.
-  apply Build_CanonicalComponent with cc.
-  subst cc; simpl. symmetry; apply (order_dom HeqGopt).
-+ apply order_i' in HeqGopt. contradiction. apply c. unfold Comp_G in *.
-  clear - c. intros.
-  apply (Comp_G_dom c). apply in_map_iff in H. destruct H as [[j d] [J HJ]]. simpl in J; subst.
+  remember (@Build_Component Espec V cs Ext Imp p Exp GG X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 (*X11*)) as cc.
+  exists GG.
+  split. apply Build_CanonicalComponent with cc.
+         subst cc; simpl. symmetry; apply (order_dom HeqGopt).
+  rewrite HG, Y; trivial.
++ apply order_i' in HeqGopt. contradiction. apply C. unfold Comp_G in *.
+  clear - C. intros.
+  apply (Comp_G_dom C). apply in_map_iff in H. destruct H as [[j d] [J HJ]]. simpl in J; subst.
   apply filter_In in HJ; simpl in HJ; destruct HJ.
   destruct (in_dec ident_eq i (IntIDs p ++ map fst Ext)). trivial. inv H0.
+Qed.
+
+Definition CanonicalVSU {Espec V cs} E Imports p Exports :=
+  sigT (fun G => @CanonicalComponent Espec V cs E Imports p Exports G).
+
+Lemma VSU_to_CanonicalVSU {Espec V cs Ext Imp p Exp} (vsu: @VSU Espec V cs Ext Imp p Exp):
+      @CanonicalVSU Espec V cs Ext Imp p Exp.
+Proof.
+  destruct vsu as [GG c].
+  destruct (Comp_to_CanComp c) as [G [C X]]. exists G. apply C.
 Qed.
 
 Inductive semaxfunc {Espec} {cs : compspecs} (V : varspecs) (G : funspecs) (ge : Genv.t Clight.fundef type):
@@ -3002,6 +3033,236 @@ destruct (ident_eq i j); subst.
    subst. exists (S k); simpl; trivial.
 Qed.
 
+Module FunspecOrder <: Orders.TotalLeBool.
+  Definition t := (ident * funspec)%type.
+  Definition leb := fun x y : (ident * funspec)=> Pos.leb (fst x) (fst y).
+  Theorem leb_total : forall a1 a2, leb a1 a2 = true \/ leb a2 a1 = true.
+  Proof.  intros. unfold leb. 
+    pose proof (Pos.leb_spec (fst a1) (fst a2)).
+    pose proof (Pos.leb_spec (fst a2) (fst a1)).
+    inv H; inv H0; auto.
+    clear - H2 H3. 
+    pose proof (Pos.lt_trans _ _ _ H2 H3).
+    apply Pos.lt_irrefl in H. contradiction.
+  Qed.
+End FunspecOrder.
+Module SortFunspec := Mergesort.Sort(FunspecOrder).
+
+Record SortedComponent {Espec V cs} Externs Imports p Exports G:= {
+  SC_component :> @Component Espec V cs Externs Imports p Exports G;
+  SC_sorted: (*G = SortFunspec.sort G*) Sorted.LocallySorted
+         (fun x x0 : ident * funspec =>
+          Datatypes.is_true
+            ((fun x1 y : ident * funspec => (fst x1 <=? fst y)%positive) x x0))  G
+}.
+Require Import VST.veric.initial_world.
+
+Lemma perm_In_map_fst {A}: forall {G:list (ident*A)} {G'} (P: Permutation G G') i,
+      In i (map fst G') -> In i (map fst G).
+Proof. intros G G' P. induction P; simpl; intros; trivial.
++ destruct x; simpl in *; intros.
+  destruct H; [ left; trivial | right; auto].
++ destruct H as [? | [? | ?]]. right; left; trivial. left; trivial. right; right; trivial.
++ apply IHP1. apply IHP2; trivial.
+Qed.
+ 
+Lemma perm_LNR {A}: forall {G:list (ident * A)} {G'} (P: Permutation G G')
+      (LNR: list_norepet (map fst G)),
+      list_norepet (map fst G').
+Proof. intros G G' P. induction P; simpl; intros; trivial; auto.
++ destruct x. inv LNR. constructor; eauto. simpl.
+  intros N. apply H1. apply (perm_In_map_fst P); trivial.
++ inv LNR. inv H2. constructor.
+  - intros N. destruct N; auto. rewrite H in *; apply H1; left; trivial.
+  - constructor; trivial. intros N. apply H1. right; trivial.
+Qed.
+
+Lemma perm_find_id {A}: forall (G:list (ident * A)) G' (P: Permutation G G')
+      (LNR: list_norepet (map fst G)) i,
+      find_id i G = find_id i G'.
+Proof. intros G G' P. induction P; simpl; intros; trivial.
++ destruct x. inv LNR. rewrite IHP; trivial.
++ destruct y. destruct x; simpl in *. inv LNR. inv H2.
+  destruct (Memory.EqDec_ident i i0); subst; trivial.
+  rewrite if_false; trivial. intros N; subst. apply H1; left; trivial.
++ rewrite IHP1; trivial. apply IHP2.
+  apply (perm_LNR P1); trivial.
+Qed.
+
+Lemma sort_In_map_fst_i {G i}:
+      In i (map fst G) -> In i (map fst (SortFunspec.sort G)).
+Proof.
+intros; eapply perm_In_map_fst; try eassumption.
+apply Permutation_sym. apply SortFunspec.Permuted_sort.
+Qed.
+
+Lemma sort_In_map_fst_e {G i}:
+      In i (map fst (SortFunspec.sort G)) -> In i (map fst G).
+Proof.
+intros; eapply perm_In_map_fst; try eassumption.
+apply SortFunspec.Permuted_sort.
+Qed.
+
+Lemma sort_In_map_fst {G i}:
+      In i (map fst G) <-> In i (map fst (SortFunspec.sort G)).
+Proof.
+split; intros; [ apply sort_In_map_fst_i | apply sort_In_map_fst_e]; trivial.
+Qed. 
+
+Lemma LNR_sort_i {G}: list_norepet (map fst G) ->
+      list_norepet (map fst (SortFunspec.sort G)).
+Proof.
+intros; eapply perm_LNR; try eassumption.
+apply SortFunspec.Permuted_sort.
+Qed.
+
+Lemma LNR_sort_e {G}:
+      list_norepet (map fst (SortFunspec.sort G))
+      -> list_norepet (map fst G).
+Proof.
+intros; eapply perm_LNR; try eassumption.
+apply Permutation_sym. apply SortFunspec.Permuted_sort.
+Qed.
+
+Lemma sort_LNR {G}: list_norepet (map fst G) <->
+      list_norepet (map fst (SortFunspec.sort G)).
+Proof.
+split; intros; eapply perm_LNR; try eassumption.
+apply SortFunspec.Permuted_sort.
+apply Permutation_sym. apply SortFunspec.Permuted_sort.
+Qed.
+
+Lemma sort_find_id {G i} (LNR: list_norepet (map fst G)) :
+      find_id i G = find_id i (SortFunspec.sort G).
+Proof.
+apply perm_find_id; trivial.
+apply SortFunspec.Permuted_sort.
+Qed.
+
+Definition SortComponent {Espec V cs Externs Imports p Exports G} 
+           (C:@Component Espec V cs Externs Imports p Exports G):
+           @SortedComponent Espec V cs Externs Imports p Exports (SortFunspec.sort G).
+constructor; [ | apply SortFunspec.Sorted_sort].
+specialize (Comp_ctx_LNR C); intros DISJ.
+(*destruct C;*) unfold Comp_G in DISJ.
+constructor; trivial; try apply C; clear - C DISJ.
++ intros. destruct (Comp_G_dom C i).
+  split; intros.
+  - apply H in H1. clear - C H1.
+    destruct (In_map_fst_find_id H1 (Comp_G_LNR C)) as [x Hx].
+    apply (@sort_In_map_fst G); trivial. 
+  - apply H0. clear - C H1.
+    apply sort_In_map_fst; trivial.
++ apply (@sort_LNR G); apply C.
++ intros. rewrite (Comp_G_E C _ H).
+  apply sort_find_id; apply C.
++ intros. eapply SF_ctx_extensional.
+  - apply (Comp_G_justified C i phi fd). trivial. clear - H0 C.
+     rewrite (sort_find_id (Comp_G_LNR C)); trivial.
+  - apply DISJ.
+  - clear - DISJ C; intros. rewrite 2 find_id_app_char. 
+    rewrite (sort_find_id (Comp_G_LNR C)). trivial.
++ intros. destruct (Comp_G_Exports C _ _ E) as [phi' [? ?]].
+  exists phi'; split; trivial. clear - H C.
+  rewrite <- (sort_find_id (Comp_G_LNR C)). trivial.
+Qed.
+
+Ltac prove_cspecs_sub := split3; intros ?i; apply sub_option_get;
+     repeat (constructor; [ reflexivity |]); constructor.
+
+Ltac solve_entry H H0:=
+     inv H; inv H0; first [ solve [ trivial ] | split; [ reflexivity | eexists; reflexivity] ].
+
+Ltac LNR_tac := apply compute_list_norepet_e; reflexivity.
+
+Ltac list_disjoint_tac := (*red; simpl; intros; contradiction.*)
+     apply list_norepet_append_inv; LNR_tac.
+
+Ltac ExternsHyp_tac := first [ reflexivity | idtac ].
+Ltac SC_tac := simpl; intros ? ? X H;
+  repeat (destruct H; [ subst; simpl; simpl in X; try discriminate | ]);
+  inv X; first [ eexists; split; [reflexivity | apply funspec_sub_refl] | idtac]; try contradiction.
+
+Ltac HImports_tac := simpl; intros ? ? ? H1 H2;
+  repeat (if_tac in H1; subst; simpl in *; try discriminate).
+
+Ltac ImportsDef_tac := first [ reflexivity | idtac ].
+Ltac ExportsDef_tac := first [ reflexivity | idtac ].
+Ltac domV_tac := cbv; intros; auto.
+
+Ltac FunctionsPreserved_tac :=
+  eapply FP_entries_sound;
+  [ cbv; reflexivity
+  | solve [repeat (constructor; [ reflexivity | ]); constructor]
+  | cbv; reflexivity
+  | repeat (constructor; [ reflexivity | ]); constructor
+  | cbv; reflexivity ].
+Ltac FDM_tac := eapply FDM; [ cbv; reflexivity | repeat (constructor; [ cbv; reflexivity | ]); constructor].
+
+Ltac find_id_subset_tac := simpl; intros ? ? H;
+  repeat (if_tac in H; [ inv H; simpl; try reflexivity | ]); discriminate.
+
+Ltac ComponentMerge C1 C2 :=
+  eapply (ComponentJoin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ C1 C2);
+[ list_disjoint_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| LNR_tac
+| LNR_tac
+| prove_cspecs_sub
+| prove_cspecs_sub
+| first [ find_id_subset_tac | idtac]
+| first [ find_id_subset_tac | idtac]
+| FDM_tac
+| FunctionsPreserved_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| ExternsHyp_tac
+| SC_tac
+| SC_tac
+| HImports_tac
+(*+  HContexts. This is the side condition we'd like to exliminate - it's also
+   why we need to define SubjectComponent/ObserverComponent using DEFINED
+  simpl; intros.
+  repeat (if_tac in H; [ inv H; inv H0 | ]). discriminate.*)
+| ImportsDef_tac
+| ExportsDef_tac
+| LNR_tac
+| LNR_tac
+| domV_tac
+].
+
+Ltac VSUMerge VSU1 VSU2 :=
+  eapply (VSUJoin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ VSU1 VSU2);
+[ list_disjoint_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| LNR_tac
+| LNR_tac
+| prove_cspecs_sub
+| prove_cspecs_sub
+| first [ find_id_subset_tac | idtac]
+| first [ find_id_subset_tac | idtac]
+| FDM_tac
+| FunctionsPreserved_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| ExternsHyp_tac
+| SC_tac
+| SC_tac
+| HImports_tac
+(*+  HContexts. This is the side condition we'd like to exliminate - it's also
+   why we need to define SubjectComponent/ObserverComponent using DEFINED
+  simpl; intros.
+  repeat (if_tac in H; [ inv H; inv H0 | ]). discriminate.*)
+| ImportsDef_tac
+| ExportsDef_tac
+| LNR_tac
+| LNR_tac
+| domV_tac
+].
 Lemma progfunct_eq:SeparationLogic.prog_funct = prog_funct.
 Proof. reflexivity. Qed.
 
@@ -3068,8 +3329,39 @@ simpl.
 apply funspec_sub_refl.
 auto.
 Qed.
-
+(*
 Definition LinkedProgVSU {Espec V cs} E Imports p Exports :=
   sigT (fun G => @CanonicalComponent Espec V cs E Imports p Exports G /\
           exists post ora, find_id (prog_main p) G = 
-           Some (@main_spec_ext' (@OK_ty Espec) p ora post)).
+           Some (@main_spec_ext' (@OK_ty Espec) p ora post)).*)
+Definition LinkedProgVSU {Espec V cs} E Imports p Exports :=
+  sigT (fun G => @CanonicalComponent Espec V cs E Imports p Exports G /\
+          exists phi, find_id (prog_main p) G = Some phi /\
+                      find_id (prog_main p) Exports = Some phi).
+
+Definition G_of_CanonicalVSU {Espec V cs E Imports p Exports} (vsu: @CanonicalVSU Espec V cs E Imports p Exports): funspecs.
+destruct vsu as [G c]. apply G. Defined. 
+
+Lemma G_of_CanonicalVSU_char {Espec V cs E Imports p Exports} (vsu: @CanonicalVSU Espec V cs E Imports p Exports):
+     map fst (G_of_CanonicalVSU vsu) = 
+                map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ map fst E))
+                        (prog_defs p)).
+Proof. destruct vsu. simpl. apply c. Qed.
+
+Lemma G_of_CanoncialVSU_justified {Espec V cs E Imports p Exports} (vsu: @CanonicalVSU Espec V cs E Imports p Exports):
+       forall (i : ident) (phi : funspec) (fd : fundef function),
+       initial_world.find_id i (prog_funct p) = Some fd ->
+       initial_world.find_id i (G_of_CanonicalVSU vsu) = Some phi -> 
+       @SF Espec cs V  (@Genv.globalenv (fundef function) type p) (Imports ++ (G_of_CanonicalVSU vsu)) i fd phi.
+Proof. intros. destruct vsu. apply (Comp_G_justified c _ _ _ H H0). Qed.
+
+Lemma LNR_G_of_CanoncialVSU {Espec V cs E Imports p Exports} (vsu: @CanonicalVSU Espec V cs E Imports p Exports):
+      list_norepet (map fst (G_of_CanonicalVSU vsu)).
+Proof. intros. destruct vsu. apply (Comp_G_LNR c). Qed.
+
+Lemma LNR_progdefs_progfunct {F} {p: program F}: list_norepet (map fst (prog_defs p)) -> 
+      list_norepet (map fst (prog_funct p)).
+Proof. apply initialize.list_norepet_prog_funct'. Qed.
+
+Definition ExtIDs (p: Ctypes.program function): list ident := 
+  map fst ((filter (fun x => negb (isInternal (snd x)))) (prog_defs p)).
