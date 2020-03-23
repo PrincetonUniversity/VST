@@ -4,7 +4,7 @@ Require Import fastapile.
 Require Import spec_stdlib.
 Require Import spec_fastpile.
 Require Import spec_fastpile_private.
-Require Import spec_fastapile.
+Require Import spec_apile.
 
 Instance APileCompSpecs : compspecs. make_compspecs prog. Defined.
 
@@ -52,8 +52,8 @@ Definition APILE: APilePredicates := Build_APilePredicates apile APileCompSpecs 
 
 Lemma body_Apile_add: semax_body ApileVprog ApileGprog f_Apile_add (Apile_add_spec M APILE).
 Proof.
-start_function.
-simpl spec_fastapile.apile. unfold apile.
+start_function. 
+simpl spec_apile.apile. unfold apile.
 forward_call (gv _a_pile, n,sigma,gv).
 entailer!.
 Qed.
@@ -61,7 +61,7 @@ Qed.
 Lemma body_Apile_count: semax_body ApileVprog ApileGprog f_Apile_count (Apile_count_spec M APILE).
 Proof.
 start_function.
-simpl spec_fastapile.apile. unfold apile in *.
+simpl spec_apile.apile. unfold apile in *.
 forward_call (gv _a_pile, sigma).
 forward.
 Qed.

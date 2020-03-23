@@ -1,25 +1,9 @@
 Require Import VST.floyd.proofauto.
 Require Import triang.
 Require Import spec_stdlib.
+Require Import PileModel.
 
-(*Predicate bundle is empty, but the ASI still depend n the MemMGR bundle*)
-
-(*decreasing is a model-level function - it is referred to not only
-  in verif_triang.v but also in verif_main, so should be defined not
-  in verif_triang but here (or a global model-level file).
-  The auxiliary lemmas triangular_number and sumlist_decreasing_bound
-  are also code-independent but can be left in verif_triang for now*)
-Fixpoint decreasing (n: nat) :=
- match n with
- | O => nil
- | S n' => Z.of_nat n :: decreasing n'
- end.
-
-Fixpoint triang (n: nat) :=
- match n with
- | O => 0
- | S n' => Z.of_nat n + triang n'
- end.
+(*APD bundle is empty, but the ASI still depend n the MallocFree-APD*)
 
 Section TriangASI.
 Variable M: MemMGRPredicates.

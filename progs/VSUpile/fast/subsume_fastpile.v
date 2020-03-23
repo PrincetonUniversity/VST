@@ -3,6 +3,7 @@ Require Import fastpile.
 Require Import spec_stdlib.
 Require Import spec_fastpile.
 Require Import spec_fastpile_concrete.
+Require Import PileModel.
 
 (*The FM paper contains direct subsumption proofs like the following
 
@@ -42,7 +43,7 @@ Lemma sub_Pile_add:
               (snd (spec_fastpile.Pile_add_spec M PILE)).
 Proof.
 do_funspec_sub. destruct w as [[[p n] sigma] gv]; clear H. simpl. normalize.
-Exists (p,n, spec_fastpile.sumlist sigma,gv) emp. normalize.
+Exists (p,n, sumlist sigma,gv) emp. normalize.
 entailer!.
 Abort.
 End SubsumptionProofs_ASI.
@@ -52,12 +53,13 @@ Essentially, the replays the proofs from the FM paper. *)
 
 Require Import verif_fastpile_concrete.
 Require Import verif_fastpile.
+(*Locate PILE. now gives Constant pile.fast.verif_fastpile.PILE.*)
 
 Section SubsumptionProofs_FM.
 Variable M: MemMGRPredicates.
 Lemma sub_Pile_new:
   funspec_sub (snd (spec_fastpile_concrete.Pile_new_spec M (FASTPILECONC M)))
-              (snd (spec_fastpile.Pile_new_spec M (FASTPILE M))).
+              (snd (spec_fastpile.Pile_new_spec M (PILE M))).
 Proof.
 do_funspec_sub.
 rename w into gv; clear H.
@@ -72,10 +74,10 @@ Qed.
   presumably because of a reformulation of sunpec_sub or becuase of the introduction of do_funspec_sub*)
 Lemma sub_Pile_add: 
   funspec_sub (snd (spec_fastpile_concrete.Pile_add_spec M (FASTPILECONC M)))
-              (snd (spec_fastpile.Pile_add_spec M (FASTPILE M))).
+              (snd (spec_fastpile.Pile_add_spec M (PILE M))).
 Proof.
 do_funspec_sub. destruct w as [[[p n] sigma] gv]; clear H. simpl. normalize.
-Exists (p,n, spec_fastpile.sumlist sigma,gv) emp. normalize.
+Exists (p,n, sumlist sigma,gv) emp. normalize.
 apply andp_right.
 - unfold spec_fastpile_private.fastprep, crep.
   Intros s. apply prop_right. split; [ intros | intuition].
@@ -88,10 +90,10 @@ Qed.
 
 Lemma sub_Pile_count: 
   funspec_sub (snd (spec_fastpile_concrete.Pile_count_spec (FASTPILECONC M)))
-              (snd (spec_fastpile.Pile_count_spec (FASTPILE M))).
+              (snd (spec_fastpile.Pile_count_spec (PILE M))).
 Proof.
 do_funspec_sub. destruct w as [p sigma]; clear H. simpl. normalize.
-Exists (p, spec_fastpile.sumlist sigma) emp. normalize. entailer.
+Exists (p, sumlist sigma) emp. normalize. entailer.
 apply andp_right. 
 - unfold spec_fastpile_private.fastprep, crep.
   Intros s. apply prop_right. intros.
@@ -108,10 +110,10 @@ Qed.
 
 Lemma sub_Pile_free: 
   funspec_sub (snd (spec_fastpile_concrete.Pile_free_spec M (FASTPILECONC M)))
-              (snd (spec_fastpile.Pile_free_spec M (FASTPILE M))).
+              (snd (spec_fastpile.Pile_free_spec M (PILE M))).
 Proof.
 do_funspec_sub. destruct w as [[p sigma] gv]. clear H; simpl; normalize.
-Exists (p, spec_fastpile.sumlist sigma, gv) emp. normalize. 
+Exists (p, sumlist sigma, gv) emp. normalize. 
 apply andp_right.
 - entailer!.
 - unfold spec_fastpile_private.fastprep, crep.
@@ -145,7 +147,7 @@ Record PileSub (M:MemMGRPredicates)
 }.
 
 (*Indeed, the lemmas we proved in Section SubsumptionProofs_FM can be bundled in this way.*)
-Lemma PILE_SUB M: PileSub M (FASTPILECONC M) (FASTPILE M).
+Lemma PILE_SUB M: PileSub M (FASTPILECONC M) (PILE M).
 Proof.
   constructor.
   apply sub_Pile_new.
@@ -200,7 +202,7 @@ Record PileSpecsSub (PS1 PS2: PileSpec) (preds1:preds PS1) (preds2: preds PS2) :
 (*Here's a proof that the two bundles constructed in verif_fastpile_concrete and
   verif_fastpile satisfy this condition. Indeed, the four proofs we constructed in
   Lemma PILE_SUB can conveniently be reused here.*)
-Lemma MyPileSpecsSub M: PileSpecsSub (Concspec M) (Fastspec M) (FASTPILECONC M) (FASTPILE M).
+Lemma MyPileSpecsSub M: PileSpecsSub (Concspec M) (Fastspec M) (FASTPILECONC M) (PILE M).
 Proof. constructor;  apply (PILE_SUB M). Qed.
 
 (*Stage3: let's abstract from the four functions, and instead construct a type of specs
@@ -244,7 +246,7 @@ Record SPECS_Sub l (SPEC1 SPEC2: SPEC l) (preds1:SPEC_preds _ SPEC1) (preds2: SP
 (*Here's a proof that the two bundles constructed in verif_fastpile_concrete and
   verif_fastpile satisfy this condition. Indeed, the four proofs we constructed in
   Lemma PILE_SUB can conveniently be reused here.*)
-Lemma MyPile_SPECS_Sub M: SPECS_Sub _ (ConcSPEC M) (FastSPEC M) (FASTPILECONC M) (FASTPILE M).
+Lemma MyPile_SPECS_Sub M: SPECS_Sub _ (ConcSPEC M) (FastSPEC M) (FASTPILECONC M) (PILE M).
 Proof. constructor. repeat constructor; apply PILE_SUB. Qed.
 
 (*Relaxing the condition that SPECS1 and SPEC2 be over the same list (instead requiring one be a sublist

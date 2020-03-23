@@ -2,14 +2,15 @@ Require Import VST.floyd.proofauto.
 Require Import fastpile.
 Require Import spec_stdlib.
 Require Import spec_fastpile.
+Require Import PileModel.
 
 Instance FastpileCompSpecs : compspecs. make_compspecs prog. Defined.
 
-(*On contrast to spec_pile_private, the predicate bundle here is not 
-  defined parametrically in a MemMGRPredicates bundle.*)
+(*In contrast to spec_pile_private, the APD here is not 
+  defined parametrically in a MallocFree-APD.*)
 Section PilePrivatePreds.
 
-(*Previsouly called pilerep, and will be used to instantiate spec_pile.pilerep,
+(*Previously called pilerep, and will be used to instantiate spec_pile.pilerep,
   but given a different name for didactic purposes and to avoid qualified names*)
 Definition fastprep (sigma: list Z) (p: val) : mpred :=
  EX s:Z, !! (0 <= s <= Int.max_signed /\
@@ -20,12 +21,13 @@ Opaque fastprep.
 
 Record FastpilePrivatePredicates := {
   pilepreds :> PilePredicates;
-  pile_rep_exposed:  spec_fastpile.pilerep pilepreds = fastprep
+  pile_rep_exposed: pilerep pilepreds = fastprep
 }.
 End PilePrivatePreds.
 
-(*However, as PileASI requires a MemMGRPredicates bundle we have to make
-  FastpilePrivateASI  depend in one, too.*)
+(*However, as PileASI requires a MallocFree-APD we have to make
+  FastpilePrivateASI depend on one, too. That's reasonable, since
+  fastpile still mallocs and frees memory.*)
 Section FastpilePrivateASI.
 Variable M: MemMGRPredicates.
 Variable FASTPILEPRIV:FastpilePrivatePredicates.

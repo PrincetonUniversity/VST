@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import fastpile.
 Require Import spec_stdlib.
+Require Import PileModel.
 
 Record PilePredicates := {
   pilerep: list Z -> val -> mpred;
@@ -13,8 +14,6 @@ Record PilePredicates := {
 
 Hint Resolve pilerep_local_facts : saturate_local.
 Hint Resolve pilerep_valid_pointer : valid_pointer.
-
-Definition sumlist : list Z -> Z := List.fold_right Z.add 0.
 
 Definition tpile := Tstruct _pile noattr.
 

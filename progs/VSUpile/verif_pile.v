@@ -4,6 +4,7 @@ Require Import pile.
 Require Import spec_stdlib.
 Require Import spec_pile.
 Require Import spec_pile_private.
+Require Import PileModel.
 
 Section Pile_VSU.
 Variable M: MemMGRPredicates.
@@ -11,9 +12,7 @@ Variable M: MemMGRPredicates.
 Lemma listrep_local_facts:
   forall sigma p,
    listrep M sigma p |--
-   !! (is_pointer_or_null p 
-      /\ (p=nullval <-> sigma=nil)
-       /\ Forall (Z.le 0) sigma).
+   !! (is_pointer_or_null p /\ (p=nullval <-> sigma=nil) /\ Forall (Z.le 0) sigma).
 Proof.
 intros.
 revert p; induction sigma; 

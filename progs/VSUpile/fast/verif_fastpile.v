@@ -4,8 +4,9 @@ Require Import fastpile.
 Require Import spec_stdlib.
 Require Import spec_fastpile.
 Require Import spec_fastpile_private.
+Require Import PileModel.
 
-Section Fastpile_VSU.
+Section Pile_VSU.
 Variable M: MemMGRPredicates.
 
 Lemma fastprep_local_facts:
@@ -33,10 +34,10 @@ Hint Resolve fastprep_valid_pointer : valid_pointer.
 Definition pfreeable (p: val) : mpred :=
             malloc_token M Ews tpile p.
 
-Definition FASTPILE: PilePredicates := Build_PilePredicates fastprep
+Definition PILE: PilePredicates := Build_PilePredicates fastprep
               fastprep_local_facts fastprep_valid_pointer pfreeable.
 
-Definition FASTPILEPRIV: FastpilePrivatePredicates := Build_FastpilePrivatePredicates FASTPILE (eq_refl _).
+Definition PILEPRIV: FastpilePrivatePredicates := Build_FastpilePrivatePredicates PILE (eq_refl _).
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -52,16 +53,16 @@ Definition surely_malloc_spec :=
        LOCAL (temp ret_temp p)
        SEP (mem_mgr M gv; malloc_token M Ews t p * data_at_ Ews t p).
 
-  Definition Fastpile_ASI: funspecs := PileASI M FASTPILE.
+  Definition Pile_ASI: funspecs := PileASI M PILE.
 
-  Definition fastpile_imported_specs:funspecs := (*spec_stdlib.specs.*)MMASI M.
+  Definition pile_imported_specs:funspecs := (*spec_stdlib.specs.*)MMASI M.
 
-  Definition fastpile_internal_specs: funspecs := surely_malloc_spec::Fastpile_ASI.
+  Definition pile_internal_specs: funspecs := surely_malloc_spec::Pile_ASI.
 
-  Definition FastpileVprog: varspecs. mk_varspecs prog. Defined.
-  Definition FastpileGprog: funspecs := fastpile_imported_specs ++ fastpile_internal_specs.
+  Definition PileVprog: varspecs. mk_varspecs prog. Defined.
+  Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
 
-Lemma body_Pile_new: semax_body FastpileVprog FastpileGprog f_Pile_new (Pile_new_spec M FASTPILE).
+Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M PILE).
 Proof.
 start_function.
 forward_call (tpile, gv).
@@ -75,15 +76,7 @@ Exists p 0.
 entailer!.
 Qed.
 
-Lemma sumlist_nonneg: forall sigma, 
-  Forall (Z.le 0) sigma -> 0 <= sumlist sigma.
-Proof.
-intros.
-induction sigma; simpl. omega. inv H.
-apply IHsigma in H3; omega.
-Qed.
-
-Lemma body_Pile_add: semax_body FastpileVprog FastpileGprog f_Pile_add (Pile_add_spec M FASTPILE).
+Lemma body_Pile_add: semax_body PileVprog PileGprog f_Pile_add (Pile_add_spec M PILE).
 Proof.
 start_function.
 simpl pilerep. unfold fastprep.
@@ -140,9 +133,9 @@ simpl.
 apply sumlist_nonneg in H1; omega.
 Qed.
 
-Lemma body_Pile_count: semax_body FastpileVprog FastpileGprog f_Pile_count (Pile_count_spec FASTPILE).
+Lemma body_Pile_count: semax_body PileVprog PileGprog f_Pile_count (Pile_count_spec PILE).
 Proof.
-start_function. 
+start_function.
 simpl pilerep; unfold fastprep. Intros s.
 forward.
 forward.
@@ -153,7 +146,7 @@ Exists s.
 entailer!.
 Qed.
 
-Lemma body_Pile_free: semax_body FastpileVprog FastpileGprog f_Pile_free (Pile_free_spec M FASTPILE).
+Lemma body_Pile_free: semax_body PileVprog PileGprog f_Pile_free (Pile_free_spec M PILE).
 Proof.
 start_function.
 simpl pilerep; unfold fastprep. 
@@ -165,8 +158,7 @@ cancel.
 forward.
 Qed.
 
-(*Same pstatement and proof as verif_pile. Indeed, the C files have the same code duplication...*)
-Lemma body_surely_malloc: semax_body FastpileVprog FastpileGprog f_surely_malloc surely_malloc_spec.
+Lemma body_surely_malloc: semax_body PileVprog PileGprog f_surely_malloc surely_malloc_spec.
 Proof.
 start_function.
 forward_call (malloc_spec_sub M t) gv.
@@ -182,8 +174,8 @@ forward_if True.
 + forward. Exists p. entailer!.
 Qed.
 
-  Definition FastpileComponent: @Component NullExtension.Espec FastpileVprog _ 
-      nil fastpile_imported_specs prog Fastpile_ASI fastpile_internal_specs.
+  Definition PileComponent: @Component NullExtension.Espec PileVprog _ 
+      nil pile_imported_specs prog Pile_ASI pile_internal_specs.
   Proof. 
     mkComponent.
     + solve_SF_internal body_surely_malloc.
@@ -193,12 +185,12 @@ Qed.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-  Definition FastpileVSU: @VSU NullExtension.Espec FastpileVprog _ 
-      nil fastpile_imported_specs prog Fastpile_ASI.
-  Proof. eexists; apply FastpileComponent. Qed.
+  Definition PileVSU: @VSU NullExtension.Espec PileVprog _ 
+      nil pile_imported_specs prog Pile_ASI.
+  Proof. eexists; apply PileComponent. Qed.
 
-  Definition FastpilePrivateComponent: @Component NullExtension.Espec FastpileVprog _ 
-      nil fastpile_imported_specs prog (FastpilePrivateASI M FASTPILEPRIV) fastpile_internal_specs.
+  Definition PilePrivateComponent: @Component NullExtension.Espec PileVprog _ 
+      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV) pile_internal_specs.
   Proof. 
     mkComponent.
     + solve_SF_internal body_surely_malloc.
@@ -208,7 +200,7 @@ Qed.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-Definition FastpilePrivateVSU: @VSU NullExtension.Espec FastpileVprog _ 
-      nil fastpile_imported_specs prog (FastpilePrivateASI M FASTPILEPRIV).
-  Proof. eexists; apply FastpileComponent. Qed.
-End Fastpile_VSU.
+Definition PilePrivateVSU: @VSU NullExtension.Espec PileVprog _ 
+      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV).
+  Proof. eexists; apply PileComponent. Qed.
+End Pile_VSU.

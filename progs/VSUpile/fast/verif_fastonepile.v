@@ -3,7 +3,7 @@ Require Import VST.floyd.VSU.
 Require Import onepile.
 Require Import spec_stdlib.
 Require Import spec_fastpile.
-Require Import spec_fastonepile.
+Require Import spec_onepile.
 
 Instance OnePileCompSpecs : compspecs. make_compspecs prog. Defined.
 

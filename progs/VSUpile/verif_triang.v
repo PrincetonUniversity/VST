@@ -4,63 +4,20 @@ Require Import triang.
 Require Import spec_stdlib.
 Require Import spec_pile.
 Require Import spec_triang.
+Require Import PileModel.
 
 Instance TriangCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section Triang_VSU.
-Variable M: MemMGRPredicates. (*triang is parametric in a MMGR predicate structure*)
-Variable PILE: PilePredicates. (*triang is parametric in a pile predicate structure*)
+Variable M: MemMGRPredicates.
+Variable PILE: PilePredicates.
 
-(*triang's Imported specs.*)
   Definition triang_imported_specs:funspecs := PileASI M PILE.
 
   Definition triang_internal_specs: funspecs := TriangASI M.
 
   Definition TriangVprog: varspecs. mk_varspecs prog. Defined.
   Definition TriangGprog: funspecs := triang_imported_specs ++ triang_internal_specs.
-
-Lemma triangular_number:
-  forall n, 0 <= n -> 
-     sumlist (decreasing (Z.to_nat n)) = n*(n+1)/2.
-Proof.
-intros.
-assert (2* sumlist (decreasing (Z.to_nat n)) = n * (n + 1))%Z.
-2: rewrite <- H0, Z.mul_comm, Z.div_mul by omega; auto.
-rewrite <- (Z2Nat.id n) at 2 3 by omega.
-clear H.
-induction (Z.to_nat n).
-reflexivity.
-rewrite inj_S.
-unfold decreasing; fold decreasing.
-change (sumlist (Z.of_nat (S n0) :: decreasing n0))
-  with (Z.of_nat (S n0) + sumlist (decreasing n0)).
-rewrite Z.mul_add_distr_l.
-rewrite IHn0.
-clear.
-rewrite inj_S.
-forget (Z.of_nat n0) as n.
-unfold Z.succ.
-rewrite !Z.mul_add_distr_l.
-rewrite !Z.mul_add_distr_r.
-omega.
-Qed.
-
-Lemma sumlist_decreasing_bound:
-  forall n, 0 <= n < 1000 ->
-  0 <= sumlist (decreasing (Z.to_nat n)) <= Int.max_signed.
-Proof.
-intros.
-rewrite triangular_number by omega.
-split.
-apply Z.div_pos; try omega.
-apply Z.mul_nonneg_nonneg; omega.
-apply Z.div_le_upper_bound; try omega.
-eapply Z.le_trans.
-apply Z.mul_le_mono_nonneg; try omega.
-instantiate (1:=1001); omega.
-instantiate (1:=1001); omega.
-computable.
-Qed.
 
 Lemma body_Triang_nth: semax_body TriangVprog TriangGprog f_Triang_nth (Triang_nth_spec M).
 Proof.

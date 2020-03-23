@@ -1,13 +1,13 @@
 Require Import VST.floyd.proofauto.
 Require Import apile.
 Require Import spec_stdlib.
-Require Import spec_pile.
+Require Import PileModel.
 
 (*Apile's predicate bundle is similar to the Onepile's bundle.*)
 Record APilePredicates := {
   apile: globals -> list Z -> mpred;
   APileCompSpecs: compspecs;
-  make_apile: forall gv, headptr (gv apile._a_pile) ->
+  make_apile: forall gv, headptr (gv _a_pile) ->
     @data_at APileCompSpecs Ews tuint (Vint (Int.repr 0))
           (gv _a_pile) |-- apile gv nil
 }.

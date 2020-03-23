@@ -1,7 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import onepile.
 Require Import spec_stdlib.
-Require Import spec_pile.
+Require Import PileModel.
 
 Record OnePilePredicates := {
   onepile: globals -> option (list Z) -> mpred;
