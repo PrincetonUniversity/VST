@@ -14,7 +14,7 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 
-Definition ctr_state ctr n := data_at Ews tuint (Vint (Int.repr (Z.of_nat n))) ctr.
+Definition ctr_state ctr (g : gname) n := data_at Ews tuint (Vint (Int.repr (Z.of_nat n))) ctr.
 
 Program Definition incr_spec :=
  DECLARE _incr
@@ -98,7 +98,7 @@ Proof.
   viewshift_SEP 0 (Q * my_half g (n + 1)%nat).
   { go_lower.
     apply sync_commit1; intros.
-    iIntros "[% ?]"; subst; iFrame; auto. }
+    iIntros; iFrame; auto. }
   forward_call (gv _ctr_lock, sh, sync_inv g (ctr_state (gv _ctr))).
   { lock_props.
     unfold sync_inv, ctr_state.
@@ -118,7 +118,7 @@ Proof.
   viewshift_SEP 0 (Q n * my_half g n).
   { go_lower.
     apply sync_commit2; intros.
-    iIntros "[% ?]"; subst; iFrame; auto. }
+    iIntros; iFrame; auto. }
   forward_call (gv _ctr_lock, sh, sync_inv g (ctr_state (gv _ctr))).
   { lock_props.
     unfold sync_inv, ctr_state.

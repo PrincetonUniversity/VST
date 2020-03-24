@@ -64,34 +64,34 @@ Proof.
     iIntros "[Q $]"; iDestruct "Q" as (_) "$".
 Qed.
 
-Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R g (x0 x' : C)
+Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R R' g (x0 x' : C)
   {HR : Timeless R}
   (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * a' x x1)%I)
   (Ha' : (forall x, public_half g x0 * a' x x0 |-- |==> R * a x)%I)
-  (Hb : (forall x, public_half g x' * a' x x0 |-- |==> EX y, b x y)%I),
-  (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- |==> (EX y, Q y) * my_half g x')%I.
+  (Hb : (forall x, public_half g x' * a' x x0 |-- |==> (EX y, b x y) * R')%I),
+  (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- |==> (EX y, Q y) * my_half g x' * R')%I.
 Proof.
-  intros; rewrite sepcon_assoc; apply atomic_commit.
+  intros; rewrite !sepcon_assoc; apply atomic_commit.
   intros; iIntros "((my & R) & a)".
   iMod (Ha with "[$]") as (?) "[public a']".
   iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
   iApply Hb; iFrame; auto.
 Qed.
 
-Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R g (x0 x' : C)
+Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R R' g (x0 x' : C)
   {HR : Timeless R}
   (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * a' x x1)%I)
   (Ha' : (forall x, public_half g x0 * a' x x0 |-- |==> R * a x)%I)
-  (Hb : (forall x, public_half g x' * a' x x0 |-- |==> EX y, b x y)%I),
-  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g x0 * R |-- |==> Q * my_half g x')%I.
+  (Hb : (forall x, public_half g x' * a' x x0 |-- |==> (EX y, b x y) * R')%I),
+  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g x0 * R |-- |==> Q * my_half g x' * R')%I.
 Proof.
-  intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R' := my_half g x')|].
+  intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R' := my_half g x' * R')|].
   - intros; iIntros "((my & R) & a)".
     iMod (Ha with "[$]") as (?) "[public a']".
     iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
     iApply Hb; iFrame; auto.
   - iApply bupd_mono.
-    iIntros "[Q $]"; iDestruct "Q" as (?) "$".
+    iIntros "[Q [$ $]]"; iDestruct "Q" as (?) "$".
 Qed.
 
 (* These are useful when the shared resource matches the lock invariant exactly. *)
