@@ -18,9 +18,9 @@ an the ASIs, as follows:*)
 Section SubsumptionProofs_ASI.
 (*Since the specs are parametric in predicate bundles,
   let's do the same here*)
-Variable M: MemMGRPredicates.
-Variable FPC:FastpileConcretePredicates.
-Variable PILE:PilePredicates.
+Variable M: MallocFreeAPD.
+Variable FPC:FastpileConcreteAPD.
+Variable PILE:PileAPD.
 Lemma sub_Pile_new: 
   funspec_sub (snd (spec_fastpile_concrete.Pile_new_spec M FPC))
               (snd (spec_fastpile.Pile_new_spec M PILE)).
@@ -56,7 +56,7 @@ Require Import verif_fastpile.
 (*Locate PILE. now gives Constant pile.fast.verif_fastpile.PILE.*)
 
 Section SubsumptionProofs_FM.
-Variable M: MemMGRPredicates.
+Variable M: MallocFreeAPD.
 Lemma sub_Pile_new:
   funspec_sub (snd (spec_fastpile_concrete.Pile_new_spec M (FASTPILECONC M)))
               (snd (spec_fastpile.Pile_new_spec M (PILE M))).
@@ -133,9 +133,9 @@ Definition ASI_sub (ASI1 ASI2: funspecs) :=
 (*Let's generalize a little, in stages. Stage 1: define a type that bundles
   subsumbption proofs for the four methods of pile, given
   FastpileConcretePredicates predicate bundle and a PilePredicates predicate bundle.*)
-Record PileSub (M:MemMGRPredicates) 
-               (ConcPreds: FastpileConcretePredicates)
-               (Preds:PilePredicates) := {
+Record PileSub (M:MallocFreeAPD) 
+               (ConcPreds: FastpileConcreteAPD)
+               (Preds:PileAPD) := {
   sub_new: funspec_sub (snd (spec_fastpile_concrete.Pile_new_spec M ConcPreds))
                        (snd (spec_fastpile.Pile_new_spec M Preds));
   sub_add: funspec_sub (snd (spec_fastpile_concrete.Pile_add_spec M ConcPreds))
@@ -170,16 +170,16 @@ Record PileSpec :=
   }.
 
 (*Indeed, here are the two instances, by "constructive proofs" ending in "Defined."*)
-Definition Concspec (M: MemMGRPredicates): PileSpec.
-eapply (Build_PileSpec FastpileConcretePredicates).
+Definition Concspec (M: MallocFreeAPD): PileSpec.
+eapply (Build_PileSpec FastpileConcreteAPD).
 apply (spec_fastpile_concrete.Pile_new_spec M).
 apply (spec_fastpile_concrete.Pile_add_spec M).
 apply spec_fastpile_concrete.Pile_count_spec.
 apply (spec_fastpile_concrete.Pile_free_spec M).
 Defined.
 
-Definition Fastspec (M: MemMGRPredicates): PileSpec.
-eapply (Build_PileSpec PilePredicates).
+Definition Fastspec (M: MallocFreeAPD): PileSpec.
+eapply (Build_PileSpec PileAPD).
 apply (spec_fastpile.Pile_new_spec M).
 apply (spec_fastpile.Pile_add_spec M).
 apply spec_fastpile.Pile_count_spec.
@@ -216,8 +216,8 @@ Record SPEC (l: list ident) :=
 
 (*Here are the two instantiations - again as constructive proofs*)
 Definition Pile_SPEC := SPEC [_Pile_new; _Pile_add; _Pile_count; _Pile_free].
-Definition ConcSPEC (M: MemMGRPredicates): Pile_SPEC.
-eapply (Build_SPEC _ FastpileConcretePredicates
+Definition ConcSPEC (M: MallocFreeAPD): Pile_SPEC.
+eapply (Build_SPEC _ FastpileConcreteAPD
            (fun p => map snd [ spec_fastpile_concrete.Pile_new_spec M p; 
                                spec_fastpile_concrete.Pile_add_spec M p;
                                spec_fastpile_concrete.Pile_count_spec p;
@@ -226,8 +226,8 @@ reflexivity.
 reflexivity.
 Defined.
 
-Definition FastSPEC (M: MemMGRPredicates): Pile_SPEC.
-eapply (Build_SPEC _ PilePredicates
+Definition FastSPEC (M: MallocFreeAPD): Pile_SPEC.
+eapply (Build_SPEC _ PileAPD
            (fun p => map snd [ spec_fastpile.Pile_new_spec M p; 
                                spec_fastpile.Pile_add_spec M p;
                                spec_fastpile.Pile_count_spec p;

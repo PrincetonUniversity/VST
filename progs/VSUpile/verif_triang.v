@@ -9,8 +9,8 @@ Require Import PileModel.
 Instance TriangCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section Triang_VSU.
-Variable M: MemMGRPredicates.
-Variable PILE: PilePredicates.
+Variable M: MallocFreeAPD.
+Variable PILE: PileAPD.
 
   Definition triang_imported_specs:funspecs := PileASI M PILE.
 

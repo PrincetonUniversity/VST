@@ -7,7 +7,7 @@ Require Import spec_fastpile_concrete.
 Instance FPileConcCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section FastpileConcrete_VSU.
-Variable M: MemMGRPredicates.
+Variable M: MallocFreeAPD.
 
 Definition crep (s: Z) (p: val) : mpred :=
   EX s':Z, !! (0 <= s /\ 0 <= s' <= Int.max_signed /\
@@ -37,8 +37,8 @@ Proof.
 Qed.
 Hint Resolve crep_valid_pointer : valid_pointer.
 
-Definition FASTPILECONC: FastpileConcretePredicates :=
-  Build_FastpileConcretePredicates crep crep_local_facts crep_valid_pointer cfreeable.
+Definition FASTPILECONC: FastpileConcreteAPD :=
+  Build_FastpileConcreteAPD crep crep_local_facts crep_valid_pointer cfreeable.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -56,7 +56,7 @@ Definition surely_malloc_spec :=
 
   Definition FastpileConc_ASI: funspecs := FastpileConcreteASI M FASTPILECONC.
 
-  Definition fastpileconc_imported_specs:funspecs := (*spec_stdlib.specs.*)MMASI M.
+  Definition fastpileconc_imported_specs:funspecs := MallocFreeASI M.
 
   Definition fastpileconc_internal_specs: funspecs := surely_malloc_spec::FastpileConc_ASI.
 

@@ -4,7 +4,7 @@ Require Import spec_stdlib.
 Require Import PileModel.
 
 (*Apile's predicate bundle is similar to the Onepile's bundle.*)
-Record APilePredicates := {
+Record APileAPD := {
   apile: globals -> list Z -> mpred;
   APileCompSpecs: compspecs;
   make_apile: forall gv, headptr (gv _a_pile) ->
@@ -15,8 +15,8 @@ Record APilePredicates := {
 Local Open Scope assert.
 
 Section ApileASI.
-Variable M: MemMGRPredicates.
-Variable APILE:APilePredicates.
+Variable M: MallocFreeAPD.
+Variable APILE:APileAPD.
 
 Definition Apile_add_spec :=
  DECLARE _Apile_add

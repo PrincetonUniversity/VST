@@ -27,7 +27,7 @@ Instance mrg_cs1 : compspecs. make_compspecs mrg_prog1. Defined.
 Definition mrg_Vprog1:varspecs. mk_varspecs mrg_prog1. Defined.
 
 (*unresolved imports*)
-Definition mrg_Imports1:funspecs := MM_ASI.
+Definition mrg_Imports1:funspecs := MF_ASI.
 
 Definition mrg_Exports1:funspecs := 
 G_merge (spec_pile.PileASI M PILE) (spec_onepile.OnepileASI M ONEPILE).
@@ -58,7 +58,7 @@ Instance mrg_cs2 : compspecs. make_compspecs mrg_prog2. Defined.
 Definition mrg_Vprog2:varspecs. mk_varspecs mrg_prog2. Defined.
 
 (*unresolved imports*)
-Definition mrg_Imports2:funspecs := MM_ASI.
+Definition mrg_Imports2:funspecs := MF_ASI.
 
 Definition mrg_Exports2:funspecs := G_merge  mrg_Exports1 (Apile_ASI M PILE).
 
@@ -88,7 +88,7 @@ Instance mrg_cs3 : compspecs. make_compspecs mrg_prog3. Defined.
 Definition mrg_Vprog3:varspecs. mk_varspecs mrg_prog3. Defined.
 
 (*unresolved imports*)
-Definition mrg_Imports3:funspecs := MM_ASI.
+Definition mrg_Imports3:funspecs := MF_ASI.
 
 Definition mrg_Exports3:funspecs := G_merge mrg_Exports2 (spec_triang.TriangASI M).
 
@@ -116,16 +116,16 @@ Definition coreVprog:varspecs. mk_varspecs coreprog. Defined.
 
 Definition coreImports:funspecs := nil.
 
-Definition coreExports:funspecs := G_merge MM_ASI mrg_Exports3.
+Definition coreExports:funspecs := G_merge MF_ASI mrg_Exports3.
 
 Definition MM_Triang_Apile_Onepile_Pile_VSU:
-@VSU NullExtension.Espec coreVprog coreCS MM_E coreImports coreprog coreExports.
+@VSU NullExtension.Espec coreVprog coreCS MF_E coreImports coreprog coreExports.
 Proof.
-  VSUMerge MMVSU (Triang_Apile_Onepile_Pile_VSU). congruence.
+  VSUMerge MallocFreeVSU (Triang_Apile_Onepile_Pile_VSU). congruence.
 Qed.
 
 Definition CoreVSU: @CanonicalVSU NullExtension.Espec
-   coreVprog coreCS MM_E coreImports coreprog coreExports.
+   coreVprog coreCS MF_E coreImports coreprog coreExports.
 Proof.
 eapply VSU_to_CanonicalVSU. apply MM_Triang_Apile_Onepile_Pile_VSU.
 Qed.

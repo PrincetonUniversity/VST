@@ -8,7 +8,7 @@ Instance FastpileCompSpecs : compspecs. make_compspecs prog. Defined.
 
 (*In contrast to spec_pile_private, the APD here is not 
   defined parametrically in a MallocFree-APD.*)
-Section PilePrivatePreds.
+Section FastPilePrivateAPD.
 
 (*Previously called pilerep, and will be used to instantiate spec_pile.pilerep,
   but given a different name for didactic purposes and to avoid qualified names*)
@@ -19,18 +19,18 @@ Definition fastprep (sigma: list Z) (p: val) : mpred :=
    &&  data_at Ews tpile (Vint (Int.repr s)) p.
 Opaque fastprep.
 
-Record FastpilePrivatePredicates := {
-  pilepreds :> PilePredicates;
+Record FastpilePrivateAPD := {
+  pilepreds :> PileAPD;
   pile_rep_exposed: pilerep pilepreds = fastprep
 }.
-End PilePrivatePreds.
+End FastPilePrivateAPD.
 
 (*However, as PileASI requires a MallocFree-APD we have to make
   FastpilePrivateASI depend on one, too. That's reasonable, since
   fastpile still mallocs and frees memory.*)
 Section FastpilePrivateASI.
-Variable M: MemMGRPredicates.
-Variable FASTPILEPRIV:FastpilePrivatePredicates.
+Variable M: MallocFreeAPD.
+Variable FASTPILEPRIV:FastpilePrivateAPD.
 
 Definition FastpilePrivateASI:funspecs := PileASI M FASTPILEPRIV.
 

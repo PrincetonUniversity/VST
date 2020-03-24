@@ -9,8 +9,8 @@ Require Import spec_apile.
 Instance APileCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section Apile_VSU.
-Variable M: MemMGRPredicates.
-Variable PILEPRIV: FastpilePrivatePredicates. (*apile is parametric in a PRIVATE pile predicate structure*)
+Variable M: MallocFreeAPD.
+Variable PILEPRIV: FastpilePrivateAPD. (*apile is parametric in a PRIVATE pile predicate structure*)
 
 Definition apile (gv: globals) (sigma: list Z) : mpred :=
   pilerep PILEPRIV sigma (gv _a_pile).
@@ -38,7 +38,7 @@ assert (change_composite_env APileCompSpecs FastpileCompSpecs).
 change_compspecs FastpileCompSpecs. trivial.
 Qed.
 
-Definition APILE: APilePredicates := Build_APilePredicates apile APileCompSpecs make_apile.
+Definition APILE: APileAPD := Build_APileAPD apile APileCompSpecs make_apile.
 
   Definition Apile_ASI: funspecs := ApileASI M APILE.
 

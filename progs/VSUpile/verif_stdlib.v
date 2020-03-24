@@ -3,17 +3,11 @@ Require Import VST.floyd.VSU.
 Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
 Require Import stdlib.
 Require Import spec_stdlib.
-(*
-Definition prog := ltac:
-  (let x := eval hnf in prog in
-   let x := eval simpl in x in 
-   let x := eval compute in x in 
-       exact x).*)
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-(*For now, we axiomatize the existence of a MemMGRPredicate structure*)
-Parameter M: MemMGRPredicates.
+(*For now, we axiomatize the existence of a MallocFree APD structure*)
+Parameter M: MallocFreeAPD.
 (*
 Definition myExit_spec := try_spec "exit" (snd spec_stdlib.exit_spec) (prog_defs prog).*)
 
@@ -32,7 +26,7 @@ Parameter body_exit:
        {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
     (snd (exit_spec)).
 
-Section MM_VSU.
+Section MallocFree_VSU.
 Definition placeholder_spec :=
  DECLARE _placeholder
  WITH u: unit
@@ -41,16 +35,16 @@ Definition placeholder_spec :=
  POST [ tint ]
    PROP() LOCAL() SEP().
 
-  Definition MM_ASI: funspecs := MMASI M.
+  Definition MF_ASI: funspecs := MallocFreeASI M.
 
-  Definition MM_imported_specs:funspecs :=  nil.
+  Definition MF_imported_specs:funspecs :=  nil.
 
-  Definition MM_internal_specs: funspecs := placeholder_spec::MM_ASI.
+  Definition MF_internal_specs: funspecs := placeholder_spec::MF_ASI.
 
-  Definition MMVprog : varspecs. mk_varspecs prog. Defined.
-  Definition MMGprog: funspecs := MM_imported_specs ++ MM_internal_specs.
+  Definition MFVprog : varspecs. mk_varspecs prog. Defined.
+  Definition MFGprog: funspecs := MF_imported_specs ++ MF_internal_specs.
 
-Lemma body_placeholder: semax_body MMVprog MMGprog f_placeholder placeholder_spec.
+Lemma body_placeholder: semax_body MFVprog MFGprog f_placeholder placeholder_spec.
 Proof.
 start_function.
 contradiction.
@@ -121,10 +115,10 @@ Qed.*)
   Maybe the type of the E argument should not be funspecs, but 
    external_function * funspec)?*)
 
-  Definition MM_E : funspecs := MM_ASI.
+  Definition MF_E : funspecs := MF_ASI.
 
-  Definition MMComponent: @Component NullExtension.Espec MMVprog CompSpecs 
-      (*nil*)MM_E MM_imported_specs prog MM_ASI MM_internal_specs.
+  Definition MallocFreeComponent: @Component NullExtension.Espec MFVprog CompSpecs 
+      (*nil*)MF_E MF_imported_specs prog MF_ASI MF_internal_specs.
   Proof. 
     mkComponent. 
     - clear; solve_SF_external (@body_malloc NullExtension.Espec CompSpecs). 
@@ -136,9 +130,9 @@ Qed.*)
     - clear; solve_SF_internal body_placeholder.
 Time  Qed. (*2.5s*)
 
-Definition MMVSU: @VSU NullExtension.Espec MMVprog CompSpecs 
-      (*nil*)MM_E MM_imported_specs prog MM_ASI.
-  Proof. eexists; apply MMComponent. Qed.
-End MM_VSU.
+Definition MallocFreeVSU: @VSU NullExtension.Espec MFVprog CompSpecs 
+      (*nil*)MF_E MF_imported_specs prog MF_ASI.
+  Proof. eexists; apply MallocFreeComponent. Qed.
+End MallocFree_VSU.
 
 

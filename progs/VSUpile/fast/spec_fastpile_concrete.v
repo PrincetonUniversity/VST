@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import fastpile.
 Require Import spec_stdlib.
 
-Record FastpileConcretePredicates := {
+Record FastpileConcreteAPD:= {
   countrep: Z -> val -> mpred;
   countrep_local_facts: forall s p, countrep s p |-- !! isptr p;
   countrep_valid_pointer: forall s p, countrep s p |-- valid_pointer p;
@@ -16,8 +16,8 @@ Definition tpile := Tstruct _pile noattr.
 Local Open Scope assert.
 
 Section FastpileConcASI.
-Variable M: MemMGRPredicates.
-Variable FCP: FastpileConcretePredicates.
+Variable M: MallocFreeAPD.
+Variable FCP: FastpileConcreteAPD.
 
 Definition Pile_new_spec :=
  DECLARE _Pile_new

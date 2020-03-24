@@ -66,7 +66,7 @@ forward.
 Qed.
 
 Definition MainE_pre:funspecs :=
-   filter (fun x => in_dec ident_eq (fst x) (ExtIDs linked_prog)) (augment_funspecs linked_prog verif_stdlib.MM_ASI).
+   filter (fun x => in_dec ident_eq (fst x) (ExtIDs linked_prog)) (augment_funspecs linked_prog verif_stdlib.MF_ASI).
   (* Holds
   Lemma coreE_in_MainE: forall i phi, find_id i verif_stdlib.MM_E = Some phi -> find_id i MainE_pre = Some phi.
   Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
@@ -101,7 +101,7 @@ Lemma HypME1 : forall i : ident,
     contradiction.
   Qed.
 
-Lemma MainE_vacuous i phi: find_id i MainE = Some phi -> find_id i verif_stdlib.MM_E = None ->
+Lemma MainE_vacuous i phi: find_id i MainE = Some phi -> find_id i verif_stdlib.MF_E = None ->
         exists ef argsig retsig cc, 
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (prog_funct coreprog) = Some (External ef argsig retsig cc) /\

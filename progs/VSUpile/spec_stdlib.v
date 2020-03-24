@@ -3,7 +3,7 @@ Require Import stdlib.
 
 Local Open Scope assert.
 
-Record MemMGRPredicates := {
+Record MallocFreeAPD := {
    mem_mgr: globals -> mpred;
    malloc_token': share -> Z -> val -> mpred;
    malloc_token'_valid_pointer: forall sh sz p, 
@@ -13,7 +13,7 @@ Record MemMGRPredicates := {
       malloc_token' sh sz p |-- !! malloc_compatible sz p
 }.
 
-Definition malloc_token {cs: compspecs} (M:MemMGRPredicates) sh t v := 
+Definition malloc_token {cs: compspecs} (M:MallocFreeAPD) sh t v := 
    !! field_compatible t [] v && 
    malloc_token' M sh (sizeof t) v.
 
@@ -37,8 +37,8 @@ Qed.
 Hint Resolve malloc_token'_local_facts : saturate_local.
 Hint Resolve malloc_token_local_facts : saturate_local.
 
-Section MMASI.
-Variable M:MemMGRPredicates.
+Section MallocFreeASI.
+Variable M:MallocFreeAPD.
 
 Definition malloc_spec' :=
  DECLARE _malloc
@@ -135,7 +135,6 @@ unfold malloc_token; entailer!.
 Qed.
 
 
-Definition MMASI:funspecs := [ malloc_spec'; free_spec'; exit_spec].
+Definition MallocFreeASI:funspecs := [ malloc_spec'; free_spec'; exit_spec].
 
-End MMASI.
-(*Definition ispecs := [placeholder_spec].*)
+End MallocFreeASI.

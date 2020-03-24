@@ -8,7 +8,7 @@ Definition tlist := Tstruct _list noattr.
 
 (*Here we have case where one APD is defined parametrically in another one*)
 Section PilePrivatePreds.
-Variable M: MemMGRPredicates.
+Variable M: MallocFreeAPD.
 
 Fixpoint listrep (sigma: list Z) (x: val) : mpred :=
  match sigma with
@@ -28,16 +28,16 @@ Opaque listrep.
 Definition prep (sigma: list Z) (p: val) : mpred :=
   EX x:val, data_at Ews tpile x p * listrep sigma x.
 
-Record PilePrivatePredicates := {
-  pilepreds :> PilePredicates;
+Record PilePrivateAPD := {
+  pilepreds :> PileAPD;
   pile_rep_exposed: pilerep pilepreds = prep
 }.
 End PilePrivatePreds.
 
 Section PilePrivateASI.
 
-Variable M: MemMGRPredicates.
-Variable PILEPRIV:PilePrivatePredicates M.
+Variable M: MallocFreeAPD.
+Variable PILEPRIV:PilePrivateAPD M.
 
 Definition PilePrivateASI:funspecs := PileASI M PILEPRIV.
 

@@ -7,7 +7,7 @@ Require Import spec_pile_private.
 Require Import PileModel.
 
 Section Pile_VSU.
-Variable M: MemMGRPredicates.
+Variable M: MallocFreeAPD.
 
 Lemma listrep_local_facts:
   forall sigma p,
@@ -60,9 +60,9 @@ Hint Resolve prep_valid_pointer : valid_pointer.
 Definition pilefreeable (p: val) : mpred :=
             malloc_token M Ews tpile p.
 
-Definition PILE: PilePredicates := Build_PilePredicates (prep M) prep_local_facts prep_valid_pointer pilefreeable.
+Definition PILE: PileAPD := Build_PileAPD (prep M) prep_local_facts prep_valid_pointer pilefreeable.
 
-Definition PILEPRIV: PilePrivatePredicates M := Build_PilePrivatePredicates M PILE (eq_refl _).
+Definition PILEPRIV: PilePrivateAPD M := Build_PilePrivateAPD M PILE (eq_refl _).
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -80,7 +80,7 @@ Definition surely_malloc_spec :=
 
   Definition Pile_ASI: funspecs := PileASI M PILE.
 
-  Definition pile_imported_specs:funspecs := (*spec_stdlib.specs*)MMASI M.
+  Definition pile_imported_specs:funspecs := MallocFreeASI M.
 
   Definition pile_internal_specs: funspecs := surely_malloc_spec::Pile_ASI.
 

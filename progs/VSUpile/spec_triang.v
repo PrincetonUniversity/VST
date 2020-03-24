@@ -3,10 +3,10 @@ Require Import triang.
 Require Import spec_stdlib.
 Require Import PileModel.
 
-(*APD bundle is empty, but the ASI still depend n the MallocFree-APD*)
+(*APD is empty, but the ASI still depend n the MallocFree-APD*)
 
 Section TriangASI.
-Variable M: MemMGRPredicates.
+Variable M: MallocFreeAPD.
 
 Definition Triang_nth_spec :=
  DECLARE _Triang_nth

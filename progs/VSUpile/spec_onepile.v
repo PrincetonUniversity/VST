@@ -3,7 +3,7 @@ Require Import onepile.
 Require Import spec_stdlib.
 Require Import PileModel.
 
-Record OnePilePredicates := {
+Record OnePileAPD := {
   onepile: globals -> option (list Z) -> mpred;
   OnePileCompSpecs: compspecs;
   make_onepile: forall gv, @data_at_ OnePileCompSpecs Ews (tptr (Tstruct onepile._pile noattr)) (gv onepile._the_pile)
@@ -13,8 +13,8 @@ Record OnePilePredicates := {
 Local Open Scope assert.
 
 Section OnepileASI.
-Variable M: MemMGRPredicates.
-Variable ONEPILE:OnePilePredicates.
+Variable M: MallocFreeAPD.
+Variable ONEPILE:OnePileAPD.
  
 Definition Onepile_init_spec :=
  DECLARE _Onepile_init

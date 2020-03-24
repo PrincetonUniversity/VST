@@ -7,7 +7,7 @@ Require Import spec_fastpile_private.
 Require Import PileModel.
 
 Section Pile_VSU.
-Variable M: MemMGRPredicates.
+Variable M: MallocFreeAPD.
 
 Lemma fastprep_local_facts:
   forall sigma p,
@@ -34,10 +34,10 @@ Hint Resolve fastprep_valid_pointer : valid_pointer.
 Definition pfreeable (p: val) : mpred :=
             malloc_token M Ews tpile p.
 
-Definition PILE: PilePredicates := Build_PilePredicates fastprep
+Definition PILE: PileAPD := Build_PileAPD fastprep
               fastprep_local_facts fastprep_valid_pointer pfreeable.
 
-Definition PILEPRIV: FastpilePrivatePredicates := Build_FastpilePrivatePredicates PILE (eq_refl _).
+Definition PILEPRIV: FastpilePrivateAPD := Build_FastpilePrivateAPD PILE (eq_refl _).
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -55,7 +55,7 @@ Definition surely_malloc_spec :=
 
   Definition Pile_ASI: funspecs := PileASI M PILE.
 
-  Definition pile_imported_specs:funspecs := (*spec_stdlib.specs.*)MMASI M.
+  Definition pile_imported_specs:funspecs := MallocFreeASI M.
 
   Definition pile_internal_specs: funspecs := surely_malloc_spec::Pile_ASI.
 

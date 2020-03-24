@@ -8,8 +8,8 @@ Require Import spec_onepile.
 Instance OnePileCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section Onepile_VSU.
-Variable M: MemMGRPredicates.
-Variable PILE: PilePredicates. (*onepile is parametric in a pile predicate structure*)
+Variable M: MallocFreeAPD.
+Variable PILE: PileAPD. (*onepile is parametric in a pile predicate structure*)
 
 Definition one_pile (gv: globals) (sigma: option (list Z)) : mpred :=
  match sigma with
@@ -27,7 +27,7 @@ unfold onepile.
 cancel.
 Qed.
 
-Definition ONEPILE: OnePilePredicates := Build_OnePilePredicates one_pile OnePileCompSpecs make_onepile.
+Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile OnePileCompSpecs make_onepile.
 
   Definition Onepile_ASI: funspecs := OnepileASI M ONEPILE.
 

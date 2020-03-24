@@ -3,7 +3,7 @@ Require Import pile.
 Require Import spec_stdlib.
 Require Import PileModel.
 
-Record PilePredicates := {
+Record PileAPD := {
   pilerep: list Z -> val -> mpred;
   pilerep_local_facts: forall sigma p,
     pilerep sigma p |-- !! (isptr p /\ Forall (Z.le 0) sigma);
@@ -20,8 +20,8 @@ Definition tpile := Tstruct _pile noattr.
 Local Open Scope assert.
 
 Section PileASI.
-Variable M: MemMGRPredicates.
-Variable PILE:PilePredicates.
+Variable M: MallocFreeAPD.
+Variable PILE:PileAPD.
 
 Definition Pile_new_spec :=
  DECLARE _Pile_new
