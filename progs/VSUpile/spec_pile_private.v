@@ -33,6 +33,7 @@ Record PilePrivateAPD := {
   pile_rep_exposed: pilerep pilepreds = prep
 }.
 End PilePrivatePreds.
+Arguments pilepreds {M} p.
 
 Section PilePrivateASI.
 

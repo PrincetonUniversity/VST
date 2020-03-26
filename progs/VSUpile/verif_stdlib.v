@@ -6,11 +6,8 @@ Require Import spec_stdlib.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-(*For now, we axiomatize the existence of a MallocFree APD structure*)
-Parameter M: MallocFreeAPD.
-(*
-Definition myExit_spec := try_spec "exit" (snd spec_stdlib.exit_spec) (prog_defs prog).*)
-
+Section MallocFree_VSU.
+Variable M: MallocFreeAPD.
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
    VST.floyd.library.body_lemma_of_funspec EF_malloc (snd (malloc_spec' M)).
@@ -26,7 +23,6 @@ Parameter body_exit:
        {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
     (snd (exit_spec)).
 
-Section MallocFree_VSU.
 Definition placeholder_spec :=
  DECLARE _placeholder
  WITH u: unit

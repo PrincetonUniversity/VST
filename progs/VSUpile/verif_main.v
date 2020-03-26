@@ -127,7 +127,7 @@ Definition Imports:funspecs:=nil.
 Definition PILE_VSU: @LinkedProgVSU NullExtension.Espec Vprog LinkedCompSpecs
       MainE Imports linked_prog [mainspec].
 Proof.
- AddMainProgProgVSU_tac CoreVSU.
+ AddMainProgProgVSU_tac Core_CanVSU.
    + apply disjoint_Vprog_linkedfuncts.
    + apply HypME1. 
    + apply body_main.

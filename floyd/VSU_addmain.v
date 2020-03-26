@@ -517,3 +517,120 @@ Ltac prove_linked_semax_prog :=
         fail "Funspec of _main is not in the proper form")
     end*)
  ].
+
+Section MainVSUJoinVSU.
+
+Variable Espec: OracleKind.
+Variable V1 V2 V: varspecs.
+Variable cs1 cs2 cs: compspecs. 
+Variable E1 Imports1 Exports1 E2 Imports2 Exports2 E Imports Exports: funspecs.
+Variable p1 p2 p: Clight.program.
+
+Variable vsu1: @LinkedProgVSU Espec V1 cs1 E1 Imports1 p1 Exports1.
+Variable vsu2: @VSU Espec V2 cs2 E2 Imports2 p2 Exports2.
+
+Variable DisjointVarspecs: list_disjoint (map fst V1) (map fst V2).
+Variable HV1p1: list_disjoint (map fst V1) (map fst (prog_funct p1)).
+Variable HV1p2: list_disjoint (map fst V1) (map fst (prog_funct p2)).
+Variable HV2p1: list_disjoint (map fst V2) (map fst (prog_funct p1)).
+Variable HV2p2: list_disjoint (map fst V2) (map fst (prog_funct p2)).
+Variable LNR_V1: list_norepet (map fst V1).
+Variable LNR_V2: list_norepet (map fst V2).
+Variable CS1: cspecs_sub cs1 cs.
+Variable CS2: cspecs_sub cs2 cs.
+
+Variable HV1: forall i phi, find_id i V1 = Some phi -> find_id i V = Some phi.
+Variable HV2: forall i phi, find_id i V2 = Some phi -> find_id i V = Some phi.
+
+Variable FundefsMatch: Fundefs_match p1 p2 Imports1 Imports2.
+
+Variable FP: forall i, Functions_preserved p1 p2 p i.
+
+(********************Assumptions involving E1 and E2  ********)
+
+Variable Externs1_Hyp: list_disjoint (map fst E1) (IntIDs p2).
+Variable Externs2_Hyp: list_disjoint (map fst E2) (IntIDs p1).
+
+Variable ExternsHyp: E = G_merge E1 E2. 
+
+(************************************************************)
+
+(*one could try to weaken this hypothesis by weakening the second condition to In i (IntIDs p1),
+  so that it is possible to delay resolving the spec for an extern in case several modules prove (mergaable but different) specs for it. The present cluase forces one to use match with the first spec one finds*)
+Variable SC1: forall i phiI, find_id i Imports2 = Some phiI -> In i (map fst E1 ++ IntIDs p1) ->
+              exists phiE, find_id i Exports1 = Some phiE /\ funspec_sub phiE phiI.
+
+(*same comment here*)
+Variable SC2: forall i phiI, find_id i Imports1 = Some phiI -> In i (map fst E2 ++ IntIDs p2) ->
+                          exists phiE, find_id i Exports2 = Some phiE /\ funspec_sub phiE phiI.
+
+Variable HImports: forall i phi1 phi2, find_id i Imports1 = Some phi1 -> find_id i Imports2 = Some phi2 -> phi1=phi2.
+
+Variable ImportsDef: Imports = 
+                     filter (fun x => negb (in_dec ident_eq (fst x) (map fst E2 ++ IntIDs p2))) Imports1 ++
+                     filter (fun x => negb (in_dec ident_eq (fst x) (map fst E1 ++ IntIDs p1 ++ map fst Imports1))) Imports2.
+
+Variable ExportsDef: Exports = G_merge Exports1 Exports2.
+
+Variable LNRp: list_norepet (map fst (prog_defs p)).
+Variable V_LNR: list_norepet (map fst V).
+Variable domV: forall i, In i (map fst V) -> In i (map fst V1) \/ In i (map fst V2).
+
+Variable Main_Unique: prog_main p1 = prog_main p2 /\ prog_main p1 = prog_main p.
+Variable ProgP2None: find_id (prog_main p1) (prog_funct p2) = None.
+
+Lemma MainVSUJoinVSU: @LinkedProgVSU Espec (*(V1++V2)*)V cs E Imports p Exports.
+Proof.
+  destruct vsu1 as [G1 [[c1 X] MAIN1]]. destruct vsu2 as [G2 c2].
+  specialize (ComponentJoin _ _ _ _ _ _ _ _ _ _ _ _ _ _ E Imports Exports p1 p2 p c1 c2 HV1p1 HV1p2 HV2p1 HV2p2
+       LNR_V1 LNR_V2 CS1 CS2 _ HV1 HV2 FundefsMatch FP Externs1_Hyp Externs2_Hyp ExternsHyp SC1 SC2
+       HImports ImportsDef ExportsDef LNRp V_LNR domV). intros C.
+  destruct (Comp_to_CanComp C) as [GG [CC MM]].
+  eexists; split. apply CC. rewrite MM.
+  destruct MAIN1 as [phi [PhiG PhiE]]. 
+  unfold Comp_G in *.
+  destruct Main_Unique as [MU1 MU2]. rewrite <- MU2 in *. subst Exports.
+  remember (find_id (prog_main p1) G2) as w; symmetry in Heqw; destruct w.
+  { specialize (@Comp_G_in_Fundefs' _ _ _ _ _ _ _ _ c2 _ _ Heqw).
+    rewrite ProgP2None; clear; intros [? ?]; congruence. }
+  rewrite (G_merge_find_id_SomeNone PhiG Heqw).
+  rewrite (G_merge_find_id_SomeNone PhiE).
+  exists phi; split; trivial.
+  specialize (Comp_G_Exports c2 (prog_main p1)).
+  destruct (find_id (prog_main p1) Exports2); intros; trivial.
+  destruct (H _ (eq_refl _)) as [psi [? _]]. congruence.
+Qed. 
+
+End MainVSUJoinVSU.
+Ltac MainVSUJoinVSU LP_VSU1 VSU2 :=
+  apply (@MainVSUJoinVSU _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ LP_VSU1 VSU2);
+[ list_disjoint_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| LNR_tac
+| LNR_tac
+| prove_cspecs_sub
+| prove_cspecs_sub
+| first [ find_id_subset_tac | idtac]
+| first [ find_id_subset_tac | idtac]
+| FDM_tac
+| FunctionsPreserved_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| ExternsHyp_tac
+| SC_tac
+| SC_tac
+| HImports_tac
+(*+  HContexts. This is the side condition we'd like to exliminate - it's also
+   why we need to define SubjectComponent/ObserverComponent using DEFINED
+  simpl; intros.
+  repeat (if_tac in H; [ inv H; inv H0 | ]). discriminate.*)
+| ImportsDef_tac
+| ExportsDef_tac
+| LNR_tac
+| LNR_tac
+| domV_tac
+| try (split; reflexivity)
+| try reflexivity
+].
