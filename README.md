@@ -7,6 +7,7 @@ with contributions from
 [Robert Dockins](http://rwd.rdockins.name/),
 [Josiah Dodds](http://www.cs.princeton.edu/~jdodds/),
 [Aquinas Hobor](http://www.comp.nus.edu.sg/~hobor/),
+[Jean-Marie Madiot](https://madiot.fr/),
 [Gordon Stewart](http://www.cs.princeton.edu/~jsseven/),
 Qinxiang Cao, and others.
 
