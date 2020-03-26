@@ -68,11 +68,13 @@ apply pred_ext. apply andp_right; auto. apply andp_left2; auto.
 Qed.
 
 Lemma approx_func_ptr': forall (A: Type) fsig0 cc P (Q: A -> environ -> mpred) (v: val) (n: nat),
-  compcert_rmaps.RML.R.approx n (func_ptr' (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr' (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+  compcert_rmaps.RML.R.approx (S n) (func_ptr' (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx (S n) (func_ptr' (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Proof.
   intros.
   unfold func_ptr'.
-  rewrite !approx_andp; f_equal.
+  rewrite !approx_andp.
+  rewrite <- ! (andp_comm (_ _ emp)).
+  apply (@f_equal _ _ (andp (compcert_rmaps.RML.R.approx (S n) emp))).
   apply (approx_func_ptr A fsig0 cc P Q).
 Qed.
 

@@ -4052,9 +4052,9 @@ assert (LA2: laterM w2 w2'). { constructor; trivial. }
   specialize (TC2 _ LaterW'). subst args.
   apply (tc_environ_make_args' clientparams retty bl rho Delta' TCD' _ TC2).  }
 *)
-specialize (ClientAdaptation ts x (ge_of rho, args)). (*simpl in ClientAdaptation.*)
+specialize (ClientAdaptation _ (age_laterR Hage) ts x (ge_of rho, args)). (*simpl in ClientAdaptation.*)
 
-assert (LW2': (level w >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); omega. }
+assert (LW2': (level w' >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); omega. }
 
 destruct (ClientAdaptation w2' LW2' _ (necR_refl _)) as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear ClientAdaptation.
 { (*clear - LENargs Age2 W2.*)simpl; split. 

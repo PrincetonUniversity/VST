@@ -83,7 +83,7 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
       (!!(tpsig1=tpsig2 /\ cc1=cc2)) &&
-        (! (ALL ts2 :_, ALL x2:functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts2 A2) mpred,
+        (|> ! (ALL ts2 :_, ALL x2:functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts2 A2) mpred,
              ALL gargs:genviron * list val,
         ((!!(tc_argsenv Delta2 (fst tpsig2) gargs) && P2 ts2 x2 gargs)
          >=> EX ts1:_,  EX x1:functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts1 A1) mpred, EX F:_, 
@@ -832,8 +832,8 @@ Definition NDmk_funspec (f: compcert_rmaps.typesig) (cc: calling_convention)
     (args_const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Lemma approx_func_ptr: forall (A: Type) sig cc P Q (v: val) (n: nat),
-  compcert_rmaps.RML.R.approx n (func_ptr_si (NDmk_funspec sig cc A P Q) v) =
-  compcert_rmaps.RML.R.approx n (func_ptr_si (NDmk_funspec sig cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+  compcert_rmaps.RML.R.approx (S n) (func_ptr_si (NDmk_funspec sig cc A P Q) v) =
+  compcert_rmaps.RML.R.approx (S n) (func_ptr_si (NDmk_funspec sig cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Proof. exact seplog.approx_func_ptr_si. Qed.
 
 Definition allp_fun_id (Delta : tycontext) (rho : environ): mpred :=
