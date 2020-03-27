@@ -1,6 +1,4 @@
 Require Import VST.floyd.proofauto.
-Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.vst_lemmas.
 
@@ -13,8 +11,8 @@ Require Import sha.hkdf_functional_prog.
 
 Definition Done (i:Z): int := Int.repr (digest_len*i).
 Definition OUTpred PrkCont InfoCont sh z r cont p: mpred:=
-  data_at sh (tarray tuchar z) (sublist 0 z (map Vubyte (HKDF_expand PrkCont InfoCont cont))) p *
-  memory_block sh r (offset_val z p).
+  (data_at sh (tarray tuchar z) (sublist 0 z (map Vubyte (HKDF_expand PrkCont InfoCont cont))) p *
+  memory_block sh r (offset_val z p))%logic.
 
 Definition PREVcont PRK INFO (i: Z): reptype (Tarray tuchar 32 noattr) :=
      if zeq i 0 then list_repeat 32 Vundef 
@@ -64,8 +62,8 @@ Proof.
     unfold HKDF_expand; simpl.
     destruct (zle (32 * (i + 1)) 0); try omega.
     rewrite sublist_sublist; try omega. rewrite 2 Z.add_0_r.
-    rewrite (Zmod_unique _ _ (i+1) 0); try omega. simpl. 
-    rewrite (Zdiv_unique _ _ (i+1) 0); try omega. 
+    rewrite (Coqlib.Zmod_unique _ _ (i+1) 0); try omega. simpl. 
+    rewrite (Coqlib.Zdiv_unique _ _ (i+1) 0); try omega. 
     replace (Z.to_nat (i+1)) with (S (Z.to_nat i)).
     2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
     simpl. rewrite sublist_app2; rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
@@ -82,8 +80,8 @@ Lemma sublist_HKDF_expand5 PRK INFO l i
       sublist (32 * i) (32 * i + 32) (HKDF_expand (CONT PRK) (CONT INFO) (32 * (i + 1))).
 Proof.
   unfold HKDF_expand. destruct (zle (32*(i + 1)) 0); try omega. simpl.
-  rewrite (Zmod_unique _ _ (i+1) 0) by omega. simpl. 
-  rewrite (Zdiv_unique _ _(i+1) 0) by omega.
+  rewrite (Coqlib.Zmod_unique _ _ (i+1) 0) by omega. simpl. 
+  rewrite (Coqlib.Zdiv_unique _ _(i+1) 0) by omega.
   rewrite sublist_sublist; try omega. rewrite ! Z.add_0_r.
   replace (Z.to_nat (i + 1)) with (S (Z.to_nat i)).
   2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
@@ -101,7 +99,7 @@ Qed.
 Lemma body_hkdf_expand: semax_body Hkdf_VarSpecs Hkdf_FunSpecs 
        f_HKDF_expand HKDF_expand_spec.
 Proof.
-start_function. 
+Time start_function. 
 rename H into LenPRK. rename H0 into LEN_INFO1.
 destruct H1 as [LEN_INFO2 LEN_INFO3]. rename H2 into OLEN.
 
@@ -216,7 +214,7 @@ assert (BND: bnd = if zeq rest 0 then rounds else rounds + 1).
   + subst rest. assert (X: 32 * rounds + 0 + 32 - 1 = 32 * rounds + 31) by omega. rewrite X; clear X.
     symmetry. eapply Zdiv.Zdiv_unique. 2: reflexivity. omega.
   + assert (X: 32 * rounds + rest + 32 - 1 = rounds * 32 + (rest + 31)) by omega. rewrite X; clear X.
-    rewrite Z.div_add_l. f_equal. apply Zdiv_unique with (b:=rest -1); omega. omega. }
+    rewrite Z.div_add_l. f_equal. apply Coqlib.Zdiv_unique with (b:=rest -1); omega. omega. }
 clear Heqbnd Heqrounds Heqrest. 
 
 forward_for_simple_bound bnd
@@ -542,7 +540,7 @@ forward_for_simple_bound bnd
        - assert (X: 32 * rounds + rest + 32 - 1 = rounds * 32 + (rest + 31)) by omega.
          rewrite X; clear X.
          rewrite Z.div_add_l; try omega.
-         erewrite Zdiv_unique with (b:=rest -1)(a:=1); omega.
+         erewrite Coqlib.Zdiv_unique with (b:=rest -1)(a:=1); omega.
      + thaw FR6. thaw FR0. cancel. unfold expand_out_post, digest_len. 
         rewrite 2 sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply HMAC_SPEC.EmptyDissolve]. 
         rewrite <- sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives.
@@ -556,7 +554,7 @@ forward_for_simple_bound bnd
             + subst rest; simpl in *. replace (32 * rounds + 0 + 32 - 1)%Z with (rounds * 32 + 31) in l by omega.
               rewrite Z_div_plus_full_l, Zdiv_small in l; omega.
             + replace (32 * rounds + rest + 32 - 1)%Z with (rounds * 32 + (rest + 31))%Z in l by omega.
-              rewrite Z_div_plus_full_l in l; try omega. erewrite (Zdiv_unique _ _ 1 ((rest + 31)-32)) in l; omega. }
+              rewrite Z_div_plus_full_l in l; try omega. erewrite (Coqlib.Zdiv_unique _ _ 1 ((rest + 31)-32)) in l; omega. }
           simpl.
           apply data_at_ext_derives; trivial.
           destruct (zeq rest 0).

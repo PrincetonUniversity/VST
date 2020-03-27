@@ -3,15 +3,10 @@
    plus proof of coorrectness wrt Salsa20.v
 
    Lennart Beringer, June 2015*)
-(*Processing time for this file: approx 13mins*)
-Require Import VST.floyd.proofauto.
-Local Open Scope logic.
-Require Import List. Import ListNotations.
-(*Require Import general_lemmas.
+(*Processing time for this file: approx 13mins.
 
-Require Import split_array_lemmas.*)
-Require Import ZArith.
-Local Open Scope Z.
+Processing time in March 2020 (Coq8.11, different machine,... but still..): 26secs*)
+Require Import VST.floyd.proofauto.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.

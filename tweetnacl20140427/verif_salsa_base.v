@@ -1,12 +1,8 @@
 Require Import Recdef.
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
-Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
-Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.tweetNaclBase.

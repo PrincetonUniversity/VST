@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 Require Import VST.floyd.sublist.
 
 Require Import sha.HMAC256_functional_prog.
@@ -38,7 +37,7 @@ Lemma while_loop_post_incremental_snd:
       ((n * 32)%Z + Z.min 32 (out_len - (n * 32)%Z))).
 Proof.
   intros.
-  rewrite Zmin_spec.
+  rewrite Coqlib.Zmin_spec.
   destruct (Z_lt_ge_dec 32 (out_len - (n * 32))) as [Hmin | Hmin].
   {
     rewrite zlt_true by assumption.
@@ -85,7 +84,7 @@ Lemma while_loop_post_incremental_fst:
  HMAC256 (fst (HMAC_DRBG_generate_helper_Z HMAC256 key0 V0 (n * 32)%Z)) key0.
 Proof.
   intros.
-  rewrite Zmin_spec.
+  rewrite Coqlib.Zmin_spec.
   destruct (Z_lt_ge_dec 32 (out_len - (n * 32))) as [Hmin | Hmin].
   {
     rewrite zlt_true by assumption.
@@ -157,7 +156,7 @@ Proof.
   {
     subst.
     apply HMAC_DRBG_generate_helper_Z_Zlength_fst.
-    rewrite Zmin_spec.
+    rewrite Coqlib.Zmin_spec.
     destruct (Z_lt_ge_dec 32 (out_len - (n * 32))) as [Hmin | Hmin].
     rewrite zlt_true by assumption; omega.
     rewrite zlt_false by assumption; omega.
@@ -170,11 +169,11 @@ Proof.
   clear - H HlengthB.
   rewrite sublist_same; auto.
   rewrite sublist_app; try now (
-    rewrite Zmin_spec;
+    rewrite Coqlib.Zmin_spec;
     destruct (Z_lt_ge_dec (Zlength B) (out_len - (Zlength A))) as [Hmin | Hmin]; [rewrite zlt_true by assumption| rewrite zlt_false by assumption]; omega).
   assert (Hmin0: Z.min 0 (Zlength A) = 0).
   {
-    rewrite Zmin_spec.
+    rewrite Coqlib.Zmin_spec.
     rewrite <- (Z2Nat.id (Zlength A)) in *; try apply Zlength_nonneg.
     destruct (Z.to_nat (Zlength A)).
     reflexivity.
@@ -183,7 +182,7 @@ Proof.
   rewrite Hmin0.
   assert (HminA: (Z.min (Zlength A + Z.min (Zlength B) (out_len - Zlength A)) (Zlength A)) = Zlength A).
   {
-    rewrite Zmin_spec.
+    rewrite Coqlib.Zmin_spec.
     rewrite zlt_false; auto.
     destruct (Z.min_dec (Zlength B) (out_len - Zlength A)) as [Hmin | Hmin]; rewrite Hmin; omega.
   }
@@ -191,7 +190,7 @@ Proof.
   rewrite sublist_same with (hi:=Zlength A); try omega.
   assert (Hmax0: (Z.max (0 - Zlength A) 0) = 0).
   {
-    rewrite Zmax_spec.
+    rewrite Coqlib.Zmax_spec.
     rewrite zlt_false; auto; omega.
   }
   rewrite Hmax0.
@@ -204,7 +203,7 @@ Proof.
       simpl.
       destruct (Z.min_dec (Zlength B) 0) as [Hmin | Hmin]; rewrite Hmin; try rewrite HlengthB; auto.
     }
-    rewrite Zmax_spec.
+    rewrite Coqlib.Zmax_spec.
     rewrite zlt_true; auto.
     rewrite Nat2Z.inj_succ.
     destruct (Z.min_dec (Zlength B) (Z.succ (Z.of_nat n))) as [Hmin | Hmin]; rewrite Hmin; omega.
@@ -1447,7 +1446,7 @@ Proof. intros.
       clear Hmultiple Heqdone_output.
       entailer!.
       apply derives_refl'.
-      rewrite Zmin_spec.
+      rewrite Coqlib.Zmin_spec.
       destruct (Z_lt_ge_dec 32 (out_len - done)) as [Hmin | Hmin].
       {
         rewrite zlt_true by assumption.
@@ -1491,7 +1490,7 @@ Proof. intros.
       entailer!.
       apply derives_refl'.
       remember (fst (HLP done)) as V0'; clear HeqV0'.
-      rewrite Zmin_spec.
+      rewrite Coqlib.Zmin_spec.
       destruct (Z_lt_ge_dec 32 (out_len - done)) as [Hmin | Hmin].
       {
         rewrite zlt_true by assumption.
@@ -1532,7 +1531,7 @@ Proof. intros.
       rewrite <- sublist_map.
       remember (fst (HLP (n*32)%Z)) as V0'; clear HeqV0'.
       symmetry.
-      rewrite Zmin_spec.
+      rewrite Coqlib.Zmin_spec.
       destruct (Z_lt_ge_dec 32 (out_len - (*done*)(n*32)%Z)) as [Hmin | Hmin].
       { clear - Hmin ZL_H256 Hdone FC_V.
         rewrite zlt_true by assumption. simpl.
@@ -1568,7 +1567,7 @@ Proof. intros.
       (*clear Heqdone_output Hmultiple*)
       entailer!.
       apply derives_refl'.
-      rewrite Zmin_spec in *.
+      rewrite Coqlib.Zmin_spec in *.
       symmetry.
       destruct (Z_lt_ge_dec 32 (out_len - (*done*)(n*32)%Z)) as [Hmin | Hmin].
       {
@@ -1618,7 +1617,7 @@ Proof. intros.
         apply hmac_common_lemmas.HMAC_Zlength.
         exists n; reflexivity.
       }
-      rewrite Zmin_spec. simpl in *.
+      rewrite Coqlib.Zmin_spec. simpl in *.
       destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption];
       try rewrite HZlength_V.
       apply data_at_complete_split;
@@ -1654,18 +1653,18 @@ Proof. intros.
       thaw FR1.
       thaw FR_unused_struct_fields.
       assert (DD: 0 <= done + use_len).
-      { subst. rewrite Zmin_spec.
+      { subst. rewrite Coqlib.Zmin_spec.
         destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; try omega. }        
       assert (XX: is_multiple (done + use_len) 32 \/ done + use_len = out_len).
       { subst.
-        rewrite Zmin_spec.
+        rewrite Coqlib.Zmin_spec.
         destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; try omega.
         left; exists (n + 1); omega.
         replace (out_len - ((n * 32)%Z + 32)) with (out_len - (n * 32)%Z - 32) by omega.
         right; omega. }
       apply andp_right.
       { apply prop_right. repeat split; trivial.
-        + subst. rewrite Zmin_spec.
+        + subst. rewrite Coqlib.Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; omega.
         + subst done_output. simpl. destruct output; simpl; auto.
             f_equal. autorewrite with norm. 
@@ -2148,7 +2147,7 @@ Time Qed. (*2s*)
       clear Hmultiple Heqdone_output.
       entailer!.
       apply derives_refl'.
-      rewrite Zmin_spec.
+      rewrite Coqlib.Zmin_spec.
       destruct (Z_lt_ge_dec 32 (out_len - done)) as [Hmin | Hmin].
       {
         rewrite zlt_true by assumption.
@@ -2192,7 +2191,7 @@ Time Qed. (*2s*)
       entailer!.
       apply derives_refl'.
       remember (fst (HLP done)) as V0'; clear HeqV0'.
-      rewrite ZL_H256, Zmin_spec.
+      rewrite ZL_H256, Coqlib.Zmin_spec.
       destruct (Z_lt_ge_dec 32 (out_len - done)) as [Hmin | Hmin].
       {
         rewrite zlt_true by assumption.
@@ -2246,7 +2245,7 @@ Time Qed. (*2s*)
       rewrite <- sublist_map.
       remember (fst (HLP done)) as V0'; clear HeqV0'.
       symmetry.
-      rewrite Zmin_spec.
+      rewrite Coqlib.Zmin_spec.
       destruct (Z_lt_ge_dec 32 (out_len - done)) as [Hmin | Hmin].
       {
         rewrite zlt_true by assumption.
@@ -2277,7 +2276,7 @@ Time Qed. (*2s*)
       clear Heqdone_output Hmultiple.
       entailer!.
       apply derives_refl'.
-      rewrite Zmin_spec.
+      rewrite Coqlib.Zmin_spec.
       symmetry.
       destruct (Z_lt_ge_dec 32 (out_len - done)) as [Hmin | Hmin].
       {
@@ -2322,7 +2321,7 @@ Time Qed. (*2s*)
         apply hmac_common_lemmas.HMAC_Zlength.
         exists n; reflexivity.
       }
-      rewrite Zmin_spec. simpl in *.
+      rewrite Coqlib.Zmin_spec. simpl in *.
       destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption];
       try rewrite HZlength_V.
       apply data_at_complete_split;
@@ -2358,18 +2357,18 @@ Time Qed. (*2s*)
       thaw FR1.
       thaw FR_unused_struct_fields.
       assert (DD: 0 <= done + use_len).
-      { subst. rewrite Zmin_spec.
+      { subst. rewrite Coqlib.Zmin_spec.
         destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; try omega. }        
       assert (XX: is_multiple (done + use_len) 32 \/ done + use_len = out_len).
       { subst.
-        rewrite Zmin_spec.
+        rewrite Coqlib.Zmin_spec.
         destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; try omega.
         left; exists (n + 1); omega.
         replace (out_len - ((n * 32)%Z + 32)) with (out_len - (n * 32)%Z - 32) by omega.
         right; omega. }
       apply andp_right.
       { apply prop_right. repeat split; trivial.
-        + subst. rewrite Zmin_spec.
+        + subst. rewrite Coqlib.Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; omega.
         + subst done_output. rewrite offset_offset_val; trivial.
         + f_equal; f_equal. omega.
@@ -2377,7 +2376,7 @@ Time Qed. (*2s*)
         + subst HLP. apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; trivial. apply isbyteZ_HMAC256. }
       subst done use_len. cancel. (*(* rewrite sepcon_comm. apply sepcon_derives;
         apply data_at_ext_derives; trivial. 
-        - subst H256 HLP use_len done. rewrite Zmin_spec. rewrite Zmin_spec in XX.
+        - subst H256 HLP use_len done. rewrite Coqlib.Zmin_spec. rewrite Coqlib.Zmin_spec in XX.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption].
           * erewrite <- HMAC_DRBG_generate_helper_Z_incremental_fst. reflexivity. omega. trivial.
           * rewrite if_false in XX by assumption. simpl in XX.  erewrite <- HMAC_DRBG_generate_helper_Z_incremental_fst. reflexivity. omega. trivial.
@@ -2387,7 +2386,7 @@ assert (out_len = done + use_len
       (*Ideal proof - but takes ages:*) subst HLP H256.
       Time entailer!. (*Coq8.5pl2: 1245secs*)
       {
-        rewrite Zmin_spec.
+        rewrite Coqlib.Zmin_spec.
         destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; try omega.
         left; exists (n + 1); omega.
         replace (out_len - ((n * 32)%Z + 32)) with (out_len - (n * 32)%Z - 32) by omega;
@@ -2401,26 +2400,26 @@ assert (out_len = done + use_len
       apply andp_right. 
       + apply prop_right.
         repeat split; trivial.
-        { rewrite Zmin_spec.
+        { rewrite Coqlib.Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; omega. }
-        { rewrite Zmin_spec.
+        { rewrite Coqlib.Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; omega. }         
-        { rewrite Zmin_spec.
+        { rewrite Coqlib.Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption].
           + left. exists (n + 1); omega. 
           + right; omega. }
         { f_equal. f_equal. omega. }
-        { (*subst HLP. *)apply HMAC_DRBG_generate_helper_Z_Zlength_fst; trivial. rewrite Zmin_spec.
+        { (*subst HLP. *)apply HMAC_DRBG_generate_helper_Z_Zlength_fst; trivial. rewrite Coqlib.Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; try omega. 
           apply hmac_common_lemmas.HMAC_Zlength. }
-        { (*subst HLP.*) apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; trivial. rewrite Zmin_spec.
+        { (*subst HLP.*) apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; trivial. rewrite Coqlib.Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; try omega. 
           apply isbyteZ_HMAC256. }
       + cancel. simpl. rewrite sepcon_comm. apply sepcon_derives;
         apply data_at_ext_derives; trivial. subst H256 HLP.
         - rewrite <- HMAC_DRBG_generate_helper_Z_incremental_fst. subst. data_at_derives.
         split. 
-        { rewrite Zmin_spec.
+        { rewrite Coqlib.Zmin_spec.
           left; exists (n + 1); omega.
         replace (out_len - ((n * 32)%Z + 32)) with (out_len - (n * 32)%Z - 32) by omega.
         (*reflexivity.*) assumption. 
@@ -2443,11 +2442,11 @@ assert (out_len = done + use_len
       simpl. (*
       apply andp_right. apply prop_right; repeat split; trivial.
       { subst HLP. apply HMAC_DRBG_generate_helper_Z_Zlength_fst; trivial.
-        rewrite Zmin_spec. destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; try rewrite HZlength_V; omega.
+        rewrite Coqlib.Zmin_spec. destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; try rewrite HZlength_V; omega.
         apply hmac_common_lemmas.HMAC_Zlength. }
       { subst HLP.
         apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; trivial.
-          rewrite Zmin_spec. destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; try rewrite HZlength_V; omega. 
+          rewrite Coqlib.Zmin_spec. destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; try rewrite HZlength_V; omega. 
           apply isbyteZ_HMAC256. } 
       unfold md_full. simpl. cancel. *)
       rewrite app_assoc.

@@ -1,8 +1,4 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
-Require Import List. Import ListNotations.
-Require Import ZArith.
-Local Open Scope Z.
 
 (*generalizes Lemma data_at_lemmas.memory_block_data_at__aux1*)
 Lemma unsigned_add: forall i pos, 0 <= pos -> Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr pos)) = (Ptrofs.unsigned i + pos) mod Ptrofs.modulus.

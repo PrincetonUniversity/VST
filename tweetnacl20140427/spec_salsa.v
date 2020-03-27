@@ -1,10 +1,6 @@
 Require Import Recdef.
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
-Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -247,8 +243,8 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. simpl. omega. }
-  erewrite <- (Zmod_unique _ (2^56) (Byte.unsigned b3) _ Arith1); [ | rewrite Z.add_comm; trivial].
-
+  erewrite <- (Coq.ZArith.Zdiv.Zmod_unique _ (2^56) (Byte.unsigned b3) _ Arith1); [ | rewrite Z.add_comm; trivial].
+  (*Alternative erewrite (Coqlib.Zmod_unique _ (2^56) (Byte.unsigned b3)); [ | rewrite Z.add_comm, Z.mul_comm; trivial | apply Arith1].*)
   assert (Arith2: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 < 2 ^ 48). 
   {            split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. 
@@ -258,7 +254,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. }
-  erewrite <- (Zmod_unique _ (2^48) (Byte.unsigned b2) _ Arith2); [ | rewrite Z.add_comm; trivial].
+  erewrite <- (Coq.ZArith.Zdiv.Zmod_unique _ (2^48) (Byte.unsigned b2) _ Arith2); [ | rewrite Z.add_comm; trivial].
   
   assert (Arith3: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 < 2 ^ 40). 
@@ -268,7 +264,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. simpl. omega. }
-  erewrite <- (Zmod_unique _ (2^40) (Byte.unsigned b1) _ Arith3); [ | rewrite Z.add_comm; trivial].
+  erewrite <- (Coq.ZArith.Zdiv.Zmod_unique _ (2^40) (Byte.unsigned b1) _ Arith3); [ | rewrite Z.add_comm; trivial].
 
   assert (Arith4: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 < 2 ^ 32). 
@@ -277,21 +273,21 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
                       + 2 ^ 24 * Byte.unsigned c3 <= 2 ^ 32 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. }
-  erewrite <- (Zmod_unique _ (2^32) (Byte.unsigned b0) _ Arith4); [ | rewrite Z.add_comm; trivial].
+  erewrite <- (Coq.ZArith.Zdiv.Zmod_unique _ (2^32) (Byte.unsigned b0) _ Arith4); [ | rewrite Z.add_comm; trivial].
 
   assert (Arith5: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 < 2 ^ 24). 
   {            split. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 <= 2 ^ 24 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. simpl. omega. }
-  erewrite <- (Zmod_unique _ (2^24) (Byte.unsigned c3) _ Arith5); [ | rewrite Z.add_comm; trivial].
+  erewrite <- (Coq.ZArith.Zdiv.Zmod_unique _ (2^24) (Byte.unsigned c3) _ Arith5); [ | rewrite Z.add_comm; trivial].
 
   assert (Arith6: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 < 2 ^ 16).
   {          split. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 <= 2 ^ 16 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               simpl. omega. }
-  erewrite <- (Zmod_unique _ (2^16) (Byte.unsigned c2) _ Arith6); [ | rewrite Z.add_comm; trivial].
+  erewrite <- (Coq.ZArith.Zdiv.Zmod_unique _ (2^16) (Byte.unsigned c2) _ Arith6); [ | rewrite Z.add_comm; trivial].
 
   erewrite <- (Zmod_unique _ (2^8) (Byte.unsigned c1)).
      3: { rewrite Z.add_comm. reflexivity. }
@@ -329,7 +325,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
 
   erewrite <- (Zdiv_unique _ _ (Byte.unsigned c1)); [
        rewrite 2 Byte.repr_unsigned; trivial
-     | apply Byte.unsigned_range 
+     | apply Byte.unsigned_range  
      | rewrite (*(Z.mul_comm (2^8)),*) Z.add_comm; reflexivity].
 Qed.
 

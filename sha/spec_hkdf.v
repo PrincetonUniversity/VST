@@ -1,6 +1,4 @@
 Require Import VST.floyd.proofauto.
-Import ListNotations.
-Local Open Scope logic.
 
 Require Import VST.floyd.library.
 Require Import sha.vst_lemmas.
@@ -9,6 +7,7 @@ Require Import sha.protocol_spec_hmac.
 Require Import sha.hkdf_functional_prog.
 Require Import sha.hkdf.
 
+Local Open Scope logic.
 Require Import VST.veric.change_compspecs.
 
 Require Import VST.floyd.Funspec_old_Notation.

@@ -1,6 +1,4 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
-Require Import List. Import ListNotations.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa.
 Require Import sha.general_lemmas.

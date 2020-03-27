@@ -1,9 +1,5 @@
 (*Require Import Recdef.*)
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
-Require Import List. Import ListNotations.
-Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
