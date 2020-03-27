@@ -60,6 +60,8 @@ compcert/doc/html/
 compcert/extraction/
 compcert/test/
 
+*.vos
+*.vok
 *.vo
 *.glob
 *.v.d

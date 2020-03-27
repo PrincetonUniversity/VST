@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
@@ -443,14 +444,19 @@ specialize (Int64.unsigned_range m).
 specialize (Int64.unsigned_range x). intros X M N.
 rewrite Int64.unsigned_repr, Zdiv_Zdiv, <- two_p_is_exp, Int64.add_unsigned, 
 Int64.unsigned_repr; trivial; try apply two_p_gt_ZERO; try omega.
-split. apply Z_div_pos; trivial. apply two_p_gt_ZERO; try omega. omega.
-assert (Int64.unsigned x / two_p (Int64.unsigned n) < Int64.max_unsigned +1). 2: omega.
-specialize (two_p_gt_ZERO (Int64.unsigned n)); intros A.
-apply Z.div_lt_upper_bound. omega. eapply Z.lt_le_trans. apply X.
-unfold Int64.max_unsigned. replace (Int64.modulus - 1 + 1) with Int64.modulus by omega.
-specialize (Zmult_le_compat_l 1 (two_p (Int64.unsigned n)) Int64.modulus).
-rewrite Z.mul_1_r, Z.mul_comm. intros Y; apply Y; omega.
-Qed. 
+
++ specialize (two_p_strict (Int64.unsigned n)); omega.
++ specialize (two_p_strict (Int64.unsigned m)); omega.
+
++ split. 
+  - apply Z_div_pos; trivial. apply two_p_gt_ZERO; try omega. omega.
+  - assert (Int64.unsigned x / two_p (Int64.unsigned n) < Int64.max_unsigned +1). 2: omega.
+    specialize (two_p_gt_ZERO (Int64.unsigned n)); intros A.
+    apply Z.div_lt_upper_bound. omega. eapply Z.lt_le_trans. apply X.
+    unfold Int64.max_unsigned. replace (Int64.modulus - 1 + 1) with Int64.modulus by omega.
+    specialize (Zmult_le_compat_l 1 (two_p (Int64.unsigned n)) Int64.modulus).
+    rewrite Z.mul_1_r, Z.mul_comm. intros Y; apply Y; omega.
+Qed.
 (*
 Lemma TS64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_ts64 ts64_spec.
