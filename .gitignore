@@ -61,6 +61,8 @@ compcert/extraction/
 compcert/test/
 
 *.vo
+*.vos
+*.vok
 *.glob
 *.v.d
 .depend

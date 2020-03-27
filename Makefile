@@ -264,7 +264,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v list_solver.v data_at_lemmas.v
+   subsume_funspec.v linking.v list_solver_base.v list_solver.v list_solver2.v data_at_lemmas.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
@@ -439,7 +439,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.10.1 or-else 8.10.0 or-else 8.10+alpha
+COQVERSION= 8.10.1 or-else 8.10.0 or-else 8.10+alpha or-else 8.11.0
 
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
