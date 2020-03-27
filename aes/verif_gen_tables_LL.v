@@ -2,6 +2,7 @@ Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
 Open Scope Z.
+Require Import VST.floyd.Funspec_old_Notation.
 
 (* Note: x must be non-zero, y is allowed to be zero (because x is a constant in all usages, its
    non-zero-check seems to be removed by the parser). *)
@@ -478,7 +479,7 @@ Proof.
        Znth (Int.unsigned (Znth j FSb)) rsb = Vint (Int.repr j)) /\
     (Znth 99 rsb = Vint Int.zero)
   ) as P. { entailer!. }
-  destruct P as [?H [?H ?H]].
+  destruct P as [?H [?H ?H]]. normalize. (*
   match goal with
   | |- semax ?D (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e ?Post => match R with
     | [?s0; ?s1; ?s2; ?s3; ?s4; ?s5; ?s6; ?s7; ?s8; ?s9; ?s10; ?s11; ?s12] => match s12 with
@@ -486,7 +487,7 @@ Proof.
          (PROPx P (LOCALx Q (SEPx [s0; s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; f]))))
       end
     end
-  end. { entailer!. }
+  end. { entailer!. }*)
 
   assert (fsb = (map Vint FSb)) as E. {
     apply list_equiv with (n := 256).

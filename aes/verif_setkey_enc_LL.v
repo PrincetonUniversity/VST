@@ -2,8 +2,9 @@ Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
 Require Import aes.verif_setkey_enc_LL_loop_body.
-Open Scope Z.
 Local Open Scope logic.
+Open Scope Z.
+Require Import VST.floyd.Funspec_old_Notation.
 
 (* Calls forward_if with the current precondition to which the provided conditions are added *)
 (* QQQ TODO does this already exist? Add to library? *)

@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith.
+Local Open Scope Z.
 
 (*generalizes Lemma data_at_lemmas.memory_block_data_at__aux1*)
 Lemma unsigned_add: forall i pos, 0 <= pos -> Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr pos)) = (Ptrofs.unsigned i + pos) mod Ptrofs.modulus.
@@ -570,7 +571,7 @@ Definition Select_at {cs} sh n (data2: list val) d :=
 Definition Unselect_at {cs} sh (data1 data2 data3: list val) d :=
   (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 d *
    @data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3
-             (offset_val (Zlength data2 + Zlength data1) d)).
+             (offset_val (Zlength data2 + Zlength data1) d))%logic.
 
 Lemma Select_Unselect_Tarray_at {cs} l d sh (data1 data2 data3 data: list val)
   (DATA: (data1 ++ data2 ++ data3) = data)
@@ -578,7 +579,7 @@ Lemma Select_Unselect_Tarray_at {cs} l d sh (data1 data2 data3 data: list val)
   (F: @field_compatible cs (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d)
   (ZL: Zlength (data1 ++ data2 ++ data3) < Int.modulus):
   @data_at cs sh (Tarray tuchar l noattr) data d =
-  @Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d.
+  (@Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d)%logic.
 Proof.
   subst l. subst data.
   specialize (Zlength_nonneg data1). intros.

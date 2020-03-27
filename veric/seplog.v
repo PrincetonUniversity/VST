@@ -248,7 +248,7 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
         !!(tpsig1=tpsig2 /\ cc1=cc2) &&
-        ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
+       |>  ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
              ALL gargs:genviron * list val,
         ((!!((*Forall2 tc_val' (fst tpsig1) (snd gargs)*)argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
          >=> EX ts1:_,  EX x1:_, EX F:_, 
@@ -597,7 +597,7 @@ Proof.
   + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
     eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
-   intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
+    intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
     exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. } 
     intros rho' y UY k YK K; hnf; intros. rewrite emp_sepcon in K. simpl in K.
     apply necR_level in necU.  apply necR_level in YK.

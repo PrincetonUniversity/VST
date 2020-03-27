@@ -4,7 +4,8 @@ Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
-Require Import ZArith. 
+Require Import ZArith.
+Local Open Scope Z. 
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -1151,7 +1152,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
         rewrite R; rewrite Z2Nat.id; trivial. 
         apply Z_div_pos; omega.
     assert (Arith2: Int64.unsigned bInit mod 64 = Int64.unsigned bInit - Z.of_nat rounds * 64).
-        eapply Zmod_unique. instantiate (1:=Z.of_nat rounds); omega. omega. 
+    { symmetry; eapply Zmod_unique. omega. instantiate (1:=Z.of_nat rounds); omega. }
     rewrite Arith1, Arith2, (CONTCONT _ _ _ _ _ _ _ _ CONT).
     rewrite if_false.
     - exists zbytesR, srbytes, d, snuff, sr_bytes, l. 

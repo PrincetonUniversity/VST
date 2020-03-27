@@ -120,13 +120,14 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
         !!(tpsig1=tpsig2 /\ cc1=cc2) &&
-        ! (ALL ts2 :_, ALL x2:_,
+        (|> ! (ALL ts2 :_, ALL x2:functors.MixVariantFunctor._functor 
+                              (rmaps.dependent_type_functor_rec ts2 A2) mpred,
              ALL gargs:genviron * list val,
         ((!!((*Forall2 tc_val' (fst tpsig1) (snd gargs)*)argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
          >=> EX ts1:_,  EX x1:_, EX F:_, 
             (F * (P1 ts1 x1 gargs)) &&
             ALL rho':_, (     !( ((!!(ve_of rho' = Map.empty (block * type))) && (F * (Q1 ts1 x1 rho')))
-                         >=> (Q2 ts2 x2 rho')))))
+                         >=> (Q2 ts2 x2 rho'))))))
     end
 end.
 

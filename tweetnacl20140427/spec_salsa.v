@@ -4,6 +4,7 @@ Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -18,7 +19,7 @@ Definition CoreInSEP (data : SixteenByte * SixteenByte * (SixteenByte * SixteenB
                      (v: val * val * val) : mpred :=
   match data with (Nonce, C, K) =>
   match v with (n, c, k) =>
-   (SByte Nonce n) * (SByte C c) * (ThirtyTwoByte K k)
+   ((SByte Nonce n) * (SByte C c) * (ThirtyTwoByte K k))%logic
   end end.
 
 Definition prepare_data
@@ -86,8 +87,8 @@ Definition fcore_result h data l :=
 Definition OutLen h := if Int.eq (Int.repr h) Int.zero then 64 else 32.
 
 Definition fcorePOST_SEP h data d l out :=
-  CoreInSEP data d *
-  data_at Tsh (tarray tuchar (OutLen h)) l out.
+  (CoreInSEP data d *
+  data_at Tsh (tarray tuchar (OutLen h)) l out)%logic.
 
 Definition f_core_POST d out h (data: SixteenByte * SixteenByte * (SixteenByte * SixteenByte) ) :=
 EX l:_,
@@ -234,9 +235,10 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               apply Z.add_le_mono; eassumption.
             unfold Int64.max_unsigned; simpl. omega.
   }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+  assert (Arith1: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 +
-          2 ^ 48 * Byte.unsigned b2 < 2 ^ 56). 
+          2 ^ 48 * Byte.unsigned b2 < 2 ^ 56).
+  { 
               split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
                       + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 
@@ -244,86 +246,91 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega.
-  erewrite (Zmod_unique _ (2^56) (Byte.unsigned b3)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^56)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+              apply Z.add_le_mono; try eassumption. simpl. omega. }
+  erewrite <- (Zmod_unique _ (2^56) (Byte.unsigned b3) _ Arith1); [ | rewrite Z.add_comm; trivial].
+
+  assert (Arith2: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 < 2 ^ 48). 
-              split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. 
+  {            split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. 
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
                       + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 
                       + 2 ^ 40 * Byte.unsigned b1 <= 2 ^ 48 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. 
-  erewrite (Zmod_unique _ (2^48) (Byte.unsigned b2)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^48)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. }
+  erewrite <- (Zmod_unique _ (2^48) (Byte.unsigned b2) _ Arith2); [ | rewrite Z.add_comm; trivial].
+  
+  assert (Arith3: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 < 2 ^ 40). 
-              split. apply OMEGA2; trivial. apply OMEGA2; trivial.  apply OMEGA2; trivial.  apply OMEGA2; trivial.
+  {            split. apply OMEGA2; trivial. apply OMEGA2; trivial.  apply OMEGA2; trivial.  apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
                       + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 <= 2 ^ 40 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega.
-  erewrite (Zmod_unique _ (2^40) (Byte.unsigned b1)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^40)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+              apply Z.add_le_mono; try eassumption. simpl. omega. }
+  erewrite <- (Zmod_unique _ (2^40) (Byte.unsigned b1) _ Arith3); [ | rewrite Z.add_comm; trivial].
+
+  assert (Arith4: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 < 2 ^ 32). 
-              split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
+  {            split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
                       + 2 ^ 24 * Byte.unsigned c3 <= 2 ^ 32 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega.
-  erewrite (Zmod_unique _ (2^32) (Byte.unsigned b0)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^32)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 < 2 ^ 24). 
-              split. apply OMEGA2; trivial. apply OMEGA2; trivial.
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. }
+  erewrite <- (Zmod_unique _ (2^32) (Byte.unsigned b0) _ Arith4); [ | rewrite Z.add_comm; trivial].
+
+  assert (Arith5: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 < 2 ^ 24). 
+  {            split. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 <= 2 ^ 24 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega.
-  erewrite (Zmod_unique _ (2^24) (Byte.unsigned c3)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 < 2 ^ 16).
-             split. apply OMEGA2; trivial.
+              apply Z.add_le_mono; try eassumption. simpl. omega. }
+  erewrite <- (Zmod_unique _ (2^24) (Byte.unsigned c3) _ Arith5); [ | rewrite Z.add_comm; trivial].
+
+  assert (Arith6: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 < 2 ^ 16).
+  {          split. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 <= 2 ^ 16 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              simpl. omega.
-  erewrite (Zmod_unique _ (2^16) (Byte.unsigned c2)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity. }
-  erewrite (Zmod_unique _ (2^8) (Byte.unsigned c1)).
-     2:{ rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity. }
-     2: apply Byte.unsigned_range. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned b3));
-       [  | rewrite (Z.mul_comm (2^56)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned b2));
-       [  | rewrite (Z.mul_comm (2^48)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned b1));
-       [  | rewrite (Z.mul_comm (2^40)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned b0));
-       [  | rewrite (Z.mul_comm (2^32)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned c3));
-       [  | rewrite (Z.mul_comm (2^24)), Z.add_comm; reflexivity
-          | assumption ].
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned c2));
-       [  | rewrite (Z.mul_comm (2^16)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned c1));
-       [  | rewrite (Z.mul_comm (2^8)), Z.add_comm; reflexivity
-          | ]. 
-  rewrite Byte.repr_unsigned. 
-  rewrite Byte.repr_unsigned. trivial.
-  apply Byte.unsigned_range. 
+              simpl. omega. }
+  erewrite <- (Zmod_unique _ (2^16) (Byte.unsigned c2) _ Arith6); [ | rewrite Z.add_comm; trivial].
+
+  erewrite <- (Zmod_unique _ (2^8) (Byte.unsigned c1)).
+     3: { rewrite Z.add_comm. reflexivity. }
+     2: apply Byte.unsigned_range.
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned b3)); [
+       clear Arith1; rewrite Byte.repr_unsigned
+     | apply Arith1
+     | rewrite (*(Z.mul_comm (2^56)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned b2)); [
+       clear Arith2; rewrite Byte.repr_unsigned
+     | apply Arith2
+     | rewrite (*(Z.mul_comm (2^48)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned b1)); [
+       clear Arith3; rewrite Byte.repr_unsigned
+     | apply Arith3
+     | rewrite (*(Z.mul_comm (2^40)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned b0)); [
+       clear Arith4; rewrite Byte.repr_unsigned
+     | apply Arith4
+     | rewrite (*(Z.mul_comm (2^32)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned c3)); [
+       clear Arith5; rewrite Byte.repr_unsigned
+     | apply Arith5
+     | rewrite (*(Z.mul_comm (2^24)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned c2)); [
+       clear Arith6; rewrite Byte.repr_unsigned
+     | apply Arith6
+     | rewrite (*(Z.mul_comm (2^16)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned c1)); [
+       rewrite 2 Byte.repr_unsigned; trivial
+     | apply Byte.unsigned_range 
+     | rewrite (*(Z.mul_comm (2^8)),*) Z.add_comm; reflexivity].
 Qed.
 
 
@@ -518,7 +525,7 @@ Definition ContSpec bInit SIGMA K mInit mCont zbytes  srbytes :=
 
 (*TODO: refine non-zero-case of this spec, relating COUT to mCont and K and Nonce*)
 Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c m :=
-  (if Int64.eq b Int64.zero
+  ((if Int64.eq b Int64.zero
    then data_at_ Tsh (Tarray tuchar cLen noattr) c
    else (EX COUT:_, !!(exists zbytes, match Nonce with (Nnc0, Nnc1, _, _) =>
                 SixteenByte2ValList
@@ -528,7 +535,7 @@ Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c 
                 /\  ContSpec b SIGMA K m mCont zbytes COUT end)
            && data_at Tsh (Tarray tuchar cLen noattr) (Bl2VL COUT) c))
                     * SByte Nonce nonce
-                    * message_at mCont m.
+                    * message_at mCont m)%logic.
 
 (*Precondition length mCont = Int64.unsigned b comes from textual spec in
   https://download.libsodium.org/doc/advanced/salsa20.html

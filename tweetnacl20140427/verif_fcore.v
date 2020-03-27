@@ -11,6 +11,7 @@ Require Import List. Import ListNotations.
 
 Require Import split_array_lemmas.*)
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -236,7 +237,7 @@ Lemma HTruePOST F t y x w nonce out c k h snuffleRes l data OUT:
       Snuffle 20 l = Some snuffleRes ->
       Int.eq (Int.repr h) Int.zero = false ->
       l = prepare_data data ->
-      F |-- data_at_ Tsh (tarray tuint 4) t * data_at_ Tsh (tarray tuint 16) w ->
+      F |-- (data_at_ Tsh (tarray tuint 4) t * data_at_ Tsh (tarray tuint 16) w)%logic ->
       HTruePostCond F t y x w nonce out c k h snuffleRes l data OUT
 |-- fcore_EpiloguePOST t y x w nonce out c k h OUT data.
 Proof. intros.
@@ -254,8 +255,8 @@ Lemma HFalsePOST F t y x w nonce out c k h snuffleRes l data OUT:
       Snuffle 20 l = Some snuffleRes ->
       Int.eq (Int.repr h) Int.zero = true ->
       l = prepare_data data ->
-      F |-- (CoreInSEP data (nonce, c,k) * data_at_ Tsh (tarray tuint 4) t *
-             data_at_ Tsh (tarray tuint 16) w) ->
+      F |-- ((CoreInSEP data (nonce, c,k) * data_at_ Tsh (tarray tuint 4) t *
+             data_at_ Tsh (tarray tuint 16) w))%logic ->
       HFalsePostCond F t y x w nonce out c k h snuffleRes l
      |-- fcore_EpiloguePOST t y x w nonce out c k h OUT data.
 Proof. intros.
