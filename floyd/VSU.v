@@ -3142,7 +3142,7 @@ Qed.
 Definition SortComponent {Espec V cs Externs Imports p Exports G} 
            (C:@Component Espec V cs Externs Imports p Exports G):
            @SortedComponent Espec V cs Externs Imports p Exports (SortFunspec.sort G).
-constructor; [ | apply SortFunspec.Sorted_sort].
+constructor; [ | apply SortFunspec.Sorted_sort || apply SortFunspec.LocallySorted_sort ].
 specialize (Comp_ctx_LNR C); intros DISJ.
 (*destruct C;*) unfold Comp_G in DISJ.
 constructor; trivial; try apply C; clear - C DISJ.
