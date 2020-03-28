@@ -1039,31 +1039,122 @@ Section ConcurMatch.
                 + eapply Forall_memval_inject; eauto.
                   hnf; hnf in i0; simpl in *; omega. }
         - !context_goal (mi_memval_perm).
+
+          
+            assert (Hinject_vals: forall (b1 b2 : block) (ofs0 delta0 : Z),
+                       f b1 = Some (b2, delta0) ->
+                       memval_inject f (ZMap.get ofs0 (Mem.mem_contents m1) !! b1)
+                                     (ZMap.get (ofs0 + delta0) (Mem.mem_contents m2) !! b2) ->
+                       memval_inject f (ZMap.get ofs0 (Mem.mem_contents m1') !! b1)
+                                     (ZMap.get (ofs0 + delta0) (Mem.mem_contents m2') !! b2)).
+            { admit. }
+            
           intros. destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b,ofs));
                     swap 1 2.
           + simpl in glo0; rewrite glo0 in H0; auto.
             eapply INJ_lock_content1 in H0; try eapply H; try assumption.
             intros ? **. exploit H0; eauto.
-            clear H2. revert b1 b2 ofs0 delta0 H1. 
-
-            assert (forall (b1 b2 : block) (ofs0 delta0 : Z),
-  f b1 = Some (b2, delta0) ->
-  memval_inject f (ZMap.get ofs0 (Mem.mem_contents m1) !! b1)
-    (ZMap.get (ofs0 + delta0) (Mem.mem_contents m2) !! b2) ->
-  memval_inject f (ZMap.get ofs0 (Mem.mem_contents m1') !! b1)
-                (ZMap.get (ofs0 + delta0) (Mem.mem_contents m2') !! b2)).
-            { admit. }
-            eauto.
-          + admit.
             
+          + intros ? **. 
+            eapply Hinject_vals; eauto.
+            inversion e; subst b ofs.
+            (* Need to add this to the Lemma? *)
+            admit.
             
-        - !context_goal (mi_memval_perm). admit.
-        - !context_goal (@lockRes). admit.
+        - !context_goal (mi_memval_perm). admit. (* see above *)
+        - !context_goal (@lockRes).
+          intros *. destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, ofs) ) as [eq|neq];
+          swap 1 2. 
+          + simpl in glo0; rewrite glo0; eauto. intros HH.
+            dup HH as HH'.
+            eapply lockSet_is_not_readable in HH' as [HH1 HH2]; try eassumption.
+            split; intros.
+            * eapply HH1 in H0 as HH1'. hnf in HH1'.
+              destruct (Nat.eq_dec i0 i); swap 1 2.
+              -- simpl in gto0; erewrite gto0; eauto.
+              -- subst i0. simpl in gts0; rewrite gts0; simpl. 
+                 clear HH1 HH1' HH2.  
+                 revert HH H0.
+                 admit. (* add this to the lemma*)
+            * destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b', ofs')) as [eq'|neq']. 
+              -- inversion eq'; subst b' ofs'.
+                 simpl in gls0. rewrite gls0 in H0; inv H0.
+                 revert gls0 H1. 
+                 admit. (* needs to be added to the lemma *)
+              -- simpl in glo0; rewrite glo0 in H0; try eassumption.
+                 eapply HH2 in H1 as HH2'; eauto.
+          + inversion eq; subst b ofs. intros HH.
+            split; intros.
+            * destruct (Nat.eq_dec i0 i); swap 1 2.
+              -- simpl in gto0; erewrite gto0; eauto.
+                 destruct His_loc_or_has_perm as [(? & AA) | AA].
+                 ++ eapply lockSet_is_not_readable in AA; eauto.
+                    destruct AA as [AA _].
+                    eapply AA; eauto.
+                 ++ move AA at bottom.
+                    admit. (* add to lemma, maybe split a lemma for making locks? *)
+              -- subst. simpl in gts0; erewrite gts0; simpl.
+                 (*add this to the lemma *)
+                 admit.
+            * simpl in gls0; rewrite gls0 in HH; inv HH.
+              destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b', ofs')) as [eq'|neq'].
+              -- inversion eq'; subst b' ofs'.
+                 simpl in gls0. rewrite gls0 in H0; inv H0.
+                 admit. (* add this to lemma *)
+              -- simpl in glo0. rewrite glo0 in H0; inv H0; eauto.
+                 destruct His_loc_or_has_perm as [(? & AA) | AA].
+                 ++ eapply lockSet_is_not_readable in AA; eauto.
+                    destruct AA as [_ AA].
+                    eapply AA; eauto.
+                 ++ subst. 
+                    (*add this to the lemma *)
+                    admit.
         - !context_goal (@match_thread_source).
           intros ? Hneq ??.
           assert (Hneq': i0 <> hb) by omega.
           lock_update_rewrite.
-          admit.
+          destruct (Nat.eq_dec i0 i).
+          + subst. 
+            inv Hthread_match; eauto; try (exfalso; omega).
+            generalize gcs0 gcs gtts0 gtts Hlt1 Hlt2 H1 ; clear.
+            intros gcs0 gcs gtts0 gtts.
+            repeat rewrite gcs0, gcs, gtts0, gtts.
+            intros. clean_proofs_goal; assumption.
+          + erewrite gco, gco0, gtto, gtto0; eauto.
+            Lemma match_forward_source:
+              forall (mu : meminj) c1 (m1 : mem) c2 (m2 : mem),
+                match_thread_source mu c1 m1 c2 m2 ->
+                forall (mu' : meminj) (m1' m2' : mem),
+                  inject_incr mu mu' ->
+                  Mem.inject mu' m1' m2' ->
+                  same_visible m1 m1' ->
+                  same_visible m2 m2' ->
+                  match_thread_source mu' c1 m1' c2 m2'.
+            Proof.
+              intros.
+              inv H; econstructor; eauto.
+              - hnf. eapply match_source_forward; eauto.
+                unfold Clight_code_inject; simpl.
+                admit.
+              - hnf. eapply match_source_forward; eauto.
+                admit.
+              - hnf. eapply match_source_forward; eauto.
+                admit.
+            Admitted.                
+              
+            unfold match_thread_source, Clight_match.
+            intros; eapply  match_forward_source;
+            try apply inject_incr_refl.
+            * eapply mtch_source; eauto.
+            * admit. (* proven above this is for m1' m2'*)
+            * eapply same_visible_alternative; constructor.
+              -- intros ?; extensionality ofs.
+                 do 2 rewrite getCur_restr; simpl; reflexivity.
+              -- intros. admit. 
+            * eapply same_visible_alternative; constructor.
+              -- intros ?; extensionality ofs.
+                 do 2 rewrite getCur_restr; simpl; reflexivity.
+              -- intros. admit.
         - !context_goal (@match_thread_target).
           intros ? Hneq ??.
           assert (Hneq': i0 <> hb) by omega.

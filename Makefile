@@ -3,7 +3,10 @@
 # explanations of why this is the way it is
 
 COMPCERT ?= compcert
+SILENT_WARNINGS ?= true #Only applies for concurrency!
 -include CONFIGURE
+silence:
+	@echo $(SILENT_WARNINGS)
 #Note:  You can make a CONFIGURE file with the definition
 #   COMPCERT=../compcert
 # if, for example, you want to build from a compcert distribution
@@ -84,7 +87,7 @@ endif
 
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
-COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
+COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d)) $(SILENCE_FLAGS)
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
 ifneq ($(wildcard coq-ext-lib/theories),)
 EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
@@ -108,7 +111,15 @@ endif
 #SHIM= -Q concurrency/shim VST.veric
 #endif
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
+
+ifeq ($(COMPCERT), compcert_new)
+ifneq ($(SILENT_WARNINGS),false)
+SILENCE_FLAGS := -w -all
+endif
+endif
+
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) $(SILENCE_FLAGS)
+
 
 #COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
@@ -418,6 +429,9 @@ FILES = \
 # $(CONCUR_FILES:%=concurrency/%) \
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
+
+
+
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
 # from progs/verif_reverse.v
@@ -443,6 +457,7 @@ else
 	@$(COQC) $(COQF) $*.v
 #	@util/annotate $(COQC) $(COQF) $*.v
 endif
+
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
 COQVERSION= 8.10.0 or-else 8.10.1 or-else 8.10.2 or-else 8.11.0
@@ -524,6 +539,10 @@ hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
 atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
 io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo
+print-assumptions-concurrency-build: concurrency/main_print_assumptions.vo
+print-assumptions-concurrency:
+	rm -f concurrency/main_print_assumptions.vo
+	make print-assumptions-concurrency-build
 
 CGFLAGS =  -DCOMPCERT
 
@@ -653,3 +672,20 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 # such problem, not sure exactly.  -- Andrew)
 include .depend
 -include .depend-concur
+
+
+#The following two commands print the assumptions of the main theorem of concurrency
+assumptions-concurrency:
+	@echo "Retrieving Assumptions. This will might take a minute or two."
+	@echo "----"
+	@$(COQC) $(COQFLAGS) concurrency/main_print_assumptions.v | grep "^\([a-zA-Z_]\{1,\}[.]\)\{0,\}[a-zA-Z_]\{1,\}[[:space:]][\:]"| cut -f1 -d":"
+	@echo "----"
+	@echo "Done printing assumptions."
+
+
+assumptions-concurrency-body:
+	@echo "Retrieving Assumptions. This will might take a minute or two."
+	@echo "----"
+	@$(COQC) $(COQFLAGS) concurrency/main_print_assumptions.v
+	@echo "----"
+	@echo "Done printing assumptions."

@@ -1,0 +1,46 @@
+##### File organization:
+
+/concurrency/. : The current folder (VST/concurrency) contains the files that put all the results together. You can find the final theorem in main.v.
+
+/concurrency/common: Semantic definitions and general lemmas used by all the other folders.
+
+/concurrency/compiler: Correctness of the CompCert compiler in the pretense of shared memory concurrency.
+
+/concurrency/juicy: Soundness of the Concurrent Separation Logic.
+
+/concurrency/lib: Generic tactics and lemmas about Coq structures. 
+
+/concurrency/sc_drf: Safety of the preemptive execution and in the x86 TSO architecture.
+
+Other dependencies:
+This development uses the paco library and ssreflect.
+
+##### Build:
+
+In the VST directory, make a file named CONFIGURE containing exactly the text:  
+
+	COMPCERT=compcert_new
+
+Then run 
+
+	make concurrency
+
+or, if you have a multicore computer: 
+
+	make concurrency -j.
+
+To show warnings, add the following to your CONFIGURE file, in a new line:
+
+	SILENT_WARNINGS=false
+
+
+##### Print Assumptions:
+
+##### Print Assumptions:
+
+After building the entire project you can run print the assumptions of our main theorem with:
+
+	make print-assumptions-concurrency 
+
+This will show all the Axioms, Assumptions and Lemmas under constructions used by the main lemma in main.v. An explanation of these assumptions can be found in bellow, and a detail explanation of each Admitted lemma can be found in its file as comments. 
+
