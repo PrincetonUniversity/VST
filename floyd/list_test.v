@@ -1,5 +1,9 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.list_solver.
+Open Scope logic.
+
 Require Import Coq.Program.Tactics.
+
 
 Example strcat_preloop2_new : forall {cs : compspecs} n ld,
   n > Zlength ld ->
@@ -40,7 +44,7 @@ Proof.
   cancel.
 Qed.
 
-Example strcat_retutn_new : forall n (ld ls : list byte),
+Example strcat_return_new : forall n (ld ls : list byte),
   Zlength ld + Zlength ls < n ->
   map Vbyte (ld ++ ls) ++
   upd_Znth 0 (list_repeat (Z.to_nat (n - (Zlength ld + Zlength ls))) Vundef) (Vint (Int.repr (Byte.signed (Znth 0 [Byte.zero])))) =
@@ -310,13 +314,13 @@ Example bug : forall (s : list Z) (n k i : Z),
   Zlength
        (map Vint
           (map Int.repr (sublist k (k + i) s)) ++
-        Zrepeat (n - i) Vundef) = n
+        Zrepeat Vundef (n - i)) = n
     ->
   Zlength (map Vint (map Int.repr s)) =
      Zlength
        (map Vint
           (map Int.repr (sublist k (k + i) s)) ++
-        Zrepeat (n - i) Vundef)
+        Zrepeat Vundef (n - i))
     ->
   Zlength s = n.
 Proof.

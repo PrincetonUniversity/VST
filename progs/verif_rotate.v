@@ -80,7 +80,7 @@ Proof.
   forward_for_simple_bound (n-k) (EX i : Z,
     PROP ( )
     LOCAL (temp _b b; temp _a a; temp _n (Vint (Int.repr n)); temp _k (Vint (Int.repr k)); gvars gv)
-    SEP (FRZL FR; data_at Ews (tarray tint n) (map Vint (map Int.repr (sublist k (k+i) s)) ++ Zrepeat (n-i) Vundef) b; data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
+    SEP (FRZL FR; data_at Ews (tarray tint n) (map Vint (map Int.repr (sublist k (k+i) s)) ++ Zrepeat Vundef (n-i)) b; data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
   ).
   { entailer!. rewrite data_at__tarray. list_solve2. }
   { forward.
@@ -91,7 +91,7 @@ Proof.
   forward_for_simple_bound n (EX i : Z,
     PROP (n-k <= i)
     LOCAL (temp _b b; temp _a a; temp _n (Vint (Int.repr n)); temp _k (Vint (Int.repr k)); gvars gv)
-    SEP (FRZL FR; data_at Ews (tarray tint n) (map Vint (map Int.repr (sublist k n s ++ sublist 0 (i-(n-k)) s)) ++ Zrepeat (n-i) Vundef) b;
+    SEP (FRZL FR; data_at Ews (tarray tint n) (map Vint (map Int.repr (sublist k n s ++ sublist 0 (i-(n-k)) s)) ++ Zrepeat Vundef (n-i)) b;
       data_at sh (tarray tint n) (map Vint (map Int.repr s)) a
     )
   ).

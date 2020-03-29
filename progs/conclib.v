@@ -68,7 +68,7 @@ Proof.
 Qed.
 Hint Resolve repable_0.
 
-Definition complete MAX l := l ++ Zrepeat (MAX - Zlength l) (vptrofs 0).
+Definition complete MAX l := l ++ Zrepeat (vptrofs 0) (MAX - Zlength l).
 
 Lemma upd_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX l) x = complete MAX (l ++ [x]).

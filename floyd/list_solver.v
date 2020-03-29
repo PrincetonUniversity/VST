@@ -3,6 +3,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.field_compat.
+Require Export VST.floyd.list_solver_base.
 Import ListNotations.
 
 (** This file provides a almost-complete solver for list with concatenation.
@@ -18,22 +19,6 @@ Import ListNotations.
     nil
     cons
     upd_Znth. *)
-
-(** * Zlength_solve *)
-(** Zlength_solve is a tactic that solves linear arithmetic about length of lists. *)
-
-(* Auxilary lemmas for Zlength_solve. *)
-Lemma repeat_list_repeat : forall {A : Type} (n : nat) (x : A),
-  repeat x n = list_repeat n x.
-Proof. intros. induction n; simpl; try f_equal; auto. Qed.
-
-Definition Zrepeat {A : Type} (n : Z) (x : A) : list A :=
-  repeat x (Z.to_nat n).
-
-Lemma Zlength_Zrepeat : forall (A : Type) (n : Z) (x : A),
-  0 <= n ->
-  Zlength (Zrepeat n x) = n.
-Proof. intros *. unfold Zrepeat. rewrite repeat_list_repeat. apply @Zlength_list_repeat. Qed.
 
 Ltac Zlength_solve := autorewrite with Zlength; pose_Zlength_nonneg; omega.
 Hint Rewrite Zlength_cons : Zlength.
@@ -54,56 +39,15 @@ Ltac Zlength_solve_complete :=
 Ltac Zlength_solve2 := Zlength_solve_complete.
 
 (** * list_form *)
-Lemma Zrepeat_fold : forall (A : Type) (n : Z) (x : A),
-  list_repeat (Z.to_nat n) x = Zrepeat n x.
-Proof. intros *. rewrite <- repeat_list_repeat. auto. Qed.
-
-Lemma cons_Zrepeat_1_app : forall (A : Type) (x : A) (al : list A),
-  x :: al = Zrepeat 1 x ++ al.
-Proof. auto. Qed.
-
-Lemma upd_Znth_unfold : forall (A : Type) (n : Z) (al : list A) (x : A),
-  upd_Znth n al x = sublist 0 n al ++ [x] ++ sublist (n+1) (Zlength al) al.
-Proof. auto. Qed.
-
-(* this seems not needed *)
-(*Lemma Znth_Zrepeat_1_sublist : forall (A : Type) (d : Inhabitant A) (i : Z) (al : list A),
-  0 <= i < Zlength al ->
-  Zrepeat 1 (Znth i al) = sublist i (i+1) al.
-Proof. intros. rewrite sublist_one by omega; auto. Qed. *)
 
 Hint Rewrite Zrepeat_fold upd_Znth_unfold cons_Zrepeat_1_app : list_form_rewrite.
-(* Hint Rewrite Znth_Zrepeat_1_sublist using Zlength_solve: list_form_rewrite. *)
 Hint Rewrite app_nil_r app_nil_l : list_form_rewrite.
 
 Ltac list_form :=
   autorewrite with list_form_rewrite in *.
 
-(* handling of map is not in list_form now *)
-(*
-Lemma Znth_map2 : forall (B : Type) (db : Inhabitant B) (A : Type) (da : Inhabitant A) (i : Z) (f : A -> B) (al : list A),
-  0 <= i < Zlength al ->
-  Znth i (map f al) = f (Znth i al).
-Proof. intros. apply Znth_map; auto. Qed.
-
-Hint Rewrite <- (@Znth_map2 float32 Inhabitant_float32) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 ptrofs Inhabitant_ptrofs) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 int64 Inhabitant_int64) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 byte Inhabitant_byte) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 int Inhabitant_int) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 val Inhabitant_val) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 Z Inhabitant_Z) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 nat Inhabitant_nat) using Zlength_solve : list_form.
-*)
-
 (** * Znth_solve *)
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)
-
-(* Auxilary lemmas for Znth_solve. *)
-Lemma Znth_Zrepeat : forall (A : Type) (d : Inhabitant A) (i n : Z) (x : A),
-  0 <= i < n ->
-  Znth i (Zrepeat n x) = x.
-Proof. intros. unfold Zrepeat. rewrite repeat_list_repeat. apply Znth_list_repeat_inrange; auto. Qed.
 
 Hint Rewrite @Znth_list_repeat_inrange using Zlength_solve : Znth.
 Hint Rewrite @Znth_sublist using Zlength_solve : Znth.
@@ -160,34 +104,6 @@ Ltac Znth_solve2 :=
 (* To prove equality between two lists, a convenient way is to apply extentionality
   and prove their length are equal and each corresponding entries are equal.
   It is convenient because then we can use Znth_solve to solve it. *)
-
-Lemma nth_eq_ext : forall (A : Type) (default : A) (al bl : list A),
-  length al = length bl ->
-  (forall (i : nat), (0 <= i < length al)%nat -> nth i al default = nth i bl default) ->
-  al = bl.
-Proof.
-  intros. generalize dependent bl.
-  induction al; intros;
-    destruct bl; try discriminate; auto.
-  f_equal.
-  - apply (H0 0%nat). simpl. omega.
-  - apply IHal.
-    + simpl in H. omega.
-    + intros. apply (H0 (S i)). simpl. omega.
-Qed.
-
-Lemma Znth_eq_ext : forall {A : Type} {d : Inhabitant A} (al bl : list A),
-  Zlength al = Zlength bl ->
-  (forall (i : Z), 0 <= i < Zlength al -> Znth i al = Znth i bl) ->
-  al = bl.
-Proof.
-  intros. rewrite !Zlength_correct in *. apply nth_eq_ext with d.
-  - omega.
-  - intros. rewrite  <- (Nat2Z.id i).
-    specialize (H0 (Z.of_nat i) ltac:(omega)).
-    rewrite !nth_Znth by (rewrite !Zlength_correct in *; omega).
-    apply H0.
-Qed.
 
 Definition data_subsume {cs : compspecs} (t : type) (x y : reptype t) : Prop :=
   forall sh p, data_at sh t x p |-- data_at sh t y p.
@@ -401,7 +317,7 @@ Qed.
 
 Lemma range_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : A -> Prop),
   0 <= lo < hi /\ hi <= n ->
-  range_uni lo hi (Zrepeat n x) P ->
+  range_uni lo hi (Zrepeat x n) P ->
   P x.
 Proof.
   unfold range_uni, rangei. intros.
@@ -467,7 +383,7 @@ Qed.
 
 Lemma rangei_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : Z -> A -> Prop),
   0 <= lo < hi /\ hi <= n ->
-  rangei_uni lo hi (Zrepeat n x) P ->
+  rangei_uni lo hi (Zrepeat x n) P ->
   rangei lo hi (fun i => P i x).
 Proof.
   unfold rangei_uni, rangei. intros.
@@ -606,7 +522,7 @@ Qed.
 Lemma range_binA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi n offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo < hi /\ hi <= n ->
-  range_bin lo hi offset (Zrepeat n x) l' P ->
+  range_bin lo hi offset (Zrepeat x n) l' P ->
   range_uni (lo + offset) (hi + offset) l' (P x).
 Proof.
   unfold range_bin, range_uni. intros.
@@ -681,7 +597,7 @@ Qed.
 Lemma range_binB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
   0 <= lo + offset < hi + offset /\ hi + offset <= n ->
-  range_bin lo hi offset l (Zrepeat n x) P ->
+  range_bin lo hi offset l (Zrepeat x n) P ->
   range_uni lo hi l (fun y => P y x).
 Proof.
   unfold range_bin, range_uni. intros.
@@ -808,7 +724,7 @@ Qed.
 Lemma range_triA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (n x1 x2 y1 y2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 < x2 /\ x2 <= n /\ x1 < y2 + offset ->
-  range_tri x1 x2 y1 y2 offset (Zrepeat n x) l' P ->
+  range_tri x1 x2 y1 y2 offset (Zrepeat x n) l' P ->
   range_uni y1 y2 l' (P x).
 Proof.
   unfold range_tri, range_uni, rangei. intros.
@@ -894,7 +810,7 @@ Qed.
 Lemma range_triB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
   0 <= lo + offset < hi + offset /\ hi + offset <= n ->
-  range_tri x1 x2 y1 y2 offset l (Zrepeat n x) P ->
+  range_tri x1 x2 y1 y2 offset l (Zrepeat x n) P ->
   range_uni x1 x2 y1 y2 l (fun y => P y x).
 Proof.
   unfold range_tri, range_uni. intros.
@@ -1274,66 +1190,17 @@ Tactic Notation "list_solve!" :=
   | list_prop_solve
   ].
 
-(***************** Zlength_solve using a database *************)
-Definition Zlength_tag := True.
-
-Lemma Zlength_db_new : forall (H : Prop), H -> Zlength_tag /\ H.
-Proof. unfold Zlength_tag. tauto. Qed.
-
-Lemma Zlength_db_inc : forall (H H0 : Prop), H -> Zlength_tag /\ H0 -> Zlength_tag /\ (H /\ H0).
-Proof. tauto. Qed.
-
-Ltac add_Zlength_res H :=
-  first
-  [ match goal with res_db : Zlength_tag /\ ?res |- _ =>
-      let new_db := fresh in
-      pose (Zlength_db_inc _ _ H res_db) as new_db;
-      clearbody new_db;
-      clear res_db;
-      rename new_db into res_db
-    end
-  | let new_db := fresh "Zlength_db" in
-    pose (Zlength_db_new _ H) as new_db;
-    clearbody new_db
-  ].
-
-Ltac search_Zlength l :=
-  match goal with res_db : Zlength_tag /\ ?res |- _ =>
-    let rec search_aux res :=
-      match res with
-      | ?res1 /\ ?res2 => first [search_aux res1 | search_aux res2]
-      | Zlength l = _ => idtac
-      end
-    in
-    search_aux res
-  end.
-
-Ltac calc_Zlength l :=
-  first
-  [ search_Zlength l
-  | lazymatch l with
-    | ?l1 ++ ?l2 =>
-      calc_Zlength l1; calc_Zlength l2;
-      add_Zlength_res (Zlength_app _ l1 l2)
-    | Zrepeat ?n ?x =>
-      add_Zlength_res (Zlength_Zrepeat _ n x ltac:(omega))
-    | map _ _ ?f ?l =>
-      add_Zlength_res (Zlength_map _ _ f l)
-    | _ => fail "calc_Zlength does not support" l
-    end
-  ].
-
 
 (*************** list_deduce experiment *************)
 (* This experiment is replaced by Znth_solve *)
 (*
 Lemma sublist_Zrepeat : forall (A : Type) (lo hi n : Z) (x : A),
   0 <= lo <= hi -> hi <= n ->
-  sublist lo hi (Zrepeat n x) = Zrepeat (hi - lo) x.
+  sublist lo hi (Zrepeat x n) = Zrepeat (hi - lo) x.
 Proof. intros. apply sublist_list_repeat; omega. Qed.
 
 Lemma map_Zrepeat : forall (A B : Type) (f : A -> B) (n : Z) (x : A),
-  map f (Zrepeat n x) = Zrepeat n (f x).
+  map f (Zrepeat x n) = Zrepeat n (f x).
 Proof. intros. apply map_list_repeat. Qed.
 
 Hint Rewrite sublist_Zrepeat Znth_Zrepeat using Zlength_solve : sublist2.
