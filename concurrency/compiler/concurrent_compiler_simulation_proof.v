@@ -873,7 +873,7 @@ Section Concurrent_correctness.
       Qed.
     End SimulationTransitivity.
 
-  Lemma initial_memories_are_equal:
+  (* Lemma initial_memories_are_equal:
     forall (tp:Asm.program),
       CompCert_compiler C_program = Some tp ->
       Genv.init_mem tp = Genv.init_mem (Ctypes.program_of_program C_program ).
@@ -895,7 +895,7 @@ Section Concurrent_correctness.
        Maybe you want to go to compcert and prove this directly, 
        it will break when remove globals is introduced...
      *)
-  Admitted.
+  Admitted. *)
   
   Local Ltac subst_sig:=
     match goal with
@@ -906,6 +906,7 @@ Section Concurrent_correctness.
     forall (tp:Asm.program)
       (Hextern: single_thread_simulation_proof.Asm_externals_have_events Asm_g),
       CompCert_compiler C_program = Some tp ->
+      forall (static_check_mems_eq: Genv.init_mem tp = Genv.init_mem (Ctypes.program_of_program C_program )),
       forall asm_genv_safety MSS MST,
         ConcurrentCompilerCorrectness_specification
           Clight_g tp asm_genv_safety
@@ -935,7 +936,6 @@ Section Concurrent_correctness.
         all: intros *; try rewrite PTree.gleaf;
           try now intros; congruence.
 
-        
   Qed.
   
 End Concurrent_correctness.

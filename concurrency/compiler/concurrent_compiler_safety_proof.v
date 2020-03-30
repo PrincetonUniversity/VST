@@ -623,6 +623,7 @@ Section Concurrent_Safety.
     
     Lemma ConcurrentCompilerSafety:
       CompCert_compiler C_program = Some Asm_program ->
+      forall (static_check_mems_eq: Genv.init_mem Asm_program = Genv.init_mem (Ctypes.program_of_program C_program )),
       forall (asm_genv_safety : Asm_core.safe_genv (@the_ge Asm_program))
         (Hextern: single_thread_simulation_proof.Asm_externals_have_events Asm_g),
         let SemSource:= (ClightSemanticsForMachines.ClightSem
@@ -643,7 +644,7 @@ Section Concurrent_Safety.
          unfold init_mach in *.
       *)
       pose proof (ConcurrentCompilerCorrectness Hlimited_builtins
-                                                 Asm_program Hextern H asm_genv_safety)
+                                                 Asm_program Hextern H static_check_mems_eq asm_genv_safety)
         as SIM.
       unfold ConcurrentCompilerCorrectness_specification in SIM.
       (*Construct the initial state*)

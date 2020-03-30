@@ -56,6 +56,7 @@ Section Main.
   Context (main_symbol_target : Genv.find_symbol (Genv.globalenv Asm_program) main_ident_tgt = Some fb).
   Definition Main_ptr:= Values.Vptr fb Integers.Ptrofs.zero.
   Context (compilation : CompCert_compiler C_program = Some Asm_program).
+  Context (static_check_mems_eq: Genv.init_mem Asm_program = Genv.init_mem (Ctypes.program_of_program C_program )).
   
   Context (asm_genv_safe: Asm_core.safe_genv
                             (@x86_context.X86Context.the_ge Asm_program))
@@ -129,7 +130,7 @@ Section Main.
   Proof.
     intros.
     assert(compilation':= compilation).  
-    pose proof (ConcurrentCompilerSafety asm_genv_safe compilation' asm_genv_safe Hextern) as H.
+    pose proof (ConcurrentCompilerSafety asm_genv_safe compilation' static_check_mems_eq asm_genv_safe Hextern) as H.
     unfold concurrent_compiler_safety.concurrent_simulation_safety_preservation in *.
     specialize (H U (erasure_safety.init_mem CPROOF) (erasure_safety.init_mem CPROOF) (Clight_safety.initial_Clight_state CPROOF) Main_ptr nil).
     rewrite <- program_proof in *.
@@ -261,6 +262,12 @@ Section Main.
     Import ThreadPool BareMachine CoreInjections HybridMachineSig.
     Import main_definitions.
 
+    
+    Inductive check_initial_mems: Clight.program -> Asm.program -> Prop :=
+    | Init_memories_eq:
+        Genv.init_mem Asm_program = Genv.init_mem (Ctypes.program_of_program C_program ) ->
+        check_initial_mems C_program Asm_program.
+    
     Inductive parch_CSL_proof (prog: Clight.program): Prop:=
     | CSL_witness:
       forall (b : block)
@@ -288,8 +295,7 @@ Section Main.
       split; auto.
       simpl. simpl in f. rewrite <- f.
       split; auto.
-    Qed.
-        
+    Qed.                  
         
   Theorem main_safety_clean':
       (* C program is proven to be safe in CSL*)
@@ -297,6 +303,9 @@ Section Main.
 
       (* C program compiles to some assembly program*)
       CompCert_compiler C_program = Some Asm_program ->
+
+      (* Static scheck initial memories *)
+      check_initial_mems C_program Asm_program ->
       
       forall (src_m:Memory.mem) (src_cpm:state),
         
@@ -318,9 +327,10 @@ Section Main.
             (*it's spinlock safe: well synchronized and safe *)
             spinlock_safe U tgt_cpm tgt_m.
   Proof.
-    intros * Hcsafe * Hcompiled * HCSL_init Hlimit_biltin
+    intros * Hcsafe * Hcompiled Hmem_eq * HCSL_init Hlimit_biltin
                                             Hextern_trace  Hfind_main Hasm_wf *.
-    
+
+    inversion Hmem_eq; clear Hmem_eq. rename H into Hmem_eq.
     inv Hcsafe.
     rename H into Hprog.
     rename H0 into Hfind_main_src.
@@ -418,7 +428,10 @@ Section Main.
 
       (* C program compiles to some assembly program*)
       CompCert_compiler C_program = Some Asm_program ->
-        
+
+      (* Static scheck initial memories *)
+      check_initial_mems C_program Asm_program ->
+      
       (* Statically checkable properties of ASM program *)
       forall (STATIC: static_validation Asm_program main),
 
@@ -433,7 +446,7 @@ Section Main.
          is correct  and well-synchronized  *)
         spinlock_safe U tgt_cpm tgt_m.
   Proof.
-    intros.
+    intros * ? ? Hmem_eq **.
     dup STATIC as HH; inv HH.
     dup H as HH; inv HH.
     unshelve(exploit CSL_proof_parch); eauto.

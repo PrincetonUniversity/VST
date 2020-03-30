@@ -32,6 +32,9 @@ Section MainTheorem.
       (* C program compiles to some assembly program*)
       CompCert_compiler C_program = Some Asm_program ->
         
+      (* Static scheck initial memories *)
+      check_initial_mems C_program Asm_program ->
+      
       (* Statically checkable properties of ASM program *)
       forall (STATIC: static_validation Asm_program main),
 
