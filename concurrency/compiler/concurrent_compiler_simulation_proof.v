@@ -895,17 +895,13 @@ Section Concurrent_correctness.
        Maybe you want to go to compcert and prove this directly, 
        it will break when remove globals is introduced...
      *)
-  Admitted. (* Checked 1/16/20. adm its: 
-               This is kind of wrong as explained above. 
-               Need some changes to CompCert? 
-               
-               *)
+  Admitted.
   
-      Local Ltac subst_sig:=
-        match goal with
-          H': existT _ _ _ = existT _ _ _ |- _ =>
-          eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
-        end.
+  Local Ltac subst_sig:=
+    match goal with
+      H': existT _ _ _ = existT _ _ _ |- _ =>
+      eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
+    end.
   Lemma ConcurrentCompilerCorrectness:
     forall (tp:Asm.program)
       (Hextern: single_thread_simulation_proof.Asm_externals_have_events Asm_g),

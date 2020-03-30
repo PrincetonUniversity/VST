@@ -133,12 +133,21 @@ synchronizations functions are part of that parameter:
 	it is safe for a larger memory. 
 	
 
+
+
+
 #### Not classified assumptions (Santiago is working on this March 30):
 
-single_thread_simulation_proof.start_step_diagram 
-compcert_threads_lemmas.SimProofs.sim_external 
 concurrent_compiler_simulation_proof.initial_memories_are_equal 
 single_thread_simulation_proof.initial_diagram 
 Asm.get_arguments_correct 
 ClightSemanticsForMachines.extcall_ev_elim 
+
+
+compcert_threads_lemmas.SimProofs.sim_external 
+
+# Lemmas under constructions
+
+* single_thread_simulation_proof.start_step_diagram:
+	This lemma is mostly done.
 
