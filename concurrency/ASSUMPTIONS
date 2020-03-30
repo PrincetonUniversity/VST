@@ -112,6 +112,9 @@ synchronization functions are part of that parameter:
 	Clight execution preserves finite states. Finite states are
 	those that can only step to a finite number of states. As
 	long as the memory is finite, every CompCert is finite.
+* Asm.get_arguments_correct:
+	Correctness of the way CompCert gets arguments from stack.
+	This is architecture dependent.
 
 
 #### External functions, built-ins and inlined assembly:
@@ -146,7 +149,6 @@ synchronization functions are part of that parameter:
 
 #### Not classified assumptions (Santiago is working on this March 30):
 
-Asm.get_arguments_correct 
 ClightSemanticsForMachines.extcall_ev_elim 
 compcert_threads_lemmas.SimProofs.sim_external 
 
