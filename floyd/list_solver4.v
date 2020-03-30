@@ -237,7 +237,7 @@ Proof.
   intros.
   Zlength_solve_cached2.
 Abort.
-
+(* 
 Require VST.floyd.list_solver.
 Ltac list_form := list_solver.list_form.
 
@@ -263,5 +263,8 @@ Proof.
   intros.
   list_form. apply Znth_eq_ext.
   Time Zlength_solve.
-Abort.
+Abort. *)
+
+Require VST.floyd.list_solver.
+Ltac list_solver.Zlength_solve ::= Zlength_solve.
 

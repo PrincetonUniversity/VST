@@ -1,0 +1,15 @@
+strcat_preloop2
+Finished transaction in 0.1 secs (0.092u,0.007s) (successful)
+Finished transaction in 0.039 secs (0.038u,0.s) (successful)
+strcat_return
+Finished transaction in 0.58 secs (0.578u,0.001s) (successful)
+Finished transaction in 0.223 secs (0.222u,0.s) (successful)
+strcat_loop2
+Finished transaction in 0.513 secs (0.511u,0.001s) (successful)
+Finished transaction in 0.277 secs (0.275u,0.001s) (successful)
+strcpy_return
+Finished transaction in 0.312 secs (0.31u,0.s) (successful)
+Finished transaction in 0.166 secs (0.166u,0.s) (successful)
+strcpy_loop
+Finished transaction in 0.218 secs (0.217u,0.s) (successful)
+Finished transaction in 0.032 secs (0.032u,0.s) (successful)

@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.list_solver.
+Require Import VST.floyd.list_solver3.
 Open Scope logic.
 
 Require Import Coq.Program.Tactics.

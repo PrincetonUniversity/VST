@@ -159,6 +159,11 @@ Qed.
 Ltac apply_list_ext :=
   first
   [ apply data_subsume_array_ext;
+    match goal with
+    | |- context [reptype ?t] =>
+      let T' := eval compute in (reptype t) in
+      change (reptype t) with T'
+    end;
     only 1, 2 : Zlength_solve
   | match goal with |- @eq ?list_A _ _ =>
       match eval compute in list_A with list ?A =>

@@ -17,6 +17,17 @@ Proof.
   Time Zlength_solve.
 Time Qed.
 
+Example strcat_preloop2' : forall n ld,
+  n > Zlength ld ->
+  n = Zlength (map Vbyte (ld ++ [Byte.zero]) ++ list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef)
+  .
+Proof.
+  idtac "strcat_preloop2".
+  intros.
+  list_form.
+  Time Zlength_solve.
+Time Qed.
+
 Example strcat_return : forall n (ld ls : list byte),
   Zlength ld + Zlength ls < n ->
   Zlength (map Vbyte (ld ++ ls) ++

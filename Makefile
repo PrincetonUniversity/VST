@@ -251,7 +251,7 @@ FLOYD_FILES= \
    library.v proofauto.v computable_theorems.v computable_functions.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
-   sublist.v extract_smt.v \
+   sublist.v \ # extract_smt.v \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
@@ -637,6 +637,46 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)
+
+LIST_SOLVERS=$(filter-out floyd/list_solver_base.v, $(wildcard floyd/list_solver*.v))
+BENCHMARK_FILES=$(patsubst floyd/list_solver%.v, floyd/list_benchmark%.v, $(LIST_SOLVERS))
+
+benchmark: $(BENCHMARK_FILES:%.v=%.res)
+
+temp:
+	@mkdir temp
+
+.PRECIOUS: %.out1 %.out2 %.out3 %.out4 %.out5
+
+%.out1: %.vo temp
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+
+%.out2: %.vo temp
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+
+%.out3: %.vo temp
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+
+%.out4: %.vo temp
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+
+%.out5: %.vo temp
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+
+%.res: %.out1 %.out2 %.out3 %.out4 %.out5
+	@echo summarizing $*
+	@./benchmark.py $^ > $@
+
+.PHONY: benchclean
+benchclean:
+	@rm floyd/*.res
+	@rm floyd/*.out*
+	@rm -rf temp
 
 # The .depend file is divided into two parts, .depend and .depend-concur,
 # in order to work around a limitation in Cygwin about how long one

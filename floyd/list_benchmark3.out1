@@ -1,0 +1,24 @@
+strcat_preloop2
+Finished transaction in 0.07 secs (0.062u,0.007s) (successful)
+Finished transaction in 0.244 secs (0.238u,0.002s) (successful)
+Finished transaction in 0.061 secs (0.06u,0.s) (successful)
+strcat_return
+Finished transaction in 0.199 secs (0.194u,0.002s) (successful)
+Finished transaction in 0.625 secs (0.609u,0.007s) (successful)
+Finished transaction in 0.277 secs (0.271u,0.003s) (successful)
+strcat_loop2
+Finished transaction in 0.165 secs (0.161u,0.001s) (successful)
+Finished transaction in 0.788 secs (0.769u,0.01s) (successful)
+Finished transaction in 0.28 secs (0.274u,0.003s) (successful)
+strcpy_return
+Finished transaction in 0.097 secs (0.095u,0.001s) (successful)
+Finished transaction in 0.375 secs (0.367u,0.004s) (successful)
+Finished transaction in 0.121 secs (0.118u,0.001s) (successful)
+strcpy_loop
+Finished transaction in 0.338 secs (0.331u,0.003s) (successful)
+Finished transaction in 0.075 secs (0.073u,0.s) (successful)
+Finished transaction in 0.551 secs (0.538u,0.006s) (successful)
+Finished transaction in 0.188 secs (0.183u,0.002s) (successful)
+strcmp_loop
+Finished transaction in 2.212 secs (2.158u,0.026s) (successful)
+Finished transaction in 0.297 secs (0.291u,0.003s) (successful)
