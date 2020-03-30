@@ -14,9 +14,18 @@ This will show the same output above, but with the body of each assumption.
 
 ##### Explaining the assusmptions: 
 
-coinductive_safety.valid_step 
+
+## Logic assumptions:
+
+
+	
+
 concurrent_compiler_simulation_proof.trivial_asm_simulation 
+	
+
 CPM_self_simulation.thread_step_preserves_self_simulates 
+
+
 single_thread_simulation_proof.start_step_diagram 
 compcert_threads_lemmas.SimProofs.sim_external 
 ClassicalDedekindReals.sig_not_dec 

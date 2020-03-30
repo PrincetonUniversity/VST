@@ -441,7 +441,7 @@ Module HybridMachineSig.
     Definition unique_Krun tp i :=
       forall j cnti q, 
         @getThreadC _ _ _ j tp cnti = Krun q ->
-        eq_nat_dec i j (*\/ exists ret, halted  semSem q ret*).
+        i = j (*\/ exists ret, halted  semSem q ret*).
 
     Lemma hybrid_initial_schedule: forall m m' main vals U p st n,
         initial_core (MachineCoreSemantics U p) n m st m' main vals ->

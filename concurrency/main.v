@@ -47,6 +47,3 @@ Section MainTheorem.
         spinlock_safe U tgt_cpm tgt_m.
     Proof. eapply main_safety_clean. Qed.
 End MainTheorem.
-
-Check top2bottom_correct.
-Print Assumptions top2bottom_correct.

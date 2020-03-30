@@ -17,16 +17,18 @@ Section safety_equivalence.
   ( ext_step: X -> Y -> X -> Y -> Prop)
   ( valid: X -> Y -> Prop).
 
-  Axiom determinism:
+  Context (determinism:
     forall x y y',
       valid x y  -> int_step x y y' ->
-      forall x',
-        valid x' y -> int_step x' y y'.
-
-  Axiom valid_step:
-    forall x y y',
-      valid x y  -> int_step x y y' ->
-      valid x y'.
+      forall x', ~ halted x' y ->
+        valid x' y -> int_step x' y y').
+  Context (running_not_halted:
+             forall x y y', int_step x y y' ->
+                       ~ halted x y').
+  Context (valid_step:
+             forall x y y',
+               valid x y  -> int_step x y y' ->
+               valid x y').
 
   Section explicit_safety.
 
@@ -99,7 +101,7 @@ Section safety_equivalence.
       forall n,
       forall x y y',
         valid x y  -> stepN x y y' n ->
-        forall x',
+        forall x', ~ halted x' y ->
           valid x' y -> stepN x' y y' n.
     Proof. induction n.
            - intros; econstructor.
@@ -108,10 +110,9 @@ Section safety_equivalence.
              inversion H0; subst.
              econstructor.
              eapply (determinism x y _y); eauto.
-             eapply IHn; eauto.
-             eapply valid_step; eauto.
-             eapply valid_step; eauto.
-             eapply (determinism x y _y); eauto.
+             eapply IHn; try eapply H5; eauto.
+             (* eapply valid_step; eauto.
+             eapply (determinism x y _y); eauto. *)
     Qed.
 
     Lemma valid_stepN:
@@ -183,10 +184,13 @@ Section safety_equivalence.
               intros. inversion H; subst; clear H.
               pfold; econstructor 2; eauto.
               intros.
-              unfold upaco2.
-              left; eapply IHn; eauto.
-              eapply (determinismN _ x0 _y y' ) with (x'0:= x'); eauto.
-              eapply valid_step; eauto.
+              unfold upaco2. left.
+              Require Import Classical_Prop.
+              
+              destruct (classic (halted x' _y)).
+              -- pfold. constructor; eauto.
+              -- eapply IHn; eauto.
+                 eapply (determinismN _ x0 _y y' ) with (x'0:= x'); eauto.
           }
           { (*Prove the cut*)
             eapply valid_stepN; eauto.

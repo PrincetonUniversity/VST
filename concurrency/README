@@ -1,5 +1,7 @@
 ##### File organization:
 
+Description of each folder:
+
 /concurrency/. : The current folder (VST/concurrency) contains the files that put all the results together. You can find the final theorem in main.v.
 
 /concurrency/common: Semantic definitions and general lemmas used by all the other folders.

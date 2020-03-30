@@ -222,6 +222,58 @@ Section Concurrent_Safety.
       hnf in H1; simpl in *.
       intros; eapply step_cmpt; eauto.
     Qed.
+    
+    Lemma valid_preservation_interal_step:
+      forall SEM (x : schedule) (y y' : event_trace * ThreadPool.t * Memory.Mem.mem),
+        valid SEM y x -> internal_step x (y#1)#2 y#2 (y'#1)#2 y'#2 ->
+        valid SEM y' x.
+    Proof.
+      simpl. intros SEM x y y'. destruct y. destruct p. destruct y'; destruct p.
+      simpl. unfold valid, correct_schedule; simpl.
+      match_case; eauto.
+      unfold unique_Krun; intros.
+      invert H0. invert Htstep.
+      destruct (Nat.eq_dec j tid).
+      - subst. eapply H; eauto.
+      - eapply H.
+        erewrite <- ThreadPool.gsoThreadCode; eauto.
+
+        Unshelve.
+        eauto.
+    Qed.
+    Lemma valid_has_only_one_running:
+          forall SEM (x : schedule) (y y' : event_trace * ThreadPool.t * Memory.Mem.mem),
+            valid SEM y x ->
+            internal_step x (y#1)#2 y#2 (y'#1)#2 y'#2 ->
+            forall x' : schedule,
+              ~ halted_machine (x', (y#1)#1, (y#1)#2) ->
+              valid SEM y x' -> internal_step x' (y#1)#2 y#2 (y'#1)#2 y'#2.
+        Proof.
+          unfold valid, correct_schedule,unique_Krun.
+          intros *; match_case; eauto; swap 1 2.
+          - (* schedule empty*)
+            intros. invert H0.
+            rewrite HschedN in Heqo; congruence.
+          - intros. match_case in H2; swap 1 2.
+            + contradict H1. hnf. unfold halted_machine; simpl.
+              rewrite Heqo0; auto.
+            + invert H0. invert Htstep.
+              eapply H2 in Hcode.
+              dup Hcode as Hcode'.
+              destruct Hcode.
+              rewrite <- H4.
+              econstructor; eauto.
+        Qed.
+        Lemma step_not_halted:
+          forall (Sem : Semantics)
+            (x : schedule) (y y' : event_trace * ThreadPool.t * Memory.Mem.mem),
+            internal_step(machineSig:=DryHybridMachineSig) x (y#1)#2 y#2 (y'#1)#2 y'#2 ->
+            ~ @halted_machine _ _ _ (x, (y'#1)#1, (y'#1)#2).
+        Proof.
+          intros. inversion H; subst. inversion Htstep; subst.
+          unfold halted_machine. match_case; eauto.
+          simpl in Heqo. rewrite HschedN in Heqo. congruence.
+        Qed.
     Lemma explicit_safety_step':
       forall (p : Clight.program) (tp : Asm.program) (asm_genv_safety : Asm_core.safe_genv the_ge),
         let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)) in
@@ -252,6 +304,10 @@ Section Concurrent_Safety.
       intros.
       eapply coinductive_safety.exp_safety_paco_correct.
       eapply coinductive_safety.safetyN_equivalence.
+      { (*Traget determinism *)
+        eapply valid_has_only_one_running. }
+      { eapply step_not_halted. }
+      { eapply valid_preservation_interal_step. }
       simpl; now auto.
       eapply coinductive_safety.speach_therapy with (cd := cd).
       now eapply (core_ord_wf SIM).
