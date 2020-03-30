@@ -1,73 +1,144 @@
-##### Print Assumptions:
+###### Print Assumptions:
 
-After building the entire project you can run print the assumptions of our main theorem with:
+After building the entire project (See README) you can print the assumptions of our main theorem with:
 
 	make assumptions-concurrency 
 
-This will show all the Axioms, Assumptions and Lemmas under constructions used by the main lemma in main.v. An explanation of these assumptions can be found in bellow, and a detail explanation of each Admitted lemma can be found in its file as comments. 
+This will show all the Axioms, Assumptions and Lemmas under constructions used by the main lemma in main.v. An explanation of these assumptions can be found bellow, and a detail explanation of each Admitted lemma can be found as comments in its file. 
 
 To print the full body of all assumptions you may also run:
 
 	make assumptions-concurrency-body
 
-This will show the same output above, but with the body of each assumption. 
-
-##### Explaining the assusmptions: 
+This will show the same output above, but with the definition of each assumption. For better formatting, you may also open the file [main_print_assumptions.v] in CoqIDE or Proof General. The last command in will print the assumptions.
 
 
-## Logic assumptions:
 
 
+
+###### Explaining the assumptions: 
+
+
+#### Logic assumptions:
+	
+* Axioms.prop_ext:
+	Propositional extensionality
+* ProofIrrelevance.proof_irrelevance:
+	Proof Irrelevance 
+* lib.Axioms.proof_irr:
+	Proof Irrelevance (2nd import)
+* Eqdep.Eq_rect_eq.eq_rect_eq:
+	invariance by substitution of reflexive equality proofs
+* Classical_Prop.classic:
+	Excluded middle.
+* JMeq.JMeq_eq:
+	John Major's Equality.
+* FunctionalExtensionality.functional_extensionality_dep 
+	Dependent functional extensionality
+
+
+#### Real numbers
+
+* ClassicalDedekindReals.sig_not_dec :
+	Classical Dedekind reals.
+* ClassicalDedekindReals.sig_forall_dec:
+	Classical Dedekind reals.
 	
 
-concurrent_compiler_simulation_proof.trivial_asm_simulation 
+#### Self simulations
+
+* CPM_self_simulation.thread_step_preserves_self_simulates 
+	The CPM self-simulates
+* CPM_self_simulation.self_simulates_initial:
+	The CPM self-simulates, initial diagram
+* CPM_self_simulation.self_simulates_match:
+	The CPM self-simulates match is not yet defined.
+* CPM_self_simulation.machine_step_preserves_self_simulates:
+	The CPM self-simulates, diagram for machine steps  
+* CPM_self_simulation.lift_self_simulates:
+	Hybrid CPMs are equal if the number of threads is lower than their bound.
+* Clight_self_simulation.clight_self_simulation:
+	The Clight language self-simulates
+* Asm_self_simulation.Asm_self_simulation 
+	The Asm language self-simulates
+* concurrent_compiler_simulation_proof.trivial_asm_simulation 
+	The Asm language self-simulates
 	
 
-CPM_self_simulation.thread_step_preserves_self_simulates 
+#### Reestablishing the concur_match:
 
+In every step diagram for the CPM, we must reestablish the relation between the
+resulting CPM steps. In all the lemmas, parts of the state change (e.g. the 
+state of the running thread) and others don't (e.g. the state of other threads).
+For the lemmas lemmas bellow, the NEW relationships have been established, but 
+we still must recover the relationship of the parts of the state that have not 
+changed. This is straightforward, but tedious.
+
+* concur_match.concur_match_update_lock 
+* concur_match.concur_match_updateC 
+* concur_match.concur_match_updLock_empty 
+* concur_match.concur_match_thread_step 
+* concur_match.concur_match_free_lock 
+* concur_match.concur_match_add_thread 
+
+#### The synchronisation functions are in the context.
+
+We assume that the context of the program contains all the 
+synchronization functions we use. In CompCert semantics the semantics
+of external functions are given as a parameter. We assume that our 
+synchronizations functions are part of that parameter:
+
+* synchronisation_steps_semantics.SpawnExists 
+* synchronisation_steps_semantics.ReleaseExists
+* synchronisation_steps_semantics.MakeLockExists 
+* synchronisation_steps_semantics.FreeLockExists 
+* synchronisation_steps_semantics.AcquireExists 
+
+
+#### Properties of CompCert semantics:
+
+* concurrent_compiler_safety_proof.Clight_finite_branching:
+	The Clight semantics is finite branching. In other words, 
+	every step can only step to a finite number of states.
+* safety_equivalence.finite_state_preservation:
+	Clight execution preserves finite states. Finite states are
+	those that can only step to a finite number of states. As
+	long as the memory is finite, every CompCert is finite.
+
+
+#### External functions, built-ins and inlined assembly:
+
+* Clight_core.inline_external_call_mem_events 
+* Events.inline_assembly_sem 
+* Events.inline_assembly_properties 
+* Clightcore_coop.inline_assembly_memstep 
+* Events.external_functions_sem 
+* Events.external_functions_properties 
+* ClightSemanticsForMachines.Clight_step_nil_trace_not_atx:
+	We assume external, that are not built-ins, have
+	no trace. This restriction can easily be lifted
+	by distinguishing between synch calls and other
+	external functions.
+* Clight_mem_ok.external_call_wellformed:
+	External calls must preserve well-formed 
+	memories. 
+* Clightcore_coop.extcall_sem_mem_step:
+	External calls are assumed to respect the
+	memory interface.
+
+#### Juicy Semantics:
+	
+* semax_safety_spawn.Concurrent_Espec_permits_framing:
+	If a program is safe for a memory, 
+	it is safe for a larger memory. 
+	
+
+#### Not classified assumptions (Santiago is working on this March 30):
 
 single_thread_simulation_proof.start_step_diagram 
 compcert_threads_lemmas.SimProofs.sim_external 
-ClassicalDedekindReals.sig_not_dec 
-ClassicalDedekindReals.sig_forall_dec 
-CPM_self_simulation.self_simulates_match 
-CPM_self_simulation.self_simulates_initial 
-semax_safety_spawn.safety_induction_spawn 
-Axioms.prop_ext 
-ProofIrrelevance.proof_irrelevance 
-lib.Axioms.proof_irr 
-CPM_self_simulation.machine_step_preserves_self_simulates 
-CPM_self_simulation.lift_self_simulates 
-Clight_core.inline_external_call_mem_events 
-Events.inline_assembly_sem 
-Events.inline_assembly_properties 
-Clightcore_coop.inline_assembly_memstep 
 concurrent_compiler_simulation_proof.initial_memories_are_equal 
 single_thread_simulation_proof.initial_diagram 
 Asm.get_arguments_correct 
-FunctionalExtensionality.functional_extensionality_dep 
-safety_equivalence.finite_state_preservation 
-Events.external_functions_sem 
-Events.external_functions_properties 
-Clight_mem_ok.external_call_wellformed 
-Clightcore_coop.extcall_sem_mem_step 
 ClightSemanticsForMachines.extcall_ev_elim 
-Eqdep.Eq_rect_eq.eq_rect_eq 
-coinductive_safety.determinism 
-concur_match.concur_match_update_lock 
-concur_match.concur_match_updateC 
-concur_match.concur_match_updLock_empty 
-concur_match.concur_match_thread_step 
-concur_match.concur_match_free_lock 
-concur_match.concur_match_add_thread 
-Clight_self_simulation.clight_self_simulation 
-Classical_Prop.classic 
-synchronisation_steps_semantics.SpawnExists 
-synchronisation_steps_semantics.ReleaseExists 
-synchronisation_steps_semantics.MakeLockExists 
-JMeq.JMeq_eq 
-synchronisation_steps_semantics.FreeLockExists 
-ClightSemanticsForMachines.Clight_step_nil_trace_not_atx 
-concurrent_compiler_safety_proof.Clight_finite_branching 
-Asm_self_simulation.Asm_self_simulation 
-synchronisation_steps_semantics.AcquireExists 
+
