@@ -89,18 +89,13 @@ changed. This is straightforward, but tedious.
 * concur_match.concur_match_free_lock 
 * concur_match.concur_match_add_thread 
 
-#### The synchronisation functions are in the context.
+#### The synchronization functions are in the context.
 
-We assume that the context of the program contains all the 
-synchronization functions we use. In CompCert semantics the semantics
-of external functions are given as a parameter. We assume that our 
-synchronization functions are part of that parameter:
+CompCert links with external functions through by a given parameter 
+that gives their semantics. We must assume that our 
+synchronization functions are part of that parameter.
 
-* synchronisation_steps_semantics.SpawnExists 
-* synchronisation_steps_semantics.ReleaseExists
-* synchronisation_steps_semantics.MakeLockExists 
-* synchronisation_steps_semantics.FreeLockExists 
-* synchronisation_steps_semantics.AcquireExists 
+* synchronisation_steps_semantics.sync_functions_are_in_context
 
 
 #### Properties of CompCert semantics:
