@@ -1,18 +1,23 @@
 ###### Print Assumptions:
 
-After building the entire project (See README) you can print the assumptions of our main theorem with:
+After building the entire project (See README) you can print the
+assumptions of our main theorem with:
 
 	make assumptions-concurrency 
 
-This will show all the Axioms, Assumptions and Lemmas under constructions used by the main lemma in main.v. An explanation of these assumptions can be found bellow, and a detail explanation of each Admitted lemma can be found as comments in its file. 
+This will show all the Axioms, Assumptions and Admitted Lemmas used by
+the main lemma in main.v. An explanation of these assumptions can be
+found below, and a detail explanation of each Admitted lemma can be
+found as comments in its file.
 
 To print the full body of all assumptions you may also run:
 
 	make assumptions-concurrency-body
 
-This will show the same output above, but with the definition of each assumption. For better formatting, you may also open the file [main_print_assumptions.v] in CoqIDE or Proof General. The last command in will print the assumptions.
-
-
+This will show the same output above, but with the definition of each
+assumption. For better formatting, you may also open the file
+[main_print_assumptions.v] in CoqIDE or Proof General. The last
+command in will print the assumptions.
 
 
 
@@ -32,12 +37,12 @@ This will show the same output above, but with the definition of each assumption
 * Classical_Prop.classic:
 	Excluded middle.
 * JMeq.JMeq_eq:
-	John Major's Equality.
+	John Major Equality.
 * FunctionalExtensionality.functional_extensionality_dep 
 	Dependent functional extensionality
 
 
-#### Real numbers
+#### Real numbers  (needed only by CompCert's floating-point theory)
 
 * ClassicalDedekindReals.sig_not_dec :
 	Classical Dedekind reals.
@@ -46,6 +51,9 @@ This will show the same output above, but with the definition of each assumption
 	
 
 #### Self simulations
+
+   XXX
+
 
 * CPM_self_simulation.thread_step_preserves_self_simulates 
 	The CPM self-simulates
@@ -70,7 +78,7 @@ This will show the same output above, but with the definition of each assumption
 In every step diagram for the CPM, we must reestablish the relation between the
 resulting CPM steps. In all the lemmas, parts of the state change (e.g. the 
 state of the running thread) and others don't (e.g. the state of other threads).
-For the lemmas lemmas bellow, the NEW relationships have been established, but 
+For the lemmas bellow, the NEW relationships have been established, but 
 we still must recover the relationship of the parts of the state that have not 
 changed. This is straightforward, but tedious.
 
@@ -86,7 +94,7 @@ changed. This is straightforward, but tedious.
 We assume that the context of the program contains all the 
 synchronization functions we use. In CompCert semantics the semantics
 of external functions are given as a parameter. We assume that our 
-synchronizations functions are part of that parameter:
+synchronization functions are part of that parameter:
 
 * synchronisation_steps_semantics.SpawnExists 
 * synchronisation_steps_semantics.ReleaseExists
