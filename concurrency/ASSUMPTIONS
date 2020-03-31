@@ -52,7 +52,10 @@ command in will print the assumptions.
 
 #### Self simulations
 
-   XXX
+   Self simulation, described in the paper in Definition 5.14, has been proven
+before (about CompCert semantics) by several published works. Their semantics 
+is slightly different than ours, so we can't directly reuse their proofs. 
+However we can use their proofs to prove the following lemmas: 
 
 
 * CPM_self_simulation.thread_step_preserves_self_simulates 
