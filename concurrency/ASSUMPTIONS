@@ -136,6 +136,9 @@ synchronization functions are part of that parameter:
 * Clightcore_coop.extcall_sem_mem_step:
 	External calls are assumed to respect the
 	memory interface.
+* ClightSemanticsForMachines.extcall_ev_elim:
+	Builtins respect the memory interface and form a 
+	"event" memory semantics.  
 
 #### Juicy Semantics:
 	
@@ -143,15 +146,6 @@ synchronization functions are part of that parameter:
 	If a program is safe for a memory, 
 	it is safe for a larger memory. 
 	
-
-
-
-
-#### Not classified assumptions (Santiago is working on this March 30):
-
-ClightSemanticsForMachines.extcall_ev_elim 
-compcert_threads_lemmas.SimProofs.sim_external 
-
 #### Lemmas under constructions
 
 * single_thread_simulation_proof.start_step_diagram:
@@ -159,4 +153,8 @@ compcert_threads_lemmas.SimProofs.sim_external
 * single_thread_simulation_proof.initial_diagram 
 	Arguments must be valid, Main must be valid!
 
+#### Not classified assumptions (Santiago is working on this March 30):
+
+* compcert_threads_lemmas.SimProofs.sim_external 
+	Merge conflict, needs fixing.
 

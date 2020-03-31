@@ -216,32 +216,69 @@ Inductive extcall_freelock : Events.extcall_sem :=
     extcall_freelock ge (Vptr b ofs :: nil) m
                      (Events.Event_acq_rel e empty_dmap e' :: nil) Vundef m'''.
 
-Axiom ReleaseExists:
+Definition spawn_sig:= CREATE_SIG.
+Definition sync_sig:= LOCK_SIG.
+
+
+Definition external_functions_sem name (sig:AST.signature) ge args m ev r m': Prop:=
+  match name with
+  | "release"%string => extcall_release ge args m ev r m'
+  | "acquire"%string => extcall_acquire ge args m ev r m'
+  | "makelock"%string => extcall_mklock ge args m ev r m'
+  | "freelock"%string => extcall_freelock ge args m ev r m'
+  | "spawn"%string => extcall_spawn ge args m ev r m'
+  | _ => False
+  end.
+
+Definition is_sync name:=
+  match name with
+  | "release"%string
+  | "acquire"%string
+  | "makelock"%string
+  | "freelock"%string
+  | "spawn"%string => True
+  | _  => False
+  end.
+
+Axiom sync_functions_are_in_context:
+  forall name (sig:AST.signature) ge args m ev r m',
+    is_sync name ->
+    Events.external_functions_sem name sig ge args m ev r m' =
+    external_functions_sem name sig ge args m ev r m'.
+Ltac solve_exists:=
+  intros *; rewrite sync_functions_are_in_context by constructor; reflexivity.
+
+Lemma ReleaseExists:
   forall ge args m ev r m',
     Events.external_functions_sem "release" UNLOCK_SIG
                                   ge args m ev r m' =
-    extcall_release ge args m ev r m'. 
-Axiom AcquireExists:
+    extcall_release ge args m ev r m'.
+Proof. solve_exists. Qed.
+  
+Lemma AcquireExists:
   forall ge args m ev r m',
     Events.external_functions_sem "acquire" LOCK_SIG
                                   ge args m ev r m' =
     extcall_acquire ge args m ev r m'.
-Axiom MakeLockExists:
+Proof. solve_exists. Qed.
+Lemma MakeLockExists:
   forall ge args m ev r m',
     Events.external_functions_sem "makelock" UNLOCK_SIG
                                   ge args m ev r m' =
     extcall_mklock ge args m ev r m'. 
-Axiom FreeLockExists
+Proof. solve_exists. Qed.
+Lemma FreeLockExists
   : forall (ge : Senv.t) (args : list val) (m : mem) (ev : Events.trace) 
       (r : val) (m' : mem),
     Events.external_functions_sem "freelock" UNLOCK_SIG ge args m ev r m' =
     extcall_freelock ge args m ev r m'.
-Axiom SpawnExists
+Proof. solve_exists. Qed.
+Lemma SpawnExists
   : forall (ge : Senv.t) (args : list val) (m : mem) (ev : Events.trace) 
       (r : val) (m' : mem),
     Events.external_functions_sem "spawn" CREATE_SIG ge args m ev r m' =
     extcall_spawn ge args m ev r m'.
-
+Proof. solve_exists. Qed.
 
 
 (*Don't return *)
