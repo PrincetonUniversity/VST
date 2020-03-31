@@ -55,8 +55,7 @@ command in will print the assumptions.
    Self simulation, described in the paper in Definition 5.14, has been proven
 before (about CompCert semantics) by several published works. Their semantics 
 is slightly different than ours, so we can't directly reuse their proofs. 
-However we can use their proofs to prove the following lemmas: 
-
+Proving the following lemmas should be tedious but straightforward:
 
 * CPM_self_simulation.thread_step_preserves_self_simulates 
 	The CPM self-simulates
@@ -67,7 +66,7 @@ However we can use their proofs to prove the following lemmas:
 * CPM_self_simulation.machine_step_preserves_self_simulates:
 	The CPM self-simulates, diagram for machine steps  
 * CPM_self_simulation.lift_self_simulates:
-	Hybrid CPMs are equal if the number of threads is lower than their bound.
+	Hybrid CPMs are equal if the number of threads is less than their bound.
 * Clight_self_simulation.clight_self_simulation:
 	The Clight language self-simulates
 * Asm_self_simulation.Asm_self_simulation 
@@ -81,7 +80,7 @@ However we can use their proofs to prove the following lemmas:
 In every step diagram for the CPM, we must reestablish the relation between the
 resulting CPM steps. In all the lemmas, parts of the state change (e.g. the 
 state of the running thread) and others don't (e.g. the state of other threads).
-For the lemmas bellow, the NEW relationships have been established, but 
+For the lemmas below, the NEW relationships have been established, but 
 we still must recover the relationship of the parts of the state that have not 
 changed. This is straightforward, but tedious.
 
@@ -94,7 +93,7 @@ changed. This is straightforward, but tedious.
 
 #### The synchronization functions are in the context.
 
-CompCert links with external functions through by a given parameter 
+CompCert links with external-function semantics via a given "Parameter"
 that gives their semantics. We must assume that our 
 synchronization functions are part of that parameter.
 
@@ -144,14 +143,14 @@ synchronization functions are part of that parameter.
 	If a program is safe for a memory, 
 	it is safe for a larger memory. 
 	
-#### Lemmas under constructions
+#### Lemmas under construction
 
 * single_thread_simulation_proof.start_step_diagram:
 	This lemma is mostly done.
 * single_thread_simulation_proof.initial_diagram 
 	Arguments must be valid, Main must be valid!
 
-#### Not classified assumptions (Santiago is working on this March 30):
+#### Miscellaneous assumptions (Santiago is working on this March 30):
 
 * compcert_threads_lemmas.SimProofs.sim_external 
 	Merge conflict, needs fixing.
