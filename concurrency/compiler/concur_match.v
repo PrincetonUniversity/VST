@@ -99,6 +99,7 @@ Section ConcurMatch.
     | Thread_Init: forall j m1 m2 v1 v1' v2 v2',
         Val.inject j v1 v2 ->
         Val.inject j v1' v2' ->
+        match_mem j m1 m2 -> 
         match_thread state_type1 state_type2 match_state j (Kinit v1 v1') m1
                      (Kinit v2 v2') m2.
     
@@ -1353,9 +1354,11 @@ Section ConcurMatch.
                (mcompat1: mem_compatible st1 m1)
                (mcompat2: mem_compatible st2 m2),
           semantics.mem_step
-            (restrPermMap (proj1 (mcompat1 tid Htid))) m1' ->
+            (restrPermMap (proj1 (mcompat1 tid Htid))) m1' \/
+          (restrPermMap (proj1 (mcompat1 tid Htid))) = m1'  ->
           semantics.mem_step
-            (restrPermMap (proj1 (mcompat2 tid Htid'))) m2' ->
+            (restrPermMap (proj1 (mcompat2 tid Htid'))) m2' \/
+            (restrPermMap (proj1 (mcompat2 tid Htid'))) = m2' ->
           invariant st1 ->
           invariant st2 ->
           concur_match cd mu st1 m1 st2 m2 ->

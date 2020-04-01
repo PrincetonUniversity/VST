@@ -196,7 +196,10 @@ enforce and the ones that we enforce.
 #### 9. Lemmas under construction
 
 * single_thread_simulation_proof.start_step_diagram:
-	This lemma is mostly done.
+	This lemma depends on two facts that are true but have not yet 
+	been propagated through the other parts of the project. 
 * compcert_threads_lemmas.SimProofs.sim_external 
-	Merge conflict, needs fixing.
+	We had a working version of this proof until it broke after 
+	some updates to VST. The author will be working on fixing 
+	these shortly.
 
