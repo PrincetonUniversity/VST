@@ -99,6 +99,22 @@ synchronization functions are part of that parameter.
 
 * synchronisation_steps_semantics.sync_functions_are_in_context
 
+#### Inlined assembly is well defined:
+
+If the program contains any inlined assembly, CompCert 
+requires the following two parameters.
+
+* Events.inline_assembly_sem:
+	Parameter describing the behavior of inlined assembly.
+* Events.inline_assembly_properties:
+	Inlined assembly satisfies the same properties that 
+	CompCert requires of external functions.
+* Events.external_functions_sem:
+	Semantics of external functions.
+* Events.external_functions_properties:
+	External functions satisfy the properties required by CompCert. 
+	
+
 
 #### Properties of CompCert semantics:
 
@@ -117,12 +133,19 @@ synchronization functions are part of that parameter.
 
 #### External functions, built-ins and inlined assembly:
 
-* Clight_core.inline_external_call_mem_events 
-* Events.inline_assembly_sem 
-* Events.inline_assembly_properties 
-* Clightcore_coop.inline_assembly_memstep 
-* Events.external_functions_sem 
-* Events.external_functions_properties 
+We have to impose certain limitations to external functions, 
+built-ins and inlined assembly, presented here. We separate 
+these restrictions in two lists: the ones that CompCert should
+enforce and the ones that we enforce:
+
+	## Compcert should enforce these properties:
+
+* Clight_core.inline_external_call_mem_events:
+	External functions that the compiler can inline 
+	(which can be done for some built-ins), must respect
+	the memory interface. 
+* Clightcore_coop.inline_assembly_memstep:
+	Inlined assembly should respect the memory interface.
 * ClightSemanticsForMachines.Clight_step_nil_trace_not_atx:
 	We assume external, that are not built-ins, have
 	no trace. This restriction can easily be lifted
@@ -130,11 +153,11 @@ synchronization functions are part of that parameter.
 	external functions.
 * Clight_mem_ok.external_call_wellformed:
 	External calls must preserve well-formed 
-	memories. 
-* Clightcore_coop.extcall_sem_mem_step:
-	External calls are assumed to respect the
-	memory interface.
-* ClightSemanticsForMachines.extcall_ev_elim:
+	memories. That is, they don't introduce 
+	dangling pointers.
+
+	## New properties we require:
+* ClightSemanticsForMachines.extcall_ev_elim: (* LOOK at this with Andrew*)
 	Builtins respect the memory interface and form a 
 	"event" memory semantics.  
 

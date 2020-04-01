@@ -1,4 +1,4 @@
-(* Clight SEmantics for Machines*)
+(* Clight Semantics for Machines*)
 
 (*
   We define event semantics for 
@@ -1027,6 +1027,19 @@ Section CLC_SEM.
   Proof.
     intros.
     inv Hev; simpl in Hef; try solve [inv Hef].
+    pose proof Clight_core.inline_external_call_mem_events.
+    specialize (X ef g vargs m t vres m').
+    unfold ef_inline in *.
+    assert (match ef with
+      | EF_external _ _ | EF_runtime _ _ | EF_malloc | EF_free => false
+      | _ => true
+            end = true).
+    { match_case in Hef; try reflexivity.
+    ltac:(reflexivity)).
+    simpl in X.
+  eapply X in E.
+  inv E.
+  eapply ev_elim_mem_step; eauto.
     (* EXPLANATION: this should comes from an assumption:
        Either we add an axiom saying our semantics only calls such externals OR
        we add this to the properties of external funtioncs.

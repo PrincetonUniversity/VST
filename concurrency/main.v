@@ -8,22 +8,8 @@ Require Import VST.concurrency.main_proofs.
 
 Section MainTheorem.
          Context {CC_correct: CompCert_correctness}
-          {Args: ThreadSimulationArguments}.
-  (*Import CC_correct Args.
-  Module Theorem_proofs:=Main CC_correct Args.
-  Import Theorem_proofs. *)
-  
-  Section Temporary_to_see_inconsistency.
-    (*Initial states are inconsistent.
-      Here is how
-     *)
-  Import Clight.
-
-      (* End of temporary exposition *)
-  Goal True.
-    idtac "Delete until here". auto. Qed.
-  End Temporary_to_see_inconsistency.
-  
+                 {Args: ThreadSimulationArguments}.
+         
   Notation CPM:=ThreadPool.t.
   Theorem top2bottom_correct:
       (* C program is proven to be safe in CSL*)
@@ -48,5 +34,6 @@ Section MainTheorem.
         (* The assembly language program 
          is correct  and well-synchronized  *)
         spinlock_safe U tgt_cpm tgt_m.
-    Proof. eapply main_safety_clean. Qed.
+  Proof. eapply main_safety_clean. Qed.
+  
 End MainTheorem.
