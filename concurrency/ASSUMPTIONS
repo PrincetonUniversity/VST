@@ -106,9 +106,10 @@ synchronization functions are part of that parameter.
 	The Clight semantics is finite branching. In other words, 
 	every step can only step to a finite number of states.
 * safety_equivalence.finite_state_preservation:
-	Clight execution preserves finite states. Finite states are
-	those that can only step to a finite number of states. As
-	long as the memory is finite, every CompCert is finite.
+	A set of Clight states is finite branching. In other words,
+	there is a finite number states that can be reaching, by
+	taking one single step, from a finite set of Clight states.
+	This fact follows from the Clight_finite_branching above.
 * Asm.get_arguments_correct:
 	Correctness of the way CompCert gets arguments from stack.
 	This is architecture dependent.

@@ -892,8 +892,11 @@ Context (finit_branch_kstep:(forall x : kstate,
 Lemma finite_state_preservation:
   forall P0 P' : SST kstate,
     konig.finite P0 -> SST_step kstate schedule kstep valid P0 P' -> konig.finite P'.
+(*Meaning: A set of Clight states is finite branching. In other words,
+	there is a finite number states that can be reaching, by
+	taking one single step, from a finite set of Clight states.*)
 Proof.
-  (* This should follow from finitebranching, lifted to sets *)
+ (* Proof: This fact follows from concurrent_compiler_safety_proof.Clight_finite_branching *)
 Admitted.
     
 Lemma csafe_safety_trick:
