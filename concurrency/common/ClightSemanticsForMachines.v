@@ -1026,20 +1026,10 @@ Section CLC_SEM.
     ev_elim m ev m'.
   Proof.
     intros.
-    inv Hev; simpl in Hef; try solve [inv Hef].
-    pose proof Clight_core.inline_external_call_mem_events.
-    specialize (X ef g vargs m t vres m').
-    unfold ef_inline in *.
-    assert (match ef with
-      | EF_external _ _ | EF_runtime _ _ | EF_malloc | EF_free => false
-      | _ => true
-            end = true).
-    { match_case in Hef; try reflexivity.
-    ltac:(reflexivity)).
-    simpl in X.
-  eapply X in E.
-  inv E.
-  eapply ev_elim_mem_step; eauto.
+    (*
+      inv Hev; simpl in Hef; try solve [inv Hef].
+     *)
+    
     (* EXPLANATION: this should comes from an assumption:
        Either we add an axiom saying our semantics only calls such externals OR
        we add this to the properties of external funtioncs.
@@ -1053,8 +1043,9 @@ Section CLC_SEM.
           Clight.at_external s1 = None ->
           Clight.step g f s1 t s2 ->
           t = nil.
-      Proof using g.
-      Admitted.
+  Proof using g.
+    
+  Admitted.
 
   Lemma clc_ev_elim (FE: forall f vargs m e le m1 T (E:function_entryT f vargs m e le m1 T), ev_elim m T m1):
     forall c m T c' m' (E: clc_evstep c m T c' m'), ev_elim m T m'.

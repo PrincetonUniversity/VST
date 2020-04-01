@@ -186,6 +186,8 @@ Section HybridSimulation.
     - intros; eapply inject_mevent_incr; eassumption.
   Qed.
 
+  Definition not_dangling (m:mem) (v:val):=
+    (mem_lemmas.val_inject (Mem.flat_inj (Mem.nextblock m))) v v.
   Record HybridMachine_simulation_properties
          (Hinv: SC -> Prop)(Hcmpt: SC -> mem -> Prop)
          (index: Type)(match_state : index -> meminj -> SC -> mem -> TC -> mem -> Prop) :=
@@ -198,6 +200,8 @@ Section HybridSimulation.
           forall (*s_init_thread*) m0 s_mem main main_args s_mach_state r1,
             (*initial_source_thread s_mem s_init_thread main main_args -> *)
             Mem.mem_wd m0 ->
+            not_dangling m0 main ->
+            Forall (not_dangling m0) main_args ->
             machine_semantics.initial_machine SourceHybridMachine r1 m0 s_mach_state s_mem main main_args ->
             exists j cd t_mach_state t_mem r2,
               machine_semantics.initial_machine TargetHybridMachine r2 m0 t_mach_state t_mem main main_args

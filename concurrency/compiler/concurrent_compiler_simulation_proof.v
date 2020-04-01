@@ -633,7 +633,7 @@ Section Concurrent_correctness.
           - exact trivial_order.
           - exact trivial_order_wf.
           - (*initial_setup*)
-            simpl; intros.
+            simpl; intros * ? Hmain_wf Hargs_wf **.
             exists (Mem.flat_inj (Mem.nextblock s_mem)), tt.
             unshelve eexists. eapply lift_c_state; eauto.
             exists s_mem, r1; split.
@@ -774,9 +774,9 @@ Section Concurrent_correctness.
           - apply Coqlib.wf_lex_ord.
             eapply Transitive_Closure.wf_clos_trans; eauto.
             eauto.
-        - subst match_state; simpl; intros.
-          destruct (initial_setup _ _ _ _ _ _ H H0) as (? & ? & ? & ? & ? & H2 & ?).
-          destruct (initial_setup0 _ _ _ _ _ _ H H2) as (? & ?  & ? & ? & ? & ? & ?).
+        - subst match_state; simpl; intros  * ? Hmain_wf Hargs_wf ** .
+          destruct (initial_setup _ _  _ _ _ _ H Hmain_wf Hargs_wf H0) as (? & ? & ? & ? & ? & H2 & ?).
+          destruct (initial_setup0 _ _ _ _ _ _ H Hmain_wf Hargs_wf H2) as (? & ?  & ? & ? & ? & ? & ?).
           eexists; eexists (_, _); eauto 12.
         - intros.
           dup H0 as HH.

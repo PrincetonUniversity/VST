@@ -1,10 +1,11 @@
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_base.
 (*Require Import VST.concurrency.common.Clight_core.*)
 Require Import VST.concurrency.common.core_semantics.
-  Require Import VST.veric.Clight_core.
+
 
 Section CoreSem. (* build a core semantics from CompCert's sem*)
 Lemma cl_corestep_not_halted : forall ge m q m' q' i,

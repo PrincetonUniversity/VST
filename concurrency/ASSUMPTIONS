@@ -10,7 +10,8 @@ the main lemma in main.v. An explanation of these assumptions can be
 found below, and a detail explanation of each Admitted lemma can be
 found as comments in its file.
 
-To print the full body of all assumptions you may also run:
+To show not only the names, but the types, of all assumptions you
+may also run:
 
 	make assumptions-concurrency-body
 
@@ -22,9 +23,25 @@ command in will print the assumptions.
 
 
 ###### Explaining the assumptions: 
+ The unproved axioms and assumptions fall into these categories:
 
+1. Standard axioms, known to be consistent with Coq.
+2. Standard axioms of the real numbers, used by CompCert's floating point proofs.
+------------
+3. CompCert linkage, forced upon us by the way CompCert axiomatizes external functions.
+4. Properties that are true of CompCert but have not yet been exported
+  by (standard) CompCert as axioms or theorems, because (before our work)
+  there was not yet a need.
+-----------
+5. Self simulations, proved by other authors in similar settings.
+6. Reestablishing concur_match, minor incomplete parts of our proof.
+7. Simple (but tedious) properties of the CompCert operational semantics.
+8. Simple (but tedious) property of the monotonicity of our juicy safety judgment. 
+9. Two lemmas under construction.
 
-#### Logic assumptions:
+#### 1. Standard axioms
+  These are standard axioms known to be consistent with Coq (and with
+   each other).
 	
 * Axioms.prop_ext:
 	Propositional extensionality
@@ -42,7 +59,7 @@ command in will print the assumptions.
 	Dependent functional extensionality
 
 
-#### Real numbers  (needed only by CompCert's floating-point theory)
+#### 2. Real numbers  (needed only by CompCert's floating-point theory)
 
 * ClassicalDedekindReals.sig_not_dec :
 	Classical Dedekind reals.
@@ -50,7 +67,47 @@ command in will print the assumptions.
 	Classical Dedekind reals.
 	
 
-#### Self simulations
+#### 3. CompCert linkage:
+
+The synchronization functions are in the context:
+CompCert links with external-function semantics via a given "Parameter"
+that gives their semantics. We must assume that our 
+synchronization functions are part of that parameter.
+
+* synchronisation_steps_semantics.sync_functions_are_in_context
+
+Inlined assembly is well defined:
+If the program contains any inlined assembly, CompCert 
+requires the following two parameters.  These are axioms of CompCert,
+not of our concurrency proofs, and we ourselves do not introduce any
+inlined assembly code.
+
+* Events.inline_assembly_sem:
+	Parameter describing the behavior of inlined assembly.
+* Events.inline_assembly_properties:
+	Inlined assembly satisfies the same properties that 
+	CompCert requires of external functions.
+* Events.external_functions_sem:
+	Semantics of external functions.
+* Events.external_functions_properties:
+	External functions satisfy the properties required by CompCert. 
+	
+
+#### 4. Properties of CompCert semantics:
+
+* concurrent_compiler_safety_proof.Clight_finite_branching:
+	The Clight semantics is finite branching. In other words, 
+	every step can only step to a finite number of states.
+* safety_equivalence.finite_state_preservation:
+	A set of Clight states is finite branching. In other words,
+	there is a finite number states that can be reached, by
+	taking one single step, from a finite set of Clight states.
+	This fact follows from the Clight_finite_branching above.
+* Asm.get_arguments_correct:
+	Correctness of the way CompCert gets arguments from stack.
+	This is architecture dependent.
+
+#### 5. Self simulations
 
    Self simulation, described in the paper in Definition 5.14, has been proven
 before (about CompCert semantics) by several published works. Their semantics 
@@ -75,7 +132,7 @@ Proving the following lemmas should be tedious but straightforward:
 	The Asm language self-simulates
 	
 
-#### Reestablishing the concur_match:
+#### 6. Reestablishing the concur_match:
 
 In every step diagram for the CPM, we must reestablish the relation between the
 resulting CPM steps. In all the lemmas, parts of the state change (e.g. the 
@@ -91,52 +148,13 @@ changed. This is straightforward, but tedious.
 * concur_match.concur_match_free_lock 
 * concur_match.concur_match_add_thread 
 
-#### The synchronization functions are in the context.
 
-CompCert links with external-function semantics via a given "Parameter"
-that gives their semantics. We must assume that our 
-synchronization functions are part of that parameter.
-
-* synchronisation_steps_semantics.sync_functions_are_in_context
-
-#### Inlined assembly is well defined:
-
-If the program contains any inlined assembly, CompCert 
-requires the following two parameters.
-
-* Events.inline_assembly_sem:
-	Parameter describing the behavior of inlined assembly.
-* Events.inline_assembly_properties:
-	Inlined assembly satisfies the same properties that 
-	CompCert requires of external functions.
-* Events.external_functions_sem:
-	Semantics of external functions.
-* Events.external_functions_properties:
-	External functions satisfy the properties required by CompCert. 
-	
-
-
-#### Properties of CompCert semantics:
-
-* concurrent_compiler_safety_proof.Clight_finite_branching:
-	The Clight semantics is finite branching. In other words, 
-	every step can only step to a finite number of states.
-* safety_equivalence.finite_state_preservation:
-	A set of Clight states is finite branching. In other words,
-	there is a finite number states that can be reaching, by
-	taking one single step, from a finite set of Clight states.
-	This fact follows from the Clight_finite_branching above.
-* Asm.get_arguments_correct:
-	Correctness of the way CompCert gets arguments from stack.
-	This is architecture dependent.
-
-
-#### External functions, built-ins and inlined assembly:
+#### 7. External functions, built-ins and inlined assembly:
 
 We have to impose certain limitations to external functions, 
 built-ins and inlined assembly, presented here. We separate 
 these restrictions in two lists: the ones that CompCert should
-enforce and the ones that we enforce:
+enforce and the ones that we enforce.
 
 	## Compcert should enforce these properties:
 
@@ -147,35 +165,37 @@ enforce and the ones that we enforce:
 * Clightcore_coop.inline_assembly_memstep:
 	Inlined assembly should respect the memory interface.
 * ClightSemanticsForMachines.Clight_step_nil_trace_not_atx:
-	We assume external, that are not built-ins, have
+	We assume externals, that are not built-ins, have
 	no trace. This restriction can easily be lifted
 	by distinguishing between synch calls and other
 	external functions.
 * Clight_mem_ok.external_call_wellformed:
-	External calls must preserve well-formed 
-	memories. That is, they don't introduce 
-	dangling pointers.
+	External calls must preserve well-formed memories. 
+        That is, they don't introduce dangling pointers.
 
 	## New properties we require:
-* ClightSemanticsForMachines.extcall_ev_elim: (* LOOK at this with Andrew*)
-	Builtins respect the memory interface and form a 
-	"event" memory semantics.  
+* ClightSemanticsForMachines.extcall_ev_elim:
+	Builtins respect the memory interface and form an
+	"event" memory semantics.  The best way to handle this
+	would be to change CompCert so that, in the Clight language,
+	the current "builtins" are represented instead as
+	"inlineable external calls", and then CompCert's phase
+	that (currently) generates code for the builtins can instead
+	inline the external calls.  The end result (generated code)
+	would be identical, the Clight language would be simplified,
+	and this assumption would be eliminated.
 
-#### Juicy Semantics:
+#### 8. Juicy Semantics:
 	
 * semax_safety_spawn.Concurrent_Espec_permits_framing:
-	If a program is safe for a memory, 
-	it is safe for a larger memory. 
+	If a CompCert Clight program state with memory m is safe to
+	(single-thread) execute, then it is safe in any memory m'
+	whose permissions are greater than m.
 	
-#### Lemmas under construction
+#### 9. Lemmas under construction
 
 * single_thread_simulation_proof.start_step_diagram:
 	This lemma is mostly done.
-* single_thread_simulation_proof.initial_diagram 
-	Arguments must be valid, Main must be valid!
-
-#### Miscellaneous assumptions (Santiago is working on this March 30):
-
 * compcert_threads_lemmas.SimProofs.sim_external 
 	Merge conflict, needs fixing.
 
