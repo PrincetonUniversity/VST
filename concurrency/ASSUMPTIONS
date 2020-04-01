@@ -25,14 +25,15 @@ command in will print the assumptions.
 ###### Explaining the assumptions: 
  The unproved axioms and assumptions fall into these categories:
 
+------------ STANDARD AXIOMS OF LOGIC
 1. Standard axioms, known to be consistent with Coq.
-2. Standard axioms of the real numbers, used by CompCert's floating point proofs.
-------------
+2. Two axioms of the real numbers, used by CompCert's floating point proofs.
+------------ AXIOMS OF COMPCERT
 3. CompCert linkage, forced upon us by the way CompCert axiomatizes external functions.
 4. Properties that are true of CompCert but have not yet been exported
   by (standard) CompCert as axioms or theorems, because (before our work)
   there was not yet a need.
------------
+----------- PARTS OF OUR PROOF UNFINISHED IN COQ, "obviously" true
 5. Self simulations, proved by other authors in similar settings.
 6. Reestablishing concur_match, minor incomplete parts of our proof.
 7. Simple (but tedious) properties of the CompCert operational semantics.
