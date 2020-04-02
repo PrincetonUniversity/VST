@@ -641,30 +641,30 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 LIST_SOLVERS=$(filter-out floyd/list_solver_base.v, $(wildcard floyd/list_solver*.v))
 BENCHMARK_FILES=$(patsubst floyd/list_solver%.v, floyd/list_benchmark%.v, $(LIST_SOLVERS))
 
-benchmark: $(BENCHMARK_FILES:%.v=%.res)
+benchmark: temp $(BENCHMARK_FILES:%.v=%.res)
 
 temp:
 	@mkdir temp
 
 .PRECIOUS: %.out1 %.out2 %.out3 %.out4 %.out5
 
-%.out1: %.vo temp
+%.out1: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
-%.out2: %.vo temp
+%.out2: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
-%.out3: %.vo temp
+%.out3: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
-%.out4: %.vo temp
+%.out4: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
-%.out5: %.vo temp
+%.out5: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
