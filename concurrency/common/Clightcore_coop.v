@@ -1,9 +1,11 @@
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_base.
 (*Require Import VST.concurrency.common.Clight_core.*)
 Require Import VST.concurrency.common.core_semantics.
+
 
 Section CoreSem. (* build a core semantics from CompCert's sem*)
 Lemma cl_corestep_not_halted : forall ge m q m' q' i,
@@ -52,6 +54,8 @@ Lemma inline_assembly_memstep:
     (IA:Events.inline_assembly_sem text sg g vargs m t vres m'),
     mem_step m m'.
 Proof.
+  intros.
+  
 (* EXPLANATION: this should comes from an assumption:
    Either we add an axiom saying our semantics only calls such externals OR
    we add this to the properties of external funtioncs.
@@ -71,12 +75,16 @@ Lemma extcall_sem_mem_step:
     (E:Events.external_functions_sem name sg g vargs m t vres m'),
     mem_step m m'.
 Proof.
-(* EXPLANATION: see inline_assembly_memstep above and 
-   concurrency/common/ClightSemanticsForMachines/extcall_ev_elim
-   
- *)
-  
-Admitted. (*Maybe include mem_step in Events.extcall_properties.?*)
+  pose proof Clight_core.inline_external_call_mem_events.
+  unfold Events.external_call,ef_inline in *.
+
+  intros.
+  specialize (X (EF_builtin name sg) g vargs m t vres m' ltac:(reflexivity)).
+  simpl in X.
+  eapply X in E.
+  inv E.
+  eapply ev_elim_mem_step; eauto.
+Qed.
 
 Lemma extcall_mem_step g: forall ef vargs m t vres m' (E:Events.external_call ef g vargs m t vres m'),
   mem_step m m'.

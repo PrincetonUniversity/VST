@@ -6,7 +6,7 @@ Description of each folder:
 
 /concurrency/common: Semantic definitions and general lemmas used by all the other folders.
 
-/concurrency/compiler: Correctness of the CompCert compiler in the pretense of shared memory concurrency.
+/concurrency/compiler: Correctness of the CompCert compiler in the presence of shared memory concurrency.
 
 /concurrency/juicy: Soundness of the Concurrent Separation Logic.
 

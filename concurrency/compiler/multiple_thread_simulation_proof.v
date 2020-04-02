@@ -808,12 +808,11 @@ Section ThreadedSimulation.
           eapply list_lt_wf.
         (* eapply Hsimn.
           eapply Hsim0. *)
-        - intros.
-          eapply Hsim0 in H0; normal_hyp.
+        - intros * ? Hmain_wf Hargs_wf **.
+          eapply Hsim0 in H0; normal_hyp; eauto.
           eapply Hsimn in H0; eauto.
           normal; eauto.
           !goal(match_state _ _ _ _ _ _ _). econstructor; eauto.
-          eauto.
         - intros.
           inv H0. repeat subst_sig.
           eapply Hsim0 in H; eauto.
@@ -1017,6 +1016,8 @@ Section ThreadedSimulation.
           (main : val) (main_args : list val)
           (s_mach_state : ThreadPool (Some 0)%nat) (r1 : option res),
           Mem.mem_wd m0 ->
+          not_dangling m0 main ->
+          Forall (not_dangling m0) main_args ->
           machine_semantics.initial_machine (HybConcSem (Some 0)%nat m) r1
                                             m0 s_mach_state s_mem main main_args ->
           exists
@@ -1028,7 +1029,7 @@ Section ThreadedSimulation.
       Proof.
         (* Follows from any initial diagram and a missing lemma showing that the initial state
         can be "lifted" (lift_state) *)
-        intros.
+        intros * ? Hmain_wf Hargs_wf **.
         assert (Hone:ThreadPool_num_threads s_mach_state = 1%nat).
         { eapply initial_machine_has_one_thread; eassumption. }
         

@@ -651,6 +651,8 @@ Section Concurrent_Safety.
       exploit HybridMachine_simulation.initial_setup.
       { eapply SIM. }
       { eapply Genv.initmem_inject; eauto. }
+      shelve.
+      shelve.
       { match goal with
         [H: machine_semantics.initial_machine ?SEM1 _ _ _ _ _ _ |-
          machine_semantics.initial_machine ?SEM2 _ _ _ _ _ _] =>
@@ -676,6 +678,32 @@ Section Concurrent_Safety.
       Unshelve.
       { eapply DryHybridMachineSig. }
       { eapply DryHybridMachineSig. }
+      
+      { (*Main is not dangling (shelved above) *) 
+        simpl in H1.
+        destruct H1.
+        simpl in H3. destruct H3 as (?&?&?).
+        simpl in H3. destruct H3. 
+        inversion H3. subst.
+        econstructor.
+        unfold Memory.Mem.flat_inj.
+        match_case; eauto.
+        2:{ symmetry; eapply reptype_lemmas.ptrofs_add_repr_0_r. }
+        clear Heqs. contradict n.
+        eapply Genv.find_funct_ptr_not_fresh; eauto.
+      }
+      { (*Args are not dangling (shelved above)*)
+        simpl in H1.
+        destruct H1.
+        simpl in H3. destruct H3 as (?&?&?).
+        simpl in H3. destruct H3. 
+        inversion H3. subst.
+        clear - H12. hnf in H12.
+        induction args; eauto.
+        inversion H12; eauto.
+      }
+
+      
     Qed.
 
     Definition SemSource:= (ClightSemanticsForMachines.ClightSem

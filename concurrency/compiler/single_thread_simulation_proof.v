@@ -2049,11 +2049,18 @@ Qed.
         rewrite_getPerm. rewrite Heqo in n.
         congruence.
       Qed.
-      
+      (*  Moved to concurrency/compiler/HybridMachine_simulation.v:
+          
+          Definition not_dangling (m:mem) (v:val):=
+              (val_inject (Mem.flat_inj (Mem.nextblock m))) v v.
+       *)
+            
       Lemma initial_diagram:
         forall (m : option mem) (m0 s_mem : mem) (main : val) (main_args : list val)
           (s_mach_state : ThreadPool (Some hb)) (r1 : option res),
           Mem.mem_wd m0 ->
+          not_dangling m0 main ->
+          Forall (not_dangling m0) main_args ->
           machine_semantics.initial_machine (HybConcSem (Some hb) m) r1 m0 s_mach_state s_mem
                                             main main_args ->
           exists
@@ -2065,7 +2072,7 @@ Qed.
       Proof.
         intros m.
         simpl; unfold HybridMachineSig.init_machine''.
-        intros * Hwd (?&?).
+        intros * Hwd Hmain_wf Hargs_wf  (?&?).
         destruct r1; try solve[inversion H0].
         subst; simpl in *.
         destruct H0 as (init_thread&?&?); simpl in *.
@@ -2115,12 +2122,14 @@ Qed.
                 match_case. repeat weak_split eauto.
                 omega.
           * simpl. instantiate(1:=main_args).
-            admit. (* are we taking no argumetns ? 
-                      if it does, they must be valid!
-                      Check the soundness proof to see what they do
-                    *)
-          * instantiate(1:=main).
-            admit. (* just like above, main has to be valid! *)
+            clear - Hargs_wf.
+            induction main_args; constructor.
+            -- inv Hargs_wf; eauto.
+            -- eapply IHmain_args.
+               inv Hargs_wf; eauto.
+               
+        (*  * instantiate(1:=main). THis case is now a hypothesis 
+         Main must be valid in m0 *)
 
           * intros ? ; normal_hyp.
 
@@ -2145,8 +2154,8 @@ Qed.
             ++ subst x0;reflexivity.
 
                Unshelve.
-               all: eauto. 
-      Admitted.
+               all: eauto.
+      Qed.
 
       Lemma compile_one_thread:
         forall m ,

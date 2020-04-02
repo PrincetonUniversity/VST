@@ -1,4 +1,4 @@
-(* Clight SEmantics for Machines*)
+(* Clight Semantics for Machines*)
 
 (*
   We define event semantics for 
@@ -1026,7 +1026,10 @@ Section CLC_SEM.
     ev_elim m ev m'.
   Proof.
     intros.
-    inv Hev; simpl in Hef; try solve [inv Hef].
+    (*
+      inv Hev; simpl in Hef; try solve [inv Hef].
+     *)
+    
     (* EXPLANATION: this should comes from an assumption:
        Either we add an axiom saying our semantics only calls such externals OR
        we add this to the properties of external funtioncs.
@@ -1040,8 +1043,9 @@ Section CLC_SEM.
           Clight.at_external s1 = None ->
           Clight.step g f s1 t s2 ->
           t = nil.
-      Proof using g.
-      Admitted.
+  Proof using g.
+    
+  Admitted.
 
   Lemma clc_ev_elim (FE: forall f vargs m e le m1 T (E:function_entryT f vargs m e le m1 T), ev_elim m T m1):
     forall c m T c' m' (E: clc_evstep c m T c' m'), ev_elim m T m'.
