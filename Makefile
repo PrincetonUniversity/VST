@@ -251,7 +251,7 @@ FLOYD_FILES= \
    library.v proofauto.v computable_theorems.v computable_functions.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
-   sublist.v \ # extract_smt.v \
+   sublist.v \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
@@ -265,7 +265,7 @@ FLOYD_FILES= \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
    subsume_funspec.v linking.v list_solver_base.v list_solver.v list_solver2.v data_at_lemmas.v
-#real_forward.v
+#real_forward.v extract_smt.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
@@ -651,22 +651,32 @@ temp:
 %.out1: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+	@echo Cooling down
+	@sleep 120
 
 %.out2: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+	@echo Cooling down
+	@sleep 120
 
 %.out3: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+	@echo Cooling down
+	@sleep 120
 
 %.out4: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+	@echo Cooling down
+	@sleep 120
 
 %.out5: %.vo
 	@echo COQC $*.v ">" $@
 	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
+	@echo Cooling down
+	@sleep 120
 
 %.res: %.out1 %.out2 %.out3 %.out4 %.out5
 	@echo summarizing $*

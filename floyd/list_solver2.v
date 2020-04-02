@@ -2,8 +2,10 @@ Require Import VST.floyd.base2.
 Require Export VST.floyd.list_solver_base.
 Import ListNotations.
 
-(** list_solver4 is a solver using a database of the form
-  Zlength_db [Zlength al = n; Zlength bl = m; ...].
+(** list_solver2 is a solver using a database of the form
+  H ：Zlength_fact (Zlength al = n)
+  H2 ：Zlength_fact (Zlength bl = m)
+  ...
   And it stores the final simplified result, e.g.
   Zlength (map f (al ++ bl)) = Zlength al + Zlength bl).
  *)
@@ -120,14 +122,14 @@ Ltac calc_Zlength l :=
   first
   [ search_Zlength l
   | lazymatch l with
-    | ?l1 ++ ?l2 =>
+    | @app ?A ?l1 ?l2 =>
       calc_Zlength l1; calc_Zlength l2;
       let H1 := get_Zlength l1 in
       let H2 := get_Zlength l2 in
-      add_Zlength_res (calc_Zlength_app _ l1 l2 _ _ H1 H2)
-    | Zrepeat ?x ?n =>
-      add_Zlength_res (Zlength_Zrepeat _ x n ltac:(omega))
-    | sublist ?lo ?hi ?l =>
+      add_Zlength_res (calc_Zlength_app A l1 l2 _ _ H1 H2)
+    | @Zrepeat ?A ?x ?n =>
+      add_Zlength_res (Zlength_Zrepeat A x n ltac:(omega))
+    | @sublist ?A ?lo ?hi ?l =>
       calc_Zlength l;
       let H := get_Zlength l in
       let Z_solve :=
@@ -136,11 +138,11 @@ Ltac calc_Zlength l :=
         | fail 0 "cannot prove" lo hi "are in range for" l
         ]
       in
-      add_Zlength_res (calc_Zlength_sublist _ l _ lo hi H ltac:(Z_solve) ltac:(Z_solve))
-    | map ?f ?l =>
+      add_Zlength_res (calc_Zlength_sublist A l _ lo hi H ltac:(Z_solve) ltac:(Z_solve))
+    | @map ?A ?B ?f ?l =>
       calc_Zlength l;
       let H := get_Zlength l in
-      add_Zlength_res (calc_Zlength_map _ _ l _ f H)
+      add_Zlength_res (calc_Zlength_map A B l _ f H)
     | _ =>
       first [
         is_var l;
@@ -152,6 +154,18 @@ Ltac calc_Zlength l :=
   ];
 (*   idtac "ok" l; *)
   idtac.
+
+Ltac Zlength_only :=
+  init_Zlength_db;
+  repeat match goal with
+  | |- context [Zlength ?l] =>
+    tryif is_var l then
+      fail
+    else
+      calc_Zlength l;
+      let H := get_Zlength l in
+      rewrite !H
+  end.
 
 Ltac Zlength_solve :=
   init_Zlength_db;
@@ -193,44 +207,6 @@ Ltac Zlength_solve_cached2 :=
       clear_Zlength_db
   end;
   omega.
-
-
-Goal forall A (al bl cl : list A) n m,
-  Zlength al = n -> Zlength bl = m -> Zlength cl = n + m ->
-  Zlength cl = Zlength (al ++ bl).
-Proof.
-  intros.
-  Zlength_solve_cached2.
-Abort.
-(* 
-Require VST.floyd.list_solver.
-Ltac list_form := list_solver.list_form.
-
-Example strcat_loop2 : forall n x ld ls,
-  Zlength ls + Zlength ld < n ->
-  0 <= x < Zlength ls ->
-  Zlength (map Vbyte (ld ++ sublist 0 x ls) ++
-   upd_Znth 0 (list_repeat (Z.to_nat (n - (Zlength ld + x))) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero]))))))
-  = Zlength (map Vbyte (ld ++ sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (Zlength ld + (x + 1)))) Vundef).
-Proof.
-  idtac "strcat_loop2".
-  intros.
-  list_form.
-  Time Zlength_solve.
-Time Qed.
-
-Example strcat_return_new : forall n (ld ls : list byte),
-  Zlength ld + Zlength ls < n ->
-  map Vbyte (ld ++ ls) ++
-  upd_Znth 0 (list_repeat (Z.to_nat (n - (Zlength ld + Zlength ls))) Vundef) (Vint (Int.repr (Byte.signed (Znth 0 [Byte.zero])))) =
-  map Vbyte ((ld ++ ls) ++ [Byte.zero]) ++ list_repeat (Z.to_nat (n - (Zlength ld + Zlength ls + 1))) Vundef.
-Proof.
-  intros.
-  list_form. apply Znth_eq_ext.
-  Time Zlength_solve.
-Abort. *)
-
-(* Ltac Zlength_solve ::= Zlength_solve. *)
 
 Require VST.floyd.list_solver.
 Ltac list_solver.Zlength_solve ::= Zlength_solve.

@@ -2,7 +2,7 @@ Require Import VST.floyd.base2.
 Require Export VST.floyd.list_solver_base.
 Import ListNotations.
 
-(** list_solver4 is a solver using a database of the form
+(** list_solver3 is a solver using a database of the form
   Zlength_db [Zlength al = n; Zlength bl = m; ...].
   And it stores the final simplified result, e.g.
   Zlength (map f (al ++ bl)) = Zlength al + Zlength bl).
@@ -155,14 +155,14 @@ Ltac calc_Zlength l :=
   first
   [ search_Zlength l
   | lazymatch l with
-    | ?l1 ++ ?l2 =>
+    | @app ?A ?l1 ?l2 =>
       calc_Zlength l1; calc_Zlength l2;
       let H1 := get_Zlength l1 in
       let H2 := get_Zlength l2 in
-      add_Zlength_res (calc_Zlength_app _ l1 l2 _ _ H1 H2)
-    | Zrepeat ?x ?n =>
-      add_Zlength_res (Zlength_Zrepeat _ x n ltac:(omega))
-    | sublist ?lo ?hi ?l =>
+      add_Zlength_res (calc_Zlength_app A l1 l2 _ _ H1 H2)
+    | @Zrepeat ?A ?x ?n =>
+      add_Zlength_res (Zlength_Zrepeat A x n ltac:(omega))
+    | @sublist ?A ?lo ?hi ?l =>
       calc_Zlength l;
       let H := get_Zlength l in
       let Z_solve :=
@@ -171,11 +171,11 @@ Ltac calc_Zlength l :=
         | fail 0 "cannot prove" lo hi "are in range for" l
         ]
       in
-      add_Zlength_res (calc_Zlength_sublist _ l _ lo hi H ltac:(Z_solve) ltac:(Z_solve))
-    | map ?f ?l =>
+      add_Zlength_res (calc_Zlength_sublist A l _ lo hi H ltac:(Z_solve) ltac:(Z_solve))
+    | @map ?A ?B ?f ?l =>
       calc_Zlength l;
       let H := get_Zlength l in
-      add_Zlength_res (calc_Zlength_map _ _ l _ f H)
+      add_Zlength_res (calc_Zlength_map A B l _ f H)
     | _ =>
       first [
         is_var l;
@@ -264,8 +264,6 @@ Proof.
   list_form. apply Znth_eq_ext.
   Time Zlength_solve.
 Abort. *)
-
-Ltac Zlength_solve ::= Zlength_solve_cached.
 
 Require VST.floyd.list_solver.
 Ltac list_solver.Zlength_solve ::= Zlength_solve.
