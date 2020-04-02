@@ -264,7 +264,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v list_solver_base.v list_solver.v list_solver2.v data_at_lemmas.v
+   subsume_funspec.v linking.v Zlength_solver_base.v list_solver.v list_solver2.v data_at_lemmas.v
 #real_forward.v extract_smt.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
@@ -638,7 +638,7 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)
 
-LIST_SOLVERS=$(filter-out floyd/list_solver_base.v, $(wildcard floyd/list_solver*.v))
+LIST_SOLVERS=$(filter-out floyd/Zlength_solver_base.v, $(wildcard floyd/list_solver*.v))
 BENCHMARK_FILES=$(patsubst floyd/list_solver%.v, floyd/list_benchmark%.v, $(LIST_SOLVERS))
 
 benchmark: temp $(BENCHMARK_FILES:%.v=%.res)

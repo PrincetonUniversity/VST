@@ -3,7 +3,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.field_compat.
-Require Export VST.floyd.list_solver_base.
+Require Export VST.floyd.Zlength_solver.
 Import ListNotations.
 
 (** This file provides a almost-complete solver for list with concatenation.
@@ -20,23 +20,8 @@ Import ListNotations.
     cons
     upd_Znth. *)
 
-Ltac Zlength_solve := autorewrite with Zlength; pose_Zlength_nonneg; omega.
-Hint Rewrite Zlength_cons : Zlength.
-Hint Rewrite Zlength_nil : Zlength.
-Hint Rewrite Zlength_app : Zlength.
-Hint Rewrite Zlength_map : Zlength.
-Hint Rewrite Zlength_Zrepeat using Zlength_solve : Zlength.
-Hint Rewrite @Zlength_list_repeat using Zlength_solve : Zlength.
-Hint Rewrite @upd_Znth_Zlength using Zlength_solve : Zlength.
-Hint Rewrite @Zlength_sublist using Zlength_solve : Zlength.
-
-(** * Zlength_solve_complete *)
-(** Zlength_solve_complete intends to provide a more complete solver than Zlength_solve. *)
-
-Ltac Zlength_solve_complete :=
-  pose_Zlength_nonneg; autorewrite with Zlength in *; Zlength_solve.
-
-Ltac Zlength_solve2 := Zlength_solve_complete.
+(* Require following tactics provided by Zlength_solver module. *)
+Ltac Zlength_solve := Zlength_solver.Zlength_solve.
 
 (** * list_form *)
 
