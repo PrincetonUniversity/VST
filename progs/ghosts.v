@@ -294,6 +294,16 @@ Definition ghost_part sh a g := own(RA := ref_PCM P) g (Some (sh, a), None) None
 Definition ghost_part_ref sh a r g :=
   own(RA := ref_PCM P) g (Some (sh, a), Some r) NoneP.
 
+Lemma ghost_part_join : forall sh1 sh2 sh a1 a2 a g, join sh1 sh2 sh -> join a1 a2 a ->
+  sh1 <> Share.bot -> sh2 <> Share.bot ->
+  ghost_part sh1 a1 g * ghost_part sh2 a2 g = ghost_part sh a g.
+Proof.
+  intros.
+  symmetry; apply own_op.
+  hnf; simpl.
+  split; auto; constructor.
+Qed.
+
 Lemma ghost_part_ref_join : forall g (sh : share) a b,
   ghost_part sh a g * ghost_reference b g = ghost_part_ref sh a b g.
 Proof.
