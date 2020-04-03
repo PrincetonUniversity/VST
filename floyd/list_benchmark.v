@@ -4,6 +4,17 @@ Open Scope logic.
 
 Require Import Coq.Program.Tactics.
 
+Example highly_dependent_example : forall (al bl : list Z),
+  Zlength al > 0 ->
+  Zlength bl = Zlength al ->
+  Zlength (upd_Znth 0 (upd_Znth 0 (upd_Znth 0 al 1) 1) 1)
+  = Zlength (upd_Znth 0 (upd_Znth 0 (upd_Znth 0 bl 1) 1) 1).
+Proof.
+  idtac "highly_dependent_example".
+  intros.
+  list_form.
+  Time Zlength_solve.
+Time Qed.
 
 Example strcat_preloop2 : forall {cs : compspecs} n ld,
   n > Zlength ld ->
