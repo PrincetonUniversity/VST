@@ -265,6 +265,3 @@ Proof.
   Time Zlength_solve.
 Abort. *)
 
-Require VST.floyd.list_solver.
-Ltac list_solver.Zlength_solve ::= Zlength_solve.
-

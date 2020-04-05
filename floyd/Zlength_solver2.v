@@ -208,6 +208,4 @@ Ltac Zlength_solve_cached2 :=
   end;
   omega.
 
-Require VST.floyd.list_solver.
-Ltac list_solver.Zlength_solve ::= Zlength_solve.
 
