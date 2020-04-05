@@ -1,42 +1,45 @@
+highly_dependent_example
+Finished transaction in 0.084 secs (0.082u,0.001s) (successful)
+Finished transaction in 0.052 secs (0.051u,0.s) (successful)
 strcat_preloop2
-Finished transaction in 0.016 secs (0.016u,0.s) (successful)
-Finished transaction in 0.229 secs (0.22u,0.008s) (successful)
-Finished transaction in 0.044 secs (0.043u,0.s) (successful)
-strcat_return
-Finished transaction in 0.102 secs (0.101u,0.s) (successful)
-Finished transaction in 0.436 secs (0.432u,0.002s) (successful)
-Finished transaction in 0.181 secs (0.179u,0.002s) (successful)
-strcat_loop2
-Finished transaction in 0.084 secs (0.083u,0.s) (successful)
-Finished transaction in 0.709 secs (0.663u,0.007s) (successful)
-Finished transaction in 0.212 secs (0.208u,0.002s) (successful)
-strcpy_return
-Finished transaction in 0.053 secs (0.052u,0.s) (successful)
-Finished transaction in 0.286 secs (0.282u,0.002s) (successful)
-Finished transaction in 0.087 secs (0.086u,0.s) (successful)
-strcpy_loop
-Finished transaction in 0.305 secs (0.302u,0.001s) (successful)
-Finished transaction in 0.033 secs (0.033u,0.s) (successful)
-Finished transaction in 0.423 secs (0.418u,0.002s) (successful)
-Finished transaction in 0.149 secs (0.145u,0.001s) (successful)
-strcmp_loop
-Finished transaction in 2.033 secs (2.009u,0.015s) (successful)
-Finished transaction in 0.276 secs (0.273u,0.002s) (successful)
-rotate_body
-Finished transaction in 0.117 secs (0.116u,0.s) (successful)
-Finished transaction in 0.244 secs (0.242u,0.001s) (successful)
-Finished transaction in 1.766 secs (1.742u,0.015s) (successful)
-Finished transaction in 0.677 secs (0.67u,0.004s) (successful)
-Finished transaction in 2.855 secs (2.805u,0.028s) (successful)
-Finished transaction in 1.001 secs (0.989u,0.007s) (successful)
-Finished transaction in 6.624 secs (6.509u,0.067s) (successful)
-Finished transaction in 0.529 secs (0.52u,0.005s) (successful)
-Finished transaction in 5.565 secs (5.513u,0.025s) (successful)
-sorted_rotate_body
-Finished transaction in 1.026 secs (1.018u,0.004s) (successful)
 Finished transaction in 0.009 secs (0.009u,0.s) (successful)
-Finished transaction in 5.147 secs (5.067u,0.055s) (successful)
-Finished transaction in 32.919 secs (32.601u,0.156s) (successful)
-Finished transaction in 1.168 secs (1.16u,0.003s) (successful)
+Finished transaction in 0.138 secs (0.135u,0.001s) (successful)
+Finished transaction in 0.04 secs (0.04u,0.s) (successful)
+strcat_return
+Finished transaction in 0.044 secs (0.043u,0.s) (successful)
+Finished transaction in 0.403 secs (0.389u,0.006s) (successful)
+Finished transaction in 0.212 secs (0.202u,0.004s) (successful)
+strcat_loop2
+Finished transaction in 0.051 secs (0.051u,0.s) (successful)
+Finished transaction in 0.449 secs (0.439u,0.006s) (successful)
+Finished transaction in 0.189 secs (0.187u,0.001s) (successful)
+strcpy_return
+Finished transaction in 0.029 secs (0.028u,0.s) (successful)
+Finished transaction in 0.233 secs (0.227u,0.002s) (successful)
+Finished transaction in 0.082 secs (0.081u,0.001s) (successful)
+strcpy_loop
+Finished transaction in 0.19 secs (0.188u,0.001s) (successful)
+Finished transaction in 0.022 secs (0.022u,0.s) (successful)
+Finished transaction in 0.285 secs (0.281u,0.002s) (successful)
+Finished transaction in 0.129 secs (0.127u,0.001s) (successful)
+strcmp_loop
+Finished transaction in 1.512 secs (1.491u,0.014s) (successful)
+Finished transaction in 0.282 secs (0.277u,0.002s) (successful)
+rotate_body
+Finished transaction in 0.078 secs (0.076u,0.s) (successful)
+Finished transaction in 0.16 secs (0.158u,0.s) (successful)
+Finished transaction in 1.284 secs (1.267u,0.009s) (successful)
+Finished transaction in 0.549 secs (0.545u,0.003s) (successful)
+Finished transaction in 1.896 secs (1.868u,0.01s) (successful)
+Finished transaction in 0.875 secs (0.866u,0.005s) (successful)
+Finished transaction in 4.064 secs (4.013u,0.03s) (successful)
+Finished transaction in 0.511 secs (0.506u,0.003s) (successful)
+Finished transaction in 5.3 secs (5.238u,0.029s) (successful)
+sorted_rotate_body
+Finished transaction in 0.881 secs (0.872u,0.007s) (successful)
+Finished transaction in 0.008 secs (0.008u,0.s) (successful)
+Finished transaction in 4.362 secs (4.319u,0.017s) (successful)
+Finished transaction in 32.505 secs (31.909u,0.194s) (successful)
+Finished transaction in 1.233 secs (1.224u,0.002s) (successful)
 Finished transaction in 0.002 secs (0.002u,0.s) (successful)
-Finished transaction in 10.227 secs (10.055u,0.069s) (successful)
+Finished transaction in 7.982 secs (7.859u,0.029s) (successful)

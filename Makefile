@@ -439,7 +439,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.10.1 or-else 8.10.0 or-else 8.10+alpha or-else 8.11.0
+COQVERSION= 8.10.2 or-else 8.10.1 or-else 8.10.0 or-else 8.10+alpha or-else 8.11.0
 
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
@@ -641,7 +641,12 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 LIST_SOLVERS=$(filter-out floyd/Zlength_solver_base.v, $(wildcard floyd/list_solver*.v))
 BENCHMARK_FILES=$(patsubst floyd/list_solver%.v, floyd/list_benchmark%.v, $(LIST_SOLVERS))
 
-benchmark: temp $(BENCHMARK_FILES:%.v=%.res)
+benchmark: temp $(BENCHMARK_FILES:%.v=%.out1) \
+                $(BENCHMARK_FILES:%.v=%.out2) \
+                $(BENCHMARK_FILES:%.v=%.out3) \
+                $(BENCHMARK_FILES:%.v=%.out4) \
+                $(BENCHMARK_FILES:%.v=%.out5) \
+                $(BENCHMARK_FILES:%.v=%.res)
 
 temp:
 	@mkdir temp
@@ -649,34 +654,34 @@ temp:
 .PRECIOUS: %.out1 %.out2 %.out3 %.out4 %.out5
 
 %.out1: %.vo
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 	@echo Cooling down
 	@sleep 120
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
 %.out2: %.vo
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 	@echo Cooling down
 	@sleep 120
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
 %.out3: %.vo
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 	@echo Cooling down
 	@sleep 120
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
 %.out4: %.vo
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 	@echo Cooling down
 	@sleep 120
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
 %.out5: %.vo
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 	@echo Cooling down
 	@sleep 120
+	@echo COQC $*.v ">" $@
+	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
 
 %.res: %.out1 %.out2 %.out3 %.out4 %.out5
 	@echo summarizing $*
