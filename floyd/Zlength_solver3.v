@@ -114,6 +114,12 @@ Proof.
   pose_Zlength al ltac:(fresh).
 Abort.
 
+Lemma calc_Zlength_nil : forall A,
+  Zlength (@nil A) = 0.
+Proof.
+  auto.
+Qed.
+
 Lemma calc_Zlength_var : forall A (al : list A),
   Zlength al = Zlength al.
 Proof.
@@ -155,6 +161,8 @@ Ltac calc_Zlength l :=
   first
   [ search_Zlength l
   | lazymatch l with
+    | @nil ?A =>
+      add_Zlength_res (calc_Zlength_nil A)
     | @app ?A ?l1 ?l2 =>
       calc_Zlength l1; calc_Zlength l2;
       let H1 := get_Zlength l1 in

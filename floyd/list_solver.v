@@ -22,6 +22,9 @@ Import ListNotations.
 
 (* Require following tactics provided by Zlength_solver module. *)
 Ltac Zlength_solve := Zlength_solver.Zlength_solve.
+Ltac Zlength_simpl_conc := autorewrite with Zlength.
+Ltac Zlength_simpl_in H := autorewrite with Zlength in H.
+Ltac Zlength_simpl_all := autorewrite with Zlength in *.
 
 (** * list_form *)
 
@@ -55,33 +58,33 @@ Create HintDb Znth_solve_hint.
   the goal and branches when encountering an uncertain concatenation. *)
 Ltac Znth_solve_rec :=
   autorewrite with Znth;
-  autorewrite with Zlength;
+  Zlength_simpl_conc;
   auto with Znth_solve_hint;
   try match goal with
   | |- context [Znth ?n (app ?al ?bl)] =>
     let H := fresh in
     pose (H := Z_lt_le_dec n (Zlength al));
-    autorewrite with Zlength in H; destruct H;
+    Zlength_simpl_in H; destruct H;
     Znth_solve_rec
   end.
 
 Ltac Znth_solve :=
-  autorewrite with Zlength in *;
+  Zlength_simpl_all;
   Znth_solve_rec.
 
 (** Znth_solve2 is like Znth_solve, but it also branches concatenation in context. *)
 Ltac Znth_solve2 :=
-  autorewrite with Zlength in *; autorewrite with Znth in *; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
+  Zlength_simpl_all; autorewrite with Znth in *; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
   try first
   [ match goal with
     | |- context [ Znth ?n (?al ++ ?bl) ] =>
           let H := fresh in
-          pose (H := Z_lt_le_dec n (Zlength al)); autorewrite with Zlength in *; destruct H; Znth_solve2
+          pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simpl_all; destruct H; Znth_solve2
     end
   | match goal with
     | H0 : context [ Znth ?n (?al ++ ?bl) ] |- _ =>
           let H := fresh in
-          pose (H := Z_lt_le_dec n (Zlength al)); autorewrite with Zlength in *; destruct H; Znth_solve2
+          pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simpl_all; destruct H; Znth_solve2
     end
   ].
 
@@ -157,7 +160,7 @@ Ltac apply_list_ext :=
     end;
     only 1 : Zlength_solve
   ];
-  autorewrite with Zlength;
+  Zlength_simpl_conc;
   intros.
 
 (*************** fapply & fassumption *************)
@@ -202,7 +205,7 @@ Ltac list_solve2' :=
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros;
   try Zlength_solve;
-  list_form; autorewrite with Zlength in *; Znth_solve2;
+  list_form; Zlength_simpl_all; Znth_solve2;
   auto with Znth_solve_hint;
   first
   [ fassumption
