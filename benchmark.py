@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import re
-from statistics import mean
+from statistics import mean, stdev
 
 # Process a line from Coq output:
 # If the line contains a lemma name, return it as a str
@@ -51,8 +51,10 @@ res = {key : list(map(list, zip(*value))) for (key, value) in res.items()}
 
 def print_one(l):
     print("mean: ", mean(l))
+    print("sd: ", stdev(l))
     print("min: ", min(l))
     print("max: ", max(l))
+    print()
 
 def print_lemma(lemma, ll):
     print(lemma)
