@@ -114,7 +114,8 @@ Variable Vardefs_contained: forall i d, find_id i (Vardefs p) = Some d -> find_i
 
 Variable Main_InitPred: globals -> mpred.
 (*Variable Main_MkInitPred: forall gv, InitGPred MainVardefs gv (*|--*)= Main_InitPred gv.*)
-Variable Main_MkInitPred: forall gv, InitGPred MainVardefs gv |-- (Main_InitPred gv * TT)%logic.
+(*Variable Main_MkInitPred: forall gv, InitGPred MainVardefs gv |-- (Main_InitPred gv * TT)%logic.*)
+Variable Main_MkInitPred: forall gv, InitGPred MainVardefs gv |-- Main_InitPred gv.
 Variable LNR_PV: list_norepet (map fst (Vardefs p)).
 Variable LNR_LV: list_norepet (map fst (Vardefs lp)).
 (*
@@ -185,10 +186,58 @@ Proof.
       f_equal.
       apply filter_fg. intros [i d] ID. unfold notin; simpl. rewrite 2 find_id_app_char. simpl.
       rewrite if_false; trivial. specialize (in_map fst _ _ ID); simpl. congruence. }
-Qed.*)
+Qed.*)(*
 Lemma MkInitPred gv: InitGPred (Vardefs lp) gv |-- (Main_InitPred gv * coreGP gv * TT)%logic.
 Proof.
   apply derives_trans with ((Main_InitPred gv * TT) * (coreGP gv * TT))%logic; [ eapply derives_trans | cancel].
+  2: apply sepcon_derives; [ apply Main_MkInitPred | apply (MkInitPred_of_CanonicalVSU CoreVSU)].
+
+  clear - Vardefs_contained LNR_PV LNR_LV. unfold MainVardefs. 
+  forget (Vardefs lp) as LV. forget (Vardefs p) as PV. clear p lp. 
+  revert Vardefs_contained LNR_PV LNR_LV. generalize dependent PV.
+  induction LV; simpl; intros.
++ destruct PV; simpl. rewrite ! InitGPred_nilD. (* cancel. *) rewrite emp_sepcon; trivial.
+  exfalso. (*specialize (Vardefs_contained (fst p)). destruct p; simpl in *.
+  rewrite if_true in Vardefs_contained. congruence. trivial.*)
+  destruct p as [i d]. specialize (Vardefs_contained i d); simpl in Vardefs_contained.
+  rewrite if_true in Vardefs_contained by trivial. specialize (Vardefs_contained (eq_refl _)); congruence.
++ rewrite ! InitGPred_consD. destruct a as [j d]. unfold notin at 1. simpl fst in *.
+  inv LNR_LV.
+  assert (VCj := Vardefs_contained j). 
+  remember (find_id j PV) as b; symmetry in Heqb; destruct b; simpl in VCj.
+  2:{ rewrite InitGPred_consD. cancel.
+      apply IHLV; clear IHLV; trivial.
+      intros. (*specialize (Vardefs_contained i). remember (find_id i PV) as w; destruct w; simpl in *; trivial.
+      rewrite if_false in Vardefs_contained; trivial. congruence.*)
+      specialize (Vardefs_contained _ _ H). 
+      rewrite if_false in Vardefs_contained; trivial. congruence.  }
+  rewrite if_true in VCj by trivial. specialize (VCj _ (eq_refl _)). inv VCj.
+  destruct (find_id_in_split Heqb) as [PV1 [PV2 [HPV [HPV1 HPV2]]]]; trivial.
+  subst PV. clear Heqb. rewrite InitGPred_app, InitGPred_consD.
+  cancel.
+  rewrite map_app in LNR_PV; simpl in LNR_PV. apply list_norepet_middleD in LNR_PV.
+  destruct LNR_PV as [PV12j LNR_PV12]; clear LNR_PV.
+  eapply derives_trans.
+  - apply (IHLV (PV1++PV2)); clear IHLV; trivial. 2: rewrite map_app; trivial.
+    intros. (*specialize (Vardefs_contained i). rewrite find_id_app_char in *; simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * rewrite if_false in Vardefs_contained; trivial. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial.
+      rewrite 2 if_false in Vardefs_contained; trivial; congruence.*)
+    specialize (Vardefs_contained i d). rewrite find_id_app_char in Vardefs_contained, H.
+    simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * inv H. rewrite if_false in Vardefs_contained; auto. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial; inv H.
+      rewrite 2 if_false in Vardefs_contained; auto; congruence.
+  - clear IHLV Vardefs_contained. rewrite InitGPred_app. cancel.
+    apply derives_refl'. f_equal.
+    apply filter_fg. intros [i d] ID. unfold notin; simpl. rewrite 2 find_id_app_char. simpl.
+    rewrite if_false; trivial. specialize (in_map fst _ _ ID); simpl. congruence.
+Qed.*)
+Lemma MkInitPred gv: InitGPred (Vardefs lp) gv |-- (Main_InitPred gv * coreGP gv)%logic.
+Proof.
+  simpl. eapply derives_trans.
   2: apply sepcon_derives; [ apply Main_MkInitPred | apply (MkInitPred_of_CanonicalVSU CoreVSU)].
 
   clear - Vardefs_contained LNR_PV LNR_LV. unfold MainVardefs. 
@@ -652,7 +701,6 @@ End ADD_MAIN.
 Ltac find_sub_sub_tac :=
      intros i phi Hphi; assert (FIND:= find_id_In_map_fst _ _ _ Hphi); cbv in FIND;
      repeat (destruct FIND as [FIND |FIND]; [ subst; inv Hphi; reflexivity |]); contradiction.
-Check @LP_VSU_ext.
 
 Ltac AddMainProgProgVSU_tac_entail vsu :=
 eapply LP_VSU_entail;
@@ -674,7 +722,7 @@ eapply LP_VSU_entail;
 
     (*Four side conditions on Varspecs*)
    | try find_sub_sub_tac
-   | first [ intros; reflexivity |  intros; apply sepcon_TT | idtac] (*instantiates InitPred to MainVarDefs*)
+   | intros; first [ solve [reflexivity] | solve [apply derives_refl] | idtac] (*instantiates InitPred to MainVarDefs*)
    | try LNR_tac
    | try LNR_tac
 
@@ -688,9 +736,10 @@ eapply LP_VSU_entail;
      | eexists; split; [ LookupID | LookupB ] ]
    | (*apply MainE_vacuous.*)
    | try reflexivity]
-| intros; first [ unfold InitGPred; simpl; cancel | idtac] ].
+| intros; simpl; first [ solve [unfold InitGPred; simpl; cancel] | idtac]
+].
 
-
+(*old
 Ltac AddMainProgProgVSU_tac_eq vsu :=
 eapply LP_VSU_ext;
 [ eapply (@AddMainProgVSU _ _ _ _ _ _ _ vsu);
@@ -725,7 +774,7 @@ eapply LP_VSU_ext;
      | eexists; split; [ LookupID | LookupB ] ]
    | (*apply MainE_vacuous.*)
    | try reflexivity]
-| ].
+| ].*)
 
 (*based on tactic floyd.forward.semax_prog_aux*)
 Ltac prove_linked_semax_prog :=

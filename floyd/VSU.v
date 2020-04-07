@@ -444,7 +444,7 @@ Record Component {Espec:OracleKind} {V:varspecs} {cs:compspecs}
                   exists phi', find_id i G = Some phi' /\ funspec_sub phi' phi;
 
   (*Comp_InitPred: globals -> mpred;*)
-  Comp_MkInitPred: forall gv, InitGPred (Vardefs p) gv |-- (*Comp_InitPred*)(GP gv * TT)%logic
+  Comp_MkInitPred: forall gv, InitGPred (Vardefs p) gv |-- (*Comp_InitPred*)(GP gv(* * TT*))%logic
 }.
 
 Definition Comp_G {Espec V cs E Imports p Exports GP G} (c:@Component Espec V cs E Imports p Exports GP G):= G.
@@ -748,6 +748,21 @@ Proof.
   exists psi; split; trivial. eapply funspec_sub_trans; eassumption.
 Qed.
 
+(*
+Lemma Comp_InitPred_sub GP' (HG: forall gv, (GP gv * TT |-- GP' gv * TT)%logic):
+      @Component Espec V cs E Imports p Exports GP' G.
+Proof.
+  destruct c.
+  eapply Build_Component; try apply c; trivial.
+  intros. sep_apply (Comp_MkInitPred0 gv). apply HG.
+Qed.*)
+Lemma Comp_InitPred_sub GP' (HG: forall gv, GP gv |-- GP' gv):
+      @Component Espec V cs E Imports p Exports GP' G.
+Proof.
+  destruct c.
+  eapply Build_Component; try apply c; trivial.
+  intros. sep_apply (Comp_MkInitPred0 gv); trivial.
+Qed.
 End Component.
 
 Arguments Comp_G_LNR {Espec V cs E Imports p Exports GP G} c.
@@ -780,6 +795,7 @@ Arguments Comp_E_in_G_find {Espec V cs E Imports p Exports GP G} c.
 Arguments Comp_G_elim {Espec V cs E Imports p Exports GP G} c.
 Arguments Comp_G_in_progdefs {Espec V cs E Imports p Exports GP G} c.
 Arguments Comp_G_in_progdefs' {Espec V cs E Imports p Exports GP G} c.
+Arguments Comp_InitPred_sub {Espec V cs E Imports p Exports GP G} c.
 
 Section VSU_rules.
 Variable Espec: OracleKind.
@@ -2435,10 +2451,15 @@ apply Build_Component (*with (Comp_G := G)*) (*with
   - apply find_id_filter_Some in H; [ destruct H as [? _] | apply (Comp_Imports_LNR c2)].
     apply (Imports_paramsLNR' c2 _ _ H). *)
 + clear - c1 c2 HV1 HV2 V_LNR domV V HVardefs1 HVardefs2 VD1 VD2 VD LNR_V1 LNR_V2 DisjointVarspecs; intros.
-
+(*
   (*rewrite <- (Comp_MkInitPred c1 gv), <- (Comp_MkInitPred c2 gv).
   apply InitGPred_join; trivial.*)
   eapply derives_trans with ((GP1 gv * TT) *(GP2 gv * TT))%logic; [ eapply derives_trans | cancel].
+  2: apply sepcon_derives; [ apply (Comp_MkInitPred c1 gv) | apply (Comp_MkInitPred c2 gv)].
+  clear cs1 cs2 c1 c2 E1 Imports1 Exports1 G1 E2 Imports2 Exports2 G2.
+  unfold Vardefs in *.
+  rewrite (InitGPred_join _ _ _ VD1 VD2 VD); trivial.*)
+  eapply derives_trans. 
   2: apply sepcon_derives; [ apply (Comp_MkInitPred c1 gv) | apply (Comp_MkInitPred c2 gv)].
   clear cs1 cs2 c1 c2 E1 Imports1 Exports1 G1 E2 Imports2 Exports2 G2.
   unfold Vardefs in *.
@@ -3163,7 +3184,7 @@ Ltac mkComponent (*G_internal*) :=
   | finishComponent
   (*| intros; simpl; 
     repeat (if_tac; simpl; [ apply compute_list_norepet_e; reflexivity | ]); trivial*)
-  | intros; first [ reflexivity | simpl; cancel | idtac]
+  | intros; first [ solve [apply derives_refl] | solve [reflexivity] | solve [simpl; cancel] | idtac]
   ].
 
 Ltac solve_SF_internal P :=
@@ -3871,9 +3892,12 @@ Proof. apply GP. (* destruct vsu as [G [GG CC M]]. eapply Comp_InitPred. apply C
 Lemma MkInitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
       forall gv, InitGPred (Vardefs p) gv = InitPred_of_CanonicalVSU vsu gv.
 Proof. intros. destruct vsu as [G [GG CC M]]. simpl. apply (Comp_MkInitPred CC). Qed.*)
-
+(*
 Lemma MkInitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
       forall gv, InitGPred (Vardefs p) gv |-- (GP gv * TT)%logic.
+Proof. destruct vsu as [G [GG CC M]]. apply (Comp_MkInitPred CC). Qed.*)
+Lemma MkInitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
+      forall gv, InitGPred (Vardefs p) gv |-- GP gv.
 Proof. destruct vsu as [G [GG CC M]]. apply (Comp_MkInitPred CC). Qed.
 
 Lemma global_is_headptr g i: isptr (globals_of_env g i) -> headptr (globals_of_env g i).
