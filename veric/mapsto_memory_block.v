@@ -1192,3 +1192,142 @@ Proof.
       simple_if_tac; simpl; rewrite H; auto;
       apply prop_ext; intuition]).
 Qed.
+
+Lemma repr_inj_unsigned:
+  forall i j,
+    0 <= i <= Int.max_unsigned ->
+    0 <= j <= Int.max_unsigned ->
+    Int.repr i = Int.repr j -> i=j.
+Proof.
+intros.
+rewrite <- (Int.unsigned_repr i) by auto.
+rewrite <- (Int.unsigned_repr j) by auto.
+congruence.
+Qed.
+
+Lemma mapsto_zeros_mapsto_nullval:
+  forall sh b z t,
+      readable_share sh ->
+      (align_chunk Mptr | Ptrofs.unsigned z) -> 
+      mapsto_zeros (size_chunk Mptr) sh (Vptr b z) |--
+      !! (0 <= Ptrofs.unsigned z /\ size_chunk Mptr + Ptrofs.unsigned z < Ptrofs.modulus) && mapsto sh (Tpointer t noattr) (Vptr b z) nullval.
+Proof.
+intros until t. intros H2 H.
+unfold mapsto_zeros, mapsto.
+simpl.
+rewrite andb_false_r by auto.
+rewrite (prop_true_andp (is_pointer_or_null _)) by auto.
+apply prop_andp_left; intros [? ?].
+rewrite prop_true_andp by  auto.
+rewrite if_true by auto.
+apply orp_right1.
+unfold address_mapsto.
+apply exp_right with  (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval).
+rewrite prop_true_andp by (split3; simpl; auto).
+forget (Ptrofs.unsigned z) as ofs; clear z.
+replace (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval)
+ with (repeat (Byte Byte.zero) (size_chunk_nat Mptr))
+ by (unfold size_chunk_nat, size_chunk, Mptr, encode_val, nullval; simpl; destruct Archi.ptr64; simpl;
+      change (Int64.unsigned Int64.zero) with 0;
+      change (Int.unsigned Int.zero) with 0;
+      unfold encode_int, inj_bytes; simpl; compute;
+      destruct Archi.big_endian; simpl; reflexivity).
+rewrite size_chunk_conv, Nat2Z.id.
+clear - H2. simpl snd.
+revert ofs; induction (size_chunk_nat Mptr); intros.
+*
+unfold address_mapsto_zeros.
+apply andp_right.
+apply allp_right; intro y.
+rewrite jam_false.
+intros ? ?. do 3 red. do 3 red in H.
+apply resource_at_identity; auto.
+simpl; destruct y; intros [? ?]; omega.
+intros ? ?. do 3 red in H|-*. apply ghost_of_identity; auto.
+*
+rewrite inj_S.
+simpl snd in *.
+rewrite allp_jam_split2 with 
+  (q := (fun loc : address =>
+              yesat NoneP
+                (VAL (nth (Z.to_nat (snd loc - ofs)) (repeat (Byte Byte.zero) (S n)) Undef)) sh loc))
+  (r := (fun loc : address =>
+              yesat NoneP
+                (VAL (nth (Z.to_nat (snd loc - ofs)) (repeat (Byte Byte.zero) (S n)) Undef)) sh loc))
+(Q_DEC := adr_range_dec (b,ofs) 1) (R_DEC := adr_range_dec ( b, Z.succ ofs) (Z.of_nat n)); auto.
+5:{ split; intros. destruct a; split; intros. destruct H; subst b0. destruct (zeq z ofs); [left|right]; split; auto; omega.
+     destruct H; destruct H; subst b0; split; auto; omega. destruct a; destruct H,H0; subst; omega. }
+simpl.
+apply sepcon_derives.
+--
+clear IHn.
+unfold address_mapsto.
+apply exp_left; intro bl.
+rewrite andp_assoc.
+apply prop_andp_left.
+ intros [? ?].
+apply andp_derives; auto.
+apply allp_derives; intro y.
+simpl.
+destruct H0.
+destruct bl; inv H. destruct bl; inv H4.
+destruct (adr_range_dec (b, ofs) 1 y).
+++
+rewrite !jam_true by auto.
+destruct y; destruct a; subst b0. assert (z=ofs) by omega. subst z.
+simpl snd. rewrite Z.sub_diag. simpl.
+replace m with (Byte Byte.zero); auto.
+clear - H0.
+destruct m; try discriminate.
+rewrite decode_byte_val in H0.
+apply Vint_inj in H0.
+f_equal.
+rewrite zero_ext_inrange in H0.
+unfold Int.zero in H0.
+apply repr_inj_unsigned in H0.
+apply (f_equal Byte.repr) in H0.
+rewrite Byte.repr_unsigned in H0. auto.
+pose proof (Byte.unsigned_range i). 
+change Byte.modulus with 256 in H.
+split; try omega.
+apply Z.le_trans with 256; try omega. compute; congruence.
+split. omega. compute; congruence.
+rewrite Int.unsigned_repr.
+pose proof (Byte.unsigned_range i).
+change Byte.modulus with 256 in H. simpl. omega.
+pose proof (Byte.unsigned_range i).
+assert (Byte.modulus < Int.max_unsigned) by reflexivity.
+omega.
+++
+rewrite !jam_false by auto.
+auto.
+--
+eapply derives_trans.
+apply IHn.
+clear IHn.
+apply andp_derives; auto.
+apply allp_derives; intros [b' ofs'].
+destruct (adr_range_dec (b, Z.succ ofs) (Z.of_nat n) (b',ofs')); [rewrite !jam_true | rewrite !jam_false]; auto.
+ simpl snd.
+match goal with |- yesat _ (VAL ?A) _ _ |-- yesat _ (VAL ?B) _ _ => replace A with B; auto end.
+change (?A = ?B) with (nth (Z.to_nat (ofs' - ofs)) (repeat (Byte Byte.zero) (S n)) Undef = B).
+destruct a.
+subst b'.
+assert (0 <= ofs'- Z.succ ofs < Z.of_nat n) by omega.
+replace (ofs'-ofs) with (Z.succ (ofs'-Z.succ ofs)) by omega.
+clear - H.
+forget (ofs'-Z.succ ofs) as i.
+rewrite Z2Nat.inj_succ by omega.
+simpl. auto.
+--
+eexists; apply is_resource_pred_YES_VAL'.
+--
+eexists; apply is_resource_pred_YES_VAL'.
+--
+eexists; apply is_resource_pred_YES_VAL'.
+--
+intros.
+destruct H0.
+hnf in H0. rewrite H0 in H1.
+inv H1; auto.
+Qed.

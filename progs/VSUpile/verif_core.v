@@ -39,9 +39,10 @@ G_merge (spec_pile.PileASI M PILE) (spec_onepile.OnepileASI M ONEPILE).
 
 Definition Onepile_Pile_VSU:
 @VSU NullExtension.Espec
-   mrg_Vprog1 mrg_cs1 nil mrg_Imports1 mrg_prog1 mrg_Exports1.
+   mrg_Vprog1 mrg_cs1 nil mrg_Imports1 mrg_prog1 mrg_Exports1 (one_pile PILE None).
 Proof.
   VSUMerge (PilePrivateVSU M) (OnepileVSU M PILE).
+  extensionality gv. simpl. rewrite emp_sepcon; trivial.
 Qed.
 
 Definition APILE := verif_apile.APILE M PrivPILE.
@@ -67,10 +68,12 @@ Definition mrg_Exports2:funspecs := G_merge  mrg_Exports1 (Apile_ASI M PrivPILE)
 
 Definition Apile_Onepile_Pile_VSU:
 @VSU NullExtension.Espec
-   mrg_Vprog2 mrg_cs2 nil mrg_Imports2 mrg_prog2 mrg_Exports2.
+   mrg_Vprog2 mrg_cs2 nil mrg_Imports2 mrg_prog2 mrg_Exports2 
+   (fun gv => one_pile PILE None gv * apile M PrivPILE [] gv)%logic.
 Proof.
   VSUMerge (Onepile_Pile_VSU) (ApileVSU M PrivPILE).
   intuition.
+  extensionality gv; trivial.
 Qed.
 
 Definition triang_apile_onepile_pile_prog: Clight.program := 
@@ -94,9 +97,11 @@ Definition mrg_Exports3:funspecs := G_merge mrg_Exports2 (spec_triang.TriangASI 
 
 Definition Triang_Apile_Onepile_Pile_VSU:
 @VSU NullExtension.Espec
-   mrg_Vprog3 mrg_cs3 nil mrg_Imports3 mrg_prog3 mrg_Exports3.
+   mrg_Vprog3 mrg_cs3 nil mrg_Imports3 mrg_prog3 mrg_Exports3
+  (fun gv => one_pile PILE None gv * apile M PrivPILE [] gv)%logic.
 Proof.
   VSUMerge (Apile_Onepile_Pile_VSU) (TriangVSU M PILE).
+  extensionality gv. simpl. rewrite sepcon_emp. trivial.
 Qed.
 
 Definition mm_triang_apile_onepile_pile_prog: Clight.program := 
@@ -121,13 +126,17 @@ Definition coreExports:funspecs := G_merge (MF_ASI M) mrg_Exports3.
 Definition coreBuiltins:funspecs := (MallocFreeASI M). (*i.e. MF_E M*)
 
 Definition Core_VSU:
-@VSU NullExtension.Espec coreVprog coreCS coreBuiltins coreImports coreprog coreExports.
+@VSU NullExtension.Espec coreVprog coreCS coreBuiltins coreImports coreprog coreExports
+     (fun gv => one_pile PILE None gv * apile M PrivPILE [] gv)%logic.
 Proof.
-  VSUMerge (MallocFreeVSU M) (Triang_Apile_Onepile_Pile_VSU). congruence.
+  VSUMerge (MallocFreeVSU M) (Triang_Apile_Onepile_Pile_VSU).
+  congruence.
+  extensionality gv. simpl. rewrite emp_sepcon; trivial. 
 Qed.
 
 Definition Core_CanVSU: @CanonicalVSU NullExtension.Espec
-   coreVprog coreCS coreBuiltins coreImports coreprog coreExports.
+   coreVprog coreCS coreBuiltins coreImports coreprog coreExports
+   (fun gv => one_pile PILE None gv * apile M PrivPILE [] gv)%logic.
 Proof.
 eapply VSU_to_CanonicalVSU. apply Core_VSU.
 Qed.

@@ -5,11 +5,11 @@ Require Import PileModel.
 
 (*Apile's predicate bundle is similar to the Onepile's bundle.*)
 Record APileAPD := {
-  apile: globals -> list Z -> mpred;
+  apile: list Z -> globals -> mpred(*;
   APileCompSpecs: compspecs;
   make_apile: forall gv, headptr (gv _a_pile) ->
     @data_at APileCompSpecs Ews tuint (Vint (Int.repr 0))
-          (gv _a_pile) |-- apile gv nil
+          (gv _a_pile) |-- apile gv nil*)
 }.
 
 Local Open Scope assert.
@@ -24,10 +24,10 @@ Definition Apile_add_spec :=
  PRE [ tint  ]
     PROP(0 <= n <= Int.max_signed)
     PARAMS (Vint (Int.repr n)) GLOBALS (gv)
-    SEP(apile APILE gv sigma; mem_mgr M gv)
+    SEP(apile APILE sigma gv; mem_mgr M gv)
  POST[ tvoid ]
     PROP() LOCAL()
-    SEP(apile APILE gv (n::sigma); mem_mgr M gv).
+    SEP(apile APILE (n::sigma) gv; mem_mgr M gv).
 
 Definition Apile_count_spec :=
  DECLARE _Apile_count
@@ -35,11 +35,11 @@ Definition Apile_count_spec :=
  PRE [  ]
     PROP(0 <= sumlist sigma <= Int.max_signed)
     PARAMS () GLOBALS (gv)
-    SEP(apile APILE gv sigma; mem_mgr M gv)
+    SEP(apile APILE sigma gv; mem_mgr M gv)
  POST[ tint ]
       PROP() 
       LOCAL(temp ret_temp (Vint (Int.repr (sumlist sigma))))
-      SEP(apile APILE gv sigma; mem_mgr M gv).
+      SEP(apile APILE sigma gv; mem_mgr M gv).
 
 Definition ApileASI:funspecs := [ Apile_add_spec; Apile_count_spec].
 

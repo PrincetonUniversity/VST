@@ -1293,3 +1293,7 @@ Proof.
   apply (ha_env_cs_sub_trans A2 B2). 
   apply (la_env_cs_sub_trans A3 B3).
 Qed.
+
+Lemma valid_pointer_is_pointer_or_null p:
+      valid_pointer p |-- !!(is_pointer_or_null p).
+Proof. intros m. destruct p; simpl; trivial. Qed.

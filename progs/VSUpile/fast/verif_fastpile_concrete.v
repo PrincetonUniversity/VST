@@ -160,7 +160,7 @@ forward_if True.
 Qed.
 
   Definition FastpileConcComponent: @Component NullExtension.Espec FastpileConcVprog _ 
-      nil fastpileconc_imported_specs prog FastpileConc_ASI fastpileconc_internal_specs.
+      nil fastpileconc_imported_specs prog FastpileConc_ASI emp fastpileconc_internal_specs.
   Proof. 
     mkComponent.
     + solve_SF_internal body_surely_malloc.
@@ -171,6 +171,6 @@ Qed.
   Qed.
 
   Definition FastpileVSU: @VSU NullExtension.Espec FastpileConcVprog _ 
-      nil fastpileconc_imported_specs prog FastpileConc_ASI.
+      nil fastpileconc_imported_specs prog FastpileConc_ASI emp.
   Proof. eexists; apply FastpileConcComponent. Qed.
 End FastpileConcrete_VSU.

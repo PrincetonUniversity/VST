@@ -11,7 +11,7 @@ Section Onepile_VSU.
 Variable M: MallocFreeAPD.
 Variable PILE: PileAPD. (*onepile is parametric in a pile predicate structure*)
 
-Definition one_pile (gv: globals) (sigma: option (list Z)) : mpred :=
+Definition one_pile (sigma: option (list Z)) (gv: globals): mpred :=
  match sigma with
  | None => data_at_ Ews (tptr tpile) (gv _the_pile)
  | Some il => EX p:val, data_at Ews (tptr tpile) p (gv _the_pile) *
@@ -20,14 +20,12 @@ Definition one_pile (gv: globals) (sigma: option (list Z)) : mpred :=
 
 Lemma make_onepile: forall gv, 
   data_at_ Ews (tptr (Tstruct onepile._pile noattr)) (gv onepile._the_pile)
-   |-- one_pile gv None.
+   |-- one_pile None gv.
 Proof.
-intros.
-unfold onepile.
-cancel.
+intros. cancel.
 Qed.
 
-Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile OnePileCompSpecs make_onepile.
+Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile (*OnePileCompSpecs make_onepile*).
 
   Definition Onepile_ASI: funspecs := OnepileASI M ONEPILE.
 
@@ -82,16 +80,40 @@ Exists p.
 entailer!.
 Qed.
 
+  Lemma onepile_Init_aux gv: headptr (gv _the_pile) ->
+    initialize.gv_globvar2pred gv (_the_pile, v_the_pile) gv
+    |-- data_at_ Ews (tptr (Tstruct _pile noattr)) (gv _the_pile).
+  Proof. intros.
+    unfold initialize.gv_globvar2pred. simpl.
+         unfold initialize.gv_lift2, initialize.gv_lift0; simpl.
+         rewrite predicates_sl.sepcon_emp.
+    destruct H as [b Hb]; rewrite Hb in *.
+    eapply derives_trans. 
+    + apply mapsto_zeros_memory_block. apply writable_readable. apply writable_Ews.
+    + rewrite <- memory_block_data_at_; simpl; trivial.
+      apply headptr_field_compatible; trivial. exists b; trivial. cbv; trivial. simpl; rep_omega.
+      econstructor. reflexivity. apply Z.divide_0_r.
+  Qed.
+
+  Lemma onepile_Init_aux2 gv: headptr (gv _the_pile) ->
+    initialize.gv_globvar2pred gv (_the_pile, v_the_pile) gv
+    |--  one_pile None gv.
+  Proof. intros. sep_apply onepile_Init_aux. apply make_onepile; trivial. Qed.
+
+  Lemma onepile_Init gv: InitGPred (Vardefs prog) gv |-- one_pile None gv.
+  Proof. unfold InitGPred. simpl; Intros. sep_apply onepile_Init_aux2; trivial. simpl. trivial. Qed.
+
   Definition OnepileComponent: @Component NullExtension.Espec OnepileVprog _ 
-      nil onepile_imported_specs prog Onepile_ASI onepile_internal_specs.
+      nil onepile_imported_specs prog Onepile_ASI (one_pile None) onepile_internal_specs.
   Proof. 
     mkComponent. 
     + solve_SF_internal body_Onepile_init.
     + solve_SF_internal body_Onepile_add.
     + solve_SF_internal body_Onepile_count.
+    + sep_apply onepile_Init; simpl; cancel.
   Qed.
 
 Definition OnepileVSU: @VSU NullExtension.Espec OnepileVprog _ 
-      nil onepile_imported_specs prog Onepile_ASI.
+      nil onepile_imported_specs prog Onepile_ASI (one_pile None) .
   Proof. eexists; apply OnepileComponent. Qed.
 End Onepile_VSU.
