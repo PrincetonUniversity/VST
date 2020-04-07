@@ -26,7 +26,7 @@ Proof.
       rewrite <- cored_duplicable; auto.
 Qed.
 
-Lemma cored_dup_gen : forall P, P |-- cored -> P |-- P * P.
+Lemma cored_dup_gen : forall P, (P |-- cored) -> P |-- P * P.
 Proof.
   intros.
   erewrite (log_normalize.add_andp P) by (constructor; apply H); apply cored_dup.
@@ -557,6 +557,44 @@ Qed.*)
 
 Import Ensembles.
 
+Lemma Union_comm: forall {A} S T, Union A S T = Union A T S.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? H; inv H; solve [constructor 1; auto] || solve [constructor 2; auto].
+Qed.
+
+Lemma Union_assoc: forall {A} S T U, Union A (Union A S T) U = Union A S (Union A T U).
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? H; inv H.
+  - inv H0; [constructor 1 | constructor 2; constructor 1]; auto.
+  - constructor 2; constructor 2; auto.
+  - constructor 1; constructor 1; auto.
+  - inv H0; [constructor 1; constructor 2 | constructor 2]; auto.
+Qed.
+
+Lemma Union_Empty : forall {A} S, Union A (Empty_set A) S = S.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? H.
+  - inv H; auto; contradiction.
+  - constructor 2; auto.
+Qed.
+
+Lemma Intersection_comm: forall {A} S T, Intersection A S T = Intersection A T S.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? H; inv H; constructor; auto.
+Qed.
+
+Lemma Intersection_assoc: forall {A} S T U, Intersection A (Intersection A S T) U = Intersection A S (Intersection A T U).
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? H; inv H.
+  - inv H0; repeat constructor; auto.
+  - inv H1; repeat constructor; auto.
+Qed.
+
+Lemma Intersection_Empty : forall {A} S, Intersection A (Empty_set A) S = Empty_set A.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? H; inv H; auto.
+Qed.
+
 Program Instance set_PCM : Ghost := { valid := fun _ : Ensemble nat => True;
   Join_G a b c := Disjoint _ a b /\ c = Union _ a b(*; core2 a := empty*) }.
 Next Obligation.
@@ -564,12 +602,8 @@ Proof.
   exists (fun _ => Empty_set _); auto.
   intro; split.
   - constructor; intros ? X.
-    inv X.
-    inv H.
-  - apply Extensionality_Ensembles; constructor; intros ??.
-    + right; auto.
-    + inv H; auto.
-      inv H0.
+    rewrite Intersection_Empty in X; contradiction.
+  - rewrite Union_Empty; auto.
 Defined.
 Next Obligation.
   constructor.
@@ -586,16 +620,12 @@ Next Obligation.
         -- contradiction (H x); constructor; auto.
         -- contradiction (H0 x); constructor; auto.
            left; auto.
-      * apply Extensionality_Ensembles; constructor; intros ? X.
-        -- inv X; [|right; right; auto].
-           inv H1; [left | right; left]; auto.
-        -- inv X; [left; left; auto|].
-           inv H1; [left; right | right]; auto.
+      * apply Union_assoc.
     + intros ??? []; subst.
       split.
       * inv H; constructor.
         intros x X; inv X; contradiction (H0 x); constructor; auto.
-      * apply Extensionality_Ensembles; constructor; intros ? X; inv X; first [(left; auto; fail) | (right; auto; fail)].
+      * apply Union_comm.
     + intros ???? [] []; subst.
       apply Extensionality_Ensembles; constructor; intros ? X.
       { left; auto. }
@@ -1177,14 +1207,32 @@ Qed.
 
 End Invariants.
 
-(*Lemma make_wsat : (emp |-- |==> EX inv_names : invG, wsat)%I.
+Lemma make_wsat : emp |-- |==> EX inv_names : invG, wsat.
 Proof.
   unfold wsat.
-  iIntros.
-  iMod (own_alloc(RA := snap_PCM(ORD := list_order gname)) (Tsh, nil) NoneP with "[$]") as (g_inv) "inv"; first (simpl; auto).
-  iMod (own_alloc(RA := list_PCM (exclusive_PCM unit)) nil NoneP with "[$]") as (g_dis) "dis"; first (simpl; auto).
-  iMod (own_alloc(RA := set_PCM) empty NoneP with "[$]") as (g_en) "en"; first (simpl; auto).
-  iModIntro.
-  iExists {| g_inv := g_inv; g_dis := g_dis; g_en := g_en |}.
-  iExists nil, nil, nil; simpl; iFrame; auto.
-Qed.*)
+  eapply derives_trans with (Q := (_ * emp)%pred); [rewrite sepcon_emp; apply (ghost_alloc(RA := snap_PCM(ORD := list_order gname)) (Tsh, nil) NoneP); simpl; auto|].
+  eapply derives_trans; [apply bupd_frame_r | eapply derives_trans, bupd_trans; apply bupd_mono].
+  rewrite exp_sepcon1; apply exp_left; intro g_inv.
+  eapply derives_trans; [eapply sepcon_derives with (q' := (|==> _ * emp)%pred); [apply derives_refl |
+    rewrite sepcon_emp; apply (ghost_alloc(RA := list_PCM (exclusive_PCM unit)) nil NoneP); simpl; auto]|].
+  eapply derives_trans; [apply bupd_frame_l | eapply derives_trans, bupd_trans; apply bupd_mono].
+  rewrite exp_sepcon1, exp_sepcon2; apply exp_left; intro g_dis.
+  rewrite <- sepcon_assoc.
+  eapply derives_trans; [eapply sepcon_derives with (q' := (|==> _ * emp)%pred); [apply derives_refl |
+    rewrite sepcon_emp; apply (ghost_alloc(RA := set_PCM) (Ensembles.Empty_set _) NoneP); simpl; auto]|].
+  eapply derives_trans; [apply bupd_frame_l | eapply derives_trans, bupd_trans; apply bupd_mono].
+  rewrite exp_sepcon1, !exp_sepcon2; apply exp_left; intro g_en.
+  rewrite <- sepcon_assoc.
+  eapply derives_trans, bupd_intro.
+  apply exp_right with {| g_inv := g_inv; g_dis := g_dis; g_en := g_en |}, exp_right with nil, exp_right with nil, exp_right with nil; simpl.
+  rewrite !sepcon_andp_prop1; apply andp_right.
+  - hnf; intros; simpl; auto.
+  - repeat apply sepcon_derives; auto.
+    replace (fun i : iname => match i with
+                                     | 0%nat | _ => None
+                                     end = Some false) with (Ensembles.Empty_set nat); auto.
+    apply Ensembles.Extensionality_Ensembles; split.
+    + intros ? H; inv H.
+    + intros ? H; hnf in H.
+      destruct x; inv H.
+Qed.
