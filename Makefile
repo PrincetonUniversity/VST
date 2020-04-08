@@ -85,9 +85,9 @@ COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
-ifneq ($(wildcard coq-ext-lib/theories),)
-EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
-endif
+# ifneq ($(wildcard coq-ext-lib/theories),)
+# EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
+# endif
 ifneq ($(wildcard InteractionTrees/theories),)
 EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
 endif
@@ -581,12 +581,13 @@ ifeq ($(COMPCERT), compcert_new)
 else
 	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
-ifneq ($(wildcard coq-ext-lib/theories),)
-	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
-endif
+# ifneq ($(wildcard coq-ext-lib/theories),)
+# 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
+# endif
 ifneq ($(wildcard InteractionTrees/theories),)
 	$(warning foo)
-	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+#	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 endif
 ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend

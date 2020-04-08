@@ -83,9 +83,9 @@ Proof.
       destruct H0, vl; try contradiction.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & Hargs & ? & ? & Htrace).
-      destruct Hargs as [[Harg _] _]; hnf in Harg.
-      rewrite Harg, eval_id_same.
+      destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
+      assert (Harg: v = Vubyte c) by (inv Hargs; auto). clear Hargs.
+      rewrite Harg.
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
@@ -99,7 +99,7 @@ Proof.
       unfold putchar_pre; split; auto; split; auto.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
+      destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       unfold getchar_pre.
@@ -112,7 +112,7 @@ Proof.
       destruct t as (? & (c, k)); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
+      destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
@@ -146,7 +146,7 @@ Proof.
       destruct t as (? & k); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
+      destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.

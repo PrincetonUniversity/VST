@@ -369,7 +369,7 @@ Proof.
   revert dependent phi; revert dependent lo.
   induction n; intros; subst.
   - unfold sublist; simpl.
-    rewrite Z.add_0_l, Zminus_diag.
+    rewrite skipn_firstn,  Z.add_0_l, minus_diag.
     apply Mem.loadbytes_empty; reflexivity.
   - simpl in Hbuf.
     destruct Hbuf as (phi0 & ? & J' & Hbyte & Hbytes).
@@ -529,8 +529,12 @@ Defined.
 Lemma has_ext_noat : forall {Z} (z : Z), has_ext z |-- ALL x : _, res_predicates.noat x.
 Proof.
   intros; unfold has_ext, own.own.
+change (@predicates_hered.exp rmap ag_rmap) with (@exp mpred _).
   apply exp_left; intro.
-  apply andp_left1; auto.
+ unfold own.Own.
+ change (@predicates_hered.andp rmap ag_rmap) with (@andp mpred _).
+  apply andp_left1.
+  apply derives_refl.
 Qed.
 
 Lemma inflate_store_join1 : forall phi1 phi2 phi3 m (J : join phi1 phi2 phi3)
@@ -577,6 +581,7 @@ Proof.
   rewrite Hrebuild, !age_to_resource_at.age_to_resource_at.
   unfold compose, inflate_store, juicy_mem_lemmas.rebuild_juicy_mem_fmap; rewrite !resource_at_make_rmap.
   apply (resource_at_join _ _ _ loc) in J.
+  simpl.
   inv J; try constructor.
   - rewrite if_false; [constructor; auto|].
     erewrite mem_equiv_access by eauto.
@@ -662,6 +667,7 @@ Proof.
       eapply Mem.perm_implies; [eapply Mem.perm_alloc_2; eauto; omega | constructor]. }
     { erewrite mem_equiv_access, Haccess by apply Heq; constructor. }
   - edestruct alloc_dry_unchanged_on as [Haccess Hcontents]; eauto.
+    simpl.
     inv J; try constructor.
     + rewrite if_false; [constructor; auto|].
       erewrite mem_equiv_access by eauto.
@@ -850,37 +856,38 @@ Definition main_post_dry {Z} (m0 m : mem) (prog : Clight.program) (ora : Z)
 
 (* simulate funspec2pre/post *)
 
-Definition main_pre_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type & unit})
-  (ge_s: extspec.injective_PTree block) (tys : list typ) args (z : Z) (m : juicy_mem) :=
+Search genv genviron.
+Definition main_pre_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & unit})
+  (ge_s: extspec.injective_PTree block) args (z : Z) (m : juicy_mem) :=
     Val.has_type_list args [] /\
 (*    (exists phi0 phi1 : rmap,
        join phi0 phi1 (m_phi m) /\*)
-       (app_pred (main_pre prog ora ts gv
-          (seplog.make_args [] [] (empty_environ (semax_ext.symb2genv ge_s))))
+       (app_pred (main_pre prog ora gv
+          (filter_genv (semax_ext.symb2genv ge_s), nil))
          (m_phi m) (*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 
-Definition main_post_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type & unit})
+Definition main_post_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & unit})
   (ge_s: extspec.injective_PTree block) (tret : option typ) ret (z : Z) (m : juicy_mem) :=
   (*exists phi0 phi1 : rmap,
        join phi0 phi1 (m_phi m) /\*)
-       (app_pred (main_post prog ts gv
+       (app_pred (main_post prog gv
           (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) ret))
          (m_phi m)(*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 
 Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
-  (forall t b tl vl x jm,
+  (forall t b vl x jm,
   Genv.init_mem (program_of_program prog) = Some (m_dry jm) ->
-  main_pre_juicy prog ora ts gv t b tl vl x jm ->
+  main_pre_juicy prog ora gv t b vl x jm ->
   main_pre_dry (m_dry jm) prog ora ts gv x) /\
   (forall t b ot v x jm0 jm,
-    (exists tl vl x0, main_pre_juicy prog ora ts gv t b tl vl x0 jm0) ->
+    (exists vl x0, main_pre_juicy prog ora gv t b vl x0 jm0) ->
     (level jm <= level jm0)%nat ->
     resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) ->
     ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
     (main_post_dry (m_dry jm0) (m_dry jm) prog ora ts gv x ->
-     main_post_juicy prog ora ts gv t b ot v x jm)).
+     main_post_juicy prog ora gv t b ot v x jm)).
 Proof.
   split; intros.
   - unfold main_pre_juicy, main_pre_dry in *.
