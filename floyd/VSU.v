@@ -667,6 +667,20 @@ Proof. intros. destruct c. econstructor; trivial.
  intros; eapply derives_trans. apply Comp_MkInitPred0. cancel.
 Qed.
 
+Lemma Comp_entailTT:
+      @Component Espec V cs E Imports p Exports (GP * TT)%logic G.
+Proof. intros. apply Comp_entail. intros; simpl; apply sepcon_TT. Qed.
+
+Lemma Comp_entailemp:
+      @Component Espec V cs E Imports p Exports TT G.
+Proof. intros. eapply Comp_entail. intros; simpl. apply TT_right. Qed.
+
+Lemma Comp_entail_split {GP1 GP2} (H: forall gv, GP gv |-- (GP1 gv * GP2 gv)%logic):
+      @Component Espec V cs E Imports p Exports (fun gv => GP1 gv * TT)%logic G.
+Proof. intros. eapply Comp_entail. intros; simpl.
+  eapply derives_trans. apply H. cancel.
+Qed.
+
 Lemma Comp_Imports_sub Imports' (HI1: map fst Imports' = map fst Imports)
       (HI2: Forall2 funspec_sub (map snd Imports') (map snd Imports)): 
       @Component Espec V cs E Imports' p Exports GP G.
