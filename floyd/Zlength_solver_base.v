@@ -38,6 +38,67 @@ Lemma Zlength_Zrepeat : forall (A : Type) (x : A) (n : Z),
   Zlength (Zrepeat x n) = n.
 Proof. intros *. unfold Zrepeat. rewrite repeat_list_repeat. apply @Zlength_list_repeat. Qed.
 
+Lemma Zlength_firstn : forall (A : Type) n (l : list A),
+  Zlength (firstn n l) = Z.min (Z.max (Z.of_nat n) 0) (Zlength l).
+Proof.
+  induction n; intros.
+  - simpl. rewrite Zlength_nil.
+    pose proof (Zlength_nonneg l). lia.
+  - destruct l; simpl.
+    + rewrite Zlength_nil. lia.
+    + rewrite !Zlength_cons.
+      rewrite IHn.
+      pose proof (Zlength_nonneg l). lia.
+Qed.
+
+Lemma Zlength_firstn_to_nat : forall (A : Type) n (l : list A),
+  Zlength (firstn (Z.to_nat n) l) = Z.min (Z.max n 0) (Zlength l).
+Proof.
+  intros.
+  rewrite Zlength_firstn.
+  lia.
+Qed.
+
+Lemma Zlength_skipn : forall (A : Type) n (l : list A),
+  Zlength (skipn n l) = Z.max (Zlength l - (Z.max (Z.of_nat n) 0)) 0.
+Proof.
+  induction n; intros.
+  - simpl.
+    pose proof (Zlength_nonneg l). lia.
+  - destruct l; simpl.
+    + rewrite Zlength_nil. lia.
+    + rewrite !Zlength_cons.
+      rewrite IHn.
+      pose proof (Zlength_nonneg l). lia.
+Qed.
+
+Lemma Zlength_skipn_to_nat : forall (A : Type) n (l : list A),
+  Zlength (skipn (Z.to_nat n) l) = Z.max (Zlength l - (Z.max n 0)) 0.
+Proof.
+  intros.
+  rewrite Zlength_skipn.
+  lia.
+Qed.
+
+Lemma Zlength_sublist2 : forall (A : Type) lo hi (l : list A),
+  Zlength (sublist lo hi l) = Z.max (Z.min hi (Zlength l) - Z.max lo 0) 0.
+Proof.
+  intros.
+  unfold sublist.
+  rewrite Zlength_skipn_to_nat, Zlength_firstn_to_nat.
+  lia.
+Qed.
+
+Lemma Zlength_upd_Znth : forall (A : Type) i l (x : A),
+  Zlength (upd_Znth i l x) = Zlength l
+  \/ Zlength (upd_Znth i l x) = Zlength l + 1. (* TODO *)
+Proof.
+  intros.
+  unfold upd_Znth. rewrite Zlength_app, Zlength_cons.
+  rewrite !Zlength_sublist2.
+  pose proof (Zlength_nonneg l). lia.
+Qed.
+
 (** * list_form *)
 Lemma Zrepeat_fold : forall (A : Type) (x : A) (n : Z),
   list_repeat (Z.to_nat n) x = Zrepeat x n.
