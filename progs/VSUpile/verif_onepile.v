@@ -65,7 +65,7 @@ Qed.*)
     initialize.gv_globvar2pred gv (_the_pile, v_the_pile) gv
     |-- data_at_ Ews (tptr (Tstruct _pile noattr)) (gv _the_pile).
   Proof. intros.
-    unfold initialize.gv_globvar2pred. simpl.
+    unfold initialize.gv_globvar2pred, initialize.gv_globvar2pred. simpl.
          unfold initialize.gv_lift2, initialize.gv_lift0; simpl.
          rewrite predicates_sl.sepcon_emp.
     destruct H as [b Hb]; rewrite Hb in *.
