@@ -5,6 +5,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.field_compat.
+Require Import Lia.
 Import ListNotations.
 
 (** This file provides a almost-complete solver for list with concatenation.
@@ -73,10 +74,10 @@ Proof.
   induction al; intros;
     destruct bl; try discriminate; auto.
   f_equal.
-  - apply (H0 0%nat). simpl. omega.
+  - apply (H0 0%nat). simpl. lia.
   - apply IHal.
-    + simpl in H. omega.
-    + intros. apply (H0 (S i)). simpl. omega.
+    + simpl in H. lia.
+    + intros. apply (H0 (S i)). simpl. lia.
 Qed.
 
 Lemma Znth_eq_ext : forall {A : Type} {d : Inhabitant A} (al bl : list A),
@@ -85,9 +86,9 @@ Lemma Znth_eq_ext : forall {A : Type} {d : Inhabitant A} (al bl : list A),
   al = bl.
 Proof.
   intros. rewrite !Zlength_correct in *. apply nth_eq_ext with d.
-  - omega.
+  - lia.
   - intros. rewrite  <- (Nat2Z.id i).
-    specialize (H0 (Z.of_nat i) ltac:(omega)).
-    rewrite !nth_Znth by (rewrite !Zlength_correct in *; omega).
+    specialize (H0 (Z.of_nat i) ltac:(lia)).
+    rewrite !nth_Znth by (rewrite !Zlength_correct in *; lia).
     apply H0.
 Qed.

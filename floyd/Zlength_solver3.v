@@ -1,5 +1,6 @@
 Require Import VST.floyd.base2.
 Require Export VST.floyd.Zlength_solver_base.
+Require Import Lia.
 Import ListNotations.
 
 (** list_solver3 is a solver using a database of the form
@@ -133,7 +134,7 @@ Lemma calc_Zlength_app : forall A (al bl : list A) alen blen,
 Proof.
   intros.
   rewrite Zlength_app.
-  omega.
+  lia.
 Qed.
 
 Lemma calc_Zlength_sublist : forall A (l : list A) len lo hi,
@@ -144,7 +145,7 @@ Lemma calc_Zlength_sublist : forall A (l : list A) len lo hi,
 Proof.
   intros.
   rewrite Zlength_sublist;
-  omega.
+  lia.
 Qed.
 
 Lemma calc_Zlength_map : forall A B (l : list A) len (f : A -> B),
@@ -169,13 +170,13 @@ Ltac calc_Zlength l :=
       let H2 := get_Zlength l2 in
       add_Zlength_res (calc_Zlength_app A l1 l2 _ _ H1 H2)
     | @Zrepeat ?A ?x ?n =>
-      add_Zlength_res (Zlength_Zrepeat A x n ltac:(omega))
+      add_Zlength_res (Zlength_Zrepeat A x n ltac:(lia))
     | @sublist ?A ?lo ?hi ?l =>
       calc_Zlength l;
       let H := get_Zlength l in
       let Z_solve :=
         first[
-          omega
+          lia
         | fail 0 "cannot prove" lo hi "are in range for" l
         ]
       in
@@ -207,7 +208,7 @@ Ltac Zlength_solve :=
       let H := get_Zlength l in
       rewrite !H
   end;
-  omega.
+  lia.
 
 Ltac Zlength_solve_cached :=
   init_Zlength_db;
@@ -221,7 +222,7 @@ Ltac Zlength_solve_cached :=
       rewrite !H
   end;
   clear_Zlength_db;
-  omega.
+  lia.
 
 Ltac Zlength_solve_cached2 :=
   repeat match goal with
@@ -235,7 +236,7 @@ Ltac Zlength_solve_cached2 :=
       rewrite !H;
       clear_Zlength_db
   end;
-  omega.
+  lia.
 
 
 Goal forall A (al bl cl : list A) n m,

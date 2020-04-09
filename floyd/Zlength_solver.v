@@ -1,5 +1,6 @@
 Require Import VST.floyd.base2.
 Require Export VST.floyd.Zlength_solver_base.
+Require Import Lia.
 
 (** This file provides a almost-complete solver for list with concatenation.
   Its core symbols include:
@@ -15,7 +16,7 @@ Require Export VST.floyd.Zlength_solver_base.
     cons
     upd_Znth. *)
 
-Ltac Zlength_solve := autorewrite with Zlength; pose_Zlength_nonneg; omega.
+Ltac Zlength_solve := autorewrite with Zlength; pose_Zlength_nonneg; lia.
 Hint Rewrite Zlength_cons : Zlength.
 Hint Rewrite Zlength_nil : Zlength.
 Hint Rewrite Zlength_app : Zlength.
