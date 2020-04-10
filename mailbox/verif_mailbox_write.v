@@ -517,7 +517,11 @@ Proof.
             (sublist 0 (Zlength h') (map (fun i => if eq_dec (Znth i h') Empty then b0 else Znth i lasts)
             (upto (Z.to_nat N)))) b0) sh' /\ sepalg.join sh' shi sh) &&
             (EX v1 : Z, @data_at CompSpecs sh tbuffer (vint v1) (Znth b0 bufs))))).
-  { rewrite replace_nth_sepcon.
+  { rewrite replace_nth_sepcon. 2 : {
+      rewrite Zlength_map.
+      rewrite Zlength_upto.
+      lia.
+    }
     destruct (eq_dec v' (-1)).
     - rewrite extract_nth_sepcon with (i := lasti); [|subst l0; omega].
       erewrite upd_Znth_diff, Znth_map, Znth_upto; rewrite ?Z2Nat.id; auto; try omega.
@@ -891,7 +895,9 @@ Proof.
         (if zlt r (i + 1) then singleton (Znth r (t' ++ [t])) (AE (Znth r (h' ++ [v])) (vint b)) else empty_map)))
       (upto (Z.to_nat N)))).
     { go_lower.
-      rewrite replace_nth_sepcon; apply sepcon_list_derives; rewrite upd_Znth_Zlength;
+      rewrite replace_nth_sepcon.
+      2 : { rewrite Zlength_map. rewrite Zlength_upto. unfold N in H10. lia. }
+      apply sepcon_list_derives; rewrite upd_Znth_Zlength;
         rewrite !Zlength_map, Zlength_upto; auto.
       intros j ?; destruct (eq_dec j i).
       + subst; rewrite upd_Znth_same by (rewrite Zlength_map, Zlength_upto; auto).
