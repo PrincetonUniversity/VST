@@ -320,7 +320,7 @@ Proof.
   induction lasts; destruct shs; simpl; intros; rewrite ?Zlength_cons, ?Zlength_nil in *; try omega.
   destruct (eq_dec j 0).
   - subst; rewrite Znth_0_cons in Hi', IHlasts; rewrite !Znth_0_cons.
-    rewrite eq_dec_refl, upd_Znth0, Zlength_cons, sublist_1_cons, sublist_same; auto; try omega; simpl.
+    rewrite eq_dec_refl, upd_Znth0; auto; try omega; simpl.
     destruct (eq_dec i' a); [contradiction Hi'; auto|].
     eexists [], _; simpl; split; eauto.
   - rewrite Znth_pos_cons in Hi; [|omega].
