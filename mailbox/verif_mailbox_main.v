@@ -51,7 +51,10 @@ Proof.
     erewrite <- (data_at_shares_join Ews tbuffer) by eauto.
     rewrite (sepcon_comm (data_at sh0 _ _ (Znth 0 (sublist _ _ bufs)))),
       (sepcon_assoc _ (data_at sh0 _ _ (Znth 0 (sublist _ _ bufs)))).
-    rewrite replace_nth_sepcon.
+    rewrite replace_nth_sepcon. 2 : {
+      rewrite Zlength_map.
+      rewrite Zlength_sublist; unfold B, N in *; omega.
+    }
     fast_cancel.
     rewrite <- !sepcon_assoc, (sepcon_comm _ (fold_right sepcon emp (upd_Znth 0 _ _))), !sepcon_assoc.
     rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at sh0 tbuffer _ _)), !sepcon_assoc.

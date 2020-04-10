@@ -49,8 +49,9 @@ Lemma cons_Zrepeat_1_app : forall (A : Type) (x : A) (al : list A),
 Proof. auto. Qed.
 
 Lemma upd_Znth_unfold : forall (A : Type) (n : Z) (al : list A) (x : A),
+  0 <= n < Zlength al ->
   upd_Znth n al x = sublist 0 n al ++ [x] ++ sublist (n+1) (Zlength al) al.
-Proof. auto. Qed.
+Proof. intros. unfold_upd_Znth_old. auto. Qed.
 
 (* this seems not needed *)
 (*Lemma Znth_Zrepeat_1_sublist : forall (A : Type) (d : Inhabitant A) (i : Z) (al : list A),
@@ -58,9 +59,10 @@ Proof. auto. Qed.
   Zrepeat 1 (Znth i al) = sublist i (i+1) al.
 Proof. intros. rewrite sublist_one by omega; auto. Qed. *)
 
-Hint Rewrite Zrepeat_fold upd_Znth_unfold cons_Zrepeat_1_app : list_form_rewrite.
+Hint Rewrite Zrepeat_fold cons_Zrepeat_1_app : list_form_rewrite.
 (* Hint Rewrite Znth_Zrepeat_1_sublist using Zlength_solve: list_form_rewrite. *)
 Hint Rewrite app_nil_r app_nil_l : list_form_rewrite.
+Hint Rewrite upd_Znth_unfold using Zlength_solve : list_form_rewrite.
 
 Ltac list_form :=
   autorewrite with list_form_rewrite in *.

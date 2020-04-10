@@ -47,6 +47,20 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)).
 
+Lemma upd_Znth_ints i xints v:
+  0 <= i < Zlength (map Vint xints) ->
+      upd_Znth i (map Vint xints) (Vint v) =
+      map Vint ((sublist 0 i xints) ++
+                v :: (sublist (i + 1) (Zlength (map Vint xints)) xints)).
+Proof.
+  intros.
+  rewrite Zlength_map in H.
+  rewrite upd_Znth_map.
+  unfold_upd_Znth_old.
+  rewrite Zlength_map.
+  auto.
+Qed.
+
 Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h (xs ys: list int):
 @semax CompSpecs Espec
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
@@ -107,7 +121,7 @@ Proof.
     apply andp_right; [ apply prop_right | rewrite Int.add_commut; cancel].
     repeat split; trivial; try omega. 
     * rewrite upd_Znth_Zlength. assumption. simpl; rewrite XLL. omega.
-    * eexists; split. apply upd_Znth_ints.
+    * eexists; split. apply upd_Znth_ints; omega.
       intros kk KK. destruct (J _ KK) as [xj [Xj [IJ1 IJ2]]].
       exists xj. split. assumption.
       split; intros.
@@ -343,10 +357,13 @@ Proof. intros. abbreviate_semax.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
        replace (length Front) with (Z.to_nat i).
        rewrite Z2Nat.id by omega.
-       rewrite upd_Znth_ints.
+       rewrite upd_Znth_ints. 2 : {
+         rewrite Zlength_map. omega.
+       }
        autorewrite with sublist.
        f_equal.
-       unfold upd_Znth.
+       do 3 rewrite upd_Znth_old_upd_Znth by list_solve.
+       unfold old_upd_Znth.
        assert (VJeq: Znth (5 * i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) =
                 Znth (5 * i) intsums). {
          clear - SL PL2length I.
