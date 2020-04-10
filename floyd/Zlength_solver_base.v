@@ -90,13 +90,12 @@ Proof.
 Qed.
 
 Lemma Zlength_upd_Znth : forall (A : Type) i l (x : A),
-  Zlength (upd_Znth i l x) = Zlength l
-  \/ Zlength (upd_Znth i l x) = Zlength l + 1. (* TODO *)
+  Zlength (upd_Znth i l x) = Zlength l.
 Proof.
   intros.
-  unfold upd_Znth. rewrite Zlength_app, Zlength_cons.
-  rewrite !Zlength_sublist2.
-  pose proof (Zlength_nonneg l). lia.
+  unfold upd_Znth. if_tac; auto.
+  rewrite Zlength_app, Zlength_cons.
+  rewrite !Zlength_sublist2. lia.
 Qed.
 
 (** * list_form *)
@@ -109,8 +108,9 @@ Lemma cons_Zrepeat_1_app : forall (A : Type) (x : A) (al : list A),
 Proof. auto. Qed.
 
 Lemma upd_Znth_unfold : forall (A : Type) (n : Z) (al : list A) (x : A),
+  0 <= n < Zlength al ->
   upd_Znth n al x = sublist 0 n al ++ [x] ++ sublist (n+1) (Zlength al) al.
-Proof. auto. Qed.
+Proof. intros. rewrite upd_Znth_old_upd_Znth; auto. Qed.
 
 (** * Znth_solve *)
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)

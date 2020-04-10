@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.progs.rotate.
+Require Import VST.floyd.Funspec_old_Notation.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -73,7 +74,7 @@ Proof.
       data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
   ).
   { if_tac; entailer!. }
-  { forward_call tt. inv H3. }
+  { forward_call (-1). inv H3. }
   { forward. entailer!. if_tac; auto. congruence. }
   freeze [0; 1] FR.
   assert_PROP (n = Zlength s). { entailer!. list_solve2. }
