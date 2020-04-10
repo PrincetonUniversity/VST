@@ -889,24 +889,23 @@ Proof.
   omega.
   rewrite <- Z2Nat.inj_sub; trivial. apply Z2Nat.inj_le; try omega. omega.
 Qed.
-(*
-Lemma sublist_sublist:
-  forall {A} lo hi lo' hi' (al: list A),
- 0 <= lo <= hi ->
- hi <= hi'-lo' ->
- 0 <= lo' <= hi' ->
- hi' <= Zlength al ->
- sublist lo hi (sublist lo' hi' al) = sublist (lo+lo') (hi+lo') al.
+
+Lemma sublist_sublist' : forall {A} lo hi lo' hi' (al: list A),
+  0 <= lo <= hi ->
+  hi <= hi'-lo' ->
+  0 <= lo' <= hi' ->
+  hi' <= Zlength al ->
+  sublist lo hi (sublist lo' hi' al) = sublist (lo+lo') (hi+lo') al.
 Proof.
-intros.
-unfold_sublist_old.
-rewrite Zskipn_firstn by omega.
-rewrite Zfirstn_firstn by omega.
-rewrite Zskipn_skipn by omega.
-f_equal. f_equal. omega.
-f_equal. f_equal. omega.
+  intros.
+  unfold_sublist_old.
+  rewrite Zskipn_firstn by omega.
+  rewrite Zfirstn_firstn by omega.
+  rewrite Zskipn_skipn by omega.
+  f_equal. f_equal. omega.
+  f_equal. f_equal. omega.
 Qed.
-*)
+
 Lemma sublist_rejoin:
   forall {A} lo mid hi (al: list A),
   0 <= lo <= mid ->
@@ -1238,18 +1237,6 @@ Proof.
  apply IHk; auto. omega.
 Qed.
 
-(* not this version!
-Lemma sublist_list_repeat {A} i j k (v:A) (I: 0<=i)
-          (IJK: (Z.to_nat i <= Z.to_nat j <= k)%nat):
-      sublist i j (list_repeat k v) = list_repeat (Z.to_nat (j-i)) v.
-Proof.
-  unfold_sublist_old.
-  rewrite skipn_list_repeat; try omega.
-  rewrite Z2Nat.inj_sub; try omega.
-  rewrite firstn_list_repeat; trivial; omega.
-Qed.
-*)
-
 Lemma sublist_list_repeat {A} i j k (v:A) (I: 0<=i)
           (IJK: i <= j <= k):
       sublist i j (list_repeat (Z.to_nat k) v) = list_repeat (Z.to_nat (j-i)) v.
@@ -1541,7 +1528,7 @@ Proof.
   f_equal; [| f_equal]; f_equal; omega.
 Qed.
 
-(*Hint Rewrite @Zlength_list_repeat'  : sublist.*)
+Hint Rewrite @Zlength_list_repeat'  : sublist.
 Hint Rewrite @Znth_list_repeat_inrange : sublist.
 Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
 Hint Rewrite @list_repeat_0: sublist.

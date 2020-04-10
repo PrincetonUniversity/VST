@@ -53,15 +53,6 @@ Fixpoint upd_reptype (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (n
   | gf :: gfs0 => fun v0 => upd_reptype t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0)
   end (eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t gfs))).
 
-(* Lemma upd_Znth_ints i xints v:
-      upd_Znth i (map Vint xints) (Vint v) =
-      map Vint ((sublist 0 i xints) ++
-                v :: (sublist (i + 1) (Zlength (map Vint xints)) xints)).
-Proof. unfold upd_Znth; intros. rewrite map_app. simpl.
-  do 2 rewrite sublist_map; trivial.
-Qed.
- *)
-
 Lemma upd_reptype_data_equal: forall t gfs v v0 v1, data_equal v0 v1 -> data_equal (upd_reptype t gfs v v0) (upd_reptype t gfs v v1).
 Proof.
   intros.
