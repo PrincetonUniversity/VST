@@ -115,6 +115,13 @@ Proof.
   lia.
 Qed.
 
+Lemma calc_Zlength_upd_Znth : forall A (l : list A) len i x,
+  Zlength l = len ->
+  Zlength (upd_Znth i l x) = len.
+Proof.
+  intros; subst; apply Zlength_upd_Znth.
+Qed.
+
 Lemma calc_Zlength_map : forall A B (l : list A) len (f : A -> B),
   Zlength l = len ->
   Zlength (map f l) = len.
@@ -148,6 +155,10 @@ Ltac calc_Zlength l :=
         ]
       in
       add_Zlength_res (calc_Zlength_sublist A l _ lo hi H ltac:(Z_solve) ltac:(Z_solve))
+    | @upd_Znth ?A ?i ?l ?x =>
+      calc_Zlength l;
+      let H := get_Zlength l in
+      add_Zlength_res (calc_Zlength_upd_Znth A l _ i x H)
     | @map ?A ?B ?f ?l =>
       calc_Zlength l;
       let H := get_Zlength l in
