@@ -1528,7 +1528,6 @@ Proof.
   f_equal; [| f_equal]; f_equal; omega.
 Qed.
 
-Hint Rewrite @Zlength_list_repeat'  : sublist.
 Hint Rewrite @Znth_list_repeat_inrange : sublist.
 Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
 Hint Rewrite @list_repeat_0: sublist.
