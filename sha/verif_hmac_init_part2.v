@@ -94,9 +94,10 @@ sublist 0 (i + 1)
   (map Vubyte
            (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad)) ++
 sublist (i + 1) 64 (default_val (Tarray tuchar 64 noattr)).
-Proof. intros. 
+Proof. intros.
   rewrite upd_Znth_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
-     upd_Znth0; repeat rewrite Zlength_sublist; try omega.
+     upd_Znth0_old; repeat rewrite Zlength_sublist; try omega.
+  2: rewrite Zlength_default_val_Tarray_tuchar; omega.
   2: rewrite Zlength_default_val_Tarray_tuchar; omega.
   2: rewrite Zlength_map; rewrite ZLI; omega.
   2: rewrite Zlength_default_val_Tarray_tuchar; omega.
@@ -149,9 +150,10 @@ sublist 0 (i + 1)
   (map Vubyte (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Opad)) ++
 sublist (i + 1) 64
   (map Vubyte (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad)).
-Proof. intros. 
+Proof. intros.
   rewrite upd_Znth_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
-     upd_Znth0; repeat rewrite Zlength_sublist; try omega.
+     upd_Znth0_old; repeat rewrite Zlength_sublist; try omega.
+  2: rewrite Zlength_map, ZLI; omega.
   2: rewrite Zlength_map, ZLI; omega.
   2: rewrite Zlength_map, ZLO; omega.
   2: rewrite Zlength_map, ZLI; omega.

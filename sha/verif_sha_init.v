@@ -16,7 +16,9 @@ unfold field_at_.
 unfold_data_at (field_at _ _ _ _ _).
 simpl fst; simpl snd.
 (* END: without these lines *)
-Time do 8 (forward; unfold upd_Znth, sublist; simpl app). (* 21 sec *)
+Time do 8 (forward; unfold upd_Znth; if_tac;
+  unfold Zlength in *; simpl Zlength_aux in *; try lia;
+  unfold sublist; simpl app).
 Time repeat forward. (* 14 sec *)
 unfold sha256state_.
 Exists (map Vint init_registers,
