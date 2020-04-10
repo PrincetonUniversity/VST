@@ -27,6 +27,10 @@ Require Import VST.progs.reverse.
 
 Open Scope logic.
 
+Require Import VST.floyd.Funspec_old_Notation. (*This line is needed as the specs below
+are "old funspecs", as described in the tutrial etc. A more moden approach is to use
+(new) funspecs, in which function parameters are not named.*)
+
 (* The C programming language has a special namespace for struct
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators
 ** in the program logic need access to an interpretation of this namespace,
@@ -84,7 +88,7 @@ Definition reverse_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]
      PROP() LOCAL (temp ret_temp (Vint (Int.repr (3+2+1)))) SEP(TT).
 

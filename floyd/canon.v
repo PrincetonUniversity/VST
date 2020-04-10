@@ -35,9 +35,11 @@ Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
  | b::r => b rho /\ fold_right_andp rho r
  end.
 
+(*
 Definition PROPx (P: list Prop): forall (Q: environ->mpred), environ->mpred :=
+     andp (prop (fold_right and True P)).*)
+Definition PROPx {A} (P: list Prop): forall (Q: A->mpred), A->mpred :=
      andp (prop (fold_right and True P)).
-
 Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z) (at level 10).
 Notation "'PROP' ()   z" :=   (PROPx nil z) (at level 10).
 Notation "'PROP' ( )   z" :=   (PROPx nil z) (at level 10).
@@ -51,9 +53,11 @@ Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9).
 Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z)
          (at level 9).
 
-Definition SEPx (R: list mpred) : environ->mpred :=
+(*Definition SEPx (R: list mpred) : environ->mpred :=
+    fun _ => (fold_right_sepcon R).*)
+Definition SEPx {A} (R: list mpred) : A->mpred :=
     fun _ => (fold_right_sepcon R).
-Arguments SEPx R _ : simpl never.
+Arguments SEPx A R _ : simpl never.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
          (at level 8).
@@ -64,9 +68,60 @@ Notation " 'SEP' () " := (SEPx nil) (at level 8).
 Declare Scope assert.
 Delimit Scope assert with assert.
 
-Lemma PROPx_Permutation: forall P Q,
+Definition GLOBALSx (gs : list globals) (X : argsassert): argsassert := 
+ fun (gvals : argsEnviron) =>
+           LOCALx (map gvars gs) 
+                  (argsassert2assert nil X)
+                  (Clight_seplog.mkEnv (fst gvals) nil nil).
+Arguments GLOBALSx gs _ : simpl never.
+
+Notation " 'GLOBALS' ( x ; .. ; y )  z" := (GLOBALSx (cons x%logic .. (cons y%logic nil) ..) z)
+         (at level 9).
+
+Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z) (at level 9).
+Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z) (at level 9).
+
+Definition PARAMSx (vals:list val)(X : argsassert): argsassert :=
+ fun (gvals : argsEnviron) => !! (snd gvals = vals (*/\ Forall (fun v : val => v <> Vundef) vals*)) && X gvals.
+Arguments PARAMSx vals _ : simpl never.
+
+Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%logic .. (cons y%logic nil) ..) z)
+         (at level 9).
+
+Notation " 'PARAMS' ( )  z" := (PARAMSx nil z) (at level 9).
+Notation " 'PARAMS' ()  z" := (PARAMSx nil z) (at level 9).
+
+(*
+Definition testpre X gv vals Y :=
+  PROPx X (PARAMSx vals (GLOBALSx gv (SEPx Y))).
+*)
+
+(*
+Definition LAMBDAx (gs : list globals) (vals:list val) (X : argsassert): argsassert := 
+ fun (gvals : argsEnviron) =>
+           LOCALx (map gvars gs) 
+                  (!!(snd gvals=vals /\ Forall (fun v => v <> Vundef) vals) && argsassert2assert nil X)
+                  (Clight_seplog.mkEnv (fst gvals) nil nil).
+Notation " 'LAMBDA' ( )   z" := (LAMBDAx nil nil z)  (at level 9).
+Notation " 'LAMBDA' ()   z" := (LAMBDAx nil nil z)  (at level 9).
+
+Notation " 'LAMBDA' u ( x ; .. ; y )   z" := (LAMBDAx u (cons x%type .. (cons y%type nil) ..) z)
+         (at level 9).
+
+Lemma LAMBDA_char gs vals X: LAMBDAx gs vals X = (PARAMSx vals (GLOBALSx gs X)).
+Proof. 
+  unfold LAMBDAx, GLOBALSx, PARAMSx, LOCALx,
+         local, lift1, liftx, lift, argsassert2assert.
+  extensionality gvals; simpl.
+  apply pred_ext; normalize; apply andp_right; trivial; apply prop_right; intuition.
+Qed.*)
+
+Declare Scope argsassert.
+Delimit Scope argsassert with argsassert.
+
+Lemma PROPx_Permutation {A}: forall P Q,
   Permutation P Q ->
-  PROPx P = PROPx Q.
+  @PROPx A P = PROPx Q.
 Proof.
   intros.
   unfold PROPx.
@@ -96,9 +151,9 @@ Proof.
   + tauto.
 Qed.
 
-Lemma SEPx_Permutation: forall P Q,
+Lemma SEPx_Permutation {A}: forall P Q,
   Permutation P Q ->
-  SEPx P = SEPx Q.
+  @SEPx A P = SEPx Q.
 Proof.
   intros.
   unfold SEPx.
@@ -236,9 +291,9 @@ Proof.
   apply SEPx_super_non_expansive; auto.
 Qed.
 
-Lemma SEPx_nonexpansive: forall R rho,
+Lemma SEPx_nonexpansive {A}: forall R rho,
   Forall (fun R0 => predicates_rec.nonexpansive R0) R ->
-  nonexpansive (fun S => SEPx (map (fun R0 => R0 S) R) rho).
+  nonexpansive (fun S => @SEPx A (map (fun R0 => R0 S) R) rho).
 Proof.
   intros.
   unfold SEPx.
@@ -262,10 +317,22 @@ Proof.
   apply const_nonexpansive.
 Qed.
 
-Lemma PROPx_nonexpansive: forall P Q rho,
+Lemma PARAMSx_nonexpansive: forall Q R rho,
+  nonexpansive (fun S => R S rho) ->
+  nonexpansive (fun S => PARAMSx Q (R S) rho).
+Proof.
+  intros.
+  unfold PARAMSx.
+  specialize (conj_nonexpansive (fun S => (!! (snd rho = Q)) rho) (fun S => R S rho)).
+  intros CN; apply CN; clear CN; trivial.
+   red; intros. red; intros. simpl in *; intros. destruct (H0 y H1); clear H0.
+   split; trivial.
+Qed.
+
+Lemma PROPx_nonexpansive {A}: forall P Q rho,
   Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
   nonexpansive (fun S => Q S rho) ->
-  nonexpansive (fun S => PROPx (map (fun P0 => P0 S) P) (Q S) rho).
+  nonexpansive (fun S => @PROPx A (map (fun P0 => P0 S) P) (Q S) rho).
 Proof.
   intros.
   unfold PROPx.
@@ -299,6 +366,18 @@ Lemma PROP_LOCAL_SEP_nonexpansive: forall P Q R rho,
 Proof.
   intros.
   apply PROPx_nonexpansive; auto.
+  apply LOCALx_nonexpansive.
+  apply SEPx_nonexpansive; auto.
+Qed.
+
+Lemma PROP_PARAMS_GLOBALS_SEP_nonexpansive: forall P U Q R rho,
+  Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
+  Forall (fun R0 => nonexpansive R0) R ->
+  nonexpansive (fun S => PROPx (map (fun P0 => P0 S) P) (PARAMSx U (GLOBALSx Q (SEPx (map (fun R0 => R0 S) R)))) rho).
+Proof.
+  intros.
+  apply PROPx_nonexpansive; auto.
+  apply PARAMSx_nonexpansive.
   apply LOCALx_nonexpansive.
   apply SEPx_nonexpansive; auto.
 Qed.
@@ -493,8 +572,8 @@ rewrite sepcon_assoc;
 f_equal; auto.
 Qed.
 
-Lemma grab_indexes_SEP :
-  forall (ns: list Z) xs, SEPx xs = SEPx (grab_indexes ns xs).
+Lemma grab_indexes_SEP {A}:
+  forall (ns: list Z) xs, @SEPx A xs = SEPx (grab_indexes ns xs).
 Proof.
 intros.
 unfold SEPx; extensionality rho.
@@ -967,9 +1046,9 @@ Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) co
 Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) constr(j) :=
   frame_SEP' (a::b::c::d::e::f::g::h::i::j::nil).
 
-Lemma gather_SEP:
+Lemma gather_SEP {A}:
   forall R1 R2,
-    SEPx (R1 ++ R2) = SEPx (fold_right sepcon emp R1 :: R2).
+    @SEPx A (R1 ++ R2) = SEPx (fold_right sepcon emp R1 :: R2).
 Proof.
 intros.
 unfold SEPx.
@@ -1444,10 +1523,10 @@ extensionality rho; simpl.
 repeat rewrite sepcon_andp_prop. f_equal; auto.
 Qed.
 
-Lemma delete_emp_in_SEP:
+Lemma delete_emp_in_SEP {A}:
   forall n (R: list mpred),
     nth_error R n = Some emp ->
-    SEPx R = SEPx (firstn n R ++ list_drop (S n) R).
+    @SEPx A R = SEPx (firstn n R ++ list_drop (S n) R).
 Proof.
 intros.
 unfold SEPx; extensionality rho.
@@ -1733,17 +1812,17 @@ Ltac not_conj_notation :=
  | |- _ => apply Coq.Init.Logic.I
  end.
 
-Lemma split_first_PROP:
+Lemma split_first_PROP {A}:
   forall P Q R S,
   not_conj_notation (P/\Q) ->
-  PROPx ((P/\Q)::R) S = PROPx (P::Q::R) S.
+  @PROPx A ((P/\Q)::R) S = PROPx (P::Q::R) S.
 Proof.
 intros. unfold PROPx; simpl.
 extensionality rho.
 apply pred_ext; apply andp_derives; auto;
   apply prop_derives; intuition.
 Qed.
-Hint Rewrite split_first_PROP using not_conj_notation : norm1.
+Hint Rewrite @split_first_PROP using not_conj_notation : norm1.
 
 Lemma perm_derives:
   forall Delta P Q R P' Q' R',
@@ -2137,8 +2216,8 @@ Proof.
 Qed.
 
 Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
-| return_inner_gen_main: forall ov_gen P ts u,
-    return_inner_gen S ov_gen (main_post P ts u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
+| return_inner_gen_main: forall ov_gen P u,
+    return_inner_gen S ov_gen (main_post P u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
 | return_inner_gen_canon_nil':
     forall ov_gen P R,
       return_inner_gen S ov_gen
@@ -2343,9 +2422,9 @@ Proof.
   normalize. apply H.
 Qed.
 
-Lemma SEP_nth_isolate:
+Lemma SEP_nth_isolate {A}:
   forall n R Rn, nth_error R n = Some Rn ->
-      SEPx R = SEPx (Rn :: replace_nth n R emp).
+      @SEPx A R = SEPx (Rn :: replace_nth n R emp).
 Proof.
  unfold SEPx.
  intros. extensionality rho.
@@ -2388,10 +2467,10 @@ Proof.
   auto.
 Qed.
 
-Lemma SEP_replace_nth_isolate:
+Lemma SEP_replace_nth_isolate {A}:
   forall n R Rn Rn',
        nth_error R n = Some Rn ->
-      SEPx (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
+      @SEPx A (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
 Proof.
  unfold SEPx.
  intros.

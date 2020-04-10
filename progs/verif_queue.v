@@ -5,6 +5,8 @@ Require Import VST.progs.queue.
 
 Open Scope logic.
 
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -326,7 +328,7 @@ Definition make_elem_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]
        PROP() LOCAL (temp ret_temp (Vint (Int.repr (1+10)))) SEP(TT).
 
@@ -351,7 +353,7 @@ Proof.
     subst p. entailer!.
     entailer!.
 *
-    forward_call tt.
+    forward_call 1.
     contradiction.
 *
     if_tac.

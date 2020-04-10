@@ -1173,15 +1173,12 @@ Definition weak_valid_pointer (p: val) : mpred :=
 
 (********************SUBSUME****************)
 
-Definition params_of_funspec (fs: funspec) : list (ident * type) :=
-  fst (funsig_of_funspec fs).
-
-Definition return_of_funspec (fs: funspec) : type :=
-  snd (funsig_of_funspec fs).
-
-
 Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
+
+Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      rettype_of_funspec phi1 = rettype_of_funspec phi.
+Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.
 
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,

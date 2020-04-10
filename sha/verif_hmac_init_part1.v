@@ -355,9 +355,7 @@ Proof. intros.
      (*call memset*)
      freeze FR2 := - (@data_at CompSpecs _ _ _ (@field_address0 CompSpecs _ _ (Vptr ckb _))).
      Time forward_call (Tsh, Vptr ckb (Ptrofs.add ckoff (Ptrofs.repr (Zlength key))), l64, Int.zero). (*6.4 versus 10.4*)
-     { (*Issue: this side condition is NEW*)
-       apply prop_right. unfold Ptrofs.of_ints, Ptrofs.of_int, Ptrofs.to_int. normalize.
-       rewrite <- KL1, Heql64. split; trivial. }
+     { entailer!. }
      { rewrite <- KL1.
        rewrite sepcon_comm. Time apply sepcon_derives; [ | cancel]. (*0.1 versus 1.2*)
        unfold at_offset. simpl.
@@ -389,4 +387,4 @@ Proof. intros.
      change (0 + Zlength key) with (Zlength key).
      Time cancel. apply derives_refl.
      rewrite Zlength_list_repeat', Z2Nat.id; omega.
-Time Qed. (*10 secs versus 18*)
+Time Qed. (*0.6s versus 10s versus 18s*)

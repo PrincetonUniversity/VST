@@ -16,27 +16,13 @@ Lemma upd_Znth_append:
    upd_Znth len (dd++ sublist len N ee) v =
     (dd ++ [v]) ++ sublist (len+1) N ee.
 Proof.
-intros. subst.
-unfold upd_Znth.
-pose proof (Zlength_nonneg dd).
-autorewrite with sublist.
-rewrite app_ass.
-f_equal.
-simpl.
-f_equal.
-f_equal.
-omega.
+  intros. subst.
+  list_solve2.
 Qed.
 
 Lemma body_SHA256_Final: semax_body Vprog Gtot f_SHA256_Final SHA256_Final_spec.
 Proof.
 start_function.
-name md_ _md.
-name c_ _c.
-name p _p.
-name n _n.
-name cNl _cNl.
-name cNh _cNh.
 assert (CB := CBLOCKz_eq).
 unfold sha256state_.
 Intros r. destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
@@ -107,8 +93,6 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
  rewrite field_address_offset by auto with field_compatible.
  rewrite field_address0_offset by auto with field_compatible.
  make_Vptr c. simpl. unfold Ptrofs.of_intu, Ptrofs.of_int. normalize.
- rewrite !mul_repr, !sub_repr.  (* Why didn't [normalize] do this? *)
- reflexivity.
 }
 {
 change  (Z.of_nat CBLOCK - 8 - Zlength dd')
@@ -169,5 +153,5 @@ symmetry; rewrite <- hashed_data_recombine at 1; auto.
 unfold s256a_len.
 autorewrite with sublist.
 auto.
-Time Qed.  (* 40.5 sec (14.375u) *)
+Time Qed.  (*02/21/2020:2.6s versus 40.5 sec (14.375u) *)
 

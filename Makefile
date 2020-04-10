@@ -85,9 +85,9 @@ COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
-ifneq ($(wildcard coq-ext-lib/theories),)
-EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
-endif
+# ifneq ($(wildcard coq-ext-lib/theories),)
+# EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
+# endif
 ifneq ($(wildcard InteractionTrees/theories),)
 EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
 endif
@@ -255,7 +255,7 @@ FLOYD_FILES= \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
-   call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
+   call_lemmas.v extcall_lemmas.v forward_lemmas.v funspec_old.v forward.v \
    entailer.v globals_lemmas.v \
    local2ptree_denote.v local2ptree_eval.v local2ptree_typecheck.v \
    fieldlist.v mapsto_memory_block.v\
@@ -264,8 +264,9 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v Zlength_solver_base.v list_solver.v list_solver2.v data_at_lemmas.v
-#real_forward.v extract_smt.v
+   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v VSU_addmain.v \
+   Zlength_solver_base.v list_solver.v list_solver2.v
+#real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
@@ -439,7 +440,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.10.2 or-else 8.10.1 or-else 8.10.0 or-else 8.10+alpha or-else 8.11.0
+COQVERSION= 8.10.0 or-else 8.10.1 or-else 8.10.2 or-else 8.11.0
 
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
@@ -494,7 +495,6 @@ all: default_target files travis hmacdrbg tweetnacl aes
 
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
@@ -517,7 +517,7 @@ hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
 atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
-io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo
+io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo progs/io_specs.vo floyd/printf.vo InteractionTrees/theories/Events/Nondeterminism.vo
 
 CGFLAGS =  -DCOMPCERT
 
@@ -583,12 +583,13 @@ ifeq ($(COMPCERT), compcert_new)
 else
 	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
-ifneq ($(wildcard coq-ext-lib/theories),)
-	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
-endif
+# ifneq ($(wildcard coq-ext-lib/theories),)
+# 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
+# endif
 ifneq ($(wildcard InteractionTrees/theories),)
 	$(warning foo)
-	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+#	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 endif
 ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend

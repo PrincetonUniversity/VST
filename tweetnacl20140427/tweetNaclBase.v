@@ -6,6 +6,7 @@ Require Import sha.general_lemmas.
 
 (*Require Import tweetnacl20140427.split_array_lemmas.*)
 Require Import ZArith.
+Local Open Scope Z.
 
 Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
 Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed.

@@ -7,6 +7,10 @@ Require Export aes.spec_utils_LL.
 Require Export aes.list_utils.
 Require Export aes.spec_encryption_LL.
 
+Open Scope logic.
+Local Open Scope Z.
+
+Require Import VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.

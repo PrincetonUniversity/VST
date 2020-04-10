@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.store_demo.
 
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -62,9 +63,8 @@ assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vin
 (* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
 entailer!.
-rewrite upd_Znth0. rewrite sublist_1_cons. rewrite Zlength_cons.
+rewrite upd_Znth0.
 rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by omega.
-rewrite sublist_same by (rewrite ?Zlength_map; reflexivity).
 apply derives_refl.
 Qed.
 

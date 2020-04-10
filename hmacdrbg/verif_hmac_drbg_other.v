@@ -16,7 +16,6 @@ Lemma body_hmac_drbg_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_free hmac_drbg_free_spec.
 Proof.
   start_function.
-  abbreviate_semax.
   assert_PROP (is_pointer_or_null ctx) as PNctx by entailer.
   destruct ctx; try contradiction.
   - (*ctx==null*)
@@ -126,12 +125,13 @@ Definition hmac_drbg_random_spec_simple :=
         I: hmac256drbgabs,
         info: md_info_state,
         s: ENTROPY.stream, bytes:_, J:_, ss:_, gv: globals
-    PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
+    PRE [(*_p_rng OF*) tptr tvoid, (*_output OF*) tptr tuchar, (*_out_len OF*) tuint ]
        PROP ( WF I;
          0 <= n <= 1024;
          mbedtls_HMAC256_DRBG_generate_function s I n [] = ENTROPY.success (bytes, J) ss)
-       LOCAL (temp _p_rng ctx; temp _output output;
-              temp _out_len (Vint (Int.repr n)); gvars gv)
+       (*LOCAL (temp _p_rng ctx; temp _output output;
+              temp _out_len (Vint (Int.repr n)); gvars gv)*)
+       PARAMS (ctx; output;Vint (Int.repr n)) GLOBALS (gv)
        SEP (
          data_at_ Ews (tarray tuchar n) output;
          data_at Ews t_struct_hmac256drbg_context_st i ctx;
@@ -167,7 +167,6 @@ Lemma body_hmac_drbg_random_simple: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_random hmac_drbg_random_spec_simple.
 Proof.
   start_function.
-  abbreviate_semax. 
   destruct H as [ASS1 [ASS2 [ASS3 [ASS4 ASS5]]]].
   destruct H0 as [ASS6 ASS7]. rename H1 into ASS8.
   forward.
@@ -376,8 +375,7 @@ Qed.
 Lemma body_zeroize: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_zeroize mbedtls_zeroize_spec.
 Proof.
-  start_function.
-  abbreviate_semax. rename H into N.
+  start_function. rename H into N.
   rewrite data_at__isptr. Intros. destruct v; try contradiction. clear Pv.
   assert_PROP (field_compatible (tarray tuchar n) [] (Vptr b i)) as FC by entailer!.
   forward.
@@ -439,13 +437,12 @@ Lemma body_hmac_drbg_setPredictionResistance:
       f_mbedtls_hmac_drbg_set_prediction_resistance hmac_drbg_setPredictionResistance_spec.
 Proof.
   start_function.
-  abbreviate_semax.
   destruct CTX as [md_ctx [V [rc [el [pr ri]]]]].
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward.
-  simpl.
+  unfold_data_at 1%nat. forward.
+  entailer!. simpl.
   unfold_data_at 1%nat. entailer!.
 Qed.
 
@@ -454,12 +451,11 @@ Lemma body_hmac_drbg_setEntropyLen:
       f_mbedtls_hmac_drbg_set_entropy_len hmac_drbg_setEntropyLen_spec.
 Proof.
   start_function.
-  abbreviate_semax.
   destruct CTX as [md_ctx [V [rc [el [pr ri]]]]].
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward. simpl; entailer!.
+  unfold_data_at 1%nat. forward. entailer!. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
 
@@ -468,12 +464,11 @@ Lemma body_hmac_drbg_setReseedInterval:
       f_mbedtls_hmac_drbg_set_reseed_interval hmac_drbg_setReseedInterval_spec.
 Proof.
   start_function.
-  abbreviate_semax.
   destruct CTX as [md_ctx [V [rc [el [pr ri]]]]].
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward. simpl; entailer!.
+  unfold_data_at 1%nat. forward. entailer!. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
 

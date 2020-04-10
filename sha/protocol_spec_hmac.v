@@ -205,6 +205,7 @@ Parameter body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs
 
 End HMAC_ABSTRACT_SPEC.
 
+
 Lemma haslengthK_simple: forall l, 0 < l <= Int.max_signed -> l * 8 < two_p 64.
 intros. 
 assert (l < Int.half_modulus). unfold Int.max_signed in H. omega. clear H.
@@ -295,6 +296,7 @@ Proof.
   apply FULL_isptr.
 Qed.
 
+Hint Resolve EMPTY_isptr FULL_isptr REP_isptr : saturate_local.
 (************************ Abstract specifications of HMAC_init *******************************************************)
 
 Definition hmac_reset_spec :=
@@ -443,8 +445,11 @@ apply semax_pre with (P':=EX h1:hmacabs,
    initPre sh sh c nullval h1 l key))). 
 { unfold FULL. Intros h1. Exists h1. (*red in H.*)  entailer!. }
 Intros h1.
-eapply semax_post.
-5: apply (initbodyproof Espec c nullval l sh sh key gv h1 pad ctxkey); auto.
+eapply semax_pre_post.
+6: apply (initbodyproof Espec c nullval l sh sh key gv h1 pad ctxkey); auto.
+all: try apply ENTAIL_refl.
++
+entailer!.
 +
 subst POSTCONDITION; unfold abbreviate;
 simpl_ret_assert.
@@ -454,10 +459,6 @@ apply sepcon_derives; auto.
   entailer!.
   unfold hmacstate_, REP. Intros r. Exists r. entailer!.
   red. rewrite hmacUpdate_nil. assumption. 
-+
-simpl_ret_assert; normalize.
-+
-simpl_ret_assert; normalize.
 +
   intros.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert. auto.

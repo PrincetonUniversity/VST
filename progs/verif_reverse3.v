@@ -17,6 +17,7 @@ Require Import VST.progs.reverse.
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
 ** line (which looks identical for any program) builds this
 ** interpretation, called "CompSpecs" *)
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 (** Calculate the "types-of-global-variables" specification

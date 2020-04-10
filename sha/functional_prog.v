@@ -1105,10 +1105,10 @@ rewrite <- IHn by omega. clear IHn.
 rewrite (rnd_64_S _ _ _
     (nthi K256 (Z.of_nat n))
     (nthi block (Z.of_nat n))).
-2: (unfold nthi; rewrite Nat2Z.id; apply nth_error_nth; simpl; omega).
+2: (unfold nthi; rewrite Nat2Z.id; apply coqlib4.nth_error_nth; simpl; omega).
 2:{
 unfold nthi; rewrite Nat2Z.id.
-rewrite (nth_error_nth _ Int.zero n).
+rewrite (@coqlib4.nth_error_nth _ _ Int.zero n).
 2: rewrite rev_length, length_generate_word, rev_length, H0;
   change c48 with 48%nat; omega.
 f_equal.
@@ -1129,10 +1129,10 @@ rewrite Z.add_simpl_r.
 rewrite (rnd_64_S _ _ _
     (nthi K256 (Z.of_nat (n+16)))
     (nthi (rev (generate_word (rev block) c48)) (Z.of_nat (n+16)))).
-2: (unfold nthi; rewrite Nat2Z.id; apply nth_error_nth; simpl; omega).
+2: (unfold nthi; rewrite Nat2Z.id; apply coqlib4.nth_error_nth; simpl; omega).
 2:{
 unfold nthi; rewrite Nat2Z.id.
-apply (nth_error_nth _ Int.zero (n+16)).
+apply (@coqlib4.nth_error_nth _ _ Int.zero (n+16)).
 rewrite rev_length, length_generate_word, rev_length, H0;
   change c48 with 48%nat; omega.
 }

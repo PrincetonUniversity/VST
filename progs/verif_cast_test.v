@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.cast_test.
 
 Instance CompSpecs : compspecs.
+Require Export VST.floyd.Funspec_old_Notation.
 Proof. make_compspecs prog. Defined.
 
 Local Open Scope logic.

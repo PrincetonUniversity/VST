@@ -102,10 +102,14 @@ Proof.
       destruct H0, vl; try contradiction.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as ([Hreadable _] & Hargs & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
-      destruct Hargs as ([Harg1 _] & [Harg2 _] & _); hnf in Harg1, Harg2.
-      split; [rewrite Harg1, Harg2, eval_id_same, eval_id_other, eval_id_same by discriminate; auto|].
+      destruct Hpre as [[Hreadable _] [Hargs [_ [? [? [? [Htrace Hbuf]]]]]]].
+ (*     destruct Hpre as ([Hreadable _] & Hargs & ? & ? & J1 & (? & ? & Htrace) & Hbuf). *)
+(*      destruct Hargs as ([Harg1 _] & [Harg2 _] & _); hnf in Harg1, Harg2. *)
+      assert (Harg1: v = buf) by (inv Hargs; auto).
+      assert (Harg2: v0 = vint (Zlength msg)) by (inv Hargs; auto).
+      split; [rewrite Harg1, Harg2; auto|].
       split; auto.
+     destruct Htrace as [? [J1 Htrace]].
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       split.
@@ -141,9 +145,10 @@ Proof.
       destruct H0, vl; try contradiction.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as ([Hwritable _] & Hargs & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
-      destruct Hargs as ([Harg1 _] & [Harg2 _] & _); hnf in Harg1, Harg2.
-      split; [rewrite Harg1, Harg2, eval_id_same, eval_id_other, eval_id_same by discriminate; auto|].
+      destruct Hpre as [[Hwritable _] [Hargs [_ [? [? [? [[? [? Htrace]] Hbuf]]]]]]].
+      assert (Harg1: v = buf) by (inv Hargs; auto).
+      assert (Harg2: v0 = vint  len) by (inv Hargs; auto).
+      split; [rewrite Harg1, Harg2; auto|].
       clear Harg1.
       split; auto.
       apply has_ext_eq in Htrace.
@@ -163,7 +168,7 @@ Proof.
       destruct t as (? & (((((sh, buf), msg), len), rest), k)); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as ([Hwritable _] & _ & phig & phir & J1 & (? & ? & Htrace) & Hbuf).
+      destruct Hpre as [[Hwritable _] [_ [_ [phig [phir [J1 [[? [? Htrace]] Hbuf]]]]]]].
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
@@ -173,8 +178,8 @@ Proof.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       destruct buf; try solve [destruct Hbuf as [[]]; contradiction].
       assert (res_predicates.noghost phir) as Hg.
-      { eapply data_at__VALspec_range; eauto.
-        apply data_at_data_at_ in Hbuf; eauto. }
+      { apply data_at_data_at_ in Hbuf.
+        apply data_at__VALspec_range in Hbuf; auto. destruct Hbuf; auto. }
       destruct (join_level _ _ _ J).
       split; [|split3].
       * apply ghost_of_join, join_comm, Hg in J1.
@@ -207,7 +212,7 @@ Proof.
       destruct t as (? & (((sh, buf), len), k)); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as ([Hwritable _] & _ & phig & phir & J1 & (? & ? & Htrace) & Hbuf).
+      destruct Hpre as [[Hwritable _] [_ [_ [phig [phir [J1 [[? [? Htrace]] Hbuf]]]]]]].
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
@@ -257,7 +262,8 @@ Proof.
            unshelve eexists (set_ghost (age_to.age_to _ phig) _ _), (age_to.age_to _ (inflate_store m' phir));
              try (split3; [apply set_ghost_join; [apply age_to.age_to_join_eq|] | ..]).
            ++ reflexivity.
-           ++ eapply inflate_store_join1, has_ext_noat; eauto.
+           ++ eapply inflate_store_join1; eauto.
+                 clear - Htrace. apply has_ext_noat in Htrace. auto.
            ++ unfold inflate_store; rewrite level_make_rmap; omega.
            ++ apply age_to.age_to_pred; simpl.
               unfold inflate_store; rewrite ghost_of_make_rmap.

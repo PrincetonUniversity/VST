@@ -13,19 +13,14 @@ start_function.
 forward_call (malloc_spec_sub t) gv.
 Intros p.
 if_tac.
-forward_if False.
-forward_call tt.
-contradiction.
-forward.
-contradiction.
+{ subst.
+  forward_if False.
+  - forward_call 1. contradiction.
+  - inv H2. }
 forward_if True.
-forward_call tt.
-contradiction.
-forward.
-entailer!.
-forward.
-Exists p.
-entailer!.
++ contradiction.
++ forward. entailer!.
++ forward. Exists p. entailer!.
 Qed.
 
 Lemma body_Pile_new: semax_body Vprog Gprog f_Pile_new Pile_new_spec.
@@ -49,7 +44,6 @@ unfold pilerep.
 Intros head.
 forward.
 simpl.
-forward.
 forward.
 forward.
 forward.
@@ -127,8 +121,8 @@ simpl in H0.
  rep_omega.
  f_equal; f_equal; omega.
 apply -> wand_sepcon_adjoint.
-match goal with |- _ * ?A * ?B * ?C |-- _ => 
- assert (A * B * C |-- listrep(z::s2) r) end.
+match goal with |-( _ * ?A * ?B * ?C)%logic |-- _ => 
+ assert ((A * B * C)%logic |-- listrep(z::s2) r) end.
 unfold listrep at 2; fold listrep. Exists r'. entailer!.
 sep_apply H10.
 sep_apply modus_ponens_wand.

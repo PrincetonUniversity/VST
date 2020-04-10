@@ -38,8 +38,7 @@ Lemma sha256_block_load8:
      semax
          (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
-   LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
-                gvars gv)
+   LOCAL  (temp _data data; gvars gv; temp _ctx ctx; temp _in data)
    SEP  (field_at wsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
@@ -146,7 +145,11 @@ Proof.
 intros. rename H1 into H4.
  assert ( i < length (add_upto i regs atoh))%nat
     by (rewrite length_add_upto; omega).
- unfold upd_Znth.
+ rewrite upd_Znth_old_upd_Znth. 2 : {
+   rewrite Zlength_map. rewrite Zlength_correct.
+   lia.
+ }
+ unfold old_upd_Znth.
  rewrite !sublist_map, <- map_cons, <- map_app.
  f_equal.
 
@@ -205,13 +208,13 @@ Qed.
 
 Lemma upd_reptype_array_gso: (* perhaps move to floyd? *)
  forall t (a: list (reptype t)) v i j,
-    0 <= j <= Zlength a ->
+    0 <= j < Zlength a ->
     0 <= i < Zlength a ->
     i<>j ->
     Znth i (upd_Znth j a v) = Znth i a.
 Proof.
 intros.
-unfold upd_Znth.
+unfold_upd_Znth_old.
 assert (i<j \/ i>j) by omega.
 clear H1; destruct H2.
 autorewrite with sublist; auto.

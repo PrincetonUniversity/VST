@@ -5,6 +5,7 @@ Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
@@ -46,14 +47,28 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)).
 
+Lemma upd_Znth_ints i xints v:
+  0 <= i < Zlength (map Vint xints) ->
+      upd_Znth i (map Vint xints) (Vint v) =
+      map Vint ((sublist 0 i xints) ++
+                v :: (sublist (i + 1) (Zlength (map Vint xints)) xints)).
+Proof.
+  intros.
+  rewrite Zlength_map in H.
+  rewrite upd_Znth_map.
+  unfold_upd_Znth_old.
+  rewrite Zlength_map.
+  auto.
+Qed.
+
 Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h (xs ys: list int):
 @semax CompSpecs Espec
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint ys) y;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
  htrue_loop1_statement
@@ -61,8 +76,8 @@ Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h (xs ys: list int):
     (PROP  ()
      LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;
              lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-             lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out;
-             temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+             lvar _w (tarray tuint 16) w; temp _out out;temp _in nonce; 
+             temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
      SEP (FR; data_at Tsh (tarray tuint 16) (map Vint ys) y;
           EX  l : list val, !!HTrue_inv1 l 16 (map Vint ys) (map Vint xs) &&
                data_at Tsh (tarray tuint 16) l x))).
@@ -76,8 +91,8 @@ Proof.
    (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint ys) y;
          EX l:_, !!HTrue_inv1 l i (map Vint ys) (map Vint xs)
               && data_at Tsh (tarray tuint 16) l x))). (*1.2 versus 3.3*)
@@ -106,7 +121,7 @@ Proof.
     apply andp_right; [ apply prop_right | rewrite Int.add_commut; cancel].
     repeat split; trivial; try omega. 
     * rewrite upd_Znth_Zlength. assumption. simpl; rewrite XLL. omega.
-    * eexists; split. apply upd_Znth_ints.
+    * eexists; split. apply upd_Znth_ints; omega.
       intros kk KK. destruct (J _ KK) as [xj [Xj [IJ1 IJ2]]].
       exists xj. split. assumption.
       split; intros.
@@ -196,16 +211,16 @@ Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
      lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-     lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-     temp _k k; temp _h (Vint (Int.repr h)))
+     lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+     temp _h (Vint (Int.repr h)))
    SEP  (FR; CoreInSEP(Nonce, C, K) (nonce, c, k);
          data_at Tsh (tarray tuint 16) (map Vint intsums) x))
   HTrue_loop2_statement
  (normal_ret_assert (PROP  ()
  LOCAL  (temp _i (Vint (Int.repr 4)); lvar _t (tarray tuint 4) t;
          lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-         lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-         temp _k k; temp _h (Vint (Int.repr h)))
+         lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+         temp _h (Vint (Int.repr h)))
  SEP  (FR; CoreInSEP(Nonce, C, K) (nonce, c, k);
         data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 4 intsums C Nonce)) x))).
 Proof. intros. abbreviate_semax.
@@ -219,8 +234,8 @@ Proof. intros. abbreviate_semax.
    LOCAL  ((*NOTE: we have to remove the old i here to get things to work: temp _i (Vint (Int.repr 16)); *)
            lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; CoreInSEP (Nonce, C, K) (nonce, c, k);
    data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 (Z.to_nat i) intsums C Nonce)) x))). (*2.7 versus 3.2*)
    Time solve[entailer!]. (*1.6 versus 4.4*)
@@ -342,10 +357,13 @@ Proof. intros. abbreviate_semax.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
        replace (length Front) with (Z.to_nat i).
        rewrite Z2Nat.id by omega.
-       rewrite upd_Znth_ints.
+       rewrite upd_Znth_ints. 2 : {
+         rewrite Zlength_map. omega.
+       }
        autorewrite with sublist.
        f_equal.
-       unfold upd_Znth.
+       do 3 rewrite upd_Znth_old_upd_Znth by list_solve.
+       unfold old_upd_Znth.
        assert (VJeq: Znth (5 * i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) =
                 Znth (5 * i) intsums). {
          clear - SL PL2length I.
@@ -489,8 +507,8 @@ Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs (*
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuchar 32) OUT out;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
 HTrue_loop3_statement
@@ -498,8 +516,8 @@ HTrue_loop3_statement
   PROP  ()
   LOCAL  (lvar _t (tarray tuint 4) t;
           lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-          lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-          temp _k k; temp _h (Vint (Int.repr h)))
+          lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+          temp _h (Vint (Int.repr h)))
   SEP (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
        data_at Tsh (tarray tuchar 32) (hPosLoop3 4 xs OUT) out))).
 Proof. intros. abbreviate_semax.
@@ -509,8 +527,8 @@ Proof. intros. abbreviate_semax.
  Time forward_for_simple_bound 4 (EX i:Z,
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
+   temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
          data_at Tsh (tarray tuchar 32) (hPosLoop3 (Z.to_nat i) xs OUT) out))). (*1.6 versus 3.4*)
     Time entailer!. (*2 versus 6*)
@@ -551,8 +569,8 @@ deadvars!.
    LOCAL  ((*temp _u8_aux (Vptr ob (Int.add ooff (Int.repr (4 * i))));
    temp _aux (Vint (Znth (5 * i) xs Int.zero));*) temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out (Vptr ob ooff); temp _c c; temp _k k;
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out (Vptr ob ooff); temp _in nonce;
+   temp _k k; temp _c c;
    temp _h (Vint (Int.repr h)))
    SEP 
    (FR; data_at Tsh (tarray tuchar 32) (UpdateOut ll (4*i) (Znth (5 * i) xs)) (Vptr ob ooff);
@@ -632,8 +650,8 @@ match data with ((Nonce, C), K) =>
            Znth j (map Vint intsums) = Vint (Int.add yj xj)))
   LOCAL (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
   SEP (FR; CoreInSEP data (nonce, c, k); (*SByte Nonce nonce; SByte C c;
        ThirtyTwoByte K k;*)
        data_at Tsh (tarray tuint 16)
@@ -758,8 +776,8 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h (OUT: 
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuchar 32) OUT out;
          CoreInSEP data (nonce, c, k);
          data_at Tsh (tarray tuint 16) (map Vint ys) y;

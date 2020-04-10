@@ -4,7 +4,8 @@ Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
-Require Import ZArith. 
+Require Import ZArith.
+Local Open Scope Z. 
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -46,15 +47,39 @@ Qed.
 Lemma sublist_hi_plus {A} (l:list A) lo a b: 0<=lo<=a -> 0<=b -> sublist lo (a + b) l =
    sublist lo a l ++ sublist a (a+b) l.
 Proof. intros.
+  destruct (zle (a+b) (Zlength l)).
+  autorewrite with sublist; auto.
+  transitivity (sublist lo (Zlength l) l).
+-
+  unfold sublist. f_equal.
+  rewrite !firstn_same; auto.
+  rewrite ZtoNat_Zlength. omega.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
+-
+  destruct (zle a (Zlength l)).
+  replace (sublist a (a+b) l) with (sublist a (Zlength l) l).
+  autorewrite with sublist; auto.
+  unfold sublist. f_equal.
+  rewrite !firstn_same; auto.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
+  rewrite ZtoNat_Zlength. omega.
+  replace (sublist a (a+b) l) with (@nil A).
+  rewrite <- app_nil_end.
+  unfold sublist. f_equal.
+  rewrite !firstn_same; auto.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
   unfold sublist.
-  assert (X: a+b -lo = a-lo + b) by omega. rewrite X; clear X.
-  rewrite Z2Nat.inj_add; try omega.
-  assert (Y: a + b - a = b) by omega. rewrite Y; clear Y.
-  rewrite <- Z2Nat.inj_add; try omega.
-  rewrite <- Zfirstn_app; try omega. f_equal.
-  rewrite skipn_skipn, Z2Nat.inj_sub; try omega.
-  f_equal. f_equal. rewrite <- le_plus_minus; trivial.
-  apply Z2Nat.inj_le; omega.
+  rewrite skipn_short; auto.
+  rewrite firstn_same.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
+  rewrite <- ZtoNat_Zlength.
+  apply Z_to_nat_monotone. omega.
 Qed.
 
 Lemma sublist0_hi_plus {A} (l:list A) a b: 0<=a -> 0<=b -> sublist 0 (a + b) l =
@@ -107,15 +132,22 @@ Lemma Znth_sublist':
   0 <= lo ->
   Zlength al <= hi ->
   0 <= i <= hi - lo -> Znth i (sublist lo hi al) = Znth (i + lo) al.
-Proof. intros. unfold Znth. destruct (zlt i 0). omega.
-destruct (zlt (i + lo) 0). omega. unfold sublist.
-destruct (zeq i (hi-lo)).
-2:{ rewrite nth_firstn. 2: apply Z2Nat.inj_lt; try omega. rewrite nth_skipn, Z2Nat.inj_add; trivial. omega. }
-rewrite <- e. rewrite nth_overflow. 2:{ rewrite firstn_length, skipn_length. apply Min.le_min_l. }
-rewrite nth_overflow; trivial. subst i.
-assert(hi - lo + lo= hi). omega. rewrite H2.
-apply Z2Nat.inj_le in H0; try omega. rewrite ZtoNat_Zlength in H0. apply H0.
-apply Zlength_nonneg.
+Proof. intros.
+destruct (zeq i (hi-lo)); [ | apply Znth_sublist; omega].
+subst.
+assert (0 <= lo <= hi) by  omega.
+clear H H1.
+unfold Znth. rewrite !if_false by omega.
+unfold sublist.
+rewrite Z.sub_add.
+rewrite nth_skipn.
+replace (Z.to_nat (hi-lo) + Z.to_nat lo)%nat with (Z.to_nat hi).
+f_equal.
+apply firstn_same.
+rewrite <- ZtoNat_Zlength.
+apply Z_to_nat_monotone; auto.
+rewrite <- Z2Nat.inj_add; try omega.
+f_equal. omega.
 Qed.
 
 Lemma xor_byte_int b1 b2: Int.xor (Int.repr (Byte.unsigned b1)) (Int.repr (Byte.unsigned b2)) =
@@ -514,7 +546,8 @@ rename H into I.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
     2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. omega. }
-    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try omega.
+    2: autorewrite with sublist; omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3.
     rewrite Znth_map in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
@@ -695,9 +728,10 @@ forward_for_simple_bound (Int64.unsigned b)
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
     2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. omega. }
-    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try omega.
     2: autorewrite with sublist; omega.
-    simpl. thaw FR3. 
+    2: autorewrite with sublist; omega.
+    simpl. thaw FR3.
     rewrite Znth_map in Xi by list_solve. inv Xi.
     rewrite Znth_map by list_solve.
     remember (Byte.xor (byte_at mInit (Zlength l+q) mbytes) 
@@ -802,7 +836,7 @@ forward_for_simple_bound 16 (EX i:Z,
   apply derives_refl'. f_equal. 
   rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc; try omega. 
   rewrite upd_Znth_app2.
-  rewrite Zlength_list_repeat, Zminus_diag, upd_Znth0. reflexivity. omega.
+  rewrite Zlength_list_repeat, Zminus_diag, upd_Znth0_old. reflexivity. omega. omega.
   repeat rewrite Zlength_list_repeat; omega. 
 }
 Intros l. destruct l.
@@ -847,7 +881,7 @@ forward_for_simple_bound 8 (EX i:Z,
   entailer!.
   apply derives_refl'. f_equal.
   rewrite upd_Znth_app2; try autorewrite with sublist. 2: omega.
-  rewrite upd_Znth0, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. f_equal.
+  rewrite upd_Znth0_old, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. 4 : rewrite Zlength_list_repeat; omega. f_equal.
   rewrite <- Znth_cons_sublist.
   f_equal. rewrite Znth_map.
      rewrite Znth_map.
@@ -1120,7 +1154,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
         rewrite R; rewrite Z2Nat.id; trivial. 
         apply Z_div_pos; omega.
     assert (Arith2: Int64.unsigned bInit mod 64 = Int64.unsigned bInit - Z.of_nat rounds * 64).
-        eapply Zmod_unique. instantiate (1:=Z.of_nat rounds); omega. omega. 
+    { symmetry; eapply Zmod_unique. omega. instantiate (1:=Z.of_nat rounds); omega. }
     rewrite Arith1, Arith2, (CONTCONT _ _ _ _ _ _ _ _ CONT).
     rewrite if_false.
     - exists zbytesR, srbytes, d, snuff, sr_bytes, l. 

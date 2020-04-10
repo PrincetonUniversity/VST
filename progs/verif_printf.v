@@ -14,8 +14,8 @@ Definition main_spec :=
   WITH gv : globals
   PRE  [] main_pre prog (write_list stdout (string2bytes "Hello, world!
 ");; write_list stdout (string2bytes "This is line 2.
-")) nil gv
-  POST [ tint ] main_post prog nil gv.
+")) gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=  
    ltac:(with_library prog (ltac:(make_printf_specs prog) ++ [ main_spec ])).

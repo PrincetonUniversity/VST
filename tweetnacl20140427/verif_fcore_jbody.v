@@ -6,6 +6,7 @@ Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -361,8 +362,8 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
+   temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
          data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
@@ -372,7 +373,7 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
       LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
       lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w;
-      temp _in nonce; temp _out out; temp _c c; temp _k k;
+      temp _out out; temp _in nonce; temp _k k; temp _c c;
       temp _h (Vint (Int.repr h)))
       SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
           data_at_ Tsh (tarray tuint 4) t;

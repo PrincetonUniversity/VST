@@ -6,6 +6,7 @@ Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
 Import LiftNotation.
+(*Require Export VST.floyd.Funspec_old_Notation.*)
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -137,7 +138,7 @@ Qed.
 Lemma Forall_upd_Znth : forall {A} (P : A -> Prop) x l i, Forall P l -> P x ->
   Forall P (upd_Znth i l x).
 Proof.
-  intros; unfold upd_Znth.
+  intros; unfold upd_Znth; if_tac; auto;
   rewrite Forall_app; split; [|constructor; auto]; apply Forall_sublist; auto.
 Qed.
 
@@ -556,8 +557,7 @@ Proof.
   rewrite upd_Znth_app2, Zminus_diag.
   destruct (Z.to_nat (n - Zlength l)) eqn: Hn.
   - apply Z2Nat.inj with (m := 0) in Hn; omega.
-  - simpl; rewrite upd_Znth0, Zlength_cons, sublist_1_cons.
-    unfold Z.succ; rewrite Z.add_simpl_r, sublist_same; auto.
+  - simpl; rewrite upd_Znth0.
     rewrite <- app_assoc, Zlength_app, Zlength_cons, Zlength_nil; simpl.
     rewrite Z.sub_add_distr, Z2Nat.inj_sub, Hn by computable; simpl.
     rewrite Nat.sub_0_r; auto.
@@ -575,8 +575,8 @@ Proof.
   rewrite app_length; simpl plus.
   destruct (n - length l)%nat eqn: Hminus; [omega|].
   replace (n - (length l + 1))%nat with n0 by omega.
-  rewrite upd_Znth0, !map_app, <- app_assoc; simpl.
-  rewrite sublist_1_cons, Zlength_cons, sublist_same; auto; omega.
+  simpl.
+  rewrite upd_Znth0, !map_app, <- app_assoc; auto.
 Qed.
 
 (*
@@ -669,13 +669,15 @@ Lemma In_upd_Znth_old : forall {A}{d: Inhabitant A} i (x y : A) l, In x l -> x <
   In x (upd_Znth i l y).
 Proof.
   intros.
-  apply In_Znth in H; destruct H as (j & ? & ?); subst.
-  unfold upd_Znth.
-  destruct (eq_dec j i); [subst; contradiction|].
-  rewrite in_app; simpl.
-  destruct (zlt j i); [left | right; right].
-  - erewrite <- (Z.add_0_r j), <- Znth_sublist; [apply Znth_In; rewrite Zlength_sublist| |]; auto; omega.
-  - erewrite <- (Z.sub_simpl_r _ (i + 1)), <- Znth_sublist; [apply Znth_In; rewrite Zlength_sublist| |]; omega.
+  destruct (zlt i (Zlength l)).
+  - unfold_upd_Znth_old.
+    apply In_Znth in H; destruct H as (j & ? & ?); subst.
+    destruct (eq_dec j i); [subst; contradiction|].
+    rewrite in_app; simpl.
+    destruct (zlt j i); [left | right; right].
+    + erewrite <- (Z.add_0_r j), <- Znth_sublist; [apply Znth_In; rewrite Zlength_sublist| |]; auto; omega.
+    + erewrite <- (Z.sub_simpl_r _ (i + 1)), <- Znth_sublist; [apply Znth_In; rewrite Zlength_sublist| |]; omega.
+  - rewrite upd_Znth_out_of_range; auto.
 Qed.
 
 Lemma Znth_combine : forall {A B} {a: Inhabitant A} {b: Inhabitant B} i (l1: list A) (l2: list B), 
@@ -704,26 +706,28 @@ Qed.
 Lemma upd_Znth_cons : forall {A} i a l (x : A), i > 0 ->
   upd_Znth i (a :: l) x = a :: upd_Znth (i - 1) l x.
 Proof.
-  intros; unfold upd_Znth; unfold_sublist_old.
-  repeat rewrite Z.sub_0_r.
-  destruct (Z.to_nat i) eqn: Hi.
-  { exploit Z2Nat_inj_0; eauto; omega. }
-  rewrite Zlength_cons; repeat rewrite Z2Nat.inj_add; try omega.
-  repeat rewrite Z2Nat.inj_sub; try omega.
-  rewrite Hi; simpl.
-  rewrite Nat.sub_0_r.
-  do 4 f_equal.
-  rewrite Z2Nat.inj_succ; [|rewrite Zlength_correct; omega].
-  repeat rewrite Z2Nat.inj_add; try omega.
-  rewrite Z2Nat.inj_sub; try omega.
-  simpl plus; omega.
+  intros. destruct (zle i (Zlength l)).
+  - unfold_upd_Znth_old; unfold_sublist_old.
+    repeat rewrite Z.sub_0_r.
+    destruct (Z.to_nat i) eqn: Hi.
+    { exploit Z2Nat_inj_0; eauto; omega. }
+    rewrite Zlength_cons; repeat rewrite Z2Nat.inj_add; try omega.
+    repeat rewrite Z2Nat.inj_sub; try omega.
+    rewrite Hi; simpl.
+    rewrite Nat.sub_0_r.
+    do 4 f_equal.
+    rewrite Z2Nat.inj_succ; [|rewrite Zlength_correct; omega].
+    repeat rewrite Z2Nat.inj_add; try omega.
+    rewrite Z2Nat.inj_sub; try omega.
+    simpl plus; omega.
+  - rewrite !upd_Znth_out_of_range; auto. lia. rewrite Zlength_cons; lia.
 Qed.
 
 Lemma upd_Znth_triv : forall {A}{d: Inhabitant A} i (l : list A) x (Hi : 0 <= i < Zlength l),
   Znth i l = x -> upd_Znth i l x = l.
 Proof.
   (* This cannot be solve by list_solve! because list_solve! cannot handle congruence like i = j -> Znth i l = Znth j l. *)
-  intros; unfold upd_Znth.
+  intros; unfold_upd_Znth_old.
   setoid_rewrite <- (firstn_skipn (Z.to_nat i) l) at 4.
   erewrite skipn_cons, Z2Nat.id, H; try omega; [|rewrite Zlength_correct in *; rep_omega].
   unfold_sublist_old.
@@ -739,7 +743,7 @@ Proof.
   destruct l2; [rewrite Zlength_nil in *; omega|].
   rewrite !Zlength_cons in *.
   destruct (eq_dec i 0).
-  - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; auto; omega.
+  - subst; rewrite !upd_Znth0. auto.
   - rewrite !upd_Znth_cons; try omega; simpl.
     rewrite IHl1; auto; omega.
 Qed.
@@ -790,9 +794,8 @@ Lemma length_concat_upd : forall {A} {d: Inhabitant A} l i (l' : list A) (Hi : 0
 Proof.
   induction l; intros; [rewrite Zlength_nil in *; omega|].
   destruct (eq_dec i 0).
-  - subst; rewrite upd_Znth0, Znth_0_cons, sublist_1_cons.
-    rewrite Zlength_cons in *; rewrite sublist_same by (auto; omega); simpl.
-    rewrite !app_length; omega.
+  - subst; rewrite upd_Znth0, Znth_0_cons.
+    simpl; rewrite !app_length; omega.
   - rewrite upd_Znth_cons, Znth_pos_cons by omega; simpl.
     rewrite Zlength_cons in *.
     rewrite !app_length, IHl by omega.
@@ -884,13 +887,13 @@ Qed.
 
 Lemma In_upd_Znth : forall {A} i l (x y : A), In x (upd_Znth i l y) -> x = y \/ In x l.
 Proof.
-  unfold upd_Znth; intros.
+  unfold upd_Znth; intros *; if_tac; auto; intros. clear H. rename H0 into H.
   rewrite in_app in H; destruct H as [? | [? | ?]]; auto; right; eapply sublist_In; eauto.
 Qed.
 
-Lemma upd_Znth_In : forall {A} i l (x : A), In x (upd_Znth i l x).
+Lemma upd_Znth_In : forall {A} i l (x : A), 0 <= i < Zlength l -> In x (upd_Znth i l x).
 Proof.
-  intros; unfold upd_Znth.
+  intros; unfold_upd_Znth_old.
   rewrite in_app; simpl; auto.
 Qed.
 
@@ -962,7 +965,7 @@ Proof.
   induction l; simpl; intros; [rewrite Zlength_nil in *; omega|].
   rewrite Zlength_cons in *.
   destruct (eq_dec i 0).
-  - subst; rewrite upd_Znth0, Zlength_cons, sublist_1_cons, sublist_same by (auto; omega); simpl.
+  - subst; rewrite upd_Znth0.
     rewrite Znth_0_cons in Hless; subst.
     rewrite <- app_assoc, NoDup_app_swap, <- app_assoc, NoDup_app_iff, NoDup_app_swap in Hl; tauto.
   - rewrite upd_Znth_cons by omega; simpl.
@@ -1006,26 +1009,29 @@ Qed.
 Lemma Forall2_upd_Znth : forall {A B} (P : A -> B -> Prop) l1 l2 i x1 x2, Forall2 P l1 l2 ->
   P x1 x2 -> 0 <= i <= Zlength l1 -> Forall2 P (upd_Znth i l1 x1) (upd_Znth i l2 x2).
 Proof.
-  intros; unfold upd_Znth.
+  intros.
   pose proof (mem_lemmas.Forall2_Zlength H) as Hlen.
-  erewrite <- sublist_same with (al := l1), sublist_split with (mid := i) in H; auto; try omega.
-  erewrite <- sublist_same with (al := l2), sublist_split with (al := l2)(mid := i) in H; auto; try omega.
-  apply Forall2_app_inv in H.
-  destruct H as (? & Hall); apply Forall2_app; auto.
-  constructor; auto.
-  destruct (eq_dec i (Zlength l1)).
-  - rewrite !sublist_nil_gen; auto; omega.
-  - rewrite Z.add_comm.
-    replace (Zlength l1) with (Zlength l1 - i + i) by omega.
-    replace (Zlength l2) with (Zlength l2 - i + i) by omega.
-    erewrite <- !sublist_sublist with (j := Zlength l1); try omega.
-    inversion Hall as [Hl1 Hl2 | ?????? Hl1 Hl2].
-    + rewrite !Hlen, <- Hl2.
-      unfold sublist; rewrite !firstn_nil, !skipn_nil; auto.
-    + rewrite sublist_1_cons, !Hlen, <- Hl2, sublist_1_cons.
-      unfold sublist; simpl; apply Forall2_firstn; auto.
-  - apply Nat2Z.inj; rewrite <- !Zlength_correct.
-    autorewrite with sublist; auto.
+  destruct (zlt i (Zlength l1)).
+  - unfold_upd_Znth_old.
+    erewrite <- sublist_same with (al := l1), sublist_split with (mid := i) in H; auto; try omega.
+    erewrite <- sublist_same with (al := l2), sublist_split with (al := l2)(mid := i) in H; auto; try omega.
+    apply Forall2_app_inv in H.
+    destruct H as (? & Hall); apply Forall2_app; auto.
+    constructor; auto.
+    destruct (eq_dec i (Zlength l1)).
+    + rewrite !sublist_nil_gen; auto; omega.
+    + rewrite Z.add_comm.
+      replace (Zlength l1) with (Zlength l1 - i + i) by omega.
+      replace (Zlength l2) with (Zlength l2 - i + i) by omega.
+      erewrite <- !sublist_sublist with (j := Zlength l1); try omega.
+      inversion Hall as [Hl1 Hl2 | ?????? Hl1 Hl2].
+      * rewrite !Hlen, <- Hl2.
+        unfold sublist; rewrite !firstn_nil, !skipn_nil; auto.
+      * rewrite sublist_1_cons, !Hlen, <- Hl2, sublist_1_cons.
+        unfold sublist; simpl; apply Forall2_firstn; auto.
+    + apply Nat2Z.inj; rewrite <- !Zlength_correct.
+      autorewrite with sublist; auto.
+  - rewrite !upd_Znth_out_of_range by lia. auto.
 Qed.
 
 Lemma Forall2_impl' : forall {A B} (P Q : A -> B -> Prop) l1 l2,
@@ -1215,7 +1221,9 @@ Lemma upd_init : forall {A} (l : list A) i b v v', i < b -> Zlength l = i ->
 Proof.
   intros.
   rewrite upd_Znth_app2; rewrite ?Zlength_repeat, ?Z2Nat.id; try omega.
-  subst; rewrite Zminus_diag, upd_Znth0.
+  subst; rewrite Zminus_diag, upd_Znth0_old. 2 : {
+    rewrite Zlength_repeat. rewrite Z2Nat.id; lia.
+  }
   destruct (Z.to_nat (b - Zlength l)) eqn: Hi.
   { change O with (Z.to_nat 0) in Hi; apply Z2Nat.inj in Hi; omega. }
   simpl; rewrite sublist_1_cons, sublist_same; try rewrite Zlength_cons, !Zlength_repeat; try omega.
@@ -1252,7 +1260,7 @@ Proof.
   induction l; simpl; intros.
   { rewrite Zlength_nil in *; omega. }
   destruct (eq_dec 0 i).
-  - subst; rewrite upd_Znth0, Zlength_cons, sublist_1_cons, sublist_same; auto; try omega.
+  - subst; rewrite upd_Znth0.
     rewrite list_Znth_eq with (l0 := l) at 1.
     rewrite map_map.
     f_equal; apply map_ext_in; intros.
@@ -1322,12 +1330,7 @@ Qed.
 Lemma upd_Znth_twice : forall {A} i l (x y : A), 0 <= i < Zlength l ->
   upd_Znth i (upd_Znth i l x) y = upd_Znth i l y.
 Proof.
-  intros; unfold upd_Znth.
-  rewrite !sublist_app; rewrite ?Zlength_app, ?Zlength_cons, ?Zlength_sublist; try omega.
-  rewrite 2Z.min_l, 2Z.min_r, 2Z.max_r, 2Z.max_l; try omega.
-  rewrite !sublist_nil, app_nil_r; simpl.
-  rewrite sublist_S_cons, !sublist_sublist; try omega.
-  f_equal; f_equal; [|f_equal]; omega.
+  intros. list_solve2.
 Qed.
 
 Lemma hd_Znth : forall {A}{d: Inhabitant A} (l : list A), hd default l = Znth 0 l.
@@ -1904,7 +1907,7 @@ Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
 Proof.
   unfold semax_body; intros.
   destruct s, f0.
-  destruct H as [H' H]; split; auto.
+  destruct H as [H' [H'' H]]; split3; auto.
   intros; eapply semax_Delta_subsumption, H.
   apply func_tycontext_sub; auto.
 Qed.
@@ -2760,14 +2763,15 @@ Proof.
   rewrite sublist_next with (i0 := i); try omega.
   rewrite sepcon_app; simpl.
   rewrite <- sepcon_assoc, (sepcon_comm _ (Znth i l)).
-  unfold upd_Znth; rewrite sepcon_app, sepcon_assoc; simpl.
+  unfold_upd_Znth_old; rewrite sepcon_app, sepcon_assoc; simpl.
   rewrite emp_sepcon; auto.
 Qed.
 
-Lemma replace_nth_sepcon : forall P l i, P * fold_right sepcon emp (upd_Znth i l emp) =
-  fold_right sepcon emp (upd_Znth i l P).
+Lemma replace_nth_sepcon : forall P l i, 0 <= i < Zlength l ->
+  P * fold_right sepcon emp (upd_Znth i l emp) =
+    fold_right sepcon emp (upd_Znth i l P).
 Proof.
-  intros; unfold upd_Znth.
+  intros; unfold_upd_Znth_old.
   rewrite !sepcon_app; simpl.
   rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
 Qed.
@@ -3128,7 +3132,7 @@ Ltac start_dep_function :=
 
 (* Notations for dependent funspecs *)
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2) =>
      match x with (x1,x2) => P%assert end)
   (fun (ts: list Type) (x: t1*t2) =>
@@ -3137,7 +3141,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3) =>
      match x with (x1,x2,x3) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3) =>
@@ -3146,7 +3150,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P '
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4) =>
      match x with (x1,x2,x3,x4) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4) =>
@@ -3155,7 +3159,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , ..
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
      match x with (x1,x2,x3,x4,x5) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
@@ -3165,7 +3169,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
      match x with (x1,x2,x3,x4,x5,x6) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
@@ -3175,7 +3179,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
      match x with (x1,x2,x3,x4,x5,x6,x7) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
@@ -3185,7 +3189,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
@@ -3195,7 +3199,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
@@ -3205,7 +3209,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
@@ -3215,7 +3219,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
@@ -3225,7 +3229,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
@@ -3236,7 +3240,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
@@ -3247,7 +3251,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
@@ -3258,7 +3262,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
@@ -3281,6 +3285,14 @@ Proof.
   rewrite sepcon_andp_prop', emp_sepcon; auto.
 Qed.
 
+Lemma PROP_into_SEP_LAMBDA : forall P U Q R, PROPx P (LAMBDAx U Q (SEPx R)) =
+  PROPx [] (LAMBDAx U Q (SEPx (!!fold_right and True P && emp :: R))).
+Proof.
+  intros; unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx, argsassert2assert; 
+  extensionality; simpl.
+  apply pred_ext; normalize; entailer!.
+Qed.
+
 Ltac cancel_for_forward_spawn :=
   eapply symbolic_cancel_setup;
    [ construct_fold_right_sepcon
@@ -3292,9 +3304,33 @@ Ltac forward_spawn id arg wit :=
   match goal with gv : globals |- _ =>
   make_func_ptr id; let f := fresh "f_" in set (f := gv id);
   match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
+    let y := fresh "y" in let Q := fresh "Q" in let R := fresh "R" in 
+    
+    evar (y : ident); evar (Q : A -> globals); evar (R : A -> val -> mpred);
+    replace Pre with (fun '(a, w) => PROPx [] (PARAMSx (a::nil)
+                                                       (GLOBALSx ((Q w) :: nil) (SEPx [R w a]))));
+    [ | let x := fresh "x" in extensionality x; destruct x as (?, x);
+        instantiate (1 := fun w a => _ w) in (Value of R);
+        repeat (destruct x as (x, ?);
+        instantiate (1 := fun '(a, b) => _ a) in (Value of Q);
+        instantiate (1 := fun '(a, b) => _ a) in (Value of R));
+        etransitivity; [|symmetry; apply PROP_into_SEP_LAMBDA]; f_equal; f_equal; f_equal;
+        [ instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal; simpl; reflexivity
+        | unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _);
+          reflexivity]
+  ];
+  forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; 
+           [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn)
+  end end.
+(*
+Ltac forward_spawn id arg wit :=
+  match goal with gv : globals |- _ =>
+  make_func_ptr id; let f := fresh "f_" in set (f := gv id);
+  match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
     let y := fresh "y" in let Q := fresh "Q" in let R := fresh "R" in
     evar (y : ident); evar (Q : A -> globals); evar (R : A -> val -> mpred);
-    replace Pre with (fun '(a, w) => PROPx [] (LOCALx (temp y a :: gvars (Q w) :: nil) (SEPx [R w a])));
+    (*replace Pre with (fun '(a, w) => PROPx [] (LOCALx (temp y a :: gvars (Q w) :: nil) (SEPx [R w a])));*)
+    replace Pre with (fun '(a, w) => PROPx [] (LAMBDAx ((Q w) :: nil) (a:: nil) (SEPx [R w a])));
     [|let x := fresh "x" in extensionality x; destruct x as (?, x);
       instantiate (1 := fun w a => _ w) in (Value of R);
       repeat (destruct x as (x, ?);
@@ -3302,4 +3338,4 @@ Ltac forward_spawn id arg wit :=
         instantiate (1 := fun '(a, b) => _ a) in (Value of R));
       etransitivity; [|symmetry; apply PROP_into_SEP]; f_equal; f_equal ; [instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal; simpl; f_equal |
        unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _); reflexivity]];
-  forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn) end end.
+  forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn) end end.*)

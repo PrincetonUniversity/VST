@@ -2,8 +2,9 @@ Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
 Require Import aes.verif_setkey_enc_LL_loop_body.
-Open Scope Z.
 Local Open Scope logic.
+Open Scope Z.
+Require Import VST.floyd.Funspec_old_Notation.
 
 (* Calls forward_if with the current precondition to which the provided conditions are added *)
 (* QQQ TODO does this already exist? Add to library? *)
@@ -177,10 +178,24 @@ Proof.
   rewrite <- E.
   rewrite key_expansion_final_eq. rewrite E.
   change (60 - 7 * 8) with 4.
+
+  (*WAS:
   forget (KeyExpansion2 (key_bytes_to_key_words key_chars)) as R.
   forward.
   rewrite Vundef_is_Vint.
-  unfold_data_at 4%nat. cancel.
+  unfold_data_at 4%nat. rewrite <- sepcon_assoc.
+  apply sepcon_derives. cancel.*)
+
+  (*NOW:*)
+  set (R:=(KeyExpansion2 (key_bytes_to_key_words key_chars))).
+  forward.
+  rewrite Vundef_is_Vint. cancel.
+  unfold_data_at (1%nat). rewrite <- sepcon_assoc.
+  apply sepcon_derives. cancel.
+  apply derives_refl'. subst R. Time (simpl; reflexivity). (*45s*)
+
+
   Fail idtac.  (* make sure there are no subgoals *)
 (* Time Qed. takes forever, many minutes on a fast machine, then I gave up.  Appel, March 2018, Coq 8.7.2 *)
+   (*Still does not terminate in 1h, Beringer, February 2020, Coq 8.10.1*)
 Admitted.

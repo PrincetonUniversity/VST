@@ -116,7 +116,7 @@ Proof.
   forward.
 
   (* md_len = mbedtls_md_get_size(info); *)
-  forward_call tt.
+  forward_call mc1.
 
   (* if( out_len > MBEDTLS_HMAC_DRBG_MAX_REQUEST ) *)
   forward_if  (out_len <= 1024).
@@ -698,4 +698,4 @@ assert (RC_y: 0 <= hmac256drbgabs_reseed_counter after_update_state_abs < Int.ma
   simpl in H5. sep_apply H5.
  + red in WFI; subst I; simpl in *. apply WFI.
   + normalize. unfold AREP, REP. Exists Info a. normalize. apply derives_refl.
-Time Qed. (*61s*) 
+Time Qed. (*Coq 8.10.1: 13s; was: 61s*) 

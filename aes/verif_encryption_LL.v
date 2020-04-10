@@ -4,6 +4,7 @@ Require Import aes.encryption_LL_round_step_eqs.
 Require Import aes.verif_encryption_LL_loop_body.
 Require Import aes.verif_encryption_LL_after_loop.
 Open Scope Z.
+Require Import VST.floyd.Funspec_old_Notation.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -26,7 +27,7 @@ Proof.
     reflexivity.
   }
   rewrite Eq in *. clear Eq.
-  remember (exp_key ++ list_repeat 8 0) as buf.
+  remember (exp_key ++ (*list_repeat 8 0*)[0; 0; 0; 0; 0; 0; 0; 0]) as buf.
   (* TODO floyd: This is important for automatic rewriting of (Znth (map Vint ...)), and if
      it's not done, the tactics might become very slow, especially if they try to simplify complex
      terms that they would never attempt to simplify if the rewriting had succeeded.

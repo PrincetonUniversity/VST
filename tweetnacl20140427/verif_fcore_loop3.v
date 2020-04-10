@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -130,8 +131,8 @@ forall FR c k h nonce out
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
          data_at Tsh (tarray tuint 16) xlist x)) 
  array_copy3_statement
@@ -139,8 +140,8 @@ forall FR c k h nonce out
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
       lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-      lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-      temp _k k; temp _h (Vint (Int.repr h)))
+      lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+      temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
          data_at Tsh (tarray tuint 16) wlist x))).
 Proof. intros. abbreviate_semax.
@@ -151,8 +152,8 @@ Time forward_for_simple_bound 16 (EX m:Z,
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
          EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist = Znth mm wlist)
                 && data_at Tsh (tarray tuint 16) mlist x))).
@@ -409,8 +410,8 @@ c k h nonce out w x y t (xI:list int),
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
          data_at_ Tsh (tarray tuint 16) w;
          data_at Tsh (tarray tuint 16) (map Vint xI) x))
@@ -418,8 +419,8 @@ c k h nonce out w x y t (xI:list int),
   (normal_ret_assert
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-       temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
+       temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
    SEP (FR; data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
         EX r:_, !!(Snuffle 20 xI = Some r) &&
            data_at Tsh (tarray tuint 16) (map Vint r) x))).
@@ -434,8 +435,8 @@ Time forward_for_simple_bound 20 (EX i:Z,
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
          EX r:_, !!(Snuffle (Z.to_nat i) xI = Some r) &&
              data_at Tsh (tarray tuint 16) (map Vint r) x))). (*0.9*)
@@ -450,8 +451,8 @@ Time forward_for_simple_bound 20 (EX i:Z,
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
       EX l:_, !!(WcontI r (Z.to_nat j) l) && data_at Tsh (tarray tuint 16) l w;
       data_at Tsh (tarray tuint 16) (map Vint r) x))). (*1.5*)

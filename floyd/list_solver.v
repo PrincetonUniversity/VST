@@ -31,6 +31,7 @@ Ltac Zlength_simpl_all := autorewrite with Zlength in *.
 
 Hint Rewrite Zrepeat_fold upd_Znth_unfold cons_Zrepeat_1_app : list_form_rewrite.
 Hint Rewrite app_nil_r app_nil_l : list_form_rewrite.
+Hint Rewrite upd_Znth_unfold using Zlength_solve : list_form_rewrite.
 
 Ltac list_form :=
   autorewrite with list_form_rewrite in *.

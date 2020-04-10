@@ -7,6 +7,7 @@ Require Import aes.bitfiddling.
 Require Import aes.list_lemmas.
 Require Import aes.equiv_GF_ops.
 Require Import List. Import ListNotations.
+Local Open Scope Z.
 
 Lemma split_quad_eq: forall {T : Type} (c0 c1 c2 c3 c0' c1' c2' c3' : T),
   c0 = c0' -> c1 = c1' -> c2 = c2' -> c3 = c3' -> (c0, c1, c2, c3) = (c0', c1', c2', c3').

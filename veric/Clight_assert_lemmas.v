@@ -80,8 +80,8 @@ Proof.
   hnf in H.
   rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
   destruct (W gs u WU GSA) as [b [B1 B2]].
-  exists b; split; [trivial | destruct fs; destruct gs]. 
-  destruct GSB as [[GSBa GCBb] _]. subst c0 f0. trivial. 
+  exists b; split; [trivial | destruct fs; destruct gs].  
+  destruct GSB as [[GSBa GCBb] _]. subst c0 t0. trivial. 
 Qed.
 
 Lemma allp_fun_id_sub: forall Delta Delta' rho,
