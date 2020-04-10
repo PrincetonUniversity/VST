@@ -319,7 +319,8 @@ Proof.
       - apply field_at_update_val.
         rewrite upd_Znth_app2.
         + rewrite Zlength_map. rewrite repeat_op_table_length by assumption.
-          replace (i - i) with 0 by omega. rewrite upd_Znth0.
+          replace (i - i) with 0 by omega.
+          rewrite upd_Znth0_old. 2 : rewrite repeat_op_table_length; lia.
           rewrite repeat_op_table_length by omega.
           rewrite repeat_op_table_step by omega.
           rewrite map_app. rewrite <- app_assoc. f_equal. simpl. f_equal.
