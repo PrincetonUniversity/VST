@@ -871,6 +871,15 @@ Ltac unfold_upd_Znth_old :=
     lia
   ); unfold old_upd_Znth.
 
+Lemma upd_Znth_out_of_range : forall {A} i l (x : A),
+  i < 0 \/ i >= Zlength l ->
+  upd_Znth i l x = l.
+Proof.
+  intros.
+  unfold upd_Znth. if_tac; try lia.
+  auto.
+Qed.
+
 Lemma sublist_sublist {A} i j k m (l:list A): 0<=m -> 0<=k <=i -> i <= j-m ->
   sublist k i (sublist m j l) = sublist (k+m) (i+m) l.
 Proof.
@@ -1442,19 +1451,36 @@ Proof.
 Qed.
 
 Lemma upd_Znth_app2 {A} (l1 l2:list A) i v:
-  Zlength l1 <= i < Zlength l1 + Zlength l2 ->
+  Zlength l1 <= i <= Zlength l1 + Zlength l2 ->
   upd_Znth i (l1 ++ l2) v = l1 ++ upd_Znth (i-Zlength l1) l2 v.
-Proof. intros. unfold_upd_Znth_old.
-  rewrite sublist0_app2; trivial. rewrite <- app_assoc. f_equal. f_equal. f_equal.
-  rewrite sublist_app2, Zlength_app, Zminus_plus.
-  assert (i + 1 - Zlength l1 = i - Zlength l1 + 1) by omega. rewrite H0; trivial.
-  specialize (Zlength_nonneg l1); omega.
-Admitted.
+Proof. intros.
+  destruct (zlt i (Zlength l1 + Zlength l2)).
+  - unfold_upd_Znth_old.
+    rewrite sublist0_app2; trivial. rewrite <- app_assoc. f_equal. f_equal. f_equal.
+    rewrite sublist_app2, Zlength_app, Zminus_plus.
+    assert (i + 1 - Zlength l1 = i - Zlength l1 + 1) by omega. rewrite H0; trivial.
+    specialize (Zlength_nonneg l1); omega.
+  - unfold upd_Znth. repeat if_tac; rewrite ?Zlength_app in *; try lia.
+    auto.
+Qed.
 
-Lemma upd_Znth0 {A} (l:list A) v:
+Lemma upd_Znth0_old {A} (l:list A) v:
   Zlength l > 0 ->
   upd_Znth 0 l v = v :: sublist 1 (Zlength l) l.
 Proof. intros. unfold_upd_Znth_old. rewrite sublist_nil. reflexivity. Qed.
+
+Lemma upd_Znth0 : forall {A} x (l : list A) y,
+  upd_Znth 0 (x :: l) y = y :: l.
+Proof.
+  intros.
+  unfold upd_Znth. if_tac.
+  - simpl. rewrite sublist_1_cons.
+    rewrite sublist_same; auto.
+    rewrite Zlength_cons. lia.
+  - rewrite Zlength_cons in H.
+    pose proof (Zlength_nonneg l).
+    lia.
+Qed.
 
 Lemma sublist_upd_Znth_l: forall {A} (l: list A) i lo hi v,
   0 <= lo <= hi ->
