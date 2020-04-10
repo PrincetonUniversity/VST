@@ -1222,7 +1222,7 @@ Proof.
   intros.
   rewrite upd_Znth_app2; rewrite ?Zlength_repeat, ?Z2Nat.id; try omega.
   subst; rewrite Zminus_diag, upd_Znth0_old. 2 : {
-    rewrite Zlength_repeat. lia.
+    rewrite Zlength_repeat. rewrite Z2Nat.id; lia.
   }
   destruct (Z.to_nat (b - Zlength l)) eqn: Hi.
   { change O with (Z.to_nat 0) in Hi; apply Z2Nat.inj in Hi; omega. }
