@@ -872,7 +872,7 @@ Ltac unfold_upd_Znth_old :=
   ); unfold old_upd_Znth.
 
 Lemma upd_Znth_out_of_range : forall {A} i l (x : A),
-  i < 0 \/ i >= Zlength l ->
+  0 > i \/ i >= Zlength l ->
   upd_Znth i l x = l.
 Proof.
   intros.

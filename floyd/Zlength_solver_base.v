@@ -5,7 +5,6 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.field_compat.
-Require Import Lia.
 Import ListNotations.
 
 (** This file provides a almost-complete solver for list with concatenation.
@@ -120,6 +119,31 @@ Lemma Znth_Zrepeat : forall (A : Type) (d : Inhabitant A) (i n : Z) (x : A),
   0 <= i < n ->
   Znth i (Zrepeat x n) = x.
 Proof. intros. unfold Zrepeat. rewrite repeat_list_repeat. apply Znth_list_repeat_inrange; auto. Qed.
+
+Definition Znth_app1 := app_Znth1.
+Definition Znth_app2 := app_Znth2.
+
+Lemma Znth_upd_Znth_same : forall (A : Type) (d : Inhabitant A) (i j : Z) (l : list A) (x : A),
+  0 <= i < Zlength l ->
+  i = j ->
+  Znth i (upd_Znth j l x) = x.
+Proof.
+  intros. subst. apply upd_Znth_same; auto.
+Qed.
+
+Lemma Znth_upd_Znth_diff : forall (A : Type) (d : Inhabitant A) (i j : Z) (l : list A) (x : A),
+  i <> j ->
+  Znth i (upd_Znth j l x) = Znth i l.
+Proof.
+  intros.
+  destruct (Sumbool.sumbool_and _ _ _ _ (zle 0 i) (zlt i (Zlength l)));
+    destruct (Sumbool.sumbool_and _ _ _ _ (zle 0 j) (zlt j (Zlength l))).
+  - rewrite upd_Znth_diff; auto.
+  - rewrite upd_Znth_out_of_range; auto.
+  - rewrite !Znth_outofbounds; auto. lia.
+    rewrite Zlength_upd_Znth. lia.
+  - rewrite upd_Znth_out_of_range; auto.
+Qed.
 
 (** * list extentionality *)
 (* To prove equality between two lists, a convenient way is to apply extentionality
