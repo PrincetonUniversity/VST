@@ -667,11 +667,11 @@ Proof. intros. destruct c. econstructor; trivial.
  intros; eapply derives_trans. apply Comp_MkInitPred0. cancel.
 Qed.
 
-Lemma Comp_entailTT:
+Lemma Comp_entail_starTT:
       @Component Espec V cs E Imports p Exports (GP * TT)%logic G.
 Proof. intros. apply Comp_entail. intros; simpl; apply sepcon_TT. Qed.
 
-Lemma Comp_entailemp:
+Lemma Comp_entail_TT:
       @Component Espec V cs E Imports p Exports TT G.
 Proof. intros. eapply Comp_entail. intros; simpl. apply TT_right. Qed.
 
@@ -767,6 +767,7 @@ Proof.
   apply (Comp_G_Exports c) in H1; destruct H1 as [psi [H3 H4]].
   exists psi; split; trivial. eapply funspec_sub_trans; eassumption.
 Qed.
+
 End Component.
 
 Arguments Comp_G_LNR {Espec V cs E Imports p Exports GP G} c.
