@@ -10,7 +10,7 @@ Require Export VST.msl.Extensionality.
 Require Export Coq.Lists.List.
 Require Export Coq.Bool.Bool.
 Require Export Coq.Relations.Relations.
-Require Export Omega.
+Require Export Omega Lia.
 
 Definition compose (A B C:Type) (g:B -> C) (f:A -> B) := fun x => g (f x).
 Arguments compose [A B C] _ _ _.

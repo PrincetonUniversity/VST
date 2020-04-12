@@ -16,16 +16,8 @@ Lemma upd_Znth_append:
    upd_Znth len (dd++ sublist len N ee) v =
     (dd ++ [v]) ++ sublist (len+1) N ee.
 Proof.
-intros. subst.
-unfold upd_Znth.
-pose proof (Zlength_nonneg dd).
-autorewrite with sublist.
-rewrite app_ass.
-f_equal.
-simpl.
-f_equal.
-f_equal.
-omega.
+  intros. subst.
+  list_solve2.
 Qed.
 
 Lemma body_SHA256_Final: semax_body Vprog Gtot f_SHA256_Final SHA256_Final_spec.

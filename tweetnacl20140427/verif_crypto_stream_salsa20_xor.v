@@ -546,7 +546,8 @@ rename H into I.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
     2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. omega. }
-    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try omega.
+    2: autorewrite with sublist; omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3.
     rewrite Znth_map in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
@@ -727,9 +728,10 @@ forward_for_simple_bound (Int64.unsigned b)
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
     2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. omega. }
-    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try omega.
     2: autorewrite with sublist; omega.
-    simpl. thaw FR3. 
+    2: autorewrite with sublist; omega.
+    simpl. thaw FR3.
     rewrite Znth_map in Xi by list_solve. inv Xi.
     rewrite Znth_map by list_solve.
     remember (Byte.xor (byte_at mInit (Zlength l+q) mbytes) 
@@ -834,7 +836,7 @@ forward_for_simple_bound 16 (EX i:Z,
   apply derives_refl'. f_equal. 
   rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc; try omega. 
   rewrite upd_Znth_app2.
-  rewrite Zlength_list_repeat, Zminus_diag, upd_Znth0. reflexivity. omega.
+  rewrite Zlength_list_repeat, Zminus_diag, upd_Znth0_old. reflexivity. omega. omega.
   repeat rewrite Zlength_list_repeat; omega. 
 }
 Intros l. destruct l.
@@ -879,7 +881,7 @@ forward_for_simple_bound 8 (EX i:Z,
   entailer!.
   apply derives_refl'. f_equal.
   rewrite upd_Znth_app2; try autorewrite with sublist. 2: omega.
-  rewrite upd_Znth0, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. f_equal.
+  rewrite upd_Znth0_old, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. 4 : rewrite Zlength_list_repeat; omega. f_equal.
   rewrite <- Znth_cons_sublist.
   f_equal. rewrite Znth_map.
      rewrite Znth_map.

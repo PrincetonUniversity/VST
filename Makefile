@@ -85,9 +85,9 @@ COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
-ifneq ($(wildcard coq-ext-lib/theories),)
-EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
-endif
+# ifneq ($(wildcard coq-ext-lib/theories),)
+# EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
+# endif
 ifneq ($(wildcard InteractionTrees/theories),)
 EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
 endif
@@ -493,7 +493,6 @@ all: default_target files travis hmacdrbg tweetnacl aes
 
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
@@ -516,7 +515,7 @@ hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
 atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
-io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo
+io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo progs/io_specs.vo floyd/printf.vo InteractionTrees/theories/Events/Nondeterminism.vo
 
 CGFLAGS =  -DCOMPCERT
 
@@ -582,12 +581,13 @@ ifeq ($(COMPCERT), compcert_new)
 else
 	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
-ifneq ($(wildcard coq-ext-lib/theories),)
-	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
-endif
+# ifneq ($(wildcard coq-ext-lib/theories),)
+# 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
+# endif
 ifneq ($(wildcard InteractionTrees/theories),)
 	$(warning foo)
-	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+#	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
+	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 endif
 ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend

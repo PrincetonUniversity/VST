@@ -28,9 +28,9 @@ Definition stdout := 1%nat.
 
 Definition putchars_spec {CS : compspecs} :=
   WITH sh : share, buf : val, msg : list byte, len : Z, rest : list val, k : IO_itree
-  PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
+  PRE [ tptr tuchar, tint ]
     PROP (readable_share sh)
-    LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr (Zlength msg))))
+    PARAMS (buf; Vint (Int.repr (Zlength msg))) GLOBALS ()
     SEP (ITREE (write_list stdout msg ;; k);
            data_at sh (tarray tuchar len) (map Vubyte msg ++ rest) buf)
   POST [ tint ]
@@ -41,9 +41,9 @@ Definition putchars_spec {CS : compspecs} :=
 
 Definition getchars_spec {CS : compspecs} :=
   WITH sh : share, buf : val, len : Z, k : list byte -> IO_itree
-  PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
+  PRE [ tptr tuchar, tint ]
     PROP (writable_share sh)
-    LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr len)))
+    PARAMS (buf; Vint (Int.repr len)) GLOBALS ()
     SEP (ITREE (r <- read_list stdin (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
   POST [ tint ]
    EX msg : list byte,

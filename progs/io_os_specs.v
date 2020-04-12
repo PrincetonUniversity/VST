@@ -7,6 +7,7 @@ Require Import compcert.common.Values.
 Require Import Decimal.
 Require Import List.
 Require Import ZArith.
+Open Scope Z.
 
 (** Utils *)
 Definition zle_le :
