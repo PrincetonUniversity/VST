@@ -195,6 +195,8 @@ enforce and the ones that we enforce.
 	
 #### 9. Lemmas under construction
 
+For every thread, we preserve a relation between the allocated blocks in the two executions. Using these relations we can also show a relation between the acquired/released resources in the two executions. Similarly, we need to show that initial memories are related in the two executions, which should follow the same techniques as the cases for acquire/release. However, this relation has to be carried through one more step (while the thread is in Kinit) and we haven’t proved that part.
+
 * single_thread_simulation_proof.start_step_diagram:
 	This lemma depends on two facts that are true but have not yet 
 	been propagated through the other parts of the project. 
