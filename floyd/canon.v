@@ -1013,13 +1013,14 @@ Qed.
 Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL part too *)
  grab_indexes_SEP L;
  match goal with
- | |- @semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+ | |- @semax _ _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) _ _ =>
   rewrite <- (firstn_skipn (length L) R);
+  rewrite (app_nil_end Q);
     simpl length; unfold firstn, skipn;
-    eapply (semax_frame_PQR nil);
+    eapply (semax_frame_PQR);
       [ unfold closed_wrt_modvars;  auto 50 with closed
      | ]
- | |- ENTAIL _ , (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ =>
+ | |- ENTAIL _ , (PROPx _ (LOCALx ?Q (SEPx ?R))) |-- _ =>
   rewrite <- (firstn_skipn (length L) R);
     simpl length; unfold firstn, skipn;
     apply derives_frame_PQR
