@@ -49,6 +49,26 @@ Module SortGlobdef := Mergesort.Sort(GlobdefOrder).
 Definition isnil {A} (al: list A) := 
    match al with nil => true | _ => false end.
 
+Lemma prod_eq_dec {A B} (Ha: forall (a1 a2:A), {a1 = a2} + {a1<>a2})
+      (Hb: forall (b1 b2:B), {b1 = b2} + {b1<>b2}):
+      forall (x y : A * B), {x=y} + {x<>y}.
+Proof. intros. destruct x as [a1 b1]. destruct y as [a2 b2].
+destruct (Ha a1 a2); [ subst | right; congruence].
+destruct (Hb b1 b2); [ subst; left; trivial | right; congruence].
+Defined. 
+
+Lemma function_eq_dec (f g: function): { f=g } + { f <> g }.
+Proof.
+destruct f as [rtF ccF paramsF varsF tempsF bodyF].
+destruct g as [rtG ccG paramsG varsG tempsG bodyG].
+destruct (type_eq rtF rtG); [ subst | right; congruence].
+destruct (calling_convention_eq ccF ccG); [ subst | right; congruence].
+destruct (list_eq_dec (prod_eq_dec ident_eq type_eq) paramsF paramsG); [ subst | right; congruence].
+destruct (list_eq_dec (prod_eq_dec ident_eq type_eq) varsF varsG); [ subst | right; congruence].
+destruct (list_eq_dec (prod_eq_dec ident_eq type_eq) tempsF tempsG); [ subst | right; congruence].
+destruct (semax_lemmas.eq_dec_statement bodyF bodyG); [ subst; left; trivial | right; congruence].
+Defined.
+
 Definition merge_globdef (g1 g2: globdef (fundef function) type) :=
  match g1, g2 with
  | Gfun (External _ _ _ _), Gfun (External _ _ _ _) => 
@@ -57,8 +77,10 @@ Definition merge_globdef (g1 g2: globdef (fundef function) type) :=
      Errors.OK g2  (* SHOULD CHECK TYPES MATCH *)
  | Gfun (Internal f1), Gfun (External _ _ _ _) =>
     Errors.OK g1  (* SHOULD CHECK TYPES MATCH *)
- | Gfun (Internal _), Gfun (Internal _) =>
-    Errors.Error [Errors.MSG "internal function clash"]
+ | Gfun (Internal f), Gfun (Internal g) =>
+    (*Errors.Error [Errors.MSG "internal function clash"]*)
+    if function_eq_dec f g then Errors.OK g1
+    else Errors.Error [Errors.MSG "internal function clash"]
  | Gvar {| gvar_info := i1; gvar_init := l1; gvar_readonly := r1; gvar_volatile := v1 |},
    Gvar {| gvar_info := i2; gvar_init := l2; gvar_readonly := r2; gvar_volatile := v2 |} =>
    if (eqb_type i1 i2 &&
