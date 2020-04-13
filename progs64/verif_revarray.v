@@ -182,7 +182,13 @@ forward. (* hi--; *)
  forget (map Vint contents) as al. clear contents.
  remember (Zlength al) as size.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
- unfold upd_Znth.
+ rewrite upd_Znth_old_upd_Znth. 2 : {
+   rewrite upd_Znth_Zlength; rewrite Zlength_flip_ends; lia.
+ }
+ rewrite upd_Znth_old_upd_Znth. 2 : {
+   rewrite Zlength_flip_ends; lia.
+ }
+ unfold old_upd_Znth.
  rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_ends; try omega).
  rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by omega.
  rewrite ?Zlength_flip_ends by omega.

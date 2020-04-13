@@ -877,7 +877,7 @@ Definition call_setup2
   local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV') /\
 (*  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) (*WAS R*)
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) /\*)
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (vl=args) /\
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) /\
   check_gvars_spec GV GV' /\
   fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame.
 
@@ -898,7 +898,7 @@ Lemma call_setup2_i:
 
 (*  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) (*WAS R*)
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->*)
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (vl=args) ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) ->
 
   PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) ->
   check_gvars_spec GV GV' ->
@@ -927,7 +927,7 @@ Definition call_setup2_nil
 
   (*ENTAIL Delta, PROPx P (LOCALx Q (SEPx R' )) (*WAS R*)
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) /\*)
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (vl=args) /\
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) /\
 
   check_gvars_spec GV GV' /\
   fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame.
@@ -966,7 +966,7 @@ Lemma call_setup2_i_nil:
 
 (*  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) (*WAS R*)
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->*)
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (vl=args) ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) ->
 
   PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) ->
   check_gvars_spec GV GV' ->
@@ -1094,7 +1094,7 @@ Lemma semax_call_aux55:
  (CHECKTEMP : Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))*)
  (PRE1: Pre ts witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)))
  (PTREE': local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV'))
- (CHECKTEMP : vl=args)
+ (CHECKTEMP : firstn (length argsig) vl=args)
 
  (CHECKG: check_gvars_spec GV GV' )
  (HR': PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)))
@@ -1162,9 +1162,13 @@ unfold PARAMSx, GLOBALSx, PROPx, LOCALx, SEPx, argsassert2assert. simpl. normali
 unfold local, liftx, lift1, lift; simpl. normalize.
 eapply derives_trans; [ apply FRAME | clear FRAME].
 apply andp_right; [ apply prop_right | trivial].
-split; trivial.
+split; [|split3]; trivial.
+-
+clear - LEN.
+revert bl LEN; induction argsig; destruct bl; simpl; intros; inv LEN; auto.
+unfold_lift. f_equal. auto.
+-
 rewrite local2ptree_gvars in PTREE'.
-split3; intuition.
 simpl.
 destruct gv; inv PTREE'.
 + simpl; trivial.
@@ -1193,9 +1197,9 @@ Lemma semax_call_aux55_nil:
  (PRE1 : Pre nil witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
  (PTREE' : local2ptree Qpre = (Qpre_temp, PTree.empty _, nil, GV')) 
  (CHECKTEMP : Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))*)
- (PRE1: Pre nil witness = PROPx Ppre (LAMBDAx gv vl (SEPx Rpre)))
+ (PRE1: Pre nil witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)))
  (PTREE': local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV'))
- (CHECKTEMP : vl=args)
+  (CHECKTEMP : firstn (length argsig) vl =args)
 
  (CHECKG: check_gvars_spec GV GV')
  (HR': PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)))
@@ -1211,7 +1215,7 @@ ENTAIL Delta, tc_expr Delta a && tc_exprlist Delta argsig bl &&
     (|> (fun rho => Pre nil witness (ge_of rho, eval_exprlist argsig bl rho)) *
      ` (func_ptr' fs)
        (eval_expr a) * |>PROPx P (LOCALx Q (SEPx Frame))).
-Proof. intros. eapply semax_call_aux55 with (ts:=nil); try eassumption; trivial. Qed.
+Proof. intros. eapply semax_call_aux55 with (ts:=nil); eassumption. Qed.
 
 Lemma tc_exprlist_len : forall {cs : compspecs} Delta argsig bl,
   tc_exprlist Delta argsig bl |-- !!(length argsig = length bl).
@@ -1232,10 +1236,10 @@ Lemma semax_pre_setup2 {cs Espec} Delta fs a bl argsig P Q R' (*Qactuals Qpre_te
       (*(CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R'))
                                        |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))*)
       (CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R'))
-                                       |-- !! (vl=args)):
+                                       |-- !! (firstn (length argsig) vl=args)):
   @semax cs Espec Delta
          (!! (Datatypes.length argsig = Datatypes.length bl) &&
-             !! (*Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp)*)(vl=args) &&
+             !! (*Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp)*)(firstn (length argsig) vl=args) && 
              PROPx P (LOCALx Q (SEPx R')) && (tc_expr Delta a && tc_exprlist Delta argsig bl) &&
              (EX v : val, lift0 (func_ptr fs v) && local ((` (eq v)) (eval_expr a)))%assert)
          (Scall rv a bl) (normal_ret_assert Post2) ->
@@ -1249,7 +1253,7 @@ Proof.
   with  ((tc_expr Delta a && tc_exprlist Delta argsig bl) &&
          ((EX v : val, lift0 (func_ptr fs v) && local ((` (eq v)) (eval_expr a)))%assert &&
          (!!(Datatypes.length argsig = Datatypes.length bl) &&
-          !!(vl=args(*Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp)*)) &&
+          !!(firstn (length argsig) vl=args(*Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp)*)) && 
          PROPx P (LOCALx Q (SEPx R'))))).
   { apply andp_right; [| apply andp_right; [apply andp_left2, andp_left1, derives_refl|]].
     eapply derives_trans; [| apply andp_right; [ apply TC0 | apply TC1]].
@@ -1257,7 +1261,7 @@ Proof.
     rewrite <- andp_assoc, andp_comm.
     rewrite <- andp_assoc; apply andp_left1. apply andp_right. 2: solve_andp.
     rewrite andp_comm.
-    apply andp_right; trivial. 
+    apply andp_right; trivial.  
     eapply derives_trans; [ apply TC1 | apply tc_exprlist_len]. }
   rewrite andp_comm, andp_assoc. rewrite <- andp_comm. trivial.
 Qed.
@@ -1294,6 +1298,7 @@ destruct SETUP as [[PTREE [Hsub [SPEC [ATY [TC0 [TC1 MSUBST]]]]]]
                             [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].
 apply SPEC. clear SPEC.
 eapply semax_pre_setup2; try eassumption.
+clear CHECKTEMP.
 remember (tc_expr Delta a && tc_exprlist Delta argsig bl) as TChecks.
 rewrite ! andp_assoc. 
 apply semax_extract_prop; intros.
@@ -1302,11 +1307,11 @@ rewrite andp_comm.
 eapply semax_pre_post'; [ | |
    apply (@semax_call0 Espec cs Delta fs A Pre Post NEPre NEPost 
               ts witness argsig retty cc a bl P Q Frame Hsub)].
-*
+* 
   subst TChecks. eapply semax_call_aux55; eauto.
 *
  subst.
- clear CHECKTEMP TC1 PRE1 PPRE.
+ clear  TC1 PRE1 PPRE.
  intros. normalize.
  rewrite POST1; clear POST1.
  unfold ifvoid.

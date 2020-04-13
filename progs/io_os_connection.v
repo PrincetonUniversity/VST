@@ -67,7 +67,7 @@ Section ListFacts.
     end.
 
   Definition strip_common_prefix (xs ys : list A) : list A :=
-    let longer := if length xs <=? length ys then ys else xs in
+    let longer := if (length xs <=? length ys)%nat then ys else xs in
     skipn (length (common_prefix xs ys)) longer.
 
   Lemma common_prefix_sym : forall xs ys,
@@ -96,7 +96,7 @@ Section ListFacts.
   Qed.
 
   Lemma common_prefix_length : forall xs ys,
-    length (common_prefix xs ys) <= length xs.
+    (length (common_prefix xs ys) <= length xs)%nat.
   Proof.
     induction xs as [| x xs]; destruct ys as [| y ys]; cbn; try lia.
     destruct (Aeq x y); cbn; try lia.
@@ -118,7 +118,7 @@ Section ListFacts.
   Qed.
 
   Lemma strip_common_prefix_correct : forall xs ys,
-    length xs <= length ys ->
+    (length xs <= length ys)%nat ->
     let post := strip_common_prefix xs ys in
     ys = common_prefix xs ys ++ post.
   Proof.

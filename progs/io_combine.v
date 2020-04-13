@@ -97,14 +97,16 @@ Proof.
     + destruct w as (? & _ & ? & ?).
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
-      unfold sys_putc_wrap_spec in *.
-      destruct get_sys_arg1 eqn:Harg; try discriminate.
+      rewrite if_true in H3 by auto.  
+      destruct (get_sys_arg1 _) eqn:Harg; try discriminate.
       destruct (eq_dec _ _); subst; try discriminate.
-      destruct sys_putc_spec eqn:Hspec; inv H3.
+      destruct (sys_putc_spec _) eqn:Hspec; inv H3.
       eapply sys_putc_correct in Hspec as (? & -> & [? Hpost ?]); eauto.
     + destruct w as (? & _ & ?).
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
+      rewrite if_false in H3 by auto.  
+      rewrite if_true in H3 by auto.  
       unfold sys_getc_wrap_spec in *.
       destruct (sys_getc_spec) eqn:Hspec; inv H3.
       eapply sys_getc_correct with (m1 := m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
