@@ -1466,14 +1466,42 @@ Ltac pose_new_res_tri i j x1 x2 y1 y2 offset H res :=
   | try lia ..
   ].
 
+Module range_saturate.
+
+Definition Znth' := @Znth.
+Arguments Znth' {_ _}.
+
+Definition range_uni' := @range_uni.
+Arguments range_uni' {_ _}.
+
+Definition range_bin' := @range_bin.
+Arguments range_bin' {_ _}.
+
+Definition range_tri' := @range_tri.
+Arguments range_tri' {_ _}.
+
 Definition range_saturate_shift {A : Type} (l : list A) (s : Z) :=
   True.
+Definition range_saturate_shift' := @range_saturate_shift.
+Arguments range_saturate_shift' {_}.
 
-Lemma range_saturate_shift_pose : forall {A : Type} (l : list A) (s : Z),
+Ltac use_bound_set := false.
+
+Module check_non_zero_loop.
+
+Lemma pose_range_saturate_shift : forall {A : Type} (l : list A) (s : Z),
   range_saturate_shift l s.
 Proof. intros. apply I. Qed.
 
-Ltac range_saturate_check_non_zero_loop_core1 :=
+Ltac pose_range_saturate_shift l s :=
+  let H := fresh in
+  pose proof (pose_range_saturate_shift l s) as H;
+  repeat rewrite Z.add_0_r in H;
+  repeat rewrite Z.add_0_l in H;
+  repeat rewrite Z.sub_0_r in H.
+
+Ltac loop2 :=
+  let flag := use_bound_set in
   repeat lazymatch goal with
   | H : range_saturate_shift ?l1 ?s1,
     H1 : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
@@ -1483,149 +1511,310 @@ Ltac range_saturate_check_non_zero_loop_core1 :=
       then idtac
       else fail 1
     | |- _ =>
-      pose (range_saturate_shift_pose l2 (s + s1))
+      pose_range_saturate_shift l2 (s1 + s)
     end;
-    clear H1
+    change @range_bin with @range_bin' in H1
   | H : range_saturate_shift ?l2 ?s2,
     H1 : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
-    pose (range_saturate_shift_pose l1 (s2 - s));
-    clear H1
+    pose_range_saturate_shift l1 (s2 - s);
+    change @range_bin with @range_bin' in H1
+  | H : range_saturate_shift ?l1 ?s1,
+    H1 : range_tri _ _ _ _ ?s ?l1 ?l2 ?P |- _ =>
+    lazymatch flag with
+    | true =>
+      lazymatch goal with
+      | H2 : range_saturate_shift l2 ?s2 |- _ =>
+        tryif assert (s1 + s = s2) by Zlength_solve
+        then idtac
+        else fail 1
+      | |- _ =>
+        pose_range_saturate_shift l2 (s1 + s)
+      end;
+      change @range_tri with @range_tri' in H1
+    end
+  | H : range_saturate_shift ?l2 ?s2,
+    H1 : range_tri _ _ _ _ ?s ?l1 ?l2 ?P |- _ =>
+    lazymatch flag with
+    | true =>
+      pose_range_saturate_shift l1 (s2 - s);
+      change @range_tri with @range_tri' in H1
+    end
   end.
 
-Ltac range_saturate_check_non_zero_loop_core :=
+Ltac loop1 :=
+  let flag := use_bound_set in
   repeat lazymatch goal with
   | H : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
-    pose (range_saturate_shift_pose l1 0);
-    tryif range_saturate_check_non_zero_loop_core1
+    pose_range_saturate_shift l1 0;
+    tryif loop2
     then idtac
     else fail 1
-  end.
+  | H : range_tri _ _ _ _ _ ?l1 ?l2 ?P |- _ =>
+    lazymatch flag with
+    | true =>
+      pose_range_saturate_shift l1 0;
+      tryif loop2
+      then idtac
+      else fail 1
+    end
+  end;
+  change @range_bin' with @range_bin in *;
+  change @range_tri' with @range_tri in *.
 
-Ltac range_saturate_check_non_zero_loop :=
-  tryif (try (range_saturate_check_non_zero_loop_core; fail 1))
+Ltac check_non_zero_loop_old :=
+  tryif (try (loop1; fail 1))
   then fail "The goal has non-zero loop"
   else idtac.
 
+Ltac check_non_zero_loop :=
+  loop1.
+
+Ltac clear :=
+  repeat lazymatch goal with
+  | H : range_saturate_shift _ _ |- _ =>
+    clear H
+  end.
+
+End check_non_zero_loop.
+
+Ltac check_non_zero_loop := check_non_zero_loop.check_non_zero_loop.
+
+Definition instantiate_index {A} (x : A) := True.
+Definition instantiate_index' := @instantiate_index.
+Arguments instantiate_index' {_}.
+
+Module find_instantiate_index.
+
+Lemma pose_instantiate_index {A} (x : A) : instantiate_index x.
+Proof. apply I. Qed.
+
+Ltac pose_instantiate_index x :=
+  let H := fresh in
+  pose proof (pose_instantiate_index x) as H;
+  repeat rewrite Z.add_0_r in H;
+  repeat rewrite Z.add_0_l in H;
+  repeat rewrite Z.sub_0_r in H;
+  lazymatch type of H with
+  | instantiate_index (Znth' ?i ?l) =>
+    try lazymatch goal with
+    | H1 : instantiate_index (Znth' i l),
+      H2 : instantiate_index (Znth' i l) |- _ =>
+      clear H
+    end
+  end.
+
+Ltac add_index i l :=
+  (* try (
+    (* success if not exist, fail 0 if exist *)
+    try match goal with
+    | H : instantiate_index (Znth' ?j l) |- _=>
+      assert (i = j) by Zlength_solve;
+      fail 2
+    end;
+    pose proof (pose_instantiate_index (Znth' i l))
+  ). *)
+  lazymatch goal with
+  | H : instantiate_index (Znth' i l) |- _ =>
+    idtac
+  | _ =>
+    pose_instantiate_index (Znth' i l)
+  end.
+
+Ltac process i l :=
+  lazymatch goal with
+  | H : range_saturate_shift l ?s |- _ =>
+    add_index i l;
+    change @range_saturate_shift with @range_saturate_shift' in H;
+    repeat lazymatch goal with
+    | H1 : range_saturate_shift ?l1 ?s1 |- _ =>
+      add_index (i - s + s1) l1;
+      change @range_saturate_shift with @range_saturate_shift' in H1
+    end;
+    change @range_saturate_shift' with @range_saturate_shift in *
+  | _ =>
+    add_index i l
+  end.
+
+Ltac index_set :=
+  repeat lazymatch goal with
+  | _ : context [Znth ?i ?l] |- _ =>
+    process i l;
+    change (Znth i l) with (Znth' i l) in *
+  | |- context [Znth ?i ?l] =>
+    process i l;
+    change (Znth i l) with (Znth' i l) in *
+  end;
+  change @Znth' with @Znth in *.
+
+Ltac bound_set :=
+  repeat lazymatch goal with
+  | H : range_uni ?lo ?hi ?l _ |- _ =>
+    process lo l;
+    process (hi - 1) l;
+    change @range_uni with @range_uni' in H
+  end;
+  change @range_uni' with @range_uni in *;
+  repeat lazymatch goal with
+  | H : range_bin ?lo ?hi _ ?l1 ?l2 _ |- _ =>
+    process lo l1;
+    process (hi - 1) l1;
+    change @range_bin' with @range_bin' in H
+  end;
+  change @range_bin' with @range_bin in *;
+  repeat lazymatch goal with
+  | H : range_tri ?x1 ?x2 ?y1 ?y2 _ ?l1 ?l2 _ |- _ =>
+    process x1 l1;
+    process (x2 - 1) l1;
+    process y1 l2;
+    process (y2 - 1) l2;
+    change @range_tri with @range_tri' in H
+  end;
+  change @range_tri' with @range_tri in *;
+  change @Znth' with @Znth in *.
+
+Ltac find_instantiate_index :=
+  index_set;
+  let flag := use_bound_set in
+  lazymatch flag with
+  | true =>
+    bound_set
+  | false =>
+    idtac
+  end.
+
+Ltac clear :=
+  repeat lazymatch goal with
+  | H : instantiate_index _ |- _ =>
+    clear H
+  end.
+
+End find_instantiate_index.
+
+Ltac find_instantiate_index := find_instantiate_index.find_instantiate_index.
+
+Ltac pose_new_res i lo hi H res ::=
+  assert_fails (assert res by assumption);
+  destruct_range i lo hi;
+  [ try (exfalso; lia);
+    assert res by apply (H i ltac:(lia));
+    try (lia)
+  | try (lia)
+  ].
+
+Ltac pose_new_res_tri i j x1 x2 y1 y2 offset H res :=
+  assert_fails (assert res by assumption);
+  destruct_range i x1 x2;
+  destruct_range j y1 y2;
+  destruct (Z_le_lt_dec i (j + offset));
+  [ try (exfalso; lia);
+    assert res by apply (H i j ltac:(lia));
+    try (lia)
+  | try (lia)
+    ..
+  ].
+
+Ltac range_saturate_uni H :=
+  lazymatch type of H with
+  | range_uni ?lo ?hi ?l ?P =>
+    repeat lazymatch goal with
+    | H1 : instantiate_index (Znth ?i l) |- _ =>
+      let res := eval cbv beta in (P (Znth i l)) in
+      pose_new_res i lo hi H res;
+      change @instantiate_index with @instantiate_index' in H1
+    end;
+    change @instantiate_index' with @instantiate_index in *
+  end.
+
+Ltac range_saturate_bin H :=
+  lazymatch type of H with
+  | range_bin ?lo ?hi ?offset ?l1 ?l2 ?P =>
+    repeat lazymatch goal with
+    | H1 : instantiate_index (Znth ?i l1) |- _ =>
+      let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
+      pose_new_res i lo hi H res;
+      change @instantiate_index with @instantiate_index' in H1
+    end;
+    change @instantiate_index' with @instantiate_index in *
+  end.
+
+Ltac range_saturate_tri H :=
+  lazymatch type of H with
+  | range_tri ?x1 ?x2 ?y1 ?y2 ?offset ?l1 ?l2 ?P =>
+    repeat lazymatch goal with
+    | H1 : instantiate_index (Znth ?i l1) |- _ =>
+      repeat lazymatch goal with
+      | H2 : instantiate_index (Znth ?j l2) |- _ =>
+        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
+        pose_new_res_tri i j x1 x2 y1 y2 offset H res;
+        change @Znth with @Znth' in H2
+      | H2 : instantiate_index' (Znth ?j l2) |- _ =>
+        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
+        pose_new_res_tri i j x1 x2 y1 y2 offset H res;
+        change @Znth with @Znth' in H2
+      end;
+      change @Znth' with @Znth in *;
+      change @instantiate_index with @instantiate_index' in H1
+    end;
+    change @instantiate_index' with @instantiate_index in *
+  end.
+
 Ltac range_saturate :=
-  repeat match goal with
-  | H : range_uni ?lo ?hi ?l ?P |- _ =>
-    match goal with
-    | _ : context [Znth ?i l] |- _ =>
-      let res := eval cbv beta in (P (Znth i l)) in
-      pose_new_res i lo hi H res
-    | |- context [Znth ?i l] =>
-      let res := eval cbv beta in (P (Znth i l)) in
-      pose_new_res i lo hi H res
-    end
-  | H : range_bin ?lo ?hi ?offset ?l1 ?l2 ?P |- _ =>
-    match goal with
-    | _ : context [Znth ?i l1] |- _ =>
-      let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
-      pose_new_res i lo hi H res
-    | |- context [Znth ?i l1] =>
-      let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
-      pose_new_res i lo hi H res
-    | _ : context [Znth ?i l2] |- _ =>
-      let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
-      pose_new_res (i - offset) lo hi H res
-    | |- context [Znth ?i l2] =>
-      let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
-      pose_new_res (i - offset) lo hi H res
-    end
-  | H : range_tri ?x1 ?x2 ?y1 ?y2 ?offset ?l1 ?l2 ?P |- _ =>
-    match goal with
-    | _ : context [Znth ?i l1] |- _ =>
-      match goal with
-      | _ : context [Znth ?j l2] |- _ =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res
-      | |- context [Znth ?j l2] =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res
-      end
-    | |- context [Znth ?i l1] =>
-      match goal with
-      | _ : context [Znth ?j l2] |- _ =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res
-      | |- context [Znth ?j l2] =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res
-      end
-    end
-  end.
+  repeat lazymatch goal with
+  | H : range_uni _ _ _ _ |- _ =>
+    range_saturate_uni H;
+    change @range_uni with @range_uni' in H
+  | H : range_bin _ _ _ _ _ _ |- _ =>
+    range_saturate_bin H;
+    change @range_bin with @range_bin' in H
+  | H : range_tri _ _ _ _ _ _ _ _ |- _ =>
+    range_saturate_tri H;
+    change @range_tri with @range_tri' in H
+  end;
+  change @range_uni' with @range_uni in *;
+  change @range_bin' with @range_bin in *;
+  change @range_tri' with @range_tri in *.
 
-Ltac range_saturate_full :=
-  repeat match goal with
-  | H : range_uni ?lo ?hi ?l ?P |- _ =>
-    (let res := eval cbv beta in (P (Znth lo l)) in
-     pose_new_res lo lo hi H res);
-    (let res := eval cbv beta in (P (Znth (hi - 1) l)) in
-     pose_new_res (hi-1) lo hi H res);
-    match goal with
-    | _ : context [Znth ?i l] |- _ =>
-      let res := eval cbv beta in (P (Znth i l)) in
-      pose_new_res i lo hi H res
-    | |- context [Znth ?i l] =>
-      let res := eval cbv beta in (P (Znth i l)) in
-      pose_new_res i lo hi H res
-    end
-  | H : range_bin ?lo ?hi ?offset ?l1 ?l2 ?P |- _ =>
-    first
-    [ let res := eval cbv beta in (P (Znth lo l1) (Znth (lo + offset) l2)) in
-      pose_new_res lo lo hi H res
-    | let res := eval cbv beta in (P (Znth (hi - 1) l1) (Znth (hi - 1 + offset) l2)) in
-      pose_new_res (hi-1) lo hi H res
-    | match goal with
-      | _ : context [Znth ?i l1] |- _ =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
-        pose_new_res i lo hi H res
-      | |- context [Znth ?i l1] =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
-        pose_new_res i lo hi H res
-      | _ : context [Znth ?i l2] |- _ =>
-        let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
-        pose_new_res (i - offset) lo hi H res
-      | |- context [Znth ?i l2] =>
-        let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
-        pose_new_res (i - offset) lo hi H res
-      end
-    ]
-  | H : range_tri ?x1 ?x2 ?y1 ?y2 ?offset ?l1 ?l2 ?P |- _ =>
-    match goal with
-    | _ : context [Znth ?i l1] |- _ =>
-      match goal with
-      | _ : context [Znth ?j l2] |- _ =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res
-      | |- context [Znth ?j l2] =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res
-      end
-    | |- context [Znth ?i l1] =>
-      match goal with
-      | _ : context [Znth ?j l2] |- _ =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res
-      | |- context [Znth ?j l2] =>
-        let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res
-      end
-    end
-  end.
+Goal forall A {d : Inhabitant A} (P : A -> Prop) l a0 a1 a2 a3 a4 a5,
+  Zlength l = 10 ->
+  a0 = Znth 0 l /\
+  a1 = Znth 1 l /\
+  a2 = Znth 2 l /\
+  a3 = Znth 3 l /\
+  a4 = Znth 4 l /\
+  a5 = Znth 5 l /\
+  a5 = Znth 6 l /\
+  a5 = Znth 7 l ->
+  range_uni 5 10 l P ->
+  P a5.
+Proof.
+  intros.
+  find_instantiate_index.
+  range_saturate.
+Abort.
 
-Ltac list_prop_solve :=
-  list_form; range_form; range_rewrite; Znth_solve2;
-  range_saturate_check_non_zero_loop; range_saturate_full; Znth_solve2;
-  auto with Znth_solve_hint;
-  try fassumption;
-  fail "list_prop_solve cannot solve this goal".
+End range_saturate.
+
+Ltac check_non_zero_loop := range_saturate.check_non_zero_loop.
+Ltac find_instantiate_index := range_saturate.find_instantiate_index.
+
+Ltac range_saturate :=
+  check_non_zero_loop;
+  find_instantiate_index; range_saturate.check_non_zero_loop.clear;
+  range_saturate.range_saturate; range_saturate.find_instantiate_index.clear.
 
 Ltac list_prop_solve' :=
   list_form; range_form; range_rewrite; Znth_solve2;
-  range_saturate_check_non_zero_loop; range_saturate; Znth_solve2;
+  repeat rewrite Z.add_0_l in *;
+  repeat rewrite Z.add_0_r in *;
+  repeat rewrite Z.sub_0_r in *;
+  range_saturate;
+  Znth_solve2;
   auto with Znth_solve_hint;
   try fassumption.
+
+Ltac list_prop_solve :=
+  list_prop_solve';
+  fail "list_prop_solve cannot solve this goal".
 
 Create HintDb list_solve_unfold.
 
