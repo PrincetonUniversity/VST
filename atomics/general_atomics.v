@@ -81,6 +81,41 @@ Proof.
   admit.
 Admitted.
 
+Lemma atomic_rollback_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
+  (forall x, R * a x |-- |==> a x * R')%I ->
+  (atomic_shift a Ei Eo b Q * R |-- |={Eo}=> atomic_shift a Ei Eo b Q * R')%I.
+Proof.
+  intros.
+  iIntros "[AS R]".
+  unfold atomic_shift, ashift.
+  iDestruct "AS" as (P) "[P AS]".
+  SearchAbout bupd bi_forall.
+  iMod ("AS" with "P") as (x) "[a H]".
+  iMod (H with "[$R $a]") as "[a $]".
+  iMod ("H" with "a").
+  iIntros "!>"; iExists P; iFrame.
+  admit. (* We actually need either duplicability or the fixpoint construction Ralf used. *)
+Admitted.
+
+Corollary atomic_rollback_elim : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
+  (forall x, R * a x |-- |==> a x * R')%I ->
+  (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * atomic_shift a Ei Eo b Q * R |-- |==> ◇ (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * (atomic_shift a Ei Eo b Q * R')))%I.
+Proof.
+  intros.
+  iIntros "[[[wsat en] AS] R]".
+  iApply wsat_fupd_elim'; iFrame "wsat en".
+  iApply atomic_rollback_fupd; eauto; iFrame.
+Qed.
+
+Lemma atomic_rollback : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
+  (forall x, R * a x |-- |==> a x * R')%I ->
+  (atomic_shift a Ei Eo b Q * R |-- atomic_shift a Ei Eo b Q * R')%I.
+Proof.
+  intros.
+  eapply atomic_rollback_elim in H.
+  admit.
+Admitted.
+
 Lemma atomic_shift_mask_weaken {A B} Eo1 Eo2 Ei a (b : A -> B -> mpred) Q :
   Eo1 ⊆ Eo2 ->
   atomic_shift a Ei Eo1 b Q |-- atomic_shift a Ei Eo2 b Q.

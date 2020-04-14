@@ -64,34 +64,37 @@ Proof.
     iIntros "[Q $]"; iDestruct "Q" as (_) "$".
 Qed.
 
-Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R R' g (x0 x' : C)
-  {HR : Timeless R}
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> a' x))%I)
-  (Ha' : (forall x, public_half g x0 * a' x |-- |==> R * a x)%I)
-  (Hb : (forall x, public_half g x' * a' x |-- |==> (EX y, b x y) * R')%I),
+Lemma sync_rollback : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R' g (x0 : C)
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> public_half g x0 -* |==> R' * a x))%I),
+  (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- atomic_shift a Ei Eo b Q * my_half g x0 * R')%I.
+Proof.
+  intros; rewrite !sepcon_assoc; apply atomic_rollback.
+  intros; iIntros "((my & R) & a)".
+  iMod (Ha with "[$]") as (?) "[public a']".
+  iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
+  rewrite bi.sep_comm; iApply "a'"; iFrame; auto.
+Qed.
+
+Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g (x0 x' : C)
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> (public_half g x' -* |==> (EX y, b x y) * R')))%I),
   (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- |==> (EX y, Q y) * my_half g x' * R')%I.
 Proof.
   intros; rewrite !sepcon_assoc; apply atomic_commit.
   intros; iIntros "((my & R) & a)".
   iMod (Ha with "[$]") as (?) "[public a']".
   iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
-  iApply Hb; iFrame.
-  by iApply ("a'" with "[%]").
+  iApply ("a'" with "[%] public"); auto.
 Qed.
 
-Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R R' g (x0 x' : C)
-  {HR : Timeless R}
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> a' x))%I)
-  (Ha' : (forall x, public_half g x0 * a' x |-- |==> R * a x)%I)
-  (Hb : (forall x, public_half g x' * a' x |-- |==> (EX y, b x y) * R')%I),
+Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g (x0 x' : C)
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> (public_half g x' -* |==> (EX y, b x y) * R')))%I),
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g x0 * R |-- |==> Q * my_half g x' * R')%I.
 Proof.
   intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R'0 := my_half g x' * R')|].
   - intros; iIntros "((my & R) & a)".
     iMod (Ha with "[$]") as (?) "[public a']".
     iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
-    iApply Hb; iFrame.
-    by iApply ("a'" with "[%]").
+    iApply ("a'" with "[%] public"); auto.
   - iApply bupd_mono.
     iIntros "[Q [$ $]]"; iDestruct "Q" as (?) "$".
 Qed.
