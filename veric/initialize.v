@@ -2523,3 +2523,73 @@ Proof.
   instantiate (1:=(mkEnv (fst gvals) nil nil)). apply H2.
   instantiate (1:=n). trivial.
 Qed. 
+
+(*The most fundamental notion is gv_init_data2pred*)
+Notation globals := (ident -> val).
+Definition gv_init_data2pred (d: init_data)  (sh: share) (a: val) (gv:globals) : mpred :=
+ match d with
+  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_int64 i => mapsto sh (Tlong Unsigned noattr) a (Vlong i)
+  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vsingle r)
+  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
+  | Init_space n => mapsto_zeros n sh a
+  | Init_addrof symb ofs =>
+       match gv symb with
+         Vptr b z => if Ptrofs.eq z Ptrofs.zero
+                     then mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
+                     else FF
+       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
+       end
+ end.
+
+Definition genv_init_data2pred d sh a g: mpred := gv_init_data2pred d sh a (globals_of_genv g).
+
+Lemma ginit_data2pred_char_genv d sh a gvals: ginit_data2pred d sh a gvals = genv_init_data2pred d sh a (fst gvals).
+Proof. destruct d; simpl; trivial. unfold globals_of_genv. destruct (Map.get (fst gvals) i); trivial. Qed.
+
+Lemma ginit_data2pred_char_gv d sh a gvals: ginit_data2pred d sh a gvals = gv_init_data2pred d sh a (globals_of_genv (fst gvals)).
+Proof. rewrite ginit_data2pred_char_genv. trivial. Qed.
+
+Lemma init_data2pred_char_genv d sh a rho: init_data2pred d sh a rho = genv_init_data2pred d sh a (ge_of rho).
+Proof. rewrite <- (@gg1 d sh a rho nil), ginit_data2pred_char_genv. trivial.
+      (*alternative proof: destruct d; simpl; trivial. unfold globals_of_genv. 
+           destruct (Map.get (ge_of rho) i); trivial.*)
+Qed.
+
+Lemma init_data2pred_char_gv d sh a rho: init_data2pred d sh a rho = gv_init_data2pred d sh a (globals_of_genv (ge_of rho)).
+Proof. rewrite init_data2pred_char_genv. trivial. Qed.
+
+Definition gv_lift0 {B : Type} (P : B) (_ : globals) := P.
+Definition gv_lift2 {A1 A2 B : Type} (P : A1 -> A2 -> B)
+  (f1 : globals -> A1) (f2 : globals -> A2) gv := P (f1 gv) (f2 gv).
+
+Fixpoint gv_init_data_list2pred (dl: list init_data) (sh: share) (v: val): globals -> mpred :=
+  match dl with
+  | d::dl' => 
+      gv_lift2 sepcon (gv_init_data2pred d sh v) 
+                  (gv_init_data_list2pred dl' sh (offset_val (init_data_size d) v))
+  | nil => @gv_lift0 mpred emp
+ end.
+
+Lemma init_data_list2pred_char_gv dl sh rho: forall v,
+      init_data_list2pred dl sh v rho = gv_init_data_list2pred dl sh v (globals_of_genv (ge_of rho)).
+Proof.
+  induction dl; simpl; intros; trivial. unfold lift2, gv_lift2. rewrite IHdl; clear IHdl.
+  f_equal. rewrite init_data2pred_char_gv; trivial.
+Qed.
+
+Definition gv_globvar2pred (gv: ident->val) (idv: ident * globvar type): globals -> mpred :=
+   if (gvar_volatile (snd idv))
+   then gv_lift0 TT
+   else gv_init_data_list2pred (gvar_init (snd idv))
+                             (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
+
+Lemma globvar2pred_char_gv gv idv rho:
+      globvar2pred gv idv rho = gv_globvar2pred gv idv (globals_of_genv (ge_of rho)).
+Proof. unfold gv_globvar2pred, globvar2pred.
+  destruct (gvar_volatile (snd idv)); trivial.
+  rewrite init_data_list2pred_char_gv. trivial.
+Qed.
+
