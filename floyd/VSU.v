@@ -3194,9 +3194,13 @@ Ltac finishComponent :=
     intros i phi E; simpl in E;
     repeat (if_tac in E;
             [inv E; eexists; split; [ reflexivity
-                                    | apply funspec_sub_refl]
+                                    | try solve [apply funspec_sub_refl]]
             | ]);
-    discriminate.
+    try solve [discriminate].
+
+Ltac lookup_tac := 
+    intros H;
+    repeat (destruct H; [ repeat ( first [ solve [left; trivial] | right]) | ]); try contradiction.
 
 Ltac mkComponent (*G_internal*) := 
   eapply Build_Component (*with G_internal*);
@@ -3208,7 +3212,7 @@ Ltac mkComponent (*G_internal*) :=
   | apply compute_list_norepet_e; reflexivity
   | intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; do 4 eexists; reflexivity |]); try contradiction
-  | intros; simpl; split; trivial
+  | intros; simpl; split; trivial; try solve [lookup_tac]
   | apply compute_list_norepet_e; reflexivity
   | intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
