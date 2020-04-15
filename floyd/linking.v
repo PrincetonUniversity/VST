@@ -48,7 +48,7 @@ Module SortGlobdef := Mergesort.Sort(GlobdefOrder).
 
 Definition isnil {A} (al: list A) := 
    match al with nil => true | _ => false end.
-
+(*
 Lemma prod_eq_dec {A B} (Ha: forall (a1 a2:A), {a1 = a2} + {a1<>a2})
       (Hb: forall (b1 b2:B), {b1 = b2} + {b1<>b2}):
       forall (x y : A * B), {x=y} + {x<>y}.
@@ -67,7 +67,24 @@ destruct (list_eq_dec (prod_eq_dec ident_eq type_eq) paramsF paramsG); [ subst |
 destruct (list_eq_dec (prod_eq_dec ident_eq type_eq) varsF varsG); [ subst | right; congruence].
 destruct (list_eq_dec (prod_eq_dec ident_eq type_eq) tempsF tempsG); [ subst | right; congruence].
 destruct (semax_lemmas.eq_dec_statement bodyF bodyG); [ subst; left; trivial | right; congruence].
-Defined.
+Defined.*)
+(*
+Fixpoint eqb_identtypelist (l1 l2:list (ident * type)) :=
+ match l1, l2 with
+   nil, nil => true
+ | h1::t1, h2::t2 => eqb_ident (fst h1) (fst h2) && eqb_type (snd h1) (snd h2)
+                     && eqb_identtypelist t1 t2
+ | _, _ => false
+end.
+
+
+Definition eqb_function (f g: function):bool := 
+  eqb_type (fn_return f) (fn_return g) &&
+  eqb_calling_convention (fn_callconv f) (fn_callconv g) &&
+  eqb_identtypelist (fn_params f) (fn_params g) &&
+  eqb_identtypelist (fn_vars f) (fn_vars g) &&
+  eqb_identtypelist (fn_temps f) (fn_temps g) &&
+  semax_lemmas.eq_dec_statement_Defined (fn_body f) (fn_body g).*)
 
 Definition merge_globdef (g1 g2: globdef (fundef function) type) :=
  match g1, g2 with
@@ -77,10 +94,21 @@ Definition merge_globdef (g1 g2: globdef (fundef function) type) :=
      Errors.OK g2  (* SHOULD CHECK TYPES MATCH *)
  | Gfun (Internal f1), Gfun (External _ _ _ _) =>
     Errors.OK g1  (* SHOULD CHECK TYPES MATCH *)
- | Gfun (Internal f), Gfun (Internal g) =>
+ | Gfun (Internal f), Gfun (Internal g) => Errors.OK g1 (*this is OK 
+      since VSU.ComponentJoin contains hypothesis Fundefs_match*) (*
     (*Errors.Error [Errors.MSG "internal function clash"]*)
-    if function_eq_dec f g then Errors.OK g1
+    if (*function_eq_dec f g*)eqb_function f g then Errors.OK g1
     else Errors.Error [Errors.MSG "internal function clash"]
+ | Gfun (Internal {| fn_return := rtF; fn_callconv := ccF; fn_params:= paramsF; fn_vars := varsF; fn_temps := tempsF; fn_body := bodyF|}), 
+   Gfun (Internal {| fn_return := rtG; fn_callconv := ccG; fn_params:= paramsG; fn_vars := varsG; fn_temps := tempsG; fn_body := bodyG|}) =>
+    if eqb_type rtF rtG &&
+       eqb_calling_convention ccF ccG &&
+       eqb_identtypelist paramsF paramsG &&
+       eqb_identtypelist varsF varsG &&
+       eqb_identtypelist tempsF tempsG (*&&
+       semax_lemmas.eq_dec_statement_Defined bodyF bodyG*)
+    then Errors.OK g1
+    else Errors.Error [Errors.MSG "internal function clash"]*)
  | Gvar {| gvar_info := i1; gvar_init := l1; gvar_readonly := r1; gvar_volatile := v1 |},
    Gvar {| gvar_info := i2; gvar_init := l2; gvar_readonly := r2; gvar_volatile := v2 |} =>
    if (eqb_type i1 i2 &&

@@ -3683,7 +3683,7 @@ Ltac SC_tac := simpl; intros ? ? X H;
   inv X; first [ eexists; split; [reflexivity | apply funspec_sub_refl] | idtac]; try contradiction.
 
 Ltac HImports_tac := simpl; intros ? ? ? H1 H2;
-  repeat (if_tac in H1; subst; simpl in *; try discriminate).
+  repeat (if_tac in H1; subst; simpl in *; try discriminate);try congruence.
 
 Ltac ImportsDef_tac := first [ reflexivity | idtac ].
 Ltac ExportsDef_tac := first [ reflexivity | idtac ].
