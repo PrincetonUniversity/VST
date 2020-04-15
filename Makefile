@@ -76,7 +76,7 @@ else
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
 else
-ARCHDIRS=$(ARCH)_$(BITSIZE)
+ARCHDIRS=$(ARCH) $(ARCH)_$(BITSIZE)
 endif
 endif
 

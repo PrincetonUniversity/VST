@@ -1476,7 +1476,7 @@ clear H14 TC8. simpl fst in *. simpl snd in *.
 destruct H15 as [x' H15].
 clear H5.
 destruct H15 as [H5 H15].
-specialize (H15 (opttyp_of_type retty)).
+specialize (H15 (rettype_of_type retty)).
 do 3 red in H15.
 destruct Hinline as [Hinline|Hempty].
 2:{
@@ -1511,7 +1511,7 @@ pose (tx' := match ret,ret0 with
                    end).
 
 specialize (H15 ret0 z').
-change ((ext_spec_post' Espec e x' (genv_symb_injective psi) (opttyp_of_type retty) ret0 z' >=>
+change ((ext_spec_post' Espec e x' (genv_symb_injective psi) (rettype_of_type retty) ret0 z' >=>
         juicy_mem_op
           (Q ts x (make_ext_rval  (filter_genv psi) ret0) *
               (F0 (construct_rho (filter_genv psi) vx tx) *

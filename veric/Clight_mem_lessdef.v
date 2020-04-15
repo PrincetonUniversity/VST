@@ -134,7 +134,7 @@ eapply mem_lessdef_sem_binarith; eauto.
 Qed.
 
 Lemma classify_cast_void_e:
- forall t ty, classify_cast t ty = cast_case_void -> ty=Tvoid.
+ forall t ty, classify_cast t ty = cast_case_void -> ty=Ctypes.Tvoid.
 Proof.
 intros.
    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
@@ -210,7 +210,7 @@ destruct op; simpl in H1.
      eapply mem_lessdef_sem_shift; eauto.
  +   
    destruct IHeval_expr as [v1' [? ?]].
-   destruct (eq_dec ty Tvoid).
+   destruct (eq_dec ty Ctypes.Tvoid).
    **
    subst ty. inv H1.
    exists v1'. split. subst. econstructor; eauto. auto.

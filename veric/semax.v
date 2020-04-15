@@ -215,7 +215,7 @@ Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function)
 
 Program Definition ext_spec_post' (Espec: OracleKind)
    (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
-   (tret: option typ) (ret: option val) (z: OK_ty) : pred juicy_mem :=
+   (tret: rettype) (ret: option val) (z: OK_ty) : pred juicy_mem :=
   exist (hereditary age)
    (ext_spec_post OK_spec ef x' ge_s tret ret z)
      (JE_post_hered _ _ _ _ _ _ _ _).
@@ -245,7 +245,7 @@ Definition semax_external
    EX x': ext_spec_type OK_spec ef,
     (ALL z:_, juicy_mem_op (ext_compat z) -->
      ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
+     ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
 
@@ -266,7 +266,7 @@ Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne 
   (HSIG: ef_sig ef = 
          mksignature (*(typlist_of_typelist (typelist_of_type_list argtypes))*)
                      (map typ_of_type argtypes)
-                     (opttyp_of_type rtype) cc):
+                     (rettype_of_type rtype) cc):
   @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
 Proof.
 apply allp_derives; intros g.
@@ -325,14 +325,14 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: types
         !! (fsig = (typelist2list sigargs, sigret) /\ cc'=cc
            /\ ef_sig ef = mksignature
                            (typlist_of_typelist (typelist_of_type_list (fst fsig)))
-                           (opttyp_of_type (snd fsig)) cc
+                           (rettype_of_type (snd fsig)) cc
            /\ (ef_inline ef = false \/ withtype_empty A))
         && semax_external Hspec (*ids*) ef A P Q
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),
               ALL ret:option val,
                 Q ts x (make_ext_rval (filter_genv gx) ret)
-                  && !!has_opttyp ret (opttyp_of_type (snd fsig))
+                  && !!Builtins0.val_opt_has_rettype ret (rettype_of_type (snd fsig))
                   >=> !! tc_option_val sigret ret)
   | _ => FF
   end.

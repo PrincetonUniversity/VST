@@ -40,7 +40,7 @@ Definition funspecOracle2pre (ext_link: Strings.String.string -> ident) (A : Typ
   end x.
 
 Definition funspecOracle2post (ext_link: Strings.String.string -> ident) (A : Type) (Q : A -> Z -> environ -> mpred)
-                        id sig ef x ge_s (tret : option typ) ret z m : Prop :=
+                        id sig ef x ge_s (tret : rettype) ret z m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (rmap * A)%type else ext_spec_type Espec ef) -> Prop)
   with
@@ -249,7 +249,7 @@ Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Ty
    juicy_mem_op (P x z (seplog.make_args ids args (empty_environ gx) ) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     ext_spec_pre' Espec ef x' (genv_symb_injective gx) ts args z &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
+     ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Espec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) ret) * F).
 

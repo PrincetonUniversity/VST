@@ -40,7 +40,7 @@ clightgen when threads.h is included first *)*)
 
 Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
 (* Definition tlock := Tstruct _lock_t noattr. *)
-Definition tlock := (Tarray (Tpointer Tvoid noattr) 2 noattr).
+Definition tlock := (Tarray (Tpointer Ctypes.Tvoid noattr) 2 noattr).
 (* Notation tlock := tuint (only parsing). *)
 
 Goal forall (cenv: composite_env), @sizeof cenv tlock = LKSIZE.
@@ -376,7 +376,7 @@ Qed.
 
 Definition acquire_spec: funspec := mk_funspec
   (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  (tptr Tvoid :: nil, tvoid)
+  (tptr Ctypes.Tvoid :: nil, tvoid)
   cc_default
   acquire_arg_type
   (fun _ => acquire_pre)
@@ -463,7 +463,7 @@ Qed.
 
 Definition release_spec: funspec := mk_funspec
   (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Tvoid) :: nil, tvoid)
+  ((tptr Ctypes.Tvoid) :: nil, tvoid)
   cc_default
   release_arg_type
   (fun _ => release_pre)
@@ -474,7 +474,7 @@ Definition release_spec: funspec := mk_funspec
 
 Program Definition makelock_spec cs: funspec := mk_funspec
   (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Tvoid) :: nil, tvoid)
+  ((tptr Ctypes.Tvoid) :: nil, tvoid)
   cc_default
   (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
   (fun _ x =>
@@ -516,7 +516,7 @@ Qed.
 
 Program Definition freelock_spec cs: funspec := mk_funspec
   (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Tvoid) :: nil, tvoid)
+  ((tptr Ctypes.Tvoid) :: nil, tvoid)
  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
   (fun _ x =>
@@ -591,7 +591,7 @@ Qed.
 
 Program Definition freelock2_spec cs: funspec := mk_funspec
   (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Tvoid)%formals :: nil, tvoid)
+  ((tptr Ctypes.Tvoid)%formals :: nil, tvoid)
   cc_default
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share * share)) rmaps.Mpred) rmaps.Mpred)
   (fun _ x =>
@@ -652,7 +652,7 @@ Qed.
 
 Program Definition release2_spec: funspec := mk_funspec
   (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Tvoid) :: nil, tvoid)
+  ((tptr Ctypes.Tvoid) :: nil, tvoid)
  cc_default
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
   (fun _ x =>
@@ -736,7 +736,7 @@ Definition freecond_spec cs :=
 
 Program Definition wait_spec cs: funspec := mk_funspec
  (* ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr tcond) :: (tptr Tvoid) :: nil, tvoid)
+  ((tptr tcond) :: (tptr Ctypes.Tvoid) :: nil, tvoid)
   cc_default
   (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
   (fun _ x =>
@@ -794,7 +794,7 @@ Qed.
 
 Program Definition wait2_spec cs: funspec := mk_funspec
   (*((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr tcond)%formals :: (tptr Tvoid)%formals :: nil, tvoid)
+  ((tptr tcond)%formals :: (tptr Ctypes.Tvoid)%formals :: nil, tvoid)
   cc_default
   (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
   (fun _ x =>
@@ -898,7 +898,7 @@ Definition spawn_pre :=
                            (nth 0 ts unit -> val -> mpred)) =>
    match x with
    | (f, b, gv, w, pre) =>
-     PROP (tc_val (tptr Tvoid) b)
+     PROP (tc_val (tptr Ctypes.Tvoid) b)
      (*(LOCALx (temp _f f :: temp _args b :: gvars (gv w) :: nil)*)
      PARAMS (f;b) GLOBALS (gv w)
      (SEP (

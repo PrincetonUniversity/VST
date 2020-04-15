@@ -32,7 +32,7 @@ Lemma semax_func_cons_ext_vacuous:
        ef_sig ef =
        {|
          sig_args := typlist_of_typelist argsig;
-         sig_res := opttyp_of_type retsig;
+         sig_res := rettype_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        (*new*) Genv.find_symbol ge id = Some b ->
        (*new*) Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->

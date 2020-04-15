@@ -220,8 +220,7 @@ assert (0 < n < Int.zwordsize) by omega.
 clear - H H0.
 
 apply Int.same_bits_eq; intros j ?.
-destruct H0.
-rewrite (Int.bits_sign_ext n i j H1 H0).
+rewrite (Int.bits_sign_ext n i j) by omega.
 if_tac; auto.
 destruct H1.
 destruct (zlt (Int.signed i) 0).

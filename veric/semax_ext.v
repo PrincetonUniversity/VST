@@ -15,10 +15,10 @@ Require Import compcert.cfrontend.Clight.
 Require Import compcert.exportclight.Clightdefs.
 
 Definition funsig2signature (s : funsig) cc : signature :=
-  mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
+  mksignature (map typ_of_type (map snd (fst s))) (rettype_of_type (snd s)) cc.
 
 Definition typesig2signature (s : typesig) cc : signature :=
-  mksignature (map typ_of_type (fst s)) (opttyp_of_type (snd s)) cc.
+  mksignature (map typ_of_type (fst s)) (rettype_of_type (snd s)) cc.
 
 (* NOTE.   ext_link: Strings.String.string -> ident
    represents the mapping from the _name_ of an external function
@@ -105,7 +105,7 @@ Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
 
 Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
-  id sig ef x ge_s (tret : option typ) ret (z : Z) m : Prop :=
+  id sig ef x ge_s (tret : rettype) ret (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
   with
@@ -117,7 +117,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
 
 Definition funspec2post' (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
-  id sig ef x ge_s (tret : option typ) ret (z : Z) m : Prop :=
+  id sig ef x ge_s (tret : rettype) ret (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
   with
@@ -282,7 +282,7 @@ Lemma add_funspecs_pre_void  (ext_link: Strings.String.string -> ident)
               {Z fs id sig cc A P Q NEP NEQ}
               {x: sigT (fun ts => dependent_type_functor_rec ts A mpred)}
               {args m} Espec tys ge_s phi0 phi1 :
-  let ef := EF_external id (mksignature (map typ_of_type sig) None cc) in
+  let ef := EF_external id (mksignature (map typ_of_type sig) Tvoid cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec (sig, tvoid) cc A P Q NEP NEQ)) fs ->
   join phi0 phi1 (m_phi m) ->
@@ -325,7 +325,7 @@ Qed.
 
 Lemma add_funspecs_post_void (ext_link: Strings.String.string -> ident)
   {Z Espec tret fs id sig cc A P Q NEP NEQ x ret m z ge_s} :
-  let ef := EF_external id (mksignature (map typ_of_type sig) None cc) in
+  let ef := EF_external id (mksignature (map typ_of_type sig) Tvoid cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec (sig, tvoid) cc A P Q NEP NEQ)) fs ->
   ext_spec_post (add_funspecs_rec ext_link Z Espec fs) ef x ge_s tret ret z m ->
@@ -485,7 +485,7 @@ Lemma semax_ext'_void (ext_link: Strings.String.string -> ident) id sig cc A P Q
   In (ext_link  id,f) fs ->
   funspecs_norepeat fs ->
   (forall n, semax_external (add_funspecs Espec ext_link fs) (*(fst (split sig))*)
-               (EF_external id (mksignature (map typ_of_type (*(map snd sig)*)sig) None cc)) _ P Q n).
+               (EF_external id (mksignature (map typ_of_type (*(map snd sig)*)sig) Tvoid cc)) _ P Q n).
 Proof.
 intros f Hin Hnorepeat.
 unfold semax_external.
@@ -528,7 +528,7 @@ Lemma semax_ext_void (ext_link: Strings.String.string -> ident) id (*ids*) sig s
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   (*ids = fst (split sig) ->*)
-  sig' = mksignature (map typ_of_type (*(map snd sig)*)sig) None cc ->
+  sig' = mksignature (map typ_of_type (*(map snd sig)*)sig) Tvoid cc ->
   (forall n, semax_external (add_funspecs Espec ext_link fs) (*ids*) (EF_external id sig') _ P Q n).
 Proof.
 intros; subst.

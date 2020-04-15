@@ -125,7 +125,7 @@ Lemma semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1
                    (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
          mksignature (map typ_of_type argtypes)
-                     (opttyp_of_type rtype) cc)
+                     (rettype_of_type rtype) cc)
   (SE: @CSHL_Def.semax_external Espec ef A1 P1 Q1),
   @CSHL_Def.semax_external Espec ef A P Q.
 Proof. intros. intros n. eapply semax_external_funspec_sub. apply Hsub. trivial. trivial. Qed.
@@ -168,7 +168,7 @@ Lemma semax_call {CS Espec}:
    F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
-            (retsig = Tvoid -> ret = None) ->
+            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
        (fun rho => ((*|>*)(tc_expr Delta a rho && tc_exprlist Delta argsig bl rho))  &&
