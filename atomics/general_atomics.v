@@ -48,22 +48,21 @@ Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : 
   EX P : mpred, |> P * (ashift P a Ei Eo b Q && cored).
 
 Lemma atomic_commit_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> (EX y, b x y) * R')%I ->
-  (atomic_shift a Ei Eo b Q * R |-- |={Eo}=> (EX y, Q y) * R')%I.
+  (forall x, R * a x |-- |==> (EX y, b x y * R' y))%I ->
+  (atomic_shift a Ei Eo b Q * R |-- |={Eo}=> (EX y, Q y * R' y))%I.
 Proof.
   intros.
   iIntros "[AS R]".
   unfold atomic_shift, ashift.
   iDestruct "AS" as (P) "[P AS]".
   iMod ("AS" with "P") as (x) "[a [_ H]]".
-  iMod (H with "[$R $a]") as "[b $]".
-  iDestruct "b" as (y) "b"; iExists y.
-  iMod ("H" with "b") as "$"; auto.
+  iMod (H with "[$R $a]") as (y) "[b R']".
+  iExists y; iMod ("H" with "b") as "$"; auto.
 Qed.
 
 Corollary atomic_commit_elim : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> (EX y, b x y) * R')%I ->
-  (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * atomic_shift a Ei Eo b Q * R |-- |==> ◇ (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * ((EX y, Q y) * R')))%I.
+  (forall x, R * a x |-- |==> (EX y, b x y * R' y))%I ->
+  (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * atomic_shift a Ei Eo b Q * R |-- |==> ◇ (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * (EX y, Q y * R' y)))%I.
 Proof.
   intros.
   iIntros "[[[wsat en] AS] R]".
@@ -73,8 +72,8 @@ Qed.
 
 (* This is unsound: what we really need is fupd in WP. *)
 Lemma atomic_commit : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> (EX y, b x y) * R')%I ->
-  (atomic_shift a Ei Eo b Q * R |-- |==> (EX y, Q y) * R')%I.
+  (forall x, R * a x |-- |==> (EX y, b x y * R' y))%I ->
+  (atomic_shift a Ei Eo b Q * R |-- |==> (EX y, Q y * R' y))%I.
 Proof.
   intros.
   eapply atomic_commit_elim in H.
