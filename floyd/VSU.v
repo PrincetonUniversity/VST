@@ -46,7 +46,7 @@ Definition semaxfunc_ExternalInfo Espec (ge : Genv.t Clight.fundef type) (id : i
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc /\
   (ef_inline ef = false \/ withtype_empty A) /\
   (forall (gx : genviron) (ts : list Type) x (ret : option val),
-   Q ts x (make_ext_rval gx ret) && !! Builtins0.val_opt_has_rettype ret (rettype_of_type retsig) |-- !! tc_option_val retsig ret) /\
+   Q ts x (make_ext_rval gx (rettype_of_type retsig) ret) && !! Builtins0.val_opt_has_rettype ret (rettype_of_type retsig) |-- !! tc_option_val retsig ret) /\
   @semax_external Espec ef A P Q /\
   genv_find_func ge id (External ef argsig retsig cc)
   end.

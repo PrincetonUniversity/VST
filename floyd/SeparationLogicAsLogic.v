@@ -296,7 +296,7 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ withtype_empty A) ->
   (forall gx ts x (ret : option val),
-     (Q ts x (make_ext_rval gx ret)
+     (Q ts x (make_ext_rval gx (rettype_of_type retsig) ret)
         && !!Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)
         |-- !!tc_option_val retsig ret)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->

@@ -46,7 +46,7 @@ Definition funspecOracle2post (ext_link: Strings.String.string -> ident) (A : Ty
   with
   | left _ =>
     fun x => exists phi0 phi1, join phi0 phi1 (m_phi m)
-                       /\ Q (snd x) z (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0
+                       /\ Q (snd x) z (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
                        /\ necR (fst x) phi1
   | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
@@ -195,7 +195,7 @@ Lemma add_funspecs_post (ext_link: Strings.String.string -> ident)
        join phi0 phi1 (m_phi m)
     /\ necR phi1' phi1
     /\ JMeq x (phi1', x')
-    /\ Q x' z (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0.
+    /\ Q x' z (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hid Hpost.
 destruct H1 as [H1|H1].
@@ -251,7 +251,7 @@ Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Ty
     ext_spec_pre' Espec ef x' (genv_symb_injective gx) ts args z &&
      ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Espec ef x' (genv_symb_injective gx) tret ret z' >=>
-          juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) ret) * F).
+          juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) tret ret) * F).
 
 Section semax_ext_oracle.
 

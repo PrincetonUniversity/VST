@@ -1135,17 +1135,18 @@ Definition semax_body_params_ok f : bool :=
 Definition var_sizes_ok {cs: compspecs} (vars: list (ident*type)) :=
    Forall (fun var : ident * type => sizeof (snd var) <= Ptrofs.max_unsigned)%Z vars.
 
-Definition make_ext_rval  (gx: genviron) (v: option val):=
+Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
+  match tret with AST.Tvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
+ | _ => 
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
                               (Map.set 1%positive v' (Map.empty _))
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
-  end.
+  end end.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
-    | Tvoid, None => True
-    | Tvoid, Some _ => False
+    | Tvoid, _ => True
     | ty, Some v => tc_val ty v
     | _, _ => False
   end.
@@ -1416,7 +1417,7 @@ Axiom semax_func_cons_ext: forall {Espec:OracleKind} (V: varspecs) (G: funspecs)
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ withtype_empty A) ->
   (forall gx ts x (ret : option val),
-     (Q ts x (make_ext_rval gx ret)
+     (Q ts x (make_ext_rval gx (rettype_of_type retsig) ret)
         && !!Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)
         |-- !!tc_option_val retsig ret)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->

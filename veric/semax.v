@@ -223,12 +223,14 @@ Program Definition ext_spec_post' (Espec: OracleKind)
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
-Definition make_ext_rval  (gx: genviron) (v: option val):=
+Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
+  match tret with AST.Tvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
+ | _ => 
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
                               (Map.set 1%positive v' (Map.empty _))
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
-  end.
+  end end.
 
 Definition semax_external
   (Hspec: OracleKind) ef
@@ -247,7 +249,7 @@ Definition semax_external
      ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
      ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
-          juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
+          juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) tret ret) * F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
   forall l t, Forall2 P l t -> Forall2 Q l t.
@@ -295,14 +297,13 @@ destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.
 destruct (join_assoc JW JU) as [v [JV V]]. apply join_comm in V.
 exists v, w1; split3; trivial.
 apply HQ; clear HQ; split.
-+ simpl. destruct b0; reflexivity.
++ simpl. destruct b,b0; reflexivity.
 + exists w2, u1; split3; trivial.
 Qed. 
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
-    | Tvoid, None => True
-    | Tvoid, Some _ => False
+    | Tvoid, _ => True
     | ty, Some v => tc_val ty v
     | _, _ => False
   end.
@@ -331,7 +332,7 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: types
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),
               ALL ret:option val,
-                Q ts x (make_ext_rval (filter_genv gx) ret)
+                Q ts x (make_ext_rval (filter_genv gx) (rettype_of_type (snd fsig)) ret)
                   && !!Builtins0.val_opt_has_rettype ret (rettype_of_type (snd fsig))
                   >=> !! tc_option_val sigret ret)
   | _ => FF

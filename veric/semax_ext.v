@@ -110,7 +110,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
   return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
-                       /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0
+                       /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
                        /\ necR (fst x') phi1 /\ joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
@@ -122,7 +122,7 @@ Definition funspec2post' (ext_link: Strings.String.string -> ident) (A : TypeTre
   return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
-                       /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0
+                       /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
                        /\ necR (fst x') phi1 /\ joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
@@ -333,7 +333,7 @@ Lemma add_funspecs_post_void (ext_link: Strings.String.string -> ident)
        join phi0 phi1 (m_phi m)
     /\ necR phi1' phi1
     /\ JMeq x (phi1', x')
-    /\ Q (projT1 x') (projT2 x') (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0.
+    /\ Q (projT1 x') (projT2 x') (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hpost.
 destruct H1 as [H1|H1].
@@ -372,7 +372,7 @@ Lemma add_funspecs_post (ext_link: Strings.String.string -> ident){Z Espec tret 
        join phi0 phi1 (m_phi m)
     /\ necR phi1' phi1
     /\ JMeq x (phi1',x')
-    /\ Q (projT1 x') (projT2 x') (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0.
+    /\ Q (projT1 x') (projT2 x') (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hpost.
 destruct H1 as [H1|H1].
