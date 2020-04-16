@@ -17,7 +17,7 @@
 (** Architecture-dependent parameters for x86 in 32-bit mode *)
 
 Require Import ZArith List.
-(*From Flocq*)
+From Flocq
 Require Import Binary Bits.
 
 Definition ptr64 := false.

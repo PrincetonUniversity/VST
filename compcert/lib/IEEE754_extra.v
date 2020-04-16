@@ -20,7 +20,7 @@
 Require Import Psatz.
 Require Import Bool.
 Require Import Eqdep_dec.
-(*From Flocq *)
+From Flocq
 Require Import Core Digits Operations Round Bracket Sterbenz Binary Round_odd.
 
 Local Open Scope Z_scope.
