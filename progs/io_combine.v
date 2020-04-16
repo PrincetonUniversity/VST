@@ -101,6 +101,8 @@ Proof.
       destruct (get_sys_arg1 _) eqn:Harg; try discriminate.
       destruct (eq_dec _ _); subst; try discriminate.
       destruct (sys_putc_spec _) eqn:Hspec; inv H3.
+      assert (sig_res (ef_sig e) <> AST.Tvoid).
+      { destruct e; inv H2; discriminate. }
       eapply sys_putc_correct in Hspec as (? & -> & [? Hpost ?]); eauto.
     + destruct w as (? & _ & ?).
       destruct H1 as (? & ? & Hpre); subst.
@@ -109,10 +111,12 @@ Proof.
       rewrite if_true in H3 by auto.  
       unfold sys_getc_wrap_spec in *.
       destruct (sys_getc_spec) eqn:Hspec; inv H3.
+      assert (sig_res (ef_sig e) <> AST.Tvoid).
+      { destruct e; inv H4; discriminate. }
       eapply sys_getc_correct with (m1 := m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
       * split; auto; do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
-        destruct Hpost as [? Hpost]; split; auto.
+        destruct Hpost as [? Hpost]; split; auto; split; auto.
         destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; rep_omega).
         -- rewrite if_false by omega; eauto.
         -- rewrite if_true; auto.
