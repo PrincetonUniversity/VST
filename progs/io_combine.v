@@ -138,7 +138,7 @@ Notation ge := (globalenv prog).
       cl_at_external c = Some (e,args) ->
       (forall s s' ret m' t' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
-         (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
+         (Hretty : Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))),
          IO_inj_mem e args m t s ->
          IO_ext_sem e args s = Some (s', ret, t') ->
          m' = OS_mem e args m s' ->
@@ -149,7 +149,7 @@ Notation ge := (globalenv prog).
            (forall t'' sf, In _ traces' (t'', sf) -> In _ traces (app_trace t' t'', sf))) ->
       (forall t1, In _ traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e)) /\
          IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\

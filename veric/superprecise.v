@@ -192,7 +192,7 @@ f_equal; apply H.
 Qed.
 
 Require Import ZArith.
-From compcert Require Import Zaux Binary Generic_fmt.
+From Flocq Require Import Zaux Binary Generic_fmt.
 
 Lemma binary_normalize_inj:
   forall s1 m1 e1 (h1 : bounded 24 128 m1 e1 = true),

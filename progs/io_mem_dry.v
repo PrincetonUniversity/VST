@@ -188,7 +188,10 @@ Proof.
         intro; rewrite H2; auto.
       * split3; simpl.
         { split; auto. }
-        { split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate. }
+        { unfold_lift. split; auto. split; [|intro Hx; inv Hx].
+             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
+             assert (ot <> AST.Tvoid) by admit.
+             destruct ot; try contradiction; reflexivity. }
         unfold SEPx; simpl.
         rewrite seplog.sepcon_emp.
         unshelve eexists (age_to.age_to _ (set_ghost phig _ _)), (age_to.age_to _ phir);
@@ -256,7 +259,10 @@ Proof.
         -- exists msg.
            split3; simpl.
            { split; auto. }
-           { split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate. }
+           { unfold_lift. split; auto. split; [|intro Hx; inv Hx].
+             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
+             assert (ot <> AST.Tvoid) by admit.
+             destruct ot; try contradiction; reflexivity. }
            unfold SEPx; simpl.
            rewrite seplog.sepcon_emp.
            unshelve eexists (set_ghost (age_to.age_to _ phig) _ _), (age_to.age_to _ (inflate_store m' phir));
@@ -282,7 +288,7 @@ Proof.
             instantiate (1 := (_, _)).
             constructor; simpl; [|constructor; auto].
             apply ext_ref_join.
-Qed.
+Admitted.
 
 Instance mem_evolve_refl : Reflexive mem_evolve.
 Proof.
