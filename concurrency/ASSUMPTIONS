@@ -7,7 +7,7 @@ assumptions of our main theorem with:
 
 This will show all the Axioms, Assumptions and Admitted Lemmas used by
 the main lemma in main.v. An explanation of these assumptions can be
-found below, and a detail explanation of each Admitted lemma can be
+found below, and a detailed explanation of each Admitted lemma can be
 found as comments in its file.
 
 To show not only the names, but the types, of all assumptions you
@@ -18,7 +18,7 @@ may also run:
 This will show the same output above, but with the definition of each
 assumption. For better formatting, you may also open the file
 [main_print_assumptions.v] in CoqIDE or Proof General. The last
-command in will print the assumptions.
+command will print the assumptions.
 
 
 
@@ -202,6 +202,6 @@ For every thread, we preserve a relation between the allocated blocks in the two
 	been propagated through the other parts of the project. 
 * compcert_threads_lemmas.SimProofs.sim_external 
 	We had a working version of this proof until it broke after 
-	some updates to VST. The author will be working on fixing 
+	some updates to VST. The authors will be working on fixing 
 	these shortly.
 
