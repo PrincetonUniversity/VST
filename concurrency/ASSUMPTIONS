@@ -10,6 +10,15 @@ the main lemma in main.v. An explanation of these assumptions can be
 found below, and a detailed explanation of each Admitted lemma can be
 found as comments in its file.
 
+If you want to see the assumptions without having to build the entire
+project (or while the project builds), we have included a file
+	concurrency/assumptions_output
+With the current assumptions. The file should match the output of the
+command above and can be updated by using:
+
+	make assumptions-concurrency > concurrency/assumptions_output
+	
+
 To show not only the names, but the types, of all assumptions you
 may also run:
 

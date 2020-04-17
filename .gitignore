@@ -418,7 +418,6 @@ concurrency/main.vok
 concurrency/main.vos
 concurrency/main_definitions.vok
 concurrency/main_definitions.vos
-concurrency/main_print_assumptions.v
 concurrency/main_print_assumptions.vok
 concurrency/main_print_assumptions.vos
 concurrency/main_proofs.vok
