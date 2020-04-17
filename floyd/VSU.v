@@ -43,10 +43,10 @@ Definition semaxfunc_ExternalInfo Espec (ge : Genv.t Clight.fundef type) (id : i
   match phi with mk_funspec (argsig', retsig') cc' A P Q NEP NEQ => 
   retsig = retsig' /\ cc=cc' /\
   argsig' = typelist2list argsig /\
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (opttyp_of_type retsig) cc /\
+  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc /\
   (ef_inline ef = false \/ withtype_empty A) /\
   (forall (gx : genviron) (ts : list Type) x (ret : option val),
-   Q ts x (make_ext_rval gx ret) && !! step_lemmas.has_opttyp ret (opttyp_of_type retsig) |-- !! tc_option_val retsig ret) /\
+   Q ts x (make_ext_rval gx (rettype_of_type retsig) ret) && !! Builtins0.val_opt_has_rettype ret (rettype_of_type retsig) |-- !! tc_option_val retsig ret) /\
   @semax_external Espec ef A P Q /\
   genv_find_func ge id (External ef argsig retsig cc)
   end.
@@ -151,7 +151,7 @@ Abort. (*
   repeat split; trivial.
   + destruct H3; [ left; trivial | ]. admit. (*empty_type -- add in funspec_sub?*)
   + intros. specialize (Fsub ts0 x).  simpl in Fsub. clear. Print make_ext_rval. apply andp_left2. clear. apply prop_derives. intros.
-    unfold opttyp_of_type in H.
+    unfold rettype_of_type in H.
     if_tac in H; subst.
     - simpl. destruct ret; trivial.
     - destruct ret; simpl in *. 
@@ -1136,7 +1136,7 @@ Qed.
 Definition signature_of_fundef (fd: Ctypes.fundef function):signature :=
 match fd with
     Internal f => {| sig_args := map typ_of_type (map snd (fn_params f));
-                     sig_res := opttyp_of_type (fn_return f);
+                     sig_res := rettype_of_type (fn_return f);
                      sig_cc := fn_callconv f |}
   | External ef tys rt cc => signature_of_type tys rt cc
  end.
@@ -3009,7 +3009,7 @@ Lemma semaxfunc_cons_ext_vacuous:
        ef_sig ef =
        {|
          sig_args := typlist_of_typelist argsig;
-         sig_res := opttyp_of_type retsig;
+         sig_res := rettype_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        (*new*) Genv.find_symbol ge id = Some b ->
        (*new*) Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->

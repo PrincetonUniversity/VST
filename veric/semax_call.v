@@ -1476,7 +1476,7 @@ clear H14 TC8. simpl fst in *. simpl snd in *.
 destruct H15 as [x' H15].
 clear H5.
 destruct H15 as [H5 H15].
-specialize (H15 (opttyp_of_type retty)).
+specialize (H15 (rettype_of_type retty)).
 do 3 red in H15.
 destruct Hinline as [Hinline|Hempty].
 2:{
@@ -1511,9 +1511,9 @@ pose (tx' := match ret,ret0 with
                    end).
 
 specialize (H15 ret0 z').
-change ((ext_spec_post' Espec e x' (genv_symb_injective psi) (opttyp_of_type retty) ret0 z' >=>
+change ((ext_spec_post' Espec e x' (genv_symb_injective psi) (rettype_of_type retty) ret0 z' >=>
         juicy_mem_op
-          (Q ts x (make_ext_rval  (filter_genv psi) ret0) *
+          (Q ts x (make_ext_rval  (filter_genv psi) (rettype_of_type retty) ret0) *
               (F0 (construct_rho (filter_genv psi) vx tx) *
                F (construct_rho (filter_genv psi) vx tx)))) (level jm)) in H15.
 apply (pred_nec_hereditary _ _ (level m')) in H15.
@@ -1577,23 +1577,21 @@ spec H1.
 { clear H1. clear - TCret TC3 H0 TC5 H15 Hretty Hretty0 H6 H8 Hage TC3' tx' Htc H H4.
   split; [split; [split |] |].
   * (*1/4*) 
-    clear - TC3 Htc TCret.
-    destruct ret. 2: subst tx'; trivial.
+    clear - TC3 Htc TCret Hretty0.
+    destruct ret. 2: subst tx'; trivial. 
     destruct ret0; subst tx'. 2: trivial.
     unfold construct_rho in TC3. simpl in *.
-    assert (TCv: tc_val retty v /\ retty <> Tvoid).
-    { red in Htc. destruct retty; try contradiction. all: split; [trivial | congruence]. }
-    destruct TCv as [TCv TV]. 
-    clear - TCv TC3 TCret.
     apply (typecheck_environ_put_te _ _ _ _ i v) in TC3.
     + unfold construct_rho in *; rewrite map_ptree_rel in *; trivial.
     + intros. rewrite H in TCret; subst. red; intros; trivial.
+        clear - Hretty0 Htc H0. hnf in Htc. destruct t; auto.
+        hnf in Hretty0. destruct v; try contradiction.
   * (*2/4*) clear - TC3' tx'. auto.
   * (*3/4*)
     do 3 red in H15.
     rewrite (sepcon_comm (F0 _)) in H15.
     rewrite <- sepcon_assoc in H15.
-    assert (H15': ((!!tc_option_val retty ret0 && Q ts x (make_ext_rval (filter_genv psi) ret0)) *
+    assert (H15': ((!!tc_option_val retty ret0 && Q ts x (make_ext_rval (filter_genv psi) (rettype_of_type retty)ret0)) *
        F (construct_rho (filter_genv psi) vx tx) *
        F0 (construct_rho (filter_genv psi) vx tx))%pred (m_phi m')).
     { rewrite sepcon_assoc in H15|-*.
@@ -1677,12 +1675,12 @@ spec H1.
       rewrite PTree.gso; auto.
     + (* Q *)
       destruct (type_eq retty Tvoid).
+      --
       subst retty. unfold maybe_retval.
       hnf in H1.
-      destruct ret0; try contradiction.
-      simpl make_ext_rval.
-      spec TC5; auto. unfold tx' in *; subst ret.
-      apply derives_refl.
+      spec TC5; auto; subst tx' ret.
+      destruct ret0; try contradiction; apply derives_refl.
+      --
       destruct ret0; hnf in (*H1*)H; simpl in (*H1*)H.
       assert (tc_val retty v).
       { destruct retty; try congruence; auto. }
@@ -1698,13 +1696,17 @@ spec H1.
         unfold ret_temp, eval_id, env_set; simpl.
         f_equal.
         unfold Map.get, make_tenv; simpl. 
-        rewrite PTree.gss; reflexivity.
+        rewrite PTree.gss. simpl force_val. clear - Hretty0 n Htc. unfold rettype_of_type.
+        destruct retty as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];  try reflexivity; try congruence;
+        destruct v; try contradiction.
       - apply derives_trans with
           (EX v0 : val, !! tc_val' retty v0 && Q ts x (mkEnviron (filter_genv psi) (Map.empty (block * type)) (Map.set 1 v0 (Map.empty val)))).
         apply exp_right with v. apply andp_right. { intros ? ? ?.  trivial. }
         unfold make_args, make_ext_rval; simpl.
         unfold env_set, globals_only; simpl.
-        apply derives_refl.
+        clear - Hretty0 Htc n.
+        destruct retty as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];  try congruence;
+        destruct v; try contradiction; apply derives_refl.
         destruct retty; try congruence; apply derives_refl.
       - repeat match goal with| _ => destruct retty; try contradiction
             | _ => congruence (* 8.5 *)

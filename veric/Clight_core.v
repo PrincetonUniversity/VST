@@ -105,7 +105,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
   | _ => None
   end.
 
-Definition stuck_signature : signature := mksignature nil None cc_default.
+Definition stuck_signature : signature := mksignature nil AST.Tvoid cc_default.
 
 (*
 Definition ef_no_event (ef: external_function) : bool :=

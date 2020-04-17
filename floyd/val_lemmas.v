@@ -30,7 +30,7 @@ Proof. destruct t; simpl.
 + apply is_int_dec.
 + apply is_long_dec.
 + destruct f. apply is_single_dec. apply is_float_dec.
-+ destruct ((eqb_type t Tvoid &&
++ destruct ((eqb_type t Ctypes.Tvoid &&
     eqb_attr a
       {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |})%bool).
   apply is_pointer_or_integer_dec.

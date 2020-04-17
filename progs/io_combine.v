@@ -101,6 +101,8 @@ Proof.
       destruct (get_sys_arg1 _) eqn:Harg; try discriminate.
       destruct (eq_dec _ _); subst; try discriminate.
       destruct (sys_putc_spec _) eqn:Hspec; inv H3.
+      assert (sig_res (ef_sig e) <> AST.Tvoid).
+      { destruct e; inv H2; discriminate. }
       eapply sys_putc_correct in Hspec as (? & -> & [? Hpost ?]); eauto.
     + destruct w as (? & _ & ?).
       destruct H1 as (? & ? & Hpre); subst.
@@ -109,10 +111,12 @@ Proof.
       rewrite if_true in H3 by auto.  
       unfold sys_getc_wrap_spec in *.
       destruct (sys_getc_spec) eqn:Hspec; inv H3.
+      assert (sig_res (ef_sig e) <> AST.Tvoid).
+      { destruct e; inv H4; discriminate. }
       eapply sys_getc_correct with (m1 := m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
       * split; auto; do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
-        destruct Hpost as [? Hpost]; split; auto.
+        destruct Hpost as [? Hpost]; split; auto; split; auto.
         destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; rep_omega).
         -- rewrite if_false by omega; eauto.
         -- rewrite if_true; auto.
@@ -138,7 +142,7 @@ Notation ge := (globalenv prog).
       cl_at_external c = Some (e,args) ->
       (forall s s' ret m' t' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
-         (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
+         (Hretty : Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))),
          IO_inj_mem e args m t s ->
          IO_ext_sem e args s = Some (s', ret, t') ->
          m' = OS_mem e args m s' ->
@@ -149,7 +153,7 @@ Notation ge := (globalenv prog).
            (forall t'' sf, In _ traces' (t'', sf) -> In _ traces (app_trace t' t'', sf))) ->
       (forall t1, In _ traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e)) /\
          IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\

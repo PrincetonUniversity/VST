@@ -17,7 +17,7 @@ Structure external_specification (M E Z : Type) :=
   ; ext_spec_pre: forall e: E,
     ext_spec_type e -> injective_PTree block -> list typ -> list val -> Z -> M -> Prop
   ; ext_spec_post: forall e: E,
-    ext_spec_type e -> injective_PTree block -> option typ -> option val -> Z -> M ->  Prop
+    ext_spec_type e -> injective_PTree block -> rettype -> option val -> Z -> M ->  Prop
   ; ext_spec_exit: option val -> Z -> M ->  Prop }.
 
 Arguments ext_spec_type {M E Z} _ _.

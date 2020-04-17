@@ -25,7 +25,7 @@ Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
      fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.
 
 Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : environ -> mpred :=
-   match e with None => `!!(t=Tvoid)
+   match e with None => `!!(t=Ctypes.Tvoid)
                      | Some e' => tc_expr Delta (Ecast e' t)
    end.
 

@@ -1135,17 +1135,18 @@ Definition semax_body_params_ok f : bool :=
 Definition var_sizes_ok {cs: compspecs} (vars: list (ident*type)) :=
    Forall (fun var : ident * type => sizeof (snd var) <= Ptrofs.max_unsigned)%Z vars.
 
-Definition make_ext_rval  (gx: genviron) (v: option val):=
+Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
+  match tret with AST.Tvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
+ | _ => 
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
                               (Map.set 1%positive v' (Map.empty _))
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
-  end.
+  end end.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
-    | Tvoid, None => True
-    | Tvoid, Some _ => False
+    | Tvoid, _ => True
     | ty, Some v => tc_val ty v
     | _, _ => False
   end.
@@ -1166,7 +1167,7 @@ Definition add_funspecs (Espec : OracleKind)
    veric.semax_ext.add_funspecs Espec ext_link fs.
 
 Definition funsig2signature (s : funsig) cc : signature :=
-  mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
+  mksignature (map typ_of_type (map snd (fst s))) (rettype_of_type (snd s)) cc.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 
@@ -1412,12 +1413,12 @@ Axiom semax_func_cons_ext: forall {Espec:OracleKind} (V: varspecs) (G: funspecs)
   (*ids = map fst argsig' ->*) (* redundant but useful for the client,
            to calculate ids by reflexivity *)
   argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (opttyp_of_type retsig) cc ->
+  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ withtype_empty A) ->
   (forall gx ts x (ret : option val),
-     (Q ts x (make_ext_rval gx ret)
-        && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
+     (Q ts x (make_ext_rval gx (rettype_of_type retsig) ret)
+        && !!Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)
         |-- !!tc_option_val retsig ret)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
   @semax_external Espec ef A P Q ->
@@ -1694,7 +1695,7 @@ Axiom semax_ext_void:
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   (*ids = fst (split sig) ->*)
-  sig' = mksignature (map typ_of_type sig) None cc ->
+  sig' = mksignature (map typ_of_type sig) AST.Tvoid cc ->
   @semax_external (add_funspecs Espec ext_link fs) (*ids*) (EF_external id sig') _ P Q.
 
 Axiom semax_external_FF:
@@ -1718,7 +1719,7 @@ Axiom semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1
                    (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
          mksignature (map typ_of_type argtypes)
-                     (opttyp_of_type rtype) cc)
+                     (rettype_of_type rtype) cc)
   (SE: @semax_external Espec ef A1 P1 Q1),
   @semax_external Espec ef A P Q.
 

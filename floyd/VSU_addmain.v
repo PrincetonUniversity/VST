@@ -572,7 +572,7 @@ Variable MainE_vacuous: forall i phi, find_id i MainE = Some phi -> find_id i co
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (prog_funct p) = Some (External ef argsig retsig cc) /\
            ef_sig ef = {| sig_args := typlist_of_typelist argsig;
-                          sig_res := opttyp_of_type retsig;
+                          sig_res := rettype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
 
 Lemma add_main:

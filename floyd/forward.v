@@ -251,17 +251,17 @@ Ltac process_stackframe_of :=
  rewrite ?sepcon_emp, ?emp_sepcon.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
- match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
+ match t with Tvoid => fun v => True | _ => fun v => tc_val t (force_val v) end.
 Lemma tc_option_val'_eq: tc_option_val = tc_option_val'.
 Proof. extensionality t v.
-destruct t as [ | | | [ | ] |  | | | | ] eqn:?,v eqn:?; try reflexivity.
 unfold tc_option_val, tc_option_val'.
+destruct t as [ | | | [ | ] |  | | | | ] eqn:?,v eqn:?; try reflexivity.
 unfold tc_val. destruct (eqb_type _ _); reflexivity.
 Qed.
 Hint Rewrite tc_option_val'_eq : norm.
 
 Lemma emp_make_ext_rval:
-  forall ge v, @emp (environ->mpred) _ _ (make_ext_rval ge v) = emp.
+  forall ge t v, @emp (environ->mpred) _ _ (make_ext_rval ge t v) = emp.
 Proof. reflexivity. Qed.
 Hint Rewrite emp_make_ext_rval : norm2.
 
@@ -491,11 +491,11 @@ Proof.
 Qed.
 
 Lemma typecheck_return_value:
-  forall (f: val -> Prop)  (v: val) (gx: genviron) (ret: option val) P R,
+  forall (f: val -> Prop)  t (v: val) (gx: genviron) (ret: option val) P R,
  f v -> 
  (PROPx P
  (LOCAL (temp ret_temp v)
- (SEPx R))) (make_ext_rval gx ret) |-- !! f (force_val ret).
+ (SEPx R))) (make_ext_rval gx t ret) |-- !! f (force_val ret).
 Proof.
 intros.
  rewrite <- insert_local.
@@ -503,8 +503,14 @@ intros.
  apply derives_extract_prop; intro.
  hnf in H0. unfold_lift in H0.
  destruct H0.
- rewrite retval_ext_rval in H0. rewrite <- H0.
- apply prop_right; auto.
+apply prop_right.
+unfold make_ext_rval in H0.
+destruct (rettype_eq t AST.Tvoid).
+subst t.
+unfold eval_id in H0; simpl in H0. contradiction.
+destruct t; try contradiction;
+destruct ret; try (change (v = v0) in H0; subst v0; auto);
+change (v = Vundef) in H0; contradiction.
 Qed.
 
 Ltac semax_func_cons_ext :=

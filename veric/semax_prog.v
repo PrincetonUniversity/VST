@@ -666,12 +666,12 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P 
   (*ids = map fst argsig' ->*) (* redundant but useful for the client,
            to calculate ids by reflexivity *)
   argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (opttyp_of_type retsig) cc ->
+  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ withtype_empty A) ->
   (forall gx ts x (ret : option val),
-     (Q ts x (make_ext_rval gx ret)
-        && !!has_opttyp ret (opttyp_of_type retsig)
+     (Q ts x (make_ext_rval gx (rettype_of_type retsig) ret)
+        && !!Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)
         |-- !!tc_option_val retsig ret)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
   (forall n, semax_external Espec ef A P Q n) ->

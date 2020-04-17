@@ -76,12 +76,15 @@ else
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
 else
-ARCHDIRS=$(ARCH)_$(BITSIZE)
+ARCHDIRS=$(ARCH) $(ARCH)_$(BITSIZE)
 endif
 endif
 
 
-COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
+FLOCQ=       # this mode to use the flocq packaged with Coq or opam
+# FLOCQ=flocq  # this mode to use the flocq built into compcert
+
+COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend exportclight $(BACKEND) $(FLOCQ)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
@@ -551,6 +554,11 @@ $(PROGSDIR)/even.v: $(PROGSDIR)/even.c $(PROGSDIR)/odd.c
 $(PROGSDIR)/odd.v: $(PROGSDIR)/even.v
 mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
+aes/aes.v: aes/mbedtls/library/aes.c aes/mbedtls/include/mbedtls/config.h \
+              aes/mbedtls/include/mbedtls/check_config.h
+	$(CLIGHTGEN) ${CGFLAGS} -Iaes/mbedtls/include $<; mv aes/mbedtls/library/aes.v aes/aes.v
+tweetnacl20140427/tweetnaclVerifiableC.v: tweetnaclVerifiableC.c
+	$(CLIGHTGEN) ${CGFLAGS} -normalize $<
 # GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
 $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES)): $(PROGSDIR)/%.v: $(PROGSDIR)/%.c
 	$(CLIGHTGEN) ${CGFLAGS} -normalize $^

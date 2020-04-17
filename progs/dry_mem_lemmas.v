@@ -867,12 +867,15 @@ Definition main_pre_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & u
          (m_phi m) (*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 
+Definition rettype_of_option_typ (t: option typ) : rettype :=
+match t with Some t => AST.Tret t | None => AST.Tvoid end.
+
 Definition main_post_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & unit})
   (ge_s: extspec.injective_PTree block) (tret : option typ) ret (z : Z) (m : juicy_mem) :=
   (*exists phi0 phi1 : rmap,
        join phi0 phi1 (m_phi m) /\*)
        (app_pred (main_post prog gv
-          (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) ret))
+          (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) (rettype_of_option_typ tret) ret))
          (m_phi m)(*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 

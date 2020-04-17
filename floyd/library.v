@@ -69,7 +69,7 @@ Parameter body_exit:
  forall {Espec: OracleKind},
   body_lemma_of_funspec
     (EF_external "exit"
-       {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
+       {| sig_args := AST.Tint :: nil; sig_res := AST.Tvoid; sig_cc := cc_default |})
    exit_spec'.
 
 Parameter mem_mgr: globals -> mpred.
@@ -190,15 +190,16 @@ Lemma semax_func_cons_malloc_aux:
       if eq_dec p nullval
       then emp
       else malloc_token Ews t p * data_at_ Ews t p))%assert
-  (make_ext_rval gx ret) |-- !! is_pointer_or_null (force_val ret).
+  (make_ext_rval gx (rettype_of_type (tptr tvoid)) ret) |-- !! is_pointer_or_null (force_val ret).
 Proof.
  intros.
  rewrite exp_unfold. Intros p.
  rewrite <- insert_local.
  rewrite lower_andp.
  apply derives_extract_prop; intro.
- destruct H; unfold_lift in H. rewrite retval_ext_rval in H.
- subst p.
+ destruct H; unfold_lift in H.
+ unfold_lift in H0. destruct ret; try contradiction.
+ unfold eval_id in H. simpl in H. subst p.
  if_tac. rewrite H; entailer!.
  renormalize. entailer!.
 Qed.

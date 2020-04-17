@@ -989,7 +989,7 @@ Axiom semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tyc
     forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
-           (retsig = Tvoid -> ret = None) ->
+           (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
           (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
@@ -1014,7 +1014,7 @@ Axiom semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: ty
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
-             (retsig = Tvoid -> ret = None) /\
+             (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
           ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
@@ -1048,7 +1048,7 @@ Theorem semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: 
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
-             (retsig = Tvoid -> ret = None) /\
+             (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
           ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
@@ -1149,7 +1149,7 @@ Theorem semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: t
     forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
-           (retsig = Tvoid -> ret = None) ->
+           (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
           (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
