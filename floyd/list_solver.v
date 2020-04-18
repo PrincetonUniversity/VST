@@ -1493,12 +1493,14 @@ Lemma pose_range_saturate_shift : forall {A : Type} (l : list A) (s : Z),
   range_saturate_shift l s.
 Proof. intros. apply I. Qed.
 
+Hint Rewrite Z.add_0_r : Z_normalize_0.
+Hint Rewrite Z.add_0_l : Z_normalize_0.
+Hint Rewrite Z.sub_0_r : Z_normalize_0.
+
 Ltac pose_range_saturate_shift l s :=
   let H := fresh in
   pose proof (pose_range_saturate_shift l s) as H;
-  repeat rewrite Z.add_0_r in H;
-  repeat rewrite Z.add_0_l in H;
-  repeat rewrite Z.sub_0_r in H.
+  autorewrite with Z_normalize_0 in H.
 
 Ltac loop2 :=
   let flag := use_bound_set in
@@ -1591,9 +1593,7 @@ Proof. apply I. Qed.
 Ltac pose_instantiate_index x :=
   let H := fresh in
   pose proof (pose_instantiate_index x) as H;
-  repeat rewrite Z.add_0_r in H;
-  repeat rewrite Z.add_0_l in H;
-  repeat rewrite Z.sub_0_r in H;
+  autorewrite with Z_normalize_0 in H;
   lazymatch type of H with
   | instantiate_index (Znth' ?i ?l) =>
     try lazymatch goal with
@@ -1804,9 +1804,7 @@ Ltac range_saturate :=
 
 Ltac list_prop_solve' :=
   list_form; range_form; range_rewrite; Znth_solve2;
-  repeat rewrite Z.add_0_l in *;
-  repeat rewrite Z.add_0_r in *;
-  repeat rewrite Z.sub_0_r in *;
+  autorewrite with Z_normalize_0 in *;
   range_saturate;
   Znth_solve2;
   auto with Znth_solve_hint;
