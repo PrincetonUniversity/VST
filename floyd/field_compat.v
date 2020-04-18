@@ -928,3 +928,95 @@ autorewrite with sublist; auto.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.
 Qed.
+
+(*Repeats a def and lemma from veric, to give access to the right sepcon*)
+Fixpoint sepconN N (P: val -> mpred) sz (p:val):mpred :=
+  match N with
+    O => emp
+  | S n => (P p * sepconN n P sz (offset_val sz p))%logic
+  end.
+
+Lemma mapsto_zeros_mapsto_nullval_N {cenv} N sh t b z:
+       readable_share sh ->
+       (align_chunk Mptr | Ptrofs.unsigned z) ->
+       mapsto_zeros (Z.of_nat N * size_chunk Mptr) sh (Vptr b z)
+       |-- !! (0 <= Ptrofs.unsigned z /\
+               (Z.of_nat N * size_chunk Mptr + Ptrofs.unsigned z < Ptrofs.modulus)%Z) &&
+           sepconN N (fun p => mapsto sh (Tpointer t noattr) p nullval)
+                     (@sizeof cenv (Tpointer t noattr)) (Vptr b z).
+Proof. apply mapsto_memory_block.mapsto_zeros_mapsto_nullval_N. Qed.
+
+Lemma size_chunk_range: 0 < size_chunk Mptr <= Ptrofs.max_unsigned.
+Proof. rewrite size_chunk_Mptr. unfold Ptrofs.max_unsigned.
+ specialize Ptrofs.modulus_eq64.
+ specialize Ptrofs.modulus_eq32.
+ destruct (Archi.ptr64); intros X Y.
+ rewrite Y; [ simpl; lia | trivial].
+ rewrite X; [ simpl; lia | trivial].
+Qed.
+
+Lemma sizeof_Tpointer cenv t a: @sizeof cenv (Tpointer t a) = if Archi.ptr64 then 8 else 4.
+Proof. reflexivity. Qed.
+
+Lemma sizeof_Tarray cenv t n a: @sizeof cenv (Tarray t n a) = (@sizeof cenv t * Z.max 0 n)%Z.
+Proof. reflexivity. Qed.
+
+Lemma sepconN_mapsto_array {cenv t b sh} K : forall z
+    (Az: Z.divide (align_chunk Mptr) (Ptrofs.unsigned z))
+    (Hz: 0 <= Ptrofs.unsigned z /\
+               Z.of_nat K * size_chunk Mptr + Ptrofs.unsigned z < Ptrofs.modulus),
+    sepconN K (fun p : val => mapsto sh (Tpointer t noattr) p nullval) (size_chunk Mptr) (Vptr b z)
+|-- @data_at cenv sh (tarray (Tpointer t noattr) (Z.of_nat K)) (list_repeat K nullval) (Vptr b z).
+Proof.
+  specialize (Zle_0_nat K); specialize size_chunk_range; intros SZ Kpos.
+  induction K; intros.
++ rewrite data_at_zero_array_eq; simpl; trivial. (* apply derives_refl.*)
++ rewrite (split2_data_at_Tarray_app 1 (Z.of_nat (S K)) sh (Tpointer t noattr) [nullval] (list_repeat K nullval)).
+  2: reflexivity.
+  2: rewrite Zlength_list_repeat'; lia.
+  replace (Z.of_nat (S K) * size_chunk Mptr)%Z with 
+          (Z.of_nat K * size_chunk Mptr + size_chunk Mptr)%Z in Hz by lia.
+  replace  (Z.of_nat (S K) - 1) with (Z.of_nat K) by lia.
+  eapply sepcon_derives.
+  - erewrite mapsto_data_at'; simpl; trivial.
+    erewrite data_at_singleton_array_eq. apply derives_refl. trivial.
+    red; simpl. rewrite sizeof_Tpointer. intuition. unfold size_chunk, Mptr in H2. destruct (Archi.ptr64); simpl; lia.
+    econstructor. reflexivity. trivial.
+  - assert (0 <= Z.of_nat K) as Hk by lia. 
+    assert (0 <= Ptrofs.unsigned z + size_chunk Mptr <= Ptrofs.max_unsigned).
+    { clear IHK. split. lia. rewrite Z.add_comm. rewrite <- Z.add_assoc in Hz.
+      forget (size_chunk Mptr + Ptrofs.unsigned z) as c. unfold Ptrofs.max_unsigned.
+      assert (c < Ptrofs.modulus).
+      + eapply Z.le_lt_trans. 2: apply Hz. apply (Z.add_le_mono 0). apply Zmult_gt_0_le_0_compat; lia. lia.
+      + lia. }
+    fold sepconN. unfold offset_val. eapply derives_trans.
+    * apply IHK; clear IHK; trivial.
+      ++ rewrite Ptrofs.add_unsigned. rewrite (Ptrofs.unsigned_repr (size_chunk Mptr)) by lia.
+         rewrite Ptrofs.unsigned_repr by trivial.
+         apply Z.divide_add_r; trivial. apply align_size_chunk_divides.
+      ++ rewrite Ptrofs.add_unsigned. rewrite (Ptrofs.unsigned_repr (size_chunk Mptr)) by lia.
+         rewrite Ptrofs.unsigned_repr by trivial. lia.
+    * apply derives_refl'. simpl. clear IHK.
+      f_equal. rewrite Zpos_P_of_succ_nat, <- Nat2Z.inj_succ. unfold field_address0.
+      rewrite if_true. reflexivity.
+      red; repeat split; try solve [simpl; trivial; lia].
+      ++ red. unfold tarray. rewrite sizeof_Tarray, sizeof_Tpointer, Z.max_r by lia.
+         unfold Mptr in *. destruct Archi.ptr64; simpl in *; lia.
+      ++ red. constructor; intros. econstructor. reflexivity. rewrite sizeof_Tpointer.
+         simpl. unfold Mptr in *. destruct (Archi.ptr64).
+         -- apply Z.divide_add_r. trivial. 
+            eapply Z.divide_trans. apply align_size_chunk_divides. simpl size_chunk. exists i; lia.
+         -- apply Z.divide_add_r. trivial.
+            eapply Z.divide_trans. apply align_size_chunk_divides. simpl size_chunk. exists i; lia.
+Qed.
+
+Lemma mapsto_zeros_data_atTarrayTptr_nullval_N {cenv} N sh t b z:
+       readable_share sh ->
+       (align_chunk Mptr | Ptrofs.unsigned z) ->
+       mapsto_zeros (Z.of_nat N * size_chunk Mptr) sh (Vptr b z)
+       |-- @data_at cenv sh (tarray (Tpointer t noattr) (Z.of_nat N)) (list_repeat N nullval) (Vptr b z).
+Proof. intros. 
+  eapply derives_trans.
+  eapply (mapsto_zeros_mapsto_nullval_N N sh); trivial.
+  Intros. apply sepconN_mapsto_array; trivial.
+Qed.
