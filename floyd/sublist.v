@@ -1326,10 +1326,10 @@ subst mid'.
 apply sublist_rejoin; auto.
 Qed.
 
-Hint Rewrite @sublist_nil' using list_solve: sublist.
+Hint Rewrite @sublist_nil' using old_list_solve: sublist.
 Hint Rewrite @app_nil_l : sublist.
 Hint Rewrite @Zlength_rev : sublist.
-Hint Rewrite @sublist_rejoin' using list_solve : sublist.
+Hint Rewrite @sublist_rejoin' using old_list_solve : sublist.
 
 Lemma subsub1:
  forall a b : Z, (a-(a-b)) = b.
@@ -1534,25 +1534,25 @@ Hint Rewrite @list_repeat_0: sublist.
 Hint Rewrite <- @app_nil_end : sublist.
 Hint Rewrite @Zlength_app: sublist.
 Hint Rewrite @Zlength_map: sublist.
-Hint Rewrite @Zlength_list_repeat using list_solve: sublist.
+Hint Rewrite @Zlength_list_repeat using old_list_solve: sublist.
 Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
-Hint Rewrite @Zlength_sublist using list_solve: sublist.
+Hint Rewrite @Zlength_sublist using old_list_solve: sublist.
 Hint Rewrite Z.max_r Z.max_l using omega : sublist.
 Hint Rewrite Z.min_r Z.min_l using omega : sublist.
 Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
-Hint Rewrite @sublist_sublist using list_solve : sublist.
-Hint Rewrite @sublist_app1 using list_solve : sublist.
-Hint Rewrite @sublist_app2 using list_solve : sublist.
-Hint Rewrite @sublist_list_repeat  using list_solve : sublist.
-Hint Rewrite @sublist_same using list_solve : sublist.
+Hint Rewrite @sublist_sublist using old_list_solve : sublist.
+Hint Rewrite @sublist_app1 using old_list_solve : sublist.
+Hint Rewrite @sublist_app2 using old_list_solve : sublist.
+Hint Rewrite @sublist_list_repeat  using old_list_solve : sublist.
+Hint Rewrite @sublist_same using old_list_solve : sublist.
 Hint Rewrite Z.add_simpl_l : sublist.
 Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
      Z.add_add_simpl_r_l Z.add_add_simpl_r_r : sublist.
 Hint Rewrite Z.add_0_r : sublist.
-Hint Rewrite @app_Znth1 using list_solve : sublist.
-Hint Rewrite @app_Znth2 using list_solve : sublist.
-Hint Rewrite @Znth_sublist using list_solve : sublist.
-Hint Rewrite @upd_Znth_Zlength using list_solve : sublist.
+Hint Rewrite @app_Znth1 using old_list_solve : sublist.
+Hint Rewrite @app_Znth2 using old_list_solve : sublist.
+Hint Rewrite @Znth_sublist using old_list_solve : sublist.
+Hint Rewrite @upd_Znth_Zlength using old_list_solve : sublist.
 
 
 Hint Rewrite @sublist_nil : sublist.
@@ -1655,8 +1655,8 @@ intros.
 apply Forall_skipn. apply Forall_firstn. auto.
 Qed.
 
-Hint Rewrite @upd_Znth_app1 using list_solve : sublist.
-Hint Rewrite @upd_Znth_app2 using list_solve : sublist.
+Hint Rewrite @upd_Znth_app1 using old_list_solve : sublist.
+Hint Rewrite @upd_Znth_app2 using old_list_solve : sublist.
 
 Lemma map_list_repeat: forall {A B} (f: A->B) n (x:A), map f (list_repeat n x) = list_repeat n (f x).
 Proof.
