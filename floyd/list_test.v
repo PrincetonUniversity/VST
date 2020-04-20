@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Require Import Coq.Program.Tactics.
-Open Scope logic.
 
 Example strcat_preloop2_new : forall {cs : compspecs} n ld,
   n > Zlength ld ->
@@ -35,8 +34,8 @@ Proof.
   unfold data_subsume; intros.
   autorewrite with sublist.
   rewrite !map_app. rewrite <- app_assoc.
-  rewrite split_data_at_app_tschar by Zlength_solve.
-  rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
+  rewrite split_data_at_app_tschar by list_solve.
+  rewrite (split_data_at_app_tschar _ n) by list_solve.
   autorewrite with sublist.
   cancel.
 Qed.
@@ -73,7 +72,7 @@ Proof.
   replace (n - (Zlength ld + Zlength ls))
     with (1 + (n - (Zlength ld + Zlength ls+1))) by rep_omega.
   rewrite <- list_repeat_app' by rep_omega.
-  rewrite upd_Znth_app1 by Zlength_solve.
+  rewrite upd_Znth_app1 by list_solve.
   rewrite app_assoc.
   simpl.
   rewrite !map_app.
@@ -106,6 +105,8 @@ Example strcat_loop2_alt : forall {cs : compspecs} sh n x ld ls dest,
 Proof.
   intros. fold_Vbyte.
   apply_list_ext. list_form. Znth_solve.
+  apply data_subsume_refl'.
+  do 2 f_equal. omega.
 Qed.
 
 Example strcat_loop2_old : forall {cs : compspecs} sh n x ld ls dest,
@@ -121,14 +122,14 @@ Proof.
   rewrite (sublist_split 0 j (j+1)) by rep_omega.
   rewrite (app_assoc ld). rewrite !map_app.
   rewrite <- (app_assoc (_ ++ _)).
-  rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
-  rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
+  rewrite (split_data_at_app_tschar _ n) by list_solve.
+  rewrite (split_data_at_app_tschar _ n) by list_solve.
   replace (n - (Zlength ld + j))
     with (1 + (n - (Zlength ld + (j + 1)))) by rep_omega.
   rewrite <- list_repeat_app' by rep_omega.
   cancel.
   rewrite upd_Znth_app1 by (autorewrite with sublist; rep_omega).
-  rewrite app_Znth1 by Zlength_solve.
+  rewrite app_Znth1 by list_solve.
   rewrite sublist_len_1 by rep_omega.
   cancel.
 Qed.
@@ -153,13 +154,13 @@ Proof.
   autorewrite with sublist.
   rewrite !map_app.
   rewrite <- app_assoc.
-   rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
-   rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
+   rewrite (split_data_at_app_tschar _ n) by list_solve.
+   rewrite (split_data_at_app_tschar _ n) by list_solve.
    autorewrite with sublist.
-   replace (n - Zlength ls) with (1 + (n - (Zlength ls + 1))) at 2 by Zlength_solve.
+   replace (n - Zlength ls) with (1 + (n - (Zlength ls + 1))) at 2 by list_solve.
   rewrite <- list_repeat_app' by omega.
   autorewrite with sublist.
-  rewrite !split_data_at_app_tschar by Zlength_solve.
+  rewrite !split_data_at_app_tschar by list_solve.
   cancel.
 Qed.
 
@@ -175,6 +176,7 @@ Proof.
   intros.
   list_form. Znth_solve2.
   fold_Vbyte. apply_list_ext. Znth_solve.
+  apply data_subsume_refl'. do 2 f_equal. omega.
 Qed.
 
 Example strcpy_loop_old : forall {cs : compspecs} sh n x ls dest,
@@ -189,16 +191,16 @@ Example strcpy_loop_old : forall {cs : compspecs} sh n x ls dest,
 Proof.
   intros. rename x into i.
   assert (i < Zlength ls) by cstring.
-  rewrite (sublist_split 0 i (i+1)) by Zlength_solve.
+  rewrite (sublist_split 0 i (i+1)) by list_solve.
   rewrite !map_app. rewrite <- app_assoc.
   autorewrite with sublist.
-  rewrite !(split_data_at_app_tschar _ n) by Zlength_solve.
+  rewrite !(split_data_at_app_tschar _ n) by list_solve.
   autorewrite with sublist.
-   replace (n - i) with (1 + (n-(i+ 1))) at 2 by Zlength_solve.
+   replace (n - i) with (1 + (n-(i+ 1))) at 2 by list_solve.
   rewrite <- list_repeat_app' by omega.
   autorewrite with sublist.
   cancel.
-  rewrite !split_data_at_app_tschar by Zlength_solve.
+  rewrite !split_data_at_app_tschar by list_solve.
   autorewrite with sublist.
   rewrite sublist_len_1 by omega.
   simpl. cancel.

@@ -839,7 +839,7 @@ Proof.
   destruct p; try contradiction.
   red in H3.
   unfold sizeof in H3; clear H1.
-  rewrite Z.max_r in H3 by old_list_solve.
+  rewrite Z.max_r in H3 by list_solve.
   fold sizeof in H3.
   change (sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).

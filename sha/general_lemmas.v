@@ -17,7 +17,7 @@ Proof.
   apply Znth_map.
 Qed.
 Locate Znth_map_Vubyte.
-Hint Rewrite Znth_map_Vubyte using Zlength_solve : norm entailer_rewrite.
+Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.
 *)
 Local Open Scope nat.
 

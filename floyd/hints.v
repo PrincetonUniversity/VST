@@ -23,7 +23,6 @@ Require Import VST.floyd.functional_base.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.deadvars.
-Require Import VST.floyd.list_solver.
 Import Cop.
 Import Cop2.
 
@@ -181,8 +180,8 @@ Ltac hint_solves :=
      else  idtac "Hint:  'omega' solves the goal"
  | tryif (try (assert True; [ | solve [rep_omega]]; fail 1)) then fail
      else  idtac "Hint:  'rep_omega' solves the goal"
- | tryif (try (assert True; [ | solve [Zlength_solve]]; fail 1)) then fail
-     else  idtac "Hint:  'Zlength_solve' solves the goal"
+ | tryif (try (assert True; [ | solve [list_solve]]; fail 1)) then fail
+     else  idtac "Hint:  'list_solve' solves the goal"
  | tryif (try (assert True; [ | solve [cstring]]; fail 1)) then fail
      else  idtac "Hint:  'cstring' solves the goal"
  | tryif (try (assert True; [ | solve [f_equal_cstring_hint_aux]]; fail 1)) then fail
