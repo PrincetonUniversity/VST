@@ -142,9 +142,9 @@ forward.
   rewrite (sublist_split 0 i _ fx) by omega.
   rewrite (sublist_split 0 i _ fy) by omega.
   unfold dotprod.
- rewrite map2_app by list_solve.
+ rewrite map2_app by Zlength_solve.
  rewrite fold_left_app.
- rewrite !sublist_len_1 by list_solve.
+ rewrite !sublist_len_1 by Zlength_solve.
  simpl. auto.
 *
  forward.

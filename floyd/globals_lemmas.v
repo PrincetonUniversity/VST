@@ -415,11 +415,11 @@ unfold id2pred_star; fold @id2pred_star.
 erewrite (split2_data_at_Tarray sh t (Z.succ (Zlength data)) 1).
 4: rewrite sublist_same.
 4: apply eq_refl.
-2: list_solve. 2: list_solve. 2: auto. 2: list_solve. 2: apply eq_refl. 2: apply eq_refl.
-rewrite (sublist_one) by list_solve.
+2: old_list_solve. 2: old_list_solve. 2: auto. 2: old_list_solve. 2: apply eq_refl. 2: apply eq_refl.
+rewrite (sublist_one) by old_list_solve.
 autorewrite with sublist.
 rewrite sublist_1_cons.
-rewrite sublist_same by list_solve.
+rewrite sublist_same by old_list_solve.
 apply sepcon_derives.
 +
 clear IHdata.
