@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import Coq.Program.Tactics.
+Open Scope logic.
 
 Example strcat_preloop2_new : forall {cs : compspecs} n ld,
   n > Zlength ld ->
@@ -105,8 +106,6 @@ Example strcat_loop2_alt : forall {cs : compspecs} sh n x ld ls dest,
 Proof.
   intros. fold_Vbyte.
   apply_list_ext. list_form. Znth_solve.
-  apply data_subsume_refl'.
-  do 2 f_equal. omega.
 Qed.
 
 Example strcat_loop2_old : forall {cs : compspecs} sh n x ld ls dest,
@@ -176,7 +175,6 @@ Proof.
   intros.
   list_form. Znth_solve2.
   fold_Vbyte. apply_list_ext. Znth_solve.
-  apply data_subsume_refl'. do 2 f_equal. omega.
 Qed.
 
 Example strcpy_loop_old : forall {cs : compspecs} sh n x ls dest,
