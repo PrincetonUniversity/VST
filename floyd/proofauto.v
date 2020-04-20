@@ -166,7 +166,7 @@ Ltac step :=
   | forward
   | forward_if
   | forward_call
-  | rep_omega | cstring' | list_solve
+  | rep_omega | cstring' | Zlength_solve
   | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
   | EExists_unify
   | cstring1
@@ -190,7 +190,7 @@ Tactic Notation "step!"  :=
   | forward_call
   | rep_omega
   | cstring'
-  | list_solve
+  | Zlength_solve
   | EExists
   | cstring1
   | deadvars!
@@ -214,7 +214,7 @@ Tactic Notation "info_step!" :=
   | forward_call; idtac "forward_call."
   | rep_omega; idtac "rep_omega."
   | cstring'; idtac "cstring'."
-  | list_solve; idtac "list_solve."
+  | Zlength_solve; idtac "Zlength_solve."
   | EExists; idtac "EExists."
   | cstring1; idtac "cstring1."
   | deadvars!; idtac "deadvars!."
