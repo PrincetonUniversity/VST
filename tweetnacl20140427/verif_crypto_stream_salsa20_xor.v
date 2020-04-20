@@ -534,7 +534,7 @@ rename H into I.
   thaw FR1. freeze [0;2;3] FR2.
   forward; change (@Znth val Vundef) with (@Znth val _); rewrite Xi.
   { entailer!.
-   rewrite ?Znth_map in Xi by list_solve.
+   rewrite ?Znth_map in Xi by Zlength_solve.
    inv Xi. 
    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply byte_unsigned_range_int_unsigned_max.
   } 
@@ -715,7 +715,7 @@ forward_for_simple_bound (Int64.unsigned b)
   thaw FR1. freeze [0;2;3] FR2.
   forward (*; rewrite Xi*).
   { entailer!.
-    do 2 rewrite Znth_map by list_solve. red.
+    do 2 rewrite Znth_map by Zlength_solve. red.
     rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. 
     apply Byte_unsigned_range_32.
   }
@@ -732,8 +732,8 @@ forward_for_simple_bound (Int64.unsigned b)
     2: autorewrite with sublist; omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3.
-    rewrite Znth_map in Xi by list_solve. inv Xi.
-    rewrite Znth_map by list_solve.
+    rewrite Znth_map in Xi by Zlength_solve. inv Xi.
+    rewrite Znth_map by Zlength_solve.
     remember (Byte.xor (byte_at mInit (Zlength l+q) mbytes) 
                        (Znth (Zlength l) xbytes)) as mybyte.
     Exists (l++ [mybyte]). cancel.

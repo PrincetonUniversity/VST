@@ -57,7 +57,7 @@ Proof.
   assert_PROP (0 <= Zlength data1 <= Ptrofs.max_unsigned) as H0. {
     entailer!. clear - H2. destruct H2 as [? [_ [? _]]].
     destruct d; try contradiction.
-    red in H0. simpl in H0. rewrite Z.max_r in H0 by list_solve.
+    red in H0. simpl in H0. rewrite Z.max_r in H0 by Zlength_solve.
     rep_omega.
   }
 

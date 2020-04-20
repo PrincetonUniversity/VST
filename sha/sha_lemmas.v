@@ -45,7 +45,7 @@ Lemma big_endian_integer_bytelist:
 Proof.
 intros.
 destruct bl as [| a [|b [|c [|d [|]]]]]; inv H.
-2: rewrite ?Zlength_cons in H1; list_solve. 
+2: rewrite ?Zlength_cons in H1; Zlength_solve. 
 unfold big_endian_integer, bytes_to_Int.
 simpl.
 f_equal.

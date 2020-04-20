@@ -353,7 +353,7 @@ Proof.
     entailer!.
     autorewrite with sublist in H0.
     apply derives_refl'.
-    apply data_at_complete_split; try list_solve.
+    apply data_at_complete_split; try Zlength_solve.
     autorewrite with sublist. rewrite H0. assumption.
     auto.
   }

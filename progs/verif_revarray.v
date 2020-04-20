@@ -150,7 +150,7 @@ forward. (* t = a[lo]; *)
   clear - H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map by list_solve.
+  rewrite Znth_map by Zlength_solve.
   apply I.
 }
 forward.  (* s = a[hi-1]; *)
@@ -159,7 +159,7 @@ forward.  (* s = a[hi-1]; *)
   clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map by list_solve.
+  rewrite Znth_map by Zlength_solve.
   apply I.
 }
 rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; omega).
