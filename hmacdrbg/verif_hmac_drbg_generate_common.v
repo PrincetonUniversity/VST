@@ -1551,7 +1551,7 @@ Proof. intros.
         apply data_at_complete_split; subst data_left data_right; repeat rewrite Zlength_sublist; repeat rewrite Zlength_map; repeat rewrite hmac_common_lemmas.HMAC_Zlength; auto; try omega.
         autorewrite with sublist.
         replace (out_len - (*done*)(n*32)%Z + (32 - (out_len - (*done*)(n*32)%Z))) with 32 by omega; auto.
-        Zlength_solve.
+        list_solve.
         unfold Vubyte.
         rewrite !sublist_map, !map_map. rewrite <- map_app. f_equal.
         rewrite sublist_rejoin; repeat rewrite Zlength_map; try rewrite hmac_common_lemmas.HMAC_Zlength; try omega.

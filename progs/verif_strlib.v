@@ -208,8 +208,8 @@ forward_loop (EX i : Z,
            (map Vbyte (ls ++ [Byte.zero])) src)).
   { Exists 0; entailer!.  autorewrite with sublist.
     rewrite !map_app. rewrite <- app_assoc.
-    rewrite split_data_at_app_tschar by Zlength_solve.
-    rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
+    rewrite split_data_at_app_tschar by list_solve.
+    rewrite (split_data_at_app_tschar _ n) by list_solve.
     autorewrite with sublist.
     cancel.    
    }
@@ -220,7 +220,7 @@ forward_loop (EX i : Z,
   forward.
   entailer!.
   clear H3.
-  rewrite upd_Znth_app2 by Zlength_solve.
+  rewrite upd_Znth_app2 by list_solve.
   autorewrite with sublist.
   forward_if.
   + forward.
@@ -235,7 +235,7 @@ forward_loop (EX i : Z,
     replace (n - (Zlength ld + Zlength ls))
      with (1 + (n - (Zlength ld + Zlength ls+1))) by rep_omega.
     rewrite <- list_repeat_app' by rep_omega.
-    rewrite upd_Znth_app1 by Zlength_solve.
+    rewrite upd_Znth_app1 by list_solve.
     rewrite app_assoc.
     simpl.
     rewrite !map_app.
@@ -249,14 +249,14 @@ forward_loop (EX i : Z,
   rewrite (sublist_split 0 j (j+1)) by rep_omega.
   rewrite (app_assoc ld). rewrite !map_app.
   rewrite <- (app_assoc (_ ++ _)).
-  rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
-  rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
+  rewrite (split_data_at_app_tschar _ n) by list_solve.
+  rewrite (split_data_at_app_tschar _ n) by list_solve.
   replace (n - (Zlength ld + j))
     with (1 + (n - (Zlength ld + (j + 1)))) by rep_omega.
   rewrite <- list_repeat_app' by rep_omega.
   cancel.
   rewrite upd_Znth_app1 by (autorewrite with sublist; rep_omega).
-  rewrite app_Znth1 by Zlength_solve.
+  rewrite app_Znth1 by list_solve.
   rewrite sublist_len_1 by rep_omega.
   cancel.
   }
@@ -377,7 +377,7 @@ forward_loop (EX i : Z,
   rewrite (sublist_split 0 i (i+1)) by omega.
   f_equal; auto.
   rewrite !sublist_len_1 by omega.
-  rewrite !app_Znth1 in H17 by Zlength_solve.
+  rewrite !app_Znth1 in H17 by list_solve.
   split. rep_omega. split. rep_omega.
   f_equal; auto. f_equal. auto.
 Qed.
@@ -409,34 +409,34 @@ forward_loop (EX i : Z,
    entailer!.
   assert (i = Zlength ls) by cstring. subst i.
   change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
-  rewrite upd_Znth_app2 by Zlength_solve.
+  rewrite upd_Znth_app2 by list_solve.
   autorewrite with sublist.
   rewrite !map_app.
   rewrite <- app_assoc.
-   rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
-   rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
+   rewrite (split_data_at_app_tschar _ n) by list_solve.
+   rewrite (split_data_at_app_tschar _ n) by list_solve.
    autorewrite with sublist.
-   replace (n - Zlength ls) with (1 + (n - (Zlength ls + 1))) at 2 by Zlength_solve.
+   replace (n - Zlength ls) with (1 + (n - (Zlength ls + 1))) at 2 by list_solve.
   rewrite <- list_repeat_app' by omega.
-  rewrite upd_Znth_app1 by Zlength_solve.
-  rewrite !split_data_at_app_tschar by Zlength_solve.
+  rewrite upd_Znth_app1 by list_solve.
+  rewrite !split_data_at_app_tschar by list_solve.
   cancel.
 +
    assert (i < Zlength ls) by cstring.
   forward.
   Exists (i+1). entailer!. 
   autorewrite with sublist.
-  rewrite (sublist_split 0 i (i+1)) by Zlength_solve.
+  rewrite (sublist_split 0 i (i+1)) by list_solve.
   rewrite !map_app. rewrite <- app_assoc.
   autorewrite with sublist.
   change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
-  rewrite !(split_data_at_app_tschar _ n) by Zlength_solve.
+  rewrite !(split_data_at_app_tschar _ n) by list_solve.
   autorewrite with sublist.
-   replace (n - i) with (1 + (n-(i+ 1))) at 2 by Zlength_solve.
+   replace (n - i) with (1 + (n-(i+ 1))) at 2 by list_solve.
   rewrite <- list_repeat_app' by omega.
   autorewrite with sublist.
   cancel.
-  rewrite !split_data_at_app_tschar by Zlength_solve.
+  rewrite !split_data_at_app_tschar by list_solve.
   autorewrite with sublist.
   rewrite sublist_len_1 by omega.
   simpl. cancel.

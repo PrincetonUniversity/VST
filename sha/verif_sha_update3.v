@@ -141,7 +141,7 @@ update_abs (sublist 0 len data) (S256abs hashed dd)
 Proof.
   intros.
     assert (Zlength (dd ++ sublist 0 len data) < CBLOCKz). 
-     change CBLOCKz with 64. Zlength_solve.
+     change CBLOCKz with 64. list_solve.
     rewrite (app_nil_end hashed) at 2.
     rewrite update_abs_eq.
     exists nil. rewrite <- !app_nil_end.

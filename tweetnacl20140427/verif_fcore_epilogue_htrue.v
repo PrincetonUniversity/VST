@@ -362,7 +362,7 @@ Proof. intros. abbreviate_semax.
        }
        autorewrite with sublist.
        f_equal.
-       do 3 rewrite upd_Znth_old_upd_Znth by Zlength_solve.
+       do 3 rewrite upd_Znth_old_upd_Znth by list_solve.
        unfold old_upd_Znth.
        assert (VJeq: Znth (5 * i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) =
                 Znth (5 * i) intsums). {
