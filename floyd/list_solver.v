@@ -968,10 +968,10 @@ Proof.
   - intro. apply H. subst x. apply Znth_In. auto.
   - intro. induction l; auto.
     inversion H0.
-    + subst a. apply H with 0. list_solve.
+    + subst a. apply H with 0. Zlength_solve.
       autorewrite with sublist. auto.
     + apply IHl; auto. intros.
-        specialize (H (i+1) ltac:(list_solve)). autorewrite with list_form_rewrite Znth in *.
+        specialize (H (i+1) ltac:(Zlength_solve)). autorewrite with list_form_rewrite Znth in *.
         fassumption.
 Qed.
 

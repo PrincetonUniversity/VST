@@ -432,7 +432,7 @@ Ltac pose_Zlength_nonneg :=
  end;
   unfold Zlength' in *.
 
-Ltac list_solve := autorewrite with sublist; pose_Zlength_nonneg; omega.
+Ltac old_list_solve := autorewrite with sublist; pose_Zlength_nonneg; omega.
 
 Definition Znth {X}{d: Inhabitant X} n (xs: list X) :=
   if (zlt n 0) then default else nth (Z.to_nat n) xs d.
