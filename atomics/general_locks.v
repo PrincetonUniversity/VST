@@ -75,28 +75,33 @@ Proof.
   rewrite bi.sep_comm; iApply "a'"; iFrame; auto.
 Qed.
 
-Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g (x0 x' : C)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> (public_half g x' -* |==> (EX y, b x y * R' y))))%I),
-  (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- |==> ((EX y, Q y * R' y) * my_half g x'))%I.
+Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g (x0 : C)
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> (EX x' : C, my_half g x' * public_half g x' -* |==> (EX y, b x y * R' y))))%I),
+  (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- |==> EX y, Q y * R' y)%I.
 Proof.
   intros; rewrite sepcon_assoc.
-  etransitivity; [apply atomic_commit with (R'0 := fun y => R' y * my_half g x')|].
+  apply atomic_commit with (R'0 := fun y => R' y).
   intros; iIntros "((my & R) & a)".
   iMod (Ha with "[$]") as (?) "[public a']".
-  iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
-  iApply ("a'" with "[%] public"); auto.
-  { iIntros ">H !>"; iDestruct "H" as (y) "(? & ? & $)"; iExists y; iFrame. }
+    iPoseProof (ref_sub(P := discrete_PCM C) with "[$my $public]") as "%".
+    rewrite eq_dec_refl in H0; subst.
+    iDestruct ("a'" with "[%]") as (x') "H"; first done.
+  iDestruct (public_update with "[$my $public]") as "[% >[my public]]"; subst.
+  iApply ("H" with "[$my $public]").
 Qed.
 
-Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g (x0 x' : C)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> (public_half g x' -* |==> (EX y, b x y) * R')%I))%I),
-  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g x0 * R |-- |==> Q * my_half g x' * R')%I.
+Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g (x0 : C)
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> (EX x' : C, my_half g x' * public_half g x' -* |==> (EX y, b x y) * R')%I))%I),
+  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g x0 * R |-- |==> Q * R')%I.
 Proof.
-  intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => my_half g x' * R')|].
+  intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => R')|].
   - intros; iIntros "((my & R) & a)".
     iMod (Ha with "[$]") as (?) "[public a']".
-    iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
-    iMod ("a'" with "[%] public") as "[H $]"; auto.
+    iPoseProof (ref_sub(P := discrete_PCM C) with "[$my $public]") as "%".
+    rewrite eq_dec_refl in H0; subst.
+    iDestruct ("a'" with "[%]") as (x') "H"; first done.
+    iDestruct (public_update with "[$my $public]") as "[% >[my public]]"; subst.
+    rewrite exp_sepcon1; iApply ("H" with "[$my $public]").
   - iApply bupd_mono.
     iIntros "Q"; iDestruct "Q" as (?) "[$ $]".
 Qed.
