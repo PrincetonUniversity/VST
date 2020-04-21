@@ -702,33 +702,29 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
-(* TODO
 Lemma range_triA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
-  (x1 x2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
+  (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= Zlength l ->
-  range_tri x1 x2 offset (map f l) l' P ->
-  range_tri x1 x2 offset l l' (fun x => P (f x)).
+  range_tri x1 x2 y1 y2 offset (map f l) l' P ->
+  range_tri x1 x2 y1 y2 offset l l' (fun x => P (f x)).
 Proof.
   unfold range_tri, rangei. intros.
-  fapply (H0 i ltac:(lia)).
+  fapply (H0 i j ltac:(lia)).
   eq_solve with (rewrite Znth_map by lia).
 Qed.
- *)
 
-(* TODO
 Lemma range_triA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (n x1 x2 y1 y2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 < x2 /\ x2 <= n /\ x1 < y2 + offset ->
-  range_tri x1 x2 y1 y2 offset (Zrepeat x n) l' P ->
-  range_uni y1 y2 l' (P x).
+  0 <= x1 < x2 /\ x2 <= n ->
+  range_tri x1 x2 y1 y2 offset (Zrepeat x n) l' P <->
+  range_uni (Z.max y1 (x1 - offset)) (Z.max y2 (x1 - offset)) l' (P x).
 Proof.
-  unfold range_tri, range_uni, rangei. intros.
-  exploit (H0 x1 i). lia.
-  eapply rangei_shift'. 3 : exact H0.
-  + lia.
-  + unfold rangei. intros. eq_solve with Znth_solve.
+  unfold range_tri, range_uni, rangei. intros. split; intros.
+  - fapply (H0 x1 i ltac:(lia)).
+    eq_solve with (rewrite Znth_Zrepeat by lia).
+  - fapply (H0 j ltac:(lia)).
+    eq_solve with (rewrite Znth_Zrepeat by lia).
 Qed.
- *)
 
 Lemma range_triB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
@@ -788,32 +784,29 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
-(* TODO
 Lemma range_triB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
-  0 <= lo + offset <= hi + offset /\ hi + offset <= Zlength l' ->
+  0 <= y1 <= y2 /\ y2 <= Zlength l' ->
   range_tri x1 x2 y1 y2 offset l (map f l') P ->
   range_tri x1 x2 y1 y2 offset l l' (fun x y => P x (f y)).
 Proof.
   unfold range_tri, rangei. intros.
-  fapply (H0 i ltac:(lia)).
+  fapply (H0 i j ltac:(lia)).
   eq_solve with (rewrite Znth_map by lia).
 Qed.
-*)
 
-(* TODO
 Lemma range_triB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
-  0 <= lo + offset < hi + offset /\ hi + offset <= n ->
-  range_tri x1 x2 y1 y2 offset l (Zrepeat x n) P ->
-  range_uni x1 x2 y1 y2 l (fun y => P y x).
+  0 <= y1 < y2 /\ y2 <= n ->
+  range_tri x1 x2 y1 y2 offset l (Zrepeat x n) P <->
+  range_uni (Z.min x1 (y2 + offset)) (Z.min x2 (y2 + offset)) l (fun y => P y x).
 Proof.
-  unfold range_tri, range_uni. intros.
-  eapply rangei_shift'. 3 : exact H0.
-  + lia.
-  + unfold rangei. intros. eq_solve with Znth_solve.
+  unfold range_tri, range_uni, rangei. intros. split; intros.
+  - fapply (H0 i (y2 - 1) ltac:(lia)).
+    eq_solve with (rewrite Znth_Zrepeat by lia).
+  - fapply (H0 i ltac:(lia)).
+    eq_solve with (rewrite Znth_Zrepeat by lia).
 Qed.
-*)
 
 (** * range_form *)
 (** range_form is a tactic that rewrites properties using quantifier or equantion
@@ -1211,29 +1204,25 @@ Proof.
   eapply range_triA_sublist; eauto.
 Qed.
 
-(* TODO
 Lemma range_triA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
-  (x1 x2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
+  (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= Zlength l ->
-  range_tri x1 x2 offset (map f l) l' P ->
-  range_tri x1 x2 offset l l' (fun x => P (f x)).
+  range_tri x1 x2 y1 y2 offset (map f l) l' P ->
+  range_tri x1 x2 y1 y2 offset l l' (fun x => P (f x)).
 Proof.
   intros.
   eapply range_triA_map; eauto.
 Qed.
- *)
 
-(* TODO
 Lemma range_triA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (n x1 x2 y1 y2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 < x2 /\ x2 <= n /\ x1 < y2 + offset ->
-  range_tri x1 x2 y1 y2 offset (Zrepeat x n) l' P ->
-  range_uni y1 y2 l' (P x).
+  0 <= x1 < x2 /\ x2 <= n ->
+  range_tri x1 x2 y1 y2 offset (Zrepeat x n) l' P <->
+  range_uni (Z.max y1 (x1 - offset)) (Z.max y2 (x1 - offset)) l' (P x).
 Proof.
   intros.
   eapply range_triA_Zrepeat; eauto.
 Qed.
- *)
 
 Lemma range_triB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
@@ -1276,29 +1265,25 @@ Proof.
   eapply range_triB_sublist; eauto.
 Qed.
 
-(* TODO
 Lemma range_triB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
-  0 <= lo + offset <= hi + offset /\ hi + offset <= Zlength l' ->
+  0 <= y1 <= y2 /\ y2 <= Zlength l' ->
   range_tri x1 x2 y1 y2 offset l (map f l') P ->
   range_tri x1 x2 y1 y2 offset l l' (fun x y => P x (f y)).
 Proof.
   intros.
   eapply range_triB_map; eauto.
 Qed.
-*)
 
-(* TODO
 Lemma range_triB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
-  0 <= lo + offset < hi + offset /\ hi + offset <= n ->
-  range_tri x1 x2 y1 y2 offset l (Zrepeat x n) P ->
-  range_uni x1 x2 y1 y2 l (fun y => P y x).
+  0 <= y1 < y2 /\ y2 <= n ->
+  range_tri x1 x2 y1 y2 offset l (Zrepeat x n) P <->
+  range_uni (Z.min x1 (y2 + offset)) (Z.min x2 (y2 + offset)) l (fun y => P y x).
 Proof.
   intros.
   eapply range_triB_Zrepeat; eauto.
 Qed.
-*)
 
 Ltac destruct_range H :=
   lazymatch type of H with
@@ -1401,13 +1386,11 @@ Ltac range_rewrite :=
         | apply_in_using_Zlength_solve range_triA_app H
         ]
       | Zrepeat ?x ?n =>
-        (* apply_in_using_Zlength_solve range_triA_Zrepeat H *)
-        fail 0 "Zrepeat in range_tri is currently unsupported"
+        apply_in_using_Zlength_solve range_triA_Zrepeat H
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_triA_sublist H
       | map _ _ =>
-        (* apply_in_using_Zlength_solve range_triA_map H *)
-        fail 0 "map in range_tri is currently unsupported"
+        apply_in_using_Zlength_solve range_triA_map H
       end
     | lazymatch l2 with
       | app _ _ =>
@@ -1417,13 +1400,11 @@ Ltac range_rewrite :=
         | apply_in_using_Zlength_solve range_triB_app H
         ]
       | Zrepeat ?x ?n =>
-        (* apply_in_using_Zlength_solve range_triB_Zrepeat H *)
-        fail 0 "Zrepeat in range_tri is currently unsupported"
+        apply_in_using_Zlength_solve range_triB_Zrepeat H
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_triB_sublist H
       | map _ _ =>
-        (* apply_in_using_Zlength_solve range_triB_map H *)
-        fail 0 "map in range_tri is currently unsupported"
+        apply_in_using_Zlength_solve range_triB_map H
       end
     ]
   end.
@@ -1571,7 +1552,7 @@ Ltac check_non_zero_loop_old :=
 Ltac check_non_zero_loop :=
   loop1.
 
-Ltac clear :=
+Ltac clear0 :=
   repeat lazymatch goal with
   | H : range_saturate_shift _ _ |- _ =>
     clear H
@@ -1682,7 +1663,7 @@ Ltac find_instantiate_index :=
     idtac
   end.
 
-Ltac clear :=
+Ltac clear0 :=
   repeat lazymatch goal with
   | H : instantiate_index _ |- _ =>
     clear H
@@ -1799,8 +1780,8 @@ Ltac find_instantiate_index := range_saturate.find_instantiate_index.
 
 Ltac range_saturate :=
   check_non_zero_loop;
-  find_instantiate_index; range_saturate.check_non_zero_loop.clear;
-  range_saturate.range_saturate; range_saturate.find_instantiate_index.clear.
+  find_instantiate_index; range_saturate.check_non_zero_loop.clear0;
+  range_saturate.range_saturate; range_saturate.find_instantiate_index.clear0.
 
 Ltac list_prop_solve' :=
   list_form; range_form; range_rewrite; Znth_solve2;
