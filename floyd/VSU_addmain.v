@@ -54,7 +54,8 @@ Variable coreE: funspecs.
 Notation coreImports:= (@nil (ident * funspec)). (*nil - we're only linking main if this yields a full prog*)
 Variable p: Clight.program.
 Variable coreExports: funspecs.
-Variable CoreVSU: @CanonicalVSU Espec coreV coreCS coreE coreImports p coreExports.
+Variable coreGP: globals -> mpred.
+Variable CoreVSU: @CanonicalVSU Espec coreV coreCS coreE coreImports p coreExports coreGP.
 
 Variable lp: Clight.program.
 Variable CS: compspecs.
@@ -99,7 +100,190 @@ Variable HypME1: forall i, In i (map fst MainE) -> exists ef ts t cc,
            ef_sig ef = {| sig_args := typlist_of_typelist ts;
                           sig_res := opttyp_of_type t;
                           sig_cc := cc_of_fundef (External ef ts t cc) |}*).
-  
+(*
+Definition is_not_in L (x: ident * globdef (fundef function) type) : bool := 
+           negb (in_dec ident_eq (fst x) L).
+*)
+Definition notin {A} (L:list (ident * A)) (x:ident * A):bool :=
+  match find_id (fst x) L with None => true | _ => false end.
+
+Definition MainVardefs := filter (notin (Vardefs p)) (Vardefs lp).
+
+(*Variable Vardefs_contained: forall i, sub_option (find_id i (Vardefs p)) (find_id i (Vardefs lp)).*)
+Variable Vardefs_contained: forall i d, find_id i (Vardefs p) = Some d -> find_id i (Vardefs lp) = Some d.
+
+Variable Main_InitPred: globals -> mpred.
+(*Variable Main_MkInitPred: forall gv, InitGPred MainVardefs gv (*|--*)= Main_InitPred gv.*)
+(*Variable Main_MkInitPred: forall gv, InitGPred MainVardefs gv |-- (Main_InitPred gv * TT)%logic.*)
+Variable Main_MkInitPred: forall gv, InitGPred MainVardefs gv |-- Main_InitPred gv.
+Variable LNR_PV: list_norepet (map fst (Vardefs p)).
+Variable LNR_LV: list_norepet (map fst (Vardefs lp)).
+(*
+Lemma MkInitPred gv: InitGPred (Vardefs lp) gv (*|-- *)=
+      (Main_InitPred gv * (InitPred_of_CanonicalVSU CoreVSU gv))%logic.
+Proof.
+  (*eapply derives_trans.
+  2:{ apply sepcon_derives. apply Main_MkInitPred. apply (MkInitPred_of_CanonicalVSU CoreVSU). }*)
+  rewrite <- Main_MkInitPred, <- (MkInitPred_of_CanonicalVSU CoreVSU).
+
+  clear - Vardefs_contained LNR_PV LNR_LV. unfold MainVardefs. 
+  forget (Vardefs lp) as LV. forget (Vardefs p) as PV. clear p lp. 
+  revert Vardefs_contained LNR_PV LNR_LV. generalize dependent PV.
+  induction LV; simpl; intros.
++ destruct PV; simpl. rewrite ! InitGPred_nilD. (* cancel. *) rewrite emp_sepcon; trivial.
+  exfalso. (*specialize (Vardefs_contained (fst p)). destruct p; simpl in *.
+  rewrite if_true in Vardefs_contained. congruence. trivial.*)
+  destruct p as [i d]. specialize (Vardefs_contained i d); simpl in Vardefs_contained.
+  rewrite if_true in Vardefs_contained by trivial. specialize (Vardefs_contained (eq_refl _)); congruence.
++ rewrite ! InitGPred_consD. destruct a as [j d]. unfold notin at 1. simpl fst in *.
+  inv LNR_LV.
+  assert (VCj := Vardefs_contained j). 
+  remember (find_id j PV) as b; symmetry in Heqb; destruct b; simpl in VCj.
+  2:{ rewrite InitGPred_consD. (*cancel.*) rewrite sepcon_assoc; f_equal.
+      apply IHLV; clear IHLV; trivial.
+      intros. (*specialize (Vardefs_contained i). remember (find_id i PV) as w; destruct w; simpl in *; trivial.
+      rewrite if_false in Vardefs_contained; trivial. congruence.*)
+      specialize (Vardefs_contained _ _ H). 
+      rewrite if_false in Vardefs_contained; trivial. congruence.  }
+  rewrite if_true in VCj by trivial. specialize (VCj _ (eq_refl _)). inv VCj.
+  destruct (find_id_in_split Heqb) as [PV1 [PV2 [HPV [HPV1 HPV2]]]]; trivial.
+  subst PV. clear Heqb. rewrite InitGPred_app, InitGPred_consD.
+  (* cancel.*) 
+  rewrite map_app in LNR_PV; simpl in LNR_PV. apply list_norepet_middleD in LNR_PV.
+  destruct LNR_PV as [PV12j LNR_PV12]; clear LNR_PV.
+  (*eapply derives_trans.
+  - apply (IHLV (PV1++PV2)); clear IHLV; trivial. 2: rewrite map_app; trivial.
+    intros. (*specialize (Vardefs_contained i). rewrite find_id_app_char in *; simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * rewrite if_false in Vardefs_contained; trivial. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial.
+      rewrite 2 if_false in Vardefs_contained; trivial; congruence.*)
+    specialize (Vardefs_contained i d). rewrite find_id_app_char in Vardefs_contained, H.
+    simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * inv H. rewrite if_false in Vardefs_contained; auto. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial; inv H.
+      rewrite 2 if_false in Vardefs_contained; auto; congruence.
+  - clear IHLV Vardefs_contained. rewrite InitGPred_app. cancel.
+    apply derives_refl'. f_equal.
+    apply filter_fg. intros [i d] ID. unfold notin; simpl. rewrite 2 find_id_app_char. simpl.
+    rewrite if_false; trivial. specialize (in_map fst _ _ ID); simpl. congruence.*)
+  rewrite (IHLV (PV1++PV2)); clear IHLV; trivial. 3: rewrite map_app; trivial.
+  2:{  intros. (*specialize (Vardefs_contained i). rewrite find_id_app_char in *; simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * rewrite if_false in Vardefs_contained; trivial. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial.
+      rewrite 2 if_false in Vardefs_contained; trivial; congruence.*)
+    specialize (Vardefs_contained i d). rewrite find_id_app_char in Vardefs_contained, H.
+    simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * inv H. rewrite if_false in Vardefs_contained; auto. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial; inv H.
+      rewrite 2 if_false in Vardefs_contained; auto; congruence. }
+  1:{ clear (*IHLV*) Vardefs_contained. rewrite InitGPred_app.
+      rewrite <- ! sepcon_assoc. f_equal.
+      rewrite ! sepcon_assoc. rewrite sepcon_comm. rewrite <- ! sepcon_assoc. f_equal. f_equal.
+      f_equal.
+      apply filter_fg. intros [i d] ID. unfold notin; simpl. rewrite 2 find_id_app_char. simpl.
+      rewrite if_false; trivial. specialize (in_map fst _ _ ID); simpl. congruence. }
+Qed.*)(*
+Lemma MkInitPred gv: InitGPred (Vardefs lp) gv |-- (Main_InitPred gv * coreGP gv * TT)%logic.
+Proof.
+  apply derives_trans with ((Main_InitPred gv * TT) * (coreGP gv * TT))%logic; [ eapply derives_trans | cancel].
+  2: apply sepcon_derives; [ apply Main_MkInitPred | apply (MkInitPred_of_CanonicalVSU CoreVSU)].
+
+  clear - Vardefs_contained LNR_PV LNR_LV. unfold MainVardefs. 
+  forget (Vardefs lp) as LV. forget (Vardefs p) as PV. clear p lp. 
+  revert Vardefs_contained LNR_PV LNR_LV. generalize dependent PV.
+  induction LV; simpl; intros.
++ destruct PV; simpl. rewrite ! InitGPred_nilD. (* cancel. *) rewrite emp_sepcon; trivial.
+  exfalso. (*specialize (Vardefs_contained (fst p)). destruct p; simpl in *.
+  rewrite if_true in Vardefs_contained. congruence. trivial.*)
+  destruct p as [i d]. specialize (Vardefs_contained i d); simpl in Vardefs_contained.
+  rewrite if_true in Vardefs_contained by trivial. specialize (Vardefs_contained (eq_refl _)); congruence.
++ rewrite ! InitGPred_consD. destruct a as [j d]. unfold notin at 1. simpl fst in *.
+  inv LNR_LV.
+  assert (VCj := Vardefs_contained j). 
+  remember (find_id j PV) as b; symmetry in Heqb; destruct b; simpl in VCj.
+  2:{ rewrite InitGPred_consD. cancel.
+      apply IHLV; clear IHLV; trivial.
+      intros. (*specialize (Vardefs_contained i). remember (find_id i PV) as w; destruct w; simpl in *; trivial.
+      rewrite if_false in Vardefs_contained; trivial. congruence.*)
+      specialize (Vardefs_contained _ _ H). 
+      rewrite if_false in Vardefs_contained; trivial. congruence.  }
+  rewrite if_true in VCj by trivial. specialize (VCj _ (eq_refl _)). inv VCj.
+  destruct (find_id_in_split Heqb) as [PV1 [PV2 [HPV [HPV1 HPV2]]]]; trivial.
+  subst PV. clear Heqb. rewrite InitGPred_app, InitGPred_consD.
+  cancel.
+  rewrite map_app in LNR_PV; simpl in LNR_PV. apply list_norepet_middleD in LNR_PV.
+  destruct LNR_PV as [PV12j LNR_PV12]; clear LNR_PV.
+  eapply derives_trans.
+  - apply (IHLV (PV1++PV2)); clear IHLV; trivial. 2: rewrite map_app; trivial.
+    intros. (*specialize (Vardefs_contained i). rewrite find_id_app_char in *; simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * rewrite if_false in Vardefs_contained; trivial. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial.
+      rewrite 2 if_false in Vardefs_contained; trivial; congruence.*)
+    specialize (Vardefs_contained i d). rewrite find_id_app_char in Vardefs_contained, H.
+    simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * inv H. rewrite if_false in Vardefs_contained; auto. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial; inv H.
+      rewrite 2 if_false in Vardefs_contained; auto; congruence.
+  - clear IHLV Vardefs_contained. rewrite InitGPred_app. cancel.
+    apply derives_refl'. f_equal.
+    apply filter_fg. intros [i d] ID. unfold notin; simpl. rewrite 2 find_id_app_char. simpl.
+    rewrite if_false; trivial. specialize (in_map fst _ _ ID); simpl. congruence.
+Qed.*)
+Lemma MkInitPred gv: InitGPred (Vardefs lp) gv |-- (Main_InitPred gv * coreGP gv)%logic.
+Proof.
+  simpl. eapply derives_trans.
+  2: apply sepcon_derives; [ apply Main_MkInitPred | apply (MkInitPred_of_CanonicalVSU CoreVSU)].
+
+  clear - Vardefs_contained LNR_PV LNR_LV. unfold MainVardefs. 
+  forget (Vardefs lp) as LV. forget (Vardefs p) as PV. clear p lp. 
+  revert Vardefs_contained LNR_PV LNR_LV. generalize dependent PV.
+  induction LV; simpl; intros.
++ destruct PV; simpl. rewrite ! InitGPred_nilD. (* cancel. *) rewrite emp_sepcon; trivial.
+  exfalso. (*specialize (Vardefs_contained (fst p)). destruct p; simpl in *.
+  rewrite if_true in Vardefs_contained. congruence. trivial.*)
+  destruct p as [i d]. specialize (Vardefs_contained i d); simpl in Vardefs_contained.
+  rewrite if_true in Vardefs_contained by trivial. specialize (Vardefs_contained (eq_refl _)); congruence.
++ rewrite ! InitGPred_consD. destruct a as [j d]. unfold notin at 1. simpl fst in *.
+  inv LNR_LV.
+  assert (VCj := Vardefs_contained j). 
+  remember (find_id j PV) as b; symmetry in Heqb; destruct b; simpl in VCj.
+  2:{ rewrite InitGPred_consD. cancel.
+      apply IHLV; clear IHLV; trivial.
+      intros. (*specialize (Vardefs_contained i). remember (find_id i PV) as w; destruct w; simpl in *; trivial.
+      rewrite if_false in Vardefs_contained; trivial. congruence.*)
+      specialize (Vardefs_contained _ _ H). 
+      rewrite if_false in Vardefs_contained; trivial. congruence.  }
+  rewrite if_true in VCj by trivial. specialize (VCj _ (eq_refl _)). inv VCj.
+  destruct (find_id_in_split Heqb) as [PV1 [PV2 [HPV [HPV1 HPV2]]]]; trivial.
+  subst PV. clear Heqb. rewrite InitGPred_app, InitGPred_consD.
+  cancel.
+  rewrite map_app in LNR_PV; simpl in LNR_PV. apply list_norepet_middleD in LNR_PV.
+  destruct LNR_PV as [PV12j LNR_PV12]; clear LNR_PV.
+  eapply derives_trans.
+  - apply (IHLV (PV1++PV2)); clear IHLV; trivial. 2: rewrite map_app; trivial.
+    intros. (*specialize (Vardefs_contained i). rewrite find_id_app_char in *; simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * rewrite if_false in Vardefs_contained; trivial. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial.
+      rewrite 2 if_false in Vardefs_contained; trivial; congruence.*)
+    specialize (Vardefs_contained i d). rewrite find_id_app_char in Vardefs_contained, H.
+    simpl in *.
+    remember (find_id i PV1) as r; destruct r; simpl in *.
+    * inv H. rewrite if_false in Vardefs_contained; auto. congruence.
+    * clear Heqr. remember (find_id i PV2) as r; destruct r; simpl in *; trivial; inv H.
+      rewrite 2 if_false in Vardefs_contained; auto; congruence.
+  - clear IHLV Vardefs_contained. rewrite InitGPred_app. cancel.
+    apply derives_refl'. f_equal.
+    apply filter_fg. intros [i d] ID. unfold notin; simpl. rewrite 2 find_id_app_char. simpl.
+    rewrite if_false; trivial. specialize (in_map fst _ _ ID); simpl. congruence.
+Qed.
+
 Lemma Disj_internalspecs_MainE: list_disjoint (map fst linked_internal_specs) (map fst MainE).
 Proof.
      intros x y X Y. destruct (HypME1 _ Y) as [f [tys [ts [cc EXT]]]]; clear HypME1.
@@ -109,7 +293,6 @@ Proof.
 Qed.
 
 Definition Gprog := linked_internal_specs ++ MainE.
-
 
 Lemma IntIDsMainE_Gprog i: In i (IntIDs lp ++ map fst MainE) -> In i (map fst Gprog).
 Proof. 
@@ -164,7 +347,10 @@ apply list_norepet_append; trivial.
 apply LNR_G_of_CanoncialVSU.
 eapply list_disjoint_mono.
 - apply disjoint_Vprog_lpfuns.
-- remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'. 
+- (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. 
+  assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  unfold CoreG. unfold G_of_CanonicalVSU. remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   intros. apply (Comp_G_in_Fundefs COMP) in H. destruct H as [f Hf]. 
   eapply find_id_In_map_fst. rewrite Main, if_false. apply Hf. clear - Hf MainFresh COMP.
   apply Gfun_of_Fundef in Hf. intros N; subst. congruence. apply COMP.
@@ -208,7 +394,10 @@ Qed.
 
 Lemma IntIDs_preserved i: In i (IntIDs p) -> In i (IntIDs lp).
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'. 
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. 
+  assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  unfold CoreG. unfold G_of_CanonicalVSU. remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   destruct (Comp_G_dom COMP i) as [_ HH]. clear - mainFun  P_LP HH MainFresh LNR_LP COMP. specialize (Main i); intros MainI.
   intros. if_tac in MainI; subst; apply IntIDs_e in H; try apply COMP; destruct H; [ congruence |].
   apply Fundef_of_Gfun in H. rewrite <- MainI in H.
@@ -217,7 +406,9 @@ Qed.
 
 Lemma IntIDs_lp i: In i (IntIDs lp) -> i=main \/ In i (IntIDs p).
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  unfold CoreG. unfold G_of_CanonicalVSU. remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   clear - mainFun  P_LP COMP LNR_LP. intros. destruct (IntIDs_e H LNR_LP) as [f Hf]. apply Fundef_of_Gfun in Hf.
   specialize (Main i). rewrite Hf; intros MainI. if_tac in MainI; [ left; trivial | right].
   symmetry in MainI. apply Gfun_of_Fundef in MainI; [ apply IntIDs_i in MainI; trivial | apply COMP].
@@ -225,31 +416,40 @@ Qed.
 
 Lemma coreG_in_Gprog {i phi}: find_id i CoreG = Some phi -> find_id i Gprog = Some phi.
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
-  unfold Gprog, linked_internal_specs; intros. 
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  assert (X: CoreG = G_of_CanonicalVSU CoreVSU) by reflexivity.
+  remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
+  unfold Gprog, linked_internal_specs. intros.
   destruct (Comp_G_dom COMP i) as [_ HH].
   rewrite find_id_app_char, <- sort_find_id, find_id_filter_char.
 + specialize IntIDs_preserved; intros Pres.
-  simpl. rewrite if_false, H.
-  - exploit HH; clear HH. eapply find_id_In_map_fst; apply H.
+  simpl. rewrite if_false, H; rewrite X in H.
+  - exploit HH; clear HH. eapply find_id_In_map_fst. apply H.
     intros K. apply in_app_or in K; destruct K.
     * apply Pres in H0. destruct  (in_dec ident_eq i (IntIDs lp)); simpl; trivial. contradiction.
-    * destruct (in_dec ident_eq i (IntIDs lp)); simpl; trivial. 
-      rewrite <- (Comp_G_E COMP i H0) in H. apply coreE_in_MainE; trivial.
-  - intros M; subst main. destruct (@Comp_G_in_progdefs' _ _ _ _ _ _ _ _ COMP i phi H). congruence.
+    * destruct (in_dec ident_eq i (IntIDs lp)); simpl; trivial.
+      apply coreE_in_MainE. rewrite (Comp_G_E COMP i H0). apply H.
+  - intros M; subst main. destruct (Comp_G_in_progdefs' COMP i phi H). congruence.
 + apply LNR_main_CoreG.
 + apply LNR_sort_e; apply LNR_internalspecs.
 Qed.
 
 Lemma LNR_coreExports: list_norepet (map fst coreExports).
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  assert (X: CoreG = G_of_CanonicalVSU CoreVSU) by reflexivity.
+  remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   apply (Comp_Exports_LNR COMP).
 Qed.
 
 Lemma LNR_coreExports': list_norepet (main::map fst coreExports).
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  assert (X: CoreG = G_of_CanonicalVSU CoreVSU) by reflexivity.
+  remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   constructor.
 + intros N.
   apply (Comp_Exports_in_progdefs COMP) in N. apply find_id_None_iff in MainFresh. contradiction.
@@ -258,32 +458,43 @@ Qed.
 
 Lemma subsumespec_coreExports_Gprog i: subsumespec (find_id i coreExports) (find_id i Gprog).
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  assert (X: CoreG = G_of_CanonicalVSU CoreVSU) by reflexivity.
+  remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   red. remember (find_id i coreExports) as w; symmetry in Heqw; destruct w; trivial.
   destruct (Comp_G_Exports COMP _ _ Heqw) as [phi [Phi PHI]].
-  exists phi; split. apply (coreG_in_Gprog Phi).
+  exists phi; split. apply coreG_in_Gprog. try rewrite X; apply Phi.
   apply seplog.funspec_sub_sub_si. apply PHI. 
 Qed.
  
 Lemma subsumespec_coreExports_Gprog' i: subsumespec (find_id i ((*main_spec main lp*)(main,mainspec)::coreExports)) (find_id i Gprog).
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  assert (X: CoreG = G_of_CanonicalVSU CoreVSU) by reflexivity.
+  remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   red. simpl. if_tac.
   + subst i. rewrite Gprog_main. eexists; split. reflexivity. apply funspec_sub_si_refl.
   + remember (find_id i coreExports) as w; symmetry in Heqw; destruct w; trivial.
     destruct (Comp_G_Exports COMP _ _ Heqw) as [phi [Phi PHI]].
-    exists phi; split. apply (coreG_in_Gprog Phi).
+    exists phi; split. apply coreG_in_Gprog; try rewrite X; apply Phi.
     apply seplog.funspec_sub_sub_si. apply PHI. 
 Qed.
 
 Lemma coreExports_in_Gprog i: sub_option (make_tycontext_g Vprog coreExports) ! i (make_tycontext_g Vprog Gprog) ! i.
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  assert (X: CoreG = G_of_CanonicalVSU CoreVSU) by reflexivity.
+  remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   red. rewrite 2 semax_prog.make_context_g_char; try apply LNR_Vprog_Gprog.
   + rewrite 2 make_tycontext_s_find_id.
     remember (find_id i coreExports) as w; symmetry in Heqw; destruct w.
     - destruct (Comp_G_Exports COMP _ _ Heqw) as [phi [ Phi PHI]].
-      rewrite (coreG_in_Gprog Phi), (type_of_funspec_sub _ _ PHI); trivial.
+      (*rewrite (coreG_in_Gprog Phi), (type_of_funspec_sub _ _ PHI); trivial.*)
+      erewrite coreG_in_Gprog, (type_of_funspec_sub _ _ PHI); trivial.
+      try rewrite X; apply Phi.
     - remember (find_id i Vprog) as u; symmetry in Hequ; destruct u; trivial.
       rewrite (list_norepet_find_id_app_exclusive1 LNR_Vprog_Gprog Hequ); trivial.
   + specialize LNR_coreExports; intros LNR_EXP.
@@ -291,18 +502,24 @@ Proof.
     eapply list_disjoint_mono; [ apply disjoint_Vprog_Gprog | | ]; trivial.
     intros. apply In_map_fst_find_id in H; trivial.
     destruct H as [f Hf]. destruct ( Comp_G_Exports COMP _ _ Hf) as [phi [Phi _]].
-    apply coreG_in_Gprog in Phi. apply find_id_In_map_fst in Phi; trivial.
+    (*apply coreG_in_Gprog in Phi. apply find_id_In_map_fst in Phi; trivial.*)
+    eapply find_id_In_map_fst. apply coreG_in_Gprog. rewrite X. apply Phi.
 Qed.
 
 Lemma coreExports_in_Gprog' i: sub_option (make_tycontext_g Vprog ((*main_spec main lp*)(main,mainspec)::coreExports)) ! i (make_tycontext_g Vprog Gprog) ! i.
 Proof.
-  remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  assert (X: CoreG = G_of_CanonicalVSU CoreVSU) by reflexivity.
+  remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]].
+
   red. rewrite 2 semax_prog.make_context_g_char; try apply LNR_Vprog_Gprog.
   + rewrite 2 make_tycontext_s_find_id. simpl. if_tac.
     { (*main*) subst i. rewrite Gprog_main. reflexivity. }
     remember (find_id i coreExports) as w; symmetry in Heqw; destruct w.
     - destruct (Comp_G_Exports COMP _ _ Heqw) as [phi [ Phi PHI]].
-      rewrite (coreG_in_Gprog Phi), (type_of_funspec_sub _ _ PHI); trivial.
+      (*rewrite (coreG_in_Gprog Phi), (type_of_funspec_sub _ _ PHI); trivial.*)
+      erewrite coreG_in_Gprog, (type_of_funspec_sub _ _ PHI); trivial.
+      try rewrite X; apply Phi.
     - remember (find_id i Vprog) as u; symmetry in Hequ; destruct u; trivial.
       rewrite (list_norepet_find_id_app_exclusive1 LNR_Vprog_Gprog Hequ); trivial.
   + specialize LNR_coreExports'; intros LNR_EXP.
@@ -313,7 +530,8 @@ Proof.
     if_tac in Hf.
     { subst x. apply (find_id_In_map_fst _ _ _ Gprog_main). }
     destruct ( Comp_G_Exports COMP _ _ Hf) as [phi [Phi _]].
-    apply coreG_in_Gprog in Phi. apply find_id_In_map_fst in Phi; trivial.
+    (*apply coreG_in_Gprog in Phi. apply find_id_In_map_fst in Phi; trivial.*)
+    eapply find_id_In_map_fst. apply coreG_in_Gprog. rewrite X. apply Phi.
 Qed.
 (*
 Variable InternalInfo_main:
@@ -354,14 +572,15 @@ Variable MainE_vacuous: forall i phi, find_id i MainE = Some phi -> find_id i co
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (prog_funct p) = Some (External ef argsig retsig cc) /\
            ef_sig ef = {| sig_args := typlist_of_typelist argsig;
-                          sig_res := opttyp_of_type retsig;
+                          sig_res := rettype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
 
 Lemma add_main:
       @Component Espec Vprog CS
-      MainE nil lp ((*main_spec main lp*)(main, mainspec)::nil(*Exports*)) Gprog.
+      MainE nil lp ((*main_spec main lp*)(main, mainspec)::nil(*Exports*)) (fun gv => Main_InitPred gv * coreGP gv)%logic Gprog.
 Proof.
-constructor; trivial.
+(*constructor; trivial.*)
+eapply Build_Component (* with (fun gv => Main_InitPred gv * (InitPred_of_CanonicalVSU CoreVSU gv))%logic*); trivial.
 + contradiction.
 + rewrite app_nil_r; trivial.
 + constructor; [ auto | constructor].
@@ -384,8 +603,11 @@ constructor; trivial.
   specialize (progfunct_GFF LNR_LP H); intros GFF.
   unfold Gprog, linked_internal_specs in H0.
   rewrite find_id_app_char, <- sort_find_id, find_id_filter_char in H0. simpl in H0.
-  rewrite Main in H. remember  CoreVSU as VSU'.
-  destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.
+  rewrite Main in H. 
+  (*remember  CoreVSU as VSU'. destruct VSU' as [G COMP]. assert (G = CoreG). unfold CoreG. rewrite <- HeqVSU'. reflexivity. subst G. clear HeqVSU'.*)
+  assert (CG: CoreG = G_of_CanonicalVSU CoreVSU) by reflexivity.
+  remember  CoreVSU as VSU'. destruct VSU' as [G [GG COMP MM]]. clear HeqVSU'.
+
   assert (MainI := Main i). if_tac in H.
   - (*i=main*) subst; rewrite if_true in H0 by trivial.
     clear JUST MainE_vacuous. inv H.
@@ -393,7 +615,7 @@ constructor; trivial.
     2: apply Gfun_of_Fundef in MainI; [ eapply IntIDs_i; apply MainI | trivial].
     apply IIG. (*InternalInfo_mainGprog.*)
   - rewrite H in MainI by trivial.
-    rewrite if_false in H0 by trivial. specialize (JUST i). simpl in JUST.
+    rewrite if_false in H0 by trivial. simpl in CG. subst GG. specialize (JUST i). simpl in JUST.
     remember (find_id i CoreG) as u; symmetry in Hequ; destruct u.
     * destruct (in_dec ident_eq i (IntIDs lp)) as [INT|X]; simpl in H0.
       ++ inv H0. clear MainE_vacuous.
@@ -456,6 +678,7 @@ constructor; trivial.
   - apply LNR_sort_e. apply LNR_internalspecs.
 + simpl; intros. if_tac in E; inv E. subst phi.
   rewrite Gprog_main. eexists; split. reflexivity. apply funspec_sub_refl.
++ apply MkInitPred.
 Qed.
 
 Definition add_CanComp := Comp_to_CanComp add_main.
@@ -464,10 +687,13 @@ Variable Hmain: main = prog_main lp.
 Variable HEspec: Espec = NullExtension.Espec.
 
 Program Definition AddMainProgVSU:@LinkedProgVSU Espec Vprog CS
-      MainE nil lp [(*main_spec main lp*)(main, mainspec)].
-Proof. destruct add_CanComp as [G [CC M]].
-exists G. split. apply CC. rewrite M, <- Hmain, Gprog_main by (apply LNR_Gprog). 
-clear - HEspec. subst. simpl. rewrite if_true by trivial. eexists; split; reflexivity.
+      MainE nil lp [(*main_spec main lp*)(main, mainspec)]
+      (fun gv => Main_InitPred gv * coreGP gv)%logic.
+Proof. 
+specialize Gprog_main. intros. 
+destruct add_CanComp as [G [CC M]].
+exists G. econstructor. apply M. rewrite CCM_main. subst main. simpl.
+rewrite if_true by trivial. exists mainspec; split; trivial.
 Qed.
 
 End ADD_MAIN.
@@ -476,20 +702,30 @@ Ltac find_sub_sub_tac :=
      intros i phi Hphi; assert (FIND:= find_id_In_map_fst _ _ _ Hphi); cbv in FIND;
      repeat (destruct FIND as [FIND |FIND]; [ subst; inv Hphi; reflexivity |]); contradiction.
 
-Ltac AddMainProgProgVSU_tac vsu :=
-eapply (@AddMainProgVSU _ _ _ _ _ _ vsu);
+Ltac AddMainProgProgVSU_tac_entail vsu :=
+eapply LP_VSU_entail;
+[ eapply (@AddMainProgVSU _ _ _ _ _ _ _ vsu);
    [ try apply cspecs_sub_refl (*Perhaps a more general tactic is only needed if main.c contains data structure definitions?*)
    | try reflexivity
    | try reflexivity
    | try LNR_tac
    | try LNR_tac
+
    |(* (*list_disjoint (map fst Vprog) (map fst (prog_funct linked_prog))*)
      intros x y X Y ?; subst x. cbv in X. apply assoclists.find_id_None_iff in Y. trivial. clear H Y.
      repeat (destruct X as [X | X]; [ subst y; cbv; reflexivity |]); contradiction.*)
+
    | try find_sub_sub_tac
    | try LNR_tac
    | try LNR_tac
    | (* apply HypME1. *)
+
+    (*Four side conditions on Varspecs*)
+   | try find_sub_sub_tac
+   | intros; first [ solve [reflexivity] | solve [apply derives_refl] | idtac] (*instantiates InitPred to MainVarDefs*)
+   | try LNR_tac
+   | try LNR_tac
+
    | try find_sub_sub_tac
    | split3; [ | | split3; [ | |split]];
      [ try (cbv; reflexivity)
@@ -499,7 +735,46 @@ eapply (@AddMainProgVSU _ _ _ _ _ _ vsu);
      | (* apply body_main.*)
      | eexists; split; [ LookupID | LookupB ] ]
    | (*apply MainE_vacuous.*)
-   | try reflexivity].
+   | try reflexivity]
+| intros; simpl; first [ solve [unfold InitGPred; simpl; cancel] | idtac]
+].
+
+(*old
+Ltac AddMainProgProgVSU_tac_eq vsu :=
+eapply LP_VSU_ext;
+[ eapply (@AddMainProgVSU _ _ _ _ _ _ _ vsu);
+   [ try apply cspecs_sub_refl (*Perhaps a more general tactic is only needed if main.c contains data structure definitions?*)
+   | try reflexivity
+   | try reflexivity
+   | try LNR_tac
+   | try LNR_tac
+
+   |(* (*list_disjoint (map fst Vprog) (map fst (prog_funct linked_prog))*)
+     intros x y X Y ?; subst x. cbv in X. apply assoclists.find_id_None_iff in Y. trivial. clear H Y.
+     repeat (destruct X as [X | X]; [ subst y; cbv; reflexivity |]); contradiction.*)
+
+   | try find_sub_sub_tac
+   | try LNR_tac
+   | try LNR_tac
+   | (* apply HypME1. *)
+
+    (*Four side conditions on Varspecs*)
+   | try find_sub_sub_tac
+   | try solve [ intros; reflexivity(*apply derives_refl*)] (*instantiates InitPred to emp if Vardefs=nil*)
+   | try LNR_tac
+   | try LNR_tac
+
+   | try find_sub_sub_tac
+   | split3; [ | | split3; [ | |split]];
+     [ try (cbv; reflexivity)
+     | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
+     | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+     | reflexivity
+     | (* apply body_main.*)
+     | eexists; split; [ LookupID | LookupB ] ]
+   | (*apply MainE_vacuous.*)
+   | try reflexivity]
+| ].*)
 
 (*based on tactic floyd.forward.semax_prog_aux*)
 Ltac prove_linked_semax_prog :=
@@ -525,9 +800,9 @@ Variable V1 V2 V: varspecs.
 Variable cs1 cs2 cs: compspecs. 
 Variable E1 Imports1 Exports1 E2 Imports2 Exports2 E Imports Exports: funspecs.
 Variable p1 p2 p: Clight.program.
-
-Variable vsu1: @LinkedProgVSU Espec V1 cs1 E1 Imports1 p1 Exports1.
-Variable vsu2: @VSU Espec V2 cs2 E2 Imports2 p2 Exports2.
+Variable GP1 GP2: globals -> mpred.
+Variable vsu1: @LinkedProgVSU Espec V1 cs1 E1 Imports1 p1 Exports1 GP1.
+Variable vsu2: @VSU Espec V2 cs2 E2 Imports2 p2 Exports2 GP2.
 
 Variable DisjointVarspecs: list_disjoint (map fst V1) (map fst V2).
 Variable HV1p1: list_disjoint (map fst V1) (map fst (prog_funct p1)).
@@ -579,19 +854,28 @@ Variable domV: forall i, In i (map fst V) -> In i (map fst V1) \/ In i (map fst 
 Variable Main_Unique: prog_main p1 = prog_main p2 /\ prog_main p1 = prog_main p.
 Variable ProgP2None: find_id (prog_main p1) (prog_funct p2) = None.
 
-Lemma MainVSUJoinVSU: @LinkedProgVSU Espec (*(V1++V2)*)V cs E Imports p Exports.
+Variable VD1: map fst (Vardefs p1) = map fst V1.
+Variable VD2: map fst (Vardefs p2) = map fst V2.
+Variable VD: map fst (Vardefs p) = map fst V.
+
+Variable HVardefs1: forall i d, find_id i (Vardefs p1) = Some d -> find_id i (Vardefs p) = Some d.
+Variable HVardefs2: forall i d, find_id i (Vardefs p2) = Some d -> find_id i (Vardefs p) = Some d.
+
+Lemma MainVSUJoinVSU: @LinkedProgVSU Espec (*(V1++V2)*)V cs E Imports p Exports (fun gv => GP1 gv * GP2 gv)%logic.
 Proof.
-  destruct vsu1 as [G1 [[c1 X] MAIN1]]. destruct vsu2 as [G2 c2].
-  specialize (ComponentJoin _ _ _ _ _ _ _ _ _ _ _ _ _ _ E Imports Exports p1 p2 p c1 c2 HV1p1 HV1p2 HV2p1 HV2p2
+  destruct vsu1 as [G1 [c1 X1] Main1]. destruct vsu2 as [G2 c2].
+  specialize (ComponentJoin _ _ _ _ _ _ _ _ _ G1 _ _ _ G2 E Imports Exports p1 p2 p GP1 GP2 c1 c2
+       DisjointVarspecs HV1p1 HV1p2 HV2p1 HV2p2
        LNR_V1 LNR_V2 CS1 CS2 _ HV1 HV2 FundefsMatch FP Externs1_Hyp Externs2_Hyp ExternsHyp SC1 SC2
-       HImports ImportsDef ExportsDef LNRp V_LNR domV). intros C.
-  destruct (Comp_to_CanComp C) as [GG [CC MM]].
-  eexists; split. apply CC. rewrite MM.
-  destruct MAIN1 as [phi [PhiG PhiE]]. 
+       HImports ImportsDef ExportsDef LNRp V_LNR domV VD1 VD2 VD HVardefs1 HVardefs2). intros C.
+  econstructor. apply (Comp_to_CanComp C).
+  destruct (Comp_to_CanComp C) as [GG [CC HGG] MM]. simpl.
+  rewrite MM.
+  destruct Main1 as [phi [PhiG PhiE]]. 
   unfold Comp_G in *.
   destruct Main_Unique as [MU1 MU2]. rewrite <- MU2 in *. subst Exports.
   remember (find_id (prog_main p1) G2) as w; symmetry in Heqw; destruct w.
-  { specialize (@Comp_G_in_Fundefs' _ _ _ _ _ _ _ _ c2 _ _ Heqw).
+  { specialize (Comp_G_in_Fundefs' c2 _ _ Heqw).
     rewrite ProgP2None; clear; intros [? ?]; congruence. }
   rewrite (G_merge_find_id_SomeNone PhiG Heqw).
   rewrite (G_merge_find_id_SomeNone PhiE).
@@ -633,4 +917,9 @@ Ltac MainVSUJoinVSU LP_VSU1 VSU2 :=
 | domV_tac
 | try (split; reflexivity)
 | try reflexivity
+| try reflexivity
+| try reflexivity
+| try reflexivity
+|
+|
 ].

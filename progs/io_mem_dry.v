@@ -67,16 +67,16 @@ Proof.
       exact ((let '(_, buf, msg, _, _, _) := w in X1 = [buf; Vint (Int.repr (Zlength msg))]) /\ m0 = X3 /\ putchars_pre X3 w X2).
     + destruct X as (m0 & _ & w).
       exact ((let '(_, buf, len, _) := w in X1 = [buf; Vint (Int.repr len)]) /\ m0 = X3 /\ getchars_pre X3 w X2).
-  - simpl; intros.
+  - simpl; intros ??? ot ???.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (putchars_post m0 X3 i w X2).
+      exact (ot <> AST.Tvoid /\ putchars_post m0 X3 i w X2).
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (getchars_post m0 X3 i w X2).
+      exact (ot <> AST.Tvoid /\ getchars_post m0 X3 i w X2).
   - intros; exact True.
 Defined.
 
@@ -172,7 +172,7 @@ Proof.
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & ?); subst.
+      destruct H4 as (? & Hmem & ? & ?); subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
@@ -188,7 +188,9 @@ Proof.
         intro; rewrite H2; auto.
       * split3; simpl.
         { split; auto. }
-        { split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate. }
+        { unfold_lift. split; auto. split; [|intro Hx; inv Hx].
+             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
+             destruct ot; try contradiction; reflexivity. }
         unfold SEPx; simpl.
         rewrite seplog.sepcon_emp.
         unshelve eexists (age_to.age_to _ (set_ghost phig _ _)), (age_to.age_to _ phir);
@@ -216,7 +218,7 @@ Proof.
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (? & msg & ? & ? & Hpost); subst.
+      destruct H4 as (? & ? & msg & ? & ? & Hpost); subst.
       destruct buf; try contradiction.
       destruct Hpost as (m' & Hstore & Heq).
       exists (set_ghost (age_to.age_to (level jm) (inflate_store m' phi0)) [Some (ext_ghost (k msg), NoneP)] eq_refl),
@@ -241,7 +243,7 @@ Proof.
            apply (resource_at_join _ _ _ (b', o')) in J; rewrite Hr1 in J.
            apply VALspec_range_e with (loc := (b', o')) in Hbuf as [? Hr].
            apply (resource_at_join _ _ _ (b', o')) in J1; rewrite Hr in J1.
-           inv J1; rewrite <- H14 in J; inv J; eapply join_writable_readable; eauto;
+           inv J1; rewrite <- H15 in J; inv J; eapply join_writable_readable; eauto;
              apply join_comm in RJ; eapply join_writable1; eauto.
            { rewrite bytes_to_memvals_length in *; split; auto. }
         -- unfold set_ghost; rewrite ghost_of_make_rmap, !age_to_resource_at.age_to_ghost_of.
@@ -256,7 +258,9 @@ Proof.
         -- exists msg.
            split3; simpl.
            { split; auto. }
-           { split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate. }
+           { unfold_lift. split; auto. split; [|intro Hx; inv Hx].
+             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
+             destruct ot; try contradiction; reflexivity. }
            unfold SEPx; simpl.
            rewrite seplog.sepcon_emp.
            unshelve eexists (set_ghost (age_to.age_to _ phig) _ _), (age_to.age_to _ (inflate_store m' phir));
@@ -301,14 +305,14 @@ Proof.
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.
-    destruct Hpost; subst.
+    destruct Hpost as (? & ? & ?); subst.
     reflexivity.
   - if_tac in Hpre; [|contradiction].
     destruct w as (m0 & _ & (((?, ?), ?), ?)).
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.
-    destruct Hpost as (? & msg & ? & ? & Hpost); subst.
+    destruct Hpost as (? & ? & msg & ? & ? & Hpost); subst.
     destruct v0; try contradiction.
     destruct Hpost as (? & Hstore & ?).
     eapply mem_evolve_equiv2; [|apply mem_equiv_sym; eauto].

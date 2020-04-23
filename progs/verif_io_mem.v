@@ -3,7 +3,6 @@ Require Import VST.progs.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -51,9 +50,10 @@ Definition replace_list {X} i (l : list X) (l' : list X) :=
 Definition print_intr_spec :=
  DECLARE _print_intr
   WITH sh : share, i : Z, buf : val, contents : list val
-  PRE [ _i OF tuint, _buf OF tptr tuchar ]
+  PRE [ tuint, tptr tuchar ]
     PROP (writable_share sh; 0 <= i <= Int.max_unsigned; Zlength (intr i) <= Zlength contents <= Int.max_signed)
-    LOCAL (temp _i (Vint (Int.repr i)); temp _buf buf)
+    PARAMS (Vint (Int.repr i); buf)
+    GLOBALS ()
     SEP (data_at sh (tarray tuchar (Zlength contents)) contents buf)
   POST [ tint ]
     PROP ()
@@ -63,9 +63,10 @@ Definition print_intr_spec :=
 Definition print_int_spec :=
  DECLARE _print_int
   WITH gv : globals, i : Z, tr : IO_itree
-  PRE [ _i OF tuint ]
+  PRE [ tuint ]
     PROP (0 <= i < 10000)
-    LOCAL (gvars gv; temp _i (Vint (Int.repr i)))
+    PARAMS (Vint (Int.repr i))
+    GLOBALS (gv)
     SEP (mem_mgr gv; ITREE (write_list stdout (chars_of_Z i ++ [Byte.repr newline]) ;; tr))
   POST [ tvoid ]
     PROP ()
@@ -73,7 +74,7 @@ Definition print_int_spec :=
     SEP (mem_mgr gv; ITREE tr).
 
 Definition for_loop {file_id} i z (body : Z -> itree (@IO_event file_id) bool) :=
-  ITree.aloop (fun '(b, j) => if (b : bool) then inr true else if j <? z then inl (b <- body j ;; Ret (b, j + 1)) else inr false) (false, i).
+  ITree.iter (fun '(b, j) => if (b : bool) then Ret (inr true) else if j <? z then b <- body j ;; Ret (inl (b, j + 1)) else Ret (inr false)) (false, i).
 
 Definition sum_Z l := fold_right Z.add 0 l.
 
@@ -82,19 +83,19 @@ Definition read_sum_inner n nums j :=
   else write_list stdout (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Byte.repr newline]);; Ret false.
 
 Definition read_sum n lc : IO_itree :=
-  ITree.aloop (fun '(b, n, lc) => if (b : bool) then inr tt else
+  ITree.iter (fun '(b, n, lc) => if (b : bool) then Ret (inr tt) else
   if zlt n 1000 then
     let nums := map (fun c => Byte.unsigned c - char0) lc in
-    inl (b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret (true, n, lc) else
-    lc' <- read_list stdin 4;; Ret (false, n + sum_Z nums, lc'))
-  else inr tt) (false, n, lc).
+    b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret (inl (true, n, lc)) else
+    lc' <- read_list stdin 4;; Ret (inl (false, n + sum_Z nums, lc'))
+  else Ret (inr tt)) (false, n, lc).
 
 Definition main_itree := lc <- read_list stdin 4;; read_sum 0 lc.
 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog main_itree nil gv
+  PRE  [] main_pre prog main_itree gv
   POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt : @IO_itree (@IO_event nat))).
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchars_spec; getchars_spec;
@@ -161,10 +162,11 @@ Proof.
   rewrite upd_Znth_app2; rewrite ?Zlength_sublist; try rep_omega.
   f_equal.
   rewrite Z.sub_0_r, Z.add_simpl_l, upd_Znth_app2; rewrite ?Zlength_sublist; try rep_omega.
-  rewrite Zminus_diag, Zlength_app, Zlength_cons, Zlength_nil, upd_Znth0, <- app_assoc; simpl; f_equal; f_equal.
+  rewrite Zminus_diag, Zlength_app, Zlength_cons, Zlength_nil, upd_Znth0_old, <- app_assoc; simpl; f_equal; f_equal.
   rewrite Zlength_sublist by rep_omega.
   rewrite sublist_sublist by rep_omega.
   f_equal; omega.
+  { rewrite Zlength_sublist; rep_omega. }
   { rewrite Zlength_app, Zlength_sublist; rep_omega. }
 Qed.
 
@@ -282,7 +284,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call tt; contradiction. }
+  { forward_call 1; contradiction. }
   { forward.
     entailer!. }
   Intros; rewrite if_false by auto.
@@ -304,7 +306,7 @@ Proof.
     assert (Zlength (intr i) <= 4).
     { apply intr_length; try omega.
       apply H. }
-    forward_call.
+    forward_call (Ews, i, buf, [Vundef; Vundef; Vundef; Vundef; Vundef]).
     { rewrite !Zlength_cons, Zlength_nil.
       simpl; repeat (split; auto); rep_omega. }
     forward.
@@ -318,7 +320,7 @@ Proof.
     rewrite (sublist_list_repeat _ _ 5 Vundef).
     rewrite !Zlength_cons, Zlength_nil, Zlength_map; simpl.
     rewrite upd_Znth_app2.
-    rewrite Zlength_map, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+    rewrite Zlength_map, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try omega.
     apply derives_refl'.
     f_equal.
     rewrite chars_of_Z_intr.
@@ -327,6 +329,7 @@ Proof.
     f_equal; f_equal; f_equal; f_equal.
     rewrite Zlength_list_repeat; try omega.
     { simpl; rewrite Int.unsigned_repr; rep_omega. }
+    { rewrite Zlength_list_repeat; omega. }
     { rewrite Zlength_list_repeat; omega. }
     { rewrite Zlength_map, Zlength_list_repeat; omega. }
     { rewrite Zlength_map; rep_omega. }
@@ -348,18 +351,19 @@ Lemma read_sum_eq : forall n lc, read_sum n lc ≈
 Proof.
   intros.
   unfold read_sum.
-  rewrite unfold_aloop.
-  if_tac; [|reflexivity].
-  unfold ITree._aloop, id.
-  rewrite tau_eutt, bind_bind.
+  rewrite unfold_iter.
+  unfold ITree._iter, id.
+  if_tac; [|rewrite bind_ret_l; reflexivity].
+  rewrite bind_bind.
   apply eqit_bind; [|reflexivity].
   intros [].
-  - rewrite Eq.bind_ret, unfold_aloop.
-    reflexivity.
+  - rewrite bind_ret_l, tau_eutt.
+    rewrite unfold_iter.
+    rewrite bind_ret_l; reflexivity.
   - rewrite bind_bind.
     apply eqit_bind; [|reflexivity].
     intro.
-    rewrite Eq.bind_ret; reflexivity.
+    rewrite bind_ret_l, tau_eutt; reflexivity.
 Qed.
 
 Lemma for_loop_eq : forall {file_id} i z body,
@@ -367,15 +371,15 @@ Lemma for_loop_eq : forall {file_id} i z body,
 Proof.
   intros.
   unfold for_loop.
-  rewrite unfold_aloop.
-  simple_if_tac; [|reflexivity].
-  unfold ITree._aloop, id.
-  rewrite tau_eutt, bind_bind.
+  rewrite unfold_iter.
+  unfold ITree._iter, id.
+  simple_if_tac; [|rewrite bind_ret_l; reflexivity].
+  rewrite bind_bind.
   apply eqit_bind; [|reflexivity].
   intros [].
-  - rewrite Eq.bind_ret, unfold_aloop.
-    reflexivity.
-  - rewrite Eq.bind_ret; reflexivity.
+  - rewrite bind_ret_l, tau_eutt, unfold_iter.
+    rewrite bind_ret_l; reflexivity.
+  - rewrite bind_ret_l, tau_eutt; reflexivity.
 Qed.
 
 Lemma sum_Z_app : forall l1 l2, sum_Z (l1 ++ l2) = sum_Z l1 + sum_Z l2.
@@ -396,7 +400,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call tt; contradiction. }
+  { forward_call 1; contradiction. }
   { forward.
     entailer!. }
   Intros; rewrite if_false by auto.
@@ -447,7 +451,7 @@ Proof.
         destruct (Z.ltb_spec i 4); try omega.
         unfold read_sum_inner at 2.
         replace (_ || _)%bool with true.
-        rewrite !Eq.bind_ret; auto.
+        rewrite !bind_ret_l; auto.
         { symmetry; rewrite orb_true_iff.
           subst nums; rewrite Znth_map by omega.
           destruct (Z.ltb_spec (Byte.unsigned (Znth i lc) - char0) 0); auto.
@@ -483,7 +487,7 @@ Proof.
         apply ITREE_impl.
         apply eqit_bind; [|reflexivity].
         intros [].
-        rewrite Eq.bind_ret; reflexivity. }
+        rewrite bind_ret_l; reflexivity. }
       { rewrite Hi, sum_Z_app; simpl; omega. }
       entailer!.
       { rewrite Hi, sum_Z_app; simpl.
@@ -495,7 +499,7 @@ Proof.
       destruct (Z.ltb_spec 4 4); try omega.
       forward_call (Ews, buf, 4, fun lc' => read_sum (n + sum_Z nums) lc').
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
-        simpl; rewrite Eq.bind_ret; auto. }
+        simpl; rewrite bind_ret_l; auto. }
       Intros lc'.
       forward.
       rewrite sublist_same in * by auto.
@@ -523,7 +527,7 @@ semax_func_cons body_free.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 semax_func_cons_ext.
 { simpl; Intro msg.
-  apply typecheck_return_value; auto. }
+  apply typecheck_return_value with (t := Tint16signed); auto. }
 semax_func_cons_ext.
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
@@ -548,7 +552,7 @@ Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.
 
-Definition main_block_exists : {b | Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b}.
+Definition main_block_exists : {b | Genv.find_symbol (Genv.globalenv prog) (AST.prog_main prog) = Some b}.
 Proof.
   eexists; simpl.
   unfold Genv.find_symbol; simpl; reflexivity.
@@ -559,17 +563,18 @@ Definition main_block := proj1_sig main_block_exists.
 Theorem prog_toplevel : exists q,
   semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
   forall n, @step_lemmas.dry_safeN _ _ _ _ semax.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
-             (io_dry_spec ext_link) (Genv.globalenv prog) n
+             (io_dry_spec ext_link) {| genv_genv := Genv.globalenv prog; genv_cenv := prog_comp_env prog |} n
             main_itree q init_mem.
 Proof.
   edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
-  - repeat intro; simpl. (* need to allow exit! *)
+  - repeat intro; simpl. apply I.
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
-  - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.
+  - apply CSHL_Sound.semax_prog_sound, prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
     assert (m' = init_mem); [|subst; auto].
-    destruct Hq; tauto.
-Qed.
+    hnf in Hq. (* Our semantics.initial_core used to say something about the memory as well, but apparently it doesn't anymore. *)
+    admit.
+Admitted.

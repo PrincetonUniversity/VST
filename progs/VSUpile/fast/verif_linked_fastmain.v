@@ -15,6 +15,25 @@ Require Import spec_triang.
 Require Import main.
 Require Import spec_main.
 
+Section MainInstASI.
+  Variable M: MallocFreeAPD.
+  Variable G: list (globals -> mpred).
+
+(*Specification of "module-instantiated main" - we permit an arbitrary G here
+ (eventually, we'll roll M (or better: memmrg M gv) into G, too.*)
+Definition main_inst_spec:=
+ DECLARE _main
+ WITH gv: globals
+ PRE [ ] (*(main_preinst tt G gv)*)
+    PROP ()
+    PARAMS () GLOBALS (gv)
+    SEP (fold_right (fun g p => g gv * p) emp G; has_ext tt)
+ POST[ tint ]
+    PROP()
+    LOCAL(temp ret_temp (Vint (Int.repr 0)))
+    SEP(mem_mgr M gv; has_ext tt; TT).
+End MainInstASI.
+
 Definition linked_prog : Clight.program :=
  ltac: (linking.link_progs_list [
    stdlib.prog; fastpile.prog; onepile.prog; fastapile.prog;
@@ -35,8 +54,10 @@ Section MainVSU.
 
   Definition MainImports: funspecs := OnepileASI M ONEPILE ++ ApileASI M APILE ++ TriangASI M.
 
-  Definition main_internal_specs: funspecs :=
-    [main_spec linked_prog].
+  Definition MyInitPred := [(*mem_mgr M; *)onepile ONEPILE None; apile APILE nil].
+  Definition maininstspec (*M*) := (main_inst_spec M MyInitPred).
+  
+  Definition main_internal_specs: funspecs := [main_spec linked_prog].
 
   Definition MainVprog : varspecs. mk_varspecs main.prog. Defined.
 
@@ -47,11 +68,11 @@ Section MainVSU.
 
  (* Again, to ensure that start_function succeeds, we use LinkedCompSpecs and
     LinkedVprog*)
-  Lemma body_main: semax_body LinkedVprog MainGprog f_main (main_spec linked_prog).
+  Lemma body_main: semax_body LinkedVprog MainGprog f_main maininstspec.
 Proof.
 start_function.
 sep_apply (make_mem_mgr M gv).
-
+(*
 generalize (make_apile APILE gv).
 assert (ApileEnv: change_composite_env (APileCompSpecs APILE) LinkedCompSpecs).
 make_cs_preserve (APileCompSpecs APILE) LinkedCompSpecs.
@@ -64,14 +85,15 @@ make_cs_preserve (OnePileCompSpecs ONEPILE) LinkedCompSpecs.
 change_compspecs LinkedCompSpecs.
 intros OData.
 (*unfold onepile._pile, onepile._the_pile in OData.*)
-sep_apply OData; clear OData.
+sep_apply OData; clear OData.*)
+simpl; Intros.
 
 forward_call gv.
 forward_for_simple_bound 10
   (EX i:Z,
    PROP() LOCAL(gvars gv)
-   SEP (onepile ONEPILE gv (Some (decreasing (Z.to_nat i)));
-          apile APILE gv (decreasing (Z.to_nat i));
+   SEP (onepile ONEPILE (Some (decreasing (Z.to_nat i))) gv;
+          apile APILE (decreasing (Z.to_nat i)) gv;
           mem_mgr M gv; has_ext tt)).
 - 
  entailer!.
@@ -89,14 +111,15 @@ compute; split; congruence.
 forward_call (10,gv).
 omega.
 forward.
+cancel.
 Qed.
 
-  (*Redundant*)
+  (*Redundant
   Definition MainComponent: @Component NullExtension.Espec LinkedVprog LinkedCompSpecs
         nil MainImports main.prog [main_spec (*M*) linked_prog] main_internal_specs.
   Proof. 
     mkComponent. clear; solve_SF_internal body_main.
-  Qed.
+  Qed.*)
 
 End MainVSU.
 
@@ -107,7 +130,7 @@ Require Import VST.veric.initial_world.
 Parameter M: MallocFreeAPD.
 
 Lemma tc_VG: tycontext_subVG LinkedVprog (MainGprog M (ONEPILE M) (APILE M))
-  LinkedVprog (mainspec (*M*) :: coreExports M).
+                             LinkedVprog (mainspec (*M*) :: coreExports M).
 Proof. split.
           * intros i. red. rewrite 2 semax_prog.make_context_g_char, 2 make_tycontext_s_find_id by LNR_tac.
             remember (find_id i (MainGprog M (ONEPILE M) (APILE M))) as w.
@@ -186,22 +209,48 @@ Proof.
   simpl in Heqw. rewrite PTree.gleaf in Heqw. congruence.
 Qed.*)
 
+Lemma main_sub: funspec_sub (snd (main_inst_spec M (MyInitPred (ONEPILE M) (APILE M))))
+                             (snd mainspec).
+Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear. 
+  Exists w emp. unfold gglobvars2pred; simpl.
+  unfold globvars2pred, lift2; Intros. simpl. entailer!.
+  + intros. entailer!.
+  + rewrite sepcon_comm; apply sepcon_derives.
+    - eapply derives_trans. 2: apply verif_fastonepile.onepile_Init with (PILE:= (PILE M)).
+      unfold InitGPred. simpl. unfold globvar2pred; simpl. rewrite ! sepcon_emp.
+      apply andp_right.
+      * eapply derives_trans. apply mapsto_zeros_memory_block.
+        apply writable_readable. apply writable_Ews.
+        rewrite memory_block_isptr; Intros.
+        apply global_is_headptr in H. entailer!.
+      * unfold initialize.gv_globvar2pred. simpl.
+        unfold initialize.gv_lift2, initialize.gv_lift0. simpl.
+        rewrite predicates_sl.sepcon_emp. apply derives_refl.
+      (*unfold globvar2pred; simpl. sep_apply mapsto_zeros_isptr; Intros.
+      * apply writable_readable. apply writable_Ews.
+      * apply global_is_headptr in H.
+        Check verif_onepile.make_onepile. , sepcon_emp by trivial.
+      erewrite <- (mapsto_data_at''); trivial. apply derives_refl.*)
+    - unfold globvar2pred; simpl. rewrite mapsto_isptr; Intros. apply global_is_headptr in H.
+      rewrite sepcon_emp by trivial. 
+      eapply derives_trans. 2: apply verif_fastapile.make_apile; trivial.
+      erewrite <- (mapsto_data_at''); trivial. apply derives_refl.
+Qed.
 Require Import VST.floyd.VSU_addmain.
 
 Definition SO_VSU: @LinkedProgVSU NullExtension.Espec LinkedVprog LinkedCompSpecs
-      MainE Imports linked_prog [mainspec (*M*)].
+      MainE Imports linked_prog [mainspec (*M*)]
+      (fun gv => onepile (ONEPILE M) None gv * apile (APILE M)  [] gv)%logic.
 Proof.
- AddMainProgProgVSU_tac (Core_CanVSU M).
+ AddMainProgProgVSU_tac_entail (Core_CanVSU M).
+(* AddMainProgProgVSU_tac (Core_CanVSU M).*)
    + apply disjoint_Vprog_linkedfuncts.
    + apply HypME1.
-   + (*apply (@semax_body_cenv_sub MainCompSpecs).
-     - apply CSSUB.
-     - constructor. (*fnvars*)
-     - eapply semax_body_subsumption.
-       * apply (body_main M (Observer M) (Subject M)).
-       * apply tycontext_sub_i99. apply tc_VG.*)
-     eapply semax_body_subsumption.
-       * apply (body_main M (ONEPILE M) (APILE M)).
+   + eapply semax_body_subsumption.
+       * eapply semax_body_funspec_sub. 
+         - apply (body_main M (ONEPILE M) (APILE M)).
+         - apply main_sub.
+         - LNR_tac.
        * apply tycontext_sub_i99. apply tc_VG.
    + apply MainE_vacuous.
 Qed.
@@ -210,12 +259,14 @@ Lemma prog_correct:
   exists G, 
  @semax_prog NullExtension.Espec LinkedCompSpecs linked_prog tt LinkedVprog G.
 Proof.
-  destruct SO_VSU as [G [Comp MAIN]]. exists G. 
+  destruct SO_VSU as [G Comp MAIN]. exists G. 
   assert (DomG: map fst G = map fst (prog_funct linked_prog)).
   { destruct Comp. unfold Comp_G in *. rewrite CC_canonical.
     cbv; reflexivity. }
   prove_linked_semax_prog.
   all: rewrite augment_funspecs_eq by trivial.
-  apply (@Canonical_semax_func _ _ _ _ _ _ _ Comp); cbv; reflexivity.
+  apply (@Canonical_semax_func _ _ _ _ _ _ _ _ Comp); cbv; reflexivity.
   destruct MAIN as [post [MainG MainExp]]. inv MainExp. rewrite MainG; eexists; reflexivity.
 Qed.
+
+Print Assumptions prog_correct.

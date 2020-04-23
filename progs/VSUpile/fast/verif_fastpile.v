@@ -175,7 +175,7 @@ forward_if True.
 Qed.
 
   Definition PileComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI pile_internal_specs.
+      nil pile_imported_specs prog Pile_ASI emp pile_internal_specs.
   Proof. 
     mkComponent.
     + solve_SF_internal body_surely_malloc.
@@ -186,11 +186,11 @@ Qed.
   Qed.
 
   Definition PileVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI.
+      nil pile_imported_specs prog Pile_ASI emp.
   Proof. eexists; apply PileComponent. Qed.
 
   Definition PilePrivateComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV) pile_internal_specs.
+      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV) emp pile_internal_specs.
   Proof. 
     mkComponent.
     + solve_SF_internal body_surely_malloc.
@@ -201,6 +201,6 @@ Qed.
   Qed.
 
 Definition PilePrivateVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV).
+      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV) emp.
   Proof. eexists; apply PileComponent. Qed.
 End Pile_VSU.

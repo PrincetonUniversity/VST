@@ -179,7 +179,7 @@ Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) (A:list (
   make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G A.
 
 Definition nofunc_tycontext (V: varspecs) (G: funspecs) : tycontext :=
-   make_tycontext nil nil nil Tvoid V G nil.
+   make_tycontext nil nil nil Ctypes.Tvoid V G nil.
 
 Ltac try_false :=
 try  solve[exists false; rewrite orb_false_r; eauto].

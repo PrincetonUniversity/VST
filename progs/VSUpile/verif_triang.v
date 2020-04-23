@@ -54,13 +54,13 @@ simpl. congruence.
 Qed.
 
   Definition TriangComponent: @Component NullExtension.Espec TriangVprog _ 
-      nil triang_imported_specs prog (TriangASI M) triang_internal_specs.
+      nil triang_imported_specs prog (TriangASI M) emp triang_internal_specs.
   Proof. 
     mkComponent. 
     + solve_SF_internal body_Triang_nth.
   Qed.
 
 Definition TriangVSU: @VSU NullExtension.Espec TriangVprog _ 
-      nil triang_imported_specs prog (TriangASI M).
+      nil triang_imported_specs prog (TriangASI M) emp.
   Proof. eexists; apply TriangComponent. Qed.
 End Triang_VSU.

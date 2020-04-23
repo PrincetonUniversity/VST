@@ -114,7 +114,7 @@ Qed.*)
   Definition MF_E : funspecs := MF_ASI.
 
   Definition MallocFreeComponent: @Component NullExtension.Espec MFVprog CompSpecs 
-      (*nil*)MF_E MF_imported_specs prog MF_ASI MF_internal_specs.
+      (*nil*)MF_E MF_imported_specs prog MF_ASI emp MF_internal_specs.
   Proof. 
     mkComponent. 
     - clear; solve_SF_external (@body_malloc NullExtension.Espec CompSpecs). 
@@ -127,7 +127,7 @@ Qed.*)
 Time  Qed. (*2.5s*)
 
 Definition MallocFreeVSU: @VSU NullExtension.Espec MFVprog CompSpecs 
-      (*nil*)MF_E MF_imported_specs prog MF_ASI.
+      (*nil*)MF_E MF_imported_specs prog MF_ASI emp.
   Proof. eexists; apply MallocFreeComponent. Qed.
 End MallocFree_VSU.
 

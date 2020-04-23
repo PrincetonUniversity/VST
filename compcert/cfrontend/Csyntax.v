@@ -41,7 +41,7 @@ Inductive expr : Type :=
                                            (**r binary arithmetic operation *)
   | Ecast (r: expr) (ty: type)                        (**r type cast [(ty)r] *)
   | Eseqand (r1 r2: expr) (ty: type)       (**r sequential "and" [r1 && r2] *)
-  | Eseqor (r1 r2: expr) (ty: type)        (**r sequential "or" [r1 && r2] *)
+  | Eseqor (r1 r2: expr) (ty: type)        (**r sequential "or" [r1 || r2] *)
   | Econdition (r1 r2 r3: expr) (ty: type)  (**r conditional [r1 ? r2 : r3] *)
   | Esizeof (ty': type) (ty: type)                      (**r size of a type *)
   | Ealignof (ty': type) (ty: type)        (**r natural alignment of a type *)
@@ -99,6 +99,18 @@ Definition Eindex (r1 r2: expr) (ty: type) :=
 Definition Epreincr (id: incr_or_decr) (l: expr) (ty: type) :=
   Eassignop (match id with Incr => Oadd | Decr => Osub end)
             l (Eval (Vint Int.one) type_int32s) (typeconv ty) ty.
+
+(** Selection is a conditional expression that always evaluates both arms
+  and can be implemented by "conditional move" instructions.
+  It is expressed as an invocation of a builtin function. *)
+
+Definition Eselection (r1 r2 r3: expr) (ty: type) :=
+  let t := typ_of_type ty in
+  let sg := mksignature (AST.Tint :: t :: t :: nil) t cc_default in
+  Ebuiltin (EF_builtin "__builtin_sel"%string sg)
+           (Tcons type_bool (Tcons ty (Tcons ty Tnil)))
+           (Econs r1 (Econs r2 (Econs r3 Enil)))
+           ty.
 
 (** Extract the type part of a type-annotated expression. *)
 

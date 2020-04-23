@@ -49,16 +49,16 @@ Proof.
       exact (X1 = [Vubyte (fst w)] /\ m0 = X3 /\ putchar_pre X3 w X2).
     + destruct X as (m0 & _ & w).
       exact (X1 = [] /\ m0 = X3 /\ getchar_pre X3 w X2).
-  - simpl; intros.
+  - simpl; intros ??? ot ???.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (putchar_post m0 X3 i w X2).
+      exact (ot <> AST.Tvoid /\ putchar_post m0 X3 i w X2).
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (getchar_post m0 X3 i w X2).
+      exact (ot <> AST.Tvoid /\ getchar_post m0 X3 i w X2).
   - intros; exact True.
 Defined.
 
@@ -116,7 +116,7 @@ Proof.
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
+      destruct H4 as (? & Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
@@ -126,7 +126,9 @@ Proof.
       * exists i.
         split3; simpl.
         -- split; auto.
-        -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
+        -- unfold_lift. split; auto. split; [|intro Hx; inv Hx].
+             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
+             destruct ot; try contradiction; reflexivity.
         -- unfold SEPx; simpl.
            rewrite seplog.sepcon_emp.
            unfold ITREE; exists x; split; [if_tac; auto|].
@@ -150,7 +152,7 @@ Proof.
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
+      destruct H4 as (? & Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
@@ -160,7 +162,9 @@ Proof.
       * exists i.
         split3; simpl.
         -- split; auto.
-        -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
+        -- unfold_lift. split; auto. split; [|intro Hx; inv Hx].
+             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
+             destruct ot; try contradiction; reflexivity.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
              unfold ITREE; exists x; split; [if_tac; auto|].
@@ -190,14 +194,14 @@ Proof.
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.
-    destruct Hpost; subst.
+    destruct Hpost as (? & ? & ?); subst.
     reflexivity.
   - if_tac in Hpre; [|contradiction].
     destruct w as (m0 & _ & w).
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.
-    destruct Hpost; subst.
+    destruct Hpost as (? & ? & ?); subst.
     reflexivity.
 Qed.
 
