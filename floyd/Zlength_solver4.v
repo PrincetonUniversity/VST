@@ -3,98 +3,65 @@ Require Export VST.floyd.Zlength_solver_base.
 Require Import Lia.
 Import ListNotations.
 
-(** list_solver3 is a solver using a database of the form
-  Zlength_db [Zlength al = n; Zlength bl = m; ...].
+(** list_solver2 is a solver using a database of the form
+  H ：Zlength_fact (Zlength al = n)
+  H2 ：Zlength_fact (Zlength bl = m)
+  ...
   And it stores the final simplified result, e.g.
   Zlength (map f (al ++ bl)) = Zlength al + Zlength bl).
  *)
 
-Inductive Zlength_db : list Prop -> Prop :=
-| Zlength_db_nil : Zlength_db nil
-| Zlength_db_cons : forall (P : Prop) tl,
-      P ->
-      Zlength_db tl ->
-      Zlength_db (P :: tl).
+Definition Zlength_fact P : Prop := P.
 
-Lemma In_Zlength_db : forall db_list A (l : list A) len,
-  Zlength_db db_list ->
-  In (Zlength l = len) db_list ->
-  Zlength l = len.
+Lemma Zlength_fact_intro : forall (P : Prop),
+  P -> Zlength_fact P.
 Proof.
-  intros.
-  induction db_list.
-  - inversion H0.
-  - inversion H0.
-    + inv H; auto.
-    + inv H; auto.
+  auto.
+Qed.
+
+Lemma Zlength_fact_elim : forall (P : Prop),
+  Zlength_fact P -> P.
+Proof.
+  auto.
 Qed.
 
 (** create a new database, do nothing if database already exists. *)
 Ltac init_Zlength_db :=
-  first [
-    lazymatch goal with
-    | _ : Zlength_db _ |- _ =>
-      idtac
-    end
-  | pose proof Zlength_db_nil
-  ].
+  idtac.
 
 (** remove the database, do nothing if database doesn't exist. *)
 Ltac clear_Zlength_db :=
-  lazymatch goal with
-  | db : Zlength_db _ |- _ =>
-    clear db
-  | _ =>
-    idtac
+  repeat lazymatch goal with
+  | f : Zlength_fact _ |- _ =>
+    clear f
   end.
 
 (** Add a new result to the databasem without checking for duplication. *)
 Ltac add_Zlength_res H :=
-  lazymatch type of H with Zlength ?l = ?len =>
-    lazymatch goal with db : Zlength_db _ |- _ =>
-      let new_db := fresh in
-      pose proof (Zlength_db_cons (Zlength l = len) _ H db) as new_db;
-      clear db;
-      rename new_db into db
-(*     | _ => fail 0 "xxx" *)
-    end
-(*     | _ => fail 0 "yyy" *)
-  end.
+  pose proof (Zlength_fact_intro _ H).
 
 (** Test whether l exists in the database.
  * Success without side effect if existing, fail otherwise. *)
 Ltac search_Zlength l :=
-  lazymatch goal with db : Zlength_db ?db_list |- _ =>
-    let rec search_aux db_list :=
-      lazymatch db_list with
-      | nil => fail 0 l "is not found in Zlength_db"
-      | (Zlength l = _) :: _ => idtac
-      | _ :: ?db_tl => search_aux db_tl
-      end
-    in
-    search_aux db_list
+  lazymatch goal with
+  | f : Zlength_fact (Zlength l = _) |- _ =>
+    idtac
   end.
-
-Hint Resolve in_eq in_cons : In.
 
 (* Arguments:
   l - the list to calculate length
   H - the name for result
 *)
 Ltac pose_Zlength l H :=
-  let In_solve :=
-    auto 1000 with nocore In; fail 0 l "is not found in database"
-  in
-  lazymatch goal with db : Zlength_db ?db_list |- _ =>
-    pose proof (In_Zlength_db _ _ l _ db ltac:(In_solve)) as H
+  lazymatch goal with
+  | f : Zlength_fact (Zlength l = _) |- _ =>
+    pose proof (Zlength_fact_elim _ f) as H
   end.
 
 Ltac get_Zlength l :=
-  let In_solve :=
-    auto 1000 with nocore In; fail 0 l "is not found in database"
-  in
-  lazymatch goal with db : Zlength_db ?db_list |- _ =>
-    constr:(In_Zlength_db _ _ l _ db ltac:(In_solve))
+  lazymatch goal with
+  | f : Zlength_fact (Zlength l = _) |- _ =>
+    constr:(Zlength_fact_elim _ f)
   end.
 
 Goal forall A (al bl cl : list A) n m,
@@ -210,6 +177,18 @@ Ltac calc_Zlength_default l :=
 Ltac calc_Zlength l ::=
   calc_Zlength_default l.
 
+Ltac Zlength_only :=
+  init_Zlength_db;
+  repeat match goal with
+  | |- context [Zlength ?l] =>
+    tryif is_var l then
+      fail
+    else
+      calc_Zlength l;
+      let H := get_Zlength l in
+      rewrite !H
+  end.
+
 Ltac Zlength_solve :=
   init_Zlength_db;
   repeat match goal with
@@ -251,39 +230,4 @@ Ltac Zlength_solve_cached2 :=
   end;
   lia.
 
-
-Goal forall A (al bl cl : list A) n m,
-  Zlength al = n -> Zlength bl = m -> Zlength cl = n + m ->
-  Zlength cl = Zlength (al ++ bl).
-Proof.
-  intros.
-  Zlength_solve_cached2.
-Abort.
-(* 
-Require VST.floyd.list_solver.
-Ltac list_form := list_solver.list_form.
-
-Example strcat_loop2 : forall n x ld ls,
-  Zlength ls + Zlength ld < n ->
-  0 <= x < Zlength ls ->
-  Zlength (map Vbyte (ld ++ sublist 0 x ls) ++
-   upd_Znth 0 (list_repeat (Z.to_nat (n - (Zlength ld + x))) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero]))))))
-  = Zlength (map Vbyte (ld ++ sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (Zlength ld + (x + 1)))) Vundef).
-Proof.
-  idtac "strcat_loop2".
-  intros.
-  list_form.
-  Time Zlength_solve.
-Time Qed.
-
-Example strcat_return_new : forall n (ld ls : list byte),
-  Zlength ld + Zlength ls < n ->
-  map Vbyte (ld ++ ls) ++
-  upd_Znth 0 (list_repeat (Z.to_nat (n - (Zlength ld + Zlength ls))) Vundef) (Vint (Int.repr (Byte.signed (Znth 0 [Byte.zero])))) =
-  map Vbyte ((ld ++ ls) ++ [Byte.zero]) ++ list_repeat (Z.to_nat (n - (Zlength ld + Zlength ls + 1))) Vundef.
-Proof.
-  intros.
-  list_form. apply Znth_eq_ext.
-  Time Zlength_solve.
-Abort. *)
 

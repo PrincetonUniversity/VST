@@ -1,5 +1,5 @@
 Require Export VST.floyd.list_solver.
-Require Export VST.floyd.Zlength_solver5.
+Require Export VST.floyd.Zlength_solver4.
 Require Import VST.floyd.base2.
 Require Import VST.floyd.reptype_lemmas.
 
@@ -7,7 +7,7 @@ Ltac list_solver.Zlength_solve ::= Zlength_solve.
 (* Ltac Zlength_simpl_conc ::= autorewrite with Zlength. *)
 (* Ltac Zlength_simpl_in H ::= autorewrite with Zlength in H. *)
 (* Ltac Zlength_simpl_all ::= autorewrite with Zlength in *. *)
-Ltac Zlength_simpl_conc ::= 
+Ltac Zlength_simpl_conc ::=
   repeat match goal with
   | |- context [@Zlength ?A _] =>
     lazymatch A with
@@ -44,7 +44,7 @@ Ltac Zlength_simpl_all ::=
   repeat match goal with
   | H : _ |- _ =>
     lazymatch type of H with
-    | Zlength_db _ => fail
+    | Zlength_fact _ => fail
     | _ =>
       match type of H with
       | context [Zlength ?l] =>
