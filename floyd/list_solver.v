@@ -31,7 +31,7 @@ Ltac Zlength_simpl_all := autorewrite with Zlength in *.
 
 Hint Rewrite Zrepeat_fold cons_Zrepeat_1_app : list_form_rewrite.
 Hint Rewrite app_nil_r app_nil_l : list_form_rewrite.
-Hint Rewrite upd_Znth_unfold using Zlength_solve : list_form_rewrite.
+(* Hint Rewrite upd_Znth_unfold using Zlength_solve : list_form_rewrite. *)
 
 Ltac list_form :=
   autorewrite with list_form_rewrite in *.
@@ -43,6 +43,7 @@ Hint Rewrite @Znth_list_repeat_inrange using Zlength_solve : Znth.
 Hint Rewrite @Znth_sublist using Zlength_solve : Znth.
 Hint Rewrite app_Znth1 app_Znth2 using Zlength_solve : Znth.
 Hint Rewrite Znth_Zrepeat using Zlength_solve : Znth.
+Hint Rewrite Znth_upd_Znth_same Znth_upd_Znth_diff using Zlength_solve : Znth.
 
 Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
 Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.
@@ -68,6 +69,11 @@ Ltac Znth_solve_rec :=
     pose (H := Z_lt_le_dec n (Zlength al));
     Zlength_simpl_in H; destruct H;
     Znth_solve_rec
+  | |- context [Znth ?n (upd_Znth ?i ?l ?x)] =>
+    let H := fresh in
+    pose (H := Z.eq_dec n i);
+    Zlength_simpl_in H; destruct H;
+    Znth_solve_rec
   end.
 
 Ltac Znth_solve :=
@@ -84,9 +90,19 @@ Ltac Znth_solve2 :=
           pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simpl_all; destruct H; Znth_solve2
     end
   | match goal with
+    | |- context [Znth ?n (upd_Znth ?i ?l ?x)] =>
+          let H := fresh in
+          pose (H := Z.eq_dec n i); Zlength_simpl_all; destruct H; Znth_solve2
+    end
+  | match goal with
     | H0 : context [ Znth ?n (?al ++ ?bl) ] |- _ =>
           let H := fresh in
           pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simpl_all; destruct H; Znth_solve2
+    end
+  | match goal with
+    | H0 : context [Znth ?n (upd_Znth ?i ?l ?x)] |- _ =>
+          let H := fresh in
+          pose (H := Z.eq_dec n i); Zlength_simpl_all; destruct H; Znth_solve2
     end
   ].
 
@@ -349,6 +365,17 @@ Proof.
   - specialize (H0 (i + Zlength al) ltac:(lia)). simpl in H0. autorewrite with Znth in H0. fassumption.
 Qed.
 
+Lemma range_uni_upd_Znth : forall {A : Type} {d : Inhabitant A} (lo hi i : Z) (al : list A) (x : A) (P : A -> Prop),
+  0 <= i < Zlength al ->
+  range_uni lo hi (upd_Znth i al x) P <->
+  range_uni lo hi (sublist 0 i al ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength al) al) P.
+Proof.
+  intros.
+  rewrite upd_Znth_unfold by Zlength_solve.
+  rewrite cons_Zrepeat_1_app, app_nil_r.
+  reflexivity.
+Qed.
+
 Lemma range_uni_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : Z) (l : list A) (P : A -> Prop),
   0 <= lo <= hi /\ hi <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l ->
   range_uni lo hi (sublist lo' hi' l) P ->
@@ -501,6 +528,18 @@ Proof.
   fapply H0. eq_solve.
 Qed.
 
+Lemma range_binA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+  (lo hi offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
+  0 <= i < Zlength l ->
+  range_bin lo hi offset (upd_Znth i l x)  l' P <->
+  range_bin lo hi offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+Proof.
+  intros.
+  rewrite upd_Znth_unfold by Zlength_solve.
+  rewrite cons_Zrepeat_1_app, app_nil_r.
+  reflexivity.
+Qed.
+
 Lemma range_binA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi lo' hi' offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo <= hi /\ hi <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l ->
@@ -565,6 +604,18 @@ Proof.
   intros *. do 3 rewrite range_bin_rangei_uniB. intros.
   apply rangei_uni_app in H0. 2 : assumption.
   fapply H0. eq_solve.
+Qed.
+
+Lemma range_binB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+  (lo hi offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
+  0 <= i < Zlength l' ->
+  range_bin lo hi offset l (upd_Znth i l' x)  P <->
+  range_bin lo hi offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+Proof.
+  intros.
+  rewrite upd_Znth_unfold by Zlength_solve.
+  rewrite cons_Zrepeat_1_app, app_nil_r.
+  reflexivity.
 Qed.
 
 Lemma range_binB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -686,6 +737,18 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
+Lemma range_triA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+  (x1 x2 y1 y2 offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
+  0 <= i < Zlength l ->
+  range_tri x1 x2 y1 y2 offset (upd_Znth i l x) l' P <->
+  range_tri x1 x2 y1 y2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+Proof.
+  intros.
+  rewrite upd_Znth_unfold by Zlength_solve.
+  rewrite cons_Zrepeat_1_app, app_nil_r.
+  reflexivity.
+Qed.
+
 Lemma range_triA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l ->
@@ -766,6 +829,18 @@ Proof.
   | apply extensionality; intros
   ].
   apply prop_ext. split; intros; apply H1; lia.
+Qed.
+
+Lemma range_triB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+  (x1 x2 y1 y2 offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
+  0 <= i < Zlength l' ->
+  range_tri x1 x2 y1 y2 offset l (upd_Znth i l' x)  P <->
+  range_tri x1 x2 y1 y2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+Proof.
+  intros.
+  rewrite upd_Znth_unfold by Zlength_solve.
+  rewrite cons_Zrepeat_1_app, app_nil_r.
+  reflexivity.
 Qed.
 
 Lemma range_triB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -982,6 +1057,15 @@ Proof.
   eapply range_uni_app; eauto.
 Qed.
 
+Lemma range_uni_upd_Znth : forall {A : Type} {d : Inhabitant A} (lo hi i : Z) (al : list A) (x : A) (P : A -> Prop),
+  0 <= i < Zlength al ->
+  range_uni lo hi (upd_Znth i al x) P ->
+  range_uni lo hi (sublist 0 i al ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength al) al) P.
+Proof.
+  intros.
+  eapply range_uni_upd_Znth; eauto.
+Qed.
+
 Lemma range_uni_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : Z) (l : list A) (P : A -> Prop),
   0 <= lo <= hi /\ hi <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l ->
   range_uni lo hi (sublist lo' hi' l) P ->
@@ -1040,6 +1124,16 @@ Lemma range_binA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : In
 Proof.
   intros.
   eapply range_binA_app; eauto.
+Qed.
+
+Lemma range_binA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+  (lo hi offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
+  0 <= i < Zlength l ->
+  range_bin lo hi offset (upd_Znth i l x)  l' P ->
+  range_bin lo hi offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+Proof.
+  intros.
+  eapply range_binA_upd_Znth; eauto.
 Qed.
 
 Lemma range_binA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -1101,6 +1195,16 @@ Lemma range_binB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : In
 Proof.
   intros.
   eapply range_binB_app; eauto.
+Qed.
+
+Lemma range_binB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+  (lo hi offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
+  0 <= i < Zlength l' ->
+  range_bin lo hi offset l (upd_Znth i l' x)  P <->
+  range_bin lo hi offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+Proof.
+  intros.
+  eapply range_binB_upd_Znth; eauto.
 Qed.
 
 Lemma range_binB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -1194,6 +1298,16 @@ Proof.
   eapply range_triA_app; eauto.
 Qed.
 
+Lemma range_triA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+  (x1 x2 y1 y2 offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
+  0 <= i < Zlength l ->
+  range_tri x1 x2 y1 y2 offset (upd_Znth i l x) l' P <->
+  range_tri x1 x2 y1 y2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+Proof.
+  intros.
+  eapply range_triA_upd_Znth; eauto.
+Qed.
+
 Lemma range_triA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l ->
@@ -1253,6 +1367,16 @@ Lemma range_triB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : In
 Proof.
   intros.
   eapply range_triB_app; eauto.
+Qed.
+
+Lemma range_triB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+  (x1 x2 y1 y2 offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
+  0 <= i < Zlength l' ->
+  range_tri x1 x2 y1 y2 offset l (upd_Znth i l' x)  P <->
+  range_tri x1 x2 y1 y2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+Proof.
+  intros.
+  eapply range_triB_upd_Znth; eauto.
 Qed.
 
 Lemma range_triB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -1340,6 +1464,8 @@ Ltac range_rewrite :=
       ]
     | Zrepeat ?x ?n =>
       apply_in_using_Zlength_solve range_uni_Zrepeat H
+    | upd_Znth _ _ _ =>
+      apply_in_using_Zlength_solve range_uni_upd_Znth H
     | sublist _ _ _ =>
       apply_in_using_Zlength_solve range_uni_sublist H
     | map _ _ =>
@@ -1356,6 +1482,8 @@ Ltac range_rewrite :=
         ]
       | Zrepeat ?x ?n =>
         apply_in_using_Zlength_solve range_binA_Zrepeat H
+      | upd_Znth _ _ _ =>
+        apply_in_using_Zlength_solve range_binA_upd_Znth H
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_binA_sublist H
       | map _ _ =>
@@ -1370,6 +1498,8 @@ Ltac range_rewrite :=
         ]
       | Zrepeat ?x ?n =>
         apply_in_using_Zlength_solve range_binB_Zrepeat H
+      | upd_Znth _ _ _ =>
+        apply_in_using_Zlength_solve range_binB_upd_Znth H
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_binB_sublist H
       | map _ _ =>
@@ -1387,6 +1517,8 @@ Ltac range_rewrite :=
         ]
       | Zrepeat ?x ?n =>
         apply_in_using_Zlength_solve range_triA_Zrepeat H
+      | upd_Znth _ _ _ =>
+        apply_in_using_Zlength_solve range_triA_upd_Znth H
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_triA_sublist H
       | map _ _ =>
@@ -1401,6 +1533,8 @@ Ltac range_rewrite :=
         ]
       | Zrepeat ?x ?n =>
         apply_in_using_Zlength_solve range_triB_Zrepeat H
+      | upd_Znth _ _ _ =>
+        apply_in_using_Zlength_solve range_triB_upd_Znth H
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_triB_sublist H
       | map _ _ =>
