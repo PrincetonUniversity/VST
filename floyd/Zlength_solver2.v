@@ -131,9 +131,9 @@ Proof.
   auto.
 Qed.
 
-Ltac calc_Zlength l := idtac.
+Ltac calc_Zlength_extra l := fail.
 
-Ltac calc_Zlength_default l :=
+Ltac calc_Zlength l :=
   first
   [ search_Zlength l
   | lazymatch l with
@@ -169,13 +169,11 @@ Ltac calc_Zlength_default l :=
         is_var l;
         add_Zlength_res (calc_Zlength_var _ l);
         pose proof (Zlength_nonneg l)
+      | calc_Zlength_extra l
       | fail "calc_Zlength does not support" l
       ]
     end
   ].
-
-Ltac calc_Zlength l ::=
-  calc_Zlength_default l.
 
 Ltac Zlength_only :=
   init_Zlength_db;
