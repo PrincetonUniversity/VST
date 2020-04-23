@@ -164,8 +164,9 @@ Proof.
   auto.
 Qed.
 
-Ltac calc_Zlength l :=
-(*   idtac l; *)
+Ltac calc_Zlength l := idtac.
+
+Ltac calc_Zlength_default l :=
   first
   [ search_Zlength l
   | lazymatch l with
@@ -204,9 +205,10 @@ Ltac calc_Zlength l :=
       | fail "calc_Zlength does not support" l
       ]
     end
-  ];
-(*   idtac "ok" l; *)
-  idtac.
+  ].
+
+Ltac calc_Zlength l ::=
+  calc_Zlength_default l.
 
 Ltac Zlength_solve :=
   init_Zlength_db;
