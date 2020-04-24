@@ -988,12 +988,58 @@ Qed.
 
 End Sorted.
 
+Lemma list_eq_range_bin : forall {A} {d : Inhabitant A} al bl,
+  al = bl ->
+  Zlength al = Zlength bl /\ range_bin 0 (Zlength al) 0 al bl eq.
+Proof.
+  intros. subst; unfold range_bin, rangei; intuition.
+Qed.
+
+Lemma range_uni_fold : forall {A} {d : Inhabitant A} lo hi al (P : A -> Prop),
+  (forall i, lo <= i < hi -> P (Znth i al)) = range_uni lo hi al P.
+Proof. auto. Qed.
+
+Lemma range_bin_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B},
+  forall lo hi offset al bl (P : A -> B -> Prop),
+  (forall i, lo <= i < hi -> P (Znth i al) (Znth (i + offset) bl)) = range_bin lo hi offset al bl P.
+Proof. auto. Qed.
+
+Lemma range_tri_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B},
+  forall x1 x2 y1 y2 offset al bl (P : A -> B -> Prop),
+  (forall i j, x1 <= i < x2 /\ y1 <= j < y2 /\ i <= j + offset -> P (Znth i al) (Znth j bl)) = range_tri x1 x2 y1 y2 offset al bl P.
+Proof. auto. Qed.
+
+Lemma Forall_Znth : forall {A} {d : Inhabitant A} l P,
+  Forall P l -> forall i, 0 <= i < Zlength l -> P (Znth i l).
+Proof.
+  intros *. intro.
+  induction l; intros.
+  + rewrite Zlength_nil in *; lia.
+  + inversion H. intros. destruct (Z.eq_dec 0 i).
+    - subst; rewrite Znth_0_cons; auto.
+    - rewrite Znth_pos_cons by Zlength_solve.
+      apply IHl; auto.
+      Zlength_simpl_all; lia.
+Qed.
+
 Ltac rewrite_In_Znth_iff :=
-  repeat match goal with
+  repeat lazymatch goal with
   | H : In ?x ?l |- _ =>
     rewrite In_Znth_iff in H;
     destruct H as [? []]
   end.
+
+Ltac rewrite_list_eq :=
+  repeat lazymatch goal with
+  | H : @eq (list ?A) ?al ?bl |- _ =>
+    rewrite list_eq_range_bin in H;
+    destruct H
+  end.
+
+Hint Rewrite Forall_Znth : list_prop_rewrite.
+Hint Rewrite range_uni_fold : list_prop_rewrite.
+Hint Rewrite range_bin_fold : list_prop_rewrite.
+Hint Rewrite range_tri_fold : list_prop_rewrite.
 
 Ltac range_form :=
   apply_in_hyps not_In_range_uni;
@@ -1005,7 +1051,8 @@ Ltac range_form :=
   apply_in_hyps eq_range_bin_reverse_left_offset;
   apply_in_hyps eq_range_bin_reverse_minus_offset;
   apply_in_hyps sorted_range_tri;
-  rewrite_In_Znth_iff.
+  rewrite_In_Znth_iff;
+  autorewrite with list_prop_rewrite in *.
 
 (**************** range tactics **************************)
 
