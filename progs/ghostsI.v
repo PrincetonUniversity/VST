@@ -11,6 +11,12 @@ Section ghost.
 
 Context {RA: Ghost}.
 
+Lemma own_alloc_strong : forall P (a : G) (pp : preds), ghost_seplog.pred_infinite P -> valid a ->
+  (emp |-- |==> EX g : own.gname, !!(P g) && own g a pp)%I.
+Proof.
+  exact own_alloc_strong.
+Qed.
+
 Lemma own_alloc : forall (a : G) (pp : preds), valid a -> (emp |-- |==> EX g : own.gname, own g a pp)%I.
 Proof.
   exact own_alloc.

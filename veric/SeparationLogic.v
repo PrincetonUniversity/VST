@@ -59,8 +59,14 @@ Qed.
 
 Ltac unseal_derives := rewrite derives_eq in *.
 
+
+
 Program Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
   { bupd := bupd; own := @own }.
+Next Obligation.
+Proof.
+  apply fresh_nat.
+Qed.
 Next Obligation.
 Proof.
   constructor; apply bupd_intro.
@@ -79,7 +85,7 @@ Proof.
 Qed.
 Next Obligation.
 Proof.
-  constructor; apply ghost_alloc; auto.
+  constructor; apply ghost_alloc_strong; auto.
 Qed.
 Next Obligation.
 Proof.
@@ -662,7 +668,7 @@ Definition stackframe_of {cs: compspecs} (f: Clight.function) : environ->mpred :
   fold_right sepcon emp (map (var_block Tsh) (fn_vars f)).
 
 Lemma  subst_derives {A}{NA: NatDed A}:
- forall a v (P Q: environ -> A), P |-- Q -> subst a v P |-- subst a v Q.
+ forall a v (P Q: environ -> A), (P |-- Q) -> subst a v P |-- subst a v Q.
 Proof.
 unfold subst, derives.
 simpl;
@@ -1477,7 +1483,7 @@ forall (Delta: tycontext) sh id P e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
+    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
        local (`(tc_val (typeof e1) v2)) &&
@@ -1492,7 +1498,7 @@ forall (Delta: tycontext) sh id P e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
+    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
        local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
@@ -1521,10 +1527,10 @@ Axiom semax_skip:
 Axiom semax_conseq:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta (P' : environ -> mpred) (R': ret_assert) P c (R: ret_assert) ,
-    local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|==> |> FF || P') ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|==> |> FF || RA_normal R) ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|==> |> FF || RA_break R) ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|==> |> FF || RA_continue R) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|==> |> FF || P')) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|==> |> FF || RA_normal R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|==> |> FF || RA_break R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|==> |> FF || RA_continue R)) ->
     (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (|==> |> FF || RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 

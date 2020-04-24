@@ -169,7 +169,7 @@ Proof.
   repeat intro; eauto 7.
 Qed.
 
-Lemma bupd_mono: forall P Q, P |-- Q -> bupd P |-- bupd Q.
+Lemma bupd_mono: forall P Q, (P |-- Q) -> bupd P |-- bupd Q.
 Proof.
   repeat intro.
   simpl in *.
@@ -247,7 +247,7 @@ Proof.
     repeat split; auto.
 Qed.
 
-Lemma subp_bupd: forall (G : pred nat) (P P' : pred rmap), G |-- P >=> P' ->
+Lemma subp_bupd: forall (G : pred nat) (P P' : pred rmap), (G |-- P >=> P') ->
     G |-- (bupd P >=> bupd P')%pred.
 Proof.
   repeat intro.
@@ -257,7 +257,7 @@ Proof.
   apply (H _ H0 x0 ltac:(omega) _ (necR_refl _)); auto.
 Qed.
 
-Lemma eqp_bupd: forall (G : pred nat) (P P' : pred rmap), G |-- P <=> P' ->
+Lemma eqp_bupd: forall (G : pred nat) (P P' : pred rmap), (G |-- P <=> P') ->
     G |-- (bupd P <=> bupd P').
 Proof.
   intros.
@@ -398,24 +398,72 @@ Proof.
       simpl; eauto.
 Qed.
 
-Lemma ghost_alloc: forall {RA: Ghost} a pp, ghost.valid a ->
-  emp |-- bupd (EX g: gname, own g a pp).
+Import ListNotations.
+Fixpoint uptoN (n : nat) : list nat :=
+  match n with
+  | O => []
+  | S n' => uptoN n' ++ [n']
+  end.
+
+Lemma In_uptoN : forall m n, (m < n)%nat -> In m (uptoN n).
+Proof.
+  induction n; intros; [omega | simpl].
+  rewrite in_app; destruct (lt_dec m n); auto.
+  right; simpl; omega.
+Qed.
+
+Lemma ghost_alloc_strong: forall {RA: Ghost} P a pp, pred_infinite P -> ghost.valid a ->
+  emp |-- bupd (EX g, !!(P g) && own g a pp).
 Proof.
   intros.
   eapply derives_trans; [apply Own_unit|].
   apply exp_left; intro g0.
   apply prop_andp_left; intro Hg0.
   eapply derives_trans.
-  - apply Own_update_ND with (B := fun b => exists g, b = singleton g (existT _ RA (exist _ _ H), pp)).
-    intros ? c [? J]; exists (singleton (length c) (existT _ RA (exist _ _ H), pp)).
+  - apply Own_update_ND with (B := fun b => exists g, P g /\ b = singleton g (existT _ RA (exist _ _ H0), pp)).
+    intros ? c [? J].
+    destruct (H (uptoN (length c))) as (g & ? & ?).
+    exists (singleton g (existT _ RA (exist _ _ H0), pp)).
     split; eauto.
     rewrite (identity_core Hg0), ghost_core in J; inv J; [|eexists; constructor].
     rewrite ghost_fmap_singleton; eexists; apply singleton_join_gen.
-    rewrite nth_overflow by auto; constructor.
+    rewrite nth_overflow; [constructor|].
+    destruct (lt_dec g (length x)); [|omega].
+    apply In_uptoN in l; contradiction.
   - apply bupd_mono, exp_left; intro g'.
-    apply prop_andp_left; intros [g]; subst.
+    apply prop_andp_left; intros (g & ? & ?); subst.
     apply exp_right with g.
+    apply prop_andp_right; auto.
     eapply exp_right; eauto.
+Qed.
+
+Lemma list_max : forall x (l : list nat), In x l -> (x <= fold_right max O l)%nat.
+Proof.
+  induction l; [contradiction | simpl; intros].
+  destruct H.
+  - subst.
+    apply Nat.le_max_l.
+  - etransitivity; [apply IHl; auto|].
+    apply Nat.le_max_r.
+Qed.
+
+Lemma fresh_nat: forall (l : list nat), exists n, ~In n l.
+Proof.
+  intros; exists (S (fold_right max O l)).
+  intros X%list_max; omega.
+Qed.
+
+Lemma ghost_alloc: forall {RA: Ghost} a pp, ghost.valid a ->
+  emp |-- bupd (EX g, own g a pp).
+Proof.
+  intros.
+  eapply derives_trans; [apply (ghost_alloc_strong (fun _ => True)); eauto|].
+  { intros ?.
+    destruct (fresh_nat l); eauto. }
+  apply bupd_mono.
+  apply exp_left; intros g.
+  apply exp_right with g.
+  apply andp_left2; auto.
 Qed.
 
 Lemma singleton_join: forall a b c k,
