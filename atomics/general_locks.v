@@ -22,6 +22,13 @@ Proof.
   apply (ghost_part_ref_join(P := discrete_PCM A)).
 Qed.
 
+Lemma public_agree : forall {A} g (a b: A),
+    my_half g a * public_half g b |-- !!(a = b).
+Proof.
+  intros. unfold my_half, public_half. sep_apply (ref_sub (P := discrete_PCM A)).
+  rewrite if_true; auto. entailer!.
+Qed.
+
 Lemma public_update : forall {A} g (a b a' : A),
   (my_half g a * public_half g b |-- !!(b = a) && |==> my_half g a' * public_half g a')%I.
 Proof.
