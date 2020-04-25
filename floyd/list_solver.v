@@ -3,8 +3,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.field_compat.
-Require Export VST.floyd.Zlength_solver.
-Require Import Lia.
+Require Export VST.floyd.Zlength_solver2.
 Import ListNotations.
 
 (** This file provides a almost-complete solver for list with concatenation.
@@ -22,14 +21,69 @@ Import ListNotations.
     upd_Znth. *)
 
 (* Require following tactics provided by Zlength_solver module. *)
-Ltac Zlength_solve := Zlength_solver.Zlength_solve.
+(*
+Ltac Zlength_solve := Zlength_solver2.Zlength_solve.
 Ltac Zlength_simpl_conc := autorewrite with Zlength.
 Ltac Zlength_simpl_in H := autorewrite with Zlength in H.
 Ltac Zlength_simpl_all := autorewrite with Zlength in *.
+ *)
+
+Ltac Zlength_solve := Zlength_solver2.Zlength_solve.
+
+Ltac Zlength_simpl_conc :=
+  repeat match goal with
+  | |- context [@Zlength ?A _] =>
+    lazymatch A with
+    | reptype _ =>
+      let A' := eval compute in A in
+      change A with A'
+    end
+  end;
+  init_Zlength_db;
+  repeat match goal with
+  | |- context [Zlength ?l] =>
+    tryif is_var l then
+      fail
+    else
+      calc_Zlength l;
+      let H := get_Zlength l in
+      rewrite !H
+  end.
+
+Ltac Zlength_simpl_in H :=
+  init_Zlength_db;
+  repeat match type of H with
+  | context [Zlength ?l] =>
+    tryif is_var l then
+      fail
+    else
+      calc_Zlength l;
+      let H1 := get_Zlength l in
+      rewrite !H1 in H
+  end.
+
+Ltac Zlength_simpl_all :=
+  Zlength_simpl_conc;
+  repeat match goal with
+  | H : _ |- _ =>
+    lazymatch type of H with
+    | Zlength_fact _ => fail
+    | _ =>
+      match type of H with
+      | context [Zlength ?l] =>
+        tryif is_var l then
+          fail
+        else
+          calc_Zlength l;
+          let H1 := get_Zlength l in
+          rewrite !H1 in H
+      end
+    end
+  end.
 
 (** * list_form *)
 
-Hint Rewrite Zrepeat_fold cons_Zrepeat_1_app : list_form_rewrite.
+Hint Rewrite list_repeat_Zrepeat cons_Zrepeat_1_app : list_form_rewrite.
 Hint Rewrite app_nil_r app_nil_l : list_form_rewrite.
 (* Hint Rewrite upd_Znth_unfold using Zlength_solve : list_form_rewrite. *)
 
@@ -41,7 +95,7 @@ Ltac list_form :=
 
 Hint Rewrite @Znth_list_repeat_inrange using Zlength_solve : Znth.
 Hint Rewrite @Znth_sublist using Zlength_solve : Znth.
-Hint Rewrite app_Znth1 app_Znth2 using Zlength_solve : Znth.
+Hint Rewrite Znth_app1 Znth_app2 using Zlength_solve : Znth.
 Hint Rewrite Znth_Zrepeat using Zlength_solve : Znth.
 Hint Rewrite Znth_upd_Znth_same Znth_upd_Znth_diff using Zlength_solve : Znth.
 
@@ -140,7 +194,7 @@ Proof.
   generalize dependent bl.
   generalize dependent n.
   induction al; intros; destruct bl as [ | b bl];
-    autorewrite with list_form_rewrite Zlength in *; try Zlength_solve;
+    autorewrite with list_form_rewrite in *; Zlength_simpl_all; try Zlength_solve;
     unfold data_subsume; intros.
   - (* al = [] /\ bl = [] *)
     entailer!.
@@ -155,7 +209,7 @@ Proof.
     + apply IHal; try Zlength_solve.
       intros. specialize (H1 (i+1) ltac:(Zlength_solve)).
       autorewrite with Znth in H1.
-      autorewrite with Zlength norm in H1.
+      Zlength_simpl_in H1.
       replace (i + 1 - 1) with i in H1 by lia.
       apply H1.
 Qed.
@@ -1010,16 +1064,21 @@ Lemma range_tri_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db : In
 Proof. auto. Qed.
 
 Lemma Forall_Znth : forall {A} {d : Inhabitant A} l P,
-  Forall P l -> forall i, 0 <= i < Zlength l -> P (Znth i l).
+  Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l).
 Proof.
-  intros *. intro.
-  induction l; intros.
+  intros *.
+  split; induction l; intros.
   + rewrite Zlength_nil in *; lia.
   + inversion H. intros. destruct (Z.eq_dec 0 i).
     - subst; rewrite Znth_0_cons; auto.
     - rewrite Znth_pos_cons by Zlength_solve.
       apply IHl; auto.
+      list_form.
       Zlength_simpl_all; lia.
+  + auto.
+  + constructor; only 2 : apply IHl; intros.
+    - fapply (H 0 ltac:(Zlength_solve)). Znth_solve.
+    - fapply (H (i+1) ltac:(Zlength_solve)). list_form; Znth_solve.
 Qed.
 
 Ltac rewrite_In_Znth_iff :=
@@ -1985,95 +2044,36 @@ Ltac list_solve_preprocess :=
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 
-Tactic Notation "list_solve!" :=
+Ltac Zlength_simplify :=
+  Zlength_simpl_all.
+
+Ltac Znth_simplify :=
+  Znth_solve2.
+
+Ltac list_solve :=
   list_solve_preprocess;
-  solve
-  [ Zlength_solve
-  | list_solve2
-  | list_prop_solve
-  ].
+  list_form; Zlength_simplify; try lia;
+  Znth_simplify; auto with Znth_solve_hint;
+  try fassumption;
+  Zlength_simplify; try lia;
+  try (
+    apply_list_ext; Znth_solve;
+    auto with Znth_solve_hint; try fassumption
+  );
+  try list_prop_solve;
+  fail "list_solve cannot solve the goal".
 
-
-(*************** list_deduce experiment *************)
-(* This experiment is replaced by Znth_solve *)
-(*
-Lemma sublist_Zrepeat : forall (A : Type) (lo hi n : Z) (x : A),
-  0 <= lo <= hi -> hi <= n ->
-  sublist lo hi (Zrepeat x n) = Zrepeat (hi - lo) x.
-Proof. intros. apply sublist_list_repeat; lia. Qed.
-
-Lemma map_Zrepeat : forall (A B : Type) (f : A -> B) (n : Z) (x : A),
-  map f (Zrepeat x n) = Zrepeat n (f x).
-Proof. intros. apply map_list_repeat. Qed.
-
-Hint Rewrite sublist_Zrepeat Znth_Zrepeat using Zlength_solve : sublist2.
-Hint Rewrite map_Zrepeat @map_sublist map_app : sublist2.
-Hint Rewrite sublist_app1 @sublist_app2 @sublist_app' using Zlength_solve : sublist2.
-Hint Rewrite app_nil_l app_nil_r : sublist2.
-Hint Rewrite <- app_assoc : sublist2.
-
-Ltac list_normalize :=
-  list_form; autorewrite with sublist2.
-
-Lemma list_split : forall (A : Type) (i : Z) (l : list A),
-  0 <= i <= Zlength l ->
-  l = sublist 0 i l ++ sublist i (Zlength l) l.
-Proof.
-  intros. rewrite <- sublist_same at 1 by auto. apply sublist_split; lia.
-Qed.
-
-Ltac list_deduce :=
-  lazymatch goal with
-  | |- @eq (list _) _ _ => idtac
-  | |- _ => fail "list_deduce can only solve list equations"
-  end;
-  let A :=
-    match goal with |- @eq (list ?A) _ _ => A end
-  in
-  lazymatch goal with
-  | |- (?l1 ++ ?l2) = ?r => idtac
-  | |- ?l = ?r =>
-    rewrite <- (app_nil_r l) at 1
-  end;
-  lazymatch goal with
-  | |- ?l = (?r1 ++ ?r2) => idtac
-  | |- ?l = ?r =>
-    symmetry; rewrite <- (app_nil_r r) at 1; symmetry
-  end;
-  let ltail := fresh in
-  let rtail := fresh in
-  lazymatch goal with
-  | |- (?l1 ++ ?l2) = (?r1 ++ ?r2) =>
-    pose (ltail := l2); pose (rtail := r2);
-    change (l1 ++ ltail = r1 ++ rtail);
-    let H := fresh in
-    first
-    [ assert (H : Zlength l1 = Zlength r1) by Zlength_solve
-    | assert (H : Zlength l1 <= Zlength r1) by Zlength_solve;
-      let left := fresh in
-      pose (left := l1);
-      change (left ++ ltail = r1 ++ rtail);
-      rewrite (list_split A (Zlength l1) r1) by Zlength_solve;
-      rewrite <- app_assoc;
-      subst left
-    | assert (H : Zlength l1 >= Zlength r1) by Zlength_solve;
-      let right := fresh in
-      pose (right := l1);
-      change (l1 ++ ltail = right ++ rtail);
-      rewrite (list_split A (Zlength r1) l1) by Zlength_solve;
-      rewrite <- app_assoc;
-      subst right
-    ];
-    clear H;
-    subst ltail rtail;
-    f_equal
-  end;
-  list_normalize.
-
-Hint Rewrite @sublist_sublist using Zlength_solve : sublist2.
-*)
-
-
-
+Ltac list_simplify :=
+  list_solve_preprocess;
+  list_form; Zlength_simplify; try lia;
+  Znth_simplify; auto with Znth_solve_hint;
+  try fassumption;
+  Zlength_simplify; try lia;
+  try (
+    apply_list_ext; Znth_solve;
+    auto with Znth_solve_hint; try fassumption
+  );
+  try list_prop_solve;
+  fail "list_solve cannot solve the goal".
 
 

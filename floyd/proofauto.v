@@ -173,7 +173,7 @@ Ltac step :=
   | deadvars!
   | solve [match goal with |- @derives mpred _ _ _ => cancel end]
   | solve [entailer!; try cstring']
-  | list_solve!
+  | list_solve
   ].
 
 Tactic Notation "step!"  :=
@@ -196,7 +196,7 @@ Tactic Notation "step!"  :=
   | deadvars!
   | progress_entailer
   (* | match goal with |- _ /\ _ => split end *)
-  | list_solve!
+  | list_solve
   ].
 
 Tactic Notation "info_step!" :=
@@ -220,7 +220,7 @@ Tactic Notation "info_step!" :=
   | deadvars!; idtac "deadvars!."
   | progress_entailer; idtac "progress_entailer."
   (* | match goal with |- _ /\ _ => split end; idtac "split." *)
-  | list_solve!; idtac "list_solve!."
+  | list_solve; idtac "list_solve."
   ].
 
 (* A better way to deal with sem_cast_i2bool *)
@@ -234,4 +234,3 @@ Hint Rewrite sem_cast_i2bool_of_bool : norm.
 Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
 Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
 
-Ltac list_solve ::= Zlength_solve.

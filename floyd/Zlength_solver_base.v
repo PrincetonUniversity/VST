@@ -98,7 +98,7 @@ Proof.
 Qed.
 
 (** * list_form *)
-Lemma Zrepeat_fold : forall (A : Type) (x : A) (n : Z),
+Lemma list_repeat_Zrepeat : forall (A : Type) (x : A) (n : Z),
   list_repeat (Z.to_nat n) x = Zrepeat x n.
 Proof. intros *. rewrite <- repeat_list_repeat. auto. Qed.
 
