@@ -150,7 +150,7 @@ forward. (* t = a[lo]; *)
   clear - H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map by list_solve.
+  rewrite Znth_map by old_list_solve.
   apply I.
 }
 forward.  (* s = a[hi-1]; *)
@@ -159,7 +159,7 @@ forward.  (* s = a[hi-1]; *)
   clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map by list_solve.
+  rewrite Znth_map by old_list_solve.
   apply I.
 }
 rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; omega).
@@ -177,7 +177,7 @@ forward. (* hi--; *)
  clear - H0 HRE H1.
  unfold Z.succ.
  rewrite <- flip_fact_3 by auto.
- rewrite <- (Znth_map (Zlength (map Vint contents)-j-1) Vint) by (autorewrite with sublist in *; list_solve).
+ rewrite <- (Znth_map (Zlength (map Vint contents)-j-1) Vint) by (autorewrite with sublist in *; old_list_solve).
  forget (map Vint contents) as al. clear contents.
  remember (Zlength al) as size.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
@@ -229,6 +229,23 @@ semax_func_cons body_main.
 Qed.
 
 Module Alternate.
+
+Lemma calc_Zlength_rev : forall A (l : list A) len,
+  Zlength l = len ->
+  Zlength (rev l) = len.
+Proof.
+  intros.
+  rewrite Zlength_rev.
+  auto.
+Qed.
+
+Ltac calc_Zlength_extra l ::=
+  lazymatch l with
+  | @rev ?A ?l =>
+    calc_Zlength l;
+    let H := get_Zlength l in
+    add_Zlength_res (calc_Zlength_rev A l _ H)
+  end.
 
 Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 Hint Rewrite Zlength_rev using Zlength_solve : Zlength.

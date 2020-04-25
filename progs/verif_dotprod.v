@@ -153,6 +153,26 @@ forward.
  entailer!.
 Qed.
 
+Lemma calc_Zlength_map2 : forall A B C (f : A -> B -> C) fy fz leny lenz,
+  Zlength fy = leny ->
+  Zlength fz = lenz ->
+  leny = lenz ->
+  Zlength (map2 f fy fz) = leny.
+Proof.
+  intros. rewrite Zlength_map2; lia.
+Qed.
+
+Ltac calc_Zlength_extra l ::=
+  lazymatch l with
+  | @map2 ?A ?B ?C ?f ?fy ?fz =>
+    calc_Zlength fy;
+    let Hy := get_Zlength fy in
+    calc_Zlength fz;
+    let Hz := get_Zlength fz in
+    let Z_solve := try lia; fail "cannot prove" fy "and" fz "have the same length" in
+    add_Zlength_res (calc_Zlength_map2 A B C f fy fz _ _ Hy Hz ltac:(Z_solve))
+  end.
+
 Lemma body_add:  semax_body Vprog Gprog f_add add_spec.
 Proof.
 start_function.
@@ -160,10 +180,10 @@ name i_ _i.
 name x_ _x.
 name y_ _y.
 name z_ _z.
-Hint Rewrite Zlength_map2 using Zlength_solve : Zlength.
+(* Hint Rewrite Zlength_map2 using Zlength_solve : Zlength. *)
 pose (fx := map2 Float.add fy fz).
 assert_PROP (Zlength fx = 3 /\ Zlength fy = 3 /\ Zlength fz = 3). {
-  entailer!. subst fx. list_solve2.
+  entailer!. subst fx. list_solve.
 } destruct H as [Hx [Hy Hz]].
 forward_for_simple_bound 3
    (EX i:Z,

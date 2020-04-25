@@ -163,10 +163,8 @@ Ltac calc_Zlength l :=
       calc_Zlength l;
       let H := get_Zlength l in
       let Z_solve :=
-        first[
-          lia
-        | fail 0 "cannot prove" lo hi "are in range for" l
-        ]
+        try lia;
+        fail 0 "cannot prove" lo hi "are in range for" l
       in
       add_Zlength_res (calc_Zlength_sublist A l _ lo hi H ltac:(Z_solve) ltac:(Z_solve))
     | @upd_Znth ?A ?i ?l ?x =>
@@ -178,67 +176,26 @@ Ltac calc_Zlength l :=
       let H := get_Zlength l in
       add_Zlength_res (calc_Zlength_map A B l _ f H)
     | _ =>
-      first [
-        is_var l;
-        add_Zlength_res (calc_Zlength_var _ l);
+      tryif first [
+        calc_Zlength_extra l
+      | add_Zlength_res (calc_Zlength_var _ l);
         pose proof (Zlength_nonneg l)
-      | calc_Zlength_extra l
-      | fail "calc_Zlength does not support" l
-      ]
+      ] then idtac
+      else
+        fail "calc_Zlength does not support" l
     end
   ].
-
-Ltac Zlength_only :=
-  init_Zlength_db;
-  repeat match goal with
-  | |- context [Zlength ?l] =>
-    tryif is_var l then
-      fail
-    else
-      calc_Zlength l;
-      let H := get_Zlength l in
-      rewrite !H
-  end.
 
 Ltac Zlength_solve :=
   init_Zlength_db;
   repeat match goal with
   | |- context [Zlength ?l] =>
-    tryif is_var l then
-      fail
-    else
+    progress (
       calc_Zlength l;
-      let H := get_Zlength l in
-      rewrite !H
+      try (
+        let H := get_Zlength l in
+        rewrite !H
+      )
+    )
   end;
   lia.
-
-Ltac Zlength_solve_cached :=
-  init_Zlength_db;
-  repeat match goal with
-  | |- context [Zlength ?l] =>
-    tryif is_var l then
-      fail
-    else
-      calc_Zlength l;
-      let H := get_Zlength l in
-      rewrite !H
-  end;
-  clear_Zlength_db;
-  lia.
-
-Ltac Zlength_solve_cached2 :=
-  repeat match goal with
-  | |- context [Zlength ?l] =>
-    tryif is_var l then
-      fail
-    else
-      init_Zlength_db;
-      calc_Zlength l;
-      let H := get_Zlength l in
-      rewrite !H;
-      clear_Zlength_db
-  end;
-  lia.
-
-

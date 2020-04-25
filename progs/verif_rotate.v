@@ -77,13 +77,13 @@ Proof.
   { forward_call (-1). inv H3. }
   { forward. entailer!. if_tac; auto. congruence. }
   freeze [0; 1] FR.
-  assert_PROP (n = Zlength s). { entailer!. list_solve2. }
+  assert_PROP (n = Zlength s). { entailer!. list_solve. }
   forward_for_simple_bound (n-k) (EX i : Z,
     PROP ( )
     LOCAL (temp _b b; temp _a a; temp _n (Vint (Int.repr n)); temp _k (Vint (Int.repr k)); gvars gv)
     SEP (FRZL FR; data_at Ews (tarray tint n) (map Vint (map Int.repr (sublist k (k+i) s)) ++ Zrepeat Vundef (n-i)) b; data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
   ).
-  { entailer!. rewrite data_at__tarray. list_solve2. }
+  { entailer!. rewrite data_at__tarray. list_solve. }
   { forward.
     forward.
     entailer!.
@@ -127,7 +127,7 @@ Time Qed.
 Lemma sorted_rotate_body : semax_body Vprog Gprog f_sorted_rotate sorted_rotate_spec.
 Proof.
   start_function.
-  assert_PROP (Zlength s = n). { entailer!. list_solve2. }
+  assert_PROP (Zlength s = n). { entailer!. list_solve. }
   remember (sublist 0 k s) as s1.
   remember (sublist k n s) as s2.
   assert (Zlength s1 = k) by (subst; list_solve2).

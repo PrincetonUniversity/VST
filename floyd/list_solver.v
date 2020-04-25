@@ -43,11 +43,12 @@ Ltac Zlength_simpl_conc :=
   repeat match goal with
   | |- context [Zlength ?l] =>
     tryif is_var l then
-      fail
-    else
+      progress calc_Zlength l
+    else (
       calc_Zlength l;
       let H := get_Zlength l in
       rewrite !H
+    )
   end.
 
 Ltac Zlength_simpl_in H :=
@@ -55,16 +56,25 @@ Ltac Zlength_simpl_in H :=
   repeat match type of H with
   | context [Zlength ?l] =>
     tryif is_var l then
-      fail
-    else
+      progress calc_Zlength l
+    else (
       calc_Zlength l;
       let H1 := get_Zlength l in
       rewrite !H1 in H
+    )
   end.
 
 Ltac Zlength_simpl_all :=
-  Zlength_simpl_conc;
+  init_Zlength_db;
   repeat match goal with
+  | |- context [Zlength ?l] =>
+    tryif is_var l then
+      progress calc_Zlength l
+    else (
+      calc_Zlength l;
+      let H := get_Zlength l in
+      rewrite !H
+    )
   | H : _ |- _ =>
     lazymatch type of H with
     | Zlength_fact _ => fail
@@ -72,11 +82,12 @@ Ltac Zlength_simpl_all :=
       match type of H with
       | context [Zlength ?l] =>
         tryif is_var l then
-          fail
-        else
+          progress calc_Zlength l
+        else (
           calc_Zlength l;
           let H1 := get_Zlength l in
           rewrite !H1 in H
+        )
       end
     end
   end.
@@ -214,16 +225,22 @@ Proof.
       apply H1.
 Qed.
 
+Ltac simpl_reptype :=
+  repeat lazymatch goal with
+  | |- context [reptype ?t] =>
+    let T' := eval compute in (reptype t) in
+    change (reptype t) with T' in *
+  | H : context [reptype ?t] |- _ =>
+    let T' := eval compute in (reptype t) in
+    change (reptype t) with T' in *
+  end.
+
 (* Tactic apply_list_ext applies the proper extensionality lemma and proves
   the lengths are the same and reduces the goal to relation between entries. *)
 Ltac apply_list_ext :=
   first
   [ apply data_subsume_array_ext;
-    match goal with
-    | |- context [reptype ?t] =>
-      let T' := eval compute in (reptype t) in
-      change (reptype t) with T'
-    end;
+    simpl_reptype;
     only 1, 2 : Zlength_solve
   | match goal with |- @eq ?list_A _ _ =>
       match eval compute in list_A with list ?A =>
@@ -2041,6 +2058,7 @@ Ltac list_solve_preprocess :=
   fold_Vbyte;
   autounfold with list_solve_unfold;
   simpl data_at;
+  simpl_reptype;
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 
