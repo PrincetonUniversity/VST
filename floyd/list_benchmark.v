@@ -188,7 +188,7 @@ Proof.
   { forward_call (-1). inv H3. }
   { forward. entailer!. if_tac; auto. congruence. }
   freeze [0; 1] FR.
-  assert_PROP (n = Zlength s). { entailer!. Time list_solve2. }
+  assert_PROP (n = Zlength s). { entailer!. Time list_solve. }
   forward_for_simple_bound (n-k) (EX i : Z,
     PROP ( )
     LOCAL (temp _b b; temp _a a; temp _n (Vint (Int.repr n)); temp _k (Vint (Int.repr k)); gvars gv)
@@ -239,7 +239,7 @@ Lemma sorted_rotate_body : semax_body Vprog Gprog f_sorted_rotate sorted_rotate_
 Proof.
   idtac "sorted_rotate_body".
   start_function.
-  assert_PROP (Zlength s = n). { entailer!. list_solve2. }
+  assert_PROP (Zlength s = n). { entailer!. list_solve. }
   remember (sublist 0 k s) as s1.
   remember (sublist k n s) as s2.
   assert (Zlength s1 = k) by (subst; list_solve2).
