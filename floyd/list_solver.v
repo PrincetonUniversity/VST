@@ -2094,4 +2094,5 @@ Ltac list_simplify :=
   try list_prop_solve;
   fail "list_solve cannot solve the goal".
 
+Arguments Zlength_fact {_}.
 
