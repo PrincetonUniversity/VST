@@ -3,7 +3,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.field_compat.
-Require Export VST.floyd.Zlength_solver2.
+Require Export VST.floyd.Zlength_solver.
 Import ListNotations.
 
 (** This file provides a almost-complete solver for list with concatenation.
@@ -28,7 +28,7 @@ Ltac Zlength_simpl_in H := autorewrite with Zlength in H.
 Ltac Zlength_simpl_all := autorewrite with Zlength in *.
  *)
 
-Ltac Zlength_solve := Zlength_solver2.Zlength_solve.
+Ltac Zlength_solve := Zlength_solver.Zlength_solve.
 
 Ltac Zlength_simpl_conc :=
   repeat match goal with
