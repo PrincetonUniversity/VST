@@ -146,8 +146,6 @@ Definition rotate_spec :=
      LOCAL()
      SEP (mem_mgr gv; (data_at sh (tarray tint n) (map Vint (map Int.repr (rotate s k))) a)).
 
-Arguments sorted {_ _}.
-
 Definition sorted_rotate (l : list Z) k N :=
   sublist k (Zlength l) l ++ map (Z.add N) (sublist 0 k l).
 

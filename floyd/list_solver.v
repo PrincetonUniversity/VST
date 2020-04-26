@@ -31,14 +31,6 @@ Ltac Zlength_simpl_all := autorewrite with Zlength in *.
 Ltac Zlength_solve := Zlength_solver.Zlength_solve.
 
 Ltac Zlength_simpl_conc :=
-  repeat match goal with
-  | |- context [@Zlength ?A _] =>
-    lazymatch A with
-    | reptype _ =>
-      let A' := eval compute in A in
-      change A with A'
-    end
-  end;
   init_Zlength_db;
   repeat match goal with
   | |- context [Zlength ?l] =>
@@ -1042,23 +1034,6 @@ Proof.
   - destruct H as [i []]. subst x. apply Znth_In. auto.
 Qed.
 
-Section Sorted.
-Variable A : Type.
-Variable d : Inhabitant A.
-Variable le : A -> A -> Prop.
-
-Definition sorted (l : list A) :=
-  forall i j, 0 <= i <= j /\ j < Zlength l -> le (Znth i l) (Znth j l).
-
-Lemma sorted_range_tri : forall l,
-  sorted l -> range_tri 0 (Zlength l) 0 (Zlength l) 0 l l le.
-Proof.
-  unfold range_tri, sorted. intros.
-  apply H; lia.
-Qed.
-
-End Sorted.
-
 Lemma list_eq_range_bin : forall {A} {d : Inhabitant A} al bl,
   al = bl ->
   Zlength al = Zlength bl /\ range_bin 0 (Zlength al) 0 al bl eq.
@@ -1098,6 +1073,47 @@ Proof.
     - fapply (H (i+1) ltac:(Zlength_solve)). list_form; Znth_solve.
 Qed.
 
+Require Import Coq.Sorting.Sorted.
+
+Section Sorted.
+Variable A : Type.
+Variable d : Inhabitant A.
+Variable le : A -> A -> Prop.
+Context {Hrefl : Relations_1.Reflexive A le}.
+Context {Htrans : Relations_1.Transitive le}.
+
+Definition sorted (l : list A) :=
+  forall i j, 0 <= i <= j /\ j < Zlength l -> le (Znth i l) (Znth j l).
+
+Lemma sorted_range_tri : forall l,
+  sorted l -> range_tri 0 (Zlength l) 0 (Zlength l) 0 l l le.
+Proof.
+  unfold range_tri, sorted. intros.
+  apply H; lia.
+Qed.
+
+Lemma Sorted_Znth : forall l,
+  Sorted le l <-> forall i j, 0 <= i <= j /\ j < Zlength l -> le (Znth i l) (Znth j l).
+Proof.
+  split.
+  1 : intros H; apply Sorted_StronglySorted in H; auto; revert H.
+  all : induction l; intros.
+  - Zlength_simpl_all. lia.
+  - inv H. destruct (Z.eq_dec i 0); list_form; Znth_solve.
+    + rewrite Forall_Znth in H4. apply H4; Zlength_solve.
+    + apply IHl; auto. Zlength_solve.
+  - auto.
+  - constructor.
+    + apply IHl. intros.
+      fapply (H (i+1) (j+1) ltac:(Zlength_solve)). list_form; Znth_solve.
+    + destruct l; constructor.
+      fapply (H 0 1 ltac:(Zlength_solve)). list_form; Znth_solve.
+Qed.
+
+End Sorted.
+
+Arguments sorted {_ _}.
+
 Ltac rewrite_In_Znth_iff :=
   repeat lazymatch goal with
   | H : In ?x ?l |- _ =>
@@ -1116,6 +1132,7 @@ Hint Rewrite Forall_Znth : list_prop_rewrite.
 Hint Rewrite range_uni_fold : list_prop_rewrite.
 Hint Rewrite range_bin_fold : list_prop_rewrite.
 Hint Rewrite range_tri_fold : list_prop_rewrite.
+Hint Rewrite Sorted_Znth : list_prop_rewrite.
 
 Ltac range_form :=
   apply_in_hyps not_In_range_uni;
