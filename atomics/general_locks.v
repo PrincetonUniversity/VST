@@ -98,7 +98,7 @@ Proof.
 Qed.
 
 Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g (x0 : C)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> |==> (EX x' : C, my_half g x' * public_half g x' -* |==> (EX y, b x y) * R')%I))%I),
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> |==> (EX x' : C, my_half g x' * public_half g x' -* |==> (EX y, b x y) * R'))%I)%I),
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g x0 * R |-- |==> Q * R')%I.
 Proof.
   intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => R')|].
@@ -106,7 +106,7 @@ Proof.
     iMod (Ha with "[$]") as (?) "[public a']".
     iPoseProof (ref_sub(P := discrete_PCM C) with "[$my $public]") as "%".
     rewrite eq_dec_refl in H0; subst.
-    iDestruct ("a'" with "[%]") as (x') "H"; first done.
+    iMod ("a'" with "[%]") as (x') "H"; first done.
     iDestruct (public_update with "[$my $public]") as "[% >[my public]]"; subst.
     rewrite exp_sepcon1; iApply ("H" with "[$my $public]").
   - iApply bupd_mono.
