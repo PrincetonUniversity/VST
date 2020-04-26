@@ -230,7 +230,7 @@ Qed.
 
 Module Alternate.
 
-Lemma calc_Zlength_rev : forall A (l : list A) len,
+(* Lemma calc_Zlength_rev : forall A (l : list A) len,
   Zlength l = len ->
   Zlength (rev l) = len.
 Proof.
@@ -245,10 +245,10 @@ Ltac calc_Zlength_extra l ::=
     calc_Zlength l;
     let H := get_Zlength l in
     add_Zlength_res (calc_Zlength_rev A l _ H)
-  end.
+  end. *)
 
-Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
+Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 Hint Unfold flip_ends : list_solve_unfold.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.

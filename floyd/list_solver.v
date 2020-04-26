@@ -20,70 +20,6 @@ Import ListNotations.
     cons
     upd_Znth. *)
 
-(* Require following tactics provided by Zlength_solver module. *)
-(*
-Ltac Zlength_solve := Zlength_solver2.Zlength_solve.
-Ltac Zlength_simpl_conc := autorewrite with Zlength.
-Ltac Zlength_simpl_in H := autorewrite with Zlength in H.
-Ltac Zlength_simpl_all := autorewrite with Zlength in *.
- *)
-
-Ltac Zlength_solve := Zlength_solver.Zlength_solve.
-
-Ltac Zlength_simpl_conc :=
-  init_Zlength_db;
-  repeat match goal with
-  | |- context [Zlength ?l] =>
-    tryif is_var l then
-      progress calc_Zlength l
-    else (
-      calc_Zlength l;
-      let H := get_Zlength l in
-      rewrite !H
-    )
-  end.
-
-Ltac Zlength_simpl_in H :=
-  init_Zlength_db;
-  repeat match type of H with
-  | context [Zlength ?l] =>
-    tryif is_var l then
-      progress calc_Zlength l
-    else (
-      calc_Zlength l;
-      let H1 := get_Zlength l in
-      rewrite !H1 in H
-    )
-  end.
-
-Ltac Zlength_simpl_all :=
-  init_Zlength_db;
-  repeat match goal with
-  | |- context [Zlength ?l] =>
-    tryif is_var l then
-      progress calc_Zlength l
-    else (
-      calc_Zlength l;
-      let H := get_Zlength l in
-      rewrite !H
-    )
-  | H : _ |- _ =>
-    lazymatch type of H with
-    | Zlength_fact _ => fail
-    | _ =>
-      match type of H with
-      | context [Zlength ?l] =>
-        tryif is_var l then
-          progress calc_Zlength l
-        else (
-          calc_Zlength l;
-          let H1 := get_Zlength l in
-          rewrite !H1 in H
-        )
-      end
-    end
-  end.
-
 (** * list_form *)
 
 Hint Rewrite list_repeat_Zrepeat cons_Zrepeat_1_app : list_form_rewrite.
@@ -118,48 +54,48 @@ Create HintDb Znth_solve_hint.
   the goal and branches when encountering an uncertain concatenation. *)
 Ltac Znth_solve_rec :=
   autorewrite with Znth;
-  Zlength_simpl_conc;
+  Zlength_simplify;
   auto with Znth_solve_hint;
   try match goal with
   | |- context [Znth ?n (app ?al ?bl)] =>
     let H := fresh in
     pose (H := Z_lt_le_dec n (Zlength al));
-    Zlength_simpl_in H; destruct H;
+    Zlength_simplify_in H; destruct H;
     Znth_solve_rec
   | |- context [Znth ?n (upd_Znth ?i ?l ?x)] =>
     let H := fresh in
     pose (H := Z.eq_dec n i);
-    Zlength_simpl_in H; destruct H;
+    Zlength_simplify_in H; destruct H;
     Znth_solve_rec
   end.
 
 Ltac Znth_solve :=
-  Zlength_simpl_all;
+  Zlength_simplify_in_all;
   Znth_solve_rec.
 
 (** Znth_solve2 is like Znth_solve, but it also branches concatenation in context. *)
 Ltac Znth_solve2 :=
-  Zlength_simpl_all; autorewrite with Znth in *; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
+  Zlength_simplify_in_all; autorewrite with Znth in *; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
   try first
   [ match goal with
     | |- context [ Znth ?n (?al ++ ?bl) ] =>
           let H := fresh in
-          pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simpl_all; destruct H; Znth_solve2
+          pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
   | match goal with
     | |- context [Znth ?n (upd_Znth ?i ?l ?x)] =>
           let H := fresh in
-          pose (H := Z.eq_dec n i); Zlength_simpl_all; destruct H; Znth_solve2
+          pose (H := Z.eq_dec n i); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
   | match goal with
     | H0 : context [ Znth ?n (?al ++ ?bl) ] |- _ =>
           let H := fresh in
-          pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simpl_all; destruct H; Znth_solve2
+          pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
   | match goal with
     | H0 : context [Znth ?n (upd_Znth ?i ?l ?x)] |- _ =>
           let H := fresh in
-          pose (H := Z.eq_dec n i); Zlength_simpl_all; destruct H; Znth_solve2
+          pose (H := Z.eq_dec n i); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
   ].
 
@@ -197,7 +133,7 @@ Proof.
   generalize dependent bl.
   generalize dependent n.
   induction al; intros; destruct bl as [ | b bl];
-    autorewrite with list_form_rewrite in *; Zlength_simpl_all; try Zlength_solve;
+    autorewrite with list_form_rewrite in *; Zlength_simplify_in_all; try Zlength_solve;
     unfold data_subsume; intros.
   - (* al = [] /\ bl = [] *)
     entailer!.
@@ -212,7 +148,7 @@ Proof.
     + apply IHal; try Zlength_solve.
       intros. specialize (H1 (i+1) ltac:(Zlength_solve)).
       autorewrite with Znth in H1.
-      Zlength_simpl_in H1.
+      Zlength_simplify_in H1.
       replace (i + 1 - 1) with i in H1 by lia.
       apply H1.
 Qed.
@@ -241,7 +177,7 @@ Ltac apply_list_ext :=
     end;
     only 1 : Zlength_solve
   ];
-  Zlength_simpl_conc;
+  Zlength_simplify;
   intros.
 
 (*************** fapply & fassumption *************)
@@ -286,7 +222,7 @@ Ltac list_solve2' :=
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros;
   try Zlength_solve;
-  list_form; Zlength_simpl_all; Znth_solve2;
+  list_form; Zlength_simplify_in_all; Znth_solve2;
   auto with Znth_solve_hint;
   first
   [ fassumption
@@ -1066,7 +1002,7 @@ Proof.
     - rewrite Znth_pos_cons by Zlength_solve.
       apply IHl; auto.
       list_form.
-      Zlength_simpl_all; lia.
+      Zlength_simplify_in_all; lia.
   + auto.
   + constructor; only 2 : apply IHl; intros.
     - fapply (H 0 ltac:(Zlength_solve)). Znth_solve.
@@ -1098,7 +1034,7 @@ Proof.
   split.
   1 : intros H; apply Sorted_StronglySorted in H; auto; revert H.
   all : induction l; intros.
-  - Zlength_simpl_all. lia.
+  - Zlength_simplify_in_all. lia.
   - inv H. destruct (Z.eq_dec i 0); list_form; Znth_solve.
     + rewrite Forall_Znth in H4. apply H4; Zlength_solve.
     + apply IHl; auto. Zlength_solve.
@@ -2080,7 +2016,7 @@ Ltac list_solve_preprocess :=
   intros.
 
 Ltac Zlength_simplify :=
-  Zlength_simpl_all.
+  Zlength_simplify_in_all.
 
 Ltac Znth_simplify :=
   Znth_solve2.

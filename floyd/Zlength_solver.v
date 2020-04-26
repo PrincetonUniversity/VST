@@ -223,9 +223,77 @@ Proof.
   auto.
 Qed.
 
+Ltac calc_Zlength := fail "defined later".
+
+Ltac Zlength_simplify :=
+  init_Zlength_db;
+  repeat match goal with
+  | |- context [Zlength ?l] =>
+    progress (
+      calc_Zlength l;
+      try progress (
+        let H := get_Zlength l in
+        rewrite !H
+      )
+    )
+  end.
+
+Ltac Zlength_simplify_in H :=
+  init_Zlength_db;
+  repeat match type of H with
+  | context [Zlength ?l] =>
+    progress (
+      calc_Zlength l;
+      try progress (
+        let H1 := get_Zlength l in
+        rewrite !H1 in H
+      )
+    )
+  end.
+
+Ltac Zlength_simplify_in_all :=
+  init_Zlength_db;
+  repeat match goal with
+  | |- context [Zlength ?l] =>
+    progress (
+      calc_Zlength l;
+      try progress (
+        let H := get_Zlength l in
+        rewrite !H
+      )
+    )
+  | H : _ |- _ =>
+    lazymatch type of H with
+    | Zlength_fact _ => fail
+    | _ =>
+      match type of H with
+      | context [Zlength ?l] =>
+        progress (
+          calc_Zlength l;
+          try progress (
+            let H1 := get_Zlength l in
+            rewrite !H1 in H
+          )
+        )
+      end
+    end
+  end.
+
+Ltac calc_Zlength_by_autorewrite l :=
+  let len_name := fresh "len" in
+  pose (Zlength l) as len_name;
+  let H := fresh in
+  eassert (len_name = Zlength l) as H by reflexivity;
+  progress autorewrite with Zlength in H;
+  Zlength_simplify_in H;
+  unfold len_name in H;
+  clear len_name;
+  add_Zlength_res H;
+  clear H.
+
 Ltac calc_Zlength_extra l := fail.
 
-Ltac calc_Zlength l :=
+Ltac calc_Zlength l ::=
   first
   [ search_Zlength l
   | lazymatch l with
@@ -261,6 +329,7 @@ Ltac calc_Zlength l :=
     | _ =>
       tryif first [
         calc_Zlength_extra l
+      | calc_Zlength_by_autorewrite l
       | add_Zlength_res (calc_Zlength_var _ l);
         pose proof (Zlength_nonneg l)
       ] then idtac
@@ -270,17 +339,7 @@ Ltac calc_Zlength l :=
   ].
 
 Ltac Zlength_solve :=
-  init_Zlength_db;
-  repeat match goal with
-  | |- context [Zlength ?l] =>
-    progress (
-      calc_Zlength l;
-      try (
-        let H := get_Zlength l in
-        rewrite !H
-      )
-    )
-  end;
+  Zlength_simplify;
   lia.
 
 
