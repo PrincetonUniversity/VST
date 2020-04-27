@@ -267,10 +267,10 @@ Lemma body_client: semax_body Vprog Gprog f_client client_spec.
 Proof.
 start_function.
 forward_call (n,gv).
-rep_omega.
+rep_lia.
 forward_call (n+1,gv).
-rep_omega.
-replace (n+1+1) with (n+2) by omega.
+rep_lia.
+replace (n+1+1) with (n+2) by lia.
 forward_call (n+2,gv).
 forward.
 Qed.
@@ -280,7 +280,7 @@ Proof.
 start_function.
 sep_apply (LG.initial gv); auto.
 forward_call (3,gv).
-rep_omega.
+rep_lia.
 forward.
 Qed.
 

@@ -45,13 +45,13 @@ start_function.
 (* First: some preliminary arithmetic assertions. *)
 assert (0 <= b <= b*b). {
    split; auto.
-   destruct (zeq b 0). subst. omega.
+   destruct (zeq b 0). subst. lia.
    rewrite <- Z.mul_1_l at 1.
-   apply Zmult_le_compat_r;  rep_omega.
+   apply Zmult_le_compat_r;  rep_lia.
 }
 assert (b*b <= (b+1)*(b+1) < Int.max_signed). {
   split; auto.
-  apply Z.square_le_mono_nonneg; omega.
+  apply Z.square_le_mono_nonneg; lia.
 }
 clear H H0.
 (* Next:  We have a for-loop here.  For ease of reasoning, let's convert it
@@ -112,45 +112,43 @@ eapply semax_while_peel.
  forward.
  forward.
  apply ENTAIL_refl.
- rewrite Z.mul_add_distr_r, Z.mul_add_distr_l in *; omega.
+ rewrite Z.mul_add_distr_r, Z.mul_add_distr_l in *; lia.
 -
  forward_while (EX i:Z, PROP (0 <= i <= b+1; b < (i+1)*(i+1))
              LOCAL(temp _i (Vint (Int.repr i)); temp _b (Vint (Int.repr b)); temp _a (Vint (Int.repr (i+1))))
              SEP()).
  *
   Exists b; entailer!.
-  split.
-  rewrite Z.mul_add_distr_r, Z.mul_add_distr_l in *; omega.
-  f_equal; f_equal; omega.
+  f_equal; f_equal; lia.
  *
    entailer!.
    split. 
-   pose proof (Z.square_nonneg i). rep_omega.
-   assert (i*i <= (b+1)*(b+1)) by (apply Z.square_le_mono_nonneg; omega).
-   omega.
+   pose proof (Z.square_nonneg i). rep_lia.
+   assert (i*i <= (b+1)*(b+1)) by (apply Z.square_le_mono_nonneg; lia).
+   lia.
  *
    forward.
    forward.
    Exists (i-1).
    entailer!.
-   rewrite Z.sub_add. split; auto. split; try omega.
-   destruct (zeq i 0); try omega. subst.
-   rewrite Int.signed_repr in HRE by rep_omega. omega.
+   rewrite Z.sub_add. split; auto. split; try lia.
+   destruct (zeq i 0); try lia. subst.
+   rewrite Int.signed_repr in HRE by rep_lia. lia.
    split; auto.
-   assert (i*i <= (b+1)*(b+1)) by (apply Z.square_le_mono_nonneg; omega).
+   assert (i*i <= (b+1)*(b+1)) by (apply Z.square_le_mono_nonneg; lia).
    pose proof (Z.square_nonneg i).
-   rewrite Int.signed_repr in HRE by rep_omega.
-   omega.
+   rewrite Int.signed_repr in HRE by rep_lia.
+   lia.
  *
    forward.
    Exists (i+1).
    entailer!.
    rewrite Z.add_simpl_r.
-   assert (i*i <= (b+1)*(b+1)) by (apply Z.square_le_mono_nonneg; omega).
+   assert (i*i <= (b+1)*(b+1)) by (apply Z.square_le_mono_nonneg; lia).
    pose proof (Z.square_nonneg i).
-   rewrite Int.signed_repr in HRE by rep_omega.
+   rewrite Int.signed_repr in HRE by rep_lia.
    rewrite Z.mul_add_distr_r, Z.mul_add_distr_l in *.
-   omega.
+   lia.
 -
 abbreviate_semax.
 Intros a.

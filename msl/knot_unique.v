@@ -165,7 +165,7 @@ rewrite fmap_comp.
 replace (gF_Z (fmap F (K2.approx n0 oo gZ_pred) Fp)) with
   ((fmap F fZ_pred oo fmap F (K2.approx n0 oo gZ_pred)) Fp) by trivial.
 rewrite fmap_comp.
-assert (n0 = 0) by omega.
+assert (n0 = 0) by lia.
 clear H; subst n0.
 symmetry in Hequnsq_k.
 rewrite predZ_iso1; trivial.
@@ -193,7 +193,7 @@ symmetry in Hequnsq_k.
 assert (n0 = 0).
 destruct (K2'.unsquash k); inv Hequnsq_k.
 simpl in H.
-omega.
+lia.
 subst n0.
 rewrite predZ_iso2; trivial.
 rewrite <- (K2L.unsquash_approx Hequnsq_k).
@@ -246,7 +246,7 @@ assert (K2'.approx n oo gZ_pred = gZ_pred).
 extensionality P1 k2.
 destruct k2.
 unfold gZ_pred, compose, K2'.approx; simpl.
-destruct (le_gt_dec n (level k)); auto.
+destruct (Compare_dec.le_gt_dec n (level k)); auto.
 congruence.
 Qed.
 
@@ -327,7 +327,7 @@ Proof.
 intros.
 extensionality p k.
 unfold k1_pred, compose, g_pred, f_pred in *.
-apply prop_ext; split; do 2 intro; spec H H0; rewrite iso1 in *; trivial; omega.
+apply prop_ext; split; do 2 intro; spec H H0; rewrite iso1 in *; trivial; lia.
 Qed.
 
 Lemma k2_pred_iso: K2.approx (n+1) oo k2_pred = K2.approx (n+1).
@@ -335,7 +335,7 @@ Proof.
 intros.
 extensionality p k.
 unfold k2_pred, compose, g_pred, f_pred in *.
-apply prop_ext; split; do 2 intro; spec H H0; rewrite iso2 in *; trivial; omega.
+apply prop_ext; split; do 2 intro; spec H H0; rewrite iso2 in *; trivial; lia.
 Qed.
 *)
 
@@ -377,9 +377,9 @@ unfold K2'.approx, map_pair, id; simpl.
 unfold K1'.approx; simpl.
 rewrite <- f_level.
 simpl.
-destruct (le_gt_dec m (level k)); auto.
+destruct (Compare_dec.le_gt_dec m (level k)); auto.
 rewrite iso1; auto.
-simpl; omega.
+simpl; lia.
 Qed.
 
 Lemma predn_iso2: forall m,
@@ -394,9 +394,9 @@ unfold K1'.approx, map_pair, id; simpl.
 unfold K2'.approx; simpl.
 rewrite <- g_level.
 simpl.
-destruct (le_gt_dec m (level k)); auto.
+destruct (Compare_dec.le_gt_dec m (level k)); auto.
 rewrite iso2; auto.
-simpl; omega.
+simpl; lia.
 Qed.
 
 (* Now we can prove that f_Sn and g_Sn preserve the isomorphism. *)
@@ -528,7 +528,7 @@ simpl in H.
 rewrite K2.knot_level in H.
 rewrite <- H0 in H.
 simpl in H.
-omega.
+lia.
 Qed.
 
 Lemma gn_squash : forall m F2,
@@ -590,9 +590,9 @@ remember (K2.unsquash k) as uk2.
 destruct uk2 as [m' F2].
 rewrite K1.unsquash_squash.
 simpl.
-destruct (le_gt_dec m m'); auto.
+destruct (Compare_dec.le_gt_dec m m'); auto.
 unfold id.
-rewrite <- gn_squash in *; [ | omega ].
+rewrite <- gn_squash in *; [ | lia ].
 rewrite Hequk2.
 rewrite K2.squash_unsquash; trivial.
 Qed.
@@ -609,7 +609,7 @@ simpl in H.
 rewrite K2.knot_level in H.
 rewrite <- Hequsqk in H.
 simpl in H.
-rewrite <- gn_squash; try omega.
+rewrite <- gn_squash; try lia.
 rewrite Hequsqk.
 rewrite K2.squash_unsquash.
 trivial.
@@ -661,7 +661,7 @@ remember (fg n) as fgn.
 destruct fgn as [fn gn].
 simpl in *.
 intros.
-rewrite (iso2_Sn fn gn n); trivial; try omega.
+rewrite (iso2_Sn fn gn n); trivial; try lia.
 intros.
 destruct n.
 unfold fg in Heqfgn.
@@ -687,7 +687,7 @@ remember (fg n) as fgn.
 destruct fgn as [fn gn].
 simpl in *.
 intros.
-rewrite (iso1_Sn fn gn n); trivial; try omega.
+rewrite (iso1_Sn fn gn n); trivial; try lia.
 intros.
 destruct n.
 unfold fg in Heqfgn.
@@ -719,7 +719,7 @@ simpl.
 simpl in H; rewrite K1.knot_level in H.
 rewrite <- H0 in H.
 simpl in H.
-assert (m = 0) by omega.
+assert (m = 0) by lia.
 subst m.
 clear H.
 symmetry in H0.
@@ -738,7 +738,7 @@ replace gn with (snd (fg n)) by (rewrite <- Heqfgn; trivial).
 generalize (fSn_unsquash (fst (fg n)) (snd (fg n)) n (gf_id n) (fg_id n) (fg_level_fst n) (fg_level_snd n)); intro.
 rewrite <- Heqfgn in H1.
 simpl in H1.
-replace (n + 1) with (S n) in H1 by omega.
+replace (n + 1) with (S n) in H1 by lia.
 specialize ( H1 IHn k H U1 H0).
 rewrite <- Heqfgn.
 simpl.
@@ -756,27 +756,27 @@ remember (level k2) as m.
 clear -H.
 induction n.
 inversion H.
-assert (m = n \/ m < n) by omega.
+assert (m = n \/ m < n) by lia.
 clear H.
 destruct H0.
 subst n.
 exists 1.
-omega.
+lia.
 destruct (IHn H) as [m0 ?].
 rewrite <- H0.
 exists (m0 + 1).
-omega.
+lia.
 destruct H0 as [m ?].
 clear H.
 revert m H0.
 induction n; intros.
-replace (level k2) with 0 by omega; trivial.
+replace (level k2) with 0 by lia; trivial.
 destruct m.
 replace (level k2 + 0) with (level k2) in H0 by trivial.
 rewrite H0.
 trivial.
 specialize ( IHn m).
-rewrite IHn; try omega.
+rewrite IHn; try lia.
 unfold fg; fold fg.
 remember (fg n) as fgn.
 destruct fgn as [fn gn].
@@ -786,7 +786,7 @@ rewrite <- Heqfgn in H.
 simpl in H.
 apply H.
 simpl in *.
-omega.
+lia.
 Qed.
 
 End FG.
@@ -811,7 +811,7 @@ unfold compose, f, g.
 rewrite <- fg_level_snd.
 remember (level k) as n.
 replace (fst (fg n) (snd (fg n) k)) with ((fst (fg n) oo snd (fg n)) k) by trivial.
-rewrite fg_id; trivial; omega.
+rewrite fg_id; trivial; lia.
 Qed.
 
 Lemma iso2 : g oo f = id K1.knot.
@@ -822,7 +822,7 @@ unfold compose, f, g.
 rewrite <- fg_level_fst.
 remember (level k) as n.
 replace (snd (fg n) (fst (fg n) k)) with ((snd (fg n) oo fst (fg n)) k) by trivial.
-rewrite gf_id; trivial; omega.
+rewrite gf_id; trivial; lia.
 Qed.
 
 Lemma fpred_gpred : f_pred' g oo g_pred' f = id (K2.predicate).
@@ -918,7 +918,7 @@ unfold map_pair; destruct k2; simpl.
 rewrite <- fg_level_snd.
 rewrite <- g_level.
 simpl.
-destruct (le_gt_dec n (level k)); auto.
+destruct (Compare_dec.le_gt_dec n (level k)); auto.
 unfold g.
 red in g0.
 rewrite (fg_fg_eq n k g0).

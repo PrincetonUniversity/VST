@@ -38,8 +38,8 @@ Proof.
 intros until i; intros H.
 revert i l H.
 induction i; destruct l; intros; simpl in *;
-  try solve [eauto|omegaContradiction].
-apply IHi; omega.
+  try solve [eauto|lia].
+apply IHi; lia.
 Qed.
 
 Lemma nth_eq_nth_error_eq: forall {A} (d: A) (l l': list A) i,
@@ -51,8 +51,8 @@ Proof.
 intros until i; intros H H0 H1.
 revert i l l' H H0 H1.
 induction i; destruct l; destruct l'; intros; simpl in *;
-  try solve [auto|omegaContradiction].
-rewrite (IHi l l'); try solve [auto|omega].
+  try solve [auto|lia].
+rewrite (IHi l l'); try solve [auto|lia].
 Qed.
 
 Lemma core_load_fun: forall ch m loc v1 v2,
@@ -89,13 +89,13 @@ rewrite H0 in H.
 clear H0.
 simpl in *.
 inversion H.
-replace (ofs + Z_of_nat i - ofs) with (Z_of_nat i) in * by omega.
+replace (ofs + Z_of_nat i - ofs) with (Z_of_nat i) in * by lia.
 rewrite nat_of_Z_eq in *.
 rewrite <- H3 in H1.
 apply nth_eq_nth_error_eq with (d := Undef); auto.
 destruct H5 as [? [H5 H5']].
 rewrite size_chunk_conv in H5'.
-omega.
+lia.
 * (* ~adr_range *)
 cut (i >= length bl)%nat. intro Hlen.
 cut (i >= length bl')%nat. intro Hlen'.
@@ -110,13 +110,13 @@ unfold adr_range in H5.
 rewrite size_chunk_conv in H5.
 rewrite <- H1 in H5.
 cut ( ~(O <= i < length bl))%nat.
-omega.
+lia.
 intro HContra.
 apply H5.
 split; auto.
 cut (0 <= Z_of_nat i < Z_of_nat (length bl)). intro H6.
-2: omega.
-omega.
+2: lia.
+lia.
 Qed.
 
 Lemma extensible_core_load': forall ch loc v
@@ -194,7 +194,7 @@ Proof.
 unfold adr_range; intros.
 destruct loc; destruct loc'; simpl in *.
 destruct H2; split; auto.
-omega.
+lia.
 Qed.
 
 Lemma adr_range_split_lem2: forall n m r loc loc',
@@ -204,7 +204,7 @@ Proof.
 unfold adr_range; intros.
 destruct loc; destruct loc'; simpl in *.
 destruct H2; split; auto.
-omega.
+lia.
 Qed.
 
 Lemma adr_range_split_lem3: forall n m r loc loc',
@@ -218,9 +218,9 @@ destruct loc; destruct loc'; simpl in *.
 intros [c1 c2].
 destruct (Z_lt_dec z0 (z+n)).
 apply H2.
-split; auto||omega.
+split; auto||lia.
 apply H3.
-split; auto||omega.
+split; auto||lia.
 Qed.
 
 Lemma prop_imp_i {A}{agA: ageable A}:

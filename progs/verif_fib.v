@@ -26,7 +26,7 @@ Theorem fib_rec: forall n, n >= 0 -> fib_of_Z (n + 2) = fib_of_Z n + fib_of_Z (n
 Proof.
   intros.
   unfold fib_of_Z.
-  rewrite !Z2Nat.inj_add, !(plus_comm (Z.to_nat n)) by omega.
+  rewrite !Z2Nat.inj_add, !(plus_comm (Z.to_nat n)) by lia.
   reflexivity.
 Qed.
 
@@ -36,23 +36,23 @@ Proof.
   unfold fib_of_Z.
   forget (Z.to_nat n) as m; clear.
   assert (0 <= fib_of_nat m /\ 0 <= fib_of_nat (S m)); [| tauto].
-  induction m; [simpl; try omega |].
+  induction m; [simpl; try lia |].
   
   destruct IHm.
   split; [auto |].
   change (fib_of_nat (S (S m))) with (fib_of_nat m + fib_of_nat (S m)).
-  omega.
+  lia.
 Qed.
 
 Lemma fib_ordered: forall n, 0 <= n -> fib_of_Z n <= fib_of_Z (n + 1).
 Proof.
   intros.
-  destruct (zeq n 0); [subst; simpl; rewrite fib_0, fib_1; omega |].
-  replace (n + 1) with (n - 1 + 2) by omega.
-  rewrite fib_rec by omega.
-  replace (n - 1 + 1) with n by omega.
+  destruct (zeq n 0); [subst; simpl; rewrite fib_0, fib_1; lia |].
+  replace (n + 1) with (n - 1 + 2) by lia.
+  rewrite fib_rec by lia.
+  replace (n - 1 + 1) with n by lia.
   pose proof fib_nonneg (n -1).
-  omega.
+  lia.
 Qed.
 
 Lemma fib_bound: forall n, 0 <= n < 46 -> 0 <= fib_of_Z n < Int.max_signed.
@@ -64,13 +64,13 @@ Proof.
   | |- fib_of_Z ?z = ?f0  -> fib_of_Z (?z + 1) = ?f1 -> forall n, ?z <= n < 46 -> _ =>
          let f2 := eval compute in (f0 + f1) in
          assert (fib_of_Z (z + 1) = f1 -> fib_of_Z (z + 2) = f2 -> forall n, z + 1 <= n < 46 ->0 <= fib_of_Z n < Int.max_signed); [
-           replace (z + 2) with (z + 1 + 1) by omega |
-           intros HH0 HH1; specialize (H HH1 ltac:(rewrite fib_rec by (simpl; omega); rewrite HH0, HH1; reflexivity));
-           intros; destruct (zeq z n); [subst n; rewrite HH0; rep_omega | apply H; omega] (*;
-           split; [apply fib_nonneg | specialize (H (n + 1) ltac:(omega)); pose proof fib_ordered n; omega]*)
+           replace (z + 2) with (z + 1 + 1) by lia |
+           intros HH0 HH1; specialize (H HH1 ltac:(rewrite fib_rec by (simpl; lia); rewrite HH0, HH1; reflexivity));
+           intros; destruct (zeq z n); [subst n; rewrite HH0; rep_lia | apply H; lia] (*;
+           split; [apply fib_nonneg | specialize (H (n + 1) ltac:(lia)); pose proof fib_ordered n; lia]*)
            ]
   end.
-  intros; simpl in *. omega.
+  intros; simpl in *. lia.
 Qed.
 
 Definition fib_spec fun_id :=
@@ -105,15 +105,15 @@ Proof.
             0 <= fib_of_Z (i + 1) < Int.max_signed /\
             0 <= fib_of_Z i + fib_of_Z (i + 1) < Int.max_signed) as [R0 [R1 R2]].
     {
-      rewrite <- fib_rec by omega.
-      split; [| split]; apply fib_bound; omega.
+      rewrite <- fib_rec by lia.
+      split; [| split]; apply fib_bound; lia.
     }
     forward. (* a2 = a0 + a1; *)
     forward. (* a0 = a1; *)
     forward. (* a1 = a2; *)
     entailer!.
-    rewrite <- fib_rec by omega.
-    do 3 f_equal; omega.
+    rewrite <- fib_rec by lia.
+    do 3 f_equal; lia.
   }
   forward. (* return a0; *)
 Qed.
@@ -126,22 +126,22 @@ Proof.
   forward_if.
   { forward. }
   forward_call (n - 2).
-    1: omega.
+    1: lia.
   forward_call (n - 1).
-    1: omega.
+    1: lia.
   assert (0 <= fib_of_Z (n - 2) < Int.max_signed /\
           0 <= fib_of_Z (n - 1) < Int.max_signed /\
           0 <= fib_of_Z (n - 2) + fib_of_Z (n - 1) < Int.max_signed) as [R0 [R1 R2]].
   {
-    replace (n - 1) with (n - 2 + 1) at 3 4 by omega.
-    rewrite <- fib_rec by omega.
-    split; [| split]; apply fib_bound; omega.
+    replace (n - 1) with (n - 2 + 1) at 3 4 by lia.
+    rewrite <- fib_rec by lia.
+    split; [| split]; apply fib_bound; lia.
   }
   forward.
   entailer!.
-  replace (n - 1) with (n - 2 + 1) by omega.
-  rewrite <- fib_rec by omega.
-  do 3 f_equal; omega.
+  replace (n - 1) with (n - 2 + 1) by lia.
+  rewrite <- fib_rec by lia.
+  do 3 f_equal; lia.
 Qed.
 
 Lemma body_fib_loop_save_var: semax_body Vprog Gprog f_fib_loop_save_var (fib_spec _fib_loop_save_var).
@@ -169,7 +169,7 @@ Proof.
     forward_if.
     2:{ (* Else branch *)
       forward. (* break; *)
-      assert (i = n) by omega.
+      assert (i = n) by lia.
       entailer!.
     }
     (* Then branch and other loop body *)
@@ -177,8 +177,8 @@ Proof.
             0 <= fib_of_Z (i + 1) < Int.max_signed /\
             0 <= fib_of_Z i + fib_of_Z (i + 1) < Int.max_signed) as [R0 [R1 R2]].
     {
-      rewrite <- fib_rec by omega.
-      split; [| split]; apply fib_bound; omega.
+      rewrite <- fib_rec by lia.
+      split; [| split]; apply fib_bound; lia.
     }
     forward. (* a1 = a0 + a1; *)
     forward. (* a0 = a1 - a0; *)
@@ -186,10 +186,10 @@ Proof.
     Exists (i + 1).
     entailer!.
     split3.
-    + rewrite <- fib_rec by omega.
-      do 3 f_equal; omega.
-    + do 2 f_equal; omega.
-    + do 2 f_equal; omega.
+    + rewrite <- fib_rec by lia.
+      do 3 f_equal; lia.
+    + do 2 f_equal; lia.
+    + do 2 f_equal; lia.
   }
   forward. (* return a0; *)
 Qed.

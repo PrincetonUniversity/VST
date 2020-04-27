@@ -343,7 +343,7 @@ specialize (H23 _ Hw').
 intros ts x rho y WY m YM M. 
 destruct (H23 ts x rho _ WY _ YM M) as [ts1 [x1 [F [A23 B23]]]]; clear H23. hnf in B23.
 destruct A23 as [m1 [m2 [JM [M1 M2]]]]; destruct (join_level _ _ _ JM) as [Lev_m1 Lev_m2].
-assert (Wm2: (level w' >= level m2)%nat) by (apply necR_level in YM; omega).
+assert (Wm2: (level w' >= level m2)%nat) by (apply necR_level in YM; lia).
 destruct (H12 ts1 x1 rho _ Wm2 _ (necR_refl _)) as [ts3 [x3 [G [A12 B12]]]]; clear H12.
 -
   split; trivial; apply M.
@@ -352,10 +352,10 @@ exists ts3, x3, (F * G); split.
 + rewrite sepcon_assoc. exists m1, m2; auto.
 + intros rho' k MK v KV [Z V]. rewrite sepcon_assoc in V.
   destruct V as [v1 [v2 [JV [V1 V2]]]]; destruct (join_level _ _ _ JV) as [Lev_v1 Lev_v2].
-  assert (M2v2: (level m2 >= level v2)%nat) by (apply necR_level in KV; omega).
+  assert (M2v2: (level m2 >= level v2)%nat) by (apply necR_level in KV; lia).
   specialize (B12 rho' _ M2v2 _ (necR_refl _)). spec B12.
   { split; trivial. }
-  assert (Mv: (level m >= level v)%nat) by (apply necR_level in KV; omega).
+  assert (Mv: (level m >= level v)%nat) by (apply necR_level in KV; lia).
   apply (B23 rho' _ Mv _ (necR_refl _)). split; [ trivial | exists v1, v2; auto].
 Qed.
 
@@ -509,15 +509,15 @@ Proof.
     exists y, z; split; auto.
     split; split; auto.
     - apply age_sepalg.join_level in H0.
-      omega.
+      lia.
     - apply age_sepalg.join_level in H0.
-      omega.
+      lia.
   + intros w ?.
     simpl in *.
     destruct H as [y [z [? [[? ?] [? ?]]]]].
     split.
     - apply age_sepalg.join_level in H.
-      omega.
+      lia.
     - exists y, z.
       split; [| split]; auto.
 Qed.
@@ -601,14 +601,14 @@ Proof.
     exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. } 
     intros rho' y UY k YK K; hnf; intros. rewrite emp_sepcon in K. simpl in K.
     apply necR_level in necU.  apply necR_level in YK.
-    split; [ | apply K]. apply laterR_level in Hw'.  omega. 
+    split; [ | apply K]. apply laterR_level in Hw'.  lia. 
   + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
     eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
     intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
     exists ts2, a, emp. rewrite emp_sepcon; split. 
     - apply necR_level in necU. apply approx_lt; trivial.
-       apply laterR_level in Hw'. omega.
+       apply laterR_level in Hw'. lia.
     - intros rho' k UP j KJ J.
       rewrite emp_sepcon in J. simpl in J. apply J.
 Qed. 
@@ -900,13 +900,13 @@ Proof.
   if_tac in BI; [ inv BI | discriminate]; split; trivial.
 Qed.
  
-Lemma binaryintersection_sub phi psi omega:
-  binary_intersection phi psi = Some omega ->
-  funspec_sub omega phi /\  funspec_sub omega psi.
+Lemma binaryintersection_sub phi psi lia:
+  binary_intersection phi psi = Some lia ->
+  funspec_sub lia phi /\  funspec_sub lia psi.
 Proof.
   destruct phi as [f1 c1 A1 P1 Q1 P1_ne Q1_ne].
   destruct psi as [f2 c2 A2 P2 Q2 P2_ne Q2_ne].
-  destruct omega as [f c A P Q P_ne Q_ne]. intros.
+  destruct lia as [f c A P Q P_ne Q_ne]. intros.
   simpl in H.
   destruct (eq_dec f1 f2); [ subst f2 | inv H]. 
   destruct (eq_dec c1 c2); inv H.
@@ -927,14 +927,14 @@ Proof.
     simpl. intros rho'; rewrite emp_sepcon. apply andp_left2; trivial.
 Qed.    
 
-Lemma BINARY_intersection_sub3  phi psi omega:
-  binary_intersection phi psi = Some omega ->
-  forall xi, funspec_sub xi phi -> funspec_sub xi psi -> funspec_sub xi omega.
+Lemma BINARY_intersection_sub3  phi psi lia:
+  binary_intersection phi psi = Some lia ->
+  forall xi, funspec_sub xi phi -> funspec_sub xi psi -> funspec_sub xi lia.
 Proof.
   intros. 
   destruct phi as [f1 c1 A1 P1 Q1 P1_ne Q1_ne].
   destruct psi as [f2 c2 A2 P2 Q2 P2_ne Q2_ne].
-  destruct omega as [f c A P Q P_ne Q_ne].
+  destruct lia as [f c A P Q P_ne Q_ne].
   simpl in H.
   destruct (eq_dec f1 f2); [ subst f2 | inv H]. 
   destruct (eq_dec c1 c2); inv H.
@@ -1034,9 +1034,9 @@ Defined.
 
 Lemma generalintersection_sub {I sig cc} (phi: I -> funspec) 
            (Hsig: forall i, typesig_of_funspec (phi i) = sig)
-           (Hcc: forall i, callingconvention_of_funspec (phi i) = cc) omega:
-  general_intersection phi Hsig Hcc = omega ->
-  forall i,  funspec_sub omega (phi i).
+           (Hcc: forall i, callingconvention_of_funspec (phi i) = cc) lia:
+  general_intersection phi Hsig Hcc = lia ->
+  forall i,  funspec_sub lia (phi i).
 Proof.
   intros; subst. hnf. simpl typesig_of_funspec in *.
   specialize (Hsig i); specialize (Hcc i); subst.
@@ -1064,9 +1064,9 @@ Qed.
 Lemma generalintersection_sub3  {I sig cc}
       (INH: inhabited I) (phi: I -> funspec) 
            (Hsig: forall i, typesig_of_funspec (phi i) = sig)
-           (Hcc: forall i, callingconvention_of_funspec (phi i) = cc) omega:
-  general_intersection phi Hsig Hcc = omega ->
-  forall xi, (forall i, funspec_sub xi (phi i)) -> funspec_sub xi omega.
+           (Hcc: forall i, callingconvention_of_funspec (phi i) = cc) lia:
+  general_intersection phi Hsig Hcc = lia ->
+  forall xi, (forall i, funspec_sub xi (phi i)) -> funspec_sub xi lia.
 Proof.
   intros. subst. inv INH; rename X into i.
   unfold general_intersection. 

@@ -207,7 +207,7 @@ clear - H.
 destruct p; try contradiction.
 destruct H as [AL SZ].
 repeat split; auto.
-simpl in *; omega.
+simpl in *; lia.
 eapply align_compatible_rec_Tstruct; [reflexivity |].
 simpl co_members; intros.
 simpl in H.

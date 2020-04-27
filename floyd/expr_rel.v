@@ -109,7 +109,7 @@ first [
  | simple eapply rel_lvalue_field_struct; [ reflexivity | reflexivity | rel_expr ]
  | simple eapply rel_expr_lvalue_By_value; [ reflexivity | rel_expr | rewrite_eval_id; cancel | ]
  | simple eapply rel_expr_lvalue_By_reference; [ reflexivity | rel_expr ]
-(* | match goal with |- in_range _ _ _ => hnf; omega end *)
+(* | match goal with |- in_range _ _ _ => hnf; lia end *)
  | idtac
  ].
 
@@ -123,7 +123,7 @@ Ltac forward_nl :=
        [ reflexivity | apply Coq.Init.Logic.I | reflexivity | reflexivity| reflexivity
        | entailer; repeat instantiate_Vptr; repeat apply andp_right;
                rel_expr
-       | try solve_nth_error | auto | auto | hnf; try omega ]
+       | try solve_nth_error | auto | auto | hnf; try lia ]
     | unfold replace_nth; simpl valinject; abbreviate_semax ]
 
  | 
@@ -132,7 +132,7 @@ Ltac forward_nl :=
        [ reflexivity | apply Coq.Init.Logic.I | reflexivity | reflexivity| reflexivity
        | entailer; repeat instantiate_Vptr; repeat apply andp_right;
                rel_expr
-       | try solve_nth_error | auto | auto | hnf; try omega ]
+       | try solve_nth_error | auto | auto | hnf; try lia ]
     |  ]
  | 
     simple eapply semax_seq';

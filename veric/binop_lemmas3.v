@@ -81,7 +81,7 @@ pose proof (Int.unsigned_range i).
 destruct H; split; auto.
 assert (Int.modulus < Int64.max_unsigned).
 compute; auto.
-omega.
+lia.
 Qed.
 
 Lemma denote_tc_nodivover_e64_li:
@@ -122,7 +122,7 @@ eapply Z.le_trans; try eassumption.
 compute. congruence.
 assert (Int.modulus < Int64.max_signed).
 compute. auto.
-omega.
+lia.
 Qed.
 
 Lemma Int64_eq_repr_signed32_nonzero:
@@ -200,7 +200,7 @@ destruct H1.
 split; auto.
 unfold Int64.max_unsigned.
 apply Z.le_trans with Int.modulus.
-omega.
+lia.
 compute; congruence.
 Qed.
 
@@ -227,7 +227,7 @@ destruct H1.
 split; auto.
 unfold Int64.max_unsigned.
 apply Z.le_trans with Int.modulus.
-omega.
+lia.
 compute; congruence.
 Qed.
 *)
@@ -284,11 +284,11 @@ intros.
 change (Int.signed Int.one) with 1.
 change Byte.min_signed with (-128).
 change Byte.max_signed with 127.
-clear. omega.
+clear. lia.
 clear.
 simpl. 
 change (Int.signed Int.one) with 1.
-omega.
+lia.
 Qed.
 
 Lemma int_type_tc_val_Vfalse:
@@ -300,8 +300,8 @@ intros.
 change (Int.signed Int.zero) with 0.
 change Byte.min_signed with (-128).
 change Byte.max_signed with 127.
-clear. omega.
-clear. simpl. omega.
+clear. lia.
+clear. simpl. lia.
 Qed.
 
 
@@ -319,7 +319,7 @@ change (Int.unsigned Int.zero) with 0;
 change Byte.min_signed with (-128);
 change Byte.max_signed with 127;
 change Byte.max_unsigned with 255;
-try omega.
+try lia.
 Qed.
 
 Lemma Ptrofs_to_of64_lemma:
@@ -376,8 +376,8 @@ Proof.
   rewrite Z.eqb_neq in H.
   pose proof sizeof_pos t.
   rewrite <- Zle_is_le_bool in H0.
-  destruct (zlt 0 (sizeof t)); [| omega].
-  destruct (zle (sizeof t) max); [| omega]. 
+  destruct (zlt 0 (sizeof t)); [| lia].
+  destruct (zle (sizeof t) max); [| lia]. 
   reflexivity.
 Qed.
 

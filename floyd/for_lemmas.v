@@ -64,16 +64,16 @@ Proof.
   destruct (int_max_lo <? Z.min int_max_i int_max_hi) eqn:?H, (int_min_hi >? Z.max (Z.max int_min_lo int_min_i) int_min_hi) eqn:?H.
   + rewrite Z.ltb_lt in H5.
     rewrite Z.gtb_lt in H6.
-    omega.
+    lia.
   + rewrite Z.ltb_lt in H5.
     rewrite <- not_true_iff_false, Z.gtb_lt in H6.
-    omega.
+    lia.
   + rewrite <- not_true_iff_false, Z.ltb_lt in H5.
     rewrite Z.gtb_lt in H6.
-    omega.
+    lia.
   + rewrite <- not_true_iff_false, Z.ltb_lt in H5.
     rewrite <- not_true_iff_false, Z.gtb_lt in H6.
-    omega.
+    lia.
 Qed.
 *)
 Inductive range_init_h (type_i type_hi: type): Z -> (Z -> Prop) -> Prop :=
@@ -321,7 +321,7 @@ Proof.
       eapply semax_post'; [| clear H0].
       {
         apply andp_left2, (exp_right m).
-        apply andp_right; [apply prop_right; omega |].
+        apply andp_right; [apply prop_right; lia |].
         apply derives_refl', H0.
       }
       eapply semax_pre_post'; [| | apply semax_set_forward].
@@ -360,14 +360,14 @@ Proof.
     - exists int_min, int_max.
       split; auto.
       split; [destruct type_i as [| [| | |] | | | | | | | ]; inv H8; auto |].
-      split; omega.
+      split; lia.
   + inv H3.
     split.
     - auto.
     - exists m, int_max.
       split; auto.
       split; [destruct type_i as [| [| | |] | | | | | | | ]; inv H; auto |].
-      omega.
+      lia.
 Qed.
 
 Lemma typed_false_tint_e:
@@ -473,8 +473,8 @@ Proof.
   unfold Int.lt.
   unfold both_int. simpl. unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast.
   destruct Archi.ptr64 eqn:Hp; simpl;
-  rewrite !Int.signed_repr by (destruct i_hi, s_hi; rep_omega);
-  (if_tac; [split; [intro HH; inv HH | intros; omega] |  split; auto]).
+  rewrite !Int.signed_repr by (destruct i_hi, s_hi; rep_lia);
+  (if_tac; [split; [intro HH; inv HH | intros; lia] |  split; auto]).
 Qed.
 
 Lemma Sfor_comparison_Unsigned_I32: forall i n',
@@ -499,8 +499,8 @@ Proof.
   unfold both_int. simpl. unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast.
   destruct Archi.ptr64 eqn:Hp; simpl;
   rewrite !Int.unsigned_repr
-    by (destruct H as [? | [? [? ?]]]; subst; inv IMM; rep_omega);
-  (if_tac; [split; [intro HH; inv HH | intros; omega] |  split; auto]).
+    by (destruct H as [? | [? [? ?]]]; subst; inv IMM; rep_lia);
+  (if_tac; [split; [intro HH; inv HH | intros; lia] |  split; auto]).
 Qed.
 
 Lemma Sfor_comparison_Signed_I64: forall i n',
@@ -528,12 +528,12 @@ Proof.
   2: {
     unfold cast_int_long.
     destruct s_i; inv IMM.
-    + rewrite Int.signed_repr by omega; auto.
-    + rewrite Int.unsigned_repr by omega; auto.
+    + rewrite Int.signed_repr by lia; auto.
+    + rewrite Int.unsigned_repr by lia; auto.
   }
   destruct Archi.ptr64 eqn:Hp; simpl;
-  rewrite !Int64.signed_repr by (destruct s_i; inv IMM; rep_omega);
-  (if_tac; [split; [intro HH; inv HH | intros; omega] | split; auto]).
+  rewrite !Int64.signed_repr by (destruct s_i; inv IMM; rep_lia);
+  (if_tac; [split; [intro HH; inv HH | intros; lia] | split; auto]).
 Qed.
 
 Lemma Sfor_comparison_Unsigned_I64: forall i n',
@@ -558,12 +558,12 @@ Proof.
   2: {
     unfold cast_int_long.
     destruct s_i; inv IMM.
-    + rewrite Int.signed_repr by rep_omega; auto.
-    + rewrite Int.unsigned_repr by omega; auto.
+    + rewrite Int.signed_repr by rep_lia; auto.
+    + rewrite Int.unsigned_repr by lia; auto.
   }
   destruct Archi.ptr64 eqn:Hp; simpl;
-  rewrite !Int64.unsigned_repr by (destruct s_i; inv IMM; rep_omega);
-  (if_tac; [split; [intro HH; inv HH | intros; omega] | split; auto]).
+  rewrite !Int64.unsigned_repr by (destruct s_i; inv IMM; rep_lia);
+  (if_tac; [split; [intro HH; inv HH | intros; lia] | split; auto]).
 Qed.
 
 Lemma Sfor_loop_cond_true:
@@ -594,22 +594,22 @@ Proof.
                            (Vint (Int.repr i)) n') <> Vint Int.zero) 
         by (intro Hx; rewrite Hx in H1; inv H1).
       rewrite Sfor_comparison_Signed_I32 in H6 by auto.
-      omega.
+      lia.
   + assert (H6: force_val (sem_cmp_default Clt type_i (typeof hi)
                            (Vint (Int.repr i)) n') <> Vint Int.zero) 
         by (intro Hx; rewrite Hx in H1; inv H1).
       rewrite Sfor_comparison_Unsigned_I32 in H6 by auto.
-      omega.
+      lia.
   + assert (H6: force_val (sem_cmp_default Clt type_i (typeof hi)
                            (Vint (Int.repr i)) n') <> Vint Int.zero) 
         by (intro Hx; rewrite Hx in H1; inv H1).
       rewrite Sfor_comparison_Signed_I64 in H6 by auto.
-      omega.
+      lia.
   + assert (H6: force_val (sem_cmp_default Clt type_i (typeof hi)
                            (Vint (Int.repr i)) n') <> Vint Int.zero) 
         by (intro Hx; rewrite Hx in H1; inv H1).
       rewrite Sfor_comparison_Unsigned_I64 in H6 by auto.
-    omega.
+    lia.
 Qed.
 
 Lemma Sfor_loop_cond_false:
@@ -637,13 +637,13 @@ Proof.
      destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; inv H3 ..];
     try apply typed_false_tint_e in H1.
   + rewrite Sfor_comparison_Signed_I32 in H1 by auto.
-    omega.
+    lia.
   + rewrite Sfor_comparison_Unsigned_I32 in H1 by auto.
-    omega.
+    lia.
   + rewrite Sfor_comparison_Signed_I64 in H1 by auto.
-    omega.
+    lia.
   + rewrite Sfor_comparison_Unsigned_I64 in H1 by auto.
-    omega.
+    lia.
 Qed.
 
 Lemma Sfor_inc_tc: forall i s,
@@ -677,8 +677,8 @@ Proof.
     exists (Vint (Int.repr i)); split; auto;
       unfold eval_id in H1;
       destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
-    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega).
-    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega.
+    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_lia).
+    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_lia.
    *
     simpl denote_tc_assert.
     unfold_lift; unfold local, lift1.
@@ -686,8 +686,8 @@ Proof.
     rewrite ?(andp_comm (prop _)).
     simpl;
     apply andp_right; apply prop_right.
-    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega).
-    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega.
+    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_lia).
+    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_lia.
     exists (Vint (Int.repr i)); split; auto;
       unfold eval_id in H1;
       destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
@@ -735,7 +735,7 @@ Proof.
   normalize.
   apply andp_right; auto.
   apply prop_right.
-  split; [omega |].
+  split; [lia |].
   rewrite H0; clear H0.
   destruct type_i as [| [| | |] [|] | | | | | | |]; inv I32_i.
   + destruct s.
@@ -984,11 +984,11 @@ Ltac simplify_Sfor_setup :=
              | |- _ <= _ <= _ => fail
              | |- _ /\ _ => split
              end;
-      try rep_omega
+      try rep_lia
     | ]
   | simple eapply Sfor_setup_other;
     [ prove_range_init_h
-    | cbv beta; try rep_omega
+    | cbv beta; try rep_lia
     | ]
 ].
 

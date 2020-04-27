@@ -171,9 +171,9 @@ Proof.
   specialize (H (b, c) _ H0).
   apply ageable.necR_level in H2.
   apply predicates_hered.pred_ext; intros ? []; split; auto.
-  - destruct (H a1) as [X _]; [omega|].
+  - destruct (H a1) as [X _]; [lia|].
     specialize (X _ (ageable.necR_refl _)); auto.
-  - destruct (H a1) as [_ X]; [omega|].
+  - destruct (H a1) as [_ X]; [lia|].
     specialize (X _ (ageable.necR_refl _)); auto.
 Qed.
 
@@ -533,8 +533,8 @@ Proof. intros; subst; auto. Qed.
 Lemma if_falseb: forall {A: Type} b (a1 a2: A), b = false -> (if b then a1 else a2) = a2.
 Proof. intros; subst; auto. Qed.
 
-Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
-                          | rewrite if_falseb by (apply Z.ltb_ge; omega)].
+Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; lia)
+                          | rewrite if_falseb by (apply Z.ltb_ge; lia)].
                           
 Lemma t_lock_exclusive : forall p l,                           
   exclusive_mpred (t_lock_pred''' Tsh p l).
@@ -546,7 +546,7 @@ Proof.
   - Intros t0 tp. Exists tp. cancel. Exists t0 tp. apply derives_refl. 
   - apply ex_field_at_exclusive. 
     auto. 
-    simpl. omega.
+    simpl. lia.
 Qed.
 (*Hint Resolve t_lock_exclusive.*)
 
@@ -580,11 +580,11 @@ Proof.
     + (* then clause *)
       subst tp.
       Time forward_call (sizeof t_struct_tree_t).
-        1: simpl. rep_omega.
+        1: simpl. rep_lia.
       Intros p1'. 
       rewrite memory_block_data_at_ by auto.
       Time forward_call (sizeof t_struct_tree_t). 
-        1: simpl. rep_omega.
+        1: simpl. rep_lia.
       Intros p2'.
       rewrite memory_block_data_at_ by auto.
       forward. (* p1->t=NULL *)
@@ -592,7 +592,7 @@ Proof.
       forward. (* p1->t=NULL *)
       simpl. 
       forward_call (sizeof tlock).
-        1: simpl. rep_omega.
+        1: simpl. rep_lia.
       Intros l1.
       rewrite memory_block_data_at_ by auto.
       forward_call(l1, Tsh, t_lock_pred''' Tsh p1' l1). 
@@ -606,13 +606,13 @@ Proof.
           Tsh t0 tp (* *malloc_token Tsh t_struct_tree_t p1' * malloc_token 
           Tsh tlock l1*)). 
           Intros t0 tp. Exists tp. cancel. Exists t0 tp. apply derives_refl. 
-          apply ex_field_at_exclusive. auto. simpl. omega.
+          apply ex_field_at_exclusive. auto. simpl. lia.
         - setoid_rewrite t_lock_pred_def at 2. unfold t_lock_pred', 
           t_lock_pred. Exists (E : tree val) (vint 0).
           unfold_data_at 2%nat. cancel. simpl. entailer!. }
       deadvars.
       forward_call (sizeof tlock).
-        1: simpl. rep_omega.
+        1: simpl. rep_lia.
       Intros l2.
       rewrite memory_block_data_at_ by auto.
       forward_call(l2, Tsh, t_lock_pred''' Tsh p2' l2). 
@@ -626,12 +626,12 @@ Proof.
           Tsh t0 tp (* *malloc_token Tsh t_struct_tree_t p1' * malloc_token 
           Tsh tlock l1*)). 
           Intros t0 tp. Exists tp. cancel. Exists t0 tp. apply derives_refl. 
-          apply ex_field_at_exclusive. auto. simpl. omega.
+          apply ex_field_at_exclusive. auto. simpl. lia.
         - setoid_rewrite t_lock_pred_def at 3. unfold t_lock_pred', 
           t_lock_pred. Exists (E : tree val) (vint 0).
           unfold_data_at 1%nat. cancel. simpl. entailer!. }
       Time forward_call (sizeof t_struct_tree).
-        1: simpl. rep_omega.
+        1: simpl. rep_lia.
       Intros p'.
       rewrite memory_block_data_at_ by auto.
       forward. (* tgt->t=p; *)  
@@ -653,7 +653,7 @@ Proof.
           sh1 t0 tp (* *malloc_token Tsh t_struct_tree_t p1' * malloc_token 
           Tsh tlock l1*)). 
           Intros t0 tp. Exists tp. cancel. Exists t0 tp. apply derives_refl. 
-          apply ex_field_at_exclusive. auto. simpl. omega.
+          apply ex_field_at_exclusive. auto. simpl. lia.
         - setoid_rewrite t_lock_pred_def at 3. unfold t_lock_pred', 
           t_lock_pred. Exists (T E x v E) p'. cancel. unfold node_rep. Exists p1' p2' l1 l2. entailer!. unfold ltree. entailer!. admit.
            }
@@ -679,14 +679,14 @@ Proof.
           Tsh tlock l1*)). 
           Intros t0 tp0. Exists tp0. cancel. Exists t0 tp0.
            apply derives_refl. 
-          apply ex_field_at_exclusive. auto. simpl. omega.
+          apply ex_field_at_exclusive. auto. simpl. lia.
         - setoid_rewrite t_lock_pred_def. unfold t_lock_pred', 
           t_lock_pred. Exists (T t1_1 k v0 t1_2) tp. 
           cancel. simpl. entailer!. Exists pa pb locka lockb. cancel. }
           unfold insert_inv.
         Exists (field_address t_struct_tree [StructField _left] tp) locka sh1.
         entailer!. simpl. unfold field_address. simpl. admit. (*Stuck2*)
-              rewrite if_true by auto with field_compatible. auto. rep_omega.
+              rewrite if_true by auto with field_compatible. auto. rep_lia.
         simpl_compb. 
         unfold insert_inv.
         Exists (offset_val 8 p1) t1_1. (*why offset 8*)
@@ -715,7 +715,7 @@ Proof.
         apply RAMIF_PLAIN.trans'.
         apply bst_right_entail; auto.
       - (* Inner if, third branch: x=k *)
-        assert (x=k) by omega.
+        assert (x=k) by lia.
         subst x.  clear H H1 H3.
         forward. (* p->value=value *)
         forward. (* return *) simpl.

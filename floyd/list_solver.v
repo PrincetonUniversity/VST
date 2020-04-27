@@ -29,7 +29,7 @@ Lemma Zlength_Zrepeat : forall (A : Type) (n : Z) (x : A),
   Zlength (Zrepeat n x) = n.
 Proof. intros *. unfold Zrepeat. rewrite repeat_list_repeat. apply @Zlength_list_repeat. Qed.
 
-Ltac Zlength_solve := autorewrite with Zlength; pose_Zlength_nonneg; omega.
+Ltac Zlength_solve := autorewrite with Zlength; pose_Zlength_nonneg; lia.
 Hint Rewrite Zlength_cons : Zlength.
 Hint Rewrite Zlength_nil : Zlength.
 Hint Rewrite Zlength_app : Zlength.
@@ -57,7 +57,7 @@ Proof. intros. unfold_upd_Znth_old. auto. Qed.
 (*Lemma Znth_Zrepeat_1_sublist : forall (A : Type) (d : Inhabitant A) (i : Z) (al : list A),
   0 <= i < Zlength al ->
   Zrepeat 1 (Znth i al) = sublist i (i+1) al.
-Proof. intros. rewrite sublist_one by omega; auto. Qed. *)
+Proof. intros. rewrite sublist_one by lia; auto. Qed. *)
 
 Hint Rewrite Zrepeat_fold cons_Zrepeat_1_app : list_form_rewrite.
 (* Hint Rewrite Znth_Zrepeat_1_sublist using Zlength_solve: list_form_rewrite. *)
@@ -149,10 +149,10 @@ Proof.
   induction al; intros;
     destruct bl; try discriminate; auto.
   f_equal.
-  - apply (H0 0%nat). simpl. omega.
+  - apply (H0 0%nat). simpl. lia.
   - apply IHal.
-    + simpl in H. omega.
-    + intros. apply (H0 (S i)). simpl. omega.
+    + simpl in H. lia.
+    + intros. apply (H0 (S i)). simpl. lia.
 Qed.
 
 Lemma Znth_eq_ext : forall {A : Type} {d : Inhabitant A} (al bl : list A),
@@ -161,10 +161,10 @@ Lemma Znth_eq_ext : forall {A : Type} {d : Inhabitant A} (al bl : list A),
   al = bl.
 Proof.
   intros. rewrite !Zlength_correct in *. apply nth_eq_ext with d.
-  - omega.
+  - lia.
   - intros. rewrite  <- (Nat2Z.id i).
-    specialize (H0 (Z.of_nat i) ltac:(omega)).
-    rewrite !nth_Znth by (rewrite !Zlength_correct in *; omega).
+    specialize (H0 (Z.of_nat i) ltac:(lia)).
+    rewrite !nth_Znth by (rewrite !Zlength_correct in *; lia).
     apply H0.
 Qed.
 
@@ -213,7 +213,7 @@ Proof.
       intros. specialize (H1 (i+1) ltac:(Zlength_solve)).
       autorewrite with Znth in H1.
       autorewrite with Zlength norm in H1.
-      replace (i + 1 - 1) with i in H1 by omega.
+      replace (i + 1 - 1) with i in H1 by lia.
       apply H1.
 Qed.
 
@@ -253,7 +253,7 @@ Ltac fassumption :=
 Ltac eq_solve_with tac :=
   solve [
   repeat multimatch goal with
-  | |- @eq Z _ _ => omega
+  | |- @eq Z _ _ => lia
   | |- @eq (_ -> _) _ _ => apply functional_extensionality; intros
   | |- _ <-> _ => apply prop_unext
   | _ => f_equal
@@ -309,12 +309,12 @@ Lemma rangei_split : forall (lo mi hi : Z) (P : Z -> Prop),
 Proof.
   intros. unfold rangei. split; intros.
   - (* -> *)
-    split; intros; apply H0; omega.
+    split; intros; apply H0; lia.
   - (* <- *)
     destruct H0.
     destruct (Z_lt_le_dec i mi).
-    + apply H0; omega.
-    + apply H2; omega.
+    + apply H0; lia.
+    + apply H2; lia.
 Qed.
 
 Lemma rangei_implies : forall (lo hi : Z) (P Q : Z -> Prop),
@@ -335,10 +335,10 @@ Lemma rangei_shift : forall (lo hi offset : Z) (P : Z -> Prop),
 Proof.
   intros. unfold rangei. split; intros.
   - (* -> *)
-    apply H; omega.
+    apply H; lia.
   - (* <- *)
-    replace i with (i + offset - offset) by omega.
-    apply H; omega.
+    replace i with (i + offset - offset) by lia.
+    apply H; lia.
 Qed.
 
 Lemma rangei_and : forall (lo hi : Z) (P Q : Z -> Prop),
@@ -360,8 +360,8 @@ Proof.
   (* replace (fun i : Z => Q i <-> P (i - offset))
   with (fun i => (fun i => Q i -> P (i - offset)) i /\ (fun i => P (i - offset) -> Q i) i) in H0 by reflexivity.
   rewrite rangei_and in H0. destruct H0. *)
-  replace lo' with (lo + offset) by omega.
-  replace hi' with (hi + offset) by omega.
+  replace lo' with (lo + offset) by lia.
+  replace hi' with (hi + offset) by lia.
   rewrite rangei_iff with (P := Q) (Q := fun i => P (i - offset)) by fassumption.
   apply rangei_shift.
 Qed.
@@ -381,7 +381,7 @@ Lemma range_uni_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl :
   range_uni (lo - Zlength al) (hi - Zlength al) bl P.
 Proof.
   unfold range_uni. intros. eapply rangei_shift'. 3 : apply H0.
-  + omega.
+  + lia.
   + unfold rangei. intros. apply prop_unext, f_equal. Znth_solve.
 Qed.
 
@@ -392,8 +392,8 @@ Lemma range_uni_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : 
   range_uni 0 (hi - Zlength al) bl P.
 Proof.
   unfold range_uni. intros. split; intro; intros.
-  - specialize (H0 i ltac:(omega)). simpl in H0. autorewrite with Znth in H0. apply H0.
-  - specialize (H0 (i + Zlength al) ltac:(omega)). simpl in H0. autorewrite with Znth in H0. fassumption.
+  - specialize (H0 i ltac:(lia)). simpl in H0. autorewrite with Znth in H0. apply H0.
+  - specialize (H0 (i + Zlength al) ltac:(lia)). simpl in H0. autorewrite with Znth in H0. fassumption.
 Qed.
 
 Lemma range_uni_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : Z) (l : list A) (P : A -> Prop),
@@ -402,7 +402,7 @@ Lemma range_uni_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : 
   range_uni (lo+lo') (hi+lo') l P.
 Proof.
   unfold range_uni, rangei. intros.
-  fapply (H0 (i - lo') ltac:(omega)). f_equal. Znth_solve.
+  fapply (H0 (i - lo') ltac:(lia)). f_equal. Znth_solve.
 Qed.
 
 Lemma range_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -412,7 +412,7 @@ Lemma range_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inh
   range_uni lo hi l (fun x => P (f x)).
 Proof.
   unfold range_uni, rangei. intros.
-  fapply (H0 i ltac:(omega)). f_equal. rewrite Znth_map by omega. auto.
+  fapply (H0 i ltac:(lia)). f_equal. rewrite Znth_map by lia. auto.
 Qed.
 
 Lemma range_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : A -> Prop),
@@ -421,7 +421,7 @@ Lemma range_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x 
   P x.
 Proof.
   unfold range_uni, rangei. intros.
-  fapply (H0 lo ltac:(omega)). f_equal. Znth_solve.
+  fapply (H0 lo ltac:(lia)). f_equal. Znth_solve.
 Qed.
 
 Lemma range_uni_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : A -> Prop),
@@ -429,7 +429,7 @@ Lemma range_uni_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : li
   range_uni lo hi l P <->
   True.
 Proof.
-  intros; split; unfold range_uni, rangei; intros; auto; omega.
+  intros; split; unfold range_uni, rangei; intros; auto; lia.
 Qed.
 
 Lemma rangei_uni_app1 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : Z -> A -> Prop),
@@ -447,9 +447,9 @@ Lemma rangei_uni_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl 
   rangei_uni (lo - Zlength al) (hi - Zlength al) bl (fun i => P (i + Zlength al)).
 Proof.
   unfold rangei_uni. intros. eapply rangei_shift'. 3 : apply H0.
-  + omega.
+  + lia.
   + unfold rangei. intros. apply prop_unext. f_equal.
-    - omega.
+    - lia.
     - Znth_solve.
 Qed.
 
@@ -460,8 +460,8 @@ Lemma rangei_uni_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl :
   rangei_uni 0 (hi - Zlength al) bl (fun i => P (i + Zlength al)).
 Proof.
   unfold rangei_uni. intros. split; intro; intros.
-  - specialize (H0 i ltac:(omega)). simpl in H0. autorewrite with Znth in H0. apply H0.
-  - specialize (H0 (i + Zlength al) ltac:(omega)). simpl in H0. autorewrite with Znth in H0. fassumption.
+  - specialize (H0 i ltac:(lia)). simpl in H0. autorewrite with Znth in H0. apply H0.
+  - specialize (H0 (i + Zlength al) ltac:(lia)). simpl in H0. autorewrite with Znth in H0. fassumption.
 Qed.
 
 Lemma rangei_uni_sublist : forall {A : Type} {d : Inhabitant A}
@@ -471,7 +471,7 @@ Lemma rangei_uni_sublist : forall {A : Type} {d : Inhabitant A}
   rangei_uni (lo+lo') (hi+lo') l (fun i => P (i - lo')).
 Proof.
   unfold rangei_uni, rangei. intros.
-  fapply (H0 (i - lo') ltac:(omega)). f_equal. Znth_solve.
+  fapply (H0 (i - lo') ltac:(lia)). f_equal. Znth_solve.
 Qed.
 
 Lemma rangei_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -481,7 +481,7 @@ Lemma rangei_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : In
   rangei_uni lo hi l (fun i x => P i (f x)).
 Proof.
   unfold rangei_uni, rangei. intros.
-  fapply (H0 i ltac:(omega)). f_equal. rewrite Znth_map by omega. auto.
+  fapply (H0 i ltac:(lia)). f_equal. rewrite Znth_map by lia. auto.
 Qed.
 
 Lemma rangei_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : Z -> A -> Prop),
@@ -490,7 +490,7 @@ Lemma rangei_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x
   rangei lo hi (fun i => P i x).
 Proof.
   unfold rangei_uni, rangei. intros.
-  fapply (H0 i ltac:(omega)). f_equal. Znth_solve.
+  fapply (H0 i ltac:(lia)). f_equal. Znth_solve.
 Qed.
 
 Lemma rangei_uni_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : Z -> A -> Prop),
@@ -498,7 +498,7 @@ Lemma rangei_uni_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : l
   rangei_uni lo hi l P <->
   True.
 Proof.
-  intros; split; unfold rangei_uni, rangei; intros; auto; omega.
+  intros; split; unfold rangei_uni, rangei; intros; auto; lia.
 Qed.
 
 Lemma range_bin_rangei_uniA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -517,7 +517,7 @@ Proof.
   unfold range_bin, rangei_uni.
   intros. split; intros.
   + eapply rangei_shift'. 3 : exact H.
-    - omega.
+    - lia.
     - unfold rangei. intros. eq_solve.
   + eapply rangei_shift'. 3 : exact H.
     - eq_solve.
@@ -574,8 +574,8 @@ Lemma range_binA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : In
   range_bin lo hi offset l l' (fun x => P (f x)).
 Proof.
   unfold range_bin, rangei. intros.
-  fapply (H0 i ltac:(omega)).
-  eq_solve with (rewrite Znth_map by omega).
+  fapply (H0 i ltac:(lia)).
+  eq_solve with (rewrite Znth_map by lia).
 Qed.
 
 Lemma range_binA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -586,7 +586,7 @@ Lemma range_binA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db 
 Proof.
   unfold range_bin, range_uni. intros.
   eapply rangei_shift'. 3 : exact H0.
-  + omega.
+  + lia.
   + unfold rangei. intros. eq_solve with Znth_solve.
 Qed.
 
@@ -596,7 +596,7 @@ Lemma range_bin_empty : forall {A : Type} {da : Inhabitant A} {B : Type} {db : I
   range_bin lo hi offset l l' P <->
   True.
 Proof.
-  intros; split; unfold range_bin, rangei; intros; auto; omega.
+  intros; split; unfold range_bin, rangei; intros; auto; lia.
 Qed.
 
 Lemma range_binB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -649,8 +649,8 @@ Lemma range_binB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : In
   range_bin lo hi offset l l' (fun x y => P x (f y)).
 Proof.
   unfold range_bin, rangei. intros.
-  fapply (H0 i ltac:(omega)).
-  eq_solve with (rewrite Znth_map by omega).
+  fapply (H0 i ltac:(lia)).
+  eq_solve with (rewrite Znth_map by lia).
 Qed.
 
 Lemma range_binB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -661,7 +661,7 @@ Lemma range_binB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db 
 Proof.
   unfold range_bin, range_uni. intros.
   eapply rangei_shift'. 3 : exact H0.
-  + omega.
+  + lia.
   + unfold rangei. intros. eq_solve with Znth_solve.
 Qed.
 
@@ -709,7 +709,7 @@ Proof. intros. apply not_In_range_uni_iff. auto. Qed.
 Lemma eq_range_bin_no_offset : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth i l1 = Znth i l2) ->
   range_bin lo hi 0 l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. replace (i + 0) with i by omega. auto. Qed.
+Proof. unfold range_bin, rangei. intros. replace (i + 0) with i by lia. auto. Qed.
 
 Lemma eq_range_bin_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth i l1 = Znth (i + offset) l2) ->
@@ -719,27 +719,27 @@ Proof. unfold range_bin, rangei. auto. Qed.
 Lemma eq_range_bin_left_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth i l1 = Znth (offset + i) l2) ->
   range_bin lo hi offset l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. replace (i + offset) with (offset + i) by omega. auto. Qed.
+Proof. unfold range_bin, rangei. intros. replace (i + offset) with (offset + i) by lia. auto. Qed.
 
 Lemma eq_range_bin_minus_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth i l1 = Znth (i - offset) l2) ->
   range_bin lo hi (-offset) l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. replace (i + - offset) with (i - offset) by omega. auto. Qed.
+Proof. unfold range_bin, rangei. intros. replace (i + - offset) with (i - offset) by lia. auto. Qed.
 
 Lemma eq_range_bin_reverse : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth (i + offset) l1 = Znth i l2) ->
   range_bin (lo + offset) (hi + offset) (-offset) l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. fapply (H (i - offset) ltac:(omega)). eq_solve. Qed.
+Proof. unfold range_bin, rangei. intros. fapply (H (i - offset) ltac:(lia)). eq_solve. Qed.
 
 Lemma eq_range_bin_reverse_left_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth (offset + i) l1 = Znth i l2) ->
   range_bin (lo + offset) (hi + offset) (-offset) l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. fapply (H (i - offset) ltac:(omega)). eq_solve. Qed.
+Proof. unfold range_bin, rangei. intros. fapply (H (i - offset) ltac:(lia)). eq_solve. Qed.
 
 Lemma eq_range_bin_reverse_minus_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth (i - offset) l1 = Znth i l2) ->
   range_bin (lo - offset) (hi - offset) offset l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. fapply (H (i + offset) ltac:(omega)). eq_solve. Qed.
+Proof. unfold range_bin, rangei. intros. fapply (H (i + offset) ltac:(lia)). eq_solve. Qed.
 
 Lemma In_Znth_iff : forall {A : Type} {d : Inhabitant A} (l : list A) (x : A),
   In x l <-> exists i, 0 <= i < Zlength l /\ Znth i l = x.
@@ -797,7 +797,7 @@ Lemma range_le_lt_dec : forall lo i hi,
   (lo <= i < hi) + ~(lo <= i < hi).
 Proof.
   intros.
-  destruct (Z_lt_le_dec i lo); destruct (Z_lt_le_dec i hi); left + right; omega.
+  destruct (Z_lt_le_dec i lo); destruct (Z_lt_le_dec i hi); left + right; lia.
 Qed.
 
 Ltac destruct_range i lo hi :=
@@ -806,9 +806,9 @@ Ltac destruct_range i lo hi :=
 Ltac pose_new_res i lo hi H res :=
   assert_fails (assert res by assumption);
   destruct_range i lo hi;
-  [ (tryif exfalso; omega then gfail else idtac);
-    assert res by apply (H i ltac:(omega))
-  | try omega
+  [ (tryif exfalso; lia then gfail else idtac);
+    assert res by apply (H i ltac:(lia))
+  | try lia
   ].
 
 Definition range_saturate_shift {A : Type} (l : list A) (s : Z) :=
@@ -983,7 +983,7 @@ Ltac calc_Zlength l :=
       calc_Zlength l1; calc_Zlength l2;
       add_Zlength_res (Zlength_app _ l1 l2)
     | Zrepeat ?n ?x =>
-      add_Zlength_res (Zlength_Zrepeat _ n x ltac:(omega))
+      add_Zlength_res (Zlength_Zrepeat _ n x ltac:(lia))
     | map _ _ ?f ?l =>
       add_Zlength_res (Zlength_map _ _ f l)
     | _ => fail "calc_Zlength does not support" l
@@ -997,7 +997,7 @@ Ltac calc_Zlength l :=
 Lemma sublist_Zrepeat : forall (A : Type) (lo hi n : Z) (x : A),
   0 <= lo <= hi -> hi <= n ->
   sublist lo hi (Zrepeat n x) = Zrepeat (hi - lo) x.
-Proof. intros. apply sublist_list_repeat; omega. Qed.
+Proof. intros. apply sublist_list_repeat; lia. Qed.
 
 Lemma map_Zrepeat : forall (A B : Type) (f : A -> B) (n : Z) (x : A),
   map f (Zrepeat n x) = Zrepeat n (f x).
@@ -1016,7 +1016,7 @@ Lemma list_split : forall (A : Type) (i : Z) (l : list A),
   0 <= i <= Zlength l ->
   l = sublist 0 i l ++ sublist i (Zlength l) l.
 Proof.
-  intros. rewrite <- sublist_same at 1 by auto. apply sublist_split; omega.
+  intros. rewrite <- sublist_same at 1 by auto. apply sublist_split; lia.
 Qed.
 
 Ltac list_deduce :=

@@ -29,132 +29,6 @@ Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
 Hint Resolve @FF_local_facts: saturate_local.
 
-(*
-(*** Omega stuff ***)
-
-Ltac omegable' A :=
-lazymatch A with
-| @eq nat _ _ => idtac
-| @eq Z _ _ => idtac
-| Z.lt _ _ => idtac
-| Z.le _ _ => idtac
-| Z.gt _ _ => idtac
-| Z.ge _ _ => idtac
-| Peano.lt _ _ => idtac
-| Peano.le _ _ => idtac
-| Peano.gt _ _ => idtac
-| Peano.ge _ _ => idtac
-| ~ ?A => omegable' A
-| ?A /\ ?B => omegable' A; omegable' B
-end.
-
-Ltac omegable := match goal with |- ?A => omegable' A end.
-
-Ltac  add_nonredundant' F T G :=
-   match G with
-        | T -> _ => fail 1
-        | _ -> ?G' => add_nonredundant' F T G' || fail 1
-        | _ => generalize F
-  end.
-
-Ltac  add_nonredundant F :=
- match type of F with ?T =>
-   match goal with |- ?G => add_nonredundant' F T G
-   end
- end.
-
-Lemma omega_aux: forall {A} (B C: A),
-   B=C -> forall D, (B=C->D) -> D.
-Proof. intuition. Qed.
-
-Ltac is_const A :=
- match A with
- | Z0 => idtac
- | Zpos ?B => is_const B
- | Zneg ?B => is_const B
- | xH => idtac
- | xI ?B => is_const B
- | xO ?B => is_const B
- | O => idtac
- | S ?B => is_const B
- end.
-
-Ltac simpl_const :=
-  match goal with
-   | |- context [Z.of_nat ?A] =>
-     is_const A;
-     let H := fresh in set (H:= Z.of_nat A); simpl in H; unfold H; clear H
-   | |- context [Z.to_nat ?A] =>
-     is_const A;
-     let H := fresh in set (H:= Z.to_nat A); simpl in H; unfold H; clear H
-  end.
-
-Ltac Omega' L :=
-repeat match goal with
- | H: @eq Z _ _ |- _ => revert H
- | H: @eq nat _ _ |- _ => revert H
- | H: @neq Z _ _ |- _ => revert H
- | H: not (@eq Z _ _) |- _ => revert H
- | H: @neq nat _ _ |- _ => revert H
- | H: not (@eq nat _ _) |- _ => revert H
- | H: _ <> _ |- _ => revert H
- | H: Z.lt _ _ |- _ => revert H
- | H: Z.le _ _ |- _ => revert H
- | H: Z.gt _ _ |- _ => revert H
- | H: Z.ge _ _ |- _ => revert H
- | H: Z.le _ _ /\ Z.le _ _ |- _ => revert H
- | H: Z.lt _ _ /\ Z.le _ _ |- _ => revert H
- | H: Z.le _ _ /\ Z.lt _ _ |- _ => revert H
- | H: lt _ _ |- _ => revert H
- | H: le _ _ |- _ => revert H
- | H: gt _ _ |- _ => revert H
- | H: ge _ _ |- _ => revert H
- | H: le _ _ /\ le _ _ |- _ => revert H
- | H: lt _ _ /\ le _ _ |- _ => revert H
- | H: le _ _ /\ lt _ _ |- _ => revert H
- | H := ?A : Z |- _ => apply (omega_aux H A (eq_refl _)); clearbody H
- | H := ?A : nat |- _ => apply (omega_aux H A (eq_refl _)); clearbody H
- | H: _ |- _ => clear H
- end;
- clear;
- abstract (
-   repeat (L || simpl_const);
-   intros; omega).
-
-Ltac Omega'' L :=
-  match goal with
-  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
-  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
-  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
-  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
-  | |- @eq nat _ _ => apply Nat2Z.inj
-  | |- _ => idtac
-  end;
- repeat first
-     [ simpl_const
-     | rewrite Nat2Z.id
-     | rewrite Nat2Z.inj_add
-     | rewrite Nat2Z.inj_mul
-     | rewrite Z2Nat.id by Omega'' L
-     | rewrite Nat2Z.inj_sub by Omega'' L
-     | rewrite Z2Nat.inj_sub by Omega'' L
-     | rewrite Z2Nat.inj_add by Omega'' L
-     ];
-  Omega' L.
-
-Tactic Notation "Omega" tactic(L) := (omegable; Omega'' L).
-
-Ltac helper1 := 
-  pose_standard_const_equations;
- match goal with
-   | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
- end.
-
-Ltac Omega0 := Omega (solve [ helper1 ]).
-
-(*** End of Omega stuff *)
-*)
-
 Ltac simpl_compare :=
  match goal with
  | H: Vint _ = _ |- _ =>
@@ -168,9 +42,9 @@ Ltac simpl_compare :=
          first [apply typed_true_ptr in H
                  | apply typed_true_of_bool in H;
                    first [apply (int_cmp_repr Clt) in H;
-                            [ | rep_omega ..]; simpl in H
+                            [ | rep_lia ..]; simpl in H
                           | apply (int_cmp_repr Ceq) in H;
-                             [ | rep_omega ..]; simpl in H
+                             [ | rep_lia ..]; simpl in H
                           | idtac ]
                  | discriminate H
                  | idtac ]
@@ -179,28 +53,28 @@ Ltac simpl_compare :=
          first [ apply typed_false_ptr in H
                 | apply typed_false_of_bool in H;
                    first [apply (int_cmp_repr' Clt) in H;
-                            [ | rep_omega ..]; simpl in H
+                            [ | rep_lia ..]; simpl in H
                           | apply (int_cmp_repr' Ceq) in H;
-                            [ | rep_omega ..]; simpl in H
+                            [ | rep_lia ..]; simpl in H
                           | idtac]
                  | discriminate H
                  | idtac ]
  | H : Int.lt _ _ = false |- _ =>
          revert H; simpl_compare; intro H;
          try (apply (int_cmp_repr' Clt) in H ;
-                    [ | rep_omega ..]; simpl in H)
+                    [ | rep_lia ..]; simpl in H)
  | H : Int.lt _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Clt) in H ;
-                    [ | rep_omega ..]; simpl in H)
+                    [ | rep_lia ..]; simpl in H)
  | H : Int.eq _ _ = false |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr' Ceq) in H ;
-                    [ | rep_omega ..]; simpl in H)
+                    [ | rep_lia ..]; simpl in H)
  | H : Int.eq _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Ceq) in H ;
-                    [ | rep_omega ..]; simpl in H)
+                    [ | rep_lia ..]; simpl in H)
  | |- _ => idtac
 end.
 
@@ -471,9 +345,9 @@ Ltac splittable :=
 Ltac prove_signed_range :=
   match goal with
   | |- Int.min_signed <= _ <= Int.max_signed => 
-           normalize; rep_omega
+           normalize; rep_lia
   | |- Int64.min_signed <= _ <= Int64.max_signed => 
-           normalize; rep_omega
+           normalize; rep_lia
   end.
 
 Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
@@ -508,14 +382,14 @@ Proof.
   eapply Z.le_trans; [eassumption | ]. compute; intros Hx; inv Hx.
 Qed.
 
-Hint Rewrite intsigned_intrepr_bytesigned : rep_omega.
+Hint Rewrite intsigned_intrepr_bytesigned : rep_lia.
 
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
         | apply Coq.Init.Logic.I
         | reflexivity
-        | rewrite ?intsigned_intrepr_bytesigned; rep_omega (* Omega0 *)
+        | rewrite ?intsigned_intrepr_bytesigned; rep_lia (* Omega0 *)
         | prove_signed_range
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now field_compatible;
@@ -736,10 +610,10 @@ Ltac aggressive :=
 
 (**** try this out here, for now ****)
 
-Hint Rewrite Int.signed_repr using rep_omega : norm.
-Hint Rewrite Int.unsigned_repr using rep_omega : norm.
-Hint Rewrite Int64.signed_repr using rep_omega : norm.
-Hint Rewrite Int64.unsigned_repr using rep_omega : norm.
+Hint Rewrite Int.signed_repr using rep_lia : norm.
+Hint Rewrite Int.unsigned_repr using rep_lia : norm.
+Hint Rewrite Int64.signed_repr using rep_lia : norm.
+Hint Rewrite Int64.unsigned_repr using rep_lia : norm.
 
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 
@@ -823,7 +697,7 @@ Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
 Proof.
 intros. apply Z.max_r; auto.
 Qed.
-Hint Rewrite Zmax0r using (try computable; rep_omega (*Omega0*)) : norm.
+Hint Rewrite Zmax0r using (try computable; rep_lia (*Omega0*)) : norm.
 
 Import ListNotations.
 
@@ -843,7 +717,7 @@ Proof.
   fold sizeof in H3.
   change (sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).
-  omega. 
+  lia. 
 Qed.
 
 Hint Resolve cstring_local_facts : saturate_local.
@@ -856,7 +730,7 @@ Proof.
   apply data_at_valid_ptr; auto.
   unfold tarray, tschar, sizeof.
   pose proof (Zlength_nonneg s).
-  rewrite Z.max_r; omega.
+  rewrite Z.max_r; lia.
 Qed.
 
 Hint Resolve cstring_valid_pointer : valid_pointer.
@@ -882,7 +756,7 @@ saturate_local. clear H0 H2.
 rewrite Zlength_map, Zlength_app, Zlength_cons, Zlength_nil in H1.
 simpl in H1.
 destruct (Z.max_spec 0 n) as [[? ?]|[? ?]].
-2:{ rewrite H2 in H1. pose proof (Zlength_nonneg s). omega. }
+2:{ rewrite H2 in H1. pose proof (Zlength_nonneg s). lia. }
 rewrite H2 in *.
 clear H0 H2.
 subst n.
@@ -908,18 +782,19 @@ Lemma cstringn_local_facts: forall {CS : compspecs} sh s n p,
    cstringn sh s n p |-- !! (isptr p /\ Zlength s + 1 <= n <= Ptrofs.max_unsigned).
 Proof.
   intros; unfold cstringn; entailer!.
-  autorewrite with sublist in H1.
-  pose proof (Zlength_nonneg s).
-  pose proof (Zlength_nonneg (list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef)).
+  rewrite !Zlength_app, !Zlength_map, Zlength_app in H1.
+  assert (H8 := Zlength_nonneg s).
+  destruct (zlt n (Zlength s + 1)).
+  rewrite Z_to_nat_neg in H1 by lia. autorewrite with sublist in H1. lia.
+  split. lia.
+  autorewrite with sublist in *.
   destruct H0 as [? [_ [? _]]].
   destruct p; try contradiction.
-  red in H5.
-  clear H2.
-  destruct (Z.max_spec 0 n) as [[? Hn] | [? Hn]]; rewrite Hn in *; split; try omega.
-  unfold sizeof in H5. rewrite Hn in H5. fold sizeof in H5.
-  change (sizeof tschar) with 1 in H5. 
+  red in H3. 
+  unfold sizeof in H3;  fold sizeof in H3.
+  rewrite Z.max_r in H3 by lia. change (sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).
-  rep_omega.
+  rep_lia.
 Qed.
 
 Hint Resolve cstringn_local_facts : saturate_local.
@@ -934,7 +809,7 @@ Proof.
   apply data_at_valid_ptr; auto.
   unfold tarray, tschar, sizeof; cbv beta iota zeta.
   pose proof (Zlength_nonneg s).
-  rewrite Z.max_r; omega.
+  rewrite Z.max_r; lia.
 Qed.
 
 Hint Resolve cstringn_valid_pointer : valid_pointer.
@@ -950,8 +825,8 @@ Qed.
 
 
 (* THIS TACTIC solves goals of the form,
-    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any omega consequence of)  i < Zlength ls
-    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any omega consequence of)  i >= Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any lia consequence of)  i < Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any lia consequence of)  i >= Zlength ls
 *)
 Ltac cstring :=
   lazymatch goal with
@@ -970,15 +845,15 @@ Znth _ (_++[Byte.zero]) <> Byte.zero"
   match goal with
   | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) = Byte.zero |- _ =>
      constr_eq ls ls'; apply H; rewrite <- H1;  
-    rewrite app_Znth1 by omega; apply Znth_In; omega
+    rewrite app_Znth1 by lia; apply Znth_In; lia
   | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) <> Byte.zero |- _ =>
      constr_eq ls ls'; apply H1;
-     rewrite app_Znth2 by omega; apply Znth_zero_zero
+     rewrite app_Znth2 by lia; apply Znth_zero_zero
   end) || 
   match goal with |- @eq ?t (?f1 _) (?f2 _) =>
        (unify t Z || unify t nat) ||
        (constr_eq f1 f2;
-        fail "The cstring tactic solves omega-style goals.
+        fail "The cstring tactic solves lia-style goals.
 Your goal is an equality at type" t ", not type Z.
 Try the [f_equal] tactic first.")
  end.
@@ -1003,4 +878,3 @@ match goal with
   H1: Znth ?x (?s ++ [Byte.zero]) = Byte.zero |- _ =>
   is_var x; assert  (x = Zlength s) by cstring; subst x
 end.
-

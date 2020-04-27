@@ -195,7 +195,7 @@ Proof.
       rewrite Z.eqb_neq in H0.
       apply prop_right.
       change (Int.signed Int.zero) with 0.
-      rep_omega.
+      rep_lia.
     - simpl.
       unfold_lift.
       unfold denote_tc_nosignedover.
@@ -204,7 +204,7 @@ Proof.
       rewrite Z.eqb_neq in H0.
       apply prop_right.
       change (Int64.signed Int64.zero) with 0.
-      rep_omega.
+      rep_lia.
   + destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].
 Qed.
 

@@ -18,14 +18,14 @@ Proof.
   destruct (zle (Z.of_nat n) (Z.of_nat m)).
   + left.
     exists (two_p (Z.of_nat m - Z.of_nat n)).
-    rewrite <- two_p_is_exp by omega.
+    rewrite <- two_p_is_exp by lia.
     f_equal.
-    omega.
+    lia.
   + right.
     exists (two_p (Z.of_nat n - Z.of_nat m)).
-    rewrite <- two_p_is_exp by omega.
+    rewrite <- two_p_is_exp by lia.
     f_equal.
-    omega.
+    lia.
 Qed.
 
 Lemma multiple_divide_mod: forall a b c, b > 0 -> ((a | b) \/ (b | a)) -> (a | (c * a mod b)).
@@ -49,8 +49,8 @@ Proof.
   destruct H0.
   rewrite H0.
   pose proof Zdiv_unique (x0 * x + x - 1) x x0 (x - 1).
-  assert (x0 * x + x - 1 = x0 * x + (x - 1)) by omega.
-  assert (0 <= x - 1 < x) by omega.
+  assert (x0 * x + x - 1 = x0 * x + (x - 1)) by lia.
+  assert (0 <= x - 1 < x) by lia.
   rewrite (H1 H2 H3).
   reflexivity.
 Qed.
@@ -61,20 +61,20 @@ Proof.
   pose proof Z2Nat.id (a - b).
   rewrite <- H0 in H1.
   simpl Z.of_nat in H1.
-  omega.
+  lia.
 Qed.
 
 Lemma arith_aux01: forall a b n, S n = Z.to_nat (a - b) -> b < a.
 Proof.
   intros.
   destruct (zlt a b); auto.
-  + rewrite Z2Nat_neg in H by omega.
+  + rewrite Z2Nat_neg in H by lia.
     inversion H.
   + pose proof Z2Nat.id (a - b).
     rewrite <- H in H0.
-    spec H0; [omega |].
+    spec H0; [lia |].
     rewrite Nat2Z.inj_succ in H0.
-    omega.
+    lia.
 Qed.
 
 Lemma arith_aux02: forall n a b, S n = Z.to_nat (a - b) -> n = Z.to_nat (a - Z.succ b).
@@ -82,12 +82,12 @@ Proof.
   intros.
   pose proof arith_aux01 _ _ _ H.
   pose proof Z2Nat.id (a - b).
-  spec H1; [omega |].
+  spec H1; [lia |].
   rewrite <- H in H1.
-  replace (a - Z.succ b) with (a - b - 1) by omega.
+  replace (a - Z.succ b) with (a - b - 1) by lia.
   rewrite <- H1.
   rewrite Nat2Z.inj_succ.
-  replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by omega.
+  replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by lia.
   rewrite Nat2Z.id.
   auto.
 Qed.
@@ -98,8 +98,8 @@ Lemma arith_aux03: forall a b c,
   0 <= a + b * Z.succ c.
 Proof.
   intros.
-  assert (b * c <= b * Z.succ c) by (apply Zmult_le_compat_l; omega).
-  omega.
+  assert (b * c <= b * Z.succ c) by (apply Zmult_le_compat_l; lia).
+  lia.
 Qed.
 
 Lemma arith_aux04: forall a b c,
@@ -109,9 +109,9 @@ Lemma arith_aux04: forall a b c,
 Proof.
   intros.
   destruct (zlt b c).
-  + rewrite Zmod_small by omega.
+  + rewrite Zmod_small by lia.
     auto.
-  + assert (b = c) by omega.
+  + assert (b = c) by lia.
     subst.
     rewrite Z_mod_same_full.
     apply Z.divide_0_r.
@@ -122,20 +122,20 @@ Lemma arith_aux05: forall lo hi, 0 <= lo -> 0 <= hi ->
 Proof.
   intros.
   destruct (zle lo hi).
-  + rewrite Z.max_r by omega.
-    omega.
-  + rewrite Z.max_l by omega.
-    omega.
+  + rewrite Z.max_r by lia.
+    lia.
+  + rewrite Z.max_l by lia.
+    lia.
 Qed.
 
 Lemma arith_aux06: forall lo hi n, 0 <= lo <= n -> 0 <= hi <= n -> 0 <= lo + Z.max 0 (hi - lo) <= n.
 Proof.
   intros.
   destruct (zle lo hi).
-  + rewrite Z.max_r by omega.
-    omega.
-  + rewrite Z.max_l by omega.
-    omega.
+  + rewrite Z.max_r by lia.
+    lia.
+  + rewrite Z.max_l by lia.
+    lia.
 Qed.
 
 Ltac inv_int i :=
@@ -398,7 +398,7 @@ Proof.
   rewrite <- (Int.repr_unsigned (Int.repr (Z.land i j))).
   rewrite !Int.unsigned_repr_eq.
   change Int.modulus with (2 ^ 32).
-  rewrite <- !Zland_two_p by omega.
+  rewrite <- !Zland_two_p by lia.
   f_equal.
   rewrite <- !Z.land_assoc.
   f_equal.
@@ -415,7 +415,7 @@ Proof.
   rewrite <- (Int.repr_unsigned (Int.repr (Z.lor i j))).
   rewrite !Int.unsigned_repr_eq.
   change Int.modulus with (2 ^ 32).
-  rewrite <- !Zland_two_p by omega.
+  rewrite <- !Zland_two_p by lia.
   f_equal.
   rewrite <- Z.land_lor_distr_l.
   reflexivity.
@@ -456,7 +456,7 @@ Proof.
   rewrite <- (Int64.repr_unsigned (Int64.repr (Z.land i j))).
   rewrite !Int64.unsigned_repr_eq.
   change Int64.modulus with (2 ^ 64).
-  rewrite <- !Zland_two_p by omega.
+  rewrite <- !Zland_two_p by lia.
   f_equal.
   rewrite <- !Z.land_assoc.
   f_equal.
@@ -473,7 +473,7 @@ Proof.
   rewrite <- (Int64.repr_unsigned (Int64.repr (Z.lor i j))).
   rewrite !Int64.unsigned_repr_eq.
   change Int64.modulus with (2 ^ 64).
-  rewrite <- !Zland_two_p by omega.
+  rewrite <- !Zland_two_p by lia.
   f_equal.
   rewrite <- Z.land_lor_distr_l.
   reflexivity.
@@ -503,14 +503,14 @@ Arguments Pos.to_nat !x / .
 
 Lemma align_0: forall z,
     z > 0 -> align 0 z = 0.
-Proof. unfold align; intros. rewrite Zdiv_small; omega.
+Proof. unfold align; intros. rewrite Zdiv_small; lia.
 Qed.
-Hint Rewrite align_0 using omega : norm.
+Hint Rewrite align_0 using lia : norm.
 
 Lemma align_1: forall n, align n 1 = n.
-Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. omega.
+Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. lia.
 Qed.
-Hint Rewrite align_1 using omega : norm.
+Hint Rewrite align_1 using lia : norm.
 
 Lemma fold_right_andb: forall bl b, fold_right andb b bl = true -> forall b0, In b0 bl -> b0 = true.
 Proof.
@@ -530,19 +530,19 @@ Lemma Z2Nat_inj_0: forall z, z >= 0 -> Z.to_nat z = 0%nat -> z = 0.
 Proof.
   intros.
   destruct (zlt 0 z).
-  + replace z with (1 + (z - 1)) in H0 by omega.
-    rewrite Z2Nat.inj_add in H0 by omega.
+  + replace z with (1 + (z - 1)) in H0 by lia.
+    rewrite Z2Nat.inj_add in H0 by lia.
     change (Z.to_nat 1) with (1%nat) in H0.
     inversion H0.
-  + omega.
+  + lia.
 Qed.
 
 Lemma Z2Nat_id': forall n, Z.of_nat (Z.to_nat n) = Z.max 0 n.
 Proof.
 intros.
  destruct (zlt n 0).
- rewrite Z2Nat_neg by auto. rewrite Z.max_l by omega; reflexivity.
- rewrite Z2Nat.id, Z.max_r by omega; omega.
+ rewrite Z2Nat_neg by auto. rewrite Z.max_l by lia; reflexivity.
+ rewrite Z2Nat.id, Z.max_r by lia; lia.
 Qed.
 
 Lemma nil_or_non_nil: forall {A} (a: list A), {a = nil} + {a <> nil}.

@@ -123,7 +123,7 @@ Next Obligation.
    {simpl in H1|-*. erewrite age1_ghost_of in H1 by eauto.
       eapply ext_join_unapprox; eauto. }
    specialize (H0 (eq_refl _) H3).
-   spec H0. apply age_level in H. omega.
+   spec H0. apply age_level in H. lia.
   subst.
   change (level (m_phi jm)) with (level jm).
   change (level (m_phi jm0)) with (level jm0) in *.
@@ -682,7 +682,7 @@ Proof.
   simpl.
   hnf; simpl; intros.
   apply (H a).
-  omega.
+  lia.
 Qed.
 
 Lemma imp_imp:
@@ -729,7 +729,7 @@ Proof.
   apply pred_ext; unfold fash; hnf; simpl; intros.
   + destruct (ex_level a) as [r ?].
     apply (H r).
-    omega.
+    lia.
   + auto.
 Qed.
 
@@ -743,9 +743,9 @@ Proof.
   + destruct (ex_level a) as [r ?].
     specialize (H r).
     rewrite H0 in H.
-    apply H; omega.
+    apply H; lia.
   + eapply pred_nec_hereditary; [| eassumption].
-    rewrite nec_nat; omega.
+    rewrite nec_nat; lia.
 Qed.
 
 Lemma prop_true_imp:

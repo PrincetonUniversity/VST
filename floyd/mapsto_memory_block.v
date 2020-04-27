@@ -392,7 +392,7 @@ Proof.
   rewrite !withspacer_spacer.
   unfold spacer.
   simpl.
-  replace (pos + ed - (pos + be)) with (ed - be) by omega.
+  replace (pos + ed - (pos + be)) with (ed - be) by lia.
   if_tac; [reflexivity|].
   rewrite !at_offset_eq.
   replace (offset_val (pos + be) p) with
@@ -454,9 +454,9 @@ Proof.
   simpl offset_val.
   inv_int i.
   rewrite !ptrofs_add_repr.
-  rewrite sepcon_comm, Z.add_assoc, <- memory_block_split by omega.
+  rewrite sepcon_comm, Z.add_assoc, <- memory_block_split by lia.
   f_equal.
-  omega.
+  lia.
 Qed.
 
 Hint Rewrite at_offset_eq3 : at_offset_db.

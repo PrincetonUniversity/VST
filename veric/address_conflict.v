@@ -17,12 +17,12 @@ Proof.
     subst.
     destruct (zle z z0); [left | right].
     - split; auto.
-      omega.
+      lia.
     - split; auto.
-      omega.
+      lia.
   + destruct H1 as [[? ?] | [? ?]].
-    - exists (b0, z0). repeat split; auto; omega.
-    - exists (b, z). repeat split; auto; omega.
+    - exists (b0, z0). repeat split; auto; lia.
+    - exists (b, z). repeat split; auto; lia.
 Qed.
 
 Lemma range_overlap_comm: forall l1 n1 l2 n2, range_overlap l1 n1 l2 n2 -> range_overlap l2 n2 l1 n1.
@@ -61,8 +61,8 @@ Proof.
    [right;
     intros [[? ?] [[? ?] [_ [HH _]]]];
     inversion HH].
-  destruct (zlt 0 n1); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega].
-  destruct (zlt 0 n2); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega].
+  destruct (zlt 0 n1); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; lia].
+  destruct (zlt 0 n2); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; lia].
   destruct (eq_block b b0).
   (*destruct (Clight_lemmas.block_eq_dec b b0).*)
   + subst b0.
@@ -73,22 +73,22 @@ Proof.
     destruct (range_dec i1 i2 (i1 + n1)); [| destruct (range_dec i2 i1 (i2 + n2))].
     - left.
       exists (b, i1), (b, i2); repeat split; auto.
-      apply range_overlap_spec; try omega.
+      apply range_overlap_spec; try lia.
       left; simpl; auto.
     - left.
       exists (b, i1), (b, i2); repeat split; auto.
-      apply range_overlap_spec; try omega.
+      apply range_overlap_spec; try lia.
       right; simpl; auto.
     - right.
       intros [[? ?] [[? ?] [? [? HH]]]].
       inversion H; inversion H0; subst.
-      apply range_overlap_spec in HH; [| omega | omega].
-      simpl in HH; omega.
+      apply range_overlap_spec in HH; [| lia | lia].
+      simpl in HH; lia.
   + right.
     intros [[? ?] [[? ?] [? [? HH]]]].
     simpl in H, H0.
     inversion H; inversion H0; subst.
-    apply range_overlap_spec in HH; [| omega | omega].
+    apply range_overlap_spec in HH; [| lia | lia].
     simpl in HH.
     pose proof @eq_sym _ b0 b.
     tauto.
@@ -107,7 +107,7 @@ Proof.
   apply range_overlap_spec; auto.
   left.
   simpl.
-  split; auto; omega.
+  split; auto; lia.
 Qed.
 
 Lemma pointer_range_overlap_comm: forall p1 n1 p2 n2,

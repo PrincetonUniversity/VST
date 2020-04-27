@@ -64,9 +64,9 @@ Module Knot_Lemmas (K : KNOT).
     intros.
     extensionality p x; destruct x as [k o].
     unfold approx, compose; simpl.
-    destruct (le_gt_dec n (level k)); auto.
-    destruct (le_gt_dec (m+n) (level k)); auto.
-    elimtype False; omega.
+    destruct (Compare_dec.le_gt_dec n (level k)); auto.
+    destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
+    elimtype False; lia.
   Qed.
 
   Lemma approx_approx2 : forall m n,
@@ -75,9 +75,9 @@ Module Knot_Lemmas (K : KNOT).
     intros.
     extensionality p x; destruct x as [k o].
     unfold approx, compose; simpl.
-    destruct (le_gt_dec (m+n) (level k)); auto.
-    destruct (le_gt_dec n (level k)); auto.
-    elimtype False; omega.
+    destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
+    destruct (Compare_dec.le_gt_dec n (level k)); auto.
+    elimtype False; lia.
   Qed.
 
   (* These are provided since sometimes it is tedious to break things out;
@@ -188,6 +188,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
     unfold compose.
     repeat rewrite approx_spec.
     apply prop_ext. intuition.
+    lia.
   Qed.
 
   Lemma approx_approx2 : forall m n,
@@ -197,7 +198,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
     extensionality p. apply predicate_eq.
     extensionality x; destruct x as [k o].
     unfold compose. repeat rewrite approx_spec.
-    apply prop_ext. intuition.
+    apply prop_ext. intuition. lia.
   Qed.
 
   (* These are provided since sometimes it is tedious to break things out;

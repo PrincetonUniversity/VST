@@ -13,7 +13,7 @@ Definition sum_Z : list Z -> Z := fold_right Z.add 0.
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
 Proof.
-  intros. induction a; simpl; omega.
+  intros. induction a; simpl; lia.
 Qed.
 
 (* Beginning of the API spec for the sumarray.c program *)
@@ -75,8 +75,8 @@ forward. (* s += x; *)
    postcondition of the loop body) entails the loop invariant. *)
 entailer!.
  f_equal. f_equal.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite sum_Z_app. rewrite (sublist_one i) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite sum_Z_app. rewrite (sublist_one i) by lia.
  simpl. autorewrite with sublist. normalize.
 * (* After the loop *)
 forward.  (* return s; *)
@@ -112,7 +112,7 @@ assert (Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) four_content
   by (repeat constructor; computable).
  rewrite <- (sublist_same 0 4 contents), (sublist_split 0 2 4)
     by now autorewrite with sublist.
-erewrite (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
+erewrite (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try lia; try reflexivity.
 Intros.
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tuint 4) [ArraySubsc 2] four, Ews,
@@ -121,7 +121,7 @@ forward_call (*  s = sumarray(four+2,2); *)
 +
   gather_SEP (data_at Ews (tarray tuint 2) (sublist 0 2 contents) _) 
                    (data_at Ews (tarray tuint 2) (map Vint _) _).
-  erewrite <- (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
+  erewrite <- (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try lia; try reflexivity.
   rewrite <- !sublist_map. fold contents. autorewrite with sublist.
   rewrite (sublist_same 0 4) by auto.
   forward. (* return *)
@@ -209,8 +209,8 @@ forward.  (* i++; *)
 Exists (i+1).
 entailer!.
      f_equal. f_equal.
-     rewrite (sublist_split 0 i (i+1)) by omega.
-     rewrite sum_Z_app. rewrite (sublist_one i) by omega.
+     rewrite (sublist_split 0 i (i+1)) by lia.
+     rewrite sum_Z_app. rewrite (sublist_one i) by lia.
      simpl. autorewrite with sublist norm. reflexivity.
 * (* after the loop *)
 forward. (* return s; *)

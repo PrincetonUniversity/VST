@@ -117,8 +117,8 @@ Proof.
       * split; auto; do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
         destruct Hpost as [? Hpost]; split; auto; split; auto.
-        destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; rep_omega).
-        -- rewrite if_false by omega; eauto.
+        destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; rep_lia).
+        -- rewrite if_false by lia; eauto.
         -- rewrite if_true; auto.
       * unfold getchar_pre, getchar_pre' in *.
         apply Traces.sutt_trace_incl; auto.
@@ -238,7 +238,7 @@ Local Ltac destruct_spec Hspec :=
       inv Heq.
       destruct Hinj as [? Htrace].
       apply IO_ext_sem_trace in Hcall as [Hprefix]; auto; subst.
-      eapply IHn in Hsafe as [? Htrace']; eauto; try omega.
+      eapply IHn in Hsafe as [? Htrace']; eauto; try lia.
       split; auto.
       rewrite Htrace, <- Htrace', <- app_trace_assoc, app_trace_strip; auto.
       { rewrite Htrace, app_trace_strip; auto. }
@@ -279,13 +279,13 @@ Local Ltac destruct_spec Hspec :=
         edestruct H13 as (? & ? & ? & ? & ? & Hafter' & Hsafe' & Htraces); eauto.
         rewrite Hafter in Hafter'; inv Hafter'.
         apply Htraces.
-        eapply IHn in Hsafe; eauto; try omega.
+        eapply IHn in Hsafe; eauto; try lia.
         subst; auto.
       + destruct (H14 _ Hin) as (? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hafter & Hsafe & ? & ? & ? & ?); subst.
         edestruct H1 as (? & ? & ? & ? & ? & Hafter' & Hsafe' & Htraces); eauto.
         rewrite Hafter in Hafter'; inv Hafter'.
         apply Htraces.
-        eapply IHn in Hsafe; eauto; try omega.
+        eapply IHn in Hsafe; eauto; try lia.
         subst; auto.
   Qed.
 
@@ -309,17 +309,17 @@ Local Ltac destruct_spec Hspec :=
         exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)); split.
       + eapply OS_safeN_trace_external; eauto; intros.
         edestruct H1 as (? & ? & ? & ? & ? & ? & Hsafe & ?); eauto.
-        eapply IHn with (s0 := s') in Hsafe as (? & ? & ?); eauto; try omega.
+        eapply IHn with (s0 := s') in Hsafe as (? & ? & ?); eauto; try lia.
         split; auto; do 4 eexists; eauto; split; eauto; split; eauto.
         intros; unfold In; eauto 25.
       + unfold In in *; split.
         * intro Hin; destruct (H2 _ Hin) as (s & s' & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hsafe & ? & Htrace & ?); subst.
-          eapply IHn in Hsafe as (? & ? & Htraces); eauto; try omega.
+          eapply IHn in Hsafe as (? & ? & Htraces); eauto; try lia.
           apply Htraces in Htrace; destruct Htrace; eauto 25.
         * intros (? & ? & s' & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hafter & Hsafe' & ? & ? & ? & Heq).
           inv Heq.
           edestruct H1 as (? & ? & ? & ? & ? & Hafter' & Hsafe & Htrace); eauto; apply Htrace.
-          eapply IHn in Hsafe as (? & ? & ->); eauto; try omega.
+          eapply IHn in Hsafe as (? & ? & ->); eauto; try lia.
           rewrite Hafter in Hafter'; inv Hafter'.
           eapply OS_traces_det in Hsafe'; eauto; subst; eauto.
   Qed.

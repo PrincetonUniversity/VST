@@ -730,8 +730,8 @@ Lemma bytes_writable_dec:
 Proof.
 intros.
 destruct n.
-left; intro; intros; omegaContradiction.
-2: generalize (Zlt_neg_0 p); intro; left; intro; intros; omegaContradiction.
+left; intro; intros; lia.
+2: generalize (Zlt_neg_0 p); intro; left; intro; intros; lia.
 rewrite Zpos_eq_Z_of_nat_o_nat_of_P.
 remember (nat_of_P p) as n.
 clear.
@@ -739,7 +739,7 @@ destruct loc as [b z].
 revert z;
 induction n; intros.
 left; intro; intros.
-simpl in H; omegaContradiction.
+simpl in H; lia.
 rewrite inj_S.
 destruct (IHn (z+1)).
 destruct (writable_dec (b,z) m).
@@ -748,26 +748,26 @@ intro; intros.
 unfold adr_add; simpl.
 destruct (zeq i 0).
 subst.
-replace (z+0) with z by omega.
+replace (z+0) with z by lia.
 auto.
-replace (z+i) with (z+1+(i-1)) by omega.
+replace (z+i) with (z+1+(i-1)) by lia.
 apply b0.
-omega.
+lia.
 right.
 contradict n0.
 specialize ( n0 0).
 unfold adr_add in n0; simpl in n0.
 replace (z+0) with z in n0.
 apply n0.
-omega.
-omega.
+lia.
+lia.
 right.
 contradict n0.
 intro; intros.
 unfold adr_add; simpl.
-replace (z+1+i) with (z+(1+i)) by omega.
+replace (z+1+i) with (z+(1+i)) by lia.
 apply n0.
-omega.
+lia.
 Qed.
 
 Lemma bytes_readable_dec:
@@ -775,8 +775,8 @@ Lemma bytes_readable_dec:
 Proof.
 intros.
 destruct n.
-left; intro; intros; omegaContradiction.
-2: generalize (Zlt_neg_0 p); intro; left; intro; intros; omegaContradiction.
+left; intro; intros; lia.
+2: generalize (Zlt_neg_0 p); intro; left; intro; intros; lia.
 rewrite Zpos_eq_Z_of_nat_o_nat_of_P.
 remember (nat_of_P p) as n.
 clear.
@@ -784,7 +784,7 @@ destruct loc as [b z].
 revert z;
 induction n; intros.
 left; intro; intros.
-simpl in H; omegaContradiction.
+simpl in H; lia.
 rewrite inj_S.
 destruct (IHn (z+1)).
 destruct (readable_dec (b,z) m).
@@ -793,26 +793,26 @@ intro; intros.
 unfold adr_add; simpl.
 destruct (zeq i 0).
 subst.
-replace (z+0) with z by omega.
+replace (z+0) with z by lia.
 auto.
-replace (z+i) with (z+1+(i-1)) by omega.
+replace (z+i) with (z+1+(i-1)) by lia.
 apply b0.
-omega.
+lia.
 right.
 contradict n0.
 specialize ( n0 0).
 unfold adr_add in n0; simpl in n0.
 replace (z+0) with z in n0.
 apply n0.
-omega.
-omega.
+lia.
+lia.
 right.
 contradict n0.
 intro; intros.
 unfold adr_add; simpl.
-replace (z+1+i) with (z+(1+i)) by omega.
+replace (z+1+i) with (z+(1+i)) by lia.
 apply n0.
-omega.
+lia.
 Qed.
 
 Lemma bytes_writable_readable:
@@ -836,7 +836,7 @@ hnf.
 destruct (levelS_age1 _ _ H).
 assert (x=w'); [ | subst; auto].
 assert (level x = level w')
-  by (apply age_level in H2; omega).
+  by (apply age_level in H2; lia).
 apply rmap_ext; auto.
 intros.
 specialize (H0 l).

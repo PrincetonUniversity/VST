@@ -22,7 +22,7 @@ Proof.
   intros.
   apply (split2_data_at_Tarray_app _ n  sh tschar al bl ); auto.
   rewrite Zlength_app in H.
-  change ( Zlength bl = n - Zlength al); omega.
+  change ( Zlength bl = n - Zlength al); lia.
 Qed.
 
 Example strcat_preloop2_old : forall {cs : compspecs} n ld,
@@ -70,8 +70,8 @@ Example strcat_return_old : forall n (ld ls : list byte),
 Proof.
   intros.
   replace (n - (Zlength ld + Zlength ls))
-    with (1 + (n - (Zlength ld + Zlength ls+1))) by rep_omega.
-  rewrite <- list_repeat_app' by rep_omega.
+    with (1 + (n - (Zlength ld + Zlength ls+1))) by rep_lia.
+  rewrite <- list_repeat_app' by rep_lia.
   rewrite upd_Znth_app1 by list_solve.
   rewrite app_assoc.
   simpl.
@@ -91,7 +91,7 @@ Proof.
   intros.
   apply derives_refl'. f_equal.
   apply_list_ext. list_form. Znth_solve.
-  fold_Vbyte. do 2 f_equal. omega.
+  fold_Vbyte. do 2 f_equal. lia.
 Qed.
 
 Example strcat_loop2_alt : forall {cs : compspecs} sh n x ld ls dest,
@@ -106,7 +106,7 @@ Proof.
   intros. fold_Vbyte.
   apply_list_ext. list_form. Znth_solve.
   apply data_subsume_refl'.
-  do 2 f_equal. omega.
+  do 2 f_equal. lia.
 Qed.
 
 Example strcat_loop2_old : forall {cs : compspecs} sh n x ld ls dest,
@@ -119,18 +119,18 @@ Example strcat_loop2_old : forall {cs : compspecs} sh n x ld ls dest,
       dest.
 Proof.
   intros. rename x into j.
-  rewrite (sublist_split 0 j (j+1)) by rep_omega.
+  rewrite (sublist_split 0 j (j+1)) by rep_lia.
   rewrite (app_assoc ld). rewrite !map_app.
   rewrite <- (app_assoc (_ ++ _)).
   rewrite (split_data_at_app_tschar _ n) by list_solve.
   rewrite (split_data_at_app_tschar _ n) by list_solve.
   replace (n - (Zlength ld + j))
-    with (1 + (n - (Zlength ld + (j + 1)))) by rep_omega.
-  rewrite <- list_repeat_app' by rep_omega.
+    with (1 + (n - (Zlength ld + (j + 1)))) by rep_lia.
+  rewrite <- list_repeat_app' by rep_lia.
   cancel.
-  rewrite upd_Znth_app1 by (autorewrite with sublist; rep_omega).
+  rewrite upd_Znth_app1 by (autorewrite with sublist; rep_lia).
   rewrite app_Znth1 by list_solve.
-  rewrite sublist_len_1 by rep_omega.
+  rewrite sublist_len_1 by rep_lia.
   cancel.
 Qed.
 
@@ -158,7 +158,7 @@ Proof.
    rewrite (split_data_at_app_tschar _ n) by list_solve.
    autorewrite with sublist.
    replace (n - Zlength ls) with (1 + (n - (Zlength ls + 1))) at 2 by list_solve.
-  rewrite <- list_repeat_app' by omega.
+  rewrite <- list_repeat_app' by lia.
   autorewrite with sublist.
   rewrite !split_data_at_app_tschar by list_solve.
   cancel.
@@ -176,7 +176,7 @@ Proof.
   intros.
   list_form. Znth_solve2.
   fold_Vbyte. apply_list_ext. Znth_solve.
-  apply data_subsume_refl'. do 2 f_equal. omega.
+  apply data_subsume_refl'. do 2 f_equal. lia.
 Qed.
 
 Example strcpy_loop_old : forall {cs : compspecs} sh n x ls dest,
@@ -197,12 +197,12 @@ Proof.
   rewrite !(split_data_at_app_tschar _ n) by list_solve.
   autorewrite with sublist.
    replace (n - i) with (1 + (n-(i+ 1))) at 2 by list_solve.
-  rewrite <- list_repeat_app' by omega.
+  rewrite <- list_repeat_app' by lia.
   autorewrite with sublist.
   cancel.
   rewrite !split_data_at_app_tschar by list_solve.
   autorewrite with sublist.
-  rewrite sublist_len_1 by omega.
+  rewrite sublist_len_1 by lia.
   simpl. cancel.
 Qed.
 
@@ -222,7 +222,7 @@ Example strcmp_loop_new : forall i ls1 ls2,
 Proof.
   intros.
   list_form. range_form.
-  Time split3; intros; Znth_solve2; try omega; range_saturate; try congruence; fassumption.
+  Time split3; intros; Znth_solve2; try lia; range_saturate; try congruence; fassumption.
   (* New version : Finished transaction in 2.253 secs (2.25u,0.s) (successful) *)
   (* Old version : Finished transaction in 1.383 secs (1.375u,0.s) (successful) *)
 Qed.
@@ -244,32 +244,32 @@ Proof.
   intros.
   destruct (zlt i (Zlength ls1)).
   2:{
-         assert (i = Zlength ls1) by omega. subst.
+         assert (i = Zlength ls1) by lia. subst.
          destruct H4; [congruence | ].
-         assert (Zlength ls1 < Zlength ls2) by omega.
-         rewrite app_Znth2 in H5 by rep_omega.
-         rewrite app_Znth1 in H5 by rep_omega.
+         assert (Zlength ls1 < Zlength ls2) by lia.
+         rewrite app_Znth2 in H5 by rep_lia.
+         rewrite app_Znth1 in H5 by rep_lia.
          rewrite Z.sub_diag in H5. contradiction H0.
          change (Znth 0 [Byte.zero]) with Byte.zero in H5.
-         rewrite H5. apply Znth_In. omega.
+         rewrite H5. apply Znth_In. lia.
    }
   destruct (zlt i (Zlength ls2)).
   2:{
-         assert (i = Zlength ls2) by omega. subst.
+         assert (i = Zlength ls2) by lia. subst.
          destruct H4; [ | congruence].
-         assert (Zlength ls1 > Zlength ls2) by omega.
-         rewrite app_Znth1 in H5 by rep_omega.
-         rewrite app_Znth2 in H5 by rep_omega.
+         assert (Zlength ls1 > Zlength ls2) by lia.
+         rewrite app_Znth1 in H5 by rep_lia.
+         rewrite app_Znth2 in H5 by rep_lia.
          rewrite Z.sub_diag in H5. contradiction H.
          change (Znth 0 [Byte.zero]) with Byte.zero in H5.
-         rewrite <- H5.  apply Znth_In. omega.
+         rewrite <- H5.  apply Znth_In. lia.
    }
-  rewrite (sublist_split 0 i (i+1)) by omega.
-  rewrite (sublist_split 0 i (i+1)) by omega.
+  rewrite (sublist_split 0 i (i+1)) by lia.
+  rewrite (sublist_split 0 i (i+1)) by lia.
   f_equal; auto.
-  rewrite !sublist_len_1 by omega.
+  rewrite !sublist_len_1 by lia.
   autorewrite with sublist in H5.
-  split. rep_omega. split. rep_omega.
+  split. rep_lia. split. rep_lia.
   f_equal; auto. f_equal. auto.
 Qed.
 

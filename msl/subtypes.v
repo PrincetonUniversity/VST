@@ -46,7 +46,7 @@ simpl in *.
 apply H0.
 unfold age, age1, ag_nat,natAge1 in H.
 destruct a; inv H.
-omega.
+lia.
 Qed.
 
 Notation "'#' e" := (fash e) (at level 30, right associativity): pred.
@@ -72,7 +72,7 @@ intros.
 split; induction 1; simpl; intros.
 unfold age, age1 in H; simpl in H; unfold natAge1 in H. destruct x; inv H.
 auto.
-apply gt_trans with y; auto.
+apply Gt.gt_trans with y; auto.
 constructor 1. unfold age, age1; simpl. auto.
 constructor 2 with m; auto.
 constructor 1. unfold age, age1; simpl. auto.
@@ -85,7 +85,7 @@ apply pred_ext; intro; simpl in *; intros.
 apply H with a; auto.
 subst.
 apply H.
-unfold natLevel in H0. omega.
+unfold natLevel in H0. lia.
 Qed.
 
 Lemma fash_derives {A} `{agA : ageable A}:
@@ -231,11 +231,11 @@ Proof.
  3: eapply H3.
  5: eapply H; auto.
  2: eassumption. 3: eassumption.
- apply necR_level in H2. apply le_trans with (level y); auto. apply le_trans with (level a'); auto.
+ apply necR_level in H2. apply Le.le_trans with (level y); auto. apply Le.le_trans with (level a'); auto.
  auto.
  apply necR_level in H5.
- apply le_trans with (level y0); auto. apply le_trans with a'; auto.
- apply necR_level in H2.  apply le_trans with (level y); auto.
+ apply Le.le_trans with (level y0); auto. apply Le.le_trans with a'; auto.
+ apply necR_level in H2.  apply Le.le_trans with (level y); auto.
 Qed.
 
 Lemma subp_allp {A} `{ageable A} : forall G B (X Y:B -> pred A),
@@ -279,7 +279,7 @@ simpl in *.
 eapply (H (level w'')); auto.
 apply later_nat.
 apply laterR_level in H1.
-omega.
+lia.
 Qed.
 
 Lemma later_fash {A} `{agA : ageable A}:
@@ -296,7 +296,7 @@ destruct (af_unage age_facts y).
 apply (H x).
 apply later_nat in H0.
 apply age_level in H2.
-omega.
+lia.
 constructor 1; auto.
 Qed.
 
@@ -451,11 +451,11 @@ Lemma eqp_nat: forall P Q: pred nat, (P <=> Q) = (P <--> Q).
 Proof.
 intros.
 apply pred_ext; intros w ?.
-specialize (H _ (le_refl _)); auto.
+specialize (H _ (Le.le_refl _)); auto.
 intros n' ?. inv H0; auto.
 eapply pred_nec_hereditary; try apply H.
 apply nec_nat.
-unfold level in H1. simpl in H1. unfold natLevel in H1. omega.
+unfold level in H1. simpl in H1. unfold natLevel in H1. lia.
 Qed.
 
 Lemma prop_andp_subp {A}{agA : ageable A}:
@@ -472,7 +472,7 @@ Lemma subp_e {A}{agA : ageable A}: forall P Q : pred A, TT |-- P >=> Q -> P |-- 
 Proof.
 intros.
 repeat intro.
-apply (H (@level _ agA a) I a (le_refl _) a (necR_refl _) H0).
+apply (H (@level _ agA a) I a (Le.le_refl _) a (necR_refl _) H0).
 Qed.
 
 

@@ -118,7 +118,7 @@ Proof.
     exists b; split; auto.
     exists m'; split; [| split; [| split]]; auto.
     change (assert_safe Espec gx f vx tx k rho m').
-    specialize (H m' ltac: (apply necR_level in H1; omega)).
+    specialize (H m' ltac: (apply necR_level in H1; lia)).
     specialize (H m' ltac: (apply necR_refl)).
     apply H.
     split; [split |]; auto.
@@ -191,7 +191,7 @@ Proof.
     exists b; split; auto.
     exists m'; split; [| split; [| split]]; auto.
     change (assert_safe Espec gx f vx tx k rho m').
-    specialize (H m' ltac: (apply necR_level in H1; omega)).
+    specialize (H m' ltac: (apply necR_level in H1; lia)).
     specialize (H m' ltac: (apply necR_refl)).
     apply H.
     split; [split |]; auto.
@@ -284,7 +284,7 @@ Proof.
       split; auto.
       split; auto.
       simpl.
-      hnf; intros. omega.
+      hnf; intros. lia.
     - apply H.
       destruct H2 as [[? ?] ?].
       split; [split |]; auto.
@@ -369,7 +369,7 @@ Proof.
       split; auto.
       split; auto.
       simpl.
-      hnf; intros. omega.
+      hnf; intros. lia.
     - apply H.
       destruct H2 as [[? ?] ?].
       split; [split |]; auto.
@@ -664,7 +664,7 @@ assert ((bupd (assert_safe Espec psi f ve te (exit_cont ek vl k)
   destruct (HFP' _ J) as (b & ? & m' & ? & ? & ? & ?).
   exists b; split; auto; exists m'; repeat split; auto.
   pose proof (necR_level _ _ H2).
-  lapply (H0 m'); [|omega].
+  lapply (H0 m'); [|lia].
   intro X; apply X; auto.
   split; [split|]; auto.
   apply funassert_resource with (a := a'); auto. }
@@ -711,7 +711,7 @@ apply bupd_trans; intros ? J.
 destruct (HFP _ J) as (b & ? & m' & ? & ? & ? & HFP').
 exists b; split; auto; exists m'; repeat split; auto.
 pose proof (necR_level _ _ H2).
-lapply (H0 m'); [|omega].
+lapply (H0 m'); [|lia].
 intro X; apply X; auto.
 split; [split|]; auto.
 apply funassert_resource with (a := a'); auto.

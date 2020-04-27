@@ -38,11 +38,11 @@ Proof. intros. unfold field_address; rewrite if_true by auto; reflexivity.
 Qed.
 
 Hint Extern 2 (field_compatible0 _ (ArraySubsc _ :: _) _) =>
-   (eapply field_compatible0_cons_Tarray; [reflexivity | | omega])
+   (eapply field_compatible0_cons_Tarray; [reflexivity | | lia])
   : field_compatible.
 
 Hint Extern 2 (field_compatible _ (ArraySubsc _ :: _) _) =>
-   (eapply field_compatible_cons_Tarray; [reflexivity | | omega])
+   (eapply field_compatible_cons_Tarray; [reflexivity | | lia])
   : field_compatible.
 
 Lemma field_compatible_array_smaller0:
@@ -56,21 +56,21 @@ hnf in H|-*.
 destruct H as [? [? [? [? ?]]]].
 unfold sizeof in *; fold (sizeof t) in *.
 assert (sizeof t * n <= sizeof t * n')
-  by (pose proof (sizeof_pos t); apply Z.mul_le_mono_nonneg_l; omega).
+  by (pose proof (sizeof_pos t); apply Z.mul_le_mono_nonneg_l; lia).
 repeat split; auto.
 *
 hnf in H3|-*.
 destruct d; auto.
 unfold sizeof in *; fold (sizeof t) in *.
-rewrite Z.max_r in * by omega.
-omega.
+rewrite Z.max_r in * by lia.
+lia.
 *
 destruct d; auto.
 hnf in H4 |- *.
 constructor.
 intros.
 eapply align_compatible_rec_Tarray_inv; eauto.
-omega.
+lia.
 Qed.
 
 Lemma field_compatible0_array_smaller0:
@@ -84,35 +84,35 @@ hnf in H|-*.
 destruct H as [? [? [? [? ?]]]].
 unfold sizeof in *; fold (sizeof t) in *.
 assert (sizeof t * n <= sizeof t * n')
-  by (pose proof (sizeof_pos t); apply Z.mul_le_mono_nonneg_l; omega).
+  by (pose proof (sizeof_pos t); apply Z.mul_le_mono_nonneg_l; lia).
 repeat split; auto.
 *
 hnf in H3|-*.
 destruct d; auto.
 unfold sizeof in *; fold (sizeof t) in *.
-rewrite Z.max_r in * by omega.
-omega.
+rewrite Z.max_r in * by lia.
+lia.
 *
 destruct d; auto.
 hnf in H4 |- *.
 constructor.
 intros.
 eapply align_compatible_rec_Tarray_inv; eauto.
-omega.
+lia.
 Qed.
 
 
 Hint Extern 2 (field_compatible (Tarray _ _ _) nil _) =>
-   (eapply field_compatible_array_smaller0; [eassumption | omega]) : field_compatible.
+   (eapply field_compatible_array_smaller0; [eassumption | lia]) : field_compatible.
 
 Hint Extern 2 (field_compatible (tarray _ _) nil _) =>
-   (eapply field_compatible_array_smaller0; [eassumption | omega]) : field_compatible.
+   (eapply field_compatible_array_smaller0; [eassumption | lia]) : field_compatible.
 
 Hint Extern 2 (field_compatible0 (Tarray _ _ _) nil _) =>
-   (eapply field_compatible0_array_smaller0; [eassumption | omega]) : field_compatible.
+   (eapply field_compatible0_array_smaller0; [eassumption | lia]) : field_compatible.
 
 Hint Extern 2 (field_compatible0 (tarray _ _) nil _) =>
-   (eapply field_compatible0_array_smaller0; [eassumption | omega]) : field_compatible.
+   (eapply field_compatible0_array_smaller0; [eassumption | lia]) : field_compatible.
 
 Lemma field_compatible0_array_smaller1:
   forall  {cs: compspecs} t i j n1 n2 p,
@@ -126,31 +126,31 @@ move H0 after H.
 hnf in H0|-*.
  assert (SS: sizeof t * n2 <= sizeof t * n1).
   apply Zmult_le_compat_l; auto.
-  pose proof (sizeof_pos t); omega.
+  pose proof (sizeof_pos t); lia.
 intuition.
  *
   destruct p; try contradiction; red in H4|-*.
   unfold sizeof in H4|-*; fold (sizeof t) in *.
-  rewrite Z.max_r in * by omega.
-  omega.
+  rewrite Z.max_r in * by lia.
+  lia.
  *
 destruct p; auto.
 hnf in H5 |- *.
 constructor.
 intros.
 eapply align_compatible_rec_Tarray_inv; eauto.
-omega.
+lia.
  * destruct H7.
    split; auto.
    simpl in H7 |- *.
-   omega.
+   lia.
 Qed.
 
 Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
-   (eapply field_compatible0_array_smaller1; [eassumption | omega | omega]) : field_compatible.
+   (eapply field_compatible0_array_smaller1; [eassumption | lia | lia]) : field_compatible.
 
 Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
-   (eapply field_compatible0_array_smaller1; [eassumption | omega | omega]) : field_compatible.
+   (eapply field_compatible0_array_smaller1; [eassumption | lia | lia]) : field_compatible.
 
 Arguments nested_field_array_type {cs} t gfs lo hi / .
 
@@ -179,11 +179,11 @@ unfold tarray in *.
 split; intros.
 assert (SP := sizeof_pos t).
 assert (SL: sizeof t * i <= sizeof t * n)
-  by (apply Zmult_le_compat_l; omega).
+  by (apply Zmult_le_compat_l; lia).
 assert (SL': sizeof t * (n-i) <= sizeof t * n)
-  by (apply Zmult_le_compat_l; omega).
+  by (apply Zmult_le_compat_l; lia).
 assert (ST: 0*0 <= sizeof t * i).
-apply Zmult_le_compat; omega.
+apply Zmult_le_compat; lia.
 change (0*0)%Z with 0 in ST.
 assert (field_compatible (Tarray t i noattr) nil d /\
            field_compatible (Tarray t (n - i) noattr) nil
@@ -196,34 +196,34 @@ repeat split; auto.
 *
 unfold size_compatible in H2|-*.
 unfold sizeof in H2|-*. fold sizeof in H2 |-*.
-rewrite Z.max_r in H2|-* by omega.
-omega.
+rewrite Z.max_r in H2|-* by lia.
+lia.
 *
 hnf in H4 |- *.
 constructor.
 intros.
 eapply align_compatible_rec_Tarray_inv; eauto.
-omega.
+lia.
 *
 unfold size_compatible in H2|-*.
 unfold offset_val.
 rewrite <- (Ptrofs.repr_unsigned i0).
 rewrite ptrofs_add_repr.
 unfold sizeof in H2|-*. fold sizeof in H2 |-*.
-rewrite Z.max_r in H2|-* by omega.
+rewrite Z.max_r in H2|-* by lia.
 pose proof (Ptrofs.unsigned_range i0).
 destruct (zeq (Ptrofs.unsigned i0 + sizeof t * i) Ptrofs.modulus).
 rewrite e.
 change (Ptrofs.unsigned (Ptrofs.repr Ptrofs.modulus)) with 0.
 rewrite Z.add_0_l.
-omega.
+lia.
 rewrite Ptrofs.unsigned_repr.
 assert (sizeof t * i + sizeof t * (n - i)  =  sizeof t * n)%Z.
 rewrite <- Z.mul_add_distr_l.
-f_equal. omega.
-omega.
+f_equal. lia.
+lia.
 change Ptrofs.max_unsigned with (Ptrofs.modulus-1).
-omega.
+lia.
 *
 hnf in H4 |- *.
 constructor.
@@ -231,18 +231,18 @@ intros.
 rewrite <- (Ptrofs.repr_unsigned i0).
 rewrite ptrofs_add_repr.
 simpl in H2.
-rewrite Z.max_r in H2 by omega.
+rewrite Z.max_r in H2 by lia.
 solve_mod_modulus.
 pose_size_mult cenv_cs t (0 :: i :: i + i1 :: i + i1 + 1 :: n :: nil).
 inv_int i0.
-rewrite Zmod_small by omega.
+rewrite Zmod_small by lia.
 rewrite <- Z.add_assoc, <- H8.
 eapply align_compatible_rec_Tarray_inv. eauto.
-omega.
+lia.
 *
-omega.
+lia.
 *
-omega.
+lia.
 }
 destruct H1 as [? [? ?]].
 rewrite field_address0_offset.
@@ -259,7 +259,7 @@ Qed.
 Hint Resolve field_compatible0_ArraySubsc0 : field_compatible.
 
 Hint Extern 2 (legal_nested_field0 _ _) =>
-  (apply compute_legal_nested_field0_spec'; repeat constructor; omega) : field_compatible.
+  (apply compute_legal_nested_field0_spec'; repeat constructor; lia) : field_compatible.
 Hint Extern 2 (field_compatible0 _ _ (offset_val _ _)) =>
   (apply field_compatible0_nested_field_array; auto with field_compatible) : core. (*FIXME: should be field_compatible*)
 
@@ -277,7 +277,7 @@ Proof.
   intros.
   assert_PROP (Zlength v' = n). {
     eapply derives_trans; [apply data_at_local_facts | apply prop_derives].
-    intros [? ?]. destruct H4 as [? _]. rewrite Z.max_r in H4 by omega.
+    intros [? ?]. destruct H4 as [? _]. rewrite Z.max_r in H4 by lia.
     rewrite <- H0. exact H4.
   }
   assert_PROP (field_compatible0 (Tarray t n noattr) (ArraySubsc n1::nil) p). {
@@ -285,13 +285,13 @@ Proof.
      intros [? _]; auto with field_compatible.
   }
   rewrite field_address0_offset by auto.
-  rewrite !nested_field_offset_ind by (repeat split; auto; omega).
+  rewrite !nested_field_offset_ind by (repeat split; auto; lia).
   rewrite nested_field_type_ind. unfold gfield_offset.
   rewrite Z.add_0_l.
   rewrite data_at_isptr at 1.
   unfold data_at at 1. intros; simpl; normalize.
   erewrite (field_at_Tarray sh  (Tarray t n noattr) _ t); try reflexivity; trivial.
-  2: omega.
+  2: lia.
   rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1).
   2: auto. 2: rewrite Z.sub_0_r, H0; auto.
   do 2 rewrite array_at_data_at by tauto.
@@ -307,7 +307,7 @@ Proof.
             (Tarray t (n - n1) noattr) _  v2).
   2: unfold nested_field_array_type; simpl; trivial.
   2: rewrite H2, <- H3, H0; auto.
-  rewrite !nested_field_offset_ind by (repeat split; auto; omega).
+  rewrite !nested_field_offset_ind by (repeat split; auto; lia).
   rewrite !nested_field_type_ind.
   unfold gfield_offset.
   rewrite !Z.add_0_l. rewrite Z.mul_0_r.
@@ -342,13 +342,13 @@ Proof.
    hnf in H3,H4|-*; intuition.
   } clear H3; rename H4 into H3.
   rewrite data_at_isptr at 1. unfold at_offset. intros; normalize.
-  unfold data_at at 3.  erewrite field_at_Tarray; try reflexivity; eauto; try omega.
+  unfold data_at at 3.  erewrite field_at_Tarray; try reflexivity; eauto; try lia.
   rewrite H0.
   rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1); trivial.
   2: autorewrite with sublist; auto.
   autorewrite with sublist.
-  unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try omega.
-  unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try omega.
+  unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try lia.
+  unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try lia.
   apply sepcon_derives.
   unfold array_at.
   rewrite H1.
@@ -359,19 +359,19 @@ Proof.
   f_equal. autorewrite with sublist. auto.
   rewrite H2.
   clear - H H3.
-  rewrite array_at_data_at by omega. normalize.
-  rewrite array_at_data_at by omega.
+  rewrite array_at_data_at by lia. normalize.
+  rewrite array_at_data_at by lia.
   rewrite !prop_true_andp by auto with field_compatible.
   unfold at_offset.
   apply derives_refl'.
   rewrite offset_offset_val.
-  rewrite !nested_field_offset_ind by (repeat split; auto; omega).
+  rewrite !nested_field_offset_ind by (repeat split; auto; lia).
   rewrite !nested_field_type_ind. unfold gfield_offset.
   rewrite !Z.add_0_l. rewrite Z.mul_0_r, Z.add_0_r.
   apply equal_f.
   apply data_at_type_changable; auto.
   unfold nested_field_array_type.
-  rewrite !nested_field_type_ind.  unfold gfield_type. simpl. f_equal; omega.
+  rewrite !nested_field_type_ind.  unfold gfield_type. simpl. f_equal; lia.
 Qed.
 
 Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 (v v' v1 v2: list (reptype t)) p:
@@ -405,34 +405,34 @@ Proof.
 intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   assert (SP := sizeof_pos t).
   assert (SS: sizeof t * n <= sizeof t * n').
-  apply Zmult_le_compat_l. omega. omega.
+  apply Zmult_le_compat_l. lia. lia.
   assert (SS': (sizeof t * n + sizeof t * (n'-n) = sizeof t * n')%Z).
-  rewrite <- Z.mul_add_distr_l. f_equal. omega.
+  rewrite <- Z.mul_add_distr_l. f_equal. lia.
   hnf in H|-*.
   intuition.
   *
   destruct p; try contradiction.
   clear - SP SS SS' H H4 H0 H5 H3 H8 Hni Hii.
   red in H3|-*.
-  simpl in H3,H8|-*. rewrite Z.max_r in H3|-* by omega.
+  simpl in H3,H8|-*. rewrite Z.max_r in H3|-* by lia.
   rename i0 into j.
    pose proof (Ptrofs.unsigned_range j).
    assert (0 <= sizeof t * (i'-i) <= sizeof t * n').
-   split. apply Z.mul_nonneg_nonneg; omega.
-   apply Zmult_le_compat_l. omega. omega.
+   split. apply Z.mul_nonneg_nonneg; lia.
+   apply Zmult_le_compat_l. lia. lia.
   assert (sizeof t * (i'-i+n) <= sizeof t * n').
-   apply Zmult_le_compat_l. omega. omega.
+   apply Zmult_le_compat_l. lia. lia.
   unfold Ptrofs.add.
   rewrite (Ptrofs.unsigned_repr (_ * _))
-    by (change Ptrofs.max_unsigned with (Ptrofs.modulus -1); omega).
+    by (change Ptrofs.max_unsigned with (Ptrofs.modulus -1); lia).
   rewrite Ptrofs.unsigned_repr_eq.
-  rewrite Zmod_small by omega.
+  rewrite Zmod_small by lia.
   pose proof Z.mul_add_distr_l (sizeof t) (i' - i) n.
-  omega.
+  lia.
  *
    destruct p; try contradiction.
    simpl in H3, H6 |- *.
-   rewrite Z.max_r in H3 by omega.
+   rewrite Z.max_r in H3 by lia.
    constructor; intros.
   unfold Ptrofs.add.
    rewrite !Ptrofs.unsigned_repr_eq.
@@ -442,18 +442,18 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   rewrite <- Z.add_mod by auto.
   inv_int i0.
   pose_size_mult cenv_cs t (0 :: i' - i :: i' - i + i1 ::  n' :: nil).
-  rewrite Zmod_small by omega.
+  rewrite Zmod_small by lia.
   rewrite <- Z.add_assoc, <- H14.
   eapply align_compatible_rec_Tarray_inv; [eassumption |].
-  omega.
+  lia.
 Qed.
 
 (*
 Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
-    (eapply field_compatible0_Tarray_offset; [eassumption | omega | omega]) : field_compatible.
+    (eapply field_compatible0_Tarray_offset; [eassumption | lia | lia]) : field_compatible.
 
 Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
-    (eapply field_compatible0_Tarray_offset; [eassumption | omega | omega]) : field_compatible.
+    (eapply field_compatible0_Tarray_offset; [eassumption | lia | lia]) : field_compatible.
 *)
 
 Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v' v1 v2 v3: list (reptype t)) p:
@@ -470,11 +470,11 @@ Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v' v1 v2 v3: list (r
     data_at sh (Tarray t (n - n2) noattr) v3 (field_address0 (Tarray t n noattr) (ArraySubsc n2::nil) p).
 Proof. intros until 1. rename H into NA; intros.
   destruct (field_compatible0_dec (tarray t n) (ArraySubsc n2::nil) p).
-  erewrite (split2_data_at_Tarray sh t n n1); try eassumption; try omega.
+  erewrite (split2_data_at_Tarray sh t n n1); try eassumption; try lia.
   instantiate (1:= sublist n1 n v').
   2: reflexivity.
-  erewrite (split2_data_at_Tarray sh t (n-n1) (n2-n1)); try eassumption; try omega.
-  2: instantiate (1:= sublist n1 n v'); autorewrite with sublist; omega.
+  erewrite (split2_data_at_Tarray sh t (n-n1) (n2-n1)); try eassumption; try lia.
+  2: instantiate (1:= sublist n1 n v'); autorewrite with sublist; lia.
   2: autorewrite with sublist; auto.
   2: autorewrite with sublist;
      instantiate (1:= sublist n1 n2 v');
@@ -488,7 +488,7 @@ Proof. intros until 1. rename H into NA; intros.
      (field_address0 (Tarray t n noattr) (SUB n1) p))
    with (field_address0 (Tarray t n noattr) (SUB n2) p).
   apply equal_f.
-  replace (n - n1 - (n2 - n1)) with (n - n2) by omega.
+  replace (n - n1 - (n2 - n1)) with (n - n2) by lia.
   subst v3; reflexivity.
   rewrite field_address0_offset by auto with field_compatible.
   rewrite (field_address0_offset (Tarray t n noattr) ) by auto with field_compatible.
@@ -497,12 +497,12 @@ Proof. intros until 1. rename H into NA; intros.
   rewrite !nested_field_offset_ind by auto with field_compatible.
   rewrite !nested_field_type_ind;   unfold gfield_offset.
   rewrite Z.mul_sub_distr_l.
-  omega.
+  lia.
   rewrite !nested_field_offset_ind by auto with field_compatible.
   rewrite !nested_field_type_ind;   unfold gfield_offset.
   rewrite Z.add_0_l.
-  eapply field_compatible0_Tarray_offset; try eassumption; try omega.
-  f_equal. f_equal. omega.
+  eapply field_compatible0_Tarray_offset; try eassumption; try lia.
+  f_equal. f_equal. lia.
   apply pred_ext.
   eapply derives_trans. apply data_at_local_facts. normalize.
   contradiction n0. auto with field_compatible.
@@ -525,7 +525,7 @@ Proof. intros.
  change (@reptype cs tuchar) with val.
  symmetry in H0.
  list_solve.
- rewrite sublist_same; try omega; auto.
+ rewrite sublist_same; try lia; auto.
 Qed.
 
 Lemma split2_data_at_Tarray_tschar {cs: compspecs} sh n n1 (v: list val) p:
@@ -539,7 +539,7 @@ Proof. intros.
  change (@reptype cs tschar) with val.
  symmetry in H0.
  list_solve.
- rewrite sublist_same; try omega; auto.
+ rewrite sublist_same; try lia; auto.
 Qed.
 
 Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 (v: list val) p:
@@ -554,7 +554,7 @@ Proof. intros.
  eapply split3_data_at_Tarray; auto;
  change (@reptype cs tuchar) with val.
   split; simpl; auto. list_solve.
- rewrite sublist_same; try omega; auto.
+ rewrite sublist_same; try lia; auto.
 Qed.
 
 Lemma split3_data_at_Tarray_tschar {cs: compspecs} sh n n1 n2 (v: list val) p:
@@ -569,14 +569,14 @@ Proof. intros.
  eapply split3_data_at_Tarray; auto;
  change (@reptype cs tschar) with val.
   split; simpl; auto. list_solve.
- rewrite sublist_same; try omega; auto.
+ rewrite sublist_same; try lia; auto.
 Qed.
 
 Lemma sizeof_tarray_tuchar {cs} n (N:0<=n): @sizeof cs (tarray tuchar n) = n.
-Proof. simpl. rewrite Z.max_r. destruct n; trivial. omega. Qed. 
+Proof. simpl. rewrite Z.max_r. destruct n; trivial. lia. Qed. 
 
 Lemma sizeof_tarray_tschar {cs} n (N:0<=n): @sizeof cs (tarray tschar n) = n.
-Proof. simpl. rewrite Z.max_r. destruct n; trivial. omega. Qed. 
+Proof. simpl. rewrite Z.max_r. destruct n; trivial. lia. Qed. 
 
 Opaque sizeof.
 Import ListNotations.
@@ -587,7 +587,7 @@ Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    destruct p; try solve [apply FF_left]. normalize.
    apply prop_right. red.
    destruct (Ptrofs.unsigned_range i). simpl.
-   repeat split; try rewrite sizeof_tarray_tuchar; trivial; try omega.
+   repeat split; try rewrite sizeof_tarray_tuchar; trivial; try lia.
    (* TODO: abstract this proof. *)
    eapply align_compatible_rec_hardware_1.
    + exact cenv_consistent.
@@ -604,7 +604,7 @@ Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    destruct p; try solve [apply FF_left]. normalize.
    apply prop_right. red.
    destruct (Ptrofs.unsigned_range i). simpl.
-   repeat split; try rewrite sizeof_tarray_tschar; trivial; try omega.
+   repeat split; try rewrite sizeof_tarray_tschar; trivial; try lia.
    (* TODO: abstract this proof. *)
    eapply align_compatible_rec_hardware_1.
    + exact cenv_consistent.
@@ -636,7 +636,7 @@ Proof.
   rewrite field_at__memory_block. 
   unfold field_address. rewrite if_true; trivial.
   unfold nested_field_offset, nested_field_type; simpl.
-  rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; try apply derives_refl; omega.
+  rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; try apply derives_refl; lia.
 Qed.
 
 Lemma memory_block_data_at__tarray_tschar {cs} sh p n (N: 0<=n < Ptrofs.modulus):
@@ -648,7 +648,7 @@ Proof.
   rewrite field_at__memory_block. 
   unfold field_address. rewrite if_true; trivial.
   unfold nested_field_offset, nested_field_type; simpl.
-  rewrite Ptrofs.add_zero, sizeof_tarray_tschar; try apply derives_refl; omega.
+  rewrite Ptrofs.add_zero, sizeof_tarray_tschar; try apply derives_refl; lia.
 Qed.
 
 Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Ptrofs.modulus):
@@ -656,7 +656,7 @@ Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Ptrofs.modul
 Proof.
   apply pred_ext. apply memory_block_data_at__tarray_tuchar; trivial.
   rewrite data_at__memory_block; simpl. normalize. 
-  rewrite sizeof_tarray_tuchar; try apply derives_refl; omega. 
+  rewrite sizeof_tarray_tuchar; try apply derives_refl; lia. 
 Qed.
 
 Lemma memory_block_data_at__tarray_tschar_eq {cs} sh p n (N: 0<=n < Ptrofs.modulus):
@@ -664,7 +664,7 @@ Lemma memory_block_data_at__tarray_tschar_eq {cs} sh p n (N: 0<=n < Ptrofs.modul
 Proof.
   apply pred_ext. apply memory_block_data_at__tarray_tschar; trivial.
   rewrite data_at__memory_block; simpl. normalize. 
-  rewrite sizeof_tarray_tschar; try apply derives_refl; omega. 
+  rewrite sizeof_tarray_tschar; try apply derives_refl; lia. 
 Qed.
 
 Lemma isptr_field_compatible0_tarray {cs}:
@@ -674,9 +674,9 @@ Lemma isptr_field_compatible0_tarray {cs}:
 Proof. intros; red. destruct p; try contradiction.
   repeat split; simpl; trivial.
   change (sizeof (tarray t 0)) with (sizeof t * 0)%Z.
-  rewrite Z.mul_0_r. rep_omega.
+  rewrite Z.mul_0_r. rep_lia.
   apply align_compatible_rec_Tarray; intros.
-  omega.
+  lia.
 Qed.
 
 Transparent sizeof.
@@ -695,19 +695,19 @@ Proof.
     repeat split; auto.
     simpl. simpl in H3. rewrite Z.mul_1_r. auto.
     simpl in H4|-*.
-    apply align_compatible_rec_Tarray. intros. assert (i=0) by omega. subst.
+    apply align_compatible_rec_Tarray. intros. assert (i=0) by lia. subst.
     rewrite Z.mul_0_r, Z.add_0_r. auto.
   }
   unfold data_at at 2.
   erewrite field_at_Tarray.
-  2: simpl; trivial. 2: reflexivity. 2: omega. 2:apply JMeq_refl.
+  2: simpl; trivial. 2: reflexivity. 2: lia. 2:apply JMeq_refl.
   rewrite Heq.
   erewrite array_at_len_1 by apply JMeq_refl.
   rewrite field_at_data_at; simpl.
   rewrite field_address_offset; trivial.
   unfold nested_field_type. simpl. unfold nested_field_offset.
     simpl. rewrite Z.mul_0_r.  rewrite isptr_offset_val_zero; auto.
-  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
+  eapply field_compatible_cons_Tarray. reflexivity. trivial. lia.
 Qed.
 
 Lemma data_at_singleton_array_inv {cs} sh t (vl : list (reptype t)) v p:
@@ -719,14 +719,14 @@ Proof.
   { eapply derives_trans. eapply data_at_local_facts. normalize. }
   unfold data_at at 1.
   erewrite field_at_Tarray.
-  2: simpl; trivial. 2: reflexivity. 2: omega. 2: apply JMeq_refl.
+  2: simpl; trivial. 2: reflexivity. 2: lia. 2: apply JMeq_refl.
   erewrite array_at_len_1. 2: apply JMeq_refl.
   rewrite field_at_data_at; simpl. 
   rewrite field_address_offset; trivial.
   unfold nested_field_type. simpl. unfold nested_field_offset.
     simpl. rewrite Z.mul_0_r.
  rewrite isptr_offset_val_zero; try apply derives_refl; auto.
-  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
+  eapply field_compatible_cons_Tarray. reflexivity. trivial. lia.
 Qed.
 
 Opaque sizeof.
@@ -772,14 +772,14 @@ Lemma data_at_zero_array {cs} sh t (v: list (reptype t)) p:
   emp |-- @data_at cs sh (tarray t 0) v p.  
 Proof. intros.
   unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial.
+  erewrite field_at_Tarray. 3: reflexivity. 3: lia. 3: apply JMeq_refl. 2: simpl; trivial.
   rewrite H1.
   rewrite array_at_len_0. apply andp_right; try apply derives_refl.
   apply prop_right.
   apply field_compatible0_ArraySubsc0.
   apply isptr_field_compatible0_tarray; auto.
  simpl.
-  split; auto. omega.
+  split; auto. lia.
 Qed.
 
 Lemma data_at_zero_array_inv {cs} sh t (v: list (reptype t)) p:
@@ -788,7 +788,7 @@ Lemma data_at_zero_array_inv {cs} sh t (v: list (reptype t)) p:
   @data_at cs sh (tarray t 0) v p |-- emp.  
 Proof. intros.
   unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: rewrite H0; apply JMeq_refl. 2: simpl; trivial.
+  erewrite field_at_Tarray. 3: reflexivity. 3: lia. 3: rewrite H0; apply JMeq_refl. 2: simpl; trivial.
   rewrite H0.
   rewrite array_at_len_0. normalize. 
 Qed.
@@ -922,7 +922,7 @@ intros.
 pose proof (Zlength_nonneg v1).
 pose proof (Zlength_nonneg v2).
 apply split2_data_at_Tarray with (v1++v2); auto.
-omega.
+lia.
 list_solve.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.

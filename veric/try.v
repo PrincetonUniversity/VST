@@ -1,6 +1,5 @@
 Require Import NPeano.
 Require Import Coq.Program.Wf.
-Require Import Omega.
 Require Import Recdef.
 
 
@@ -93,10 +92,10 @@ Function merge (lss: list nat * list nat)
     end.
 - intros; simpl.
   unfold double_measure; simpl.
-  omega.
+  lia.
 - intros; simpl.
   unfold double_measure; simpl.
-  omega.
+  lia.
 Defined.
 
 Lemma merge_length: forall lss,
@@ -108,7 +107,7 @@ Proof.
     auto; (*Trivial cases*)
     simpl; f_equal.
   - apply IHl.
-  - rewrite IHl; simpl; omega.
+  - rewrite IHl; simpl; lia.
 Qed.
   
 

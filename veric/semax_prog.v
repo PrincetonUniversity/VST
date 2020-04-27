@@ -355,8 +355,8 @@ Proof.
 induction 1.
 unfold age in H. rewrite <- ageN1 in H.
 change rmap with R.rmap; change ag_rmap with R.ag_rmap.
-rewrite (ageN_level _ _ _ H). generalize (@level _ R.ag_rmap y). intros; omega.
-omega.
+rewrite (ageN_level _ _ _ H). generalize (@level _ R.ag_rmap y). intros; lia.
+lia.
 Qed.
 
 Lemma necR_level:  forall w w' : rmap, necR w w' -> (level w >= level w')%nat.
@@ -364,9 +364,9 @@ Proof.
 induction 1.
 unfold age in H. rewrite <- ageN1 in H.
 change rmap with R.rmap; change ag_rmap with R.ag_rmap.
-rewrite (ageN_level _ _ _ H). generalize (@level _ R.ag_rmap y). intros; omega.
-omega.
-omega.
+rewrite (ageN_level _ _ _ H). generalize (@level _ R.ag_rmap y). intros; lia.
+lia.
+lia.
 Qed.
 
 Lemma HO_pred_eq_i1:
@@ -391,8 +391,8 @@ revert H; induction H0; intros.
   assert (forall w, app_pred (approx (level (S y)) (P x)) w <-> app_pred (approx (level (S y)) (P' x)) w).
   { intros; rewrite H1; intuition. }
   apply pred_ext; intros w ?; destruct (H w); simpl in *; intuition.
-  apply H0; auto. clear - H4.  unfold natLevel in *. omega.
-  apply H2; auto. clear - H4.  unfold natLevel in *. omega. }
+  apply H0; auto. clear - H4.  unfold natLevel in *. lia.
+  apply H2; auto. clear - H4.  unfold natLevel in *. lia. }
 unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
 intros z ?.
 split; intros ? ? ?.
@@ -400,14 +400,14 @@ assert (app_pred (approx (level (S y)) (P x)) a').
 simpl. split; auto. unfold natLevel.  apply necR_level in H1.
 change compcert_rmaps.R.rmap with rmap in *.
 change compcert_rmaps.R.ag_rmap with ag_rmap in *.
-omega.
+lia.
 rewrite H0 in H3.
 simpl in H3. destruct H3; auto.
 assert (app_pred (approx (level (S y)) (P' x)) a').
 simpl. split; auto. unfold natLevel.  apply necR_level in H1.
 change compcert_rmaps.R.rmap with rmap in *.
 change compcert_rmaps.R.ag_rmap with ag_rmap in *.
-omega.
+lia.
 rewrite <- H0 in H3.
 simpl in H3. destruct H3; auto.
 Qed.
@@ -1688,7 +1688,7 @@ destruct H5 as [H5|H5].
  rewrite H4 in *. simpl sig_res in *. simpl sig_args in *.
  assert (tc_option_val retty ret). {
   specialize (H9 (sig_res (ef_sig e)) ret z' m').
-  spec H9. destruct H3 as [? [? ?]];  omega.
+  spec H9. destruct H3 as [? [? ?]];  lia.
   change (genv_symb_injective (Genv.globalenv prog)) 
    with (genv_symb_injective psi) in H7.
   rewrite H4 in H9.
@@ -1700,7 +1700,7 @@ destruct H5 as [H5|H5].
   change (level (m_phi ?a)) with (level a).
   apply join_level in H8. destruct H8.
   change (level (m_phi ?a)) with (level a) in H8.
-  omega.
+  lia.
   specialize (H6 _ (necR_refl _)).
   spec H6. split; auto.
   auto.
@@ -1747,7 +1747,7 @@ spec H11. { intro; apply tycontext_sub_refl. }
 specialize (H11 _ (necR_refl _) cenv_sub_refl ts a). 
 red in H11.
 specialize (H11 (level jm)).
-spec H11. apply later_nat; clear; omega.
+spec H11. apply later_nat; clear; lia.
   rewrite semax_fold_unfold in H11.
 
 specialize (H11 psi (func_tycontext' f Delta) CS _ (necR_refl _)
@@ -1755,7 +1755,7 @@ specialize (H11 psi (func_tycontext' f Delta) CS _ (necR_refl _)
       _ (necR_refl _)).
   spec H11.
   eapply pred_nec_hereditary; try apply Prog_OK.
-  apply nec_nat; omega.
+  apply nec_nat; lia.
   clear Prog_OK H3.
   specialize (H11 Kstop (fun _ => TT) f _ (necR_refl _)).
   simpl in Ef.
@@ -1918,7 +1918,7 @@ split.
  erewrite <- (alloc_juicy_variables_ghost _ _ _ jm), AJV; simpl.
  apply age1_ghost_of, age_jm_phi; auto.
 assert (H22: (level jm2 >= level jm'')%nat)
-  by (apply age_level in H13; apply age_level in H20x; omega).
+  by (apply age_level in H13; apply age_level in H20x; lia).
 (*pose (rho3 := mkEnviron (*(ge_of rho)*)(filter_genv psi) (make_venv ve') (make_tenv te')).
 assert (H23: app_pred (funassert Delta rho3) (m_phi jm'')). {
   apply (resource_decay_funassert _ _ (nextblock (m_dry jm)) _ (m_phi jm'')) in m_funassert.
@@ -2563,11 +2563,11 @@ Proof.
   destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
 Qed.
 
-Lemma typecheck_temp_environ_eval_id {f omega} 
+Lemma typecheck_temp_environ_eval_id {f lia} 
           (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
-          (TC : typecheck_temp_environ (te_of omega) (make_tycontext_t (fn_params f) (fn_temps f))):
-      map (Map.get (te_of omega)) (map fst (fn_params f)) =
-      map Some (map (fun i : ident => eval_id i omega) (map fst (fn_params f))).
+          (TC : typecheck_temp_environ (te_of lia) (make_tycontext_t (fn_params f) (fn_temps f))):
+      map (Map.get (te_of lia)) (map fst (fn_params f)) =
+      map Some (map (fun i : ident => eval_id i lia) (map fst (fn_params f))).
 Proof.
   specialize (tc_temp_environ_elim LNR TC).
   forget (fn_params f) as l. clear.
@@ -2578,10 +2578,10 @@ Proof.
   rewrite Hv; trivial.
 Qed.
 
-Lemma typecheck_environ_eval_id {f V G omega} (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
-                                (TC : typecheck_environ (func_tycontext f V G nil) omega):
-      map (Map.get (te_of omega)) (map fst (fn_params f)) =
-      map Some (map (fun i : ident => eval_id i omega) (map fst (fn_params f))).
+Lemma typecheck_environ_eval_id {f V G lia} (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
+                                (TC : typecheck_environ (func_tycontext f V G nil) lia):
+      map (Map.get (te_of lia)) (map fst (fn_params f)) =
+      map Some (map (fun i : ident => eval_id i lia) (map fst (fn_params f))).
 Proof. apply typecheck_temp_environ_eval_id; trivial. apply TC. Qed.
 
 Lemma map_Some_inv {A}: forall {l l':list A}, map Some l = map Some l' -> l=l'.
@@ -2611,8 +2611,8 @@ Proof.
               !! tc_environ (rettype_tycontext (snd sig)) rho' && (FR * Q ts1 x1 rho') |-- Q' ts x rho') &&
       (stackframe_of f tau * FR * P ts1 x1 (ge_of tau, vals) &&
             !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
- + intros omega m [TC [OM [m1 [m2 [JM [[vals [[MAP VUNDEF] HP']] M2]]]]]].
-   destruct (Sub (ge_of omega, vals) m1) as [ts1 [x1 [FR1 [M1 RetQ]]]]; clear Sub.
+ + intros lia m [TC [OM [m1 [m2 [JM [[vals [[MAP VUNDEF] HP']] M2]]]]]].
+   destruct (Sub (ge_of lia, vals) m1) as [ts1 [x1 [FR1 [M1 RetQ]]]]; clear Sub.
    { split; trivial.
      simpl(*; split*).
      (*+ clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
@@ -2648,8 +2648,8 @@ Proof.
     - apply join_comm in JM. rewrite sepcon_assoc.
       exists m2, m1; split3; trivial.
     - split; trivial. destruct TC as [TC1 _]. simpl in TC1. red in TC1.
-      clear - MAP VUNDEF TC1 LNR. forget (fn_params f) as params. forget (fn_temps f) as temps. forget (te_of omega) as tau.
-      clear f omega. generalize dependent vals. induction params; simpl; intros; destruct vals; inv MAP; trivial.
+      clear - MAP VUNDEF TC1 LNR. forget (fn_params f) as params. forget (fn_temps f) as temps. forget (te_of lia) as tau.
+      clear f lia. generalize dependent vals. induction params; simpl; intros; destruct vals; inv MAP; trivial.
       inv VUNDEF. inv LNR. destruct a; simpl in *.
       assert (X: forall id ty, (make_tycontext_t params temps) ! id = Some ty ->
                  exists v : val, Map.get tau id = Some v /\ tc_val' ty v).

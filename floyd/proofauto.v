@@ -90,7 +90,7 @@ Lemma modu_repr: forall x y,
 Proof.
 intros. unfold Int.modu. rewrite !Int.unsigned_repr by auto. auto.
 Qed.
-Hint Rewrite modu_repr using rep_omega : entailer_rewrite norm.
+Hint Rewrite modu_repr using rep_lia : entailer_rewrite norm.
 
 Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
@@ -166,7 +166,7 @@ Ltac step :=
   | forward
   | forward_if
   | forward_call
-  | rep_omega | cstring' | list_solve
+  | rep_lia | cstring' | list_solve
   | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
   | EExists_unify
   | cstring1
@@ -188,7 +188,7 @@ Tactic Notation "step!"  :=
   | forward
   | forward_if
   | forward_call
-  | rep_omega
+  | rep_lia
   | cstring'
   | list_solve
   | EExists
@@ -212,7 +212,7 @@ Tactic Notation "info_step!" :=
   | forward; idtac "forward."
   | forward_if; idtac "forward_if."
   | forward_call; idtac "forward_call."
-  | rep_omega; idtac "rep_omega."
+  | rep_lia; idtac "rep_lia."
   | cstring'; idtac "cstring'."
   | list_solve; idtac "list_solve."
   | EExists; idtac "EExists."

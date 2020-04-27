@@ -81,7 +81,7 @@ Module zlist_hint_db.
 
 Lemma Znth_sub_0_r: forall A {d: Inhabitant A} i l, Znth (i - 0) l = Znth i l.
   intros.
-  rewrite Z.sub_0_r by omega.
+  rewrite Z.sub_0_r by lia.
   auto.
 Qed.
 
@@ -94,21 +94,21 @@ Qed.
 
 End zlist_hint_db.
 
-(*Hint Rewrite @zl_constr_correct using solve [omega] : zl_nth_db.
+(*Hint Rewrite @zl_constr_correct using solve [lia] : zl_nth_db.
 Hint Rewrite zlist_hint_db.Znth_sub_0_r : zl_nth_db.
-Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [omega] : zl_nth_db.
-Hint Rewrite (fun A d => @zl_sublist_correct A d _ (list_zlist_correct _ _)) using solve [omega] : zl_nth_db.
-Hint Rewrite (fun A d => @zl_concat_correct_l A d _ (list_zlist_correct _ _)) using solve [omega] : zl_nth_db.
-Hint Rewrite (fun A d => @zl_concat_correct_r A d _ (list_zlist_correct _ _)) using solve [omega] : zl_nth_db.
+Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [lia] : zl_nth_db.
+Hint Rewrite (fun A d => @zl_sublist_correct A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
+Hint Rewrite (fun A d => @zl_concat_correct_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
+Hint Rewrite (fun A d => @zl_concat_correct_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
 
-Hint Rewrite (fun A d => @zl_sub_concat_l A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
-Hint Rewrite (fun A d => @zl_sub_concat_r A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
-Hint Rewrite (fun A d => @zl_sub_concat_mid A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
-Hint Rewrite (fun A d => @zl_sub_sub A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
-Hint Rewrite (fun A d => @zl_sub_self A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
-Hint Rewrite (fun A d => @zl_sub_empty A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
-Hint Rewrite (fun A d => @zl_concat_empty_l A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
-Hint Rewrite (fun A d => @zl_concat_empty_r A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_concat_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_concat_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_concat_mid A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_sub A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_self A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_empty A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_concat_empty_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_concat_empty_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
 *)
 Section POSE_TAC.
 
@@ -310,8 +310,8 @@ Instance cs: compspecs.
     forget (id, co) as ele.
     revert ele.
     apply Forall_forall.
-    assert (8 >= 8) by omega.
-    assert (4 >= 4) by omega.
+    assert (8 >= 8) by lia.
+    assert (4 >= 4) by lia.
     repeat constructor; unfold composite_legal_alignas; assumption.
   + intros ? ? ?.
     apply PTree.elements_correct in H.

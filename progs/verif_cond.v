@@ -49,7 +49,7 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_
 
 Lemma inv_exclusive : forall p, exclusive_mpred (dlock_inv p).
 Proof.
-  intro; eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tint); simpl; auto; try omega.
+  intro; eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tint); simpl; auto; try lia.
   unfold dlock_inv.
   Intros i; cancel.
 Qed.

@@ -108,14 +108,14 @@ Module CompositeRankOrder <: TotalLeBool.
     intros.
     unfold leb.
     rewrite !Nat.leb_le.
-    omega.
+    lia.
   Qed.
 
   Theorem leb_trans: Transitive (fun x y => is_true (leb x y)).
   Proof.
     hnf; intros; unfold leb, is_true in *.
     rewrite !Nat.leb_le in *.
-    omega.
+    lia.
   Qed.
 
 End CompositeRankOrder.
@@ -175,7 +175,7 @@ Proof.
     induction l0.
     - destruct H2; auto.
       exfalso; inv H0.
-      omega.
+      lia.
     - inv H.
       destruct H2.
       * exfalso.
@@ -186,7 +186,7 @@ Proof.
         specialize (H5 (or_intror (or_introl eq_refl))).
         unfold is_true in H5.
         rewrite Nat.leb_le in H5; simpl in H5.
-        omega.
+        lia.
       * apply IHl0; auto.
 Qed.
 
@@ -210,7 +210,7 @@ Proof.
     constructor; auto.
     clear IHordered_and_complete H1.
     specialize (H0 _ _ (or_introl eq_refl)).
-    assert (rank_members cenv (co_members co) <= co_rank co)%nat by omega.
+    assert (rank_members cenv (co_members co) <= co_rank co)%nat by lia.
     destruct H0 as [? _].
     induction (co_members co) as [| [i0 t0] ?].
     - constructor.
@@ -222,19 +222,19 @@ Proof.
       induction t0; try solve [simpl; auto].
       * (* array *)
         spec IHt0; auto.
-        spec IHt0; [simpl in H1; omega |].
+        spec IHt0; [simpl in H1; lia |].
         auto.
       * (* struct *)
         simpl in H0, H1 |- *.
         destruct (cenv ! i1) eqn:?H; [| inv H0].
         specialize (H _ _ H2).
-        spec H; [omega |].
+        spec H; [lia |].
         apply (in_map fst) in H; auto.
       * (* union *)
         simpl in H0, H1 |- *.
         destruct (cenv ! i1) eqn:?H; [| inv H0].
         specialize (H _ _ H2).
-        spec H; [omega |].
+        spec H; [lia |].
         apply (in_map fst) in H; auto.
 Qed.
 

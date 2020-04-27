@@ -270,7 +270,7 @@ Proof.
          [ArraySubsc (n/8)] (gv _three));
        simpl;
        unfold field_compatible in FC |- *; simpl in FC |- *;
-       assert (0 <= n/8 < 3) by (cbv [Z.div]; simpl; omega);
+       assert (0 <= n/8 < 3) by (cbv [Z.div]; simpl; lia);
        tauto
       |];
     apply @lseg_unroll_nonempty1 with q;

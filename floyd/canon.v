@@ -1169,10 +1169,10 @@ rename i into i'. rename j into j'. rename R into R'.
 assert (forall i j R (a b: A),
              (i<j)%nat ->
               replace_nth i (replace_nth j R b) a = replace_nth j (replace_nth i R a) b). {
-induction i; destruct j, R; simpl; intros; auto; try omega.
-f_equal. apply IHi. omega.
+induction i; destruct j, R; simpl; intros; auto; try lia.
+f_equal. apply IHi. lia.
 }
-assert (i'<j' \/ i'>j')%nat by omega.
+assert (i'<j' \/ i'>j')%nat by lia.
 clear H.
 destruct H1.
 apply H0; auto.

@@ -104,7 +104,7 @@ Admitted.
 Lemma sum_base : forall l i, fold_right Z.add i l = fold_right Z.add 0 l + i.
 Proof.
   induction l; auto; simpl; intro.
-  rewrite IHl; omega.
+  rewrite IHl; lia.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
@@ -126,7 +126,7 @@ Proof.
     unfold default_val, Znth; simpl.
     unfold field_at_, field_at; simpl; entailer!. }
   { Opaque upto.
-    erewrite sublist_next with (i0 := i), Znth_upto by (auto; rewrite ?Zlength_upto; simpl; omega).
+    erewrite sublist_next with (i0 := i), Znth_upto by (auto; rewrite ?Zlength_upto; simpl; lia).
     simpl.
     unfold field_at_; rewrite field_at_data_at'; Intros; simpl.
     unfold_data_at 1%nat.
@@ -158,7 +158,7 @@ Proof.
         split; auto; split; [split; auto|].
         - rewrite sem_add_pi_ptr, force_val_sem_cast_neutral_isptr'; auto.
         - split; [transitivity (0 * 0)%Z | transitivity (3 * 3)%Z]; try computable;
-            apply Z.square_le_mono_nonneg; omega. }
+            apply Z.square_le_mono_nonneg; lia. }
       Exists _p; entailer!.
       rewrite !sepcon_assoc; apply sepcon_derives.
       { apply derives_refl'. f_equal.
@@ -168,7 +168,7 @@ Proof.
       erewrite <- lock_inv_share_join; try apply Hsh; auto.
       erewrite <- field_at_share_join; try apply Hsh; auto; cancel. }
     entailer!.
-    erewrite sublist_last_1, Znth_upto, map_app, sepcon_app by (rewrite ?Zlength_upto; simpl; omega).
+    erewrite sublist_last_1, Znth_upto, map_app, sepcon_app by (rewrite ?Zlength_upto; simpl; lia).
     rewrite sepcon_map; simpl; cancel.
     rewrite sem_add_pi_ptr by auto; simpl; cancel.
     rewrite !field_at_data_at'; simpl; entailer!; auto. }
@@ -187,8 +187,8 @@ Proof.
            (upto (Z.to_nat i))))).
   { rewrite sepcon_map; entailer!. }
   { rewrite sepcon_map; Intros.
-    erewrite extract_nth_sepcon with (i := i), Znth_map, Znth_upto by (auto; simpl; omega).
-    erewrite extract_nth_sepcon with (i := i)(l := map _ (upto 3)), Znth_map, Znth_upto by (auto; simpl; omega).
+    erewrite extract_nth_sepcon with (i := i), Znth_map, Znth_upto by (auto; simpl; lia).
+    erewrite extract_nth_sepcon with (i := i)(l := map _ (upto 3)), Znth_map, Znth_upto by (auto; simpl; lia).
     forward_call (force_val (sem_add_pi ttask tasks (vint i)), sh2,
       task_inv sh1 (force_val (sem_add_pi ttask tasks (vint i)))).
     { erewrite gvar_eval_var by eauto.
@@ -218,23 +218,23 @@ Proof.
         assert (Z.abs arg <= Int.max_signed).
         { transitivity (arg * arg)%Z; [|unfold repable_signed in *; tauto].
           rewrite <- Z.abs_square.
-          destruct (eq_dec (Z.abs arg) 0); [rewrite e; omega|].
-          pose proof (Z.abs_nonneg arg); apply Z.le_mul_diag_r; omega. }
+          destruct (eq_dec (Z.abs arg) 0); [rewrite e; lia|].
+          pose proof (Z.abs_nonneg arg); apply Z.le_mul_diag_r; lia. }
         destruct (Zabs_spec arg) as [[? Ha] | [? Ha]].
-        { rewrite Ha in *; split; auto; omega. }
-        rewrite Z.abs_le in *; split; try omega.
-        unfold Int.min_signed, Int.max_signed in *; omega.
-      - split; [transitivity 0 | transitivity 3]; try computable; omega. }
+        { rewrite Ha in *; split; auto; lia. }
+        rewrite Z.abs_le in *; split; try lia.
+        unfold Int.min_signed, Int.max_signed in *; lia.
+      - split; [transitivity 0 | transitivity 3]; try computable; lia. }
     subst; entailer!.
-    - rewrite Z2Nat.inj_add, upto_app, map_app, fold_right_app by omega; simpl.
+    - rewrite Z2Nat.inj_add, upto_app, map_app, fold_right_app by lia; simpl.
       change (upto 1) with [0]; simpl.
-      rewrite Z2Nat.id, !Z.add_0_r by omega.
+      rewrite Z2Nat.id, !Z.add_0_r by lia.
       rewrite sum_base; auto.
-    - rewrite Z2Nat.inj_add, upto_app, map_app, sepcon_app by omega; simpl.
+    - rewrite Z2Nat.inj_add, upto_app, map_app, sepcon_app by lia; simpl.
       change (upto 1) with [0]; simpl.
-      rewrite Z2Nat.id, !Z.add_0_r, !sepcon_map by omega; cancel.
-      erewrite extract_nth_sepcon with (i := i)(l := map _ (upto 3)), Znth_map, Znth_upto by (auto; simpl; omega).
-      erewrite extract_nth_sepcon with (i := i)(l := map _ (upto 3)), Znth_map, Znth_upto by (auto; simpl; omega).
+      rewrite Z2Nat.id, !Z.add_0_r, !sepcon_map by lia; cancel.
+      erewrite extract_nth_sepcon with (i := i)(l := map _ (upto 3)), Znth_map, Znth_upto by (auto; simpl; lia).
+      erewrite extract_nth_sepcon with (i := i)(l := map _ (upto 3)), Znth_map, Znth_upto by (auto; simpl; lia).
       cancel.
       rewrite sem_add_pi_ptr by auto; simpl; cancel.
       rewrite !field_at_data_at'; simpl; entailer!; auto. }

@@ -257,7 +257,7 @@ Proof.
      specialize (IHm H).
      fold (sizeof t0).
      pose proof Z.le_max_r (sizeof t0) (sizeof_union cenv_cs m).
-     omega.
+     lia.
 Qed.
 
 (* if sizeof Tvoid = 0, this lemma can be nicer. *)
@@ -334,7 +334,7 @@ Proof.
     split; [| split]; auto.
     simpl in H0.
    fold (sizeof t0) in *.
-    omega.
+    lia.
   + remember ((i1, t1) :: m) as m0. simpl in H0 |- *. subst m0.
     destruct (ident_eq i i0).
     - split; [| split]; auto.
@@ -343,7 +343,7 @@ Proof.
       * pose proof sizeof_struct_incr cenv_cs m (align (align z (alignof t0) + sizeof t0)
             (alignof t1) + sizeof t1).
         pose proof sizeof_pos t1.
-        simpl in H0; omega.
+        simpl in H0; lia.
     - destruct H as [H | H]; [simpl in H; congruence |].
       specialize (IHm (align z (alignof t0) + sizeof t0) i1 t1 H H0).
       destruct (field_offset_rec cenv_cs i ((i1, t1) :: m) (align z (alignof t0) + sizeof t0)),
@@ -476,18 +476,18 @@ Proof.
     destruct (ident_eq i i0).
     - simpl in *.
       if_tac; [| congruence].
-      replace (sizeof t0) with 0 by omega.
+      replace (sizeof t0) with 0 by lia.
       destruct m as [| (?, ?) m];
       rewrite !align_0 by apply alignof_pos;
-      omega.
+      lia.
     - destruct H0; [simpl in H0; congruence |].
       simpl.
       if_tac; [congruence |].
-      replace (sizeof t0) with 0 by omega.
+      replace (sizeof t0) with 0 by lia.
       destruct m as [| (?, ?) m]; [inversion H0 |].
       rewrite !align_0 by apply alignof_pos.
       apply IHm; [| auto].
-      replace (align 0 (alignof t0) + sizeof t0) with 0 in * by omega.
+      replace (align 0 (alignof t0) + sizeof t0) with 0 in * by lia.
       auto.
 Qed.
 
@@ -506,14 +506,14 @@ Proof.
       if_tac; [| congruence].
       pose proof sizeof_pos t0.
       pose proof Z.le_max_l (sizeof t0) (sizeof_union env m).
-      omega.
+      lia.
     - destruct H0; [simpl in H0; congruence |].
       simpl.
       if_tac; [congruence |].
       apply IHm; [| auto].
       pose proof sizeof_union_pos env m.
       pose proof Z.le_max_r (sizeof t0) (sizeof_union env m).
-      omega.
+      lia.
 Qed.
 
 Definition in_map: forall {A B : Type} (f : A -> B) (l : list A) (x : A),

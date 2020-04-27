@@ -253,8 +253,8 @@ inv H; try reflexivity;
   | H: (if Mem.weak_valid_pointer ?M ?B ?X then _ else _) = _ |- _ =>
       destruct (Mem.weak_valid_pointer M B X); inv H
   end;
- try  rewrite Int.sign_ext_idem by omega;
- try  rewrite Int.zero_ext_idem by omega;
+ try  rewrite Int.sign_ext_idem by lia;
+ try  rewrite Int.zero_ext_idem by lia;
  try reflexivity;
  try match goal with
  | |- context [Int.eq ?i Int.zero] =>
@@ -307,8 +307,8 @@ match goal with |- context [decode_val ?A ?B] =>
 end];
 try solve [
   unfold decode_val; simpl;
-  rewrite ?Int.sign_ext_idem by omega;
-  rewrite ?Int.zero_ext_idem by omega;
+  rewrite ?Int.sign_ext_idem by lia;
+  rewrite ?Int.zero_ext_idem by lia;
   reflexivity].
 Qed.
 

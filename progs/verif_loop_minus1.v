@@ -22,7 +22,7 @@ Definition Gprog : funspecs := ltac:(with_library prog [sumarray_spec]).
 
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
-Proof. intros. induction a; simpl; omega. Qed.
+Proof. intros. induction a; simpl; lia. Qed.
 
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
@@ -40,8 +40,8 @@ Proof.
   - assert_PROP (Zlength contents = size) by
         (entailer!; do 2 rewrite Zlength_map; reflexivity).
     forward. forward. entailer!. f_equal. f_equal.
-    rewrite (sublist_split 0 (i + 1) (i + 1 + 1)) by omega.
-    rewrite sum_Z_app. rewrite (sublist_one (i + 1)) by omega.
+    rewrite (sublist_split 0 (i + 1) (i + 1 + 1)) by lia.
+    rewrite sum_Z_app. rewrite (sublist_one (i + 1)) by lia.
     simpl. autorewrite with sublist. reflexivity.
   - forward. entailer!.  autorewrite with sublist in *. reflexivity.
 Qed.

@@ -119,8 +119,8 @@ Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
     apply Knot_G.unsquash_squash.
     extensionality n p w.
     unfold approx, Knot_G.approx, TF_G.T_bot.
-    case (le_gt_dec n (level w)); intro; apply prop_ext; firstorder.
-    unfold knot, TF_G.other, ag_knot in *. omega.
+    case (Compare_dec.le_gt_dec n (level w)); intro; apply prop_ext; firstorder.
+    unfold knot, TF_G.other, ag_knot in *. lia.
   Qed.
 
   Definition knot_level := Knot_G.knot_level.
@@ -148,7 +148,7 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
     K.unsquash.
 
   Definition approx (n:nat) (p:predicate) : predicate :=
-     fun w => if le_gt_dec n (level w) then T_bot else p w.
+     fun w => if Compare_dec.le_gt_dec n (level w) then T_bot else p w.
 
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
   Proof.
@@ -161,9 +161,9 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
     apply K.unsquash_squash.
     extensionality n p w.
     unfold approx, K.approx, TF.T_bot.
-    case (le_gt_dec n (level w)); intro; apply prop_ext; firstorder.
+    case (Compare_dec.le_gt_dec n (level w)); intro; apply prop_ext; firstorder.
     unfold knot, ag_knot, other in *.
-    omega.
+    lia.
   Qed.
 
 
@@ -225,7 +225,7 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
     intros.
     extensionality p x; destruct x as [k o].
     unfold approx, compose; simpl.
-    apply prop_ext; intuition.
+    apply prop_ext; intuition. lia.
   Qed.
 
   Lemma approx_approx2 : forall m n,
@@ -234,7 +234,7 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
     intros.
     extensionality p x; destruct x as [k o].
     unfold approx, compose; simpl.
-    apply prop_ext; intuition.
+    apply prop_ext; intuition. lia.
   Qed.
 
   (* These are provided since sometimes it is tedious to break things out;
