@@ -18,7 +18,7 @@ Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
  Proof. unfold approx; simpl; intuition. Qed.
 
  Lemma approx_ge : forall p n w, ge (level w) n -> approx n p w -> False.
- Proof. unfold approx; intros. destruct H0; auto. omega. Qed.
+ Proof. unfold approx; intros. destruct H0; auto. lia. Qed.
 
   Lemma ageN_level : forall n (phi1 phi2 : rmap),
     ageN n phi1 = Some phi2 -> level phi1 = (n + (level phi2))%nat.
@@ -29,7 +29,7 @@ Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
     repeat rewrite rmap_level_eq in *.
     intros. invSome.
     specialize (IHn _ _ H2).
-    apply  age_level in H.  rewrite rmap_level_eq in *. omega.
+    apply  age_level in H.  rewrite rmap_level_eq in *. lia.
   Qed.
 
 Lemma NO_identity: forall nsh, identity (NO Share.bot nsh).
@@ -150,7 +150,7 @@ Qed.
 
 Lemma approx_oo_approx: forall n, approx n oo approx n = approx n.
 Proof.
-intros; apply approx_oo_approx'; omega.
+intros; apply approx_oo_approx'; lia.
 Qed.
 
 Lemma preds_fmap_fmap:
@@ -497,16 +497,16 @@ Qed.
   Proof.
     induction d; simpl; intros.
     unfold ageN; simpl.
-    replace (n-0)%nat with n by omega; auto.
+    replace (n-0)%nat with n by lia; auto.
     unfold ageN; simpl.
     rewrite rmap_age1_eq in *.
     rewrite unsquash_squash.
     destruct n.
     inv H.
-    replace (S n - S d)%nat with (n - d)%nat by omega.
+    replace (S n - S d)%nat with (n - d)%nat by lia.
     unfold ageN in IHd. rewrite rmap_age1_eq in IHd.
     rewrite IHd.
-    2: omega.
+    2: lia.
     f_equal.
     apply unsquash_inj.
     rewrite !unsquash_squash.
@@ -518,7 +518,7 @@ Qed.
     rewrite rmap_fmap_comp.
     f_equal.
     + clear.
-      assert (n-d <= (S n))%nat by omega.
+      assert (n-d <= (S n))%nat by lia.
       revert H; generalize (n-d)%nat (S n).
       clear.
       intros.
@@ -527,7 +527,7 @@ Qed.
       unfold compose, approx.
       apply prop_ext; simpl; intuition.
     + clear.
-      assert (n-d <= (S n))%nat by omega.
+      assert (n-d <= (S n))%nat by lia.
       revert H; generalize (n-d)%nat (S n).
       clear.
       intros.
@@ -544,8 +544,8 @@ Qed.
     destruct (unsquash phi'); clear phi'.
     exists (squash ((n+n0)%nat,r)).
     rewrite ageN_squash.
-    replace (n + n0 - n)%nat with n0 by omega; auto.
-    omega.
+    replace (n + n0 - n)%nat with n0 by lia; auto.
+    lia.
   Qed.
 
   Lemma ex_level0: exists phi, age1 phi = None.
@@ -568,7 +568,7 @@ Qed.
     destruct (unageN n phi) as [phi' ?].
     exists phi'.
     apply ageN_level in H0.
-    omega.
+    lia.
   Qed.
 
 Lemma YES_join_full: 
@@ -1016,7 +1016,7 @@ Proof.
   intros.
   assert (exists k, level m = S k + level m')%nat.
     exists (level m - S (level m'))%nat.
-    omega.
+    lia.
   clear H; destruct H0 as [k ?].
   revert m H; induction k; intros.
   simpl in H.
@@ -1028,7 +1028,7 @@ Proof.
   specialize ( IHk r).
   rewrite <- ageN1 in H0.
   generalize (ageN_level _ _ _ H0); intro.
-  spec IHk; try omega.
+  spec IHk; try lia.
   destruct IHk as [m1 [? ?]].
   exists m1; split; auto.
   econstructor 2; eauto.
@@ -1158,7 +1158,7 @@ inv H0; inv H1; auto.
 unfold ageN in H0, H1.
 simpl in *.
 revert H0 H1; case_eq (age1 phi1); case_eq (age1 phi2); intros; try discriminate.
-assert (level r = level r0) by (apply age_level in H0; apply age_level in H1; omega).
+assert (level r = level r0) by (apply age_level in H0; apply age_level in H1; lia).
 apply (IHn r0 r); auto.
 rewrite (age1_resource_at _ _ H0 loc _ (eq_sym (resource_at_approx _ _))).
 rewrite (age1_resource_at _ _ H1 loc _ (eq_sym (resource_at_approx _ _))).

@@ -28,7 +28,7 @@ try solve [
  destruct v; unfold tc_val, is_int in H0; try contradiction;
  simpl; f_equal;
  try (first [apply sign_ext_inrange| apply zero_ext_inrange];
-       try omega;
+       try lia;
     match type of H0 with _ \/ _ =>
        destruct H0; subst i; simpl;
        try  rewrite Int.signed_zero;
@@ -56,7 +56,7 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
  destruct v; try solve [contradiction H0]; try apply I;
  unfold tc_val, is_int in *;
   auto;
- try omega;
+ try lia;
  try
     match type of H0 with _ \/ _ =>
        destruct H0; subst i; simpl;
@@ -103,7 +103,7 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
  destruct v; try solve [contradiction H0]; try apply I;
  unfold tc_val, is_int in *;
   auto;
- try omega;
+ try lia;
  try
     match type of H0 with _ \/ _ =>
        destruct H0; subst i; simpl;

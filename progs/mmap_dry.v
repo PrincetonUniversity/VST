@@ -108,9 +108,9 @@ Proof.
     + apply resource_at_join2.
       * rewrite age_to.level_age_to; auto.
         unfold after_alloc; rewrite level_make_rmap.
-        rewrite level_juice_level_phi; omega.
+        rewrite level_juice_level_phi; lia.
       * rewrite age_to.level_age_to; auto.
-        rewrite level_juice_level_phi; omega.
+        rewrite level_juice_level_phi; lia.
       * intros.
         eapply rebuild_alloc; eauto.
         rewrite Hmem; apply mem_equiv_refl.
@@ -129,14 +129,14 @@ Proof.
         { rewrite sepcon_comm; apply sepcon_derives; auto.
           rewrite <- memory_block_data_at_.
           simpl sizeof.
-          rewrite Z.max_r, Z.mul_1_l by omega; auto.
+          rewrite Z.max_r, Z.mul_1_l by lia; auto.
           { repeat split; auto; simpl.
-            * rewrite Z.max_r, Z.mul_1_l, Ptrofs.unsigned_zero by omega; rep_omega.
+            * rewrite Z.max_r, Z.mul_1_l, Ptrofs.unsigned_zero by lia; rep_lia.
             * constructor; intros.
               econstructor; simpl; eauto; simpl.
               apply Z.divide_1_l. } }
         eapply Hentails, age_to.age_to_pred; eauto.
-        { rep_omega. }
+        { rep_lia. }
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
@@ -171,7 +171,7 @@ Proof.
     { destruct (eq_dec b0 b1); auto.
       destruct (zlt ofs0 0); auto.
       destruct (zlt ofs0 z0); auto.
-      contradiction n; unfold adr_range; repeat split; auto; omega. }
+      contradiction n; unfold adr_range; repeat split; auto; lia. }
     erewrite <- !(alloc_access_other _ _ _ m0) by eauto.
     destruct access_at; auto.
     destruct p; auto.

@@ -33,7 +33,7 @@ Proof.
   intros.
   destruct (co_alignof_two_p co).
   pose proof two_power_nat_pos x.
-  omega.
+  lia.
 Qed.
 
 Section GET_CO.

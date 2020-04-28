@@ -434,7 +434,7 @@ computable.
 rewrite <- (Z.sub_0_r (i mod Int.modulus)) at 1.
 apply Zbits.eqmod_sub.
 apply Zbits.eqmod_refl.
-hnf. exists (-1). omega.
+hnf. exists (-1). lia.
 Qed. 
 
 Lemma Ptrofs_repr_Int_unsigned_special:

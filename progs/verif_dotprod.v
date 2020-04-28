@@ -93,10 +93,10 @@ intros.
 rewrite !Zlength_correct in *.
 apply Nat2Z.inj in H. f_equal.
 unfold Znth.
-if_tac. omega.
+if_tac. lia.
 assert (Z.to_nat i < length al)%nat.
 rewrite <- (Nat2Z.id (length al)).
-apply Z2Nat.inj_lt; try omega.
+apply Z2Nat.inj_lt; try lia.
 clear H0 H1.
 forget (Z.to_nat i) as j. clear i.
 revert al bl H H2; induction j; intros.
@@ -105,11 +105,11 @@ destruct bl; inv H.
 simpl. auto.
 destruct bl; inv H.
 simpl. auto.
-destruct al; simpl in H2; try omega.
+destruct al; simpl in H2; try lia.
 destruct bl; inv H.
 simpl.
 apply IHj; auto.
-omega.
+lia.
 Qed.
 
 Lemma body_dotprod:  semax_body Vprog Gprog f_dotprod dotprod_spec.
@@ -134,13 +134,13 @@ assert_PROP (Zlength fx = n /\ Zlength fy = n). {
 } destruct H1.
 forward.
 forward. 
-rewrite !Znth_map by omega.
+rewrite !Znth_map by lia.
 forward. 
   entailer!.
   autorewrite with sublist in *.
   f_equal.
-  rewrite (sublist_split 0 i _ fx) by omega.
-  rewrite (sublist_split 0 i _ fy) by omega.
+  rewrite (sublist_split 0 i _ fx) by lia.
+  rewrite (sublist_split 0 i _ fy) by lia.
   unfold dotprod.
  rewrite map2_app by list_solve.
  rewrite fold_left_app.
@@ -277,7 +277,7 @@ apply (semax_for_simple_bound_const_init n
                  replace_nth sx R
                    (`(array_at tdouble Tsh (fun j => if zlt j i then Vfloat (Float.add (fy j) (fz j)) else fx j) 0 n x))
                ));
-  try reflexivity; try auto with closed; try rep_omega.
+  try reflexivity; try auto with closed; try rep_lia.
 *
 apply andp_left2.
 replace (array_at tdouble Tsh
@@ -288,7 +288,7 @@ replace (array_at tdouble Tsh
  with (array_at tdouble Tsh fx 0 n).
 Focus 2.
 simple apply array_at_ext; intros.
-rewrite if_false by omega; reflexivity.
+rewrite if_false by lia; reflexivity.
 rewrite <- (replace_nth_nth_error _ _ _ H3).
 rewrite <- insert_local.
 apply andp_right; auto. go_lowerx. normalize.
@@ -302,7 +302,7 @@ drop_LOCAL 0%nat.
 drop_LOCAL 0%nat.
 apply replace_nth_SEP.
 go_lowerx. apply array_at_ext'; intros.
-rewrite if_true by omega. auto.
+rewrite if_true by lia. auto.
 *
 intro i.
 drop_LOCAL 1%nat.
@@ -380,10 +380,10 @@ eapply semax_post_flipped';
  entailer.
  apply array_at_ext; intros. symmetry.
  unfold upd.
- if_tac. subst. rewrite if_true by omega; try reflexivity.
+ if_tac. subst. rewrite if_true by lia; try reflexivity.
  if_tac.
-   rewrite if_true by omega; reflexivity.
-   rewrite if_false by omega; reflexivity.
+   rewrite if_true by lia; reflexivity.
+   rewrite if_false by lia; reflexivity.
 Qed.
 
 Ltac forward_vector_add :=
@@ -394,7 +394,7 @@ Ltac forward_vector_add :=
  forward_seq;
  [eapply semax_vector_add;
  [reflexivity | auto 50 with closed | auto 50 with closed
-   | rep_omega
+   | rep_lia
    | solve_nth_error | solve_nth_error | solve_nth_error
    | solve_nth_error | solve_nth_error | solve_nth_error
   | computable | computable ]

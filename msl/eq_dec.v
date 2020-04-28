@@ -12,7 +12,7 @@ Require Import VST.msl.base.
 Class EqDec (A : Type) : Type :=
   eq_dec : forall a a' : A, {a = a'} + {a <> a'}.
 
-Instance EqDec_nat : EqDec nat := eq_nat_dec.
+Instance EqDec_nat : EqDec nat := Peano_dec.eq_nat_dec.
 
 (* Theory of updateable functions, defined over decideable domain *)
 Definition upd {A} `{EqDec A} (B : Type) (f : A -> B) (a : A) (b : B) : A -> B :=
@@ -54,8 +54,8 @@ Arguments upd_neq [A H B] _ _ _ _ _.
 Instance nat_eq_dec: EqDec nat.
 Proof.
   repeat intro.
- destruct (lt_eq_lt_dec a a') as [[?|?]| ?]; auto;
-  right; intro; subst; eapply lt_irrefl; eauto.
+ destruct (Compare_dec.lt_eq_lt_dec a a') as [[?|?]| ?]; auto;
+  right; intro; subst; eapply Lt.lt_irrefl; eauto.
 Defined.
 
 Instance EqDec_prod (A: Type) (EA: EqDec A) (B: Type) (EB: EqDec B) : EqDec (A*B).

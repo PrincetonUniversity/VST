@@ -263,10 +263,10 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     intros x y; revert x; induction y; simpl; intros.
     right; auto with arith.
     destruct (IHy x) as [[m H]|H].
-    left; exists (S m); omega.
+    left; exists (S m); lia.
     destruct (eq_nat_dec x y).
-    left; exists O; omega.
-    right; omega.
+    left; exists O; lia.
+    right; lia.
   Qed.
 
   Definition proof_irr_nat := eq_proofs_unicity dec_eq_nat.
@@ -338,7 +338,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     revert n p1 H1 p Heqp.
     induction m1; simpl; intros.
     replace H1 with (refl_equal (S n)) by (apply proof_irr_nat); simpl; auto.
-    assert (m1 + S n = S m1 + n) by omega.
+    assert (m1 + S n = S m1 + n) by lia.
     destruct p1 as [p1 f'].
     generalize (IHm1 n p1 H p Heqp).
     simpl.
@@ -364,8 +364,8 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     induction n; simpl; intros; auto.
     split.
 
-    assert ((m1 + S n) =  (S m1 + n)) by omega.
-    assert ((m2 + S n) =  (S m2 + n)) by omega.
+    assert ((m1 + S n) =  (S m1 + n)) by lia.
+    assert ((m2 + S n) =  (S m2 + n)) by lia.
     assert (@equiv _ (projT2 (sinv n))
       (floor (S m1) n (eq_rect (m1 + S n) (fun x => projT1 (sinv x)) p1 _ H0))
       (floor (S m2) n (eq_rect (m2 + S n) (fun x => (projT1 (sinv x))) p2 _ H1))).
@@ -387,11 +387,11 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     unfold unstratify.
     simpl.
     destruct (decompose_nat n (m2 + S n)) as [[r Hr]|Hr].
-    2: elimtype False; omega.
+    2: elimtype False; lia.
     destruct (decompose_nat n (m1 + S n)) as [[s Hs]|Hs].
-    2: elimtype False; omega.
-    assert (m2 = r) by omega; subst r.
-    assert (m1 = s) by omega; subst s.
+    2: elimtype False; lia.
+    assert (m2 = r) by lia; subst r.
+    assert (m1 = s) by lia; subst s.
     replace Hr with (refl_equal (m2 + S n)) by (apply proof_irr_nat).
     replace Hs with (refl_equal (m1 + S n)) by (apply proof_irr_nat).
     simpl.
@@ -417,9 +417,9 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     hnf; intros.
     destruct a0; destruct a'0; destruct H; simpl.
     destruct (decompose_nat n (S n)).
-    2: elimtype False; omega.
+    2: elimtype False; lia.
     destruct s.
-    assert (x = 0) by omega; subst x; simpl in *.
+    assert (x = 0) by lia; subst x; simpl in *.
     replace e with (refl_equal (S n)) by (apply proof_irr_nat; auto); simpl.
     auto.
   Qed.
@@ -433,7 +433,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct w as [nw rm]; simpl.
     destruct nw as [nw e].
     destruct (decompose_nat nw O) as [[r Hr]|?].
-    elimtype False; omega.
+    elimtype False; lia.
     apply le_T_bot.
 
     (* S n case *)
@@ -442,7 +442,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct (decompose_nat nw (S n)) as [[r Hr]|?]; try (apply lt_rhs_bot).
     destruct r; simpl.
 
-    assert (n = nw) by omega.
+    assert (n = nw) by lia.
     subst nw.
     simpl in Hr.
     replace Hr with (refl_equal (S n)) by apply proof_irr_nat; simpl.
@@ -450,7 +450,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     reflexivity.
 
     simpl in Hr.
-    assert (n = r + S nw) by omega.
+    assert (n = r + S nw) by lia.
     revert Hr; subst n.
     intro Hr.
     replace Hr with (refl_equal (S (r+S nw))) by apply proof_irr_nat; simpl.
@@ -459,10 +459,10 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     generalize (IHn p (existT (fun x => F (projT1 (sinv x))) nw e, o)).
     unfold unstratify; simpl.
     destruct (decompose_nat nw (r + S nw)) as [[x Hx]|?].
-    assert (x = r) by omega; subst x.
+    assert (x = r) by lia; subst x.
     replace Hx with (refl_equal (r + S nw)) by apply proof_irr_nat.
     simpl; auto.
-    elimtype False; omega.
+    elimtype False; lia.
     apply le_T_bot.
   Qed.
 
@@ -482,29 +482,29 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct (decompose_nat x (S n)) as [[r Hr]|?].
     destruct r; simpl.
 
-    assert (n = x) by omega.
+    assert (n = x) by lia.
     subst x.
     simpl in Hr; replace Hr with (refl_equal (S n)) by apply proof_irr_nat; simpl.
     apply le_T_refl.
     reflexivity.
 
     simpl in Hr.
-    assert (n = r + S x) by omega.
+    assert (n = r + S x) by lia.
     revert Hr; subst n.
     intro Hr.
     replace Hr with (refl_equal (S (r+S x))) by apply proof_irr_nat; simpl.
     clear Hr.
     simpl in H.
-    assert (x < r + S x) by omega.
+    assert (x < r + S x) by lia.
     generalize (IHn p (existT (fun x => F (projT1 (sinv x))) x f,o) H0).
     simpl.
     destruct (decompose_nat x (r + S x)) as [[y Hy]|?].
-    assert (y = r) by omega; subst y.
+    assert (y = r) by lia; subst y.
     replace Hy with (refl_equal (r + S x)) by apply proof_irr_nat.
     simpl; auto.
-    elimtype False; omega.
+    elimtype False; lia.
     simpl in *.
-    elimtype False; omega.
+    elimtype False; lia.
   Qed.
 
   Lemma unstratify_stratify3 : forall n (p:predicate) w,
@@ -514,7 +514,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct w; simpl in *.
     destruct s; simpl in *.
     destruct (decompose_nat x n) as [[r Hr]|?].
-    elimtype False; omega.
+    elimtype False; lia.
     apply le_T_bot.
   Qed.
 

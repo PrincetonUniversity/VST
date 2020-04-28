@@ -99,7 +99,7 @@ Proof.
     specialize (HP1 _ Ha').
     apply laterR_level in Ha'.
     assert ((approx (level a) P1) a') as HP1'.
-    { split; auto; omega. }
+    { split; auto; lia. }
     rewrite Heq in HP1'; destruct HP1'; auto.
   - exists I; split.
     + intro l; simpl.
@@ -142,7 +142,7 @@ Proof.
     specialize (HP1 _ Ha').
     apply laterR_level in Ha'.
     assert ((approx (level a) P1) a') as HP1'.
-    { split; auto; omega. }
+    { split; auto; lia. }
     rewrite Heq in HP1'; destruct HP1'; auto.
   - exists I; split.
     + intro l; simpl.
@@ -213,15 +213,15 @@ Lemma app_nth : forall {A} n l1 l2 (d : A),
   nth n (l1 ++ l2) d = if lt_dec n (length l1) then nth n l1 d else nth (n - length l1) l2 d.
 Proof.
   intros.
-  if_tac; [rewrite app_nth1 | rewrite app_nth2]; auto; omega.
+  if_tac; [rewrite app_nth1 | rewrite app_nth2]; auto; lia.
 Qed.
 
 (* up *)
 Lemma replace_nth_length : forall {A} n l (a : A),
   length (replace_nth n l a) = length l.
 Proof.
-  induction n; destruct l; simpl; intros; try omega.
-  rewrite IHn by omega; auto.
+  induction n; destruct l; simpl; intros; try lia.
+  rewrite IHn by lia; auto.
 Qed.
 
 (* up *)
@@ -231,7 +231,7 @@ Lemma replace_nth_app : forall {A} n l1 l2 (a : A),
 Proof.
   induction n; destruct l1; auto; simpl; intros.
   rewrite IHn.
-  if_tac; if_tac; auto; omega.
+  if_tac; if_tac; auto; lia.
 Qed.
 
 Lemma list_join_app : forall {P : Ghost} l1 l2 m1 m2 n1 n2,
@@ -250,9 +250,9 @@ Lemma list_join_None : forall {P : Ghost} n l, (n <= length l)%nat ->
   list_join (repeat None n) l l.
 Proof.
   induction n; [constructor|].
-  destruct l; simpl; [omega|].
+  destruct l; simpl; [lia|].
   repeat constructor.
-  apply IHn; omega.
+  apply IHn; lia.
 Qed.
 
 Lemma list_join_over : forall {P : Ghost} l l1 l2 l1', (length l <= length l1)%nat ->
@@ -260,35 +260,35 @@ Lemma list_join_over : forall {P : Ghost} l l1 l2 l1', (length l <= length l1)%n
 Proof.
   induction 2; simpl in *.
   - constructor.
-  - destruct m; [constructor | simpl in *; omega].
+  - destruct m; [constructor | simpl in *; lia].
   - constructor; auto.
-    apply IHlist_join; omega.
+    apply IHlist_join; lia.
 Qed.
 
 Lemma singleton_length : forall {A} n (a : A), length (list_singleton n a) = S n.
 Proof.
   intros; unfold list_singleton.
-  rewrite app_length, repeat_length; simpl; omega.
+  rewrite app_length, repeat_length; simpl; lia.
 Qed.
 
 Lemma list_join_singleton : forall {P : Ghost} n a c l
   (Hn : (n < length l)%nat) (Hjoin: join (Some a) (nth n l None) (Some c)),
   list_join (list_singleton n a) l (replace_nth n l (Some c)).
 Proof.
-  induction l using rev_ind; simpl; intros; try omega.
+  induction l using rev_ind; simpl; intros; try lia.
   rewrite app_length in Hn; simpl in Hn.
   destruct (eq_dec n (length l)).
   - subst.
-    rewrite app_nth2, minus_diag in Hjoin by omega; simpl in Hjoin.
-    rewrite replace_nth_app, if_false, minus_diag by omega; simpl.
+    rewrite app_nth2, minus_diag in Hjoin by lia; simpl in Hjoin.
+    rewrite replace_nth_app, if_false, minus_diag by lia; simpl.
     apply list_join_app; try (rewrite repeat_length; auto).
     + apply list_join_None; auto.
     + repeat constructor; auto.
-  - assert (n < length l)%nat by omega.
+  - assert (n < length l)%nat by lia.
     rewrite app_nth1 in Hjoin by auto.
     rewrite replace_nth_app, if_true by auto.
     apply list_join_over, IHl; auto.
-    rewrite singleton_length; omega.
+    rewrite singleton_length; lia.
 Qed.
 
 (* up *)
@@ -301,15 +301,15 @@ Qed.
 Lemma nth_replace_nth : forall {A} n l a (d : A), (n < length l)%nat ->
   nth n (replace_nth n l a) d = a.
 Proof.
-  induction n; destruct l; auto; simpl; intros; try omega.
-  apply IHn; omega.
+  induction n; destruct l; auto; simpl; intros; try lia.
+  apply IHn; lia.
 Qed.
 
 Lemma nth_replace_nth' : forall {A} n m l a (d : A), m <> n ->
   nth m (replace_nth n l a) d = nth m l d.
 Proof.
-  induction n; destruct l; auto; destruct m; auto; simpl; intros; try omega.
-  apply IHn; omega.
+  induction n; destruct l; auto; destruct m; auto; simpl; intros; try lia.
+  apply IHn; lia.
 Qed.
 
 Lemma Znth_replace_nth : forall {A} {d : Inhabitant A} n l (a : A), (n < length l)%nat ->
@@ -324,10 +324,10 @@ Lemma Znth_replace_nth' : forall {A} {d : Inhabitant A} n m l (a : A), m <> Z.of
 Proof.
   intros.
   destruct (zlt m 0); [rewrite !Znth_underflow; auto|].
-  rewrite <- (Z2Nat.id m) by omega.
+  rewrite <- (Z2Nat.id m) by lia.
   rewrite <- !nth_Znth; apply nth_replace_nth'.
   intro; contradiction H; subst.
-  rewrite Z2Nat.id by omega; auto.
+  rewrite Z2Nat.id by lia; auto.
 Qed.
 
 Lemma ghost_list_nth : forall {P : Ghost} g n l (a : G) (Ha : nth n l None = Some a),
@@ -335,7 +335,7 @@ Lemma ghost_list_nth : forall {P : Ghost} g n l (a : G) (Ha : nth n l None = Som
 Proof.
   intros; apply own_op.
   rewrite <- (replace_nth_same n l None) at 2.
-  destruct (lt_dec n (length l)); [|rewrite nth_overflow in Ha by omega; discriminate].
+  destruct (lt_dec n (length l)); [|rewrite nth_overflow in Ha by lia; discriminate].
   exploit (list_join_singleton n a a (replace_nth n l None)).
   { rewrite replace_nth_length; auto. }
   { rewrite nth_replace_nth by auto; constructor. }
@@ -345,15 +345,15 @@ Qed.
 Lemma list_join_length : forall {P : Ghost} l1 l2 l3, list_join l1 l2 l3 ->
   (length l1 <= length l3)%nat.
 Proof.
-  induction 1; auto; simpl; omega.
+  induction 1; auto; simpl; lia.
 Qed.
 
 Lemma list_join_filler : forall {P : Ghost} l1 l2 l3 n, list_join l1 l2 l3 ->
   (n <= length l3 - length l1)%nat -> list_join (l1 ++ repeat None n) l2 l3.
 Proof.
   induction 1; simpl; intros.
-  - apply list_join_None; omega.
-  - destruct n; [|omega].
+  - apply list_join_None; lia.
+  - destruct n; [|lia].
     rewrite app_nil_r; constructor.
   - constructor; auto.
 Qed.
@@ -363,8 +363,8 @@ Lemma list_join_nth : forall {P : Ghost} l1 l2 l3 n, list_join l1 l2 l3 ->
 Proof.
   intros; revert n.
   induction H; intro.
-  - rewrite nth_overflow by (simpl; omega); constructor.
-  - rewrite (nth_overflow []) by (simpl; omega); constructor.
+  - rewrite nth_overflow by (simpl; lia); constructor.
+  - rewrite (nth_overflow []) by (simpl; lia); constructor.
   - destruct n; simpl; auto.
 Qed.
 
@@ -372,7 +372,7 @@ Lemma list_join_max : forall {P : Ghost} l1 l2 l3, list_join l1 l2 l3 ->
   length l3 = Max.max (length l1) (length l2).
 Proof.
   induction 1; simpl; auto.
-  rewrite Nat.max_l; auto; omega.
+  rewrite Nat.max_l; auto; lia.
 Qed.
 
 Lemma list_join_nth_error : forall {P : Ghost} l1 l2 l3 n, list_join l1 l2 l3 ->
@@ -409,15 +409,15 @@ Qed.
 Lemma nth_error_replace_nth : forall {A} n l (a : A), (n < length l)%nat ->
   nth_error (replace_nth n l a) n = Some a.
 Proof.
-  induction n; destruct l; auto; simpl; intros; try omega.
-  apply IHn; omega.
+  induction n; destruct l; auto; simpl; intros; try lia.
+  apply IHn; lia.
 Qed.
 
 Lemma nth_error_replace_nth' : forall {A} n m l (a : A), m <> n ->
   nth_error (replace_nth n l a) m = nth_error l m.
 Proof.
-  induction n; destruct l; auto; destruct m; auto; simpl; intros; try omega.
-  apply IHn; omega.
+  induction n; destruct l; auto; destruct m; auto; simpl; intros; try lia.
+  apply IHn; lia.
 Qed.
 
 Instance list_order A : @PCM_order (list_PCM (discrete_PCM A)) list_incl.
@@ -425,7 +425,7 @@ Proof.
   constructor.
   - repeat intro; split; auto.
   - repeat intro.
-    destruct H, H0; split; auto; omega.
+    destruct H, H0; split; auto; lia.
   - intro a.
     remember (length a) as n.
     revert dependent a; induction n; intros.
@@ -440,7 +440,7 @@ Proof.
       destruct (IHn b c) as (c' & ? & ?); auto.
       { destruct H as [Hlen H].
         split.
-        { rewrite app_length in Hlen; simpl in *; omega. }
+        { rewrite app_length in Hlen; simpl in *; lia. }
         intros ?? Hnth.
         specialize (H n a0).
         rewrite app_nth in H.
@@ -452,37 +452,37 @@ Proof.
       destruct (eq_dec (length (removelast a)) (length c')).
       * exists (c' ++ [last a None]); split.
         -- rewrite (app_removelast_last None) at 1 by auto.
-           apply join_comm, list_join_over; try omega.
+           apply join_comm, list_join_over; try lia.
            apply join_comm in H2; auto.
         -- split.
             { destruct H.
-              rewrite app_length in *; simpl in *; omega. }
+              rewrite app_length in *; simpl in *; lia. }
             intros ?? Hnth.
             rewrite app_nth in Hnth.
             if_tac in Hnth; [apply H3; auto|].
             destruct (n - length c')%nat eqn: Hminus; [|destruct n0; discriminate].
             simpl in Hnth.
             apply H.
-            rewrite app_nth2 by omega.
-            replace (_ - _)%nat with O by omega; auto.
+            rewrite app_nth2 by lia.
+            replace (_ - _)%nat with O by lia; auto.
        * destruct (last a None) eqn: Ha.
          -- exists (replace_nth (length (removelast a)) c' (Some g)).
             split.
             ++ apply list_join_alt; intro.
                pose proof (list_join_max _ _ _ H2) as Hlen.
                destruct (Max.max_spec (length (removelast a)) (length b)) as [[? Hmax] | [? Hmax]];
-                 setoid_rewrite Hmax in Hlen; try omega.
+                 setoid_rewrite Hmax in Hlen; try lia.
                hnf in H2; rewrite list_join_alt in H2.
                specialize (H2 n0).
                rewrite (app_removelast_last None) at 1 by auto.
                rewrite Ha.
                destruct (lt_dec n0 (length (removelast a))).
                ** rewrite nth_error_app1 by auto.
-                  rewrite nth_error_replace_nth' by omega; auto.
-               ** rewrite nth_error_app2 by omega.
+                  rewrite nth_error_replace_nth' by lia; auto.
+               ** rewrite nth_error_app2 by lia.
                   destruct (eq_dec n0 (length (removelast a))).
                   { subst; rewrite minus_diag; simpl.
-                    rewrite nth_error_replace_nth by (simpl in *; omega).
+                    rewrite nth_error_replace_nth by (simpl in *; lia).
                     destruct (nth_error b (length (removelast a))) eqn: Hb; setoid_rewrite Hb; constructor.
                     destruct o; constructor.
                     destruct H0 as [_ Hc].
@@ -494,23 +494,23 @@ Proof.
                     rewrite app_nth2, minus_diag in Hc' by auto.
                     setoid_rewrite Hc' in H7; [|reflexivity].
                     inv H7; constructor; auto. }
-                  { destruct (_ - _)%nat eqn: Hminus; [omega | simpl].
-                    rewrite nth_error_nil, nth_error_replace_nth' by (simpl in *; omega).
+                  { destruct (_ - _)%nat eqn: Hminus; [lia | simpl].
+                    rewrite nth_error_nil, nth_error_replace_nth' by (simpl in *; lia).
                     destruct (nth_error_length n0 (removelast a)) as [_ Hnone].
-                    setoid_rewrite Hnone in H2; [auto | omega]. }
+                    setoid_rewrite Hnone in H2; [auto | lia]. }
             ++ destruct H3.
                split.
                { rewrite replace_nth_length; auto. }
                intros ?? Hnth.
                destruct (eq_dec n0 (length (removelast a)));
                  [|rewrite nth_replace_nth' in Hnth; auto].
-               subst; rewrite nth_replace_nth in Hnth by (simpl in *; omega).
+               subst; rewrite nth_replace_nth in Hnth by (simpl in *; lia).
                inv Hnth.
                apply H.
                rewrite app_nth2, minus_diag; auto.
          -- exists c'; split; auto.
             rewrite (app_removelast_last None), Ha by auto.
-            apply list_join_filler with (n0 := 1%nat); auto; simpl in *; omega.
+            apply list_join_filler with (n0 := 1%nat); auto; simpl in *; lia.
   - split.
     + split; [eapply list_join_length; eauto|].
       intros ?? Hnth.
@@ -524,14 +524,14 @@ Proof.
       inv H3; auto.
   - induction a; unfold list_incl; intros.
     + destruct b; [constructor|].
-      simpl in *; omega.
+      simpl in *; lia.
     + destruct H as [? Hnth].
       destruct b; constructor.
       * destruct o; [|constructor].
         specialize (Hnth O _ eq_refl); simpl in Hnth.
         subst; repeat constructor.
       * apply IHa.
-        split; [simpl in *; omega|].
+        split; [simpl in *; lia|].
         intros.
         apply (Hnth (S n)); auto.
 Qed.
@@ -724,7 +724,7 @@ Lemma Zlength_eq : forall {A B} (l1 : list A) (l2 : list B),
 Proof.
   intros; rewrite !Zlength_correct.
   split; [apply Nat2Z.inj|].
-  intro; apply Z2Nat.inj; try omega.
+  intro; apply Z2Nat.inj; try lia.
   rewrite !Nat2Z.id; auto.
 Qed.
 
@@ -739,7 +739,7 @@ Proof.
   intros.
   erewrite nth_indep by (rewrite upto_length; auto).
   rewrite nth_Znth, Znth_upto; auto.
-  split; [omega|].
+  split; [lia|].
   apply Nat2Z.inj_lt; auto.
 Qed.
 
@@ -757,15 +757,15 @@ Proof.
     rewrite nth_singleton; auto.
   - intros; split.
     + rewrite singleton_length.
-      destruct (lt_dec n (length l)); [omega|].
-      rewrite nth_overflow in H by omega; discriminate.
+      destruct (lt_dec n (length l)); [lia|].
+      rewrite nth_overflow in H by lia; discriminate.
     + intros ??.
       unfold list_singleton.
       destruct (lt_dec n0 n).
       * rewrite app_nth1 by (rewrite repeat_length; auto).
         rewrite nth_repeat; discriminate.
-      * rewrite app_nth2; rewrite repeat_length; try omega.
-        destruct (eq_dec n0 n); [|rewrite nth_overflow by (simpl; omega); discriminate].
+      * rewrite app_nth2; rewrite repeat_length; try lia.
+        destruct (eq_dec n0 n); [|rewrite nth_overflow by (simpl; lia); discriminate].
         subst; rewrite minus_diag; simpl.
         intro X; inv X; auto.
 Qed.
@@ -820,16 +820,16 @@ Proof.
                        end) (upto (length ((I ++ repeat emp i) ++ [P]))))).
       rewrite <- !app_assoc, app_length, upto_app, map_app.
       split.
-      { rewrite app_length, !map_length; omega. }
+      { rewrite app_length, !map_length; lia. }
       intros ?? Hn.
       rewrite app_nth, map_length.
-      if_tac; [|rewrite nth_overflow in Hn by (rewrite map_length; omega); discriminate].
+      if_tac; [|rewrite nth_overflow in Hn by (rewrite map_length; lia); discriminate].
       rewrite nth_map' with (d' := 0) in * by auto.
       rewrite upto_length in *.
       assert (Z.of_nat n < Zlength I).
       { rewrite Zlength_correct; apply Nat2Z.inj_lt; auto. }
       rewrite nth_upto in * by auto.
-      rewrite !app_Znth1 by omega; auto.
+      rewrite !app_Znth1 by lia; auto.
     - eapply derives_trans, bupd_trans.
       apply bupd_mono, make_snap. }
   eapply derives_trans; [apply bupd_frame_r|].
@@ -839,28 +839,28 @@ Proof.
     apply ghost_snap_forget with (v1 := list_singleton (length lg + i) g).
     apply list_incl_singleton.
     rewrite app_length, upto_app, map_app, app_nth2; rewrite map_length, upto_length, app_length,
-      repeat_length; try omega.
-    replace (_ - _)%nat with O by omega; simpl.
+      repeat_length; try lia.
+    replace (_ - _)%nat with O by lia; simpl.
     rewrite Nat2Z.inj_add, Z.add_0_r.
-    rewrite !app_Znth2; rewrite !Zlength_app, !Zlength_repeat, <- Zlength_correct; try omega.
-    replace (_ - _) with 0 by omega; replace (_ - _) with 0 by omega; auto. }
+    rewrite !app_Znth2; rewrite !Zlength_app, !Zlength_repeat, <- Zlength_correct; try lia.
+    replace (_ - _) with 0 by lia; replace (_ - _) with 0 by lia; auto. }
   eapply derives_trans; [apply bupd_frame_r|].
   apply bupd_mono.
   Exists ((I ++ repeat emp i) ++ [P]) ((lg ++ repeat O i) ++ [g])
          ((lb ++ repeat None i) ++ [Some true]) (length I + i)%nat.
   rewrite !(app_length (_ ++ _)), !H; simpl.
   rewrite upto_app, iter_sepcon_app; simpl.
-  rewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; rewrite !Zlength_app, !Zlength_repeat; try omega.
+  rewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; rewrite !Zlength_app, !Zlength_repeat; try lia.
   rewrite Hlg, Hlb, Zminus_diag, !Znth_0_cons.
   unfold invariant, master_list, ghost_master1, ghost_list.
   Exists g; entailer!.
-  { rewrite !app_length, !repeat_length; omega. }
+  { rewrite !app_length, !repeat_length; lia. }
   apply sepcon_derives.
   - apply derives_refl'; f_equal; apply Extensionality_Ensembles.
     split; intro; unfold In.
     + intro Hx; rewrite <- app_assoc, app_nth.
       if_tac; auto.
-      rewrite nth_overflow in Hx by omega; discriminate.
+      rewrite nth_overflow in Hx by lia; discriminate.
     + rewrite <- app_assoc, !app_nth.
       if_tac; auto.
       if_tac.
@@ -873,14 +873,14 @@ Proof.
     + apply derives_refl', iter_sepcon_func_strong.
       intros ??%In_upto.
       rewrite <- Zlength_correct in *.
-      rewrite <- !app_assoc, !app_Znth1 by (rewrite ?Zlength_app; omega); auto.
+      rewrite <- !app_assoc, !app_Znth1 by (rewrite ?Zlength_app; lia); auto.
     + apply derives_refl'; symmetry; apply iter_sepcon_emp'.
       intros ? Hin.
       eapply in_map_iff in Hin as (? & ? & Hin%In_upto); subst.
       rewrite <- Zlength_correct, Zlength_repeat in Hin.
-      rewrite <- Zlength_correct, <- app_assoc, app_Znth2 by omega.
-      rewrite app_Znth1, Znth_repeat'; auto; try omega.
-      rewrite Zlength_repeat; omega.
+      rewrite <- Zlength_correct, <- app_assoc, app_Znth2 by lia.
+      rewrite app_Znth1, Znth_repeat'; auto; try lia.
+      rewrite Zlength_repeat; lia.
 Qed.
 
 Lemma wsat_open : forall i P,
@@ -896,9 +896,9 @@ Proof.
     unfold master_list; rewrite snap_master_join1; Intros.
     apply list_incl_singleton in H1.
     destruct (lt_dec i (length lg));
-      [|rewrite nth_overflow in H1 by (rewrite map_length, upto_length; omega); discriminate].
-    rewrite nth_map' with (d' := 0) in H1 by (rewrite upto_length; omega).
-    rewrite nth_upto in H1 by omega.
+      [|rewrite nth_overflow in H1 by (rewrite map_length, upto_length; lia); discriminate].
+    rewrite nth_map' with (d' := 0) in H1 by (rewrite upto_length; lia).
+    rewrite nth_upto in H1 by lia.
     destruct (Znth (Z.of_nat i) lb); inv H1; entailer!; eauto. }
   rewrite !sepcon_assoc.
   eapply derives_trans; [apply sepcon_derives, derives_refl; apply own_dealloc|].
@@ -908,11 +908,11 @@ Proof.
   rewrite replace_nth_length; entailer!.
   assert (nth i lb None = Some b) as Hi' by (rewrite <- nth_Znth in Hi; auto).
   destruct b.
-  erewrite ghost_list_nth with (n := i) by (rewrite nth_map' with (d' := None), Hi'; eauto; omega).
+  erewrite ghost_list_nth with (n := i) by (rewrite nth_map' with (d' := None), Hi'; eauto; lia).
   cancel.
   rewrite iter_sepcon_Znth with (i0 := Z.of_nat i)
-    by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; omega).
-  rewrite Znth_upto, Hi by omega.
+    by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
+  rewrite Znth_upto, Hi by lia.
   rewrite (sepcon_comm _ (agree _ _)), <- !sepcon_assoc, (sepcon_comm _ (agree _ _)).
   rewrite <- !sepcon_assoc, 5sepcon_assoc.
   eapply derives_trans; [apply sepcon_derives, derives_refl; apply agree_join|].
@@ -926,7 +926,7 @@ Proof.
   - erewrite map_ext; [apply derives_refl|].
     intros; simpl.
     destruct (eq_dec a (Z.of_nat i)); [subst; rewrite Znth_replace_nth | rewrite Znth_replace_nth'];
-      auto; try omega.
+      auto; try lia.
     rewrite Hi; auto.
   - rewrite map_replace_nth; apply derives_refl.
   - rewrite ghost_set_join; Intros.
@@ -935,21 +935,21 @@ Proof.
     + intros ? Hin; unfold In.
       inv Hin.
       * destruct (eq_dec x i); [subst; rewrite nth_replace_nth | rewrite nth_replace_nth'];
-          auto; omega.
+          auto; lia.
       * inv H3.
-        rewrite nth_replace_nth; auto; omega.
+        rewrite nth_replace_nth; auto; lia.
     + intros ? Hin; unfold In in Hin.
       destruct (eq_dec x i); [subst; constructor 2; constructor|].
       rewrite nth_replace_nth' in Hin by auto.
       constructor 1; auto.
   - rewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l := upto _)
-      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; omega).
-    rewrite Znth_upto, Znth_replace_nth by omega; cancel.
+      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
+    rewrite Znth_upto, Znth_replace_nth by lia; cancel.
     apply derives_refl', iter_sepcon_func_strong.
     unfold remove_Znth; intros ? Hin.
     rewrite Znth_replace_nth'; auto.
     intro; subst.
-    apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; omega.
+    apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia.
   - rewrite sepcon_comm, <- !sepcon_assoc, (sepcon_comm _ (ghost_set _ _)).
     rewrite <- !sepcon_assoc, ghost_set_join; Intros.
     inv H2.
@@ -976,9 +976,9 @@ Proof.
     unfold master_list; rewrite snap_master_join1; Intros.
     apply list_incl_singleton in H1.
     destruct (lt_dec i (length lg));
-      [|rewrite nth_overflow in H1 by (rewrite map_length, upto_length; omega); discriminate].
-    rewrite nth_map' with (d' := 0) in H1 by (rewrite upto_length; omega).
-    rewrite nth_upto in H1 by omega.
+      [|rewrite nth_overflow in H1 by (rewrite map_length, upto_length; lia); discriminate].
+    rewrite nth_map' with (d' := 0) in H1 by (rewrite upto_length; lia).
+    rewrite nth_upto in H1 by lia.
     destruct (Znth (Z.of_nat i) lb); inv H1; entailer!; eauto. }
   rewrite !sepcon_assoc.
   eapply derives_trans; [apply sepcon_derives, derives_refl; apply own_dealloc|].
@@ -995,11 +995,11 @@ Proof.
     Intros.
     destruct H2 as (? & J & _).
     apply list_join_nth with (n := i) in J.
-    rewrite nth_singleton, nth_map' with (d' := None) in J by omega.
+    rewrite nth_singleton, nth_map' with (d' := None) in J by lia.
     rewrite Hi' in J; inv J.
     inv H5.
     inv H6. }
-  rewrite ghost_set_remove with (a := i); auto; [|intro; omega].
+  rewrite ghost_set_remove with (a := i); auto; [|intro; lia].
   cancel.
   rewrite 5sepcon_assoc, (sepcon_comm (ghost_list _ _)).
   rewrite !sepcon_assoc; apply sepcon_derives;
@@ -1008,7 +1008,7 @@ Proof.
   - erewrite map_ext; [apply derives_refl|].
     intros.
     destruct (eq_dec a (Z.of_nat i)); [subst; rewrite Znth_replace_nth | rewrite Znth_replace_nth'];
-      auto; try omega.
+      auto; try lia.
     rewrite Hi; auto.
   - apply derives_refl'; f_equal.
     apply Extensionality_Ensembles; split.
@@ -1017,15 +1017,15 @@ Proof.
       rewrite nth_replace_nth'; auto.
       intro; subst; contradiction H3; constructor.
     + intros ? Hin; unfold In in Hin.
-      destruct (eq_dec x i); [subst; rewrite nth_replace_nth in Hin by omega; discriminate|].
+      destruct (eq_dec x i); [subst; rewrite nth_replace_nth in Hin by lia; discriminate|].
       rewrite nth_replace_nth' in Hin by auto.
       constructor; auto.
       intro Hx; inv Hx; contradiction.
   - rewrite iter_sepcon_Znth with (i0 := Z.of_nat i)
-      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; omega).
+      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
     rewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l := upto _)
-      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; omega).
-    rewrite !Znth_upto, !Znth_replace_nth by omega.
+      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
+    rewrite !Znth_upto, !Znth_replace_nth by lia.
     rewrite Hi.
     sep_apply (agree_join2 (Znth (Z.of_nat i) lg) P (Znth (Z.of_nat i) I)).
     sep_apply (modus_ponens_wand (|> P) (|> Znth (Z.of_nat i) I)); cancel.
@@ -1033,12 +1033,12 @@ Proof.
     unfold remove_Znth; intros ? Hin.
     rewrite Znth_replace_nth'; auto.
     intro; subst.
-    apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; omega.
+    apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia.
   - apply derives_refl'; symmetry; apply own_op.
     rewrite map_replace_nth.
     apply (list_join_singleton(P := token_PCM)).
-    { rewrite map_length; omega. }
-    rewrite nth_map' with (d' := None) by omega.
+    { rewrite map_length; lia. }
+    rewrite nth_map' with (d' := None) by lia.
     rewrite Hi'; constructor.
 Qed.
 

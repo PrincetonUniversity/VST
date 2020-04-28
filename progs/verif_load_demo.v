@@ -68,7 +68,7 @@ Definition Gprog : funspecs := ltac:(with_library prog
 Ltac solve_arr_range H := 
  match goal with |- context [Znth ?i _] => 
    specialize (H i); spec H; [ computable | ];
-   rewrite Int.unsigned_repr; rep_omega
+   rewrite Int.unsigned_repr; rep_lia
  end.
 
 Lemma body_get_little_endian: semax_body Vprog Gprog f_get_little_endian get_little_endian_spec.
@@ -105,16 +105,16 @@ assert_PROP (Zlength contents = n) as LEN. {
   clear - H0.
   rewrite Zlength_cons, !Zlength_map in H0.
   destruct (zlt n 0); [elimtype False | ].
-  rewrite Z.max_l in H0 by omega.
+  rewrite Z.max_l in H0 by lia.
   pose proof (Zlength_nonneg contents).
-  omega.
-  rewrite Z.max_r in H0 by omega. omega.  
+  lia.
+  rewrite Z.max_r in H0 by lia. lia.  
 }
 assert (Zlength (tag :: contents) = 1 + n) as LEN1. {
-  rewrite Zlength_cons. omega.
+  rewrite Zlength_cons. lia.
 }
 assert (N0: 0 <= n). {
-  pose proof (Zlength_nonneg contents). omega.
+  pose proof (Zlength_nonneg contents). lia.
 }
 assert_PROP (isptr p) as P by entailer!.
 
@@ -155,17 +155,17 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
     rewrite field_compatible_field_address by auto with field_compatible.
     simpl.
     rewrite Ptrofs.add_assoc, ptrofs_add_repr. 
-    f_equal. f_equal. f_equal. omega.
+    f_equal. f_equal. f_equal. lia.
   }
   forward.
   forward.
   entailer!.
-  rewrite Znth_pos_cons by omega.
+  rewrite Znth_pos_cons by lia.
   autorewrite with sublist. simpl.  
   f_equal. rewrite Int.add_assoc. f_equal.
-  rewrite (sublist_split 0 i (i+1)) by omega.
-  rewrite sublist_len_1 by omega.
-  replace (1 + i - 1) with i by omega.
+  rewrite (sublist_split 0 i (i+1)) by lia.
+  rewrite sublist_len_1 by lia.
+  replace (1 + i - 1) with i by lia.
   rewrite uint_sum_app. f_equal. simpl. apply Int.add_zero_l.
 - (* return sum; *)
   forward. rewrite sublist_same by auto. entailer!.
@@ -204,7 +204,7 @@ assert_PROP (
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. f_equal. omega.
+  simpl. f_equal. lia.
 }
 (* int res = p->snd; *)
 forward.

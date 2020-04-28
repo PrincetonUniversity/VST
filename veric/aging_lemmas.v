@@ -103,13 +103,13 @@ Proof.
       * rewrite level_juice_level_phi in *. auto.
     + apply age_level in E.
       apply age_level in A.
-      omega.
+      lia.
     + rewrite (age1_ghost_of _ _ (age_jm_phi A)), (age1_ghost_of _ _ (age_jm_phi E)), Hg.
       apply age_level in A; rewrite A in lev; inv lev.
       rewrite !level_juice_level_phi; congruence.
   - apply age1_level0 in E.
     apply age_level in A.
-    omega.
+    lia.
 Qed.
 
 Lemma jsafeN__age {G C Z HH Sem Jspec ge ora q n} jm jmaged :
@@ -123,7 +123,7 @@ Proof.
   - constructor 1.
   - intros ??? heredspec A L Safe.
     inv Safe.
-    + destruct (jstep_age_sim A H0 ltac:(omega)) as [jmaged' [A' step']].
+    + destruct (jstep_age_sim A H0 ltac:(lia)) as [jmaged' [A' step']].
       econstructor 2; eauto.
       intros gh Hg J.
       rewrite (age1_ghost_of _ _ (age_jm_phi A')) in J.
@@ -143,7 +143,7 @@ Proof.
         apply age_level in A'.
         destruct H0 as (? & ? & ? & ?).
         apply age_level in A.
-        omega. }
+        lia. }
     + econstructor 3.
       * unfold j_at_external in *; rewrite <- (age_jm_dry A); eassumption.
       * eapply (proj1 heredspec); eauto.
@@ -151,11 +151,11 @@ Proof.
         destruct (H2 ret jm' z' n' Hargsty Hretty H) as (c' & atex' & safe'); eauto.
         unfold Hrel in *.
         split;[|split]; try apply rel.
-        -- apply age_level in A; omega.
+        -- apply age_level in A; lia.
         -- apply age_jm_phi in A.
            unshelve eapply (pures_eq_unage _ A), rel.
            do 2 rewrite <-level_juice_level_phi.
-           omega.
+           lia.
     + econstructor 4. eauto.
       eapply (proj2 heredspec); eauto.
 Qed.
@@ -170,7 +170,7 @@ Proof.
   apply age_to_ind_refined.
   intros x y H L.
   apply jsafeN__age; auto.
-  omega.
+  lia.
 Qed.
 
 Lemma m_dry_age_to n jm : m_dry (age_to n jm) = m_dry jm.

@@ -436,7 +436,7 @@ Module Type RMAPS.
   Next Obligation.
   destruct H0.
   split.
-  apply age_level in H. omega.
+  apply age_level in H. lia.
   apply pred_hereditary with a; auto.
   Qed.
 
@@ -821,7 +821,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   destruct H0.
   split.
   apply age_level in H.
-  simpl in *. omega.
+  simpl in *. lia.
   apply pred_hereditary with a; auto.
   Qed.
 

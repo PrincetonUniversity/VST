@@ -76,7 +76,7 @@ Proof.
 intros. rewrite Znth_map; auto.
 Qed.
 Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
-  (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; omega) : core.
+  (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; lia) : core.
 
 Definition minimum_spec :=
  DECLARE _minimum
@@ -114,25 +114,25 @@ forward_for_simple_bound n
 * (* Prove that the loop body preserves the loop invariant *)
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al))
-     by (apply Forall_Znth; auto; omega).
+     by (apply Forall_Znth; auto; lia).
  assert (repable_signed (fold_right Z.min (Znth 0 al) (sublist 0 i al)))
    by (apply Forall_fold_min;
-          [apply Forall_Znth; auto; omega
+          [apply Forall_Znth; auto; lia
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
  subst POSTCONDITION; unfold abbreviate.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite (sublist_one i (i+1) al) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  rewrite fold_min_another.
  forward_if.
  +
  forward. (* min = j; *)
  entailer!.
- rewrite Z.min_r; auto; omega.
+ rewrite Z.min_r; auto; lia.
  +
  forward. (* skip; *)
  entailer!.
- rewrite Z.min_l; auto; omega.
+ rewrite Z.min_l; auto; lia.
 * (* After the loop *)
  forward. (* return *)
  entailer!.
@@ -183,24 +183,24 @@ abbreviate_semax.
 rename a0 into i.
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al))
-     by (apply Forall_Znth; auto; omega).
+     by (apply Forall_Znth; auto; lia).
  assert (repable_signed (fold_right Z.min (Znth 0 al) (sublist 0 i al)))
    by (apply Forall_fold_min;
-          [apply Forall_Znth; auto; omega
+          [apply Forall_Znth; auto; lia
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
  apply semax_post_flipped' with (Inv 1 (Z.gt n) i).
  unfold Inv.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite (sublist_one i (i+1) al) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  rewrite fold_min_another.
  forward_if.
  +
  forward. (* min = j; *)
- entailer!. rewrite Z.min_r; auto; omega.
+ entailer!. rewrite Z.min_r; auto; lia.
  +
  forward. (* skip; *)
- entailer!. rewrite Z.min_l; auto; omega.
+ entailer!. rewrite Z.min_l; auto; lia.
  +
  intros.
  subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
@@ -254,13 +254,13 @@ forward_for_simple_bound n
 Exists (Znth 0 al).
 autorewrite with sublist.
 entailer!.
-rewrite sublist_one by omega.
+rewrite sublist_one by lia.
 constructor; auto.
 * (* Show that the loop body preserves the loop invariant *)
 Intros.
 forward. (* j = a[i]; *)
 assert (repable_signed (Znth i al))
-   by (apply Forall_Znth; auto; omega).
+   by (apply Forall_Znth; auto; lia).
 assert (repable_signed j)
    by (eapply Forall_forall; [ | eassumption]; apply Forall_sublist; auto).
 autorewrite with sublist.
@@ -269,32 +269,32 @@ forward_if.
  forward. (* min = j; *)
  Exists (Znth i al).
  entailer!.
- rewrite Z.max_r by omega.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite (sublist_one i (i+1) al) by omega.
+ rewrite Z.max_r by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  split.
  apply in_app; right; constructor; auto.
  apply Forall_app; split.
  eapply Forall_impl; try apply H4.
- intros; omega.
- constructor; auto. omega.
+ intros; lia.
+ constructor; auto. lia.
  + (* Else clause *)
  forward. (* skip; *)
  Exists j.
  entailer!.
- rewrite Z.max_r by omega.
+ rewrite Z.max_r by lia.
  split.
  destruct (zlt 1 i).
- rewrite Z.max_r in H3 by omega.
- rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite Z.max_r in H3 by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
  apply in_app; left; auto.
- rewrite Z.max_l in H3 by omega.
- rewrite (sublist_split 0 1 (i+1)) by omega.
+ rewrite Z.max_l in H3 by lia.
+ rewrite (sublist_split 0 1 (i+1)) by lia.
  apply in_app; left; auto.
- rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
  apply Forall_app. split; auto.
- rewrite sublist_one by omega.
- repeat constructor. omega.
+ rewrite sublist_one by lia.
+ repeat constructor. lia.
 * (* After the loop *)
  Intros x.
  autorewrite with sublist in *.

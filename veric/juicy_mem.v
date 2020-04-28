@@ -789,7 +789,7 @@ Lemma range_inv0: forall ofs ofs' sz,
   ofs' < ofs \/ ofs' >= ofs + sz.
 Proof.
 intros until sz; intro H.
-destruct (zle ofs ofs'); destruct (zlt ofs' (ofs + sz)); omega.
+destruct (zle ofs ofs'); destruct (zlt ofs' (ofs + sz)); lia.
 Qed.
 
 Lemma range_inv: forall ofs ofs' ch,
@@ -1216,7 +1216,7 @@ Proof.
 intros.
 destruct (adr_range_dec (b',lo) (hi-lo) (b,ofs)).
 destruct a; simpl in *.
-subst b'; apply free_access with (ofs:=ofs) in H0; [ | omega].
+subst b'; apply free_access with (ofs:=ofs) in H0; [ | lia].
 destruct H0.
 pose proof (Memory.access_cur_max m' (b,ofs)).
 rewrite H1 in H3; simpl in H3.
@@ -1226,7 +1226,7 @@ eapply free_access_other; eauto.
 destruct (eq_block b b'); auto; right.
 simpl in n.
 assert (~(lo <= ofs < lo + (hi - lo))) by intuition.
-omega.
+lia.
 Qed.
 
 Lemma free_nadr_range_eq : forall m b b' ofs' lo hi m',
@@ -1242,7 +1242,7 @@ apply (free_access_other _ _ _ _ _ H0 b' ofs' k).
 destruct (eq_block b b'); auto; right.
 simpl in H.
 assert (~(lo <= ofs' < lo + (hi - lo))) by intuition.
-omega.
+lia.
 unfold contents_at.
 simpl.
 Transparent free.
@@ -1302,7 +1302,7 @@ unfold inflate_free; rewrite resource_at_make_rmap.
 destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
  + (* adr_range *)
 destruct a as [H2 H3].
-replace (lo+(hi-lo)) with hi in H3 by omega.
+replace (lo+(hi-lo)) with hi in H3 by lia.
 subst b'.
 replace (access_at m' (b, ofs') Cur) with (@None permission).
 simpl. rewrite if_true by auto. auto.
@@ -1344,12 +1344,12 @@ intros.
 destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
 destruct a.
 subst b'.
-destruct (free_access _ _ _ _ _ H ofs'); [omega |].
+destruct (free_access _ _ _ _ _ H ofs'); [lia |].
 contradiction.
 apply (free_access_other _ _ _ _ _ H).
 destruct (eq_block b' b); auto; right.
 subst b'.
-simpl in n. assert (~( lo <= ofs' < lo + (hi - lo))) by intuition; omega.
+simpl in n. assert (~( lo <= ofs' < lo + (hi - lo))) by intuition; lia.
 Qed.
 
 (* The empty juicy memory *)
@@ -1456,7 +1456,7 @@ intros.
 pose proof (alloc_access_same _ _ _ _ _ H ofs Cur).
 destruct (range_dec lo ofs n). auto.
 left.
-rewrite <- (alloc_access_other _ _ _ _ _ H b ofs Cur) by (right; omega).
+rewrite <- (alloc_access_other _ _ _ _ _ H b ofs Cur) by (right; lia).
 apply alloc_result in H.
 subst.
 apply nextblock_access_empty.
@@ -1476,7 +1476,7 @@ extensionality k.
 eapply Memory.alloc_access_other; eauto.
 simpl in H0.
 destruct (eq_block b b0); auto. subst. right.
-assert (~(lo <= z < lo + (hi - lo))) by intuition; omega.
+assert (~(lo <= z < lo + (hi - lo))) by intuition; lia.
 intros.
 unfold alloc in H.
 inv H. unfold contents_at; simpl.
@@ -1502,7 +1502,7 @@ destruct H0.
 apply andb_true_iff.
 split.
 apply zle_true; auto.
-apply zlt_true; omega.
+apply zlt_true; lia.
 Qed.
 
 Lemma alloc_dry_updated_on : forall m1 m2 lo hi b loc,
@@ -1515,7 +1515,7 @@ intros.
 destruct loc as [b' z'].
 split.
 destruct H0. subst b'.
-apply (alloc_access_same _ _ _ _ _ H). omega.
+apply (alloc_access_same _ _ _ _ _ H). lia.
 unfold contents_at; unfold alloc in H; inv H. simpl.
 destruct H0; subst b'.
 rewrite PMap.gss. rewrite ZMap.gi; auto.
@@ -1546,7 +1546,7 @@ Definition resource_nodecay (nextb: block) (phi1 phi2: rmap) :=
 Lemma resource_nodecay_decay:
    forall b phi1 phi2, resource_nodecay b phi1 phi2 -> resource_decay b phi1 phi2.
 Proof.
- unfold resource_decay, resource_nodecay; intros; destruct H; split; intros; try omega.
+ unfold resource_decay, resource_nodecay; intros; destruct H; split; intros; try lia.
 specialize (H0 l); intuition.
 Qed.
 
@@ -1566,7 +1566,7 @@ Lemma resource_decay_trans: forall b b' m1 m2 m3,
   resource_decay b m1 m2 -> resource_decay b' m2 m3 -> resource_decay b m1 m3.
 Proof.
  intros until m3; intro Hbb; intros.
- destruct H as [H' H]; destruct H0 as [H0' H0]; split; [omega |].
+ destruct H as [H' H]; destruct H0 as [H0' H0]; split; [lia |].
  intro l; specialize (H l); specialize (H0 l).
  destruct H,H0.
  split.  auto.
@@ -1584,10 +1584,10 @@ rewrite H1. auto.
  left; exists sh2, wsh2,v2,v2'; split; auto.
  rewrite <- H1 in H2.
  rewrite resource_fmap_fmap in H2.
- rewrite approx_oo_approx' in H2 by omega.
- rewrite approx'_oo_approx in H2 by omega.
+ rewrite approx_oo_approx' in H2 by lia.
+ rewrite approx'_oo_approx in H2 by lia.
  assumption.
- right; left. split. xomega. exists v; auto.
+ right; left. split. lia. exists v; auto.
  right; right; auto.
  destruct H2 as [v [pp [? ?]]].
  rewrite H2 in H1. destruct (m1 @ l); inv H1.
@@ -1616,7 +1616,7 @@ rewrite H1. auto.
  unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
  rewrite H3 in H2. rewrite H4. simpl in H2. inv H2.
  f_equal. apply proof_irr.
- right; right; left. split. xomega. exists v2; auto.
+ right; right; left. split. lia. exists v2; auto.
  right; right; right.
  destruct (m1 @ l); inv H1.
  destruct H2 as [vx [pp [? ?]]]. inversion2 H3 H1.
@@ -1629,7 +1629,7 @@ rewrite H1. auto.
  destruct H2 as [[sh2 [wsh2 [v2 [v2' [? ?]]]]]|[[? [v2 ?]] |?]].
  destruct H1 as [v' [pp [? ?]]].
  rewrite H4 in H2; inv H2.
- right; right; left; split. xomega. eauto.
+ right; right; left; split. lia. eauto.
  right; right; right.
  destruct H1 as [v1 [pp1 [? ?]]].
  destruct H2 as [v2 [pp2 [? ?]]].
@@ -1739,13 +1739,13 @@ destruct (adr_range_dec (b, lo) (hi-lo) l) as [HA | HA].
 right. right.
 destruct l; simpl in HA|-*.
 destruct HA as [H0 H1]. subst b0.
-assert (lo + (hi - lo) = hi) by omega.
+assert (lo + (hi - lo) = hi) by lia.
 rewrite H in H1. clear H.
 unfold inflate_free; simpl; rewrite resource_at_make_rmap.
 specialize (PERM _ H1).
 destruct (m_phi jm @ (b,z)) eqn:?; try destruct k; inv PERM.
 if_tac in H0; inv H0.
-rewrite if_true by (split; auto; omega).
+rewrite if_true by (split; auto; lia).
 right.
 exists m, p.
 unfold perm_of_sh in H0.

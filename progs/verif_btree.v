@@ -275,7 +275,7 @@ Section BTree.
   Lemma empty_wf : wf_btree b_empty.
   Proof.
     simpl.
-    split; auto; omega.
+    split; auto; lia.
   Qed.
   
   Lemma insert_length : forall {A} i (x : A) l, length (insert i x l) = S (length l).
@@ -305,7 +305,7 @@ Section BTree.
     intros; unfold replace.
     rewrite app_length; simpl.
     rewrite firstn_length, skipn_length.
-    rewrite Min.min_l; omega.
+    rewrite Min.min_l; lia.
   Qed.
 
   Lemma nth_error_lt : forall {A} n l (x : A), nth_error l n = Some x ->
@@ -399,7 +399,7 @@ Section BTree.
     split; intros.
     - destruct H; simpl in H; destruct H as (? & H'); split; auto;
         destruct H' as [|(? & ?)]; auto; right; repeat split; auto;
-        try rewrite (alt_Forall wf_btree_aux) in *; auto; intro; subst; simpl in *; omega.
+        try rewrite (alt_Forall wf_btree_aux) in *; auto; intro; subst; simpl in *; lia.
     - destruct H as ([? | ?] & H'); [left | right]; simpl; split; auto;
         destruct H' as [|(Hkeys & ? & ?)]; auto.
       right; split; auto.
@@ -415,17 +415,17 @@ Section BTree.
     split; intros.
     - destruct H; simpl in H; destruct H as (? & H'); split; auto;
         destruct H' as [|(? & H')]; try destruct H'; auto; right; repeat split; auto;
-        intro; subst; simpl in *; omega.
+        intro; subst; simpl in *; lia.
     - destruct H as ([? | ?] & H'); [left | right]; simpl; split; auto;
         destruct H' as [|(Hkeys & ? & ?)]; auto.
       right; split; auto.
-      destruct keys; [contradiction Hkeys; auto | simpl in *; omega].
+      destruct keys; [contradiction Hkeys; auto | simpl in *; lia].
   Qed.
   
   Lemma odd_div : forall n, (S (2 * n) / 2)%nat = n.
   Proof.
-    intro; rewrite <- (NPeano.Nat.add_1_r (2 * n)), Nat.mul_comm, Nat.div_add_l; try omega.
-    unfold Nat.div; simpl; omega.
+    intro; rewrite <- (NPeano.Nat.add_1_r (2 * n)), Nat.mul_comm, Nat.div_add_l; try lia.
+    unfold Nat.div; simpl; lia.
   Qed.
 
   Lemma Forall_skipn : forall {A} P (l : list A) n, Forall P l -> Forall P (skipn n l).
@@ -456,7 +456,7 @@ Section BTree.
     intros; unfold split.
     rewrite Hc; destruct c as [keys' children']; rewrite wf_or_iff.
     rewrite insert_length.
-    split; [omega | right].
+    split; [lia | right].
     split; [apply insert_nonnil|].
     generalize (nth_error_lt _ _ _ Hc); intro.
     rewrite insert_length, replace_length; auto.
@@ -466,20 +466,20 @@ Section BTree.
       repeat rewrite skipn_length.
       destruct Hover as (Hover & Hwf); rewrite Hover.
       rewrite NPeano.Nat.add_1_r, odd_div; simpl.
-      split; try omega.
+      split; try lia.
       destruct Hwf as [|(Hlen & ?)]; [subst; rewrite skipn_nil; auto | right].
       rewrite Hlen, Hover.
-      split; [omega|].
+      split; [lia|].
       rewrite (alt_Forall wf_btree_aux).
       apply Forall_skipn; auto.
     + unfold wf_btree_aux; fold wf_btree_aux.
-      rewrite firstn_length, Min.min_l; [|apply Nat.div_le_upper_bound; omega].
+      rewrite firstn_length, Min.min_l; [|apply Nat.div_le_upper_bound; lia].
       unfold wf_btree_over in Hover.
       destruct Hover as (Hover & Hwf); rewrite Hover.
       rewrite NPeano.Nat.add_1_r, odd_div; simpl.
-      split; [omega|].
+      split; [lia|].
       destruct Hwf as [|(Hlen & ?)]; [subst; rewrite firstn_nil; auto | right].
-      rewrite firstn_length, Hlen, Hover, Min.min_l; [|omega].
+      rewrite firstn_length, Hlen, Hover, Min.min_l; [|lia].
       split; auto.
       rewrite (alt_Forall wf_btree_aux).
       apply Forall_firstn; auto.
@@ -495,7 +495,7 @@ Section BTree.
     intros; unfold split.
     rewrite Hc; destruct c as [keys' children']; rewrite wf_or_iff'.
     rewrite insert_length.
-    split; [omega | right].
+    split; [lia | right].
     split; [apply insert_nonnil|].
     generalize (nth_error_lt _ _ _ Hc); intro.
     rewrite insert_length, replace_length; auto.
@@ -505,20 +505,20 @@ Section BTree.
       repeat rewrite skipn_length.
       destruct Hover as (Hover & Hwf); rewrite Hover.
       rewrite NPeano.Nat.add_1_r, odd_div; simpl.
-      split; try omega.
+      split; try lia.
       destruct Hwf as [|(Hlen & ?)]; [subst; rewrite skipn_nil; auto | right].
       rewrite Hlen, Hover.
-      split; [omega|].
+      split; [lia|].
       rewrite (alt_Forall wf_btree_aux).
       apply Forall_skipn; auto.
     + unfold wf_btree_aux; fold wf_btree_aux.
-      rewrite firstn_length, Min.min_l; [|apply Nat.div_le_upper_bound; omega].
+      rewrite firstn_length, Min.min_l; [|apply Nat.div_le_upper_bound; lia].
       unfold wf_btree_over in Hover.
       destruct Hover as (Hover & Hwf); rewrite Hover.
       rewrite NPeano.Nat.add_1_r, odd_div; simpl.
-      split; [omega|].
+      split; [lia|].
       destruct Hwf as [|(Hlen & ?)]; [subst; rewrite firstn_nil; auto | right].
-      rewrite firstn_length, Hlen, Hover, Min.min_l; [|omega].
+      rewrite firstn_length, Hlen, Hover, Min.min_l; [|lia].
       split; auto.
       rewrite (alt_Forall wf_btree_aux).
       apply Forall_firstn; auto.
@@ -566,7 +566,7 @@ Section BTree.
       simpl in *; subst.
       destruct Hwf as (Hkeys & _).
       rewrite insert_length.
-      destruct (le_dec (S (length keys)) (2 * d)); [left | right]; split; auto; omega.
+      destruct (le_dec (S (length keys)) (2 * d)); [left | right]; split; auto; lia.
     - destruct t; simpl in Hp.
       destruct (nth_error children a) as [[keys' [|]]|] eqn: Hc; try discriminate.
       generalize (nth_error_lt _ _ _ Hc); intro.
@@ -582,15 +582,15 @@ Section BTree.
         rewrite (alt_Forall wf_btree_aux) in *.
         apply Forall_replace; auto; simpl.
         rewrite insert_length; split; auto.
-        rewrite Forall_forall in Hwf; specialize (Hwf _ Hin); simpl in Hwf; omega.
+        rewrite Forall_forall in Hwf; specialize (Hwf _ Hin); simpl in Hwf; lia.
       + destruct Hwf as (? & [|(? & Hwf)]);
           [subst; rewrite nth_error_nil in *; discriminate|].
         rewrite (alt_Forall wf_btree_aux) in Hwf.
-        eapply split_wf; try apply nth_error_replace; try omega.
+        eapply split_wf; try apply nth_error_replace; try lia.
         * simpl.
           split; auto; rewrite insert_length.
-          rewrite Forall_forall in Hwf; specialize (Hwf _ Hin); simpl in Hwf; omega.
-        * rewrite remove_replace; [|omega].
+          rewrite Forall_forall in Hwf; specialize (Hwf _ Hin); simpl in Hwf; lia.
+        * rewrite remove_replace; [|lia].
           apply Forall_remove; auto.
         * rewrite replace_length; auto.
     - destruct t.
@@ -608,7 +608,7 @@ Section BTree.
         rewrite Hc in Hp; auto. }
       destruct b; intros [Hwf' | Hwf'].
       + simpl in Hwf'.
-        destruct (le_dec _ _); try omega; inv Hinsert.
+        destruct (le_dec _ _); try lia; inv Hinsert.
         left; simpl; split; auto.
         right; rewrite replace_length; auto; repeat split; auto.
         rewrite (alt_Forall wf_btree_aux) in *.
@@ -617,9 +617,9 @@ Section BTree.
         destruct Hwf' as [|(? & Hwf')]; auto; right; split; auto.
         rewrite (alt_Forall wf_btree_aux); auto.
       + simpl in Hwf'.
-        destruct (le_dec _ _); try omega; inv Hinsert.
-        eapply split_wf; try apply nth_error_replace; try omega; simpl; auto.
-        * rewrite remove_replace; [|omega].
+        destruct (le_dec _ _); try lia; inv Hinsert.
+        eapply split_wf; try apply nth_error_replace; try lia; simpl; auto.
+        * rewrite remove_replace; [|lia].
           apply Forall_remove; auto.
         * rewrite replace_length; auto.
   Qed.
@@ -635,7 +635,7 @@ Section BTree.
       simpl in *; subst.
       destruct Hwf as (Hkeys & _).
       rewrite insert_length.
-      destruct (le_dec (S (length keys)) (2 * d)); [left | right]; split; auto; omega.
+      destruct (le_dec (S (length keys)) (2 * d)); [left | right]; split; auto; lia.
     - destruct t; simpl in Hp.
       destruct (nth_error children n) as [[keys' [|]]|] eqn: Hc; try discriminate.
       generalize (nth_error_lt _ _ _ Hc); intro.
@@ -650,14 +650,14 @@ Section BTree.
         repeat split; auto.
         apply Forall_replace; auto; simpl.
         rewrite insert_length; split; auto.
-        rewrite Forall_forall in Hwf; specialize (Hwf _ Hin); simpl in Hwf; omega.
+        rewrite Forall_forall in Hwf; specialize (Hwf _ Hin); simpl in Hwf; lia.
       + destruct Hwf as (? & [|(? & ? & Hwf)]);
           [subst; rewrite nth_error_nil in *; discriminate|].
-        eapply split_wf'; try apply nth_error_replace; try omega.
+        eapply split_wf'; try apply nth_error_replace; try lia.
         * simpl.
           split; auto; rewrite insert_length.
-          rewrite Forall_forall in Hwf; specialize (Hwf _ Hin); simpl in Hwf; omega.
-        * rewrite remove_replace; [|omega].
+          rewrite Forall_forall in Hwf; specialize (Hwf _ Hin); simpl in Hwf; lia.
+        * rewrite remove_replace; [|lia].
           apply Forall_remove; auto.
         * rewrite replace_length; auto.
     - destruct t.
@@ -674,7 +674,7 @@ Section BTree.
         rewrite Hc in Hp; auto. }
       destruct b; intros [Hwf' | Hwf'].
       + simpl in Hwf'.
-        destruct (le_dec _ _); try omega; inv Hinsert.
+        destruct (le_dec _ _); try lia; inv Hinsert.
         left; simpl; split; auto.
         right; rewrite replace_length; auto; repeat split; auto.
         rewrite (alt_Forall wf_btree_aux) in *.
@@ -683,9 +683,9 @@ Section BTree.
         destruct Hwf' as [|(? & Hwf')]; auto; right; split; auto.
         rewrite (alt_Forall wf_btree_aux); auto.
       + simpl in Hwf'.
-        destruct (le_dec _ _); try omega; inv Hinsert.
-        eapply split_wf'; try apply nth_error_replace; try omega; simpl; auto.
-        * rewrite remove_replace; [|omega].
+        destruct (le_dec _ _); try lia; inv Hinsert.
+        eapply split_wf'; try apply nth_error_replace; try lia; simpl; auto.
+        * rewrite remove_replace; [|lia].
           apply Forall_remove; auto.
         * rewrite replace_length; auto.
   Qed.
@@ -719,8 +719,8 @@ Section BTree.
   Lemma wf_weak : forall t, wf_btree_aux t -> wf_btree t.
   Proof.
     induction t using btree_ind; simpl; intro Haux.
-    destruct Haux as (? & Hwf); split; [omega|].
-    destruct Hwf as [|(? & ?)]; auto; right; repeat split; try omega.
+    destruct Haux as (? & Hwf); split; [lia|].
+    destruct Hwf as [|(? & ?)]; auto; right; repeat split; try lia.
     rewrite (alt_Forall wf_btree_aux) in *; auto.
   Qed.
 
@@ -731,10 +731,10 @@ Section BTree.
     induction keys; simpl; intros.
     - inv Hfind; auto.
     - destruct (Z.ltb tgt a).
-      + inv Hfind; omega.
+      + inv Hfind; lia.
       + destruct (Z.eqb tgt a); [discriminate|].
         destruct (find_index tgt keys) eqn: Hfind'; [discriminate | inv Hfind].
-        specialize (IHkeys _ eq_refl); omega.
+        specialize (IHkeys _ eq_refl); lia.
   Qed.
   
   Corollary find_index_valid : forall tgt keys (children : list bnode) i
@@ -744,14 +744,14 @@ Section BTree.
   Proof.
     intros.
     apply find_index_le in Hfind.
-    destruct Hwf; auto; left; omega.
+    destruct Hwf; auto; left; lia.
   Qed.
 
   Lemma nth_error_succeeds : forall {A} n (l : list A) (Hlt : (n < length l)%nat),
       exists x, nth_error l n = Some x.
   Proof.
-    induction n; auto; intros; destruct l; simpl in *; try omega; eauto.
-    apply IHn; omega.
+    induction n; auto; intros; destruct l; simpl in *; try lia; eauto.
+    apply IHn; lia.
   Qed.
   
   Lemma find_leaf_path : forall v t p (Hfind : find_leaf v t = Some p)
@@ -788,20 +788,20 @@ Section BTree.
     destruct b.
     exploit insert_at_wf'; eauto.
     - eapply find_leaf_path; eauto.
-    - unfold wf_btree, wf_btree_over; intros [? | ?]; destruct (le_dec _ _); try omega;
+    - unfold wf_btree, wf_btree_over; intros [? | ?]; destruct (le_dec _ _); try lia;
         inv Hinsert; auto.
-      split; [simpl; omega|].
+      split; [simpl; lia|].
       right; repeat split; auto.
       destruct H as (Hover & Hwf'); rewrite Hover.
       rewrite (Nat.add_1_r (2 * d)), odd_div.
       unfold replace; simpl; constructor; [|constructor; auto]; simpl.
-      + rewrite firstn_length, Min.min_l; [split|]; try omega.
+      + rewrite firstn_length, Min.min_l; [split|]; try lia.
         destruct Hwf' as [|(? & ?)]; subst; auto; right.
-        rewrite firstn_length, Min.min_l; [split; auto | omega].
+        rewrite firstn_length, Min.min_l; [split; auto | lia].
         rewrite (alt_Forall wf_btree_aux); apply Forall_firstn; auto.
-      + repeat rewrite skipn_length; split; [omega|].
+      + repeat rewrite skipn_length; split; [lia|].
         destruct Hwf' as [|(? & ?)]; subst; auto; right.
-        split; [omega|].
+        split; [lia|].
         rewrite (alt_Forall wf_btree_aux); apply Forall_skipn; auto.
   Qed.
 
@@ -895,14 +895,14 @@ Lemma sublist_nil1 : forall A i j (l : list A), j <= i -> sublist i j l = [].
 Proof.
   intros; destruct (eq_dec i j).
   - subst; apply sublist_nil.
-  - unfold sublist; rewrite Z2Nat_neg; auto; omega.
+  - unfold sublist; rewrite Z2Nat_neg; auto; lia.
 Qed.
 
 Lemma Znth_In : forall A i (l : list A) d x (Hrange : 0 <= i < Zlength l)
                        (Hnth : Znth i l d = x), In x l.
 Proof.
   unfold Znth; intros.
-  destruct (zlt i 0); [omega|].
+  destruct (zlt i 0); [lia|].
   subst; apply nth_In.
   rewrite Zlength_correct in Hrange; auto; Omega0.
 Qed.
@@ -914,8 +914,8 @@ Proof.
   unfold Znth; intros.
   apply In_nth with (d := d) in H; destruct H as (n & ? & ?).
   exists (Z.of_nat n); split.
-  - rewrite Zlength_correct; omega.
-  - destruct (zlt (Z.of_nat n) 0); [omega|].
+  - rewrite Zlength_correct; lia.
+  - destruct (zlt (Z.of_nat n) 0); [lia|].
     rewrite Nat2Z.id; auto.
 Qed.  
 
@@ -940,7 +940,7 @@ Proof.
     + rewrite IHl; simpl; split; intros (? & Hall & ?).
       * split; auto; constructor; auto.
         rewrite Forall_forall in *; intros ? Hin.
-        specialize (Hall _ Hin); omega.
+        specialize (Hall _ Hin); lia.
       * inversion H; subst; auto.
 Qed.
 
@@ -949,46 +949,46 @@ Lemma sorted_mono : forall d l i j (Hsort : sorted l) (Hi : 0 <= i <= j)
     Znth i l d <= Znth j l d.
 Proof.
   intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  destruct (zlt j 0); [omega|].
+  destruct (zlt i 0); [lia|].
+  destruct (zlt j 0); [lia|].
   revert Hsort.
   generalize dependent j; generalize dependent i; induction l; simpl in *; intros.
-  { rewrite Zlength_correct in *; simpl in *; omega. }
+  { rewrite Zlength_correct in *; simpl in *; lia. }
   destruct l.
   + rewrite Zlength_correct in *; simpl in *.
-    assert (j = 0) by omega.
-    assert (i = 0) by omega.
-    subst; omega.
+    assert (j = 0) by lia.
+    assert (i = 0) by lia.
+    subst; lia.
   + destruct (eq_dec j 0).
-    { assert (i = 0) by omega.
-      subst; omega. }
+    { assert (i = 0) by lia.
+      subst; lia. }
     destruct (Z.to_nat j) eqn: Hnj.
     { contradiction n; apply Z2Nat_inj_0; auto. }
     destruct (eq_dec i 0).
     * subst; simpl.
       destruct Hsort as (? & Hsort).
-      destruct n0; try omega.
+      destruct n0; try lia.
       rewrite sorted_equiv in Hsort; simpl in Hsort.
       destruct Hsort as (Hsort & _).
       assert (In (nth n0 l d) l) as Hin.
       { apply nth_In.
         assert (S (S n0) < length (a :: z :: l))%nat.
-        { rewrite Z2Nat.inj_lt in Hj; try omega.
+        { rewrite Z2Nat.inj_lt in Hj; try lia.
           rewrite Hnj, Zlength_correct, Nat2Z.id in Hj; auto. }
-        simpl in *; omega. }
-      rewrite Forall_forall in Hsort; specialize (Hsort _ Hin); omega.
+        simpl in *; lia. }
+      rewrite Forall_forall in Hsort; specialize (Hsort _ Hin); lia.
     * destruct (Z.to_nat i) eqn: Hni.
       { contradiction n1; apply Z2Nat_inj_0; auto. }
-      assert (Z.of_nat n2 >= 0) as Hi' by omega.
+      assert (Z.of_nat n2 >= 0) as Hi' by lia.
       specialize (IHl _ Hi' (Z.of_nat n0)).
       destruct Hsort.
-      repeat rewrite Nat2Z.id in IHl; apply IHl; auto; try omega.
-      - split; try omega.
+      repeat rewrite Nat2Z.id in IHl; apply IHl; auto; try lia.
+      - split; try lia.
         destruct Hi as (_ & Hi).
-        rewrite Z2Nat.inj_le in Hi; omega.
-      - rewrite Z2Nat.inj_lt in Hj; try omega.
+        rewrite Z2Nat.inj_le in Hi; lia.
+      - rewrite Z2Nat.inj_lt in Hj; try lia.
         rewrite Hnj, Zlength_correct, Nat2Z.id in Hj.
-        rewrite Zlength_correct; apply inj_lt; simpl in *; omega.
+        rewrite Zlength_correct; apply inj_lt; simpl in *; lia.
 Qed.
 
 Lemma In_sorted_range : forall d lo hi x l (Hsort : sorted l) (Hlo : 0 <= lo <= hi)
@@ -999,8 +999,8 @@ Proof.
   intros.
   generalize (In_Znth _ _ _ d Hin); intros (i & Hrange & Hi).
   rewrite Zlength_sublist in Hrange; auto.
-  rewrite Znth_sublist in Hi; auto; try omega.
-  subst; split; apply sorted_mono; auto; omega.
+  rewrite Znth_sublist in Hi; auto; try lia.
+  subst; split; apply sorted_mono; auto; lia.
 Qed.
 
 Lemma In_sorted_gt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
@@ -1011,12 +1011,12 @@ Lemma In_sorted_gt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
     In x (sublist (i + 1) hi l).
 Proof.
   intros.
-  rewrite sublist_split with (mid := i + 1) in Hin; try omega.
+  rewrite sublist_split with (mid := i + 1) in Hin; try lia.
   rewrite in_app in Hin; destruct Hin; auto.
   generalize (In_sorted_range 0 lo (i + 1) x _ Hsort); intro X.
-  repeat (lapply X; [clear X; intro X | omega]).
-  replace (i + 1 - 1) with i in X by omega.
-  specialize (X H); subst; omega.
+  repeat (lapply X; [clear X; intro X | lia]).
+  replace (i + 1 - 1) with i in X by lia.
+  specialize (X H); subst; lia.
 Qed.
 
 Lemma In_sorted_lt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
@@ -1027,11 +1027,11 @@ Lemma In_sorted_lt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
     In x (sublist lo i l).
 Proof.
   intros.
-  rewrite sublist_split with (mid := i) in Hin; try omega.
+  rewrite sublist_split with (mid := i) in Hin; try lia.
   rewrite in_app in Hin; destruct Hin; auto.
   generalize (In_sorted_range 0 i hi x _ Hsort); intro X.
-  repeat (lapply X; [clear X; intro X | omega]).
-  specialize (X H); subst; omega.
+  repeat (lapply X; [clear X; intro X | lia]).
+  specialize (X H); subst; lia.
 Qed.
 
 Definition while_Inv contents tgt sh a := EX lo : Z, EX hi : Z,
@@ -1064,17 +1064,17 @@ Proof.
   { entailer!. }
   forward.
   rewrite Int.shr_div_two_p, Int.add_signed.
-  repeat rewrite Int.signed_repr; try omega.
+  repeat rewrite Int.signed_repr; try lia.
   rewrite Int.unsigned_repr; try computable; simpl.
   unfold two_power_pos; simpl.
   remember ((lo0 + hi0) / 2) as mid.
   assert (0 <= mid < Zlength (map Int.repr contents)).
-  { subst; split; [apply Z_div_pos; omega|].
+  { subst; split; [apply Z_div_pos; lia|].
     rewrite Zlength_map.
-    apply Zdiv_lt_upper_bound; omega. }
+    apply Zdiv_lt_upper_bound; lia. }
   assert (0 <= mid < Zlength contents) by (rewrite Zlength_map in *; auto).
   assert (lo0 <= (lo0 + hi0) / 2 < hi0).
-  { split; [apply Zdiv_le_lower_bound | apply Zdiv_lt_upper_bound]; omega. }
+  { split; [apply Zdiv_le_lower_bound | apply Zdiv_lt_upper_bound]; lia. }
   forward.
   { entailer!.
     rewrite Znth_map with (d' := Int.repr 0); simpl; auto. }
@@ -1090,9 +1090,9 @@ Proof.
     subst; contradiction n; auto.
   - forward_if (while_Inv contents tgt sh a); try forward.
     + Exists (mid + 1) hi0; entailer!.
-      eapply In_sorted_gt; eauto; omega.
+      eapply In_sorted_gt; eauto; lia.
     + Exists lo0 mid; entailer!.
-      eapply In_sorted_lt; eauto; omega.
+      eapply In_sorted_lt; eauto; lia.
     + unfold PROPx, LOCALx, SEPx, local, lift1; simpl; entailer!.
       unfold overridePost; destruct (eq_dec ek EK_normal); auto.
       subst; simpl; normalize.
@@ -1107,16 +1107,16 @@ Proof.
     refine (exp_left _ _ _); intro hi1.
     Exists (lo1, hi1).
     normalize.
-  - split; try omega.
-    etransitivity; [apply (Zplus_le_compat_l _ (Int.max_signed / 2)); omega|].
-    etransitivity; [apply (Zplus_le_compat_r _ (Int.max_signed / 2)); omega|].
+  - split; try lia.
+    etransitivity; [apply (Zplus_le_compat_l _ (Int.max_signed / 2)); lia|].
+    etransitivity; [apply (Zplus_le_compat_r _ (Int.max_signed / 2)); lia|].
     rewrite Zplus_diag_eq_mult_2, Z.mul_comm.
-    apply Z_mult_div_ge; omega.
+    apply Z_mult_div_ge; lia.
   - forward.
     Exists (-1); entailer!.
     destruct (in_dec _ _ _); auto.
     match goal with H : context[sublist lo0 hi0 _] |- _ => rewrite sublist_nil1 in H end;
-      try omega.
+      try lia.
     simpl in *; contradiction.
 Qed.
 
@@ -1129,7 +1129,7 @@ Proof.
   start_function.
   forward_call (four,Ews,four_contents,3,0,4).
   { split; auto; simpl.
-    repeat split; try omega; try computable.
+    repeat split; try lia; try computable.
     * unfold four_contents, Zlength; simpl; computable.
     * unfold four_contents, Zlength; simpl; computable.
     * repeat constructor; computable. }

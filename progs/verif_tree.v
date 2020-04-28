@@ -450,7 +450,7 @@ Proof.
   simpl.
   induction tl.
   + simpl.
-    intros; clear H; omega.
+    intros; clear H; lia.
   + simpl.
     exact (fun HH => conj (H _ (proj1 HH)) (IHtl (proj2 HH))).
 Qed.

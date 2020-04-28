@@ -384,12 +384,12 @@ Proof.
     split; intros.
     + eapply align_compatible_rec_by_value_inv in H1; eauto.
       eapply align_compatible_rec_by_value; eauto.
-      replace z2 with (z1 - (z1 - z2)) by omega.
+      replace z2 with (z1 - (z1 - z2)) by lia.
       erewrite hardware_alignof_by_value in H0 by eauto.
       apply Z.divide_sub_r; auto.
     + eapply align_compatible_rec_by_value_inv in H1; eauto.
       eapply align_compatible_rec_by_value; eauto.
-      replace z1 with (z2 + (z1 - z2)) by omega.
+      replace z1 with (z2 + (z1 - z2)) by lia.
       erewrite hardware_alignof_by_value in H0 by eauto.
       apply Z.divide_add_r; auto.
   } 
@@ -407,10 +407,10 @@ Proof.
     split; intros; apply align_compatible_rec_Tarray; intros;
     eapply align_compatible_rec_Tarray_inv in H1; eauto.
     - specialize (IH (z1 + sizeof cenv t * i) (z2 + sizeof cenv t * i)).
-      replace (z1 + sizeof cenv t * i - (z2 + sizeof cenv t * i)) with (z1 - z2) in IH by omega.
+      replace (z1 + sizeof cenv t * i - (z2 + sizeof cenv t * i)) with (z1 - z2) in IH by lia.
       tauto.
     - specialize (IH (z1 + sizeof cenv t * i) (z2 + sizeof cenv t * i)).
-      replace (z1 + sizeof cenv t * i - (z2 + sizeof cenv t * i)) with (z1 - z2) in IH by omega.
+      replace (z1 + sizeof cenv t * i - (z2 + sizeof cenv t * i)) with (z1 - z2) in IH by lia.
       tauto.
   + split; intros; inv H1; inv H2; econstructor.
   + simpl in H, H0.
@@ -438,7 +438,7 @@ Proof.
       if_tac in H.
       * subst i; inv H.
         apply H1; [simpl; tauto |].
-        replace (z1 + ofs0 - (z2 + ofs0)) with (z1 - z2) by omega; tauto.
+        replace (z1 + ofs0 - (z2 + ofs0)) with (z1 - z2) by lia; tauto.
       * apply IHIH; tauto.
   + simpl in H, H0.
     destruct (cenv ! id) as [co |] eqn:?H; [| inv H].

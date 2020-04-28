@@ -1112,11 +1112,11 @@ induction xs.
   - inv H.
       * simpl. constructor. constructor.
         apply Z.leb_le. remember (a <=? x)%Z. destruct b. auto.
-        symmetry in Heqb, Heqb0. rewrite Z.leb_gt in *. omega.
+        symmetry in Heqb, Heqb0. rewrite Z.leb_gt in *. lia.
       * simpl. remember ((x <=? b)%Z). destruct b0.
           repeat (constructor; simpl). auto. symmetry in Heqb.
           apply Z.leb_le. auto. symmetry in Heqb. rewrite Z.leb_gt in *.
-          omega.
+          lia.
           constructor. simpl in IHxs. rewrite <- Heqb0 in IHxs. auto. auto.
 Qed.
 

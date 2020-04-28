@@ -341,7 +341,7 @@ intros.
  unfold Ptrofs.max_unsigned.
  rewrite H0.
  assert (Int.modulus < Int64.modulus) by (compute; auto).
- omega.
+ lia.
  (*try ((* Archi.ptr64=true *)
    rewrite if_true by auto; simpl;
    f_equal;
@@ -402,7 +402,7 @@ rewrite Ptrofs.unsigned_repr in H0;
    destruct H; split; auto;
    assert (Int.modulus < Ptrofs.max_unsigned)
      by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
-    omega]).
+    lia]).
 -
 destruct H.
 split; auto.
@@ -479,7 +479,7 @@ rewrite Ptrofs.unsigned_repr in H;
    destruct H; split; auto;
    assert (Int.modulus < Ptrofs.max_unsigned)
      by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
-    omega]).
+    lia]).
 -
 destruct H.
 split; auto.

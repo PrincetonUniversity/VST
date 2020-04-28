@@ -138,7 +138,7 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
             && data_at Tsh (tarray tuint 4) l t;
        data_at Tsh (tarray tuint 16) (map Vint xs) x))).
   (*1.3*)
-  { Exists (list_repeat 4 Vundef). (*Time*) entailer!. (*2.2*)  intros; omega. }
+  { Exists (list_repeat 4 Vundef). (*Time*) entailer!. (*2.2*) }
   { rename i into m. rename H into M. Intros T.
     rename H into HT.
     (*Time*) assert_PROP (Zlength T = 4) as TL by entailer!. (*2.2 versus 5.7*)

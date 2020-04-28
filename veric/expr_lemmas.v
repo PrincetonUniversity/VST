@@ -129,7 +129,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
         | rewrite (single_to_intu_ok _ _ H5)
         ] ;
     [ eexists; reflexivity
-    | split; omega ]].
+    | split; lia ]].
  all: try (unfold is_pointer_or_null in H; rewrite Hp in H; contradiction).
 all:  try (rewrite Hp; eexists; reflexivity).
 *
@@ -173,7 +173,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
         | rewrite (single_to_int_ok _ _ H5)
         | rewrite (single_to_intu_ok _ _ H5)
         ] ;
-    [ eexists; reflexivity | omega];
+    [ eexists; reflexivity | lia];
   simpl; rewrite Hp; eauto];
   (hnf in H; rewrite Hp in H; contradiction H).
 }
@@ -457,7 +457,7 @@ try change Byte.min_signed with (-128) in *;
 try change Byte.max_signed with 127 in *;
 try change (Z.neg (shift_pos 15 1)) with (-32768);
 try change Byte.max_unsigned with 255 in *;
-try omega;
+try lia;
 try apply H0;
 try solve [destruct H1; subst; try split; compute; congruence]
 ].

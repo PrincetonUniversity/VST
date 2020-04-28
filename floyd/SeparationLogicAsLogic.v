@@ -2370,13 +2370,13 @@ eapply semax_adapt
           (@sepcon mpred Nveric Sveric FR (Q ts1 x1 tau))) (Q' ts x tau)) &&
       (stackframe_of f * (fun tau => FR * P ts1 x1 (ge_of tau, vals)) &&
           (fun tau =>  !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals)))).
-  + intros omega. clear SB3. normalize. simpl. simpl in Sub. (* rewrite SB2 in *. *)
+  + intros lia. clear SB3. normalize. simpl. simpl in Sub. (* rewrite SB2 in *. *)
     apply andp_left2.
     eapply derives_trans. apply sepcon_derives. apply close_precondition_e'. apply derives_refl.
     normalize. destruct H0 as [Hvals VUNDEF].
     specialize (semax_prog.typecheck_environ_eval_id LNR H); intros X. 
-    apply (exp_right (map (fun i0 : ident => eval_id i0 omega) (map fst (fn_params f)))).
-    specialize (Sub (ge_of omega,  map (fun i0 : ident => eval_id i0 omega) (map fst (fn_params f)))).
+    apply (exp_right (map (fun i0 : ident => eval_id i0 lia) (map fst (fn_params f)))).
+    specialize (Sub (ge_of lia,  map (fun i0 : ident => eval_id i0 lia) (map fst (fn_params f)))).
     rewrite Hvals in X. apply semax_prog.map_Some_inv in X.  rewrite <- X in *.
     eapply derives_trans. apply sepcon_derives. 2: apply derives_refl.
     eapply derives_trans; [ clear Sub | apply Sub].

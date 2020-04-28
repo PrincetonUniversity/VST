@@ -57,10 +57,10 @@ Lemma Znth_In : forall A (d: Inhabitant A) i (l : list A) x (Hrange : 0 <= i < Z
                        (Hnth : Znth i l = x), In x l.
 Proof.
   unfold Znth; intros.
-  destruct (zlt i 0); [omega|].
+  destruct (zlt i 0); [lia|].
   subst; apply nth_In.
   rewrite Zlength_correct in Hrange; auto.
-  rep_omega.
+  rep_lia.
 Qed.
 
 Lemma In_Znth : forall A (d: Inhabitant A) (l : list A) x,
@@ -70,8 +70,8 @@ Proof.
   unfold Znth; intros.
   apply In_nth with (d := d) in H; destruct H as (n & ? & ?).
   exists (Z.of_nat n); split.
-  - rewrite Zlength_correct; omega.
-  - destruct (zlt (Z.of_nat n) 0); [omega|].
+  - rewrite Zlength_correct; lia.
+  - destruct (zlt (Z.of_nat n) 0); [lia|].
     rewrite Nat2Z.id; auto.
 Qed.
 
@@ -96,7 +96,7 @@ Proof.
     + rewrite IHl; simpl; split; intros (? & Hall & ?); split3; auto.
        * constructor; auto.
           rewrite Forall_forall in *; intros ? Hin.
-          specialize (Hall _ Hin); omega.
+          specialize (Hall _ Hin); lia.
        * inversion H. auto.
 Qed.
 
@@ -105,7 +105,7 @@ Lemma sorted_mono : forall l i j (Hsort : sorted l) (Hi : 0 <= i <= j)
     Znth i l <= Znth j l.
 Proof.
 induction l; intros.
-* rewrite !Znth_nil. omega.
+* rewrite !Znth_nil. lia.
 * 
  rewrite sorted_equiv in Hsort. destruct Hsort as [H9 Hsort].
  rewrite <- sorted_equiv in Hsort. rewrite Forall_forall in H9.
@@ -114,13 +114,13 @@ induction l; intros.
  +
    subst i; rewrite Znth_0_cons. 
    destruct (zeq j 0).
-   - subst j. rewrite Znth_0_cons. omega.
-   - rewrite Znth_pos_cons by omega.
+   - subst j. rewrite Znth_0_cons. lia.
+   - rewrite Znth_pos_cons by lia.
       apply H9.
-      eapply Znth_In; [ | reflexivity]; omega.
+      eapply Znth_In; [ | reflexivity]; lia.
  +
-    rewrite !Znth_pos_cons by omega.
-    apply IHl; auto; omega.
+    rewrite !Znth_pos_cons by lia.
+    apply IHl; auto; lia.
 Qed.
 
 Lemma In_sorted_range : forall lo hi x l (Hsort : sorted l) (Hlo : 0 <= lo <= hi)
@@ -131,8 +131,8 @@ Proof.
   intros.
   generalize (In_Znth _ _ _ _ Hin); intros (i & Hrange & Hi).
   rewrite Zlength_sublist in Hrange by auto.
-  rewrite Znth_sublist in Hi by omega.
-  subst; split; apply sorted_mono; auto; omega.
+  rewrite Znth_sublist in Hi by lia.
+  subst; split; apply sorted_mono; auto; lia.
 Qed.
 
 Lemma In_sorted_gt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
@@ -143,12 +143,12 @@ Lemma In_sorted_gt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
     In x (sublist (i + 1) hi l).
 Proof.
   intros.
-  rewrite sublist_split with (mid := i + 1) in Hin; try omega.
+  rewrite sublist_split with (mid := i + 1) in Hin; try lia.
   rewrite in_app in Hin; destruct Hin; auto.
   generalize (In_sorted_range lo (i + 1) x _ Hsort); intro X.
-  repeat (lapply X; [clear X; intro X | omega]).
-  replace (i + 1 - 1) with i in X by omega.
-  specialize (X H); subst; omega.
+  repeat (lapply X; [clear X; intro X | lia]).
+  replace (i + 1 - 1) with i in X by lia.
+  specialize (X H); subst; lia.
 Qed.
 
 Lemma In_sorted_lt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
@@ -159,11 +159,11 @@ Lemma In_sorted_lt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
     In x (sublist lo i l).
 Proof.
   intros.
-  rewrite sublist_split with (mid := i) in Hin; try omega.
+  rewrite sublist_split with (mid := i) in Hin; try lia.
   rewrite in_app in Hin; destruct Hin; auto.
   generalize (In_sorted_range i hi x _ Hsort); intro X.
-  repeat (lapply X; [clear X; intro X | omega]).
-  specialize (X H); subst; omega.
+  repeat (lapply X; [clear X; intro X | lia]).
+  specialize (X H); subst; lia.
 Qed.
 
 Lemma Znth_In_sublist : forall A (d: Inhabitant A) i (l : list A) lo hi
@@ -172,9 +172,9 @@ Lemma Znth_In_sublist : forall A (d: Inhabitant A) i (l : list A) lo hi
 Proof.
   intros.
   apply Znth_In with (i := i - lo)(d := d).
-  - rewrite Zlength_sublist; omega.
+  - rewrite Zlength_sublist; lia.
   - rewrite <- (Z.sub_simpl_r i lo) at 2.
-    apply Znth_sublist; omega.
+    apply Znth_sublist; lia.
 Qed.
 
 Lemma sublist_In_sublist : forall A (l : list A) x lo hi lo' hi' (Hlo : 0 <= lo <= lo')
@@ -182,9 +182,9 @@ Lemma sublist_In_sublist : forall A (l : list A) x lo hi lo' hi' (Hlo : 0 <= lo 
 Proof.
   intros.
   apply sublist_In with (lo0 := lo' - lo)(hi0 := hi' - lo); rewrite sublist_sublist;
-    try split; try omega.
+    try split; try lia.
   - repeat rewrite Z.sub_simpl_r; auto.
-  - destruct (Z_le_dec hi' lo'); try omega.
+  - destruct (Z_le_dec hi' lo'); try lia.
     rewrite sublist_nil1 in *; auto; simpl in *; contradiction.
 Qed.
 
@@ -212,21 +212,21 @@ Proof.
    set (j := Int.max_signed / 2) in *; compute in j; subst j.
    set (j := Int.max_signed) in *; compute in j; subst j.
    set (j := Int.min_signed) in *; compute in j; subst j.
-   omega.
+   lia.
  }
   rewrite add_repr, Int.shr_div_two_p.
   change (two_p (Int.unsigned (Int.repr 1))) with 2. 
   assert (Hlo'hi':  lo' + hi' <= Int.max_signed). {
    transitivity (Int.max_signed / 2 + Int.max_signed / 2).
-   - apply Zplus_le_compat; omega.
-   - rewrite Zplus_diag_eq_mult_2, Z.mul_comm. apply Z_mult_div_ge; omega.
+   - apply Zplus_le_compat; lia.
+   - rewrite Zplus_diag_eq_mult_2, Z.mul_comm. apply Z_mult_div_ge; lia.
   }
-  rewrite !Int.signed_repr by omega.
+  rewrite !Int.signed_repr by lia.
   set (mid := (lo' + hi') / 2) in *.
   assert (H13: 0 <= mid < Zlength contents)
-    by (subst; split; [apply Z_div_pos | apply Zdiv_lt_upper_bound]; omega).
+    by (subst; split; [apply Z_div_pos | apply Zdiv_lt_upper_bound]; lia).
   assert (H15: lo' <= mid < hi')
-    by (split; [apply Zdiv_le_lower_bound | apply Zdiv_lt_upper_bound]; omega).
+    by (split; [apply Zdiv_le_lower_bound | apply Zdiv_lt_upper_bound]; lia).
   assert (H16: Int.min_signed <= Znth mid contents <= Int.max_signed)
     by (rewrite Forall_forall in H3; apply H3; eapply Znth_In; eauto).
   clear H3 Hlo'hi' H H0 H1.
@@ -238,26 +238,26 @@ Proof.
     Exists mid; entailer!.
     rewrite if_true; auto. 
     rewrite H_tgt_sublist.
-    apply Znth_In_sublist; omega.
+    apply Znth_In_sublist; lia.
   - forward_if.
     + forward. (*  lo = mid + 1; *)
       Exists ((mid + 1), hi'); simpl fst; simpl snd; entailer!.
       rewrite H_tgt_sublist.
       split; intro Hin'.
-      eapply In_sorted_gt; eauto; omega.
-      eapply sublist_In_sublist; try apply Hin'; omega.
+      eapply In_sorted_gt; eauto; lia.
+      eapply sublist_In_sublist; try apply Hin'; lia.
     + forward. (* hi=mid; *)
       Exists (lo',mid). simpl fst. simpl snd. entailer!.
       rewrite H_tgt_sublist.
       split; intro Hin'.
-      eapply In_sorted_lt; eauto; omega.
-      eapply sublist_In_sublist; try apply Hin'; omega.
+      eapply In_sorted_lt; eauto; lia.
+      eapply sublist_In_sublist; try apply Hin'; lia.
  *
     forward.  (* return -1; *)
     Exists (-1); entailer!.
     rewrite if_false; auto.
     match goal with H : _ <-> _ |- _ => rewrite H end.
-    rewrite sublist_nil1 by omega.
+    rewrite sublist_nil1 by lia.
     clear; simpl; tauto.
 Qed.
 

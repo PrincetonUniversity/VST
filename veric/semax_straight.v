@@ -74,7 +74,7 @@ specialize (Hsafe EK_normal None te' ve).
 simpl exit_cont in Hsafe.
 specialize (Hsafe (m_phi jm')).
 spec Hsafe.
-change R.rmap with rmap; omega.
+change R.rmap with rmap; lia.
 specialize (Hsafe _ (necR_refl _)).
 destruct H4.
 spec Hsafe; [clear Hsafe| ].
@@ -89,7 +89,7 @@ replace (level jm1) with (level jm').
 simpl exit_cont in Hsafe.
 apply assert_safe_jsafe'; auto.
 rewrite <- !level_juice_level_phi in H2.
-apply age_level in Hage; omega.
+apply age_level in Hage; lia.
 Qed.
 
 Definition force_valid_pointers m v1 v2 :=
@@ -167,8 +167,8 @@ rewrite JMA.
 repeat if_tac; try constructor. subst.
 simpl in H3.
 contradiction.
-destruct H4.  repeat split. omega. 
-destruct m; simpl; omega.
+destruct H4.  repeat split. lia. 
+destruct m; simpl; lia.
 * (* ~ readable_share sh *)
 destruct (access_mode t) eqn:?; try contradiction.
 destruct (type_is_volatile t); [inversion H0 |].
@@ -176,7 +176,7 @@ destruct H0 as [_ [? _]].
 specialize (H0 (b, Ptrofs.unsigned o)).
 simpl in H0.
 rewrite if_true in H0
- by (split; auto; pose proof (size_chunk_pos m); omega).
+ by (split; auto; pose proof (size_chunk_pos m); lia).
 clear H1.
 pose proof (resource_at_join _ _ _ (b, Ptrofs.unsigned o) H).
 unfold resource_share in H0.
@@ -1031,7 +1031,7 @@ split; [split3 | ].
    apply core_load_load.
    intros.
    destruct H6 as [bl [_ ?]]. specialize (H6 (b,z)). hnf in H6.
-   rewrite if_true in H6 by (split; auto; omega).
+   rewrite if_true in H6 by (split; auto; lia).
    destruct H6 as [? [? ?]]. rewrite H6. simpl.
    clear - x0.
    unfold perm_of_sh. if_tac. if_tac; constructor. if_tac; [ | contradiction]. constructor.
@@ -1189,7 +1189,7 @@ split; [split3 | ].
    apply core_load_load.
    intros.
    destruct H6 as [bl [_ ?]]. specialize (H6 (b,z)). hnf in H6.
-   rewrite if_true in H6 by (split; auto; omega).
+   rewrite if_true in H6 by (split; auto; lia).
    destruct H6 as [? [? ?]]. rewrite H6. simpl.
    clear - x0.
    unfold perm_of_sh. if_tac. if_tac; constructor. if_tac; [ | contradiction]. constructor.
@@ -1358,7 +1358,7 @@ rewrite <- (encode_val_length ch v').
 rewrite getN_setN_same.
 apply YES_ext.
 apply (writable0_lub_retainer_Rsh _ wsh).
-generalize (size_chunk_pos ch); omega.
+generalize (size_chunk_pos ch); lia.
 do 3 red. rewrite H5. rewrite if_false by auto.
 apply core_identity.
 simpl; rewrite Hg; apply core_identity.
@@ -1403,8 +1403,8 @@ try destruct (Float32.to_intu f);
 try destruct (Float32.to_long f);
 try destruct (Float32.to_longu f);
  auto; simpl;
-try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
-try rewrite Int.zero_ext_idem; auto; simpl; try omega;
+try solve [try rewrite Int.sign_ext_idem; auto; simpl; lia];
+try rewrite Int.zero_ext_idem; auto; simpl; try lia;
 try solve [simple_if_tac; auto].
 Qed.
 
@@ -1517,7 +1517,7 @@ simpl m_dry.
 rewrite (age_jm_dry Hage).
 auto.
 apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
-rewrite (age_jm_dry Hage); xomega.
+rewrite (age_jm_dry Hage); lia.
 apply (age1_resource_decay _ _ Hage).
 apply resource_nodecay_decay.
 apply juicy_store_nodecay.
@@ -1525,7 +1525,7 @@ apply juicy_store_nodecay.
  clear - H11' H2 WS.
  destruct H11' as [phi1 [phi2 [? [? ?]]]].
  destruct H0 as [bl [[_ ?] Hg]]. specialize  (H0 (b0,z)).
- hnf in H0. rewrite if_true in H0 by (split; auto; omega).
+ hnf in H0. rewrite if_true in H0 by (split; auto; lia).
  destruct H0. hnf in H0.
  apply (resource_at_join _ _ _ (b0,z)) in H.
  rewrite H0 in H.

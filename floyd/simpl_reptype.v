@@ -233,7 +233,7 @@ Ltac simplify_casts :=
                   Cop.cast_int_long Cop.cast_long_float Cop.cast_long_single Cop.cast_float_long Cop.cast_single_long ];
  rewrite ?sign_ext_inrange 
   by (let z := fresh "z" in set (z := two_p (Zpos _ - 1)); compute in z; subst z;
-          rewrite Int.signed_repr by rep_omega;  rep_omega).
+          rewrite Int.signed_repr by rep_lia;  rep_lia).
 
 Lemma cons_congr: forall {A} (a a': A) bl bl',
   a=a' -> bl=bl' -> a::bl = a'::bl'.

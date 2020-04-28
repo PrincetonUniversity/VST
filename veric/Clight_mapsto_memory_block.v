@@ -71,8 +71,8 @@ Proof.
  unfold Memdata.decode_int in *.
  rewrite rev_if_be_1 in *. simpl in *.
  apply Vint_inj in H1. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
+ rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by lia.
+  rewrite <- (Int.zero_ext_sign_ext _ i) by lia.
  f_equal; auto.
  inv H3.
  destruct bl; inv H0. destruct bl; inv H3.
@@ -81,8 +81,8 @@ Proof.
  unfold Memdata.decode_int in *.
  rewrite rev_if_be_1 in *. simpl in *.
  apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
+ rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by lia.
+ rewrite <- (Int.sign_ext_zero_ext _ i) by lia.
  f_equal; auto.
 *
  f_equal.
@@ -109,8 +109,8 @@ Proof.
  unfold Memdata.decode_int in *.
  rewrite rev_if_be_1 in *. simpl in *.
  apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
+ rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by lia.
+ rewrite <- (Int.sign_ext_zero_ext _ i) by lia.
  f_equal; auto.
  destruct bl; inv H0. destruct bl; inv H3.
  unfold Memdata.decode_val in *. simpl in *.
@@ -118,8 +118,8 @@ Proof.
  unfold Memdata.decode_int in *.
  rewrite rev_if_be_1 in *. simpl in *.
  apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
+ rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by lia.
+  rewrite <- (Int.zero_ext_sign_ext _ i) by lia.
  f_equal; auto.
 *
  f_equal.
@@ -146,8 +146,8 @@ Proof.
  destruct m0; try congruence.
  unfold Memdata.decode_int in *.
  apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
+ rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by lia.
+  rewrite <- (Int.zero_ext_sign_ext _ i) by lia.
  f_equal; auto.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -155,8 +155,8 @@ Proof.
  destruct m0; try congruence.
  unfold Memdata.decode_int in *.
  apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
+ rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by lia.
+ rewrite <- (Int.sign_ext_zero_ext _ i) by lia.
  f_equal; auto.
 *
  f_equal.
@@ -183,8 +183,8 @@ Proof.
  destruct m0; try congruence.
  unfold Memdata.decode_int in *.
  apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
+ rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by lia.
+ rewrite <- (Int.sign_ext_zero_ext _ i) by lia.
  f_equal; auto.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -192,8 +192,8 @@ Proof.
  destruct m0; try congruence.
  unfold Memdata.decode_int in *.
  apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
+ rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by lia.
+  rewrite <- (Int.zero_ext_sign_ext _ i) by lia.
  f_equal; auto.
 Qed.
 

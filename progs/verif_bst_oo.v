@@ -338,8 +338,8 @@ Proof. intros; subst; auto. Qed.
 Ltac simpl_compb :=
   match goal with
   | |- context [if Z.ltb ?x ?y then _ else _] =>
-         first [ rewrite (if_trueb (Z.ltb x y)) by (apply Z.ltb_lt; omega)
-               | rewrite (if_falseb (Z.ltb x y)) by (apply Z.ltb_ge; omega)]
+         first [ rewrite (if_trueb (Z.ltb x y)) by (apply Z.ltb_lt; lia)
+               | rewrite (if_falseb (Z.ltb x y)) by (apply Z.ltb_ge; lia)]
   end.
 
 Definition subscr_post (b0: val) (t0: tree val) (x: Z) (p: val) (q: val) :=
@@ -392,7 +392,7 @@ Proof.
     + forward. (* p = *t; *)
       forward_if; [clear H | inversion H]. (* then clause *)
       forward_call (sizeof t_struct_tree).
-        1: simpl; rep_omega.
+        1: simpl; rep_lia.
       Intros p1.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)
@@ -476,7 +476,7 @@ Proof.
         simpl_compb.
         entailer!.
       - (* Inner if, third branch: x=k *)
-        assert (x=k) by omega.
+        assert (x=k) by lia.
         subst x. clear H1 H2.
 
         forward. (* return (&p->value) *)
@@ -562,7 +562,7 @@ Proof.
         apply -> wand_sepcon_adjoint.
         Exists pa pb; entailer!.
     + (* else-else clause: x=y *)
-      assert (x=k) by omega. subst x. clear H H4 H5.
+      assert (x=k) by lia. subst x. clear H H4 H5.
       forward. (* v=p->value *)
       forward. (* return v; *)
       unfold treebox_rep. unfold normal_ret_assert.

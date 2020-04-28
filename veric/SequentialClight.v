@@ -432,11 +432,11 @@ Proof.
    instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
  clear - JDE DME H4 J H6.
   rewrite <- H4 in H6|-*.
- assert (level jm <= n)%nat by omega.
+ assert (level jm <= n)%nat by lia.
  clear H4; rename H into H4.
  forget initial_oracle as ora.
  revert ora jm q H4 J H6; induction n; simpl; intros.
- assert (level (m_phi jm) = 0%nat) by omega. rewrite H; constructor.
+ assert (level (m_phi jm) = 0%nat) by lia. rewrite H; constructor.
  inv H6.
  - constructor.
  -
@@ -450,9 +450,9 @@ Proof.
        destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto. }
      replace (m_dry m') with (m_dry m'') by auto.
      change (level (m_phi jm)) with (level jm) in *.
-     replace n0 with (level m'') by omega.
-     apply IHn; auto. omega.
-     replace (level m'') with n0 by omega. auto.
+     replace n0 with (level m'') by lia.
+     apply IHn; auto. lia.
+     replace (level m'') with n0 by lia. auto.
  -
 (*
    assert (JDE1': ext_spec_type dryspec = ext_spec_type OK_spec)
@@ -499,11 +499,11 @@ Proof.
      exists jm'.
      split; [ | split3].
      subst jm'; simpl; auto.
-     subst jm' phi'; simpl. apply age_to.level_age_to. omega.
+     subst jm' phi'; simpl. apply age_to.level_age_to. lia.
      hnf. split. intro loc. subst jm' phi'. simpl.
      rewrite age_to_resource_at.age_to_resource_at.
      rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
-     destruct (m_phi jm @ loc); auto. rewrite age_to.level_age_to by omega.
+     destruct (m_phi jm @ loc); auto. rewrite age_to.level_age_to by lia.
       reflexivity.
      intro loc. subst jm' phi'. simpl.
      rewrite age_to_resource_at.age_to_resource_at.
@@ -515,18 +515,18 @@ Proof.
      subst phi1.
      split.
      extensionality; unfold compose; simpl.
-     rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by omega.
+     rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by lia.
      unfold initial_world.set_ghost; rewrite resource_at_make_rmap.
      rewrite H8; auto.
      unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl.
-     rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; omega); simpl; auto.
+     rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; lia); simpl; auto.
    }
    destruct H20 as [jm'  [H26 [H27 [H28 [H29 Hg']]]]].
    specialize (H2 ret jm' z' n' Hargsty Hretty).
-   spec H2. omega.
-    spec H2. hnf; split3; auto. omega.
+   spec H2. lia.
+    spec H2. hnf; split3; auto. lia.
   spec H2.
-  eapply JDE2; eauto 6. omega. subst m'. apply H6.
+  eapply JDE2; eauto 6. lia. subst m'. apply H6.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
@@ -541,7 +541,7 @@ Proof.
   specialize (IHn  z' jm'' c').
   subst n'. rewrite <- H9.
   change (level (m_phi jm'')) with (level  jm'') in IHn.
-  apply IHn. omega.
+  apply IHn. lia.
   auto.
   rewrite H9; auto.
  - eapply safeN_halted; eauto.

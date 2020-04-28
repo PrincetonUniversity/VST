@@ -104,7 +104,7 @@ Proof.
     destruct t0; try tauto; symmetry in H2.
     destruct H1.
     destruct (reptype_Tarray_JMeq_constr0 t gfs t0 z a v) as [v' ?H]; auto.
-    erewrite field_at_Tarray; [| eauto | eauto | omega | eauto].
+    erewrite field_at_Tarray; [| eauto | eauto | lia | eauto].
     replace
       (ALL  v0' : _,
         field_at sh t (gfs SUB i) v0' p -*
@@ -128,7 +128,7 @@ Proof.
         apply (allp_left _ v0').
         rewrite prop_imp by auto.
         apply wand_derives; auto.
-        erewrite field_at_Tarray; [apply derives_refl | eauto | eauto | omega |].
+        erewrite field_at_Tarray; [apply derives_refl | eauto | eauto | lia |].
         set (v0'' := eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gfs SUB i)))).
         assert (JMeq v0' v0'') by (apply JMeq_sym; eapply JMeq_trans; [apply eq_rect_r_JMeq | auto]).
         clearbody v0''; clear v0 H.
@@ -145,7 +145,7 @@ Proof.
         apply imp_andp_adjoint; normalize.
         apply wand_derives; auto.
         destruct (reptype_Tarray_JMeq_constr1 t gfs t0 z a i v0) as [v0'' ?H]; auto.
-        erewrite field_at_Tarray; [apply derives_refl | eauto | eauto | omega |].
+        erewrite field_at_Tarray; [apply derives_refl | eauto | eauto | lia |].
         clear v0'' H5.
         set (v0'' := eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gfs SUB i)))).
         assert (JMeq v0' v0'') by (apply JMeq_sym; eapply JMeq_trans; [apply eq_rect_r_JMeq | auto]).

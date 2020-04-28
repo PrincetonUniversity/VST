@@ -35,8 +35,8 @@ left.
 rewrite Int.unsigned_repr_eq.
 rewrite Zodd_mod.
 apply Zeq_is_eq_bool.
-replace (i+i) with (2*i)%Z by omega.
-rewrite <- Zmod_div_mod; try omega.
+replace (i+i) with (2*i)%Z by lia.
+rewrite <- Zmod_div_mod; try lia.
 rewrite Z.mul_comm, Z.add_comm.
 rewrite Z_mod_plus_full.
 reflexivity.
@@ -54,8 +54,8 @@ intros.
 simpl.
 right.
 unfold POINTER_BOUNDARY in *.
-rewrite Int.unsigned_repr by rep_omega.
-rep_omega.
+rewrite Int.unsigned_repr by rep_lia.
+rep_lia.
 Qed.
 
 Lemma field_compatible_valid_int_or_ptr:
@@ -80,7 +80,7 @@ clear - H2; simpl in *.
     destruct H0 as [j H].
     rewrite Z.add_0_r in H.
     rewrite H; clear.
-    replace (j*4)%Z with (2*(2*j))%Z by omega.
+    replace (j*4)%Z with (2*(2*j))%Z by lia.
     apply Zeven_2p.
 Qed.
 

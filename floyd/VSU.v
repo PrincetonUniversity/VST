@@ -3182,7 +3182,7 @@ Ltac semax_body_proof_to_SF P :=
   clear; apply SF_internal_sound; eapply _SF_internal;
    [ reflexivity 
    | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
-   | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+   | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
    | reflexivity 
    | (*LookupID
    | LookupB*)
@@ -3228,7 +3228,7 @@ Ltac solve_SF_internal P :=
   clear; apply SF_internal_sound; eapply _SF_internal;
    [  reflexivity 
    | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
-   | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+   | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
    | reflexivity
    | apply P
    | eexists; split; [ LookupID | LookupB ]

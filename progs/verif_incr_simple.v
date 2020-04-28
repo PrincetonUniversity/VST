@@ -73,7 +73,7 @@ Lemma ctr_inv_exclusive : forall p,
   exclusive_mpred (cptr_lock_inv p).
 Proof.
   intros; unfold cptr_lock_inv.
-  eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
+  eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try lia.
   Intro z; cancel.
 Qed.
 Hint Resolve ctr_inv_exclusive.

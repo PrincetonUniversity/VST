@@ -132,11 +132,11 @@ f_equal; auto.
 unfold Int.lt in H4.
 destruct (zlt (Int.signed i) (Int.signed i0)); auto; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i0) (Int.signed i)); auto; try omega; contradict H4; auto.
+destruct (zlt (Int.signed i0) (Int.signed i)); auto; try lia; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i0) (Int.signed i)); auto; try omega; contradict H4; auto.
+destruct (zlt (Int.signed i0) (Int.signed i)); auto; try lia; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i) (Int.signed i0)); auto; try omega; contradict H4; auto.
+destruct (zlt (Int.signed i) (Int.signed i0)); auto; try lia; contradict H4; auto.
 Qed.
 *)
 
@@ -211,11 +211,11 @@ pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); inv H5; auto.
 unfold Int.lt in H5.
 destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; auto.
 unfold Int.lt in H5.
-destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; omega.
+destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; lia.
 unfold Int.lt in H5.
-destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; omega.
+destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; lia.
 unfold Int.lt in H5.
-destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; omega.
+destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; lia.
 Qed.
 *)
 

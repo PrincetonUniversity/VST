@@ -10,7 +10,7 @@ Definition sum_Z : list Z -> Z := fold_right Z.add 0.
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
 Proof.
-  intros. induction a; simpl; omega.
+  intros. induction a; simpl; lia.
 Qed.
 
 Definition sumarray_spec : ident * funspec :=
@@ -96,8 +96,8 @@ forward. (* i++; *)
  Exists (i+1).
  entailer!. simpl.
  f_equal.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite sum_Z_app. rewrite (sublist_one i) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite sum_Z_app. rewrite (sublist_one i) by lia.
  autorewrite with sublist. normalize.
  simpl. rewrite Z.add_0_r. reflexivity.
 * (* After the loop *)

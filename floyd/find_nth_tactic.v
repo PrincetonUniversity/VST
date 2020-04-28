@@ -1,5 +1,5 @@
 Require Import Coq.Lists.List.
-Require Import Coq.omega.Omega.
+Require Import Lia.
 
 Fixpoint delete_nth {A} (n: nat) (xs: list A) {struct n} : list A :=
  match n, xs with
@@ -24,18 +24,18 @@ Lemma find_nth_preds_Some: forall {A: Type} (pred: A -> Prop) R n R0, find_nth_p
 Proof.
   intros.
   inversion H; subst; clear H.
-  replace n with (n - 0)%nat by omega.
+  replace n with (n - 0)%nat by lia.
   assert ((n >= 0)%nat /\ nth_error R (n - 0) = Some R0 /\ pred R0); [| tauto].
   revert H0; generalize 0%nat as m; intros.
   remember (Some (n, R0)) as R_res eqn:?H in H0.
   induction H0.
   + inversion H; subst; clear H.
-    replace (n - n)%nat with 0%nat by omega.
+    replace (n - n)%nat with 0%nat by lia.
     simpl; auto.
   + apply IHfind_nth_preds_rec in H.
     destruct H as [? [? ?]].
-    replace (n - n0)%nat with (S (n - S n0)) by omega.
-    split; [omega |].
+    replace (n - n0)%nat with (S (n - S n0)) by lia.
+    split; [lia |].
     simpl; auto.
   + inversion H.
 Qed.
