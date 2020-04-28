@@ -117,8 +117,7 @@ Proof.
     LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) v_available; gvars gv)
     SEP (field_at Tsh (tarray tint 5) [] available v_available; data_at_ Ews tint (gv _writing);
          data_at Ews tint (vint b0) (gv _last_given); data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken))).
-  { Exists 0; entailer!.
-    intros. omega. }
+  { Exists 0; entailer!. }
   eapply semax_loop.
   + Intros i.
     assert (repable_signed i).

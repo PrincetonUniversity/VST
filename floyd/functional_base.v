@@ -568,6 +568,8 @@ Ltac rep_lia_setup :=
             |  x:= _ |- _ => clearbody x
             end;
   try autorewrite with rep_lia in *;
+  try (progress autorewrite with rep_lia rep_omega in *;
+        idtac "Warning: Hint database 'rep_omega' is deprecated, use Hint Rewrite ... : rep_lia");
   unfold repable_signed in *;
   compute_Z_of_nat;
   pose_Zlength_nonneg;
@@ -719,3 +721,8 @@ imported only VST.floyd.functional_base, without separation logic.
 
 In VST.floyd.functional_base the following VST tactics are available:
 rep_lia, list_solve, if_tac, autorewrite with sublist, computable, ...".
+
+Ltac rep_omega := idtac "Warning: rep_omega is a deprecated synonym for rep_lia"; rep_lia.
+Ltac omega := idtac "Warning: use of omega without Require Import Coq.omega.Omega; deprecated; should use lia anyway"; Coq.omega.Omega.omega.
+
+

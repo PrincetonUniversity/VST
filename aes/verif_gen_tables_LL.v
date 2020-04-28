@@ -227,8 +227,7 @@ Proof.
          tables_uninitialized (gv _tables))).
   { (* init *)
     forward. forward. Exists 0. entailer!. do 2 Exists (repeat Vundef 256).
-    entailer!; try apply derives_refl.
-    split; intros; omega. (* TODO floyd why doesn't entailer! do this itself? *)
+    entailer!. apply derives_refl.
   }
   { (* body *)
     (* forward. TODO floyd: "forward" should tell me to use Intros instead of just failing *)
@@ -393,11 +392,10 @@ Proof.
     entailer!.
     Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
     Exists (upd_Znth 0 Vundef256 (Vint (Int.repr 99))).
-    entailer!. split.
-    - intros. assert (j = 0) by omega. subst j. rewrite upd_Znth_same.
+    entailer!.
+    intros. assert (j = 0) by omega. subst j. rewrite upd_Znth_same.
       * reflexivity.
       * change (Zlength Vundef256) with 256. omega.
-    - intros. omega.
   }
   { (* loop body preserves invariant: *)
     forward. { entailer!. rewrite Hlog' by omega. auto. }

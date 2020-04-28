@@ -158,7 +158,7 @@ Time forward_for_simple_bound 16 (EX m:Z,
          EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist = Znth mm wlist)
                 && data_at Tsh (tarray tuint 16) mlist x))).
   (*1.2 versus 2.7*)
-{ Exists xlist. Time entailer!. (*2.6 versus 6.7*) intros; omega. }
+{ Exists xlist. Time entailer!. (*2.6 versus 6.7*) }
 { Intros mlist. rename H into M. rename i0 into m. rename H0 into HM.
   destruct (WZ _ M) as [mval MVAL].
   freeze [0;2] FR1.
