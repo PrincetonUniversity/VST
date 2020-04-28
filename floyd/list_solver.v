@@ -22,12 +22,12 @@ Import ListNotations.
 
 (** * list_form *)
 
-Hint Rewrite list_repeat_Zrepeat cons_Zrepeat_1_app : list_form_rewrite.
-Hint Rewrite app_nil_r app_nil_l : list_form_rewrite.
-(* Hint Rewrite upd_Znth_unfold using Zlength_solve : list_form_rewrite. *)
+Hint Rewrite list_repeat_Zrepeat cons_Zrepeat_1_app : list_solve_rewrite.
+Hint Rewrite app_nil_r app_nil_l : list_solve_rewrite.
+(* Hint Rewrite upd_Znth_unfold using Zlength_solve : list_solve_rewrite. *)
 
 Ltac list_form :=
-  autorewrite with list_form_rewrite in *.
+  autorewrite with list_solve_rewrite in *.
 
 (** * Znth_solve *)
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)
@@ -133,7 +133,7 @@ Proof.
   generalize dependent bl.
   generalize dependent n.
   induction al; intros; destruct bl as [ | b bl];
-    autorewrite with list_form_rewrite in *; Zlength_simplify_in_all; try Zlength_solve;
+    autorewrite with list_solve_rewrite in *; Zlength_simplify_in_all; try Zlength_solve;
     unfold data_subsume; intros.
   - (* al = [] /\ bl = [] *)
     entailer!.
@@ -916,7 +916,7 @@ Proof.
     + subst a. apply H with 0. Zlength_solve.
       autorewrite with sublist. auto.
     + apply IHl; auto. intros.
-        specialize (H (i+1) ltac:(Zlength_solve)). autorewrite with list_form_rewrite Znth in *.
+        specialize (H (i+1) ltac:(Zlength_solve)). autorewrite with list_solve_rewrite Znth in *.
         fassumption.
 Qed.
 
@@ -2009,24 +2009,25 @@ Create HintDb list_solve_unfold.
 
 Ltac list_solve_preprocess :=
   fold_Vbyte;
-  autounfold with list_solve_unfold;
   simpl data_at;
   simpl_reptype;
+  autounfold with list_solve_unfold in *;
+  autorewrite with list_solve_rewrite in *;
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 
-Ltac Zlength_simplify :=
-  Zlength_simplify_in_all.
-
 Ltac Znth_simplify :=
+  Znth_solve.
+
+Ltac Znth_simplify_in_all :=
   Znth_solve2.
 
 Ltac list_solve :=
   list_solve_preprocess;
-  list_form; Zlength_simplify; try lia;
-  Znth_simplify; auto with Znth_solve_hint;
+  Zlength_simplify_in_all; try lia;
+  Znth_simplify_in_all; auto with Znth_solve_hint;
   try fassumption;
-  Zlength_simplify; try lia;
+  Zlength_simplify_in_all; try lia;
   try (
     apply_list_ext; Znth_solve;
     auto with Znth_solve_hint; try fassumption
@@ -2036,16 +2037,15 @@ Ltac list_solve :=
 
 Ltac list_simplify :=
   list_solve_preprocess;
-  list_form; Zlength_simplify; try lia;
-  Znth_simplify; auto with Znth_solve_hint;
+  Zlength_simplify_in_all; try lia;
+  Znth_simplify_in_all; auto with Znth_solve_hint;
   try fassumption;
-  Zlength_simplify; try lia;
+  Zlength_simplify_in_all; try lia;
   try (
     apply_list_ext; Znth_solve;
     auto with Znth_solve_hint; try fassumption
   );
-  try list_prop_solve;
-  fail "list_solve cannot solve the goal".
+  try list_prop_solve.
 
 Arguments Zlength_fact {_}.
 

@@ -247,7 +247,7 @@ Ltac calc_Zlength_extra l ::=
     add_Zlength_res (calc_Zlength_rev A l _ H)
   end. *)
 
-Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
+Hint Rewrite Zlength_rev : Zlength.
 Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 Hint Unfold flip_ends : list_solve_unfold.
 
