@@ -563,15 +563,13 @@ Ltac pose_lemmas F L :=
 
 Ltac rep_lia_setup := 
  repeat match goal with
-            |  x:= _ : Z |- _ => subst x
-            |  x:= _ : nat |- _ => subst x
-            |  x:= _ |- _ => clearbody x
+            | x := _ : ?T |- _ => lazymatch T with Z => fail | nat => fail | _ => clearbody x end
             end;
+ zify;
   try autorewrite with rep_lia in *;
   try (progress autorewrite with rep_lia rep_omega in *;
         idtac "Warning: Hint database 'rep_omega' is deprecated, use Hint Rewrite ... : rep_lia");
   unfold repable_signed in *;
-  compute_Z_of_nat;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned Byte.unsigned_range;
   pose_lemmas Byte.signed Byte.signed_range;
@@ -584,31 +582,10 @@ Ltac rep_lia_setup :=
 
 Ltac rep_lia_setup2 := idtac.
 
-Ltac rep_lia2 := 
- repeat  match goal with
-  | |- _ /\ _ => match goal with
-                        | |- context [Z.of_nat] => split
-                        | |- context [Z.to_nat] => split
-                        end
-            end;
-  match goal with
-  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
-  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
-  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
-  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
-  | |- @eq nat _ _ => apply Nat2Z.inj
-  | |- _ => idtac
-  end;
-  repeat rewrite ?Nat2Z.id, ?Nat2Z.inj_add, ?Nat2Z.inj_mul, 
-         ?Z2Nat.id, ?Nat2Z.inj_sub, ?Z2Nat.inj_sub,
-         ?Z2Nat.inj_add by rep_lia2;
-(*    simpl; *)
-   lia.
-
 Ltac rep_lia :=
    rep_lia_setup;
    rep_lia_setup2;
-   rep_lia2.
+   lia.
 
 Ltac repable_signed := 
   idtac "Warning: repable_signed is deprecated;  use rep_lia"; rep_lia.
