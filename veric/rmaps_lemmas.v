@@ -492,7 +492,7 @@ Proof.
   apply H0, ghost_of_join; auto.
 Qed.
 
-  Lemma ageN_squash : forall d n rm, le d n ->
+  Lemma ageN_squash : forall d n rm, Peano.le d n ->
     ageN d (squash (n, rm)) = Some (squash ((n - d)%nat, rm)).
   Proof.
     induction d; simpl; intros.

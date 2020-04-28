@@ -344,7 +344,7 @@ Section juicy_safety.
 
   Lemma jsafe_downward :
     forall n n' c m z,
-      le n' n ->
+      Peano.le n' n ->
       jsafeN_ n z c m -> jsafeN_ n' z c m.
   Proof.
     do 6 intro. revert c m z. induction H; auto.

@@ -92,7 +92,7 @@ Qed.
 
   Lemma safe_downward :
     forall n n' c m z,
-      le n' n ->
+      Peano.le n' n ->
       safeN_ n z c m -> safeN_ n' z c m.
   Proof.
     do 6 intro. revert c m z. induction H; auto.
@@ -110,7 +110,7 @@ Qed.
     revert c m c' m' n H0 H1.
     induction n0; intros; auto.
     simpl in H0; inv H0.
-    eapply safe_downward in H1; eauto. omega.
+    eapply safe_downward in H1; eauto. apply Nat.le_add_r.
     simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
     apply (IHn0 _ _ _ _ n STEPN).
     assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
@@ -147,7 +147,7 @@ Qed.
     solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
     simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
     assert (H: safeN_ (n - 1 - n0) z c' m').
-    eapply safe_downward in H0; eauto. omega.
+    eapply safe_downward in H0; eauto. now rewrite <- Nat.sub_add_distr.
     specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
     solve[eapply safe_step'_back2; eauto].
   Qed.
