@@ -49,7 +49,7 @@ assert (H1: bin2sizeZ 7 = 60). { apply bin2sizeBINS. }
 rewrite H1.
 unfold ALIGN, WORD.
 destruct (zlt 60 s).
-- simpl. omega.
+- simpl. lia.
 - simpl.  auto with arith.
 (* assert (H2: (((s + 4 - 1) / 8 + 1) * 2 - 1) * 4 = (((s + 3) / 8) * 8 + 4)) by algebra *)
 admit.
@@ -71,7 +71,7 @@ Proof.
   intros. 
   unfold size2binZ.
   assert (H1: (bin2sizeZ (BINS - 1) >= (bin2sizeZ b))) 
-    by ( unfold bin2sizeZ; unfold WORD, ALIGN, BINS in *; omega).
+    by ( unfold bin2sizeZ; unfold WORD, ALIGN, BINS in *; lia).
   destruct (zlt (bin2sizeZ (BINS - 1)) (bin2sizeZ b)) as [H2|H2]. contradiction.
   unfold bin2sizeZ. 
   clear H H1 H2.
@@ -250,7 +250,7 @@ Lemma body_size2bin: semax_body Vprog Gprog f_size2bin size2bin_spec.
 Proof. start_function. 
 forward_call (BINS-1). 
 assert (BINS - 1 <= Int.max_signed ). {  admit. (* TODO how prove this? *) } 
-split. unfold BINS. omega.  assumption.
+split. unfold BINS. lia.  assumption.
 forward_if(PROP() LOCAL() SEP (FF)). (* FF because join point unreachable: both branches return *)
 - (* then *) 
 forward. entailer!.  f_equal. rewrite Int.neg_repr.

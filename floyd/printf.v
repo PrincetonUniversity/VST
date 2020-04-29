@@ -106,12 +106,12 @@ Lemma div_10_dec : forall n, 0 < n ->
 Proof.
   intros.
   change 10 with (Z.of_nat 10).
-  rewrite <- (Z2Nat.id n) by omega.
+  rewrite <- (Z2Nat.id n) by lia.
   rewrite <- div_Zdiv by discriminate.
   rewrite !Nat2Z.id.
   apply Nat2Z.inj_lt.
-  rewrite div_Zdiv, Z2Nat.id by omega; simpl.
-  apply Z.div_lt; auto; omega.
+  rewrite div_Zdiv, Z2Nat.id by lia; simpl.
+  apply Z.div_lt; auto; lia.
 Qed.
 
 Definition charminus := Byte.repr 45.
@@ -123,20 +123,20 @@ Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat (if n <? 0 then Z.abs n 
 Next Obligation.
 Proof.
   destruct (Z.ltb_spec n 0); try discriminate.
-  destruct (Z.abs_spec n) as [[]|[? ->]]; try omega.
+  destruct (Z.abs_spec n) as [[]|[? ->]]; try lia.
   replace (- n <? 0) with false.
-  rep_omega.
-  destruct (Z.ltb_spec (-n) 0); auto; omega.
+  rep_lia.
+  destruct (Z.ltb_spec (-n) 0); auto; lia.
 Defined.
 Next Obligation.
 Proof.
   rewrite <- Heq_anonymous0.
   destruct (Z.ltb_spec n 0); try discriminate.
   pose proof (Z.div_pos _ 10 H).
-  destruct (Z.ltb_spec (n / 10) 0); try omega.
+  destruct (Z.ltb_spec (n / 10) 0); try lia.
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous.
-  eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); omega.
+  eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
 Defined.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =

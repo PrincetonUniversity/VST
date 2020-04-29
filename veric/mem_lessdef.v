@@ -98,14 +98,14 @@ Proof.
     + destruct np1.
       intros ofs1 r1.
       cut (ofs1 = ofs). intros <-. apply R.
-      omega.
+      lia.
   - extensionality b ofs k.
     unfold Mem.loadbytes in *.
     if_tac [p1|np1]; if_tac [p2|np2].
     + destruct (zle 0 k).
       * clear p2.
         f_equal.
-        rewrite <-(Z2Nat.id k) in p1. 2:omega.
+        rewrite <-(Z2Nat.id k) in p1. 2:lia.
         revert p1. generalize (Z.to_nat k); clear k l; intros n.
         revert ofs.
         induction n; auto; intros ofs p.
@@ -116,12 +116,12 @@ Proof.
            apply E.
            apply p.
            simpl.
-           zify; omega.
+           zify; lia.
         -- apply IHn.
            intros ofs' r'.
            apply p.
-           zify. omega.
-      * rewrite Z_to_nat_neg. auto. omega.
+           zify. lia.
+      * rewrite Z_to_nat_neg. auto. lia.
     + destruct np2.
       unfold Mem.range_perm in *.
       rewrite <-P.
@@ -196,7 +196,7 @@ Proof.
     apply prop_ext; split; auto.
   - zify.
     cut (Z.pos (Mem.nextblock m2) = Z.pos (Mem.nextblock m1)).
-    congruence. omega.
+    congruence. lia.
 Qed.
 
 Lemma mem_equiv_refl m : mem_equiv m m.

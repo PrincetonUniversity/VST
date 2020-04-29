@@ -730,7 +730,7 @@ eapply LP_VSU_entail;
    | split3; [ | | split3; [ | |split]];
      [ try (cbv; reflexivity)
      | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
-     | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+     | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
      | reflexivity
      | (* apply body_main.*)
      | eexists; split; [ LookupID | LookupB ] ]
@@ -768,7 +768,7 @@ eapply LP_VSU_ext;
    | split3; [ | | split3; [ | |split]];
      [ try (cbv; reflexivity)
      | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
-     | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+     | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
      | reflexivity
      | (* apply body_main.*)
      | eexists; split; [ LookupID | LookupB ] ]

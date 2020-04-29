@@ -421,7 +421,7 @@ A functional model contains not only definitions; it's also
 useful to include theorems about this mathematical domain:
 \begin{lstlisting}
 Lemma sum_Z_app: forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
-Proof.  intros. induction a; simpl; omega.  Qed.
+Proof.  intros. induction a; simpl; lia.  Qed.
 \end{lstlisting}
 The data types used in a functional model can be any kind of mathematics
 at all, as long as we have a way to relate them to the integers,
@@ -1062,7 +1062,7 @@ We instantiate the existential with the only value that works here, zero:
 Now we use the \lstinline{entailer!} tactic to solve as much of this goal
 as possible (see \autoref{refcard:entailer}). In this case, the goal solves
 entirely automatically.
-In particular, $0\le i \le \mathsf{size}$ solves by \lstinline{omega};
+In particular, $0\le i \le \mathsf{size}$ solves by \lstinline{lia};
 \lstinline{sublist 0 0 contents} rewrites to \lstinline{nil};
 and \lstinline{sum_Z nil} simplifies to 0.
 
@@ -1231,7 +1231,7 @@ sublist_split: $\forall l\,m\,h\,\mathsf{al},~~ 0 \le l \le m \le h \le |\mathsf
         sublist $l$ $h$ al = sublist $l$ $m$ al ++ sublist $m$ $h$ al
 \end{lstlisting}
 So we do,
-\lstinline{rewrite (sublist_split 0 i (i+1)) by omega.}
+\lstinline{rewrite (sublist_split 0 i (i+1)) by lia.}
 A bit more rewriting with the theory of
 \lstinline{sum_Z} and \lstinline{sublist} finishes the proof.
 
@@ -1612,8 +1612,8 @@ H2 : 0 $\le$ n $\le$ Int.max_signed   (* this example in progs/tutorial1.v *)
 ------------------------
 Int.min_signed $\le$ 0 $\le$ n
 \end{lstlisting}
-you can use the \lstinline{rep_omega} tactic (see \autoref{rep-omega}),
-which is basically just \lstinline{omega} with
+you can use the \lstinline{rep_lia} tactic (see \autoref{rep-lia}),
+which is basically just \lstinline{lia} with
 knowledge of the values of
 \lstinline{Int.min_signed},
 \lstinline{Int.max_signed},
@@ -3916,8 +3916,8 @@ The adjusted failure level 4 is important for internal mechanism in \lstinline{l
 
 There is another way to add rule for \lstinline{Zlength} by hacking into \lstinline{list_solve}'s internal tactics. It utilizes caching mechanism in \lstinline{list_solve}, so it is more efficient when the length of a list appears for multiple times. See \lstinline{progs/verif_dotprod.v} and \lstinline{progs/verif_revarray.v} for detail.
 
-\chapter{\textsf{rep\_omega}: omega with representation facts}
-\label{refcard:rep-omega}
+\chapter{\textsf{rep\_lia}: lia with representation facts [was rep\_omega]}
+\label{refcard:rep-lia}
 
 To solve goals such as
 
@@ -3936,7 +3936,7 @@ H:  Zlength al < 50
 \end{lstlisting}
 \end{minipage}
 
-you want to use the \lstinline{omega} tactic \emph{augmented} by many facts
+you want to use the \lstinline{lia} tactic \emph{augmented} by many facts
 about the \emph{representations} of integers:
 the numeric values of
 \lstinline{Int.min_signed,}
@@ -3946,9 +3946,9 @@ the fact that \lstinline{Zlength} is nonnegative;
 the fact that \lstinline{0 <= Int.unsigned $z$ <= Int.max_unsigned},
 and so on.
 
-The \lstinline{rep_omega} tactic does this.
+The \lstinline{rep_lia} tactic does this.
 In addition, it ``knows'' all the facts in the 
-\lstinline{Hint Rewrite : rep_omega} database;
+\lstinline{Hint Rewrite : rep_lia} database;
 see the next chapter.
 
 \ychapter{Opaque constants}
@@ -3982,12 +3982,12 @@ A better solution is:
 \begin{lstlisting}
 Definition N : Z    := proj1_sig (opaque_constant 1000000).
 Definition N_eq : N=1000000    := proj2_sig (opaque_constant _).
-Hint Rewrite N_eq : rep_omega.
+Hint Rewrite N_eq : rep_lia.
 \end{lstlisting}
 
 This makes \lstinline{N} opaque to all tactics, \emph{except} that the
-\lstinline{rep_omega} tactic (and any that use the
-\lstinline{rep_omega} hint database) can expand N.
+\lstinline{rep_lia} tactic (and any that use the
+\lstinline{rep_lia} hint database) can expand N.
 
 The \file{progs/tutorial1.v}, shows an example of this, in Lemmas
 \lstinline{exercise4} through \lstinline{exercise4c}.

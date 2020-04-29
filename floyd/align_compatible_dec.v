@@ -94,7 +94,7 @@ Lemma align_compatible_dec_aux:
    forall n t, (rank_type cenv_cs t < n)%nat ->
     forall z, {align_compatible_rec cenv_cs t z} + {~ align_compatible_rec cenv_cs t z}.
 Proof.
-induction n; intros; [ omega | ].
+induction n; intros; [ lia | ].
 rename H into Hrank.
 destruct t  as [ | [ | | | ] [ | ]| [ | ] | [ | ] | | | | | ] eqn:Ht; intros;
 try solve [
@@ -109,7 +109,7 @@ end];
 try solve [right; intro H; inv H; inv H0].
 * (* Tarray *)
 specialize (IHn t0).
-simpl in Hrank. spec IHn; [omega | ]. clear Hrank.
+simpl in Hrank. spec IHn; [lia | ]. clear Hrank.
 pose proof (Zrange_pred_dec (fun ofs => align_compatible_rec cenv_cs t0 (z + sizeof t0 * ofs))).
 spec H.
 intro; apply IHn.
@@ -123,7 +123,7 @@ contradict H.
 intros.
 eapply align_compatible_rec_Tarray_inv in H.
 apply H.
-split; try omega.
+split; try lia.
 * (* Tstruct *)
 destruct (cenv_cs ! i) eqn:?H;
  [ | right; intro H0; inv H0; [inv H1 | congruence]].
@@ -136,7 +136,7 @@ assert (H1: forall x, {D x} + {~ D x}). {
  subst D. intros. destruct x as [[id t0] ?]. simpl.
  apply IHn.
  assert (H1:= rank_union_member cenv_cs _ a _ _ _ cenv_consistent H i0).
- simpl in H1. rewrite H in H1. omega.
+ simpl in H1. rewrite H in H1. lia.
 }
 destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [left|right].
 +
@@ -190,7 +190,7 @@ assert (H1: forall x, {D x} + {~ D x}). {
  subst D. intros. destruct x as [[id t0] ?]. simpl.
  apply IHn.
  assert (H1:= rank_union_member cenv_cs _ a _ _ _ cenv_consistent H i0).
- simpl in H1. rewrite H in H1. omega.
+ simpl in H1. rewrite H in H1. lia.
 }
 destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [left|right].
 +
@@ -228,7 +228,7 @@ Lemma align_compatible_rec_dec: forall t z, {align_compatible_rec cenv_cs t z} +
 Proof.
 intros.
 apply align_compatible_dec_aux with (S (rank_type cenv_cs t)).
-omega.
+lia.
 Qed.
 
 End align_compatible_rec_dec.

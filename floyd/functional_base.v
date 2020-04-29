@@ -8,6 +8,7 @@ Require Export VST.msl.eq_dec.
 Require Export VST.msl.Coqlib2.
 Require Export VST.floyd.coqlib3.
 Require Export VST.floyd.sublist.
+Require Export Lia.
 
 Require Import VST.veric.val_lemmas.
 
@@ -42,7 +43,7 @@ Hint Rewrite
    (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)
    (@Znth_map int64 _) (@Znth_map ptrofs _) (@Znth_map float _)
    (@Znth_map float32 _)
-    using (auto; rewrite ?Zlength_map in *; omega) : sublist entailer_rewrite.
+    using (auto; rewrite ?Zlength_map in *; lia) : sublist entailer_rewrite.
 
 
 Lemma is_long_dec v: {is_long v} + {~ is_long v}.
@@ -142,14 +143,14 @@ Proof.
   + destruct H. subst.
     repeat rewrite Zdiv_0_r.
     simpl.
-    omega.
+    lia.
   + destruct H.
     subst.
-    replace (x * b + c + b - 1) with (x * b + (c + b - 1)) by omega.
+    replace (x * b + c + b - 1) with (x * b + (c + b - 1)) by lia.
     rewrite Z_div_plus_full_l.
     rewrite Z.mul_add_distr_r.
     reflexivity.
-    omega.
+    lia.
 Qed.
 
 Lemma force_val_e:
@@ -368,7 +369,7 @@ Proof.
 intros.
 subst.
 pose proof (Int.sign_ext_range n i H).
-omega.
+lia.
 Qed.
 
 Lemma zero_ext_range2:
@@ -380,7 +381,7 @@ Lemma zero_ext_range2:
 Proof.
 intros; subst.
 pose proof (Int.zero_ext_range n i H).
-omega.
+lia.
 Qed.
 
 Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
@@ -400,10 +401,10 @@ Definition repable_signed_dec (z: Z) : {repable_signed z}+{~repable_signed z}.
 Proof.
  intros. unfold repable_signed.
  destruct (zlt z Int.min_signed).
- right; intros [? _]; unfold Int.min_signed; omega.
+ right; intros [? _]; unfold Int.min_signed; lia.
  destruct (zlt Int.max_signed z).
- right; intros [_ ?]; unfold Int.max_signed; omega.
- left; split; omega.
+ right; intros [_ ?]; unfold Int.max_signed; lia.
+ left; split; lia.
 Defined.
 
 
@@ -415,41 +416,41 @@ intros until 1. intro HACK. intros.
 assert (MAX: 0 < Int.max_signed) by (compute; auto).
 assert (MIN: Int.min_signed < 0) by (compute; auto).
 hnf in H0|-*.
-assert (0 < i \/ i < 0) by omega; clear H.
+assert (0 < i \/ i < 0) by lia; clear H.
 destruct H1.
-replace i with ((i-1)+1) in H0 by omega.
+replace i with ((i-1)+1) in H0 by lia.
 rewrite Z.mul_add_distr_r in H0.
 rewrite Z.mul_1_l in H0.
-assert (j < 0 \/ 0 <= j) by omega. destruct H1.
-assert ((i-1)*j <= 0) by (apply Z.mul_nonneg_nonpos; omega).
-omega.
-assert (0 <= (i-1)*j) by (apply Z.mul_nonneg_nonneg; omega).
-omega.
-replace i with ((i+1)-1) in H0 by omega.
+assert (j < 0 \/ 0 <= j) by lia. destruct H1.
+assert ((i-1)*j <= 0) by (apply Z.mul_nonneg_nonpos; lia).
+lia.
+assert (0 <= (i-1)*j) by (apply Z.mul_nonneg_nonneg; lia).
+lia.
+replace i with ((i+1)-1) in H0 by lia.
 rewrite Z.mul_sub_distr_r in H0.
 rewrite Z.mul_1_l in H0.
 assert (MINMAX: Int.min_signed = -Int.max_signed - 1) by reflexivity.
-assert (j < 0 \/ 0 <= j) by omega. destruct H1.
-assert (0 <= (i+1)*j) by (apply Z.mul_nonpos_nonpos; omega).
+assert (j < 0 \/ 0 <= j) by lia. destruct H1.
+assert (0 <= (i+1)*j) by (apply Z.mul_nonpos_nonpos; lia).
 rewrite MINMAX in H0|-*.
-omega.
-assert ((i+1)*j <= 0) by (apply Z.mul_nonpos_nonneg; omega).
+lia.
+assert ((i+1)*j <= 0) by (apply Z.mul_nonpos_nonneg; lia).
 rewrite MINMAX in H0|-*.
-split; try omega.
+split; try lia.
 clear MIN MINMAX.
 destruct H0 as [? _].
-assert (- Int.max_signed <= 1 + (i+1)*j - j) by omega; clear H0.
-assert (-1 - (i + 1) * j + j <= Int.max_signed) by omega; clear H3.
+assert (- Int.max_signed <= 1 + (i+1)*j - j) by lia; clear H0.
+assert (-1 - (i + 1) * j + j <= Int.max_signed) by lia; clear H3.
 destruct HACK; auto.
-assert (i < -1) by omega.
-destruct (zlt 0 j); try omega.
+assert (i < -1) by lia.
+destruct (zlt 0 j); try lia.
 assert ((i+1)*j < 0).
 rewrite Z.mul_add_distr_r.
-replace i with ((i+1)-1) by omega.
+replace i with ((i+1)-1) by lia.
 rewrite Z.mul_sub_distr_r.
-assert ((i+1)*j<0); [ | omega].
-apply Z.mul_neg_pos; auto. omega.
-omega.
+assert ((i+1)*j<0); [ | lia].
+apply Z.mul_neg_pos; auto. lia.
+lia.
 Qed.
 
 Lemma repable_signed_mult1:
@@ -560,15 +561,15 @@ Ltac pose_lemmas F L :=
   | H: context [F ?A] |- _ => pose_lemma F A L
  end.
 
-Ltac rep_omega_setup := 
+Ltac rep_lia_setup := 
  repeat match goal with
-            |  x:= _ : Z |- _ => subst x
-            |  x:= _ : nat |- _ => subst x
-            |  x:= _ |- _ => clearbody x
+            | x := _ : ?T |- _ => lazymatch T with Z => fail | nat => fail | _ => clearbody x end
             end;
-  try autorewrite with rep_omega in *;
+ zify;
+  try autorewrite with rep_lia in *;
+  try (progress autorewrite with rep_lia rep_omega in *;
+        idtac "Warning: Hint database 'rep_omega' is deprecated, use Hint Rewrite ... : rep_lia");
   unfold repable_signed in *;
-  compute_Z_of_nat;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned Byte.unsigned_range;
   pose_lemmas Byte.signed Byte.signed_range;
@@ -579,36 +580,15 @@ Ltac rep_omega_setup :=
   pose_lemmas Ptrofs.unsigned Ptrofs.unsigned_range;
   pose_standard_const_equations.
 
-Ltac rep_omega_setup2 := idtac.
+Ltac rep_lia_setup2 := idtac.
 
-Ltac rep_omega2 := 
- repeat  match goal with
-  | |- _ /\ _ => match goal with
-                        | |- context [Z.of_nat] => split
-                        | |- context [Z.to_nat] => split
-                        end
-            end;
-  match goal with
-  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
-  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
-  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
-  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
-  | |- @eq nat _ _ => apply Nat2Z.inj
-  | |- _ => idtac
-  end;
-  repeat rewrite ?Nat2Z.id, ?Nat2Z.inj_add, ?Nat2Z.inj_mul, 
-         ?Z2Nat.id, ?Nat2Z.inj_sub, ?Z2Nat.inj_sub,
-         ?Z2Nat.inj_add by rep_omega2;
-(*    simpl; *)
-   omega.
-
-Ltac rep_omega :=
-   rep_omega_setup;
-   rep_omega_setup2;
-   rep_omega2.
+Ltac rep_lia :=
+   rep_lia_setup;
+   rep_lia_setup2;
+   lia.
 
 Ltac repable_signed := 
-  idtac "Warning: repable_signed is deprecated;  use rep_omega"; rep_omega.
+  idtac "Warning: repable_signed is deprecated;  use rep_lia"; rep_lia.
 
 Lemma Vubyte_injective i j (H: Vubyte i = Vubyte j): i=j.
 Proof.
@@ -618,7 +598,7 @@ Proof.
   unfold Vubyte in H. remember (Int.repr (Byte.unsigned i)) as z.
   inv H. destruct i; destruct j. unfold Byte.testbit.
   unfold Byte.unsigned in H1. simpl in *.
-  rewrite <- 2 Int.testbit_repr, H1; trivial; omega.
+  rewrite <- 2 Int.testbit_repr, H1; trivial; lia.
 Qed. 
 
 Lemma map_Vubyte_injective: forall l m, map Vubyte l = map Vubyte m -> l=m.
@@ -638,8 +618,8 @@ Proof. unfold Vbyte in H. apply Vint_injective in H.
   assert (Byte.signed a = Byte.signed b).
   { rewrite <- (Int.signed_repr (Byte.signed a)). 
     rewrite <- (Int.signed_repr (Byte.signed b)).
-    rewrite H; trivial. specialize (Byte.signed_range b); omega.
-    specialize (Byte.signed_range a); omega. }
+    rewrite H; trivial. specialize (Byte.signed_range b); lia.
+    specialize (Byte.signed_range a); lia. }
   clear H. unfold Byte.testbit. rewrite 2 Byte.unsigned_signed. 
   unfold Byte.lt. rewrite H0. trivial. 
 Qed.
@@ -670,8 +650,8 @@ Lemma repr_inj_signed:
     repable_signed i -> repable_signed j -> Int.repr i = Int.repr j -> i=j.
 Proof.
 intros.
-rewrite <- (Int.signed_repr i) by rep_omega.
-rewrite <- (Int.signed_repr j) by rep_omega.
+rewrite <- (Int.signed_repr i) by rep_lia.
+rewrite <- (Int.signed_repr j) by rep_lia.
 congruence.
 Qed.
 
@@ -682,8 +662,8 @@ Lemma repr_inj_unsigned:
     Int.repr i = Int.repr j -> i=j.
 Proof.
 intros.
-rewrite <- (Int.unsigned_repr i) by rep_omega.
-rewrite <- (Int.unsigned_repr j) by rep_omega.
+rewrite <- (Int.unsigned_repr i) by rep_lia.
+rewrite <- (Int.unsigned_repr j) by rep_lia.
 congruence.
 Qed.
 
@@ -717,4 +697,9 @@ that is, when VST.floyd.proofauto has been imported.  But you have
 imported only VST.floyd.functional_base, without separation logic.
 
 In VST.floyd.functional_base the following VST tactics are available:
-rep_omega, old_list_solve, if_tac, autorewrite with sublist, computable, ...".
+rep_lia, list_solve, if_tac, autorewrite with sublist, computable, ...".
+
+Ltac rep_omega := idtac "Warning: rep_omega is a deprecated synonym for rep_lia"; rep_lia.
+Ltac omega := idtac "Warning: use of omega without Require Import Coq.omega.Omega; deprecated; should use lia anyway"; Coq.omega.Omega.omega.
+
+

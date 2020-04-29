@@ -566,7 +566,7 @@ unfold Int.eqm.
 unfold Zbits.eqmod.
 set (m := Int.modulus) in *.
 destruct H as [z ?].
-assert (x = y mod m + z * m) by omega.
+assert (x = y mod m + z * m) by lia.
 clear H. subst x.
 pose proof (Z.div_mod y m).
 spec H. intro Hx; inv Hx.
@@ -574,10 +574,10 @@ evar (k: Z).
 exists k.
 rewrite H at 2; clear H.
 rewrite (Z.mul_comm m).
-assert (z * m = k*m + (y/m*m))%Z; [ | omega].
+assert (z * m = k*m + (y/m*m))%Z; [ | lia].
 rewrite <- Z.mul_add_distr_r.
 f_equal.
-assert (k = z - y/m); [ | omega].
+assert (k = z - y/m); [ | lia].
 subst k.
 reflexivity.
 Qed.
@@ -594,7 +594,7 @@ intros.
 simpl.
 apply modulo_samerepr in H.
 rewrite <- H.
-rewrite Int.unsigned_repr by rep_omega.
+rewrite Int.unsigned_repr by rep_lia.
 auto.
 Qed.
 

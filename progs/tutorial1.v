@@ -27,7 +27,7 @@ Exists b.
 entailer!.
 Qed.
 
-(* These examples of [rep_omega] are from is from the "Integers: nat, Z, int" chapter of the Verifiable C Reference Manual *)
+(* These examples of [rep_lia] are from is from the "Integers: nat, Z, int" chapter of the Verifiable C Reference Manual *)
 Lemma exercise2:
   forall x,
   Int.min_signed <= x <= Int.max_signed ->
@@ -35,7 +35,7 @@ Lemma exercise2:
 Proof.
 intros x H.
 (* Notice that the premise H is needed for the next line *)
-rewrite Int.signed_repr by rep_omega.
+rewrite Int.signed_repr by rep_lia.
 auto.
 Qed.
 
@@ -44,7 +44,7 @@ Lemma exercise3:
   Int.min_signed <= 0 <= n.
 Proof.
 intros.
-rep_omega.
+rep_lia.
 Qed.
 
 Lemma exercise3b: 
@@ -52,7 +52,7 @@ Lemma exercise3b:
          0 <= Zlength al < Int.max_signed.
 Proof.
 intros.
-rep_omega.
+rep_lia.
 Qed.
 
 Lemma exercise3c: 
@@ -60,11 +60,11 @@ Lemma exercise3c:
          0 <= Int.unsigned (Int.repr i) <= Int.max_unsigned.
 Proof.
 intros.
-rep_omega.
+rep_lia.
 Qed.
 
 
-(**  How to manage semi-opaque constants, using Hint Rewrite : rep_omega. *)
+(**  How to manage semi-opaque constants, using Hint Rewrite : rep_lia. *)
 (* Suppose you have an uninitialized array of size N: *)
 
 Module Test1.
@@ -81,7 +81,7 @@ simpl.
 (* It's not nice that [simpl] unfolded the list_repeat. *)
 entailer!.
 repeat rewrite Zlength_cons. rewrite Zlength_nil. 
-rep_omega.
+rep_lia.
 Abort.
 
 (* To avoid unfolding of the list_repeat, let us make N opaque. *)
@@ -108,14 +108,14 @@ simpl.
 (* That's better; the data_at is more concise.  But now, unfortunately: *)
 entailer!.
 rewrite Zlength_list_repeat.
-Fail rep_omega.
-(* now rep_omega does not know that N=20. *)
+Fail rep_lia.
+(* now rep_lia does not know that N=20. *)
 Abort.
 
-(* To tell rep_omega that N=20, just add a hint to the rep_omega database: *)
+(* To tell rep_lia that N=20, just add a hint to the rep_lia database: *)
 
 Definition N_eq : N=20 := proj2_sig (opaque_constant _).
-Hint Rewrite N_eq : rep_omega.
+Hint Rewrite N_eq : rep_lia.
 
 Lemma exercise4c:
  let Delta := @abbreviate _ Delta1 in 
@@ -128,12 +128,12 @@ simpl.
 (* That's still good; the data_at is more concise.  *)
 entailer!.
 rewrite Zlength_list_repeat.
-rep_omega.
-rep_omega.
+rep_lia.
+rep_lia.
 Qed.
 
 (* Summary: Make opaque constants using opaque_constant,
-  but Rewrite rule to the rep_omega database. *)
+  but Rewrite rule to the rep_lia database. *)
 
 
 

@@ -118,11 +118,11 @@ Proof.
         { apply data_array_at_local_facts in Hbuf as (_ & ? & _).
           rewrite Zlength_app, Zlength_map in *; auto. }
         destruct (zlt len 0).
-        { rewrite Z.max_l in Hlen by omega.
-          destruct msg; [|rewrite Zlength_cons in *; rep_omega].
+        { rewrite Z.max_l in Hlen by lia.
+          destruct msg; [|rewrite Zlength_cons in *; rep_lia].
           destruct Hbuf as [[? _]]; destruct buf; try contradiction.
-          rewrite Zlength_nil; apply Mem.loadbytes_empty; auto; omega. }
-        rewrite Z.max_r in Hlen by omega; subst.
+          rewrite Zlength_nil; apply Mem.loadbytes_empty; auto; lia. }
+        rewrite Z.max_r in Hlen by lia; subst.
         rewrite split2_data_at_Tarray_app with (mid := Zlength msg) in Hbuf.
         destruct Hbuf as (? & ? & ? & Hbuf & _).
         eapply data_at_bytes in Hbuf; eauto.
@@ -195,7 +195,7 @@ Proof.
         rewrite seplog.sepcon_emp.
         unshelve eexists (age_to.age_to _ (set_ghost phig _ _)), (age_to.age_to _ phir);
           try (split; [apply age_to.age_to_join_eq|]); try apply set_ghost_join; eauto.
-        { unfold set_ghost; rewrite level_make_rmap; omega. }
+        { unfold set_ghost; rewrite level_make_rmap; lia. }
         split.
         -- unfold ITREE; exists k; split; [apply eutt_sutt, Eq.Reflexive_eqit_eq|].
              eapply age_to.age_to_pred, change_has_ext; eauto.
@@ -226,16 +226,16 @@ Proof.
       destruct (join_level _ _ _ J).
       assert (Ptrofs.unsigned i + Zlength msg <= Ptrofs.max_unsigned) as Hbound.
       { destruct Hbuf as [(_ & _ & Hsize & _) _]; simpl in Hsize.
-        rewrite Z.max_r in Hsize; rep_omega. }
+        rewrite Z.max_r in Hsize; rep_lia. }
       apply data_at__VALspec_range in Hbuf; auto.
       split.
       * apply resource_at_join2.
         -- unfold set_ghost; rewrite level_make_rmap.
            rewrite age_to.level_age_to; auto.
            unfold inflate_store; rewrite level_make_rmap.
-           rewrite level_juice_level_phi; omega.
+           rewrite level_juice_level_phi; lia.
         -- rewrite age_to.level_age_to; auto.
-           rewrite level_juice_level_phi; omega.
+           rewrite level_juice_level_phi; lia.
         -- intros.
            unfold set_ghost; rewrite resource_at_make_rmap.
            eapply rebuild_store; eauto.
@@ -268,7 +268,7 @@ Proof.
            ++ reflexivity.
            ++ eapply inflate_store_join1; eauto.
                  clear - Htrace. apply has_ext_noat in Htrace. auto.
-           ++ unfold inflate_store; rewrite level_make_rmap; omega.
+           ++ unfold inflate_store; rewrite level_make_rmap; lia.
            ++ apply age_to.age_to_pred; simpl.
               unfold inflate_store; rewrite ghost_of_make_rmap.
               apply Hbuf.
@@ -279,7 +279,7 @@ Proof.
               eapply store_bytes_data_at; rewrite ?Zlength_map; auto.
               { rewrite Forall_map, Forall_forall; simpl; intros.
                 exists (Int.repr (Byte.unsigned x)); split; auto.
-                rewrite Int.unsigned_repr; rep_omega. }
+                rewrite Int.unsigned_repr; rep_lia. }
               { rewrite map_map; eauto. }
         -- eapply necR_trans; eauto; apply age_to.age_to_necR.
         -- rewrite H3; eexists; constructor; constructor.

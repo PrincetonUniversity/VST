@@ -117,7 +117,7 @@ Lemma var_block_lvar2:
 Proof.
 intros.
 assert (Int.unsigned Int.zero + sizeof t <= Ptrofs.modulus)
- by (rewrite Int.unsigned_zero; omega).
+ by (rewrite Int.unsigned_zero; lia).
 eapply semax_pre.
 instantiate (1 := EX v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
                       * fold_right sepcon emp Vs).
@@ -157,11 +157,11 @@ Proof.
 intros.
 hnf in H4.
 assert (Ptrofs.unsigned Ptrofs.zero + sizeof t <= Ptrofs.modulus)
- by (rewrite Ptrofs.unsigned_zero; omega).
+ by (rewrite Ptrofs.unsigned_zero; lia).
 unfold var_block.
 simpl @fst; simpl @snd.
 rewrite prop_true_andp
-  by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1); omega).
+  by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1); lia).
 unfold_lift.
 rewrite (lvar_eval_lvar _ _ _ _ H4).
 rewrite memory_block_data_at_; auto.
@@ -466,7 +466,7 @@ Ltac semax_func_cons L :=
  first [eapply semax_func_cons;
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
-           | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+           | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
            | reflexivity | LookupID | LookupB
            | try solve [apply L]; apply_semax_body L
            | ]
@@ -1895,15 +1895,15 @@ Ltac cleanup_repr H :=
 rewrite ?mul_repr, ?add_repr, ?sub_repr in H;
 match type of H with
  | _ (Int.signed (Int.repr ?A)) (Int.signed (Int.repr ?B)) =>
-    try (rewrite (Int.signed_repr A) in H by rep_omega);
-    try (rewrite (Int.signed_repr B) in H by rep_omega)
+    try (rewrite (Int.signed_repr A) in H by rep_lia);
+    try (rewrite (Int.signed_repr B) in H by rep_lia)
  | _ (Int.unsigned (Int.repr ?A)) (Int.unsigned (Int.repr ?B)) =>
-    try (rewrite (Int.unsigned_repr A) in H by rep_omega);
-    try (rewrite (Int.unsigned_repr B) in H by rep_omega)
+    try (rewrite (Int.unsigned_repr A) in H by rep_lia);
+    try (rewrite (Int.unsigned_repr B) in H by rep_lia)
  | context [Int.signed (Int.repr ?A) ] =>
-    try (rewrite (Int.signed_repr A) in H by rep_omega)
+    try (rewrite (Int.signed_repr A) in H by rep_lia)
  | context [Int.unsigned (Int.repr ?A) ] =>
-    try (rewrite (Int.unsigned_repr A) in H by rep_omega)
+    try (rewrite (Int.unsigned_repr A) in H by rep_lia)
 end.
 
 Lemma typed_true_ptr_e:
@@ -1945,7 +1945,7 @@ Proof.
 intros.
 apply prop_ext; split; intro.
 rewrite <- (Byte.repr_signed b). rewrite H; reflexivity.
-rewrite <- Byte.signed_repr by rep_omega.
+rewrite <- Byte.signed_repr by rep_lia.
 f_equal; auto.
 Qed.
 Hint Rewrite Byte_signed_lem: norm entailer_rewrite.
@@ -1968,7 +1968,7 @@ Lemma int_repr_byte_signed_eq0:
 Proof.
 intros.
 apply prop_ext; split; intro.
-apply repr_inj_signed in H; try rep_omega.
+apply repr_inj_signed in H; try rep_lia.
 rewrite <- (Byte.repr_signed c). rewrite H. reflexivity.
 subst; reflexivity.
 Qed.
@@ -1979,7 +1979,7 @@ Lemma int_repr_byte_signed_eq:
 Proof.
 intros.
 apply prop_ext; split; intro.
-apply repr_inj_signed in H; try rep_omega.
+apply repr_inj_signed in H; try rep_lia.
 rewrite <- (Byte.repr_signed c). 
 rewrite <- (Byte.repr_signed d). rewrite H. reflexivity.
 subst; reflexivity.
@@ -2058,10 +2058,10 @@ Ltac do_repr_inj H :=
           | Int.eq _ _ = false => apply int_eq_false_e in H
           | _ => idtac
   end;
-  first [ simple apply repr_inj_signed in H; [ | rep_omega | rep_omega ]
-         | simple apply repr_inj_unsigned in H; [ | rep_omega | rep_omega ]
-         | simple apply repr_inj_signed' in H; [ | rep_omega | rep_omega ]
-         | simple apply repr_inj_unsigned' in H; [ | rep_omega | rep_omega ]
+  first [ simple apply repr_inj_signed in H; [ | rep_lia | rep_lia ]
+         | simple apply repr_inj_unsigned in H; [ | rep_lia | rep_lia ]
+         | simple apply repr_inj_signed' in H; [ | rep_lia | rep_lia ]
+         | simple apply repr_inj_unsigned' in H; [ | rep_lia | rep_lia ]
          | match type of H with
             | typed_true _  (force_val (sem_cmp_pp Ceq _ _)) =>
                                     apply typed_true_nullptr3 in H
@@ -2073,12 +2073,12 @@ Ltac do_repr_inj H :=
                                     apply typed_false_nullptr4 in H
           end
          | apply typed_false_nullptr4 in H
-         | simple apply ltu_repr in H; [ | rep_omega | rep_omega]
-         | simple apply ltu_repr_false in H; [ | rep_omega | rep_omega]
+         | simple apply ltu_repr in H; [ | rep_lia | rep_lia]
+         | simple apply ltu_repr_false in H; [ | rep_lia | rep_lia]
          | simple apply ltu_inv in H; cleanup_repr H
          | simple apply ltu_false_inv in H; cleanup_repr H
-         | simple apply lt_repr in H; [ | rep_omega | rep_omega]
-         | simple apply lt_repr_false in H; [ | rep_omega | rep_omega]
+         | simple apply lt_repr in H; [ | rep_lia | rep_lia]
+         | simple apply lt_repr_false in H; [ | rep_lia | rep_lia]
          | simple apply lt_inv in H; cleanup_repr H
          | simple apply lt_false_inv in H; cleanup_repr H
          | idtac
@@ -2667,8 +2667,8 @@ match goal with
       [ rewrite if_true; [ unfold seq_of_labeled_statement at 1 | symmetry; apply E];
         apply unsigned_eq_eq in E;
         match sign with
-        | Signed => apply repr_inj_signed in E; [ | rep_omega | rep_omega]
-        | Unsigned => apply repr_inj_unsigned in E; [ | rep_omega | rep_omega]
+        | Signed => apply repr_inj_signed in E; [ | rep_lia | rep_lia]
+        | Unsigned => apply repr_inj_unsigned in E; [ | rep_lia | rep_lia]
         end;
         try match type of E with ?a = _ => is_var a; subst a end;
         repeat apply -> semax_skip_seq
@@ -2741,13 +2741,13 @@ match goal with
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
        repeat (apply semax_extract_PROP; intro);
-       try rewrite Int.signed_repr in HRE by rep_omega;
+       try rewrite Int.signed_repr in HRE by rep_lia;
        repeat apply -> semax_skip_seq;
        abbreviate_semax
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
        repeat (apply semax_extract_PROP; intro);
-       try rewrite Int.signed_repr in HRE by rep_omega;
+       try rewrite Int.signed_repr in HRE by rep_lia;
        repeat apply -> semax_skip_seq;
        abbreviate_semax
      ]
@@ -3075,7 +3075,7 @@ Proof.
   constructor; auto.
   2:   constructor; auto.
   clear - H1. destruct (typeof ei); inv H1.
-  unfold int_signed_or_unsigned. destruct i0,s; simpl; rep_omega. 
+  unfold int_signed_or_unsigned. destruct i0,s; simpl; rep_lia. 
   rewrite <- H2.
   destruct (typeof ei); inv H1.
   unfold int_signed_or_unsigned. destruct i0,s; simpl;
@@ -3217,7 +3217,7 @@ Proof.
   rewrite H.
   rewrite sem_add_pi_ptr; auto.
 Qed.
-Hint Rewrite @sem_add_pi' using (solve [try reflexivity; auto with norm ; rep_omega]) : norm.
+Hint Rewrite @sem_add_pi' using (solve [try reflexivity; auto with norm ; rep_lia]) : norm.
 
 (*
 Lemma offset_val_sem_add_pi: forall {CS: compspecs} ofs t0 si v i,
@@ -3236,7 +3236,7 @@ Proof.
   rewrite sem_add_pi_ptr; auto.
   apply I.
 Qed.
-Hint Rewrite @offset_val_sem_add_pi using (solve [auto with norm ; rep_omega]) : norm.
+Hint Rewrite @offset_val_sem_add_pi using (solve [auto with norm ; rep_lia]) : norm.
 *)
 
 Arguments field_type i m / .
@@ -4500,7 +4500,7 @@ Qed.
 Lemma Zgeb0_ge0: forall n, Z.geb n 0 = true -> n >= 0.
 Proof.
 intros.
-apply Z.geb_le in H. omega.
+apply Z.geb_le in H. lia.
 Qed.
 
 Lemma prove_alignof_two_p (i: Z) : 

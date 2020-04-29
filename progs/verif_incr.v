@@ -76,7 +76,7 @@ Lemma ctr_inv_exclusive : forall g1 g2 p,
 Proof.
   intros; unfold cptr_lock_inv.
   eapply derives_exclusive, exclusive_sepcon1 with (Q := EX x : Z, EX y : Z, _),
-    data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
+    data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try lia.
   Intro z; apply sepcon_derives; [cancel|].
   Intros x y; Exists x y; apply derives_refl.
 Qed.

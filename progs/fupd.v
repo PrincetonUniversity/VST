@@ -24,7 +24,7 @@ Proof.
   unfold timeless; intros.
   change (_ |-- _) with (predicates_hered.derives (|>P) (P || |>FF)); intros ? HP.
   destruct (level a) eqn: Ha.
-  - right; intros ? ?%laterR_level; omega.
+  - right; intros ? ?%laterR_level; lia.
   - left.
     destruct (levelS_age a n) as [b [Hb]]; auto.
     specialize (HP _ (semax_lemmas.age_laterR Hb)).
@@ -90,13 +90,13 @@ Proof.
     destruct (level a) eqn: Hl.
     + right.
       change ((|> FF)%pred a).
-      intros ??%laterR_level; omega.
+      intros ??%laterR_level; lia.
     + left.
       rewrite <- Hl in *.
       intros ? J; specialize (H _ J) as (? & ? & a' & ? & ? & ? & HP); subst.
       do 2 eexists; eauto; do 2 eexists; eauto; repeat split; auto.
       destruct HP as [|Hfalse]; auto.
-      destruct (levelS_age a' n) as (a'' & Hage & ?); [omega|].
+      destruct (levelS_age a' n) as (a'' & Hage & ?); [lia|].
       exfalso; apply (Hfalse a'').
       constructor; auto.
 Qed.
@@ -478,7 +478,7 @@ Proof.
   intros a0 (? & ? & J & HP & [? Hemp]).
   destruct (join_level _ _ _ J).
   apply join_comm, Hemp in J; subst.
-  eapply Himp in HP; try apply necR_refl; auto; omega.
+  eapply Himp in HP; try apply necR_refl; auto; lia.
 Qed.
 
 Lemma fupd_bupd : forall E1 E2 P Q, P |-- |==> (|={E1,E2}=> Q) -> P |-- |={E1,E2}=> Q.
@@ -606,7 +606,7 @@ Proof.
   cancel.
   rewrite <- !wand_sepcon_adjoint.
   apply inv_close_aux.
-  { intro; omega. }
+  { intro; lia. }
 Qed.
 
 (* these last two are probably redundant *)
@@ -620,7 +620,7 @@ Proof.
   eapply derives_trans; [apply inv_close_aux|].
   erewrite (ghost_set_remove _ _ E); eauto.
   apply bupd_mono, except0_mono; cancel.
-  { intro; omega. }
+  { intro; lia. }
 Qed.
 
 Lemma inv_access : forall E i P, In E i ->

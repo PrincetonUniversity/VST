@@ -56,14 +56,14 @@ intros.
 assert (forall j , (j <= n)%nat -> P j).
 induction n.
 intros.
-replace j with 0%nat ; try omega.
+replace j with 0%nat ; try lia.
 apply X; intros.
-elimtype False; omega.
+elimtype False; lia.
 intros.  apply X. intros.
 apply IHn.
-omega.
+lia.
 apply X0.
-omega.
+lia.
 Qed.
 
 Lemma nat_ind2:

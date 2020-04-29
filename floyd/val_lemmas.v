@@ -11,13 +11,13 @@ Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
 Proof. destruct v; simpl; try solve [right; intros N; trivial].
 destruct i.
 + destruct s.
-    * destruct (zle Byte.min_signed (Int.signed i0)); [| right; omega].
-      destruct (zle (Int.signed i0) Byte.max_signed). left; omega. right; omega.
-    * destruct (zle (Int.unsigned i0) Byte.max_unsigned). left; omega. right; omega.
+    * destruct (zle Byte.min_signed (Int.signed i0)); [| right; lia].
+      destruct (zle (Int.signed i0) Byte.max_signed). left; lia. right; lia.
+    * destruct (zle (Int.unsigned i0) Byte.max_unsigned). left; lia. right; lia.
 + destruct s.
-    * destruct (zle (-32768) (Int.signed i0)); [| right; omega].
-      destruct (zle (Int.signed i0) 32767). left; omega. right; omega.
-    * destruct (zle (Int.unsigned i0) 65535). left; omega. right; omega.
+    * destruct (zle (-32768) (Int.signed i0)); [| right; lia].
+      destruct (zle (Int.signed i0) 32767). left; lia. right; lia.
+    * destruct (zle (Int.unsigned i0) 65535). left; lia. right; lia.
 + left; trivial.
 + destruct (Int.eq_dec i0 Int.zero); subst. left; left; trivial.
     destruct (Int.eq_dec i0 Int.one); subst. left; right; trivial.
@@ -55,8 +55,8 @@ Proof.
   unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
   f_equal. f_equal. f_equal.
   destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
-  rewrite Int.signed_repr by omega; auto.
-  rewrite Int.unsigned_repr by omega; auto.
+  rewrite Int.signed_repr by lia; auto.
+  rewrite Int.unsigned_repr by lia; auto.
 Qed.
 Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
@@ -257,14 +257,14 @@ repeat rewrite Int.unsigned_repr_eq in e.
            end;
  match type of H0 with
            | context [if ?a then _ else _] => destruct a
-           end; omega.
+           end; lia.
 }
 unfold Zcmp.
 rewrite (Int.signed_repr _ H) in H1; rewrite (Int.signed_repr _ H0) in H1.
 repeat match type of H1 with
            | context [if ?a then _ else _] => destruct a
-           end; try omegaContradiction;
- destruct op; auto; simpl in *; try discriminate; omega.
+           end; try lia;
+ destruct op; auto; simpl in *; try discriminate; lia.
 Qed.
 
 Lemma typed_false_cmp_repr:
@@ -295,7 +295,7 @@ Qed.
 
 Ltac intcompare H :=
  (apply typed_false_cmp_repr in H || apply typed_true_cmp_repr in H);
-   [ simpl in H | auto; unfold repable_signed, Int.min_signed, Int.max_signed in *; omega .. ].
+   [ simpl in H | auto; unfold repable_signed, Int.min_signed, Int.max_signed in *; lia .. ].
 
 
 Lemma isptr_deref_noload:
@@ -529,7 +529,7 @@ Ltac fold_types1 :=
 
 Lemma is_int_Vbyte: forall c, is_int I8 Signed (Vbyte c).
 Proof.
-intros. simpl. normalize. rewrite Int.signed_repr by rep_omega. rep_omega.
+intros. simpl. normalize. rewrite Int.signed_repr by rep_lia. rep_lia.
 Qed.
 Hint Resolve is_int_Vbyte : core.
 

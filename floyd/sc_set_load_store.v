@@ -361,7 +361,7 @@ Proof.
     constructor; auto.
     clear - H; destruct (typeof ei); inv H; destruct i0,s; simpl;
     unfold int_signed_or_unsigned; simpl;
-    try apply Int.signed_range; rep_omega.
+    try apply Int.signed_range; rep_lia.
     constructor. rewrite <- H1. f_equal.
     unfold int_signed_or_unsigned.
     destruct (typeof ei); inv H. destruct i0, s; simpl;
@@ -402,10 +402,10 @@ Proof.
     constructor; auto.
 Qed.
 
-Ltac insist_rep_omega :=
- (auto; rep_omega) ||
+Ltac insist_rep_lia :=
+ (auto; rep_lia) ||
  match goal with |- ?A =>
-  fail 1000 "load or store subscript failure: rep_omega cannot prove "A
+  fail 1000 "load or store subscript failure: rep_lia cannot prove "A
  end.
 
 Ltac solve_msubst_efield_denote :=
@@ -446,8 +446,8 @@ Ltac solve_msubst_efield_denote :=
             let y := fresh "y" in set (y:=j);
             unfold int_signed_or_unsigned; simpl;
             subst x;
-            rewrite ?(Int.signed_repr i) by insist_rep_omega;
-            rewrite ?(Int.unsigned_repr i) by insist_rep_omega;
+            rewrite ?(Int.signed_repr i) by insist_rep_lia;
+            rewrite ?(Int.unsigned_repr i) by insist_rep_lia;
             subst y
         | |- int_signed_or_unsigned ?t _ = _ =>
               try change (int_signed_or_unsigned t) with Int.signed;
@@ -521,9 +521,9 @@ end.
 Ltac cleanup_int_signed_or_unsigned :=
  match goal with |- context [int_signed_or_unsigned ?t (Int.repr ?i)] =>
   (change (int_signed_or_unsigned t) with Int.signed;
-   rewrite ?(Int.signed_repr i) by insist_rep_omega)
+   rewrite ?(Int.signed_repr i) by insist_rep_lia)
  ||   (change (int_signed_or_unsigned t) with Int.unsigned;
-   rewrite ?(Int.unsigned_repr i) by insist_rep_omega)
+   rewrite ?(Int.unsigned_repr i) by insist_rep_lia)
 end.
 *)
 Ltac solve_field_address_gen :=
@@ -1533,7 +1533,7 @@ simpl.
 destruct sz1,sz2; try contradiction;
 destruct sg; simpl;
 rewrite ?Int.sign_ext_widen,
-           ?Int.zero_ext_widen by omega; auto;
+           ?Int.zero_ext_widen by lia; auto;
 destruct (Int.eq i Int.zero); auto.
 Qed.
 

@@ -203,10 +203,10 @@ Proof.
     Exists (vals ++ [(p1, i0)]); rewrite Zlength_app, Zlength_cons, Zlength_nil; entailer!.
     rewrite !map_app; simpl; cancel.
     replace (Z.to_nat (3 - Zlength vals)) with (S (Z.to_nat (3 - (Zlength vals + 1)))).
-    simpl; rewrite upd_Znth_app2; [|rewrite !Zlength_map, !Zlength_correct; abstract omega].
+    simpl; rewrite upd_Znth_app2; [|rewrite !Zlength_map, !Zlength_correct; abstract lia].
     rewrite Zlength_map, Zminus_diag, upd_Znth0, sublist_1_cons, sublist_same, <- app_assoc; auto.
-    - rewrite Zlength_cons; abstract omega.
-    - rewrite <- Z2Nat.inj_succ; [f_equal|]; abstract omega. }
+    - rewrite Zlength_cons; abstract lia.
+    - rewrite <- Z2Nat.inj_succ; [f_equal|]; abstract lia. }
   Intros vals.
   rewrite <- lock_struct_array.
   forward.
@@ -217,8 +217,8 @@ Proof.
   { lock_props.
     { apply selflock_rec. }
     unfold f_lock_pred; rewrite selflock_eq at 2.
-    do 3 (destruct vals; [rewrite Zlength_nil in *; omega | rewrite Zlength_cons in *]).
-    destruct vals; [|rewrite Zlength_cons, Zlength_correct in *; omega].
+    do 3 (destruct vals; [rewrite Zlength_nil in *; lia | rewrite Zlength_cons in *]).
+    destruct vals; [|rewrite Zlength_cons, Zlength_correct in *; lia].
     destruct p2 as (p3, i3), p1 as (p2, i2), p0 as (p1, i1).
     rewrite lock_struct_array.
     Exists p1 p2 p3 i1 i2 i3; subst Frame; instantiate (1 := []); simpl; cancel.
@@ -293,14 +293,14 @@ Proof.
   forward.
   get_global_function'' _f; Intros.
   apply extract_exists_pre; intros f_.
-  specialize (Hgshs1 (2 - i)); exploit Hgshs1; [abstract omega|].
+  specialize (Hgshs1 (2 - i)); exploit Hgshs1; [abstract lia|].
   destruct (Znth (2 - i) gshs1 (Ews, Ews)) eqn: Hg1.
-  replace (2 - i + 1) with (3 - i) by abstract omega.
+  replace (2 - i + 1) with (3 - i) by abstract lia.
   intros (? & ? & Hglsh); rewrite <- (data_at_share_join _ _ _ _ _ _ Hglsh),
     <- (field_at_share_join _ _ _ _ _ _ _ Hglsh); auto.
-  specialize (Hlshs1 (2 - i)); exploit Hlshs1; [omega|].
+  specialize (Hlshs1 (2 - i)); exploit Hlshs1; [lia|].
   destruct (Znth (2 - i) lshs1 (Tsh, Tsh)) eqn: Hl1.
-  replace (2 - i + 1) with (3 - i) by abstract omega.
+  replace (2 - i + 1) with (3 - i) by abstract lia.
   intros (? & ? & Hllsh); replace_SEP 3 (lqueue s tint (tc_val tint) q lock sh1 sh2 [] *
     lqueue s0 tint (tc_val tint) q lock sh1 sh2 []).
   { go_lowerx.
@@ -324,7 +324,7 @@ Proof.
     entailer!.
     { rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto.
       rewrite Hg1, Hl1; repeat split; auto.
-      apply Forall_Znth; auto; omega. }
+      apply Forall_Znth; auto; lia. }
     Exists _arg (fun x : (share * share * share * share * share * val * val * val * Z * val * val * val) =>
       let '(lsh, gsh, tsh, gsh1, gsh2, p', p, lock, t, locksp, lockt, resultsp) := x in
       [(_q0, p'); (_thread_locks, locksp); (_results, resultsp)]).
@@ -333,12 +333,12 @@ Proof.
       f_equal; f_equal; extensionality; destruct x as (?, x); repeat destruct x as (x, ?); simpl.
       rewrite !sepcon_emp; reflexivity. }
     erewrite sublist_split with (lo := i), <- Znth_cons_sublist;
-      try rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; try omega.
+      try rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; try lia.
     instantiate (1 := (3, Vundef)).
     rewrite <- Znth_map', combine_snd; auto.
     rewrite <- (lock_inv_share_join sh1 sh2 Tsh); auto.
     unfold tarray at 1; erewrite data_at__eq, split2_data_at_Tarray with (n1 := 1); try apply eq_JMeq;
-      try reflexivity; [| omega | rewrite sublist_same; auto].
+      try reflexivity; [| lia | rewrite sublist_same; auto].
     rewrite Hg1, Hl1; simpl.
     cancel.
     rewrite (sepcon_comm _ (data_at t1 _ _ _)); rewrite !sepcon_assoc; apply sepcon_derives.
@@ -361,19 +361,19 @@ Proof.
     rewrite <- !sepcon_assoc, (sepcon_comm _ (lock_inv sh2 _ _)), !sepcon_assoc; apply sepcon_derives.
     { apply derives_refl'; unfold f_lock; simpl; f_equal.
       rewrite <- Znth_map' with (f := fst), combine_fst; [|assumption].
-      simpl; rewrite Znth_upto with (m := 3%nat); [|simpl; omega].
+      simpl; rewrite Znth_upto with (m := 3%nat); [|simpl; lia].
       rewrite Hl1, Hg1; simpl.
       rewrite <- Znth_map', combine_snd; [reflexivity | assumption]. }
     cancel.
     { unfold default_val; simpl.
-      rewrite Zlength_list_repeat; auto; abstract omega. } }
+      rewrite Zlength_list_repeat; auto; abstract lia. } }
   entailer!.
-  replace (3 - (i + 1)) with (2 - i) by abstract omega; rewrite Hg1, Hl1; simpl; cancel.
+  replace (3 - (i + 1)) with (2 - i) by abstract lia; rewrite Hg1, Hl1; simpl; cancel.
   erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1, map_app, sepcon_app;
-    try rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; try omega.
+    try rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; try lia.
   instantiate (1 := (3, Vundef)).
   rewrite <- Znth_map' with (f := snd), combine_snd; simpl; [cancel | auto].
-  replace (3 - i - 1) with (2 - i) by (clear; omega).
+  replace (3 - i - 1) with (2 - i) by (clear; lia).
   unfold field_address0.
   destruct (field_compatible0_dec _ _ _).
   simpl; rewrite offset_offset_val.
@@ -486,22 +486,22 @@ Proof.
   simpl initialized_list; unfold func_tycontext, make_tycontext.
   forward.
   { entailer!.
-    apply Forall_Znth; [omega|].
+    apply Forall_Znth; [lia|].
     eapply Forall_impl; [|apply Hflocks]; auto. }
   forward_call (Znth i flocks Vundef, sh1, f_lock (i, Znth i flocks Vundef)).
   { assert (Zlength (map (fun x => lock_inv sh1 (snd x) (f_lock x)) (combine (upto 3) flocks)) = 3).
-    { rewrite Zlength_map, Zlength_combine, Zlength_upto, Z.min_l; simpl; omega. }
+    { rewrite Zlength_map, Zlength_combine, Zlength_upto, Z.min_l; simpl; lia. }
     assert (length (upto 3) = length flocks) by (rewrite upto_length; rewrite Zlength_correct in *; Omega0).
-    erewrite sublist_split with (lo := i), <- Znth_cons_sublist; try omega.
+    erewrite sublist_split with (lo := i), <- Znth_cons_sublist; try lia.
     rewrite Znth_map', <- Znth_map', combine_snd; auto.
     instantiate (1 := (3, Vundef)); simpl.
-    rewrite Znth_combine, Znth_upto; simpl; auto; [cancel | omega]. }
+    rewrite Znth_combine, Znth_upto; simpl; auto; [cancel | lia]. }
   forward_call (Znth i flocks Vundef, Tsh, sh2, |>f_lock_inv (snd (Znth (2 - i) lshs1 (Tsh, Tsh)))
     (snd (Znth (2 - i) gshs1 (Ews, Ews))) sh1 sh2 q0 q lock i locks (Znth i flocks Vundef) results,
     |>f_lock (i, Znth i flocks Vundef)).
   { simpl; lock_props.
     - apply later_positive; unfold f_lock; apply f_inv_positive.
-      exploit (Hgshs1 (2 - i)); [omega|].
+      exploit (Hgshs1 (2 - i)); [lia|].
       simpl; destruct (Znth (2 - i) gshs1 (Ews, Ews)); intros (? & ? & ?); auto.
     - unfold rec_inv, f_lock, f_lock_pred.
       rewrite selflock_eq at 1.
@@ -513,7 +513,7 @@ Proof.
       unfold f_lock at 2; unfold f_lock_pred; simpl snd; cancel. }
   forward_call (Znth i flocks Vundef, sizeof tlock).
   { rewrite data_at__memory_block.
-    erewrite sublist_split with (lo := i), <- Znth_cons_sublist; try rewrite Zlength_map; try omega.
+    erewrite sublist_split with (lo := i), <- Znth_cons_sublist; try rewrite Zlength_map; try lia.
     rewrite Znth_map'.
     instantiate (1 := Vundef); simpl; Intros; cancel. }
   Intros p1 p2 p3 i1 i2 i3.
@@ -521,31 +521,31 @@ Proof.
   entailer!.
   { rewrite Forall_app; split; auto. }
   erewrite sublist_split with (mid := Zlength vals)(hi := Zlength vals + 1), sublist_len_1;
-    rewrite ?Zlength_map, ?Zlength_rev; try omega.
-  rewrite 2Znth_map', Znth_rev; [|omega].
+    rewrite ?Zlength_map, ?Zlength_rev; try lia.
+  rewrite 2Znth_map', Znth_rev; [|lia].
   rewrite Hglen1, sepcon_app; instantiate (1 := (Ews, Ews)).
   erewrite sublist_split with (mid := Zlength vals)(hi := Zlength vals + 1), sublist_len_1;
-    rewrite ?Zlength_map, ?Zlength_rev; try omega.
-  rewrite 2Znth_map', Znth_rev; [|omega].
+    rewrite ?Zlength_map, ?Zlength_rev; try lia.
+  rewrite 2Znth_map', Znth_rev; [|lia].
   rewrite Hglen1, sepcon_app; instantiate (1 := (Ews, Ews)).
   erewrite sublist_split with (mid := Zlength vals)(hi := Zlength vals + 1), sublist_len_1;
-    rewrite ?Zlength_map, ?Zlength_rev; try omega.
-  rewrite Znth_map', Znth_rev; [|omega].
+    rewrite ?Zlength_map, ?Zlength_rev; try lia.
+  rewrite Znth_map', Znth_rev; [|lia].
   rewrite Hlenl1, combine_app, map_app, sepcon_app.
   instantiate (1 := (Tsh, Tsh)).
-  rewrite Z2Nat.inj_add, upto_app; try omega.
+  rewrite Z2Nat.inj_add, upto_app; try lia.
   change (upto (Z.to_nat 1)) with [0]; simpl.
-  rewrite Z2Nat.id, map_app, sepcon_app, Z.add_0_r; [|omega].
-  simpl; replace (3 - Zlength vals - 1) with (2 - Zlength vals) by (clear; abstract omega).
-  rewrite app_Znth2, Zminus_diag; [simpl | clear; omega].
+  rewrite Z2Nat.id, map_app, sepcon_app, Z.add_0_r; [|lia].
+  simpl; replace (3 - Zlength vals - 1) with (2 - Zlength vals) by (clear; abstract lia).
+  rewrite app_Znth2, Zminus_diag; [simpl | clear; lia].
   rewrite <- lock_struct_array; cancel.
   apply sepcon_derives; [apply derives_refl|].
   apply derives_refl'; f_equal.
   rewrite Zlength_correct, Nat2Z.id; apply map_ext_in; intros.
   rewrite app_Znth1; auto.
-  rewrite In_upto in H; rewrite Zlength_correct; clear - H; omega.
+  rewrite In_upto in H; rewrite Zlength_correct; clear - H; lia.
   { apply Nat2Z.inj; rewrite <- !Zlength_correct.
-    rewrite Zlength_sublist; try rewrite Zlength_map, Zlength_rev; abstract omega. }
+    rewrite Zlength_sublist; try rewrite Zlength_map, Zlength_rev; abstract lia. }
 Qed.
 
 Transparent upto.
@@ -591,11 +591,11 @@ Proof.
     { rewrite Forall_app; split; auto. }
     replace (Z.to_nat (3 - Zlength flocks)) with (S (Z.to_nat (3 - (Zlength flocks + 1)))); simpl.
     rewrite upd_Znth_app2, Zminus_diag, upd_Znth0, sublist_1_cons, sublist_same; auto; try rewrite Zlength_cons;
-      try solve [rewrite !Zlength_correct; omega].
-    rewrite Z2Nat.inj_add, upto_app, combine_app, !map_app, !sepcon_app; simpl; try omega.
-    rewrite Zlength_correct, !Z2Nat.id, Nat2Z.id, Z.add_0_r, <- app_assoc; [cancel | omega].
+      try solve [rewrite !Zlength_correct; lia].
+    rewrite Z2Nat.inj_add, upto_app, combine_app, !map_app, !sepcon_app; simpl; try lia.
+    rewrite Zlength_correct, !Z2Nat.id, Nat2Z.id, Z.add_0_r, <- app_assoc; [cancel | lia].
     { rewrite upto_length, Zlength_correct, Nat2Z.id; auto. }
-    { rewrite <- Z2Nat.inj_succ; f_equal; omega. }
+    { rewrite <- Z2Nat.inj_succ; f_equal; lia. }
     { exists 2; auto. } }
   Intros flocks.
   rewrite Zminus_diag, app_nil_r, <- seq_assoc.
@@ -611,12 +611,12 @@ Proof.
          fold_right sepcon emp (map (fun x => lock_inv sh1 (snd x) (f_lock x)) (sublist 0 i (combine (upto 3) flocks)));
          fold_right sepcon emp (map (fun x => lock_inv Tsh (snd x) (f_lock x)) (sublist i 3 (combine (upto 3) flocks)));
          fold_right sepcon emp (map (fun x => malloc_token Tsh (sizeof tlock) x) flocks))).
-  { rewrite sublist_nil, sublist_same; auto; [|rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; omega].
+  { rewrite sublist_nil, sublist_same; auto; [|rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; lia].
     entailer!.
-    rewrite !Znth_overflow; try omega; simpl; cancel. }
+    rewrite !Znth_overflow; try lia; simpl; cancel. }
   { apply main_loop1; auto. }
   rewrite Zminus_diag.
-  rewrite sublist_nil, sublist_same; auto; [|rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; omega].
+  rewrite sublist_nil, sublist_same; auto; [|rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; lia].
   set (lsh' := fst (Znth 0 lshs1 (Tsh, Tsh))).
   set (gsh' := fst (Znth 0 gshs1 (Ews, Ews))).
   assert (readable_share gsh').
@@ -654,8 +654,8 @@ Proof.
     { exploit (Hlshs1 0); [computable|].
       subst lsh'; destruct (Znth 0 lshs1 (Tsh, Tsh)) eqn: Hg1; intros (? & ?); auto. }
     Exists (ptrs ++ [d]); rewrite Zlength_app, Zlength_cons, Zlength_nil; entailer!.
-    rewrite Z2Nat.inj_add, upto_app, combine_app, map_app; try omega; simpl.
-    rewrite Z2Nat.id, Z.add_0_r, Zlength_correct, Nat2Z.id; [cancel | omega].
+    rewrite Z2Nat.inj_add, upto_app, combine_app, map_app; try lia; simpl.
+    rewrite Z2Nat.id, Z.add_0_r, Zlength_correct, Nat2Z.id; [cancel | lia].
     simple apply derives_refl.
     { rewrite upto_length, Zlength_correct, Nat2Z.id; auto. }
     { exists 2; auto. } }
@@ -680,7 +680,7 @@ Proof.
           fold_right sepcon emp (map (fun x => field_at Ews (tarray (tarray tint 3) 3) [ArraySubsc x]
             (map Vint (map snd (Znth x vals []))) results) (upto (Z.to_nat i)))))).
   { rewrite !sublist_nil; rewrite !sublist_same; auto;
-      try rewrite Zlength_map; try rewrite Zlength_combine, Zlength_upto, Z.min_l; auto; [|simpl; omega].
+      try rewrite Zlength_map; try rewrite Zlength_combine, Zlength_upto, Z.min_l; auto; [|simpl; lia].
     Exists ([] : list (list (val * int))); entailer!. }
   { simple apply main_loop2 with (q2 := q)(locks0 := locks)(q1 := q0)(gshs2 := gshs1)
       (lshs2 := lshs1)(sh3 := sh1)(sh4 := sh2)(lock0 := lock); auto. }
@@ -698,7 +698,7 @@ Proof.
     lqueue Tsh tint (is_int I32 Signed) q lock sh1 sh2 h').
   { assert (length lshs1 = length (map (fun vals => map (fun x => let '(p, i) := x in
       QRem p (Vint i)) vals) (rev vals))).
-    { rewrite !map_length, rev_length; rewrite Zlength_correct in *; abstract omega. }
+    { rewrite !map_length, rev_length; rewrite Zlength_correct in *; abstract lia. }
     go_lowerx; eapply derives_trans; [|apply lqueue_shares_join; [eauto | rewrite Hlenl1; eauto]].
     subst lsh'; cancel.
     rewrite combine_map_snd, map_map.
@@ -708,16 +708,16 @@ Proof.
     { rewrite rev_length, map_length, rev_length in *; auto. } }
   Intros h'.
   repeat (destruct ptrs; [rewrite Zlength_nil in *; discriminate | rewrite Zlength_cons in *]).
-  destruct ptrs; [|rewrite Zlength_cons, Zlength_correct in *; omega].
+  destruct ptrs; [|rewrite Zlength_cons, Zlength_correct in *; lia].
   repeat (destruct vals; [rewrite Zlength_nil in *; discriminate | rewrite Zlength_cons in *]).
-  destruct vals; [|rewrite Zlength_cons, Zlength_correct in *; omega].
+  destruct vals; [|rewrite Zlength_cons, Zlength_correct in *; lia].
   repeat match goal with H : Forall _ (_ :: _) |- _ => inv H end.
   repeat (destruct l as [|(?, ?)]; [rewrite Zlength_nil in *; discriminate | rewrite Zlength_cons in *]).
-  destruct l; [|rewrite Zlength_cons, Zlength_correct in *; omega].
+  destruct l; [|rewrite Zlength_cons, Zlength_correct in *; lia].
   repeat (destruct l0 as [|(?, ?)]; [rewrite Zlength_nil in *; discriminate | rewrite Zlength_cons in *]).
-  destruct l0; [|rewrite Zlength_cons, Zlength_correct in *; omega].
+  destruct l0; [|rewrite Zlength_cons, Zlength_correct in *; lia].
   repeat (destruct l1 as [|(?, ?)]; [rewrite Zlength_nil in *; discriminate | rewrite Zlength_cons in *]).
-  destruct l1; [|rewrite Zlength_cons, Zlength_correct in *; omega].
+  destruct l1; [|rewrite Zlength_cons, Zlength_correct in *; lia].
   simpl in *.
   rewrite lqueue_feasible; Intros.
   assert (consistent h' [] [] /\ interleave [[Vint i; Vint i0; Vint i1]; [Vint i2; Vint i3; Vint i4];
@@ -745,7 +745,7 @@ Proof.
     pose proof (Zlength_interleave _ _ Hrems) as Hlen.
     rewrite Zlength_map in Hlen; simpl in Hlen.
     assert (Zlength (x ++ b) = 9) by (rewrite <- H; Omega0).
-    destruct b; [|rewrite Zlength_app, Zlength_cons in *; rewrite !Zlength_correct in *; omega].
+    destruct b; [|rewrite Zlength_app, Zlength_cons in *; rewrite !Zlength_correct in *; lia].
     split; auto.
     rewrite app_nil_r in *; subst; simpl in *.
     eapply interleave_combine.

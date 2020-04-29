@@ -118,7 +118,7 @@ Section ext_trace.
       eapply extcalls_correct in H1 as (z' & ? & ? & ?); eauto.
       split; auto.
       edestruct H2 as (? & ? & Hsafe); eauto.
-      eapply IHn in Hsafe as [traces ?]; [|omega].
+      eapply IHn in Hsafe as [traces ?]; [|lia].
       subst; do 4 eexists; eauto; split; eauto; split; eauto.
       intros; unfold In; eauto 25.
     - eexists; econstructor; eauto.
@@ -158,7 +158,7 @@ Section ext_trace.
       exists z; apply consume_trace_nil.
     - eauto.
     - destruct (H3 _ H0) as (s & s' & ret & m' & t1 & n' & ? & ? & ? & ? & ? & ? & ? & traces' & z' & c' & ? & ? & ? & ? & ? & ?).
-      edestruct (IHn n') as [z'' ?]; eauto; [omega|].
+      edestruct (IHn n') as [z'' ?]; eauto; [lia|].
       subst; eexists; eapply consume_trace_app; eauto.
     - inversion H0.
       exists z; apply consume_trace_nil.

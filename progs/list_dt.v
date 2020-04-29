@@ -671,7 +671,7 @@ Proof.
 intros.
 rewrite <- list_cell_link_join.
 unfold spacer. rewrite if_true. rewrite sepcon_emp. auto.
-omega.
+lia.
 Qed.
 
 End LIST1.

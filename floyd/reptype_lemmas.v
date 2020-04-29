@@ -837,7 +837,7 @@ Lemma nth_force_lengthn: forall {A} n i (xs : list A) (default: A),
 Proof.
   intros.
   revert i H xs; induction n; intros.
-  + omega.
+  + lia.
   + simpl.
     destruct xs.
     - simpl.
@@ -846,7 +846,7 @@ Proof.
     - simpl.
       destruct i; [reflexivity |].
       apply IHn.
-      omega.
+      lia.
 Qed.
 
 Lemma force_lengthn_id: forall {A} n ct (d: A), length ct = n -> force_lengthn n ct d = ct.
@@ -887,10 +887,10 @@ Proof.
 intros.
  unfold replist.
  forget (default_val t) as d.
- replace (hi + lo' - (lo + lo')) with (hi-lo) by omega.
+ replace (hi + lo' - (lo + lo')) with (hi-lo) by lia.
  remember (Z.to_nat (hi-lo)) as n.
  assert (hi = lo + Z.of_nat n).
-  subst n. rewrite Z2Nat.id by omega. omega.
+  subst n. rewrite Z2Nat.id by lia. lia.
  subst hi.
  clear Heqn. destruct H as [? _].
  rewrite Z.add_assoc in H1.
@@ -902,42 +902,33 @@ intros.
   remember (Z.to_nat (hi'-lo')) as k.
   rewrite inj_S in H1.
   replace hi' with (lo' + Z.of_nat k) in H1
-    by (subst k; rewrite Z2Nat.id by omega; omega).
+    by (subst k; rewrite Z2Nat.id by lia; lia).
   clear hi' Heqk.
-  assert (lo < Z.of_nat k) by omega. clear H1.
-  revert lo lo' H H0 H2; induction k; intros. simpl in H2; omega.
+  assert (lo < Z.of_nat k) by lia. clear H1.
+  revert lo lo' H H0 H2; induction k; intros. simpl in H2; lia.
   unfold replist'; fold @replist'.
   rewrite inj_S in H2.
   simpl.
-  assert (lo=0 \/ 0<lo) by omega.
+  assert (lo=0 \/ 0<lo) by lia.
   destruct H1. subst lo.
-  unfold Znth at 1. rewrite if_false by omega. simpl. auto.
+  unfold Znth at 1. rewrite if_false by lia. simpl. auto.
   clear H.
-  unfold Znth at 1. rewrite if_false by omega.
+  unfold Znth at 1. rewrite if_false by lia.
   destruct (Z.to_nat lo) eqn:?.
-  apply Z2Nat.inj_lt in H1; try omega.
+  apply Z2Nat.inj_lt in H1; try lia.
   simpl nth.
   specialize (IHk (Z.of_nat n0) (Z.succ lo')).
   replace (lo+lo') with (Z.of_nat n0 + Z.succ lo').
 2:{
   unfold Z.succ.
-  transitivity (Z.of_nat n0 + 1 + lo'); [ omega |].
-  f_equal. apply Z2Nat.inj; try omega.
-  rewrite Z2Nat.inj_add; try omega. rewrite Nat2Z.id.
- rewrite Heqn0. change (Z.to_nat 1) with 1%nat.  omega.
+  transitivity (Z.of_nat n0 + 1 + lo'); [ lia |].
+  f_equal. lia.
 }
-  etransitivity; [ | apply IHk]; try omega.
-2:{
-  assert (lo = Z.of_nat (S n0)).  apply Z2Nat.inj; try omega.
-  rewrite Nat2Z.id. auto.
-   subst lo. clear - H2. rewrite inj_S in H2. omega.
-}
-  unfold Znth. rewrite if_false by omega. rewrite Nat2Z.id. auto.
+  etransitivity; [ | apply IHk]; try lia.
+  unfold Znth. rewrite if_false by lia. rewrite Nat2Z.id. auto.
 +
-  specialize (IHn (Z.succ lo) lo'). rewrite IHn; try omega.
-   f_equal; omega.
-   rewrite inj_S in H1.
-  omega.
+  specialize (IHn (Z.succ lo) lo'). rewrite IHn; try lia.
+   f_equal; lia.
 Qed.
 
 Lemma replist'_succ:
@@ -949,11 +940,11 @@ revert lo al H; induction n; simpl; intros.
 auto.
 f_equal.
 unfold Znth.
- do 2 rewrite if_false by omega.
+ do 2 rewrite if_false by lia.
  replace (Z.to_nat (Z.succ lo)) with (S (Z.to_nat lo)).
- reflexivity. unfold Z.succ. rewrite Z2Nat.inj_add by omega.
- change (Z.to_nat 1) with 1%nat; omega.
- apply IHn. omega.
+ reflexivity. unfold Z.succ. rewrite Z2Nat.inj_add by lia.
+ change (Z.to_nat 1) with 1%nat; lia.
+ apply IHn. lia.
 Qed.
 
 Lemma replist_firstn_skipn {cs: compspecs}:
@@ -963,25 +954,25 @@ Lemma replist_firstn_skipn {cs: compspecs}:
 Proof.
 intros.
  unfold replist.
- rewrite <- Nat2Z.inj_sub by omega.
+ rewrite <- Nat2Z.inj_sub by lia.
  rewrite Nat2Z.id.
- assert (hi-lo <= length al - lo)%nat by omega.
+ assert (hi-lo <= length al - lo)%nat by lia.
  clear H.
  forget (hi-lo)%nat as n. clear hi.
  revert n al H0; induction lo; intros.
  simpl.
- assert (n <= length al)%nat by omega; clear H0.
+ assert (n <= length al)%nat by lia; clear H0.
  revert al H; induction n; simpl; intros; auto.
- destruct al; simpl in H. omega.
+ destruct al; simpl in H. lia.
  f_equal.
- rewrite <- (IHn al) by omega. clear IHn.
- rewrite <- (replist'_succ 0 n r al) by omega.
+ rewrite <- (IHn al) by lia. clear IHn.
+ rewrite <- (replist'_succ 0 n r al) by lia.
  reflexivity.
  rewrite inj_S.
-  destruct al. simpl length in H0. assert (n=0)%nat by omega.
+  destruct al. simpl length in H0. assert (n=0)%nat by lia.
   subst;   simpl. auto.
   simpl length in H0. simpl in H0. simpl. rewrite <- (IHlo _ _ H0).
-  apply replist'_succ. omega.
+  apply replist'_succ. lia.
 Qed.
 
 Lemma skipn_0:
@@ -1000,7 +991,7 @@ intros.
 subst.
 change 0 with (Z.of_nat 0).
 rewrite Zlength_correct.
-rewrite replist_firstn_skipn by omega.
+rewrite replist_firstn_skipn by lia.
 rewrite skipn_0 by auto.
 rewrite NPeano.Nat.sub_0_r.
 apply firstn_exact_length.
@@ -1012,7 +1003,7 @@ Lemma replist_Zlength {cs: compspecs}:
    Zlength (replist t lo hi al) = hi-lo.
 Proof.
 intros.
-rewrite <- (Z2Nat.id (hi-lo)) by omega.
+rewrite <- (Z2Nat.id (hi-lo)) by lia.
 unfold replist.
 clear H.
 forget (Z.to_nat (hi-lo)) as n. clear hi.

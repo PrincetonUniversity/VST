@@ -65,10 +65,10 @@ Proof.
   destruct (zlt 0 (z-a)).
   rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-b)).
-  omega.
-  omega.
+  lia.
+  lia.
   rewrite Coqlib.Zmax_spec.
-  destruct (zlt 0 (z-b)); omega.
+  destruct (zlt 0 (z-b)); lia.
 Qed.
 
 Section SemaxContext.
@@ -159,7 +159,7 @@ Proof.
     extensionality i a0 a1 a2.
     match goal with |-context[compcert_rmaps.R.approx ?a (approx ?b ?c)] =>
       change (compcert_rmaps.R.approx a (approx b c)) with ((approx a oo approx b) c) end.
-    rewrite fmap_app, approx_oo_approx', approx'_oo_approx by omega; auto.
+    rewrite fmap_app, approx_oo_approx', approx'_oo_approx by lia; auto.
   - specialize (H2 b b0).
     destruct b0; simpl in *.
     apply (H2 _ (rt_refl _ _ _)).
@@ -185,7 +185,7 @@ Proof.
     extensionality i a0 a1 a2.
     match goal with |-context[compcert_rmaps.R.approx ?a (approx ?b ?c)] =>
       change (compcert_rmaps.R.approx a (approx b c)) with ((approx a oo approx b) c) end.
-    rewrite fmap_app, approx_oo_approx', approx'_oo_approx by omega; auto.
+    rewrite fmap_app, approx_oo_approx', approx'_oo_approx by lia; auto.
   - specialize (H2 b b0 b1). clear H1.
     destruct b0; simpl in *.
     apply (H2 _  (rt_refl _ _ _)).
@@ -229,7 +229,7 @@ Proof.
  apply age_level in H.
  change (level (m_phi jm)) with (level jm).
  change (level (m_phi jm')) with (level jm').
- omega.
+ lia.
  intro l. split. apply juicy_mem_alloc_cohere. left.
  symmetry; apply age1_resource_at with (m_phi jm); eauto.
   destruct (age1_juicy_mem_unpack _ _ H); auto.
@@ -247,7 +247,7 @@ intros.
   rename H into Hstep.
   remember (level m) as N.
   destruct N; [constructor|].
-  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; omegaContradiction].
+  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
   eapply jsafeN_step with
    (* (c' := State f Sskip (Kseq Scontinue (Kloop1 Sskip Sskip k)) ve te)*)
     (m'0 := m').
@@ -260,7 +260,7 @@ intros.
   unfold level at 1; simpl.
   repeat intro; auto.
   assert (N = level m')%nat.
-  apply age_level in H; omega.
+  apply age_level in H; lia.
   apply jm_bupd_intro.
   subst. apply H0. auto.
 Qed.
@@ -671,7 +671,7 @@ intros.
 case_eq (age1 w). auto.
 clear H.
 intro; apply bupd_intro; repeat intro.
-apply age1_level0 in H. omega. 
+apply age1_level0 in H. lia. 
 Qed.
 
 Lemma pred_sub_later' {A} `{H: ageable A}:
@@ -746,7 +746,7 @@ Proof.
 intros.
 pose proof (app_cont_length prefix ctl).
 rewrite <- H in H0.
-assert (length_cont prefix = O) by omega.
+assert (length_cont prefix = O) by lia.
 clear - H1. 
 destruct prefix; inv H1; auto.
 Qed.
@@ -854,10 +854,10 @@ Lemma safe_loop_skip:
 Proof.
   intros.
   pose (M := level m).
-  assert (Hge: (M >= level m)%nat) by omega.
+  assert (Hge: (M >= level m)%nat) by lia.
   clearbody M.
   revert m Hge; induction M; intros.
-  assert (level m = O) by omega. rewrite H.
+  assert (level m = O) by lia. rewrite H.
   constructor.
   eapply jsafeN_local_step. constructor.
   intros.
@@ -866,7 +866,7 @@ Proof.
   eapply jsafeN_local_step. constructor.
   intros.
   apply IHM.
-  apply age_level in H. apply age_level in H0. apply age_level in H1. omega.
+  apply age_level in H. apply age_level in H0. apply age_level in H1. lia.
 Qed.  
 
 (*
@@ -1606,7 +1606,7 @@ Proof.
   change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
     (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
   eexists; apply ghost_fmap_join; eauto.
-  replace (level (m_phi jm')) with O by omega. constructor.
+  replace (level (m_phi jm')) with O by lia. constructor.
 Qed.
 
 Lemma assert_safe_jsafe': forall {Espec: OracleKind} ge f ve te k ora jm,
@@ -1630,10 +1630,10 @@ Proof.
   }
   do 2 (spec Hsafe; [auto|]).
   destruct (gt_dec (level (m_phi jm')) O).
-2:   replace (level (m_phi jm')) with O by omega; constructor.
+2:   replace (level (m_phi jm')) with O by lia; constructor.
   spec Hsafe; [auto |].
   destruct k; try contradiction; auto.
-  destruct (level (m_phi jm')); try omega.
+  destruct (level (m_phi jm')); try lia.
   inv Hsafe; try discriminate; try contradiction.
   eapply jsafeN_step; eauto.
   destruct H5; split; auto. inv H3; econstructor; simpl; eauto.
@@ -1643,7 +1643,7 @@ Proof.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
-  destruct (level (m_phi jm')); try omega.
+  destruct (level (m_phi jm')); try lia.
   inv Hsafe; try discriminate; try contradiction.
   eapply jsafeN_step; eauto.
   destruct H5; split; auto. inv H3; econstructor; simpl; eauto.

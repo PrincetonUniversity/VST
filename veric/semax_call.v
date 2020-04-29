@@ -202,7 +202,7 @@ Proof.
       clear - H0 H1 H2; hnf in H1.
       apply laterR_level in H1.
       apply necR_level in H2; simpl in *.
-      omega.
+      lia.
     }
     split; intros m'' ? ?.
     - apply f_equal with (f:= fun x => app_pred x m'') in H.
@@ -231,7 +231,7 @@ Proof.
       clear - H0 H1 H2; hnf in H1.
       apply laterR_level in H1.
       apply necR_level in H2; simpl in *.
-      omega.
+      lia.
     }
     split; intros m'' ? ?.
     - apply f_equal with (f:= fun x => app_pred x m'') in H.
@@ -280,7 +280,7 @@ Proof.
  rewrite juicy_mem_alloc_cohere. rewrite core_NO; auto.
  simpl. destruct H.
  revert H; case_eq (alloc (m_dry jm) lo hi); intros.
- simpl in *. subst b0. apply alloc_result in H. subst b; xomega.
+ simpl in *. subst b0. apply alloc_result in H. subst b; lia.
  rewrite <- (core_ghost_of (proj1_sig _)), ghost_of_make_rmap, core_ghost_of; auto.
 Qed.
 
@@ -934,20 +934,20 @@ end.
   rename H6 into H99.
  normalize. (* don't know why we cannot do normalize at first *)
  rewrite memory_block'_eq.
- 2: rewrite Ptrofs.unsigned_zero; omega.
+ 2: rewrite Ptrofs.unsigned_zero; lia.
  2:{
  rewrite Ptrofs.unsigned_zero. rewrite Zplus_0_r.
  rewrite Z2Nat.id.
  change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99.
- omega.
- pose proof (sizeof_pos ty); omega.
+ lia.
+ pose proof (sizeof_pos ty); lia.
 }
  rewrite Z.sub_0_r.
  unfold memory_block'_alt.
  rewrite if_true by apply readable_share_top.
  rewrite Z2Nat.id.
  + rewrite (cenv_sub_sizeof HGG); auto.
- + pose proof (sizeof_pos ty); omega.
+ + pose proof (sizeof_pos ty); lia.
 }
  eapply derives_trans; [ | apply IHl]; clear IHl.
  clear - H3.
@@ -1020,7 +1020,7 @@ pose proof (juicy_mem_access jm (b,ofs)).
 hnf. unfold access_at in H2. simpl in H2.
 destruct H as [H _]; specialize (H (b,ofs)).
 hnf in H.
-rewrite if_true in H by (split; auto; omega).
+rewrite if_true in H by (split; auto; lia).
 destruct H as [v ?].
 apply (resource_at_join _ _ _ (b,ofs)) in  H0.
 destruct H.
@@ -1139,7 +1139,7 @@ Proof.
   unfold var_block in H3.
   normalize in H3.
   simpl in H3.
-  assert (0 <= sizeof t) by (pose proof (sizeof_pos t); omega).
+  assert (0 <= sizeof t) by (pose proof (sizeof_pos t); lia).
   simpl in H5.
   unfold eval_lvar, Map.get in H3. simpl in H3.
   unfold make_venv in H3.
@@ -1147,13 +1147,13 @@ Proof.
   rewrite eqb_type_refl in H3.
   simpl in H3; destruct H3 as [H99 H3].
   rewrite memory_block'_eq in H3;
-  try rewrite Ptrofs.unsigned_zero; try omega.
+  try rewrite Ptrofs.unsigned_zero; try lia.
   2:{
-   rewrite Z.add_0_r; rewrite Z2Nat.id by omega. change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99; omega.
+   rewrite Z.add_0_r; rewrite Z2Nat.id by lia. change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99; lia.
   }
   unfold memory_block'_alt in H3.
   rewrite Ptrofs.unsigned_zero in H3.
-  rewrite Z2Nat.id in H3 by omega.
+  rewrite Z2Nat.id in H3 by lia.
   rewrite if_true in H3 by apply readable_share_top.
   assert (join_sub phi1 (m_phi jm)) as H7
    by ( apply join_sub_trans with phi; auto; eexists; eauto).
@@ -1276,7 +1276,7 @@ Proof.
  if_tac. rewrite core_YES, core_NO; auto. rewrite !core_YES; auto.
  if_tac; auto.
  destruct l; destruct H1; subst. specialize (H0 z).
- spec H0; [omega | ]. rewrite Heqr in H0. inv H0.
+ spec H0; [lia | ]. rewrite Heqr in H0. inv H0.
  rewrite !ghost_of_core, free_juicy_mem_ghost; auto.
 Qed.
 
@@ -1342,7 +1342,7 @@ spec Hsafe. {
   }
 do 2 (spec Hsafe; [auto|]).
 destruct (gt_dec (level (m_phi jm')) O).
-2: replace (level (m_phi jm')) with O by omega; constructor.
+2: replace (level (m_phi jm')) with O by lia; constructor.
 spec Hsafe; [auto | clear - Hsafe].
 destruct k; try contradiction.
 -
@@ -1449,7 +1449,7 @@ specialize (H15
   (F0 (construct_rho (filter_genv psi) vx tx) *
           F (construct_rho (filter_genv psi) vx tx))
    (typlist_of_typelist tys) args jm).
-spec H15; [ clear; omega | ].
+spec H15; [ clear; lia | ].
 specialize (H15 _ (necR_refl _)).
 spec H15.
 { clear - Eef Hargs H14 TC8. 
@@ -1517,9 +1517,9 @@ change ((ext_spec_post' Espec e x' (genv_symb_injective psi) (rettype_of_type re
               (F0 (construct_rho (filter_genv psi) vx tx) *
                F (construct_rho (filter_genv psi) vx tx)))) (level jm)) in H15.
 apply (pred_nec_hereditary _ _ (level m')) in H15.
- 2:{ clear - H6. destruct H6 as [? [? ?]]. apply nec_nat. omega. }
+ 2:{ clear - H6. destruct H6 as [? [? ?]]. apply nec_nat. lia. }
 apply (pred_nec_hereditary _ _ (level m')) in H15;
- [ | apply nec_nat; omega].
+ [ | apply nec_nat; lia].
 rewrite Eef in *.
 specialize (H15 m' (le_refl _) _ (necR_refl _) H8).
 assert (LAT: laterM (level (m_phi jm)) (level jm')). { simpl; apply laterR_level'. constructor. apply age_jm_phi. apply Hage. }
@@ -1531,7 +1531,7 @@ assert (LATER: laterM (m_phi jm) (m_phi jm')). { clear - Hage. apply age_laterR.
 spec H1.
 { clear - Hage H6.
   destruct H6 as [? [? ?]]. apply age_level in Hage.
-  rewrite <- level_juice_level_phi. omega.
+  rewrite <- level_juice_level_phi. lia.
 }
 rewrite proj_frame_ret_assert in H1.
 simpl proj_ret_assert in H1. hnf in H1. 
@@ -1550,7 +1550,7 @@ assert (H1' : forall a' : rmap,
   destruct (nec_join4 _ _ _ _ J NEC) as [a1' [a2' [J' [NA1 NA2]]]].
   eapply HR; try eassumption.
   apply join_level in J'; destruct J' as [J' _]; rewrite J'.
-  rewrite <- 2 level_juice_level_phi. destruct H6 as [? [? ?]]; subst. clear - H0. simpl in H0. simpl. omega. }
+  rewrite <- 2 level_juice_level_phi. destruct H6 as [? [? ?]]; subst. clear - H0. simpl in H0. simpl. lia. }
 clear H1; rename H1' into H1. clear R HR.
 
 simpl exit_cont in H1.
@@ -1565,8 +1565,8 @@ assert (Htc: tc_option_val retty ret0).
   { apply join_level in Ha. destruct Ha as [? ?].
     rewrite H. cut ((level jm > level jm')%nat). intros.
     simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi.
-    destruct H6 as [? [? ?]].  omega.
-    apply age_level in Hage. omega.
+    destruct H6 as [? [? ?]].  lia.
+    apply age_level in Hage. lia.
   }
   specialize (Hretty phi1).
   spec Hretty. apply rt_refl.
@@ -1605,7 +1605,7 @@ spec H1.
         apply join_level in H1. destruct H1.
         rewrite H1.
         change (S (S (level jm')) >= level m')%nat.
-        omega.
+        lia.
       }
       split.
       + apply Hretty; auto. split; auto.
@@ -1746,10 +1746,10 @@ spec H1.
       match goal with
       | |- ?A (?B (?C ?D)) = _ => change (A (B (C D))) with ((A oo B oo C) D)
       end.
-      rewrite approx_oo_approx' by omega.
-      rewrite approx_oo_approx' by omega.
-      rewrite approx'_oo_approx by omega.
-      rewrite approx'_oo_approx by omega.
+      rewrite approx_oo_approx' by lia.
+      rewrite approx_oo_approx' by lia.
+      rewrite approx'_oo_approx by lia.
+      rewrite approx'_oo_approx by lia.
       auto.
     + intros b sig cc ???.
       specialize (H3 b sig cc (m_phi jm)).
@@ -1853,9 +1853,9 @@ change ((ext_spec_post' Espec e x' (genv_symb_injective psi) (opttyp_of_type ret
               (F0 (construct_rho (filter_genv psi) vx tx) *
                F (construct_rho (filter_genv psi) vx tx)))) (level jm)) in H15.
 apply (pred_nec_hereditary _ _ (level m')) in H15.
- 2:{ clear - H6. destruct H6 as [? [? ?]]. apply nec_nat. omega. }
+ 2:{ clear - H6. destruct H6 as [? [? ?]]. apply nec_nat. lia. }
 apply (pred_nec_hereditary _ _ (level m')) in H15;
- [ | apply nec_nat; omega].
+ [ | apply nec_nat; lia].
 rewrite Eef in *.
 specialize (H15 m' (le_refl _) _ (necR_refl _) H8).
 
@@ -1872,7 +1872,7 @@ assert (LATER: laterM (m_phi jm) (m_phi jm')). { clear - Hage. apply age_laterR.
 spec H1.
 { clear - Hage H6.
   destruct H6 as [? [? ?]]. apply age_level in Hage.
-  rewrite <- level_juice_level_phi. omega.
+  rewrite <- level_juice_level_phi. lia.
 }
 rewrite proj_frame_ret_assert in H1.
 simpl proj_ret_assert in H1. hnf in H1. 
@@ -1891,7 +1891,7 @@ assert (H1' : forall a' : rmap,
   destruct (nec_join4 _ _ _ _ J NEC) as [a1' [a2' [J' [NA1 NA2]]]].
   eapply HR; try eassumption.
   apply join_level in J'; destruct J' as [J' _]; rewrite J'.
-  rewrite <- 2 level_juice_level_phi. destruct H6 as [? [? ?]]; subst. omega. } 
+  rewrite <- 2 level_juice_level_phi. destruct H6 as [? [? ?]]; subst. lia. } 
 clear H1; rename H1' into H1. clear R HR.
 
 simpl exit_cont in H1.
@@ -1906,8 +1906,8 @@ assert (Htc: tc_option_val retty ret0).
  { apply join_level in Ha. destruct Ha as [? ?].
    rewrite H. cut ((level jm > level jm')%nat). intros.
    simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi.
-   destruct H6 as [? [? ?]].  omega.
-   apply age_level in Hage. omega.
+   destruct H6 as [? [? ?]].  lia.
+   apply age_level in Hage. lia.
  }
  specialize (Hretty phi1).
  spec Hretty. apply rt_refl.
@@ -1942,8 +1942,8 @@ split; [split; [split |] |].
  spec Hretty.
  { apply join_level in Ha. destruct Ha as [? ?].
    rewrite H. cut ((level jm > level jm')%nat). intros.
-   simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi. destruct H6; omega.
-   apply age_level in Hage. omega.
+   simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi. destruct H6; lia.
+   apply age_level in Hage. lia.
  }
  specialize (Hretty phi1).
  spec Hretty. apply rt_refl. spec Hretty. split. apply Hb. apply Hretty0. simpl in Hretty.
@@ -1985,7 +1985,7 @@ spec Hretty. {
  apply join_level in H1. destruct H1.
  rewrite H1.
  change (S (S (level jm')) >= level m')%nat.
- omega.
+ lia.
 }
 split.
 apply Hretty; auto. split; auto.
@@ -2100,10 +2100,10 @@ assert (H4': (funassert Delta (construct_rho (filter_genv psi) vx tx)) (m_phi m'
     match goal with
     | |- ?A (?B (?C ?D)) = _ => change (A (B (C D))) with ((A oo B oo C) D)
     end.
-    rewrite approx_oo_approx' by omega.
-    rewrite approx_oo_approx' by omega.
-    rewrite approx'_oo_approx by omega.
-    rewrite approx'_oo_approx by omega.
+    rewrite approx_oo_approx' by lia.
+    rewrite approx_oo_approx' by lia.
+    rewrite approx'_oo_approx by lia.
+    rewrite approx'_oo_approx by lia.
     auto.
   * intros b sig cc ???.
     specialize (H3 b sig cc (m_phi jm)).
@@ -2179,7 +2179,7 @@ spec Hsafe. {
   }
   do 2 (spec Hsafe; [auto|]).
   destruct (gt_dec (level (m_phi jm')) O).
-2:   replace (level (m_phi jm')) with O by omega; constructor.
+2:   replace (level (m_phi jm')) with O by lia; constructor.
   spec Hsafe; [auto |].
   destruct k; try contradiction.
 -
@@ -2288,9 +2288,9 @@ Proof.
  specialize (IHvl _ _ H0).
  symmetry in H1; pose proof (nextblock_alloc _ _ _ _ _ H1).
  destruct IHvl.
- split; [ |  rewrite H2 in H4; xomega].
+ split; [ |  rewrite H2 in H4; lia].
  eapply resource_decay_trans; try eassumption.
- rewrite H2; xomega.
+ rewrite H2; lia.
  clear - H H1.
  pose proof (juicy_mem_alloc_level _ _ _ _ _ H).
  unfold resource_decay.
@@ -2302,7 +2302,7 @@ Proof.
  rewrite Z.sub_0_r.
  destruct loc as [b z]. simpl in *.
  if_tac. destruct H2; subst b1.
- right. right. left. split. apply alloc_result in H1; subst b; xomega.
+ right. right. left. split. apply alloc_result in H1; subst b; lia.
  eauto.
  rewrite <- H0. left. apply resource_at_approx.
 Qed.
@@ -2514,7 +2514,7 @@ rewrite ghost_core; auto.
 rewrite <- Hg; eexists; apply join_comm, core_unit.
 *
 assert (phi4 = phi2). {
- apply rmap_ext. apply join_level in H2. destruct H2; omega.
+ apply rmap_ext. apply join_level in H2. destruct H2; lia.
  intro loc; apply (resource_at_join _ _ _ loc) in H2.
  rewrite H3 in H2; rewrite H1.
  if_tac.
@@ -2530,15 +2530,14 @@ exists phi, phi3; split3; auto.
 split.
 do 3 red.
 rewrite Ptrofs.unsigned_zero.
-omega.
+lia.
 rewrite Ptrofs.unsigned_zero.
-rewrite memory_block'_eq; try omega.
-2: rewrite Z2Nat.id; omega.
+rewrite memory_block'_eq; try lia.
 unfold memory_block'_alt.
 rewrite if_true by apply readable_share_top.
 split.
 intro loc. hnf.
-rewrite Z2Nat.id by omega.
+rewrite Z2Nat.id by lia.
 if_tac.
 exists Undef.
 exists readable_share_top.
@@ -2619,12 +2618,12 @@ rewrite H3. rewrite eqb_type_refl.
 simpl in Hsize'.
 rewrite <- (cenv_sub_sizeof HGG); auto.
 rewrite prop_true_andp by auto.
-assert (0 <= @sizeof ge ty <= Ptrofs.max_unsigned) by (pose proof (@sizeof_pos ge ty); omega).
+assert (0 <= @sizeof ge ty <= Ptrofs.max_unsigned) by (pose proof (@sizeof_pos ge ty); lia).
 simpl.
 forget (@sizeof ge ty) as n.
 clear - H2 H1 H4.
 eapply juicy_mem_alloc_block; eauto.
-unfold Ptrofs.max_unsigned in H4; omega.
+unfold Ptrofs.max_unsigned in H4; lia.
 Qed.
 
 Lemma free_list_juicy_mem_ghost: forall m l m', free_list_juicy_mem m l m' ->
@@ -2815,7 +2814,7 @@ apply guard_fallthrough_return; auto.
  intros ora' jm' Hora' VR ?.
  subst w'.
  intro.
- case_eq (@level rmap ag_rmap (m_phi jm')); [intros; omega | intros n0 H21; clear LW ].
+ case_eq (@level rmap ag_rmap (m_phi jm')); [intros; lia | intros n0 H21; clear LW ].
  rewrite <- level_juice_level_phi in H21.
  destruct (levelS_age1 jm' _ H21) as [jm'' H24].
  rewrite -> level_juice_level_phi in H21.
@@ -2850,7 +2849,7 @@ apply guard_fallthrough_return; auto.
              (Returnstate rval (call_cont ctl)) jm2). {
    assert (LATER2': (level jmx > level (m_phi jm2))%nat). {
      apply age_level in H24.
-     repeat rewrite <- level_juice_level_phi in *. omega.
+     repeat rewrite <- level_juice_level_phi in *. lia.
     } 
    assert (HH1 : forall a' : rmap,
      necR (m_phi jm2) a' ->
@@ -2862,9 +2861,9 @@ apply guard_fallthrough_return; auto.
      assert (Help0: laterM (level (m_phi jm)) (level (m_phi jm2))). { 
        clear - LATER2' LATER.
        eapply necR_laterR. apply laterR_necR; eassumption.
-       apply later_nat. rewrite <- !level_juice_level_phi in *. omega. }
+       apply later_nat. rewrite <- !level_juice_level_phi in *. lia. }
      specialize (H1 _ Help0 EK_normal None (set_opttemp ret rval tx) vx); hnf in H1.
-     assert (Help1: (level (m_phi jm2) >= level (m_phi jm2))%nat) by omega. 
+     assert (Help1: (level (m_phi jm2) >= level (m_phi jm2))%nat) by lia. 
      apply (H1 _ Help1 _ H8).
      rewrite proj_frame_ret_assert in H1.
      simpl proj_ret_assert in H1.
@@ -2876,7 +2875,7 @@ apply guard_fallthrough_return; auto.
      assert (JMX: laterM (m_phi jm) (m_phi jmx)). { constructor. apply age_jm_phi. apply H13. }
      assert (JMX_u1: (level (m_phi jmx) >= level u1)%nat).
      { rewrite LevU1; clear -H8 LATER2' H2 H13. apply necR_level in H8. apply age_level in H13.
-        rewrite <- !level_juice_level_phi in *. omega. }
+        rewrite <- !level_juice_level_phi in *. lia. }
      split. reflexivity.
      apply (HR (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) _ JMX _ JMX_u1 _ (necR_refl _) U1). 
    }
@@ -3018,7 +3017,7 @@ apply guard_fallthrough_return; auto.
     [ rewrite (age_jm_dry H24); apply Pos.le_refl |
       apply age1_resource_decay ].
     1,2: auto.
-    1,3: split; [change (level (m_phi ?a)) with (level a); rewrite <- FL3; apply age_level in H24; omega |].
+    1,3: split; [change (level (m_phi ?a)) with (level a); rewrite <- FL3; apply age_level in H24; lia |].
     1,2:rewrite (free_list_juicy_mem_ghost _ _ _ FL);
       erewrite age1_ghost_of by (eapply age_jm_phi; eauto);
       change (level (m_phi jm'')) with (level jm'');
@@ -3385,7 +3384,7 @@ split.
  apply age1_ghost_of, age_jm_phi; auto.
 
 assert (H22: (level jm2 >= level jm'')%nat)
-  by (apply age_level in H13; apply age_level in H20x; omega).
+  by (apply age_level in H13; apply age_level in H20x; lia).
 pose (rho3 := mkEnviron (ge_of rho) (make_venv ve') (make_tenv te')).
 assert (H23: app_pred (funassert Delta rho3) (m_phi jm'')). {
   apply (resource_decay_funassert _ _ (nextblock (m_dry jm)) _ (m_phi jm'')) in Funassert.
@@ -3481,7 +3480,7 @@ spec H19; [clear H19|]. {
   rewrite (cenv_sub_sizeof CSUB); auto.
 }
 replace (level jm2) with (level jm'') 
-  by (clear - H13 H20x H20'; apply age_level in H13; apply age_level in H20x; omega).
+  by (clear - H13 H20x H20'; apply age_level in H13; apply age_level in H20x; lia).
 eapply assert_safe_jsafe, own.bupd_mono, H19.
 intros ? Hsafe ?? Hora0 ??.
 subst; specialize (Hsafe ora0 _ Hora0 eq_refl eq_refl).
@@ -3489,7 +3488,7 @@ clear - Hsafe.
 intros.
 specialize (Hsafe LW).
 simpl in Hsafe.
-case_eq (@level rmap ag_rmap (m_phi jm0)); intros; [omega | clear LW ].
+case_eq (@level rmap ag_rmap (m_phi jm0)); intros; [lia | clear LW ].
 rewrite H in Hsafe.
 auto.
 Qed.
@@ -3725,8 +3724,8 @@ destruct (ClientAdaptation w2') as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear Cl
     apply age_laterR in Hage. specialize (TC2 w' Hage).
     specialize (tc_eval_exprlist _ _ _ _ _ H TC2).
     subst args.
-    forget (construct_rho (filter_genv psi) vx tx) as omega.
-    forget  (@eval_exprlist CS clientparams bl omega) as args.
+    forget (construct_rho (filter_genv psi) vx tx) as lia.
+    forget  (@eval_exprlist CS clientparams bl lia) as args.
     clear.
     generalize dependent clientparams.
     clear. induction args; simpl; intros.
@@ -3754,13 +3753,13 @@ assert (ARGS: app_pred (|> (F0 rho *
       destruct PreAdapt as [u1 [u2 [JU [U1 U2]]]]; destruct (join_level _ _ _ JU) as [LevU1 LevU2].
       exists u1, u2; split; trivial. split; trivial. clear TRIV.
       assert (LatWU2: laterM (level w) (level u2)). { rewrite LevU2, <- LevW2 . apply laterR_level'; trivial. }
-      eapply (Hpre _ (level u2) LatWU2); [| apply necR_refl | trivial]. omega.
+      eapply (Hpre _ (level u2) LatWU2); [| apply necR_refl | trivial]. lia.
       rewrite HARGS. apply U2.
     - apply now_later in PreAdapt. specialize (PreAdapt _ H0).
       destruct PreAdapt as [u1 [u2 [JU [U1 U2]]]]; destruct (join_level _ _ _ JU) as [LevU1 LevU2]. 
       exists u1, u2; split; trivial. split; trivial.
       assert (LatWU2: laterM (level w) (level u2)). { rewrite LevU2, <- LevW2 . apply laterR_level'; trivial. }
-      eapply (Hpre _ (level u2) LatWU2); [| apply necR_refl | trivial]. omega.
+      eapply (Hpre _ (level u2) LatWU2); [| apply necR_refl | trivial]. lia.
       rewrite HARGS. apply U2. }
   subst rho. clear - XX HARGS args args'. rewrite 2 sepcon_assoc. rewrite 2 sepcon_assoc in XX.
   intros u U. destruct (XX _ U) as [u1 [u2 [J [U1 U2]]]]; clear XX.
@@ -4056,7 +4055,7 @@ assert (LA2: laterM w2 w2'). { constructor; trivial. }
 *)
 specialize (ClientAdaptation _ (age_laterR Hage) ts x (ge_of rho, args)). (*simpl in ClientAdaptation.*)
 
-assert (LW2': (level w' >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); omega. }
+assert (LW2': (level w' >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); lia. }
 
 destruct (ClientAdaptation w2' LW2' _ (necR_refl _)) as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear ClientAdaptation.
 { (*clear - LENargs Age2 W2.*)simpl; split. 
@@ -4065,8 +4064,8 @@ destruct (ClientAdaptation w2' LW2' _ (necR_refl _)) as [ts1 [x1 [G [PreAdapt Po
     apply age_laterR in Hage. specialize (TC2 w' Hage).
     specialize (tc_eval_exprlist _ _ _ _ _ H TC2).
     subst args.
-    forget (construct_rho (filter_genv psi) vx tx) as omega.
-    forget  (@eval_exprlist CS clientparams bl omega) as args.
+    forget (construct_rho (filter_genv psi) vx tx) as lia.
+    forget  (@eval_exprlist CS clientparams bl lia) as args.
     clear.
     generalize dependent clientparams.
     clear. induction args; simpl; intros.
@@ -4098,7 +4097,7 @@ assert (ARGS: app_pred (|> (F0 rho *
       destruct PreAdapt as [u1 [u2 [JU [U1 U2]]]]; destruct (join_level _ _ _ JU) as [LevU1 LevU2].
       exists u1, u2; split; trivial. split; trivial. clear TRIV.
       assert (LatWU2: laterM (level w) (level u2)). { rewrite LevU2, <- LevW2 . apply laterR_level'; trivial. }
-      eapply (Hpre _ (level u2) LatWU2); [| apply necR_refl | trivial]. omega.
+      eapply (Hpre _ (level u2) LatWU2); [| apply necR_refl | trivial]. lia.
       (*specialize (funsigs_match_arglengths NSC); simpl fst; intros LEN.
       rewrite make_args_eq; [ simpl; subst rho; simpl in U2 | unfold ident in *; rewrite LEN; trivial].
       apply U2.*)
@@ -4106,7 +4105,7 @@ assert (ARGS: app_pred (|> (F0 rho *
       destruct PreAdapt as [u1 [u2 [JU [U1 U2]]]]; destruct (join_level _ _ _ JU) as [LevU1 LevU2]. 
       exists u1, u2; split; trivial. split; trivial.
       assert (LatWU2: laterM (level w) (level u2)). { rewrite LevU2, <- LevW2 . apply laterR_level'; trivial. }
-      eapply (Hpre _ (level u2) LatWU2); [| apply necR_refl | trivial]. omega.
+      eapply (Hpre _ (level u2) LatWU2); [| apply necR_refl | trivial]. lia.
       (*clear - U2 NSC LENargs.
       specialize (funsigs_match_arglengths NSC); simpl fst; intros LEN.
       rewrite make_args_eq; trivial. rewrite LEN; apply LENargs.*) }
@@ -4144,12 +4143,12 @@ eapply (@semax_call_aux CS') with (F := fun rho' => F rho' * G)
 1:{ (*ALL rho-condition*)
 simpl RA_normal; auto.  clear ARGS Hpost RGUARD.
 intros rho' l L y Y z YZ [v Z]. exists v.
-assert (LEV2': (level w2' >= level w2')%nat) by omega. 
+assert (LEV2': (level w2' >= level w2')%nat) by lia. 
 assert (LEVz: (level w2' >= level z)%nat). 
 { destruct (join_level _ _ _ J') as [_ Lw2']; rewrite Lw2'; clear Lw2'.
   apply necR_level in YZ.
   destruct (age_later Hage L).
-  + subst l; omega. + apply laterR_level in H1; omega. }
+  + subst l; lia. + apply laterR_level in H1; lia. }
 
 clear - PostAdapt LEVz Z.
   destruct Z as [m1 [m2 [JM [M1(*[u1 [u2 [JU [U1 U2]]]]*) M2]]]].
@@ -4159,7 +4158,7 @@ clear - PostAdapt LEVz Z.
     exists u1, q1; split3; trivial.
     simpl. simpl in M2. destruct M2. split; trivial.
     destruct (join_level _ _ _ Q1).
-    eapply PostAdapt. 2: apply necR_refl. omega. split.
+    eapply PostAdapt. 2: apply necR_refl. lia. split.
     - reflexivity. (*simpl. red. unfold get_result1; simpl; unfold env_set; simpl. constructor; simpl. red; intros. rewrite PTree.gempty in H3; discriminate.
       clear. split.
       split; intros ?. rewrite PTree.gempty in H; congruence. destruct H. inv H.
@@ -4171,7 +4170,7 @@ clear - PostAdapt LEVz Z.
     exists u1, q1; split3; trivial.
     destruct (join_level _ _ _ Q1) as [_ LEVq1]. clear - M2 LEVq1 LEVz PostAdapt M2 Q2 U2.
     destruct retty.
-    - apply (PostAdapt _ q1); [omega | apply necR_refl | split; [ | exists u2, m2; split3; trivial]].
+    - apply (PostAdapt _ q1); [lia | apply necR_refl | split; [ | exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4179,7 +4178,7 @@ clear - PostAdapt LEVz Z.
       rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
-      eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
+      eapply (PostAdapt _ q1); [lia | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4187,7 +4186,7 @@ clear - PostAdapt LEVz Z.
       rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
-      eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
+      eapply (PostAdapt _ q1); [lia | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4195,7 +4194,7 @@ clear - PostAdapt LEVz Z.
       rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
-      eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
+      eapply (PostAdapt _ q1); [lia | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4203,7 +4202,7 @@ clear - PostAdapt LEVz Z.
       rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
-      eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
+      eapply (PostAdapt _ q1); [lia | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4211,7 +4210,7 @@ clear - PostAdapt LEVz Z.
       rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
-      eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
+      eapply (PostAdapt _ q1); [lia | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4219,7 +4218,7 @@ clear - PostAdapt LEVz Z.
       rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
-      eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
+      eapply (PostAdapt _ q1); [lia | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4227,7 +4226,7 @@ clear - PostAdapt LEVz Z.
       rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
-      eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
+      eapply (PostAdapt _ q1); [lia | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4235,7 +4234,7 @@ clear - PostAdapt LEVz Z.
       rewrite PTree.gempty in H; congruence.*)
     - clear - PostAdapt Q2 LEVq1 LEVz M2 U2. destruct M2 as [v [TCv M2]].
       exists v; split; trivial.
-      eapply (PostAdapt _ q1); [omega | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
+      eapply (PostAdapt _ q1); [lia | apply necR_refl | split; [| exists u2, m2; split3; trivial]].
       reflexivity. (*red; simpl; trivial. 
       unfold rettype_tycontext.  split3; simpl; intros ?; intros.
       rewrite PTree.gempty in H; congruence.
@@ -4383,7 +4382,7 @@ fold (@dependent_type_functor_rec ts) in *.
 specialize (W2 _ LA2). 
 
 specialize (GS x (make_args (map fst argsig) args rho)). hnf in GS.
-assert (LW2': (level w >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); omega. }
+assert (LW2': (level w >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); lia. }
 destruct (join_level _ _ _ JZ) as [Lev_z1 Lev_z2].
 
 destruct GS as [ts1 [x1 [G TSX1]]]. hnf in TSX1. 
@@ -4397,7 +4396,7 @@ specialize (Hpre _ (age_laterR Hage)).
 
 
 destruct AA as [u1 [u2 [JU [U1 U2]]]]; destruct (join_level _ _ _ JU) as [Lu1 Lu2].
-hnf in Hpre. destruct (Hpre u2) as [_ HP']; clear Hpre. omega. specialize (HP' _ (necR_refl _) U2).
+hnf in Hpre. destruct (Hpre u2) as [_ HP']; clear Hpre. lia. specialize (HP' _ (necR_refl _) U2).
 
 assert (ArgsW: app_pred (|> (F0 rho * (F rho * G) * P' ts1 x1 (make_args (map (@fst  _ _) argsig)
   (eval_exprlist (snd (split argsig)) bl rho) rho) )) w).
@@ -4440,16 +4439,16 @@ assert (TRIV: (forall rho, typecheck_temp_environ rho (PTree.empty type)) /\
   { intros; hnf; intros. split; intros. rewrite PTree.gempty in H; congruence. 
     destruct H. unfold Map.empty, Map.get in H; congruence. } 
   { intros; hnf; intros. rewrite PTree.gempty in H; congruence. } }
-assert (LEV2': (level w2' >= level w2')%nat) by omega. 
+assert (LEV2': (level w2' >= level w2')%nat) by lia. 
 assert (LEVz: (level w2' >= level z)%nat). 
 { rewrite Lw2'. apply necR_level in YZ.
   destruct (age_later Hage L).
-  + subst l; omega. + apply laterR_level in H; omega. }
+  + subst l; lia. + apply laterR_level in H; lia. }
 destruct ret; simpl.
 + destruct Z as [zz1 [zz2 [JZZ [Z1 Z2]]]]; destruct (join_level _ _ _ JZ) as [Levz1 Levz2]. simpl in Z1, Z2.
   destruct Z1 as [z1_1 [z1_2 [JZ1 [Z11 Z12]]]]; destruct (join_level _ _ _ JZ1) as [Levz11 Levz12].
   destruct (join_assoc JZ1 JZZ) as [y11 [JY1 JY2]]; destruct (join_level _ _ _ JY2) as [_ Levy11].
-  assert (LL: (level w2' >= level y11)%nat) by omega. 
+  assert (LL: (level w2' >= level y11)%nat) by lia. 
   exists z1_1, y11; split; trivial. split; trivial.
   apply (BB (get_result1 i rho') _ LL _ (necR_refl _)).
   simpl; split. { hnf; simpl; intuition. }
@@ -4457,7 +4456,7 @@ destruct ret; simpl.
 + destruct Z as [zz1 [zz2 [JZZ [Z1 Z2]]]]; destruct (join_level _ _ _ JZ) as [Levz1 Levz2]. simpl in Z1, Z2.
   destruct Z1 as [z1_1 [z1_2 [JZ1 [Z11 Z12]]]]; destruct (join_level _ _ _ JZ1) as [Levz11 Levz12].
   destruct (join_assoc JZ1 JZZ) as [y11 [JY1 JY2]]; destruct (join_level _ _ _ JY2) as [_ Levy11].
-  assert (LL: (level w2' >= level y11)%nat) by omega. 
+  assert (LL: (level w2' >= level y11)%nat) by lia. 
   exists z1_1, y11; split; trivial. split; trivial. 
   destruct (type_eq retsig Tvoid).
   - subst retsig. 

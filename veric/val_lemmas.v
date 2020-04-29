@@ -1,5 +1,6 @@
 Require Import Coq.Arith.EqNat.
 Require Import Coq.Relations.Relations.
+Require Import Lia.
 
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
@@ -86,8 +87,7 @@ Proof. intros. pose proof (Int.eq_spec i j); rewrite H in H0; auto. Qed.
 Lemma two_p_neg:
  forall n, n<0 -> two_p n = 0.
 Proof.
-destruct n; intros; simpl; auto; try omega.
-pose proof (Zgt_pos_0 p); omega.
+destruct n; intros; simpl; auto; lia.
 Qed.
 
 Unset Implicit Arguments.
@@ -102,26 +102,26 @@ Proof.
 intros. rename H1 into Wj.
 pose proof (Int.unsigned_range i).
 unfold Int.signed in H.
-if_tac in H. omega.
+if_tac in H. lia.
 unfold Int.testbit.
 forget (Int.unsigned i) as i'; clear i; rename i' into i.
-rewrite <- (Z2Nat.id j) in * by omega.
+rewrite <- (Z2Nat.id j) in * by lia.
 unfold Int.half_modulus in *.
 unfold Int.modulus in *.
 unfold Int.zwordsize in Wj.
 forget Int.wordsize as W.
 assert (Z.to_nat j < W)%nat by (apply Nat2Z.inj_lt; auto).
 clear Wj.
-assert (W = Z.to_nat j + 1 + (W-Z.to_nat j-1))%nat by omega.
+assert (W = Z.to_nat j + 1 + (W-Z.to_nat j-1))%nat by lia.
 forget (W - Z.to_nat j - 1)%nat as K.
 subst W.
 
 clear H3.
-rewrite <- (Z2Nat.id n) in H by omega.
-rewrite <- (Z2Nat.id n) in H0 by omega.
+rewrite <- (Z2Nat.id n) in H by lia.
+rewrite <- (Z2Nat.id n) in H0 by lia.
 rewrite <- two_power_nat_two_p in H.
 assert (Z.to_nat n <= Z.to_nat j)%nat.
-  apply Nat2Z.inj_le; omega.
+  apply Nat2Z.inj_le; lia.
 clear H0.
 forget (Z.to_nat n) as n'; clear n; rename n' into n.
 forget (Z.to_nat j) as j'; clear j; rename j' into j.
@@ -129,52 +129,52 @@ destruct H as [H _].
 revert n i H3 H2 H  H1; induction j; intros.
 *
 simpl (Z.of_nat) in *.
-assert (n=0)%nat by omega. subst n.
+assert (n=0)%nat by lia. subst n.
 simpl plus in *. clear H3.
 change (- two_power_nat 0) with (-1) in H.
-assert (i = (two_power_nat (S K) - 1)) by omega. subst i.
+assert (i = (two_power_nat (S K) - 1)) by lia. subst i.
 rewrite two_power_nat_S.
 clear.
 forget (two_power_nat K) as A.
-replace A with ((A-1)+1) by omega.
+replace A with ((A-1)+1) by lia.
 rewrite Z.mul_add_distr_l.
-replace (2 * (A - 1) + 2 * 1 - 1) with (2 * (A - 1) + 1) by omega.
+replace (2 * (A - 1) + 2 * 1 - 1) with (2 * (A - 1) + 1) by lia.
 apply Z.testbit_odd_0.
 *
 destruct n.
 change (- two_power_nat 0)%Z with (-1) in H.
-assert (i = two_power_nat (S j + 1 + K) - 1) by omega.
+assert (i = two_power_nat (S j + 1 + K) - 1) by lia.
 clear H H1 H2.
 subst i.
 replace (two_power_nat (S j + 1 + K) - 1) with (Z.ones (Z.of_nat (S j + 1 + K))).
-apply Z.ones_spec_low. split; [omega | ].
-apply Nat2Z.inj_lt. omega.
+apply Z.ones_spec_low. split; [lia | ].
+apply Nat2Z.inj_lt. lia.
 rewrite Z.ones_equiv.
 rewrite two_power_nat_equiv.
-omega.
+lia.
 rewrite inj_S.
-rewrite Zbits.Ztestbit_succ by omega.
+rewrite Zbits.Ztestbit_succ by lia.
 apply (IHj n); clear IHj.
 +
-omega.
+lia.
 +
 rewrite Zdiv2_div.
-apply Z_div_ge; try omega.
-replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H2 by omega.
+apply Z_div_ge; try lia.
+replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H2 by lia.
 rewrite two_power_nat_S in H2.
 rewrite Z.mul_comm in H2.
-rewrite Z_div_mult_full in H2 by omega. auto.
+rewrite Z_div_mult_full in H2 by lia. auto.
 +
 rewrite two_power_nat_S in H.
-replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H by omega.
+replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H by lia.
 rewrite two_power_nat_S in H.
 rewrite (Zdiv2_odd_eqn i) in H.
-destruct (Z.odd i) eqn:?H; omega.
+destruct (Z.odd i) eqn:?H; lia.
 +
-replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H1 by omega.
+replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H1 by lia.
 rewrite two_power_nat_S in H1.
 rewrite (Zdiv2_odd_eqn i) in H1.
-destruct (Z.odd i) eqn:?H; omega.
+destruct (Z.odd i) eqn:?H; lia.
 Qed.
 
 (*
@@ -186,14 +186,14 @@ intros.
 destruct (zlt 0 n).
 -
 apply Int.same_bits_eq; intros j ?.
-rewrite Int.bits_sign_ext; try omega.
+rewrite Int.bits_sign_ext; try lia.
 if_tac; auto.
-assert (Int.size i < n); [ | rewrite !Int.bits_size_2 by omega; auto].
+assert (Int.size i < n); [ | rewrite !Int.bits_size_2 by lia; auto].
 pose proof (Int.size_interval_2 i (n-1)).
-spec H2; [omega |].
-spec H2; [ | omega].
+spec H2; [lia |].
+spec H2; [ | lia].
 clear H2.
-assert (0 < n < Int.zwordsize) by omega.
+assert (0 < n < Int.zwordsize) by lia.
 clear l j H0 H1.
 split; [apply Int.unsigned_range| ].
 Search Int.unsigned Int.signed.
@@ -207,36 +207,36 @@ intros.
 destruct (zlt n Int.zwordsize);
   [ | apply Int.sign_ext_above; auto].
 destruct (zlt n 0).
-assert (n-1 < 0) by omega.
-repeat rewrite two_p_neg in H by omega.
-omega.
+assert (n-1 < 0) by lia.
+repeat rewrite two_p_neg in H by lia.
+lia.
 destruct (zeq n 0).
 subst n. simpl in H.
-assert (Int.signed i = 0) by omega.
+assert (Int.signed i = 0) by lia.
 clear - H0.
 rewrite <- (Int.repr_signed i).
 rewrite H0. reflexivity.
-assert (0 < n < Int.zwordsize) by omega.
+assert (0 < n < Int.zwordsize) by lia.
 clear - H H0.
 
 apply Int.same_bits_eq; intros j ?.
-rewrite (Int.bits_sign_ext n i j) by omega.
+rewrite (Int.bits_sign_ext n i j) by lia.
 if_tac; auto.
 destruct H1.
 destruct (zlt (Int.signed i) 0).
 * (* negative *)
-assert (- two_p (n - 1) <= Int.signed i  < 0) by omega.
+assert (- two_p (n - 1) <= Int.signed i  < 0) by lia.
 clear H.
-rewrite (testbit_signed_neg i (n-1) (n-1)); auto; try omega.
-rewrite (testbit_signed_neg i j (n-1)%Z); auto; omega.
+rewrite (testbit_signed_neg i (n-1) (n-1)); auto; try lia.
+rewrite (testbit_signed_neg i j (n-1)%Z); auto; lia.
 * (* nonnegative *)
 rewrite Int.signed_eq_unsigned in H by (apply Int.signed_positive; auto).
 assert (Int.size i <= n-1);
-  [ | rewrite !Int.bits_size_2 by omega; auto].
+  [ | rewrite !Int.bits_size_2 by lia; auto].
 apply Z.ge_le.
 apply Int.size_interval_2.
-omega.
-pose proof (Int.unsigned_range i); omega.
+lia.
+pose proof (Int.unsigned_range i); lia.
 Qed.
 
 Lemma zero_ext_inrange:
@@ -247,29 +247,29 @@ intros.
 destruct (zlt n Int.zwordsize);
   [ | apply Int.zero_ext_above; auto].
 destruct (zlt n 0).
-assert (n-1 < 0) by omega.
-repeat rewrite two_p_neg in H by omega.
+assert (n-1 < 0) by lia.
+repeat rewrite two_p_neg in H by lia.
 pose proof (Int.unsigned_range i).
-omega.
+lia.
 destruct (zeq n 0).
 subst n. simpl in H.
-assert (Int.unsigned i = 0) by (pose proof (Int.unsigned_range i); omega).
+assert (Int.unsigned i = 0) by (pose proof (Int.unsigned_range i); lia).
 clear - H0.
 rewrite <- (Int.repr_unsigned i).
 rewrite H0. reflexivity.
-assert (0 < n < Int.zwordsize) by omega.
+assert (0 < n < Int.zwordsize) by lia.
 clear - H H0.
 apply Int.same_bits_eq; intros j ?.
-rewrite (Int.bits_zero_ext n i j) by omega.
+rewrite (Int.bits_zero_ext n i j) by lia.
 if_tac; auto.
 symmetry.
 apply Int.bits_size_2.
 apply Z.ge_le.
 apply Int.size_interval_2.
-omega.
+lia.
 split.
 apply Int.unsigned_range.
-assert (two_p n <= two_p j); try omega.
+assert (two_p n <= two_p j); try lia.
 apply two_p_monotone.
-omega.
+lia.
 Qed.

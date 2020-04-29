@@ -1669,7 +1669,7 @@ Proof. intros.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; omega.
         + subst done_output. simpl. destruct output; simpl; auto.
             f_equal. autorewrite with norm. 
-            assert (0 <= use_len <= 32); [ | rewrite Int.unsigned_repr by rep_omega; auto].
+           assert (0 <= use_len <= 32).
             subst use_len; clear - Hdone DD.
             destruct (Z.min_spec 32 (out_len - done)) as [[? ?]|[? ?]]; omega. 
             f_equal. f_equal. subst use_len. trivial.

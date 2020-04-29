@@ -345,8 +345,8 @@ Proof. intros; subst; auto. Qed.
 Lemma if_falseb: forall {A: Type} b (a1 a2: A), b = false -> (if b then a1 else a2) = a2.
 Proof. intros; subst; auto. Qed.
 
-Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
-                          | rewrite if_falseb by (apply Z.ltb_ge; omega)].
+Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; lia)
+                          | rewrite if_falseb by (apply Z.ltb_ge; lia)].
 Opaque treebox_rep.
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
@@ -370,7 +370,7 @@ Proof.
     + (* then clause *)
       subst q.
       forward_call (sizeof t_struct_tree).
-        1: simpl; rep_omega.
+        1: simpl; rep_lia.
       Intros q.
       rewrite memory_block_data_at_ by auto.
       forward. (* q->key=x; *)
@@ -421,7 +421,7 @@ Proof.
         apply RAMIF_PLAIN.trans'.
         apply bst_right_entail; auto.
       - (* Inner if, third branch: x=k *)
-        assert (x=k) by omega.
+        assert (x=k) by lia.
         subst x. clear H H1 H4.
         forward. (* p->value=value *)
         forward. (* return *)
@@ -484,7 +484,7 @@ Proof.
         apply -> wand_sepcon_adjoint.
         Exists pa pb; entailer!.
     + (* else-else clause: x=y *)
-      assert (x=k) by omega. subst x. clear H H4 H5.
+      assert (x=k) by lia. subst x. clear H H4 H5.
       forward. (* v=p->value *)
       forward. (* return v; *)
       unfold treebox_rep. unfold normal_ret_assert.

@@ -1905,7 +1905,7 @@ Section SpecsCorrect.
     eapply sys_putc_trace_case in Htrace_case; eauto.
     2: unfold get_sys_ret; cbn; repeat (rewrite ZMap.gss || rewrite ZMap.gso by easy); auto.
     pose proof (Byte.unsigned_range_2 c).
-    rewrite Int.unsigned_repr in * by functional_base.rep_omega.
+    rewrite Int.unsigned_repr in * by functional_base.rep_lia.
     constructor; eauto; hnf.
     - (* putchar_post *)
       split; auto; cbn in *.
@@ -1914,7 +1914,7 @@ Section SpecsCorrect.
       destruct (eq_dec.eq_dec _ _); try easy.
       rewrite Zle_imp_le_bool by lia.
       destruct Hput as (? & [(? & ?) | (? & ?)]); subst; auto; try lia.
-      rewrite Zmod_small; auto; functional_base.rep_omega.
+      rewrite Zmod_small; auto; functional_base.rep_lia.
     - (* trace_itree_match *)
       rewrite Int.signed_repr in * by (cbn; lia).
       cbn in *; destruct Htrace_case as (Htr & Hcase).

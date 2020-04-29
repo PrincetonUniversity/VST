@@ -22,7 +22,7 @@ Module NatOrder <: Orders.TotalLeBool.
   Proof.  intros. 
     pose proof (Nat.leb_spec a1 a2).
     pose proof (Nat.leb_spec a2 a1).
-    inv H; inv H0; auto; omega.
+    inv H; inv H0; auto; lia.
   Qed.
 End NatOrder.
 Module SortNat := Mergesort.Sort(NatOrder).
@@ -131,13 +131,13 @@ Lemma my_nth_delete_nth_permutation:
    (a < length al)%nat -> Permutation al (my_nth a al emp :: delete_nth a al).
 Proof.
 induction al; simpl; intros.
-omega.
+lia.
 destruct a0; simpl.
 apply Permutation_refl.
 eapply Permutation_trans; [ | apply perm_swap].
 apply perm_skip.
 apply IHal.
-omega.
+lia.
 Qed.
 
 Function is_increasing (ns: list nat) (last: nat) {measure length ns}: bool  :=
@@ -146,7 +146,7 @@ Function is_increasing (ns: list nat) (last: nat) {measure length ns}: bool  :=
  | a::nil => Nat.ltb a last
  | a::b::ns' => andb (Nat.ltb a b) (is_increasing (b::ns') last)
  end.
-Proof. intros. subst. simpl. omega.
+Proof. intros. subst. simpl. lia.
 Defined.
 
 
@@ -165,9 +165,9 @@ Lemma delete_nth_length:
    forall {A} i (al: list A), (i < length al)%nat ->
      (S (length (delete_nth i al)) = length al)%nat.
 Proof.
-induction i; destruct al; simpl; intros; try omega.
+induction i; destruct al; simpl; intros; try lia.
 apply f_equal.
-apply IHi; omega.
+apply IHi; lia.
 Qed.
 
 Lemma freezelist_nth_permutation: forall ns al,
@@ -206,17 +206,17 @@ apply Permutation_trans
   rewrite is_increasing_equation in H0.
   simpl.
   apply Nat.ltb_lt in H0.
-  pose proof (delete_nth_length n al H0). omega.
+  pose proof (delete_nth_length n al H0). lia.
  change (delete_list (n :: a :: ns) al)%nat with (delete_nth n (delete_list ( a :: ns) al))%nat.
   rewrite andb_true_iff in H0; destruct H0; auto.
   apply Nat.ltb_lt in H0.
  specialize (IHns a n al).
- spec IHns; [omega|]. specialize (IHns H1).
+ spec IHns; [lia|]. specialize (IHns H1).
  pose proof (delete_nth_length n (delete_list (a::ns) al) IHns).
  assert (a0 <= S (Datatypes.length
-   (delete_nth n (delete_list (a :: ns) al))))%nat; [ | omega].
+   (delete_nth n (delete_list (a :: ns) al))))%nat; [ | lia].
   rewrite H2.
- omega.
+ lia.
 -
  clear - H.
  revert a al H; induction ns; intros.
@@ -229,8 +229,8 @@ apply Permutation_trans
   apply Nat.ltb_lt in H.
   forget (delete_list ns al) as bl.
   clear - H.
-  revert a0 bl H; induction a; destruct a0, bl; simpl; intros; auto; try omega.
-  apply IHa. omega.
+  revert a0 bl H; induction a; destruct a0, bl; simpl; intros; auto; try lia.
+  apply IHa. lia.
  +  apply IHns.
    clear - H.
   rewrite is_increasing_equation in H.
@@ -240,11 +240,11 @@ apply Permutation_trans
   rewrite is_increasing_equation.
   destruct ns.
   apply Nat.ltb_lt in H0.
-  apply Nat.ltb_lt. omega.
+  apply Nat.ltb_lt. lia.
   rewrite andb_true_iff in H0; destruct H0.
   rewrite andb_true_iff; split; auto.
   apply Nat.ltb_lt in H0.
-  apply Nat.ltb_lt. omega.
+  apply Nat.ltb_lt. lia.
 Qed.
 
 (* This older version of freezelist_nth didn't work when the l list was not sorted 

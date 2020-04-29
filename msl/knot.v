@@ -39,7 +39,7 @@ Module Type KNOT.
   Parameter unsquash : knot -> (nat * F predicate).
 
   Definition approx (n:nat) (p:predicate) : predicate :=
-     fun w => if le_gt_dec n (level w) then T_bot else p w.
+     fun w => if Compare_dec.le_gt_dec n (level w) then T_bot else p w.
 
   Axiom squash_unsquash : forall x, squash (unsquash x) = x.
   Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap F (approx n) x').
@@ -101,10 +101,10 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     intros x y; revert x; induction y; simpl; intros.
     right; auto with arith.
     destruct (IHy x) as [[m H]|H].
-    left; exists (S m); omega.
-    destruct (eq_nat_dec x y).
-    left; exists O; omega.
-    right; omega.
+    left; exists (S m); lia.
+    destruct (Peano_dec.eq_nat_dec x y).
+    left; exists O; lia.
+    right; lia.
   Qed.
 
   Definition unstratify (n:nat) (p:sinv n) : predicate := fun w =>
@@ -115,7 +115,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
       end
     end.
 
-  Definition proof_irr_nat := eq_proofs_unicity dec_eq_nat.
+  Definition proof_irr_nat := eq_proofs_unicity Peano_dec.dec_eq_nat.
   Arguments proof_irr_nat [x] [y] _ _.
 
   Lemma floor_shuffle:
@@ -128,7 +128,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     revert n p1 H1 p Heqp.
     induction m1; simpl; intros.
     replace H1 with (refl_equal (S n)) by (apply proof_irr_nat); simpl; auto.
-    assert (m1 + S n = S m1 + n) by omega.
+    assert (m1 + S n = S m1 + n) by lia.
     destruct p1 as [p1 f'].
     generalize (IHm1 n p1 H p Heqp).
     simpl.
@@ -153,8 +153,8 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     unfold compose; induction n; simpl; intros; auto.
     apply injective_projections; simpl; trivial.
 
-    assert ((m1 + S n) =  (S m1 + n)) by omega.
-    assert ((m2 + S n) =  (S m2 + n)) by omega.
+    assert ((m1 + S n) =  (S m1 + n)) by lia.
+    assert ((m2 + S n) =  (S m2 + n)) by lia.
     assert (floor (S m1) n (eq_rect (m1 + S n) _ p1 _ H0) = floor (S m2) n (eq_rect (m2 + S n) _ p2 _ H1)).
     do 2 rewrite floor_shuffle.
     congruence.
@@ -172,11 +172,11 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     apply extensionality; intro v.
     unfold unstratify.
     destruct (decompose_nat n (m2 + S n)) as [[r Hr]|Hr].
-    2: elimtype False; omega.
+    2: elimtype False; lia.
     destruct (decompose_nat n (m1 + S n)) as [[s Hs]|Hs].
-    2: elimtype False; omega.
-    assert (m2 = r) by omega; subst r.
-    assert (m1 = s) by omega; subst s.
+    2: elimtype False; lia.
+    assert (m2 = r) by lia; subst r.
+    assert (m1 = s) by lia; subst s.
     simpl.
     replace Hr with (refl_equal (m2 + S n)) by (apply proof_irr_nat).
     replace Hs with (refl_equal (m1 + S n)) by (apply proof_irr_nat).
@@ -204,13 +204,13 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     extensionality v.
 
     destruct (decompose_nat n (S n)) as [[r Hr]|?]; auto.
-    assert (r = O) by omega; subst r.
+    assert (r = O) by lia; subst r.
     simpl in *.
     replace Hr with (refl_equal (S n)) by (apply proof_irr_nat); simpl; auto.
     destruct v; auto.
 
     elimtype False.
-    omega.
+    lia.
   Qed.
 
   Lemma unstratify_stratify1 : forall n (p:predicate) w,
@@ -222,7 +222,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct w as [nw rm]; simpl.
     destruct nw as [nw e].
     destruct (decompose_nat nw O) as [[r Hr]|?].
-    elimtype False; omega.
+    elimtype False; lia.
     apply leT_bot.
 
     (* S n case *)
@@ -231,7 +231,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct (decompose_nat nw (S n)) as [[r Hr]|?]; try (apply lt_rhs_top).
     destruct r; simpl.
 
-    assert (n = nw) by omega.
+    assert (n = nw) by lia.
     subst nw.
     simpl in Hr.
     replace Hr with (refl_equal (S n)) by apply proof_irr_nat; simpl.
@@ -240,7 +240,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     apply leT_refl.
 
     simpl in Hr.
-    assert (n = r + S nw) by omega.
+    assert (n = r + S nw) by lia.
     revert Hr; subst n.
     intro Hr.
     replace Hr with (refl_equal (S (r+S nw))) by apply proof_irr_nat; simpl.
@@ -250,10 +250,10 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     unfold unstratify.
     rewrite Hrm.
     destruct (decompose_nat nw (r + S nw)) as [[x Hx]|?].
-    assert (x = r) by omega; subst x.
+    assert (x = r) by lia; subst x.
     replace Hx with (refl_equal (r + S nw)) by apply proof_irr_nat.
     simpl; auto.
-    elimtype False; omega.
+    elimtype False; lia.
     apply leT_bot.
   Qed.
 
@@ -276,7 +276,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct (decompose_nat m (S n)) as [[r Hr]|?].
     destruct r; simpl.
 
-    assert (n = m) by omega.
+    assert (n = m) by lia.
     move H0 after H1.
     subst m. fold sinv. simpl in Hr. rewrite (proof_irr_nat Hr (refl_equal _)). clear Hr.
     simpl.
@@ -285,13 +285,13 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     apply leT_refl.
 
     simpl in Hr.
-    assert (n = r + S m) by omega.
+    assert (n = r + S m) by lia.
     revert Hr; subst n.
     intro Hr.
     replace Hr with (refl_equal (S (r+S m))) by apply proof_irr_nat; simpl.
     clear Hr.
     rewrite H0 in H.
-    assert (m < (r +  S m)) by omega.
+    assert (m < (r +  S m)) by lia.
     specialize ( IHn p w).
     rewrite H0 in IHn.
     specialize ( IHn H1).
@@ -299,11 +299,11 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     unfold unstratify.
     rewrite Hw.
     destruct (decompose_nat m (r + S m)) as [[x Hx]|?].
-    assert (x = r) by omega; subst x.
+    assert (x = r) by lia; subst x.
     replace Hx with (refl_equal (r + S m)) by apply proof_irr_nat.
     simpl; auto.
-    elimtype False; omega.
-    elimtype False; omega.
+    elimtype False; lia.
+    elimtype False; lia.
   Qed.
 
   Lemma unstratify_stratify3 : forall n (p:predicate) w,
@@ -314,7 +314,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     intro Hrm.
     rewrite Hrm in H; simpl in H.
     destruct (decompose_nat wn n) as [[r Hr]|?].
-    elimtype False; omega.
+    elimtype False; lia.
     apply leT_bot.
   Qed.
 
@@ -338,7 +338,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     end.
 
   Definition approx (n:nat) (p:predicate) : predicate :=
-     fun w => if le_gt_dec n (def_knot_level (fst w)) then T_bot else p w.
+     fun w => if Compare_dec.le_gt_dec n (def_knot_level (fst w)) then T_bot else p w.
 
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
   Proof.
@@ -368,15 +368,15 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     apply leT_asym.
 
     intuition.
-    case (le_gt_dec n (def_knot_level a)); intro.
+    case (Compare_dec.le_gt_dec n (def_knot_level a)); intro.
     replace (approx n p (a, b)) with T_bot.
     apply leT_bot.
     unfold approx.
     simpl.
-    case (le_gt_dec n (def_knot_level a)); intro.
+    case (Compare_dec.le_gt_dec n (def_knot_level a)); intro.
     trivial.
     elimtype False.
-    omega.
+    lia.
     replace (approx n p (a,b)) with (p (a,b)).
     apply unstratify_stratify2.
     simpl.
@@ -386,13 +386,13 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     auto.
     unfold approx.
     simpl.
-    case (le_gt_dec n (def_knot_level a)); intro.
+    case (Compare_dec.le_gt_dec n (def_knot_level a)); intro.
     elimtype False.
-    omega.
+    lia.
     trivial.
 
     intuition.
-    destruct (le_lt_dec n (def_knot_level a)).
+    destruct (Compare_dec.le_lt_dec n (def_knot_level a)).
     replace (approx n p (a, b)) with T_bot.
     apply unstratify_stratify3; auto.
     simpl.
@@ -402,18 +402,18 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     auto.
     unfold approx.
     simpl.
-    case (le_gt_dec n (def_knot_level a)); auto.
+    case (Compare_dec.le_gt_dec n (def_knot_level a)); auto.
     intro.
     elimtype False.
-    omega.
+    lia.
     replace (approx n p (a, b)) with (p (a, b)).
     apply unstratify_stratify1; auto.
     unfold approx.
     simpl.
-    case (le_gt_dec n (def_knot_level a)); auto.
+    case (Compare_dec.le_gt_dec n (def_knot_level a)); auto.
     intro.
     elimtype False.
-    omega.
+    lia.
   Qed.
 
   Lemma unsquash_inj : forall k1 k2,
@@ -448,13 +448,13 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     f_equal. extensionality  a w.
     unfold approx, compose. destruct w.
     simpl fst.
-    destruct (le_gt_dec (S n) (def_knot_level k)); auto.
+    destruct (Compare_dec.le_gt_dec (S n) (def_knot_level k)); auto.
     destruct k. simpl in *.
     unfold def_knot_level in l.
     simpl in *.
     destruct (decompose_nat x n); auto.
     destruct s. elimtype False.
-    omega.
+    lia.
 
     intros.
     unfold def_knot_age1, def_knot_level.

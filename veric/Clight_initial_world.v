@@ -176,17 +176,17 @@ Proof. intros. subst.
              replace (length (map fst vl) - nat_of_Z (Zpos b - 1) - 1)%nat
                         with (length vl - Pos.to_nat b)%nat ; [intuition | ].
     rewrite map_length.
-    transitivity (length vl - (nat_of_Z (Z.pos b-1)+1))%nat; try omega.
+    transitivity (length vl - (nat_of_Z (Z.pos b-1)+1))%nat; try lia.
     f_equal.
     change (Pos.to_nat b = (nat_of_Z (Z.pos b - 1) + nat_of_Z 1)%nat).
-    rewrite <- nat_of_Z_plus by omega.
+    rewrite <- nat_of_Z_plus by lia.
     rewrite <- Z2Nat.inj_pos. unfold nat_of_Z.
-    f_equal. omega.
+    f_equal. lia.
     rewrite map_length.
     rewrite Zlength_correct in H1.
     forget (Z.pos b-1) as i; forget (length vl) as n; clear - H1.
     apply inj_lt_rev. rewrite nat_of_Z_max; auto.
-    rewrite (Coqlib.Zmax_spec i 0). if_tac; omega.
+    rewrite (Coqlib.Zmax_spec i 0). if_tac; lia.
   }
   rename H1 into Hb; revert H; induction vl; simpl rev; simpl map;
        simpl Genv.find_symbol; intros;
@@ -197,11 +197,11 @@ Proof. intros. subst.
        destruct (eq_dec (Z.pos b-1) (Zlength vl)).
         clear IHvl Hb. rewrite e. rewrite Zlength_correct. rewrite nat_of_Z_of_nat.
         replace b with (Z.to_pos (1+ (Zlength vl)))
-          by (rewrite <- e; replace (1 + (Z.pos b - 1)) with (Z.pos b) by omega;
+          by (rewrite <- e; replace (1 + (Z.pos b - 1)) with (Z.pos b) by lia;
                   apply Pos2Z.id).
         clear e b.
         rewrite <- Zlength_rev. rewrite <- rev_length.
-         replace (length (rev vl)) with (length (rev vl) + 0)%nat by omega.
+         replace (length (rev vl)) with (length (rev vl) + 0)%nat by lia.
          rewrite map_app. rewrite <- map_length with (f:=@fst ident (globdef fundef type)).
         rewrite nth_error_app.
         apply iff_trans with (i=id); [ | simpl; split; intro; subst; auto; inv H; auto].
@@ -215,9 +215,9 @@ Proof. intros. subst.
       replace (Z.to_pos (1 + Zlength (p :: dl))) with (1 + Z.to_pos (Zlength (p :: dl)))%positive ; auto.
       clear.
       rewrite Zlength_cons.      rewrite Zlength_correct.
-      rewrite Z2Pos.inj_add; try solve [simpl; omega]. reflexivity.
+      rewrite Z2Pos.inj_add; try solve [simpl; lia]. reflexivity.
     }
-    spec IHvl ; [ omega |].
+    spec IHvl ; [ lia |].
     specialize (IHvl H3).
     rewrite Genv.add_globals_app.
     unfold Genv.add_globals at 1. simpl fold_left.
@@ -235,9 +235,9 @@ Proof. intros. subst.
         clear H; rename H' into H.
           subst b. elimtype False; apply n; clear.
           rewrite <- Zlength_rev. rewrite Zlength_correct. forget (length (rev vl)) as i.
-          rewrite Zpos_Posofnat by omega. rewrite Nat2Z.inj_succ. unfold Z.succ.  omega.
+          rewrite Zpos_Posofnat by lia. rewrite Nat2Z.inj_succ. unfold Z.succ.  lia.
      - elimtype False.
-       assert (Z.pos b-1 >= 0) by (clear - Hb; omega).
+       assert (Z.pos b-1 >= 0) by (clear - Hb; lia).
        pose proof (Coqlib.nat_of_Z_eq _ H0).
        clear - H1 H H2 n.
        rewrite Zlength_correct in n. apply n. clear n.
@@ -256,24 +256,24 @@ Proof. intros. subst.
       split; intro.
       - apply H in H1. rewrite nth_error_app1; auto.
         clear - n Hb. rewrite map_length. rewrite rev_length. rewrite Zlength_correct in Hb,n.
-        assert (Z.pos b-1>=0) by omega.
+        assert (Z.pos b-1>=0) by lia.
         pose proof (Coqlib.nat_of_Z_eq _ H).
         forget (nat_of_Z(Z.pos b-1)) as j. rewrite <- H0 in *.
-        destruct Hb. clear - H2 n. omega.
+        destruct Hb. clear - H2 n. lia.
       - assert (nat_of_Z (Z.pos b-1) < length (map (@fst _ _) (rev vl)))%nat.
         { clear - Hb n H1.
           rewrite Zlength_correct in n. rewrite map_length; rewrite rev_length.
           assert (nat_of_Z (Z.pos b-1) <> length vl).
           { contradict n. rewrite <- n.
-            rewrite Coqlib.nat_of_Z_eq; auto. omega. }
+            rewrite Coqlib.nat_of_Z_eq; auto. lia. }
           forget (nat_of_Z (Z.pos b-1)) as j.
           clear - H1 H.
           assert (S (length vl) = length (map fst (rev vl) ++ map fst ((i, g) :: nil))).
-          { simpl. rewrite app_length; rewrite map_length; rewrite rev_length; simpl; omega. }
-          assert (j < S (length vl))%nat; [ | omega].
+          { simpl. rewrite app_length; rewrite map_length; rewrite rev_length; simpl; lia. }
+          assert (j < S (length vl))%nat; [ | lia].
           rewrite H0. forget (map fst (rev vl) ++ map fst ((i, g) :: nil)) as al.
-          clear - H1. revert al H1; induction j; destruct al; simpl in *; intros; inv H1; auto; try omega.
-          specialize (IHj _ H0); omega. }
+          clear - H1. revert al H1; induction j; destruct al; simpl in *; intros; inv H1; auto; try lia.
+          specialize (IHj _ H0); lia. }
         rewrite nth_error_app1 in H1 by auto.
         apply H0 in H1. auto.
 Qed.
@@ -301,9 +301,9 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  rewrite PTree.gss  in H0. inv H0.
  clear.
  split.
- match goal with |- _ <= Z.pos ?A - _ => pose proof (Zgt_pos_0  A); omega end.
+ match goal with |- _ <= Z.pos ?A - _ => pose proof (Zgt_pos_0  A); lia end.
  rewrite Zlength_cons.
- induction l. simpl. omega.
+ induction l. simpl. lia.
  rewrite Zlength_cons.
  Opaque Z.sub. simpl. Transparent Z.sub.
  rewrite Genv.add_globals_app.
@@ -312,16 +312,16 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
   forget J as j
  end.
  clear - IHl.
- replace (Z.pos (Pos.succ j) - 1) with (Z.succ (Z.pos j - 1)). omega.
-  unfold Z.succ.  rewrite Pos2Z.inj_succ.  omega.
+ replace (Z.pos (Pos.succ j) - 1) with (Z.succ (Z.pos j - 1)). lia.
+  unfold Z.succ.  rewrite Pos2Z.inj_succ.  lia.
  unfold Genv.add_global, Genv.find_symbol in IHl, H0. simpl in H0.
  rewrite PTree.gso in H0 by auto.
  apply IHl in H0.
- rewrite Zlength_cons. omega.
+ rewrite Zlength_cons. lia.
  }
  split.
  rewrite Zlength_correct in RANGE.
- rewrite rev_length in RANGE. omega.
+ rewrite rev_length in RANGE. lia.
  rewrite <- list_norepet_rev in H.
  unfold prog_defs_names in H.
  change (AST.prog_defs prog) with (prog_defs prog) in H.
@@ -339,20 +339,20 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  rewrite rev_length. rewrite map_length.
  clear - RANGE.
  rewrite Zlength_rev in RANGE. rewrite Zlength_correct in RANGE.
- rewrite <- (Coqlib.nat_of_Z_eq (Z.pos b)) in * by omega.
+ rewrite <- (Coqlib.nat_of_Z_eq (Z.pos b)) in * by lia.
  unfold nat_of_Z in *. rewrite Z2Nat.inj_pos in *.
  forget (Pos.to_nat b) as n. clear b.
- replace (Z.of_nat n - 1) with (Z.of_nat (n-1)) by (rewrite inj_minus1 by omega; f_equal; auto).
+ replace (Z.of_nat n - 1) with (Z.of_nat (n-1)) by (rewrite inj_minus1 by lia; f_equal; auto).
  rewrite Nat2Z.id.
- omega.
+ lia.
  inv H1.
  rewrite rev_length. rewrite map_length.
  clear - RANGE. rewrite Zlength_correct in RANGE.
  rewrite rev_length in RANGE.
  forget (length (prog_defs prog)) as N.
- assert (Z_of_nat N > 0) by omega.
+ assert (Z_of_nat N > 0) by lia.
  destruct N; inv H.
- assert (Pos.to_nat b > 0)%nat; [apply Pos2Nat.is_pos| omega].
+ assert (Pos.to_nat b > 0)%nat; [apply Pos2Nat.is_pos| lia].
 Qed.*)
 
 Lemma initial_core_ok: forall (prog: program) G n m,
@@ -411,7 +411,7 @@ rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
 2 : { rewrite rev_length. clear - RANGE.
       destruct RANGE.
-      apply inj_lt_iff. rewrite Z2Nat.id by omega. omega. }
+      apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
 rename H1 into H5.
 replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
@@ -420,19 +420,16 @@ replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
       replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
       assert (Z.to_nat (Z.pos b) <= length dl)%nat.
       destruct RANGE.
-      apply inj_le_iff. rewrite Z2Nat.id by omega. auto.
+      apply inj_le_iff. rewrite Z2Nat.id by lia. auto.
       assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff.
-      rewrite Z2Nat.id by omega.  simpl. omega.
-      omega. destruct RANGE as [? _].
+      rewrite Z2Nat.id by lia.  simpl. lia.
+      lia. destruct RANGE as [? _].
       apply nat_of_Z_lem1.
       assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
-      pose proof (Pos2Nat.is_pos b); omega.
-      omega. }
+      pose proof (Pos2Nat.is_pos b); lia.
+      lia. }
 assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
-{ clear - RANGE.
-  destruct RANGE; split.
-  apply inj_lt_iff. rewrite Z2Nat.id; try omega. simpl. auto.
-  apply inj_le_iff. rewrite Z2Nat.id; try omega. }
+{ clear - RANGE. lia. }
 clear RANGE; rename H0 into RANGE.
 rewrite Z2Nat.inj_pos in *.
 rewrite <- rev_length in RANGE.
@@ -463,19 +460,19 @@ destruct (eq_dec (Pos.to_nat b) (S (length dl))).
   simpl. auto.
   inv H6.
 + destruct IHdl.
-  omega.
+  lia.
   replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
   apply H5.
-  simpl. destruct (Pos.to_nat b); omega.
+  simpl. destruct (Pos.to_nat b); lia.
   assert (b < nextblock m0)%positive.
   apply alloc_globals_rev_nextblock in Hm.
   rewrite Zlength_correct in Hm. clear - Hm n H1.
   rewrite Hm.
   apply Pos2Nat.inj_lt.
   pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
-  rewrite Z2Pos.id by omega.
-  rewrite Z2Nat.inj_succ by omega.
-  rewrite Nat2Z.id. omega.
+  rewrite Z2Pos.id by lia.
+  rewrite Z2Nat.inj_succ by lia.
+  rewrite Nat2Z.id. lia.
   destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
   unfold max_access_at.
   rewrite <- H8.
@@ -531,8 +528,8 @@ rewrite fmap_app.
 match goal with
 | |- ?A (?B ?C) = _ => change (A (B C)) with ((A oo B) C)
 end.
-rewrite approx_oo_approx' by omega.
-rewrite approx'_oo_approx by omega.
+rewrite approx_oo_approx' by lia.
+rewrite approx'_oo_approx by lia.
 auto.
 rewrite Hg1, Hg2.
 unfold initial_core; rewrite !ghost_of_make_rmap; auto.
@@ -594,7 +591,7 @@ rewrite nth_error_rev in H1.
 2 : {
   rewrite rev_length. clear - RANGE.
   destruct RANGE.
-  apply inj_lt_iff. rewrite Z2Nat.id by omega. omega. }
+  apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
 rename H1 into H5.
 replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
   with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
@@ -603,19 +600,16 @@ replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
   replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
   assert (Z.to_nat (Z.pos b) <= length dl)%nat.
   destruct RANGE.
-  apply inj_le_iff. rewrite Z2Nat.id by omega. auto.
+  apply inj_le_iff. rewrite Z2Nat.id by lia. auto.
   assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff.
-  rewrite Z2Nat.id by omega.  simpl. omega.
-  omega. destruct RANGE as [? _].
+  rewrite Z2Nat.id by lia.  simpl. lia.
+  lia. destruct RANGE as [? _].
   apply nat_of_Z_lem1.
   assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
-  pose proof (Pos2Nat.is_pos b); omega.
-  omega. }
+  pose proof (Pos2Nat.is_pos b); lia.
+  lia. }
 assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
-{ clear - RANGE.
-  destruct RANGE; split.
-  apply inj_lt_iff. rewrite Z2Nat.id; try omega. simpl. auto.
-  apply inj_le_iff. rewrite Z2Nat.id; try omega. }
+{ clear - RANGE. lia. }
 clear RANGE; rename H0 into RANGE.
 rewrite Z2Nat.inj_pos in *.
 rewrite <- rev_length in RANGE.
@@ -646,19 +640,19 @@ destruct (eq_dec (Pos.to_nat b) (S (length dl))).
   simpl. auto.
   inv H6.
 + destruct IHdl.
-  omega.
+  lia.
   replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
   apply H5.
-  simpl. destruct (Pos.to_nat b); omega.
+  simpl. destruct (Pos.to_nat b); lia.
   assert (b < nextblock m0)%positive.
   { apply alloc_globals_rev_nextblock in Hm.
     rewrite Zlength_correct in Hm. clear - Hm n H1.
     rewrite Hm.
     apply Pos2Nat.inj_lt.
     pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
-    rewrite Z2Pos.id by omega.
-    rewrite Z2Nat.inj_succ by omega.
-    rewrite Nat2Z.id. omega. }
+    rewrite Z2Pos.id by lia.
+    rewrite Z2Nat.inj_succ by lia.
+    rewrite Nat2Z.id. lia. }
   destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
   unfold max_access_at.
   rewrite <- H8.
@@ -825,7 +819,7 @@ Proof.
   intros ts ftor garg.
   intros phi Hphi phi' Hphi'.
   apply necR_level in Hphi'.
-  assert (n' > level phi')%nat by omega.
+  assert (n' > level phi')%nat by lia.
   clear n1' Hphi phi Hphi' Hn1'.
   rename phi' into phi.
   intros [_ ?].
@@ -862,7 +856,7 @@ Proof.
        (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
           (approx (Init.Nat.min n' n)) ftor) rho) phi'').
   split; auto.
-  apply necR_level in Hphi''; omega.
+  apply necR_level in Hphi''; lia.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
   destruct H7; auto.
@@ -908,7 +902,7 @@ Proof.
   intros ts ftor garg.
   intros phi Hphi phi' Hphi'.
   apply necR_level in Hphi'.
-  assert (n' > level phi')%nat by omega.
+  assert (n' > level phi')%nat by lia.
   clear n1' Hphi phi Hphi' Hn1'.
   rename phi' into phi.
   intros [_ ?].
@@ -945,7 +939,7 @@ Proof.
        (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
           (approx (Init.Nat.min n' n)) ftor) rho) phi'').
   split; auto.
-  apply necR_level in Hphi''; omega.
+  apply necR_level in Hphi''; lia.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
   destruct H7; auto.

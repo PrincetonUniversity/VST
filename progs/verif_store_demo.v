@@ -44,10 +44,10 @@ Proof.
 start_function.
 rename H into LEN.
 assert (Zlength (tag :: contents) = 1 + n) as LEN1. {
-  rewrite Zlength_cons. omega.
+  rewrite Zlength_cons. lia.
 }
 assert (N0: 0 <= n). {
-  pose proof (Zlength_nonneg contents). omega.
+  pose proof (Zlength_nonneg contents). lia.
 }
 assert_PROP (isptr p) as P by entailer!.
 (* forward fails, but tells us to prove this: *)
@@ -64,7 +64,7 @@ assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vin
 forward.
 entailer!.
 rewrite upd_Znth0.
-rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by omega.
+rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by lia.
 apply derives_refl.
 Qed.
 
@@ -104,7 +104,7 @@ assert_PROP (
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. normalize.  f_equal. omega.
+  simpl. normalize.  f_equal. lia.
 }
 (* int res = p->snd; *)
 forward.

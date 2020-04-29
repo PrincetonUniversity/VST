@@ -425,7 +425,7 @@ assert (exists ophi2, age phi2 ophi2 /\ level phi = level ophi2).
 generalize (age_level _ _ H0); intro.
 rewrite H in H2; apply levelS_age1 in H2. destruct H2 as [y ?].
 exists y; split; auto.
-apply age_level in H0; apply age_level in H2; omega.
+apply age_level in H0; apply age_level in H2; lia.
 destruct H2 as [ophi2 [? ?]].
 specialize (IHn _ _ _ H3 H1).
 destruct IHn as [phi2' [? ?]].
@@ -512,12 +512,12 @@ Proof.
   revert x y H; induction n; intros.
   + split; intros.
     - apply laterR_level in H0.
-      omega.
+      lia.
     - destruct H0 as [n ?H].
       destruct H0 as [z [? ?]].
-      apply age_level in H0; omega.
+      apply age_level in H0; lia.
   + split; intros.
-    - destruct (age1 x) as [a' |] eqn:?H; [| apply age1_level0 in H1; omega].
+    - destruct (age1 x) as [a' |] eqn:?H; [| apply age1_level0 in H1; lia].
       assert (age x a') by auto; clear H1.
       pose proof age_later_nec _ _ _ H2 H0.
       destruct (nec_refl_or_later _ _ H1).
@@ -593,18 +593,18 @@ Proof.
   revert x; induction n; intros.
   + simpl; split; intros.
     - inversion H.
-    - omega.
+    - lia.
   + simpl; split; intros.
     - destruct (age1 x) eqn:?H.
       * apply age_level in H0.
         apply IHn in H.
-        omega.
+        lia.
       * apply age1_level0 in H0.
-        omega.
+        lia.
     - destruct (age1 x) eqn:?H.
       * apply IHn.
         apply age_level in H0.
-        omega.
+        lia.
       * reflexivity.
 Qed.
 
@@ -679,7 +679,7 @@ Proof.
   + intros.
     apply necR_level in H.
     rewrite <- Heqn in H.
-    destruct (level x') eqn:HH; [|omega].
+    destruct (level x') eqn:HH; [|lia].
     exists y.
     split.
        unfold necR; auto.
@@ -721,7 +721,7 @@ Proof.
   + apply laterR_level in HH.
     subst.
     rewrite <- H0 in H2.
-    omega.
+    lia.
   + exact H1.
 Qed.
 

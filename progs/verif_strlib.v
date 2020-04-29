@@ -132,10 +132,10 @@ forward_loop (EX i : Z,
   forward.
   Exists (i+1); entailer!.
   assert (i <> Zlength ls) by cstring.
-  split. omega.
-  rewrite (sublist_split 0 i) by rep_omega. rewrite Forall_app. split; auto.
-  rewrite sublist_len_1 by rep_omega. repeat constructor.
-  rewrite app_Znth1 in H4 by rep_omega. auto.
+  split. lia.
+  rewrite (sublist_split 0 i) by rep_lia. rewrite Forall_app. split; auto.
+  rewrite sublist_len_1 by rep_lia. repeat constructor.
+  rewrite app_Znth1 in H4 by rep_lia. auto.
   }
 Qed.
 
@@ -152,7 +152,7 @@ Proof.
 intros.
 apply (split2_data_at_Tarray_app _ n  sh tschar al bl ); auto.
 rewrite Zlength_app in H.
-change ( Zlength bl = n - Zlength al); omega.
+change ( Zlength bl = n - Zlength al); lia.
 Qed.
 
 Lemma body_strcat: semax_body Vprog Gprog f_strcat strcat_spec.
@@ -233,8 +233,8 @@ forward_loop (EX i : Z,
     apply derives_refl'.
     unfold data_at; f_equal. 
     replace (n - (Zlength ld + Zlength ls))
-     with (1 + (n - (Zlength ld + Zlength ls+1))) by rep_omega.
-    rewrite <- list_repeat_app' by rep_omega.
+     with (1 + (n - (Zlength ld + Zlength ls+1))) by rep_lia.
+    rewrite <- list_repeat_app' by rep_lia.
     rewrite upd_Znth_app1 by list_solve.
     rewrite app_assoc.
     simpl.
@@ -246,18 +246,18 @@ forward_loop (EX i : Z,
   destruct (zlt j (Zlength ls)); [ | cstring].
   entailer!.
   change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
-  rewrite (sublist_split 0 j (j+1)) by rep_omega.
+  rewrite (sublist_split 0 j (j+1)) by rep_lia.
   rewrite (app_assoc ld). rewrite !map_app.
   rewrite <- (app_assoc (_ ++ _)).
   rewrite (split_data_at_app_tschar _ n) by list_solve.
   rewrite (split_data_at_app_tschar _ n) by list_solve.
   replace (n - (Zlength ld + j))
-    with (1 + (n - (Zlength ld + (j + 1)))) by rep_omega.
-  rewrite <- list_repeat_app' by rep_omega.
+    with (1 + (n - (Zlength ld + (j + 1)))) by rep_lia.
+  rewrite <- list_repeat_app' by rep_lia.
   cancel.
-  rewrite upd_Znth_app1 by (autorewrite with sublist; rep_omega).
+  rewrite upd_Znth_app1 by (autorewrite with sublist; rep_lia).
   rewrite app_Znth1 by list_solve.
-  rewrite sublist_len_1 by rep_omega.
+  rewrite sublist_len_1 by rep_lia.
   cancel.
   }
 Qed.
@@ -285,13 +285,13 @@ forward_loop (EX i : Z,
   assert (Zlength (ls2 ++ [Byte.zero]) = Zlength ls2 + 1) by (autorewrite with sublist; auto).
   forward. fold_Vbyte.
   assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls1) as Hs1.
-  { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by omega; auto].
-    destruct (zlt i (Zlength ls1)); [|omega].
-    intro X; lapply (Znth_In i ls1); [|omega]. cstring. }
+  { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by lia; auto].
+    destruct (zlt i (Zlength ls1)); [|lia].
+    intro X; lapply (Znth_In i ls1); [|lia]. cstring. }
   assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls2) as Hs2.
-  { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by omega; auto].
-    destruct (zlt i (Zlength ls2)); [|omega].
-    intro X; lapply (Znth_In i ls2); [|omega]. cstring. }
+  { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by lia; auto].
+    destruct (zlt i (Zlength ls2)); [|lia].
+    intro X; lapply (Znth_In i ls2); [|lia]. cstring. }
   forward. normalize.
   forward. fold_Vbyte.
   forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
@@ -312,7 +312,7 @@ forward_loop (EX i : Z,
      rewrite (proj2 (Z.eqb_neq i (Zlength ls2))) by auto.
     entailer!.
      contradict n.
-     apply repr_inj_signed in n; try rep_omega. normalize in n.
+     apply repr_inj_signed in n; try rep_lia. normalize in n.
  }
   { forward.
     entailer!.
@@ -332,14 +332,14 @@ forward_loop (EX i : Z,
   forward_if.
   *
     forward. Exists (Int.repr (-1)). entailer!.
-    simpl. intro; subst. omega.
+    simpl. intro; subst. lia.
  *
    forward_if.
    forward.
-   Exists (Int.repr 1). entailer!. simpl. intro. subst. omega.
+   Exists (Int.repr 1). entailer!. simpl. intro. subst. lia.
 
    assert (H17: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
-     Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by omega.
+     Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by lia.
    normalize in H17. clear H7 H8.
    forward.
    Exists (i+1).
@@ -349,36 +349,36 @@ forward_loop (EX i : Z,
    clear H10 H11 H9.
    destruct (zlt i (Zlength ls1)).
   2:{
-         rewrite app_Znth2 in Hs1 by rep_omega.
-         destruct (zeq i (Zlength ls1)); [ | omega].
+         rewrite app_Znth2 in Hs1 by rep_lia.
+         destruct (zeq i (Zlength ls1)); [ | lia].
          subst.
          destruct H6; [congruence | ].
-         assert (Zlength ls1 < Zlength ls2) by omega.
-         rewrite app_Znth2 in H17 by rep_omega.
-         rewrite app_Znth1 in H17 by rep_omega.
+         assert (Zlength ls1 < Zlength ls2) by lia.
+         rewrite app_Znth2 in H17 by rep_lia.
+         rewrite app_Znth1 in H17 by rep_lia.
          rewrite Z.sub_diag in H17. contradiction H0.
          change (Znth 0 [Byte.zero]) with Byte.zero in H17. rewrite H17.
-         apply Znth_In. omega.
+         apply Znth_In. lia.
    }
   destruct (zlt i (Zlength ls2)).
   2:{
-         rewrite app_Znth2 in Hs2 by rep_omega.
-         destruct (zeq i (Zlength ls2)); [ | omega].
+         rewrite app_Znth2 in Hs2 by rep_lia.
+         destruct (zeq i (Zlength ls2)); [ | lia].
          subst.
          destruct H6; [ | congruence].
-         assert (Zlength ls1 > Zlength ls2) by omega.
-         rewrite app_Znth1 in H17 by rep_omega.
-         rewrite app_Znth2 in H17 by rep_omega.
+         assert (Zlength ls1 > Zlength ls2) by lia.
+         rewrite app_Znth1 in H17 by rep_lia.
+         rewrite app_Znth2 in H17 by rep_lia.
          rewrite Z.sub_diag in H17. contradiction H.
          change (Znth 0 [Byte.zero]) with Byte.zero in H17. rewrite <- H17.
-         apply Znth_In. omega.
+         apply Znth_In. lia.
    }
-  rewrite (sublist_split 0 i (i+1)) by omega.
-  rewrite (sublist_split 0 i (i+1)) by omega.
+  rewrite (sublist_split 0 i (i+1)) by lia.
+  rewrite (sublist_split 0 i (i+1)) by lia.
   f_equal; auto.
-  rewrite !sublist_len_1 by omega.
+  rewrite !sublist_len_1 by lia.
   rewrite !app_Znth1 in H17 by list_solve.
-  split. rep_omega. split. rep_omega.
+  split. rep_lia. split. rep_lia.
   f_equal; auto. f_equal. auto.
 Qed.
 
@@ -417,7 +417,7 @@ forward_loop (EX i : Z,
    rewrite (split_data_at_app_tschar _ n) by list_solve.
    autorewrite with sublist.
    replace (n - Zlength ls) with (1 + (n - (Zlength ls + 1))) at 2 by list_solve.
-  rewrite <- list_repeat_app' by omega.
+  rewrite <- list_repeat_app' by lia.
   rewrite upd_Znth_app1 by list_solve.
   rewrite !split_data_at_app_tschar by list_solve.
   cancel.
@@ -433,12 +433,12 @@ forward_loop (EX i : Z,
   rewrite !(split_data_at_app_tschar _ n) by list_solve.
   autorewrite with sublist.
    replace (n - i) with (1 + (n-(i+ 1))) at 2 by list_solve.
-  rewrite <- list_repeat_app' by omega.
+  rewrite <- list_repeat_app' by lia.
   autorewrite with sublist.
   cancel.
   rewrite !split_data_at_app_tschar by list_solve.
   autorewrite with sublist.
-  rewrite sublist_len_1 by omega.
+  rewrite sublist_len_1 by lia.
   simpl. cancel.
 Qed.
 
@@ -499,10 +499,10 @@ forward_loop (EX i : Z,
   forward. (* entailer!. *)
   Exists (i+1); entailer!.
   assert (i <> Zlength ls) by cstring.
-  split. omega.
-  rewrite (sublist_split 0 i) by rep_omega. rewrite Forall_app. split; auto.
-  rewrite sublist_len_1 by rep_omega. repeat constructor.
-  rewrite app_Znth1 in H4 by rep_omega. auto.
+  split. lia.
+  rewrite (sublist_split 0 i) by rep_lia. rewrite Forall_app. split; auto.
+  rewrite sublist_len_1 by rep_lia. repeat constructor.
+  rewrite app_Znth1 in H4 by rep_lia. auto.
 Qed.
 
 Lemma body_strcat: semax_body Vprog Gprog f_strcat strcat_spec.
@@ -589,15 +589,15 @@ forward_loop (EX i : Z,
   repeat step!.
   { simpl. rewrite andb_true_iff in H4; destruct H4 as [Hi1 Hi2].
     rewrite Z.eqb_eq in Hi1, Hi2.
-    apply Znth_eq_ext. omega.
-    intros. apply H3. omega.
+    apply Znth_eq_ext. lia.
+    intros. apply H3. lia.
   }
-  { simpl. intro. subst. omega. }
-  (* { simpl. intro. subst. omega. } *)
+  { simpl. intro. subst. lia. }
+  (* { simpl. intro. subst. lia. } *)
   (* split too early here *)
   all : rewrite andb_false_iff in *; rewrite !Z.eqb_neq in *.
   all : assert (HZnth: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
-     Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by omega.
+     Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by lia.
   all : normalize in HZnth. all: clear -Espec sh1 sh2 str1 ls1 str2 ls2 H H0 i H1 H2 H3 H4 HZnth.
   Time all: list_solve.
   (* Finished transaction in 12.274 secs (12.187u,0.062s) (successful) *)

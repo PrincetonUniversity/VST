@@ -32,11 +32,11 @@ Proof.
   eapply H0; auto.
   assert (level w1 = level a').
   apply comparable_fashionR.  eapply join_sub_comparable; eauto.
- apply necR_level in H4. omega.
+ apply necR_level in H4. lia.
   eapply H1; auto.
   assert (level w2 = level a').
   apply comparable_fashionR. eapply join_sub_comparable; eauto.
- apply necR_level in H4. omega.
+ apply necR_level in H4. lia.
 Qed.
 
 Lemma sub_wand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall G P P' Q Q',
@@ -50,11 +50,11 @@ Proof.
   eapply H0 in H8; try apply necR_refl.
   eapply H1; try apply necR_refl.
   apply necR_level in H4. apply necR_level in H6. apply join_comparable in H7.
-  apply comparable_fashionR in H7. unfold fashionR in H7. omega.
+  apply comparable_fashionR in H7. unfold fashionR in H7. lia.
   eapply H5; eauto.
   apply necR_level in H4. apply necR_level in H6.
    apply join_comparable2 in H7.
-  apply comparable_fashionR in H7. unfold fashionR in H7. omega.
+  apply comparable_fashionR in H7. unfold fashionR in H7. lia.
 Qed.
 
 Lemma find_superprecise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:

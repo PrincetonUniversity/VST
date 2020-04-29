@@ -248,11 +248,11 @@ unfold contents_cohere in H0.
 symmetry.
 destruct (H0 _ _ _ _ _ H) as [? _].
 apply H1.
-replace (ofs - ofs) with 0 by omega; auto.
+replace (ofs - ofs) with 0 by lia; auto.
 unfold adr_range; split; auto.
-cut (z > 0). omega.
+cut (z > 0). lia.
 inversion H3.
-cut (z = Z_of_nat (length bl) + 1). omega.
+cut (z = Z_of_nat (length bl) + 1). lia.
 assert (HS_nat_Z: forall n z, S n = Z.to_nat z -> Z_of_nat n + 1 = z).
   intros n z' H4.
   cut (Z_of_nat 1 = 1).
@@ -262,18 +262,15 @@ assert (HS_nat_Z: forall n z, S n = Z.to_nat z -> Z_of_nat n + 1 = z).
   replace (Z_of_nat (n + 1%nat)) with (Z_of_nat (S n)).
   rewrite H4.
   rewrite Z2Nat.id; auto.
-  destruct z'; try solve [omega].
+  destruct z'; try solve [lia].
   inversion H4.
-  rewrite <- nat_of_P_o_P_of_succ_nat_eq_succ in H6.
-  rewrite Zpos_eq_Z_of_nat_o_nat_of_P.
-  rewrite <- H6.
-  omega.
+  rewrite <- nat_of_P_o_P_of_succ_nat_eq_succ in H6. lia.
   simpl in H4.
   inv H4.
   idtac.
   replace (plus n (S 0)) with (S n).
   auto.
-  omega.
+  lia.
   auto.
 symmetry; apply HS_nat_Z; auto.
 intros loc'.
@@ -296,9 +293,9 @@ rewrite Pmult_nat_mult in H6.
 rewrite mult_1_r in H6.
 change (Pos.to_nat p) with (Z.to_nat (Z.pos p)) in H6.
 rewrite H2 in H6.
-omegaContradiction.
+lia.
 assert (ofs' - ofs > 0).
-omega.
+lia.
 assert (forall z, z > 0 -> exists p, z = Zpos p).
   intros.
   assert (exists n, Z.to_nat z0 = S n).
@@ -319,9 +316,9 @@ assert (forall z, z > 0 -> exists p, z = Zpos p).
   rewrite <- H7.
   rewrite Z2Nat.id.
   auto.
-omega.
+lia.
 apply H6; auto.
-omega.
+lia.
 intros n H2.
 rewrite H2 in H.
 assert (Z.to_nat (snd loc' - (ofs + 1)) = n).
@@ -330,21 +327,8 @@ assert (Z.to_nat (snd loc' - (ofs + 1)) = n).
   assert (Z_of_nat (Z.to_nat (z0 - ofs)) = Z_of_nat (S n)).
   auto.
   assert (z0 - ofs > 0).
-    omega.
-  rewrite Z2Nat.id in H4; try solve [omega].
-  replace (z0 - (ofs + 1)) with (z0 - ofs - 1) by omega.
-  rewrite H4.
-  destruct n; try solve [simpl; omega].
-  replace (Z.of_nat (S (S n)) - 1) with (Z.of_nat (S n)).
-  rewrite Nat2Z.id.
-  auto.
-  replace (Z_of_nat (S n)) with (Zpos (P_of_succ_nat n)) by auto.
-  replace (Z_of_nat (S (S n))) with (Zpos (P_of_succ_nat (S n))) by auto.
-  do 2 rewrite Zpos_P_of_succ_nat.
-  replace (Z.succ (Z_of_nat (S n)) - 1) with (Z_of_nat (S n)) by omega.
-  simpl.
-  rewrite Zpos_P_of_succ_nat.
-  auto.
+    lia.
+  rewrite Z2Nat.id in H4; try solve [lia].
 rewrite H4.
 apply H.
 elimtype False. auto.
@@ -352,7 +336,7 @@ auto.
 unfold adr_range.
 destruct loc' as (b', ofs').
 intros [H1 H2].
-split; auto || omega.
+split; auto || lia.
 inversion H3.
 assert (z > 0).
   assert (forall n z, S n = Z.to_nat z -> z > 0).
@@ -361,18 +345,8 @@ assert (z > 0).
     apply Zgt_pos_0.
   eapply H1; eauto.
 assert (z - 1 >= 0).
-omega.
-assert (Z_of_nat (S (length bl)) = Z_of_nat (Z.to_nat z)).
-rewrite Z2Nat.id; try solve [omega].
-rewrite H2.
-rewrite Z2Nat.id; try solve [omega].
-rewrite Z2Nat.id in H5; try solve [omega].
-rewrite <- H5.
-rewrite inj_S.
-assert (forall z, Z.succ z - 1 = z) by (intros; omega).
-rewrite H6.
-rewrite Nat2Z.id.
-auto.
+lia.
+lia.
 Qed.
 
 Lemma core_load_valid: forall ch v b ofs m phi,
@@ -446,20 +420,20 @@ intros.
 generalize (lt_O_nat_of_P p). intro.
 rewrite H1 in H0.
 simpl in *.
-omegaContradiction.
+lia.
 intros.
 generalize (Zlt_neg_0 p). intro.
 rewrite H1 in H0.
-omegaContradiction.
+lia.
 Qed.
 
 Lemma nat_of_Z_lem1: forall n z, 
     S n = Z.to_nat z -> n = Z.to_nat (z - 1).
 Proof.
 intros.
-rewrite Z2Nat.inj_sub by omega.
+rewrite Z2Nat.inj_sub by lia.
 rewrite <- H.
-simpl. omega.
+simpl. lia.
 Qed.
 
 Lemma nat_of_Z_lem2: forall n z1 z2, S n = Z.to_nat (z1 - z2) -> n = Z.to_nat (z1 - z2 - 1).
@@ -478,13 +452,13 @@ revert n z Heqn.
 induction n; intros.
 destruct z.
 inv H.
-omegaContradiction.
+lia.
 simpl in *.
 generalize (lt_O_nat_of_P p). intro.
-omegaContradiction.
+lia.
 generalize (Zlt_neg_0 p).
 intro.
-omegaContradiction.
+lia.
 simpl.
 case_eq (Z.to_nat (ofs' - ofs)).
 intros.
@@ -495,26 +469,12 @@ subst; auto.
 intros.
 symmetry in H1.
 assert (n = Z.to_nat (z - 1)) by (apply nat_of_Z_lem1 in Heqn; auto).
-rewrite (IHn (z - 1) H2 (ofs + 1)); try solve [auto|omega].
+rewrite (IHn (z - 1) H2 (ofs + 1)); try solve [auto|lia].
 assert (Z.to_nat (ofs' - (ofs + 1)) = n0).
-replace (ofs' - (ofs + 1)) with (ofs' - ofs - 1) by omega.
+replace (ofs' - (ofs + 1)) with (ofs' - ofs - 1) by lia.
   apply nat_of_Z_lem1 in H1.
   auto.
 rewrite H3; auto.
-destruct H.
-split.
-case_eq (ofs' - ofs). intro. rewrite H4 in H1.
-simpl in *. inv H1.
-intros. rewrite H4 in H1. simpl in *.
-generalize (lt_O_nat_of_P p). intro.
-cut (1 <= ofs' - ofs). intro. omega.
-rewrite H4.
-generalize (Zpos_eq_Z_of_nat_o_nat_of_P p). intro. rewrite H6.
-omega.
-intros.
-generalize (Zlt_neg_0 p). intro.
-omegaContradiction.
-omega.
 Qed.
 
 Lemma load_core_load: forall ch b ofs v m,
@@ -566,7 +526,7 @@ destruct (m_phi m @ (b, ofs')) eqn:H8; try contradiction.
 if_tac in PERM; inv PERM.
 destruct k; try now inv PERM.
 pose proof (size_chunk_pos ch).
-rewrite <- nth_getN with (ofs := ofs) (z := size_chunk ch); auto; try omega.
+rewrite <- nth_getN with (ofs := ofs) (z := size_chunk ch); auto; try lia.
 exists sh, r.
 destruct (H1 _ _ _ _ _ H8); subst.
 f_equal.
@@ -759,7 +719,7 @@ intros.
 generalize (Mem.store_mem_contents _ _ _ _ _ _ H); intro.
 destruct (eq_block b b').
 subst b'.
-assert (z <= ofs < z + size_chunk ch \/ (ofs < z \/ ofs >= z + size_chunk ch)) by omega.
+assert (z <= ofs < z + size_chunk ch \/ (ofs < z \/ ofs >= z + size_chunk ch)) by lia.
 destruct H1.
 left; auto.
 right.
@@ -772,8 +732,8 @@ rewrite encode_val_length in H0.
 rewrite <- size_chunk_conv in H0.
 destruct H0.
 destruct H1.
-omega.
-omega.
+lia.
+lia.
 right.
 unfold contents_at; rewrite H0; clear H0.
 simpl.
@@ -796,7 +756,7 @@ unfold zle.
 case_eq (Z_le_gt_dec lo ofs); intros; auto.
 unfold zlt.
 case_eq (Z_lt_dec ofs hi); intros; auto.
-omegaContradiction.
+lia.
 Qed.
 
 Lemma join_top: forall sh2 sh, join Share.top sh2 sh -> sh = Share.top.
@@ -814,7 +774,7 @@ intros.
 destruct H as [phi1 [phi2 [? [? ?]]]].
 destruct H1 as [H1 _]; specialize (H1 (b,ofs)).
 apply (resource_at_join _ _ _ (b,ofs)) in H.
-hnf in H1. rewrite if_true in H1 by (split; auto; omega).
+hnf in H1. rewrite if_true in H1 by (split; auto; lia).
 destruct H1 as [? [? ?]].
 hnf in H1. rewrite H1 in H.
 inv H. simpl.
@@ -1023,7 +983,7 @@ assert (~adr_range (b,lo) (hi-lo) loc). {
   destruct Contra.
   subst.
   assert (access_at m1 (nextblock m1, z) Cur = None).
-    unfold access_at; apply nextblock_noaccess; simpl; xomega.
+    unfold access_at; apply nextblock_noaccess; simpl. apply Plt_strict.
   assert (b0 = nextblock m1) by (eapply alloc_result; eauto).
   subst.
   rewrite Ha in H0. simpl in H0. clear - r H0.
@@ -1076,7 +1036,7 @@ assert (~adr_range (b,lo) (hi-lo) loc). {
   unfold perm_of_res in Ha; simpl in Ha; rewrite H4 in Ha.
 *)
   assert (access_at m1 (nextblock m1, z) Cur = None).
-    unfold access_at. simpl. apply nextblock_noaccess. xomega.
+    unfold access_at. simpl. apply nextblock_noaccess. apply Plt_strict.
   rewrite H2 in Ha.
   clear - Ha r. unfold perm_of_sh in Ha. repeat if_tac in Ha; inv Ha; try contradiction.
 }

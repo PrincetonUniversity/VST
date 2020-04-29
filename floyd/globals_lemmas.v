@@ -48,7 +48,7 @@ Proof.
  intros.
   unfold Ptrofs.zwordsize,  Ptrofs.wordsize, Wordsize_Ptrofs.wordsize in x.
   destruct (Archi.ptr64);
-  (compute in x; subst x; spec H0; [omega| ]; spec H1; omega).
+  (compute in x; subst x; spec H0; [lia| ]; spec H1; lia).
 Qed.
 
 Lemma tc_globalvar_sound:
@@ -154,7 +154,7 @@ Proof.
   rewrite Int.unsigned_repr_eq.
   apply Zmod_le; try assumption.
   pose proof Int.Z_mod_modulus_range i.
-  omega.
+  lia.
 Qed.
 
 Lemma mapsto_aligned:
@@ -194,7 +194,7 @@ Lemma init_data_size_space {cs: compspecs}:
  forall t, init_data_size (Init_space (sizeof t)) = sizeof t.
 Proof. intros.
  pose proof (sizeof_pos t).
- unfold init_data_size. rewrite Z.max_l; auto. omega.
+ unfold init_data_size. rewrite Z.max_l; auto. lia.
 Qed.
 
 Lemma init_data2pred_rejigger {cs: compspecs}:
@@ -275,7 +275,7 @@ rewrite H10 at 1.
      (init_data2pred' Delta (globals_of_env rho) idata sh
       (offset_val 0 (globals_of_env rho i))).
 + rewrite andb_true_iff in H1; destruct H1.
-  eapply init_data2pred_rejigger; eauto; try omega.
+  eapply init_data2pred_rejigger; eauto; try lia.
   unfold globals_of_env; rewrite H9; reflexivity.
  +
  unfold init_data2pred'.
@@ -297,17 +297,15 @@ Arguments id2pred_star cs Delta gz sh v dl rho  / .
 
 Lemma init_data_size_pos : forall a, init_data_size a >= 0.
 Proof.
- destruct a; simpl; try omega.
- pose proof (Zmax_spec z 0).
- destruct (zlt 0 z); omega.
-destruct Archi.ptr64; omega.
+ destruct a; simpl; try lia.
+destruct Archi.ptr64; lia.
 Qed.
 
 Lemma init_data_list_size_pos : forall a, init_data_list_size a >= 0.
 Proof.
  induction a; simpl.
- omega.
- pose proof (init_data_size_pos a); omega.
+ lia.
+ pose proof (init_data_size_pos a); lia.
 Qed.
 
 Lemma unpack_globvar_star  {cs: compspecs}:
@@ -391,7 +389,7 @@ Proof.
   match goal with |- ?F _ _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
   change (offset_strict_in_range (sizeof (Tint sz sign noattr) * Zlength data) v) in H1.
   assert (offset_strict_in_range (sizeof (Tint sz sign noattr) * 0) v) by
-    (unfold offset_strict_in_range; destruct v; auto; pose proof Ptrofs.unsigned_range i; omega).
+    (unfold offset_strict_in_range; destruct v; auto; pose proof Ptrofs.unsigned_range i; lia).
 unfold tarray.
 set (t := Tint sz sign noattr) in *.
 revert v H H0 H1 H2; induction data; intros.
@@ -406,8 +404,8 @@ revert v H H0 H1 H2; induction data; intros.
   split3; auto.
   split3; auto.
   hnf. destruct v; auto. replace (sizeof (Tarray (Tint sz sign noattr) 0 noattr)) with 0 by (destruct sz; simpl; auto).
-  pose proof Ptrofs.unsigned_range i; omega.
-  hnf; destruct v; auto. apply align_compatible_rec_Tarray. intros. omega.
+  pose proof Ptrofs.unsigned_range i; lia.
+  hnf; destruct v; auto. apply align_compatible_rec_Tarray. intros. lia.
 *
 rewrite Zlength_cons.
 simpl map.
@@ -437,8 +435,8 @@ unfold Z.succ in H1. rewrite Z.mul_add_distr_l in H1.
 pose proof (Zlength_nonneg data).
 rewrite Z.mul_1_r in H1.
 assert (0 <= sizeof t * Zlength data)
-  by (apply Z.mul_nonneg_nonneg; omega).
- omega.
+  by (apply Z.mul_nonneg_nonneg; lia).
+ lia.
 }
 subst t.
 normalize.
@@ -461,15 +459,15 @@ apply derives_refl.
    pose proof (Ptrofs.unsigned_range i).
    assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable.
    rewrite Z.mul_0_r in *.
-   assert (0 <= sizeof t * Zlength data) by (apply Z.mul_nonneg_nonneg; omega).
+   assert (0 <= sizeof t * Zlength data) by (apply Z.mul_nonneg_nonneg; lia).
    unfold offset_strict_in_range, offset_val in *.
    unfold align_compatible in H0|-*.
    unfold Ptrofs.add.
    rewrite (Ptrofs.unsigned_repr (sizeof t)) 
     by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize;
-          clear; subst t; destruct sz,sign, Archi.ptr64; simpl; omega).
+          clear; subst t; destruct sz,sign, Archi.ptr64; simpl; lia).
   rewrite Ptrofs.unsigned_repr.
-  split3; try omega.
+  split3; try lia.
    assert (exists ch, access_mode t = By_value ch)
      by (clear; subst t; destruct sz,sign; eexists; reflexivity).
   destruct H8 as [ch ?].
@@ -478,11 +476,11 @@ apply derives_refl.
    apply Z.divide_add_r; auto.
   clear - H8. subst t. destruct sz,sign; inv H8; simpl; apply Z.divide_refl.
   unfold Ptrofs.max_unsigned.
-  omega.
+  lia.
  }
  destruct H8 as [H8a [H8b H8c]].
   eapply derives_trans; [ apply IHdata | ]; clear IHdata; auto.
-  replace (Z.succ (Zlength data) - 1) with (Zlength data) by (clear; omega).
+  replace (Z.succ (Zlength data) - 1) with (Zlength data) by (clear; lia).
    apply derives_refl'; f_equal.
  unfold field_address0.
   rewrite if_true.
@@ -495,9 +493,9 @@ apply derives_refl.
   split3; auto; red.
   unfold sizeof; fold sizeof.
   pose proof (Zlength_nonneg data).
-  rewrite Z.max_r by omega.
+  rewrite Z.max_r by lia.
   unfold offset_strict_in_range in H1. rewrite Zlength_cons in H1.
-  omega.
+  lia.
   apply align_compatible_rec_Tarray; intros.
   unfold align_compatible, offset_val in H8a.
   assert (exists ch, access_mode t = By_value ch)
@@ -511,7 +509,7 @@ apply derives_refl.
   clear - t H4.
   subst t.
   destruct sz,sign; inv H4; try apply Z.divide_refl.
-  pose proof (Zlength_nonneg data); omega.
+  pose proof (Zlength_nonneg data); lia.
 Qed.
 
 Lemma id2pred_star_ZnthV_tint  {cs: compspecs}:
@@ -600,17 +598,17 @@ Proof.
     destruct (globals_of_env rho i) eqn:?H; auto.
     rewrite H5 in H6; simpl in H6.
     pose proof initial_world.zlength_nonneg _ (gvar_init gv).
-    rewrite Z.max_r in H6 by omega.
+    rewrite Z.max_r in H6 by lia.
     fold (sizeof (Tint sz sign noattr)) in H6.
     unfold Ptrofs.max_unsigned in H6.
     pose proof init_data_list_size_pos (gvar_init gv).
     simpl in H8.
     unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i) eqn:?H; inv H9.
     rewrite Ptrofs.unsigned_zero.
-    split; try omega. 
+    split; try lia. 
     rewrite Z.add_0_l.
     apply Z.mul_nonneg_nonneg.
-    clear; pose proof (sizeof_pos (Tint sz sign noattr)); omega.
+    clear; pose proof (sizeof_pos (Tint sz sign noattr)); lia.
     apply Zlength_nonneg.
   }
   normalize.
@@ -803,7 +801,7 @@ fold init_datalist2pred'.
 spec IHl.
 simpl in H3.
 pose proof (init_data_size_pos a).
-omega.
+lia.
 eapply derives_trans; [ | apply IHl].
 rewrite offset_offset_val.
 auto.
@@ -931,7 +929,7 @@ rewrite <- insert_local.
 forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
 assert (H7 := unpack_globvar Delta gz i t gv _ H H0 H1 H2 H3 H4).
 spec H7.
-simpl. pose proof (sizeof_pos t). rewrite Z.max_l by omega. omega.
+simpl. pose proof (sizeof_pos t). rewrite Z.max_l by lia. lia.
 specialize (H7 H5).
 go_lowerx.
 unfold globvars2pred; fold globvars2pred.
@@ -962,7 +960,7 @@ pose proof (la_env_cs_sound 0 (gvar_info gv) H1 H3).
 apply headptr_field_compatible; auto.
 apply I.
 assert (Ptrofs.modulus = Ptrofs.max_unsigned + 1) by computable.
-omega.
+lia.
 Qed.
 
 Lemma process_globvar_ptrarray_space:
@@ -992,7 +990,7 @@ rewrite <- insert_local.
 forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
 assert (H7 := unpack_globvar Delta gz i t gv _ H H0 H1 H2 H3 H4).
 spec H7.
-simpl. pose proof (sizeof_pos t). rewrite Z.max_l by omega. omega.
+simpl. pose proof (sizeof_pos t). rewrite Z.max_l by lia. lia.
 specialize (H7 H5).
 go_lowerx.
 unfold globvars2pred; fold globvars2pred.
@@ -1013,15 +1011,15 @@ eapply derives_trans; [ apply H7  | ].
 subst t; simpl.
 destruct (zlt n 0).
 -
-rewrite Z.max_l by omega.
-rewrite Z2Nat_neg by omega.
+rewrite Z.max_l by lia.
+rewrite Z2Nat_neg by lia.
 simpl.
 admit.  (* easy *)
 -
-rewrite Z.max_r by omega.
+rewrite Z.max_r by lia.
 unfold data_at.
 erewrite field_at_Tarray with (n0:=n);
-  [ | apply I | reflexivity | omega | apply JMeq_refl].
+  [ | apply I | reflexivity | lia | apply JMeq_refl].
 admit.  (* plausible *)
 (*
 unfold mapsto_zeros.
@@ -1033,9 +1031,9 @@ assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) [ArraySubsc 0] 
  admit.
 forget (globals_of_env rho i) as p.
 forget (readonly2share (gvar_readonly gv)) as sh.
-rewrite <- (Z2Nat.id n) at 1 3 by omega.
+rewrite <- (Z2Nat.id n) at 1 3 by lia.
 assert (Z.of_nat (Z.to_nat n) <= n).
-rewrite Z2Nat.id by omega. omega.
+rewrite Z2Nat.id by lia. lia.
 clear - H9.
 revert p H9; induction (Z.to_nat n); intros.
 simpl.
