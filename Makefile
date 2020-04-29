@@ -647,61 +647,6 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)
 
-LIST_SOLVERS=$(filter-out floyd/Zlength_solver_base.v, $(wildcard floyd/list_solver*.v))
-BENCHMARK_FILES=$(patsubst floyd/list_solver%.v, floyd/list_benchmark%.v, $(LIST_SOLVERS))
-
-benchmark: temp $(BENCHMARK_FILES:%.v=%.out1) \
-                $(BENCHMARK_FILES:%.v=%.out2) \
-                $(BENCHMARK_FILES:%.v=%.out3) \
-                $(BENCHMARK_FILES:%.v=%.out4) \
-                $(BENCHMARK_FILES:%.v=%.out5) \
-                $(BENCHMARK_FILES:%.v=%.res)
-
-temp:
-	@mkdir temp
-
-.PRECIOUS: %.out1 %.out2 %.out3 %.out4 %.out5
-
-%.out1: %.vo
-	@echo Cooling down
-	@sleep 120
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
-
-%.out2: %.vo
-	@echo Cooling down
-	@sleep 120
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
-
-%.out3: %.vo
-	@echo Cooling down
-	@sleep 120
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
-
-%.out4: %.vo
-	@echo Cooling down
-	@sleep 120
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
-
-%.out5: %.vo
-	@echo Cooling down
-	@sleep 120
-	@echo COQC $*.v ">" $@
-	@$(COQC) $(COQFLAGS) $*.v -o temp/$(notdir $*.vo) > $@
-
-%.res: %.out1 %.out2 %.out3 %.out4 %.out5
-	@echo summarizing $*
-	@./benchmark.py $^ > $@
-
-.PHONY: benchclean
-benchclean:
-	@rm floyd/*.res
-	@rm floyd/*.out*
-	@rm -rf temp
-
 # The .depend file is divided into two parts, .depend and .depend-concur,
 # in order to work around a limitation in Cygwin about how long one
 # command line can be.  (Or at least, it seems to be a solution to some
