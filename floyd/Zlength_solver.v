@@ -2,6 +2,7 @@
 Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 Require Import VST.floyd.sublist.
+Require Export Coq.micromega.Lia.
 Import ListNotations.
 
 (** This file provides a almost-complete solver for list with concatenation.

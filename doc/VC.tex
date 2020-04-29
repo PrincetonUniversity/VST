@@ -3770,7 +3770,7 @@ n-0=n \quad 0+n=n \quad n+0=n \quad n \le m \rightarrow \mathrm{max}(n,m) = m\\
 One often needs to prove goals about lists.
 \lstinline{list_solve} is a convenient solver for many practical proof goals involving lists.
 
-\lstinline{list\_solve} supports operators:
+\lstinline{list_solve} supports operators:
 \lstinline{Zlength},
 \lstinline{Znth},
 \lstinline{nil} (\lstinline{[]}),
@@ -3781,7 +3781,7 @@ One often needs to prove goals about lists.
 \lstinline{sublist}, and
 \lstinline{map}.
 
-\lstinline{list\_solve} supports four kinds of typical proof goals:
+\lstinline{list_solve} supports four kinds of typical proof goals:
 \begin{itemize}
     \item linear arithmetic involving lengths of lists,
 \begin{lstlisting}
@@ -3817,11 +3817,12 @@ is to interpret them as quantified properties:
     %   \lstinline{forall $i$ $j$, $0 \le i \le j$ /\ $j < \mathsf{Zlength}\ l$ -> Znth $i$ $l$ <= Znth $j$ $l$}.
 \end{itemize}
 
-The theory of lists with concatenation and nth-element is known to be undecidable.
-\footnote{The reason is that an element may have relationship with other elements in the same list, directly or indirectly.
+The theory of lists with concatenation and nth-element is known to be undecidable.%
+\footnote{The reason is that an element may have relationship with other elements in the same list, directly or indirectly, and that leads to complicated deduction..
 For example, \scantokens{\lstinline{sublist $1$ (Zlength $l$) $l$ =} \lstinline{sublist $0$ (Zlength $l$ - 1) $l$}}
 indicates \scantokens{\lstinline{Znth $i$ $l$ = Znth $(i+1)$ $l$}} for every $i$ and so all the elements in $l$ are equal.
 Such kind of reasoning relies on induction and is hard to automate.
+Also see Aaron R. Bradley, Zohar Manna, and Henny B. Sipma, \emph{What’s Decidable About Arrays?}, Lecture Notes in Computer Science, vol 3855. Springer, Berlin, Heidelberg, 2006.
 }
 So \lstinline{list_solve} has such restriction that when
   encountering quantified properties like
@@ -3914,7 +3915,7 @@ Hint Rewrite Zlength_map2 using (try Zlength_solve; fail $\mathbf{4}$) : Zlength
 \vspace{-\baselineskip}
 The adjusted failure level 4 is important for internal mechanism in \lstinline{list_solve}.
 
-There is another way to add rule for \lstinline{Zlength} by hacking into \lstinline{list_solve}'s internal tactics. It utilizes caching mechanism in \lstinline{list_solve}, so it is more efficient when the length of a list appears for multiple times. See \lstinline{progs/verif_dotprod.v} and \lstinline{progs/verif_revarray.v} for detail.
+There is another way to add rule for \lstinline{Zlength} by hacking into \lstinline{list_solve}'s internal tactics. It utilizes caching mechanism in \lstinline{list_solve}, so it is more efficient when the length of a list appears for multiple times. See commented code in \lstinline{progs/verif_dotprod.v} and \lstinline{progs/verif_revarray.v} for detail.
 
 \chapter{\textsf{rep\_lia}: lia with representation facts [was rep\_omega]}
 \label{refcard:rep-lia}
