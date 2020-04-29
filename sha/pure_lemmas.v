@@ -14,6 +14,7 @@ Require Import VST.floyd.coqlib3.
 Require Import VST.floyd.sublist.
 Require Export sha.common_lemmas.
 Require Psatz.
+Ltac omega := Coq.omega.Omega.omega.
 
 Global Opaque CBLOCKz LBLOCKz.
 
@@ -185,19 +186,19 @@ Proof. reflexivity. Qed.
 
 Lemma LBLOCKz_nonneg: (0 <= LBLOCKz)%Z.
 Proof. change LBLOCKz with 16%Z; omega. Qed.
-Hint Resolve LBLOCKz_nonneg.
+Hint Resolve LBLOCKz_nonneg : core.
 
 Lemma LBLOCKz_pos: (0 < LBLOCKz)%Z.
 Proof. change LBLOCKz with 16%Z; omega. Qed.
-Hint Resolve LBLOCKz_pos.
+Hint Resolve LBLOCKz_pos : core.
 
 Lemma CBLOCKz_nonneg: (0 <= CBLOCKz)%Z.
 Proof. change CBLOCKz with 64%Z; omega. Qed.
-Hint Resolve CBLOCKz_nonneg.
+Hint Resolve CBLOCKz_nonneg : core.
 
 Lemma CBLOCKz_pos: (0 < CBLOCKz)%Z.
 Proof. change CBLOCKz with 64%Z; omega. Qed.
-Hint Resolve CBLOCKz_pos.
+Hint Resolve CBLOCKz_pos : core.
 
 
 Local Open Scope Z.

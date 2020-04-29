@@ -1,7 +1,7 @@
 Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import VST.floyd.functional_base.
-
+Ltac omega := Coq.omega.Omega.omega.
 Require Import hmacdrbg.DRBG_functions.
 
 Definition HMAC_DRBG_update (HMAC: list byte -> list byte -> list byte) (provided_data K V: list byte): (list byte * list byte) :=

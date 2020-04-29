@@ -275,8 +275,8 @@ Proof.
     { subst I aaa; cancel.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
-    { split3; auto. red in WFI; simpl in *. repeat split; trivial; try rep_omega.
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_omega.
+    { split3; auto. red in WFI; simpl in *. repeat split; trivial; try rep_lia.
+      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_lia.
     }
      
     Intros return_value.
@@ -618,7 +618,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
     apply andp_right. apply prop_right. repeat split; trivial.
     cancel. }
   { split3; auto. subst after_reseed_add_len. rewrite <- HeqABS3; simpl.
-    split. destruct should_reseed; rep_omega.
+    split. destruct should_reseed; rep_lia.
     split. assumption.
     destruct should_reseed; omega. }
 

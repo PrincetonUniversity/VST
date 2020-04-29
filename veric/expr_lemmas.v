@@ -109,10 +109,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  destruct t0 as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; rewrite ?J0; eauto;
   destruct t as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; 
     destruct v; try contradiction; 
-(*
- try (rewrite denote_tc_assert_andp in H0; simpl in H0);
- unfold is_pointer_type in H0; rewrite ?J in H0; rewrite ?J0 in H0;
-*) simpl in *; rewrite ?J in *; rewrite ?J0 in *;
+  simpl in *; rewrite ?J in *; rewrite ?J0 in *;
   try solve [eexists; simpl; eauto];
  try contradiction;
  try solve [
@@ -440,12 +437,6 @@ repeat match goal with |- context [eqb_type ?A ?B] =>
   let J := fresh "J" in destruct (eqb_type A B) eqn:J;
   try rewrite J in *
 end;
-(*
-repeat match goal with H: context [eqb_type ?A ?B] |- _ =>
-  let J := fresh "J" in destruct (eqb_type A B) eqn:J;
-   try rewrite J in *
-end;
-*)
 try solve [
  simpl in H; simpl in H0;
 try congruence; 
@@ -1042,7 +1033,7 @@ Proof.
   try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv1);
   try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
   try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv2); simpl; trivial.
-Qed. Print denote_tc_assert.
+Qed.
 
 Lemma denote_tc_assert_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w: forall a, 
     @denote_tc_assert CS a rho w -> @denote_tc_assert CS' a rho w.
@@ -1065,21 +1056,6 @@ Proof.
   + apply (denote_tc_nodivover_eval_expr_cenv_sub CSUB); trivial.
   + apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); trivial.
 Qed.
-(*
-Lemma typecheck_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta:
-      forall a, @typecheck_expr CS' Delta a = @typecheck_expr CS Delta a.
-Proof.
-  induction a; simpl; intros; eauto. 
-+ rewrite IHa; trivial.
-+ rewrite IHa; trivial.
-+ rewrite IHa; trivial.
-+ rewrite IHa; trivial.
-
-Lemma typecheck_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta:
-      forall a x (E: (@typecheck_expr CS Delta a) = x), (@typecheck_expr CS' Delta a) = x.
-Proof.
-  induction a; simpl; intros; eauto. 
-+ rewrite IHa.*)
 
 Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w Delta: forall a, 
     @denote_tc_assert CS (@typecheck_expr CS Delta a) rho w ->

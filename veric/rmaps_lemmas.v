@@ -550,7 +550,6 @@ Qed.
 
   Lemma ex_level0: exists phi, age1 phi = None.
   Proof.
-    Print sig.
     set (g := nil: ghost).
     set (m := (fun _ : AV.address => NO emptyshare nonreadable_emptyshare): AV.address -> resource).
     set (r := (m, g): rmap').

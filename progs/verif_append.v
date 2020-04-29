@@ -65,12 +65,12 @@ forward_if.
  + Exists (@nil val) s3 x u a.  entailer.
  + entailer!.
  + clear u H1; rename u0 into u. clear a s3 H0. rename a0 into a.
-   gather_SEP 1 2 0 3.
+   gather_SEP (list_cell _ _ _ _) (field_at _ _ _ _ _) (lseg _ _ _ x _) (lseg _ _ _ u _).
    replace_SEP 0 (lseg LS sh (s1a++[a]) x u * lseg LS sh s1b u nullval).
    entailer.
    rewrite <- (emp_sepcon (list_cell LS sh a t)).
    apply (lseg_cons_right_list LS); auto.
-   Intros. gather_SEP 1.
+   Intros. gather_SEP (lseg _ _ _ u _).
    apply semax_lseg_nonnull; [ | intros a1 s4 u2 ? ?].
    entailer!.
    apply is_pointer_or_null_not_null; auto.

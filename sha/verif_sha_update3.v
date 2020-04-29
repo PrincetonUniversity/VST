@@ -242,7 +242,7 @@ intros until 4. intros H3 H4 Hlen.
 unfold sha_update_inv, inv_at_inner_if, update_inner_if.
 abbreviate_semax.
  set (k := 64-Zlength dd).
-assert (H0: 0 < k <= 64) by rep_omega.
+assert (H0: 0 < k <= 64) by rep_lia.
 pose proof I.
 unfold data_block; simpl. normalize.
 forward_if.

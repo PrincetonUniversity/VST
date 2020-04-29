@@ -91,17 +91,17 @@ Qed.
 Lemma byte_unsigned_range_3 b: 0 <= Byte.unsigned b <= Int.max_unsigned.
 Proof.
   destruct (Byte.unsigned_range_2 b). unfold Byte.max_unsigned in H0; simpl in H0.
-  rep_omega.
+  rep_lia.
 Qed.
 
 Lemma Int_unsigned_repr_byte b: Int.unsigned (Int.repr (Byte.unsigned b)) = Byte.unsigned b.
-Proof. rewrite Int.unsigned_repr. trivial. rep_omega.
+Proof. rewrite Int.unsigned_repr. trivial. rep_lia.
 Qed. 
 
 Lemma zero_ext8_byte b: Int.zero_ext 8 (Int.repr (Byte.unsigned b)) = Int.repr (Byte.unsigned b).
 Proof.
   apply zero_ext_inrange. 
-  rewrite Int.unsigned_repr by rep_omega. simpl. rep_omega.
+  rewrite Int.unsigned_repr by rep_lia. simpl. rep_lia.
 Qed.
 
 Lemma Zlxor_range_byte b1 b2: 0<= Z.lxor (Byte.unsigned b1) (Byte.unsigned b2) <= Byte.max_unsigned.
@@ -233,7 +233,7 @@ Lemma ZZ_is_byte: forall n zbytes u U, ZZ zbytes n = (u,U) ->
    0<= Int.unsigned u <256.
 Proof. induction n; simpl; intros.
 + inv H. unfold Int.one. 
-  rewrite Int.unsigned_repr by rep_omega. rep_omega.
+  rewrite Int.unsigned_repr by rep_lia. rep_lia.
 + remember (ZZ zbytes n). destruct p. symmetry in Heqp. inv H. apply IHn in Heqp. clear IHn.
   destruct Heqp.
   remember (Znth (Z.of_nat n + 8) l) as b. clear Heqb.
@@ -241,9 +241,9 @@ Proof. induction n; simpl; intros.
   assert (B1: Byte.max_unsigned = 255) by reflexivity.
   assert (B2: two_p 8 = 256) by reflexivity. 
   destruct (Byte.unsigned_range_2 b). 
-  rewrite Int.shru_div_two_p. rewrite (Int.unsigned_repr 8) by rep_omega.
+  rewrite Int.shru_div_two_p. rewrite (Int.unsigned_repr 8) by rep_lia.
   assert (B3: 0 <= Int.unsigned i + Byte.unsigned b <= Int.max_unsigned).
-    split. omega. rep_omega. 
+    split. omega. rep_lia. 
   assert (0 <= (Int.unsigned i + Byte.unsigned b) / two_p 8 < 256).
     split. apply Z_div_pos. cbv; trivial. omega.
     apply Zdiv_lt_upper_bound. cbv; trivial. omega. 
@@ -316,7 +316,7 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
   forward.
   { entailer!.
     autorewrite with sublist in *.
-    red. rewrite Int.unsigned_repr by rep_omega. rep_omega.
+    red. rewrite Int.unsigned_repr by rep_lia. rep_lia.
   } 
   simpl. rewrite Znth_map; [| omega].
     rewrite Zlength_map in L.
@@ -348,7 +348,7 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
     rewrite Zbits.Zzero_ext_spec; trivial. rewrite (Zbits.Ztestbit_mod_two_p 8); trivial.
     rewrite Int.unsigned_repr; trivial.
     symmetry in HeqX. apply ZZ_is_byte in HeqX.
-    destruct (Byte.unsigned_range_2 (Znth i Zi)). rep_omega.
+    destruct (Byte.unsigned_range_2 (Znth i Zi)). rep_lia.
   + destruct (Z_mod_lt (Int.unsigned ui + Byte.unsigned (Znth i Zi)) 256). 
     omega. rewrite byte_unsigned_max_eq; omega.
 }
@@ -1118,7 +1118,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
   freeze [0;2;3] FR1.
   remember (offset_val r64 cInit) as c.
   assert (BB: Int64.unsigned (Int64.sub bInit (Int64.repr r64)) < Int.max_unsigned).
-     rep_omega. 
+     rep_lia. 
 (*mkConciseDelta SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor Delta.*)
 (*  eapply semax_Delta_subsumption.*)

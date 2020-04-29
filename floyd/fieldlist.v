@@ -518,7 +518,7 @@ Qed.
 
 Definition in_map: forall {A B : Type} (f : A -> B) (l : list A) (x : A),
        In x l -> In (f x) (map f l) :=
-fun (A B : Type) (f : A -> B) (l : list A) =>
+fun {A B : Type} (f : A -> B) (l : list A) =>
 list_ind (fun l0 : list A => forall x : A, In x l0 -> In (f x) (map f l0))
   (fun (x : A) (H : In x nil) => H)
   (fun (a : A) (l0 : list A)

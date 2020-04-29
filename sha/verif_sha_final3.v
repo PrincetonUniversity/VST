@@ -176,7 +176,12 @@ Proof.
     change (LBLOCKz*4)%Z with 64.
     cancel.
   }
- gather_SEP 0 1 3 4 5.
+ gather_SEP 
+   (data_at _ _ _ _)
+   (field_at _ _ [StructField _h] _ _)
+   (field_at _ _ [StructField _Nl] _ _)
+   (field_at _ _ [StructField _Nh] _ _)
+   (field_at _ _ [StructField _num] _ _).
  replace_SEP 0 (data_at wsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers (generate_and_pad msg)),
         (Vundef,
@@ -373,7 +378,7 @@ Proof.
   rewrite <- app_ass.
    change (Z.to_nat 8) with (Z.to_nat 4 + Z.to_nat 4)%nat.
    rewrite <- list_repeat_app.
-   rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_omega).
+   rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_lia).
    rewrite <- !app_ass.
    assert (CBZ := CBLOCKz_eq).
    Time autorewrite with sublist. (*7*)
@@ -414,7 +419,7 @@ Proof.
         rewrite array_at_data_at' by auto with field_compatible;
         reflexivity)
  end.
-  gather_SEP 0 1 2.
+  gather_SEP (array_at _ _ _ 60 64 _ _) (data_at _ _ _ _) (array_at _ _ _ 0 56 _ _).
   replace_SEP 0
     (field_at wsh t_struct_SHA256state_st [StructField _data]
          (map Vubyte dd' ++

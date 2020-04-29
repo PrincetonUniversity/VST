@@ -406,7 +406,7 @@ Lemma funspec_sub_implies_func_prt_si_mono' fs gs v:
 Proof.
   eapply derives_trans. 2: apply func_ptr_si_mono.
   apply andp_derives. 2: apply derives_refl. 
-Search funspec_sub funspec_sub_si. apply funspec_sub_sub_si'. 
+  apply funspec_sub_sub_si'. 
 Qed.
 
 Lemma funspec_sub_implies_func_prt_si_mono fs gs v: funspec_sub fs gs ->

@@ -245,7 +245,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_lia. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
@@ -277,12 +277,12 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. (*change Int.modulus with 4294967296.*) rep_omega.
-     unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
+    split. (*change Int.modulus with 4294967296.*) rep_lia.
+     unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
 
   Intros v.
@@ -504,7 +504,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_lia. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
@@ -536,12 +536,12 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. rep_omega.
-    unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
+    split. rep_lia.
+    unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
 
   Intros v.
@@ -808,7 +808,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_lia. }
 
   set (myABS := HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
@@ -849,12 +849,12 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. (*change Int.modulus with 4294967296.*) rep_omega.
-       unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
+    split. (*change Int.modulus with 4294967296.*) rep_lia.
+       unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
 
   Intros v.

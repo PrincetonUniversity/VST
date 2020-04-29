@@ -229,7 +229,7 @@ Proof. intros. do 2 pose proof I.
     assert (Hiuchar: Int.zero_ext 8 (Int.repr i) = Int.repr i).
     {
       clear - H4 Heqrounds. destruct na; subst;
-      apply zero_ext_inrange; simpl; rewrite Int.unsigned_repr;  rep_omega.
+      apply zero_ext_inrange; simpl; rewrite Int.unsigned_repr;  rep_lia.
     }
 
     (* mbedtls_md_hmac_update( &ctx->md_ctx, sep, 1 ); *)
@@ -238,7 +238,7 @@ Proof. intros. do 2 pose proof I.
     Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, sep, Tsh, V, [Byte.repr i], gv). 
      { simpl map. unfold Vubyte. rewrite Byte.unsigned_repr. cancel.
-       clear - Heqrounds H4. destruct na; rep_omega.
+       clear - Heqrounds H4. destruct na; rep_lia.
      }
 (*   rewrite <- (data_at_share_join _ _ _ _ _ _ (join_comp_Tsh shc)); cancel. *)
     {
@@ -323,7 +323,7 @@ Proof. intros. do 2 pose proof I.
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, K, Tsh, gv).
         sep_apply (memory_block_data_at__tarray_tuchar Tsh K 32).
-        rep_omega. cancel.
+        rep_lia. cancel.
     Intros.
     freeze [0;1;2;4] FR9.
     rewrite data_at_isptr with (p:=K). Intros.
@@ -350,7 +350,7 @@ Proof. intros. do 2 pose proof I.
       split3; auto.
       + (* prove that output of HMAC can serve as its key *)
         unfold spec_hmac.has_lengthK; simpl; auto. split; auto.
-        rewrite hmac_common_lemmas.HMAC_Zlength. simpl. split. rep_omega. compute; auto.
+        rewrite hmac_common_lemmas.HMAC_Zlength. simpl. split. rep_lia. compute; auto.
     }
     Intros.
 (*    match goal with |- context [data_at (Share.comp Ews) ?t ?v ?p] =>
@@ -386,7 +386,7 @@ Proof. intros. do 2 pose proof I.
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc,
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc, gv).
     change 32 with (sizeof (tarray tuchar 32)) at 1.
-    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_omega).
+    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_lia).
     simpl sizeof. cancel.
 
     Time go_lower. (*necessary due to existence of local () && in postcondition of for-rule*)

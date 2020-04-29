@@ -58,7 +58,7 @@ Proof.
     entailer!. clear - H2. destruct H2 as [? [_ [? _]]].
     destruct d; try contradiction.
     red in H0. simpl in H0. rewrite Z.max_r in H0 by list_solve.
-    rep_omega.
+    rep_lia.
   }
 
   unfold md_relate(*; unfold convert_abs*).

@@ -114,7 +114,6 @@ simpl.
 apply RIneq.Rlt_0_1.
 rewrite inj_S.
 rewrite Z.pow_succ_r by lia.
-Search (IZR (_ * _)).
 rewrite RIneq.mult_IZR.
 apply RIneq.Rmult_lt_0_compat; auto.
 simpl.

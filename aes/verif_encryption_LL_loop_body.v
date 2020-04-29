@@ -264,7 +264,7 @@ Proof.
     simpl. unfold mbed_tls_fround_col, byte0, byte1, byte2, byte3, Int.and. simpl.
     rewrite !Int.unsigned_repr by computable.
     rewrite !Int.unsigned_repr by
-     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_omega end.
+     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_lia end.
     reflexivity.
   }
   apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
@@ -297,7 +297,7 @@ Proof.
     simpl. unfold mbed_tls_fround_col, byte0, byte1, byte2, byte3, Int.and. simpl.
     rewrite !Int.unsigned_repr by computable.
     rewrite !Int.unsigned_repr by
-     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_omega end.
+     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_lia end.
     reflexivity.
   }
   apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].

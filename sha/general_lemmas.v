@@ -5,6 +5,7 @@ Require Import VST.msl.Coqlib2.
 Require Import VST.floyd.coqlib3.
 Require Import VST.floyd.sublist.
 Require Import VST.floyd.functional_base.
+Ltac omega := Coq.omega.Omega.omega.
 
 (*
 Definition Vubyte (c: Byte.int) : val :=
@@ -130,9 +131,9 @@ Hint Rewrite Z.ones_spec_high using omega : testbit.
 Hint Rewrite orb_false_r orb_true_r andb_false_r andb_true_r : testbit.
 Hint Rewrite orb_false_l orb_true_l andb_false_l andb_true_l : testbit.
 Hint Rewrite Z.add_simpl_r : testbit.
-Hint Rewrite Int.unsigned_repr using rep_omega : testbit.
-Hint Rewrite Byte.testbit_repr using rep_omega : testbit.
-Hint Rewrite Byte.bits_above using rep_omega : testbit.
+Hint Rewrite Int.unsigned_repr using rep_lia : testbit.
+Hint Rewrite Byte.testbit_repr using rep_lia : testbit.
+Hint Rewrite Byte.bits_above using rep_lia : testbit.
 
 Lemma Ztest_Inttest:
  forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
@@ -298,52 +299,52 @@ assert (Int.zwordsize=32)%Z by reflexivity.
 destruct (zlt i 8); [ | destruct (zlt i 16); [ | destruct (zlt i 24)]].
 *
 rewrite <- ?Ztest_Inttest.
-rewrite <- ?Byte.testbit_repr by rep_omega.
+rewrite <- ?Byte.testbit_repr by rep_lia.
 congruence.
 *
 pose proof (Int.bits_shru a (Int.repr 8) (i-8)).
-spec H6; [rep_omega|].
-rewrite !Int.unsigned_repr in H6 by rep_omega.
+spec H6; [rep_lia|].
+rewrite !Int.unsigned_repr in H6 by rep_lia.
 rewrite Z.sub_add in H6.
 rewrite if_true in H6 by omega.
 pose proof (Int.bits_shru b (Int.repr 8) (i-8)).
-spec H7; [rep_omega|].
-rewrite !Int.unsigned_repr in H7 by rep_omega.
+spec H7; [rep_lia|].
+rewrite !Int.unsigned_repr in H7 by rep_lia.
 rewrite Z.sub_add in H7.
 rewrite if_true in H7 by omega.
 rewrite <- H6. rewrite <- H7.
 rewrite <- ?Ztest_Inttest.
-rewrite <- ?Byte.testbit_repr by rep_omega.
+rewrite <- ?Byte.testbit_repr by rep_lia.
 f_equal. apply H2.
 *
 pose proof (Int.bits_shru a (Int.repr 16) (i-16)).
-spec H6; [rep_omega|].
-rewrite !Int.unsigned_repr in H6 by rep_omega.
+spec H6; [rep_lia|].
+rewrite !Int.unsigned_repr in H6 by rep_lia.
 rewrite Z.sub_add in H6.
 rewrite if_true in H6 by omega.
 pose proof (Int.bits_shru b (Int.repr 16) (i-16)).
-spec H7; [rep_omega|].
-rewrite !Int.unsigned_repr in H7 by rep_omega.
+spec H7; [rep_lia|].
+rewrite !Int.unsigned_repr in H7 by rep_lia.
 rewrite Z.sub_add in H7.
 rewrite if_true in H7 by omega.
 rewrite <- H6. rewrite <- H7.
 rewrite <- ?Ztest_Inttest.
-rewrite <- ?Byte.testbit_repr by rep_omega.
+rewrite <- ?Byte.testbit_repr by rep_lia.
 f_equal. apply H3.
 *
 pose proof (Int.bits_shru a (Int.repr 24) (i-24)).
-spec H6; [rep_omega|].
-rewrite !Int.unsigned_repr in H6 by rep_omega.
+spec H6; [rep_lia|].
+rewrite !Int.unsigned_repr in H6 by rep_lia.
 rewrite Z.sub_add in H6.
 rewrite if_true in H6 by omega.
 pose proof (Int.bits_shru b (Int.repr 24) (i-24)).
-spec H7; [rep_omega|].
-rewrite !Int.unsigned_repr in H7 by rep_omega.
+spec H7; [rep_lia|].
+rewrite !Int.unsigned_repr in H7 by rep_lia.
 rewrite Z.sub_add in H7.
 rewrite if_true in H7 by omega.
 rewrite <- H6. rewrite <- H7.
 rewrite <- ?Ztest_Inttest.
-rewrite <- ?Byte.testbit_repr by rep_omega.
+rewrite <- ?Byte.testbit_repr by rep_lia.
 f_equal. apply H1.
 Qed.
 

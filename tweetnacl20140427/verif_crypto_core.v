@@ -13,7 +13,7 @@ Opaque Snuffle20. Opaque prepare_data. Opaque Snuffle.Snuffle.
 
 Lemma crypto_core_salsa20_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_core_salsa20_tweet crypto_core_salsa20_spec.
-Proof. Locate crypto_core_salsa20_spec.
+Proof.
 start_function.
 assert_PROP (field_compatible (tarray tuchar 64) [] out /\ isptr out) as HH by entailer!.
 destruct HH as [FCout isptrout].

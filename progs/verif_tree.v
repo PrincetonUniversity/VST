@@ -734,7 +734,7 @@ Proof.
   forward.
   forward.
   forward.
-  gather_SEP 0 2 3.
+  gather_SEP (data_at _ _ _ v_q) (list_rep _ _ q) (iter_sepcon2 _ _ r).
   replace_SEP 0 (xtree_rep (XNode tl v) v_q).
   {
     simpl xtree_rep.
@@ -751,7 +751,7 @@ Proof.
   forward.
   forward.
   forward.
-  gather_SEP 1 2 3.
+  gather_SEP (list_rep _ _ q') (iter_sepcon2 _ _ r') (data_at _ _ _ p).
   replace_SEP 0 (xtree_rep (XNode (map x_add1 tl) (v + 1)) p).
   {
     simpl xtree_rep.
@@ -819,7 +819,7 @@ Proof.
   forward.
   forward_call (v, t).
   forward.
-  gather_SEP 2 3.
+  gather_SEP (y_list_rep r y) (iter_sepcon2 _ _ _).
   replace_SEP 0 (lt_ytree_rep t' y).
   {
     unfold lt_ytree_rep.
@@ -862,7 +862,7 @@ Proof.
   forward.
   forward_call (v, y).
   forward.
-  gather_SEP 2 4.
+  gather_SEP (y_tree_rep s1 pa) (iter_tree_sepcon2 _ _ s1).
   replace_SEP 0 (t_ytree_rep a pa).
   {
     unfold t_ytree_rep.
@@ -871,7 +871,7 @@ Proof.
   }
   forward_call (pa, a).
   forward.
-  gather_SEP 3 4.
+  gather_SEP (y_tree_rep s2 pb) (iter_tree_sepcon2 _ _ s2).
   replace_SEP 0 (t_ytree_rep b pb).
   {
     unfold t_ytree_rep.

@@ -122,8 +122,8 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
       eapply semax_pre; [  |
         eapply (Init_part1_j_lt_len Espec kb ckb cb kofs ckoff cofs l wsh sh key gv pad HMS); try eassumption; trivial].
       entailer!.
-      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_omega.
-      rewrite Int.signed_repr in lt_64_l; [ trivial | rep_omega].
+      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_lia.
+      rewrite Int.signed_repr in lt_64_l; [ trivial | rep_lia].
     }
     { (* j >= len*)
       rename H into ge_64_l. unfold MORE_COMMANDS, POSTCONDITION, abbreviate. subst.
@@ -132,8 +132,8 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
       eapply semax_pre; [  | 
         apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l wsh sh key gv pad HMS); try eassumption; trivial].
       entailer!.
-      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_omega.
-      rewrite Int.signed_repr in ge_64_l; [ trivial | rep_omega ].
+      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_lia.
+      rewrite Int.signed_repr in ge_64_l; [ trivial | rep_lia ].
     }
    subst.
    unfold PostKeyNull, initPostKeyNullConditional.

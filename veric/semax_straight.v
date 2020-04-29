@@ -1077,7 +1077,6 @@ Lemma semax_cast_load:
 forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
-(*   classify_cast (typeof e1) t1 <> cast_case_p2bool -> *)
     readable_share sh ->
    (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT) ->
     semax Espec Delta
@@ -1142,10 +1141,6 @@ inv Hid.
 simpl.
 apply tc_val_tc_val'.
 apply TC3.
-(*
-assert (Tv2: tc_val (typeof e1) (v2 rho)). {
- clear - H99' 
- *)
 split; [split3 | ].
 *   rewrite <- (age_jm_dry H); constructor; auto.
   destruct (sem_cast (typeof e1) t1 v2) eqn:EC.
@@ -1454,14 +1449,12 @@ unfold mapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
 destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
-(*rewrite <- (age_jm_dry H) in He1'.*)
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
-(* rewrite writable0_share_right in H4 by auto. *)
 destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 rewrite if_true in H4 by auto.
 assert (exists v, address_mapsto ch v 
-             sh (*(Share.lub (retainer_part sh) Share.Rsh)*)
+             sh
         (b0, Ptrofs.unsigned i) w1)
        by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
 clear v3 H4; destruct H2 as [v3 H4].

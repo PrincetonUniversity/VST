@@ -80,7 +80,7 @@ Proof.
   Intro z; apply sepcon_derives; [cancel|].
   Intros x y; Exists x y; apply derives_refl.
 Qed.
-Hint Resolve ctr_inv_exclusive.
+Hint Resolve ctr_inv_exclusive : core.
 
 Lemma thread_inv_exclusive : forall sh g1 g2 ctr lock lockt,
   exclusive_mpred (thread_lock_inv sh g1 g2 ctr lock lockt).
@@ -89,7 +89,7 @@ Proof.
   unfold thread_lock_R.
   apply exclusive_sepcon1; auto.
 Qed.
-Hint Resolve thread_inv_exclusive.
+Hint Resolve thread_inv_exclusive : core.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
@@ -100,7 +100,9 @@ Proof.
   Intros z x y.
   forward.
   forward.
-  gather_SEP 2 3 4.
+
+  gather_SEP (ghost_var _ x g1) (ghost_var _ y g2) (ghost_var _ n _).
+  rewrite sepcon_assoc.
   viewshift_SEP 0 (!!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) *
     ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).
   { go_lower.
@@ -131,9 +133,9 @@ Proof.
   Intros z x y.
   forward.
   assert_PROP (x = n1 /\ y = n2) as Heq.
-  { gather_SEP 2 4.
+  { gather_SEP (ghost_var _ x g1) (ghost_var _ n1 g1).
     erewrite ghost_var_share_join' by eauto.
-    gather_SEP 3 4.
+    gather_SEP (ghost_var _ y g2) (ghost_var _ n2 g2).
     erewrite ghost_var_share_join' by eauto.
     entailer!. }
   forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
