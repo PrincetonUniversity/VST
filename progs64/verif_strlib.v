@@ -212,7 +212,7 @@ forward_loop (EX i : Z,
     rewrite split_data_at_app_tschar by list_solve.
     rewrite (split_data_at_app_tschar _ n) by list_solve.
     autorewrite with sublist.
-    cancel.    
+    cancel.
    }
   { Intros j.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
@@ -600,7 +600,7 @@ forward_loop (EX i : Z,
   all : assert (HZnth: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by lia.
   all : normalize in HZnth. all: clear -Espec sh1 sh2 str1 ls1 str2 ls2 H H0 i H1 H2 H3 H4 HZnth.
-  Time all: list_solve!.
+  Time all: list_solve.
   (* Finished transaction in 12.274 secs (12.187u,0.062s) (successful) *)
 Qed.
 

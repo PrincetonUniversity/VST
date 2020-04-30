@@ -3693,6 +3693,10 @@ See also: \lstinline{split3_data_at_Tarray}.
 \chapter{sublist}
 \label{refcard:sublist}
 
+(Since VST 2.6, we recommend using the new \lstinline{list_solve} tactic, described in
+\autoref{refcard:list_solve} and \autoref{refcard:list_solve-advanced}.
+We still provide this old version of list reasoning automation for the users that still prefer this version.)
+
 \autoref{refcard:split-array} explained that we often need
 to reason about slices of arrays whose contents are sublists of lists.
 For that we have a function \lstinline{sublist $i$ $j$ $l$}
@@ -3759,6 +3763,159 @@ n-0=n \quad 0+n=n \quad n+0=n \quad n \le m \rightarrow \mathrm{max}(n,m) = m\\
 \quad n + m - (n + p) = m - p \qquad \mathrm{et cetera.}
 \end{array}
 \]
+
+\chapter{list\_solve}
+\label{refcard:list_solve}
+
+One often needs to prove goals about lists.
+\lstinline{list_solve} is a convenient solver for many practical proof goals involving lists.
+
+\lstinline{list_solve} supports operators:
+\lstinline{Zlength},
+\lstinline{Znth},
+\lstinline{nil} (\lstinline{[]}),
+\lstinline{cons} (\lstinline{::}),
+\lstinline{Zrepeat},
+\lstinline{app} (\lstinline{++}),
+\lstinline{upd_Znth},
+\lstinline{sublist}, and
+\lstinline{map}.
+
+\lstinline{list_solve} supports four kinds of typical proof goals:
+\begin{itemize}
+    \item linear arithmetic involving lengths of lists,
+\begin{lstlisting}
+  e.g. Zlength ($l$ ++ $l'$) >= Zlength $l$;
+\end{lstlisting}
+  \item goal involving nth elements of lists (not limited to equality),
+\begin{lstlisting}
+  e.g. Znth $i$ ($l$ ++ $l'$) = Znth $i$ $l$;
+\end{lstlisting}
+  \item equality of lists,
+\begin{lstlisting}
+  e.g. $l_1$ ++ $l_2$ = $l_3$ ++ $l_4$;
+\end{lstlisting}
+  \item entailment of array contents,
+\begin{lstlisting}
+  e.g. data_at $sh$ (tarray $\tau$ $n$) ($l_1$ ++ $l_2$) $p$ |--
+         data_at $sh$ (tarray $\tau$ $n$) ($l_3$ ++ $l_4$) $p$.
+\end{lstlisting}
+\end{itemize}
+
+The way that \lstinline{list_solve} supports assumptions in the following forms,
+is to interpret them as quantified properties:
+\begin{itemize}
+    \item \lstinline{$l$ = $l'$} is replaced by
+      \lstinline{Zlength $l$ = Zlength $l'$ /\ forall $i$, $0 \le i < \mathsf{Zlength}\ l$ -> Znth $i$ $l$ = Znth $i$ $l'$}.
+    \item \lstinline{In $x$ $l$} is replaced by
+      \lstinline{exists $i$, $0 \le i < \mathsf{Zlength}\ l$ /\ $x$ = Znth $i$ $l$}.
+    \item \lstinline{~In $x$ $l$} is replaced by
+      \lstinline{forall $i$, $0 \le i < \mathsf{Zlength}\ l$ -> $x$ $\neq$ Znth $i$ $l$}.
+    \item \lstinline{sorted ($\le$) $l$} is replaced by
+      \lstinline{forall $i$ $j$, $0 \le i \le j < \mathsf{Zlength}\ l$ -> $\hspace{80pt}$ ${}$ $\mathsf{Znth}\ i\ l\le \mathsf{Znth}\ j\ l$}.
+    % \item \lstinline{Sorted $l$} (\lstinline{Sorted} is defined in \lstinline{Coq.Sorting.Sorted}) is replaced by
+    %   \lstinline{forall $i$ $j$, $0 \le i \le j$ /\ $j < \mathsf{Zlength}\ l$ -> Znth $i$ $l$ <= Znth $j$ $l$}.
+\end{itemize}
+
+The theory of lists with concatenation and nth-element is known to be undecidable.%
+\footnote{The reason is that an element may have relationship with other elements in the same list, directly or indirectly, and that leads to complicated deduction..
+For example, \scantokens{\lstinline{sublist $1$ (Zlength $l$) $l$ =} \lstinline{sublist $0$ (Zlength $l$ - 1) $l$}}
+indicates \scantokens{\lstinline{Znth $i$ $l$ = Znth $(i+1)$ $l$}} for every $i$ and so all the elements in $l$ are equal.
+Such kind of reasoning relies on induction and is hard to automate.
+Also see Aaron R. Bradley, Zohar Manna, and Henny B. Sipma, \emph{What’s Decidable About Arrays?}, Lecture Notes in Computer Science, vol 3855. Springer, Berlin, Heidelberg, 2006.
+}
+So \lstinline{list_solve} has such restriction that when
+  encountering quantified properties like
+  \lstinline{forall $i$, P (Znth $i$ $l$) (Znth $(i+k)$ $l$)},
+it asks user to prove $k=0$ if it cannot prove it automatically.
+If $k=0$ is not provable, \lstinline{list_solve} does not support this goal.
+User might need to perform an induction before using \lstinline{list_solve}.
+
+\lstinline{list_simplify} is an alternate tactic for \lstinline{list_solve}, like \lstinline{ring_simplify} to \lstinline{ring}.
+It performs transformations in the same way as \lstinline{list_solve},
+  and solves the goal if \lstinline{list_solve} can solve,
+  but leaves the unsolved goals to the user,
+so you may solve these goals by hand or figure out why the goal is not solved.
+\lstinline{list_simplify} will not change a provable goal into unprovable goals.
+
+\chapter{list\_solve (advanced)}
+\label{refcard:list_solve-advanced}
+You can enhance \lstinline{list_solve} by adding new rules.
+
+\paragraph{Adding a macro} A macro is an operator that can be expressed by other operators.
+For example,
+\begin{lstlisting}
+Definition rotate {X} (l : list X) k :=
+  sublist k (Zlength l) l ++ sublist 0 k l.
+\end{lstlisting}
+\vspace{-\baselineskip}
+Add \lstinline{rotate} to hint database, so \lstinline{list_solve} will unfold it automatically.
+\begin{lstlisting}
+Hint Unfold rotate : list_solve_unfold.
+\end{lstlisting}
+\vspace{-\baselineskip}
+If a macro is expressed by other operators not by conversion but by Leibniz equality, e.g.
+\begin{lstlisting}
+Lemma firstn_sublist: firstn (Z.to_nat $i$) $l$ = sublist 0 $i$ $l$,
+\end{lstlisting}
+\vspace{-\baselineskip}
+add the lemma to rewrite database by
+\begin{lstlisting}
+Hint Rewrite @firstn_sublist : list_solve_rewrite.
+\end{lstlisting}
+
+\paragraph{Adding a new kind of quantified property}
+\lstinline{list_solve} can be customized to handle predicates on lists that can be expressed by quantified properties. For example,
+\begin{lstlisting}
+Lemma Forall_Znth : forall {A} {d : Inhabitant A} l P,
+  Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l).
+Hint Rewrite Forall_Znth : list_prop_rewrite.
+\end{lstlisting}
+
+\begin{comment}
+\paragraph{Add a new extentionality rule}
+\lstinline{list_solve} handles equalities of lists and entailments of array contents by applying extentionality to reduce the goal to relationship between elements.
+\end{comment}
+
+\paragraph{Adding a new operator}
+\lstinline{list_solve} handles operators, e.g. \lstinline{app} and \lstinline{map},
+by using rules that reduce terms with head symbols \lstinline{Zlength} and \lstinline{Znth} to simpler terms,
+e.g.
+\begin{lstlisting}
+Zlength_app: Zlength ($l$ ++ $l'$) = Zlength $l$ + Zlength $l'$,
+Znth_map: Znth $i$ (map $f$ $l$) = f (Znth $i$ $l$).
+\end{lstlisting}
+\vspace{-\baselineskip}
+\lstinline{list_solve} can support new operators if reduction rules are provided.
+For example, to add the operator
+\lstinline{rev : list ?A -> list ?A} that reverses a list,
+the following reduction rules should be provided:
+\begin{lstlisting}
+Zlength_rev: Zlength (rev $l$) = Zlength $l$;
+Znth_rev: 0 <= $i$ < Zlength $l$ -> Znth $i$ (rev $l$) = Znth (Zlength $l$ - $i$ - 1) $l$.
+\end{lstlisting}
+\vspace{-\baselineskip}
+The following commands add these reduction rules to hint databases.
+Sometimes, ``@'' is necessary to prevent the rules from being specialized for a certain type before being added to the hint databases.
+The \lstinline{using} keyword in commands tells the rewrite database to prove the side condition about index, \lstinline{0 <= $i$ <= Zlength $l$}, by internal tactic \lstinline{Zlength_solve} in \lstinline{list_solve}.
+\begin{lstlisting}
+Hint Rewrite Zlength_rev : Zlength.
+Hint Rewrite @Znth_rev using Zlength_solve : Znth.
+\end{lstlisting}
+\vspace{-\baselineskip}
+If the reduction rule for \lstinline{Zlength} also has side conditions about indices, for example,
+\begin{lstlisting}
+Zlength_map2: Zlength $l_1$ = Zlength $l_2$ -> Zlength (map2 $f$ $l_1$ $l_2$) = Zlength $l_1$,
+\end{lstlisting}
+\vspace{-\baselineskip}
+the tactic to prove side condition should be provided to the rewrite database as
+\begin{lstlisting}
+Hint Rewrite Zlength_map2 using (try Zlength_solve; fail $\mathbf{4}$) : Zlength.
+\end{lstlisting}
+\vspace{-\baselineskip}
+The adjusted failure level 4 is important for internal mechanism in \lstinline{list_solve}.
+
+There is another way to add rule for \lstinline{Zlength} by hacking into \lstinline{list_solve}'s internal tactics. It utilizes caching mechanism in \lstinline{list_solve}, so it is more efficient when the length of a list appears for multiple times. See commented code in \lstinline{progs/verif_dotprod.v} and \lstinline{progs/verif_revarray.v} for detail.
 
 \chapter{\textsf{rep\_lia}: lia with representation facts [was rep\_omega]}
 \label{refcard:rep-lia}

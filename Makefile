@@ -254,7 +254,7 @@ FLOYD_FILES= \
    library.v proofauto.v computable_theorems.v computable_functions.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
-   sublist.v extract_smt.v \
+   sublist.v \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
@@ -267,7 +267,8 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v list_solver.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v VSU_addmain.v
+   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v VSU_addmain.v \
+   Zlength_solver.v list_solver.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
@@ -292,7 +293,8 @@ PROGS32_FILES= \
   verif_strlib.v verif_fib.v bug83.v \
   tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v \
   libglob.v verif_libglob.v peel.v verif_peel.v \
-  printf.v stackframe_demo.v verif_stackframe_demo.v
+  printf.v stackframe_demo.v verif_stackframe_demo.v \
+	rotate.v verif_rotate.v
 # verif_insertion_sort.v
 
 C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \

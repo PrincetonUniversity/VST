@@ -633,7 +633,7 @@ Proof.
   intros i l.
   apply Znth_map.
 Qed.
-Hint Rewrite Znth_map_Vbyte using list_solve : norm entailer_rewrite.
+Hint Rewrite Znth_map_Vbyte using old_list_solve : norm entailer_rewrite.
 
 Ltac fold_Vbyte :=
  repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
@@ -646,7 +646,7 @@ Proof.
   intros i l.
   apply Znth_map.
 Qed.
-Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.
+Hint Rewrite Znth_map_Vubyte using old_list_solve : norm entailer_rewrite.
 
 Lemma repr_inj_signed:
   forall i j,

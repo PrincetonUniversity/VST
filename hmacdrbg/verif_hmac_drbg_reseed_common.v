@@ -354,8 +354,6 @@ Proof.
     autorewrite with sublist in H0.
     apply derives_refl'.
     apply data_at_complete_split; try list_solve.
-    autorewrite with sublist. rewrite H0. assumption.
-    auto.
   }
   flatten_sepcon_in_SEP.
 

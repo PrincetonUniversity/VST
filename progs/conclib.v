@@ -69,13 +69,13 @@ Proof.
 Qed.
 Hint Resolve repable_0 : core.
 
-Definition complete MAX l := l ++ Zrepeat (MAX - Zlength l) (vptrofs 0).
+Definition complete MAX l := l ++ Zrepeat (vptrofs 0) (MAX - Zlength l).
 
 Lemma upd_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX l) x = complete MAX (l ++ [x]).
 Proof.
   intros. unfold complete.
-  list_solve!.
+  list_solve.
 Qed.
 
 Lemma Znth_complete : forall n l MAX, n < Zlength l -> 
@@ -88,7 +88,7 @@ Lemma remove_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX (l ++ [x])) (vptrofs 0) = complete MAX l.
 Proof.
   intros; unfold complete.
-  list_solve!.
+  list_solve.
 Qed.
 
 Lemma Forall_app : forall {A} (P : A -> Prop) l1 l2,
@@ -444,7 +444,7 @@ Proof.
   intros; unfold complete.
   rewrite <- ZtoNat_Zlength.
   f_equal.
-  list_solve!.
+  list_solve.
 Qed.
 
 Lemma Zlength_rotate : forall {A} (l : list A) n m, 0 <= n <= m -> m <= Zlength l ->
@@ -462,7 +462,7 @@ Qed.
 Lemma Zlength_complete : forall l m, Zlength l <= m -> Zlength (complete m l) = m.
 Proof.
   intros; unfold complete.
-  list_solve!.
+  list_solve.
 Qed.
 
 Lemma combine_eq : forall {A B} (l : list (A * B)), combine (map fst l) (map snd l) = l.
@@ -542,9 +542,9 @@ Proof.
   - subst n.
     replace (m - 1 + 1) with m by lia.
     replace (m mod m) with 0 by (rewrite Z_mod_same_full; auto).
-    list_solve!.
+    list_solve.
   - replace ((n+1) mod m) with (n+1) by (rewrite Z.mod_small; lia).
-    list_solve!.
+    list_solve.
 Qed.
 
 Lemma upd_complete_gen : forall {A} (l : list A) x n y, Zlength l < n ->
@@ -721,7 +721,7 @@ Qed.
 Lemma upd_Znth_triv : forall {A}{d: Inhabitant A} i (l : list A) x (Hi : 0 <= i < Zlength l),
   Znth i l = x -> upd_Znth i l x = l.
 Proof.
-  (* This cannot be solve by list_solve! because list_solve! cannot handle congruence like i = j -> Znth i l = Znth j l. *)
+  (* This cannot be solve by list_solve because list_solve cannot handle congruence like i = j -> Znth i l = Znth j l. *)
   intros; unfold_upd_Znth_old.
   setoid_rewrite <- (firstn_skipn (Z.to_nat i) l) at 4.
   erewrite skipn_cons, Z2Nat.id, H; try lia; [|rewrite Zlength_correct in *; rep_lia].
@@ -1076,19 +1076,19 @@ Qed.
 Lemma firstn_max_length : forall {A} n (al : list A), Zlength (firstn n al) <= Zlength al.
 Proof.
   intros; revert n; induction al; intros.
-  - rewrite firstn_nil. list_solve!.
+  - rewrite firstn_nil. list_solve.
   - destruct n.
-    + simpl. list_solve!.
-    + simpl. specialize (IHal n). list_solve!.
+    + simpl. list_solve.
+    + simpl. specialize (IHal n). list_solve.
 Qed.
 
 Lemma skipn_max_length : forall {A} n (al : list A), Zlength (skipn n al) <= Zlength al.
 Proof.
   intros; revert n; induction al; intros.
-  - rewrite skipn_nil. list_solve!.
+  - rewrite skipn_nil. list_solve.
   - destruct n.
-    + simpl. list_solve!.
-    + simpl. specialize (IHal n). list_solve!.
+    + simpl. list_solve.
+    + simpl. specialize (IHal n). list_solve.
 Qed.
 
 Lemma sublist_max_length : forall {A} i j (al : list A), Zlength (sublist i j al) <= Zlength al.
