@@ -16,7 +16,7 @@ Proof.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_reseed_algorithm, HMAC_DRBG_algorithms.HMAC_DRBG_reseed_algorithm in H.
   destruct d as [[? ?] ?]. 
   remember (HMAC_DRBG_algorithms.HMAC_DRBG_update HMAC256_functional_prog.HMAC256
-         (l ++ y) l1 l0) as q; destruct q. inv H. split. rep_omega.
+         (l ++ y) l1 l0) as q; destruct q. inv H. split. rep_lia.
   eapply spec_hmac_drbg_pure_lemmas.HMAC_DRBG_update_value; eassumption.
 Qed.
 

@@ -899,11 +899,11 @@ Proof.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
     { split3; auto. simpl in *. repeat split; trivial; try omega.
-      rep_omega.
+      rep_lia.
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; omega. 
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.
-      rep_omega.
-      rep_omega.
+      rep_lia.
+      rep_lia.
     }
      
     Intros return_value.

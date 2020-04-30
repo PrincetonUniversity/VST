@@ -21,14 +21,14 @@ Lemma isbyte_zeroExt8: forall x,
     0 <= x <= Byte.max_unsigned -> 
    Int.repr x = (Int.zero_ext 8 (Int.repr x)).
 Proof. intros. rewrite zero_ext_inrange. trivial.
-  simpl.  rewrite Int.unsigned_repr. rep_omega. rep_omega.
+  simpl.  rewrite Int.unsigned_repr. rep_lia. rep_lia.
 Qed.
 
 Lemma isbyte_zeroExt8' : forall x, Int.unsigned (Int.zero_ext 8 x) <= Byte.max_unsigned.
 Proof.
 intros.
 pose proof (Int.zero_ext_range 8 x).
-spec H. computable. change (two_p 8) with 256 in H. rep_omega.
+spec H. computable. change (two_p 8) with 256 in H. rep_lia.
 Qed.
 
 (*
@@ -297,18 +297,18 @@ Proof. intros. abbreviate_semax.
         unfold Int.xor.
         rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
         cbv [cast_int_int].
-        rewrite <- (isbyte_zeroExt8 (Byte.unsigned qb)) by rep_omega.
-        rewrite Int.unsigned_repr by rep_omega.
+        rewrite <- (isbyte_zeroExt8 (Byte.unsigned qb)) by rep_lia.
+        rewrite Int.unsigned_repr by rep_lia.
         assert (H54: 0 <= Z.lxor 54 (Byte.unsigned qb) <= Byte.max_unsigned). {rewrite (xor_inrange 54 (Byte.unsigned qb)).
            pose proof (Z.mod_pos_bound (Z.lxor 54 (Byte.unsigned qb)) Byte.modulus).
-           spec H; [rep_omega|]. rep_omega. reflexivity.
-           symmetry; apply Z.mod_small. pose proof (Byte.unsigned_range qb); rep_omega.
+           spec H; [rep_lia|]. rep_lia. reflexivity.
+           symmetry; apply Z.mod_small. pose proof (Byte.unsigned_range qb); rep_lia.
         }
         rewrite <- isbyte_zeroExt8 by auto.
         replace (Vint (Int.repr (Z.lxor 54 (Byte.unsigned qb))))
         with (Vubyte (Byte.xor (Byte.repr 54) qb)).
        2:{   unfold Vubyte. f_equal. f_equal. unfold Byte.xor.
-              rewrite (Byte.unsigned_repr  54) by rep_omega.
+              rewrite (Byte.unsigned_repr  54) by rep_lia.
               apply Byte.unsigned_repr; auto.
           }
         rewrite Byte.xor_commut. remember (Vubyte (Byte.xor qb (Byte.repr 54))) as xorval.
@@ -319,7 +319,7 @@ Proof. intros. abbreviate_semax.
         Time forward. (*5.4 versus 5*) (*FIXME NOW takes 20secs; this is the forward the ran out of 2GB memory in the previous version of floyd*)
         Time entailer!. (*5.7 versus 9.6*)
          thaw FR2; simpl.
-        rewrite <- isbyte_zeroExt8 by rep_omega.
+        rewrite <- isbyte_zeroExt8 by rep_lia.
         change (Vint (Int.repr (Byte.unsigned ?A))) with (Vubyte A).
         Time (rewrite (*HeqIPADcont,*) UPD_IPAD; simpl; trivial; cancel). (*0.6*)
       }
@@ -434,20 +434,20 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
         Time entailer!. (*4.2 versus 5.6*)
         apply derives_refl'. f_equal.
         set (y := nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero).
-        rewrite <- (isbyte_zeroExt8 (Byte.unsigned _)) by rep_omega.
-        unfold Int.xor. rewrite !Int.unsigned_repr by rep_omega.
+        rewrite <- (isbyte_zeroExt8 (Byte.unsigned _)) by rep_lia.
+        unfold Int.xor. rewrite !Int.unsigned_repr by rep_lia.
         rewrite xor_inrange. 2: reflexivity.
         2:{  clear; symmetry; apply Z.mod_small.
-               pose proof (Byte.unsigned_range y); rep_omega.
+               pose proof (Byte.unsigned_range y); rep_lia.
          }
         rewrite <- isbyte_zeroExt8.
        2:{ clear. pose proof (Z_mod_lt (Z.lxor 92 (Byte.unsigned y)) Byte.modulus).
-            spec H; [rep_omega|]. rep_omega.
+            spec H; [rep_lia|]. rep_lia.
          }
         replace (Vint (Int.repr (Z.lxor 92 (Byte.unsigned y) mod Byte.modulus)))
           with (Vubyte (Byte.xor (Byte.repr 92) y)).
          2:{ unfold Vubyte. f_equal. f_equal.
-               unfold Byte.xor. rewrite (Byte.unsigned_repr 92) by rep_omega.
+               unfold Byte.xor. rewrite (Byte.unsigned_repr 92) by rep_lia.
                apply Byte.unsigned_repr_eq.
            }
         apply UPD_OPAD; try eassumption.

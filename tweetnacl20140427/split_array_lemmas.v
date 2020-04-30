@@ -586,7 +586,6 @@ Proof.
   specialize (Zlength_nonneg data2). intros.
   specialize (Zlength_nonneg data3). intros.
   rewrite split3_data_at_Tarray_tuchar with (n1:=Zlength data1)(n2:=Zlength data2 +Zlength data1); try omega.
-Locate split3_data_at_Tarray_tuchar.
   autorewrite with sublist.
   unfold Select_at, Unselect_at. simpl.
   unfold offset_val. red in F. destruct d; intuition.

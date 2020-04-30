@@ -147,18 +147,18 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
        simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
     forward.
     { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr by rep_omega. 
+      rewrite ! Int.signed_repr by rep_lia. 
       rewrite Z.rem_mod_nonneg; try omega.
-      rewrite Int.unsigned_repr by rep_omega. 
+      rewrite Int.unsigned_repr by rep_lia. 
       omega. }
     { unfold Int.mods. 
-      rewrite ! Int.signed_repr by rep_omega.
+      rewrite ! Int.signed_repr by rep_lia.
       rewrite Z.rem_mod_nonneg; try omega.
       entailer!.
    }
     entailer!. destruct H5. inv H6.
     unfold Int.mods. 
-    rewrite ! Int.signed_repr by rep_omega.
+    rewrite ! Int.signed_repr by rep_lia.
     rewrite Z.rem_mod_nonneg; try omega.
     forward.
     { entailer!. simpl. Exists (upd_Znth m T (Vint v)). entailer!.
@@ -503,15 +503,15 @@ deadvars!.
   { entailer!. (* rewrite andb_false_r; simpl; trivial. *)
    clear H1. clear WLIST1. clear TM. clear H.
    (*rewrite and_True. *)
-   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_omega.
+   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_lia.
    change (Int.signed (Int.repr 4)) with 4. 
-   rewrite Int.signed_repr by rep_omega.
-   split. rep_omega. intros [? H9]; inv H9.  }
+   rewrite Int.signed_repr by rep_lia.
+   split. rep_lia. intros [? H9]; inv H9.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
-    rewrite ! Int.signed_repr by rep_omega(*, add_repr, Int.signed_repr*).
+    rewrite ! Int.signed_repr by rep_lia(*, add_repr, Int.signed_repr*).
     rewrite add_repr.
-    rewrite Int.unsigned_repr by rep_omega.
+    rewrite Int.unsigned_repr by rep_lia.
     omega. }
   { Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
     go_lower. rewrite TM. simpl. 
@@ -528,7 +528,7 @@ deadvars!.
              split. trivial.
              rewrite Z2Nat.id. split; trivial. omega. 
     + unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr by rep_omega(*, add_repr, Int.signed_repr*).
+      rewrite ! Int.signed_repr by rep_lia(*, add_repr, Int.signed_repr*).
       rewrite add_repr.
       rewrite Z.rem_mod_nonneg; try omega. entailer!. }
   } 

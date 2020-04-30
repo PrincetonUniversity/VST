@@ -112,25 +112,25 @@ Proof.
     reassoc_seq.
     assert (Int.unsigned (Int.shl (Int.repr i) (Int.repr 2)) = (4 * i)%Z) as E1. {
       rewrite <- Int.mul_pow2 with (n := (Int.repr 4)) by reflexivity.
-      rewrite mul_repr. rewrite Z.mul_comm. apply Int.unsigned_repr. rep_omega.
+      rewrite mul_repr. rewrite Z.mul_comm. apply Int.unsigned_repr. rep_lia.
     }
     forward. 
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 1)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+        rewrite Int.unsigned_repr; [ omega | ]. rep_lia.
      }
     forward. clear Hz.
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 2)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+        rewrite Int.unsigned_repr; [ omega | ]. rep_lia.
      }
     forward. clear Hz.
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 3)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+        rewrite Int.unsigned_repr; [ omega | ]. rep_lia.
      }
     forward. clear Hz.
 
@@ -151,7 +151,7 @@ Proof.
    rewrite <- update_partially_filled by omega. f_equal. f_equal. 
    unfold get_uint32_le. unfold Int.add. rewrite E1. 
    rewrite !(Int.unsigned_repr (Z.pos _)) by computable.
-   rewrite !Int.unsigned_repr by rep_omega.
+   rewrite !Int.unsigned_repr by rep_lia.
    rewrite !(Z.mul_comm 4). reflexivity.
   }
   reassoc_seq.

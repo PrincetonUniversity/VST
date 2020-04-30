@@ -4,6 +4,7 @@ Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
+Ltac omega := Coq.omega.Omega.omega.
 Open Scope funspec_scope.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -107,7 +108,7 @@ Proof.
   rewrite if_true by auto.
   rewrite if_true by auto; discriminate.
 Qed.
-Hint Resolve Ish_not_bot.
+Hint Resolve Ish_not_bot : core.
 
 (* messaging system function specs *)
 Definition initialize_channels_spec :=

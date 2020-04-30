@@ -7,7 +7,7 @@ Require Import VST.floyd.sublist.
 Definition
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
        map g (map f l) = map (fun x : A => g (f x)) l :=
-fun (A B C : Type) (f : A -> B) (g : B -> C) (l : list A) =>
+fun {A B C : Type} (f : A -> B) (g : B -> C) (l : list A) =>
 list_ind
   (fun l0 : list A => map g (map f l0) = map (fun x : A => g (f x)) l0)
   eq_refl

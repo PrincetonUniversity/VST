@@ -45,14 +45,14 @@ Proof.
     destruct p; inv H2.
     simpl in H3.
     pose proof Ptrofs.unsigned_range i.
-    simpl. rep_omega.
+    simpl. rep_lia.
   }
   assert_PROP (Int.repr (Int.unsigned (Int.divu (Int.repr (4 * n)) (Int.repr 4))) = Int.repr n) as H4.
   { entailer!. 
     rewrite Int.repr_unsigned.
     unfold Int.divu.
-    rewrite (Int.unsigned_repr 4) by rep_omega.
-    rewrite (Int.unsigned_repr (4 * n)) by rep_omega.
+    rewrite (Int.unsigned_repr 4) by rep_lia.
+    rewrite (Int.unsigned_repr (4 * n)) by rep_lia.
     rewrite Z.mul_comm, Z_div_mult by omega.
     auto. }
   forward_for_simple_bound n (EX i : Z, PROP ()
@@ -246,7 +246,7 @@ Proof.
     change (upto 1) with [0]; simpl.
     rewrite Z2Nat.id, Z.add_0_r by omega.
     rewrite !Znth_app1 by auto.
-    replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; rep_omega).
+    replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; rep_lia).
     subst; rewrite Zlength_correct, Nat2Z.id.
     rewrite <- lock_struct_array; unfold AE_inv.
     erewrite map_ext_in; [unfold comm_loc, AE_loc, AE_inv; cancel|].

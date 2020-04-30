@@ -391,7 +391,7 @@ Proof.
     (* prove the PROP clauses *)
     split3; auto.
     simpl in *. repeat split; auto; try omega. (*
-    rewrite H2 in *;*) rep_omega.
+    rewrite H2 in *;*) rep_lia.
     left; rewrite Zlength_app, ZLbytes; trivial.
   }
   unfold hmac256drbgabs_common_mpreds.

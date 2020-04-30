@@ -96,7 +96,7 @@ apply sepalg.join_comm.
 apply Qsh_Qsh'.
 Qed.
 
-Hint Resolve Qsh_not_readable.
+Hint Resolve Qsh_not_readable : core.
 
 
 Lemma Qsh_nonempty: Qsh <> Share.bot.
@@ -530,7 +530,7 @@ forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   apply derives_refl.
 Qed.
 
-Hint Resolve readable_share_Qsh'.
+Hint Resolve readable_share_Qsh' : core.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

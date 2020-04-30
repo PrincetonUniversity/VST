@@ -67,7 +67,7 @@ Lemma repable_0 : repable_signed 0.
 Proof.
   split; computable.
 Qed.
-Hint Resolve repable_0.
+Hint Resolve repable_0 : core.
 
 Definition complete MAX l := l ++ Zrepeat (MAX - Zlength l) (vptrofs 0).
 
@@ -808,7 +808,7 @@ Lemma incl_nil : forall {A} (l : list A), incl [] l.
 Proof.
   repeat intro; contradiction.
 Qed.
-Hint Resolve incl_nil.
+Hint Resolve incl_nil : core.
 
 Lemma incl_cons_out : forall {A} (a : A) l1 l2, incl l1 (a :: l2) -> ~In a l1 -> incl l1 l2.
 Proof.
@@ -2240,7 +2240,7 @@ Proof.
 Qed. *)
 
 Hint Resolve lock_inv_exclusive selflock_exclusive cond_var_exclusive data_at_exclusive
-  data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec.
+  data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec : core.
 
 Lemma eq_dec_refl : forall {A B} {A_eq : EqDec A} (a : A) (b c : B), (if eq_dec a a then b else c) = b.
 Proof.
@@ -2302,7 +2302,7 @@ Proof.
   unfold readable_share, nonempty_share, sepalg.nonidentity.
   rewrite Share.glb_bot; auto.
 Qed.
-Hint Resolve unreadable_bot.
+Hint Resolve unreadable_bot : core.
 
 Definition join_Bot := join_Bot.
 
@@ -2332,7 +2332,7 @@ Proof.
   apply slice.cleave_join; unfold gsh1, gsh2; destruct (slice.cleave Tsh); auto.
 Qed.
 
-Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
+Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join : core.
 
 Lemma gsh1_not_bot : gsh1 <> Share.bot.
 Proof.
@@ -2343,7 +2343,7 @@ Lemma gsh2_not_bot : gsh2 <> Share.bot.
 Proof.
   intro X; contradiction unreadable_bot; rewrite <- X; auto.
 Qed.
-Hint Resolve gsh1_not_bot gsh2_not_bot.
+Hint Resolve gsh1_not_bot gsh2_not_bot : core.
 
 (*
 Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
@@ -3302,12 +3302,12 @@ Ltac forward_spawn id arg wit :=
     replace Pre with (fun '(a, w) => PROPx [] (PARAMSx (a::nil)
                                                        (GLOBALSx ((Q w) :: nil) (SEPx [R w a]))));
     [ | let x := fresh "x" in extensionality x; destruct x as (?, x);
-        instantiate (1 := fun w a => _ w) in (Value of R);
+        instantiate (1 := fun w a => _ w) in (value of R);
         repeat (destruct x as (x, ?);
-        instantiate (1 := fun '(a, b) => _ a) in (Value of Q);
-        instantiate (1 := fun '(a, b) => _ a) in (Value of R));
+        instantiate (1 := fun '(a, b) => _ a) in (value of Q);
+        instantiate (1 := fun '(a, b) => _ a) in (value of R));
         etransitivity; [|symmetry; apply PROP_into_SEP_LAMBDA]; f_equal; f_equal; f_equal;
-        [ instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal; simpl; reflexivity
+        [ instantiate (1 := fun _ => _) in (value of Q); subst y Q; f_equal; simpl; reflexivity
         | unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _);
           reflexivity]
   ];
@@ -3324,10 +3324,10 @@ Ltac forward_spawn id arg wit :=
     (*replace Pre with (fun '(a, w) => PROPx [] (LOCALx (temp y a :: gvars (Q w) :: nil) (SEPx [R w a])));*)
     replace Pre with (fun '(a, w) => PROPx [] (LAMBDAx ((Q w) :: nil) (a:: nil) (SEPx [R w a])));
     [|let x := fresh "x" in extensionality x; destruct x as (?, x);
-      instantiate (1 := fun w a => _ w) in (Value of R);
+      instantiate (1 := fun w a => _ w) in (value of R);
       repeat (destruct x as (x, ?);
-        instantiate (1 := fun '(a, b) => _ a) in (Value of Q);
-        instantiate (1 := fun '(a, b) => _ a) in (Value of R));
-      etransitivity; [|symmetry; apply PROP_into_SEP]; f_equal; f_equal ; [instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal; simpl; f_equal |
+        instantiate (1 := fun '(a, b) => _ a) in (value of Q);
+        instantiate (1 := fun '(a, b) => _ a) in (value of R));
+      etransitivity; [|symmetry; apply PROP_into_SEP]; f_equal; f_equal ; [instantiate (1 := fun _ => _) in (value of Q); subst y Q; f_equal; simpl; f_equal |
        unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _); reflexivity]];
   forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn) end end.*)

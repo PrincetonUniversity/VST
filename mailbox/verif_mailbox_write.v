@@ -43,7 +43,7 @@ Proof.
   forward.
   forward.
   assert_PROP (Zlength lasts = N).
-  { gather_SEP 3.
+  { gather_SEP (data_at _ _ _ (gv _last_taken)).
     go_lowerx.
     apply sepcon_derives_prop.
     eapply derives_trans; [apply data_array_at_local_facts'; unfold N; omega|].
@@ -103,7 +103,7 @@ Proof.
       destruct (in_dec eq_dec a (sublist 0 i lasts ++ [Znth i lasts])); rewrite in_app in *.
       + destruct (in_dec eq_dec a (sublist 0 i lasts)); auto.
         destruct i0 as [? | [? | ?]]; subst; try contradiction.
-        apply repr_inj_signed in H4; rep_omega.
+        apply repr_inj_signed in H4; rep_lia.
       + destruct (in_dec eq_dec a (sublist 0 i lasts)); auto.
         contradiction n0; auto.
     - intros. entailer!. }
@@ -430,7 +430,7 @@ Proof.
     destruct Hin' as (? & ? & Heq); rewrite Heq in Hsh1.
     apply list_join_comm in Hsh1; inv Hsh1; eauto. }
   destruct (eq_dec j 0).
-  { subst; rep_omega. }
+  { subst; rep_lia. }
   rewrite Znth_pos_cons; [|omega].
   inversion Hsh1 as [|????? Hj1 Hj2].
   destruct (eq_dec a i); subst.
@@ -748,7 +748,7 @@ Proof.
       replace (length lasts) with (Z.to_nat N).
       apply map_ext.
       intro; rewrite Znth_nil; destruct (eq_dec Vundef Empty); auto; discriminate.
-      { rewrite Zlength_correct in *; rep_omega. } }
+      { rewrite Zlength_correct in *; rep_lia. } }
   - assert_PROP (Zlength comms = N) as Hcomms by entailer!.
     Intros t' h'.
     forward.
@@ -888,7 +888,8 @@ Proof.
         simpl; entailer!. }
     { repeat (split; auto). }
     Intros x b'; destruct x as (t, v); simpl in *.
-    gather_SEP 0 9; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
+    gather_SEP (AE_loc _ _ _ _ _ _ _) (fold_right _ _ _).
+    replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       comm_loc lsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
         (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 (map_add (Znth r h)
         (if zlt r (i + 1) then singleton (Znth r (t' ++ [t])) (AE (Znth r (h' ++ [v])) (vint b)) else empty_map)))
@@ -913,7 +914,8 @@ Proof.
         rewrite !(@Znth_map _ N), !Znth_upto by (auto; omega).
         if_tac; if_tac; rewrite ?map_add_empty; try omega; try apply derives_refl.
         rewrite !app_Znth1 by omega; apply derives_refl. }
-    gather_SEP 1 10; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
+    gather_SEP (ghost_var _ _ (Znth i g1)) (fold_right sepcon emp (upd_Znth _ _ _)).
+    replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       ghost_var gsh1 (vint (if zlt r (i + 1) then b else b0)) (Znth r g1)) (upto (Z.to_nat N)))).
     { go_lowerx.
       rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat N))) i);
@@ -926,7 +928,8 @@ Proof.
       rewrite !upd_Znth_diff' by (rewrite ?Zlength_map; auto).
       erewrite !Znth_map, !Znth_upto by (auto; rewrite Zlength_upto in *; omega).
       destruct (zlt i0 i), (zlt i0 (i + 1)); auto; omega. }
-    gather_SEP 2 10; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
+    gather_SEP (ghost_var _ _ (Znth i g2)) (fold_right sepcon emp (upd_Znth _ _ _)).
+    replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       ghost_var gsh1 (vint (@Znth Z (-1) r (map (fun i0 => if eq_dec (Znth i0 (h' ++ [v])) Empty then b0
         else Znth i0 lasts) (upto (Z.to_nat N))))) (Znth r g2)) (upto (Z.to_nat N)))).
     { go_lowerx.

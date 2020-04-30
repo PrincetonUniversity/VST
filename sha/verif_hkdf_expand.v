@@ -41,7 +41,7 @@ destruct (zeq i 0).
 + subst i. simpl; trivial. 
 + apply map_Vubyte_injective in H0. (* apply map_IntReprOfBytes_injective in H0; trivial.*)
   rewrite H0, Zpos_P_of_succ_nat, Z2Nat.id; trivial; try omega. repeat f_equal.
-  unfold Z.succ, Byte.add, Byte.one. f_equal. rewrite 2 Byte.unsigned_repr; trivial; rep_omega.
+  unfold Z.succ, Byte.add, Byte.one. f_equal. rewrite 2 Byte.unsigned_repr; trivial; rep_lia.
 Qed.
 
 Lemma PREV_listbyte PRK INFO i: 0 < i -> exists l, PREVcont PRK INFO i = map Vubyte l.
@@ -71,7 +71,7 @@ Proof.
     simpl. rewrite sublist_app2; rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
     rewrite Zminus_diag, <- app_assoc, Zpos_P_of_succ_nat, Z2Nat.id; try omega.
     replace ((32 * i + rest - 32 * i)%Z) with rest%Z by omega. repeat f_equal.
-  unfold Z.succ, Byte.add, Byte.one. f_equal. rewrite 2 Byte.unsigned_repr; trivial; rep_omega.
+  unfold Z.succ, Byte.add, Byte.one. f_equal. rewrite 2 Byte.unsigned_repr; trivial; rep_lia.
 Qed.
 
 Lemma sublist_HKDF_expand5 PRK INFO l i
@@ -95,7 +95,7 @@ Proof.
   destruct (zeq i 0). { simpl in *; subst i l; simpl; trivial. }
   apply map_Vubyte_injective in Hl.
   rewrite Hl, <- app_assoc. repeat f_equal.
-  unfold Z.succ, Byte.add, Byte.one. f_equal. rewrite 2 Byte.unsigned_repr; trivial. rep_omega.
+  unfold Z.succ, Byte.add, Byte.one. f_equal. rewrite 2 Byte.unsigned_repr; trivial. rep_lia.
 Qed.
 
 Lemma body_hkdf_expand: semax_body Hkdf_VarSpecs Hkdf_FunSpecs 
@@ -201,7 +201,7 @@ normalize.
 rewrite field_address_offset by auto with field_compatible. simpl.
 rewrite isptr_offset_val_zero; trivial. 
 rewrite field_address0_offset by auto with field_compatible. simpl.
-rewrite memory_block_field_compatible_tarraytuchar by rep_omega.
+rewrite memory_block_field_compatible_tarraytuchar by rep_lia.
 Intros. rename H into FCout. 
 
 freeze FR0 := (data_at _ _ _ (offset_val 32 v_previous)) (data_block _ _ prk).
@@ -334,9 +334,9 @@ forward_for_simple_bound bnd
      simpl. unfold Vubyte, Int.add. rewrite <- verif_hmac_init_part2.isbyte_zeroExt8. f_equal. f_equal.
      unfold Byte.add.
      rewrite 2 Int.unsigned_repr; try (rewrite hmac_pure_lemmas.int_max_unsigned_eq; omega).
-     unfold Byte.one; rewrite ! Byte.unsigned_repr; trivial; try rep_omega. 
-     rewrite ! Byte.unsigned_repr; trivial; try rep_omega. 
-     rewrite ! Int.unsigned_repr; trivial; try rep_omega. }
+     unfold Byte.one; rewrite ! Byte.unsigned_repr; trivial; try rep_lia. 
+     rewrite ! Byte.unsigned_repr; trivial; try rep_lia. 
+     rewrite ! Int.unsigned_repr; trivial; try rep_lia. }
    { split. apply writable_share_top. split. apply readable_share_top.
      rewrite LENB. rewrite hmac_pure_lemmas.int_max_unsigned_eq, Zlength_app. split. omega.
      destruct (zeq i1 0).
@@ -415,7 +415,7 @@ forward_for_simple_bound bnd
          destruct (zeq i1 0).
          ++ subst l. rewrite e in *; simpl. unfold PREVcont; simpl; trivial.
          ++ erewrite PREVcont_Sn; try eassumption. 
-            rewrite if_false, app_assoc; trivial. rep_omega.
+            rewrite if_false, app_assoc; trivial. rep_lia.
        - unfold OUTpred, digest_len. simpl.
          destruct (zeq rest 0).
          ++ subst rest; simpl. rewrite Zplus_0_r in *. omega.
@@ -464,7 +464,7 @@ forward_for_simple_bound bnd
          destruct (zeq i1 0).
          ++ subst l. rewrite e in *; simpl. unfold PREVcont. simpl; trivial. 
          ++ clear - Hl n0 Hi1 g. erewrite PREVcont_Sn; try eassumption. 
-            rewrite if_false, app_assoc; trivial. rep_omega.
+            rewrite if_false, app_assoc; trivial. rep_lia.
        - unfold OUTpred, digest_len. simpl. rewrite Z.mul_add_distr_l, Z.mul_1_r.
          destruct (zeq rest 0).
          ++ subst rest; simpl in *. rewrite Zplus_0_r in *.
@@ -483,7 +483,7 @@ forward_for_simple_bound bnd
                   replace ((i1 + 1) * 32)%Z with (32*(i1 + 1))%Z by omega.
                   replace (i1 * 32)%Z with (32*i1)%Z by omega.
                   rewrite <- sublist_HKDF_expand2; try omega. 
-                  erewrite <- sublist_HKDF_expand5; try rep_omega; try eassumption. cancel.
+                  erewrite <- sublist_HKDF_expand5; try rep_lia; try eassumption. cancel.
               -- rewrite Zlength_sublist; try omega. rewrite ! Zlength_map. 
                  replace ((i1 + 1) * 32)%Z with ((32 * (i1 + 1))+0) by omega.
                  rewrite Zlength_HKDF_expand; omega.
@@ -499,7 +499,7 @@ forward_for_simple_bound bnd
                   replace ((i1 + 1) * 32)%Z with (32*(i1+1))%Z by omega.
                   replace (i1 * 32)%Z with (32*i1)%Z by omega.
                   rewrite ! sublist_map, <- (sublist_HKDF_expand5 PRK INFO l i1 Hl),
-                    <- sublist_HKDF_expand2; try rep_omega; cancel.
+                    <- sublist_HKDF_expand2; try rep_lia; cancel.
                -- rewrite Zlength_sublist; try omega. rewrite Zlength_map.
                   replace (((i1 + 1)*32)%Z) with ((32 * (i1 + 1) + 0)%Z) by omega.
                   rewrite Zlength_HKDF_expand; omega. 
@@ -512,7 +512,7 @@ forward_for_simple_bound bnd
                    replace (32 * i1 + 32 - 32 * i1) with 32 by omega.
                    replace ((i1 + 1)*32)%Z with (32*(i1+1))%Z by omega.
                    replace (i1*32)%Z with (32*i1)%Z by omega.
-                   rewrite <- (sublist_HKDF_expand5 PRK INFO l i1 Hl), <- sublist_HKDF_expand2; try rep_omega. cancel.
+                   rewrite <- (sublist_HKDF_expand5 PRK INFO l i1 Hl), <- sublist_HKDF_expand2; try rep_lia. cancel.
                    eapply field_compatible0_cons_Tarray; [ reflexivity | | omega].
                    eapply field_compatible_array_smaller0; [ apply FCout | omega].
                 ** rewrite ! sublist_map, ! Zlength_map, Zlength_sublist; try omega.

@@ -90,7 +90,7 @@ simpl; entailer!.
 split3; auto.
 split; auto.
 simpl.
-hnf. rep_omega.
+hnf. rep_lia.
 unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_instantiate_algorithm,
   HMAC_DRBG_instantiate_algorithm in H10.
 destruct (HMAC_DRBG_update HMAC256) as [key value].
@@ -144,8 +144,8 @@ Proof.
   freeze [0;5;6;8] FR2.
   forward_call (Vptr b i, sh, (((*M1*)info,(M2,p)):mdstate), 32, V, b, Ptrofs.add i (Ptrofs.repr 12), sh, gv).
   { rewrite lenV; simpl. cancel. }
-  { split3; auto. split; trivial. rep_omega.
-    split. rep_omega. compute; auto.
+  { split3; auto. split; trivial. rep_lia.
+    split. rep_lia. compute; auto.
   }
   Intros.
 
@@ -263,11 +263,11 @@ Proof.
   { forward. entailer!. }
   { forward. (*red in WFI; simpl in WFI.*) entailer!. simpl.
       unfold Int.ltu; simpl.
-      rewrite Int.unsigned_repr by rep_omega.
+      rewrite Int.unsigned_repr by rep_lia.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.
       + clear - H WFI addlenRange.
-        rep_omega.
+        rep_lia.
   }
 
   forward_if.
@@ -326,7 +326,7 @@ Proof.
   (* get_entropy(seed, entropy_len ) *)
   thaw FR3. freeze [1;2;3;4;5;7] FR4.
   forward_call (Tsh, s, seed, entropy_len).
-  { split. split; try rep_omega.
+  { split. split; try rep_lia.
     apply writable_share_top.
   }
   Intros vret. rename H1 into ENT.
@@ -492,7 +492,7 @@ Proof.
                 I, Info, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { split3; auto.  split; auto. rewrite Zlength_nil.
-    repeat (split; try assumption; try rep_omega). }
+    repeat (split; try assumption; try rep_lia). }
   Intros v. forward. unfold HMAC256_DRBG_bridge_to_FCF.mbedtls_generate in M.
   remember (mbedtls_HMAC256_DRBG_generate_function s I n []) as q; destruct q; try discriminate. 
   destruct p as [bytes' J].
@@ -534,7 +534,7 @@ Proof.
                 I, Info, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { split3; auto. split; auto. rewrite Zlength_nil.
-    repeat (split; try assumption; try rep_omega). }
+    repeat (split; try assumption; try rep_lia). }
   Intros v. forward. destruct J as [[[[V K] RC] x] PR].
   unfold generatePOST, contents_with_add; simpl. 
   apply Zgt_is_gt_bool_f in N2. rewrite N2 in *. 
@@ -754,7 +754,7 @@ Proof. start_function.
     assert (Hiuchar: Int.zero_ext 8 (Int.repr i) = Int.repr i).
     {
       clear - H Heqrounds. destruct na; subst;
-      apply zero_ext_inrange; rewrite Int.unsigned_repr by rep_omega; simpl; omega.
+      apply zero_ext_inrange; rewrite Int.unsigned_repr by rep_lia; simpl; omega.
     }
 
     (* mbedtls_md_hmac_update( &ctx->md_ctx, sep, 1 ); *)
@@ -764,7 +764,7 @@ Proof. start_function.
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, sep, Tsh, V, [Byte.repr i], gv). 
     simpl map. replace (Vint (Int.repr i)) with (Vubyte (Byte.repr i)). cancel.
     unfold Vubyte. f_equal. clear - Heqrounds H. 
-    rewrite Byte.unsigned_repr by (destruct na; rep_omega); auto.
+    rewrite Byte.unsigned_repr by (destruct na; rep_lia); auto.
     { split3; auto.
       (* prove the PROP clauses *)
       rewrite H4.
@@ -846,7 +846,7 @@ Proof. start_function.
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, K, Tsh, gv). 
         sep_apply (memory_block_data_at__tarray_tuchar Tsh K 32).
-        rep_omega. cancel.
+        rep_lia. cancel.
     Intros.
     freeze [0;1;2;4] FR9.
     rewrite data_at_isptr with (p:=K). Intros.
@@ -903,7 +903,7 @@ Proof. start_function.
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc,
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc, gv).
     change 32 with (sizeof (tarray tuchar 32)) at 1.
-    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_omega).
+    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_lia).
     simpl sizeof. cancel.
     Time go_lower. (*necessary due to existence of local () && in postcondition of for-rule*)
     idtac "previous timing was for go_lower (goal: 12secs)".
