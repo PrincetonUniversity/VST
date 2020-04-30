@@ -625,7 +625,7 @@ Next Obligation.
   auto.
 Defined.
 
-Global Instance max_order : PCM_order le.
+Global Instance max_order : PCM_order Peano.le.
 Proof.
   constructor; auto; intros.
   - intros ???; lia.

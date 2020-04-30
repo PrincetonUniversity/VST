@@ -8,6 +8,7 @@ Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
+Require Import Coq.micromega.Lia.
 
 Require Import VST.msl.Extensionality.
 
@@ -20,7 +21,7 @@ Proof. intros.
 unfold Mem.valid_block.
 remember (plt b (Mem.nextblock m)).
 destruct s. left; assumption.
-right. intros N. xomega.
+auto.
 Qed.
 
 Lemma Forall2_length {A B} {f:A -> B -> Prop} {l1 l2} (F:Forall2 f l1 l2): length l1 = length l2.
@@ -103,10 +104,10 @@ Proof.
     - destruct (zle lo ofs).
       * destruct (zlt ofs hi).
         { eapply Mem.perm_implies.
-            eapply Mem.perm_drop_1. eassumption. omega.
-          eapply (Mem.perm_drop_2 _ _ _ _ _ _ D). 2: eassumption. omega. }
-        { eapply Mem.perm_drop_3; try eassumption. right. omega. }
-      * eapply Mem.perm_drop_3; try eassumption. right. omega.
+            eapply Mem.perm_drop_1. eassumption. lia.
+          eapply (Mem.perm_drop_2 _ _ _ _ _ _ D). 2: eassumption. lia. }
+        { eapply Mem.perm_drop_3; try eassumption. right. lia. }
+      * eapply Mem.perm_drop_3; try eassumption. right. lia.
     - eapply Mem.perm_drop_3; try eassumption. left; trivial.
   + right. intros N. elim H2; clear H2.
     eapply Mem.perm_drop_4; eassumption.
@@ -199,7 +200,7 @@ Qed.
 Lemma flatinj_I: forall bb b, Plt b bb -> Mem.flat_inj bb b = Some (b, 0).
 Proof.
   intros. unfold Mem.flat_inj.
-  destruct (plt b bb); trivial. exfalso. xomega.
+  destruct (plt b bb); trivial. exfalso. auto.
 Qed.
 
 Lemma flatinj_mono: forall b b1 b2 b' delta
@@ -207,7 +208,7 @@ Lemma flatinj_mono: forall b b1 b2 b' delta
   Plt b1 b2 -> Mem.flat_inj b2 b = Some (b', delta).
 Proof. intros.
   apply flatinj_E in F. destruct F as [? [? ?]]; subst.
-  apply flatinj_I. xomega.
+  apply flatinj_I. eapply Pos.lt_trans; eauto.
 Qed.
 
 (* A minimal preservation property we sometimes require. *)
@@ -265,7 +266,7 @@ Qed.
 Lemma readonly_readonlyLD m1 b m2: readonly m1 b m2 -> readonlyLD m1 b m2.
 Proof.
   red; intros. destruct (H (size_chunk chunk) ofs); clear H.
-    intros. apply NWR. omega.
+    intros. apply NWR. lia.
   split; intros.
     remember (Mem.load chunk m2 b ofs) as d; symmetry in Heqd; symmetry.
     destruct d.
@@ -279,7 +280,7 @@ Proof.
       apply Mem.load_valid_access in Heqq; destruct Heqq.
       rewrite <- Heqd.
       rewrite <- H0 in LDB. apply Mem.loadbytes_load; trivial. }
-  specialize (H1 (ofs'-ofs)). rewrite Zplus_minus in H1. apply H1. omega.
+  specialize (H1 (ofs'-ofs)). rewrite Zplus_minus in H1. apply H1. lia.
 Qed.
 
 Lemma readonly_refl m b: readonly m b m.
@@ -743,8 +744,8 @@ Proof. intros n.
   induction n; simpl; intros.
     destruct bytes1; inv H.
     destruct bytes1; simpl in *; inv H.
-      omega.
-    specialize (IHn _ _ _ _ _ H2). omega.
+      lia.
+    specialize (IHn _ _ _ _ _ H2). lia.
 Qed.
 
 Lemma loadbytes_D: forall m b ofs n bytes
@@ -919,10 +920,11 @@ Proof.
     destruct (zle (ofs + Z.of_nat (length (m0 :: bytes)))  ofs0); trivial.
     exfalso.
     destruct (zle ofs0 ofs).
-      apply (NWR ofs). omega.
-                      (*eapply Mem.perm_max.*) apply M. simpl. specialize (Zle_0_nat (length bytes)); intros; xomega.
-      elim (NWR ofs0). specialize (size_chunk_pos chunk); intros; omega.
-                      (*eapply Mem.perm_max.*) apply M. omega.
+      apply (NWR ofs). lia.
+                      (*eapply Mem.perm_max.*) apply M. simpl.
+                           specialize (Zle_0_nat (length bytes)); intros; lia.
+      elim (NWR ofs0). specialize (size_chunk_pos chunk); intros; lia.
+                      (*eapply Mem.perm_max.*) apply M. lia.
   split; intros. eapply Mem.perm_storebytes_1; eassumption. eapply Mem.perm_storebytes_2; eassumption.
 Qed.
 
@@ -932,21 +934,21 @@ Lemma storebytes_readonly: forall m b ofs bytes m'
 Proof.
   red; intros.
   destruct (zle n 0).
-  { split; intros. repeat rewrite Mem.loadbytes_empty; trivial. omega. }
+  { split; intros. repeat rewrite Mem.loadbytes_empty; trivial. lia. }
   split.
     destruct bytes.
       eapply loadbytes_storebytes_nil; eassumption.
-    eapply Mem.loadbytes_storebytes_other; try eassumption. omega.
+    eapply Mem.loadbytes_storebytes_other; try eassumption. lia.
     destruct (eq_block b0 b); subst. 2: left; trivial. right.
     apply Mem.storebytes_range_perm in M.
     destruct (zle (ofs0 + n) ofs). left; trivial. right.
     destruct (zle (ofs + Z.of_nat (length (m0 :: bytes)))  ofs0); trivial.
-    exfalso. remember (Z.of_nat (length (m0 :: bytes))) as l. assert (0 < l). simpl in Heql. xomega. clear Heql.
+    exfalso. remember (Z.of_nat (length (m0 :: bytes))) as l. assert (0 < l). simpl in Heql. lia. clear Heql.
     destruct (zle ofs0 ofs).
-      apply (NWR (ofs-ofs0)). omega.
-                  (*eapply Mem.perm_max.*) apply M. rewrite Zplus_minus. omega.
-      elim (NWR 0). omega.
-                  (*eapply Mem.perm_max.*) apply M. omega.
+      apply (NWR (ofs-ofs0)). lia.
+                  (*eapply Mem.perm_max.*) apply M. rewrite Zplus_minus. lia.
+      elim (NWR 0). lia.
+                  (*eapply Mem.perm_max.*) apply M. lia.
   split; intros. eapply Mem.perm_storebytes_1; eassumption. eapply Mem.perm_storebytes_2; eassumption.
 Qed.
 
@@ -984,7 +986,7 @@ Proof. intros.
     elim (H0 ofs).
     eapply Mem.perm_max.
     eapply Mem.store_valid_access_3; try eassumption.
-    specialize (size_chunk_pos ch); intros; omega.
+    specialize (size_chunk_pos ch); intros; lia.
 Qed.
 
 Lemma storebytes_forward: forall m b ofs bytes m'
@@ -1001,7 +1003,7 @@ Proof. intros.
   eapply Mem.load_storebytes_other; try eassumption.
     destruct (eq_block b0 b); subst. 2: left; trivial.
     apply Mem.storebytes_range_perm in M.
-    elim (H0 ofs). eapply Mem.perm_max. eapply M. simpl; xomega.
+    elim (H0 ofs). eapply Mem.perm_max. eapply M. simpl; xlia.
 Qed.
 *)
 
@@ -1086,7 +1088,7 @@ red; intros. eapply Mem.load_free; try eassumption.
     eapply Mem.perm_max.
     eapply Mem.perm_implies.
       eapply Mem.free_range_perm; try eassumption.
-      omega.
+      lia.
     constructor.
   right; left; trivial.
 Qed.
@@ -1121,7 +1123,7 @@ Proof. intros.
     apply loadbytes_D in Heqq. destruct Heqq as [F C].
     assert (Mem.range_perm m2 b ofs (ofs + n) Cur Readable).
     { red; intros. eapply Mem.perm_free_1. eassumption.
-        destruct H0. left; trivial. right. omega.
+        destruct H0. left; trivial. right. lia.
       apply F. trivial.
     }
     apply Mem.range_perm_loadbytes in H1. rewrite Heqd in H1. destruct H1; discriminate.
@@ -1135,24 +1137,24 @@ Proof. red; intros.
 split.
   eapply Mem.load_free; try eassumption.
   destruct (eq_block b0 b); try subst b0. 2: left; trivial.
-  right; destruct (zle hi lo). left; omega. right.
+  right; destruct (zle hi lo). left; lia. right.
   destruct (zle (ofs + size_chunk chunk) lo). left; trivial. right.
   destruct (zle hi ofs); trivial. exfalso.
   destruct (zle ofs lo).
-    eapply (NWR lo); clear NWR. omega.
+    eapply (NWR lo); clear NWR. lia.
     (*eapply Mem.perm_max.*)
     eapply Mem.perm_implies.
-      eapply Mem.free_range_perm; try eassumption. omega. constructor.
-  eapply (NWR ofs); clear NWR. specialize (size_chunk_pos chunk). intros; omega.
+      eapply Mem.free_range_perm; try eassumption. lia. constructor.
+  eapply (NWR ofs); clear NWR. specialize (size_chunk_pos chunk). intros; lia.
     (*eapply Mem.perm_max.*)
     eapply Mem.perm_implies.
-      eapply Mem.free_range_perm; try eassumption. omega. constructor.
+      eapply Mem.free_range_perm; try eassumption. lia. constructor.
 intros. specialize (Mem.free_range_perm _ _ _ _ _ M); intros F. red in F.
     split; intros. eapply Mem.perm_free_1; try eassumption.
       destruct (eq_block b0 b); try subst b0. 2: left; trivial. right.
       destruct (zlt ofs' lo). left; trivial. right. destruct (zle hi ofs'). trivial.
-      elim (NWR _ H0). (* specialize (size_chunk_pos chunk). intros; omega.*)
-      (*eapply Mem.perm_max.*) eapply Mem.perm_implies. apply F. omega. constructor.
+      elim (NWR _ H0). (* specialize (size_chunk_pos chunk). intros; lia.*)
+      (*eapply Mem.perm_max.*) eapply Mem.perm_implies. apply F. lia. constructor.
     eapply Mem.perm_free_3; try eassumption.
 Qed.
 
@@ -1162,28 +1164,28 @@ Lemma free_readonly: forall b lo hi m m'
 Proof. red; intros.
 destruct (zle n 0).
   split. repeat rewrite Mem.loadbytes_empty; trivial.
-         intros; omega.
+         intros; lia.
 split.
   eapply loadbytes_free; try eassumption.
   destruct (eq_block b0 b); try subst b0. 2: left; trivial.
-  right; destruct (zle hi lo). left; omega. right.
+  right; destruct (zle hi lo). left; lia. right.
   destruct (zle (ofs + n) lo). left; trivial. right.
   destruct (zle hi ofs); trivial. exfalso.
   destruct (zle lo ofs).
-    eapply (NWR 0); clear NWR. omega.
+    eapply (NWR 0); clear NWR. lia.
     (*eapply Mem.perm_max.*)
     eapply Mem.perm_implies.
-      eapply Mem.free_range_perm; try eassumption. omega. constructor.
-  eapply (NWR (lo - ofs)); clear NWR. omega. rewrite Zplus_minus.
+      eapply Mem.free_range_perm; try eassumption. lia. constructor.
+  eapply (NWR (lo - ofs)); clear NWR. lia. rewrite Zplus_minus.
     (*eapply Mem.perm_max.*)
     eapply Mem.perm_implies.
-      eapply Mem.free_range_perm; try eassumption. omega. constructor.
+      eapply Mem.free_range_perm; try eassumption. lia. constructor.
 intros. specialize (Mem.free_range_perm _ _ _ _ _ M); intros F. red in F.
     split; intros. eapply Mem.perm_free_1; try eassumption.
       destruct (eq_block b0 b); try subst b0. 2: left; trivial. right.
       destruct (zlt (ofs + i) lo). left; trivial. right. destruct (zle hi (ofs+i)). trivial.
-      elim (NWR _ H0). (* specialize (size_chunk_pos chunk). intros; omega.*)
-      (*eapply Mem.perm_max.*) eapply Mem.perm_implies. apply F. omega. constructor.
+      elim (NWR _ H0). (* specialize (size_chunk_pos chunk). intros; lia.*)
+      (*eapply Mem.perm_max.*) eapply Mem.perm_implies. apply F. lia. constructor.
     eapply Mem.perm_free_3; try eassumption.
 Qed.
 
@@ -1244,7 +1246,7 @@ destruct b; trivial.
 assert (H2: (Mem.nextblock m' < Mem.nextblock m)%positive).
   apply Pos.leb_gt. rewrite Heqb. trivial.
 destruct (H1 (Mem.nextblock m')); auto.
-xomega.
+unfold Plt in *; lia.
 Qed.
 
 Lemma inject_separated_incr_fwd:
@@ -1675,8 +1677,8 @@ destruct ef; simpl in *; try inv EC; try apply readonly_refl.
 { apply (ec_readonly (inline_assembly_properties text sg)) in EC.
   (*destruct EC.*) red; intros; split; intros. Locate readonly.
   symmetry. eapply loadbytes_unchanged_on; try eassumption.
-     intros. red. intros N. eapply (NWR (i-ofs)). omega.
-     assert (ofs + (i - ofs) = i) by omega. rewrite H0.   Mem.perm_implies. eapply NWR.
+     intros. red. intros N. eapply (NWR (i-ofs)). lia.
+     assert (ofs + (i - ofs) = i) by lia. rewrite H0.   Mem.perm_implies. eapply NWR.
 
  inv H0. apply readonly_refl. eapply store_readonly; eassumption. }
 { eapply readonly_trans. eapply alloc_readonly; eassumption.

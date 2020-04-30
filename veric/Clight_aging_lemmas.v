@@ -18,14 +18,14 @@ Set Bullet Behavior "Strict Subproofs".
 Lemma jsafeN_age Z Jspec ge ora q n jm jmaged :
   ext_spec_stable age (JE_spec _ Jspec) ->
   age jm jmaged ->
-  le n (level jmaged) ->
+  Peano.le n (level jmaged) ->
   @jsafeN Z Jspec ge n ora q jm ->
   @jsafeN Z Jspec ge n ora q jmaged.
 Proof. intros. eapply jsafeN__age; eauto. Qed.
 
 Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
   ext_spec_stable age (JE_spec _ Jspec) ->
-  le n l ->
+  Peano.le n l ->
   @jsafeN Z Jspec ge n ora q jm ->
   @jsafeN Z Jspec ge n ora q (age_to l jm).
 Proof. intros. eapply jsafeN__age_to; eauto. Qed.
