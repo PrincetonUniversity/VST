@@ -1442,7 +1442,7 @@ inversion H5. destruct fsig0 as [params retty].
 injection H2; clear H2; intros H8 H7. subst t0.
 rename t into tys. subst rho.
 destruct (age1 jm) as  [jm' |] eqn:Hage.
-2:{ Search age1 None level. rewrite (proj1 (age1_level0 jm) Hage). constructor. }
+2:{ rewrite (proj1 (age1_level0 jm) Hage). constructor. }
 specialize (H15 psi ts x (level jm)).
 spec H15. apply age_laterR. constructor. 
 specialize (H15
@@ -1643,7 +1643,7 @@ spec H1.
           destruct ret0; simpl in *; unfold make_tenv, Map.get.
           - destruct t; simpl in *; trivial. unfold eval_id, Map.get; simpl.
             apply (binop_lemmas3.tc_val_PM_Tint i0 s a) in H1. simpl in H1.  unfold binop_lemmas3.tc_val_PM in H1.
-            * exists i; split; trivial. rewrite PTree.gss; simpl; trivial. Search is_int.
+            * exists i; split; trivial. rewrite PTree.gss; simpl; trivial.
               red in H1.
             * red   red. simpl. discriminate.  simpl.
         destruct ret0; simpl in *. destruct retty; simpl in *; try contradiction.

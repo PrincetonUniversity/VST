@@ -8,7 +8,6 @@ Require Import VST.floyd.field_at.
 Require Import VST.floyd.field_compat.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.nested_pred_lemmas.
-(*Require Import VST.floyd.unfold_data_at.*)
 Import LiftNotation.
 Local Open Scope logic.
 
@@ -216,13 +215,7 @@ assert (H6:=I).
  clear H8'.
  simpl.
  destruct idata; super_unfold_lift; try apply derives_refl.
-(**  unfold init_data_size in H6.
-    assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable.
-    pose proof (Z.le_max_l z 0).
-    rewrite H8.
-    apply mapsto_zeros_memory_block; auto.
-*
-*) destruct_var_types i eqn:Hv&Hv'; rewrite ?Hv, ?Hv';
+ destruct_var_types i eqn:Hv&Hv'; rewrite ?Hv, ?Hv';
   destruct_glob_types i eqn:Hg&Hg'; rewrite ?Hg, ?Hg';
 try solve [simpl; apply TT_right].
  + rewrite H8. cancel.
@@ -947,7 +940,6 @@ unfold_lift in H7. unfold local, lift1 in H7.
 simpl in H7.
 rewrite prop_true_andp in H7 by auto.
 eapply derives_trans; [ apply H7  | ].
-Search mapsto_zeros memory_block.
 eapply derives_trans. apply mapsto_zeros_memory_block.
 destruct (gvar_readonly gv); simpl; auto. apply readable_Ers.
 assert_PROP (isptr (globals_of_env rho i)) by (saturate_local; apply prop_right; auto).

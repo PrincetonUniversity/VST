@@ -109,7 +109,7 @@ intros.
   unfold Int.and.
    rewrite !(Int.unsigned_repr 255) in *|-* by computable .
     rewrite !Int.unsigned_repr by
-     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_omega end.
+     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_lia end.
   rewrite EqY0, EqY1, EqY2, EqY3; clear EqY0 EqY1 EqY2 EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
@@ -138,7 +138,7 @@ intros.
  unfold Int.and.
    rewrite !(Int.unsigned_repr 255) in *|-* by computable .
     rewrite !Int.unsigned_repr by
-     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_omega end.
+     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_lia end.
   rewrite EqX0, EqX1, EqX2, EqX3; clear EqX0 EqX1 EqX2 EqX3.
 
  remember_temp_Vints (@nil localdef).

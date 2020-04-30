@@ -342,13 +342,6 @@ intros.
  rewrite H0.
  assert (Int.modulus < Int64.modulus) by (compute; auto).
  lia.
- (*try ((* Archi.ptr64=true *)
-   rewrite if_true by auto; simpl;
-   f_equal;
-   unfold ptrofs_of_int; destruct si; auto; try rewrite Ptrofs.to_int_of_int; auto;
-   unfold Ptrofs.of_ints, Ptrofs.to_int;
-   rewrite (Ptrofs.agree32_repr Hp); rewrite Int.repr_unsigned, Int.repr_signed;
-   auto).*)
 + try ( (* Archi.ptr64=false *)
   simpl; f_equal;
   unfold Ptrofs.to_int, ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int;
@@ -703,24 +696,22 @@ simpl in H.
 forget (op_result_type (Ebinop b e1 e2 t)) as err.
 forget (arg_type (Ebinop b e1 e2 t)) as err0.
 destruct b; simpl in *; auto;
-destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:H1,
-    (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:H2;
-auto;
+unfold Cop.sem_add, Cop.sem_sub in *;
+rewrite ?classify_add_eq, ?classify_sub_eq in *;
+match goal with |- match ?A with _ => _ end = _ => destruct A eqn:?HC end; auto;
+destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try discriminate HC;
+destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try discriminate HC;
 simpl in *; decompose [and] H; clear H;
 repeat match goal with H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ =>
     apply tc_bool_e in H 
 end;
-unfold Cop.sem_add, Cop.sem_sub,
-    Cop.sem_add_ptr_int, Cop.sem_add_ptr_long in *;
+unfold Cop.sem_add_ptr_int, Cop.sem_add_ptr_long in *;
 simpl in *;
-destruct v1,v2; auto;
 rewrite <- (sizeof_stable _ _ CSUB) in H0 by auto; auto.
 Qed.
 
-
 Lemma eval_binop_relate':
  forall {CS: compspecs} (ge: genv) te ve rho b e1 e2 t m
-(*  (Hcenv: genv_cenv ge = @cenv_cs CS)*)
     (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge))
     (H1: Clight.eval_expr ge ve te (m_dry m) e1 (eval_expr e1 rho))
     (H2: Clight.eval_expr ge ve te (m_dry m) e2 (eval_expr e2 rho))
@@ -750,16 +741,21 @@ rewrite den_isBinOpR in H3.
 simpl in H3.
 forget (op_result_type (Ebinop b e1 e2 t)) as err.
 forget (arg_type (Ebinop b e1 e2 t)) as err0.
+cbv beta iota zeta delta [
+  sem_binary_operation sem_binary_operation' 
+   binarithType' 
+ ] in *.
 destruct b;
-lazymatch type of H3 with
+repeat lazymatch type of H3 with
 | context [classify_add'] => destruct (classify_add' (typeof e1) (typeof e2)) eqn:?C
 | context [classify_sub'] => destruct (classify_sub' (typeof e1) (typeof e2)) eqn:?C
 | context [classify_binarith'] => 
-   destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?C;
-   try match goal with
+   destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?C; try destruct s
+(*   try match goal with
        | |- context [Odiv] => destruct s 
        | |- context [Omod] => destruct s 
        end
+*)
 | context [classify_shift'] => destruct (classify_shift' (typeof e1) (typeof e2)) eqn:?C
 | context [classify_cmp'] => destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?C
 | _ => idtac
@@ -774,32 +770,15 @@ end;
 forget (eval_expr e1 rho) as v1;
 forget (eval_expr e2 rho) as v2;
 try clear rho;
-try clear err err0.
-all: try abstract (unshelve (
-destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try discriminate C;
-red in TC1; try solve [contradiction TC1];
-destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-red in TC2; try solve [contradiction TC2];
-try inv C;
+try clear err err0;
+red in TC1,TC2;
 repeat match goal with
- | H: context [eqb_type ?A ?B] |- _ =>
-     let J := fresh "J" in destruct (eqb_type A B) eqn:J;
-      [apply eqb_type_true in J | apply eqb_type_false in J]
- | H: context [binarithType'] |- _ =>
-     unfold binarithType' in H; simpl in H
- | H: typecheck_error _ |- _ => contradiction H
- | H: negb true = true |- _ => inv H
- | H: negb false = true |- _ => clear H
- | H: andb _ _ = true |- _ => rewrite andb_true_iff in H; destruct H
- | H: isptr ?A |- _ => destruct A; simpl in H; try contradiction H
- | H: is_int _ _ ?A |- _ => unfold is_int in H; destruct A; try solve [contradiction H]
- | H: is_long ?A |- _ => unfold is_long in H; destruct A; try solve [contradiction H]
- | H: is_single ?A |- _ => unfold is_single in H; destruct A; try contradiction H
- | H: is_float ?A |- _ => unfold is_float in H; destruct A; try contradiction H
- | H: is_true (sameblock _ _) |- _ => apply sameblock_eq_block in H; subst
- end;
- try discriminate;
+ | H: negb (eqb_type ?A ?B) = true |- _ =>
+             rewrite negb_true_iff in H; try rewrite H in *
+ | H: eqb_type ?A ?B = true |- _ =>
+             try rewrite H in *
+end;
+try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?classify_binarith_eq in *;
  rewrite ?sem_cast_long_intptr_lemma in *;
  rewrite ?sem_cast_int_intptr_lemma in *;
   cbv beta iota zeta delta [
@@ -810,14 +789,63 @@ repeat match goal with
    sem_add_long_ptr sem_add_int_ptr
    Cop.sem_shr sem_shr Cop.sem_cmp sem_cmp
    sem_cmp_pp sem_cmp_pl sem_cmp_lp 
-   Cop.sem_binarith classify_cmp classify_add
-   binarith_type classify_binarith
+   Cop.sem_binarith sem_binarith
+   binarith_type 
+   sem_shift_ii sem_shift_ll sem_shift_il sem_shift_li
+    sem_sub_pp sem_sub_pi sem_sub_pl 
+   force_val2 typeconv remove_attributes change_attributes
+   sem_add_ptr_int force_val both_int both_long force_val2
+    Cop.sem_add_ptr_int
+ ];
+ try rewrite C; try rewrite C0; try rewrite C1;
+ repeat match goal with
+            | H: complete_type _ _ = _ |- _ => rewrite H
+            | H: eqb_type _ _ = _ |- _ => rewrite H
+            end.
+
+all: try abstract (unshelve (
+destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+try discriminate C;
+try solve [contradiction TC1];
+destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+try solve [contradiction TC2];
+try discriminate C; try discriminate C0;
+repeat match goal with
+ | H: typecheck_error _ |- _ => contradiction H
+ | H: andb _ _ = true |- _ => rewrite andb_true_iff in H; destruct H
+ | H: isptr ?A |- _ => destruct A; simpl in H; try contradiction H
+ | H: is_int _ _ ?A |- _ => unfold is_int in H; destruct A; try solve [contradiction H]
+ | H: is_long ?A |- _ => unfold is_long in H; destruct A; try solve [contradiction H]
+ | H: is_single ?A |- _ => unfold is_single in H; destruct A; try contradiction H
+ | H: is_float ?A |- _ => unfold is_float in H; destruct A; try contradiction H
+ | H: is_true (sameblock _ _) |- _ => apply sameblock_eq_block in H; subst
+ | H: is_numeric_type _ = true |- _  => inv H
+ end;
+ try simple apply eq_refl;
+(* try discriminate; *)
+ rewrite ?sem_cast_long_intptr_lemma in *;
+ rewrite ?sem_cast_int_intptr_lemma in *;
+  cbv beta iota zeta delta [
+  sem_binary_operation sem_binary_operation' 
+   Cop.sem_add sem_add Cop.sem_sub sem_sub Cop.sem_div sem_div
+   Cop.sem_mod sem_mod Cop.sem_shl Cop.sem_shift 
+   sem_shl sem_shift sem_add_ptr_long sem_add_ptr_int
+   sem_add_long_ptr sem_add_int_ptr
+   Cop.sem_shr sem_shr Cop.sem_cmp sem_cmp
+   sem_cmp_pp sem_cmp_pl sem_cmp_lp 
+   Cop.sem_binarith sem_binarith classify_cmp 
+   binarith_type 
    classify_shift sem_shift_ii sem_shift_ll sem_shift_il sem_shift_li
    classify_sub sem_sub_pp sem_sub_pi sem_sub_pl 
    force_val2 typeconv remove_attributes change_attributes
    sem_add_ptr_int force_val both_int both_long force_val2
+    Cop.sem_add_ptr_int
  ];
- try match goal with H: complete_type _ _ = _ |- _ => rewrite H end;
+ repeat match goal with
+            | H: complete_type _ _ = _ |- _ => rewrite H
+            | H: eqb_type _ _ = _ |- _ => rewrite H
+            end;
+ try simple apply eq_refl;
  rewrite ?sem_cast_relate, ?sem_cast_relate_long, ?sem_cast_relate_int_long;
  rewrite ?sem_cast_int_lemma, ?sem_cast_long_lemma, ?sem_cast_int_long_lemma;
  rewrite ?if_true by auto;
@@ -848,6 +876,6 @@ repeat match goal with
  erewrite ?denote_tc_test_eq_Vint_r' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_l' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_r' by eassumption;
- try reflexivity);
+ reflexivity);
   try exact (empty_rmap O)).
 Qed.

@@ -115,7 +115,7 @@ Qed.
 Lemma jsafeN__age {G C Z HH Sem Jspec ge ora q n} jm jmaged :
   ext_spec_stable age (JE_spec _ Jspec) ->
   age jm jmaged ->
-  le n (level jmaged) ->
+  Peano.le n (level jmaged) ->
   @jsafeN_ G Z C HH Sem Jspec ge n ora q jm ->
   @jsafeN_ G Z C HH Sem Jspec ge n ora q jmaged.
 Proof.
@@ -162,7 +162,7 @@ Qed.
 
 Lemma jsafeN__age_to {G C Z HH Sem Jspec ge ora q n} l jm :
   ext_spec_stable age (JE_spec _ Jspec) ->
-  le n l ->
+  Peano.le n l ->
   @jsafeN_ G Z C HH Sem Jspec ge n ora q jm ->
   @jsafeN_ G Z C HH Sem Jspec ge n ora q (age_to l jm).
 Proof.

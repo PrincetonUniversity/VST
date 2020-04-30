@@ -245,35 +245,6 @@ apply (semax_fun_id' id fs (tc_exprlist Delta argsig bl) Espec Delta); auto.
 subst.
 
 eapply semax_pre_simple; [ | apply (@semax_call0 Espec cs Delta fs A Pre Post NEPre NEPost ts x argsig _ cc _ bl P Q R Hsub); auto].
-(*
-rewrite later_andp.
-apply andp_right; [apply andp_right | ].
-*
-eapply derives_trans, now_later.
-apply andp_left1.
-intro rho; unfold tc_expr; simpl.
-subst.
-norm_rewrite. apply prop_left; intro.
-unfold get_var_type. rewrite GLBL. rewrite H0.
-rewrite denote_tc_assert_bool; simpl. apply prop_right.
-simpl.
-rewrite (type_of_funspec_sub _ _ Hsub).
-simpl; auto.
-rewrite eqb_typelist_refl.
-simpl. auto.
-unfold_lift; auto.
-rewrite eqb_type_refl. simpl.
-apply eqb_calling_convention_refl.
-*
-apply andp_left2, andp_left1; auto.
-*
-apply andp_left2, andp_left2, andp_left2.
-intro; simpl.
-rewrite later_sepcon, <- sepcon_assoc.
-apply sepcon_derives; auto.
-rewrite (type_of_funspec_sub _ _ Hsub).
-rewrite sepcon_comm; apply derives_refl.
-Qed.*)
 apply andp_right.
 { rewrite <- andp_assoc. apply andp_left1.
   apply andp_right. 
@@ -282,7 +253,7 @@ apply andp_right.
     norm_rewrite. apply prop_left; intro.
     unfold get_var_type. rewrite GLBL. rewrite H0.
     rewrite denote_tc_assert_bool; simpl. apply prop_right.
-    simpl. Locate type_of_funspec_sub.
+    simpl.
     rewrite (type_of_funspec_sub _ _ Hsub).
     simpl; auto.
     rewrite eqb_typelist_refl.

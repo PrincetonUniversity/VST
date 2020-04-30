@@ -492,7 +492,7 @@ Proof.
   apply H0, ghost_of_join; auto.
 Qed.
 
-  Lemma ageN_squash : forall d n rm, le d n ->
+  Lemma ageN_squash : forall d n rm, Peano.le d n ->
     ageN d (squash (n, rm)) = Some (squash ((n - d)%nat, rm)).
   Proof.
     induction d; simpl; intros.
@@ -550,7 +550,6 @@ Qed.
 
   Lemma ex_level0: exists phi, age1 phi = None.
   Proof.
-    Print sig.
     set (g := nil: ghost).
     set (m := (fun _ : AV.address => NO emptyshare nonreadable_emptyshare): AV.address -> resource).
     set (r := (m, g): rmap').

@@ -331,7 +331,7 @@ Proof. intros. abbreviate_semax.
      Time entailer!. (*4.8 versus 11.6*)
      destruct FLN as [FL FN].
      thaw FR5. thaw FRk. Time cancel. (*2.2*)
-(*     rewrite Znth_map with (d':=Int.zero) by rep_omega.
+(*     rewrite Znth_map with (d':=Int.zero) by rep_lia.
      rewrite Uj.
 *)
      entailer!. simpl.
@@ -404,7 +404,7 @@ Proof. intros. abbreviate_semax.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. }
-(*        rewrite Znth_map with (d':=Int.zero) by rep_omega. *)
+(*        rewrite Znth_map with (d':=Int.zero) by rep_lia. *)
         rewrite !VJeq, !EQ.
         simpl force_val.
         autorewrite with sublist.

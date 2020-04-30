@@ -3302,12 +3302,12 @@ Ltac forward_spawn id arg wit :=
     replace Pre with (fun '(a, w) => PROPx [] (PARAMSx (a::nil)
                                                        (GLOBALSx ((Q w) :: nil) (SEPx [R w a]))));
     [ | let x := fresh "x" in extensionality x; destruct x as (?, x);
-        instantiate (1 := fun w a => _ w) in (Value of R);
+        instantiate (1 := fun w a => _ w) in (value of R);
         repeat (destruct x as (x, ?);
-        instantiate (1 := fun '(a, b) => _ a) in (Value of Q);
-        instantiate (1 := fun '(a, b) => _ a) in (Value of R));
+        instantiate (1 := fun '(a, b) => _ a) in (value of Q);
+        instantiate (1 := fun '(a, b) => _ a) in (value of R));
         etransitivity; [|symmetry; apply PROP_into_SEP_LAMBDA]; f_equal; f_equal; f_equal;
-        [ instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal; simpl; reflexivity
+        [ instantiate (1 := fun _ => _) in (value of Q); subst y Q; f_equal; simpl; reflexivity
         | unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _);
           reflexivity]
   ];
@@ -3324,10 +3324,10 @@ Ltac forward_spawn id arg wit :=
     (*replace Pre with (fun '(a, w) => PROPx [] (LOCALx (temp y a :: gvars (Q w) :: nil) (SEPx [R w a])));*)
     replace Pre with (fun '(a, w) => PROPx [] (LAMBDAx ((Q w) :: nil) (a:: nil) (SEPx [R w a])));
     [|let x := fresh "x" in extensionality x; destruct x as (?, x);
-      instantiate (1 := fun w a => _ w) in (Value of R);
+      instantiate (1 := fun w a => _ w) in (value of R);
       repeat (destruct x as (x, ?);
-        instantiate (1 := fun '(a, b) => _ a) in (Value of Q);
-        instantiate (1 := fun '(a, b) => _ a) in (Value of R));
-      etransitivity; [|symmetry; apply PROP_into_SEP]; f_equal; f_equal ; [instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal; simpl; f_equal |
+        instantiate (1 := fun '(a, b) => _ a) in (value of Q);
+        instantiate (1 := fun '(a, b) => _ a) in (value of R));
+      etransitivity; [|symmetry; apply PROP_into_SEP]; f_equal; f_equal ; [instantiate (1 := fun _ => _) in (value of Q); subst y Q; f_equal; simpl; f_equal |
        unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _); reflexivity]];
   forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn) end end.*)

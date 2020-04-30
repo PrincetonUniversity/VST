@@ -196,7 +196,7 @@ Proof. reflexivity. Qed.
 Lemma WORD_eq: WORD = 4%Z.
 Proof. reflexivity. Qed.
 
-Hint Rewrite CBLOCKz_eq LBLOCKz_eq WORD_eq : rep_omega.
+Hint Rewrite CBLOCKz_eq LBLOCKz_eq WORD_eq : rep_lia.
 
 (*
 Ltac helper2 :=
@@ -213,7 +213,7 @@ Ltac helper2 :=
 
 Ltac Omega1 := Omega (helper1 || helper2).
 *)
-Ltac Omega1 := rep_omega.
+Ltac Omega1 := rep_lia.
 
 Ltac MyOmega :=
   rewrite ?length_list_repeat, ?skipn_length, ?map_length,
@@ -245,7 +245,7 @@ Lemma Zlength_bytelist_to_intlist:
 Proof.
 intros.
 rewrite Zlength_correct in *.
-rewrite (length_bytelist_to_intlist (Z.to_nat n)); rep_omega.
+rewrite (length_bytelist_to_intlist (Z.to_nat n)); rep_lia.
 Qed.
 
 Lemma nth_intlist_to_bytelist_eq:
@@ -271,7 +271,7 @@ rewrite Zlength_app.
 rewrite Zlength_intlist_to_bytelist.
 destruct H as [n ?].
 rewrite H.
-assert (CBLOCKz > 0) by rep_omega. 
+assert (CBLOCKz > 0) by rep_lia. 
 pose proof (Zmod_eq (n * CBLOCKz + Zlength data) CBLOCKz H1).
 pose proof (Zmod_eq (Zlength data) CBLOCKz H1).
 rewrite sublist_app2; rewrite Zlength_intlist_to_bytelist; rewrite H;
@@ -279,11 +279,11 @@ rewrite sublist_app2; rewrite Zlength_intlist_to_bytelist; rewrite H;
 apply sublist_same.
 rewrite Z.div_add_l by omega.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by rep_omega. omega.
+rewrite Z.div_small by rep_lia. omega.
 omega.
 rewrite Z.div_add_l by  omega.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by rep_omega.
+rewrite Z.div_small by rep_lia.
 split; [ | omega].
 apply Z.mul_nonneg_nonneg.
 clear - H.
@@ -291,7 +291,7 @@ assert (n < 0 \/ 0 <= n) by omega.
 destruct H0; auto.
 assert (n * LBLOCKz < 0).
 apply Z.mul_neg_pos; auto.
-rep_omega.
+rep_lia.
 omega.
 Qed.
 

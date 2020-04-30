@@ -561,6 +561,9 @@ Ltac pose_lemmas F L :=
   | H: context [F ?A] |- _ => pose_lemma F A L
  end.
 
+Ltac warn_rep_omega := 
+  idtac "Warning: Hint database 'rep_omega' is deprecated, use Hint Rewrite ... : rep_lia".
+  
 Ltac rep_lia_setup := 
  repeat match goal with
             | x := _ : ?T |- _ => lazymatch T with Z => fail | nat => fail | _ => clearbody x end
@@ -568,7 +571,7 @@ Ltac rep_lia_setup :=
  zify;
   try autorewrite with rep_lia in *;
   try (progress autorewrite with rep_lia rep_omega in *;
-        idtac "Warning: Hint database 'rep_omega' is deprecated, use Hint Rewrite ... : rep_lia");
+       warn_rep_omega);
   unfold repable_signed in *;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned Byte.unsigned_range;

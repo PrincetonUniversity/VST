@@ -182,7 +182,12 @@ forward_if.
  normalize_postcondition.
  rename H1 into H2.
  assert (H1: Zlength (s256a_data a) + 1 > 16 * 4 - 8) by omega.
-gather_SEP 1 2 3 4 5.
+gather_SEP 
+ (field_at _ _ [StructField _h] _ _)
+ (field_at _ _ [StructField _Nl] _ _)
+ (field_at _ _ [StructField _Nh] _ _)
+ (field_at _ _ [StructField _data] _ _)
+ (field_at _ _ [StructField _num] _ _).
 replace_SEP 0  (data_at wsh t_struct_SHA256state_st
            (map Vint (hash_blocks init_registers (s256a_hashed a)),
            (Vint (lo_part (s256a_len a)),
@@ -226,7 +231,7 @@ evar (V: list val).
    (*src*) Int.zero
    (*len*) (CBLOCKz - (ddlen+1))
         Frame); try reflexivity; try omega; auto.
- split; try omega. change CBLOCKz with 64; rep_omega.
+ split; try omega. change CBLOCKz with 64; rep_lia.
  change CBLOCKz with 64; omega.
  subst V.
  entailer!. {

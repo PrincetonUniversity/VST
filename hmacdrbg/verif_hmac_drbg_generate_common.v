@@ -1384,7 +1384,7 @@ Proof. intros.
       simpl; simpl in HZlength_V; rewrite HZlength_V. 
       change Int.max_unsigned with 4294967295.
       change (two_power_pos 61) with 2305843009213693952.
-      repeat split; try rep_omega.
+      repeat split; try rep_lia.
     }
 
     (*Intros vret; subst vret.*)
@@ -1518,7 +1518,7 @@ Proof. intros.
     { apply prop_right. subst; simpl. rewrite field_address_offset; trivial. } 
     { entailer!. simpl. rewrite !sublist_map, !map_map. cancel. }
     { split3; auto.
-      subst use_len; destruct (Z.min_dec 32 (out_len - done)); try rep_omega.
+      subst use_len; destruct (Z.min_dec 32 (out_len - done)); try rep_lia.
     }
 
     simpl.

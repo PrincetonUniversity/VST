@@ -25,17 +25,17 @@ entailer!.
  split.
  +
     unfold Int.signed in H;
-    destruct (zlt (Int.unsigned c) Int.half_modulus); rep_omega.
+    destruct (zlt (Int.unsigned c) Int.half_modulus); rep_lia.
  +
     unfold Int.sub.
     change (Int.unsigned (Int.repr 32)) with 32.
     unfold Int.signed in H.
     rewrite Int.unsigned_repr.
-    * destruct (zlt (Int.unsigned c) Int.half_modulus); rep_omega.
-    * destruct (zlt (Int.unsigned c) Int.half_modulus); rep_omega.
+    * destruct (zlt (Int.unsigned c) Int.half_modulus); rep_lia.
+    * destruct (zlt (Int.unsigned c) Int.half_modulus); rep_lia.
 -
   unfold Int.signed in H.
-  destruct (zlt (Int.unsigned c) Int.half_modulus); [| rep_omega].
+  destruct (zlt (Int.unsigned c) Int.half_modulus); [| rep_lia].
   apply prop_right.
   unfold sem_shift; simpl.
   unfold Int.ltu.
@@ -45,8 +45,8 @@ unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
 rewrite Z.mod_small; simpl; try omega.
 unfold Int.sub.
 rewrite Int.and_mone,Int.unsigned_repr; trivial.
-rewrite Int.unsigned_repr; rep_omega.
-rep_omega.
+rewrite Int.unsigned_repr; rep_lia.
+rep_lia.
 Qed.
 (*
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
@@ -64,7 +64,7 @@ destruct (Int.ltu c Int.iwordsize) eqn:?H.
     apply ltu_false_inv in H1.
     unfold Int.sub in H1.
     change (Int.unsigned (Int.repr 32)) with 32 in H1.
-    rewrite Int.unsigned_repr in H1 by rep_omega.
+    rewrite Int.unsigned_repr in H1 by rep_lia.
     change (Int.unsigned Int.iwordsize) with 32 in H1.
     omega.
   } 
@@ -75,7 +75,7 @@ Time forward. (*8.8*)
   rewrite H0, H1; simpl; auto.
   split3; auto.
   unfold Int.signed.
-  if_tac. rep_omega. repable_signed.
+  if_tac. rep_lia. repable_signed.
 =======
   rewrite H0, H1; simpl; auto. intuition. omega.
 >>>>>>> master
@@ -89,7 +89,7 @@ rewrite Z.mod_small, W; simpl; try omega.
 unfold Int.sub.
 rewrite Int.and_mone.
 change (Int.unsigned (Int.repr 32)) with 32.
-rewrite Int.unsigned_repr by rep_omega.
+rewrite Int.unsigned_repr by rep_lia.
 auto.
 Time Qed. (*0.9*)
 *)
@@ -131,9 +131,9 @@ Time entailer!.
     repeat rewrite <- Z.mul_assoc.
     rewrite <- Z.add_assoc. rewrite <- Z.add_assoc. rewrite Z.add_comm. f_equal.
     rewrite Z.add_comm. f_equal. rewrite Z.add_comm. f_equal.
-  rewrite TP, BMU, Z.mul_add_distr_l. rep_omega.
-  rewrite TP, BMU, Z.mul_add_distr_l. rep_omega.
-  rewrite TP, BMU, Z.mul_add_distr_l. rep_omega.
+  rewrite TP, BMU, Z.mul_add_distr_l. rep_lia.
+  rewrite TP, BMU, Z.mul_add_distr_l. rep_lia.
+  rewrite TP, BMU, Z.mul_add_distr_l. rep_lia.
 Time Qed. (*6.7*)
 
 Fixpoint lendian (l:list byte): Z :=
@@ -214,7 +214,7 @@ start_function.
 destruct B as (((b0, b1), b2), b3).
 destruct C as (((c0, c1), c2), c3).
 unfold QuadByte2ValList; simpl. 
-forward. simpl. rewrite Int.signed_repr by  rep_omega.
+forward. simpl. rewrite Int.signed_repr by  rep_lia.
 
 forward_for_simple_bound 8 (EX i:Z, 
   (PROP  ()
@@ -314,7 +314,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   apply data_at_ext. rewrite Zplus_comm.
         assert (ZW: Int.zwordsize = 32) by reflexivity.
         assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr.
-        rep_omega.
+        rep_lia.
         inv HeqU. clear - ZW EIGHT I.
         destruct (zeq i 0); subst; simpl. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.
@@ -769,7 +769,7 @@ Eval compute in (tc_expr Delta (Ecast e2 tuchar)).
               remember (Int.unsigned (Int.repr (Int64.unsigned u))). destruct z.
                Int.eqm. apply Int.testbit 
 specialize (Int.zero_ext_mod 8).
-            Check Int64.zero_ext_mod. Require Import compcert.lib.Integers.
+            Require Import compcert.lib.Integers.
   intros. specialize (Int.equal_same_bits (Int.unsigned (Int.zero_ext 8 (Int.repr (Int64.unsigned u)))) (Int.unsigned (Int.repr (Int64.unsigned u mod 2 ^ 8)))). intros.
   unfold Int.zero_ext in *.
   
@@ -1114,7 +1114,7 @@ eapply semax_for with (A:=Z)(v:= fun a => Val.of_bool (negb (Int.lt (Int.repr a)
 
   
   unfold arg_type.
- go_lower. entailer!. Search invalid_cast_result. unfold invalid_cast_result. typecheck_error. simpl.  simpl. destruct (zlt   
+ go_lower. entailer!. unfold invalid_cast_result. typecheck_error. simpl.  simpl. destruct (zlt   
 { apply extract_exists_pre. intros i. Intros. rename H into I.
   
  cancel. 2:{ eapply semax_for with (A:=Z).

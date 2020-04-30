@@ -4,6 +4,7 @@ Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.atomic_exchange.
+Ltac omega := Coq.omega.Omega.omega.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -53,7 +54,7 @@ Proof.
   Intros h v; rewrite sepcon_assoc; apply sepcon_derives; [cancel|].
   Exists h v; apply derives_refl.
 Qed.
-Hint Resolve AE_inv_exclusive.
+Hint Resolve AE_inv_exclusive : core.
 
 Definition AE_loc sh l p g i R (h : hist) := lock_inv sh l (AE_inv p g i R) * ghost_hist sh h g.
 
@@ -148,7 +149,8 @@ Proof.
   { rewrite apply_hist_app.
     replace (apply_hist i h') with (Some v'); simpl.
     apply eq_dec_refl. }
-  gather_SEP 4 2; assert_PROP (hist_incl h h') as Hincl.
+  gather_SEP (ghost_hist _ _ _) (ghost_ref _ _).
+  assert_PROP (hist_incl h h') as Hincl.
   { go_lower; apply sepcon_derives_prop.
     rewrite hist_ref_join by auto.
     Intros hr.
@@ -156,7 +158,7 @@ Proof.
   viewshift_SEP 0
     (ghost_hist lsh (map_upd h (length h') (AE v' v)) g * ghost_ref (h' ++ [AE v' v]) g)
     by (go_lower; apply hist_add').
-  gather_SEP 5 3 4; simpl.
+  gather_SEP (AE_spec _ _ _ _) (R h' v') (P h v); rewrite sepcon_assoc; simpl.
   viewshift_SEP 0 (R (h' ++ [AE v' v]) v * Q (map_upd h (length h') (AE v' v)) v').
   { go_lower; unfold AE_spec.
     eapply derives_trans; [apply allp_sepcon1 | apply allp_left with h].

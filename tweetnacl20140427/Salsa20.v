@@ -736,5 +736,4 @@ Module SalsaGeneralizedCascade <: GeneralizedCascade.
     repeat rewrite inv_littleendian. reflexivity.
 Qed.
 End SalsaGeneralizedCascade.
-Check SalsaGeneralizedCascade.X_char.
 (*About 1 day*)

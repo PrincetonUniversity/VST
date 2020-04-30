@@ -364,7 +364,7 @@ Proof. intros.
        rewrite field_address0_offset by auto with field_compatible.
        simpl. rewrite Z.add_0_l, Z.mul_1_l;  apply derives_refl.
        apply Z.max_r. omega. }
-     { split; auto. rep_omega. }
+     { split; auto. rep_lia. }
 
      Time entailer!. (*3.5 versus 6.2*)
      thaw FR2. thaw FR1. Time cancel. (*1.2 penalty*)

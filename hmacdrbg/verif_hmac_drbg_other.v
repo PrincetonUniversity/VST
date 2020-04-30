@@ -174,7 +174,7 @@ Proof.
                 I, info, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; auto; try rep_omega). }
+    repeat (split; auto; try rep_lia). }
   Intros v. forward. unfold hmac256drbgabs_common_mpreds.
   unfold generatePOST, contents_with_add; simpl. 
   apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
@@ -402,7 +402,7 @@ Proof.
     forward_if (n-k<>0).
     - forward. entailer!.
     - 
-      assert (NK: n = k) by (apply repr_inj_unsigned in H; rep_omega).
+      assert (NK: n = k) by (apply repr_inj_unsigned in H; rep_lia).
       subst k; clear H K. rewrite Zminus_diag.
       forward.
       entailer!. unfold data_block. normalize. simpl.

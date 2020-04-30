@@ -269,7 +269,7 @@ sep_apply (create_mem_mgr gv).
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 fold noattr cc_default.
 (* 0. This part should be handled automatically by start_function *)
-gather_SEP 1 2;
+gather_SEP (mapsto _ _ _ _) (data_at _ _ _ _);
 replace_SEP 0 (data_at Ews (Tstruct _methods noattr) 
    (gv _foo_reset, gv _foo_twiddle) (gv _foo_methods)). {
   entailer!.
