@@ -168,6 +168,15 @@ intros w W.
 destruct fs1, fs2. destruct W as [[? ?] _]. subst; simpl; auto.
 Qed.
 
+Lemma funspec_sub_cc phi psi: funspec_sub phi psi ->
+      callingconvention_of_funspec phi = callingconvention_of_funspec psi.
+Proof. destruct phi; destruct psi; simpl. intros [[_ ?] _]; trivial. Qed.
+
+Lemma funspec_sub_si_cc phi psi: TT |-- funspec_sub_si phi psi ->
+      callingconvention_of_funspec phi = callingconvention_of_funspec psi.
+Proof. destruct phi; destruct psi; simpl. intros. simpl in *.
+ destruct (H (compcert_rmaps.RML.empty_rmap 0)) as [[_ ?] _]; simpl; trivial. Qed.
+
 Definition close_precondition (bodyparams: list ident) 
     (P: argsEnviron -> mpred) (rho:environ) : mpred :=
  EX vals,

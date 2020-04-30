@@ -12,6 +12,12 @@ Require Import VST.veric.Cop2. (*for definition of tc_val'*)
 
 Local Open Scope pred.
 
+Lemma derives_emp_unfash_fash P Q: derives P Q  -> derives emp (unfash (fash (imp P Q))).
+Proof. repeat intro. eauto. Qed.
+
+Lemma derives_unfash_fash R P Q: derives P Q  -> derives R (unfash (fash (imp P Q))).
+Proof. repeat intro. eauto. Qed.
+
 (*******************material moved here from tycontext.v *******************)
 
 Inductive Annotation :=
@@ -435,6 +441,29 @@ Proof.
 intros w W.
 destruct fs1, fs2.
 destruct W as [[? ?] _]. subst; simpl; auto.
+Qed.
+
+Lemma typesig_of_funspec_sub:
+  forall fs1 fs2, funspec_sub fs1 fs2 ->
+  typesig_of_funspec fs1 = typesig_of_funspec fs2.
+Proof.
+intros.
+destruct fs1, fs2; destruct H as [[? ?] _]. subst; simpl; auto.
+Qed.
+
+Lemma typesig_of_funspec_sub_si fs1 fs2:
+  funspec_sub_si fs1 fs2 |-- !!(typesig_of_funspec fs1 = typesig_of_funspec fs2).
+Proof.
+intros w W.
+destruct fs1, fs2.
+destruct W as [[? ?] _]. subst; simpl; auto.
+Qed.
+
+Lemma typesig_of_funspec_sub_si2 fs1 fs2:
+  TT |-- funspec_sub_si fs1 fs2  -> typesig_of_funspec fs1 = typesig_of_funspec fs2.
+Proof.
+intros. exploit (H (empty_rmap 0)). trivial. intros. 
+apply typesig_of_funspec_sub_si in H0. apply H0.
 Qed.
 
 (* Definition assert: Type := environ -> pred rmap. *)
@@ -1129,3 +1158,12 @@ Proof.
   split; intros. rewrite PTree.gempty in H; congruence. destruct H; inv H.
   red; intros. rewrite PTree.gempty in H; congruence.
 Qed.
+
+Lemma funspec_sub_cc phi psi: funspec_sub phi psi ->
+      callingconvention_of_funspec phi = callingconvention_of_funspec psi.
+Proof. destruct phi; destruct psi; simpl. intros [[_ ?] _]; trivial. Qed.
+
+Lemma funspec_sub_si_cc phi psi: TT |-- funspec_sub_si phi psi ->
+      callingconvention_of_funspec phi = callingconvention_of_funspec psi.
+Proof. destruct phi; destruct psi; simpl. intros.
+ destruct (H (empty_rmap 0)) as [[_ ?] _]; simpl; trivial. Qed.
