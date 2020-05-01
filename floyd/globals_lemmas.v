@@ -1006,37 +1006,144 @@ destruct (zlt n 0).
 rewrite Z.max_l by lia.
 rewrite Z2Nat_neg by lia.
 simpl.
-admit.  (* easy *)
+rewrite Z.mul_0_r.
+assert (readable_share (readonly2share (gvar_readonly gv)))
+  by apply readable_readonly2share.
+forget  (readonly2share (gvar_readonly gv)) as sh.
+unfold mapsto_zeros.
+destruct (globals_of_env rho i); try apply FF_left.
+normalize.
+unfold data_at, field_at.
+change (nested_field_offset _ _) with 0.
+unfold at_offset.
+unfold nested_field_type; simpl.
+normalize.
+rewrite data_at_rec_eq.
+rewrite Z.max_l by lia.
+set (x := unfold_reptype _).
+hnf in x. subst x.
+rewrite aggregate_pred.aggregate_pred.array_pred_len_0 by auto.
+change predicates_sl.emp with emp.
+apply andp_right; auto.
+apply prop_right.
+split3; auto. apply I.
+split3.
+simpl.  lia.
+2: apply I.
+red. constructor; auto. intros. lia. 
 -
 rewrite Z.max_r by lia.
 unfold data_at.
 erewrite field_at_Tarray with (n0:=n);
   [ | apply I | reflexivity | lia | apply JMeq_refl].
-admit.  (* plausible *)
-(*
 unfold mapsto_zeros.
 destruct (globals_of_env rho i) eqn:?H;
  try apply FF_left.
 normalize.
-Search mapsto_memory_block.address_mapsto_zeros'.
-assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) [ArraySubsc 0] (globals_of_env rho i)).
- admit.
+assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) (ArraySubsc 0::nil) (globals_of_env rho i)).
+{ rewrite H9; split3; auto. apply I. split; auto. simpl. rewrite Z.max_r by lia. lia.
+  split. red. apply align_compatible_rec_Tarray. intros.
+     eapply align_compatible_rec_by_value. reflexivity.
+     simpl.
+  unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i); inv H9.
+  normalize. apply Z.divide_mul_l. unfold Mptr.  destruct Archi.ptr64; exists 1; simpl; auto.
+  simpl. split; auto. lia.
+}
+assert (Halign: (align_chunk Mptr | Ptrofs.unsigned i0)). {
+ clear - H9. unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i); inv H9.
+ apply Z.divide_0_r.
+}
 forget (globals_of_env rho i) as p.
+assert (readable_share (readonly2share (gvar_readonly gv)))
+  by apply readable_readonly2share.
 forget (readonly2share (gvar_readonly gv)) as sh.
-rewrite <- (Z2Nat.id n) at 1 3 by lia.
-assert (Z.of_nat (Z.to_nat n) <= n).
-rewrite Z2Nat.id by lia. lia.
-clear - H9.
-revert p H9; induction (Z.to_nat n); intros.
+subst p.
+unfold array_at.
+rewrite prop_true_andp.
+2:{ split; auto.
+destruct H12 as [? [? [? [? [? ?]]]]].
+split3; auto. split3; auto. simpl; split; auto. lia.
+}
+apply andp_right.
+apply prop_right. autorewrite with sublist. auto.
+rewrite Z2Nat.inj_mul; [ | destruct Archi.ptr64; lia| lia].
+rewrite Z2Nat.inj_sub by lia.
+change (Z.to_nat 0) with O. rewrite Nat.sub_0_r.
+unfold nested_field_type; simpl.
+unfold nested_field_offset; simpl.
+unfold at_offset.
+rewrite <- (Z2Nat.id n) in H11 by lia.
+clear - H10 H11 H13 Halign.
+revert i0 H10 H11 Halign; induction (Z.to_nat n); intros; simpl.
+rewrite Nat.mul_0_r; apply derives_refl.
+autorewrite with sublist. normalize.
+rewrite mapsto_memory_block.address_mapsto_zeros_eq in *.
+rewrite Nat2Z.inj_mul.
+rewrite Z2Nat.id by (destruct Archi.ptr64; computable).
+rewrite inj_S. unfold Z.succ.
+rewrite Z.add_comm.
+rewrite Z.mul_add_distr_l.
+rewrite Z.mul_1_r.
+rewrite mapsto_memory_block.address_mapsto_zeros'_split by (destruct Archi.ptr64; rep_lia).
+change (predicates_sl.sepcon ?A ?B) with (A*B).
+apply sepcon_derives.
+unfold data_at_rec;  simpl.
+unfold mapsto. simpl. rewrite if_true by apply H13.
+rewrite andb_false_r.
+apply orp_right1.
+rewrite prop_true_andp by auto.
+{
+change (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr).
+apply mapsto_memory_block.address_mapsto_address_mapsto_zeros; auto.
+}
+unfold adr_add.
 simpl.
-rewrite array_at_len_0.
-normalize.
-unfold mapsto_zeros. destruct p; simpl; normalize.
-apply derives_refl.
-simpl mapsto
+assert (H20: 0 <= (if Archi.ptr64 then 8 else 4) <= Ptrofs.max_unsigned)
+  by (destruct Archi.ptr64; clear; rep_lia).
+change (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in *.
+specialize (IHn0 (Ptrofs.add i0 (Ptrofs.repr (size_chunk Mptr)))).
+rewrite Nat2Z.inj_mul in IHn0 by lia.
+rewrite Z2Nat.id in IHn0 by lia.
+replace (Ptrofs.unsigned i0 + (size_chunk Mptr))
+  with (Ptrofs.unsigned
+           (Ptrofs.add i0 (Ptrofs.repr (size_chunk Mptr)))). 
+eapply derives_trans; [eapply IHn0 | ].
+rep_lia.
+rewrite inj_S in H11.
+unfold Ptrofs.add.
+rewrite Ptrofs.unsigned_repr.
+rewrite Ptrofs.unsigned_repr by lia.
+lia.
+rewrite Ptrofs.unsigned_repr by lia.
+rep_lia.
+clear - Halign H10 H11 H20.
+unfold Ptrofs.add. rewrite Ptrofs.unsigned_repr.
+apply Z.divide_add_r; auto.
+rewrite Ptrofs.unsigned_repr by lia.
+apply align_size_chunk_divides.
+rewrite Ptrofs.unsigned_repr by lia.
+rep_lia.
+apply aggregate_pred.rangespec_shift_derives.
+intros.
+rewrite Z.sub_0_r in H0. subst i.
+rewrite !Z.sub_0_r.
+rewrite Znth_pos_cons by lia.
+rewrite <- (Nat2Z.id n0).
+rewrite Znth_list_repeat_inrange by lia.
+apply derives_refl'. f_equal. 
 simpl.
-*)
-Admitted.
+f_equal.
+rewrite Ptrofs.add_assoc. f_equal.
+rewrite ptrofs_add_repr.
+f_equal. lia.
+unfold Ptrofs.add.
+rewrite Ptrofs.unsigned_repr.
+2:{
+rewrite Ptrofs.unsigned_repr by (destruct Archi.ptr64; rep_lia).
+destruct Archi.ptr64; rep_lia.
+}
+reflexivity.
+Qed.
 
 Lemma process_globvar_extern:
  forall {Espec: OracleKind} {CS: compspecs} Delta P gz Q R i gv gvs SF c Post,

@@ -1325,3 +1325,115 @@ destruct H0.
 hnf in H0. rewrite H0 in H1.
 inv H1; auto.
 Qed.
+
+Lemma address_mapsto_zeros'_split:
+  forall a b sh p,
+ 0<=a -> 0 <= b -> 
+ mapsto_memory_block.address_mapsto_zeros' (a+b) sh p =
+ mapsto_memory_block.address_mapsto_zeros' a sh p 
+ * mapsto_memory_block.address_mapsto_zeros' b sh (adr_add p a).
+Proof.
+intros.
+unfold address_mapsto_zeros'.
+rewrite !Z.max_l by lia.
+apply allp_jam_split2; auto.
+exists (fun (r : resource) (_ : address) (_ : nat) =>
+        exists (b0 : memval) (rsh : readable_share sh),
+          r =
+          YES sh rsh (VAL (Byte Byte.zero))
+            (SomeP (rmaps.ConstType unit) (fun _ : list Type => tt))).
+hnf; intros.
+unfold yesat.
+simpl.
+apply prop_ext; split; intro.
+destruct H1. exists (Byte Byte.zero). exists x. auto.
+destruct H1. auto.
+exists (fun (r : resource) (_ : address) (_ : nat) =>
+        exists (b0 : memval) (rsh : readable_share sh),
+          r =
+          YES sh rsh (VAL (Byte Byte.zero))
+            (SomeP (rmaps.ConstType unit) (fun _ : list Type => tt))).
+hnf; intros.
+unfold yesat.
+simpl.
+apply prop_ext; split; intro.
+destruct H1. exists (Byte Byte.zero). exists x. auto.
+destruct H1. auto.
+exists (fun (r : resource) (_ : address) (_ : nat) =>
+        exists (b0 : memval) (rsh : readable_share sh),
+          r =
+          YES sh rsh (VAL (Byte Byte.zero))
+            (SomeP (rmaps.ConstType unit) (fun _ : list Type => tt))).
+hnf; intros.
+unfold yesat.
+simpl.
+apply prop_ext; split; intro.
+destruct H1. exists (Byte Byte.zero). exists x. auto.
+destruct H1. auto.
+split. intros q.
+split; intro.
+destruct (zlt (snd q) (snd p + a)); [left|right].
+hnf in H1|-*. destruct p,q. simpl in *. lia.
+hnf in H1|-*. destruct p,q. simpl in *. lia.
+hnf in H1|-*. destruct p,q. simpl in *. lia.
+intros q ?.
+hnf in H1|-*. destruct p,q. simpl in *. lia.
+intros.
+hnf in H2.
+destruct H2.
+hnf in H2.
+rewrite H2 in H3.
+inv H3. auto.
+Qed.
+
+Lemma address_mapsto_address_mapsto_zeros:
+  forall sh b z, 
+  (align_chunk Mptr | z) ->
+  mapsto_memory_block.address_mapsto_zeros' (size_chunk Mptr) sh (b,z)
+  |-- res_predicates.address_mapsto Mptr nullval sh (b, z).
+Proof.
+intros.
+rename H into Halign.
+intros ? ?.
+hnf in H|-*.
+exists (list_repeat (size_chunk_nat Mptr) (Byte Byte.zero)).
+destruct H; split; auto.
+clear H0.
+split.
+split3; auto.
+intros y. specialize (H y).
+rewrite Z.max_l in H by (pose proof (size_chunk_pos Mptr); lia).
+hnf in H|-*.
+if_tac; auto.
+replace (VAL _) with (VAL (Byte Byte.zero)); auto.
+f_equal.
+simpl.
+destruct y.
+destruct H0.
+subst b0.
+rewrite size_chunk_conv in H1.
+simpl.
+forget (size_chunk_nat Mptr) as n.
+clear b H.
+forget (Byte Byte.zero) as b.
+assert (Z.to_nat (z0-z) < n)%nat by lia.
+forget (Z.to_nat (z0-z)) as i.
+clear - H.
+revert i H; induction n; intros; auto.
+lia.
+destruct i.
+simpl. auto.
+simpl.
+apply IHn. lia.
+Qed.
+
+
+
+
+
+
+
+
+
+
+
