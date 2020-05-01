@@ -483,7 +483,7 @@ endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
-all: default_target files travis hmacdrbg tweetnacl aes
+all: default_target files travis io hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)

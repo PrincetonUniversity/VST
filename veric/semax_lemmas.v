@@ -208,13 +208,18 @@ try contradiction.
 -
 inversion2 H1 H16; fun_tac; auto.
 -
-admit.
+rewrite andb_true_iff in H15; destruct H15.
+pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H3 H17).
+inv H4; auto.
 -
 inv H1. inv H8.
 fun_tac.
 pose proof (alloc_variables_fun H3 H7). inv H8. auto.
-- (* not true *)
-Abort.
+-
+rewrite andb_true_iff in H1; destruct H1.
+pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H2 H13).
+inv H1; auto.
+Qed.
 
 (*
 Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).

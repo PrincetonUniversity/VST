@@ -270,7 +270,7 @@ Local Ltac destruct_spec Hspec :=
     traces = traces'.
   Proof.
     induction n as [n IHn] using lt_wf_ind; inversion 1; inversion 1; subst; auto.
-    - eapply cl_corestep_fun in H0; eauto; inv H0; eauto.
+    - eapply semax_lemmas.cl_corestep_fun in H0; eauto; inv H0; eauto.
     - apply cl_corestep_not_at_external in H0; congruence.
     - erewrite cl_corestep_not_at_external in H0 by eauto; congruence.
     - rewrite H0 in H12; inv H12.
@@ -302,7 +302,7 @@ Local Ltac destruct_spec Hspec :=
       do 2 eexists; eauto.
       eapply OS_safeN_trace_step; eauto.
     - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
          IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n0)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret q = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
@@ -322,7 +322,8 @@ Local Ltac destruct_spec Hspec :=
           eapply IHn in Hsafe as (? & ? & ->); eauto; try lia.
           rewrite Hafter in Hafter'; inv Hafter'.
           eapply OS_traces_det in Hsafe'; eauto; subst; eauto.
-  Qed.
+  - admit.  (* need OS_safeN_trace case for halted *)
+ Admitted.
 
 Theorem IO_OS_ext:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,

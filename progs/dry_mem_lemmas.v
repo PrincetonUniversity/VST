@@ -277,15 +277,10 @@ Proof.
   - split; [|apply ghost_of_identity; auto].
     intros (?, ?); if_tac; [|apply resource_at_identity; auto].
     unfold adr_range in *. destruct (zlt 0 z); try lia.
-    apply Z2Nat.inj_lt in l; lia.
   - intros.
     destruct H as (? & ? & J & Hr1 & Hr2).
-    assert (lo < Z.of_nat n).
-    { apply Z2Nat.inj_lt; try lia.
-      rewrite Nat2Z.id; lia. }
-    assert (z >= 1).
-    { destruct (zlt z 0). apply Z2Nat_neg in l; lia.
-      apply Z.le_ge, Z2Nat.inj_le; simpl; lia. }
+    assert (lo < Z.of_nat n) by lia.
+    assert (z >= 1) by lia.
     apply IHhi with (z := z - 1) in Hr2 as [Hr2 Hg2].
     rewrite data_at_rec_eq in Hr1; simpl in Hr1.
     unfold unfold_reptype in Hr1; simpl in Hr1.
@@ -324,12 +319,9 @@ Proof.
         apply Hg1 in J; rewrite <- J; auto.
     + rewrite Ptrofs.unsigned_repr; auto; rep_lia.
     + lia.
-    + eapply Z.le_lt_trans; eauto.
-        apply Zplus_le_compat_l, Zmult_le_compat_l; try lia.
-        apply Z.max_le_compat_l; lia.
-    + rewrite Z2Nat.inj_sub; try lia; simpl.
-        destruct (Z.to_nat z); [discriminate | lia].
-    + rewrite Z2Nat.inj_succ; lia.
+    + lia.
+    + lia.
+    + lia.
     + rep_lia.
 Qed.
 

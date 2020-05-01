@@ -304,8 +304,7 @@ Proof.
     sep_apply data_at__data_at.
     unfold default_val; simpl.
     assert (Zlength (intr i) <= 4).
-    { apply intr_length; try lia.
-      apply H. }
+    { apply intr_length; try lia. }
     forward_call (Ews, i, buf, [Vundef; Vundef; Vundef; Vundef; Vundef]).
     { rewrite !Zlength_cons, Zlength_nil.
       simpl; repeat (split; auto); rep_lia. }

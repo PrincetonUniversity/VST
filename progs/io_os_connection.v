@@ -375,7 +375,7 @@ Section Invariants.
       eauto using valid_trace_ordered_snoc.
   Qed.
 
-  Local Hint Resolve valid_trace_ordered_snoc valid_trace_ordered_app.
+  Local Hint Resolve valid_trace_ordered_snoc valid_trace_ordered_app : core.
 
   Lemma in_console_in_trace' : forall tr logIdx strIdx c,
     In (c, logIdx, strIdx) (compute_console' tr) ->
@@ -1422,7 +1422,7 @@ Section Invariants.
     rewrite common_prefix_full, leb_correct, skipn_exact_length; cbn; auto.
   Qed.
 
-  Local Hint Resolve nil_trace_case_refl.
+  Local Hint Resolve nil_trace_case_refl : core.
 
   Corollary getc_trace_case_refl : forall st, getc_trace_case st st (-1).
   Proof. intros; rewrite <- nil_trace_getc_trace; auto. Qed.
@@ -1430,8 +1430,8 @@ Section Invariants.
   Corollary putc_trace_case_refl : forall st c, putc_trace_case st st c (-1).
   Proof. intros; rewrite <- nil_trace_putc_trace; auto. Qed.
 
-  Local Hint Resolve getc_trace_case_refl.
-  Local Hint Resolve putc_trace_case_refl.
+  Local Hint Resolve getc_trace_case_refl : core.
+  Local Hint Resolve putc_trace_case_refl : core.
 
   Lemma getc_trace_case_trans : forall t t' t'' r,
     nil_trace_case t t' ->
