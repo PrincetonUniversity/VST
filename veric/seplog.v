@@ -613,6 +613,60 @@ Proof.
   + intros w ?. simpl in *. if_tac; firstorder.
 Qed.
 
+Lemma approx_prop_andp {P Q:Prop} n:
+  approx n (prop (P /\ Q)) = (approx n (prop P)) && (approx n (prop Q)). 
+Proof.
+  apply predicates_hered.pred_ext.
+  + intros w ?. simpl in *. destruct H as [? [? ?]]. split; split; trivial.
+  + intros w ?. simpl in *. destruct H as [[? ?] [? ?]]. split3; trivial.
+Qed.
+
+Lemma approx_prop_all {X} {P: X -> Prop} (y:X) n:
+  approx n (prop (forall x, P x)) = ALL x, approx n (prop (P x)).
+Proof.
+  apply predicates_hered.pred_ext.
+  + intros w ? ?. simpl in *. split; apply H.
+  + intros w ?. simpl in *. split. apply (H y). intros. apply H.
+Qed.
+
+Lemma approx_derives1 {P Q} n:
+  approx n (prop (P |-- Q)) |-- (prop (P |-- Q)). 
+Proof. intros w ?. simpl in *. apply H. Qed.
+Lemma approx_derives2 {P Q} n:
+  approx n (prop (P |-- Q)) |-- (prop (approx n P |-- approx n Q)). 
+Proof. intros w ? ? ?. simpl in *. destruct H. destruct H0. 
+split; trivial. apply H1. trivial.
+Qed. 
+Lemma approx_derives3 {X} {P Q: X -> pred rmap} n:
+  approx n (prop (forall x, P x |-- Q x)) |-- prop (forall x, approx n (P x) |-- approx n (Q x)).
+Proof. intros w ? ? ? ?. simpl in *. split. apply H0. apply H. apply H0. Qed.
+
+Lemma approx_derives4 {T1 T2} (P1 P2 Q2 Q1: T1 -> T2 -> mpred) n:
+      approx n (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> P2 S s0 * (Q2 S s0 -* Q1 S s0))))
+|-- approx n
+      (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> approx n (P2 S s0) * (approx n (Q2 S s0) -* Q1 S s0)))).
+Proof. intros ? [? ?]. split; trivial; simpl in *. intros.
+destruct (H0 b b0 _ H1 _ H2 H3) as [z1 [z2 [J [Z1 Z2]]]]; clear H0.
+do 2 eexists; split3. apply J.
+{ split; trivial. apply join_level in J; destruct J.
+  apply necR_level in H2. rewrite H0; clear H0. lia. }
+intros. eapply Z2. 3: apply H5. 2: apply H4. apply H0.
+Qed.
+
+Lemma approx_derives4_inv {T1 T2} (P1 P2 Q2 Q1: T1 -> T2 -> mpred) n:
+    approx n
+      (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> approx n (P2 S s0) * (approx n (Q2 S s0) -* Q1 S s0))))
+    |-- approx n (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> P2 S s0 * (Q2 S s0 -* Q1 S s0)))).
+Proof. intros ? [? ?]. split; trivial; simpl in *. intros.
+destruct (H0 b b0 _ H1 _ H2 H3) as [z1 [z2 [J [Z1 Z2]]]]; clear H0.
+do 2 eexists; split3. apply J. apply Z1.
+intros. eapply Z2. apply H0. apply H4. split; trivial.
+clear Z2 H5. apply join_level in J; destruct J.
+apply necR_level in H2.
+apply necR_level in H0.
+apply join_level in H4; destruct H4. lia.
+Qed.
+
 Lemma approx_func_ptr_si: forall (A: Type) fsig0 cc (P: A -> argsEnviron -> mpred) (Q: A -> environ -> mpred)(v: val) (n: nat),
   approx (S n) (func_ptr_si (NDmk_funspec fsig0 cc A P Q) v) = approx (S n) (func_ptr_si (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
 Proof.
