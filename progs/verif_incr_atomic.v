@@ -18,7 +18,7 @@ Definition ctr_state ctr (g : gname) n := data_at Ews tuint (Vint (Int.repr (Z.o
 
 Program Definition incr_spec :=
  DECLARE _incr
-  ATOMIC TYPE (rmaps.ConstType (_ * _ * _)) OBJ n INVS base.empty base.top
+  ATOMIC TYPE (rmaps.ConstType (_ * _ * _)) OBJ n INVS empty top
   WITH sh : share, g : gname, gv : globals
   PRE [ ]
          PROP  (readable_share sh)
@@ -42,6 +42,7 @@ Program Definition read_spec :=
          PROP ()
          LOCAL (temp ret_temp (Vint (Int.repr (Z.of_nat n'))))
          SEP (lock_inv sh (gv _ctr_lock) (sync_inv g (ctr_state (gv _ctr)))) | (!!(n' = n) && public_half g n).
+
 
 Definition cptr_inv g g1 g2 :=
   EX x y : nat, ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * public_half g (x + y)%nat.
@@ -164,7 +165,8 @@ Proof.
   Intros.
   forward.
   forward_call (sh, g, gv, ghost_var gsh2 1%nat g1, inv_names).
-  { sep_apply incr_inv_shift; auto; cancel. }
+  { sep_apply incr_inv_shift; auto.
+    apply sepcon_derives; [apply derives_refl | cancel]. }
   forward_call ((gv _thread_lock), sh, thread_lock_R sh g g1 gv, thread_lock_inv sh g g1 gv (gv _thread_lock)).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
@@ -212,7 +214,8 @@ Proof.
   rewrite invariant_dup; Intros.
   gather_SEP (invariant _ _) (ghost_var _ _ _).
   forward_call (sh2, g, gv, ghost_var gsh2 1%nat g2, inv_names).
-  { sep_apply incr_inv_shift; auto; cancel. }
+  { sep_apply incr_inv_shift; auto.
+    apply sepcon_derives; [apply derives_refl | cancel]. }
   forward_call (lockt, sh2, thread_lock_inv sh1 g g1 gv lockt).
   { subst ctr lock lockt; cancel. }
   unfold thread_lock_inv at 2; unfold thread_lock_R.

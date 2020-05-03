@@ -88,13 +88,12 @@ Proof.
   iIntros "[AS R]".
   unfold atomic_shift, ashift.
   iDestruct "AS" as (P) "[P AS]".
-  SearchAbout bupd bi_forall.
+  rewrite cored_dup; iDestruct "AS" as "[AS AS1]".
   iMod ("AS" with "P") as (x) "[a H]".
   iMod (H with "[$R $a]") as "[a $]".
   iMod ("H" with "a").
   iIntros "!>"; iExists P; iFrame.
-  admit. (* We actually need either duplicability or the fixpoint construction Ralf used. *)
-Admitted.
+Qed.
 
 Corollary atomic_rollback_elim : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- |==> a x * R')%I ->
@@ -724,8 +723,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 'PRE'  [ u , .. 
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(x1, Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) (SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let x1 := __a in Px%type) .. (cons (fun ts __a => let x1 := __a in Py%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in Lx%type) .. (cons (fun ts __a => let x1 := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in S1x%logic) .. (cons (fun ts __a => let x1 := __a in S1y%logic) nil) ..)
@@ -743,8 +742,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 'PRE'  [ u , .. 
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(x1, Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) (SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let x1 := __a in Px%type) .. (cons (fun ts __a => let x1 := __a in Py%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in Lx%type) .. (cons (fun ts __a => let x1 := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in S1x%logic) .. (cons (fun ts __a => let x1 := __a in S1y%logic) nil) ..)
@@ -779,8 +778,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 'PRE'  [ ] 'PROP
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(x1, Q, inv_names) := __a in
-    EX r : T,
-     PROP () LOCAL () (SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx [] ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let x1 := __a in Px%type) .. (cons (fun ts __a => let x1 := __a in Py%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in Lx%type) .. (cons (fun ts __a => let x1 := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in S1x%logic) .. (cons (fun ts __a => let x1 := __a in S1y%logic) nil) ..)
@@ -844,8 +843,8 @@ Notation "'ATOMIC' 'TYPE' W 'NO_OBJ' 'INVS' Ei Eo 'WITH' x1 : t1 'PRE'  [ u , ..
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(A := unit)(inv_names := inv_names) (fun _ => S2) Ei Eo (fun _ r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(x1, Q, inv_names) := __a in
-    EX r : T,
-     PROP () LOCAL () (SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx [] ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let x1 := __a in Px%type) .. (cons (fun ts __a => let x1 := __a in Py%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in Lx%type) .. (cons (fun ts __a => let x1 := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in S1x%logic) .. (cons (fun ts __a => let x1 := __a in S1y%logic) nil) ..)
@@ -877,8 +876,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 'PRE'  [ ] 'PROP
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(x1, Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let x1 := __a in Px%type) .. (cons (fun ts __a => let x1 := __a in Py%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in Lx%type) .. (cons (fun ts __a => let x1 := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let x1 := __a in S1x%logic) .. (cons (fun ts __a => let x1 := __a in S1y%logic) nil) ..)
@@ -912,8 +911,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 'PRE' 
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2) := __a in S1y%logic) nil) ..)
@@ -946,8 +945,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 'PRE' 
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W nil
       (cons (fun ts __a => let '(x1, x2) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2) := __a in S1y%logic) nil) ..)
@@ -980,8 +979,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in S1y%logic) nil) ..)
@@ -998,8 +997,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in S1y%logic) nil) ..)
@@ -1064,8 +1063,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4) := __a in S1y%logic) nil) ..)
@@ -1098,8 +1097,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5) := __a in S1y%logic) nil) ..)
@@ -1132,8 +1131,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6) := __a in S1y%logic) nil) ..)
@@ -1183,8 +1182,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7) := __a in S1y%logic) nil) ..)
@@ -1251,8 +1250,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in S1y%logic) nil) ..)
@@ -1269,8 +1268,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8), Q, inv_names) := __a in
-    EX r : T,
-     PROP () LOCAL () ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx [] ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8) := __a in S1y%logic) nil) ..)
@@ -1304,8 +1303,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8, x9), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in S1y%logic) nil) ..)
@@ -1323,8 +1322,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8, x9), Q, inv_names) := __a in
-    EX r : T,
-     PROP () LOCAL () ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx [] ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9) := __a in S1y%logic) nil) ..)
@@ -1341,8 +1340,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10), Q, inv_names) := __a in
-    EX r : T,
-     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx%logic .. (cons LQy%logic nil) ..) ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in S1y%logic) nil) ..)
@@ -1360,8 +1359,8 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
      (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10), Q, inv_names) := __a in
-    EX r : T,
-     PROP () LOCAL () ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx [] ((SEPx (Q r :: cons SPx%logic .. (cons SPy%logic nil) ..))))))
    (@atomic_spec_nonexpansive_pre' _ T _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in Py%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in Ly%type) nil) ..)
       (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) := __a in S1y%logic) nil) ..)

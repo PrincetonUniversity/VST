@@ -375,7 +375,7 @@ Proof.
 Qed.
 
 Lemma ref_add : forall g sh a r b a' r' pp
-  (Ha : join a b a') (Hr : join r b r') (Hb : forall c, join_sub a c -> join_sub c r -> joins c b),
+  (Ha : join a b a') (Hr : join r b r'),
   own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
   own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
 Proof.
@@ -384,11 +384,11 @@ Proof.
   inv J2; [|contradiction].
   destruct c as [(?, c)|], x as [(shx, x)|]; try contradiction.
   - destruct J1 as (? & ? & ? & Hx).
-    destruct (Hb x) as [x' Hx'].
-    { eexists; eauto. }
+    assert (join_sub x r) as [f J].
     { destruct Hvalid as [[(?, ?)|] Hvalid]; hnf in Hvalid.
       + destruct Hvalid as (? & ? & ? & ?); eexists; eauto.
       + inv Hvalid; apply join_sub_refl. }
+    destruct (join_assoc (join_comm J) Hr) as (x' & Hx' & _).
     exists (Some (shx, x'), Some r'); repeat (split; auto); try constructor; simpl.
     + destruct (join_assoc (join_comm Hx) Hx') as (? & ? & ?).
       eapply join_eq in Ha; eauto; subst; auto.
@@ -1201,14 +1201,6 @@ Proof.
     unfold map_upd.
     if_tac; [|destruct (h' k); auto].
     subst; rewrite Hfresh; auto.
-  - intros ?? Hsub.
-    exists (map_upd c t' e); repeat intro.
-    unfold map_upd.
-    if_tac; [|destruct (c k); auto].
-    subst; destruct (c t') eqn: Hc; auto.
-    destruct Hsub as [x Hsub]; hnf in Hsub.
-    specialize (Hsub t'); rewrite Hc in Hsub.
-    destruct (x t'); congruence.
 Qed.
 
 Lemma hist_incl_nil : forall h, hist_incl empty_map h.
