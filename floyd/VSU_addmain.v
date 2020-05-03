@@ -676,7 +676,7 @@ eapply Build_Component (* with (fun gv => Main_InitPred gv * (InitPred_of_Canoni
       split; [ apply semax_external_FF | apply GFF].
   - apply LNR_main_CoreG.
   - apply LNR_sort_e. apply LNR_internalspecs.
-+ simpl; intros. if_tac in E; inv E. subst phi.
++ simpl; intros. if_tac in E; inv E. try subst phi.
   rewrite Gprog_main. eexists; split. reflexivity. apply funspec_sub_refl.
 + apply MkInitPred.
 Qed.
@@ -692,7 +692,7 @@ Program Definition AddMainProgVSU:@LinkedProgVSU Espec Vprog CS
 Proof. 
 specialize Gprog_main. intros. 
 destruct add_CanComp as [G [CC M]].
-exists G. econstructor. apply M. rewrite CCM_main. subst main. simpl.
+exists G. econstructor. apply M. rewrite CCM_main. rewrite Hmain in *. simpl.
 rewrite if_true by trivial. exists mainspec; split; trivial.
 Qed.
 
