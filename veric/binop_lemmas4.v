@@ -602,10 +602,11 @@ destruct H; [left|right]; apply Int64.eq_false; auto.
 Qed.
 
 Lemma denote_tc_nodivover_e64_il':
- forall s i j m, app_pred (denote_tc_nodivover (Vint i) (Vlong j)) m ->
+ forall s i j,
    Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
 Proof.
 intros.
+assert (app_pred (denote_tc_nodivover (Vint i) (Vlong j)) (empty_rmap O)) by apply I.
 rewrite andb_false_iff.
 destruct (Classical_Prop.not_and_or _ _ (denote_tc_nodivover_e64_il s _ _ _ H)); [left|right];
  apply Int64.eq_false; auto.
@@ -745,17 +746,13 @@ cbv beta iota zeta delta [
   sem_binary_operation sem_binary_operation' 
    binarithType' 
  ] in *.
+clear ve te.
 destruct b;
 repeat lazymatch type of H3 with
 | context [classify_add'] => destruct (classify_add' (typeof e1) (typeof e2)) eqn:?C
 | context [classify_sub'] => destruct (classify_sub' (typeof e1) (typeof e2)) eqn:?C
 | context [classify_binarith'] => 
    destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?C; try destruct s
-(*   try match goal with
-       | |- context [Odiv] => destruct s 
-       | |- context [Omod] => destruct s 
-       end
-*)
 | context [classify_shift'] => destruct (classify_shift' (typeof e1) (typeof e2)) eqn:?C
 | context [classify_cmp'] => destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?C
 | _ => idtac
@@ -771,7 +768,6 @@ forget (eval_expr e1 rho) as v1;
 forget (eval_expr e2 rho) as v2;
 try clear rho;
 try clear err err0;
-red in TC1,TC2;
 repeat match goal with
  | H: negb (eqb_type ?A ?B) = true |- _ =>
              rewrite negb_true_iff in H; try rewrite H in *
@@ -799,11 +795,13 @@ try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?
  ];
  try rewrite C; try rewrite C0; try rewrite C1;
  repeat match goal with
-            | H: complete_type _ _ = _ |- _ => rewrite H
+            | H: complete_type _ _ = _ |- _ => rewrite H; clear H
             | H: eqb_type _ _ = _ |- _ => rewrite H
-            end.
+            end;
+ try clear CS; try clear m.
 
-all: try abstract (unshelve (
+all: try abstract ( (
+red in TC1,TC2;
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
 try discriminate C;
 try solve [contradiction TC1];
@@ -822,60 +820,37 @@ repeat match goal with
  | H: is_numeric_type _ = true |- _  => inv H
  end;
  try simple apply eq_refl;
-(* try discriminate; *)
  rewrite ?sem_cast_long_intptr_lemma in *;
  rewrite ?sem_cast_int_intptr_lemma in *;
-  cbv beta iota zeta delta [
-  sem_binary_operation sem_binary_operation' 
-   Cop.sem_add sem_add Cop.sem_sub sem_sub Cop.sem_div sem_div
-   Cop.sem_mod sem_mod Cop.sem_shl Cop.sem_shift 
-   sem_shl sem_shift sem_add_ptr_long sem_add_ptr_int
-   sem_add_long_ptr sem_add_int_ptr
-   Cop.sem_shr sem_shr Cop.sem_cmp sem_cmp
-   sem_cmp_pp sem_cmp_pl sem_cmp_lp 
-   Cop.sem_binarith sem_binarith classify_cmp 
-   binarith_type 
-   classify_shift sem_shift_ii sem_shift_ll sem_shift_il sem_shift_li
-   classify_sub sem_sub_pp sem_sub_pi sem_sub_pl 
-   force_val2 typeconv remove_attributes change_attributes
-   sem_add_ptr_int force_val both_int both_long force_val2
-    Cop.sem_add_ptr_int
- ];
- repeat match goal with
-            | H: complete_type _ _ = _ |- _ => rewrite H
-            | H: eqb_type _ _ = _ |- _ => rewrite H
-            end;
- try simple apply eq_refl;
  rewrite ?sem_cast_relate, ?sem_cast_relate_long, ?sem_cast_relate_int_long;
  rewrite ?sem_cast_int_lemma, ?sem_cast_long_lemma, ?sem_cast_int_long_lemma;
  rewrite ?if_true by auto;
  rewrite ?sizeof_range_true by auto;
- try erewrite denote_tc_nodivover_e' by eauto;
- try erewrite denote_tc_nonzero_e' by eauto;
- try rewrite cast_int_long_nonzero 
-       by (eapply denote_tc_nonzero_e'; eauto);
+ erewrite ?denote_tc_nodivover_e' by eassumption;
+ erewrite ?denote_tc_nonzero_e' by eassumption;
+ rewrite ?cast_int_long_nonzero by (eapply denote_tc_nonzero_e'; eassumption);
  rewrite ?(proj2 (eqb_type_false _ _)) by auto 1;
  try reflexivity;
- try solve [apply test_eq_relate'; auto;
+ try solve [simple apply test_eq_relate'; auto;
                try (apply denote_tc_test_eq_xx; assumption);
                try (apply denote_tc_test_eq_yy; assumption);
                try (eapply test_eq_fiddle_signed_xx; eassumption);
                try (eapply test_eq_fiddle_signed_yy; eassumption)];
- try solve [apply test_order_relate'; auto; 
+ try solve [simple apply test_order_relate'; auto; 
                try (eapply test_order_fiddle_signed_xx; eassumption);
                try (eapply test_order_fiddle_signed_yy; eassumption)];
- try erewrite (denote_tc_nodivover_e64_li' Signed) by eauto;
- try erewrite (denote_tc_nodivover_e64_il' Signed) by eauto;
- try erewrite (denote_tc_nodivover_e64_li' Unsigned) by eauto;
- try erewrite (denote_tc_nodivover_e64_il' Unsigned) by eauto;
- try erewrite (denote_tc_nodivover_e64_ll') by eauto;
- try erewrite denote_tc_nonzero_e64' by eauto;
- try erewrite denote_tc_igt_e' by eauto;
- try erewrite denote_tc_lgt_e' by eauto;
+ erewrite ?(denote_tc_nodivover_e64_li' Signed) by eassumption;
+ erewrite ?(denote_tc_nodivover_e64_il' Signed) by eassumption;
+ erewrite ?(denote_tc_nodivover_e64_li' Unsigned) by eassumption;
+ erewrite ?(denote_tc_nodivover_e64_il' Unsigned) by eassumption;
+ erewrite ?denote_tc_nodivover_e64_ll' by eassumption;
+ erewrite ?denote_tc_nonzero_e64' by eassumption;
+ erewrite ?denote_tc_igt_e' by eassumption;
+ erewrite ?denote_tc_lgt_e' by eassumption;
  erewrite ?denote_tc_test_eq_Vint_l' by eassumption;
  erewrite ?denote_tc_test_eq_Vint_r' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_l' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_r' by eassumption;
- reflexivity);
-  try exact (empty_rmap O)).
+ reflexivity)).
+
 Qed.
