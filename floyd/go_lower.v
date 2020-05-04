@@ -164,12 +164,28 @@ hnf in H3. destruct v; try contradiction.
 exists i0. split3; auto.
 Qed.
 
-Ltac safe_subst x := subst x.
-Ltac safe_subst_any := subst_any.
+Ltac check_safe_subst z :=
+ try (repeat lazymatch goal with
+       | H: z = ?A |- _ => match A with context [z] => revert H end
+       | H: ?A = z |- _ => match A with context [z] => revert H end
+       | H: ?A |- _ => match A with context [z] => revert H end
+       end;
+    match goal with |- ?G => 
+       try (has_evar G; fail 3 "subst not performed because the goal contains evars") 
+    end;
+   fail).
+
+Ltac safe_subst z :=
+  check_safe_subst z; subst z.
+
+Ltac safe_subst_any :=
+  repeat
+   match goal with
+   | H:?x = ?y |- _ => first [ safe_subst x | safe_subst y ]
+   end.
+
 (* safe_subst is meant to avoid doing rewrites or substitution of variables that
-  are in the scope of a unification variable.  Right now, the tactic is a placeholder
-  for real tactic that will detect the scope violation and (if so) avoid doing the
-  substition.  See issue #186. *)
+  are in the scope of a unification variable.  See issue #186. *)
 
 Ltac lower_one_temp_Vint' :=
  match goal with

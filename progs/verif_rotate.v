@@ -153,7 +153,7 @@ Proof.
     forward.
     { entailer!. autorewrite with Znth in *.
       replace (Znth _ s1) with (Znth (i - (Zlength (s1 ++ s2) - Zlength s1)) s1) by list_solve2.
-      do 2 rewrite Int.signed_repr by rep_omega. rep_omega.
+      do 2 rewrite Int.signed_repr by rep_lia. rep_lia.
     }
     entailer!. Time list_solve2.
   }

@@ -233,4 +233,3 @@ Hint Rewrite sem_cast_i2bool_of_bool : norm.
 
 Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
 Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
-
