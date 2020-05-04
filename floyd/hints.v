@@ -258,7 +258,7 @@ match goal with
   match A with context [fold_right_sepcon ?Frame] =>
       match goal with F := ?G : list mpred |- _ => constr_eq F Frame; is_evar G end;
       match A with context [@sepcon] => idtac end;
-      idtac "Hint: In order for the 'cancel' tactic to automatically instantiate the Frame, it must be able to cancel all the other right-hand-side conjuncts against some left-hand-side conjuncts.  Right now the r.h.s. conjuncts do exactly match l.h.s. conjuncts; perhaps you can unfold or rewrite on both sides of the |-- so that they do cancel."
+      idtac "Hint: In order for the 'cancel' tactic to automatically instantiate the Frame, it must be able to cancel all the other right-hand-side conjuncts against some left-hand-side conjuncts.  Right now the r.h.s. conjuncts do not exactly match l.h.s. conjuncts; perhaps you can unfold or rewrite on both sides of the |-- so that they do cancel."
   end
 end.
 
