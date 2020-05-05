@@ -158,7 +158,11 @@ Notation ge := (globalenv prog).
          (n' <= n)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
         exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)) ->
-      OS_safeN_trace (S n) t traces z s0 c m.
+      OS_safeN_trace (S n) t traces z s0 c m
+  | OS_safeN_trace_halted:
+      forall n z t s c m,
+      cl_halted c <> None ->
+      OS_safeN_trace n t (Singleton _ (TEnd, s)) z s c m.
 
 Lemma strip_all : forall {A} (A_eq : forall x y : A, {x = y} + {x <> y}) t, strip_common_prefix A_eq t t = [].
 Proof.
@@ -242,6 +246,8 @@ Local Ltac destruct_spec Hspec :=
       split; auto.
       rewrite Htrace, <- Htrace', <- app_trace_assoc, app_trace_strip; auto.
       { rewrite Htrace, app_trace_strip; auto. }
+    - inv H0.
+      rewrite app_trace_end; auto.
   Qed.
 
   Lemma init_log_valid : forall s, io_log s = [] -> console s = {| cons_buf := []; rpos := 0 |} -> valid_trace s.
@@ -265,6 +271,11 @@ Local Ltac destruct_spec Hspec :=
     { rewrite Hinit; auto. }
   Qed.
 
+  Lemma cl_at_external_not_halted : forall q a, cl_at_external q = Some a -> ~cl_halted q <> None.
+  Proof.
+    destruct q; try discriminate; simpl; congruence.
+  Qed.
+
   Lemma OS_traces_det : forall n t traces traces' z z' s q m,
     OS_safeN_trace n t traces z s q m -> OS_safeN_trace n t traces' z' s q m ->
     traces = traces'.
@@ -272,6 +283,7 @@ Local Ltac destruct_spec Hspec :=
     induction n as [n IHn] using lt_wf_ind; inversion 1; inversion 1; subst; auto.
     - eapply semax_lemmas.cl_corestep_fun in H0; eauto; inv H0; eauto.
     - apply cl_corestep_not_at_external in H0; congruence.
+    - apply (cl_corestep_not_halted _ _ _ _ _ Int.zero) in H0; contradiction.
     - erewrite cl_corestep_not_at_external in H0 by eauto; congruence.
     - rewrite H0 in H12; inv H12.
       apply Extensionality_Ensembles; split; intros ? Hin.
@@ -287,6 +299,9 @@ Local Ltac destruct_spec Hspec :=
         apply Htraces.
         eapply IHn in Hsafe; eauto; try lia.
         subst; auto.
+    - apply cl_at_external_not_halted in H0; auto; contradiction.
+    - apply (cl_corestep_not_halted _ _ _ _ _ Int.zero) in H9; contradiction.
+    - apply cl_at_external_not_halted in H9; auto; contradiction.
   Qed.
 
   Lemma ext_safe_OS_safe : forall n t traces z q m s0 (Hvalid : valid_trace s0),
@@ -322,15 +337,18 @@ Local Ltac destruct_spec Hspec :=
           eapply IHn in Hsafe as (? & ? & ->); eauto; try lia.
           rewrite Hafter in Hafter'; inv Hafter'.
           eapply OS_traces_det in Hsafe'; eauto; subst; eauto.
-  - admit.  (* need OS_safeN_trace case for halted *)
- Admitted.
+    - exists (Singleton _ (TEnd, s0)); split; [constructor; auto|].
+      intros; split.
+      + inversion 1; eexists; constructor.
+      + intros (? & Hin); inversion Hin; constructor.
+  Qed.
 
 Theorem IO_OS_ext:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
    semax_prog prog initial_oracle V G ->
    Genv.init_mem prog = Some m ->
    exists b, exists q, exists m',
-     Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
+     Genv.find_symbol (Genv.globalenv prog) (AST.prog_main prog) = Some b /\
      initial_core (cl_core_sem (globalenv prog))
          0 m q m' (Vptr b Ptrofs.zero) nil /\
    forall n s0, s0.(io_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
