@@ -3993,6 +3993,36 @@ This makes \lstinline{N} opaque to all tactics, \emph{except} that the
 The \file{progs/tutorial1.v}, shows an example of this, in Lemmas
 \lstinline{exercise4} through \lstinline{exercise4c}.
 
+\ychapter{\upshape\textsf{computable}}
+
+One of the simplest, cheapest (in terms of Coq proof-term size) ways of solving a goal is with Coq's \lstinline{compute} tactic.  But sometimes \lstinline{compute} blows up, if it's performed on a goal with opaque constants, or where
+call-by-value evaluation happens to be very expensive.
+
+Floyd's \lstinline{computable} tactic first examines the goal to make sure it won't blow up, and then solves it using \lstinline{compute} (followed by other simple tactics), as long as the goal contains only the following operators:
+
+\begin{lstlisting}
+  (* nat constants *) O S $\qquad$ (* positive constants *) xH xI xO
+  (* Z constants *) Zpos Zneg Z0
+  (* Z operators *) + -$~$* / mod max opp < <= > >= = <>
+  Ceq Cne Clt Cle Cgt Cge   /\
+  two_power_nat 
+  {Int,Int64,Ptrofs}.{eq,lt,ltuadd,sub,mul,neg,cmp,cmpu,repr,signed,unsigned}
+  {Int,Int64,Ptrofs}.{max_unsigned,max_signed,min_signed,modulus,zwordsize}
+  (* any 0-arity (constant) definitions will be unfolded *)
+\end{lstlisting}
+
+You may add other operators to the \lstinline{computable} hint database.  For example, \lstinline{sizeof} has already been added:
+
+\begin{lstlisting}
+Lemma computable_sizeof: forall cs x, computable x -> computable (@sizeof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_sizeof : computable.
+\end{lstlisting}
+
+Adding this lemma to the Hint database tells the \lstinline{computable} tactic to consider \lstinline{sizeof x} ``safe'' to \lstinline{compute}, as long as its
+argument \lstinline{x} is computable.
+
+
 \ychapter{Loop peeling and other manipulations}
 
 Sometimes a loop is easier to verify by first transforming it into another loop.  For example,\quad \textsf{for (init; test; incr) body}   \quad
