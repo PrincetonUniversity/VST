@@ -1,8 +1,8 @@
 \documentclass[12pt,fleqn,openany,oneside,showtrims]{memoir}
 
-\newcommand\vstversion{2.4}
-\newcommand\coqversion{8.9}
-\newcommand\compcertversion{3.5}
+\newcommand\vstversion{2.5}
+\newcommand\coqversion{8.11}
+\newcommand\compcertversion{3.7}
 
 \usepackage{xr-hyper}
 \input{setup}
@@ -235,6 +235,7 @@ Verifiable C is a \emph{program logic} (higher-order impredicative concurrent se
 \begin{itemize}
   \item No casting between integers and pointers.
   \item No \lstinline{goto} statements.
+  \item No \lstinline{struct}-copying assignments, \lstinline{struct} parameters, or \lstinline{struct} returns.
   \item Only structured \lstinline{switch} statements (no Duff's device).
 \end{itemize}
 

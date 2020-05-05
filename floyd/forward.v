@@ -729,6 +729,24 @@ Ltac change_compspecs cs :=
 end.
 
 
+Ltac check_struct_params al :=
+ match al with
+ | nil => idtac
+ | Tstruct _ _ :: _ => fail "struct parameters are not supported in VST"
+ | Tunion _ _ :: _ => fail "union parameters are not supported in VST"
+ | _ :: ?al' => check_struct_params al'
+ end.
+
+Ltac check_callconv cc := 
+ (tryif unify (cc_structret cc) false then idtac else fail "struct-returning functions are not supported in VST");
+ (tryif unify (cc_unproto cc) false then idtac else fail "no-prototype functions are not supported in VST");
+ (tryif unify (cc_vararg cc) false then idtac else fail "vararg function definitions are not supported in VST; there is some limited support for calling (but not defining) printf and fprintf").
+
+Ltac function_body_unsupported_features spec :=
+ check_callconv (fn_callconv spec);
+ let al := constr:(map snd  (fn_params spec)) in let al := eval compute in al in 
+ check_struct_params al.
+
 Definition Warning_perhaps_funspec_postcondition_needs_EX_outside_PROP_LOCAL_SEP (p: Prop) := p.
 Ltac give_EX_warning :=
      match goal with |- ?A => change
@@ -736,7 +754,12 @@ Ltac give_EX_warning :=
              end.
 
 Ltac check_parameter_types :=
-   first [reflexivity | elimtype  Parameter_types_in_funspec_different_from_call_statement].
+   match goal with |- _ = fun_case_f (typelist_of_type_list ?argsig) ?retty ?cc =>
+     check_callconv cc; 
+     let al := eval compute in argsig in 
+    check_struct_params al
+  end;
+  first [reflexivity | elimtype  Parameter_types_in_funspec_different_from_call_statement].
 
 Ltac check_result_type :=
    first [reflexivity | elimtype  Result_type_in_funspec_different_from_call_statement].
@@ -4336,6 +4359,7 @@ Ltac start_function1 :=
  leaf_function;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
+    function_body_unsupported_features F;
     let s := fresh "spec" in
     pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
    repeat lazymatch goal with
