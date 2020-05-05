@@ -16,6 +16,12 @@ Definition my_half g sh (a : G) := ghost_part(P := P) sh a g.
 Definition public_half g (a : G) := ghost_reference(P := P) a g.
 Definition both_halves (a : G) g := ghost_part_ref(P := P) Tsh a a g.
 
+Lemma my_half_join : forall sh1 sh2 sh a1 a2 a g, sepalg.join sh1 sh2 sh -> sepalg.join a1 a2 a -> sh1 <> Share.bot -> sh2 <> Share.bot ->
+  my_half g sh1 a1 * my_half g sh2 a2 = my_half g sh a.
+Proof.
+  exact ghost_part_join.
+Qed.
+
 Lemma both_halves_join : forall g (a : G), my_half g Tsh a * public_half g a = both_halves a g.
 Proof.
   intros.
