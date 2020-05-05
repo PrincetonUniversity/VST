@@ -104,7 +104,7 @@ assert_PROP (
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. normalize.  f_equal. lia.
+  simpl. normalize.  f_equal. unfold sizeof; simpl; lia.
 }
 (* int res = p->snd; *)
 forward.

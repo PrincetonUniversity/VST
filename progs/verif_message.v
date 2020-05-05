@@ -242,7 +242,7 @@ forward. (* return x+y; *)
 simpl.
 entailer!.
 sep_apply (data_at_memory_block Tsh (tarray tint 2) [Vint (Int.repr 1); Vint (Int.repr 2)] buf).
-simpl sizeof.
+unfold sizeof; simpl Ctypes.sizeof.
 sep_apply (memory_block_data_at__tarray_tuchar Tsh buf 8).
    computable.
 entailer!.

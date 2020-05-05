@@ -232,12 +232,8 @@ Local Open Scope logic.
 Lemma sizeof_tarray_tuchar:
  forall (n:Z), (n>=0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
 Proof. intros.
- unfold sizeof,tarray; cbv beta iota.
-  rewrite Z.max_r by omega.
-  unfold alignof, tuchar; cbv beta iota.
-  rewrite Z.mul_1_l. auto.
+ simpl. lia.
 Qed.
-
 
 Lemma Zlength_bytelist_to_intlist:
   forall (n:Z) (l: list byte),

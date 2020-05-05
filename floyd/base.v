@@ -10,6 +10,8 @@ Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.floyd.val_lemmas.
 Require Export VST.floyd.assert_lemmas.
+Require Export compcert.cfrontend.Ctypes.
+Require Export VST.veric.expr.
 Require VST.floyd.SeparationLogicAsLogicSoundness.
 Export SeparationLogicAsLogicSoundness.MainTheorem.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.
@@ -18,6 +20,14 @@ Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_Mini
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Defs.
 
 Local Open Scope logic.
+
+Arguments sizeof {cs} !t / .
+Arguments alignof {cs} !t / .
+
+Lemma sizeof_pos: forall {cs: compspecs} (t: type), sizeof t >= 0.
+Proof. intros. apply Ctypes.sizeof_pos. Qed.
+Lemma alignof_pos: forall {cs: compspecs} (t: type), alignof t > 0.
+Proof. intros. apply Ctypes.alignof_pos. Qed.
 
 Definition extract_exists_pre:
   forall {CS: compspecs} {Espec: OracleKind},
@@ -110,7 +120,7 @@ Defined.
 Lemma sizeof_Tstruct: forall id a,
   sizeof (Tstruct id a) = co_sizeof (get_co id).
 Proof.
-  intros.
+  intros. unfold sizeof.
   simpl. unfold get_co.
   destruct (cenv_cs ! id); auto.
 Qed.
@@ -118,7 +128,7 @@ Qed.
 Lemma sizeof_Tunion: forall id a,
   sizeof (Tunion id a) = co_sizeof (get_co id).
 Proof.
-  intros.
+  intros. unfold sizeof.
   simpl. unfold get_co.
   destruct (cenv_cs ! id); auto.
 Qed.

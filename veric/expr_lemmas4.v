@@ -835,7 +835,7 @@ subst.
 unfold eval_expr.
 unfold_lift; simpl.
 { (*rewrite <- Hcenv.*) 
-  rewrite H1.
+  rewrite H1. unfold expr.sizeof.
   rewrite <- (cenv_sub_sizeof Hcenv _ H1).
   apply Clight.eval_Esizeof. }
 *
@@ -846,7 +846,7 @@ apply tc_bool_e in H1.
 apply tc_bool_e in H2.
 unfold eval_expr.
 unfold_lift; simpl.
-rewrite H1.
+rewrite H1.  unfold expr.alignof.
 (*unfold alignof. rewrite <- Hcenv.*) rewrite <- (cenv_sub_alignof Hcenv _ H1). 
 constructor.
 Qed.

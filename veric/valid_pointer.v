@@ -86,6 +86,7 @@ Proof.
   destruct (readable_share_dec sh).
   + apply orp_left; apply andp_left2.
     - simpl in H.
+      unfold sizeof in *.
       erewrite size_chunk_sizeof in H by eauto.
       erewrite size_chunk_sizeof in H0 by eauto.
       pose proof Ptrofs.unsigned_range i0.
@@ -95,6 +96,7 @@ Proof.
         lia.
     - apply exp_left; intro.
       simpl in H.
+      unfold sizeof in *.
       erewrite size_chunk_sizeof in H by eauto.
       erewrite size_chunk_sizeof in H0 by eauto.
       pose proof Ptrofs.unsigned_range i0.
@@ -103,6 +105,7 @@ Proof.
       * rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
         lia.
   + simpl in H.
+      unfold sizeof in *.
     erewrite size_chunk_sizeof in H by eauto.
     erewrite size_chunk_sizeof in H0 by eauto.
     pose proof Ptrofs.unsigned_range i0.

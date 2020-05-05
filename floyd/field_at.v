@@ -528,7 +528,8 @@ Proof.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
     rewrite field_compatible_cons, H; tauto.
-  + rewrite sizeof_Tstruct.
+  + change (sizeof ?A) with (expr.sizeof A) in *.
+    rewrite sizeof_Tstruct.
     f_equal; [| f_equal; f_equal]; lia.
   + rewrite Z.add_assoc.
     erewrite data_at_rec_type_changable; [reflexivity | |].
@@ -610,6 +611,7 @@ Proof.
   }
   rewrite nested_field_offset_ind with (gfs0 := UnionField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
+  change (sizeof ?A) with (expr.sizeof A) in *.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
     rewrite field_compatible_cons, H; tauto.
@@ -951,9 +953,12 @@ Proof.
     pose proof nested_field_offset_in_range t gfs.
     spec H1; [tauto |].
     spec H1; [tauto |].
+    change (sizeof ?A) with (expr.sizeof A) in *.
     rewrite (Z.mod_small ofs) in * by lia.
-    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); lia).
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H
+        by (pose proof base.sizeof_pos (nested_field_type t gfs); lia).
     apply data_at_rec_data_at_rec_; try tauto.
+    unfold expr.sizeof in *.
     lia.
   + unfold field_at_, field_at.
     normalize.
@@ -989,9 +994,10 @@ Proof.
     pose proof nested_field_offset_in_range t gfs.
     spec H1; [tauto |].
     spec H1; [tauto |].
+    change (sizeof ?A) with (expr.sizeof A) in *.
     rewrite (Z.mod_small ofs) in * by lia.
-    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); lia).
-    rewrite memory_block_data_at_rec_default_val; try tauto; try lia.
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof base.sizeof_pos (nested_field_type t gfs); lia).
+    rewrite memory_block_data_at_rec_default_val; try tauto; unfold expr.sizeof in *; try lia.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
     apply pred_ext; normalize.
@@ -1118,7 +1124,9 @@ Proof.
   + reflexivity.
   + pose proof sizeof_pos (field_type i (co_members (get_co id))); lia.
   + lia.
-  + split.
+  +
+    change (sizeof ?A) with (expr.sizeof A) in *.
+    split.
     - rewrite sizeof_Tunion.
       erewrite co_consistent_sizeof by apply get_co_consistent.
       rewrite complete_legal_cosu_type_Tunion with (a0 := a)
@@ -1128,6 +1136,7 @@ Proof.
            (co_alignof (get_co id)) (co_alignof_pos _).
       unfold sizeof_composite in *.
       pose proof sizeof_union_in_members _ _ H0.
+      unfold expr.sizeof in *.
       lia.
     - rewrite <- H.
       unfold field_compatible in *.
@@ -1138,11 +1147,11 @@ Proof.
   + rewrite <- H.
     unfold field_compatible, size_compatible in *.
     rewrite Ptrofs.unsigned_repr in * by (unfold Ptrofs.max_unsigned; lia).
+    unfold expr.sizeof in *.
     lia.
 Qed.
 
 Lemma array_at_ramif: forall sh t gfs t0 n a lo hi i v v0 p,
-(*  let d := default_val _ in *)
   nested_field_type t gfs = Tarray t0 n a ->
   lo <= i < hi ->
   JMeq v0 (Znth (i - lo) v) ->
@@ -1537,6 +1546,7 @@ Proof.
     destruct p; inv H1.
     simpl in H3.
     inv_int i.
+    unfold expr.sizeof in *.
     lia.
   }
   clear - H H1 H8.  
@@ -1876,7 +1886,7 @@ eapply derives_trans; [apply field_at_local_facts |];
 end.
 
 Ltac data_at_valid_aux :=
- simpl sizeof; rewrite ?Z.max_r by rep_lia; rep_lia.
+ first [computable | unfold sizeof; simpl Ctypes.sizeof; rewrite ?Z.max_r by rep_lia; rep_lia].
 
 Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
     (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.

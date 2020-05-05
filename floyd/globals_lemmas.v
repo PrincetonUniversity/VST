@@ -62,6 +62,7 @@ Proof.
 intros.
 unfold globvar2pred.
 simpl.
+red in H3.
 destruct_var_types i.
 destruct_glob_types i.
 unfold globals_of_env.
@@ -83,6 +84,7 @@ Proof.
 intros.
 unfold globvar2pred.
 simpl.
+red in H3.
 destruct_glob_types i.
 unfold globals_of_env.
 rewrite Heqo0, H1, H2.
@@ -215,6 +217,7 @@ assert (H6:=I).
  clear H8'.
  simpl.
  destruct idata; super_unfold_lift; try apply derives_refl.
+ red in H7.
  destruct_var_types i eqn:Hv&Hv'; rewrite ?Hv, ?Hv';
   destruct_glob_types i eqn:Hg&Hg'; rewrite ?Hg, ?Hg';
 try solve [simpl; apply TT_right].
@@ -420,7 +423,7 @@ rewrite <- (mapsto_data_at sh t (Vint (Cop.cast_int_int sz sign a)) (Vint (Cop.c
 2:{
 destruct v; auto. red.
 assert (sizeof t > 0).
-subst t; simpl. destruct sz; computable.
+subst t; unfold sizeof; simpl. destruct sz; computable.
 clearbody t.
 clear - H1 H3.
 rewrite Zlength_cons in H1. simpl in H1.
@@ -457,7 +460,7 @@ apply derives_refl.
    unfold align_compatible in H0|-*.
    unfold Ptrofs.add.
    rewrite (Ptrofs.unsigned_repr (sizeof t)) 
-    by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize;
+    by (unfold sizeof, Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize;
           clear; subst t; destruct sz,sign, Archi.ptr64; simpl; lia).
   rewrite Ptrofs.unsigned_repr.
   split3; try lia.
@@ -484,7 +487,7 @@ apply derives_refl.
   hnf; simpl. split3; auto. 
   destruct v; try contradiction.
   split3; auto; red.
-  unfold sizeof; fold sizeof.
+  unfold sizeof, Ctypes.sizeof;  fold Ctypes.sizeof. fold (sizeof t).
   pose proof (Zlength_nonneg data).
   rewrite Z.max_r by lia.
   unfold offset_strict_in_range in H1. rewrite Zlength_cons in H1.
@@ -589,10 +592,11 @@ Proof.
   assert (offset_strict_in_range (sizeof (Tint sz sign noattr) * n) (globals_of_env rho i)). {
     unfold offset_strict_in_range.
     destruct (globals_of_env rho i) eqn:?H; auto.
-    rewrite H5 in H6; simpl in H6.
+    rewrite H5 in H6; simpl in H6. unfold sizeof in H6; simpl in H6.
     pose proof initial_world.zlength_nonneg _ (gvar_init gv).
     rewrite Z.max_r in H6 by lia.
-    fold (sizeof (Tint sz sign noattr)) in H6.
+   change (match sz with I16 => 2 | I32 => 4 | _ => 1 end)
+    with (sizeof (Tint sz sign noattr)) in H6.
     unfold Ptrofs.max_unsigned in H6.
     pose proof init_data_list_size_pos (gvar_init gv).
     simpl in H8.
@@ -1003,6 +1007,7 @@ eapply derives_trans; [ apply H7  | ].
 subst t; simpl.
 destruct (zlt n 0).
 -
+unfold sizeof; simpl.
 rewrite Z.max_l by lia.
 rewrite Z2Nat_neg by lia.
 simpl.
@@ -1028,10 +1033,11 @@ apply andp_right; auto.
 apply prop_right.
 split3; auto. apply I.
 split3.
-simpl.  lia.
+simpl. unfold sizeof; simpl.  lia.
 2: apply I.
 red. constructor; auto. intros. lia. 
 -
+unfold sizeof; simpl.
 rewrite Z.max_r by lia.
 unfold data_at.
 erewrite field_at_Tarray with (n0:=n);
@@ -1041,7 +1047,8 @@ destruct (globals_of_env rho i) eqn:?H;
  try apply FF_left.
 normalize.
 assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) (ArraySubsc 0::nil) (globals_of_env rho i)).
-{ rewrite H9; split3; auto. apply I. split; auto. simpl. rewrite Z.max_r by lia. lia.
+{ rewrite H9; split3; auto. apply I. split; auto. simpl. unfold sizeof; simpl.
+   rewrite Z.max_r by lia. lia.
   split. red. apply align_compatible_rec_Tarray. intros.
      eapply align_compatible_rec_by_value. reflexivity.
      simpl.
@@ -1135,7 +1142,8 @@ simpl.
 f_equal.
 rewrite Ptrofs.add_assoc. f_equal.
 rewrite ptrofs_add_repr.
-f_equal. lia.
+f_equal. simpl; unfold sizeof; simpl.
+  change (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr). lia.
 unfold Ptrofs.add.
 rewrite Ptrofs.unsigned_repr.
 2:{

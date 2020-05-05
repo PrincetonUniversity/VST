@@ -12,6 +12,9 @@ Require Import VST.veric.seplog. (*For definition of tycontext*)
 
 Import Ctypes.
 
+Definition sizeof {cs: compspecs} t := @Ctypes.sizeof (@cenv_cs cs) t.
+Definition alignof {cs: compspecs} t := @Ctypes.alignof (@cenv_cs cs) t.
+
 (*moved to compcert_rmaps
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 

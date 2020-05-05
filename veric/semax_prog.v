@@ -475,7 +475,7 @@ Lemma var_block_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') sh a
 @var_block sh CS a = @var_block sh CS' a.
 Proof.
 extensionality rho. destruct CSUB as [CSUB _].
-unfold var_block. rewrite (cenv_sub_sizeof CSUB); trivial.
+unfold var_block. unfold expr.sizeof. rewrite (cenv_sub_sizeof CSUB); trivial.
 Qed. 
 
 Lemma stackframe_of_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') f

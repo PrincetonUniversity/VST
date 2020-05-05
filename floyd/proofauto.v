@@ -233,3 +233,72 @@ Hint Rewrite sem_cast_i2bool_of_bool : norm.
 
 Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
 Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
+
+Lemma computable_sizeof: forall cs x, computable x -> computable (@sizeof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_sizeof : computable.
+
+Lemma computable_Ctypes_sizeof: forall cs x, computable x -> computable (@Ctypes.sizeof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Ctypes_sizeof : computable.
+
+Lemma computable_alignof: forall cs x, computable x -> computable (@alignof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_alignof : computable.
+
+Lemma computable_Ctypes_alignof: forall cs x, computable x -> computable (@Ctypes.alignof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Ctypes_alignof : computable.
+
+Lemma computable_Tint: forall sz s a, computable (Tint sz s a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tint : computable.
+
+Lemma computable_Tlong: forall s a, computable (Tlong s a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tlong : computable.
+
+Lemma computable_Tarray: forall t i a, computable t -> computable i -> computable (Tarray t i a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tarray : computable.
+
+Lemma computable_Tstruct: forall i a, computable i -> computable (Tstruct i a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tstruct : computable.
+
+Lemma computable_Tunion: forall i a, computable i -> computable (Tunion i a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tunion : computable.
+
+Lemma computable_Tpointer: forall t a, computable t -> computable (Tpointer t a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tpointer : computable.
+
+Lemma computable_tptr: forall t, computable t -> computable (tptr t).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_tptr : computable.
+
+(*
+Ltac putable x ::= 
+ first [putable' x |
+ match x with
+ | sizeof ?x => putable x
+ | Ctypes.sizeof ?x => putable x
+ | alignof ?x => putable x
+ | Ctypes.alignof ?x => putable x
+ | Tint _ _ _ => idtac
+ | Tlong _ _ => idtac
+ | Tfloat _ _ => idtac
+ | Tpointer ?t _ => putable t
+ | Tarray ?t ?i _ => putable t; putable i
+ | Tfunction _ _ _ => idtac
+ | Tstruct ?x noattr => putable x
+ | Tunion ?x noattr => putable x
+ | tptr ?t => putable t
+ | tuint => idtac
+ | tint => idtac
+ | tuchar => idtac
+ | tschar => idtac
+ | tarray ?t ?i =>  putable t; putable i
+ end].
+*)

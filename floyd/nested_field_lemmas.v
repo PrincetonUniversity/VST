@@ -486,7 +486,7 @@ Proof.
   repeat apply sumbool_dec_and.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct complete_legal_cosu_type; [left | right]; congruence.
-  + destruct p; simpl; try solve [left; auto].
+  + destruct p; simpl; try solve [left; auto]. 
     destruct (zlt (Ptrofs.unsigned i + sizeof t) Ptrofs.modulus); [left | right]; lia.
   + apply align_compatible_dec.
   + apply legal_nested_field_dec.
@@ -1027,8 +1027,8 @@ Lemma gfield_offset_in_range: forall t gf,
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?], gf; try solve [inversion H]; simpl in H.
-  + simpl. rewrite Z.max_r by lia.
-    pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil).
+  + unfold sizeof; simpl. rewrite Z.max_r by lia. fold (sizeof t).
+    pose_size_mult cs t (0 :: i :: i + 1 :: z :: nil).
     lia.
   + unfold gfield_type, gfield_offset.
     pose_sizeof_co (Tstruct id a).
@@ -1049,12 +1049,12 @@ Lemma gfield_array_offset_in_range: forall t lo hi,
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?]; try solve [inversion H]; simpl in H.
-  simpl in *.
+  unfold sizeof. simpl in *. fold (sizeof t).
   rewrite (Z.max_r 0 z) by lia.
   assert (0 <= Z.max 0 (hi - lo) <= hi) by (apply arith_aux05; lia).
   assert (0 <= lo + Z.max 0 (hi - lo) <= z) by (apply arith_aux06; lia).
-  pose_size_mult cenv_cs t (0 :: Z.max 0 (hi - lo) :: hi :: nil).
-  pose_size_mult cenv_cs t (0 :: lo :: lo + Z.max 0 (hi - lo) :: z :: nil).
+  pose_size_mult cs t (0 :: Z.max 0 (hi - lo) :: hi :: nil).
+  pose_size_mult cs t (0 :: lo :: lo + Z.max 0 (hi - lo) :: z :: nil).
   lia.
 Qed.
 
@@ -1065,9 +1065,9 @@ Lemma gfield0_offset_in_range: forall t gf,
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?], gf; try solve [inversion H]; simpl in H.
-  + simpl.
+  + unfold sizeof; simpl. fold (sizeof t).
     rewrite Z.max_r by lia.
-    pose_size_mult cenv_cs t (0 :: i :: z :: nil).
+    pose_size_mult cs t (0 :: i :: z :: nil).
     lia.
   + unfold gfield_type, gfield_offset.
     pose_sizeof_co (Tstruct id a).
@@ -1320,6 +1320,7 @@ Proof.
   spec H4; [pose proof Ptrofs.modulus_pos; lia |].
   spec H4; [lia |].
   pose proof nested_field_offset_in_range t gfs H H0.
+  unfold expr.sizeof in *.
   lia.
 Qed.
 
@@ -1340,6 +1341,7 @@ Proof.
   pose proof Zmod_le (ofs + nested_field_offset t (ArraySubsc lo :: gfs)) (Ptrofs.modulus).
   spec H5; [pose proof Ptrofs.modulus_pos; lia |].
   spec H5; [lia |].
+  unfold expr.sizeof, sizeof  in *; fold sizeof in *. simpl in *.
   pose proof nested_field_offset_in_range t gfs (proj1 H) H1.
   simpl in H3.
   lia.
@@ -1372,12 +1374,13 @@ Proof.
      destruct gf.
     *
       destruct (nested_field_type t gfs) eqn:?H; try contradiction H2.
-      simpl in *.
+      unfold sizeof at 1 in H5; simpl in *. fold (sizeof t0) in *.
       rewrite Z.max_r in H5 by lia.
       rewrite nested_field_offset_ind by (split;auto; hnf; rewrite H6; lia).
       rewrite H6. simpl.
      apply align_compatible_rec_Tarray_inv with (i:=i) in IHgfs; auto.
      match goal with H: align_compatible_rec _ t0 ?A |- align_compatible_rec _ t0 ?B => replace B with A; auto end.
+     fold (sizeof t0).
      pose proof (sizeof_pos t).  pose proof (sizeof_pos t0).
      rewrite Z.add_assoc.
      assert (Ptrofs.modulus <> 0) by computable.
@@ -1456,15 +1459,16 @@ Proof.
   unfold Ptrofs.add.
   destruct (nested_field_offset_in_range t gfs H Hcomplete).
   pose proof (sizeof_pos (nested_field_type t gfs)).
-  assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable. (* TODO: This should not be necessary, rep_lia should know it *)
   rewrite (Ptrofs.unsigned_repr (nested_field_offset _ _)) by rep_lia.
   rewrite Ptrofs.unsigned_repr by rep_lia.
+  fold (sizeof t0) in *.
   pose proof (sizeof_pos t0).
      assert (0 <= sizeof t0 * lo <= sizeof t0 * z). {
            rewrite <- (Z.mul_0_r (sizeof t0)).
            split; apply Zmult_le_compat_l; lia.
      }
-  rewrite H4 in *. simpl in H8. rewrite Z.max_r in H8 by lia.
+  unfold sizeof at 1 in H8.
+  rewrite H4 in *. simpl in H8. fold (sizeof t0) in *. rewrite Z.max_r in H8 by lia.
   rewrite (Z.mod_small (_ + _ * _)) by rep_lia.
   rewrite Z.add_assoc.
   symmetry; apply Z.mod_small.

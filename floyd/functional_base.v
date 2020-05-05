@@ -259,8 +259,11 @@ Hint Rewrite isptr_force_ptr' : norm.
 
 Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
-Ltac putable x :=
- match x with
+Create HintDb computable.
+Inductive computable {t:Type} (x:t) : Prop := computable_any.
+
+Ltac putable' x :=
+ lazymatch x with
  | O => idtac
  | S ?x => putable x
  | Z.lt ?x ?y => putable x; putable y
@@ -311,12 +314,6 @@ Ltac putable x :=
  | Int.neg ?x => putable x
  | Int64.neg ?x => putable x
  | Ptrofs.neg ?x => putable x
- | Ceq => idtac
- | Cne => idtac
- | Clt => idtac
- | Cle => idtac
- | Cgt => idtac
- | Cge => idtac
  | Int.cmp ?op ?x ?y => putable op; putable x; putable y
  | Int64.cmp ?op ?x ?y => putable op; putable x; putable y
  | Ptrofs.cmp ?op ?x ?y => putable op; putable x; putable y
@@ -348,7 +345,13 @@ Ltac putable x :=
  | Int.zwordsize => idtac
  | Int64.zwordsize => idtac
  | Ptrofs.zwordsize => idtac
-end.
+ | _ => tryif (let b := eval cbv delta [x] in x in putable b) then idtac else fail
+end
+with putable x := 
+  first [putable' x
+         | tryif (try (assert (computable x) by auto 100 with computable; fail 1)) then fail else idtac ].
+
+Hint Extern 1 (computable ?x) => (putable' x; apply computable_any) : computable.
 
 Ltac computable := match goal with |- ?x =>
  no_evars x;

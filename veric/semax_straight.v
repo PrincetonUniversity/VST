@@ -1381,6 +1381,7 @@ assert (size_chunk ch = sizeof t). {
   clear - H1.
   destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ], ch; inv H1; reflexivity.
 }
+unfold sizeof in *.
 destruct ch;
  destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try solve [inv H1];
 simpl in *; (*try destruct i; try destruct s; try destruct f;*)

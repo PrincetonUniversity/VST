@@ -180,10 +180,11 @@ Proof.
     destruct p; try contradiction.
     split3; [ | | split3]; auto.
     red. simpl. rewrite H4. rewrite Z.add_0_r.
-    red in H1. simpl in H1. rewrite H4 in H1. rewrite Z.mul_0_l in H1.
+    simpl in H1. unfold sizeof in H1; simpl in H1. fold (sizeof t0) in H1.
+    rewrite H4 in H1. rewrite Z.mul_0_l in H1.
     rewrite Ptrofs.add_zero. lia.
    red in H2|-*. apply align_compatible_rec_Tarray_inv with (i:=i) in H2; auto.
-   rewrite H4 in H2. rewrite Z.mul_0_l, Z.add_0_r in H2. simpl.
+    fold (sizeof t0) in H2. rewrite H4 in H2. rewrite Z.mul_0_l, Z.add_0_r in H2. simpl.
     rewrite Ptrofs.add_zero. auto.
    -
     clear - H2 H3 g0.
@@ -196,7 +197,8 @@ Proof.
       apply Zmult_lt_compat_l; lia.
     }
     hnf in H1. destruct p; try contradiction.
-    simpl in H1. rewrite Z.max_r in H1 by lia.
+    unfold sizeof in H1; simpl in H1. rewrite Z.max_r in H1 by lia.
+    fold (sizeof t0) in *.
     split3; [ | | split3]; auto.
    +
     red. simpl.

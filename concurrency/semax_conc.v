@@ -43,7 +43,7 @@ Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) 
 Definition tlock := (Tarray (Tpointer Ctypes.Tvoid noattr) 2 noattr).
 (* Notation tlock := tuint (only parsing). *)
 
-Goal forall (cenv: composite_env), @sizeof cenv tlock = LKSIZE.
+Goal forall (cs: compspecs), @sizeof cs tlock = LKSIZE.
 Proof. reflexivity. Qed.
 
 Definition selflock_fun Q sh p : (unit -> mpred) -> (unit -> mpred) :=

@@ -616,7 +616,7 @@ match goal with
  | |- _ => solve [simple apply tc_test_eq_cenv_sub; auto]
  | |- _ => solve [simple apply tc_test_order'_cenv_sub; auto]
  | |- app_pred (denote_tc_assert (tc_bool ?A _) _) _ =>
-    match A with context [sizeof ?t] =>
+    match A with context [sizeof ?t] => unfold sizeof;
      rewrite (cenv_sub_sizeof CSUB t) by assumption;
      solve [simple apply tc_bool_i; auto]
    end

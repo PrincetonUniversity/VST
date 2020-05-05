@@ -1233,7 +1233,7 @@ Proof.
   + simpl.
     pose proof arith_aux01 _ _ _ HH.
     solve_mod_modulus.
-    pose_size_mult cenv_cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
+    pose_size_mult cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
     rewrite IHn; [| apply arith_aux02; auto | lia | lia | exact v].
     replace (ofs + sizeof  t * Z.succ lo) with (ofs + sizeof t * lo + sizeof t) by lia.
     rewrite <- memory_block_split by (auto; lia).
@@ -1295,16 +1295,23 @@ Proof.
     solve_mod_modulus.
     erewrite struct_pred_ext.
     - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
+      fold (sizeof t0) in *. fold (alignof t0) in *.
+      fold (sizeof t1) in *. fold (alignof t1) in *.
       rewrite IHm with (z := align z (alignof t0) + sizeof t0);
         [| now auto
-         | simpl in H |- *; pose_align_le; pose_sizeof_pos; lia
+         | simpl in H |- *; 
+          fold (sizeof t0) in *; fold (alignof t0) in *;
+          fold (sizeof t1) in *; fold (alignof t1) in *;
+          pose_align_le; pose_sizeof_pos; lia
          | pose_align_le; pose_sizeof_pos; lia].
       replace (ofs + align (align z (alignof t0) + sizeof t0) (alignof t1)) with
         (ofs + align z (alignof t0) +
          (align (align z (alignof t0) + sizeof t0) (alignof t1) -
           align z (alignof t0))) by lia.
       rewrite <- memory_block_split by
-        (simpl in H; revert H; pose_align_le; pose_sizeof_pos; intros; lia).
+        (simpl in H; 
+          fold (sizeof t0) in *; fold (alignof t0) in *;
+          fold (sizeof t1) in *; fold (alignof t1) in *;revert H; pose_align_le; pose_sizeof_pos; intros; lia).
       f_equal; lia.
     - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
       auto.
