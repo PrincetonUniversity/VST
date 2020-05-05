@@ -113,7 +113,7 @@ Lemma gvars_denote_HP: forall rho Delta gv i t,
   headptr (gv i).
 Proof.
   intros.
-  hnf in H.
+  hnf in H. red in H0.
   subst.
   destruct_glob_types i.
   rewrite Heqo0.
@@ -321,6 +321,7 @@ Proof.
     unfold gvars_denote in H0.
     subst g.
     unfold legal_glob_ident in LEGAL0.
+    red in H.
     destruct_glob_types a.
       2: rewrite Heqo in LEGAL0; inv LEGAL0.
     rewrite Heqo0.

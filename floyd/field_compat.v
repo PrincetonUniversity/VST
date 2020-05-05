@@ -61,7 +61,7 @@ repeat split; auto.
 *
 hnf in H3|-*.
 destruct d; auto.
-unfold sizeof in *; fold (sizeof t) in *.
+unfold sizeof, Ctypes.sizeof in *; fold (sizeof t) in *.
 rewrite Z.max_r in * by lia.
 lia.
 *
@@ -89,7 +89,7 @@ repeat split; auto.
 *
 hnf in H3|-*.
 destruct d; auto.
-unfold sizeof in *; fold (sizeof t) in *.
+unfold sizeof, Ctypes.sizeof in *; fold (sizeof t) in *.
 rewrite Z.max_r in * by lia.
 lia.
 *
@@ -130,7 +130,7 @@ hnf in H0|-*.
 intuition.
  *
   destruct p; try contradiction; red in H4|-*.
-  unfold sizeof in H4|-*; fold (sizeof t) in *.
+  unfold sizeof in *; simpl in *; fold (sizeof t) in *.
   rewrite Z.max_r in * by lia.
   lia.
  *
@@ -195,7 +195,7 @@ destruct d; try contradiction.
 repeat split; auto.
 *
 unfold size_compatible in H2|-*.
-unfold sizeof in H2|-*. fold sizeof in H2 |-*.
+unfold sizeof in *; simpl in *; fold (sizeof t) in *.
 rewrite Z.max_r in H2|-* by lia.
 lia.
 *
@@ -209,7 +209,7 @@ unfold size_compatible in H2|-*.
 unfold offset_val.
 rewrite <- (Ptrofs.repr_unsigned i0).
 rewrite ptrofs_add_repr.
-unfold sizeof in H2|-*. fold sizeof in H2 |-*.
+unfold sizeof in *; simpl in *; fold (sizeof t) in *.
 rewrite Z.max_r in H2|-* by lia.
 pose proof (Ptrofs.unsigned_range i0).
 destruct (zeq (Ptrofs.unsigned i0 + sizeof t * i) Ptrofs.modulus).
@@ -231,9 +231,10 @@ intros.
 rewrite <- (Ptrofs.repr_unsigned i0).
 rewrite ptrofs_add_repr.
 simpl in H2.
+unfold sizeof in *; simpl in *; fold (sizeof t) in *.
 rewrite Z.max_r in H2 by lia.
 solve_mod_modulus.
-pose_size_mult cenv_cs t (0 :: i :: i + i1 :: i + i1 + 1 :: n :: nil).
+pose_size_mult cs t (0 :: i :: i + i1 :: i + i1 + 1 :: n :: nil).
 inv_int i0.
 rewrite Zmod_small by lia.
 rewrite <- Z.add_assoc, <- H8.
@@ -414,9 +415,11 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   destruct p; try contradiction.
   clear - SP SS SS' H H4 H0 H5 H3 H8 Hni Hii.
   red in H3|-*.
+  unfold expr.sizeof in *.
   simpl in H3,H8|-*. rewrite Z.max_r in H3|-* by lia.
   rename i0 into j.
    pose proof (Ptrofs.unsigned_range j).
+   fold (sizeof t) in *.
    assert (0 <= sizeof t * (i'-i) <= sizeof t * n').
    split. apply Z.mul_nonneg_nonneg; lia.
    apply Zmult_le_compat_l. lia. lia.
@@ -432,6 +435,8 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
  *
    destruct p; try contradiction.
    simpl in H3, H6 |- *.
+  unfold expr.sizeof in *.
+   simpl in H3, H6 |- *.
    rewrite Z.max_r in H3 by lia.
    constructor; intros.
   unfold Ptrofs.add.
@@ -441,7 +446,8 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   rewrite Z.mod_mod by auto.
   rewrite <- Z.add_mod by auto.
   inv_int i0.
-  pose_size_mult cenv_cs t (0 :: i' - i :: i' - i + i1 ::  n' :: nil).
+   fold (sizeof t) in *.
+  pose_size_mult cs t (0 :: i' - i :: i' - i + i1 ::  n' :: nil).
   rewrite Zmod_small by lia.
   rewrite <- Z.add_assoc, <- H14.
   eapply align_compatible_rec_Tarray_inv; [eassumption |].
@@ -573,10 +579,10 @@ Proof. intros.
 Qed.
 
 Lemma sizeof_tarray_tuchar {cs} n (N:0<=n): @sizeof cs (tarray tuchar n) = n.
-Proof. simpl. rewrite Z.max_r. destruct n; trivial. lia. Qed. 
+Proof. unfold sizeof; simpl. rewrite Z.max_r. destruct n; trivial. lia. Qed. 
 
 Lemma sizeof_tarray_tschar {cs} n (N:0<=n): @sizeof cs (tarray tschar n) = n.
-Proof. simpl. rewrite Z.max_r. destruct n; trivial. lia. Qed. 
+Proof. unfold sizeof; simpl. rewrite Z.max_r. destruct n; trivial. lia. Qed. 
 
 Opaque sizeof.
 Import ListNotations.
@@ -693,7 +699,8 @@ Proof.
     inv_int i.
     destruct H as [? [? [? [? ?]]]].
     repeat split; auto.
-    simpl. simpl in H3. rewrite Z.mul_1_r. auto.
+    simpl in H3|-*. unfold sizeof in H3|-*; simpl in H3|-*.
+    rewrite Z.mul_1_r. auto.
     simpl in H4|-*.
     apply align_compatible_rec_Tarray. intros. assert (i=0) by lia. subst.
     rewrite Z.mul_0_r, Z.add_0_r. auto.

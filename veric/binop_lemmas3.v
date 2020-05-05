@@ -366,7 +366,7 @@ Proof.
   inv H.
 Qed.
 
-Lemma sizeof_range_true {CS: composite_env}: forall t A (a b: A) (max: Z),
+Lemma sizeof_range_true {CS: compspecs}: forall t A (a b: A) (max: Z),
     negb (Z.eqb (sizeof t) 0) = true ->
     Z.leb (sizeof t) max = true ->
     (if zlt 0 (sizeof t) && zle (sizeof t) max then a else b) = a.
@@ -376,8 +376,9 @@ Proof.
   rewrite Z.eqb_neq in H.
   pose proof sizeof_pos t.
   rewrite <- Zle_is_le_bool in H0.
-  destruct (zlt 0 (sizeof t)); [| lia].
-  destruct (zle (sizeof t) max); [| lia]. 
+  unfold sizeof in  *; simpl in *.
+  destruct (zlt 0 (Ctypes.sizeof t)); [| lia].
+  destruct (zle (Ctypes.sizeof t) max); [| lia]. 
   reflexivity.
 Qed.
 
@@ -601,7 +602,8 @@ all:  try (unfold sem_sub_pi, sem_sub_pp, sem_sub_pl; simpl;
     destruct t; try solve [inv H1];
     try solve [constructor; try rewrite (negb_true _ H1); apply I]
   ].
- +
+ + 
+    change (Ctypes.sizeof ty) with (sizeof ty).
     destruct (typeof e1); inv TV1; destruct (typeof e2); inv TV2;
     simpl in H; inv H;
     rewrite ?J, ?J0 in *; clear J J0;

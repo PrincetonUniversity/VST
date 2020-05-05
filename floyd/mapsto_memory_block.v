@@ -195,7 +195,7 @@ Proof.
   destruct H3. destruct p; try contradiction.
   + simpl in H1, H2.
     destruct (access_mode_by_value _ H) as [ch ?].
-    unfold sizeof in *; erewrite size_chunk_sizeof in H1 |- * by eauto.
+    unfold expr.sizeof, Ctypes.sizeof in *; erewrite size_chunk_sizeof in H1 |- * by eauto.
     rewrite mapsto_memory_block.mapsto__memory_block with (ch := ch); auto.
     eapply align_compatible_rec_by_value_inv in H2; [| eassumption].
     auto.
@@ -216,6 +216,7 @@ Proof.
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
   destruct H5. destruct p; try contradiction.
   + simpl in H2, H3.
+    unfold expr.sizeof in *.
     erewrite size_chunk_sizeof in H2 |- * by eauto.
     apply mapsto_memory_block.nonreadable_memory_block_mapsto; auto.
     eapply align_compatible_rec_by_value_inv in H3; [| eassumption].

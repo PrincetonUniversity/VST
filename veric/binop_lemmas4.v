@@ -798,7 +798,8 @@ try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?
             | H: complete_type _ _ = _ |- _ => rewrite H; clear H
             | H: eqb_type _ _ = _ |- _ => rewrite H
             end;
- try clear CS; try clear m.
+ try clear CS; try clear m;
+ try change (Ctypes.sizeof ty) with (sizeof ty).
 
 all: try abstract ( (
 red in TC1,TC2;

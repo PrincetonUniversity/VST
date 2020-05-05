@@ -2601,6 +2601,7 @@ Lemma gvars_eval_var:
 Proof.
 intros.
 unfold eval_var. hnf in H1. subst.
+ red in H.
 destruct_var_types i.
 rewrite Heqo0.
 auto.
@@ -2619,6 +2620,7 @@ Lemma gvars_isptr:
 Proof.
 intros. hnf in H1.
 subst.
+red in H.
 destruct_glob_types i.
 rewrite Heqo0.
 apply Coq.Init.Logic.I.

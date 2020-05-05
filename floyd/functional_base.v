@@ -259,7 +259,9 @@ Hint Rewrite isptr_force_ptr' : norm.
 
 Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
-Ltac putable x :=
+Ltac putable x := idtac.
+
+Ltac putable' x :=
  match x with
  | O => idtac
  | S ?x => putable x
@@ -348,11 +350,14 @@ Ltac putable x :=
  | Int.zwordsize => idtac
  | Int64.zwordsize => idtac
  | Ptrofs.zwordsize => idtac
+ | _ => tryif (let b := eval cbv delta [x] in x in putable b) then idtac else fail
 end.
+
+Ltac putable x ::= putable' x.
 
 Ltac computable := match goal with |- ?x =>
  no_evars x;
- putable x;
+ putable' x;
  compute; clear; repeat split; auto; congruence;
   (match goal with |- context [Archi.ptr64] => idtac end;
     first [change Archi.ptr64 with false | change Archi.ptr64 with true];

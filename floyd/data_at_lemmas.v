@@ -189,6 +189,8 @@ unfold at_offset.
 autorewrite with sublist.
 rewrite !data_at_rec_eq; simpl.
 do 2 change (unfold_reptype ?A) with A.
+change (sizeof tschar) with 1.
+change (sizeof tuchar) with 1.
 forget (offset_val (1 * i) (offset_val 0 p)) as q.
 simpl.
 destruct q; auto.

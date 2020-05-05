@@ -101,6 +101,7 @@ Proof.
     apply (@semax.complete_type_cenv_sub _ _ CSE _ H).
   - destruct CSUB as [CSE _]. clear - CSE Hb2 Hb3. unfold var_sizes_ok in *.
     induction Hb3; trivial. inv Hb2. constructor. 2: eauto.
+    unfold sizeof.
     rewrite (@expr_lemmas4.cenv_sub_sizeof _ _ CSE); trivial.
   - apply (semax_body_cenv_sub CSUB); trivial.
 Qed.

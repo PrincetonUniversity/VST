@@ -155,7 +155,7 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
     rewrite field_compatible_field_address by auto with field_compatible.
     simpl.
     rewrite Ptrofs.add_assoc, ptrofs_add_repr. 
-    f_equal. f_equal. f_equal. lia.
+    f_equal. f_equal. f_equal. unfold sizeof; simpl. lia.
   }
   forward.
   forward.
@@ -204,7 +204,7 @@ assert_PROP (
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. f_equal. lia.
+  simpl. f_equal. unfold sizeof; simpl. lia.
 }
 (* int res = p->snd; *)
 forward.

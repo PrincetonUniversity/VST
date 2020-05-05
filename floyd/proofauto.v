@@ -233,3 +233,26 @@ Hint Rewrite sem_cast_i2bool_of_bool : norm.
 
 Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
 Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
+
+Ltac putable x ::= 
+ first [putable' x |
+ match x with
+ | sizeof ?x => putable x
+ | Ctypes.sizeof ?x => putable x
+ | alignof ?x => putable x
+ | Ctypes.alignof ?x => putable x
+ | Tint _ _ _ => idtac
+ | Tlong _ _ => idtac
+ | Tfloat _ _ => idtac
+ | Tpointer ?t _ => putable t
+ | Tarray ?t ?i _ => putable t; putable i
+ | Tfunction _ _ _ => idtac
+ | Tstruct ?x noattr => putable x
+ | Tunion ?x noattr => putable x
+ | tptr ?t => putable t
+ | tuint => idtac
+ | tint => idtac
+ | tuchar => idtac
+ | tschar => idtac
+ | tarray ?t ?i =>  putable t; putable i
+ end].

@@ -177,7 +177,7 @@ Lemma Tstruct_sizeof_0: forall id a,
    (field_offset cenv_cs i (co_members (get_co id)) +
       sizeof (field_type i (co_members (get_co id)))) = 0.
 Proof.
-  intros.
+  intros. 
   rewrite sizeof_Tstruct in H0.
   rewrite H0.
   apply sizeof_struct_0; auto.
@@ -309,19 +309,19 @@ Ltac pose_sizeof_co t :=
 Ltac pose_field :=
   match goal with
   | _ : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
-    context [@sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
+    context [@sizeof ?cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tstruct id a);
       let H := fresh "H" in
       pose proof field_offset_in_range i (co_members (get_co id)) as H;
       spec H; [solve [auto] |];
-      pose proof @sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
+      pose proof @sizeof_pos cs (field_type i (co_members (get_co id)))
   | _ : complete_legal_cosu_type (Tunion ?id ?a) = true |-
-    context [@sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
+    context [@sizeof ?cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tunion id a);
       let H := fresh "H" in
       pose proof sizeof_union_in_members i (co_members (get_co id)) as H;
       spec H; [solve [auto] |];
-      pose proof @sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
+      pose proof @sizeof_pos cs (field_type i (co_members (get_co id)))
   | _ => idtac
   end;
   match goal with
@@ -332,5 +332,4 @@ Ltac pose_field :=
       spec H; [solve [auto] |];
       spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
   | _ => idtac
-  end
-.
+  end.

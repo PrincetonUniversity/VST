@@ -712,10 +712,10 @@ Proof.
   destruct H0 as [? [_ [? _]]].
   destruct p; try contradiction.
   red in H3.
-  unfold sizeof in H3; clear H1.
+  unfold sizeof, Ctypes.sizeof in H3; clear H1.
   rewrite Z.max_r in H3 by old_list_solve.
-  fold sizeof in H3.
-  change (sizeof tschar) with 1 in H3.
+  fold Ctypes.sizeof in H3.
+  change (Ctypes.sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).
   lia. 
 Qed.
@@ -728,7 +728,7 @@ Lemma cstring_valid_pointer: forall {CS : compspecs} sh s p,
 Proof.
   intros; unfold cstring; Intros.
   apply data_at_valid_ptr; auto.
-  unfold tarray, tschar, sizeof.
+  unfold tarray, tschar, sizeof, Ctypes.sizeof.
   pose proof (Zlength_nonneg s).
   rewrite Z.max_r; lia.
 Qed.
@@ -791,8 +791,8 @@ Proof.
   destruct H0 as [? [_ [? _]]].
   destruct p; try contradiction.
   red in H3. 
-  unfold sizeof in H3;  fold sizeof in H3.
-  rewrite Z.max_r in H3 by lia. change (sizeof tschar) with 1 in H3.
+  unfold sizeof, Ctypes.sizeof in H3;  fold Ctypes.sizeof in H3.
+  rewrite Z.max_r in H3 by lia. change (Ctypes.sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).
   rep_lia.
 Qed.
@@ -807,7 +807,7 @@ Proof.
   entailer!. 
   unfold cstringn; Intros.
   apply data_at_valid_ptr; auto.
-  unfold tarray, tschar, sizeof; cbv beta iota zeta.
+  unfold tarray, tschar, sizeof, Ctypes.sizeof; cbv beta iota zeta.
   pose proof (Zlength_nonneg s).
   rewrite Z.max_r; lia.
 Qed.

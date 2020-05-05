@@ -435,7 +435,7 @@ Proof.
   + rewrite Z.max_r by lia.
     lia.
 Qed.
-  
+
 (* We use (Vptr b (Int.repr ofs)) instead of p because size_compatible is more  *)
 (* difficult to use than simple arithmetic in induction proof.                  *)
 Lemma memory_block_data_at_rec_default_val: forall sh t b ofs
@@ -467,8 +467,8 @@ Proof.
       unfold offset_val; solve_mod_modulus.
       unfold Znth. rewrite if_false by lia.
       rewrite nth_list_repeat.
-      unfold sizeof in H, H1; fold @sizeof in H,H1.
-      pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
+      unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
+      pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
       assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
       apply IH; auto; try lia.
       eapply align_compatible_rec_Tarray_inv; [eassumption |].
@@ -483,7 +483,8 @@ Proof.
                (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p))
      (v1 := (struct_default_val (co_members (get_co id))));
     [| apply get_co_members_no_replicate |].
-    - rewrite memory_block_struct_pred.
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+       rewrite memory_block_struct_pred.
       * rewrite sizeof_Tstruct; auto.
       * apply get_co_members_nil_sizeof_0.
       * apply get_co_members_no_replicate.
@@ -509,8 +510,9 @@ Proof.
       specialize (IH (i, field_type i (co_members (get_co id)))).
       spec IH; [apply in_members_field_type; auto |].
       unfold snd in IH.
-      rewrite IH.
-      * rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; lia).
+      rewrite IH; clear IH.
+      * rewrite Z.add_assoc, sepcon_comm.
+         rewrite <- memory_block_split by (pose_field; lia).
         f_equal; lia.
       * apply complete_legal_cosu_type_field_type.
         auto.
@@ -553,7 +555,7 @@ Proof.
         spec IH; [apply in_members_field_type; auto |].
         unfold snd in IH.
         rewrite IH.
-        {
+        { 
           rewrite sepcon_comm, <- memory_block_split by (pose_field; lia).
           f_equal; f_equal; lia.
         } {
@@ -632,7 +634,8 @@ Proof.
     rewrite default_val_eq with (t0 := (Tarray t z a)), unfold_fold_reptype.
     eapply derives_trans.
     apply IH; auto.
-    - pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil); simpl in H; try lia.
+    - pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
+       unfold sizeof in H; simpl in H; fold (sizeof t) in H; lia.
     - eapply align_compatible_rec_Tarray_inv; eauto.
       apply range_max0; auto.
     - apply derives_refl'. f_equal. unfold Znth. rewrite if_false by lia.
@@ -677,6 +680,7 @@ Proof.
         clear H3.
         pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (unfold_reptype v) _ _ H2.
         apply in_map with (f := fst) in H3; unfold fst in H3.
+        change (sizeof ?A) with (expr.sizeof A).
         rewrite withspacer_spacer, sizeof_Tunion.
         simpl.
         pattern (co_sizeof (get_co id)) at 2;
@@ -704,7 +708,8 @@ Proof.
           eapply align_compatible_rec_Tunion_inv'; eauto.
         }
         apply derives_refl.
-      * rewrite sizeof_Tunion.
+      * 
+        rewrite sizeof_Tunion.
         rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).
         auto.
 Qed.
@@ -939,7 +944,8 @@ Proof.
         lia.
       }
       apply IH; auto.
-      * pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil); lia.
+      * pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
+         unfold sizeof in H; simpl in H; fold (sizeof t) in H;  lia.
       * eapply align_compatible_rec_Tarray_inv; eauto.
         apply range_max0; auto.
   + rewrite struct_pred_ext with
@@ -950,7 +956,8 @@ Proof.
                (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p))
      (v1 := (struct_default_val (co_members (get_co id))));
     [| apply get_co_members_no_replicate |].
-    - rewrite memory_block_struct_pred.
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+      rewrite memory_block_struct_pred.
       * rewrite sizeof_Tstruct; auto.
       * apply get_co_members_nil_sizeof_0.
       * apply get_co_members_no_replicate.
@@ -962,6 +969,7 @@ Proof.
       * rewrite sizeof_Tstruct in H.
         auto.
     - intros.
+      change (sizeof ?A) with (expr.sizeof A) in *.
       pose proof get_co_members_no_replicate id as NO_REPLI.
       rewrite withspacer_spacer.
       simpl @fst.
@@ -983,7 +991,8 @@ Proof.
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (clear; destruct (co_members (get_co id)); [left | right]; congruence).
     destruct H3.
-    - rewrite sizeof_Tunion.
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+      rewrite sizeof_Tunion.
       rewrite (get_co_members_nil_sizeof_0 _ H3).
       forget (unfold_reptype v) as v'; simpl in v'.
       generalize (unfold_reptype (default_val (Tunion id a)));
@@ -992,7 +1001,8 @@ Proof.
       simpl.
       rewrite memory_block_zero.
       normalize.
-    - rewrite union_pred_ext with
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+      rewrite union_pred_ext with
        (P1 := fun it _ => memory_block sh (co_sizeof (get_co id)))
        (v1 := (unfold_reptype v));
       [| apply get_co_members_no_replicate | reflexivity |].

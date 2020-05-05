@@ -788,12 +788,12 @@ all: try (
   destruct ((@cenv_cs CS) ! i0); auto.
   destruct (field_offset (@cenv_cs CS) i (co_members c)); auto.
   destruct ((@cenv_cs CS) ! i0); auto.
- +
+ + unfold expr.sizeof.
    destruct (complete_type (@cenv_cs CS) t) eqn:?H.
   rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
   rewrite (cenv_sub_sizeof CSUB _ H0); auto.
   contradiction H; auto.
- +
+ + unfold expr.alignof.
    destruct (complete_type (@cenv_cs CS) t) eqn:?H.
   rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
   rewrite (cenv_sub_alignof CSUB _ H0); auto.

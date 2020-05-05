@@ -384,7 +384,7 @@ forward_if (EX shaStates:_ ,
              Vptr cb cofs,
              Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
-             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
+             @sizeof CompSpecs t_struct_SHA256state_st).
      (*5.9 versus 13*)
      { rewrite sepcon_comm.
        rewrite (field_at_data_at _ _ [StructField _md_ctx]).
@@ -440,7 +440,7 @@ forward_if (EX shaStates:_ ,
              Vptr cb cofs,
              Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
-             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
+             @sizeof CompSpecs t_struct_SHA256state_st).
     (* 4.7 versus 14.7 *)
     { rewrite sepcon_comm.
       apply sepcon_derives.

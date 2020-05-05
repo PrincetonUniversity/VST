@@ -2036,8 +2036,7 @@ Qed.
 Lemma cond_var_exclusive : forall {cs} sh p, sepalg.nonidentity sh ->
   exclusive_mpred (@cond_var cs sh p).
 Proof.
-  intros; apply data_at__exclusive; auto.
-  unfold tcond; simpl; lia.
+  intros; apply data_at__exclusive; auto. computable.
 Qed.
 
 Lemma lock_inv_isptr : forall sh v R, lock_inv sh v R = !!isptr v && lock_inv sh v R.
