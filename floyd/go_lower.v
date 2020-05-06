@@ -378,25 +378,30 @@ Proof.
     eapply derives_trans; [exact H | auto].
 Qed.
 
+Inductive No_value_for_temp_variable (i: ident) : Prop := .
+Inductive No_value_for_lvar_variable (i: ident) : Prop := .
+Inductive Wrong_type_for_lvar_variable (i: ident) : Prop := .
+Inductive Missing_gvars (gv: globals) : Prop := .
+
 Definition msubst_extract_local (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) (x: localdef): Prop :=
   match x with
   | temp i u =>
     match T1 ! i with
     | Some v => u = v
-    | None => False
+    | None => No_value_for_temp_variable i
     end
   | lvar i ti u =>
     match T2 ! i with
     | Some (tj, v) =>
       if eqb_type ti tj
       then u = v
-      else False
-    | _ => False
+      else Wrong_type_for_lvar_variable i
+    | _ => No_value_for_lvar_variable i
     end
   | gvars gv =>
     match GV with
     | Some gv0 => gv0 = gv
-    | _ => False
+    | _ => Missing_gvars gv
     end
   end.
 
