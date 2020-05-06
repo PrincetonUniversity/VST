@@ -3694,9 +3694,11 @@ See also: \lstinline{split3_data_at_Tarray}.
 \chapter{sublist}
 \label{refcard:sublist}
 
-(Since VST 2.6, we recommend using the new \lstinline{list_solve} tactic, described in
+\emph{Since VST 2.6, we recommend using the new \emph{\lstinline{list_solve}}
+and \emph{\lstinline{list_simplify}} tactics, described in
 \autoref{refcard:list_solve} and \autoref{refcard:list_solve-advanced}.
-We still provide this old version of list reasoning automation for the users that still prefer this version.)
+Using \textbf{autorewrite with sublist} is less efficient,
+and in certain corner cases, can turn provable goals into unprovable goals.}
 
 \autoref{refcard:split-array} explained that we often need
 to reason about slices of arrays whose contents are sublists of lists.
