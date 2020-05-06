@@ -83,11 +83,11 @@ Theorem IO_OS_soundness:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
    semax_prog prog initial_oracle V G ->
    Genv.init_mem prog = Some m ->
-   exists b, exists q, exists m',
+   exists b, exists q,
      Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
      initial_core (Clight_core.cl_core_sem (globalenv prog))
-         0 m q m' (Vptr b Ptrofs.zero) nil /\
-   forall n, exists traces, ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem valid_trace n TEnd traces initial_oracle q m' /\
+         0 m q m (Vptr b Ptrofs.zero) nil /\
+   forall n, exists traces, ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem valid_trace n TEnd traces initial_oracle q m /\
      forall t, In _ traces t -> exists z', consume_trace initial_oracle z' t.
 Proof.
   intros; eapply OS_soundness with (dryspec := io_dry_spec ext_link); eauto.
@@ -347,17 +347,18 @@ Theorem IO_OS_ext:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
    semax_prog prog initial_oracle V G ->
    Genv.init_mem prog = Some m ->
-   exists b, exists q, exists m',
+   exists b, exists q, 
      Genv.find_symbol (Genv.globalenv prog) (AST.prog_main prog) = Some b /\
      initial_core (cl_core_sem (globalenv prog))
-         0 m q m' (Vptr b Ptrofs.zero) nil /\
+         0 m q m (Vptr b Ptrofs.zero) nil /\
    forall n s0, s0.(io_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
-    exists traces, OS_safeN_trace n TEnd traces initial_oracle s0 q m' /\
+    exists traces, OS_safeN_trace n TEnd traces initial_oracle s0 q m /\
      forall t s, In _ traces (t, s) -> exists z', consume_trace initial_oracle z' t /\ t = trace_of_ostrace s.(io_log) /\
       valid_trace_user s.(io_log).
 Proof.
-  intros; eapply IO_OS_soundness in H as (? & ? & ? & ? & ? & Hsafe); eauto.
-  do 4 eexists; eauto; split; eauto; intros.
+  intros.
+  eapply IO_OS_soundness in H as (? & ? & ? & ? & Hsafe); eauto.
+  do 3 eexists; eauto; split; eauto; intros.
   destruct (Hsafe n) as (? & Hsafen & Htrace).
   eapply ext_safe_OS_safe in Hsafen as (? & Hsafen & Htrace').
   do 2 eexists; eauto; intros ?? Hin.

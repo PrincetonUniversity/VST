@@ -565,7 +565,7 @@ Theorem prog_toplevel : exists q,
              (io_dry_spec ext_link) {| genv_genv := Genv.globalenv prog; genv_cenv := prog_comp_env prog |} n
             main_itree q init_mem.
 Proof.
-  edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
+  edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
   - repeat intro; simpl. apply I.
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
@@ -573,7 +573,5 @@ Proof.
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
-    assert (m' = init_mem); [|subst; auto].
-    hnf in Hq. (* Our semantics.initial_core used to say something about the memory as well, but apparently it doesn't anymore. *)
-    admit.
-Admitted.
+    auto.
+Qed.

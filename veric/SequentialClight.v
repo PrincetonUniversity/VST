@@ -397,16 +397,16 @@ Lemma whole_program_sequential_safety_ext:
      prog V G m,
      @semax_prog Espec (*NullExtension.Espec*) CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, exists m',
+     exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core  (cl_core_sem (globalenv prog))
-           0 m q m' (Vptr b Ptrofs.zero) nil /\
+           0 m q m (Vptr b Ptrofs.zero) nil /\
        forall n,
         @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
             (cl_core_sem (globalenv prog))
             (*(dryspec  OK_ty)*) dryspec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) 
-             n initial_oracle q m'.
+             n initial_oracle q m.
 Proof.
  intros.
  destruct (@semax_prog_rule Espec CS _ _ _ _ 
@@ -414,7 +414,7 @@ Proof.
      initial_oracle EXIT H H0) as [b [q [[H1 H2] H3]]].
  destruct (H3 O) as [jmx [H4x [H5x [H6x [H7x _]]]]].
  destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
- exists b, q, (m_dry jmx').
+ exists b, q. (* , (m_dry jmx'). *)
  split3; auto.
  rewrite H4x in H8y. auto.
  subst. simpl. clear H5x H6x H7x H8y.
@@ -454,11 +454,6 @@ Proof.
      apply IHn; auto. lia.
      replace (level m'') with n0 by lia. auto.
  -
-(*
-   assert (JDE1': ext_spec_type dryspec = ext_spec_type OK_spec)
-      by apply JDE.
-*)
-(*   destruct JDE as [JDE1 [JDE2 [JDE3 JDE4]]]. *)
    destruct dryspec as [ty pre post exit]. simpl in *. (* subst ty. *)
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
@@ -547,7 +542,6 @@ Proof.
  - eapply safeN_halted; eauto.
     apply JDE. auto.
  Unshelve. simpl. split; [apply Share.nontrivial | hnf]. exists None; constructor.
-all: fail.
 Qed.
 
 Require Import VST.veric.juicy_safety.

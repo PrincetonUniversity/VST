@@ -135,15 +135,15 @@ Section ext_trace.
      V G m,
      @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, exists m',
+     exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core  (cl_core_sem (globalenv prog))
-           0 m q m' (Vptr b Ptrofs.zero) nil /\
-       forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m'.
+           0 m q m (Vptr b Ptrofs.zero) nil /\
+       forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m.
   Proof.
     intros.
-    eapply CSHL_Sound.semax_prog_sound, whole_program_sequential_safety_ext in H as (b & q & m' & ? & ? & Hsafe); eauto.
-    do 4 eexists; eauto; split; eauto; intros n.
+    eapply CSHL_Sound.semax_prog_sound, whole_program_sequential_safety_ext in H as (b & q & ? & ? & Hsafe); eauto.
+    do 3 eexists; eauto; split; eauto; intros n.
     eapply dry_safe_ext_trace_safe; eauto.
   Qed.
 
@@ -175,16 +175,16 @@ Section ext_trace.
      V G m,
      @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, exists m',
+     exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core  (cl_core_sem (globalenv prog))
-           0 m q m' (Vptr b Ptrofs.zero) nil /\
-       forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m' /\
+           0 m q m (Vptr b Ptrofs.zero) nil /\
+       forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m /\
          forall t, In _ traces t -> exists z', consume_trace initial_oracle z' t.
   Proof.
     intros.
-    eapply safety_trace in H as (b & q & m' & ? & ? & Hsafe); eauto.
-    exists b, q, m'; split; auto; split; auto.
+    eapply safety_trace in H as (b & q & ? & ? & Hsafe); eauto.
+    exists b, q; split; auto; split; auto.
     intros n; destruct (Hsafe n) as [traces Hsafen].
     exists traces; split; auto.
     intros; eapply trace_correct; eauto.
