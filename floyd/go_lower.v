@@ -854,6 +854,7 @@ intros;
 match goal with
  | |- local _ && PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
  | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
+ | |- ENTAIL _, _ |-- _ => fail 10 "The left-hand-side of your entailment is not in PROP/LOCAL/SEP form"
  | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
 end;
 clean_LOCAL_canon_mix;

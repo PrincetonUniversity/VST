@@ -110,9 +110,7 @@ Proof.
     apply prop_ext.
     apply H1. rewrite H3. reflexivity.
  +
-    normalize.
-    apply pred_ext. normalize. apply exp_left; intro bl. apply exp_right with bl.
-    normalize.
+    apply pred_ext; Intros; apply exp_left; intro bl; subst; contradiction.
 *
     f_equal. f_equal. f_equal.
     unfold tc_val'. apply prop_ext. intuition.

@@ -115,7 +115,7 @@ forward_loop (EX i : Z,
   Exists 0; rewrite sublist_nil; entailer!.
 - Intros i. 
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
-  forward. normalize.
+  forward.
   forward. fold_Vbyte.
  forward_if.
   { forward. simpl. 
@@ -185,8 +185,8 @@ forward_loop (EX i : Z,
   Intros i.
   forward.
   { entailer!. }
-  { entailer!. autorewrite with sublist. normalize.  }
-  autorewrite with sublist; normalize.
+  { entailer!. autorewrite with sublist norm. auto.  }
+  autorewrite with sublist norm.
   forward.
   forward_if.
   + forward.
@@ -215,7 +215,7 @@ forward_loop (EX i : Z,
    }
   { Intros j.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
-  forward. normalize.
+  forward.  autorewrite with norm.
   forward. fold_Vbyte.
   forward.
   entailer!.
@@ -281,7 +281,7 @@ forward_loop (EX i : Z,
 - Exists 0; entailer!.
 - Intros i.
   assert (Zlength (ls1 ++ [Byte.zero]) = Zlength ls1 + 1) by (autorewrite with sublist; auto).
-  forward. normalize.
+  forward. autorewrite with norm.
   assert (Zlength (ls2 ++ [Byte.zero]) = Zlength ls2 + 1) by (autorewrite with sublist; auto).
   forward. fold_Vbyte.
   assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls1) as Hs1.
@@ -292,7 +292,7 @@ forward_loop (EX i : Z,
   { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by lia; auto].
     destruct (zlt i (Zlength ls2)); [|lia].
     intro X; lapply (Znth_In i ls2); [|lia]. cstring. }
-  forward. normalize.
+  forward.
   forward. fold_Vbyte.
   forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   { forward.
@@ -312,7 +312,7 @@ forward_loop (EX i : Z,
      rewrite (proj2 (Z.eqb_neq i (Zlength ls2))) by auto.
     entailer!.
      contradict n.
-     apply repr_inj_signed in n; try rep_lia. normalize in n.
+     apply repr_inj_signed in n; try rep_lia.  autorewrite with norm in n. auto.
  }
   { forward.
     entailer!.
@@ -340,7 +340,7 @@ forward_loop (EX i : Z,
 
    assert (H17: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by lia.
-   normalize in H17. clear H7 H8.
+   autorewrite with norm in H17. clear H7 H8.
    forward.
    Exists (i+1).
    entailer!.
@@ -401,7 +401,7 @@ forward_loop (EX i : Z,
 *
  Intros i.
  assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
- forward. normalize.
+ forward. autorewrite with norm.
  forward. fold_Vbyte.
  forward.
  forward_if.
@@ -478,7 +478,7 @@ forward_loop (EX i : Z,
 - repeat step!.
 - Intros i.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
-  forward. normalize.
+  forward. autorewrite with norm.
   forward. fold_Vbyte.
   forward_if (Znth i (ls ++ [Byte.zero]) <> c).
 
@@ -598,7 +598,8 @@ forward_loop (EX i : Z,
   all : rewrite andb_false_iff in *; rewrite !Z.eqb_neq in *.
   all : assert (HZnth: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by lia.
-  all : normalize in HZnth. all: clear -Espec sh1 sh2 str1 ls1 str2 ls2 H H0 i H1 H2 H3 H4 HZnth.
+  all : autorewrite with norm in HZnth.
+  all: clear -Espec sh1 sh2 str1 ls1 str2 ls2 H H0 i H1 H2 H3 H4 HZnth.
   Time all: list_solve.
   (* Finished transaction in 12.274 secs (12.187u,0.062s) (successful) *)
 Qed.

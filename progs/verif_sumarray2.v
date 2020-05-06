@@ -77,7 +77,7 @@ entailer!.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by lia.
  rewrite sum_Z_app. rewrite (sublist_one i) by lia.
- simpl. autorewrite with sublist. normalize.
+ simpl. lia.
 * (* After the loop *)
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body

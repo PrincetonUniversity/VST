@@ -238,7 +238,8 @@ Open Scope logic.
 Lemma iter_sepcon_sepcon: forall {A} f g1 g2 l, (forall b : A, f b = g1 b * g2 b) ->
   iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
 Proof.
-  intros; induction l; simpl; normalize.
+  intros; induction l; simpl.
+  autorewrite with norm; auto.
   rewrite H, IHl; apply pred_ext; cancel.
 Qed.
 
@@ -2574,7 +2575,7 @@ Proof.
     if_tac.
     + apply orp_left; Intros; auto.
       Exists v2; auto.
-    + normalize. apply andp_right; auto. apply prop_right; split; auto. hnf; intros. contradiction H3; auto.
+    + Intros. apply andp_right; auto. apply prop_right; split; auto. hnf; intros. contradiction H3; auto.
   - rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
     apply andp_right; [apply prop_right; auto|].
     if_tac.
@@ -2592,7 +2593,7 @@ Proof.
       subst. apply sepcon_derives; auto. apply andp_right; auto.
       apply prop_right; auto.
     + apply sepcon_derives; auto.
-      normalize. apply andp_right; auto.
+      Intros. apply andp_right; auto.
       apply prop_right; split; auto.
       intro; auto. 
 Opaque mpred.
@@ -2962,7 +2963,7 @@ Lemma void_ret : ifvoid tvoid (` (PROP ( )  LOCAL ()  SEP ()) (make_args [] []))
   (EX v : val, ` (PROP ( )  LOCAL ()  SEP ()) (make_args [ret_temp] [v])) = emp.
 Proof.
   extensionality; simpl.
-  unfold liftx, lift, PROPx, LOCALx, SEPx; simpl; normalize.
+  unfold liftx, lift, PROPx, LOCALx, SEPx; simpl. autorewrite with norm. auto.
 Qed.
 
 (*
@@ -3281,7 +3282,7 @@ Lemma PROP_into_SEP_LAMBDA : forall P U Q R, PROPx P (LAMBDAx U Q (SEPx R)) =
 Proof.
   intros; unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx, argsassert2assert; 
   extensionality; simpl.
-  apply pred_ext; normalize; entailer!.
+  apply pred_ext; entailer!; apply derives_refl.
 Qed.
 
 Ltac cancel_for_forward_spawn :=

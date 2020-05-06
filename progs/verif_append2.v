@@ -26,9 +26,9 @@ Lemma listrep_local_facts:
      !! (is_pointer_or_null p /\ (p=nullval <-> contents=nil)).
 Proof.
 intros.
-revert p; induction contents; unfold listrep; fold listrep; intros; normalize.
-apply prop_right; split; simpl; auto. intuition.
-entailer!.
+revert p; induction contents; 
+  unfold listrep; fold listrep; intros. entailer!. intuition.
+Intros y. entailer!.
 split; intro. subst p. destruct H; contradiction. inv H2.
 Qed.
 
@@ -39,10 +39,12 @@ Lemma listrep_valid_pointer:
    sepalg.nonidentity sh ->
    listrep sh contents p |-- valid_pointer p.
 Proof.
- destruct contents; unfold listrep; fold listrep; intros; normalize.
+ destruct contents; unfold listrep; fold listrep; intros; Intros; subst.
  auto with valid_pointer.
+ Intros y.
  apply sepcon_valid_pointer1.
- apply data_at_valid_ptr; auto. simpl;  computable.
+ apply data_at_valid_ptr; auto.
+ simpl;  computable.
 Qed.
 
 Hint Resolve listrep_valid_pointer : valid_pointer.
@@ -51,7 +53,7 @@ Lemma listrep_null: forall sh contents,
     listrep sh contents nullval = !! (contents=nil) && emp.
 Proof.
 destruct contents; unfold listrep; fold listrep.
-normalize.
+autorewrite with norm. auto.
 apply pred_ext.
 Intros y. entailer. destruct H; contradiction.
 Intros.
@@ -90,7 +92,7 @@ Proof.
 start_function.
 forward_if.
 *
- subst x. rewrite listrep_null. normalize.
+ subst x. rewrite listrep_null.  Intros.  subst.
  forward.
  Exists y.
  entailer!.
@@ -98,7 +100,7 @@ forward_if.
 *
  forward.
  destruct s1 as [ | v s1']; unfold listrep at 1; fold listrep.
- normalize.
+ Intros.  contradiction.
  Intros u.
  remember (v::s1') as s1.
  forward.
@@ -138,10 +140,10 @@ forward_if.
    simpl app.
    clear.
    entailer!.
-   unfold listrep at 3; fold listrep. normalize.
+   unfold listrep at 3; fold listrep. Intros.
    pull_right (listrep sh (a :: s2) t -* listrep sh (s1 ++ s2) x).
    apply modus_ponens_wand'.
-   unfold listrep at 2; fold listrep. Exists y; auto.
+   unfold listrep at 2; fold listrep. Exists y; cancel.
 Qed.
 
 End Proof1.
@@ -156,7 +158,7 @@ Proof.
 start_function.
 forward_if.
 *
- subst x. rewrite listrep_null. normalize.
+ subst x. rewrite listrep_null. Intros; subst. 
  forward.
  Exists y.
  entailer!.
@@ -200,7 +202,7 @@ forward_if.
    forward. forward.
    Exists x. entailer!.
    destruct H3 as [? _]. specialize (H3 (eq_refl _)). subst s1b.
-   unfold listrep at 1. normalize. rewrite H0. rewrite app_ass. simpl app.
+   unfold listrep at 1.  Intros. autorewrite with norm.  rewrite H0. rewrite app_ass. simpl app.
    unfold lseg.
    rewrite sepcon_assoc.
    eapply derives_trans; [apply allp_sepcon1 | ]. apply allp_left with (a::s2).
@@ -253,7 +255,8 @@ Lemma lseg_valid_pointer:
    sepalg.nonidentity sh ->
    lseg sh contents p nullval |-- valid_pointer p.
 Proof.
- destruct contents; unfold lseg; fold lseg; intros; normalize;
+ destruct contents; unfold lseg; fold lseg; intros. entailer!.
+ Intros. Intros y.
  auto with valid_pointer.
 Qed.
 
@@ -265,9 +268,8 @@ Proof.
 intros.
 destruct contents; unfold lseg; fold lseg.
 f_equal. f_equal. f_equal. apply prop_ext; intuition.
-normalize.
 apply pred_ext.
-Intros y. entailer.
+Intros y. contradiction.
 Intros.
 Qed.
 

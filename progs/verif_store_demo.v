@@ -80,8 +80,7 @@ simpl (temp _p _).
 assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl.
-  normalize.
+  simpl. reflexivity.
 }
 (* p->snd = v; *)
 forward.
@@ -104,7 +103,7 @@ assert_PROP (
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. normalize.  f_equal. unfold sizeof; simpl; lia.
+  simpl. f_equal. lia.
 }
 (* int res = p->snd; *)
 forward.
@@ -124,7 +123,7 @@ simpl (temp _p _).
 assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  normalize.
+  simpl. reflexivity.
 }
 rewrite E. clear E.
 (* int res = p->snd; *)

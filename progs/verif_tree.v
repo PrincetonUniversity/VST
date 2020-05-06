@@ -35,7 +35,7 @@ Lemma list_rep_valid_pointer:
   forall l p, list_rep l p |-- valid_pointer p.
 Proof.
   intros.
-  destruct l; simpl; normalize; auto with valid_pointer.
+  destruct l; simpl; Intros; try Intros y; subst; auto with valid_pointer.
 Qed.
 
 Lemma list_rep_local_facts:
@@ -43,10 +43,9 @@ Lemma list_rep_local_facts:
   forall l p, list_rep l p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> l=nil)).
 Proof.
   intros.
-  destruct l; simpl; normalize; entailer!.
+  destruct l; simpl; Intros; try Intros y; entailer!.
   + split; auto.
-  + split; intros; try congruence.
-    subst; inv Pp.
+  + split; intros; subst; try congruence; try contradiction.
 Qed.
 
 End LISTS.
@@ -77,7 +76,7 @@ Lemma tree_rep_valid_pointer:
   forall t p, tree_rep t p |-- valid_pointer p.
 Proof.
   intros.
-  destruct t; simpl; normalize; auto with valid_pointer.
+  destruct t; simpl; Intros; try Intros x y; subst; auto with valid_pointer.
 Qed.
 
 Lemma tree_rep_local_facts:
@@ -85,7 +84,7 @@ Lemma tree_rep_local_facts:
   forall t p, tree_rep t p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> t=E)).
 Proof.
   intros.
-  destruct t; simpl; normalize; entailer!.
+  destruct t; simpl; Intros; try Intros x y; subst; entailer!.
   + split; auto.
   + split; intros; try congruence.
     subst; inv Pp.
@@ -172,8 +171,7 @@ Proof.
       simpl.
       apply andp_right; [apply prop_right; subst; auto |].
       apply derives_refl.
-  + apply exp_left; intros tl.
-    normalize.
+  + apply exp_left; intros tl. Intros; subst.
     induction tl.
     - simpl. auto.
     - simpl.
@@ -205,7 +203,7 @@ Lemma xtree_rep_valid_pointer:
   forall t p, xtree_rep t p |-- valid_pointer p.
 Proof.
 intros.
-destruct t; simpl; normalize; auto with valid_pointer.
+destruct t; simpl; Intros; try Intros q; subst; auto with valid_pointer.
 Qed.
 Hint Resolve xtree_rep_valid_pointer: valid_pointer.
 
@@ -213,7 +211,7 @@ Lemma xtree_rep_local_facts:
   forall t p, xtree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = XLeaf)).
 Proof.
 intros.
-destruct t; simpl; normalize; entailer!.
+destruct t; simpl; Intros; try Intros q;  entailer!.
 + split; auto.
 + split; intros; try congruence.
   subst; destruct H as [? _]; inv H.
@@ -334,7 +332,7 @@ Lemma ytree_rep_valid_pointer:
   forall t p, ytree_rep t p |-- valid_pointer p.
 Proof.
 intros.
-destruct t; simpl; normalize; auto with valid_pointer.
+destruct t; simpl; Intros; try Intros q; subst; auto with valid_pointer.
 Qed.
 Hint Resolve ytree_rep_valid_pointer: valid_pointer.
 
@@ -342,7 +340,7 @@ Lemma ytree_rep_local_facts:
   forall t p, ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = YLeaf)).
 Proof.
 intros.
-destruct t; simpl; normalize; entailer!.
+destruct t; simpl; Intros; try Intros q; entailer!.
 + split; auto.
 + split; intros; try congruence.
   subst; destruct H as [? _]; inv H.
@@ -812,7 +810,7 @@ Proof.
   destruct t as [| [? ?] t']; [congruence | clear H0].
   unfold lt_ytree_rep.
   Intros r.
-  destruct r; [simpl; normalize |].
+  destruct r; [simpl; Intros; contradiction |].
   abbreviate_semax.
   simpl.
   Intros y.
@@ -855,7 +853,7 @@ Proof.
   destruct t as [| a [? ?] b]; [congruence |].
   unfold t_ytree_rep.
   Intros s.
-  destruct s; [simpl; normalize |].
+  destruct s; [simpl; Intros; contradiction |].
   abbreviate_semax.
   simpl.
   Intros pa pb.

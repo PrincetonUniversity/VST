@@ -91,7 +91,7 @@ rewrite field_at_data_at.
 simpl.
 rewrite field_compatible_field_address
   by auto with field_compatible.
-simpl. normalize. cancel.
+simpl.  autorewrite with norm. cancel.
 pose (x :=
 field_at Ews (Tstruct _foo noattr) [
       StructField _m] (Vint (Int.repr 0)) (gv _LG_foo)).

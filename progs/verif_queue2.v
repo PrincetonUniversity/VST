@@ -179,7 +179,7 @@ forward. (* return (h == NULL); *)
 {
 unfold fifo, fifo_body.
 destruct (isnil contents).
-+ normalize; auto with valid_pointer.
++ Intros. subst. auto with valid_pointer.
 + entailer!.
   destruct hd; inv PNhd; entailer!.
 }

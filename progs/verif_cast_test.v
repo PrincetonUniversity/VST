@@ -40,7 +40,7 @@ forward.  (*  d = d & b; *)
 forward.  (* return d *)
 entailer!. clear.
 rewrite <- Int64.mul_pow2 with (n:= Int64.repr 256) by reflexivity.
-normalize.
+rewrite mul64_repr, and64_repr.
 rewrite (Z.land_ones _ 8) by computable.
 rewrite Z_mod_mult.
 reflexivity.

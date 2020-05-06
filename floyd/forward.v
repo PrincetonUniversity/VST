@@ -3094,7 +3094,7 @@ Proof.
   intros.
   rewrite (add_andp _ _ H), (add_andp _ _ H0), andp_assoc.
   apply andp_left2.
-  intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+  intros rho; simpl; unfold local, lift1; unfold_lift; floyd.seplog_tactics.normalize.
   constructor; auto.
   2:   constructor; auto.
   clear - H1. destruct (typeof ei); inv H1.
@@ -3111,7 +3111,7 @@ Lemma efield_denote_cons_struct: forall {cs: compspecs} P efs gfs i,
 Proof.
   intros.
   eapply derives_trans; [exact H |].
-  intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+  intros rho; simpl; unfold local, lift1; unfold_lift; floyd.seplog_tactics.normalize.
   constructor; auto.
 Qed.
 
@@ -3121,7 +3121,7 @@ Lemma efield_denote_cons_union: forall {cs: compspecs} P efs gfs i,
 Proof.
   intros.
   eapply derives_trans; [exact H |].
-  intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+  intros rho; simpl; unfold local, lift1; unfold_lift; floyd.seplog_tactics.normalize.
   constructor; auto.
 Qed.
 
@@ -3489,7 +3489,7 @@ replace (PROPx P' (LOCALx Q' (SEPx (r1 :: R'))) * VBS)
   extensionality rho;
  unfold PROPx, LOCALx, SEPx; unfold_lift; simpl.
  unfold local, lift1.
- normalize. f_equal. rewrite <- sepcon_assoc.
+ floyd.seplog_tactics.normalize. f_equal. rewrite <- sepcon_assoc.
  pull_left r1. auto.
 }
 apply derives_trans with

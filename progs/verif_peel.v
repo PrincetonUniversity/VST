@@ -58,7 +58,7 @@ clear H H0.
    to a while loop, which is easy with this tactic: *)
 apply semax_convert_for_while'; [reflexivity .. | ].
 forward.  (*  i = b+1; *)
-normalize.
+rewrite add_repr.
 (* Now comes the interesting part.  What should the loop invariant be?
   AFTER the first iteration, this invariant will work:
       (EX i:Z, PROP (0 <= i <= b+1; b < (i+1)*(i+1))

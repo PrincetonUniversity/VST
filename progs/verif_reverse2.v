@@ -54,9 +54,8 @@ Lemma listrep_local_facts:
 Proof.
 intros.
 revert p; induction sigma; 
-  unfold listrep; fold listrep; intros; normalize.
-apply prop_right; split; simpl; auto. intuition.
-entailer!.
+  unfold listrep; fold listrep; intros. entailer!. intuition.
+Intros y. entailer!.
 split; intro. subst p. destruct H; contradiction. inv H2.
 Qed.
 
@@ -66,9 +65,9 @@ Lemma listrep_valid_pointer:
   forall sigma p,
    listrep sigma p |-- valid_pointer p.
 Proof.
- destruct sigma; unfold listrep; fold listrep;
- intros; normalize.
+ destruct sigma; unfold listrep; fold listrep; intros; Intros; subst.
  auto with valid_pointer.
+ Intros y.
  apply sepcon_valid_pointer1.
  apply data_at_valid_ptr; auto.
  simpl;  computable.
