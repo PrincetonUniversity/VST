@@ -3735,6 +3735,7 @@ Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant o
                else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
   end.
 
+
 Ltac forward_advise_if := 
   advise_prepare_postcondition;
  lazymatch goal with
@@ -3742,6 +3743,10 @@ Ltac forward_advise_if :=
        tryif has_evar R
        then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
        else fail "Use [forward_if] to prove this if-statement; you don't need to supply a postcondition"
+   | |- semax _ _ (Sswitch _ _) ?R =>
+       tryif has_evar R
+       then fail "Use [forward_if Post] to prove this switch-statement, where Post is the postcondition of all branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
+       else fail "Use [forward_if] to prove this switch-statement; you don't need to supply a postcondition"
   end.
 
 Ltac forward_advise_while := 
@@ -3757,7 +3762,8 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   | Sassign _ _ => clear_Delta_specs; store_tac
   | Sset _ ?e => clear_Delta_specs;
     first [no_loads_expr e false; forward_setx | load_tac]
-  | Sifthenelse ?e _ _ => forward_advise_if
+  | Sifthenelse _ _ _ => forward_advise_if
+  | Sswitch _ _ => forward_advise_if
   | Swhile _ _ => forward_advise_while
   | Sfor _ _ _ _ => forward_advise_loop s
   | Sloop _ _ => forward_advise_loop s
