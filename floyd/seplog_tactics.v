@@ -864,7 +864,7 @@ Ltac fold_abnormal_mpred :=
 Ltac new_cancel local_tac :=
   match goal with
   | |- @derives mpred Nveric _ _ => idtac
-  | _ => fail 1000 "Tactic cancel can only handle proof goals with form _ |-- _ (unlifted version)."
+  | _ => fail "Tactic cancel can only handle proof goals with form _ |-- _ (unlifted version)."
   end;
   eapply symbolic_cancel_setup;
   [ construct_fold_right_sepcon
