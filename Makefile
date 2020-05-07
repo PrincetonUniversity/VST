@@ -1,125 +1,234 @@
-# See the file BUILD_ORGANIZATION for
-# explanations of why this is the way it is
+# ########## Configuration ##########
 
-COMPCERT ?= compcert
+# See the file BUILD_ORGANIZATION.md
+# for explanations of why this is the way it is.
+
 -include CONFIGURE
-#Note:  You can make a CONFIGURE file with the definition
-#   COMPCERT=../compcert
-# if, for example, you want to build from a compcert distribution
-# that is sitting in a sister directory to vst.
-#
-# One can also add in CONFIGURE the line
-#   COQBIN=/path/to/bin/
-# to a directory containing the coqc/coqdep/... you wish to use, if it
-# is not your path.
-#
-# You can override ARCH and BITSIZE in the configure file, too;
-# otherwise ARCH and BITSIZE are taken from $(COMPCERT)/Makefile.config.
 
-ifeq ($(BITSIZE),64)
-PROGSDIR=progs64
-else
-PROGSDIR=progs
-endif
-
-default_target: _CoqProject msl veric floyd $(PROGSDIR)
-
-
-
-#Note2:  By default, the rules for converting .c files to .v files
-# are inactive.  To activate them, do something like
-#CLIGHTGEN=$(COMPCERT)/clightgen
-
-#Note3: for SSReflect, one solution is to install MathComp 1.6
-# somewhere add this line to a CONFIGURE file
-# MATHCOMP=/my/path/to/mathcomp
-# and on Windows, it might be   MATHCOMP=c:/Coq/lib/user-contrib/mathcomp
+# ##### Configure Coq #####
 
 # ANNOTATE=true   # label chatty output from coqc with file name
 ANNOTATE=silent   # suppress chatty output from coqc
 # ANNOTATE=false  # leave chatty output of coqc unchanged
-
-CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
-CC_DIRS= lib common cfrontend exportclight
-VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86
-OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics  boringssl_fips_20180730
-DIRS = $(VSTDIRS) $(OTHERDIRS)
-CONCUR = concurrency
-
-CV1=$(shell cat compcert/VERSION)
-CV2=$(shell cat $(COMPCERT)/VERSION)
-
-ifneq ($(COMPCERT), compcert_new)
-ifneq ($(CV1), $(CV2))
- $(error COMPCERT_VERSION=$(CV1) but $(COMPCERT)/VERSION=$(CV2))
-endif
-
-ifeq ($(wildcard $(COMPCERT)/*/Clight.vo), )
-ifeq ($(COMPCERT), compcert)
-else
- $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT); make clightgen)
-endif
-endif
-endif
-
-ARCH ?= $(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.config)
-BITSIZE ?= $(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
-
-ifeq ($(COMPCERT), compcert_new)
-BACKEND=backend
-ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
-ARCHDIRS=$(ARCH)
-else
-ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
-endif
-else
-ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
-ARCHDIRS=$(ARCH)
-else
-ARCHDIRS=$(ARCH) $(ARCH)_$(BITSIZE)
-endif
-endif
-
-
-FLOCQ=       # this mode to use the flocq packaged with Coq or opam
-# FLOCQ=flocq  # this mode to use the flocq built into compcert
-
-COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend exportclight $(BACKEND) $(FLOCQ)
-
-COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
-EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
-# ifneq ($(wildcard coq-ext-lib/theories),)
-# EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
-# endif
-ifneq ($(wildcard InteractionTrees/theories),)
-EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
-endif
-ifneq ($(wildcard fcf/src/FCF),)
-EXTFLAGS:=$(EXTFLAGS) -Q fcf/src/FCF FCF
-endif
-ifneq ($(wildcard paco/src),)
-EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
-endif
-
-# for SSReflect
-ifdef MATHCOMP
- EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
-endif
-
-#ifeq ($(COMPCERT), compcert_new)
-#SHIM= -Q concurrency/shim VST.veric
-#endif
-
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
-
-#COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
-DEPFLAGS:=$(COQFLAGS)
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
 COQC=$(COQBIN)coqc
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep -vos
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
+COQLIB=$(shell $(COQC) -where)
+
+# Check Coq version
+
+COQVERSION= 8.11.0 or-else 8.11.1 or-else 8.11.2 or-else 8.12+beta1 or-else 8.12.0
+
+COQV=$(shell $(COQC) -v)
+ifneq ($(IGNORECOQVERSION),true)
+  ifeq ("$(filter $(COQVERSION),$(COQV))","")
+    $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+  endif
+endif
+
+# ##### Configure Compcert #####
+
+# Note:  You can make a CONFIGURE file with definitions like
+#
+#   BITSIZE=64               (choose 64 bit compcert)
+#   ARCH=x86                 (make sure compcert has architecture x86)
+#
+#   COMPCERT=compcert        (opam / coq-platform supplied compcert)
+#   COMPCERT=compcert64      (opam supplied 64 bit compcert)
+#   COMPCERT=mycompcert      (private compcert installed in lib/coq/user-control)
+#
+#   COMPCERT_INST_PATH=/home/me/compcert
+#                            (user local compcert inplace build)
+#
+#   COMPCERT_NEW             (if defined enables compatibility options for
+#                             new experimental compcert)
+#
+# Note: BITSIZE can be used to choose a 64 bit compcert but ARCH cannot be used
+# to select non x86, because there is no standard name mapping. You need to
+# set COMPCERT or COMPCERT_INST_PATH to choose a different architecture.
+# But both will be chacked if you set COMPCERT or COMPCERT_INST_PATH, so you
+# can set COMPCERT, BITSIZE and ARCH to make sure COMPCERT is what you want.
+#
+# Note:  By default, the rules for converting .c files to .v files
+# are inactive.  To activate them, do something like
+# CLIGHTGEN=$(my_local_bin_path)/clightgen
+
+BITSIZE ?=
+ARCH ?=
+
+ifndef COMPCERT_INST_PATH
+  ifndef COMPCERT
+    ifeq ($(BITSIZE),)
+      COMPCERT ?= compcert
+    else ifeq ($(BITSIZE),32)
+      COMPCERT ?= compcert
+    else ifeq ($(BITSIZE),64)
+      COMPCERT ?= compcert64
+    else 
+      $(error ILLEGAL BITSIZE $(BITSIZE))
+    endif
+  endif
+  COMPCERT_INST_PATH ?= $(COQLIB)/user-contrib/$(COMPCERT)
+endif
+
+COMPCERT_CONFIG = $(COMPCERT_INST_PATH)/compcert.config
+
+# Verify that the version of the supplied compcert matches the version of the internal compcert
+
+CV1=$(shell cat compcert/VERSION)
+CV2=$(shell cat $(COMPCERT_INST_PATH)/VERSION)
+
+ifndef COMPCERT_NEW
+  ifneq ($(CV1), $(CV2))
+    $(error COMPCERT VERSION MISMATCH: COMPCERT_VERSION=$(CV1) but $(COMPCERT_INST_PATH)/VERSION=$(CV2))
+  endif
+endif
+
+# Verify that the version of the supplied clightgen matches the version of the internal compcert
+
+ifdef CLIGHTGEN
+  VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
+  VERSION2= $(subst version=,,$(shell grep version compcert/VERSION))
+  ifneq ($(VERSION1),$(VERSION2))
+    $(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
+  endif
+endif
+
+# Verify that the supplied compcert folder is built (contains .vo files)
+
+ifeq ($(wildcard $(COMPCERT_INST_PATH)/*/Clight.vo), )
+  $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT_INST_PATH); make clightgen)
+endif
+
+# ##### Configure Architecture #####
+
+ifeq ($(wildcard $(COMPCERT_CONFIG)),)
+    $(error Cannot find compcert.config in $(COMPCERT_INST_PATH))
+endif
+
+COMPCERT_ARCH ?= $(shell awk 'BEGIN{FS="="}$$1=="COMPCERT_ARCH"{print $$2}' $(COMPCERT_CONFIG))
+COMPCERT_BITSIZE ?= $(shell awk 'BEGIN{FS="="}$$1=="COMPCERT_BITSIZE"{print $$2}' $(COMPCERT_CONFIG))
+
+# Verify that the bitsize and architecture match
+
+ifneq ($(BITSIZE),)
+  ifneq ($(BITSIZE),$(COMPCERT_BITSIZE))
+    $(error The compcert found in $(COMPCERT_INST_PATH) has bitsize $(COMPCERT_BITSIZE) but you requested $(BITSIZE))
+  endif
+else
+  BITSIZE = $(COMPCERT_BITSIZE)
+endif
+
+ifneq ($(ARCH),)
+  ifneq ($(ARCH),$(COMPCERT_ARCH))
+    $(error The compcert found in $(COMPCERT_INST_PATH) has bitsize $(COMPCERT_ARCH) but you requested $(ARCH))
+  endif
+else
+  ARCH = $(COMPCERT_ARCH)
+endif
+
+# Choose VST programs folder
+
+ifeq ($(BITSIZE),64)
+  PROGSDIR=progs64
+else
+  PROGSDIR=progs
+endif
+
+ifdef COMPCERT_NEW
+  BACKEND=backend
+  ifeq ($(wildcard $(COMPCERT_INST_PATH)/$(ARCH)_$(BITSIZE)),)
+    ARCHDIRS=$(ARCH)
+  else
+    ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
+  endif
+else
+  ifeq ($(wildcard $(COMPCERT_INST_PATH)/$(ARCH)_$(BITSIZE)),)
+    ARCHDIRS=$(ARCH)
+  else
+    ARCHDIRS=$(ARCH) $(ARCH)_$(BITSIZE)
+  endif
+endif
+
+# ##### Configure ssreflect / mathcomp #####
+
+# This makefile assumes, that ssreflect / mathcomp is provided by the coq platform,
+# that is found in $(coqc -where)/user-contrib/mathcomp.
+# In case it is not, define in file CONFIGURE e.g.:
+
+# MATHCOMP=/my/path/to/mathcomp
+# MATHCOMP=c:/Coq/lib/user-contrib/mathcomp
+
+# ##### Configure Flocq #####
+
+FLOCQ=         # this mode to use the flocq packaged with Coq or opam
+# FLOCQ=flocq  # this mode to use the flocq built into compcert
+
+
+# ########## Flags ##########
+
+VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86
+OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics boringssl_fips_20180730
+DIRS = $(VSTDIRS) $(OTHERDIRS)
+CC_DIRS= lib common cfrontend exportclight
+
+# ##### Compcert Flags #####
+
+COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend exportclight $(BACKEND) $(FLOCQ)
+
+COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_PATH)/$(d) compcert.$(d))
+EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_PATH)/$(d) compcert.$(d))
+
+# Compcert Clightgen flags
+
+CGFLAGS =  -DCOMPCERT
+
+#ifdef COMPCERT_NEW
+#SHIM= -Q concurrency/shim VST.veric
+#endif
+
+# ##### ExtLib Flags #####
+
+# ifneq ($(wildcard coq-ext-lib/theories),)
+# EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
+# endif
+
+# ##### Interaction Trees Flags #####
+
+ifneq ($(wildcard InteractionTrees/theories),)
+EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
+endif
+
+# ##### FCF (Foundational Cryptography Framework) Flags #####
+
+ifneq ($(wildcard fcf/src/FCF),)
+EXTFLAGS:=$(EXTFLAGS) -Q fcf/src/FCF FCF
+endif#
+
+# ##### PaCo (Parameterized Coinduction) Flags #####
+
+ifneq ($(wildcard paco/src),)
+EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
+endif
+
+# ##### SSReflect Flags #####
+
+ifdef MATHCOMP
+EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
+endif
+
+# ##### Flag summary #####
+
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
+
+#COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
+DEPFLAGS:=$(COQFLAGS)
+
+
+# ########## File Lists ##########
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
@@ -302,18 +411,13 @@ C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
     global.c min.c nest2.c nest3.c \
     logical_compare.c \
     strlib.c switch.c union.c message.c
+
 V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
     verif_append2.v verif_bin_search.v \
     verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
     verif_global.v verif_min.v verif_nest2.v verif_nest3.v \
     verif_logical_compare.v \
     verif_strlib.v verif_switch.v verif_union.v verif_message.v
-
-ifeq ($(BITSIZE),64)
-PROGS_FILES=$(V64_ORDINARY)
-else
-PROGS_FILES=$(PROGS32_FILES)
-endif
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -416,13 +520,35 @@ FILES = \
 # $(CONCUR_FILES:%=concurrency/%) \
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
+# ##### Derived file lists #####
+
+CC_TARGET= $(COMPCERT_INST_PATH)/cfrontend/Clight.vo
+
+CVFILES = $(patsubst %.c,$(PROGSDIR)/%.v,$(C_FILES))
+CVOFILES = $(patsubst %.c,$(PROGSDIR)/%.vo,$(C_FILES))
+
+ifeq ($(BITSIZE),64)
+PROGS_FILES=$(V64_ORDINARY)
+else
+PROGS_FILES=$(PROGS32_FILES)
+endif
+
+PROGS64_FILES= $(V64_ORDINARY)
+
+
+# ########## Rules ##########
+
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
 # from progs/verif_reverse.v
 	grep -v '^.[*][*][ )]' $*.v >$@
 
-
+# The check of compcert is only required for builds of bundled compcert.
+# This is currently not supported, but keep it anyway until this is finally removed
 %.vo: COQF=$(if $(findstring compcert, $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
+
+# If CompCert changes, all .vo files need to be recompiled
+%.vo: $(COMPCERT_CONFIG)
 
 %.vo: %.v
 	@echo COQC $*.v
@@ -442,9 +568,6 @@ else
 #	@util/annotate $(COQC) $(COQF) $*.v
 endif
 
-# you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.11.0 or-else 8.11.1 or-else 8.11.2 or-else 8.12+beta1 or-else 8.12.0
-
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -453,27 +576,11 @@ else
  endif
 endif
 
+# ########## Targets ##########
 
+default_target: _CoqProject msl veric floyd $(PROGSDIR)
 
-#  This is causing problems, so commented out.  -- Appel, Feb 23, 2017
-# $(COMPCERT)/lib/%.vo: $(COMPCERT)/lib/%.v
-# 	@
-# $(COMPCERT)/common/%.vo: $(COMPCERT)/common/%.v
-# 	@
-# $(COMPCERT)/cfrontend/%.vo: $(COMPCERT)/cfrontend/%.v
-# 	@
-# $(COMPCERT)/exportclight/%.vo: $(COMPCERT)/exportclight/%.v
-# 	@
-# $(COMPCERT)/flocq/Appli/%.vo: $(COMPCERT)/flocq/Appli/%.v
-# 	@
-# $(COMPCERT)/flocq/Calc/%.vo: $(COMPCERT)/flocq/Calc/%.v
-# 	@
-# $(COMPCERT)/flocq/Core/%.vo: $(COMPCERT)/flocq/Core/%.v
-# 	@
-# $(COMPCERT)/flocq/Prop/%.vo: $(COMPCERT)/flocq/Prop/%.v
-# 	@
-# $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
-# 	@
+all: default_target files travis io hmacdrbg tweetnacl aes
 
 ifeq ($(BITSIZE),64)
 travis: default_target progs
@@ -482,19 +589,6 @@ travis: default_target progs sha hmac mailbox VSUpile
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
-
-all: default_target files travis io hmacdrbg tweetnacl aes
-
-
-# ifeq ($(COMPCERT), compcert)
-# compcert: $(COMPCERT)/exportclight/Clightdefs.vo
-# $(COMPCERT)/exportclight/Clightdefs.vo:
-# 	cd $(COMPCERT) && $(MAKE) exportclight/Clightdefs.vo
-# $(patsubst %.v,sepcomp/%.vo,$(SEPCOMP_FILES)): compcert
-# $(patsubst %.v,veric/%.vo,$(VERIC_FILES)): compcert
-# $(patsubst %.v,floyd/%.vo,$(FLOYD_FILES)): compcert
-# msl/Coqlib2.vo: compcert
-# endif
 
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
@@ -522,11 +616,7 @@ mailbox: _CoqProject mailbox/verif_mailbox_all.vo
 atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
 io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo progs/io_specs.vo floyd/printf.vo InteractionTrees/theories/Events/Nondeterminism.vo
 
-CGFLAGS =  -DCOMPCERT
-
-$(patsubst %.c,$(PROGSDIR)/%.vo,$(C_FILES)): compcert
-
-CVFILES = $(patsubst %.c,$(PROGSDIR)/%.v,$(C_FILES))
+$(CVOFILES): compcert
 
 cvfiles: $(CVFILES)
 
@@ -541,14 +631,8 @@ dochtml-full:
 clean_cvfiles:
 	rm $(CVFILES)
 
-ifdef CLIGHTGEN
-VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
-VERSION2= $(subst version=,,$(shell grep version compcert/VERSION))
-ifneq ($(VERSION1),$(VERSION2))
-$(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
-endif
-
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
+ifdef CLIGHTGEN
 sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 $(PROGSDIR)/even.v: $(PROGSDIR)/even.c $(PROGSDIR)/odd.c
@@ -569,7 +653,7 @@ endif
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject _CoqProject-export: Makefile util/coqflags
+_CoqProject _CoqProject-export: Makefile util/coqflags $(COMPCERT_CONFIG)
 	echo $(COQFLAGS) > _CoqProject
 	util/coqflags > _CoqProject-export
 
@@ -577,20 +661,17 @@ floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend depend:
-#	@echo "Copying Clight_core.v ... "
-# ifeq ($(COMPCERT), compcert_new)
-#	@cp -p concurrency/shim/Clight_core.v veric/Clight_core.v
-# else
-# 	@cp -p veric/Clight_core_standard.v veric/Clight_core.v
-# endif
 	@echo 'coqdep ... >.depend'
-	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
-ifeq ($(COMPCERT), compcert_new)
-	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+ifdef COMPCERT_NEW
+	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
-	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
+# This version of the Makefile doesn't build compcert any more
+# The build of compcert essentially works by analyzing and telling make the dependencies
+# If this is desired, the below line can be enabled (conditionally)
+# 	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >.depend `find $(addprefix $(COMPCERT_INST_PATH)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 # ifneq ($(wildcard coq-ext-lib/theories),)
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
 # endif
@@ -605,6 +686,7 @@ endif
 ifneq ($(wildcard paco/src),)
 	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend
 endif
+	wc .depend
 
 clean:
 	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok) compcert/*/*.{vo,vos,vok} compcert/*/*/*.{vo,vos,vok}  compcert_new/*/*.{vo,vos,vok} compcert_new/*/*/*.{vo,vos,vok}
@@ -638,8 +720,6 @@ progs64/%.c: progs/%.c
 FIX64= "BEGIN{print \"(* Do not edit this file, it was generated automatically *)\"} 1 {sub(/VST[.]progs[.]/,\"VST.progs64.\"); print}"
 progs64/verif_%.v: progs/verif_%.v
 	$(if $(findstring $(@F), $(V64_ORDINARY)), awk $(FIX64) < $< > $@)
-
-PROGS64_FILES= $(V64_ORDINARY)
 
 progs64c: $(C64_ORDINARY:%.c=progs64/%.c)
 progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.v) depend
