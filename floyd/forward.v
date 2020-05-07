@@ -2903,17 +2903,45 @@ Tactic Notation "forward_if" constr(post) :=
 Tactic Notation "forward_if" :=
   forward_if'_new.
 
+Ltac deprecate_norm1 :=
+ idtac "You are using a deprecated feature of 'normalize'.  For future compatibility,
+  at this point do 'autorewrite with subst typeclass_instances' before 'normalize'.
+  To supress this message,   Ltac deprecate_norm1 ::= idtac.".
+
+Ltac deprecate_norm2 :=
+ idtac "You are using a deprecated feature of 'normalize'.  For future compatibility,
+  at this point do 'autorewrite with ret_assert typeclass_instances' before 'normalize'.
+  To supress this message,   Ltac deprecate_norm2 ::= idtac.".
+
+Ltac deprecate_norm3 :=
+ idtac "You are using a deprecated feature of 'normalize'.  For future compatibility,  replace 'normalize' with 
+      (floyd.seplog_tactics.normalize;
+      repeat (first [ simpl_tc_expr
+                         | simple apply semax_extract_PROP; fancy_intros true
+                         | move_from_SEP];
+      cbv beta; msl.log_normalize.normalize).
+Better yet, you might be able to replace the entire 'normalize' call with some combination of 'Intros' and other standard Floyd tactics.
+To supress this message,   Ltac deprecate_norm3 ::= idtac.".
+
 Ltac normalize :=
- try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;
- try match goal with |- context[ret_assert] =>  autorewrite with ret_assert typeclass_instances end;
+ try match goal with |- context[subst] =>
+         progress (autorewrite with subst typeclass_instances);
+         deprecate_norm1
+      end;
+ try match goal with |- context[ret_assert] =>
+         progress (autorewrite with ret_assert typeclass_instances);
+         deprecate_norm2
+      end;
  match goal with
  | |- semax _ _ _ _ =>
   floyd.seplog_tactics.normalize;
-  repeat
+  tryif progress (repeat
   (first [ simpl_tc_expr
          | simple apply semax_extract_PROP; fancy_intros true
          | move_from_SEP
-         ]; cbv beta; msl.log_normalize.normalize)
+         ]))
+     then deprecate_norm3; cbv beta; msl.log_normalize.normalize 
+     else idtac
   | |- _  =>
     floyd.seplog_tactics.normalize
   end.

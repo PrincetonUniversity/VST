@@ -45,7 +45,7 @@ Proof.
       unfold md_full. simpl snd. Intros.
       sep_apply (UNDER_SPEC.FULL_EMPTY Ews key v1).
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
-      destruct  H0 as [xx XX]. 
+      clear H0.
       forward_call (Vptr b i, (v, (v0, v1)), shc, gv). {
          unfold md_empty. simpl. cancel. } 
       replace_SEP 0 (memory_block shc 12 (Vptr b i)).

@@ -62,15 +62,15 @@ rename v_c into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl CONT in *; simpl LEN in *.
-rewrite memory_block_isptr. normalize.
+rewrite memory_block_isptr.  Intros.
 rename H into KL. rename H0 into DL.
 
 forward_if (isptr c).
   { (* Branch1 *) exfalso. subst md. contradiction.  }
-  { (* Branch2 *) forward. entailer. }
+  { (* Branch2 *) forward. entailer!. }
 Intros.
 assert_PROP (isptr k).
-{ unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer. } (*Issue: used to be solved just by entailer *)
+{ unfold data_block. entailer!. }
 rename H into Pk.
 forward_call (Tsh, sh, c, k, kl, key, HMACabs nil nil nil, gv).
   { unfold initPre.
@@ -89,7 +89,8 @@ assert (GTmod64: 64 < Ptrofs.modulus).
   rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. omega.
 specialize (memory_block_size_compatible shmd (tarray tuint 16)). simpl; intros.
 rewrite H (*_ GTmod64)*); clear H.
-normalize. unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
+Intros.
+unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
 specialize (memory_block_split shmd b (Ptrofs.unsigned i) 32 32); intros XX.
   rewrite Ptrofs.repr_unsigned in XX.
   assert (32 + 32 = 64) by omega. rewrite H in XX; clear H.
@@ -108,7 +109,7 @@ replace_SEP 1 (initPre Tsh sh c nullval h2 kl key).
   { entailer!. eapply hmacstate_PostFinal_PreInitNull.
     symmetry in HeqRND1. apply HeqRND1. }
 forward_call (Tsh, sh, c, nullval, kl, key, h2, gv).
-simpl; normalize.
+simpl. Intros.
 
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
   { unfold hmacstate_. entailer!. }

@@ -162,7 +162,6 @@ Time forward_for_simple_bound 4 (EX i:Z,
     repeat rewrite QuadChunk2ValList_ZLength;
     try rewrite FL; try rewrite <- C1; try rewrite Zlength_cons, Zlength_nil; try solve[simpl; omega].
   rewrite Zminus_plus. change (Z.succ 0) with 1. repeat rewrite Z.mul_1_r.
-  Time normalize. (*2 versus 2.8*)
   rewrite (Select_SplitSelect16Q C i _ _ HeqFB) at 2.
   rewrite field_address0_offset by auto with field_compatible.
   rewrite field_address0_offset by auto with field_compatible. simpl.
@@ -171,8 +170,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
     repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL.
     2: omega.
   rewrite Zminus_diag. rewrite Z.add_simpl_l. repeat rewrite Z.mul_1_l.
-
-  freeze [0;2;3] FR3.
+  Intros.
+  freeze [1;3;0] FR3.
   rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength; try omega.
 
   (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
@@ -214,7 +213,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
     rewrite Z.mul_1_l. apply derives_refl.
     rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
     repeat rewrite Z.add_simpl_l, app_nil_r in *.
-    normalize. }
+    autorewrite with norm. apply derives_refl.
+ }
 
   (*Store into x[...]*)
   thaw FR2.
@@ -229,7 +229,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time assert_PROP (field_compatible (Tarray tuchar 32 noattr) [] k) as FCK32
     by (unfold ThirtyTwoByte; entailer!). (*1.1 versus 5.1*)
   erewrite ThirtyTwoByte_split16; trivial. unfold SByte at 1. Opaque ThirtyTwoByte.
-  Time normalize. (*2.2 versus 3.8*)
+  simpl.
+(*  Time normalize. (*2.2 versus 3.8*) *)
   Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] k) as FCK16 by entailer!. (*1 versus 4.7*)
   assert (K1_16:= SixteenByte2ValList_Zlength Key1).
   remember (SplitSelect16Q Key1 i) as FB_K1. destruct FB_K1 as (Front_K1, Back_K1).
@@ -240,7 +241,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
     2: rewrite <- (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1), <- K1_16; trivial.
     2: rewrite <- (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1), <- K1_16; cbv; trivial.
   unfold Select_at. simpl. rewrite app_nil_r. flatten_sepcon_in_SEP.
-  freeze [1;2;3] FR6.
+  Intros.
+  freeze FR6 := (Unselect_at _ _ _ _ _) (SByte _ _) (FRZL FR5).
   (*assert (FrontBackK1:= (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I)) as [FLK BLK].*)
   rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. *)
   rewrite  QuadChunk2ValList_ZLength.
@@ -288,8 +290,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
   erewrite Select_Unselect_Tarray_at with (d:=nonce); try reflexivity; try assumption.
   2: solve [rewrite <- N16; trivial].
   2: solve [rewrite <- N16; cbv; trivial].
-  Time normalize. (*2.4 versus 5.2*)
-  freeze [1;2] FR8.
+  Intros.
+  freeze FR8 := (Unselect_at _ _ _ _ _) (FRZL _).
   unfold Select_at. simpl. rewrite app_nil_r.
   rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l.  simpl.*)
   rewrite  QuadChunk2ValList_ZLength.
@@ -328,7 +330,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
 
   (*Load Key2*)
   thaw FR9. freeze [0;1;3;4] FR10.
-  rewrite ThirtyTwoByte_split16; trivial. Time normalize. (*2.2 versus 4.1*)
+  rewrite ThirtyTwoByte_split16; trivial. simpl. Intros.
   unfold SByte at 2.
   assert (K2_16:= SixteenByte2ValList_Zlength Key2).
   Time assert_PROP (isptr k/\ field_compatible (Tarray tuchar 16 noattr) [] (offset_val 16 k))
@@ -338,17 +340,17 @@ Time forward_for_simple_bound 4 (EX i:Z,
   rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_K2) in *.
   erewrite Select_Unselect_Tarray_at with (d:=offset_val 16 (Vptr kb koff)); try reflexivity; try assumption.
   2: solve [rewrite <- K2_16; trivial]. 2: solve [rewrite <- K2_16; cbv; trivial].
+  Intros.
   Time normalize. (*1.4 versus 6.6*)
   unfold Select_at. simpl. rewrite app_nil_r.
   repeat rewrite <- QuadByteValList_ZLength.
   rewrite QuadChunk2ValList_ZLength.
-
-  freeze [1;2;3] FR11.
+  freeze FR11 := (Unselect_at _ _ _ _ _) (SByte _ _) (FRZL FR10).
   Time forward_call (Vptr kb
            (Ptrofs.add (Ptrofs.add koff (Ptrofs.repr 16)) (Ptrofs.repr (4 * Zlength Front_K2))),
                  Select16Q Key2 i). (*8.9 versus 20.5 SLOW*)
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2.
-     apply prop_right; simpl. unfold Ptrofs.of_ints; simpl; normalize. }
+     apply prop_right; simpl. unfold Ptrofs.of_ints; simpl. autorewrite with norm. auto. }
 
   thaw FR11.
   apply semax_pre with (P':=

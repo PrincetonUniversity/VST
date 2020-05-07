@@ -420,7 +420,9 @@ Proof.
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       entailer!.
-    + forward. (* p = *t; *)
+    + 
+      Intros.
+      forward. (* p = *t; *)
       forward_if. (* else clause *)
        (* TODO: better automation for field_compatible. *)
         1: admit.

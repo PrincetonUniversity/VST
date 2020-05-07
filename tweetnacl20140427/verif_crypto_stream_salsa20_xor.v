@@ -509,7 +509,7 @@ rename H into I.
     unfold tarray.
     assert_PROP (field_compatible (Tarray tuchar (Zlength mbytes) noattr) [] (Vptr b0 i0)) by entailer!.
     erewrite (split2_data_at_Tarray_tuchar _ _ q). 2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
-    normalize. unfold field_address0. simpl.
+    Intros. unfold field_address0. simpl.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
     2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega. }
@@ -521,7 +521,7 @@ rename H into I.
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       unfold field_address0. entailer!. simpl.
       autorewrite with sublist. 
-         if_tac; try contradiction. normalize.
+         if_tac; try contradiction. rewrite Z.mul_1_l.
       cancel.
   }
   { rewrite H in *; simpl in *. 
@@ -687,7 +687,7 @@ forward_for_simple_bound (Int64.unsigned b)
     unfold tarray.
     assert_PROP (field_compatible (Tarray tuchar (Zlength mbytes) noattr) [] (Vptr b0 i0)) by entailer!.
     erewrite (split2_data_at_Tarray_tuchar _ _ q). 2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
-    normalize. unfold field_address0. simpl.
+    Intros. unfold field_address0. simpl.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
     2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega. }
@@ -920,7 +920,7 @@ forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K mCont zbyt
   specialize (Zlength_nonneg mCont); intros. unfold Bl2VL, tarray. 
   rewrite Int64.sub_zero_l, Zminus_0_r.
   rewrite Tarray_0_emp_iff; auto with field_compatible.
-  normalize. entailer!. 
+  entailer!. 
   split. + destruct mInit; simpl in *; try contradiction.
            subst i; split; trivial.
            rewrite Ptrofs.add_zero; trivial. 

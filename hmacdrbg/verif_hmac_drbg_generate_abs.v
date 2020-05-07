@@ -70,10 +70,11 @@ Proof.
   destruct I. 
   destruct a as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   unfold hmac256drbg_relate.
-  normalize.
+  Intros.
   unfold hmac256drbgstate_md_info_pointer.
   simpl. rewrite da_emp_isptrornull.
-  rename H into ZlengthV.
+  rename H0 into ZlengthV.
+  rename H into H0.
 
   rewrite da_emp_isptrornull. (*needed later*)
   rewrite data_at_isptr with (p:=ctx).
@@ -97,7 +98,7 @@ Proof.
   (* prediction_resistance = ctx->prediction_resistance *)
   destruct ctx; try contradiction.  (*subst initial_state.*)
   destruct md_ctx' as [mc1 [mc2 mc3]]. simpl.
-  rewrite data_at_isptr with (p:=mc1). normalize.
+  rewrite data_at_isptr with (p:=mc1). Intros.
   freeze [1;2;3;4;5;6] FR0. 
   Time forward. (*Coq8.5pl2:3secs - and without the freezer it is virtually nonterminating*)
   {
@@ -204,7 +205,7 @@ Proof.
     (* true *) reflexivity.
     (* false *) inversion Hpr.
   }
-  {
+  { subst prediction_resistance'.
     rename H into Hpr.
     destruct prediction_resistance; try solve [inversion Hpr].
     simpl in should_reseed; clear Hpr. 
@@ -313,6 +314,7 @@ Proof.
      destruct (zlt 256 (Zlength contents)); simpl in Heqd; [ omega |].
      destruct (zlt 384 (entropy_len + Zlength contents)); simpl in Heqd; subst d; [ simpl in *; omega |].
      Intros. (* cancel.*)
+     rename H into H2.
      unfold return_value_relate_result in H2.
      remember (mbedtls_HMAC256_DRBG_reseed_function s
          (HMAC256DRBGabs key V reseed_counter entropy_len
@@ -597,7 +599,8 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
   remember (hmac256drbgabs_to_state ABS3 aaa) as CTX3.
   destruct ABS3. destruct CTX3 as [aa [bb [cc [dd [ee ff]]]]]. normalize.
   unfold hmac256drbgabs_to_state in HeqCTX3. subst aaa; simpl in HeqCTX3. inv HeqCTX3.
-  
+  Intros.
+
   set (ctx3 := (mc1, (mc2, mc3),
           (map Vubyte V0,
           (Vint (Int.repr reseed_counter0),
@@ -631,6 +634,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
   unfold hmac256drbg_relate.
   subst ctx3. simpl in ctx4. destruct ABS4. simpl in ctx4. subst ctx4. simpl. normalize.
   unfold hmac256drbgstate_md_info_pointer. simpl.
+  Intros.
   freeze [2;3;4;5] FR5. 
   unfold_data_at 1%nat.
   freeze [1;2;4;5;6;7] FIELDS.
@@ -686,16 +690,17 @@ assert (RC_y: 0 <= hmac256drbgabs_reseed_counter after_update_state_abs < Int.ma
   forward.
   Exists (Vint (Int.repr 0)).
   apply andp_right. apply prop_right; split; trivial.
-  thaw FIELDS. thaw FR5. thaw StreamOut.  
+  thaw FIELDS. thaw FR5. thaw StreamOut.
+  subst.  
 (*
   clear - WFI HeqABS4 HeqABS3 STREAM1 H1 H3 H4 H6 Hreseed_counter_in_range
           Hout_lenb ZLa Hreseed_interval.*)
- pose proof (entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 
+ assert (H6:= entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 
    reseed_interval0 contents additional sha output sho out_len b i shc key V
     reseed_counter entropy_len 
     prediction_resistance reseed_interval 
        gv s ).
-  simpl in H5. sep_apply H5.
+  simpl in H6. sep_apply H6.
  + red in WFI; subst I; simpl in *. apply WFI.
   + normalize. unfold AREP, REP. Exists Info a. normalize. apply derives_refl.
 Time Qed. (*Coq 8.10.1: 13s; was: 61s*) 

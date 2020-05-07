@@ -258,7 +258,7 @@ Lemma tree_rep_valid_pointer:
   forall t p, tree_rep t p |-- valid_pointer p.
 Proof.
 intros.
-destruct t; simpl; normalize; auto with valid_pointer.
+destruct t; simpl; Intros; try Intros pa pb; subst; auto with valid_pointer.
 Qed.
 Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
@@ -422,7 +422,7 @@ Proof.
       apply treebox_rep_leaf; auto.
     + (* else clause *)
       destruct t1.
-        { simpl tree_rep. normalize. }
+        { simpl tree_rep. Intros. contradiction. }
       simpl tree_rep.
       Intros pa pb. clear H1.
       forward. (* y=p->key; *)
@@ -468,7 +468,7 @@ Proof.
         simpl tree_rep. Exists pa pb. entailer!.
   * (* After the loop *)
     forward.
-    unfold loop2_ret_assert. apply andp_left2. normalize. 
+    unfold loop2_ret_assert. apply andp_left2. auto.
 Qed.
 
 Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
@@ -494,8 +494,8 @@ Proof.
   * (* type-check loop condition *)
     entailer!.
   * (* loop body preserves invariant *)
-    destruct t0; unfold tree_rep at 1; fold tree_rep. normalize.
-    Intros pa pb.
+    destruct t0; unfold tree_rep at 1; fold tree_rep. Intros; contradiction.
+    Intros pa pb. unfold tptr in H2.
     forward.
     forward_if; [ | forward_if ].
     + (* then clause: x<y *)
@@ -624,7 +624,7 @@ Proof.
       Exists pa.
       entailer!.
     - destruct tbc0 as [| tb0 y vy tc0].
-        { simpl tree_rep. normalize. }
+        { simpl tree_rep. Intros; contradiction. }
       Time forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
       Intros pc.
       forward. (* t = &q->left; *)
@@ -673,7 +673,7 @@ Proof.
       entailer!.
     + (* else clause *)
       destruct t1.
-        { simpl tree_rep. normalize. }
+        { simpl tree_rep.  Intros; contradiction. }
       simpl tree_rep.
       Intros pa pb. clear H0.
       forward. (* y=p->key; *)
@@ -773,8 +773,7 @@ Proof.
     entailer!.
   + forward.
     subst.
-    entailer!.
-    simpl; normalize.
+    entailer!. simpl. entailer!.
   + forward.
 Qed.
 
@@ -883,25 +882,25 @@ Lemma subsume_insert:
  funspec_sub (snd insert_spec) (snd abs_insert_spec).
 Proof.
 do_funspec_sub. destruct w as [[[b x] v] m]. simpl.
-unfold convertPre. simpl; normalize. clear H.
+unfold convertPre. Intros.
 destruct args. inv H0. 
 destruct args. inv H0.
 destruct args. inv H0. 
 destruct args; inv H0. simpl in *.
-unfold env_set, eval_id in *. simpl in *. subst v0. 
+unfold env_set, eval_id in *. simpl in *. subst. 
 unfold tmap_rep.
 Intros t.
-Exists (v, x, v1, t) emp. simpl. entailer!.
-intros. Exists (insert x v1 t).
+Exists (v0, x, v2, t) emp. simpl. entailer!.
+intros. Exists (insert x v2 t).
 entailer!. apply insert_relate; trivial.
 Qed.
 
 Lemma subsume_treebox_new:
  funspec_sub (snd treebox_new_spec) (snd abs_treebox_new_spec).
 Proof.
-do_funspec_sub. unfold convertPre. simpl; normalize. clear H.
+do_funspec_sub. unfold convertPre. simpl; Intros. clear H.
 destruct args; inv H0.
-Exists emp. entailer!.
+Exists tt emp. entailer!.
 intros tau ? ?. Exists (eval_id ret_temp tau). entailer!.
 unfold tmap_rep.
 Exists (empty_tree val).
@@ -915,7 +914,8 @@ Qed.
 Lemma subsume_treebox_free:
  funspec_sub (snd treebox_free_spec) (snd abs_treebox_free_spec).
 Proof.
-do_funspec_sub. destruct w as [m p]. clear H. unfold convertPre. simpl; normalize.
+do_funspec_sub. destruct w as [m p]. clear H. unfold convertPre. simpl; Intros.
+subst.
 destruct args; inv H. destruct args; inv H2.
 unfold env_set, eval_id in *. simpl in *. 
 unfold tmap_rep.

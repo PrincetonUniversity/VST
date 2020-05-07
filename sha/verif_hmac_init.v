@@ -65,7 +65,7 @@ subst ctxkey.
 
 (*isolate branch if (key != NULL) *)
 forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
-  { apply denote_tc_test_eq_split. unfold initPre; normalize. destruct k; try contradiction.
+  { apply denote_tc_test_eq_split. unfold initPre; Intros. destruct k; try contradiction.
     clear H.
     remember (Int.eq i Int.zero). destruct b.
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; auto with valid_pointer. entailer!.
@@ -82,11 +82,11 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
       destruct d; try solve [eapply semax_pre; try eapply semax_ff; entailer].
       apply binop_lemmas2.int_eq_true in Heqd. simpl in *. elim H. subst; reflexivity.
     (*key' is ptr*)
-    normalize. clear H. rename H0 into keyLen.
+    Intros. clear H. rename H0 into keyLen.
     Time assert_PROP (isptr c) as Pc by entailer!. (*1*)
     apply isptrD in Pc; destruct Pc as [cb [cofs CC]]; rewrite CC in *.
     rename b into kb; rename i into kofs.
-    replace_SEP 1 (data_at sh (tarray tuchar (Zlength key)) (map Vubyte key) (Vptr kb kofs)).
+    replace_SEP 4 (data_at sh (tarray tuchar (Zlength key)) (map Vubyte key) (Vptr kb kofs)).
        Time unfold data_block; entailer!. (*1.5*)
     Time forward. (*1secs, versus 2secs*)
     Time forward. (*0.8 versus 1.8 j=HMAC_MAX_MD_CBLOCK*)
@@ -349,12 +349,12 @@ forward_if (EX shaStates:_ ,
     destruct R; subst r; simpl.
     2: solve [apply semax_pre with (P':=FF); try entailer!; try apply semax_ff].
     freeze FR2 := - (hmacstate_PreInitNull _ _ _ _).
-    Time normalize. (*5.7*)
-    rename H into InnerRelate.
-    rename H0 into OuterRelate.
+    Intros.
+    rename H0 into InnerRelate.
+    rename H2 into OuterRelate.
     unfold hmacstate_PreInitNull.
     Intros s v.
-    rename H into Hs.
+    rename H0 into Hs.
     unfold hmac_relate_PreInitNull in Hs.
     clear InnerRelate OuterRelate iS oS.
     destruct h1.
