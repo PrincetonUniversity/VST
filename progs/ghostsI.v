@@ -118,6 +118,14 @@ Section Reference.
 
 Context {P : Ghost}.
 
+Lemma part_ref_update : forall g sh a r a' r' pp
+  (Ha' : forall b, join a b r -> join a' b r'),
+  (own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
+  own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp)%I.
+Proof.
+  exact part_ref_update.
+Qed.
+
 Lemma ref_add : forall g sh a r b a' r' pp
   (Ha : join a b a') (Hr : join r b r'),
   (own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>

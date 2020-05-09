@@ -374,8 +374,8 @@ Proof.
   intros; apply ref_update_gen.
 Qed.
 
-Lemma ref_add : forall g sh a r b a' r' pp
-  (Ha : join a b a') (Hr : join r b r'),
+Lemma part_ref_update : forall g sh a r a' r' pp
+  (Ha' : forall b, join a b r -> join a' b r'),
   own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
   own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
 Proof.
@@ -388,26 +388,33 @@ Proof.
     { destruct Hvalid as [[(?, ?)|] Hvalid]; hnf in Hvalid.
       + destruct Hvalid as (? & ? & ? & ?); eexists; eauto.
       + inv Hvalid; apply join_sub_refl. }
-    destruct (join_assoc (join_comm J) Hr) as (x' & Hx' & _).
+    destruct (join_assoc Hx J) as (b & Jc & Jb%Ha').
+    destruct (join_assoc (join_comm Jc) (join_comm Jb)) as (x' & Hx' & Hr').
     exists (Some (shx, x'), Some r'); repeat (split; auto); try constructor; simpl.
-    + destruct (join_assoc (join_comm Hx) Hx') as (? & ? & ?).
-      eapply join_eq in Ha; eauto; subst; auto.
     + destruct Hvalid as (d & Hvalid); hnf in Hvalid.
-      exists d; destruct d as [(shd, d)|]; hnf.
-      * destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
-        destruct (join_assoc (join_comm Hd) Hr) as (? & ? & ?).
-        eapply join_eq in Hx'; eauto; subst; auto.
-      * inv Hvalid; f_equal.
-        eapply join_eq; eauto.
+      destruct d as [(shd, d)|].
+      * exists (Some (shd, f)); destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
+      * exists None; hnf.
+        inv Hvalid; f_equal.
+        eapply join_eq; [apply Ha'|]; eauto.
   - inv J1.
     exists (Some (sh, a'), Some r'); repeat split; simpl; auto; try constructor.
     destruct Hvalid as (d & Hvalid); hnf in Hvalid.
     exists d; destruct d as [(shd, d)|]; hnf.
     + destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
-      destruct (join_assoc (join_comm Hd) Hr) as (? & ? & ?).
-      eapply join_eq in Ha; eauto; subst; auto.
     + inv Hvalid; f_equal.
-      eapply join_eq; eauto.
+      symmetry; eapply core_identity.
+      apply join_comm, Ha', join_comm, core_unit.
+Qed.
+
+Corollary ref_add : forall g sh a r b a' r' pp
+  (Ha : join a b a') (Hr : join r b r'),
+  own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
+  own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
+Proof.
+  intros; apply part_ref_update; intros c J.
+  destruct (join_assoc (join_comm J) Hr) as (? & ? & ?).
+  eapply join_eq in Ha; eauto; subst; auto.
 Qed.
 
 End Reference.

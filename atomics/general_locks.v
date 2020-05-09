@@ -47,14 +47,14 @@ Proof.
   iApply (ref_update(P := P)); eauto.
 Qed.
 
-Lemma public_part_update : forall g sh (a b c a' b' : G) (Ha : sepalg.join a c a') (Hb : sepalg.join b c b'),
+Lemma public_part_update : forall g sh (a b a' b' : G) (Ha' : forall c, sepalg.join a c b -> sepalg.join a' c b'),
   (my_half g sh a * public_half g b |-- !!(if eq_dec sh Tsh then a = b else exists x, sepalg.join a x b) && |==> my_half g sh a' * public_half g b')%I.
 Proof.
   intros.
   iIntros "H".
   iSplit; [iApply (ref_sub with "H")|].
   rewrite !ghost_part_ref_join.
-  iApply (ref_add(P := P)); eauto.
+  iApply (part_ref_update(P := P)); eauto.
 Qed.
 
 Definition sync_inv g sh R := EX a : G, R g a * my_half g sh a.
@@ -101,7 +101,7 @@ Qed.
 
 Lemma sync_commit_gen : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
   (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
-    |==> (EX xf x0' x1' : G, !!(sepalg.join x0 xf x0' /\ sepalg.join x1 xf x1') && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y * R' y))))%I)%I),
+    |==> (EX x0' x1' : G, !!(forall b, sepalg.join x0 b x1 -> sepalg.join x0' b x1') && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y * R' y))))%I)%I),
   (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |==> EX y, Q y * R' y)%I.
 Proof.
   intros; rewrite sepcon_assoc.
@@ -109,27 +109,54 @@ Proof.
   intros; iIntros "((my & R) & a)".
   iMod (Ha with "[$]") as (?) "[public a']".
   iPoseProof (ref_sub(P := P) with "[$my $public]") as "%".
-  iMod ("a'" with "[%]") as (xf x0' x1') "[% H]"; first done.
-  destruct H1.
+  iMod ("a'" with "[%]") as (x0' x1') "[% H]"; first done.
   iDestruct (public_part_update with "[$my $public]") as "[% >[my public]]"; eauto.
   iApply ("H" with "[$my $public]").
 Qed.
 
+Lemma sync_commit_same : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
+    |==> (my_half g sh x0 * public_half g x1 -* |==> (EX y, b x y * R' y)))%I)%I),
+  (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |==> EX y, Q y * R' y)%I.
+Proof.
+  intros; rewrite sepcon_assoc.
+  apply atomic_commit with (R'0 := fun y => R' y).
+  intros; iIntros "((my & R) & a)".
+  iMod (Ha with "[$]") as (?) "[public a']".
+  iPoseProof (ref_sub(P := P) with "[$my $public]") as "%".
+  iMod ("a'" with "[%]") as "H"; first done.
+  iApply "H"; iFrame.
+Qed.
+
 Lemma sync_commit_gen1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
   (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
-    |==> (EX xf x0' x1' : G, !!(sepalg.join x0 xf x0' /\ sepalg.join x1 xf x1') && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y) * R')))%I)%I),
+    |==> (EX x0' x1' : G, !!(forall b, sepalg.join x0 b x1 -> sepalg.join x0' b x1') && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y) * R')))%I)%I),
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g sh x0 * R |-- |==> Q * R')%I.
 Proof.
   intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => R')|].
   - intros; iIntros "((my & R) & a)".
     iMod (Ha with "[$]") as (?) "[public a']".
     iPoseProof (ref_sub(P := P) with "[$my $public]") as "%".
-    iMod ("a'" with "[%]") as (xf x0' x1') "[% H]"; first done.
-    destruct H1.
+    iMod ("a'" with "[%]") as (x0' x1') "[% H]"; first done.
     iDestruct (public_part_update with "[$my $public]") as "[% >[my public]]"; eauto.
     rewrite exp_sepcon1; iApply ("H" with "[$my $public]").
   - iApply bupd_mono.
     iIntros "Q"; iDestruct "Q" as (?) "[$ $]".
+Qed.
+
+Lemma sync_commit_same1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
+    |==> (my_half g sh x0 * public_half g x1 -* |==> (EX y, b x y * R')))%I)%I),
+  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g sh x0 * R |-- |==> Q * R')%I.
+Proof.
+  intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => R')|].
+  intros; iIntros "((my & R) & a)".
+  iMod (Ha with "[$]") as (?) "[public a']".
+  iPoseProof (ref_sub(P := P) with "[$my $public]") as "%".
+  iMod ("a'" with "[%]") as "H"; first done.
+  iApply "H"; iFrame.
+  { iApply bupd_mono.
+    iIntros "Q"; iDestruct "Q" as (?) "[$ $]". }
 Qed.
 
 (* These are useful when the shared resource matches the lock invariant exactly. *)
