@@ -77,10 +77,11 @@ Definition merge_globdef (g1 g2: globdef (fundef function) type) :=
      Errors.OK g2  (* SHOULD CHECK TYPES MATCH *)
  | Gfun (Internal f1), Gfun (External _ _ _ _) =>
     Errors.OK g1  (* SHOULD CHECK TYPES MATCH *)
- | Gfun (Internal f), Gfun (Internal g) =>
+ | Gfun (Internal f), Gfun (Internal g) => Errors.OK g1 (*this is OK 
+      since VSU.ComponentJoin contains hypothesis Fundefs_match*) 
     (*Errors.Error [Errors.MSG "internal function clash"]*)
-    if function_eq_dec f g then Errors.OK g1
-    else Errors.Error [Errors.MSG "internal function clash"]
+   (* if function_eq_dec f g then Errors.OK g1
+    else Errors.Error [Errors.MSG "internal function clash"]*)
  | Gvar {| gvar_info := i1; gvar_init := l1; gvar_readonly := r1; gvar_volatile := v1 |},
    Gvar {| gvar_info := i2; gvar_init := l2; gvar_readonly := r2; gvar_volatile := v2 |} =>
    if (eqb_type i1 i2 &&

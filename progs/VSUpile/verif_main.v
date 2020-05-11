@@ -49,9 +49,9 @@ forward_for_simple_bound 10
 unfold APILE.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
 (*{ simpl; cancel. }*)
-rep_omega.
+rep_lia.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-rep_omega. rewrite decreasing_inc by omega.
+rep_lia. rewrite decreasing_inc by lia.
 entailer!. simpl; cancel. (*unfold APILE. trivial.*)
 -
 unfold APILE.
@@ -61,7 +61,7 @@ compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
 forward_call (10,gv).
-omega.
+lia.
 forward.
 Qed.
 

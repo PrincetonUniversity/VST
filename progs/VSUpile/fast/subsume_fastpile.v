@@ -83,7 +83,7 @@ apply andp_right.
   Intros s. apply prop_right. split; [ intros | intuition].
   Intros s'; Exists s'.
   entailer!.
-  simpl in *. rewrite H8. simpl; trivial. omega.
+  simpl in *. rewrite H8. simpl; trivial. lia.
 - unfold spec_fastpile_private.fastprep, crep.
   Intros s; Exists s. apply sumlist_nonneg in H3. entailer!.
 Qed.
@@ -102,7 +102,7 @@ apply andp_right.
   + rewrite <- H5; auto.
   + Intros s''.
     change  spec_fastpile_concrete.tpile with  spec_fastpile.tpile.
-    rewrite H5,H9 by omega.
+    rewrite H5,H9 by lia.
     apply derives_refl.
 - unfold spec_fastpile_private.fastprep, crep.
   Intros s; Exists s. entailer!.
