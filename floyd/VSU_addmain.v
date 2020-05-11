@@ -1,12 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.assoclists.
 Require Import VST.floyd.VSU.
-(*Require Import verif_core.
-Require Import main.*)
-Require Import VST.veric.initial_world.
 
-Definition ExtIDs (p: Ctypes.program function): list ident := 
-  map fst ((filter (fun x => negb (isInternal (snd x)))) (prog_defs p)).
+Require Import VST.veric.initial_world.
 
 Lemma find_id_delete_id {A} {lp p: list (ident *A)} {i j a} (IJ: i <> j):
        delete_id j lp = Some (a, p) -> find_id i lp = find_id i p.
@@ -33,18 +29,6 @@ destruct a as [k a]. if_tac; subst; simpl in *.
     destruct p0. inv H. simpl. rewrite if_false by trivial. 
     specialize (IHlp _ _ _ Hequ H4). rewrite if_false in IHlp; trivial.
 Qed.
-
-(*Definition main_spec main p:=
- DECLARE main
- WITH gv: globals
- PRE [ ] main_pre p tt gv
- POST[ tint ]
-    PROP()
-    LOCAL(temp ret_temp (Vint (Int.repr 0)))
-    SEP(TT).*)
-(*
-Definition main_spec main p:=
-  DECLARE main (main_spec_ext p tt).*)
 
 Section ADD_MAIN.
 Variable Espec: OracleKind.

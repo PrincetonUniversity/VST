@@ -19,8 +19,7 @@ Parameter body_free:
 Parameter body_exit:
  forall {Espec: OracleKind},
   VST.floyd.library.body_lemma_of_funspec
-    (EF_external "exit"
-       {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
+    (EF_external "exit" (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
     (snd (exit_spec)).
 
 Definition placeholder_spec :=
@@ -52,18 +51,19 @@ Lemma semax_func_cons_malloc_aux {cs: compspecs} (gv: globals) (gx : genviron) (
    PROP ( )
         LOCAL (temp ret_temp p)
         SEP (mem_mgr M gv; if eq_dec p nullval then emp else malloc_token' M Ews z p * memory_block Ews z p))%assert
-    (make_ext_rval gx ret) |-- !! is_pointer_or_null (force_val ret).
+    (make_ext_rval gx (rettype_of_type (tptr tvoid)) ret) |-- !! is_pointer_or_null (force_val ret).
 Proof.
+ intros.
  rewrite exp_unfold. Intros p.
  rewrite <- insert_local.
  rewrite lower_andp.
  apply derives_extract_prop; intro.
- destruct H; unfold_lift in H. rewrite retval_ext_rval in H.
- subst p.
+ destruct H; unfold_lift in H.
+ unfold_lift in H0. destruct ret; try contradiction.
+ unfold eval_id in H. simpl in H. subst p.
  if_tac. rewrite H; entailer!.
  renormalize. entailer!.
 Qed.
-
 (*Existing Instance NullExtension.Espec.*)
 (*
 Lemma tcret_malloc: 
