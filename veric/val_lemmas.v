@@ -34,10 +34,6 @@ Arguments force_int !v / .
 Definition force_signed_int v := Int.signed (force_int v).
 Arguments force_signed_int !v / .
 
-Lemma force_Vint:  forall i, force_int (Vint i) = i.
-Proof.  reflexivity. Qed.
-Hint Rewrite force_Vint : norm.
-
 Definition force_ptr (v: val) : val :=
               match v with Vptr l ofs => v | _ => Vundef  end.
 

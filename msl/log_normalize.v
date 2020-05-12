@@ -4,6 +4,8 @@ Require Import VST.msl.seplog.
 Require Import VST.msl.Extensionality.
 Require Import Coq.Setoids.Setoid.
 
+Create HintDb norm discriminated.
+
 Local Open Scope logic.
 
 Hint Extern 0 (_ |-- _) => match goal with |- ?A |-- ?B => constr_eq A B; simple apply derives_refl end : core.

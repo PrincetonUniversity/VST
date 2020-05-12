@@ -4424,6 +4424,10 @@ Ltac start_function1 :=
                                                       (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) * _) _ _ =>
           match B with match ?p with (a,b) => _ end => destruct p as [a b] end
        end;
+(* this speeds things up, but only in the very rare case where it applies,
+   so maybe not worth it ...
+  repeat match goal with H: reptype _ |- _ => progress hnf in H; simpl in H; idtac "reduced a reptype" end;
+*)
  try start_func_convert_precondition.
 
 (* first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]

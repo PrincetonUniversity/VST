@@ -279,8 +279,10 @@ Proof. intros. apply computable_any. Qed.
 Hint Resolve computable_tptr : computable.
 
 
+(* a little bit of profiling infrastructure . . .
 Tactic Notation "entailer" "!" := time "ent2" entbang.
 Ltac entailer := time "ent1" floyd.entailer.entailer.
+*)
 
 Ltac gather_prop ::=
 (* autorewrite with gather_prop_core;  (* faster to do this first *)*)
@@ -329,7 +331,7 @@ lazymatch goal with
         end
 end.
 
-Lemma sepcon_derives_prop : forall (P Q: mpred) R, P |-- !!R -> sepcon P Q |-- !!R.
+Lemma saturate_aux33 : forall (P Q: mpred) R, P |-- !!R -> sepcon P Q |-- !!R.
 Proof.
   intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True); eauto|].
   - entailer!.
@@ -340,7 +342,7 @@ Ltac saturate_local_alt :=
 simple eapply saturate_aux21y;
  [ repeat
    (simple apply saturate_aux20; [ | saturate_aux2 ]
-    || simple apply sepcon_derives_prop);
+    || simple apply saturate_aux33);
    (saturate_aux2 || simple apply prop_True_right)
 | simple apply derives_extract_prop;
    match goal with |- _ -> ?A =>
