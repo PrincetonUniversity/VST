@@ -99,9 +99,9 @@ forward_for_simple_bound 10
  entailer!.
 -
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-rep_omega.
+rep_lia.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-rep_omega. rewrite decreasing_inc by omega.
+rep_lia. rewrite decreasing_inc by lia.
 entailer!.
 -
 forward_call (decreasing (Z.to_nat 10), gv).
@@ -109,7 +109,7 @@ compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
 forward_call (10,gv).
-omega.
+lia.
 forward.
 cancel.
 Qed.
@@ -179,7 +179,7 @@ Lemma MainE_vacuous i phi: find_id i MainE = Some phi -> find_id i (coreBuiltins
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (prog_funct coreprog) = Some (External ef argsig retsig cc) /\
            ef_sig ef = {| sig_args := typlist_of_typelist argsig;
-                          sig_res := opttyp_of_type retsig;
+                          sig_res := rettype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
   Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
     cbv in H1.

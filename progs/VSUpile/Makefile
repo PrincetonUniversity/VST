@@ -62,7 +62,8 @@ _CoqProject: Makefile
 	@echo $(VSTFLAGS) > _CoqProject
 
 clean:
-	rm -f {./,*/}{*.vo,*.o,.*.aux,*.glob}
+	rm -f *.vo *.o *.aux *.vok *.vos
+	rm -f fast/*.vo fast/*.o fast/*.aux fast/*.vok fast/*.vos
 
 # .depend depend:
 # 	coqdep $(VSTFLAGS) *.v >.depend

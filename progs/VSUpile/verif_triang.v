@@ -31,14 +31,14 @@ forward_for_simple_bound n
 -
  entailer!.
 - forward_call (p, i+1, decreasing(Z.to_nat i), gv).
-rep_omega.
+rep_lia.
 entailer!.
 assert (Z.to_nat (i+1) = S (Z.to_nat i))
-  by (rewrite <- Z2Nat.inj_succ by omega; f_equal).
+  by (rewrite <- Z2Nat.inj_succ by lia; f_equal).
 rewrite H2.
 unfold decreasing; fold decreasing.
 rewrite inj_S.
-rewrite Z2Nat.id by omega.
+rewrite Z2Nat.id by lia.
 apply derives_refl.
 -
 forward_call (p, decreasing (Z.to_nat n)).

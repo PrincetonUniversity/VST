@@ -2,6 +2,18 @@ Require Import VST.floyd.proofauto.
 Require Import VST.veric.Clight_initial_world.
 Require Import VST.floyd.assoclists.
 
+Lemma semax_body_subsumespec {cs} V V' F F' f iphi (SB: @semax_body V F cs f iphi)
+  (HVF : forall i : positive,
+      sub_option (make_tycontext_g V F) ! i (make_tycontext_g V' F') ! i)
+  (HF : forall i : ident, subsumespec (find_id i F) (find_id i F')):
+   @semax_body V' F' cs f iphi.
+Proof. eapply semax_body_subsumption. apply SB. clear SB.
+    red; simpl. repeat split; trivial; intros i.
+    - destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! i); trivial.
+    - rewrite 2 make_tycontext_s_find_id; trivial.
+    - rewrite PTree.gempty; simpl; trivial.
+Qed.
+
 Lemma mapsto_zeros_mapsto_nullval sh b z t:
    readable_share sh ->
    Z.divide (align_chunk Mptr) (Ptrofs.unsigned z) ->
@@ -3684,7 +3696,7 @@ Ltac SC_tac := simpl; intros ? ? X H;
   inv X; first [ eexists; split; [reflexivity | apply funspec_sub_refl] | idtac]; try contradiction.
 
 Ltac HImports_tac := simpl; intros ? ? ? H1 H2;
-  repeat (if_tac in H1; subst; simpl in *; try discriminate).
+  repeat (if_tac in H1; subst; simpl in *; try discriminate);try congruence.
 
 Ltac ImportsDef_tac := first [ reflexivity | idtac ].
 Ltac ExportsDef_tac := first [ reflexivity | idtac ].
@@ -3934,4 +3946,114 @@ Proof.
   unfold align_compatible. apply prop_ext; split; intros.
 + inv H. econstructor. reflexivity. simpl. apply Z.divide_0_r. 
 + inv H. econstructor. reflexivity. simpl. apply Z.divide_0_r.
+Qed.
+
+Lemma semax_body_Gmerge1 {cs} V G1 G2 f iphi (SB: @semax_body V G1 cs f iphi)
+  (G12: forall i phi1 phi2, find_id i G1 = Some phi1 -> find_id i G2 = Some phi2 ->
+        typesig_of_funspec phi1 = typesig_of_funspec phi2 /\
+        callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2)
+   (LNR: list_norepet (map fst V ++ map fst (G_merge G1 G2))):
+   @semax_body V (G_merge G1 G2) cs f iphi.
+Proof. 
+assert (LNR_VG1: list_norepet (map fst V ++ map fst G1)). 
+{ clear - LNR. apply list_norepet_append_inv in LNR; destruct LNR as [? [? ?]].
+  apply list_norepet_append; trivial.
+  + rewrite (@G_merge_dom G1 G2), map_app in H0.
+    apply list_norepet_append_inv in H0; apply H0.
+  + eapply list_disjoint_mono. apply H1. 2: trivial.
+    intros. rewrite (@G_merge_dom G1 G2), map_app. apply in_or_app. left; trivial. }
+assert (LNR_G1: list_norepet (map fst G1)). 
+{ clear - LNR_VG1. apply list_norepet_append_inv in LNR_VG1; apply LNR_VG1. }
+assert (D1: forall j t, find_id j V = Some t -> find_id j G1 = None).
+{ clear - LNR. intros.
+  apply (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR) in H.
+  apply find_id_None_iff. apply find_id_None_iff in H. intros N; apply H; clear H.
+  rewrite (@G_merge_dom G1 G2), map_app. apply in_or_app. left; trivial. }
+assert (D2: forall j t, find_id j V = Some t -> find_id j G2 = None).
+{ clear - LNR LNR_G1. intros.
+  apply (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR) in H.
+  apply find_id_None_iff. apply find_id_None_iff in H. intros N; apply H; clear H.
+  apply G_merge_InDom; trivial.
+  destruct (in_dec ident_eq j (map fst G1)). left; trivial. right; split; trivial. }
+eapply semax_body_subsumespec. eassumption.
+2: intros; apply subsumespec_G_merge_l; eauto.
+intros. red. specialize (D1 i); specialize (D2 i).
+remember (find_id i V) as q; destruct q; symmetry in Heqq. 
++ erewrite 2 semax_prog.make_context_g_mk_findV_mk; try eassumption.
+  trivial.
++ remember ((make_tycontext_g V G1) ! i) as w; symmetry in Heqw; destruct w; trivial.
+  specialize (G12 i).
+  remember (find_id i G1) as a; symmetry in Heqa; destruct a.
+  - erewrite semax_prog.make_tycontext_s_g in Heqw.
+    2:  rewrite make_tycontext_s_find_id; eassumption. 
+    inv Heqw.
+    remember (find_id i G2) as b; symmetry in Heqb; destruct b.
+    * destruct (G12 _ _ (eq_refl _) (eq_refl _)); clear G12.
+      destruct (G_merge_find_id_SomeSome Heqa Heqb H H0) as [psi [Psi PSI]].
+      apply funspectype_of_binary_intersection in Psi; destruct Psi.
+      erewrite semax_prog.make_tycontext_s_g.
+      2: rewrite make_tycontext_s_find_id; eassumption.
+      rewrite H1; trivial. 
+    * apply (G_merge_find_id_SomeNone Heqa) in Heqb.
+      erewrite semax_prog.make_tycontext_s_g.
+      2: rewrite make_tycontext_s_find_id; eassumption.
+      trivial.
+  - rewrite (semax_prog.make_tycontext_g_G_None _ _ _ Heqa) in Heqw; congruence.
+Qed.
+
+Lemma semax_body_Gmerge2 {cs} V G1 G2 f iphi (SB:@semax_body V G2 cs f iphi)
+  (G12: forall i phi1 phi2, find_id i G1 = Some phi1 -> find_id i G2 = Some phi2 ->
+        typesig_of_funspec phi1 = typesig_of_funspec phi2 /\
+        callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2)
+   (LNR_VG1: list_norepet (map fst V ++ map fst G1)) 
+   (LNR_VG2: list_norepet (map fst V ++ map fst G2)):
+   @semax_body V (G_merge G1 G2) cs f iphi.
+Proof.
+assert (LNR: list_norepet (map fst V ++ map fst (G_merge G1 G2))).
+{ apply list_norepet_append_inv in LNR_VG1; destruct LNR_VG1 as [? [? ?]].
+  apply list_norepet_append_inv in LNR_VG2; destruct LNR_VG2 as [? [? ?]].
+  apply list_norepet_append; trivial.
+  + apply G_merge_LNR; trivial.
+  + intros ? ? ? ?. apply G_merge_InDom in H6; trivial.
+    destruct H6 as [Y | [YY Y]]. apply H1; trivial. apply H4; trivial. }
+assert (LNR_G1: list_norepet (map fst G1)). 
+{ clear - LNR_VG1. apply list_norepet_append_inv in LNR_VG1; apply LNR_VG1. }
+assert (D1: forall j t, find_id j V = Some t -> find_id j G1 = None).
+{ clear - LNR. intros.
+  apply (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR) in H.
+  apply find_id_None_iff. apply find_id_None_iff in H. intros N; apply H; clear H.
+  rewrite (@G_merge_dom G1 G2), map_app. apply in_or_app. left; trivial. }
+assert (D2: forall j t, find_id j V = Some t -> find_id j G2 = None).
+{ clear - LNR LNR_G1. intros.
+  apply (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR) in H.
+  apply find_id_None_iff. apply find_id_None_iff in H. intros N; apply H; clear H.
+  apply G_merge_InDom; trivial.
+  destruct (in_dec ident_eq j (map fst G1)). left; trivial. right; split; trivial. }
+assert (LNR_G2: list_norepet (map fst G2)). 
+{ clear - LNR_VG2. apply list_norepet_append_inv in LNR_VG2; apply LNR_VG2. }
+
+eapply semax_body_subsumespec. eassumption.
+2: intros; apply subsumespec_G_merge_r; eauto.
+intros. red. specialize (D1 i); specialize (D2 i).
+remember (find_id i V) as q; destruct q; symmetry in Heqq. 
++ erewrite 2 semax_prog.make_context_g_mk_findV_mk; try eassumption.
+  trivial.
++ remember ((make_tycontext_g V G2) ! i) as w; symmetry in Heqw; destruct w; trivial.
+  specialize (G12 i).
+  remember (find_id i G2) as a; symmetry in Heqa; destruct a.
+  - erewrite semax_prog.make_tycontext_s_g in Heqw.
+    2:  rewrite make_tycontext_s_find_id; eassumption. 
+    inv Heqw.
+    remember (find_id i G1) as b; symmetry in Heqb; destruct b.
+    * destruct (G12 _ _ (eq_refl _) (eq_refl _)); clear G12.
+      destruct (G_merge_find_id_SomeSome Heqb Heqa H H0) as [psi [Psi PSI]].
+      apply funspectype_of_binary_intersection in Psi; destruct Psi.
+      erewrite semax_prog.make_tycontext_s_g.
+      2: rewrite make_tycontext_s_find_id; eassumption.
+      rewrite H2; trivial. 
+    * apply (G_merge_find_id_NoneSome Heqb) in Heqa; trivial.
+      erewrite semax_prog.make_tycontext_s_g.
+      2: rewrite make_tycontext_s_find_id; eassumption.
+      trivial.
+  - rewrite (semax_prog.make_tycontext_g_G_None _ _ _ Heqa) in Heqw; congruence.
 Qed.

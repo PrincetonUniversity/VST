@@ -130,7 +130,6 @@ Definition Core_VSU:
      (fun gv => one_pile PILE None gv * apile M PrivPILE [] gv)%logic.
 Proof.
   VSUMerge (MallocFreeVSU M) (Triang_Apile_Onepile_Pile_VSU).
-  congruence.
   extensionality gv. simpl. rewrite emp_sepcon; trivial. 
 Qed.
 

@@ -12,6 +12,12 @@ Require Import VST.veric.Cop2. (*for definition of tc_val'*)
 
 Local Open Scope pred.
 
+Lemma derives_emp_unfash_fash P Q: derives P Q  -> derives emp (unfash (fash (imp P Q))).
+Proof. repeat intro. eauto. Qed.
+
+Lemma derives_unfash_fash R P Q: derives P Q  -> derives R (unfash (fash (imp P Q))).
+Proof. repeat intro. eauto. Qed.
+
 (*******************material moved here from tycontext.v *******************)
 
 Inductive Annotation :=
@@ -437,6 +443,29 @@ destruct fs1, fs2.
 destruct W as [[? ?] _]. subst; simpl; auto.
 Qed.
 
+Lemma typesig_of_funspec_sub:
+  forall fs1 fs2, funspec_sub fs1 fs2 ->
+  typesig_of_funspec fs1 = typesig_of_funspec fs2.
+Proof.
+intros.
+destruct fs1, fs2; destruct H as [[? ?] _]. subst; simpl; auto.
+Qed.
+
+Lemma typesig_of_funspec_sub_si fs1 fs2:
+  funspec_sub_si fs1 fs2 |-- !!(typesig_of_funspec fs1 = typesig_of_funspec fs2).
+Proof.
+intros w W.
+destruct fs1, fs2.
+destruct W as [[? ?] _]. subst; simpl; auto.
+Qed.
+
+Lemma typesig_of_funspec_sub_si2 fs1 fs2:
+  TT |-- funspec_sub_si fs1 fs2  -> typesig_of_funspec fs1 = typesig_of_funspec fs2.
+Proof.
+intros. exploit (H (empty_rmap 0)). trivial. intros. 
+apply typesig_of_funspec_sub_si in H0. apply H0.
+Qed.
+
 (* Definition assert: Type := environ -> pred rmap. *)
 
 Bind Scope pred with assert.
@@ -582,6 +611,60 @@ Proof.
   apply predicates_hered.pred_ext.
   + intros w ?. simpl in *. if_tac; firstorder.
   + intros w ?. simpl in *. if_tac; firstorder.
+Qed.
+
+Lemma approx_prop_andp {P Q:Prop} n:
+  approx n (prop (P /\ Q)) = (approx n (prop P)) && (approx n (prop Q)). 
+Proof.
+  apply predicates_hered.pred_ext.
+  + intros w ?. simpl in *. destruct H as [? [? ?]]. split; split; trivial.
+  + intros w ?. simpl in *. destruct H as [[? ?] [? ?]]. split3; trivial.
+Qed.
+
+Lemma approx_prop_all {X} {P: X -> Prop} (y:X) n:
+  approx n (prop (forall x, P x)) = ALL x, approx n (prop (P x)).
+Proof.
+  apply predicates_hered.pred_ext.
+  + intros w ? ?. simpl in *. split; apply H.
+  + intros w ?. simpl in *. split. apply (H y). intros. apply H.
+Qed.
+
+Lemma approx_derives1 {P Q} n:
+  approx n (prop (P |-- Q)) |-- (prop (P |-- Q)). 
+Proof. intros w ?. simpl in *. apply H. Qed.
+Lemma approx_derives2 {P Q} n:
+  approx n (prop (P |-- Q)) |-- (prop (approx n P |-- approx n Q)). 
+Proof. intros w ? ? ?. simpl in *. destruct H. destruct H0. 
+split; trivial. apply H1. trivial.
+Qed. 
+Lemma approx_derives3 {X} {P Q: X -> pred rmap} n:
+  approx n (prop (forall x, P x |-- Q x)) |-- prop (forall x, approx n (P x) |-- approx n (Q x)).
+Proof. intros w ? ? ? ?. simpl in *. split. apply H0. apply H. apply H0. Qed.
+
+Lemma approx_derives4 {T1 T2} (P1 P2 Q2 Q1: T1 -> T2 -> mpred) n:
+      approx n (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> P2 S s0 * (Q2 S s0 -* Q1 S s0))))
+|-- approx n
+      (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> approx n (P2 S s0) * (approx n (Q2 S s0) -* Q1 S s0)))).
+Proof. intros ? [? ?]. split; trivial; simpl in *. intros.
+destruct (H0 b b0 _ H1 _ H2 H3) as [z1 [z2 [J [Z1 Z2]]]]; clear H0.
+do 2 eexists; split3. apply J.
+{ split; trivial. apply join_level in J; destruct J.
+  apply necR_level in H2. rewrite H0; clear H0. lia. }
+intros. eapply Z2. 3: apply H5. 2: apply H4. apply H0.
+Qed.
+
+Lemma approx_derives4_inv {T1 T2} (P1 P2 Q2 Q1: T1 -> T2 -> mpred) n:
+    approx n
+      (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> approx n (P2 S s0) * (approx n (Q2 S s0) -* Q1 S s0))))
+    |-- approx n (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> P2 S s0 * (Q2 S s0 -* Q1 S s0)))).
+Proof. intros ? [? ?]. split; trivial; simpl in *. intros.
+destruct (H0 b b0 _ H1 _ H2 H3) as [z1 [z2 [J [Z1 Z2]]]]; clear H0.
+do 2 eexists; split3. apply J. apply Z1.
+intros. eapply Z2. apply H0. apply H4. split; trivial.
+clear Z2 H5. apply join_level in J; destruct J.
+apply necR_level in H2.
+apply necR_level in H0.
+apply join_level in H4; destruct H4. lia.
 Qed.
 
 Lemma approx_func_ptr_si: forall (A: Type) fsig0 cc (P: A -> argsEnviron -> mpred) (Q: A -> environ -> mpred)(v: val) (n: nat),
@@ -1129,3 +1212,12 @@ Proof.
   split; intros. rewrite PTree.gempty in H; congruence. destruct H; inv H.
   red; intros. rewrite PTree.gempty in H; congruence.
 Qed.
+
+Lemma funspec_sub_cc phi psi: funspec_sub phi psi ->
+      callingconvention_of_funspec phi = callingconvention_of_funspec psi.
+Proof. destruct phi; destruct psi; simpl. intros [[_ ?] _]; trivial. Qed.
+
+Lemma funspec_sub_si_cc phi psi: TT |-- funspec_sub_si phi psi ->
+      callingconvention_of_funspec phi = callingconvention_of_funspec psi.
+Proof. destruct phi; destruct psi; simpl. intros.
+ destruct (H (empty_rmap 0)) as [[_ ?] _]; simpl; trivial. Qed.

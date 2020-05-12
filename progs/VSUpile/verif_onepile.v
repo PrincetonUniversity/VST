@@ -72,7 +72,7 @@ Qed.*)
     eapply derives_trans. 
     + apply mapsto_zeros_memory_block. apply writable_readable. apply writable_Ews.
     + rewrite <- memory_block_data_at_; simpl; trivial.
-      apply headptr_field_compatible; trivial. exists b; trivial. cbv; trivial. simpl; rep_omega.
+      apply headptr_field_compatible; trivial. exists b; trivial. cbv; trivial. simpl; rep_lia.
       econstructor. reflexivity. apply Z.divide_0_r.
   Qed.
 

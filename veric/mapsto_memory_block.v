@@ -1326,6 +1326,80 @@ hnf in H0. rewrite H0 in H1.
 inv H1; auto.
 Qed.
 
+Lemma address_mapsto_zeros_split {sh b}: forall n n1 n2 z (N:(n=n1+n2)%nat),
+      address_mapsto_zeros sh n (b,z) |--
+      address_mapsto_zeros sh n1 (b,z) *
+      address_mapsto_zeros sh n2 (b,Z.of_nat n1+z).
+Proof.
+induction n.
++ simpl; intros. destruct n1; destruct n2; simpl; try lia. rewrite emp_sepcon; trivial.
++ intros. simpl. destruct n1; simpl  in N.
+  - subst. simpl. rewrite emp_sepcon; trivial.
+  - inv N. rewrite Nat2Z.inj_succ. simpl. rewrite sepcon_assoc. 
+     apply sepcon_derives. trivial. 
+     eapply derives_trans. apply (IHn n1 n2). trivial.
+     replace (Z.of_nat n1 + Z.succ z) with (Z.succ (Z.of_nat n1) + z) by lia; trivial.
+Qed.
+
+Lemma mapsto_zeros_split sh a n1 n2 (N1: 0 <= n1) (N2: 0<=n2):
+      mapsto_zeros (n1+n2) sh a |-- mapsto_zeros n1 sh a * mapsto_zeros n2 sh (offset_val n1 a).
+Proof. destruct a; simpl; try solve [ rewrite FF_sepcon; trivial]; intros m [H M]; simpl in H.
+rewrite Z2Nat.inj_add in M by lia.
+apply (address_mapsto_zeros_split (Z.to_nat n1 + Z.to_nat n2) (Z.to_nat n1) (Z.to_nat n2) _ (eq_refl _)) in M.
+destruct M as [m1 [m2 [J [M1 M2]]]].
+exists m1, m2; split3.
++ trivial.
++ split; [ simpl; lia | trivial].
++ replace (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr n1) )) with (Z.of_nat (Z.to_nat n1) + Ptrofs.unsigned i).
+  - split; [ simpl; lia | trivial]. 
+  - clear - H N1 N2. rewrite Z2Nat.id, Ptrofs.add_commut by trivial.
+    rewrite Ptrofs.add_unsigned. rewrite (Ptrofs.unsigned_repr n1); [| unfold Ptrofs.max_unsigned; lia].
+    rewrite Ptrofs.unsigned_repr; trivial. unfold Ptrofs.max_unsigned; lia.
+Qed.
+
+Fixpoint sepconN N (P: val -> mpred) sz (p:val):mpred :=
+  match N with
+    O => emp
+  | S n => (P p * sepconN n P sz (offset_val sz p))
+  end.
+
+Lemma mapsto_zeros_mapsto_nullval_N {cenv sh b t}: forall N z,
+       readable_share sh ->
+       (align_chunk Mptr | Ptrofs.unsigned z) ->
+       mapsto_zeros (Z.of_nat N * size_chunk Mptr) sh (Vptr b z)
+       |-- !! (0 <= Ptrofs.unsigned z /\
+               Z.of_nat N * size_chunk Mptr + Ptrofs.unsigned z < Ptrofs.modulus) &&
+           sepconN N (fun p => mapsto sh (Tpointer t noattr) p nullval)
+                     (@sizeof cenv (Tpointer t noattr)) (Vptr b z).
+Proof.
+  induction N; intros; trivial. remember (size_chunk Mptr) as sz.
+  replace (Z.of_nat (S N) * sz)%Z with (sz + Z.of_nat N * sz)%Z by lia.
+  specialize (size_chunk_pos Mptr); intros. specialize (Z_of_nat_ge_O N); intros.
+  eapply derives_trans. apply mapsto_zeros_split; subst; try lia. apply Z.mul_nonneg_nonneg; lia.
+  apply andp_right.
+  { clear IHN. intros m [m1 [m2 [J [[M1 _] [[M2a M2b] _]]]]]; simpl in *.
+    split; try lia. rewrite Ptrofs.add_unsigned in M2b, M2a.
+    rewrite (Ptrofs.unsigned_repr sz), Ptrofs.unsigned_repr in M2b, M2a; try lia.
+    all: subst; unfold size_chunk, Mptr in *; simple_if_tac; unfold Ptrofs.max_unsigned; try lia. }
+  subst sz.
+  eapply derives_trans.
+  + eapply sepcon_derives.
+    - apply mapsto_zeros_mapsto_nullval; trivial.
+    - apply derives_refl.
+  + rewrite sepcon_andp_prop1. apply prop_andp_left; intros.
+    simpl sepconN. apply sepcon_derives. apply derives_refl.
+    replace (offset_val (size_chunk Mptr) (Vptr b z)) with (Vptr b (Ptrofs.add z (Ptrofs.repr (if Archi.ptr64 then 8 else 4)))).
+    - eapply derives_trans. apply IHN; trivial.
+      { clear IHN. rewrite Ptrofs.add_unsigned.
+        rewrite (Ptrofs.unsigned_repr (if Archi.ptr64 then 8 else 4)).
+        + rewrite Ptrofs.unsigned_repr.
+          - apply Z.divide_add_r; trivial. unfold align_chunk, Mptr. simple_if_tac; apply Z.divide_refl.
+          - unfold size_chunk, Mptr in H3. simple_if_tac; unfold Ptrofs.max_unsigned; lia.
+       + unfold size_chunk, Mptr in H3. simple_if_tac; unfold Ptrofs.max_unsigned; lia. }
+      apply andp_left2; trivial.
+    - simpl. unfold Mptr. destruct Archi.ptr64; simpl; trivial.
+Qed.
+
 Lemma address_mapsto_zeros'_split:
   forall a b sh p,
  0<=a -> 0 <= b -> 
@@ -1426,14 +1500,3 @@ simpl. auto.
 simpl.
 apply IHn. lia.
 Qed.
-
-
-
-
-
-
-
-
-
-
-

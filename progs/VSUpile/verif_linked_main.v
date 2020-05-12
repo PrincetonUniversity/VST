@@ -98,9 +98,9 @@ forward_for_simple_bound 10
  entailer!.
 -
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-rep_omega.
+rep_lia.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-rep_omega. rewrite decreasing_inc by omega.
+rep_lia. rewrite decreasing_inc by lia.
 entailer!.
 -
 forward_call (decreasing (Z.to_nat 10), gv).
@@ -108,72 +108,17 @@ compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
 forward_call (10,gv).
-omega.
+lia.
 forward.
 cancel.
 Qed.
 
-  (*Redundant
-  Definition MainComponent: @Component NullExtension.Espec LinkedVprog LinkedCompSpecs
-        nil MainImports main.prog [(*main_spec (*M*) linked_prog*)maininstspec] emp main_internal_specs.
-  Proof. 
-    mkComponent. clear; solve_SF_internal body_main.
-  Qed.*)(*
-Axiom GG: globvar2pred = initialize.globvar2pred.
-Print main_pre.
-Print gglobvars2pred.
-
-Lemma main_sub : (*(forall gv, InitGPred (apileVars APILE) gv
-                             |-- fold_right sepcon emp MyInitPred gv) ->*)
-                 (onepileVars ONEPILE ++ apileVars APILE = Vardefs linked_prog) ->
-                 funspec_sub (snd maininstspec)
-(*                       [verif_onepile.one_pile (PILE M) None; verif_apile.apile M (PrivPILE M) []]))*)
-                            (snd mainspec).
-Proof. intros VV. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear H.
-(*  unfold InitGPred in H; simpl in H.*)
-  Exists w emp. unfold gglobvars2pred; simpl.
-  unfold globvars2pred. unfold lift2; Intros. simpl. entailer!.
-  + intros. entailer!.
-  + eapply derives_trans.
-    2:{ apply sepcon_derives. apply (onepile_Init ONEPILE). apply (apile_Init APILE). }
-    rewrite sepcon_comm, <- InitGPred_app, VV.
-    unfold InitGPred. simpl. entailer. rewrite ! GG. rewrite !initialize.globvar2pred_char_gv.
-    apply andp_right. unfold  Search headptr. admit.
-    rewrite sepcon_comm; apply derives_refl.  apply sepcon_derives. apply derives_refl.  entailer!.
-     Search InitGPred app. simpl in VV.  unfold InitGPred. simpl. eapply derives_trans. 2: apply (apile_Init APILE).
-
- specialize (H (globals_of_env (Clight_seplog.mkEnv g [] []))).
-    rewrite ! sepcon_emp in H. eapply derives_trans. 2: apply H. clear H. simpl.
-    simpl InitGPred in H0.
-    rewrite ! GG. rewrite !initialize.globvar2pred_char_gv. entailer.
-    Search headptr.
-   Search initialize.globvar2pred.  InitGPred (Vardefs p) gv |-- MyInitPredsep_apply (verif_onepile.globEntailsInitPred (PILE M)).
-    cancel.
-    unfold globvar2pred; simpl. rewrite mapsto_isptr; Intros. apply global_is_headptr in H. 
-    rewrite <- verif_apile.make_apile by trivial. cancel.
-    erewrite data_at_tuint_tint, <- mapsto_data_at''; trivial. apply derives_refl.
-Qed.*)
 
 End MainVSU.
 
 Require Import verif_core.
 (*Finally, we assert existence of a mallocfree library.*)
 Parameter M: MallocFreeAPD.
- (*
-Lemma main_sub: funspec_sub (snd (main_inst_spec M (MyInitPred (ONEPILE M) (APILE M))))
-                             (snd mainspec).
-Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear. 
-  Exists w emp. unfold gglobvars2pred; simpl.
-  unfold globvars2pred, lift2; Intros. simpl. entailer!.
-  + intros. entailer!.
-  + rewrite sepcon_comm; apply sepcon_derives.
-    - unfold globvar2pred; simpl. rewrite mapsto_isptr; Intros. apply global_is_headptr in H.
-      rewrite <- verif_onepile.make_onepile, sepcon_emp by trivial.
-      erewrite <- (mapsto_data_at''), <- mapsto_size_t_tptr_nullval; trivial. apply derives_refl.
-    - unfold globvar2pred; simpl. rewrite mapsto_isptr; Intros. apply global_is_headptr in H.
-      rewrite <- verif_apile.make_apile, sepcon_emp by trivial.
-      erewrite <- (mapsto_data_at''); trivial. apply derives_refl.
-Qed.*)
 
 Lemma mapsto_zeros_isptr n sh p (R:readable_share sh):
       mapsto_zeros n sh p |-- !!(isptr p) && mapsto_zeros n sh p.
@@ -273,7 +218,7 @@ Lemma MainE_vacuous i phi: find_id i MainE = Some phi -> find_id i (coreBuiltins
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (prog_funct coreprog) = Some (External ef argsig retsig cc) /\
            ef_sig ef = {| sig_args := typlist_of_typelist argsig;
-                          sig_res := opttyp_of_type retsig;
+                          sig_res := rettype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
   Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
     cbv in H1.

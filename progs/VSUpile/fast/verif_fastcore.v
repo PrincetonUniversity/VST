@@ -129,7 +129,7 @@ Definition Core_VSU:
 @VSU NullExtension.Espec coreVprog coreCS coreBuiltins coreImports coreprog coreExports
      (fun gv => one_pile PILE None gv * apile PrivPILE [] gv)%logic.
 Proof.
-  VSUMerge (MallocFreeVSU M) (Triang_Apile_Onepile_Pile_VSU). congruence.
+  VSUMerge (MallocFreeVSU M) (Triang_Apile_Onepile_Pile_VSU).
   extensionality gv. simpl. rewrite emp_sepcon; trivial.
 Qed.
 
