@@ -21,6 +21,13 @@ Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_Mini
 
 Local Open Scope logic.
 
+Create HintDb gather_prop discriminated.
+Create HintDb gather_prop_core discriminated.
+
+Ltac gather_prop :=
+ autorewrite with gather_prop_core;  (* faster to do this first *)
+ autorewrite with gather_prop.
+
 Arguments sizeof {cs} !t / .
 Arguments alignof {cs} !t / .
 

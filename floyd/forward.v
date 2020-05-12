@@ -610,41 +610,13 @@ intros. eapply derives_trans; [apply H0 |].
 normalize.
 Qed.
 
-(*DEAD; was needed for the now check_one_temp_spec condition in prove_call_setup_aux
- which referred to the definition call_lemmas.check_one_temp_spec.
-  Now, the tactic check_vl_eq_args below is used to discharge new reformulated side condition
-Ltac Forall_pTree_from_elements :=
- cbv beta;
- unfold PTree.elements; simpl PTree.xelements;
- go_lower;
- repeat (( simple apply derives_extract_prop
-                || simple apply derives_extract_prop');
-                fancy_intros true);
- autorewrite with gather_prop;
- repeat (( simple apply derives_extract_prop
-                || simple apply derives_extract_prop');
-                fancy_intros true);
-   repeat erewrite unfold_reptype_elim in * by reflexivity;
-   try autorewrite with entailer_rewrite in *;
-   repeat first
-   [ apply prop_Forall_cons1;
-     [unfold check_one_temp_spec, check_gvars_spec;
-     simpl; auto;
-     solve [normalize]
-     | ]
-   | apply prop_Forall_cons'
-   | apply prop_Forall_cons
-   | apply prop_Forall_nil'
-   | apply prop_Forall_nil
-   ];
- unfold check_one_temp_spec; simpl PTree.get.*)
 Ltac check_vl_eq_args:=
 first [ 
    cbv beta; go_lower;
    repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
-   autorewrite with gather_prop;
+   gather_prop;
    repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
