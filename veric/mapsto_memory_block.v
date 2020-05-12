@@ -1375,7 +1375,7 @@ Proof.
   induction N; intros; trivial. remember (size_chunk Mptr) as sz.
   replace (Z.of_nat (S N) * sz)%Z with (sz + Z.of_nat N * sz)%Z by lia.
   specialize (size_chunk_pos Mptr); intros. specialize (Z_of_nat_ge_O N); intros.
-  eapply derives_trans. apply mapsto_zeros_split; subst; try lia. apply Z.mul_nonneg_nonneg; lia.
+  eapply derives_trans. apply mapsto_zeros_split; subst; try first [lia | apply Z.mul_nonneg_nonneg; lia].
   apply andp_right.
   { clear IHN. intros m [m1 [m2 [J [[M1 _] [[M2a M2b] _]]]]]; simpl in *.
     split; try lia. rewrite Ptrofs.add_unsigned in M2b, M2a.
