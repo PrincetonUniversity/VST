@@ -68,14 +68,17 @@ clean:
 # .depend depend:
 # 	coqdep $(VSTFLAGS) *.v >.depend
 
-spec_apile.vo: apile.vo spec_stdlib.vo spec_pile.vo
-spec_main.vo: main.vo spec_stdlib.vo spec_onepile.vo spec_apile.vo spec_triang.vo
-spec_onepile.vo: onepile.vo spec_stdlib.vo spec_pile.vo
-spec_pile.vo: pile.vo PileModel.vo spec_stdlib.vo
-spec_pile_private.vo: spec_pile.vo spec_stdlib.vo 
-spec_stdlib.vo: stdlib.vo
-spec_main.vo: main.vo
-spec_triang.vo: triang.vo spec_stdlib.vo spec_pile.vo
+floyd: $(VST_LOC)/floyd/proofauto.vo
+
+PileModel.vo: PileModel.v floyd
+spec_apile.vo: apile.vo spec_stdlib.vo spec_pile.vo floyd
+spec_main.vo: main.vo spec_stdlib.vo spec_onepile.vo spec_apile.vo spec_triang.vo floyd
+spec_onepile.vo: onepile.vo spec_stdlib.vo spec_pile.vo floyd
+spec_pile.vo: pile.vo PileModel.vo spec_stdlib.vo floyd
+spec_pile_private.vo: spec_pile.vo spec_stdlib.vo floyd
+spec_stdlib.vo: spec_stdlib.v stdlib.vo floyd
+spec_main.vo: spec_main.v main.vo floyd
+spec_triang.vo: triang.vo spec_stdlib.vo spec_pile.vo floyd
 verif_apile.vo: apile.vo spec_stdlib.vo spec_pile.vo spec_apile.vo spec_pile_private.vo
 verif_core.vo: main.vo verif_stdlib.vo spec_pile_private.vo verif_pile.vo verif_onepile.vo verif_apile.vo verif_triang.vo
 verif_main.vo: spec_main.vo verif_core.vo
@@ -86,10 +89,10 @@ verif_stdlib.vo: spec_stdlib.vo
 link_pile.vo: verif_main.vo
 verif_linked_main.vo: PileModel.vo verif_core.vo spec_main.vo
 incr/verif_incr.vo: incr/incr.vo
-fast/spec_fastpile.vo: fast/fastpile.vo spec_stdlib.vo PileModel.vo
-fast/spec_fastpile_private.vo: fast/spec_fastpile.vo spec_stdlib.vo 
-fast/spec_fastpile_concrete.vo: fast/fastpile.vo spec_stdlib.vo
-fast/subsume_fastpile.vo: fast/fastpile.vo spec_stdlib.vo fast/spec_fastpile.vo fast/verif_fastpile.vo fast/verif_fastpile_concrete.vo
+fast/spec_fastpile.vo: fast/fastpile.vo spec_stdlib.vo PileModel.vo floyd
+fast/spec_fastpile_private.vo: fast/spec_fastpile.vo spec_stdlib.vo  floyd
+fast/spec_fastpile_concrete.vo: fast/fastpile.vo spec_stdlib.vo floyd
+fast/subsume_fastpile.vo: fast/fastpile.vo spec_stdlib.vo fast/spec_fastpile.vo fast/verif_fastpile.vo fast/verif_fastpile_concrete.vo floyd
 fast/verif_fastpile.vo: fast/fastpile.vo spec_stdlib.vo fast/spec_fastpile.vo fast/spec_fastpile_private.vo
 fast/verif_fastpile_concrete.vo: fast/fastpile.vo spec_stdlib.vo fast/spec_fastpile_concrete.vo
 fast/verif_fastapile.vo: fast/fastapile.vo spec_stdlib.vo spec_pile.vo fast/spec_fastpile_private.vo
