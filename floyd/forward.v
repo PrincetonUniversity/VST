@@ -4671,6 +4671,10 @@ Definition duplicate_ids (il: list ident) : list ident :=
   in dl.
 
 Ltac old_with_library' p G :=
+(* for augment_funspecs_new ...
+  let g := constr:(fold_left (fun t ia => PTree.set (fst ia) (snd ia) t) G (PTree.empty _)) in
+  let g := eval hnf in g in
+*)
   let g := eval hnf in G in
   let x := constr:(augment_funspecs' (prog_funct p) g) in
   let x := eval cbv beta iota zeta delta [prog_funct] in x in 
@@ -4909,7 +4913,9 @@ Ltac prove_semax_prog_aux tac :=
  | match goal with
      |- match initial_world.find_id (prog_main ?prog) ?Gprog with _ => _ end =>
      unfold prog at 1; (rewrite extract_prog_main || rewrite extract_prog_main');
-     ((eexists; try (unfold NDmk_funspec'; rewrite_old_main_pre); reflexivity) || 
+     ((hnf; eexists;
+      try match goal with |- snd ?A = _ => let j := fresh in set (j:=A); hnf in j; subst j; unfold snd at 1 end;
+      try (unfold NDmk_funspec'; rewrite_old_main_pre); reflexivity) || 
         fail "Funspec of _main is not in the proper form")
     end
  ]; 
