@@ -3258,7 +3258,7 @@ Ltac solve_SF_external B :=
                      | split3; [ reflexivity
                                | reflexivity
                                | split3; [ left; trivial
-                                         | intros ? ? ? ?; try solve [entailer!](*; normalize*)
+                                         | clear; intros ? ? ? ?; try solve [entailer!](*; normalize*)
                                          | split; [ try apply B
                                                   | eexists; split; cbv; reflexivity ]] ] ]
         | idtac ].

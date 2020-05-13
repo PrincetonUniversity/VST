@@ -187,45 +187,53 @@ Proof. split.
   congruence.
 Qed.
 
-Definition MainE_pre:funspecs :=
-   filter (fun x => in_dec ident_eq (fst x) (ExtIDs linked_prog)) (augment_funspecs linked_prog (MallocFreeASI M)).
-  (* Holds but dead code *)
-  Lemma coreE_in_MainE: forall i phi, find_id i (coreBuiltins M) = Some phi -> find_id i MainE_pre = Some phi.
-  Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
+Definition ExtIDtable : PTree.t unit :=
+  ltac:(let x := constr:(fold_right (fun i t => PTree.set i tt t) (PTree.empty _) (ExtIDs linked_prog))
+           in let x := eval compute in x
+           in exact x).
+
+Definition in_ExtIDs (ia: ident*funspec) : bool :=
+ match PTree.get (fst ia) ExtIDtable with Some _ => true | None => false end.
+
+Definition LinkedSYS_pre:funspecs :=
+   filter in_ExtIDs (augment_funspecs linked_prog (MallocFreeASI M)).
+
+Definition LinkedSYS:funspecs := 
+  ltac: 
+    (let x := eval hnf in LinkedSYS_pre in
+     let x := eval simpl in x in 
+     (*let x := eval compute in x in leaving this in leads Coq to timeout/crash*)
+       exact x).
+
+Lemma ApplibSys_in_LinkedSys: forall i phi, find_id i (coreBuiltins M) = Some phi -> find_id i LinkedSYS = Some phi.
+  Proof.
+    intros. specialize (find_id_In_map_fst _ _ _ H); intros.
     simpl in H0. repeat (destruct H0 as [HO | H0]; [ subst i; inv H; reflexivity |]). contradiction.
   Qed. 
 
-Definition MainE:funspecs := ltac:
-    (let x := eval hnf in MainE_pre in
-     let x := eval simpl in x in 
-(*     let x := eval compute in x in *)
-       exact x). (*Takes 30s to compute...*)
-
-Lemma HypME1 : forall i : ident,
-         In i (map fst MainE) ->
-         exists (ef : external_function) (ts : typelist) (t : type) (cc : calling_convention),
-           find_id i (prog_defs linked_prog) = Some (Gfun (External ef ts t cc)).
-  Proof. intros.
-    cbv in H. 
+Lemma LinkedSYS_External: forall i, In i (map fst LinkedSYS) ->
+      exists ef ts t cc, find_id i (prog_defs linked_prog) = Some (Gfun (External ef ts t cc)).
+  Proof.
+    intros. cbv in H. 
     repeat (destruct H as [H | H];
       [ subst; try solve [do 4 eexists; split; reflexivity ]
       | ]).
     contradiction.
   Qed.
 
-Lemma MainE_vacuous i phi: find_id i MainE = Some phi -> find_id i (coreBuiltins M) = None ->
+Lemma LinkedSYS_vacuous i phi: find_id i LinkedSYS = Some phi -> find_id i (coreBuiltins M) = None ->
         exists ef argsig retsig cc, 
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (prog_funct coreprog) = Some (External ef argsig retsig cc) /\
            ef_sig ef = {| sig_args := typlist_of_typelist argsig;
                           sig_res := rettype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
-  Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
+  Proof.
+    intros. specialize (find_id_In_map_fst _ _ _ H); intros.
     cbv in H1.
     Time repeat (destruct H1 as [H1 | H1]; 
       [ subst; inv H; try solve [do 4 eexists; split3; reflexivity]
-      | ]). (*3s*)
-    inv H0. inv H0. inv H0. contradiction.
+      | ]); try inv H0; try contradiction. (*3s*)
   Qed.
 
 Lemma disjoint_Vprog_linkedfuncts: 
@@ -251,19 +259,19 @@ Qed.*)
 Require Import VST.floyd.VSU_addmain.
 
 Definition SO_VSU: @LinkedProgVSU NullExtension.Espec LinkedVprog LinkedCompSpecs
-      MainE Imports linked_prog [mainspec (*M*)] (*(InitPred_of_CanonicalVSU (Core_CanVSU M))*)
+      LinkedSYS Imports linked_prog [mainspec (*M*)] (*(InitPred_of_CanonicalVSU (Core_CanVSU M))*)
        (fun gv => onepile (ONEPILE M) None gv * apile (APILE M)  [] gv)%logic.
 Proof.
  AddMainProgProgVSU_tac_entail (Core_CanVSU M).
    + apply disjoint_Vprog_linkedfuncts.
-   + apply HypME1.
+   + apply LinkedSYS_External.
    + eapply semax_body_subsumption.
        * eapply semax_body_funspec_sub. 
          - apply (body_main M (ONEPILE M) (APILE M)).
          - apply main_sub.
          - LNR_tac.
        * apply tycontext_sub_i99. apply tc_VG.
-   + apply MainE_vacuous.
+   + apply LinkedSYS_vacuous.
 Qed.
 
 Lemma prog_correct:
