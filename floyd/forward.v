@@ -610,41 +610,13 @@ intros. eapply derives_trans; [apply H0 |].
 normalize.
 Qed.
 
-(*DEAD; was needed for the now check_one_temp_spec condition in prove_call_setup_aux
- which referred to the definition call_lemmas.check_one_temp_spec.
-  Now, the tactic check_vl_eq_args below is used to discharge new reformulated side condition
-Ltac Forall_pTree_from_elements :=
- cbv beta;
- unfold PTree.elements; simpl PTree.xelements;
- go_lower;
- repeat (( simple apply derives_extract_prop
-                || simple apply derives_extract_prop');
-                fancy_intros true);
- autorewrite with gather_prop;
- repeat (( simple apply derives_extract_prop
-                || simple apply derives_extract_prop');
-                fancy_intros true);
-   repeat erewrite unfold_reptype_elim in * by reflexivity;
-   try autorewrite with entailer_rewrite in *;
-   repeat first
-   [ apply prop_Forall_cons1;
-     [unfold check_one_temp_spec, check_gvars_spec;
-     simpl; auto;
-     solve [normalize]
-     | ]
-   | apply prop_Forall_cons'
-   | apply prop_Forall_cons
-   | apply prop_Forall_nil'
-   | apply prop_Forall_nil
-   ];
- unfold check_one_temp_spec; simpl PTree.get.*)
 Ltac check_vl_eq_args:=
 first [ 
    cbv beta; go_lower;
    repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
-   autorewrite with gather_prop;
+   gather_prop;
    repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
@@ -4452,6 +4424,10 @@ Ltac start_function1 :=
                                                       (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) * _) _ _ =>
           match B with match ?p with (a,b) => _ end => destruct p as [a b] end
        end;
+(* this speeds things up, but only in the very rare case where it applies,
+   so maybe not worth it ...
+  repeat match goal with H: reptype _ |- _ => progress hnf in H; simpl in H; idtac "reduced a reptype" end;
+*)
  try start_func_convert_precondition.
 
 (* first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
@@ -4695,6 +4671,10 @@ Definition duplicate_ids (il: list ident) : list ident :=
   in dl.
 
 Ltac old_with_library' p G :=
+(* for augment_funspecs_new ...
+  let g := constr:(fold_left (fun t ia => PTree.set (fst ia) (snd ia) t) G (PTree.empty _)) in
+  let g := eval hnf in g in
+*)
   let g := eval hnf in G in
   let x := constr:(augment_funspecs' (prog_funct p) g) in
   let x := eval cbv beta iota zeta delta [prog_funct] in x in 
@@ -4933,7 +4913,9 @@ Ltac prove_semax_prog_aux tac :=
  | match goal with
      |- match initial_world.find_id (prog_main ?prog) ?Gprog with _ => _ end =>
      unfold prog at 1; (rewrite extract_prog_main || rewrite extract_prog_main');
-     ((eexists; try (unfold NDmk_funspec'; rewrite_old_main_pre); reflexivity) || 
+     ((hnf; eexists;
+      try match goal with |- snd ?A = _ => let j := fresh in set (j:=A); hnf in j; subst j; unfold snd at 1 end;
+      try (unfold NDmk_funspec'; rewrite_old_main_pre); reflexivity) || 
         fail "Funspec of _main is not in the proper form")
     end
  ]; 

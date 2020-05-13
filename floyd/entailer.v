@@ -279,7 +279,7 @@ Ltac pull_out_props :=
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
-    autorewrite with gather_prop;
+    gather_prop;
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true).
@@ -300,7 +300,7 @@ end.
 
 Ltac ent_iter :=
     repeat simplify_float2int;
-    autorewrite with gather_prop;
+    gather_prop;
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);

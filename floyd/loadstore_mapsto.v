@@ -45,7 +45,7 @@ Proof.
     apply andp_derives; [apply derives_refl | apply H1].
     clear H.
     go_lowerx.
-    autorewrite with gather_prop.
+    gather_prop.
     apply derives_extract_prop; intro.
     apply andp_right.
     apply prop_right; repeat split; try eassumption.
@@ -110,7 +110,7 @@ Proof.
     apply andp_derives; [apply derives_refl | apply H1].
     clear H1.
     go_lowerx.
-    autorewrite with gather_prop.
+    gather_prop.
     apply derives_extract_prop; intro.
     apply andp_right.
     apply prop_right; repeat split; eassumption.

@@ -156,6 +156,7 @@ Lemma body_intpair_deserialize: semax_body Vprog Gprog f_intpair_deserialize int
 Proof.
 unfold intpair_deserialize_spec, deserialize_spec.
 start_function.
+hnf in data; simpl in data. (* This speeds things up dramatically *)
 simpl. Intros. subst len.
 destruct data as [[|x1 | | | | ] [|y1 | | | | ]]; try contradiction.
 clear H H1 H2.

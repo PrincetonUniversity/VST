@@ -187,8 +187,16 @@ Proof. split.
   congruence.
 Qed.
 
+Definition ExtIDtable : PTree.t unit :=
+  ltac:(let x := constr:(fold_right (fun i t => PTree.set i tt t) (PTree.empty _) (ExtIDs linked_prog))
+           in let x := eval compute in x
+           in exact x).
+
+Definition in_ExtIDs (ia: ident*funspec) : bool :=
+ match PTree.get (fst ia) ExtIDtable with Some _ => true | None => false end.
+
 Definition MainE_pre:funspecs :=
-   filter (fun x => in_dec ident_eq (fst x) (ExtIDs linked_prog)) (augment_funspecs linked_prog (MallocFreeASI M)).
+   filter in_ExtIDs (augment_funspecs linked_prog (MallocFreeASI M)).
   (* Holds but dead code *)
   Lemma coreE_in_MainE: forall i phi, find_id i (coreBuiltins M) = Some phi -> find_id i MainE_pre = Some phi.
   Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
@@ -198,8 +206,7 @@ Definition MainE_pre:funspecs :=
 Definition MainE:funspecs := ltac:
     (let x := eval hnf in MainE_pre in
      let x := eval simpl in x in 
-(*     let x := eval compute in x in *)
-       exact x). (*Takes 30s to compute...*)
+       exact x). 
 
 Lemma HypME1 : forall i : ident,
          In i (map fst MainE) ->

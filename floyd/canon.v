@@ -409,7 +409,7 @@ Lemma insert_local': forall (Q1: localdef) P Q R,
 Proof.
 intros. extensionality rho.
 unfold PROPx, LOCALx, local; super_unfold_lift. simpl.
-apply pred_ext; autorewrite with gather_prop; normalize.
+apply pred_ext; gather_prop; normalize.
 repeat apply andp_right; auto.
 apply prop_right; repeat split; auto.
 apply andp_right; auto.
