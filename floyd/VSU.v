@@ -2492,7 +2492,7 @@ Qed.
 
 End ComponentJoin.
 
-Section VSUJoin.
+Section VSULink.
 
 Variable Espec: OracleKind.
 Variable V1 V2 V: varspecs.
@@ -2557,14 +2557,14 @@ Variable VD: map fst (Vardefs p) = map fst V.
 Variable HVardefs1: forall i d, find_id i (Vardefs p1) = Some d -> find_id i (Vardefs p) = Some d.
 Variable HVardefs2: forall i d, find_id i (Vardefs p2) = Some d -> find_id i (Vardefs p) = Some d.
 
-Lemma VSUJoin: @VSU Espec (*(V1++V2)*)V cs E Imports p Exports (fun gv => GP1 gv * GP2 gv)%logic.
+Lemma VSULink: @VSU Espec (*(V1++V2)*)V cs E Imports p Exports (fun gv => GP1 gv * GP2 gv)%logic.
 Proof.
   destruct vsu1 as [G1 c1]. destruct vsu2 as [G2 c2].
   exists (G_merge (Comp_G c1) (Comp_G c2)).
   eapply ComponentJoin; trivial.
 Qed.
 
-End VSUJoin.
+End VSULink.
 
 Lemma SF_ctx_subsumption {Espec cs} V G ge i fd phi (HSF:  @SF Espec cs V ge G i fd phi)
   (LNR_G: list_norepet (map fst G)) G' V' ge' cs'
@@ -3755,9 +3755,9 @@ Lemma VSU_ext {Espec V cs E Imp p Exp GP1 GP2}:
       @VSU Espec V cs E Imp p Exp GP2.
 Proof. intros; subst; trivial. Qed.
 
-Ltac VSUMerge VSU1 VSU2 :=
+Ltac VSULink_tac VSU1 VSU2 :=
 eapply VSU_ext;
-[ eapply (VSUJoin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  VSU1 VSU2);
+[ eapply (VSULink _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  VSU1 VSU2);
 [ list_disjoint_tac
 | list_disjoint_tac
 | list_disjoint_tac

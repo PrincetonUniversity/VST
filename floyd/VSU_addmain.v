@@ -670,7 +670,7 @@ Definition add_CanComp := Comp_to_CanComp add_main.
 Variable Hmain: main = prog_main lp.
 Variable HEspec: Espec = NullExtension.Espec.
 
-Program Definition AddMainProgVSU:@LinkedProgVSU Espec Vprog CS
+Program Definition VSUAddMain:@LinkedProgVSU Espec Vprog CS
       MainE nil lp [(*main_spec main lp*)(main, mainspec)]
       (fun gv => Main_InitPred gv * coreGP gv)%logic.
 Proof. 
@@ -686,9 +686,9 @@ Ltac find_sub_sub_tac :=
      intros i phi Hphi; assert (FIND:= find_id_In_map_fst _ _ _ Hphi); cbv in FIND;
      repeat (destruct FIND as [FIND |FIND]; [ subst; inv Hphi; reflexivity |]); contradiction.
 
-Ltac AddMainProgProgVSU_tac_entail vsu :=
+Ltac VSUAddMain_tac vsu :=
 eapply LP_VSU_entail;
-[ eapply (@AddMainProgVSU _ _ _ _ _ _ _ vsu);
+[ eapply (@VSUAddMain _ _ _ _ _ _ _ vsu);
    [ try apply cspecs_sub_refl (*Perhaps a more general tactic is only needed if main.c contains data structure definitions?*)
    | try reflexivity
    | try reflexivity
