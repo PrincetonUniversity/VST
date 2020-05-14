@@ -41,7 +41,7 @@ Definition Onepile_Pile_VSU:
 @VSU NullExtension.Espec
    mrg_Vprog1 mrg_cs1 nil mrg_Imports1 mrg_prog1 mrg_Exports1 (one_pile PILE None).
 Proof.
-  VSUMerge (PilePrivateVSU M) (OnepileVSU M PILE).
+  VSULink_tac (PilePrivateVSU M) (OnepileVSU M PILE).
   extensionality gv. simpl. rewrite emp_sepcon; trivial.
 Qed.
 
@@ -71,7 +71,7 @@ Definition Apile_Onepile_Pile_VSU:
    mrg_Vprog2 mrg_cs2 nil mrg_Imports2 mrg_prog2 mrg_Exports2
    (fun gv => one_pile PILE None gv * apile PrivPILE [] gv)%logic.
 Proof.
-  VSUMerge (Onepile_Pile_VSU) (ApileVSU M PrivPILE).
+  VSULink_tac (Onepile_Pile_VSU) (ApileVSU M PrivPILE).
   intuition.
   extensionality gv; trivial.
 Qed.
@@ -100,7 +100,7 @@ Definition Triang_Apile_Onepile_Pile_VSU:
    mrg_Vprog3 mrg_cs3 nil mrg_Imports3 mrg_prog3 mrg_Exports3
   (fun gv => one_pile PILE None gv * apile PrivPILE [] gv)%logic.
 Proof.
-  VSUMerge (Apile_Onepile_Pile_VSU) (TriangVSU M PILE).
+  VSULink_tac (Apile_Onepile_Pile_VSU) (TriangVSU M PILE).
   extensionality gv. simpl. rewrite sepcon_emp. trivial.
 Qed.
 
@@ -129,7 +129,7 @@ Definition Core_VSU:
 @VSU NullExtension.Espec coreVprog coreCS coreBuiltins coreImports coreprog coreExports
      (fun gv => one_pile PILE None gv * apile PrivPILE [] gv)%logic.
 Proof.
-  VSUMerge (MallocFreeVSU M) (Triang_Apile_Onepile_Pile_VSU).
+  VSULink_tac (MallocFreeVSU M) (Triang_Apile_Onepile_Pile_VSU).
   extensionality gv. simpl. rewrite emp_sepcon; trivial.
 Qed.
 
