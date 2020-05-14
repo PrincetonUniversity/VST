@@ -1,14 +1,10 @@
 Require Import VST.floyd.proofauto.
-(*Require Import VST.veric.initial_world.*)
 Require Import VST.floyd.VSU.
-(*Require Import VST.floyd.VSU_addmain.*)
 
 Require Import PileModel. (*needed for decreasing etc*)
-(*Require Import verif_core.*)
-Require Import spec_stdlib. (*needed for mem_mgr*)
+Require Import spec_stdlib. 
 Require Import spec_onepile.
 Require Import pile.
-(*Require Import triang.*)
 Require Import spec_apile.
 Require Import spec_triang.
 Require Import main.
@@ -262,7 +258,7 @@ Definition SO_VSU: @LinkedProgVSU NullExtension.Espec LinkedVprog LinkedCompSpec
       LinkedSYS Imports linked_prog [mainspec (*M*)] (*(InitPred_of_CanonicalVSU (Core_CanVSU M))*)
        (fun gv => onepile (ONEPILE M) None gv * apile (APILE M)  [] gv)%logic.
 Proof.
- AddMainProgProgVSU_tac_entail (Core_CanVSU M).
+  VSUAddMain_tac (Core_CanVSU M).
    + apply disjoint_Vprog_linkedfuncts.
    + apply LinkedSYS_External.
    + eapply semax_body_subsumption.

@@ -163,7 +163,8 @@ Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
 Proof.
 intros.
  unfold fifo, fifo_body.
- if_tac; entailer; destruct ht; entailer!.
+ Intros ht; destruct ht; Intros.
+ if_tac.  entailer!.  Intros prefix; entailer!.
 Qed.
 
 Hint Resolve fifo_isptr : saturate_local.
@@ -190,9 +191,10 @@ destruct (isnil contents).
 * Intros prefix last.
 Exists prefix last.
   assert_PROP (isptr hd).
-    destruct prefix; entailer.
+    destruct prefix.
+    rewrite @lseg_nil_eq; entailer!.
     rewrite @lseg_cons_eq by auto. Intros y.
-    entailer.
+    entailer!.
  destruct hd; try contradiction.
  entailer!.
 Qed.
@@ -226,13 +228,12 @@ forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
 forward_if
   (PROP() LOCAL () SEP (fifo (contents ++ last :: nil) q))%assert.
-* unfold fifo_body; if_tac; entailer.  (* typechecking clause *) 
-      (* TODO: In the line above, entailer works but not entailer! *)
+* unfold fifo_body; if_tac. entailer!. Intros prefix last0; entailer!.
 * (* then clause *)
   subst.
   forward. (* Q->head=p; *)
   forward. (* Q->tail=p; *)
-  entailer.
+  entailer!.
   unfold fifo, fifo_body.
   destruct (isnil contents).
   + subst. Exists (p,p).
@@ -258,7 +259,7 @@ forward_if
      unfold fifo, fifo_body. Exists (hd, p).
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ last0 :: nil) last.
-     entailer.
+     entailer.   (* not entailer!, which would cancel *)
      rewrite (field_at_list_cell Ews last0 p).
      unfold_data_at (@data_at CompSpecs Ews t_struct_elem (last,nullval) p).
      unfold_data_at (data_at _ _ _ p).

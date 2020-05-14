@@ -87,9 +87,7 @@ Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
 Qed.
 Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
 
-Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop.
-
-(*Hint Rewrite <- sepcon_assoc : gather_prop.*)
+Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop gather_prop_core.
 
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: mpred),
@@ -1279,7 +1277,7 @@ Ltac normalize1 :=
               end.
 
 Ltac normalize :=
-   autorewrite with gather_prop;
+   gather_prop;
    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
               || simple apply derives_extract_prop
               || simple apply derives_extract_prop');

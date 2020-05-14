@@ -10,6 +10,8 @@ Require Export VST.floyd.coqlib3.
 Require Export VST.floyd.sublist.
 Require Export Lia.
 
+Create HintDb entailer_rewrite discriminated.
+
 Require Import VST.veric.val_lemmas.
 
 Lemma Vint_injective i j (H: Vint i = Vint j): i=j.

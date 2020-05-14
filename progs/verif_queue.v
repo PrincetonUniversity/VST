@@ -367,7 +367,7 @@ Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
 Proof.
 intros.
  unfold fifo, fifo_body.
- if_tac; entailer; destruct ht; entailer!.
+ Intros ht; destruct ht; if_tac; entailer!.
 Qed.
 
 Hint Resolve fifo_isptr : saturate_local.
@@ -395,9 +395,10 @@ destruct (isnil contents).
 * Intros prefix.
 Exists prefix.
   assert_PROP (isptr hd).
-    destruct prefix; entailer.
+    destruct prefix.
+      rewrite lseg_nil_eq. Intros. subst. entailer!.
     rewrite lseg_cons_eq by auto. Intros y. subst v.
-    entailer.
+    entailer!.
  destruct hd; try contradiction.
  entailer!.
 Qed.
@@ -431,15 +432,14 @@ forward. (*   h = Q->head; *)
 forward_if
   (PROP() LOCAL () SEP (fifo (contents ++ p :: nil) q))%assert.
 * unfold fifo_body.
-   if_tac; entailer.  (* typechecking clause *)
-    (* entailer! should perhaps solve this one too *)
+   if_tac. entailer!. Intros prefix. entailer!.
 * (* then clause *)
   subst.
   (* goal 9 *)
   forward. (* Q->head=p; *)
   forward. (* Q->tail=p; *)
   (* goal 10 *)
-  entailer.
+  entailer!.
   unfold fifo, fifo_body.
   destruct (isnil contents).
   + subst. Exists (p,p).
@@ -468,7 +468,7 @@ forward_if
      unfold fifo, fifo_body. Exists (hd, p).
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ tl :: nil).
-     entailer.
+     entailer. (* do this to avoid canceling *)
      match goal with
      | |- _ |-- _ * _ * ?AA => remember AA as A
      end.     (* prevent it from canceling! *)

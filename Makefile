@@ -478,7 +478,7 @@ endif
 ifeq ($(BITSIZE),64)
 travis: default_target progs
 else
-travis: default_target progs sha hmac mailbox
+travis: default_target progs sha hmac mailbox VSUpile
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
@@ -643,6 +643,9 @@ PROGS64_FILES= $(V64_ORDINARY)
 progs64c: $(C64_ORDINARY:%.c=progs64/%.c)
 progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.v) depend
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
+
+VSUpile: floyd/proofauto.vo
+	cd progs/VSUpile; $(MAKE)
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)

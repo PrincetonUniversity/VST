@@ -1439,11 +1439,6 @@ Hint Rewrite and_assoc_splittablex using
 Hint Rewrite and_assoc_splittablex using 
     match goal with |- splittablex ?A => splittablex_tac A end : gather_prop.
 
-(*
-Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : norm1.
-Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : gather_prop.
-*)
-
 Ltac hoist_later_left :=
    match goal with
   | |- (?P |-- _) =>
@@ -2016,7 +2011,7 @@ Qed.
 
 
 Ltac Intro_prop :=
-autorewrite with gather_prop;
+gather_prop;
 match goal with
  | |- semax _ ?PQR _ _ =>
      first [ is_evar PQR; fail 1

@@ -7,6 +7,10 @@ Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.functional_base.
 Import LiftNotation.
 
+Lemma force_Vint:  forall i, force_int (Vint i) = i.
+Proof.  reflexivity. Qed.
+Hint Rewrite force_Vint : norm.
+
 Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
 Proof. destruct v; simpl; try solve [right; intros N; trivial].
 destruct i.
