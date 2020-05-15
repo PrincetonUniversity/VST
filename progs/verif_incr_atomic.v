@@ -23,11 +23,11 @@ Program Definition incr_spec :=
   PRE [ ]
          PROP  (readable_share sh)
          LOCAL (gvars gv)
-         SEP   (lock_inv sh (gv _ctr_lock) (sync_inv g (ctr_state (gv _ctr)))) | (public_half g n)
+         SEP   (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g n)
   POST [ tvoid ]
          PROP ()
          LOCAL ()
-         SEP (lock_inv sh (gv _ctr_lock) (sync_inv g (ctr_state (gv _ctr)))) | (public_half g (n + 1)%nat).
+         SEP (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g (n + 1)%nat).
 
 Program Definition read_spec :=
  DECLARE _read
@@ -36,18 +36,18 @@ Program Definition read_spec :=
   PRE [ ]
          PROP  (readable_share sh)
          LOCAL (gvars gv)
-         SEP   (lock_inv sh (gv _ctr_lock) (sync_inv g (ctr_state (gv _ctr)))) | (public_half g n)
+         SEP   (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g n)
   POST [ tuint ]
     EX n' : nat,
          PROP ()
          LOCAL (temp ret_temp (Vint (Int.repr (Z.of_nat n'))))
-         SEP (lock_inv sh (gv _ctr_lock) (sync_inv g (ctr_state (gv _ctr)))) | (!!(n' = n) && public_half g n).
+         SEP (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (!!(n' = n) && public_half g n).
 
 
 Definition cptr_inv g g1 g2 :=
   EX x y : nat, ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * public_half g (x + y)%nat.
 
-Definition thread_lock_R sh g g1 gv := ghost_var gsh2 1%nat g1 * lock_inv sh (gv _ctr_lock) (sync_inv g (ctr_state (gv _ctr))).
+Definition thread_lock_R sh g g1 gv := ghost_var gsh2 1%nat g1 * lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr))).
 
 Definition thread_lock_inv sh g g1 gv lockt := selflock (thread_lock_R sh g g1 gv) sh lockt.
 
@@ -59,7 +59,7 @@ Definition thread_func_spec :=
          PROP  (readable_share sh)
          LOCAL (temp _args y; gvars gv)
          SEP   (invariant i (cptr_inv g g1 g2); ghost_var gsh2 O g1;
-                    lock_inv sh (gv _ctr_lock) (sync_inv g (ctr_state (gv _ctr)));
+                    lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)));
                 lock_inv sh (gv _thread_lock) (thread_lock_inv sh g g1 gv (gv _thread_lock)))
   POST [ tptr tvoid ]
          PROP ()
@@ -89,18 +89,18 @@ Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
   start_function.
   forward.
-  forward_call (gv _ctr_lock, sh, sync_inv g (ctr_state (gv _ctr))).
+  forward_call (gv _ctr_lock, sh, sync_inv g Tsh (ctr_state (gv _ctr))).
   unfold sync_inv at 2; Intros n.
   unfold ctr_state.
   forward.
   forward.
   rewrite add_repr.
-  gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _).
-  viewshift_SEP 0 (Q * my_half g (n + 1)%nat).
+  gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
+  viewshift_SEP 0 (Q * my_half g Tsh (n + 1)%nat).
   { go_lower.
     apply sync_commit1; intros.
     iIntros; iFrame; auto. }
-  forward_call (gv _ctr_lock, sh, sync_inv g (ctr_state (gv _ctr))).
+  forward_call (gv _ctr_lock, sh, sync_inv g Tsh (ctr_state (gv _ctr))).
   { lock_props.
     unfold sync_inv, ctr_state.
     Exists (n + 1)%nat; rewrite Nat2Z.inj_add; cancel. }
@@ -111,16 +111,16 @@ Qed.
 Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_function.
-  forward_call (gv _ctr_lock, sh, sync_inv g (ctr_state (gv _ctr))).
+  forward_call (gv _ctr_lock, sh, sync_inv g Tsh (ctr_state (gv _ctr))).
   unfold sync_inv at 2; Intros n.
   unfold ctr_state.
   forward.
-  gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _).
-  viewshift_SEP 0 (Q n * my_half g n).
+  gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
+  viewshift_SEP 0 (Q n * my_half g Tsh n).
   { go_lower.
     apply sync_commit2; intros.
     iIntros; iFrame; auto. }
-  forward_call (gv _ctr_lock, sh, sync_inv g (ctr_state (gv _ctr))).
+  forward_call (gv _ctr_lock, sh, sync_inv g Tsh (ctr_state (gv _ctr))).
   { lock_props.
     unfold sync_inv, ctr_state.
     Exists n; cancel. }
@@ -188,8 +188,8 @@ Proof.
   ghost_alloc (both_halves O).
   { apply @part_ref_valid. }
   Intro g; rewrite <- both_halves_join.
-  forward_call (lock, Ews, sync_inv g (ctr_state ctr)).
-  forward_call (lock, Ews, sync_inv g (ctr_state ctr)).
+  forward_call (lock, Ews, sync_inv g Tsh (ctr_state ctr)).
+  forward_call (lock, Ews, sync_inv g Tsh (ctr_state ctr)).
   { lock_props.
     unfold sync_inv, ctr_state.
     Exists O; cancel. }
@@ -255,13 +255,13 @@ Proof.
       iExists 1%nat, 1%nat; iFrame; auto. }
   (* We've proved that t is 2! *)
   Intros v; subst.
-  forward_call (lock, sh2, sync_inv g (ctr_state ctr)).
+  forward_call (lock, sh2, sync_inv g Tsh (ctr_state ctr)).
   { subst ctr lock; cancel. }
   forward_call (lockt, Ews, sh1, thread_lock_R sh1 g g1 gv, thread_lock_inv sh1 g g1 gv lockt).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst ctr lock; cancel. }
-  forward_call (lock, Ews, sync_inv g (ctr_state ctr)).
+  forward_call (lock, Ews, sync_inv g Tsh (ctr_state ctr)).
   { lock_props.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst lock ctr; cancel. }
   forward.
