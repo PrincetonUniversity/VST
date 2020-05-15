@@ -237,13 +237,6 @@ Ltac process_stackframe_of :=
        [ reflexivity | reflexivity | reflexivity | reflexivity | let n := fresh "v" i in intros n ]
      end
    end;
- (*
-  match goal with |- semax _ ?Pre _ _ =>
-     let p := fresh "p" in set (p := Pre);
-     rewrite <- (@emp_sepcon (environ->mpred) _ _ _ (fold_right _ _ _));
-     subst p
-  end;
-*)
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
  change (fold_right sepcon emp (@nil (environ->mpred))) with
@@ -273,13 +266,6 @@ Ltac semax_func_cons_ext_tc :=
   | |- forall x, _ => intro
   end;
   normalize; simpl tc_option_val' .
-
-(*
-Ltac semax_func_skipn :=
-  repeat first [apply semax_func_nil'
-                     | apply semax_func_skip1;
-                       [clear; solve [auto with closed] | ]].
-*)
 
 Ltac LookupID := first [ cbv;reflexivity | fail "Lookup for a function identifier in Genv failed" ].
 Ltac LookupB := first [ cbv;reflexivity | fail "Lookup for a function pointer block in Genv failed" ].
@@ -542,12 +528,6 @@ match goal with P := @abbreviate ret_assert _ |- semax _ _ _ ?P' =>
   first [apply semax_seq with R; abbreviate_semax
           | apply (semax_post_flipped' R); [abbreviate_semax | ]]
 end.
-
-(* old:
-Ltac forward_seq :=
-  first [eapply semax_seq'; [  | abbreviate_semax ]
-         | eapply semax_post_flipped' ].
-*)
 
 (* end of "stuff to move elsewhere" *)
 
@@ -1220,26 +1200,6 @@ Proof.
 intros. constructor.
 Qed.
 
-(*
-Lemma classify_fun_ty_hack:
- (* This is needed for the varargs (printf) hack *)
-  forall fs fs',
-  funspec_sub fs fs' ->
-  forall ty argsig retty cc,
-  ty = type_of_funspec fs ->
-  type_of_funspec fs' = Tfunction (type_of_params argsig) retty cc -> 
-  classify_fun ty = fun_case_f (type_of_params argsig) retty cc.
-Proof.
-intros.
-subst.
-destruct fs, fs'. 
-destruct H as [[? ?] _].
-subst.
-simpl in H1.
-inv H1.
-auto.
-Qed.*)
-
 Lemma classify_fun_ty_hack:
  (* This is needed for the varargs (printf) hack *)
   forall fs fs',
@@ -1259,50 +1219,22 @@ inv H1.
 auto.
 Qed.
 
-(*
-Ltac prove_call_setup1 subsumes :=
-  match goal with
-  | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
-    fail 1 "forward_call fails because your precondition starts with EX.
-Use Intros  to move          the existentially bound variables above the line"
-  | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
-    lazymatch c with
-    | context [Scall _ (Evar ?id ?ty) ?bl] =>
-      let R := strip1_later R' in
-      exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
-      [check_prove_local2ptree
-      | apply can_assume_funcptr2; (*(can_assume_funcptr3 _ _ subsumes);*)
-        [ check_function_name
-        | lookup_spec id
-        | find_spec_in_globals'
-        | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
-        ]
-      | apply subsumes
-      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
-      |check_typecheck
-      |check_typecheck
-      |check_cast_params
-      |reflexivity
-      | ..
-      ]
-    | context [Scall _ ?a ?bl] =>
-      let R := strip1_later R' in
-      exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
-      [check_prove_local2ptree
-      |reflexivity
-      |prove_func_ptr
-      | apply subsumes
-      |check_parameter_types
-      |check_typecheck
-      |check_typecheck
-      |check_cast_params
-      |reflexivity
-      | ]
-    end
+Ltac check_type_of_funspec id :=
+ reflexivity || 
+ lazymatch goal with |- ?ty = ?tyfun =>
+  let t' := eval simpl in tyfun in
+    fail 100 "The type of identifier" id "in the program is" ty "which does not match the type of the funspec which is " t'
   end.
- *)
-(*The following version swaps the two context-cases and replaces the lazymatch by a match-
-  we believe this priorizitizes func_ptr lookup over Delta-lookup*)
+
+Ltac check_subsumes subsumes :=
+ apply subsumes ||
+ lazymatch goal with |- ?g =>
+ lazymatch type of subsumes with ?t =>
+  fail 100 "Function-call subsumption fails.  The term" subsumes "of type" t
+     "does not prove the funspec_sub," g
+ end end.
+
+(*This has two cases; it priorizitizes func_ptr lookup over Delta-lookup*)
 Ltac prove_call_setup1 subsumes :=
   match goal with
   | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
@@ -1316,29 +1248,27 @@ Use Intros  to move          the existentially bound variables above the line"
       [check_prove_local2ptree
       |reflexivity
       |prove_func_ptr
-      | apply subsumes
+      |check_subsumes subsumes
       |check_parameter_types
       |check_typecheck
       |check_typecheck
       |check_cast_params
-      (*goal has been removed |reflexivity*)
       | ]
     | context [Scall _ (Evar ?id ?ty) ?bl] =>
       let R := strip1_later R' in
-      exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
+      exploit (call_setup1_i2 CS Delta P Q R' id ty bl) ;
       [check_prove_local2ptree
-      | apply can_assume_funcptr2; (*(can_assume_funcptr3 _ _ subsumes);*)
+      | apply can_assume_funcptr2;
         [ check_function_name
         | lookup_spec id
         | find_spec_in_globals'
-        | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
+        | check_type_of_funspec id
         ]
-      | apply subsumes
-      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
+      |check_subsumes subsumes
+      | try reflexivity; ((*idtac "found one"; *) eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
       |check_typecheck
       |check_typecheck
       |check_cast_params
-      (*goal has been removed |reflexivity*)
       | ..
       ]
     end
@@ -1375,29 +1305,26 @@ Ltac prove_call_setup_aux  ts witness :=
 Ltac prove_call_setup ts subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
- match goal with |- call_setup1  _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ (*OMITTED _*) -> _ =>
+ match goal with |- call_setup1  _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _  -> _ =>
       check_witness_type ts A witness
  end;
  prove_call_setup_aux ts witness].
 
 Ltac fwd_call' ts subsumes witness :=
 lazymatch goal with
-| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
+| |- semax _ _ (Ssequence (Scall ?ret _ _) _) _ =>
   eapply semax_seq';
     [prove_call_setup ts subsumes witness;
      clear_Delta_specs; clear_MORE_POST;
      [ .. |
       lazymatch goal with
-      | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>(*
-         forward_call_id1_wow'
-      | |- call_setup2' _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
-                semax _ _ (Scall None _ _) _ =>*)
+      | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (*_*) -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
-        then forward_call_id00_wow(*'*)
-        else forward_call_id01_wow(*'*)
+        then forward_call_id00_wow
+        else forward_call_id01_wow
      end]
    | after_forward_call ]
 | |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
@@ -1406,7 +1333,7 @@ lazymatch goal with
        eapply semax_seq';
          [prove_call_setup ts subsumes witness;
           clear_Delta_specs; clear_MORE_POST;
-             [ .. | forward_call_id1_x_wow(*'*) ]
+             [ .. | forward_call_id1_x_wow ]
          |  after_forward_call ]
 | |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
                                        (Sset _ (Etempvar ?ret'2 _))) _) _ =>
@@ -1414,7 +1341,7 @@ lazymatch goal with
        eapply semax_seq';
          [prove_call_setup ts subsumes witness;
           clear_Delta_specs; clear_MORE_POST;
-             [ .. | forward_call_id1_y_wow(*'*) ]
+             [ .. | forward_call_id1_y_wow ]
          |  after_forward_call ]
 | |- _ => rewrite <- seq_assoc; fwd_call' ts subsumes witness
 end.

@@ -187,6 +187,7 @@ Ltac inhabited_value T :=
  | prod ?A ?B => let x := inhabited_value A in
                            let y := inhabited_value B in
                                constr:(pair x y)
+ | _ => let t := eval unfold T in T in inhabited_value t
  | _ => match goal with
             | x:T |- _ => x 
             | x := _ : T |- _ => x

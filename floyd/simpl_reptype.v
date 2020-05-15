@@ -252,10 +252,6 @@ Ltac subst_indexes gfs :=
 Ltac solve_store_rule_evaluation :=
   match goal with |- upd_reptype ?t ?gfs ?v0 ?v1 = ?B =>
    let rhs := fresh "rhs" in set (rhs := B);
-(*
-   lazy beta zeta iota delta [reptype reptype_gen] in rhs;
-   cbn in rhs;
-*)
   match type of rhs with ?A =>
    let a := fresh "a" in set (a:=A) in rhs; 
     lazy beta zeta iota delta [reptype reptype_gen] in a;
@@ -266,7 +262,7 @@ Ltac solve_store_rule_evaluation :=
    remember_indexes gfs;
    let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
    lazy beta zeta iota delta in j; subst j;
-   lazy beta zeta iota delta - [rhs h0 h1 upd_Znth Zlength];
+   lazy beta zeta iota delta - [rhs h0 h1 Znth upd_Znth Zlength];
    try unfold v1 in h1;
    revert h1; simplify_casts; cbv zeta;
    subst rhs h0; subst_indexes gfs;
