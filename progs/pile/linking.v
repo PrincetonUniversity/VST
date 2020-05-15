@@ -5,8 +5,8 @@ Definition tcret_proof retsig (A: rmaps.TypeTree)
           functors.MixVariantFunctor._functor
             (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred)  :=
   (forall gx ts x (ret : option val),
-     (Q ts x (make_ext_rval gx ret)
-        && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
+     (Q ts x (make_ext_rval gx (rettype_of_type retsig) ret)
+        && !!Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)
         |-- !!tc_option_val retsig ret)).
 
 Inductive semax_body_proof :=
