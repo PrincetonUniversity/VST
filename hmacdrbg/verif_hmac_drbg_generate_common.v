@@ -1431,7 +1431,7 @@ Proof. intros.
       entailer!.
     }
     Intros.
-    replace_SEP 6 (
+    replace_SEP 1 (
         data_at sho (tarray tuchar use_len) (list_repeat (Z.to_nat use_len) Vundef) done_output *
         data_at sho (tarray tuchar (out_len - done - use_len)) (list_repeat (Z.to_nat (out_len - done - use_len)) Vundef) (offset_val use_len done_output)
     ).
@@ -1455,7 +1455,7 @@ Proof. intros.
     }
     Intros.
 
-    replace_SEP 6 (memory_block sho use_len done_output).
+    replace_SEP 1 (memory_block sho use_len done_output).
     {
       clear Hmultiple.
       entailer!.
@@ -1469,7 +1469,7 @@ Proof. intros.
     set (H256 := HMAC256 (fst (HLP done)) key0) in *.
     assert (ZL_H256: Zlength H256 = 32).
     { subst H256. apply hmac_common_lemmas.HMAC_Zlength. }
-    replace_SEP 3 (data_at shc (tarray tuchar use_len)
+    replace_SEP 6 (data_at shc (tarray tuchar use_len)
                       (sublist 0 use_len (map Vubyte H256))
                       (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i)) *
                    data_at shc (tarray tuchar (32 - use_len))
