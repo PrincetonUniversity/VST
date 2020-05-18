@@ -420,8 +420,10 @@ Ltac find_statement_in_body f reassoc pat :=
 
 Ltac check_POSTCONDITION' P :=
     lazymatch P with
-    | context [bind_ret] =>
-         fail 100 "Your POSTCONDITION is messed up; perhaps you inadvertently did something like 'simpl in *' that changes it into a form that Floyd cannot recognize.  You may do 'unfold abbreviate in POSTCONDITION' to inspect it"
+    | context [bind_ret] => (* is this case obsolete? *)
+         fail 100 "Your POSTCONDITION is messed up; perhaps you inadvertently did something like 'simpl in *' that changes it into a form that Floyd cannot recognize.  Right now, you may do 'unfold abbreviate in POSTCONDITION' to inspect it; and in general, avoid 'simpl in *'"
+    | context [fun _:environ => _] =>
+         fail 100 "Your POSTCONDITION is messed up; perhaps you inadvertently did something like 'simpl in *' that changes it into a form that Floyd cannot recognize.  Right now, you may do 'unfold abbreviate in POSTCONDITION' to inspect it; and in general, avoid 'simpl in *'"
     | _ => idtac
     end.
 

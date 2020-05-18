@@ -836,7 +836,28 @@ Proof.
 intros; subst; auto.
 Qed.
 
+Ltac fix_up_simplified_postcondition_warning :=
+  idtac "Warning: Fixed up a postcondition that was damaged; typically this has happened because you did 'simpl in *' that messed up Delta_specs.  Avoid 'simpl in *'.".
+
+Ltac fix_up_simplified_postcondition_failure :=
+  idtac "Error: Unable to repair a postcondition that was damaged; typically this has happened because you did 'simpl in *' that messed up Delta_specs.  Avoid 'simpl in *'.".
+
+
+Ltac fix_up_simplified_postcondition := 
+  (* If the user's postcondition (e.g., fetched from Delta_specs) has been
+    messed up by 'simpl in *', try to patch it. *)
+  lazymatch goal with
+  | |- (fun a => exp (fun x:?T => ?P a)) = ?Q => 
+            (change (exp (fun x:T => P) = Q) || fix_up_simplified_postcondition_warning)
+            || fix_up_simplified_postcondition_failure
+  | |- (fun a => ?P a) = ?Q => 
+           (change (P=Q); fix_up_simplified_postcondition_warning)
+          || fix_up_simplified_postcondition_failure
+  | |- _ => idtac
+ end.
+
 Ltac match_postcondition := 
+fix_up_simplified_postcondition;
 cbv beta iota zeta; unfold_post;  extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -849,15 +870,6 @@ that is ill-formed.  The LOCALS part of the postcondition
 should be (temp ret_temp ...), but it is not"))
  else fail "The funspec of the function should have a POSTcondition that starts
 with an existential, that is,  EX _:_, PROP...LOCAL...SEP".
-(*
-Ltac match_postcondition := 
-cbv beta iota zeta; unfold_post; extensionality rho;
-   repeat rewrite exp_uncurry;
-   try rewrite no_post_exists; repeat rewrite exp_unfold;
-   first [apply exp_congr; intros ?vret; reflexivity
-           | give_EX_warning
-           ].
- *)
 
 Ltac  forward_call_id1_wow_nil := 
 let H := fresh in intro H;
@@ -973,7 +985,8 @@ eapply (semax_call_id00_wow_nil H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
- | cbv beta iota zeta; unfold_post; (* extensionality rho; *)
+ | fix_up_simplified_postcondition;
+    cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
 
     (*Replaced to resolve GIT issue 385: 
@@ -998,6 +1011,7 @@ eapply (semax_call_id00_wow H);
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
  | (*match_postcondition*)
+    fix_up_simplified_postcondition;
     cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
 
@@ -1311,6 +1325,7 @@ Ltac prove_call_setup ts subsumes witness :=
  prove_call_setup_aux ts witness].
 
 Ltac fwd_call' ts subsumes witness :=
+check_POSTCONDITION;
 lazymatch goal with
 | |- semax _ _ (Ssequence (Scall ?ret _ _) _) _ =>
   eapply semax_seq';
@@ -2299,6 +2314,7 @@ Ltac forward_loop_aux1 Inv PreInc:=
  end.
  
 Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) "break:" constr(Post) :=
+check_POSTCONDITION;
   repeat simple apply seq_assoc1;
  repeat apply -> semax_seq_skip;
   match goal with
@@ -2325,6 +2341,7 @@ Ltac check_no_incr S :=
 end.
 
 Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) :=
+check_POSTCONDITION;
  repeat apply -> semax_seq_skip;
 lazymatch goal with
   | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
@@ -2401,7 +2418,7 @@ Ltac forward_loop_nocontinue1 Inv :=
   | |- semax _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_nocontinue2 Inv]
   | |- semax _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
   | |- semax _ _ (Swhile ?E ?B) _ => 
-          let x := fresh "x" in set (x := Swhile E B); unfold Swhile at 1 in x; subst x;
+          let x := fresh "x" in set (x := Swhile E B); hnf in x; subst x;
           apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
  end.
 
