@@ -28,6 +28,7 @@ Notation sigTT P := (fun tv => match tv with existT t v => P t end).
 
 Definition compact_prod_sigT_type {A} {P: A -> Type} (l: list (sigT P)): Type :=
   compact_prod (map (sigTT P) l).
+Arguments compact_prod_sigT_type {A} {P} l / .
 
 Definition compact_prod_sigT_value: forall {A} {P: A -> Type} (l: list (sigT P)), compact_prod (map (sigTT P) l).
 Proof.
@@ -41,13 +42,17 @@ Defined.
 Definition compact_sum_sigT_type {A} {P: A -> Type} (l: list (sigT P)): Type :=
   compact_sum (map (sigTT P) l).
 
+Arguments compact_sum_sigT_type {A} {P} l / .
+
 Definition compact_sum_sigT_value: forall {A} {P: A -> Type} (l: list (sigT P)), compact_sum (map (sigTT P) l).
 Proof.
   intros.
   destruct l as [| [t0 v0] l]; [exact tt |].
   revert t0 v0; destruct l as [| [t v] l]; intros.
   + exact v0.
-  + exact (inl v0).
+  + exact (@inl (P t0) (compact_sum
+  (@map {x : A & P x} Type (fun tv : {x : A & P x} => let (t1, _) := tv in P t1)
+     (@existT A P t v :: l))) v0).
 Defined.
 
 Definition compact_prod_map {X: Type} {F F0: X -> Type} (l: list X)

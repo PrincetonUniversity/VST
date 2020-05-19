@@ -351,7 +351,7 @@ Ltac putable' x :=
 end
 with putable x := 
   first [putable' x
-         | tryif (try (assert (computable x) by auto 100 with computable; fail 1)) then fail else idtac ].
+         | tryif (try (assert (computable x) by (clear; auto 100 with computable); fail 1)) then fail else idtac ].
 
 Hint Extern 1 (computable ?x) => (putable' x; apply computable_any) : computable.
 

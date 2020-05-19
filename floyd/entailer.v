@@ -391,7 +391,10 @@ Ltac prove_it_now :=
         | reflexivity
         | rewrite ?intsigned_intrepr_bytesigned; rep_lia (* Omega0 *)
         | prove_signed_range
-        | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
+        | repeat match goal with
+                      | H: ?A |- _ => has_evar A; clear H 
+                      | H: @value_fits _ _ _ |- _ => clear H  (* delete these because they can cause slowness in the 'auto' *)
+                      end;
           auto with prove_it_now field_compatible;
           autorewrite with norm entailer_rewrite; normalize;
           first [eapply field_compatible_nullval; eassumption
