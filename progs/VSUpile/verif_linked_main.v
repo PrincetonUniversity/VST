@@ -2,9 +2,10 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.VSU.
 
 Require Import PileModel. (*needed for decreasing etc*)
-Require Import spec_stdlib. 
+Require Import spec_stdlib.
 Require Import spec_onepile.
 Require Import pile.
+Require Import apile.
 Require Import spec_apile.
 Require Import spec_triang.
 Require Import main.
@@ -63,24 +64,10 @@ Section MainVSU.
 
  (* Again, to ensure that start_function succeeds, we use LinkedCompSpecs and
     LinkedVprog*)
-  Lemma body_main: semax_body LinkedVprog MainGprog f_main (*(main_spec linked_prog)*)maininstspec.
+  Lemma body_main: semax_body LinkedVprog MainGprog f_main maininstspec.
 Proof.
 start_function.
 sep_apply (make_mem_mgr M gv).
-
-(*generalize (make_apile APILE gv).
-assert (ApileEnv: change_composite_env (APileCompSpecs APILE) LinkedCompSpecs).
-make_cs_preserve (APileCompSpecs APILE) LinkedCompSpecs.
-change_compspecs LinkedCompSpecs.
-intros AG; sep_apply AG; clear AG.
-
-generalize (make_onepile ONEPILE gv).
-assert (OnepileEnv: change_composite_env (OnePileCompSpecs ONEPILE) LinkedCompSpecs).
-make_cs_preserve (OnePileCompSpecs ONEPILE) LinkedCompSpecs.
-change_compspecs LinkedCompSpecs.
-intros OData.
-(*unfold onepile._pile, onepile._the_pile in OData.*)
-sep_apply OData; clear OData.*)
 simpl; Intros.
 
 forward_call gv.
@@ -109,60 +96,13 @@ forward.
 cancel.
 Qed.
 
-
 End MainVSU.
 
 Require Import verif_core.
+Require Import VST.veric.initial_world.
+
 (*Finally, we assert existence of a mallocfree library.*)
 Parameter M: MallocFreeAPD.
-
-Lemma mapsto_zeros_isptr n sh p (R:readable_share sh):
-      mapsto_zeros n sh p |-- !!(isptr p) && mapsto_zeros n sh p.
-Proof.
-  entailer. sep_apply mapsto_zeros_memory_block. 
-  rewrite memory_block_isptr; entailer!.
-Qed.
-(*maybe replace 
-Lemma GL_IP p w rho:
-      globvars2pred w (prog_vars p) rho |--
-      !! (w = globals_of_env rho) && InitGPred (Vardefs p) w.
-Proof. unfold globvars2pred, InitGPred, lift2. simpl; entailer.
- unfold Vardefs, prog_vars. forget (prog_defs p) as d. clear.
-  induction d; simpl. trivial.
-  destruct a. destruct g; simpl. apply IHd.
-  sep_apply IHd. clear IHd. cancel.
-  Search initialize.globvar2pred. rewrite initialize.globvar2pred_char_gv.
-  unfold initialize.globals_of_genv, globals_of_env. entailer.
-  unfold initialize.gv_globvar2pred. simpl. simpl.*)
-
-Lemma main_sub: funspec_sub (snd (main_inst_spec M (MyInitPred (ONEPILE M) (APILE M))))
-                             (snd mainspec).
-Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear. 
-  Exists w emp. unfold gglobvars2pred; simpl.
-  unfold globvars2pred, lift2; Intros. simpl. entailer!.
-  + intros. entailer!.
-  + rewrite sepcon_comm; apply sepcon_derives.
-    - eapply derives_trans. 2: apply verif_onepile.onepile_Init with (PILE := PILE M).
-      unfold InitGPred. simpl. unfold globvar2pred; simpl. rewrite ! sepcon_emp.
-      apply andp_right.
-      * eapply derives_trans. apply mapsto_zeros_memory_block.
-        apply writable_readable. apply writable_Ews.
-        rewrite memory_block_isptr; Intros.
-        apply global_is_headptr in H. entailer!.
-      * unfold initialize.gv_globvar2pred. simpl.
-        unfold initialize.gv_lift2, initialize.gv_lift0. simpl.
-        rewrite predicates_sl.sepcon_emp. apply derives_refl.
-      (*unfold globvar2pred; simpl. sep_apply mapsto_zeros_isptr; Intros.
-      * apply writable_readable. apply writable_Ews.
-      * apply global_is_headptr in H.
-        Check verif_onepile.make_onepile. , sepcon_emp by trivial.
-      erewrite <- (mapsto_data_at''); trivial. apply derives_refl.*)
-    - unfold globvar2pred; simpl. rewrite mapsto_isptr; Intros. apply global_is_headptr in H.
-      rewrite <- verif_apile.make_apile, sepcon_emp by trivial.
-      erewrite <- (mapsto_data_at''); trivial. apply derives_refl.
-Qed.
-
-Require Import VST.veric.initial_world.
 
 Lemma tc_VG: tycontext_subVG LinkedVprog (MainGprog M (ONEPILE M) (APILE M))
                              LinkedVprog (mainspec :: coreExports M).
@@ -239,6 +179,33 @@ Proof.
   repeat (destruct X as [X | X]; [ subst y; cbv; reflexivity |]); contradiction.
 Qed.
 
+Lemma main_sub: funspec_sub (snd (main_inst_spec M (MyInitPred (ONEPILE M) (APILE M))))
+                             (snd mainspec).
+Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear. 
+  Exists w emp. unfold gglobvars2pred; simpl.
+  unfold globvars2pred, lift2; Intros. simpl. entailer!.
+  + intros. entailer!.
+  + rewrite sepcon_comm; apply sepcon_derives.
+    - eapply derives_trans. 2: apply verif_onepile.onepile_Init with (PILE := PILE M).
+      unfold InitGPred. simpl. unfold globvar2pred; simpl. rewrite ! sepcon_emp.
+      apply andp_right.
+      * eapply derives_trans. apply mapsto_zeros_memory_block.
+        apply writable_readable. apply writable_Ews.
+        rewrite memory_block_isptr; Intros.
+        apply global_is_headptr in H. entailer!.
+      * unfold initialize.gv_globvar2pred. simpl.
+        unfold initialize.gv_lift2, initialize.gv_lift0. simpl.
+        rewrite predicates_sl.sepcon_emp. apply derives_refl.
+      (*unfold globvar2pred; simpl. sep_apply mapsto_zeros_isptr; Intros.
+      * apply writable_readable. apply writable_Ews.
+      * apply global_is_headptr in H.
+        Check verif_onepile.make_onepile. , sepcon_emp by trivial.
+      erewrite <- (mapsto_data_at''); trivial. apply derives_refl.*)
+    - unfold globvar2pred; simpl. rewrite mapsto_isptr; Intros. apply global_is_headptr in H.
+      rewrite <- verif_apile.make_apile, sepcon_emp by trivial.
+      erewrite <- (mapsto_data_at''); trivial. apply derives_refl.
+Qed.
+
 Definition Imports:funspecs:=nil.
 (*
 Lemma CSSUB: cspecs_sub MainCompSpecs LinkedCompSpecs.
@@ -255,10 +222,10 @@ Qed.*)
 Require Import VST.floyd.VSU_addmain.
 
 Definition SO_VSU: @LinkedProgVSU NullExtension.Espec LinkedVprog LinkedCompSpecs
-      LinkedSYS Imports linked_prog [mainspec (*M*)] (*(InitPred_of_CanonicalVSU (Core_CanVSU M))*)
-       (fun gv => onepile (ONEPILE M) None gv * apile (APILE M)  [] gv)%logic.
+      LinkedSYS Imports linked_prog [mainspec (*M*)]
+      (fun gv => onepile (ONEPILE M) None gv * apile (APILE M)  [] gv)%logic.
 Proof.
-  VSUAddMain_tac (Core_CanVSU M).
+ VSUAddMain_tac (Core_CanVSU M).
    + apply disjoint_Vprog_linkedfuncts.
    + apply LinkedSYS_External.
    + eapply semax_body_subsumption.

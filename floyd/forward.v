@@ -41,6 +41,13 @@ Global Opaque denote_tc_test_eq.
 Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 
+Lemma func_ptr'_emp phi v: func_ptr' phi v |-- emp.
+Proof. apply andp_left2; trivial. Qed.
+
+Lemma func_ptr'_mono {fs gs v}: funspec_sub fs gs ->
+       func_ptr' fs v |-- func_ptr' gs v.
+Proof. intros. apply andp_derives; trivial. apply func_ptr_mono; trivial. Qed.
+
 Lemma isptr_force_sem_add_ptr_int:
   forall {cs: compspecs}  t si p i,
  complete_type cenv_cs t = true ->
