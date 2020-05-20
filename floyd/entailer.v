@@ -299,12 +299,12 @@ match goal with
 end.
 
 Ltac ent_iter :=
+    try simple apply prop_True_right;
     repeat simplify_float2int;
     gather_prop;
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
-(*   saturate_local; *)
    repeat erewrite unfold_reptype_elim in * by (apply JMeq_refl; reflexivity);
    simpl_compare;
    simpl_denote_tc;
