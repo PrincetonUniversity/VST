@@ -2062,9 +2062,31 @@ Proof.
 intros. apply pred_ext. Exists tt. auto. Intros u; auto.
 Qed.
 
+Fixpoint nobreaksx (s: statement) : bool :=
+match s with
+| Sbreak => false
+| Scontinue => false
+| Ssequence c1 c2 => nobreaksx c1 && nobreaksx c2
+| Sifthenelse _ c1 c2 => nobreaksx c1 && nobreaksx c2
+| _ => true  (* including Sloop case! *)
+end.
+
+Ltac forward_while_advise_loop :=
+      idtac "Suggestion: Because your while-loop is followed by a known postcondition, you may wish to prove it with forward_loop instead of forward_while, because then your postcondition might be weaker (easier to prove) than the standard while-loop postcondition (Invariant & ~test)".
+
 Tactic Notation "forward_while" constr(Inv) :=
   repeat (apply -> seq_assoc; abbreviate_semax);
-  lazymatch goal with |- semax _ _ (Ssequence _ _) _ => idtac | _ => apply <- semax_seq_skip end;
+  match goal with
+  | |- semax _ _ (Ssequence _ _) _ => idtac 
+  | Post := @abbreviate ret_assert ?P' |- semax _ _ (Swhile _ _) ?P =>
+       constr_eq P Post;
+       tryif (no_evars P') then forward_while_advise_loop else idtac;
+      apply <- semax_seq_skip
+  | |- semax _ _ (Swhile _ _) ?P => 
+       tryif (no_evars P) then forward_while_advise_loop else idtac;
+      apply <- semax_seq_skip
+  | _ => apply <- semax_seq_skip 
+  end;
   first [ignore (Inv: environ->mpred)
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
   apply semax_pre with Inv;
@@ -2086,7 +2108,9 @@ Tactic Notation "forward_while" constr(Inv) :=
           rewrite exp_uncurry
       end;
       eapply semax_seq;
-      [match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
+      [match goal with |- semax ?Delta ?Pre (Swhile ?e ?s) _ =>
+        tryif (unify (nobreaksx s) true) then idtac 
+        else fail "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";
         (* the following line was before: eapply semax_while_3g1; *)
         match goal with [ |- semax _ (@exp _ _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
         (* check if we can revert back to the previous version with coq 8.5.
@@ -2133,7 +2157,6 @@ Loop test expression:" e
        ]
     ]; abbreviate_semax; 
     simpl_ret_assert (*autorewrite with ret_assert*).
-
 
 Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
 Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
@@ -2392,15 +2415,6 @@ Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  | Sgoto _ => false
  | _ => ok EK_normal
  end.
-
-Fixpoint nobreaksx (s: statement) : bool :=
-match s with
-| Sbreak => false
-| Scontinue => false
-| Ssequence c1 c2 => nobreaksx c1 && nobreaksx c2
-| Sifthenelse _ c1 c2 => nobreaksx c1 && nobreaksx c2
-| _ => true  (* including Sloop case! *)
-end.
 
 Ltac check_nocontinue s :=
  let s' := eval hnf in s in
