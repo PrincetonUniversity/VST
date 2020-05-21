@@ -2638,7 +2638,7 @@ match goal with
    let HRE := fresh "H" in let v := fresh "v" in
     evar (v: val);
     do_compute_expr Delta P Q R e v HRE;
-    simpl in v;
+(*    simpl in v;*)
     let n := fresh "n" in evar (n: int); 
     let H := fresh in assert (H: v=Vint n) by (unfold v,n; reflexivity);
     let A := fresh in 
@@ -2674,16 +2674,16 @@ match goal with
    let HRE := fresh "H" in let v := fresh "v" in
     evar (v: val);
     do_compute_expr Delta P Q R e v HRE;
-    simpl in v;
+(*    simpl in v;*)
     apply (semax_ifthenelse_PQR' _ v);
      [ reflexivity | entailer | assumption
-     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
+     | simpl in v; clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
        repeat (apply semax_extract_PROP; intro);
        try rewrite Int.signed_repr in HRE by rep_lia;
        repeat apply -> semax_skip_seq;
        abbreviate_semax
-     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
+     |  simpl in v; clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
        repeat (apply semax_extract_PROP; intro);
        try rewrite Int.signed_repr in HRE by rep_lia;
