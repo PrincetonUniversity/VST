@@ -1447,6 +1447,19 @@ Ltac hoist_later_left :=
          [ solve [ auto 50 with derives ] | ]
   end.
 
+(* Willam proposed that this versions of assert_PROP replace the ones in canon.v. *)
+Tactic Notation "assert_PROP" constr(A) :=
+  first [eapply (assert_later_PROP' A); [|hoist_later_left; apply derives_refl|] | apply (assert_PROP' A)]; [ | intro ].
+
+Tactic Notation "assert_PROP" constr(A) "by" tactic1(t) :=
+  first [eapply (assert_later_PROP' A); [|hoist_later_left; apply derives_refl|] | apply (assert_PROP' A)]; [ now t | intro ].
+
+Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
+  first [eapply (assert_later_PROP' A); [|hoist_later_left; apply derives_refl|] | apply (assert_PROP' A)]; [ | intro H ].
+
+Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic1(t) :=
+  first [eapply (assert_later_PROP' A); [|hoist_later_left; apply derives_refl|] | apply (assert_PROP' A)]; [ now t | intro H ].
+
 Lemma semax_later_trivial: forall Espec  {cs: compspecs} Delta P c Q,
   @semax cs Espec Delta (|> P) c Q ->
   @semax cs Espec Delta P c Q.

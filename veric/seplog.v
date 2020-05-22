@@ -1221,3 +1221,21 @@ Lemma funspec_sub_si_cc phi psi: TT |-- funspec_sub_si phi psi ->
       callingconvention_of_funspec phi = callingconvention_of_funspec psi.
 Proof. destruct phi; destruct psi; simpl. intros.
  destruct (H (empty_rmap 0)) as [[_ ?] _]; simpl; trivial. Qed.
+
+Lemma later_func_ptr_si phi psi (H: TT |-- funspec_sub_si phi psi) v:
+      |> (func_ptr_si phi v) |-- |> (func_ptr_si psi v).
+Proof. apply box_derives. apply exp_derives. intros b.
+  apply andp_derives; trivial. apply exp_derives. intros tau.
+  apply andp_derives; trivial. 
+  eapply derives_trans. 2: eapply funspec_sub_si_trans with (f2:=phi).
+  apply andp_right. trivial.
+  eapply derives_trans. 2: apply H. trivial.
+Qed.
+
+Lemma later_func_ptr_si' phi psi v:
+      |> (funspec_sub_si phi psi && func_ptr_si phi v) |-- |> (func_ptr_si psi v).
+Proof. apply box_derives. intros m [M1 M2].
+  destruct M2 as [b [? [gs [GS1 GS2]]]]. exists b; split; trivial.
+  exists gs; split; trivial. clear GS2 H b v.
+  apply funspec_sub_si_trans with (f2:=phi). split; trivial.
+Qed.
