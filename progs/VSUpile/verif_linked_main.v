@@ -251,4 +251,4 @@ Proof.
   destruct MAIN as [post [MainG MainExp]]. inv MainExp. rewrite MainG; eexists; reflexivity.
 Qed.
 
-Print Assumptions prog_correct.
+(* Print Assumptions prog_correct. *)

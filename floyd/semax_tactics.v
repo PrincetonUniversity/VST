@@ -420,8 +420,10 @@ Ltac find_statement_in_body f reassoc pat :=
 
 Ltac check_POSTCONDITION' P :=
     lazymatch P with
-    | context [bind_ret] =>
-         fail 100 "Your POSTCONDITION is messed up; perhaps you inadvertently did something like 'simpl in *' that changes it into a form that Floyd cannot recognize.  You may do 'unfold abbreviate in POSTCONDITION' to inspect it"
+    | context [bind_ret] => (* is this case obsolete? *)
+         fail 100 "Your POSTCONDITION is messed up; perhaps you inadvertently did something like 'simpl in *' that changes it into a form that Floyd cannot recognize.  Right now, you may do 'unfold abbreviate in POSTCONDITION' to inspect it; and in general, avoid 'simpl in *'"
+    | context [fun _:environ => _] =>
+         fail 100 "Your POSTCONDITION is messed up; perhaps you inadvertently did something like 'simpl in *' that changes it into a form that Floyd cannot recognize.  Right now, you may do 'unfold abbreviate in POSTCONDITION' to inspect it; and in general, avoid 'simpl in *'"
     | _ => idtac
     end.
 
@@ -697,3 +699,127 @@ Ltac suggest_leaf_function :=
 * If this semax_body proof does NOT involve function-pointers, use the tactic [leaf_function] before [start_function]; this is optional but will speed up the proof by clearing the body of Delta_specs."
 end.
 *)
+
+
+Fixpoint seq_stmt_size (c: statement) : nat :=
+ match c with
+ | Ssequence c1 c2 => seq_stmt_size c1 + seq_stmt_size c2
+ | _ => 2
+ end.
+
+Fixpoint unfold_seqN' (K: nat) (n: nat) (c: statement) : list statement * nat * statement:=
+ match K with O => (nil,n,c) | S k =>
+  match n with
+  | O => (nil, O, c)
+  | S n' =>  
+  match c with
+  | Sskip => (nil, n, c)
+  | Ssequence c1 c2 => 
+       match unfold_seqN' k n c1 with 
+        | (al, n1, Sskip) => match unfold_seqN' k n1 c2
+                                 with (bl, n2, c3) => (al++bl, n2, c3)
+                                 end
+        | (al, n1, c1') => (al, n1, Ssequence c1' c2)
+        end
+  | _ => (c::nil, n', Sskip)
+  end end end.
+
+Definition unfold_seqN n c := unfold_seqN' (seq_stmt_size c) n c.
+
+Fixpoint fold_seq lc : statement :=
+  match lc with
+  | nil => Sskip
+  | c1::nil => c1
+  | c :: lc0 => Ssequence c (fold_seq lc0)
+  end.
+
+(* Unlike unfold_Ssequence in veric/SeparationLogic.v, unfold_seq preserves Sfor and Swhile.
+   In fact, it folds them even if they were not explicitly written in the input.
+   Note that we don't treat Sdowhile, because there are no floyd tactics for it, and because
+   it would result in 2198 cases when unfold_seq is printed. *)
+Fixpoint unfold_seq c : list statement :=
+  match c with
+  | Sloop (Ssequence (Sifthenelse e Sskip Sbreak) s) Sskip =>
+    Swhile e s :: nil
+  | Ssequence s1 (Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) =>
+    (* TODO check if this matches cases we don't want it to match and if so, check that the loop
+       iteration variable of s1 is the same as in the increment in s4, but then we'll exclude
+       multi-statement for loop initialisations *)
+    Sfor s1 e2 s3 s4 :: nil
+  | Ssequence c1 c2 => unfold_seq c1 ++ unfold_seq c2
+  | _ => c::nil
+  end.
+
+Lemma flat_map_app: forall {A B: Type} (f: A -> list B) l1 l2,
+  flat_map f l1 ++ flat_map f l2 = flat_map f (l1 ++ l2).
+Proof.
+  intros. induction l1.
+  - reflexivity.
+  - simpl. rewrite <- app_assoc. congruence.
+Qed.
+
+Lemma unfold_Ssequence_idempotent: forall c,
+  flat_map unfold_Ssequence (unfold_Ssequence c) = unfold_Ssequence c.
+Proof.
+  intro c. induction c; try reflexivity.
+  simpl. rewrite <- flat_map_app. congruence.
+Qed.
+
+Lemma flat_map_unfold_Ssequence_idempotent: forall ls,
+  flat_map unfold_Ssequence (flat_map unfold_Ssequence ls) = flat_map unfold_Ssequence ls.
+Proof.
+  intro. induction ls.
+  - reflexivity.
+  - simpl. rewrite <- flat_map_app. f_equal; [ | assumption ].
+    apply unfold_Ssequence_idempotent.
+Qed.
+
+Lemma unfold_seq_to_unfold_Ssequence: forall cs,
+  unfold_Ssequence cs = flat_map unfold_Ssequence (unfold_seq cs).
+Proof.
+  intro cs. induction cs; try reflexivity.
+  - simpl. rewrite IHcs1, IHcs2. rewrite flat_map_app.
+    destruct cs2; try reflexivity;
+    try rewrite flat_map_unfold_Ssequence_idempotent; try reflexivity.
+    destruct cs2_1; try reflexivity;
+    try rewrite flat_map_unfold_Ssequence_idempotent; try reflexivity.
+    destruct cs2_1_1; try reflexivity;
+    try rewrite flat_map_unfold_Ssequence_idempotent; try reflexivity.
+    destruct cs2_1_1_1; try reflexivity;
+    try rewrite flat_map_unfold_Ssequence_idempotent; try reflexivity.
+    destruct cs2_1_1_2; try reflexivity;
+    try rewrite flat_map_unfold_Ssequence_idempotent; try reflexivity.
+    rewrite <- flat_map_app.
+    simpl. rewrite app_nil_r. f_equal; [ symmetry; assumption | ].
+    destruct cs2_2; reflexivity.
+  - simpl.
+    destruct cs1; try reflexivity.
+    destruct cs1_1; try reflexivity.
+    destruct cs1_1_1; try reflexivity.
+    destruct cs1_1_2; try reflexivity.
+    destruct cs2; reflexivity.
+Qed.
+
+Lemma semax_unfold_seq {Espec: OracleKind} {CS: compspecs} : forall c1 c2,
+  unfold_seq c1 = unfold_seq c2 ->
+  forall P Q Delta, semax Delta P c1 Q -> semax Delta P c2 Q.
+Proof.
+  intros. eapply semax_unfold_Ssequence; [ | eassumption ].
+  do 2 rewrite unfold_seq_to_unfold_Ssequence.
+  congruence.
+Qed.
+
+Ltac first_N_statements n :=
+ lazymatch goal with |- semax _ _ ?c _ =>
+ let c' := constr:(unfold_seqN n c) in
+ let c' := eval cbv beta iota zeta delta
+   [seq_stmt_size app unfold_seqN unfold_seqN' Init.Nat.add]
+      in c' in 
+ lazymatch c' with
+ | (_, S _, _) => fail "There were fewer than" n "statements in the sequence"
+ | (?al, O, ?c'') => let al' := constr:(fold_seq al) in
+                         let al' := eval cbv beta iota zeta delta [fold_seq] in al' in
+                         apply semax_unfold_seq with (Ssequence al' c''); 
+                         [reflexivity | eapply semax_seq' ]
+ end end.
+

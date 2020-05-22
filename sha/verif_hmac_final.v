@@ -44,7 +44,9 @@ Proof. intros.
 Time assert_PROP (isptr md) as isptrMD by entailer!. (*0.6*)
 unfold hmacstate_.
 Intros ST.
-destruct h1; simpl in H|-*.
+destruct h1.
+simpl in H. simpl SEPx.
+abbreviate_semax.
 destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 
 (*VST Issue: make_Vptr c. fails*)
@@ -174,9 +176,11 @@ cancel.
 
 unfold hmacstate_PostFinal, hmac_relate_PostFinal.
 Exists (updShaST, (iCTX, oCTX)). rewrite prop_true_andp by (split3; auto).
+
 match goal with |- _ |-- data_at _ _ ?A _ =>
 change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
 end.
+subst c.
 Time unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
 Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr b i)) as FC by entailer!. (*1.2*)
 Time cancel. (*0.7*)

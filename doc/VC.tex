@@ -3386,32 +3386,65 @@ elements $i,j,k$ of the \SEP{} list.  See \autoref{refcard:frame}.
 Separation Logic supports the Frame rule,
 \[\inference[Frame]{\triple{P}{c}{Q}}{\triple{P*F}{c}{Q*F}}\]
 
-To use this in a forward proof, suppose you have the
-proof goal,
-\begin{lstlisting}
-semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2;c_3$ $~\mathit{Post}$
-\end{lstlisting}
-and suppose you want to ``frame out'' $R_2$ for the duration of
-$c_1;c_2$, and have it back again for $c_3$.
-First you rewrite by \lstinline{seq_assoc}
-to yield the goal
+In VST, we recommend you use the \lstinline{freeze} tactic instead; see \autoref{freezer}.  But if you really want to use the frame rule, here is how.
+
+Suppose you have the proof goal,
 \begin{lstlisting}
 semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $(c_1;c_2);c_3$ $~\mathit{Post}$
 \end{lstlisting}
-Then \lstinline{eapply semax_seq'} to peel off the
-first command $(c_1;c_2)$ in the new sequence:
-\begin{lstlisting}
-semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2$ $~\mathsf{?88}$
+and suppose you want to ``frame out'' $R_1$ for the duration of
+$c_1;c_2$, and have it back again for $c_3$.
 
-semax $\Delta'$ $~\mathsf{?88}~$ $c_3$ $~\mathit{Post}$
+First, you grab the first 2 statements using the tactic, \newline
+\lstinline{first_N_statements 2%nat}.  (This works the same regardless of the
+  nesting structure of the semicolons; it reassociates as needed.)
+
+This leaves the two subgoals,
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2$ $~\mathsf{(normal\_ret\_assert ?88)}$
+semax $\Delta$ $~\mathsf{?88}~$ $c_3$ $~\mathit{Post}$
 \end{lstlisting}
-Then \lstinline{frame_SEP$~$0 2} to retain only $R_0;R_2$.
+
+In the first subgoal, do \lstinline{frame_SEP$~$0 2} to retain only $R_0;R_2$.
 \begin{lstlisting}
 semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_2)~$ $c_1;c_2$ $~\ldots$
 \end{lstlisting}
 Now you'll see that (in the precondition of the second subgoal)
 the unification variable $\mathsf{?88}$ has been
-instantiated in such a way that $R_2$ is added back in.
+instantiated in such a way that $R_1$ is added back in.
+Now you can prove the two subgoals, in order.
+
+
+\ychapter{The Freezer (\textsf{freeze,thaw})}{}
+\label{freezer}
+Suppose you have the proof goal,
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2;c_3$ $~\mathit{Post}$
+\end{lstlisting}
+and suppose you want to ``frame out'' $R_0$ and $R_2$ for the duration of
+$c_1;c_2$, and have them back again for $c_3$.
+Instead of using the frame rule, you can use the freezer.
+
+First, say \lstinline{freeze FR1 := R0 R2.}\newline
+The name \lstinline{FR1} is up to you; R0 and R2 must be patterns
+(perhaps with underscores,
+for example \lstinline{(data_at _$~$_$~$_$~$p)}) 
+that match conjuncts from the SEP clause.
+
+Now the proof goal looks like this:
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(\mbox{\textsc{frzl}}~\mathsf{FR1};~ R_1)~$ $c_1;c_2;c_3$ $~\mathit{Post}$\end{lstlisting}
+with a definition ~ \lstinline{FR1 := $\ldots$} ~ above the line.
+
+You can also write \qquad
+$\mathit{freeze}\ F\ \mathsf{:=}\ \mathsf{-}\ \mathit{pattern}_1  ~\mathit{pattern}_2 \ldots \mathit{pattern}_n$ \newline
+to freeze into $F$ every conjunct \emph{except} those that match the patterns.
+
+
+Proceed forward through $c_1$ and $c_2$; then you can give the command
+\lstinline{thaw FR1} that unfolds (and clears) the FR1 definition.
+
+Freezers can coexist and be arbitrarily nested, and be thawed independently; freezer-conjuncts participate in \lstinline{cancel} and other separation-logic operations.
 
 \ychapter{32-bit Integers}{(\file{compcert/lib/Integers.v})}
 \label{refcard:32bit}
@@ -4701,69 +4734,7 @@ also be invoked individually, to concisely display the type context $\Delta$
 as the application of a sequence of initializations
 to the host function's func\_tycontext.
 
-\newthought{The freezer.}\label{freezer}
-A distinguishing feature of separation logic is the frame rule,
-i.e.~the ability to modularly verify a statement w.r.t.~its minimal
-resource footprint. Unfortunately, being phrased in terms of the
-syntatic program structure, the standard frame rule does not easily
-interact with forward symbolic execution as implemented by the Floyd
-tactics (and many other systems), as these continuously rearrange the
-associativity of statement sqeuencing to peel off the redex of the
-next \emph{forward}, and (purposely) hide the program continuation as
-the abbreviation \emph{MORE\_COMMANDS}.
 
-Resolving this conflict, Floyd's \emph{freezer} abstraction provides a
-means for flexible framing, by implementing a veil that opaquely hides
-selected items of a SEP clause from non-symbolic treatment by
-non-freezer tactics.
-
-The freezer abstraction consists of two main tactics, \textsf{freeze} and \textsf{thaw}.
-
-$\mathsf{freeze}\ F\ \mathsf{:=}\ \mathit{pattern}_1  ~ \mathit{pattern}_2 \ldots \mathit{pattern}_n$\qquad
-where each pattern matches \emph{one} SEP conjunct and $F$ is
- a user-supplied (fresh) Coq name.
-An example pattern is \lstinline{(data_at _ $~$ _ $~$ _ $~$ p)}.
-The result is that each conjunct matching a pattern is removed from the precondition's SEP clause, inserting
-the item $\mathit{FRZL}\ F$ at the head of the SEP list, and adding a
-hypothesis $F := \mathit{abbreviate}$ to Coq's proof context.
-
-You can also write \qquad
-$\mathit{freeze}\ F\ \mathsf{:=}\ \mathsf{-}\ \mathit{pattern}_1  ~\mathit{pattern}_2 \ldots \mathit{pattern}_n$ \newline
-to freeze into $F$ every conjunct \emph{except} those that match the patterns.
-
-$\mathsf{thaw}\ F$ \qquad expands $F$ back into separate conjuncts.
-
-
-The term $\mathit{FRZL}\ F$ participates symbolically in all
-nonfreezer tactics just like any other SEP item, so can in particular
-be canceled, and included in a function call's frame.  Unfolding a
-freezer is not tied to the associativity structure of program
-statements but can be achieved by invoking $\mathit{thaw}\ F$, which
-simply replaces $\mathit{FRZL}\ F$ by the the list of $F$'s
-constiuents.  As multiple freezers can coexists and freezers can be
-arbitrarily nested, SEP-clauses $R$ effectively contain forests of
-freezers, each constituent being thawable independently and
-freezer-level by freezer-level.
-
-Wrapping single \emph{forward} or \emph{forward\_call} commands in a
-freezer often speeds up the processing time noticably, as invocations
-of subordinate tactics \emph{entailer}, \emph{cancel}, etc.~are
-supplied with smaller and more symbolic proof goals. In our
-experience, applying the freezer throughout the proof of an entire
-function body typically yields a speedup of about 30\% on average with
-improvements of up to 55\% in some cases, while also easing the memory
-pressure and freeing up valuable real estate on the user's screen.
-
-
-A more invasive implementation of a freezer-like abstraction would
-refine the \lstinline{PROP($P$) LOCAL($Q$) SEP($R$)} structure to
-terms of the form \lstinline{PROP($P$) LOCAL($Q$) SEP($R$) FR($H$)}
-where $H: \emph{list\ mpred}$. Again, terms in $H$ would be treated
-opaquely by all tactics, and freezing/thawing would correspond to
-transfer rules between $R$ and $H$. In either case, forward symbolic
-execution is reconciled with the frame rule, and the use of the
-mechanism is sound engineering practice as documentation of
-programmer's insight is combined with performance improvements.
 
 \chapter{Separate compilation, \upshape\textsf{semax\_ext}}
 \label{refcard:sepcomp}
