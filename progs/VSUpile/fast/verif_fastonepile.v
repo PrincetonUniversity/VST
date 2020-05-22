@@ -15,17 +15,17 @@ Definition one_pile (sigma: option (list Z)) (gv: globals): mpred :=
  match sigma with
  | None => data_at_ Ews (tptr tpile) (gv _the_pile)
  | Some il => EX p:val, data_at Ews (tptr tpile) p (gv _the_pile) *
-                               pilerep PILE il p * pile_freeable PILE p
+                        pilerep PILE il p * pile_freeable PILE p
  end.
 
-Lemma make_onepile: forall gv, 
+Lemma make_onepile: forall gv,
   data_at_ Ews (tptr (Tstruct onepile._pile noattr)) (gv onepile._the_pile)
    |-- one_pile None gv.
 Proof.
 intros. cancel.
 Qed.
 
-Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile (*OnePileCompSpecs make_onepile*).
+Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile.
 
   Definition Onepile_ASI: funspecs := OnepileASI M ONEPILE.
 
@@ -71,7 +71,7 @@ Qed.
 Lemma body_Onepile_count: semax_body OnepileVprog OnepileGprog f_Onepile_count (Onepile_count_spec ONEPILE).
 Proof.
 start_function.
-simpl onepile. unfold one_pile in *.
+simpl onepile. unfold one_pile.
 Intros p.
 forward.
 forward_call (p,sigma).
@@ -105,7 +105,7 @@ Qed.
 
   Definition OnepileComponent: @Component NullExtension.Espec OnepileVprog _ 
       nil onepile_imported_specs prog Onepile_ASI (one_pile None) onepile_internal_specs.
-  Proof. 
+  Proof.
     mkComponent. 
     + solve_SF_internal body_Onepile_init.
     + solve_SF_internal body_Onepile_add.
@@ -114,6 +114,6 @@ Qed.
   Qed.
 
 Definition OnepileVSU: @VSU NullExtension.Espec OnepileVprog _ 
-      nil onepile_imported_specs prog Onepile_ASI (one_pile None) .
+      nil onepile_imported_specs prog Onepile_ASI (one_pile None).
   Proof. eexists; apply OnepileComponent. Qed.
 End Onepile_VSU.

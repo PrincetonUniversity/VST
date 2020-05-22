@@ -45,7 +45,7 @@ Definition mainspec (*M*) := (main_spec (*M*) linked_prog).
 
 Section MainVSU. 
   Variable M: MallocFreeAPD.
-  Variable ONEPILE:OnePileAPD. 
+  Variable ONEPILE:OnePileAPD.
   Variable APILE:APileAPD.
 
   Definition MainImports: funspecs := OnepileASI M ONEPILE ++ ApileASI M APILE ++ TriangASI M.
@@ -68,20 +68,6 @@ Section MainVSU.
 Proof.
 start_function.
 sep_apply (make_mem_mgr M gv).
-(*
-generalize (make_apile APILE gv).
-assert (ApileEnv: change_composite_env (APileCompSpecs APILE) LinkedCompSpecs).
-make_cs_preserve (APileCompSpecs APILE) LinkedCompSpecs.
-change_compspecs LinkedCompSpecs.
-intros AG; sep_apply AG; clear AG.
-
-generalize (make_onepile ONEPILE gv).
-assert (OnepileEnv: change_composite_env (OnePileCompSpecs ONEPILE) LinkedCompSpecs).
-make_cs_preserve (OnePileCompSpecs ONEPILE) LinkedCompSpecs.
-change_compspecs LinkedCompSpecs.
-intros OData.
-(*unfold onepile._pile, onepile._the_pile in OData.*)
-sep_apply OData; clear OData.*)
 simpl; Intros.
 
 forward_call gv.
@@ -110,13 +96,6 @@ forward.
 cancel.
 Qed.
 
-  (*Redundant
-  Definition MainComponent: @Component NullExtension.Espec LinkedVprog LinkedCompSpecs
-        nil MainImports main.prog [main_spec (*M*) linked_prog] main_internal_specs.
-  Proof. 
-    mkComponent. clear; solve_SF_internal body_main.
-  Qed.*)
-
 End MainVSU.
 
 Require Import verif_fastcore.
@@ -126,63 +105,71 @@ Require Import VST.veric.initial_world.
 Parameter M: MallocFreeAPD.
 
 Lemma tc_VG: tycontext_subVG LinkedVprog (MainGprog M (ONEPILE M) (APILE M))
-                             LinkedVprog (mainspec (*M*) :: coreExports M).
+                             LinkedVprog (mainspec :: coreExports M).
 Proof. split.
-          * intros i. red. rewrite 2 semax_prog.make_context_g_char, 2 make_tycontext_s_find_id by LNR_tac.
-            remember (find_id i (MainGprog M (ONEPILE M) (APILE M))) as w.
-            destruct w; [symmetry in Heqw | simpl; trivial].
-            +  simpl in Heqw.
-               repeat (if_tac in Heqw; [ subst i; inv Heqw; reflexivity |]).
-               congruence.
-            + repeat (if_tac; [subst i; simpl; trivial |]); trivial.
-          * intros i; red. rewrite 2 make_tycontext_s_find_id.
-            remember (find_id i (MainGprog M (ONEPILE M) (APILE M))) as w.
-            destruct w; [symmetry in Heqw | trivial]. simpl in Heqw.
-            repeat (if_tac in Heqw; [ subst i; inv Heqw;
-                                      eexists; split; [ reflexivity | apply funspec_sub_si_refl]
-                                    | ]).
-            congruence.
+* intros i. red. rewrite 2 semax_prog.make_context_g_char, 2 make_tycontext_s_find_id by LNR_tac.
+  remember (find_id i (MainGprog M (ONEPILE M) (APILE M))) as w.
+  destruct w; [symmetry in Heqw | simpl; trivial].
+  +  simpl in Heqw.
+     repeat (if_tac in Heqw; [ subst i; inv Heqw; reflexivity |]).
+     congruence.
+  + repeat (if_tac; [subst i; simpl; trivial |]); trivial.
+* intros i; red. rewrite 2 make_tycontext_s_find_id.
+  remember (find_id i (MainGprog M (ONEPILE M) (APILE M))) as w.
+  destruct w; [symmetry in Heqw | trivial]. simpl in Heqw.
+  repeat (if_tac in Heqw; [ subst i; inv Heqw;
+                            eexists; split; [ reflexivity | apply funspec_sub_si_refl]
+                          | ]).
+  congruence.
 Qed.
 
-Definition MainE_pre:funspecs :=
-   filter (fun x => in_dec ident_eq (fst x) (ExtIDs linked_prog)) (augment_funspecs linked_prog (MallocFreeASI M)).
-  (* Holds but dead code *)
-  Lemma coreE_in_MainE: forall i phi, find_id i (coreBuiltins M) = Some phi -> find_id i MainE_pre = Some phi.
-  Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
+Definition ExtIDtable : PTree.t unit :=
+  ltac:(let x := constr:(fold_right (fun i t => PTree.set i tt t) (PTree.empty _) (ExtIDs linked_prog))
+           in let x := eval compute in x
+           in exact x).
+
+Definition in_ExtIDs (ia: ident*funspec) : bool :=
+ match PTree.get (fst ia) ExtIDtable with Some _ => true | None => false end.
+
+Definition LinkedSYS_pre:funspecs :=
+   filter in_ExtIDs (augment_funspecs linked_prog (MallocFreeASI M)).
+
+Definition LinkedSYS:funspecs := 
+  ltac: 
+    (let x := eval hnf in LinkedSYS_pre in
+     let x := eval simpl in x in 
+     (*let x := eval compute in x in leaving this in leads Coq to timeout/crash*)
+       exact x).
+
+Lemma ApplibSys_in_LinkedSys: forall i phi, find_id i (coreBuiltins M) = Some phi -> find_id i LinkedSYS = Some phi.
+  Proof.
+    intros. specialize (find_id_In_map_fst _ _ _ H); intros.
     simpl in H0. repeat (destruct H0 as [HO | H0]; [ subst i; inv H; reflexivity |]). contradiction.
   Qed. 
 
-Definition MainE:funspecs := ltac:
-    (let x := eval hnf in MainE_pre in
-     let x := eval simpl in x in 
-(*     let x := eval compute in x in *)
-       exact x). (*Takes 30s to compute...*)
-
-Lemma HypME1 : forall i : ident,
-         In i (map fst MainE) ->
-         exists (ef : external_function) (ts : typelist) (t : type) (cc : calling_convention),
-           find_id i (prog_defs linked_prog) = Some (Gfun (External ef ts t cc)).
-  Proof. intros.
-    cbv in H. 
+Lemma LinkedSYS_External: forall i, In i (map fst LinkedSYS) ->
+      exists ef ts t cc, find_id i (prog_defs linked_prog) = Some (Gfun (External ef ts t cc)).
+  Proof.
+    intros. cbv in H. 
     repeat (destruct H as [H | H];
       [ subst; try solve [do 4 eexists; split; reflexivity ]
       | ]).
     contradiction.
   Qed.
 
-Lemma MainE_vacuous i phi: find_id i MainE = Some phi -> find_id i (coreBuiltins M) = None ->
+Lemma LinkedSYS_vacuous i phi: find_id i LinkedSYS = Some phi -> find_id i (coreBuiltins M) = None ->
         exists ef argsig retsig cc, 
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (prog_funct coreprog) = Some (External ef argsig retsig cc) /\
            ef_sig ef = {| sig_args := typlist_of_typelist argsig;
                           sig_res := rettype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
-  Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
+  Proof.
+    intros. specialize (find_id_In_map_fst _ _ _ H); intros.
     cbv in H1.
     Time repeat (destruct H1 as [H1 | H1]; 
       [ subst; inv H; try solve [do 4 eexists; split3; reflexivity]
-      | ]). (*3s*)
-    inv H0. inv H0. inv H0. contradiction.
+      | ]); try inv H0; try contradiction. (*3s*)
   Qed.
 
 Lemma disjoint_Vprog_linkedfuncts: 
@@ -191,19 +178,6 @@ Proof.
   intros x y X Y ?; subst x; cbv in X; apply assoclists.find_id_None_iff in Y; [ trivial | clear H Y];
   repeat (destruct X as [X | X]; [ subst y; cbv; reflexivity |]); contradiction.
 Qed.
-
-Definition Imports:funspecs:=nil.
-(*
-Lemma CSSUB: cspecs_sub MainCompSpecs LinkedCompSpecs.
-Proof.
-  split3.
-+ intros i; red; remember ((@cenv_cs MainCompSpecs) ! i) as w; destruct w; 
-   [symmetry in Heqw; simpl in Heqw; rewrite PTree.gleaf in Heqw; congruence | trivial].
-+ intros i. red. remember ((@ha_env_cs MainCompSpecs) ! i) as w. destruct w; [symmetry in Heqw | trivial].
-  simpl in Heqw. rewrite PTree.gleaf in Heqw. congruence.
-+ intros i. red. remember ((@la_env_cs MainCompSpecs) ! i) as w. destruct w; [symmetry in Heqw | trivial].
-  simpl in Heqw. rewrite PTree.gleaf in Heqw. congruence.
-Qed.*)
 
 Lemma main_sub: funspec_sub (snd (main_inst_spec M (MyInitPred (ONEPILE M) (APILE M))))
                              (snd mainspec).
@@ -232,23 +206,36 @@ Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear.
       eapply derives_trans. 2: apply verif_fastapile.make_apile; trivial.
       erewrite <- (mapsto_data_at''); trivial. apply derives_refl.
 Qed.
+
+Definition Imports:funspecs:=nil.
+(*
+Lemma CSSUB: cspecs_sub MainCompSpecs LinkedCompSpecs.
+Proof.
+  split3.
++ intros i; red; remember ((@cenv_cs MainCompSpecs) ! i) as w; destruct w; 
+   [symmetry in Heqw; simpl in Heqw; rewrite PTree.gleaf in Heqw; congruence | trivial].
++ intros i. red. remember ((@ha_env_cs MainCompSpecs) ! i) as w. destruct w; [symmetry in Heqw | trivial].
+  simpl in Heqw. rewrite PTree.gleaf in Heqw. congruence.
++ intros i. red. remember ((@la_env_cs MainCompSpecs) ! i) as w. destruct w; [symmetry in Heqw | trivial].
+  simpl in Heqw. rewrite PTree.gleaf in Heqw. congruence.
+Qed.*)
+
 Require Import VST.floyd.VSU_addmain.
 
 Definition SO_VSU: @LinkedProgVSU NullExtension.Espec LinkedVprog LinkedCompSpecs
-      MainE Imports linked_prog [mainspec (*M*)]
+      LinkedSYS Imports linked_prog [mainspec (*M*)]
       (fun gv => onepile (ONEPILE M) None gv * apile (APILE M)  [] gv)%logic.
 Proof.
  VSUAddMain_tac (Core_CanVSU M).
-(* AddMainProgProgVSU_tac (Core_CanVSU M).*)
    + apply disjoint_Vprog_linkedfuncts.
-   + apply HypME1.
+   + apply LinkedSYS_External.
    + eapply semax_body_subsumption.
        * eapply semax_body_funspec_sub. 
          - apply (body_main M (ONEPILE M) (APILE M)).
          - apply main_sub.
          - LNR_tac.
        * apply tycontext_sub_i99. apply tc_VG.
-   + apply MainE_vacuous.
+   + apply LinkedSYS_vacuous.
 Qed.
 
 Lemma prog_correct:
