@@ -9,6 +9,7 @@ Require Export VST.msl.Coqlib2.
 Require Export VST.floyd.coqlib3.
 Require Export VST.floyd.sublist.
 Require Export Lia.
+Require Export VST.floyd.list_solver.
 
 Create HintDb entailer_rewrite discriminated.
 
@@ -26,20 +27,6 @@ Qed.
 
 Lemma cons_inv {A} (a a':A) l l': a::l = a'::l' -> a=a' /\ l=l'.
 Proof. intros. inv H; eauto. Qed.
-
-Instance Inhabitant_val : Inhabitant val := Vundef.
-Instance Inhabitant_int: Inhabitant int := Int.zero.
-Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
-Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
-Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
-Instance Inhabitant_float : Inhabitant float := Float.zero.
-Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
-
-Definition Vubyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.unsigned c)).
-
-Definition Vbyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.signed c)).
 
 Hint Rewrite 
    (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)
@@ -640,11 +627,6 @@ Proof.
 Qed.
 Hint Rewrite Znth_map_Vbyte using old_list_solve : norm entailer_rewrite.
 
-Ltac fold_Vbyte :=
- repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
-      fold (Vbyte c)
-end.
-
 Lemma Znth_map_Vubyte: forall (i : Z) (l : list byte),
   0 <= i < Zlength l -> Znth i (map Vubyte l)  = Vubyte (Znth i l).
 Proof.
@@ -709,5 +691,4 @@ rep_lia, list_solve, if_tac, autorewrite with sublist, computable, ...".
 
 Ltac rep_omega := idtac "Warning: rep_omega is a deprecated synonym for rep_lia"; rep_lia.
 Ltac omega := idtac "Warning: use of omega without Require Import Coq.omega.Omega; deprecated; should use lia anyway"; Coq.omega.Omega.omega.
-
 

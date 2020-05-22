@@ -268,7 +268,7 @@ FLOYD_FILES= \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
    subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v VSU_addmain.v \
-   Zlength_solver.v list_solver.v
+   Zlength_solver.v list_solver.v data_at_list_solver.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and

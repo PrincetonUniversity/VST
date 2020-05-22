@@ -1,10 +1,31 @@
-Require Import VST.floyd.base2.
-Require Import VST.floyd.reptype_lemmas.
-Require Import VST.floyd.field_at.
-Require Import VST.floyd.entailer.
-Require Import VST.floyd.field_compat.
-Require Export VST.floyd.Zlength_solver.
+(*Require Import VST.floyd.base. *)
+Require Import compcert.lib.Coqlib.
+Require Import VST.msl.Coqlib2.
+Require Import VST.veric.coqlib4.  (* just for prop_unext *)
+Require Import VST.floyd.sublist.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Floats.
+Require Import compcert.common.Values.
+Require Import Coq.micromega.Lia.
+Require Import VST.floyd.Zlength_solver.
 Import ListNotations.
+
+(* stuff moved from functional_base*)
+Definition Vubyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.unsigned c)).
+Definition Vbyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.signed c)).
+Ltac fold_Vbyte :=
+ repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
+      fold (Vbyte c)
+end.
+Instance Inhabitant_val : Inhabitant val := Vundef.
+Instance Inhabitant_int: Inhabitant int := Int.zero.
+Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
+Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
+Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
+Instance Inhabitant_float : Inhabitant float := Float.zero.
+Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
 
 (** This file provides a almost-complete solver for list with concatenation.
   Its core symbols include:
@@ -178,87 +199,6 @@ Ltac Znth_solve2 :=
     end
   ].
 
-(** * list extentionality *)
-(* To prove equality between two lists, a convenient way is to apply extentionality
-  and prove their length are equal and each corresponding entries are equal.
-  It is convenient because then we can use Znth_solve to solve it. *)
-
-Definition data_subsume {cs : compspecs} (t : type) (x y : reptype t) : Prop :=
-  forall sh p, data_at sh t x p |-- data_at sh t y p.
-
-Lemma data_subsume_refl : forall {cs : compspecs} (t : type) (x : reptype t),
-  data_subsume t x x.
-Proof. unfold data_subsume. intros. auto. Qed.
-
-Lemma data_subsume_refl' : forall {cs : compspecs} (t : type) (x x' : reptype t),
-  x = x' ->
-  data_subsume t x x'.
-Proof. unfold data_subsume. intros. cancel. Qed.
-
-Lemma data_subsume_default : forall {cs : compspecs} (t : type) (x y : reptype t),
-  y = default_val t ->
-  data_subsume t x y.
-Proof. unfold data_subsume. intros. subst y. apply data_at_data_at_. Qed.
-
-Hint Resolve data_subsume_refl data_subsume_refl' data_subsume_default : core.
-
-Lemma data_subsume_array_ext : forall {cs : compspecs} (t : type) (n : Z) (al bl : list (reptype t)),
-  n = Zlength al ->
-  n = Zlength bl ->
-  (forall (i : Z), 0 <= i < n -> data_subsume t (Znth i al) (Znth i bl)) ->
-  data_subsume (tarray t n) al bl.
-Proof.
-  intros.
-  generalize dependent bl.
-  generalize dependent n.
-  induction al; intros; destruct bl as [ | b bl];
-    autorewrite with list_solve_rewrite in *; Zlength_simplify_in_all; try Zlength_solve;
-    unfold data_subsume; intros.
-  - (* al = [] /\ bl = [] *)
-    entailer!.
-  - (* al <> [] /\ bl <> [] *)
-    do 2 rewrite split2_data_at_Tarray_app with (mid := 1) by Zlength_solve.
-    apply sepcon_derives.
-    + specialize (H1 0 ltac:(Zlength_solve)).
-      autorewrite with Znth in H1.
-      rewrite data_at_singleton_array_eq with (v := a) by auto.
-      rewrite data_at_singleton_array_eq with (v := b) by auto.
-      apply H1.
-    + apply IHal; try Zlength_solve.
-      intros. specialize (H1 (i+1) ltac:(Zlength_solve)).
-      autorewrite with Znth in H1.
-      Zlength_simplify_in H1.
-      replace (i + 1 - 1) with i in H1 by lia.
-      apply H1.
-Qed.
-
-Ltac simpl_reptype :=
-  repeat lazymatch goal with
-  | |- context [reptype ?t] =>
-    let T' := eval compute in (reptype t) in
-    change (reptype t) with T' in *
-  | H : context [reptype ?t] |- _ =>
-    let T' := eval compute in (reptype t) in
-    change (reptype t) with T' in *
-  end.
-
-(* Tactic apply_list_ext applies the proper extensionality lemma and proves
-  the lengths are the same and reduces the goal to relation between entries. *)
-Ltac apply_list_ext :=
-  first
-  [ apply data_subsume_array_ext;
-    simpl_reptype;
-    only 1, 2 : Zlength_solve
-  | match goal with |- @eq ?list_A _ _ =>
-      match eval compute in list_A with list ?A =>
-        apply (@Znth_eq_ext A ltac:(auto with typeclass_instances))
-      end
-    end;
-    only 1 : Zlength_solve
-  ];
-  Zlength_simplify;
-  intros.
-
 (*************** fapply & fassumption *************)
 Lemma imp_refl' : forall P Q : Prop,
   P = Q -> P -> Q.
@@ -295,25 +235,6 @@ Tactic Notation "eq_solve" := eq_solve with fail.
 Hint Extern 1 (@eq _ _ _) => eq_solve : Znth_solve_hint.
 (* Hint Extern 1 (@eq _ _ _) => fassumption : Znth_solve_hint.
 Hint Extern 1 (@eq _ _ _) => congruence : Znth_solve_hint. *)
-
-(** * list_solve2 *)
-Ltac list_solve2' :=
-  repeat match goal with [ |- _ /\ _ ] => split end;
-  intros;
-  try Zlength_solve;
-  list_form; Zlength_simplify_in_all; Znth_solve2;
-  auto with Znth_solve_hint;
-  first
-  [ fassumption
-  | Zlength_solve
-  | apply_list_ext; Znth_solve
-  ];
-  auto with Znth_solve_hint;
-  try fassumption.
-
-Ltac list_solve2 :=
-  list_solve2';
-  fail "list_solve2 cannot solve this goal".
 
 (*************** range definitions **********************)
 Definition rangei (lo hi : Z) (P : Z -> Prop) :=
@@ -1043,9 +964,10 @@ Lemma In_Znth_iff : forall {A : Type} {d : Inhabitant A} (l : list A) (x : A),
 Proof.
   intros. split; intro.
   - induction l; inversion H.
-    + exists 0. list_solve2.
+    + exists 0. autorewrite with sublist. split; auto. pose proof (Zlength_nonneg l); lia.
     + specialize (IHl H0). destruct IHl as [i []].
-      exists (i + 1). list_solve2.
+      exists (i + 1). autorewrite with sublist. rewrite Znth_pos_cons by lia.
+      rewrite Z.add_simpl_r. split; auto. lia. 
   - destruct H as [i []]. subst x. apply Znth_In. auto.
 Qed.
 
@@ -1128,40 +1050,6 @@ Qed.
 End Sorted.
 
 Arguments sorted {_ _}.
-
-Ltac rewrite_In_Znth_iff :=
-  repeat lazymatch goal with
-  | H : In ?x ?l |- _ =>
-    rewrite In_Znth_iff in H;
-    destruct H as [? []]
-  end.
-
-Ltac rewrite_list_eq :=
-  repeat lazymatch goal with
-  | H : @eq (list ?A) ?al ?bl |- _ =>
-    rewrite list_eq_range_bin in H;
-    destruct H
-  end.
-
-Hint Rewrite Forall_Znth : list_prop_rewrite.
-Hint Rewrite range_uni_fold : list_prop_rewrite.
-Hint Rewrite range_bin_fold : list_prop_rewrite.
-Hint Rewrite range_tri_fold : list_prop_rewrite.
-Hint Rewrite Sorted_Znth : list_prop_rewrite.
-
-Ltac range_form :=
-  apply_in_hyps not_In_range_uni;
-  apply_in_hyps eq_range_bin_no_offset;
-  apply_in_hyps eq_range_bin_offset;
-  apply_in_hyps eq_range_bin_left_offset;
-  apply_in_hyps eq_range_bin_minus_offset;
-  apply_in_hyps eq_range_bin_reverse;
-  apply_in_hyps eq_range_bin_reverse_left_offset;
-  apply_in_hyps eq_range_bin_reverse_minus_offset;
-  apply_in_hyps sorted_range_tri;
-  rewrite_In_Znth_iff;
-  autorewrite with list_prop_rewrite in *.
-
 (**************** range tactics **************************)
 
 Module range_rewrite.
@@ -1590,6 +1478,40 @@ Ltac destruct_range H :=
       [ clear H | Zlength_solve ]
     )
   end.
+
+
+Ltac rewrite_In_Znth_iff :=
+  repeat lazymatch goal with
+  | H : In ?x ?l |- _ =>
+    rewrite In_Znth_iff in H;
+    destruct H as [? []]
+  end.
+
+Ltac rewrite_list_eq :=
+  repeat lazymatch goal with
+  | H : @eq (list ?A) ?al ?bl |- _ =>
+    rewrite list_eq_range_bin in H;
+    destruct H
+  end.
+
+Hint Rewrite Forall_Znth : list_prop_rewrite.
+Hint Rewrite range_uni_fold : list_prop_rewrite.
+Hint Rewrite range_bin_fold : list_prop_rewrite.
+Hint Rewrite range_tri_fold : list_prop_rewrite.
+Hint Rewrite Sorted_Znth : list_prop_rewrite.
+
+Ltac range_form :=
+  apply_in_hyps not_In_range_uni;
+  apply_in_hyps eq_range_bin_no_offset;
+  apply_in_hyps eq_range_bin_offset;
+  apply_in_hyps eq_range_bin_left_offset;
+  apply_in_hyps eq_range_bin_minus_offset;
+  apply_in_hyps eq_range_bin_reverse;
+  apply_in_hyps eq_range_bin_reverse_left_offset;
+  apply_in_hyps eq_range_bin_reverse_minus_offset;
+  apply_in_hyps sorted_range_tri;
+  rewrite_In_Znth_iff;
+  autorewrite with list_prop_rewrite in *.
 
 Ltac Zlength_solve_print_when_fail :=
   first [
@@ -2072,8 +1994,16 @@ Ltac range_saturate :=
   find_instantiate_index; range_saturate.check_non_zero_loop.clear0;
   range_saturate.range_saturate; range_saturate.find_instantiate_index.clear0.
 
+Ltac Znth_simplify :=
+  Znth_solve.
+
+Ltac Znth_simplify_in_all :=
+  Znth_solve2.
+
+Arguments Zlength_fact {_}.
+
 Ltac list_prop_solve' :=
-  list_form; range_form; range_rewrite; Znth_solve2;
+  list_form; range_rewrite.range_form; range_rewrite; Znth_solve2;
   autorewrite with Z_normalize_0 in *;
   range_saturate;
   Znth_solve2;
@@ -2086,22 +2016,30 @@ Ltac list_prop_solve :=
 
 Create HintDb list_solve_unfold.
 
+(* Tactic apply_list_ext applies the proper extensionality lemma and proves
+  the lengths are the same and reduces the goal to relation between entries. *)
+Ltac apply_list_ext :=
+  first
+  [ match goal with |- @eq ?list_A _ _ =>
+      match eval compute in list_A with list ?A =>
+        apply (@Znth_eq_ext A ltac:(auto with typeclass_instances))
+      end
+    end;
+    only 1 : Zlength_solve
+  ];
+  Zlength_simplify;
+  intros.
+
 Ltac list_solve_preprocess :=
   fold_Vbyte;
-  simpl data_at;
-  simpl_reptype;
   autounfold with list_solve_unfold in *;
   autorewrite with list_solve_rewrite in *;
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 
-Ltac Znth_simplify :=
-  Znth_solve.
-
-Ltac Znth_simplify_in_all :=
-  Znth_solve2.
-
 Ltac list_solve :=
+  try lia;
+  try match goal with |- context [@Zlength] => Zlength_solve end;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;
@@ -2126,5 +2064,21 @@ Ltac list_simplify :=
   );
   try list_prop_solve.
 
-Arguments Zlength_fact {_}.
+(** * list_solve2 *)
+Ltac list_solve2' :=
+  repeat match goal with [ |- _ /\ _ ] => split end;
+  intros;
+  try Zlength_solve;
+  list_form; Zlength_simplify_in_all; Znth_solve2;
+  auto with Znth_solve_hint;
+  first
+  [ fassumption
+  | Zlength_solve
+  | apply_list_ext; Znth_solve
+  ];
+  auto with Znth_solve_hint;
+  try fassumption.
 
+Ltac list_solve2 :=
+  list_solve2';
+  fail "list_solve2 cannot solve this goal".
