@@ -1674,6 +1674,24 @@ apply andp_right; auto.
 apply derives_extract_prop. auto.
 Qed.
 
+Lemma assert_later_PROP':
+ forall P1 Espec {cs: compspecs} Delta PQR PQR' c Post,
+    ENTAIL Delta, PQR' |-- !! P1 ->
+    (PQR |-- |> PQR') ->
+   (P1 -> @semax cs Espec Delta PQR c Post) ->
+   @semax cs Espec Delta PQR c Post.
+Proof.
+intros.
+apply semax_extract_later_prop in H1.
+eapply semax_pre_simple, H1.
+apply andp_right.
++ eapply derives_trans, later_derives, H.
+  rewrite later_andp; apply andp_derives; auto.
+  apply now_later.
++ apply andp_left2; trivial.
+Qed.
+
+(*Now in client_lemmas, with a variant that uses hoist_later_left
 Tactic Notation "assert_PROP" constr(A) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro ].
 
@@ -1685,7 +1703,7 @@ Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
 
 Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic1(t) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro H ].
-
+*)
 Lemma assert_LOCAL:
  forall Q1 Espec {cs: compspecs} Delta P Q R c Post,
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (locald_denote Q1) ->
