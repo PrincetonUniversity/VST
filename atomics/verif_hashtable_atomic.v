@@ -7,6 +7,7 @@ Require Import VST.floyd.sublist.
 Require Import VST.atomics.hashtable_atomic.
 Require Import VST.atomics.hashtable.
 Require Import VST.atomics.general_atomics.
+Require Import VST.msl.iter_sepcon.
 Import List.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -149,10 +150,9 @@ Program Definition set_item_spec := DECLARE _set_item
     LOCAL (temp _key (vint k); temp _value (vint v); gvars gv)
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tvoid ]
-   EX r : unit,
     PROP ()
     LOCAL ()
-    SEP (data_at sh (tarray tentry size) entries (gv _m_entries); hashtable (map_upd H k v) g lg entries).
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable (map_upd H k v) g lg entries).
 
 (* Read the most recently written value. *)
 Program Definition get_item_spec := DECLARE _get_item
@@ -161,12 +161,12 @@ Program Definition get_item_spec := DECLARE _get_item
   PRE [ _key OF tint ]
     PROP (readable_share sh; repable_signed k; k <> 0; Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
     LOCAL (temp _key (vint k); gvars gv)
-    SEPS (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tint ]
    EX v : Z,
     PROP ()
     LOCAL (temp ret_temp (vint v))
-    SEP (data_at sh (tarray tentry size) entries (gv _m_entries); !!(if eq_dec v 0 then H k = None else H k = Some v) && hashtable H g lg entries).
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (!!(if eq_dec v 0 then H k = None else H k = Some v) && hashtable H g lg entries).
 
 Program Definition add_item_spec := DECLARE _add_item
   ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
@@ -175,13 +175,13 @@ Program Definition add_item_spec := DECLARE _add_item
     PROP (readable_share sh; repable_signed k; repable_signed v; k <> 0; v <> 0;
       Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
     LOCAL (temp _key (vint k); temp _value (vint v); gvars gv)
-    SEPS (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tint ]
    EX b : bool,
     PROP ()
     LOCAL (temp ret_temp (Val.of_bool b))
-    SEP (data_at sh (tarray tentry size) entries (gv _m_entries) *
-   (!!(H k = None <-> b = true) && hashtable (if b then map_upd H k v else H) g lg entries)).
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) |
+   (!!(H k = None <-> b = true) && hashtable (if b then map_upd H k v else H) g lg entries).
 
 Definition init_table_spec :=
  DECLARE _init_table
@@ -603,9 +603,9 @@ Proof.
       subst; entailer!.
     + forward; setoid_rewrite Hpi.
       { entailer!. }
-      forward_call (pvi, v, top, empty, Q tt, inv_names).
-      { subst Frame; instantiate (1 := nil); simpl; cancel.
-        iIntros "((((snap & P) & data) & snaps) & [AS1 _])".
+      forward_call (pvi, v, top, empty, Q, inv_names).
+      { subst Frame; instantiate (1 := [data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
+        iIntros "(((snap & P) & snaps) & [AS1 _])".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
@@ -626,8 +626,8 @@ Proof.
         iMod (exclusive_update _ (map_upd HT k v) with "excl") as "excl".
         iMod (own_dealloc(RA := snap_PCM) with "snap") as "_".
         iMod (snaps_dealloc with "snaps") as "_".
-        iDestruct "Hclose" as "[_ Hclose]"; iApply "Hclose".
-        iFrame "data"; unfold hashtable.
+        iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
+        unfold hashtable.
         iFrame.
         iExists (upd_Znth (i1 mod size) T (k, v)).
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
@@ -661,7 +661,6 @@ Proof.
           rewrite -> !upd_Znth_diff' by omega; auto.
           apply Z_mod_lt; auto. }
       forward.
-      Exists tt; entailer!.
   - Intros i i1 keys.
     forward.
     { entailer!.
@@ -717,10 +716,9 @@ Proof.
     forward_call (pki, top, empty,
       fun v => if eq_dec v 0 then Q v else |> P * ghost_snap v (Znth (i1 mod size) lg) *
         iter_sepcon (fun i0 : Z => ghost_snap (Znth ((i0 + hash k) mod size) keys)
-          (Znth ((i0 + hash k) mod size) lg)) (upto (Z.to_nat i)) *
-        data_at sh (tarray tentry size) entries (gv _m_entries), inv_names).
-    { subst Frame; instantiate (1 := [AS && cored]); simpl; cancel.
-      iIntros "((([AS1 _] & P) & data) & snaps)".
+          (Znth ((i0 + hash k) mod size) lg)) (upto (Z.to_nat i)), inv_names).
+    { subst Frame; instantiate (1 := [AS && cored; data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
+      iIntros "(([AS1 _] & P) & snaps)".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
       match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
@@ -757,7 +755,7 @@ Proof.
         unfold hashtable_entry.
         rewrite -> Hpi, HHi; iFrame; auto.
       * iMod (make_snap with "master") as "[snap master]".
-        iFrame "snap snaps data".
+        iFrame "snap snaps".
         iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
         unfold hashtable; iExists T.
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
@@ -771,8 +769,8 @@ Proof.
       forward; setoid_rewrite Hpi.
       { entailer!. }
       forward_call (pvi, top, empty, Q, inv_names).
-      { subst Frame; instantiate (1 := []); simpl; cancel.
-        iIntros "((((P & snap) & snaps) & data) & [AS1 _])".
+      { subst Frame; instantiate (1 := [data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
+        iIntros "(((P & snap) & snaps) & [AS1 _])".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
@@ -1094,8 +1092,8 @@ Proof.
     + forward; setoid_rewrite Hpi.
       { entailer!. }
       forward_call (pvi, 0, v, top, empty, fun v => Q (if eq_dec v 0 then true else false), inv_names).
-      { subst Frame; instantiate (1 := nil); simpl; cancel.
-        iIntros "((((snap & P) & [AS1 _]) & data) & snaps)".
+      { subst Frame; instantiate (1 := [data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
+        iIntros "(((snap & P) & [AS1 _]) & snaps)".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
@@ -1119,8 +1117,9 @@ Proof.
           rewrite HHi; auto. }
         iMod (own_dealloc(RA := snap_PCM) with "snap") as "_".
         iMod (snaps_dealloc with "snaps") as "_".
-        iDestruct "Hclose" as "[_ Hclose]"; iApply "Hclose".
-        iFrame "data"; unfold hashtable.
+        iDestruct "Hclose" as "[_ Hclose]"; iApply "Hclose"; simpl.
+        iSplit; last done.
+        unfold hashtable.
         rewrite exp_andp2.
         iExists ((if eq_dec vi 0 then upd_Znth (i1 mod size) T (k, v) else T)).
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
@@ -1360,8 +1359,7 @@ Proof.
   - Exists (@nil bool) (@empty_map nat hashtable_hist_el); entailer!.
     auto with ghost.
   - forward_call (i0 + 1, 1, gv, sh, entries, g, lg,
-      fun b => EX h' : _, !!(add_events h [HAdd (i0 + 1) 1 b] h') && ghost_hist gsh h' gh *
-        data_at sh (tarray tentry size) entries (gv _m_entries), inv_names).
+      fun b => EX h' : _, !!(add_events h [HAdd (i0 + 1) 1 b] h') && ghost_hist gsh h' gh, inv_names).
     { simpl; entailer!.
       rewrite -> !sepcon_assoc, sepcon_comm.
       rewrite -> invariant_dup, !sepcon_assoc, sepcon_comm.
@@ -1382,7 +1380,7 @@ Proof.
         iMod "Hclose'"; iMod ("Hclose" with "[hashtable ref]"); auto.
         iNext; iExists HT; iFrame.
         iExists hr; iFrame; auto.
-      + iIntros (b) "[[entries [% hashtable]] _]".
+      + iIntros (b) "[[% hashtable] _]".
         iPoseProof (hist_ref_incl with "[$hist $ref]") as "%"; [auto|].
         iMod (hist_add' _ _ _ (HAdd (i0 + 1) 1 b) with "[$hist $ref]") as "[hist ref]"; [auto|].
         iMod "Hclose'"; iMod ("Hclose" with "[hashtable ref]").
@@ -1707,7 +1705,7 @@ Proof.
     contradiction Hi.
     assert (k = 1 \/ k = 2 \/ k = 3) as Hk.
     { rewrite <- nth_Znth in Hith by omega.
-      exploit nth_error_nth; [apply Nat2Z.inj_lt; rewrite -> Z2Nat.id, <- Zlength_correct; eauto; omega|].
+      exploit sublist.nth_error_nth; [apply Nat2Z.inj_lt; rewrite -> Z2Nat.id, <- Zlength_correct; eauto; omega|].
       rewrite -> Hith; intro Hin.
       apply Hl in Hin.
       apply in_maps_add in Hin as (? & Hin & Hm); subst.
@@ -2005,7 +2003,9 @@ Proof.
   gather_SEP 4 3.
   replace_SEP 0 (|={inv i1}=> !!(Zlength (filter id (concat (map snd lr))) = 3) : mpred)%I.
   { go_lower.
-    iIntros "(hist & >inv)".
+    iIntros "(hist & inv)".
+    iPoseProof (timeless with "inv") as ">inv".
+    { admit. } (* This isn't true; we need something to get rid of the later earlier. *)
     iMod (inv_open (inv i1) with "inv") as "[>inv Hclose]"; [auto|].
     unfold hashtable_inv.
     iDestruct "inv" as (HT) "[hashtable ref]"; iDestruct "ref" as (hr) "[% ref]".
@@ -2024,6 +2024,6 @@ Proof.
   (* Without including fupd in semax, it's not clear how to extract the result
      from the fupd. In a larger application, maybe there would be another view shift. *)
   forward.
-Qed.
+Admitted.
 
 End Proofs.
