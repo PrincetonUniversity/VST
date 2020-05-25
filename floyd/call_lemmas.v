@@ -1815,8 +1815,8 @@ rewrite sepcon_comm. apply sepcon_derives; auto.
 Qed.
 
 Ltac match_funcptr'_funcptr :=
- first [apply match_funcptr'_funcptr 
-        | apply nomatch_funcptr'_funcptr; match_funcptr'_funcptr].
+ first [simple apply match_funcptr'_funcptr 
+        | simple apply nomatch_funcptr'_funcptr; match_funcptr'_funcptr].
 
 Ltac prove_func_ptr := 
     match goal with |- fold_right_sepcon ?A |-- func_ptr ?F ?V =>
