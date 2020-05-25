@@ -188,6 +188,50 @@ Proof.
     iIntros "!> ?"; auto.
 Qed.
 
+(* sync_commit for holding two locks simultaneously *)
+Lemma two_sync_commit : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : G)
+  (Ha : (forall x, R * a x |-- |==> EX y1 y2, public_half g1 y1 * public_half g2 y2 *
+    (!!((if eq_dec sh1 Tsh then x1 = y1 else exists z, sepalg.join x1 z y1) /\ (if eq_dec sh2 Tsh then x2 = y2 else exists z, sepalg.join x2 z y2)) -->
+    |==> (EX x1' x2' y1' y2' : G, !!((forall z, sepalg.join x1 z y1 -> sepalg.join x1' z y1') /\ (forall z, sepalg.join x2 z y2 -> sepalg.join x2' z y2')) &&
+      (my_half g1 sh1 x1' * public_half g1 y1' * my_half g2 sh2 x2' * public_half g2 y2' -* |==> (EX y, b x y * R' y))))%I)%I),
+  (atomic_shift a Ei Eo b Q * my_half g1 sh1 x1 * my_half g2 sh2 x2 * R |-- |==> EX y, Q y * R' y)%I.
+Proof.
+  intros; rewrite -> 2sepcon_assoc.
+  apply atomic_commit with (R'0 := fun y => R' y).
+  intros; iIntros "((my1 & my2 & R) & a)".
+  iMod (Ha with "[$]") as (??) "((public1 & public2) &  a')".
+  iPoseProof (ref_sub(P := P) with "[$my1 $public1]") as "%".
+  iPoseProof (ref_sub(P := P) with "[$my2 $public2]") as "%".
+  iMod ("a'" with "[%]") as (????) "[Hsub H]"; first done.
+  iDestruct "Hsub" as %[? ?].
+  iDestruct (public_part_update with "[$my1 $public1]") as "[% >[my1 public1]]"; eauto.
+  iDestruct (public_part_update with "[$my2 $public2]") as "[% >[my2 public2]]"; eauto.
+  iApply "H"; iFrame.
+Qed.
+
+Lemma two_sync_commit1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : G)
+  (Ha : (forall x, R * a x |-- |==> EX y1 y2, public_half g1 y1 * public_half g2 y2 *
+    (!!((if eq_dec sh1 Tsh then x1 = y1 else exists z, sepalg.join x1 z y1) /\ (if eq_dec sh2 Tsh then x2 = y2 else exists z, sepalg.join x2 z y2)) -->
+    |==> (EX x1' x2' y1' y2' : G, !!((forall z, sepalg.join x1 z y1 -> sepalg.join x1' z y1') /\ (forall z, sepalg.join x2 z y2 -> sepalg.join x2' z y2')) &&
+      (my_half g1 sh1 x1' * public_half g1 y1' * my_half g2 sh2 x2' * public_half g2 y2' -* |==> ((EX y, b x y) * R'))))%I)%I),
+  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g1 sh1 x1 * my_half g2 sh2 x2 * R |-- |==> Q * R')%I.
+Proof.
+  intros; rewrite -> 2sepcon_assoc.
+  eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => R')|].
+  intros; iIntros "((my1 & my2 & R) & a)".
+  iMod (Ha with "[$]") as (??) "((public1 & public2) &  a')".
+  iPoseProof (ref_sub(P := P) with "[$my1 $public1]") as "%".
+  iPoseProof (ref_sub(P := P) with "[$my2 $public2]") as "%".
+  iMod ("a'" with "[%]") as (????) "[Hsub H]"; first done.
+  iDestruct "Hsub" as %[? ?].
+  iDestruct (public_part_update with "[$my1 $public1]") as "[% >[my1 public1]]"; eauto.
+  iDestruct (public_part_update with "[$my2 $public2]") as "[% >[my2 public2]]"; eauto.
+  rewrite -exp_sepcon1.
+  iApply "H"; iFrame.
+  { iApply bupd_mono.
+    iIntros "Q"; iDestruct "Q" as (?) "[$ $]". }
+Qed.
+
 End locks.
 
 Hint Resolve sync_inv_exclusive : exclusive.
