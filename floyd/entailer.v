@@ -315,22 +315,22 @@ Ltac ent_iter :=
 
 Lemma and_False: forall x, (x /\ False) = False.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply prop_ext; tauto.
 Qed.
 
 Lemma and_True: forall x, (x /\ True) = x.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply prop_ext; tauto.
 Qed.
 
 Lemma True_and: forall x, (True /\ x) = x.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply prop_ext; tauto.
 Qed.
 
 Lemma False_and: forall x, (False /\ x) = False.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply prop_ext; tauto.
 Qed.
 Ltac splittable :=
  match goal with
@@ -416,15 +416,15 @@ Ltac try_prove_it_now :=
 *)
 Lemma try_conjuncts_lem2: forall A B : Prop,
    B -> A -> (A /\ B).
-Proof. intuition. Qed.
+Proof. tauto. Qed.
 
 Lemma try_conjuncts_lem: forall A B A' B' : Prop,
    (A -> A') -> (B -> B') -> (A /\ B -> A' /\ B').
-Proof. intuition. Qed.
+Proof. tauto. Qed.
 
 Lemma try_conjuncts_start: forall A B: Prop,
    (A -> B) -> (A -> B).
- Proof. intuition. Qed.
+ Proof. tauto. Qed.
 
 Ltac try_conjuncts_solver :=
     lazymatch goal with H:_ |- ?A =>
@@ -663,7 +663,7 @@ subst.
 destruct p; try contradiction.
 simpl. rewrite Z.mul_0_r.
 rewrite Ptrofs.add_zero.
-apply prop_ext; intuition.
+apply prop_ext; tauto.
 Qed.
 Hint Rewrite offset_val_sizeof_hack : norm.
 
@@ -675,7 +675,7 @@ Lemma offset_val_sizeof_hack2:
 Proof.
 intros.
 subst.
-apply prop_ext; intuition.
+apply prop_ext; tauto.
 Qed.
 Hint Rewrite offset_val_sizeof_hack2 : norm.
 
@@ -688,7 +688,7 @@ Proof.
 intros.
 subst.
 rewrite Z.mul_1_r.
-apply prop_ext; intuition.
+apply prop_ext; tauto.
 Qed.
 Hint Rewrite offset_val_sizeof_hack3 : norm.
 

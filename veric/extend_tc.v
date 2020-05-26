@@ -491,7 +491,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
   rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
@@ -506,7 +506,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
   rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
@@ -521,7 +521,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
   auto.
   Qed.  
@@ -532,7 +532,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
   auto.
   Qed.  
@@ -543,7 +543,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
   auto.
   Qed.  
@@ -554,7 +554,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
   rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
@@ -576,7 +576,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
   rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).

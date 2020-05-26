@@ -559,7 +559,7 @@ induction Q1; simpl; auto.
 apply prop_ext; intuition.
 unfold_lift in IHQ1. unfold_lift.
 rewrite IHQ1.
-clear; apply prop_ext; intuition.
+clear; apply prop_ext; tauto.
 Qed.
 
 Lemma fold_right_sepcon_app :
@@ -1495,7 +1495,7 @@ unfold PROPx,LOCALx,SEPx,local,lift1.
 simpl.
 apply pred_ext; normalize.
 * match goal with |- _ |-- !! ?PP && _ => replace PP with P1
-   by (apply prop_ext; intuition)
+   by (apply prop_ext; tauto)
   end.
   clear - H.
   revert R H; induction n; destruct R; simpl; intros.
@@ -1839,7 +1839,7 @@ Proof.
 intros. unfold PROPx; simpl.
 extensionality rho.
 apply pred_ext; apply andp_derives; auto;
-  apply prop_derives; intuition.
+  apply prop_derives; tauto.
 Qed.
 Hint Rewrite @split_first_PROP using not_conj_notation : norm1.
 

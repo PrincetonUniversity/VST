@@ -1173,7 +1173,7 @@ destruct q; try contradiction.
 destruct H; subst.
 unfold Ptrofs.cmpu in H0.
 apply ptrofs_eq_e in H0.
-subst. intuition.
+subst. tauto.
 destruct p0.
 normalize.
 rewrite field_at_isptr.

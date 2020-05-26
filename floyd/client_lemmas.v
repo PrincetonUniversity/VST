@@ -436,7 +436,7 @@ intros. extensionality x; apply prop_ext.
 unfold typed_true, bool_val, strict_bool_val, isptr.
 destruct t; try contradiction;
 destruct Archi.ptr64 eqn:Hp;
-destruct x; intuition; try congruence;
+destruct x; try tauto; intuition; try congruence;
 revert H0; simple_if_tac; intro H0; inv H0.
 Qed.
 
@@ -1397,7 +1397,7 @@ Lemma prop_true_andp1 {A}{NA: NatDed A} :
   forall (P1 P2: Prop) Q ,
     P1 -> (!! (P1 /\ P2) && Q = !!P2 && Q).
 Proof.
-intros. f_equal; auto.  f_equal.  apply prop_ext; intuition.
+intros. f_equal; auto.  f_equal.  apply prop_ext; tauto.
 Qed.
 Hint Rewrite prop_true_andp1 using solve [auto 3 with typeclass_instances]: norm1.
 Hint Rewrite prop_true_andp1 using assumption : norm.
@@ -1493,7 +1493,7 @@ Ltac simpl_tc_expr :=
 
 Lemma prop_and1 {A}{NA: NatDed A}:
   forall P Q : Prop, P -> !!(P /\ Q) = !!Q.
-Proof. intros. f_equal; apply prop_ext; intuition.
+Proof. intros. f_equal; apply prop_ext; tauto.
 Qed.
 Hint Rewrite prop_and1 using solve [auto 3 with typeclass_instances] : norm2.
 
@@ -1755,17 +1755,6 @@ rewrite sepcon_prop_prop.
 auto.
 Qed.
 
-Lemma saturate_aux21:  (* obsolete? *)
-  forall (P Q: mpred) S (S': Prop),
-   P |-- S ->
-   S = !!S' ->
-   !! S' && P |-- Q -> P |-- Q.
-Proof.
-intros. subst.
-eapply derives_trans; [ | eassumption].
-apply andp_right; auto.
-Qed.
-
 Lemma saturate_aux21x:
   forall (P Q S: mpred),
    P |-- S ->
@@ -1807,7 +1796,6 @@ Ltac saturate_local :=
          otherwise the next lines *)
     auto with nocore saturate_local;
      simple apply prop_True_right
-(* | cbv beta; reflexivity    this line only for use with saturate_aux21 *)
  | simple apply derives_extract_prop;
    match goal with |- _ -> ?A =>
        let P := fresh "P" in set (P := A);

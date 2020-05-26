@@ -27,7 +27,7 @@ Defined.
 
 Definition not_dec: forall {S: block -> Prop} (f: forall b, {S b}+{~S b}),
                             forall b, {~S b}+{~ ~ S b}.
-Proof. intros. destruct (f b). right; intuition. left; auto.
+Proof. intros. destruct (f b). right; tauto. left; auto.
 Qed.
 
 Lemma join_only_blocks:
@@ -40,8 +40,8 @@ Proof. intros.
   repeat rewrite level_make_rmap. auto.
  intro;   repeat rewrite resource_at_make_rmap. unfold compose.
  destruct (S_dec (fst loc)); simpl.
-  try rewrite if_false by intuition. apply join_comm; apply core_unit.
-  rewrite if_true by intuition; apply core_unit.
+  try rewrite if_false by tauto. apply join_comm; apply core_unit.
+  rewrite if_true by tauto; apply core_unit.
   rewrite !ghost_of_make_rmap.
   apply identity_unit'; auto.
 Qed.
@@ -237,7 +237,7 @@ Proof.
   }
   forget (Genv.add_global ge (i, g)) as ge1.
   revert H2 ge1; induction ul; simpl; intros; auto.
-  spec IHul; [intuition |].
+  spec IHul; [tauto |].
   rewrite IHul.
   unfold Genv.find_symbol, Genv.add_global. simpl.
   rewrite PTree.gso; auto.
@@ -618,7 +618,7 @@ Proof.
  rewrite Int.unsigned_repr in H4 by (rewrite max_unsigned_eq; lia).
   lia.
  assert (Byte.unsigned i0=0/\Byte.unsigned i1=0/\Byte.unsigned i2=0/\Byte.unsigned i3=0).
- unfold rev_if_be in H. destruct Archi.big_endian; simpl in H; apply H1 in H; intuition.
+ unfold rev_if_be in H. destruct Archi.big_endian; simpl in H; apply H1 in H; tauto.
  clear H1 H.
   assert (forall i, Byte.unsigned i = 0 -> i = Byte.zero).
   clear. intros. pose proof (Byte.repr_unsigned i). rewrite H in H0. symmetry; auto.
@@ -1352,7 +1352,7 @@ clear - H2.
 rewrite In_rev in H2. rewrite <- map_rev in H2.
  induction (rev G); simpl; auto. rewrite if_true; auto.
  destruct a0;  simpl in *.
- if_tac. subst. intuition. apply IHl; intuition.
+ if_tac. subst. tauto. apply IHl; tauto.
  rewrite <- IHG. clear IHG.
  clear - H.
  induction (rev G); simpl; auto. rewrite if_false; auto.
@@ -1704,12 +1704,12 @@ intros.
  apply ghost_of_join; auto.
  destruct H; split. apply join_level in H0; destruct H0; congruence.
  destruct H3 as [H3 ->]; split; auto.
- intro loc. rewrite H3. clear - H1. if_tac. pose (core_identity (w' @ loc)). intuition.
+ intro loc. rewrite H3. clear - H1. if_tac. pose (core_identity (w' @ loc)). tauto.
  intuition.
  destruct H; split. apply join_level in H0; destruct H0; congruence.
  destruct H5 as [H5 ->]; split; auto.
- intro loc. rewrite H5. clear - H1. if_tac. pose (core_identity (w' @ loc)). intuition.
- intuition.
+ intro loc. rewrite H5. clear - H1. if_tac. pose (core_identity (w' @ loc)). tauto.
+ tauto.
 Qed.
 
 Lemma init_datalist_hack:
@@ -1747,7 +1747,7 @@ Proof.
       destruct H1 as [bl [[? H8] Hg']]; exists bl; split; [|rewrite <- Hg; auto]; split; [assumption | ]; intro loc; specialize (H8 loc);
       if_tac; [ destruct H8 as [p H8]; exists p; destruct (H4 loc) as [_ H5];
                 rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
-              | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]]).
+              | destruct (H4 loc) as [HH _]; clear - H8 HH; tauto]]).
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite Z_to_nat_max in *.
  split.  destruct H1; lia.
@@ -1758,7 +1758,7 @@ Proof.
  rewrite H99 in *.
  hnf in H1|-*.
  if_tac; [destruct H1 as [p H1]; exists p; hnf in H1|-*; rewrite <- H4'; destruct (H4 loc) as [_ H5]
-          | destruct (H4 loc) as [HH _]; intuition].
+          | destruct (H4 loc) as [HH _]; tauto].
  rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
 
  destruct (Map.get (ge_of rho) i); try destruct p; auto.
@@ -1768,7 +1768,7 @@ Proof.
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
- intuition.
+ tauto.
  destruct H1 as [bl [? H8]].
  exists bl,x. destruct H8 as [[H8' H8] Hg1].
  split; [|simpl; rewrite <- Hg; auto].
@@ -1778,7 +1778,7 @@ Proof.
   rewrite <- H4'. rewrite <- H0. rewrite H8. reflexivity.
  rewrite H8.
  apply YES_not_identity.
- intuition.
+ tauto.
  unfold mapsto_ in *.
  unfold mapsto in *.
   simpl in *.
@@ -1794,7 +1794,7 @@ Proof.
  rename H1 into H8.
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H3; auto. rewrite H8; apply YES_not_identity.
- intuition.
+ tauto.
  hnf in H0|-*. rewrite <- Hg; auto.
 Qed.
 
@@ -1828,7 +1828,7 @@ Proof.
  clear.
  pose proof (core_identity (phi @ loc)).
  assert (identity (NO Share.bot bot_unreadable)) by apply NO_identity.
- intuition.
+ tauto.
  symmetry; apply nextblock_noaccess. auto.
 Qed.
 
@@ -1841,7 +1841,7 @@ Proof.
  { unfold beyond_block, only_blocks; rewrite !ghost_of_make_rmap; auto. }
  intro loc; specialize (H0 loc).
  unfold beyond_block. repeat  rewrite only_blocks_at. if_tac. auto.
- clear. pose proof (core_identity (w @ loc)); pose proof (core_identity (w' @ loc)); intuition.
+ clear. pose proof (core_identity (w @ loc)); pose proof (core_identity (w' @ loc)); tauto.
 Qed.
 
 Lemma Pos_to_nat_eq_S:
@@ -1874,63 +1874,7 @@ apply NO_identity.
 apply n0.
 Qed.
 
-(*
- Lemma alloc_global_inflate_identity_iff:
-  forall gev m0 i f m G n loc,
-      Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
-     (identity (inflate_initial_mem m0 (initial_core gev G n) @ loc) <->
-      identity (inflate_initial_mem m (initial_core gev G n) @ loc)).
-Proof.
-intros.
-unfold inflate_initial_mem. simpl. rewrite !resource_at_make_rmap.
-unfold inflate_initial_mem'.
-destruct loc.
-destruct (plt b (nextblock m0)).
-*
-destruct (alloc_global_old gev _ _ _ H (b,z) p) as [? [? ?]].
-rewrite H0,H2. intuition.
-*
-unfold access_at at 1. rewrite nextblock_noaccess by auto.
-split; [ intros _ | intro; apply NO_identity].
-unfold Genv.alloc_global in H.
-destruct (alloc m0 0 1) eqn:?.
-destruct (peq b (nextblock m0)).
-+
-subst b. clear n0.
-unfold drop_perm in H.
-destruct (range_perm_dec m1 b0 0 1 Cur Freeable); inv H.
-unfold access_at; simpl.
-pose proof (alloc_result _ _ _ _ _ Heqp). subst b0.
-rewrite PMap.gss.
-destruct (zeq z 0). subst z.
-destruct (zle 0 0); try lia. destruct (zlt 0 1); try lia.
-simpl.
-destruct (initial_core gev G n @ (nextblock m0, 0)); try apply NO_identity.
-apply PURE_identity.
-replace (if zle 0 z && zlt z 1
-     then Some Nonempty
-     else (mem_access m1) !! (nextblock m0) z Cur)
-with ((mem_access m1) !! (nextblock m0) z Cur)
-  by (destruct (zle 0 z); destruct (zlt z 1); try lia; auto).
-destruct ((mem_access m1) !! (nextblock m0) z Cur) eqn:?; try apply NO_identity.
-elimtype False.
-pose proof (perm_alloc_3 _ _ _ _ _ Heqp z Cur) p.
-spec H; [ | lia].
-unfold perm.
-rewrite Heqo. constructor.
-+
-unfold access_at.
-simpl.
-rewrite nextblock_noaccess.  apply NO_identity.
-apply nextblock_drop in H. rewrite H in *. clear H.
-apply nextblock_alloc in Heqp. rewrite Heqp in *; clear Heqp.
-contradict n0.
-apply Plt_succ_inv in n0; destruct n0; auto.
-subst. contradiction n1; auto.
-Qed.
-*)
-
- Lemma alloc_global_identity_lemma3:
+Lemma alloc_global_identity_lemma3:
    forall gev m0 i f m G n loc,
     Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
     identity (inflate_initial_mem m (initial_core gev G n) @ loc) ->
@@ -2089,7 +2033,7 @@ Proof.
   assert (H1': forall j, In j (map fst (prog_funct' vl)) -> In j (map fst G)). {
    clear - SAME_IDS.
    forget (prog_funct' vl) as fs. intro.
-   induction SAME_IDS. auto. simpl. intuition.
+   induction SAME_IDS. auto. simpl. tauto.
   }
   assert (NRG: list_norepet (map fst G)). {
      clear - SAME_IDS H2.
@@ -2110,7 +2054,7 @@ Proof.
     apply H3. clear.
     split. auto.
     split; auto.
-    intro loc. intuition.
+    intro loc. tauto.
   }
   intros. rename H3 into HACK; revert phi HACK.
                      (* The purpose of going through hackfun is doing this induction. *)

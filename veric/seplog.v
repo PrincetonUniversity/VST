@@ -12,6 +12,12 @@ Require Import VST.veric.Cop2. (*for definition of tc_val'*)
 
 Local Open Scope pred.
 
+(* Diagnostic tactic, useful because intuition can be much slower than tauto 
+Tactic Notation "intuition" :=
+ try (solve [tauto]; idtac "Intuition used where tauto would work");
+ Coq.Init.Tauto.intuition.
+*)
+
 Lemma derives_emp_unfash_fash P Q: derives P Q  -> derives emp (unfash (fash (imp P Q))).
 Proof. repeat intro. eauto. Qed.
 

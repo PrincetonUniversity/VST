@@ -1312,7 +1312,7 @@ intros. subst t' r.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (simple_if_tac; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; apply prop_ext; tauto).
 Qed.
 
 Lemma value_fits_by_value_Vundef:
@@ -1325,7 +1325,7 @@ intros.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (simple_if_tac; auto; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; auto; apply prop_ext; tauto).
 Qed.
 
 Lemma value_fits_by_value:
@@ -1340,7 +1340,7 @@ intros. subst r t'.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (simple_if_tac; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; apply prop_ext; tauto).
 Qed.
 
 Lemma value_fits_Tarray:

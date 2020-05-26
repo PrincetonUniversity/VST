@@ -58,14 +58,14 @@ intros.
 specialize (H0 psi _ _ _ TS HGG Prog_OK k F f).
 specialize (H1 psi _ _ _ TS HGG Prog_OK k F f).
 spec H0.  {
-  intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition.
+  intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); try tauto; intuition.
   left; clear - H5.
  unfold modifiedvars. simpl.
  apply modifiedvars'_union. left; apply H5.
 }
 spec H1. {
  intros i te' ?.  apply H2; simpl; auto.
- clear - H4; intros i0; destruct (H4 i0); intuition.
+ clear - H4; intros i0; destruct (H4 i0); try tauto; intuition.
  left.
  unfold modifiedvars. simpl.
  apply modifiedvars'_union. right; apply H.
@@ -144,7 +144,7 @@ rewrite <- (age_jm_dry H9); econstructor; eauto.
     unfold Cop.bool_val;
       destruct (@eval_expr CS' b rho) eqn:H15;
       simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ] eqn:?;
-      intuition; simpl in *; try rewrite TCS; eauto.
+      try tauto; simpl in *; try rewrite TCS; eauto.
   all: try apply (tc_expr_cenv_sub CSUB) in TC2.
     all: try (
              unfold tc_expr in TC2; simpl typecheck_expr in TC2; rewrite Heqt in TC2;
