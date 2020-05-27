@@ -223,9 +223,10 @@ Proof.
 Qed.
 Hint Resolve lock_inv_saturate_local : saturate_local.
 
+
 Lemma unfash_fash_equiv: forall P Q: mpred,
-  (P <=> Q |--
-  (subtypes.unfash (subtypes.fash P): mpred) <=> (subtypes.unfash (subtypes.fash Q): mpred))%pred.
+  (P <=> Q)%pred |--
+  ((subtypes.unfash (subtypes.fash P): mpred) <=> (subtypes.unfash (subtypes.fash Q): mpred))%pred.
 Proof.
   intros.
   hnf; intros.
@@ -248,7 +249,7 @@ Proof.
 Qed.
 
 Lemma iffp_equiv: forall P1 Q1 P2 Q2: mpred,
-  ((P1 <=> Q1) && (P2 <=> Q2) |-- (P1 <--> P2) <=> (Q1 <--> Q2))%pred.
+  (((P1 <=> Q1) && (P2 <=> Q2))%pred |-- ((P1 <--> P2)%pred <=> (Q1 <--> Q2))%pred)%pred.
 Proof.
   intros.
   hnf; intros.
@@ -291,7 +292,7 @@ Proof.
 Qed.
 
 Lemma sepcon_equiv: forall P1 Q1 P2 Q2: mpred,
-  ((P1 <=> Q1) && (P2 <=> Q2) |-- (P1 * P2) <=> (Q1 * Q2))%pred.
+  ((P1 <=> Q1)%pred && (P2 <=> Q2)%pred |-- ((P1 * P2) <=> (Q1 * Q2))%pred)%pred.
 Proof.
   intros.
   hnf; intros.
@@ -332,7 +333,7 @@ Proof.
 Qed.
 
 Lemma later_equiv: forall P Q: mpred,
-  (P <=> Q |-- |> P <=> |> Q)%pred.
+  (P <=> Q)%pred |-- (|> P <=> |> Q)%pred.
 Proof.
   intros.
   hnf; intros.

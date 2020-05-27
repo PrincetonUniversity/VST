@@ -53,6 +53,9 @@ Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9).
 Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z)
          (at level 9).
 
+Notation " 'RETURN' ( ) z" := (LOCALx nil z) (at level 9).
+Notation " 'RETURN' ( x ) z" := (LOCALx (temp ret_temp x :: nil) z) (at level 9).
+
 (*Definition SEPx (R: list mpred) : environ->mpred :=
     fun _ => (fold_right_sepcon R).*)
 Definition SEPx {A} (R: list mpred) : A->mpred :=
