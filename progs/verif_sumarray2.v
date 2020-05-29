@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
 Require Import VST.progs.sumarray2. (* Import the AST of this C program *)
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -20,12 +18,12 @@ Qed.
 Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tuint), _n OF tint ]
+  PRE [ tptr tuint, tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed)
-          LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+          PARAMS (a; Vint (Int.repr size))
           SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
-        PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+        PROP () RETURN (Vint (Int.repr (sum_Z contents)))
            SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* The precondition of "int main(void){}" always looks like this. *)
@@ -35,7 +33,7 @@ Definition main_spec :=
   PRE  [] main_pre prog tt gv
   POST [ tint ]  
      PROP() 
-     LOCAL (temp ret_temp (Vint (Int.repr (3+4)))) 
+     RETURN (Vint (Int.repr (3+4))) 
      SEP(TT).
 
 (* Packaging the API spec all together. *)
@@ -58,7 +56,7 @@ forward_for_simple_bound size
           (*temp _i (Vint (Int.repr i)); *)
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)).
+   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a))%assert.
 
 * (* Prove that current precondition implies loop invariant *)
 entailer!.
@@ -170,21 +168,22 @@ and annotate with assertions:
 
 The assertions are defined in these definitions:
 *)
+
 Definition sumarray_Inv a sh contents size i :=
    PROP  (0 <= i <= size)
-   LOCAL (temp _a a;
+    LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
+    SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 Definition sumarray_PostBody a sh contents size i :=
-   PROP  (0 <= i < size)
-   LOCAL (temp _a a;
+    PROP  (0 <= i < size)
+    LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 (i+1) contents)))))
-   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
+    SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* . . . and now you can see how these assertions are used
    in the proof, using the semax_loop rule. *)

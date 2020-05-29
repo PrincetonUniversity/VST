@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.reverse_client.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
@@ -47,24 +46,24 @@ Hint Resolve listrep_valid_pointer : valid_pointer.
 Definition reverse_spec :=
  DECLARE _reverse
   WITH sigma : list int, p: val
-  PRE  [ _p OF (tptr t_struct_list) ]
+  PRE  [ tptr t_struct_list ]
      PROP ()
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (listrep sigma p)
   POST [ (tptr t_struct_list) ]
     EX q:val,
-     PROP () LOCAL (temp ret_temp q)
+     PROP () RETURN (q)
      SEP (listrep (rev sigma) q).
 
 Definition last_foo_spec :=
  DECLARE _last_foo
   WITH sigma : list int, p: val, sigma': list int, x: int
-  PRE  [ _p OF (tptr t_struct_list) ]
+  PRE  [ tptr t_struct_list ]
      PROP (sigma = sigma' ++ x :: nil)
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (listrep sigma p)
   POST [ tuint ]
-     PROP () LOCAL (temp ret_temp (Vint x))
+     PROP () RETURN (Vint x)
      SEP (TT).
 
 Definition Gprog : funspecs :=

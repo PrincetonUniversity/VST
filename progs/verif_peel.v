@@ -19,21 +19,20 @@ Notice that the variable [a] is uninitialized until the middle of the first iter
 
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.peel.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Definition f_spec : ident * funspec :=
  DECLARE _f
   WITH b: Z
-  PRE [ _b OF tint ]
+  PRE [ tint ]
           PROP  (0 <= b; (b+1)*(b+1) < Int.max_signed)
-          LOCAL (temp _b (Vint (Int.repr b)))
+          PARAMS (Vint (Int.repr b))
           SEP   ()
   POST [ tint ]
         EX a:Z, 
         PROP ((a-1)*(a-1)<=b /\ a*a>b)
-        LOCAL(temp ret_temp  (Vint (Int.repr a)))
+        RETURN (Vint (Int.repr a))
            SEP ().
 
 Definition Gprog : funspecs :=

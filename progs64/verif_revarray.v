@@ -3,21 +3,18 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs64.revarray.
 Require Import VST.floyd.sublist.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Open Scope old_funspec_scope.
 
 Definition reverse_spec :=
  DECLARE _reverse
   WITH a0: val, sh : share, contents : list int, size: Z
-  PRE [ _a OF (tptr tint), _n OF tint ]
+  PRE [ tptr tint, tint ]
           PROP (0 <= size <= Int.max_signed; writable_share sh)
-          LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
+          PARAMS (a0; Vint (Int.repr size))
           SEP (data_at sh (tarray tint size) (map Vint contents) a0)
   POST [ tvoid ]
-     PROP() LOCAL()
+     PROP() RETURN()
      SEP(data_at sh (tarray tint size) (map Vint (rev contents)) a0).
 
 Definition main_spec :=

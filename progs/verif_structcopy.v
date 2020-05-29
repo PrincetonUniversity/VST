@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.structcopy.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -11,12 +10,12 @@ Definition tfoo := Tstruct _foo noattr.
 Definition f_spec :=
  DECLARE _f
   WITH p: val, i: Z, j: Z
-  PRE  [ _p OF tptr tfoo]
+  PRE  [ tptr tfoo]
       PROP  ( )
-      LOCAL (temp _p p)
+      PARAMS (p)
       SEP (data_at Ews tfoo (Vint (Int.repr i), Vint (Int.repr j)) p)
   POST [ tuint ]
-      PROP() LOCAL(temp ret_temp (Vint (Int.repr (i+j))))
+      PROP() RETURN(Vint (Int.repr (i+j)))
       SEP (data_at Ews tfoo (Vint (Int.repr i), Vint (Int.repr j)) p).
 
 

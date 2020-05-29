@@ -17,7 +17,6 @@ Require Import VST.progs.reverse.
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
 ** line (which looks identical for any program) builds this
 ** interpretation, called "CompSpecs" *)
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 (** Calculate the "types-of-global-variables" specification
@@ -82,13 +81,13 @@ Hint Resolve listrep_valid_pointer : valid_pointer.
 Definition reverse_spec :=
  DECLARE _reverse
   WITH sigma : list val, p: val
-  PRE  [ _p OF (tptr t_struct_list) ]
+  PRE  [ tptr t_struct_list ]
      PROP ()
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (listrep sigma p)
   POST [ (tptr t_struct_list) ]
     EX q:val,
-     PROP () LOCAL (temp ret_temp q)
+     PROP () RETURN (q)
      SEP (listrep(rev sigma) q).
 
 (** The global function spec, characterizing the
@@ -96,8 +95,7 @@ Definition reverse_spec :=
  ** that your proved-correct program will call. 
  ** Normally you include all the functions here, but
  ** in this tutorial example we include only one. *)
-Definition Gprog : funspecs :=
-         ltac:(with_library prog [ reverse_spec ]).
+Definition Gprog : funspecs :=[ reverse_spec ].
 
 (** For each function definition in the C program, prove that the
  ** function-body (in this case, f_reverse) satisfies its specification

@@ -6,7 +6,6 @@ Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
 Import LiftNotation.
-(*Require Export VST.floyd.Funspec_old_Notation.*)
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -3126,7 +3125,7 @@ Ltac start_dep_function :=
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2) =>
-     match x with (x1,x2) => P%assert end)
+     match x with (x1,x2) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2) =>
      match x with (x1,x2) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0,
@@ -3135,7 +3134,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3) =>
-     match x with (x1,x2,x3) => P%assert end)
+     match x with (x1,x2,x3) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3) =>
      match x with (x1,x2,x3) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0,
@@ -3144,7 +3143,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P '
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4) =>
-     match x with (x1,x2,x3,x4) => P%assert end)
+     match x with (x1,x2,x3,x4) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4) =>
      match x with (x1,x2,x3,x4) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3153,7 +3152,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , ..
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
-     match x with (x1,x2,x3,x4,x5) => P%assert end)
+     match x with (x1,x2,x3,x4,x5) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
      match x with (x1,x2,x3,x4,x5) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3163,7 +3162,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
-     match x with (x1,x2,x3,x4,x5,x6) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
      match x with (x1,x2,x3,x4,x5,x6) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
@@ -3173,7 +3172,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
      match x with (x1,x2,x3,x4,x5,x6,x7) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3183,7 +3182,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3193,7 +3192,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3203,7 +3202,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3213,7 +3212,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3223,7 +3222,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3234,7 +3233,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3245,7 +3244,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
@@ -3256,7 +3255,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%assert end)
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,

@@ -487,7 +487,7 @@ Lemma typecheck_return_value:
   forall (f: val -> Prop)  t (v: val) (gx: genviron) (ret: option val) P R,
  f v -> 
  (PROPx P
- (LOCAL (temp ret_temp v)
+ (LOCALx (temp ret_temp v::nil)
  (SEPx R))) (make_ext_rval gx t ret) |-- !! f (force_val ret).
 Proof.
 intros.
@@ -3459,7 +3459,7 @@ replace (PROPx P' (LOCALx Q' (SEPx (r1 :: R'))) * VBS)
 }
 apply derives_trans with
 ((local (tc_environ Delta) &&  PROPx P (LOCALx Q (SEPx R))) 
-   && (local (tc_environ Delta) &&  PROPx nil (LOCALx Q (SEP(TT))))).
+   && (local (tc_environ Delta) &&  PROPx nil (LOCALx Q (SEPx(TT::nil))))).
 go_lowerx.
 repeat apply andp_right; auto; try apply prop_right; auto.
 rewrite sepcon_emp. apply TT_right.

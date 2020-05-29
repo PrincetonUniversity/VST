@@ -141,7 +141,7 @@ Qed.
 Lemma finish_lower:
   forall rho (D: environ -> Prop) R S,
   (D rho -> fold_right_sepcon R |-- S) ->
-  (local D && PROP() LOCAL() (SEPx R)) rho |-- S.
+  (local D && PROP() LOCAL() (SEPx R))%assert rho |-- S.
 Proof.
 intros.
 simpl.
@@ -658,7 +658,7 @@ Proof.
   eapply derives_trans.
   + apply andp_derives; [| apply derives_refl].
     apply andp_derives; [apply derives_refl |].
-    instantiate (1 := PROPx P (LOCALx Q SEP (TT))).
+    instantiate (1 := PROPx P (LOCALx Q (SEPx (TT::nil)))).
     apply andp_derives; auto.
     apply andp_derives; auto.
     unfold SEPx; simpl.

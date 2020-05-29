@@ -1391,7 +1391,7 @@ Definition ImpossibleFunspec :=
         (args_const_super_non_expansive _ _)
         (const_super_non_expansive _ _).
 
-Notation LAMBDAx gs vals X := (PARAMSx vals (GLOBALSx gs X)).
+Notation LAMBDAx gs vals X := (PARAMSx vals (GLOBALSx gs X)) (only parsing).
 
 Lemma prop_true_andp1 {A}{NA: NatDed A} :
   forall (P1 P2: Prop) Q ,

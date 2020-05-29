@@ -1,7 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.progs.rotate.
-Require Import VST.floyd.Funspec_old_Notation.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -26,15 +25,15 @@ Definition rotate {X} (l : list X) k :=
 Definition rotate_spec :=
  DECLARE _rotate
   WITH sh : share, a : val, s : list Z, n : Z, k : Z, gv : globals
-  PRE [ _a OF (tptr tint) , _n OF (tint), _k OF (tint)]
+  PRE [ tptr tint , tint, tint]
      PROP(writable_share sh; 0 <= n; 0 <= 4 * n <= Ptrofs.max_unsigned;
         0 < k < n
      )
-     LOCAL (temp _a a; temp _n (Vint (Int.repr n)); temp _k (Vint (Int.repr k)); gvars gv)
+     PARAMS (a; Vint (Int.repr n); Vint (Int.repr k)) GLOBALS (gv)
      SEP (mem_mgr gv; data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
   POST [ tvoid ]
      PROP()
-     LOCAL()
+     RETURN()
      SEP (mem_mgr gv; (data_at sh (tarray tint n) (map Vint (map Int.repr (rotate s k))) a)).
 
 Arguments sorted {_ _}.
@@ -45,17 +44,17 @@ Definition sorted_rotate (l : list Z) k N :=
 Definition sorted_rotate_spec :=
  DECLARE _sorted_rotate
   WITH sh : share, a : val, s : list Z, n : Z, k : Z, N : Z, gv : globals
-  PRE [ _a OF (tptr tint) , _n OF (tint), _k OF (tint), _N OF (tint)]
+  PRE [ tptr tint , tint, tint, tint]
      PROP(writable_share sh; 0 <= n; 0 <= 4 * n <= Ptrofs.max_unsigned;
         0 < k < n; 0 <= N*2 < Int.max_signed;
         Forall (fun x => 0 <= x <= N) s;
         sorted Z.le s
      )
-     LOCAL (temp _a a; temp _n (Vint (Int.repr n)); temp _k (Vint (Int.repr k)); temp _N (Vint (Int.repr N)); gvars gv)
+     PARAMS (a; Vint (Int.repr n); Vint (Int.repr k); Vint (Int.repr N)) GLOBALS (gv)
      SEP (mem_mgr gv; data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
   POST [ tvoid ]
      PROP(sorted Z.le (sorted_rotate s k N))
-     LOCAL()
+     RETURN()
      SEP (mem_mgr gv; (data_at sh (tarray tint n) (map Vint (map Int.repr (sorted_rotate s k N))) a)).
 
 Definition Gprog : funspecs :=

@@ -1,7 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.store_demo.
 
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -12,27 +11,27 @@ Definition array_size := 100.
 Definition set22_spec :=
  DECLARE _set22
   WITH pps: val, i: Z, v: int, x11: int, x12: int, x21: int, x22: int, sh : share
-  PRE [ _pps OF (tptr pair_pair_t), _i OF tint, _v OF tint]
+  PRE [ tptr pair_pair_t, tint, tint]
     PROP  (writable_share sh; 0 <= i < array_size)
-    LOCAL (temp _pps pps; temp _i (Vint (Int.repr i)); temp _v (Vint v))
+    PARAMS (pps; Vint (Int.repr i); Vint v)
     SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i] 
                     ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps)
   POST [ tvoid ]
-    PROP () LOCAL ()
+    PROP () RETURN ()
     SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i]
                     ((Vint x11, Vint x12), (Vint x21, Vint v)) pps).
 
 Definition fiddle_spec :=
  DECLARE _fiddle
   WITH p: val, n: Z, tag: Z, contents: list Z
-  PRE [ _p OF tptr tuint ]
+  PRE [ tptr tuint ]
           PROP  (Zlength contents = n)
-          LOCAL (temp _p p)
+          PARAMS (p)
           SEP (data_at Ews (tarray tuint (1+n)) 
                       (map Vint (map Int.repr (tag::contents)))
                       (offset_val (-sizeof tuint) p))
   POST [ tvoid ]
-          PROP () LOCAL ()
+          PROP () RETURN ()
           SEP (data_at Ews (tarray tuint (1+n)) 
                       (map Vint (map Int.repr (3::contents)))
                       (offset_val (-sizeof tuint) p)).

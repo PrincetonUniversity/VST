@@ -1,7 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.loop_minus1.
 
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -10,12 +9,12 @@ Definition sum_Z : list Z -> Z := fold_right Z.add 0.
 Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tuint), _n OF tint ]
+  PRE [ tptr tuint, tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed)
-          LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+          PARAMS (a; Vint (Int.repr size))
           SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
-        PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+        PROP () RETURN (Vint (Int.repr (sum_Z contents)))
            SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 Definition Gprog : funspecs := ltac:(with_library prog [sumarray_spec]).

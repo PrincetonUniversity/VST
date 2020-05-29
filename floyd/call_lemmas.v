@@ -1341,7 +1341,7 @@ Proof.
     apply derives_trans with
     (EX  vret : B,
        `(PROPx (Ppost vret)
-         (LOCAL  (temp ret_temp (F vret))
+         (LOCALx  (temp ret_temp (F vret)::nil)
           (SEPx (Rpost vret))))%assert (get_result1 ret)
             * (local (tc_environ Delta) && PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx Frame)))).
     clear.

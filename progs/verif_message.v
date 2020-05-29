@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.message.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -67,32 +65,30 @@ Qed.
 
 Definition serialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, sh: share, sh': share
-  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar) ]
+  PRE [ tptr tvoid, tptr tuchar ]
           PROP (readable_share sh; writable_share sh';
                 mf_data_assert format data;
                 align_compatible tint buf)
-          LOCAL (temp _p p; temp _buf buf)
+          PARAMS (p; buf)
           SEP (data_at sh t data p;
                  memory_block sh' (mf_size format) buf)
   POST [ tint ]
          EX len: Z,
-          PROP() LOCAL (temp ret_temp (Vint (Int.repr len)))
+          PROP() RETURN (Vint (Int.repr len))
           SEP( data_at sh t data p;
                  mf_assert format sh' buf len data;
                  mf_restbuf format sh' buf len).
 
 Definition deserialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, sh: share, sh': share, len: Z
-  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ]
+  PRE [ tptr tvoid, tptr tuchar, tint ]
           PROP (readable_share sh'; writable_share sh;
                 0 <= len <= mf_size format)
-          LOCAL (temp _p p;
-                 temp _buf buf;
-                 temp _length (Vint (Int.repr len)))
+          PARAMS (p; buf; Vint (Int.repr len))
           SEP (mf_assert format sh' buf len data;
                  data_at_ sh t p)
   POST [ tvoid ]
-          PROP (mf_data_assert format data)  LOCAL ()
+          PROP (mf_data_assert format data)  RETURN ()
           SEP (mf_assert format sh' buf len data;
                  data_at sh t data p).
 

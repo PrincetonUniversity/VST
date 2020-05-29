@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
 Require Import VST.progs.bin_search. (* Import the AST of this C program *)
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -18,7 +16,7 @@ Fixpoint sorted (l : list Z) : Prop :=
 Definition search_spec :=
  DECLARE _search
   WITH a: val, sh : share, contents : list Z, tgt : Z, lo : Z, hi : Z
-  PRE [ _a OF (tptr tint), _tgt OF tint, _lo OF tint, _hi OF tint ]
+  PRE [ tptr tint, tint, tint, tint ]
             PROP  (readable_share sh;
                      0 <= lo <= Int.max_signed; 
                      hi <= Zlength contents <= Int.max_signed;
@@ -26,13 +24,12 @@ Definition search_spec :=
                      sorted contents;
                      Forall (fun x => Int.min_signed <= x <= Int.max_signed) contents;
                      Int.min_signed <= tgt <= Int.max_signed)
-                  LOCAL (temp _a a; temp _tgt (Vint (Int.repr tgt));
-                         temp _lo (Vint (Int.repr lo)); temp _hi (Vint (Int.repr hi)))
+                  PARAMS (a; Vint (Int.repr tgt); Vint (Int.repr lo); Vint (Int.repr hi))
           SEP   (data_at sh (tarray tint (Zlength contents)) (map Vint (map Int.repr contents)) a)
   POST [ tint ]
     EX i:Z,
          PROP (if in_dec Z.eq_dec tgt (sublist lo hi contents) then Znth i contents = tgt else i = -1)
-          LOCAL (temp ret_temp  (Vint (Int.repr i)))
+          RETURN (Vint (Int.repr i))
            SEP (data_at sh (tarray tint (Zlength contents)) (map Vint (map Int.repr contents)) a).
 
 (* The spec of "int main(void){}" always looks like this. *)

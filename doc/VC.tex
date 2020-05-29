@@ -451,11 +451,11 @@ DECLARE _sumarray
     PROP  (readable_share sh;
           0 $\le$ size $\le$ Int.max_signed;
           Forall (fun x => 0 $\le$ x $\le$ Int.max_unsigned) contents)
-    PARAMS (a; Vint (Int.repr size)) GLOBALS ()
+    PARAMS (a; Vint (Int.repr size))
     SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
     PROP ()
-    LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+    RETURN(Vint (Int.repr (sum_Z contents)))
     SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 \end{lstlisting}
 
@@ -477,9 +477,9 @@ at a particular program point.
 In an assertion
 \lstinline{PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
 the propositions in the sequence $\vec{P}$ are all of Coq type
-\lstinline{Prop}.  They describe things that are true
-independent of program state.  In the function precondition
-above, the statement \lstinline{0 $\le$ size $\le$ Int.max_signed} is
+\lstinline{Prop}, describing facts that are
+independent of program state.  In the precondition
+above, the \lstinline{0 $\le$ size $\le$ Int.max_signed} is
 true \emph{just within the scope of the quantification of
   the variable \lstinline{size}}; it is bound by
 \lstinline{WITH}, and spans the \lstinline{PRE} and
@@ -488,6 +488,13 @@ true \emph{just within the scope of the quantification of
 \emph{If you see a precondition (PRE) with \LOCAL{} instead
   of \PARAMS{}, it is an old-style funspec; see \autoref{refcard:old-funspec}.}
 
+The \emph{local} part of a \PROP{}/\LOCAL{}/\SEP{} assertion takes different forms
+depending on what kind of local variables it describes:
+in function preconditions it is written
+\PARAMS() (or sometimes \PARAMS()\GLOBALS()); in function postconditions
+it is written \RETURN(); and inside a function body
+it is \LOCAL().
+
 Function preconditions are based on nameless, \emph{positional} parameter
 notation.  That is, $ \mathrm{PRE} [ \vec{\tau} ]$ gives the
 C-language types (but not the names) of the formal parameters,
@@ -495,14 +502,8 @@ and $\PARAMS(\vec{v})$ gives the abstract values (but not the names) of
 those parameters.  As you can see, the abstract values are usually
 based on variables bound in the \textsc{with} clause.
 
-\lstinline{LOCAL} propositions $\vec{Q}$ are \emph{variable
-  bindings} of type \lstinline{localdef}.  In the
-\lstinline{LOCAL} clause of the postcondition,
-the special \lstinline{ret_temp} variable is bound to the return
-value of the function.
-
-Values of \PARAMS{} and of \LOCAL{} \lstinline{temp} variables
-are C scalar variables, values whose Coq type is \lstinline{val}; this
+Values of \PARAMS{} and \RETURN{}
+are C scalar values whose Coq type is \lstinline{val}; this
 type is defined by CompCert as,
 
 \begin{lstlisting}
@@ -524,12 +525,8 @@ indicating that this function returns a value of type \lstinline{unsigned int}.
 There are no \lstinline{PROP} statements in this postcondition---no
 forever-true facts hold now, that weren't
 already true on entry to the function.
-The \lstinline{LOCAL} \emph{must not mention} the function parameters
-or local variables,
-because they are destroyed on function exit (and because your
-local variable names
-will not be meaningful to the function's caller); it will only mention
-the return-temporary \lstinline{ret_temp}.
+The \lstinline{RETURN} clause says what the return value is
+(or \lstinline{RETURN()} for a void function).
 The \lstinline{SEP} clause mentions all the spatial resources
 from the precondition, minus ones that have been freed (deallocated),
 plus ones that have been malloc'd (allocated).
@@ -975,13 +972,9 @@ When we write spatial predicates outside of a
 \PROP/\LOCAL/\SEP{}, we use \lstinline{*} instead of
 semicolon to indicate separating conjunction.
 
-The \LOCAL{} part of an assertion is a
-\emph{local} predicate, that is, a predicate about the values
-of local variables.  It's an \emph{ordinary conjunction}
-(not separating) of its individual \lstinline{temp}, \lstinline{lvar} and \lstinline{gvars} clauses.
-You can think of a local predicate as Coq type
-\lstinline{environ->Prop} (but actually it is not, see \autopageref{refcard:localdefs}), where \lstinline{environ} is
-the type of run-time local-variable frames.
+The \LOCAL{} part of an assertion
+describes the values
+of local variables.
 
 A program assertion (precondition, postcondition, loop invariant, etc.)
 is a predicate \emph{both} on its local-var
@@ -1304,7 +1297,7 @@ Definition main_spec :=
     POST [ tint ]
       (* application-specific postcondition *)
       PROP()
-      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4))))
+      RETURN (Vint (Int.repr (1+2+3+4)))
       SEP(TT).
 \end{lstlisting}
 The first four lines are always the same for any program.
@@ -1332,9 +1325,10 @@ semax Delta
  $\mbox{\emph{(\ldots{}function body\ldots)}}$
  POSTCONDITION
 \end{lstlisting}
-The \lstinline{LOCAL} clause means that the C global
-variable \lstinline{_four} is at memory address
-\lstinline{(gv _four)}.    See \autoref{refcard:gvar}.
+The \lstinline{LOCAL} clause expresses
+the function-precondition's \lstinline{GLOBALS(gv)},
+constraining the global-variable map \lstinline{gv}
+to the link-time environment.   See \autoref{refcard:gvar}.
 
 The \lstinline{SEP} clause means that there's
 data of type ``array of 4 integers'' at
@@ -2077,7 +2071,7 @@ Definition get_spec :=
     PROP () LOCAL(gvars gv)
     SEP(data_at Ews t_struct_b (repinj _ $$ v) (gv _p))
   POST [ tint ]
-    PROP() LOCAL (temp ret_temp (Vint (snd (snd v))))
+    PROP() RETURN (Vint (snd (snd v)))
     SEP (data_at Ews t_struct_b (repinj _ $$ v) (gv _p)).
 \end{lstlisting}
 In this program, \lstinline{reptype' t_struct_b = (int*(float*int))},
@@ -2093,7 +2087,7 @@ Definition get_spec :=
     PROP () LOCAL(gvars gv)
     SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) (gv _p))
   POST [ tint ]
-    PROP() LOCAL (temp ret_temp (Vint j))
+    PROP() RETURN (Vint j)
     SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) (gv _p)).
 \end{lstlisting}
 
@@ -4417,7 +4411,7 @@ WITH $\ldots$, gv: globals
 PRE [ $t_1,t_2$ ]
    PROP($\ldots$) PARAMS ($v_1;v_2$) GLOBALS(gv) SEP($\ldots$; MyModuleGlobs gv)
 POST [ $\ldots$ ]
-   PROP() LOCAL (temp ret_temp $\ldots$) SEP($\ldots$; MyModuleGlobs gv).
+   PROP() RETURN ($\ldots$) SEP($\ldots$; MyModuleGlobs gv).
 \end{lstlisting}
 
 The client of \lstinline{myfunction} sees that
@@ -4487,37 +4481,34 @@ have these specifications:
 \begin{lstlisting}
 DECLARE _malloc
   WITH cs: compspecs, t:type
-  PRE [ 1%positive OF tuint ]
+  PRE [ tuint ]
     PROP (0 <= sizeof t <= Int.max_unsigned;
           complete_legal_cosu_type t = true;
           natural_aligned natural_alignment t = true)
-    LOCAL (temp 1%positive (Vint (Int.repr (sizeof t))))
+    PARAMS (Vint (Int.repr (sizeof t)))
     SEP ()
   POST [ tptr tvoid ] EX p:_,
     PROP ()
-    LOCAL (temp ret_temp p)
+    RETURN (p)
     SEP (if eq_dec p nullval then emp
         else (malloc_token Ews t p * data_at_ Ews t p)).
 
 DECLARE _free
    WITH cs: compspecs, t: type, p:val
-   PRE [ 1%positive OF tptr tvoid ]
+   PRE [ tptr tvoid ]
        PROP ()
-       LOCAL (temp 1%positive p)
+       PARAMS (p)
        SEP (malloc_token Ews t p; data_at_ Ews t p)
     POST [ Tvoid ]
-       PROP ()
-       LOCAL ()
-       SEP ().
+       PROP () RETURN () SEP ().
 \end{lstlisting}
 You must \lstinline{Import VST.floyd.library.}
-Then these funspecs are made available in your Gprog by the use of the
-\lstinline{wi$$th_library} tactic (\autoref{refcard:with-library}).
+Then the \lstinline{wi$$th_library} tactic (\autoref{refcard:with-library})
+makes these funspecs available in your Gprog.
 
 The purpose of the \lstinline{malloc_token} is to describe the special
 record-descriptor that tells \lstinline{free} how big the allocated
 record was.
-
 See \file{progs/verif\_queue.v} for a demonstration of malloc/free.
 
 \chapter{exit}
@@ -4528,11 +4519,11 @@ before you define\newline
 
 \begin{lstlisting}
 DECLARE _exit
- WITH u: unit
- PRE [1%positive OF tint]
-   PROP () LOCAL() SEP()
+ WITH errcode: Z
+ PRE [ tint ]
+   PROP () PARAMS(errcode) SEP()
  POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
+   PROP(False) RETURN() SEP().
 \end{lstlisting}
 
 \chapter{Old-style funspecs}
@@ -4563,11 +4554,15 @@ Notice also that the PRE list is different: each parameter is written
 \lstinline{_x OF t}, where \lstinline{_x} is the C-language identifier
 used in the program.
 
+In the old funspec notation, the return-value part of the postcondition
+is written \lstinline{LOCAL(temp ret_temp $v$)}
+instead of \lstinline{RETURN($v$)}.
+ 
 VST proofs that use old-style funspecs should access the
 old-style notation and old-style definitions by,
 \begin{lstlisting}
 Require Import VST.floyd.Funspec_old_Notation.
-\end{lstlsting}
+\end{lstlisting}
 
 This brings in a different notation scope, in which WITH/PRE/POST works
 differently.
@@ -4624,8 +4619,8 @@ a Definition for a \lstinline{WITH...PRE...POST} specification.
 
 Near the beginning of \lstinline{Lemma body_main},
 notice that we have \linebreak
-\lstinline{LOCAL (gvars gv)} in the precondition.
-That \lstinline{gvars} is needed by
+\lstinline{GLOBALS (gv)} in the precondition.
+That \lstinline{gv} is needed by
 the tactic \lstinline{make_func_ptr _myfunc},
 which adds \lstinline{func_ptr' myspec (gv _myfunc)} to the SEP clause.
 It ``knows'' to use \lstinline{myspec} because it looks
@@ -4738,6 +4733,10 @@ to the host function's func\_tycontext.
 
 \chapter{Separate compilation, \upshape\textsf{semax\_ext}}
 \label{refcard:sepcomp}
+
+\textbf{\textit{This chapter is obsolete, as is the progs/evenodd
+    example.  There's a newer, better way of doing modular
+verification of modular programs:  Verified Software Units (VSU).}}
 
 What to do when your program is spread over multiple .c files.
 See \file{progs/even.c} and \file{progs/odd.c} for an example.
@@ -4865,6 +4864,10 @@ it sometimes turns a provable goal into an unprovable goal.
 \item[\textsf{forward\_while} $\mathit{Inv}$]
 (tactic; \autoref{refcard:forward-while})
   Forward Hoare-logic proof of a while loop, with loop invariant $\mathit{Inv}$.
+
+\item[\textsf{list\_solve}] (tactic; \autoref{refcard:list_solve})
+  Solve goals that arise from lists with Zlength, concatentation,
+  sublist, and Znth.
 
 \item[\textsf{make\_compspecs $\mathit{prog}$}]
 (tactic; \autopageref{refcard:boilerplate})

@@ -27,10 +27,6 @@ Require Import VST.progs.reverse.
 
 Open Scope logic.
 
-Require Import VST.floyd.Funspec_old_Notation. (*This line is needed as the specs below
-are "old funspecs", as described in the tutrial etc. A more moden approach is to use
-(new) funspecs, in which function parameters are not named.*)
-
 (* The C programming language has a special namespace for struct
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators
 ** in the program logic need access to an interpretation of this namespace,
@@ -60,25 +56,25 @@ Definition t_struct_list := Tstruct _list noattr.
 Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int, p: val
-  PRE [ _p OF (tptr t_struct_list) ]
+  PRE [ tptr t_struct_list ]
      PROP(readable_share sh)
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (lseg LS sh (map Vint contents) p nullval)
   POST [ tuint ]
      PROP()
-     LOCAL(temp ret_temp (Vint (sum_int contents)))
+     RETURN (Vint (sum_int contents))
      SEP (lseg LS sh (map Vint contents) p nullval).
 
 Definition reverse_spec :=
  DECLARE _reverse
   WITH sh : share, contents : list val, p: val
-  PRE  [ _p OF (tptr t_struct_list) ]
+  PRE  [ tptr t_struct_list ]
      PROP (writable_share sh)
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (lseg LS sh contents p nullval)
   POST [ (tptr t_struct_list) ]
     EX p:val,
-     PROP () LOCAL (temp ret_temp p)
+     PROP () RETURN (p)
      SEP (lseg LS sh (rev contents) p nullval).
 
 (** The "main" function is special, since its precondition includes
@@ -90,7 +86,7 @@ Definition main_spec :=
   WITH gv : globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]
-     PROP() LOCAL (temp ret_temp (Vint (Int.repr (3+2+1)))) SEP(TT).
+     PROP() RETURN (Vint (Int.repr (3+2+1))) SEP(TT).
 
 (** List all the function-specs, to form the global hypothesis *)
 Definition Gprog : funspecs :=   ltac:(with_library prog [

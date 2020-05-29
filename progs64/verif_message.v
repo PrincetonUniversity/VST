@@ -2,8 +2,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs64.message.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -68,32 +66,30 @@ Qed.
 
 Definition serialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, sh: share, sh': share
-  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar) ]
+  PRE [ tptr tvoid, tptr tuchar ]
           PROP (readable_share sh; writable_share sh';
                 mf_data_assert format data;
                 align_compatible tint buf)
-          LOCAL (temp _p p; temp _buf buf)
+          PARAMS (p; buf)
           SEP (data_at sh t data p;
                  memory_block sh' (mf_size format) buf)
   POST [ tint ]
          EX len: Z,
-          PROP() LOCAL (temp ret_temp (Vint (Int.repr len)))
+          PROP() RETURN (Vint (Int.repr len))
           SEP( data_at sh t data p;
                  mf_assert format sh' buf len data;
                  mf_restbuf format sh' buf len).
 
 Definition deserialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, sh: share, sh': share, len: Z
-  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ]
+  PRE [ tptr tvoid, tptr tuchar, tint ]
           PROP (readable_share sh'; writable_share sh;
                 0 <= len <= mf_size format)
-          LOCAL (temp _p p;
-                 temp _buf buf;
-                 temp _length (Vint (Int.repr len)))
+          PARAMS (p; buf; Vint (Int.repr len))
           SEP (mf_assert format sh' buf len data;
                  data_at_ sh t p)
   POST [ tvoid ]
-          PROP (mf_data_assert format data)  LOCAL ()
+          PROP (mf_data_assert format data)  RETURN ()
           SEP (mf_assert format sh' buf len data;
                  data_at sh t data p).
 
@@ -157,6 +153,7 @@ Lemma body_intpair_deserialize: semax_body Vprog Gprog f_intpair_deserialize int
 Proof.
 unfold intpair_deserialize_spec, deserialize_spec.
 start_function.
+hnf in data; simpl in data. (* This speeds things up dramatically *)
 simpl. Intros. subst len.
 destruct data as [[|x1 | | | | ] [|y1 | | | | ]]; try contradiction.
 clear H H1 H2.
@@ -243,7 +240,7 @@ forward. (* return x+y; *)
 simpl.
 entailer!.
 sep_apply (data_at_memory_block Tsh (tarray tint 2) [Vint (Int.repr 1); Vint (Int.repr 2)] buf).
-simpl sizeof.
+unfold sizeof; simpl Ctypes.sizeof.
 sep_apply (memory_block_data_at__tarray_tuchar Tsh buf 8).
    computable.
 entailer!.

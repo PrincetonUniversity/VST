@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.bst.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -110,70 +108,69 @@ Qed.
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
-  PRE [ 1%positive OF tint]
+  PRE [ tint]
      PROP (4 <= n <= Int.max_unsigned)
-     LOCAL (temp 1%positive (Vint (Int.repr n)))
+     PARAMS (Vint (Int.repr n))
      SEP ()
   POST [ tptr tvoid ]
      EX v: val,
      PROP (malloc_compatible n v)
-     LOCAL (temp ret_temp v)
+     RETURN (v)
      SEP (memory_block Tsh n v).
 
 Definition freeN_spec :=
  DECLARE _freeN
   WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]
+  PRE [ tptr tvoid , tint]
      (* we should also require natural_align_compatible (eval_id 1) *)
-      PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
+      PROP() PARAMS(p; Vint (Int.repr n))
       SEP (memory_block Tsh n p)
   POST [ tvoid ]
-    PROP () LOCAL () SEP ().
+    PROP () RETURN ( ) SEP ().
 
 Definition treebox_new_spec :=
  DECLARE _treebox_new
   WITH u : unit
   PRE  [  ]
-       PROP() LOCAL() SEP ()
+       PROP() PARAMS() SEP ()
   POST [ tptr (tptr t_struct_tree) ]
     EX v:val,
     PROP()
-    LOCAL(temp ret_temp v)
+    RETURN(v)
     SEP (data_at Tsh (tptr t_struct_tree) nullval v).
 
 Definition insert_spec :=
  DECLARE _insert
   WITH b: val, x: Z, v: val, t: tree val
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint,
-        _value OF (tptr Tvoid)   ]
+  PRE  [ tptr (tptr t_struct_tree), tint, tptr Tvoid ]
     PROP( Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)); temp _value v)
+    PARAMS(b; Vint (Int.repr x); v)
     SEP (treebox_rep t b)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN( )
     SEP (treebox_rep (insert x v t) b).
 
 Definition lookup_spec :=
  DECLARE _lookup
   WITH b: val, x: Z, v: val, t: tree val
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint  ]
+  PRE  [ tptr (tptr t_struct_tree), tint  ]
     PROP( Int.min_signed <= x <= Int.max_signed)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
+    PARAMS(b; Vint (Int.repr x))
     SEP (treebox_rep t b)
   POST [ tptr Tvoid ]
     PROP()
-    LOCAL(temp ret_temp (lookup nullval x t))
+    RETURN(lookup nullval x t)
     SEP (treebox_rep t b).
 
 Definition turn_left_spec :=
  DECLARE _turn_left
   WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val, tc: tree val, b: val, l: val, pa: val, r: val
-  PRE  [ __l OF (tptr (tptr (Tstruct _tree noattr))),
-        _l OF (tptr (Tstruct _tree noattr)),
-        _r OF (tptr (Tstruct _tree noattr))]
+  PRE  [ tptr (tptr (Tstruct _tree noattr)),
+        tptr (Tstruct _tree noattr),
+        tptr (Tstruct _tree noattr)]
     PROP(Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
-    LOCAL(temp __l b; temp _l l; temp _r r)
+    PARAMS(b; l; r)
     SEP (data_at Tsh (tptr t_struct_tree) l b;
          data_at Tsh t_struct_tree (Vint (Int.repr x), (vx, (pa, r))) l;
          tree_rep ta pa;
@@ -181,7 +178,7 @@ Definition turn_left_spec :=
   POST [ Tvoid ] 
     EX pc: val,
     PROP(Int.min_signed <= y <= Int.max_signed; is_pointer_or_null vy)
-    LOCAL()
+    RETURN( )
     SEP (data_at Tsh (tptr t_struct_tree) r b;
          data_at Tsh t_struct_tree (Vint (Int.repr y), (vy, (l, pc))) r;
          tree_rep (T ta x vx tb) l;
@@ -190,9 +187,9 @@ Definition turn_left_spec :=
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
   WITH ta: tree val, x: Z, v: val, tb: tree val, b: val, p: val
-  PRE  [ _t OF (tptr (tptr (Tstruct _tree noattr)))]
+  PRE  [ tptr (tptr (Tstruct _tree noattr))]
     PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
-    LOCAL(temp _t b)
+    PARAMS(b)
     SEP (data_at Tsh (tptr t_struct_tree) p b;
          spacer Tsh (sizeof tint) (sizeof size_t) p;
          field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
@@ -201,39 +198,39 @@ Definition pushdown_left_spec :=
          treebox_rep tb (field_address t_struct_tree [StructField _right] p))
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN( )
     SEP (treebox_rep (pushdown_left ta tb) b).
 
 Definition delete_spec :=
  DECLARE _delete
   WITH b: val, x: Z, t: tree val
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint]
+  PRE  [ tptr (tptr t_struct_tree), tint]
     PROP( Int.min_signed <= x <= Int.max_signed)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
+    PARAMS(b; Vint (Int.repr x))
     SEP (treebox_rep t b)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN( )
     SEP (treebox_rep (delete x t) b).
 
 Definition tree_free_spec :=
  DECLARE _tree_free
   WITH t: tree val, p: val
-  PRE  [ _p OF (tptr t_struct_tree) ]
-       PROP() LOCAL(temp _p p) SEP (tree_rep t p)
+  PRE  [ tptr t_struct_tree ]
+       PROP() PARAMS (p) SEP (tree_rep t p)
   POST [ Tvoid ]
     PROP()
-    LOCAL()
+    RETURN()
     SEP (emp).
 
 Definition treebox_free_spec :=
  DECLARE _treebox_free
   WITH t: tree val, b: val
-  PRE  [ _b OF (tptr (tptr t_struct_tree)) ]
-       PROP() LOCAL(temp _b b) SEP (treebox_rep t b)
+  PRE  [ tptr (tptr t_struct_tree) ]
+       PROP() PARAMS(b) SEP (treebox_rep t b)
   POST [ Tvoid ]
     PROP()
-    LOCAL()
+    RETURN()
     SEP (emp).
 
 Definition Gprog : funspecs :=
@@ -841,35 +838,34 @@ Qed.
 Definition abs_insert_spec :=
  DECLARE _insert
   WITH b: val, x: Z, v: val, m: total_map val
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint,
-        _value OF (tptr Tvoid)   ]
+  PRE  [ tptr (tptr t_struct_tree), tint, tptr Tvoid ]
     PROP( Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)); temp _value v)
+    PARAMS (b; Vint (Int.repr x); v)
     SEP (tmap_rep m b)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (tmap_rep (t_update m x v) b).
 
 Definition abs_treebox_new_spec :=
  DECLARE _treebox_new
   WITH u : unit
   PRE  [  ]
-       PROP() LOCAL() SEP ()
+       PROP() PARAMS() SEP ()
   POST [ tptr (tptr t_struct_tree) ]
     EX v:val,
     PROP()
-    LOCAL(temp ret_temp v)
+    RETURN(v)
     SEP (tmap_rep (t_empty nullval) v).
 
 Definition abs_treebox_free_spec :=
  DECLARE _treebox_free
   WITH m: total_map val, p: val
-  PRE  [ _b OF (tptr (tptr t_struct_tree)) ]
-       PROP() LOCAL(temp _b p) SEP (tmap_rep m p)
+  PRE  [ tptr (tptr t_struct_tree) ]
+       PROP() PARAMS(p) SEP (tmap_rep m p)
   POST [ Tvoid ]
     PROP()
-    LOCAL()
+    RETURN()
     SEP (emp).
 
 Definition main_spec :=
@@ -883,24 +879,23 @@ Lemma subsume_insert:
 Proof.
 do_funspec_sub. destruct w as [[[b x] v] m]. simpl.
 unfold convertPre. Intros.
-destruct args. inv H0. 
-destruct args. inv H0.
-destruct args. inv H0. 
-destruct args; inv H0. simpl in *.
+destruct args. inv H1. 
+destruct args. inv H1.
+destruct args. inv H1. 
+destruct args; inv H1. simpl in *.
 unfold env_set, eval_id in *. simpl in *. subst. 
 unfold tmap_rep.
 Intros t.
-Exists (v0, x, v2, t) emp. simpl. entailer!.
-intros. Exists (insert x v2 t).
+Exists (b, x, v, t) emp. simpl. entailer!.
+intros. Exists (insert x v t).
 entailer!. apply insert_relate; trivial.
 Qed.
 
 Lemma subsume_treebox_new:
  funspec_sub (snd treebox_new_spec) (snd abs_treebox_new_spec).
 Proof.
-do_funspec_sub. unfold convertPre. simpl; Intros. clear H.
-destruct args; inv H0.
-Exists tt emp. entailer!.
+do_funspec_sub. unfold convertPre. simpl; Intros.
+Exists emp. entailer!.
 intros tau ? ?. Exists (eval_id ret_temp tau). entailer!.
 unfold tmap_rep.
 Exists (empty_tree val).
@@ -916,11 +911,10 @@ Lemma subsume_treebox_free:
 Proof.
 do_funspec_sub. destruct w as [m p]. clear H. unfold convertPre. simpl; Intros.
 subst.
-destruct args; inv H. destruct args; inv H2.
 unfold env_set, eval_id in *. simpl in *. 
 unfold tmap_rep.
 Intros t.
-Exists (t,v) emp. entailer!.
+Exists (t,p) emp. entailer!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
@@ -960,5 +954,4 @@ forward.
 Qed.
 
 End TREE_ABS.
-
 End Abstractions.

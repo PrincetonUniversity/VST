@@ -1,19 +1,15 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.stackframe_demo.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition iden_spec :=
  DECLARE _iden
   WITH x : Z
-  PRE  [ _x OF tint ]
-     PROP ()
-     LOCAL (temp _x (Vint (Int.repr x)))
-     SEP ()
+  PRE  [ tint ]
+     PROP () PARAMS (Vint (Int.repr x)) SEP ()
   POST [ tint ]
-     PROP () LOCAL (temp ret_temp (Vint (Int.repr x)))
-     SEP ().
+     PROP () RETURN (Vint (Int.repr x)) SEP ().
 
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ iden_spec ]).

@@ -35,41 +35,42 @@ Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
  | b::r => b rho /\ fold_right_andp rho r
  end.
 
-(*
-Definition PROPx (P: list Prop): forall (Q: environ->mpred), environ->mpred :=
-     andp (prop (fold_right and True P)).*)
+Declare Scope argsassert.
+Delimit Scope argsassert with argsassert.
+Declare Scope assert.  Delimit Scope assert with assert.
+Declare Scope assert3. Delimit Scope assert3 with assert3.
+Declare Scope assert3a. Delimit Scope assert3a with assert3a.
+Declare Scope assert4a. Delimit Scope assert4a with assert4a.
+Declare Scope assert5. Delimit Scope assert5 with assert5.
+
 Definition PROPx {A} (P: list Prop): forall (Q: A->mpred), A->mpred :=
      andp (prop (fold_right and True P)).
-Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z) (at level 10).
-Notation "'PROP' ()   z" :=   (PROPx nil z) (at level 10).
-Notation "'PROP' ( )   z" :=   (PROPx nil z) (at level 10).
+
+
+Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z%assert3a) (at level 10) : argsassert.
+Notation "'PROP' ()   z" :=   (PROPx nil z%assert3a) (at level 10) : argsassert.
+Notation "'PROP' ( )   z" :=   (PROPx nil z%assert3a) (at level 10) : argsassert.
+
+Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z%assert3) (at level 10) : assert.
+Notation "'PROP' ()   z" :=   (PROPx nil z%assert3) (at level 10) : assert.
+Notation "'PROP' ( )   z" :=   (PROPx nil z%assert3) (at level 10) : assert.
+
+Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z%assert3) (at level 10).
+Notation "'PROP' ()   z" :=   (PROPx nil z%assert3) (at level 10).
+Notation "'PROP' ( )   z" :=   (PROPx nil z%assert3) (at level 10).
 
 Definition LOCALx (Q: list localdef) : forall (R: environ->mpred), environ->mpred :=
                  andp (local (fold_right (`and) (`True) (map locald_denote Q))).
+Notation " 'LOCAL' ( )   z" := (LOCALx nil z%assert5)  (at level 9) : assert3.
+Notation " 'LOCAL' ()   z" := (LOCALx nil z%assert5)  (at level 9) : assert3.
 
-Notation " 'LOCAL' ( )   z" := (LOCALx nil z)  (at level 9).
-Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9).
+Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z%assert5)
+         (at level 9) : assert3.
 
-Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z)
-         (at level 9).
 
-Notation " 'RETURN' ( ) z" := (LOCALx nil z) (at level 9).
-Notation " 'RETURN' ( x ) z" := (LOCALx (temp ret_temp x :: nil) z) (at level 9).
-
-(*Definition SEPx (R: list mpred) : environ->mpred :=
-    fun _ => (fold_right_sepcon R).*)
-Definition SEPx {A} (R: list mpred) : A->mpred :=
-    fun _ => (fold_right_sepcon R).
-Arguments SEPx A R _ : simpl never.
-
-Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
-         (at level 8).
-
-Notation " 'SEP' ( ) " := (SEPx nil) (at level 8).
-Notation " 'SEP' () " := (SEPx nil) (at level 8).
-
-Declare Scope assert.
-Delimit Scope assert with assert.
+Notation " 'RETURN' () z" := (LOCALx nil z%assert5) (at level 9) : assert3.
+Notation " 'RETURN' ( ) z" := (LOCALx nil z%assert5) (at level 9) : assert3.
+Notation " 'RETURN' ( x ) z" := (LOCALx (temp ret_temp x :: nil) z%assert5) (at level 9) :assert3.
 
 Definition GLOBALSx (gs : list globals) (X : argsassert): argsassert := 
  fun (gvals : argsEnviron) =>
@@ -78,49 +79,37 @@ Definition GLOBALSx (gs : list globals) (X : argsassert): argsassert :=
                   (Clight_seplog.mkEnv (fst gvals) nil nil).
 Arguments GLOBALSx gs _ : simpl never.
 
-Notation " 'GLOBALS' ( x ; .. ; y )  z" := (GLOBALSx (cons x%logic .. (cons y%logic nil) ..) z)
-         (at level 9).
-
-Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z) (at level 9).
-Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z) (at level 9).
-
 Definition PARAMSx (vals:list val)(X : argsassert): argsassert :=
  fun (gvals : argsEnviron) => !! (snd gvals = vals (*/\ Forall (fun v : val => v <> Vundef) vals*)) && X gvals.
 Arguments PARAMSx vals _ : simpl never.
 
-Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%logic .. (cons y%logic nil) ..) z)
-         (at level 9).
+Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%logic .. (cons y%logic nil) ..) z%assert4a)
+         (at level 9) : assert3a.
 
-Notation " 'PARAMS' ( )  z" := (PARAMSx nil z) (at level 9).
-Notation " 'PARAMS' ()  z" := (PARAMSx nil z) (at level 9).
+Notation " 'PARAMS' ( )  z" := (PARAMSx nil z%assert4a) (at level 9) : assert3a.
+Notation " 'PARAMS' ()  z" := (PARAMSx nil z%assert4a) (at level 9) : assert3a.
 
-(*
-Definition testpre X gv vals Y :=
-  PROPx X (PARAMSx vals (GLOBALSx gv (SEPx Y))).
-*)
+Notation " 'GLOBALS' ( x ; .. ; y )  z" := (GLOBALSx (cons x%logic .. (cons y%logic nil) ..) z%assert5)
+         (at level 9) : assert4a.
 
-(*
-Definition LAMBDAx (gs : list globals) (vals:list val) (X : argsassert): argsassert := 
- fun (gvals : argsEnviron) =>
-           LOCALx (map gvars gs) 
-                  (!!(snd gvals=vals /\ Forall (fun v => v <> Vundef) vals) && argsassert2assert nil X)
-                  (Clight_seplog.mkEnv (fst gvals) nil nil).
-Notation " 'LAMBDA' ( )   z" := (LAMBDAx nil nil z)  (at level 9).
-Notation " 'LAMBDA' ()   z" := (LAMBDAx nil nil z)  (at level 9).
+Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z%assert5) (at level 9) : assert4a.
+Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z%assert5) (at level 9) : assert4a.
 
-Notation " 'LAMBDA' u ( x ; .. ; y )   z" := (LAMBDAx u (cons x%type .. (cons y%type nil) ..) z)
-         (at level 9).
+Definition SEPx {A} (R: list mpred) : A->mpred :=
+    fun _ => (fold_right_sepcon R).
+Arguments SEPx A R _ : simpl never.
 
-Lemma LAMBDA_char gs vals X: LAMBDAx gs vals X = (PARAMSx vals (GLOBALSx gs X)).
-Proof. 
-  unfold LAMBDAx, GLOBALSx, PARAMSx, LOCALx,
-         local, lift1, liftx, lift, argsassert2assert.
-  extensionality gvals; simpl.
-  apply pred_ext; normalize; apply andp_right; trivial; apply prop_right; intuition.
-Qed.*)
+Notation " 'SEP' ( x ; .. ; y )" := (GLOBALSx nil (SEPx (cons x%logic .. (cons y%logic nil) ..)))
+         (at level 8) : assert4a.
 
-Declare Scope argsassert.
-Delimit Scope argsassert with argsassert.
+Notation " 'SEP' ( ) " := (GLOBALSx nil (SEPx nil)) (at level 8) : assert4a.
+Notation " 'SEP' () " := (GLOBALSx nil (SEPx nil)) (at level 8) : assert4a.
+
+Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
+         (at level 8) : assert5.
+
+Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : assert5.
+Notation " 'SEP' () " := (SEPx nil) (at level 8) : assert5.
 
 Lemma PROPx_Permutation {A}: forall P Q,
   Permutation P Q ->
@@ -2146,13 +2135,13 @@ Qed.
 Lemma semax_post_ret1: forall P' R' Espec {cs: compspecs} Delta P v R Pre c,
   ret_type Delta <> Tvoid ->
   ENTAIL (ret1_tycon Delta),
-    PROPx P' (LOCAL (temp ret_temp v) (SEPx R')) |-- PROPx P (LOCAL (temp ret_temp v) (SEPx R)) ->
+    PROPx P' (LOCALx (temp ret_temp v::nil) (SEPx R')) |-- PROPx P (LOCALx (temp ret_temp v::nil) (SEPx R)) ->
   @semax cs Espec Delta Pre c
     (frame_ret_assert (function_body_ret_assert (ret_type Delta)
-      (PROPx P' (LOCAL (temp ret_temp v) (SEPx R')))) emp) ->
+      (PROPx P' (LOCALx (temp ret_temp v::nil) (SEPx R')))) emp) ->
   @semax cs Espec Delta Pre c
     (frame_ret_assert (function_body_ret_assert (ret_type Delta)
-      (PROPx P (LOCAL (temp ret_temp v) (SEPx R)))) emp).
+      (PROPx P (LOCALx (temp ret_temp v::nil) (SEPx R)))) emp).
 Proof.
   intros.
   eapply semax_post; eauto; try solve [intro rho; simpl; normalize].

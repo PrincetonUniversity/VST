@@ -2,8 +2,6 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.progs.object.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -16,24 +14,24 @@ Definition tobject := tptr (Tstruct _object noattr).
 
 Definition reset_spec (instance: object_invariant) :=
   WITH self: val, history: list Z
-  PRE [ _self OF tobject]
+  PRE [ tobject]
           PROP ()
-          LOCAL (temp _self self)
+          PARAMS (self)
           SEP (instance history self)
   POST [ tvoid ]
-          PROP() LOCAL () SEP(instance nil self).
+          PROP() RETURN () SEP(instance nil self).
 
 Definition twiddle_spec (instance: object_invariant) :=
   WITH self: val, i: Z, history: list Z
-  PRE [ _self OF tobject, _i OF tint]
+  PRE [ tobject, tint]
           PROP (0 < i <= Int.max_signed / 4;
                 0 <= fold_right Z.add 0 history <= Int.max_signed / 4)
-          LOCAL (temp _self self; temp _i (Vint (Int.repr i)))
+          PARAMS (self; Vint (Int.repr i))
           SEP (instance history self)
   POST [ tint ]
       EX v: Z, 
           PROP(2* fold_right Z.add 0 history < v <= 2* fold_right Z.add 0 (i::history))
-          LOCAL (temp ret_temp (Vint (Int.repr v))) 
+          RETURN (Vint (Int.repr v))
           SEP(instance (i::history) self).
 
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
@@ -75,10 +73,10 @@ Definition make_foo_spec :=
  DECLARE _make_foo
  WITH gv: globals
  PRE [ ]
-    PROP () LOCAL (gvars gv) 
+    PROP () PARAMS() GLOBALS (gv) 
     SEP (mem_mgr gv; object_methods foo_invariant (gv _foo_methods))
  POST [ tobject ]
-    EX p: val, PROP () LOCAL (temp ret_temp p)
+    EX p: val, PROP () RETURN (p)
      SEP (mem_mgr gv; object_mpred nil p; object_methods foo_invariant (gv _foo_methods)).
 
 Definition main_spec :=
@@ -86,7 +84,7 @@ Definition main_spec :=
   WITH gv: globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]
-     EX i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).
+     EX i:Z, PROP(0<=i<=6) RETURN (Vint (Int.repr i)) SEP(TT).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     foo_reset_spec; foo_twiddle_spec; make_foo_spec; main_spec]).

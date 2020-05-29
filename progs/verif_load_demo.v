@@ -1,7 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.load_demo.
 
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -12,13 +11,13 @@ Definition array_size := 100.
 Definition get22_spec :=
  DECLARE _get22
   WITH pps: val, i: Z, x11: int, x12: int, x21: int, x22: int, sh : share
-  PRE [ _pps OF (tptr pair_pair_t), _i OF tint ]
+  PRE [ tptr pair_pair_t, tint ]
     PROP  (readable_share sh; 0 <= i < array_size)
-    LOCAL (temp _pps pps; temp _i (Vint (Int.repr i)))
+    PARAMS (pps; Vint (Int.repr i))
     SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i]
                     ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps)
   POST [ tint ]
-        PROP () LOCAL (temp ret_temp (Vint x22))
+        PROP () RETURN (Vint x22)
     SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i]
                     ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps).
 
@@ -28,15 +27,15 @@ Definition uint_sum (contents : list Z) : int :=
 Definition fiddle_spec :=
  DECLARE _fiddle
   WITH p: val, n: Z, tag: Z, contents: list Z
-  PRE [ _p OF tptr tuint ]
+  PRE [ tptr tuint ]
           PROP  (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10)) = n)
-          LOCAL (temp _p p)
+          PARAMS (p)
           SEP (data_at Ews (tarray tuint (1+n)) 
                       (map Vint (map Int.repr (tag::contents)))
                       (offset_val (-sizeof tuint) p))
   POST [ tint ]
           PROP ( )
-          LOCAL (temp ret_temp (Vint (Int.add (Int.repr (Z.land tag 255)) (uint_sum contents))))
+          RETURN (Vint (Int.add (Int.repr (Z.land tag 255)) (uint_sum contents)))
           SEP (data_at Ews (tarray tuint (1+n)) 
                       (map Vint (map Int.repr (tag::contents)))
                       (offset_val (-sizeof tuint) p)).
@@ -51,14 +50,14 @@ Definition get_uint32_le (arr: list Z) : int :=
 Definition get_little_endian_spec :=
   DECLARE _get_little_endian
   WITH input : val, in_sh : share, arr : list Z
-  PRE [ _input OF (tptr tuchar) ]
+  PRE [ tptr tuchar ]
     PROP (Zlength arr = 4;
           readable_share in_sh;
           forall i, 0 <= i < 4 -> 0 <= Znth i arr <= Byte.max_unsigned)
-    LOCAL (temp _input input)
+    PARAMS (input)
     SEP (data_at in_sh (tarray tuchar 4) (map Vint (map Int.repr arr)) input)
   POST [ tuint ]
-    PROP() LOCAL(temp ret_temp (Vint (get_uint32_le arr)))
+    PROP() RETURN (Vint (get_uint32_le arr))
     SEP (data_at in_sh (tarray tuchar 4) (map Vint (map Int.repr arr)) input).
 
 Definition Gprog : funspecs := ltac:(with_library prog

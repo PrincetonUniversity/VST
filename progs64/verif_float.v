@@ -2,7 +2,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs64.float.
 
-Require Import VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
