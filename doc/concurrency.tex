@@ -1,71 +1,71 @@
 % !TEX TS-program = pdflatex
 % !TEX encoding = UTF-8 Unicode
 
-\documentclass[11pt]{article} % use larger type; default would be 10pt
+\documentclass[11pt]{article}
 
 \usepackage[utf8]{inputenc}
 
-\usepackage{geometry} % to change the page dimensions
-\geometry{a4paper} % or letterpaper (US) or a5paper or....
-% \geometry{margin=2in} % for example, change the margins to 2 inches all round
+\usepackage{geometry}
+\geometry{a4paper}
 
-\usepackage{graphicx} % support the \includegraphics command and options
-\usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
+\usepackage{graphicx}
+\usepackage{verbatim}
 \usepackage{amssymb}
 \usepackage{mathtools}
 \usepackage{semantic}
 \usepackage{iris}
 \usepackage{url}
 
-\bibliographystyle{plain}% the recommended bibstyle
+\bibliographystyle{plain}
 
 \title{Verifying Concurrent Programs with VST}
 \author{William Mansky}
-\date{} % Activate to display a given date or no date (if empty),
-         % otherwise the current date is printed 
+%\date{}
 
 \begin{document}
 \maketitle
 
-\section{Introduction}
-
+\begin{abstract}
 As of version 2.1, VST includes support for verifying concurrent programs with user-defined ghost state, as in modern concurrent separation logics. This document describes how to use Verifiable C to prove the correctness of concurrent programs, using examples from the \texttt{progs} folder that ships with VST. We will assume familiarity with the basics of VST, as described in the VST manual.
+\end{abstract}
 
 \section{Verifying a Concurrent Program with Locks}
-A concurrent C program a sequential C program with a few additional features. It may create new \emph{threads} of execution, which execute functions from the program in parallel, but with a single shared memory: any data on the heap (including global variables and \texttt{malloc}ed memory) can potentially be accessed by every thread. Threads can thus communicate by passing values to each other through memory locations, and threads may also \emph{synchronize}, blocking each other's control flow to ensure that operations happen in a certain order. In Verifiable C, synchronization is provided by a \emph{lock} data structure, which supports functions \texttt{acquire} and \texttt{release}. Each lock in a program can be held by at most one thread at a time; when a thread tries to \emph{acquire} a lock that is not currently available, it pauses its execution (``blocks'') until the lock becomes available. Locks can be used to enforce \emph{mutual exclusion}, ensuring that a memory location is only accessed by one thread at a time. VST ships with a C header file \texttt{threads.h} that declares the concurrency primitives (locks and thread creation), and should be \texttt{\#include}d in any Verifiable C concurrent program.
+A concurrent C program is a sequential C program with a few additional features. It may create new \emph{threads} of execution, which execute functions from the program in parallel, but with a single shared memory: any data on the heap (including global variables and \texttt{malloc}ed memory) can potentially be accessed by every thread. Threads can thus communicate by passing values to each other through memory locations, and threads may also \emph{synchronize}, blocking each other's control flow to ensure that operations happen in a certain order. In Verifiable C, synchronization is provided by a \emph{lock} data structure, which supports functions \texttt{acquire} and \texttt{release}. Each lock in a program can be held by at most one thread at a time; when a thread tries to \emph{acquire} a lock that is not currently available, it pauses its execution (``blocks'') until the lock becomes available\footnote{Note that the thread that acquires a lock need not be the one that releases it: a locked lock can be passed through another synchronization mechanism to another thread, which then releases it (the ``daring'' concurrency of O'Hearn~\cite{csl}), as demonstrated by the join lock in Section~\ref{threads}. Some authors use ``lock'' to refer specifically to a mutex that must be released by the thread that acquires it.}. Locks can be used to enforce \emph{mutual exclusion}, ensuring that a memory location is only accessed by one thread at a time. VST ships with a C header file \texttt{threads.h} that declares the concurrency primitives (locks and thread creation), and should be \texttt{\#include}d in any Verifiable C concurrent program.
 
-The file \texttt{progs/incr.c} contains a simple concurrent C program. It has a global integer variable \texttt{ctr} that is used as shared data, with two accessor functions: \texttt{incr}, which increases the value of \texttt{ctr} by one, and \texttt{read}, which reads the current value of \texttt{ctr}. These functions use the lock \texttt{ctr\_lock} to synchronize access to \texttt{ctr}. This synchronization is necessary because \texttt{incr} changes the value of \texttt{ctr}: if a thread tries to access a memory location while another thread writes to that location, a \emph{data race} occurs, leading to unpredictable (formally, \emph{undefined}) behavior. This is considered an error in C. This is reflected in Verifiable C by the existence of \emph{shares}, as described in section 44 of the manual. A thread can only write to a memory location if it holds a sufficiently large share of the location that no other thread can possibly read from it. If we want to have a memory location that can be modified by multiple threads, we must move shares between threads via locks, as described below. A consequence of this share discipline is that if we prove any pre- and postcondition in Verifiable C for a program, we also know that as long as the precondition is met, the program does not have any data races (just as proving correctness of a sequential program also implies that it has no null-pointer dereferences). In this section, we will focus on the verification of the \texttt{incr} and \texttt{read} functions, and demonstrate how to prove correctness of programs with locks.
+The file \texttt{progs/incr.c} contains a simple concurrent C program. It has a global integer variable \texttt{ctr} that is used as shared data, with two accessor functions: \texttt{incr}, which increases the value of \texttt{ctr} by one, and \texttt{read}, which reads the current value of \texttt{ctr}. These functions use the lock \texttt{ctr\_lock} to synchronize access to \texttt{ctr}. This synchronization is necessary because \texttt{incr} changes the value of \texttt{ctr}: if a thread tries to access a memory location while another thread writes to that location, a \emph{data race} occurs, leading to undefined behavior. This is considered an error in C. This is reflected in Verifiable C by the existence of \emph{shares}, as described in section 44 of the manual. A thread can only write to a memory location if it holds a sufficiently large share of the location that no other thread can possibly read from it. If we want to have a memory location that can be modified by multiple threads, we must move shares between threads via locks, as described below. A consequence of this share discipline is that if we prove any pre- and postcondition in Verifiable C for a program, we also know that as long as the precondition is met, the program does not have any data races (just as proving correctness of a sequential program also implies that it has no null-pointer dereferences). In this section, we will focus on the verification of the \texttt{incr} and \texttt{read} functions, and demonstrate how to prove correctness of programs with locks.
 
 The proof of correctness for \texttt{incr.c} is in \texttt{progs/verif\_incr\_simple.v}. It has several elements that do not appear in sequential Verifiable C proofs. First, it imports \texttt{VST.progs.conclib}, a library of lemmas and tactics that are useful for concurrent program verification. It then declares specifications for the built-in concurrency primitives of VST. Their specifications are already defined in \texttt{concurrency/semax\_conc.v}, so we only need to associate them with their function identifiers. We will go through the specifications of each concurrency primitive in the following sections; the concurrent separation logic rules are summarized in Section~\ref{CSL}.
 
-The first thing we need to do to verify functions on \texttt{ctr} is to define a \emph{lock invariant}, a predicate describing the resources protected by the lock \texttt{ctr\_lock}. A lock invariant can be any Verifiable C assertion (i.e., \texttt{mpred}), subject to a condition described later. In this case, the lock protects the data in \texttt{ctr}. We want to know specifically that \texttt{ctr} always contains an unsigned integer value, so we use the lock invariant $\mathsf{cptr\_lock\_inv} \triangleq \mathsf{EX}\ z : \mathsf{Z}, \mathsf{data\_at}\ \mathsf{tuint}\ (\mathsf{Vint} (\mathsf{Int.repr}\ z))\ \texttt{ctr}$. We use the $\mathsf{lock\_inv}$ predicate to assert that a lock exists in memory with a given invariant: $\mathsf{lock\_inv}\ \mathsf{sh}\ p\ R$ means that the current thread owns share $\mathsf{sh}$ of a lock at location $p$ with invariant $R$. Shares of a lock can be combined and split in the same way as shares of $\mathsf{data\_at}$, and any readable share is enough to acquire or release the lock\footnote{This contrasts with ordinary $\mathsf{data\_at}$, in which we need a writable share to write to a location; multiple threads can try to acquire a lock at the same time, and the lock's built-in synchronization will prevent any race conditions.}.
+The first thing we need to do to verify functions on \texttt{ctr} is to define a \emph{lock invariant}, a predicate describing the resources protected by the lock \texttt{ctr\_lock}. A lock invariant can be any Verifiable C assertion (i.e., \texttt{mpred}), subject to an exclusivity condition described later. In this case, the lock protects the data in \texttt{ctr}. We want to know specifically that \texttt{ctr} always contains an unsigned integer value, so we use the lock invariant $\mathsf{cptr\_lock\_inv} \triangleq \mathsf{EX}\ z : \mathsf{Z}, \mathsf{data\_at}\ \mathsf{tuint}\ (\mathsf{Vint} (\mathsf{Int.repr}\ z))\ \texttt{ctr}$. We use the $\mathsf{lock\_inv}$ predicate to assert that a lock exists in memory with a given invariant: $\mathsf{lock\_inv}\ \mathsf{sh}\ p\ R$ means that the current thread owns share $\mathsf{sh}$ of a lock at location $p$ with invariant $R$. Shares of a lock can be combined and split in the same way as shares of $\mathsf{data\_at}$, and any readable share is enough to acquire or release the lock\footnote{This contrasts with ordinary $\mathsf{data\_at}$, in which we need a writable share to write to a location; multiple threads can try to acquire a lock at the same time, and the lock's built-in synchronization will prevent any race conditions.}.
 
-Now we can give specifications to the functions that manipulate locks.
+Now we can give specifications to the functions that manipulate counters.
 \begin{verbatim}
  DECLARE _incr
-  WITH ctr : val, sh : share, lock : val
+  WITH gv : globals, sh : share
   PRE [ ]
-    PROP (readable_share sh)
-    LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-    SEP (lock_inv sh lock (cptr_lock_inv ctr))
+     PROP  (readable_share sh)
+     LOCAL (gvars gv)
+     SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr)))
   POST [ tvoid ]
-    PROP () LOCAL () SEP (lock_inv sh lock (cptr_lock_inv ctr))
+     PROP ()
+     LOCAL ()
+     SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr))).
 \end{verbatim}
 
 \begin{verbatim}
  DECLARE _read
-  WITH ctr : val, sh : share, lock : val
+  WITH gv : globals, sh : share
   PRE [ ]
-    PROP (readable_share sh)
-    LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-    SEP (lock_inv sh lock (cptr_lock_inv ctr))
+     PROP  (readable_share sh)
+     LOCAL (gvars gv)
+     SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr)))
   POST [ tuint ]
-   EX z : Z,
-    PROP ()
-    LOCAL (temp ret_temp (Vint (Int.repr z)))
-    SEP (lock_inv sh lock (cptr_lock_inv ctr))
+    EX z : Z,
+     PROP ()
+     LOCAL (temp ret_temp (Vint (Int.repr z)))
+     SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr))).
 \end{verbatim}
-These are surprisingly boring specifications! The \texttt{read} function needs to know that the lock exists, and returns some number, about which we know nothing; the \texttt{incr} function does even less, taking the $\mathsf{lock\_inv}$ assertion and returning it as is. These are enough to prove \emph{safety} of the program, to show that it is a valid C program, but not enough to learn much about what the program actually computes. This is a product of our invariant: when a thread acquires the lock, the \emph{only} thing it knows about the memory it gains access to is that it satisfies the invariant. This is a well-known limitation of basic concurrent separation logic, and it is generally solved using \emph{ghost state}, which we describe in Section~\ref{ghost}. For now, we will describe how to prove safety for this program; later we will see how the proof of correctness builds on the safety proof.
+These are surprisingly boring specifications! The \texttt{read} function needs to know that the lock exists, and returns some number, about which we know nothing; the \texttt{incr} function does even less, taking the $\mathsf{lock\_inv}$ assertion and returning it as is. These are enough to prove \emph{safety} of the program, to show that it has no data races, but not enough to learn much about what the program actually computes. This is a product of our invariant: when a thread acquires the lock, the \emph{only} thing it knows about the memory it gains access to is that it satisfies the invariant. This is a well-known limitation of basic concurrent separation logic, and it is generally solved using \emph{ghost state}, which we describe in Section~\ref{ghost}. For now, we will describe how to prove safety for this program; later we will see how the proof of correctness builds on the safety proof.
 
 There is one more important step before we can prove that the counter functions satisfy their specifications. In order to use a resource invariant, we need to show that it is \emph{exclusive}, i.e., that it can only hold once in any given state. This is represented in VST by a property $\mathsf{exclusive\_mpred}\ R \triangleq R * R \vdash \mathsf{FF}$. This allows us to know that if the current thread holds the invariant, it also holds the lock. Fortunately, most common assertions (e.g., $\mathsf{data\_at}$ for a non-empty type) are exclusive, so we can fairly easily prove the desired property $\mathsf{ctr\_inv\_exclusive}$. It is useful to add this lemma to $\mathsf{auto}$'s hint database via \textsf{Hint Resolve}, so that the related proof obligations can be discharged automatically.
 
@@ -77,7 +77,8 @@ When we acquire the lock, we also gain access to the invariant; when we release 
 Consider the proof of $\mathsf{body\_read}$: we begin with the usual invocation of $\mathsf{start\_function}$. We then use $\mathsf{forward\_call}$ to process the \texttt{acquire} call, adding $\mathsf{cptr\_lock\_inv}$ to the \textsf{SEP} clause. Unfolding its definition tells us that we now have access to \texttt{ctr}, and the integer stored in it, which we introduce as $z$. We assign $z$ to the local variable \texttt{t}, and then release the lock. We use the $\mathsf{lock\_props}$ tactic to discharge the exclusive obligation of \texttt{release} automatically, so that we need only prove that the invariant holds again. In this case, since have not changed the value of \texttt{ctr}, its value is still $z$. The return value of the function is that same $z$, and the proof is complete. The proof of $\mathsf{body\_incr}$ is almost identical, except that at the call to \texttt{release} the invariant now holds at $z + 1$.
 
 \section{Thread Creation and Joining}
-Every C program starts its execution as a single-threaded program. It becomes concurrent when it calls an external function that spawns a new thread, such as with Verifiable C's \texttt{spawn} function. The \texttt{spawn} function takes two arguments: a pointer to a function that the new thread should execute, and a \texttt{void*} that will be passed as an argument to that function. The new thread begins execution at the start of the indicated function, and continues to execute until it returns from that function; until then, it can assign to local variables, perform memory operations, and call other functions just as a single-threaded program would. Each thread has its own local variables, but memory is shared between all threads in a program. In the current version of VST, the starting function for a thread must take a single argument of type \texttt{void*} and return a value of type \texttt{void*}; the value returned is ignored completely, so it will usually be \texttt{NULL}.
+\label{threads}
+Every C program starts its execution as a single-threaded program. It becomes concurrent when spawns a new thread, for instance by calling Verifiable C's \texttt{spawn} function. The \texttt{spawn} function takes two arguments: a pointer to a function that the new thread should execute, and a \texttt{void*} that will be passed as an argument to that function. The new thread begins execution at the start of the indicated function, and continues to execute until it returns from that function; until then, it can assign to local variables, perform memory operations, and call other functions just as a single-threaded program would. Each thread has its own local variables, but memory is shared between all threads in a program. In the current version of VST, the starting function for a thread must take a single argument of type \texttt{void*} and return a value of type \texttt{void*}; the value returned is ignored completely, so it will usually be \texttt{NULL}.
 
 The separation logic rule for \texttt{spawn} is:
 $$\{P(y) * f : x.\ \{P(x)\}\{\mathsf{emp}\}\}\ \texttt{spawn}(f, y)\ \{\}$$
@@ -88,18 +89,20 @@ If we want to \emph{join} with a spawned thread once it finishes, retrieving its
 In Verifiable C, functions that will be passed to \texttt{spawn} must have specifications of a certain form, as in $\mathsf{thread\_func\_spec}$:
 \begin{verbatim}
  DECLARE _thread_func
-  WITH y : val, x : val * share * val * val
+  WITH y : val, x : share * globals
   PRE [ _args OF (tptr tvoid) ]
-         let '(ctr, sh, lock, lockt) := x in
-         PROP  (readable_share sh)
-         LOCAL (temp _args y; gvar _ctr ctr; gvar _ctr_lock lock;
-                gvar _thread_lock lockt)
-         SEP   (lock_inv sh lock (cptr_lock_inv ctr);
-                lock_inv sh lockt (thread_lock_inv sh ctr lock lockt))
+     let '(sh, gv) := x in
+     PROP  (readable_share sh)
+     LOCAL (temp _args y; gvars gv)
+     SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr));
+            lock_inv sh (gv _thread_lock)
+                (thread_lock_inv sh (gv _ctr) (gv _ctr_lock) (gv _thread_lock)))
   POST [ tptr tvoid ]
-         PROP () LOCAL () SEP ()
+     PROP ()
+     LOCAL ()
+     SEP ().
 \end{verbatim}
-The \textsf{WITH} clause must have exactly two elements: one of type \textsf{val} that holds the argument passed to the function, and another that holds the entire rest of the witness, usually as a tuple. We can then destruct the tuple inside the precondition to access the rest of the witness. In the precondition, \textsf{LOCAL} must hold a \textsf{temp} for the argument followed by zero or more global variables. The \textsf{PROP} and \textsf{SEP} clauses are unrestricted. The postcondition must be completely empty, reflecting the separation logic rule for \texttt{spawn}. In this example, the thread function takes a readable share of the lock protecting \texttt{ctr}, along with the same share of a recursive lock for joining; the pointers to the locks and to \texttt{ctr} are taken from global variables, while the argument to the function is ignored entirely. The proof of this specification is straightforward until we reach the last line, where the spawned thread releases its lock (using the \texttt{release2} function, which is specialized to recursive locks). At that point, we unroll the definition of \textsf{selflock} and show that the invariant is satisfied by precisely all the resources held by the thread.
+The \textsf{WITH} clause must have exactly two elements: one of type \textsf{val} that holds the argument passed to the function, and another that holds the entire rest of the witness, usually as a tuple. We can then destruct the tuple inside the precondition to access the rest of the witness. In the precondition, \textsf{LOCAL} must hold a \textsf{temp} for the argument, followed by the global variables. The \textsf{PROP} and \textsf{SEP} clauses are unrestricted. The postcondition must be completely empty, reflecting the separation logic rule for \texttt{spawn}. In this example, the thread function takes a readable share of the lock protecting \texttt{ctr}, along with the same share of a recursive lock for joining; the pointers to the locks and to \texttt{ctr} are taken from global variables, while the argument to the function is ignored entirely. The proof of this specification is straightforward until we reach the last line, where the spawned thread releases its lock (using the \texttt{release2} function, which is specialized to recursive locks). At that point, we unroll the definition of \textsf{selflock} and show that the invariant is satisfied by precisely all the resources held by the thread.
 
 Verifying the \texttt{main} function, which spawns the thread, is more complicated. First, we create the locks used by \texttt{ctr} and $\mathtt{thread\_func}$, using the \texttt{makelock} function:
 $$\{!!\mathsf{writable\_share}\ \mathit{sh} \land \ell \xmapsto{\mathit{sh}} \_\}\ \texttt{makelock}(\ell)\ \{\mathsf{lock\_inv}\ \mathit{sh}\ \ell\ R\}$$
@@ -109,7 +112,7 @@ Next, we divide the locks into shares: one for the spawned function, and one ret
 
 Next, we spawn the child thread using the $\mathsf{forward\_spawn}$ tactic, a \texttt{spawn}-specific wrapper around $\mathsf{forward\_call}$. Its general form is $\mathsf{forward\_spawn}\ \mathit{id} \mathit{arg}\ \mathit{w}$, where $\mathit{id}$ is the identifier of the function to be spawned, $\mathit{arg}$ is the value of the provided argument, and $\mathit{w}$ is the rest of the witness for the spawned function. The tactic automatically discharges the proof obligations of the spawn rule, leaving us to prove only the precondition of the spawned function. In this example, we split off a share of each of the locks and provide it to the spawned thread to satisfy the precondition of $\mathtt{thread\_func}$, while retaining the other share so that \texttt{main} can invoke the \texttt{incr} function in parallel with the spawned thread.
 
-Finally, we join with the spawned thread by acquiring its lock. Because the lock is recursive, acquiring it allows us to retrieve the other half of both locks, regaining full ownership. This allows us to deallocate the locks with calls to \texttt{freelock} (for the non-recursive \texttt{ctr} lock) and \texttt{freelock2} (for the recursive thread lock). We must hold a lock in order to free it, as seen in the \texttt{freelock} rule:
+Finally, we join with the spawned thread by acquiring its lock. Because the lock is recursive, acquiring it allows us to retrieve the other half of both the thread lock and the counter lock, regaining full ownership. This allows us to deallocate the locks with calls to \texttt{freelock} (for the non-recursive \texttt{ctr} lock) and \texttt{freelock2} (for the recursive thread lock). We must hold a lock in order to free it, as seen in the \texttt{freelock} rule:
 $$\{!!(\mathsf{writable\_share}\ \mathit{sh} \land \mathsf{exclusive}\ R) * R * \mathsf{lock\_inv}\ \mathit{sh}\ \ell\ R\}\ \texttt{freelock}(\ell)\ \{R * \ell \xmapsto{\mathit{sh}} \_\}$$
 The freed lock converts back into an ordinary memory location, and we can store data in it or convert it into a lock with a different invariant. In this example, we simply end the program instead.
 
@@ -128,51 +131,51 @@ The thread that holds the other half of $g1$ or $g2$ can thus record its contrib
 Next, we modify each specification to take the ghost variables into account. Our specification for \texttt{incr} now needs to know which ghost variable the caller wants to increment, so it takes a boolean \textsf{left} telling it whether we are looking at the left ($g1$) or right ($g2$) ghost variable. (In Section~\ref{incrN}, we will generalize this to allow the caller to pass any \textsf{gname} from a list.)
 \begin{verbatim}
  DECLARE _incr
-  WITH ctr : val, sh : share, lock : val,
-       g1 : gname, g2 : gname, left : bool, n : Z
+  WITH sh : share, g1 : gname, g2 : gname, left : bool, n : Z, gv: globals
   PRE [ ]
-         PROP  (readable_share sh)
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (lock_inv sh lock (cptr_lock_inv g1 g2 ctr);
-                ghost_var gsh2 n (if left then g1 else g2))
+     PROP  (readable_share sh)
+     LOCAL (gvars gv)
+     SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr));
+            ghost_var gsh2 n (if left then g1 else g2))
   POST [ tvoid ]
-         PROP ()
-         LOCAL ()
-         SEP (lock_inv sh lock (cptr_lock_inv g1 g2 ctr);
-              ghost_var gsh2 (n+1) (if left then g1 else g2)).
+     PROP ()
+     LOCAL ()
+     SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr));
+          ghost_var gsh2 (n+1) (if left then g1 else g2)).
 \end{verbatim}
 
 Holding one of the ghost variables is not enough to guarantee anything about the value returned by \texttt{read}, but if we hold both of them, we should be able to predict the result.
 \begin{verbatim}
  DECLARE _read
-  WITH ctr : val, sh : share, lock : val,
-       g1 : gname, g2 : gname, n1 : Z, n2 : Z
+  WITH sh : share, g1 : gname, g2 : gname, n1 : Z, n2 : Z, gv: globals
   PRE [ ]
-         PROP  (readable_share sh)
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (lock_inv sh lock (cptr_lock_inv g1 g2 ctr);
-                ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2)
+     PROP  (readable_share sh)
+     LOCAL (gvars gv)
+     SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr));
+            ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2)
   POST [ tuint ]
-         PROP ()
-         LOCAL (temp ret_temp (Vint (Int.repr (n1 + n2))))
-         SEP (lock_inv sh lock (cptr_lock_inv g1 g2 ctr);
-              ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2).
+     PROP ()
+     LOCAL (temp ret_temp (Vint (Int.repr (n1 + n2))))
+     SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr));
+          ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2).
 \end{verbatim}
 
 Finally, we add ownership of ghost variable $g1$ to the resources passed to \texttt{thread\_func} (and collected by its lock when it terminates):
 \begin{verbatim}
  DECLARE _thread_func
-  WITH y : val, x : val * share * val * val * gname * gname
+  WITH y : val, x : share * gname * gname * globals
   PRE [ _args OF (tptr tvoid) ]
-         let '(ctr, sh, lock, lockt, g1, g2) := x in
-         PROP  (readable_share sh)
-         LOCAL (temp _args y; gvar _ctr ctr; gvar _ctr_lock lock;
-                gvar _thread_lock lockt)
-         SEP   (lock_inv sh lock (cptr_lock_inv g1 g2 ctr);
-                ghost_var gsh2 0 g1;
-                lock_inv sh lockt (thread_lock_inv sh g1 g2 ctr lock lockt))
+     let '(sh, g1, g2, gv) := x in
+     PROP  (readable_share sh)
+     LOCAL (temp _args y; gvars gv)
+     SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr));
+            ghost_var gsh2 0 g1;
+            lock_inv sh (gv _thread_lock)
+                (thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)))
   POST [ tptr tvoid ]
-         PROP () LOCAL () SEP ().
+     PROP ()
+     LOCAL ()
+     SEP ().
 \end{verbatim}
 The value of $g1$ starts at 0, and should be 1 by the time the thread terminates, as reflected in \texttt{thread\_lock\_R}.
 
@@ -199,33 +202,32 @@ To adapt our specifications to $N$ threads, we first generalize the counter lock
 (In Coq, we can write iterated separating conjunction over a list with $\mathsf{iter\_sepcon}$, or over two lists with $\mathsf{iter\_sepcon}$.) The specifications for the previously existing functions are modified accordingly, taking an index $i$ into the list of ghost variables to indicate which variable will be used to record the calling thread's operations (and \texttt{thread\_func} now takes as its argument the lock it should use to join). The specification for the new function \texttt{init\_ctr} takes the number $N$ of simultaneous threads to support; although $N$ does not appear in the body of the function, in the specification we need to know how many ghost variables to create.
 \begin{verbatim}
  DECLARE _init_ctr
-  WITH N : Z, ctr : val, lock : val
+  WITH N : Z, gv: globals
   PRE [ ]
-         PROP  (0 <= N)
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (data_at_ Ews tuint ctr;
-                data_at_ Ews tlock lock)
+     PROP  (0 <= N)
+     LOCAL (gvars gv)
+     SEP   (data_at_ Ews tuint (gv _ctr); data_at_ Ews tlock (gv _ctr_lock))
   POST [ tvoid ]
     EX lg : list gname,
-         PROP (Zlength lg = N)
-         LOCAL ()
-         SEP (lock_inv Ews lock (cptr_lock_inv lg ctr);
-              iter_sepcon (ghost_var gsh2 0) lg).
+     PROP (Zlength lg = N)
+     LOCAL ()
+     SEP (lock_inv Ews (gv _ctr_lock) (cptr_lock_inv lg (gv _ctr));
+          iter_sepcon (ghost_var gsh2 0) lg).
 \end{verbatim}
 After the call, \texttt{ctr} is protected by its lock with the invariant, and $N$ ghost variables have been initialized to 0 (as, by implication, has \texttt{ctr} itself). Destructing the counter does the same thing in reverse:
 \begin{verbatim}
  DECLARE _dest_ctr
-  WITH lg : list gname, lv : list Z, ctr : val, lock : val
+  WITH lg : list gname, lv : list Z, gv: globals
   PRE [ ]
-         PROP  ()
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (lock_inv Ews (gv lock) (cptr_lock_inv lg ctr);
-                iter_sepcon2 (fun g v => ghost_var gsh2 v g) lg lv)
+     PROP  ()
+     LOCAL (gvars gv)
+     SEP   (lock_inv Ews (gv _ctr_lock) (cptr_lock_inv lg (gv _ctr));
+            iter_sepcon2 (fun g v => ghost_var gsh2 v g) lg lv)
   POST [ tvoid ]
-         PROP ()
-         LOCAL ()
-         SEP (data_at Ews tuint (vint (sum lv)) ctr;
-              data_at_ Ews tlock lock).
+     PROP ()
+     LOCAL ()
+     SEP (data_at Ews tuint (vint (sum lv)) (gv _ctr);
+          data_at_ Ews tlock (gv _ctr_lock)).
 \end{verbatim}
 The \texttt{dest\_ctr} function retrieves the free shares of all $N$ ghost variables ($N = \mathrm{length}\ \mathit{lg}$, so it does not need to be passed explicitly), and frees the lock, guaranteeing that the current value of \texttt{ctr} is the sum of the values of the ghost variables.
 
@@ -250,9 +252,9 @@ The frame-preserving updates allowed by the join relation of each kind of ghost 
 
 \subsection{Example: \texttt{incr} with Unbounded Threads}
 \label{incr-gen}
-We can put custom ghost state to use in generalizing the \texttt{incr} example still further. In Section~\ref{incrN}, each time we initialized the counter, we chose a bound $N$ on the number of threads that could access the counter simultaneously, and made $N$ ghost variables for that purpose. But in fact, the value of the counter has nothing to do with which threads accessed it---each call to \texttt{incr} increments its value by 1, regardless of which thread calls \texttt{incr} or how many other threads have access to it. We should be able to track the counter's value with a single piece of ghost state that simply accumulates the number of calls to \texttt{incr}. In this section, we will define custom ghost state to do exactly that.
+We can put custom ghost state to use in generalizing the \texttt{incr} example still further. In Section~\ref{incrN}, each time we initialized the counter, we chose a bound $N$ on the number of threads that could access the counter simultaneously, and made $N$ ghost variables for that purpose. But in fact, the value of the counter has nothing to do with which threads accessed it---each call to \texttt{incr} increments its value by 1, regardless of which thread calls \texttt{incr} or how many other threads have access to it. We should be able to track the counter's value with a single piece of ghost state that simply accumulates the number of calls to \texttt{incr}. In this section, we will define custom ghost state to do exactly that, following the lead of Ley-Wild and Nanevski~\cite{subjective}.
 
-We begin by declaring an instance of the \textsf{Ghost} typeclass. A \textsf{Ghost} instance has three fields: a carrier type $G$, a predicate $\mathsf{valid}$ on $G$, and a join relation $\mathsf{Join\_G}$. It also has three proof obligations: it must be a separation algebra and a permission algebra, and validity of an element must imply validity of its sub-elements according to $\mathsf{Join\_G}$. To be a permission algebra, the join predicate must be functional, associative, commutative, and non-decreasing; to be a separation algebra, it must support a function $\mathsf{core}\ :\ G \rightarrow G$ that, for each element, gives a unit for that element. These are not fundamental requirements for ghost state in general, but VST expects them to hold of the heap, and so it is convenient to impose them on ghost state as well.
+We begin by declaring an instance of the \textsf{Ghost} typeclass. A \textsf{Ghost} instance has three fields: a carrier type $G$, a predicate $\mathsf{valid}$ on $G$, and a join relation $\mathsf{Join\_G}$. It also has three proof obligations: it must be a separation algebra and a permission algebra, and validity of an element must imply validity of its sub-elements according to $\mathsf{Join\_G}$. To be a permission algebra, the join predicate must be functional, associative, commutative, and non-decreasing; to be a separation algebra, it must support a function $\mathsf{core}\::\:G \rightarrow G$ that, for each element, gives a unit for that element. These are not fundamental requirements for ghost state in general, but VST expects them to hold of the heap, and so it is convenient to impose them on ghost state as well.
 
 For our example, we want to count the number of \texttt{incr} calls in two places. First, each time a thread calls \texttt{incr}, it should record that it has made a call. Second, the counter's lock invariant should record the total number of calls made, since that should also be the value of the counter. If we omit the latter record, then our ghost state will count the number of calls made, but there will be nothing to connect this number to the value of \texttt{ctr}. This is a common pattern for ghost state, which we call the \emph{reference} pattern: each thread holds partial information describing its contribution to the shared state, and the shared resource holds a ``reference'' copy that records all of the contributions. We provide a function $\mathsf{ref\_PCM}$ that makes such a reference structure for any \textsf{Ghost} instance. An element of $\mathsf{ref\_PCM}$ is a pair of an optional contribution element $\mathsf{ghost\_part}\ \mathit{sh}\ a$ and an optional reference element $\mathsf{ghost\_reference}\ r$, where $a$ and $r$ are drawn from the underlying \textsf{Ghost} instance, and $\mathit{sh}$ is a nonempty share. To join two elements, we combine the shares and values of the contributions (if any), and require that the elements contain at most one reference between them (ensuring the uniqueness of the reference value). When a contribution element has the full share \textsf{Tsh}, it is guaranteed to be equal to the reference element, since this means we have collected all of the contributions. In general, we start by creating an initial contribution element and reference element, store the reference in the invariant of the shared data, and divide the contribution element into shares that we distribute to each thread. The contribution elements then record all the contributions of every thread, and when we rejoin them at the end of the program we learn exactly what all threads have done collectively and can deduce the state of the shared data. We will work this out in detail in the rest of the example.
 
@@ -329,9 +331,9 @@ A program instruction can use the contents of a global invariant if it can guara
 The Iris proof rule for atomic operations is:
 $$\inference[atomic consequence]{P \vs[E][E \setminus E'] P' & \{P'\}\ e\ \{Q'\} & Q' \vs[E \setminus E'][E] Q & e \text{ atomic}}{\{P\}\ e\ \{Q\}}$$
 In other words, we can open a set of invariants $E'$ (using the rule \textsf{inv\_open} from section~\ref{inv}), prove a triple for the atomic operation $e$ using the resources from the invariants, and then restore them. In C, we have a small fixed set of atomic operations, so instead of adding an atomic predicate to the definition of the language, we can just instantiate this rule for each atomic operation. For instance, we know that the rule for a load is $\{x \mapsto v\}\ \texttt{y = *x}\ \{!!(y = x)\ \&\&\ x \mapsto v\}$. Plugging this into the Hoare triple in the consequence rule gives us:
-$$\inference[atomic load]{P \vs[E][E \setminus E'] x \mapsto v * R & !!(y = x)\ \&\&\ x \mapsto v * R \vs[E \setminus E'][E] Q}{\{P\}\ y = \texttt{atomic\_load}(x)\ \{Q\}}$$
+$$\inference[atomic load]{P \vs[E][E \setminus E'] x \mapsto v * R & !!(y = v)\ \&\&\ x \mapsto v * R \vs[E \setminus E'][E] Q}{\{P\}\ y = \texttt{atomic\_load}(x)\ \{Q\}}$$
 where we use the frame $R$ to store everything that isn't the memory location being accessed. We can get around the need to supply the frame by using magic wand instead:
-$$\inference[atomic load]{P \vs[E][E \setminus E'] x \mapsto v * (!!(y = x)\ \&\&\ x \mapsto v \wand \pvs[E \setminus E'][E] Q)}{\{P\}\ y = \texttt{atomic\_load}(x)\ \{Q\}}$$
+$$\inference[atomic load]{P \vs[E][E \setminus E'] x \mapsto v * (!!(y = v)\ \&\&\ x \mapsto v \wand \pvs[E \setminus E'][E] Q)}{\{P\}\ y = \texttt{atomic\_load}(x)\ \{Q\}}$$
 $$\inference[atomic store]{P \vs[E][E \setminus E'] x \mapsto \_ * (x \mapsto v \wand \pvs[E \setminus E'][E] Q)}{\{P\}\ \texttt{atomic\_store}(x, v)\ \{Q\}}$$
 Now we can see that if an invariant $I$ contains a points-to assertion $\texttt{x} \mapsto v$, we can access and modify the value of \texttt{x} using atomic loads and stores (and \emph{only} atomic loads and stores, until we add atomic rules for other operations). The VST specifications corresponding to these rules can be found in \texttt{SC\_atomics.v}. They take an additional argument $\mathit{inv\_names} : \mathsf{invG}$, the typeclass used in the invariant construction, but otherwise are simply the translation of the rules above into VST specs.
 
