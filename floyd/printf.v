@@ -259,7 +259,7 @@ Definition fprintf_placeholder_spec FILEid : funspec :=
      tint)
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
      unit
-     (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())
+     (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())%argsassert
      (fun x : unit =>  PROP () LOCAL () SEP ()).
 
 Definition printf_placeholder_spec : funspec :=
@@ -268,7 +268,7 @@ Definition printf_placeholder_spec : funspec :=
      tint)
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
      unit
-     (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())
+     (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())%argsassert
      (fun x : unit =>  PROP () LOCAL () SEP ()).
 
 Axiom fprintf_spec_sub:
