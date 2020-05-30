@@ -19,6 +19,7 @@ Section Proofs.
 
 Definition atomic_int := Tstruct _atom_int noattr.
 Variable atomic_int_at : share -> val -> val -> mpred.
+Hypothesis atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p.
 
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
@@ -389,22 +390,22 @@ Proof.
   start_function.
   unfold atomic_shift; Intros P.
   set (AS := ashift _ _ _ _ _ _).
+  forward.
   forward_call k.
   pose proof size_pos.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
-    LOCAL (temp _idx (vint i1); temp _key (vint k); temp _value (vint v); gvars gv)
-    SEP (|> P; AS && cored;
-         @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
+    LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
+    SEP (|> P; AS && cored; data_at Tsh tint (vint 0) v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))))%assert
     continue: (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (Int.min_signed <= Int.signed (Int.repr i1) < Int.max_signed; i1 mod size = (i + hash k) mod size;
           0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase keys (hash k))))
-    LOCAL (temp _idx (vint i1); temp _key (vint k); temp _value (vint v); gvars gv)
-    SEP (|> P; AS && cored; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
+    LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
+    SEP (|> P; AS && cored; data_at Tsh tint (vint 0) v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
@@ -425,10 +426,10 @@ Proof.
     assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
     { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
     sep_apply cored_dup.
-    forward_call (pki, top, empty,
+    forward_call atomic_load_int (pki, top, empty,
       fun v : Z => |> P * ghost_snap v (Znth (i1 mod size) lg), inv_names).
     { rewrite -> !sepcon_assoc, sepcon_comm.
-      rewrite <- !sepcon_assoc, -> 2sepcon_assoc; apply sepcon_derives; cancel. (* IPM doesn't do cancel_frame *)
+      rewrite <- !sepcon_assoc, -> 3sepcon_assoc; apply sepcon_derives; cancel. (* IPM doesn't do cancel_frame *)
       iIntros "([AS1 _] & P)".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
@@ -487,7 +488,7 @@ Proof.
         entailer!. }
       Intros; subst.
       sep_apply cored_dup.
-      forward_call (pki, 0, k, top, empty,
+      forward_call atomic_CAS_int (pki, Tsh, v_ref, 0, k, top, empty,
         fun v : Z => |> P * ghost_snap (if eq_dec v 0 then k else v) (Znth (i1 mod size) lg) *
           iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
              (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i)), inv_names).
@@ -544,15 +545,15 @@ Proof.
         rewrite !upd_Znth_diff'; auto; try omega.
         apply Z_mod_lt; auto. }
       Intros k1.
-      focus_SEP 1.
+      focus_SEP 2.
       match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
         sep_apply cored_dup.
-        forward_call (pki, top, empty,
+        forward_call atomic_load_int (pki, top, empty,
           fun v : Z => |> P * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
         { simpl; cancel.
-          subst Frame; instantiate (1 := [iter_sepcon _ _; AS && cored; data_at _ (tarray tentry _) entries _]); simpl; cancel.
+          subst Frame; instantiate (1 := [iter_sepcon _ _; AS && cored; data_at _ tint (vint 0) v_ref; data_at _ (tarray tentry _) entries _]); simpl; cancel.
           apply sepcon_derives, derives_refl.
           iIntros "(([AS1 _] & snap) & P)".
           iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
@@ -606,8 +607,8 @@ Proof.
       subst; entailer!.
     + forward; setoid_rewrite Hpi.
       { entailer!. }
-      forward_call (pvi, v, top, empty, Q, inv_names).
-      { subst Frame; instantiate (1 := [data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
+      forward_call atomic_store_int (pvi, v, top, empty, Q, inv_names).
+      { subst Frame; instantiate (1 := [data_at Tsh tint (vint 0) v_ref; data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
         iIntros "(((snap & P) & snaps) & [AS1 _])".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
@@ -620,7 +621,7 @@ Proof.
         destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
         iDestruct "entries" as "((((% & master) & k) & v) & entries)".
         iModIntro; iExists Ews.
-        iPoseProof (data_at_data_at_ _ tint with "v") as "$".
+        iPoseProof (atomic_int_at__ with "v") as "$".
         iSplitL ""; [auto|].
         iIntros "v".
         iAssert (!! (ki = k)) as %Hk.
@@ -664,6 +665,7 @@ Proof.
           rewrite -> !upd_Znth_diff' by omega; auto.
           apply Z_mod_lt; auto. }
       forward.
+      cancel.
   - Intros i i1 keys.
     forward.
     { entailer!.
@@ -716,7 +718,7 @@ Proof.
     assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
     { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
     sep_apply cored_dup.
-    forward_call (pki, top, empty,
+    forward_call atomic_load_int (pki, top, empty,
       fun v => if eq_dec v 0 then Q v else |> P * ghost_snap v (Znth (i1 mod size) lg) *
         iter_sepcon (fun i0 : Z => ghost_snap (Znth ((i0 + hash k) mod size) keys)
           (Znth ((i0 + hash k) mod size) lg)) (upto (Z.to_nat i)), inv_names).
@@ -771,7 +773,7 @@ Proof.
     + subst; if_tac; [contradiction | Intros].
       forward; setoid_rewrite Hpi.
       { entailer!. }
-      forward_call (pvi, top, empty, Q, inv_names).
+      forward_call atomic_load_int (pvi, top, empty, Q, inv_names).
       { subst Frame; instantiate (1 := [data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
         iIntros "(((P & snap) & snaps) & [AS1 _])".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
@@ -878,21 +880,22 @@ Proof.
   start_function.
   unfold atomic_shift; Intros P.
   set (AS := ashift _ _ _ _ _ _).
+  forward.
   forward_call k.
   pose proof size_pos.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
-    LOCAL (temp _idx (vint i1); temp _key (vint k); temp _value (vint v); gvars gv)
-    SEP (|> P; AS && cored; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
+    LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
+    SEP (|> P; AS && cored; data_at Tsh tint (vint 0) v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))))%assert
     continue: (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (Int.min_signed <= Int.signed (Int.repr i1) < Int.max_signed;
           i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase keys (hash k))))
-    LOCAL (temp _idx (vint i1); temp _key (vint k); temp _value (vint v); gvars gv)
-    SEP (|> P; AS && cored; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
+    LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
+    SEP (|> P; AS && cored; data_at Tsh tint (vint 0) v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
@@ -913,8 +916,8 @@ Proof.
     assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
     { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
     sep_apply cored_dup.
-    forward_call (pki, top, empty, fun v : Z => |> P * ghost_snap v (Znth (i1 mod size) lg), inv_names).
-    { subst Frame; instantiate (1 := [AS && cored; data_at _ (tarray tentry _) entries _; iter_sepcon _ _]); simpl; cancel.
+    forward_call atomic_load_int (pki, top, empty, fun v : Z => |> P * ghost_snap v (Znth (i1 mod size) lg), inv_names).
+    { subst Frame; instantiate (1 := [AS && cored; data_at Tsh tint (vint 0) v_ref; data_at _ (tarray tentry _) entries _; iter_sepcon _ _]); simpl; cancel.
       apply sepcon_derives, derives_refl.
       iIntros "([AS1 _] & P)".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
@@ -975,7 +978,7 @@ Proof.
         entailer!. }
       Intros; subst.
       sep_apply cored_dup.
-      forward_call (pki, 0, k, top, empty,
+      forward_call atomic_CAS_int (pki, Tsh, v_ref, 0, k, top, empty,
         fun v : Z => |> P * ghost_snap (if eq_dec v 0 then k else v) (Znth (i1 mod size) lg) *
           iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
             (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i)), inv_names).
@@ -1032,13 +1035,13 @@ Proof.
         rewrite !upd_Znth_diff'; auto; try omega.
         apply Z_mod_lt; auto. }
       Intros k1.
-      focus_SEP 1.
+      focus_SEP 2.
       match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
         sep_apply cored_dup.
-        forward_call (pki, top, empty, fun v : Z => |> P * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
-        { subst Frame; instantiate (1 := [iter_sepcon _ _; AS && cored; data_at _ (tarray tentry _) entries _]); simpl; cancel.
+        forward_call atomic_load_int (pki, top, empty, fun v : Z => |> P * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
+        { subst Frame; instantiate (1 := [iter_sepcon _ _; AS && cored; data_at Tsh tint (vint 0) v_ref; data_at _ (tarray tentry _) entries _]); simpl; cancel.
           apply sepcon_derives, derives_refl.
           iIntros "(([AS1 _] & snap) & P)".
           iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
@@ -1094,7 +1097,7 @@ Proof.
       subst; entailer!.
     + forward; setoid_rewrite Hpi.
       { entailer!. }
-      forward_call (pvi, 0, v, top, empty, fun v => Q (if eq_dec v 0 then true else false), inv_names).
+      forward_call atomic_CAS_int (pvi, Tsh, v_ref, 0, v, top, empty, fun v => Q (if eq_dec v 0 then true else false), inv_names).
       { subst Frame; instantiate (1 := [data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
         iIntros "(((snap & P) & [AS1 _]) & snaps)".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
@@ -1208,7 +1211,7 @@ Proof.
   - Intros lg.
     ghost_alloc (ghost_master1 0).
     Intros gk.
-    forward_call (tint, gv).
+    forward_call (vint 0).
     { split; auto; simpl; computable. }
     Intros pk.
     rewrite iter_sepcon_map; Intros.
@@ -1297,11 +1300,13 @@ Proof.
   - destruct (H k); simple_if_tac; auto.
 Qed.
 
+Context {atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p)}.
+
 Instance hashtable_entry_timeless : forall T lg entries i, Timeless (hashtable_entry T lg entries i).
 Proof.
   intros; unfold hashtable_entry.
   destruct (Znth i entries), (Znth i T).
-  apply (@bi.sep_timeless), data_at_timeless.
+  apply (@bi.sep_timeless), _.
   apply (@bi.sep_timeless), data_at_timeless.
   apply (@bi.and_timeless); [apply (@bi.pure_timeless) | apply own_timeless].
 Qed.

@@ -19,6 +19,7 @@ int integer_hash(int i){
 }
 
 void set_item(int key, int value){
+  int ref = 0;
   for(int idx = integer_hash(key);; idx++){
     idx &= ARRAY_SIZE - 1;
     atom_int *i = m_entries[idx].key;
@@ -27,7 +28,7 @@ void set_item(int key, int value){
       //The entry was either free, or contains another key.
       if (probed_key != 0)
 	continue;
-      int result = atom_CAS(i, 0, key);
+      int result = atom_CAS(i, &ref, key);
       //This bit is a little different, since C11 doesn't have a CAS that returns the old value.
       if(!result){
 	//CAS failed, so a key has been added. Is it the one we're looking for?
@@ -61,6 +62,7 @@ int get_item(int key){
 //overwrite a set's value. In other words, the version in hashtable1.c isn't linearizable
 //wrt set (and we discovered this through atomicity proofs!).
 int add_item(int key, int value){
+  int ref = 0;
   for(int idx = integer_hash(key);; idx++){
     idx &= ARRAY_SIZE - 1;
     atom_int *i = m_entries[idx].key;
@@ -68,14 +70,14 @@ int add_item(int key, int value){
     if (probed_key != key){
       if (probed_key != 0)
 	continue;
-      int result = atom_CAS(i, 0, key);
+      int result = atom_CAS(i, &ref, key);
       if(!result){
 	probed_key = atom_load(i);
 	if(probed_key != key) continue;
       }
     }
     i = m_entries[idx].value;
-    return atom_CAS(i, 0, value); //only add if no one else has set the value
+    return atom_CAS(i, &ref, value); //only add if no one else has set the value
   }
 }
 

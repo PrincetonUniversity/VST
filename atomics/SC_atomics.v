@@ -26,6 +26,7 @@ Variable atomic_int : type.
 (* Variable is_atomic_version : type -> type -> Prop.
    Variable _Atomic : type -> type. *)
 Variable atomic_int_at : share -> val -> val -> mpred.
+Hypothesis atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p.
 (*Variable atom_ptr_at : share -> val -> val -> mpred.*)
 
 Definition make_atomic_spec :=

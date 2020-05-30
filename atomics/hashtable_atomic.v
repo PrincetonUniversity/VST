@@ -11,7 +11,7 @@ Module Info.
   Definition abi := "standard"%string.
   Definition bitsize := 32.
   Definition big_endian := false.
-  Definition source_file := "hashtable_atomic.c"%string.
+  Definition source_file := "atomics/hashtable_atomic.c"%string.
   Definition normalized := false.
 End Info.
 
@@ -69,54 +69,55 @@ Definition ___compcert_va_int32 : ident := 21%positive.
 Definition ___compcert_va_int64 : ident := 22%positive.
 Definition _a : ident := 1%positive.
 Definition _acquire : ident := 63%positive.
-Definition _add_item : ident := 84%positive.
-Definition _arg : ident := 86%positive.
+Definition _add_item : ident := 85%positive.
+Definition _arg : ident := 87%positive.
 Definition _atom_CAS : ident := 70%positive.
 Definition _atom_int : ident := 3%positive.
 Definition _atom_load : ident := 68%positive.
 Definition _atom_store : ident := 69%positive.
 Definition _entry : ident := 6%positive.
 Definition _exit : ident := 59%positive.
-Definition _f : ident := 92%positive.
+Definition _f : ident := 93%positive.
 Definition _free : ident := 60%positive.
 Definition _freelock2 : ident := 64%positive.
-Definition _get_item : ident := 83%positive.
+Definition _get_item : ident := 84%positive.
 Definition _i : ident := 77%positive.
-Definition _i__1 : ident := 93%positive.
-Definition _i__2 : ident := 94%positive.
-Definition _i__3 : ident := 96%positive.
-Definition _idx : ident := 79%positive.
-Definition _init_table : ident := 85%positive.
+Definition _i__1 : ident := 94%positive.
+Definition _i__2 : ident := 95%positive.
+Definition _i__3 : ident := 97%positive.
+Definition _idx : ident := 80%positive.
+Definition _init_table : ident := 86%positive.
 Definition _integer_hash : ident := 78%positive.
 Definition _key : ident := 4%positive.
-Definition _l : ident := 88%positive.
-Definition _l__1 : ident := 95%positive.
+Definition _l : ident := 89%positive.
+Definition _l__1 : ident := 96%positive.
 Definition _lock_t : ident := 2%positive.
 Definition _m_entries : ident := 71%positive.
-Definition _main : ident := 97%positive.
+Definition _main : ident := 98%positive.
 Definition _make_atomic : ident := 67%positive.
 Definition _makelock : ident := 62%positive.
 Definition _malloc : ident := 61%positive.
 Definition _n : ident := 74%positive.
 Definition _p : ident := 75%positive.
-Definition _probed_key : ident := 80%positive.
-Definition _r : ident := 91%positive.
+Definition _probed_key : ident := 81%positive.
+Definition _r : ident := 92%positive.
+Definition _ref : ident := 79%positive.
 Definition _release2 : ident := 65%positive.
-Definition _res : ident := 89%positive.
-Definition _result : ident := 81%positive.
+Definition _res : ident := 90%positive.
+Definition _result : ident := 82%positive.
 Definition _results : ident := 73%positive.
-Definition _set_item : ident := 82%positive.
+Definition _set_item : ident := 83%positive.
 Definition _spawn : ident := 66%positive.
 Definition _surely_malloc : ident := 76%positive.
-Definition _t : ident := 87%positive.
+Definition _t : ident := 88%positive.
 Definition _thread_locks : ident := 72%positive.
-Definition _total : ident := 90%positive.
+Definition _total : ident := 91%positive.
 Definition _value : ident := 5%positive.
-Definition _t'1 : ident := 98%positive.
-Definition _t'2 : ident := 99%positive.
-Definition _t'3 : ident := 100%positive.
-Definition _t'4 : ident := 101%positive.
-Definition _t'5 : ident := 102%positive.
+Definition _t'1 : ident := 99%positive.
+Definition _t'2 : ident := 100%positive.
+Definition _t'3 : ident := 101%positive.
+Definition _t'4 : ident := 102%positive.
+Definition _t'5 : ident := 103%positive.
 
 Definition v_m_entries := {|
   gvar_info := (tarray (Tstruct _entry noattr) 16384);
@@ -175,102 +176,107 @@ Definition f_set_item := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_key, tint) :: (_value, tint) :: nil);
-  fn_vars := nil;
+  fn_vars := ((_ref, tint) :: nil);
   fn_temps := ((_idx, tint) :: (_i, (tptr (Tstruct _atom_int noattr))) ::
                (_probed_key, tint) :: (_result, tint) :: (_t'4, tint) ::
                (_t'3, tint) :: (_t'2, tint) :: (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
+  (Sassign (Evar _ref tint) (Econst_int (Int.repr 0) tint))
   (Ssequence
-    (Scall (Some _t'1)
-      (Evar _integer_hash (Tfunction (Tcons tint Tnil) tint cc_default))
-      ((Etempvar _key tint) :: nil))
-    (Sset _idx (Etempvar _t'1 tint)))
-  (Sloop
     (Ssequence
-      Sskip
+      (Scall (Some _t'1)
+        (Evar _integer_hash (Tfunction (Tcons tint Tnil) tint cc_default))
+        ((Etempvar _key tint) :: nil))
+      (Sset _idx (Etempvar _t'1 tint)))
+    (Sloop
       (Ssequence
-        (Sset _idx
-          (Ebinop Oand (Etempvar _idx tint)
-            (Ebinop Osub (Econst_int (Int.repr 16384) tint)
-              (Econst_int (Int.repr 1) tint) tint) tint))
+        Sskip
         (Ssequence
-          (Sset _i
-            (Efield
-              (Ederef
-                (Ebinop Oadd
-                  (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
-                  (Etempvar _idx tint) (tptr (Tstruct _entry noattr)))
-                (Tstruct _entry noattr)) _key
-              (tptr (Tstruct _atom_int noattr))))
+          (Sset _idx
+            (Ebinop Oand (Etempvar _idx tint)
+              (Ebinop Osub (Econst_int (Int.repr 16384) tint)
+                (Econst_int (Int.repr 1) tint) tint) tint))
           (Ssequence
+            (Sset _i
+              (Efield
+                (Ederef
+                  (Ebinop Oadd
+                    (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
+                    (Etempvar _idx tint) (tptr (Tstruct _entry noattr)))
+                  (Tstruct _entry noattr)) _key
+                (tptr (Tstruct _atom_int noattr))))
             (Ssequence
-              (Scall (Some _t'2)
-                (Evar _atom_load (Tfunction
-                                   (Tcons (tptr (Tstruct _atom_int noattr))
-                                     Tnil) tint cc_default))
-                ((Etempvar _i (tptr (Tstruct _atom_int noattr))) :: nil))
-              (Sset _probed_key (Etempvar _t'2 tint)))
-            (Ssequence
-              (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
-                             (Etempvar _key tint) tint)
-                (Ssequence
-                  (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
-                                 (Econst_int (Int.repr 0) tint) tint)
-                    Scontinue
-                    Sskip)
+              (Ssequence
+                (Scall (Some _t'2)
+                  (Evar _atom_load (Tfunction
+                                     (Tcons (tptr (Tstruct _atom_int noattr))
+                                       Tnil) tint cc_default))
+                  ((Etempvar _i (tptr (Tstruct _atom_int noattr))) :: nil))
+                (Sset _probed_key (Etempvar _t'2 tint)))
+              (Ssequence
+                (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
+                               (Etempvar _key tint) tint)
                   (Ssequence
+                    (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
+                                   (Econst_int (Int.repr 0) tint) tint)
+                      Scontinue
+                      Sskip)
                     (Ssequence
-                      (Scall (Some _t'3)
-                        (Evar _atom_CAS (Tfunction
+                      (Ssequence
+                        (Scall (Some _t'3)
+                          (Evar _atom_CAS (Tfunction
+                                            (Tcons
+                                              (tptr (Tstruct _atom_int noattr))
+                                              (Tcons (tptr tint)
+                                                (Tcons tint Tnil))) tint
+                                            cc_default))
+                          ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
+                           (Eaddrof (Evar _ref tint) (tptr tint)) ::
+                           (Etempvar _key tint) :: nil))
+                        (Sset _result (Etempvar _t'3 tint)))
+                      (Sifthenelse (Eunop Onotbool (Etempvar _result tint)
+                                     tint)
+                        (Ssequence
+                          (Ssequence
+                            (Scall (Some _t'4)
+                              (Evar _atom_load (Tfunction
+                                                 (Tcons
+                                                   (tptr (Tstruct _atom_int noattr))
+                                                   Tnil) tint cc_default))
+                              ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
+                               nil))
+                            (Sset _probed_key (Etempvar _t'4 tint)))
+                          (Sifthenelse (Ebinop One
+                                         (Etempvar _probed_key tint)
+                                         (Etempvar _key tint) tint)
+                            Scontinue
+                            Sskip))
+                        Sskip)))
+                  Sskip)
+                (Ssequence
+                  (Sset _i
+                    (Efield
+                      (Ederef
+                        (Ebinop Oadd
+                          (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
+                          (Etempvar _idx tint)
+                          (tptr (Tstruct _entry noattr)))
+                        (Tstruct _entry noattr)) _value
+                      (tptr (Tstruct _atom_int noattr))))
+                  (Ssequence
+                    (Scall None
+                      (Evar _atom_store (Tfunction
                                           (Tcons
                                             (tptr (Tstruct _atom_int noattr))
-                                            (Tcons (tptr tint)
-                                              (Tcons tint Tnil))) tint
+                                            (Tcons tint Tnil)) tvoid
                                           cc_default))
-                        ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
-                         (Econst_int (Int.repr 0) tint) ::
-                         (Etempvar _key tint) :: nil))
-                      (Sset _result (Etempvar _t'3 tint)))
-                    (Sifthenelse (Eunop Onotbool (Etempvar _result tint)
-                                   tint)
-                      (Ssequence
-                        (Ssequence
-                          (Scall (Some _t'4)
-                            (Evar _atom_load (Tfunction
-                                               (Tcons
-                                                 (tptr (Tstruct _atom_int noattr))
-                                                 Tnil) tint cc_default))
-                            ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
-                             nil))
-                          (Sset _probed_key (Etempvar _t'4 tint)))
-                        (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
-                                       (Etempvar _key tint) tint)
-                          Scontinue
-                          Sskip))
-                      Sskip)))
-                Sskip)
-              (Ssequence
-                (Sset _i
-                  (Efield
-                    (Ederef
-                      (Ebinop Oadd
-                        (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
-                        (Etempvar _idx tint) (tptr (Tstruct _entry noattr)))
-                      (Tstruct _entry noattr)) _value
-                    (tptr (Tstruct _atom_int noattr))))
-                (Ssequence
-                  (Scall None
-                    (Evar _atom_store (Tfunction
-                                        (Tcons
-                                          (tptr (Tstruct _atom_int noattr))
-                                          (Tcons tint Tnil)) tvoid
-                                        cc_default))
-                    ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
-                     (Etempvar _value tint) :: nil))
-                  (Sreturn None))))))))
-    (Sset _idx
-      (Ebinop Oadd (Etempvar _idx tint) (Econst_int (Int.repr 1) tint) tint))))
+                      ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
+                       (Etempvar _value tint) :: nil))
+                    (Sreturn None))))))))
+      (Sset _idx
+        (Ebinop Oadd (Etempvar _idx tint) (Econst_int (Int.repr 1) tint)
+          tint)))))
 |}.
 
 Definition f_get_item := {|
@@ -348,104 +354,110 @@ Definition f_add_item := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_key, tint) :: (_value, tint) :: nil);
-  fn_vars := nil;
+  fn_vars := ((_ref, tint) :: nil);
   fn_temps := ((_idx, tint) :: (_i, (tptr (Tstruct _atom_int noattr))) ::
                (_probed_key, tint) :: (_result, tint) :: (_t'5, tint) ::
                (_t'4, tint) :: (_t'3, tint) :: (_t'2, tint) ::
                (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
+  (Sassign (Evar _ref tint) (Econst_int (Int.repr 0) tint))
   (Ssequence
-    (Scall (Some _t'1)
-      (Evar _integer_hash (Tfunction (Tcons tint Tnil) tint cc_default))
-      ((Etempvar _key tint) :: nil))
-    (Sset _idx (Etempvar _t'1 tint)))
-  (Sloop
     (Ssequence
-      Sskip
+      (Scall (Some _t'1)
+        (Evar _integer_hash (Tfunction (Tcons tint Tnil) tint cc_default))
+        ((Etempvar _key tint) :: nil))
+      (Sset _idx (Etempvar _t'1 tint)))
+    (Sloop
       (Ssequence
-        (Sset _idx
-          (Ebinop Oand (Etempvar _idx tint)
-            (Ebinop Osub (Econst_int (Int.repr 16384) tint)
-              (Econst_int (Int.repr 1) tint) tint) tint))
+        Sskip
         (Ssequence
-          (Sset _i
-            (Efield
-              (Ederef
-                (Ebinop Oadd
-                  (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
-                  (Etempvar _idx tint) (tptr (Tstruct _entry noattr)))
-                (Tstruct _entry noattr)) _key
-              (tptr (Tstruct _atom_int noattr))))
+          (Sset _idx
+            (Ebinop Oand (Etempvar _idx tint)
+              (Ebinop Osub (Econst_int (Int.repr 16384) tint)
+                (Econst_int (Int.repr 1) tint) tint) tint))
           (Ssequence
+            (Sset _i
+              (Efield
+                (Ederef
+                  (Ebinop Oadd
+                    (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
+                    (Etempvar _idx tint) (tptr (Tstruct _entry noattr)))
+                  (Tstruct _entry noattr)) _key
+                (tptr (Tstruct _atom_int noattr))))
             (Ssequence
-              (Scall (Some _t'2)
-                (Evar _atom_load (Tfunction
-                                   (Tcons (tptr (Tstruct _atom_int noattr))
-                                     Tnil) tint cc_default))
-                ((Etempvar _i (tptr (Tstruct _atom_int noattr))) :: nil))
-              (Sset _probed_key (Etempvar _t'2 tint)))
-            (Ssequence
-              (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
-                             (Etempvar _key tint) tint)
-                (Ssequence
-                  (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
-                                 (Econst_int (Int.repr 0) tint) tint)
-                    Scontinue
-                    Sskip)
-                  (Ssequence
-                    (Ssequence
-                      (Scall (Some _t'3)
-                        (Evar _atom_CAS (Tfunction
-                                          (Tcons
-                                            (tptr (Tstruct _atom_int noattr))
-                                            (Tcons (tptr tint)
-                                              (Tcons tint Tnil))) tint
-                                          cc_default))
-                        ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
-                         (Econst_int (Int.repr 0) tint) ::
-                         (Etempvar _key tint) :: nil))
-                      (Sset _result (Etempvar _t'3 tint)))
-                    (Sifthenelse (Eunop Onotbool (Etempvar _result tint)
-                                   tint)
-                      (Ssequence
-                        (Ssequence
-                          (Scall (Some _t'4)
-                            (Evar _atom_load (Tfunction
-                                               (Tcons
-                                                 (tptr (Tstruct _atom_int noattr))
-                                                 Tnil) tint cc_default))
-                            ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
-                             nil))
-                          (Sset _probed_key (Etempvar _t'4 tint)))
-                        (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
-                                       (Etempvar _key tint) tint)
-                          Scontinue
-                          Sskip))
-                      Sskip)))
-                Sskip)
               (Ssequence
-                (Sset _i
-                  (Efield
-                    (Ederef
-                      (Ebinop Oadd
-                        (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
-                        (Etempvar _idx tint) (tptr (Tstruct _entry noattr)))
-                      (Tstruct _entry noattr)) _value
-                    (tptr (Tstruct _atom_int noattr))))
+                (Scall (Some _t'2)
+                  (Evar _atom_load (Tfunction
+                                     (Tcons (tptr (Tstruct _atom_int noattr))
+                                       Tnil) tint cc_default))
+                  ((Etempvar _i (tptr (Tstruct _atom_int noattr))) :: nil))
+                (Sset _probed_key (Etempvar _t'2 tint)))
+              (Ssequence
+                (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
+                               (Etempvar _key tint) tint)
+                  (Ssequence
+                    (Sifthenelse (Ebinop One (Etempvar _probed_key tint)
+                                   (Econst_int (Int.repr 0) tint) tint)
+                      Scontinue
+                      Sskip)
+                    (Ssequence
+                      (Ssequence
+                        (Scall (Some _t'3)
+                          (Evar _atom_CAS (Tfunction
+                                            (Tcons
+                                              (tptr (Tstruct _atom_int noattr))
+                                              (Tcons (tptr tint)
+                                                (Tcons tint Tnil))) tint
+                                            cc_default))
+                          ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
+                           (Eaddrof (Evar _ref tint) (tptr tint)) ::
+                           (Etempvar _key tint) :: nil))
+                        (Sset _result (Etempvar _t'3 tint)))
+                      (Sifthenelse (Eunop Onotbool (Etempvar _result tint)
+                                     tint)
+                        (Ssequence
+                          (Ssequence
+                            (Scall (Some _t'4)
+                              (Evar _atom_load (Tfunction
+                                                 (Tcons
+                                                   (tptr (Tstruct _atom_int noattr))
+                                                   Tnil) tint cc_default))
+                              ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
+                               nil))
+                            (Sset _probed_key (Etempvar _t'4 tint)))
+                          (Sifthenelse (Ebinop One
+                                         (Etempvar _probed_key tint)
+                                         (Etempvar _key tint) tint)
+                            Scontinue
+                            Sskip))
+                        Sskip)))
+                  Sskip)
                 (Ssequence
-                  (Scall (Some _t'5)
-                    (Evar _atom_CAS (Tfunction
-                                      (Tcons
-                                        (tptr (Tstruct _atom_int noattr))
-                                        (Tcons (tptr tint) (Tcons tint Tnil)))
-                                      tint cc_default))
-                    ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
-                     (Econst_int (Int.repr 0) tint) ::
-                     (Etempvar _value tint) :: nil))
-                  (Sreturn (Some (Etempvar _t'5 tint))))))))))
-    (Sset _idx
-      (Ebinop Oadd (Etempvar _idx tint) (Econst_int (Int.repr 1) tint) tint))))
+                  (Sset _i
+                    (Efield
+                      (Ederef
+                        (Ebinop Oadd
+                          (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
+                          (Etempvar _idx tint)
+                          (tptr (Tstruct _entry noattr)))
+                        (Tstruct _entry noattr)) _value
+                      (tptr (Tstruct _atom_int noattr))))
+                  (Ssequence
+                    (Scall (Some _t'5)
+                      (Evar _atom_CAS (Tfunction
+                                        (Tcons
+                                          (tptr (Tstruct _atom_int noattr))
+                                          (Tcons (tptr tint)
+                                            (Tcons tint Tnil))) tint
+                                        cc_default))
+                      ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
+                       (Eaddrof (Evar _ref tint) (tptr tint)) ::
+                       (Etempvar _value tint) :: nil))
+                    (Sreturn (Some (Etempvar _t'5 tint))))))))))
+      (Sset _idx
+        (Ebinop Oadd (Etempvar _idx tint) (Econst_int (Int.repr 1) tint)
+          tint)))))
 |}.
 
 Definition f_init_table := {|
