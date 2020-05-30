@@ -17,14 +17,17 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Section Proofs.
 
+Definition atomic_int := Tstruct _atom_int noattr.
+Variable atomic_int_at : share -> val -> val -> mpred.
+
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition spawn_spec := DECLARE _spawn spawn_spec.
-Definition load_SC_spec := DECLARE _load_SC load_SC_spec.
-Definition store_SC_spec := DECLARE _store_SC store_SC_spec.
-Definition CAS_SC_spec := DECLARE _CAS_SC CAS_SC_spec.
+Definition atom_load_spec := DECLARE _atom_load (atomic_load_spec atomic_int atomic_int_at).
+Definition atom_store_spec := DECLARE _atom_store (atomic_store_spec atomic_int atomic_int_at).
+Definition atom_CAS_spec := DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic_int_at).
 
 Definition surely_malloc_spec :=
  DECLARE _surely_malloc
@@ -131,7 +134,7 @@ Definition hashtable_entry T lg entries i :=
   let '(pk, pv) := Znth i entries in let '(ki, vi) := Znth i T in
   !!(repable_signed ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) &&
   ghost_master1(ORD := zero_order) ki (Znth i lg) *
-  data_at Ews tint (vint ki) pk * data_at Ews tint (vint vi) pv.
+  atomic_int_at Ews (vint ki) pk * atomic_int_at Ews (vint vi) pv.
 
 Definition wf_table T := forall k i, k <> 0 -> fst (Znth i T) = k -> lookup T k = Some i.
 
@@ -254,7 +257,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog [] gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; freelock2_spec; acquire_spec;
-  release2_spec; spawn_spec; surely_malloc_spec; load_SC_spec; store_SC_spec; CAS_SC_spec;
+  release2_spec; spawn_spec; surely_malloc_spec; atom_load_spec; atom_store_spec; atom_CAS_spec;
   integer_hash_spec; set_item_spec; get_item_spec; add_item_spec; init_table_spec; f_spec; main_spec]).
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.

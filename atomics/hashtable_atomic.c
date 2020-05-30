@@ -1,6 +1,6 @@
-#include "gen_atomics.h"
+#include "SC_atomics.h"
 
-typedef struct entry { int *key; int *value; } entry;
+typedef struct entry { atom_int *key; atom_int *value; } entry;
 
 #define ARRAY_SIZE 16384
 
@@ -21,22 +21,22 @@ int integer_hash(int i){
 void set_item(int key, int value){
   for(int idx = integer_hash(key);; idx++){
     idx &= ARRAY_SIZE - 1;
-    int *i = m_entries[idx].key;
-    int probed_key = load_SC(i);
+    atom_int *i = m_entries[idx].key;
+    int probed_key = atom_load(i);
     if(probed_key != key){
       //The entry was either free, or contains another key.
       if (probed_key != 0)
 	continue;
-      int result = CAS_SC(i, 0, key);
+      int result = atom_CAS(i, 0, key);
       //This bit is a little different, since C11 doesn't have a CAS that returns the old value.
       if(!result){
 	//CAS failed, so a key has been added. Is it the one we're looking for?
-	probed_key = load_SC(i);
+	probed_key = atom_load(i);
 	if(probed_key != key) continue; //Another thread just stole the slot for a different key.
       }
     }
     i = m_entries[idx].value;
-    store_SC(i, value);
+    atom_store(i, value);
     return;
   }
 }
@@ -44,11 +44,11 @@ void set_item(int key, int value){
 int get_item(int key){
   for(int idx = integer_hash(key);; idx++){
     idx &= ARRAY_SIZE - 1;
-    int *i = m_entries[idx].key;
-    int probed_key = load_SC(i);
+    atom_int *i = m_entries[idx].key;
+    int probed_key = atom_load(i);
     if(probed_key == key){
       i = m_entries[idx].value;
-      return load_SC(i);
+      return atom_load(i);
     }
     if (probed_key == 0)
       return 0;
@@ -63,30 +63,26 @@ int get_item(int key){
 int add_item(int key, int value){
   for(int idx = integer_hash(key);; idx++){
     idx &= ARRAY_SIZE - 1;
-    int *i = m_entries[idx].key;
-    int probed_key = load_SC(i);
+    atom_int *i = m_entries[idx].key;
+    int probed_key = atom_load(i);
     if (probed_key != key){
       if (probed_key != 0)
 	continue;
-      int result = CAS_SC(i, 0, key);
+      int result = atom_CAS(i, 0, key);
       if(!result){
-	probed_key = load_SC(i);
+	probed_key = atom_load(i);
 	if(probed_key != key) continue;
       }
     }
     i = m_entries[idx].value;
-    return CAS_SC(i, 0, value); //only add if no one else has set the value
+    return atom_CAS(i, 0, value); //only add if no one else has set the value
   }
 }
 
 void init_table(){
   for(int i = 0; i < ARRAY_SIZE; i++){
-    int *p = surely_malloc(sizeof(int));
-    *p = 0;
-    m_entries[i].key = p;
-    p = surely_malloc(sizeof(int));
-    *p = 0;
-    m_entries[i].value = p;
+    m_entries[i].key = make_atomic(0);
+    m_entries[i].value = make_atomic(0);
   }
 }
 
