@@ -9,7 +9,7 @@ Record PileAPD := {
     pilerep sigma p |-- !! (isptr p /\ Forall (Z.le 0) sigma);
   pilerep_valid_pointer: forall sigma p,
     pilerep sigma p |-- valid_pointer p;
-  pile_freeable (p: val) : mpred (*maybe expose the definition of this as malloc_token? Preferably NOT*)
+  pile_freeable (p: val) : mpred (* Definitely don't expose the definition of this as malloc_token, because that would expose the fact that there's exactly one malloc'ed record in the implementation. *)
 }.
 
 Hint Resolve pilerep_local_facts : saturate_local.
@@ -26,7 +26,7 @@ Variable PILE:PileAPD.
 Definition Pile_new_spec :=
  DECLARE _Pile_new
  WITH gv: globals
- PRE [ ] PROP() (PARAMS () GLOBALS (gv) (SEP(mem_mgr M gv)))
+ PRE [ ] PROP() PARAMS() GLOBALS(gv) SEP(mem_mgr M gv)
  POST[ tptr tpile ]
    EX p: val,
       PROP() LOCAL(temp ret_temp p)
