@@ -18,6 +18,9 @@ Proof. repeat intro. eauto. Qed.
 Lemma derives_unfash_fash R P Q: derives P Q  -> derives R (unfash (fash (imp P Q))).
 Proof. repeat intro. eauto. Qed.
 
+Lemma eqp_subp : forall (P Q:mpred), P <=> Q |-- P >=> Q.
+intros. eapply eqp_subp. trivial. Qed.
+
 (*******************material moved here from tycontext.v *******************)
 
 Inductive Annotation :=
