@@ -33,12 +33,12 @@ Ltac simpl_compare :=
  match goal with
  | H: Vint _ = _ |- _ =>
          revert H; simpl_compare; intro H;
-         try (simpl in H; apply Vint_inj in H;
+         try (apply Vint_inj in H;
                match type of H with ?a = ?b =>
                   first [safe_subst a | safe_subst b | idtac]
                end)
  | H: typed_true _ _ |- _ =>
-         simpl in H; revert H; simpl_compare; intro H;
+         revert H; simpl_compare; intro H;
          first [apply typed_true_ptr in H
                  | apply typed_true_of_bool in H;
                    first [apply (int_cmp_repr Clt) in H;
@@ -49,7 +49,7 @@ Ltac simpl_compare :=
                  | discriminate H
                  | idtac ]
  | H: typed_false _ _ |- _ =>
-         simpl in H; revert H; simpl_compare; intro H;
+         revert H; simpl_compare; intro H;
          first [ apply typed_false_ptr in H
                 | apply typed_false_of_bool in H;
                    first [apply (int_cmp_repr' Clt) in H;
@@ -62,19 +62,19 @@ Ltac simpl_compare :=
  | H : Int.lt _ _ = false |- _ =>
          revert H; simpl_compare; intro H;
          try (apply (int_cmp_repr' Clt) in H ;
-                    [ | rep_lia ..]; simpl in H)
+                    [ | rep_lia ..])
  | H : Int.lt _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Clt) in H ;
-                    [ | rep_lia ..]; simpl in H)
+                    [ | rep_lia ..])
  | H : Int.eq _ _ = false |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr' Ceq) in H ;
-                    [ | rep_lia ..]; simpl in H)
+                    [ | rep_lia ..])
  | H : Int.eq _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Ceq) in H ;
-                    [ | rep_lia ..]; simpl in H)
+                    [ | rep_lia ..])
  | |- _ => idtac
 end.
 
@@ -95,16 +95,50 @@ Arguments denote_tc_nodivover !v1 !v2 .
 Arguments denote_tc_initialized id ty rho / .
 Arguments denote_tc_nosignedover op v1 v2 / .
 Ltac simpl_denote_tc :=
- simpl denote_tc_isptr;
- simpl denote_tc_iszero;
- simpl denote_tc_nonzero;
- simpl denote_tc_igt;
- simpl denote_tc_Zge;
- simpl denote_tc_Zle;
- simpl denote_tc_samebase;
- simpl denote_tc_nodivover;
- simpl denote_tc_initialized;
- simpl denote_tc_nosignedover.
+ repeat change (denote_tc_isptr ?v) with (!! isptr v);
+ repeat change (denote_tc_iszero (Vint ?i)) with (!! is_true (Int.eq i Int.zero));
+ repeat change (denote_tc_iszero (Vlong ?i)) with (!! is_true (Int64.eq i Int64.zero));
+ repeat change (denote_tc_iszero _) with (@FF mpred _);
+ repeat change (denote_tc_nonzero (Vint ?i)) with (!! (i <> Int.zero));
+ repeat change (denote_tc_nonzero (Vlong ?i)) with (!! (i <> Int64.zero));
+ repeat change (denote_tc_nonzero _) with (@FF mpred _);
+ repeat change (denote_tc_igt ?i (Vint ?i1)) with (!! (Int.unsigned i1 < Int.unsigned i));
+ repeat change (denote_tc_Zge ?z (Vfloat ?f)) with 
+                     match Zoffloat f with Some n => !!(z>=n) | None => @FF mpred _ end;
+ repeat change (denote_tc_Zge ?z (Vsingle ?f)) with 
+                     match Zofsingle f with Some n => !!(z<=n) | None => @FF mpred _ end;
+ repeat change (denote_tc_Zge ?z _) with  (@FF mpred _);
+ repeat change (denote_tc_Zle ?z (Vfloat ?f)) with 
+                     match Zoffloat f with Some n => !!(z<=n) | None => @FF mpred _ end;
+ repeat change (denote_tc_Zle ?z (Vsingle ?f)) with 
+                     match Zofsingle f with Some n => !!(z<=n) | None => @FF mpred _ end;
+ repeat change (denote_tc_Zle ?z _) with  (@FF mpred _);
+ repeat change (denote_tc_samebase ?v1 ?v2) with (!! is_true (sameblock v1 v2));
+ repeat change (denote_tc_nodivover (Vint ?n1) (Vint ?n2))
+            with (!! (~ (n1 = Int.repr Int.min_signed /\ n2 = Int.mone)));
+ repeat change (denote_tc_nodivover (Vint ?n1) (Vlong _))
+            with (@TT mpred _);
+ repeat change (denote_tc_nodivover (Vlong ?n1) (Vint ?n2))
+            with ( !! (~ (n1 = Int64.repr Int64.min_signed /\ n2 = Int.mone)));
+ repeat change (denote_tc_nodivover (Vlong ?n1) (Vlong ?n2))
+            with (!! (~ (n1 = Int64.repr Int64.min_signed /\ n2 = Int64.mone)));
+ repeat change (denote_tc_nodivover _ _)
+            with (@FF mpred _);
+ repeat change (denote_tc_nosignedover ?op (Vint ?n1) (Vint ?n2)) with
+          (!! (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed));
+ repeat change (denote_tc_nosignedover ?op (Vint ?n1) (Vlong ?n2)) with
+          (!! (Int64.min_signed <=
+            op (Int.signed n1) (Int64.signed n2) <= Int64.max_signed));
+ repeat change (denote_tc_nosignedover ?op (Vlong ?n1) (Vint ?n2)) with
+          (!! (Int64.min_signed <=
+            op (Int64.signed n1) (Int.signed n2) <=
+            Int64.max_signed));
+ repeat change (denote_tc_nosignedover ?op (Vlong ?n1) (Vlong ?n2)) with
+          (!! (Int64.min_signed <=
+            op (Int64.signed n1) (Int64.signed n2) <=
+            Int64.max_signed));
+ repeat change (denote_tc_nosignedover _ _)  with (@FF mpred _);
+ simpl denote_tc_initialized.
 
 Lemma denote_tc_test_eq_split:
   forall P x y,
@@ -565,25 +599,25 @@ Ltac entbang :=
         clear MORE_COMMANDS
       end;
  match goal with
- | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower; (*simpl;*) try (*simple*) apply empTrue
+ | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower; try apply empTrue
  | |- ?P |-- _ =>
     match type of P with
     | ?T => unify T mpred; pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
  end;
- (* The following lines are only a temporary solution. Many current proofs
- depend on one original feature of "entailer!": sem_cast expressions and
- sem_binary_operation' expressions will be simplified. This step was done
- in go_lower. But that is not a reasonable design. Current version of
- go_lower does not "simpl" user's expressions any longer---go_lower should
- be safe. Thus we add the following lines here. *)
  repeat match goal with
         | |- context [force_val (sem_binary_operation' ?op ?t1 ?t2 ?v1 ?v2)] =>
-          progress simpl (force_val (sem_binary_operation' op t1 t2 v1 v2))
+          progress 
+              simpl  (* This simpl is safe, because its argument is not
+                           arbitrarily complex user expressions, it is ASTs
+                           produced by clightgen *)
+                (force_val (sem_binary_operation' op t1 t2 v1 v2))
         end;
- simpl sem_cast;
- (* end of temporary solution *)
+ simpl  (* This simpl is safe, because its argument is not
+                           arbitrarily complex user expressions, it is ASTs
+                           produced by clightgen *)
+        sem_cast;
  saturate_local;
  ent_iter;
  repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
