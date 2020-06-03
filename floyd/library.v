@@ -27,7 +27,6 @@ Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.sc_set_load_store.
-(*Require Import VST.floyd.unfold_data_at.*)
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.diagnosis.
@@ -37,7 +36,7 @@ Import String.
 
 Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f: funspec) :=
   match f with mk_funspec sig _ A P Q _ _ =>
-    semax_external (*(map fst (fst sig))*) ef A P Q
+    semax_external ef A P Q
   end.
 
 Definition try_spec  (name: string) (spec: funspec) : 
@@ -48,18 +47,11 @@ fun defs =>
  | None => nil
  end.
 Arguments try_spec name spec defs / .
-(*
-Definition exit_spec' :=
- WITH u: unit
- PRE [1%positive OF tint]
-   PROP () LOCAL() SEP()
- POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
-*)
+
 Definition exit_spec' :=
  WITH arg: Z
  PRE [tint]
-   PROP () (LAMBDAx nil [Vint (Int.repr arg)] (SEP()))
+   PROP () (PARAMS (Vint (Int.repr arg)) SEP())%assert3a
  POST [ tvoid ]
    PROP(False) LOCAL() SEP().
 
@@ -124,8 +116,8 @@ Definition malloc_spec'  {cs: compspecs} :=
        PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       (LAMBDAx (gv::nil) (Vptrofs (Ptrofs.repr (sizeof t))::nil)
-       (SEP (mem_mgr gv)))
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
@@ -153,10 +145,10 @@ Definition free_spec'  {cs: compspecs} :=
    WITH t: type, p:val, gv: globals
    PRE [ tptr tvoid ]
        PROP ()
-       (LAMBDAx (gv::nil) (p::nil)
-       (SEP (mem_mgr gv;
+       PARAMS (p) GLOBALS (gv)
+       SEP (mem_mgr gv;
               if eq_dec p nullval then emp
-              else (malloc_token Ews t p * data_at_ Ews t p))))
+              else (malloc_token Ews t p * data_at_ Ews t p))
     POST [ Tvoid ]
        PROP ()
        LOCAL ()

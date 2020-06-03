@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.dotprod.
 
 Instance CompSpecs : compspecs.
-Require Export VST.floyd.Funspec_old_Notation.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -18,15 +17,15 @@ Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C 
 Definition add_spec :=
  DECLARE _add
   WITH x: val, y : val, z: val, fy : list float, fz: list float
-  PRE  [_x OF tptr tdouble, _y OF tptr tdouble, _z OF tptr tdouble]
+  PRE  [ tptr tdouble, tptr tdouble, tptr tdouble]
       PROP ()
-      LOCAL (temp _x x; temp _y y; temp _z z)
+      PARAMS (x; y; z)
       SEP (data_at_ Tsh (tarray tdouble 3)  x ;
              data_at Tsh (tarray tdouble 3) (map Vfloat fy) y;
              data_at Tsh (tarray tdouble 3) (map Vfloat fz) z)
   POST [ tvoid ]
       PROP ()
-      LOCAL ()
+      RETURN ()
       SEP (data_at Tsh (tarray tdouble 3) (map Vfloat (map2 Float.add fy fz)) x;
              data_at Tsh (tarray tdouble 3) (map Vfloat fy) y;
              data_at Tsh (tarray tdouble 3) (map Vfloat fz) z).
@@ -37,14 +36,14 @@ Definition dotprod (fx fy : list float) : float :=
 Definition dotprod_spec :=
  DECLARE _dotprod
   WITH n: Z, x: val, y : val, fx : list float, fy: list float, sh: share
-  PRE  [_n OF tint, _x OF tptr tdouble, _y OF tptr tdouble]
+  PRE  [ tint, tptr tdouble, tptr tdouble]
       PROP (0 <= n < Int.max_signed)
-      LOCAL (temp _n (Vint (Int.repr n)); temp _x x; temp _y y)
+      PARAMS (Vint (Int.repr n); x; y)
       SEP (data_at Tsh (tarray tdouble n) (map Vfloat fx) x;
              data_at Tsh (tarray tdouble n) (map Vfloat fy) y)
   POST [ tdouble ]
       PROP ()
-      LOCAL (temp ret_temp (Vfloat (dotprod fx fy)))
+      RETURN (Vfloat (dotprod fx fy))
       SEP (data_at Tsh (tarray tdouble n) (map Vfloat fx) x;
              data_at Tsh (tarray tdouble n) (map Vfloat fy) y).
 

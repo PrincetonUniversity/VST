@@ -2,8 +2,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs64.global.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -12,10 +10,10 @@ Definition h_spec :=
   WITH gv: globals
   PRE [  ]
           PROP  ()
-          LOCAL (gvars gv)
+          PARAMS() GLOBALS (gv)
           SEP   (data_at Ews tint (Vint (Int.repr 7)) (gv _g))
   POST [ tint ]
-        PROP () LOCAL(temp ret_temp  (Vint (Int.repr 7)))
+        PROP () RETURN (Vint (Int.repr 7))
            SEP (data_at Ews tint (Vint (Int.repr 7)) (gv _g)).
 
 Definition main_spec :=

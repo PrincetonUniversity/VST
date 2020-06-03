@@ -42,7 +42,7 @@ Require Export VST.floyd.freezer.
 Require Export VST.floyd.deadvars.
 Require Export VST.floyd.hints.
 Require Export VST.floyd.Clightnotations.
-Require Export VST.floyd.list_solver.
+Require Export VST.floyd.data_at_list_solver.
 Require Export VST.floyd.data_at_lemmas.
 Require VST.msl.iter_sepcon.
 Require VST.msl.wand_frame.
@@ -351,5 +351,5 @@ simple eapply saturate_aux21y;
        subst P
       end
 ].
-
+Locate Ltac list_solve.
 

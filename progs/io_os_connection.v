@@ -1870,13 +1870,15 @@ Section SpecsCorrect.
     putc_mem_ok : st.(HP) = st'.(HP)
   }.
 
+Import functional_base.
+
   Lemma sys_putc_correct c k z m st st' :
     (* Initial trace is valid *)
     valid_trace st ->
     (* Pre condition holds *)
     putchar_pre m (c, k) z ->
     (* c is passed as an argument *)
-    get_sys_arg1 st = functional_base.Vubyte c ->
+    get_sys_arg1 st = Vubyte c ->
     (* sys_putc returns some state *)
     sys_putc_spec st = Some st' ->
     exists ret,

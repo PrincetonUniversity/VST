@@ -1,9 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.append.
 
-Open Scope logic.
-
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
@@ -70,14 +67,14 @@ Qed.
 Definition append_spec :=
  DECLARE _append
   WITH sh : share, x: val, y: val, s1: list val, s2: list val
-  PRE [ _x OF (tptr t_struct_list) , _y OF (tptr t_struct_list)]
+  PRE [ tptr t_struct_list , tptr t_struct_list]
      PROP(writable_share sh)
-     LOCAL (temp _x x; temp _y y)
+     PARAMS (x; y) GLOBALS()
      SEP (listrep sh s1 x; listrep sh s2 y)
   POST [ tptr t_struct_list ]
     EX r: val,
      PROP()
-     LOCAL(temp ret_temp r)
+     RETURN (r)
      SEP (listrep sh (s1++s2) r).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [ append_spec ]).

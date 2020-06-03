@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.cast_test.
 
 Instance CompSpecs : compspecs.
-Require Export VST.floyd.Funspec_old_Notation.
 Proof. make_compspecs prog. Defined.
 
 Local Open Scope logic.
@@ -10,13 +9,13 @@ Local Open Scope logic.
 Definition test_spec :=
  DECLARE _test
   WITH n: Z
-  PRE [ _n OF tlong ]
+  PRE [ tlong ]
         PROP  (0 <= n < Int.max_signed)
-        LOCAL (temp _n (Vlong (Int64.repr n)))
+        PARAMS (Vlong (Int64.repr n))
         SEP   ()
   POST [ tuchar ]
         PROP ()
-        LOCAL(temp ret_temp (Vint (Int.repr 0)))
+        RETURN (Vint (Int.repr 0))
         SEP ().
 
 Definition Vprog : varspecs := nil.

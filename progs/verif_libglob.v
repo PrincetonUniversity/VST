@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.libglob.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -115,11 +113,11 @@ Definition init_spec :=
   WITH n: Z, gv: globals
   PRE  []
         PROP ()
-        LOCAL(gvars gv)
+        PARAMS () GLOBALS (gv)
         SEP(LG.data n gv)
   POST [ tvoid ]
          PROP()
-         LOCAL ()
+         RETURN ()
          SEP (LG.data_ok n gv).
 
 (* The [bump] and [get] functions are meant to be called from
@@ -129,11 +127,11 @@ Definition bump_spec :=
   WITH n: Z, gv: globals
   PRE  []
         PROP (n < Int.max_signed)
-        LOCAL(gvars gv)
+        PARAMS () GLOBALS (gv)
         SEP(LG.data n gv)
   POST [ tvoid ]
          PROP()
-         LOCAL ()
+         RETURN ()
          SEP (LG.data (n+1) gv).
 
 Definition get_spec :=
@@ -141,11 +139,11 @@ Definition get_spec :=
   WITH n: Z, gv: globals
   PRE  []
         PROP ()
-        LOCAL(gvars gv)
+        PARAMS () GLOBALS (gv)
         SEP(LG.data n gv)
   POST [ tint ]
          PROP()
-         LOCAL (temp ret_temp (Vint (Int.repr n)))
+         RETURN (Vint (Int.repr n))
          SEP (LG.data n gv).
 
 Definition client_spec :=
@@ -153,11 +151,11 @@ Definition client_spec :=
   WITH n: Z, gv: globals
   PRE  []
         PROP (n < 1000000000)
-        LOCAL(gvars gv)
+        PARAMS () GLOBALS (gv)
         SEP(LG.data n gv)
   POST [ tint ]
          PROP()
-         LOCAL (temp ret_temp (Vint (Int.repr (n+2))))
+         RETURN (Vint (Int.repr (n+2)))
          SEP (LG.data (n+2) gv).
 
 Definition main_spec :=
@@ -166,7 +164,7 @@ Definition main_spec :=
   PRE  [] main_pre prog tt gv
   POST [ tint ]  
      PROP() 
-     LOCAL (temp ret_temp (Vint (Int.repr 5))) 
+     RETURN (Vint (Int.repr 5))
      SEP(TT).
   
 Definition Gprog : funspecs :=

@@ -3,7 +3,6 @@ Require Import VST.progs.bst_oo.
 
 Open Scope logic.
 
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -112,48 +111,48 @@ Qed.
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
-  PRE [ 1%positive OF tint]
+  PRE [ tint]
      PROP (4 <= n <= Int.max_unsigned) 
-     LOCAL (temp 1%positive (Vint (Int.repr n)))
+     PARAMS (Vint (Int.repr n))
      SEP ()
   POST [ tptr tvoid ] 
      EX v: val,
      PROP (malloc_compatible n v) 
-     LOCAL (temp ret_temp v) 
+     RETURN (v) 
      SEP (memory_block Tsh n v).
 
 Definition freeN_spec :=
  DECLARE _freeN
   WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
+  PRE [ tptr tvoid , tint]  
      (* we should also require natural_align_compatible (eval_id 1) *)
-      PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
+      PROP() PARAMS (p; Vint (Int.repr n))
       SEP (memory_block Tsh n p)
   POST [ tvoid ]  
-    PROP () LOCAL () SEP ().
+    PROP () RETURN () SEP ().
 
 Definition treebox_new_spec :=
  DECLARE _treebox_new
   WITH u : unit
   PRE  [  ]
-       PROP() LOCAL() SEP ()
+       PROP() PARAMS() SEP ()
   POST [ (tptr t_struct_tree) ] 
     EX v:val,
     PROP()
-    LOCAL(temp ret_temp v)
+    RETURN (v)
     SEP (data_at Tsh (tptr t_struct_tree) nullval v).
 
 Definition subscr_spec :=
  DECLARE _subscr
   WITH b: val, x: Z, t: tree val
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _key OF tint]
+  PRE  [ tptr (tptr t_struct_tree), tint]
     PROP(Int.min_signed <= x <= Int.max_signed)
-    LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
+    PARAMS(b; Vint (Int.repr x))
     SEP (treebox_rep t b)
   POST [ tptr (tptr tvoid) ]
     EX p: val, EX q: val,
     PROP(key_store (insert x p t) x q)
-    LOCAL(temp ret_temp q)
+    RETURN(q)
     SEP (treebox_rep (insert x p t) b;
          (!! key_store_ t x && emp) || (!! (~ key_store_ t x) && data_at Tsh (tptr tvoid) nullval q)).
 
@@ -185,27 +184,27 @@ Definition subscr_spec2 :=
 Definition turn_left_spec :=
  DECLARE _turn_left
   WITH ta: tree val, x: Z, tb: tree val, y: Z, tc: tree val, b: val, l: val, r: val
-  PRE  [ __l OF (tptr (tptr (Tstruct _tree noattr))),
-        _l OF (tptr (Tstruct _tree noattr)),
-        _r OF (tptr (Tstruct _tree noattr))]
+  PRE  [ tptr (tptr (Tstruct _tree noattr)),
+        tptr (Tstruct _tree noattr),
+        tptr (Tstruct _tree noattr)]
     PROP()
-    LOCAL(temp __l b; temp _l l; temp _r r)
+    PARAMS(b; l; r)
     SEP (treebox_rep (T ta x l (T tb y r tc)) b)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (treebox_rep (T (T ta x l tb) y r tc) b).
 
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
   WITH ta: tree val, x: Z, tb: tree val, b: val, p: val
-  PRE  [ _t OF (tptr (tptr (Tstruct _tree noattr)))]
+  PRE  [ tptr (tptr (Tstruct _tree noattr))]
     PROP()
-    LOCAL(temp _t b)
+    PARAMS(b)
     SEP (treebox_rep (T ta x p tb) b)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (treebox_rep (pushdown_left ta tb) b).
 (*
 Definition delete_spec1 :=

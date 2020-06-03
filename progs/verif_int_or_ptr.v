@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.int_or_ptr.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -103,68 +102,66 @@ Hint Resolve treerep_local_facts : saturate_local.
 Definition test_int_or_ptr_spec :=
  DECLARE _test_int_or_ptr
  WITH x : val
- PRE [ _x OF int_or_ptr_type ]
-   PROP(valid_int_or_ptr x) LOCAL(temp _x x) SEP()
+ PRE [ int_or_ptr_type ]
+   PROP(valid_int_or_ptr x) PARAMS (x) SEP()
  POST [ tint ]
    PROP() 
-   LOCAL(temp ret_temp 
-          (Vint (Int.repr (match x with
+   RETURN (Vint (Int.repr (match x with
                     | Vint _ => 1
                     | _ => 0
-                    end))))
+                    end)))
    SEP().
 
 Definition int_or_ptr_to_int_spec :=
  DECLARE _int_or_ptr_to_int
  WITH x : val
- PRE [ _x OF int_or_ptr_type ]
-   PROP(is_int I32 Signed x) LOCAL(temp _x x) SEP()
+ PRE [ int_or_ptr_type ]
+   PROP(is_int I32 Signed x) PARAMS (x) SEP()
  POST [ tint ]
-   PROP() LOCAL (temp ret_temp x) SEP().
+   PROP() RETURN (x) SEP().
 
 Definition int_or_ptr_to_ptr_spec :=
  DECLARE _int_or_ptr_to_ptr
  WITH x : val
- PRE [ _x OF int_or_ptr_type ]
-   PROP(isptr x) LOCAL(temp _x x) SEP()
+ PRE [ int_or_ptr_type ]
+   PROP(isptr x) PARAMS (x) SEP()
  POST [ tptr tvoid ]
-   PROP() LOCAL (temp ret_temp x) SEP().
+   PROP() RETURN (x) SEP().
 
 Definition int_to_int_or_ptr_spec :=
  DECLARE _int_to_int_or_ptr
  WITH x : val
- PRE [ _x OF tint ]
-   PROP(valid_int_or_ptr x)
-   LOCAL(temp _x x) SEP()
+ PRE [ tint ]
+   PROP(valid_int_or_ptr x) PARAMS(x) SEP()
  POST [ int_or_ptr_type ]
-   PROP() LOCAL (temp ret_temp x) SEP().
+   PROP() RETURN(x) SEP().
 
 Definition ptr_to_int_or_ptr_spec :=
  DECLARE _ptr_to_int_or_ptr
  WITH x : val
- PRE [ _x OF tptr tvoid ]
-   PROP(valid_int_or_ptr x) LOCAL(temp _x x) SEP()
+ PRE [ tptr tvoid ]
+   PROP(valid_int_or_ptr x) PARAMS(x) SEP()
  POST [ int_or_ptr_type ]
-   PROP() LOCAL (temp ret_temp x) SEP().
+   PROP() RETURN(x) SEP().
 
 Definition makenode_spec :=
  DECLARE _makenode 
   WITH p: val, q: val
-  PRE [ _left OF int_or_ptr_type, _right OF int_or_ptr_type ]
-    PROP() LOCAL(temp _left p; temp _right q) SEP()
+  PRE [ int_or_ptr_type, int_or_ptr_type ]
+    PROP() PARAMS(p; q) SEP()
   POST [ tptr (Tstruct _tree noattr) ]
     EX r:val, 
-    PROP() LOCAL(temp ret_temp r) 
+    PROP() RETURN (r) 
     SEP (data_at Tsh (Tstruct _tree noattr) (p,q) r).
 
 Definition copytree_spec :=
  DECLARE _copytree
   WITH t: tree, p : val
-  PRE  [ _t OF int_or_ptr_type ]
-    PROP() LOCAL(temp _t p) SEP (treerep t p)
+  PRE  [ int_or_ptr_type ]
+    PROP() PARAMS (p) SEP (treerep t p)
   POST [ int_or_ptr_type ]
     EX v:val,
-    PROP() LOCAL(temp ret_temp v) 
+    PROP() RETURN (v) 
     SEP (treerep t p; treerep t v).
 
 Definition Gprog : funspecs :=

@@ -46,8 +46,8 @@ Definition surely_malloc_spec :=
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       (LAMBDAx [gv] [Vint (Int.repr (sizeof t))]
-       (SEP (mem_mgr M gv)))
+       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+       SEP (mem_mgr M gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)

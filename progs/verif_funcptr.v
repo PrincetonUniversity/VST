@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.funcptr.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -11,12 +9,12 @@ Local Open Scope logic.
 
 Definition myspec :=
   WITH i: Z
-  PRE [ _i OF tint ]
+  PRE [ tint ]
           PROP (Int.min_signed <= i < Int.max_signed)
-          LOCAL (temp _i (Vint (Int.repr i)))
+          PARAMS (Vint (Int.repr i))
           SEP ()
   POST [ tint ]
-         PROP() LOCAL (temp ret_temp (Vint (Int.repr (i+1))))
+         PROP() RETURN (Vint (Int.repr (i+1)))
           SEP().
 
 Definition myfunc_spec := DECLARE _myfunc myspec.

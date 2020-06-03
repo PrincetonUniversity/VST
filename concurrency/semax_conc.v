@@ -317,9 +317,9 @@ Definition acquire_pre: val * share * mpred -> argsEnviron -> mpred :=
   match args with
   | (v, sh, R) =>
      PROP (readable_share sh)
-     (*LOCAL (temp _lock v)*) PARAMS (v) GLOBALS ()
+     PARAMS (v) GLOBALS ()
      SEP (lock_inv sh v R)
-  end.
+  end%argsassert.
 
 Notation acquire_post :=
   (fun args =>
@@ -375,7 +375,6 @@ Proof.
 Qed.
 
 Definition acquire_spec: funspec := mk_funspec
-  (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
   (tptr Ctypes.Tvoid :: nil, tvoid)
   cc_default
   acquire_arg_type
@@ -392,9 +391,9 @@ Definition release_pre: val * share * mpred -> argsEnviron -> mpred :=
   match args with
   | (v, sh, R) =>
      PROP (readable_share sh)
-     (*LOCAL (temp _lock v)*) PARAMS (v) GLOBALS ()
+     PARAMS (v) GLOBALS ()
      SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)
-  end.
+  end%argsassert.
 
 Notation release_post :=
   (fun args =>
@@ -481,9 +480,9 @@ Program Definition makelock_spec cs: funspec := mk_funspec
    match x with
    | (v, sh, R) =>
      PROP (writable_share sh)
-     (*LOCAL (temp _lock v)*)PARAMS (v) GLOBALS ()
+     PARAMS (v) GLOBALS ()
      SEP (@data_at_ cs sh tlock v)
-   end)
+   end)%argsassert
   (fun _ x =>
    match x with
    | (v, sh, R) =>
@@ -523,9 +522,9 @@ Program Definition freelock_spec cs: funspec := mk_funspec
    match x with
    | (v, sh, R) =>
      PROP (writable_share sh)
-     (*LOCAL (temp _lock v)*) PARAMS (v) GLOBALS()
+     PARAMS (v) GLOBALS()
      SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)
-   end)
+   end)%argsassert
   (fun _ x =>
    match x with
    | (v, sh, R) =>
@@ -541,9 +540,9 @@ Next Obligation.
   intros.
   destruct x as [[v sh] R]; simpl in *.
   apply (nonexpansive_super_non_expansive (fun R => (PROP (writable_share sh)
-   (LAMBDAx nil (v :: nil) 
-    SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)) gargs))).
-  unfold LAMBDAx, GLOBALSx, SEPx, PROPx, LOCALx, argsassert2assert. simpl. 
+    PARAMS(v) GLOBALS()
+    SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R))%argsassert gargs)).
+  unfold PARAMSx, GLOBALSx, SEPx, PROPx, LOCALx, argsassert2assert. simpl. 
   apply (conj_nonexpansive (fun R0 : mpred => (!! (writable_share sh /\ True)))
     (fun R0 => (!! (snd gargs = v :: nil) &&
      (local (liftx True) (Clight_seplog.mkEnv (fst gargs) nil nil) &&
@@ -598,9 +597,9 @@ Program Definition freelock2_spec cs: funspec := mk_funspec
    match x with
    | (v, sh, sh', Q, R) =>
      PROP (writable_share sh)
-     (*LOCAL (temp _lock v)*)PARAMS (v) GLOBALS ()
+     PARAMS (v) GLOBALS ()
      SEP (weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)
-   end)
+   end)%argsassert
   (fun _ x =>
    match x with
    | (v, sh, sh', Q, R) =>
@@ -617,8 +616,8 @@ Next Obligation.
   destruct x as [[[[v sh] sh'] Q] R]; simpl in *.
   apply (nonexpansive2_super_non_expansive
    (fun Q R => (PROP (writable_share sh)
-     (*LOCAL (temp _lock v)*)(LAMBDAx (@nil globals) (v :: @nil val)
-     SEP (weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)) gargs)));
+     PARAMS (v) GLOBALS()
+     SEP (weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R))%argsassert gargs));
   [ clear Q R; intros Q;
     apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
@@ -659,9 +658,9 @@ Program Definition release2_spec: funspec := mk_funspec
    match x with
    | (v, sh, Q, R) =>
      PROP (readable_share sh)
-     (*LOCAL (temp _lock v)*)PARAMS (v) GLOBALS ()
+     PARAMS (v) GLOBALS ()
      SEP (weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp; R)
-   end)
+   end)%argsassert
   (fun _ x =>
    match x with
    | (v, sh, Q, R) =>
@@ -678,8 +677,8 @@ Next Obligation.
   destruct x as [[[v sh] Q] R]; simpl in *.
   apply (nonexpansive2_super_non_expansive
    (fun Q R => (PROP (readable_share sh)
-            (LAMBDAx (@nil globals) (v :: @nil val)
-     SEP (weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp; R)) gargs)));
+            PARAMS (v) GLOBALS()
+     SEP (weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp; R))%argsassert gargs));
   [ clear Q R; intros Q;
     apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
             ((fun _ => readable_share sh) :: nil)
@@ -743,9 +742,9 @@ Program Definition wait_spec cs: funspec := mk_funspec
    match x with
    | (c, l, shc, shl, R) =>
      PROP (readable_share shc)
-     (*LOCAL (temp _cond c; temp _lock l)*) PARAMS (c;l) GLOBALS ()
+     PARAMS (c;l) GLOBALS ()
      SEP (@cond_var cs shc c; lock_inv shl l R; R)
-   end)
+   end)%argsassert
   (fun _ x =>
    match x with
    | (c, l, shc, shl, R) =>
@@ -762,8 +761,8 @@ Next Obligation.
   destruct x as [[[[c l] shc] shl] R]; simpl in *.
   apply (nonexpansive_super_non_expansive
    (fun R => (PROP (readable_share shc)
-    (*LOCAL (temp _cond c; temp _lock l)*)PARAMS (c;l) GLOBALS ()
-    SEP (cond_var shc c; lock_inv shl l R; R)) gargs)).
+    PARAMS (c;l) GLOBALS ()
+    SEP (cond_var shc c; lock_inv shl l R; R))%argsassert gargs)).
   apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
           ((fun _ => readable_share shc) :: nil)
           (*(temp _cond c :: temp _lock l :: nil)*)(c::l :: nil) nil
@@ -801,9 +800,9 @@ Program Definition wait2_spec cs: funspec := mk_funspec
    match x with
    | (c, l, shc, shl, R) =>
      PROP (readable_share shc)
-     (*LOCAL (temp _cond c; temp _lock l)*)PARAMS (c;l) GLOBALS ()
+     PARAMS (c;l) GLOBALS ()
      SEP (lock_inv shl l R; R && (@cond_var cs shc c * TT))
-   end)
+   end)%argsassert
   (fun _ x =>
    match x with
    | (c, l, shc, shl, R) =>
@@ -820,11 +819,11 @@ Next Obligation.
   destruct x as [[[[c l] shc] shl] R]; simpl in *.
   apply (nonexpansive_super_non_expansive
    (fun R => (PROP (readable_share shc)
-    (*LOCAL (temp _cond c; temp _lock l)*)PARAMS (c;l) GLOBALS ()
-    SEP (lock_inv shl l R; R && (@cond_var cs shc c * TT))) gargs)).
+    PARAMS (c;l) GLOBALS ()
+    SEP (lock_inv shl l R; R && (@cond_var cs shc c * TT)))%argsassert gargs)).
   apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
           ((fun _ => readable_share shc) :: nil)
-          (*(temp _cond c :: temp _lock l :: nil)*)(c::l::nil) nil
+          (c::l::nil) nil
           ((fun R => lock_inv shl l R) :: (fun R => R && (@cond_var cs shc c * TT))%logic :: nil));
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
@@ -915,7 +914,7 @@ Definition spawn_pre :=
                SEP   ())
            f);
          pre w b)) (*)*)
-   end).
+   end)%argsassert.
 
 Definition spawn_post :=
   (fun (ts: list Type) (x: val * val * (nth 0 ts unit -> globals) * nth 0 ts unit *

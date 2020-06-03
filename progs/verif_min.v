@@ -9,7 +9,6 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.min.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -81,13 +80,13 @@ Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
 Definition minimum_spec :=
  DECLARE _minimum
   WITH a: val, n: Z, al: list Z
-  PRE [ _a OF tptr tint , _n OF tint ]
+  PRE [ tptr tint , tint ]
     PROP  (1 <= n <= Int.max_signed; Forall repable_signed al)
-    LOCAL (temp _a a; temp _n (Vint (Int.repr n)))
+    PARAMS (a; Vint (Int.repr n))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)
   POST [ tint ]
     PROP ()
-    LOCAL(temp ret_temp  (Vint (Int.repr (fold_right Z.min (hd 0 al) al))))
+    RETURN (Vint (Int.repr (fold_right Z.min (hd 0 al) al)))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
 Definition Gprog : funspecs :=
@@ -247,14 +246,14 @@ Qed.
 Definition minimum_spec2 :=
  DECLARE _minimum
   WITH a: val, n: Z, al: list Z
-  PRE [ _a OF tptr tint , _n OF tint ]
+  PRE [ tptr tint , tint ]
     PROP  (1 <= n <= Int.max_signed; Forall repable_signed al)
-    LOCAL (temp _a a; temp _n (Vint (Int.repr n)))
+    PARAMS (a; Vint (Int.repr n))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)
   POST [ tint ]
    EX j: Z,
     PROP (In j al; Forall (fun x => j<=x) al)
-    LOCAL(temp ret_temp  (Vint (Int.repr j)))
+    RETURN (Vint (Int.repr j))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
 

@@ -6,8 +6,6 @@ Require Import VST.msl.wandQ_frame.
 
 Open Scope logic.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -456,26 +454,26 @@ Qed.
 Definition Xnode_add_spec :=
  DECLARE _Xnode_add
   WITH p: val, t: XTree
-  PRE  [ _p OF (tptr t_struct_Xnode) ]
+  PRE  [ tptr t_struct_Xnode ]
     PROP  ()
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (xtree_rep t p)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (xtree_rep (x_add1 t) p).
 
 Definition Xfoo_spec :=
  DECLARE _Xfoo
   WITH p: val, t: XTree
-  PRE  [ _p OF (tptr t_struct_Xnode) ]
+  PRE  [ tptr t_struct_Xnode ]
     PROP  (Forall_XTree (fun x => x >= 0) t)
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (xtree_rep t p)
   POST [ Tvoid ]
     EX t': XTree,
       PROP(Forall_XTree (fun x => x > 0) t')
-      LOCAL()
+      RETURN()
       SEP (xtree_rep t' p).
 
 Fixpoint y_add1 (t: YTree): YTree :=
@@ -511,37 +509,37 @@ Qed.
 Definition Ynode_add_spec :=
  DECLARE _Ynode_add
   WITH p: val, t: YTree
-  PRE  [ _p OF (tptr t_struct_Ynode) ]
+  PRE  [ tptr t_struct_Ynode ]
     PROP  ()
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (ytree_rep t p)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (ytree_rep (y_add1 t) p).
 
 Definition YTree_add_spec :=
  DECLARE _YTree_add
   WITH p: val, t: tree (unit * YTree)
-  PRE  [ _p OF (tptr t_struct_Ytree) ]
+  PRE  [ tptr t_struct_Ytree ]
     PROP  ()
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (t_ytree_rep t p)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (t_ytree_rep (ty_add1 t) p).
 
 Definition YList_add_spec :=
  DECLARE _YList_add
   WITH p: val, t: list (tree (unit * YTree) * unit)
-  PRE  [ _p OF (tptr t_struct_Ylist) ]
+  PRE  [ tptr t_struct_Ylist ]
     PROP  ()
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (lt_ytree_rep t p)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (lt_ytree_rep (lty_add1 t) p).
 
 Definition main_spec :=

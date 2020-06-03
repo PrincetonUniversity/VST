@@ -93,7 +93,7 @@ destruct rho.
 unfold get_var_type in *.
 
 destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *; try rewrite eqb_type_eq in *; simpl in *; intuition.
-remember (type_eq t t0). destruct s; intuition.
+remember (type_eq t t0). destruct s; try tauto.
 {
 simpl in *.
  unfold is_pointer_type in H1.
@@ -203,7 +203,7 @@ unfold get_var_type in *.
 unfold eval_var.
 destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *;
 try rewrite eqb_type_eq in *; simpl in *; intuition.
-- remember (type_eq t t0). destruct s; intuition.
+- remember (type_eq t t0). destruct s; try tauto.
  subst.
  simpl.
 simpl. destruct t0; try destruct i0; try destruct s; try destruct f; inv MODE; simpl; auto.

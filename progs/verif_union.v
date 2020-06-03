@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.union.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -13,10 +12,10 @@ Definition Gprog : funspecs :=
 Definition g_spec :=
  DECLARE _g
  WITH i: Z
- PRE [ _i OF size_t]
-   PROP() LOCAL(temp _i (Vptrofs (Ptrofs.repr i))) SEP()
+ PRE [ size_t]
+   PROP() PARAMS(Vptrofs (Ptrofs.repr i)) SEP()
  POST [ size_t ]
-   PROP() LOCAL (temp ret_temp (Vptrofs (Ptrofs.repr i))) SEP().
+   PROP() RETURN (Vptrofs (Ptrofs.repr i)) SEP().
 
 Lemma body_g: semax_body Vprog Gprog f_g g_spec.
 Proof.
@@ -189,10 +188,10 @@ Module Single.
 Definition fabs_single_spec :=
  DECLARE _fabs_single
  WITH x: float32
- PRE [ _x OF Tfloat F32 noattr]
-   PROP() LOCAL(temp _x (Vsingle x)) SEP()
+ PRE [ Tfloat F32 noattr]
+   PROP() PARAMS (Vsingle x) SEP()
  POST [ Tfloat F32 noattr ]
-   PROP() LOCAL (temp ret_temp (Vsingle (Float32.abs x))) SEP().
+   PROP() RETURN (Vsingle (Float32.abs x)) SEP().
 
 Lemma union_field_address: forall id,
   tl composites = (Composite id Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil) ->
@@ -251,10 +250,10 @@ Module Float.
 Definition fabs_single_spec :=
  DECLARE _fabs_single
  WITH x: float
- PRE [ _x OF Tfloat F32 noattr]
-   PROP() LOCAL(temp _x (Vfloat x)) SEP()
+ PRE [ Tfloat F32 noattr]
+   PROP() PARAMS (Vfloat x) SEP()
  POST [ Tfloat F32 noattr ]
-   PROP() LOCAL (temp ret_temp (Vfloat (Float.abs x))) SEP().
+   PROP() RETURN (Vfloat (Float.abs x)) SEP().
 
 Lemma body_fabs_single: semax_body Vprog Gprog f_fabs_single fabs_single_spec.
 Proof.

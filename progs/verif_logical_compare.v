@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.logical_compare.
 
-Require Import VST.floyd.Funspec_old_Notation.
-
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
 
 (****  START *)
@@ -84,20 +82,20 @@ Admitted.
 Definition do_or_spec :=
  DECLARE _do_or
   WITH a: int, b : int
-  PRE [ _a OF tbool, _b OF tbool ]
-        PROP () LOCAL (temp _a (Vint a); temp _b (Vint b)) SEP ()
+  PRE [ tbool, tbool ]
+        PROP () PARAMS (Vint a; Vint b) SEP ()
   POST [ tbool ]
-        PROP() LOCAL (temp ret_temp (Vint (logical_or_result a b)))
+        PROP() RETURN (Vint (logical_or_result a b))
         SEP().
 
 
 Definition do_and_spec :=
  DECLARE _do_and
   WITH a: int, b : int
-  PRE [ _a OF tbool, _b OF tbool ]
-        PROP () LOCAL (temp _a (Vint a); temp _b (Vint b)) SEP ()
+  PRE [ tbool, tbool ]
+        PROP () PARAMS (Vint a; Vint b) SEP ()
   POST [ tbool ]
-        PROP() LOCAL (temp ret_temp (Vint (logical_and_result a b)))
+        PROP() RETURN (Vint (logical_and_result a b))
         SEP().
 
 

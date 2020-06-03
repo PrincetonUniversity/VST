@@ -389,7 +389,7 @@ revert H; induction H0; intros.
   unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
   clear - H1.
   assert (forall w, app_pred (approx (level (S y)) (P x)) w <-> app_pred (approx (level (S y)) (P' x)) w).
-  { intros; rewrite H1; intuition. }
+  { intros; rewrite H1; tauto. }
   apply pred_ext; intros w ?; destruct (H w); simpl in *; intuition.
   apply H0; auto. clear - H4.  unfold natLevel in *. lia.
   apply H2; auto. clear - H4.  unfold natLevel in *. lia. }
@@ -574,7 +574,7 @@ symmetry in Hbb'; inv Hbb'.
 destruct (eq_dec id id').
  - subst. simpl in H1. rewrite PTree.gss in H1.
    symmetry in H1; inv H1. apply inj_pair2 in H6. apply inj_pair2 in H7. subst Q' P'. simpl in *.
-   destruct SB. apply list_norepet_app in H. intuition.
+   destruct SB. apply list_norepet_app in H. tauto.
  - specialize (H0 id); unfold fundef in H0. simpl in H0.  rewrite Hb1 in H0; simpl in H0.
    simpl in FS'.
    elim (Genv.global_addresses_distinct ge' n0 H0 FS'); trivial.
@@ -973,11 +973,11 @@ rewrite make_tycontext_s_find_id.
 split; [ | eexists]; eassumption.
 Qed.
 
-(* there's a place this lemma should be applied, perhaps in proof of semax_call *)
+(* there's a place this lemma should be applied, perhaps in proof of semax_call;
+  or maybe this lemma is dead; or maybe it should be moved to seplog.v *)
 Lemma funassert_rho:
 forall G rho rho', ge_of rho = ge_of rho' -> funassert G rho |-- funassert G rho'.
 Proof. intros. apply funspecs_assert_rho; trivial. Qed.
-(*Lenb: maybe move to seplog?*)
 
 Lemma core_inflate_initial_mem:
 forall (m: mem) (prog: program) (G: funspecs) (n: nat)
@@ -1256,10 +1256,6 @@ left; eauto. right; eauto.
 left; eauto. destruct H. congruence.
 exists f; eauto.
 right; eauto.
-(*+
-simpl in H2; inv H2.
-apply (IHfl G); auto.
-*)
 Qed.
 
 Lemma tc_ge_denote_initial:
@@ -2115,9 +2111,6 @@ Proof.
     apply (H9 jm nil (globals_of_genv (filter_genv (globalenv prog)))); eauto.
     * eexists; eexists; split; [apply initial_jm_ext_eq|].
      split.
-     -- (*match goal with |- app_pred (gglobvars2pred (globals_of_genv ?A) _ ?B) _ => 
-           change (globals_of_genv A) with (globals_of_genv B)
-          end.*) 
         split; [ simpl; trivial |]. apply (gglobal_initializers prog G m n gargs); trivial.
      -- simpl.
         unshelve eexists; [split; auto; apply Share.nontrivial|].
@@ -2126,9 +2119,6 @@ Proof.
         unfold ext_ghost; repeat f_equal.
         apply proof_irr.
     * apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
-     (*Maybe the lemma funassert_rho is now dead?
-      apply (funassert_rho _ (empty_environ (globalenv prog))).
-      reflexivity. auto.*)
 +
   apply initial_jm_ext_without_locks.
 +
@@ -2155,13 +2145,13 @@ Lemma match_fdecs_cons_D f funs k K (M: match_fdecs (cons f funs) (cons k K)):
 exists i fd fspec, f=(i,fd) /\ k=(i,fspec) /\ 
      type_of_fundef fd = type_of_funspec fspec /\
      match_fdecs funs K.
-Proof. inv M. exists i, fd, fspec; intuition. Qed.
+Proof. inv M. exists i, fd, fspec; tauto. Qed.
 
 Lemma match_fdecs_cons_D1 f funs K (M: match_fdecs (cons f funs) K):
 exists i fd fspec G, f=(i,fd) /\ K=cons (i,fspec) G /\ 
      type_of_fundef fd = type_of_funspec fspec /\
      match_fdecs funs G.
-Proof. inv M. exists i, fd, fspec, G; intuition. Qed.
+Proof. inv M. exists i, fd, fspec, G; tauto. Qed.
 
 Lemma match_fdecs_cons_D2 funs k K (M: match_fdecs funs (cons k K)):
 exists i fd fspec fs, funs=cons (i,fd) fs /\ k=(i,fspec) /\ 
@@ -2511,39 +2501,24 @@ Proof.
   intros n. 
   eapply semax_mono. apply TS. apply (SF Espec0 ts x n).
 Qed. 
-  
-(*
-Lemma semax_func_loeb V G C (prog:program):
-@semax_func V G C (Genv.globalenv prog) (prog_funct prog) G ->
-@semax_func V nil C (Genv.globalenv prog) (prog_funct prog) G.
-Proof.
-intros [MFD [GC GE]].
-split. trivial. split. trivial. intros. specialize (GE _ Gfs Gffp n).
-eapply believe_monoL. 3: apply GE. 2: apply cspecs_sub_refl.
-intros. red; simpl. intuition; intros.
-+ remember ((make_tycontext_t (fn_params f) (fn_temps f)) ! id) as x; destruct x; trivial.
-+ red; intros. Search make_tycontext_g.
-    *)
 
 Lemma semax_external_binaryintersection {ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
-      A P Q P_ne Q_ne sig(*sig1 sig2*) cc n}
+      A P Q P_ne Q_ne sig cc n}
   (EXT1: semax_external Espec ef A1 P1 Q1 n)
   (EXT2: semax_external Espec ef A2 P2 Q2 n)
-  (BI: binary_intersection (mk_funspec sig(*sig1*) cc A1 P1 Q1 P1ne Q1ne) 
-                      (mk_funspec sig(*sig2*) cc A2 P2 Q2 P2ne Q2ne) =
-       Some (mk_funspec (*sig1*)sig cc A P Q P_ne Q_ne))
-  (*(FSM: typesigs_match sig1 sig2 = true)*)
-  (LENef: length (fst (*sig1*)sig) = length (sig_args (ef_sig ef))):
+  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
+                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
+       Some (mk_funspec sig cc A P Q P_ne Q_ne))
+  (LENef: length (fst sig) = length (sig_args (ef_sig ef))):
   semax_external Espec ef A P Q n.
 Proof.
   intros ge ts x.
   simpl in BI.
-  rewrite (*FSM,*) ! if_true in BI by trivial. 
+  rewrite ! if_true in BI by trivial. 
   inv BI. apply inj_pair2 in H1; subst P. apply inj_pair2 in H2; subst Q.
   destruct x as [bb BB]; destruct bb.
   * apply (EXT1 ge ts BB). 
-  * (*specialize (typesigs_match_arglengths FSM); intros LEN. *)
-    intros m NM FRM typs vals r MR rr R [TYS H].
+  * intros m NM FRM typs vals r MR rr R [TYS H].
     apply (EXT2 ge ts BB m NM FRM typs vals r MR rr R). split; trivial.
 Qed.
 
@@ -2596,7 +2571,7 @@ Proof.
  destruct phi' as [sig' cc' A' P' Q' Pne' Qne'].
  destruct Sub as [[Tsigs CC] Sub]. subst cc'. simpl in Sub.
  destruct SB as [SB1 [SB2 SB3]].
- (*apply typesigs_match_typesigs_eq in Tsigs.*) subst sig'.
+ subst sig'.
  split3; trivial. intros.
  specialize (Sub ts x).
  eapply semax_adapt
@@ -2614,9 +2589,8 @@ Proof.
  + intros lia m [TC [OM [m1 [m2 [JM [[vals [[MAP VUNDEF] HP']] M2]]]]]].
    destruct (Sub (ge_of lia, vals) m1) as [ts1 [x1 [FR1 [M1 RetQ]]]]; clear Sub.
    { split; trivial.
-     simpl(*; split*).
-     (*+ clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
-     + *)rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
+     simpl.
+       rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
        unfold fn_funsig. simpl. clear - TC1 MAP LNR VUNDEF.
        specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). simpl in TC1.  red in TC1. clear - MAP (*VUNDEF*); intros TE.
        forget (fn_params f) as params. generalize dependent vals.
@@ -2626,7 +2600,7 @@ Proof.
          * clear IHparams. intros. destruct (TE (fst a) (snd a)) as [w [W Tw]].
            left; destruct a; trivial.
            rewrite W in H0. inv H0. 
-           (*apply Tw*) apply tc_val_has_type; apply Tw; trivial.
+           apply tc_val_has_type; apply Tw; trivial.
          * apply IHparams; simpl; trivial.
            intros. apply TE. right; trivial. }
     split; [ | simpl; trivial].
@@ -2635,7 +2609,7 @@ Proof.
     split; [| simpl; trivial].
     exists vals, ts1, x1, FR1. simpl in MAP.
     split3.
-    - (*trivial*) simpl; intros. eapply derives_trans. 2: apply RetQ.
+    - simpl; intros. eapply derives_trans. 2: apply RetQ.
       (*similar proof as in seplog*)
       intros ? [? ?]. split; trivial. simpl.
       simpl in H. clear - H. destruct H as [_ [Hve _]].
@@ -2658,7 +2632,6 @@ Proof.
       split; [ clear IHparams | apply (IHparams H6 X _ H1 H4)].
       destruct (TC1 i t) as [u [U TU]]; clear TC1. rewrite PTree.gss; trivial.
       rewrite U in H0; inv H0. apply TU; trivial.
-    (*apply (typecheck_environ_eval_id LNR TC).*)
   + clear Sub.
     apply extract_exists_pre; intros vals.
     apply extract_exists_pre; intros ts1.
@@ -2680,7 +2653,6 @@ Proof.
         unfold close_precondition. apply join_comm in JN. rewrite sepcon_assoc. 
         exists n2, n1; split3; trivial.
         exists vals. simpl in *. split; trivial. split; trivial.
-        (*rewrite (typecheck_environ_eval_id LNR TC) in VALS. apply map_Some_inv in VALS; trivial.*)
         apply (tc_vals_Vundef TCVals).
       * intros m [TC M].
         destruct (fn_return f); 

@@ -1,71 +1,70 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.strlib.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition strchr_spec :=
  DECLARE _strchr
   WITH sh: share, str : val, s : list byte, c : byte
-  PRE  [ _str OF tptr tschar, _c OF tint ]
+  PRE  [ tptr tschar, tint ]
     PROP (readable_share sh; c <> Byte.zero)
-    LOCAL (temp _str str; temp _c (Vbyte c))
+    PARAMS (str; Vbyte c)
     SEP (cstring sh s str)
   POST [ tptr tschar ]
    EX r : val,
     PROP ((exists i, Znth i s = c /\ Forall (fun d => d<>c) (sublist 0 i s)
                      /\ r = offset_val i str)
        \/ (Forall (fun d => d<>c) s /\ r = nullval))
-    LOCAL (temp ret_temp r)
+    RETURN (r)
     SEP (cstring sh s str).
 
 Definition strcat_spec :=
  DECLARE _strcat
   WITH sh: share, sh': share, dest : val, sd : list byte, n : Z, src : val, ss : list byte
-  PRE  [ _dest OF tptr tschar, _src OF tptr tschar ]
+  PRE  [ tptr tschar, tptr tschar ]
     PROP (writable_share sh; readable_share sh'; Zlength sd + Zlength ss < n)
-    LOCAL (temp _dest dest; temp _src src)
+    PARAMS (dest; src)
     SEP (cstringn sh sd n dest; cstring sh' ss src)
   POST [ tptr tschar ]
     PROP ()
-    LOCAL (temp ret_temp dest)
+    RETURN (dest)
     SEP (cstringn sh (sd ++ ss) n dest; cstring sh' ss src).
 
 Definition strcmp_spec :=
  DECLARE _strcmp
   WITH sh1: share, sh2: share, str1 : val, s1 : list byte, str2 : val, s2 : list byte
-  PRE [ _str1 OF tptr tschar, _str2 OF tptr tschar ]
+  PRE [ tptr tschar, tptr tschar ]
     PROP (readable_share sh1; readable_share sh2)
-    LOCAL (temp _str1 str1; temp _str2 str2)
+    PARAMS (str1; str2)
     SEP (cstring sh1 s1 str1; cstring sh2 s2 str2)
   POST [ tint ]
    EX i : int,
     PROP (if Int.eq_dec i Int.zero then s1 = s2 else s1 <> s2)
-    LOCAL (temp ret_temp (Vint i))
+    RETURN (Vint i)
     SEP (cstring sh1 s1 str1; cstring sh2 s2 str2).
 
 Definition strcpy_spec :=
  DECLARE _strcpy
   WITH sh: share, sh': share, dest : val, n : Z, src : val, s : list byte
-  PRE [ _dest OF tptr tschar, _src OF tptr tschar ]
+  PRE [ tptr tschar, tptr tschar ]
     PROP (writable_share sh; readable_share sh'; Zlength s < n)
-    LOCAL (temp _dest dest; temp _src src)
+    PARAMS (dest; src)
     SEP (data_at_ sh (tarray tschar n) dest; cstring sh' s src)
   POST [ tptr tschar ]
     PROP ()
-    LOCAL (temp ret_temp dest)
+    RETURN (dest)
     SEP (cstringn sh s n dest; cstring sh' s src).
 
 Definition strlen_spec :=
  DECLARE _strlen
   WITH sh: share, s : list byte, str: val
-  PRE [ _str OF tptr tschar ]
+  PRE [ tptr tschar ]
     PROP (readable_share sh)
-    LOCAL (temp _str str)
+    PARAMS (str)
     SEP (cstring sh s str)
   POST [ size_t ]
     PROP ()
-    LOCAL (temp ret_temp (Vptrofs (Ptrofs.repr (Zlength s))))
+    RETURN (Vptrofs (Ptrofs.repr (Zlength s)))
     SEP (cstring sh s str).
 
 Definition Gprog : funspecs :=

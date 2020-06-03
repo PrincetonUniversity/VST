@@ -4,7 +4,6 @@ Require Import VST.progs.list_dt. Import LsegSpecial.
 
 Open Scope logic.
 
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -35,15 +34,15 @@ Definition tlist := tptr t_struct_list.
 Definition merge_spec :=
  DECLARE _merge
   WITH sh : share, a : list int, b : list int, a_ : val, b_ : val
-  PRE  [ _a OF tlist,  _b OF tlist ]
+  PRE  [ tlist,  tlist ]
      PROP (writable_share sh)
-     LOCAL (temp _a a_; temp _b b_)
+     PARAMS (a_; b_)
      SEP (lseg LS sh (map Vint a) a_ nullval;
             lseg LS sh (map Vint b) b_ nullval)
   POST [ tlist ]
     EX pt:val,
      PROP ()
-     LOCAL (temp ret_temp pt)
+     RETURN (pt)
      SEP (lseg LS sh (map Vint (merge a b)) pt nullval).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [ merge_spec ]).

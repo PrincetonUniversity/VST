@@ -192,12 +192,12 @@ split; intros; induction v. simpl in *.
 rewrite PTree.gempty in *. congruence.
 
 simpl in *. destruct a. inv H. rewrite PTree.gsspec in *. if_tac in H0.
-inv H0. auto. intuition.
+inv H0. auto. tauto.
 
 inv H0.
 
 simpl in *. destruct a. simpl in *. rewrite PTree.gsspec. destruct H0.
-inv H0. if_tac. auto. intuition. inv H. if_tac. subst.
+inv H0. if_tac. auto. tauto. inv H. if_tac. subst.
 clear - H0 H3. rewrite in_map_iff in *. destruct H3. exists (i,ty). auto.
 apply IHv; auto.
 Qed.
@@ -237,7 +237,7 @@ induction t.
       apply H; simpl in *; auto.
 
     induction p.
-       simpl in *. rewrite PTree.gsspec. if_tac. intuition.
+       simpl in *. rewrite PTree.gsspec. if_tac. tauto.
        auto.
 
        simpl in *.  repeat rewrite PTree.gsspec in *. destruct a.
@@ -254,15 +254,15 @@ induction t.
       if_tac. subst. clear - H. specialize (H i i). intuition.  apply IHp.
       unfold list_disjoint in *. intros. apply H; simpl in *; auto.
       intros. apply IHt. unfold list_disjoint in *. intros; simpl in *; apply H;      auto.
-      auto. auto. intuition.
+      auto. auto. tauto.
 
     destruct a. simpl in *. induction p.
-      simpl in *. rewrite PTree.gsspec. if_tac; subst. intuition.
+      simpl in *. rewrite PTree.gsspec. if_tac; subst. tauto.
       repeat rewrite PTree.gsspec. auto.
 
       simpl in *. destruct a. simpl in *.
       spec IHt. unfold list_disjoint in *. intros; apply H; simpl in *; auto.
-      intuition.
+      tauto.
       repeat rewrite PTree.gsspec in *. if_tac.
         subst.  auto.
 
@@ -287,12 +287,12 @@ Proof.
     - right.
       destruct a. simpl in *. rewrite PTree.gsspec in *.
       if_tac in H0. subst. inv H0. auto. destruct IHt. inv H1; auto.
-      unfold list_disjoint in *. intros. inv H4. auto. intuition. intuition.
+      unfold list_disjoint in *. intros. inv H4. auto. tauto. tauto.
     - simpl in *.
       rewrite PTree.gsspec in *.
       if_tac in H0.
       * destruct a0. simpl in *.
-        subst. inv H0. intuition.
+        subst. inv H0. tauto.
       * destruct a0. simpl in *.  destruct a. simpl in *.
         destruct IHp.
         ++ inv H; auto.
@@ -303,14 +303,14 @@ Proof.
           -- intro; intros; apply H2; simpl in *; auto.
           -- auto.
           -- destruct H7.
-            ** inv H7; intuition.
+            ** inv H7; tauto.
             ** auto.
           -- auto.
         ++ left.
            right. apply H4.
         ++ right. auto.
   + induction t; induction p; simpl in *.
-    - intuition.
+    - tauto.
     - rewrite PTree.gsspec. if_tac.
       * subst. destruct a. simpl in *.
         destruct H0; [destruct H0 |].
@@ -321,7 +321,7 @@ Proof.
        ++ inv H0.
       * destruct H0.
        ++ destruct a. destruct H0.
-         -- subst. inv H0. intuition.
+         -- subst. inv H0. tauto.
          -- simpl in *. apply IHp.
            ** inv H; auto.
            ** intro. intros. inv H5.
@@ -373,7 +373,7 @@ Proof.
             spec IHt; [auto |].
             rewrite PTree.gsspec in *.
             if_tac in IHt.
-           ** intuition.
+           ** tauto.
            ** intros. auto.
 Qed.
 

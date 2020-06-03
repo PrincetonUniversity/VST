@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.fib.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -76,12 +75,12 @@ Qed.
 Definition fib_spec fun_id :=
  DECLARE fun_id
   WITH n : Z
-  PRE  [ _n OF tint ]
+  PRE  [ tint ]
      PROP (0 <= n < 45) (* 50th term is too large to be a 32bit int *)
-     LOCAL (temp _n (Vint (Int.repr n)))
+     PARAMS (Vint (Int.repr n))
      SEP ()
   POST [ tint ]
-     PROP () LOCAL (temp ret_temp (Vint (Int.repr (fib_of_Z n))))
+     PROP () RETURN (Vint (Int.repr (fib_of_Z n)))
      SEP ().
 
 Definition Gprog : funspecs :=

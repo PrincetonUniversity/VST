@@ -10,7 +10,6 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.progs64.min.
-Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -82,13 +81,13 @@ Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
 Definition minimum_spec :=
  DECLARE _minimum
   WITH a: val, n: Z, al: list Z
-  PRE [ _a OF tptr tint , _n OF tint ]
+  PRE [ tptr tint , tint ]
     PROP  (1 <= n <= Int.max_signed; Forall repable_signed al)
-    LOCAL (temp _a a; temp _n (Vint (Int.repr n)))
+    PARAMS (a; Vint (Int.repr n))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)
   POST [ tint ]
     PROP ()
-    LOCAL(temp ret_temp  (Vint (Int.repr (fold_right Z.min (hd 0 al) al))))
+    RETURN (Vint (Int.repr (fold_right Z.min (hd 0 al) al)))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
 Definition Gprog : funspecs :=
@@ -206,8 +205,35 @@ rename a0 into i.
  intros.
  subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
  simpl_ret_assert.
- (* TODO: entailer! fails here with a misleading error message *)
- Exists i. apply andp_left2. normalize.
+
+Ltac go_lower ::=
+clear_Delta_specs;
+intros;
+match goal with
+ | |- local _ && PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
+ | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
+ | |- ENTAIL _, _ |-- _ => fail 10 "The left-hand-side of your entailment is  not in PROP/LOCAL/SEP form"
+ | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
+end;
+clean_LOCAL_canon_mix;
+repeat (simple apply derives_extract_PROP; intro_PROP);
+let rho := fresh "rho" in
+intro rho;
+first
+[ simple apply quick_finish_lower
+|          
+ (let TC := fresh "TC" in apply finish_lower; intros TC ||
+ match goal with
+ | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
+ | |- _ => fail 1 "PROP part of precondition is not a concrete list"
+ end);
+unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp; (* for the left side *)
+unfold_for_go_lower;
+simpl tc_val; simpl msubst_denote_tc_assert;
+try clear dependent rho;
+clear_Delta
+].
+Exists i. apply ENTAIL_refl.
 *
  rename a0 into i.
  forward.
@@ -221,14 +247,14 @@ Qed.
 Definition minimum_spec2 :=
  DECLARE _minimum
   WITH a: val, n: Z, al: list Z
-  PRE [ _a OF tptr tint , _n OF tint ]
+  PRE [ tptr tint , tint ]
     PROP  (1 <= n <= Int.max_signed; Forall repable_signed al)
-    LOCAL (temp _a a; temp _n (Vint (Int.repr n)))
+    PARAMS (a; Vint (Int.repr n))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)
   POST [ tint ]
    EX j: Z,
     PROP (In j al; Forall (fun x => j<=x) al)
-    LOCAL(temp ret_temp  (Vint (Int.repr j)))
+    RETURN (Vint (Int.repr j))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
 

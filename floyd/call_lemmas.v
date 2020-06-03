@@ -334,9 +334,9 @@ Lemma fold_right_and_app_low:
   (fold_right and True Q1  /\ fold_right and True Q2).
 Proof.
 induction Q1; intros; simpl; auto.
-apply prop_ext; intuition.
+apply prop_ext; tauto.
 rewrite IHQ1.
-apply prop_ext; intuition.
+apply prop_ext; tauto.
 Qed.
 
 Lemma fold_right_and_app_lifted:
@@ -345,7 +345,7 @@ Lemma fold_right_and_app_lifted:
   `(and) (fold_right `(and) `(True) Q1) (fold_right `(and) `(True) Q2).
 Proof.
 induction Q1; intros; simpl; auto.
-extensionality rho; apply prop_ext; intuition.
+extensionality rho; apply prop_ext;intuition.
 split; auto.
 destruct H; auto.
 rewrite IHQ1.
@@ -443,48 +443,6 @@ Proof.
  induction fl; destruct vl; simpl; auto.
 Qed.
 
-(*DEAD
-Lemma check_specs_lemma:
-  forall Qtemp Qpre_temp Qvar GV GV' rho fl vl
-         (LEN: length fl = length vl)
-         (UNDEF: Forall (fun v => v <> Vundef) vl),
-    check_gvars_spec GV GV' ->
-    Forall (check_one_temp_spec (pTree_from_elements (combine fl vl)))
-           (PTree.elements Qpre_temp) ->
-    fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar GV)) rho ->
-    fold_right `(and) `(True) (map locald_denote (LocalD Qpre_temp (PTree.empty _) GV')) (make_args fl vl rho).
-Proof.
-  intros.
-  apply local_ext_rev.
-  specialize (fun (Q0: environ -> Prop) H => local_ext Q0 _ _ H H1).
-  clear H1; intros.
-  specialize (fun (Q0: localdef) H => H1 (locald_denote Q0) (in_map _ _ _ H)).
-  specialize (fun (Q0: localdef) H => H1 Q0 (LocalD_sound _ _ _ _ H)).
-  assert (ASSU1: forall i v, Qtemp ! i = Some v -> locald_denote (temp i v) rho) by (intros; apply H1; firstorder).
-  assert (ASSU2: forall i t v, Qvar ! i = Some (t, v) -> locald_denote (lvar i t v) rho) by (intros; apply H1; eauto 50).
-  assert (ASSU3: forall gv, GV = Some gv -> locald_denote (gvars gv) rho) by (intros; apply H1; eauto 50).
-  clear H1.
-  apply list_in_map_inv in H2.
-  destruct H2 as [Q0' [? ?]]; subst; rename Q0' into Q0.
-  apply LocalD_complete in H2.
-  destruct H2 as [ [i [v [?H ?H]]]
-                 |[ [i [t [v [?H ?H]]]]
-                 |  [gv [?H ?H]]]];
-    subst; unfold locald_denote; unfold_lift.
-  + hnf.
-    clear - H0 H1 UNDEF.
-    pose proof (Forall_ptree_elements_e _ _ _ _ _ H0 H1).
-    hnf in H. simpl in H.
-    clear - H UNDEF.
-    eapply pTree_from_elements_e1; auto.
-  + rewrite PTree.gempty in H1; inv H1.
-  + destruct GV; [| inv H].
-    simpl in H; inv H.
-    specialize (ASSU3 _ eq_refl).
-    hnf in ASSU3 |- *. subst.
-    extensionality i. rewrite ge_of_make_args. auto.
-Qed.*)
-
 Lemma PROP_combine:
  forall P P' Q Q' R R',
   PROPx P (LOCALx Q (SEPx R)) * PROPx P' (LOCALx Q' (SEPx R')) =
@@ -497,7 +455,7 @@ normalize.
 f_equal. rewrite map_app.
 rewrite fold_right_and_app.
 rewrite fold_right_and_app_low.
-f_equal. apply prop_ext; intuition.
+f_equal. apply prop_ext; tauto.
 rewrite fold_right_sepcon_app.
 auto.
 Qed.
@@ -524,7 +482,7 @@ replace (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x
   with (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x1)
    (fun _ : environ => True)
    (map (fun (q : environ -> Prop) (x : environ) => q (f x))
-      (map locald_denote Q)) rho);  [apply prop_ext; intuition | ].
+      (map locald_denote Q)) rho);  [apply prop_ext; tauto | ].
 induction Q; simpl; auto. f_equal; auto.
 Qed.
 Hint Rewrite PROP_LOCAL_SEP_f: norm2.
@@ -1128,7 +1086,7 @@ simpl. rewrite sepcon_andp_prop'.
 apply andp_right.
 { apply prop_right; trivial.
   clear - PPRE.
-  revert PPRE; induction Ppre; simpl; intuition. }
+  revert PPRE; induction Ppre; simpl; tauto. }
 unfold PARAMSx, GLOBALSx, PROPx, LOCALx, SEPx, argsassert2assert. simpl. normalize.
 unfold local, liftx, lift1, lift; simpl. normalize.
 eapply derives_trans; [ apply FRAME | clear FRAME].
@@ -1383,7 +1341,7 @@ Proof.
     apply derives_trans with
     (EX  vret : B,
        `(PROPx (Ppost vret)
-         (LOCAL  (temp ret_temp (F vret))
+         (LOCALx  (temp ret_temp (F vret)::nil)
           (SEPx (Rpost vret))))%assert (get_result1 ret)
             * (local (tc_environ Delta) && PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx Frame)))).
     clear.
@@ -1516,7 +1474,7 @@ Proof.
     assert (eqb_ident ret ret' = false)
     by (clear - NEret; pose proof (eqb_ident_spec ret ret');
         destruct (eqb_ident ret ret'); auto;
-        contradiction NEret; intuition).
+        contradiction NEret; tauto).
     rewrite H3 in *. apply Pos.eqb_neq in H3.
     unfold_lift in H0.
     assert (tc_val retty' (eval_id ret' rho))
@@ -1532,8 +1490,8 @@ Lemma semax_call_id1_x_wow_nil:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred}
+   {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc A Pre Post NEPre NEPost bl vl (*Qactuals*)
       witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
@@ -1571,11 +1529,11 @@ Lemma semax_call_id1_y_wow:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred}
+   {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc ts A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
     Espec ret ret' (retty: type) 
              (Post2: environ -> mpred)
              (Qnew: list localdef)
@@ -1665,11 +1623,11 @@ Lemma semax_call_id1_y_wow_nil:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred}
+   {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
     Espec ret ret' (retty: type) 
              (Post2: environ -> mpred)
              (Qnew: list localdef)
@@ -1727,9 +1685,7 @@ Lemma semax_call_id01_wow:
     (Scall None a bl)
     (normal_ret_assert Post2).
 Proof.
-  intros. (*
-  destruct SETUP as [[PTREE [Hsub [SPEC (*[HR'*) [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]](*]*)
-                       [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].*)
+  intros.
   destruct SETUP as [[PTREE [Hsub [SPEC [ATY [TC0 [TC1 MSUBST ]]]]]]
                        [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].
   apply SPEC. clear SPEC.
@@ -1771,11 +1727,11 @@ Lemma semax_call_id01_wow_nil:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred}
+   {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
    Espec
              (Post2: environ -> mpred)
              (B: Type)
@@ -1815,8 +1771,8 @@ rewrite sepcon_comm. apply sepcon_derives; auto.
 Qed.
 
 Ltac match_funcptr'_funcptr :=
- first [apply match_funcptr'_funcptr 
-        | apply nomatch_funcptr'_funcptr; match_funcptr'_funcptr].
+ first [simple apply match_funcptr'_funcptr 
+        | simple apply nomatch_funcptr'_funcptr; match_funcptr'_funcptr].
 
 Ltac prove_func_ptr := 
     match goal with |- fold_right_sepcon ?A |-- func_ptr ?F ?V =>

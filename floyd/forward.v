@@ -487,7 +487,7 @@ Lemma typecheck_return_value:
   forall (f: val -> Prop)  t (v: val) (gx: genviron) (ret: option val) P R,
  f v -> 
  (PROPx P
- (LOCAL (temp ret_temp v)
+ (LOCALx (temp ret_temp v::nil)
  (SEPx R))) (make_ext_rval gx t ret) |-- !! f (force_val ret).
 Proof.
 intros.
@@ -1262,9 +1262,9 @@ Ltac prove_call_setup1 subsumes :=
     fail 1 "forward_call fails because your precondition starts with EX.
 Use Intros  to move          the existentially bound variables above the line"
   | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+    let cR := (fun R =>
     match c with
     | context [Scall _ ?a ?bl] =>
-      let R := strip1_later R' in
       exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
       [check_prove_local2ptree
       |reflexivity
@@ -1276,7 +1276,6 @@ Use Intros  to move          the existentially bound variables above the line"
       |check_cast_params
       | ]
     | context [Scall _ (Evar ?id ?ty) ?bl] =>
-      let R := strip1_later R' in
       exploit (call_setup1_i2 CS Delta P Q R' id ty bl) ;
       [check_prove_local2ptree
       | apply can_assume_funcptr2;
@@ -1292,7 +1291,8 @@ Use Intros  to move          the existentially bound variables above the line"
       |check_cast_params
       | ..
       ]
-    end
+    end)
+    in strip1_later R' cR
   end.
 
 Ltac check_gvars :=
@@ -1310,7 +1310,7 @@ Ltac prove_call_setup_aux  ts witness :=
  intro H;
  match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
- let R := strip1_later R' in
+ let cR := (fun R =>
  exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ H witness Frame); clear H;
  simpl functors.MixVariantFunctor._functor;
  [ try_convertPreElim
@@ -1320,7 +1320,8 @@ Ltac prove_call_setup_aux  ts witness :=
  | unfold check_gvars_spec; solve [exact I | reflexivity]
  | try change_compspecs CS; cancel_for_forward_call
  |
- ]
+ ])
+  in strip1_later R' cR
  end.
 
 Ltac prove_call_setup ts subsumes witness :=
@@ -1429,33 +1430,6 @@ Ltac new_prove_call_setup :=
       ltac:(prove_call_setup_aux (@nil Type))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
  end].
-
-(*
-Ltac new_prove_call_setup :=
- prove_call_setup1 funspec_sub_refl;
- [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
-      let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
-      ltac:(fun witness =>
- let H := fresh in
- intro H;
- match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
- let Frame := fresh "Frame" in evar (Frame: list mpred); 
- let R := strip1_later R' in
- exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ nil _ _ _ _ _ _ _ _ H witness Frame); clear H;
- simpl functors.MixVariantFunctor._functor;
- [ reflexivity
- | check_prove_local2ptree
- | Forall_pTree_from_elements
- | auto 50 with derives
- | unfold check_gvars_spec; solve [exact I | reflexivity]
- | try change_compspecs CS; cancel_for_forward_call
- |
- ]
- end)
- ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
- end].
-*)
 
 Ltac new_fwd_call' :=
 lazymatch goal with
@@ -3459,7 +3433,7 @@ replace (PROPx P' (LOCALx Q' (SEPx (r1 :: R'))) * VBS)
 }
 apply derives_trans with
 ((local (tc_environ Delta) &&  PROPx P (LOCALx Q (SEPx R))) 
-   && (local (tc_environ Delta) &&  PROPx nil (LOCALx Q (SEP(TT))))).
+   && (local (tc_environ Delta) &&  PROPx nil (LOCALx Q (SEPx(TT::nil))))).
 go_lowerx.
 repeat apply andp_right; auto; try apply prop_right; auto.
 rewrite sepcon_emp. apply TT_right.

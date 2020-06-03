@@ -127,7 +127,7 @@ hnf in H0|-*.
  assert (SS: sizeof t * n2 <= sizeof t * n1).
   apply Zmult_le_compat_l; auto.
   pose proof (sizeof_pos t); lia.
-intuition.
+  intuition.
  *
   destruct p; try contradiction; red in H4|-*.
   unfold sizeof in *; simpl in *; fold (sizeof t) in *.
@@ -162,8 +162,7 @@ Lemma field_compatible0_ArraySubsc0:
     legal_nested_field0 t (gfs SUB 0) ->
     field_compatible0 t (gfs SUB 0) p.
 Proof.
-intros. hnf in H|-*.
-intuition.
+intros. hnf in H|-*. tauto.
 Qed.
 
 Lemma field_compatible_Tarray_split:
@@ -254,7 +253,7 @@ unfold field_address0 in H1.
 if_tac in H1; [ | destruct H1; contradiction].
 clear H1.
 hnf in H0,H2|-*.
-intuition.
+tauto.
 Qed.
 
 Hint Resolve field_compatible0_ArraySubsc0 : field_compatible.
