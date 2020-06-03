@@ -1,11 +1,11 @@
 Require Import VST.floyd.proofauto.
 Require Import pile.
 Instance PileCompSpecs : compspecs. make_compspecs prog. Defined.
-Definition tlist := Tstruct _list noattr.
-Definition tpile := Tstruct _pile noattr.
-
 Require Import simple_spec_stdlib.
 Require Import PileModel.
+
+Definition tlist := Tstruct _list noattr.
+Definition tpile := Tstruct _pile noattr.
 
 Fixpoint listrep (sigma: list Z) (x: val) : mpred :=
  match sigma with

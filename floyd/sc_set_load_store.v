@@ -430,6 +430,7 @@ Ltac solve_msubst_efield_denote :=
              rewrite (Ptrofs.to_int64_of_int64 (eq_refl _));
              reflexivity
             | |- Vptrofs _ = Vptrofs _ => reflexivity
+            | |- ?A = _ => fail 99 "Your subscript expression evaluates to" A "which is not in the form (Vint _) or (Vptrofs _).  Perhaps rewrite one of your LOCAL(temp _) clauses."
            end
         ]
       | solve_Ptrofs_eqm_unsigned
@@ -454,8 +455,10 @@ Ltac solve_msubst_efield_denote :=
               try change (int_signed_or_unsigned t) with Int.unsigned
         | |- _ => idtac
          end;
-         reflexivity
-(*      | solve_Ptrofs_eqm_unsigned *)
+         reflexivity || 
+         match goal with |- Some ?A = _ => 
+          fail 99 "Your subscript expression evaluates to" A "which is not in the form (Vint _) or (Vptrofs _).  Perhaps rewrite a LOCAL(temp _) clause."
+        end
       | ]
     | apply msubst_efield_denote_cons_struct
     | apply msubst_efield_denote_cons_union

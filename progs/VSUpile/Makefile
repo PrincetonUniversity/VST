@@ -113,12 +113,12 @@ simple_spec_pile.vo: pile.vo PileModel.vo simple_spec_stdlib.vo $(FLOYD)
 simple_spec_stdlib.vo: simple_spec_stdlib.v stdlib.vo $(FLOYD)
 simple_spec_main.vo: simple_spec_main.v main.vo $(FLOYD)
 simple_spec_triang.vo: triang.vo simple_spec_stdlib.vo simple_spec_pile.vo $(FLOYD)
-simple_verif_apile.vo: apile.vo simple_spec_stdlib.vo simple_spec_pile.vo simple_spec_apile.vo
-simple_verif_core.vo: main.vo simple_verif_stdlib.vo simple_verif_pile.vo simple_verif_onepile.vo simple_verif_apile.vo simple_verif_triang.vo
-simple_verif_main.vo: simple_spec_main.vo simple_verif_core.vo
-simple_verif_onepile.vo: onepile.vo simple_spec_stdlib.vo simple_spec_pile.vo simple_spec_onepile.vo
-simple_verif_pile.vo: pile.vo simple_spec_stdlib.vo
-simple_verif_triang.vo: triang.vo simple_spec_stdlib.vo simple_spec_pile.vo simple_spec_triang.vo
-simple_verif_stdlib.vo: simple_spec_stdlib.vo
-simple_link_pile.vo: simple_verif_main.vo
-simple_verif_linked_main.vo: PileModel.vo simple_verif_core.vo simple_spec_main.vo
+simple_verif_apile.vo: apile.vo simple_spec_stdlib.vo simple_spec_pile.vo simple_spec_apile.vo $(FLOYD)
+simple_verif_core.vo: main.vo simple_verif_stdlib.vo simple_verif_pile.vo simple_verif_onepile.vo simple_verif_apile.vo simple_verif_triang.vo $(FLOYD)
+simple_verif_main.vo: simple_spec_main.vo simple_verif_core.vo $(FLOYD)
+simple_verif_onepile.vo: onepile.vo simple_spec_stdlib.vo simple_spec_pile.vo simple_spec_onepile.vo $(FLOYD)
+simple_verif_pile.vo: pile.vo simple_spec_stdlib.vo $(FLOYD)
+simple_verif_triang.vo: triang.vo simple_spec_stdlib.vo simple_spec_pile.vo simple_spec_triang.vo $(FLOYD)
+simple_verif_stdlib.vo: simple_spec_stdlib.vo $(FLOYD)
+simple_link_pile.vo: simple_verif_main.vo $(FLOYD)
+simple_verif_linked_main.vo: PileModel.vo simple_verif_core.vo simple_spec_main.vo $(FLOYD)
