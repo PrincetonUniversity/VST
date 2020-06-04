@@ -423,7 +423,6 @@ Proof.
 
   rename l into entropy_bytes.
   thaw FR5. thaw FR4. unfold GetEntropy_PostSep. rewrite <- Heqentropy_result.
-(*  eapply REST with (s0:=s0)(contents':=contents'); trivial.*)
   destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]].
   deadvars!.
   eapply semax_pre_post.
@@ -441,16 +440,17 @@ Proof.
   1,2,3: subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
  
   intros.
-  unfold POSTCONDITION, abbreviate.  simpl_ret_assert. old_go_lower.
-  unfold reseedPOST; destruct vl; trivial. simpl. Intros.
+  unfold POSTCONDITION, abbreviate.  simpl_ret_assert. go_lowerx.
+  unfold reseedPOST; destruct vl; trivial; try apply derives_refl. simpl. Intros.
   apply andp_right. apply prop_right;  trivial.
+  unfold_lift.
   apply sepcon_derives; [ normalize; simpl; Intros | apply derives_refl].
   Exists v. rewrite <- Heqcontents' in *.  
   unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer; simpl.
   remember (mbedtls_HMAC256_DRBG_reseed_function s
               (HMAC256DRBGabs key V reseed_counter entropy_len
                  prediction_resistance reseed_interval) contents') as r.
-  (*Exists r. *)normalize.
+  normalize.
   apply andp_right.
   solve [ apply prop_right; repeat split; trivial ].
   cancel.
@@ -475,7 +475,7 @@ Opaque  hmac256drbgabs_reseed.
   symmetry in Heqr.
   apply mbedtls_HMAC256_DRBG_reseed_functionWFaux in Heqr. 
   red; simpl. intuition.
-Time Qed. (*Coq 8.10.1: 3s; Coq8.6 May23rd: 15s*) 
+Time Qed.
 
 Opaque hmac256drbgabs_generate.
 Lemma body_hmac_drbg_random_abs: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs

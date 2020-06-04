@@ -1216,10 +1216,7 @@ Opaque hmac256drbgabs_reseed.
     eapply semax_post_flipped'.
     apply (loopbody_explicit StreamAdd); simpl; trivial.
     unfold POSTCONDITION, abbreviate. simpl_ret_assert.
-    old_go_lower.
-    subst.
-    Intros v; Exists v.
-    normalize. entailer!. apply derives_refl.
+    go_lowerx.
   }
   
   assert (Hdone: done = out_len).

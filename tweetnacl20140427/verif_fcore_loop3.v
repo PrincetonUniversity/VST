@@ -470,7 +470,7 @@ Time forward_for_simple_bound 20 (EX i:Z,
     eapply semax_post_flipped'.
     apply (Jbody _ FR c k h nonce out w x y t i j r I J wlist _ _ _ _ T0 T1 T2 T3).
     Intros W. Exists W.
-    Time entailer!. (*6.1*) (*TODO: eliminate old_go_lower*)
+    Time entailer!. (*6.1*)
     rewrite Z.add_comm, Z2Nat.inj_add; try omega.
     assert (X: (Z.to_nat 1 + Z.to_nat j = S (Z.to_nat j))%nat) by reflexivity.
     rewrite X. simpl. split. assumption.
@@ -488,7 +488,7 @@ Time forward_for_simple_bound 20 (EX i:Z,
               destruct (snuffleRound_length _ _ SNUFF) as [WL _].
               rewrite Zlength_correct, WL; simpl; omega.
   Exists wints. rewrite Z.add_comm, Z2Nat.inj_add; try omega.
-  Time entailer!. (*4.3*)(*TODO: eliminate old_go_lower*)
+  Time entailer!. (*4.3*)
   rewrite SnuffleS, R; trivial.
   thaw FR2; cancel. }
  apply ENTAIL_refl.

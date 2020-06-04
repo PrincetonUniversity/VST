@@ -565,9 +565,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
     eapply semax_post_flipped'. (* TODO: generate_loopbody should be formalized in a better way such that it can be directly applied, and thus stackframe_of do not need to be unfolded manually. *)
     eapply (generate_loopbody StreamAdd) (*with (IS:=aaa) (IC:=IC)*); simpl; trivial.
     unfold POSTCONDITION, abbreviate. simpl_ret_assert.
-    old_go_lower.
-    subst.
-    Intros v; Exists v. entailer!. apply derives_refl.
+    go_lowerx.
    }
 
   (*POST LOOP*)
