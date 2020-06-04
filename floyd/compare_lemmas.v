@@ -308,39 +308,6 @@ apply H. reflexivity.
 auto.
 Qed.
 
-(*
-Ltac simplify_typed_comparison :=
-match goal with
-| |- semax _ (PROPx _ (LOCALx (`(typed_true _) ?A :: _) _)) _ _ =>
- (eapply typed_true_binop_int;
-   [reflexivity | reflexivity | reflexivity
-   | try solve [go_lowerx; apply prop_right; auto ]
-   | try solve [go_lowerx; apply prop_right; auto ]
-   | ])
- ||
-  (let a := fresh "a" in set (a:=A); simpl in a; unfold a; clear a;
-   eapply local_entail_at_semax_0; [
-    first [ apply typed_true_Oeq_nullval
-           | apply typed_true_One_nullval
-           ]
-    |  ])
-| |- semax _ (PROPx _ (LOCALx (`(typed_false _) ?A :: _) _)) _ _ =>
- (eapply typed_false_binop_int;
-   [reflexivity | reflexivity | reflexivity
-   | try solve [go_lowerx; apply prop_right; auto ]
-   | try solve [go_lowerx; apply prop_right; auto ]
-   | ])
- ||
-  let a := fresh "a" in set (a:=A); simpl in a; unfold a; clear a;
-   eapply local_entail_at_semax_0; [
-    first [ apply typed_false_Oeq_nullval
-           | apply typed_false_One_nullval
-           ]
-    |  ]
-| |- _ => idtac
-end.
-*)
-
 Definition compare_pp op p q :=
    match p with
             | Vptr b z =>

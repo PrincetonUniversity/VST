@@ -37,7 +37,7 @@ if_tac.
 { subst.
   forward_if False.
   - forward_call 1. contradiction.
-  - inv H2. }
+  - congruence. }
 forward_if True.
 + contradiction.
 + forward. entailer!.

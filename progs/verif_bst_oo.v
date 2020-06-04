@@ -387,7 +387,7 @@ Proof.
     Intros b1 t1.
     (* TODO: why this skip is here? *)
     forward. (* Sskip *)
-    destruct t1; simpl treebox_rep at 1; normalize.
+    destruct t1; simpl treebox_rep at 1.
     + forward. (* p = *t; *)
       forward_if; [clear H | inversion H]. (* then clause *)
       forward_call (sizeof t_struct_tree).

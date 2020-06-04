@@ -958,17 +958,17 @@ Proof.
       forward_if (PROP () (LOCALx Q (SEPx (data_at Ews (tarray tint N)
         (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts))) (gv _last_taken) :: R)))) end.
     + forward.
-      match goal with H : Int.repr b' = _ |- _ => rewrite Int.neg_repr in H; apply repr_inj_signed in H end; subst;
-        auto. apply ENTAIL_refl.
+      subst. apply ENTAIL_refl.
     + forward.
-      destruct (eq_dec b' (-1)); [subst; absurd (Int.repr (-1) = Int.neg (Int.repr 1)); auto|].
+      rename H18 into n1.
       erewrite upd_Znth_triv with (i0 := i).
       apply ENTAIL_refl.
       * rewrite !Zlength_map, Zlength_upto; auto.
       * rewrite !Znth_map, Znth_upto; try (simpl; unfold N in *; omega).
         rewrite Znth_overflow by omega.
         rewrite if_false. rewrite if_false; auto.
-        contradict n0. unfold Empty in n0. apply Vint_inj in n0. contradiction.
+        clear - H20 n1. unfold Empty. contradict n1. apply Vint_inj in n1.
+        apply repr_inj_signed in n1; rep_lia.
         intro Hx; inv Hx.
         change (Zlength (upto 3)) with 3. unfold N in *; omega.
         autorewrite with sublist.     change (Zlength (upto 3)) with 3. unfold N in *; omega.

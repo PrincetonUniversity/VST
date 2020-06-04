@@ -420,15 +420,7 @@ rewrite Forall_forall in H.
 apply H in H1.
 auto.
 Qed.
-(*
-Ltac apply_semax_body L :=
-eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
- [red; red; apply @sub_option_get; 
-    repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
- | repeat (apply Forall_cons; [ reflexivity | ]); apply Forall_nil
- | simple apply tycontext_sub_refl ||
-  (apply tycontext_sub_i99; assumption)].
-*)
+
 Ltac apply_semax_body L := 
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
   [ first [ apply cspecs_sub_refl
@@ -656,11 +648,11 @@ Qed.
 Ltac  unify_postcondition_exps :=
 first [ reflexivity
   | rewrite exp_uncurry;
-     apply exp_congr; intros [? ?]; simpl; reflexivity
+     apply exp_congr; intros [? ?]; reflexivity
   | rewrite exp_uncurry2;
-     apply exp_congr; intros [[? ?] ?]; simpl; reflexivity
+     apply exp_congr; intros [[? ?] ?]; reflexivity
   | rewrite exp_uncurry3;
-     apply exp_congr; intros [[[? ?] ?] ?]; simpl; reflexivity
+     apply exp_congr; intros [[[? ?] ?] ?]; reflexivity
   ].
 
 Ltac change_compspecs' cs cs' :=
@@ -1095,27 +1087,13 @@ Ltac cleanup_no_post_exists :=
  end
  || unfold eq_no_post.
 
-Ltac factor_out_v L :=
- match L with
- | temp _ ?v :: ?L' => factor_out_v' v L'
- | lvar _ _ ?v :: ?L' => factor_out_v' v L'
- | _ => constr:(@nil val)
- end
- with factor_out_v' v L' := let x := fresh "v" in set (x:=v); 
-                                let y :=factor_out_v L'
-                                 in constr:(x::y).
-
-Ltac factor_back L :=
-  match L with
-  | ?x :: ?y => subst x; factor_back y
-  | nil => idtac
- end.
-
 Ltac simplify_remove_localdef_temp :=
 match goal with |- context [remove_localdef_temp ?i ?L]  =>
-let L' := factor_out_v L in
-  simpl remove_localdef_temp;
-  factor_back L'
+  let u := constr:(remove_localdef_temp i L) in
+  let u' := eval cbv [remove_localdef_temp] in u in
+  let u' := eval simpl rlt_ident_eq in u' in
+  let u' := eval cbv beta iota in u' in
+  change u with u'
 end.
 
 Ltac after_forward_call :=
@@ -1153,37 +1131,6 @@ Ltac check_witness_type ts A witness :=
  ||
  let TA := constr:(functors.MixVariantFunctor._functor
      (rmaps.dependent_type_functor_rec ts A) mpred) in
-  let TA' := eval cbv 
-     [functors.MixVariantFunctor._functor
-      functors.MixVariantFunctorGenerator.fpair
-      functors.MixVariantFunctorGenerator.fconst
-      functors.MixVariantFunctorGenerator.fidentity
-      rmaps.dependent_type_functor_rec
-      functors.GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
-      functors.CovariantFunctorGenerator.fconst
-      functors.CovariantFunctorGenerator.fidentity
-      functors.CovariantBiFunctor._functor
-      functors.CovariantBiFunctorGenerator.Fpair
-      functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
-      functors.CovariantFunctor._functor
-      functors.MixVariantFunctor.fmap
-      ] in TA
- in let TA'' := eval simpl in TA'
-  in match type of witness with ?T => 
-       unify T TA''
-      + (fail "Type of witness does not match type required by funspec WITH clause.
-Witness value: " witness "
-Witness type: " T "
-Funspec type: " TA'')
-     end.
-
-(*ready for deletion*)
-Ltac check_witness_type_nil A witness :=
-  (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
-             elimtype False)
- ||
- let TA := constr:(functors.MixVariantFunctor._functor
-     (rmaps.dependent_type_functor_rec nil A) mpred) in
   let TA' := eval cbv 
      [functors.MixVariantFunctor._functor
       functors.MixVariantFunctorGenerator.fpair
@@ -1511,49 +1458,6 @@ Ltac do_compute_lvalue Delta P Q R e v H :=
      rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
      reflexivity]
   ]).
-
-Ltac do_compute_expr Delta P Q R e v H :=
-  let rho := fresh "rho" in
-  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-    local (`(eq v) (eval_expr e))) as H by
-  (assumption || (
-    eapply derives_trans; [| apply msubst_eval_expr_eq];
-    [apply andp_derives; [apply derives_refl |]; apply derives_refl'; apply local2ptree_soundness; try assumption;
-     let HH := fresh "H" in
-     construct_local2ptree Q HH;
-     exact HH |
-     unfold v;
-     match goal with
-     | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
-     end;
-     match goal with
-     | |- Some ?E = Some _ => let E' := eval hnf in E in
-       match E' with
-       | (match ?E'' with
-         | Some _ => _
-         | None => Vundef
-         end)
-         => change E with (force_val E'')
-       | (match ?E'' with
-         | Vundef => Vundef
-         | Vint _ => Vundef
-         | Vlong _ => Vundef
-         | Vfloat _ => Vundef
-         | Vsingle _ => Vundef
-         | Vptr _ _ => Vptr _ (Ptrofs.add _ (Ptrofs.repr ?ofs))
-         end)
-         => change E with (offset_val ofs E'')
-       | _ => change E with E'
-       end
-     | |- ?NotSome = Some _ => 
-               fail 1000 "The C-language expression " e 
-                 " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
-(*
-fail 1000 "Please make sure hnf can simplify"
-                                         NotSome "to an expression of the form (Some _)" *)
-     end;
-     reflexivity]
-  )).
 
 (* solve msubst_eval_expr, msubst_eval_lvalue, msubst_eval_LR *)
 Ltac solve_msubst_eval :=
@@ -2625,15 +2529,13 @@ match goal with
       repeat apply -> semax_skip_seq
 end.
 
-
 Ltac forward_switch' := 
 match goal with
-| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sswitch ?e _) _ =>
+| |- semax ?Delta ?Pre (Sswitch ?e _) _ =>
    let sign := constr:(signof e) in let sign := eval hnf in sign in
-   let HRE := fresh "H" in let v := fresh "v" in
-    evar (v: val);
-    do_compute_expr Delta P Q R e v HRE;
-(*    simpl in v;*)
+    let HRE := fresh "H" in let v := fresh "v" in 
+    do_compute_expr1 Delta Pre e;
+    match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
     let n := fresh "n" in evar (n: int); 
     let H := fresh in assert (H: v=Vint n) by (unfold v,n; reflexivity);
     let A := fresh in 
@@ -2653,7 +2555,6 @@ match goal with
 ]
 end.
 
-
 Definition nofallthrough ek :=
  match ek with
  | EK_normal => false
@@ -2665,11 +2566,10 @@ Ltac forward_if'_new :=
  repeat apply -> semax_seq_skip;
  repeat (apply seq_assoc1; try apply -> semax_seq_skip);
 match goal with
-| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
+| |- semax ?Delta ?Pre (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
-    evar (v: val);
-    do_compute_expr Delta P Q R e v HRE;
-(*    simpl in v;*)
+    do_compute_expr1 Delta Pre e;
+    match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
     apply (semax_ifthenelse_PQR' _ v);
      [ reflexivity | entailer | assumption
      | simpl in v; clear HRE; subst v; apply semax_extract_PROP; intro HRE;
@@ -2994,19 +2894,6 @@ Ltac forward_setx :=
         | first [ quick_typecheck3
                 | pre_entailer; try solve [entailer!]]
         ]
-(*                
-        
-     let v := fresh "v" in evar (v : val);
-     let HRE := fresh "H" in
-     do_compute_expr Delta P Q R e v HRE;
-     eapply semax_SC_set;
-      [ reflexivity
-      | reflexivity
-      | exact HRE
-      | first [quick_typecheck3
-            | pre_entailer; clear HRE; subst v; try solve [entailer!]]
-      ]
-*)
  end.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
@@ -3108,9 +2995,9 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
         | eArraySubsc ?ei =>
 
           let HA := fresh "H" in
-          let vi := fresh "vi" in evar (vi: val);
-          do_compute_expr Delta P Q R ei vi HA;
-
+          let vi := fresh "vi" in
+          do_compute_expr1 Delta constr:(PROPx P (LOCALx Q (SEPx R))) ei;
+          match goal with v' := _, H:_ |- _ => rename H into HA; rename v' into vi end;
           revert vi HA;
           let vvvv := fresh "vvvv" in
           let HHHH := fresh "HHHH" in
@@ -3180,26 +3067,6 @@ Proof.
   rewrite sem_add_pi_ptr; auto.
 Qed.
 Hint Rewrite @sem_add_pi' using (solve [try reflexivity; auto with norm ; rep_lia]) : norm.
-
-(*
-Lemma offset_val_sem_add_pi: forall {CS: compspecs} ofs t0 si v i,
-  match si with
-  | Signed => Int.min_signed <= i <= Int.max_signed
-  | Unsigned => 0 <= i <= Int.max_unsigned
-  end ->
-   offset_val ofs
-     (force_val (sem_add_ptr_int t0 si v (Vint (Int.repr i)))) =
-   offset_val ofs
-     (offset_val (sizeof t0 * i) v).
-Proof.
-  intros.
-  destruct v; try reflexivity.
-  unfold sem_add_ptr_int.
-  rewrite sem_add_pi_ptr; auto.
-  apply I.
-Qed.
-Hint Rewrite @offset_val_sem_add_pi using (solve [auto with norm ; rep_lia]) : norm.
-*)
 
 Arguments field_type i m / .
 Arguments nested_field_type {cs} t gfs / .
@@ -3515,7 +3382,7 @@ Ltac clean_up_stackframe ::=
 Ltac forward_return :=
   try fold_frame_function_body;
   match goal with
-  | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sreturn ?oe) _ =>
+  | |- @semax ?CS _ ?Delta ?Pre (Sreturn ?oe) _ =>
     match oe with
     | None =>
         eapply semax_return_None;
@@ -3527,9 +3394,10 @@ Ltac forward_return :=
           solve_return_inner_gen
         | entailer_for_return]
     | Some ?ret =>
-        let v := fresh "v" in evar (v: val);
+        let v := fresh "v" in
         let H := fresh "HRE" in
-        do_compute_expr Delta P Q R constr:(Ecast ret (ret_type Delta)) v H;
+        do_compute_expr1 Delta Pre constr:(Ecast ret (ret_type Delta));
+        match goal with v' := _, H':_ |- _ => rename H' into H; rename v' into v end;
         subst v;
         eapply semax_return_Some;
         [ exact H

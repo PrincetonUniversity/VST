@@ -1461,16 +1461,13 @@ Ltac hoist_later_in_pre :=
        end
      end.
 
-Ltac type_of_field_tac :=
- simpl;
-  repeat first [rewrite if_true by auto
-                    | rewrite if_false by (let H:=fresh in intro H; inversion H)
-                    | simpl; reflexivity].
-
-
 Ltac simpl_tc_expr :=
     match goal with |- context [tc_expr ?A ?B] =>
         change (tc_expr A B) with (denote_tc_assert (typecheck_expr A B));
+     (* These uses of 'simpl' are not too dangerous, for two reasons:
+          (1) simpl_tc_expr is not used by any parts of Floyd except explicitly deprecated parts 
+          (2) the simpl is unlikely to blow up, because the arguments are just
+                  clightgen-produced ASTs *)
         simpl typecheck_expr; simpl denote_tc_assert
     end.
 
@@ -1509,13 +1506,15 @@ Proof. reflexivity. Qed.
 Hint Rewrite @map_nil : norm.
 Hint Rewrite @map_nil : subst.
 
+Definition rlt_ident_eq := ident_eq.  (* for convenience in selectively simplifying *)
+
 Fixpoint remove_localdef_temp (i: ident) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
   | d :: l0 =>
      match d with
      | temp j v =>
-       if ident_eq i j
+       if rlt_ident_eq i j
        then remove_localdef_temp i l0
        else d :: remove_localdef_temp i l0
      | _ => d :: remove_localdef_temp i l0

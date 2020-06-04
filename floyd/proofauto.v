@@ -351,5 +351,3 @@ simple eapply saturate_aux21y;
        subst P
       end
 ].
-Locate Ltac list_solve.
-
