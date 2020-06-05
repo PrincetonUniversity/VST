@@ -23,11 +23,12 @@ Context {CS : compspecs}.
     In fact, it is almost certainly wrong, and implementation-dependent. *)
 
 Variable atomic_int : type.
+Variable atomic_ptr : type.
 (* Variable is_atomic_version : type -> type -> Prop.
    Variable _Atomic : type -> type. *)
 Variable atomic_int_at : share -> val -> val -> mpred.
 Hypothesis atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p.
-(*Variable atom_ptr_at : share -> val -> val -> mpred.*)
+Variable atomic_ptr_at : share -> val -> val -> mpred.
 
 Definition make_atomic_spec :=
   WITH v : val
@@ -40,6 +41,18 @@ Definition make_atomic_spec :=
     PROP ()
     LOCAL (temp ret_temp p)
     SEP (atomic_int_at Ews v p).
+    
+Definition make_atomic_ptr_spec :=
+  WITH v : val
+  PRE [ 1%positive OF (tptr Tvoid) ]
+    PROP ()
+    LOCAL (temp 1%positive v)
+    SEP ()
+  POST [ tptr atomic_ptr ]
+   EX p : val,
+    PROP ()
+    LOCAL (temp ret_temp p)
+    SEP (atomic_ptr_at Ews v p).
 
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
@@ -435,6 +448,149 @@ Proof.
     iSplit; [iSplit; auto|].
     { rewrite Int.repr_signed; auto. }
     rewrite sepcon_emp; iFrame.
+Qed.
+
+(* specs for pointer operations *)
+
+Definition ALI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
+  (ConstType coPset)) (ConstType coPset))
+  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+  
+Program Definition atomic_load_ptr_spec := TYPE ALI_ptr_type
+  WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  PRE [ 1%positive OF tptr atomic_ptr ]
+   PROP (subseteq Ei Eo)
+   LOCAL (temp 1%positive p)
+   SEP (|={Eo,Ei}=> EX sh : share, EX v : val, !!(readable_share sh ) &&
+              atomic_ptr_at sh v p * (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q v))%I
+  POST [ tptr Tvoid ]
+   EX v : val,
+   PROP ()
+   LOCAL (temp ret_temp v)
+   SEP (Q v).
+Next Obligation.
+Proof.
+  repeat intro.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v. 
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  rewrite !approx_exp; apply f_equal; extensionality v.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+Qed.
+
+
+Definition ASI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * val))
+  (ConstType coPset)) (ConstType coPset)) Mpred) (ConstType invG).
+
+Program Definition atomic_store_ptr_spec := TYPE ASI_ptr_type
+  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : mpred, inv_names : invG
+  PRE [ 1%positive OF tptr atomic_ptr, 2%positive OF tptr Tvoid ]
+   PROP (subseteq Ei Eo)
+   LOCAL (temp 1%positive p; temp 2%positive v)
+   SEP (|={Eo,Ei}=> EX sh : share, !!(writable_share sh) && atomic_ptr_at sh Vundef p *
+      (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q))%I
+  POST [ tvoid ]
+   PROP ()
+   LOCAL ()
+   SEP (Q).
+Next Obligation.
+Proof.
+  repeat intro.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+Qed.
+
+
+Definition ACASI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * share * val * val * val))
+  (ConstType coPset)) (ConstType coPset))
+  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+
+Program Definition atomic_CAS_ptr_spec := TYPE ACASI_ptr_type
+  WITH p : val, shc : share, pc : val, c : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  PRE [ 1%positive OF tptr atomic_ptr, 2%positive OF tptr(tptr Tvoid), 3%positive OF (tptr Tvoid) ]
+   PROP (readable_share shc; subseteq Ei Eo)
+   LOCAL (temp 1%positive p; temp 2%positive pc; temp 3%positive v)
+   SEP (data_at shc (tptr Tvoid) c pc; |={Eo,Ei}=> EX sh : share, EX v0 : val,
+      !!(writable_share sh ) && atomic_ptr_at sh v0 p *
+           (atomic_ptr_at sh (if eq_dec v0 c then v else v0) p -* |={Ei,Eo}=> Q v0))%I
+  POST [ tint ]
+   EX v' : val,
+   PROP ()
+   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
+   SEP (data_at shc (tptr Tvoid) c pc; Q v').
+Next Obligation.
+Proof.
+  repeat intro.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v2.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  rewrite !approx_exp; apply f_equal; extensionality vr.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+Qed.
+
+
+Definition AEXI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * val))
+  (ConstType coPset)) (ConstType coPset))
+  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+
+Program Definition atomic_exchange_ptr_spec := TYPE AEXI_ptr_type
+  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  PRE [ 1%positive OF tptr atomic_ptr, 2%positive OF (tptr Tvoid) ]
+   PROP (subseteq Ei Eo)
+   LOCAL (temp 1%positive p; temp 2%positive v)
+   SEP (|={Eo,Ei}=> EX sh : share, EX v0 : val, !!(writable_share sh ) &&
+              atomic_ptr_at sh v0 p *
+        (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q v0))%I
+  POST [ tint ]
+   EX v' : val,
+   PROP ()
+   LOCAL (temp ret_temp v')
+   SEP (Q v').
+Next Obligation.
+Proof.
+  repeat intro.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v0.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  rewrite !approx_exp; apply f_equal; extensionality vr.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
 End SC_atomics.
