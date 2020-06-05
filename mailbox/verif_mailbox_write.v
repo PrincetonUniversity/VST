@@ -156,7 +156,9 @@ Proof.
       { subst available.
         match goal with H : typed_true _ _ |- _ => setoid_rewrite Znth_map in H; [rewrite Znth_upto in H|];
           try assumption; rewrite ?Zlength_upto, ?Z2Nat.id; try omega; unfold typed_true in H; simpl in H; inv H end.
-        destruct (eq_dec i b0); [|destruct (in_dec eq_dec i lasts)]; auto; discriminate. }
+        destruct (eq_dec i b0); [|destruct (in_dec eq_dec i lasts)]; auto; discriminate.
+        all: change B with 5 in * ; lia.
+ }
       unfold data_at_, field_at_; entailer!. }
     { forward.
       entailer!.
@@ -165,7 +167,8 @@ Proof.
       match goal with H : typed_false _ _ |- _ => setoid_rewrite Znth_map in H; [rewrite Znth_upto in H|];
         try assumption; rewrite ?Zlength_upto, ?Z2Nat.id; try omega; unfold typed_true in H; simpl in H; inv H end.
       destruct (eq_dec _ _); auto.
-      destruct (in_dec _ _ _); auto; discriminate. }
+      destruct (in_dec _ _ _); auto; discriminate. 
+        all: change B with 5 in * ; lia. }
     instantiate (1 := EX i : Z, PROP (0 <= i < B; Znth i available = vint 0;
       forall j : Z, 0 <= j < i -> Znth j available = vint 0)
       LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvars gv)
@@ -958,8 +961,9 @@ Proof.
       forward_if (PROP () (LOCALx Q (SEPx (data_at Ews (tarray tint N)
         (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts))) (gv _last_taken) :: R)))) end.
     + forward.
-      subst. apply ENTAIL_refl.
-    + forward.
+      subst. rewrite (if_true (vint b' = Empty)) by (rewrite H18; reflexivity).
+     apply ENTAIL_refl.
+    + forward. rewrite neg_repr in H18.
       rename H18 into n1.
       erewrite upd_Znth_triv with (i0 := i).
       apply ENTAIL_refl.
@@ -967,8 +971,7 @@ Proof.
       * rewrite !Znth_map, Znth_upto; try (simpl; unfold N in *; omega).
         rewrite Znth_overflow by omega.
         rewrite if_false. rewrite if_false; auto.
-        clear - H20 n1. unfold Empty. contradict n1. apply Vint_inj in n1.
-        apply repr_inj_signed in n1; rep_lia.
+        clear - H20 n1. unfold Empty. contradict n1. apply Vint_inj in n1. auto.
         intro Hx; inv Hx.
         change (Zlength (upto 3)) with 3. unfold N in *; omega.
         autorewrite with sublist.     change (Zlength (upto 3)) with 3. unfold N in *; omega.

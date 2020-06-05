@@ -928,7 +928,7 @@ Proof.
        forward. entailer!. unfold Vzero. f_equal. 
        apply negb_false_iff in Hrv. apply int_eq_e in Hrv. trivial.
      }
- 
+     simpl.
      forward. subst I after_reseed_add_len. rewrite Hshould_reseed in *. clear Hshould_reseed should_reseed.
      entailer!. simpl in *. (*
      Exists  ss KK (mc1, (mc2, mc3),
@@ -966,8 +966,15 @@ Proof.
        destruct ENT_GenErrAx as [X _]. elim X; trivial.
   }
   { (*Case should_reseed = false*)
-    forward. subst after_reseed_add_len. rewrite H (*, Hinitial_state*) in *. clear H (*Hinitial_state*).
-    Exists s key initial_state. go_lower; simpl. entailer!. thaw FR2; cancel.
+    simpl.
+   subst should_reseed. rewrite H.
+    simpl.
+    forward. subst after_reseed_add_len.
+   (*  rewrite H (*, Hinitial_state*) in *. clear H (*Hinitial_state*). *)
+    Exists s key initial_state. go_lower; simpl. entailer!.
+   rewrite H. split; auto.
+    hnf; auto.
+    thaw FR2; cancel.
   }
   clear FR2. Intros stream1 key1 ctx1. rename H into PRS. 
 
@@ -1018,7 +1025,7 @@ Proof.
    da_emp sha (tarray tuchar (Zlength contents)) (map Vubyte contents) additional;
     data_at shc t_struct_hmac256drbg_context_st ctx2 (Vptr b i) *
     md_full key2 (mc1, (mc2, mc3))))).
-   { rewrite H in *. subst na.
+   { change (na = true) in H. subst na.
      destruct should_reseed; simpl in PRS, H. rewrite andb_false_r in H; discriminate.
      destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in H.
      { rewrite andb_false_r in H; discriminate. }
@@ -1053,7 +1060,7 @@ Proof.
          split; [| repeat split; trivial].
          exists b0, i0, VV. repeat split; trivial. }  
      }
-     { clear - H. forward. rewrite H in *. 
+     { clear - H.  change (na=false) in H. forward. rewrite H in *. 
        Exists ctx1 key1. entailer!. simpl; auto. }
   Intros ctx2 key2. rename H into PUPD.
 

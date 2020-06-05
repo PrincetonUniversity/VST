@@ -1442,23 +1442,6 @@ intros.
  rewrite <- seq_assoc. auto.
 Qed.
 
-Ltac do_compute_lvalue Delta P Q R e v H :=
-  let rho := fresh "rho" in
-  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-    local (`(eq v) (eval_lvalue e))) as H by
-  (first [ assumption |
-    eapply derives_trans; [| apply msubst_eval_lvalue_eq];
-    [apply andp_derives; [apply derives_refl |]; apply derives_refl'; apply local2ptree_soundness; try assumption;
-     let HH := fresh "H" in
-     construct_local2ptree Q HH;
-     exact HH |
-     unfold v;
-     simpl;
-     cbv beta iota zeta delta [force_val2 force_val1];
-     rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
-     reflexivity]
-  ]).
-
 (* solve msubst_eval_expr, msubst_eval_lvalue, msubst_eval_LR *)
 Ltac solve_msubst_eval :=
     let e := match goal with
@@ -1557,6 +1540,26 @@ unfold_pre_local_andp;
 repeat intro_ex_local_semax;
 try rewrite insert_local.
 
+Ltac do_compute_expr_warning :=
+ match goal with |- let _ := Some ?G1 in let _ := Some ?G2 in _ =>
+ tryif constr_eq G1 G2 
+ then idtac 
+ else idtac "Warning: This command (forward_if, forward_while, forward, ...) produces different results in VST 2.6 than in VST 2.5.  Previously, it did 'simpl' and 'autorewrite with norm', which changed,
+ Before:" G1 "
+After:" G2 "
+You may (or may not) need to adjust your proof.  Disable this message by   do_compute_expr_warning::=idtac"
+end.
+
+Ltac diagnose_further_simplification :=
+ let u := fresh "u" in let v := fresh "v" in
+ match goal with |- ?G = _ => set (v:=G); pose (u:=G) end;
+ simpl in u;
+ revert u; autorewrite with norm; intro;
+ unfold v;
+ revert u; revert v;
+ do_compute_expr_warning;
+ intros _ _.
+
 Ltac do_compute_expr_helper Delta Q v :=
    try assumption;
    eapply derives_trans; [| apply msubst_eval_expr_eq];
@@ -1565,10 +1568,22 @@ Ltac do_compute_expr_helper Delta Q v :=
      construct_local2ptree Q HH;
      exact HH |
      unfold v;
+     cbv [msubst_eval_expr msubst_eval_lvalue]; 
+     repeat match goal with |- context [PTree.get ?a ?b] => 
+             let u := constr:(PTree.get a b) in
+             let u' := eval hnf in u in
+             match u' with Some ?v' => let v := fresh "v" in pose (v:=v');
+                         change u with (Some v)
+            end
+      end;
+(* match goal with |- ?a => idtac "ONE:" a end; *)
+     simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
+(* match goal with |- ?a => idtac "TWO:" a end; *)
+     unfold force_val2, force_val1;
      simpl;
-     try unfold force_val2; try unfold force_val1;
-     autorewrite with norm;
-     simpl;
+    repeat match goal with v:=_ |- _ => subst v end;
+(*     match goal with |- ?a => idtac "THREE:" a end; *)
+    diagnose_further_simplification; (* Eventually, remove this line (and tactic) entirely *)
      reflexivity].
 
 Ltac do_compute_expr1 Delta Pre e :=
@@ -1855,7 +1870,7 @@ Proof.
 Qed.
 
 Ltac do_repr_inj H :=
-   simpl typeof in H;
+   simpl typeof in H;  (* this 'simpl' should be fine, since its argument is just clightgen-produced ASTs *)
   try first [apply typed_true_of_bool in H
                |apply typed_false_of_bool in H
                | apply typed_true_ptr in H
@@ -1865,7 +1880,6 @@ Ltac do_repr_inj H :=
                | apply typed_false_negb_bool_val_p' in H
                | unfold nullval in H; (*simple*) apply typed_true_tint_Vint in H
                | unfold nullval in H; (*simple*) apply typed_false_tint_Vint in H
-(*               | simple apply typed_true_tint in H *)
                ];
    rewrite ?ptrofs_to_int_repr in H;
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
@@ -2019,7 +2033,7 @@ Tactic Notation "forward_while" constr(Inv) :=
              pose (Inv := (EX b : bool, PROP () LOCAL (temp _i (Vint (Int.repr (if b then 1 else 0)))) SEP ())).
              forward_while Inv. (** FAILS WITH THE FORMER VERSION OF forward_while **)
          *)
-        simpl typeof;
+        simpl typeof;  (* this 'simpl' should be fine, since its argument is just clightgen-produced ASTs *)
        [ reflexivity
        | special_intros_EX
        | (do_compute_expr1 Delta Pre e; eassumption) ||
@@ -2048,7 +2062,9 @@ Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
 
 Ltac check_type_forward_for_simple_bound :=
    match goal with |- semax _ _ ?c _ => 
-         let x := constr:(match c with (Ssequence _ (Sloop _ (Sset _ e))) => Some (typeof e) | _ => None end) in let x := eval hnf in x in let x := eval simpl in x in
+         let x := constr:(match c with (Ssequence _ (Sloop _ (Sset _ e))) => Some (typeof e) | _ => None end) in
+         let x := eval hnf in x in
+         let x := eval simpl in x in   (* this 'simpl' should be safe enough  *)
          match x with
          | None => idtac
          | Some ?t => 
@@ -3691,43 +3707,6 @@ Qed.
 
 Definition must_return (ek: exitkind) : bool :=
   match ek with EK_return => true | _ => false end.
-
-(*
-Lemma eliminate_extra_return:
-  forall Espec {cs: compspecs} Delta P c ty Q Post,
-  quickflow c must_return = true ->
-  Post = (function_body_ret_assert ty Q) ->
-  @semax cs Espec Delta P c Post ->
-  @semax cs Espec Delta P (Ssequence c (Sreturn None)) Post.
-Proof.
-intros.
-apply semax_seq with FF; [  | apply semax_ff].
-replace (overridePost FF Post) with Post; auto.
-subst; clear.
-unfold function_body_ret_assert.
-simpl.
-destruct ty; auto.
-f_equal; auto.
-unfold_
-simpl.
-destruct 
-reflexivity.
-Qed.
-
-Lemma eliminate_extra_return':
-  forall Espec {cs: compspecs} Delta P c ty Q F Post,
-  quickflow c must_return = true ->
-  Post = (frame_ret_assert (function_body_ret_assert ty Q) F) ->
-  @semax cs Espec Delta P c Post ->
-  @semax cs Espec Delta P (Ssequence c (Sreturn None)) Post.
-Proof.
-intros.
-apply semax_seq with FF; [  | apply semax_ff].
-replace (overridePost FF Post) with Post; auto.
-subst; clear.
-simpl; f_equal. extensionality rho; normalize.
-Qed.
-*)
 
 Ltac make_func_ptr id :=
   eapply (make_func_ptr id);
