@@ -89,7 +89,7 @@ Ltac apply_list_ext ::=
 
 Ltac list_solve_preprocess ::=
   fold_Vbyte;
-  simpl data_at;
+  simpl_reptype;
   simpl_reptype;
   autounfold with list_solve_unfold in *;
   autorewrite with list_solve_rewrite in *;
