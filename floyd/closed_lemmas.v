@@ -1849,17 +1849,6 @@ intros; right; auto.
 Qed.
 Hint Resolve in_map_fst2 : closed.
 
-Ltac precondition_closed :=  (* obsolete? DELETE_ME *)
- match goal with |- precondition_closed _ _ => idtac end;
- let x := fresh "x" in intro x;
- split;
-  repeat match goal with
-          | |- closed_wrt_vars _ (let (y,z) := ?x in _) => is_var x; destruct x
-          | |- closed_wrt_lvars _ (let (y,z) := ?x in _) => is_var x; destruct x
-          end;
-  [simpl not_a_param; auto 50 with closed
-  | simpl is_a_local; auto 50 with closed ].
-
 Lemma Forall_map_cons:
   forall {A B} (F: A -> Prop) (g: B -> A) b bl,
   F (g b) -> Forall F (map g bl) ->

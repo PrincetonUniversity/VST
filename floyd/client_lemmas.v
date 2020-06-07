@@ -516,12 +516,8 @@ Ltac clear_Delta :=
 match goal with
 | Delta := @abbreviate tycontext ?G |- _ =>
    try match goal with |- context [ret_type Delta] =>
-      let x := constr:(ret_type G) in let x := eval simpl in x
-       in change (ret_type Delta) with x
-   end;
-   repeat match goal with H: context [ret_type Delta] |- _ =>
-      let x := constr:(ret_type G) in let x := eval simpl in x
-       in change (ret_type Delta) with x in H
+      let x := constr:(ret_type G) in let x := eval hnf in x
+       in change (ret_type Delta) with x in *
    end;
    try clear Delta
 | _ => idtac
@@ -536,42 +532,6 @@ Ltac clear_Delta_specs :=
  lazymatch goal with
  |  DS := @abbreviate (PTree.t funspec) _  |- _ => clearbody DS
  | |- _ => idtac
- end.
-
-Ltac findvars :=
- match goal with DD: tc_environ ?Delta ?rho |- _ =>
-  let H := fresh in
-    assert (H := reflect_temps_valid _ _ DD);
-    try (unfold Delta in H);
-   cbv beta iota zeta delta [abbreviate PTree.fold PTree.prev PTree.prev_append PTree.xfold temp_types fst snd
-             reflect_temps reflect_temps_f] in H;
-   simpl in H;
-   repeat match goal with
-(*  this clause causes some problems when interacting with make_args'
-    | |- context [eval_var ?J ?T rho] =>
-           try fold J in H;
-                let Name := fresh "_id" in forget (eval_var J T rho) as Name
-*)
-    | Name: name ?J |- context [eval_id ?J rho] =>
-            fold J in H;
-            clear Name;
-           forget (eval_id J rho) as Name
-    | |- context [eval_id ?J rho] =>
-           try fold J in H;
-           let Name := fresh "_id" in forget (eval_id J rho) as Name
-    | Name: name _ |- _ =>
-          clear Name
-     end;
-    repeat match type of H with
-                | _ (eval_id _ _) /\ _ =>  destruct H as [_ H]
-                | is_int _ _ ?i /\ _ => let TC := fresh "TC" in destruct H as [TC H];
-                                let i' := fresh "id" in rename i into i';
-                               apply is_int_e in TC; destruct TC as [i [? TC]]; subst i';
-                                simpl in TC;
-                               match type of TC with True => clear TC | _ => idtac end
-                | _ /\ _ => destruct H as [?TC H]
-                end;
-    clear H
  end.
 
 Lemma is_true_negb:
@@ -1501,16 +1461,13 @@ Ltac hoist_later_in_pre :=
        end
      end.
 
-Ltac type_of_field_tac :=
- simpl;
-  repeat first [rewrite if_true by auto
-                    | rewrite if_false by (let H:=fresh in intro H; inversion H)
-                    | simpl; reflexivity].
-
-
 Ltac simpl_tc_expr :=
     match goal with |- context [tc_expr ?A ?B] =>
         change (tc_expr A B) with (denote_tc_assert (typecheck_expr A B));
+     (* These uses of 'simpl' are not too dangerous, for two reasons:
+          (1) simpl_tc_expr is not used by any parts of Floyd except explicitly deprecated parts 
+          (2) the simpl is unlikely to blow up, because the arguments are just
+                  clightgen-produced ASTs *)
         simpl typecheck_expr; simpl denote_tc_assert
     end.
 
@@ -1549,13 +1506,15 @@ Proof. reflexivity. Qed.
 Hint Rewrite @map_nil : norm.
 Hint Rewrite @map_nil : subst.
 
+Definition rlt_ident_eq := ident_eq.  (* for convenience in selectively simplifying *)
+
 Fixpoint remove_localdef_temp (i: ident) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
   | d :: l0 =>
      match d with
      | temp j v =>
-       if ident_eq i j
+       if rlt_ident_eq i j
        then remove_localdef_temp i l0
        else d :: remove_localdef_temp i l0
      | _ => d :: remove_localdef_temp i l0

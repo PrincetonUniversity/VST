@@ -190,32 +190,29 @@ Lemma body_init:  semax_body Vprog Gprog f_LG_init init_spec.
 Proof.
 start_function.
 unfold LG.data.
-rewrite orp_if_bool; Intros b; destruct b.
-*
 unfold LG.data_ok.
-Intros.
-forward.
-forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
-forward.
-forward.
-entailer!.
-forward.
-entailer!.
-unfold LG.data_ok.
-entailer!.
+rewrite orp_if_bool.
+Intros b; destruct b.
 *
 Intros.
 forward.
 forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
-forward.
-forward.
-entailer!.
-unfold LG.data_ok.
-entailer!.
-forward.
-unfold LG.data_ok.
-entailer!.
 inv H0.
+forward.
+unfold LG.data_ok.
+entailer!.
+*
+Intros.
+forward.
+forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
+forward.
+forward.
+entailer!.
+unfold LG.data_ok.
+entailer!.
+forward.
+unfold LG.data_ok.
+entailer!.
 Qed.
 
 Lemma body_bump:  semax_body Vprog Gprog f_LG_bump bump_spec.

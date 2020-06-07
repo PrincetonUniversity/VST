@@ -42,33 +42,6 @@ Section CENV.
 
 Context {cs: compspecs}.
 
-(*
-Lemma proj_struct_default: forall i m d,
-  in_members i m ->
-  members_no_replicate m = true ->
-  proj_struct i m (struct_default_val m) d = default_val (field_type i m).
-Proof.
-Qed.
-
-Lemma proj_union_default: forall i m d,
-  i = fst (members_union_inj (union_default_val m)) ->
-  m <> nil ->
-  members_no_replicate m = true ->
-  proj_union i m (union_default_val m) d = default_val (field_type2 i m).
-Proof.
-  unfold field_type2.
-  intros.
-  destruct m as [| (i0, t0) m]; [congruence |].
-  destruct m as [| (i1, t1) m].
-  + simpl in d, H |- *; subst.
-    if_tac; [| congruence].
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-  + simpl in H; subst.
-    simpl in d |- *; subst.
-    if_tac; [| congruence].
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-Qed.
-*)
 Section WITH_SHARE.
 
 Variable sh: share.
@@ -1367,28 +1340,28 @@ Ltac simplify_value_fits' :=
 first
  [erewrite value_fits_Tstruct;
     [ | reflexivity
-    | simpl; reflexivity
+    | reflexivity
     | cleanup_unfold_reptype
-    | simpl; reflexivity]
+    | reflexivity]
  |erewrite value_fits_Tarray;
     [ | reflexivity
     | cleanup_unfold_reptype
     | repeat subst_any; try computable; lia
-    | simpl; reflexivity
+    | reflexivity
     ]
  | erewrite value_fits_by_value_defined;
    [ | reflexivity
    | repeat subst_any; clear; simpl; intro; discriminate
-   | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
-   | simpl; reflexivity
+   | reflexivity
+   | reflexivity
    ]
  | rewrite value_fits_by_value_Vundef;
    [ | reflexivity | reflexivity
    ]
  | erewrite value_fits_by_value;
    [ | reflexivity
-   | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
-   | simpl; reflexivity
+   | reflexivity
+   | reflexivity
    ]
  ];
  cbv beta;

@@ -78,7 +78,7 @@ forward_if.
   Exists (s1a++[a],s4,u,u2,a1).  simpl fst; simpl snd. entailer!.
   rewrite app_ass. reflexivity.
  +
-    clear a s3 H0. subst u0. rewrite lseg_eq by reflexivity. normalize. subst s1.
+    clear a s3 H0. subst u0. rewrite lseg_eq by reflexivity. Intros. subst s1 s1b.
     forward.
     forward.
     Exists x. entailer!.

@@ -426,7 +426,7 @@ apply sepcon_derives; auto.
 apply bind_ret_derives.
 unfold initPostKey.
 Intros digest; Exists digest.
-old_go_lower; entailer!.
+go_lowerx; entailer!.
 Qed.
 
 Lemma body_hmac_reset: semax_body HmacVarSpecs HmacFunSpecs 
@@ -455,7 +455,7 @@ subst POSTCONDITION; unfold abbreviate;
 simpl_ret_assert.
 apply andp_left2.
 apply sepcon_derives; auto.
-  old_go_lower.
+  go_lowerx.
   entailer!.
   unfold hmacstate_, REP. Intros r. Exists r. entailer!.
   red. rewrite hmacUpdate_nil. assumption. 
@@ -474,14 +474,14 @@ destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].
 eapply semax_pre_post.
   6: apply (finalbodyproof Espec c md sh shmd gv buf (hmacUpdate data (hmacInit key)) SH SH0).
   
-  apply andp_left2. unfold hmacstate_. Exists r. old_go_lower. entailer!.
+  apply andp_left2. unfold hmacstate_. Exists r. go_lowerx. entailer!.
 +
   intros. apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
   rewrite <- hmac_sound. unfold FULL.
   change (hmacFinal (hmacUpdate data (hmacInit key))) with (hmac key data).
-  Exists (fst (hmac key data)). old_go_lower. entailer!.
+  Exists (fst (hmac key data)). go_lowerx. entailer!.
   eapply hmacstate_PostFinal_PreInitNull; reflexivity.
 + simpl_ret_assert; normalize.
 + simpl_ret_assert; normalize.
@@ -496,12 +496,12 @@ destruct H as [Prop1 Prop2].
 eapply semax_pre_post.
   6: apply (updatebodyproof Espec shc shd c d (Zlength data1) data1 gv (hmacUpdate data (hmacInit key))); auto.
 
-  apply andp_left2. old_go_lower. entailer!; try apply derives_refl.
+  apply andp_left2. go_lowerx. entailer!; try apply derives_refl.
 +
   apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
-  rewrite hmacUpdate_app. old_go_lower. entailer!; try apply derives_refl.
+  rewrite hmacUpdate_app. go_lowerx. entailer!; try apply derives_refl.
 
 + simpl_ret_assert; normalize.
 + simpl_ret_assert; normalize.
@@ -527,10 +527,11 @@ eapply semax_pre_post.
 6: apply (initbodyproof Espec c (Vptr b i) l sh shk key gv hdummy pad ctxkey); auto.
 +
  entailer!; simpl. normalize.
-+ apply andp_left2.
++
+  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
-  old_go_lower. entailer!.
+   go_lowerx. entailer!.
    unfold hmacstate_, REP. Intros r. Exists r. entailer!.
    red. rewrite hmacUpdate_nil. assumption.
 + simpl_ret_assert; normalize.
@@ -551,7 +552,7 @@ eapply semax_pre_post.
   Exists key. apply andp_left2. apply derives_refl.
 +  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
-  Opaque list_repeat. old_go_lower. Transparent list_repeat.
+  Opaque list_repeat. go_lowerx. Transparent list_repeat.
   normalize.
   unfold EMPTY. 
   rewrite <- memory_block_data_at_.  unfold data_block.

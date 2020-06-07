@@ -1732,7 +1732,9 @@ eapply derives_trans with FF; [ | apply FF_left];
  try (rewrite sepcon_assoc; eapply sepcon_FF_derives');
  subst x y;
  apply field_at_conflict; auto;
- try solve [simpl; computable].
+ try solve [simpl;  (* This simpl seems safe enough, it's just simplifying (sizeof (nested_field_type _ _))
+                                  and in any case it's followed by (computable) *)
+                computable].
 
 Ltac data_at_conflict z := field_at_conflict z (@nil gfield).
 
@@ -1873,11 +1875,12 @@ Ltac field_at_saturate_local :=
 unfold data_at;
 match goal with |- field_at ?sh ?t ?path ?v ?c |-- _ =>
 eapply derives_trans; [apply field_at_local_facts |];
-  cbv beta;
-  try rewrite proj_sumbool_is_true by auto;
-  try rewrite proj_sumbool_is_false by auto;
+(*  try (progress cbv beta; idtac "FASL 1");
+  try (rewrite proj_sumbool_is_true by auto; idtac "FASL 2");
+  try (rewrite proj_sumbool_is_false by auto; idtac "FASL 3");
+*)
   let p := fresh "p" in set (p := nested_field_type t path);
-  simpl in p; unfold field_type in p; simpl in p; subst p;
+  simpl in p; unfold field_type in p; simpl in p; subst p;  (* these simpls are probably not dangerous *)
   try rewrite value_fits_by_value by reflexivity;
   try match goal with |- context [repinject ?t ?v] =>
     change (repinject t v) with v

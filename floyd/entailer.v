@@ -42,9 +42,9 @@ Ltac simpl_compare :=
          first [apply typed_true_ptr in H
                  | apply typed_true_of_bool in H;
                    first [apply (int_cmp_repr Clt) in H;
-                            [ | rep_lia ..]; simpl in H
+                            [ | rep_lia ..]; red in H
                           | apply (int_cmp_repr Ceq) in H;
-                             [ | rep_lia ..]; simpl in H
+                             [ | rep_lia ..]; red in H
                           | idtac ]
                  | discriminate H
                  | idtac ]
@@ -53,9 +53,9 @@ Ltac simpl_compare :=
          first [ apply typed_false_ptr in H
                 | apply typed_false_of_bool in H;
                    first [apply (int_cmp_repr' Clt) in H;
-                            [ | rep_lia ..]; simpl in H
+                            [ | rep_lia ..]; unfold negate_comparison in H; red in H
                           | apply (int_cmp_repr' Ceq) in H;
-                            [ | rep_lia ..]; simpl in H
+                            [ | rep_lia ..]; unfold negate_comparison in H; red in H
                           | idtac]
                  | discriminate H
                  | idtac ]
@@ -641,9 +641,6 @@ Ltac elim_hyps :=  (* not in use anywhere? *)
      destruct x as [ | | | | | x1 x2]; inv H
  | H: ptr_eq _ _ |- _ => apply ptr_eq_e in H; safe_subst_any
  end.
-
-Ltac aggressive :=
-  repeat split; auto; elim_hyps; simpl; (computable || auto).
 
 (**** try this out here, for now ****)
 
