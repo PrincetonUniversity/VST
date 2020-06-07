@@ -1040,6 +1040,34 @@ Proof.
   destruct x2 as [b Hb]; destruct b; eauto.
 Qed. 
 
+(****A variant that is a bit more computational - maybe should replace the original definition above?*)
+Program Definition binary_intersection' {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} phi psi 
+  (Hphi: phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne) (Hpsi: psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne): funspec :=
+  mk_funspec f c _ (@binarySUMArgs A1 A2 P1 P2) (binarySUM Q1 Q2) _ _.
+Proof.
+Next Obligation. intros. apply (binarySUMArgs_ne P1_ne P2_ne). Qed.
+Next Obligation. intros. apply (binarySUM_ne Q1_ne Q2_ne). Qed.
+
+Lemma binary_intersection'_sound {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} phi psi
+      (Hphi: phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne) (Hpsi: psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne):
+   binary_intersection phi psi = Some(binary_intersection' phi psi Hphi Hpsi).
+Proof.
+unfold binary_intersection, binary_intersection'. subst phi psi. rewrite 2 if_true by trivial. f_equal. f_equal.
+  apply proof_irr. apply proof_irr.
+Qed.
+Lemma binary_intersection'_complete phi psi tau:
+   binary_intersection phi psi = Some tau ->
+   exists f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne Hphi Hpsi,
+   tau = @binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi.
+Proof.
+unfold binary_intersection, binary_intersection'.
+destruct phi; destruct psi. if_tac. 2: discriminate. if_tac. 2: discriminate. 
+intros X. inv X. 
+do 14 eexists. reflexivity. f_equal. 
+  apply proof_irr. apply proof_irr.
+Qed.
+
+
 (*-------------------Bifunctor version, general case ------------*)
 
 Definition generalSUM {I} (Ai: I -> TypeTree)
