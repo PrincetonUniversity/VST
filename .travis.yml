@@ -67,8 +67,8 @@ install:
 - opam install -j ${NJOBS} -y coq=${COQ_VERSION} coq-ext-lib coq-flocq
 - opam list
 - file `which coqc`
-- coqc -where
-- ls -l `coqc -where`
+- WC=`which coqc`
+- ls -l `dirname ${WC}`
 
 stages:
   - setup
