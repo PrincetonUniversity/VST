@@ -259,6 +259,7 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  cancel.
 + (* else-clause *)
  forward. (* skip; *)
+ try (fold dd in H1; fold b4d in H1; apply repr_inj_unsigned in H1; try rep_lia).
  unfold sha256state_.
  unfold data_block.
  match goal with |- context [data_at _ t_struct_SHA256state_st ?r _] => Exists r end.
