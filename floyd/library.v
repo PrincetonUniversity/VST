@@ -51,9 +51,9 @@ Arguments try_spec name spec defs / .
 Definition exit_spec' :=
  WITH arg: Z
  PRE [tint]
-   PROP () (PARAMS (Vint (Int.repr arg)) SEP())%assert3a
+   PROP () PARAMS (Vint (Int.repr arg)) SEP()
  POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
+   PROP(False) RETURN() SEP().
 
 Definition exit_spec := try_spec "exit" exit_spec'.
 
@@ -120,7 +120,7 @@ Definition malloc_spec'  {cs: compspecs} :=
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr gv;
              if eq_dec p nullval then emp
             else (malloc_token Ews t p * data_at_ Ews t p)).
@@ -151,7 +151,7 @@ Definition free_spec'  {cs: compspecs} :=
               else (malloc_token Ews t p * data_at_ Ews t p))
     POST [ Tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (mem_mgr gv).
 
 Parameter body_free:
@@ -177,7 +177,7 @@ Lemma semax_func_cons_malloc_aux:
   forall {cs: compspecs} (gv: globals) (gx : genviron) (t :type) (ret : option val),
 (EX p : val,
  PROP ( )
- LOCAL (temp ret_temp p)
+ RETURN (p)
  SEP (mem_mgr gv;
       if eq_dec p nullval
       then emp
