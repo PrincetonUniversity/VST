@@ -6,6 +6,7 @@ Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.simple_reify.
 Require Import VST.floyd.aggregate_type.
+Require Import VST.floyd.Zlength_solver.
 
 Definition int_signed_or_unsigned (t: type) : int -> Z :=
   match typeconv t with
@@ -171,8 +172,10 @@ Ltac default_canon_load_result :=
           | rewrite (@Znth_map int64 _)
           | rewrite (@Znth_map val _)
           | rewrite (@Znth_map Z _) ];
-    [ | solve [auto; old_list_solve] + match goal with
-        | |- ?Bounds => fail 10 "Make sure old_list_solve or auto can prove" Bounds
+    [ | solve [auto; Zlength_solve] + match goal with
+        | |- ?Bounds => fail 10 "Make sure Zlength_solve or auto can prove" Bounds
+"
+The usual way to do that is to use assert or assert_PROP before forward."
         end  ]
   );
       repeat match goal with

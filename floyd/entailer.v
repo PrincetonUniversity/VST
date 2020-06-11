@@ -747,7 +747,7 @@ Proof.
   destruct p; try contradiction.
   red in H3.
   unfold sizeof, Ctypes.sizeof in H3; clear H1.
-  rewrite Z.max_r in H3 by old_list_solve.
+  rewrite Z.max_r in H3 by list_solve.
   fold Ctypes.sizeof in H3.
   change (Ctypes.sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).
