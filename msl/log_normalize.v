@@ -1288,6 +1288,7 @@ Qed.
 
 (***** subtyping and contractiveness -- should split this into a separate file ******)
 Require Import VST.msl.alg_seplog.
+Import FashNotation.
 
 Lemma later_fash1 {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
    forall P : A, |> # P |-- # |> P.
