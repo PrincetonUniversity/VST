@@ -27,7 +27,7 @@ Hint Resolve isptr_force_val_sem_cast_neutral : norm.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
-Hint Resolve @FF_local_facts: saturate_local.
+Hint Resolve FF_local_facts: saturate_local.
 
 Ltac simpl_compare :=
  match goal with

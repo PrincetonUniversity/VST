@@ -156,7 +156,7 @@ Qed.
 
 Hint Rewrite frame_normal frame_for1 frame_loop1
                  overridePost_normal: ret_assert.
-Hint Resolve @TT_right : core.
+Hint Resolve TT_right : core.
 
 Lemma overridePost_overridePost:
  forall P Q R, overridePost P (overridePost Q R) = overridePost P R.

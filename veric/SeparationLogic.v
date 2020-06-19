@@ -1290,7 +1290,8 @@ Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bv
 (* Don't know why this next Hint doesn't work unless fully instantiated;
    perhaps because one needs both "contractive" and "typeclass_instances"
    Hint databases if this next line is not added. *)
-Hint Resolve (@subp_sepcon mpred Nveric Iveric Sveric SIveric Rveric SRveric): contractive.
+Definition subp_sepcon_mpred := @subp_sepcon mpred Nveric Iveric Sveric SIveric Rveric SRveric.
+Hint Resolve subp_sepcon_mpred: contractive.
 
 Fixpoint unfold_Ssequence c :=
   match c with

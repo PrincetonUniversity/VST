@@ -144,13 +144,13 @@ intros w' ? w'' ? ?.
 eapply H; eauto.
 Qed.
 
-Hint Resolve @sepcon_subp' : core.
-Hint Resolve @subp_refl' : core.
-Hint Resolve @andp_subp' : core.
-Hint Resolve @allp_subp' : core.
-Hint Resolve @derives_subp : core.
-Hint Resolve @pred_eq_e1 : core.
-Hint Resolve @pred_eq_e2 : core.
+Hint Resolve sepcon_subp' : core.
+Hint Resolve subp_refl' : core.
+Hint Resolve andp_subp' : core.
+Hint Resolve allp_subp' : core.
+Hint Resolve derives_subp : core.
+Hint Resolve pred_eq_e1 : core.
+Hint Resolve pred_eq_e2 : core.
 
 
 Lemma allp_imp2_later_e2 {B}{A}{agA: ageable A}:
@@ -189,7 +189,7 @@ apply comparable_fashionR.
 eapply join_comparable; eauto.
 Qed.
 
-Hint Resolve @extend_unfash : core.
+Hint Resolve extend_unfash : core.
 
 Lemma subp_unfash {A} `{Age_alg A}:
   forall (P Q : pred nat) (n: nat), (P >=> Q) n -> ( ! P >=> ! Q) n.
@@ -199,7 +199,7 @@ intros w ?. specialize (H0 _ H1).
 intros w' ? ?. apply (H0 _ (necR_level' H2)).
 auto.
 Qed.
-Hint Resolve @subp_unfash : core.
+Hint Resolve subp_unfash : core.
 
 
 Lemma unfash_sepcon_distrib:

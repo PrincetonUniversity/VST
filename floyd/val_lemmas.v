@@ -144,7 +144,7 @@ Hint Resolve  eval_expr_Etempvar : core.
 Lemma eval_expr_Etempvar' : forall {cs: compspecs}  i t, eval_id i = eval_expr (Etempvar i t).
 Proof. intros. symmetry; auto.
 Qed.
-Hint Resolve  @eval_expr_Etempvar' : core.
+Hint Resolve  eval_expr_Etempvar' : core.
 
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
 Hint Rewrite Ptrofs.add_zero  Ptrofs.add_zero_l Ptrofs.sub_zero_l : norm.

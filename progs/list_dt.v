@@ -1263,7 +1263,7 @@ Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Hint Resolve @lseg_local_facts : saturate_local.
+Hint Resolve lseg_local_facts : saturate_local.
 End LsegGeneral.
 
 Module LsegSpecial.
@@ -1807,7 +1807,7 @@ End LIST.
 
 Hint Rewrite @lseg_nil_eq : norm.
 Hint Rewrite @lseg_eq using reflexivity: norm.
-Hint Resolve @lseg_local_facts : saturate_local.
+Hint Resolve lseg_local_facts : saturate_local.
 
 Ltac resolve_lseg_valid_pointer :=
 match goal with
@@ -2593,7 +2593,7 @@ Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Hint Resolve @lseg_local_facts : saturate_local.
+Hint Resolve lseg_local_facts : saturate_local.
 
 Hint Resolve denote_tc_test_eq_split : valid_pointer.
 

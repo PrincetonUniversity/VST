@@ -15,7 +15,7 @@ intros. unfold data_block, array_at.
 simpl.
 entailer!.
 Qed.
-Hint Resolve @data_block_local_facts : saturate_local.
+Hint Resolve data_block_local_facts : saturate_local.
 
 
 Lemma data_block_valid_pointer {cs: compspecs} sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->

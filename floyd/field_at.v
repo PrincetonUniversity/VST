@@ -1920,7 +1920,7 @@ Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
 Hint Extern 1 (data_at _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
 
-Hint Resolve @array_at_local_facts @array_at__local_facts : saturate_local.
+Hint Resolve array_at_local_facts array_at__local_facts : saturate_local.
 
 
 Hint Resolve field_at__local_facts : saturate_local.

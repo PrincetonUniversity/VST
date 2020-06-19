@@ -162,7 +162,7 @@ Existing Instance Cross_equiv.
 Hint Extern 1 (@join _ _ _ _ _) =>
    match goal with |- @join _ (@Join_equiv _) _ _ _ => apply join_equiv_refl end
    : core.
-(* Hint Resolve @join_equiv_refl. *)
+(* Hint Resolve join_equiv_refl. *)
 
 Section SepAlgProp.
   Variable A:Type.

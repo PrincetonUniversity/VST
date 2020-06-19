@@ -43,7 +43,7 @@ destruct (join_ex_units x).
 exists x0. apply join_comm; apply u.
 Qed.
 
-Hint Resolve @constructive_join_sub_refl : core.
+Hint Resolve constructive_join_sub_refl : core.
 Definition constructive_joins {A}  {JOIN: Join A} (w1 w2 : A) := {w3 | join w1 w2 w3}.
 
 Lemma cjoins_joins {A}  {JOIN: Join A}: forall {w1 w2}, constructive_joins w1 w2 -> joins w1 w2.

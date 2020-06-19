@@ -122,8 +122,8 @@ intros; intro; simpl.
 apply comparable_refl.
 Qed.
 
-Hint Resolve @extendM_refl : core.
-Hint Resolve @compareM_refl : core.
+Hint Resolve extendM_refl : core.
+Hint Resolve compareM_refl : core.
 
 
 (* Rules for the BI connectives *)
@@ -359,7 +359,7 @@ Lemma extend_later' {A}{JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_al
 Proof.
 intros. unfold boxy in *. rewrite later_commute. rewrite H. auto.
 Qed.
-Hint Resolve @extend_later' : core.
+Hint Resolve extend_later' : core.
 
 Lemma age_sepcon {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} :
       forall P Q, (box ageM (P * Q) = box ageM P * box ageM Q)%pred.
@@ -630,7 +630,7 @@ hnf in H,H0.
 eapply necR_linear'; eauto.
 apply comparable_fashionR; auto.
 Qed.
-Hint Resolve @superprecise_exactly : core.
+Hint Resolve superprecise_exactly : core.
 
 Lemma superprecise_precise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: forall (P: pred A) , superprecise P -> precise P.
 Proof.
