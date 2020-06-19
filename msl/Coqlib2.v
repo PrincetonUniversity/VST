@@ -170,7 +170,7 @@ assert (forall m, (m <= n)%nat ->
          (exists i, F i /\ (i<m)%nat /\ ~ F (S i))).
 induction m.
 left; intros.
-omegaContradiction.
+lia.
 intro.
 assert (m<=n)%nat; try lia.
 destruct (IHm H2).

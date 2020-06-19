@@ -2,7 +2,7 @@ Require Import compcert.lib.Integers.
 Require Import Recdef.
 Require Import Bvector.
 Require Import List. Import ListNotations.
-Require Import Arith.
+Require Import Arith Lia.
 Require Import compcert.lib.Coqlib.
 Require Import sha.general_lemmas.
 Require Import sha.hmac_pure_lemmas.
@@ -16,8 +16,8 @@ Definition concat {A : Type} (l : list (list A)) : list A :=
 Lemma concat_length {A}: forall L (l:list A), In l L -> (length (concat L) >= length l)%nat.
 Proof.  unfold concat. induction L; simpl; intros. contradiction.
   rewrite app_length.
-  destruct H; subst. unfold id. omega.
-  specialize (IHL _ H). omega.
+  destruct H; subst. unfold id. lia.
+  specialize (IHL _ H). lia.
 Qed.
 
 Lemma concat_InBlocks b: forall l (F: Forall (fun x : list bool => length x = b) l),
@@ -67,7 +67,7 @@ Proof.
     rewrite H0. rewrite H1. simpl.
     f_equal.
     apply min_l.
-    omega.
+    lia.
 Qed.
 
 Theorem xor_eq : forall (n : nat) (v1 v2 : Bvector.Bvector n),
@@ -108,8 +108,8 @@ Function hash_blocks_bits (b:nat) (B:(0<b)%nat) (hash_block_bit : Blist -> Blist
   end.
 Proof. intros.
  destruct (lt_dec (length msg) b).
- rewrite skipn_short. simpl; omega. rewrite <- teq; omega.
- rewrite skipn_length; rewrite <- teq; omega.
+ rewrite skipn_short. simpl; lia. rewrite <- teq; lia.
+ rewrite skipn_length; rewrite <- teq; lia.
 Defined.
 
 Lemma add_blocksize_length l n: 0<=n ->

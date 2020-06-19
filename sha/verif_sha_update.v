@@ -71,7 +71,7 @@ subst.
 unfold_data_at (data_at _ _ _ _).
 forward_call (* SHA256_addlength(c, len); *)
   (len, c, wsh, s256a_len a).
- split; auto.  repeat split; simpl; auto; omega.
+ split; auto.  repeat split; simpl; auto; lia.
 (* TODO:  need a fold_data_at tactic; the next few lines do that here *)
 gather_SEP' [5;0;1;3;4]%Z.
 replace_SEP 0 (data_at wsh t_struct_SHA256state_st
@@ -128,7 +128,7 @@ apply semax_seq with (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data
  assert (BLEN: bitlength (s256a_hashed a) (s256a_data a) = s256a_len a)
    by (rewrite bitlength_eq, S256abs_recombine; auto).
  pattern (s256a_len a + len * 8); rewrite <- BLEN at 1.
- simple apply update_outer_if_proof; try eassumption; auto; try omega.
+ simple apply update_outer_if_proof; try eassumption; auto; try lia.
  apply s256a_data_Zlength_less.
  apply s256a_hashed_divides.
 + simpl_ret_assert; apply ENTAIL_refl.
@@ -146,7 +146,7 @@ apply semax_seq with (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data
  eapply semax_seq' with
      (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data a) data gv true).
  semax_subcommand Vprog Gtot  f_SHA256_Update (@nil (ident * Annotation)).
-simple apply update_while_proof; try assumption; try omega; auto.
+simple apply update_while_proof; try assumption; try lia; auto.
  rewrite bitlength_eq, S256abs_recombine; auto.
  apply s256a_data_Zlength_less.
  apply s256a_hashed_divides.
@@ -165,7 +165,7 @@ assert (H3 : Zlength dd < CBLOCKz) by apply s256a_data_Zlength_less.
 replace (s256a_len a) with (bitlength hashed dd) in HBOUND
    by (subst dd hashed; rewrite bitlength_eq, S256abs_recombine; auto).
 set (b4d := Zlength blocks * 4 - Zlength dd) in *.
-rename H into Hx; assert (H: 0 <= len <= Zlength data) by omega; clear Hx LEN.
+rename H into Hx; assert (H: 0 <= len <= Zlength data) by lia; clear Hx LEN.
 rename H4 into Hblocks;
 assert (H4 : (LBLOCKz | Zlength hashed)) by apply s256a_hashed_divides.
 assert (BB:  0 <= b4d) by MyOmega.
@@ -180,7 +180,7 @@ assert (UAE: S256abs (hashed ++ blocks) (sublist b4d len data) =
  rewrite !S256abs_data
    by (try apply divide_length_app; auto; autorewrite with sublist; auto).
  f_equal.
- rewrite (sublist_split 0 b4d len) by (auto; omega).
+ rewrite (sublist_split 0 b4d len) by (auto; lia).
  auto.
  }
 forward_if (   PROP  ()
@@ -235,7 +235,7 @@ assert (Hbb: bitlength hashed dd + len * 8 =
     rewrite <- !Z.mul_add_distr_r.
     change 4%Z with WORD.
     rewrite (Z.mul_add_distr_r _ _ WORD).
-    omega.
+    lia.
 }
  rewrite Hbb.
  entailer!.
@@ -255,7 +255,7 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  cancel.
  subst dd'.
  autorewrite with sublist.
- replace (b4d + (len - b4d)) with len by omega.
+ replace (b4d + (len - b4d)) with len by lia.
  cancel.
 + (* else-clause *)
  forward. (* skip; *)
@@ -277,7 +277,7 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  split3; auto.
  split; auto.
  f_equal. f_equal.
- rewrite Zlength_nil; omega.
+ rewrite Zlength_nil; lia.
  unfold bitlength.
  rewrite <- (Z.mul_add_distr_r _ _ 8).
  f_equal.
@@ -286,8 +286,8 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  rewrite (Z.mul_add_distr_r _ _ WORD).
  rewrite <- Z.add_assoc.
  f_equal.
- replace len with b4d by omega. unfold b4d.
- change 4%Z with WORD. omega.
+ replace len with b4d by lia. unfold b4d.
+ change 4%Z with WORD. lia.
 +
 (* after the last if *)
  forward.  (* return; *)

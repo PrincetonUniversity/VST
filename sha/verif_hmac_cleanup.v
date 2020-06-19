@@ -27,7 +27,7 @@ forward_call (wsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
 pose proof (sizeof_pos t_struct_hmac_ctx_st).
 forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
-unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
+unfold data_block. simpl. rewrite Zlength_list_repeat by lia.
 rewrite !map_list_repeat.
  entailer!; auto.
 Qed.
@@ -60,7 +60,7 @@ forward_call (wsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
 pose proof (sizeof_pos t_struct_hmac_ctx_st).
 forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
-unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
+unfold data_block. simpl. rewrite Zlength_list_repeat by lia.
 rewrite !map_list_repeat.
  entailer!; auto.
 Qed.

@@ -25,9 +25,9 @@ unfold data_at_, field_at_.
 rewrite field_at_data_at. simpl.
 rewrite field_at_data_at. unfold tarray. simpl.
 assert (JM: default_val (Tarray tuchar 64 noattr) = sublist 0 64 (list_repeat 64 Vundef)).
-{ rewrite sublist_list_repeat with (k:=64); try omega. reflexivity. }
-erewrite  split2_data_at_Tarray with (n1:=32); [ | omega | | apply JM | reflexivity | reflexivity]. 
-2: rewrite Zlength_list_repeat'; simpl; omega.
+{ rewrite sublist_list_repeat with (k:=64); try lia. reflexivity. }
+erewrite  split2_data_at_Tarray with (n1:=32); [ | lia | | apply JM | reflexivity | reflexivity]. 
+2: rewrite Zlength_list_repeat'; simpl; lia.
 normalize. 
 freeze FR1 := - (data_at _ _ _ (field_address _ nil v_prk))
              (data_at _ _ _ (field_address _ nil v_prk_len))
@@ -57,8 +57,8 @@ Time forward_call (out, olen, v_prk,
 { simpl. split3; auto. split; rep_lia. }
 
 apply extract_exists_pre. intros x. destruct x. Intros. rename H into EXPAND_RES. (*simpl in *.*)
-unfold expand_out_post, digest_len in EXPAND_RES. rewrite if_false in EXPAND_RES; try omega.
-replace (olen + 32 - 1)%Z with (olen + 31)%Z in EXPAND_RES by omega.
+unfold expand_out_post, digest_len in EXPAND_RES. rewrite if_false in EXPAND_RES; try lia.
+replace (olen + 32 - 1)%Z with (olen + 31)%Z in EXPAND_RES by lia.
 
 destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
 + forward_if
@@ -77,7 +77,7 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
 
   forward_if (`FF).
   { forward. Exists 0. entailer!.
-    thaw FR2. cancel. erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
+    thaw FR2. cancel. erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try lia.
     rewrite field_address_offset by auto with field_compatible. simpl.
     rewrite isptr_offset_val_zero; trivial. cancel.
     unfold data_block. normalize. rewrite ZlengthExtract. cancel. }
@@ -112,7 +112,7 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
   { elim H; trivial. }
   { clear H; forward. entailer!. }
   forward. Exists 1. entailer!. thaw FR2. cancel.
-  erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
+  erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try lia.
   rewrite field_address_offset by auto with field_compatible. simpl.
   rewrite isptr_offset_val_zero; trivial. cancel.
   unfold data_block. normalize. rewrite ZlengthExtract. cancel.

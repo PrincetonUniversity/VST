@@ -70,7 +70,7 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
     remember (Int.eq i Int.zero). destruct b.
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; auto with valid_pointer. entailer!.
      entailer!. apply sepcon_valid_pointer2. apply @data_block_valid_pointer. auto.
-     red in H2. omega.
+     red in H2. lia.
      apply valid_pointer_null. }
 
   { (* THEN*)

@@ -76,7 +76,7 @@ Lemma SF_ByteRepr x:
 Proof. intros. unfold sixtyfour.
  rewrite map_list_repeat.
  rewrite Byte.unsigned_repr; trivial. destruct H.
- assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
+ assert (BMU: Byte.max_unsigned = 255). reflexivity. lia.
 Qed.
 *)
 

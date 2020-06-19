@@ -93,9 +93,9 @@ Proof.
   specialize (H _ H0).
   apply necR_level in H2.
   apply predicates_hered.pred_ext; intros ? []; split; auto.
-  - destruct (H a0) as [X _]; [omega|].
+  - destruct (H a0) as [X _]; [lia|].
     specialize (X _ (necR_refl _)); auto.
-  - destruct (H a0) as [_ X]; [omega|].
+  - destruct (H a0) as [_ X]; [lia|].
     specialize (X _ (necR_refl _)); auto.
 Qed.
 
@@ -245,7 +245,7 @@ unfold approx.
 apply and_ext'; auto; intros.
 specialize (H (level m')); spec H; [simpl; apply later_nat; auto |].
 specialize (H m').
-spec H; [omega |].
+spec H; [lia |].
 destruct H.
 specialize (H m').
 specialize (H1 m').
@@ -259,7 +259,7 @@ Proof.
   intros m ? x ?; split; intros y ? ?.
   + apply approx_lt; auto.
     apply necR_level in H1.
-    apply later_nat in H; omega.
+    apply later_nat in H; lia.
   + eapply approx_p; eauto.
 Qed.
 

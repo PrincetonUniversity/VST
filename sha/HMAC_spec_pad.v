@@ -8,6 +8,7 @@ Require Import sha.general_lemmas.
 Require Import sha.hmac_pure_lemmas.
 Require Import sha.ByteBitRelations.
 Require Import sha.HMAC_common_defs.
+Require Import Lia.
 
 Local Open Scope program_scope.
 
@@ -98,7 +99,7 @@ Proof.
   assert (bytesToBits (intlist_to_bytelist BACK) = skipn b (front ++ back)).
     rewrite concat_eq; clear concat_eq.
     rewrite skipn_exact; trivial.
-    rewrite bytesToBits_len, length_intlist_to_bytelist, F_len. omega.
+    rewrite bytesToBits_len, length_intlist_to_bytelist, F_len. lia.
   rewrite H, H0 in concat_eq; clear H H0.
   eapply app_inv_tail. eassumption.
 Qed.
@@ -161,7 +162,7 @@ Module HM:= HP.HMAC_FUN HF.
 Proof. intros. unfold HM.sixtyfour.
  rewrite map_list_repeat.
  rewrite Byte.unsigned_repr; trivial. destruct H.
- assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
+ assert (BMU: Byte.max_unsigned = 255). reflexivity. lia.
 Qed.
 *)
 (*From hmac_common_lemmas TODO: Isolate*)
@@ -227,7 +228,7 @@ Proof.
     - rewrite -> H0 in *.
       unfold convert in inputs_eq.
       destruct front.
-      { simpl in H. rewrite <- H in *; omega. }
+      { simpl in H. rewrite <- H in *; lia. }
       { simpl in inputs_eq. inversion inputs_eq. }
 
   *
@@ -240,7 +241,7 @@ Proof.
       rewrite -> H0 in inputs_eq.
       unfold convert in inputs_eq.
       destruct front.
-      { simpl in H. subst b. omega. }
+      { simpl in H. subst b. lia. }
       { simpl in inputs_eq. inversion inputs_eq. }
 
     - clear IHbytes_blocks. intros. rewrite I.HBS_eq.
@@ -262,8 +263,8 @@ Proof.
         { rewrite -> H0 in inputs_eq.
           rewrite -> H2 in inputs_eq.
           apply (front_equiv DB32 back0 back front0 front H1 H inputs_eq). }
-     + rewrite -> H0. rewrite -> app_length. rewrite -> H. omega.
-     + rewrite -> H2. rewrite -> app_length. rewrite -> H1. omega.
+     + rewrite -> H0. rewrite -> app_length. rewrite -> H. lia.
+     + rewrite -> H2. rewrite -> app_length. rewrite -> H1. lia.
 Qed.
 
 Lemma equiv_pad shaiv shasplitandpad c p (B: (0< b c p)%nat) (DB32: (I.d*32 =b c p)%nat)
@@ -293,7 +294,7 @@ Proof.
           apply InBlocks_len. rewrite bytesToBits_len, length_intlist_to_bytelist.
              rewrite <- DB32. destruct (GAP bits). rewrite H. exists x.
              rewrite mult_comm, mult_assoc.
-             assert ((8*4= 32)%nat) by omega. rewrite H0. rewrite mult_comm, <- mult_assoc. trivial.
+             assert ((8*4= 32)%nat) by lia. rewrite H0. rewrite mult_comm, <- mult_assoc. trivial.
           apply InBlocks_len. apply GAP.
         }
     }

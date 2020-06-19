@@ -9,15 +9,15 @@ Require Import VST.floyd.sublist.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import sha.SHA256.
+Require Import Lia.
 
 (* LINEAR-TIME FUNCTIONAL VERSION OF SHA256 *)
 Function zeros (n : Z) {measure Z.to_nat n} : list Int.int :=
  if Z.gtb n 0 then Int.zero :: zeros (n-1) else nil.
 Proof.
-   intros. rewrite Z2Nat.inj_sub by omega.
+   intros. rewrite Z2Nat.inj_sub by lia.
    apply Zgt_is_gt_bool in teq.
-   assert (0 < n) by omega. apply Z2Nat.inj_lt in H; try omega.
-   simpl in H. change (Z.to_nat 1) with 1%nat. omega.
+   assert (0 < n) by lia. apply Z2Nat.inj_lt in H; try lia.
 Defined.
 
 Definition padlen (n: Z) : list Int.int :=
@@ -85,14 +85,14 @@ Function process_msg  (r: registers) (msg : list int) {measure length msg}  : re
 Proof.
   intros; subst.
   simpl.
-  assert (Datatypes.length msg' <= Datatypes.length l)%nat; [ | omega].
+  assert (Datatypes.length msg' <= Datatypes.length l)%nat; [ | lia].
   simpl in teq0.
   do 16 (destruct l; [inv teq0; solve [simpl; auto 50] | ]).
   unfold process_block in teq0.
   assert (i15::l = msg') by congruence.
   subst msg'.
   simpl.
-  omega.
+  lia.
 Defined.
 
 Definition SHA_256' (str : list byte) : list byte :=
@@ -213,7 +213,7 @@ Proof.
  inv H0.
  simpl in H0.
  apply IHn in H1; auto.
- omega.
+ lia.
 Qed.
 
 Lemma length_process_msg:
@@ -232,7 +232,7 @@ Proof.
  apply IHn.
  apply length_process_block; auto.
  simpl in H0.
- omega.
+ lia.
 Qed.
 
 Lemma process_msg_eq2:
@@ -272,8 +272,8 @@ clear H1.
 pose proof (firstn_length i b).
 rewrite min_l in H1.
 2:{
-clear - H0; revert b H0; induction i; destruct b; simpl; intros; inv H0; try omega.
-specialize (IHi _ H1). omega.
+clear - H0; revert b H0; induction i; destruct b; simpl; intros; inv H0; try lia.
+specialize (IHi _ H1). lia.
 }
 rewrite <- H1 in H.
 clear H0 H1.
@@ -289,17 +289,17 @@ Lemma Zlength_zeros:
     forall n, (n>=0)%Z -> Zlength (zeros n) = n.
 Proof.
 intros.
-rewrite <- (Z2Nat.id n) in * by omega.
+rewrite <- (Z2Nat.id n) in * by lia.
 clear H.
 induction (Z.to_nat n).
 reflexivity.
 rewrite inj_S.
 rewrite zeros_equation.
 pose proof (Zgt_cases (Z.succ (Z.of_nat n0)) 0).
-destruct (Z.succ (Z.of_nat n0) >? 0); try omega.
+destruct (Z.succ (Z.of_nat n0) >? 0); try lia.
 rewrite Zlength_cons.
 f_equal.  rewrite <- IHn0.
-f_equal. f_equal. omega.
+f_equal. f_equal. lia.
 Qed.
 
 Lemma length_zeros: forall n:Z, length (zeros n) = Z.to_nat n.
@@ -307,7 +307,7 @@ Proof.
 intros. destruct (zlt n 0).
 rewrite zeros_equation.
 pose proof (Zgt_cases n 0).
-destruct (n>?0). omega.
+destruct (n>?0). lia.
 destruct n. inv l. inv l. simpl. reflexivity.
 rename g into H.
 pose proof (Zlength_zeros n H).
@@ -332,24 +332,24 @@ rewrite Zlength_zeros.
 repeat rewrite Zlength_cons; rewrite Zlength_nil.
 change (Z.succ (Z.succ 0)) with 2.
 unfold roundup.
-change (16-1) with 15; omega.
+change (16-1) with 15; lia.
 assert (n/4 >= 0).
-apply Z_div_ge0; omega.
-assert (n/4+3>0) by omega.
+apply Z_div_ge0; lia.
+assert (n/4+3>0) by lia.
 forget (n/4+3) as d.
 clear - H1.
-replace (d+15) with ((1*16)+ (d-1)) by (simpl Z.mul; omega).
-rewrite Z_div_plus_full_l by omega.
+replace (d+15) with ((1*16)+ (d-1)) by (simpl Z.mul; lia).
+rewrite Z_div_plus_full_l by lia.
 rewrite Z.mul_add_distr_r.
 change (1*16) with 16.
-assert ((d-1)/16*16 + 15 >= d-1); [ | omega].
-assert (d-1>=0) by omega.
+assert ((d-1)/16*16 + 15 >= d-1); [ | lia].
+assert (d-1>=0) by lia.
 forget (d-1) as e.
 clear - H.
-pattern e at 2; rewrite (Z_div_mod_eq e 16) by omega.
+pattern e at 2; rewrite (Z_div_mod_eq e 16) by lia.
 rewrite Z.mul_comm.
- assert (15 >= e mod 16); [| omega].
-destruct (Z.mod_pos_bound e 16); omega.
+ assert (15 >= e mod 16); [| lia].
+destruct (Z.mod_pos_bound e 16); lia.
 Qed.
 
 Lemma zeros_app:
@@ -367,10 +367,10 @@ simpl.
 f_equal.
 rewrite Z.add_simpl_r.
 rewrite IHn0; auto.
-f_equal; omega.
-symmetry; apply Z.gtb_lt; auto; omega.
-symmetry; apply Z.gtb_lt; auto; omega.
-omega.
+f_equal; lia.
+symmetry; apply Z.gtb_lt; auto; lia.
+symmetry; apply Z.gtb_lt; auto; lia.
+lia.
 Qed.
 
 Lemma zeros_Zsucc:
@@ -379,9 +379,9 @@ Proof.
 intros.
 rewrite zeros_equation.
 replace (Z.succ n >? 0) with true.
-f_equal. f_equal. omega.
+f_equal. f_equal. lia.
 symmetry.
-apply Z.gtb_lt; omega.
+apply Z.gtb_lt; lia.
 Qed.
 
 Lemma intlist_to_bytelist_zeros:
@@ -389,18 +389,18 @@ Lemma intlist_to_bytelist_zeros:
 Proof.
 intro.
 destruct (zlt n 0).
-destruct n; try omega. inv l. reflexivity.
-rewrite <- (Z2Nat.id n) by omega.
+destruct n; try lia. inv l. reflexivity.
+rewrite <- (Z2Nat.id n) by lia.
 induction (Z.to_nat n).
 simpl; auto.
 rewrite inj_S.
-rewrite zeros_Zsucc by omega.
+rewrite zeros_Zsucc by lia.
 unfold intlist_to_bytelist; fold intlist_to_bytelist.
 unfold Z.succ.
 rewrite Z.add_comm.
 rewrite Z.mul_add_distr_l.
-replace (4 * 1 + 4 * Z.of_nat n0) with (Z.succ (Z.succ (Z.succ (Z.succ (4 * Z.of_nat n0))))) by omega.
-repeat rewrite zeros_Zsucc by omega.
+replace (4 * 1 + 4 * Z.of_nat n0) with (Z.succ (Z.succ (Z.succ (Z.succ (4 * Z.of_nat n0))))) by lia.
+repeat rewrite zeros_Zsucc by lia.
 rewrite IHn0.
 reflexivity.
 Qed.
@@ -416,21 +416,21 @@ unfold padlen,padlen'; simpl.
 f_equal. f_equal.
 assert ((n+12)/4 = n/4+3).
 intros.
-replace (n+12) with (3*4+n) by omega.
- rewrite Z_div_plus_full_l by omega. omega.
+replace (n+12) with (3*4+n) by lia.
+ rewrite Z_div_plus_full_l by lia. lia.
 rewrite <- H.
 replace ((n+12)/4) with ((n+8)/4+1).
 rewrite <- Z.add_assoc.
 change (1+15) with (1*16).
 rewrite <- (Z.add_comm (1*16)).
- rewrite Z_div_plus_full_l by omega.
+ rewrite Z_div_plus_full_l by lia.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_div by omega.
+rewrite Z.div_div by lia.
 change (4*16) with 64.
-omega.
-replace (n+12) with (1*4+(n+8)) by omega.
- rewrite Z_div_plus_full_l by omega.
-omega.
+lia.
+replace (n+12) with (1*4+(n+8)) by lia.
+ rewrite Z_div_plus_full_l by lia.
+lia.
 Qed.
 
 Lemma length_generate_and_pad'':
@@ -440,83 +440,83 @@ Lemma length_generate_and_pad'':
 Proof.
 intro l.
 remember (S (length l)) as L.
-assert (length l < L)%nat by omega.
+assert (length l < L)%nat by lia.
 clear HeqL; revert l H; clear; induction L; intros.
 inversion H.
 destruct l.
 simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
 rewrite Zlength_padlen
-  by (apply Z.le_ge; apply Z.mul_nonneg_nonneg; omega).
+  by (apply Z.le_ge; apply Z.mul_nonneg_nonneg; lia).
 unfold Z.succ.
-replace (k*4+0+12) with (k*4+4+8) by omega.
+replace (k*4+0+12) with (k*4+4+8) by lia.
 change 8 with (2*4).
-rewrite Z_div_plus_full by omega.
+rewrite Z_div_plus_full by lia.
 replace ((k*4+4)/4)%Z with (k+1)%Z
  by (replace ((k*4+4)/4)%Z with (k*4/4 + 1)%Z
-         by (symmetry; apply (Z_div_plus (k*4) 1 4); omega);
-      rewrite Z_div_mult by omega; auto).
+         by (symmetry; apply (Z_div_plus (k*4) 1 4); lia);
+      rewrite Z_div_mult by lia; auto).
 rewrite Z.sub_add.
 rewrite Z.div_mul by congruence.
-replace (k+1+2) with (k+3) by omega.
-omega.
+replace (k+1+2) with (k+3) by lia.
+lia.
 assert (k*4 >= 0).
-apply Z.le_ge; apply Z.mul_nonneg_nonneg; omega.
+apply Z.le_ge; apply Z.mul_nonneg_nonneg; lia.
 destruct l.
 simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
-rewrite Zlength_padlen by omega.
+rewrite Zlength_padlen by lia.
 unfold Z.succ. rewrite Z.sub_add.
-replace (k*4+(0+1)+12) with (k*4+1+4+8) by omega.
+replace (k*4+(0+1)+12) with (k*4+1+4+8) by lia.
 change 8 with (2*4).
-rewrite Z_div_plus_full by omega.
+rewrite Z_div_plus_full by lia.
 change (k * 4 + 1 + 4) with (k * 4 + 1 + 1*4).
-rewrite (Z_div_plus (k*4+1) 1 4) by omega.
+rewrite (Z_div_plus (k*4+1) 1 4) by lia.
 rewrite (Z.add_comm (k*4)).
-rewrite Z_div_plus by omega.
+rewrite Z_div_plus by lia.
 change (1/4) with 0.
 rewrite Z.add_0_l.
-replace (k+1+2) with (k+3) by omega.
-omega.
+replace (k+1+2) with (k+3) by lia.
+lia.
 destruct l.
 simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
-rewrite Zlength_padlen by omega.
+rewrite Zlength_padlen by lia.
 unfold Z.succ. rewrite Z.sub_add.
-replace (k*4+(0+1+1)+12) with (k*4+2+4+8) by omega.
+replace (k*4+(0+1+1)+12) with (k*4+2+4+8) by lia.
 change 8 with (2*4).
-rewrite Z_div_plus_full by omega.
+rewrite Z_div_plus_full by lia.
 change (k * 4 + 2 + 4) with (k * 4 + 2 + 1*4).
-rewrite (Z_div_plus (k*4+2) 1 4) by omega.
+rewrite (Z_div_plus (k*4+2) 1 4) by lia.
 rewrite (Z.add_comm (k*4)).
-rewrite Z_div_plus by omega.
+rewrite Z_div_plus by lia.
 change (2/4) with 0.
 rewrite Z.add_0_l.
-replace (k+1+2) with (k+3) by omega.
-omega.
+replace (k+1+2) with (k+3) by lia.
+lia.
 destruct l.
 simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
-rewrite Zlength_padlen by omega.
+rewrite Zlength_padlen by lia.
 unfold Z.succ. rewrite Z.sub_add.
-replace (k*4+(0+1+1+1)+12) with (k*4+3+4+8) by omega.
+replace (k*4+(0+1+1+1)+12) with (k*4+3+4+8) by lia.
 change 8 with (2*4).
-rewrite Z_div_plus_full by omega.
+rewrite Z_div_plus_full by lia.
 change (k * 4 + 3 + 4) with (k * 4 + 3 + 1*4).
-rewrite (Z_div_plus (k*4+3) 1 4) by omega.
+rewrite (Z_div_plus (k*4+3) 1 4) by lia.
 rewrite (Z.add_comm (k*4)).
-rewrite Z_div_plus by omega.
+rewrite Z_div_plus by lia.
 change (3/4) with 0.
 rewrite Z.add_0_l.
-replace (k+1+2) with (k+3) by omega.
-omega.
+replace (k+1+2) with (k+3) by lia.
+lia.
 simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
 unfold Z.succ.
 transitivity (k+1 + (Zlength (generate_and_pad' l ((k+1) * 4)))).
 rewrite Z.mul_add_distr_r.
 change (1*4) with 4.
-omega.
+lia.
 simpl in H.
-rewrite IHL; try omega.
+rewrite IHL; try lia.
 f_equal.
 f_equal.
-omega.
+lia.
 Qed.
 
 Lemma length_generate_and_pad':
@@ -528,16 +528,16 @@ transitivity (0 + Zlength (generate_and_pad' l (0*4))).
 rewrite Z.add_0_l.
 reflexivity.
 apply length_generate_and_pad''.
-omega.
+lia.
 Qed.
 
 Lemma roundup_ge:
  forall a b,  b > 0 -> roundup a b >= a.
 Proof.
 intros.
-assert (roundup a b - a >= 0); [ | omega].
+assert (roundup a b - a >= 0); [ | lia].
 rewrite roundup_minus by auto.
-pose proof (Z.mod_pos_bound (-a) b); omega.
+pose proof (Z.mod_pos_bound (-a) b); lia.
 Qed.
 
 
@@ -552,25 +552,25 @@ end.
 assert (Nat.divide 4 (length PADDED)). {
 subst PADDED.
 pose proof (roundup_ge (Zlength msg + 9) 64).
- spec H; [ omega | ].
-assert (Zlength msg >= 0) by (rewrite Zlength_correct; omega).
+ spec H; [ lia | ].
+assert (Zlength msg >= 0) by (rewrite Zlength_correct; lia).
 exists (Z.to_nat (roundup (Zlength msg+9) 64 / 4 - 2)).
 repeat rewrite app_length.
 rewrite length_list_repeat.
 simpl length.
 symmetry.
 transitivity (Z.to_nat (roundup (Zlength msg + 9) 64 / 4 - 2) * Z.to_nat 4)%nat; [reflexivity |].
-rewrite <- Z2Nat.inj_mul; try omega.
+rewrite <- Z2Nat.inj_mul; try lia.
 2:{
 assert (roundup (Zlength msg + 9) 64 / 4 >= (Zlength msg + 9) / 4)
- by (apply Z_div_ge; omega).
+ by (apply Z_div_ge; lia).
 assert ((Zlength msg + 9) / 4 = (Zlength msg + 1)/4 + 2).
-replace (Zlength msg + 9) with (Zlength msg + 1 + 2*4) by omega.
-rewrite Z_div_plus_full by omega.
+replace (Zlength msg + 9) with (Zlength msg + 1 + 2*4) by lia.
+rewrite Z_div_plus_full by lia.
 auto.
 assert (0 <= (Zlength msg + 1)/4).
-apply Z.div_pos;  omega.
-omega. } 
+apply Z.div_pos;  lia.
+lia. } 
 rewrite Z.mul_sub_distr_r.
 replace (roundup (Zlength msg + 9) 64 / 4 * 4) with
   (roundup (Zlength msg + 9) 64).
@@ -579,21 +579,21 @@ unfold roundup.
 forget ((Zlength msg + 9 + (64 - 1)) / 64 ) as N.
 change 64 with (16 * 4).
 rewrite Z.mul_assoc.
-rewrite Z_div_mult_full by omega.
+rewrite Z_div_mult_full by lia.
 auto.
 }
-rewrite <- roundup_minus by omega.
+rewrite <- roundup_minus by lia.
 change 64 with 64.
 forget (roundup (Zlength msg + 9) 64) as N.
 clear H0.
 rewrite Zlength_correct in *.
 forget (length msg) as L.
 transitivity (Z.to_nat (Z.of_nat L + (1 + (N - (Z.of_nat L + 9))))).
-f_equal. omega.
-rewrite Z2Nat.inj_add  by omega.
+f_equal. lia.
+rewrite Z2Nat.inj_add  by lia.
 rewrite Nat2Z.id.
 f_equal.
-rewrite Z2Nat.inj_add by omega.
+rewrite Z2Nat.inj_add by lia.
 f_equal.
 }
 remember (Z.to_nat (Zlength msg / 4)) as n.
@@ -607,10 +607,10 @@ assert (H88: (n * 4 <= length msg)%nat). {
  apply Nat2Z.inj_le.
  rewrite <- Zlength_correct. rewrite Nat2Z.inj_mul.
  rewrite Z2Nat.id.
- rewrite (Z_div_mod_eq (Zlength msg) 4) at 2 by omega.
+ rewrite (Z_div_mod_eq (Zlength msg) 4) at 2 by lia.
  change (Z.of_nat 4) with 4. rewrite <- Z.mul_comm.
- pose proof (Z.mod_pos_bound (Zlength msg) 4); omega.
- apply Z.div_pos; try rewrite Zlength_correct; omega.
+ pose proof (Z.mod_pos_bound (Zlength msg) 4); lia.
+ apply Z.div_pos; try rewrite Zlength_correct; lia.
 }
 clear Heqn.
 revert H88; induction n; intros.
@@ -618,17 +618,17 @@ revert H88; induction n; intros.
 clear H88.
 rewrite Nat.sub_0_r.
 rewrite Nat2Z.inj_mul.
-assert (0 <= Zlength msg) by (rewrite Zlength_correct; omega).
-assert (0 <= Zlength msg / 4) by (apply Z.div_pos; omega).
-pose proof (Z_div_mod_eq (Zlength msg) 4). spec H2; [omega|].
+assert (0 <= Zlength msg) by (rewrite Zlength_correct; lia).
+assert (0 <= Zlength msg / 4) by (apply Z.div_pos; lia).
+pose proof (Z_div_mod_eq (Zlength msg) 4). spec H2; [lia|].
 assert (H99: (Z.to_nat (Zlength msg / 4) * 4 <= length msg)%nat).
 apply Nat2Z.inj_le.
 rewrite <- Zlength_correct.
 rewrite Nat2Z.inj_mul.
 rewrite Z2Nat.id by auto.
 change (Z.of_nat 4) with 4.
-destruct (Z.mod_pos_bound (Zlength msg) 4); omega.
-rewrite Z2Nat.id by omega.
+destruct (Z.mod_pos_bound (Zlength msg) 4); lia.
+rewrite Z2Nat.id by lia.
 change (Z.of_nat 4) with 4.
 rewrite Z.mul_comm in H2.
 assert (length (skipn (Z.to_nat (Zlength msg / 4) * 4) msg) < 4)%nat.
@@ -637,24 +637,24 @@ apply Nat2Z.inj_lt.
 rewrite Nat2Z.inj_sub. rewrite <- Zlength_correct.
 rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
 rewrite Z2Nat.id by auto.
-destruct (Z.mod_pos_bound (Zlength msg) 4); omega.
-omega.
+destruct (Z.mod_pos_bound (Zlength msg) 4); lia.
+lia.
 rewrite HP.
-rewrite skipn_app1 by omega.
+rewrite skipn_app1 by lia.
 remember (skipn (Z.to_nat (Zlength msg / 4) * 4) msg) as ccc.
 assert (HQ: (Zlength msg + 8) / 64 * 16 + 15 - (Zlength msg + 8) / 4 >= 0). {
 clear - H0.
-assert (0 <= Zlength msg + 8) by omega.
+assert (0 <= Zlength msg + 8) by lia.
 clear H0. forget (Zlength msg + 8) as a.
-pose proof (Z_div_mod_eq a 64); spec H0; [omega|].
+pose proof (Z_div_mod_eq a 64); spec H0; [lia|].
 rewrite H0 at 2.
 rewrite (Z.mul_comm 64).
 change 64 with (16*4) at 3.
 rewrite Z.mul_assoc.
-rewrite Z_div_plus_full_l by omega.
+rewrite Z_div_plus_full_l by lia.
 assert (a mod 64 / 4 < 16).
-apply Z.div_lt_upper_bound. omega. apply Z.mod_pos_bound; omega.
-omega.
+apply Z.div_lt_upper_bound. lia. apply Z.mod_pos_bound; lia.
+lia.
 }
 assert (- (Zlength msg + 9) mod 64 =
            (3 - Zlength ccc) + 4* ((Zlength msg+8)/64 * 16 + 15 - (Zlength msg + 8) / 4)). {
@@ -668,21 +668,21 @@ rewrite Zlength_correct at 1.
 rewrite Nat2Z.inj_sub.
 rewrite Nat2Z.inj_mul.
 rewrite Z2Nat.id by auto.
-change (Z.of_nat 4) with 4; omega.
+change (Z.of_nat 4) with 4; lia.
 rewrite Nat2Z.inj_le.
 rewrite Nat2Z.inj_mul.
 rewrite Z2Nat.id by auto.
 rewrite <- Zlength_correct.
 change (Z.of_nat 4) with 4.
 assert (0 <= Zlength msg mod 4)
- by (apply Z.mod_pos_bound; omega).
-omega.
-replace (Zlength ccc) with (Zlength msg - Zlength msg / 4 * 4) by omega.
+ by (apply Z.mod_pos_bound; lia).
+lia.
+replace (Zlength ccc) with (Zlength msg - Zlength msg / 4 * 4) by lia.
 clear LL LL'.
 clear - H0 HQ. forget (Zlength msg) as a.
- rewrite <- roundup_minus by omega; unfold roundup.
-replace (a  + 9 + (64-1)) with (a + 8 + 1*64) by omega.
-rewrite Z_div_plus_full by omega.
+ rewrite <- roundup_minus by lia; unfold roundup.
+replace (a  + 9 + (64-1)) with (a + 8 + 1*64) by lia.
+rewrite Z_div_plus_full by lia.
 rewrite Z.mul_add_distr_r.
 rewrite (Z.mul_comm 4).
 rewrite Z.mul_sub_distr_r.
@@ -690,46 +690,46 @@ rewrite Z.mul_add_distr_r.
 change (15*4) with (64-4).
 rewrite <- Z.mul_assoc.
 change (16*4) with 64.
-assert (0 =8+ a / 4 * 4 - (a + 8) / 4 * 4);  [ | omega].
+assert (0 =8+ a / 4 * 4 - (a + 8) / 4 * 4);  [ | lia].
 change 8 with (2*4) at 2.
-rewrite Z_div_plus_full by omega.
+rewrite Z_div_plus_full by lia.
 rewrite Z.mul_add_distr_r.
-omega.
+lia.
 }
 rewrite H4.
 assert (0 <= Zlength ccc < 4)
- by (clear - H3; rewrite Zlength_correct; omega).
-rewrite Z2Nat.inj_add by omega.
+ by (clear - H3; rewrite Zlength_correct; lia).
+rewrite Z2Nat.inj_add by lia.
 rewrite <- list_repeat_app.
 replace (Zlength msg / 4 * 4) with (Zlength msg - Zlength ccc).
 2:{
 rewrite Heqccc.
 rewrite (Zlength_correct (skipn _ _)).
-rewrite skipn_length by omega.
-rewrite Nat2Z.inj_sub by omega.
+rewrite skipn_length by lia.
+rewrite Nat2Z.inj_sub by lia.
 rewrite <- Zlength_correct.
 rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
-rewrite Z2Nat.id  by omega.
- omega.
+rewrite Z2Nat.id  by lia.
+ lia.
 } 
 match goal with |- context [_ ++ list_repeat (Z.to_nat (4 * ?qq)) Byte.zero] =>
  assert (bytelist_to_intlist (list_repeat (Z.to_nat (4 * qq)) Byte.zero) =
   zeros ((Zlength msg + 8) / 64 * 16 + 15 - (Zlength msg + 8) / 4));
   set (Q := qq) in *
 end. {
- rewrite Z2Nat.inj_mul by omega. change (Z.to_nat 4) with 4%nat.
- rewrite <- Z2Nat.id at 2 by omega.
+ rewrite Z2Nat.inj_mul by lia. change (Z.to_nat 4) with 4%nat.
+ rewrite <- Z2Nat.id at 2 by lia.
  induction (Z.to_nat Q). reflexivity.
  rewrite inj_S. rewrite zeros_equation.
- assert (0 < Z.succ (Z.of_nat n)) by omega.
+ assert (0 < Z.succ (Z.of_nat n)) by lia.
  apply Z.gtb_lt in H6; rewrite H6.
- replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by omega.
+ replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by lia.
  rewrite <- IHn.
  replace (4 * S n)%nat with (S (S (S (S (4*n)))))%nat.
- reflexivity. omega.
+ reflexivity. lia.
 }
 set (Q4 := Z.to_nat (4 * Q)) in *.
-destruct ccc as [|a [|b [|c [|]]]]; simpl in H3; try omega; clear H3;
+destruct ccc as [|a [|b [|c [|]]]]; simpl in H3; try lia; clear H3;
  unfold generate_and_pad'; rewrite padlen_eq; unfold padlen';
  simpl;
 repeat rewrite Zlength_cons; rewrite Zlength_nil.
@@ -744,34 +744,34 @@ repeat rewrite Zlength_cons; rewrite Zlength_nil.
    change (Z.succ (Z.succ (Z.succ 0))) with 3; rewrite Z.sub_add.
    rewrite H6. reflexivity.
 * (* inductive case for n *)
-replace (S n * 4)%nat with (4 + n*4)%nat in H88 by omega.
+replace (S n * 4)%nat with (4 + n*4)%nat in H88 by lia.
 assert ((Z.to_nat (Zlength msg / 4) - S n) * 4 = ((Z.to_nat (Zlength msg / 4) - n) * 4) - 4)%nat
-  by omega.
+  by lia.
 rewrite H0. clear H0.
-spec IHn; [omega |].
+spec IHn; [lia |].
 set (Q := ((Z.to_nat (Zlength msg / 4) - n) * 4)%nat) in *.
-assert (Hyy : 0 <= Zlength msg) by (rewrite Zlength_correct; omega).
-assert (Hzz:=Zmod_eq (Zlength msg) 4); spec Hzz; [omega|].
-destruct (Z.mod_pos_bound (Zlength msg) 4); try  omega.
+assert (Hyy : 0 <= Zlength msg) by (rewrite Zlength_correct; lia).
+assert (Hzz:=Zmod_eq (Zlength msg) 4); spec Hzz; [lia|].
+destruct (Z.mod_pos_bound (Zlength msg) 4); try  lia.
 apply Nat2Z.inj_le in H88.
 rewrite Nat2Z.inj_add, Nat2Z.inj_mul in H88.
 rewrite <- Zlength_correct in H88.
 change (Z.of_nat 4) with 4 in *.
-assert (Huu:= Z.div_pos (Zlength msg) 4 Hyy); spec Huu; [omega|].
+assert (Huu:= Z.div_pos (Zlength msg) 4 Hyy); spec Huu; [lia|].
 assert (Q >= 4)%nat. {
  clear - H88 Hyy Hzz H0 H1 Huu; unfold Q; clear Q.
 apply Nat2Z.inj_ge. rewrite Nat2Z.inj_mul.
 change (Z.of_nat 4) with 4 in *.
 rewrite Nat2Z.inj_sub
  by (apply Nat2Z.inj_le; rewrite Z2Nat.id by auto;
-       apply Zmult_le_reg_r with 4; omega).
+       apply Zmult_le_reg_r with 4; lia).
  rewrite Z2Nat.id by auto.
 change 4 with (1*4) at 3.
-apply Zmult_ge_reg_r with 4; omega.
+apply Zmult_ge_reg_r with 4; lia.
 }
 rewrite <- (firstn_skipn 4 (skipn (Q-4) PADDED)), skipn_drop.
 rewrite <- (firstn_skipn 4 (skipn (Q-4) msg)), skipn_drop.
-replace (4 + (Q-4))%nat with Q by omega.
+replace (4 + (Q-4))%nat with Q by lia.
 rewrite HP at 1.
 assert (QL: (Q <= length msg)%nat). {
 apply Nat2Z.inj_le.
@@ -782,25 +782,25 @@ rewrite Nat2Z.inj_sub.
  rewrite Z2Nat.id by auto.
 change (Z.of_nat 4) with 4 in *.
  rewrite Z.mul_sub_distr_r.
-omega.
+lia.
 apply Nat2Z.inj_le.
  rewrite Z2Nat.id by auto.
-omega.
+lia.
 }
-rewrite skipn_app1 by omega.
+rewrite skipn_app1 by lia.
 rewrite firstn_app1
- by (rewrite skipn_length by omega; omega).
+ by (rewrite skipn_length by lia; lia).
 assert (length (firstn 4 (skipn (Q - 4) msg)) = 4)%nat.
-rewrite firstn_length. rewrite skipn_length by omega.
-apply min_l. omega.
+rewrite firstn_length. rewrite skipn_length by lia.
+apply min_l. lia.
 destruct (firstn 4 (skipn (Q - 4) msg))
  as [ | z0 [| z1 [| z2 [|z3 [|]]]]];inv H3.
 unfold app at 2. unfold app at 4.
 unfold generate_and_pad'; fold generate_and_pad'.
 unfold bytelist_to_intlist; fold bytelist_to_intlist.
 replace (Z.of_nat (Q-4) + 4) with (Z.of_nat Q)
- by (rewrite Nat2Z.inj_sub by omega;
-       change (Z.of_nat 4) with 4; omega).
+ by (rewrite Nat2Z.inj_sub by lia;
+       change (Z.of_nat 4) with 4; lia).
 rewrite <- IHn.
 reflexivity.
 Qed.
@@ -836,8 +836,8 @@ revert a; induction n; intro.
 unfold generate_word.
 rewrite rev_app_distr.
 rewrite rev_involutive.
-rewrite firstn_app1 by omega.
-rewrite firstn_same; auto; omega.
+rewrite firstn_app1 by lia.
+rewrite firstn_same; auto; lia.
 unfold generate_word; fold generate_word.
 change (Wnext (a ++ rev b) :: a ++ rev b) with
       ((Wnext (a ++ rev b) ::a) ++ rev b).
@@ -850,10 +850,10 @@ Proof.
 intros.
 revert b; induction n; intros; simpl.
 unfold generate_word; fold generate_word.
-omega.
+lia.
 unfold generate_word; fold generate_word.
 rewrite IHn.
-simpl. omega.
+simpl. lia.
 Qed.
 
 Lemma nth_generate_word_S:
@@ -862,10 +862,10 @@ Lemma nth_generate_word_S:
 Proof.
 induction k; intros.
 repeat rewrite plus_0_r. auto.
-replace (n + S k)%nat with (S (n + k))%nat by omega.
+replace (n + S k)%nat with (S (n + k))%nat by lia.
 unfold generate_word; fold generate_word.
-replace (i + S k)%nat with (S i + k)%nat by omega.
-rewrite IHk by (simpl; omega).
+replace (i + S k)%nat with (S i + k)%nat by lia.
+rewrite IHk by (simpl; lia).
 clear IHk.
 revert i b' ; induction n; intros.
 unfold generate_word; fold generate_word.
@@ -886,7 +886,7 @@ rewrite <- (nth_firstn_low _ _ 16).
 rewrite (generate_word_lemma1 b n H).
 auto.
 rewrite rev_length, length_generate_word, rev_length, H.
-omega.
+lia.
 Qed.
 
 Lemma generate_word_plus:
@@ -898,7 +898,7 @@ revert msg b; induction a; simpl; intros.
 unfold generate_word; fold generate_word.
 auto.
 unfold generate_word; fold generate_word.
-rewrite IHa by (simpl; omega).
+rewrite IHa by (simpl; lia).
 auto.
 Qed.
 
@@ -921,15 +921,15 @@ forget (rev b) as b'.
 clear b.
 assert (length (generate_word b' 48) = 64)%nat
  by (rewrite length_generate_word, H; reflexivity).
-rewrite rev_nth by omega.
+rewrite rev_nth by lia.
 repeat rewrite rev_nth
- by (rewrite H1; change 64%nat with (Z.to_nat 64); apply Z2Nat.inj_lt; omega).
+ by (rewrite H1; change 64%nat with (Z.to_nat 64); apply Z2Nat.inj_lt; lia).
 rewrite H1.
 rewrite <- (plus_0_l (64 - S i)).
-assert (48 = (i - 16) + 1 + (64 - S i))%nat by (clear - H0; omega).
+assert (48 = (i - 16) + 1 + (64 - S i))%nat by (clear - H0; lia).
 rewrite H2 at 2.
 rewrite nth_generate_word_S.
-rewrite generate_word_plus by omega.
+rewrite generate_word_plus by lia.
 unfold generate_word at 1.
 unfold nth at 1.
 assert (forall n:nat, (n < 16) ->
@@ -937,27 +937,27 @@ assert (forall n:nat, (n < 16) ->
       (16-n) + (48 - S (Z.to_nat (Z.of_nat i - 16)))))%nat.
 clear - H0.
 intros.
-rewrite Z2Nat.inj_add by omega.
+rewrite Z2Nat.inj_add by lia.
 rewrite Nat2Z.id.
-rewrite Z2Nat.inj_sub by omega.
+rewrite Z2Nat.inj_sub by lia.
 rewrite Nat2Z.id.
 change (Z.to_nat 16) with 16%nat.
-omega.
-change 0%Z with (Z.of_nat 0); rewrite H3 by (clear; omega).
-change 1%Z with (Z.of_nat 1); rewrite H3 by (clear; omega).
-change 14%Z with (Z.of_nat 14); rewrite H3 by (clear; omega).
-change 9%Z with (Z.of_nat 9); rewrite H3 by (clear; omega).
+lia.
+change 0%Z with (Z.of_nat 0); rewrite H3 by (clear; lia).
+change 1%Z with (Z.of_nat 1); rewrite H3 by (clear; lia).
+change 14%Z with (Z.of_nat 14); rewrite H3 by (clear; lia).
+change 9%Z with (Z.of_nat 9); rewrite H3 by (clear; lia).
 clear H3.
 assert (48 = S (Z.to_nat (Z.of_nat i - 16)) + (48 - S (Z.to_nat (Z.of_nat i - 16))))%nat.
 clear - H0.
-rewrite Z2Nat.inj_sub by omega.
+rewrite Z2Nat.inj_sub by lia.
 rewrite Nat2Z.id.
 change (Z.to_nat 16) with 16%nat.
-omega.
+lia.
 pattern (generate_word b' 48).
 rewrite H3 at 1.
 repeat rewrite nth_generate_word_S.
-rewrite Z2Nat.inj_sub by omega.
+rewrite Z2Nat.inj_sub by lia.
 rewrite Nat2Z.id.
 change (Z.to_nat 16) with 16%nat.
 simpl.
@@ -965,14 +965,14 @@ change (nth 16) with (@nth int (15+1)).
 change (nth 15) with (@nth int (14+1)).
 change (nth 2) with (@nth int (1+1)).
 change (nth 7) with (@nth int (6+1)).
-replace (S (i-16)) with ((i-16)+1)%nat by omega.
+replace (S (i-16)) with ((i-16)+1)%nat by lia.
 repeat rewrite nth_generate_word_S.
 assert (length (generate_word b' (i-16)) >= 16)%nat.
-rewrite length_generate_word, H; omega.
+rewrite length_generate_word, H; lia.
 clear - H4.
 forget (generate_word b' (i-16)) as s.
 rename H4 into H.
-do 16 (destruct s; [simpl in H; omega | ]).
+do 16 (destruct s; [simpl in H; lia | ]).
 simpl.
 rewrite <- Int.add_assoc.
 rewrite Int.add_commut.
@@ -1000,19 +1000,19 @@ assert (forall i, (i <= Z.to_nat 64)%nat ->
 2:{
 apply (H0 (S (Z.to_nat n))).
 apply Nat2Z.inj_le. rewrite inj_S.
-repeat rewrite Z2Nat.id by omega. omega.
+repeat rewrite Z2Nat.id by lia. lia.
 rewrite inj_S.
-rewrite Z2Nat.id by omega. omega.
+rewrite Z2Nat.id by lia. lia.
 } 
 clear H n. induction i; intros.
-change (Z.of_nat 0) with 0 in H0; omega.
-spec IHi; [ omega | ].
+change (Z.of_nat 0) with 0 in H0; lia.
+spec IHi; [ lia | ].
 unfold nthi at 1.
 destruct (zlt n 16).
 rewrite generate_word_small; auto.
 2:{
 rewrite LB.
-apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. apply l.
+apply Nat2Z.inj_lt. rewrite Z2Nat.id by lia. apply l.
 }
 rewrite W_equation.
 rewrite if_true by auto.
@@ -1021,27 +1021,27 @@ rewrite nth_rev_generate_word; auto.
 2: {
 split.
 apply Nat2Z.inj_le. change (Z.of_nat 16) with 16.
-rewrite Z2Nat.id by omega. omega.
+rewrite Z2Nat.id by lia. lia.
 apply Nat2Z.inj_lt.
-rewrite Z2Nat.id by omega.
+rewrite Z2Nat.id by lia.
 change (Z.of_nat 64) with 64.
 apply Nat2Z.inj_le in H.
-rewrite Z2Nat.id in H by omega.
-omega.
+rewrite Z2Nat.id in H by lia.
+lia.
 } 
 rewrite W_equation.
-rewrite if_false by omega.
+rewrite if_false by lia.
 rewrite inj_S in H0.
-rewrite <- IHi by omega.
-rewrite <- IHi by omega.
-rewrite <- IHi by omega.
-rewrite <- IHi by omega.
+rewrite <- IHi by lia.
+rewrite <- IHi by lia.
+rewrite <- IHi by lia.
+rewrite <- IHi by lia.
 unfold nthB.
-rewrite Z2Nat.id by omega.
-replace (n - 16 + 14) with (n-2) by omega.
-replace (n - 16 + 9) with (n - 7) by omega.
-replace (n - 16 + 0) with (n-16) by omega.
-replace (n - 16 + 1) with (n - 15) by omega.
+rewrite Z2Nat.id by lia.
+replace (n - 16 + 14) with (n-2) by lia.
+replace (n - 16 + 9) with (n - 7) by lia.
+replace (n - 16 + 0) with (n-16) by lia.
+replace (n - 16 + 1) with (n - 15) by lia.
 unfold nthi.
 forget (nth (Z.to_nat (n - 16)) (rev (generate_word (rev block) 48)) Int.zero)
   as A.
@@ -1075,10 +1075,10 @@ unfold process_block.
 unfold hash_block.
 f_equal.
 rewrite <- (firstn_same _ 64 (rev (generate_word _ _)))
- by (rewrite rev_length, length_generate_word, rev_length; omega).
+ by (rewrite rev_length, length_generate_word, rev_length; lia).
 change 64%nat with (48+16)%nat.
 change 63%Z with (Z.of_nat (48+16)-1).
-assert (48 <= 48)%nat by omega.
+assert (48 <= 48)%nat by lia.
 remember 48%nat as n.
 rewrite Heqn at 2.
 rewrite Heqn in H1 at 2.
@@ -1088,31 +1088,31 @@ simpl plus.
 change 48%nat with c48 in H7 |- *.
 remember 16%nat as n.
 rewrite Heqn in H0.
-assert (n <= 16)%nat by omega.
+assert (n <= 16)%nat by lia.
 clear Heqn H7.
 revert H1; induction n; intros.
 * (* n=0 *)
 simpl.
 rewrite Round_equation.
-rewrite if_true by omega.
+rewrite if_true by lia.
 reflexivity.
 * (*0 < n <= 16 *)
 rewrite Round_equation.
 rewrite inj_S.
-rewrite if_false by omega.
-replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by omega.
-rewrite <- IHn by omega. clear IHn.
+rewrite if_false by lia.
+replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by lia.
+rewrite <- IHn by lia. clear IHn.
 rewrite (rnd_64_S _ _ _
     (nthi K256 (Z.of_nat n))
     (nthi block (Z.of_nat n))).
-2: (unfold nthi; rewrite Nat2Z.id; apply coqlib4.nth_error_nth; simpl; omega).
+2: (unfold nthi; rewrite Nat2Z.id; apply coqlib4.nth_error_nth; simpl; lia).
 2:{
 unfold nthi; rewrite Nat2Z.id.
 rewrite (@coqlib4.nth_error_nth _ _ Int.zero n).
 2: rewrite rev_length, length_generate_word, rev_length, H0;
-  change c48 with 48%nat; omega.
+  change c48 with 48%nat; lia.
 f_equal.
-rewrite generate_word_small by omega.
+rewrite generate_word_small by lia.
 auto.
 }
 unfold rnd_function.
@@ -1120,7 +1120,7 @@ destruct (rnd_64 regs K256 (firstn n (rev (generate_word (rev block) c48))))
   as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; auto.
 rewrite W_equation.
 rewrite if_true; auto.
-omega.
+lia.
 * (* 16 <= n < 64 *)
 change (S n + 16)%nat with (S (n + 16)).
 rewrite inj_S.
@@ -1129,16 +1129,16 @@ rewrite Z.add_simpl_r.
 rewrite (rnd_64_S _ _ _
     (nthi K256 (Z.of_nat (n+16)))
     (nthi (rev (generate_word (rev block) c48)) (Z.of_nat (n+16)))).
-2: (unfold nthi; rewrite Nat2Z.id; apply coqlib4.nth_error_nth; simpl; omega).
+2: (unfold nthi; rewrite Nat2Z.id; apply coqlib4.nth_error_nth; simpl; lia).
 2:{
 unfold nthi; rewrite Nat2Z.id.
 apply (@coqlib4.nth_error_nth _ _ Int.zero (n+16)).
 rewrite rev_length, length_generate_word, rev_length, H0;
-  change c48 with 48%nat; omega.
+  change c48 with 48%nat; lia.
 }
 rewrite Round_equation.
-rewrite <- IHn by omega.
-rewrite if_false by omega.
+rewrite <- IHn by lia.
+rewrite if_false by lia.
 forget (rnd_64 regs K256 (firstn (n + 16) (rev (generate_word (rev block) 48))))
    as regs'.
 unfold rnd_function.
@@ -1150,7 +1150,7 @@ auto.
 change c48 with 48%nat.
 apply generate_word_W; auto.
 rewrite Nat2Z.inj_add. change (Z.of_nat 16) with 16.
-omega.
+lia.
 Qed.
 
 Lemma process_msg_hash_blocks:
@@ -1163,9 +1163,9 @@ intros.
 destruct H as [n ?].
 rewrite Zlength_correct in H.
 assert (0 <= n).
- apply Zmult_le_0_reg_r with 16; auto. omega.
- omega.
-rewrite <- (Z2Nat.id n) in H by omega.
+ apply Zmult_le_0_reg_r with 16; auto. lia.
+ lia.
+rewrite <- (Z2Nat.id n) in H by lia.
 change 16 with (Z.of_nat 16) in H.
 rewrite <- Nat2Z.inj_mul in H.
 apply Nat2Z.inj in H.
@@ -1175,7 +1175,7 @@ destruct blocks; inv H.
 rewrite process_msg_equation, hash_blocks_equation.
 reflexivity.
 assert (length (firstn 16 blocks) = 16)%nat
- by (rewrite firstn_length, H; simpl; omega).
+ by (rewrite firstn_length, H; simpl; lia).
 rewrite hash_blocks_equation.
 destruct blocks; [ inv H | ].
 forget (i::blocks) as bb.
@@ -1184,7 +1184,7 @@ rewrite <- (firstn_skipn 16 blocks) at 1.
 rewrite process_msg_eq2 by auto.
 rewrite process_block_hash_block; auto.
 apply IHn0.
-rewrite skipn_length; omega.
+rewrite skipn_length; lia.
 apply length_hash_block; auto.
 Qed.
 
@@ -1196,7 +1196,7 @@ f_equal.
 rewrite <- generate_and_pad'_eq.
 assert (16 | Zlength (generate_and_pad msg)).
 rewrite (length_generate_and_pad msg).
-apply roundup_divide; omega.
+apply roundup_divide; lia.
 assert (length init_registers = 8%nat) by reflexivity.
 forget init_registers as regs.
 forget (generate_and_pad msg) as blocks.

@@ -147,7 +147,7 @@ Time forward_call (oSha, SHA256.SHA_256 ctx, Vptr b i, wsh, buf, Tsh, Z.of_nat S
   { unfold SHA256.DigestLength.
     rewrite oShaLen. simpl; intuition. }
 simpl.
-rewrite sublist_same; try omega.
+rewrite sublist_same; try lia.
 unfold sha256state_. Intros updShaST.
 rename H into updShaREL.
 
