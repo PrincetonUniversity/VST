@@ -23,7 +23,7 @@ Lemma byte_unsigned_max_eq: Byte.max_unsigned = 255. reflexivity. Qed.
 
 (*from verif_ld_st*)
 Lemma Byte_unsigned_range_32 b: 0 <= Byte.unsigned b <= Int.max_unsigned.
-Proof. destruct (Byte.unsigned_range_2 b). specialize Byte_Int_max_unsigned; omega. Qed.
+Proof. destruct (Byte.unsigned_range_2 b). specialize Byte_Int_max_unsigned; lia. Qed.
 
 Ltac canon_load_result ::= idtac.
 
@@ -41,7 +41,7 @@ Proof. intros.
   rewrite Int64.neg_repr.
   rewrite Int64.add_signed.
   rewrite Int64.signed_repr; trivial.
-  rewrite Int64.signed_repr; trivial. f_equal. omega.
+  rewrite Int64.signed_repr; trivial. f_equal. lia.
 Qed.
 
 Lemma sublist_hi_plus {A} (l:list A) lo a b: 0<=lo<=a -> 0<=b -> sublist lo (a + b) l =
@@ -53,9 +53,9 @@ Proof. intros.
 -
   unfold sublist. f_equal.
   rewrite !firstn_same; auto.
-  rewrite ZtoNat_Zlength. omega.
+  rewrite ZtoNat_Zlength. lia.
   rewrite <- ZtoNat_Zlength.
-  apply Z_to_nat_monotone. omega.
+  apply Z_to_nat_monotone. lia.
 -
   destruct (zle a (Zlength l)).
   replace (sublist a (a+b) l) with (sublist a (Zlength l) l).
@@ -63,29 +63,29 @@ Proof. intros.
   unfold sublist. f_equal.
   rewrite !firstn_same; auto.
   rewrite <- ZtoNat_Zlength.
-  apply Z_to_nat_monotone. omega.
-  rewrite ZtoNat_Zlength. omega.
+  apply Z_to_nat_monotone. lia.
+  rewrite ZtoNat_Zlength. lia.
   replace (sublist a (a+b) l) with (@nil A).
   rewrite <- app_nil_end.
   unfold sublist. f_equal.
   rewrite !firstn_same; auto.
   rewrite <- ZtoNat_Zlength.
-  apply Z_to_nat_monotone. omega.
+  apply Z_to_nat_monotone. lia.
   rewrite <- ZtoNat_Zlength.
-  apply Z_to_nat_monotone. omega.
+  apply Z_to_nat_monotone. lia.
   unfold sublist.
   rewrite skipn_short; auto.
   rewrite firstn_same.
   rewrite <- ZtoNat_Zlength.
-  apply Z_to_nat_monotone. omega.
+  apply Z_to_nat_monotone. lia.
   rewrite <- ZtoNat_Zlength.
-  apply Z_to_nat_monotone. omega.
+  apply Z_to_nat_monotone. lia.
 Qed.
 
 Lemma sublist0_hi_plus {A} (l:list A) a b: 0<=a -> 0<=b -> sublist 0 (a + b) l =
    sublist 0 a l ++ sublist a (a+b) l.
 Proof. intros.
-  apply sublist_hi_plus; omega.
+  apply sublist_hi_plus; lia.
 Qed.
 
 Lemma byte_unsigned_range_3 b: 0 <= Byte.unsigned b <= Int.max_unsigned.
@@ -108,8 +108,8 @@ Lemma Zlxor_range_byte b1 b2: 0<= Z.lxor (Byte.unsigned b1) (Byte.unsigned b2) <
 Proof.
   destruct (Byte.unsigned_range_2 b1).
   destruct (Byte.unsigned_range_2 b2).
-  split. apply Z.lxor_nonneg. omega. 
-  apply Zbits.Ztestbit_le. omega. clear.
+  split. apply Z.lxor_nonneg. lia. 
+  apply Zbits.Ztestbit_le. lia. clear.
   intros i I H. rewrite Z.lxor_spec in H.
   destruct (zlt i 8).
   + clear - I l.  
@@ -120,7 +120,7 @@ Proof.
     destruct (zeq i 4); subst. reflexivity.
     destruct (zeq i 5); subst. reflexivity.
     destruct (zeq i 6); subst. reflexivity.
-    destruct (zeq i 7); subst. reflexivity. omega. 
+    destruct (zeq i 7); subst. reflexivity. lia. 
   + 
     rewrite (byte_testbit _ i) in H; trivial.
     rewrite (byte_testbit _ i) in H; trivial.
@@ -133,11 +133,11 @@ Lemma Znth_sublist':
   Zlength al <= hi ->
   0 <= i <= hi - lo -> Znth i (sublist lo hi al) = Znth (i + lo) al.
 Proof. intros.
-destruct (zeq i (hi-lo)); [ | apply Znth_sublist; omega].
+destruct (zeq i (hi-lo)); [ | apply Znth_sublist; lia].
 subst.
-assert (0 <= lo <= hi) by  omega.
+assert (0 <= lo <= hi) by  lia.
 clear H H1.
-unfold Znth. rewrite !if_false by omega.
+unfold Znth. rewrite !if_false by lia.
 unfold sublist.
 rewrite Z.sub_add.
 rewrite nth_skipn.
@@ -146,8 +146,7 @@ f_equal.
 apply firstn_same.
 rewrite <- ZtoNat_Zlength.
 apply Z_to_nat_monotone; auto.
-rewrite <- Z2Nat.inj_add; try omega.
-f_equal. omega.
+rewrite <- Z2Nat.inj_add; try lia.
 Qed.
 
 Lemma xor_byte_int b1 b2: Int.xor (Int.repr (Byte.unsigned b1)) (Int.repr (Byte.unsigned b2)) =
@@ -217,7 +216,7 @@ Lemma Int64_ltu_false x y: Int64.ltu x y = false ->
       0 <= Int64.unsigned y <= Int64.unsigned x.
 Proof. 
   unfold Int64.ltu; intros. if_tac in H. discriminate.
-  split. apply Int64.unsigned_range. omega.
+  split. apply Int64.unsigned_range. lia.
 Qed.
 
 Lemma Zlength_Bl2VL l: Zlength (Bl2VL l) = Zlength l.
@@ -243,11 +242,11 @@ Proof. induction n; simpl; intros.
   destruct (Byte.unsigned_range_2 b). 
   rewrite Int.shru_div_two_p. rewrite (Int.unsigned_repr 8) by rep_lia.
   assert (B3: 0 <= Int.unsigned i + Byte.unsigned b <= Int.max_unsigned).
-    split. omega. rep_lia. 
+    split. lia. rep_lia. 
   assert (0 <= (Int.unsigned i + Byte.unsigned b) / two_p 8 < 256).
-    split. apply Z_div_pos. cbv; trivial. omega.
-    apply Zdiv_lt_upper_bound. cbv; trivial. omega. 
-  rewrite Int.unsigned_repr; rewrite Int.unsigned_repr; trivial. omega.
+    split. apply Z_div_pos. cbv; trivial. lia.
+    apply Zdiv_lt_upper_bound. cbv; trivial. lia. 
+  rewrite Int.unsigned_repr; rewrite Int.unsigned_repr; trivial. lia.
 Qed.
 
 
@@ -309,29 +308,29 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
   assert_PROP (Zlength (Bl2VL Zi) = 16) as L by entailer!.
   unfold Bl2VL in L; rewrite Zlength_map in L.
   destruct (Znth_mapVint (map Int.repr (map Byte.unsigned Zi)) i) as [vi Vi].
-    omega.
+    lia.
   rewrite Znth_map in Vi.
-  2: omega.
+  2: lia.
   inv Vi. unfold Bl2VL.
   forward.
   { entailer!.
     autorewrite with sublist in *.
     red. rewrite Int.unsigned_repr by rep_lia. rep_lia.
   } 
-  simpl. rewrite Znth_map; [| omega].
+  simpl. rewrite Znth_map; [| lia].
     rewrite Zlength_map in L.
-    rewrite Znth_map; try omega.
+    rewrite Znth_map; try lia.
     rewrite Zlength_map in L.
-    rewrite Znth_map; try omega. 
+    rewrite Znth_map; try lia. 
   forward.
   forward.
   assert (Q: Z.to_nat (i + 1 - 8) = S (Z.to_nat (i-8))).
-    rewrite <- Z2Nat.inj_succ. f_equal. omega. omega.
+    rewrite <- Z2Nat.inj_succ. f_equal. lia. lia.
   forward.
   assert_PROP (isptr z) as PtrZ by entailer!.
   entailer!. rewrite Q; simpl; rewrite <- HeqX; simpl.
   f_equal. assert (W:Z.of_nat (Z.to_nat (i - 8)) + 8 = i).
-     rewrite Z2Nat.id; omega.
+     rewrite Z2Nat.id; lia.
      rewrite W. f_equal.
      unfold Int.add. rewrite Int_unsigned_repr_byte. trivial.
 
@@ -339,7 +338,7 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
   clear H2. unfold Bl2VL.
   rewrite Q; simpl; rewrite <- HeqX. 
   rewrite upd_Znth_map. f_equal. simpl.
-  assert (W:Z.of_nat (Z.to_nat (i - 8)) + 8 = i). rewrite Z2Nat.id; omega.
+  assert (W:Z.of_nat (Z.to_nat (i - 8)) + 8 = i). rewrite Z2Nat.id; lia.
   rewrite W. do 2 rewrite <- upd_Znth_map.
   rewrite Byte.unsigned_repr.
   + unfold Int.add. rewrite Int_unsigned_repr_byte.
@@ -350,7 +349,7 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
     symmetry in HeqX. apply ZZ_is_byte in HeqX.
     destruct (Byte.unsigned_range_2 (Znth i Zi)). rep_lia.
   + destruct (Z_mod_lt (Int.unsigned ui + Byte.unsigned (Znth i Zi)) 256). 
-    omega. rewrite byte_unsigned_max_eq; omega.
+    lia. rewrite byte_unsigned_max_eq; lia.
 }
 Opaque ZZ.
 entailer!.
@@ -386,16 +385,16 @@ Proof.
         rewrite Z2Nat.inj_add, <- list_repeat_app.
         apply bxorlist_app. assumption.
         rewrite sublist_len_1. simpl. subst b. reflexivity.
-        omega. omega. omega.
+        lia. lia. lia.
       - simpl in M. subst y. (*rewrite M in *;*) simpl in X; simpl.
         rewrite sublist_len_1.
         apply bxorlist_app. assumption.
         rewrite sublist_len_1. subst b. rewrite Z.add_comm. reflexivity.
-        omega. omega.
-      - omega.
-      - omega.
-      - omega.
-      - omega.
+        lia. lia.
+      - lia.
+      - lia.
+      - lia.
+      - lia.
 Qed.
 
 Definition loop1_statement:=
@@ -498,7 +497,7 @@ rename H into I.
         eapply derives_trans. apply data_at_memory_block.
         eapply derives_trans. apply memory_block_valid_pointer.
         3: apply derives_refl.
-        simpl. rewrite Z.max_r. omega. apply Zlength_nonneg.
+        simpl. rewrite Z.max_r. lia. apply Zlength_nonneg.
         apply top_share_nonidentity.
     + apply valid_pointer_null. }
   { unfold Bl2VL in *.
@@ -508,17 +507,17 @@ rename H into I.
     unfold message_at. simpl in M. rewrite M in *. simpl in *.
     unfold tarray.
     assert_PROP (field_compatible (Tarray tuchar (Zlength mbytes) noattr) [] (Vptr b0 i0)) by entailer!.
-    erewrite (split2_data_at_Tarray_tuchar _ _ q). 2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
+    erewrite (split2_data_at_Tarray_tuchar _ _ q). 2: lia. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
     Intros. unfold field_address0. simpl.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
-    2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega. }
-    assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X. 
+    2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. lia. }
+    assert (X: 0 + 1 * q = q) by lia. rewrite X; clear X. 
     forward; unfold Bl2VL; autorewrite with sublist. 
     + entailer!. 
         apply Byte.unsigned_range_2.
     + forward. erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
-      2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
+      2: lia. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       unfold field_address0. entailer!. simpl.
       autorewrite with sublist. 
          if_tac; try contradiction. rewrite Z.mul_1_l.
@@ -530,7 +529,7 @@ rename H into I.
     forward. entailer!.
   }  
   destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i) as  [xi Xi].
-    repeat rewrite Zlength_map. omega.
+    repeat rewrite Zlength_map. lia.
   thaw FR1. freeze [0;2;3] FR2.
   forward; change (@Znth val Vundef) with (@Znth val _); rewrite Xi.
   { entailer!.
@@ -545,19 +544,19 @@ rename H into I.
     specialize (Zlength_combinelist _ _ _ _ XOR); intros LL.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
-    2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. omega. }
-    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try omega.
-    2: autorewrite with sublist; omega.
-    2: autorewrite with sublist; omega.
+    2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. lia. }
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try lia.
+    2: autorewrite with sublist; lia.
+    2: autorewrite with sublist; lia.
     simpl. thaw FR3.
-    rewrite Znth_map in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
-    rewrite Znth_map. 2: omega.
+    rewrite Znth_map in Xi. inv Xi. 2: repeat rewrite Zlength_map; lia.
+    rewrite Znth_map. 2: lia.
     remember (Byte.xor (byte_at mInit (Zlength l+q) mbytes) 
                        (Znth (Zlength l) xbytes)) as mybyte.
     Exists (l++ [mybyte]). cancel.
     apply andp_right.
     + apply prop_right. 
-      eapply (bxorlist_snoc mInit q m mybyte l); trivial; omega.
+      eapply (bxorlist_snoc mInit q m mybyte l); trivial; lia.
     + autorewrite with sublist.
       apply derives_refl'. f_equal. unfold Bl2VL. subst mybyte. clear.
       repeat rewrite map_app. rewrite <- app_assoc. f_equal. simpl.
@@ -565,7 +564,7 @@ rename H into I.
       repeat rewrite zero_ext_inrange; try rewrite xor_byte_int; try rewrite Int.unsigned_repr; trivial;
         try apply Byte.unsigned_range_2;
         try apply byte_unsigned_range_3.
-      assert (X:cLen - Zlength l - 1 = cLen - (Zlength l + 1)) by omega.
+      assert (X:cLen - Zlength l - 1 = cLen - (Zlength l + 1)) by lia.
       rewrite X; trivial.
   }
 apply andp_left2. apply derives_refl.
@@ -676,7 +675,7 @@ forward_for_simple_bound (Int64.unsigned b)
         eapply derives_trans. apply data_at_memory_block.
         eapply derives_trans. apply memory_block_valid_pointer.
         3: apply derives_refl.
-        simpl. rewrite Z.max_r. omega. apply Zlength_nonneg.
+        simpl. rewrite Z.max_r. lia. apply Zlength_nonneg.
         apply top_share_nonidentity.
     + apply valid_pointer_null. }
   { unfold Bl2VL in *.
@@ -686,18 +685,18 @@ forward_for_simple_bound (Int64.unsigned b)
     unfold message_at. rewrite M in *. simpl in *.
     unfold tarray.
     assert_PROP (field_compatible (Tarray tuchar (Zlength mbytes) noattr) [] (Vptr b0 i0)) by entailer!.
-    erewrite (split2_data_at_Tarray_tuchar _ _ q). 2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
+    erewrite (split2_data_at_Tarray_tuchar _ _ q). 2: lia. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
     Intros. unfold field_address0. simpl.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
-    2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega. }
-    assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X.
+    2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. lia. }
+    assert (X: 0 + 1 * q = q) by lia. rewrite X; clear X.
     forward; unfold Bl2VL; autorewrite with sublist.
     { entailer!.
       apply Byte.unsigned_range_2.  }
     forward. entailer!.
     erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
-      2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
+      2: lia. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       unfold field_address0. simpl. 
          if_tac; try contradiction.
       rewrite Z.mul_1_l. cancel.
@@ -709,7 +708,7 @@ forward_for_simple_bound (Int64.unsigned b)
   } 
 (*  forward. drop_LOCAL 10%nat. (*variable 187*) *)
   destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i) as  [xi Xi].
-    repeat rewrite Zlength_map. omega.
+    repeat rewrite Zlength_map. lia.
 (*  rewrite Znth_map with (d':=Int.zero) in Xi.
   rewrite Znth_map with (d':=Z0) in Xi. inv Xi.*)
   thaw FR1. freeze [0;2;3] FR2.
@@ -727,10 +726,10 @@ forward_for_simple_bound (Int64.unsigned b)
   specialize (Zlength_combinelist _ _ _ _ XOR); intros LL.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
-    2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. omega. }
-    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try omega.
-    2: autorewrite with sublist; omega.
-    2: autorewrite with sublist; omega.
+    2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. lia. }
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try lia.
+    2: autorewrite with sublist; lia.
+    2: autorewrite with sublist; lia.
     simpl. thaw FR3.
     rewrite Znth_map in Xi by list_solve. inv Xi.
     rewrite Znth_map by list_solve.
@@ -739,7 +738,7 @@ forward_for_simple_bound (Int64.unsigned b)
     Exists (l++ [mybyte]). cancel.
     apply andp_right.
     - apply prop_right. 
-      eapply (bxorlist_snoc mInit q m mybyte l); trivial; omega.
+      eapply (bxorlist_snoc mInit q m mybyte l); trivial; lia.
     - autorewrite with sublist.
       apply derives_refl'. f_equal. unfold Bl2VL. subst mybyte. clear.
       repeat rewrite map_app. rewrite <- app_assoc. f_equal. simpl.
@@ -747,7 +746,7 @@ forward_for_simple_bound (Int64.unsigned b)
       repeat rewrite zero_ext_inrange; try rewrite xor_byte_int; try rewrite Int.unsigned_repr; trivial;
         try apply Byte.unsigned_range_2;
         try apply byte_unsigned_range_3.
-      assert (X:Int64.unsigned b - Zlength l - 1 = Int64.unsigned b - (Zlength l + 1)) by omega.
+      assert (X:Int64.unsigned b - Zlength l - 1 = Int64.unsigned b - (Zlength l + 1)) by lia.
       rewrite X; trivial.
 + entailer!.
 Intros l; Exists l.
@@ -832,16 +831,16 @@ forward_for_simple_bound 16 (EX i:Z,
 { Exists (list_repeat 16 Vundef). entailer!. simpl; cancel. }
 { rename H into I. Intros l. rename H into LI16.
   forward. Exists (sublist 1 (Zlength l) l). entailer!.
-    rewrite Zlength_sublist; omega.
+    rewrite Zlength_sublist; lia.
   apply derives_refl'. f_equal. 
-  rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc; try omega. 
+  rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc; try lia. 
   rewrite upd_Znth_app2.
-  rewrite Zlength_list_repeat, Zminus_diag, upd_Znth0_old. reflexivity. omega. omega.
-  repeat rewrite Zlength_list_repeat; omega. 
+  rewrite Zlength_list_repeat, Zminus_diag, upd_Znth0_old. reflexivity. lia. lia.
+  repeat rewrite Zlength_list_repeat; lia. 
 }
 Intros l. destruct l.
 2: specialize (Zlength_nonneg l); intros;
-         rewrite Zlength_cons', Z.add_comm, Z.add_assoc in H; omega.
+         rewrite Zlength_cons', Z.add_comm, Z.add_assoc in H; lia.
 clear H. rewrite app_nil_r.
 thaw FR1.
 freeze [0;2;3;4;5] FR2.
@@ -860,16 +859,16 @@ forward_for_simple_bound 8 (EX i:Z,
 { rename H into I.
   assert (ZWS: Int.zwordsize = 32) by reflexivity.
   destruct (SixteenByte2ValList_bytes Nonce) as [NBytes [NBytesL NB]]; rewrite NB.
-  assert (NBytesZL: Zlength NBytes = 16). apply Zlength_length; simpl; omega.
+  assert (NBytesZL: Zlength NBytes = 16). apply Zlength_length; simpl; lia.
   destruct (Znth_mapVint (map Int.repr (map Byte.unsigned NBytes)) i) as [v V]. 
-    repeat rewrite Zlength_map. rewrite NBytesZL. omega. 
+    repeat rewrite Zlength_map. rewrite NBytesZL. lia. 
   assert (v = Int.repr (Byte.unsigned (Znth i NBytes))).
     rewrite Znth_map in V. inv V. 
-    2: repeat rewrite Zlength_map; rewrite NBytesZL; simpl; omega.
+    2: repeat rewrite Zlength_map; rewrite NBytesZL; simpl; lia.
     rewrite Znth_map.
-    2: rewrite Zlength_map, NBytesZL; simpl; omega.
+    2: rewrite Zlength_map, NBytesZL; simpl; lia.
     rewrite Znth_map. reflexivity.
-    rewrite NBytesZL; simpl; omega.
+    rewrite NBytesZL; simpl; lia.
   subst v.
   destruct (Byte.unsigned_range_2 (Znth i NBytes)) as [VBmin VBmax]. 
   specialize Byte_max_unsigned_Int_max_unsigned; intros ByteIntMaxUnsigned.
@@ -880,17 +879,17 @@ forward_for_simple_bound 8 (EX i:Z,
   rewrite NB.
   entailer!.
   apply derives_refl'. f_equal.
-  rewrite upd_Znth_app2; try autorewrite with sublist. 2: omega.
-  rewrite upd_Znth0_old, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. 4 : rewrite Zlength_list_repeat; omega. f_equal.
+  rewrite upd_Znth_app2; try autorewrite with sublist. 2: lia.
+  rewrite upd_Znth0_old, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. 4 : rewrite Zlength_list_repeat; lia. f_equal.
   rewrite <- Znth_cons_sublist.
   f_equal. rewrite Znth_map.
      rewrite Znth_map.
      rewrite Znth_map; trivial.
-     omega. rewrite Zlength_map; omega. repeat rewrite Zlength_map; omega.
+     lia. rewrite Zlength_map; lia. repeat rewrite Zlength_map; lia.
      autorewrite with sublist. rewrite  Z.sub_add_distr; trivial.
-     autorewrite with sublist in *. omega.
-     omega. 
-     autorewrite with sublist in *. omega.
+     autorewrite with sublist in *. lia.
+     lia. 
+     autorewrite with sublist in *. lia.
 }
 drop_LOCAL 0%nat. (*remove temp i*)
 
@@ -904,10 +903,10 @@ rename c into cInit. rename m into mInit. rename b into bInit. thaw FR2.
        list_repeat (Z.to_nat (16 - 8)) (Vint Int.zero)
      = (SixteenByte2ValList (((N0, N1), ZeroQuadByte), ZeroQuadByte))).
   { do 2 rewrite SixteenByte2ValList_char. 
-    rewrite app_assoc, sublist_app1; try omega. 
-        2: rewrite Zlength_app; do 2 rewrite Zlength_correct, QuadByteValList_length; simpl; omega.
-    rewrite sublist_same; try omega. 
-        2: rewrite Zlength_app; do 2 rewrite Zlength_correct, QuadByteValList_length; simpl; omega.
+    rewrite app_assoc, sublist_app1; try lia. 
+        2: rewrite Zlength_app; do 2 rewrite Zlength_correct, QuadByteValList_length; simpl; lia.
+    rewrite sublist_same; try lia. 
+        2: rewrite Zlength_app; do 2 rewrite Zlength_correct, QuadByteValList_length; simpl; lia.
     subst ZeroQuadByte. simpl. rewrite Byte.unsigned_zero. rewrite <- app_assoc. reflexivity. }
   rewrite H; clear H.
   assert (Int64.max_unsigned = 18446744073709551615) by reflexivity. rename H into I64MAX.
@@ -928,12 +927,12 @@ forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K mCont zbyt
 }
 { entailer!. }
 { remember (Z.of_nat rounds * 64)%Z as r64.
-  apply Int64_ltu_false in HRE; rewrite Int64.unsigned_repr in HRE. 2: omega.
+  apply Int64_ltu_false in HRE; rewrite Int64.unsigned_repr in HRE. 2: lia.
   destruct (zle (r64 + 64) (Int64.unsigned bInit)).
-  2:{ exfalso. assert (X: 64 > Int64.unsigned bInit - r64) by omega. clear g.
+  2:{ exfalso. assert (X: 64 > Int64.unsigned bInit - r64) by lia. clear g.
            destruct (Int64.unsigned_range_2 bInit) as [X1 X2].
-           unfold Int64.sub in HRE. rewrite (Int64.unsigned_repr r64) in HRE. 2: omega.
-           rewrite Int64.unsigned_repr in HRE; omega.
+           unfold Int64.sub in HRE. rewrite (Int64.unsigned_repr r64) in HRE. 2: lia.
+           rewrite Int64.unsigned_repr in HRE; lia.
   }
   destruct H as [R64old [M CONT]]. rename l into R64next.
    
@@ -960,7 +959,7 @@ assert(INT64SUB: Int64.sub bInit (Int64.repr (r64 + 64)) =
 { clear - R64next R64old HRE Heqr64 I64MAX.
   destruct (Int64.unsigned_range_2 bInit).
   unfold Int64.sub.
-  repeat rewrite Int64.unsigned_repr; try omega. f_equal; omega.
+  repeat rewrite Int64.unsigned_repr; try lia. f_equal; lia.
 } 
 
 assert_PROP (isptr c) as C by entailer!.
@@ -971,13 +970,13 @@ mkConciseDelta SalsaVarSpecs SalsaFunSpecs
 eapply semax_Delta_subsumption.*)
   apply (loop1 Espec (FRZL FR3) v_x v_z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k m sr_bytes mCont).
     eassumption.
-    clear - SRL R64next R64old HRE Heqr64 MLEN. rewrite MLEN. omega. omega.
+    clear - SRL R64next R64old HRE Heqr64 MLEN. rewrite MLEN. lia. lia.
 
 (*continuation after the FOR(i,64) loop*)
 Opaque prepare_data.
 drop_LOCAL 0%nat.
 Intros xorlist. rename H into XOR.
-rewrite sublist_same in XOR; try omega.
+rewrite sublist_same in XOR; try lia.
 forward.
 thaw FR3. unfold CoreInSEP. repeat flatten_sepcon_in_SEP.
 freeze [1;2;3;4;5;6;7] FR4.
@@ -1016,7 +1015,7 @@ forward_if (EX m:_,
         unfold message_at. eapply derives_trans. apply data_at_memory_block.
         eapply derives_trans. apply memory_block_valid_pointer. simpl.
         3: apply derives_refl'. 3: reflexivity.
-        rewrite Z.max_r. omega. apply Zlength_nonneg.
+        rewrite Z.max_r. lia. apply Zlength_nonneg.
         apply top_share_nonidentity.
      apply valid_pointer_null.
 }
@@ -1049,36 +1048,36 @@ apply (CONT_succ SIGMA K mInit mCont zbytes rounds _ _ CONT _ D
      rewrite H15. unfold bytes_at. 
     destruct mInit; autorewrite with sublist; trivial.
   }
-  assert (Zlength (Bl2VL xorlist) = 64) by (rewrite Zlength_Bl2VL; omega).
+  assert (Zlength (Bl2VL xorlist) = 64) by (rewrite Zlength_Bl2VL; lia).
   remember (Z.of_nat rounds * 64)%Z as r64.
   apply CONT_Zlength in CONT.
 
   assert (field_compatible (Tarray tuchar (Z.of_nat rounds * 64 + 64) noattr) [] (Vptr b i)).
-  { eapply field_compatible_array_smaller0. apply FC. omega. }
+  { eapply field_compatible_array_smaller0. apply FC. lia. }
 
   erewrite (split2_data_at_Tarray_tuchar _ (Int64.unsigned bInit - r64) (Zlength (Bl2VL xorlist))).
-  2: omega. 2: rewrite Zlength_app; autorewrite with sublist; omega.
+  2: lia. 2: rewrite Zlength_app; autorewrite with sublist; lia.
   autorewrite with sublist. rewrite H16.
   rewrite field_address0_clarify; simpl.
   2:{ unfold field_address0; simpl. rewrite if_true; trivial.
            auto with field_compatible. }
-  assert (II:Int64.unsigned bInit - (Z.of_nat rounds * 64 + 64) = Int64.unsigned bInit - (Z.of_nat rounds * 64) - 64). omega.
+  assert (II:Int64.unsigned bInit - (Z.of_nat rounds * 64 + 64) = Int64.unsigned bInit - (Z.of_nat rounds * 64) - 64). lia.
   rewrite Heqr64.
   rewrite II, Ptrofs.add_assoc, ptrofs_add_repr. entailer!.
 
   unfold Bl2VL. repeat rewrite map_app.
   erewrite (split2_data_at_Tarray_tuchar Tsh (Z.of_nat rounds * 64 + 64) (Z.of_nat rounds * 64)).
-  2: omega.
-  2: rewrite Zlength_app; repeat rewrite Zlength_map; omega.
+  2: lia.
+  2: rewrite Zlength_app; repeat rewrite Zlength_map; lia.
   rewrite sublist_app1.
-  2: omega.
-  2: repeat rewrite Zlength_map; omega.
+  2: lia.
+  2: repeat rewrite Zlength_map; lia.
   rewrite sublist_same; trivial.
-  2: repeat rewrite Zlength_map; omega.
+  2: repeat rewrite Zlength_map; lia.
   cancel.
-  assert (XX: Z.of_nat rounds * 64 + 64 - Z.of_nat rounds * 64 = 64) by omega.
-  rewrite XX, sublist_app2; repeat rewrite Zlength_map. 2: omega.
-  rewrite sublist_same. 2: omega. 2: repeat rewrite Zlength_map; omega.
+  assert (XX: Z.of_nat rounds * 64 + 64 - Z.of_nat rounds * 64 = 64) by lia.
+  rewrite XX, sublist_app2; repeat rewrite Zlength_map. 2: lia.
+  rewrite sublist_same. 2: lia. 2: repeat rewrite Zlength_map; lia.
   repeat rewrite Zlength_map in *. rewrite CONT in *.
   apply derives_refl'. f_equal.
   rewrite field_address0_clarify; simpl. rewrite Zplus_0_l, Z.mul_1_l; trivial.
@@ -1088,18 +1087,18 @@ apply (CONT_succ SIGMA K mInit mCont zbytes rounds _ _ CONT _ D
 
 (*continuation if (b) {...} *)
 apply Int64.ltu_inv in HRE.
-rewrite Int64.unsigned_repr in HRE. 2: omega.
+rewrite Int64.unsigned_repr in HRE. 2: lia.
 remember (Z.of_nat rounds * 64)%Z as r64.
   destruct (zle (r64 + 64) (Int64.unsigned bInit)).
-  exfalso. assert (X: 64 <= Int64.unsigned bInit - r64) by omega. clear l.
+  exfalso. assert (X: 64 <= Int64.unsigned bInit - r64) by lia. clear l.
            destruct (Int64.unsigned_range_2 bInit) as [X1 X2].
-           unfold Int64.sub in HRE. rewrite (Int64.unsigned_repr r64) in HRE. 2: omega.
-           rewrite Int64.unsigned_repr in HRE; omega.
+           unfold Int64.sub in HRE. rewrite (Int64.unsigned_repr r64) in HRE. 2: lia.
+           rewrite Int64.unsigned_repr in HRE; lia.
   destruct H as [R64a [M CONT]]. rename g into R64b. 
   assert (RR: Int64.unsigned (Int64.sub bInit (Int64.repr r64)) = Int64.unsigned bInit - r64).
   { destruct (Int64.unsigned_range_2 bInit).
     unfold Int64.sub.
-    repeat rewrite Int64.unsigned_repr; try omega. }
+    repeat rewrite Int64.unsigned_repr; try lia. }
 forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) nonce cInit k mInit zbytes gv).
 { rename H into BR.
   destruct (SixteenByte2ValList_exists zbytesR) as [d D].
@@ -1124,14 +1123,14 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
 (*  eapply semax_Delta_subsumption.*)
   rewrite SNR, <- RR.
   eapply semax_post_flipped'.
-  eapply (loop2 Espec (FRZL FR1) v_x v_z c mInit); try eassumption; try omega.
+  eapply (loop2 Espec (FRZL FR1) v_x v_z c mInit); try eassumption; try lia.
   unfold IfPost.
   entailer!.
   unfold typed_true in BR. inversion BR; clear BR.
    rename H3 into H8.
   rewrite RR in *. eapply negb_true_iff in H8. 
   unfold Int64.eq in H8. rewrite RR in H8. unfold Int64.zero in H8.
-  rewrite Int64.unsigned_repr in H8. 2: omega.
+  rewrite Int64.unsigned_repr in H8. 2: lia.
   if_tac in H8. inv H8. clear H8. thaw FR1.
   unfold CoreInSEP.
   rewrite Int64.eq_false. 2: assumption.
@@ -1147,22 +1146,22 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
       remember (Int64.unsigned bInit) as p.
       erewrite <- Z.div_unique with (q:= Z.of_nat rounds).
        rewrite Nat2Z.id. trivial.
-      instantiate (1:= p- 64 * Z.of_nat rounds). 2: omega.
-      left. omega. } 
+      instantiate (1:= p- 64 * Z.of_nat rounds). 2: lia.
+      left. lia. } 
     rewrite <- R.
     assert (Arith1: (Int64.unsigned bInit / 64 * 64 = Z.of_nat rounds * 64)%Z).
         rewrite R; rewrite Z2Nat.id; trivial. 
-        apply Z_div_pos; omega.
+        apply Z_div_pos; lia.
     assert (Arith2: Int64.unsigned bInit mod 64 = Int64.unsigned bInit - Z.of_nat rounds * 64).
-    { symmetry; eapply Zmod_unique. omega. instantiate (1:=Z.of_nat rounds); omega. }
+    { symmetry; eapply Zmod_unique. lia. instantiate (1:=Z.of_nat rounds); lia. }
     rewrite Arith1, Arith2, (CONTCONT _ _ _ _ _ _ _ _ CONT).
     rewrite if_false.
     - exists zbytesR, srbytes, d, snuff, sr_bytes, l. 
       intuition.
     - trivial.
   + erewrite (split2_data_at_Tarray_tuchar _ (Int64.unsigned bInit) (Z.of_nat rounds * 64)).
-    2: omega. 
-    2: rewrite Zlength_Bl2VL in *; rewrite Zlength_app. 2: omega. 
+    2: lia. 
+    2: rewrite Zlength_Bl2VL in *; rewrite Zlength_app. 2: lia. 
     rewrite Zlength_Bl2VL in *; unfold Bl2VL in *.
     repeat rewrite map_app. autorewrite with sublist.
     cancel. unfold Sigma_vector. cancel. 
@@ -1177,9 +1176,9 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
 { forward.
   unfold typed_false in H. inversion H; clear H. rewrite RR in *. eapply negb_false_iff in H1. 
   unfold Int64.eq in H1. rewrite RR in H1. unfold Int64.zero in H1.
-  rewrite Int64.unsigned_repr in H1. 2: omega.
+  rewrite Int64.unsigned_repr in H1. 2: lia.
   if_tac in H1. 2: inv H1. clear H1. 
-  assert (XX: Int64.unsigned bInit = r64) by omega.
+  assert (XX: Int64.unsigned bInit = r64) by lia.
   rewrite XX in *. clear H RR.
   unfold IfPost, CoreInSEP.
   entailer!.
@@ -1189,8 +1188,8 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
   Exists srbytes. apply andp_right; trivial.
   apply prop_right. red. rewrite XX, Heqr64. 
   rewrite if_true. 
-  + exists zbytesR. rewrite Z_div_mult_full, Nat2Z.id. assumption. omega.
-  + symmetry. eapply Zdiv.Zmod_unique. omega.
+  + exists zbytesR. rewrite Z_div_mult_full, Nat2Z.id. assumption. lia.
+  + symmetry. eapply Zdiv.Zmod_unique. lia.
     rewrite Z.mul_comm, Zplus_0_r. reflexivity.
 }
 unfold IfPost. 

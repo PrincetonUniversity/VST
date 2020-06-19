@@ -17,23 +17,23 @@ Import ListNotations.
 
 Lemma false_zgt z a: false = (z >? a) -> z<=a. 
 Proof. unfold Z.gtb.
-  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. omega.
-  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. omega.
+  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. lia.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. lia.
   discriminate.
 Qed. 
 Lemma false_zge z a: false = (z >=? a) -> z<a. 
 Proof. unfold Z.geb.
   remember (z ?= a). destruct c; intros; try discriminate.
-  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H0 in Heqc. omega.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H0 in Heqc. lia.
 Qed.
 Lemma false_zge' z a (A:z<a): false = (z >=? a). 
 Proof.
-  remember ((z >=? a)). destruct b; trivial. symmetry in Heqb. apply Z.geb_le in Heqb. omega.
+  remember ((z >=? a)). destruct b; trivial. symmetry in Heqb. apply Z.geb_le in Heqb. lia.
 Qed.
 
 Lemma bytesToBits_InBlocks l: InBlocks 8 (bytesToBits l).
 Proof.
-  apply InBlocks_len; rewrite bytesToBits_len. exists (Datatypes.length l); omega.
+  apply InBlocks_len; rewrite bytesToBits_len. exists (Datatypes.length l); lia.
 Qed.
 
 Lemma flatten_bytes_bits: forall m, 
@@ -77,7 +77,7 @@ Lemma HMAC_DRBG_generate_helper_Z_equation':
     (HMAC v0 key, rest ++ HMAC v0 key)%list.
 Proof. intros. rewrite HMAC_DRBG_generate_helper_Z_equation.
   remember (0 >=? requested_number_of_bytes). destruct b; trivial.
-  symmetry in Heqb;  apply Z.geb_le in Heqb. omega.
+  symmetry in Heqb;  apply Z.geb_le in Heqb. lia.
 Qed. 
 Lemma HMAC_DRBG_generate_helper_Z_equation0:
   forall (HMAC : list byte -> list byte -> list byte) (key v : list byte),
@@ -95,7 +95,7 @@ Proof.
   symmetry in Heqp. apply IHn in Heqp. 
   replace (Z.of_nat (S n)) with (1 + Z.of_nat n)%Z. 
   2: symmetry; apply (Nat2Z.inj_add 1 n).
-  rewrite <- Heqp. rewrite Zlength_cons. omega. 
+  rewrite <- Heqp. rewrite Zlength_cons. lia. 
 Qed. 
 
 (*Variant of FCF.HMAC_DRBG_definitions_only.Gen_loop that
@@ -128,7 +128,7 @@ Proof.
   symmetry in Heqp. apply IHn in Heqp. 
   replace (Z.of_nat (S n)) with (1+Z.of_nat n)%Z. 
   2: symmetry; apply (Nat2Z.inj_add 1 n).
-  rewrite sublist.Zlength_app, Zlength_cons, Zlength_nil, Heqp. omega. 
+  rewrite sublist.Zlength_app, Zlength_cons, Zlength_nil, Heqp. lia. 
 Qed.
 
 (*Lemma stating the relationship between Genloop_bvec and the corresponding
@@ -191,7 +191,7 @@ Proof. induction n; intros.
 + rewrite Nat2Z.inj_succ; simpl in H.
   remember (Gen_loop_Zlist k (HMAC256 v k) n) as p; destruct p; inv H.
   specialize (IHn (HMAC256 v k)). rewrite <- Heqp in IHn; clear Heqp.
-  rewrite sublist.Zlength_app, Zlength_cons, (IHn _ _ (eq_refl _)). simpl; omega.
+  rewrite sublist.Zlength_app, Zlength_cons, (IHn _ _ (eq_refl _)). simpl; lia.
 Qed. 
 
 Lemma Gen_loop_Zlist_Blist k:
@@ -254,21 +254,21 @@ Definition Equiv n:= forall k v blocks u
 
 Lemma E1: Equiv 1.
 Proof. unfold Equiv. simpl; intros. inv G. simpl. rewrite app_nil_r.
- rewrite HMAC_DRBG_generate_helper_Z_equation'; try omega. simpl.
+ rewrite HMAC_DRBG_generate_helper_Z_equation'; try lia. simpl.
  rewrite HMAC_DRBG_generate_helper_Z_equation.
- assert (0 >=? m - 32 = true). apply Z.geb_le; omega.
+ assert (0 >=? m - 32 = true). apply Z.geb_le; lia.
  rewrite H; trivial.
 Qed.
 
 Lemma E2: Equiv 2.
 Proof. unfold Equiv; simpl; intros.
   inv G; simpl.
- rewrite HMAC_DRBG_generate_helper_Z_equation'; try omega. simpl.
+ rewrite HMAC_DRBG_generate_helper_Z_equation'; try lia. simpl.
  rewrite HMAC_DRBG_generate_helper_Z_equation.
- assert (false = (0 >=? m - 32)) by (apply false_zge'; omega).
+ assert (false = (0 >=? m - 32)) by (apply false_zge'; lia).
  rewrite <- H. simpl.
  rewrite HMAC_DRBG_generate_helper_Z_equation.
- assert ((0 >=? m - 32 - 32)= true) by (apply Z.geb_le; omega).
+ assert ((0 >=? m - 32 - 32)= true) by (apply Z.geb_le; lia).
  rewrite H0. rewrite app_nil_r; trivial. 
 Qed. (*
 
@@ -315,9 +315,9 @@ Proof. induction n.
   rewrite HMAC_DRBG_generate_helper_Z_equation'.
   2:{ rewrite Zmult_minus_distr_l in M.
     assert (64 <= 32 * Z.of_nat (S N)).
-    { subst. replace 64 with (32*2) by omega. apply Z.mul_le_mono_nonneg_l. omega.
-      clear. apply (Nat2Z.inj_le 2). omega. }
-    omega.
+    { subst. replace 64 with (32*2) by lia. apply Z.mul_le_mono_nonneg_l. lia.
+      clear. apply (Nat2Z.inj_le 2). lia. }
+    lia.
   }
   simpl.
   apply Gen_loop_Zlist_nestedV' in Heqp. 
@@ -325,7 +325,7 @@ Proof. induction n.
   rewrite (IHn _ _ _ _ G); clear IHn.
   2:{  clear - M. 
            rewrite Zmult_minus_distr_l in *. rewrite Nat2Z.inj_succ in M. simpl in *.
-           omega.
+           lia.
   }
   f_equal. rewrite rev_app_distr. 
 
@@ -336,7 +336,7 @@ Proof. induction n.
 Qed.
 
 Lemma EE n (N:(0<n)%nat): Equiv n.
-Proof. destruct n. omega. apply E; trivial. Qed.
+Proof. destruct n. lia. apply E; trivial. Qed.
 
 Definition GenUpdate_original_core (state : KV 256) (n : nat) :
   (list (Bvector 256) * KV 256) :=
@@ -438,10 +438,10 @@ Proof. remember (GenUpdate_original_Zlist (k, v) n) as p; destruct p as [kk [vv 
   remember (Gen_loop_Zlist k v n) as q; destruct q as [blocks v']; symmetry in Heqq; inv Heqp.
   apply EE in Heqq; trivial. remember (Z.of_nat (32 * n)) as a.  
   simpl. remember (z >? RI) as d. destruct d; symmetry in Heqd. 
-  + apply Zgt_is_gt_bool in Heqd; omega.
+  + apply Zgt_is_gt_bool in Heqd; lia.
   + rewrite Z.mul_sub_distr_l in Heqq. 
     rewrite Heqq. subst a; rewrite Nat2Z.id; trivial.
-    subst a; clear -N. simpl. rewrite Nat2Z.inj_mul. simpl; omega.
+    subst a; clear -N. simpl. rewrite Nat2Z.inj_mul. simpl; lia.
 Qed.
 Opaque FunGenerate.
 
@@ -629,7 +629,7 @@ Lemma GenUpdate_original_core_length: forall n state l m
   (G: GenUpdate_original_core state n = (l,m)),
    Datatypes.length l = n%nat.
 Proof. induction n; destruct state; simpl; intros. 
-+ inv G. simpl; omega.
++ inv G. simpl; lia.
 + remember (HMAC_DRBG_nonadaptive.Gen_loop HMAC_Bvec b
            (HMAC_Bvec b (HMAC_DRBG_nonadaptive.to_list b0)) n) as q.
   destruct q.  inv G. simpl. symmetry in Heqq. apply Genloop_Zlength_blocks in Heqq. 
@@ -641,8 +641,8 @@ fold_left
   (fun (acc : nat) (a : Vector.t bool 256) =>
    (acc + Datatypes.length (Vector.to_list a))%nat) l m =
   (m + Datatypes.length l * 256)%nat.
-Proof. induction l; simpl; intros. + omega.
-+ rewrite IHl, Blist.to_list_length; clear IHl. omega.
+Proof. induction l; simpl; intros. + lia.
++ rewrite IHl, Blist.to_list_length; clear IHl. lia.
 Qed. 
 
 Lemma mbedtls_generate_Bridge s I (n:nat) bytes F ss (M: mbedtls_generate s I (32 * Z.of_nat n) = Some(bytes, ss, F)) (N:(0 < n)%nat):
@@ -669,8 +669,8 @@ Proof.
  assert (Datatypes.length (bitsToBytes (Fold.flatten (map Vector.to_list l))) = (32*n)%nat).
  apply bitsToBytes_len_gen. rewrite CompFold.length_flatten. simpl. rewrite CompFold.fold_left_map_eq.
  subst n. rewrite fold_vector_length. simpl. rewrite (mult_comm 32). rewrite <- mult_assoc.
- replace (32*8)%nat with 256%nat. trivial. omega.
- rewrite H. omega.
+ replace (32*8)%nat with 256%nat. trivial. lia.
+ rewrite H. lia.
 Qed.  
 
 Require Import FCF.FCF.
@@ -686,7 +686,7 @@ Proof.
   destruct kv as [k v]. prog_simp. apply comp_spec_ret; trivial. 
 Qed.
 
-Lemma OK256: (256 <> 0)%nat. Proof. omega. Qed.
+Lemma OK256: (256 <> 0)%nat. Proof. lia. Qed.
 
 Definition Instantiated_G1_G2_close := G1_G2_close OK256 HMAC_Bvec eqDecState.
 (*How should we instantiate blocksPerCall numCalls : nat,

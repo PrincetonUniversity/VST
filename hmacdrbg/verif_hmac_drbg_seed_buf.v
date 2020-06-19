@@ -39,7 +39,7 @@ Proof.
   Intros v. rename H into Hv. simpl.
   forward.
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial.
+  { destruct Hv; try lia. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
     entailer!. thaw FR0. cancel. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
@@ -195,7 +195,7 @@ Proof.
             malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
-  { destruct Hv; try omega. rewrite if_false; trivial.
+  { destruct Hv; try lia. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))).
     entailer!. thaw FR0. cancel. apply orp_right1. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
@@ -225,8 +225,8 @@ Proof.
   }
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq, H.
-    split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616. omega. reflexivity.
+    split. trivial. split. lia. rewrite two_power_pos_equiv.
+    replace (2^64) with 18446744073709551616. lia. reflexivity.
   }
   Intros.
 
@@ -269,14 +269,14 @@ Proof.
   set (ABS:= HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
   { entailer!. subst ABS; unfold md_full. simpl.
-    apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
+    apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; lia.
     apply UNDER_SPEC.REP_FULL.
   }
 
   forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info).
   { subst xx. unfold hmac256drbgstate_md_info_pointer; simpl. cancel. (*thanks to "M1==info"*)
   }
-  { subst ABS; simpl. repeat split; trivial; try omega. apply IB1. split; omega.
+  { subst ABS; simpl. repeat split; trivial; try lia. apply IB1. split; lia.
   }
 
   forward. Exists (Vint (Int.repr 0)). normalize.

@@ -15,6 +15,7 @@ Require Import Permutation.
 Require Import FCF.Tactics.
 Require Import hmacdrbg.map_swap.        (* TODO move to top *)
 Require Import FCF.RndInList.
+Require Import Lia.
 
 (* Shortcuts for FCF tactics *)
 (* TODO remove / inline these *)
@@ -801,12 +802,12 @@ Proof.
     simplify. simpl in *.
     fcf_skip_eq; kv_exist.
     destruct (lt_dec n (n + S (length calls'))).
-    2: omega.
+    2: lia.
     + Transparent Generate_rb_intermediate.
       repeat (simplify; fcf_skip_eq; simplify).
     + simplify. destruct b.
       eapply IHcalls'.
-      omega.
+      lia.
 Qed.    
 Close Scope nat.
 
@@ -1156,7 +1157,7 @@ Proof.
         simplify.
         fcf_spec_ret.
 
-     * omega.
+     * lia.
     }
     simpl in H2.
     destruct b1.
@@ -1170,7 +1171,7 @@ Proof.
     fcf_skip.
     destruct b0.                (* prevents unification *)
     apply IHcalls'.             (* lol *)
-    omega.
+    lia.
 
     simpl in H3.
     destruct b2.
@@ -1263,14 +1264,14 @@ Theorem argMax_correct :
     (forall n', (n' <= n)%nat -> (f n') <= f (argMax f n)).
 
   induction n; intuition; simpl in *.
-  assert (n' = O) by omega; subst.
+  assert (n' = O) by lia; subst.
   intuition.
   destruct (eq_nat_dec n' (S n)).
   subst.
   destruct (le_Rat_dec (f0 (S n)) (f0 (argMax f0 n)));
   intuition.
 
-  assert (n' <= n)%nat by omega.
+  assert (n' <= n)%nat by lia.
   destruct (le_Rat_dec (f0 (S n)) (f0 (argMax f0 n))).
   eapply IHn; eauto.
   eapply leRat_trans.
@@ -1508,7 +1509,7 @@ Proof.
       unfold choose_Generate. unfold Oi_oc'.
       simplify.
       (* casework on `i = 0`, `calls = i` and `calls > i` *)
-      destruct (lt_dec i i). omega. 
+      destruct (lt_dec i i). lia. 
       clear n.
       destruct (beq_nat i 0).
       -
@@ -1556,7 +1557,7 @@ Proof.
       clear H1 H3 H0.
       rename b1 into k'. rename b2 into v'.
       remember (S i) as calls.
-      assert (H_calls : calls > i) by omega.
+      assert (H_calls : calls > i) by lia.
       clear Heqcalls k2 v.
       revert x i k1 init l k' v' u calls H_calls.
       induction xs as [ | x' xs']; intros.
@@ -1579,18 +1580,18 @@ Proof.
           unfold choose_Generate. unfold Oi_oc'.
           (* calls > i implies S calls != i *)
           assert (H_false : beq_nat (S calls) i = false).
-          { apply Nat.eqb_neq. omega. }
+          { apply Nat.eqb_neq. lia. }
           destruct (beq_nat (S calls) i). inversion H_false.
           clear H_false.
           simplify.
-          destruct (lt_dec calls i). omega. (* contradiction *)
+          destruct (lt_dec calls i). lia. (* contradiction *)
           apply not_lt in n.
           assert (beq_nat calls 0 = false).
-          { apply Nat.eqb_neq. omega. }
+          { apply Nat.eqb_neq. lia. }
           rewrite H0. Opaque Generate_v.
           simpl.
           assert (beq_nat calls i = false).
-          { apply Nat.eqb_neq. omega. }
+          { apply Nat.eqb_neq. lia. }
           rewrite H1.
           Transparent Generate_v. simpl. fcf_inline_first.
           fcf_skip; kv_exist.
@@ -1606,7 +1607,7 @@ Proof.
         simplify.
         
         eapply comp_spec_eq_trans_r. 
-        eapply H; omega.
+        eapply H; lia.
         
         (* now prove oracleCompMap_inner's eq *)
         { instantiate (1 := k1). 
@@ -1663,7 +1664,7 @@ Proof.
     rewrite app_nil_r. reflexivity.
 
   -                             (* l = x :: xs *)
-    assert (H_ilen : calls < i \/ calls = i) by omega.
+    assert (H_ilen : calls < i \/ calls = i) by lia.
     destruct H_ilen.
     clear H.
 
@@ -1687,7 +1688,7 @@ Proof.
         Transparent choose_Generate. Transparent Oi_oc'.
         simpl.
         destruct (lt_dec calls i).
-        2: omega.         (* contradiction *)
+        2: lia.         (* contradiction *)
         clear l.                (* calls < i *)
         unfold Generate_rb_intermediate.
         simplify.
@@ -1707,7 +1708,7 @@ Proof.
         simplify.
 
         eapply comp_spec_eq_trans_r.
-        eapply IHxs; omega. 
+        eapply IHxs; lia. 
 
         (* now prove oracleCompMap_inner's eq *)
         { fcf_skip_eq; kv_exist.
@@ -1722,7 +1723,7 @@ Proof.
     
     (* calls = i *)
   + clear IHxs.
-    apply Gi_prog_equiv_prf_oracle_calls_eq_i; omega.
+    apply Gi_prog_equiv_prf_oracle_calls_eq_i; lia.
 Qed.
         
 Transparent oracleMap.
@@ -1771,7 +1772,7 @@ Proof.
     unfold oracleMap.
     specialize (Gi_prf_compspec requestList i 0 b b0 b1 nil).
     eapply comp_spec_eq_trans_r.
-    eapply Gi_prf_compspec; omega.
+    eapply Gi_prf_compspec; lia.
     simplify.
     fcf_ident_expand_r.
     fcf_skip_eq; kv_exist.
@@ -2001,7 +2002,7 @@ Lemma Gen_loop_rb_intermediate_nok_eq : forall k v x any_v,
               (Gen_loop_rb_intermediate_v any_v x).
 Proof.
   destruct x as [ | x']; intros.
-  - omega.
+  - lia.
   - revert k v any_v.                           (* any_v is used here only *)
     induction x' as [ | x'']; intros.
     + simpl. fcf_skip_eq.
@@ -2262,7 +2263,7 @@ Proof.
             fcf_skip; kv_exist.
             simplify.
             fcf_spec_ret.
-          - assert (beq_dec : calls = 0 \/ calls <> 0) by omega.
+          - assert (beq_dec : calls = 0 \/ calls <> 0) by lia.
             destruct beq_dec as [beqtrue | beqfalse ].
             apply not_lt in n.
             apply beq_nat_true_iff in beqtrue.
@@ -2315,11 +2316,11 @@ Proof.
   induction l as [ | x xs]; intros.
   - simplify. fcf_spec_ret.
   - simplify.
-    destruct (lt_dec calls i). omega.
-    assert (calls_neq_i : calls <> i) by omega.
+    destruct (lt_dec calls i). lia.
+    assert (calls_neq_i : calls <> i) by lia.
     apply beq_nat_false_iff in calls_neq_i.
     rewrite calls_neq_i. 
-    assert (calls_neq_0 : calls <> 0) by omega.
+    assert (calls_neq_0 : calls <> 0) by lia.
     apply beq_nat_false_iff in calls_neq_0.
     rewrite calls_neq_0.
     simplify. fcf_skip; kv_exist.
@@ -2399,7 +2400,7 @@ Proof.
 
 (* separate lemma for induction on rest of list, show calls > i *)
     { instantiate (1 := (fun x y => fst x = fst y)).
-      apply Oi_ocs_eq_calls_gt_i; omega. }
+      apply Oi_ocs_eq_calls_gt_i; lia. }
     { simplify. simpl in H4. destruct p. inversion H4. subst. fcf_spec_ret. }
 Qed.
 
@@ -2557,7 +2558,7 @@ Proof.
   - fcf_irr_r. unfold RndK. fcf_well_formed. simplify. fcf_spec_ret.
 
   (* induction: l = x :: xs *)
-  - assert (H_ilen : calls < i \/ calls = i) by omega.
+  - assert (H_ilen : calls < i \/ calls = i) by lia.
     destruct H_ilen.
     clear H.
 
@@ -2568,10 +2569,10 @@ Proof.
     + Opaque Oi_oc''. Opaque Oi_oc'''.
       simplify. Transparent Oi_oc''. simplify.
       (* intuitively, what should the calls < i proof look like? *)
-      destruct (lt_dec calls i). 2: omega.
+      destruct (lt_dec calls i). 2: lia.
 
       (* calls < i *)
-      Transparent Oi_oc'''. simplify. destruct (lt_dec calls i). 2: omega.
+      Transparent Oi_oc'''. simplify. destruct (lt_dec calls i). 2: lia.
       simplify.
 
       rewrite_r.
@@ -2703,7 +2704,7 @@ Proof.
               x0
                y : list (list (Bvector eta)) * (nat * KV) *
                    list (Blist * Bvector eta) => fst (fst x0) = fst (fst y))).
-      assert (Hcalls : S calls <= i) by omega.
+      assert (Hcalls : S calls <= i) by lia.
       pose proof (IHxs (S calls) i state Hcalls k b i_neq_0) as IHxs_inst.
       apply IHxs_inst. 
 
@@ -2723,7 +2724,7 @@ Proof.
       assert (beq_nat calls i = true).
       { apply Nat.eqb_eq. auto. }
       rewrite H1.
-      destruct (lt_dec calls i). omega. (* we have calls = i *)
+      destruct (lt_dec calls i). lia. (* we have calls = i *)
       (* need a diff oracle.
 in i != 0: in the latter, there's an extra instantiate in front and no kv updating, so everything's in sync
 in i = 0: in the former, there's only k updating inside. in the latter, there's an extra instantiate in front (k,v). so the v's are not in sync *)
@@ -2755,7 +2756,7 @@ that would work but would that still apply to prove the top-level theorem??
         simplify.
         fcf_skip; kv_exist.
         instantiate (1 := (fun x y => fst x = fst y)).
-        apply Oi_ocs_eq_calls_gt_i. omega.
+        apply Oi_ocs_eq_calls_gt_i. lia.
         (* kv same AND calls > i! *)
         (* we're past RB and oracle, just PRFs here means oracles the same *)
         (* another induction w different states *)
@@ -2816,11 +2817,11 @@ Proof.
       unfold choose_Generate. unfold Oi_oc'''.
       simplify.
       (* casework on `i = 0`, `calls = i` and `calls > i` *)
-      destruct (lt_dec i i). omega. 
+      destruct (lt_dec i i). lia. 
       clear n.
       destruct (lt_dec i (S i)).
-      2: omega. clear l.
-      assert (idec : i = 0 \/ i <> 0) by omega.
+      2: lia. clear l.
+      assert (idec : i = 0 \/ i <> 0) by lia.
       destruct idec as [ itrue | ifalse].
       apply beq_nat_true_iff in itrue.
       rewrite itrue.
@@ -2840,7 +2841,7 @@ Proof.
           revert a k H0.
           induction x as [ | x']; intros; simplify.
           - (* using hypothesis that number of blocks is not 0 *)
-            apply Forall_inv in blocks_neq_0. omega.
+            apply Forall_inv in blocks_neq_0. lia.
           - fcf_skip_eq.
         }
         (* hmm this saves the v, meaning the v gets updated... *)
@@ -2869,12 +2870,12 @@ Proof.
       clear H5 H3 H7 H9.
       clear H2 H1 H0.
 
-      assert (n_eq : n = n0) by omega.
+      assert (n_eq : n = n0) by lia.
       rewrite <- H in H6.
       rewrite <- H in H4.
       rewrite n_eq.
       rename n0 into calls'.
-      assert (H_calls : calls' > i) by omega.
+      assert (H_calls : calls' > i) by lia.
 
       clear k v.
       rename b1 into k. rename b2 into v. rename l0 into rb_state.
@@ -2907,13 +2908,13 @@ Proof.
           Transparent choose_Generate. Transparent Oi_oc'''.
           (* unfold choose_Generate. unfold Oi_oc'''. *)
           (* simplify. *)
-          destruct (lt_dec calls (S i)). omega. (* calls > i, so ~(calls < S i) *)
-          destruct (lt_dec calls i). omega.     (* calls > i, so ~(calls < i) *)
+          destruct (lt_dec calls (S i)). lia. (* calls > i, so ~(calls < S i) *)
+          destruct (lt_dec calls i). lia.     (* calls > i, so ~(calls < i) *)
           assert (beq_nat calls 0 = false) as calls_neq_0.
-          { apply Nat.eqb_neq. omega. }
+          { apply Nat.eqb_neq. lia. }
           rewrite calls_neq_0. Opaque Generate_v.
           assert (beq_nat calls i = false) as calls_neq_i.
-          { apply Nat.eqb_neq. omega. }
+          { apply Nat.eqb_neq. lia. }
           rewrite calls_neq_i.
           Transparent Generate_v.
           simplify.
@@ -2932,7 +2933,7 @@ Proof.
         inversion H5. subst.
         apply Forall_cons; auto. }
         
-        omega. 
+        lia. 
         
         (* now prove oracleCompMap_inner's eq *)
         { fcf_skip_eq.
@@ -2976,7 +2977,7 @@ Proof.
   (* induct, then destruct *)
   induction l as [ | x xs]; intros; rename H0 into blocks_neq_0.
   - simplify. fcf_spec_ret. simpl. rewrite app_nil_r. repeat (split; auto).
-  - assert (H_ilen : calls < i \/ calls = i) by omega.
+  - assert (H_ilen : calls < i \/ calls = i) by lia.
     destruct H_ilen.
     clear H.
 
@@ -2999,11 +3000,11 @@ Proof.
       Transparent choose_Generate. Transparent Oi_oc'''.
       simpl.
       destruct (lt_dec calls i).
-      2: omega.         (* contradiction *)
+      2: lia.         (* contradiction *)
       clear l.                (* calls < i *)
-      assert (H_calls_lt : calls < S i) by omega.
+      assert (H_calls_lt : calls < S i) by lia.
       destruct (lt_dec calls (S i)).
-      2: omega. 
+      2: lia. 
       fcf_skip; kv_exist.   (* Generate_rb_intermediate(_oc) *)
       (* postcondition: output keys are unchanged from input *)
       instantiate (1 := (fun x y => x = fst y /\ fst (snd x) = fst (snd (fst y)) = k)).
@@ -3026,7 +3027,7 @@ Proof.
       simplify.
 
       eapply comp_spec_eq_trans_r.
-      eapply IHxs. omega.
+      eapply IHxs. lia.
       inversion blocks_neq_0; subst; auto.
 
       instantiate (1 := l).
@@ -3041,7 +3042,7 @@ Proof.
     + clear IHxs.
       clear H.
       apply oracleMap_oracleCompMap_equiv_modified_calls_gt_i; auto.
-      (* apply Gi_prog_equiv_rb_oracle_calls_eq_i; omega. *) 
+      (* apply Gi_prog_equiv_rb_oracle_calls_eq_i; lia. *) 
 Qed.
 
 Lemma maxBlocksAndCalls_all_nonzero : Forall (fun n : nat => n > 0) requestList.
@@ -3189,7 +3190,7 @@ Proof.
     (* they have the same k and v, former is S i, latter is i without updates in RB, so i hope this works! *)
     unfold oracleMap.
     pose proof oracleMap_oracleCompMap_equiv_modified.
-    eapply comp_spec_eq_trans_r. apply H1. omega.
+    eapply comp_spec_eq_trans_r. apply H1. lia.
     apply maxBlocksAndCalls_all_nonzero.
 
     instantiate (1 := nil). fcf_ident_expand_r. fcf_skip_eq; kv_exist.
@@ -3257,7 +3258,7 @@ Proof.
      fcf_skip. flip. 
 
       apply oracleCompMap_rb_instantiate_outer_i_neq_0.
-      omega. auto.
+      lia. auto.
 
       simpl in H2. destruct b0. destruct a. simpl in *. destruct p. simpl in *. subst.
       prog_equiv. fcf_spec_ret.
@@ -3303,7 +3304,7 @@ Proof.
     (* instantiate (1 := (fun x y => x = fst y)). *)
     unfold oracleMap.
     pose proof oracleMap_oracleCompMap_equiv_modified as om_ocm_equiv.
-    eapply comp_spec_eq_trans_r. apply om_ocm_equiv. omega. apply maxBlocksAndCalls_all_nonzero.
+    eapply comp_spec_eq_trans_r. apply om_ocm_equiv. lia. apply maxBlocksAndCalls_all_nonzero.
     instantiate (1 := nil). fcf_ident_expand_r. fcf_skip_eq; kv_exist.
     simpl. fcf_spec_ret.
 
@@ -3791,11 +3792,11 @@ Proof.
   induction listLen as [ | listLen']; intros; rename H into calls_gt_i.
   - simplify. fcf_spec_ret.
   - simplify.
-    destruct (lt_dec callsSoFar i). omega.
-    assert (nonzero : callsSoFar <> 0) by omega.
+    destruct (lt_dec callsSoFar i). lia.
+    assert (nonzero : callsSoFar <> 0) by lia.
     apply beq_nat_false_iff in nonzero.
     rewrite nonzero.
-    assert (neq_i : callsSoFar <> i) by omega.
+    assert (neq_i : callsSoFar <> i) by lia.
     apply beq_nat_false_iff in neq_i.
     rewrite neq_i.
     simplify.
@@ -3804,7 +3805,7 @@ Proof.
     apply simplify_hasDups.
     eapply comp_spec_eq_trans_r.
     eapply IHlistLen'.
-    omega. fcf_spec_ret.
+    lia. fcf_spec_ret.
 Qed.
 
 (* TODO see if I can prove a more general version of compmap_v_eq using compMap_v_eq_h *)
@@ -3880,7 +3881,7 @@ Proof.
           rewrite length_replicate in len_eq.
           rewrite plus_comm in len_eq.
           simpl in *.
-          omega.
+          lia.
         }
 
         (* every element of l has length eta, and zeroes is nonempty *)
@@ -3895,7 +3896,7 @@ Proof.
           apply inputs_len in H1; simpl in *; rewrite app_length in H1;
             unfold zeroes in H1; rewrite length_replicate in H1;
               rewrite plus_comm in H1; simpl in *.
-          rewrite to_list_length in *. omega.
+          rewrite to_list_length in *. lia.
           
           (* match goal with  *)
           (*   | [ H1:  In (to_list key_input ++ zeroes, _) init |- _ ] =>  *)
@@ -4008,7 +4009,7 @@ Proof.
   unfold rb_oracle.
   fcf_inline_first.
   destruct blocks as [ | blocks']. 
-  - omega.
+  - lia.
   - simplify. clear blocks_neq_0.
     (* blocks <> 0 -> reduces to lemma on i <> 0 *)
     (* clean up left side *)
@@ -4134,14 +4135,14 @@ Proof.
 
    (* base case: empty *)
   - simplify.
-    destruct (ge_dec i callsSoFar). { fcf_spec_ret. } { omega. }
+    destruct (ge_dec i callsSoFar). { fcf_spec_ret. } { lia. }
 
   (* inductive case *)
   - Opaque Oi_oc'. Opaque Generate_noV_oc. Opaque Generate_v_oc.
     rename H into calls_leq_i.
     Opaque zerop.
     simplify.
-    assert (calls_size : callsSoFar < i \/ callsSoFar = i) by omega.
+    assert (calls_size : callsSoFar < i \/ callsSoFar = i) by lia.
     destruct calls_size as [ calls_lt_i | calls_eq_i ].
     (* callsSoFar < i -> after this call, S callsSoFar <= i *)
     + clear calls_leq_i.
@@ -4149,7 +4150,7 @@ Proof.
       simplify.
 
       (* clean up left side *)
-      destruct (lt_dec callsSoFar i). 2: omega.
+      destruct (lt_dec callsSoFar i). 2: lia.
       clear l.
 
       (* strip off first call on left side, since it doesn't use the oracle *)
@@ -4170,7 +4171,7 @@ Proof.
       eapply comp_spec_eq_trans_r.
       apply simplify_hasDups.
       rewrite plus_n_Sm.
-      eapply IHlistLen'; try omega; try auto.
+      eapply IHlistLen'; try lia; try auto.
 
     (* calls = i *)
     + (* what's the form of the lemma i should apply here? *)
@@ -4181,9 +4182,9 @@ Proof.
       simplify.
       subst.
       (* clean up left side *)
-      destruct (lt_dec i i). omega.
+      destruct (lt_dec i i). lia.
       (* clean up right side *)
-      destruct (ge_dec i (S (listLen' + i))). omega.
+      destruct (ge_dec i (S (listLen' + i))). lia.
 
       (* depends on whether i = 0, so destruct on that *)
       destruct (zerop i) as [ i_eq_0 | i_gt_0 ].
@@ -4210,7 +4211,7 @@ Proof.
             eapply simplify_hasDups.
           + destruct b0.
             eapply rb_oracle_state_same_after_i.
-            omega.
+            lia.
         }
         clear n n0 IHlistLen'.
         
@@ -4219,7 +4220,7 @@ Proof.
         apply Gi_rb_collisions_inner_eq_general_i_eq0; auto.
       }
       (* i <> 0 *)
-      { assert (i_neq_0 : i <> 0) by omega.
+      { assert (i_neq_0 : i <> 0) by lia.
         apply beq_nat_false_iff in i_neq_0.
         rewrite i_neq_0.
         pose proof (beq_nat_refl i) as i_refl.
@@ -4261,7 +4262,7 @@ Proof.
            [_, rb_state2]<-2 a0; ret hasInputDups rb_state2)).
            simplify. apply simplify_hasDups.
           eapply rb_oracle_state_same_after_i. 
-          omega.
+          lia.
         }
         clear n n0 IHlistLen'.
         
@@ -4297,7 +4298,7 @@ Proof.
   { prog_equiv. fcf_spec_ret. }
 
   eapply comp_spec_eq_trans_r.
-  eapply split_out_oracle_call_forall; auto. omega.
+  eapply split_out_oracle_call_forall; auto. lia.
 
   (* list_pred holds on (nil, nil) for any a, b, P *)
   { constructor. }
@@ -4367,8 +4368,7 @@ Theorem compMap_hasDups_cons_prob :
   eapply leRat_terms; trivial.
   simpl.
   apply le_S.
-  apply plus_le_compat; try omega.
-  apply mult_le_compat; omega.
+  apply plus_le_compat; try lia.
 Qed.
 
 Close Scope nat.
@@ -4396,7 +4396,7 @@ Proof.
       rewrite forNats_length.
       unfold Pr_collisions.
       eapply leRat_terms; intuition.
-      eapply Nat.pow_le_mono; omega.
+      eapply Nat.pow_le_mono; lia.
     + unfold PRG.compMap_v.
       rewrite compMap_hasDups_cons_prob.
       rewrite forNats_length.
@@ -4479,12 +4479,12 @@ Proof.
   - simpl. 
     simplify.
     destruct (lt_dec callsSoFar n) as [calls_lt_n | calls_gte_n].
-    2: omega. 
+    2: lia. 
     destruct (lt_dec callsSoFar (S n)) as [calls_lt_Sn | calls_gte_Sn].
-    2: omega.
+    2: lia.
     fcf_skip_eq; kv_exist.
     simplify. destruct b.
-    apply IHlen'. auto. omega.
+    apply IHlen'. auto. lia.
 Qed.
 
 Theorem Gi_adjacent_hybrids_close_outofbounds :
@@ -4533,7 +4533,7 @@ Theorem Gi_adjacent_hybrids_close :
   | Pr[Gi_prg n] - Pr[Gi_prg (S n)] | <= Gi_Gi_plus_1_bound.
 Proof.
   intros n.
-  assert (n_dec : (n <= numCalls)%nat \/ (n > numCalls)%nat) by omega.
+  assert (n_dec : (n <= numCalls)%nat \/ (n > numCalls)%nat) by lia.
   destruct n_dec as [ n_lte | n_gt ].
 
   -  unfold Gi_Gi_plus_1_bound. intros.

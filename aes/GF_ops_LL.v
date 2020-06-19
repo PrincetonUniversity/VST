@@ -1,4 +1,4 @@
-Require Import ZArith.
+Require Import ZArith Lia.
 Local Open Scope Z_scope.
 Require Import compcert.lib.Integers.
 
@@ -13,7 +13,7 @@ Lemma repeat_op_step: forall {T: Type} (i: Z) (start: T) (op: T -> T),
   0 <= i ->
   repeat_op (i + 1) start op = op (repeat_op i start op).
 Proof.
-  intros. unfold repeat_op. rewrite Z2Nat.inj_add by omega.
+  intros. unfold repeat_op. rewrite Z2Nat.inj_add by lia.
   rewrite Nat.add_1_r. simpl. reflexivity.
 Qed.
 

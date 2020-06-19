@@ -26,6 +26,6 @@ Proof. intros.
   rewrite ZLc'256F, andb_negb_r.
   assert (MaxString': Zlength d >? max_personalization_string_length = false).
   { apply Zgt_is_gt_bool_f. apply Zgt_is_gt_bool_f in ZLc'256F.
-    unfold max_personalization_string_length. omega. }
+    unfold max_personalization_string_length. lia. }
   rewrite MaxString' in *; trivial.
 Qed.

@@ -51,8 +51,8 @@ Qed.
 
 Lemma false_zgt z a: false = (z >? a) -> z<=a. 
 Proof. unfold Z.gtb.
-  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. omega.
-  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. omega.
+  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. lia.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. lia.
   discriminate.
 Qed. 
 
@@ -70,9 +70,9 @@ Proof.
   + rewrite HMAC_DRBG_algorithms.HMAC_DRBG_generate_helper_Z_equation in H.
     remember (0 >=? n). destruct b.
     - symmetry in Heqb; apply Z.geb_le in Heqb.
-      assert (NN: n=0) by omega. subst n; clear N Heqb. simpl in H.
+      assert (NN: n=0) by lia. subst n; clear N Heqb. simpl in H.
       inversion H; clear H. subst.
-      split. apply hmac_common_lemmas.HMAC_Zlength. omega.
+      split. apply hmac_common_lemmas.HMAC_Zlength. lia.
     - remember (HMAC_DRBG_algorithms.HMAC_DRBG_generate_helper_Z
            HMAC256_functional_prog.HMAC256 k v (n - Z.of_nat 32)). 
       destruct p. 
@@ -80,24 +80,24 @@ Proof.
          [] k (HMAC256_functional_prog.HMAC256 l k)). 
       destruct p. inv H. 
       apply HMAC_DRBG_updateWF in Heqp0. destruct Heqp0.
-      split; trivial. omega.
+      split; trivial. lia.
   + remember (HMAC_DRBG_algorithms.HMAC_DRBG_update HMAC256_functional_prog.HMAC256 (i :: l) k v). 
     destruct p.
     rewrite HMAC_DRBG_algorithms.HMAC_DRBG_generate_helper_Z_equation in H.
     remember (0 >=? n) as b; destruct b.
     - symmetry in Heqb. apply Z.geb_le in Heqb.
-      assert (NN: n=0) by omega. subst n; clear N Heqb.
+      assert (NN: n=0) by lia. subst n; clear N Heqb.
       remember (HMAC_DRBG_algorithms.HMAC_DRBG_update HMAC256_functional_prog.HMAC256
          (i :: l) l0 l1). 
       destruct p. inv H. apply HMAC_DRBG_updateWF in Heqp0. destruct Heqp0.
-      split; trivial. omega.
+      split; trivial. lia.
     - remember (HMAC_DRBG_algorithms.HMAC_DRBG_generate_helper_Z
            HMAC256_functional_prog.HMAC256 l0 l1 (n - Z.of_nat 32)).
       destruct p.
       remember (HMAC_DRBG_algorithms.HMAC_DRBG_update HMAC256_functional_prog.HMAC256
          (i :: l) l0 (HMAC256_functional_prog.HMAC256 l2 l0)). 
       destruct p. inv H. apply HMAC_DRBG_updateWF in Heqp1. destruct Heqp1.
-      split; trivial. omega.
+      split; trivial. lia.
 Qed.
 
 Lemma HMAC256_DRBG_generate_functionWF f a b c s v k rc d pr n e l V K RC z PR ss bytes
@@ -173,6 +173,6 @@ Proof. unfold hmac256drbgabs_generate in G. destruct I; simpl in HI.
            prediction_resistance reseed_interval) n l). 
   destruct r.
   + destruct p. destruct d. destruct p. destruct d. destruct p.
-    inv G. apply mbedtls_HMAC256_DRBG_generate_functionWF_success in Heqr; trivial. omega.
+    inv G. apply mbedtls_HMAC256_DRBG_generate_functionWF_success in Heqr; trivial. lia.
   + inv G. trivial.
 Qed. 

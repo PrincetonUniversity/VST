@@ -461,8 +461,10 @@ Proof.
   + apply extend_prop.
 Qed.
 
+Definition extendM_refl_rmap := @extendM_refl rmap _ _ _ _ _.
+
 Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_expropt extend_tc_lvalue : core.
-Hint Resolve (@extendM_refl rmap _ _ _ _ _) : core.
+Hint Resolve extendM_refl_rmap : core.
 
 Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.expr_lemmas.

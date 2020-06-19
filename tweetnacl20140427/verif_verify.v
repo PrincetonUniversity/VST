@@ -35,9 +35,9 @@ forward_for_simple_bound n
   forward.
   { entailer!. rep_lia. }
   forward. entailer!. clear H3 H6 H4 H7.
-  rewrite <- (sublist_rejoin 0 i (i+1) xcont), sublist_len_1; try omega.
-  rewrite <- (sublist_rejoin 0 i (i+1) ycont), sublist_len_1; try omega.
-  rewrite list_eq_dec_app. 2: rewrite 2 Zlength_sublist; trivial; omega. 2: rewrite 2 Zlength_cons, Zlength_nil; trivial.
+  rewrite <- (sublist_rejoin 0 i (i+1) xcont), sublist_len_1; try lia.
+  rewrite <- (sublist_rejoin 0 i (i+1) ycont), sublist_len_1; try lia.
+  rewrite list_eq_dec_app. 2: rewrite 2 Zlength_sublist; trivial; lia. 2: rewrite 2 Zlength_cons, Zlength_nil; trivial.
   rewrite <- B. unfold Int.xor. 
   remember (list_eq_dec Byte.eq_dec [Znth i xcont] [Znth i ycont]).  simpl.
   rewrite or_repr. clear H0 H1 H2 (*H4*) H5 (*H7*) SH SH0 PNx PNy Heqs.
@@ -70,16 +70,16 @@ forward. apply prop_right.
   + specialize (Byte.eq_spec b Byte.zero). rewrite H0; intros. clear - ZWS BWS H1.
     f_equal. unfold Int.sub. 
     assert (Int.shru (Int.repr (Byte.unsigned b - 1)) (Int.repr 8) = Int.zero).
-    - apply Int.same_bits_eq. rewrite ZWS; intros. rewrite Int.bits_zero, Int.bits_shru; try omega.
+    - apply Int.same_bits_eq. rewrite ZWS; intros. rewrite Int.bits_zero, Int.bits_shru; try lia.
       rewrite (Int.unsigned_repr 8) by rep_lia; rewrite ZWS.
-      if_tac; trivial. rewrite Int.testbit_repr by omega.
+      if_tac; trivial. rewrite Int.testbit_repr by lia.
       replace (Byte.unsigned b - 1) with (Byte.unsigned (Byte.sub b Byte.one)).
-      apply byte_testbit. omega. unfold Byte.sub.
+      apply byte_testbit. lia. unfold Byte.sub.
       rewrite Byte.unsigned_repr; try rep_lia. reflexivity.
       split; [ | rep_lia]. change (Byte.unsigned Byte.one) with 1.
       destruct (Byte.unsigned_range b). replace Byte.modulus with 256 in H3 by reflexivity.
       destruct (zle 0 (Byte.unsigned b - 1)); trivial. elim H1; clear H1.
-      assert (ZZ: Byte.unsigned b =0) by omega.
+      assert (ZZ: Byte.unsigned b =0) by lia.
       apply initialize.zero_ext_inj. rewrite ZZ; reflexivity.
     - rewrite H, Int.and_zero; reflexivity.
 Qed.

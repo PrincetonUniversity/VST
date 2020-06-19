@@ -99,7 +99,7 @@ Proof. intros. do 2 pose proof I.
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
-      simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; omega.
+      simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; lia.
     }
   }
 
@@ -293,7 +293,7 @@ Proof. intros. do 2 pose proof I.
         rewrite hmac_pure_lemmas.IntModulus32 in H0; rewrite two_power_pos_equiv.
         simpl. simpl in H0.
         assert (H1: Z.pow_pos 2 61 = 2305843009213693952) by reflexivity; rewrite H1; clear H1.
-        omega.
+        lia.
       }
       (* prove the post condition of the if statement *)
       rewrite <- app_assoc.
@@ -307,7 +307,7 @@ Proof. intros. do 2 pose proof I.
         destruct na; trivial; elim H6; trivial. }
       rewrite RNDS1 in *; clear H6 H4.
       assert (NAF: na = false).
-      { destruct na; try omega. trivial. }
+      { destruct na; try lia. trivial. }
       rewrite NAF in *. clear Heqrounds.
       forward. rewrite H9, NAF.
       destruct additional; try contradiction; simpl in PNadditional.
@@ -401,7 +401,7 @@ Proof. intros. do 2 pose proof I.
     apply andp_right.
     { apply prop_right. repeat split; eauto.
       subst initial_key initial_value.
-      apply HMAC_DRBG_update_round_incremental_Z; try eassumption. omega.
+      apply HMAC_DRBG_update_round_incremental_Z; try eassumption. lia.
       apply hmac_common_lemmas.HMAC_Zlength. }
     thaw FR9; cancel.
     unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state.

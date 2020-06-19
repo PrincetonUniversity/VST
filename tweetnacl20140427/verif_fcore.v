@@ -35,16 +35,16 @@ Lemma HFalse_inv16_char: forall l xs ys,
   l = QuadChunks2ValList (map littleendian_invert sum).
 Proof. intros. destruct H.
  destruct (listGE16 l) as
-  [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14 [v15 [t1 [T1 L1]]]]]]]]]]]]]]]]]]. omega.
+  [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14 [v15 [t1 [T1 L1]]]]]]]]]]]]]]]]]]. lia.
  rewrite H in L1; simpl in L1.
  destruct (listGE16 t1) as
-  [v16 [v17 [v18 [v19 [v20 [v21 [v22 [v23 [v24 [v25 [v26 [v27 [v28 [v29 [v30 [v31 [t2 [T2 L2]]]]]]]]]]]]]]]]]]. omega.
+  [v16 [v17 [v18 [v19 [v20 [v21 [v22 [v23 [v24 [v25 [v26 [v27 [v28 [v29 [v30 [v31 [t2 [T2 L2]]]]]]]]]]]]]]]]]]. lia.
  rewrite L1 in L2; simpl in L2.
  destruct (listGE16 t2) as
-  [v32 [v33 [v34 [v35 [v36 [v37 [v38 [v39 [v40 [v41 [v42 [v43 [v44 [v45 [v46 [v47 [t3 [T3 L3]]]]]]]]]]]]]]]]]]. omega.
+  [v32 [v33 [v34 [v35 [v36 [v37 [v38 [v39 [v40 [v41 [v42 [v43 [v44 [v45 [v46 [v47 [t3 [T3 L3]]]]]]]]]]]]]]]]]]. lia.
  rewrite L2 in L3; simpl in L3.
  destruct (listGE16 t3) as
-  [v48 [v49 [v50 [v51 [v52 [v53 [v54 [v55 [v56 [v57 [v58 [v59 [v60 [v61 [v62 [v63 [t4 [T4 L4]]]]]]]]]]]]]]]]]]. omega.
+  [v48 [v49 [v50 [v51 [v52 [v53 [v54 [v55 [v56 [v57 [v58 [v59 [v60 [v61 [v62 [v63 [t4 [T4 L4]]]]]]]]]]]]]]]]]]. lia.
  rewrite L3 in L4; simpl in L4.
  apply Zlength_nil_inv in L4. subst t3 t4 t2 t1. clear L1 L2 L3 H. simpl in T1.
  destruct (listD16 _ H0) as
@@ -54,37 +54,37 @@ Proof. intros. destruct H.
 subst l xs ys.
 eexists; split. reflexivity.
 unfold Znth in H2. simpl.
-destruct (H2 0) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 0) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 1) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 1) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 2) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 2) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 3) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 3) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 4) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 4) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 5) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 5) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 6) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 6) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 7) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 7) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 8) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 8) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 9) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 9) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 10) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 10) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 11) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 11) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 12) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 12) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 13) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 13) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 14) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 14) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
-destruct (H2 15) as [x [X [y [Y Q]]]]; try omega.
+destruct (H2 15) as [x [X [y [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
 reflexivity.
 Qed.
@@ -101,57 +101,57 @@ Lemma TP C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OU
  QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums)  (littleendian N4))).
 Proof. intros.
 rewrite Zlength_length in H, H0. simpl in H, H0.
-destruct intsums; simpl in H. omega. rename i into v0.
-destruct intsums; simpl in H. omega. rename i into v1.
-destruct intsums; simpl in H. omega. rename i into v2.
-destruct intsums; simpl in H. omega. rename i into v3.
-destruct intsums; simpl in H. omega. rename i into v4.
-destruct intsums; simpl in H. omega. rename i into v5.
-destruct intsums; simpl in H. omega. rename i into v6.
-destruct intsums; simpl in H. omega. rename i into v7.
-destruct intsums; simpl in H. omega. rename i into v8.
-destruct intsums; simpl in H. omega. rename i into v9.
-destruct intsums; simpl in H. omega. rename i into v10.
-destruct intsums; simpl in H. omega. rename i into v11.
-destruct intsums; simpl in H. omega. rename i into v12.
-destruct intsums; simpl in H. omega. rename i into v13.
-destruct intsums; simpl in H. omega. rename i into v14.
-destruct intsums; simpl in H. omega. rename i into v15.
-destruct intsums; simpl in H. 2: omega. clear H. simpl.
+destruct intsums; simpl in H. lia. rename i into v0.
+destruct intsums; simpl in H. lia. rename i into v1.
+destruct intsums; simpl in H. lia. rename i into v2.
+destruct intsums; simpl in H. lia. rename i into v3.
+destruct intsums; simpl in H. lia. rename i into v4.
+destruct intsums; simpl in H. lia. rename i into v5.
+destruct intsums; simpl in H. lia. rename i into v6.
+destruct intsums; simpl in H. lia. rename i into v7.
+destruct intsums; simpl in H. lia. rename i into v8.
+destruct intsums; simpl in H. lia. rename i into v9.
+destruct intsums; simpl in H. lia. rename i into v10.
+destruct intsums; simpl in H. lia. rename i into v11.
+destruct intsums; simpl in H. lia. rename i into v12.
+destruct intsums; simpl in H. lia. rename i into v13.
+destruct intsums; simpl in H. lia. rename i into v14.
+destruct intsums; simpl in H. lia. rename i into v15.
+destruct intsums; simpl in H. 2: lia. clear H. simpl.
 unfold Znth. simpl.
-destruct OUT; simpl in H0. omega. rename v into u0.
-destruct OUT; simpl in H0. omega. rename v into u1.
-destruct OUT; simpl in H0. omega. rename v into u2.
-destruct OUT; simpl in H0. omega. rename v into u3.
-destruct OUT; simpl in H0. omega. rename v into u4.
-destruct OUT; simpl in H0. omega. rename v into u5.
-destruct OUT; simpl in H0. omega. rename v into u6.
-destruct OUT; simpl in H0. omega. rename v into u7.
-destruct OUT; simpl in H0. omega. rename v into u8.
-destruct OUT; simpl in H0. omega. rename v into u9.
-destruct OUT; simpl in H0. omega. rename v into u10.
-destruct OUT; simpl in H0. omega. rename v into u11.
-destruct OUT; simpl in H0. omega. rename v into u12.
-destruct OUT; simpl in H0. omega. rename v into u13.
-destruct OUT; simpl in H0. omega. rename v into u14.
-destruct OUT; simpl in H0. omega. rename v into u15.
-destruct OUT; simpl in H0. omega. rename v into u16.
-destruct OUT; simpl in H0. omega. rename v into u17.
-destruct OUT; simpl in H0. omega. rename v into u18.
-destruct OUT; simpl in H0. omega. rename v into u19.
-destruct OUT; simpl in H0. omega. rename v into u20.
-destruct OUT; simpl in H0. omega. rename v into u21.
-destruct OUT; simpl in H0. omega. rename v into u22.
-destruct OUT; simpl in H0. omega. rename v into u23.
-destruct OUT; simpl in H0. omega. rename v into u24.
-destruct OUT; simpl in H0. omega. rename v into u25.
-destruct OUT; simpl in H0. omega. rename v into u26.
-destruct OUT; simpl in H0. omega. rename v into u27.
-destruct OUT; simpl in H0. omega. rename v into u28.
-destruct OUT; simpl in H0. omega. rename v into u29.
-destruct OUT; simpl in H0. omega. rename v into u30.
-destruct OUT; simpl in H0. omega. rename v into u31.
-destruct OUT; simpl in H0. 2: omega. clear H0. simpl. reflexivity. omega. omega.
+destruct OUT; simpl in H0. lia. rename v into u0.
+destruct OUT; simpl in H0. lia. rename v into u1.
+destruct OUT; simpl in H0. lia. rename v into u2.
+destruct OUT; simpl in H0. lia. rename v into u3.
+destruct OUT; simpl in H0. lia. rename v into u4.
+destruct OUT; simpl in H0. lia. rename v into u5.
+destruct OUT; simpl in H0. lia. rename v into u6.
+destruct OUT; simpl in H0. lia. rename v into u7.
+destruct OUT; simpl in H0. lia. rename v into u8.
+destruct OUT; simpl in H0. lia. rename v into u9.
+destruct OUT; simpl in H0. lia. rename v into u10.
+destruct OUT; simpl in H0. lia. rename v into u11.
+destruct OUT; simpl in H0. lia. rename v into u12.
+destruct OUT; simpl in H0. lia. rename v into u13.
+destruct OUT; simpl in H0. lia. rename v into u14.
+destruct OUT; simpl in H0. lia. rename v into u15.
+destruct OUT; simpl in H0. lia. rename v into u16.
+destruct OUT; simpl in H0. lia. rename v into u17.
+destruct OUT; simpl in H0. lia. rename v into u18.
+destruct OUT; simpl in H0. lia. rename v into u19.
+destruct OUT; simpl in H0. lia. rename v into u20.
+destruct OUT; simpl in H0. lia. rename v into u21.
+destruct OUT; simpl in H0. lia. rename v into u22.
+destruct OUT; simpl in H0. lia. rename v into u23.
+destruct OUT; simpl in H0. lia. rename v into u24.
+destruct OUT; simpl in H0. lia. rename v into u25.
+destruct OUT; simpl in H0. lia. rename v into u26.
+destruct OUT; simpl in H0. lia. rename v into u27.
+destruct OUT; simpl in H0. lia. rename v into u28.
+destruct OUT; simpl in H0. lia. rename v into u29.
+destruct OUT; simpl in H0. lia. rename v into u30.
+destruct OUT; simpl in H0. lia. rename v into u31.
+destruct OUT; simpl in H0. 2: lia. clear H0. simpl. reflexivity. lia. lia.
 Qed.
 
 Definition HTrue_inv intsums xs ys:Prop:=
@@ -173,37 +173,37 @@ Proof. rewrite sumlist_symm. intros LX LY [H L].
   [z0 [z1 [z2 [z3 [z4 [z5 [z6 [z7 [z8 [z9 [z10 [z11 [z12 [z13 [z14 [z15 C1]]]]]]]]]]]]]]]].
 subst xs ys l.
 unfold Znth in L.
-destruct (L 0) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 0) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 1) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 1) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 2) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 2) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 3) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 3) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 4) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 4) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 5) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 5) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 6) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 6) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 7) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 7) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 8) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 8) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 9) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 9) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 10) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 10) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 11) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 11) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 12) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 12) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 13) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 13) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 14) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 14) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q.
-destruct (L 15) as [x [y [X [Y Q]]]]; try omega.
+destruct (L 15) as [x [y [X [Y Q]]]]; try lia.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y; inv Q. reflexivity.
 Qed.
 
@@ -282,7 +282,7 @@ rename v_w into w.
 freeze [0;1;2;3;4] FR1.
 Time assert_PROP (Zlength OUT = Z.max 0 (OutLen h)) as ZL_OUT by entailer!.
 rewrite Z.max_r in ZL_OUT.
-2:{ unfold OutLen. simple_if_tac; omega. }
+2:{ unfold OutLen. simple_if_tac; lia. }
 (* apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data). *)
 thaw FR1. freeze [0;1;3;5] FR2.
 eapply semax_seq.
@@ -298,11 +298,11 @@ apply (f_core_loop2 _ (FRZL FR3) c k h nonce out w x y t data); trivial.
     Intros YS.
     destruct H as [? [? [? [? [? [? [? [? ?]]]]]]]].
     assert (L31: Zlength (x3 ++ x1) = 16) by (rewrite H1; reflexivity).
-    rewrite Zlength_app, H3 in L31. destruct x1. 2:{ rewrite Zlength_cons', Z.add_assoc in L31. specialize (Zlength_nonneg x1); intros; omega. }
+    rewrite Zlength_app, H3 in L31. destruct x1. 2:{ rewrite Zlength_cons', Z.add_assoc in L31. specialize (Zlength_nonneg x1); intros; lia. }
     rewrite app_nil_r in *. clear L31; subst x0. clear H3 H1 x3.
     assert (LX: Zlength xInit = 16).
-      rewrite XInit. rewrite upd_upto_Zlength; trivial. simpl; omega.
-    rewrite <- H0, Zlength_app, H2 in LX. destruct x2. 2:{ rewrite Zlength_cons', Z.add_assoc in LX. specialize (Zlength_nonneg x2); intros; omega. }
+      rewrite XInit. rewrite upd_upto_Zlength; trivial. simpl; lia.
+    rewrite <- H0, Zlength_app, H2 in LX. destruct x2. 2:{ rewrite Zlength_cons', Z.add_assoc in LX. specialize (Zlength_nonneg x2); intros; lia. }
     rewrite app_nil_r in *. clear LX; subst YS. rename H2 into xInit_Zlength.
 
     rewrite upd_upto_char in XInit. 2: reflexivity.

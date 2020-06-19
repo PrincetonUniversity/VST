@@ -6,7 +6,6 @@ Require Import VST.floyd.proofauto.
 Require Import aes.sbox.
 Require Import aes.GF_ops_LL.
 Require Import aes.list_utils.
-Ltac omega := Coq.omega.Omega.omega.
 
 Definition rot8(i: int): int := 
   Int.or (Int.and (Int.shl i (Int.repr 8)) (Int.repr (-1))) (Int.shru i (Int.repr 24)).
@@ -74,10 +73,10 @@ Proof.
   intros.
   repeat match goal with
   | H : ?b <= i < 256 |- _ =>
-    assert (i = b \/ b + 1 <= i < 256) as C by omega;
+    assert (i = b \/ b + 1 <= i < 256) as C by lia;
     destruct C as [C | C];
     [ subst i; vm_compute; reflexivity
     | clear H; rename C into H; simpl in H ]
   end.
-  omega.
+  lia.
 Qed.
