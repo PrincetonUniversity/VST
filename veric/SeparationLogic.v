@@ -37,6 +37,7 @@ Require Import VST.veric.valid_pointer.
 Require Import VST.veric.own.
 Require VST.veric.semax_prog.
 Require VST.veric.semax_ext.
+Import FashNotation.
 Import LiftNotation.
 Import Ctypes Clight expr.
 

@@ -5,6 +5,7 @@ Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
+Import FashNotation.
 Import LiftNotation.
 
 (* general list lemmas *)

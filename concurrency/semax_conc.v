@@ -25,6 +25,7 @@ Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.floyd.funspec_old.
 Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.semax_conc_pred.
+Import FashNotation.
 Import String.
 Open Scope funspec_scope.
 
