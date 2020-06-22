@@ -266,7 +266,7 @@ Proof.
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 
-Definition has_ext {Z} (ora : Z) : mpred.mpred := @own (ext_PCM _) 0 (Some (Tsh, Some ora), None) NoneP.
+Polymorphic Definition has_ext {Z} (ora : Z) : mpred.mpred := @own (ext_PCM _) 0 (Some (Tsh, Some ora), None) NoneP.
 
 Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
   (* use the external state to restrict the ghost moves *)
