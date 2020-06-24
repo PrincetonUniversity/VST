@@ -282,3 +282,96 @@ Proof.
     apply modus_ponens_wand.
 Qed.
 
+Lemma semax_store_union_hack:
+     forall {cs: compspecs} {Espec:OracleKind}
+          (Delta : tycontext) (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
+       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
+       access_mode (typeof e1) = By_value ch ->
+       access_mode t2 = By_value ch' ->
+       decode_encode_val_ok ch ch' ->
+       writable_share sh ->
+       semax Delta
+         (|> (tc_lvalue Delta e1 && tc_expr Delta (Ecast e2 (typeof e1)) &&
+              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                && `(mapsto_ sh t2) (eval_lvalue e1))
+               * P)))
+         (Sassign e1 e2)
+         (normal_ret_assert
+            (EX v':val, 
+              andp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+              ((` (mapsto sh t2)) (eval_lvalue e1) (`v') * P))).
+(* This is foundationally proved in veric/semax_straight.v, 
+  I just haven't hooked it up yet through the the interface *)
+Admitted.
+
+Lemma semax_store_nth_ram_union_hack:
+  forall {Espec: OracleKind} {cs: compspecs} n Delta P Q R e1 e2 Pre Post p v v' ch ch' sh t1 t2,
+    typeof e1 = t1 ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+       local (`(eq p) (eval_lvalue e1)) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+       local (`(eq v) (eval_expr (Ecast e2 t1))) ->
+    nth_error R n = Some Pre ->
+    writable_share sh ->
+    (numeric_type t1 && numeric_type t2)%bool = true ->
+    decode_encode_val_ok ch ch' ->
+    access_mode t1 = By_value ch ->
+    access_mode t2 = By_value ch' ->
+    decode_encode_val v ch ch' v' ->
+    Pre |-- (mapsto_ sh t1 p && mapsto_ sh t2 p) * (mapsto sh t2 p v' -* Post) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+     (tc_lvalue Delta e1) && (tc_expr Delta (Ecast e2 t1)) ->
+    semax Delta
+     (|> PROPx P (LOCALx Q (SEPx R)))
+     (Sassign e1 e2)
+     (normal_ret_assert
+        (PROPx P (LOCALx Q (SEPx (replace_nth n R Post))))).
+Proof.
+  intros * ? ? ? ? ? NT OK; intros.
+  eapply semax_pre_simple; [| eapply semax_post'; [| apply semax_store_union_hack; subst; eauto]].
+  + apply later_left2.
+    apply andp_right;  [subst; auto |].
+    simpl lifted.
+    change  (@LiftNatDed environ mpred Nveric)
+      with (@LiftNatDed' mpred Nveric).
+    rewrite (add_andp _ _ H0).
+    rewrite (add_andp _ _ H1).
+    erewrite SEP_nth_isolate, <- insert_SEP by eauto.
+    rewrite !(andp_comm _ (local _)).
+    rewrite <- (andp_dup (local (`(eq p) (eval_lvalue e1)))), andp_assoc.
+    do 3 rewrite <- local_sepcon_assoc2.  rewrite <- local_sepcon_assoc1.
+    eapply derives_trans.
+    - apply sepcon_derives; [| apply derives_refl].
+      instantiate (1 := (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) && 
+                                 `(mapsto_ sh t2) (eval_lvalue e1)) * `(mapsto sh t2 p v' -* Post)).
+      unfold local, lift1; unfold_lift; intro rho; simpl.
+      subst t1.
+      normalize.
+    - rewrite sepcon_assoc.
+      apply derives_refl.
+  +
+     rewrite (@exp_andp2 _ _).
+     apply exp_left; intro v''.
+     rewrite <- andp_assoc. rewrite (andp_comm (local _)).
+    rewrite andp_assoc.
+    intro rho.
+    unfold local at 1. unfold lift1 at 1. simpl.
+    apply derives_extract_prop.
+   intro. unfold_lift in H9.
+    erewrite SEP_replace_nth_isolate with (Rn' := Post), <- insert_SEP by eauto.
+   set (PQ := (PROPx P _)). clearbody PQ.
+    change (`(force_val1 (sem_cast (typeof e2) t1)) (eval_expr e2))
+      with (eval_expr (Ecast e2 t1)).
+    Opaque eval_lvalue eval_expr.
+    unfold local, lift1; unfold_lift; simpl.
+    normalize.
+    Transparent eval_lvalue eval_expr.
+     subst t1.
+    assert (v''=v'). eapply semax_straight.decode_encode_val_fun; eauto.
+    subst v''.    
+    rewrite <- sepcon_assoc.
+    apply sepcon_derives; auto.
+    apply modus_ponens_wand.
+Qed.
+

@@ -1170,6 +1170,39 @@ Definition add_funspecs (Espec : OracleKind)
 Definition funsig2signature (s : funsig) cc : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (rettype_of_type (snd s)) cc.
 
+
+Definition decode_encode_val_ok (chunk1 chunk2: memory_chunk) : Prop :=
+  match chunk1, chunk2 with
+  | Mint8signed, Mint8signed => True
+  | Mint8unsigned, Mint8signed => True
+  | Mint8signed, Mint8unsigned => True
+  | Mint8unsigned, Mint8unsigned => True
+  | Mint16signed, Mint16signed => True
+  | Mint16unsigned, Mint16signed => True
+  | Mint16signed, Mint16unsigned => True
+  | Mint16unsigned, Mint16unsigned => True
+  | Mint32, Mfloat32 => True
+  | Many32, Many32 => True
+  | Many64, Many64 => True
+  | Mint32, Mint32 => True
+  | Mint64, Mint64 => True
+  | Mint64, Mfloat64 => True
+  | Mfloat64, Mfloat64 =>  True
+  | Mfloat64, Mint64 =>  True
+  | Mfloat32, Mfloat32 =>  True
+  | Mfloat32, Mint32 =>  True
+  | _,_ => False
+  end.
+
+Definition numeric_type (t: type) : bool :=
+match t with
+| Tint IBool _ _ => false
+| Tint _ _ _ => true
+| Tlong _ _ => true
+| Tfloat _ _ => true
+| _ => false
+end.
+
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 
 (* Misc lemmas *)

@@ -193,6 +193,55 @@ Definition fabs_single_spec :=
  POST [ Tfloat F32 noattr ]
    PROP() RETURN (Vsingle (Float32.abs x)) SEP().
 
+Ltac forward_store_union_hack id :=
+eapply semax_seq';
+[ensure_open_normal_ret_assert;
+ hoist_later_in_pre;
+ match goal with
+  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
+    check_expression_by_value e1;
+    let T1 := fresh "T1" in evar (T1: PTree.t val);
+    let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
+    let G := fresh "GV" in evar (G: option globals);
+    let LOCAL2PTREE := fresh "LOCAL2PTREE" in
+    assert (local2ptree Q = (T1, T2, nil, G)) as LOCAL2PTREE;
+    [subst T1 T2 G; prove_local2ptree |];
+ eapply (semax_PTree_field_store_union_hack id);
+  [ exact LOCAL2PTREE
+  | reflexivity
+  | reflexivity
+  | reflexivity
+
+  | (solve_msubst_eval_expr                 || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_LR                   || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | econstructor
+  | solve_field_address_gen
+  | reflexivity || fail 1000 "field-path does not end with union field"
+  | reflexivity
+  | reflexivity || fail 1000 "alternate union field at wrong address"
+  | assumption || simpl; match goal with |- ?A => fail 1000 "before this 'forward', assert and prove" A end
+  | reflexivity || fail 1000 "alternate field has wrong access mode"
+  | reflexivity || fail 1000 "both fields must have numeric type"
+  | apply I || match goal with |- ?A => fail 1000 "cannot prove" A end
+  | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
+  | reflexivity
+  | (auto                                   || fail 1000 "unexpected failure in store_tac_no_hint.")
+  | (reflexivity  || fail 1000 "field_store_union_hack failed in decode_encode_val")
+  | convert_stored_value
+  | first [apply data_equal_congr; solve_store_rule_evaluation
+                                             | fail 1000 "unexpected failure in store_tac_no_hint."
+                                                         "unexpected failure in computing stored result"]
+
+  | first [entailer_for_store_tac            | fail 1000 "unexpected failure in store_tac_no_hint."
+                                                         "unexpected failure in entailer_for_store_tac"]
+  | first [solve_legal_nested_field_in_entailment
+                                             | fail 1000 "unexpected failure in store_tac_no_hint."
+                                                         "unexpected failure in solve_legal_nested_field_in_entailment"]
+  ]
+  end
+ | unfold replace_nth; abbreviate_semax ].
+
 Lemma union_field_address: forall id,
   tl composites = (Composite id Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil) ->
  forall p,
@@ -212,7 +261,16 @@ Qed.
 Lemma body_fabs_single: semax_body Vprog Gprog f_fabs_single fabs_single_spec.
 Proof.
 start_function.
+assert_PROP (field_compatible (Tunion __146 noattr) [UnionField _i] v_u) by  entailer!.
+forward_store_union_hack _i.
+clear H.
 forward.
+assert_PROP (field_compatible (Tunion __146 noattr) [UnionField _f] v_u) by entailer!.
+forward_store_union_hack _f.
+forward.
+forward.
+entailer!.
+f_equal.
 destruct (fabs_float32_lemma x) as [y [H3 H4]].
 unfold_data_at (data_at _ _ _ _).
 rewrite field_at_data_at.
