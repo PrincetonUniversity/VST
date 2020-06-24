@@ -282,29 +282,6 @@ Proof.
     apply modus_ponens_wand.
 Qed.
 
-Lemma semax_store_union_hack:
-     forall {cs: compspecs} {Espec:OracleKind}
-          (Delta : tycontext) (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
-       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
-       access_mode (typeof e1) = By_value ch ->
-       access_mode t2 = By_value ch' ->
-       decode_encode_val_ok ch ch' ->
-       writable_share sh ->
-       semax Delta
-         (|> (tc_lvalue Delta e1 && tc_expr Delta (Ecast e2 (typeof e1)) &&
-              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
-                && `(mapsto_ sh t2) (eval_lvalue e1))
-               * P)))
-         (Sassign e1 e2)
-         (normal_ret_assert
-            (EX v':val, 
-              andp (local  ((`decode_encode_val )
-                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
-              ((` (mapsto sh t2)) (eval_lvalue e1) (`v') * P))).
-(* This is foundationally proved in veric/semax_straight.v, 
-  I just haven't hooked it up yet through the the interface *)
-Admitted.
-
 Lemma semax_store_nth_ram_union_hack:
   forall {Espec: OracleKind} {cs: compspecs} n Delta P Q R e1 e2 Pre Post p v v' ch ch' sh t1 t2,
     typeof e1 = t1 ->

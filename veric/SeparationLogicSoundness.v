@@ -227,6 +227,7 @@ Proof.
 intros; apply semax_store; auto.
 Qed.
 
+Definition semax_store_union_hack := @semax_store_union_hack.
 (*Definition semax_store := @semax_store. *)
 
 Definition semax_load := @semax_load.

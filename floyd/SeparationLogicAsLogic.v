@@ -233,6 +233,24 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
               subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P)))
         (Sset id e) (normal_ret_assert P)
+| semax_store_union_hack:
+     forall (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
+       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
+       access_mode (typeof e1) = By_value ch ->
+       access_mode t2 = By_value ch' ->
+       decode_encode_val_ok ch ch' ->
+       writable_share sh ->
+       semax Delta
+         (|> (tc_lvalue Delta e1 && tc_expr Delta (Ecast e2 (typeof e1)) &&
+              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                && `(mapsto_ sh t2) (eval_lvalue e1))
+               * P)))
+         (Sassign e1 e2)
+         (normal_ret_assert
+            (EX v':val, 
+              andp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+              ((` (mapsto sh t2)) (eval_lvalue e1) (`v') * P)))
 | semax_store_backward: forall e1 e2 P,
    @semax CS Espec Delta
           (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
@@ -515,6 +533,7 @@ Proof.
   intros.
   remember (Sassign e1 e2) as c eqn:?H.
   induction H; try solve [inv H0].
+  + admit.
   + inv H0.
     reduce2derives.
     apply exp_derives; intro sh.
@@ -536,7 +555,7 @@ Proof.
     apply sepcon_ENTAILL; [reduceLL; apply ENTAIL_refl |].
     apply wand_ENTAILL; [reduceLL; apply ENTAIL_refl |].
     apply derives_full_bupd0_left, H1.
-Qed.
+Admitted.
 
 Lemma tc_fn_return_temp_guard_opt: forall ret retsig Delta,
   tc_fn_return Delta ret retsig ->
@@ -1528,6 +1547,7 @@ Proof.
       * apply ENTAIL_refl.
       * apply ENTAIL_refl.
       * apply ENTAIL_refl.
+  + admit.
   + eapply semax_pre; [| apply AuxDefs.semax_store_backward].    
     apply exp_ENTAIL; intro sh.
     apply andp_ENTAIL; [apply ENTAIL_refl |].
@@ -1571,7 +1591,7 @@ Proof.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
-Qed.
+Admitted.
 
 Lemma rvalue_cenv_sub: forall {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta e rho,
   tc_environ Delta rho ->
@@ -1871,6 +1891,7 @@ Proof.
           unfold liftx, lift; simpl. rewrite H0. solve_andp. }
     - eapply semax_pre;  [| apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward].
       apply andp_left2. apply andp_left2. apply derives_refl.
+  + admit.
   + apply semax_pre with (andp (STOREpre CS Delta e1 e2 P) (STOREpre CS' Delta e1 e2 P)).
     - intros rho. simpl. apply derives_extract_prop; intros TEDelta.
       apply andp_right. apply derives_refl. unfold STOREpre; simpl.
@@ -1891,7 +1912,7 @@ Proof.
   + apply AuxDefs.semax_label; auto.
   + apply AuxDefs.semax_goto.
   + eapply semax_conseq; [.. | exact IHsemax]; auto.
-Qed.
+Admitted.
 
 Lemma semax_body_subsumption: forall cs V V' F F' f spec
       (SF: @semax_body V F cs f spec)
@@ -2193,6 +2214,7 @@ Proof.
         unfold closed_wrt_modvars in H.
         rewrite <- modifiedvars_aux.
         auto.
+  + admit.
   + rewrite frame_normal.
     eapply semax_pre; [| apply AuxDefs.semax_store_backward].
     apply andp_left2.
@@ -2241,7 +2263,7 @@ Proof.
       apply sepcon_derives_full; [apply H4 |].
       reduce2derives.
       auto.
-Qed.
+Admitted.
 
 Lemma semax_adapt_frame {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
@@ -2481,6 +2503,8 @@ eapply semax_adapt
            apply prop_right. apply typecheck_environ_globals_only. apply derives_refl.
     - clear. do 2 red; intros; trivial.
 Qed.
+
+Definition semax_store_union_hack := @AuxDefs.semax_store_union_hack.
 
 End DeepEmbeddedMinimumSeparationLogic.
 
@@ -3068,6 +3092,7 @@ Proof.
   + eapply semax_post with (normal_ret_assert P);
       [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
     apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward.
+  + admit.
   + eapply semax_post with (normal_ret_assert P);
       [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
     apply AuxDefs.semax_store_backward.
@@ -3085,7 +3110,7 @@ Proof.
     - apply derives_full_refl.
     - intros. rewrite <- H8; exact (H4 vl).
     - apply IHsemax; auto.
-Qed.
+Admitted.
 
 Lemma semax_loop_nocontinue1:
   forall CS Espec Delta Pre s1 s2 s3 Post,
