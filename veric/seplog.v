@@ -1067,6 +1067,15 @@ do 14 eexists. reflexivity. f_equal.
   apply proof_irr. apply proof_irr.
 Qed.
 
+Lemma binary_intersection'_sub  {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} (phi psi:funspec) Hphi Hpsi:
+  funspec_sub (@binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi) phi /\
+  funspec_sub (@binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi) psi.
+Proof. apply binaryintersection_sub. apply binary_intersection'_sound. Qed.
+
+Lemma binary_intersection'_sub3 {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} phi psi Hphi Hpsi:
+  forall xi, funspec_sub xi phi -> funspec_sub xi psi -> 
+  funspec_sub xi (@binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi).
+Proof. intros. eapply BINARY_intersection_sub3. apply binary_intersection'_sound. apply H. apply H0. Qed.
 
 (*-------------------Bifunctor version, general case ------------*)
 
