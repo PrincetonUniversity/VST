@@ -5,6 +5,7 @@ Require Import Coq.Logic.FunctionalExtensionality.
 
 Require Import sha.ByteBitRelations.
 Require Import sha.general_lemmas.
+Require Import Lia.
 
 Fixpoint get_first_None (limit:nat) (s: ENTROPY.stream): nat :=
   match limit with
@@ -41,7 +42,7 @@ Lemma get_bits_stream_success_Some:
     (forall i, (i < k)%nat -> s i <> None).
 Proof.
   intros k.
-  induction k as [|k']; intros. omega.
+  induction k as [|k']; intros. lia.
   simpl in H.
   remember (ENTROPY.get_bits k' s) as get_bits_k'_s; destruct get_bits_k'_s; try solve [inversion H].
   remember (s0 0%nat) as s0_0; destruct s0_0; try solve [inversion H].
@@ -49,7 +50,7 @@ Proof.
   pose proof Heqget_bits_k'_s as IHsimpl.
   pose proof (Heqget_bits_k'_s) as Hstream.
   apply get_bits_stream_success in Hstream; subst.
-  destruct (le_lt_eq_dec i k'). omega.
+  destruct (le_lt_eq_dec i k'). lia.
   {
     (* i < k', use inductive case *)
     eapply IHk'; eassumption.
@@ -57,7 +58,7 @@ Proof.
   {
     (* i = k', use known info *)
     subst.
-    replace (k' + 0)%nat with k' in Heqs0_0 by omega.
+    replace (k' + 0)%nat with k' in Heqs0_0 by lia.
     intros contra; rewrite <- Heqs0_0 in contra; inversion contra.
   }
 Qed.
@@ -67,14 +68,14 @@ Lemma get_first_None_limit:
     i = get_first_None k s ->
     (i <= k)%nat.
 Proof.
-  induction k as [|k']; intros. simpl in H. omega.
+  induction k as [|k']; intros. simpl in H. lia.
   simpl in H.
   remember (s O) as s_O; destruct s_O.
-  destruct i as [|i']; try solve [omega].
+  destruct i as [|i']; try solve [lia].
   inversion H.
   pose proof (IHk' (fun i => s (S i)) i').
-  subst; omega.
-  subst; omega.
+  subst; lia.
+  subst; lia.
 Qed.
 
 (* TODO convert this to use get_first_None_limit *)
@@ -94,7 +95,7 @@ Proof.
     (* get_bits k' s = success *)
     pose proof (Heqget_bits_k'_s) as Hstream.
     apply get_bits_stream_success in Hstream; subst.
-    replace (k' + 0)%nat with k' in H by omega.
+    replace (k' + 0)%nat with k' in H by lia.
     remember (s k') as s_k'; destruct s_k'; inv H.
     exists k'.
     repeat split; auto.
@@ -108,7 +109,7 @@ Proof.
     destruct (le_lt_dec k' x).
     {
       (* x >= k' *)
-      destruct H0. omega.
+      destruct H0. lia.
     }
     {
       exists x.
@@ -140,7 +141,7 @@ Proof.
   destruct s0_0; try solve [inversion H].
   inv H.
   rewrite app_length.
-  simpl. replace (length l + 1)%nat with (S (length l)) by omega.
+  simpl. replace (length l + 1)%nat with (S (length l)) by lia.
   rewrite IHk' with (s':=s0) (s:=s); auto.
 Qed.
 
@@ -154,7 +155,7 @@ Proof.
   destruct get_bits_s; inv H.
   assert (length l = (8 * k)%nat) by (apply get_bits_length with (s:=s) (s':=s0); auto).
   apply bitsToBytes_len_gen.
-  omega.
+  lia.
 Qed.
 
 Lemma get_bytes_Zlength:
@@ -166,6 +167,6 @@ Proof.
   intros.
   rewrite Zlength_correct.
   erewrite get_bytes_length.
-  rewrite Z2Nat.id; [reflexivity | omega].
+  rewrite Z2Nat.id; [reflexivity | lia].
   eauto.
 Qed.

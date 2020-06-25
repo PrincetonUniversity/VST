@@ -35,21 +35,21 @@ Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
  | b::r => b rho /\ fold_right_andp rho r
  end.
 
-Declare Scope argsassert.
-Delimit Scope argsassert with argsassert.
 Declare Scope assert.  Delimit Scope assert with assert.
+(* Declare Scope argsassert. *)
+Delimit Scope (*args*)assert with argsassert.
 Declare Scope assert3. Delimit Scope assert3 with assert3.
-Declare Scope assert3a. Delimit Scope assert3a with assert3a.
-Declare Scope assert4a. Delimit Scope assert4a with assert4a.
+Declare Scope assert4. Delimit Scope assert4 with assert4.
 Declare Scope assert5. Delimit Scope assert5 with assert5.
 
 Definition PROPx {A} (P: list Prop): forall (Q: A->mpred), A->mpred :=
      andp (prop (fold_right and True P)).
 
-
-Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z%assert3a) (at level 10) : argsassert.
-Notation "'PROP' ()   z" :=   (PROPx nil z%assert3a) (at level 10) : argsassert.
-Notation "'PROP' ( )   z" :=   (PROPx nil z%assert3a) (at level 10) : argsassert.
+(*
+Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z%assert3) (at level 10) : argsassert.
+Notation "'PROP' ()   z" :=   (PROPx nil z%assert3) (at level 10) : argsassert.
+Notation "'PROP' ( )   z" :=   (PROPx nil z%assert3) (at level 10) : argsassert.
+*)
 
 Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z%assert3) (at level 10) : assert.
 Notation "'PROP' ()   z" :=   (PROPx nil z%assert3) (at level 10) : assert.
@@ -83,27 +83,27 @@ Definition PARAMSx (vals:list val)(X : argsassert): argsassert :=
  fun (gvals : argsEnviron) => !! (snd gvals = vals (*/\ Forall (fun v : val => v <> Vundef) vals*)) && X gvals.
 Arguments PARAMSx vals _ : simpl never.
 
-Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%logic .. (cons y%logic nil) ..) z%assert4a)
-         (at level 9) : assert3a.
+Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%logic .. (cons y%logic nil) ..) z%assert4)
+         (at level 9) : assert3.
 
-Notation " 'PARAMS' ( )  z" := (PARAMSx nil z%assert4a) (at level 9) : assert3a.
-Notation " 'PARAMS' ()  z" := (PARAMSx nil z%assert4a) (at level 9) : assert3a.
+Notation " 'PARAMS' ( )  z" := (PARAMSx nil z%assert4) (at level 9) : assert3.
+Notation " 'PARAMS' ()  z" := (PARAMSx nil z%assert4) (at level 9) : assert3.
 
 Notation " 'GLOBALS' ( x ; .. ; y )  z" := (GLOBALSx (cons x%logic .. (cons y%logic nil) ..) z%assert5)
-         (at level 9) : assert4a.
+         (at level 9) : assert4.
 
-Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z%assert5) (at level 9) : assert4a.
-Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z%assert5) (at level 9) : assert4a.
+Notation " 'GLOBALS' ( )  z" := (GLOBALSx nil z%assert5) (at level 9) : assert4.
+Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z%assert5) (at level 9) : assert4.
 
 Definition SEPx {A} (R: list mpred) : A->mpred :=
     fun _ => (fold_right_sepcon R).
 Arguments SEPx A R _ : simpl never.
 
 Notation " 'SEP' ( x ; .. ; y )" := (GLOBALSx nil (SEPx (cons x%logic .. (cons y%logic nil) ..)))
-         (at level 8) : assert4a.
+         (at level 8) : assert4.
 
-Notation " 'SEP' ( ) " := (GLOBALSx nil (SEPx nil)) (at level 8) : assert4a.
-Notation " 'SEP' () " := (GLOBALSx nil (SEPx nil)) (at level 8) : assert4a.
+Notation " 'SEP' ( ) " := (GLOBALSx nil (SEPx nil)) (at level 8) : assert4.
+Notation " 'SEP' () " := (GLOBALSx nil (SEPx nil)) (at level 8) : assert4.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
          (at level 8) : assert5.

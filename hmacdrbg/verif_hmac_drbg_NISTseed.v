@@ -100,7 +100,7 @@ destruct (Zlength pers >? max_personalization_string_length).
 + unfold entlen, get_entropy; simpl. 
   remember (ENTROPY.get_bytes 48 es) as r.
   destruct r; symmetry in Heqr. 
-  - destruct (Entropy_addSuccess3 _ 32 _ _ _ Heqr) as [l1 [s1 [E32 [l2 [E16 L]]]]]. omega.
+  - destruct (Entropy_addSuccess3 _ 32 _ _ _ Heqr) as [l1 [s1 [E32 [l2 [E16 L]]]]]. lia.
     simpl in E16. rewrite E32, E16; subst.
     unfold HMAC_DRBG_instantiate_algorithm. simpl. rewrite app_assoc. destruct prflag; trivial.
   - remember  (ENTROPY.get_bytes 32 es) as t; destruct t; symmetry in Heqt.
@@ -185,7 +185,7 @@ Proof.
   Intros v. rename H into Hv.
   forward.
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
+  { destruct Hv; try lia. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
@@ -277,10 +277,10 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
     split. reflexivity.
     split. reflexivity.
-    split. omega.
+    split. lia.
     split. (*change Int.modulus with 4294967296.*) rep_lia.
      unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
@@ -299,8 +299,8 @@ Proof.
     remember ((zlt 256 (Zlength Data) || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data)) %bool) as d.
     unfold myABS in Heqd; simpl in Heqd.
     destruct (zlt 256 (Zlength Data)); simpl in Heqd.
-    + omega.
-    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try omega.
+    + lia.
+    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try lia.
       subst d.
       unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. Intros.
       rename H into RV.
@@ -309,7 +309,7 @@ Proof.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
-      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. omega. }
+      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. lia. }
       unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
@@ -332,7 +332,7 @@ Proof.
 
   assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
       { destruct ZLc' as [HH | HH]; rewrite HH. reflexivity.
-        apply Zgt_is_gt_bool_f. omega. }
+        apply Zgt_is_gt_bool_f. lia. }
   rewrite <- instantiate_reseed, RES in HeqMRS; trivial. subst MRS. clear H RES Heqd. 
   destruct handle as [[[[newV newK] newRC] dd] newPR].
   unfold hmac256drbgabs_common_mpreds. simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl. Intros.
@@ -436,7 +436,7 @@ Proof.
   Intros v. rename H into Hv.
   freeze [0] FR1. forward. thaw FR1.
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
+  { destruct Hv; try lia. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
@@ -536,10 +536,10 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
     split. reflexivity.
     split. reflexivity.
-    split. omega.
+    split. lia.
     split. rep_lia.
     unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
@@ -563,7 +563,7 @@ Proof.
       Exists p. thaw OLD_MD. normalize.
       apply andp_right. apply prop_right; repeat split; trivial. cancel.
       apply hmac_interp_empty.
-    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try omega.
+    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try lia.
       subst d.
       unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. Intros.
       rename H into RV.
@@ -572,7 +572,7 @@ Proof.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
-      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. omega. }
+      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. lia. }
       unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
@@ -612,7 +612,7 @@ Proof.
   normalize.
   assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
       { destruct ZLc' as [HH | HH]; rewrite HH. reflexivity.
-        apply Zgt_is_gt_bool_f. omega. }
+        apply Zgt_is_gt_bool_f. lia. }
   rewrite <- instantiate_reseed in HeqMRS; trivial.
   rewrite <- HeqMRS.
   normalize.
@@ -739,7 +739,7 @@ Proof.
   freeze [0] FR1. forward. thaw FR1.
 
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
+  { destruct Hv; try lia. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
@@ -778,7 +778,7 @@ Proof.
       eapply derives_trans. apply data_at_memory_block.
         rewrite ZL_VV. simpl. cancel. cancel. }
   (*{ split. apply semax_call.writable_share_top.
-    rewrite ZL_V0, client_lemmas.int_max_unsigned_eq. omega. }*)
+    rewrite ZL_V0, client_lemmas.int_max_unsigned_eq. lia. }*)
 
   (*ctx->reseed_interval = MBEDTLS_HMAC_DRBG_RESEED_INTERVAL;*)
   rewrite ZL_VV.
@@ -849,10 +849,10 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
     split. reflexivity.
     split. reflexivity.
-    split. omega.
+    split. lia.
     split. (*change Int.modulus with 4294967296.*) rep_lia.
        unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
@@ -872,7 +872,7 @@ Proof.
       simpl. subst myABS. Intros. subst v; simpl. cancel.
       Exists p. thaw OLD_MD. cancel. 
       apply andp_right; [ apply prop_right; trivial |  cancel; entailer!]. 
-    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try omega.
+    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try lia.
       subst d.
       unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. Intros. cancel. 
       rename H into RV.

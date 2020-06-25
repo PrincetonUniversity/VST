@@ -423,7 +423,7 @@ intros.
 unfold fashionable.
 rewrite fash_fash. auto.
 Qed.
-Hint Resolve @fash_subp : core.
+Hint Resolve fash_subp : core.
 
 Lemma fash_allp {A} {agA:ageable A}:
   forall  (B: Type) (F: B -> pred A),

@@ -27,7 +27,7 @@ Hint Resolve isptr_force_val_sem_cast_neutral : norm.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
-Hint Resolve @FF_local_facts: saturate_local.
+Hint Resolve FF_local_facts: saturate_local.
 
 Ltac simpl_compare :=
  match goal with
@@ -747,7 +747,7 @@ Proof.
   destruct p; try contradiction.
   red in H3.
   unfold sizeof, Ctypes.sizeof in H3; clear H1.
-  rewrite Z.max_r in H3 by old_list_solve.
+  rewrite Z.max_r in H3 by list_solve.
   fold Ctypes.sizeof in H3.
   change (Ctypes.sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).

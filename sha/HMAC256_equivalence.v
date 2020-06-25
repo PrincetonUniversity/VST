@@ -6,6 +6,7 @@ Require Import BinNums.
 Require Import VST.msl.Axioms.
 Require Import FCF.Blist.
 Import List.
+Require Import Lia.
 
 Require Import sha.ByteBitRelations.
 Require Import sha.hmac_pure_lemmas.
@@ -119,7 +120,7 @@ Proof.
            rewrite Heql in pf. apply Forall_inv in pf.  clear Heql.
            rewrite firstn_length in pf.
            symmetry in Heqd. apply leb_complete in Heqd.
-           eapply NPeano.Nat.min_l_iff in pf. omega.
+           eapply NPeano.Nat.min_l_iff in pf. lia.
     rewrite splitAndPad_aux_consD.
     constructor.
       rewrite of_length_proof_irrel. trivial.
@@ -146,13 +147,13 @@ Proof. unfold splitAndPad_v, sha_splitandpad_blocks.
     unfold sha_splitandpad_inc in Heqm.
     assert (@length bool nil = length (bytesToBits (pad_inc (bitsToBytes nil)))).
       rewrite <- Heqm; trivial.
-    simpl in H; clear Heqm. omega.
+    simpl in H; clear Heqm. lia.
   rewrite leb_correct_conv in Heql.
-    2: rewrite Heqm; simpl; omega.
+    2: rewrite Heqm; simpl; lia.
   rewrite sublist.firstn_same in Heql.
-    2: rewrite Heqm; simpl; omega.
+    2: rewrite Heqm; simpl; lia.
   rewrite skipn_short in Heql.
-    2: rewrite Heqm; simpl; omega.
+    2: rewrite Heqm; simpl; lia.
   rewrite toBlocks_equation in Heql. subst l.
   simpl. eexists. reflexivity.
 Qed.
@@ -190,9 +191,9 @@ Module EQ256 <: EQUIV_Inst SHA256.
   Definition ipd:Z := 54.
   Definition opd:Z:=92.
   Lemma isbyteZ_Ipad: isbyteZ ipd.
-    unfold ipd. split; omega. Qed.
+    unfold ipd. split; lia. Qed.
   Lemma isbyteZ_Opad: isbyteZ opd.
-    unfold opd. split; omega. Qed.*)
+    unfold opd. split; lia. Qed.*)
   Definition fpad_v := fpad_v.
   Definition fpad := fpad.
   Definition fpad_length msg: length msg = c -> length (fpad msg) = p.
@@ -314,8 +315,8 @@ SearchAbout sha_splitandpad_inc.
   2: apply VectorToList_length.
   eapply HMAC256_spec_pad.HMAC_pad_concrete'.
 
-  split; omega.
-  split; omega.
+  split; lia.
+  split; lia.
 
   (* key length *)
   { rewrite map_length, bitsToBytes_len_gen with (n:=64%nat).
@@ -345,12 +346,12 @@ SearchAbout sha_splitandpad_inc.
 
   (* opad *)
   { apply bytes_bits_comp_ind.
-    apply Forall_list_repeat. unfold HP.Opad. omega.
+    apply Forall_list_repeat. unfold HP.Opad. lia.
     apply of_length_proof_irrel. }
 
   (* ipad *)
   { apply bytes_bits_comp_ind.
-    apply Forall_list_repeat. unfold HP.Ipad. omega.
+    apply Forall_list_repeat. unfold HP.Ipad. lia.
     apply of_length_proof_irrel. }
 
 Qed.

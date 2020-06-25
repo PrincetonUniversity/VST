@@ -5,21 +5,7 @@ Require Import VST.msl.Coqlib2.
 Require Import VST.floyd.coqlib3.
 Require Import VST.floyd.sublist.
 Require Import VST.floyd.functional_base.
-Ltac omega := Coq.omega.Omega.omega.
 
-(*
-Definition Vubyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.unsigned c)).
-
-Lemma Znth_map_Vubyte: forall (i : Z) (l : list byte),
-  0 <= i < Zlength l -> Znth i (map Vubyte l)  = Vubyte (Znth i l).
-Proof.
-  intros i l.
-  apply Znth_map.
-Qed.
-Locate Znth_map_Vubyte.
-Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.
-*)
 Local Open Scope nat.
 
 Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C :=
@@ -40,7 +26,7 @@ Qed.
 Lemma list_repeat_injective {A} (a a':A) n: (0<n)%nat ->
       list_repeat n a = list_repeat n a' -> a=a'.
   Proof. intros.
-    destruct n. omega. simpl in H0. inversion H0. trivial.
+    destruct n. lia. simpl in H0. inversion H0. trivial.
   Qed.
 
 Local Open Scope Z.
@@ -51,34 +37,34 @@ Lemma roundup_minus:
    forall a b,  b > 0 -> roundup a b - a = (- a) mod b.
 Proof.
 unfold roundup; intros.
-replace (a+(b-1)) with (a-1+1*b) by omega.
-rewrite Z_div_plus_full by omega.
+replace (a+(b-1)) with (a-1+1*b) by lia.
+rewrite Z_div_plus_full by lia.
 rewrite Z.mul_add_distr_r.
 assert (H4 := Zmod_eq a b H).
-assert (a mod b = 0 \/ a mod b <> 0) by omega.
-destruct H0; [rewrite Z.mod_opp_l_z | rewrite Z.mod_opp_l_nz]; try omega.
+assert (a mod b = 0 \/ a mod b <> 0) by lia.
+destruct H0; [rewrite Z.mod_opp_l_z | rewrite Z.mod_opp_l_nz]; try lia.
 rewrite H0 in H4.
-assert (a = a/b*b) by omega.
+assert (a = a/b*b) by lia.
 rewrite H1 at 1.
-replace (a/b*b-1) with (a/b*b+ -1) by omega.
-rewrite Z_div_plus_full_l by omega.
+replace (a/b*b-1) with (a/b*b+ -1) by lia.
+rewrite Z_div_plus_full_l by lia.
 rewrite Z.mul_add_distr_r.
 rewrite <- H1.
-assert (b=1 \/ b>1) by omega.
+assert (b=1 \/ b>1) by lia.
 destruct H2.
-subst b. simpl. omega.
-rewrite (Z_div_nz_opp_full 1) by (rewrite Z.mod_small; omega).
-rewrite  Z.div_small by omega.
-omega.
+subst b. simpl. lia.
+rewrite (Z_div_nz_opp_full 1) by (rewrite Z.mod_small; lia).
+rewrite  Z.div_small by lia.
+lia.
 rewrite H4.
-assert ( (a-1)/b*b = a/b*b); [ | omega].
+assert ( (a-1)/b*b = a/b*b); [ | lia].
 f_equal.
-assert (a = a mod b + a/b*b) by omega.
-replace (a-1) with (a mod b - 1 + a/b*b) by omega.
-rewrite Z_div_plus_full by omega.
-rewrite Z.div_small; try omega.
+assert (a = a mod b + a/b*b) by lia.
+replace (a-1) with (a mod b - 1 + a/b*b) by lia.
+rewrite Z_div_plus_full by lia.
+rewrite Z.div_small; try lia.
 pose proof (Z_mod_lt a b H).
-omega.
+lia.
 Qed.
 
 (*Definition isbyteZ (i: Z) := (0 <= i < 256)%Z. *)
@@ -118,16 +104,16 @@ Fixpoint bytelist_to_intlist (nl: list byte) : list int :=
   | _ => nil
   end.
 
-Hint Rewrite Int.bits_or using omega : testbit.
-Hint Rewrite Int.bits_shl using omega : testbit.
-Hint Rewrite Int.bits_and using omega : testbit.
-Hint Rewrite Int.bits_shru using omega : testbit.
-Hint Rewrite Int.unsigned_repr using omega : testbit.
-Hint Rewrite Int.testbit_repr using omega : testbit.
-Hint Rewrite if_false using omega : testbit.
-Hint Rewrite if_true using omega : testbit.
-Hint Rewrite Z.ones_spec_low using omega : testbit.
-Hint Rewrite Z.ones_spec_high using omega : testbit.
+Hint Rewrite Int.bits_or using lia : testbit.
+Hint Rewrite Int.bits_shl using lia : testbit.
+Hint Rewrite Int.bits_and using lia : testbit.
+Hint Rewrite Int.bits_shru using lia : testbit.
+Hint Rewrite Int.unsigned_repr using lia : testbit.
+Hint Rewrite Int.testbit_repr using lia : testbit.
+Hint Rewrite if_false using lia : testbit.
+Hint Rewrite if_true using lia : testbit.
+Hint Rewrite Z.ones_spec_low using lia : testbit.
+Hint Rewrite Z.ones_spec_high using lia : testbit.
 Hint Rewrite orb_false_r orb_true_r andb_false_r andb_true_r : testbit.
 Hint Rewrite orb_false_l orb_true_l andb_false_l andb_true_l : testbit.
 Hint Rewrite Z.add_simpl_r : testbit.
@@ -159,7 +145,7 @@ assert (Int.zwordsize=32) by reflexivity.
 change 255 with (Z.ones 8).
 assert (32 < Int.max_unsigned) by (compute; auto).
 autorewrite with testbit.
-if_tac; [if_tac; [if_tac | ] | ]; autorewrite with testbit; f_equal; omega.
+if_tac; [if_tac; [if_tac | ] | ]; autorewrite with testbit; f_equal; lia.
 Qed.
 
 Lemma map_swap_involutive:
@@ -174,7 +160,7 @@ Lemma length_intlist_to_bytelist:
   forall l, length (intlist_to_bytelist l) = (4 * length l)%nat.
 Proof.
 induction l.
-simpl. reflexivity. simpl. omega.
+simpl. reflexivity. simpl. lia.
 Qed.
 
 
@@ -191,15 +177,15 @@ assert (Byte.zwordsize = 8) by reflexivity.
 assert (Int.zwordsize = 32) by reflexivity.
 repeat f_equal; auto;
 apply Byte.same_bits_eq; intros;
-assert (0 <= i < Int.zwordsize) by omega;
+assert (0 <= i < Int.zwordsize) by lia;
 rewrite Byte.testbit_repr by auto;
 autorewrite with testbit.
 *
-rewrite (Byte.bits_above b) by omega.
-rewrite (Byte.bits_above c) by omega.
+rewrite (Byte.bits_above b) by lia.
+rewrite (Byte.bits_above c) by lia.
 rewrite !orb_false_r. auto.
 *
-rewrite (Byte.bits_above c) by omega.
+rewrite (Byte.bits_above c) by lia.
 rewrite !orb_false_r. auto.
 *
 auto.
@@ -221,17 +207,17 @@ unfold bytes_to_Int, Shr; simpl.
 apply Int.same_bits_eq; intros.
 autorewrite with testbit.
 destruct (zlt i 8); simpl.
-rewrite !if_true by omega; simpl.
+rewrite !if_true by lia; simpl.
 autorewrite with testbit; auto.
 destruct (zlt i 16); simpl.
-rewrite !if_true by omega; simpl.
+rewrite !if_true by lia; simpl.
 autorewrite with testbit.
-f_equal; omega.
+f_equal; lia.
 destruct (zlt i 24); simpl.
 autorewrite with testbit.
-f_equal; omega.
+f_equal; lia.
 autorewrite with testbit.
-f_equal; omega.
+f_equal; lia.
 Qed.
 
 Lemma intlist_to_bytelist_app:
@@ -269,7 +255,7 @@ Lemma map_unsigned_repr_isbyte:
 Proof. induction l; simpl; intros; auto.
   inv H. f_equal; auto. unfold isbyteZ in H2; apply Int.unsigned_repr.
  assert (Int.max_unsigned > 256)%Z by (compute; congruence).
- omega.
+ lia.
 Qed.
 *)
 
@@ -306,12 +292,12 @@ pose proof (Int.bits_shru a (Int.repr 8) (i-8)).
 spec H6; [rep_lia|].
 rewrite !Int.unsigned_repr in H6 by rep_lia.
 rewrite Z.sub_add in H6.
-rewrite if_true in H6 by omega.
+rewrite if_true in H6 by lia.
 pose proof (Int.bits_shru b (Int.repr 8) (i-8)).
 spec H7; [rep_lia|].
 rewrite !Int.unsigned_repr in H7 by rep_lia.
 rewrite Z.sub_add in H7.
-rewrite if_true in H7 by omega.
+rewrite if_true in H7 by lia.
 rewrite <- H6. rewrite <- H7.
 rewrite <- ?Ztest_Inttest.
 rewrite <- ?Byte.testbit_repr by rep_lia.
@@ -321,12 +307,12 @@ pose proof (Int.bits_shru a (Int.repr 16) (i-16)).
 spec H6; [rep_lia|].
 rewrite !Int.unsigned_repr in H6 by rep_lia.
 rewrite Z.sub_add in H6.
-rewrite if_true in H6 by omega.
+rewrite if_true in H6 by lia.
 pose proof (Int.bits_shru b (Int.repr 16) (i-16)).
 spec H7; [rep_lia|].
 rewrite !Int.unsigned_repr in H7 by rep_lia.
 rewrite Z.sub_add in H7.
-rewrite if_true in H7 by omega.
+rewrite if_true in H7 by lia.
 rewrite <- H6. rewrite <- H7.
 rewrite <- ?Ztest_Inttest.
 rewrite <- ?Byte.testbit_repr by rep_lia.
@@ -336,12 +322,12 @@ pose proof (Int.bits_shru a (Int.repr 24) (i-24)).
 spec H6; [rep_lia|].
 rewrite !Int.unsigned_repr in H6 by rep_lia.
 rewrite Z.sub_add in H6.
-rewrite if_true in H6 by omega.
+rewrite if_true in H6 by lia.
 pose proof (Int.bits_shru b (Int.repr 24) (i-24)).
 spec H7; [rep_lia|].
 rewrite !Int.unsigned_repr in H7 by rep_lia.
 rewrite Z.sub_add in H7.
-rewrite if_true in H7 by omega.
+rewrite if_true in H7 by lia.
 rewrite <- H6. rewrite <- H7.
 rewrite <- ?Ztest_Inttest.
 rewrite <- ?Byte.testbit_repr by rep_lia.
@@ -355,7 +341,7 @@ Proof.
 induction al; simpl; intros; auto.
 repeat rewrite Zlength_cons.
 rewrite IHal.
-omega.
+lia.
 Qed.
 
 Local Open Scope Z.
@@ -368,7 +354,7 @@ Lemma divide_length_app:
 Proof.
  intros. destruct H,H0. exists (x+x0)%Z.
  rewrite Zlength_app,H,H0;
- rewrite Z.mul_add_distr_r; omega.
+ rewrite Z.mul_add_distr_r; lia.
 Qed.
 
 Lemma nth_list_repeat: forall A i n (x :A),

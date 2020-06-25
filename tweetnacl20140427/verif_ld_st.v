@@ -42,7 +42,7 @@ entailer!.
  change (Int.unsigned Int.iwordsize) with 32.
  simpl.
 unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
-rewrite Z.mod_small; simpl; try omega.
+rewrite Z.mod_small; simpl; try lia.
 unfold Int.sub.
 rewrite Int.and_mone,Int.unsigned_repr; trivial.
 rewrite Int.unsigned_repr; rep_lia.
@@ -57,7 +57,7 @@ destruct (Int.ltu c Int.iwordsize) eqn:?H.
   2: {
     apply ltu_false_inv in H0.
     change (Int.unsigned Int.iwordsize) with 32 in H0.
-    omega.
+    lia.
   } 
   destruct (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) eqn:?H.
   2:{ 
@@ -66,7 +66,7 @@ destruct (Int.ltu c Int.iwordsize) eqn:?H.
     change (Int.unsigned (Int.repr 32)) with 32 in H1.
     rewrite Int.unsigned_repr in H1 by rep_lia.
     change (Int.unsigned Int.iwordsize) with 32 in H1.
-    omega.
+    lia.
   } 
 Time forward. (*8.8*)  
 {
@@ -77,7 +77,7 @@ Time forward. (*8.8*)
   unfold Int.signed.
   if_tac. rep_lia. repable_signed.
 =======
-  rewrite H0, H1; simpl; auto. intuition. omega.
+  rewrite H0, H1; simpl; auto. intuition. lia.
 >>>>>>> master
 }
 entailer!.
@@ -85,7 +85,7 @@ assert (W: Int.zwordsize = 32). reflexivity.
 assert (U: Int.unsigned Int.iwordsize=32). reflexivity.
 unfold sem_shift; simpl. rewrite H0, H1; simpl.
 unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
-rewrite Z.mod_small, W; simpl; try omega.
+rewrite Z.mod_small, W; simpl; try lia.
 unfold Int.sub.
 rewrite Int.and_mone.
 change (Int.unsigned (Int.repr 32)) with 32.
@@ -104,22 +104,22 @@ assert (RNG2:= Byte.unsigned_range_2 b2).
 assert (RNG1:= Byte.unsigned_range_2 b1).
 assert (RNG0:= Byte.unsigned_range_2 b0).
 Time forward. (*1.8*)
-Time entailer!; omega. (*1.1*)
+Time entailer!; lia. (*1.1*)
 Time forward. (*2*)
-Time entailer!; omega. (*1.1*)
+Time entailer!; lia. (*1.1*)
 Time forward. (*1.1*)
 Time forward. (*2.2*)
-Time entailer!; omega. (*1.3*)
+Time entailer!; lia. (*1.3*)
 Time forward. (*1.5*)
 drop_LOCAL 1%nat.
 Time forward.
-Time entailer!; omega. (*1.3*)
+Time entailer!; lia. (*1.3*)
 Time forward. (*5.2*)
 Time entailer!.
   assert (WS: Int.zwordsize = 32). reflexivity.
   assert (TP: two_p 8 = Byte.max_unsigned + 1). reflexivity.
   assert (BMU: Byte.max_unsigned = 255). reflexivity. simpl.
-  repeat rewrite Int.shifted_or_is_add; try repeat rewrite Int.unsigned_repr; try omega.
+  repeat rewrite Int.shifted_or_is_add; try repeat rewrite Int.unsigned_repr; try lia.
   f_equal. f_equal. simpl.
     rewrite Z.mul_add_distr_r.
     rewrite (Zmult_comm (Z.pow_pos 2 8)).
@@ -148,37 +148,37 @@ rewrite ! Z.mul_add_distr_l, ! (Z.mul_assoc _ (2^8)), <- ! Z.add_assoc; reflexiv
 Qed.
 
 Lemma lendian_nil: lendian [] = 0. Proof. reflexivity. Qed.
-Lemma lendian_singleton b: lendian [b] = Byte.unsigned b. Proof. simpl; omega. Qed.
+Lemma lendian_singleton b: lendian [b] = Byte.unsigned b. Proof. simpl; lia. Qed.
 
 Lemma lendian_app: forall l1 l2, lendian (l1++l2) =
    lendian l1 + 2^(8*Zlength l1) * lendian l2.
 Proof.
 induction l1; intros.
-+ rewrite Zlength_nil; simpl; omega.  
++ rewrite Zlength_nil; simpl; lia.  
 + simpl. rewrite IHl1. rewrite Zlength_cons; clear IHl1.
   rewrite ! Z.mul_add_distr_l, <- ! Z.add_assoc, Z.mul_assoc, Z.pow_pos_fold.
   f_equal. f_equal. 
-  rewrite <- Zpower_exp, <- Zmult_succ_r_reverse, Z.add_comm; trivial. omega.
-  specialize (Zlength_nonneg l1); omega. 
+  rewrite <- Zpower_exp, <- Zmult_succ_r_reverse, Z.add_comm; trivial. lia.
+  specialize (Zlength_nonneg l1); lia. 
 Qed.
 
 Lemma lendian_range: forall l, 0 <= lendian l < 2^(8*Zlength l).
 Proof. induction l; simpl; intros.
-+ omega.
++ lia.
 + rewrite Zlength_cons. destruct (Byte.unsigned_range a).
   assert (Z.pow_pos 2 8 = 256) by reflexivity.
-  split. rewrite H1. apply Z.add_nonneg_nonneg; trivial; omega.
-  rewrite <- Zmult_succ_r_reverse, Z.pow_add_r; [| specialize (Zlength_nonneg l); omega | omega ].
+  split. rewrite H1. apply Z.add_nonneg_nonneg; trivial; lia.
+  rewrite <- Zmult_succ_r_reverse, Z.pow_add_r; [| specialize (Zlength_nonneg l); lia | lia ].
   rewrite Z.mul_comm. change (Z.pow_pos 2 8) with (2^8).
-  assert (Byte.unsigned a + lendian l * 2 ^ 8 < Byte.modulus + lendian l * 2 ^ 8). omega.
+  assert (Byte.unsigned a + lendian l * 2 ^ 8 < Byte.modulus + lendian l * 2 ^ 8). lia.
   eapply Z.lt_le_trans. apply H2. clear H2 H0. change Byte.modulus with 256.
   change (2^8) with 256. specialize (Z.mul_add_distr_r 1 (lendian l) 256). rewrite Z.mul_1_l.
-  intros X; rewrite <- X; clear X. apply Zmult_le_compat_r; omega.
+  intros X; rewrite <- X; clear X. apply Zmult_le_compat_r; lia.
 Qed.
 
 Definition bendian l: Z := lendian (rev l).
 Lemma bendian_nil: bendian [] = 0. Proof. reflexivity. Qed.
-Lemma bendian_singleton b: bendian [b] = Byte.unsigned b. Proof. unfold bendian. simpl; omega. Qed.
+Lemma bendian_singleton b: bendian [b] = Byte.unsigned b. Proof. unfold bendian. simpl; lia. Qed.
 
 Lemma bendian_app l1 l2: bendian (l1++l2) = bendian l2 + 2^(8*Zlength l2) * bendian l1.
 Proof. unfold bendian. rewrite rev_app_distr, lendian_app, Zlength_rev; trivial. Qed.
@@ -199,12 +199,12 @@ Proof. apply Zbits.equal_same_bits; intros.
 Qed. 
 
 Lemma Byte_unsigned_range_32 b: 0 <= Byte.unsigned b <= Int.max_unsigned.
-Proof. destruct (Byte.unsigned_range_2 b). specialize Byte_Int_max_unsigned; omega. Qed.
+Proof. destruct (Byte.unsigned_range_2 b). specialize Byte_Int_max_unsigned; lia. Qed.
 
 Lemma Byte_unsigned_range_64 b: 0 <= Byte.unsigned b <= Int64.max_unsigned.
 Proof. destruct (Byte.unsigned_range_2 b).
   unfold Int64.max_unsigned; simpl.
-  unfold Byte.max_unsigned in H0; simpl in H0; omega.
+  unfold Byte.max_unsigned in H0; simpl in H0; lia.
 Qed. 
 
 Lemma dl64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
@@ -234,39 +234,39 @@ forward_for_simple_bound 8 (EX i:Z,
      apply Byte.unsigned_range_2.
   + simpl; rewrite HH. forward.
     entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
-    2: omega. 2: rewrite ! Zlength_cons, Zlength_nil; omega.
+    2: lia. 2: rewrite ! Zlength_cons, Zlength_nil; lia.
     rewrite sublist_len_1.
-    2: rewrite ! Zlength_cons, Zlength_nil; omega.
+    2: rewrite ! Zlength_cons, Zlength_nil; lia.
     simpl.
     unfold Int64.or. rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).
-    2: unfold Int64.max_unsigned; simpl; omega.
+    2: unfold Int64.max_unsigned; simpl; lia.
     rewrite Int64.unsigned_repr. 2: apply Byte_unsigned_range_64.
     change (two_p 8) with 256. 
     rewrite bendian_app, bendian_singleton. simpl.
     unfold Int64.mul.
-    rewrite (Int64.unsigned_repr 256). 2: unfold Int64.max_unsigned; simpl; omega.
+    rewrite (Int64.unsigned_repr 256). 2: unfold Int64.max_unsigned; simpl; lia.
     rewrite Zplus_comm, Zmult_comm, Zlor_2powpos_add. 2: apply Byte.unsigned_range.
     f_equal. f_equal. remember (bendian (sublist 0 i [b0; b1; b2; b3; c0; c1; c2; c3])) as q.
     specialize (Int64.shifted_or_is_add  (Int64.repr q) Int64.zero 8).
     change (two_p 8) with 256. rewrite Int64.unsigned_zero, Z.add_0_r.
     intros X; rewrite <- X, Int64.or_zero; clear X.
-     2: replace Int64.zwordsize with 64 by reflexivity; omega. 2: omega.
+     2: replace Int64.zwordsize with 64 by reflexivity; lia. 2: lia.
     rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).
-    2: unfold Int64.max_unsigned; simpl; omega.
+    2: unfold Int64.max_unsigned; simpl; lia.
     unfold Int64.mul.
     assert (Q: 0 <= q < 2^56).
     { specialize (bendian_range (sublist 0 i [b0; b1; b2; b3; c0; c1; c2; c3])).             
       rewrite Zlength_sublist, Zminus_0_r, <- Heqq. intros. 
-      assert (2^(8 * i) <= 2^56) by (apply Z.pow_le_mono_r; omega). omega.
-      omega. change (Zlength [b0; b1; b2; b3; c0; c1; c2; c3]) with 8; omega. }
+      assert (2^(8 * i) <= 2^56) by (apply Z.pow_le_mono_r; lia). lia.
+      lia. change (Zlength [b0; b1; b2; b3; c0; c1; c2; c3]) with 8; lia. }
     change (2^56) with 72057594037927936 in Q.
     change (two_p 8) with 256. change (Z.pow_pos 2 8) with 256. 
     rewrite (Int64.unsigned_repr 256).
-    2: unfold Int64.max_unsigned; simpl; omega.
+    2: unfold Int64.max_unsigned; simpl; lia.
     rewrite (Int64.unsigned_repr q).
-    2: unfold Int64.max_unsigned; simpl; omega.
+    2: unfold Int64.max_unsigned; simpl; lia.
     rewrite Int64.unsigned_repr; trivial.
-    unfold Int64.max_unsigned; simpl; omega. } 
+    unfold Int64.max_unsigned; simpl; lia. } 
 forward. apply prop_right.
 clear H H0. 
 unfold bendian. simpl. 
@@ -278,10 +278,10 @@ Qed.
 Lemma div_bound u n (N:1<n): 0 <= Int.unsigned u / n <= Int.max_unsigned.
 Proof.
 destruct (Int.unsigned_range u).
-split. apply Z_div_pos; try omega. 
+split. apply Z_div_pos; try lia. 
 assert (Int.unsigned u / n <Int.modulus).
-2: unfold Int.max_unsigned; omega.
-apply Z.div_lt_upper_bound; try omega.
+2: unfold Int.max_unsigned; lia.
+apply Z.div_lt_upper_bound; try lia.
 specialize (Z.mul_lt_mono_nonneg 1 n (Int.unsigned u) (Int.modulus)).
 rewrite Z.mul_1_l. intros Q; apply Q; trivial.
 Qed. 
@@ -306,7 +306,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   destruct FC_ptrX as [FC ptrX].
   Time forward. (*3.2*)
   Time forward. (*0.8*)
-  rewrite Z.add_comm, Z2Nat.inj_add; try omega.
+  rewrite Z.add_comm, Z2Nat.inj_add; try lia.
   Time entailer!. (*1.5*)
   unfold upd_Znth.
   autorewrite with sublist.
@@ -322,50 +322,50 @@ Time forward_for_simple_bound 4 (EX i:Z,
             rewrite (Zaux.Zmod_mod_mult _ (2^16) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
             rewrite <- (Int.zero_ext_mod 8).
               rewrite Int.repr_unsigned; trivial.
-              rewrite ZW; omega.
+              rewrite ZW; lia.
           assert (0 <= ((Int.unsigned u mod Z.pow_pos 2 24) mod Z.pow_pos 2 16) mod Z.pow_pos 2 8 < Byte.modulus).
             apply Z_mod_lt. cbv; trivial.
-            unfold Byte.max_unsigned. omega. }
+            unfold Byte.max_unsigned. lia. }
         destruct (zeq i 1); subst; simpl. f_equal. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.
           2:{ assert (0 <= (Int.unsigned u mod Z.pow_pos 2 24) mod Z.pow_pos 2 16 / Z.pow_pos 2 8 < Byte.modulus).
-                   2:{ unfold Byte.max_unsigned. omega. }
+                   2:{ unfold Byte.max_unsigned. lia. }
                    split. apply Z_div_pos. cbv; trivial. apply Z_mod_lt. cbv; trivial.
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Z_mod_lt. cbv; trivial.
           }
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H.
-          rewrite (Z.div_pow2_bits _ 8); try omega.
-          rewrite (Zbits.Ztestbit_mod_two_p 16); try omega.
-          rewrite (Zbits.Ztestbit_mod_two_p 24); try omega.
-          rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW. (* Ztest_Inttest.*)
+          rewrite (Z.div_pow2_bits _ 8); try lia.
+          rewrite (Zbits.Ztestbit_mod_two_p 16); try lia.
+          rewrite (Zbits.Ztestbit_mod_two_p 24); try lia.
+          rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW. (* Ztest_Inttest.*)
           remember (zlt i 8). 
-          destruct s. repeat rewrite zlt_true. trivial. omega. omega. omega.
-          rewrite zlt_false. trivial. omega. }
+          destruct s. repeat rewrite zlt_true. trivial. lia. lia. lia.
+          rewrite zlt_false. trivial. lia. }
         destruct (zeq i 2); subst; simpl. f_equal. f_equal. f_equal.
           f_equal.
         { rewrite Byte.unsigned_repr.
           2:{ assert (0 <= Int.unsigned u mod Z.pow_pos 2 24 / Z.pow_pos 2 16 < Byte.modulus).
-                   2: unfold Byte.max_unsigned; omega.
+                   2: unfold Byte.max_unsigned; lia.
                    split. apply Z_div_pos. cbv; trivial. apply Z_mod_lt. cbv; trivial.
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Z_mod_lt. cbv; trivial.
           }
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H.
-          rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW.
-          rewrite (Z.div_pow2_bits _ 16); try omega.
-          rewrite (Zbits.Ztestbit_mod_two_p 24); try omega.
+          rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW.
+          rewrite (Z.div_pow2_bits _ 16); try lia.
+          rewrite (Zbits.Ztestbit_mod_two_p 24); try lia.
           (*rewrite Ztest_Inttest.*)
           remember (zlt i 8). 
           destruct s. repeat rewrite zlt_true. rewrite Int.bits_shru, EIGHT, ZW.
-              rewrite zlt_true. rewrite <- Z.add_assoc. reflexivity. omega. omega. omega. omega.
-          rewrite zlt_false. trivial. omega. }
+              rewrite zlt_true. rewrite <- Z.add_assoc. reflexivity. lia. lia. lia. lia.
+          rewrite zlt_false. trivial. lia. }
         destruct (zeq i 3); subst; simpl.
         + f_equal. f_equal. f_equal. f_equal.
           f_equal.
           rewrite Byte.unsigned_repr.  
           2:{ assert (0 <= Int.unsigned u / Z.pow_pos 2 24 < Byte.modulus).
-                   2: unfold Byte.max_unsigned; omega.
+                   2: unfold Byte.max_unsigned; lia.
                    split. apply Z_div_pos. cbv; trivial. apply Int.unsigned_range. 
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Int.unsigned_range. 
           }
@@ -380,9 +380,9 @@ Time forward_for_simple_bound 4 (EX i:Z,
           apply zero_ext_inrange.
           rewrite (Int.unsigned_repr (Int.unsigned u / Z.pow_pos 2 24)).
           2: apply div_bound; cbv; trivial. 
-          assert (Int.unsigned u / Z.pow_pos 2 24 < two_p 8). 2: omega.
+          assert (Int.unsigned u / Z.pow_pos 2 24 < two_p 8). 2: lia.
           apply Z.div_lt_upper_bound; trivial. apply Int.unsigned_range.
-        + omega. 
+        + lia. 
  }
  forward. 
 Time Qed. (*4.9*) 
@@ -410,31 +410,31 @@ Proof. unfold iter64Shr8'.
     intros X; rewrite <- X, Int64.mul_commut, Int64.add_unsigned; clear X.
     f_equal. f_equal. unfold Int64.one.
     rewrite 2 Int64.unsigned_repr; try reflexivity.   
-    unfold Int64.max_unsigned; simpl; omega.
-    unfold Int64.max_unsigned; simpl; omega.
+    unfold Int64.max_unsigned; simpl; lia.
+    unfold Int64.max_unsigned; simpl; lia.
  - rewrite W, Int64.mul_signed, 2 Int64.signed_repr.
    unfold Int64.ltu. rewrite (Int64.unsigned_repr 64), if_true; trivial.
-   rewrite Int64.unsigned_repr. omega.
-   unfold Int64.max_unsigned; simpl; omega.
-   unfold Int64.max_unsigned; simpl; omega.
-   unfold Int64.min_signed, Int64.max_signed; simpl; omega.
-   unfold Int64.min_signed, Int64.max_signed; simpl; omega.
+   rewrite Int64.unsigned_repr. lia.
+   unfold Int64.max_unsigned; simpl; lia.
+   unfold Int64.max_unsigned; simpl; lia.
+   unfold Int64.min_signed, Int64.max_signed; simpl; lia.
+   unfold Int64.min_signed, Int64.max_signed; simpl; lia.
  - rewrite W. unfold Int64.ltu. rewrite if_true; trivial.
  - rewrite W. unfold Int64.ltu. rewrite Int64.mul_signed, Int64.add_signed, if_true; trivial.
    rewrite (Int64.signed_repr 8). 
-   2: unfold Int64.min_signed, Int64.max_signed; simpl; omega.
+   2: unfold Int64.min_signed, Int64.max_signed; simpl; lia.
    rewrite (Int64.signed_repr (Z.of_nat n)).   
-   2: unfold Int64.min_signed, Int64.max_signed; simpl; omega.
+   2: unfold Int64.min_signed, Int64.max_signed; simpl; lia.
    rewrite Int64.signed_repr. 
-   2: unfold Int64.min_signed, Int64.max_signed; simpl; omega.
-   rewrite 2 Int64.unsigned_repr. omega.
-   unfold Int64.max_unsigned; simpl; omega.
-   unfold Int64.max_unsigned; simpl; omega.
- - omega.
+   2: unfold Int64.min_signed, Int64.max_signed; simpl; lia.
+   rewrite 2 Int64.unsigned_repr. lia.
+   unfold Int64.max_unsigned; simpl; lia.
+   unfold Int64.max_unsigned; simpl; lia.
+ - lia.
 Qed. 
 
 Lemma unsigned_repr' z (Q: 0 <= z < Byte.modulus): Byte.unsigned (Byte.repr z) = z.
-Proof. apply Byte.unsigned_repr. unfold Byte.max_unsigned. omega. Qed.
+Proof. apply Byte.unsigned_repr. unfold Byte.max_unsigned. lia. Qed.
 
 Lemma shru_shru x n m (NM:Int64.unsigned n + Int64.unsigned m <= Int64.max_unsigned): 
       Int64.shru (Int64.shru x n) m = Int64.shru x (Int64.add n m).
@@ -443,19 +443,19 @@ specialize (Int64.unsigned_range n).
 specialize (Int64.unsigned_range m).
 specialize (Int64.unsigned_range x). intros X M N.
 rewrite Int64.unsigned_repr, Zdiv_Zdiv, <- two_p_is_exp, Int64.add_unsigned, 
-Int64.unsigned_repr; trivial; try apply two_p_gt_ZERO; try omega.
+Int64.unsigned_repr; trivial; try apply two_p_gt_ZERO; try lia.
 
-+ specialize (two_p_strict (Int64.unsigned n)); omega.
-+ specialize (two_p_strict (Int64.unsigned m)); omega.
++ specialize (two_p_strict (Int64.unsigned n)); lia.
++ specialize (two_p_strict (Int64.unsigned m)); lia.
 
 + split. 
-  - apply Z_div_pos; trivial. apply two_p_gt_ZERO; try omega. omega.
-  - assert (Int64.unsigned x / two_p (Int64.unsigned n) < Int64.max_unsigned +1). 2: omega.
+  - apply Z_div_pos; trivial. apply two_p_gt_ZERO; try lia. lia.
+  - assert (Int64.unsigned x / two_p (Int64.unsigned n) < Int64.max_unsigned +1). 2: lia.
     specialize (two_p_gt_ZERO (Int64.unsigned n)); intros A.
-    apply Z.div_lt_upper_bound. omega. eapply Z.lt_le_trans. apply X.
-    unfold Int64.max_unsigned. replace (Int64.modulus - 1 + 1) with Int64.modulus by omega.
+    apply Z.div_lt_upper_bound. lia. eapply Z.lt_le_trans. apply X.
+    unfold Int64.max_unsigned. replace (Int64.modulus - 1 + 1) with Int64.modulus by lia.
     specialize (Zmult_le_compat_l 1 (two_p (Int64.unsigned n)) Int64.modulus).
-    rewrite Z.mul_1_r, Z.mul_comm. intros Y; apply Y; omega.
+    rewrite Z.mul_1_r, Z.mul_comm. intros Y; apply Y; lia.
 Qed.
 (*
 Lemma TS64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
@@ -662,35 +662,35 @@ Eval compute in (tc_expr Delta (Ecast e2 tuchar)).
         myadmit. (*!! typecheck_error (invalid_cast_result tuchar tuchar)*)
         solve [entailer!]. 
   Time forward. entailer. myadmit. (*another tc_error*)  
-  rewrite Z.add_comm, Z2Nat.inj_add; try omega.
+  rewrite Z.add_comm, Z2Nat.inj_add; try lia.
   Time entailer!. (*1.5*)
   unfold upd_Znth. clear H.
   autorewrite with sublist.
-  replace (8 - (1 + i)) with (7-i) by omega. 
-  replace (7 - i + 1) with (8-i) by omega.
-  replace (i+(8-i)) with 8 by omega.
+  replace (8 - (1 + i)) with (7-i) by lia. 
+  replace (7 - i + 1) with (8-i) by lia.
+  replace (i+(8-i)) with 8 by lia.
   rewrite field_at_data_at. simpl. unfold field_address. simpl.
   if_tac. 2: solve [contradiction].
   rewrite isptr_offset_val_zero; [| trivial]. clear H.
   apply data_at_ext. f_equal.
-  rewrite <- (sublist_rejoin (7-i) (7-i+1) 8). 2: omega. 2: unfold Zlength; simpl; omega.
+  rewrite <- (sublist_rejoin (7-i) (7-i+1) 8). 2: lia. 2: unfold Zlength; simpl; lia.
   rewrite pure_lemmas.sublist_singleton with (d:=Vundef); simpl.
-  2: unfold Zlength; simpl; omega.
-  replace (7 - i + 1) with (8-i) by omega. f_equal.
-  rewrite iter64; try rewrite Z2Nat.id; try omega. unfold iter64Shr8', Int64.shru. 
+  2: unfold Zlength; simpl; lia.
+  replace (7 - i + 1) with (8-i) by lia. f_equal.
+  rewrite iter64; try rewrite Z2Nat.id; try lia. unfold iter64Shr8', Int64.shru. 
   rewrite Int64.mul_signed.
-  rewrite 2 Int64.signed_repr; try rewrite Z2Nat.id; try unfold Int64.min_signed, Int64.max_signed; simpl; try omega.
+  rewrite 2 Int64.signed_repr; try rewrite Z2Nat.id; try unfold Int64.min_signed, Int64.max_signed; simpl; try lia.
   rewrite (Int64.unsigned_repr (8 * i)).
-  2: unfold Int64.max_unsigned; simpl; omega.
+  2: unfold Int64.max_unsigned; simpl; lia.
   specialize (Int64.unsigned_range u); specialize (Z.pow_pos_nonneg 2 (8*i)); intros NN U.
   rewrite Int64.unsigned_repr.
-  2:{ rewrite Z.shiftr_div_pow2 by omega.
-           split. apply Z_div_pos; omega. 
+  2:{ rewrite Z.shiftr_div_pow2 by lia.
+           split. apply Z_div_pos; lia. 
            assert (Int64.unsigned u / 2 ^ (8 * i) < Int64.modulus).
-           2: solve [unfold Int64.max_unsigned; omega].
-           apply Zdiv_lt_upper_bound. omega.
-           assert (Int64.modulus <= Int64.modulus * 2 ^ (8 * i)). 2: omega.
-           apply Z.le_mul_diag_r; omega.
+           2: solve [unfold Int64.max_unsigned; lia].
+           apply Zdiv_lt_upper_bound. lia.
+           assert (Int64.modulus <= Int64.modulus * 2 ^ (8 * i)). 2: lia.
+           apply Z.le_mul_diag_r; lia.
   }
   assert (ADD16: Int64.add (Int64.repr 8) (Int64.repr 8)
          = Int64.repr 16) by reflexivity.
@@ -714,13 +714,13 @@ Eval compute in (tc_expr Delta (Ecast e2 tuchar)).
   assert (UBND: forall n m, Pos.add m n=64%positive -> 0 <= Int64.unsigned u / Z.pow_pos 2 n < Z.pow_pos 2 m).
   { intros. 
     destruct (Int64.unsigned_range u).
-    split. apply Z_div_pos; trivial. specialize (Fcore_Zaux.Zpower_pos_gt_0 2 n); omega.
-    apply Zdiv_lt_upper_bound; trivial. specialize (Fcore_Zaux.Zpower_pos_gt_0 2 n); omega.
+    split. apply Z_div_pos; trivial. specialize (Fcore_Zaux.Zpower_pos_gt_0 2 n); lia.
+    apply Zdiv_lt_upper_bound; trivial. specialize (Fcore_Zaux.Zpower_pos_gt_0 2 n); lia.
     rewrite <- Zpower_pos_is_exp, H.
     change Int64.modulus with (Z.pow_pos 2 64) in H1; trivial. }(*
   assert (B1: 0 <= Int64.unsigned u / Z.pow_pos 2 56 <= Byte.max_unsigned).
   { destruct (UBND 56 8)%positive. reflexivity.
-    replace Byte.max_unsigned with (Z.pow_pos 2 8 -1). omega. reflexivity. }*) 
+    replace Byte.max_unsigned with (Z.pow_pos 2 8 -1). lia. reflexivity. }*) 
   assert (UNS_B_I64: Byte.max_unsigned <= Int64.max_unsigned) by (cbv; congruence). 
   assert (UNS_B_I: Byte.max_unsigned <= Int.max_unsigned) by (cbv; congruence).
   destruct (zeq i 0).
@@ -732,26 +732,26 @@ Eval compute in (tc_expr Delta (Ecast e2 tuchar)).
     (*specialize (UBND 56 8)%positive. rewrite Z.pow_pos_fold in UBND.*)
     rewrite ! shru_shru, ADD56.
     + rewrite Int64.shru_div_two_p, (Int64.unsigned_repr 56), two_p_correct.
-      2: unfold Int64.max_unsigned; simpl; omega.
+      2: unfold Int64.max_unsigned; simpl; lia.
       rewrite Int64.unsigned_repr.
       * rewrite zero_ext_inrange. f_equal; f_equal.
         - unfold bigendian64_invert in HeqU; inv HeqU.
           rewrite Byte.unsigned_repr. reflexivity. change Byte.max_unsigned with (Z.pow_pos 2 8 -1).
-          specialize (UBND 56 8 (eq_refl _))%positive; omega.
+          specialize (UBND 56 8 (eq_refl _))%positive; lia.
         - rewrite Int.unsigned_repr, two_p_equiv. specialize (UBND 56 8 (eq_refl _))%positive.
-          rewrite ! Z.pow_pos_fold in UBND. omega.
+          rewrite ! Z.pow_pos_fold in UBND. lia.
           specialize (UBND 56 8 (eq_refl _))%positive.
           rewrite ! Z.pow_pos_fold in UBND.
-          assert (2^8 < Int.max_unsigned) by (cbv; trivial). omega.
+          assert (2^8 < Int.max_unsigned) by (cbv; trivial). lia.
        * specialize (UBND 56 8 (eq_refl _))%positive.
          rewrite ! Z.pow_pos_fold in UBND.
-         assert (2^8 < Int64.max_unsigned) by (cbv; trivial). omega.
-    + rewrite ADD48. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ADD40. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ADD32. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ADD24. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ADD16. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ! Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega. }
+         assert (2^8 < Int64.max_unsigned) by (cbv; trivial). lia.
+    + rewrite ADD48. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ADD40. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ADD32. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ADD24. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ADD16. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ! Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia. }
   destruct (zeq i 0).
   { subst; simpl in *. unfold Znth; simpl. f_equal.
     unfold bigendian64_invert in HeqU; inv HeqU. simpl.
@@ -777,81 +777,81 @@ specialize (Int.zero_ext_mod 8).
   fold (testbit (zero_ext n x) i).
   destruct (zlt i zwordsize).
   rewrite bits_zero_ext; auto.
-  rewrite bits_above. rewrite zlt_false; auto. omega. omega.
-  omega.
+  rewrite bits_above. rewrite zlt_false; auto. lia. lia.
+  lia.
 Qed.
 
 
               rewrite Int.repr_unsigned; trivial.
-              rewrite ZW; omega.
+              rewrite ZW; lia.
           assert (0 <= ((Int.unsigned u mod Z.pow_pos 2 24) mod Z.pow_pos 2 16) mod Z.pow_pos 2 8 < Byte.modulus).
             apply Z_mod_lt. cbv; trivial. 
-            unfold Byte.max_unsigned. omega. }
+            unfold Byte.max_unsigned. lia. }
   destruct (zeq i 6).
   { subst; simpl in *. unfold Znth; simpl.
     (*assert ((56 <= 56)%positive) by apply Pos.le_refl.
     specialize (B1 _ H); clear H. rewrite Z.pow_pos_fold in B1.*)
     rewrite ! shru_shru, ADD48.
     + rewrite Int64.shru_div_two_p, (Int64.unsigned_repr 48), two_p_correct.
-      2: unfold Int64.max_unsigned; simpl; omega.
+      2: unfold Int64.max_unsigned; simpl; lia.
       assert (QQ:= (UBND 48 16 (eq_refl _))%positive).
       rewrite ! Z.pow_pos_fold in QQ.
       rewrite Int64.unsigned_repr.
-      2:{ assert (2 ^ 16 < Int64.max_unsigned) by (cbv; trivial). omega. f_equal; f_equal. }
+      2:{ assert (2 ^ 16 < Int64.max_unsigned) by (cbv; trivial). lia. f_equal; f_equal. }
       unfold bigendian64_invert in HeqU; inv HeqU. simpl.
       destruct (Int64.unsigned_range u).
       destruct (zlt (Int64.unsigned u) (Z.pow_pos 2 56)).
-      - rewrite Zmod_small by omega. rewrite ! Z.pow_pos_fold.
+      - rewrite Zmod_small by lia. rewrite ! Z.pow_pos_fold.
         assert (0<= Int64.unsigned u / 2 ^ 48 < 2^8).
-        { split; try omega. apply Zdiv_lt_upper_bound; trivial. }
-        (*rewrite Int.unsigned_repr. 2: change Byte.max_unsigned with (2^8-1) in UNS_B_I; omega.*)
-        rewrite Byte.unsigned_repr. 2: change Byte.max_unsigned with (2^8-1); omega.
+        { split; try lia. apply Zdiv_lt_upper_bound; trivial. }
+        (*rewrite Int.unsigned_repr. 2: change Byte.max_unsigned with (2^8-1) in UNS_B_I; lia.*)
+        rewrite Byte.unsigned_repr. 2: change Byte.max_unsigned with (2^8-1); lia.
         rewrite zero_ext_inrange; trivial.
-        rewrite Int.unsigned_repr. 2: change Byte.max_unsigned with (2^8-1) in UNS_B_I; omega.
-        change (two_p 8) with (2^8); omega.
+        rewrite Int.unsigned_repr. 2: change Byte.max_unsigned with (2^8-1) in UNS_B_I; lia.
+        change (two_p 8) with (2^8); lia.
       - specialize (Fcore_Zaux.Zdiv_mod_mult (Int64.unsigned u) (Z.pow_pos 2 48) (Z.pow_pos 2 8)); intros.
         change ((Z.pow_pos 2 48 * Z.pow_pos 2 8)%Z) with (Z.pow_pos 2 56) in H1.
         rewrite H1. rewrite Byte.unsigned_repr. 2:{ destruct (Z_mod_lt (Int64.unsigned u / Z.pow_pos 2 48) (Z.pow_pos 2 8)). cbv; trivial. }
-              change Byte.max_unsigned with (Z.pow_pos 2 8 -1). omega.
+              change Byte.max_unsigned with (Z.pow_pos 2 8 -1). lia.
         unfold Int.zero_ext.
- clear - H1; rewrite int_max_unsigned_eq; split; try omega. specialize (Fcore_Zaux.Zpower_pos_gt_0 2 n); omega.
+ clear - H1; rewrite int_max_unsigned_eq; split; try lia. specialize (Fcore_Zaux.Zpower_pos_gt_0 2 n); lia.
     rewrite <- Zpower_pos_is_exp, H.
     change Int64.modulus with (Z.pow_pos 2 64) in H1; trivial.
         
       rewrite (Zdiv_small (Int64.unsigned u mod Z.pow_pos 2 56)).
       2:{ specialize (Zmod_unique (Int64.unsigned u) (Z.pow_pos 2 56)); intros.
       rewrite Int.unsigned_repr.
-      2:{ assert (2 ^ 16 < Int64.max_unsigned) by (cbv; trivial). omega. }
+      2:{ assert (2 ^ 16 < Int64.max_unsigned) by (cbv; trivial). lia. }
       unfold Int.zero_ext. f_equal. f_equal. }
-      apply Byte.equal_same_bits; intros. rewrite Int.Zzero_ext_spec by omega.
+      apply Byte.equal_same_bits; intros. rewrite Int.Zzero_ext_spec by lia.
       unfold bigendian64_invert in HeqU; inv HeqU. simpl.
 specialize (Zmod_recombine (Int64.unsigned u) (Z.pow_pos 2 8) (Z.pow_pos 2 48)). intros.
 replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
       rewrite H0.
       destruct (zlt i 8).
       rewrite <- (Byte.testbit_repr (Byte.unsigned b2)), Byte.repr_unsigned. unfold Byte.testbit.
-      rewrite if_true. by omega.
+      rewrite if_true. by lia.
       rewrite Int64.unsigned_repr.
       unfold Int.zero_ext. rewrite Int.unsigned_repr.
  
  unfold Int.zero_ext. f_equal. f_equal.
-      rewrite Int64.unsigned_repr by omega.
+      rewrite Int64.unsigned_repr by lia.
       rewrite zero_ext_inrange. f_equal; f_equal.
       - unfold bigendian64_invert in HeqU; inv HeqU.
-        rewrite Byte.unsigned_repr. reflexivity. rewrite Z.pow_pos_fold. omega.
-      - rewrite Int.unsigned_repr. apply B1. omega.
-    + rewrite ADD48. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ADD40. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ADD32. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ADD24. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ADD16. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega.
-    + rewrite ! Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; omega. }
+        rewrite Byte.unsigned_repr. reflexivity. rewrite Z.pow_pos_fold. lia.
+      - rewrite Int.unsigned_repr. apply B1. lia.
+    + rewrite ADD48. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ADD40. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ADD32. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ADD24. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ADD16. rewrite 2 Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia.
+    + rewrite ! Int64.unsigned_repr; unfold Int64.max_unsigned; simpl; lia. }
 
-    + rewrite ! Int64.add_unsigned. rewrite ! Int64.unsigned_repr; simpl; unfold Int64.max_unsigned; simpl; try omega.
+    + rewrite ! Int64.add_unsigned. rewrite ! Int64.unsigned_repr; simpl; unfold Int64.max_unsigned; simpl; try lia.
     + } 
-    rewrite two_p_correct. rewrite Z.pow_pos_fold in B1. omega.
-    unfold Int64.max_unsigned; simpl; omega.
-    rewrite Int64.shru_div_two_p.  UNSB_I64.  <- two_power_nat_two_p. omega. apply B1; apply  Pos.le_refl. cbv. omega. myadmit.  myadmit.  myadmit.  myadmit.  myadmit.
+    rewrite two_p_correct. rewrite Z.pow_pos_fold in B1. lia.
+    unfold Int64.max_unsigned; simpl; lia.
+    rewrite Int64.shru_div_two_p.  UNSB_I64.  <- two_power_nat_two_p. lia. apply B1; apply  Pos.le_refl. cbv. lia. myadmit.  myadmit.  myadmit.  myadmit.  myadmit.
     myadmit.  myadmit.  myadmit.  myadmit.  myadmit. }
   destruct (zeq i 6).
   { subst; simpl in *. unfold Znth; simpl.
@@ -881,36 +881,36 @@ replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
     unfold Int64.shru.  simpl. ! Int64.add_unsigned. (Int64.unsigned_repr 8).
     
 
- rewrite if_false by omega.
+ rewrite if_false by lia.
 
   unfold Znth; simpl. 
-  rewrite if_false by omega. destruct (Int64.unsigned_range_2 u).
+  rewrite if_false by lia. destruct (Int64.unsigned_range_2 u).
   unfold bigendian64_invert in HeqU. inv HeqU. 
   assert (BMU: Byte.max_unsigned = 255) by reflexivity.
   assert (I64MU: Int64.max_unsigned = Z.pow 2 64 -1) by reflexivity.
-  rewrite iter64. 2: rewrite Z2Nat.id; omega. 
-  unfold iter64Shr8'. rewrite Z2Nat.id; try omega. 
+  rewrite iter64. 2: rewrite Z2Nat.id; lia. 
+  unfold iter64Shr8'. rewrite Z2Nat.id; try lia. 
   rewrite Int64.mul_signed.
-  rewrite 2 Int64.signed_repr; try (unfold Int64.min_signed, Int64.max_signed; simpl; omega).
-  rewrite Int64.shru_div_two_p, (Int64.unsigned_repr (8 * i)). 2: unfold Int64.max_unsigned; simpl; omega.
+  rewrite 2 Int64.signed_repr; try (unfold Int64.min_signed, Int64.max_signed; simpl; lia).
+  rewrite Int64.shru_div_two_p, (Int64.unsigned_repr (8 * i)). 2: unfold Int64.max_unsigned; simpl; lia.
   assert (GT:= two_p_gt_ZERO (8*i)).
   assert (BND1: 0 <= Int64.unsigned u / Z.pow_pos 2 56 < Byte.modulus).
   { split. apply Z_div_pos; trivial. cbv; trivial.
-           apply Z.div_lt_upper_bound. cbv; trivial. simpl in *. omega. } 
+           apply Z.div_lt_upper_bound. cbv; trivial. simpl in *. lia. } 
 (*  assert (BND1: 0 <= Int64.unsigned u / Z.pow_pos 2 56 < Byte.max_unsigned).
   { split. apply Z_div_pos; trivial. cbv; trivial.
-           assert (Int64.unsigned u / Z.pow_pos 2 56 < Byte.modulus). 2: unfold Byte.max_unsigned; omega.
-           apply Z.div_lt_upper_bound. cbv; trivial. simpl in *. omega. }*)
+           assert (Int64.unsigned u / Z.pow_pos 2 56 < Byte.modulus). 2: unfold Byte.max_unsigned; lia.
+           apply Z.div_lt_upper_bound. cbv; trivial. simpl in *. lia. }*)
   (*assert (BND1: 0 <= Int64.unsigned u / Z.pow_pos 2 56 < Byte.modulus).
   { split. apply Z_div_pos; trivial. cbv; trivial.
-           apply Z.div_lt_upper_bound. cbv; trivial. simpl in *. omega. }*)
+           apply Z.div_lt_upper_bound. cbv; trivial. simpl in *. lia. }*)
   rewrite unsigned_repr'; trivial.
 (*  rewrite Int64.unsigned_repr.
-  2:{ split. apply Z_div_pos; trivial. omega. 
-           apply Z.div_le_upper_bound. omega. 
+  2:{ split. apply Z_div_pos; trivial. lia. 
+           apply Z.div_le_upper_bound. lia. 
            eapply Z.le_trans; eauto. 
            specialize (Zmult_le_compat_r 1 (two_p (8 * i)) Int64.max_unsigned). simpl.
-           intros Q; apply Q; omega.*)
+           intros Q; apply Q; lia.*)
   rewrite unsigned_repr'.
   2:{ split.  apply Z_div_pos; trivial. cbv; trivial. apply Z_mod_lt. cbv; trivial. 
            apply Z.div_lt_upper_bound. cbv; trivial.
@@ -938,7 +938,7 @@ replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
   rewrite unsigned_repr'.
   2:{ split.  apply Z_mod_lt. cbv; trivial. apply Z_mod_lt. cbv; trivial.
   assert (BND: 0 <= Int64.unsigned u / Z.pow_pos 2 56 <= Byte.max_unsigned).
-  { unfold Byte.max_unsigned; omega. }
+  { unfold Byte.max_unsigned; lia. }
   assert (IMU: Int.max_unsigned = 4294967295) by reflexivity.
   destruct (zeq i 7).
   { subst; simpl in *. rewrite two_power_pos_correct, zero_ext_inrange.
@@ -946,77 +946,77 @@ replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
       split. apply Z_div_pos; trivial. cbv; trivial. 
            apply Z.div_le_upper_bound. cbv; trivial. 
            eapply Z.le_trans; eauto.
-    + rewrite Int.unsigned_repr, Int64.unsigned_repr. apply BND. omega. 
-      rewrite Int64.unsigned_repr. omega. omega. } 
+    + rewrite Int.unsigned_repr, Int64.unsigned_repr. apply BND. lia. 
+      rewrite Int64.unsigned_repr. lia. lia. } 
   destruct (zeq i 6).
   { subst; simpl in *. rewrite two_power_pos_correct, zero_ext_inrange.
        specialize (Fcore_Zaux.Zdiv_mod_mult (Int64.unsigned u) (Z.pow_pos 2 48) (Z.pow_pos 2 8)).
        rewrite <- Zpower_pos_is_exp. intros Q.
        replace (Z.pow_pos 2 (48 + 8)) with (Z.pow_pos 2 56) in Q by reflexivity.
        rewrite Q. rewrite Zmod_small; trivial. f_equal. f_equal.  simpl. reflexivity.
-    rewrite Int.unsigned_repr; simpl in *; omega. }
+    rewrite Int.unsigned_repr; simpl in *; lia. }
 
- omega.
+ lia.
     replace Byte.modulus with (two_p 8) in BND1 unfold Byte.modulus in BND1. simpl in *. cbv. unfold Int.zero_ext. rewrite Int.unsigned_repr. 
            apply Z.div_lt_upper_bound. cbv; trivial.
            eapply Z.lt_le_trans. apply Z_mod_lt. cbv; trivial. cbv; congruence.
-  . omega. cbv. 
+  . lia. cbv. 
            specialize (Zmult_le_compat_r 1 (two_p (8 * i)) Int64.max_unsigned). simpl.
-           intros Q; apply Q; omega.
+           intros Q; apply Q; lia.
   rewrite zero_ext_inrange. 
   2:{ rewrite Int.unsigned_repr.
-           assert (Int64.unsigned u / two_p (8 * i) < two_p 8). 2: omega.
-           apply Z.div_lt_upper_bound. omega.
-           assert (Int64.max_unsigned < two_p (8 * i) * two_p 8). 2: omega.
-           rewrite 2 two_p_equiv, Z.pow_mul_r, I64MU; try omega.
+           assert (Int64.unsigned u / two_p (8 * i) < two_p 8). 2: lia.
+           apply Z.div_lt_upper_bound. lia.
+           assert (Int64.max_unsigned < two_p (8 * i) * two_p 8). 2: lia.
+           rewrite 2 two_p_equiv, Z.pow_mul_r, I64MU; try lia.
            specialize (Zpower_exp (2^8) i 1); rewrite Z.pow_1_r.
-           intros Q; rewrite <- Q. simpl. omega. simpl.
-              simpl in *. omega. split. apply Z_div_pos; trivial. cbv; trivial.
-           assert (Int64.unsigned u / Z.pow_pos 2 56 < Byte.modulus). 2: unfold Byte.max_unsigned; omega.
-           apply Z.div_lt_upper_bound. cbv; trivial. simpl in *. omega.
+           intros Q; rewrite <- Q. simpl. lia. simpl.
+              simpl in *. lia. split. apply Z_div_pos; trivial. cbv; trivial.
+           assert (Int64.unsigned u / Z.pow_pos 2 56 < Byte.modulus). 2: unfold Byte.max_unsigned; lia.
+           apply Z.div_lt_upper_bound. cbv; trivial. simpl in *. lia.
  
   destruct (zeq i 7). { subst. simpl in *. rewrite zero_ext_inrange. rewrite Byte.unsigned_repr. reflexivity.
   { split. apply Z_div_pos; trivial. cbv; trivial.
-           assert (Int64.unsigned u / Z.pow_pos 2 56 < Byte.modulus). 2: unfold Byte.max_unsigned; omega.
-           apply Z.div_lt_upper_bound. cbv; trivial. simpl. omega. } 
-           eapply Z.le_trans; eauto. rewrite I64MU. simpl. clear. cbv. omega. 
-           unfold omega.  simpl. omega.  Zdiv_interval_2.
+           assert (Int64.unsigned u / Z.pow_pos 2 56 < Byte.modulus). 2: unfold Byte.max_unsigned; lia.
+           apply Z.div_lt_upper_bound. cbv; trivial. simpl. lia. } 
+           eapply Z.le_trans; eauto. rewrite I64MU. simpl. clear. cbv. lia. 
+           unfold lia.  simpl. lia.  Zdiv_interval_2.
   destruct (zeq i 0); subst; simpl. rewrite Byte.unsigned_repr. myadmit.
-  + f_equal. rewrite iter64. 2: rewrite Z2Nat.id; omega.
-    unfold iter64Shr8'. rewrite Z2Nat.id; try omega.  
+  + f_equal. rewrite iter64. 2: rewrite Z2Nat.id; lia.
+    unfold iter64Shr8'. rewrite Z2Nat.id; try lia.  
     unfold Int64.mul. rewrite 2 Int64.unsigned_repr.
-    2: unfold Int64.max_unsigned; simpl; omega.
-    2: unfold Int64.max_unsigned; simpl; omega.
+    2: unfold Int64.max_unsigned; simpl; lia.
+    2: unfold Int64.max_unsigned; simpl; lia.
     rewrite Int64.shru_div_two_p.
     rewrite (Int64.unsigned_repr (8 * i)), two_p_equiv.
-    2: unfold Int64.max_unsigned; simpl; omega. 
-    assert (X: 0 < 2 ^ (8 * i)) by (apply Z.pow_pos_nonneg; omega).
+    2: unfold Int64.max_unsigned; simpl; lia. 
+    assert (X: 0 < 2 ^ (8 * i)) by (apply Z.pow_pos_nonneg; lia).
     destruct (Int64.unsigned_range_2 u).
     assert (T: 0 <= Int64.unsigned u / 2 ^ (8 * i) <= 255).
-    { split. apply Z_div_pos. omega. omega. 
+    { split. apply Z_div_pos. lia. lia. 
        apply Zdiv_le_upper_bound; trivial. eapply Z.le_trans. apply H0.       
        unfold Int64.max_unsigned. rewrite Int64.modulus_power. 
        replace (two_p Int64.zwordsize) with (2^64) by reflexivity.
-       assert (2 ^ 64 < 255 * 2 ^ (8 * i)). 2: omega.
+       assert (2 ^ 64 < 255 * 2 ^ (8 * i)). 2: lia.
        specialize (Zmult_le_compat_l 1 (2 ^ (8 * i)) Int64.max_unsigned).
-       rewrite Z.mul_1_r. intros Y; apply Y. omega. unfold Int64.max_unsigned; simpl; omega. }   
+       rewrite Z.mul_1_r. intros Y; apply Y. lia. unfold Int64.max_unsigned; simpl; lia. }   
     
     assert (Q: 0 <= Int64.unsigned u / 2 ^ (8 * i) <= Int64.max_unsigned).
-    { split. apply Z_div_pos. omega. omega. 
+    { split. apply Z_div_pos. lia. lia. 
        apply Zdiv_le_upper_bound; trivial. eapply Z.le_trans. apply H0.
        specialize (Zmult_le_compat_l 1 (2 ^ (8 * i)) Int64.max_unsigned).
-       rewrite Z.mul_1_r. intros Y; apply Y. omega. unfold Int64.max_unsigned; simpl; omega. }   
+       rewrite Z.mul_1_r. intros Y; apply Y. lia. unfold Int64.max_unsigned; simpl; lia. }   
     rewrite Int64.unsigned_repr; trivial.  
     rewrite zero_ext_inrange. f_equal. myadmit.
     rewrite Int.unsigned_repr. replace (two_p 8 - 1) with 255 by reflexivity.
-  replace (1 + (7 - i)) with (8-i) by omega. replace (i + (8 - i)) with 8 by omega.
+  replace (1 + (7 - i)) with (8-i) by lia. replace (i + (8 - i)) with 8 by lia.
   destruct (zeq i 0).
   { subst; unfold sublist;  simpl. unfold littleendian64_invert in HeqU.
     inv HeqU. 
-  rewrite <- app_comm_cons. (sublist_app1 _ 0 i). 2: omega. 2: rewrite Zlength_sublist. omega.
+  rewrite <- app_comm_cons. (sublist_app1 _ 0 i). 2: lia. 2: rewrite Zlength_sublist. lia.
   rewrite <- app_assoc.
         assert (ZW: Int.zwordsize = 32) by reflexivity.
-        assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
+        assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; lia.
         inv HeqU. clear - ZW EIGHT I. simpl.
         destruct (zeq i 0); subst; simpl. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.              
@@ -1024,60 +1024,60 @@ replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
             rewrite (Fcore_Zaux.Zmod_mod_mult _ (2^16) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
             rewrite <- (Int.zero_ext_mod 8).
               rewrite Int.repr_unsigned; trivial.
-              rewrite ZW; omega.
+              rewrite ZW; lia.
           assert (0 <= ((Int.unsigned u mod Z.pow_pos 2 24) mod Z.pow_pos 2 16) mod Z.pow_pos 2 8 < Byte.modulus).
             apply Z_mod_lt. cbv; trivial. 
-            unfold Byte.max_unsigned. omega. }
+            unfold Byte.max_unsigned. lia. }
         destruct (zeq i 1); subst; simpl. f_equal. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.  
           2:{ assert (0 <= (Int.unsigned u mod Z.pow_pos 2 24) mod Z.pow_pos 2 16 / Z.pow_pos 2 8 < Byte.modulus).
-                   2:{ unfold Byte.max_unsigned. omega.
+                   2:{ unfold Byte.max_unsigned. lia.
                    split. apply Z_div_pos. cbv; trivial. apply Z_mod_lt. cbv; trivial.
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Z_mod_lt. cbv; trivial.
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H. 
-          rewrite (Z.div_pow2_bits _ 8); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 16); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 24); try omega.
-          rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW, Ztest_Inttest.
+          rewrite (Z.div_pow2_bits _ 8); try lia.
+          rewrite (Int.Ztestbit_mod_two_p 16); try lia.
+          rewrite (Int.Ztestbit_mod_two_p 24); try lia.
+          rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW, Ztest_Inttest.
           remember (zlt i 8). 
-          destruct s. repeat rewrite zlt_true. trivial. omega. omega. omega.
-          rewrite zlt_false. trivial. omega. }
+          destruct s. repeat rewrite zlt_true. trivial. lia. lia. lia.
+          rewrite zlt_false. trivial. lia. }
         destruct (zeq i 2); subst; simpl. f_equal. f_equal. f_equal.
           f_equal.
         { rewrite Byte.unsigned_repr.  
           2:{ assert (0 <= Int.unsigned u mod Z.pow_pos 2 24 / Z.pow_pos 2 16 < Byte.modulus).
-                   2: unfold Byte.max_unsigned; omega.
+                   2: unfold Byte.max_unsigned; lia.
                    split. apply Z_div_pos. cbv; trivial. apply Z_mod_lt. cbv; trivial.
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Z_mod_lt. cbv; trivial.
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H. 
-          rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW.
-          rewrite (Z.div_pow2_bits _ 16); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 24); try omega.
+          rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW.
+          rewrite (Z.div_pow2_bits _ 16); try lia.
+          rewrite (Int.Ztestbit_mod_two_p 24); try lia.
           rewrite Ztest_Inttest.
           remember (zlt i 8). 
           destruct s. repeat rewrite zlt_true. rewrite Int.bits_shru, EIGHT, ZW.
-              rewrite zlt_true. rewrite <- Z.add_assoc. reflexivity. omega. omega. omega. omega.
-          rewrite zlt_false. trivial. omega. }
+              rewrite zlt_true. rewrite <- Z.add_assoc. reflexivity. lia. lia. lia. lia.
+          rewrite zlt_false. trivial. lia. }
         destruct (zeq i 3); subst; simpl. f_equal. f_equal. f_equal. f_equal.
           f_equal.
         { rewrite Byte.unsigned_repr.  
           2:{ assert (0 <= Int.unsigned u / Z.pow_pos 2 24 < Byte.modulus).
-                   2: unfold Byte.max_unsigned; omega.
+                   2: unfold Byte.max_unsigned; lia.
                    split. apply Z_div_pos. cbv; trivial. apply Int.unsigned_range. 
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Int.unsigned_range. 
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H. 
-          rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW.
-          rewrite (Z.div_pow2_bits _ 24); try omega.
+          rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW.
+          rewrite (Z.div_pow2_bits _ 24); try lia.
           rewrite Ztest_Inttest.
           remember (zlt i 8). 
           destruct s. rewrite zlt_true. rewrite Int.bits_shru, EIGHT, ZW.
               rewrite zlt_true. rewrite Int.bits_shru, EIGHT, ZW. 
-              rewrite zlt_true. repeat rewrite <- Z.add_assoc. reflexivity. omega. omega. omega. omega. omega.
-          rewrite Int.bits_above. trivial. omega. }
-        omega. }
+              rewrite zlt_true. repeat rewrite <- Z.add_assoc. reflexivity. lia. lia. lia. lia. lia.
+          rewrite Int.bits_above. trivial. lia. }
+        lia. }
   Time forward. (*1.6*)
 Time Qed. (*4.9*) 
 
@@ -1099,8 +1099,8 @@ eapply semax_for with (A:=Z)(v:= fun a => Val.of_bool (negb (Int.lt (Int.repr a)
  intros. entailer!. 
 { intros i. simpl. normalize. rename H into I0. rename H0 into I7.
   apply negb_true_iff in I0. (* apply lt_repr_false in I0. 
-   2: red; unfold Int.min_signed, Int.max_signed; simpl. 2: split; try omega. 2:{
-   2: red; unfold Int.min_signed, Int.max_signed; simpl; omega.*)
+   2: red; unfold Int.min_signed, Int.max_signed; simpl. 2: split; try lia. 2:{
+   2: red; unfold Int.min_signed, Int.max_signed; simpl; lia.*)
 
  forward.
   { apply andp_right. 2: solve [entailer].
@@ -1154,17 +1154,17 @@ Time forward_for_simple_bound 8 (EX i:Z,
   destruct FC_ptrX as [FC ptrX].
   Time forward. (*3.2*)
   Time forward. (*0.8*)  
-  rewrite Z.add_comm, Z2Nat.inj_add; try omega.
+  rewrite Z.add_comm, Z2Nat.inj_add; try lia.
   Time entailer!. (*1.5*)
   unfold upd_Znth.
   autorewrite with sublist. 
   rewrite field_at_data_at. simpl. unfold field_address. simpl.
   if_tac. 2: solve [contradiction].
-  replace (4 - (1 + i)) with (4-i-1) by omega.
+  replace (4 - (1 + i)) with (4-i-1) by lia.
   rewrite isptr_offset_val_zero; trivial. clear H.
   apply data_at_ext. rewrite Zplus_comm.
         assert (ZW: Int.zwordsize = 32) by reflexivity.
-        assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
+        assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; lia.
         inv HeqU. clear - ZW EIGHT I.
         destruct (zeq i 0); subst; simpl. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.              
@@ -1172,60 +1172,60 @@ Time forward_for_simple_bound 8 (EX i:Z,
             rewrite (Fcore_Zaux.Zmod_mod_mult _ (2^16) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
             rewrite <- (Int.zero_ext_mod 8).
               rewrite Int.repr_unsigned; trivial.
-              rewrite ZW; omega.
+              rewrite ZW; lia.
           assert (0 <= ((Int.unsigned u mod Z.pow_pos 2 24) mod Z.pow_pos 2 16) mod Z.pow_pos 2 8 < Byte.modulus).
             apply Z_mod_lt. cbv; trivial. 
-            unfold Byte.max_unsigned. omega. }
+            unfold Byte.max_unsigned. lia. }
         destruct (zeq i 1); subst; simpl. f_equal. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.  
           2:{ assert (0 <= (Int.unsigned u mod Z.pow_pos 2 24) mod Z.pow_pos 2 16 / Z.pow_pos 2 8 < Byte.modulus).
-                   2:{ unfold Byte.max_unsigned. omega.
+                   2:{ unfold Byte.max_unsigned. lia.
                    split. apply Z_div_pos. cbv; trivial. apply Z_mod_lt. cbv; trivial.
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Z_mod_lt. cbv; trivial.
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H. 
-          rewrite (Z.div_pow2_bits _ 8); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 16); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 24); try omega.
-          rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW, Ztest_Inttest.
+          rewrite (Z.div_pow2_bits _ 8); try lia.
+          rewrite (Int.Ztestbit_mod_two_p 16); try lia.
+          rewrite (Int.Ztestbit_mod_two_p 24); try lia.
+          rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW, Ztest_Inttest.
           remember (zlt i 8). 
-          destruct s. repeat rewrite zlt_true. trivial. omega. omega. omega.
-          rewrite zlt_false. trivial. omega. }
+          destruct s. repeat rewrite zlt_true. trivial. lia. lia. lia.
+          rewrite zlt_false. trivial. lia. }
         destruct (zeq i 2); subst; simpl. f_equal. f_equal. f_equal.
           f_equal.
         { rewrite Byte.unsigned_repr.  
           2:{ assert (0 <= Int.unsigned u mod Z.pow_pos 2 24 / Z.pow_pos 2 16 < Byte.modulus).
-                   2: unfold Byte.max_unsigned; omega.
+                   2: unfold Byte.max_unsigned; lia.
                    split. apply Z_div_pos. cbv; trivial. apply Z_mod_lt. cbv; trivial.
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Z_mod_lt. cbv; trivial.
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H. 
-          rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW.
-          rewrite (Z.div_pow2_bits _ 16); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 24); try omega.
+          rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW.
+          rewrite (Z.div_pow2_bits _ 16); try lia.
+          rewrite (Int.Ztestbit_mod_two_p 24); try lia.
           rewrite Ztest_Inttest.
           remember (zlt i 8). 
           destruct s. repeat rewrite zlt_true. rewrite Int.bits_shru, EIGHT, ZW.
-              rewrite zlt_true. rewrite <- Z.add_assoc. reflexivity. omega. omega. omega. omega.
-          rewrite zlt_false. trivial. omega. }
+              rewrite zlt_true. rewrite <- Z.add_assoc. reflexivity. lia. lia. lia. lia.
+          rewrite zlt_false. trivial. lia. }
         destruct (zeq i 3); subst; simpl. f_equal. f_equal. f_equal. f_equal.
           f_equal.
         { rewrite Byte.unsigned_repr.  
           2:{ assert (0 <= Int.unsigned u / Z.pow_pos 2 24 < Byte.modulus).
-                   2: unfold Byte.max_unsigned; omega.
+                   2: unfold Byte.max_unsigned; lia.
                    split. apply Z_div_pos. cbv; trivial. apply Int.unsigned_range. 
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Int.unsigned_range. 
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H. 
-          rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW.
-          rewrite (Z.div_pow2_bits _ 24); try omega.
+          rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW.
+          rewrite (Z.div_pow2_bits _ 24); try lia.
           rewrite Ztest_Inttest.
           remember (zlt i 8). 
           destruct s. rewrite zlt_true. rewrite Int.bits_shru, EIGHT, ZW.
               rewrite zlt_true. rewrite Int.bits_shru, EIGHT, ZW. 
-              rewrite zlt_true. repeat rewrite <- Z.add_assoc. reflexivity. omega. omega. omega. omega. omega.
-          rewrite Int.bits_above. trivial. omega. }
-        omega. }
+              rewrite zlt_true. repeat rewrite <- Z.add_assoc. reflexivity. lia. lia. lia. lia. lia.
+          rewrite Int.bits_above. trivial. lia. }
+        lia. }
   Time forward. (*1.6*)
 Time Qed. (*4.9*) 
 *)
@@ -1259,24 +1259,24 @@ assert (U: Int.unsigned Int.iwordsize=32). reflexivity.
   destruct z. apply binop_lemmas.int_eq_true in Heqz. subst. simpl. *)
 remember (Int.ltu (Int.repr 32) Int.iwordsize) as d. symmetry in Heqd.
 destruct d; simpl.
-2:{ apply ltu_false_inv in Heqd. rewrite U in *. rewrite Int.unsigned_repr in Heqd. 2: rewrite int_max_unsigned_eq; omega.
+2:{ apply ltu_false_inv in Heqd. rewrite U in *. rewrite Int.unsigned_repr in Heqd. 2: rewrite int_max_unsigned_eq; lia.
 clear Heqd. split; trivial.
 remember (Int.ltu (Int.sub (Int.repr 32) c') Int.iwordsize) as z. symmetry in Heqz.
 destruct z.
 2:{ apply ltu_false_inv in Heqz. rewrite U in *.
          unfold Int.sub in Heqz.
          rewrite (Int.unsigned_repr 32) in Heqz.
-           rewrite Int.unsigned_repr in Heqz. omega. rewrite int_max_unsigned_eq; omega.
-           rewrite int_max_unsigned_eq; omega.
+           rewrite Int.unsigned_repr in Heqz. lia. rewrite int_max_unsigned_eq; lia.
+           rewrite int_max_unsigned_eq; lia.
 simpl; split; trivial. split; trivial.
 apply ltu_inv in Heqz. unfold Int.sub in *.
-  rewrite (Int.unsigned_repr 32) in *; try (rewrite int_max_unsigned_eq; omega).
-  rewrite Int.unsigned_repr in Heqz. 2: rewrite int_max_unsigned_eq; omega.
+  rewrite (Int.unsigned_repr 32) in *; try (rewrite int_max_unsigned_eq; lia).
+  rewrite Int.unsigned_repr in Heqz. 2: rewrite int_max_unsigned_eq; lia.
   unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
   assert (Int.unsigned c' mod Int.zwordsize = Int.unsigned c').
-    apply Zmod_small. rewrite W; omega.
+    apply Zmod_small. rewrite W; lia.
   rewrite H0, W. f_equal. f_equal. f_equal.
-  rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
+  rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; lia.
   rewrite Int.and_mone. trivial.
 Qed.
 *)

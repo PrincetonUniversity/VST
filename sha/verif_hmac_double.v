@@ -86,16 +86,16 @@ forward_call (Tsh, sh, h0, c, d, dl, data, gv).
   { rewrite H0_len512. split3; auto. }
 apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
 assert (GTmod64: 64 < Ptrofs.modulus).
-  rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. omega.
+  rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. lia.
 specialize (memory_block_size_compatible shmd (tarray tuint 16)). simpl; intros.
 rewrite H (*_ GTmod64)*); clear H.
 Intros.
 unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
 specialize (memory_block_split shmd b (Ptrofs.unsigned i) 32 32); intros XX.
   rewrite Ptrofs.repr_unsigned in XX.
-  assert (32 + 32 = 64) by omega. rewrite H in XX; clear H.
+  assert (32 + 32 = 64) by lia. rewrite H in XX; clear H.
   rewrite XX; trivial; clear XX.
-2: destruct (Ptrofs.unsigned_range i); omega.
+2: destruct (Ptrofs.unsigned_range i); lia.
 clear GTmod64.
 flatten_sepcon_in_SEP.
 
@@ -153,7 +153,7 @@ assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
   + apply Z.divide_1_l.
 }
 rewrite (split2_data_block 32 _ (dig2 ++ dig2))
- by (autorewrite with sublist; omega).
+ by (autorewrite with sublist; lia).
 autorewrite with sublist.
 cancel.
 rewrite field_address0_offset  by auto with field_compatible.

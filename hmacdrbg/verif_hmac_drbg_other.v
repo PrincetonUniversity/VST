@@ -61,10 +61,10 @@ Proof.
               apply align_compatible_rec_Tarray. intros.
               eapply align_compatible_rec_by_value. reflexivity. simpl. apply Z.divide_1_l.
               simpl. specialize (memory_block_split shc b (Ptrofs.unsigned i) 12 48); simpl.
-              rewrite Ptrofs.repr_unsigned; intros XX; rewrite XX; clear XX; try omega.
+              rewrite Ptrofs.repr_unsigned; intros XX; rewrite XX; clear XX; try lia.
               cancel.
               2:{ unfold field_compatible in *. simpl in *.
-                  destruct (Ptrofs.unsigned_range i). omega. }
+                  destruct (Ptrofs.unsigned_range i). lia. }
               thaw FR.
                destruct (Ptrofs.unsigned_range i).  eapply derives_trans.
                rewrite ?sepcon_assoc.
@@ -76,18 +76,18 @@ Proof.
                repeat rewrite field_at__memory_block. simpl.
                unfold field_address. repeat rewrite if_true. simpl. rewrite  <- ptrofs_add_repr.
                specialize (memory_block_split shc b (Ptrofs.unsigned i + 12) 32 16); simpl.  rewrite <- ptrofs_add_repr.
-               intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 12). simpl.
+               intros XX; rewrite XX; clear XX; try lia. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 12). simpl.
                specialize (memory_block_split shc b (Ptrofs.unsigned i + 44) 4 12); simpl. rewrite <- ptrofs_add_repr.
-               intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 44). simpl.
+               intros XX; rewrite XX; clear XX; try lia. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 44). simpl.
                specialize (memory_block_split shc b (Ptrofs.unsigned i + 48) 4 8); simpl. rewrite <- ptrofs_add_repr.
-               intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 48). simpl.
+               intros XX; rewrite XX; clear XX; try lia. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 48). simpl.
                specialize (memory_block_split shc b (Ptrofs.unsigned i + 52) 4 4); simpl. rewrite <- ptrofs_add_repr.
-               intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel.
+               intros XX; rewrite XX; clear XX; try lia. rewrite Ptrofs.repr_unsigned. cancel.
                rewrite <- (Zplus_assoc _ 52). simpl. rewrite <- ptrofs_add_repr. rewrite Ptrofs.repr_unsigned. cancel.
-               destruct FC; simpl in *; omega.
-               destruct FC; simpl in *; omega.
-               destruct FC; simpl in *; omega.
-               destruct FC; simpl in *; omega.
+               destruct FC; simpl in *; lia.
+               destruct FC; simpl in *; lia.
+               destruct FC; simpl in *; lia.
+               destruct FC; simpl in *; lia.
                all: hnf in FC; decompose [and] FC; clear FC; split3; auto; split3; auto; split; auto;
                        repeat first [left; solve [trivial] | right].
             }
@@ -108,7 +108,7 @@ Proof.
                I, info_contents, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; auto; try omega). }
+    repeat (split; auto; try lia). }
   Intros v. forward. simpl. Exists (Vint v). entailer!.
 Qed.
 
@@ -254,7 +254,7 @@ Proof.
                 I, kv, info, s).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
+    repeat (split; try assumption; try rewrite int_max_unsigned_eq; try lia).
     constructor. }
   Intros v. forward. unfold hmac256drbgabs_common_mpreds.
   unfold generatePOST, contents_with_add; simpl. 
@@ -408,7 +408,7 @@ Proof.
       entailer!. unfold data_block. normalize. simpl.
       autorewrite with sublist. cancel.
     - forward. forward.
-      assert (KN: 0 <= k < n) by omega.
+      assert (KN: 0 <= k < n) by lia.
       (*forward.  The 2 properties mentioned in the error message are equal*)
       assert_PROP (Vptr b (Ptrofs.add i (Ptrofs.repr k)) = field_address (tarray tuchar n) [ArraySubsc k] (Vptr b i)) as Addrk.
       { rewrite field_address_offset.
@@ -418,18 +418,18 @@ Proof.
       forward.
       Exists (k+1). rewrite ! Z.sub_add_distr. entailer!.
       unfold Ptrofs.of_ints, Ptrofs.of_int; normalize. 
-      rewrite upd_Znth_app2 by (rewrite ! Zlength_list_repeat; omega).
-      rewrite Zlength_list_repeat, Zminus_diag by omega.
+      rewrite upd_Znth_app2 by (rewrite ! Zlength_list_repeat; lia).
+      rewrite Zlength_list_repeat, Zminus_diag by lia.
       assert (X: list_repeat (Z.to_nat k) (Vint Int.zero) ++
                upd_Znth 0 (list_repeat (Z.to_nat (n - k)) Vundef)(Vint (Int.zero_ext 8 (Int.repr 0)))
            = list_repeat (Z.to_nat (k + 1)) (Vint Int.zero) ++
              list_repeat (Z.to_nat (n - k - 1)) Vundef).
       2: rewrite X; cancel.
-      rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc by omega. f_equal.
+      rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc by lia. f_equal.
       assert (X: (Z.to_nat (n - k) = 1+Z.to_nat (n-k-1))%nat).
-      { specialize (Z2Nat.inj_add 1); simpl; intros. rewrite <- H1 by omega. f_equal; omega. }
+      { specialize (Z2Nat.inj_add 1); simpl; intros. rewrite <- H1 by lia. f_equal; lia. }
       rewrite X, <- list_repeat_app, upd_Znth_app1; clear X; trivial.
-      simpl; rewrite Zlength_cons, Zlength_nil; omega.
+      simpl; rewrite Zlength_cons, Zlength_nil; lia.
 Qed.
 
 Lemma body_hmac_drbg_setPredictionResistance:

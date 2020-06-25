@@ -101,22 +101,22 @@ Lemma Zlength_HKDF_expand x y z rest: 0 <= 32 * z -> 0 <= rest < 32 ->
       (Zlength (HKDF_expand x y (32*z+rest)) = 32*z+rest)%Z.
 Proof. unfold HKDF_expand; intros.
 destruct (zle (32*z+rest) 0).
-+ rewrite Zlength_nil; omega.
-+ rewrite Zlength_sublist; try omega. simpl.
++ rewrite Zlength_nil; lia.
++ rewrite Zlength_sublist; try lia. simpl.
   rewrite Zlength_T.
   destruct (zeq rest 0).
   - subst rest. rewrite Z.add_0_r in *.
     assert (X: (32 * z) mod 32 = 0) by (rewrite Z.mul_comm; apply Z_mod_mult).
     rewrite X, if_true; trivial. 
-    assert (Y: (32 * z) / 32 = z). rewrite Z.mul_comm; apply Z_div_mult_full; omega.
-    rewrite Y, Nat2Z.inj_mul, Z2Nat.id; simpl; omega. 
+    assert (Y: (32 * z) / 32 = z). rewrite Z.mul_comm; apply Z_div_mult_full; lia.
+    rewrite Y, Nat2Z.inj_mul, Z2Nat.id; simpl; lia. 
   - rewrite if_false. 
-    * replace (32 * z + rest) with (z * 32 + rest) by omega.
-      rewrite Z_div_plus_full_l, Zdiv_small, Zplus_0_r; try omega.
-      rewrite Nat2Z.inj_mul, Z2Nat.id. simpl. 2: omega.
-      rewrite Z.mul_add_distr_l, Z.mul_1_r. omega.
-    * intros N. replace (32 * z + rest) with (rest + z * 32) in N by omega.
-      rewrite Z_mod_plus, Zmod_small in N; omega.
+    * replace (32 * z + rest) with (z * 32 + rest) by lia.
+      rewrite Z_div_plus_full_l, Zdiv_small, Zplus_0_r; try lia.
+      rewrite Nat2Z.inj_mul, Z2Nat.id. simpl. 2: lia.
+      rewrite Z.mul_add_distr_l, Z.mul_1_r. lia.
+    * intros N. replace (32 * z + rest) with (rest + z * 32) in N by lia.
+      rewrite Z_mod_plus, Zmod_small in N; lia.
 Qed.
 
 Lemma sublist_HKDF_expand1 prk info i r (I: 0 <= i) (R:0<=r<32): 
@@ -124,19 +124,19 @@ Lemma sublist_HKDF_expand1 prk info i r (I: 0 <= i) (R:0<=r<32):
     sublist 0 (32 * i) (HKDF_expand prk info (32*i+r)).
 Proof. unfold HKDF_expand.
 destruct (zle (32 * i) 0); simpl.
-+ assert (i=0) by omega. subst i. simpl. rewrite Z.add_0_l.
++ assert (i=0) by lia. subst i. simpl. rewrite Z.add_0_l.
   destruct (zle r 0); trivial.
-+ destruct (zle (32 * i + r) 0); try omega. 
-    rewrite (Zmod_unique _ _ i 0); try omega. simpl. 
-    rewrite (Zdiv_unique _ _ i 0); try omega.
-    rewrite (Zmod_unique _ _ i r); try omega. 
-    rewrite (Zdiv_unique _ _ i r); try omega.
-  rewrite 2 sublist_sublist; try omega. simpl. rewrite Z.add_0_r.
++ destruct (zle (32 * i + r) 0); try lia. 
+    rewrite (Zmod_unique _ _ i 0); try lia. simpl. 
+    rewrite (Zdiv_unique _ _ i 0); try lia.
+    rewrite (Zmod_unique _ _ i r); try lia. 
+    rewrite (Zdiv_unique _ _ i r); try lia.
+  rewrite 2 sublist_sublist; try lia. simpl. rewrite Z.add_0_r.
   destruct (zeq r 0); simpl; trivial.
   replace (Z.to_nat (i+1)) with (S (Z.to_nat i)).
-    2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
-  simpl. rewrite sublist_app1; trivial. omega.
-      rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; omega.
+    2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try lia.
+  simpl. rewrite sublist_app1; trivial. lia.
+      rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; lia.
 Qed.
 
 Lemma sublist_HKDF_expand2 prk info i (I: 0 <= i) : 
@@ -144,17 +144,17 @@ Lemma sublist_HKDF_expand2 prk info i (I: 0 <= i) :
     sublist 0 (32 * i) (HKDF_expand prk info (32*(i+1))).
 Proof. unfold HKDF_expand.
 destruct (zle (32 * i) 0); simpl.
-+ assert (i=0) by omega. subst i; simpl. reflexivity.
-+ destruct (zle (32 * (i + 1)) 0); try omega. 
-    rewrite (Zmod_unique _ _ i 0); try omega. simpl. 
-    rewrite (Zdiv_unique _ _ i 0); try omega.
-    rewrite (Zmod_unique _ _ (i+1) 0); try omega. 
-    rewrite (Zdiv_unique _ _ (i+1) 0); try omega. simpl.
-  rewrite 2 sublist_sublist; try omega. simpl. rewrite Z.add_0_r.
++ assert (i=0) by lia. subst i; simpl. reflexivity.
++ destruct (zle (32 * (i + 1)) 0); try lia. 
+    rewrite (Zmod_unique _ _ i 0); try lia. simpl. 
+    rewrite (Zdiv_unique _ _ i 0); try lia.
+    rewrite (Zmod_unique _ _ (i+1) 0); try lia. 
+    rewrite (Zdiv_unique _ _ (i+1) 0); try lia. simpl.
+  rewrite 2 sublist_sublist; try lia. simpl. rewrite Z.add_0_r.
   replace (Z.to_nat (i+1)) with (S (Z.to_nat i)).
-    2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
-  simpl. rewrite sublist_app1; trivial. omega.
-  rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; omega.
+    2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try lia.
+  simpl. rewrite sublist_app1; trivial. lia.
+  rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; lia.
 Qed.
 
 Lemma sublist_HKDF_expand3 prk info i rest (REST : 0 < rest < 32)
@@ -162,11 +162,11 @@ Lemma sublist_HKDF_expand3 prk info i rest (REST : 0 < rest < 32)
   sublist 0 (32 * i + rest) (HKDF_expand prk info (32 * i + 32)) =
   HKDF_expand prk info (32 * i + rest).
 Proof.
-            unfold HKDF_expand. simpl. destruct (zle (32 * i + 32) 0); try omega.
-            destruct (zle (32 * i + rest) 0); try omega.
-            rewrite sublist_sublist; try omega. rewrite 2 Z.add_0_r.
-            erewrite (Zmod_unique _ _(i+1) 0); try omega. simpl. 
-            erewrite (Zdiv_unique _ _(i+1) 0); try omega.
-            erewrite (Zmod_unique _ _ i rest); try omega. rewrite if_false; try omega.
-            erewrite (Zdiv_unique _ _ i rest); try omega; trivial.
+            unfold HKDF_expand. simpl. destruct (zle (32 * i + 32) 0); try lia.
+            destruct (zle (32 * i + rest) 0); try lia.
+            rewrite sublist_sublist; try lia. rewrite 2 Z.add_0_r.
+            erewrite (Zmod_unique _ _(i+1) 0); try lia. simpl. 
+            erewrite (Zdiv_unique _ _(i+1) 0); try lia.
+            erewrite (Zmod_unique _ _ i rest); try lia. rewrite if_false; try lia.
+            erewrite (Zdiv_unique _ _ i rest); try lia; trivial.
 Qed.

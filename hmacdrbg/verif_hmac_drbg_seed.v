@@ -48,7 +48,7 @@ Proof.
   freeze [0] FR1.
   forward. thaw FR1.
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
+  { destruct Hv; try lia. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
@@ -141,13 +141,13 @@ Proof.
     subst ST; simpl. cancel.
   }
   { split3; auto. subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite hmac_pure_lemmas.ptrofs_max_unsigned_eq.
-    split. omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split. lia. (* rewrite int_max_unsigned_eq; lia.*)
     split. reflexivity.
     split. reflexivity.
-    split. omega.
-    split. (*change Int.modulus with 4294967296.*) omega.
+    split. lia.
+    split. (*change Int.modulus with 4294967296.*) lia.
      (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. simple_if_tac. omega. rewrite Zlength_nil; omega.
+       unfold contents_with_add. simple_if_tac. lia. rewrite Zlength_nil; lia.
   }
 
   Intros v.
@@ -172,8 +172,8 @@ Proof.
     remember ((zlt 256 (Zlength Data) || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data)) %bool) as d.
     unfold myABS in Heqd; simpl in Heqd.
     destruct (zlt 256 (Zlength Data)); simpl in Heqd.
-    + omega.
-    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try omega.
+    + lia.
+    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try lia.
       subst d.
       unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. Intros.
       rename H into RV.
@@ -182,7 +182,7 @@ Proof.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
-      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. omega. }
+      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. lia. }
       unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
@@ -202,7 +202,7 @@ Proof.
 
   assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
       { destruct ZLc' as [HH | HH]; rewrite HH. reflexivity.
-        apply Zgt_is_gt_bool_f. omega. }
+        apply Zgt_is_gt_bool_f. lia. }
   subst myABS.
   rewrite <- instantiate256_reseed, RES; trivial. clear - SH RES HST ZLc'256F.
   destruct handle as [[[[newV newK] newRC] dd] newPR].

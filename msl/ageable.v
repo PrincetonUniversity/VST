@@ -920,7 +920,7 @@ Proof.
 intros; constructor 2.
 Qed.
 
-Hint Resolve @necR_refl : core.
+Hint Resolve necR_refl : core.
 
 Lemma necR_trans  {A} `{H : ageable A}:
   forall phi1 phi2 phi3, necR phi1 phi2 -> necR phi2 phi3 -> necR phi1 phi3.

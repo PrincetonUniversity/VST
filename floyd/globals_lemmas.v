@@ -6,6 +6,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.field_compat.
+Require Import VST.floyd.data_at_list_solver.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.nested_pred_lemmas.
 Import LiftNotation.
@@ -409,11 +410,12 @@ unfold id2pred_star; fold @id2pred_star.
 erewrite (split2_data_at_Tarray sh t (Z.succ (Zlength data)) 1).
 4: rewrite sublist_same.
 4: apply eq_refl.
-2: old_list_solve. 2: old_list_solve. 2: auto. 2: old_list_solve. 2: apply eq_refl. 2: apply eq_refl.
-rewrite (sublist_one) by old_list_solve.
+2: list_solve.
+2: list_solve. 2: auto. 2: list_solve. 2: apply eq_refl. 2: apply eq_refl.
+rewrite (sublist_one) by list_solve.
 autorewrite with sublist.
 rewrite sublist_1_cons.
-rewrite sublist_same by old_list_solve.
+rewrite sublist_same by list_solve.
 apply sepcon_derives.
 +
 clear IHdata.

@@ -288,7 +288,7 @@ intros. simpl. auto.
 constructor.
 Qed.
 
-Hint Resolve @None_unit : core.
+Hint Resolve None_unit : core.
 
 Lemma None_identity {A} {JA: Join A}{psaA: Pos_alg A}: 
      @identity (option A) (Join_lower _) None.
@@ -297,7 +297,7 @@ intros.
 intros x y ?. inv H; auto.
 Qed.
 
-Hint Resolve @None_identity : core.
+Hint Resolve None_identity : core.
 
   Lemma lower_inv: forall {A}{JA: Join A} {PA: Perm_alg A} {psa_A: Pos_alg A} (a b c : option A),
     join a b c ->
@@ -345,7 +345,7 @@ Existing Instance Sep_smash. (* Must not be inside a Section *)
 Lemma smashed_lifted_None_identity {A}`{Perm_alg A}:
   @identity (smashed A) _ None.
 Proof. intros; apply None_identity. Qed.
-Hint Resolve @smashed_lifted_None_identity : core.
+Hint Resolve smashed_lifted_None_identity : core.
 (** The option separation algebra.  The bool sepalg is isomorphic
      to the option sepalg applied to units. *)
 

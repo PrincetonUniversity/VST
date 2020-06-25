@@ -233,7 +233,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               apply Z.add_le_mono; try eassumption.
               apply Z.add_le_mono; try eassumption.  
               apply Z.add_le_mono; eassumption.
-            unfold Int64.max_unsigned; simpl. omega.
+            unfold Int64.max_unsigned; simpl. lia.
   }
   assert (Arith1: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 +
@@ -242,11 +242,11 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
                       + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 
-                      + 2 ^ 40 * Byte.unsigned b1 + 2 ^ 48 * Byte.unsigned b2 <= 2 ^ 56 -1). 2: omega.
+                      + 2 ^ 40 * Byte.unsigned b1 + 2 ^ 48 * Byte.unsigned b2 <= 2 ^ 56 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega. }
+              apply Z.add_le_mono; try eassumption. simpl. lia. }
   erewrite <- (Zmod_unique _ (2^56) (Byte.unsigned b3) _ Arith1); [ | rewrite Z.add_comm; trivial].
 
   assert (Arith2: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
@@ -254,43 +254,43 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
   {            split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. 
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
                       + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 
-                      + 2 ^ 40 * Byte.unsigned b1 <= 2 ^ 48 -1). 2: omega.
+                      + 2 ^ 40 * Byte.unsigned b1 <= 2 ^ 48 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. }
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. lia. }
   erewrite <- (Zmod_unique _ (2^48) (Byte.unsigned b2) _ Arith2); [ | rewrite Z.add_comm; trivial].
   
   assert (Arith3: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 < 2 ^ 40). 
   {            split. apply OMEGA2; trivial. apply OMEGA2; trivial.  apply OMEGA2; trivial.  apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
-                      + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 <= 2 ^ 40 -1). 2: omega.
+                      + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 <= 2 ^ 40 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega. }
+              apply Z.add_le_mono; try eassumption. simpl. lia. }
   erewrite <- (Zmod_unique _ (2^40) (Byte.unsigned b1) _ Arith3); [ | rewrite Z.add_comm; trivial].
 
   assert (Arith4: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 < 2 ^ 32). 
   {            split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
-                      + 2 ^ 24 * Byte.unsigned c3 <= 2 ^ 32 -1). 2: omega.
+                      + 2 ^ 24 * Byte.unsigned c3 <= 2 ^ 32 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. }
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. lia. }
   erewrite <- (Zmod_unique _ (2^32) (Byte.unsigned b0) _ Arith4); [ | rewrite Z.add_comm; trivial].
 
   assert (Arith5: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 < 2 ^ 24). 
   {            split. apply OMEGA2; trivial. apply OMEGA2; trivial.
-              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 <= 2 ^ 24 -1). 2: omega.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 <= 2 ^ 24 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega. }
+              apply Z.add_le_mono; try eassumption. simpl. lia. }
   erewrite <- (Zmod_unique _ (2^24) (Byte.unsigned c3) _ Arith5); [ | rewrite Z.add_comm; trivial].
 
   assert (Arith6: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 < 2 ^ 16).
   {          split. apply OMEGA2; trivial.
-              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 <= 2 ^ 16 -1). 2: omega.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 <= 2 ^ 16 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              simpl. omega. }
+              simpl. lia. }
   erewrite <- (Zmod_unique _ (2^16) (Byte.unsigned c2) _ Arith6); [ | rewrite Z.add_comm; trivial].
 
   erewrite <- (Zmod_unique _ (2^8) (Byte.unsigned c1)).
@@ -423,8 +423,8 @@ end.
 
 Lemma Zlength_bytes_at x q i mbytes : 0<=q -> 0 <= i ->
   q + i <= Zlength mbytes -> Zlength (bytes_at x q i mbytes) = i.
-Proof. intros. destruct x; simpl; try rewrite Zlength_sublist; try omega.
-  rewrite Zlength_list_repeat; omega.
+Proof. intros. destruct x; simpl; try rewrite Zlength_sublist; try lia.
+  rewrite Zlength_list_repeat; lia.
 Qed.
 
 Definition bxorlist := combinelist _ Byte.xor.
@@ -485,8 +485,8 @@ Proof. induction n; simpl; intros.
   rewrite Zpos_P_of_succ_nat in H1.
   apply IHn in Heqp; trivial; clear IHn.
   rewrite upd_Znth_Zlength; trivial.
-  omega.
-  omega.
+  lia.
+  lia.
 Qed.
 
 Lemma Zlength_ZCont: forall n zbytes, Zlength zbytes = 16 -> Zlength (ZCont n zbytes) = 16.
@@ -495,7 +495,7 @@ Proof.
   rewrite ZContS. specialize (ZZ_Zlength 8 (ZCont n zbytes)); intros.
   remember (ZZ (ZCont n zbytes) 8). destruct p; simpl.
   apply (H0 _ _ (eq_refl _ )).
-  apply IHn; trivial. simpl; omega.
+  apply IHn; trivial. simpl; lia.
 Qed.
 
 Lemma SixteenByte2ValList_exists bytes: Zlength bytes = 16 ->

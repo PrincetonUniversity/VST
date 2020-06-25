@@ -166,7 +166,7 @@ Time Qed. (* This takes >10min! (I've never seen it finish) *)
 
 (* rest of the proof:
   pose proof masked_byte_range.
-  forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. simpl (temp _RK _). rewrite Eq by lia. forward. do 4 forward. forward.
 
   match goal with |- context [temp _Y0 (Vint ?E0)] =>
     assert (col 0 S' = E0) as Eq2

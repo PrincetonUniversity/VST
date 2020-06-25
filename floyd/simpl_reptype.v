@@ -6,6 +6,7 @@ Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.simple_reify.
 Require Import VST.floyd.aggregate_type.
+Require Import VST.floyd.Zlength_solver.
 
 Definition int_signed_or_unsigned (t: type) : int -> Z :=
   match typeconv t with
@@ -40,7 +41,7 @@ Fixpoint is_effective_union i (m: members) (v: reptype_skeleton) : option reptyp
   | (i', _) :: tl =>
     match v with
     | RepInl v0 => if (ident_eq i i') then Some v0 else None
-    | RepInr v0 => if (ident_eq i i') then None else is_effective_struct i tl v0
+    | RepInr v0 => if (ident_eq i i') then None else is_effective_union i tl v0
     | _ => None
     end
   end.
@@ -83,7 +84,7 @@ Fixpoint effective_len (t: type) (gfs: list gfield) (v: reptype_skeleton) : nat
 *)
 
 (* This is how we control the length of computation. *)
-Fixpoint effective_len (t: type) (gfs: list gfield) (v: reptype_skeleton) : nat
+Definition effective_len (t: type) (gfs: list gfield) (v: reptype_skeleton) : nat
   := length gfs.
 
 End SIMPL_REPTYPE.
@@ -171,8 +172,10 @@ Ltac default_canon_load_result :=
           | rewrite (@Znth_map int64 _)
           | rewrite (@Znth_map val _)
           | rewrite (@Znth_map Z _) ];
-    [ | solve [auto; old_list_solve] + match goal with
-        | |- ?Bounds => fail 10 "Make sure old_list_solve or auto can prove" Bounds
+    [ | solve [auto; Zlength_solve] + match goal with
+        | |- ?Bounds => fail 10 "Make sure Zlength_solve or auto can prove" Bounds
+"
+The usual way to do that is to use assert or assert_PROP before forward."
         end  ]
   );
       repeat match goal with

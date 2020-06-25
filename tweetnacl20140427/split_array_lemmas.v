@@ -13,9 +13,9 @@ Proof.
   pose proof Ptrofs.unsigned_range i.
   pose proof Ptrofs.unsigned_range (Ptrofs.repr pos).
   rewrite !Ptrofs.unsigned_repr_eq in *.
-  rewrite Z.add_mod by omega.
-  rewrite Z.mod_mod by omega.
-  rewrite <- Z.add_mod by omega.
+  rewrite Z.add_mod by lia.
+  rewrite Z.mod_mod by lia.
+  rewrite <- Z.add_mod by lia.
   reflexivity.
 Qed.
 
@@ -27,23 +27,23 @@ Proof.
   destruct H.
   rewrite (unsigned_add i pos H).
   cut ((Ptrofs.unsigned i + pos) mod Ptrofs.modulus <= Ptrofs.unsigned i + pos).
-    { intros. omega. }
+    { intros. lia. }
   pose proof Ptrofs.modulus_pos.
   pose proof Ptrofs.unsigned_range i.
-  apply Z.mod_le; omega.
+  apply Z.mod_le; lia.
 Qed.
 
 Lemma offset_in_range_0 v: offset_in_range 0 v.
   destruct v; simpl; trivial. rewrite Z.add_0_r.
-  specialize (Ptrofs.unsigned_range i); intros. omega.
+  specialize (Ptrofs.unsigned_range i); intros. lia.
 Qed.
 Lemma offset_in_range_le n m d:
       offset_in_range n d -> 0<=m<=n ->
       offset_in_range m d.
 unfold offset_in_range; intros.
 destruct d; simpl in *; trivial.
-split; try omega.
-apply Z.add_nonneg_nonneg. apply (Ptrofs.unsigned_range i). omega.
+split; try lia.
+apply Z.add_nonneg_nonneg. apply (Ptrofs.unsigned_range i). lia.
 Qed.
 (*
 Lemma offset_in_range_offset_val' n off v:
@@ -58,15 +58,15 @@ intros.
   rewrite Ptrofs.add_unsigned.
   rewrite (Ptrofs.unsigned_repr off).
   rewrite <- initialize.max_unsigned_modulus in H0.
-  rewrite Ptrofs.unsigned_repr; trivial. omega.
-  split; try omega.
-  2: destruct (Ptrofs.unsigned_range i); try omega.
+  rewrite Ptrofs.unsigned_repr; trivial. lia.
+  split; try lia.
+  2: destruct (Ptrofs.unsigned_range i); try lia.
   rewrite Ptrofs.unsigned_repr; trivial.
-  rewrite <- initialize.max_unsigned_modulus in H0. omega.
+  rewrite <- initialize.max_unsigned_modulus in H0. lia.
   rewrite (Ptrofs.unsigned_repr off); trivial.
-  2: destruct (Ptrofs.unsigned_range i); try omega.
+  2: destruct (Ptrofs.unsigned_range i); try lia.
   rewrite Ptrofs.unsigned_repr; trivial.
-  rewrite <- initialize.max_unsigned_modulus in H0. omega.
+  rewrite <- initialize.max_unsigned_modulus in H0. lia.
 Qed.
 
 Lemma offset_in_range_offset_val' n off v:
@@ -79,7 +79,7 @@ intros.
   rewrite  (Z.add_comm n), Z.add_assoc in *.
   rewrite Ptrofs.add_unsigned.
   rewrite Ptrofs.unsigned_repr; trivial.
-  rewrite <- initialize.max_unsigned_modulus in H0. omega.
+  rewrite <- initialize.max_unsigned_modulus in H0. lia.
 Qed.
 *)(*
 Lemma offset_in_range_offset_val z1 z2 v
@@ -89,7 +89,7 @@ Lemma offset_in_range_offset_val z1 z2 v
 Proof.
   unfold offset_val, offset_in_range in *. destruct v; trivial.
   split. apply Z.add_nonneg_nonneg; trivial. apply Ptrofs.unsigned_range.
-  apply Arith_aux1. omega.
+  apply Arith_aux1. lia.
 Qed.
 *)
 Lemma offset_in_range_offset_val z1 z2 v
@@ -99,12 +99,12 @@ Lemma offset_in_range_offset_val z1 z2 v
 Proof.
   unfold offset_val, offset_in_range in *. destruct v; trivial.
   split. apply Z.add_nonneg_nonneg; trivial. apply Ptrofs.unsigned_range.
-  apply Arith_aux1. omega.
+  apply Arith_aux1. lia.
 Qed.
 
 Lemma sizeof_Zlength_nonneg {A} {ge: compspecs} t (d:list A): 0 <= sizeof t * Zlength d.
   specialize (Zlength_nonneg d). specialize (sizeof_pos t); intros.
-  apply Z.mul_nonneg_nonneg; omega.
+  apply Z.mul_nonneg_nonneg; lia.
 Qed.
 (*
 Lemma data_at_ext {cs} sh t v v' p: v=v' -> @data_at cs sh t v p |-- @data_at cs sh t v' p.
@@ -133,7 +133,7 @@ Lemma split2_data_at_Tarray_at_tuchar_unfold {cs} sh n n1 v p: 0 <= n1 <= n ->
 Proof.
   rewrite data_at_isptr at 1.
   unfold data_at at 1. intros; simpl; normalize.
-  erewrite (field_at_Tarray sh  (Tarray tuchar n noattr) _ tuchar); try reflexivity; trivial. 2: omega.
+  erewrite (field_at_Tarray sh  (Tarray tuchar n noattr) _ tuchar); try reflexivity; trivial. 2: lia.
   rewrite (split2_array_at sh (Tarray tuchar n noattr) nil 0 n1); trivial.
   do 2 rewrite array_at_data_at. entailer.
   do 3 rewrite at_offset_eq. rewrite Zminus_0_r.
@@ -181,27 +181,27 @@ Proof. intros.
   rewrite data_at_isptr at 1. unfold at_offset. intros; normalize.
   rewrite (data_at_isptr sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v) (offset_val (Int.repr n1) p)).
   unfold data_at at 3. normalize.
-  erewrite (field_at_Tarray sh  (Tarray tuchar n noattr) _ tuchar); try reflexivity; trivial. 2: omega.
+  erewrite (field_at_Tarray sh  (Tarray tuchar n noattr) _ tuchar); try reflexivity; trivial. 2: lia.
   rewrite (split2_array_at sh (Tarray tuchar n noattr) nil 0 n1); trivial.
   do 2 rewrite array_at_data_at. entailer. unfold at_offset. simpl.
   rewrite Zplus_0_l, Zmult_1_l.
 (*  assert_PROP (field_compatible (Tarray tuchar (Zlength v) noattr) [] p).
     clear H5 H8 H7 H11 H0 H10. apply prop_right. unfold field_compatible in *. intuition.
     unfold legal_alignas_type, nested_pred, local_legal_alignas_type in *; simpl in *.
-      rewrite Zle_imp_le_bool; trivial. omega.
-    unfold sizeof; simpl. rewrite Z.max_r. 2: omega.
+      rewrite Zle_imp_le_bool; trivial. lia.
+    unfold sizeof; simpl. rewrite Z.max_r. 2: lia.
     assert (N: match Zlength v with | 0 => 0 | Z.pos y' => Z.pos y' | Z.neg y' => Z.neg y' end = Zlength v). destruct (Zlength v); trivial.
-    rewrite N. omega.
-    unfold size_compatible. destruct p; try contradiction; simpl. rewrite Z.max_r. 2: omega.
+    rewrite N. lia.
+    unfold size_compatible. destruct p; try contradiction; simpl. rewrite Z.max_r. 2: lia.
     assert (N: match Zlength v with | 0 => 0 | Z.pos y' => Z.pos y' | Z.neg y' => Z.neg y' end = Zlength v). destruct (Zlength v); trivial.
-    rewrite N. omega.
+    rewrite N. lia.
     assert (N: match n with | 0 => 0 | Z.pos y' => Z.pos y' | Z.neg y' => Z.neg y' end = n). destruct n; trivial.
-    rewrite N. simpl in *. omega. reflexivity. Zleb_true. reflexivity.*)
+    rewrite N. simpl in *. lia. reflexivity. Zleb_true. reflexivity.*)
   apply andp_right. apply prop_right.
-    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. omega.
-    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. omega.
-    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. omega.
-    eapply field_compatible0_cons_Tarray. reflexivity. trivial. omega.
+    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. lia.
+    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. lia.
+    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. lia.
+    eapply field_compatible0_cons_Tarray. reflexivity. trivial. lia.
   rewrite Zminus_0_r.
   erewrite (data_at_type_changable sh
             (nested_field_array_type (Tarray tuchar (Zlength v) noattr) [] 0 n1)
@@ -234,10 +234,10 @@ Lemma append_split2_data_at_Tarray_at_tuchar {cs} sh n data1 data2 p: Zlength (d
    at_offset (@data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p)%logic.
 Proof. intros. subst n.
   specialize (Zlength_nonneg data1).  specialize (Zlength_nonneg data2). intros.
-  erewrite (split2_data_at_Tarray_at_tuchar sh _ (Zlength data1)); rewrite Zlength_app in *; try omega; trivial.
-  rewrite (sublist0_app1 (Zlength data1)); try omega.
+  erewrite (split2_data_at_Tarray_at_tuchar sh _ (Zlength data1)); rewrite Zlength_app in *; try lia; trivial.
+  rewrite (sublist0_app1 (Zlength data1)); try lia.
   rewrite sublist_same; trivial.
-  rewrite sublist_app2; try omega.
+  rewrite sublist_app2; try lia.
   rewrite Zminus_diag, Z.add_simpl_l.
   rewrite sublist_same; trivial.
 Qed.
@@ -289,12 +289,12 @@ Lemma split3_data_at_Tarray_at_tuchar_unfold {cs} sh n lo hi v p:
    at_offset (@data_at cs sh (Tarray tuchar (n - hi) noattr) (sublist hi (Zlength v) v)) hi p)%logic.
 Proof. intros.
   eapply derives_trans.
-  apply (split2_data_at_Tarray_at_tuchar_unfold sh n hi); try omega.
+  apply (split2_data_at_Tarray_at_tuchar_unfold sh n hi); try lia.
   cancel.
   eapply derives_trans.
   apply (split2_data_at_Tarray_at_tuchar_unfold sh hi lo); trivial.
-  rewrite sublist_sublist; repeat rewrite Zplus_0_r; try omega. cancel.
-  rewrite Zlength_sublist; try omega. rewrite sublist_sublist; try rewrite Zminus_0_r; try omega.
+  rewrite sublist_sublist; repeat rewrite Zplus_0_r; try lia. cancel.
+  rewrite Zlength_sublist; try lia. rewrite sublist_sublist; try rewrite Zminus_0_r; try lia.
     repeat rewrite Zplus_0_r. cancel.
 Qed.
 Lemma split3_data_at_Tarray_at_tuchar_unfold' {cs} sh n n1 n2 v p:
@@ -304,9 +304,9 @@ Lemma split3_data_at_Tarray_at_tuchar_unfold' {cs} sh n n1 n2 v p:
    at_offset (@data_at cs sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
    at_offset (@data_at cs sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2 + n1) (Zlength v) v)) (n2 + n1)  p)%logic.
 Proof. intros.
-  assert_PROP (Zlength v = Z.max 0 n). entailer. rewrite Z.max_r in H2. 2: omega.
+  assert_PROP (Zlength v = Z.max 0 n). entailer. rewrite Z.max_r in H2. 2: lia.
   eapply derives_trans.
-  apply (split3_data_at_Tarray_at_tuchar_unfold sh n n1 (n2+n1)); try omega. subst n.
+  apply (split3_data_at_Tarray_at_tuchar_unfold sh n n1 (n2+n1)); try lia. subst n.
   repeat rewrite sepcon_assoc; rewrite <- Z.add_sub_assoc, Zminus_diag, Zplus_0_r. cancel.
 Qed.
 
@@ -321,29 +321,29 @@ Lemma split3_data_at_Tarray_at_tuchar_fold {cs} sh n lo hi v p:
 Proof. intros. subst n.
   assert_PROP (isptr p). entailer. rename H1 into Pp.
   eapply derives_trans. Focus 2.
-  apply (split2_data_at_Tarray_at_tuchar_fold sh (Zlength v) lo); trivial. omega.
+  apply (split2_data_at_Tarray_at_tuchar_fold sh (Zlength v) lo); trivial. lia.
   cancel.
   unfold at_offset at 3.
   eapply derives_trans.
   2: apply (split2_data_at_Tarray_at_tuchar_fold sh (Zlength v - lo) (hi - lo)).
-  repeat rewrite sublist_sublist; try rewrite Zlength_sublist; try omega.
+  repeat rewrite sublist_sublist; try rewrite Zlength_sublist; try lia.
   repeat rewrite Z.sub_simpl_r, Zplus_0_r.
   unfold at_offset. cancel.
   rewrite offset_offset_val, add_repr.
-  assert (N: Zlength v - lo - (hi - lo) = Zlength v - hi) by omega. rewrite N; clear N.
-  assert (N: lo + (hi - lo) = hi) by omega. rewrite N; clear N.
-  assert (N: Zlength v - lo + lo = Zlength v) by omega.  rewrite N; clear N.
-  assert (N: hi - lo + lo = hi) by omega.  rewrite N; clear N. cancel.
-  omega. rewrite Zlength_sublist; try omega. omega. unfold offset_val.
+  assert (N: Zlength v - lo - (hi - lo) = Zlength v - hi) by lia. rewrite N; clear N.
+  assert (N: lo + (hi - lo) = hi) by lia. rewrite N; clear N.
+  assert (N: Zlength v - lo + lo = Zlength v) by lia.  rewrite N; clear N.
+  assert (N: hi - lo + lo = hi) by lia.  rewrite N; clear N. cancel.
+  lia. rewrite Zlength_sublist; try lia. lia. unfold offset_val.
   destruct p; try contradiction.
   red. simpl. red in H3. simpl in *; intuition.
   unfold legal_alignas_type, nested_pred, local_legal_alignas_type in *. simpl in *.
-  rewrite Zle_imp_le_bool. trivial. omega.
-  rewrite Zmult_1_l, Z.max_r; omega.
-  rewrite Zmult_1_l, Z.max_r in *; try omega.
-  destruct (Int.unsigned_add_either i (Int.repr lo)) as [X | X]; rewrite X, (Int.unsigned_repr lo); clear X; try omega.
-  rewrite <- max_unsigned_modulus in *; omega.
-  rewrite <- max_unsigned_modulus in *; omega.
+  rewrite Zle_imp_le_bool. trivial. lia.
+  rewrite Zmult_1_l, Z.max_r; lia.
+  rewrite Zmult_1_l, Z.max_r in *; try lia.
+  destruct (Int.unsigned_add_either i (Int.repr lo)) as [X | X]; rewrite X, (Int.unsigned_repr lo); clear X; try lia.
+  rewrite <- max_unsigned_modulus in *; lia.
+  rewrite <- max_unsigned_modulus in *; lia.
 Qed.
 Lemma split3_data_at_Tarray_at_tuchar_fold' {cs} sh n n1 n2 v p:
   n2 + n1 <= n -> 0<= n1 -> 0<= n2 ->
@@ -356,8 +356,8 @@ Lemma split3_data_at_Tarray_at_tuchar_fold' {cs} sh n n1 n2 v p:
   @data_at cs sh (Tarray tuchar n noattr) v p.
 Proof. intros.
   eapply derives_trans.
-  2: apply (split3_data_at_Tarray_at_tuchar_fold sh n n1 (n2+n1)); trivial; try omega.
-  assert (N: n2 + n1 - n1 = n2) by omega. rewrite N; clear N. subst n. cancel.
+  2: apply (split3_data_at_Tarray_at_tuchar_fold sh n n1 (n2+n1)); trivial; try lia.
+  assert (N: n2 + n1 - n1 = n2) by lia. rewrite N; clear N. subst n. cancel.
 Qed.
 
 Lemma split3_data_at_Tarray_at_tuchar {cs} sh n n1 n2 v p:
@@ -369,7 +369,7 @@ Lemma split3_data_at_Tarray_at_tuchar {cs} sh n n1 n2 v p:
    at_offset (@data_at cs sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
    at_offset (@data_at cs sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2+n1) (Zlength v) v)) (n2+n1) p)%logic.
 Proof. intros. apply pred_ext.
-  apply (split3_data_at_Tarray_at_tuchar_unfold' sh n n1 n2); trivial. subst n; trivial. clear - H. omega.
+  apply (split3_data_at_Tarray_at_tuchar_unfold' sh n n1 n2); trivial. subst n; trivial. clear - H. lia.
   apply (split3_data_at_Tarray_at_tuchar_fold' sh n n1 n2); trivial.
 Qed.
 
@@ -383,22 +383,22 @@ Lemma append_split3_data_at_Tarray_at_tuchar {cs} sh n data1 data2 data3 p:
    at_offset (@data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3) (Zlength data2 + Zlength data1) p)%logic.
 Proof. intros.
   specialize (Zlength_nonneg data1). specialize (Zlength_nonneg data2). specialize (Zlength_nonneg data3). intros.
-  rewrite (split3_data_at_Tarray_at_tuchar sh n (Zlength data1) (Zlength data2)); try omega; trivial.
-  rewrite (sublist0_app1 (Zlength data1)); try omega. rewrite sublist_same; trivial.
-  rewrite sublist_app2; try omega. rewrite Zminus_diag. rewrite Z.add_simpl_r.
-  rewrite (sublist0_app1 (Zlength data2)); try omega. rewrite sublist_same; trivial.
-  repeat rewrite Zlength_app; try omega.
+  rewrite (split3_data_at_Tarray_at_tuchar sh n (Zlength data1) (Zlength data2)); try lia; trivial.
+  rewrite (sublist0_app1 (Zlength data1)); try lia. rewrite sublist_same; trivial.
+  rewrite sublist_app2; try lia. rewrite Zminus_diag. rewrite Z.add_simpl_r.
+  rewrite (sublist0_app1 (Zlength data2)); try lia. rewrite sublist_same; trivial.
+  repeat rewrite Zlength_app; try lia.
   assert (N1: Zlength data1 + (Zlength data2 + Zlength data3) -
-            (Zlength data2 + Zlength data1) =  Zlength data3). omega.
+            (Zlength data2 + Zlength data1) =  Zlength data3). lia.
   rewrite N1.
-  rewrite sublist_app2; try omega.
-  rewrite sublist_app2; try omega.
-  assert (N2: Zlength data2 + Zlength data1 - Zlength data1 - Zlength data2 = 0). omega.
+  rewrite sublist_app2; try lia.
+  rewrite sublist_app2; try lia.
+  assert (N2: Zlength data2 + Zlength data1 - Zlength data1 - Zlength data2 = 0). lia.
   rewrite N2.
   assert (N3: Zlength data1 + (Zlength data2 + Zlength data3) - Zlength data1 -
-         Zlength data2 = Zlength data3). omega.
+         Zlength data2 = Zlength data3). lia.
   rewrite N3. rewrite sublist_same; trivial.
-  do 2 rewrite Zlength_app in H. omega.
+  do 2 rewrite Zlength_app in H. lia.
 Qed.
 
 Lemma append_split3_data_at_Tarray_at_tuchar' {cs} sh data data1 data2 data3 p:
@@ -428,20 +428,20 @@ Proof.
   fold reptype in *.
   assert (Arith1: Zlength (firstn (lo + n) data) = Z.of_nat (lo + n)).
            repeat rewrite Zlength_correct. rewrite firstn_length, min_l; trivial.
-  rewrite split_offset_array_at with (n := (lo + n)%nat); trivial. (* by omega.*)
+  rewrite split_offset_array_at with (n := (lo + n)%nat); trivial. (* by lia.*)
   rewrite split_offset_array_at with (n := lo) (contents := firstn (lo + n) data); trivial.
     (* by
-    (rewrite firstn_length; rewrite Min.min_l by omega; omega).*)
+    (rewrite firstn_length; rewrite Min.min_l by lia; lia).*)
   assert (!!offset_in_range (sizeof t * Zlength data) d |--
     !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d)%logic.
     remember (sizeof t) as ST; normalize; subst ST.
     apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
     rewrite !Zlength_correct.
-    rewrite firstn_length; rewrite Min.min_l by omega. split; try omega.
+    rewrite firstn_length; rewrite Min.min_l by lia. split; try lia.
     apply inj_le, N.
     rewrite Zmult_0_r.
     unfold offset_in_range; destruct d; auto.
-    pose proof Int.unsigned_range i; omega.
+    pose proof Int.unsigned_range i; lia.
   rewrite (add_andp _ _ H) at 2. repeat rewrite Zmult_0_r.
   normalize.
   f_equal. f_equal. rewrite Arith1. apply prop_ext; intuition.
@@ -451,8 +451,8 @@ Proof.
   rewrite skipn_firstn. trivial.
   rewrite Nat2Z.inj_add, Zminus_plus; trivial.
 
-  rewrite Arith1. apply inj_le. omega.
-  apply inj_le. omega.
+  rewrite Arith1. apply inj_le. lia.
+  apply inj_le. lia.
   rewrite Zlength_correct. apply inj_le; trivial.
   rewrite Zlength_correct. apply inj_le; trivial.
 Qed.
@@ -472,20 +472,20 @@ Proof.
   fold reptype in *.
   assert (Arith1: Zlength (firstn (lo + n) data) = Z.of_nat (lo + n)).
            repeat rewrite Zlength_correct. rewrite firstn_length, min_l; trivial.
-  rewrite split_offset_array_at with (n := (lo + n)%nat); trivial. (* by omega.*)
+  rewrite split_offset_array_at with (n := (lo + n)%nat); trivial. (* by lia.*)
   rewrite split_offset_array_at with (n := lo) (contents := firstn (lo + n) data); trivial.
     (* by
-    (rewrite firstn_length; rewrite Min.min_l by omega; omega).*)
+    (rewrite firstn_length; rewrite Min.min_l by lia; lia).*)
   assert (!!offset_in_range (sizeof t * Zlength data) d |--
     !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d)%logic.
     remember (sizeof t) as ST; normalize; subst ST.
     apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
     rewrite !Zlength_correct.
-    rewrite firstn_length; rewrite Min.min_l by omega. split; try omega.
+    rewrite firstn_length; rewrite Min.min_l by lia. split; try lia.
     apply inj_le, N.
     rewrite Zmult_0_r.
     unfold offset_in_range; destruct d; auto.
-    pose proof Int.unsigned_range i; omega.
+    pose proof Int.unsigned_range i; lia.
   rewrite (add_andp _ _ H) at 2. repeat rewrite Zmult_0_r.
   normalize.
   f_equal. f_equal. rewrite Arith1. apply prop_ext; intuition.
@@ -495,8 +495,8 @@ Proof.
   rewrite skipn_firstn. trivial.
   rewrite Nat2Z.inj_add, Zminus_plus; trivial.
 
-  rewrite Arith1. apply inj_le. omega.
-  apply inj_le. omega.
+  rewrite Arith1. apply inj_le. lia.
+  apply inj_le. lia.
   rewrite Zlength_correct. apply inj_le; trivial.
   rewrite Zlength_correct. apply inj_le; trivial.
 Qed.
@@ -529,8 +529,8 @@ rewrite (split_offset_Tarray_at (length data1) sh t (Zlength (data1++data2))
          (data1 ++ data2) d H); repeat rewrite Zlength_correct.
 rewrite firstn_exact, skipn_exact; trivial.
 rewrite app_length, Nat2Z.inj_add, Z.add_simpl_l; trivial.
-rewrite app_length, Nat2Z.inj_add. omega.
-rewrite app_length, Nat2Z.inj_add. omega.
+rewrite app_length, Nat2Z.inj_add. lia.
+rewrite app_length, Nat2Z.inj_add. lia.
 Qed.
 
 Lemma append_split3_Tarray_at
@@ -548,18 +548,18 @@ Lemma append_split3_Tarray_at
 Proof.
   subst.
   erewrite (split3_offset_Tarray_at t A (length data1) (length data2)).
-  2: repeat rewrite app_length; omega.
+  2: repeat rewrite app_length; lia.
   rewrite firstn_exact; trivial.
   rewrite skipn_exact; trivial.
   rewrite firstn_exact; trivial.
-  rewrite app_assoc, skipn_app2. 2: rewrite app_length; omega.
-  assert (Arith1: (length data1 + length data2 - (length data1 + length data2) = 0)%nat) by omega.
+  rewrite app_assoc, skipn_app2. 2: rewrite app_length; lia.
+  assert (Arith1: (length data1 + length data2 - (length data1 + length data2) = 0)%nat) by lia.
   f_equal. repeat rewrite Zlength_correct. repeat rewrite app_length.
   rewrite Arith1; clear Arith1. simpl.
   f_equal. repeat rewrite Nat2Z.inj_add. rewrite Z.mul_add_distr_l.
   assert (Arith: Z.of_nat (length data1) + Z.of_nat (length data2) +
       Z.of_nat (length data3) -
-      (Z.of_nat (length data1) + Z.of_nat (length data2)) = Z.of_nat (length data3)). omega.
+      (Z.of_nat (length data1) + Z.of_nat (length data2)) = Z.of_nat (length data3)). lia.
   rewrite Arith; clear Arith; trivial.
 Qed.
 *)
@@ -585,7 +585,7 @@ Proof.
   specialize (Zlength_nonneg data1). intros.
   specialize (Zlength_nonneg data2). intros.
   specialize (Zlength_nonneg data3). intros.
-  rewrite split3_data_at_Tarray_tuchar with (n1:=Zlength data1)(n2:=Zlength data2 +Zlength data1); try omega.
+  rewrite split3_data_at_Tarray_tuchar with (n1:=Zlength data1)(n2:=Zlength data2 +Zlength data1); try lia.
   autorewrite with sublist.
   unfold Select_at, Unselect_at. simpl.
   unfold offset_val. red in F. destruct d; intuition.
@@ -596,8 +596,8 @@ Proof.
   repeat rewrite sepcon_assoc.
   f_equal. repeat rewrite Z.mul_1_l. rewrite sepcon_comm. f_equal.
   repeat rewrite Zlength_app in *.
-  red; simpl. intuition; try omega.
+  red; simpl. intuition; try lia.
   repeat rewrite Zlength_app in *.
-  red; simpl. intuition; try omega.
-  repeat rewrite Zlength_app in *. omega.
+  red; simpl. intuition; try lia.
+  repeat rewrite Zlength_app in *. lia.
 Qed.

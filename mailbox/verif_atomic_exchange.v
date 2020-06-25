@@ -4,7 +4,7 @@ Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.atomic_exchange.
-Ltac omega := Coq.omega.Omega.omega.
+Require Import Lia.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -50,7 +50,7 @@ Lemma AE_inv_exclusive : forall x g i R, exclusive_mpred (AE_inv x g i R).
 Proof.
   unfold AE_inv; intros.
   eapply derives_exclusive, exclusive_sepcon1 with (Q := EX h : list AE_hist_el, EX v : val, _),
-    data_at__exclusive with (sh := Ews)(t := tint); auto; simpl; try omega.
+    data_at__exclusive with (sh := Ews)(t := tint); auto; simpl; try lia.
   Intros h v; rewrite sepcon_assoc; apply sepcon_derives; [cancel|].
   Exists h v; apply derives_refl.
 Qed.

@@ -4,7 +4,7 @@ Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
-Ltac omega := Coq.omega.Omega.omega.
+Require Import Lia.
 Open Scope funspec_scope.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -384,7 +384,7 @@ Qed.
 Lemma repable_buf : forall a, -1 <= a < B -> repable_signed a.
 Proof.
   intros ? (? & ?).
-  split; [transitivity (-1) | transitivity B]; unfold B, N in *; try computable; auto; omega.
+  split; [transitivity (-1) | transitivity B]; unfold B, N in *; try computable; auto; lia.
 Qed.
 
 Lemma last_two_reads_cons : forall r w h, last_two_reads (AE r w :: h) =
@@ -483,7 +483,7 @@ Proof.
   right; split; auto; exists n.
   unfold map_upd; rewrite eq_dec_refl; split; auto.
   intros ???; if_tac; [subst; auto|].
-  intro Ht; specialize (H t); rewrite Ht in H; lapply H; [omega | discriminate].
+  intro Ht; specialize (H t); rewrite Ht in H; lapply H; [lia | discriminate].
 Qed.
 
 Lemma comm_loc_isptr : forall lsh l c g g0 g1 g2 b sh gsh h,
@@ -498,8 +498,8 @@ Lemma make_shares_out : forall b lasts shs
   (Hb : ~In b lasts) (Hlen : Zlength lasts = Zlength shs), make_shares shs lasts b = shs.
 Proof.
   induction lasts; auto; simpl; intros.
-  { rewrite Zlength_nil in *; destruct shs; auto; rewrite Zlength_cons, Zlength_correct in *; omega. }
+  { rewrite Zlength_nil in *; destruct shs; auto; rewrite Zlength_cons, Zlength_correct in *; lia. }
   destruct (eq_dec a b); [contradiction Hb; auto|].
-  destruct shs; rewrite !Zlength_cons in *; [rewrite Zlength_nil, Zlength_correct in *; omega|].
-  simpl; rewrite IHlasts; auto; omega.
+  destruct shs; rewrite !Zlength_cons in *; [rewrite Zlength_nil, Zlength_correct in *; lia|].
+  simpl; rewrite IHlasts; auto; lia.
 Qed.

@@ -14,7 +14,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads); [|omega].
+  { exploit (Znth_inbounds r reads); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.
@@ -29,7 +29,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads); [|omega].
+  { exploit (Znth_inbounds r reads); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   rewrite comm_loc_isptr; Intros.
@@ -66,7 +66,7 @@ Proof.
     eapply derives_trans; [apply sepcon_derives, derives_refl;
       apply ghost_var_update with (v' := vint (if eq_dec (vint b) Empty then b0 else b))|].
     eapply derives_trans, bupd_mono; [apply bupd_frame_r|].
-    assert (repable_signed b0) by (apply repable_buf; omega).
+    assert (repable_signed b0) by (apply repable_buf; lia).
     assert (b1 = b0) by (apply repr_inj_signed; auto); subst.
     lapply (repable_buf b); auto; intro.
     rewrite Hlast.
@@ -74,7 +74,7 @@ Proof.
     Exists (-1) (if eq_dec (vint b) Empty then b0 else b)
       (if eq_dec (vint b) Empty then b2 else b0); entailer!.
     { split; [rewrite Forall_app; repeat constructor; auto|].
-      { exists b, (-1); split; [|split]; auto; omega. }
+      { exists b, (-1); split; [|split]; auto; lia. }
       rewrite eq_dec_refl.
       if_tac; auto. }
     rewrite !eq_dec_refl.
@@ -92,20 +92,20 @@ Proof.
   Intros x b'; destruct x as (t, v). simpl fst in *; simpl snd in *.
   assert (exists b, v = vint b /\ -1 <= b < B /\ if eq_dec b (-1) then b' = b0 else b' = b) as (b & ? & ? & ?).
   { destruct (eq_dec v Empty); subst.
-    - exists (-1); rewrite eq_dec_refl; split; auto; omega.
-    - do 2 eexists; eauto; split; [omega|].
+    - exists (-1); rewrite eq_dec_refl; split; auto; lia.
+    - do 2 eexists; eauto; split; [lia|].
       destruct (eq_dec b' (-1)); [subst; contradiction n; auto | auto]. }
   exploit repable_buf; eauto; intro; subst.
   match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
     forward_if (PROP () (LOCALx (temp _t'2 (vint (if eq_dec b (-1) then 0 else 1)) :: Q) (SEPx R))) end.
   { forward.
-    destruct (eq_dec b (-1)); [omega|].
+    destruct (eq_dec b (-1)); [lia|].
     entailer!.
     destruct (Int.lt (Int.repr b) (Int.repr (3 + 2))) eqn: Hlt; auto.
     apply lt_repr_false in Hlt; auto; unfold repable_signed; try computable.
-    unfold B, N in *; omega. }
+    unfold B, N in *; lia. }
   { forward.
-    destruct (eq_dec b (-1)); [|omega].
+    destruct (eq_dec b (-1)); [|lia].
     entailer!. }
   forward_if (PROP () LOCAL (temp _b (vint (if eq_dec b (-1) then b0 else b)); temp _rr (Znth r reads);
       temp _r (vint r); gvars gv)
@@ -128,7 +128,7 @@ Proof.
     Exists (if eq_dec b (-1) then b0 else b) t (vint b) v.
     apply andp_right.
     { apply prop_right.
-      split; [destruct (eq_dec b (-1)); auto; omega|].
+      split; [destruct (eq_dec b (-1)); auto; lia|].
       destruct (eq_dec (vint b) Empty).
       + assert (b = -1) by (apply Empty_inj; auto).
         subst; rewrite eq_dec_refl; auto.
@@ -144,7 +144,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads); [|omega].
+  { exploit (Znth_inbounds r reads); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.

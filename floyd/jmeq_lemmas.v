@@ -22,7 +22,7 @@ Proof.
   rewrite <- eq_rect_eq.
   auto.
 Qed.
-Hint Resolve JMeq_refl.
+Hint Resolve JMeq_refl : core.
 
 Lemma JMeq_sym : forall {A: Type} {B:Type} {x:A} {y:B}, JMeq x y -> JMeq y x.
 Proof.
@@ -34,7 +34,7 @@ Proof.
   simpl.
   apply eq_refl.
 Qed.
-Hint Immediate JMeq_sym.
+Hint Immediate JMeq_sym : core.
 
 Lemma JMeq_trans :
  forall {A: Type} {B: Type} {C:Type} {x:A} {y:B} {z:C}, JMeq x y -> JMeq y z -> JMeq x z.

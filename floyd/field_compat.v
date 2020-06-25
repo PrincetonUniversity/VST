@@ -529,7 +529,7 @@ Proof. intros.
  eapply split2_data_at_Tarray; auto;
  change (@reptype cs tuchar) with val.
  symmetry in H0.
- old_list_solve.
+ list_solve.
  rewrite sublist_same; try lia; auto.
 Qed.
 
@@ -543,7 +543,7 @@ Proof. intros.
  eapply split2_data_at_Tarray; auto;
  change (@reptype cs tschar) with val.
  symmetry in H0.
- old_list_solve.
+ list_solve.
  rewrite sublist_same; try lia; auto.
 Qed.
 
@@ -558,7 +558,7 @@ Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 (v: list val) p:
 Proof. intros.
  eapply split3_data_at_Tarray; auto;
  change (@reptype cs tuchar) with val.
-  split; simpl; auto. old_list_solve.
+  split; simpl; auto. list_solve.
  rewrite sublist_same; try lia; auto.
 Qed.
 
@@ -573,7 +573,7 @@ Lemma split3_data_at_Tarray_tschar {cs: compspecs} sh n n1 n2 (v: list val) p:
 Proof. intros.
  eapply split3_data_at_Tarray; auto;
  change (@reptype cs tschar) with val.
-  split; simpl; auto. old_list_solve.
+  split; simpl; auto. list_solve.
  rewrite sublist_same; try lia; auto.
 Qed.
 
@@ -883,9 +883,9 @@ instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
 unfold field_address. simpl. 
 rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
 trivial.
-simpl.
 instantiate (1:=list_repeat (Z.to_nat n) Vundef).
-old_list_solve.
+change (@reptype _ _)  with val.
+list_solve.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
@@ -908,7 +908,8 @@ rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
 trivial.
 simpl.
 instantiate (1:=list_repeat (Z.to_nat n) Vundef).
-old_list_solve.
+change (@reptype _ _)  with val.
+list_solve.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
@@ -929,7 +930,7 @@ pose proof (Zlength_nonneg v1).
 pose proof (Zlength_nonneg v2).
 apply split2_data_at_Tarray with (v1++v2); auto.
 lia.
-old_list_solve.
+list_solve.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.

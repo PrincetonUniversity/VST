@@ -101,16 +101,16 @@ Proof.
     split. assumption.
     exists xs; split; trivial.
     intros.
-    destruct (Znth_mapVint xs j) as [xj Xj]. rewrite Zlength_map in XL; omega.
+    destruct (Znth_mapVint xs j) as [xj Xj]. rewrite Zlength_map in XL; lia.
     exists xj; split; trivial.
-    split; intros. omega. trivial. }
+    split; intros. lia. trivial. }
   { rename H into I. Intros xlist.
     destruct H as [XLL XLIST].
     destruct XLIST as [xints [INTS J]]. subst xlist.
     destruct (J _ I) as [xi [Xi [_ HXi]]].
-    destruct (Znth_mapVint ys i) as [yi Yi]. rewrite Zlength_map in YL; omega.
+    destruct (Znth_mapVint ys i) as [yi Yi]. rewrite Zlength_map in YL; lia.
     freeze [0;1] FR1.
-    spec HXi; [omega|]. change Inhabitant_val with Vundef in HXi.
+    spec HXi; [lia|]. change Inhabitant_val with Vundef in HXi.
     Time forward; rewrite HXi.
     thaw FR1. freeze [0;2] FR2.
     Time forward; change Inhabitant_val with Vundef in Yi; rewrite Yi. 
@@ -119,27 +119,27 @@ Proof.
     Exists (upd_Znth i (map Vint xints) (Vint (Int.add yi xi))).
     go_lower. normalize. 
     apply andp_right; [ apply prop_right | rewrite Int.add_commut; cancel].
-    repeat split; trivial; try omega. 
-    * rewrite upd_Znth_Zlength. assumption. simpl; rewrite XLL. omega.
-    * eexists; split. apply upd_Znth_ints; omega.
+    repeat split; trivial; try lia. 
+    * rewrite upd_Znth_Zlength. assumption. simpl; rewrite XLL. lia.
+    * eexists; split. apply upd_Znth_ints; lia.
       intros kk KK. destruct (J _ KK) as [xj [Xj [IJ1 IJ2]]].
       exists xj. split. assumption.
       split; intros.
       + destruct (zlt kk i).
         - destruct (IJ1 l) as [yj [Yj Xj']]. exists yj; split; trivial.
           rewrite upd_Znth_diff; trivial.
-            simpl in *; omega.
-            simpl in *; omega.
-            omega.
-        - assert (JJ: kk=i) by omega. subst kk.
+            simpl in *; lia.
+            simpl in *; lia.
+            lia.
+        - assert (JJ: kk=i) by lia. subst kk.
           rewrite Xj in Xi; inv Xi.
           rewrite @upd_Znth_same.
           exists yi. change Inhabitant_val with Vundef; split; trivial.
-          simpl in *; omega.
-      + rewrite upd_Znth_diff. apply IJ2; omega.
-            simpl in *; omega.
-            simpl in *; omega.
-            omega. }
+          simpl in *; lia.
+      + rewrite upd_Znth_diff. apply IJ2; lia.
+            simpl in *; lia.
+            simpl in *; lia.
+            lia. }
 apply andp_left2; apply derives_refl.
 Time Qed. (*June 4th, 2017 (loptop): 1.4s*)
 
@@ -259,7 +259,7 @@ Proof. intros. abbreviate_semax.
     repeat rewrite QuadChunk2ValList_ZLength;
     repeat rewrite FL; try rewrite BL;
     try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r.
-    2: clear - I; omega. 2: clear - I; omega. 2: clear - I; omega.
+    2: clear - I; lia. 2: clear - I; lia. 2: clear - I; lia.
     2: rewrite <- HC; trivial. etc*)
     erewrite (@Select_Unselect_Tarray_at CompSpecs 16 (Vptr cb coff)); try assumption.
       2: rewrite SSS; reflexivity.
@@ -275,14 +275,14 @@ Proof. intros. abbreviate_semax.
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
         clear - SL.
         induction n; simpl; intros. trivial.
-        repeat rewrite upd_Znth_Zlength. apply IHn; omega. omega.
-          rewrite IHn; omega.
-          rewrite IHn; omega.
+        repeat rewrite upd_Znth_Zlength. apply IHn; lia. lia.
+          rewrite IHn; lia.
+          rewrite IHn; lia.
       assert (PL2Zlength: Zlength (hPosLoop2 (Z.to_nat i) intsums C Nonce) = 16).
-         apply PL2length. split; try omega. apply (Z2Nat.inj_lt _ 4); omega.
+         apply PL2length. split; try lia.
 
       destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (5*i)) as [vj Vj].
-      rewrite PL2Zlength; omega.
+      rewrite PL2Zlength; lia.
       thaw FR3.
       Time forward; change (@Znth val Vundef) with (@Znth val Inhabitant_val); rewrite Vj. (*5.3 versus 10.9*) 
       Time forward. (*4.9 versus 10.3*)
@@ -311,15 +311,15 @@ Proof. intros. abbreviate_semax.
       Time forward_call (Vptr nb (Ptrofs.add noff (Ptrofs.repr (4 * i))),
                      Select16Q Nonce i). (*3 versus 14.8*)
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i)) as [uj Uj].
-      rewrite PL2Zlength; omega.
+      rewrite PL2Zlength; lia.
      thaw FR4. thaw FR3. freeze [0;1;2;3;5] FR5.
      autorewrite with sublist in *.
-     Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*5.9 versus 13*)
+     Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; lia). (*5.9 versus 13*)
      { Time entailer!. (*2 versus 4.6*)
-(*       destruct (Zlength_length _ Front (Zlength Front)) as [X _]. omega.
+(*       destruct (Zlength_length _ Front (Zlength Front)) as [X _]. lia.
        rewrite X; trivial. autorewrite with sublist; simpl; trivial. *) }
-     { omega. }
-     2: omega.
+     { lia. }
+     2: lia.
      Opaque Z.mul. Opaque Z.add.
      Time forward. (*5.8 versus 12.9*)
      autorewrite with sublist; rewrite Uj.
@@ -354,11 +354,11 @@ Proof. intros. abbreviate_semax.
        apply data_at_ext.
        clear H1.
        remember (Zlength Front) as i.
-       rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
+       rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try lia.
        replace (length Front) with (Z.to_nat i).
-       rewrite Z2Nat.id by omega.
+       rewrite Z2Nat.id by lia.
        rewrite upd_Znth_ints. 2 : {
-         rewrite Zlength_map. omega.
+         rewrite Zlength_map. lia.
        }
        autorewrite with sublist.
        f_equal.
@@ -369,41 +369,41 @@ Proof. intros. abbreviate_semax.
          clear - SL PL2length I.
          destruct (zeq i 0); subst; simpl; [ trivial | ].
          destruct (zeq i 1); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia. trivial.
          destruct (zeq i 2); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia. trivial.
          destruct (zeq i 3); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
-         omega. }
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia. trivial.
+         lia. }
       assert (EQ: Znth (6 + i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) =
                    Znth (6 + i) intsums).  {
          clear - SL PL2length I.
          destruct (zeq i 0); subst; simpl. trivial.
          destruct (zeq i 1); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia. trivial.
          destruct (zeq i 2); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia. trivial.
          destruct (zeq i 3); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
-         omega. }
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try lia. trivial.
+         lia. }
 (*        rewrite Znth_map with (d':=Int.zero) by rep_lia. *)
         rewrite !VJeq, !EQ.
         simpl force_val.
@@ -420,8 +420,8 @@ Definition UpdateOut (l: list val) (i:Z) (xi:int) :=
 
 Lemma UpdateOut_Zlength l i xi: 0<=i -> i + 4 <= Zlength l -> Zlength (UpdateOut l i xi) = Zlength l.
 Proof. intros. unfold UpdateOut. repeat rewrite Zlength_app.
-  repeat rewrite Zlength_sublist; try omega.
-  rewrite <- QuadByteValList_ZLength. omega.
+  repeat rewrite Zlength_sublist; try lia.
+  rewrite <- QuadByteValList_ZLength. lia.
 Qed.
 
 Fixpoint hPosLoop3 (n:nat) (xlist: list int) (old: list val): list val :=
@@ -441,24 +441,21 @@ Lemma hposLoop3_length xlist old: forall n, (16+4*Z.of_nat n<Zlength old) ->
   Proof. induction n; simpl; intros. trivial.
     rewrite Zpos_P_of_succ_nat in H.
     repeat rewrite UpdateOut_Zlength.
-      apply IHn. omega.
-    omega.
-    simpl. rewrite IHn. omega. omega.
-    omega.
-    simpl. rewrite IHn. omega. omega.
-    omega.
-    simpl. rewrite IHn. omega. omega.
+      apply IHn. lia.
+    lia.
+    simpl. rewrite IHn. lia. lia.
+    lia.
+    simpl. rewrite IHn. lia. lia.
+    lia.
+    simpl. rewrite IHn. lia. lia.
   Qed.
 Lemma hposLoop2_Zlength16 C N l (L:Zlength l = 16): forall n,
       5 * Z.of_nat n < 16-> 6+ Z.of_nat n < 16 -> Zlength (hPosLoop2 (S n) l C N) = 16.
 Proof. intros. simpl.
   induction n; simpl; intros; trivial.
-  rewrite upd_Znth_Zlength; rewrite upd_Znth_Zlength; omega.
+  rewrite upd_Znth_Zlength; rewrite upd_Znth_Zlength; lia.
   rewrite Nat2Z.inj_succ in *.
-  rewrite upd_Znth_Zlength; rewrite upd_Znth_Zlength; rewrite IHn; simpl; try omega.
-  rewrite Zpos_P_of_succ_nat. omega.
-  rewrite Zpos_P_of_succ_nat. omega.
-  rewrite Zpos_P_of_succ_nat. omega.
+  rewrite upd_Znth_Zlength; rewrite upd_Znth_Zlength; rewrite IHn; simpl; try lia.
 Qed.
 
 
@@ -535,12 +532,12 @@ Proof. intros. abbreviate_semax.
   { rename H into I.
 
     assert (P3_Zlength: Zlength (hPosLoop3 (Z.to_nat i) xs OUT) = 32).
-      rewrite hposLoop3_length. assumption. rewrite OL, Z2Nat.id; omega.
+      rewrite hposLoop3_length. assumption. rewrite OL, Z2Nat.id; lia.
     assert (P3_length: length (hPosLoop3 (Z.to_nat i) xs OUT) = 32%nat).
       rewrite <- ZtoNat_Zlength, P3_Zlength; reflexivity.
     remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll. (*clear Heqll.*)
 
-    destruct (Znth_mapVint xs (5 * i)) as [xi Xi]. omega.
+    destruct (Znth_mapVint xs (5 * i)) as [xi Xi]. lia.
     freeze [0;2] FR1.
     Time forward; change (@Znth val Vundef) with (@Znth val Inhabitant_val); rewrite Xi. (*3.7 versus 8.8*)
     thaw FR1.
@@ -550,19 +547,19 @@ Proof. intros. abbreviate_semax.
     destruct Pout_FCO as [Pout FCO].
     apply isptrD in Pout; destruct Pout as [ob [ooff OC]]; rewrite OC in *.
     rewrite <- P3_Zlength.
-    rewrite (split3_data_at_Tarray_tuchar Tsh (Zlength ll) (4 *i) (4+4*i)); try rewrite P3_Zlength; trivial; try omega.
+    rewrite (split3_data_at_Tarray_tuchar Tsh (Zlength ll) (4 *i) (4+4*i)); try rewrite P3_Zlength; trivial; try lia.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val; simpl.
     repeat flatten_sepcon_in_SEP.
     freeze [0;1;3] FR3.
-    rewrite Znth_map in Xi; try omega. 
+    rewrite Znth_map in Xi; try lia. 
     inversion Xi; clear Xi; subst xi.
     Time forward_call (offset_val (4 * i) (Vptr ob ooff), (Znth (5 * i) xs)).
     1: solve [autorewrite with sublist; entailer!]. 
     simpl.
     assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) (Znth (5 * i) xs)) = 32).
-      rewrite UpdateOut_Zlength; trivial; omega.
+      rewrite UpdateOut_Zlength; trivial; lia.
 deadvars!.
     apply semax_pre with (P':=
   (PROP  ()
@@ -580,22 +577,22 @@ deadvars!.
       unfold QByte.
       rewrite <- Upd_ll_Zlength. unfold tarray. 
       erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) (Znth (5 * i) xs)));
-       try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
+       try rewrite UpdateOut_Zlength, P3_Zlength; try lia.
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.
       unfold offset_val. Opaque QuadByte2ValList.  simpl. repeat rewrite Z.mul_1_l.
       unfold UpdateOut.
       autorewrite with sublist. Time cancel. (*0.5*)
-      rewrite sublist_app2; autorewrite with sublist; try omega.
-      rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
+      rewrite sublist_app2; autorewrite with sublist; try lia.
+      rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try lia.
       autorewrite with sublist. rewrite Zplus_comm.
-      apply derives_refl'. f_equal. f_equal. omega. }
+      apply derives_refl'. f_equal. f_equal. lia. }
 
-    destruct (Znth_mapVint xs (6+i)) as [zi Zi]. omega.
+    destruct (Znth_mapVint xs (6+i)) as [zi Zi]. lia.
     freeze [0;1] FR4.
     Time forward;  change (@Znth val Vundef) with (@Znth val Inhabitant_val);  rewrite Zi. (*5 versus 11.1*)
     thaw FR4. freeze [0;2] FR5.
-    erewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 *i) (4+16 + 4 *i)); trivial; try omega.
+    erewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 *i) (4+16 + 4 *i)); trivial; try lia.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val; simpl.
@@ -610,22 +607,22 @@ deadvars!.
 
     Time entailer!. (*3.6 versus 11.5*)
     assert (AA:  Z.to_nat (i + 1) = S (Z.to_nat i)).
-      rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. omega. omega.
+      rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. lia. lia.
     rewrite AA. simpl.
     thaw FR6. thaw FR5. Time cancel. (*0.8*)
 (*    rewrite <- Heqll. clear Heqll.*)
 (*    remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll; clear Heqll.*)
     (*assert (XXi: xi = Znth (5 * i) xs Int.zero).
-      rewrite Znth_map' with (d':=Int.zero) in Xi; try omega. clear -Xi. inv Xi. trivial.*)
+      rewrite Znth_map' with (d':=Int.zero) in Xi; try lia. clear -Xi. inv Xi. trivial.*)
     assert (ZZi: zi = Znth (6 + i) xs).
     clear -Zi. inv Zi. trivial.
-    rewrite Z2Nat.id, (*<- XXi,*) <- ZZi; try omega; clear (*XXi*) ZZi.
+    rewrite Z2Nat.id, (*<- XXi,*) <- ZZi; try lia; clear (*XXi*) ZZi.
     unfold QByte.
 (*    remember (UpdateOut ll (4 * i) xi) as l.*)
     remember (UpdateOut (hPosLoop3 (Z.to_nat i) xs OUT) (4 * i) (Znth (5 * i) xs)) as l.
     assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) zi) = 32).
-      rewrite UpdateOut_Zlength; trivial. omega. omega.
-    rewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 * i) (4+16 + 4 * i)); try omega.
+      rewrite UpdateOut_Zlength; trivial. lia. lia.
+    rewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 * i) (4+16 + 4 * i)); try lia.
 (*      rewrite OC in *.*)
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.
@@ -633,9 +630,9 @@ deadvars!.
       Transparent QuadByte2ValList.
       unfold UpdateOut.
       autorewrite with sublist. Time cancel. (*0.6*)
-      rewrite sublist_app2; autorewrite with sublist; try omega.
-      rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
-      autorewrite with sublist. rewrite Zplus_comm. apply derives_refl'. f_equal. f_equal; omega. }
+      rewrite sublist_app2; autorewrite with sublist; try lia.
+      rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try lia.
+      autorewrite with sublist. rewrite Zplus_comm. apply derives_refl'. f_equal. f_equal; lia. }
   Time entailer!. (*3.7 versus 12.8*) (*With temp _i (Vint (Int.repr 4)) in LOCAL of HTruePostCondL apply derives_refl.*)
 Time Qed. (*June 4th, 2017 (laptop): Finished transaction in 3.433 secs (2.936u,0.008s) (successful)*)
 

@@ -254,7 +254,7 @@ intros.
 intros ? ? ?.
 unfold_lift; auto.
 Qed.
-Hint Resolve @closed_wrt_lift0C @closed_wrtl_lift0C: closed.
+Hint Resolve closed_wrt_lift0C closed_wrtl_lift0C: closed.
 
 Lemma closed_wrt_lift1: forall {A}{B} S (f: A -> B) P,
         closed_wrt_vars S P ->
@@ -290,7 +290,7 @@ intros.
 intros ? ? ?. specialize (H _ _ H0).
 unfold_lift; f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift1C @closed_wrtl_lift1C : closed.
+Hint Resolve closed_wrt_lift1C closed_wrtl_lift1C : closed.
 
 Lemma closed_wrt_lift2: forall {A1 A2}{B} S (f: A1 -> A2 -> B) P1 P2,
         closed_wrt_vars S P1 ->
@@ -338,7 +338,7 @@ specialize (H _ _ H1).
 specialize (H0 _ _ H1).
 unfold_lift; f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift2C @closed_wrtl_lift2C : closed.
+Hint Resolve closed_wrt_lift2C closed_wrtl_lift2C : closed.
 
 Lemma closed_wrt_lift3: forall {A1 A2 A3}{B} S (f: A1 -> A2 -> A3 -> B) P1 P2 P3,
         closed_wrt_vars S P1 ->
@@ -395,7 +395,7 @@ specialize (H0 _ _ H2).
 specialize (H1 _ _ H2).
 unfold_lift. f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift3C @closed_wrtl_lift3C : closed.
+Hint Resolve closed_wrt_lift3C closed_wrtl_lift3C : closed.
 
 Lemma closed_wrt_lift4: forall {A1 A2 A3 A4}{B} S (f: A1 -> A2 -> A3 -> A4 -> B)
        P1 P2 P3 P4,
@@ -463,7 +463,7 @@ specialize (H2 _ _ H3).
 unfold liftx; simpl.
 unfold lift. f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift4C @closed_wrtl_lift4C : closed.
+Hint Resolve closed_wrt_lift4C closed_wrtl_lift4C : closed.
 
 Lemma closed_wrt_const:
  forall A (P: A) S, closed_wrt_vars S (fun rho: environ => P).
@@ -477,7 +477,7 @@ Proof.
 intros. hnf; intros.
 simpl. auto.
 Qed.
-Hint Resolve @closed_wrt_const @closed_wrtl_const : closed.
+Hint Resolve closed_wrt_const closed_wrtl_const : closed.
 
 Lemma closed_wrt_eval_var:
   forall S id t, closed_wrt_vars S (eval_var id t).
@@ -752,7 +752,10 @@ Proof. repeat intro. reflexivity. Qed.
 Lemma closed_wrtl_emp {A} {ND: NatDed A} {SL: SepLog A}:
   forall S, closed_wrt_lvars S emp.
 Proof. repeat intro. reflexivity. Qed.
-Hint Resolve (@closed_wrt_emp mpred Nveric Sveric) (@closed_wrtl_emp mpred Nveric Sveric) : closed.
+
+Definition closed_wrt_emp_mpred := @closed_wrt_emp mpred Nveric Sveric.
+Definition closed_wrtl_emp_mpred := @closed_wrtl_emp mpred Nveric Sveric.
+Hint Resolve closed_wrt_emp_mpred closed_wrtl_emp_mpred  : closed.
 
 Lemma closed_wrt_allp: forall A S P,
   (forall x: A, closed_wrt_vars S (P x)) ->
@@ -1567,7 +1570,7 @@ intros.
 revert R H0; induction n; destruct R; simpl; intros; auto with closed;
 inv H0; constructor; auto with closed.
 Qed.
-Hint Resolve @closed_wrt_replace_nth : closed.
+Hint Resolve closed_wrt_replace_nth : closed.
 
 Lemma closed_wrt_tc_nodivover :
  forall {cs: compspecs} S e1 e2,
@@ -1867,5 +1870,5 @@ simpl.
 intros.
 constructor; auto.
 Qed.
-Hint Resolve @Forall_map_cons @Forall_map_nil : closed.
+Hint Resolve Forall_map_cons Forall_map_nil : closed.
 Hint Resolve Forall_cons Forall_nil : closed.

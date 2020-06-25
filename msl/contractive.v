@@ -333,9 +333,9 @@ Ltac sub_unfold :=
 
 Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
 
-Hint Resolve @prove_HOcontractive
-  @subp_allp @subp_imp @subp_refl @subp_exp @subp_andp @subp_orp @subp_subp
-  @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
+Hint Resolve prove_HOcontractive
+  subp_allp subp_imp subp_refl subp_exp subp_andp subp_orp subp_subp
+  allp_imp2_later_e1 allp_imp2_later_e2 : contractive.
 
 Lemma Rec_sub {A} `{ageable A} : forall G
   (F   : pred A -> pred A -> pred A)

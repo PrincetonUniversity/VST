@@ -30,8 +30,8 @@ X_content (Nonce, C, (Key1, Key2)) (i + 1)
         (Vint (littleendian (Select16Q Nonce i))))
      (Vint (littleendian (Select16Q Key2 i)))).
 Proof. unfold X_content in *.
-  rewrite (Z.add_comm _ 1), Z2Nat.inj_add; try omega. simpl.
-  rewrite Z2Nat.id; try omega. subst l; reflexivity.
+  rewrite (Z.add_comm _ 1), Z2Nat.inj_add; try lia. simpl.
+  rewrite Z2Nat.id; try lia. subst l; reflexivity.
 Qed.
 
 (*Issue : writing the lemma using the Delta := func_typcontext ...
@@ -160,7 +160,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   rewrite (split3_data_at_Tarray_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front))
         (Zlength (QuadChunks2ValList Front) + Zlength (QuadChunks2ValList [Select16Q C i])));
     repeat rewrite QuadChunk2ValList_ZLength;
-    try rewrite FL; try rewrite <- C1; try rewrite Zlength_cons, Zlength_nil; try solve[simpl; omega].
+    try rewrite FL; try rewrite <- C1; try rewrite Zlength_cons, Zlength_nil; try solve[simpl; lia].
   rewrite Zminus_plus. change (Z.succ 0) with 1. repeat rewrite Z.mul_1_r.
   rewrite (Select_SplitSelect16Q C i _ _ HeqFB) at 2.
   rewrite field_address0_offset by auto with field_compatible.
@@ -168,11 +168,11 @@ Time forward_for_simple_bound 4 (EX i:Z,
   autorewrite with sublist.
   rewrite sublist_app2; (*. (4 * Zlength Front) (4 + 4 * Zlength Front)); *)
     repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL.
-    2: omega.
+    2: lia.
   rewrite Zminus_diag. rewrite Z.add_simpl_l. repeat rewrite Z.mul_1_l.
   Intros.
   freeze [1;3;0] FR3.
-  rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength; try omega.
+  rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength; try lia.
 
   (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
 
@@ -196,8 +196,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
     repeat rewrite Zlength_app;
     repeat rewrite QuadChunk2ValList_ZLength;
 (*    repeat rewrite FL; try rewrite BL; *)
-    try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r; try omega.
-     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [_ BL]; rewrite FL, BL; omega.
+    try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r; try lia.
+     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [_ BL]; rewrite FL, BL; lia.
     autorewrite with sublist.
     rewrite CP in *.
     rewrite field_address0_offset by auto with field_compatible.
@@ -206,12 +206,12 @@ Time forward_for_simple_bound 4 (EX i:Z,
     simpl.
     rewrite app_nil_r.
     apply sepcon_derives. autorewrite with sublist.
-      rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
+      rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try lia.
       repeat rewrite Zminus_diag. rewrite Z.add_simpl_l.
-      rewrite sublist_app1; try rewrite <- QuadByteValList_ZLength; try omega.
-      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try omega.
+      rewrite sublist_app1; try rewrite <- QuadByteValList_ZLength; try lia.
+      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try lia.
     rewrite Z.mul_1_l. apply derives_refl.
-    rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
+    rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try lia.
     repeat rewrite Z.add_simpl_l, app_nil_r in *.
     autorewrite with norm. apply derives_refl.
  }

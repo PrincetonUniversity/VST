@@ -74,17 +74,17 @@ Proof. intros. abbreviate_semax.
       destruct YCONT as [l1 [l2 [yy [xx [APP1 [APP2 [APP3 [L1 L2]]]]]]]].
       assert (V: exists v yT, yy = (Vint v)::yT).
         destruct yy. rewrite app_nil_r in APP2. subst l1 xInit.
-         rewrite upd_upto_Zlength in L1. omega.
-         rewrite Zlength_list_repeat'. trivial. simpl; omega. subst xInit.
+         rewrite upd_upto_Zlength in L1. lia.
+         rewrite Zlength_list_repeat'. trivial. simpl; lia. subst xInit.
         rewrite <- APP2, app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. rewrite Vi.
-        eexists; eexists; reflexivity. omega.
+        eexists; eexists; reflexivity. lia.
       destruct V as [v [yT ?]]. subst yy; simpl.
     freeze [0;2] FR1. rewrite <- XInit in Vi.
       Time forward. (*3.4*)
       { Time entailer!. (*1*) clear - Vi. change Inhabitant_val with Vundef in Vi; rewrite Vi; simpl; trivial. }
       change Inhabitant_val with Vundef in Vi; rewrite Vi.
       rewrite <- APP2, app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi.
-      inversion Vi; clear Vi; subst vi. 2: omega.
+      inversion Vi; clear Vi; subst vi. 2: lia.
     thaw FR1. freeze [0;2] FR2.
       Time forward. (*3.3*)
       {
@@ -94,7 +94,7 @@ Proof. intros. abbreviate_semax.
           assert (TT: exists lT, l2 = Vundef::lT).
           { destruct l2.
             - rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_list_repeat' in I.
-              simpl in I; omega.
+              simpl in I; lia.
             - rewrite (in_list_repeat 16 Vundef v0). eexists; reflexivity.
               rewrite <- APP3. apply in_app. right; left; trivial. }
           destruct TT as [lT LT2]; subst l2.

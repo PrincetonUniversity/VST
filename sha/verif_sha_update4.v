@@ -18,7 +18,7 @@ assert (Zlength (intlist_to_bytelist blocks) =
      sublist 0 (Zlength blocks * 4 - Zlength frag) data)) by congruence.
  autorewrite with sublist in H0.
  pose proof (Zlength_nonneg (sublist 0 (Zlength blocks * 4 - Zlength frag) data)).
- omega.
+ lia.
 Qed.
 
 Definition sha_update_loop_body :=
@@ -199,7 +199,7 @@ forward_while
  pose proof (Hblocks_lem H7).
  assert (H0': (Zlength dd <= Zlength blocks * 4)%Z) by Omega1.
  clear H0; rename H0' into H0.
- rewrite Int.unsigned_repr in HRE by omega.
+ rewrite Int.unsigned_repr in HRE by lia.
  pose (bl := bytelist_to_intlist (sublist (Zlength blocks * 4 - Zlength dd)
                                                    (Zlength blocks * 4 - Zlength dd + CBLOCKz) data)).
 assert (Zlength bl = LBLOCKz). {
@@ -227,10 +227,10 @@ assert (Zlength bl = LBLOCKz). {
   { (* TODO: simplify this proof. *)
     clear - FC. red in FC. simpl in FC. destruct d; try tauto.
     simpl in FC.
-    rewrite Z.max_r in FC by (specialize (Zlength_nonneg data); intros; omega).
+    rewrite Z.max_r in FC by (specialize (Zlength_nonneg data); intros; lia).
     inv_int i.
     rewrite Z.mul_1_l in FC.
-    omega.
+    lia.
   }
   set (lo := Zlength blocks * 4 - Zlength frag) in *.
   replace_SEP 2

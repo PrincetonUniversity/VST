@@ -16,11 +16,11 @@ Lemma HMAC_DRBG_generate_helper_Z_any_prop_fst:
 Proof.
   intros P HMAC key v z Hz Hv H.
   remember (z/32) as n.
-  rewrite <- (Z2Nat.id n) in Heqn by (subst; apply (Z_div_pos z 32); omega).
+  rewrite <- (Z2Nat.id n) in Heqn by (subst; apply (Z_div_pos z 32); lia).
   generalize dependent z.
   induction (Z.to_nat n); intros.
   {
-    rewrite (Z_div_mod_eq z 32); try omega.
+    rewrite (Z_div_mod_eq z 32); try lia.
     rewrite HMAC_DRBG_generate_helper_Z_equation.
     rewrite <- Heqn.
     change (Z.of_nat 0) with 0.
@@ -34,23 +34,23 @@ Proof.
     {
       rewrite Z.geb_leb in Heqzero_geb_z_minus_32.
       symmetry in Heqzero_geb_z_minus_32; apply Z.leb_gt in Heqzero_geb_z_minus_32.
-      pose proof (Z_mod_lt z 32); omega.
+      pose proof (Z_mod_lt z 32); lia.
     }
   }
   {
-    rewrite (Z_div_mod_eq z 32); try omega.
+    rewrite (Z_div_mod_eq z 32); try lia.
     rewrite <- Heqn.
     assert (Hn: 32 * Z.of_nat (S n0) + z mod 32 = 32 * Z.of_nat n0 + z mod 32 + 32).
     {
       rewrite Nat2Z.inj_succ.
       rewrite <- Zmult_succ_r_reverse.
-      omega.
+      lia.
     }
     rewrite Hn.
     rewrite HMAC_DRBG_generate_helper_Z_equation.
     destruct (0 >=? 32 * Z.of_nat n0 + z mod 32 + 32); auto.
     change (Z.of_nat 32) with 32.
-    replace (32 * Z.of_nat n0 + z mod 32 + 32 - 32) with (32 * Z.of_nat n0 + z mod 32) by omega.
+    replace (32 * Z.of_nat n0 + z mod 32 + 32 - 32) with (32 * Z.of_nat n0 + z mod 32) by lia.
     remember (HMAC_DRBG_generate_helper_Z HMAC key v
                (32 * Z.of_nat n0 + z mod 32)) as result; destruct result.
     simpl.
@@ -66,12 +66,12 @@ Lemma HMAC_DRBG_generate_helper_Z_incremental_fst:
 Proof.
   intros HMAC key v z v' Hz H.
   remember (z/32) as n.
-  rewrite <- (Z2Nat.id n) in Heqn by (subst; apply (Z_div_pos z 32); omega).
+  rewrite <- (Z2Nat.id n) in Heqn by (subst; apply (Z_div_pos z 32); lia).
   assert (Hf: 0 >=? z + 32 = false).
   {
-    assert (0 < z + 32) by omega.
+    assert (0 < z + 32) by lia.
     rewrite Z.geb_leb.
-    apply Z.leb_gt; omega.
+    apply Z.leb_gt; lia.
   }
   rewrite HMAC_DRBG_generate_helper_Z_equation.
   rewrite Hf.
@@ -79,7 +79,7 @@ Proof.
   simpl.
   replace l with (fst (HMAC_DRBG_generate_helper_Z HMAC key v (z + 32 - Z.of_nat 32))) by (rewrite <- Heqresult; auto).
   change (Z.of_nat 32) with 32.
-  replace (z + 32 - 32) with z by omega.
+  replace (z + 32 - 32) with z by lia.
   rewrite H.
   reflexivity.
 Qed.
@@ -92,12 +92,12 @@ Lemma HMAC_DRBG_generate_helper_Z_incremental_snd:
 Proof.
   intros HMAC key v z v' Hz H.
   remember (z/32) as n.
-  rewrite <- (Z2Nat.id n) in Heqn by (subst; apply (Z_div_pos z 32); omega).
+  rewrite <- (Z2Nat.id n) in Heqn by (subst; apply (Z_div_pos z 32); lia).
   assert (Hf: 0 >=? z + 32 = false).
   {
-    assert (0 < z + 32) by omega.
+    assert (0 < z + 32) by lia.
     rewrite Z.geb_leb.
-    apply Z.leb_gt; omega.
+    apply Z.leb_gt; lia.
   }
   remember (HMAC_DRBG_generate_helper_Z HMAC key v z) as saved;
     rewrite HMAC_DRBG_generate_helper_Z_equation; subst saved.
@@ -107,7 +107,7 @@ Proof.
   replace l with (fst (HMAC_DRBG_generate_helper_Z HMAC key v (z + 32 - Z.of_nat 32))) by (rewrite <- Heqresult; auto).
   replace l0 with (snd (HMAC_DRBG_generate_helper_Z HMAC key v (z + 32 - Z.of_nat 32))) by (rewrite <- Heqresult; auto).
   change (Z.of_nat 32) with 32.
-  replace (z + 32 - 32) with z by omega.
+  replace (z + 32 - 32) with z by lia.
   rewrite H.
   erewrite <- HMAC_DRBG_generate_helper_Z_incremental_fst; eauto.
 Qed.
@@ -131,7 +131,7 @@ Lemma HMAC_DRBG_generate_helper_Z_Zlength_snd:
 Proof.
   intros HMAC key v z Hz Hlength Hn.
   destruct Hn as [n Hn].
-  rewrite <- (Z2Nat.id n) in Hn by omega.
+  rewrite <- (Z2Nat.id n) in Hn by lia.
   generalize dependent z. revert Hlength.
   induction (Z.to_nat n); intros.
   {
@@ -155,7 +155,7 @@ Proof.
     assert (Hf: 0 >=? Z.of_nat n0 * 32 + 32 = false).
     {
       rewrite Z.geb_leb.
-      apply Z.leb_gt; omega.
+      apply Z.leb_gt; lia.
     }
     rewrite Hf.
     remember (HMAC_DRBG_generate_helper_Z HMAC key v
@@ -169,7 +169,7 @@ Proof.
     replace l0 with (snd (HMAC_DRBG_generate_helper_Z HMAC key v
                 (Z.of_nat n0 * 32 + 32 - Z.of_nat 32))) by (rewrite <- Heqresult; auto).
     change (Z.of_nat 32) with 32.
-    rewrite IHn0; auto; omega.
+    rewrite IHn0; auto; lia.
   }
 Qed.
 
@@ -182,7 +182,7 @@ Lemma HMAC_DRBG_generate_helper_Z_incremental_equiv:
 Proof.
   intros HMAC key v z incr Hz Hlength Hn.
   destruct Hn as [n Hn].
-  rewrite <- (Z2Nat.id n) in Hn by omega.
+  rewrite <- (Z2Nat.id n) in Hn by lia.
   generalize dependent z.
   induction (Z.to_nat n); intros.
   {
@@ -193,7 +193,7 @@ Proof.
     assert (Hf: 0 >=? incr = false).
     {
       rewrite Z.geb_leb.
-      apply Z.leb_gt; omega.
+      apply Z.leb_gt; lia.
     }
     rewrite Hf.
     rewrite HMAC_DRBG_generate_helper_Z_equation.
@@ -201,7 +201,7 @@ Proof.
     {
       change (Z.of_nat 32) with 32.
       rewrite Z.geb_leb.
-      apply Z.leb_le; omega.
+      apply Z.leb_le; lia.
     }
     rewrite Hf2.
     reflexivity.
@@ -220,23 +220,23 @@ Proof.
     assert (Hf: 0 >=? Z.of_nat n0 * 32 + 32 + incr = false).
     {
       rewrite Z.geb_leb.
-      apply Z.leb_gt; omega.
+      apply Z.leb_gt; lia.
     }
     rewrite Hf.
     change (Z.of_nat 32) with 32.
-    replace (Z.of_nat n0 * 32 + 32 + incr - 32) with (Z.of_nat n0 * 32 + incr) by omega.
-    rewrite IHn0; try omega.
+    replace (Z.of_nat n0 * 32 + 32 + incr - 32) with (Z.of_nat n0 * 32 + incr) by lia.
+    rewrite IHn0; try lia.
     remember (let (v0, rest) :=
         HMAC_DRBG_generate_helper_Z HMAC key v (Z.of_nat n0 * 32 + 32) in
     (HMAC v0 key, rest ++ HMAC v0 key)) as saved; rewrite HMAC_DRBG_generate_helper_Z_equation; subst saved.
     assert (Hf2: 0 >=? Z.of_nat n0 * 32 + 32 + 32 = false).
     {
       rewrite Z.geb_leb.
-      apply Z.leb_gt; omega.
+      apply Z.leb_gt; lia.
     }
     rewrite Hf2.
     change (Z.of_nat 32) with 32.
-    replace (Z.of_nat n0 * 32 + 32 + 32 - 32) with (Z.of_nat n0 * 32 + 32) by omega.
+    replace (Z.of_nat n0 * 32 + 32 + 32 - 32) with (Z.of_nat n0 * 32 + 32) by lia.
     reflexivity.
   }
 Qed.

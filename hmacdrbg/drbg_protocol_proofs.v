@@ -121,7 +121,7 @@ Proof.
   Intros v. rename H into Hv. simpl.
   freeze [0] FR1. forward. thaw FR1. 
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial.
+  { destruct Hv; try lia. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
     entailer!.
     thaw FR0; unfold seedbufREP. cancel.
@@ -310,17 +310,17 @@ Proof.
          (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero)) (offset_val entropy_len seed))).
   {
     erewrite <- data_at_complete_split with (length:=384)(AB:=list_repeat (Z.to_nat 384) (Vint Int.zero)); 
-    repeat rewrite Zlength_list_repeat; trivial; try omega. 
+    repeat rewrite Zlength_list_repeat; trivial; try lia. 
     solve [go_lower; apply derives_refl]. 
     solve [rewrite Zplus_minus; assumption].
-    rewrite list_repeat_app, Z2Nat.inj_sub; try omega. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try omega.
+    rewrite list_repeat_app, Z2Nat.inj_sub; try lia. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try lia.
   }
   flatten_sepcon_in_SEP.
 
   replace_SEP 0 (memory_block Tsh entropy_len seed).
   { entailer!.
      eapply derives_trans. apply data_at_memory_block. 
-     simpl. rewrite Z.max_r, Z.mul_1_l; auto; omega.
+     simpl. rewrite Z.max_r, Z.mul_1_l; auto; lia.
   }
 
   (* get_entropy(seed, entropy_len ) *)
@@ -334,13 +334,13 @@ Proof.
   { remember (add_len >? 256) as d.
     destruct d; symmetry in Heqd; trivial.
     apply Zgt_is_gt_bool in Heqd.
-    destruct (zlt 256 add_len); try discriminate; omega.
+    destruct (zlt 256 add_len); try discriminate; lia.
   }
   assert (EAL256': (entropy_len + add_len)  >? 384 = false).
   { remember (entropy_len + add_len >? 384) as d.
     destruct d; symmetry in Heqd; trivial.
     apply Zgt_is_gt_bool in Heqd.
-    destruct (zlt 384 (entropy_len + add_len)); try discriminate; omega.
+    destruct (zlt 384 (entropy_len + add_len)); try discriminate; lia.
   }
 
   remember (Zlength (contents_with_add additional (Zlength contents) contents)) as ZLa.
@@ -392,16 +392,16 @@ Proof.
       destruct seed; inv Pseed. unfold offset_val.
       rewrite <- Ptrofs.repr_unsigned with (i:=i). 
       assert (XX: sizeof (tarray tuchar 384) = entropy_len + (384 - entropy_len)).
-      { simpl. omega. }
+      { simpl. lia. }
       rewrite XX.
-      rewrite (memory_block_split Tsh b (Ptrofs.unsigned i) entropy_len (384 - entropy_len)), ptrofs_add_repr; try omega.
+      rewrite (memory_block_split Tsh b (Ptrofs.unsigned i) entropy_len (384 - entropy_len)), ptrofs_add_repr; try lia.
       cancel.
       eapply derives_trans. apply data_at_memory_block.
-          simpl. rewrite Z.max_r, Z.mul_1_l; try omega; auto.
+          simpl. rewrite Z.max_r, Z.mul_1_l; try lia; auto.
       rewrite Zplus_minus.
-      assert (Ptrofs.unsigned i >= 0) by (pose proof (Ptrofs.unsigned_range i); omega).
-      split. omega.
-      clear - Hfield. red in Hfield; simpl in Hfield. omega.
+      assert (Ptrofs.unsigned i >= 0) by (pose proof (Ptrofs.unsigned_range i); lia).
+      split. lia.
+      clear - Hfield. red in Hfield; simpl in Hfield. lia.
   }
   {
     forward.
@@ -430,8 +430,8 @@ Proof.
     eapply (@reseed_REST Espec contents additional sha add_len ctx md_ctx'
               reseed_counter' entropy_len' prediction_resistance' reseed_interval' key V
               reseed_counter entropy_len prediction_resistance reseed_interval gv Info s seed
-              addlenRange WFI1); try reflexivity; trivial; try omega.
-    subst contents'; try omega.
+              addlenRange WFI1); try reflexivity; trivial; try lia.
+    subst contents'; try lia.
     subst contents'; trivial.
     solve [eassumption].
     apply SH0.
@@ -514,7 +514,7 @@ Proof.
   apply andp_right. 
   + apply prop_right. red. simpl.
     apply hmac256drbgabs_generateWF in Heqq. intuition.
-    omega. intuition. red in WF3. clear - WF3. omega. 
+    lia. intuition. red in WF3. clear - WF3. lia. 
   + cancel. 
     apply orp_left; [ trivial | normalize].
 Time Qed. (*Coq8.6: 2.3secs*)
@@ -553,7 +553,7 @@ Proof.
   apply andp_right. 
   + apply prop_right. rewrite M; red. simpl.
     apply hmac256drbgabs_generateWF in M. intuition.
-    omega. intuition. red in WF3. omega. 
+    lia. intuition. red in WF3. lia. 
   + cancel.
     apply orp_left; [ trivial | normalize].
 Time Qed. (*Coq8.6: 2.3secs*)
@@ -622,7 +622,7 @@ Proof. start_function.
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
-      simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; omega.
+      simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; lia.
     }
   }
 
@@ -754,7 +754,7 @@ Proof. start_function.
     assert (Hiuchar: Int.zero_ext 8 (Int.repr i) = Int.repr i).
     {
       clear - H Heqrounds. destruct na; subst;
-      apply zero_ext_inrange; rewrite Int.unsigned_repr by rep_lia; simpl; omega.
+      apply zero_ext_inrange; rewrite Int.unsigned_repr by rep_lia; simpl; lia.
     }
 
     (* mbedtls_md_hmac_update( &ctx->md_ctx, sep, 1 ); *)
@@ -816,7 +816,7 @@ Proof. start_function.
         rewrite hmac_pure_lemmas.IntModulus32 in H0; rewrite two_power_pos_equiv.
         simpl. simpl in H0.
         assert (H1: Z.pow_pos 2 61 = 2305843009213693952) by reflexivity; rewrite H1; clear H1.
-        omega.
+        lia.
       }
       (* prove the post condition of the if statement *)
       rewrite <- app_assoc.
@@ -830,7 +830,7 @@ Proof. start_function.
         destruct na; trivial; elim H1; trivial. }
       rewrite RNDS1 in *; clear H1 H.
       assert (NAF: na = false).
-      { destruct na; try omega. trivial. }
+      { destruct na; try lia. trivial. }
       rewrite NAF in *. clear Heqrounds.
       forward. rewrite H4, NAF.
       destruct additional; try contradiction; simpl in PNadditional.
@@ -917,7 +917,7 @@ Proof. start_function.
     apply andp_right.
     { apply prop_right. repeat split; eauto.
       subst initial_key initial_value.
-      apply HMAC_DRBG_update_round_incremental_Z; try eassumption. omega.
+      apply HMAC_DRBG_update_round_incremental_Z; try eassumption. lia.
       apply hmac_common_lemmas.HMAC_Zlength. }
     thaw FR9; cancel.
     unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state.

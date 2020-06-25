@@ -1,4 +1,4 @@
-Require Import Arith.
+Require Import Arith Lia.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Coqlib.
 Require Import List.
@@ -44,10 +44,10 @@ Proof.
 intros.
       destruct (zlt i 0).
        rewrite !Z.testbit_neg_r by auto. reflexivity.
-       assert (0 <= i) by omega. clear g.
+       assert (0 <= i) by lia. clear g.
      rewrite ?Z.shiftl_spec by auto.
 repeat rewrite <- Z.add_assoc.
-rewrite !Z.shiftl_mul_pow2 by omega.
+rewrite !Z.shiftl_mul_pow2 by lia.
 rewrite ?(Z.mul_comm (Z.b2z _)).
 unfold Z.pow, Z.pow_pos, Pos.iter.
 rewrite <- ?Z.mul_assoc.
@@ -55,9 +55,9 @@ rewrite <- ?Z.mul_add_distr_l.
 rewrite ?Z.mul_1_l.
 rewrite ?(Z.add_comm _ (2 * _)).
 destruct (zlt i 1). {
-assert (i=0) by omega; subst i; clear H l; simpl Z.sub.
+assert (i=0) by lia; subst i; clear H l; simpl Z.sub.
 rewrite ?Z.b2z_bit0.
-rewrite !testbit_b2z_nonzero by omega; rewrite ?orb_false_r.
+rewrite !testbit_b2z_nonzero by lia; rewrite ?orb_false_r.
 rewrite ?Z.add_bit0.
 rewrite ?Z.b2z_bit0.
 rewrite Z.testbit_even_0. rewrite xorb_false_l. reflexivity.
@@ -68,15 +68,15 @@ match goal with H: i >= ?a |- _ =>
 let i' := constr:(Z.succ a) in let i' := eval compute in i' in 
  let H' := fresh "H" in 
 destruct (zlt i i'); 
-  [assert (H': i=a) by omega;
+  [assert (H': i=a) by lia;
       change a with (Recdef.iter _ (Z.to_nat a) Z.succ 0) in H';
       simpl Z.to_nat in H'; unfold Recdef.iter in H';
       subst i; clear H;
-   rewrite Z.testbit_succ_r by omega;
+   rewrite Z.testbit_succ_r by lia;
    rewrite ?Z.b2z_bit0;
-   rewrite !testbit_b2z_nonzero by omega; 
+   rewrite !testbit_b2z_nonzero by lia; 
    rewrite ?orb_false_r, ?orb_false_l;
-   rewrite ?Z.testbit_succ_r by omega;
+   rewrite ?Z.testbit_succ_r by lia;
    rewrite ?Z.add_bit0;
    rewrite ?Z.testbit_even_0;
    rewrite ?Z.b2z_bit0;
@@ -86,12 +86,12 @@ destruct (zlt i i');
     | clear H]
 end.
 
-rewrite !testbit_b2z_nonzero by omega; rewrite ?orb_false_r, ?orb_false_l.
+rewrite !testbit_b2z_nonzero by lia; rewrite ?orb_false_r, ?orb_false_l.
 do 7 match goal with |- Z.testbit _ ?a = false =>
-  replace a with (Z.succ (Z.pred a)) by (clear; omega);
-  rewrite Z.testbit_succ_r by omega
+  replace a with (Z.succ (Z.pred a)) by (clear; lia);
+  rewrite Z.testbit_succ_r by lia
 end.
-rewrite testbit_b2z_nonzero by omega.
+rewrite testbit_b2z_nonzero by lia.
 auto.
 Qed.
 
@@ -137,36 +137,36 @@ Proof.
       fold (asZ (xorb b5 b13)).
       fold (asZ (xorb b7 b15)).
       rewrite <- !(Z.mul_comm (asZ _)).
-      rewrite <- !(Z.shiftl_mul_pow2 _ 0) by (clear; omega).
-      rewrite <- !(Z.shiftl_mul_pow2 _ 1) by (clear; omega).
-      rewrite <- !(Z.shiftl_mul_pow2 _ 2) by (clear; omega).
-      rewrite <- !(Z.shiftl_mul_pow2 _ 3) by (clear; omega).
-      rewrite <- !(Z.shiftl_mul_pow2 _ 4) by (clear; omega).
-      rewrite <- !(Z.shiftl_mul_pow2 _ 5) by (clear; omega).
-      rewrite <- !(Z.shiftl_mul_pow2 _ 6) by (clear; omega).
-      rewrite <- !(Z.shiftl_mul_pow2 _ 7) by (clear; omega).
+      rewrite <- !(Z.shiftl_mul_pow2 _ 0) by (clear; lia).
+      rewrite <- !(Z.shiftl_mul_pow2 _ 1) by (clear; lia).
+      rewrite <- !(Z.shiftl_mul_pow2 _ 2) by (clear; lia).
+      rewrite <- !(Z.shiftl_mul_pow2 _ 3) by (clear; lia).
+      rewrite <- !(Z.shiftl_mul_pow2 _ 4) by (clear; lia).
+      rewrite <- !(Z.shiftl_mul_pow2 _ 5) by (clear; lia).
+      rewrite <- !(Z.shiftl_mul_pow2 _ 6) by (clear; lia).
+      rewrite <- !(Z.shiftl_mul_pow2 _ 7) by (clear; lia).
       apply Z.bits_inj.
       intro i.
       rewrite Z.lxor_spec.
       change asZ with Z.b2z.
       destruct (zlt i 0).
        rewrite !Z.testbit_neg_r by auto. reflexivity.
-       assert (0 <= i) by omega. clear g.
+       assert (0 <= i) by lia. clear g.
 
        rewrite !testbit_shiftl_8.
        rewrite !Z.shiftl_spec by auto.
        destruct (zlt i 8).
-       2:{  rewrite !testbit_b2z_nonzero by omega; reflexivity. }
-       assert (i=0 \/ i=1 \/ i=2 \/ i=3 \/ i=4 \/ i=5 \/ i=6 \/ i=7) by omega.
+       2:{  rewrite !testbit_b2z_nonzero by lia; reflexivity. }
+       assert (i=0 \/ i=1 \/ i=2 \/ i=3 \/ i=4 \/ i=5 \/ i=6 \/ i=7) by lia.
        decompose [or] H0; subst i; clear;
        simpl Z.sub; rewrite ?orb_false_r;
        rewrite ?Z.b2z_bit0;
-       rewrite ?testbit_b2z_nonzero by omega; simpl; auto.
+       rewrite ?testbit_b2z_nonzero by lia; simpl; auto.
 *
       rewrite xor_inrange.
       all: change Byte.modulus with 256 in *.
       pose proof (Z_mod_lt (Z.lxor (Byte.unsigned byte0) (Byte.unsigned byte1)) 256).
-      assert (256>0) by omega. specialize (H H2).
-      change Byte.max_unsigned with 255. omega.
+      assert (256>0) by lia. specialize (H H2).
+      change Byte.max_unsigned with 255. lia.
       all: symmetry; apply Z.mod_small; apply Byte.unsigned_range.
 Qed.

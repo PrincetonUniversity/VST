@@ -14,7 +14,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads Vundef); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.
@@ -29,7 +29,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads Vundef); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.
@@ -66,7 +66,7 @@ Proof.
       erewrite <- !sepcon_assoc, ghost_var_share_join' by eauto.
       view_shift_intros.
       exploit (repr_inj_signed b1 b0); auto.
-      { apply repable_buf; omega. }
+      { apply repable_buf; lia. }
       intro; subst.
       rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1,
         ghost_var_update with (v'0 := vint (if eq_dec v0 (-1) then b0 else v0))|].
@@ -76,7 +76,7 @@ Proof.
       rewrite <- wand_sepcon_adjoint.
       rewrite <- !exp_sepcon1, <- !exp_sepcon2.
       Exists (length l) (-1); entailer!.
-      { if_tac; auto; omega. }
+      { if_tac; auto; lia. }
       rewrite <- !exp_sepcon1, <- !exp_sepcon2.
       Exists (l ++ [AE (vint v0) Empty]); unfold comm_R.
       rewrite rev_app_distr; simpl; rewrite last_two_reads_cons; simpl; cancel.
@@ -88,15 +88,15 @@ Proof.
       + subst; simpl.
         Exists b0 b2 v'; entailer!.
         { rewrite Forall_app; repeat (constructor; auto).
-          exists (-1), (-1); repeat split; auto; omega. }
+          exists (-1), (-1); repeat split; auto; lia. }
         rewrite sepcon_comm; auto.
       + destruct (eq_dec (vint v0) Empty).
         { apply Empty_inj in e; auto; contradiction. }
         Intros v''; Exists v'' v0 b0 v'.
-        rewrite Zle_imp_le_bool, Fcore_Zaux.Zlt_bool_true by omega; simpl; entailer!.
+        rewrite Zle_imp_le_bool, Fcore_Zaux.Zlt_bool_true by lia; simpl; entailer!.
         replace (last_two_reads _) with (vint b0, vint b2).
         rewrite Forall_app; repeat constructor; auto.
-        exists v0, (-1); repeat split; auto; omega.
+        exists v0, (-1); repeat split; auto; lia.
     - view_shift_intro l.
       rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_ref _ _)).
       rewrite (sepcon_comm _ (ghost_hist _ _ _)).
@@ -123,8 +123,8 @@ Proof.
       Exists (-1) (length l) (vint (if ((0 <=? v0') && (v0' <? B))%bool then v0' else b0))
         (l ++ [AE (vint v0) Empty]); entailer!.
       { rewrite <- and_assoc; split; [|discriminate].
-        pose proof (Zle_cases 0 v0'); destruct (0 <=? v0'); simpl; try omega.
-        pose proof (Zlt_cases v0' B); destruct (v0' <? B); omega. }
+        pose proof (Zle_cases 0 v0'); destruct (0 <=? v0'); simpl; try lia.
+        pose proof (Zlt_cases v0' B); destruct (v0' <? B); lia. }
       rewrite (sepcon_comm _ (ghost_ref _ _)), !sepcon_assoc; apply sepcon_derives; auto; entailer!.
       rewrite sepcon_comm; auto. }
   Intros b.
@@ -132,10 +132,10 @@ Proof.
     forward_if (PROP () (LOCALx (temp _t'2 (Val.of_bool (Z.leb 0 b && Z.ltb b B)) :: Q) (SEPx R))) end.
   { forward.
     entailer!.
-    rewrite Zle_imp_le_bool by omega; simpl.
+    rewrite Zle_imp_le_bool by lia; simpl.
     unfold Int.lt, Int.add; simpl.
     rewrite !Int.signed_repr by (auto; computable).
-    pose proof (Zlt_cases b B); if_tac; destruct (b <?B); auto; unfold B, N in *; omega. }
+    pose proof (Zlt_cases b B); if_tac; destruct (b <?B); auto; unfold B, N in *; lia. }
   { forward.
     entailer!.
     rewrite Fcore_Zaux.Zle_bool_false; auto. }
@@ -159,13 +159,13 @@ Proof.
     forward.
     Exists b' t b; entailer!.
     split.
-    + pose proof (Zle_cases 0 b); destruct (0 <=? b); subst b'; simpl; try if_tac; omega.
+    + pose proof (Zle_cases 0 b); destruct (0 <=? b); subst b'; simpl; try if_tac; lia.
     + destruct (eq_dec b (-1)); subst.
       { rewrite latest_read_Empty; auto. }
       destruct ((0 <=? b) && (b <? B))%bool eqn: Hb; subst b'.
-      * apply latest_read_new; auto; omega.
+      * apply latest_read_new; auto; lia.
       * apply latest_read_bad; auto.
-        rewrite andb_false_iff, Z.leb_nle, Z.ltb_nlt in Hb; omega.
+        rewrite andb_false_iff, Z.leb_nle, Z.ltb_nlt in Hb; lia.
 Qed.
 
 Lemma body_finish_read : semax_body Vprog Gprog f_finish_read finish_read_spec.
@@ -174,7 +174,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads Vundef); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.

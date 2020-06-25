@@ -8,7 +8,9 @@ Module Rmaps_Lemmas (R: RMAPS).
 Module R := R.
 Import R.
 
-Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
+Definition subp_sepcon_rmap := @subp_sepcon _ Join_rmap Perm_rmap Sep_rmap.
+
+Hint Resolve subp_sepcon_rmap : contractive.
 
  Lemma approx_p  : forall (p:pred rmap) n w, approx n p w -> p w.
  Proof. unfold approx; simpl; intuition. Qed.
@@ -17,7 +19,7 @@ Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
  Proof. unfold approx; simpl; intuition. Qed.
 
  Lemma approx_ge : forall p n w, ge (level w) n -> approx n p w -> False.
- Proof. unfold approx; intros. destruct H0; auto. lia. Qed.
+ Proof. unfold approx; intros. des truct H0; auto. lia. Qed.
 
   Definition identity_rmap' : R.rmap' := exist valid (fun _: AV.address => R.NO) AV.valid_empty.
   Definition identity_rmap (n:nat) : rmap := R.squash (n, identity_rmap').

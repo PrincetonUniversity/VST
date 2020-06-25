@@ -118,19 +118,19 @@ Proof.
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 1)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_lia.
+        rewrite Int.unsigned_repr; [ lia | ]. rep_lia.
      }
     forward. clear Hz.
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 2)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_lia.
+        rewrite Int.unsigned_repr; [ lia | ]. rep_lia.
      }
     forward. clear Hz.
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 3)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_lia.
+        rewrite Int.unsigned_repr; [ lia | ]. rep_lia.
      }
     forward. clear Hz.
 
@@ -142,13 +142,13 @@ Proof.
       else Vundef) = field_address t_struct_aesctx [StructField _buf] ctx) by entailer!.
     forward.
     entailer!.
-    replace (4 * i)%Z with (i * 4)%Z by omega.
+    replace (4 * i)%Z with (i * 4)%Z by lia.
     assert (forall sh t gfs v1 v2 p, v1 = v2 -> field_at sh t gfs v1 p |-- field_at sh t gfs v2 p)
     as field_at_change_value. (* TODO floyd: this might be useful elsewhere *)
     { intros. replace v1 with v2 by assumption. apply derives_refl. }
     apply field_at_change_value.
     fold ((fun i0 => get_uint32_le key_chars (i0 * 4)) i).
-   rewrite <- update_partially_filled by omega. f_equal. f_equal. 
+   rewrite <- update_partially_filled by lia. f_equal. f_equal. 
    unfold get_uint32_le. unfold Int.add. rewrite E1. 
    rewrite !(Int.unsigned_repr (Z.pos _)) by computable.
    rewrite !Int.unsigned_repr by rep_lia.

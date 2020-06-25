@@ -49,7 +49,7 @@ intros.
 apply H.
 Qed.
 
-Hint Resolve @pure_e : core.
+Hint Resolve pure_e : core.
 
 Lemma sepcon_pure_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
  forall P Q, pure P -> pure Q -> ((P * Q) = (P && Q)).
@@ -82,11 +82,11 @@ Lemma pure_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{A
 Proof.
 intros. unfold pure; auto.
 Qed.
-Hint Resolve @pure_emp : core.
+Hint Resolve pure_emp : core.
 
 Lemma join_equiv_refl {A}: forall x:A, @join A (Join_equiv A) x x x.
 Proof. split; auto. Qed.
-Hint Resolve @join_equiv_refl : core.
+Hint Resolve join_equiv_refl : core.
 
 Lemma pure_sepcon1'' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall P Q R, pure P -> Q |-- R -> P * Q |-- R.
 Proof.
@@ -108,7 +108,7 @@ intros w [x ?].
 apply (H x); auto.
 Qed.
 
-Hint Resolve @pure_existential : core.
+Hint Resolve pure_existential : core.
 
 Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall P w, pure P -> P w -> P (core w).
@@ -150,7 +150,7 @@ unfold pure in *.
 rewrite <- sepcon_emp.
 apply sepcon_derives; auto.
 Qed.
-Hint Resolve @pure_con' : core.
+Hint Resolve pure_con' : core.
 
 Lemma pure_intersection1: forall {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}
        (P Q: pred A), pure P -> pure (P && Q).
@@ -164,7 +164,7 @@ Proof.
 unfold pure; intros; auto.
 intros w [? ?]; auto.
 Qed.
-Hint Resolve @pure_intersection1 @pure_intersection2 : core.
+Hint Resolve pure_intersection1 pure_intersection2 : core.
 
 Lemma FF_andp {A} `{ageable A}:  forall P: pred A, FF && P = FF.
 Proof.
@@ -204,7 +204,7 @@ intros.
 rewrite <- (sepcon_emp P) at 1.
 eapply sepcon_derives; try apply H0; auto.
 Qed.
-Hint Resolve @sepcon_TT : core.
+Hint Resolve sepcon_TT : core.
 
 Lemma imp_extract_exp_left {B A: Type} `{ageable A}:
     forall    (p : B -> pred A) (q: pred A),

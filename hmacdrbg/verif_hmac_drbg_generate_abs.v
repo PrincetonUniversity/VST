@@ -145,12 +145,12 @@ Proof.
   }
 
   Intros.  thaw FR0. clear Pctx.
-  assert (Hout_len: 0 <= out_len <= 1024) by omega.
+  assert (Hout_len: 0 <= out_len <= 1024) by lia.
   assert (Hout_lenb: out_len >? 1024 = false).
   {
     rewrite Z.gtb_ltb.
     apply Z.ltb_nlt.
-    omega.
+    lia.
   }
   clear H.
 
@@ -181,12 +181,12 @@ Proof.
     entailer!.
   }
   Intros. 
-  assert (Hadd_len: 0 <= add_len <= 256) by omega.
+  assert (Hadd_len: 0 <= add_len <= 256) by lia.
   assert (Hadd_lenb: add_len >? 256 = false).
   {
     rewrite Z.gtb_ltb.
     apply Z.ltb_nlt.
-    omega.
+    lia.
   }
   (*  subst add_len. *) clear H.
   unfold POSTCONDITION, abbreviate, generate_absPOST. rewrite Hout_lenb, Hadd_lenb. abbreviate_semax.
@@ -221,14 +221,14 @@ Proof.
       (* reseed_interval < reseed_counter *)
       symmetry in Heqr; apply Zlt_is_lt_bool in Heqr. unfold Int.lt.
       rewrite zlt_true; [reflexivity | ].
-      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega.
+      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try lia.
     }
     { (*subst initial_state_abs.
       assert (Hltb: 10000 <? reseed_counter = false) by (rewrite Z.ltb_nlt; assumption).
       rewrite Hltb.*)
       symmetry in Heqr; apply Z.ltb_ge in Heqr. unfold Int.lt.
       rewrite zlt_false; [reflexivity | ].
-      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega.
+      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try lia.
     }
   }
 (*  exfalso. apply myAx. Time Qed. 12s*)
@@ -311,8 +311,8 @@ Proof.
      unfold reseedPOST; simpl.
      remember ((zlt 256 (Zlength contents)
        || zlt 384 (entropy_len + Zlength contents))%bool) as d.
-     destruct (zlt 256 (Zlength contents)); simpl in Heqd; [ omega |].
-     destruct (zlt 384 (entropy_len + Zlength contents)); simpl in Heqd; subst d; [ simpl in *; omega |].
+     destruct (zlt 256 (Zlength contents)); simpl in Heqd; [ lia |].
+     destruct (zlt 384 (entropy_len + Zlength contents)); simpl in Heqd; subst d; [ simpl in *; lia |].
      Intros. (* cancel.*)
      rename H into H2.
      unfold return_value_relate_result in H2.
@@ -542,7 +542,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     (* prove the current precondition implies the loop condition *)
     Exists 0.
     change (sublist 0 0 (snd (HLP 0))) with (@nil byte).
-    replace (out_len - 0) with out_len by omega.
+    replace (out_len - 0) with out_len by lia.
     change ((map Vint (map Int.repr []) ++
           list_repeat (Z.to_nat out_len) Vundef)) with (list_repeat (Z.to_nat out_len) Vundef).
     assert (Hafter_update: (hmac256drbgabs_update_value after_update_state_abs(*AUSA*)
@@ -552,8 +552,8 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
       subst after_update_value; destruct after_update_state_abs; reflexivity.*)
     }
     rewrite Hafter_update.
-    (*entailer!.*) go_lower. normalize. apply andp_right. apply prop_right; repeat split; trivial. omega. omega.
-    left; exists 0; omega.
+    (*entailer!.*) go_lower. normalize. apply andp_right. apply prop_right; repeat split; trivial. lia. lia.
+    left; exists 0; lia.
     simpl; cancel.
   }
   {
@@ -586,14 +586,14 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
                 (Int.unsigned (Int.repr 0))).
       rewrite (Int.unsigned_repr (out_len - done)) in e.
       rewrite e; reflexivity.
-      change (Int.max_unsigned) with 4294967295; omega.
+      change (Int.max_unsigned) with 4294967295; lia.
       rewrite HRE in *. elim n; trivial.
     }
-    omega.
+    lia.
   }
   subst done.
   clear H H0.
-  replace (out_len - out_len) with 0 by omega. clear HRE.
+  replace (out_len - out_len) with 0 by lia. clear HRE.
   change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
   rewrite app_nil_r.
   unfold hmac256drbgabs_common_mpreds.
@@ -626,7 +626,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
   { split3; auto. subst after_reseed_add_len. rewrite <- HeqABS3; simpl.
     split. destruct should_reseed; rep_lia.
     split. assumption.
-    destruct should_reseed; omega. }
+    destruct should_reseed; lia. }
 
   unfold hmac256drbgabs_common_mpreds. normalize.
 

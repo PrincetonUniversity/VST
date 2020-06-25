@@ -53,7 +53,7 @@ Proof.
     unfold Int.divu.
     rewrite (Int.unsigned_repr 4) by rep_lia.
     rewrite (Int.unsigned_repr (4 * n)) by rep_lia.
-    rewrite Z.mul_comm, Z_div_mult by omega.
+    rewrite Z.mul_comm, Z_div_mult by lia.
     auto. }
   forward_for_simple_bound n (EX i : Z, PROP ()
     LOCAL (temp _p p; temp _s p; temp _c (vint c); temp _n (vint (4 * n)))
@@ -63,7 +63,7 @@ Proof.
     apply derives_trans with (Q := data_at_ sh (tarray tint n) p).
     - rewrite !data_at__memory_block; simpl.
       assert ((4 * Z.max 0 n)%Z = sizeof t) as Hsize.
-      { rewrite Z.max_r; auto; omega. }
+      { rewrite Z.max_r; auto; lia. }
       setoid_rewrite Hsize; Intros; apply andp_right; [|simpl; apply derives_refl].
       apply prop_right; match goal with H : field_compatible _ _ _ |- _ =>
         destruct H as (? & ? & ? & ? & ?) end; repeat split; simpl; auto.
@@ -82,7 +82,7 @@ Proof.
       unfold default_val, reptype_gen; simpl.
       rewrite repeat_list_repeat; apply derives_refl. }
   - forward.
-    rewrite upd_init_const; [|omega].
+    rewrite upd_init_const; [|lia].
     entailer!.
   - forward.
     rewrite Zminus_diag, app_nil_r; apply derives_refl.
@@ -123,7 +123,7 @@ Proof.
       destruct H3 as [? [? [? [? ?]]]]; auto. }
     clear H3.
     forward.
-    rewrite upd_init; auto; try omega.
+    rewrite upd_init; auto; try lia.
     entailer!.
     Exists (bufs ++ [b]); rewrite Zlength_app, <- app_assoc, !map_app, !sepcon_app, Forall_app; simpl; entailer!.
     clear; unfold data_at, field_at, at_offset; Intros.
@@ -134,7 +134,7 @@ Proof.
       split; [| split; [| split; [| split]]]; auto.
       destruct b; inv H.
       inv H2. inv H.
-      specialize (H7 0 ltac:(omega)).
+      specialize (H7 0 ltac:(lia)).
       simpl.
       eapply align_compatible_rec_Tstruct; [reflexivity |].
       intros.
@@ -182,8 +182,8 @@ Proof.
   { unfold N; computable. }
   { Exists ([] : list val) ([] : list val) ([] : list gname) ([] : list gname) ([] : list gname)
       ([] : list gname) ([] : list val) ([] : list val) Ews; rewrite !data_at__eq; entailer!.
-    - rewrite sublist_same; auto; omega.
-    - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; omega).
+    - rewrite sublist_same; auto; lia.
+    - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; lia).
       simpl; cancel. }
   { Intros locks comms g g0 g1 g2 reads lasts sh.
     forward_call (tint, gv).  split3; simpl; auto; computable. Intros c.
@@ -213,7 +213,7 @@ Proof.
     fold (ghost_var Tsh (vint 1) g0') (ghost_var Tsh (vint 0) g1') (ghost_var Tsh (vint 1) g2').
     erewrite <- !ghost_var_share_join with (sh0 := Tsh) by eauto.
     match goal with H : sepalg_list.list_join sh1 (sublist i N shs) sh |- _ =>
-      erewrite sublist_next in H; try omega; inversion H as [|????? Hj1 Hj2] end.
+      erewrite sublist_next in H; try lia; inversion H as [|????? Hj1 Hj2] end.
     apply sepalg.join_comm in Hj1; eapply sepalg_list.list_join_assoc1 in Hj2; eauto.
     destruct Hj2 as (sh' & ? & Hsh').
     erewrite <- data_at_share_join with (sh0 := sh) by (apply Hsh').
@@ -233,18 +233,18 @@ Proof.
       change_compspecs CompSpecs.
       Exists 0; fast_cancel. }
     Exists (locks ++ [l]) (comms ++ [c]) (g ++ [g']) (g0 ++ [g0']) (g1 ++ [g1']) (g2 ++ [g2'])
-      (reads ++ [rr]) (lasts ++ [ll]) sh'; rewrite !upd_init; try omega.
+      (reads ++ [rr]) (lasts ++ [ll]) sh'; rewrite !upd_init; try lia.
     rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; rewrite <- !app_assoc.
     go_lower.
     apply andp_right; [apply prop_right; repeat split; auto|].
     assert_PROP (isptr ll /\ isptr rr /\ isptr c /\ isptr l) by (entailer!; eauto).
     rewrite prop_true_andp
-      by  (rewrite ?Forall_app; repeat split; auto; try omega; repeat constructor; intuition).
+      by  (rewrite ?Forall_app; repeat split; auto; try lia; repeat constructor; intuition).
     rewrite !prop_true_andp
-      by  (rewrite ?Forall_app; repeat split; auto; try omega; repeat constructor; intuition).
-    rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app; try omega; simpl.
+      by  (rewrite ?Forall_app; repeat split; auto; try lia; repeat constructor; intuition).
+    rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app; try lia; simpl.
     change (upto 1) with [0]; simpl.
-    rewrite Z2Nat.id, Z.add_0_r by omega.
+    rewrite Z2Nat.id, Z.add_0_r by lia.
     rewrite !Znth_app1 by auto.
     replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; rep_lia).
     subst; rewrite Zlength_correct, Nat2Z.id.
@@ -252,7 +252,7 @@ Proof.
     erewrite map_ext_in; [unfold comm_loc, AE_loc, AE_inv; cancel|].
     { apply derives_refl. }
     intros; rewrite In_upto, <- Zlength_correct in *.
-    rewrite !app_Znth1; try omega; reflexivity. }
+    rewrite !app_Znth1; try lia; reflexivity. }
   Intros locks comms g g0 g1 g2 reads lasts sh.
   match goal with H : sepalg_list.list_join sh1 (sublist N N shs) sh |- _ =>
     rewrite sublist_nil in H; inv H end.

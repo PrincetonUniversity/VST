@@ -52,13 +52,13 @@ Proof.
     - erewrite map_ext_in; eauto.
       intros; rewrite In_upto in *.
       destruct (eq_dec a 0); auto.
-      destruct (eq_dec a 1), (eq_dec 1 a); auto; try omega.
+      destruct (eq_dec a 1), (eq_dec 1 a); auto; try lia.
       { apply pred_ext; Intros sh; Exists sh; entailer!.
         * constructor.
         * match goal with H : sepalg_list.list_join sh0 _ sh |- _ => inv H; auto end. }
       generalize (make_shares_out a (repeat 1 (Z.to_nat N)) shs); simpl; intro Heq.
       destruct (eq_dec 1 a); [contradiction n0; auto|].
-       rewrite Heq; auto; [|omega].
+       rewrite Heq; auto; [|lia].
       apply pred_ext; Intros sh; Exists sh; entailer!.
       eapply list_join_eq; eauto. }
   Intros v b0 lasts h.
@@ -66,7 +66,7 @@ Proof.
   forward_call (b0, lasts, gv).
   Intros b.
   rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map; auto].
-  erewrite Znth_map, Znth_upto; auto; rewrite ?Z2Nat.id; try omega.
+  erewrite Znth_map, Znth_upto; auto; rewrite ?Z2Nat.id; try lia.
   Intros sh v0.
   rewrite (data_at_isptr _ tbuffer); Intros.
   forward.

@@ -89,7 +89,7 @@ intros.
     clear.  intros. rewrite Int.and_commut.
     pose proof (Int.and_le (Int.repr 255) i).
     rewrite Int.unsigned_repr in H by computable. 
-    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). omega.
+    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). lia.
   }
   unfold Int.and.
 
@@ -114,7 +114,7 @@ intros.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
   assert (forall i, Int.unsigned (Znth i FSb) <= Byte.max_unsigned). {
-    intros. pose proof (FSb_range i) as P. change 256 with (Byte.max_unsigned + 1) in P. omega.
+    intros. pose proof (FSb_range i) as P. change 256 with (Byte.max_unsigned + 1) in P. lia.
   }
   assert (Hfinal := final_aes_eq buf plaintext S0 S12 S13 (eq_refl _) HeqS12 HeqS13);
   clear HeqS12 HeqS13.  clearbody S0.

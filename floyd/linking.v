@@ -191,7 +191,7 @@ Definition link_progs (prog1 prog2 : Clight.program) :
    end eq_refl ))
 end.
 
-Fixpoint link_progs_list (pl: list Clight.program) : 
+Definition link_progs_list (pl: list Clight.program) : 
   Errors.res Clight.program :=
  match pl with
  | nil => Errors.Error [Errors.MSG "no programs to link"]

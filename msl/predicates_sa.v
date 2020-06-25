@@ -275,7 +275,7 @@ Proof.
 unfold TT, prop; simpl; auto.
 Qed.
 
-Hint Resolve @TT_i : core.
+Hint Resolve TT_i : core.
 
 Lemma TT_and {A}: forall (Q: pred A), TT && Q = Q.
 intros; unfold andp,  TT, prop; extensionality w.
@@ -359,14 +359,14 @@ Lemma derives_refl {A: Type}:
 Proof. firstorder.
 Qed.
 
-Hint Resolve @derives_refl : core.
+Hint Resolve derives_refl : core.
 
 Lemma derives_TT {A}: forall (P: pred A), P |-- TT.
 Proof.
 intros.
 intros ? ?; auto.
 Qed.
-Hint Resolve @derives_TT : core.
+Hint Resolve derives_TT : core.
 
 Lemma sepcon_derives {A} {JA: Join A}{PA: Perm_alg A}:
   forall p q p' q', (p |-- p') -> (q |-- q') -> (p * q |-- p' * q').
@@ -537,14 +537,14 @@ Require Import VST.msl.cross_split.
 Lemma exactly_i {A} : forall x: A, exactly x x.
 Proof. intros. reflexivity.
 Qed.
-Hint Resolve @exactly_i : core.
+Hint Resolve exactly_i : core.
 
 Lemma superprecise_exactly {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall x, superprecise (exactly x).
 Proof.
 unfold exactly, superprecise; intros.
 subst; auto.
 Qed.
-Hint Resolve @superprecise_exactly : core.
+Hint Resolve superprecise_exactly : core.
 
 Lemma find_overlap {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
      Cross_alg A ->

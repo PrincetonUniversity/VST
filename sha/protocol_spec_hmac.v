@@ -208,11 +208,11 @@ End HMAC_ABSTRACT_SPEC.
 
 Lemma haslengthK_simple: forall l, 0 < l <= Int.max_signed -> l * 8 < two_p 64.
 intros. 
-assert (l < Int.half_modulus). unfold Int.max_signed in H. omega. clear H.
+assert (l < Int.half_modulus). unfold Int.max_signed in H. lia. clear H.
 rewrite Int.half_modulus_power in H0. 
 assert (Int.zwordsize = 32) by reflexivity. rewrite H in *; clear H. simpl in *.
 rewrite two_power_pos_equiv in *. 
-assert (l * 8 < 2^31 * 8) by omega. clear H0.
+assert (l * 8 < 2^31 * 8) by lia. clear H0.
 eapply Z.lt_trans. eassumption. clear H. cbv; trivial.
 Qed.
 
@@ -513,7 +513,7 @@ eapply semax_pre_post.
   simpl. rewrite (Z.add_comm 64), <- Z.mul_add_distr_r, Z.add_assoc. 
   assert (Tpp: (two_power_pos 64 = two_power_pos 61 * 8)%Z) by reflexivity.
   rewrite Tpp.  
-  apply Zmult_lt_compat_r. omega. trivial. 
+  apply Zmult_lt_compat_r. lia. trivial. 
 Qed.  
 
 Lemma body_hmac_starts: semax_body HmacVarSpecs HmacFunSpecs 

@@ -443,7 +443,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.10.0 or-else 8.10.1 or-else 8.10.2 or-else 8.11.0 or-else 8.11.1
+COQVERSION= 8.11.0 or-else 8.11.1 or-else 8.11.2 or-else 8.12+beta1 or-else 8.12.0
 
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
@@ -608,7 +608,8 @@ endif
 
 clean:
 	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok) compcert/*/*.{vo,vos,vok} compcert/*/*/*.{vo,vos,vok}  compcert_new/*/*.{vo,vos,vok} compcert_new/*/*/*.{vo,vos,vok}
-	rm -f coq-ext-lib/theories/*.{vo,vos,vok,glob} InteractionTrees/theories/*.{vo,vos,vok,glob}
+	rm -f progs/VSUpile/{*,*/*}.{vo,vos,vok,glob}
+	rm -f coq-ext-lib/theories/*.{vo,vos,vok,glob} InteractionTrees/theories/{*,*/*}.{vo,vos,vok,glob}
 	rm -f paco/src/*.{vo,vos,vok,glob}
 	rm -f fcf/src/FCF/*.{vo,vos,vok,glob}
 	rm -fr doc/html
