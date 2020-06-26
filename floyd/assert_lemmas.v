@@ -817,6 +817,20 @@ Proof.
   apply exp_derives; auto.
 Qed.
 
+Lemma allp_ENTAIL: forall Delta B (P Q: B -> environ -> mpred),
+  (forall x: B, local (tc_environ Delta) && P x |-- Q x) ->
+  local (tc_environ Delta) && allp P |-- allp Q.
+Proof.
+  intros.
+  apply allp_right; intro y.
+  rewrite andp_comm.
+  apply imp_andp_adjoint.
+  apply allp_left with y.
+  apply imp_andp_adjoint.
+  rewrite andp_comm.
+  apply H.
+Qed.
+
 Lemma later_ENTAIL: forall Delta P Q,
   local (tc_environ Delta) && P |-- Q ->
   local (tc_environ Delta) && |> P |-- |> Q.
@@ -844,6 +858,23 @@ Proof.
   rewrite <- andp_assoc in *.
   rewrite andp_comm, distrib_orp_andp.
   apply orp_derives; rewrite andp_comm; auto.
+Qed.
+
+Lemma imp_ENTAILL: forall Delta P P' Q Q',
+  local (tc_environ Delta) && (allp_fun_id Delta && P') |-- P ->
+  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && (P -->Q)) |-- P' --> Q'.
+Proof.
+  intros.
+  rewrite <- andp_assoc in *.
+  rewrite <- imp_andp_adjoint.
+  eapply derives_trans; [| apply H0].
+  apply andp_right; [apply andp_left1, andp_left1, derives_refl |].
+  rewrite !andp_assoc, (andp_comm _ P'), <- !andp_assoc.
+  apply imp_andp_adjoint.
+  eapply derives_trans; [apply H |].
+  apply imp_andp_adjoint.
+  apply modus_ponens.
 Qed.
 
 Lemma sepcon_ENTAILL: forall Delta P P' Q Q',
@@ -883,6 +914,20 @@ Proof.
   intros.
   rewrite !exp_andp2.
   apply exp_derives; auto.
+Qed.
+
+Lemma allp_ENTAILL: forall Delta B (P Q: B -> environ -> mpred),
+  (forall x: B, local (tc_environ Delta) && (allp_fun_id Delta && P x) |-- Q x) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && allp P) |-- allp Q.
+Proof.
+  intros.
+  apply allp_right; intro y.
+  rewrite <- andp_assoc, andp_comm.
+  apply imp_andp_adjoint.
+  apply allp_left with y.
+  apply imp_andp_adjoint.
+  rewrite andp_comm, andp_assoc.
+  apply H.
 Qed.
 
 Lemma later_ENTAILL: forall Delta P Q,
