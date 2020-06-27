@@ -1,0 +1,57 @@
+opam-version: "2.0"
+authors: "Xavier Leroy <xavier.leroy@inria.fr>"
+maintainer: "Jacques-Henri Jourdan <jacques-Henri.jourdan@normalesup.org>"
+homepage: "http://compcert.inria.fr/"
+dev-repo: "git+https://github.com/AbsInt/CompCert.git"
+bug-reports: "https://github.com/AbsInt/CompCert/issues"
+license: "INRIA Non-Commercial License Agreement"
+version: "3.7"
+build: [
+  ["./configure" "amd64-linux" {os = "linux"}
+  "amd64-macosx" {os = "macos"}
+  "amd64-cygwin" {os = "cygwin"}
+  "-bindir" "%{bin}%"
+  "-libdir" "%{lib}%/compcert"
+  "-install-coqdev"
+  "-clightgen"
+  "-coqdevdir" "%{lib}%/coq/user-contrib/compcert64"
+  "-ignore-coq-version"]
+  [make "-j%{jobs}%" {ocaml:version >= "4.06"}]
+]
+patches: [
+  "0001-Install-compcert.config-file-along-the-Coq-developme.patch"
+  "0007-Dual-license-aarch64-Archi.v-Cbuiltins.ml-extraction.patch"
+  "0008-Update-the-list-of-dual-licensed-files.patch"
+  "0011-Use-Coq-platform-supplied-Flocq.patch"
+  "0012-Use-platform-supplied-menhirlib-as-suggested-by-jhjo.patch"
+]
+extra-files: [
+  ["0001-Install-compcert.config-file-along-the-Coq-developme.patch" "sha256=32ba8c21c84ae6a2075ecb0a039f05150e87db40728e64a81ea8d5daba6df541"]
+  ["0007-Dual-license-aarch64-Archi.v-Cbuiltins.ml-extraction.patch" "sha256=fd66f444b4097e4f20f53df9439ea5c66eb889183d271f6c1d45ce25793094d7"]
+  ["0008-Update-the-list-of-dual-licensed-files.patch" "sha256=406d241f0e9eb31d02a4be6ec5700044000a176ffe6cfeccf1ca52b42bdedb7d"]
+  ["0011-Use-Coq-platform-supplied-Flocq.patch" "sha256=1fd53e11083ca566e30b810acc68fc93d4fd5b5c55c2d493a86e0691c50fdff0"]
+  ["0012-Use-platform-supplied-menhirlib-as-suggested-by-jhjo.patch" "sha256=854f1ebbfed8829063f59c26c6e37dc164f98ecf60a572db0531a0d1f56b0981"]
+]
+install: [
+  [make "install"]
+]
+depends: [
+  "coq" {>= "8.7.0" & < "8.12"}
+  "coq-flocq" {>= "3.2.1"}
+  "coq-menhirlib" {>= "20190626" & < "20200123"}
+  "menhir" {>= "20190626" & < "20200123"}
+  "ocaml" {>= "4.05.0"}
+]
+synopsis: "The CompCert C compiler (using coq-platform supplied version of Flocq)"
+tags: [
+  "category:CS/Semantics and Compilation/Compilation"
+  "category:CS/Semantics and Compilation/Semantics"
+  "keyword:C"
+  "keyword:compiler"
+  "logpath:compcert64"
+  "date:2020-04-29"
+]
+url {
+  src: "https://github.com/AbsInt/CompCert/archive/v3.7.tar.gz"
+  checksum: "sha256=ceee1b2ed6c2576cb66eb7a0f2669dcf85e65c0fc68385f0781b0ca4edb87eb0"
+}

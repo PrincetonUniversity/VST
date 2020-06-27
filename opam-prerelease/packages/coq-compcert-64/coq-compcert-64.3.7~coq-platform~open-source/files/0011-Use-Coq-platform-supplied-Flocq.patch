@@ -1,0 +1,123 @@
+From 05448adb7642b3c1189139cec18c914b116d5d40 Mon Sep 17 00:00:00 2001
+From: Michael Soegtrop <7895506+MSoegtropIMC@users.noreply.github.com>
+Date: Thu, 30 Apr 2020 16:25:19 +0200
+Subject: [PATCH 11/12] Use Coq platform supplied Flocq
+
+---
+ aarch64/Archi.v     | 2 +-
+ arm/Archi.v         | 2 +-
+ lib/Floats.v        | 2 +-
+ lib/IEEE754_extra.v | 2 +-
+ powerpc/Archi.v     | 2 +-
+ riscV/Archi.v       | 2 +-
+ x86_32/Archi.v      | 2 +-
+ x86_64/Archi.v      | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/aarch64/Archi.v b/aarch64/Archi.v
+index 24431cb2..6c5655d8 100644
+--- a/aarch64/Archi.v
++++ b/aarch64/Archi.v
+@@ -16,7 +16,7 @@
+ (** Architecture-dependent parameters for AArch64 *)
+ 
+ Require Import ZArith List.
+-(*From Flocq*)
++From Flocq
+ Require Import Binary Bits.
+ 
+ Definition ptr64 := true.
+diff --git a/arm/Archi.v b/arm/Archi.v
+index 16d6c71d..9b4cc96a 100644
+--- a/arm/Archi.v
++++ b/arm/Archi.v
+@@ -17,7 +17,7 @@
+ (** Architecture-dependent parameters for ARM *)
+ 
+ Require Import ZArith List.
+-(*From Flocq*)
++From Flocq
+ Require Import Binary Bits.
+ 
+ Definition ptr64 := false.
+diff --git a/lib/Floats.v b/lib/Floats.v
+index 6a126c3f..25a55620 100644
+--- a/lib/Floats.v
++++ b/lib/Floats.v
+@@ -17,7 +17,7 @@
+ (** Formalization of floating-point numbers, using the Flocq library. *)
+ 
+ Require Import Coqlib Zbits Integers.
+-(*From Flocq*)
++From Flocq
+ Require Import Binary Bits Core.
+ Require Import IEEE754_extra.
+ Require Import Program.
+diff --git a/lib/IEEE754_extra.v b/lib/IEEE754_extra.v
+index c23149be..d546c7d3 100644
+--- a/lib/IEEE754_extra.v
++++ b/lib/IEEE754_extra.v
+@@ -20,7 +20,7 @@
+ Require Import Psatz.
+ Require Import Bool.
+ Require Import Eqdep_dec.
+-(*From Flocq *)
++From Flocq
+ Require Import Core Digits Operations Round Bracket Sterbenz Binary Round_odd.
+ 
+ Local Open Scope Z_scope.
+diff --git a/powerpc/Archi.v b/powerpc/Archi.v
+index 10f38391..5ada45f4 100644
+--- a/powerpc/Archi.v
++++ b/powerpc/Archi.v
+@@ -17,7 +17,7 @@
+ (** Architecture-dependent parameters for PowerPC *)
+ 
+ Require Import ZArith List.
+-(*From Flocq*)
++From Flocq
+ Require Import Binary Bits.
+ 
+ Definition ptr64 := false.
+diff --git a/riscV/Archi.v b/riscV/Archi.v
+index 61d129d0..4a929aac 100644
+--- a/riscV/Archi.v
++++ b/riscV/Archi.v
+@@ -17,7 +17,7 @@
+ (** Architecture-dependent parameters for RISC-V *)
+ 
+ Require Import ZArith List.
+-(*From Flocq*)
++From Flocq
+ Require Import Binary Bits.
+ 
+ Parameter ptr64 : bool.
+diff --git a/x86_32/Archi.v b/x86_32/Archi.v
+index e9d05c14..b5e4b638 100644
+--- a/x86_32/Archi.v
++++ b/x86_32/Archi.v
+@@ -17,7 +17,7 @@
+ (** Architecture-dependent parameters for x86 in 32-bit mode *)
+ 
+ Require Import ZArith List.
+-(*From Flocq*)
++From Flocq
+ Require Import Binary Bits.
+ 
+ Definition ptr64 := false.
+diff --git a/x86_64/Archi.v b/x86_64/Archi.v
+index 959d8dc1..59502b4a 100644
+--- a/x86_64/Archi.v
++++ b/x86_64/Archi.v
+@@ -17,7 +17,7 @@
+ (** Architecture-dependent parameters for x86 in 64-bit mode *)
+ 
+ Require Import ZArith List.
+-(*From Flocq*)
++From Flocq
+ Require Import Binary Bits.
+ 
+ Definition ptr64 := true.
+-- 
+2.24.2 (Apple Git-127)
+
