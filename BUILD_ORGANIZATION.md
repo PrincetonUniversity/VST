@@ -52,7 +52,7 @@ use clightgen, please use this install command:
 ```
 opam install coq-compcert.3.7~platform-flocq coq-vst
 AND/OR
-opam install coq-compcert-64.3.7~platform-flocq coq-vst
+opam install coq-compcert-64.3.7~platform-flocq coq-vst-64
 ```
 VST can work with various installations of CompCert and this sequence ensures
 you get the version you want. If you are an industrial user and want to
@@ -90,11 +90,46 @@ For a manual make please follow this procedure:
    (or, if you have a multicore computer,  `make -j`)
 
 Please note that in this case you should *not* have a file `CONFIGURE` in
-the VST root folder as you would for method B and C below.
+the VST root folder as you might for the next method.
 
-### Manual make with advanced configuration
+### Manual make with bundled CompCert
 
-If you want to use a different CompCert than teh default opam supplied
+VST includes two bundled variants of CompCert, which in some releases of
+VST might include changes to support new features of VST. The bundled
+variants are in the VST root folder under
+```
+<vst-root>/compcert
+<vst-root>/compcert_new
+```
+Please note that by default VST uses a platform supplied CompCert and
+not the bundled CompCert. In case you want to use one of the bundled
+CompCert variants, please use these options:
+```
+COMPCERT_INST_PATH=<vst-root>/compcert
+```
+OR
+```
+COMPCERT_INST_PATH=<vst-root>/compcert_new
+COMPCERT_NEW
+```
+The COMPCERT_NEW flag sets a few additional makefile options required to
+build the variant in `<vst-root>/compcert_new` and must be set if this
+folder is specified for `COMPCERT_INST_PATH`.
+
+You can set the additional options `BITSIZE` and `ARCH`. The supported
+variants are:
+```
+ARCH=x86 BITSIZE=32 (default)
+ARCH=x86 BITSIZE=64
+ARCH=aarch64 BITSIZE=64
+ARCH=powerpc BITSIZE=32
+```
+Both variables can be set either on the make command line or in a file named
+`CONFIGURE` in the VST source root folder which is read by the VST makefile.
+
+### Manual make with private build of CompCert and/or advanced options
+
+If you want to use a different CompCert than the default opam supplied
 CompCert, you can configure the CompCert path by setting:
 ```
 COMPCERT=mycompcert
@@ -109,7 +144,7 @@ Both variables can be set either on the make command line or in a file named
 
 In addition you can define the variables `BITSIZE` and `ARCH`. If neither
 `COMPCERT` nor `COMPCERT_INST_PATH` are set, `BITSIZE` can be used to
-choose between `COMPCERT=compcert` and `COMPCERT=`compcert64`. In any case
+choose between `COMPCERT=compcert` and `COMPCERT=compcert64`. In any case
 it is checked if `BITSIZE` and `ARCH` match the configurazion information
 found in `compcert-config` in the specified CompCert folder.
 
