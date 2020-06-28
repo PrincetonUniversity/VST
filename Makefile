@@ -10,6 +10,7 @@
 # ANNOTATE=true   # label chatty output from coqc with file name
 ANNOTATE=silent   # suppress chatty output from coqc
 # ANNOTATE=false  # leave chatty output of coqc unchanged
+# ANNOTATE=echo   # like false, but in addition echo commands
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
 COQC=$(COQBIN)coqc
@@ -31,120 +32,121 @@ endif
 
 # ##### Configure Compcert #####
 
-# Note:  You can make a CONFIGURE file with definitions like
+# Note:  You can make a CONFIGURE file with the below definitions or give them
+# on th emake command line
 #
-#   BITSIZE=64               (choose 64 bit compcert)
-#   ARCH=x86                 (make sure compcert has architecture x86)
+# # Choosing compcert #
+# COMPCERT=platform     (default, choose 32 or 64 bit platform supplied x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
+# COMPCERT=bundled      (build and use bundled 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
+# COMPCERT=nundled_new  (build and use bundled compcert_new 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
+# COMPCERT=src_dir      (build and use in source folder COMPCERT_SRC_DIR the variant specified by ARCH and BITSIZE)
+# COMPCERT=inst_dir     (use prebuilt CompCert in COMPCERT_INST_DIR - BITSIZE and ARCH can be left empty or must match)
 #
-#   COMPCERT=compcert        (opam / coq-platform supplied compcert)
-#   COMPCERT=compcert64      (opam supplied 64 bit compcert)
-#   COMPCERT=mycompcert      (private compcert installed in lib/coq/user-control)
+# # Choosing BITSIZE #
+# BITSIZE=32 
+# BITSIZE=64
 #
-#   COMPCERT_INST_PATH=/home/me/compcert
-#                            (user local compcert inplace build)
+# # Choosing ARCHITECTURE #
+# ARCH=x86
+# ARCH=aarch64
+# ARCH=powerpc
 #
-#   COMPCERT_NEW             (if defined enables compatibility options for
-#                             new experimental compcert)
+# # Choosing Flocq #
+# FLOCQ_PLATFORM (default, except for COMPCERT_BUNDLED_NEW)
+# FLOCQ_BUNDLED  (require for COMPCERT_BUNDLED_NEW, valid for COMPCERT_BUNDLED, COMPCERT_SRC_DIR)
 #
-# Note: BITSIZE can be used to choose a 64 bit compcert but ARCH cannot be used
-# to select non x86, because there is no standard name mapping. You need to
-# set COMPCERT or COMPCERT_INST_PATH to choose a different architecture.
-# But both will be chacked if you set COMPCERT or COMPCERT_INST_PATH, so you
-# can set COMPCERT, BITSIZE and ARCH to make sure COMPCERT is what you want.
-#
-# Note:  By default, the rules for converting .c files to .v files
-# are inactive.  To activate them, do something like
+# # Choosing Clightgen
+# Note:  By default, the rules for converting .c files to .v files are inactive.
+# To activate them, define
 # CLIGHTGEN=$(my_local_bin_path)/clightgen
 
+# # User settable variables #
+COMPCERT ?= platform
+ARCH ?= 
 BITSIZE ?=
-ARCH ?=
 
-ifndef COMPCERT_INST_PATH
-  PLATFORM_COMPCERT = true
-  ifndef COMPCERT
-    ifeq ($(BITSIZE),)
-      COMPCERT ?= compcert
-    else ifeq ($(BITSIZE),32)
-      COMPCERT ?= compcert
-    else ifeq ($(BITSIZE),64)
-      COMPCERT ?= compcert64
-    else 
-      $(error ILLEGAL BITSIZE $(BITSIZE))
-    endif
+# # Internal variables #
+# Set to true if the bundled CompCert is used
+COMPCERT_NEW = false
+# Relative path to bundled compcert for version comparison
+COMPCERT_INFO_PATH_REF = compcert
+# Set to true if the Coq module path for compcert needs to be set explicitly
+COMPCERT_EXPLICIT_PATH = true
+# Set to true if building from sources
+COMPCERT_BUILD_FROM_SRC = false
+
+ifeq ($(COMPCERT),platform)
+  # Platform supplied CompCert
+  ifeq ($(BITSIZE),)
+    COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
+    COMPCERT_EXPLICIT_PATH = false
+  else ifeq ($(BITSIZE),32)
+    COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
+    COMPCERT_EXPLICIT_PATH = false
+  else ifeq ($(BITSIZE),64)
+    COMPCERT_INST_DIR = $(COQLIB)/../coq-variant/compcert64/compcert
+  else 
+    $(error ILLEGAL BITSIZE $(BITSIZE))
   endif
-  COMPCERT_INST_PATH ?= $(COQLIB)/user-contrib/$(COMPCERT)
-  COMPCERT_CONFIG = $(COMPCERT_INST_PATH)/compcert.config
-else
-  PLATFORM_COMPCERT = false
-  COMPCERT_CONFIG = 
+  COMPCERT_SRC_DIR = __NONE__
+else ifeq ($(COMPCERT),bundled)
+  # Bundled CompCert
+  COMPCERT_SRC_DIR = compcert
+  COMPCERT_INST_DIR = compcert
+  COMPCERT_BUILD_FROM_SRC = true
+else ifeq ($(COMPCERT),bundled_new)
+  # Bundled CompCert (new variant)
+  COMPCERT_SRC_DIR = compcert_new
+  COMPCERT_INST_DIR = compcert_new
+  COMPCERT_NEW = true
+  COMPCERT_INFO_PATH_REF = compcert_new
+  COMPCERT_BUILD_FROM_SRC = true
+else ifeq ($(COMPCERT),src_dir)
+  # Compile CompCert from source dir
+  ifeq ($(COMPCERT_SRC_DIR),)
+    $(error COMPCERT_SRC_DIR must not be empty if COMPCERT=src_dir)
+  endif
+  COMPCERT_INST_DIR = $(COMPCERT_SRC_DIR)
+  COMPCERT_BUILD_FROM_SRC = true
+else ifeq ($(COMPCERT),inst_dir)
+  # Find CompCert in install dir
+  COMPCERT_SRC_DIR = __NONE__
+  ifeq ($(COMPCERT_INST_DIR),)
+    $(error COMPCERT_INST_DIR must not be empty if COMPCERT=inst_dir)
+  endif
 endif
-
 
 # Verify that the version of the supplied compcert matches the version of the internal compcert
 
-CV1=$(shell cat compcert/VERSION)
-CV2=$(shell cat $(COMPCERT_INST_PATH)/VERSION)
+CV1=$(shell cat $(COMPCERT_INFO_PATH_REF)/VERSION)
+CV2=$(shell cat $(COMPCERT_INST_DIR)/VERSION)
 
-ifndef COMPCERT_NEW
-  ifneq ($(CV1), $(CV2))
-    $(error COMPCERT VERSION MISMATCH: COMPCERT_VERSION=$(CV1) but $(COMPCERT_INST_PATH)/VERSION=$(CV2))
-  endif
+ifneq ($(CV1), $(CV2))
+  $(error COMPCERT VERSION MISMATCH: COMPCERT_VERSION=$(CV1) but $(COMPCERT_INST_DIR)/VERSION=$(CV2))
 endif
 
 # Verify that the version of the supplied clightgen matches the version of the internal compcert
 
 ifdef CLIGHTGEN
   VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
-  VERSION2= $(subst version=,,$(shell grep version compcert/VERSION))
+  VERSION2= $(subst version=,,$(shell grep version $(COMPCERT_INFO_PATH_REF)/VERSION))
   ifneq ($(VERSION1),$(VERSION2))
-    $(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
+    $(warning clightgen version $(VERSION1) does not match VST/$(COMPCERT_INFO_PATH_REF)/VERSION $(VERSION2))
   endif
 endif
 
 # Verify that the supplied compcert folder is built (contains .vo files)
 
-ifeq ($(PLATFORM_COMPCERT), true)
-  ifeq ($(wildcard $(COMPCERT_INST_PATH)/*/Clight.vo), )
-  $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT_INST_PATH); make clightgen)
+ifeq ($(COMPCERT_BUILD_FROM_SRC),false)
+  ifeq ($(wildcard $(COMPCERT_INST_DIR)/*/Clight.vo), )
+    $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT_INST_DIR); make clightgen)
   endif
 endif
 
 # ##### Configure Architecture #####
 
-# Choose / test BITSIZE and ARCH
-
-ifeq ($(PLATFORM_COMPCERT), true)
-
-  # We are using a platform supplied CompCert
-
-  ifeq ($(wildcard $(COMPCERT_CONFIG)),)
-    $(error Cannot find compcert.config in $(COMPCERT_INST_PATH))
-  endif
-  
-  COMPCERT_ARCH ?= $(shell awk 'BEGIN{FS="="}$$1=="COMPCERT_ARCH"{print $$2}' $(COMPCERT_CONFIG))
-  COMPCERT_BITSIZE ?= $(shell awk 'BEGIN{FS="="}$$1=="COMPCERT_BITSIZE"{print $$2}' $(COMPCERT_CONFIG))
-
-  # Verify that the bitsize and architecture match
-
-  ifneq ($(BITSIZE),)
-    ifneq ($(BITSIZE),$(COMPCERT_BITSIZE))
-      $(error The compcert found in $(COMPCERT_INST_PATH) has bitsize $(COMPCERT_BITSIZE) but you requested $(BITSIZE))
-    endif
-  else
-    BITSIZE = $(COMPCERT_BITSIZE)
-  endif
-
-  ifneq ($(ARCH),)
-    ifneq ($(ARCH),$(COMPCERT_ARCH))
-      $(error The compcert found in $(COMPCERT_INST_PATH) has bitsize $(COMPCERT_ARCH) but you requested $(ARCH))
-    endif
-  else
-    ARCH = $(COMPCERT_ARCH)
-  endif
-
-else
-
-  # We are using a self build CompCert
+ifneq ($(COMPCERT_SRC_DIR),)
+  # We are building CompCert from source and can choose BITSIZE and ARCH
 
   ifeq ($(BITSIZE),)
     BITSIZE = 32
@@ -154,11 +156,36 @@ else
     ARCH = x86
   endif
 
+else
+  # We are using a pre-built CompCert, so verify that BITSIZE and ARCH match
+  # or extract them from the compcert settings if they are undefined
+
+  ifeq ($(wildcard $(COMPCERT_INST_DIR)/compcert.config),)
+    $(error Cannot find compcert.config in $(COMPCERT_INST_DIR))
+  endif
+  
+  include $(COMPCERT_INST_DIR)/compcert.config
+
+  ifneq ($(BITSIZE),)
+    ifneq ($(BITSIZE),$(COMPCERT_BITSIZE))
+      $(error The compcert found in $(COMPCERT_INST_DIR) has bitsize $(COMPCERT_BITSIZE) but you requested $(BITSIZE))
+    endif
+  else
+    BITSIZE = $(COMPCERT_BITSIZE)
+  endif
+
+  ifneq ($(ARCH),)
+    ifneq ($(ARCH),$(COMPCERT_ARCH))
+      $(error The compcert found in $(COMPCERT_INST_DIR) has bitsize $(COMPCERT_ARCH) but you requested $(ARCH))
+    endif
+  else
+    ARCH = $(COMPCERT_ARCH)
+  endif
 endif
 
 # Choose CompCert architecture folder
 
-ifeq ($(wildcard $(COMPCERT_INST_PATH)/$(ARCH)_$(BITSIZE)),)
+ifeq ($(wildcard $(COMPCERT_INST_DIR)/$(ARCH)_$(BITSIZE)),)
   ARCHDIRS=$(ARCH)
 else
   ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
@@ -166,7 +193,7 @@ endif
 
 # Add CompCert backend folder for COMPCERT_NEW
 
-ifdef COMPCERT_NEW
+ifeq ($(COMPCERT_NEW),true)
   BACKEND=backend
 endif
 
@@ -204,19 +231,19 @@ DIRS = $(VSTDIRS) $(OTHERDIRS)
 
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend exportclight $(BACKEND) $(FLOCQ)
 
-ifeq ($(PLATFORM_COMPCERT),true)
+ifeq ($(COMPCERT_EXPLICIT_PATH),true)
+  COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_DIR)/$(d) compcert.$(d))
+  EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d))
+else
   COMPCERT_R_FLAGS=
   EXTFLAGS=
-else
-  COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_PATH)/$(d) compcert.$(d))
-  EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_PATH)/$(d) compcert.$(d))
 endif
 
 # Compcert Clightgen flags
 
 CGFLAGS =  -DCOMPCERT
 
-#ifdef COMPCERT_NEW
+#ifeq ($(COMPCERT_NEW),true)
 #SHIM= -Q concurrency/shim VST.veric
 #endif
 
@@ -259,9 +286,18 @@ DEPFLAGS:=$(COQFLAGS)
 # ##### Print configuration summary #####
 
 $(info ===== CONFIGURATION SUMMARY =====)
+$(info COMPCERT=$(COMPCERT))
+$(info COMPCERT_SRC_DIR=$(COMPCERT_SRC_DIR))
+$(info COMPCERT_INST_DIR=$(COMPCERT_INST_DIR))
 $(info BITSIZE=$(BITSIZE))
 $(info ARCH=$(ARCH))
+$(info ===== DERIVED CONFIGURATION =====)
+$(info COMPCERT_INFO_PATH_REF=$(COMPCERT_INFO_PATH_REF))
+$(info COMPCERT_EXPLICIT_PATH=$(COMPCERT_EXPLICIT_PATH))
+$(info COMPCERT_BUILD_FROM_SRC=$(COMPCERT_BUILD_FROM_SRC))
+$(info COMPCERT_NEW=$(COMPCERT_NEW))
 $(info COQFLAGS=$(COQFLAGS))
+$(info COMPCERT_R_FLAGS=$(COMPCERT_R_FLAGS))
 $(info =================================)
 
 # ########## File Lists ##########
@@ -558,7 +594,7 @@ FILES = \
 
 # ##### Derived file lists #####
 
-CC_TARGET= $(COMPCERT_INST_PATH)/cfrontend/Clight.vo
+CC_TARGET= $(COMPCERT_INST_DIR)/cfrontend/Clight.vo
 
 CVFILES = $(patsubst %.c,$(PROGSDIR)/%.v,$(C_FILES))
 CVOFILES = $(patsubst %.c,$(PROGSDIR)/%.vo,$(C_FILES))
@@ -579,7 +615,9 @@ PROGS64_FILES= $(V64_ORDINARY)
 # from progs/verif_reverse.v
 	grep -v '^.[*][*][ )]' $*.v >$@
 
-%.vo: COQF=$(if $(findstring compcert, $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
+# This line sets COQF depending on the folder of the input file $<
+# If the folder name contains compcert, $(COMPCERT_R_FLAGS) is added, otherwise not.
+%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
 
 # If CompCert changes, all .vo files need to be recompiled
 %.vo: $(COMPCERT_CONFIG)
@@ -597,6 +635,8 @@ else ifeq ($(strip $(ANNOTATE)), true)
 	@$(COQC) $(COQF) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
 else ifeq ($(strip $(ANNOTATE)), silent)
 	@$(COQC) $(COQF) $*.v >/dev/null
+else ifeq ($(strip $(ANNOTATE)), echo)
+	$(COQC) $(COQF) $*.v >/dev/null
 else
 	@$(COQC) $(COQF) $*.v
 #	@util/annotate $(COQC) $(COQF) $*.v
@@ -689,7 +729,7 @@ floyd/floyd.coq: floyd/proofauto.vo
 
 .depend depend:
 	@echo 'coqdep ... >.depend'
-ifdef COMPCERT_NEW
+ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
 	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
@@ -697,9 +737,9 @@ else
 	# DEPENDENCIES DEFAULT
 	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
-ifeq ($(PLATFORM_COMPCERT),false)
-	# DEPENDENCIES LOCAL COMPCERT
-	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT_INST_PATH)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
+	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE
+	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT_SRC_DIR)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 # ifneq ($(wildcard coq-ext-lib/theories),)
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
@@ -766,3 +806,4 @@ VSUpile: floyd/proofauto.vo floyd/VSU.vo floyd/VSU_addmain.vo
 # such problem, not sure exactly.  -- Andrew)
 include .depend
 -include .depend-concur
+
