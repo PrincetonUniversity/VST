@@ -61,7 +61,7 @@ Definition wand {A}  {JA: Join A}  (p q:pred A) := fun y =>
   forall x z, join x y z -> p x -> q z.
 
 Declare Scope pred_derives.
-Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity) : pred_derives.
+Notation "P '|--' Q" := (derives P Q) (at level 99, Q at level 200, right associativity) : pred_derives.
 Open Scope pred_derives.
 Notation "'EX' x .. y , P " :=
   (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
@@ -73,7 +73,7 @@ Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.
 Notation "P '<-->' Q" := (andp (imp P Q) (imp Q P)) (at level 57, no associativity) : pred.
 Notation "P '*' Q" := (sepcon P Q) : pred.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : pred.
-Notation "'!!' e" := (prop e) (at level 25) : pred.
+Notation "'!!' e" := (prop e) (at level 15) : pred.
 
 Definition precise {A}  {JA: Join A}{PA: Perm_alg A}  (P: pred A) : Prop :=
      forall w w1 w2, P w1 -> P w2 -> join_sub w1 w -> join_sub w2 w -> w1=w2.
@@ -145,20 +145,20 @@ intuition.
 split; auto.
 Qed.
 
-Lemma derives_trans {A}:  forall (P Q R: pred A), P |-- Q -> Q |-- R -> P |-- R.
+Lemma derives_trans {A}:  forall (P Q R: pred A), (P |-- Q) -> (Q |-- R) -> P |-- R.
 Proof.
 firstorder.
 Qed.
 
 Lemma and_i {A}: forall (P Q R: pred A),
-    P |-- Q -> P |-- R -> P |-- Q && R.
+    (P |-- Q) -> (P |-- R) -> P |-- Q && R.
 Proof. intuition.
 intros w ?.
 split; eauto.
 Qed.
 
 Lemma andp_derives {A}  :
-  forall P Q P' Q': pred A, P |-- P' -> Q |-- Q' -> P && Q |-- P' && Q'.
+  forall P Q P' Q': pred A, (P |-- P') -> (Q |-- Q') -> P && Q |-- P' && Q'.
 Proof.
 intros.
 intros w [? ?]; split; auto.
@@ -304,7 +304,7 @@ replace z with w; auto.
 Qed.
 
 Lemma wand_derives {A} {JA: Join A}{PA: Perm_alg A}:
-  forall P P' Q Q',  P' |-- P -> Q |-- Q' -> P -* Q |-- P' -* Q'.
+  forall P P' Q Q',  (P' |-- P) -> (Q |-- Q') -> P -* Q |-- P' -* Q'.
 Proof.
 intros.
 intros w ?.
@@ -512,7 +512,7 @@ destruct H1.
 split; exists w1; exists w2; split; auto.
 Qed.
 
-Lemma andp_r {A: Type} : forall (P Q R: pred A), P |-- Q -> P |-- R -> P |-- Q && R.
+Lemma andp_r {A: Type} : forall (P Q R: pred A), (P |-- Q) -> (P |-- R) -> P |-- Q && R.
 Proof.
 intros.
 intros w ?; split; auto.
@@ -569,16 +569,16 @@ exists wb; exists wd; split; [|split]; auto.
 Qed.
 
 Lemma modus_ponens {A} : forall (X P Q:pred A),
-  X |-- P ->
-  X |-- (P --> Q) ->
+  (X |-- P) ->
+  (X |-- (P --> Q)) ->
   X |-- Q.
 Proof.
   unfold derives, imp; simpl; intuition eauto.
 Qed.
 
 Lemma and_intro {A}  : forall (X P Q:pred A),
-  X |-- P ->
-  X |-- Q ->
+  (X |-- P) ->
+  (X |-- Q) ->
   X |-- P && Q.
 Proof.
   unfold derives, imp, andp; simpl; intuition.
@@ -673,38 +673,38 @@ Qed.
 
 
 Lemma andp_right {A}  : forall (X P Q:pred A),
-  X |-- P ->
-  X |-- Q ->
+  (X |-- P) ->
+  (X |-- Q) ->
   X |-- P && Q.
 Proof.
   unfold derives, imp, andp; simpl; intuition.
 Qed.
 
 
-Lemma andp_left1{A}: forall P Q R: pred A,  P |-- R -> P && Q |-- R.
+Lemma andp_left1{A}: forall P Q R: pred A,  (P |-- R) -> P && Q |-- R.
 Proof. repeat intro. destruct H0; auto.
 Qed.
 
-Lemma andp_left2{A}: forall P Q R: pred A,  Q |-- R -> P && Q |-- R.
+Lemma andp_left2{A}: forall P Q R: pred A,  (Q |-- R) -> P && Q |-- R.
 Proof. repeat intro. destruct H0; auto.
 Qed.
 
 
-Lemma orp_left{A}: forall P Q R: pred A,  P |-- R -> Q |-- R -> P || Q |-- R.
+Lemma orp_left{A}: forall P Q R: pred A,  (P |-- R) -> (Q |-- R) -> P || Q |-- R.
 Proof. repeat intro. destruct H1; auto.
 Qed.
 
-Lemma orp_right1{A}: forall P Q R: pred A,  P |-- Q -> P |-- Q || R.
+Lemma orp_right1{A}: forall P Q R: pred A,  (P |-- Q) -> P |-- Q || R.
 Proof. repeat intro. left; auto.
 Qed.
 
-Lemma orp_right2{A}: forall P Q R: pred A,  P |-- R -> P |-- Q || R.
+Lemma orp_right2{A}: forall P Q R: pred A,  (P |-- R) -> P |-- Q || R.
 Proof. repeat intro. right; auto.
 Qed.
 
 Lemma exp_right:
   forall {B A: Type}(x:B) p (q: B -> pred A),
-    p |-- q x ->
+    (p |-- q x) ->
     p |-- exp q.
 Proof.
 intros.
@@ -732,13 +732,13 @@ Proof.
 Qed.
 
 Lemma allp_left {B}{A}:
-   forall (P: B -> pred A) x Q, P x |-- Q -> allp P |-- Q.
+   forall (P: B -> pred A) x Q, (P x |-- Q) -> allp P |-- Q.
  Proof.
    intros. intros ? ?. apply H. apply H0.
 Qed.
 
 Lemma imp_andp_adjoint {A}  : forall (P Q R:pred A),
-  (P && Q) |-- R <-> P |-- (Q --> R).
+  ((P && Q) |-- R) <-> (P |-- (Q --> R)).
 Proof.
   split; intros.
   hnf; intros; simpl; intros.
@@ -820,7 +820,7 @@ subst; auto.
 Qed.
 
 Lemma ewand_conflict {T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}:
-       forall P Q R, sepcon P Q |-- FF -> andp P (ewand Q R) |-- FF.
+       forall P Q R, (sepcon P Q |-- FF) -> andp P (ewand Q R) |-- FF.
 Proof.
  intros. intros w [? [w1 [w2 [? [? ?]]]]].
  specialize (H w2). apply H. exists w; exists w1; repeat split; auto.

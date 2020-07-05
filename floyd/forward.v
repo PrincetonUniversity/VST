@@ -563,7 +563,7 @@ Qed.
 
 Lemma prop_Forall_cons:
  forall {B}{A} {NB: NatDed B} (P: B) F (a:A) b,
-  P |-- !! F a && !! Forall F b ->
+  (P |-- !! F a && !! Forall F b) ->
   P |-- !! Forall F (a::b).
 Proof.
 intros. eapply derives_trans; [apply H |].
@@ -572,7 +572,7 @@ Qed.
 
 Lemma prop_Forall_cons':
  forall {B}{A} {NB: NatDed B} (P: B) P1 F (a:A) b,
-  P |-- !! (P1 /\ F a) && !! Forall F b ->
+  (P |-- !! (P1 /\ F a) && !! Forall F b) ->
   P |-- !! P1 && !! Forall F (a::b).
 Proof.
 intros. eapply derives_trans; [apply H |].
@@ -588,7 +588,7 @@ Qed.
 
 Lemma prop_Forall_nil':
  forall {B}{A} {NB: NatDed B} (P: B)  P1 (F: A -> Prop),
-  P |-- !! P1->
+  (P |-- !! P1)->
   P |-- !! P1 && !! Forall F nil.
 Proof.
 intros. eapply derives_trans; [apply H |].
@@ -598,7 +598,7 @@ Qed.
 Lemma prop_Forall_cons1:
  forall {B}{A} {NB: NatDed B} (P: B) (F: A -> Prop) (a:A) b,
   F a ->
-  P |-- !! Forall F b ->
+  (P |-- !! Forall F b) ->
   P |-- !! Forall F (a::b).
 Proof.
 intros. eapply derives_trans; [apply H0 |].
@@ -2894,7 +2894,7 @@ Ltac warn s :=
 
 Lemma semax_post3:
   forall R' Espec {cs: compspecs} Delta P c R,
-    local (tc_environ Delta) && R' |-- R ->
+    (local (tc_environ Delta) && R' |-- R) ->
     @semax cs Espec Delta P c (normal_ret_assert R') ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
@@ -2904,7 +2904,7 @@ Qed.
 Lemma semax_post_flipped3:
   forall R' Espec {cs: compspecs} Delta P c R,
     @semax cs Espec Delta P c (normal_ret_assert R') ->
-    local (tc_environ Delta) && R' |-- R ->
+    (local (tc_environ Delta) && R' |-- R) ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
 intros; eapply semax_post3; eauto.
@@ -2913,7 +2913,7 @@ Qed.
 Lemma focus_make_args:
   forall A Q R R' Frame,
     R = R' ->
-    A |-- PROPx nil (LOCALx Q (SEPx (R' :: Frame)))  ->
+    (A |-- PROPx nil (LOCALx Q (SEPx (R' :: Frame))))  ->
     A |-- PROPx nil (LOCALx Q (SEPx (R :: Frame))) .
 Proof.
 intros; subst; auto.
@@ -3004,8 +3004,8 @@ Ltac construct_nested_efield e e1 efs tts lr :=
     clear pp.
 
 Lemma efield_denote_cons_array: forall {cs: compspecs} P efs gfs ei i,
-  P |-- local (efield_denote efs gfs) ->
-  P |-- local (`(eq (Vint i)) (eval_expr ei)) ->
+  (P |-- local (efield_denote efs gfs)) ->
+  (P |-- local (`(eq (Vint i)) (eval_expr ei))) ->
   is_int_type (typeof ei) = true ->
   P |-- local (efield_denote (eArraySubsc ei :: efs) 
           (ArraySubsc (int_signed_or_unsigned (typeof ei) i) :: gfs)).
@@ -3025,7 +3025,7 @@ Proof.
 Qed.
 
 Lemma efield_denote_cons_struct: forall {cs: compspecs} P efs gfs i,
-  P |-- local (efield_denote efs gfs) ->
+  (P |-- local (efield_denote efs gfs)) ->
   P |-- local (efield_denote (eStructField i :: efs) (StructField i :: gfs)).
 Proof.
   intros.
@@ -3035,7 +3035,7 @@ Proof.
 Qed.
 
 Lemma efield_denote_cons_union: forall {cs: compspecs} P efs gfs i,
-  P |-- local (efield_denote efs gfs) ->
+  (P |-- local (efield_denote efs gfs)) ->
   P |-- local (efield_denote (eUnionField i :: efs) (UnionField i :: gfs)).
 Proof.
   intros.
@@ -3270,7 +3270,7 @@ Proof. intros.
  unfold frame_ret_assert. intros ? ? ?. apply sepcon_derives; trivial. apply H. Qed.
 *)
 
-Lemma bind_ret_derives t P Q v: P|-- Q -> bind_ret v t P |-- bind_ret v t Q.
+Lemma bind_ret_derives t P Q v: (P |-- Q) -> bind_ret v t P |-- bind_ret v t Q.
 Proof. intros. destruct v. simpl; intros. entailer!. apply H.
   destruct t; try apply derives_refl. simpl; intros. apply H. 
 Qed.

@@ -483,7 +483,7 @@ Opaque semax'.
 Definition semax {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) P c Q :=
   forall n, semax' Espec Delta P c Q n.
 
-Lemma any_level_pred_nat: forall P: pred nat, (forall n, P n) <-> TT |-- P.
+Lemma any_level_pred_nat: forall P: pred nat, (forall n, P n) <-> (TT |-- P).
 Proof.
   intros.
   split; intros.
@@ -493,10 +493,10 @@ Qed.
 
 Lemma semax_weakest_pre_aux: forall {A: Type} (P: pred nat) (Q R: A -> pred rmap),
   P = fash (ALL x: A, Q x --> R x) ->
-  (TT |-- P <-> forall x, Q x |-- R x).
+  ((TT |-- P) <-> forall x, Q x |-- R x).
 Proof.
   intros.
-  assert (TT |-- ALL x: A, Q x --> R x <-> (forall x : A, Q x |-- R x)).
+  assert ((TT |-- ALL x: A, Q x --> R x) <-> (forall x : A, Q x |-- R x)).
   + split; intros.
     - rewrite <- (TT_and (Q x)).
       rewrite imp_andp_adjoint.

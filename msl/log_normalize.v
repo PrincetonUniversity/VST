@@ -30,7 +30,7 @@ Hint Resolve @FF_left : norm.
 
 Ltac norm := auto with norm.
 
-Lemma add_andp: forall {A: Type} `{NatDed A} (P Q: A), P |-- Q -> P = P && Q.
+Lemma add_andp: forall {A: Type} `{NatDed A} (P Q: A), (P |-- Q) -> P = P && Q.
 Proof.
   intros.
   apply pred_ext.
@@ -60,7 +60,7 @@ Proof.
 Qed.
 
 Lemma andp_derives {A} {NA: NatDed A}:
-  forall P Q P' Q': A, P |-- P' -> Q |-- Q' -> P && Q |-- P' && Q'.
+  forall P Q P' Q': A, (P |-- P') -> (Q |-- Q') -> P && Q |-- P' && Q'.
 Proof.
 intros.
 apply andp_right.
@@ -69,7 +69,7 @@ apply andp_left2; apply H0.
 Qed.
 
 Lemma orp_derives {A} {NA: NatDed A}:
-  forall P Q P' Q': A, P |-- P' -> Q |-- Q' -> P || Q |-- P' || Q'.
+  forall P Q P' Q': A, (P |-- P') -> (Q |-- Q') -> P || Q |-- P' || Q'.
 Proof.
 intros.
 apply orp_left.
@@ -81,7 +81,7 @@ Class CCCviaNatDed (A: Type) (prod expo: A -> A -> A) {ND: NatDed A}: Prop :=
   isCCC: CartesianClosedCat.CCC A derives eq prod expo.
 
 Lemma CCC_expo_derives: forall A prod expo {ND: NatDed A} {CCC: CCCviaNatDed A prod expo},
-  forall P P' Q Q', P' |-- P -> Q |-- Q' -> expo P Q |-- expo P' Q'.
+  forall P P' Q Q', (P' |-- P) -> (Q |-- Q') -> expo P Q |-- expo P' Q'.
 Proof.
   intros.
   pose proof isCCC.
@@ -510,7 +510,7 @@ Lemma derives_refl'' {A}{NA: NatDed A}: forall P Q: A, Q=P -> P |-- Q.
 Proof.  intros; subst; apply derives_refl. Qed.
 
 Lemma wand_derives {A}{ND: NatDed A}{SL: SepLog A}:
-    forall P P' Q Q': A , P' |-- P -> Q |-- Q' ->  P -* Q |-- P' -* Q'.
+    forall P P' Q Q': A , (P' |-- P) -> (Q |-- Q') ->  P -* Q |-- P' -* Q'.
 Proof.
   eapply CCC_expo_derives.
   apply sepcon_wand_CCC.
@@ -588,8 +588,8 @@ Qed.
 
 Lemma imp_derives {A} {NA: NatDed A}:
   forall P P' Q Q' : A,
-    P' |-- P ->
-    Q |-- Q' ->
+    (P' |-- P) ->
+    (Q |-- Q') ->
     P --> Q |-- P' --> Q'.
 Proof.
   intros.
@@ -617,7 +617,7 @@ Proof.
 Qed.
 
 Lemma later_derives {A}{ND: NatDed A}{IA: Indir A}:
-   forall P Q: A, P |-- Q -> later P |-- later Q.
+   forall P Q: A, (P |-- Q) -> later P |-- later Q.
 Proof.
   intros.
   apply derives_trans with (TT && later P).
@@ -648,7 +648,7 @@ Proof.
 Qed.
 
 Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:
- forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
+ forall A B C : T, (A && B |-- C) -> A && |> B |-- |>C.
 Proof.
 intros.
 apply derives_trans with (|> (A && B)).
@@ -725,7 +725,7 @@ apply andp_right. apply prop_right; auto. apply derives_refl.
 Qed.
 
 Lemma TT_andp_right {A}{NA: NatDed A}:
- forall P Q, TT |-- P -> TT |-- Q -> TT |-- P && Q.
+ forall P Q, (TT |-- P) -> (TT |-- Q) -> TT |-- P && Q.
 Proof.
   intros. apply andp_right; auto.
 Qed.
@@ -1101,7 +1101,7 @@ Proof.
 Qed.
 
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
-  forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
+  forall P Q, (Q |-- !! P)   ->   Q |-- !!P && Q.
 Proof.
 intros. apply andp_right; auto.
 Qed.
@@ -1323,8 +1323,8 @@ apply andp_left2; auto.
 Qed.
 
 Lemma subp_trans {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P Q R: A),
-  G |-- P >=> Q ->
-  G |-- Q >=> R ->
+  (G |-- P >=> Q) ->
+  (G |-- Q >=> R) ->
   G |-- P >=> R.
 Proof.
 intros.
@@ -1357,8 +1357,8 @@ Proof.
 Qed.
 
 Lemma subp_andp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G {P P' Q Q': A},
-  G |-- P >=> P' ->
-  G |-- Q >=> Q' ->
+  (G |-- P >=> P') ->
+  (G |-- Q >=> Q') ->
   G |-- P && Q >=> (P' && Q').
 Proof.
  intros.
@@ -1377,8 +1377,8 @@ Proof.
 Qed.
 
 Lemma subp_imp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P P' Q Q' : A),
-  G |-- P' >=> P ->
-  G |-- Q >=> Q' ->
+  (G |-- P' >=> P) ->
+  (G |-- Q >=> Q') ->
   G |-- (P --> Q) >=> (P' --> Q').
 Proof.
  intros.
@@ -1402,8 +1402,8 @@ Proof.
 Qed.
 
 Lemma subp_orp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P P' Q Q' : A),
-  G |-- P >=> P' ->
-  G |-- Q >=> Q' ->
+  (G |-- P >=> P') ->
+  (G |-- Q >=> Q') ->
   G |-- (P || Q) >=> (P' || Q').
 Proof.
  intros.
@@ -1420,8 +1420,8 @@ Qed.
 
 Lemma subp_subp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
   forall G (P Q R S: A),
-   G |-- (R >=> P) ->
-   G |-- (Q >=> S) ->
+   (G |-- (R >=> P)) ->
+   (G |-- (Q >=> S)) ->
    G |-- (P >=> Q) >=> (R >=> S).
 Proof.
  intros.
@@ -1515,8 +1515,8 @@ Qed.
 
 Lemma subp_sepcon {A} {NA: NatDed A}{IA: Indir A}{SA: SepLog A}{SI: SepIndir A}{RA: RecIndir A}{SRA: SepRec A} :
     forall G (P P' Q Q' : A),
-  G |-- P >=> P' ->
-  G |-- Q >=> Q' ->
+  (G |-- P >=> P') ->
+  (G |-- Q >=> Q') ->
   G |-- P * Q >=> P' * Q'.
 Proof.
  intros.
@@ -1543,7 +1543,7 @@ Hint Resolve @prove_HOcontractive
   @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
 
 Lemma  goedel_loeb {A}  {NA: NatDed A}{IA: Indir A}:
-    forall P Q : A ,   Q && later P |-- P ->  Q |-- P.
+    forall P Q : A ,   (Q && later P |-- P) ->  Q |-- P.
 Proof.
 intros.
 assert (TT |-- Q --> P).
@@ -1581,7 +1581,7 @@ Lemma HORec_sub {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall G B
   (HF2 : forall R a (P Q: A), P >=> Q |-- F P R a >=> F Q R a)
   (HF3 : forall (P Q: B -> A) X, ALL b:B, |>(P b >=> Q b) |-- ALL b:B, F X P b >=> F X Q b),
   forall P Q : A,
-    G |-- P >=> Q ->
+    (G |-- P >=> Q) ->
     G |-- ALL b:B, HORec (F P) b >=> HORec (F Q) b.
 Proof.
   intros.

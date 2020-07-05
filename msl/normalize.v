@@ -88,7 +88,7 @@ Lemma join_equiv_refl {A}: forall x:A, @join A (Join_equiv A) x x x.
 Proof. split; auto. Qed.
 Hint Resolve @join_equiv_refl : core.
 
-Lemma pure_sepcon1'' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall P Q R, pure P -> Q |-- R -> P * Q |-- R.
+Lemma pure_sepcon1'' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall P Q R, pure P -> (Q |-- R) -> P * Q |-- R.
 Proof.
 pose proof I.
 intros.
@@ -248,7 +248,7 @@ Hint Rewrite @pure_sepcon_TT_andp @pure_sepcon_TT_andp' using (solve [auto]): no
 
 Lemma pure_sepcon1' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
 
-  forall P Q R, pure P -> P * Q |-- P * R -> P * Q |-- R.
+  forall P Q R, pure P -> (P * Q |-- P * R) -> P * Q |-- R.
 Proof.
 intros.
 eapply derives_trans; try apply H0.
@@ -273,7 +273,7 @@ Ltac pull_left A := repeat (rewrite <- (pull_right A) || rewrite <- (pull_right0
 Ltac pull_right A := repeat (rewrite (pull_right A) || rewrite (pull_right0 A)).
 
 Lemma pure_modus {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall P Q,  P |-- Q -> pure Q -> P |-- Q && P.
+  forall P Q,  (P |-- Q) -> pure Q -> P |-- Q && P.
 Proof.
 intros.
 intros w ?.
@@ -283,7 +283,7 @@ Qed.
 
 Lemma imp_exp_right {B A : Type} `{saA: ageable A}:
   forall (x: B) (p: pred A) (q: B -> pred A),
-    p |-- q x ->
+    (p |-- q x) ->
     p |-- exp q.
 Proof.
 intros.

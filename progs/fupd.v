@@ -226,7 +226,7 @@ Definition fupd E1 E2 P :=
 Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic.
 Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic.
 
-Lemma fupd_mono : forall E1 E2 P Q, P |-- Q -> (|={E1, E2}=> P) |-- (|={E1, E2}=> Q).
+Lemma fupd_mono : forall E1 E2 P Q, (P |-- Q) -> (|={E1, E2}=> P) |-- (|={E1, E2}=> Q).
 Proof.
   intros; unfold fupd; iIntros "H Hpre".
   iMod ("H" with "Hpre") as ">($ & P)"; do 2 iModIntro.
@@ -292,12 +292,12 @@ Proof.
   eapply Himp in HP; try apply necR_refl; auto; omega.
 Qed.
 
-Lemma fupd_bupd : forall E1 E2 P Q, P |-- (|==> (|={E1,E2}=> Q)) -> P |-- |={E1,E2}=> Q.
+Lemma fupd_bupd : forall E1 E2 P Q, (P |-- (|==> (|={E1,E2}=> Q))) -> P |-- |={E1,E2}=> Q.
 Proof.
   intros; eapply derives_trans, fupd_trans; eapply derives_trans, bupd_fupd; auto.
 Qed.
 
-Lemma fupd_bupd_elim : forall E1 E2 P Q, P |-- (|={E1,E2}=> Q) -> (|==> P) |-- |={E1,E2}=> Q.
+Lemma fupd_bupd_elim : forall E1 E2 P Q, (P |-- (|={E1,E2}=> Q)) -> (|==> P) |-- |={E1,E2}=> Q.
 Proof.
   intros; apply fupd_bupd, bupd_mono; auto.
 Qed.
@@ -385,7 +385,7 @@ Section Invariants.
 
 Context {inv_names : invG}.
 
-Lemma fupd_timeless' : forall E1 E2 P Q, Timeless P -> (P |-- (|={E1,E2}=> Q) ->
+Lemma fupd_timeless' : forall E1 E2 P Q, Timeless P -> ((P |-- (|={E1,E2}=> Q)) ->
   |> P |-- |={E1,E2}=> Q)%I.
 Proof.
   intros.
@@ -394,7 +394,7 @@ Proof.
   apply fupd_mono; eauto.
 Qed.
 
-Lemma fupd_except0_elim : forall E1 E2 P Q, (P |-- (|={E1,E2}=> Q) -> sbi_except_0 P |-- |={E1,E2}=> Q)%I.
+Lemma fupd_except0_elim : forall E1 E2 P Q, ((P |-- (|={E1,E2}=> Q)) -> sbi_except_0 P |-- |={E1,E2}=> Q)%I.
 Proof.
   intros; iIntros ">P Hpre".
   iPoseProof (H with "P Hpre") as ">>Q"; iFrame; auto.
@@ -433,7 +433,7 @@ Proof.
 Qed.
 
 Lemma fupd_prop' : forall E1 E2 E2' P Q, subseteq E1 E2 ->
-  (Q |-- (|={E1,E2'}=> !!P) ->
+  ((Q |-- (|={E1,E2'}=> !!P)) ->
   (|={E1, E2}=> Q) |-- |={E1}=> !!P && (|={E1, E2}=> Q))%I.
 Proof.
   unfold updates.fupd, bi_fupd_fupd; simpl.
@@ -457,7 +457,7 @@ Proof.
 Qed.
 
 Lemma fupd_prop : forall E1 E2 P Q, subseteq E1 E2 ->
-  Q |-- !!P ->
+  (Q |-- !!P) ->
   ((|={E1, E2}=> Q) |-- |={E1}=> !!P && (|={E1, E2}=> Q))%I.
 Proof.
   intros; eapply fupd_prop'; auto.
@@ -471,14 +471,14 @@ Proof.
   iMod (wsat_alloc with "[$]") as "(? & ?)"; iFrame; auto.
 Qed.
 
-Lemma make_inv : forall E P Q, P |-- Q -> (P |-- |={E}=> EX i : _, invariant i Q)%I.
+Lemma make_inv : forall E P Q, (P |-- Q) -> (P |-- |={E}=> EX i : _, invariant i Q)%I.
 Proof.
   intros.
   eapply derives_trans, inv_alloc; auto.
   eapply derives_trans, now_later; auto.
 Qed.
 
-Lemma make_inv' : forall P Q, P |-- Q -> (wsat * P |-- |==> EX i : _, |> (wsat * (invariant i Q)))%I.
+Lemma make_inv' : forall P Q, (P |-- Q) -> (wsat * P |-- |==> EX i : _, |> (wsat * (invariant i Q)))%I.
 Proof.
   intros.
   iIntros "[wsat P]".

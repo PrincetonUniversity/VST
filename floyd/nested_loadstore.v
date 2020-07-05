@@ -369,8 +369,8 @@ Lemma nested_field_ramif_load: forall sh t gfs0 gfs1 (v_reptype: reptype (nested
   JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype) v_val ->
   exists v_reptype',
     JMeq v_reptype' v_val /\
-    field_at sh t gfs0 v_reptype p |--
-      field_at sh t (gfs1 ++ gfs0) v_reptype' p * TT.
+    (field_at sh t gfs0 v_reptype p |--
+      field_at sh t (gfs1 ++ gfs0) v_reptype' p * TT).
 Proof.
   intros.
   generalize (JMeq_refl (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype)).
@@ -391,10 +391,10 @@ Lemma nested_field_ramif_store: forall sh t gfs0 gfs1 (v_reptype: reptype (neste
   JMeq v0_reptype v_val ->
   exists v0_reptype',
     JMeq v0_reptype' v_val /\
-    field_at sh t gfs0 v_reptype p |--
+    (field_at sh t gfs0 v_reptype p |--
       field_at_ sh t (gfs1 ++ gfs0) p *
        (field_at sh t (gfs1 ++ gfs0) v0_reptype' p -*
-          field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v_reptype v0_reptype) p).
+          field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v_reptype v0_reptype) p)).
 Proof.
   intros.
   generalize (JMeq_refl (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype)).

@@ -1978,3 +1978,16 @@ Proof.
   - eapply alloc_cohere_unage; eauto.
   - apply age1_juicy_mem_unpack''; auto.
 Qed.
+
+Lemma juicy_mem_unage' : forall jm r, age r (m_phi jm) ->
+  exists jm', age jm' jm /\ m_phi jm' = r.
+Proof.
+  intros.
+  unshelve eexists (mkJuicyMem (m_dry jm) r _ _ _ _).
+  all: destruct jm as [m phi' Co Ac Ma N]; simpl.
+  - eapply contents_cohere_unage; eauto.
+  - eapply access_cohere_unage; eauto.
+  - eapply max_access_cohere_unage; eauto.
+  - eapply alloc_cohere_unage; eauto.
+  - split; auto; apply age1_juicy_mem_unpack''; auto.
+Qed.

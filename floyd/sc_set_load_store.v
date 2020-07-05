@@ -1347,7 +1347,7 @@ Ltac search_field_at_in_SEP := find_nth test_field_at_in_SEP.
 
 Lemma quick_derives_right:
   forall P Q : environ -> mpred,
-   TT |-- Q -> P |-- Q.
+   (TT |-- Q) -> P |-- Q.
 Proof.
 intros. eapply derives_trans; try eassumption; auto.
 Qed.

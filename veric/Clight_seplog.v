@@ -237,7 +237,7 @@ Require Import VST.msl.normalize.
 
 Lemma normal_ret_assert_derives:
  forall P Q rho,
-  P rho |-- Q rho ->
+  (P rho |-- Q rho) ->
   forall ek vl, proj_ret_assert (normal_ret_assert P) ek vl rho 
             |-- proj_ret_assert (normal_ret_assert Q) ek vl rho.
 Proof.

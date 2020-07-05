@@ -312,7 +312,7 @@ Notation "'EX' x .. y , P " :=
     )) (at level 65, x binder, y binder, right associativity) : assert.
 
 Notation " 'ENTAIL' d ',' P '|--' Q " :=
-  (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 80, P at level 79, Q at level 79).
+  (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 99, P at level 79, Q at level 79).
 
 Arguments semax {CS} {Espec} Delta Pre%assert cmd Post%assert.
 
@@ -352,7 +352,7 @@ Hint Rewrite insert_local (*insert_tce*) :  norm2.
 
 Lemma go_lower_lem20:
   forall QR QR',
-    QR |-- QR' ->
+    (QR |-- QR') ->
     PROPx nil QR |-- QR'.
 Proof. unfold PROPx; intros; intro rho; normalize. Qed.
 
@@ -690,10 +690,10 @@ Qed.
 Lemma semax_pre_post_bupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    local (tc_environ Delta) && P |-- (|==> P') ->
-    local (tc_environ Delta) && RA_normal R' |-- (|==> RA_normal R) ->
-    local (tc_environ Delta) && RA_break R' |-- (|==> RA_break R) ->
-    local (tc_environ Delta) && RA_continue R' |-- (|==> RA_continue R) ->
+    (local (tc_environ Delta) && P |-- (|==> P')) ->
+    (local (tc_environ Delta) && RA_normal R' |-- (|==> RA_normal R)) ->
+    (local (tc_environ Delta) && RA_break R' |-- (|==> RA_break R)) ->
+    (local (tc_environ Delta) && RA_continue R' |-- (|==> RA_continue R)) ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|==> RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof. exact @CConseqFacts.semax_pre_post_bupd. Qed.
@@ -718,7 +718,7 @@ Proof. exact semax_pre. Qed.
 
 Lemma semax_pre0:
  forall P' Espec  {cs: compspecs} Delta P c R,
-     P |-- P' ->
+     (P |-- P') ->
      @semax cs Espec Delta P' c R  ->
      @semax cs Espec Delta P c R.
 Proof.
@@ -730,9 +730,9 @@ Qed.
 Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
-    local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+    (local (tc_environ Delta) && RA_normal R' |-- RA_normal R) ->
+    (local (tc_environ Delta) && RA_break R' |-- RA_break R) ->
+    (local (tc_environ Delta) && RA_continue R' |-- RA_continue R) ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
@@ -1250,7 +1250,7 @@ auto.
 Qed.
 
 Lemma PROP_later_derives:
- forall P QR QR', QR |-- |>QR' ->
+ forall P QR QR', (QR |-- |>QR') ->
     PROPx P QR |-- |> PROPx P QR'.
 Proof.
 intros.
@@ -1259,7 +1259,7 @@ normalize.
 Qed.
 
 Lemma LOCAL_later_derives:
- forall Q R R', R |-- |>R' -> LOCALx Q R |-- |> LOCALx Q R'.
+ forall Q R R', (R |-- |>R') -> LOCALx Q R |-- |> LOCALx Q R'.
 Proof.
 unfold LOCALx; intros; normalize.
 rewrite later_andp.
@@ -1269,8 +1269,8 @@ Qed.
 
 Lemma SEP_later_derives:
   forall P Q P' Q',
-      P |-- |> P' ->
-      SEPx Q |-- |> SEPx Q' ->
+      (P |-- |> P') ->
+      (SEPx Q |-- |> SEPx Q') ->
       SEPx (P::Q) |-- |> SEPx (P'::Q').
 Proof.
 unfold SEPx.
@@ -1585,7 +1585,7 @@ Qed.
 
 Lemma assert_PROP' {A}{NA: NatDed A}:
  forall P Pre (Post: A),
-   Pre |-- !! P ->
+   (Pre |-- !! P) ->
    (P -> Pre |-- Post) ->
    Pre |-- Post.
 Proof.
@@ -1627,7 +1627,7 @@ Tactic Notation "assert_LOCAL" constr(A) "by" tactic1(t) :=
 
 Lemma drop_LOCAL'':
   forall (n: nat)  P Q R Post,
-   PROPx P (LOCALx (delete_nth n Q) (SEPx R)) |-- Post ->
+   (PROPx P (LOCALx (delete_nth n Q) (SEPx R)) |-- Post) ->
    PROPx P (LOCALx Q (SEPx R)) |-- Post.
 Proof.
 intros.
@@ -2328,7 +2328,7 @@ Proof.
     normalize.
 Qed.
 
-Lemma remove_PROP_LOCAL_left: forall P Q R S, R |-- S -> PROPx P (LOCALx Q R) |-- S.
+Lemma remove_PROP_LOCAL_left: forall P Q R S, (R |-- S) -> PROPx P (LOCALx Q R) |-- S.
 Proof.
   intros.
   go_lowerx.
@@ -2336,7 +2336,7 @@ Proof.
 Qed.
 
 Lemma remove_PROP_LOCAL_left':
-     forall P Q R S, `R |-- S ->
+     forall P Q R S, (`R |-- S) ->
      PROPx P (LOCALx Q (SEPx (R::nil))) |-- S.
 Proof.
   intros.
@@ -2366,7 +2366,7 @@ Proof.
 Qed.
 
 Lemma nth_error_SEP_sepcon_TT: forall P Q R n Rn S,
-  PROPx P (LOCALx Q (SEPx (Rn :: nil))) |-- S ->
+  (PROPx P (LOCALx Q (SEPx (Rn :: nil))) |-- S) ->
   nth_error R n = Some Rn ->
   PROPx P (LOCALx Q (SEPx R)) |-- S * TT.
 Proof.
@@ -2412,7 +2412,7 @@ Proof.
 Qed.
 
 Lemma local_andp_lemma:
-  forall P Q, P |-- local Q -> P = local Q && P.
+  forall P Q, (P |-- local Q) -> P = local Q && P.
 Proof.
 intros.
 apply pred_ext.
@@ -2425,7 +2425,7 @@ Lemma SEP_TT_right:
 Proof. intros. go_lowerx. rewrite sepcon_emp. apply TT_right.
 Qed.
 
-Lemma replace_nth_SEP: forall P Q R n Rn Rn', Rn |-- Rn' -> PROPx P (LOCALx Q (SEPx (replace_nth n R Rn))) |-- PROPx P (LOCALx Q (SEPx (replace_nth n R Rn'))).
+Lemma replace_nth_SEP: forall P Q R n Rn Rn', (Rn |-- Rn') -> PROPx P (LOCALx Q (SEPx (replace_nth n R Rn))) |-- PROPx P (LOCALx Q (SEPx (replace_nth n R Rn'))).
 Proof.
   simpl.
   intros.
@@ -2444,7 +2444,7 @@ Proof.
 Qed.
 
 Lemma replace_nth_SEP':
-  forall A P Q R n Rn Rn', local A && PROPx P (LOCALx Q (SEPx (Rn::nil))) |-- `Rn' ->
+  forall A P Q R n Rn Rn', (local A && PROPx P (LOCALx Q (SEPx (Rn::nil))) |-- `Rn') ->
   (local A && PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
 Proof.
   simpl. unfold local, lift1.
@@ -2468,7 +2468,7 @@ Qed.
 Lemma nth_error_SEP_prop:
   forall P Q R n (Rn: mpred) (Rn': Prop),
     nth_error R n = Some Rn ->
-    Rn |-- !! Rn' ->
+    (Rn |-- !! Rn') ->
     PROPx P (LOCALx Q (SEPx R)) |-- !! Rn'.
 Proof.
   intros.

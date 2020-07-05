@@ -11,7 +11,7 @@ Proof.
 Qed.
 
 Lemma wand_frame_intro' {A} {ND: NatDed A} {SL: SepLog A}: forall (P Q R: A),
-  P * Q |-- R ->
+  (P * Q |-- R) ->
   Q |-- P -* R.
 Proof.
   intros.
@@ -28,7 +28,7 @@ Proof.
 Qed.
 
 Lemma wand_frame_elim' {A} {ND: NatDed A} {SL: SepLog A}: forall (P P' Q: A),
-  P |-- P' -> P * (P' -* Q) |-- Q.
+  (P |-- P') -> P * (P' -* Q) |-- Q.
 Proof.
   intros.
   rewrite sepcon_comm.

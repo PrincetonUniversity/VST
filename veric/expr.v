@@ -1184,7 +1184,7 @@ Definition funsig_of_function (f: function) : funsig :=
    definition (and in NDfunspec_sub). *)
 Definition subsumespec x y:=
 match x with
-| Some hspec => exists gspec, y = Some gspec /\ TT |-- funspec_sub_si gspec hspec (*contravariance!*)
+| Some hspec => exists gspec, y = Some gspec /\ (TT |-- funspec_sub_si gspec hspec) (*contravariance!*)
 | None => True
 end. 
 

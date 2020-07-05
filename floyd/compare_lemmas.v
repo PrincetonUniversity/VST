@@ -297,7 +297,7 @@ Qed.
 
 Lemma local_entail_at_semax_0:
   forall Espec {cs: compspecs}Delta P Q1 Q1' Q R c Post,
-   local (locald_denote Q1) |-- local (locald_denote Q1') ->
+   (local (locald_denote Q1) |-- local (locald_denote Q1')) ->
    @semax cs Espec Delta (PROPx P (LOCALx (Q1'::Q) (SEPx R))) c Post  ->
    @semax cs Espec Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post.
 Proof.

@@ -633,8 +633,8 @@ Qed.
 
 Lemma ENTAIL_trans:
   forall Delta P Q R,
-  local (tc_environ Delta) && P |-- Q ->
-  local (tc_environ Delta) && Q |-- R ->
+  (local (tc_environ Delta) && P |-- Q) ->
+  (local (tc_environ Delta) && Q |-- R) ->
   local (tc_environ Delta) && P |-- R.
 Proof.
 intros.
@@ -676,8 +676,8 @@ Proof.
 Qed.
 
 Lemma derives_bupd_trans: forall TC P Q R,
-  local TC && P |-- (|==> Q) ->
-  local TC && Q |-- (|==> R) ->
+  (local TC && P |-- (|==> Q)) ->
+  (local TC && Q |-- (|==> R)) ->
   local TC && P |-- (|==> R).
 Proof.
   intros.
@@ -700,9 +700,9 @@ Lemma derives_bupd0_refl: forall TC P,
 Proof. intros. apply (derives_trans _ _ _ (derives_bupd_refl TC P)), bupd_mono, orp_right2, derives_refl. Qed.
 
 Lemma derives_bupd0_trans: forall TC P Q R,
-  local TC && P |-- (|==> ((|> FF) || Q)) ->
-  local TC && Q |-- (|==> ((|> FF) || R)) ->
-  local TC && P |-- (|==> ((|> FF) || R)).
+  (local TC && P |-- (|==> ((|> FF) || Q))) ->
+  (local TC && Q |-- (|==> ((|> FF) || R))) ->
+  (local TC && P |-- (|==> ((|> FF) || R))).
 Proof.
   intros.
   eapply derives_bupd_trans; [exact H |].
@@ -723,8 +723,8 @@ Lemma derives_full_refl: forall Delta P,
 Proof. intros. refine (derives_trans _ _ _ _ (derives_bupd0_refl (tc_environ Delta) P)). solve_andp. Qed.
 
 Lemma derives_full_trans: forall Delta P Q R,
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> ((|> FF) || Q)) ->
-  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- (|==> ((|> FF) || R)) ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> ((|> FF) || Q))) ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- (|==> ((|> FF) || R))) ->
   local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> ((|> FF) || R)).
 Proof.
   intros.
@@ -738,28 +738,28 @@ Proof.
 Qed.
 
 Lemma derives_ENTAIL: forall TC P Q,
-  P |-- Q ->
+  (P |-- Q) ->
   local TC && P |-- Q.
 Proof. intros. apply andp_left2, H. Qed.
 
 Lemma ENTAIL_derives_bupd: forall TC P Q,
-  local TC && P |-- Q ->
+  (local TC && P |-- Q) ->
   local TC && P |-- |==> Q.
 Proof. intros. apply (derives_trans _ _ _ H), bupd_intro. Qed.
 
 Lemma derives_bupd_derives_bupd0: forall TC P Q,
-  local TC && P |-- (|==> Q) ->
+  (local TC && P |-- (|==> Q)) ->
   local TC && P |-- (|==> ((|> FF) || Q)).
 Proof. intros. apply (derives_trans _ _ _ H), bupd_mono, orp_right2, derives_refl. Qed.
 
 Lemma derives_bupd0_derives_full: forall Delta P Q,
-  local (tc_environ Delta) && P |-- (|==> ((|> FF) || Q)) ->
+  (local (tc_environ Delta) && P |-- (|==> ((|> FF) || Q))) ->
   local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> ((|> FF) || Q)).
 Proof. intros. refine (derives_trans _ _ _ _ H). solve_andp. Qed.
 
 Lemma andp_ENTAIL: forall TC P P' Q Q',
-  local TC && P |-- P' ->
-  local TC && Q |-- Q' ->
+  (local TC && P |-- P') ->
+  (local TC && Q |-- Q') ->
   local TC && (P && Q) |-- P' && Q'.
 Proof.
   intros.
@@ -768,8 +768,8 @@ Proof.
 Qed.
 
 Lemma orp_ENTAIL: forall TC P P' Q Q',
-  local TC && P |-- P' ->
-  local TC && Q |-- Q' ->
+  (local TC && P |-- P') ->
+  (local TC && Q |-- Q') ->
   local TC && (P || Q) |-- P' || Q'.
 Proof.
   intros.
@@ -778,8 +778,8 @@ Proof.
 Qed.
 
 Lemma sepcon_ENTAIL: forall TC P P' Q Q',
-  local TC && P |-- P' ->
-  local TC && Q |-- Q' ->
+  (local TC && P |-- P') ->
+  (local TC && Q |-- Q') ->
   local TC && (P * Q) |-- P' * Q'.
 Proof.
   intros.
@@ -789,8 +789,8 @@ Proof.
 Qed.
 
 Lemma wand_ENTAIL: forall TC P P' Q Q',
-  local TC && P' |-- P ->
-  local TC && Q |-- Q' ->
+  (local TC && P' |-- P) ->
+  (local TC && Q |-- Q') ->
   local TC && (P -* Q) |-- P' -* Q'.
 Proof.
   intros.
@@ -815,7 +815,7 @@ Proof.
 Qed.
 
 Lemma later_ENTAIL: forall Delta P Q,
-  local (tc_environ Delta) && P |-- Q ->
+  (local (tc_environ Delta) && P |-- Q) ->
   local (tc_environ Delta) && |> P |-- |> Q.
 Proof.
   intros.
@@ -823,8 +823,8 @@ Proof.
 Qed.
 
 Lemma andp_ENTAILL: forall Delta P P' Q Q',
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P' ->
-  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P') ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q') ->
   local (tc_environ Delta) && (allp_fun_id Delta && (P && Q)) |-- P' && Q'.
 Proof.
   intros.
@@ -833,8 +833,8 @@ Proof.
 Qed.
 
 Lemma orp_ENTAILL: forall Delta P P' Q Q',
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P' ->
-  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P') ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q') ->
   local (tc_environ Delta) && (allp_fun_id Delta && (P || Q)) |-- P' || Q'.
 Proof.
   intros.
@@ -844,8 +844,8 @@ Proof.
 Qed.
 
 Lemma sepcon_ENTAILL: forall Delta P P' Q Q',
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P' ->
-  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P') ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q') ->
   local (tc_environ Delta) && (allp_fun_id Delta && (P * Q)) |-- P' * Q'.
 Proof.
   intros.
@@ -856,8 +856,8 @@ Proof.
 Qed.
 
 Lemma wand_ENTAILL: forall Delta P P' Q Q',
-  local (tc_environ Delta) && (allp_fun_id Delta && P') |-- P ->
-  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P') |-- P) ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q') ->
   local (tc_environ Delta) && (allp_fun_id Delta && (P -* Q)) |-- P' -* Q'.
 Proof.
   intros.
@@ -883,7 +883,7 @@ Proof.
 Qed.
 
 Lemma later_ENTAILL: forall Delta P Q,
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q) ->
   local (tc_environ Delta) && (allp_fun_id Delta && |> P) |-- |> Q.
 Proof.
   intros.
@@ -893,9 +893,9 @@ Qed.
 
 Lemma andp_subst_ENTAILL: forall Delta P P' Q Q' i v t,
   (temp_types Delta) ! i = Some t ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P') |-- local (`(tc_val' t) v) ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P') |-- Q' ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P') |-- local (`(tc_val' t) v)) ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P') |-- Q') ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q) ->
   local (tc_environ Delta) && (allp_fun_id Delta && (P' && subst i v P)) |-- Q' && subst i v Q.
 Proof.
   intros.
@@ -928,7 +928,7 @@ Proof.
 Qed.
 
 Lemma derives_bupd_bupd_left: forall TC P Q,
-  local TC && P |-- (|==> Q) ->
+  (local TC && P |-- (|==> Q)) ->
   (local TC && |==> P) |-- |==> Q.
 Proof.
   intros.
@@ -938,7 +938,7 @@ Proof.
 Qed.
 
 Lemma derives_bupd0_bupd0_left: forall TC P Q,
-  local TC && P |-- (|==> |> FF || Q) ->
+  (local TC && P |-- (|==> |> FF || Q)) ->
   (local TC && |==> |> FF || P) |-- |==> |> FF || Q.
 Proof.
   intros.
@@ -952,7 +952,7 @@ Proof.
 Qed.
 
 Lemma derives_full_bupd0_left: forall Delta P Q,
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> |> FF || Q) ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> |> FF || Q)) ->
   local (tc_environ Delta) && (allp_fun_id Delta && |==> |> FF || P) |-- |==> |> FF || Q.
 Proof.
   intros.
@@ -1091,7 +1091,7 @@ Ltac solve_derives_trans :=
   first [simple apply derives_full_refl | eapply derives_full_trans; [eassumption | solve_derives_trans]].
 
 Lemma aux1_reduceR: forall P Q: environ -> mpred,
-  P |-- (|==> Q) ->
+  (P |-- (|==> Q)) ->
   P |-- |==> |> FF || Q.
 Proof.
   intros.
@@ -1101,7 +1101,7 @@ Proof.
 Qed.
 
 Lemma aux2_reduceR: forall P Q: environ -> mpred,
-  P |-- Q ->
+  (P |-- Q) ->
   P |-- |==> Q.
 Proof.
   intros.
@@ -1120,7 +1120,7 @@ Ltac reduceR :=
   end.
 
 Lemma aux_reduceL: forall P Q R S: environ -> mpred,
-  P && R |-- S ->
+  (P && R |-- S) ->
   P && (Q && R) |-- S.
 Proof.
   intros.

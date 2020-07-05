@@ -58,7 +58,7 @@ Qed.
 
 Lemma frame_tc_expr:
   forall {CS: compspecs} (Q F: mpred) Delta e rho,
-  Q |-- tc_expr Delta e rho ->
+  (Q |-- tc_expr Delta e rho) ->
   Q * F |-- tc_expr Delta e rho.
 Proof.
 intros.
@@ -116,7 +116,7 @@ Qed.
 
 Lemma imp_right:
  forall A (agA: ageable A) (P Q R : pred A),
-  P && Q |-- R ->
+  (P && Q |-- R) ->
   P |-- Q --> R.
 Proof.
 intros.

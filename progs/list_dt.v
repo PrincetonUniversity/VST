@@ -803,10 +803,10 @@ Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link list_token):
    forall p P dsh psh h tail v1 v2,
     ~ ptr_eq v1 v2 ->
     is_pointer_or_null p ->
-    P |-- list_token dsh v1 * list_cell ls dsh h v1 *
+    (P |-- list_token dsh v1 * list_cell ls dsh h v1 *
              (field_at psh list_struct (StructField list_link :: nil)
                    (valinject (nested_field_type list_struct (StructField list_link :: nil)) p) v1 *
-               lseg ls dsh psh tail p v2) ->
+               lseg ls dsh psh tail p v2)) ->
     P |-- lseg ls dsh psh ((v1,h)::tail) v1 v2.
 Proof. intros. rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
   rewrite prop_true_andp by auto.
@@ -846,8 +846,8 @@ Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):
    forall P Q1 Q R (v v2: val) dsh psh (s: list (val * elemtype ls)),
-      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |--
-                        !! (ptr_neq v v2) ->
+      (PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |--
+                        !! (ptr_neq v v2)) ->
       PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |--
      EX hryp: elemtype ls * list (val * elemtype ls) * val * val,
       match hryp with (h,r,y,p) =>
@@ -894,8 +894,8 @@ Qed.
 
 Lemma unfold_lseg_cons (ls: listspec list_structid list_link list_token):
    forall P Q1 Q R e dsh psh s,
-      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |--
-                        !! (typed_true (tptr list_struct) e) ->
+      (PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |--
+                        !! (typed_true (tptr list_struct) e)) ->
       PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |--
      EX hryp: elemtype ls * list (val * elemtype ls) * val * val,
       match hryp with (h,r,y,p) =>
@@ -1393,10 +1393,10 @@ Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link list_token):
    forall p P sh h (tail: list (elemtype ls)) v1 v2,
     ~ ptr_eq v1 v2 ->
     is_pointer_or_null p ->
-    P |-- list_token sh v1 * list_cell ls sh h v1 *
+    (P |-- list_token sh v1 * list_cell ls sh h v1 *
              (field_at sh list_struct (StructField list_link :: nil)
                    (valinject (nested_field_type list_struct (StructField list_link :: nil)) p) v1 *
-               lseg ls sh tail p v2) ->
+               lseg ls sh tail p v2)) ->
     P |-- lseg ls sh (h::tail) v1 v2.
 Proof. intros. rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
   rewrite prop_true_andp by auto.
@@ -1441,8 +1441,8 @@ Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):
    forall P Q1 Q R (v v2: val) sh (s: list (elemtype ls)),
-      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s v v2 :: R))) |--
-                        !! (ptr_neq v v2) ->
+      (PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s v v2 :: R))) |--
+                        !! (ptr_neq v v2)) ->
       PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s v v2 :: R))) |--
      EX hryp: elemtype ls * list (elemtype ls) * val,
       match hryp with (h,r,y) =>
@@ -1488,8 +1488,8 @@ Qed.
 
 Lemma unfold_lseg_cons (ls: listspec list_structid list_link list_token):
    forall P Q1 Q R e sh s,
-      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s e nullval :: R))) |--
-                        !!(typed_true (tptr list_struct) e) ->
+      (PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s e nullval :: R))) |--
+                        !!(typed_true (tptr list_struct) e)) ->
       PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s e nullval :: R))) |--
      EX hryp: elemtype ls * list (elemtype ls) * val,
       match hryp with (h,r,y) =>
@@ -1782,7 +1782,7 @@ Lemma lseg_valid_pointer:
    sepalg.nonidentity sh ->
    field_offset cenv_cs list_link list_fields + sizeof (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
-    R |-- valid_pointer q ->
+    (R |-- valid_pointer q) ->
     R * lseg ls sh contents p q |-- valid_pointer p.
 Proof.
 intros ? ? ? ? ? ? NON_ID ? ?.
@@ -2055,10 +2055,10 @@ Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link list_token):
     ~ (readable_share dsh) ->
     ~ ptr_eq v1 v2 ->
     is_pointer_or_null p ->
-    P |-- list_token dsh v1 * list_cell ls dsh h v1 *
+    (P |-- list_token dsh v1 * list_cell ls dsh h v1 *
              (field_at psh list_struct (StructField list_link :: nil)
                    (valinject (nested_field_type list_struct (StructField list_link :: nil)) p) v1 *
-               lseg ls dsh psh tail p v2) ->
+               lseg ls dsh psh tail p v2)) ->
     P |-- lseg ls dsh psh (v1::tail) v1 v2.
 Proof. intros. rewrite lseg_unroll by auto. apply orp_right2. unfold lseg_cons.
   rewrite prop_true_andp by auto.
@@ -2099,8 +2099,8 @@ Qed.
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):
    forall P Q1 Q R (v v2: val) dsh psh (s: list val),
     ~ (readable_share dsh) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |--
-                        !! (ptr_neq v v2) ->
+      (PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |--
+                        !! (ptr_neq v v2)) ->
       PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |--
      EX hryp: elemtype ls * list val * val * val,
       match hryp with (h,r,y,p) =>
@@ -2148,8 +2148,8 @@ Qed.
 Lemma unfold_lseg_cons (ls: listspec list_structid list_link list_token):
    forall P Q1 Q R e dsh psh s,
     ~ (readable_share dsh) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |--
-                        !! (typed_true (tptr list_struct) e) ->
+      (PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |--
+                        !! (typed_true (tptr list_struct) e)) ->
       PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |--
      EX hryp: elemtype ls * list val * val * val,
       match hryp with (h,r,y,p) =>
@@ -2563,7 +2563,7 @@ Lemma lseg_valid_pointer:
    sepalg.join_sub dsh psh ->
    field_offset cenv_cs list_link list_fields + sizeof (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
-    R |-- valid_pointer q ->
+    (R |-- valid_pointer q) ->
     R * lseg ls dsh psh contents p q |-- valid_pointer p.
 Proof.
 intros.

@@ -2197,7 +2197,7 @@ Proof.
     eapply readable_share_join; eauto.
 Qed.*)
 
-Lemma sepcon_derives_prop : forall P Q R, P |-- !!R -> P * Q |-- !!R.
+Lemma sepcon_derives_prop : forall P Q R, (P |-- !!R) -> P * Q |-- !!R.
 Proof.
   intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True); eauto|].
   - entailer!.
@@ -2207,7 +2207,7 @@ Qed.
 Lemma semax_extract_later_prop'':
   forall {CS : compspecs} {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
-      P2 |-- !!PP ->
+      (P2 |-- !!PP) ->
       (PP -> semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post) ->
       semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post.
 Proof.

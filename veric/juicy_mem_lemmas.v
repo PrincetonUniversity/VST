@@ -59,6 +59,17 @@ symmetry in H8;
 destruct (H _ _ _ _ _ H8); auto.
 Qed.
 
+Lemma alloc_cohere_join_sub: forall m phi phi',
+  alloc_cohere m phi -> join_sub phi' phi -> alloc_cohere m phi'.
+Proof.
+unfold alloc_cohere; intros.
+specialize (H _ H1).
+apply (resource_at_join_sub _ _ loc) in H0 as [? J].
+rewrite H in J; inv J.
+apply split_identity, identity_share_bot in RJ; auto; subst.
+f_equal; apply proof_irr.
+Qed.
+
 Lemma perm_of_sh_join_sub: forall (sh1 sh2: Share.t) p,
   perm_of_sh sh1 = Some p ->
   join_sub sh1 sh2 ->

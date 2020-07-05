@@ -1571,7 +1571,7 @@ apply field_at_conflict; auto.
 Qed.
 
 Lemma sepcon_FF_derives':
-  forall (P Q: mpred), Q |-- FF -> P * Q |-- FF.
+  forall (P Q: mpred), (Q |-- FF) -> P * Q |-- FF.
 Proof.
 intros.
 eapply derives_trans. apply sepcon_derives; try eassumption; eauto.
@@ -1674,7 +1674,7 @@ auto.
 Qed.
 
 Lemma valid_pointer_weak':
-  forall P q, P |-- valid_pointer q ->
+  forall P q, (P |-- valid_pointer q) ->
                  P |-- weak_valid_pointer q.
 Proof.
 intros.
@@ -1685,7 +1685,7 @@ Qed.
 Hint Resolve valid_pointer_weak' : valid_pointer.
 
 Lemma valid_pointer_offset_zero: forall P q, 
-   P |-- valid_pointer (offset_val 0 q) ->
+   (P |-- valid_pointer (offset_val 0 q)) ->
    P |-- valid_pointer q.
 Proof.
 intros.

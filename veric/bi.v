@@ -167,7 +167,7 @@ Proof.
   - rewrite -> level_core in H; auto.
 Qed.
 
-Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistently Q.
+Lemma persistently_derives: forall P Q, (P |-- Q) -> persistently P |-- persistently Q.
 Proof.
   intros.
   unseal_derives; intros ??; simpl in *.

@@ -37,7 +37,7 @@ Proof.
 Qed.
 
 Lemma andp_right1{A}{NA: NatDed A}:
-  forall P Q R, P |-- Q -> P && Q |-- R -> P |-- Q && R.
+  forall P Q R, (P |-- Q) -> (P && Q |-- R) -> P |-- Q && R.
 Proof.
   intros.
   rewrite andp_in_order1.
@@ -46,7 +46,7 @@ Proof.
 Qed.
 
 Lemma andp_right2{A}{NA: NatDed A}:
-  forall P Q R, P |-- R -> P && R |-- Q -> P |-- Q && R.
+  forall P Q R, (P |-- R) -> (P && R |-- Q) -> P |-- Q && R.
 Proof.
   intros.
   rewrite andp_comm.
@@ -125,15 +125,15 @@ Hint Extern 2 (?A |-- |> ?B) => (constr_eq A B; simple apply now_later) : cancel
 
 Lemma cancel1_start:
  forall P Q : mpred,
-   P |-- Q * emp ->
+   (P |-- Q * emp) ->
    P |-- Q.
 Proof. Set Printing All. intros. rewrite sepcon_emp in H; auto.
 Qed.
 
 Lemma cancel1_here:
   forall P P' Q1 Q2 Q3 : mpred,
-  P' |-- Q2 ->
-  P |-- Q1 * Q3 ->
+  (P' |-- Q2) ->
+  (P |-- Q1 * Q3) ->
   P * P' |-- Q1 * Q2 * Q3.
 Proof.
 intros. rewrite (sepcon_comm Q1).
@@ -142,14 +142,14 @@ Qed.
 
 Lemma cancel1_next:
   forall P Q1 Q2 Q3 : mpred,
-   P |-- Q1 * (Q2 * Q3) ->
+   (P |-- Q1 * (Q2 * Q3)) ->
    P |-- Q1 * Q2 * Q3.
 Proof. intros. rewrite sepcon_assoc; auto. Qed.
 
 Lemma cancel1_last:
   forall P P' Q2 Q3 : mpred,
-  P' |-- Q2 ->
-  P |-- Q3 ->
+  (P' |-- Q2) ->
+  (P |-- Q3) ->
   P * P' |-- Q2 * Q3.
 Proof.
  intros. rewrite sepcon_comm; apply sepcon_derives; auto.
@@ -157,7 +157,7 @@ Qed.
 
 Lemma cancel1_finish1:
   forall P Q1 Q2 Q3 : mpred,
-   P |-- Q1 * Q2 * Q3 ->
+   (P |-- Q1 * Q2 * Q3) ->
    P |-- Q1 * (Q2 * Q3).
 Proof.
  intros. rewrite <- sepcon_assoc. auto.
@@ -165,7 +165,7 @@ Qed.
 
 Lemma cancel1_finish2:
   forall P Q : mpred,
-    P |-- Q ->
+    (P |-- Q) ->
    P |-- Q * emp.
 Proof. intros. rewrite sepcon_emp; auto.
 Qed.
@@ -252,13 +252,13 @@ Lemma cancel_frame0_low:
 Proof.  apply derives_refl. Qed.
 
 Lemma cancel_frame2: forall (P Q: environ->mpred) F (rho: environ),
-     Q rho |-- 	fold_right sepcon emp F rho ->
+     (Q rho |-- 	fold_right sepcon emp F rho) ->
     (P * Q) rho |-- fold_right sepcon emp (P::F) rho.
 Proof. intros. simpl. apply sepcon_derives; auto.
 Qed.
 
 Lemma cancel_frame2_low: forall (P Q: mpred) F,
-     Q  |-- fold_right_sepcon F  ->
+     (Q  |-- fold_right_sepcon F)  ->
     (P * Q) |-- fold_right_sepcon (P::F).
 Proof. intros. apply sepcon_derives; auto.
 Qed.
@@ -329,7 +329,7 @@ Proof.
 Qed.
 
 Lemma fold_right_sepconx_eqx:
-  forall A B, A |-- fold_right_sepconx B -> A |-- fold_right_sepcon B.
+  forall A B, (A |-- fold_right_sepconx B) -> A |-- fold_right_sepcon B.
 Proof.
 intros.
 rewrite <- fold_right_sepconx_eq; auto.
@@ -387,7 +387,7 @@ Ltac pull_left A :=
   end.
 
 Lemma cancel_left: forall P Q R: mpred,
-   Q |-- R -> P * Q |-- P * R.
+   (Q |-- R) -> P * Q |-- P * R.
 Proof.
 intros; apply sepcon_derives; auto.
 Qed.
@@ -552,7 +552,7 @@ Qed.
 
 Lemma syntactic_cancel_spec1: forall G1 L1 G2 L2 F,
   syntactic_cancel G1 L1 G2 L2 ->
-  fold_right_sepcon G2 |-- fold_right_sepcon L2 * F ->
+  (fold_right_sepcon G2 |-- fold_right_sepcon L2 * F) ->
   fold_right_sepcon G1 |-- fold_right_sepcon L1 * F.
 Proof.
   intros.
@@ -580,7 +580,7 @@ Qed.
 Lemma syntactic_cancel_spec2: forall G1 L1 G2 L2 G3 L3 F,
   syntactic_cancel G1 L1 G2 L2 ->
   syntactic_cancel G2 L2 G3 L3 ->
-  fold_right_sepcon G3 |-- fold_right_sepcon L3 * F ->
+  (fold_right_sepcon G3 |-- fold_right_sepcon L3 * F) ->
   fold_right_sepcon G1 |-- fold_right_sepcon L1 * F.
 Proof.
   intros.
@@ -596,7 +596,7 @@ Qed.
 
 Lemma syntactic_cancel_spec3: forall G1 L1 G2 L2,
   syntactic_cancel G1 L1 G2 L2 ->
-  fold_right_sepcon G2 |-- fold_right_sepcon L2 ->
+  (fold_right_sepcon G2 |-- fold_right_sepcon L2) ->
   fold_right_sepcon G1 |-- fold_right_sepcon L1.
 Proof.
   intros.
@@ -1036,7 +1036,7 @@ Ltac apply_find_core X :=
  end.
 
 Lemma adjust_sep_apply:  forall (Q: mpred) (P: Prop),
-   Q |-- !! P ->
+   (Q |-- !! P) ->
    Q |-- !! P && Q.
 Proof. intros. apply andp_right; auto. Qed.
 
@@ -1163,7 +1163,7 @@ Qed.
 
 Lemma cancel_emp_wand:
   forall P Q R: mpred,
-    P |-- Q ->
+    (P |-- Q) ->
     P |-- Q * (R -* R).
 Proof.
 intros. rewrite <- (sepcon_emp P).

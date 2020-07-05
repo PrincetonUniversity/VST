@@ -166,7 +166,7 @@ Proof.
   apply odia_closed_wrt.
 Qed.
 
-Lemma obox_K: forall Delta i P Q, P |-- Q -> obox Delta i P |-- obox Delta i Q.
+Lemma obox_K: forall Delta i P Q, (P |-- Q) -> obox Delta i P |-- obox Delta i Q.
 Proof.
   intros.
   intro rho.
@@ -253,7 +253,7 @@ Qed.
 
 Lemma obox_left2: forall Delta i P Q,
   temp_guard Delta i ->
-  local (tc_environ Delta) && P |-- Q ->  
+  (local (tc_environ Delta) && P |-- Q) ->  
   local (tc_environ Delta) && obox Delta i P |-- obox Delta i Q.
 Proof.
   intros.
@@ -292,7 +292,7 @@ Qed.
 
 Lemma obox_left2': forall Delta i P Q,
   temp_guard Delta i ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q ->  
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q) ->  
   local (tc_environ Delta) && (allp_fun_id Delta && obox Delta i P) |-- obox Delta i Q.
 Proof.
   intros.
@@ -434,7 +434,7 @@ Proof.
   apply obox_odia; auto.
 Qed.
 
-Lemma oboxopt_K: forall Delta i P Q, P |-- Q -> oboxopt Delta i P |-- oboxopt Delta i Q.
+Lemma oboxopt_K: forall Delta i P Q, (P |-- Q) -> oboxopt Delta i P |-- oboxopt Delta i Q.
 Proof.
   intros.
   intro rho.
@@ -453,7 +453,7 @@ Qed.
 
 Lemma oboxopt_left2: forall Delta i P Q,
   temp_guard_opt Delta i ->
-  local (tc_environ Delta) && P |-- Q ->  
+  (local (tc_environ Delta) && P |-- Q) ->  
   local (tc_environ Delta) && oboxopt Delta i P |-- oboxopt Delta i Q.
 Proof.
   intros.
@@ -463,7 +463,7 @@ Qed.
 
 Lemma oboxopt_left2': forall Delta i P Q,
   temp_guard_opt Delta i ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q ->  
+  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q) ->  
   local (tc_environ Delta) && (allp_fun_id Delta && oboxopt Delta i P) |-- oboxopt Delta i Q.
 Proof.
   intros.
@@ -489,10 +489,10 @@ Import CSHL_Def.
 Axiom semax_conseq:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P' (R': ret_assert) P c (R: ret_assert) ,
-    local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|==> |> FF || P') ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|==> |> FF || RA_normal R) ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|==> |> FF || RA_break R) ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|==> |> FF || RA_continue R) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|==> |> FF || P')) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|==> |> FF || RA_normal R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|==> |> FF || RA_break R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|==> |> FF || RA_continue R)) ->
     (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (|==> |> FF || RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
@@ -508,10 +508,10 @@ Import CConseq.
 Lemma semax_pre_post_indexed_bupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    local (tc_environ Delta) && P |-- (|==> |> FF || P') ->
-    local (tc_environ Delta) && RA_normal R' |-- (|==> |> FF || RA_normal R) ->
-    local (tc_environ Delta) && RA_break R' |-- (|==> |> FF || RA_break R) ->
-    local (tc_environ Delta) && RA_continue R' |-- (|==> |> FF || RA_continue R) ->
+    (local (tc_environ Delta) && P |-- (|==> |> FF || P')) ->
+    (local (tc_environ Delta) && RA_normal R' |-- (|==> |> FF || RA_normal R)) ->
+    (local (tc_environ Delta) && RA_break R' |-- (|==> |> FF || RA_break R)) ->
+    (local (tc_environ Delta) && RA_continue R' |-- (|==> |> FF || RA_continue R)) ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|==> |> FF || RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
@@ -525,10 +525,10 @@ Qed.
 Lemma semax_pre_post_bupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    local (tc_environ Delta) && P |-- (|==> P') ->
-    local (tc_environ Delta) && RA_normal R' |-- (|==> RA_normal R) ->
-    local (tc_environ Delta) && RA_break R' |-- (|==> RA_break R) ->
-    local (tc_environ Delta) && RA_continue R' |-- (|==> RA_continue R) ->
+    (local (tc_environ Delta) && P |-- (|==> P')) ->
+    (local (tc_environ Delta) && RA_normal R' |-- (|==> RA_normal R)) ->
+    (local (tc_environ Delta) && RA_break R' |-- (|==> RA_break R)) ->
+    (local (tc_environ Delta) && RA_continue R' |-- (|==> RA_continue R)) ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|==> RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
@@ -539,7 +539,7 @@ Qed.
 
 Lemma semax_pre_indexed_bupd:
  forall P' Espec {cs: compspecs} Delta P c R,
-     local (tc_environ Delta) && P |-- (|==> |> FF || P') ->
+     (local (tc_environ Delta) && P |-- (|==> |> FF || P')) ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post_indexed_bupd; eauto;
@@ -548,9 +548,9 @@ Qed.
 
 Lemma semax_post_indexed_bupd:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   local (tc_environ Delta) && RA_normal R' |-- (|==> |> FF || RA_normal R) ->
-   local (tc_environ Delta) && RA_break R' |-- (|==> |> FF || RA_break R) ->
-   local (tc_environ Delta) && RA_continue R' |-- (|==> |> FF || RA_continue R) ->
+   (local (tc_environ Delta) && RA_normal R' |-- (|==> |> FF || RA_normal R)) ->
+   (local (tc_environ Delta) && RA_break R' |-- (|==> |> FF || RA_break R)) ->
+   (local (tc_environ Delta) && RA_continue R' |-- (|==> |> FF || RA_continue R)) ->
    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|==> |> FF || RA_return R vl)) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
@@ -559,7 +559,7 @@ Proof.
 Qed.
 
 Lemma semax_post''_indexed_bupd: forall R' Espec {cs: compspecs} Delta R P c,
-           local (tc_environ Delta) && R' |-- (|==> |> FF || RA_normal R) ->
+           (local (tc_environ Delta) && R' |-- (|==> |> FF || RA_normal R)) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post_indexed_bupd; eauto.
@@ -571,7 +571,7 @@ Qed.
 
 Lemma semax_pre_bupd:
  forall P' Espec {cs: compspecs} Delta P c R,
-     local (tc_environ Delta) && P |-- (|==> P') ->
+     (local (tc_environ Delta) && P |-- (|==> P')) ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre_post_bupd; eauto;
@@ -580,9 +580,9 @@ Qed.
 
 Lemma semax_post_bupd:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   local (tc_environ Delta) && RA_normal R' |-- (|==> RA_normal R) ->
-   local (tc_environ Delta) && RA_break R' |-- (|==> RA_break R) ->
-   local (tc_environ Delta) && RA_continue R' |-- (|==> RA_continue R) ->
+   (local (tc_environ Delta) && RA_normal R' |-- (|==> RA_normal R)) ->
+   (local (tc_environ Delta) && RA_break R' |-- (|==> RA_break R)) ->
+   (local (tc_environ Delta) && RA_continue R' |-- (|==> RA_continue R)) ->
    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|==> RA_return R vl)) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
@@ -591,7 +591,7 @@ Proof.
 Qed.
 
 Lemma semax_post'_bupd: forall R' Espec {cs: compspecs} Delta R P c,
-           local (tc_environ Delta) && R' |-- (|==> R) ->
+           (local (tc_environ Delta) && R' |-- (|==> R)) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post_bupd; eauto.
@@ -602,7 +602,7 @@ Proof. intros. eapply semax_post_bupd; eauto.
 Qed.
 
 Lemma semax_post''_bupd: forall R' Espec {cs: compspecs} Delta R P c,
-           local (tc_environ Delta) && R' |-- (|==> RA_normal R) ->
+           (local (tc_environ Delta) && R' |-- (|==> RA_normal R)) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post_bupd; eauto.
@@ -613,8 +613,8 @@ Proof. intros. eapply semax_post_bupd; eauto.
 Qed.
 
 Lemma semax_pre_post'_bupd: forall P' R' Espec {cs: compspecs} Delta R P c,
-      local (tc_environ Delta) && P |-- (|==> P') ->
-      local (tc_environ Delta) && R' |-- (|==> R) ->
+      (local (tc_environ Delta) && P |-- (|==> P')) ->
+      (local (tc_environ Delta) && R' |-- (|==> R)) ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros.
@@ -623,8 +623,8 @@ Proof. intros.
 Qed.
 
 Lemma semax_pre_post''_bupd: forall P' R' Espec {cs: compspecs} Delta R P c,
-      local (tc_environ Delta) && P |-- (|==> P') ->
-      local (tc_environ Delta) && R' |-- (|==> RA_normal R) ->
+      (local (tc_environ Delta) && P |-- (|==> P')) ->
+      (local (tc_environ Delta) && R' |-- (|==> RA_normal R)) ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros.
@@ -643,9 +643,9 @@ Import CSHL_Def.
 Axiom semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
-    local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+    (local (tc_environ Delta) && RA_normal R' |-- RA_normal R) ->
+    (local (tc_environ Delta) && RA_break R' |-- RA_break R) ->
+    (local (tc_environ Delta) && RA_continue R' |-- RA_continue R) ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
@@ -664,9 +664,9 @@ Import CConseqFacts.
 Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
-    local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+    (local (tc_environ Delta) && RA_normal R' |-- RA_normal R) ->
+    (local (tc_environ Delta) && RA_break R' |-- RA_break R) ->
+    (local (tc_environ Delta) && RA_continue R' |-- RA_continue R) ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
@@ -686,7 +686,7 @@ Import Conseq.
 
 Lemma semax_pre: forall {Espec: OracleKind}{cs: compspecs},
  forall P' Delta P c R,
-     local (tc_environ Delta) && P |-- P' ->
+     (local (tc_environ Delta) && P |-- P') ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post; eauto;
@@ -695,7 +695,7 @@ Qed.
 
 Lemma semax_pre_simple: forall {Espec: OracleKind}{cs: compspecs},
  forall P' Delta P c R,
-     P |-- P' ->
+     (P |-- P') ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre; [| eauto].
@@ -704,9 +704,9 @@ Qed.
 
 Lemma semax_post:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
-   local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-   local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+   (local (tc_environ Delta) && RA_normal R' |-- RA_normal R) ->
+   (local (tc_environ Delta) && RA_break R' |-- RA_break R) ->
+   (local (tc_environ Delta) && RA_continue R' |-- RA_continue R) ->
    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
@@ -716,9 +716,9 @@ Qed.
 
 Lemma semax_post_simple:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   RA_normal R' |-- RA_normal R ->
-   RA_break R' |-- RA_break R ->
-   RA_continue R' |-- RA_continue R ->
+   (RA_normal R' |-- RA_normal R) ->
+   (RA_break R' |-- RA_break R) ->
+   (RA_continue R' |-- RA_continue R) ->
    (forall vl, RA_return R' vl |-- RA_return R vl) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
@@ -726,7 +726,7 @@ Proof.
 Qed.
 
 Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
-           local (tc_environ Delta) && R' |-- R ->
+           (local (tc_environ Delta) && R' |-- R) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post; eauto.
@@ -737,8 +737,8 @@ Proof. intros. eapply semax_post; eauto.
 Qed.
 
 Lemma semax_pre_post': forall P' R' Espec {cs: compspecs} Delta R P c,
-      local (tc_environ Delta) && P |-- P' ->
-      local (tc_environ Delta) && R' |-- R ->
+      (local (tc_environ Delta) && P |-- P') ->
+      (local (tc_environ Delta) && R' |-- R) ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros.
@@ -749,7 +749,7 @@ Qed.
 (* Copied from canon.v end. *)
 
 Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c,
-           local (tc_environ Delta) && R' |-- RA_normal R ->
+           (local (tc_environ Delta) && R' |-- RA_normal R) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post; eauto.
@@ -760,8 +760,8 @@ Proof. intros. eapply semax_post; eauto.
 Qed.
 
 Lemma semax_pre_post'': forall P' R' Espec {cs: compspecs} Delta R P c,
-      local (tc_environ Delta) && P |-- P' ->
-      local (tc_environ Delta) && R' |-- RA_normal R ->
+      (local (tc_environ Delta) && P |-- P') ->
+      (local (tc_environ Delta) && R' |-- RA_normal R) ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros.
@@ -1237,7 +1237,7 @@ Axiom semax_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tyc
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * TT ->
+    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * TT) ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
        local (`(tc_val (typeof e1) v2)) &&
@@ -1280,7 +1280,7 @@ Axiom semax_cast_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
+    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
        local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
@@ -1382,7 +1382,7 @@ Theorem semax_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: t
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * TT ->
+    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * TT) ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
        local (`(tc_val (typeof e1) v2)) &&
@@ -1492,7 +1492,7 @@ Theorem semax_cast_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Del
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
+    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
        local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&

@@ -595,11 +595,24 @@ Proof.
   intros; apply Extensionality_Ensembles; split; intros ? H; inv H; auto.
 Qed.
 
+Global Arguments Union {_} _ _.
+Global Arguments Intersection {_} _ _.
+Global Arguments Disjoint {_} _ _.
+Global Arguments Add {_} _ _.
+Global Arguments Setminus {_} _ _.
+Global Arguments Subtract {_} _ _.
+Global Arguments Full_set {_}.
+Global Arguments Empty_set {_}.
+Global Arguments Singleton {_} _.
+Global Arguments In {_} _ _.
+Global Arguments Included {_} _ _.
+Global Arguments Same_set {_} _ _.
+
 Program Instance set_PCM : Ghost := { valid := fun _ : Ensemble nat => True;
-  Join_G a b c := Disjoint _ a b /\ c = Union _ a b(*; core2 a := empty*) }.
+  Join_G a b c := Disjoint a b /\ c = Union a b(*; core2 a := empty*) }.
 Next Obligation.
 Proof.
-  exists (fun _ => Empty_set _); auto.
+  exists (fun _ => Empty_set); auto.
   intro; split.
   - constructor; intros ? X.
     rewrite Intersection_Empty in X; contradiction.
@@ -610,7 +623,7 @@ Next Obligation.
     + intros ???? [] []; subst; auto.
     + intros ????? [Hd1] [Hd2]; subst.
       inv Hd1; inv Hd2.
-      exists (Union _ b c); repeat (split; auto).
+      exists (Union b c); repeat (split; auto).
       * intros ? X; inv X.
         contradiction (H0 x).
         constructor; auto.
@@ -635,11 +648,11 @@ Qed.
 Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
 
 Lemma ghost_set_join : forall g s1 s2,
-  (ghost_set g s1 * ghost_set g s2 = !!(Disjoint _ s1 s2) && ghost_set g (Union _ s1 s2))%pred.
+  (ghost_set g s1 * ghost_set g s2 = !!(Disjoint s1 s2) && ghost_set g (Union s1 s2))%pred.
 Proof.
   intros.
   setoid_rewrite own_op_gen.
-  - instantiate (1 := Union _ s1 s2).
+  - instantiate (1 := Union s1 s2).
     unfold ghost_set; apply pred_ext.
     + apply prop_andp_left; intros (? & (? & []) & ?).
       apply prop_andp_right; auto.
@@ -649,8 +662,8 @@ Proof.
   - intros (? & H & ?); inv H; split; auto.
 Qed.
 
-Lemma ghost_set_subset : forall g s s' (Hdec : forall a, In _ s' a \/ ~In _ s' a),
-  (Included _ s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Setminus _ s s'))%pred.
+Lemma ghost_set_subset : forall g s s' (Hdec : forall a, In s' a \/ ~In s' a),
+  (Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Setminus s s'))%pred.
 Proof.
   intros.
   apply ghost_op.
@@ -664,7 +677,7 @@ Proof.
 Qed.
 
 Corollary ghost_set_remove : forall g a s,
-  In _ s a -> (ghost_set g s = ghost_set g (Singleton _ a) * ghost_set g (Subtract _ s a))%pred.
+  In s a -> (ghost_set g s = ghost_set g (Singleton a) * ghost_set g (Subtract s a))%pred.
 Proof.
   intros; apply ghost_set_subset.
   { intro b; destruct (eq_dec a b); [left; subst; constructor | right; intros X; inv X; contradiction]. }
@@ -1182,7 +1195,7 @@ Qed.
    in veric (a la own). *)
 
 Lemma ghost_set_empty : forall g s,
-  (ghost_set g s = ghost_set g s * ghost_set g (Empty_set _))%pred.
+  (ghost_set g s = ghost_set g s * ghost_set g (Empty_set))%pred.
 Proof.
   intros.
   apply ghost_op.
@@ -1195,7 +1208,7 @@ Proof.
     inv H.
 Qed.
 
-Lemma wsat_empty_eq : (wsat = wsat * ghost_set g_en (Empty_set _))%pred.
+Lemma wsat_empty_eq : (wsat = wsat * ghost_set g_en (Empty_set))%pred.
 Proof.
   unfold wsat.
   repeat (rewrite exp_sepcon1; f_equal; extensionality).
@@ -1219,7 +1232,7 @@ Proof.
   rewrite exp_sepcon1, exp_sepcon2; apply exp_left; intro g_dis.
   rewrite <- sepcon_assoc.
   eapply derives_trans; [eapply sepcon_derives with (q' := (|==> _ * emp)%pred); [apply derives_refl |
-    rewrite sepcon_emp; apply (ghost_alloc(RA := set_PCM) (Ensembles.Empty_set _) NoneP); simpl; auto]|].
+    rewrite sepcon_emp; apply (ghost_alloc(RA := set_PCM) Ensembles.Empty_set NoneP); simpl; auto]|].
   eapply derives_trans; [apply bupd_frame_l | eapply derives_trans, bupd_trans; apply bupd_mono].
   rewrite exp_sepcon1, !exp_sepcon2; apply exp_left; intro g_en.
   rewrite <- sepcon_assoc.
@@ -1230,7 +1243,7 @@ Proof.
   - repeat apply sepcon_derives; auto.
     replace (fun i : iname => match i with
                                      | 0%nat | _ => None
-                                     end = Some false) with (Ensembles.Empty_set nat); auto.
+                                     end = Some false) with (@Ensembles.Empty_set nat); auto.
     apply Ensembles.Extensionality_Ensembles; split.
     + intros ? H; inv H.
     + intros ? H; hnf in H.

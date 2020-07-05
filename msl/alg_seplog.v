@@ -109,15 +109,15 @@ Class RecIndir (A: Type) {NA: NatDed A}{IA: Indir A} := mkRecIndir {
   HORec : forall {X} (f: (X -> A) -> (X -> A)), X -> A;
   unfash_fash:  forall P: A, unfash (fash P) |-- P;
   fash_K: forall P Q, fash (P --> Q) |-- fash P --> fash Q;
-  fash_derives: forall P Q, P |-- Q -> fash P |-- fash Q;
-  unfash_derives:  forall P Q,  P |-- Q -> unfash P |-- unfash Q;
+  fash_derives: forall P Q, (P |-- Q) -> fash P |-- fash Q;
+  unfash_derives:  forall P Q,  (P |-- Q) -> unfash P |-- unfash Q;
   later_fash:  forall P, later (fash P) = fash (later P);
   later_unfash:  forall P, later (unfash P) = unfash (later P);
   fash_andp: forall P Q, fash (P && Q) = fash P && fash Q;
   unfash_allp:  forall {B} (P: B -> Triv), unfash (allp P) = ALL x:B, unfash (P x);  subp_allp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (allp X) (allp Y));
   subp_exp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (exp X) (exp Y));
-  subp_e: forall (P Q : A), TT |-- fash (P --> Q) -> P |-- Q;
-  subp_i1: forall P (Q R: A), unfash P && Q |-- R -> P |-- fash (Q --> R);
+  subp_e: forall (P Q : A), (TT |-- fash (P --> Q)) -> P |-- Q;
+  subp_i1: forall P (Q R: A), (unfash P && Q |-- R) -> P |-- fash (Q --> R);
  fash_TT: forall G, G |-- fash TT;
   HOcontractive: forall {X: Type} (f: (X -> A) -> (X -> A)), Prop :=
          fun {X} f => forall P Q,  (ALL x:X, later (fash (P x <--> Q x))) |-- (ALL x:X, fash (f P x <--> f Q x));
@@ -130,8 +130,8 @@ Definition HOnonexpansive {A}{NA: NatDed A}{IA: Indir A}{RA: RecIndir A}
 End SL2.
 
 
-Notation "'#' e" := (fash e) (at level 30, right associativity): logic.
-Notation "'!' e" := (unfash e) (at level 30, right associativity): logic.
+Notation "'#' e" := (fash e) (at level 20, right associativity): logic.
+Notation "'!' e" := (unfash e) (at level 20, right associativity): logic.
 Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : logic.
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : logic.
 

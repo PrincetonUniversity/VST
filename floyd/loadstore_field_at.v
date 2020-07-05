@@ -32,7 +32,7 @@ Section LOADSTORE_FIELD_AT.
 
 Context {cs: compspecs}.
 
-Lemma self_ramify_trans: forall {A} `{SepLog A} (g m l: A), g |-- m * TT -> m |-- l * TT -> g |-- l * TT.
+Lemma self_ramify_trans: forall {A} `{SepLog A} (g m l: A), (g |-- m * TT) -> (m |-- l * TT) -> g |-- l * TT.
 Proof.
   intros A ND SL ? ? ? ? ?.
   eapply derives_trans; [exact H |].
@@ -52,7 +52,7 @@ Lemma semax_load_nth_ram_field_at :
        local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
     readable_share sh ->
-    Pre |-- field_at sh t_root gfs v_reptype p * TT ->
+    (Pre |-- field_at sh t_root gfs v_reptype p * TT) ->
     JMeq v_reptype v_val ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
       (tc_lvalue Delta e1) && local (`(tc_val (nested_field_type t_root gfs) v_val)) ->
@@ -93,7 +93,7 @@ Lemma semax_max_path_field_load_nth_ram:
       legal_nested_efield t_root e1 gfs tts lr = true ->
       JMeq v' v ->
       nth_error R n = Some Pre ->
-      Pre |-- field_at sh t_root gfs v' p * TT ->
+      (Pre |-- field_at sh t_root gfs v' p * TT) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -158,7 +158,7 @@ Lemma semax_max_path_field_load_nth_ram':
       type_is_volatile (typeof e) = false ->
       JMeq v' v ->
       nth_error R n = Some Pre ->
-      Pre |-- field_at sh t_root gfs v' p * TT ->
+      (Pre |-- field_at sh t_root gfs v' p * TT) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq (field_address t_root gfs p)) (eval_lvalue e)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -203,7 +203,7 @@ Lemma semax_max_path_field_load_nth_ram'':
       legal_nested_efield (nested_field_type t_root gfsA) e1 gfsB tts lr = true ->
       JMeq v' v ->
       nth_error R n = Some Pre ->
-      Pre |-- field_at sh t_root (gfsB ++ gfsA) v' a * TT ->
+      (Pre |-- field_at sh t_root (gfsB ++ gfsA) v' a * TT) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq (field_address t_root gfsA a)) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -276,7 +276,7 @@ Lemma semax_cast_load_nth_ram_field_at :
     nth_error R n = Some Pre ->
      cast_pointer_to_bool (nested_field_type t_root gfs) t_to = false ->
     readable_share sh ->
-    Pre |-- field_at sh t_root gfs v_reptype p * TT ->
+    (Pre |-- field_at sh t_root gfs v_reptype p * TT) ->
     JMeq v_reptype v_val ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
      (tc_lvalue Delta e1) && local (`(tc_val t_to (eval_cast (nested_field_type t_root gfs) t_to v_val))) ->
@@ -317,7 +317,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       legal_nested_efield t_root e1 gfs tts lr = true ->
       JMeq v' v ->
       nth_error R n = Some Pre ->
-      Pre |-- field_at sh t_root gfs v' p * TT ->
+      (Pre |-- field_at sh t_root gfs v' p * TT) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -372,7 +372,7 @@ Lemma lower_andp_lifted_val:
 Proof. reflexivity. Qed.
 
 Lemma remove_one_LOCAL_left: forall P Q0 Q R S,
-  PROPx P (LOCALx Q R) |-- S -> PROPx P (LOCALx (Q0 :: Q) R) |-- S.
+  (PROPx P (LOCALx Q R) |-- S) -> PROPx P (LOCALx (Q0 :: Q) R) |-- S.
 Proof.
   intros.
   simpl in H |- *.
@@ -397,7 +397,7 @@ Lemma semax_store_nth_ram_field_at:
     JMeq v_val v_reptype ->
     nth_error R n = Some Pre ->
     writable_share sh ->
-    Pre |-- field_at_ sh t_root gfs p * (field_at sh t_root gfs v_reptype p -* Post) ->
+    (Pre |-- field_at_ sh t_root gfs p * (field_at sh t_root gfs v_reptype p -* Post)) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
      (tc_lvalue Delta e1) && (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs))) ->
     semax Delta
@@ -432,8 +432,8 @@ Lemma semax_max_path_field_store_nth_ram:
       legal_nested_efield t_root e1 gfs tts lr = true ->
       JMeq v v' ->
       nth_error R n = Some Pre ->
-      Pre |-- field_at_ sh t_root gfs p *
-        (field_at sh t_root gfs v' p -* Post) ->
+      (Pre |-- field_at_ sh t_root gfs p *
+        (field_at sh t_root gfs v' p -* Post)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -497,8 +497,8 @@ Lemma semax_partial_path_field_store_nth_ram:
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       JMeq v v' ->
       nth_error R n = Some Pre ->
-      Pre |-- field_at_ sh t_root (gfsB ++ gfsA) a *
-        (field_at sh t_root (gfsB ++ gfsA) v' a -* Post) ->
+      (Pre |-- field_at_ sh t_root (gfsB ++ gfsA) a *
+        (field_at sh t_root (gfsB ++ gfsA) v' a -* Post)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq (field_address t_root gfsA a)) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -574,8 +574,8 @@ Lemma semax_no_path_field_store_nth_ram:
       typeof e1 = nested_field_type t_root gfs ->
       JMeq v v' ->
       nth_error R n = Some Pre ->
-      Pre |-- field_at_ sh t_root gfs a *
-        (field_at sh t_root gfs v' a -* Post) ->
+      (Pre |-- field_at_ sh t_root gfs a *
+        (field_at sh t_root gfs v' a -* Post)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq (field_address t_root gfs a)) (eval_lvalue e1)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--

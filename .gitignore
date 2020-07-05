@@ -83,3 +83,4 @@ wand/vfa/*.ml
 wand/vfa/*.mli
 *.vok
 *.vos
+doc/concurrency.synctex.gz

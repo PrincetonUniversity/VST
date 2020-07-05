@@ -448,7 +448,7 @@ Abort.
 
 Lemma superprecise_ewand_lem1:
   forall S P: pred rmap, superprecise P ->
-          S |-- P * TT ->
+          (S |-- P * TT) ->
           S = (P * (ewand P S))%pred.
 Proof.
 intros.

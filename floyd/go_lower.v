@@ -204,7 +204,7 @@ Qed.
 
 Lemma quick_finish_lower:
   forall LHS,
-  emp |-- !! True ->
+  (emp |-- !! True) ->
   LHS |-- !! True.
 Proof.
 intros.
@@ -314,7 +314,7 @@ Qed.
 
 Lemma go_lower_localdef_one_step_canon_left: forall Delta Ppre l Qpre Rpre post gvar_ident
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
-  local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta gvar_ident l) (LOCALx (l :: Qpre) (SEPx Rpre)) |-- post ->
+  (local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta gvar_ident l) (LOCALx (l :: Qpre) (SEPx Rpre)) |-- post) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx (l :: Qpre) (SEPx Rpre)) |-- post.
 Proof.
   intros.
@@ -346,7 +346,7 @@ Definition localdefs_tc (Delta: tycontext) gvar_ident (Pre: list localdef): list
 
 Lemma go_lower_localdef_canon_left: forall Delta Ppre Qpre Rpre post gvar_ident
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
-  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta gvar_ident Qpre) (LOCALx nil (SEPx Rpre)) |-- post ->
+  (local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta gvar_ident Qpre) (LOCALx nil (SEPx Rpre)) |-- post) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post.
 Proof.
   intros.
@@ -612,7 +612,7 @@ Lemma clean_LOCAL_right_spec: forall {cs: compspecs} gvar_ident (Delta: tycontex
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
-  local (tc_environ Delta) && PROPx (VST_floyd_app P (localdefs_tc Delta gvar_ident Q)) (LOCALx nil (SEPx R)) |-- ` S' ->
+  (local (tc_environ Delta) && PROPx (VST_floyd_app P (localdefs_tc Delta gvar_ident Q)) (LOCALx nil (SEPx R)) |-- ` S') ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
 Proof.
   intros.
@@ -626,7 +626,7 @@ Lemma clean_LOCAL_right_bupd_spec: forall {cs: compspecs} gvar_ident (Delta: tyc
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
-  local (tc_environ Delta) && PROPx (VST_floyd_app P (localdefs_tc Delta gvar_ident Q)) (LOCALx nil (SEPx R)) |-- (|==> ` S') ->
+  (local (tc_environ Delta) && PROPx (VST_floyd_app P (localdefs_tc Delta gvar_ident Q)) (LOCALx nil (SEPx R)) |-- (|==> ` S')) ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- |==> S.
 Proof.
   intros.
@@ -871,7 +871,7 @@ Ltac sep_apply_in_lifted_entailment H :=
  end.
 
 Ltac sep_apply_in_semax H :=
-   eapply semax_pre; [sep_apply_in_lifted_entailment H | ].
+   eapply semax_pre_bupd; [sep_apply_in_lifted_entailment H | ].
 
 Ltac sep_apply H :=
  match goal with
@@ -881,7 +881,7 @@ Ltac sep_apply H :=
  end.
 
 Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
-  apply SEP_entail';
+  first [apply SEP_entail'_bupd | apply SEP_entail'];
   go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
      allows us to use propositional facts derived from the PROP and LOCAL
      parts of the left-hand side *)
@@ -893,12 +893,12 @@ Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
       let R'' := refold_right_sepcon R' in
       replace R' with (fold_right_sepcon R'')
              by (unfold fold_right_sepcon; rewrite ?sepcon_emp; reflexivity);
-          subst r2; apply derives_refl
+          subst r2; first [apply derives_refl | apply bupd_intro]
     end]
   end.
 
 Ltac new_sep_apply_in_semax H evar_tac prop_tac :=
-  eapply semax_pre; [new_sep_apply_in_lifted_entailment H evar_tac prop_tac | ].
+  eapply semax_pre_bupd; [new_sep_apply_in_lifted_entailment H evar_tac prop_tac | ].
 
 Ltac new_sep_apply H evar_tac prop_tac :=
   lazymatch goal with

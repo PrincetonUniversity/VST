@@ -1211,7 +1211,7 @@ Proof.
   - Intros lg.
     ghost_alloc (ghost_master1 0).
     Intros gk.
-    forward_call (vint 0).
+    forward_call (vint 0). (* gives some kind of funspec error -- would merging master fix this? *)
     { split; auto; simpl; computable. }
     Intros pk.
     rewrite iter_sepcon_map; Intros.

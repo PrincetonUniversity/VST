@@ -35,7 +35,7 @@ Proof.
   constructor; apply cored_sepcon.
 Qed.
 
-Lemma cored_dup_gen : forall P, P |-- cored -> P |-- P * P.
+Lemma cored_dup_gen : forall P, (P |-- cored) -> P |-- P * P.
 Proof.
   unseal_derives; exact cored_dup_gen.
 Qed.

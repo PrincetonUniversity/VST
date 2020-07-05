@@ -176,8 +176,8 @@ Proof.
 Qed.
 
 Lemma split_sepcon {A} {JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P Q R S:pred A),
-  P |-- Q ->
-  R |-- S ->
+  (P |-- Q) ->
+  (R |-- S) ->
   (P * R) |-- (Q * S).
 Proof.
   intros; hnf; intros.
@@ -186,8 +186,8 @@ Proof.
 Qed.
 
 Lemma sepcon_cut {A} {JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P Q R S:pred A),
-  P |-- (Q -* R) ->
-  S |-- Q ->
+  (P |-- (Q -* R)) ->
+  (S |-- Q) ->
   (P * S) |-- R.
 Proof.
   intros.
@@ -870,7 +870,7 @@ exists w3; exists w2; split; auto.
 Qed.
 
 Lemma ewand_derives {A} {JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A}:
-  forall P P' Q Q',  P |-- P' -> Q |-- Q' -> ewand P Q |-- ewand P' Q'.
+  forall P P' Q Q',  (P |-- P') -> (Q |-- Q') -> ewand P Q |-- ewand P' Q'.
 Proof.
 intros.
 intros w ?.
@@ -901,7 +901,7 @@ Lemma ewand_sepcon_assoc {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CrA: Cr
   forall P Q R: pred A,
       (forall w1 w2 w3, join w1 w2 w3 -> P w3 -> P w1) ->
       (forall w w', comparable w w' -> P w -> R w' -> joins w w') ->
-      (ewand TT P) && (ewand TT R) |-- emp ->
+      ((ewand TT P) && (ewand TT R) |-- emp) ->
      (ewand P (Q * R) = (ewand P Q * R))%pred.
 Proof.
 intros TRIPLE P Q R ?H Hjoins ?H.
@@ -1016,7 +1016,7 @@ intros. rewrite !(sepcon_comm R). apply distrib_orp_sepcon.
 Qed.
 
 Lemma ewand_conflict {T}{agT:ageable T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}{AT: Age_alg T}:
-       forall P Q R, sepcon P Q |-- FF -> andp P (ewand Q R) |-- FF.
+       forall P Q R, (sepcon P Q |-- FF) -> andp P (ewand Q R) |-- FF.
 Proof.
  intros. intros w [? [w1 [w2 [? [? ?]]]]].
  specialize (H w2). apply H. exists w; exists w1; repeat split; auto.

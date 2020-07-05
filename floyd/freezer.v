@@ -38,10 +38,10 @@ Parameter FRZL2: forall ps, FRZL ps |-- fold_right sepcon emp ps.
 
 Parameter FRZRw : list mpred -> list mpred -> Type.
 Parameter FRZRw_constr : forall {L1 G1: list mpred} {F: mpred},
-    (fold_right sepcon emp G1) |-- fold_right sepcon emp L1 * F -> FRZRw L1 G1.
+    ((fold_right sepcon emp G1) |-- fold_right sepcon emp L1 * F) -> FRZRw L1 G1.
 Parameter FRZR : forall L1 G1 {w: FRZRw L1 G1}, mpred.
 Parameter FRZR1: forall L1 G1 (w: FRZRw L1 G1), fold_right sepcon emp G1 |-- fold_right sepcon emp L1 * @FRZR L1 G1 w.
-Parameter FRZR2: forall L1 G1 L2 G2 F H, F |-- fold_right sepcon emp L2 -* fold_right sepcon emp G2 -> fold_right sepcon emp L2  * @FRZR L1 G1 (@FRZRw_constr L1 G1 F H) |-- fold_right sepcon emp G2.
+Parameter FRZR2: forall L1 G1 L2 G2 F H, (F |-- fold_right sepcon emp L2 -* fold_right sepcon emp G2) -> fold_right sepcon emp L2  * @FRZR L1 G1 (@FRZRw_constr L1 G1 F H) |-- fold_right sepcon emp G2.
 
 End FREEZER.
 
@@ -56,7 +56,7 @@ Lemma FRZL2 ps: FRZL ps |-- fold_right_sepcon ps. apply derives_refl. Qed.
 
 Inductive FRZRw' (L1 G1: list mpred): Type :=
 | FRZRw'_constr: forall F: mpred,
-    (fold_right sepcon emp G1) |-- fold_right sepcon emp L1 * F -> FRZRw' L1 G1.
+    ((fold_right sepcon emp G1) |-- fold_right sepcon emp L1 * F) -> FRZRw' L1 G1.
 
 Definition FRZRw := FRZRw'.
 Definition FRZRw_constr:= FRZRw'_constr.
@@ -69,7 +69,7 @@ Definition FRZR (L1 G1: list mpred) {w: FRZRw L1 G1}: mpred :=
 Lemma FRZR1: forall L1 G1 (w: FRZRw L1 G1), fold_right sepcon emp G1 |-- fold_right sepcon emp L1 * @FRZR L1 G1 w.
 Proof. intros ? ? [? ?]. auto. Qed.
 
-Lemma FRZR2: forall L1 G1 L2 G2 F H, F |-- fold_right sepcon emp L2 -* fold_right sepcon emp G2 -> fold_right sepcon emp L2 * @FRZR L1 G1 (@FRZRw_constr L1 G1 F H) |-- fold_right sepcon emp G2.
+Lemma FRZR2: forall L1 G1 L2 G2 F H, (F |-- fold_right sepcon emp L2 -* fold_right sepcon emp G2) -> fold_right sepcon emp L2 * @FRZR L1 G1 (@FRZRw_constr L1 G1 F H) |-- fold_right sepcon emp G2.
 Proof. intros ? ? ? ? ? ? ?. rewrite sepcon_comm. apply wand_sepcon_adjoint; auto. Qed.
 
 End Freezer.
@@ -752,7 +752,7 @@ Ltac localize R_L :=
 Lemma unlocalize_aux: forall R_G2 R R_FR R_L1 R_G1 R_L2 F w,
   split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
   (exists (H: (fold_right_sepcon R_G1) |-- fold_right_sepcon R_L1 * F), w = @Freezer.FRZRw_constr _ _ _ H) ->
-  F |-- fold_right_sepcon R_L2 -* fold_right_sepcon R_G2 ->
+  (F |-- fold_right_sepcon R_L2 -* fold_right_sepcon R_G2) ->
   fold_right_sepcon R |-- fold_right_sepcon (R_G2 ++ R_FR).
 Proof.
   intros.
