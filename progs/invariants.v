@@ -193,7 +193,7 @@ Qed.
 Existing Instance token_PCM.
 
 Lemma wsat_open : forall i P,
-  (wsat * invariant i P * ghost_set g_en (Ensembles.Singleton _ i) |--
+  (wsat * invariant i P * ghost_set g_en (Ensembles.Singleton i) |--
   |==> wsat * |> P * ghost_list g_dis (list_singleton i (Some tt)))%I.
 Proof.
   intros; unfold wsat, invariant.
@@ -266,7 +266,7 @@ Qed.
 
 Lemma wsat_close : forall i P,
   (wsat * invariant i P * |> P * ghost_list g_dis (list_singleton i (Some tt)) |--
-  |==> wsat * ghost_set g_en (Ensembles.Singleton _ i))%I.
+  |==> wsat * ghost_set g_en (Ensembles.Singleton i))%I.
 Proof.
   intros; unfold wsat, invariant.
   iIntros "(((H & inv1) & HP) & dis1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".

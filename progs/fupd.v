@@ -10,7 +10,7 @@ Require Export VST.veric.bi.
 Require Import VST.msl.ghost_seplog.
 Import Ensembles.
 
-(* Where should this sit? *)
+(* This should use veric/fupd at some point. *)
 
 Definition timeless' (P : mpred) := forall (a a' : rmap),
   predicates_hered.app_pred P a' -> age a a' ->
@@ -330,7 +330,7 @@ Qed.
 End FancyUpdates.
 
 Lemma coPset_to_Ensemble_union : forall E1 E2,
-  coPset_to_Ensemble (E1 ∪ E2) = Union _ (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
+  coPset_to_Ensemble (E1 ∪ E2) = Union (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
 Proof.
   intros.
   unfold coPset_to_Ensemble; apply Extensionality_Ensembles; constructor; intros ? X.
@@ -339,7 +339,7 @@ Proof.
 Qed.
 
 Lemma coPset_to_Ensemble_disjoint : forall E1 E2,
-  Disjoint _ (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) <-> E1 ## E2.
+  Disjoint (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) <-> E1 ## E2.
 Proof.
   split; intros.
   - inv H.
@@ -364,7 +364,7 @@ Proof.
     symmetry in HE1Ef.
     unfold updates.fupd, fupd.
     unfold ghost_set at 3.
-    erewrite !coPset_to_Ensemble_union, (own.ghost_op(RA := set_PCM) _ _ _ (Union _ (coPset_to_Ensemble E1) (coPset_to_Ensemble Ef))).
+    erewrite !coPset_to_Ensemble_union, (own.ghost_op(RA := set_PCM) _ _ _ (Union (coPset_to_Ensemble E1) (coPset_to_Ensemble Ef))).
     iIntros "Hvs (Hw & HE1 &HEf)".
     iMod ("Hvs" with "[$Hw $HE1]") as ">(($ & HE2) & HP)".
     iCombine "HE2 HEf" as "H"; setoid_rewrite ghost_set_join.
@@ -409,7 +409,7 @@ Qed.
 Corollary wsat_fupd_elim : forall P, (wsat * (|={empty}=> P) |-- (|==> sbi_except_0 (wsat * P)))%I.
 Proof.
   intros; rewrite wsat_empty_eq.
-  replace (Empty_set _) with (coPset_to_Ensemble empty); [apply wsat_fupd_elim'|].
+  replace Empty_set with (coPset_to_Ensemble empty); [apply wsat_fupd_elim'|].
   apply Extensionality_Ensembles; constructor; intros ? X; inv X.
 Qed.
 
@@ -493,8 +493,8 @@ Qed.
 
 Lemma inv_close_aux : forall E (i : iname) P,
   (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * invariant i P * |> P *
-  (wsat * ghost_set g_en (Subtract _ E i))
-  |-- |==> sbi_except_0 (wsat * (ghost_set g_en (Singleton _ i) * ghost_set g_en (Subtract _ E i))))%I.
+  (wsat * ghost_set g_en (Subtract E i))
+  |-- |==> sbi_except_0 (wsat * (ghost_set g_en (Singleton i) * ghost_set g_en (Subtract E i))))%I.
 Proof.
   intros.
   iIntros "(((? & ?) & ?) & ? & en)".
@@ -512,7 +512,7 @@ Proof.
   erewrite ghost_set_remove.
   iIntros "[I ?] (wsat & i & en)".
   iMod (wsat_open with "[$wsat $I $i]") as "([$ $] & ?)".
-  assert (Subtract _ (coPset_to_Ensemble E) i = (coPset_to_Ensemble (E ∖ inv i))) as Heq.
+  assert (Subtract (coPset_to_Ensemble E) i = (coPset_to_Ensemble (E ∖ inv i))) as Heq.
   { apply Extensionality_Ensembles; constructor; intros ? X.
     * inv X; unfold In, coPset_to_Ensemble in *.
       rewrite elem_of_difference; split; auto.
