@@ -47,4 +47,3 @@ int atomic_CAS_ptr(atom_ptr *tgt, void **c, void *v){
 void* atomic_exchange_ptr(atom_ptr *tgt, void *v){
   return atomic_exchange(&tgt->p, v);
 }
-*/
