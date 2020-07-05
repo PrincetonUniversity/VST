@@ -26,10 +26,9 @@ int atom_exchange(atom_int *tgt, int v){
   return atomic_exchange(&tgt->i, v);
 }
 
-/*
-atom_ptr make_atom_ptr(void *v){
-  atom_ptr r;
-  r.p = v;
+atom_ptr *make_atom_ptr(void *v){
+  atom_ptr *r = malloc(sizeof(atom_ptr));
+  r->p = v;
   return r;
 }
 
