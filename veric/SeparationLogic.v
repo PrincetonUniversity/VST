@@ -1194,6 +1194,16 @@ simpl.
 eapply expr_lemmas4.typecheck_expr_sound; eauto.
 Qed.
 
+Lemma fash_func_ptr_ND:
+ forall fsig cc (A: Type) 
+             (Pre Pre': A -> argsEnviron -> mpred) (Post Post': A -> environ -> mpred) v,
+   ALL a:A,
+         (ALL rho:argsEnviron, fash (Pre' a rho --> Pre a rho)) &&
+         (ALL rho:environ, fash (Post a rho --> Post' a rho))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc A Pre' Post') v).
+Proof. exact seplog.fash_func_ptr_ND. Qed.
+
 (***************LENB: ADDED THESE LEMMAS IN INTERFACE************************************)
 
 (*

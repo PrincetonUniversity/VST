@@ -1315,6 +1315,60 @@ Proof.
     destruct (HP b1) as [_ P2]. lia. destruct (HQ b2) as [_ Q2 ]. lia.
     exists a1, a2; split3; [ | apply P2 | apply Q2]; trivial.
 Qed. 
+
+
+Lemma fash_func_ptr_ND:
+ forall fsig cc (A: Type) 
+             (Pre Pre': A -> argsEnviron -> mpred) (Post Post': A -> environ -> mpred) v,
+   ALL a:A,
+         (ALL rho:argsEnviron, fash (Pre' a rho --> Pre a rho)) &&
+         (ALL rho:environ, fash (Post a rho --> Post' a rho))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc A Pre' Post') v).
+Proof.
+intros.
+unfold func_ptr_si.
+apply subp_exp; intro b.
+apply subp_andp.
+apply subp_refl.
+intros ? ? ? ? ? ? [gs [? ?]].
+exists gs. split; auto.
+eapply funspec_sub_si_trans.
+split.
+eassumption.
+clear gs H2 H3.
+split.
+split; auto.
+intros ? ? ? ? ? ? ? ? ? [? ?].
+exists nil, b1, emp.
+rewrite emp_sepcon.
+split.
+destruct (H b1).
+apply (H7 b2 a'1); auto.
+apply Nat.le_trans with (level y); auto.
+apply necR_level in H4.
+apply Nat.le_trans with (level y0); auto.
+apply Nat.le_trans with (level a'0); auto.
+apply Nat.le_trans with (level a'); auto.
+apply necR_level; apply laterR_necR; auto.
+apply necR_level; auto.
+intros ? ? ? ? ? [? ?].
+rewrite emp_sepcon in H10.
+destruct (H b1).
+apply (H12 b3 a'2); auto.
+apply Nat.le_trans with (level y); auto.
+apply necR_level in H8.
+apply Nat.le_trans with (level y1); auto.
+apply Nat.le_trans with (level a'1); auto.
+apply Nat.le_trans with (level y0); auto.
+apply necR_level; auto.
+apply Nat.le_trans with (level a'0); auto.
+apply Nat.le_trans with (level a'); auto.
+apply necR_level; apply laterR_necR; auto.
+apply necR_level; auto.
+Qed.
+
+
 (*
 Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
   (HP : (G |-- P <=> P')%logic) (HQ : (G |-- Q <=> Q')%logic), G |-- (P && Q <=> P' && Q')%logic.
