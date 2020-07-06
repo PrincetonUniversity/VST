@@ -3647,6 +3647,24 @@ or else hide the * by making a Definition or using a freezer"
   | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
  end.
 
+Ltac  try_forward_store_union_hack e1 s2 id1 :=
+ let s2' := eval hnf in s2 in
+ lazymatch s2' with
+ | Ssequence ?s3 _ => try_forward_store_union_hack e1 s3 id1 
+ | Sset _ (Efield ?e2 ?id2 _) =>
+   tryif unify id1 id2 then fail else idtac;
+   unify e1 e2;
+   let t := constr:(typeof e1) in let t := eval hnf in t in
+   match t with (Tunion _ _) =>
+     idtac "forward_store_union_hack" id2;
+     eapply semax_seq';
+     [ ensure_open_normal_ret_assert;
+       hoist_later_in_pre;
+       forward_store_union_hack id2
+     | unfold replace_nth; abbreviate_semax]
+   end
+ end.
+
 Ltac forward :=
  lazymatch goal with
  | |- ENTAIL _, _ |-- _ * stackframe_of _ =>
@@ -3674,6 +3692,8 @@ Ltac forward :=
     | _ => rewrite -> semax_seq_skip
     end;
     match goal with
+    | |- semax _ _ (Ssequence (Sassign (Efield ?e1 ?id1 _) _) ?s2) _ =>
+           try_forward_store_union_hack e1 s2 id1
     | |- semax _ _ (Ssequence ?c _) _ =>
       check_precondition;
       eapply semax_seq';

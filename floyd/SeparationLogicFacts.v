@@ -918,7 +918,7 @@ Import ConseqFacts.
 Import Extr.
 Import ExtrFacts.
 Import StoreF.
-  
+
 Theorem semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
           (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
@@ -929,7 +929,6 @@ Proof.
   intros.
   eapply semax_post'; [.. | eapply (semax_extract_exists _ _ _ _ (normal_ret_assert P))].
   + apply andp_left2.
-    change (RA_normal (existential_ret_assert (fun _ : share => normal_ret_assert P))) with (EX _: share, P).
     apply derives_refl.
   + intros sh.
     apply semax_extract_prop; intro SH.
@@ -978,6 +977,329 @@ Proof.
 Qed.
 
 End StoreB2F.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_FORWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_store_union_hack_forward:
+  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+ forall (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
+       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
+       access_mode (typeof e1) = By_value ch ->
+       access_mode t2 = By_value ch' ->
+       decode_encode_val_ok ch ch' ->
+       writable_share sh ->
+       semax Delta
+         (|> (tc_lvalue Delta e1 && tc_expr Delta (Ecast e2 (typeof e1)) &&
+              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                && `(mapsto_ sh t2) (eval_lvalue e1))
+               * P)))
+         (Sassign e1 e2)
+         (normal_ret_assert
+            (EX v':val, 
+              andp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+              ((` (mapsto sh t2)) (eval_lvalue e1) (`v') * P))).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_FORWARD.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_store_union_hack_backward:
+ forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
+   @semax CS Espec Delta
+          (EX (t2:type) (ch ch': memory_chunk) (sh: share),
+             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+                 access_mode (typeof e1) = By_value ch /\
+                 access_mode t2 = By_value ch' /\
+                 decode_encode_val_ok ch ch' /\
+                 writable_share sh) &&
+             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (ALL v': val,
+                 `(mapsto sh t2) (eval_lvalue e1) (`v') -*
+                  imp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+                      (  P)))))
+          (Sassign e1 e2)
+          (normal_ret_assert P).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD.
+
+Module StoreUnionHackF2B
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (StoreUnionHackF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_FORWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD with Module CSHL_Def := Def.
+
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Extr.
+Import ExtrFacts.
+Import StoreUnionHackF.
+
+Theorem semax_store_union_hack_backward:
+ forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
+   @semax CS Espec Delta
+          (EX (t2:type) (ch ch': memory_chunk) (sh: share),
+             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+                 access_mode (typeof e1) = By_value ch /\
+                 access_mode t2 = By_value ch' /\
+                 decode_encode_val_ok ch ch' /\
+                 writable_share sh) &&
+             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (ALL v': val,
+                 `(mapsto sh t2) (eval_lvalue e1) (`v') -*
+                    imp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+                      (P)))))
+          (Sassign e1 e2)
+          (normal_ret_assert P).
+Proof.
+  intros.
+  eapply semax_post'; [.. | eapply (semax_extract_exists _ _ _ _ (normal_ret_assert P))];
+    [apply andp_left2; apply derives_refl | intro t2].
+  eapply semax_post'; [.. | eapply (semax_extract_exists _ _ _ _ (normal_ret_assert P))];
+    [apply andp_left2; apply derives_refl | intro ch].
+  eapply semax_post'; [.. | eapply (semax_extract_exists _ _ _ _ (normal_ret_assert P))];
+    [apply andp_left2; apply derives_refl | intro ch'].
+  eapply semax_post'; [.. | eapply (semax_extract_exists _ _ _ _ (normal_ret_assert P))];
+    [apply andp_left2; apply derives_refl | intro sh].
+  apply semax_extract_prop; intros [? [? [? [? SH]]]].
+  eapply semax_post'; [.. | eapply semax_store_union_hack_forward; eauto].
+  apply andp_left2.
+  apply exp_left; intros v'.
+  rewrite andp_comm.
+  apply imp_andp_adjoint.
+  rewrite sepcon_comm.
+  apply wand_sepcon_adjoint.
+  apply allp_left with v'.
+  apply derives_refl.
+Qed.
+
+End StoreUnionHackF2B.
+
+Module StoreUnionHackB2F
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (StoreUnionHackB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_FORWARD with Module CSHL_Def := Def.
+
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import StoreUnionHackB.
+
+Theorem semax_store_union_hack_forward:
+  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+ forall (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
+       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
+       access_mode (typeof e1) = By_value ch ->
+       access_mode t2 = By_value ch' ->
+       decode_encode_val_ok ch ch' ->
+       writable_share sh ->
+       semax Delta
+         (|> (tc_lvalue Delta e1 && tc_expr Delta (Ecast e2 (typeof e1)) &&
+              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                && `(mapsto_ sh t2) (eval_lvalue e1))
+               * P)))
+         (Sassign e1 e2)
+         (normal_ret_assert
+            (EX v':val, 
+              andp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+              ((` (mapsto sh t2)) (eval_lvalue e1) (`v') * P))).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_store_union_hack_backward].
+  apply (exp_right t2).
+  apply (exp_right ch).
+  apply (exp_right ch').
+  apply (exp_right sh).
+  apply andp_right; [apply prop_right; auto |].
+  apply andp_left2.
+  apply later_derives.
+  apply andp_derives; auto.
+  apply sepcon_derives; auto.
+  apply allp_right; intros v'.
+  apply wand_sepcon_adjoint.
+  rewrite sepcon_comm.
+  apply imp_andp_adjoint.
+  rewrite andp_comm.
+  apply (exp_right v').
+  apply derives_refl.
+Qed.
+
+End StoreUnionHackB2F.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_SASSIGN_BACKWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_store_store_union_hack_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) e1 e2,
+    @semax CS Espec Delta
+       ((EX sh: share, !! writable_share sh &&
+             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) *
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
+          || (EX (t2:type) (ch ch': memory_chunk) (sh: share),
+             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+                 access_mode (typeof e1) = By_value ch /\
+                 access_mode t2 = By_value ch' /\
+                 decode_encode_val_ok ch ch' /\
+                 writable_share sh) &&
+             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (ALL v': val,
+                 `(mapsto sh t2) (eval_lvalue e1) (`v') -*
+                    imp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+                      (P)))))
+       )
+        (Sassign e1 e2) (normal_ret_assert P).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_SASSIGN_BACKWARD.
+
+Module ToSassign
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := Def)
+       (StoreUnionHackB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_SASSIGN_BACKWARD with Module CSHL_Def := Def.
+
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import StoreB.
+Import StoreUnionHackB.
+Import ExtrFacts.
+
+Theorem semax_store_store_union_hack_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) e1 e2,
+    @semax CS Espec Delta
+       ((EX sh: share, !! writable_share sh &&
+             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) *
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
+          || (EX (t2:type) (ch ch': memory_chunk) (sh: share),
+             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+                 access_mode (typeof e1) = By_value ch /\
+                 access_mode t2 = By_value ch' /\
+                 decode_encode_val_ok ch ch' /\
+                 writable_share sh) &&
+             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (ALL v': val,
+                 `(mapsto sh t2) (eval_lvalue e1) (`v') -*
+                    imp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+                      (P)))))
+       )
+        (Sassign e1 e2) (normal_ret_assert P).
+Proof.
+  intros.
+  apply semax_orp.
+  + apply semax_store_backward.
+  + apply semax_store_union_hack_backward.
+Qed.
+
+End ToSassign.
+
+Module Sassign2Store
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Sassign: CLIGHT_SEPARATION_HOARE_LOGIC_SASSIGN_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := Def.
+
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Sassign.
+
+Theorem semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
+   @semax CS Espec Delta
+          (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
+          (Sassign e1 e2)
+          (normal_ret_assert P).
+Proof.
+  intros.
+  eapply semax_pre_simple; [| apply semax_store_store_union_hack_backward].
+  apply orp_right1; auto.
+Qed.
+
+End Sassign2Store.
+
+Module Sassign2StoreUnionHack
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Sassign: CLIGHT_SEPARATION_HOARE_LOGIC_SASSIGN_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD with Module CSHL_Def := Def.
+
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Sassign.
+
+Theorem semax_store_union_hack_backward:
+ forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
+   @semax CS Espec Delta
+          (EX (t2:type) (ch ch': memory_chunk) (sh: share),
+             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+                 access_mode (typeof e1) = By_value ch /\
+                 access_mode t2 = By_value ch' /\
+                 decode_encode_val_ok ch ch' /\
+                 writable_share sh) &&
+             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
+                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (ALL v': val,
+                 `(mapsto sh t2) (eval_lvalue e1) (`v') -*
+                    imp (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
+                      (P)))))
+          (Sassign e1 e2)
+          (normal_ret_assert P).
+Proof.
+  intros.
+  eapply semax_pre_simple; [| apply semax_store_store_union_hack_backward].
+  apply orp_right2; auto.
+Qed.
+
+End Sassign2StoreUnionHack.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD.
 
