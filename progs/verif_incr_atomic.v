@@ -19,7 +19,7 @@ Definition ctr_state ctr (g : gname) n := data_at Ews tuint (Vint (Int.repr (Z.o
 Program Definition incr_spec :=
  DECLARE _incr
   ATOMIC TYPE (rmaps.ConstType (_ * _ * _)) OBJ n INVS empty top
-  WITH sh : share, g : gname, gv : globals
+  WITH sh, g, gv
   PRE [ ]
          PROP  (readable_share sh)
          LOCAL (gvars gv)
@@ -32,7 +32,7 @@ Program Definition incr_spec :=
 Program Definition read_spec :=
  DECLARE _read
   ATOMIC TYPE (rmaps.ConstType (_ * _ * _)) OBJ n INVS empty top
-  WITH sh : share, g : gname, gv : globals
+  WITH sh, g, gv
   PRE [ ]
          PROP  (readable_share sh)
          LOCAL (gvars gv)
@@ -42,7 +42,6 @@ Program Definition read_spec :=
          PROP ()
          LOCAL (temp ret_temp (Vint (Int.repr (Z.of_nat n'))))
          SEP (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (!!(n' = n) && public_half g n).
-
 
 Definition cptr_inv g g1 g2 :=
   EX x y : nat, ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * public_half g (x + y)%nat.

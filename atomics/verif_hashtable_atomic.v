@@ -147,7 +147,7 @@ Instance Inhabitant_unit : Inhabitant unit := tt.
 
 Program Definition set_item_spec := DECLARE _set_item
   ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
-  WITH k : _, v : _, gv : _, sh : _, entries : _, g : _, lg : _
+  WITH k, v, gv, sh, entries, g, lg
   PRE [ _key OF tint, _value OF tint ]
     PROP (readable_share sh; repable_signed k; repable_signed v; k <> 0; v <> 0;
       Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
@@ -161,7 +161,7 @@ Program Definition set_item_spec := DECLARE _set_item
 (* Read the most recently written value. *)
 Program Definition get_item_spec := DECLARE _get_item
   ATOMIC TYPE (ConstType (Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
-  WITH k : _, gv : _, sh : _, entries : _, g : _, lg : _
+  WITH k, gv, sh, entries, g, lg
   PRE [ _key OF tint ]
     PROP (readable_share sh; repable_signed k; k <> 0; Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
     LOCAL (temp _key (vint k); gvars gv)
@@ -174,7 +174,7 @@ Program Definition get_item_spec := DECLARE _get_item
 
 Program Definition add_item_spec := DECLARE _add_item
   ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
-  WITH k : _, v : _, gv : _, sh : _, entries : _, g : _, lg : _
+  WITH k, v, gv, sh, entries, g, lg
   PRE [ _key OF tint, _value OF tint ]
     PROP (readable_share sh; repable_signed k; repable_signed v; k <> 0; v <> 0;
       Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)

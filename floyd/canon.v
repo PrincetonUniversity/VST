@@ -182,6 +182,22 @@ Proof.
     auto.
 Qed.
 
+Lemma SEPx_super_non_expansive': forall A R,
+  @super_non_expansive_list A (fun ts a _ => R ts a) ->
+  @super_non_expansive A (fun ts a rho => SEPx (R ts a) rho).
+Proof.
+  intros.
+  hnf; intros.
+  unfold SEPx; unfold super_non_expansive_list in H.
+  specialize (H n ts x rho).
+  induction H.
+  + simpl; auto.
+  + simpl in *.
+    rewrite !approx_sepcon.
+    f_equal;
+    auto.
+Qed.
+
 Lemma LOCALx_super_non_expansive: forall A Q R,
   super_non_expansive R ->
   Forall (fun Q0 => @super_non_expansive A (fun ts a rho => prop (locald_denote (Q0 ts a) rho))) Q ->
@@ -198,6 +214,31 @@ Proof.
   + simpl.
     unfold local, lift1.
     unfold_lift.
+    rewrite !prop_and.
+    rewrite !approx_andp.
+    f_equal; auto.
+Qed.
+
+Lemma LOCALx_super_non_expansive': forall A Q R,
+  super_non_expansive R ->
+  @super_non_expansive_list A (fun ts a rho => map (fun Q0 => prop (locald_denote Q0 rho)) (Q ts a)) ->
+  @super_non_expansive A (fun ts a rho => LOCALx (Q ts a) (R ts a) rho).
+Proof.
+  intros.
+  hnf; intros.
+  unfold LOCALx.
+  simpl.
+  rewrite !approx_andp.
+  f_equal; auto.
+  specialize (H0 n ts x rho).
+  simpl in H0.
+  match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as Q1 end.
+  revert dependent Q1; induction (Q ts x); intros; inv H0; destruct Q1; try discriminate.
+  + auto.
+  + inv H3.
+    simpl.
+    unfold local, lift1 in IHl |- *.
+    unfold_lift in IHl; unfold_lift.
     rewrite !prop_and.
     rewrite !approx_andp.
     f_equal; auto.
@@ -222,6 +263,29 @@ Proof.
     f_equal; auto.
 Qed.
 
+Lemma PROPx_super_non_expansive': forall A P Q,
+  super_non_expansive Q ->
+  @super_non_expansive_list A (fun ts a (rho: environ) => map prop (P ts a)) ->
+  @super_non_expansive A (fun ts a rho => PROPx (P ts a) (Q ts a) rho).
+Proof.
+  intros.
+  hnf; intros.
+  unfold PROPx.
+  simpl.
+  rewrite !approx_andp.
+  f_equal; auto.
+  specialize (H0 n ts x rho).
+  simpl in H0.
+  match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as P1 end.
+  revert dependent P1; induction (P ts x); intros; inv H0; destruct P1; try discriminate.
+  + auto.
+  + inv H3.
+    simpl.
+    rewrite !prop_and.
+    rewrite !approx_andp.
+    f_equal; auto.
+Qed.
+
 Lemma PROP_LOCAL_SEP_super_non_expansive: forall A P Q R,
   Forall (fun P0 => @super_non_expansive A (fun ts a _ => prop (P0 ts a))) P ->
   Forall (fun Q0 => @super_non_expansive A (fun ts a rho => prop (locald_denote (Q0 ts a) rho))) Q ->
@@ -235,6 +299,21 @@ Proof.
   apply PROPx_super_non_expansive; auto.
   apply LOCALx_super_non_expansive; auto.
   apply SEPx_super_non_expansive; auto.
+Qed.
+
+Lemma PROP_LOCAL_SEP_super_non_expansive': forall A P Q R,
+  @super_non_expansive_list A (fun ts a (rho: environ) => map prop (P ts a)) ->
+  @super_non_expansive_list A (fun ts a rho => map (fun Q0 => prop (locald_denote Q0 rho)) (Q ts a)) ->
+  @super_non_expansive_list A (fun ts a _ => R ts a) ->
+  @super_non_expansive A (fun ts a rho =>
+     PROPx (P ts a)
+      (LOCALx (Q ts a)
+        (SEPx (R ts a))) rho).
+Proof.
+  intros.
+  apply PROPx_super_non_expansive'; auto.
+  apply LOCALx_super_non_expansive'; auto.
+  apply SEPx_super_non_expansive'; auto.
 Qed.
 
 Lemma SEPx_nonexpansive: forall R rho,
