@@ -41,7 +41,7 @@ Definition make_atomic_spec :=
     PROP ()
     LOCAL (temp ret_temp p)
     SEP (atomic_int_at Ews v p).
-    
+
 Definition make_atomic_ptr_spec :=
   WITH v : val
   PRE [ 1%positive OF (tptr Tvoid) ]

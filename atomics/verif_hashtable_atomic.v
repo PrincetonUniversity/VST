@@ -26,6 +26,7 @@ Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition spawn_spec := DECLARE _spawn spawn_spec.
+Definition make_atomic_spec := DECLARE _make_atomic (make_atomic_spec atomic_int atomic_int_at).
 Definition atom_load_spec := DECLARE _atom_load (atomic_load_spec atomic_int atomic_int_at).
 Definition atom_store_spec := DECLARE _atom_store (atomic_store_spec atomic_int atomic_int_at).
 Definition atom_CAS_spec := DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic_int_at).
@@ -258,7 +259,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog [] gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; freelock2_spec; acquire_spec;
-  release2_spec; spawn_spec; surely_malloc_spec; atom_load_spec; atom_store_spec; atom_CAS_spec;
+  release2_spec; spawn_spec; surely_malloc_spec; make_atomic_spec; atom_load_spec; atom_store_spec; atom_CAS_spec;
   integer_hash_spec; set_item_spec; get_item_spec; add_item_spec; init_table_spec; f_spec; main_spec]).
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
@@ -1211,7 +1212,7 @@ Proof.
   - Intros lg.
     ghost_alloc (ghost_master1 0).
     Intros gk.
-    forward_call (vint 0). (* gives some kind of funspec error -- would merging master fix this? *)
+    forward_call (vint 0).
     { split; auto; simpl; computable. }
     Intros pk.
     rewrite iter_sepcon_map; Intros.
