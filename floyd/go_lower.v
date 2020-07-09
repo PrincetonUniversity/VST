@@ -871,7 +871,7 @@ Ltac sep_apply_in_lifted_entailment H :=
  end.
 
 Ltac sep_apply_in_semax H :=
-   eapply semax_pre_bupd; [sep_apply_in_lifted_entailment H | ].
+   eapply semax_pre(*_bupd*); [sep_apply_in_lifted_entailment H | ].
 
 Ltac sep_apply H :=
  match goal with
@@ -881,7 +881,7 @@ Ltac sep_apply H :=
  end.
 
 Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
-  first [apply SEP_entail'_bupd | apply SEP_entail'];
+  apply SEP_entail';
   go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
      allows us to use propositional facts derived from the PROP and LOCAL
      parts of the left-hand side *)
@@ -893,12 +893,12 @@ Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
       let R'' := refold_right_sepcon R' in
       replace R' with (fold_right_sepcon R'')
              by (unfold fold_right_sepcon; rewrite ?sepcon_emp; reflexivity);
-          subst r2; first [apply derives_refl | apply bupd_intro]
+          subst r2; apply derives_refl
     end]
   end.
 
 Ltac new_sep_apply_in_semax H evar_tac prop_tac :=
-  eapply semax_pre_bupd; [new_sep_apply_in_lifted_entailment H evar_tac prop_tac | ].
+  eapply semax_pre(*_bupd*); [new_sep_apply_in_lifted_entailment H evar_tac prop_tac | ].
 
 Ltac new_sep_apply H evar_tac prop_tac :=
   lazymatch goal with
