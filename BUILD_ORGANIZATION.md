@@ -66,7 +66,7 @@ use this install command:
 ```
 opam install coq-compcert.3.7~platform-flocq~open-source coq-vst
 AND/OR
-opam install coq-compcert-64.3.7~platform-flocq~open-source coq-vst
+opam install coq-compcert-64.3.7~platform-flocq~open-source coq-vst-64
 ```
 
 ## Install Method 2: manual make with opam / coq-platform supplied CompCert
@@ -97,7 +97,7 @@ For a manual make please follow this procedure:
    (or, if you have a multicore computer,  `make -j`). You may add the
    target `floyd` to just build VSTs core without examples and tests.
 
-Please note that if you give options via teh make command line, you do
+Please note that if you give options via the make command line, you do
 *not* have a file `CONFIGURE` in the VST root folder.
 
 ## Install Method 3: advanced manual make, e.g. with bundled CompCert
@@ -111,25 +111,27 @@ Please be sure that you don't mix these methods in unintended ways.
 VST make supports the below options to control which CompCert is used:
 - `COMPCERT=platform`: (default) choose 32 or 64 bit platform supplied x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
 - `COMPCERT=bundled`: build and use bundled 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
-- `COMPCERT=nundled_new`: build and use bundled compcert_new 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
+- `COMPCERT=bundled_new`: build and use bundled compcert_new 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
 - `COMPCERT=src_dir`: build and use in source folder COMPCERT_SRC_DIR the variant specified by ARCH and BITSIZE
 - `COMPCERT=inst_dir`: use prebuilt CompCert in COMPCERT_INST_DIR - BITSIZE and ARCH can be left empty or must match
-The above settings for COMPCERT are keywords and not placeholders. If required additional
-information is given with these variables:
+
+The above settings for COMPCERT are keywords and not placeholders.
+If required additional information is given with these variables:
 - `COMPCERT_SRC_DIR`: absolute or relative CompCert source path
 - `COMPCERT_INST_DIR`: usually absolute CompCert installation path or source path with in-place build
 
 The below options can be given in addition in order to chose the architecture.
-If CompCert is built from sources, this does configure CompCert accordingly.
-If `COMPCERT=inst_dir` is chosen, the blow options must match the specified
+If CompCert is built from sources, this configures CompCert accordingly.
+If `COMPCERT=inst_dir` is chosen, the below options must match the specified
 installation if they are given.
-If `COMPCERT=platform` is chosen, `BITSIZE` can be specified, but teh architecture
+If `COMPCERT=platform` is chosen, `BITSIZE` can be specified, but the architecture
 is ignored.
 - `BITSIZE=32` (default)
 - `BITSIZE=64`
 - `ARCH=x86`: (default) Intel x86, 32 and 64 bit
 - `ARCH=aarch64`: 64 bit ARM architecture
 - `ARCH=powerpc`: 32 bit power PC architecture
+
 In case you want to regenerate the clightgen Coq files for the examples, you need to
 specify an absolute path to a clightgen executable. This is useful in case you want
 to check the examples for non x86 architectures. Please take care that this matches
