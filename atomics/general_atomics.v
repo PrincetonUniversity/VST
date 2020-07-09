@@ -6,7 +6,6 @@ Require Import VST.progs.invariants.
 Require Import VST.progs.fupd.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import iris.bi.lib.atomic.
 
 Set Bullet Behavior "Strict Subproofs".
 

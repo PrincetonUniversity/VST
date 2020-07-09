@@ -20,6 +20,8 @@ Section Proofs.
 Definition atomic_int := Tstruct _atom_int noattr.
 Variable atomic_int_at : share -> val -> val -> mpred.
 Hypothesis atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p.
+Hypothesis atomic_int_isptr : forall sh v p, atomic_int_at sh v p |-- !! isptr p.
+Hint Resolve atomic_int_isptr : saturate_local.
 
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
@@ -199,8 +201,7 @@ Definition init_table_spec :=
    EX entries : list (val * val), EX g : gname, EX lg : list gname,
    PROP (Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
    LOCAL ()
-   SEP (mem_mgr gv; data_at Ews (tarray tentry size) entries (gv _m_entries); iter_sepcon (fun '(pk, pv) =>
-          malloc_token Ews tint pk * malloc_token Ews tint pv) entries;
+   SEP (mem_mgr gv; data_at Ews (tarray tentry size) entries (gv _m_entries);
         hashtable empty_map g lg entries).
 
 Inductive hashtable_hist_el :=
@@ -1199,8 +1200,6 @@ Proof.
     PROP (Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength entries = i)
     LOCAL (gvars gv)
     SEP (excl g (@empty_map Z Z); mem_mgr gv; @data_at CompSpecs Ews (tarray tentry size) (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i))) (gv _m_entries);
-         iter_sepcon (fun x =>
-           malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x)) entries;
          EX lg : list gname, !!(Zlength lg = i) && iter_sepcon (fun j =>
            hashtable_entry (repeat (0, 0) (Z.to_nat size)) lg entries j) (upto (Z.to_nat i)))).
   { setoid_rewrite (proj2_sig has_size); reflexivity. }
@@ -1213,13 +1212,10 @@ Proof.
     ghost_alloc (ghost_master1 0).
     Intros gk.
     forward_call (vint 0).
-    { split; auto; simpl; computable. }
     Intros pk.
     rewrite iter_sepcon_map; Intros.
     forward.
-    forward.
-    forward_call (tint, gv).
-    { split; auto; simpl; computable. }
+    forward_call (vint 0).
     Intros pv.
     repeat forward.
     assert (0 <= i < Zlength (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i)))).
@@ -1231,6 +1227,7 @@ Proof.
     rewrite -> Z.add_0_r, !app_Znth2 by omega.
     replace (Zlength entries) with i; replace (Zlength lg) with i; rewrite -> Zminus_diag, !Znth_0_cons.
     rewrite -> Znth_repeat', !Zlength_app, !Zlength_cons, !Zlength_nil by (rewrite Z2Nat.id; omega).
+    (* local facts for atomic_int *)
     entailer!.
     { rewrite Forall_app; repeat constructor; auto. }
     rewrite -> upd_init, <- app_assoc by (auto; omega); cancel.
@@ -1249,8 +1246,7 @@ Proof.
       setoid_rewrite Znth_repeat in Hj; simpl in Hj; subst; contradiction.
     + split; [discriminate|].
       intros (Hin & ?); apply repeat_spec in Hin; inv Hin; contradiction.
-    + apply sepcon_derives; erewrite iter_sepcon_func; try apply derives_refl; auto.
-      intros (?, ?); auto.
+    + apply derives_refl.
 Qed.
 
 Lemma lock_struct_array : forall sh z (v : list val) p,
@@ -1308,7 +1304,7 @@ Proof.
   intros; unfold hashtable_entry.
   destruct (Znth i entries), (Znth i T).
   apply (@bi.sep_timeless), _.
-  apply (@bi.sep_timeless), data_at_timeless.
+  apply (@bi.sep_timeless), atomic_int_timeless.
   apply (@bi.and_timeless); [apply (@bi.pure_timeless) | apply own_timeless].
 Qed.
 
@@ -1317,7 +1313,7 @@ Proof.
   intros; unfold hashtable.
   apply (@bi.exist_timeless); intro.
   apply (@bi.sep_timeless); [apply (@bi.and_timeless); [apply (@bi.pure_timeless) | apply own_timeless]|].
-  forget (upto (Z.to_nat size)) as l; clear; induction l; simpl.
+  forget (upto (Z.to_nat size)) as l; clear - atomic_int_timeless; induction l; simpl.
   * apply emp_timeless.
   * apply (@bi.sep_timeless); auto.
     apply hashtable_entry_timeless.
@@ -1747,12 +1743,13 @@ Proof.
   rewrite <- (emp_sepcon (ghost_hist _ _ _)); Intros.
   viewshift_SEP 0 (EX inv_names : invG, wsat).
   { go_lower; apply make_wsat. }
-  simpl; Intro inv_names.
+  Intro inv_names1.
   gather_SEP wsat (hashtable _ _ _ _) (ghost_ref _ _); viewshift_SEP 0 (EX i : _, |> (wsat * invariant i (hashtable_inv gh g lg entries))).
   { go_lower.
     rewrite sepcon_assoc; apply make_inv'.
     unfold hashtable_inv.
-    Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!. }
+    Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!.
+    apply derives_refl. }
   simpl; Intros i1.
   destruct (split_shares 3 Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
@@ -1766,8 +1763,8 @@ Proof.
     SEP (mem_mgr gv; @data_at CompSpecs Ews (tarray tentry size) entries (gv _m_entries);
          |>wsat; |>invariant i1 (hashtable_inv gh g lg entries);
          ghost_hist(hist_el := hashtable_hist_el) Tsh empty_map gh;
-         iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x))
-           entries;
+         (*iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x))
+           entries;*)
          data_at Ews (tarray (tptr tint) 3) (res ++ repeat Vundef (Z.to_nat (3 - i))) (gv _results) *
          iter_sepcon (data_at_ Ews tint) res * iter_sepcon (malloc_token Ews tint) res *
          data_at Ews (tarray (tptr (Tstruct _lock_t noattr)) 3)
@@ -1776,7 +1773,7 @@ Proof.
          iter_sepcon (fun j => lock_inv Ews (Znth j locks)
            (f_lock j (Znth j locks) (Znth j res))) (upto (Z.to_nat i)); has_ext tt)).
   { Exists (@nil val) (@nil val); rewrite !data_at__eq later_sepcon; entailer!.
-    erewrite iter_sepcon_func; [apply derives_refl|]; intros (?, ?); auto. }
+    apply derives_refl. }
   { (* first loop *)
     forward_call (Tstruct _lock_t noattr, gv).
     { repeat split; auto; simpl; computable. }
@@ -1820,8 +1817,7 @@ Proof.
     SEP (mem_mgr gv; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          |>wsat; |>invariant i1 (hashtable_inv gh g lg entries);
          ghost_hist(hist_el := hashtable_hist_el) sh' empty_map gh;
-         iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x))
-           entries;
+         (*iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x)) entries;*)
          data_at sh (tarray (tptr tint) 3) res (gv _results);
          iter_sepcon (data_at_ Ews tint) (sublist i 3 res); iter_sepcon (malloc_token Ews tint) res;
          data_at sh (tarray (tptr (Tstruct _lock_t noattr)) 3) locks (gv _thread_locks);
@@ -1849,7 +1845,7 @@ Proof.
     assert_PROP (isptr t) by entailer!.
     rewrite mem_mgr_dup.
     forward_spawn _f t (Znth i shs, Znth i shs', sh2, entries, i1, gh, g, lg, gv, i, gv _thread_locks, Znth i locks, gv _results,
-               Znth i res, inv_names).
+               Znth i res, inv_names1).
     { assert (0 <= i < Zlength shs) by omega.
       assert (Znth i shs' <> Share.bot).
       { intro X; contradiction unreadable_bot; rewrite <- X.
@@ -1909,7 +1905,7 @@ Proof.
     SEP (mem_mgr gv; @data_at CompSpecs (fst x) (tarray tentry size) entries (gv _m_entries);
          |>wsat; |>invariant i1 (hashtable_inv gh g lg entries);
          let h := map fst (snd x) in ghost_hist sh' (fold_right map_add empty_map h) gh;
-         iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x)) entries;
+         (*iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x)) entries;*)
          data_at (fst x) (tarray (tptr tint) 3) res (gv _results);
          iter_sepcon (malloc_token Ews tint) (sublist i 3 res);
          data_at (fst x) (tarray (tptr (Tstruct _lock_t noattr)) 3) locks (gv _thread_locks);
@@ -1966,13 +1962,13 @@ Proof.
     match goal with H : sepalg_list.list_join sh'0 _ _ |- _ => rewrite -> sublist_next in H by (auto; omega);
       inversion H as [|??? w1' ? Hj1']; subst end.
     gather_SEP 0 5; rewrite <- mem_mgr_dup.
-    gather_SEP 12 3.
+    gather_SEP 11 3.
     replace_SEP 0 (data_at w1 (tarray (tptr (Tstruct _lock_t noattr)) 3) locks (gv _thread_locks)).
     { go_lower.
       rewrite <- lock_struct_array.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join by eauto; apply derives_refl. }
-    gather_SEP 10 4.
+    gather_SEP 9 4.
     replace_SEP 0 (data_at w1 (tarray (tptr tint) 3) res (gv _results)).
     { go_lower.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
