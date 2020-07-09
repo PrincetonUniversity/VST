@@ -1,5 +1,11 @@
 # HOW TO BUILD:
 
+## Check compatibility
+
+If you install VST via opam, opam will take care of dependency versions.
+
+Otherwise please check:
+
 1. Make sure you have the right version of Coq.  
    ```sh
    grep ^COQVERSION Makefile
@@ -7,85 +13,130 @@
    will tell you which versions are compatible.
 
 2. Make sure you have the right version of CompCert.
-   VST 2.0 uses CompCert 3.2 for Coq 8.7.1 (or Coq 8.7 should work).
+   VST 2.6 uses CompCert 3.7 for Coq 8.11
 
-### METHOD A [recommended]
+## Install Method 1: use opam
 
-This method bases the VST on a copy of certain CompCert specification files
-distributed with VST, located in `VST/compcert`.
+If you install VST via opam, opam will automatically install a
+suitable version of CompCert, Flocq and other dependencies.
+```
+opam install coq-vst
+AND/OR
+opam install coq-vst-64
+```
+You can install both the 32 bit and the 64 bit versions of VST and
+CompCert in parallel. They will be installed in different folders.
+Please note that the 64 bit variants will be installed in non standard
+locations and must be included explcitly with -Q or -R options:
+```
+<opam-root>/lib/coq-variants/vst64/vst/
+<opam-root>/lib/coq-variants/compcert64/compcert/
+<opam-root>/variants/compcert64/bin/
+<opam-root>/variants/compcert64/lib/
+```
+Please also note that some opam supplied versions of CompCert use a version of
+Flocq distributed with CompCert. This is problematic if you want to verify
+numerical code which uses tools like CoqInterval or Gappa which also use
+Flocq. The proofs these tools do might then not be compatible with VST
+and CompCert. For CompCert 3.7 there is an opam version called
+```
+coq-compcert.3.7~platform-flocq
+coq-compcert-64.3.7~platform-flocq
+```
+which uses the opam supplied version of Flocq. There is also a version
+```
+coq-compcert.3.7~platform-flocq~open-source
+coq-compcert-64.3.7~platform-flocq~open-source
+```
+which only contains the dual licensed open source part of CompCert. This
+is sufficient for learning VST using the example C programs provided and it
+is the *default* dependency of VST. If you want to use VST for your own C code,
+you need at least clightgen, which is *not* free software. Please clarify the
+CompCert license conditions if you want to use clightgen. In case you want to
+use clightgen, please use this install command:
+```
+opam install coq-compcert.3.7~platform-flocq coq-vst
+AND/OR
+opam install coq-compcert-64.3.7~platform-flocq coq-vst-64
+```
+VST can work with various installations of CompCert and this sequence ensures
+you get the version you want. If you are an industrial user and want to
+learn CompCert and ensure you only install open source software, please
+use this install command:
+```
+opam install coq-compcert.3.7~platform-flocq~open-source coq-vst
+AND/OR
+opam install coq-compcert-64.3.7~platform-flocq~open-source coq-vst-64
+```
 
-1. Execute this command:
+## Install Method 2: manual make with opam / coq-platform supplied CompCert
+
+For a manual make please follow this procedure:
+
+1. Make sure CompCert and Flocq Coq `.vo` files are installed in
+   ```
+   <opam-root>/lib/coq/user-contrib/Flocq
+   <opam-root>/lib/coq/user-contrib/compcert
+   AND/OR
+   <root>/lib/coq-variants/compcert64/compcert
+   ```
+
+2. Make sure CompCert clightgen is installed in
+   ```
+   <opam-root>/bin
+   AND/OR
+   <opam-root>/variants/compcert64/bin
+   ```
+
+3. Execute this command:
    ```
    make
+   OR
+   make BITSIZE=64
    ```  
-   (or, if you have a multicore computer,  `make -j`)
-2. *optional, only if you're going to run "clightgen"*  
-    Unpack CompCert in the location of your choice (not under VST/), and in that
-    directory,  
-    ```
-    ./configure -clightgen x86_32-linux
-    make
-    ```
+   (or, if you have a multicore computer,  `make -j`). You may add the
+   target `floyd` to just build VSTs core without examples and tests.
 
-Use x86_32-macosx if you're on a Mac, x86_32-cygwin on Windows.
-You may also use x86_64, but VST has not been as heavily tested in
-64-bit configurations.  You may also use other back ends besides x86,
-but VST has not been much tested on those.
+Please note that if you give options via the make command line, you do
+*not* have a file `CONFIGURE` in the VST root folder.
 
+## Install Method 3: advanced manual make, e.g. with bundled CompCert
 
-### METHOD B [alternate]
+All options described in this section can be given in 3 ways:
+- on the command line of make via `<option>=<value>`
+- as an environment variable
+- as an assigmment in a file `CONFIGURE` in the VST root folder
+Please be sure that you don't mix these methods in unintended ways.
 
-This method bases the VST on the same specification files
-that the CompCert compiler is built upon (in contrast to method A,
-which uses verbatim copies of them).
+VST make supports the below options to control which CompCert is used:
+- `COMPCERT=platform`: (default) choose 32 or 64 bit platform supplied x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
+- `COMPCERT=bundled`: build and use bundled 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
+- `COMPCERT=bundled_new`: build and use bundled compcert_new 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
+- `COMPCERT=src_dir`: build and use in source folder COMPCERT_SRC_DIR the variant specified by ARCH and BITSIZE
+- `COMPCERT=inst_dir`: use prebuilt CompCert in COMPCERT_INST_DIR - BITSIZE and ARCH can be left empty or must match
 
-1. Unpack CompCert in a sibling directory to VST;  
-   in that directory, build CompCert according to the instructions
-   ```sh
-    ./configure -clightgen x86_32-linux;
-    make
-    ```
-(Use x86_32-macosx if you're on a Mac, etc.)
+The above settings for COMPCERT are keywords and not placeholders.
+If required additional information is given with these variables:
+- `COMPCERT_SRC_DIR`: absolute or relative CompCert source path
+- `COMPCERT_INST_DIR`: usually absolute CompCert installation path or source path with in-place build
 
-2. In the VST directory, create a file `CONFIGURE` containing exactly the text:  
-   ```
-   COMPCERT=../CompCert   # or whatever is your path to compcert
-   ```
-3. In the VST directory,  
-   ```sh
-   make
-   ```
+The below options can be given in addition in order to chose the architecture.
+If CompCert is built from sources, this configures CompCert accordingly.
+If `COMPCERT=inst_dir` is chosen, the below options must match the specified
+installation if they are given.
+If `COMPCERT=platform` is chosen, `BITSIZE` can be specified, but the architecture
+is ignored.
+- `BITSIZE=32` (default)
+- `BITSIZE=64`
+- `ARCH=x86`: (default) Intel x86, 32 and 64 bit
+- `ARCH=aarch64`: 64 bit ARM architecture
+- `ARCH=powerpc`: 32 bit power PC architecture
 
-Note on the Windows (cygwin) installation of CompCert:
-To build CompCert you'll need an up to date version of the
-menhir parser generator: http://gallium.inria.fr/~fpottier/menhir/
-To work around a cygwin incompatibility in the menhir build,
-`touch src/.versioncheck` before doing `make`.
-
-### METHOD A64, METHOD B64:   Sixty-four-bit (64 bit) build:
-CompCert works with 64-bit architectures as well as 32-bit,
-and VST now works with 64-bit or 32-bit CompCert.
-
-Using method A, put  BITSIZE=64   (and nothing else)
-in your CONFIGURE file, (do a fresh "make depend"),
-and you'll get a 64-bit (x86_64) Verifiable C.
-
-Using method B, put COMPCERT=your-compcert-directory  in your CONFIGURE file,
-and in your-compcert-directory build with "./configure" specifying
-a 64-bit architecture; and you'll get the corresponding 64-bit Verifiable C.
-No need to specify BITSIZE in your CONFIGURE file.
-
-In the standard VST distribution, in the progs/ and sha/ directories
-there are .v files built by clightgen from .c files.  These are built
-with a 32-bit clightgen, and will not be portable to 64-bit mode;
-that is, they work if "make floyd" has been done with BITSIZE=32.
-
-The progs64/ directory contains a subset of the .c files from progs/,
-compiled in 64-bit mode to the corresponding .v files.  The files
-progs64/verif_*.v are copied from progs/verif*.v with no change except
-to replace "Import VST.progs.XXX" with "Import VST.progs64.XXX",
-and will build only if "make floyd" has been done with BITSIZE=64.
-
+In case you want to regenerate the clightgen Coq files for the examples, you need to
+specify an absolute path to a clightgen executable. This is useful in case you want
+to check the examples for non x86 architectures. Please take care that this matches
+the given architecture (this is not checked).
+- `CLIGHTGEN=<absolute path for given architecture>/clightgen`
 
 --------------------------------------------------------------------------------
 

@@ -1,0 +1,60 @@
+From e13dd0e143dea85eba9c9dcb79c32f04a152221e Mon Sep 17 00:00:00 2001
+From: Xavier Leroy <xavier.leroy@college-de-france.fr>
+Date: Sun, 3 May 2020 09:43:14 +0200
+Subject: [PATCH 07/12] Dual-license
+ aarch64/{Archi.v,Cbuiltins.ml,extractionMachdep.v}
+
+The corresponding files in all other ports are dual-licensed
+(GPL + non-commercial), there is no reason it should be different for
+aarch64.
+---
+ aarch64/Archi.v             | 3 +++
+ aarch64/CBuiltins.ml        | 3 +++
+ aarch64/extractionMachdep.v | 3 +++
+ 3 files changed, 9 insertions(+)
+
+diff --git a/aarch64/Archi.v b/aarch64/Archi.v
+index aef4ab77..24431cb2 100644
+--- a/aarch64/Archi.v
++++ b/aarch64/Archi.v
+@@ -6,6 +6,9 @@
+ (*                                                                     *)
+ (*  Copyright Institut National de Recherche en Informatique et en     *)
+ (*  Automatique.  All rights reserved.  This file is distributed       *)
++(*  under the terms of the GNU General Public License as published by  *)
++(*  the Free Software Foundation, either version 2 of the License, or  *)
++(*  (at your option) any later version.  This file is also distributed *)
+ (*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+ (*                                                                     *)
+ (* *********************************************************************)
+diff --git a/aarch64/CBuiltins.ml b/aarch64/CBuiltins.ml
+index fdc1372d..dfd5b768 100644
+--- a/aarch64/CBuiltins.ml
++++ b/aarch64/CBuiltins.ml
+@@ -6,6 +6,9 @@
+ (*                                                                     *)
+ (*  Copyright Institut National de Recherche en Informatique et en     *)
+ (*  Automatique.  All rights reserved.  This file is distributed       *)
++(*  under the terms of the GNU General Public License as published by  *)
++(*  the Free Software Foundation, either version 2 of the License, or  *)
++(*  (at your option) any later version.  This file is also distributed *)
+ (*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+ (*                                                                     *)
+ (* *********************************************************************)
+diff --git a/aarch64/extractionMachdep.v b/aarch64/extractionMachdep.v
+index e82056e2..5f26dc28 100644
+--- a/aarch64/extractionMachdep.v
++++ b/aarch64/extractionMachdep.v
+@@ -6,6 +6,9 @@
+ (*                                                                     *)
+ (*  Copyright Institut National de Recherche en Informatique et en     *)
+ (*  Automatique.  All rights reserved.  This file is distributed       *)
++(*  under the terms of the GNU General Public License as published by  *)
++(*  the Free Software Foundation, either version 2 of the License, or  *)
++(*  (at your option) any later version.  This file is also distributed *)
+ (*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+ (*                                                                     *)
+ (* *********************************************************************)
+-- 
+2.24.2 (Apple Git-127)
+

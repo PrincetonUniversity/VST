@@ -35,6 +35,7 @@ env:
 #  - COMPILER="default"
   - COQ_VERSION="8.11.0"
   - NEXT_VERSION="8.11.0"
+  - COMPCERT_VERSION="3.7~coq-platform~open-source"
 
 branches:
   only:
@@ -61,10 +62,17 @@ install:
 - opam config var root
 - opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
 - opam repo add coq-released https://coq.inria.fr/opam/released
+- opam repo add prerelease file://$(pwd)/opam-prerelease
 - opam update
+- opam update prerelease
+- opam repo list
 - opam show coq
+- opam show coq-compcert
+- opam show coq-compcert-64
 - travis_wait 15 opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam install -j ${NJOBS} -y coq=${COQ_VERSION} coq-ext-lib coq-flocq
+- travis_wait 10 opam install -j ${NJOBS} -y coq-compcert=${COMPCERT_VERSION}
+- travis_wait 10 opam install -j ${NJOBS} -y coq-compcert-64=${COMPCERT_VERSION}
 - opam list
 - file `which coqc`
 # - WC=`which coqc`
