@@ -883,9 +883,9 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%logic .. (cons SPy%logic nil) ..))) ..))) _ _))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, Ei at level 0, Eo at level 0, S2 at level 0).
 
-Global Obligation Tactic := repeat constructor || let x := fresh "x" in intros ?? x;
+Global Obligation Tactic := try (let x := fresh "x" in intros ?? x;
   try match type of x with list Type => (let ts := fresh "ts" in rename x into ts; intros x) end;
-  repeat destruct x as [x ?]; unfold rev_curry, tcurry; simpl; auto.
+  repeat destruct x as [x ?]; unfold rev_curry, tcurry; simpl; auto); repeat constructor.
 
 (* change start_function to handle curried arguments -- also thanks to Jason *)
 Ltac read_names term :=
