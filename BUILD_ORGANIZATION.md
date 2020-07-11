@@ -27,7 +27,7 @@ opam install coq-vst-64
 You can install both the 32 bit and the 64 bit versions of VST and
 CompCert in parallel. They will be installed in different folders.
 Please note that the 64 bit variants will be installed in non standard
-locations and must be included explcitly with -Q or -R options:
+locations and must be included explicitly with -Q or -R options:
 ```
 <opam-root>/lib/coq-variants/vst64/vst/
 <opam-root>/lib/coq-variants/compcert64/compcert/
@@ -40,33 +40,33 @@ numerical code which uses tools like CoqInterval or Gappa which also use
 Flocq. The proofs these tools do might then not be compatible with VST
 and CompCert. For CompCert 3.7 there is an opam version called
 ```
-coq-compcert.3.7~platform-flocq
-coq-compcert-64.3.7~platform-flocq
+coq-compcert.3.7~coq-platform
+coq-compcert-64.3.7~coq-platform
 ```
 which uses the opam supplied version of Flocq. There is also a version
 ```
-coq-compcert.3.7~platform-flocq~open-source
-coq-compcert-64.3.7~platform-flocq~open-source
+coq-compcert.3.7~coq-platform~open-source
+coq-compcert-64.3.7~coq-platform~open-source
 ```
 which only contains the dual licensed open source part of CompCert. This
-is sufficient for learning VST using the example C programs provided and it
-is the *default* dependency of VST. If you want to use VST for your own C code,
-you need at least clightgen, which is *not* free software. Please clarify the
-CompCert license conditions if you want to use clightgen. In case you want to
-use clightgen, please use this install command:
+is sufficient for learning VST using the example C programs provided. If you
+want to use VST for your own C code, you need at least clightgen, which is
+*not* free software. Please clarify the CompCert license conditions if you
+want to use clightgen. In case you want to use clightgen, please use this
+install command:
 ```
-opam install coq-compcert.3.7~platform-flocq coq-vst
+opam install coq-compcert.3.7~coq-platform coq-vst
 AND/OR
-opam install coq-compcert-64.3.7~platform-flocq coq-vst-64
+opam install coq-compcert-64.3.7~coq-platform coq-vst-64
 ```
 VST can work with various installations of CompCert and this sequence ensures
 you get the version you want. If you are an industrial user and want to
 learn CompCert and ensure you only install open source software, please
 use this install command:
 ```
-opam install coq-compcert.3.7~platform-flocq~open-source coq-vst
+opam install coq-compcert.3.7~coq-platform~open-source coq-vst
 AND/OR
-opam install coq-compcert-64.3.7~platform-flocq~open-source coq-vst-64
+opam install coq-compcert-64.3.7~coq-platform~open-source coq-vst-64
 ```
 
 ## Install Method 2: manual make with opam / coq-platform supplied CompCert
@@ -94,10 +94,10 @@ For a manual make please follow this procedure:
    OR
    make BITSIZE=64
    ```  
-   (or, if you have a multicore computer,  `make -j`). You may add the
+   (or, if you have a multi-core computer,  `make -j 16`). You may add the
    target `floyd` to just build VSTs core without examples and tests.
 
-Please note that if you give options via the make command line, you do
+Please note that if you give options via the make command line, you should
 *not* have a file `CONFIGURE` in the VST root folder.
 
 ## Install Method 3: advanced manual make, e.g. with bundled CompCert
@@ -105,7 +105,7 @@ Please note that if you give options via the make command line, you do
 All options described in this section can be given in 3 ways:
 - on the command line of make via `<option>=<value>`
 - as an environment variable
-- as an assigmment in a file `CONFIGURE` in the VST root folder
+- as an assignment in a file `CONFIGURE` in the VST root folder
 Please be sure that you don't mix these methods in unintended ways.
 
 VST make supports the below options to control which CompCert is used:
@@ -142,7 +142,7 @@ the given architecture (this is not checked).
 
 # ORGANIZATION:
 
-The Verified Software Toolchain is organized into separate subprojects,
+The Verified Software Tool-chain is organized into separate sub-projects,
 each in a separate directory:
 
 - `msl` -   Mechanized Software Library
