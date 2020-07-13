@@ -118,8 +118,8 @@ endif
 
 # Verify that the version of the supplied compcert matches the version of the internal compcert
 
-CV1=$(shell cat $(COMPCERT_INFO_PATH_REF)/VERSION)
-CV2=$(shell cat $(COMPCERT_INST_DIR)/VERSION)
+CV1=$(shell cat $(COMPCERT_INFO_PATH_REF)/VERSION | grep "version=")
+CV2=$(shell cat $(COMPCERT_INST_DIR)/VERSION | grep "version=")
 
 ifneq ($(CV1), $(CV2))
   $(error COMPCERT VERSION MISMATCH: COMPCERT_VERSION=$(CV1) but $(COMPCERT_INST_DIR)/VERSION=$(CV2))
