@@ -62,7 +62,7 @@ install:
 - opam config var root
 - opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
 - opam repo add coq-released https://coq.inria.fr/opam/released
-- opam repo add prerelease file://$(pwd)/opam-prerelease
+- opam repo add --yes prerelease file://$(pwd)/opam-prerelease
 - opam update
 - opam update prerelease
 - opam repo list
