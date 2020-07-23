@@ -1,0 +1,5 @@
+#!/bin/bash
+#  The $1 argument of this script should be $(PROGSDIR)
+make depend >& /dev/null
+make CLIGHTGEN="CLIGHTGEN" -Bn veric floyd $1 2>/dev/null | \
+ awk '/^echo COQC /{print $NF}/^CLIGHTGEN/{print $NF}'
