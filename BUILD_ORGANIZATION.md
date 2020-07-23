@@ -13,7 +13,7 @@ Otherwise please check:
    will tell you which versions are compatible.
 
 2. Make sure you have the right version of CompCert.
-   VST 2.6 uses CompCert 3.7 for Coq 8.11
+   VST 2.6 uses CompCert 3.7 for Coq 8.11 or Coq 8.12
 
 ## Install Method 1: use opam
 
@@ -113,12 +113,17 @@ VST make supports the below options to control which CompCert is used:
 - `COMPCERT=bundled`: build and use bundled 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
 - `COMPCERT=bundled_new`: build and use bundled compcert_new 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86
 - `COMPCERT=src_dir`: build and use in source folder COMPCERT_SRC_DIR the variant specified by ARCH and BITSIZE
-- `COMPCERT=inst_dir`: use prebuilt CompCert in COMPCERT_INST_DIR - BITSIZE and ARCH can be left empty or must match
+- `COMPCERT=inst_dir`: use prebuilt CompCert in COMPCERT_INST_DIR.  BITSIZE and ARCH can be left empty or must match
 
 The above settings for COMPCERT are keywords and not placeholders.
 If required additional information is given with these variables:
 - `COMPCERT_SRC_DIR`: absolute or relative CompCert source path
 - `COMPCERT_INST_DIR`: usually absolute CompCert installation path or source path with in-place build
+
+If CompCert is built from sources, make sure to give at least one of
+the following options to CompCert's ./configure script: -clightgen, or
+-install-coqdev, or -coqdevdir, so that CompCert's compcert.config
+file is produced for VST to read.
 
 The below options can be given in addition in order to chose the architecture.
 If CompCert is built from sources, this configures CompCert accordingly.
