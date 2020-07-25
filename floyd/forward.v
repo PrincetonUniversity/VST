@@ -4749,3 +4749,9 @@ apply NDsubsume_subsume;
 | split; [ split; reflexivity | intros w; simpl in w; intros [g args]; normalize;
                                 unfold_for_go_lower; simpl; entailer! ]
 ].
+
+Ltac do_funspec_sub_nonND :=
+   split; 
+   [ split; try reflexivity 
+   | intros ts w; simpl in w; intros [g args]; Intros;
+      fold (@rmaps.dependent_type_functor_rec ts) in * ].

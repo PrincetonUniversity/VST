@@ -14,6 +14,88 @@ Proof. eapply semax_body_subsumption. apply SB. clear SB.
     - rewrite PTree.gempty; simpl; trivial.
 Qed.
 
+Lemma semax_body_binaryintersection':
+  forall (V : varspecs) (G : funspecs) (cs : compspecs) (f : function) (sp1 sp2 : ident * funspec)
+    (*(phi : funspec)*) sg cc A1 P1 Q1 Pne1 Qne1 A2 P2 Q2 Pne2 Qne2,
+  semax_body V G f sp1 ->
+  semax_body V G f sp2 -> forall
+  (W1: snd sp1 = mk_funspec sg cc A1 P1 Q1 Pne1 Qne1)
+  (W2: snd sp2 = mk_funspec sg cc A2 P2 Q2 Pne2 Qne2),
+  semax_body V G f (fst sp1, binary_intersection' (snd sp1) (snd sp2) W1 W2).
+Proof. intros. eapply semax_body_binaryintersection. trivial. apply H0.
+  apply binary_intersection'_sound.
+Qed.
+
+Lemma semax_body_binaryintersection'':
+  forall (V : varspecs) (G : funspecs) (cs : compspecs) (f : function) i (sp1 sp2 : funspec)
+    (*(phi : funspec)*) sg cc A1 P1 Q1 Pne1 Qne1 A2 P2 Q2 Pne2 Qne2,
+  semax_body V G f (i,sp1) ->
+  semax_body V G f (i,sp2) -> forall
+  (W1: sp1 = mk_funspec sg cc A1 P1 Q1 Pne1 Qne1)
+  (W2: sp2 = mk_funspec sg cc A2 P2 Q2 Pne2 Qne2),
+  semax_body V G f (i, binary_intersection' sp1 sp2 W1 W2).
+Proof. intros.
+apply (semax_body_binaryintersection' _ _ _ _ _ _ sg cc A1 P1 Q1 Pne1 Qne1 A2 P2 Q2 Pne2 Qne2 H H0 W1 W2).
+Qed.
+
+Lemma semax_body_subsumespec_GprogNil (V : varspecs) F (cs:compspecs) f iphi:
+       semax_body V nil f iphi -> list_norepet (map fst V ++ map fst F) ->
+       semax_body V F f iphi.
+  Proof. intros. eapply VSU.semax_body_subsumespec. apply H.
+    + intros i; red.
+      rewrite 2 semax_prog.make_context_g_char; trivial.
+      rewrite 2 initial_world.make_tycontext_s_find_id; simpl. 
+      remember (initial_world.find_id i V). destruct o; [ symmetry in Heqo | trivial].
+      rewrite (assoclists.list_norepet_find_id_app_exclusive1 H0 Heqo); trivial. simpl.
+      rewrite app_nil_r. apply list_norepet_append_left in H0; trivial.
+    + intros i; red. simpl; trivial.
+  Qed.
+
+Lemma binary_intersection'_sub1:
+  forall (f : compcert_rmaps.typesig) (c : calling_convention) (A1 : rmaps.TypeTree)
+    (P1 : forall ts : list Type,
+          functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (ArgsTT A1)) mpred)
+    (Q1 : forall ts : list Type,
+          functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A1))
+            mpred) (P1_ne : args_super_non_expansive P1) (Q1_ne : super_non_expansive Q1)
+    (A2 : rmaps.TypeTree)
+    (P2 : forall ts : list Type,
+          functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (ArgsTT A2)) mpred)
+    (Q2 : forall ts : list Type,
+          functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A2))
+            mpred) (P2_ne : args_super_non_expansive P2) (Q2_ne : super_non_expansive Q2)
+    (phi psi : funspec) (Hphi : phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne)
+    (Hpsi : psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne),
+  seplog.funspec_sub (binary_intersection' phi psi Hphi Hpsi) phi.
+Proof. intros. apply binary_intersection'_sub. Qed. 
+Lemma binary_intersection'_sub2:
+  forall (f : compcert_rmaps.typesig) (c : calling_convention) (A1 : rmaps.TypeTree)
+    (P1 : forall ts : list Type,
+          functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (ArgsTT A1)) mpred)
+    (Q1 : forall ts : list Type,
+          functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A1))
+            mpred) (P1_ne : args_super_non_expansive P1) (Q1_ne : super_non_expansive Q1)
+    (A2 : rmaps.TypeTree)
+    (P2 : forall ts : list Type,
+          functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (ArgsTT A2)) mpred)
+    (Q2 : forall ts : list Type,
+          functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A2))
+            mpred) (P2_ne : args_super_non_expansive P2) (Q2_ne : super_non_expansive Q2)
+    (phi psi : funspec) (Hphi : phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne)
+    (Hpsi : psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne),
+  seplog.funspec_sub (binary_intersection' phi psi Hphi Hpsi) psi.
+Proof. intros. apply binary_intersection'_sub. Qed. 
+
+Lemma binary_intersection'_sub  {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} (phi psi:funspec) Hphi Hpsi:
+  funspec_sub (@binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi) phi /\
+  funspec_sub (@binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi) psi.
+Proof. apply binary_intersection'_sub. (*apply binary_intersection'_sound.*) Qed.
+
+Lemma binary_intersection'_sub'  {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} (phi psi:funspec) Hphi Hpsi tau
+  (X: tau = @binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi):
+  funspec_sub tau phi /\ funspec_sub tau psi.
+Proof. subst. apply binary_intersection'_sub. Qed.
+
 Lemma mapsto_zeros_mapsto_nullval sh b z t:
    readable_share sh ->
    Z.divide (align_chunk Mptr) (Ptrofs.unsigned z) ->
@@ -3236,6 +3318,27 @@ Ltac mkComponent (*G_internal*) :=
     repeat (if_tac; simpl; [ apply compute_list_norepet_e; reflexivity | ]); trivial*)
   | intros; first [ solve [apply derives_refl] | solve [reflexivity] | solve [simpl; cancel] | idtac]
   ].
+
+ Ltac findentry_cautious := cbv.
+
+ Ltac mkComponent_cautious :=
+  eapply VSU.Build_Component;
+   [ intros i H; (first
+      [ repeat (destruct H; [ subst; do 4 eexists; findentry_cautious; reflexivity |  ]); contradiction | idtac ])
+   | apply compute_list_norepet_e; reflexivity
+   | apply compute_list_norepet_e; reflexivity
+   | apply compute_list_norepet_e; reflexivity
+   | intros i H; (first [ solve ltac:(contradiction) | simpl in H ]);
+      repeat (destruct H; [ subst; do 4 eexists; reflexivity |  ]); try contradiction
+   | intros; (*simpl*)cbv; split; trivial; try (solve [ VSU.lookup_tac ])
+   | apply compute_list_norepet_e; reflexivity
+   | intros i H; (first [ solve ltac:(contradiction) | simpl in H ]); repeat (destruct H; [ subst; reflexivity |  ]);
+      try contradiction
+   | intros i phi fd H H0; simpl in H0;
+     repeat (if_tac in H0; [ inv H0; cbv in H; inv H |  ]); try discriminate
+     (*.intros i phi fd H H0; simpl in H; repeat (if_tac in H; [ inv H; inv H0 |  ]; try discriminate)*)
+   | VSU.finishComponent
+   | intros; (first [ solve [ apply derives_refl ] | solve [ reflexivity ] | solve [ simpl; cancel ] | idtac ]) ].
 
 Ltac solve_SF_internal P :=
   clear; apply SF_internal_sound; eapply _SF_internal;

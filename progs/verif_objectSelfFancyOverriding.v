@@ -110,10 +110,201 @@ Definition F (X: ObjInv -> mpred) (hs: ObjInv): mpred :=
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
    instance hs)%logic.
 
+Definition HOcontractive1 {A: Type}{NA: NatDed A}{IA: Indir A}{RI: RecIndir A}{X: Type}
+     (f: (X -> A) -> (X -> A)) := 
+ forall P Q : X -> A,
+ ALL x : X, |> fash (P x <--> Q x)
+ |-- ALL x : X, fash (f P x --> f Q x).
+
+Lemma HOcontractive_i1:
+ forall  (A: Type)(NA: NatDed A){IA: Indir A}{RI: RecIndir A}{X: Type}
+     (f: (X -> A) -> (X -> A)),
+  HOcontractive1 f -> HOcontractive f.
+Proof.
+intros.
+red in H|-*.
+intros.
+eapply derives_trans.
+apply andp_right.
+apply H.
+specialize (H Q P).
+eapply derives_trans.
+2: apply H.
+apply allp_derives; intros.
+apply later_derives.
+apply fash_derives.
+rewrite andp_comm.
+auto.
+apply allp_right; intro.
+rewrite fash_andp.
+apply andp_right.
+apply andp_left1.
+apply allp_left with v; auto.
+apply andp_left2.
+apply allp_left with v; auto.
+Qed.
+
 Lemma HOcontrF
      (*Need sth like this (HI: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))*):
       HOcontractive F.
-Admitted.
+Proof.
+unfold F.
+apply HOcontractive_i1.
+red; intros.
+apply allp_right; intro oi.
+apply subp_sepcon_mpred; [ | apply subp_refl].
+apply subp_exp; intro v.
+apply subp_sepcon_mpred; [ | apply subp_refl].
+clear oi.
+apply subp_andp; [ apply subp_refl | ].
+rewrite <- subp_later.
+rewrite <- later_allp.
+apply later_derives.
+unfold object_methods.
+apply subp_exp; intro sh.
+apply subp_exp; intro reset.
+apply subp_exp; intro twiddle.
+apply subp_exp; intro twiddleR.
+apply subp_sepcon_mpred; [ | apply subp_refl].
+repeat simple apply subp_sepcon_mpred;
+try (simple apply subp_andp; [simple apply subp_refl | ]).
++
+unfold func_ptr'.
+apply subp_andp; [ | apply subp_refl].
+clear - instance.
+eapply derives_trans; [ | apply fash_func_ptr_ND].
+apply allp_right; intro oi.
+apply andp_right.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+rewrite prop_true_andp by tauto.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with oi.
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left2. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with ([], snd oi).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left1. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
++
+unfold func_ptr'.
+apply subp_andp; [ | apply subp_refl].
+clear - instance.
+eapply derives_trans; [ | apply fash_func_ptr_ND].
+apply allp_right; intros [hs i].
+apply andp_right.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+rewrite prop_true_andp by tauto.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with hs.
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left2. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+subst zz.
+apply exp_right with x.
+normalize.
+rewrite prop_true_andp by tauto.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with (i::fst hs, snd hs).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left1. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
++
+unfold func_ptr'.
+apply subp_andp; [ | apply subp_refl].
+clear - instance.
+eapply derives_trans; [ | apply fash_func_ptr_ND].
+apply allp_right; intros [hs i].
+apply andp_right.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+rewrite prop_true_andp by tauto.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with hs.
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left2. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+subst zz.
+apply exp_right with x.
+normalize.
+rewrite prop_true_andp by tauto.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with (i::fst hs, snd hs).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left1. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+Qed.
 
 Definition obj_mpred:ObjInv -> mpred := (HORec F). (*ie same type as Andrew's object_mpred.*)
 
@@ -573,7 +764,258 @@ Definition G (X: fObjInv -> mpred) (hs: fObjInv): mpred :=
 Lemma HOcontrG
      (*Need sth like this (HI: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))*):
       HOcontractive G.
-Admitted.
+Proof.
+unfold F.
+apply HOcontractive_i1.
+red; intros.
+apply allp_right; intro oi.
+apply subp_sepcon_mpred; [ | apply subp_refl].
+apply subp_exp; intro v.
+apply subp_sepcon_mpred; [ | apply subp_refl].
+clear oi.
+apply subp_andp; [ apply subp_refl | ].
+rewrite <- subp_later.
+rewrite <- later_allp.
+apply later_derives.
+unfold fobject_methods.
+apply subp_exp; intro sh.
+apply subp_exp; intro reset.
+apply subp_exp; intro twiddle.
+apply subp_exp; intro twiddleR.
+apply subp_exp; intro setCol.
+apply subp_exp; intro getCol.
+apply subp_sepcon_mpred; [ | apply subp_refl].
+repeat simple apply subp_sepcon_mpred;
+try (simple apply subp_andp; [simple apply subp_refl | ]).
++
+unfold func_ptr'.
+apply subp_andp; [ | apply subp_refl].
+clear - instance.
+eapply derives_trans; [ | apply fash_func_ptr_ND].
+apply allp_right; intro oi.
+apply andp_right.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+rewrite prop_true_andp by tauto.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with oi.
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left2. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with ([], 0, snd oi).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left1. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
++
+unfold func_ptr'.
+apply subp_andp; [ | apply subp_refl].
+clear - instance.
+eapply derives_trans; [ | apply fash_func_ptr_ND].
+apply allp_right; intros [hs i].
+apply andp_right.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+rewrite prop_true_andp by tauto.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with hs.
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left2. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+subst zz.
+apply exp_right with x.
+normalize.
+rewrite prop_true_andp by tauto.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with (i :: fst (fst hs), snd (fst hs), snd hs).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left1. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
++
+unfold func_ptr'.
+apply subp_andp; [ | apply subp_refl].
+clear - instance.
+eapply derives_trans; [ | apply fash_func_ptr_ND].
+apply allp_right; intros [hs i].
+apply andp_right.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+rewrite prop_true_andp by tauto.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with hs.
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left2. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+subst zz.
+apply exp_right with x.
+normalize.
+rewrite prop_true_andp by tauto.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with (i :: fst (fst hs), 0, snd hs).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left1. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
++
+unfold func_ptr'.
+apply subp_andp; [ | apply subp_refl].
+clear - instance.
+eapply derives_trans; [ | apply fash_func_ptr_ND].
+apply allp_right; intros [hs i].
+apply andp_right.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+rewrite prop_true_andp by tauto.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with hs.
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left2. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+subst zz. (*
+apply exp_right with x.
+normalize.
+rewrite prop_true_andp by tauto.*)
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with (fst (fst hs), i, snd hs).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left1. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
++
+unfold func_ptr'.
+apply subp_andp; [ | apply subp_refl].
+clear - instance.
+eapply derives_trans; [ | apply fash_func_ptr_ND].
+apply allp_right; intros [hs i].
+apply andp_right.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold convertPre.
+unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+rewrite prop_true_andp by tauto.
+subst zz.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with (hs,i).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left2. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+*
+apply allp_right; intro rho.
+apply subp_i1.
+rewrite unfash_allp.
+set (zz := allp _).
+unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
+unfold_lift.
+normalize.
+subst zz. (*
+apply exp_right with x.
+normalize.
+rewrite prop_true_andp by tauto.*)
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply allp_left with (hs,i).
+apply unfash_fash.
+eapply derives_trans.
+apply andp_derives.
+apply andp_left1. apply derives_refl. apply derives_refl.
+rewrite andp_comm. apply modus_ponens.
+Qed.
 
 Definition fobj_mpred:fObjInv -> mpred := (HORec G). (*ie same type as Andrew's object_mpred.*)
 
