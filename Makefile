@@ -17,7 +17,7 @@ COQC=$(COQBIN)coqc
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep -vos
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
-COQLIB=$(shell $(COQC) -where)
+COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
