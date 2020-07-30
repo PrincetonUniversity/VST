@@ -226,10 +226,10 @@ ifeq ($(ARCH),x86)
   ifeq ($(BITSIZE),32)
     INSTALLDIR ?= $(COQLIB)/user-contrib/VST
   else
-    INSTALLDIR ?= $(realpath $(COQLIB)/../coq-variant/VST64/VST)
+    INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST64/VST)
   endif
 else
-  INSTALLDIR ?= $(realpath $(COQLIB)/../coq-variant/VST_$(ARCH)_$(BITSIZE)/VST
+  INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST_$(ARCH)_$(BITSIZE)/VST
 endif
 
 # ########## Flags ##########
