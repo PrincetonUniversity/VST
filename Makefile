@@ -17,7 +17,7 @@ COQC=$(COQBIN)coqc
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep -vos
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
-COQLIB=$(shell $(COQC) -where)
+COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
@@ -220,6 +220,17 @@ endif
 FLOCQ=         # this mode to use the flocq packaged with Coq or opam
 # FLOCQ=flocq  # this mode to use the flocq built into compcert
 
+# ##### Configure installation folder #####
+
+ifeq ($(ARCH),x86)
+  ifeq ($(BITSIZE),32)
+    INSTALLDIR ?= $(COQLIB)/user-contrib/VST
+  else
+    INSTALLDIR ?= $(realpath $(COQLIB)/../coq-variant/VST64/VST)
+  endif
+else
+  INSTALLDIR ?= $(realpath $(COQLIB)/../coq-variant/VST_$(ARCH)_$(BITSIZE)/VST
+endif
 
 # ########## Flags ##########
 
@@ -291,6 +302,7 @@ $(info COMPCERT_SRC_DIR=$(COMPCERT_SRC_DIR))
 $(info COMPCERT_INST_DIR=$(COMPCERT_INST_DIR))
 $(info BITSIZE=$(BITSIZE))
 $(info ARCH=$(ARCH))
+$(info INSTALLDIR=$(INSTALLDIR))
 $(info ===== DERIVED CONFIGURATION =====)
 $(info COMPCERT_INFO_PATH_REF=$(COMPCERT_INFO_PATH_REF))
 $(info COMPCERT_EXPLICIT_PATH=$(COMPCERT_EXPLICIT_PATH))
@@ -593,6 +605,20 @@ FILES = \
 # $(CONCUR_FILES:%=concurrency/%) \
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
+EXTRA_INSTALL_FILES = \
+  LICENSE \
+  HISTORY \
+  CHANGES \
+  README.md \
+  VERSION \
+  msl/CREDITS \
+  msl/EXTRACTION \
+  msl/LICENSE \
+  msl/README.html \
+  msl/SUMMARY \
+  doc/VC.pdf \
+  VST.config
+
 # ##### Derived file lists #####
 
 CC_TARGET= $(COMPCERT_INST_DIR)/cfrontend/Clight.vo
@@ -606,8 +632,11 @@ else
 PROGS_FILES=$(PROGS32_FILES)
 endif
 
-PROGS64_FILES= $(V64_ORDINARY)
+PROGS64_FILES=$(V64_ORDINARY)
 
+INSTALL_FILES_SRC=$(shell util/calc_install_files $(PROGSDIR))
+INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
+INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
 # ########## Rules ##########
 
@@ -687,6 +716,24 @@ io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo pr
 $(CVOFILES): compcert
 
 cvfiles: $(CVFILES)
+
+VST.config:
+	(echo "# VST configuration"; \
+	echo "VST_ARCH=$(ARCH)"; \
+	echo "VST_BITSIZE=$(BITSIZE)"; \
+	echo "VST_COMPCERT=$(COMPCERT)"; \
+	echo "VST_COMPCERT_INST_DIR=$(COMPCERT_INST_DIR)"; \
+	echo "VST_COMPCERT_EXPLICIT_PATH=$(COMPCERT_EXPLICIT_PATH)"; \
+	echo "VST_INSTALLDIR=$(INSTALLDIR)"; \
+	) > VST.config
+
+# Note: doc files are installed into the coq destination folder.
+# This is not ideal but otherwise it gets tricky to handle variants
+install: VST.config
+	install -d "$(INSTALLDIR)"
+	for d in $(sort $(dir $(INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
+	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
+	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 
 dochtml:
 	mkdir -p doc/html
