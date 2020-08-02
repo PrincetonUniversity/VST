@@ -634,7 +634,7 @@ endif
 
 PROGS64_FILES=$(V64_ORDINARY)
 
-INSTALL_FILES_SRC=$(shell util/calc_install_files $(PROGSDIR))
+INSTALL_FILES_SRC=$(shell BITSIZE=$(BITSIZE) ARCH=$(ARCH) util/calc_install_files $(PROGSDIR))
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
