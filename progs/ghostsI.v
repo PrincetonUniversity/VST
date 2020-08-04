@@ -178,6 +178,8 @@ Context {hist_el : Type}.
 
 Notation hist_part := (nat -> option hist_el).
 
+Local Notation map_upd := (map_upd(P := discrete_PCM hist_el)).
+
 Lemma hist_add : forall (sh : share) (h h' : hist_part) e p t' (Hfresh : h' t' = None),
   (ghost_hist_ref sh h h' p |-- |==> ghost_hist_ref sh (map_upd h t' e) (map_upd h' t' e) p)%I.
 Proof.
