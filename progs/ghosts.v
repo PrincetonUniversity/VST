@@ -588,9 +588,11 @@ End Option.
 
 Section Maps.
 
-Context {A} {A_eq : EqDec A} {P : Ghost}.
+Context {A} {A_eq : EqDec A} {B : Type}.
 
-Implicit Types (k : A) (v : G) (m : A -> option G).
+Implicit Types (k : A) (v : B) (m : A -> option B).
+
+Definition map_add m1 m2 k := match m1 k with Some v' => Some v' | None => m2 k end.
 
 Definition map_upd m k v k' := if eq_dec k' k then Some v else m k'.
 
@@ -613,11 +615,43 @@ Fixpoint map_upd_list m l :=
   | (k, v) :: rest => map_upd_list (map_upd m k v) rest
   end.
 
-Definition empty_map k : option G := None.
+Definition empty_map k : option B := None.
 
-Global Instance Inhabitant_map : Inhabitant (A -> option G) := empty_map.
+Global Instance Inhabitant_map : Inhabitant (A -> option B) := empty_map.
 
 Definition singleton k v k1 := if eq_dec k1 k then Some v else None.
+
+Lemma map_add_empty : forall m, map_add m empty_map = m.
+Proof.
+  intros; extensionality; unfold map_add, empty_map.
+  destruct (m x); auto.
+Qed.
+
+Lemma map_add_single : forall m k v, map_add (singleton k v) m = map_upd m k v.
+Proof.
+  intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
+Qed.
+
+Lemma map_add_assoc : forall m1 m2 m3, map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
+Proof.
+  intros; extensionality; unfold map_add.
+  destruct (m1 x); auto.
+Qed.
+
+Lemma map_add_upd : forall m1 m2 k v, map_upd (map_add m1 m2) k v = map_add (map_upd m1 k v) m2.
+Proof.
+  intros.
+  rewrite <- !map_add_single.
+  rewrite map_add_assoc; auto.
+Qed.
+
+End Maps.
+
+Section Maps1.
+
+Context {A} {A_eq : EqDec A} {P : Ghost}.
+
+Implicit Types (k : A) (v : G) (m : A -> option G).
 
 Global Instance map_join : Join (A -> option G) := fun a b c => forall k, join (a k) (b k) (c k).
 
@@ -689,33 +723,7 @@ Proof.
   if_tac; auto; reflexivity.
 Qed.
 
-End Maps.
-
-Definition map_add {A B} (m1 m2 : A -> option B) k := match m1 k with Some v' => Some v' | None => m2 k end.
-
-Lemma map_add_empty : forall {A} {P : Ghost} (m : A -> option G), map_add m empty_map = m.
-Proof.
-  intros; extensionality; unfold map_add, empty_map.
-  destruct (m x); auto.
-Qed.
-
-Lemma map_add_single : forall {A} {A_eq : EqDec A} {P : Ghost} (m : A -> option G) k v, map_add (singleton k v) m = map_upd m k v.
-Proof.
-  intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
-Qed.
-
-Lemma map_add_assoc : forall {A B} (m1 m2 m3 : A -> option B), map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
-Proof.
-  intros; extensionality; unfold map_add.
-  destruct (m1 x); auto.
-Qed.
-
-Lemma map_add_upd : forall {A} {A_eq : EqDec A} {P : Ghost} (m1 m2 : A -> option G) k v, map_upd (map_add m1 m2) k v = map_add (map_upd m1 k v) m2.
-Proof.
-  intros.
-  rewrite <- !map_add_single.
-  rewrite map_add_assoc; auto.
-Qed.
+End Maps1.
 
 Section MapsL.
 
@@ -870,10 +878,6 @@ Proof.
   rewrite map_join_spec; split; auto.
   rewrite <- map_add_comm; auto.
 Qed.
-
-Local Notation empty_map := (empty_map(P := discrete_PCM B)).
-
-Local Notation map_upd := (map_upd(P := discrete_PCM B)).
 
 Lemma incl_compatible : forall m1 m2, map_incl m1 m2 -> compatible m1 m2.
 Proof.
@@ -1101,7 +1105,7 @@ Proof.
   apply all_compatible_cons in H as [].
   rewrite map_add_comm; auto.
   rewrite fold_right_app; simpl.
-  rewrite (map_add_empty(P := discrete_PCM B)).
+  rewrite map_add_empty.
   rewrite (fold_right_maps_add _ a).
   rewrite IHl; auto.
 Qed.
@@ -1158,8 +1162,6 @@ Context {hist_el : Type}.
 Notation hist_part := (nat -> option hist_el).
 
 Local Notation map_incl := (@map_incl _ (discrete_PCM hist_el) discrete_ord).
-Local Notation map_upd := (map_upd(P := discrete_PCM hist_el)).
-Local Notation empty_map := (empty_map(P := discrete_PCM hist_el)).
 
 Definition hist_sub sh (h : hist_part) hr := sh <> Share.bot /\ if eq_dec sh Tsh then h = hr
   else map_incl h hr.
@@ -1195,7 +1197,8 @@ Proof.
   unfold hist_sub; intros.
   destruct Hsub; split; auto.
   if_tac; subst; auto.
-  apply map_upd2_incl; auto.
+  eapply @map_upd2_incl; auto.
+  apply _.
 Qed.
 
 Definition ghost_hist (sh : share) (h : hist_part) g :=
@@ -1363,6 +1366,7 @@ Proof.
     apply prop_right; split; [apply hist_list_nil|].
     split; auto.
     if_tac; auto with ghost.
+    reflexivity.
 Qed.
 
 Lemma hist_ref_incl : forall sh h h' p, sh <> Share.bot ->
