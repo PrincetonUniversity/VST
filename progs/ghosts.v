@@ -600,6 +600,13 @@ Proof.
   if_tac; subst; auto.
 Qed.
 
+Lemma map_upd_comm : forall m k1 v1 k2 v2, k1 <> k2 ->
+  map_upd (map_upd m k1 v1) k2 v2 = map_upd (map_upd m k2 v2) k1 v1.
+Proof.
+  intros; unfold map_upd.
+  extensionality; if_tac; if_tac; auto; subst; contradiction.
+Qed.
+
 Fixpoint map_upd_list m l :=
   match l with
   | [] => m
