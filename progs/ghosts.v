@@ -1101,9 +1101,9 @@ Proof.
   apply all_compatible_cons in H as [].
   rewrite map_add_comm; auto.
   rewrite fold_right_app; simpl.
-  rewrite map_add_empty.
+  rewrite (map_add_empty(P := discrete_PCM B)).
   rewrite (fold_right_maps_add _ a).
-  rewrite <- IHl; auto.
+  rewrite IHl; auto.
 Qed.
 
 Lemma all_disjoint_snoc : forall m l, all_disjoint (l ++ [m]) <-> disjoint m (maps_add l) /\ all_disjoint l.
