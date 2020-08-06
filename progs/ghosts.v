@@ -691,13 +691,37 @@ Qed.
 
 End Maps.
 
+Definition map_add {A B} (m1 m2 : A -> option B) k := match m1 k with Some v' => Some v' | None => m2 k end.
+
+Lemma map_add_empty : forall {A} {P : Ghost} (m : A -> option G), map_add m empty_map = m.
+Proof.
+  intros; extensionality; unfold map_add, empty_map.
+  destruct (m x); auto.
+Qed.
+
+Lemma map_add_single : forall {A} {A_eq : EqDec A} {P : Ghost} (m : A -> option G) k v, map_add (singleton k v) m = map_upd m k v.
+Proof.
+  intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
+Qed.
+
+Lemma map_add_assoc : forall {A B} (m1 m2 m3 : A -> option B), map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
+Proof.
+  intros; extensionality; unfold map_add.
+  destruct (m1 x); auto.
+Qed.
+
+Lemma map_add_upd : forall {A} {A_eq : EqDec A} {P : Ghost} (m1 m2 : A -> option G) k v, map_upd (map_add m1 m2) k v = map_add (map_upd m1 k v) m2.
+Proof.
+  intros.
+  rewrite <- !map_add_single.
+  rewrite map_add_assoc; auto.
+Qed.
+
 Section MapsL.
 
 Context {A B : Type} {A_eq : EqDec A}.
 
 Implicit Types (k : A) (v : B) (m : A -> option B).
-
-Definition map_add m1 m2 k := match m1 k with Some v' => Some v' | None => m2 k end.
 
 Inductive discrete_ord : B -> B -> Prop := discrete_ordI x : discrete_ord x x.
 
@@ -751,12 +775,6 @@ Lemma map_add_comm : forall m1 m2, compatible m1 m2 -> map_add m1 m2 = map_add m
 Proof.
   intros; extensionality x; unfold map_add.
   destruct (m1 x) eqn: Hm1, (m2 x) eqn: Hm2; eauto.
-Qed.
-
-Lemma map_add_assoc : forall m1 m2 m3, map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
-Proof.
-  intros; extensionality; unfold map_add.
-  destruct (m1 x); auto.
 Qed.
 
 Lemma compatible_add_assoc : forall m1 m2 m3, compatible m1 m2 ->
@@ -855,18 +873,7 @@ Qed.
 
 Local Notation empty_map := (empty_map(P := discrete_PCM B)).
 
-Lemma map_add_empty : forall m, map_add m empty_map = m.
-Proof.
-  intros; extensionality; unfold map_add, empty_map.
-  destruct (m x); auto.
-Qed.
-
-Notation map_upd := (map_upd(P := discrete_PCM B)).
-
-Lemma map_add_single : forall m k v, map_add (singleton(P := discrete_PCM B) k v) m = map_upd m k v.
-Proof.
-  intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
-Qed.
+Local Notation map_upd := (map_upd(P := discrete_PCM B)).
 
 Lemma incl_compatible : forall m1 m2, map_incl m1 m2 -> compatible m1 m2.
 Proof.
@@ -886,13 +893,6 @@ Lemma compatible_upd : forall m1 m2 k v, compatible m1 m2 -> m2 k = None ->
 Proof.
   unfold map_upd; repeat intro.
   destruct (eq_dec k0 k); eauto; congruence.
-Qed.
-
-Lemma map_add_upd : forall m1 m2 k v, map_upd (map_add m1 m2) k v = map_add (map_upd m1 k v) m2.
-Proof.
-  intros.
-  rewrite <- !map_add_single.
-  rewrite map_add_assoc; auto.
 Qed.
 
 Notation maps_add l := (fold_right map_add empty_map l).
