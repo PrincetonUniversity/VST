@@ -641,6 +641,13 @@ Proof.
     specialize (H k); apply (ord_join(ord := option_ord)); auto.
 Qed.
 
+Lemma map_upd_single : forall m k v, m k = None -> join m (singleton k v) (map_upd m k v).
+Proof.
+  intros; intros k'.
+  unfold singleton, map_upd; if_tac; subst; [|constructor].
+  rewrite H; constructor.
+Qed.
+
 Lemma map_upd_list_app : forall l1 l2 m, map_upd_list m (l1 ++ l2) = map_upd_list (map_upd_list m l1) l2.
 Proof.
   induction l1; auto; simpl; intros.
