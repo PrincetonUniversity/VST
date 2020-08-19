@@ -489,11 +489,12 @@ Qed.
       to change the value.
    For this purpose, we use the reference PCM. *)
 
+Require Import VST.msl.ghost.
 Require Import VST.veric.ghost_PCM.
 Import Ctypes.
 
-Program Definition initial_core_ext {F Z} (ora : Z) (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) n _ eq_refl).
+Program Definition initial_core_ext {F} {GA : Ghost} (ora : ghost.G) (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat): rmap :=
+  proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost GA ora, NoneP) :: nil) n _ eq_refl).
 Next Obligation.
 intros.
 extensionality loc; unfold compose, initial_core'.

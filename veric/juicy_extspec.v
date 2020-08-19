@@ -6,6 +6,7 @@ Require Import VST.veric.shares.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.juicy_mem. (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.*)
 
+Require Import VST.msl.ghost.
 Require Import VST.veric.ghost_PCM. (*avoids doing Require Import VST.veric.initial_world.*)
 Require Import VST.veric.own. (*for ghost_approx*)
 
@@ -22,7 +23,8 @@ Record juicy_ext_spec (Z: Type) := {
 }.
 
 Class OracleKind := {
-  OK_ty : Type;
+  OK_alg : Ghost;
+  OK_ty := G;
   OK_spec: juicy_ext_spec OK_ty
 }.
 
@@ -36,7 +38,7 @@ Definition void_spec T : external_specification juicy_mem external_function T :=
       (fun rv m z => False).
 
 Definition ok_void_spec (T : Type) : OracleKind.
- refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
+ refine (Build_OracleKind (discrete_PCM T) (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
 Proof.
   simpl; intros; contradiction.
   simpl; intros; contradiction.
@@ -266,26 +268,29 @@ Proof.
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 
-Definition has_ext {Z} (ora : Z) : mpred.mpred := @own (ext_PCM _) 0 (Some (Tsh, Some ora), None) NoneP.
+Definition has_ext_part {GA : Ghost} sh (ora : G) : mpred.mpred := @own (ref_PCM GA) 0 (Some (sh, ora), None) NoneP.
 
-Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
+Definition has_ext {GA : Ghost} (ora : G) : mpred.mpred := has_ext_part Tsh ora.
+
+Definition jm_bupd {GA : Ghost} (ora : G) P m := forall C : ghost,
   (* use the external state to restrict the ghost moves *)
-  join_sub (Some (ext_ref ora, NoneP) :: nil) C ->
+  join_sub (Some (ext_ref GA ora, NoneP) :: nil) C ->
   joins (ghost_of (m_phi m)) (ghost_approx m C) ->
   exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) C) /\
     jm_update m m' /\ P m'.
 
-Lemma jm_bupd_intro: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, P m -> jm_bupd ora P m.
+Lemma jm_bupd_intro: forall {GA : Ghost} (ora : G) (P : juicy_mem -> Prop) m, P m -> jm_bupd ora P m.
 Proof.
   repeat intro.
   eexists; split; eauto; repeat split; auto.
 Qed.
 
 Section juicy_safety.
-  Context {G C Z:Type}.
+  Context {G C:Type}.
+  Context {GA : Ghost}.
   Context {genv_symb: G -> injective_PTree block}.
   Context (Hcore:@CoreSemantics C mem).
-  Variable (Hspec : juicy_ext_spec Z).
+  Variable (Hspec : juicy_ext_spec ghost.G).
   Variable ge : G.
 
   Definition Hrel n' m m' :=
@@ -294,7 +299,7 @@ Section juicy_safety.
     pures_eq (m_phi m) (m_phi m').
 
   Inductive jsafeN_:
-    nat -> Z -> C -> juicy_mem -> Prop :=
+    nat -> ghost.G -> C -> juicy_mem -> Prop :=
   | jsafeN_0: forall z c m, jsafeN_ O z c m
   | jsafeN_step:
       forall n z c m c' m',
@@ -440,10 +445,10 @@ Section juicy_safety.
     apply H. omega.
   Qed.
 
-Lemma make_join_ext : forall (ora : Z) a c n,
-  join_sub (Some (ext_ref ora, NoneP) :: nil) c ->
+Lemma make_join_ext : forall (ora : ghost.G) a c n,
+  join_sub (Some (ext_ref GA ora, NoneP) :: nil) c ->
   joins (ghost_fmap (approx n) (approx n) a) (ghost_fmap (approx n) (approx n) c) ->
-  join_sub (Some (ext_ref ora, NoneP) :: nil) (make_join a c).
+  join_sub (Some (ext_ref GA ora, NoneP) :: nil) (make_join a c).
 Proof.
   destruct a; auto; simpl.
   intros ?? [? HC] [? J].
@@ -459,17 +464,17 @@ Proof.
   destruct o as [[]|], o0 as [[]|]; inv H; inv H0.
   destruct a0; inv H1; simpl in *.
   inv H0.
-  assert (@ghost.valid (ext_PCM Z) (None, None)) as Hv.
+  assert (@ghost.valid (ref_PCM GA) (None, None)) as Hv.
   { simpl; auto. }
   inv HC.
   - eexists; constructor; constructor.
     destruct p; inv H1; inj_pair_tac.
-    instantiate (1 := (existT _ (ext_PCM Z) (exist _ _ Hv), _)); repeat constructor; simpl.
+    instantiate (1 := (existT _ (ref_PCM GA) (exist _ _ Hv), _)); repeat constructor; simpl.
     rewrite <- H0; auto.
   - inv H6.
     + destruct p; inv H1; inj_pair_tac.
       eexists; constructor; constructor.
-      instantiate (1 := (existT _ (ext_PCM Z) (exist _ _ Hv), _)); repeat constructor; simpl.
+      instantiate (1 := (existT _ (ref_PCM GA) (exist _ _ Hv), _)); repeat constructor; simpl.
       rewrite <- H0; auto.
     + destruct a0; inv H5; simpl in *.
       inv H2.

@@ -1,4 +1,5 @@
 Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.ghost_PCM.
 Require Export VST.msl.ghost.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.sepalg_generators.
@@ -96,9 +97,6 @@ Proof.
 Qed.
 
 End ghost.
-
-Program Instance exclusive_PCM A : Ghost := { valid a := True;
-  Join_G := Join_lower (Join_discrete A) }.
 
 Definition excl {A} g a := own(RA := exclusive_PCM A) g (Some a) NoneP.
 
@@ -522,16 +520,6 @@ Qed.
 End Reference.
 
 Hint Resolve self_completable : init.
-
-Section Discrete.
-
-Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
-  Join_G := Join_equiv A }.
-Next Obligation.
-  auto.
-Defined.
-
-End Discrete.
 
 Section GVar.
 

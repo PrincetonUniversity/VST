@@ -93,35 +93,43 @@ Defined.
 
 End Reference.
 
+Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True; Join_G := Join_equiv A }.
+
 Program Instance exclusive_PCM A : Ghost := { valid a := True; Join_G := Join_lower (Join_discrete A) }.
 
+Section External.
 
-Definition ext_PCM Z : Ghost := ref_PCM (exclusive_PCM Z).
+Context (P : Ghost).
 
-Lemma valid_ext : forall {Z} (ora : Z), @valid (ext_PCM _) (Some (Tsh, Some ora), None).
+Lemma valid_ext : forall ora : G, @valid (ref_PCM P) (Some (Tsh, ora), None).
 Proof.
   intros; simpl; split; auto.
   apply Share.nontrivial.
 Qed.
 
-Definition ext_ghost {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
-  existT _ (ext_PCM _) (exist _ _ (valid_ext ora)).
+Definition ext_ghost (ora : G) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
+  existT _ (ref_PCM P) (exist _ _ (valid_ext ora)).
 
-Lemma valid_ext_ref : forall {Z} (ora : Z), @valid (ext_PCM _) (None, Some (Some ora)).
+Lemma valid_ext_ref : forall (ora : G), @valid (ref_PCM P) (None, Some ora).
 Proof.
   intros; simpl; split; auto.
   eexists (Some (_, _)); constructor.
 Qed.
 
-Definition ext_ref {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
-  existT _ (ext_PCM _) (exist _ _ (valid_ext_ref ora)).
+Definition ext_ref (ora : G) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
+  existT _ (ref_PCM P) (exist _ _ (valid_ext_ref ora)).
 
-Lemma valid_ext_both : forall {Z} (ora : Z), @valid (ext_PCM _) (Some (Tsh, Some ora), Some (Some ora)).
+Lemma valid_ext_both : forall (ora : G), @valid (ref_PCM P) (Some (Tsh, ora), Some ora).
 Proof.
   intros; simpl; split; auto.
   - apply Share.nontrivial.
   - exists None; constructor.
 Qed.
 
-Definition ext_both {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
-  existT _ (ext_PCM _) (exist _ _ (valid_ext_both ora)).
+Definition ext_both (ora : G) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
+  existT _ (ref_PCM P) (exist _ _ (valid_ext_both ora)).
+
+End External.
+
+(* easy mode *)
+Instance ext_PCM Z : Ghost := ref_PCM (exclusive_PCM Z).
