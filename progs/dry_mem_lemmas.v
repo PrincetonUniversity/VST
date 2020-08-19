@@ -899,3 +899,13 @@ Proof.
     instantiate (1 := (_, _)); constructor; simpl; [|constructor; auto].
     apply ext_ref_join.
 Qed.
+
+Definition bytes_to_memvals li := concat (map (fun i => encode_val Mint8unsigned (Vubyte i)) li).
+
+Lemma bytes_to_memvals_length : forall li, Zlength (bytes_to_memvals li) = Zlength li.
+Proof.
+  intros.
+  rewrite !Zlength_correct; f_equal.
+  unfold bytes_to_memvals.
+  rewrite <- map_map, encode_vals_length, map_length; auto.
+Qed.

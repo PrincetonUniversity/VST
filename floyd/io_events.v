@@ -28,15 +28,16 @@ Definition IO_itree := itree E unit.
 Definition ITREE (tr : IO_itree) := EX tr' : _, !!(sutt eq tr tr') &&
   has_ext tr'.
 
+
 (* this should be in ITrees *)
-Global Instance Reflexive_sutt {E R} : RelationClasses.Reflexive (@sutt E R R eq).
+Global Instance Reflexive_sutt {R} : RelationClasses.Reflexive (@sutt E R R eq).
 Proof. intro; apply eutt_sutt; reflexivity. Qed.
 
 (* not in ITree currently because it's specific to unit *)
 Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
 Proof.
   intros.
-  etransitivity; [|apply eq_sub_eutt, bind_ret2].
+  etransitivity; [|apply eq_sub_eutt, bind_ret_r].
   apply eqit_bind; [intros []|]; reflexivity.
 Qed.
 
@@ -83,7 +84,7 @@ Lemma write_list_app : forall f l1 l2,
   eutt eq (write_list f (l1 ++ l2)) (write_list f l1;; write_list f l2).
 Proof.
   induction l1; simpl in *; intros.
-  - rewrite bind_ret; reflexivity.
+  - rewrite bind_ret_l; reflexivity.
   - rewrite bind_bind.
     setoid_rewrite IHl1; reflexivity.
 Qed.

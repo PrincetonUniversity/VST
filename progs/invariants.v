@@ -56,8 +56,7 @@ Qed.
 
 Section Invariants.
 
-Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
-Proof. auto. Defined.
+Program Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
 
 Definition pred_of (P : mpred) := SomeP rmaps.Mpred (fun _ => P).
 
@@ -173,9 +172,13 @@ Proof.
   destruct m; simpl; auto.
 Qed.
 
-Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join }.
+Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join }.
+Next Obligation.
 Proof.
   - exists (fun _ => nil); auto; constructor.
+Defined.
+Next Obligation.
+Proof.
   - constructor.
     + intros until 1.
       revert z'; induction H; inversion 1; auto; subst.
@@ -198,8 +201,7 @@ Proof.
       revert b'; induction H; inversion 1; auto; subst.
       f_equal; eauto.
       eapply join_positivity; eauto.
-  - auto.
-Defined.
+Qed.
 
 Definition ghost_list {P : Ghost} g l := own(RA := list_PCM P) g l NoneP.
 
@@ -536,8 +538,9 @@ Proof.
         apply (Hnth (S n)); auto.
 Qed.
 
-Instance set_PCM A : Ghost := { valid := fun _ : Ensemble A => True;
+Program Instance set_PCM A : Ghost := { valid := fun _ : Ensemble A => True;
    Join_G a b c := Disjoint a b /\ c = Union a b }.
+Next Obligation.
 Proof.
   - exists (fun _ => Empty_set _); auto.
     intro; split.
@@ -548,6 +551,9 @@ Proof.
         constructor 2; auto.
       * repeat intro.
         inv H; auto; contradiction.
+Defined.
+Next Obligation.
+Proof.
   - constructor.
     + intros.
       inv H; inv H0; auto.
@@ -591,8 +597,7 @@ Proof.
       * intros ? Hin.
         inv Hin; auto.
         constructor 1; constructor 2; auto.
-  - auto.
-Defined.
+Qed.
 
 Definition ghost_set {A} g s := own(RA := set_PCM A) g s NoneP.
 

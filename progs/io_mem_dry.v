@@ -13,16 +13,6 @@ Require Import VST.veric.mem_lessdef.
 
 Section IO_Dry.
 
-Definition bytes_to_memvals li := concat (map (fun i => encode_val Mint8unsigned (Vubyte i)) li).
-
-Lemma bytes_to_memvals_length : forall li, Zlength (bytes_to_memvals li) = Zlength li.
-Proof.
-  intros.
-  rewrite !Zlength_correct; f_equal.
-  unfold bytes_to_memvals.
-  rewrite <- map_map, encode_vals_length, map_length; auto.
-Qed.
-
 Context {E : Type -> Type} {IO_E : @IO_event nat -< E}.
 
 Definition getchars_pre (m : mem) (witness : share * val * Z * (list byte -> IO_itree)) (z : IO_itree) :=

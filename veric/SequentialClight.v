@@ -65,13 +65,13 @@ Definition ext_spec_mem_evolve (Z: Type)
 Definition juicy_dry_ext_spec (Z: Type)
    (J: external_specification juicy_mem external_function Z)
    (D: external_specification mem external_function Z)
-   (dessicate: forall ef jm, ext_spec_type J ef -> ext_spec_type D ef) :=
+   (dessicate: forall ef jm, ext_spec_type J ef -> Z -> ext_spec_type D ef) :=
   (forall e t t' b tl vl x jm,
-    dessicate e jm t = t' ->
+    dessicate e jm t x = t' ->
     (ext_spec_pre J e t b tl vl x jm ->
     ext_spec_pre D e t' b tl vl x (m_dry jm))) /\
  (forall ef t t' b ot v x jm0 jm,
-    (exists tl vl x0, dessicate ef jm0 t = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
+    (exists tl vl x0, dessicate ef jm0 t x0 = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
     (level jm <= level jm0)%nat ->
     resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) ->
     ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
@@ -95,9 +95,9 @@ apply (forall jm, m_dry jm = m -> ext_spec_exit v x jm).
 Defined.
 
 
-Definition dessicate_id Z 
+Definition dessicate_id Z
    (J: external_specification juicy_mem external_function Z) :
-   forall ef (jm : juicy_mem), ext_spec_type J ef -> 
+   forall ef (jm : juicy_mem), ext_spec_type J ef -> Z ->
        ext_spec_type (juicy_dry_ext_spec_make Z J) ef.
 intros.
 destruct J; simpl in *. apply X.
@@ -390,7 +390,7 @@ Lemma whole_program_sequential_safety_ext:
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
      (dryspec: ext_spec OK_ty)
      (dessicate : forall (ef : external_function) jm,
-               ext_spec_type OK_spec ef ->
+               ext_spec_type OK_spec ef -> OK_ty ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
@@ -463,7 +463,7 @@ Proof.
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
    destruct JDE as [JDE1 [JDE2 JDE3]].
-   specialize (JDE1 e x (dessicate e jm x)); simpl in JDE1.
+   specialize (JDE1 e x (dessicate e jm x ora)); simpl in JDE1.
    eapply safeN_external.
      eassumption.
      apply JDE1. reflexivity. assumption.

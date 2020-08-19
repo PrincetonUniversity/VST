@@ -128,7 +128,7 @@ Section ext_trace.
    forall {CS: compspecs} (initial_oracle: OK_ty)
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
      (dessicate : forall (ef : external_function) jm,
-               ext_spec_type OK_spec ef ->
+               ext_spec_type OK_spec ef -> OK_ty ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
@@ -168,7 +168,7 @@ Section ext_trace.
    forall {CS: compspecs} (initial_oracle: OK_ty)
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
      (dessicate : forall (ef : external_function) jm,
-               ext_spec_type OK_spec ef ->
+               ext_spec_type OK_spec ef -> OK_ty ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
