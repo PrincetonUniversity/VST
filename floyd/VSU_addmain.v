@@ -760,13 +760,43 @@ eapply LP_VSU_ext;
    | try reflexivity]
 | ].*)
 
+Record compositeData :=
+  { cco_su : struct_or_union;
+    cco_members : members;
+    cco_attr : attr;
+    cco_sizeof : Z;
+    cco_alignof : Z;
+    cco_rank : nat }.
+
+Definition getCompositeData (c:composite):compositeData. destruct c.
+apply (Build_compositeData co_su co_members co_attr co_sizeof co_alignof co_rank).
+Defined.
+
+Lemma comp_env_proofirr: forall (ce1 ce2: list (ident * composite)),
+   Forall2 (fun pc1 pc2 => fst pc1 = fst pc2 /\ getCompositeData (snd pc1) = getCompositeData (snd pc2))
+           ce1 ce2 ->
+    ce1=ce2.
+Proof. intros.
+induction H; auto.
+f_equal; auto.
+destruct x,y,H; f_equal; auto.
+simpl in H,H1.
+destruct c, c0.
+simpl in H1.
+inv H1.
+f_equal; auto; try apply proof_irr.
+Qed.
+
 (*based on tactic floyd.forward.semax_prog_aux*)
+Ltac solve_cenvcs_goal_eq :=
+     apply comp_env_proofirr;
+     repeat (constructor; [simpl; split; trivial |]); constructor.
+
 Ltac prove_linked_semax_prog :=
  split3; [ | | split3; [ | | split]];
  [ reflexivity || fail "duplicate identifier in prog_defs"
  | reflexivity || fail "unaligned initializer"
- | solve [solve_cenvcs_goal || fail "comp_specs not equal"]
-   (*compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"*)
+ | solve [solve_cenvcs_goal_eq || solve_cenvcs_goal || fail "comp_specs not equal"]
  |
  | reflexivity || fail "match_globvars failed"
  | (*match goal with

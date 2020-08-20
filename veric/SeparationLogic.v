@@ -1397,6 +1397,19 @@ forall Espec ts x,
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
 
+Definition semax_prog {Espec: OracleKind}{C: compspecs}
+       (prog: program) (z: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
+compute_list_norepet (prog_defs_names prog) = true  /\
+all_initializers_aligned prog /\
+PTree.elements cenv_cs = PTree.elements (prog_comp_env prog) /\
+(*  @semax_func V G C (prog_funct prog) G /\*)
+  @Def.semax_func Espec V G C (Genv.globalenv prog)  (prog_funct prog) G /\
+  match_globvars (prog_vars prog) V = true /\
+  match initial_world.find_id prog.(prog_main) G with
+  | Some s => exists post,
+             s = main_spec_ext' prog z post
+  | None => False
+end. (*
 Definition semax_prog
     {Espec: OracleKind} {C: compspecs}
      (prog: program) (z : OK_ty) (V: varspecs) (G: funspecs) : Prop :=
@@ -1409,7 +1422,7 @@ Definition semax_prog
   | Some s => exists post,
              s = main_spec_ext' prog z post
   | None => False
-  end.
+  end.*)
 
 End DerivedDefs.
 
