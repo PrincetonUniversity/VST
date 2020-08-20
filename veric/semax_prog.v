@@ -263,7 +263,7 @@ Proof.
     intros; apply tycontext_sub_refl. apply CSUB. apply (B _ Q1 Q2 n).*)
 Qed. 
 
-Definition main_pre {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> assert :=
+Definition main_pre {GA : ghost.Ghost} (prog: program) (ora: ghost.G) : list Type -> (ident->val) -> assert :=
 (fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
 Definition Tint32s := Tint I32 Signed noattr.
@@ -271,7 +271,7 @@ Definition Tint32s := Tint I32 Signed noattr.
 Definition main_post (prog: program) : list Type -> (ident->val) -> assert :=
 (fun nil _ _ => TT).
 
-Definition main_spec_ext' {Z} (prog: program) (ora: Z)
+Definition main_spec_ext' {GA : ghost.Ghost} (prog: program) (ora: ghost.G)
 (post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
 mk_funspec (nil, tint) cc_default
  (ConstType (ident->val)) (main_pre prog ora) post
@@ -1499,7 +1499,7 @@ induction G as [|(i,t) G]; simpl.
 do 2 if_tac; congruence.
 Qed.
 
-Lemma ext_ref_join : forall {Z} (z : Z), join (ext_ghost z) (ext_ref z) (ext_both z).
+Lemma ext_ref_join : forall {GA : ghost.Ghost} (z : ghost.G), join (ext_ghost GA z) (ext_ref GA z) (ext_both GA z).
 Proof.
   intros; repeat constructor.
 Qed.
@@ -1528,7 +1528,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   forall (jm : juicy_mem) ts (a: (dependent_type_functor_rec ts A) mpred),
     app_pred (P ts a rho1) (m_phi jm) ->
     app_pred (funassert (nofunc_tycontext V G) rho1) (m_phi jm) ->
-    nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) ->
+    nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost OK_alg z, NoneP)) ->
     jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
 intro retty.
@@ -1578,7 +1578,7 @@ rename z into ora.
 assert (Hora: app_pred (ext_compat ora) (m_phi jm)). {
  red. red. red.
  pose proof (ext_ref_join ora).
- exists ((Some (ext_both ora, NoneP)) :: tl (ghost_of (m_phi jm))).
+ exists ((Some (ext_both OK_alg ora, NoneP)) :: tl (ghost_of (m_phi jm))).
  destruct (ghost_of (m_phi jm)). inv HZ.
  simpl in HZ. inv HZ.
  constructor; auto.
@@ -1705,8 +1705,8 @@ destruct H5 as [H5|H5].
  clear - H10 H7.
  eapply joins_comm, join_sub_joins_trans, joins_comm, H10.
  destruct H7.
- change (Some (ghost_PCM.ext_ref z', NoneP) :: nil) with
-      (own.ghost_approx (m_phi m') (Some (ghost_PCM.ext_ref z', NoneP) :: nil)).
+ change (Some (ghost_PCM.ext_ref OK_alg z', NoneP) :: nil) with
+      (own.ghost_approx (m_phi m') (Some (ghost_PCM.ext_ref OK_alg z', NoneP) :: nil)).
   eexists; apply ghost_fmap_join; eauto.
 -
 (* internal case *)
@@ -2038,7 +2038,7 @@ Lemma semax_prog_rule {CS: compspecs} :
        forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
-           nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
+           nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost OK_alg z, NoneP)) /\
            jsafeN (@OK_spec Espec) (globalenv prog) n z q jm /\
            no_locks (m_phi jm) /\
            matchfunspecs (globalenv prog) G (m_phi jm) /\
@@ -2104,7 +2104,7 @@ Proof.
   assert (level jm = n)
     by (subst jm; simpl; rewrite inflate_initial_mem_level;
           apply level_make_rmap).
-  assert (nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)))
+  assert (nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost OK_alg z, NoneP)))
     by (simpl; unfold inflate_initial_mem; rewrite ghost_of_make_rmap;
           unfold initial_core_ext; rewrite ghost_of_make_rmap;  auto).
   split3; [ | | split3; [ | | split3]]; auto.

@@ -1603,8 +1603,8 @@ Proof.
   apply Hsafe; auto.
   eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
   destruct H0.
-  change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
-    (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
+  change (Some (ghost_PCM.ext_ref OK_alg ora, NoneP) :: nil) with
+    (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref OK_alg ora, NoneP) :: nil)).
   eexists; apply ghost_fmap_join; eauto.
   replace (level (m_phi jm')) with O by omega. constructor.
 Qed.
@@ -1624,8 +1624,8 @@ Proof.
   spec Hsafe. {
     eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
     destruct H0.
-    change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
-      (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
+    change (Some (ghost_PCM.ext_ref OK_alg ora, NoneP) :: nil) with
+      (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref OK_alg ora, NoneP) :: nil)).
     eexists; apply ghost_fmap_join; eauto.
   }
   do 2 (spec Hsafe; [auto|]).

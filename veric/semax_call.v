@@ -1746,8 +1746,8 @@ specialize (Hsafe z' jm').
 spec Hsafe. {
     eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
     destruct H.
-    change (Some (ghost_PCM.ext_ref z', NoneP) :: nil) with
-      (own.ghost_approx (m_phi m') (Some (ghost_PCM.ext_ref z', NoneP) :: nil)).
+    change (Some (ghost_PCM.ext_ref OK_alg z', NoneP) :: nil) with
+      (own.ghost_approx (m_phi m') (Some (ghost_PCM.ext_ref OK_alg z', NoneP) :: nil)).
     eexists; apply ghost_fmap_join; eauto.
   }
   do 2 (spec Hsafe; [auto|]).

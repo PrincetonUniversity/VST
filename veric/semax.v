@@ -1,3 +1,4 @@
+Require Import VST.msl.ghost.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
 Require Import VST.veric.res_predicates.
@@ -14,6 +15,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.own.
+Require Import VST.veric.ghost_PCM.
 
 Import Ctypes Clight_core.
 
@@ -30,24 +32,24 @@ hnf; intros.
 eapply Genv.genv_vars_inj; eauto.
 Defined.
 
-Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) (ge: genv) :=
+Definition jsafeN {GA : Ghost} (Hspec : juicy_ext_spec G) (ge: genv) :=
   @jsafeN_ genv _ _ genv_symb_injective (*(genv_symb := fun ge: genv => Genv.genv_symb ge)*)
                (cl_core_sem ge) Hspec ge.
 
-Lemma ext_join_approx : forall {Z} (z : Z) n g,
-  joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
-  joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
+Lemma ext_join_approx : forall {GA : Ghost} (z : G) n g,
+  joins g (Some (ext_ref GA z, NoneP) :: nil) ->
+  joins (ghost_fmap (approx n) (approx n) g) (Some (ext_ref GA z, NoneP) :: nil).
 Proof.
   intros.
   destruct H.
-  change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
-    (ghost_fmap (approx n) (approx n) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
+  change (Some (ext_ref GA z, NoneP) :: nil) with
+    (ghost_fmap (approx n) (approx n) (Some (ext_ref GA z, NoneP) :: nil)).
   eexists; apply ghost_fmap_join; eauto.
 Qed.
 
-Lemma ext_join_unapprox : forall {Z} (z : Z) n g,
-  joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
-  joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
+Lemma ext_join_unapprox : forall {GA : Ghost} (z : G) n g,
+  joins (ghost_fmap (approx n) (approx n) g) (Some (ext_ref GA z, NoneP) :: nil) ->
+  joins g (Some (ext_ref GA z, NoneP) :: nil).
 Proof.
   intros.
   destruct H as (g' & J).
@@ -64,8 +66,8 @@ Proof.
   unfold NoneP; f_equal; auto.
 Qed.
 
-Program Definition ext_compat {Z} (ora : Z) : mpred :=
-  fun w => joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
+Program Definition ext_compat {GA : Ghost} (ora : G) : mpred :=
+  fun w => joins (ghost_of w) (Some (ext_ref GA ora, NoneP) :: nil).
 Next Obligation.
 Proof.
   repeat intro.

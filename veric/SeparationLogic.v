@@ -893,7 +893,7 @@ Definition closed_wrt_modvars c (F: environ->mpred) : Prop :=
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
 
-Definition main_pre {Z: Type} (prog: program) (ora: Z) : list Type -> globals -> environ -> mpred :=
+Definition main_pre {GA: ghost.Ghost} (prog: program) (ora: ghost.G) : list Type -> globals -> environ -> mpred :=
 (fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
 Definition main_post (prog: program) : list Type -> (ident->val) -> environ->mpred :=

@@ -62,10 +62,10 @@ Definition ext_spec_mem_evolve (Z: Type)
     ext_spec_post D ef w b ot v z' m' ->
     mem_evolve m m'.
 
-Definition juicy_dry_ext_spec (Z: Type)
-   (J: external_specification juicy_mem external_function Z)
-   (D: external_specification mem external_function Z)
-   (dessicate: forall ef jm, ext_spec_type J ef -> Z -> ext_spec_type D ef) :=
+Definition juicy_dry_ext_spec (GA : ghost.Ghost)
+   (J: external_specification juicy_mem external_function ghost.G)
+   (D: external_specification mem external_function ghost.G)
+   (dessicate: forall ef jm, ext_spec_type J ef -> ghost.G -> ext_spec_type D ef) :=
   (forall e t t' b tl vl x jm,
     dessicate e jm t x = t' ->
     (ext_spec_pre J e t b tl vl x jm ->
@@ -74,7 +74,7 @@ Definition juicy_dry_ext_spec (Z: Type)
     (exists tl vl x0, dessicate ef jm0 t x0 = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
     (level jm <= level jm0)%nat ->
     resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) ->
-    ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
+    ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost GA x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
     (ext_spec_post D ef t' b ot v x (m_dry jm) ->
      ext_spec_post J ef t b ot v x jm)) /\
  (forall v x jm,
@@ -104,9 +104,9 @@ destruct J; simpl in *. apply X.
 Defined.
 
 Lemma jdes_make_lemma:
-  forall Z J, ignores_juice Z J ->
-    juicy_dry_ext_spec Z J (juicy_dry_ext_spec_make Z J)
-     (dessicate_id Z J).
+  forall (GA : ghost.Ghost) J, ignores_juice ghost.G J ->
+    juicy_dry_ext_spec GA J (juicy_dry_ext_spec_make ghost.G J)
+     (dessicate_id ghost.G J).
 Proof.
 intros.
 destruct H as [? [? ?]], J; split; [ | split3]; simpl in *; intros; auto.
@@ -425,7 +425,7 @@ Proof.
  unfold semax.jsafeN in H6.
  subst m.
  assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm))
-   (Some (ghost_PCM.ext_ref initial_oracle, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
+   (Some (ghost_PCM.ext_ref OK_alg initial_oracle, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
  { destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); inv H5.
    eexists; constructor; constructor.
    instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
@@ -444,7 +444,7 @@ Proof.
    destruct H0 as (?&?&?&Hg).
    eapply safeN_step.
    + red. red. fold (globalenv prog). eassumption.
-   + destruct (H1 (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
+   + destruct (H1 (Some (ghost_PCM.ext_ref OK_alg ora, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
      { eexists; apply join_comm, core_unit. }
      { rewrite Hg.
        destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto. }
@@ -472,11 +472,11 @@ Proof.
                       /\ (level jm' = n')%nat
                       /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')
                       /\ resource_at (m_phi jm') = resource_fmap (approx (level jm')) (approx (level jm')) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm (m_dry jm')
-                      /\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi jm)))). {
+                      /\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost OK_alg z', compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi jm)))). {
      destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm m') 
             as [phi [? [? ?]]].
-     assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
-        Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.
+     assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost OK_alg z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
+        Some (ghost_PCM.ext_ghost OK_alg z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.
      { simpl; f_equal.
         rewrite <- compcert_rmaps.RML.ghost_of_approx at 2.
         destruct (compcert_rmaps.RML.R.ghost_of phi); auto. }
@@ -529,11 +529,11 @@ Proof.
   eapply JDE2; eauto 6. omega. subst m'. apply H6.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
-  specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
+  specialize (H2b (Some (ghost_PCM.ext_ref OK_alg z', compcert_rmaps.RML.R.NoneP) :: nil)).
   spec H2b. apply join_sub_refl.
   spec H2b.
   { rewrite Hg'.
-    eexists (Some (ghost_PCM.ext_both z', compcert_rmaps.RML.R.NoneP) :: _);
+    eexists (Some (ghost_PCM.ext_both OK_alg z', compcert_rmaps.RML.R.NoneP) :: _);
       repeat constructor.  }
   destruct H2b as [jm'' [? [? ?]]].
   destruct H7 as [? [? ?]].

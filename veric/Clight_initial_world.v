@@ -538,7 +538,7 @@ rewrite Hg1, Hg2.
 unfold initial_core; rewrite !ghost_of_make_rmap; auto.
 Qed.
 
-Lemma initial_core_ext_ok: forall {Z} (ora : Z) (prog: program) G n m,
+Lemma initial_core_ext_ok: forall {GA : ghost.Ghost} (ora : ghost.G) (prog: program) G n m,
       list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       Genv.init_mem prog = Some m ->
@@ -665,7 +665,7 @@ destruct (eq_dec (Pos.to_nat b) (S (length dl))).
   split; auto.
 Qed.
 
-Definition initial_jm_ext {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
+Definition initial_jm_ext {GA : ghost.Ghost} (ora : ghost.G) (prog: program) m (G: funspecs) (n: nat)
         (H: Genv.init_mem prog = Some m)
         (H1: list_norepet (prog_defs_names prog))
         (H2: match_fdecs (prog_funct prog) G) : juicy_mem :=
@@ -676,12 +676,12 @@ Require Import VST.veric.ghost_PCM.
 
 Import Clight.
 
-Lemma initial_jm_ext_eq : forall {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
+Lemma initial_jm_ext_eq : forall {GA : ghost.Ghost} (ora : ghost.G) (prog: program) m (G: funspecs) (n: nat)
         (H: Genv.init_mem prog = Some m)
         (H1: list_norepet (prog_defs_names prog))
         (H2: match_fdecs (prog_funct prog) G),
   join (m_phi (initial_jm prog m G n H H1 H2))
-       (set_ghost (core (m_phi (initial_jm prog m G n H H1 H2))) (Some (ext_ghost ora, NoneP) :: nil) eq_refl)
+       (set_ghost (core (m_phi (initial_jm prog m G n H H1 H2))) (Some (ext_ghost GA ora, NoneP) :: nil) eq_refl)
        (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
 Proof.
   intros.
@@ -730,7 +730,7 @@ Proof.
   congruence.
 Qed.
 
-Lemma initial_jm_ext_without_locks {Z} (ora : Z) prog m G n H H1 H2:
+Lemma initial_jm_ext_without_locks {GA : ghost.Ghost} (ora : ghost.G) prog m G n H H1 H2:
   no_locks (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
 Proof.
   simpl.
@@ -831,7 +831,7 @@ Proof.
   all: reflexivity.
 Qed.
 
-Lemma initial_jm_ext_matchfunspecs {Z} (ora : Z) prog m G n H H1 H2:
+Lemma initial_jm_ext_matchfunspecs {GA : ghost.Ghost} (ora : ghost.G) prog m G n H H1 H2:
   matchfunspecs (globalenv prog) G (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
 Proof.
   simpl.
