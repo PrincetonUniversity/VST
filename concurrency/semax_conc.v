@@ -924,21 +924,19 @@ Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident)
 Definition concurrent_simple_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=
   add_funspecs_rec
     ext_link
-    (ok_void_spec Z).(@OK_ty)
+    (ok_void_spec Z).(@OK_alg)
     (ok_void_spec Z).(@OK_spec)
     (concurrent_simple_specs cs ext_link).
 
 Definition Concurrent_Simple_Espec Z cs ext_link :=
   Build_OracleKind
-    Z
+    _
     (concurrent_simple_ext_spec Z cs ext_link).
 
 Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i) -> P n) n : P n.
 Proof.
   apply IH; induction n; intros i li; inversion li; eauto.
 Qed.
-
-Set Printing Implicit.
 
 Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
@@ -951,11 +949,11 @@ Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
 Definition concurrent_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=
   add_funspecs_rec
     ext_link
-    (ok_void_spec Z).(@OK_ty)
+    (ok_void_spec Z).(@OK_alg)
     (ok_void_spec Z).(@OK_spec)
     (concurrent_specs cs ext_link).
 
 Definition Concurrent_Espec Z cs ext_link :=
   Build_OracleKind
-    Z
+    _
     (concurrent_ext_spec Z cs ext_link).

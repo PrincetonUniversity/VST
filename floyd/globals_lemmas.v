@@ -814,7 +814,7 @@ Lemma map_instantiate:
 Proof. intros. subst. reflexivity. Qed.
 
 Lemma main_pre_start:
- forall {Z} prog u gv (ora : Z),
+ forall {GA : ghost.Ghost} prog u gv (ora : ghost.G),
    main_pre prog ora u gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
 Proof.
 intros.

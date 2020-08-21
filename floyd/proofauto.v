@@ -230,3 +230,5 @@ Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
 Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
 
 Ltac list_solve ::= Zlength_solve.
+
+Notation main_pre := (@main_pre (ghost_PCM.discrete_PCM _)).

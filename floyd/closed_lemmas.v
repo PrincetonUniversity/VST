@@ -811,12 +811,12 @@ Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.
 
 
 Lemma closed_wrt_main_pre:
-  forall {Z} prog (z : Z) u v S, closed_wrt_vars S (main_pre prog z u v).
+  forall {GA : ghost.Ghost} prog (z : ghost.G) u v S, closed_wrt_vars S (main_pre prog z u v).
 Proof.
 intros. unfold main_pre. apply closed_wrt_sepcon; [apply closed_wrt_globvars | apply closed_wrt_const].
 Qed.
 Lemma closed_wrtl_main_pre:
-  forall {Z} prog (z : Z) u v S, closed_wrt_lvars S (main_pre prog z u v).
+  forall {GA : ghost.Ghost} prog (z : ghost.G) u v S, closed_wrt_lvars S (main_pre prog z u v).
 Proof.
 intros. unfold main_pre. apply closed_wrtl_sepcon; [apply closed_wrtl_globvars | apply closed_wrtl_const].
 Qed.
