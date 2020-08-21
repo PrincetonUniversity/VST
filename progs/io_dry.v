@@ -62,7 +62,7 @@ Proof.
   - intros; exact True.
 Defined.
 
-Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> ext_spec_type io_dry_spec ef.
+Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> OK_ty -> ext_spec_type io_dry_spec ef.
 Proof.
   simpl; intros.
   destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|assumption]].
@@ -119,7 +119,7 @@ Proof.
       destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost (discrete_PCM _) x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       split; [|split3].
       * eapply age_rejoin; eauto.
         intro; rewrite H2; auto.
@@ -136,7 +136,7 @@ Proof.
       * rewrite H3; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
         constructor; simpl; [|constructor; auto].
-        apply ext_ref_join.
+        apply semax_prog.ext_ref_join.
     + unfold funspec2pre, funspec2post, dessicate; simpl.
       if_tac; [|contradiction].
       clear H0.
@@ -153,7 +153,7 @@ Proof.
       destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost (discrete_PCM _) x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       split; [|split3].
       * eapply age_rejoin; eauto.
         intro; rewrite H2; auto.
@@ -170,7 +170,7 @@ Proof.
       * rewrite H3; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
         constructor; simpl; [|constructor; auto].
-        apply ext_ref_join.
+        apply semax_prog.ext_ref_join.
 Qed.
 
 Instance mem_evolve_refl : Reflexive mem_evolve.

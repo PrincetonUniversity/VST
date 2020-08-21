@@ -37,16 +37,16 @@ Proof.
   if_tac; if_tac; constructor || contradiction.
 Qed.
 
-Lemma has_ext_eq' : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
-  ghost_of phi = [Some (ext_ghost z, NoneP)] /\ forall l, identity (phi @ l).
+Lemma has_ext_eq' : forall {GA : ghost.Ghost} (z : ghost.G) phi, app_pred (has_ext z) phi ->
+  ghost_of phi = [Some (ext_ghost GA z, NoneP)] /\ forall l, identity (phi @ l).
 Proof.
   intros ??? (? & Hno & ->); simpl; split; auto.
   unfold ext_ghost; simpl; repeat f_equal.
   apply proof_irr.
 Qed.
 
-Corollary has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
-  ghost_of phi = [Some (ext_ghost z, NoneP)].
+Corollary has_ext_eq : forall {GA : ghost.Ghost} (z : ghost.G) phi, app_pred (has_ext z) phi ->
+  ghost_of phi = [Some (ext_ghost GA z, NoneP)].
 Proof.
   intros; apply has_ext_eq'; auto.
 Qed.
@@ -63,9 +63,9 @@ Proof.
   destruct n; eauto.
 Qed.
 
-Lemma has_ext_join : forall {Z} phi1 phi2 phi3 (z1 z2 : Z) (Hext : nth O (ghost_of phi1) None = Some (ext_ghost z1, NoneP))
-  (Hj : join phi1 phi2 phi3) (Hrest : joins (ghost_of phi3) [Some (ext_ref z2, NoneP)]),
-  z1 = z2 /\ nth O (ghost_of phi3) None = Some (ext_ghost z1, NoneP).
+Lemma has_ext_join : forall {GA : ghost.Ghost} phi1 phi2 phi3 (z1 z2 : ghost.G) (Hext : nth O (ghost_of phi1) None = Some (ext_ghost GA z1, NoneP))
+  (Hj : join phi1 phi2 phi3) (Hrest : joins (ghost_of phi3) [Some (ext_ref GA z2, NoneP)]),
+  z1 = z2 /\ nth O (ghost_of phi3) None = Some (ext_ghost GA z1, NoneP).
 Proof.
   simpl; intros.
   apply ghost_of_join, ghost_join_nth with (n := O) in Hj.
@@ -103,10 +103,10 @@ Proof.
     + unfold ext_ghost; simpl; repeat f_equal; apply proof_irr.
 Qed.
 
-Lemma change_ext : forall {Z} (a a' z : Z) (b c : ghost),
-  join [Some (ext_ghost a, NoneP)] b c ->
-  joins c [Some (ext_ref z, NoneP)] ->
-  join [Some (ext_ghost a', NoneP)] b (Some (ext_ghost a', NoneP) :: tl c).
+Lemma change_ext : forall {GA : ghost.Ghost} (a a' z : ghost.G) (b c : ghost),
+  join [Some (ext_ghost GA a, NoneP)] b c ->
+  joins c [Some (ext_ref GA z, NoneP)] ->
+  join [Some (ext_ghost GA a', NoneP)] b (Some (ext_ghost GA a', NoneP) :: tl c).
 Proof.
   intros.
   inv H; [constructor|].
@@ -138,8 +138,8 @@ Proof.
     inv H7.
 Qed.
 
-Lemma change_has_ext : forall {Z} (a a' : Z) r H, app_pred (has_ext a) r ->
-  app_pred (has_ext a') (set_ghost r [Some (ext_ghost a', NoneP)] H).
+Lemma change_has_ext : forall {GA : ghost.Ghost} (a a' : ghost.G) r H, app_pred (has_ext a) r ->
+  app_pred (has_ext a') (set_ghost r [Some (ext_ghost GA a', NoneP)] H).
 Proof.
   intros; simpl in *.
   destruct H0 as (p & ? & ?); exists p.
@@ -147,11 +147,6 @@ Proof.
   split; auto.
   unfold ext_ghost; repeat f_equal.
   apply proof_irr.
-Qed.
-
-Lemma ext_ref_join : forall {Z} (z : Z), join (ext_ghost z) (ext_ref z) (ext_both z).
-Proof.
-  intros; repeat constructor.
 Qed.
 
 Lemma set_ghost_join : forall a w1 w2 w (J : join w1 w2 w) (Hw2 : res_predicates.noghost w2) H1 H,
@@ -164,13 +159,13 @@ Proof.
   - rewrite (identity_core Hw2), ghost_core; constructor.
 Qed.
 
-Lemma age_rejoin : forall {Z} w1 w2 w w' (a a' z : Z) H (J : join w1 w2 w)
-  (Hc : joins (ghost_of w) [Some (ext_ref z, NoneP)])
-  (Hg1 : ghost_of w1 = [Some (ext_ghost a, NoneP)])
+Lemma age_rejoin : forall {GA : ghost.Ghost} w1 w2 w w' (a a' z : ghost.G) H (J : join w1 w2 w)
+  (Hc : joins (ghost_of w) [Some (ext_ref GA z, NoneP)])
+  (Hg1 : ghost_of w1 = [Some (ext_ghost GA a, NoneP)])
   (Hl' : (level w' <= level w)%nat)
   (Hr' : forall l, w' @ l = resource_fmap (approx (level w')) (approx (level w')) (w @ l))
-  (Hg' : ghost_of w' = Some (ext_ghost a', NoneP) :: own.ghost_approx (level w') (tl (ghost_of w))),
-  join (age_to.age_to (level w') (set_ghost w1 [Some (ext_ghost a', NoneP)] H)) (age_to.age_to (level w') w2) w'.
+  (Hg' : ghost_of w' = Some (ext_ghost GA a', NoneP) :: own.ghost_approx (level w') (tl (ghost_of w))),
+  join (age_to.age_to (level w') (set_ghost w1 [Some (ext_ghost GA a', NoneP)] H)) (age_to.age_to (level w') w2) w'.
 Proof.
   intros.
   destruct (join_level _ _ _ J).
@@ -526,7 +521,7 @@ Proof.
 Defined.
 
 (* up *)
-Lemma has_ext_noat : forall {Z} (z : Z), has_ext z |-- ALL x : _, res_predicates.noat x.
+Lemma has_ext_noat : forall {GA : ghost.Ghost} (z : ghost.G), has_ext z |-- ALL x : _, res_predicates.noat x.
 Proof.
   intros; unfold has_ext, own.own.
   apply exp_left; intro.
@@ -841,35 +836,35 @@ Proof.
     apply YES_not_identity in Hval1; contradiction.
 Qed.
 
-Definition main_pre_dry {Z} (m : mem) (prog : Clight.program) (ora : Z)
-  (ts : list Type) (gv : globals) (z : Z) :=
+Definition main_pre_dry {GA : ghost.Ghost} (m : mem) (prog : Clight.program) (ora : ghost.G)
+  (ts : list Type) (gv : globals) (z : ghost.G) :=
   Genv.globals_initialized (Genv.globalenv prog) (Genv.globalenv prog) m /\ z = ora.
 
-Definition main_post_dry {Z} (m0 m : mem) (prog : Clight.program) (ora : Z)
-  (ts : list Type) (gv : globals) (z : Z) := True. (* the desired postcondition might vary by program *)
+Definition main_post_dry {GA : ghost.Ghost} (m0 m : mem) (prog : Clight.program) (ora : ghost.G)
+  (ts : list Type) (gv : globals) (z : ghost.G) := True. (* the desired postcondition might vary by program *)
 
 (* simulate funspec2pre/post *)
 
-Definition main_pre_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type & unit})
-  (ge_s: extspec.injective_PTree block) (tys : list typ) args (z : Z) (m : juicy_mem) :=
+Definition main_pre_juicy {GA : ghost.Ghost} prog (ora : ghost.G) ts gv (x' : rmap * {ts : list Type & unit})
+  (ge_s: extspec.injective_PTree block) (tys : list typ) args (z : ghost.G) (m : juicy_mem) :=
     Val.has_type_list args [] /\
 (*    (exists phi0 phi1 : rmap,
        join phi0 phi1 (m_phi m) /\*)
-       (app_pred (main_pre prog ora ts gv
+       (app_pred (SeparationLogic.main_pre prog ora ts gv
           (seplog.make_args [] [] (empty_environ (semax_ext.symb2genv ge_s))))
          (m_phi m) (*phi0 /\
-       necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
+       necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref GA z, NoneP)]).
 
-Definition main_post_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type & unit})
-  (ge_s: extspec.injective_PTree block) (tret : option typ) ret (z : Z) (m : juicy_mem) :=
+Definition main_post_juicy {GA : ghost.Ghost} prog (ora : ghost.G) ts gv (x' : rmap * {ts : list Type & unit})
+  (ge_s: extspec.injective_PTree block) (tret : option typ) ret (z : ghost.G) (m : juicy_mem) :=
   (*exists phi0 phi1 : rmap,
        join phi0 phi1 (m_phi m) /\*)
        (app_pred (main_post prog ts gv
           (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) ret))
          (m_phi m)(*phi0 /\
-       necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
+       necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref GA z, NoneP)]).
 
-Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
+Lemma main_dry : forall {GA : ghost.Ghost} prog (ora : ghost.G) ts gv,
   (forall t b tl vl x jm,
   Genv.init_mem (program_of_program prog) = Some (m_dry jm) ->
   main_pre_juicy prog ora ts gv t b tl vl x jm ->
@@ -878,7 +873,7 @@ Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
     (exists tl vl x0, main_pre_juicy prog ora ts gv t b tl vl x0 jm0) ->
     (level jm <= level jm0)%nat ->
     resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) ->
-    ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
+    ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost GA x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
     (main_post_dry (m_dry jm0) (m_dry jm) prog ora ts gv x ->
      main_post_juicy prog ora ts gv t b ot v x jm)).
 Proof.
@@ -897,7 +892,7 @@ Proof.
     rewrite H2.
     eexists; constructor; constructor.
     instantiate (1 := (_, _)); constructor; simpl; [|constructor; auto].
-    apply ext_ref_join.
+    apply semax_prog.ext_ref_join.
 Qed.
 
 Definition bytes_to_memvals li := concat (map (fun i => encode_val Mint8unsigned (Vubyte i)) li).

@@ -33,7 +33,7 @@ Section ext_trace.
   Variable OS_valid : OS_state -> Prop.
   Notation ge := (globalenv prog).
 
-  Instance Espec : OracleKind := Build_OracleKind (itree event unit) J.
+  Instance Espec : OracleKind := Build_OracleKind (discrete_PCM (itree event unit)) J.
 
   (* For any trace that the new itree (z) allows, that trace prefixed with the
      OS-generated trace (t) is allowed by the old itree (z0). *)

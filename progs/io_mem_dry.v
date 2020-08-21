@@ -70,7 +70,7 @@ Proof.
   - intros; exact True.
 Defined.
 
-Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> ext_spec_type io_dry_spec ef.
+Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> OK_ty -> ext_spec_type io_dry_spec ef.
 Proof.
   simpl; intros.
   destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|assumption]].
@@ -160,7 +160,7 @@ Proof.
       destruct H4 as (Hmem & ? & ?); subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost (discrete_PCM _) k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       destruct buf; try solve [destruct Hbuf as [[]]; contradiction].
       assert (res_predicates.noghost phir) as Hg.
       { eapply data_at__VALspec_range; eauto.
@@ -187,7 +187,7 @@ Proof.
       * rewrite H3; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
         constructor; simpl; [|constructor; auto].
-        apply ext_ref_join.
+        apply semax_prog.ext_ref_join.
     + clear H.
       unfold funspec2pre, funspec2post, dessicate; simpl.
       if_tac; [|contradiction].
@@ -204,7 +204,7 @@ Proof.
       destruct H4 as (? & msg & ? & ? & Hpost); subst.
       destruct buf; try contradiction.
       destruct Hpost as (m' & Hstore & Heq).
-      exists (set_ghost (age_to.age_to (level jm) (inflate_store m' phi0)) [Some (ext_ghost (k msg), NoneP)] eq_refl),
+      exists (set_ghost (age_to.age_to (level jm) (inflate_store m' phi0)) [Some (ext_ghost (discrete_PCM _) (k msg), NoneP)] eq_refl),
         (age_to.age_to (level jm) phi1').
       destruct (join_level _ _ _ J).
       assert (Ptrofs.unsigned i + Zlength msg <= Ptrofs.max_unsigned) as Hbound.
@@ -247,7 +247,7 @@ Proof.
            unshelve eexists (set_ghost (age_to.age_to _ phig) _ _), (age_to.age_to _ (inflate_store m' phir));
              try (split3; [apply set_ghost_join; [apply age_to.age_to_join_eq|] | ..]).
            ++ reflexivity.
-           ++ eapply inflate_store_join1, has_ext_noat; eauto.
+           ++ apply has_ext_noat in Htrace; eapply inflate_store_join1; eauto.
            ++ unfold inflate_store; rewrite level_make_rmap; omega.
            ++ apply age_to.age_to_pred; simpl.
               unfold inflate_store; rewrite ghost_of_make_rmap.
@@ -265,7 +265,7 @@ Proof.
         -- rewrite H3; eexists; constructor; constructor.
             instantiate (1 := (_, _)).
             constructor; simpl; [|constructor; auto].
-            apply ext_ref_join.
+            apply semax_prog.ext_ref_join.
 Qed.
 
 Instance mem_evolve_refl : Reflexive mem_evolve.

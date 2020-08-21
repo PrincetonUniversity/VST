@@ -25,8 +25,9 @@ Definition write f (c : byte) : itree E unit := embed (EWrite f c).
 Definition IO_itree := itree E unit.
 
 (* We need a layer of inclusion to allow us to use the monad laws. *)
+(* This only works if the IO_itree is the entire external state; if other effects are present, for now you'll need to roll your own. *)
 Definition ITREE (tr : IO_itree) := EX tr' : _, !!(sutt eq tr tr') &&
-  has_ext tr'.
+  has_ext(GA := ghost_PCM.discrete_PCM _) tr'.
 
 
 (* this should be in ITrees *)
@@ -41,7 +42,7 @@ Proof.
   apply eqit_bind; [intros []|]; reflexivity.
 Qed.
 
-Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
+Lemma has_ext_ITREE : forall tr, has_ext(GA := ghost_PCM.discrete_PCM _) tr |-- ITREE tr.
 Proof.
   intro; unfold ITREE.
   Exists tr; entailer!.
