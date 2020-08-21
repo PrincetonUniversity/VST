@@ -50,9 +50,20 @@ Definition make_atomic_ptr_spec :=
     SEP ()
   POST [ tptr atomic_ptr ]
    EX p : val,
-    PROP ()
+    PROP (is_pointer_or_null p)
     LOCAL (temp ret_temp p)
     SEP (atomic_ptr_at Ews v p).
+    
+Definition free_atomic_ptr_spec :=
+  WITH p : val
+  PRE [ 1%positive OF  tptr atomic_ptr ]
+    PROP (is_pointer_or_null p)
+    LOCAL (temp 1%positive p)
+    SEP (EX v : val, atomic_ptr_at Ews v p)
+  POST[ tvoid ]
+    PROP ()
+    LOCAL ()
+    SEP ().
 
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
