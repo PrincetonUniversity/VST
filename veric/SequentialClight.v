@@ -62,6 +62,13 @@ Definition ext_spec_mem_evolve (Z: Type)
     ext_spec_post D ef w b ot v z' m' ->
     mem_evolve m m'.
 
+Lemma both_join : forall {GA : ghost.Ghost} (g : @ghost.G (ghost_PCM.pos_PCM GA)) x,
+  join(Join := @ghost.Join_G (ghost_PCM.ref_PCM GA)) (g, None) (None, Some x) (g, Some x).
+Proof.
+  repeat constructor; simpl.
+  destruct g as [(?, ?)|]; constructor.
+Qed.
+
 Definition juicy_dry_ext_spec (GA : ghost.Ghost)
    (J: external_specification juicy_mem external_function ghost.G)
    (D: external_specification mem external_function ghost.G)
@@ -70,16 +77,23 @@ Definition juicy_dry_ext_spec (GA : ghost.Ghost)
     dessicate e jm t x = t' ->
     (ext_spec_pre J e t b tl vl x jm ->
     ext_spec_pre D e t' b tl vl x (m_dry jm))) /\
- (forall ef t t' b ot v x jm0 jm,
+ (forall ef t t' b ot v x jm0 m,
     (exists tl vl x0, dessicate ef jm0 t x0 = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
+    ext_spec_post D ef t' b ot v x m ->
+    exists (g : @ghost.G (ghost_PCM.pos_PCM GA)) (Hvalid : @ghost.valid (ghost_PCM.ref_PCM GA) (g, Some x)), forall jm,
+    m_dry jm = m ->
     (level jm <= level jm0)%nat ->
     resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) ->
-    ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost GA x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
-    (ext_spec_post D ef t' b ot v x (m_dry jm) ->
-     ext_spec_post J ef t b ot v x jm)) /\
+    ghost_of (m_phi jm) = Some (existT _ (ghost_PCM.ref_PCM GA) (exist (@ghost.valid (ghost_PCM.ref_PCM GA)) (g, None) (ghost.join_valid _ _ _ (both_join _ _) Hvalid)), compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
+     ext_spec_post J ef t b ot v x jm) /\
  (forall v x jm,
      ext_spec_exit J v x jm <->
      ext_spec_exit D v x (m_dry jm)).
+
+Lemma ext_ghost_eq : forall {GA : ghost.Ghost} g Hv, existT _ (ghost_PCM.ref_PCM GA) (exist (@ghost.valid (ghost_PCM.ref_PCM GA)) (Some (Tsh, g), None) Hv) = ghost_PCM.ext_ghost GA g.
+Proof.
+  intros; unfold ghost_PCM.ext_ghost; repeat f_equal; apply proof_irr.
+Qed.
 
 Definition juicy_dry_ext_spec_make (Z: Type) 
    (J: external_specification juicy_mem external_function Z) :
@@ -116,7 +130,10 @@ eapply H. symmetry; eassumption.  auto.
 -
 destruct H2 as (? & ? & ? & ? & ?).
 subst t'.
-eapply H0; auto.
+exists None; unshelve eexists.
+{ simpl; split; auto.
+  eexists (Some (_, _)); hnf; eauto. }
+auto.
 -
 eapply H1. symmetry; eassumption. auto.
 Qed.
@@ -468,15 +485,16 @@ Proof.
      eassumption.
      apply JDE1. reflexivity. assumption.
      simpl. intros.
+     edestruct JDE2 as (g & Hvalid & JDE2'); eauto.
      assert (H20: exists jm', m_dry jm' = m' 
                       /\ (level jm' = n')%nat
                       /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')
                       /\ resource_at (m_phi jm') = resource_fmap (approx (level jm')) (approx (level jm')) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm (m_dry jm')
-                      /\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost OK_alg z', compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi jm)))). {
+                      /\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (existT _ (ghost_PCM.ref_PCM OK_alg) (exist _ (g, None) (ghost.join_valid _ _ _ (both_join g z') Hvalid)), compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi jm)))). {
      destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm m') 
             as [phi [? [? ?]]].
-     assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost OK_alg z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
-        Some (ghost_PCM.ext_ghost OK_alg z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.
+     assert (own.ghost_approx phi (Some (existT _ (ghost_PCM.ref_PCM OK_alg) (exist _ (g, None) (ghost.join_valid _ _ _ (both_join g z') Hvalid)), NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
+        Some (existT _ (ghost_PCM.ref_PCM OK_alg) (exist _ (g, None) (ghost.join_valid _ _ _ (both_join g z') Hvalid)), NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.
      { simpl; f_equal.
         rewrite <- compcert_rmaps.RML.ghost_of_approx at 2.
         destruct (compcert_rmaps.RML.R.ghost_of phi); auto. }
@@ -510,14 +528,15 @@ Proof.
      rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.
      destruct (m_phi jm @ loc); auto.
      if_tac; simpl; auto. destruct k; simpl; auto. if_tac; simpl; eauto. simpl; eauto.
-     subst jm' phi'. simpl m_phi.
+     subst jm' phi'. simpl m_phi. simpl level.
      rewrite age_to_resource_at.age_to_ghost_of.
      subst phi1.
      split.
      extensionality; unfold compose; simpl.
-     rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by omega.
+     rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to.
      unfold initial_world.set_ghost; rewrite resource_at_make_rmap.
      rewrite H8; auto.
+     { unfold initial_world.set_ghost; rewrite level_make_rmap; omega. }
      unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl.
      rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; omega); simpl; auto.
    }
@@ -526,18 +545,20 @@ Proof.
    spec H2. omega.
     spec H2. hnf; split3; auto. omega.
   spec H2.
-  eapply JDE2; eauto 6. omega. subst m'. apply H6.
+  eapply JDE2'; eauto 6. omega. subst m'.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref OK_alg z', compcert_rmaps.RML.R.NoneP) :: nil)).
   spec H2b. apply join_sub_refl.
   spec H2b.
   { rewrite Hg'.
-    eexists (Some (ghost_PCM.ext_both OK_alg z', compcert_rmaps.RML.R.NoneP) :: _);
-      repeat constructor.  }
+    eexists; do 2 constructor.
+    instantiate (1 := (existT _ (ghost_PCM.ref_PCM OK_alg) (exist _ _ Hvalid), _)); do 2 constructor; simpl; eauto.
+    destruct g; repeat constructor; simpl; auto.
+    destruct p; auto. }
   destruct H2b as [jm'' [? [? ?]]].
   destruct H7 as [? [? ?]].
-  subst m'. rewrite <- H7.
+  rewrite <- H7.
   specialize (IHn  z' jm'' c').
   subst n'. rewrite <- H9.
   change (level (m_phi jm'')) with (level  jm'') in IHn.

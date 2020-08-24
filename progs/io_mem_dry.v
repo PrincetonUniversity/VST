@@ -155,22 +155,27 @@ Proof.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as ([Hwritable _] & _ & phig & phir & J1 & (? & ? & Htrace) & Hbuf).
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
+      exists (Some (Tsh, x)); unshelve eexists.
+      { split; [apply Share.nontrivial|].
+        exists None; reflexivity. }
+      intros ? Hmem ? Hr Hg.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & ?); subst.
-      rewrite <- Hmem in *.
-      rewrite rebuild_same in H2.
+      destruct H1 as (? & ? & ?); subst.
+      rewrite Hmem in *.
+      rewrite rebuild_same in Hr.
+      rewrite (ext_ghost_eq(GA := discrete_PCM IO_itree) k) in Hg.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost (discrete_PCM _) k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       destruct buf; try solve [destruct Hbuf as [[]]; contradiction].
-      assert (res_predicates.noghost phir) as Hg.
+      assert (res_predicates.noghost phir) as Hg'.
       { eapply data_at__VALspec_range; eauto.
         apply data_at_data_at_ in Hbuf; eauto. }
       destruct (join_level _ _ _ J).
       split; [|split3].
-      * apply ghost_of_join, join_comm, Hg in J1.
+      * apply ghost_of_join, join_comm, Hg' in J1.
         rewrite J1 in Hgx.
         eapply age_rejoin; eauto.
-        intro; rewrite H2; auto.
+        intro; rewrite Hr; auto.
       * split3; simpl.
         { split; auto. }
         { split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate. }
@@ -184,7 +189,7 @@ Proof.
              eapply age_to.age_to_pred, change_has_ext; eauto.
         -- apply age_to.age_to_pred; auto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
-      * rewrite H3; eexists; constructor; constructor.
+      * rewrite Hg; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
         constructor; simpl; [|constructor; auto].
         apply semax_prog.ext_ref_join.
@@ -199,9 +204,14 @@ Proof.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as ([Hwritable _] & _ & phig & phir & J1 & (? & ? & Htrace) & Hbuf).
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
+      exists (Some (Tsh, x)); unshelve eexists.
+      { split; [apply Share.nontrivial|].
+        exists None; reflexivity. }
+      intros ? Hmem ? Hr Hg.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (? & msg & ? & ? & Hpost); subst.
+      rewrite (ext_ghost_eq(GA := discrete_PCM IO_itree) x) in Hg.
+      destruct H1 as (? & msg & ? & ? & Hpost); subst.
       destruct buf; try contradiction.
       destruct Hpost as (m' & Hstore & Heq).
       exists (set_ghost (age_to.age_to (level jm) (inflate_store m' phi0)) [Some (ext_ghost (discrete_PCM _) (k msg), NoneP)] eq_refl),
@@ -224,15 +234,15 @@ Proof.
            eapply rebuild_store; eauto.
            intros (b', o') ???? Hr1 []; subst.
            apply (resource_at_join _ _ _ (b', o')) in J; rewrite Hr1 in J.
-           apply VALspec_range_e with (loc := (b', o')) in Hbuf as [? Hr].
-           apply (resource_at_join _ _ _ (b', o')) in J1; rewrite Hr in J1.
-           inv J1; rewrite <- H14 in J; inv J; eapply join_writable_readable; eauto;
+           apply VALspec_range_e with (loc := (b', o')) in Hbuf as [? Hr'].
+           apply (resource_at_join _ _ _ (b', o')) in J1; rewrite Hr' in J1.
+           inv J1; rewrite <- H12 in J; inv J; eapply join_writable_readable; eauto;
              apply join_comm in RJ; eapply join_writable1; eauto.
            { rewrite bytes_to_memvals_length in *; split; auto. }
         -- unfold set_ghost; rewrite ghost_of_make_rmap, !age_to_resource_at.age_to_ghost_of.
-           rewrite H3.
-           destruct Hbuf as [_ Hg].
-           apply ghost_of_join, join_comm, Hg in J1; rewrite J1 in Hgx.
+           rewrite Hg.
+           destruct Hbuf as [_ Hg'].
+           apply ghost_of_join, join_comm, Hg' in J1; rewrite J1 in Hgx.
            apply ghost_of_join in J; rewrite Hgx in J.
            eapply change_ext in J; eauto.
            apply ghost_fmap_join with (f := approx (level jm))(g := approx (level jm)) in J.
@@ -262,7 +272,7 @@ Proof.
                 rewrite Int.unsigned_repr; rep_omega. }
               { rewrite map_map; eauto. }
         -- eapply necR_trans; eauto; apply age_to.age_to_necR.
-        -- rewrite H3; eexists; constructor; constructor.
+        -- rewrite Hg; eexists; constructor; constructor.
             instantiate (1 := (_, _)).
             constructor; simpl; [|constructor; auto].
             apply semax_prog.ext_ref_join.

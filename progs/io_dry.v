@@ -114,15 +114,20 @@ Proof.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as (_ & _ & ? & ? & Htrace).
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
+      exists (Some (Tsh, x)); unshelve eexists.
+      { split; [apply Share.nontrivial|].
+        exists None; reflexivity. }
+      intros ? Hmem ? Hr Hg.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
-      rewrite <- Hmem in *.
-      rewrite rebuild_same in H2.
+      destruct H1 as (? & ? & Hw); simpl in Hw; subst.
+      rewrite Hmem in *.
+      rewrite rebuild_same in Hr.
+      rewrite (ext_ghost_eq(GA := discrete_PCM IO_itree) x) in Hg.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost (discrete_PCM _) x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       split; [|split3].
       * eapply age_rejoin; eauto.
-        intro; rewrite H2; auto.
+        intro; rewrite Hr; auto.
       * exists i.
         split3; simpl.
         -- split; auto.
@@ -133,7 +138,7 @@ Proof.
            { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
            eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
-      * rewrite H3; eexists; constructor; constructor.
+      * rewrite Hg; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
         constructor; simpl; [|constructor; auto].
         apply semax_prog.ext_ref_join.
@@ -148,15 +153,20 @@ Proof.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as (_ & _ & ? & ? & Htrace).
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
+      exists (Some (Tsh, x)); unshelve eexists.
+      { split; [apply Share.nontrivial|].
+        exists None; reflexivity. }
+      intros ? Hmem ? Hr Hg.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
-      rewrite <- Hmem in *.
-      rewrite rebuild_same in H2.
+      destruct H1 as (? & ? & Hw); simpl in Hw; subst.
+      rewrite Hmem in *.
+      rewrite rebuild_same in Hr.
+      rewrite (ext_ghost_eq(GA := discrete_PCM IO_itree) x) in Hg.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost (discrete_PCM _) x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       split; [|split3].
       * eapply age_rejoin; eauto.
-        intro; rewrite H2; auto.
+        intro; rewrite Hr; auto.
       * exists i.
         split3; simpl.
         -- split; auto.
@@ -167,7 +177,7 @@ Proof.
              { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
-      * rewrite H3; eexists; constructor; constructor.
+      * rewrite Hg; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
         constructor; simpl; [|constructor; auto].
         apply semax_prog.ext_ref_join.
