@@ -270,6 +270,14 @@ Qed.
 
 Definition has_ext_part {GA : Ghost} sh (ora : G) : mpred.mpred := @own (ref_PCM GA) 0 (Some (sh, ora), None) NoneP.
 
+Lemma has_ext_part_join {GA : Ghost} : forall sh1 sh2 sh (ora1 ora2 ora : G), sh1 <> Share.bot -> sh2 <> Share.bot -> join sh1 sh2 sh -> join ora1 ora2 ora ->
+  has_ext_part sh1 ora1 * has_ext_part sh2 ora2 = has_ext_part sh ora.
+Proof.
+  intros; unfold has_ext_part.
+  erewrite <- ghost_op; [reflexivity|].
+  constructor; simpl; [tauto | constructor].
+Qed.
+
 Definition has_ext {GA : Ghost} (ora : G) : mpred.mpred := has_ext_part Tsh ora.
 
 Definition jm_bupd {GA : Ghost} (ora : G) P m := forall C : ghost,
