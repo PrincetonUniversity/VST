@@ -103,6 +103,18 @@ Proof.
     + unfold ext_ghost; simpl; repeat f_equal; apply proof_irr.
 Qed.
 
+Lemma has_ext_spec : forall {GA : ghost.Ghost} phi phi' (z1 z2 : ghost.G) (Hext : app_pred (has_ext z1) phi)
+  (Hj : join_sub phi phi') (Hrest : joins (ghost_of phi') [Some (ext_ref GA z2, NoneP)]),
+  z1 = z2 /\ ghost_of phi = [Some (ext_ghost GA z2, NoneP)] /\ forall l, res_predicates.noat l phi.
+Proof.
+  intros.
+  pose proof (has_ext_eq _ _ Hext).
+  destruct Hj; eapply has_ext_join in Hrest as []; eauto.
+  2: rewrite H; simpl; reflexivity.
+  subst; split; auto; split; auto.
+  destruct Hext as (? & ? & ?); auto.
+Qed.
+
 Lemma change_ext : forall {GA : ghost.Ghost} (a a' z : ghost.G) (b c : ghost),
   join [Some (ext_ghost GA a, NoneP)] b c ->
   joins c [Some (ext_ref GA z, NoneP)] ->
