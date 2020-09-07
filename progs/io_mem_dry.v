@@ -268,7 +268,7 @@ Proof.
               rewrite <- (Zlength_map _ _ Vubyte).
               eapply store_bytes_data_at; rewrite ?Zlength_map; auto.
               { rewrite Forall_map, Forall_forall; simpl; intros.
-                exists (Int.repr (Byte.unsigned x)); split; auto.
+                right; exists (Int.repr (Byte.unsigned x)); split; auto.
                 rewrite Int.unsigned_repr; rep_omega. }
               { rewrite map_map; eauto. }
         -- eapply necR_trans; eauto; apply age_to.age_to_necR.

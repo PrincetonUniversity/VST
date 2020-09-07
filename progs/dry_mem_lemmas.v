@@ -754,7 +754,7 @@ Proof.
 Qed.
 
 Lemma store_bytes_data_at : forall {CS : compspecs} phi m0 m sh lv b o
-  (Hsh : readable_share sh) (Hvals : Forall (fun v => exists i, v = Vint i /\ Int.unsigned i <= Byte.max_unsigned) lv)
+  (Hsh : readable_share sh) (Hvals : Forall (fun v => v = Vundef \/ exists i, v = Vint i /\ Int.unsigned i <= Byte.max_unsigned) lv)
   (Hdata : app_pred (res_predicates.VALspec_range (Zlength lv) sh (b, Ptrofs.unsigned o)) phi)
   (Hstore : Mem.storebytes m0 b (Ptrofs.unsigned o) (concat (map (encode_val Mint8unsigned) lv)) = Some m)
   (Hbounds : Ptrofs.unsigned o + Zlength lv <= Ptrofs.max_unsigned),
@@ -799,53 +799,74 @@ Proof.
     rewrite Z.sub_0_r.
     unfold mapsto; simpl.
     rewrite if_true by auto.
-    left.
-    apply Forall_Znth with (i := lo) in Hvals as (i & Hi & ?); try omega.
-    split.
-    { setoid_rewrite Hi; auto. }
-    unfold res_predicates.address_mapsto.
-    exists [Byte (Byte.repr (Int.unsigned i))].
-    destruct Hval1 as [Hval1 Hg].
-    split; [|simpl; unfold inflate_store; rewrite ghost_of_make_rmap; auto].
-    split.
-    { split; auto.
-      setoid_rewrite Hi.
-      split; [|apply Z.divide_1_l].
-      unfold decode_val; simpl.
-      unfold decode_int; simpl.
-      rewrite rev_if_be_singleton; simpl.
-      rewrite Byte.unsigned_repr by rep_omega.
-      rewrite Z.add_0_r, Int.repr_unsigned.
-      rewrite zero_ext_inrange; auto. }
-    intro l; simpl.
-    unfold inflate_store; rewrite resource_at_make_rmap.
-    specialize (Hval1 l); simpl in Hval1.
-    unfold Ptrofs.add.
-    replace (Ptrofs.unsigned (Ptrofs.repr (1 * lo))) with lo
-      by (rewrite Ptrofs.unsigned_repr; rep_omega).
-    rewrite Ptrofs.unsigned_repr by rep_omega.
-    if_tac.
-    + destruct Hval1 as (mv & rsh & ->); exists rsh.
-      destruct l as (b', o'); destruct H1; subst.
-      assert (o' = Ptrofs.unsigned o + lo) by omega; subst; simpl.
-      rewrite Zminus_diag; simpl; f_equal; f_equal.
-      Transparent Mem.storebytes.
-      unfold Mem.storebytes in Hstore.
-      Opaque Mem.storebytes.
-      if_tac in Hstore; inv Hstore; unfold contents_at; simpl.
-      rewrite PMap.gss.
-      replace lv with (sublist 0 lo lv ++ Znth lo lv :: sublist (lo + 1) (Zlength lv) lv).
-      rewrite map_app, concat_app; simpl.
-      rewrite Mem.setN_concat.
-      rewrite Hi; simpl.
-      unfold encode_int; simpl.
-      rewrite rev_if_be_singleton; simpl.
-      rewrite encode_vals_length, <- Zlength_correct.
-      rewrite Zlength_sublist, Mem.setN_outside by omega.
-      rewrite Z.sub_0_r, ZMap.gss; auto.
-      { rewrite <- sublist_next, sublist_rejoin, sublist_same by omega; auto. }
-  + destruct (phi1 @ l); auto.
-    apply YES_not_identity in Hval1; contradiction.
+    apply Forall_Znth with (i := lo) in Hvals as [Hi | (i & Hi & ?)]; try omega.
+    + right; split; auto.
+      unfold res_predicates.address_mapsto.
+      destruct Hval1 as [Hval1 Hg].
+      exists (decode_val Mint8unsigned [contents_at m (b, Ptrofs.unsigned o + lo)]), [contents_at m (b, Ptrofs.unsigned o + lo)]; split;
+        [|simpl; unfold inflate_store; rewrite ghost_of_make_rmap; auto].
+      split; simpl.
+      { repeat (split; auto); apply Z.divide_1_l. }
+      intro l; simpl.
+      unfold inflate_store; rewrite resource_at_make_rmap.
+      specialize (Hval1 l); simpl in Hval1.
+      unfold Ptrofs.add.
+      replace (Ptrofs.unsigned (Ptrofs.repr (1 * lo))) with lo
+        by (rewrite Ptrofs.unsigned_repr; rep_omega).
+      rewrite Ptrofs.unsigned_repr by rep_omega.
+      if_tac.
+      * destruct Hval1 as (mv & rsh & ->); exists rsh.
+        destruct l as (b', o'); destruct H0; subst.
+        assert (o' = Ptrofs.unsigned o + lo) by omega; subst; simpl.
+        rewrite Zminus_diag; auto.
+    * destruct (phi1 @ l); auto.
+      apply YES_not_identity in Hval1; contradiction.
+    + left.
+      split.
+      { setoid_rewrite Hi; auto. }
+      unfold res_predicates.address_mapsto.
+      exists [Byte (Byte.repr (Int.unsigned i))].
+      destruct Hval1 as [Hval1 Hg].
+      split; [|simpl; unfold inflate_store; rewrite ghost_of_make_rmap; auto].
+      split.
+      { split; auto.
+        setoid_rewrite Hi.
+        split; [|apply Z.divide_1_l].
+        unfold decode_val; simpl.
+        unfold decode_int; simpl.
+        rewrite rev_if_be_singleton; simpl.
+        rewrite Byte.unsigned_repr by rep_omega.
+        rewrite Z.add_0_r, Int.repr_unsigned.
+        rewrite zero_ext_inrange; auto. }
+      intro l; simpl.
+      unfold inflate_store; rewrite resource_at_make_rmap.
+      specialize (Hval1 l); simpl in Hval1.
+      unfold Ptrofs.add.
+      replace (Ptrofs.unsigned (Ptrofs.repr (1 * lo))) with lo
+        by (rewrite Ptrofs.unsigned_repr; rep_omega).
+      rewrite Ptrofs.unsigned_repr by rep_omega.
+      if_tac.
+      * destruct Hval1 as (mv & rsh & ->); exists rsh.
+        destruct l as (b', o'); destruct H1; subst.
+        assert (o' = Ptrofs.unsigned o + lo) by omega; subst; simpl.
+        rewrite Zminus_diag; simpl; f_equal; f_equal.
+        Transparent Mem.storebytes.
+        unfold Mem.storebytes in Hstore.
+        Opaque Mem.storebytes.
+        if_tac in Hstore; inv Hstore; unfold contents_at; simpl.
+        rewrite PMap.gss.
+        replace lv with (sublist 0 lo lv ++ Znth lo lv :: sublist (lo + 1) (Zlength lv) lv).
+        rewrite map_app, concat_app; simpl.
+        rewrite Mem.setN_concat.
+        rewrite Hi; simpl.
+        unfold encode_int; simpl.
+        rewrite rev_if_be_singleton; simpl.
+        rewrite encode_vals_length, <- Zlength_correct.
+        rewrite Zlength_sublist, Mem.setN_outside by omega.
+        rewrite Z.sub_0_r, ZMap.gss; auto.
+        { rewrite <- sublist_next, sublist_rejoin, sublist_same by omega; auto. }
+    * destruct (phi1 @ l); auto.
+      apply YES_not_identity in Hval1; contradiction.
 Qed.
 
 Definition main_pre_dry {GA : ghost.Ghost} (m : mem) (prog : Clight.program) (ora : ghost.G)
