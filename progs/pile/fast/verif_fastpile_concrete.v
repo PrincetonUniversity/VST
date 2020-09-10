@@ -30,20 +30,20 @@ forward_if (temp _t'1 (if zle 0 n then if zle n (Int.max_signed-s') then Vtrue e
 -
 forward.
 entailer!.
-destruct (zle 0 n); [ | omega].
+destruct (zle 0 n); [ | lia].
 destruct (zle _ _).
 unfold Int.lt. rewrite zlt_false.
 reflexivity.
-normalize. rep_omega.
+normalize. rep_lia.
 unfold Int.lt. rewrite zlt_true.
 reflexivity.
 normalize.
-rep_omega.
+rep_lia.
 -
 forward.
 entailer!.
 -
-destruct (zle 0 n); try omega.
+destruct (zle 0 n); try lia.
 forward_if (PROP()LOCAL (temp _pp p)
    SEP(countrep (n+s) p; mem_mgr gv)).
 +
@@ -94,7 +94,7 @@ if_tac.
 { subst.
   forward_if False.
   - forward_call 1. contradiction.
-  - inv H2. }
+  - congruence. }
 forward_if True.
 + contradiction.
 + forward. entailer!.

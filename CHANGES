@@ -1,8 +1,24 @@
-Changes from 1.9 to current master branch
-=========================================
+Previous broad announcement, release 2.3 (January 4, 2019).
 
-- The C statement in the "semax" goal is now pretty-printed
-- Upon function entry, better variable names are chosen by default.
-  Instead of LOCAL(gvar _a gvar0; lvar _b lvar0; lvar _c lvar1)
-  you'll get LOCAL(gvar _a v_a; lvar _b v_b; lvar _c v_c).
-  Therefore it should no longer be necessary to use the "name" tactic.
+Changes in release 2.4 (April 23, 2019):
+
+Support for proving connections to first-order external APIs
+ see: Connecting Higher-Order Separation Logic to a First-Order Outside World, by William Mansky, Wolf Honoré, and Andrew W. Appel, ESOP 2020: European Symposium on Programming, April 2020.
+
+Improved error messages in forward and forward_call.
+Improved proof automation for sequences and arrays (improved "list_solve" tactic).
+Improved hints in "hint" tactic.
+Minor improvements in "cancel" tactic.
+Entailer no longer does "simpl", better preserving the form of user's conjuncts.
+Updates for compatibility with latest Coq release.
+Improved sep_apply, new tactics ecancel, EExists.
+Funspec subsumption, see Abstraction and Subsumption in Modular Verification of C Programs, by Lennart Beringer and Andrew W. Appel. FM2019: 23rd International Symposium on Formal Methods, October 2019.
+Respecification of i/o API using (I-Tree) monads.
+Demonstration of i/o system calls with memory-buffer arguments.
+Improved gather_SEP tactic notation using pattern arguments.
+64-bit configurations of C now as robust as 32-bit configurations.
+Update VST to CompCert 3.5.
+
+Changes in release 2.5 (January 8, 2020):
+
+

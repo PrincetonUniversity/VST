@@ -35,7 +35,7 @@ revert p; induction sigma;
 Intros y. entailer!.
 split.
 split; intro. subst p. destruct H0; contradiction. discriminate.
-constructor; auto. omega.
+constructor; auto. lia.
 Qed.
 
 Hint Resolve listrep_local_facts : saturate_local.
@@ -88,20 +88,20 @@ Definition surely_malloc_spec :=
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       (LAMBDAx [gv] [Vint (Int.repr (sizeof t))]
-       (SEP (mem_mgr gv)))
+       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS(gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 Definition Pile_new_spec :=
  DECLARE _Pile_new
  WITH gv: globals
- PRE [ ] PROP() (LAMBDAx [gv] [] (SEP(mem_mgr gv)))
+ PRE [ ] PROP() PARAMS() GLOBALS(gv) SEP(mem_mgr gv)
  POST[ tptr tpile ]
    EX p: val,
-      PROP() LOCAL(temp ret_temp p)
+      PROP() RETURN(p)
       SEP(pilerep nil p; pile_freeable p; mem_mgr gv).
 
 Definition Pile_add_spec :=
@@ -109,10 +109,10 @@ Definition Pile_add_spec :=
  WITH p: val, n: Z, sigma: list Z, gv: globals
  PRE [ tptr tpile, tint  ]
     PROP(0 <= n <= Int.max_signed)
-    (LAMBDAx [gv] [p; Vint (Int.repr n)]
-    (SEP(pilerep sigma p; mem_mgr gv)))
+    PARAMS (p; Vint (Int.repr n)) GLOBALS(gv)
+    (SEP(pilerep sigma p; mem_mgr gv))
  POST[ tvoid ]
-    PROP() LOCAL()
+    PROP() RETURN()
     SEP(pilerep (n::sigma) p; mem_mgr gv).
 
 Definition sumlist : list Z -> Z := List.fold_right Z.add 0.
@@ -122,11 +122,11 @@ Definition Pile_count_spec :=
  WITH p: val, sigma: list Z
  PRE [ tptr tpile  ]
     PROP(0 <= sumlist sigma <= Int.max_signed)
-    (LAMBDAx [] [p]
-    (SEP (pilerep sigma p)))
+    PARAMS (p)
+    SEP (pilerep sigma p)
  POST[ tint ]
       PROP() 
-      LOCAL(temp ret_temp (Vint (Int.repr (sumlist sigma))))
+      RETURN (Vint (Int.repr (sumlist sigma)))
       SEP(pilerep sigma p).
 
 Definition Pile_free_spec :=
@@ -134,17 +134,18 @@ Definition Pile_free_spec :=
  WITH p: val, sigma: list Z, gv: globals
  PRE [ tptr tpile  ]
     PROP()
-    (LAMBDAx [gv] [p]
-    (SEP(pilerep sigma p; pile_freeable p; mem_mgr gv)))
+    PARAMS(p) GLOBALS(gv)
+    (SEP(pilerep sigma p; pile_freeable p; mem_mgr gv))
  POST[ tvoid ]
-     PROP() LOCAL() SEP(mem_mgr gv).
+     PROP() RETURN() SEP(mem_mgr gv).
 
 Definition ispecs := [surely_malloc_spec].
 Definition specs := [Pile_new_spec; Pile_add_spec; Pile_count_spec; Pile_free_spec].
 
+(*
 (*Clients -- apile.v and onepile.v -- also need these lemmas:*)
 Lemma pile_new_aux gx x ret:
-(EX p : val, PROP ( )  LOCAL (temp ret_temp p)  SEP (pilerep [] p; pile_freeable p; mem_mgr x))%assert (make_ext_rval gx ret)
+(EX p : val, PROP ( )  RETURN (p)  SEP (pilerep [] p; pile_freeable p; mem_mgr x))%assert (make_ext_rval gx ret)
   |-- !! is_pointer_or_null (force_val ret).
 Proof.
  rewrite exp_unfold. Intros p.
@@ -165,3 +166,4 @@ Proof.
  destruct H; unfold_lift in H. rewrite retval_ext_rval in *.
  rewrite <- H. renormalize. 
 Qed.
+*)
