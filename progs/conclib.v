@@ -2948,11 +2948,11 @@ Proof.
   - destruct lP2; [apply Zlength_nil_inv in H; discriminate|].
     rewrite !Zlength_cons in H.
     simpl fold_right; apply eqp_sepcon.
-    + apply allp_left with 0.
+    + apply predicates_hered.allp_left with 0.
       rewrite !Znth_0_cons; auto.
-    + eapply derives_trans, IHlP1; [|lia].
-      apply allp_right; intro i.
-      apply allp_left with (i + 1).
+    + eapply predicates_hered.derives_trans, IHlP1; [|lia].
+      apply predicates_hered.allp_right; intro i.
+      apply predicates_hered.allp_left with (i + 1).
       destruct (zlt i 0).
       { rewrite !(Znth_underflow _ _ l); apply eqp_refl. }
       rewrite !Znth_pos_cons, Z.add_simpl_r by lia; auto.

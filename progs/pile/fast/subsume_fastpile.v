@@ -14,7 +14,7 @@ intros tau ? ?.
 unfold spec_fastpile_concrete.countrep, spec_fastpile.pilerep.
 unfold spec_fastpile_concrete.count_freeable, spec_fastpile.pile_freeable.
 Intros s'. Exists (eval_id ret_temp tau) 0.
-entailer!. rewrite H3 by omega.
+entailer!. rewrite H3 by lia.
 apply derives_refl.
 Qed.
 
@@ -27,12 +27,12 @@ Exists (p,n, spec_fastpile.sumlist sigma,gv) emp. normalize.
 simpl in *. subst. entailer!.
 - unfold spec_fastpile.pilerep, spec_fastpile_concrete.countrep.
   intros. Intros s. Exists s. entailer!.
-  apply H6. simpl in H9. omega.
+  apply H6. simpl in H9. lia.
 - clear - H2. unfold spec_fastpile.pilerep, spec_fastpile_concrete.countrep.
   Intros s; Exists s. entailer!.
   assert (0 <= spec_fastpile.sumlist sigma). {
-    clear - H2; induction sigma; simpl. omega.
-    inv H2. specialize (IHsigma H3). omega.
+    clear - H2; induction sigma; simpl. lia.
+    inv H2. specialize (IHsigma H3). lia.
   }
   split; auto.
 Qed.
@@ -61,8 +61,8 @@ unfold spec_fastpile_concrete.count_freeable, spec_fastpile.pile_freeable.
 Intros s; Exists s. entailer!.
 + simpl in H2.
   assert (0 <= spec_fastpile.sumlist sigma). {
-    clear - H0; induction sigma; simpl. omega.
-    inv H0. specialize (IHsigma H3). omega.
+    clear - H0; induction sigma; simpl. lia.
+    inv H0. specialize (IHsigma H3). lia.
   }
   split; auto.
 + apply derives_refl.

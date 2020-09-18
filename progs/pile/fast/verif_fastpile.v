@@ -24,8 +24,8 @@ Lemma sumlist_nonneg: forall sigma,
   Forall (Z.le 0) sigma -> 0 <= sumlist sigma.
 Proof.
 intros.
-induction sigma; simpl. omega. inv H.
-apply IHsigma in H3; omega.
+induction sigma; simpl. lia. inv H.
+apply IHsigma in H3; lia.
 Qed.
 
 Lemma body_Pile_add: semax_body Vprog Gprog f_Pile_add Pile_add_spec.
@@ -37,18 +37,18 @@ forward.
 forward_if (temp _t'1 (if zle 0 n then if zle n (Int.max_signed-s) then Vtrue else Vfalse else Vfalse)).
 forward.
 entailer!.
-destruct (zle 0 n); [ | omega].
+destruct (zle 0 n); [ | lia].
 destruct (zle _ _).
 unfold Int.lt. rewrite zlt_false.
 reflexivity.
-normalize. rep_omega.
+normalize. rep_lia.
 unfold Int.lt. rewrite zlt_true.
 reflexivity.
 normalize.
-rep_omega.
+rep_lia.
 forward.
 entailer!.
-destruct (zle 0 n); try omega. clear l.
+destruct (zle 0 n); try lia. clear l.
 destruct (zle n (Int.max_signed - s)).
 -
 forward_if (PROP()LOCAL (temp _pp p)
@@ -62,11 +62,11 @@ unfold pilerep.
 Exists (s+n).
 entailer!.
 split.
-constructor; auto. omega.
+constructor; auto. lia.
 simpl. intros.
 rewrite H2.
-omega.
-apply sumlist_nonneg in H1; omega.
+lia.
+apply sumlist_nonneg in H1; lia.
 -
 forward_if (PROP()LOCAL (temp _pp p)
    SEP(data_at Ews tpile (Vint (Int.repr s)) p;
@@ -80,9 +80,9 @@ Exists s.
 entailer!.
 split.
 constructor; auto.
-omega.
+lia.
 simpl.
-apply sumlist_nonneg in H1; omega.
+apply sumlist_nonneg in H1; lia.
 Qed.
 
 Lemma body_Pile_count: semax_body Vprog Gprog f_Pile_count Pile_count_spec.
@@ -119,7 +119,7 @@ if_tac.
 { subst.
   forward_if False.
   - forward_call 1. contradiction.
-  - inv H2. }
+  - congruence. }
 forward_if True.
 + contradiction.
 + forward. entailer!.

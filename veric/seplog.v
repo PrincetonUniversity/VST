@@ -1067,6 +1067,15 @@ do 14 eexists. reflexivity. f_equal.
   apply proof_irr. apply proof_irr.
 Qed.
 
+Lemma binary_intersection'_sub  {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} (phi psi:funspec) Hphi Hpsi:
+  funspec_sub (@binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi) phi /\
+  funspec_sub (@binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi) psi.
+Proof. apply binaryintersection_sub. apply binary_intersection'_sound. Qed.
+
+Lemma binary_intersection'_sub3 {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} phi psi Hphi Hpsi:
+  forall xi, funspec_sub xi phi -> funspec_sub xi psi -> 
+  funspec_sub xi (@binary_intersection' f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne phi psi Hphi Hpsi).
+Proof. intros. eapply BINARY_intersection_sub3. apply binary_intersection'_sound. apply H. apply H0. Qed.
 
 (*-------------------Bifunctor version, general case ------------*)
 
@@ -1276,3 +1285,218 @@ Proof. apply box_derives. intros m [M1 M2].
   exists gs; split; trivial. clear GS2 H b v.
   apply funspec_sub_si_trans with (f2:=phi). split; trivial.
 Qed.
+
+Lemma eqp_refl : forall (G : Triv) P, G |-- (P <=> P).
+Proof.
+  intros; rewrite andp_dup; apply subp_refl.
+Qed.
+
+Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : (G |-- P <=> P')) (HQ : (G |-- Q <=> Q')), G |-- (P && Q <=> P' && Q').
+Proof.
+  intros. red; intros. specialize (HP _ H). specialize (HQ _ H).
+  split; simpl; intros ? ? [X Y]; split.
+  - eapply (HP y); trivial. 
+  - eapply (HQ y); trivial.
+  - eapply (HP y); trivial.
+  - eapply (HQ y); trivial.
+Qed.
+Lemma eqp_sepcon : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : (G |-- P <=> P')) (HQ : (G |-- Q <=> Q')), (G |-- P * Q <=> P' * Q').
+Proof.
+  intros. red; intros. specialize (HP _ H). specialize (HQ _ H).
+  split; simpl; intros ? ? [a1 [a2 [Ja [A1 A2]]]].
+  - destruct (nec_join4 _ _ _ _ Ja H1) as [b1 [b2 [Jb [B1 B2]]]].
+    apply join_level in Jb; destruct Jb.
+    destruct (HP b1) as [P1 _]. lia. destruct (HQ b2) as [Q1 _]. lia.
+    exists a1, a2; split3; [ | apply P1 | apply Q1]; trivial.
+  - destruct (nec_join4 _ _ _ _ Ja H1) as [b1 [b2 [Jb [B1 B2]]]].
+    apply join_level in Jb; destruct Jb.
+    destruct (HP b1) as [_ P2]. lia. destruct (HQ b2) as [_ Q2 ]. lia.
+    exists a1, a2; split3; [ | apply P2 | apply Q2]; trivial.
+Qed. 
+
+
+Lemma fash_func_ptr_ND:
+ forall fsig cc (A: Type) 
+             (Pre Pre': A -> argsEnviron -> mpred) (Post Post': A -> environ -> mpred) v,
+   ALL a:A,
+         (ALL rho:argsEnviron, fash (Pre' a rho --> Pre a rho)) &&
+         (ALL rho:environ, fash (Post a rho --> Post' a rho))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc A Pre' Post') v).
+Proof.
+intros.
+unfold func_ptr_si.
+apply subp_exp; intro b.
+apply subp_andp.
+apply subp_refl.
+intros ? ? ? ? ? ? [gs [? ?]].
+exists gs. split; auto.
+eapply funspec_sub_si_trans.
+split.
+eassumption.
+clear gs H2 H3.
+split.
+split; auto.
+intros ? ? ? ? ? ? ? ? ? [? ?].
+exists nil, b1, emp.
+rewrite emp_sepcon.
+split.
+destruct (H b1).
+apply (H7 b2 a'1); auto.
+apply Nat.le_trans with (level y); auto.
+apply necR_level in H4.
+apply Nat.le_trans with (level y0); auto.
+apply Nat.le_trans with (level a'0); auto.
+apply Nat.le_trans with (level a'); auto.
+apply necR_level; apply laterR_necR; auto.
+apply necR_level; auto.
+intros ? ? ? ? ? [? ?].
+rewrite emp_sepcon in H10.
+destruct (H b1).
+apply (H12 b3 a'2); auto.
+apply Nat.le_trans with (level y); auto.
+apply necR_level in H8.
+apply Nat.le_trans with (level y1); auto.
+apply Nat.le_trans with (level a'1); auto.
+apply Nat.le_trans with (level y0); auto.
+apply necR_level; auto.
+apply Nat.le_trans with (level a'0); auto.
+apply Nat.le_trans with (level a'); auto.
+apply necR_level; apply laterR_necR; auto.
+apply necR_level; auto.
+Qed.
+
+
+(*
+Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : (G |-- P <=> P')%logic) (HQ : (G |-- Q <=> Q')%logic), G |-- (P && Q <=> P' && Q')%logic.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_andp; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_exp : forall (A : Type) (NA : NatDed A) (IA : Indir A) (RecIndir : RecIndir A)
+    (G : Triv) (B : Type) (X Y : B -> A),
+  (forall x : B, (G |-- X x <=> Y x)%logic) ->
+  G |-- ((EX x : _, X x) <=> (EX x : _, Y x))%logic.
+Proof.
+  intros.
+  rewrite fash_andp; apply andp_right; apply subp_exp; intro x; specialize (H x); rewrite fash_andp in H;
+    intros ? Ha; destruct (H _ Ha); auto.
+Qed.*)(*Print funspec.
+
+Definition MkPred {T A} (B: T -> mpred): forall ts : list Type, dependent_type_functor_rec ts (ArgsTT A) mpred.
+Proof. simpl; intros. Check dependent_type_functor_rec. unfold dependent_type_functor_rec in X. simpl.
+
+Lemma funcptr_contr {T : Type} (B1 B2 : T -> mpred) (x : T ) (v : val) sig cc A
+                    (pre : forall ts : list Type, dependent_type_functor_rec ts A mpred -> argsEnviron -> (T -> mpred) -> mpred)
+                    (post: (T -> mpred) -> forall ts : list Type, dependent_type_functor_rec ts (AssertTT A) mpred)
+                     P1ne Q1ne P2ne Q2ne :
+predicates_hered.box predicates_hered.laterM (B1 x <=> B2 x)
+|-- func_ptr_si (mk_funspec sig cc A (fun ts x q a => pre ts x q B1) (post (fun rho : T => |> B1 rho))P1ne Q1ne) v <=> 
+    func_ptr_si (mk_funspec sig cc A (fun ts x q a => pre ts x q B2) (post (fun rho : T => |> B2 rho)) P2ne Q2ne) v. 
+Proof. unfold func_ptr_si. red. intros a Ha m AM. split; intros k MK [b [Hb [gs [B GS]]]].
++ exists b. split; trivial. exists gs; split; [ eapply funspec_sub_si_trans | trivial].
+  split. apply B. clear GS B gs Hb v b.
+  split. split; trivial.
+  intros q kq ts2 xs2 gargs r RR p2 rp2 [Args Hp2]. simpl in Ha.
+  exists ts2, xs2, emp; split.
+  - rewrite emp_sepcon.
+    assert ((fun rho : T => |> B1 rho) =(fun rho : T => |> B2 rho) ).
+    { extensionality t.  simpl in pre.
+Lemma funcptr_contr {T : Type} (B1 B2 : T -> mpred) (x : T ) (v : val) sig cc A
+                    (pre : (T -> mpred) -> forall ts : list Type, dependent_type_functor_rec ts (ArgsTT A) mpred)
+                    (post: (T -> mpred) -> forall ts : list Type, dependent_type_functor_rec ts (AssertTT A) mpred)
+                     P1ne Q1ne P2ne Q2ne :
+predicates_hered.box predicates_hered.laterM (B1 x <=> B2 x)
+|-- func_ptr_si (mk_funspec sig cc A (pre (fun rho : T => |> B1 rho)) (post (fun rho : T => |> B1 rho)) P1ne Q1ne) v <=> 
+    func_ptr_si (mk_funspec sig cc A (pre (fun rho : T => |> B2 rho)) (post (fun rho : T => |> B2 rho)) P2ne Q2ne) v. 
+Proof. unfold func_ptr_si. red. intros a Ha m AM. split; intros k MK [b [Hb [gs [B GS]]]].
++ exists b. split; trivial. exists gs; split; [ eapply funspec_sub_si_trans | trivial].
+  split. apply B. clear GS B gs Hb v b.
+  split. split; trivial.
+  intros q kq ts2 xs2 gargs r RR p2 rp2 [Args Hp2]. simpl in Ha.
+  exists ts2, xs2, emp; split.
+  - rewrite emp_sepcon.
+    assert ((fun rho : T => |> B1 rho) =(fun rho : T => |> B2 rho) ).
+    { extensionality t. admit.
+    rewrite H. trivial.
+
+
+Lemma funcptr_contr {T : Type} (B1 B2 : T -> mpred) (x : T ) (v : val) (f : (T -> mpred) -> funspec)
+      (HsigCC: forall x y, typesig_of_funspec (f x) = typesig_of_funspec (f y)
+                        /\ callingconvention_of_funspec (f x) = callingconvention_of_funspec (f y)):
+predicates_hered.box predicates_hered.laterM (B1 x <=> B2 x)
+|-- func_ptr_si (f (fun rho : T => |> B1 rho)) v <=> func_ptr_si (f (fun rho : T => |> B2 rho)) v. 
+Proof. unfold func_ptr_si. red. intros a Ha m AM. split; intros k MK [b [Hb [gs [B GS]]]].
++ exists b. split; trivial. exists gs; split; [ eapply funspec_sub_si_trans | trivial].
+  split. apply B. clear GS B gs Hb v b.
+  destruct (HsigCC B1 B2). destruct (HsigCC B1 (fun t => |> B1 t) ). destruct (HsigCC B2 (fun t => |> B2 t) ).
+  clear HsigCC. rewrite H in *; rewrite H0 in *. clear H H0.
+  rewrite H1 in *; rewrite H2 in *. clear H1 H2.
+  remember (f (fun rho : T => |> B1 rho)) as phi1. 
+  remember (f (fun rho : T => |> B2 rho)) as phi2.
+  destruct phi1 as [sig1 cc1 A1 P1 Q1 P1ne Q1ne].
+  destruct phi2 as [sig2 cc2 A2 P2 Q2 P2ne Q2ne]. simpl in *. subst. split. split; trivial.
+  intros q kq ts2 xs2 gargs r RR p2 rp2 [Args Hp2]
+  destruct H2. unfold funspec_sub_si. red. intros x. simpl. simpl in B. Hm. red. apply eqp_exp.
+(f :T -> funspec):
+predicates_hered.box predicates_hered.laterM (B1 x <=> B2 x)
+|-- func_ptr_si (f (fun t => |> B1)) v <=> func_ptr_si (f (|> B2)) v.
+
+ 0
+Lemma funcptr_contr {T : Type} (B1 B2 : T * val -> mpred)
+      (f : (T * val -> mpred) -> funspec)
+      (HsigCC: forall x y, typesig_of_funspec (f x) = typesig_of_funspec (f y)
+                        /\ callingconvention_of_funspec (f x) = callingconvention_of_funspec (f y))
+      (v : val):
+predicates_hered.allp (fun x : T * val => |> B1 x <=> |> B2 x) |-- func_ptr (f B1) v <=> func_ptr (f B2) v.
+Proof.
+unfold func_ptr. apply subp_eqp; apply subp_exp; intros b.
++ apply subp_andp.
+  - red; intros. red. intros u AU w UW; trivial.
+  - intros n N u NU w UW [gs [Sub FuncAt]]. exists gs. split; trivial.
+    simpl; simpl in Sub. clear FuncAt.
+    eapply funspec_sub_trans. apply Sub. clear Sub gs. simpl in N.
+    remember (f B1) as phi1; remember (f B2) as phi2.
+    specialize (HsigCC B1 B2). rewrite <- Heqphi1, <- Heqphi2 in HsigCC.
+    destruct phi1 as [t1 c1 A1 P1 Q1 P1ne Q1ne].
+    destruct phi2 as [t2 c2 A2 P2 Q2 P2ne Q2ne]. simpl. simpl in HsigCC; destruct HsigCC.
+    subst t2 c2. split; [ split; trivial | intros].
+    intros m [M1 M2]. 
+Search func_ptr_si.
+Check (HORec_sub). 
+    destruct gargs as [ge args]; simpl in *.
+    destruct t as [argtypes rt]; simpl in *.
+Search HOcontractive. Print argsEnviron.
+Check (HORec_sub). (predicates_hered.allp (fun x : T * val => |> B1 x <=> |> B2 x)) (T * val)).
+(fun x f z => func_ptr 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Print funspec_sub. do_funspec_sub. Search  red in Sub simpl in Sub. destruct Sub. intros r. eapply eqp_prop. andp_subp. eapply prop_andp_subp. normalize.
+eapply (allp_left v).*)

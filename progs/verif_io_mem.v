@@ -187,6 +187,9 @@ Proof.
       split; [split|]; try lia.
       apply Z.div_pos; lia. }
     rewrite modu_repr by (lia || computable).
+    assert (repable_signed (Zlength (intr (i / 10)))).
+    { split; try rep_lia.
+      rewrite intr_lt; try lia. }
     forward.
     { entailer!.
       split; try rep_lia.

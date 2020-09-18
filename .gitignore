@@ -14,6 +14,7 @@
 *~
 # Executables and configuration
 CONFIGURE
+VST.config
 compcert/ccomp
 compcert/ccomp.byte
 compcert/ccomp.prof

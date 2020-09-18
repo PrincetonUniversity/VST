@@ -20,8 +20,8 @@ Lemma triangular_number:
 Proof.
 intros.
 assert (2* sumlist (decreasing (Z.to_nat n)) = n * (n + 1))%Z.
-2: rewrite <- H0, Z.mul_comm, Z.div_mul by omega; auto.
-rewrite <- (Z2Nat.id n) at 2 3 by omega.
+2: rewrite <- H0, Z.mul_comm, Z.div_mul by lia; auto.
+rewrite <- (Z2Nat.id n) at 2 3 by lia.
 clear H.
 induction (Z.to_nat n).
 reflexivity.
@@ -37,7 +37,7 @@ forget (Z.of_nat n0) as n.
 unfold Z.succ.
 rewrite !Z.mul_add_distr_l.
 rewrite !Z.mul_add_distr_r.
-omega.
+lia.
 Qed.
 
 Lemma sumlist_decreasing_bound:
@@ -45,15 +45,14 @@ Lemma sumlist_decreasing_bound:
   0 <= sumlist (decreasing (Z.to_nat n)) <= Int.max_signed.
 Proof.
 intros.
-rewrite triangular_number by omega.
+rewrite triangular_number by lia.
 split.
-apply Z.div_pos; try omega.
-apply Z.mul_nonneg_nonneg; omega.
-apply Z.div_le_upper_bound; try omega.
+apply Z.div_pos; try lia.
+apply Z.div_le_upper_bound; try lia.
 eapply Z.le_trans.
-apply Z.mul_le_mono_nonneg; try omega.
-instantiate (1:=1001); omega.
-instantiate (1:=1001); omega.
+apply Z.mul_le_mono_nonneg; try lia.
+instantiate (1:=1001); lia.
+instantiate (1:=1001); lia.
 computable.
 Qed.
 
@@ -69,14 +68,14 @@ forward_for_simple_bound n
 -
  entailer!.
 - forward_call (p, i+1, decreasing(Z.to_nat i), gv).
-rep_omega.
+rep_lia.
 entailer!.
 assert (Z.to_nat (i+1) = S (Z.to_nat i))
-  by (rewrite <- Z2Nat.inj_succ by omega; f_equal).
+  by (rewrite <- Z2Nat.inj_succ by lia; f_equal).
 rewrite H2.
 unfold decreasing; fold decreasing.
 rewrite inj_S.
-rewrite Z2Nat.id by omega.
+rewrite Z2Nat.id by lia.
 apply derives_refl.
 -
 forward_call (p, decreasing (Z.to_nat n)).

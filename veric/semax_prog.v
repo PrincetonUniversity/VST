@@ -313,7 +313,7 @@ Definition semax_prog {C: compspecs}
        (prog: program) (ora: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
 compute_list_norepet (prog_defs_names prog) = true  /\
 all_initializers_aligned prog /\
-cenv_cs = prog_comp_env prog /\
+PTree.elements cenv_cs = PTree.elements (prog_comp_env prog) /\
 (*  @semax_func V G C (prog_funct prog) G /\*)
 @semax_func V G C (Genv.globalenv prog) (prog_funct prog) G /\
 match_globvars (prog_vars prog) V = true /\
@@ -1516,6 +1516,25 @@ destruct H2 as [id [? ?]].
 exists id. split; auto.
 Qed.
  
+
+
+Lemma believe_cs_ext:
+ forall CS Espec Delta ge1 ge2 Delta' n,
+  @genv_genv ge1 = @genv_genv ge2 ->
+  PTree.elements (@genv_cenv ge1) = PTree.elements (@genv_cenv ge2) ->
+  @believe CS Espec Delta ge1 Delta' n ->
+  @believe CS Espec Delta ge2 Delta' n.
+Proof.
+intros. 
+intros b fsig0 cc A P Q; specialize (H1 b fsig0 cc A P Q).
+intros n1 H2 H3. specialize (H1 n1 H2).
+destruct ge1 as [ge ce1]; destruct ge2 as [ge2 ce2]; simpl in H; subst ge2.
+simpl in H0.
+specialize (H1 H3).
+clear H3 H2.
+apply H1.
+Qed.
+
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A 
    (P: forall ts : list Type, (dependent_type_functor_rec ts (ArgsTT A)) mpred)
    (Q: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A)) mpred)
@@ -1549,13 +1568,23 @@ rewrite <-find_id_maketycontext_s in id_in_G.
 generalize SP; intros [_ [_ [CSEQ _]]].
 destruct ((fun x => x) SP) as (_ & _ & _ & (MatchFdecs & (Gcontains & Believe)) & _).
 specialize (Believe (globalenv prog)).
+spec Believe; [ intros; apply sub_option_refl |].
+spec Believe; [ intros; apply sub_option_refl |]. 
+specialize (Believe 0%nat).
+apply believe_cs_ext with (ge2 := 
+  {| genv_genv := genv_genv (globalenv prog);
+     genv_cenv := prog_comp_env prog |}) in Believe; auto.
+replace  {|
+               genv_genv := genv_genv (globalenv prog);
+               genv_cenv := prog_comp_env prog |}
+ with (globalenv prog) in Believe
+  by (unfold globalenv; f_equal; auto).
+(*
 replace {| genv_genv := globalenv prog; genv_cenv := cenv_cs |}
   with (globalenv prog) in *
  by (unfold globalenv; simpl; symmetry; f_equal; assumption). 
-spec Believe; [ intros; apply sub_option_refl |].
-spec Believe; [ intros; apply sub_option_refl |]. 
+*)
 unfold nofunc_tycontext in *.
-specialize (Believe 0%nat).
 destruct (believe_exists_fundef Findb Believe id_in_G) as [f [Eb Ef]].
 clear Believe.
 exists (Clight_core.Callstate f args Kstop).
@@ -1580,10 +1609,15 @@ spec H3. intros; apply sub_option_refl.
 (*set (rho := make_args (map fst params) args
                    (empty_environ psi)) in *.*)
 specialize (H3 (S (level jm))).
-replace {|
-          genv_genv := genv_genv psi;
-          genv_cenv := @cenv_cs CS |} with psi in *
-  by (subst psi; unfold globalenv; simpl; f_equal; auto).
+apply believe_cs_ext with (ge2 := 
+  {| genv_genv := genv_genv (globalenv prog);
+     genv_cenv := prog_comp_env prog |}) in H3; auto.
+ fold psi in H3.
+replace  {|
+               genv_genv := genv_genv psi;
+               genv_cenv := prog_comp_env prog |}
+ with psi in *
+  by (subst psi; unfold globalenv; f_equal; auto).
 rename H3 into Prog_OK. assert (H3 := I).
 
 rename z into ora.
@@ -1615,8 +1649,14 @@ forget cc_default as cc.
 change (prog_comp_env prog) with (genv_cenv psi) in *.
 
 
-assert (HGG: cenv_sub (@cenv_cs CS) (globalenv prog))
-  by (rewrite CSEQ; apply cenv_sub_refl).
+assert (HGG: cenv_sub (@cenv_cs CS) (globalenv prog)).
+ { clear - CSEQ. forget (@cenv_cs CS) as cs1.
+   subst psi. forget (genv_cenv (globalenv prog)) as cs2. 
+   hnf; intros; hnf.
+   destruct (cs1 ! i) eqn:?H; auto.
+   apply PTree.elements_correct in H.
+   apply PTree.elements_complete. congruence.
+ }
 
 (***  cut here ****)
 
