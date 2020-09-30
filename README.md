@@ -35,7 +35,7 @@ for a tutorial with exercises.
 
 [Program Logics for Certified Compilers](https://www.cs.princeton.edu/~appel/papers/plcc.pdf), by Andrew W. Appel et al.,
 Cambridge University Press, 2014.
-Available in [hardcover](http://www.barnesandnoble.com/w/program-logics-for-certified-compilers-andrew-w-appel/1117300694).
+Available in [hardcover](https://www.barnesandnoble.com/w/program-logics-for-certified-compilers-andrew-w-appel/1126363773).
 
 
 
