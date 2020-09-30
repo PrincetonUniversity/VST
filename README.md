@@ -33,9 +33,9 @@ For an introduction to how to use Verifiable C,
 or consult [Software Foundations Volume 5: Verifiable C](https://softwarefoundations.cis.upenn.edu/vc-current/index.html)
 for a tutorial with exercises.
 
-Program Logics for Certified Compilers, by Andrew W. Appel et al.,
+[Program Logics for Certified Compilers](https://www.cs.princeton.edu/~appel/papers/plcc.pdf), by Andrew W. Appel et al.,
 Cambridge University Press, 2014.
-Available in [hardcover](http://www.barnesandnoble.com/w/program-logics-for-certified-compilers-andrew-w-appel/1117300694) or [e-book PDF](http://www.ebooks.com/1642304/program-logics-for-certified-compilers/appel-andrew-w-dockins-robert-hobor-aquinas-bering/).
+Available in [hardcover](http://www.barnesandnoble.com/w/program-logics-for-certified-compilers-andrew-w-appel/1117300694).
 
 
 
