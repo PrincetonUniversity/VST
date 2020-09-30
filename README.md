@@ -1,4 +1,4 @@
-# Verified Software Toolchain
+![Verified Software Toolchain](chain.jpg)
 
 with contributions from
 
@@ -9,27 +9,30 @@ with contributions from
 [Aquinas Hobor](http://www.comp.nus.edu.sg/~hobor/),
 [Jean-Marie Madiot](https://madiot.fr/),
 [Gordon Stewart](http://www.cs.princeton.edu/~jsseven/),
-Qinxiang Cao, and others.
+[Qinxiang Cao](http://jhc.sjtu.edu.cn/people/members/faculty/qinxiang-cao.html),
+Qinshi Wang,
+and others.
 
 The [LICENSE](LICENSE) file has information about copyright, licensing, and permissions.
 
+## How to install:
+
+[See here for instructions](BUILD_ORGANIZATION.md#install-method-1-use-the-coq-platform).
+
 ## Documentation:
 
-[Our webpage](http://vst.cs.princeton.edu) describes the goals of the project
+[Our webpage](https://vst.cs.princeton.edu) describes the goals of the project
 and has links to many related publications.
 
 For an introduction to how to use Verifiable C,
-[read the manual](https://github.com/PrincetonUniversity/VST/raw/master/doc/VC.pdf),
-which has tutorial case studies.
+[read the manual](doc/VC.pdf),
+or consult [Software Foundations Volume 5: Verifiable C](https://softwarefoundations.cis.upenn.edu/vc-current/index.html)
+for a tutorial with exercises.
 
-Program Logics for Certified Compilers, by Andrew W. Appel et al.,
+[Program Logics for Certified Compilers](https://www.cs.princeton.edu/~appel/papers/plcc.pdf), by Andrew W. Appel et al.,
 Cambridge University Press, 2014.
-Available in [hardcover](http://www.barnesandnoble.com/w/program-logics-for-certified-compilers-andrew-w-appel/1117300694) or [e-book PDF](http://www.ebooks.com/1642304/program-logics-for-certified-compilers/appel-andrew-w-dockins-robert-hobor-aquinas-bering/).
+Available in [hardcover](https://www.barnesandnoble.com/w/program-logics-for-certified-compilers-andrew-w-appel/1126363773).
 
-## Build:
-
-See the file [BUILD_ORGANIZATION](BUILD_ORGANIZATION.md) for an explanation of how
-to build and install the VST.
 
 
 

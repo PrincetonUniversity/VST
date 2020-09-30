@@ -15,9 +15,20 @@ Otherwise please check:
 2. Make sure you have the right version of CompCert.
    VST 2.6 uses CompCert 3.7 for Coq 8.11 or Coq 8.12
 
-## Install Method 1: use opam
+## Install Method 1: use the Coq Platform
 
-If you install VST via opam, opam will automatically install a
+The recommended way to install any library for Coq (including VST) is via
+the [Coq Platform](https://github.com/coq/platform), which is a set of 
+scripts that will do an appropriate opam install for your operating 
+system (Linux, MacOS, Windows). Follow the instructions there
+(that is, in README.md under Usage) to download the Coq Platform scripts
+and then follow the OS-specific instructions. After you install via the
+Coq Platform, you can still use opam commands to adjust your configuration,
+add more packages, et cetera.
+
+## Install Method 2: use opam directly
+
+If you install VST via opam, opam will try to install a
 suitable version of CompCert, Flocq and other dependencies.
 ```
 opam install coq-vst
@@ -69,9 +80,12 @@ AND/OR
 opam install coq-compcert-64.3.7~coq-platform~open-source coq-vst-64
 ```
 
-## Install Method 2: manual make with opam / coq-platform supplied CompCert
+## Install Method 3: manual make with opam-supplied CompCert
 
-For a manual make please follow this procedure:
+Download the VST sources (by cloning the repo, or by unzipping
+a release .zip or .tar.gz file).
+
+Then follow this procedure:
 
 1. Make sure CompCert and Flocq Coq `.vo` files are installed in
    ```
@@ -80,6 +94,8 @@ For a manual make please follow this procedure:
    AND/OR
    <root>/lib/coq-variants/compcert64/compcert
    ```
+  This will happen automatically if you use the Coq Platform
+  (or opam directly) to install CompCert.
 
 2. Make sure CompCert clightgen is installed in
    ```
@@ -88,19 +104,23 @@ For a manual make please follow this procedure:
    <opam-root>/variants/compcert64/bin
    ```
 
-3. Execute this command:
+3. In the VST root source directory (the directory containing the file
+   you are reading), execute this command:
    ```
    make
    OR
    make BITSIZE=64
    ```  
    (or, if you have a multi-core computer,  `make -j 16`). You may add the
-   target `floyd` to just build VSTs core without examples and tests.
+   target `floyd` to just build VST's core without examples and tests.
 
 Please note that if you give options via the make command line, you should
 *not* have a file `CONFIGURE` in the VST root folder.
 
-## Install Method 3: advanced manual make, e.g. with bundled CompCert
+## Install Method 4: advanced manual make, e.g. with bundled CompCert
+
+Download the VST sources (by cloning the repo, or by unzipping
+a release .zip or .tar.gz file).
 
 All options described in this section can be given in 3 ways:
 - on the command line of make via `<option>=<value>`
