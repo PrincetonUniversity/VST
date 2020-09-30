@@ -1,4 +1,4 @@
-![Verified Software Toolchain](chain.png)
+![Verified Software Toolchain](chain.jpg)
 
 with contributions from
 
