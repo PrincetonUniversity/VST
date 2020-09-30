@@ -2,17 +2,12 @@ Previous broad announcement, release 2.3 (January 4, 2019).
 
 Changes in release 2.4 (April 23, 2019):
 
-Support for proving connections to first-order external APIs
- see: Connecting Higher-Order Separation Logic to a First-Order Outside World, by William Mansky, Wolf Honoré, and Andrew W. Appel, ESOP 2020: European Symposium on Programming, April 2020.
-
 Improved error messages in forward and forward_call.
-Improved proof automation for sequences and arrays (improved "list_solve" tactic).
 Improved hints in "hint" tactic.
 Minor improvements in "cancel" tactic.
 Entailer no longer does "simpl", better preserving the form of user's conjuncts.
 Updates for compatibility with latest Coq release.
 Improved sep_apply, new tactics ecancel, EExists.
-Funspec subsumption, see Abstraction and Subsumption in Modular Verification of C Programs, by Lennart Beringer and Andrew W. Appel. FM2019: 23rd International Symposium on Formal Methods, October 2019.
 Respecification of i/o API using (I-Tree) monads.
 Demonstration of i/o system calls with memory-buffer arguments.
 Improved gather_SEP tactic notation using pattern arguments.
@@ -20,5 +15,43 @@ Improved gather_SEP tactic notation using pattern arguments.
 Update VST to CompCert 3.5.
 
 Changes in release 2.5 (January 8, 2020):
+
+Support for proving connections to first-order external APIs
+ see: Connecting Higher-Order Separation Logic to a First-Order Outside World, by William Mansky, Wolf Honoré, and Andrew W. Appel, ESOP 2020: European Symposium on Programming, April 2020.
+
+Funspec subsumption, see Abstraction and Subsumption in Modular Verification of C Programs, by Lennart Beringer and Andrew W. Appel. FM2019: 23rd International Symposium on Formal Methods, October 2019.
+
+Improved proof automation for sequences and arrays (improved "list_solve" tactic).
+
+Put backtick notation in a Module for compatibility with other libraries that have their own notations.
+Fix issues #321 (forward_for_simple_bound), #324 (error message), #332 (error message), #377 (incomplete typechecking long-integer negation).
+Performance improvements in Floyd tactics.
+In defining Gprogs, "with_library" no longer needed in most cases.
+Soundness proof now based directly on CompCert Clight, instead of 2 layers via "Clight_new" semantics.
+Avoid Coq features deprecated in Coq 8.10.
+Experimental, nonfoundational support for printf and fprintf.
+
+Changes in release 2.6 (August ...)
+
+Improved and documented support for verifying floating-point:
+C-language floating-point proofs layered with VST and Flocq, by Andrew W. Appel and Yves Bertot, July 2020.
+
+Verified Software Units
+
+Coq Platform and Opam
+
+Adapted to Coq 8.11 and Coq 8.12; avoid most deprecated features.
+Adapted to CompCert 3.7.
+Improved support for funspec subsumption.
+New WITH notation for funspecs: instead of
+  WITH ... PRE[ ] PROP...LOCAL...SEP POST [] PROP...LOCAL...SEP
+it is now,
+  WITH ... PRE[ ] PROP...PARAMS...GLOBALS...SEP POST [] PROP...RETURNS...SEP
+Improved some error messages
+Improved the list_solve and Zlength_solve tactics.
+Fix issues #209 #270 (cancel tactic), #347 (typo in hint), #379 (sizeof, alignof), #232 #343 #407 (improve error messages), #363 (start_function efficency), #419 (forward_while), #420 (improve reference manual),
+Many other small improvements.
+Put "fash" notation in Module to avoid notation pollution.
+Reasoning about "store integer field of union, load float" and vice versa.
 
 
