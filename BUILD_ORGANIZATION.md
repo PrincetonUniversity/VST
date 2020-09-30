@@ -82,7 +82,10 @@ opam install coq-compcert-64.3.7~coq-platform~open-source coq-vst-64
 
 ## Install Method 3: manual make with opam-supplied CompCert
 
-For a manual make please follow this procedure:
+Download the VST sources (by cloning the repo, or by unzipping
+a release .zip or .tar.gz file).
+
+Then follow this procedure:
 
 1. Make sure CompCert and Flocq Coq `.vo` files are installed in
    ```
@@ -115,6 +118,9 @@ Please note that if you give options via the make command line, you should
 *not* have a file `CONFIGURE` in the VST root folder.
 
 ## Install Method 4: advanced manual make, e.g. with bundled CompCert
+
+Download the VST sources (by cloning the repo, or by unzipping
+a release .zip or .tar.gz file).
 
 All options described in this section can be given in 3 ways:
 - on the command line of make via `<option>=<value>`

@@ -17,11 +17,7 @@ The [LICENSE](LICENSE) file has information about copyright, licensing, and perm
 
 ## How to install:
 
-The current release is generally available on opam via the Coq Platform;
-[see here](https://vst.cs.princeton.edu/download) for instructions.
-
-To download (or clone) from github and install from sources, see 
-[BUILD_ORGANIZATION](BUILD_ORGANIZATION.md) instructions.
+[See here for instructions](BUILD_ORGANIZATION.md#install-method-1-use-the-coq-platform).
 
 ## Documentation:
 
