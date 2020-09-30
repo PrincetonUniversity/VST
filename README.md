@@ -9,16 +9,18 @@ with contributions from
 [Aquinas Hobor](http://www.comp.nus.edu.sg/~hobor/),
 [Jean-Marie Madiot](https://madiot.fr/),
 [Gordon Stewart](http://www.cs.princeton.edu/~jsseven/),
-[Qinxiang Cao](http://jhc.sjtu.edu.cn/people/members/faculty/qinxiang-cao.html), and others.
+[Qinxiang Cao](http://jhc.sjtu.edu.cn/people/members/faculty/qinxiang-cao.html),
+Qinshi Wang,
+and others.
 
 The [LICENSE](LICENSE) file has information about copyright, licensing, and permissions.
 
 ## How to install:
 
 The current release is generally available on opam via the Coq Platform;
-[see here](https://vst.cs.princeton.edu) for instructions.
+[see here](https://vst.cs.princeton.edu/download) for instructions.
 
-To download from github and install from sources, see 
+To download (or clone) from github and install from sources, see 
 [BUILD_ORGANIZATION](BUILD_ORGANIZATION.md) instructions.
 
 ## Documentation:
@@ -27,8 +29,9 @@ To download from github and install from sources, see
 and has links to many related publications.
 
 For an introduction to how to use Verifiable C,
-[read the manual](https://github.com/PrincetonUniversity/VST/raw/master/doc/VC.pdf),
-which has tutorial case studies.
+[read the manual](doc/VC.pdf),
+or consult [Software Foundations Volume 5: Verifiable C](https://softwarefoundations.cis.upenn.edu/vc-current/index.html)
+for a tutorial with exercises.
 
 Program Logics for Certified Compilers, by Andrew W. Appel et al.,
 Cambridge University Press, 2014.
