@@ -1462,7 +1462,6 @@ destruct loc as [b' z].
 destruct H9.
 subst b'.
 rewrite (nth_getN m' b _ _ _ H0).
-Search store decode_encode_val.
 rewrite (store_mem_contents _ _ _ _ _ _ STORE).
 rewrite PMap.gss.
 replace (Z.to_nat (size_chunk ch)) with (size_chunk_nat ch) by (destruct ch; simpl; auto).
