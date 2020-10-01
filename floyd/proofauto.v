@@ -352,17 +352,3 @@ simple eapply saturate_aux21y;
       end
 ].
 
-Ltac construct_fold_right_sepcon_rec ::=
-  match goal with
-  | |- construct_fold_right_sepcon_rec (sepcon _ _) _ _ =>
-         eapply construct_fold_right_sepcon_rec_sepcon;
-         [construct_fold_right_sepcon_rec | construct_fold_right_sepcon_rec]
-  | |- construct_fold_right_sepcon_rec ?A ?X ?Y =>
-         lazymatch A with emp => idtac | _ => 
-             time "make_emp" (change (construct_fold_right_sepcon_rec emp X Y))
-         end;
-         apply construct_fold_right_sepcon_rec_emp
-  | _ =>
-         apply construct_fold_right_sepcon_rec_single
-  end.
-
