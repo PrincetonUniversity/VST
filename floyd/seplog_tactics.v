@@ -826,7 +826,7 @@ Ltac construct_fold_right_sepcon_rec :=
          [construct_fold_right_sepcon_rec | construct_fold_right_sepcon_rec]
   | |- construct_fold_right_sepcon_rec ?A ?X ?Y =>
          lazymatch A with emp => idtac | _ => 
-             time "make_emp" (change (construct_fold_right_sepcon_rec emp X Y))
+             change (construct_fold_right_sepcon_rec emp X Y)
          end;
          apply construct_fold_right_sepcon_rec_emp
   | _ =>

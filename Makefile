@@ -218,7 +218,7 @@ endif
 # ##### Configure Flocq #####
 
 FLOCQ=         # this mode to use the flocq packaged with Coq or opam
-# FLOCQ=flocq  # this mode to use the flocq built into compcert
+# FLOCQ= -Q $(COMPCERT_INST_DIR)/flocq Flocq  # this mode to use the flocq built into compcert
 
 # ##### Configure installation folder #####
 
@@ -240,11 +240,11 @@ DIRS = $(VSTDIRS) $(OTHERDIRS)
 
 # ##### Compcert Flags #####
 
-COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend exportclight $(BACKEND) $(FLOCQ)
+COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend exportclight $(BACKEND)
 
 ifeq ($(COMPCERT_EXPLICIT_PATH),true)
   COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_DIR)/$(d) compcert.$(d))
-  EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d))
+  EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ)
 else
   COMPCERT_R_FLAGS=
   EXTFLAGS=
