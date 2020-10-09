@@ -1540,7 +1540,7 @@ unfold_pre_local_andp;
 repeat intro_ex_local_semax;
 try rewrite insert_local.
 
-Ltac do_compute_expr_warning :=
+Ltac do_compute_expr_warning := idtac. (*
  match goal with |- let _ := Some ?G1 in let _ := Some ?G2 in _ =>
  tryif constr_eq G1 G2 
  then idtac 
@@ -1548,7 +1548,7 @@ Ltac do_compute_expr_warning :=
  Before:" G1 "
 After:" G2 "
 You may (or may not) need to adjust your proof.  Disable this message by   do_compute_expr_warning::=idtac"
-end.
+end. *)
 
 Ltac diagnose_further_simplification :=
  let u := fresh "u" in let v := fresh "v" in
