@@ -224,7 +224,6 @@ Proof.
   - intros.
     apply prop_left; intro.
     eapply derives_trans; eauto.
-  - intros; rewrite prop_forall; auto.
   - intros; apply andp_left1, derives_refl.
   - intros; apply andp_left2, derives_refl.
   - intros; apply andp_right; auto.
@@ -291,70 +290,13 @@ Proof.
   - intros ??; contradiction.
 Qed.
 
-Program Definition internal_eq {A : ofeT} (a1 a2 : A) : mpred :=
-  fun w => a1 ≡{level w}≡ a2.
-Next Obligation.
+Lemma mpred_bi_later_mixin : BiLaterMixin
+  derives prop orp imp (@allp _ _) (@exp _ _) sepcon persistently seplog.later.
 Proof.
-  repeat intro.
-  apply age_level in H; rewrite H in H0.
-  apply dist_S; auto.
-Qed.
-
-Lemma mpred_sbi_mixin : SbiMixin
-  derives prop orp imp (@allp _ _) (@exp _ _) sepcon persistently (@internal_eq) seplog.later.
-Proof.
-  split.
-  - repeat intro; hnf.
-    rewrite !approx_later.
-    destruct n; simpl in *; hnf.
+  split.  
+  - repeat intro. hnf. rewrite !approx_later. destruct n.
     + rewrite !approx_0; auto.
-    + f_equal; auto.
-  - repeat intro.
-    apply predicates_hered.pred_ext; intros ? []; split; auto; simpl in *.
-    + transitivity x; [apply (dist_le n); auto; lia|].
-      transitivity x0; eauto.
-      apply (dist_le n); auto; lia.
-    + transitivity y; [apply (dist_le n); auto; lia|].
-      transitivity y0; eauto.
-      apply (dist_le n); auto; lia.
-  - intros; unseal_derives.
-    repeat intro; hnf.
-    reflexivity.
-  - intros.
-    unseal_derives.
-    match goal with |- predicates_hered.derives ?P (?A --> ?B)%logic =>
-      change (predicates_hered.derives P (predicates_hered.imp A B)) end.
-    repeat intro; simpl in *.
-    assert ((approx (S (level a')) (Ψ b)) a') as []; auto.
-    rewrite <- H; [split; eauto|].
-    eapply dist_le; eauto.
-    apply necR_level in H1; lia.
-  - intros.
-    unseal_derives; repeat intro.
-    specialize (H x); auto.
-  - intros.
-    unseal_derives; repeat intro.
-    apply H.
-  - intros.
-    unseal_derives; repeat intro; simpl in *.
-    rewrite discrete_iff; apply H0.
-  - intros.
-    unseal_derives.
-    match goal with |- predicates_hered.derives ?P (|> ?Q)%logic => change (predicates_hered.derives P (box laterM Q)) end.
-    repeat intro; simpl in *.
-    hnf in H; simpl in H.
-    apply laterR_level in H0.
-    destruct (level a); [lia|].
-    eapply dist_le; eauto; lia.
-  - intros.
-    unseal_derives.
-    match goal with |- predicates_hered.derives (|> ?P)%logic ?Q => change (predicates_hered.derives (box laterM P) Q) end.
-    repeat intro; simpl in *.
-    hnf.
-    destruct (level a) eqn: Ha; [auto | simpl].
-    symmetry in Ha; apply levelS_age in Ha as (a' & ? & ?); subst.
-    apply H.
-    constructor; auto.
+    + apply dist_S in H; f_equal; auto.
   - intros; apply later_derives; auto.
   - apply now_later.
   - intros. rewrite seplog.later_allp; auto.
@@ -390,10 +332,8 @@ Proof.
 Qed.
 
 Canonical Structure mpredI : bi :=
-  {| bi_ofe_mixin := mpred_ofe_mixin; bi_bi_mixin := mpred_bi_mixin |}.
-Canonical Structure mpredSI : sbi :=
-  {| sbi_ofe_mixin := mpred_ofe_mixin;
-     sbi_bi_mixin := mpred_bi_mixin; sbi_sbi_mixin := mpred_sbi_mixin |}.
+  {| bi_ofe_mixin := mpred_ofe_mixin; bi_bi_mixin := mpred_bi_mixin;
+     bi_bi_later_mixin := mpred_bi_later_mixin |}.
 
 Lemma mpred_bupd_mixin : BiBUpdMixin mpredI ghost_seplog.bupd.
 Proof.

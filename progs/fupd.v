@@ -92,14 +92,14 @@ Proof.
   destruct (type_is_volatile); try apply timeless_FF.
   destruct p; try apply timeless_FF.
   if_tac.
-  - apply (@bi.or_timeless mpredSI).
-    + apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply address_mapsto_timeless].
-    + apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI)|].
-      apply (@bi.exist_timeless mpredSI); intro; apply address_mapsto_timeless.
-  - apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply nonlock_permission_bytes_timeless].
+  - apply (@bi.or_timeless mpredI).
+    + apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply address_mapsto_timeless].
+    + apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI)|].
+      apply (@bi.exist_timeless mpredI); intro; apply address_mapsto_timeless.
+  - apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply nonlock_permission_bytes_timeless].
 Qed.
 
-Instance emp_timeless : (@Timeless mpredSI) emp.
+Instance emp_timeless : (@Timeless mpredI) emp.
 Proof.
   apply timeless'_timeless; intros ????.
   apply all_resource_at_identity.
@@ -124,7 +124,7 @@ Lemma memory_block_timeless : forall sh n p,
 Proof.
   intros.
   destruct p; try apply timeless_FF.
-  apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply memory_block'_timeless].
+  apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply memory_block'_timeless].
 Qed.
 
 Lemma struct_pred_timeless : forall {CS : compspecs} sh m f t off
@@ -141,16 +141,16 @@ Proof.
     destruct m.
     + unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply (@bi.sep_timeless mpredSI); auto.
+      apply (@bi.sep_timeless mpredI); auto.
       unfold spacer.
       if_tac.
       * apply emp_timeless.
       * unfold at_offset; apply memory_block_timeless.
     + rewrite struct_pred_cons2.
-      apply (@bi.sep_timeless mpredSI); auto.
+      apply (@bi.sep_timeless mpredI); auto.
       unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply (@bi.sep_timeless mpredSI); auto.
+      apply (@bi.sep_timeless mpredI); auto.
       unfold spacer.
       if_tac.
       * apply emp_timeless.
@@ -171,7 +171,7 @@ Proof.
     destruct m.
     + unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply (@bi.sep_timeless mpredSI); auto.
+      apply (@bi.sep_timeless mpredI); auto.
       unfold spacer.
       if_tac.
       * apply emp_timeless.
@@ -180,7 +180,7 @@ Proof.
       destruct v; auto.
       unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply (@bi.sep_timeless mpredSI); auto.
+      apply (@bi.sep_timeless mpredI); auto.
       unfold spacer.
       if_tac.
       * apply emp_timeless.
@@ -196,14 +196,14 @@ Proof.
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
-  - apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI)|].
+  - apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI)|].
     rewrite Z.sub_0_r.
     forget (Z.to_nat (Z.max 0 z)) as n.
     set (lo := 0) at 1.
     clearbody lo.
     revert lo; induction n; simpl; intros.
     + apply emp_timeless.
-    + apply (@bi.sep_timeless mpredSI), IHn.
+    + apply (@bi.sep_timeless mpredI), IHn.
       unfold at_offset; apply IH.
   - apply struct_pred_timeless; auto.
   - apply union_pred_timeless; auto.
@@ -211,7 +211,7 @@ Qed.
 
 Instance data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
 Proof.
-  intros; apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply data_at_rec_timeless].
+  intros; apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply data_at_rec_timeless].
 Qed.
 
 Section FancyUpdates.
@@ -221,7 +221,7 @@ Context {inv_names : invG}.
 Definition coPset_to_Ensemble (E : coPset) : Ensemble nat := fun x => elem_of (Pos.of_nat (S x)) E.
 
 Definition fupd E1 E2 P :=
-  (wsat * ghost_set g_en (coPset_to_Ensemble E1)) -* (|==> sbi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E2) * P))%I.
+  (wsat * ghost_set g_en (coPset_to_Ensemble E1)) -* (|==> bi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E2) * P))%I.
 
 Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic.
 Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic.
@@ -313,7 +313,7 @@ Proof.
   rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 2.
   f_equal; f_equal.
   rewrite !approx_bupd; f_equal.
-  unfold sbi_except_0.
+  unfold bi_except_0.
   setoid_rewrite approx_orp; f_equal.
   erewrite !approx_sepcon, approx_idem; reflexivity.
 Qed.
@@ -350,7 +350,7 @@ Proof.
     contradiction (H _ H0).
 Qed.
 
-Lemma mpred_fupd_mixin {inv_names : invG} : BiFUpdMixin mpredSI fupd.
+Lemma mpred_fupd_mixin {inv_names : invG} : BiFUpdMixin mpredI fupd.
 Proof.
   split.
   - repeat intro; hnf in *.
@@ -375,10 +375,10 @@ Proof.
       apply coPset_to_Ensemble_disjoint; auto. }
   - exact fupd_frame_r.
 Qed.
-Instance mpred_bi_fupd {inv_names : invG} : BiFUpd mpredSI :=
+Instance mpred_bi_fupd {inv_names : invG} : BiFUpd mpredI :=
   {| bi_fupd_mixin := mpred_fupd_mixin |}.
 
-Instance mpred_bi_bupd_fupd {inv_names : invG} : BiBUpdFUpd mpredSI.
+Instance mpred_bi_bupd_fupd {inv_names : invG} : BiBUpdFUpd mpredI.
 Proof. hnf. by iIntros (E P) ">? [$ $] !> !>". Qed.
 
 Section Invariants.
@@ -394,28 +394,28 @@ Proof.
   apply fupd_mono; eauto.
 Qed.
 
-Lemma fupd_except0_elim : forall E1 E2 P Q, ((P |-- (|={E1,E2}=> Q)) -> sbi_except_0 P |-- |={E1,E2}=> Q)%I.
+Lemma fupd_except0_elim : forall E1 E2 P Q, ((P |-- (|={E1,E2}=> Q)) -> bi_except_0 P |-- |={E1,E2}=> Q)%I.
 Proof.
   intros; iIntros ">P Hpre".
   iPoseProof (H with "P Hpre") as ">>Q"; iFrame; auto.
 Qed.
 
-Lemma wsat_fupd_elim' : forall E P, (wsat * ghost_set g_en (coPset_to_Ensemble E) * (|={E}=> P) |-- (|==> sbi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E) * P)))%I.
+Lemma wsat_fupd_elim' : forall E P, (wsat * ghost_set g_en (coPset_to_Ensemble E) * (|={E}=> P) |-- (|==> bi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E) * P)))%I.
 Proof.
   intros; unfold updates.fupd, bi_fupd_fupd; simpl; unfold fupd.
   apply modus_ponens_wand.
 Qed.
 
-Corollary wsat_fupd_elim : forall P, (wsat * (|={empty}=> P) |-- (|==> sbi_except_0 (wsat * P)))%I.
+Corollary wsat_fupd_elim : forall P, (wsat * (|={empty}=> P) |-- (|==> bi_except_0 (wsat * P)))%I.
 Proof.
   intros; rewrite wsat_empty_eq.
   replace Empty_set with (coPset_to_Ensemble empty); [apply wsat_fupd_elim'|].
   apply Extensionality_Ensembles; constructor; intros ? X; inv X.
 Qed.
 
-Lemma bupd_except_0 : forall P, ((|==> sbi_except_0 P) |-- sbi_except_0 (|==> P))%I.
+Lemma bupd_except_0 : forall P, ((|==> bi_except_0 P) |-- bi_except_0 (|==> P))%I.
 Proof.
-  intros; constructor; change (predicates_hered.derives (own.bupd (sbi_except_0 P)) (sbi_except_0 (own.bupd P : mpred))).
+  intros; constructor; change (predicates_hered.derives (own.bupd (bi_except_0 P)) (bi_except_0 (own.bupd P : mpred))).
   intros ??; simpl in H.
   destruct (level a) eqn: Hl.
   + left.
@@ -443,7 +443,7 @@ Proof.
   erewrite ghost_set_subset with (s' := coPset_to_Ensemble E1).
   iDestruct "Hpre" as "(wsat & en1 & en2)".
   iCombine ("wsat en1 Q") as "Q".
-  erewrite (add_andp (_ ∗ _ ∗ Q)%I (sbi_except_0 (!! P))) at 1.
+  erewrite (add_andp (_ ∗ _ ∗ Q)%I (bi_except_0 (!! P))) at 1.
   rewrite sepcon_andp_prop bi.except_0_and.
   iModIntro; iSplit.
   { iDestruct "Q" as "[? ?]"; auto. }
@@ -485,7 +485,7 @@ Proof.
   iPoseProof (make_inv empty _ _ H with "P") as "inv".
   iMod (wsat_fupd_elim with "[$wsat $inv]") as "[wsat inv]".
   iDestruct "inv" as (i) "inv"; iExists i.
-  unfold sbi_except_0.
+  unfold bi_except_0.
   iIntros "!> !>".
   iDestruct "wsat" as "[? | $]"; auto.
   iDestruct "inv" as "[? | ?]"; auto.
@@ -494,7 +494,7 @@ Qed.
 Lemma inv_close_aux : forall E (i : iname) P,
   (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * invariant i P * |> P *
   (wsat * ghost_set g_en (Subtract E i))
-  |-- |==> sbi_except_0 (wsat * (ghost_set g_en (Singleton i) * ghost_set g_en (Subtract E i))))%I.
+  |-- |==> bi_except_0 (wsat * (ghost_set g_en (Singleton i) * ghost_set g_en (Subtract E i))))%I.
 Proof.
   intros.
   iIntros "(((? & ?) & ?) & ? & en)".
@@ -563,7 +563,7 @@ Qed.
 Hint Resolve inv_in : ghost.
 
 (* avoids some fragility in tactics *)
-Definition except0 : mpred -> mpred := sbi_except_0.
+Definition except0 : mpred -> mpred := bi_except_0.
 
 Global Opaque fupd.
 
