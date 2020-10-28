@@ -3774,7 +3774,7 @@ Ltac check_parameter_vals Delta al :=
     in case v contains something that will blow up *)
  match al with
  | temp ?i ?v :: ?al' =>
-    let ti := constr:((temp_types Delta) ! i) in
+    let ti := constr:(PTree.get i (temp_types Delta)) in
     let ti := eval compute in ti in 
     match ti with
     | Some ?t =>
@@ -4237,6 +4237,8 @@ Ltac start_function1 :=
 (* first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
         | erewrite compute_close_precondition by reflexivity];*)
 
+Ltac expand_main_pre := expand_main_pre_old.
+
 Ltac start_function2 :=
 (*NEW simpl map;*) simpl app;
  simplify_func_tycontext;
@@ -4249,7 +4251,7 @@ Ltac start_function2 :=
       end;
       fold (Sfor s1 e s2 s3)
  end;
- try expand_main_pre_old;
+ try expand_main_pre;
  process_stackframe_of;
  repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
                                   but it needs to come after process_stackframe_of *)
@@ -4265,11 +4267,6 @@ Ltac start_function2 :=
                  end
                | |- _ => intro
                end);
-(*
- first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
-        | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
-        | idtac];
-*)
  abbreviate_semax;
  lazymatch goal with 
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L

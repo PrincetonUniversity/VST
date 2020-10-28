@@ -1314,6 +1314,18 @@ Proof.
     auto.
 Qed.
 
+Lemma data_at__valid_ptr:
+  forall sh t p,
+     sepalg.nonidentity sh ->
+     sizeof t > 0 ->
+     data_at_ sh t p |-- valid_pointer p.
+Proof.
+  intros.
+  rewrite data_at__memory_block.
+  normalize.
+  apply memory_block_valid_ptr; auto.
+Qed.
+
 Lemma data_at_valid_ptr:
   forall sh t v p,
      sepalg.nonidentity sh ->
@@ -1322,9 +1334,7 @@ Lemma data_at_valid_ptr:
 Proof.
   intros.
   eapply derives_trans; [apply data_at_data_at_ |].
-  rewrite data_at__memory_block.
-  normalize.
-  apply memory_block_valid_ptr; auto.
+  apply data_at__valid_ptr; auto.
 Qed.
 
 Lemma field_at_valid_ptr:
@@ -1889,7 +1899,7 @@ eapply derives_trans; [apply field_at_local_facts |];
 end.
 
 Ltac data_at_valid_aux :=
- first [computable | unfold sizeof; simpl Ctypes.sizeof; rewrite ?Z.max_r by rep_lia; rep_lia].
+ first [computable | unfold sizeof; simpl Ctypes.sizeof; rewrite ?Z.max_r by rep_lia; rep_lia | rep_lia].
 
 Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
     (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
@@ -1897,18 +1907,20 @@ Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
 Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
     (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
+(*
 Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
     (unfold data_at_, field_at_; 
      simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
     (unfold field_at_; simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+*)
 
 Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
-    (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+    (simple apply data_at__valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
-    (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+    (apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 (* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 

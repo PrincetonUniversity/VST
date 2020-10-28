@@ -173,10 +173,7 @@ Proof.
   { destruct additional; simpl in PNadditional; try contradiction.
     + subst i. rewrite da_emp_null. entailer. reflexivity.
     + rewrite da_emp_ptr. normalize.
-      eapply denote_tc_test_eq_split; auto 50 with valid_pointer.
-      (* TODO regression, this should have solved it *)
-      apply sepcon_valid_pointer2.
-      apply data_at_valid_ptr; auto. }
+      eapply denote_tc_test_eq_split; auto 50 with valid_pointer. }
   { (*nonnull additional*)
     destruct additional; simpl in PNadditional; try contradiction. subst i. elim H; trivial. clear H.
     forward. entailer!. simpl.

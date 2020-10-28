@@ -69,8 +69,25 @@ Axiom create_mem_mgr: forall gv, emp |-- mem_mgr gv.
 
 Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
-  forall {cs: compspecs} sh t p, malloc_token sh t p |-- valid_pointer p.
-Hint Resolve malloc_token_valid_pointer : valid_pointer.
+  forall {cs: compspecs} sh t p, sizeof t <= 0 -> malloc_token sh t p |-- valid_pointer p.
+
+Hint Extern 1 (malloc_token _ _ _ |-- valid_pointer _) =>
+  (simple apply malloc_token_valid_pointer; data_at_valid_aux) : valid_pointer.
+
+Ltac malloc_token_data_at_valid_pointer :=
+  (* If the size of t is unknown, can still prove valid pointer
+      from (malloc_token sh t p * ... * data_at[_] sh t p)  *)
+  match goal with |- ?A |-- valid_pointer ?p =>
+   match A with
+   | context [malloc_token _ ?t p] =>
+         try (assert (sizeof t <= 0) by (simpl sizeof in *; rep_lia); fail 1);
+         try (assert (sizeof t > 0) by (simpl sizeof in *; rep_lia); fail 1);
+         destruct (zlt 0 (sizeof t));
+         auto with valid_pointer
+   end
+ end.
+
+Hint Extern 4 (_ |-- valid_pointer _) => malloc_token_data_at_valid_pointer : valid_pointer.
 
 Parameter malloc_token_local_facts:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- !! malloc_compatible (sizeof t) p.
