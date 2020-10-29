@@ -84,7 +84,12 @@ Definition const_only_isBinOpResultType {CS: compspecs} op typeof_a1 valueof_a1 
   | _ => false (* TODO *)
   end.
 
-Definition const_only_isCastResultType {CS: compspecs} (t1 t2: type) (valueof_a: val)  : bool := false. (* TODO *)
+Definition const_only_isCastResultType {CS: compspecs} (t1 t2: type) (valueof_a: val)  : bool := 
+  is_neutral_cast t1 t2 ||
+  match t1, t2 with
+  | Tint _ _ _, Tlong _ _ => true
+  | _, _ => false
+  end.
 
 Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val :=
   match e with
@@ -276,7 +281,13 @@ Lemma const_only_isCastResultType_spec: forall {cs: compspecs} rho e t P,
   P |-- denote_tc_assert (isCastResultType (typeof e) t e) rho.
 Proof.
   intros.
-  inv H.
+  unfold const_only_isCastResultType in H.
+  rewrite orb_true_iff in H.
+  destruct H.
+  apply neutral_isCastResultType; auto.
+  destruct (typeof e); inv H.
+  destruct t; inv H1.
+  simpl. apply TT_right.
 Qed.
 
 Lemma const_only_eval_expr_eq: forall {cs: compspecs} rho e v,
@@ -318,10 +329,9 @@ Proof.
   + intros.
     simpl in *.
     unfold option_map in H.
-    destruct (const_only_eval_expr e); inv H. (*
-    specialize (IHe _ eq_refl).
-    unfold_lift.
-    rewrite IHe; auto.*)
+    destruct (const_only_eval_expr e); inv H.
+    destruct (const_only_isCastResultType (typeof e) t v0) eqn:?H; inv H1.
+    unfold_lift. erewrite IHe by reflexivity. auto.
   + intros.
     simpl in *.
     destruct (complete_type cenv_cs t); inv H.
@@ -384,12 +394,12 @@ Proof.
     unfold tc_expr in *.
     simpl in *.
     unfold option_map in H.
-    destruct (const_only_eval_expr e) eqn:HH; inv H. (*
-    specialize (IHe _ eq_refl).
-    unfold_lift.
-    rewrite denote_tc_assert_andp; simpl; apply andp_right; auto.
-    apply const_only_isUnOpResultType_spec.
-    apply (const_only_eval_expr_eq rho) in HH. *)
+    destruct (const_only_eval_expr e) eqn:HH; inv H.
+    destruct (const_only_isCastResultType (typeof e) t v0) eqn:?H; inv H1.
+    rewrite denote_tc_assert_andp.
+    simpl.
+    apply andp_right; eauto.
+    apply const_only_isCastResultType_spec; auto.
   + intros.
     inv H.
     unfold tc_expr.

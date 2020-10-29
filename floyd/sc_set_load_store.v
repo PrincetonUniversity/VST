@@ -401,12 +401,23 @@ Ltac solve_Ptrofs_eqm_unsigned :=
     apply Ptrofs_eqm_unsigned_repr
   ].
 
+(* COPIED FROM for_lemmas.v; unify these ! *)
+Inductive Int64_eqm_unsigned: int64 -> Z -> Prop :=
+| Int64_eqm_unsigned_repr: forall z, Int64_eqm_unsigned (Int64.repr z) z.
+
+
 Inductive msubst_efield_denote {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): list efield -> list gfield -> Prop :=
 | msubst_efield_denote_nil: msubst_efield_denote Delta T1 T2 GV nil nil
 | msubst_efield_denote_cons_array: forall ei i i' efs gfs,
     is_int_type (typeof ei) = true ->
     msubst_eval_expr Delta T1 T2 GV  ei = Some (Vint i) ->
     int_signed_or_unsigned (typeof ei) i = i' ->
+    msubst_efield_denote Delta T1 T2 GV efs gfs ->
+    msubst_efield_denote Delta T1 T2 GV (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
+| msubst_efield_denote_cons_array_long: forall ei i i' efs gfs,
+    is_long_type (typeof ei) = true ->
+    msubst_eval_expr Delta T1 T2 GV  ei = Some (Vlong i) ->
+    Int64_eqm_unsigned i i' ->
     msubst_efield_denote Delta T1 T2 GV efs gfs ->
     msubst_efield_denote Delta T1 T2 GV (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
 | msubst_efield_denote_cons_array_ptrofs: forall ei i i' efs gfs,
@@ -450,7 +461,17 @@ Proof.
     rewrite !andp_assoc; apply andp_left2, andp_left2.
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
-    apply efield_denote_ArraySubsc; auto.
+    apply efield_denote_ArraySubsc_long; auto.
+    apply array_subsc_denote_intro_long.
+    rewrite <- H2. f_equal.
+    inv H1. auto.
+  + eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
+    rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
+    clear H0 IHMSUBST_EFIELD_DENOTE.
+    rewrite !andp_assoc; apply andp_left2, andp_left2.
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+    apply efield_denote_ArraySubsc_ptrofs; auto.
     unfold Vptrofs in H2.
     destruct Archi.ptr64 eqn:Hp.
     *
@@ -512,6 +533,12 @@ Ltac solve_msubst_efield_denote :=
            end
         ]
       | solve_Ptrofs_eqm_unsigned
+      | ]
+    | eapply msubst_efield_denote_cons_array_long;
+      [ reflexivity
+      | solve_msubst_eval_expr
+      | constructor  (* it's possible that this case needs  "rewrite ?ptrofs_to_int64_repr.... " like the
+                                  one below *)
       | ]
     | eapply msubst_efield_denote_cons_array;
       [ reflexivity
