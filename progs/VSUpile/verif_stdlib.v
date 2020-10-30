@@ -118,8 +118,8 @@ Qed.*)
   Proof. 
     mkComponent. 
     - clear; solve_SF_external (@body_malloc NullExtension.Espec CompSpecs). 
-      destruct x as [a gv]. apply andp_left1. eapply derives_trans.
-      apply (semax_func_cons_malloc_aux gv(*b*) gx ret a).
+      Intros. eapply derives_trans.
+      apply (semax_func_cons_malloc_aux gv gx ret n).
       destruct ret; simpl; trivial.
     - clear; solve_SF_external (@body_free NullExtension.Espec CompSpecs).
     - clear; solve_SF_external (@body_exit NullExtension.Espec).

@@ -686,7 +686,7 @@ Ltac find_sub_sub_tac :=
      intros i phi Hphi; assert (FIND:= find_id_In_map_fst _ _ _ Hphi); cbv in FIND;
      repeat (destruct FIND as [FIND |FIND]; [ subst; inv Hphi; reflexivity |]); contradiction.
 
-Ltac VSUAddMain_tac vsu :=
+Ltac VSUAddMain_tac' vsu :=
 eapply LP_VSU_entail;
 [ eapply (@VSUAddMain _ _ _ _ _ _ _ vsu);
    [ try apply cspecs_sub_refl (*Perhaps a more general tactic is only needed if main.c contains data structure definitions?*)
@@ -722,6 +722,13 @@ eapply LP_VSU_entail;
    | try reflexivity]
 | intros; simpl; first [ solve [unfold InitGPred; simpl; cancel] | idtac]
 ].
+
+Ltac VSUAddMain_tac vsu :=
+match type of vsu with 
+|  VSU _ _ _ _ _ => let cvsu := constr:(VSU_to_CanonicalVSU vsu) in
+                                   VSUAddMain_tac' cvsu
+| CanonicalVSU _ _ _ _ _ => VSUAddMain_tac' vsu
+end.
 
 (*old
 Ltac AddMainProgProgVSU_tac_eq vsu :=

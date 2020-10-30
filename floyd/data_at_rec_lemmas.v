@@ -1342,7 +1342,8 @@ first
     [ | reflexivity
     | reflexivity
     | cleanup_unfold_reptype
-    | reflexivity]
+    | reflexivity];
+    simpl struct_Prop
  |erewrite value_fits_Tarray;
     [ | reflexivity
     | cleanup_unfold_reptype

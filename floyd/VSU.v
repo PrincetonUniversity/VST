@@ -3297,25 +3297,54 @@ Ltac lookup_tac :=
     intros H;
     repeat (destruct H; [ repeat ( first [ solve [left; trivial] | right]) | ]); try contradiction.
 
-Ltac mkComponent (*G_internal*) := 
-  eapply Build_Component (*with G_internal*);
-  [ intros i H; 
+Lemma semax_vacuous:
+ forall cs Espec Delta pp frame c post,
+  @semax cs Espec Delta (fun rho => (close_precondition pp) FF rho * frame rho)%logic
+      c post.
+Proof.
+intros.
+eapply semax_pre; [ | apply semax_ff].
+apply andp_left2.
+intro rho.
+rewrite sepcon_comm.
+apply sepcon_FF_derives'.
+unfold close_precondition.
+apply exp_left; intro.
+apply andp_left2.
+unfold FF; simpl.
+auto.
+Qed.
+
+Ltac SF_vacuous :=
+   match goal with |- SF _ _ _ (vacuous_funspec _) => idtac end;
+   repeat (split; [solve[constructor] | ]);
+  split; [ | eexists; split; compute; reflexivity];
+  split3; [reflexivity | reflexivity | intros ];
+  apply semax_vacuous.
+
+Ltac mkComponent := 
+  eapply Build_Component;
+  [ let i := fresh in let H := fresh in 
+    intros i H; 
     first [ repeat (destruct H; [subst; do 4 eexists; findentry; reflexivity  |]); contradiction
           | (*fail 99 "SC1"*)idtac ]
   | apply compute_list_norepet_e; reflexivity
   | apply compute_list_norepet_e; reflexivity
   | apply compute_list_norepet_e; reflexivity
-  | intros i H; first [ solve contradiction | simpl in H];
+  | let i := fresh in let H := fresh in 
+    intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; do 4 eexists; reflexivity |]); try contradiction
   | intros; simpl; split; trivial; try solve [lookup_tac]
   | apply compute_list_norepet_e; reflexivity
   | intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
-  | intros i phi fd H H0; simpl in H;
-    repeat (if_tac in H; [ inv H; inv H0 | ]; try discriminate)
+  | let i := fresh "i" in let H := fresh in let H0 := fresh in 
+    let phi := fresh "phi" in let fd := fresh "fd" in 
+    intros i phi fd H H0; simpl in H;
+    repeat (if_tac in H; [ inv H; inv H0 |     
+                          match goal with H1: i <> _ |- _ => clear H1 end]);
+    try discriminate; try SF_vacuous
   | finishComponent
-  (*| intros; simpl; 
-    repeat (if_tac; simpl; [ apply compute_list_norepet_e; reflexivity | ]); trivial*)
   | intros; first [ solve [apply derives_refl] | solve [reflexivity] | solve [simpl; cancel] | idtac]
   ].
 
@@ -3356,14 +3385,20 @@ Ltac solve_SF_external_with_intuition B :=
 
 (*Slightly faster*)
 Ltac solve_SF_external B :=
-  first [ split3; [ reflexivity 
-                     | reflexivity 
-                     | split3; [ reflexivity
-                               | reflexivity
-                               | split3; [ left; trivial
-                                         | clear; intros ? ? ? ?; try solve [entailer!](*; normalize*)
-                                         | split; [ try apply B
-                                                  | eexists; split; cbv; reflexivity ]] ] ]
+  first [ split3;
+            [ reflexivity 
+            | reflexivity 
+            | split3;
+                [ reflexivity
+                | reflexivity
+                | split3;
+                   [ left; trivial
+                   | clear; intros ? ? ? ?; try solve [entailer!];
+                     repeat match goal with |- (let (y, z) := ?x in _) _ && _ |--  _ =>
+                                     destruct x as [y z]
+                     end
+                    | split; [ try apply B | eexists; split; cbv; reflexivity ]
+            ] ] ]
         | idtac ].
 
 Fixpoint FDM_entries (funs1 funs2 : list (ident * fundef function)): option (list (ident * fundef function * fundef function)) :=
@@ -4160,3 +4195,136 @@ remember (find_id i V) as q; destruct q; symmetry in Heqq.
       trivial.
   - rewrite (semax_prog.make_tycontext_g_G_None _ _ _ Heqa) in Heqw; congruence.
 Qed.
+
+(*** Andrew's new stuff: *)
+
+
+Lemma globs_to_globvars:
+ forall gv prog rho, 
+  Forall (fun ig => isptr (globals_of_env rho (fst ig))) (prog_vars prog) ->
+ globvars2pred gv (prog_vars prog) rho
+  |-- InitGPred (Vardefs prog) gv.
+Proof.
+intros.
+unfold globvars2pred.
+unfold lift2; simpl.
+Intros. subst gv.
+unfold Vardefs.
+unfold prog_vars in *.
+induction (prog_defs prog).
+simpl.
+apply derives_refl.
+simpl.
+destruct a.
+unfold isGvar.
+simpl.
+destruct g; simpl.
+simpl in H.
+apply IHl; auto.
+rewrite InitGPred_consD.
+simpl in H. inv H.
+simpl in H2.
+apply sepcon_derives; auto.
+clear IHl.
+unfold globvar2pred, globs2pred.
+unfold initialize.gv_globvar2pred.
+simpl.
+rewrite prop_true_andp by (apply global_is_headptr; auto).
+destruct (gvar_volatile v).
+apply derives_refl.
+clear H3 H2.
+forget (globals_of_env rho i) as g.
+change (initialize.readonly2share (gvar_readonly v))
+  with (readonly2share (gvar_readonly v)).
+forget (readonly2share (gvar_readonly v)) as sh.
+revert g; induction (gvar_init v); intros; simpl; auto.
+apply derives_refl.
+unfold initialize.gv_lift2.
+change (predicates_sl.sepcon ?A ?B) with (sepcon A B).
+apply sepcon_derives; auto.
+clear IHl0 l0.
+destruct a; simpl; try apply derives_refl.
+unfold ge_of, globals_of_env, Map.get.
+destruct rho. simpl.
+destruct (ge i0).
+simpl.
+apply derives_refl.
+apply derives_refl.
+Qed.
+
+
+Lemma main_pre_InitGpred:
+ forall globs (Espec: OracleKind) (cs: compspecs)  Delta prog1 prog2 Z (ext:Z) (gv: globals) R c Post
+  (H1: InitGPred (Vardefs prog1) gv |-- globs)
+  (H: Vardefs prog1 = Vardefs prog2)
+  (H0: Forall (fun ig : ident * _ => isSome ((glob_types Delta) ! (fst ig))) (prog_vars prog2))
+  (H2: semax Delta (sepcon (PROP ( )  LOCAL (gvars gv)  SEP (globs; has_ext ext)) R) c Post),
+  semax Delta (sepcon (@main_pre_old Z prog2 ext gv) R) c Post.
+Proof.
+intros.
+rewrite H in H1. clear H prog1. rename H1 into H.
+change (main_pre_old ?PROG ?A ?GV) with
+  (globvars2pred GV (prog_vars PROG) * (fun rho => has_ext A))%logic.
+eapply semax_pre.
+apply sepcon_ENTAIL; [ | apply ENTAIL_refl].
+intro rho.
+unfold local, lift1; simpl.
+Intros.
+apply sepcon_derives; [ | apply derives_refl].
+eapply derives_trans; [ | apply andp_derives].
+2: instantiate (1 := (LOCALx [gvars gv] TT rho)); apply derives_refl.
+2:apply H.
+apply andp_right.
+unfold LOCALx, local, lift1; simpl.
+unfold globvars2pred.
+unfold lift2; simpl.
+Intros. apply prop_right.
+split; auto.
+apply globs_to_globvars.
+eapply Forall_impl; try apply H0.
+intros.
+destruct H1 as [_ [_ ?]].
+simpl in H3.
+destruct ((glob_types Delta) ! (fst a)) eqn:H4; try contradiction.
+destruct (H1 (fst a) t); auto.
+unfold globals_of_env.
+rewrite H5.
+apply I.
+eapply semax_pre.
+apply sepcon_ENTAIL; [ | apply ENTAIL_refl].
+apply andp_left2.
+instantiate (1:= PROP() LOCAL(gvars gv) SEP(globs; has_ext ext)%assert3).
+intro rho; simpl.
+unfold PROPx, LOCALx, SEPx.
+unfold local, lift1, liftx.
+simpl. normalize.
+apply H2.
+Qed.
+
+Definition VSU_MkInitPred {Espec V cs E Imports p Exports GP} 
+  (vsu: @VSU Espec V cs E Imports p Exports GP) 
+  (gv: globals) : InitGPred (Vardefs p) gv |-- (GP gv) :=
+let (x, c) := vsu in
+match c with
+| {| Comp_MkInitPred := Comp_MkInitPred |} => Comp_MkInitPred gv
+end.
+
+Ltac report_failure :=
+ match goal with |- ?G => fail 99 "expand_main_pre_new failed with goal" G end.
+
+Ltac expand_main_pre_VSU :=
+  match goal with
+  | vsu: VSU _ _ _ _ _ |- _ => 
+    eapply main_pre_InitGpred; 
+        [ try apply (VSU_MkInitPred vsu); report_failure
+        | try reflexivity; report_failure
+        | try solve [repeat constructor]; report_failure
+        | ]
+  | vsu: VSU _ _ _ _ _ |- _ =>  report_failure
+  | |- _ => expand_main_pre_old
+  end.
+
+Ltac expand_main_pre ::= 
+   expand_main_pre_VSU.
+
+
