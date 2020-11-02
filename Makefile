@@ -472,7 +472,7 @@ PROGS32_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_reverse2.v verif_reverse3.v verif_reverse_client.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v reverse_client.v queue.v sumarray.v message.v string.v object.v \
-  revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
+  revarray.v verif_revarray.v insertionsort.v append.v min.v min64.v int_or_ptr.v \
   dotprod.v strlib.v fib.v \
   verif_min.v verif_min64.v verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
