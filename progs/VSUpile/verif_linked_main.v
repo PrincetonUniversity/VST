@@ -194,7 +194,6 @@ Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear.
         rewrite memory_block_isptr; Intros.
         apply global_is_headptr in H. entailer!.
       * unfold initialize.gv_globvar2pred. simpl.
-        unfold initialize.gv_lift2, initialize.gv_lift0. simpl.
         rewrite predicates_sl.sepcon_emp. apply derives_refl.
       (*unfold globvar2pred; simpl. sep_apply mapsto_zeros_isptr; Intros.
       * apply writable_readable. apply writable_Ews.

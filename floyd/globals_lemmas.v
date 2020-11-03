@@ -130,7 +130,7 @@ subst. auto.
 contradiction.
 Qed.
 *)
-Definition init_data2pred' {cs: compspecs}
+Definition init_data2pred'
      (Delta: tycontext) (gv: globals) (d: init_data)  (sh: share) (v: val) : mpred :=
  match d with
   | Init_int8 i => mapsto sh tuchar v (Vint (Int.zero_ext 8 i))
@@ -283,14 +283,14 @@ rewrite H10 at 1.
 Qed.
 
 Fixpoint id2pred_star   {cs: compspecs}
-   (Delta: tycontext) (gz: globals) (sh: share) (v: val) (dl: list init_data) : environ->mpred :=
+   (Delta: tycontext) (gz: globals) (sh: share) (v: val) (dl: list init_data) : mpred :=
  match dl with
- | d::dl' => `(init_data2pred' Delta gz d sh v)
+ | d::dl' => init_data2pred' Delta gz d sh v
                    * id2pred_star Delta gz sh (offset_val (init_data_size d) v) dl'
  | nil => emp
  end.
 
-Arguments id2pred_star cs Delta gz sh v dl rho  / .
+Arguments id2pred_star cs Delta gz sh v dl  / .
 
 Lemma init_data_size_pos : forall a, init_data_size a >= 0.
 Proof.
@@ -309,15 +309,9 @@ Lemma unpack_globvar_star  {cs: compspecs}:
   forall Delta gz i gv,
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
-(*
-  (complete_legal_cosu_type (gvar_info gv)
-      && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)% bool = true ->
-*)
    gvar_volatile gv = false ->
-(*  (globvar_all_aligned gv = true) -> *)
-(*   init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Ptrofs.max_unsigned -> *)
    local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz (i, gv) |-- 
-       id2pred_star Delta gz (readonly2share (gvar_readonly gv)) (gz i) (gvar_init gv).
+       `(id2pred_star Delta gz (readonly2share (gvar_readonly gv)) (gz i) (gvar_init gv)).
 Proof.
 intros until 2. pose proof I. intros H2.
 pose (H5 := True).
@@ -329,7 +323,7 @@ go_lowerx. subst gz.
 eapply derives_trans; [eapply tc_globalvar_sound'; eassumption | ].
 normalize.
   autorewrite with subst norm1 norm2; normalize.
-match goal with |- _ |-- ?F _ _ _ _ _ _ _  => change F with @id2pred_star end.
+match goal with |- _ |-- ?F _ _ _ _ _ _  => change F with @id2pred_star end.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 assert (RS:= readable_readonly2share (gvar_readonly gv)).
@@ -345,7 +339,7 @@ clearbody ofs.
 clear H1 H8 gv H3 H2 H4 H H0 H6 H5.
 revert ofs.
 induction idata; simpl; auto; intros.
-match goal with |- _ |-- _ * ?F _ _ _ _ _ _ _  => 
+match goal with |- _ |-- _ * ?F _ _ _ _ _ _  => 
     change F with @id2pred_star 
 end.
 apply sepcon_derives.
@@ -375,7 +369,7 @@ Lemma id2pred_star_ZnthV_Tint  {cs: compspecs} :
   mdata = map (inttype2init_data sz) data ->
   !! isptr v && !! align_compatible (Tint sz sign noattr) v &&
   !! (offset_strict_in_range (sizeof (Tint sz sign noattr) * n)) v &&
-  id2pred_star Delta gz sh v mdata |--
+  `(id2pred_star Delta gz sh v mdata) |--
   `(data_at sh (tarray (Tint sz sign noattr) n)
            (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data) v).
 Proof.
@@ -383,7 +377,7 @@ Proof.
   replace (Zlength (map  (inttype2init_data sz) data)) with (Zlength data)
     by (repeat rewrite Zlength_correct; rewrite map_length; auto).
   go_lowerx.
-  match goal with |- ?F _ _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
+  match goal with |- ?F _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
   change (offset_strict_in_range (sizeof (Tint sz sign noattr) * Zlength data) v) in H1.
   assert (offset_strict_in_range (sizeof (Tint sz sign noattr) * 0) v) by
     (unfold offset_strict_in_range; destruct v; auto; pose proof Ptrofs.unsigned_range i; lia).
@@ -516,7 +510,7 @@ Lemma id2pred_star_ZnthV_tint  {cs: compspecs}:
   mdata = map Init_int32 data ->
   !! isptr v && !! align_compatible tint v &&
   !! offset_strict_in_range (sizeof tint * n) v &&
-  id2pred_star Delta gz sh v mdata |--
+  `(id2pred_star Delta gz sh v mdata) |--
   `(data_at sh (tarray tint n) (map Vint data) v).
 Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply Coq.Init.Logic.I.
 Qed.
@@ -535,7 +529,6 @@ Lemma unpack_globvar_array  {cs: compspecs}:
    (glob_types Delta) ! i = Some (gvar_info gv) ->
    gvar_info gv = tarray t n ->
    gvar_volatile gv = false ->
-(*   globvar_all_aligned gv = true -> *)
    t = Tint sz sign noattr ->
   forall    (NBS: notboolsize sz),
    n = Zlength (gvar_init gv) ->
@@ -565,14 +558,14 @@ Proof.
   apply andp_derives; [ apply andp_derives;
     [ eapply unpack_globvar_star; try eassumption; try reflexivity
     | apply derives_refl]  | apply derives_refl].
- (* rewrite H1.*)  (* rewrite H3.*) rewrite H5.
+  rewrite H5.
   rewrite <- andp_assoc.
   apply andp_left1.
   go_lowerx. 
   eapply derives_trans; [| apply (id2pred_star_ZnthV_Tint Delta (globals_of_env rho)); auto].
   instantiate (1 := rho).
  2: rewrite <- H5; auto.
- match goal with |- ?F _ _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
+ match goal with |- ?F _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
   subst gz.
   normalize. clear H8.
   rewrite H1 in H6.
@@ -611,13 +604,120 @@ Proof.
     apply Zlength_nonneg.
   }
   normalize.
- match goal with |- _ |-- ?F _ _ _ _ _ _ _ => change F with @id2pred_star end.
   apply derives_refl.
 Qed.
 
+
+Definition gv_globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : mpred :=
+  (fold_right_sepcon (map (initialize.gv_globvar2pred gv) vl)).
+
+Lemma globvars2pred_relate:
+ forall gv vl rho, 
+  gvars_denote gv rho ->
+  globvars2pred gv vl rho =
+  gv_globvars2pred gv vl.
+Proof.
+ intros.
+ unfold globvars2pred, lift2.
+ rewrite prop_true_andp by auto.
+ unfold gv_globvars2pred.
+ induction vl; simpl; auto.
+ f_equal; auto.
+ clear - H.
+ unfold globvar2pred, initialize.gv_globvar2pred.
+ simple_if_tac; auto.
+ destruct a. destruct g. simpl.
+ forget (gv i) as p. 
+ revert p; induction gvar_init; simpl; intros; auto.
+ change (predicates_sl.sepcon ?A ?B) with (sepcon A  B).
+ f_equal; auto.
+ destruct a; simpl; auto.
+ hnf in H. rewrite H.
+ destruct (Map.get (ge_of rho) i0); auto.
+Qed.
+
+Definition globvars_in_process (gv: globals) (done: list mpred)
+               (halfdone: mpred)
+               (al: list (ident * globvar type)) (rho: environ) : mpred :=
+ !! (gvars_denote gv rho) &&
+ (fold_right_sepcon done * halfdone * globvars2pred gv al rho).
+
+Lemma start_globvars_in_process:
+  forall {cs: compspecs} {Espec: OracleKind} Delta P Q R
+          gz al SF c Post,
+  semax Delta
+    (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
+          globvars_in_process gz nil emp al * SF) c Post ->
+  semax Delta
+    (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
+          globvars2pred gz al * SF) c Post.
+Proof.
+intros.
+eapply semax_pre; [ | apply H].
+apply andp_left2.
+intro rho.
+unfold PROPx, LOCALx, SEPx, local, lift1.
+unfold_lift.
+simpl. normalize.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+unfold globvars_in_process.
+rewrite prop_true_andp by auto.
+simpl.
+rewrite !emp_sepcon.
+unfold globvars2pred.
+unfold lift2.
+rewrite prop_true_andp; auto.
+clear.
+induction al; simpl; auto.
+apply sepcon_derives; auto.
+Qed.
+
+Lemma semax_process_globvars:
+  forall {cs: compspecs} {Espec: OracleKind} Delta P Q R R'
+          gz al SF c Post,
+  ENTAIL Delta, globvars_in_process gz R emp al |-- globvars_in_process gz R' emp nil ->
+  semax Delta
+    (PROPx P (LOCALx (gvars gz :: Q) (SEPx R')) * emp * SF) c Post ->
+  semax Delta
+    (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
+          globvars2pred gz al * SF) c Post.
+Proof.
+intros.
+apply start_globvars_in_process.
+eapply semax_pre; [ | apply H0].
+intro rho.
+specialize (H rho).
+unfold PROPx, LOCALx, SEPx, local, lift1.
+simpl; normalize.
+unfold local, lift1 in H.
+simpl in H.
+rewrite prop_true_andp in H by auto.
+apply sepcon_derives; auto.
+clear - H.
+unfold globvars_in_process in *.
+simpl in *.
+normalize.
+rewrite !prop_true_andp in H by auto.
+match goal with |- _ * ?A |-- _ =>
+ replace A with (globvars2pred gz al rho)
+end.
+2:{
+clear - H0.
+unfold globvars2pred, lift2.
+simpl. normalize.
+induction al; simpl; auto.
+f_equal; auto.
+}
+rewrite !sepcon_emp in H.
+eapply derives_trans; [ apply H | ].
+unfold globvars2pred, lift2; simpl; normalize.
+Qed.
+
+
 Lemma process_globvar':
-  forall {cs: compspecs} {Espec: OracleKind} Delta P Q R (i: ident)
-          gz gv gvs SF c Post (idata : init_data) t,
+  forall {cs: compspecs} Delta done (i: ident)
+          gz gv al (idata : init_data) t,
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some t ->
   (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
@@ -626,29 +726,26 @@ Lemma process_globvar':
        gvar_init gv = (idata::nil) ->
        init_data_size idata <= sizeof t ->
        sizeof t <= Ptrofs.max_unsigned ->
-  semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx R))
-                       * id2pred_star Delta gz
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz done
+            (id2pred_star Delta gz
                          (readonly2share (gvar_readonly gv))
-                         (gz i) (idata ::nil) * globvars2pred gz gvs * SF)
-     c Post ->
- semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx R))
-                      * globvars2pred gz ((i,gv)::gvs) * SF)
-     c Post.
+                         (gz i) (idata ::nil))
+                  al.
 Proof.
 intros.
-eapply semax_pre; [ | apply H7]; clear H7.
 pose proof  (unpack_globvar Delta gz i t gv idata H H0 H1 H2 H3 H4 H5 H6).
 clear H H0 H1 H2 H3 H4 H5 H6.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold globvars_in_process.
 unfold globvars2pred.
 change (lift_S (LiftEnviron Prop)) with environ in *.
-unfold lift2.
+(*unfold lift2.
 change  (fun rho : environ => gz = globals_of_env rho)
   with (locald_denote (gvars gz)) in H7|-*.
-go_lowerx.
+*)
+go_lowerx. unfold lift2.
 normalize.
-apply sepcon_derives; auto.
 rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
@@ -656,39 +753,33 @@ unfold local, lift1 in H7. specialize (H7 rho). simpl in H7. rewrite prop_true_a
 apply H7.
 Qed.
 
+
 Lemma process_globvar_array:
-  forall {cs: compspecs} {Espec: OracleKind} Delta gz P Q R (i: ident)
-          gv gvs SF c Post (n: Z) (t: type)  (sz : intsize) (sign : signedness) (data : list int),
+  forall {cs: compspecs} Delta done gz (i: ident)
+          gv al (n: Z) (t: type)  (sz : intsize) (sign : signedness) (data : list int),
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some (gvar_info gv) ->
        gvar_info gv = tarray t n ->
        gvar_volatile gv = false ->
-(*       globvar_all_aligned gv = true -> *)
        t = Tint sz sign noattr ->
        notboolsize sz ->
        n = Zlength (gvar_init gv) ->
        gvar_init gv = map (inttype2init_data sz) data ->
        init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <=
        Ptrofs.max_unsigned ->
-  semax Delta (PROPx P (LOCALx (gvars gz :: Q)
-                      (SEPx ((data_at
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz 
+        (data_at
                    (readonly2share (gvar_readonly gv))
                    (tarray (Tint sz sign noattr) n)
-                   (map (Vint oo Cop.cast_int_int sz sign) data) (gz i))
-                    :: R)))
-                       * globvars2pred gz gvs * SF)
-     c Post ->
- semax Delta (PROPx P (LOCALx (gvars gz :: Q) (SEPx R))
-                      * globvars2pred gz ((i,gv)::gvs) * SF)
-     c Post.
+                   (map (Vint oo Cop.cast_int_int sz sign) data) (gz i) :: done)
+        emp al.
 Proof.
 intros.
-eapply semax_pre; [ | apply H8]. clear H8.
 pose proof (unpack_globvar_array _ _ _ _ _ _ gz _ _ H H0 H1 H2 H3 H4 H5 H6 H7).
 clear H H0 H1 H2 H3 H4 H5 H6 H7.
-rewrite <- !insert_local.
-rewrite <- insert_SEP.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold globvars_in_process.
 unfold globvars2pred.
 change (lift_S (LiftEnviron Prop)) with environ in *.
 unfold lift2.
@@ -696,8 +787,7 @@ change  (fun rho : environ => gz = globals_of_env rho)
   with (locald_denote (gvars gz)) in H8|-*.
 go_lowerx.
 normalize.
-apply sepcon_derives; auto.
-pull_right (PQR rho).
+pull_right (fold_right_sepcon done).
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
 unfold local, lift1 in H8. specialize (H8 rho). simpl in H8. rewrite prop_true_andp in H8 by (split; auto).
@@ -705,40 +795,30 @@ apply H8.
 Qed.
 
 Lemma process_globvar_star':
-  forall {cs: compspecs} {Espec: OracleKind} Delta gz P Q R (i: ident)
-          gv gvs SF c Post,
+  forall {cs: compspecs} Delta done gz (i: ident)
+          gv al,
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some (gvar_info gv) ->
-  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
        gvar_volatile gv = false ->
-(*       globvar_all_aligned gv = true ->*)
-       init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <=
-       Ptrofs.max_unsigned ->
-  semax Delta (PROPx P (LOCALx (gvars gz :: Q)
-                      (SEPx R))
-                  * (id2pred_star Delta gz (readonly2share (gvar_readonly gv))
-                      (gz i) (gvar_init gv))
-             * globvars2pred gz gvs * SF)
-     c Post ->
- semax Delta (PROPx P (LOCALx (gvars gz :: Q) (SEPx R))
-                      * globvars2pred gz ((i,gv)::gvs) * SF)
-     c Post.
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz done
+            (id2pred_star Delta gz
+                         (readonly2share (gvar_readonly gv))
+                         (gz i) (gvar_init gv))
+                  al.
 Proof.
-intros until 4. pose proof I. intros.
-eapply semax_pre; [ | apply H5]. clear H5.
-pose proof (unpack_globvar_star _ gz _ _ H H0 (*H1*) H2 (*H3 H4*)).
-clear H H0 H1 H2 H3 H4.
-rewrite <- !insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold globvars2pred.
+intros.
+assert (H5 := unpack_globvar_star _ gz _ _ H H0 H1).
+clear H H0 H1.
+unfold globvars_in_process, globvars2pred.
 change (lift_S (LiftEnviron Prop)) with environ in *.
 unfold lift2.
 change  (fun rho : environ => gz = globals_of_env rho)
   with (locald_denote (gvars gz)) in H5|-*.
 go_lowerx.
 normalize.
-apply sepcon_derives; auto.
-pull_right (PQR rho).
+rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
 unfold local, lift1 in H5. specialize (H5 rho). simpl in H5.
@@ -755,30 +835,28 @@ Fixpoint init_datalist2pred' {cs: compspecs}
  end.
 
 Lemma halfprocess_globvar_star:
-  forall {cs: compspecs} {Espec: OracleKind} Delta gz P Q R (i: ident)
-          gv gvs SF c Post,
+  forall {cs: compspecs} Delta done gz (i: ident)
+          gv al,
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some (gvar_info gv) ->
   (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
        gvar_volatile gv = false ->
        init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <=
        Ptrofs.max_unsigned ->
-  semax Delta (PROPx P (LOCALx (gvars gz :: Q)
-                      (SEPx (init_datalist2pred' Delta gz (gvar_init gv) (readonly2share (gvar_readonly gv)) 0 (gz i)
-                                 ::R)))
-             * globvars2pred gz gvs * SF)
-     c Post ->
- semax Delta (PROPx P (LOCALx (gvars gz :: Q) (SEPx R))
-                      * globvars2pred gz ((i,gv)::gvs) * SF)
-     c Post.
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz
+       (init_datalist2pred' Delta gz (gvar_init gv) (readonly2share (gvar_readonly gv)) 0 (gz i) :: done)
+            emp  al.
 Proof.
 intros.
-eapply semax_pre; [ | apply H4]. clear H4.
+unfold globvars_in_process.
 unfold globvars2pred; fold globvars2pred.
 go_lowerx.
 unfold lift2. simpl.
 normalize.
-rewrite prop_true_andp by (split; auto).
+pull_right (fold_right_sepcon done).
+apply sepcon_derives; auto.
 cancel.
 unfold globvar2pred.
 simpl.
@@ -794,7 +872,7 @@ apply sepcon_derives.
 destruct (globvar_eval_var _ _ _ _ H4 H H0) as [b [? ?]].
 eapply init_data2pred_rejigger; eauto.
 unfold globals_of_env.
-rewrite H10. reflexivity.
+rewrite H8. reflexivity.
 fold init_data_list2pred.
 fold init_datalist2pred'.
 spec IHl.
@@ -905,8 +983,8 @@ apply pred_ext.
 Qed.
 
 Lemma process_globvar_space:
-  forall {cs: compspecs} {Espec: OracleKind} Delta P Q R (i: ident)
-          gz gv gvs SF c Post t,
+  forall {cs: compspecs} Delta done (i: ident)
+          gz gv al t,
        gvar_info gv = t ->
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some t ->
@@ -914,31 +992,22 @@ Lemma process_globvar_space:
        gvar_volatile gv = false ->
        gvar_init gv = (Init_space (sizeof t)::nil) ->
        sizeof t <= Ptrofs.max_unsigned ->
-  semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx (data_at_  (readonly2share (gvar_readonly gv)) t (gz i) :: R)))
-                       * globvars2pred gz gvs * SF)
-     c Post ->
- semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx R))
-                      * globvars2pred gz ((i,gv)::gvs) * SF)
-     c Post.
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz
+       (data_at_  (readonly2share (gvar_readonly gv)) t (gz i) :: done)
+            emp  al.
 Proof.
 intros until t. intros H3; intros.
-eapply semax_pre; [ | apply H6]; clear H6.
-rewrite <- insert_SEP.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
 assert (H7 := unpack_globvar Delta gz i t gv _ H H0 H1 H2 H3 H4).
 spec H7.
 simpl. pose proof (sizeof_pos t). rewrite Z.max_l by lia. lia.
 specialize (H7 H5).
 go_lowerx.
+unfold globvars_in_process.
 unfold globvars2pred; fold globvars2pred.
-simpl map.
-unfold fold_right; fold (fold_right sepcon emp  (map (globvar2pred gz) gvs)).
-unfold lift2.
-normalize.
-apply sepcon_derives; auto.
-pull_left (PQR rho).
-rewrite sepcon_assoc. 
+unfold lift2. simpl. normalize.
+pull_right (fold_right_sepcon done).
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
 specialize (H7 rho).
@@ -962,8 +1031,8 @@ lia.
 Qed.
 
 Lemma process_globvar_ptrarray_space:
-  forall {cs: compspecs} {Espec: OracleKind} Delta P Q R (i: ident)
-          gz gv gvs SF c Post t t' n,
+  forall {cs: compspecs} Delta done (i: ident)
+          gz gv al t t' n,
        t = Tarray (Tpointer t' noattr) n noattr ->
        gvar_info gv = t ->
        (var_types Delta) ! i = None ->
@@ -972,33 +1041,25 @@ Lemma process_globvar_ptrarray_space:
        gvar_volatile gv = false ->
        gvar_init gv = (Init_space (sizeof t)::nil) ->
        sizeof t <= Ptrofs.max_unsigned ->
-  semax Delta (PROPx P (LOCALx (gvars gz::Q) 
-                       (SEPx (data_at  (readonly2share (gvar_readonly gv)) (Tarray (Tpointer t' noattr) n noattr)
-                                  (list_repeat (Z.to_nat n) nullval)  (gz i) :: R)))
-                       * globvars2pred gz gvs * SF)
-     c Post ->
- semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx R))
-                      * globvars2pred gz ((i,gv)::gvs) * SF)
-     c Post.
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz
+       (data_at  (readonly2share (gvar_readonly gv)) (Tarray (Tpointer t' noattr) n noattr)
+                                  (list_repeat (Z.to_nat n) nullval)  (gz i) :: done)
+            emp  al.
 Proof.
 intros until n. intros Ht H3; intros.
-eapply semax_pre; [ | apply H6]; clear H6.
-rewrite <- insert_SEP.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
 assert (H7 := unpack_globvar Delta gz i t gv _ H H0 H1 H2 H3 H4).
 spec H7.
 simpl. pose proof (sizeof_pos t). rewrite Z.max_l by lia. lia.
 specialize (H7 H5).
 go_lowerx.
+unfold globvars_in_process.
 unfold globvars2pred; fold globvars2pred.
-simpl map.
-unfold fold_right; fold (fold_right sepcon emp  (map (globvar2pred gz) gvs)).
 unfold lift2.
+simpl.
 normalize.
-apply sepcon_derives; auto.
-pull_left (PQR rho).
-rewrite sepcon_assoc. 
+pull_right (fold_right_sepcon done).
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
 specialize (H7 rho).
@@ -1156,67 +1217,81 @@ reflexivity.
 Qed.
 
 Lemma process_globvar_extern:
- forall {Espec: OracleKind} {CS: compspecs} Delta P gz Q R i gv gvs SF c Post,
+ forall {CS: compspecs} Delta done gz i gv al,
        gvar_init gv = nil ->
        gvar_volatile gv = false ->
-       semax Delta
-         (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
-          globvars2pred gz gvs * SF) c Post ->
-       semax Delta
-         (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
-          globvars2pred gz ((i, gv) :: gvs) * SF) c Post.
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz done emp  al.
 Proof.
 intros.
-eapply semax_pre; [ | apply H1]; clear H1.
 apply andp_left2.
-apply sepcon_derives; auto.
-apply sepcon_derives; auto.
+unfold globvars_in_process.
 intro rho.
-unfold globvars2pred.
+unfold globvars2pred, lift2.
 apply andp_derives; auto.
 simpl.
-rewrite <- emp_sepcon.
+normalize.
 apply sepcon_derives; auto.
 unfold globvar2pred.
 simpl. rewrite H0, H.
-simpl.
-auto.
+simpl. rewrite emp_sepcon.
+apply derives_refl.
 Qed.
 
-Ltac process_one_globvar :=
+Definition is_array_type t :=
+ match t with Tarray _ _ _ => true | _ => false end.
+
+Ltac process_one_globvar' :=
  first
-  [ simple eapply process_globvar_extern; [reflexivity | reflexivity | ]
-  | simple eapply process_globvar_ptrarray_space;
+  [ simple eapply process_globvar_extern; [reflexivity | reflexivity ]
+  | match goal with |- ENTAIL ?Delta, globvars_in_process ?gv _ emp ((?i,?v)::_) |-- _ =>
+        (* need this hack because, for some reason, simple eapply does not work here *)
+           unify (is_array_type (gvar_info v)) true
+     end;
+    (* simple *) eapply process_globvar_ptrarray_space;
      [  reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
      | compute; clear; congruence
-     |
      ]
   | simple eapply process_globvar_space;
-    [simpl; reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | simpl; computable | ]
+    [simpl; reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | simpl; computable ]
   | simple eapply process_globvar';
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
-      | reflexivity | compute; congruence | ]
-  | simple eapply process_globvar_array;
+      | reflexivity | compute; congruence ]
+  | match goal with |- ENTAIL ?Delta, globvars_in_process ?gv _ emp ((?i,?v)::_) |-- _ =>
+        (* need this hack because, for some reason, simple eapply does not work here *)
+           unify (is_array_type (gvar_info v)) true
+     end;
+     (*simple*) eapply process_globvar_array;
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I
       | compute; clear; congruence
       | repeat eapply map_instantiate; symmetry; apply map_nil
-      | compute; split; clear; congruence |  ]
+      | compute; split; clear; congruence  ]
   | simple eapply process_globvar_star';
-        [reflexivity | reflexivity | reflexivity | reflexivity
-        | compute; split; clear; congruence
-       | simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
-         change (Share.lub extern_retainer Tsh) with Ews
-         ]
+        [reflexivity | reflexivity | reflexivity ]
   | simple eapply halfprocess_globvar_star;
         [reflexivity | reflexivity | reflexivity | reflexivity|
-         simpl; compute; split; clear; congruence | ]
-  ];
-  change (Share.lub extern_retainer _) with Ews;
-  change (Share.lub extern_retainer _) with Ers;
-  try change (Vint oo _) with (Vint oo id);
-  fold_types;
-  rewrite ?Combinators.compose_id_right.
+         simpl; compute; split; clear; congruence ]
+  ].
+Ltac process_one_globvar :=
+  eapply ENTAIL_trans; [process_one_globvar' | ].
 
+Lemma move_globfield_into_done:
+ forall Delta gv done S1 R al R',
+  ENTAIL Delta, globvars_in_process gv (S1::done) R al |-- R' ->
+  ENTAIL Delta, globvars_in_process gv done (S1 * R) al |-- R'.
+Proof.
+intros.
+eapply ENTAIL_trans; [ | apply H]; clear.
+apply andp_left2.
+unfold globvars_in_process.
+intro rho; simpl; normalize.
+rewrite <- !sepcon_assoc.
+pull_left S1.
+auto.
+Qed.
+
+(*
 Lemma move_globfield_into_SEP:
  forall {cs: compspecs}{Espec: OracleKind} Delta P Q R
    (S1: mpred) (S2 S3 S4: environ -> mpred) c Post,
@@ -1255,39 +1330,7 @@ rewrite <- !sepcon_assoc.
 pull_left (`(g (h x))).
 apply derives_refl.
 Qed.
-(*
-Lemma move_globfield_into_SEP'':
- forall {cs: compspecs}{Espec: OracleKind} Delta P Q R
-   (i: ident) (v: val)
-   (g: val -> mpred)
-   (h: val -> val) (S2 S3 S4: environ -> mpred) c Post,
-   In (gvar i v) Q ->
-  semax Delta (PROPx P (LOCALx Q (SEPx ((g (h v))::R))) * S2 * S3 * S4) c Post ->
- semax Delta (PROPx P (LOCALx Q (SEPx R)) * ((EX x:val, local (locald_denote (gvar i x)) && `(g (h x))) * S2) * S3 * S4) c Post.
-Proof.
-intros.
-normalize.
-apply extract_exists_pre; intro x.
-eapply semax_pre0; [ | apply H0].
-clear - H.
-rewrite <- insert_SEP.
-go_lowerx.
-normalize.
-cancel.
-clear - H2 H H1.
-revert H H1; induction Q; intros.
-inv H. simpl in H. destruct H. subst a.
-simpl in H1.
-destruct H1.
-clear - H2 H.
-hnf in H,H2.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]. contradiction.
-destruct (Map.get (ge_of rho) i); try contradiction.
-subst. auto.
-destruct H1.
-auto.
-Qed.
-*)
+
 Lemma move_globfield_into_SEP0:
  forall {cs: compspecs}{Espec: OracleKind} Delta
    (S0 S3 S4: environ -> mpred) c Post,
@@ -1297,6 +1340,8 @@ Proof.
 intros.
 rewrite sepcon_emp; auto.
 Qed.
+
+*)
 
 Lemma offset_val_unsigned_repr: forall i p,
   offset_val (Ptrofs.unsigned (Ptrofs.repr i)) p = offset_val i p.
@@ -1310,7 +1355,7 @@ Qed.
 
 Ltac process_idstar :=
      process_one_globvar;
-     lazymatch goal with |- semax _ (_ * ?A * _ * _) _ _ =>
+     lazymatch goal with |- ENTAIL _, globvars_in_process _ _ ?A _ |-- _ =>
          let p := fresh "p" in set (p:=A);
          simpl in p;
          unfold id2pred_star, init_data2pred' in p;
@@ -1319,28 +1364,17 @@ Ltac process_idstar :=
          simpl init_data_size in p;
          revert p; rewrite ?offset_offset_val; intro p; simpl Z.add in p;
          subst p;
-       repeat first
-        [simple apply move_globfield_into_SEP
-(*        | simple eapply move_globfield_into_SEP''; [ now repeat econstructor | ] *)
-        | simple apply move_globfield_into_SEP'; intros ?gvar0 (*;
-          lazymatch goal with
-          | |- semax _ ((PROPx _ (LOCALx (gvar ?A ?B :: _) _)) * _ * _ * _)  _ _ =>
-                 let n := fresh "v" A in rename B into n
-          | |- _ => idtac
-          end*)
-        ];
-      simple apply move_globfield_into_SEP0
-    | |- semax _ (_ * _ * _) _ _ => idtac
-     end.
+         repeat simple apply move_globfield_into_done
+    | |- ENTAIL _, _ |-- _ => idtac
+    end.
 
-Lemma eliminate_globvars2pred_nil: 
- forall {cs: compspecs}{Espec: OracleKind} Delta PQR gv SF c Post,
+Lemma finish_process_globvars: 
+ forall {cs: compspecs}{Espec: OracleKind} Delta PQR SF c Post,
   semax Delta (PQR * SF) c Post ->
-  semax Delta (PQR * globvars2pred gv nil * SF) c Post.
+  semax Delta (PQR * emp * SF) c Post.
 Proof.
 intros.
-eapply semax_pre; [ | apply H].
-go_lowerx; normalize.
+rewrite sepcon_emp; auto.
 Qed.
 
 Lemma prog_defs_Clight_mkprogram:
@@ -1352,24 +1386,6 @@ destruct ( build_composite_env' c w).
 reflexivity.
 Qed.
 
-(*Ltac expand_main_pre :=
- match goal with | |- semax _ (main_pre ?prog _ _ * _) _ _ =>
-    rewrite main_pre_start;
-    unfold prog_vars, prog
-                          | |- semax _ (main_pre ?prog _ _) _ _ =>
-    rewrite main_pre_start;
-    unfold prog_vars, prog
- end;
- (match goal with |- context C [prog_defs (Build_program ?d _ _ _ _)] =>
-    let e := context C[d] in change e
-   end 
-   || rewrite prog_defs_Clight_mkprogram);
- simpl globvars2pred;
- repeat  process_idstar;
- simple apply eliminate_globvars2pred_nil;
- rewrite ?offset_val_unsigned_repr;
- simpl readonly2share.*)
-
 Ltac expand_main_pre_old :=
  match goal with | |- semax _ (main_pre_old ?prog _ _ * _) _ _ =>
     rewrite main_pre_start_old;
@@ -1378,14 +1394,19 @@ Ltac expand_main_pre_old :=
     rewrite main_pre_start_old;
     unfold prog_vars, prog
  end;
- (match goal with |- context C [prog_defs (Build_program ?d _ _ _ _)] =>
-    let e := context C[d] in change e
-   end 
-   || rewrite prog_defs_Clight_mkprogram);
- simpl globvars2pred;
- repeat  process_idstar;
- tryif (simple apply eliminate_globvars2pred_nil)  then idtac
-  else idtac "Warning: could not process all the extern variables in main_pre";
+simpl globvars2pred;
+simple eapply semax_process_globvars;
+ [repeat process_idstar; 
+  change (Share.lub extern_retainer _) with Ews;
+  change (Share.lub extern_retainer _) with Ers;
+  try change (Vint oo _) with (Vint oo id);
+  fold_types;
+  rewrite ?Combinators.compose_id_right;
+  apply ENTAIL_refl
+ | tryif (simple apply finish_process_globvars) then idtac
+    else idtac "Warning: could not process all the extern variables in main_pre"
+ ];
  rewrite ?offset_val_unsigned_repr;
  simpl readonly2share.
+
 

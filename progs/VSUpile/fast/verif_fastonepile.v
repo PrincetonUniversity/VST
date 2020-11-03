@@ -81,11 +81,10 @@ entailer!.
 Qed.
 
   Lemma onepile_Init_aux gv: headptr (gv _the_pile) ->
-    initialize.gv_globvar2pred gv (_the_pile, v_the_pile) gv
+    initialize.gv_globvar2pred gv (_the_pile, v_the_pile)
     |-- data_at_ Ews (tptr (Tstruct _pile noattr)) (gv _the_pile).
   Proof. intros.
     unfold initialize.gv_globvar2pred. simpl.
-         unfold initialize.gv_lift2, initialize.gv_lift0; simpl.
          rewrite predicates_sl.sepcon_emp.
     destruct H as [b Hb]; rewrite Hb in *.
     eapply derives_trans. 
@@ -96,7 +95,7 @@ Qed.
   Qed.
 
   Lemma onepile_Init_aux2 gv: headptr (gv _the_pile) ->
-    initialize.gv_globvar2pred gv (_the_pile, v_the_pile) gv
+    initialize.gv_globvar2pred gv (_the_pile, v_the_pile)
     |--  one_pile None gv.
   Proof. intros. sep_apply onepile_Init_aux. apply make_onepile; trivial. Qed.
 

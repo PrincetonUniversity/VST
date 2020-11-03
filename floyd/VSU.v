@@ -484,28 +484,16 @@ Definition isGvar (x: ident * globdef (fundef function) type) :=
            match (snd x) with Gvar v => true | _ => false end.
 
 Definition Vardefs (p: Clight.program) := filter isGvar (prog_defs p).
-(*
-Definition globvar2pred': globals -> ident * globvar type -> globals -> mpred := initialize.gv_globvar2pred.
 
-Definition globs2pred' (gv1: globals) (x: ident * globdef (fundef function) type) (gv2: globals): mpred :=
+Definition globs2pred (gv: globals) (x: ident * globdef (fundef function) type) : mpred :=
   match x with (i, d) => match d with
                            Gfun _ => emp
-                         | Gvar v => !!(headptr (gv2 i)) && globvar2pred' gv1 (i,v) gv2
-                         end
-  end.
-
-Lemma globvar2pred_char gv idv rho: globvar2pred gv idv rho = globvar2pred' gv idv (globals_of_genv (ge_of rho)).
-apply initialize.globvar2pred_char_gv. Qed.*)
-
-Definition globs2pred (gv1: globals) (x: ident * globdef (fundef function) type) (gv2: globals): mpred :=
-  match x with (i, d) => match d with
-                           Gfun _ => emp
-                         | Gvar v => !!(headptr (gv2 i)) && initialize.gv_globvar2pred gv1 (i,v) gv2
+                         | Gvar v => !!(headptr (gv i)) && initialize.gv_globvar2pred gv (i,v)
                          end
   end.
 
 Definition InitGPred (V:list (ident * globdef (fundef function) type)) (gv: globals) :mpred := 
-   fold_right sepcon emp (map (globs2pred gv) V) gv.
+   fold_right sepcon emp (map (globs2pred gv) V).
 
 (*V should be the varspecs of p, and cs the compspecs* 
 VSTexterns, "E": Syscalls, functions implemented in assembly... These functions are represented
@@ -1656,11 +1644,11 @@ Lemma InitGPred_nilD gv: InitGPred nil gv = emp.
 Proof. clear. reflexivity. Qed.
 
 Lemma InitGPred_consD X a gv:
-      InitGPred (a :: X) gv = (globs2pred gv a gv * InitGPred X gv)%logic.
+      InitGPred (a :: X) gv = (globs2pred gv a * InitGPred X gv)%logic.
 Proof. clear. reflexivity. Qed.
 
 Lemma InitGPred_middleD Y a gv: forall X,
-      InitGPred (Y ++ a :: X) gv = (globs2pred gv a gv * InitGPred Y gv * InitGPred X gv)%logic.
+      InitGPred (Y ++ a :: X) gv = (globs2pred gv a * InitGPred Y gv * InitGPred X gv)%logic.
 Proof. clear.
   induction Y; simpl; intros.
 + rewrite InitGPred_consD, InitGPred_nilD, sepcon_emp; reflexivity.
@@ -1675,14 +1663,14 @@ Proof. clear.
 Qed.
 
 Lemma globs2predD_true a gv: true = isGvar a ->
-      globs2pred gv a gv = EX i v, !! (a=(i,Gvar v) /\ headptr (gv i)) && initialize.gv_globvar2pred gv (i, v) gv.
+      globs2pred gv a = EX i v, !! (a=(i,Gvar v) /\ headptr (gv i)) && initialize.gv_globvar2pred gv (i, v).
 Proof. clear. unfold globs2pred. destruct a. unfold isGvar; simpl. destruct g; intros. discriminate.
  apply pred_ext. Intros. Exists i v. entailer!.
  Intros ii vv. inv H0. entailer!.
 Qed.
 
 Lemma globs2predD_false a gv: false = isGvar a ->
-      globs2pred gv a gv = emp.
+      globs2pred gv a = emp.
 Proof. clear. unfold globs2pred. destruct a. unfold isGvar; simpl. destruct g; trivial. discriminate.
 Qed.
 
@@ -1716,11 +1704,6 @@ apply (H1 a a); [ | left | ]; trivial.
 apply list_disjoint_cons_right in H1.
 apply list_norepet_app; split3; trivial.
 Qed.
-(*
-Proof. clear; intros. apply list_disjoint_app_inv in H; destruct H.
-  apply list_disjoint_consD in H0; destruct H0. split; trivial.
-  apply list_disjoint_app_L; trivial.
-Qed.*)
 
 Lemma list_norepet_app_inv {A}: forall l1 m1 l2 m2 (a:A),
       m1 ++ a :: m2 = l1 ++ a :: l2 -> ~ In a (l1 ++ l2) ->
@@ -4239,7 +4222,6 @@ change (initialize.readonly2share (gvar_readonly v))
 forget (readonly2share (gvar_readonly v)) as sh.
 revert g; induction (gvar_init v); intros; simpl; auto.
 apply derives_refl.
-unfold initialize.gv_lift2.
 change (predicates_sl.sepcon ?A ?B) with (sepcon A B).
 apply sepcon_derives; auto.
 clear IHl0 l0.

@@ -67,11 +67,10 @@ Qed.
 
   (*only |-- is needed*)
   Lemma MyInitData gv (H: headptr (gv _a_pile)):
-        initialize.gv_globvar2pred gv (_a_pile, v_a_pile) gv 
+        initialize.gv_globvar2pred gv (_a_pile, v_a_pile) 
         = apile nil gv.
   Proof. rewrite <- (make_apile _ H).
          unfold initialize.gv_globvar2pred, apile. simpl.
-         unfold initialize.gv_lift2, initialize.gv_lift0; simpl.
          rewrite predicates_sl.sepcon_emp. forget (gv _a_pile) as p.
            erewrite <- (mapsto_data_at'' Ews); trivial. 
   Qed.
