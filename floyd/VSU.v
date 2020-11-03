@@ -488,7 +488,7 @@ Definition Vardefs (p: Clight.program) := filter isGvar (prog_defs p).
 Definition globs2pred (gv: globals) (x: ident * globdef (fundef function) type) : mpred :=
   match x with (i, d) => match d with
                            Gfun _ => emp
-                         | Gvar v => !!(headptr (gv i)) && initialize.gv_globvar2pred gv (i,v)
+                         | Gvar v => !!(headptr (gv i)) && globvar2pred gv (i,v)
                          end
   end.
 
@@ -1663,7 +1663,7 @@ Proof. clear.
 Qed.
 
 Lemma globs2predD_true a gv: true = isGvar a ->
-      globs2pred gv a = EX i v, !! (a=(i,Gvar v) /\ headptr (gv i)) && initialize.gv_globvar2pred gv (i, v).
+      globs2pred gv a = EX i v, !! (a=(i,Gvar v) /\ headptr (gv i)) && globvar2pred gv (i, v).
 Proof. clear. unfold globs2pred. destruct a. unfold isGvar; simpl. destruct g; intros. discriminate.
  apply pred_ext. Intros. Exists i v. entailer!.
  Intros ii vv. inv H0. entailer!.
@@ -4183,15 +4183,15 @@ Qed.
 
 
 Lemma globs_to_globvars:
- forall gv prog rho, 
+ forall prog rho, 
   Forall (fun ig => isptr (globals_of_env rho (fst ig))) (prog_vars prog) ->
- globvars2pred gv (prog_vars prog) rho
-  |-- InitGPred (Vardefs prog) gv.
+ globvars2pred (globals_of_env rho) (prog_vars prog)
+  |-- InitGPred (Vardefs prog) (globals_of_env rho).
 Proof.
 intros.
 unfold globvars2pred.
-unfold lift2; simpl.
-Intros. subst gv.
+simpl.
+Intros.
 unfold Vardefs.
 unfold prog_vars in *.
 induction (prog_defs prog).
@@ -4209,8 +4209,7 @@ simpl in H. inv H.
 simpl in H2.
 apply sepcon_derives; auto.
 clear IHl.
-unfold globvar2pred, globs2pred.
-unfold initialize.gv_globvar2pred.
+unfold globs2pred, globvar2pred.
 simpl.
 rewrite prop_true_andp by (apply global_is_headptr; auto).
 destruct (gvar_volatile v).
@@ -4221,17 +4220,6 @@ change (initialize.readonly2share (gvar_readonly v))
   with (readonly2share (gvar_readonly v)).
 forget (readonly2share (gvar_readonly v)) as sh.
 revert g; induction (gvar_init v); intros; simpl; auto.
-apply derives_refl.
-change (predicates_sl.sepcon ?A ?B) with (sepcon A B).
-apply sepcon_derives; auto.
-clear IHl0 l0.
-destruct a; simpl; try apply derives_refl.
-unfold ge_of, globals_of_env, Map.get.
-destruct rho. simpl.
-destruct (ge i0).
-simpl.
-apply derives_refl.
-apply derives_refl.
 Qed.
 
 
@@ -4245,42 +4233,37 @@ Lemma main_pre_InitGpred:
 Proof.
 intros.
 rewrite H in H1. clear H prog1. rename H1 into H.
-change (main_pre_old ?PROG ?A ?GV) with
-  (globvars2pred GV (prog_vars PROG) * (fun rho => has_ext A))%logic.
-eapply semax_pre.
-apply sepcon_ENTAIL; [ | apply ENTAIL_refl].
+eapply semax_pre; [ | apply H2]; clear H2.
+unfold main_pre_old, PROPx, LOCALx, SEPx, local, lift1.
 intro rho.
-unfold local, lift1; simpl.
-Intros.
-apply sepcon_derives; [ | apply derives_refl].
-eapply derives_trans; [ | apply andp_derives].
-2: instantiate (1 := (LOCALx [gvars gv] TT rho)); apply derives_refl.
-2:apply H.
-apply andp_right.
-unfold LOCALx, local, lift1; simpl.
-unfold globvars2pred.
-unfold lift2; simpl.
-Intros. apply prop_right.
-split; auto.
-apply globs_to_globvars.
-eapply Forall_impl; try apply H0.
-intros.
+simpl. unfold_lift.
+normalize.
+rewrite prop_true_andp.
+2:{ split; auto. hnf. reflexivity. }
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+eapply derives_trans; [ | apply H]; clear H.
+unfold Vardefs, InitGPred.
+unfold SeparationLogic.prog_vars.
+clear - H0 H1.
+unfold Clight_initial_world.prog_vars in H0.
+induction (prog_defs prog2); simpl.
+auto.
+destruct a.
+simpl in H0.
+destruct g; simpl; auto.
+inv H0.
+apply sepcon_derives; auto.
+rewrite prop_true_andp; auto.
+clear - H1 H3.
 destruct H1 as [_ [_ ?]].
-simpl in H3.
-destruct ((glob_types Delta) ! (fst a)) eqn:H4; try contradiction.
-destruct (H1 (fst a) t); auto.
+simpl in *.
+specialize (H i).
+destruct ((glob_types Delta) ! i); inv H3.
+specialize (H _ (eq_refl _)) as [b ?].
 unfold globals_of_env.
-rewrite H5.
-apply I.
-eapply semax_pre.
-apply sepcon_ENTAIL; [ | apply ENTAIL_refl].
-apply andp_left2.
-instantiate (1:= PROP() LOCAL(gvars gv) SEP(globs; has_ext ext)%assert3).
-intro rho; simpl.
-unfold PROPx, LOCALx, SEPx.
-unfold local, lift1, liftx.
-simpl. normalize.
-apply H2.
+rewrite H.
+exists b; auto.
 Qed.
 
 Definition VSU_MkInitPred {Espec V cs E Imports p Exports GP} 

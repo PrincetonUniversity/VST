@@ -67,11 +67,11 @@ forward.
 Qed.
 
   Lemma MyInitData gv (H: headptr (gv _a_pile)):
-        initialize.gv_globvar2pred gv (_a_pile, v_a_pile)
+        globvar2pred gv (_a_pile, v_a_pile)
         |-- apile nil gv.
   Proof. eapply derives_trans. 2: apply (make_apile _ H).
-         unfold initialize.gv_globvar2pred, apile. simpl.
-         rewrite predicates_sl.sepcon_emp. forget (gv _a_pile) as p.
+         unfold globvar2pred, apile. simpl.
+         rewrite sepcon_emp. forget (gv _a_pile) as p.
          erewrite <- (mapsto_data_at'' Ews); trivial. apply derives_refl. 
   Qed.
 

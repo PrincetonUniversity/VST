@@ -58,7 +58,7 @@ Lemma tc_globalvar_sound:
    gvar_volatile gz = false ->
    gvar_init gz = idata ->
    tc_environ Delta rho ->
-   globvar2pred (globals_of_env rho) (i, gz) rho |-- init_data_list2pred idata (readonly2share (gvar_readonly gz)) (eval_var i t rho) rho.
+   globvar2pred (globals_of_env rho) (i, gz) |-- init_data_list2pred (globals_of_env rho) idata (readonly2share (gvar_readonly gz)) (eval_var i t rho).
 Proof.
 intros.
 unfold globvar2pred.
@@ -79,8 +79,8 @@ Lemma tc_globalvar_sound':
    gvar_volatile gv = false ->
    gvar_init gv = idata ->
    tc_environ Delta rho ->
-   globvar2pred (globals_of_env rho)  (i, gv) rho |--
-   init_data_list2pred idata (readonly2share (gvar_readonly gv)) (globals_of_env rho i) rho.
+   globvar2pred (globals_of_env rho)  (i, gv) |--
+   init_data_list2pred (globals_of_env rho) idata (readonly2share (gvar_readonly gv)) (globals_of_env rho i).
 Proof.
 intros.
 unfold globvar2pred.
@@ -104,32 +104,7 @@ Definition eval_sgvar (id: ident) (ty: type) (rho: environ) :=
 | Some b => Vptr b Ptrofs.zero
 | None => Vundef
 end.
-(*
-Lemma eval_sgvar_lemma1:
-  forall (F: val -> mpred) ofs id t,
-    F Vundef |-- FF ->
-   `F (`(offset_val ofs) (eval_sgvar id t)) =
-   (EX v:val, local (locald_denote (sgvar id v)) && `(F (offset_val ofs v))).
-Proof.
-intros.
-extensionality rho.
-unfold_lift. unfold local, lift1.
-unfold eval_sgvar.
-simpl.
-apply pred_ext.
-unfold sgvar_denote.
-destruct (Map.get (ge_of rho) id).
-apply exp_right with (Vptr b Ptrofs.zero).
-normalize.
-eapply derives_trans; [ apply H | ].
-apply FF_left.
-unfold sgvar_denote.
-apply exp_left; intro; normalize.
-destruct (Map.get (ge_of rho) id).
-subst. auto.
-contradiction.
-Qed.
-*)
+
 Definition init_data2pred'
      (Delta: tycontext) (gv: globals) (d: init_data)  (sh: share) (v: val) : mpred :=
  match d with
@@ -205,7 +180,7 @@ Lemma init_data2pred_rejigger {cs: compspecs}:
   tc_environ Delta rho ->
   v = Vptr b (Ptrofs.repr 0) ->
   readable_share sh ->
-   init_data2pred idata sh (offset_val ofs v) rho
+   init_data2pred (globals_of_env rho) idata sh (offset_val ofs v)
     |-- init_data2pred' Delta (globals_of_env rho) idata sh (offset_val ofs v).
 Proof.
 intros until v.
@@ -219,6 +194,7 @@ assert (H6:=I).
  simpl.
  destruct idata; super_unfold_lift; try apply derives_refl.
  red in H7.
+ unfold globals_of_env.
  destruct_var_types i eqn:Hv&Hv'; rewrite ?Hv, ?Hv';
   destruct_glob_types i eqn:Hg&Hg'; rewrite ?Hg, ?Hg';
 try solve [simpl; apply TT_right].
@@ -226,7 +202,9 @@ try solve [simpl; apply TT_right].
  + replace (offset_val (Ptrofs.unsigned i0) (globals_of_env rho i)) with (Vptr b0 i0).
    replace (mapsto sh (Tpointer Tvoid noattr) (offset_val ofs v) (Vptr b0 i0))
    with (mapsto sh (Tpointer t noattr) (offset_val ofs v) (Vptr b0 i0)).
-   destruct t; auto.
+   simpl offset_val. rewrite !Ptrofs.add_zero_l.
+   rewrite Ptrofs.repr_unsigned.
+   destruct t; auto; try apply derives_refl.
    unfold mapsto; simpl.
    destruct (offset_val ofs v); auto. rewrite !if_true by auto. rewrite andb_false_r.
    apply derives_refl.
@@ -252,7 +230,7 @@ Lemma unpack_globvar  {cs: compspecs}:
    gvar_init gv = idata :: nil ->
    init_data_size idata <= sizeof t ->
    sizeof t <= Ptrofs.max_unsigned ->
-   local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz (i, gv) |--
+   local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && `(globvar2pred gz (i, gv)) |--
        `(init_data2pred' Delta gz idata (readonly2share (gvar_readonly gv)) (gz i)).
 Proof.
 intros.
@@ -310,7 +288,7 @@ Lemma unpack_globvar_star  {cs: compspecs}:
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
    gvar_volatile gv = false ->
-   local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz (i, gv) |-- 
+   local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && `(globvar2pred gz (i, gv)) |-- 
        `(id2pred_star Delta gz (readonly2share (gvar_readonly gv)) (gz i) (gvar_init gv)).
 Proof.
 intros until 2. pose proof I. intros H2.
@@ -534,7 +512,7 @@ Lemma unpack_globvar_array  {cs: compspecs}:
    n = Zlength (gvar_init gv) ->
    gvar_init gv = map (inttype2init_data sz) data ->
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Ptrofs.max_unsigned ->
-   local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz(i, gv) |--
+   local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && `(globvar2pred gz(i, gv)) |--
       `(data_at (readonly2share (gvar_readonly gv))
          (tarray (Tint sz sign noattr) n)
          (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)
@@ -609,8 +587,9 @@ Qed.
 
 
 Definition gv_globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : mpred :=
-  (fold_right_sepcon (map (initialize.gv_globvar2pred gv) vl)).
+  (fold_right_sepcon (map (globvar2pred gv) vl)).
 
+(*
 Lemma globvars2pred_relate:
  forall gv vl rho, 
   gvars_denote gv rho ->
@@ -635,12 +614,13 @@ Proof.
  hnf in H. rewrite H.
  destruct (Map.get (ge_of rho) i0); auto.
 Qed.
+*)
 
 Definition globvars_in_process (gv: globals) (done: list mpred)
                (halfdone: mpred)
                (al: list (ident * globvar type)) (rho: environ) : mpred :=
  !! (gvars_denote gv rho) &&
- (fold_right_sepcon done * halfdone * globvars2pred gv al rho).
+ (fold_right_sepcon done * halfdone * globvars2pred gv al).
 
 Lemma start_globvars_in_process:
   forall {cs: compspecs} {Espec: OracleKind} Delta P Q R
@@ -650,7 +630,7 @@ Lemma start_globvars_in_process:
           globvars_in_process gz nil emp al * SF) c Post ->
   semax Delta
     (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
-          globvars2pred gz al * SF) c Post.
+          `(globvars2pred gz al) * SF) c Post.
 Proof.
 intros.
 eapply semax_pre; [ | apply H].
@@ -666,11 +646,7 @@ rewrite prop_true_andp by auto.
 simpl.
 rewrite !emp_sepcon.
 unfold globvars2pred.
-unfold lift2.
-rewrite prop_true_andp; auto.
-clear.
-induction al; simpl; auto.
-apply sepcon_derives; auto.
+auto.
 Qed.
 
 Lemma semax_process_globvars:
@@ -681,7 +657,7 @@ Lemma semax_process_globvars:
     (PROPx P (LOCALx (gvars gz :: Q) (SEPx R')) * emp * SF) c Post ->
   semax Delta
     (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
-          globvars2pred gz al * SF) c Post.
+          `(globvars2pred gz al) * SF) c Post.
 Proof.
 intros.
 apply start_globvars_in_process.
@@ -700,15 +676,8 @@ simpl in *.
 normalize.
 rewrite !prop_true_andp in H by auto.
 match goal with |- _ * ?A |-- _ =>
- replace A with (globvars2pred gz al rho)
+ change A with (globvars2pred gz al)
 end.
-2:{
-clear - H0.
-unfold globvars2pred, lift2.
-simpl. normalize.
-induction al; simpl; auto.
-f_equal; auto.
-}
 rewrite !sepcon_emp in H.
 eapply derives_trans; [ apply H | ].
 unfold globvars2pred, lift2; simpl; normalize.
@@ -740,10 +709,6 @@ clear H H0 H1 H2 H3 H4 H5 H6.
 unfold globvars_in_process.
 unfold globvars2pred.
 change (lift_S (LiftEnviron Prop)) with environ in *.
-(*unfold lift2.
-change  (fun rho : environ => gz = globals_of_env rho)
-  with (locald_denote (gvars gz)) in H7|-*.
-*)
 go_lowerx. unfold lift2.
 normalize.
 rewrite sepcon_assoc.
@@ -863,6 +828,7 @@ simpl.
 rewrite H2.
 pose proof (readable_readonly2share (gvar_readonly gv)).
 forget (readonly2share (gvar_readonly gv)) as sh.
+replace gz with (globals_of_env rho).
 rewrite <- offset_zero_globals_of_env at 1.
 set (ofs:=0).
 clearbody ofs.
@@ -889,9 +855,10 @@ Lemma map_instantiate:
     y = map f z ->  f x :: y = map f (x :: z).
 Proof. intros. subst. reflexivity. Qed.
 
+(*
 Lemma main_pre_start:
  forall {Z} prog (gv:ident -> val) (ora : Z),
-   main_pre prog ora gv = (PROPx nil (LAMBDAx (gv::nil) nil (SEPx (has_ext ora::nil)))%assert * gglobvars2pred gv (prog_vars prog)).
+   main_pre prog ora gv = (PROPx nil (LAMBDAx (gv::nil) nil (SEPx (has_ext ora::nil)))%assert * (globvars2pred gv (prog_vars prog))).
 Proof.
 intros.
 unfold main_pre.
@@ -906,13 +873,16 @@ apply pred_ext; normalize.
 + apply andp_right. apply prop_right. intuition. trivial.
 + apply andp_right. apply prop_right. intuition. trivial.
 Qed.
+*)
 
 Definition main_pre_old {Z: Type} (prog: Clight.program) (ora: Z) : globals -> environ -> mpred :=
-(fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
+fun gv rho => 
+  !! (gv = globals_of_env rho) &&
+   (globvars2pred gv (prog_vars prog) * has_ext ora).
 
 Lemma main_pre_start_old:
  forall {Z} prog gv (ora : Z),
-   main_pre_old prog ora gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
+   main_pre_old prog ora gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * `(globvars2pred gv (prog_vars prog)).
 Proof.
 intros.
 unfold main_pre_old.
@@ -929,8 +899,9 @@ rewrite prop_true_andp by auto.
 auto.
 Qed.
 
+(*
 Lemma init_data2pred_ge_eq {rho sigma a sh v} (RS : ge_of rho = ge_of sigma):
-      init_data2pred a sh v rho = init_data2pred a sh v sigma.
+      init_data2pred a sh v = init_data2pred a sh v sigma.
 Proof. destruct a; simpl; intros; trivial. rewrite RS; trivial. Qed.
 
 Lemma initdata_list2pred_ge_eq {rho sigma} (RS : ge_of rho = ge_of sigma):
@@ -961,6 +932,7 @@ Qed.
 Lemma globvars2pred_ge_eq {rho sigma gz l} (RS: ge_of rho = ge_of sigma):
       globvars2pred gz l rho = globvars2pred gz l sigma.
 Proof. apply pred_ext; apply globvars2pred_ge_eq_entails; [ | symmetry]; trivial. Qed.
+*)
 
 Lemma close_precondition_main {Z p ora gv}:
 close_precondition nil (@main_pre Z p ora gv) = @main_pre_old Z p ora gv.
@@ -968,18 +940,12 @@ Proof.
 unfold close_precondition; extensionality rho.
 unfold main_pre, main_pre_old; simpl snd. 
 forget (prog_vars p) as vars. clear p.
-remember (globvars2pred gv vars rho) as G.
+remember (globvars2pred gv vars) as G.
 apply pred_ext.
 + apply exp_left. intros vals. normalize.
-  apply sepcon_derives; trivial.
-  unfold gglobvars2pred; subst; simpl.
-  apply derives_refl'. apply globvars2pred_ge_eq. reflexivity.
 + Exists (@nil val). 
   apply andp_right. apply prop_right; split; [trivial | constructor].
-  apply sepcon_derives; trivial.
-  apply andp_right. apply prop_right; trivial.
-  unfold gglobvars2pred; subst; simpl.
-  apply derives_refl'. apply globvars2pred_ge_eq. reflexivity.
+  clear HeqG. normalize. rewrite prop_true_andp; auto.
 Qed.
 
 Lemma process_globvar_space:
@@ -1017,9 +983,9 @@ rewrite prop_true_andp in H7 by auto.
 eapply derives_trans; [ apply H7  | ].
 eapply derives_trans. apply mapsto_zeros_memory_block.
 destruct (gvar_readonly gv); simpl; auto. apply readable_Ers.
-assert_PROP (isptr (globals_of_env rho i)) by (saturate_local; apply prop_right; auto).
-assert (headptr (globals_of_env rho i)).
-hnf. unfold globals_of_env in H9|-*. destruct (Map.get (ge_of rho) i); try contradiction. eauto.
+assert_PROP (isptr (gz i)) by (saturate_local; apply prop_right; auto).
+assert (headptr (gz i)).
+rewrite H8 in *. destruct (Map.get (ge_of rho) i); try contradiction. hnf; eauto.
 rewrite memory_block_data_at_; auto.
 subst t.
 rewrite andb_true_iff in H1; destruct H1.
@@ -1079,7 +1045,7 @@ assert (readable_share (readonly2share (gvar_readonly gv)))
   by apply readable_readonly2share.
 forget  (readonly2share (gvar_readonly gv)) as sh.
 unfold mapsto_zeros.
-destruct (globals_of_env rho i); try apply FF_left.
+destruct (gz i); try apply FF_left.
 normalize.
 unfold data_at, field_at.
 change (nested_field_offset _ _) with 0.
@@ -1106,24 +1072,25 @@ unfold data_at.
 erewrite field_at_Tarray with (n0:=n);
   [ | apply I | reflexivity | lia | apply JMeq_refl].
 unfold mapsto_zeros.
-destruct (globals_of_env rho i) eqn:?H;
+destruct (gz i) eqn:?H;
  try apply FF_left.
 normalize.
-assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) (ArraySubsc 0::nil) (globals_of_env rho i)).
+assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) (ArraySubsc 0::nil) (gz i)).
 { rewrite H9; split3; auto. apply I. split; auto. simpl. unfold sizeof; simpl.
    rewrite Z.max_r by lia. lia.
   split. red. apply align_compatible_rec_Tarray. intros.
      eapply align_compatible_rec_by_value. reflexivity.
      simpl.
-  unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i); inv H9.
+  rewrite H8 in H9; unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i); inv H9.
   normalize. apply Z.divide_mul_l. unfold Mptr.  destruct Archi.ptr64; exists 1; simpl; auto.
   simpl. split; auto. lia.
 }
 assert (Halign: (align_chunk Mptr | Ptrofs.unsigned i0)). {
+  rewrite H8 in H9;
  clear - H9. unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i); inv H9.
  apply Z.divide_0_r.
 }
-forget (globals_of_env rho i) as p.
+forget (gz i) as p.
 assert (readable_share (readonly2share (gvar_readonly gv)))
   by apply readable_readonly2share.
 forget (readonly2share (gvar_readonly gv)) as sh.

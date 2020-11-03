@@ -174,7 +174,7 @@ Qed.
 Lemma main_sub: funspec_sub (snd (main_inst_spec MyInitPred))
                              (snd mainspec).
 Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear. 
-  Exists w emp. unfold gglobvars2pred; simpl.
+  Exists (initialize.genviron2globals g) emp. unfold globvars2pred; simpl.
   unfold globvars2pred, lift2; Intros. simpl. entailer!.
   + intros. entailer!.
   + rewrite sepcon_comm; apply sepcon_derives.
@@ -184,10 +184,16 @@ Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear.
       * eapply derives_trans. apply mapsto_zeros_memory_block.
         apply writable_readable. apply writable_Ews.
         rewrite memory_block_isptr; Intros.
-        apply global_is_headptr in H. entailer!.
-      * unfold initialize.gv_globvar2pred. simpl.
-        rewrite predicates_sl.sepcon_emp. apply derives_refl.
-    - unfold globvar2pred; simpl. rewrite mapsto_isptr; Intros. apply global_is_headptr in H.
+        apply prop_right.
+        unfold initialize.genviron2globals in *.
+        destruct (Map.get g onepile._the_pile); try contradiction; auto.
+        eexists; reflexivity.       
+      * unfold globvar2pred. simpl; auto.
+    - unfold globvar2pred; simpl. rewrite mapsto_isptr; Intros.
+       assert (headptr (initialize.genviron2globals g apile._a_pile)).
+        unfold initialize.genviron2globals in *.
+        destruct (Map.get g apile._a_pile); try contradiction; auto.
+        eexists; reflexivity.    
       eapply derives_trans; [ | apply simple_verif_apile.make_apile; trivial].
       rewrite sepcon_emp.
       erewrite <- (mapsto_data_at''); trivial. apply derives_refl.

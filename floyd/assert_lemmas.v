@@ -597,19 +597,11 @@ rewrite Heqo0, Heqo1.
 eauto.
 Qed.
 
-Lemma globvars2pred_unfold: forall gv vl rho,
-    globvars2pred gv vl rho =
-     andp (prop (gv = globals_of_env rho))
-      (fold_right sepcon emp (map (fun idv => globvar2pred gv idv rho) vl)).
-Proof. intros. unfold globvars2pred.
-  unfold lift2. f_equal.
-   induction vl; simpl; auto. normalize; f_equal; auto.
-Qed. (*
-Lemma gglobvars2pred_unfold: forall gv vl,
-    globvars2pred gv vl = 
-    alift2 andp (fun gvals => prop (gv = globals_of_genv (fst gvals)))
-      (fold_right (alift2 sepcon) (alift0 emp) (map (gglobvar2pred gv) vl)).
-Proof. reflexivity. Qed.*)
+Lemma globvars2pred_unfold: forall gv vl,
+    globvars2pred gv vl =
+      (fold_right sepcon emp (map (globvar2pred gv) vl)).
+Proof. reflexivity. 
+Qed. 
 Hint Rewrite globvars2pred_unfold : norm.
 Hint Rewrite @exp_trivial : norm.
 

@@ -501,7 +501,9 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
   | _ => FF
   end.
 
-Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
+Definition globals := ident -> val.
+
+Definition init_data2pred (gv: globals) (d: init_data)  (sh: share) (a: val) : mpred :=
  match d with
   | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
   | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
@@ -511,28 +513,11 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
-       match Map.get (ge_of rho) symb with
-       | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
-       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
-       end
+        match gv symb with
+        | Vptr b i => mapsto sh (Tpointer Tvoid noattr) a (Vptr b (Ptrofs.add i ofs))
+        | _ => mapsto_ sh (Tpointer Tvoid noattr) a
+        end 
  end.
-(*
-Definition init_data2pred (d: init_data)  (sh: share) (a: val) (gvals: argsEnviron) : mpred :=
- match d with
-  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
-  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
-  | Init_int64 i => mapsto sh (Tlong Unsigned noattr) a (Vlong i)
-  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vsingle r)
-  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
-  | Init_space n => mapsto_zeros n sh a
-  | Init_addrof symb ofs =>
-       match Map.get (fst gvals) symb with
-       | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
-       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
-       end
- end.*)
-(*Definition extern_retainer : share := fst (Share.split Share.Lsh). *)
 
 Definition init_data_size (i: init_data) : Z :=
   match i with
@@ -552,41 +537,24 @@ Fixpoint init_data_list_size (il: list init_data) {struct il} : Z :=
   | i :: il' => init_data_size i + init_data_list_size il'
   end.
 
-Fixpoint init_data_list2pred  (dl: list init_data)
-                           (sh: share) (v: val)  : environ -> mpred :=
+Fixpoint init_data_list2pred  (gv: globals)  (dl: list init_data)
+                           (sh: share) (v: val)  : mpred :=
   match dl with
-  | d::dl' => 
-      sepcon (init_data2pred d sh v) 
-                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v))
+  | d::dl' => sepcon (init_data2pred gv d sh v) 
+                  (init_data_list2pred gv dl' sh (offset_val (init_data_size d) v))
   | nil => emp
  end.
-(*
-Fixpoint init_data_list2pred  (dl: list init_data)
-                           (sh: share) (v: val)  : argsEnviron -> mpred :=
-  match dl with
-  | d::dl' => 
-      alift2 sepcon (init_data2pred d sh v) 
-                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v))
-  | nil => alift0 emp
- end.
-*)
+
 Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Ers else Ews.
 
-Definition globals := ident -> val.
 
-Definition globvar2pred (gv: globals) (idv: ident * globvar type) : environ->mpred :=
+Definition globvar2pred (gv: ident->val) (idv: ident * globvar type) : mpred :=
    if (gvar_volatile (snd idv))
-                       then  lift0 TT
-                       else    init_data_list2pred (gvar_init (snd idv))
+                       then  TT
+                       else    init_data_list2pred gv (gvar_init (snd idv))
                                    (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
-(*
-Definition globvar2pred (gv: ident->val) (idv: ident * globvar type) : argsassert :=
-   if (gvar_volatile (snd idv))
-   then alift0 TT
-   else initialize.ginit_data_list2pred (gvar_init (snd idv))
-                             (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
-*)
+
 
 Definition globals_of_env (rho: environ) (i: ident) : val := 
   match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
@@ -600,12 +568,13 @@ end.
 Lemma globals_of_genv_char {rho}: globals_of_genv (ge_of rho) = globals_of_env rho.
 Proof. reflexivity. Qed.
 
-Definition globvars2pred  (gv: globals)  (vl: list (ident * globvar type)) : environ->mpred :=
-  (lift2 andp) (fun rho => prop (gv = globals_of_env rho))
-  (fold_right sepcon emp (map (globvar2pred gv) vl)).
+Definition globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : mpred :=
+   fold_right sepcon emp (map (globvar2pred gv) vl).
 
+(*
 Definition gglobvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : argsassert :=
   fun gvargs => globvars2pred gv vl (Clight_seplog.mkEnv (fst gvargs) nil nil).
+*)
 (*  (alift2 andp) (fun gvals => prop (gv = globals_of_genv (fst gvals)))
   (fold_right (alift2 sepcon) (alift0 emp) (map (initialize.gglobvar2pred gv) vl)).*)
 
@@ -1083,8 +1052,8 @@ Definition main_pre {Z: Type} (prog: program) (ora: Z) : globals -> environ -> m
 (fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).*)
 
 Definition main_pre {Z} (prog: program) (ora: Z) : (ident->val) -> argsassert :=
-(fun gv gvals => !!(snd gvals=nil) && gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).
-
+(fun gv gvals => !!(gv = initialize.genviron2globals (fst gvals) /\snd gvals=nil) 
+       && globvars2pred gv (prog_vars prog) * has_ext ora).
 (*
 Definition main_post (prog: program) : (ident->val) -> environ->mpred :=
   (fun _ _ => TT).*)

@@ -269,7 +269,8 @@ Proof.
 Qed.
 
 Definition main_pre {Z} (prog: program) (ora: Z) : (ident->val) -> argsassert :=
-(fun gv gvals => !!(snd gvals=nil) && gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).
+(fun gv gvals => !!(gv = genviron2globals (fst gvals) /\snd gvals=nil) 
+       && globvars2pred gv (prog_vars prog) * has_ext ora).
 
 Lemma main_pre_vals_nil {Z prog ora gv g vals}:
       @main_pre Z prog ora gv (g, vals) |-- !!(vals=nil).
@@ -2151,7 +2152,9 @@ Proof.
     apply (H9 jm nil (globals_of_genv (filter_genv (globalenv prog)))); eauto.
     * eexists; eexists; split; [apply initial_jm_ext_eq|].
      split.
-        split; [ simpl; trivial |]. apply (gglobal_initializers prog G m n gargs); trivial.
+        split; [ simpl; trivial |].
+        split; auto. 
+        apply global_initializers; auto.
      -- simpl.
         unshelve eexists; [split; auto; apply Share.nontrivial|].
         unfold set_ghost; rewrite ghost_of_make_rmap, resource_at_make_rmap.
