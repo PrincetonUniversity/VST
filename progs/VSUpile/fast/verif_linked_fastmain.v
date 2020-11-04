@@ -186,7 +186,7 @@ Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear.
   unfold globvars2pred, lift2; Intros. simpl. entailer!.
   + intros. entailer!.
   + rewrite sepcon_comm; apply sepcon_derives.
-    - eapply derives_trans. 2: apply verif_fastonepile.onepile_Init with (PILE:= (PILE M)).
+    - eapply derives_trans. 2: apply verif_fastonepile.onepile_Init with (PILE:= (PILE M)); auto.
       unfold InitGPred. simpl. unfold globvar2pred; simpl. rewrite ! sepcon_emp.
       apply andp_right.
       * eapply derives_trans. apply mapsto_zeros_memory_block.

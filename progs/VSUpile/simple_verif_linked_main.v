@@ -178,7 +178,7 @@ Proof. do_funspec_sub. unfold main_pre; simpl; Intros; subst. clear.
   unfold globvars2pred, lift2; Intros. simpl. entailer!.
   + intros. entailer!.
   + rewrite sepcon_comm; apply sepcon_derives.
-    - eapply derives_trans. 2: apply simple_verif_onepile.onepile_Init.
+    - eapply derives_trans. 2: apply simple_verif_onepile.onepile_Init; auto.
       unfold InitGPred. simpl. unfold globvar2pred; simpl. rewrite ! sepcon_emp.
       apply andp_right.
       * eapply derives_trans. apply mapsto_zeros_memory_block.

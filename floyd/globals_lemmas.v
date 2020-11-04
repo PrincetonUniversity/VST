@@ -1353,6 +1353,15 @@ destruct ( build_composite_env' c w).
 reflexivity.
 Qed.
 
+Ltac process_globals :=
+  repeat process_idstar; 
+  change (Share.lub extern_retainer _) with Ews;
+  change (Share.lub extern_retainer _) with Ers;
+  try change (Vint oo _) with (Vint oo id);
+  fold_types;
+  rewrite ?Combinators.compose_id_right;
+  apply ENTAIL_refl.
+
 Ltac expand_main_pre_old :=
  match goal with | |- semax _ (main_pre_old ?prog _ _ * _) _ _ =>
     rewrite main_pre_start_old;
@@ -1363,13 +1372,7 @@ Ltac expand_main_pre_old :=
  end;
 simpl globvars2pred;
 simple eapply semax_process_globvars;
- [repeat process_idstar; 
-  change (Share.lub extern_retainer _) with Ews;
-  change (Share.lub extern_retainer _) with Ers;
-  try change (Vint oo _) with (Vint oo id);
-  fold_types;
-  rewrite ?Combinators.compose_id_right;
-  apply ENTAIL_refl
+ [process_globals
  | tryif (simple apply finish_process_globvars) then idtac
     else idtac "Warning: could not process all the extern variables in main_pre"
  ];

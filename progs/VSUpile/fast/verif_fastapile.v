@@ -66,17 +66,11 @@ forward_call (gv _a_pile, sigma).
 forward.
 Qed.
 
-  Lemma MyInitData gv (H: headptr (gv _a_pile)):
-        globvar2pred gv (_a_pile, v_a_pile)
-        |-- apile nil gv.
-  Proof. eapply derives_trans. 2: apply (make_apile _ H).
-         unfold globvar2pred, apile. simpl.
-         rewrite sepcon_emp. forget (gv _a_pile) as p.
-         erewrite <- (mapsto_data_at'' Ews); trivial. apply derives_refl. 
+  Lemma apile_Init gv: globals_ok gv -> InitGPred (Vardefs prog) gv |-- apile nil gv.
+  Proof. InitGPred_tac.
+  assert_PROP (headptr (gv apile._a_pile)) by entailer!.
+  sep_apply make_apile; auto.
   Qed.
-
-  Lemma apile_Init gv: InitGPred (Vardefs prog) gv |-- apile nil gv.
-  Proof. unfold InitGPred. simpl; Intros. sep_apply MyInitData; trivial. Qed.
 
   Definition ApileComponent: @Component NullExtension.Espec ApileVprog _ 
       nil apile_imported_specs prog Apile_ASI (apile nil) apile_internal_specs.
@@ -84,7 +78,7 @@ Qed.
     mkComponent. 
     + solve_SF_internal body_Apile_add.
     + solve_SF_internal body_Apile_count.
-    + sep_apply apile_Init; simpl; cancel.
+    + apply apile_Init.
   Qed.
 
 Definition ApileVSU: @VSU NullExtension.Espec ApileVprog _ 

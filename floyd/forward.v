@@ -3733,8 +3733,7 @@ Ltac make_func_ptr id :=
   | (reflexivity || fail 99 "No global variable " id " in Delta, i.e., in your extern declarations")
   | split; reflexivity | ].
 
-Ltac change_mapsto_gvar_to_data_at :=
-match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+Ltac change_mapsto_gvar_to_data_at' gv S :=
   match S with
   | context [mapsto ?sh ?t (offset_val 0 (gv ?i)) ?v] =>
       assert_PROP (headptr (offset_val 0 (gv i)));
@@ -3749,7 +3748,13 @@ match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
       erewrite (mapsto_data_at'' _ _ _ _ (gv i));
            [| reflexivity | assumption | apply JMeq_refl ];
       match goal with H: _ |- _ => clear H end
-   end
+   end.
+
+Ltac change_mapsto_gvar_to_data_at := 
+match goal with
+| gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+                                           change_mapsto_gvar_to_data_at' gv S
+| gv: globals |- ?S |-- _ => change_mapsto_gvar_to_data_at' gv S
 end.
 
 Ltac type_lists_compatible al bl :=

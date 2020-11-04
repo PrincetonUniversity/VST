@@ -219,10 +219,12 @@ Proof.
     apply filter_fg. intros [i d] ID. unfold notin; simpl. rewrite 2 find_id_app_char. simpl.
     rewrite if_false; trivial. specialize (in_map fst _ _ ID); simpl. congruence.
 Qed.*)
-Lemma MkInitPred gv: InitGPred (Vardefs lp) gv |-- (Main_InitPred gv * coreGP gv)%logic.
+Lemma MkInitPred gv: globals_ok gv -> InitGPred (Vardefs lp) gv |-- (Main_InitPred gv * coreGP gv)%logic.
 Proof.
+  intro Hgv.
   simpl. eapply derives_trans.
-  2: apply sepcon_derives; [ apply Main_MkInitPred | apply (MkInitPred_of_CanonicalVSU CoreVSU)].
+  2: apply sepcon_derives; [ apply Main_MkInitPred | apply (MkInitPred_of_CanonicalVSU CoreVSU)]; auto.
+  clear Hgv.
 
   clear - Vardefs_contained LNR_PV LNR_LV. unfold MainVardefs. 
   forget (Vardefs lp) as LV. forget (Vardefs p) as PV. clear p lp. 

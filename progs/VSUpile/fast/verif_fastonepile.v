@@ -94,13 +94,8 @@ Qed.
       econstructor. reflexivity. apply Z.divide_0_r.
   Qed.
 
-  Lemma onepile_Init_aux2 gv: headptr (gv _the_pile) ->
-    globvar2pred gv (_the_pile, v_the_pile)
-    |--  one_pile None gv.
-  Proof. intros. sep_apply onepile_Init_aux. apply make_onepile; trivial. Qed.
-
-  Lemma onepile_Init gv: InitGPred (Vardefs prog) gv |-- one_pile None gv.
-  Proof. unfold InitGPred. simpl; Intros. sep_apply onepile_Init_aux2; trivial. simpl. trivial. Qed.
+  Lemma onepile_Init gv: globals_ok gv -> InitGPred (Vardefs prog) gv |-- one_pile None gv.
+  Proof. InitGPred_tac. unfold one_pile. normalize. apply derives_refl. Qed.
 
   Definition OnepileComponent: @Component NullExtension.Espec OnepileVprog _ 
       nil onepile_imported_specs prog Onepile_ASI (one_pile None) onepile_internal_specs.
@@ -109,7 +104,7 @@ Qed.
     + solve_SF_internal body_Onepile_init.
     + solve_SF_internal body_Onepile_add.
     + solve_SF_internal body_Onepile_count.
-    + sep_apply onepile_Init; simpl; cancel.
+    + apply onepile_Init.
   Qed.
 
 Definition OnepileVSU: @VSU NullExtension.Espec OnepileVprog _ 

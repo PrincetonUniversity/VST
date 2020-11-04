@@ -495,6 +495,8 @@ Definition globs2pred (gv: globals) (x: ident * globdef (fundef function) type) 
 Definition InitGPred (V:list (ident * globdef (fundef function) type)) (gv: globals) :mpred := 
    fold_right sepcon emp (map (globs2pred gv) V).
 
+Definition globals_ok (gv: globals) := forall i, headptr (gv i) \/ gv i = Vundef.
+
 (*V should be the varspecs of p, and cs the compspecs* 
 VSTexterns, "E": Syscalls, functions implemented in assembly... These functions are represented
   as GFun(external ...) in Clight, but nevertheless should be in G (and hence 
@@ -527,7 +529,7 @@ Record Component {Espec:OracleKind} {V:varspecs} {cs:compspecs}
                   exists phi', find_id i G = Some phi' /\ funspec_sub phi' phi;
 
   (*Comp_InitPred: globals -> mpred;*)
-  Comp_MkInitPred: forall gv, InitGPred (Vardefs p) gv |-- (*Comp_InitPred*)(GP gv(* * TT*))%logic
+  Comp_MkInitPred: forall gv, globals_ok gv -> InitGPred (Vardefs p) gv |-- (*Comp_InitPred*)(GP gv(* * TT*))%logic
 }.
 
 Definition Comp_G {Espec V cs E Imports p Exports GP G} (c:@Component Espec V cs E Imports p Exports GP G):= G.
@@ -747,7 +749,7 @@ Proof. apply (list_disjoint_map_fst_find_id1 Comp_G_disjoint_from_Imports _ _ Hi
 Lemma Comp_entail {GP'} (H: forall gv, GP gv |-- GP' gv):
       @Component Espec V cs E Imports p Exports GP' G.
 Proof. intros. destruct c. econstructor; trivial.
- intros; eapply derives_trans. apply Comp_MkInitPred0. cancel.
+ intros; eapply derives_trans. apply Comp_MkInitPred0; auto. cancel.
 Qed.
 
 Lemma Comp_entail_starTT:
@@ -2549,7 +2551,7 @@ apply Build_Component (*with (Comp_G := G)*) (*with
   unfold Vardefs in *.
   rewrite (InitGPred_join _ _ _ VD1 VD2 VD); trivial.*)
   eapply derives_trans. 
-  2: apply sepcon_derives; [ apply (Comp_MkInitPred c1 gv) | apply (Comp_MkInitPred c2 gv)].
+  2: apply sepcon_derives; [ apply (Comp_MkInitPred c1 gv) | apply (Comp_MkInitPred c2 gv)]; auto.
   clear cs1 cs2 c1 c2 E1 Imports1 Exports1 G1 E2 Imports2 Exports2 G2.
   unfold Vardefs in *.
   rewrite (InitGPred_join _ _ _ VD1 VD2 VD); trivial.
@@ -3328,7 +3330,7 @@ Ltac mkComponent :=
                           match goal with H1: i <> _ |- _ => clear H1 end]);
     try discriminate; try SF_vacuous
   | finishComponent
-  | intros; first [ solve [apply derives_refl] | solve [reflexivity] | solve [simpl; cancel] | idtac]
+  | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
   ].
 
  Ltac findentry_cautious := cbv.
@@ -4053,7 +4055,7 @@ Lemma MkInitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @Cano
       forall gv, InitGPred (Vardefs p) gv |-- (GP gv * TT)%logic.
 Proof. destruct vsu as [G [GG CC M]]. apply (Comp_MkInitPred CC). Qed.*)
 Lemma MkInitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
-      forall gv, InitGPred (Vardefs p) gv |-- GP gv.
+      forall gv, globals_ok gv -> InitGPred (Vardefs p) gv |-- GP gv.
 Proof. destruct vsu as [G [GG CC M]]. apply (Comp_MkInitPred CC). Qed.
 
 Lemma global_is_headptr g i: isptr (globals_of_env g i) -> headptr (globals_of_env g i).
@@ -4225,7 +4227,7 @@ Qed.
 
 Lemma main_pre_InitGpred:
  forall globs (Espec: OracleKind) (cs: compspecs)  Delta prog1 prog2 Z (ext:Z) (gv: globals) R c Post
-  (H1: InitGPred (Vardefs prog1) gv |-- globs)
+  (H1: globals_ok gv -> InitGPred (Vardefs prog1) gv |-- globs)
   (H: Vardefs prog1 = Vardefs prog2)
   (H0: Forall (fun ig : ident * _ => isSome ((glob_types Delta) ! (fst ig))) (prog_vars prog2))
   (H2: semax Delta (sepcon (PROP ( )  LOCAL (gvars gv)  SEP (globs; has_ext ext)) R) c Post),
@@ -4243,6 +4245,13 @@ rewrite prop_true_andp.
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
 eapply derives_trans; [ | apply H]; clear H.
+2:{
+clear. intro i. unfold globals_of_env.
+hnf.
+unfold globals_of_env.
+destruct (Map.get (ge_of rho) i); auto.
+left; eexists; eauto.
+}
 unfold Vardefs, InitGPred.
 unfold SeparationLogic.prog_vars.
 clear - H0 H1.
@@ -4268,7 +4277,7 @@ Qed.
 
 Definition VSU_MkInitPred {Espec V cs E Imports p Exports GP} 
   (vsu: @VSU Espec V cs E Imports p Exports GP) 
-  (gv: globals) : InitGPred (Vardefs p) gv |-- (GP gv) :=
+  (gv: globals) : globals_ok gv -> InitGPred (Vardefs p) gv |-- (GP gv) :=
 let (x, c) := vsu in
 match c with
 | {| Comp_MkInitPred := Comp_MkInitPred |} => Comp_MkInitPred gv
@@ -4292,4 +4301,166 @@ Ltac expand_main_pre_VSU :=
 Ltac expand_main_pre ::= 
    expand_main_pre_VSU.
 
+
+Fixpoint vardefs_to_globvars (vdefs: list (ident * globdef (fundef function) type)) :
+    list (ident * globvar type) :=
+ match vdefs with
+ | (i, Gfun _)::r => vardefs_to_globvars r
+ | (i, Gvar v)::r => (i,v) :: vardefs_to_globvars r
+ | nil => nil
+ end.
+
+Definition vardefs_tycontext (vdefs: list (ident * globdef (fundef function) type)) : tycontext :=
+  make_tycontext nil nil nil Tvoid 
+   (map (fun iv => (fst iv, gvar_info (snd iv))) (vardefs_to_globvars vdefs))
+  nil nil.
+
+
+
+Lemma InitGPred_process_globvars:
+  forall Delta al gv (R: globals -> mpred),
+  Delta = vardefs_tycontext al ->
+  ENTAIL Delta, globvars_in_process gv nil emp (vardefs_to_globvars al) |-- lift0 (R gv) ->
+  globals_ok gv ->
+  InitGPred al gv |-- R gv.
+Proof.
+intros until 2. intro Hgv; intros.
+unfold globvars_in_process in H0.
+simpl fold_right_sepcon in H0.
+rewrite sepcon_emp, emp_sepcon in H0. 
+pose (rho := 
+ mkEnviron 
+  (fun i => match gv i with Vptr b _ => Some b | _ => None end)
+  (Map.empty (block * type))
+  (Map.empty val)).
+eapply derives_trans; [ | apply (H0 rho)].
+clear R H0; subst Delta.
+unfold local, lift1.
+simpl.
+normalize.
+subst rho.
+unfold tc_environ, typecheck_environ.
+simpl.
+rewrite prop_and.
+rewrite <- and_assoc.
+rewrite prop_and.
+rewrite prop_true_andp.
+-
+apply andp_right.
+*
+apply derives_trans with
+(!! (Forall (fun x : (ident * globdef (fundef function) type) => let (i, d) := x in
+      match d with Gfun _ => True | Gvar v => headptr (gv i) end) al)).
++
+apply derives_trans with (TT * InitGPred al gv)%logic. cancel.
+induction al.
+apply prop_right; constructor.
+rewrite InitGPred_consD.
+unfold globs2pred.
+destruct a. destruct g.
+rewrite emp_sepcon; auto.
+eapply derives_trans; [apply IHal |].
+apply prop_derives. intros. constructor; auto.
+normalize.
+rewrite <- sepcon_assoc.
+eapply derives_trans; [ eapply derives_trans; [ | apply IHal] | ].
+cancel.
+clear IHal.
+apply prop_derives.
+intros. constructor; auto.
++
+apply andp_right; apply prop_derives; intros.
+ --
+induction al; simpl.
+hnf; intros. rewrite PTree.gempty in H0; inv H0.
+inv H.
+specialize (IHal H3). clear H3.
+destruct a. destruct g.
+auto.
+simpl.
+intros ? ?.
+specialize (IHal id t).
+intros.
+destruct (eq_dec id i).
+subst id.
+rewrite PTree.gss in H.
+inv H.
+unfold Map.get.
+destruct H2. rewrite H. eauto.
+rewrite PTree.gso in H by auto.
+specialize (IHal H).
+destruct IHal as [b ?]; exists b.
+unfold Map.get in *.
+destruct (Memory.EqDec_ident i id); try congruence.
+ --
+unfold gvars_denote.
+simpl ge_of.
+extensionality i.
+unfold Map.get.
+specialize (Hgv i).
+destruct Hgv as [[b' Hgv] | Hgv];
+rewrite Hgv; auto.
+*
+induction al; simpl. 
+rewrite InitGPred_nilD. auto.
+rewrite InitGPred_consD.
+rewrite fold_right_map in IHal.
+rewrite fold_right_map.
+destruct a. destruct g.
+simpl. rewrite emp_sepcon; auto.
+simpl.
+normalize.
+apply sepcon_derives; auto.
+-
+split.
+hnf; intros. rewrite PTree.gempty in H; inv H.
+hnf; intros.
+split; intros. rewrite PTree.gempty in H; inv H.
+destruct H. unfold Map.get, Map.empty in H.  inv H. 
+Qed.
+
+Lemma finish_process_globvars' :
+ forall gv (done: list mpred) (R: mpred), 
+  fold_right_sepcon done |-- R -> 
+globvars_in_process gv done emp nil |-- lift0 R.
+Proof.
+intros.
+intro rho.
+unfold globvars_in_process, globvars2pred, lift0. simpl.
+normalize.
+Qed.
+
+Lemma globals_ok_isptr_headptr:
+  forall gv i, globals_ok gv -> isptr (gv i) -> headptr (gv i).
+Proof.
+intros.
+destruct (H i); auto.
+rewrite H1 in H0; contradiction.
+Qed.
+
+Hint Resolve globals_ok_isptr_headptr: core.
+
+Lemma globals_ok_genviron2globals:
+  forall g,  globals_ok (initialize.genviron2globals g).
+Proof.
+intros. intro i; simpl. unfold initialize.genviron2globals.
+destruct (Map.get g i); auto.
+left; eexists; eauto.
+Qed.
+
+Hint Resolve globals_ok_genviron2globals : core.
+
+Ltac InitGPred_tac :=
+intros;
+eapply InitGPred_process_globvars; auto;
+let Delta := fresh "Delta" in let Delta' := fresh "Delta'" in 
+set (Delta' := vardefs_tycontext _);
+set (Delta := @abbreviate tycontext Delta');
+change Delta' with Delta;
+compute in Delta'; subst Delta';
+simpl vardefs_to_globvars;
+eapply derives_trans; [process_globals | ];
+clear Delta;
+apply finish_process_globvars'; unfold fold_right_sepcon at 1;
+repeat change_mapsto_gvar_to_data_at.
 
