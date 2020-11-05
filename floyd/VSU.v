@@ -4457,7 +4457,7 @@ let Delta := fresh "Delta" in let Delta' := fresh "Delta'" in
 set (Delta' := vardefs_tycontext _);
 set (Delta := @abbreviate tycontext Delta');
 change Delta' with Delta;
-compute in Delta'; subst Delta';
+hnf in Delta'; simpl in Delta'; subst Delta';
 simpl vardefs_to_globvars;
 eapply derives_trans; [process_globals | ];
 clear Delta;

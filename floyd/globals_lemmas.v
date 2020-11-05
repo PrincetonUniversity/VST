@@ -1322,7 +1322,9 @@ Qed.
 
 Ltac process_idstar :=
      process_one_globvar;
-     lazymatch goal with |- ENTAIL _, globvars_in_process _ _ ?A _ |-- _ =>
+     lazymatch goal with Delta := @abbreviate tycontext _ 
+                             |- ENTAIL _, globvars_in_process _ _ ?A _ |-- _ =>
+      match A with id2pred_star _ _ _ (_ ?i) _ =>
          let p := fresh "p" in set (p:=A);
          simpl in p;
          unfold id2pred_star, init_data2pred' in p;
@@ -1330,8 +1332,22 @@ Ltac process_idstar :=
          cbv beta iota zeta in p;
          simpl init_data_size in p;
          revert p; rewrite ?offset_offset_val; intro p; simpl Z.add in p;
+         let t := constr:(match (glob_types Delta) ! i with Some x => x | _ => Tvoid end) in
+         let t := eval hnf in t in
+         match t with Tpointer ?t2 _ =>
+           repeat match goal with p := ?D |- _ =>
+                       match D with context [mapsto ?sh ?t' ?q ?v] =>
+                            revert p;
+                           change (mapsto sh t' q v) with (mapsto sh size_t q nullval);
+                           rewrite <- (mapsto_size_t_tptr_nullval sh q t2);
+                           intro p
+                       end end
+         | _ => idtac end;
+         try change (mapsto ?sh _ (?gv i) ?v) with (mapsto sh t (gv i) v) in p;
          subst p;
          repeat simple apply move_globfield_into_done
+      | _ => idtac
+       end
     | |- ENTAIL _, _ |-- _ => idtac
     end.
 

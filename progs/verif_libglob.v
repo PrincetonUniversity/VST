@@ -65,7 +65,7 @@ Definition initialized_globals (gv: globals) :=
    mapsto Ews tuint (offset_val 4 (gv _LG_foo))
           (Vint (Int.repr 0)) *
    data_at Ews tuint (Vint (Int.repr 0)) (gv _LG_foo) *
-   data_at Ews tuint (Vint (Int.repr 3)) (gv _LG_n).
+   data_at Ews tint (Vint (Int.repr 3)) (gv _LG_n).
 
 (*  This lemma packages up the extern global variables of LG.c
    into the client-visible [data] abstraction.  It's a bit clumsy
