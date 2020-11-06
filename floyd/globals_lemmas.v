@@ -1386,6 +1386,7 @@ Ltac expand_main_pre_old :=
     rewrite main_pre_start_old;
     unfold prog_vars, prog
  end;
+rewrite prog_defs_Clight_mkprogram;
 simpl globvars2pred;
 simple eapply semax_process_globvars;
  [process_globals
