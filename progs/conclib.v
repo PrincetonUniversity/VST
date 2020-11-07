@@ -2997,7 +2997,6 @@ Proof.
   rewrite sepcon_comm; apply modus_ponens_wand.
 Qed.
 
->>>>>>> upstream/master
 Lemma semax_extract_later_prop'':
   forall {CS : compspecs} {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,

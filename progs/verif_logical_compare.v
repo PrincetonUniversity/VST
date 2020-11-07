@@ -1,12 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.logical_compare.
 Import compcert.lib.Maps.
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
-=======
 
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
->>>>>>> upstream/master
 
 (****  START *)
 

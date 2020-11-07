@@ -4417,7 +4417,6 @@ clear - PostAdapt LEVz Z.
       reflexivity).
       apply (PostAdapt _ q1); [lia | apply necR_refl | split; [ | exists u2, m2; split3; trivial]].
       reflexivity. }
->>>>>>> upstream/master
 Qed.
 
 Lemma semax_call_alt {CS Espec}:

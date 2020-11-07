@@ -776,4 +776,3 @@ Proof.
     rewrite preds_fmap_fmap in Hg.
     rewrite approx_oo_approx', approx'_oo_approx in Hg by lia; auto.
 Qed.
->>>>>>> upstream/master

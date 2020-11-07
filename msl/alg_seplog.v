@@ -129,7 +129,6 @@ Definition HOnonexpansive {A}{NA: NatDed A}{IA: Indir A}{RA: RecIndir A}
          forall P Q: X -> A,  (ALL x:X, fash (P x <--> Q x)) |-- (ALL x:X, fash (f P x <--> f Q x)).
 End SL2.
 
-
 Module FashNotation.
 Notation "'#' e" := (fash e) (at level 30, right associativity): logic.
 Notation "'!' e" := (unfash e) (at level 30, right associativity): logic.

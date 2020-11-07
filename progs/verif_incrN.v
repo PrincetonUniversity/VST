@@ -406,11 +406,6 @@ Proof.
     unfold thread_lock_inv, thread_lock_R; cancel.
     { rewrite field_compatible0_cons; split; auto; try lia.
       apply field_compatible_array_smaller0 with (n' := N); auto; lia. }
-=======
-    cancel.
-    { rewrite field_compatible0_cons; split; auto; try lia.
-      apply field_compatible_array_smaller0 with (n' := N); auto; lia. }
->>>>>>> upstream/master
     { eapply readable_share_list_join; eauto. }
     { apply Forall_Znth; auto; lia. } }
   Intros sh'.

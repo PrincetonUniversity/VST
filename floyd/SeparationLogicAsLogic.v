@@ -2386,7 +2386,6 @@ Proof.
         apply sepcon_derives; auto.
         apply imp_andp_adjoint.
         auto.
->>>>>>> upstream/master
   + rewrite frame_normal.
     apply AuxDefs.semax_skip.
   + rewrite FF_sepcon.
