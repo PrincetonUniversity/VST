@@ -1,5 +1,6 @@
 Require Import Coq.Arith.EqNat.
 Require Import Coq.Relations.Relations.
+Require Import Lia.
 (*
 Require Import compcert.exportclight.Clightdefs.
 Require Import compcert.cfrontend.Ctypes. (*NEW*)*)
@@ -17,7 +18,7 @@ Require Export VST.sepcomp.Address.
 
 Lemma range_dec: forall a b c: Z, {a <= b < c}+{~(a <= b < c)}.
 Proof. intros. destruct (zle a b). destruct (zlt b c). left; split; auto.
-  right;  omega. right; omega.
+  right;  lia. right; lia.
 Qed.
 
 Require Export VST.msl.eq_dec.
@@ -104,7 +105,7 @@ destruct (eq_block b' (Mem.nextblock m1)).
 destruct H0; try contradiction.
 subst b'.
 rewrite PMap.gss.
-destruct (zle lo ofs), (zlt ofs hi); try omega; simpl; apply H1; apply Plt_strict.
+destruct (zle lo ofs), (zlt ofs hi); try lia; simpl; apply H1; apply Plt_strict.
 rewrite PMap.gso by auto. auto.
 Qed.
 
@@ -116,7 +117,7 @@ Proof.
  intros.
  inversion H; clear H; subst. unfold access_at; simpl.
  rewrite PMap.gss.
-destruct (zle lo ofs), (zlt ofs hi); try omega; simpl; auto.
+destruct (zle lo ofs), (zlt ofs hi); try lia; simpl; auto.
 Qed.
 
 Opaque Mem.alloc.
@@ -151,7 +152,7 @@ Proof.
  assert (p=Freeable) by (destruct p; inversion r; auto). subst p.
  split; auto.
  simpl. rewrite PMap.gss.
- destruct (zle lo ofs), (zlt ofs hi); try omega. reflexivity.
+ destruct (zle lo ofs), (zlt ofs hi); try lia. reflexivity.
 Qed.
 
 Lemma free_access_other:
@@ -167,7 +168,7 @@ Proof.
  destruct (eq_block b bf).
  subst bf; rewrite PMap.gss.
  destruct H0. contradiction H; auto.
- destruct (zle lo ofs), (zlt ofs hi); try omega; simpl; auto.
+ destruct (zle lo ofs), (zlt ofs hi); try lia; simpl; auto.
  rewrite PMap.gso by auto. reflexivity.
 Qed.
 
@@ -184,7 +185,7 @@ Proof.
  destruct (Mem.range_perm_dec m b lo hi Cur Freeable); inversion H; clear H; subst.
  unfold access_at; simpl.
  rewrite PMap.gss.
- destruct (zle lo ofs), (zlt ofs hi); try omega; simpl; auto.
+ destruct (zle lo ofs), (zlt ofs hi); try lia; simpl; auto.
  split; auto.
  specialize (r _ H0). hnf in r. destruct ( (Mem.mem_access m) !! b ofs Cur) eqn:?; try contradiction.
  assert (p0=Freeable) by (destruct p0; inv r; auto). subst.
@@ -221,7 +222,7 @@ Proof.
  subst. rewrite PMap.gss.
  destruct H0.
  contradiction H; auto.
- destruct (zle lo ofs), (zlt ofs hi); try omega; simpl; auto.
+ destruct (zle lo ofs), (zlt ofs hi); try lia; simpl; auto.
  rewrite PMap.gso by auto.
  auto.
 Qed.

@@ -11,27 +11,27 @@ Definition array_size := 100.
 Definition set22_spec :=
  DECLARE _set22
   WITH pps: val, i: Z, v: int, x11: int, x12: int, x21: int, x22: int, sh : share
-  PRE [ _pps OF (tptr pair_pair_t), _i OF tint, _v OF tint]
+  PRE [ tptr pair_pair_t, tint, tint]
     PROP  (writable_share sh; 0 <= i < array_size)
-    LOCAL (temp _pps pps; temp _i (Vint (Int.repr i)); temp _v (Vint v))
+    PARAMS (pps; Vint (Int.repr i); Vint v)
     SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i] 
                     ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps)
   POST [ tvoid ]
-    PROP () LOCAL ()
+    PROP () RETURN ()
     SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i]
                     ((Vint x11, Vint x12), (Vint x21, Vint v)) pps).
 
 Definition fiddle_spec :=
  DECLARE _fiddle
   WITH p: val, n: Z, tag: Z, contents: list Z
-  PRE [ _p OF tptr tuint ]
+  PRE [ tptr tuint ]
           PROP  (Zlength contents = n)
-          LOCAL (temp _p p)
+          PARAMS (p)
           SEP (data_at Ews (tarray tuint (1+n)) 
                       (map Vint (map Int.repr (tag::contents)))
                       (offset_val (-sizeof tuint) p))
   POST [ tvoid ]
-          PROP () LOCAL ()
+          PROP () RETURN ()
           SEP (data_at Ews (tarray tuint (1+n)) 
                       (map Vint (map Int.repr (3::contents)))
                       (offset_val (-sizeof tuint) p)).
@@ -43,10 +43,10 @@ Proof.
 start_function.
 rename H into LEN.
 assert (Zlength (tag :: contents) = 1 + n) as LEN1. {
-  rewrite Zlength_cons. omega.
+  rewrite Zlength_cons. lia.
 }
 assert (N0: 0 <= n). {
-  pose proof (Zlength_nonneg contents). omega.
+  pose proof (Zlength_nonneg contents). lia.
 }
 assert_PROP (isptr p) as P by entailer!.
 (* forward fails, but tells us to prove this: *)
@@ -61,18 +61,9 @@ assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vin
 
 (* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
-(*
-{ entailer!.
-  change (eval_unop Oneg tint (Vint (Int.repr 1))) with (Vint (Int.neg (Int.repr 1))) in H.
-  rewrite H0.
-  apply isptr_field_address_lemma.
-  auto with field_compatible.
-}
-*)
-forward.
-rewrite upd_Znth0. rewrite sublist_1_cons. rewrite Zlength_cons.
-rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by omega.
-rewrite sublist_same by (rewrite ?Zlength_map; reflexivity).
+entailer!.
+rewrite upd_Znth0.
+rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by lia.
 apply derives_refl.
 Qed.
 
@@ -88,12 +79,11 @@ simpl (temp _p _).
 assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl.
-  normalize.
+  simpl. reflexivity.
 }
 (* p->snd = v; *)
 forward.
-forward.
+entailer!.
 Qed.
 
 Lemma body_set22_full_expr: semax_body Vprog Gprog f_set22 set22_spec.
@@ -112,12 +102,11 @@ assert_PROP (
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. normalize.  f_equal. omega.
+  simpl. f_equal. lia.
 }
 (* int res = p->snd; *)
 forward.
-(* return res; *)
-forward.
+entailer!.
 Qed.
 
 Lemma body_set22_alt: semax_body Vprog Gprog f_set22 set22_spec.
@@ -133,11 +122,10 @@ simpl (temp _p _).
 assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  normalize.
+  simpl. reflexivity.
 }
 rewrite E. clear E.
 (* int res = p->snd; *)
 forward.
-(* return res; *)
-forward.
+entailer!.
 Qed.

@@ -9,19 +9,19 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition reverse_spec :=
  DECLARE _reverse
   WITH a0: val, sh : share, contents : list int, size: Z
-  PRE [ _a OF (tptr tint), _n OF tint ]
+  PRE [ tptr tint, tint ]
           PROP (0 <= size <= Int.max_signed; writable_share sh)
-          LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
+          PARAMS (a0; Vint (Int.repr size))
           SEP (data_at sh (tarray tint size) (map Vint contents) a0)
   POST [ tvoid ]
-     PROP() LOCAL()
+     PROP() RETURN()
      SEP(data_at sh (tarray tint size) (map Vint (rev contents)) a0).
 
 Definition main_spec :=
- DECLARE _main
+  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [reverse_spec; main_spec]).
 
@@ -44,9 +44,9 @@ Lemma Zlength_flip_ends:
 Proof.
 intros.
 unfold flip_ends.
-autorewrite with sublist. omega.
+autorewrite with sublist. lia.
 Qed.
-Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; lia) : sublist.
 
 Lemma flip_fact_1: forall A size (contents: list A) j,
   Zlength contents = size ->
@@ -57,8 +57,8 @@ Proof.
   intros.
   unfold flip_ends.
   rewrite <- (Zlen_le_1_rev (sublist j (size-j) contents))
-      by (autorewrite with sublist; omega).
-  rewrite !sublist_rev by (autorewrite with sublist; omega).
+      by (autorewrite with sublist; lia).
+  rewrite !sublist_rev by (autorewrite with sublist; lia).
  rewrite <- !rev_app_distr, ?H.
  autorewrite with sublist; auto.
 Qed.
@@ -79,27 +79,27 @@ intros.
 unfold flip_ends.
 rewrite <- H.
 autorewrite with sublist.
-rewrite (sublist_split 0 j (j+1)) by (autorewrite with sublist; omega).
+rewrite (sublist_split 0 j (j+1)) by (autorewrite with sublist; lia).
 rewrite !app_ass.
 f_equal. f_equal.
-rewrite !sublist_rev, <- ?H by omega.
-rewrite Zlen_le_1_rev by (autorewrite with sublist; omega).
-f_equal; omega.
+rewrite !sublist_rev, <- ?H by lia.
+rewrite Zlen_le_1_rev by (autorewrite with sublist; lia).
+f_equal; lia.
 rewrite (sublist_app2 (size-j) size)
- by (autorewrite with sublist; omega).
+ by (autorewrite with sublist; lia).
 autorewrite with sublist.
 rewrite sublist_app'
- by (autorewrite with sublist; omega).
+ by (autorewrite with sublist; lia).
 autorewrite with sublist.
 f_equal.
-f_equal; omega.
+f_equal; lia.
 autorewrite with sublist.
   rewrite <- (Zlen_le_1_rev (sublist j (1+j) al))
-      by (autorewrite with sublist; omega).
-rewrite !sublist_rev, <- ?H by omega.
+      by (autorewrite with sublist; lia).
+rewrite !sublist_rev, <- ?H by lia.
  rewrite <- !rev_app_distr, <- ?H.
  autorewrite with sublist.
- f_equal; f_equal; omega.
+ f_equal; f_equal; lia.
 Qed.
 
 Lemma flip_ends_map:
@@ -148,7 +148,7 @@ forward. (* t = a[lo]; *)
   clear - H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map by list_solve.
+  rewrite Znth_map by old_list_solve.
   apply I.
 }
 forward.  (* s = a[hi-1]; *)
@@ -157,10 +157,10 @@ forward.  (* s = a[hi-1]; *)
   clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map by list_solve.
+  rewrite Znth_map by old_list_solve.
   apply I.
 }
-rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; omega).
+rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; lia).
 forward. (*  a[hi-1] = t; *)
 forward. (* a[lo] = s; *)
 forward. (* lo++; *)
@@ -168,29 +168,35 @@ forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
  Exists (Z.succ j).
  entailer!.
- f_equal; f_equal; omega.
+ f_equal; f_equal; lia.
  simpl.
  apply derives_refl'.
  unfold data_at.    f_equal.
  clear - H0 HRE H1.
  unfold Z.succ.
  rewrite <- flip_fact_3 by auto.
- rewrite <- (Znth_map (Zlength (map Vint contents)-j-1) Vint) by (autorewrite with sublist in *; list_solve).
+ rewrite <- (Znth_map (Zlength (map Vint contents)-j-1) Vint) by (autorewrite with sublist in *; old_list_solve).
  forget (map Vint contents) as al. clear contents.
  remember (Zlength al) as size.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
- unfold upd_Znth.
- rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_ends; try omega).
- rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by omega.
- rewrite ?Zlength_flip_ends by omega.
- rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_ends ; omega).
+ rewrite upd_Znth_old_upd_Znth. 2 : {
+   rewrite upd_Znth_Zlength; rewrite Zlength_flip_ends; lia.
+ }
+ rewrite upd_Znth_old_upd_Znth. 2 : {
+   rewrite Zlength_flip_ends; lia.
+ }
+ unfold old_upd_Znth.
+ rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_ends; try lia).
+ rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by lia.
+ rewrite ?Zlength_flip_ends by lia.
+ rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_ends ; lia).
  unfold Z.succ. rewrite <- Heqsize. autorewrite with sublist.
- replace (size - j - 1 + (1 + j)) with size by (clear; omega).
+ replace (size - j - 1 + (1 + j)) with size by (clear; lia).
  reflexivity.
 * (* after the loop *)
 forward. (* return; *)
 entailer!.
-rewrite map_rev. rewrite flip_fact_1; try omega; auto.
+rewrite map_rev. rewrite flip_fact_1; try lia; auto.
 cancel.
 Qed.
 
@@ -200,7 +206,6 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name four _four.
 start_function.
-
 forward_call  (*  revarray(four,4); *)
   (gv _four, Ews, four_contents, 4).
    split; [computable | auto].
@@ -223,8 +228,25 @@ Qed.
 
 Module Alternate.
 
+(* Lemma calc_Zlength_rev : forall A (l : list A) len,
+  Zlength l = len ->
+  Zlength (rev l) = len.
+Proof.
+  intros.
+  rewrite Zlength_rev.
+  auto.
+Qed.
+
+Ltac calc_Zlength_extra l ::=
+  lazymatch l with
+  | @rev ?A ?l =>
+    calc_Zlength l;
+    let H := get_Zlength l in
+    add_Zlength_res (calc_Zlength_rev A l _ H)
+  end. *)
+
+Hint Rewrite Zlength_rev : Zlength.
 Hint Rewrite @Znth_rev using Zlength_solve : Znth.
-Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
 Hint Unfold flip_ends : list_solve_unfold.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.

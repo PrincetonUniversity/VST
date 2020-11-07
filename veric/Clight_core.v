@@ -11,6 +11,36 @@ Require Import VST.sepcomp.mem_lemmas.
 Import compcert.lib.Maps.
 Require Import VST.sepcomp.event_semantics.
 
+Definition ef_deterministic (ef: external_function) : bool :=
+  match ef with
+  | EF_external name sg => false
+  | EF_builtin name sg => true
+  | EF_runtime name sg => false
+  | EF_vload chunk => false
+  | EF_vstore chunk => false
+  | EF_malloc => true
+  | EF_free => true
+  | EF_memcpy sz al => true
+  | EF_annot kind text targs => true
+  | EF_annot_val kind Text rg => true
+  | EF_inline_asm text sg clob => false
+  | EF_debug kind text targs => true
+  end.
+
+Axiom ef_deterministic_fun:
+ forall ef,
+  ef_deterministic ef = true ->
+ forall  ge args m t1 t2 vres1 vres2 m1 m2,
+  Events.external_call ef ge args m t1 vres1 m1 ->
+  Events.external_call ef ge args m t2 vres2 m2 ->
+  (vres1,t1,m1) = (vres2,t2,m2).
+
+Axiom inline_external_call_mem_events:
+   forall ef ge vargs m t vres m',
+   ef_inline ef = true ->
+   external_call ef ge vargs m t vres m' ->
+   {trace | ev_elim m trace m'}.
+
 Inductive state : Type :=
     State : function ->
             statement -> cont -> env -> temp_env -> state
@@ -106,7 +136,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
   | _ => None
   end.
 
-Definition stuck_signature : signature := mksignature nil None cc_default.
+Definition stuck_signature : signature := mksignature nil AST.Tvoid cc_default.
 
 (*
 Definition ef_no_event (ef: external_function) : bool :=
@@ -169,7 +199,7 @@ Inductive step: genv -> state -> mem -> state -> mem -> Prop :=
                   (Callstate fd vargs (Kcall optid f e le k)) m
 
   | step_builtin:   forall ge f optid ef tyargs al k e le m vargs t vres m',
-      ef_inline ef = true ->
+      ef_inline ef && ef_deterministic ef = true ->
       eval_exprlist ge e le m al tyargs vargs ->
       external_call ef ge vargs m t vres m' ->
       step ge (State f (Sbuiltin optid ef tyargs al) k e le) m
@@ -256,7 +286,7 @@ Inductive step: genv -> state -> mem -> state -> mem -> Prop :=
             (State f f.(fn_body) k e le) m1
 
   | step_external_function: forall (ge: genv) ef targs tres cconv vargs k m t vres m',
-      ef_inline ef = true ->
+      ef_inline ef  && ef_deterministic ef = true ->
       external_call ef ge vargs m t vres m' ->
       step ge (Callstate (External ef targs tres cconv) vargs k) m
           (Returnstate vres k) m'
@@ -287,7 +317,8 @@ Lemma cl_corestep_not_at_external:
 Proof.
  simpl; intros.
  inv H; try reflexivity; simpl.
- rewrite H0; auto.
+rewrite andb_true_iff in H0. destruct H0.
+ rewrite H; auto.
 Qed.
 
 Lemma cl_corestep_not_halted :
@@ -349,12 +380,6 @@ Proof. intros.
   eapply mem_step_storebytes; eassumption.
 Qed.
 
-Axiom inline_external_call_mem_events:
-   forall ef ge vargs m t vres m',
-   ef_inline ef = true ->
-   external_call ef ge vargs m t vres m' ->
-   {trace | ev_elim m trace m'}.
-
 Lemma ev_elim_mem_step:
  forall m t m', ev_elim m t m' -> mem_step m m'.
 Proof.
@@ -397,6 +422,7 @@ apply Build_MemSem with (csem := cl_core_sem ge).
  eapply mem_step_storebytes; eauto.
  eapply mem_step_storebytes; eauto.
 *
+ rewrite andb_true_iff in H; destruct H.
  eapply inline_external_call_mem_step; eauto.
 *
   inv H.
@@ -404,6 +430,7 @@ apply Build_MemSem with (csem := cl_core_sem ge).
   induction H3. apply mem_step_refl.
  eapply mem_step_trans. eapply mem_step_alloc; eassumption. auto.
 *
+ rewrite andb_true_iff in H; destruct H.
  eapply inline_external_call_mem_step; eauto.
 Qed.
 

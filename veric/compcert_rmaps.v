@@ -24,9 +24,12 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | _, _ => None
    end.
 *)
+Definition typesig := (list type * type)%type. (*funsig without the identifiers*)
+Definition typesig_of_funsig (f:funsig):typesig := (map snd (fst f), snd f).
+
 Inductive kind : Type := VAL : memval -> kind
                                    | LK : forall n i : Z, kind
-                                   | FUN: funsig -> calling_convention -> kind.
+                                   | FUN: (*funsig*)typesig -> calling_convention -> kind.
 
 (*Non-Ctypes.v- using variant:
 Inductive kind : Type := VAL : memval -> kind
@@ -727,8 +730,8 @@ Lemma bytes_writable_dec:
 Proof.
 intros.
 destruct n.
-left; intro; intros; omegaContradiction.
-2: generalize (Zlt_neg_0 p); intro; left; intro; intros; omegaContradiction.
+left; intro; intros; lia.
+2: generalize (Zlt_neg_0 p); intro; left; intro; intros; lia.
 rewrite Zpos_eq_Z_of_nat_o_nat_of_P.
 remember (nat_of_P p) as n.
 clear.
@@ -736,7 +739,7 @@ destruct loc as [b z].
 revert z;
 induction n; intros.
 left; intro; intros.
-simpl in H; omegaContradiction.
+simpl in H; lia.
 rewrite inj_S.
 destruct (IHn (z+1)).
 destruct (writable_dec (b,z) m).
@@ -745,26 +748,26 @@ intro; intros.
 unfold adr_add; simpl.
 destruct (zeq i 0).
 subst.
-replace (z+0) with z by omega.
+replace (z+0) with z by lia.
 auto.
-replace (z+i) with (z+1+(i-1)) by omega.
+replace (z+i) with (z+1+(i-1)) by lia.
 apply b0.
-omega.
+lia.
 right.
 contradict n0.
 specialize ( n0 0).
 unfold adr_add in n0; simpl in n0.
 replace (z+0) with z in n0.
 apply n0.
-omega.
-omega.
+lia.
+lia.
 right.
 contradict n0.
 intro; intros.
 unfold adr_add; simpl.
-replace (z+1+i) with (z+(1+i)) by omega.
+replace (z+1+i) with (z+(1+i)) by lia.
 apply n0.
-omega.
+lia.
 Qed.
 
 Lemma bytes_readable_dec:
@@ -772,8 +775,8 @@ Lemma bytes_readable_dec:
 Proof.
 intros.
 destruct n.
-left; intro; intros; omegaContradiction.
-2: generalize (Zlt_neg_0 p); intro; left; intro; intros; omegaContradiction.
+left; intro; intros; lia.
+2: generalize (Zlt_neg_0 p); intro; left; intro; intros; lia.
 rewrite Zpos_eq_Z_of_nat_o_nat_of_P.
 remember (nat_of_P p) as n.
 clear.
@@ -781,7 +784,7 @@ destruct loc as [b z].
 revert z;
 induction n; intros.
 left; intro; intros.
-simpl in H; omegaContradiction.
+simpl in H; lia.
 rewrite inj_S.
 destruct (IHn (z+1)).
 destruct (readable_dec (b,z) m).
@@ -790,26 +793,26 @@ intro; intros.
 unfold adr_add; simpl.
 destruct (zeq i 0).
 subst.
-replace (z+0) with z by omega.
+replace (z+0) with z by lia.
 auto.
-replace (z+i) with (z+1+(i-1)) by omega.
+replace (z+i) with (z+1+(i-1)) by lia.
 apply b0.
-omega.
+lia.
 right.
 contradict n0.
 specialize ( n0 0).
 unfold adr_add in n0; simpl in n0.
 replace (z+0) with z in n0.
 apply n0.
-omega.
-omega.
+lia.
+lia.
 right.
 contradict n0.
 intro; intros.
 unfold adr_add; simpl.
-replace (z+1+i) with (z+(1+i)) by omega.
+replace (z+1+i) with (z+(1+i)) by lia.
 apply n0.
-omega.
+lia.
 Qed.
 
 Lemma bytes_writable_readable:
@@ -820,3 +823,27 @@ apply writable_readable; auto.
 Qed.
 
 Hint Resolve bytes_writable_readable : mem.
+
+Lemma rmap_age_i:
+ forall w w' : rmap,
+    level w = S (level w') ->
+   (forall l, resource_fmap (approx (level w')) (approx (level w')) (w @ l) = w' @ l) ->
+    ghost_fmap (approx (level w')) (approx (level w')) (ghost_of w) = ghost_of w' ->
+    age w w'.
+Proof.
+intros.
+hnf.
+destruct (levelS_age1 _ _ H).
+assert (x=w'); [ | subst; auto].
+assert (level x = level w')
+  by (apply age_level in H2; lia).
+apply rmap_ext; auto.
+intros.
+specialize (H0 l).
+rewrite (age1_resource_at w x H2 l (w@l)).
+rewrite H3.
+apply H0.
+symmetry; apply resource_at_approx.
+erewrite age1_ghost_of; eauto.
+rewrite H3; apply H1.
+Qed.

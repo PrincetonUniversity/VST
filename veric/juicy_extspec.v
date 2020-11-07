@@ -157,7 +157,7 @@ Proof.
     clear H.
     apply age_level in H0; apply age_level in H1.
     rewrite H0 in *; rewrite H1 in *. inv LEV. rewrite H2.
-    clear. forget (level jm2') as n. omega.
+    clear. forget (level jm2') as n. lia.
   }
   intro l.
   specialize (H l).
@@ -182,21 +182,21 @@ Proof.
       * apply age_level in H0; apply age_level in H1.
         unfold rmap  in *;
         forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
-        subst; omega.
+        subst; lia.
       * apply age_level in H0; apply age_level in H1.
         unfold rmap in *.
         forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
-        subst; omega.
+        subst; lia.
     - change R.approx with approx.
       rewrite approx'_oo_approx; [rewrite approx'_oo_approx; auto |].
       * apply age_level in H0; apply age_level in H1.
         unfold rmap  in *;
         forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
-        subst; omega.
+        subst; lia.
       * apply age_level in H0; apply age_level in H1.
         unfold rmap in *.
         forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
-        subst; omega.
+        subst; lia.
   + right.
     destruct H2 as [sh [wsh [v [v' [? ?]]]]].
     left; exists sh, wsh, v,v'.
@@ -212,9 +212,9 @@ Proof.
       simpl. rewrite preds_fmap_fmap.
       apply age_level in H0.
       rewrite approx_oo_approx'.
-        2: rewrite H0 in *; inv LEV; omega.
+        2: rewrite H0 in *; inv LEV; lia.
       rewrite approx'_oo_approx.
-        2: rewrite H0 in *; inv LEV; omega.
+        2: rewrite H0 in *; inv LEV; lia.
       f_equal. apply proof_irr.
       rewrite H5.
       rewrite <- (approx_oo_approx' j2' (S j2')) at 1 by auto.
@@ -259,7 +259,7 @@ Lemma jm_update_age: forall m1 m2 m1', jm_update m1 m2 -> age m1 m1' ->
 Proof.
   intros ??? (? & ? & ?) Hage.
   pose proof (age_level _ _ Hage).
-  destruct (levelS_age m2 (level m1')) as (m2' & Hage2 & ?); [omega|].
+  destruct (levelS_age m2 (level m1')) as (m2' & Hage2 & ?); [lia|].
   exists m2'; repeat split; auto.
   - rewrite <- (age_jm_dry Hage), <- (age_jm_dry Hage2); auto.
   - extensionality l.
@@ -368,7 +368,7 @@ Section juicy_safety.
       ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
       (forall ret m' z' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
-         (Hretty : has_opttyp ret (sig_res (ef_sig e))),
+         (Hretty : Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))),
          (n' <= n)%nat ->
          Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
@@ -396,11 +396,100 @@ Section juicy_safety.
 
   Lemma jsafe_downward :
     forall n n' c m z,
-      le n' n ->
+      Peano.le n' n ->
       jsafeN_ n z c m -> jsafeN_ n' z c m.
   Proof.
     do 6 intro. revert c m z. induction H; auto.
     intros. apply IHle. apply jsafe_downward1. auto.
+  Qed.
+
+(*  Lemma jsafe_corestepN_forward:
+    corestep_fun Hcore ->
+    forall z c m c' m' n n0,
+      semantics_lemmas.corestepN (juicy_core_sem Hcore) ge n0 c m c' m' ->
+      jsafeN_ (n + S n0) z c m ->
+      jm_bupd (jsafeN_ n z c') m'.
+  Proof.
+    intros.
+    revert c m c' m' n H0 H1.
+    induction n0; intros; auto.
+    simpl in H0; inv H0.
+    apply jm_bupd_intro.
+    eapply jsafe_downward in H1; eauto. lia.
+    simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
+    assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by lia.
+    rewrite Heq in H1.
+    eapply jsafe_corestep_forward in H1; eauto.
+    specialize (H1 nil); spec H1.
+    { eexists; simpl; erewrite <- ghost_core.
+      apply join_comm, core_unit. }
+    destruct H1 as (? & ? & ? & ?).
+    eapply (IHn0 _ _ _ _ n).
+  Qed.*)
+
+  Lemma jsafe_step'_back2 :
+    forall
+      {ora st m st' m' n},
+      jstep Hcore st m st' m' ->
+      jsafeN_ (n-1) ora st' m' ->
+      jsafeN_ n ora st m.
+  Proof.
+    intros.
+    destruct n.
+    constructor.
+    simpl in H0. replace (n-0)%nat with n in H0.
+    eapply jsafe_corestep_backward; eauto.
+    lia.
+  Qed.
+
+  Lemma jsafe_corestepN_backward:
+    forall z c m c' m' n n0,
+      semantics_lemmas.corestepN (juicy_core_sem Hcore) n0 c m c' m' ->
+      jsafeN_ (n - n0) z c' m' ->
+      jsafeN_ n z c m.
+  Proof.
+    simpl; intros.
+    revert c m c' m' n H H0.
+    induction n0; intros; auto.
+    simpl in H; inv H.
+    solve[assert (Heq: (n = n - 0)%nat) by lia; rewrite Heq; auto].
+    simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
+    assert (H: jsafeN_ (n - 1 - n0) z c' m').
+    eapply jsafe_downward in H0; eauto. lia.
+    specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
+    solve[eapply jsafe_step'_back2; eauto].
+  Qed.
+
+  Lemma convergent_controls_jsafe :
+    forall m q1 q2,
+      (j_at_external Hcore q1 m = j_at_external Hcore q2 m) ->
+      (forall ret m q', semantics.after_external Hcore ret q1 m = Some q' ->
+                      semantics.after_external Hcore ret q2 m = Some q') ->
+      (semantics.halted Hcore q1 = semantics.halted Hcore q2) ->
+      (forall q' m', jstep Hcore q1 m q' m' ->
+                     jstep Hcore q2 m q' m') ->
+      (forall n z, jsafeN_ n z q1 m -> jsafeN_ n z q2 m).
+  Proof.
+    intros. destruct n; simpl in *; try constructor.
+    inv H3.
+    + econstructor; eauto.
+    + eapply jsafeN_external; eauto.
+      rewrite <-H; eauto.
+      intros ???? Hargsty Hretty ? H8 H9.
+      specialize (H7 _ _ _ _ Hargsty Hretty H3 H8 H9).
+      destruct H7 as [c' [? ?]].
+      exists c'; split; auto.
+    + eapply jsafeN_halted; eauto.
+      rewrite <-H1; auto.
+  Qed.
+
+  Lemma wlog_jsafeN_gt0 : forall
+    n z q m,
+    (lt 0 n -> jsafeN_ n z q m) ->
+    jsafeN_ n z q m.
+  Proof.
+    intros. destruct n. constructor.
+    apply H. lia.
   Qed.
 
 Lemma make_join_ext : forall (ora : Z) a c n,
@@ -460,9 +549,10 @@ Proof.
   inv H0.
   + pose proof (age_level _ _ H2).
    destruct H1 as (? & ? & ? & Hg).
-   assert (level m' > 0) by omega.
-   assert (exists i, level m' = S i) as [i Hl'].
-   destruct (level m'). omegaContradiction. eauto.
+   assert (level m' > 0) by lia.
+   assert (exists i, level m' = S i).
+   destruct (level m'). lia. eauto.
+   destruct H6 as [i Hl'].
    symmetry in Hl'; pose proof (levelS_age _ _ Hl') as [jm1' []]; subst.
    econstructor.
    split.
@@ -474,7 +564,7 @@ Proof.
    destruct (age1_juicy_mem_unpack _ _ H6); auto.
    split.
    apply age_level in H6. rewrite <- H6.
-   omega.
+   lia.
    rewrite (age1_ghost_of _ _ (age_jm_phi H6)), (age1_ghost_of _ _ (age_jm_phi H2)), Hg.
    rewrite H in H4; inv H4.
    rewrite !level_juice_level_phi; congruence.
@@ -492,7 +582,7 @@ Proof.
      destruct Hupd1 as (? & ? & ?); rewrite <- !level_juice_level_phi; auto. }
    split; auto.
    destruct Hupd1 as (? & ? & ?).
-   eapply IHN; eauto; omega.
+   eapply IHN; eauto; lia.
   + eapply jsafeN_external; [eauto | eapply JE_pre_hered; eauto |].
     { unfold j_at_external in *.
       rewrite <- (age_jm_dry H2); eauto. }
@@ -503,10 +593,10 @@ Proof.
         apply age_level in H2.
         do 2 rewrite <-level_juice_level_phi.
         destruct H0.
-        rewrite H2; omega.
+        rewrite H2; lia.
       }
       destruct H0 as (?&?&?).
-      split3; [auto | do 2 rewrite <-level_juice_level_phi in H6; omega |].
+      split3; [auto | do 2 rewrite <-level_juice_level_phi in H6; lia |].
       split.
       * destruct H8 as [H8 _].
         unfold pures_sub in H8. intros adr. specialize (H8 adr).
@@ -517,9 +607,9 @@ Proof.
        ++ rewrite Hage in H8; rewrite  H8; simpl.
           f_equal. unfold preds_fmap. destruct p. f_equal.
           generalize (approx_oo_approx' (level m') (level jm)); intros H9.
-          spec H9; [omega |].
+          spec H9; [lia |].
           generalize (approx'_oo_approx (level m') (level jm)); intros H10.
-          spec H10; [omega |].
+          spec H10; [lia |].
           do 2 rewrite <-level_juice_level_phi.
           rewrite fmap_app.
           rewrite H9, H10; auto.
@@ -665,7 +755,7 @@ Proof.
   pose proof determinism _ _ _ _ _ _ step1 step2 as E.
   injection E as <- E; f_equal.
   apply juicy_mem_ext; auto.
-  assert (El: level jm1 = level jm2) by (clear -l1 l2; omega).
+  assert (El: level jm1 = level jm2) by (clear -l1 l2; lia).
   apply rmap_ext. now do 2 rewrite <-level_juice_level_phi; auto.
   intros l.
   specialize (rd1 l); specialize (rd2 l).

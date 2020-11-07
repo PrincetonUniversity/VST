@@ -1,7 +1,6 @@
 Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
-Require Import Coq.ZArith.BinInt. (* Z *)
-Require Import Coq.ZArith.Zcomplements. (* Zlength *)
+Require Import ZArith Lia.
 Require Import compcert.lib.Integers.          (* byte *)
 Require Import Coq.Numbers.Natural.Peano.NPeano.
 
@@ -94,7 +93,7 @@ Lemma bitsToByte_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7:
       isbyteZ (bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7]).
 Proof. simpl. unfold asZ, isbyteZ.
   destruct b0; destruct b1; destruct b2; destruct b3;
-  destruct b4; destruct b5; destruct b6; destruct b7; simpl; omega.
+  destruct b4; destruct b5; destruct b6; destruct b7; simpl; lia.
 Qed.
 *)
 
@@ -292,7 +291,7 @@ Proof.
     apply InBlocks_len. rewrite -> len. exists n. reflexivity.
   revert n len.
   induction blocks.
-  * intros. simpl in *. omega.
+  * intros. simpl in *. lia.
   *
     intros n len.
     rewrite -> H0.
@@ -314,10 +313,10 @@ Proof.
       apply list_nil in H2.
       rewrite -> H2. simpl.
       assert (minus : forall (n m : nat), n = m -> (n - 8)%nat = (m - 8)%nat).
-        intros. omega.
+        intros. lia.
       apply minus in len.
       simpl in len.
-      assert (min_zero : forall (n : nat), (n - 0)%nat = n). intros. omega.
+      assert (min_zero : forall (n : nat), (n - 0)%nat = n). intros. lia.
       repeat rewrite -> min_zero in len.
       clear H2 minus min_zero.
       specialize (IHblocks n').

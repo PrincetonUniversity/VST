@@ -71,8 +71,8 @@ Proof.
     { rewrite Int.unsigned_add_carry.
       unfold Int.add_carry.
       rewrite Int.unsigned_repr, Int.unsigned_zero; [|computable].
-      destruct (zlt _ Int.modulus); simpl in *; omega. }
-    repeat split; auto; simpl in *; try omega.
+      destruct (zlt _ Int.modulus); simpl in *; lia. }
+    repeat split; auto; simpl in *; try lia.
     rewrite Ho; unfold align_attr in *; simpl in *.
     apply Z.divide_add_r; auto.
     exists 15; auto. }
@@ -88,13 +88,13 @@ Proof.
     unfold data_at, field_at, at_offset; simpl; entailer. }
   { forward.
     go_lower.
-    apply andp_right; [apply prop_right; split; auto; omega|].
+    apply andp_right; [apply prop_right; split; auto; lia|].
     apply andp_right; [apply prop_right; auto|].
     cancel.
-    rewrite upd_Znth_app2; repeat rewrite Zlength_repeat; repeat rewrite Z2Nat.id; try omega.
-    rewrite Zminus_diag, upd_Znth0, sublist_repeat; try rewrite Zlength_repeat, Z2Nat.id; try omega.
-    rewrite Z2Nat.inj_add, repeat_plus; try omega; simpl.
-    rewrite <- app_assoc; replace (MAX - i - 1) with (MAX - (i + 1)) by omega; cancel. }
+    rewrite upd_Znth_app2; repeat rewrite Zlength_repeat; repeat rewrite Z2Nat.id; try lia.
+    rewrite Zminus_diag, upd_Znth0, sublist_repeat; try rewrite Zlength_repeat, Z2Nat.id; try lia.
+    rewrite Z2Nat.inj_add, repeat_plus; try lia; simpl.
+    rewrite <- app_assoc; replace (MAX - i - 1) with (MAX - (i + 1)) by lia; cancel. }
   rewrite Zminus_diag, app_nil_r.
   forward.
   forward.
@@ -141,7 +141,7 @@ Proof.
     rewrite Zlength_nil; simpl; cancel.
     rewrite sepcon_andp_prop'.
     apply andp_right; [apply prop_right|].
-    { repeat split; auto; unfold MAX; try omega; try computable. }
+    { repeat split; auto; unfold MAX; try lia; try computable. }
     cancel.
     subst Frame; instantiate (1 := [field_at Tsh tqueue_t [StructField _lock] lock p; ghost gsh1 (Tsh, []) p]);
       simpl.
@@ -248,7 +248,7 @@ Proof.
   unfold q_lock_pred'; Intros.
   rewrite Int.signed_repr, Zlength_correct in HRE.
   freeze [0; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13] FR; forward.
-  exploit (Z_mod_lt (head0 + Zlength vals0) MAX); [omega | intro].
+  exploit (Z_mod_lt (head0 + Zlength vals0) MAX); [lia | intro].
   forward.
   forward.
   { go_lower.
@@ -262,7 +262,7 @@ Proof.
   thaw FR.
   rewrite upd_rotate; auto; try rewrite Zlength_complete; try rewrite Zlength_map; auto.
   rewrite Zminus_mod_idemp_l, Z.add_simpl_l, (Zmod_small (Zlength vals0));
-    [|rewrite Zlength_correct; unfold MAX; omega].
+    [|rewrite Zlength_correct; unfold MAX; lia].
   erewrite <- Zlength_map, upd_complete; [|rewrite Zlength_map, Zlength_correct; auto].
   gather_SEP 7 12.
   rewrite sepcon_comm; replace_SEP 0 (!!(list_incl h h'0) && ghost Tsh (Tsh, h'0) p).
@@ -285,20 +285,20 @@ Proof.
     rewrite !add_repr, mods_repr; try computable.
     repeat match goal with H : _ /\ _ |- _ => destruct H end.
     simpl; apply andp_right.
-    { apply prop_right; split; [rewrite Zlength_correct; unfold MAX; omega|].
-      split; [omega | auto]. }
+    { apply prop_right; split; [rewrite Zlength_correct; unfold MAX; lia|].
+      split; [lia | auto]. }
     rewrite Zplus_mod_idemp_l, Z.add_assoc, Zlength_map.
     repeat rewrite map_app; repeat rewrite sepcon_app; simpl.
     rewrite sem_cast_neutral_ptr; auto; simpl.
     rewrite sepcon_andp_prop', !sepcon_andp_prop, sepcon_andp_prop'; apply andp_right;
       [apply prop_right; auto | cancel].
     { pose proof (Z_mod_lt (head0 + Zlength vals0) MAX).
-      rewrite Zlength_map; split; try omega.
-      transitivity MAX; simpl in *; [omega | unfold MAX; computable]. } }
+      rewrite Zlength_map; split; try lia.
+      transitivity MAX; simpl in *; [lia | unfold MAX; computable]. } }
   forward.
   { unfold lqueue; simpl; entailer!; auto. }
   { apply list_incl_app; auto. }
-  { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; omega|].
+  { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; lia|].
     transitivity MAX; [auto | unfold MAX; computable]. }
 Admitted.
 
@@ -337,7 +337,7 @@ Proof.
   unfold q_lock_pred'; Intros.
   assert (Zlength vals0 > 0).
   { rewrite Zlength_correct in *.
-    destruct (length vals0); [|rewrite Nat2Z.inj_succ; omega].
+    destruct (length vals0); [|rewrite Nat2Z.inj_succ; lia].
     contradiction HRE; auto. }
   evar (R : mpred).
   replace_SEP 9 (!!(Forall isptr (map fst vals0)) && R); subst R.
@@ -345,9 +345,9 @@ Proof.
   forward.
   forward.
   { go_lower; Intros.
-    rewrite Znth_head; try rewrite Zlength_map; try omega.
+    rewrite Znth_head; try rewrite Zlength_map; try lia.
     repeat apply andp_right; apply prop_right; auto.
-    apply Forall_Znth; [rewrite Zlength_map; omega|].
+    apply Forall_Znth; [rewrite Zlength_map; lia|].
     eapply Forall_impl; [|eauto].
     destruct a; auto. }
   forward.
@@ -364,7 +364,7 @@ Proof.
   rewrite Zminus_diag, Zmod_0_l.
   destruct vals0; [contradiction HRE; auto|].
   rewrite Zlength_cons in *.
-  simpl; rewrite rotate_1; try rewrite Zlength_map; try omega.
+  simpl; rewrite rotate_1; try rewrite Zlength_map; try lia.
   unfold sem_mod; simpl sem_binarith.
   unfold both_int; simpl force_val.
   rewrite andb_false_intro2; [|simpl; auto].
@@ -386,12 +386,12 @@ Proof.
     unfold Z.succ; rewrite sub_repr, Z.add_simpl_r, (Z.add_comm (Zlength vals0)), Z.add_assoc,
       Zplus_mod_idemp_l.
     simpl; entailer!.
-    apply Z_mod_lt; omega. }
+    apply Z_mod_lt; lia. }
   forward.
   Exists e v; unfold lqueue; simpl; entailer!; auto.
-  rewrite Znth_head; auto; rewrite Zlength_cons, Zlength_map; omega.
-  { split; try omega.
-    transitivity MAX; [omega | unfold MAX; computable]. }
+  rewrite Znth_head; auto; rewrite Zlength_cons, Zlength_map; lia.
+  { split; try lia.
+    transitivity MAX; [lia | unfold MAX; computable]. }
 Qed.
 
 Lemma body_q_tryremove : semax_body Vprog Gprog f_q_tryremove q_tryremove_spec.
@@ -430,16 +430,16 @@ Proof.
   Intros.
   assert (Zlength vals > 0).
   { rewrite Zlength_correct in *.
-    destruct (length vals); [omega | rewrite Nat2Z.inj_succ; omega]. }
+    destruct (length vals); [lia | rewrite Nat2Z.inj_succ; lia]. }
   evar (R : mpred).
   replace_SEP 9 (!!(Forall isptr (map fst vals)) && R); subst R.
   { go_lower; apply prop_and_same_derives, all_ptrs. }
   forward.
   forward.
   { go_lower; Intros.
-    rewrite Znth_head; try rewrite Zlength_map; try omega.
+    rewrite Znth_head; try rewrite Zlength_map; try lia.
     repeat apply andp_right; apply prop_right; auto.
-    apply Forall_Znth; [rewrite Zlength_map; omega|].
+    apply Forall_Znth; [rewrite Zlength_map; lia|].
     eapply Forall_impl; [|eauto].
     destruct a; auto. }
   forward.
@@ -454,9 +454,9 @@ Proof.
   thaw FR.
   rewrite upd_rotate; try rewrite Zlength_complete; try rewrite Zlength_map; auto.
   rewrite Zminus_diag, Zmod_0_l.
-  destruct vals; [rewrite Zlength_nil in *; omega|].
+  destruct vals; [rewrite Zlength_nil in *; lia|].
   rewrite Zlength_cons in *.
-  simpl; rewrite rotate_1; try rewrite Zlength_map; try omega.
+  simpl; rewrite rotate_1; try rewrite Zlength_map; try lia.
   unfold sem_mod; simpl sem_binarith.
   unfold both_int; simpl force_val.
   rewrite andb_false_intro2; [|simpl; auto].
@@ -478,16 +478,16 @@ Proof.
     unfold Z.succ; rewrite sub_repr, Z.add_simpl_r, (Z.add_comm (Zlength vals)), Z.add_assoc,
       Zplus_mod_idemp_l.
     simpl; entailer!.
-    apply Z_mod_lt; omega. }
+    apply Z_mod_lt; lia. }
   forward.
   Exists e; entailer!.
-  { rewrite Znth_head; auto; rewrite Zlength_cons, Zlength_map; omega. }
+  { rewrite Znth_head; auto; rewrite Zlength_cons, Zlength_map; lia. }
   destruct (Memory.EqDec_val e nullval).
   { rewrite data_at_isptr; Intros.
     subst; contradiction. }
   Exists v; unfold lqueue; simpl; entailer!; auto.
-  { split; try omega.
-    transitivity MAX; [omega | unfold MAX; computable]. }
+  { split; try lia.
+    transitivity MAX; [lia | unfold MAX; computable]. }
 Qed.
 
 Definition extlink := ext_link_prog prog.

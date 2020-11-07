@@ -9,13 +9,13 @@ Local Open Scope logic.
 Definition f_spec :=
  DECLARE _f
   WITH p: val, q:val, sh: share
-  PRE  [_p OF tptr tint, _q OF tptr tint]
+  PRE  [ tptr tint, tptr tint]
         PROP (sepalg.nonidentity sh)
-        LOCAL(temp _p p; temp _q q)
+        PARAMS (p; q)
         SEP(data_at sh tint (Vint Int.zero) p; data_at sh tint (Vint Int.zero) q)
   POST [ tint ]
          PROP()
-         LOCAL (temp 1%positive (Vint (if eq_dec p q then Int.one else Int.zero)))
+         RETURN (Vint (if eq_dec p q then Int.one else Int.zero))
          SEP (data_at sh tint (Vint Int.zero) p; data_at sh tint (Vint Int.zero) q).
 
 Definition Gprog : funspecs := nil.

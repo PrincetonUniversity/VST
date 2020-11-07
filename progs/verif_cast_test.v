@@ -9,13 +9,13 @@ Local Open Scope logic.
 Definition test_spec :=
  DECLARE _test
   WITH n: Z
-  PRE [ _n OF tlong ]
+  PRE [ tlong ]
         PROP  (0 <= n < Int.max_signed)
-        LOCAL (temp _n (Vlong (Int64.repr n)))
+        PARAMS (Vlong (Int64.repr n))
         SEP   ()
   POST [ tuchar ]
         PROP ()
-        LOCAL(temp ret_temp (Vint (Int.repr 0)))
+        RETURN (Vint (Int.repr 0))
         SEP ().
 
 Definition Vprog : varspecs := nil.
@@ -39,7 +39,7 @@ forward.  (*  d = d & b; *)
 forward.  (* return d *)
 entailer!. clear.
 rewrite <- Int64.mul_pow2 with (n:= Int64.repr 256) by reflexivity.
-normalize.
+rewrite mul64_repr, and64_repr.
 rewrite (Z.land_ones _ 8) by computable.
 rewrite Z_mod_mult.
 reflexivity.

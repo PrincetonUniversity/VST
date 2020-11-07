@@ -884,7 +884,7 @@ destruct H1.
 split; auto.
 unfold Int64.max_unsigned.
 apply Z.le_trans with Int.modulus.
-omega.
+lia.
 compute; congruence.
 Qed.
 

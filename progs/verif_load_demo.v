@@ -11,13 +11,13 @@ Definition array_size := 100.
 Definition get22_spec :=
  DECLARE _get22
   WITH pps: val, i: Z, x11: int, x12: int, x21: int, x22: int, sh : share
-  PRE [ _pps OF (tptr pair_pair_t), _i OF tint ]
+  PRE [ tptr pair_pair_t, tint ]
     PROP  (readable_share sh; 0 <= i < array_size)
-    LOCAL (temp _pps pps; temp _i (Vint (Int.repr i)))
+    PARAMS (pps; Vint (Int.repr i))
     SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i]
                     ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps)
   POST [ tint ]
-        PROP () LOCAL (temp ret_temp (Vint x22))
+        PROP () RETURN (Vint x22)
     SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i]
                     ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps).
 
@@ -27,15 +27,15 @@ Definition uint_sum (contents : list Z) : int :=
 Definition fiddle_spec :=
  DECLARE _fiddle
   WITH p: val, n: Z, tag: Z, contents: list Z
-  PRE [ _p OF tptr tuint ]
+  PRE [ tptr tuint ]
           PROP  (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10)) = n)
-          LOCAL (temp _p p)
+          PARAMS (p)
           SEP (data_at Ews (tarray tuint (1+n)) 
                       (map Vint (map Int.repr (tag::contents)))
                       (offset_val (-sizeof tuint) p))
   POST [ tint ]
           PROP ( )
-          LOCAL (temp ret_temp (Vint (Int.add (Int.repr (Z.land tag 255)) (uint_sum contents))))
+          RETURN (Vint (Int.add (Int.repr (Z.land tag 255)) (uint_sum contents)))
           SEP (data_at Ews (tarray tuint (1+n)) 
                       (map Vint (map Int.repr (tag::contents)))
                       (offset_val (-sizeof tuint) p)).
@@ -50,14 +50,14 @@ Definition get_uint32_le (arr: list Z) : int :=
 Definition get_little_endian_spec :=
   DECLARE _get_little_endian
   WITH input : val, in_sh : share, arr : list Z
-  PRE [ _input OF (tptr tuchar) ]
+  PRE [ tptr tuchar ]
     PROP (Zlength arr = 4;
           readable_share in_sh;
           forall i, 0 <= i < 4 -> 0 <= Znth i arr <= Byte.max_unsigned)
-    LOCAL (temp _input input)
+    PARAMS (input)
     SEP (data_at in_sh (tarray tuchar 4) (map Vint (map Int.repr arr)) input)
   POST [ tuint ]
-    PROP() LOCAL(temp ret_temp (Vint (get_uint32_le arr)))
+    PROP() RETURN (Vint (get_uint32_le arr))
     SEP (data_at in_sh (tarray tuchar 4) (map Vint (map Int.repr arr)) input).
 
 Definition Gprog : funspecs := ltac:(with_library prog
@@ -67,7 +67,7 @@ Definition Gprog : funspecs := ltac:(with_library prog
 Ltac solve_arr_range H := 
  match goal with |- context [Znth ?i _] => 
    specialize (H i); spec H; [ computable | ];
-   rewrite Int.unsigned_repr; rep_omega
+   rewrite Int.unsigned_repr; rep_lia
  end.
 
 Lemma body_get_little_endian: semax_body Vprog Gprog f_get_little_endian get_little_endian_spec.
@@ -96,25 +96,24 @@ Qed.
 
 Lemma body_fiddle: semax_body Vprog Gprog f_fiddle fiddle_spec.
 Proof.
-start_function.
+start_function. simpl map.
 rename H into Htag.
 assert_PROP (Zlength contents = n) as LEN. {
   entailer!.
   forget (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) as n.
   clear - H0.
-  rewrite !Zlength_map in H0.
-  rewrite Zlength_cons in H0.
+  rewrite Zlength_cons, !Zlength_map in H0.
   destruct (zlt n 0); [elimtype False | ].
-  rewrite Z.max_l in H0 by omega.
+  rewrite Z.max_l in H0 by lia.
   pose proof (Zlength_nonneg contents).
-  omega.
-  rewrite Z.max_r in H0 by omega. omega.  
+  lia.
+  rewrite Z.max_r in H0 by lia. lia.  
 }
 assert (Zlength (tag :: contents) = 1 + n) as LEN1. {
-  rewrite Zlength_cons. omega.
+  rewrite Zlength_cons. lia.
 }
 assert (N0: 0 <= n). {
-  pose proof (Zlength_nonneg contents). omega.
+  pose proof (Zlength_nonneg contents). lia.
 }
 assert_PROP (isptr p) as P by entailer!.
 
@@ -155,17 +154,17 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
     rewrite field_compatible_field_address by auto with field_compatible.
     simpl.
     rewrite Ptrofs.add_assoc, ptrofs_add_repr. 
-    f_equal. f_equal. f_equal. omega.
+    f_equal. f_equal. f_equal. unfold sizeof; simpl. lia.
   }
   forward.
   forward.
   entailer!.
-  rewrite Znth_pos_cons by omega.
+  rewrite Znth_pos_cons by lia.
   autorewrite with sublist. simpl.  
   f_equal. rewrite Int.add_assoc. f_equal.
-  rewrite (sublist_split 0 i (i+1)) by omega.
-  rewrite sublist_len_1 by omega.
-  replace (1 + i - 1) with i by omega.
+  rewrite (sublist_split 0 i (i+1)) by lia.
+  rewrite sublist_len_1 by lia.
+  replace (1 + i - 1) with i by lia.
   rewrite uint_sum_app. f_equal. simpl. apply Int.add_zero_l.
 - (* return sum; *)
   forward. rewrite sublist_same by auto. entailer!.
@@ -204,7 +203,7 @@ assert_PROP (
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. f_equal. omega.
+  simpl. f_equal. unfold sizeof; simpl. lia.
 }
 (* int res = p->snd; *)
 forward.

@@ -193,10 +193,10 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     intros x y; revert x; induction y; simpl; intros.
     right; auto with arith.
     destruct (IHy x) as [[m H]|H].
-    left; exists (S m); omega.
-    destruct (eq_nat_dec x y).
-    left; exists O; omega.
-    right; omega.
+    left; exists (S m); lia.
+    destruct (Peano_dec.eq_nat_dec x y).
+    left; exists O; lia.
+    right; lia.
   Qed.
 
   Definition unstratify (n:nat) (p:sinv n) : knot * other -> Prop := fun w =>
@@ -218,7 +218,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     revert n p1 H1 p Heqp.
     induction m1; simpl; intros.
     replace H1 with (refl_equal (S n)) by (apply proof_irr); simpl; auto.
-    assert (m1 + S n = S m1 + n) by omega.
+    assert (m1 + S n = S m1 + n) by lia.
     destruct p1 as [[p1 f'] Hp1]; simpl in *; fold guppy in *.
     generalize (IHm1 n p1 H p Heqp).
     clear.
@@ -257,8 +257,8 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     case_eq (decompose_nat (S x) n); intros.
     destruct s.
     destruct n.
-    elimtype False; omega.
-    assert (S x1 = x0) by omega; subst x0.
+    elimtype False; lia.
+    assert (S x1 = x0) by lia; subst x0.
     revert H0.
     unfold unstratify.
     rewrite H; rewrite H1.
@@ -278,7 +278,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
 
     case_eq (decompose_nat (S x) n); intros.
     destruct s.
-    elimtype False; omega.
+    elimtype False; lia.
     revert H0.
     unfold unstratify.
     rewrite H; rewrite H1; auto.
@@ -296,7 +296,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     destruct (decompose_nat x n).
     destruct s.
     simpl in H0.
-    2: simpl in *; elimtype False; omega.
+    2: simpl in *; elimtype False; lia.
     clear H0.
     revert p H.
     generalize e.
@@ -322,12 +322,12 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   Proof.
     induction n; intuition.
     split.
-    assert (m2 + S n = S m2 + n) by omega.
+    assert (m2 + S n = S m2 + n) by lia.
     erewrite <- floor_shuffle.
     instantiate (1:=H1).
     replace (unstratify (m2 + S n) p2)
       with (unstratify (S m2 + n) (eq_rect (m2 + S n) sinv p2 (S m2 + n) H1)).
-    assert (m1 + S n = S m1 + n) by omega.
+    assert (m1 + S n = S m1 + n) by lia.
     eapply (IHn (S m1) (S m2)
       (eq_rect (m1 + S n) sinv p1 (S m1 + n) H2)).
     rewrite floor_shuffle.
@@ -355,12 +355,12 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     destruct (decompose_nat n (m2 + S n)).
     destruct s.
     assert (m2 = x).
-    omega.
+    lia.
     subst x.
     replace e with (refl_equal (m2 + S n)).
     simpl; tauto.
     apply proof_irr.
-    elimtype False; omega.
+    elimtype False; lia.
   Qed.
 
   Lemma stratify_unstratify : forall n p H,
@@ -385,14 +385,14 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     intros.
     destruct (decompose_nat n (S n)).
     destruct s.
-    assert (x = 0) by omega.
+    assert (x = 0) by lia.
     subst x.
     simpl.
     simpl in e.
     replace e with (refl_equal (S n)) by apply proof_irr.
     simpl.
     split; auto.
-    elimtype False; omega.
+    elimtype False; lia.
   Qed.
 
 
@@ -419,7 +419,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     destruct a0; simpl in H.
     destruct x; try discriminate.
     inv H.
-    simpl in *; omega.
+    simpl in *; lia.
     destruct p; simpl in *.
     eapply h; eauto.
   Qed.
@@ -463,7 +463,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     unfold level.
     simpl.
     destruct s.
-    omega.
+    lia.
     elim H.
     rewrite <- unstratify_Q.
     apply H.
@@ -471,7 +471,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     unfold unstratify in H.
     destruct a; simpl.
     destruct (decompose_nat x0 n).
-    destruct s; omega.
+    destruct s; lia.
     elim H.
     rewrite unstratify_Q.
     apply H1.
@@ -525,11 +525,11 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     intros.
     destruct (decompose_nat x (S x)).
     destruct s.
-    assert (x0 = 0) by omega; subst x0.
+    assert (x0 = 0) by lia; subst x0.
     simpl in *.
     replace e with (refl_equal (S x)) by apply proof_irr; simpl.
     tauto.
-    elimtype False; omega.
+    elimtype False; lia.
     destruct (stratify (unstratify (S x) k)
       (unstratify_hered (S x) k) x).
     simpl; auto.
@@ -552,14 +552,14 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     apply IHx.
     destruct (decompose_nat x (S x)).
     destruct s0.
-    assert (x0 = 0) by omega; subst.
+    assert (x0 = 0) by lia; subst.
     simpl in *.
     replace e with (refl_equal (S x)); simpl; auto.
     apply proof_irr.
-    omega.
+    lia.
     destruct (decompose_nat x (S x)).
     destruct s0.
-    assert (x0 = 0) by omega; subst.
+    assert (x0 = 0) by lia; subst.
     simpl in *.
     replace e with (refl_equal (S x)) in H; simpl; auto.
     apply proof_irr.

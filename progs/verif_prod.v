@@ -63,12 +63,12 @@ forward.
   entailer!.
   apply cast_l2i.
   apply H2.
-  omega.
+  lia.
 forward.
   entailer!.
   apply cast_l2i.
   apply H3.
-  omega.
+  lia.
 forward.
 forward.
 forward.

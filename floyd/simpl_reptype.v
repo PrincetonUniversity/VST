@@ -5,6 +5,8 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.simple_reify.
+Require Import VST.floyd.aggregate_type.
+Require Import VST.floyd.Zlength_solver.
 
 Definition int_signed_or_unsigned (t: type) : int -> Z :=
   match typeconv t with
@@ -39,7 +41,7 @@ Fixpoint is_effective_union i (m: members) (v: reptype_skeleton) : option reptyp
   | (i', _) :: tl =>
     match v with
     | RepInl v0 => if (ident_eq i i') then Some v0 else None
-    | RepInr v0 => if (ident_eq i i') then None else is_effective_struct i tl v0
+    | RepInr v0 => if (ident_eq i i') then None else is_effective_union i tl v0
     | _ => None
     end
   end.
@@ -82,7 +84,7 @@ Fixpoint effective_len (t: type) (gfs: list gfield) (v: reptype_skeleton) : nat
 *)
 
 (* This is how we control the length of computation. *)
-Fixpoint effective_len (t: type) (gfs: list gfield) (v: reptype_skeleton) : nat
+Definition effective_len (t: type) (gfs: list gfield) (v: reptype_skeleton) : nat
   := length gfs.
 
 End SIMPL_REPTYPE.
@@ -170,13 +172,112 @@ Ltac default_canon_load_result :=
           | rewrite (@Znth_map int64 _)
           | rewrite (@Znth_map val _)
           | rewrite (@Znth_map Z _) ];
-    [ | solve [auto; list_solve] + match goal with
-        | |- ?Bounds => fail 10 "Make sure list_solve or auto can prove" Bounds
+    [ | solve [auto; Zlength_solve] + match goal with
+        | |- ?Bounds => fail 10 "Make sure Zlength_solve or auto can prove" Bounds
+"
+The usual way to do that is to use assert or assert_PROP before forward."
         end  ]
-  ).
+  );
+      repeat match goal with
+            | |- context [fst(?A,?B)] => change (fst(A,B)) with A
+            | |- context [snd(?A,?B)] => change (snd(A,B)) with B
+            end.
 
 Ltac canon_load_result := default_canon_load_result.
 
+(* BEGIN:  Big hack just to make sure that certain instances of [fst] and [snd] are not
+ simplified by solve_load_rule_evaluation and solve_store_rule_evaluation *)
+
+Definition myfst {A}{B} (x: A*B) : A := match x with (y,z) => y end.
+Definition mysnd {A}{B} (x: A*B) : B := match x with (y,z) => z end.
+
+Definition proj_compact_prod' {A: Type} {F: A -> Type} (a: A) (l: list A) (v: compact_prod (map F l)) (default: F a) (H: forall a b: A, {a = b} + {a <> b}) : F a.
+Proof.
+  destruct l; [exact default |].
+  revert a0 v; induction l; intros.
+  + destruct (H a a0).
+    - subst.
+      exact v.
+    - exact default.
+  + destruct (H a a1).
+    - subst.
+      exact (myfst v).
+    - exact (IHl a0 (mysnd v)).
+Defined.
+
+Definition upd_compact_prod' {A} {F} (l: list A) (v: compact_prod (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b}) : compact_prod (map F l).
+Proof.
+  intros.
+  destruct l; [exact v |].
+  revert a0 v; induction l; intros.
+  + destruct (H a a0).
+    - subst.
+      exact v0.
+    - exact v.
+  + destruct (H a a1).
+    - subst.
+      exact (v0, (mysnd v)).
+    - exact ((myfst v), IHl a0 (mysnd v)).
+Defined.
+
+Definition proj_struct' (i : ident) (m : members) {A: ident * type -> Type} (v: compact_prod (map A m)) (d: A (i, field_type i m)): A (i, field_type i m) :=
+  proj_compact_prod' (i, field_type i m) m v d member_dec.
+
+Definition upd_gfield_reptype' {cs: compspecs} t gf (v: reptype t) (v0: reptype (gfield_type t gf)) : reptype t :=
+  fold_reptype
+  (match t, gf return (REPTYPE t -> reptype (gfield_type t gf) -> REPTYPE t)
+  with
+  | Tarray t0 n a, ArraySubsc i => upd_Znth i
+(*zl_concat (zl_concat (zl_sublist 0 i v) (zl_singleton i v0)) (zl_sublist (i + 1) n v) *)
+  | Tstruct id _, StructField i =>
+      fun v v0 => upd_compact_prod' _ v (i, field_type i (co_members (get_co id))) v0 member_dec
+  | Tunion id _, UnionField i =>
+      fun v v0 => upd_compact_sum _ v (i, field_type i (co_members (get_co id))) v0 member_dec
+  | _, _ => fun v _ => v
+  end (unfold_reptype v) v0).
+
+Definition proj_gfield_reptype' {cs: compspecs} (t: type) (gf: gfield) (v: reptype t): reptype (gfield_type t gf) :=
+  match t, gf return (REPTYPE t -> reptype (gfield_type t gf))
+  with
+  | Tarray t0 hi a, ArraySubsc i => fun v => @Znth _ (default_val _) i v
+  | Tstruct id _, StructField i => fun v => proj_struct i (co_members (get_co id)) v (default_val _)
+  | Tunion id _, UnionField i => fun v => proj_union i (co_members (get_co id)) v (default_val _)
+  | _, _ => fun _ => default_val _
+  end (unfold_reptype v).
+
+Section A.
+Context {cs: compspecs}.
+Fixpoint proj_reptype'  (t: type) (gfs: list gfield) (v: reptype t) : reptype (nested_field_type t gfs) :=
+  let res :=
+  match gfs as gfs'
+    return reptype (match gfs' with
+                    | nil => t
+                    | gf :: gfs0 => gfield_type (nested_field_type t gfs0) gf
+                    end)
+  with
+  | nil => v
+  | gf :: gfs0 => proj_gfield_reptype' _ gf (proj_reptype' t gfs0 v)
+  end
+  in eq_rect_r reptype res (nested_field_type_ind t gfs).
+
+Fixpoint upd_reptype' (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (nested_field_type t gfs)): reptype t :=
+  match gfs as gfs'
+    return reptype (match gfs' with
+                    | nil => t
+                    | gf :: gfs0 => gfield_type (nested_field_type t gfs0) gf
+                    end) -> reptype t
+  with
+  | nil => fun v0 => v0
+  | gf :: gfs0 => fun v0 => upd_reptype' t gfs0 v (upd_gfield_reptype' _ gf (proj_reptype t gfs0 v) v0)
+  end (eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t gfs))).
+End A.
+
+Lemma test_equal_proj_reptype': False.
+unify @proj_reptype @proj_reptype'.
+unify @upd_reptype @upd_reptype'.
+Abort.
+
+(* END:  Big hack just to make sure that certain instances of [fst] and [snd] are not... *)
 Ltac solve_load_rule_evaluation :=
   eapply JMeq_trans;
   [ clear;
@@ -193,37 +294,20 @@ Ltac solve_load_rule_evaluation :=
     | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
         let opaque_v := fresh "opaque_v" in
               remember v as opaque_v;
-              (* alternate: set (opaque_v := v); *)
-(* first attempt: blows up in aes/verif_encryption_LL_loop_body 
-             simpl;
-             repeat match goal with
-             | |- _ => unfold eq_rect_r at 1; simpl
-             | |- context [reptype ?t] => 
-                  let x := constr:(reptype t) in
-                  let x := eval compute in x in
-                  change (reptype t) with x
-             | |- context [default_val ?t] =>
-               let x := constr:(reptype t) in
-               let x := eval compute in x in
-               unify x val;
-               change (default_val t) with Vundef
-            | |- context [@unfold_reptype ?cs ?t ?v] =>
-                 change (@unfold_reptype cs t v) with v
-              end;
-*)
-(* second attempt: blows up, but not as badly, in aes/verif_encryption_LL_loop_body 
-             simpl;
-             repeat match goal with 
-             | |- context [@eq_rect_r] =>
-                    unfold eq_rect_r at 1; unfold eq_rect at 1; unfold eq_sym at 1; cbv iota;
-                    simpl nested_field_type
-             | |- context [unfold_reptype ?t] => change (unfold_reptype t) with t
-             | |- context [@proj_gfield_reptype] =>
-                    (simpl proj_gfield_reptype at -1 || simpl proj_gfield_reptype)
-              end;
-*)
-              cbv - [ (* alternate: opaque_v *) sublist.Znth Int.repr JMeq];
-              subst opaque_v
+              change proj_reptype with proj_reptype';
+              cbv - [ sublist.Znth Int.repr JMeq myfst mysnd];
+              change @myfst with @fst;
+              change @mysnd with @snd;
+              subst opaque_v;
+              repeat match goal with
+                     | |- context [@fst ?a ?b (?c,?d)] =>
+                              let u := eval hnf in (@fst a b (c,d)) in
+                                 change_no_check (@fst a b (c,d)) with c
+                     | |- context [@snd ?a ?b (?c,?d)] =>
+                               let u := eval hnf in (@snd a b (c,d)) in
+                                  change_no_check (@snd a b (c,d)) with d
+                    end
+
         end;
         subst; apply JMeq_refl
   | canon_load_result; apply JMeq_refl ].
@@ -233,7 +317,7 @@ Ltac simplify_casts :=
                   Cop.cast_int_long Cop.cast_long_float Cop.cast_long_single Cop.cast_float_long Cop.cast_single_long ];
  rewrite ?sign_ext_inrange 
   by (let z := fresh "z" in set (z := two_p (Zpos _ - 1)); compute in z; subst z;
-          rewrite Int.signed_repr by rep_omega;  rep_omega).
+          rewrite Int.signed_repr by rep_lia;  rep_lia).
 
 Lemma cons_congr: forall {A} (a a': A) bl bl',
   a=a' -> bl=bl' -> a::bl = a'::bl'.
@@ -252,10 +336,6 @@ Ltac subst_indexes gfs :=
 Ltac solve_store_rule_evaluation :=
   match goal with |- upd_reptype ?t ?gfs ?v0 ?v1 = ?B =>
    let rhs := fresh "rhs" in set (rhs := B);
-(*
-   lazy beta zeta iota delta [reptype reptype_gen] in rhs;
-   cbn in rhs;
-*)
   match type of rhs with ?A =>
    let a := fresh "a" in set (a:=A) in rhs; 
     lazy beta zeta iota delta [reptype reptype_gen] in a;
@@ -266,9 +346,20 @@ Ltac solve_store_rule_evaluation :=
    remember_indexes gfs;
    let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
    lazy beta zeta iota delta in j; subst j;
-   lazy beta zeta iota delta - [rhs h0 h1 upd_Znth Zlength];
+   change @upd_reptype with @upd_reptype';
+   cbv - [rhs h0 h1 Znth upd_Znth Zlength myfst mysnd];
+   change @myfst with @fst;
+   change @mysnd with @snd;
    try unfold v1 in h1;
    revert h1; simplify_casts; cbv zeta;
    subst rhs h0; subst_indexes gfs;
+  repeat match goal with
+            | |- context [fst (@pair ?t1 ?t2 ?A ?B)] => change (fst(@pair t1 t2 A B)) with A
+            | |- context [snd(@pair ?t1 ?t2 ?A ?B)] => change (snd(@pair t1 t2 A B)) with B
+            | |-  context [@pair ?t1 ?t2 _ _] => 
+                      let u1 := eval compute in t1 in
+                      let u2 := eval compute in t2 in
+                      progress (change_no_check t1 with u1; change_no_check t2 with u2)
+            end;
   apply eq_refl
   end.

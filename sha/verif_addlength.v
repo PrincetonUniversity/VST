@@ -21,7 +21,7 @@ Proof.
 intros.
 pose proof (Z_div_mod_eq_full a b H).
 rewrite H0 at 2.
-rewrite Z.mul_comm; omega.
+rewrite Z.mul_comm; lia.
 Qed.
 
 Lemma eqm_mod1:
@@ -36,9 +36,9 @@ rewrite Z.add_0_l.
 rewrite Z.mod_mod by (compute; congruence).
 rewrite Zmod_eq by (compute; congruence).
 exists (- (b / Int.modulus)).
-rewrite Z.mul_opp_l. omega.
+rewrite Z.mul_opp_l. lia.
 rewrite (Zmod_eq a) in H by (compute; congruence).
-replace a with (a / Int.modulus * Int.modulus + x * Int.modulus + b) by omega.
+replace a with (a / Int.modulus * Int.modulus + x * Int.modulus + b) by lia.
 rewrite <- Z.mul_add_distr_r.
 econstructor; reflexivity.
 Qed.
@@ -62,7 +62,7 @@ Int.eqm
 Proof.
 intros.
 assert (HM' : 0 < Int.modulus) by (compute; congruence).
-assert  (MN : Int.modulus <> 0) by omega.
+assert  (MN : Int.modulus <> 0) by lia.
 Local Notation "'N'" := Int.modulus (at level 0).
 apply <- eqm_mod1.
 rewrite <- Z.add_mod by auto.
@@ -87,7 +87,7 @@ apply Int.eqm_trans with ((a/N*N + a mod N + b/N*N + b mod N)/N);
    apply Int.eqm_refl].
 apply Int.eqm_trans with
    ((a/N*N + (b/N*N + (a mod N + b mod N))) / N);
-  [ | apply Int.eqm_refl2; f_equal; clear; omega].
+  [ | apply Int.eqm_refl2; f_equal; clear; lia].
  rewrite Z.div_add_l by auto.
  rewrite Z.div_add_l by auto.
  rewrite Z.add_assoc.
@@ -99,16 +99,16 @@ assert (N | a mod N + b mod N - (a + b) mod N). {
  apply Int.eqm_add. apply -> eqm_mod1; apply Int.eqm_refl.
  apply -> eqm_mod1; apply Int.eqm_refl.
  destruct H.
- rewrite H. exists x; omega.
+ rewrite H. exists x; lia.
 }
 destruct H as [x ?].
  rewrite H.
  rewrite Z.div_mul by auto.
- assert (a mod N + b mod N = x * N + (a+b) mod N) by omega.
+ assert (a mod N + b mod N = x * N + (a+b) mod N) by lia.
  rewrite H0.
  rewrite Z.div_add_l by auto.
  rewrite Z.div_small.
- omega.
+ lia.
  apply Z.mod_pos_bound; auto.
 Qed.
 
@@ -130,20 +130,20 @@ rename H0 into H1.
  clear H1.
  destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9].
  elimtype False; rewrite H9 in H0; clear H9.
- destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; omega.
+ destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; lia.
  clear H0.
  unfold Int.add in H9.
  rewrite (Int.unsigned_repr_eq (len*8)) in H9.
  replace (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus)
   with (Int.unsigned (Int.repr (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus)) +
-           Int.modulus) by omega.
+           Int.modulus) by lia.
  clear - MN.
  rewrite Int.unsigned_repr_eq.
  rewrite (Z.add_mod (Int.unsigned (lo_part n)) (len*8)) by assumption.
  rewrite int_unsigned_mod.
  replace ((Int.unsigned (lo_part n) + (len * 8) mod Int.modulus) mod Int.modulus + Int.modulus -
  (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus) mod Int.modulus)
-   with Int.modulus by omega.
+   with Int.modulus by lia.
  reflexivity.
 Qed.
 
@@ -162,7 +162,7 @@ forward. (* cNl=c->Nl; *)
 forward. (* cNh=c->Nh; *)
 forward. (* l=(cNl+(((SHA_LONG)len)<<3))&0xffffffffUL; *)
 assert (0 <= len < Int.modulus)
- by (change Int.modulus with (Int.max_unsigned + 1); omega).
+ by (change Int.modulus with (Int.max_unsigned + 1); lia).
 replace (Int.and
               (Int.add (lo_part n) (Int.shl (Int.repr len) (Int.repr 3)))
               (Int.repr (-1)))
@@ -195,7 +195,7 @@ forward_if (temp _cNh (Vint (Int.repr (Int.unsigned (hi_part n) + carry)))).
      Int.unsigned (lo_part n)) by normalize.
  clear H1.
  destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9];
-  [ | destruct (Int.unsigned_range (Int.repr (len*8))); omega].
+  [ | destruct (Int.unsigned_range (Int.repr (len*8))); lia].
  clear H0.
  rewrite <- (Int.repr_unsigned (lo_part n)) in H9 at 1.
  rewrite add_repr in H9.
@@ -210,7 +210,7 @@ forward_if (temp _cNh (Vint (Int.repr (Int.unsigned (hi_part n) + carry)))).
  forward. (* cNh += (len>>29); *)
  forward. (* c->Nl=l; *)
  forward. (* c->Nh=cNh; *)
- forward. (* return; *)
+ entailer!. (* return; *)
  subst carry.
  clear - MN BOUND H Hn.
  apply derives_refl'; f_equal.
@@ -223,12 +223,12 @@ forward_if (temp _cNh (Vint (Int.repr (Int.unsigned (hi_part n) + carry)))).
  + f_equal. f_equal.
      unfold hi_part.
   rename Hn into Hn';
-    assert (Hn: 0 <= n < two_p 64) by omega;
+    assert (Hn: 0 <= n < two_p 64) by lia;
    clear Hn'.
  rewrite Int.shru_div_two_p.
  change (Int.unsigned (Int.repr 29)) with 29.
  assert (Int.max_unsigned + 1 = Int.modulus) by reflexivity.
- rewrite (Int.unsigned_repr len) by omega.
+ rewrite (Int.unsigned_repr len) by lia.
  unfold Int.add.
  repeat rewrite Int.unsigned_repr_eq.
  rewrite (Z.add_mod _ (len*8)) by auto;
@@ -242,9 +242,9 @@ replace (len/two_p 29) with (len * two_p 3 / two_p 32)
        apply Z.div_mul_cancel_r;  (intro Hx; inv Hx)).
  assert (0 <= len * two_p 3 < two_p 35).
  split.
- apply Z.mul_nonneg_nonneg; [omega  | ]. compute; congruence.
+ apply Z.mul_nonneg_nonneg; [lia  | ]. compute; congruence.
  change (two_p 35) with (two_p 32 * two_p 3).
- apply Zmult_lt_compat_r; [compute; congruence | omega].
+ apply Zmult_lt_compat_r; [compute; congruence | lia].
  clear H.
  apply Int.eqm_samerepr.
 apply addlength_assist; auto.

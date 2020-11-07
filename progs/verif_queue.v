@@ -94,7 +94,7 @@ apply sepalg.join_comm.
 apply Qsh_Qsh'.
 Qed.
 
-Hint Resolve Qsh_not_readable.
+Hint Resolve Qsh_not_readable : core.
 
 
 Lemma Qsh_nonempty: Qsh <> Share.bot.
@@ -233,15 +233,15 @@ Qed.
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ _n OF tuint ]
+   PRE [ tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
@@ -268,39 +268,39 @@ Definition fifo_new_spec :=
  DECLARE _fifo_new
   WITH gv: globals
   PRE  [  ]
-       PROP() LOCAL(gvars gv) SEP (mem_mgr gv)
+       PROP() PARAMS() GLOBALS(gv) SEP (mem_mgr gv)
   POST [ (tptr t_struct_fifo) ]
-    EX v:val, PROP() LOCAL(temp ret_temp v) SEP (mem_mgr gv; fifo nil v).
+    EX v:val, PROP() RETURN (v) SEP (mem_mgr gv; fifo nil v).
 
 Definition fifo_put_spec :=
  DECLARE _fifo_put
   WITH q: val, contents: list val, p: val
-  PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
-          PROP () LOCAL (temp _Q q; temp _p p)
+  PRE  [ tptr t_struct_fifo , tptr t_struct_elem ]
+          PROP () PARAMS (q; p)
           SEP (fifo contents q;
                  list_cell QS Qsh (Vundef, Vundef) p;
                  field_at_ Ews t_struct_elem [StructField _next] p)
   POST [ tvoid ]
-          PROP() LOCAL() SEP (fifo (contents++(p :: nil)) q).
+          PROP() RETURN() SEP (fifo (contents++(p :: nil)) q).
 
 Definition fifo_empty_spec :=
  DECLARE _fifo_empty
   WITH q: val, contents: list val
-  PRE  [ _Q OF (tptr t_struct_fifo) ]
-     PROP() LOCAL (temp _Q q) SEP(fifo contents q)
+  PRE  [ tptr t_struct_fifo ]
+     PROP() PARAMS (q) SEP(fifo contents q)
   POST [ tint ]
       PROP ()
-      LOCAL(temp ret_temp (if isnil contents then Vtrue else Vfalse))
+      RETURN (if isnil contents then Vtrue else Vfalse)
       SEP (fifo (contents) q).
 
 Definition fifo_get_spec :=
  DECLARE _fifo_get
   WITH q: val, contents: list val, p: val
-  PRE  [ _Q OF (tptr t_struct_fifo) ]
-       PROP() LOCAL (temp _Q q) SEP (fifo (p :: contents) q)
+  PRE  [ tptr t_struct_fifo ]
+       PROP() PARAMS (q) SEP (fifo (p :: contents) q)
   POST [ (tptr t_struct_elem) ]
        PROP ()
-       LOCAL(temp ret_temp p)
+       RETURN (p)
        SEP (fifo contents q;
               list_cell QS Qsh (Vundef, Vundef) p;
               field_at_ Ews t_struct_elem [StructField _next] p).
@@ -308,14 +308,14 @@ Definition fifo_get_spec :=
 Definition make_elem_spec :=
  DECLARE _make_elem
   WITH a: int, b: int, gv: globals
-  PRE  [ _a OF tint, _b OF tint ]
+  PRE  [ tint, tint ]
         PROP() 
-        LOCAL(temp _a (Vint a); temp _b (Vint b); gvars gv) 
+        PARAMS (Vint a; Vint b) GLOBALS (gv) 
         SEP(mem_mgr gv)
   POST [ (tptr t_struct_elem) ]
       @exp (environ->mpred) _ _ (fun p:val =>  (* EX notation doesn't work for some reason *)
        PROP()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr gv;
               field_at Qsh' list_struct [StructField _a] (Vint a) p;
               field_at Qsh' list_struct [StructField _b] (Vint b) p;
@@ -326,9 +326,9 @@ Definition make_elem_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]
-       PROP() LOCAL (temp ret_temp (Vint (Int.repr (1+10)))) SEP(TT).
+       PROP() RETURN (Vint (Int.repr (1+10))) SEP(TT).
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog
@@ -351,7 +351,7 @@ Proof.
     subst p. entailer!.
     entailer!.
 *
-    forward_call tt.
+    forward_call 1.
     contradiction.
 *
     if_tac.
@@ -365,7 +365,7 @@ Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
 Proof.
 intros.
  unfold fifo, fifo_body.
- if_tac; entailer; destruct ht; entailer!.
+ Intros ht; destruct ht; if_tac; entailer!.
 Qed.
 
 Hint Resolve fifo_isptr : saturate_local.
@@ -393,9 +393,10 @@ destruct (isnil contents).
 * Intros prefix.
 Exists prefix.
   assert_PROP (isptr hd).
-    destruct prefix; entailer.
+    destruct prefix.
+      rewrite lseg_nil_eq. Intros. subst. entailer!.
     rewrite lseg_cons_eq by auto. Intros y. subst v.
-    entailer.
+    entailer!.
  destruct hd; try contradiction.
  entailer!.
 Qed.
@@ -429,15 +430,14 @@ forward. (*   h = Q->head; *)
 forward_if
   (PROP() LOCAL () SEP (fifo (contents ++ p :: nil) q))%assert.
 * unfold fifo_body.
-   if_tac; entailer.  (* typechecking clause *)
-    (* entailer! should perhaps solve this one too *)
+   if_tac. entailer!. Intros prefix. entailer!.
 * (* then clause *)
   subst.
   (* goal 9 *)
   forward. (* Q->head=p; *)
   forward. (* Q->tail=p; *)
   (* goal 10 *)
-  entailer.
+  entailer!.
   unfold fifo, fifo_body.
   destruct (isnil contents).
   + subst. Exists (p,p).
@@ -466,7 +466,7 @@ forward_if
      unfold fifo, fifo_body. Exists (hd, p).
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ tl :: nil).
-     entailer.
+     entailer. (* do this to avoid canceling *)
      match goal with
      | |- _ |-- _ * _ * ?AA => remember AA as A
      end.     (* prevent it from canceling! *)
@@ -528,7 +528,7 @@ forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   apply derives_refl.
 Qed.
 
-Hint Resolve readable_share_Qsh'.
+Hint Resolve readable_share_Qsh' : core.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

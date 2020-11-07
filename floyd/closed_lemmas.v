@@ -255,7 +255,7 @@ intros.
 intros ? ? ?.
 unfold_lift; auto.
 Qed.
-Hint Resolve @closed_wrt_lift0C @closed_wrtl_lift0C: closed.
+Hint Resolve closed_wrt_lift0C closed_wrtl_lift0C: closed.
 
 Lemma closed_wrt_lift1: forall {A}{B} S (f: A -> B) P,
         closed_wrt_vars S P ->
@@ -291,7 +291,7 @@ intros.
 intros ? ? ?. specialize (H _ _ H0).
 unfold_lift; f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift1C @closed_wrtl_lift1C : closed.
+Hint Resolve closed_wrt_lift1C closed_wrtl_lift1C : closed.
 
 Lemma closed_wrt_lift2: forall {A1 A2}{B} S (f: A1 -> A2 -> B) P1 P2,
         closed_wrt_vars S P1 ->
@@ -339,7 +339,7 @@ specialize (H _ _ H1).
 specialize (H0 _ _ H1).
 unfold_lift; f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift2C @closed_wrtl_lift2C : closed.
+Hint Resolve closed_wrt_lift2C closed_wrtl_lift2C : closed.
 
 Lemma closed_wrt_lift3: forall {A1 A2 A3}{B} S (f: A1 -> A2 -> A3 -> B) P1 P2 P3,
         closed_wrt_vars S P1 ->
@@ -396,7 +396,7 @@ specialize (H0 _ _ H2).
 specialize (H1 _ _ H2).
 unfold_lift. f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift3C @closed_wrtl_lift3C : closed.
+Hint Resolve closed_wrt_lift3C closed_wrtl_lift3C : closed.
 
 Lemma closed_wrt_lift4: forall {A1 A2 A3 A4}{B} S (f: A1 -> A2 -> A3 -> A4 -> B)
        P1 P2 P3 P4,
@@ -464,7 +464,7 @@ specialize (H2 _ _ H3).
 unfold liftx; simpl.
 unfold lift. f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift4C @closed_wrtl_lift4C : closed.
+Hint Resolve closed_wrt_lift4C closed_wrtl_lift4C : closed.
 
 Lemma closed_wrt_const:
  forall A (P: A) S, closed_wrt_vars S (fun rho: environ => P).
@@ -478,7 +478,7 @@ Proof.
 intros. hnf; intros.
 simpl. auto.
 Qed.
-Hint Resolve @closed_wrt_const @closed_wrtl_const : closed.
+Hint Resolve closed_wrt_const closed_wrtl_const : closed.
 
 Lemma closed_wrt_eval_var:
   forall S id t, closed_wrt_vars S (eval_var id t).
@@ -753,7 +753,10 @@ Proof. repeat intro. reflexivity. Qed.
 Lemma closed_wrtl_emp {A} {ND: NatDed A} {SL: SepLog A}:
   forall S, closed_wrt_lvars S emp.
 Proof. repeat intro. reflexivity. Qed.
-Hint Resolve (@closed_wrt_emp mpred Nveric Sveric) (@closed_wrtl_emp mpred Nveric Sveric) : closed.
+
+Definition closed_wrt_emp_mpred := @closed_wrt_emp mpred Nveric Sveric.
+Definition closed_wrtl_emp_mpred := @closed_wrtl_emp mpred Nveric Sveric.
+Hint Resolve closed_wrt_emp_mpred closed_wrtl_emp_mpred  : closed.
 
 Lemma closed_wrt_allp: forall A S P,
   (forall x: A, closed_wrt_vars S (P x)) ->
@@ -776,7 +779,7 @@ specialize (H x rho ve' H0);
 apply derives_refl'; congruence.
 Qed.
 Hint Resolve closed_wrt_allp closed_wrtl_allp : closed.
-
+(*DEAD CODE?
 Lemma closed_wrt_globvars:
   forall S gv v, closed_wrt_vars S (globvars2pred gv v).
 Proof.
@@ -812,17 +815,17 @@ Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.
 
 
 Lemma closed_wrt_main_pre:
-  forall {Z} prog (z : Z) u v S, closed_wrt_vars S (main_pre prog z u v).
+  forall {Z} prog (z : Z) v S, closed_wrt_vars S (main_pre prog z v).
 Proof.
 intros. unfold main_pre. apply closed_wrt_sepcon; [apply closed_wrt_globvars | apply closed_wrt_const].
 Qed.
 Lemma closed_wrtl_main_pre:
-  forall {Z} prog (z : Z) u v S, closed_wrt_lvars S (main_pre prog z u v).
+  forall {Z} prog (z : Z) v S, closed_wrt_lvars S (main_pre prog z v).
 Proof.
 intros. unfold main_pre. apply closed_wrtl_sepcon; [apply closed_wrtl_globvars | apply closed_wrtl_const].
 Qed.
 Hint Resolve closed_wrt_main_pre closed_wrtl_main_pre : closed.
-
+*)
 Lemma closed_wrt_not1:
   forall (i j: ident),
    i<>j ->
@@ -1568,7 +1571,7 @@ intros.
 revert R H0; induction n; destruct R; simpl; intros; auto with closed;
 inv H0; constructor; auto with closed.
 Qed.
-Hint Resolve @closed_wrt_replace_nth : closed.
+Hint Resolve closed_wrt_replace_nth : closed.
 
 Lemma closed_wrt_tc_nodivover :
  forall {cs: compspecs} S e1 e2,
@@ -1656,7 +1659,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  repeat apply closed_wrt_tc_andp; auto with closed.
  unfold isUnOpResultType.
  destruct u;
- destruct (typeof e) as   [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ destruct (typeof e) as   [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl; repeat apply closed_wrt_tc_andp; auto 50 with closed;
   rewrite binop_lemmas2.denote_tc_assert_test_eq';
   simpl; unfold_lift;
@@ -1850,17 +1853,6 @@ intros; right; auto.
 Qed.
 Hint Resolve in_map_fst2 : closed.
 
-Ltac precondition_closed :=  (* obsolete? DELETE_ME *)
- match goal with |- precondition_closed _ _ => idtac end;
- let x := fresh "x" in intro x;
- split;
-  repeat match goal with
-          | |- closed_wrt_vars _ (let (y,z) := ?x in _) => is_var x; destruct x
-          | |- closed_wrt_lvars _ (let (y,z) := ?x in _) => is_var x; destruct x
-          end;
-  [simpl not_a_param; auto 50 with closed
-  | simpl is_a_local; auto 50 with closed ].
-
 Lemma Forall_map_cons:
   forall {A B} (F: A -> Prop) (g: B -> A) b bl,
   F (g b) -> Forall F (map g bl) ->
@@ -1879,5 +1871,5 @@ simpl.
 intros.
 constructor; auto.
 Qed.
-Hint Resolve @Forall_map_cons @Forall_map_nil : closed.
+Hint Resolve Forall_map_cons Forall_map_nil : closed.
 Hint Resolve Forall_cons Forall_nil : closed.

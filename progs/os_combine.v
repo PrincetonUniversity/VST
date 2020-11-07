@@ -71,7 +71,7 @@ Section ext_trace.
       cl_at_external c = Some (e,args) ->
       (forall s s' ret m' t' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
-         (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
+         (Hretty : Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))),
          inj_mem e args m t s ->
          ext_sem e args s = Some (s', ret, t') ->
          m' = extr_mem e args m s' ->
@@ -82,7 +82,7 @@ Section ext_trace.
            (forall t'', In _ traces' t'' -> In _ traces (app_trace t' t''))) ->
       (forall t1, In _ traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
          inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
@@ -109,7 +109,7 @@ Section ext_trace.
     - eexists; constructor.
     - edestruct IHn as [traces ?]; eauto; exists traces; econstructor; eauto.
     - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
          inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n0)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret q = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
@@ -118,7 +118,7 @@ Section ext_trace.
       eapply extcalls_correct in H1 as (z' & ? & ? & ?); eauto.
       split; auto.
       edestruct H2 as (? & ? & Hsafe); eauto.
-      eapply IHn in Hsafe as [traces ?]; [|omega].
+      eapply IHn in Hsafe as [traces ?]; [|lia].
       subst; do 4 eexists; eauto; split; eauto; split; eauto.
       intros; unfold In; eauto 25.
     - eexists; econstructor; eauto.
@@ -135,15 +135,15 @@ Section ext_trace.
      V G m,
      @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, exists m',
+     exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core  (cl_core_sem (globalenv prog))
-           0 m q m' (Vptr b Ptrofs.zero) nil /\
-       forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m'.
+           0 m q m (Vptr b Ptrofs.zero) nil /\
+       forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m.
   Proof.
     intros.
-    eapply CSHL_Sound.semax_prog_sound, whole_program_sequential_safety_ext in H as (b & q & m' & ? & ? & Hsafe); eauto.
-    do 4 eexists; eauto; split; eauto; intros n.
+    eapply CSHL_Sound.semax_prog_sound, whole_program_sequential_safety_ext in H as (b & q & ? & ? & Hsafe); eauto.
+    do 3 eexists; eauto; split; eauto; intros n.
     eapply dry_safe_ext_trace_safe; eauto.
   Qed.
 
@@ -158,7 +158,7 @@ Section ext_trace.
       exists z; apply consume_trace_nil.
     - eauto.
     - destruct (H3 _ H0) as (s & s' & ret & m' & t1 & n' & ? & ? & ? & ? & ? & ? & ? & traces' & z' & c' & ? & ? & ? & ? & ? & ?).
-      edestruct (IHn n') as [z'' ?]; eauto; [omega|].
+      edestruct (IHn n') as [z'' ?]; eauto; [lia|].
       subst; eexists; eapply consume_trace_app; eauto.
     - inversion H0.
       exists z; apply consume_trace_nil.
@@ -175,16 +175,16 @@ Section ext_trace.
      V G m,
      @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, exists m',
+     exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core  (cl_core_sem (globalenv prog))
-           0 m q m' (Vptr b Ptrofs.zero) nil /\
-       forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m' /\
+           0 m q m (Vptr b Ptrofs.zero) nil /\
+       forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m /\
          forall t, In _ traces t -> exists z', consume_trace initial_oracle z' t.
   Proof.
     intros.
-    eapply safety_trace in H as (b & q & m' & ? & ? & Hsafe); eauto.
-    exists b, q, m'; split; auto; split; auto.
+    eapply safety_trace in H as (b & q & ? & ? & Hsafe); eauto.
+    exists b, q; split; auto; split; auto.
     intros n; destruct (Hsafe n) as [traces Hsafen].
     exists traces; split; auto.
     intros; eapply trace_correct; eauto.

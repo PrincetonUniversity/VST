@@ -186,7 +186,7 @@ Proof. intros. abbreviate_semax.
       Time forward_call (@nil byte, key, Vptr cb cofs, wsh, Vptr kb kofs, sh, l, gv). (*4.5*)
       { 
         specialize Int.max_signed_unsigned.
-        subst l. intro; split3; [ | | split3]; auto; omega.
+        subst l. intro; split3; [ | | split3]; auto; lia.
       }
       rewrite sublist_same; trivial.
 
@@ -209,8 +209,8 @@ Proof. intros. abbreviate_semax.
      rewrite Ptrofs.repr_unsigned.
      change (32+32) with 64.
      intros MBS; rewrite MBS; clear MBS; trivial.
-     2:{ destruct (Ptrofs.unsigned_range ckoff). split; try omega.
-              red in FC_ctxkey. simpl in FC_ctxkey. omega. } 
+     2:{ destruct (Ptrofs.unsigned_range ckoff). split; try lia.
+              red in FC_ctxkey. simpl in FC_ctxkey. lia. } 
      flatten_sepcon_in_SEP.
 
      thaw FR6.
@@ -231,16 +231,16 @@ Proof. intros. abbreviate_semax.
          unfold HMAC_SHA256.mkKey.
          remember (Zlength key >? Z.of_nat SHA256.BlockSize).
          destruct b; rewrite Zlength_correct, zeroPad_BlockSize. reflexivity.
-                     unfold SHA256.Hash. rewrite length_SHA256'. unfold SHA256.DigestLength, SHA256.BlockSize. omega.
+                     unfold SHA256.Hash. rewrite length_SHA256'. unfold SHA256.DigestLength, SHA256.BlockSize. lia.
          reflexivity. apply Nat2Z.inj_le.
          specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)). rewrite <- Heqb. rewrite Zlength_correct; trivial.
        unfold tarray.
-       rewrite (split2_data_at_Tarray_tuchar Tsh 64 32); repeat rewrite Zlength_map; trivial; try omega.
+       rewrite (split2_data_at_Tarray_tuchar Tsh 64 32); repeat rewrite Zlength_map; trivial; try lia.
        unfold HMAC_SHA256.mkKey.
        remember (Zlength key >? Z.of_nat SHA256.BlockSize).
        destruct b.
        2:{ specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
-                rewrite <- Heqb. intro Hx; simpl in Hx; omega.
+                rewrite <- Heqb. intro Hx; simpl in Hx; lia.
        }
        clear Heqb.
        unfold HMAC_SHA256.zeroPad. repeat rewrite map_app.
@@ -340,14 +340,14 @@ Proof. intros.
                      (map Vubyte key), l). (*2 versus 4.4*)
      { unfold tarray. unfold field_at_ at 1. rewrite field_at_data_at.
        rewrite field_address_offset by auto with field_compatible; simpl. rewrite Ptrofs.add_zero.
-       rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial. 2: omega.
+       rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial. 2: lia.
        rewrite sepcon_comm.
        rewrite sepcon_assoc.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
-           simpl. rewrite Z.max_r. rewrite Z.mul_1_l.  apply derives_refl. omega.
+           simpl. rewrite Z.max_r. rewrite Z.mul_1_l.  apply derives_refl. lia.
        Time cancel. (*0.1 versus 2.4*) }
-     { simpl. specialize Int.max_signed_unsigned. rewrite Z.max_r, Z.mul_1_l by omega.
-      split ; [ | split3]; auto; omega. }
+     { simpl. specialize Int.max_signed_unsigned. rewrite Z.max_r, Z.mul_1_l by lia.
+      split ; [ | split3]; auto; lia. }
      unfold tarray.
      remember (64 - l) as l64.
      remember (map Vubyte key) as KCONT.
@@ -355,9 +355,7 @@ Proof. intros.
      (*call memset*)
      freeze FR2 := - (@data_at CompSpecs _ _ _ (@field_address0 CompSpecs _ _ (Vptr ckb _))).
      Time forward_call (Tsh, Vptr ckb (Ptrofs.add ckoff (Ptrofs.repr (Zlength key))), l64, Int.zero). (*6.4 versus 10.4*)
-     { (*Issue: this side condition is NEW*)
-       apply prop_right. unfold Ptrofs.of_ints, Ptrofs.of_int, Ptrofs.to_int. normalize.
-       rewrite <- KL1, Heql64. split; trivial. }
+     { entailer!. }
      { rewrite <- KL1.
        rewrite sepcon_comm. Time apply sepcon_derives; [ | cancel]. (*0.1 versus 1.2*)
        unfold at_offset. simpl.
@@ -365,22 +363,22 @@ Proof. intros.
                rewrite sizeof_Tarray. trivial.
        rewrite field_address0_offset by auto with field_compatible.
        simpl. rewrite Z.add_0_l, Z.mul_1_l;  apply derives_refl.
-       apply Z.max_r. omega. }
-     { split; auto. rep_omega. }
+       apply Z.max_r. lia. }
+     { split; auto. rep_lia. }
 
      Time entailer!. (*3.5 versus 6.2*)
      thaw FR2. thaw FR1. Time cancel. (*1.2 penalty*)
      rewrite (split2_data_at_Tarray_tuchar Tsh 64 (Zlength key));
        try repeat rewrite Zlength_map; try rewrite Zlength_correct, mkKey_length;
-     trivial. 2: omega.
+     trivial. 2: lia.
      unfold at_offset.
      unfold HMAC_SHA256.mkKey. remember (64 - Zlength key) as SF. simpl.
        remember (Zlength key >? 64).
-       destruct b. symmetry in Heqb; apply Zgt_is_gt_bool in Heqb. omega.
+       destruct b. symmetry in Heqb; apply Zgt_is_gt_bool in Heqb. lia.
        unfold HMAC_SHA256.zeroPad. repeat rewrite map_app.
      autorewrite with sublist.
      assert (XX: (SHA256.BlockSize - length key = Z.to_nat SF)%nat).
-          subst SF. rewrite Zlength_correct, Z2Nat.inj_sub, Nat2Z.id. reflexivity. omega.
+          subst SF. rewrite Zlength_correct, Z2Nat.inj_sub, Nat2Z.id. reflexivity. lia.
      rewrite XX(*, HeqKCONT*).
      repeat rewrite map_list_repeat.
      rewrite sublist_same; trivial. (*subst l64 l.*)
@@ -388,5 +386,5 @@ Proof. intros.
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l.
      change (0 + Zlength key) with (Zlength key).
      Time cancel. apply derives_refl.
-     rewrite Zlength_list_repeat', Z2Nat.id; omega.
-Time Qed. (*10 secs versus 18*)
+     rewrite Zlength_list_repeat', Z2Nat.id; lia.
+Time Qed. (*0.6s versus 10s versus 18s*)

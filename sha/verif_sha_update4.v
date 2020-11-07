@@ -18,7 +18,7 @@ assert (Zlength (intlist_to_bytelist blocks) =
      sublist 0 (Zlength blocks * 4 - Zlength frag) data)) by congruence.
  autorewrite with sublist in H0.
  pose proof (Zlength_nonneg (sublist 0 (Zlength blocks * 4 - Zlength frag) data)).
- omega.
+ lia.
 Qed.
 
 Definition sha_update_loop_body :=
@@ -64,12 +64,15 @@ Lemma update_outer_if_proof:
 semax
      (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (PROP  ()
-   LOCAL
+   LOCAL (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
+   temp _n (Vint (Int.repr (Zlength dd))); temp _data d; gvars gv; temp _c c; 
+   temp _data_ d; temp _len (Vint (Int.repr len)))
+   (*LOCAL
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _n (Vint (Int.repr (Zlength dd)));
     temp _data d; temp _c c;temp _data_ d;
     temp _len (Vint (Int.repr len));
-    gvars gv)
+    gvars gv)*)
    SEP  (data_at wsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
@@ -96,12 +99,13 @@ forward_if (sha_update_inv wsh sh hashed len c d dd data gv false).
 * (* then clause *)
 
 Time forward.  (* fragment = SHA_CBLOCK-n; *) (*2.2*)
-drop_LOCAL 5%nat.
+(*drop_LOCAL 5%nat.*)
 rewrite semax_seq_skip.
 fold (inv_at_inner_if wsh sh hashed len c d dd data gv).
 apply semax_seq with (sha_update_inv wsh sh hashed len c d dd data gv false).
 weak_normalize_postcondition.
 normalize. change (16*4)%Z with 64.
+Locate update_inner_if_proof.
 simple apply (update_inner_if_proof Espec hashed dd data c d wsh sh len gv);
   try assumption.
 forward.
@@ -195,7 +199,7 @@ forward_while
  pose proof (Hblocks_lem H7).
  assert (H0': (Zlength dd <= Zlength blocks * 4)%Z) by Omega1.
  clear H0; rename H0' into H0.
- rewrite Int.unsigned_repr in HRE by omega.
+ rewrite Int.unsigned_repr in HRE by lia.
  pose (bl := bytelist_to_intlist (sublist (Zlength blocks * 4 - Zlength dd)
                                                    (Zlength blocks * 4 - Zlength dd + CBLOCKz) data)).
 assert (Zlength bl = LBLOCKz). {
@@ -223,10 +227,10 @@ assert (Zlength bl = LBLOCKz). {
   { (* TODO: simplify this proof. *)
     clear - FC. red in FC. simpl in FC. destruct d; try tauto.
     simpl in FC.
-    rewrite Z.max_r in FC by (specialize (Zlength_nonneg data); intros; omega).
+    rewrite Z.max_r in FC by (specialize (Zlength_nonneg data); intros; lia).
     inv_int i.
     rewrite Z.mul_1_l in FC.
-    omega.
+    lia.
   }
   set (lo := Zlength blocks * 4 - Zlength frag) in *.
   replace_SEP 2

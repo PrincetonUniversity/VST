@@ -11,6 +11,8 @@ Require Import sha.hkdf.
 
 Require Import VST.veric.change_compspecs.
 
+Require Import VST.floyd.Funspec_old_Notation.
+
 Instance CompSpecs : compspecs. 
 Proof. make_compspecs prog. Defined. (*
 Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.

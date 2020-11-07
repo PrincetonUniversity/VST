@@ -20,9 +20,9 @@ Context {E : Type -> Type} `{IO_event(file_id := nat) -< E}.
 
 Definition putchar_spec :=
   WITH c : byte, k : IO_itree
-  PRE [ 1%positive OF tint ]
+  PRE [ tint ]
     PROP ()
-    LOCAL (temp 1%positive (Vubyte c))
+    PARAMS (Vubyte c) GLOBALS()
     SEP (ITREE (write stdout c ;; k))
   POST [ tint ]
    EX i : int,
@@ -34,7 +34,7 @@ Definition getchar_spec :=
   WITH k : byte -> IO_itree
   PRE [ ]
     PROP ()
-    LOCAL ()
+    PARAMS () GLOBALS()
     SEP (ITREE (r <- read stdin ;; k r))
   POST [ tint ]
    EX i : int,

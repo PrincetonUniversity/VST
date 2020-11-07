@@ -4,6 +4,7 @@ Require Import List. Import ListNotations.
 Require Import tweetnacl20140427.Snuffle.
 Require Import tweetnacl20140427.Salsa20.
 Require Import ZArith.
+Local Open Scope Z.
 
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa.
@@ -12,9 +13,8 @@ Opaque Snuffle20. Opaque prepare_data. Opaque Snuffle.Snuffle.
 
 Lemma crypto_core_salsa20_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_core_salsa20_tweet crypto_core_salsa20_spec.
-Proof. unfold crypto_core_salsa20_spec.
+Proof.
 start_function.
-abbreviate_semax.
 assert_PROP (field_compatible (tarray tuchar 64) [] out /\ isptr out) as HH by entailer!.
 destruct HH as [FCout isptrout].
 Time forward_call (c, k, Z0, nonce, out, default_val (tarray tuchar 64), data). (*1.8*)
@@ -50,7 +50,7 @@ Qed.
 
 Lemma crypto_core_hsalsa20_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_core_hsalsa20_tweet crypto_core_hsalsa20_spec.
-Proof. unfold crypto_core_hsalsa20_spec.
+Proof.
 start_function.
 Time forward_call (c, k, 1, nonce, out, OUT, data). (*1.4*)
 Intros res.
@@ -69,6 +69,6 @@ unfold fcorePOST_SEP; cancel.
   destruct K as [[[K1 K2] K3] K4].
   destruct L as [[[L1 L2] L3] L4].
 apply derives_refl'. f_equal.
-  do 8 rewrite X2 in H by (try omega; reflexivity).
+  do 8 rewrite X2 in H by (try lia; reflexivity).
   apply H.
 Time Qed. (*2.8*)

@@ -34,7 +34,7 @@ Proof.
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs);
          ghost_var gsh1 (vint b0) g0))
   break: (@FF (environ->mpred) _).
-  { Exists 1 (empty_map : hist); entailer!. split. unfold B,N. computable.
+  { Exists 1 (empty_map : hist); entailer!.
     unfold latest_read.
     left; split; auto; discriminate. }
   Intros b0 h.

@@ -2,6 +2,7 @@ Require Import VST.progs.conclib.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.incr.
 
+Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -21,7 +22,7 @@ Definition incr_spec :=
   WITH sh : share, g1 : gname, g2 : gname, left : bool, n : Z, gv: globals
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvars gv)
+         PARAMS () GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n (if left then g1 else g2))
   POST [ tvoid ]
          PROP ()
@@ -33,7 +34,7 @@ Definition read_spec :=
   WITH sh : share, g1 : gname, g2 : gname, n1 : Z, n2 : Z, gv: globals
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvars gv)
+         PARAMS () GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2)
   POST [ tuint ]
          PROP ()
@@ -49,10 +50,10 @@ Definition thread_lock_inv sh g1 g2 ctr lockc lockt :=
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : share * gname * gname * globals
-  PRE [ _args OF (tptr tvoid) ]
+  PRE [ (*_args OF*) (tptr tvoid) ]
          let '(sh, g1, g2, gv) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvars gv)
+         PARAMS (y) GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr));
                 ghost_var gsh2 0 g1;
                 lock_inv sh (gv _thread_lock) (thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)))
@@ -64,8 +65,8 @@ Definition thread_func_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
@@ -75,11 +76,11 @@ Lemma ctr_inv_exclusive : forall g1 g2 p,
 Proof.
   intros; unfold cptr_lock_inv.
   eapply derives_exclusive, exclusive_sepcon1 with (Q := EX x : Z, EX y : Z, _),
-    data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
+    data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try lia.
   Intro z; apply sepcon_derives; [cancel|].
   Intros x y; Exists x y; apply derives_refl.
 Qed.
-Hint Resolve ctr_inv_exclusive : exclusive.
+Hint Resolve ctr_inv_exclusive : core.
 
 Lemma thread_inv_exclusive : forall sh g1 g2 ctr lock lockt,
   exclusive_mpred (thread_lock_inv sh g1 g2 ctr lock lockt).
@@ -102,6 +103,7 @@ Proof.
     Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
     apply ghost_var_update.
 Qed.
+Hint Resolve thread_inv_exclusive : core.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
@@ -112,7 +114,9 @@ Proof.
   Intros z x y.
   forward.
   forward.
-  gather_SEP 2 3 4.
+
+  gather_SEP (ghost_var _ x g1) (ghost_var _ y g2) (ghost_var _ n _).
+  rewrite sepcon_assoc.
   viewshift_SEP 0 (!!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) *
     ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).
   { go_lower.
@@ -143,10 +147,10 @@ Proof.
   Intros z x y.
   forward.
   assert_PROP (x = n1 /\ y = n2) as Heq.
-  { gather_SEP 2 4.
-    erewrite ghost_var_share_join' by eauto with share.
-    gather_SEP 3 4.
-    erewrite ghost_var_share_join' by eauto with share.
+  { gather_SEP (ghost_var _ x g1) (ghost_var _ n1 g1).
+    erewrite ghost_var_share_join' by eauto.
+    gather_SEP (ghost_var _ y g2) (ghost_var _ n2 g2).
+    erewrite ghost_var_share_join' by eauto.
     entailer!. }
   forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
@@ -210,6 +214,7 @@ Proof.
   { lock_props.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst lock ctr; cancel. }
   forward.
+Unshelve. apply xH. (*TODO: fix (I believe) the forward_spawn tactic  so that this ident is not introduces. Is it the y?*)
 Qed.
 
 Definition extlink := ext_link_prog prog.

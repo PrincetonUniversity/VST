@@ -33,7 +33,7 @@ Lemma list_rep_valid_pointer:
   forall l p, list_rep l p |-- valid_pointer p.
 Proof.
   intros.
-  destruct l; simpl; normalize; auto with valid_pointer.
+  destruct l; simpl; Intros; try Intros y; subst; auto with valid_pointer.
 Qed.
 
 Lemma list_rep_local_facts:
@@ -41,10 +41,9 @@ Lemma list_rep_local_facts:
   forall l p, list_rep l p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> l=nil)).
 Proof.
   intros.
-  destruct l; simpl; normalize; entailer!.
+  destruct l; simpl; Intros; try Intros y; entailer!.
   + split; auto.
-  + split; intros; try congruence.
-    subst; inv Pp.
+  + split; intros; subst; try congruence; try contradiction.
 Qed.
 
 End LISTS.
@@ -75,7 +74,7 @@ Lemma tree_rep_valid_pointer:
   forall t p, tree_rep t p |-- valid_pointer p.
 Proof.
   intros.
-  destruct t; simpl; normalize; auto with valid_pointer.
+  destruct t; simpl; Intros; try Intros x y; subst; auto with valid_pointer.
 Qed.
 
 Lemma tree_rep_local_facts:
@@ -83,7 +82,7 @@ Lemma tree_rep_local_facts:
   forall t p, tree_rep t p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> t=E)).
 Proof.
   intros.
-  destruct t; simpl; normalize; entailer!.
+  destruct t; simpl; Intros; try Intros x y; subst; entailer!.
   + split; auto.
   + split; intros; try congruence.
     subst; inv Pp.
@@ -170,8 +169,7 @@ Proof.
       simpl.
       apply andp_right; [apply prop_right; subst; auto |].
       apply derives_refl.
-  + apply exp_left; intros tl.
-    normalize.
+  + apply exp_left; intros tl. Intros; subst.
     induction tl.
     - simpl. auto.
     - simpl.
@@ -203,7 +201,7 @@ Lemma xtree_rep_valid_pointer:
   forall t p, xtree_rep t p |-- valid_pointer p.
 Proof.
 intros.
-destruct t; simpl; normalize; auto with valid_pointer.
+destruct t; simpl; Intros; try Intros q; subst; auto with valid_pointer.
 Qed.
 Hint Resolve xtree_rep_valid_pointer: valid_pointer.
 
@@ -211,7 +209,7 @@ Lemma xtree_rep_local_facts:
   forall t p, xtree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = XLeaf)).
 Proof.
 intros.
-destruct t; simpl; normalize; entailer!.
+destruct t; simpl; Intros; try Intros q;  entailer!.
 + split; auto.
 + split; intros; try congruence.
   subst; destruct H as [? _]; inv H.
@@ -332,7 +330,7 @@ Lemma ytree_rep_valid_pointer:
   forall t p, ytree_rep t p |-- valid_pointer p.
 Proof.
 intros.
-destruct t; simpl; normalize; auto with valid_pointer.
+destruct t; simpl; Intros; try Intros q; subst; auto with valid_pointer.
 Qed.
 Hint Resolve ytree_rep_valid_pointer: valid_pointer.
 
@@ -340,7 +338,7 @@ Lemma ytree_rep_local_facts:
   forall t p, ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = YLeaf)).
 Proof.
 intros.
-destruct t; simpl; normalize; entailer!.
+destruct t; simpl; Intros; try Intros q; entailer!.
 + split; auto.
 + split; intros; try congruence.
   subst; destruct H as [? _]; inv H.
@@ -448,7 +446,7 @@ Proof.
   simpl.
   induction tl.
   + simpl.
-    intros; clear H; omega.
+    intros; clear H; lia.
   + simpl.
     exact (fun HH => conj (H _ (proj1 HH)) (IHtl (proj2 HH))).
 Qed.
@@ -456,26 +454,26 @@ Qed.
 Definition Xnode_add_spec :=
  DECLARE _Xnode_add
   WITH p: val, t: XTree
-  PRE  [ _p OF (tptr t_struct_Xnode) ]
+  PRE  [ tptr t_struct_Xnode ]
     PROP  ()
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (xtree_rep t p)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (xtree_rep (x_add1 t) p).
 
 Definition Xfoo_spec :=
  DECLARE _Xfoo
   WITH p: val, t: XTree
-  PRE  [ _p OF (tptr t_struct_Xnode) ]
+  PRE  [ tptr t_struct_Xnode ]
     PROP  (Forall_XTree (fun x => x >= 0) t)
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (xtree_rep t p)
   POST [ Tvoid ]
     EX t': XTree,
       PROP(Forall_XTree (fun x => x > 0) t')
-      LOCAL()
+      RETURN()
       SEP (xtree_rep t' p).
 
 Fixpoint y_add1 (t: YTree): YTree :=
@@ -511,43 +509,43 @@ Qed.
 Definition Ynode_add_spec :=
  DECLARE _Ynode_add
   WITH p: val, t: YTree
-  PRE  [ _p OF (tptr t_struct_Ynode) ]
+  PRE  [ tptr t_struct_Ynode ]
     PROP  ()
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (ytree_rep t p)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (ytree_rep (y_add1 t) p).
 
 Definition YTree_add_spec :=
  DECLARE _YTree_add
   WITH p: val, t: tree (unit * YTree)
-  PRE  [ _p OF (tptr t_struct_Ytree) ]
+  PRE  [ tptr t_struct_Ytree ]
     PROP  ()
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (t_ytree_rep t p)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (t_ytree_rep (ty_add1 t) p).
 
 Definition YList_add_spec :=
  DECLARE _YList_add
   WITH p: val, t: list (tree (unit * YTree) * unit)
-  PRE  [ _p OF (tptr t_struct_Ylist) ]
+  PRE  [ tptr t_struct_Ylist ]
     PROP  ()
-    LOCAL (temp _p p)
+    PARAMS (p)
     SEP (lt_ytree_rep t p)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (lt_ytree_rep (lty_add1 t) p).
 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]
      PROP() LOCAL () SEP(TT).
 
@@ -732,7 +730,7 @@ Proof.
   forward.
   forward.
   forward.
-  gather_SEP 0 2 3.
+  gather_SEP (data_at _ _ _ v_q) (list_rep _ _ q) (iter_sepcon2 _ _ r).
   replace_SEP 0 (xtree_rep (XNode tl v) v_q).
   {
     simpl xtree_rep.
@@ -749,7 +747,7 @@ Proof.
   forward.
   forward.
   forward.
-  gather_SEP 1 2 3.
+  gather_SEP (list_rep _ _ q') (iter_sepcon2 _ _ r') (data_at _ _ _ p).
   replace_SEP 0 (xtree_rep (XNode (map x_add1 tl) (v + 1)) p).
   {
     simpl xtree_rep.
@@ -810,14 +808,14 @@ Proof.
   destruct t as [| [? ?] t']; [congruence | clear H0].
   unfold lt_ytree_rep.
   Intros r.
-  destruct r; [simpl; normalize |].
+  destruct r; [simpl; Intros; contradiction |].
   abbreviate_semax.
   simpl.
   Intros y.
   forward.
   forward_call (v, t).
   forward.
-  gather_SEP 2 3.
+  gather_SEP (y_list_rep r y) (iter_sepcon2 _ _ _).
   replace_SEP 0 (lt_ytree_rep t' y).
   {
     unfold lt_ytree_rep.
@@ -853,14 +851,14 @@ Proof.
   destruct t as [| a [? ?] b]; [congruence |].
   unfold t_ytree_rep.
   Intros s.
-  destruct s; [simpl; normalize |].
+  destruct s; [simpl; Intros; contradiction |].
   abbreviate_semax.
   simpl.
   Intros pa pb.
   forward.
   forward_call (v, y).
   forward.
-  gather_SEP 2 4.
+  gather_SEP (y_tree_rep s1 pa) (iter_tree_sepcon2 _ _ s1).
   replace_SEP 0 (t_ytree_rep a pa).
   {
     unfold t_ytree_rep.
@@ -869,7 +867,7 @@ Proof.
   }
   forward_call (pa, a).
   forward.
-  gather_SEP 3 4.
+  gather_SEP (y_tree_rep s2 pb) (iter_tree_sepcon2 _ _ s2).
   replace_SEP 0 (t_ytree_rep b pb).
   {
     unfold t_ytree_rep.

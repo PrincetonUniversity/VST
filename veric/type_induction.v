@@ -55,8 +55,8 @@ Proof.
     pose proof Max.le_max_l (rank_type cenv t) (rank_members cenv m).
     pose proof Max.le_max_r (rank_type cenv t) (rank_members cenv m).
     constructor.
-    - apply IHn; simpl; omega.
-    - apply IHm; omega.
+    - apply IHn; simpl; lia.
+    - apply IHm; lia.
   + (* Tunion level positive *)
     simpl in RANK.
     destruct (cenv ! i) as [co |] eqn:CO; auto.
@@ -67,8 +67,8 @@ Proof.
     pose proof Max.le_max_l (rank_type cenv t) (rank_members cenv m).
     pose proof Max.le_max_r (rank_type cenv t) (rank_members cenv m).
     constructor.
-    - apply IHn; simpl; omega.
-    - apply IHm; omega.
+    - apply IHn; simpl; lia.
+    - apply IHm; lia.
 Defined.
 
 End COMPOSITE_ENV.

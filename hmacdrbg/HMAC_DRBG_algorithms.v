@@ -1,7 +1,6 @@
 Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import VST.floyd.functional_base.
-
 Require Import hmacdrbg.DRBG_functions.
 
 Definition HMAC_DRBG_update (HMAC: list byte -> list byte -> list byte) (provided_data K V: list byte): (list byte * list byte) :=
@@ -47,7 +46,7 @@ Function HMAC_DRBG_generate_helper_Z (HMAC: list byte -> list byte -> list byte)
     let temp := v in
     (v, rest ++ temp).
 Proof.
-  intros. rewrite Z2Nat.inj_sub by omega.
+  intros. rewrite Z2Nat.inj_sub by lia.
   rewrite Nat2Z.id.
   assert ((0 <? requested_number_of_bytes) = true).
   *
@@ -57,7 +56,7 @@ Proof.
     auto.
   *
   apply Zlt_is_lt_bool in H.
-  apply Z2Nat.inj_lt in H; omega.
+  apply Z2Nat.inj_lt in H; lia.
 Defined.
 
 Definition HMAC_DRBG_generate_algorithm (HMAC: list byte -> list byte -> list byte) (reseed_interval: Z)

@@ -100,7 +100,7 @@ destruct (Zlength pers >? max_personalization_string_length).
 + unfold entlen, get_entropy; simpl. 
   remember (ENTROPY.get_bytes 48 es) as r.
   destruct r; symmetry in Heqr. 
-  - destruct (Entropy_addSuccess3 _ 32 _ _ _ Heqr) as [l1 [s1 [E32 [l2 [E16 L]]]]]. omega.
+  - destruct (Entropy_addSuccess3 _ 32 _ _ _ Heqr) as [l1 [s1 [E32 [l2 [E16 L]]]]]. lia.
     simpl in E16. rewrite E32, E16; subst.
     unfold HMAC_DRBG_instantiate_algorithm. simpl. rewrite app_assoc. destruct prflag; trivial.
   - remember  (ENTROPY.get_bytes 32 es) as t; destruct t; symmetry in Heqt.
@@ -128,15 +128,16 @@ Definition hmac_drbg_seed_simple_spec :=
         Ctx: hmac256drbgstate,
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
         handle_ss: DRBG_state_handle * ENTROPY.stream, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _custom OF tptr tuchar, _len OF tuint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr),
+         (*_custom OF*) tptr tuchar, (*_len OF*) tuint ]
        PROP (len = Zlength Data /\ 0 <= len <=256 /\
              mbedtls_HMAC256_DRBG_instantiate_function s entlen pr_flag
                                        (contents_with_add data (Zlength Data) Data)
              = ENTROPY.success (fst handle_ss) (snd handle_ss))
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
+       (*LOCAL (temp _ctx ctx; temp _md_info info;
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)*)
+       PARAMS (ctx; info; data; Vint (Int.repr len)) GLOBALS (gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate dp rc pr_flag ri Ctx;
@@ -184,7 +185,7 @@ Proof.
   Intros v. rename H into Hv.
   forward.
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
+  { destruct Hv; try lia. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
@@ -196,7 +197,7 @@ Proof.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
-  forward_call tt.
+  forward_call (info).
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
   thaw FR0. subst.
@@ -244,7 +245,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_lia. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
@@ -276,12 +277,12 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
     split. reflexivity.
     split. reflexivity.
-    split. omega.
-    split. (*change Int.modulus with 4294967296.*) rep_omega.
-     unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
+    split. lia.
+    split. (*change Int.modulus with 4294967296.*) rep_lia.
+     unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
 
   Intros v.
@@ -298,8 +299,8 @@ Proof.
     remember ((zlt 256 (Zlength Data) || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data)) %bool) as d.
     unfold myABS in Heqd; simpl in Heqd.
     destruct (zlt 256 (Zlength Data)); simpl in Heqd.
-    + omega.
-    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try omega.
+    + lia.
+    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try lia.
       subst d.
       unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. Intros.
       rename H into RV.
@@ -308,7 +309,7 @@ Proof.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
-      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. omega. }
+      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. lia. }
       unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
@@ -331,7 +332,7 @@ Proof.
 
   assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
       { destruct ZLc' as [HH | HH]; rewrite HH. reflexivity.
-        apply Zgt_is_gt_bool_f. omega. }
+        apply Zgt_is_gt_bool_f. lia. }
   rewrite <- instantiate_reseed, RES in HeqMRS; trivial. subst MRS. clear H RES Heqd. 
   destruct handle as [[[[newV newK] newRC] dd] newPR].
   unfold hmac256drbgabs_common_mpreds. simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl. Intros.
@@ -355,15 +356,14 @@ Definition hmac_drbg_seed_full_spec :=
    WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list byte,
         Ctx: hmac256drbgstate,
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _custom OF tptr tuchar, _len OF tuint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr),
+         (*_custom OF*) tptr tuchar, (*_len OF*) tuint ]
        PROP ( (len = Zlength Data) /\
               0 <= len /\
               48 + len < Int.modulus /\
               0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus)
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
+       PARAMS (ctx; info; data; Vint (Int.repr len)) GLOBALS (gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate dp rc pr_flag ri Ctx;
@@ -436,7 +436,7 @@ Proof.
   Intros v. rename H into Hv.
   freeze [0] FR1. forward. thaw FR1.
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
+  { destruct Hv; try lia. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
@@ -448,7 +448,7 @@ Proof.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
-  forward_call tt.
+  forward_call info.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
   thaw FR0. subst.
@@ -504,7 +504,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_lia. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
@@ -536,12 +536,12 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
     split. reflexivity.
     split. reflexivity.
-    split. omega.
-    split. rep_omega.
-    unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
+    split. lia.
+    split. rep_lia.
+    unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
 
   Intros v.
@@ -563,7 +563,7 @@ Proof.
       Exists p. thaw OLD_MD. normalize.
       apply andp_right. apply prop_right; repeat split; trivial. cancel.
       apply hmac_interp_empty.
-    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try omega.
+    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try lia.
       subst d.
       unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. Intros.
       rename H into RV.
@@ -572,7 +572,7 @@ Proof.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
-      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. omega. }
+      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. lia. }
       unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
@@ -612,7 +612,7 @@ Proof.
   normalize.
   assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
       { destruct ZLc' as [HH | HH]; rewrite HH. reflexivity.
-        apply Zgt_is_gt_bool_f. omega. }
+        apply Zgt_is_gt_bool_f. lia. }
   rewrite <- instantiate_reseed in HeqMRS; trivial.
   rewrite <- HeqMRS.
   normalize.
@@ -652,15 +652,16 @@ Definition hmac_drbg_seed_spec :=
         Ctx: hmac256drbgstate,
         (*CTX: hmac256drbgabs,*)
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr:bool, ri:Z, VV:list byte, gv: globals
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
-         _custom OF tptr tuchar, _len OF tuint ]
+    PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr),
+         (*_custom OF*) tptr tuchar, (*_len OF*) tuint ]
        PROP ( (len = Zlength Data) /\
               0 <= len (*<= 336 Int.max_unsigned*) /\
               48 + len < Int.modulus /\
               0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus)
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
+       (*LOCAL (temp _ctx ctx; temp _md_info info;
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)*)
+       PARAMS (ctx; info; data; Vint (Int.repr len)) GLOBALS (gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate VV rc pr ri Ctx;
@@ -738,7 +739,7 @@ Proof.
   freeze [0] FR1. forward. thaw FR1.
 
   forward_if.
-  { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
+  { destruct Hv; try lia. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
@@ -750,7 +751,7 @@ Proof.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!. 
-  forward_call tt.
+  forward_call info.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
   thaw FR0. subst.
@@ -762,8 +763,7 @@ Proof.
   rewrite <- ZL_VV.
   freeze [0;4;5;6;8] FR2.
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, VV, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
-  { rewrite ZL_VV, ptrofs_add_repr_0_r; simpl.
-    apply prop_right; repeat split; trivial.
+  { entailer!. simpl. rewrite ZL_VV, ptrofs_add_repr_0_r; trivial. 
   }
   { split3; auto. split; auto.
   }
@@ -778,7 +778,7 @@ Proof.
       eapply derives_trans. apply data_at_memory_block.
         rewrite ZL_VV. simpl. cancel. cancel. }
   (*{ split. apply semax_call.writable_share_top.
-    rewrite ZL_V0, client_lemmas.int_max_unsigned_eq. omega. }*)
+    rewrite ZL_V0, client_lemmas.int_max_unsigned_eq. lia. }*)
 
   (*ctx->reseed_interval = MBEDTLS_HMAC_DRBG_RESEED_INTERVAL;*)
   rewrite ZL_VV.
@@ -808,7 +808,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_lia. }
 
   set (myABS := HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
@@ -849,12 +849,12 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
     split. reflexivity.
     split. reflexivity.
-    split. omega.
-    split. (*change Int.modulus with 4294967296.*) rep_omega.
-       unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
+    split. lia.
+    split. (*change Int.modulus with 4294967296.*) rep_lia.
+       unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
 
   Intros v.
@@ -872,7 +872,7 @@ Proof.
       simpl. subst myABS. Intros. subst v; simpl. cancel.
       Exists p. thaw OLD_MD. cancel. 
       apply andp_right; [ apply prop_right; trivial |  cancel; entailer!]. 
-    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try omega.
+    + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try lia.
       subst d.
       unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. Intros. cancel. 
       rename H into RV.

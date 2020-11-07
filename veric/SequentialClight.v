@@ -397,16 +397,16 @@ Lemma whole_program_sequential_safety_ext:
      prog V G m,
      @semax_prog Espec (*NullExtension.Espec*) CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, exists m',
+     exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core  (cl_core_sem (globalenv prog))
-           0 m q m' (Vptr b Ptrofs.zero) nil /\
+           0 m q m (Vptr b Ptrofs.zero) nil /\
        forall n,
         @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
             (cl_core_sem (globalenv prog))
             (*(dryspec  OK_ty)*) dryspec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) 
-             n initial_oracle q m'.
+             n initial_oracle q m.
 Proof.
  intros.
  destruct (@semax_prog_rule Espec CS _ _ _ _ 
@@ -414,7 +414,7 @@ Proof.
      initial_oracle EXIT H H0) as [b [q [[H1 H2] H3]]].
  destruct (H3 O) as [jmx [H4x [H5x [H6x [H7x _]]]]].
  destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
- exists b, q, (m_dry jmx').
+ exists b, q. (* , (m_dry jmx'). *)
  split3; auto.
  rewrite H4x in H8y. auto.
  subst. simpl. clear H5x H6x H7x H8y.
@@ -432,11 +432,11 @@ Proof.
    instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
  clear - JDE DME H4 J H6.
   rewrite <- H4 in H6|-*.
- assert (level jm <= n)%nat by omega.
+ assert (level jm <= n)%nat by lia.
  clear H4; rename H into H4.
  forget initial_oracle as ora.
  revert ora jm q H4 J H6; induction n; simpl; intros.
- assert (level (m_phi jm) = 0%nat) by omega. rewrite H; constructor.
+ assert (level (m_phi jm) = 0%nat) by lia. rewrite H; constructor.
  inv H6.
  - constructor.
  -
@@ -450,15 +450,10 @@ Proof.
        destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto. }
      replace (m_dry m') with (m_dry m'') by auto.
      change (level (m_phi jm)) with (level jm) in *.
-     replace n0 with (level m'') by omega.
-     apply IHn; auto. omega.
-     replace (level m'') with n0 by omega. auto.
+     replace n0 with (level m'') by lia.
+     apply IHn; auto. lia.
+     replace (level m'') with n0 by lia. auto.
  -
-(*
-   assert (JDE1': ext_spec_type dryspec = ext_spec_type OK_spec)
-      by apply JDE.
-*)
-(*   destruct JDE as [JDE1 [JDE2 [JDE3 JDE4]]]. *)
    destruct dryspec as [ty pre post exit]. simpl in *. (* subst ty. *)
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
@@ -499,11 +494,11 @@ Proof.
      exists jm'.
      split; [ | split3].
      subst jm'; simpl; auto.
-     subst jm' phi'; simpl. apply age_to.level_age_to. omega.
+     subst jm' phi'; simpl. apply age_to.level_age_to. lia.
      hnf. split. intro loc. subst jm' phi'. simpl.
      rewrite age_to_resource_at.age_to_resource_at.
      rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
-     destruct (m_phi jm @ loc); auto. rewrite age_to.level_age_to by omega.
+     destruct (m_phi jm @ loc); auto. rewrite age_to.level_age_to by lia.
       reflexivity.
      intro loc. subst jm' phi'. simpl.
      rewrite age_to_resource_at.age_to_resource_at.
@@ -515,18 +510,18 @@ Proof.
      subst phi1.
      split.
      extensionality; unfold compose; simpl.
-     rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by omega.
+     rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by lia.
      unfold initial_world.set_ghost; rewrite resource_at_make_rmap.
      rewrite H8; auto.
      unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl.
-     rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; omega); simpl; auto.
+     rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; lia); simpl; auto.
    }
    destruct H20 as [jm'  [H26 [H27 [H28 [H29 Hg']]]]].
    specialize (H2 ret jm' z' n' Hargsty Hretty).
-   spec H2. omega.
-    spec H2. hnf; split3; auto. omega.
+   spec H2. lia.
+    spec H2. hnf; split3; auto. lia.
   spec H2.
-  eapply JDE2; eauto 6. omega. subst m'. apply H6.
+  eapply JDE2; eauto 6. lia. subst m'. apply H6.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
@@ -541,13 +536,12 @@ Proof.
   specialize (IHn  z' jm'' c').
   subst n'. rewrite <- H9.
   change (level (m_phi jm'')) with (level  jm'') in IHn.
-  apply IHn. omega.
+  apply IHn. lia.
   auto.
   rewrite H9; auto.
  - eapply safeN_halted; eauto.
     apply JDE. auto.
  Unshelve. simpl. split; [apply Share.nontrivial | hnf]. exists None; constructor.
-all: fail.
 Qed.
 
 Require Import VST.veric.juicy_safety.

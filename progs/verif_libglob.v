@@ -89,7 +89,7 @@ rewrite field_at_data_at.
 simpl.
 rewrite field_compatible_field_address
   by auto with field_compatible.
-simpl. normalize. cancel.
+simpl.  autorewrite with norm. cancel.
 pose (x :=
 field_at Ews (Tstruct _foo noattr) [
       StructField _m] (Vint (Int.repr 0)) (gv _LG_foo)).
@@ -113,11 +113,11 @@ Definition init_spec :=
   WITH n: Z, gv: globals
   PRE  []
         PROP ()
-        LOCAL(gvars gv)
+        PARAMS () GLOBALS (gv)
         SEP(LG.data n gv)
   POST [ tvoid ]
          PROP()
-         LOCAL ()
+         RETURN ()
          SEP (LG.data_ok n gv).
 
 (* The [bump] and [get] functions are meant to be called from
@@ -127,11 +127,11 @@ Definition bump_spec :=
   WITH n: Z, gv: globals
   PRE  []
         PROP (n < Int.max_signed)
-        LOCAL(gvars gv)
+        PARAMS () GLOBALS (gv)
         SEP(LG.data n gv)
   POST [ tvoid ]
          PROP()
-         LOCAL ()
+         RETURN ()
          SEP (LG.data (n+1) gv).
 
 Definition get_spec :=
@@ -139,11 +139,11 @@ Definition get_spec :=
   WITH n: Z, gv: globals
   PRE  []
         PROP ()
-        LOCAL(gvars gv)
+        PARAMS () GLOBALS (gv)
         SEP(LG.data n gv)
   POST [ tint ]
          PROP()
-         LOCAL (temp ret_temp (Vint (Int.repr n)))
+         RETURN (Vint (Int.repr n))
          SEP (LG.data n gv).
 
 Definition client_spec :=
@@ -151,20 +151,20 @@ Definition client_spec :=
   WITH n: Z, gv: globals
   PRE  []
         PROP (n < 1000000000)
-        LOCAL(gvars gv)
+        PARAMS () GLOBALS (gv)
         SEP(LG.data n gv)
   POST [ tint ]
          PROP()
-         LOCAL (temp ret_temp (Vint (Int.repr (n+2))))
+         RETURN (Vint (Int.repr (n+2)))
          SEP (LG.data (n+2) gv).
 
 Definition main_spec :=
   DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]  
      PROP() 
-     LOCAL (temp ret_temp (Vint (Int.repr 5))) 
+     RETURN (Vint (Int.repr 5))
      SEP(TT).
   
 Definition Gprog : funspecs :=
@@ -190,32 +190,29 @@ Lemma body_init:  semax_body Vprog Gprog f_LG_init init_spec.
 Proof.
 start_function.
 unfold LG.data.
-rewrite orp_if_bool; Intros b; destruct b.
-*
 unfold LG.data_ok.
-Intros.
-forward.
-forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
-forward.
-forward.
-entailer!.
-forward.
-entailer!.
-unfold LG.data_ok.
-entailer!.
+rewrite orp_if_bool.
+Intros b; destruct b.
 *
 Intros.
 forward.
 forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
-forward.
-forward.
-entailer!.
-unfold LG.data_ok.
-entailer!.
-forward.
-unfold LG.data_ok.
-entailer!.
 inv H0.
+forward.
+unfold LG.data_ok.
+entailer!.
+*
+Intros.
+forward.
+forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
+forward.
+forward.
+entailer!.
+unfold LG.data_ok.
+entailer!.
+forward.
+unfold LG.data_ok.
+entailer!.
 Qed.
 
 Lemma body_bump:  semax_body Vprog Gprog f_LG_bump bump_spec.
@@ -228,7 +225,7 @@ forward.
 forward.
 forward.
 forward.
-forward.
+entailer!.
 unfold LG.data.
 apply orp_right1.
 unfold LG.data_ok.
@@ -265,10 +262,10 @@ Lemma body_client: semax_body Vprog Gprog f_client client_spec.
 Proof.
 start_function.
 forward_call (n,gv).
-rep_omega.
+rep_lia.
 forward_call (n+1,gv).
-rep_omega.
-replace (n+1+1) with (n+2) by omega.
+rep_lia.
+replace (n+1+1) with (n+2) by lia.
 forward_call (n+2,gv).
 forward.
 Qed.
@@ -278,7 +275,7 @@ Proof.
 start_function.
 sep_apply (LG.initial gv); auto.
 forward_call (3,gv).
-rep_omega.
+rep_lia.
 forward.
 Qed.
 

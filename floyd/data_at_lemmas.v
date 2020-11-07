@@ -35,21 +35,21 @@ transitivity (Z.land (Byte.unsigned i) 255 = Byte.unsigned j).
 2:{
 split; intro. f_equal; auto.
 apply repr_inj_unsigned; auto.
-split. apply Z.land_nonneg; rep_omega.
+split. apply Z.land_nonneg; rep_lia.
 change 255 with (Z.ones 8).
 rewrite (Z.land_ones (Byte.unsigned i) 8 ) by computable.
 pose proof (Z_mod_lt (Byte.unsigned i) (2^8)).
 spec H0.
 compute; auto.
-change (2^8) with 256 in *. rep_omega.
-rep_omega.
+change (2^8) with 256 in *. rep_lia.
+rep_lia.
 }
 change 255 with (Z.ones 8).
-rewrite Z.land_ones_low; try rep_omega.
+rewrite Z.land_ones_low; try rep_lia.
 2:{
 pose proof (Z.log2_le_mono (Byte.unsigned i) 255).
 simpl in H.
-spec H; rep_omega.
+spec H; rep_lia.
 }
 split; intro.
 -
@@ -60,18 +60,18 @@ rewrite !Z.testbit_neg_r by auto. auto.
 destruct (zlt n 8).
 2:{
 assert (forall k, Z.log2 (Byte.unsigned k) < n).
-intro. assert (Byte.unsigned k <= 255) by rep_omega.
-apply Z.log2_le_mono in H0. simpl in H0. omega.
-rewrite Z.bits_above_log2 by (auto; rep_omega).
-rewrite Z.bits_above_log2 by (auto; rep_omega).
+intro. assert (Byte.unsigned k <= 255) by rep_lia.
+apply Z.log2_le_mono in H0. simpl in H0. lia.
+rewrite Z.bits_above_log2 by (auto; rep_lia).
+rewrite Z.bits_above_log2 by (auto; rep_lia).
 auto.
 }
 apply (f_equal (fun i => Int.testbit i n)) in H.
-rewrite Int.bits_sign_ext in H by (change Int.zwordsize with 32; omega).
+rewrite Int.bits_sign_ext in H by (change Int.zwordsize with 32; lia).
 rewrite if_true in H by auto.
-rewrite !Int.testbit_repr in H by (change Int.zwordsize with 32; omega).
+rewrite !Int.testbit_repr in H by (change Int.zwordsize with 32; lia).
 rewrite H; clear H.
-rewrite Byte.bits_signed by omega.
+rewrite Byte.bits_signed by lia.
 rewrite if_true by auto.
 reflexivity.
 -
@@ -82,11 +82,11 @@ change Int.zwordsize with 32 in H.
 rewrite Int.bits_sign_ext by (auto; computable).
 if_tac.
 rewrite !Int.testbit_repr by auto.
-rewrite Byte.bits_signed by omega.
+rewrite Byte.bits_signed by lia.
 rewrite if_true by auto.
 reflexivity.
-rewrite !Int.testbit_repr by (change Int.zwordsize with 32; omega).
-rewrite Byte.bits_signed by omega.
+rewrite !Int.testbit_repr by (change Int.zwordsize with 32; lia).
+rewrite Byte.bits_signed by lia.
 rewrite if_false by auto.
 reflexivity.
 Qed.
@@ -123,29 +123,29 @@ destruct bl as [| ? [|]]; try solve [inv H];
 all: assert (Int.zwordsize = 32) by reflexivity;
       assert (Byte.zwordsize = 8) by reflexivity.
 all: apply Int.same_bits_eq; intros n ?;
-rewrite ?Int.bits_zero_ext by omega;
-rewrite ?Int.bits_sign_ext by omega;
-rewrite ?Int.testbit_repr by (try if_tac; omega);
-rewrite ?Byte.bits_signed by omega;
+rewrite ?Int.bits_zero_ext by lia;
+rewrite ?Int.bits_sign_ext by lia;
+rewrite ?Int.testbit_repr by (try if_tac; lia);
+rewrite ?Byte.bits_signed by lia;
 change (Z.testbit (Byte.unsigned ?A)) with (Byte.testbit A);
-rewrite ?Byte.testbit_repr by (try if_tac; omega);
+rewrite ?Byte.testbit_repr by (try if_tac; lia);
 rewrite ?H0; if_tac;
-rewrite ?Byte.testbit_repr by (try if_tac; omega).
-rewrite <- Int.testbit_repr by omega; rewrite Int.repr_unsigned.
-rewrite Int.bits_sign_ext by omega.
-rewrite if_true by omega.
-rewrite Int.testbit_repr by omega.
+rewrite ?Byte.testbit_repr by (try if_tac; lia).
+rewrite <- Int.testbit_repr by lia; rewrite Int.repr_unsigned.
+rewrite Int.bits_sign_ext by lia.
+rewrite if_true by lia.
+rewrite Int.testbit_repr by lia.
 reflexivity.
-rewrite Byte.bits_above by omega. auto.
-rewrite <- Int.testbit_repr by omega; rewrite Int.repr_unsigned.
-rewrite Int.bits_zero_ext by omega.
+rewrite Byte.bits_above by lia. auto.
+rewrite <- Int.testbit_repr by lia; rewrite Int.repr_unsigned.
+rewrite Int.bits_zero_ext by lia.
 rewrite if_true by auto.
-rewrite Int.testbit_repr by omega.
+rewrite Int.testbit_repr by lia.
 reflexivity.
-rewrite <- Int.testbit_repr by omega; rewrite Int.repr_unsigned.
-rewrite Int.bits_zero_ext by omega.
-rewrite if_true by omega.
-rewrite Int.testbit_repr by omega.
+rewrite <- Int.testbit_repr by lia; rewrite Int.repr_unsigned.
+rewrite Int.bits_zero_ext by lia.
+rewrite if_true by lia.
+rewrite Int.testbit_repr by lia.
 reflexivity.
 Qed.
 End M.
@@ -189,6 +189,8 @@ unfold at_offset.
 autorewrite with sublist.
 rewrite !data_at_rec_eq; simpl.
 do 2 change (unfold_reptype ?A) with A.
+change (sizeof tschar) with 1.
+change (sizeof tuchar) with 1.
 forget (offset_val (1 * i) (offset_val 0 p)) as q.
 simpl.
 destruct q; auto.
@@ -200,10 +202,10 @@ f_equal; auto; [f_equal; auto | ].
 +
 f_equal.
 destruct (zlt i (Zlength bytes)).
-rewrite !Znth_map by omega.
+rewrite !Znth_map by lia.
 simpl.
 apply prop_ext; split; intro; 
-autorewrite with norm norm1 norm2; rep_omega.
+autorewrite with norm norm1 norm2; rep_lia.
 rewrite !Znth_overflow by (autorewrite with sublist; auto).
 reflexivity.
 +
@@ -258,8 +260,8 @@ unfold tc_val'.
 destruct (zlt i (Zlength bytes)).
 autorewrite with sublist.
 apply prop_ext; split; intros.
-red. simpl. normalize. rep_omega.
-red. simpl. normalize. rep_omega.
+red. simpl. normalize. rep_lia.
+red. simpl. normalize. rep_lia.
 rewrite !Znth_overflow by (autorewrite with sublist; auto).
 apply prop_ext; split; intros; contradiction H2; auto.
 Qed.

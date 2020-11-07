@@ -22,9 +22,8 @@ Lemma listrep_local_facts:
 Proof.
 intros.
 revert p; induction sigma; 
-  unfold listrep; fold listrep; intros; normalize.
-apply prop_right; split; simpl; auto. intuition.
-entailer!.
+  unfold listrep; fold listrep; intros. entailer!. intuition.
+Intros y. entailer!.
 split; intro. subst p. destruct H; contradiction. inv H2.
 Qed.
 
@@ -34,9 +33,9 @@ Lemma listrep_valid_pointer:
   forall sigma p,
    listrep sigma p |-- valid_pointer p.
 Proof.
- destruct sigma; unfold listrep; fold listrep;
- intros; normalize.
+ destruct sigma; unfold listrep; fold listrep; intros; Intros; subst.
  auto with valid_pointer.
+ Intros y.
  apply sepcon_valid_pointer1.
  apply data_at_valid_ptr; auto.
  simpl;  computable.
@@ -47,24 +46,24 @@ Hint Resolve listrep_valid_pointer : valid_pointer.
 Definition reverse_spec :=
  DECLARE _reverse
   WITH sigma : list int, p: val
-  PRE  [ _p OF (tptr t_struct_list) ]
+  PRE  [ tptr t_struct_list ]
      PROP ()
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (listrep sigma p)
   POST [ (tptr t_struct_list) ]
     EX q:val,
-     PROP () LOCAL (temp ret_temp q)
+     PROP () RETURN (q)
      SEP (listrep (rev sigma) q).
 
 Definition last_foo_spec :=
  DECLARE _last_foo
   WITH sigma : list int, p: val, sigma': list int, x: int
-  PRE  [ _p OF (tptr t_struct_list) ]
+  PRE  [ tptr t_struct_list ]
      PROP (sigma = sigma' ++ x :: nil)
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (listrep sigma p)
   POST [ tuint ]
-     PROP () LOCAL (temp ret_temp (Vint x))
+     PROP () RETURN (Vint x)
      SEP (TT).
 
 Definition Gprog : funspecs :=

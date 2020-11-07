@@ -26,7 +26,7 @@ Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
      fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.
 
 Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : environ -> mpred :=
-   match e with None => `!!(t=Tvoid)
+   match e with None => `!!(t=Ctypes.Tvoid)
                      | Some e' => tc_expr Delta (Ecast e' t)
    end.
 
@@ -425,6 +425,7 @@ try solve [
    unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
    unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
    unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
+   unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
  + repeat extend_tc_prover. eapply extend_tc_binop; eauto.
  + 
   destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
@@ -461,8 +462,10 @@ Proof.
   + apply extend_prop.
 Qed.
 
+Definition extendM_refl_rmap := @extendM_refl rmap _ _ _ _ _.
+
 Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_expropt extend_tc_lvalue : core.
-Hint Resolve (@extendM_refl rmap _ _ _ _ _) : core.
+Hint Resolve extendM_refl_rmap : core.
 
 Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.expr_lemmas.
@@ -491,7 +494,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
   rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
@@ -506,7 +509,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
   rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
@@ -521,7 +524,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
   auto.
   Qed.  
@@ -532,7 +535,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
   auto.
   Qed.  
@@ -543,7 +546,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
   auto.
   Qed.  
@@ -554,7 +557,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
   rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
@@ -576,7 +579,7 @@ Section CENV_SUB.
   Proof.
   simpl. unfold_lift.
   destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. intuition.
+  rewrite e. simpl. tauto.
   destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
   rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
@@ -616,7 +619,7 @@ match goal with
  | |- _ => solve [simple apply tc_test_eq_cenv_sub; auto]
  | |- _ => solve [simple apply tc_test_order'_cenv_sub; auto]
  | |- app_pred (denote_tc_assert (tc_bool ?A _) _) _ =>
-    match A with context [sizeof ?t] =>
+    match A with context [sizeof ?t] => unfold sizeof;
      rewrite (cenv_sub_sizeof CSUB t) by assumption;
      solve [simple apply tc_bool_i; auto]
    end

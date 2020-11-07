@@ -14,12 +14,12 @@ Lemma div_10_dec : forall n, 0 < n ->
 Proof.
   intros.
   change 10 with (Z.of_nat 10).
-  rewrite <- (Z2Nat.id n) by omega.
+  rewrite <- (Z2Nat.id n) by lia.
   rewrite <- div_Zdiv by discriminate.
   rewrite !Nat2Z.id.
   apply Nat2Z.inj_lt.
-  rewrite div_Zdiv, Z2Nat.id by omega; simpl.
-  apply Z.div_lt; auto; omega.
+  rewrite div_Zdiv, Z2Nat.id by lia; simpl.
+  apply Z.div_lt; auto; lia.
 Qed.
 
 Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list byte :=
@@ -29,7 +29,7 @@ Next Obligation.
 Proof.
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous.
-  eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); omega.
+  eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
 Defined.
 
 (* The function computed by print_intr *)
@@ -41,7 +41,7 @@ Program Fixpoint intr n { measure (Z.to_nat n) } : list byte :=
 Next Obligation.
 Proof.
   apply div_10_dec.
-  symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous; omega.
+  symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous; lia.
 Defined.
 
 Definition replace_list {X} i (l : list X) (l' : list X) :=
@@ -50,9 +50,10 @@ Definition replace_list {X} i (l : list X) (l' : list X) :=
 Definition print_intr_spec :=
  DECLARE _print_intr
   WITH sh : share, i : Z, buf : val, contents : list val
-  PRE [ _i OF tuint, _buf OF tptr tuchar ]
+  PRE [ tuint, tptr tuchar ]
     PROP (writable_share sh; 0 <= i <= Int.max_unsigned; Zlength (intr i) <= Zlength contents <= Int.max_signed)
-    LOCAL (temp _i (Vint (Int.repr i)); temp _buf buf)
+    PARAMS (Vint (Int.repr i); buf)
+    GLOBALS ()
     SEP (data_at sh (tarray tuchar (Zlength contents)) contents buf)
   POST [ tint ]
     PROP ()
@@ -62,9 +63,10 @@ Definition print_intr_spec :=
 Definition print_int_spec :=
  DECLARE _print_int
   WITH gv : globals, i : Z, tr : IO_itree
-  PRE [ _i OF tuint ]
+  PRE [ tuint ]
     PROP (0 <= i < 10000)
-    LOCAL (gvars gv; temp _i (Vint (Int.repr i)))
+    PARAMS (Vint (Int.repr i))
+    GLOBALS (gv)
     SEP (mem_mgr gv; ITREE (write_list stdout (chars_of_Z i ++ [Byte.repr newline]) ;; tr))
   POST [ tvoid ]
     PROP ()
@@ -72,7 +74,7 @@ Definition print_int_spec :=
     SEP (mem_mgr gv; ITREE tr).
 
 Definition for_loop {file_id} i z (body : Z -> itree (@IO_event file_id) bool) :=
-  ITree.aloop (fun '(b, j) => if (b : bool) then inr true else if j <? z then inl (b <- body j ;; Ret (b, j + 1)) else inr false) (false, i).
+  ITree.iter (fun '(b, j) => if (b : bool) then Ret (inr true) else if j <? z then b <- body j ;; Ret (inl (b, j + 1)) else Ret (inr false)) (false, i).
 
 Definition sum_Z l := fold_right Z.add 0 l.
 
@@ -81,19 +83,19 @@ Definition read_sum_inner n nums j :=
   else write_list stdout (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Byte.repr newline]);; Ret false.
 
 Definition read_sum n lc : IO_itree :=
-  ITree.aloop (fun '(b, n, lc) => if (b : bool) then inr tt else
+  ITree.iter (fun '(b, n, lc) => if (b : bool) then Ret (inr tt) else
   if zlt n 1000 then
     let nums := map (fun c => Byte.unsigned c - char0) lc in
-    inl (b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret (true, n, lc) else
-    lc' <- read_list stdin 4;; Ret (false, n + sum_Z nums, lc'))
-  else inr tt) (false, n, lc).
+    b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret (inl (true, n, lc)) else
+    lc' <- read_list stdin 4;; Ret (inl (false, n + sum_Z nums, lc'))
+  else Ret (inr tt)) (false, n, lc).
 
 Definition main_itree := lc <- read_list stdin 4;; read_sum 0 lc.
 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog main_itree nil gv
+  PRE  [] main_pre prog main_itree gv
   POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt : @IO_itree (@IO_event nat))).
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchars_spec; getchars_spec;
@@ -132,9 +134,9 @@ Proof.
   destruct (Z.div_eucl m p), (Z.div_eucl n p).
   destruct Hm, Hn; subst.
   destruct (zle z z1); auto.
-  assert (p * z1 + p <= p * z); try omega.
+  assert (p * z1 + p <= p * z); try lia.
   rewrite <- Z.mul_succ_r.
-  apply Zmult_le_compat_l; omega.
+  apply Zmult_le_compat_l; lia.
 Qed.
 
 Lemma intr_lt : forall n, 0 < n -> Zlength (intr (n / 10)) = Zlength (intr n) - 1.
@@ -142,29 +144,30 @@ Proof.
   intros.
   rewrite (intr_eq n).
   destruct (n <=? 0) eqn: Hn.
-  { apply Zle_bool_imp_le in Hn; omega. }
-  rewrite Zlength_app, Zlength_cons, Zlength_nil; omega.
+  { apply Zle_bool_imp_le in Hn; lia. }
+  rewrite Zlength_app, Zlength_cons, Zlength_nil; lia.
 Qed.
 
 Lemma replace_list_nil : forall {X} i (l : list X), 0 <= i <= Zlength l -> replace_list i l [] = l.
 Proof.
   intros; unfold replace_list.
   rewrite Zlength_nil, Z.add_0_r; simpl.
-  rewrite sublist_rejoin, sublist_same by omega; auto.
+  rewrite sublist_rejoin, sublist_same by lia; auto.
 Qed.
 
 Lemma replace_list_upd_snoc : forall {X} i (l l' : list X) x, 0 <= i -> i + Zlength l' < Zlength l ->
   upd_Znth (i + Zlength l') (replace_list i l l') x = replace_list i l (l' ++ [x]).
 Proof.
   intros; unfold replace_list.
-  rewrite upd_Znth_app2; rewrite ?Zlength_sublist; try rep_omega.
+  rewrite upd_Znth_app2; rewrite ?Zlength_sublist; try rep_lia.
   f_equal.
-  rewrite Z.sub_0_r, Z.add_simpl_l, upd_Znth_app2; rewrite ?Zlength_sublist; try rep_omega.
-  rewrite Zminus_diag, Zlength_app, Zlength_cons, Zlength_nil, upd_Znth0, <- app_assoc; simpl; f_equal; f_equal.
-  rewrite Zlength_sublist by rep_omega.
-  rewrite sublist_sublist by rep_omega.
-  f_equal; omega.
-  { rewrite Zlength_app, Zlength_sublist; rep_omega. }
+  rewrite Z.sub_0_r, Z.add_simpl_l, upd_Znth_app2; rewrite ?Zlength_sublist; try rep_lia.
+  rewrite Zminus_diag, Zlength_app, Zlength_cons, Zlength_nil, upd_Znth0_old, <- app_assoc; simpl; f_equal; f_equal.
+  rewrite Zlength_sublist by rep_lia.
+  rewrite sublist_sublist by rep_lia.
+  f_equal; lia.
+  { rewrite Zlength_sublist; rep_lia. }
+  { rewrite Zlength_app, Zlength_sublist; rep_lia. }
 Qed.
 
 Lemma body_print_intr: semax_body Vprog Gprog f_print_intr print_intr_spec.
@@ -175,36 +178,39 @@ Proof.
     LOCAL (temp _k (Vint (Int.repr (Zlength (intr i) - 1))))
     SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list 0 contents (map Vubyte (intr i))) buf)).
   - forward.
-    rewrite divu_repr by rep_omega.
+    rewrite divu_repr by rep_lia.
     forward.
     forward_call (sh, i / 10, buf, contents).
-    { rewrite intr_lt by omega; split; auto.
+    { rewrite intr_lt by lia; split; auto.
       assert (i / 10 < i).
-      { apply Z.div_lt; omega. }
-      split; [split|]; try omega.
-      apply Z.div_pos; omega. }
-    rewrite modu_repr by (omega || computable).
+      { apply Z.div_lt; lia. }
+      split; [split|]; try lia.
+      apply Z.div_pos; lia. }
+    rewrite modu_repr by (lia || computable).
+    assert (repable_signed (Zlength (intr (i / 10)))).
+    { split; try rep_lia.
+      rewrite intr_lt; try lia. }
     forward.
     { entailer!.
-      split; try rep_omega.
-      rewrite intr_lt; try omega. }
+      split; try rep_lia.
+      rewrite intr_lt; try lia. }
     entailer!.
-    { rewrite intr_lt by omega; auto. }
+    { rewrite intr_lt by lia; auto. }
     rewrite (intr_eq i).
-    destruct (i <=? 0) eqn: Hi; [apply Zle_bool_imp_le in Hi; omega|].
+    destruct (i <=? 0) eqn: Hi; [apply Zle_bool_imp_le in Hi; lia|].
     pose proof (Z_mod_lt i 10).
     rewrite <- (Zlength_map _ _ Vubyte), <- (Z.add_0_l (Zlength (map _ _))), replace_list_upd_snoc.
     rewrite (zero_ext_inrange 8 (Int.repr (i mod 10))), add_repr.
     rewrite zero_ext_inrange, map_app.
     unfold Vubyte at 3; simpl.
-    rewrite Byte.unsigned_repr by (unfold char0; rep_omega); apply derives_refl.
-    { rewrite Int.unsigned_repr; simpl; rep_omega. }
-    { rewrite Int.unsigned_repr; simpl; rep_omega. }
-    { omega. }
-    { rewrite Zlength_map, intr_lt; rep_omega. }
+    rewrite Byte.unsigned_repr by (unfold char0; rep_lia); apply derives_refl.
+    { rewrite Int.unsigned_repr; simpl; rep_lia. }
+    { rewrite Int.unsigned_repr; simpl; rep_lia. }
+    { lia. }
+    { rewrite Zlength_map, intr_lt; rep_lia. }
   - forward.
     entailer!.
-    rewrite replace_list_nil by rep_omega; auto.
+    rewrite replace_list_nil by rep_lia; auto.
   - forward.
     rewrite Z.sub_simpl_r; entailer!.
 Qed.
@@ -225,52 +231,52 @@ Proof.
   intros.
   destruct (Z.leb_spec n 0).
   { rewrite chars_of_Z_eq; simpl.
-    apply Zdiv_le_compat_r with (p := 10) in H; try omega.
+    apply Zdiv_le_compat_r with (p := 10) in H; try lia.
     rewrite Zdiv_0_l in H.
-    destruct (Z.leb_spec (n / 10) 0); auto; omega. }
+    destruct (Z.leb_spec (n / 10) 0); auto; lia. }
   induction n as [? IH] using (well_founded_induction (Zwf.Zwf_well_founded 0)).
   rewrite chars_of_Z_eq, intr_eq.
-  destruct (n <=? 0) eqn: Hn; [apply Zle_bool_imp_le in Hn; omega|].
+  destruct (n <=? 0) eqn: Hn; [apply Zle_bool_imp_le in Hn; lia|].
   simpl.
   destruct (n / 10 <=? 0) eqn: Hdiv.
   - apply Zle_bool_imp_le in Hdiv.
     assert (0 <= n / 10).
-    { apply Z.div_pos; omega. }
-    assert (n / 10 = 0) as Hz by omega.
+    { apply Z.div_pos; lia. }
+    assert (n / 10 = 0) as Hz by lia.
     rewrite Hz; simpl.
-    apply Z.div_small_iff in Hz as [|]; try omega.
+    apply Z.div_small_iff in Hz as [|]; try lia.
     rewrite Zmod_small; auto.
   - apply Z.leb_nle in Hdiv.
-    rewrite IH; auto; try omega.
-    split; try omega.
-    apply Z.div_lt; auto; omega.
+    rewrite IH; auto; try lia.
+    split; try lia.
+    apply Z.div_lt; auto; lia.
 Qed.
 
 Lemma intr_length : forall n a, 0 <= a -> n < Z.pow 10 a -> Zlength (intr n) <= a.
 Proof.
   induction n using (well_founded_induction (Zwf.Zwf_well_founded 0)); intros.
   rewrite intr_eq.
-  destruct (Z.leb_spec n 0); [rewrite Zlength_nil; omega|].
+  destruct (Z.leb_spec n 0); [rewrite Zlength_nil; lia|].
   rewrite Zlength_app.
-  assert (Zlength (intr (n / 10)) <= a - 1); [|rewrite Zlength_cons, Zlength_nil; omega].
+  assert (Zlength (intr (n / 10)) <= a - 1); [|rewrite Zlength_cons, Zlength_nil; lia].
   assert (0 <= a - 1).
-  { destruct (Z.eq_dec a 0); subst; simpl in *; omega. }
+  { destruct (Z.eq_dec a 0); subst; simpl in *; lia. }
   apply H; auto.
-  - split; try omega.
-    apply Z.div_lt; auto; omega.
-  - apply Zmult_lt_reg_r with 10; try omega.
+  - split; try lia.
+    apply Z.div_lt; auto; lia.
+  - apply Zmult_lt_reg_r with 10; try lia.
     rewrite (Z.mul_comm (10 ^ _)), <- Z.pow_succ_r by auto.
     unfold Z.succ; rewrite Z.sub_simpl_r.
     eapply Z.le_lt_trans; eauto.
-    rewrite Z.mul_comm; apply Z.mul_div_le; omega.
+    rewrite Z.mul_comm; apply Z.mul_div_le; lia.
 Qed.
 
 Lemma chars_of_Z_length : forall n a, 0 < a -> n < Z.pow 10 a -> Zlength (chars_of_Z n) <= a.
 Proof.
   intros.
   rewrite chars_of_Z_intr.
-  destruct (Z.leb_spec n 0); [|apply intr_length; omega].
-  rewrite Zlength_cons, Zlength_nil; omega.
+  destruct (Z.leb_spec n 0); [|apply intr_length; lia].
+  rewrite Zlength_cons, Zlength_nil; lia.
 Qed.
 
 Lemma body_print_int: semax_body Vprog Gprog f_print_int print_int_spec.
@@ -281,7 +287,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call tt; contradiction. }
+  { forward_call 1; contradiction. }
   { forward.
     entailer!. }
   Intros; rewrite if_false by auto.
@@ -301,35 +307,35 @@ Proof.
     sep_apply data_at__data_at.
     unfold default_val; simpl.
     assert (Zlength (intr i) <= 4).
-    { apply intr_length; try omega.
-      apply H. }
-    forward_call.
+    { apply intr_length; try lia. }
+    forward_call (Ews, i, buf, [Vundef; Vundef; Vundef; Vundef; Vundef]).
     { rewrite !Zlength_cons, Zlength_nil.
-      simpl; repeat (split; auto); rep_omega. }
+      simpl; repeat (split; auto); rep_lia. }
     forward.
     { entailer!.
-      rewrite !Zlength_cons, Zlength_nil; rep_omega. }
+      rewrite !Zlength_cons, Zlength_nil; rep_lia. }
     forward.
     entailer!.
     { rewrite Zlength_app, Zlength_cons, Zlength_nil, chars_of_Z_intr.
-      destruct (Z.leb_spec i 0); auto; omega. }
+      destruct (Z.leb_spec i 0); auto; lia. }
     unfold replace_list; simpl.
     rewrite (sublist_list_repeat _ _ 5 Vundef).
     rewrite !Zlength_cons, Zlength_nil, Zlength_map; simpl.
     rewrite upd_Znth_app2.
-    rewrite Zlength_map, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+    rewrite Zlength_map, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try lia.
     apply derives_refl'.
     f_equal.
     rewrite chars_of_Z_intr.
-    destruct (Z.leb_spec i 0); try omega.
+    destruct (Z.leb_spec i 0); try lia.
     rewrite zero_ext_inrange.
     f_equal; f_equal; f_equal; f_equal.
-    rewrite Zlength_list_repeat; try omega.
-    { simpl; rewrite Int.unsigned_repr; rep_omega. }
-    { rewrite Zlength_list_repeat; omega. }
-    { rewrite Zlength_map, Zlength_list_repeat; omega. }
-    { rewrite Zlength_map; rep_omega. }
-    { rewrite !Zlength_cons, Zlength_nil, Zlength_map; omega. }
+    rewrite Zlength_list_repeat; try lia.
+    { simpl; rewrite Int.unsigned_repr; rep_lia. }
+    { rewrite Zlength_list_repeat; lia. }
+    { rewrite Zlength_list_repeat; lia. }
+    { rewrite Zlength_map, Zlength_list_repeat; lia. }
+    { rewrite Zlength_map; rep_lia. }
+    { rewrite !Zlength_cons, Zlength_nil, Zlength_map; lia. }
   - forward_call (Ews, buf, chars_of_Z i ++ [Byte.repr newline],
       5, list_repeat (Z.to_nat (4 - Zlength (chars_of_Z i))) Vundef, tr).
     { rewrite map_app, <- app_assoc; simpl; cancel. }
@@ -347,18 +353,19 @@ Lemma read_sum_eq : forall n lc, read_sum n lc ≈
 Proof.
   intros.
   unfold read_sum.
-  rewrite unfold_aloop.
-  if_tac; [|reflexivity].
-  unfold ITree._aloop, id.
-  rewrite tau_eutt, bind_bind.
+  rewrite unfold_iter.
+  unfold ITree._iter, id.
+  if_tac; [|rewrite bind_ret_l; reflexivity].
+  rewrite bind_bind.
   apply eqit_bind; [|reflexivity].
   intros [].
-  - rewrite Eq.bind_ret, unfold_aloop.
-    reflexivity.
+  - rewrite bind_ret_l, tau_eutt.
+    rewrite unfold_iter.
+    rewrite bind_ret_l; reflexivity.
   - rewrite bind_bind.
     apply eqit_bind; [|reflexivity].
     intro.
-    rewrite Eq.bind_ret; reflexivity.
+    rewrite bind_ret_l, tau_eutt; reflexivity.
 Qed.
 
 Lemma for_loop_eq : forall {file_id} i z body,
@@ -366,21 +373,21 @@ Lemma for_loop_eq : forall {file_id} i z body,
 Proof.
   intros.
   unfold for_loop.
-  rewrite unfold_aloop.
-  simple_if_tac; [|reflexivity].
-  unfold ITree._aloop, id.
-  rewrite tau_eutt, bind_bind.
+  rewrite unfold_iter.
+  unfold ITree._iter, id.
+  simple_if_tac; [|rewrite bind_ret_l; reflexivity].
+  rewrite bind_bind.
   apply eqit_bind; [|reflexivity].
   intros [].
-  - rewrite Eq.bind_ret, unfold_aloop.
-    reflexivity.
-  - rewrite Eq.bind_ret; reflexivity.
+  - rewrite bind_ret_l, tau_eutt, unfold_iter.
+    rewrite bind_ret_l; reflexivity.
+  - rewrite bind_ret_l, tau_eutt; reflexivity.
 Qed.
 
 Lemma sum_Z_app : forall l1 l2, sum_Z (l1 ++ l2) = sum_Z l1 + sum_Z l2.
 Proof.
   induction l1; auto; simpl; intros.
-  rewrite IHl1; omega.
+  rewrite IHl1; lia.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
@@ -391,11 +398,11 @@ Proof.
   replace_SEP 0 (mem_mgr gv) by (go_lower; apply create_mem_mgr).
   forward.
   forward_call (tarray tuchar 4, gv).
-  { simpl; repeat (split; auto); rep_omega. }
+  { simpl; repeat (split; auto); rep_lia. }
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call tt; contradiction. }
+  { forward_call 1; contradiction. }
   { forward.
     entailer!. }
   Intros; rewrite if_false by auto.
@@ -425,53 +432,53 @@ Proof.
          (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc');
              data_at Ews (tarray tuchar 4) (map Vubyte lc) buf; mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
     + entailer!.
-      { omega. }
+      { lia. }
     + simpl.
       forward.
       { entailer!.
         unfold Vubyte; simpl.
-        rewrite Int.unsigned_repr; rep_omega. }
+        rewrite Int.unsigned_repr; rep_lia. }
       forward.
-      rewrite Znth_map by omega; simpl.
+      rewrite Znth_map by lia; simpl.
       rewrite zero_ext_inrange.
       forward.
       unfold Int.sub.
-      rewrite !Int.unsigned_repr by rep_omega.
+      rewrite !Int.unsigned_repr by rep_lia.
       forward_if (0 <= Byte.unsigned (Znth i lc) - char0 < 10).
       { forward_call (tarray tuchar 4, buf, gv).
         { rewrite if_false by auto; cancel. }
         forward.
         entailer!.
         rewrite for_loop_eq.
-        destruct (Z.ltb_spec i 4); try omega.
+        destruct (Z.ltb_spec i 4); try lia.
         unfold read_sum_inner at 2.
         replace (_ || _)%bool with true.
-        rewrite !Eq.bind_ret; auto.
+        rewrite !bind_ret_l; auto.
         { symmetry; rewrite orb_true_iff.
-          subst nums; rewrite Znth_map by omega.
+          subst nums; rewrite Znth_map by lia.
           destruct (Z.ltb_spec (Byte.unsigned (Znth i lc) - char0) 0); auto.
-          rewrite Int.unsigned_repr in * by (unfold char0 in *; rep_omega).
-          left; apply Z.leb_le; unfold char0 in *; omega. } }
+          rewrite Int.unsigned_repr in * by (unfold char0 in *; rep_lia).
+          left; apply Z.leb_le; unfold char0 in *; lia. } }
       { forward.
         entailer!.
         rewrite Int.unsigned_repr_eq in *.
         destruct (zlt (Byte.unsigned (Znth i lc)) char0).
-        { unfold char0 in *; rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in *; rep_omega. }
-        unfold char0 in *; rewrite Zmod_small in *; rep_omega. }
+        { unfold char0 in *; rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in *; rep_lia. }
+        unfold char0 in *; rewrite Zmod_small in *; rep_lia. }
       forward.
       rewrite add_repr.
       rewrite for_loop_eq.
-      destruct (Z.ltb_spec i 4); try omega.
+      destruct (Z.ltb_spec i 4); try lia.
       unfold read_sum_inner at 2.
-      unfold nums; rewrite Znth_map by omega.
+      unfold nums; rewrite Znth_map by lia.
       assert (((10 <=? Byte.unsigned (Znth i lc) - char0) || (Byte.unsigned (Znth i lc) - char0 <? 0))%bool = false) as Hin.
       { rewrite orb_false_iff.
-        split; [apply Z.leb_nle | apply Z.ltb_nlt]; omega. }
+        split; [apply Z.leb_nle | apply Z.ltb_nlt]; lia. }
       rewrite Hin.
       assert (sublist 0 (i + 1) nums = sublist 0 i nums ++ [Byte.unsigned (Znth i lc) - char0]) as Hi.
-      { rewrite (sublist_split _ i (i + 1)), (sublist_one i (i + 1)) by omega.
+      { rewrite (sublist_split _ i (i + 1)), (sublist_one i (i + 1)) by lia.
         f_equal; subst nums.
-        rewrite Znth_map by omega; auto. }
+        rewrite Znth_map by lia; auto. }
       forward_call (gv, n + sum_Z (sublist 0 (i + 1) nums),
         b <- for_loop (i + 1) 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc').
       { entailer!.
@@ -482,19 +489,19 @@ Proof.
         apply ITREE_impl.
         apply eqit_bind; [|reflexivity].
         intros [].
-        rewrite Eq.bind_ret; reflexivity. }
-      { rewrite Hi, sum_Z_app; simpl; omega. }
+        rewrite bind_ret_l; reflexivity. }
+      { rewrite Hi, sum_Z_app; simpl; lia. }
       entailer!.
       { rewrite Hi, sum_Z_app; simpl.
-        rewrite Z.add_0_r, Z.add_assoc; split; auto; omega. }
-      { rewrite Int.unsigned_repr by rep_omega.
+        rewrite Z.add_0_r, Z.add_assoc; split; auto; lia. }
+      { rewrite Int.unsigned_repr by rep_lia.
         pose proof (Byte.unsigned_range (Znth i lc)) as [_ Hmax].
-        unfold Byte.modulus, two_power_nat in Hmax; simpl in *; omega. }
+        unfold Byte.modulus, two_power_nat in Hmax; simpl in *; lia. }
     + rewrite for_loop_eq.
-      destruct (Z.ltb_spec 4 4); try omega.
+      destruct (Z.ltb_spec 4 4); try lia.
       forward_call (Ews, buf, 4, fun lc' => read_sum (n + sum_Z nums) lc').
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
-        simpl; rewrite Eq.bind_ret; auto. }
+        simpl; rewrite bind_ret_l; auto. }
       Intros lc'.
       forward.
       rewrite sublist_same in * by auto.
@@ -506,7 +513,7 @@ Proof.
     forward.
     cancel.
     rewrite read_sum_eq.
-    rewrite if_false; [auto | omega].
+    rewrite if_false; [auto | lia].
 Qed.
 
 Definition ext_link := ext_link_prog prog.
@@ -522,7 +529,7 @@ semax_func_cons body_free.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 semax_func_cons_ext.
 { simpl; Intro msg.
-  apply typecheck_return_value; auto. }
+  apply typecheck_return_value with (t := Tint16signed); auto. }
 semax_func_cons_ext.
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
@@ -547,7 +554,7 @@ Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.
 
-Definition main_block_exists : {b | Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b}.
+Definition main_block_exists : {b | Genv.find_symbol (Genv.globalenv prog) (AST.prog_main prog) = Some b}.
 Proof.
   eexists; simpl.
   unfold Genv.find_symbol; simpl; reflexivity.
@@ -558,17 +565,16 @@ Definition main_block := proj1_sig main_block_exists.
 Theorem prog_toplevel : exists q,
   semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
   forall n, @step_lemmas.dry_safeN _ _ _ _ semax.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
-             (io_dry_spec ext_link) (Genv.globalenv prog) n
+             (io_dry_spec ext_link) {| genv_genv := Genv.globalenv prog; genv_cenv := prog_comp_env prog |} n
             main_itree q init_mem.
 Proof.
-  edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
-  - repeat intro; simpl. (* need to allow exit! *)
+  edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
+  - repeat intro; simpl. apply I.
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
-  - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.
+  - apply CSHL_Sound.semax_prog_sound, prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
-    assert (m' = init_mem); [|subst; auto].
-    destruct Hq; tauto.
+    auto.
 Qed.

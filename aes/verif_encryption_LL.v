@@ -4,6 +4,7 @@ Require Import aes.encryption_LL_round_step_eqs.
 Require Import aes.verif_encryption_LL_loop_body.
 Require Import aes.verif_encryption_LL_after_loop.
 Open Scope Z.
+Require Import VST.floyd.Funspec_old_Notation.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -26,7 +27,7 @@ Proof.
     reflexivity.
   }
   rewrite Eq in *. clear Eq.
-  remember (exp_key ++ list_repeat 8 0) as buf.
+  remember (exp_key ++ (*list_repeat 8 0*)[0; 0; 0; 0; 0; 0; 0; 0]) as buf.
   (* TODO floyd: This is important for automatic rewriting of (Znth (map Vint ...)), and if
      it's not done, the tactics might become very slow, especially if they try to simplify complex
      terms that they would never attempt to simplify if the rewriting had succeeded.
@@ -43,7 +44,7 @@ Proof.
     simpl. destruct ctx; inversion PNctx; try reflexivity.
     simpl. f_equal. rewrite Ptrofs.add_assoc.
     change (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))) with (Ptrofs.repr 4).
-    rewrite ptrofs_add_repr. f_equal. f_equal.  clear; omega.
+    rewrite ptrofs_add_repr. f_equal. f_equal.  clear; lia.
   }
 
   (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
@@ -131,7 +132,7 @@ Proof.
  entailer!.
 * (*  loop body *)
   rename a into i.
-  assert (0 < i <= 6) by (clear - H1 H2; omega).
+  assert (0 < i <= 6) by (clear - H1 H2; lia).
   unfold tables_initialized. subst vv.
   reassoc_seq.
   eapply encryption_loop_body_proof; eauto.
@@ -150,7 +151,7 @@ Proof.
 * (* loop decr *)
   rename a into i. forward. Exists (i-1). entailer!.
 * (* after the loop, entailment *)
- assert (a=0) by omega. clear H1 H2; subst a.
+ assert (a=0) by lia. clear H1 H2; subst a.
  change (12 - 2 * Z.to_nat 0)%nat with 12%nat. 
  rewrite <- HeqS12.
  change (52 - 0 * 8) with 52. 
@@ -169,7 +170,7 @@ Time Qed. (* 9.2 secs on Andrew's machine *)
    or at least, the tactics should warn.
    And same for nested_field_offset. *)
 
-(* TODO floyd: I want "omega" for int instead of Z
+(* TODO floyd: I want "lia" for int instead of Z
    maybe "autorewrite with entailer_rewrite in *"
 *)
 

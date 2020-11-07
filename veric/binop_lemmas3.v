@@ -81,7 +81,7 @@ pose proof (Int.unsigned_range i).
 destruct H; split; auto.
 assert (Int.modulus < Int64.max_unsigned).
 compute; auto.
-omega.
+lia.
 Qed.
 
 Lemma denote_tc_nodivover_e64_li:
@@ -122,7 +122,7 @@ eapply Z.le_trans; try eassumption.
 compute. congruence.
 assert (Int.modulus < Int64.max_signed).
 compute. auto.
-omega.
+lia.
 Qed.
 
 Lemma Int64_eq_repr_signed32_nonzero:
@@ -200,7 +200,7 @@ destruct H1.
 split; auto.
 unfold Int64.max_unsigned.
 apply Z.le_trans with Int.modulus.
-omega.
+lia.
 compute; congruence.
 Qed.
 
@@ -227,7 +227,7 @@ destruct H1.
 split; auto.
 unfold Int64.max_unsigned.
 apply Z.le_trans with Int.modulus.
-omega.
+lia.
 compute; congruence.
 Qed.
 *)
@@ -284,11 +284,11 @@ intros.
 change (Int.signed Int.one) with 1.
 change Byte.min_signed with (-128).
 change Byte.max_signed with 127.
-clear. omega.
+clear. lia.
 clear.
 simpl. 
 change (Int.signed Int.one) with 1.
-omega.
+lia.
 Qed.
 
 Lemma int_type_tc_val_Vfalse:
@@ -300,8 +300,8 @@ intros.
 change (Int.signed Int.zero) with 0.
 change Byte.min_signed with (-128).
 change Byte.max_signed with 127.
-clear. omega.
-clear. simpl. omega.
+clear. lia.
+clear. simpl. lia.
 Qed.
 
 
@@ -319,7 +319,7 @@ change (Int.unsigned Int.zero) with 0;
 change Byte.min_signed with (-128);
 change Byte.max_signed with 127;
 change Byte.max_unsigned with 255;
-try omega.
+try lia.
 Qed.
 
 Lemma Ptrofs_to_of64_lemma:
@@ -366,7 +366,7 @@ Proof.
   inv H.
 Qed.
 
-Lemma sizeof_range_true {CS: composite_env}: forall t A (a b: A) (max: Z),
+Lemma sizeof_range_true {CS: compspecs}: forall t A (a b: A) (max: Z),
     negb (Z.eqb (sizeof t) 0) = true ->
     Z.leb (sizeof t) max = true ->
     (if zlt 0 (sizeof t) && zle (sizeof t) max then a else b) = a.
@@ -376,8 +376,9 @@ Proof.
   rewrite Z.eqb_neq in H.
   pose proof sizeof_pos t.
   rewrite <- Zle_is_le_bool in H0.
-  destruct (zlt 0 (sizeof t)); [| omega].
-  destruct (zle (sizeof t) max); [| omega]. 
+  unfold sizeof in  *; simpl in *.
+  destruct (zlt 0 (Ctypes.sizeof t)); [| lia].
+  destruct (zle (Ctypes.sizeof t) max); [| lia]. 
   reflexivity.
 Qed.
 
@@ -601,7 +602,8 @@ all:  try (unfold sem_sub_pi, sem_sub_pp, sem_sub_pl; simpl;
     destruct t; try solve [inv H1];
     try solve [constructor; try rewrite (negb_true _ H1); apply I]
   ].
- +
+ + 
+    change (Ctypes.sizeof ty) with (sizeof ty).
     destruct (typeof e1); inv TV1; destruct (typeof e2); inv TV2;
     simpl in H; inv H;
     rewrite ?J, ?J0 in *; clear J J0;

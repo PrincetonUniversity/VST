@@ -34,7 +34,7 @@ Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
 Proof.
 intros. pose proof (Zle_cases x y). pose proof (Zge_cases y x).
 destruct (Zle_bool x y); destruct (Zge_bool y x); auto;
-elimtype False; omega.
+elimtype False; lia.
 Qed.
 
 (** Typechecking soundness **)
@@ -114,8 +114,7 @@ induction (Z.to_nat e).
 simpl.
 apply RIneq.Rlt_0_1.
 rewrite inj_S.
-rewrite Z.pow_succ_r by omega.
-Search (IZR (_ * _)).
+rewrite Z.pow_succ_r by lia.
 rewrite RIneq.mult_IZR.
 apply RIneq.Rmult_lt_0_compat; auto.
 simpl.
@@ -207,7 +206,7 @@ assert (z = Zaux.cond_Zopp b (Z.pos m) * Z.pow 2 e). {
   rewrite Z.pow_0_r. rewrite Z.mul_1_r. auto.
   rewrite Zpower_pos_nat. rewrite Zpower_nat_Z.
   rewrite positive_nat_Z; auto.
-  pose proof (Pos2Z.neg_is_neg p); omega.
+  pose proof (Pos2Z.neg_is_neg p); lia.
 }
 clear H3. subst z.
 rewrite IEEE754_extra.ZofB_range_correct.
@@ -230,7 +229,7 @@ unfold Raux.Zfloor.
 symmetry; apply Raux.Zceil_imp; split.
 eapply RIneq.Rlt_le_trans.
 apply RIneq.IZR_lt.
-instantiate (1 := - Z.pos m * 2 ^ e). omega.
+instantiate (1 := - Z.pos m * 2 ^ e). lia.
 unfold Defs.F2R.
 rewrite RIneq.mult_IZR.
 match goal with |- _ ?A ?B => replace B with A; [apply RIneq.Rle_refl | ] end.
@@ -299,12 +298,12 @@ assert (HH: (IZR (2 ^ (- e))) <> Rdefinitions.R0). {
 assert (Rdefinitions.R0 <> IZR (2 ^ (- e))); auto.
 apply RIneq.Rlt_not_eq.
 apply IZR_pow_0_lt.
-omega.
+lia.
 }
 rename s into b.
 assert (z = Zaux.cond_Zopp b (Z.pos m / Z.pow 2 (- e))). {
   destruct e; inv H3.
-  omega. pose proof (Zgt_pos_0 p); omega. clear g.
+  lia. pose proof (Zgt_pos_0 p); lia. clear g.
   rewrite Zpower_pos_nat. rewrite Zpower_nat_Z.
   rewrite positive_nat_Z; auto.
 }
@@ -333,27 +332,27 @@ change (Z.neg m) with (- (Z.pos m)).
 rewrite RIneq.opp_IZR.
 rewrite RIneq.Ropp_mult_distr_l_reverse.
 rewrite RIneq.Ropp_involutive.
-rewrite <- Raux.Zfloor_div by (apply Z.pow_nonzero; omega).
+rewrite <- Raux.Zfloor_div by (apply Z.pow_nonzero; lia).
 rewrite <- (Z.opp_involutive e) at 2.
 rewrite (Raux.bpow_opp _ (-e)).
 symmetry.
-rewrite <- Raux.IZR_Zpower by omega.
+rewrite <- Raux.IZR_Zpower by lia.
 simpl.
 unfold Rdefinitions.Rdiv.
 auto.
 +
 simpl.
 apply Float_prop.F2R_lt_0.
-simpl. pose proof (Pos2Z.neg_is_neg m); omega.
+simpl. pose proof (Pos2Z.neg_is_neg m); lia.
 +
 simpl.
 unfold Defs.F2R.
 simpl.
 rewrite <- (Z.opp_involutive e) at 2.
 rewrite (Raux.bpow_opp _ (-e)).
-rewrite <- Raux.IZR_Zpower by omega.
+rewrite <- Raux.IZR_Zpower by lia.
 simpl.
-rewrite <- Raux.Zfloor_div by (apply Z.pow_nonzero; omega).
+rewrite <- Raux.Zfloor_div by (apply Z.pow_nonzero; lia).
 reflexivity.
 +
 simpl.
@@ -361,13 +360,13 @@ unfold Defs.F2R.
 simpl.
 rewrite <- (Z.opp_involutive e).
 rewrite (Raux.bpow_opp _ (-e)).
-rewrite <- Raux.IZR_Zpower by omega.
+rewrite <- Raux.IZR_Zpower by lia.
 simpl.
 apply RIneq.Rmult_le_pos.
 left. apply IZR_pos_gt_0. 
 apply RIneq.Rlt_le.
 apply RIneq.Rinv_0_lt_compat.
-apply IZR_pow_0_lt. omega.
+apply IZR_pow_0_lt. lia.
 Qed.
 
 
@@ -431,7 +430,7 @@ Lemma sign_ext_range':
 Proof.
 intros.
 pose proof (Int.sign_ext_range n x H).
-omega.
+lia.
 Qed.
 
 Lemma zero_ext_range':
@@ -439,7 +438,7 @@ Lemma zero_ext_range':
      0 <= Int.unsigned (Int.zero_ext n x) <= two_p n - 1.
 Proof.
 intros.
- pose proof (Int.zero_ext_range n x H); omega.
+ pose proof (Int.zero_ext_range n x H); lia.
 Qed.
 
 Lemma int64_eq_e: forall i, Int64.eq i Int64.zero = true -> i=Int64.zero.
@@ -545,7 +544,7 @@ destruct (classify_cast (typeof e) t)
 all: try (simpl in H0,H2;
           first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
           | erewrite single_to_int_ok | erewrite single_to_intu_ok];
-          [ | eassumption | split; omega]).
+          [ | eassumption | split; lia]).
 all:   try match goal with
      | |- context[Int.sign_ext ?n ?x] =>
       apply (sign_ext_range' n x); compute; split; congruence

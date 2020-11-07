@@ -11,17 +11,18 @@ Definition sum_Z : list Z -> Z := fold_right Z.add 0.
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
 Proof.
-  intros. induction a; simpl; omega.
+  intros. induction a; simpl; lia.
 Qed.
 
-(* Beginning of the API spec for the sumarray.c program *)
 Definition sumarray_spec : ident * funspec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tuint), _n OF tint ]
+  PRE [ (tptr tuint), tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed;
-          Forall (fun x => 0 <= x <= Int.max_unsigned) contents)
-          LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+                 Forall (fun x => 0 <= x <= Int.max_unsigned) contents)
+          PARAMS (a; Vint (Int.repr size))
+          GLOBALS () (*TODO: make this line optional, ie insert GLOBALx nil during parsing of notation.
+                          Currently, omitting the line leads to failaure of start_function, specifically of compute_close_precondition_eq *)
           SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
         PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
@@ -35,11 +36,15 @@ Definition sumarray_spec : ident * funspec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]  
      PROP() 
      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
      SEP(TT).
+
+(* Note: It would also be reasonable to let [contents] have type [list int].
+  Then the [Forall] would not be needed in the PROP part of PRE.
+*)
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=
@@ -92,8 +97,8 @@ forward. (* i++; *)
  Exists (i+1).
  entailer!. simpl.
  f_equal.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite sum_Z_app. rewrite (sublist_one i) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite sum_Z_app. rewrite (sublist_one i) by lia.
  autorewrite with sublist. normalize.
  simpl. rewrite Z.add_0_r. reflexivity.
 * (* After the loop *)
@@ -108,6 +113,7 @@ Qed.
 
 (* Contents of the extern global initialized array "_four" *)
 Definition four_contents := [1; 2; 3; 4].
+
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

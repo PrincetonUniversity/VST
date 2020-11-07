@@ -42,17 +42,22 @@ Require Export VST.floyd.freezer.
 Require Export VST.floyd.deadvars.
 Require Export VST.floyd.hints.
 Require Export VST.floyd.Clightnotations.
-Require Export VST.floyd.list_solver.
+Require Export VST.floyd.data_at_list_solver.
 Require Export VST.floyd.data_at_lemmas.
 Require VST.msl.iter_sepcon.
 Require VST.msl.wand_frame.
 Require VST.msl.wandQ_frame.
 Require VST.floyd.linking.
 
+(*funspec scope is the default, so remains open.
+  User who wnt ot use old funspecs should 
+  "Require Import Require Import VST.floyd.Funspec_old_Notation."
+  Global Close Scope funspec_scope.*)
+
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
 Export Clight_Cop2.
-
+ 
 Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
 Hint Rewrite ptrofs_add_repr ptrofs_mul_repr ptrofs_sub_repr : entailer_rewrite.
 Hint Rewrite mul64_repr add64_repr sub64_repr or64_repr and64_repr : entailer_rewrite.
@@ -85,7 +90,7 @@ Lemma modu_repr: forall x y,
 Proof.
 intros. unfold Int.modu. rewrite !Int.unsigned_repr by auto. auto.
 Qed.
-Hint Rewrite modu_repr using rep_omega : entailer_rewrite norm.
+Hint Rewrite modu_repr using rep_lia : entailer_rewrite norm.
 
 Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
@@ -161,14 +166,14 @@ Ltac step :=
   | forward
   | forward_if
   | forward_call
-  | rep_omega | cstring' | list_solve
+  | rep_lia | cstring' | Zlength_solve
   | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
   | EExists_unify
   | cstring1
   | deadvars!
   | solve [match goal with |- @derives mpred _ _ _ => cancel end]
   | solve [entailer!; try cstring']
-  | list_solve!
+  | list_solve
   ].
 
 Tactic Notation "step!"  :=
@@ -183,15 +188,15 @@ Tactic Notation "step!"  :=
   | forward
   | forward_if
   | forward_call
-  | rep_omega
+  | rep_lia
   | cstring'
-  | list_solve
+  | Zlength_solve
   | EExists
   | cstring1
   | deadvars!
   | progress_entailer
   (* | match goal with |- _ /\ _ => split end *)
-  | list_solve!
+  | list_solve
   ].
 
 Tactic Notation "info_step!" :=
@@ -207,15 +212,15 @@ Tactic Notation "info_step!" :=
   | forward; idtac "forward."
   | forward_if; idtac "forward_if."
   | forward_call; idtac "forward_call."
-  | rep_omega; idtac "rep_omega."
+  | rep_lia; idtac "rep_lia."
   | cstring'; idtac "cstring'."
-  | list_solve; idtac "list_solve."
+  | Zlength_solve; idtac "Zlength_solve."
   | EExists; idtac "EExists."
   | cstring1; idtac "cstring1."
   | deadvars!; idtac "deadvars!."
   | progress_entailer; idtac "progress_entailer."
   (* | match goal with |- _ /\ _ => split end; idtac "split." *)
-  | list_solve!; idtac "list_solve!."
+  | list_solve; idtac "list_solve."
   ].
 
 (* A better way to deal with sem_cast_i2bool *)
@@ -229,4 +234,121 @@ Hint Rewrite sem_cast_i2bool_of_bool : norm.
 Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
 Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
 
-Ltac list_solve ::= Zlength_solve.
+Lemma computable_sizeof: forall cs x, computable x -> computable (@sizeof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_sizeof : computable.
+
+Lemma computable_Ctypes_sizeof: forall cs x, computable x -> computable (@Ctypes.sizeof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Ctypes_sizeof : computable.
+
+Lemma computable_alignof: forall cs x, computable x -> computable (@alignof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_alignof : computable.
+
+Lemma computable_Ctypes_alignof: forall cs x, computable x -> computable (@Ctypes.alignof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Ctypes_alignof : computable.
+
+Lemma computable_Tint: forall sz s a, computable (Tint sz s a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tint : computable.
+
+Lemma computable_Tlong: forall s a, computable (Tlong s a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tlong : computable.
+
+Lemma computable_Tarray: forall t i a, computable t -> computable i -> computable (Tarray t i a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tarray : computable.
+
+Lemma computable_Tstruct: forall i a, computable i -> computable (Tstruct i a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tstruct : computable.
+
+Lemma computable_Tunion: forall i a, computable i -> computable (Tunion i a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tunion : computable.
+
+Lemma computable_Tpointer: forall t a, computable t -> computable (Tpointer t a).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_Tpointer : computable.
+
+Lemma computable_tptr: forall t, computable t -> computable (tptr t).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_tptr : computable.
+
+
+(* a little bit of profiling infrastructure . . .
+Tactic Notation "entailer" "!" := time "ent2" entbang.
+Ltac entailer := time "ent1" floyd.entailer.entailer.
+*)
+
+Ltac gather_prop ::=
+(* autorewrite with gather_prop_core;  (* faster to do this first *)*)
+ autorewrite with gather_prop.
+
+(* ALTERNATE IMPLEMENTATION OF SATURATE_LOCAL.
+  This implementation is intended to produce faster Qeds, as follows:
+  When the new Prop is a duplicate, it detects this faster without enlarging the proof.
+  But it doesn't really work that much better, and the main problem is
+  when the term is a conjunction; the line "lazymatch P' with _ /\ _ => assert P' by auto"
+  is quite slow. *)
+   
+Lemma saturate_aux21y:
+  forall (P Q: mpred) (S: Prop),
+   P |-- !! S ->
+   !! S && P |-- Q -> P |-- Q.
+Proof.
+intros. subst.
+eapply derives_trans; [ | eassumption].
+apply andp_right; auto.
+Qed.
+
+Ltac saturate_aux2 := 
+lazymatch goal with
+| |- _ * _ |-- _ => fail 
+| |- ?R |-- !! ?P =>
+  match type of R with ?t =>
+             tryif (constr_eq t mpred) then idtac
+             else fail 10 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"
+  end;
+ let H := fresh "H" in
+        let PP := fresh "P" in evar (PP:Prop); 
+        assert (H: R |-- !! PP) by auto with nocore saturate_local; subst PP;
+        repeat match type of H with _ |-- !! ?Q => match Q with context [@reptype ?cs ?t] =>
+                   let j := constr:(@reptype cs t) in
+                   let j := eval hnf in j in let j := eval simpl in j in
+                   change (@reptype cs t) with j in H|-*
+            end end;
+        match type of H with _ |-- !! ?P' =>
+        first [clear H; 
+                lazymatch P' with _ /\ _ => assert P' by auto
+                | _ => lazymatch goal with H:P'|-_ => idtac end
+                end;
+                fail 1
+               | apply H ]
+        end
+end.
+
+Lemma saturate_aux33 : forall (P Q: mpred) R, P |-- !!R -> sepcon P Q |-- !!R.
+Proof.
+  intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True); eauto|].
+  - entailer!.
+  - apply prop_left; intros (? & ?); apply prop_right; auto.
+Qed.
+
+Ltac saturate_local_alt := 
+simple eapply saturate_aux21y;
+ [ repeat
+   (simple apply saturate_aux20; [ | saturate_aux2 ]
+    || simple apply saturate_aux33);
+   (saturate_aux2 || simple apply prop_True_right)
+| simple apply derives_extract_prop;
+   match goal with |- _ -> ?A =>
+       let P := fresh "P" in set (P := A);
+       fancy_intros true;
+       subst P
+      end
+].
+

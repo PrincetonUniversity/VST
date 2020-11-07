@@ -36,7 +36,7 @@ Proof.
   break: (@FF (environ->mpred) _).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (empty_map : hist) (Z.to_nat N)); entailer!; simpl.
     my_auto.
-    { split. unfold B, N. computable. repeat constructor; computable. }
+    { repeat constructor; computable. }
     rewrite sepcon_map.
     apply derives_refl'.
     rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].
@@ -52,13 +52,13 @@ Proof.
     - erewrite map_ext_in; eauto.
       intros; rewrite In_upto in *.
       destruct (eq_dec a 0); auto.
-      destruct (eq_dec a 1), (eq_dec 1 a); auto; try omega.
+      destruct (eq_dec a 1), (eq_dec 1 a); auto; try lia.
       { apply pred_ext; Intros sh; Exists sh; entailer!.
         * constructor.
         * match goal with H : sepalg_list.list_join sh0 _ sh |- _ => inv H; auto end. }
       generalize (make_shares_out a (repeat 1 (Z.to_nat N)) shs); simpl; intro Heq.
       destruct (eq_dec 1 a); [contradiction n0; auto|].
-       rewrite Heq; auto; [|omega].
+       rewrite Heq; auto; [|lia].
       apply pred_ext; Intros sh; Exists sh; entailer!.
       eapply list_join_eq; eauto. }
   Intros v b0 lasts h.
@@ -66,13 +66,14 @@ Proof.
   forward_call (b0, lasts, gv).
   Intros b.
   rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map; auto].
-  erewrite Znth_map, Znth_upto; auto; rewrite ?Z2Nat.id; try omega.
+  erewrite Znth_map, Znth_upto; auto; rewrite ?Z2Nat.id; try lia.
   Intros sh v0.
   rewrite (data_at_isptr _ tbuffer); Intros.
   forward.
   destruct (eq_dec b b0); [absurd (b = b0); auto|].
   assert_PROP (Zlength lasts = N).
-  { gather_SEP 2; go_lowerx; apply sepcon_derives_prop.
+  { gather_SEP (data_at _ _ _ (gv _last_taken)).
+    go_lowerx; apply sepcon_derives_prop.
     eapply derives_trans; [apply data_array_at_local_facts|].
     apply prop_left; intros (_ & ? & _); apply prop_right.
     unfold unfold_reptype in *; simpl in *.
@@ -80,8 +81,12 @@ Proof.
   rewrite make_shares_out in *; auto; [|setoid_rewrite H; auto].
   assert (sh = Ews) by (eapply list_join_eq; eauto); subst.
   forward.
-  gather_SEP 7 8; rewrite <- sepcon_map.
-  gather_SEP 8 9; replace_SEP 0 (fold_right sepcon emp (map (fun i => EX sh2 : share,
+  gather_SEP (fold_right sepcon emp (map (fun x : Z => ghost_var gsh1 (vint b0) _) _))
+                     (fold_right sepcon emp (map (fun x : Z => ghost_var gsh1 (vint (Znth x lasts)) _) _)).
+  rewrite <- sepcon_map.
+  gather_SEP (data_at _ _ _ (Znth b bufs))
+                    (fold_right sepcon emp (upd_Znth b _ _)).
+ replace_SEP 0 (fold_right sepcon emp (map (fun i => EX sh2 : share,
     !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
     (EX v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs))) (upto (Z.to_nat B)))).
   { Opaque B.

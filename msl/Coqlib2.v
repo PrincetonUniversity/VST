@@ -170,16 +170,16 @@ assert (forall m, (m <= n)%nat ->
          (exists i, F i /\ (i<m)%nat /\ ~ F (S i))).
 induction m.
 left; intros.
-omegaContradiction.
+lia.
 intro.
-assert (m<=n)%nat; try omega.
+assert (m<=n)%nat; try lia.
 destruct (IHm H2).
-assert (m < n \/ m = n)%nat; try omega.
+assert (m < n \/ m = n)%nat; try lia.
 destruct H4.
 destruct (Fdec m) as [?H|?H].
 left.
 intros.
-assert (k < m \/ k = m)%nat; try omega.
+assert (k < m \/ k = m)%nat; try lia.
 destruct H7.
 auto.
 subst k; auto.
@@ -187,25 +187,25 @@ right.
 exists (Peano.pred m).
 destruct m.
 contradiction.
-replace (Peano.pred (S m)) with m; try omega.
+replace (Peano.pred (S m)) with m; try lia.
 split.
-apply H3; try omega.
-split; try omega.
+apply H3; try lia.
+split; try lia.
 auto.
 subst m.
 right.
 destruct n.
 contradiction.
-exists n; repeat split; auto; try omega.
+exists n; repeat split; auto; try lia.
 right.
 destruct H3 as [i H4].
 destruct H4.
 destruct H4.
-exists i; repeat split; auto; omega.
-assert (n <= n)%nat; try omega.
+exists i; repeat split; auto; lia.
+assert (n <= n)%nat; try lia.
 destruct (H1 _ H2).
 destruct n; try contradiction.
-exists n; repeat split; auto; try omega.
+exists n; repeat split; auto; try lia.
 auto.
 Qed.
 

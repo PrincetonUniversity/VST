@@ -37,7 +37,7 @@ do 2 rewrite (Z.add_comm (Byte.unsigned _)) in H0.
  subst b.
  f_equal. clear H1.
  apply IHi.
- omega.
+ lia.
 Qed.
 
 Lemma decode_int_uniq:
@@ -61,16 +61,16 @@ unfold decode_int.
 assert (forall l, 0 <= int_of_bytes l < two_p (8 * Z.of_nat (length l))).
 2: intros; rewrite <- rev_if_be_length; auto.
 induction l.
-simpl; omega.
+simpl; lia.
 simpl int_of_bytes. simpl length.
 rewrite Nat2Z.inj_succ.
 unfold Z.succ.
 rewrite Z.mul_add_distr_l.
-rewrite two_p_is_exp; try omega.
+rewrite two_p_is_exp; try lia.
 change (two_p (8*1)) with 256.
 pose proof (Byte.unsigned_range a).
 change Byte.modulus with 256 in H.
-omega.
+lia.
 Qed.
 
 Lemma sign_ext_injective:
@@ -90,11 +90,11 @@ pose proof (Zbits.eqmod_trans _ _ _ _ H3 H4).
 rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
-   omega.
+   lia.
 rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
-   omega.
+   lia.
 apply Zbits.eqmod_small_eq in H5; auto.
 Qed.
 
@@ -116,11 +116,11 @@ pose proof (Zbits.eqmod_trans _ _ _ _ H3 H4).
 rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
-   omega.
+   lia.
 rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
-   omega.
+   lia.
 apply Zbits.eqmod_small_eq in H5; auto.
 Qed.
 
@@ -136,14 +136,14 @@ rewrite <- (Int.unsigned_repr (decode_int l1)).
 pose proof (decode_int_range l1 _ (eq_refl _)).
 rewrite H in H2.
 change (two_p (8 * Z.of_nat 4)) with (Int.max_unsigned + 1) in H2.
-omega.
+lia.
 }
 rewrite <- (Int.unsigned_repr (decode_int l2)).
 2:{
 pose proof (decode_int_range l2 _ (eq_refl _)).
 rewrite H0 in H2.
 change (two_p (8 * Z.of_nat 4)) with (Int.max_unsigned + 1) in H2.
-omega.
+lia.
 }
 congruence.
 Qed.
@@ -160,14 +160,14 @@ rewrite <- (Int64.unsigned_repr (decode_int l1)).
 pose proof (decode_int_range l1 _ (eq_refl _)).
 rewrite H in H2.
 change (two_p (8 * Z.of_nat 8)) with (Int64.max_unsigned + 1) in H2.
-omega.
+lia.
 }
 rewrite <- (Int64.unsigned_repr (decode_int l2)).
 2:{
 pose proof (decode_int_range l2 _ (eq_refl _)).
 rewrite H0 in H2.
 change (two_p (8 * Z.of_nat 8)) with (Int64.max_unsigned + 1) in H2.
-omega.
+lia.
 }
 congruence.
 Qed.
@@ -192,7 +192,7 @@ f_equal; apply H.
 Qed.
 
 Require Import ZArith.
-From compcert Require Import Zaux Binary Generic_fmt.
+Import Binary Zaux Generic_fmt.
 
 Lemma binary_normalize_inj:
   forall s1 m1 e1 (h1 : bounded 24 128 m1 e1 = true),

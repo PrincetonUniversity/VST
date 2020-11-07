@@ -10,8 +10,9 @@ Require Import sha.HMAC_common_defs.
 Require Import sha.HMAC_spec_pad.
 Require Import sha.HMAC_spec_concat.
 Require Import sha.HMAC_spec_abstract.
-
+Require Import Lia.
 Require Import FCF.Blist.
+Import List.
 
 Lemma of_length_proof_irrel {A:Set} n (l: list A) M:
       Vector.to_list (@of_list_length _ n l M) = l.
@@ -170,7 +171,7 @@ Lemma BS_pos: (0< HF.BlockSize)%nat.
 Proof.
   assert ((0 < HF.BlockSize * 8)%nat).
     rewrite EQ.BS. apply EQ.B.
-  omega.
+  lia.
 Qed.
 
   Lemma opad_ne_ipad : opad_v <> ipad_v.
@@ -282,8 +283,8 @@ Proof.
   2: apply VectorToList_length.
   eapply HMAC256_spec_pad.HMAC_pad_concrete'.
 
-  split; omega.
-  split; omega.
+  split; lia.
+  split; lia.
 
   (* key length *)
   { rewrite map_length, bitsToBytes_len_gen with (n:=64%nat).
@@ -313,12 +314,12 @@ Proof.
 
   (* opad *)
   { apply bytes_bits_comp_ind.
-    apply Forall_list_repeat. unfold HP.Opad. omega.
+    apply Forall_list_repeat. unfold HP.Opad. lia.
     apply of_length_proof_irrel. }
 
   (* ipad *)
   { apply bytes_bits_comp_ind.
-    apply Forall_list_repeat. unfold HP.Ipad. omega.
+    apply Forall_list_repeat. unfold HP.Ipad. lia.
     apply of_length_proof_irrel. }
 
 Qed.*)

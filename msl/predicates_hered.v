@@ -33,7 +33,7 @@ Definition pred_hereditary `{ageable} (p:pred A) := proj2_sig p.
 Coercion app_pred : pred >-> Funclass.
 Global Opaque pred.
 
-Hint Resolve @pred_hereditary : core.
+Hint Resolve pred_hereditary : core.
 
 Lemma nec_hereditary {A} `{ageable A} (p: A -> Prop) : hereditary age p ->
   forall a a':A, necR a a' -> p a -> p a'.
@@ -285,7 +285,7 @@ Definition boxy {A} `{ageable A} (m: modality) (p: pred A): Prop :=  box m p = p
 
 (* A pile of notations for the operators we have defined *)
 Declare Scope pred_derives.
-Notation "P '|--' Q" := (derives P Q) (at level 99, Q at level 200, right associativity) : pred_derives.
+Notation "P '|--' Q" := (derives P%pred Q%pred) (at level 80, no associativity) : pred_derives.
 Open Scope pred_derives.
 Notation "'EX' x .. y , P " :=
   (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
@@ -364,6 +364,10 @@ Lemma orp_right2{A}{agA: ageable A}: forall P Q R: pred A,  (P |-- R) -> P |-- Q
 Proof. repeat intro. right; auto.
 Qed.
 
+Lemma orp_assoc {A} `{ageable A} : forall P Q R: pred A, (P || Q) || R = P || (Q || R).
+Proof.
+  intros; apply pred_ext; auto; unfold derives, andp; simpl; intuition.
+Qed.
 
 Lemma derives_trans {A}`{ageable A}:
     forall P Q R: pred A, (P |-- Q) -> (Q |-- R) -> P |-- R.
@@ -493,7 +497,7 @@ unfold necR.
 constructor 2.
 Qed.
 
-Hint Resolve @necM_refl.
+Hint Resolve necM_refl.
 *)
 
 (* relationship between box and diamond *)
@@ -897,7 +901,7 @@ simpl.
 split; eapply boxy_e; eauto.
 Qed.
 
-Hint Resolve @boxy_andp : core.
+Hint Resolve boxy_andp : core.
 
 Lemma boxy_disjunction {A} `{H : ageable A}:
      forall (M: modality) , reflexive _ (app_mode M) ->
@@ -912,7 +916,7 @@ left.  eapply boxy_e; eauto.
 right. eapply boxy_e; eauto.
 Qed.
 
-Hint Resolve @boxy_disjunction : core.
+Hint Resolve boxy_disjunction : core.
 
 Lemma boxy_exp {A} `{agA : ageable A}:
     forall (M: modality) T (P: T -> pred A),
@@ -927,7 +931,7 @@ specialize ( H2 w' H1).
 econstructor; eauto.
 Qed.
 
-Hint Resolve @boxy_exp : core.
+Hint Resolve boxy_exp : core.
 
 Lemma boxy_prop {A} `{H : ageable A}:  forall (M: modality) P, reflexive _ (app_mode M) -> boxy M (prop P).
 Proof.
@@ -946,15 +950,15 @@ Proof.
 intros; apply boxy_i; intros; auto; contradiction.
 Qed.
 
-Hint Resolve @boxy_TT : core.
-Hint Resolve @boxy_FF : core.
+Hint Resolve boxy_TT : core.
+Hint Resolve boxy_FF : core.
 
 Lemma TT_i  {A} `{ageable A}: forall w: A,  app_pred TT w.
 Proof.
 unfold TT, prop; simpl; auto.
 Qed.
 
-Hint Resolve @TT_i : core.
+Hint Resolve TT_i : core.
 
 Lemma prop_andp_left {A}{agA: ageable A}: forall (P: Prop) Q R, (P -> Q |-- R) -> !!P && Q |-- R.
 Proof.
@@ -1019,7 +1023,7 @@ specialize ( H2 b).
 rewrite <- H0 in H2.
 apply H2; auto.
 Qed.
-Hint Resolve @boxy_allp : core.
+Hint Resolve boxy_allp : core.
 
 Lemma later_allp {A} `{agA : ageable A}:
        forall B P, |> (allp P) = allp (fun x:B => |> (P x)).
@@ -1104,7 +1108,7 @@ Lemma derives_refl {A: Type} `{ageable A}:
 Proof. firstorder.
 Qed.
 
-Hint Resolve @derives_refl : core.
+Hint Resolve derives_refl : core.
 
 Lemma andp_derives {A} `{ageable A}:
   forall P Q P' Q': pred A, (P |-- P') -> (Q |-- Q') -> P && Q |-- P' && Q'.
@@ -1156,13 +1160,13 @@ Proof.
 intros.
 intros ? ?; auto.
 Qed.
-Hint Resolve @derives_TT : core.
+Hint Resolve derives_TT : core.
 
 Lemma FF_derives {A} `{ageable A}: forall P, FF |-- P.
 Proof.
 intros. intros ? ?. hnf in H0; contradiction.
 Qed.
-Hint Immediate @FF_derives : core.
+Hint Immediate FF_derives : core.
 
 Lemma necR_level' {A} `{H : ageable A}: forall {w w': A}, necR w w' ->
        @necR _ ag_nat (level w) (level w').

@@ -111,48 +111,48 @@ Qed.
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
-  PRE [ 1%positive OF tint]
+  PRE [ tint]
      PROP (4 <= n <= Int.max_unsigned) 
-     LOCAL (temp 1%positive (Vint (Int.repr n)))
+     PARAMS (Vint (Int.repr n))
      SEP ()
   POST [ tptr tvoid ] 
      EX v: val,
      PROP (malloc_compatible n v) 
-     LOCAL (temp ret_temp v) 
+     RETURN (v) 
      SEP (memory_block Tsh n v).
 
 Definition freeN_spec :=
  DECLARE _freeN
   WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
+  PRE [ tptr tvoid , tint]  
      (* we should also require natural_align_compatible (eval_id 1) *)
-      PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
+      PROP() PARAMS (p; Vint (Int.repr n))
       SEP (memory_block Tsh n p)
   POST [ tvoid ]  
-    PROP () LOCAL () SEP ().
+    PROP () RETURN () SEP ().
 
 Definition treebox_new_spec :=
  DECLARE _treebox_new
   WITH u : unit
   PRE  [  ]
-       PROP() LOCAL() SEP ()
+       PROP() PARAMS() SEP ()
   POST [ (tptr t_struct_tree) ] 
     EX v:val,
     PROP()
-    LOCAL(temp ret_temp v)
+    RETURN (v)
     SEP (data_at Tsh (tptr t_struct_tree) nullval v).
 
 Definition subscr_spec :=
  DECLARE _subscr
   WITH b: val, x: Z, t: tree val
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _key OF tint]
+  PRE  [ tptr (tptr t_struct_tree), tint]
     PROP(Int.min_signed <= x <= Int.max_signed)
-    LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
+    PARAMS(b; Vint (Int.repr x))
     SEP (treebox_rep t b)
   POST [ tptr (tptr tvoid) ]
     EX p: val, EX q: val,
     PROP(key_store (insert x p t) x q)
-    LOCAL(temp ret_temp q)
+    RETURN(q)
     SEP (treebox_rep (insert x p t) b;
          (!! key_store_ t x && emp) || (!! (~ key_store_ t x) && data_at Tsh (tptr tvoid) nullval q)).
 
@@ -184,27 +184,27 @@ Definition subscr_spec2 :=
 Definition turn_left_spec :=
  DECLARE _turn_left
   WITH ta: tree val, x: Z, tb: tree val, y: Z, tc: tree val, b: val, l: val, r: val
-  PRE  [ __l OF (tptr (tptr (Tstruct _tree noattr))),
-        _l OF (tptr (Tstruct _tree noattr)),
-        _r OF (tptr (Tstruct _tree noattr))]
+  PRE  [ tptr (tptr (Tstruct _tree noattr)),
+        tptr (Tstruct _tree noattr),
+        tptr (Tstruct _tree noattr)]
     PROP()
-    LOCAL(temp __l b; temp _l l; temp _r r)
+    PARAMS(b; l; r)
     SEP (treebox_rep (T ta x l (T tb y r tc)) b)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (treebox_rep (T (T ta x l tb) y r tc) b).
 
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
   WITH ta: tree val, x: Z, tb: tree val, b: val, p: val
-  PRE  [ _t OF (tptr (tptr (Tstruct _tree noattr)))]
+  PRE  [ tptr (tptr (Tstruct _tree noattr))]
     PROP()
-    LOCAL(temp _t b)
+    PARAMS(b)
     SEP (treebox_rep (T ta x p tb) b)
   POST [ Tvoid ] 
     PROP()
-    LOCAL()
+    RETURN()
     SEP (treebox_rep (pushdown_left ta tb) b).
 (*
 Definition delete_spec1 :=
@@ -337,8 +337,8 @@ Proof. intros; subst; auto. Qed.
 Ltac simpl_compb :=
   match goal with
   | |- context [if Z.ltb ?x ?y then _ else _] =>
-         first [ rewrite (if_trueb (Z.ltb x y)) by (apply Z.ltb_lt; omega)
-               | rewrite (if_falseb (Z.ltb x y)) by (apply Z.ltb_ge; omega)]
+         first [ rewrite (if_trueb (Z.ltb x y)) by (apply Z.ltb_lt; lia)
+               | rewrite (if_falseb (Z.ltb x y)) by (apply Z.ltb_ge; lia)]
   end.
 
 Definition subscr_post (b0: val) (t0: tree val) (x: Z) (p: val) (q: val) :=
@@ -387,11 +387,11 @@ Proof.
     Intros b1 t1.
     (* TODO: why this skip is here? *)
     forward. (* Sskip *)
-    destruct t1; simpl treebox_rep at 1; normalize.
+    destruct t1; simpl treebox_rep at 1.
     + forward. (* p = *t; *)
       forward_if; [clear H | inversion H]. (* then clause *)
       forward_call (sizeof t_struct_tree).
-        1: simpl; rep_omega.
+        computable.
       Intros p1.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)
@@ -419,7 +419,9 @@ Proof.
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       entailer!.
-    + forward. (* p = *t; *)
+    + 
+      Intros.
+      forward. (* p = *t; *)
       forward_if. (* else clause *)
        (* TODO: better automation for field_compatible. *)
         1: admit.
@@ -475,7 +477,7 @@ Proof.
         simpl_compb.
         entailer!.
       - (* Inner if, third branch: x=k *)
-        assert (x=k) by omega.
+        assert (x=k) by lia.
         subst x. clear H1 H2.
 
         forward. (* return (&p->value) *)
@@ -561,7 +563,7 @@ Proof.
         apply -> wand_sepcon_adjoint.
         Exists pa pb; entailer!.
     + (* else-else clause: x=y *)
-      assert (x=k) by omega. subst x. clear H H4 H5.
+      assert (x=k) by lia. subst x. clear H H4 H5.
       forward. (* v=p->value *)
       forward. (* return v; *)
       unfold treebox_rep. unfold normal_ret_assert.

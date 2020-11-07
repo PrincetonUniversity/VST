@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -40,25 +41,25 @@ destruct R as [x0 [x1 [x2 [x3 [x4 [x5 [x6 [x7
               [x8 [x9 [x10 [x11 [x12 [x13 [x14 [x15 XX]]]]]]]]]]]]]]]]. subst r.
 destruct W as [HW H1].
 destruct H1 as [t0 [t1 [t2 [t3 [T0 [T1 [T2 [T3 [w1 [[_ H1] W1]]]]]]]]]]. simpl in T0, T1, T2, T3.
-rewrite Z.mod_small in T0. 2: omega.
-rewrite Zmod_eq in T1. 2: omega.
-rewrite Zmod_eq in T2. 2: omega.
-rewrite Zmod_eq in T3. 2: omega. simpl in T0, T1, T2, T3.
+rewrite Z.mod_small in T0. 2: lia.
+rewrite Zmod_eq in T1. 2: lia.
+rewrite Zmod_eq in T2. 2: lia.
+rewrite Zmod_eq in T3. 2: lia. simpl in T0, T1, T2, T3.
 destruct H1 as [t4 [t5 [t6 [t7 [T4 [T5 [T6 [T7 [w2 [[_ H1] W2]]]]]]]]]]. simpl in T4, T5, T6, T7.
-rewrite Zmod_eq in T4. 2: omega.
-rewrite Zmod_eq in T5. 2: omega.
-rewrite Zmod_eq in T6. 2: omega.
-rewrite Zmod_eq in T7. 2: omega. simpl in T4, T5, T6, T7.
+rewrite Zmod_eq in T4. 2: lia.
+rewrite Zmod_eq in T5. 2: lia.
+rewrite Zmod_eq in T6. 2: lia.
+rewrite Zmod_eq in T7. 2: lia. simpl in T4, T5, T6, T7.
 destruct H1 as [t8 [t9 [t10 [t11 [T8 [T9 [T10 [T11 [w3 [[_ H1] W3]]]]]]]]]]. simpl in T8, T9, T10, T11.
-rewrite Z.mod_small in T8. 2: omega.
-rewrite Z.mod_small in T9. 2: omega.
-rewrite Zmod_eq in T10. 2: omega.
-rewrite Zmod_eq in T11. 2: omega. simpl in T8, T9, T10, T11.
+rewrite Z.mod_small in T8. 2: lia.
+rewrite Z.mod_small in T9. 2: lia.
+rewrite Zmod_eq in T10. 2: lia.
+rewrite Zmod_eq in T11. 2: lia. simpl in T8, T9, T10, T11.
 destruct H1 as [t12 [t13 [t14 [t15 [T12 [T13 [T14 [T15 [w4 [L4 W4]]]]]]]]]]. simpl in T12, T13, T14, T15.
-rewrite Z.mod_small in T12. 2: omega.
-rewrite Z.mod_small in T13. 2: omega.
-rewrite Z.mod_small in T14. 2: omega.
-rewrite Z.mod_small in T15. 2: omega.
+rewrite Z.mod_small in T12. 2: lia.
+rewrite Z.mod_small in T13. 2: lia.
+rewrite Z.mod_small in T14. 2: lia.
+rewrite Z.mod_small in T15. 2: lia.
 unfold Znth in *. simpl in  T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15.
 symmetry in T0; inv T0. symmetry in T1; inv T1. symmetry in T2; inv T2. symmetry in T3; inv T3.
 symmetry in T4; inv T4. symmetry in T5; inv T5. symmetry in T6; inv T6. symmetry in T7; inv T7.
@@ -74,10 +75,10 @@ apply listD16 in L4.
 destruct L4 as [y0 [y1 [y2 [y3 [y4 [y5 [y6 [y7
                [y8 [y9 [y10 [y11 [y12 [y13 [y14 [y15 XX]]]]]]]]]]]]]]]]. subst w4.
 destruct W4 as [_ W4]; simpl in W4.
-(*rewrite Z.mod_small in W4. 2: omega.
-rewrite Z.mod_small in W4. 2: omega.
-rewrite Z.mod_small in W4. 2: omega.
-rewrite Z.mod_small in W4. 2: omega.*)
+(*rewrite Z.mod_small in W4. 2: lia.
+rewrite Z.mod_small in W4. 2: lia.
+rewrite Z.mod_small in W4. 2: lia.
+rewrite Z.mod_small in W4. 2: lia.*)
 unfold upd_Znth, sublist in W4; simpl in W4. subst w3.
 simpl in W3.
 remember (Int.xor x9 (Int.rol (Int.add x5 x1) (Int.repr 7))) as z6.
@@ -130,8 +131,8 @@ forall FR c k h nonce out
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
          data_at Tsh (tarray tuint 16) xlist x)) 
  array_copy3_statement
@@ -139,8 +140,8 @@ forall FR c k h nonce out
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
       lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-      lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-      temp _k k; temp _h (Vint (Int.repr h)))
+      lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+      temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
          data_at Tsh (tarray tuint 16) wlist x))).
 Proof. intros. abbreviate_semax.
@@ -151,13 +152,13 @@ Time forward_for_simple_bound 16 (EX m:Z,
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
          EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist = Znth mm wlist)
                 && data_at Tsh (tarray tuint 16) mlist x))).
   (*1.2 versus 2.7*)
-{ Exists xlist. Time entailer!. (*2.6 versus 6.7*) intros; omega. }
+{ Exists xlist. Time entailer!. (*2.6 versus 6.7*) }
 { Intros mlist. rename H into M. rename i0 into m. rename H0 into HM.
   destruct (WZ _ M) as [mval MVAL].
   freeze [0;2] FR1.
@@ -170,16 +171,16 @@ Time forward_for_simple_bound 16 (EX m:Z,
      Time entailer!. (*2.8 versus 5.6*)
      intros mm ?.
      destruct (zeq mm m); subst.
-     + rewrite MVAL, upd_Znth_same; trivial. omega.
-     + rewrite <- HM. 2: omega.
-       apply upd_Znth_diff; trivial; omega. }
+     + rewrite MVAL, upd_Znth_same; trivial. lia.
+     + rewrite <- HM. 2: lia.
+       apply upd_Znth_diff; trivial; lia. }
 }
 { Time entailer!. (*1.8 versus 4.3*)
   Intros mlist.
   assert_PROP (Zlength mlist = 16) as ML by entailer.
   apply derives_refl'. f_equal.
-  eapply Znth_extensional. omega.
-  intros kk K. apply H2. omega. }
+  eapply Znth_extensional. lia.
+  intros kk K. apply H2. lia. }
 Time Qed. (*June 4th, 2017 (laptop): 1s*)
 
 Definition f_core_loop3_statement :=
@@ -409,8 +410,8 @@ c k h nonce out w x y t (xI:list int),
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
          data_at_ Tsh (tarray tuint 16) w;
          data_at Tsh (tarray tuint 16) (map Vint xI) x))
@@ -418,8 +419,8 @@ c k h nonce out w x y t (xI:list int),
   (normal_ret_assert
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-       temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
+       temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
    SEP (FR; data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
         EX r:_, !!(Snuffle 20 xI = Some r) &&
            data_at Tsh (tarray tuint 16) (map Vint r) x))).
@@ -434,15 +435,15 @@ Time forward_for_simple_bound 20 (EX i:Z,
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
          EX r:_, !!(Snuffle (Z.to_nat i) xI = Some r) &&
              data_at Tsh (tarray tuint 16) (map Vint r) x))). (*0.9*)
 { Exists xI. Time entailer!. (*2.6*) }
 
 { rename H into I. Intros r. rename H into R.
-  assert (XI: length xI = 16%nat). eapply (Zlength_length _ _ 16). omega. trivial.
+  assert (XI: length xI = 16%nat). eapply (Zlength_length _ _ 16). lia. trivial.
   assert (RL:= Snuffle_length _ _ _ R XI).
   assert (RZL: Zlength r = 16). rewrite Zlength_correct, RL; reflexivity.
 
@@ -450,8 +451,8 @@ Time forward_for_simple_bound 20 (EX i:Z,
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
+   temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
       EX l:_, !!(WcontI r (Z.to_nat j) l) && data_at Tsh (tarray tuint 16) l w;
       data_at Tsh (tarray tuint 16) (map Vint r) x))). (*1.5*)
@@ -459,23 +460,23 @@ Time forward_for_simple_bound 20 (EX i:Z,
   { rename H into J. rename i0 into j.
     Intros wlist. rename H into WCONT.
     destruct (Znth_mapVint r ((5 * j + 4 * 0) mod 16)) as [t0 T0].
-      rewrite RZL; apply Z_mod_lt; omega.
+      rewrite RZL; apply Z_mod_lt; lia.
     destruct (Znth_mapVint r ((5 * j + 4 * 1) mod 16)) as [t1 T1].
-      rewrite RZL; apply Z_mod_lt; omega.
+      rewrite RZL; apply Z_mod_lt; lia.
     destruct (Znth_mapVint r ((5 * j + 4 * 2) mod 16)) as [t2 T2].
-      rewrite RZL; apply Z_mod_lt; omega.
+      rewrite RZL; apply Z_mod_lt; lia.
     destruct (Znth_mapVint r ((5 * j + 4 * 3) mod 16)) as [t3 T3].
-      rewrite RZL; apply Z_mod_lt; omega. 
+      rewrite RZL; apply Z_mod_lt; lia. 
     eapply semax_post_flipped'.
     apply (Jbody _ FR c k h nonce out w x y t i j r I J wlist _ _ _ _ T0 T1 T2 T3).
     Intros W. Exists W.
-    Time entailer!. (*6.1*) (*TODO: eliminate old_go_lower*)
-    rewrite Z.add_comm, Z2Nat.inj_add; try omega.
+    Time entailer!. (*6.1*)
+    rewrite Z.add_comm, Z2Nat.inj_add; try lia.
     assert (X: (Z.to_nat 1 + Z.to_nat j = S (Z.to_nat j))%nat) by reflexivity.
     rewrite X. simpl. split. assumption.
     exists t0, t1, t2, t3. simpl in T0, T1, T2, T3. rewrite Z2Nat.id, T0, T1, T2, T3.
     repeat split; trivial.
-    exists wlist. split; trivial. omega. }
+    exists wlist. split; trivial. lia. }
 
   Intros wlist. rename H into HW.
   destruct (WWI _ _ HW RZL) as [wints [WI SNUFF]]. subst wlist.
@@ -485,9 +486,9 @@ Time forward_for_simple_bound 20 (EX i:Z,
                   i w x y t (map Vint r) (map Vint wints)); trivial.
            intros. apply Znth_mapVint.
               destruct (snuffleRound_length _ _ SNUFF) as [WL _].
-              rewrite Zlength_correct, WL; simpl; omega.
-  Exists wints. rewrite Z.add_comm, Z2Nat.inj_add; try omega.
-  Time entailer!. (*4.3*)(*TODO: eliminate old_go_lower*)
+              rewrite Zlength_correct, WL; simpl; lia.
+  Exists wints. rewrite Z.add_comm, Z2Nat.inj_add; try lia.
+  Time entailer!. (*4.3*)
   rewrite SnuffleS, R; trivial.
   thaw FR2; cancel. }
  apply ENTAIL_refl.

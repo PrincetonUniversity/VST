@@ -9,7 +9,7 @@ Require Import sha.general_lemmas.
 Lemma Zgt_is_gt_bool_f: forall n m : Z, n <= m <-> (n >? m) = false.
 Proof. intros. specialize (Zgt_cases n m); intros.
   remember ((n >? m)). destruct b.
-  + split; intros. omega. discriminate.
+  + split; intros. lia. discriminate.
   + split; intros; trivial.
 Qed.
 
@@ -38,14 +38,14 @@ Qed.
 
 Lemma false_zgt z a: false = (z >? a) -> z<=a. 
 Proof. unfold Z.gtb.
-  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. omega.
-  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. omega.
+  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. lia.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. lia.
   discriminate.
 Qed. 
 Lemma false_zge z a: false = (z >=? a) -> z<=a. 
 Proof. unfold Z.geb.
   remember (z ?= a). destruct c; intros; try discriminate.
-  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H0 in Heqc. omega.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H0 in Heqc. lia.
 Qed.
 
 (*
@@ -97,7 +97,7 @@ Lemma sublist_app_exact1:
 Proof.
   intros.
   pose proof (Zlength_nonneg A).
-  rewrite sublist_app1; try omega.
+  rewrite sublist_app1; try lia.
   rewrite sublist_same; auto.
 Qed.
 
@@ -107,8 +107,8 @@ Proof.
   intros.
   pose proof (Zlength_nonneg A).
   pose proof (Zlength_nonneg B).
-  rewrite sublist_app2; try omega.
-  rewrite sublist_same; auto; omega.
+  rewrite sublist_app2; try lia.
+  rewrite sublist_same; auto; lia.
 Qed.
 
 Lemma data_at_complete_split:
@@ -129,13 +129,13 @@ Proof.
   assert (Hisptr: isptr p) by (destruct Hfield; assumption).
   destruct p; try solve [inversion Hisptr]; clear Hisptr.
   unfold tarray.
-  rewrite split2_data_at_Tarray_tuchar with (n1:=Zlength A); [|split; omega|rewrite Zlength_app; reflexivity].
+  rewrite split2_data_at_Tarray_tuchar with (n1:=Zlength A); [|split; lia|rewrite Zlength_app; reflexivity].
   rewrite sublist_app_exact1, sublist_app_exact2.
-  replace (Zlength A + Zlength B - Zlength A) with (Zlength B) by omega.
+  replace (Zlength A + Zlength B - Zlength A) with (Zlength B) by lia.
   replace (field_address0 (Tarray tuchar (Zlength A + Zlength B) noattr) [ArraySubsc (Zlength A)] (Vptr b i)) with (Vptr b (Ptrofs.add i (Ptrofs.repr (Zlength A)))).
   reflexivity.
   rewrite field_address0_offset.
-  simpl. replace (0 + 1 * Zlength A) with (Zlength A) by omega. reflexivity.
+  simpl. replace (0 + 1 * Zlength A) with (Zlength A) by lia. reflexivity.
   destruct Hfield as [Hfield1 [Hfield2 [Hfield3 [Hfield4 Hfield5]]]].
-  unfold field_compatible0; repeat split; try assumption; auto; omega.
+  unfold field_compatible0; repeat split; try assumption; auto; lia.
 Qed.

@@ -6,6 +6,7 @@ Require Import sha.hmac_pure_lemmas.
 Require Import sha.SHA256.
 Require Import sha.pure_lemmas.
 Require Import sha.functional_prog.
+Require Import Lia.
 
 (* Lemma 1: M = Prefix(Pad(M)) *)
 
@@ -75,12 +76,12 @@ Proof.
   repeat rewrite -> app_length.
   simpl.
   assert (succ: forall (n : nat), S n = (n + 1)%nat).
-    intros. induction n. reflexivity. omega.
+    intros. induction n. reflexivity. lia.
   rewrite -> succ.
   assert ((length msg +
       (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero) + 8 +
        1))%nat = (length msg +
-      (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero) + 9))%nat) by omega.
+      (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero) + 9))%nat) by lia.
   rewrite -> H. clear H.
 
   rewrite -> Zlength_correct.
@@ -90,7 +91,7 @@ Proof.
   rewrite -> Z2Nat.id.
 
   assert (move : forall (a b c : Z), a + (b + c) = (a + c) + b).
-  intros. omega.
+  intros. lia.
 
   rewrite -> move.
   rewrite -> Zplus_mod_idemp_r.
@@ -100,13 +101,13 @@ Proof.
 
   repeat rewrite <- Nat2Z.inj_add.
 
-  assert (forall (x : Z), x + (-x) = 0). intros. omega.
+  assert (forall (x : Z), x + (-x) = 0). intros. lia.
 
   rewrite -> H.
   reflexivity.
 
   * apply Z.mod_pos_bound.
-    omega.
+    lia.
 Qed.
 
 (* more usable versions *)
@@ -115,13 +116,13 @@ Lemma pad_len_64 : forall (msg : list byte), exists (n : Z),
 Proof.
   intros msg.
   pose proof pad_len_64_mod msg as pad_len_mod.
-  rewrite -> Zmod_divides in *. 2: omega.
+  rewrite -> Zmod_divides in *. 2: lia.
 
   destruct pad_len_mod.
   exists x.
   split.
   apply H.
-  specialize (Zlength_nonneg (pad msg)); intros. omega.
+  specialize (Zlength_nonneg (pad msg)); intros. lia.
 Qed.
 
 Lemma pad_len_64_nat : forall (msg : list byte), exists (n : nat),
@@ -148,8 +149,8 @@ Proof.
   rewrite -> n_64.
   reflexivity.
 
-  * omega.
-  * omega.
+  * lia.
+  * lia.
 Qed.
 
 Lemma total_pad_len_Zlist : forall (msg : list byte), exists (n : nat),
@@ -163,7 +164,7 @@ Proof.
   unfold pad in *.
   repeat rewrite -> app_length in *.
   destruct pad_len_64_nat.
-  assert (sym: (64 * x)%nat = (x * 64)%nat) by omega.
+  assert (sym: (64 * x)%nat = (x * 64)%nat) by lia.
   rewrite -> sym in *. clear sym.
 
   simpl in *.
@@ -173,14 +174,14 @@ Proof.
   rewrite -> length_list_repeat in *.
 
   assert (add_both: (length msg + S (Z.to_nat (- (Zlength msg + 9) mod 64) ))%nat =
-      (x * 64 - 8)%nat) by omega. clear H.
+      (x * 64 - 8)%nat) by lia. clear H.
 
   rewrite -> add_both.
-  assert ((x * 64 - 8)%nat = (4 * (16 * x - 2))%nat) by omega.
+  assert ((x * 64 - 8)%nat = (4 * (16 * x - 2))%nat) by lia.
 
   rewrite -> H.
   exists (16 * x - 2)%nat.
-  omega.
+  lia.
 Qed.
 
 Lemma pad_inwords :

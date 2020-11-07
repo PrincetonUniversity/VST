@@ -18,7 +18,7 @@ Next Obligation.
   intros ???? Hg.
   rewrite (age1_ghost_of _ _ H), Hg.
   pose proof (age_level _ _ H).
-  rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; eauto.
+  rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx by lia; eauto.
 Qed.
 
 Definition Own g: pred rmap := allp noat && ghost_is g.
@@ -199,7 +199,7 @@ Proof.
     apply join_comm; eauto. }
   exists m'; repeat split; auto.
   exists w1', w2; repeat split; auto.
-  apply resource_at_join2; auto; try omega.
+  apply resource_at_join2; auto; try lia.
   intro; rewrite Hr', Hr''.
   apply resource_at_join; auto.
 Qed.
@@ -254,7 +254,7 @@ Proof.
   specialize (H3 _ H4) as (? & ? & ? & ? & ? & ? & HP).
   do 2 eexists; eauto; do 2 eexists; eauto; repeat (split; auto).
   pose proof (necR_level _ _ H2).
-  apply (H _ H0 x0 ltac:(omega) _ (necR_refl _)); auto.
+  apply (H _ H0 x0 ltac:(lia) _ (necR_refl _)); auto.
 Qed.
 
 Lemma eqp_bupd: forall (G : pred nat) (P P' : pred rmap), (G |-- P <=> P') ->
@@ -309,9 +309,9 @@ Proof.
   replace (approx n oo approx m) with (approx (min m n)) in *.
   auto.
   { destruct (Min.min_spec m n) as [[? ->] | [? ->]];
-      [rewrite approx'_oo_approx | rewrite approx_oo_approx']; auto; omega. }
+      [rewrite approx'_oo_approx | rewrite approx_oo_approx']; auto; lia. }
   { destruct (Min.min_spec m n) as [[? ->] | [? ->]];
-      [rewrite approx_oo_approx' | rewrite approx'_oo_approx]; auto; omega. }
+      [rewrite approx_oo_approx' | rewrite approx'_oo_approx]; auto; lia. }
 Qed.
 
 Lemma Own_update: forall a b, ghost_fp_update a b ->
@@ -635,8 +635,8 @@ Proof.
     exists a', a'; repeat split; auto.
     eapply nec_join in H as (? & ? & ? & Hw1 & Hw2); eauto.
     destruct (join_level _ _ _ H).
-    eapply necR_linear' in Hw1; try apply H0; [|omega].
-    eapply necR_linear' in Hw2; try apply H0; [|omega].
+    eapply necR_linear' in Hw1; try apply H0; [|lia].
+    eapply necR_linear' in Hw2; try apply H0; [|lia].
     subst; auto.
 Qed.
 
@@ -757,3 +757,23 @@ Proof.
   - rewrite Hg, ghost_fmap_singleton.
     apply singleton_join; repeat constructor; auto.
 Qed.
+
+Require Import VST.veric.tycontext.
+Require Import VST.veric.Clight_seplog.
+ 
+Lemma own_super_non_expansive: forall {RA: Ghost} n g a pp,
+  approx n (own g a pp) = approx n (own g a (preds_fmap (approx n) (approx n) pp)).
+Proof.
+  intros; unfold own.
+  rewrite !approx_exp; f_equal; extensionality v.
+  unfold Own.
+  rewrite !approx_andp; f_equal.
+  apply pred_ext; intros ? [? Hg]; split; auto; simpl in *.
+  - rewrite <- ghost_of_approx, Hg.
+    rewrite !ghost_fmap_singleton, !preds_fmap_fmap.
+    rewrite approx_oo_approx, approx_oo_approx', approx'_oo_approx by lia; auto.
+  - rewrite ghost_fmap_singleton in *.
+    rewrite preds_fmap_fmap in Hg.
+    rewrite approx_oo_approx', approx'_oo_approx in Hg by lia; auto.
+Qed.
+>>>>>>> upstream/master

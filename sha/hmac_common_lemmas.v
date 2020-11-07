@@ -8,7 +8,7 @@ Require Import sha.hmac_pure_lemmas.
 Require Import sha.SHA256.
 Require Import sha.pure_lemmas.     (* sha *)
 Require Import sha.spec_sha.
-(*Require Import sublist.*)
+Require Import Lia.
 
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
@@ -38,7 +38,7 @@ Lemma nth_zeropad_left {d d'}: forall l i (I: 0<= i < Zlength l),
       nth (Z.to_nat i) (HMAC_SHA256.zeroPad l) d = nth (Z.to_nat i) l d'.
 Proof. unfold HMAC_SHA256.zeroPad. intros.
   destruct I.
-  apply Z2Nat.inj_lt in H0; try omega.
+  apply Z2Nat.inj_lt in H0; try lia.
   rewrite Zlength_correct, Nat2Z.id in H0.
   rewrite app_nth1; trivial.
   apply nth_indep; trivial.
@@ -58,14 +58,14 @@ Proof. unfold HMAC_SHA256.zeroPad.
   specialize (Zlength_nonneg l). intros.
   rewrite app_nth2. rewrite nth_list_repeat'. trivial.
   apply minus_lt_compat_r. destruct I. apply Z2Nat.inj_lt in H1. apply H1.
-  omega.
-  omega.
+  lia.
+  lia.
   destruct I. apply Z2Nat.inj_le in H0; trivial.
     rewrite Zlength_correct, Nat2Z.id in H0. apply H0.
-    omega.
+    lia.
   destruct I. apply Z2Nat.inj_le in H0; trivial.
     rewrite Zlength_correct, Nat2Z.id in H0. apply H0.
-    omega.
+    lia.
 Qed.
 
 Lemma mkKey_right {d}: forall l (L: false = (Zlength l >? 64))
@@ -78,7 +78,7 @@ Qed.
 
 Lemma zeroPad_BlockSize: forall k, (length k <= SHA256.BlockSize)%nat ->
   length (HMAC_SHA256.zeroPad k) = SHA256.BlockSize%nat.
-Proof. unfold HMAC_SHA256.zeroPad. intros. rewrite app_length, (*length_Nlist*) length_list_repeat. omega.
+Proof. unfold HMAC_SHA256.zeroPad. intros. rewrite app_length, (*length_Nlist*) length_list_repeat. lia.
 Qed.
 
 Lemma length_SHA256': forall l,
@@ -92,7 +92,7 @@ Proof. intros. unfold HMAC_SHA256.mkKey.
   remember (Zlength l >? Z.of_nat SHA256.BlockSize) as z.
   destruct z. apply zeroPad_BlockSize.
     rewrite length_SHA256'.
-    apply Nat2Z.inj_le. simpl. omega.
+    apply Nat2Z.inj_le. simpl. lia.
   apply zeroPad_BlockSize.
     rewrite Zlength_correct in Heqz.
     apply Nat2Z.inj_le.

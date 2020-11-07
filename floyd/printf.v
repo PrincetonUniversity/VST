@@ -38,12 +38,12 @@ Fixpoint format_stuff (fl: list format_item) : Type :=
  | nil => unit
  end.
 
-Fixpoint format_argtys (i: positive) (fl: list format_item) : list (ident * type) :=
+Fixpoint format_argtys (fl: list format_item) : list type :=
  match fl with
- | FI_int :: fl' => (i, tint) :: format_argtys (Pos.succ i) fl'
- | FI_string :: fl' => (i, tptr tschar) :: format_argtys (Pos.succ i) fl'
- | FI_text _ :: fl' => format_argtys i fl'
- | FI_error :: fl' => format_argtys i fl'
+ | FI_int :: fl' => tint :: format_argtys fl'
+ | FI_string :: fl' => tptr tschar :: format_argtys fl'
+ | FI_text _ :: fl' => format_argtys fl'
+ | FI_error :: fl' => format_argtys fl'
  | nil => nil
  end.
 
@@ -70,19 +70,20 @@ apply (SEP_of_format CS fl' stuff).
 apply (FF::nil).
 Defined.
 
-Fixpoint LOCAL_of_format 
-    (fl: list format_item) (id: ident) (stuff: format_stuff fl) {struct fl} : list localdef.
+
+Fixpoint PARAMS_of_format 
+    (fl: list format_item) (stuff: format_stuff fl) {struct fl} : list val.
 destruct fl as [ | fi fl'].
 apply nil.
 destruct fi; simpl in stuff.
 - (* FI_int *)
-apply (temp id (Vint (fst stuff)) :: LOCAL_of_format fl' (Pos.succ id) (snd stuff)).
+apply (Vint (fst stuff) :: PARAMS_of_format fl'  (snd stuff)).
 - (* FI_string *)
-apply (temp id (snd (fst stuff)) :: LOCAL_of_format fl' (Pos.succ id) (snd stuff)).
+apply ((snd (fst stuff)) :: PARAMS_of_format fl' (snd stuff)).
 - (* FI_text *)
-apply (LOCAL_of_format fl' id stuff).
+apply (PARAMS_of_format fl' stuff).
 - (* FI_error *)
-apply (LOCAL_of_format fl' id stuff).
+apply (PARAMS_of_format fl' stuff).
 Defined.
 
 Fixpoint PROP_of_format (fl: list format_item) (stuff: format_stuff fl) {struct fl} : list Prop.
@@ -105,12 +106,12 @@ Lemma div_10_dec : forall n, 0 < n ->
 Proof.
   intros.
   change 10 with (Z.of_nat 10).
-  rewrite <- (Z2Nat.id n) by omega.
+  rewrite <- (Z2Nat.id n) by lia.
   rewrite <- div_Zdiv by discriminate.
   rewrite !Nat2Z.id.
   apply Nat2Z.inj_lt.
-  rewrite div_Zdiv, Z2Nat.id by omega; simpl.
-  apply Z.div_lt; auto; omega.
+  rewrite div_Zdiv, Z2Nat.id by lia; simpl.
+  apply Z.div_lt; auto; lia.
 Qed.
 
 Definition charminus := Byte.repr 45.
@@ -122,20 +123,20 @@ Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat (if n <? 0 then Z.abs n 
 Next Obligation.
 Proof.
   destruct (Z.ltb_spec n 0); try discriminate.
-  destruct (Z.abs_spec n) as [[]|[? ->]]; try omega.
+  destruct (Z.abs_spec n) as [[]|[? ->]]; try lia.
   replace (- n <? 0) with false.
-  rep_omega.
-  destruct (Z.ltb_spec (-n) 0); auto; omega.
+  rep_lia.
+  destruct (Z.ltb_spec (-n) 0); auto; lia.
 Defined.
 Next Obligation.
 Proof.
   rewrite <- Heq_anonymous0.
   destruct (Z.ltb_spec n 0); try discriminate.
   pose proof (Z.div_pos _ 10 H).
-  destruct (Z.ltb_spec (n / 10) 0); try omega.
+  destruct (Z.ltb_spec (n / 10) 0); try lia.
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous.
-  eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); omega.
+  eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
 Defined.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
@@ -195,7 +196,7 @@ Definition get_reent_spec :=
   WITH p : val
   PRE [ ]
     PROP ()
-    LOCAL ()
+    PARAMS() GLOBALS ()
     SEP (reent_struct p)
   POST [ tptr (Tstruct reent noattr) ]
     PROP ()
@@ -205,9 +206,9 @@ Definition get_reent_spec :=
 Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
   let fl := interpret_format_string fmtz in
   NDmk_funspec
-    (((1%positive, tptr (Tstruct FILEid noattr)) ::
-      (2%positive, tptr tschar) :: 
-      format_argtys 3%positive fl),
+    (((  (*1%positive, *) tptr (Tstruct FILEid noattr)) ::
+      ((*2%positive,*) tptr tschar) :: 
+      format_argtys fl),
      tint)
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
      (val * share * list byte * val * format_stuff fl * (file_id * IO_itree))
@@ -215,9 +216,9 @@ Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
       match x with (outp,sh,fmt,fmtp,stuff,(out,k)) =>
         PROPx (readable_share sh :: (fmt = map Byte.repr fmtz) ::
                       PROP_of_format fl stuff)
-        (LOCALx (temp 1 outp ::
-                      LOCAL_of_format fl 3%positive stuff)
-         (SEPx (cstring sh fmt fmtp :: file_at out outp :: ITREE (write_list out (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff)))
+        (PARAMSx (outp :: fmtp :: PARAMS_of_format fl stuff)
+         (GLOBALSx nil 
+         (SEPx (cstring sh fmt fmtp :: file_at out outp :: ITREE (write_list out (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff))))
       end)
      (fun x : (val * share * list byte * val * format_stuff fl * (file_id * IO_itree)) => 
       match x with (outp,sh,fmt,fmtp,stuff,(out,k)) =>
@@ -230,8 +231,8 @@ Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
 Definition printf_spec_parametrized (fmtz: list Z) :=
   let fl := interpret_format_string fmtz in
   NDmk_funspec 
-    (((1%positive, tptr tschar) :: 
-      format_argtys 2%positive fl),
+    ((((*1%positive,*) tptr tschar) :: 
+      format_argtys (*2%positive*) fl),
      tint)
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
      (val * share * list byte * val * format_stuff fl * IO_itree)
@@ -239,8 +240,9 @@ Definition printf_spec_parametrized (fmtz: list Z) :=
       match x with (outp,sh,fmt,fmtp,stuff,k) =>
         PROPx (readable_share sh :: (fmt = map Byte.repr fmtz) :: 
                       PROP_of_format fl stuff)
-        (LOCALx (LOCAL_of_format fl 2%positive stuff)
-         (SEPx (cstring sh fmt fmtp :: ITREE (write_list stdout (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff)))
+        (PARAMSx (fmtp :: PARAMS_of_format fl stuff)
+         (GLOBALSx nil 
+         (SEPx (cstring sh fmt fmtp :: ITREE (write_list stdout (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff))))
       end)
      (fun x : (val * share * list byte * val * format_stuff fl * IO_itree) => 
       match x with (outp,sh,fmt,fmtp,stuff,k) =>
@@ -252,21 +254,21 @@ Definition printf_spec_parametrized (fmtz: list Z) :=
 
 Definition fprintf_placeholder_spec FILEid : funspec :=
   NDmk_funspec 
-    (((1%positive, tptr (Tstruct FILEid noattr)) ::
-      (2%positive, tptr tschar) :: nil),
+    ((((*1%positive,*) tptr (Tstruct FILEid noattr)) ::
+      ((*2%positive,*) tptr tschar) :: nil),
      tint)
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
      unit
-     (fun x : unit =>  PROP (False) LOCAL () SEP ())
+     (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())%argsassert
      (fun x : unit =>  PROP () LOCAL () SEP ()).
 
 Definition printf_placeholder_spec : funspec :=
   NDmk_funspec 
-    (((1%positive, tptr tschar) :: nil),
+    ((((*1%positive,*) tptr tschar) :: nil),
      tint)
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
      unit
-     (fun x : unit =>  PROP (False) LOCAL () SEP ())
+     (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())%argsassert
      (fun x : unit =>  PROP () LOCAL () SEP ()).
 
 Axiom fprintf_spec_sub:
@@ -373,7 +375,7 @@ Ltac forward_fprintf' gv Pre id sub outv w w' :=
     simpl format_argtys in H;
     simpl format_stuff in H; 
     simpl PROP_of_format in H; 
-    simpl LOCAL_of_format in H; 
+    simpl PARAMS_of_format in H; 
     simpl SEP_of_format in H;
     check_fprintf_witness H w;
     forward_call H (outv, sh, string2bytes s, gv id, w, w');

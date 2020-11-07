@@ -1,5 +1,5 @@
 Require Export List. Export ListNotations.
-Require Import ZArith.
+Require Import ZArith Lia.
 Local Open Scope Z_scope.
 Require Import VST.floyd.sublist.
 
@@ -14,7 +14,7 @@ Lemma repeat_op_step: forall {T: Type} (i: Z) (start: T) (op: T -> T),
   0 <= i ->
   repeat_op (i + 1) start op = op (repeat_op i start op).
 Proof.
-  intros. unfold repeat_op. rewrite Z2Nat.inj_add by omega.
+  intros. unfold repeat_op. rewrite Z2Nat.inj_add by lia.
   rewrite Nat.add_1_r. simpl. reflexivity.
 Qed.
 
@@ -30,7 +30,7 @@ Lemma repeat_op_table_step: forall {T: Type} (i: Z) (start: T) (op: T -> T),
   0 <= i ->
   repeat_op_table (i + 1) start op = (repeat_op_table i start op) ++ [repeat_op i start op].
 Proof.
-  intros. unfold repeat_op_table. rewrite Z2Nat.inj_add by omega.
+  intros. unfold repeat_op_table. rewrite Z2Nat.inj_add by lia.
   rewrite Nat.add_1_r. simpl. reflexivity.
 Qed.
 
@@ -38,7 +38,7 @@ Lemma repeat_op_table_nat_length: forall {T: Type} (i: nat) (x: T) (f: T -> T),
   length (repeat_op_table_nat i x f) = i.
 Proof.
   intros. induction i. reflexivity. simpl. rewrite app_length. simpl.
-  rewrite IHi. omega.
+  rewrite IHi. lia.
 Qed.
 
 Lemma repeat_op_table_length: forall {T: Type} (i: Z) (x: T) (f: T -> T),
@@ -63,8 +63,8 @@ Lemma repeat_op_table_nat_id_app: forall {T: Type} (len1 len2: nat) (v: T),
   = repeat_op_table_nat len1 v id ++ repeat_op_table_nat len2 v id.
 Proof.
   intros. induction len2.
-  - simpl. replace (len1 + 0)%nat with len1 by omega. rewrite app_nil_r. reflexivity.
-  - replace (len1 + S len2)%nat with (S (len1 + len2)) by omega. simpl.
+  - simpl. replace (len1 + 0)%nat with len1 by lia. rewrite app_nil_r. reflexivity.
+  - replace (len1 + S len2)%nat with (S (len1 + len2)) by lia. simpl.
     rewrite IHlen2. rewrite <- app_assoc. f_equal. f_equal. do 2 rewrite repeat_op_nat_id.
     reflexivity.
 Qed.
@@ -76,17 +76,17 @@ Lemma sublist_repeat_op_table_id: forall {T: Type} (lo n: Z) (v: T),
 Proof.
   intros.
   replace (lo + n) with (Zlength (repeat_op_table (lo + n) v id)) at 1
-    by (apply repeat_op_table_length; omega).
-  rewrite sublist_skip by omega.
-  unfold repeat_op_table at 1. rewrite Z2Nat.inj_add by omega.
+    by (apply repeat_op_table_length; lia).
+  rewrite sublist_skip by lia.
+  unfold repeat_op_table at 1. rewrite Z2Nat.inj_add by lia.
   rewrite repeat_op_table_nat_id_app.
   rewrite Zskipn_app1 by (
     rewrite Zlength_correct;
     rewrite repeat_op_table_nat_length;
-    rewrite Z2Nat.id; omega
+    rewrite Z2Nat.id; lia
   ).
   rewrite skipn_short; [ reflexivity | ].
-  rewrite repeat_op_table_nat_length. omega.
+  rewrite repeat_op_table_nat_length. lia.
 Qed.
 
 Fixpoint fill_list_nat{T: Type}(n: nat)(f: nat -> T): list T := match n with
@@ -101,8 +101,8 @@ Lemma fill_list_step: forall {T: Type} (n: Z) (f: Z -> T),
   0 <= n ->
   fill_list (n + 1) f = fill_list n f ++ [f n].
 Proof.
-  intros. unfold fill_list. rewrite Z2Nat.inj_add by omega.
-  rewrite Nat.add_1_r. simpl. rewrite Z2Nat.id by omega. reflexivity.
+  intros. unfold fill_list. rewrite Z2Nat.inj_add by lia.
+  rewrite Nat.add_1_r. simpl. rewrite Z2Nat.id by lia. reflexivity.
 Qed.
 
 Ltac eval_list l :=

@@ -16,7 +16,7 @@ forward_if.
 *
   forward_call (z-1, tt).
   (* Prove that PROP precondition is OK *)
-  rep_omega.
+  rep_lia.
   (* After the call *)
   forward.
   entailer!.
@@ -28,7 +28,7 @@ Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 forward_call (42).
-rep_omega.
+rep_lia.
 forward.
 Qed.
 

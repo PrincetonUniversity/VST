@@ -6,6 +6,7 @@ Require Import VST.floyd.library.
 
 Set Bullet Behavior "Strict Subproofs".
 
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -244,7 +245,7 @@ Proof.
     + inv Hnil; auto.
     + exploit (Znth_inbounds i [l0] []).
       { rewrite Hcons; discriminate. }
-      intro; assert (i = 0) by (rewrite Zlength_cons, Zlength_nil in *; omega).
+      intro; assert (i = 0) by (rewrite Zlength_cons, Zlength_nil in *; lia).
       subst; rewrite Znth_0_cons in Hcons; subst.
       rewrite upd_Znth0, sublist_nil in IHinterleave; specialize (IHinterleave _ eq_refl); subst; auto.
   - induction l; econstructor; auto.
@@ -260,20 +261,20 @@ Proof.
     + inv Hnil; constructor; auto.
     + destruct (Z_le_dec i 0).
       { destruct (eq_dec i 0); [subst; rewrite Znth_0_cons in Hcons | rewrite Znth_underflow in Hcons];
-          try discriminate; try omega. }
-      rewrite Znth_pos_cons in Hcons; [econstructor; eauto | omega].
+          try discriminate; try lia. }
+      rewrite Znth_pos_cons in Hcons; [econstructor; eauto | lia].
       apply IHinterleave.
       setoid_rewrite upd_Znth_app2 with (l1 := [[]]); auto.
       rewrite Zlength_cons, Zlength_nil.
-      destruct (Z_le_dec (i - 1) (Zlength ls0)); [omega | rewrite Znth_overflow in Hcons; [discriminate | omega]].
+      destruct (Z_le_dec (i - 1) (Zlength ls0)); [lia | rewrite Znth_overflow in Hcons; [discriminate | lia]].
   - induction H.
     + constructor; auto.
     + destruct (zlt i 0); [rewrite Znth_underflow in Hcons; [discriminate | auto]|].
       econstructor.
-      * rewrite Znth_pos_cons, Z.add_simpl_r; eauto; omega.
+      * rewrite Znth_pos_cons, Z.add_simpl_r; eauto; lia.
       * setoid_rewrite upd_Znth_app2 with (l1 := [[]]); rewrite Zlength_cons, Zlength_nil.
         rewrite Z.add_simpl_r; auto.
-        { destruct (Z_le_dec i (Zlength ls)); [omega | rewrite Znth_overflow in Hcons; [discriminate | omega]]. }
+        { destruct (Z_le_dec i (Zlength ls)); [lia | rewrite Znth_overflow in Hcons; [discriminate | lia]]. }
 Qed.
 
 Corollary interleave_remove_nils : forall {A} ls0 ls (l' : list A), Forall (fun l => l = []) ls0 ->
@@ -296,18 +297,18 @@ Proof.
     intro; destruct (eq_dec i0 0).
     + subst; rewrite Znth_0_cons in Hcons; inv Hcons.
       econstructor.
-      * rewrite app_Znth1; eauto; omega.
+      * rewrite app_Znth1; eauto; lia.
       * rewrite upd_Znth_app1; auto.
         rewrite upd_Znth0, sublist_1_cons, sublist_same in Hl''; auto.
-        rewrite Zlength_cons; omega.
+        rewrite Zlength_cons; lia.
     + exploit (Znth_inbounds i0 ((a0 :: l'0) :: ls2) []).
       { rewrite Hcons; discriminate. }
-      intro; rewrite Znth_pos_cons in Hcons; [|omega].
+      intro; rewrite Znth_pos_cons in Hcons; [|lia].
       econstructor.
-      * rewrite app_Znth2, Z.add_simpl_r; eauto; omega.
-      * rewrite Zlength_cons in *; rewrite upd_Znth_app2, Z.add_simpl_r; [|omega].
+      * rewrite app_Znth2, Z.add_simpl_r; eauto; lia.
+      * rewrite Zlength_cons in *; rewrite upd_Znth_app2, Z.add_simpl_r; [|lia].
         eapply IHHl''; eauto.
-        rewrite upd_Znth_cons; auto; omega.
+        rewrite upd_Znth_cons; auto; lia.
 Qed.
 
 Lemma lqueue_share_join : forall t P sh1 sh2 sh p lock gsh1 gsh2 h1 h2
@@ -353,15 +354,15 @@ Proof.
   - rewrite Znth_0_cons; simpl.
     rewrite Zlength_cons in Hsplit.
     exploit (Hsplit 0).
-    { rewrite Zlength_correct; omega. }
+    { rewrite Zlength_correct; lia. }
     rewrite !Znth_0_cons; destruct a; intros (? & ? & ?).
     erewrite <- sepcon_assoc, lqueue_share_join; eauto.
-    simpl; rewrite Znth_pos_cons, Zminus_diag; [|omega].
+    simpl; rewrite Znth_pos_cons, Zminus_diag; [|lia].
     Intros h'.
     eapply derives_trans; [apply IHshs; auto|].
     { intros; specialize (Hsplit (i + 1)).
-      rewrite !Znth_pos_cons, !Z.add_simpl_r in Hsplit; try omega.
-      apply Hsplit; omega. }
+      rewrite !Znth_pos_cons, !Z.add_simpl_r in Hsplit; try lia.
+      apply Hsplit; lia. }
     Intros h''.
     Exists h''; entailer!.
     eapply interleave_trans with (ls1 := [h; l]); eauto.
@@ -456,10 +457,10 @@ Proof.
   exploit (tqueue_inj w _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hq1 Hq2); try join_sub.
   { apply Forall_rotate, Forall_complete; auto; [|discriminate].
     eapply Forall_impl; [|apply Hptrs1]; destruct a; try contradiction; discriminate. }
-  { rewrite Zlength_rotate; try rewrite Zlength_complete; try omega; rewrite Zlength_map; auto. }
+  { rewrite Zlength_rotate; try rewrite Zlength_complete; try lia; rewrite Zlength_map; auto. }
   { apply Forall_rotate, Forall_complete; auto; [|discriminate].
     eapply Forall_impl; [|apply Hptrs2]; destruct a; try contradiction; discriminate. }
-  { rewrite Zlength_rotate; try rewrite Zlength_complete; try omega; rewrite Zlength_map; auto. }
+  { rewrite Zlength_rotate; try rewrite Zlength_complete; try lia; rewrite Zlength_map; auto. }
   { rewrite cond_var_isptr in Haddc1; destruct Haddc1, addc1; try contradiction; discriminate. }
   { rewrite cond_var_isptr in Haddc2; destruct Haddc2, addc2; try contradiction; discriminate. }
   { rewrite cond_var_isptr in Hremc1; destruct Hremc1, remc1; try contradiction; discriminate. }
@@ -472,17 +473,17 @@ Proof.
   { join_sub. }
   intro; subst.
   assert (head1 = head2) as ->.
-  { apply repr_inj_unsigned; auto; split; try omega; transitivity MAX; try omega; unfold MAX; computable. }
+  { apply repr_inj_unsigned; auto; split; try lia; transitivity MAX; try lia; unfold MAX; computable. }
   assert (length vals1 = length vals2).
   { apply repr_inj_unsigned in Hlen; rewrite Zlength_correct in Hlen.
     rewrite Zlength_correct in Hlen; Omega0.
-    - split; [rewrite Zlength_correct; omega|]; transitivity MAX; try omega; unfold MAX; computable.
-    - split; [rewrite Zlength_correct; omega|]; transitivity MAX; try omega; unfold MAX; computable. }
+    - split; [rewrite Zlength_correct; lia|]; transitivity MAX; try lia; unfold MAX; computable.
+    - split; [rewrite Zlength_correct; lia|]; transitivity MAX; try lia; unfold MAX; computable. }
   assert (map fst vals1 = map fst vals2) as Heq.
   { eapply complete_inj; [|rewrite !map_length; auto].
-    eapply rotate_inj; eauto; try omega.
+    eapply rotate_inj; eauto; try lia.
     repeat rewrite length_complete; try rewrite Zlength_map; auto.
-    rewrite Zlength_complete; try rewrite Zlength_map; omega. }
+    rewrite Zlength_complete; try rewrite Zlength_map; lia. }
   rewrite Heq in *.
   exploit (vals_precise w _ _ _ _ _ _ Heq Hvals1 Hvals2); auto; try join_sub.
   assert (readable_share Tsh) as Hread by auto.
@@ -674,48 +675,48 @@ Proof.
     + exploit (Znth_inbounds i (ls1 ++ l0 :: ls2) []); [rewrite Hcons; discriminate | intro].
       destruct (zlt i (Zlength ls1)); [|rewrite app_Znth2 in Hcons; auto; destruct (eq_dec (i - Zlength ls1) 0)].
       * rewrite app_Znth1 in Hcons; auto.
-        econstructor; [rewrite Znth_pos_cons, app_Znth1, Z.add_simpl_r; eauto; omega|].
-        rewrite upd_Znth_cons, upd_Znth_app1; try omega.
+        econstructor; [rewrite Znth_pos_cons, app_Znth1, Z.add_simpl_r; eauto; lia|].
+        rewrite upd_Znth_cons, upd_Znth_app1; try lia.
         apply IHinterleave.
-        rewrite upd_Znth_app1, Z.add_simpl_r; [auto | omega].
+        rewrite upd_Znth_app1, Z.add_simpl_r; [auto | lia].
       * rewrite e, Znth_0_cons in Hcons; subst.
         econstructor; [rewrite Znth_0_cons; eauto|].
-        rewrite upd_Znth0, sublist_1_cons, sublist_same; auto; [|rewrite Zlength_cons; omega].
+        rewrite upd_Znth0, sublist_1_cons, sublist_same; auto; [|rewrite Zlength_cons; lia].
         apply IHinterleave.
         rewrite upd_Znth_app2, e, upd_Znth0, sublist_1_cons, sublist_same; auto;
-          rewrite Zlength_app, Zlength_cons in *; omega.
-      * rewrite Znth_pos_cons in Hcons; [|omega].
-        replace (i - Zlength ls1 - 1) with ((i - 1) - Zlength ls1) in Hcons by omega.
-        assert (i > 0) by (rewrite Zlength_correct in *; omega).
-        econstructor; [rewrite Znth_pos_cons, app_Znth2; eauto; omega|].
+          rewrite Zlength_app, Zlength_cons in *; lia.
+      * rewrite Znth_pos_cons in Hcons; [|lia].
+        replace (i - Zlength ls1 - 1) with ((i - 1) - Zlength ls1) in Hcons by lia.
+        assert (i > 0) by (rewrite Zlength_correct in *; lia).
+        econstructor; [rewrite Znth_pos_cons, app_Znth2; eauto; lia|].
         rewrite Zlength_app, Zlength_cons in *.
-        rewrite upd_Znth_cons, upd_Znth_app2; auto; try omega.
+        rewrite upd_Znth_cons, upd_Znth_app2; auto; try lia.
         apply IHinterleave.
-        rewrite upd_Znth_app2, upd_Znth_cons; rewrite ?Zlength_cons; try omega.
+        rewrite upd_Znth_app2, upd_Znth_cons; rewrite ?Zlength_cons; try lia.
         replace (i - Zlength ls1 - 1) with (i - 1 - Zlength ls1); Omega0.
   - remember (l :: ls1 ++ ls2) as l0; revert dependent ls2; revert l ls1; induction H; intros; subst.
     + inv Hnil; constructor.
       rewrite Forall_app in H2; destruct H2; rewrite Forall_app; split; auto.
     + exploit (Znth_inbounds i (l0 :: ls1 ++ ls2) []); [rewrite Hcons; discriminate | intro].
-      destruct (eq_dec i 0); [|rewrite Znth_pos_cons in Hcons; [destruct (zlt (i - 1) (Zlength ls1)) | omega]].
+      destruct (eq_dec i 0); [|rewrite Znth_pos_cons in Hcons; [destruct (zlt (i - 1) (Zlength ls1)) | lia]].
       * subst; rewrite Znth_0_cons in Hcons; subst.
-        econstructor; [rewrite app_Znth2, Zminus_diag, Znth_0_cons; eauto; omega|].
+        econstructor; [rewrite app_Znth2, Zminus_diag, Znth_0_cons; eauto; lia|].
         rewrite upd_Znth_app2, Zminus_diag, upd_Znth0, sublist_1_cons, sublist_same; auto;
-          try rewrite Zlength_cons, !Zlength_correct; try omega.
+          try rewrite Zlength_cons, !Zlength_correct; try lia.
         apply IHinterleave.
-        rewrite upd_Znth0, sublist_1_cons, sublist_same; auto; rewrite Zlength_cons; omega.
+        rewrite upd_Znth0, sublist_1_cons, sublist_same; auto; rewrite Zlength_cons; lia.
       * rewrite app_Znth1 in Hcons; auto.
         econstructor; [rewrite app_Znth1; eauto|].
-        rewrite upd_Znth_app1; [|omega].
+        rewrite upd_Znth_app1; [|lia].
         apply IHinterleave.
-        rewrite upd_Znth_cons, upd_Znth_app1; auto; omega.
+        rewrite upd_Znth_cons, upd_Znth_app1; auto; lia.
       * rewrite app_Znth2 in Hcons; auto.
-        replace (i - 1 - Zlength ls1) with (i - Zlength ls1 - 1) in Hcons by omega.
-        econstructor; [rewrite app_Znth2, Znth_pos_cons; eauto; omega|].
-        rewrite upd_Znth_app2, upd_Znth_cons; try rewrite Zlength_cons, Zlength_app in *; try omega.
+        replace (i - 1 - Zlength ls1) with (i - Zlength ls1 - 1) in Hcons by lia.
+        econstructor; [rewrite app_Znth2, Znth_pos_cons; eauto; lia|].
+        rewrite upd_Znth_app2, upd_Znth_cons; try rewrite Zlength_cons, Zlength_app in *; try lia.
         apply IHinterleave.
-        rewrite upd_Znth_cons, upd_Znth_app2; try omega.
-        replace (i - 1 - Zlength ls1) with (i - Zlength ls1 - 1); auto; omega.
+        rewrite upd_Znth_cons, upd_Znth_app2; try lia.
+        replace (i - 1 - Zlength ls1) with (i - Zlength ls1 - 1); auto; lia.
 Qed.
 
 Corollary interleave_remove_nil' : forall {A} ls1 ls2 (l' : list A),
@@ -776,7 +777,7 @@ Proof.
       exploit (Hnil (combine l1 (Znth i ls2 []))).
       { rewrite in_map_iff; eexists (_, _); split; eauto.
         subst; rewrite <- Znth_combine; auto.
-        apply Znth_In; rewrite Zlength_combine, Z.min_l; auto; omega. }
+        apply Znth_In; rewrite Zlength_combine, Z.min_l; auto; lia. }
       exploit (Forall2_Znth _ _ _ [] [] Hls); eauto.
       intros; subst.
       destruct (Znth i ls1 []); auto.
@@ -786,7 +787,7 @@ Proof.
       exploit (Hnil (combine (Znth i ls1 []) l2)).
       { rewrite in_map_iff; eexists (_, _); split; eauto.
         subst; rewrite <- Znth_combine; auto.
-        apply Znth_In; rewrite Zlength_combine, Z.min_l; auto; omega. }
+        apply Znth_In; rewrite Zlength_combine, Z.min_l; auto; lia. }
       exploit (Forall2_Znth _ _ _ [] [] Hls); [rewrite H; eauto|].
       intros; subst.
       destruct (Znth i ls2 []); auto.
@@ -801,7 +802,7 @@ Proof.
     inv Hcons.
     exploit (Znth_inbounds i ls1 []); [rewrite Ha1; discriminate | intro].
     exploit (IHinterleave (upd_Znth i ls1 la) (upd_Znth i ls2 lb)); eauto.
-    { apply Forall2_upd_Znth; auto; [|omega].
+    { apply Forall2_upd_Znth; auto; [|lia].
       exploit (Forall2_Znth _ _ _ [] [] Hls); eauto.
       rewrite Ha1, Ha2; intro Hlen; inv Hlen; auto. }
     { change (combine la lb) with ((fun x : list A * list B => let '(la, lb) := x in combine la lb) (la, lb)).
@@ -819,7 +820,7 @@ Lemma total_length_app : forall {A} (l1 l2 : list (list A)),
   total_length (l1 ++ l2) = total_length l1 + total_length l2.
 Proof.
   induction l1; auto; intros; simpl.
-  rewrite IHl1; omega.
+  rewrite IHl1; lia.
 Qed.
 
 Lemma total_length_upd : forall {A} ls i (l : list A), 0 <= i < Zlength ls ->
@@ -828,9 +829,9 @@ Proof.
   intros; unfold upd_Znth.
   replace ls with (sublist 0 i ls ++ sublist i (Zlength ls) ls) at 4.
   rewrite !total_length_app; simpl.
-  rewrite sublist_next with (i0 := i)(d := []); auto; try omega.
-  simpl; omega.
-  { rewrite <- sublist_split, sublist_same; auto; omega. }
+  rewrite sublist_next with (i0 := i)(d := []); auto; try lia.
+  simpl; lia.
+  { rewrite <- sublist_split, sublist_same; auto; lia. }
 Qed.
 
 Lemma Zlength_interleave : forall {A} ls (l : list A), interleave ls l ->
@@ -843,5 +844,5 @@ Proof.
     rewrite Zlength_nil, <- IHls; auto.
   - exploit (Znth_inbounds i ls []); [rewrite Hcons; discriminate | intro].
     rewrite total_length_upd, Hcons in IHinterleave; auto.
-    rewrite Zlength_cons in *; omega.
+    rewrite Zlength_cons in *; lia.
 Qed.

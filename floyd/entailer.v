@@ -27,180 +27,54 @@ Hint Resolve isptr_force_val_sem_cast_neutral : norm.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
-Hint Resolve @FF_local_facts: saturate_local.
-
-(*
-(*** Omega stuff ***)
-
-Ltac omegable' A :=
-lazymatch A with
-| @eq nat _ _ => idtac
-| @eq Z _ _ => idtac
-| Z.lt _ _ => idtac
-| Z.le _ _ => idtac
-| Z.gt _ _ => idtac
-| Z.ge _ _ => idtac
-| Peano.lt _ _ => idtac
-| Peano.le _ _ => idtac
-| Peano.gt _ _ => idtac
-| Peano.ge _ _ => idtac
-| ~ ?A => omegable' A
-| ?A /\ ?B => omegable' A; omegable' B
-end.
-
-Ltac omegable := match goal with |- ?A => omegable' A end.
-
-Ltac  add_nonredundant' F T G :=
-   match G with
-        | T -> _ => fail 1
-        | _ -> ?G' => add_nonredundant' F T G' || fail 1
-        | _ => generalize F
-  end.
-
-Ltac  add_nonredundant F :=
- match type of F with ?T =>
-   match goal with |- ?G => add_nonredundant' F T G
-   end
- end.
-
-Lemma omega_aux: forall {A} (B C: A),
-   B=C -> forall D, (B=C->D) -> D.
-Proof. intuition. Qed.
-
-Ltac is_const A :=
- match A with
- | Z0 => idtac
- | Zpos ?B => is_const B
- | Zneg ?B => is_const B
- | xH => idtac
- | xI ?B => is_const B
- | xO ?B => is_const B
- | O => idtac
- | S ?B => is_const B
- end.
-
-Ltac simpl_const :=
-  match goal with
-   | |- context [Z.of_nat ?A] =>
-     is_const A;
-     let H := fresh in set (H:= Z.of_nat A); simpl in H; unfold H; clear H
-   | |- context [Z.to_nat ?A] =>
-     is_const A;
-     let H := fresh in set (H:= Z.to_nat A); simpl in H; unfold H; clear H
-  end.
-
-Ltac Omega' L :=
-repeat match goal with
- | H: @eq Z _ _ |- _ => revert H
- | H: @eq nat _ _ |- _ => revert H
- | H: @neq Z _ _ |- _ => revert H
- | H: not (@eq Z _ _) |- _ => revert H
- | H: @neq nat _ _ |- _ => revert H
- | H: not (@eq nat _ _) |- _ => revert H
- | H: _ <> _ |- _ => revert H
- | H: Z.lt _ _ |- _ => revert H
- | H: Z.le _ _ |- _ => revert H
- | H: Z.gt _ _ |- _ => revert H
- | H: Z.ge _ _ |- _ => revert H
- | H: Z.le _ _ /\ Z.le _ _ |- _ => revert H
- | H: Z.lt _ _ /\ Z.le _ _ |- _ => revert H
- | H: Z.le _ _ /\ Z.lt _ _ |- _ => revert H
- | H: lt _ _ |- _ => revert H
- | H: le _ _ |- _ => revert H
- | H: gt _ _ |- _ => revert H
- | H: ge _ _ |- _ => revert H
- | H: le _ _ /\ le _ _ |- _ => revert H
- | H: lt _ _ /\ le _ _ |- _ => revert H
- | H: le _ _ /\ lt _ _ |- _ => revert H
- | H := ?A : Z |- _ => apply (omega_aux H A (eq_refl _)); clearbody H
- | H := ?A : nat |- _ => apply (omega_aux H A (eq_refl _)); clearbody H
- | H: _ |- _ => clear H
- end;
- clear;
- abstract (
-   repeat (L || simpl_const);
-   intros; omega).
-
-Ltac Omega'' L :=
-  match goal with
-  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
-  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
-  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
-  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
-  | |- @eq nat _ _ => apply Nat2Z.inj
-  | |- _ => idtac
-  end;
- repeat first
-     [ simpl_const
-     | rewrite Nat2Z.id
-     | rewrite Nat2Z.inj_add
-     | rewrite Nat2Z.inj_mul
-     | rewrite Z2Nat.id by Omega'' L
-     | rewrite Nat2Z.inj_sub by Omega'' L
-     | rewrite Z2Nat.inj_sub by Omega'' L
-     | rewrite Z2Nat.inj_add by Omega'' L
-     ];
-  Omega' L.
-
-Tactic Notation "Omega" tactic(L) := (omegable; Omega'' L).
-
-Ltac helper1 := 
-  pose_standard_const_equations;
- match goal with
-   | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
- end.
-
-Ltac Omega0 := Omega (solve [ helper1 ]).
-
-(*** End of Omega stuff *)
-*)
+Hint Resolve FF_local_facts: saturate_local.
 
 Ltac simpl_compare :=
  match goal with
  | H: Vint _ = _ |- _ =>
          revert H; simpl_compare; intro H;
-         try (simpl in H; apply Vint_inj in H;
+         try (apply Vint_inj in H;
                match type of H with ?a = ?b =>
                   first [safe_subst a | safe_subst b | idtac]
                end)
  | H: typed_true _ _ |- _ =>
-         simpl in H; revert H; simpl_compare; intro H;
+         revert H; simpl_compare; intro H;
          first [apply typed_true_ptr in H
                  | apply typed_true_of_bool in H;
                    first [apply (int_cmp_repr Clt) in H;
-                            [ | rep_omega ..]; simpl in H
+                            [ | rep_lia ..]; red in H
                           | apply (int_cmp_repr Ceq) in H;
-                             [ | rep_omega ..]; simpl in H
+                             [ | rep_lia ..]; red in H
                           | idtac ]
                  | discriminate H
                  | idtac ]
  | H: typed_false _ _ |- _ =>
-         simpl in H; revert H; simpl_compare; intro H;
+         revert H; simpl_compare; intro H;
          first [ apply typed_false_ptr in H
                 | apply typed_false_of_bool in H;
                    first [apply (int_cmp_repr' Clt) in H;
-                            [ | rep_omega ..]; simpl in H
+                            [ | rep_lia ..]; unfold negate_comparison in H; red in H
                           | apply (int_cmp_repr' Ceq) in H;
-                            [ | rep_omega ..]; simpl in H
+                            [ | rep_lia ..]; unfold negate_comparison in H; red in H
                           | idtac]
                  | discriminate H
                  | idtac ]
  | H : Int.lt _ _ = false |- _ =>
          revert H; simpl_compare; intro H;
          try (apply (int_cmp_repr' Clt) in H ;
-                    [ | rep_omega ..]; simpl in H)
+                    [ | rep_lia ..])
  | H : Int.lt _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Clt) in H ;
-                    [ | rep_omega ..]; simpl in H)
+                    [ | rep_lia ..])
  | H : Int.eq _ _ = false |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr' Ceq) in H ;
-                    [ | rep_omega ..]; simpl in H)
+                    [ | rep_lia ..])
  | H : Int.eq _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Ceq) in H ;
-                    [ | rep_omega ..]; simpl in H)
+                    [ | rep_lia ..])
  | |- _ => idtac
 end.
 
@@ -221,16 +95,50 @@ Arguments denote_tc_nodivover !v1 !v2 .
 Arguments denote_tc_initialized id ty rho / .
 Arguments denote_tc_nosignedover op v1 v2 / .
 Ltac simpl_denote_tc :=
- simpl denote_tc_isptr;
- simpl denote_tc_iszero;
- simpl denote_tc_nonzero;
- simpl denote_tc_igt;
- simpl denote_tc_Zge;
- simpl denote_tc_Zle;
- simpl denote_tc_samebase;
- simpl denote_tc_nodivover;
- simpl denote_tc_initialized;
- simpl denote_tc_nosignedover.
+ repeat change (denote_tc_isptr ?v) with (!! isptr v);
+ repeat change (denote_tc_iszero (Vint ?i)) with (!! is_true (Int.eq i Int.zero));
+ repeat change (denote_tc_iszero (Vlong ?i)) with (!! is_true (Int64.eq i Int64.zero));
+ repeat change (denote_tc_iszero _) with (@FF mpred _);
+ repeat change (denote_tc_nonzero (Vint ?i)) with (!! (i <> Int.zero));
+ repeat change (denote_tc_nonzero (Vlong ?i)) with (!! (i <> Int64.zero));
+ repeat change (denote_tc_nonzero _) with (@FF mpred _);
+ repeat change (denote_tc_igt ?i (Vint ?i1)) with (!! (Int.unsigned i1 < Int.unsigned i));
+ repeat change (denote_tc_Zge ?z (Vfloat ?f)) with 
+                     match Zoffloat f with Some n => !!(z>=n) | None => @FF mpred _ end;
+ repeat change (denote_tc_Zge ?z (Vsingle ?f)) with 
+                     match Zofsingle f with Some n => !!(z<=n) | None => @FF mpred _ end;
+ repeat change (denote_tc_Zge ?z _) with  (@FF mpred _);
+ repeat change (denote_tc_Zle ?z (Vfloat ?f)) with 
+                     match Zoffloat f with Some n => !!(z<=n) | None => @FF mpred _ end;
+ repeat change (denote_tc_Zle ?z (Vsingle ?f)) with 
+                     match Zofsingle f with Some n => !!(z<=n) | None => @FF mpred _ end;
+ repeat change (denote_tc_Zle ?z _) with  (@FF mpred _);
+ repeat change (denote_tc_samebase ?v1 ?v2) with (!! is_true (sameblock v1 v2));
+ repeat change (denote_tc_nodivover (Vint ?n1) (Vint ?n2))
+            with (!! (~ (n1 = Int.repr Int.min_signed /\ n2 = Int.mone)));
+ repeat change (denote_tc_nodivover (Vint ?n1) (Vlong _))
+            with (@TT mpred _);
+ repeat change (denote_tc_nodivover (Vlong ?n1) (Vint ?n2))
+            with ( !! (~ (n1 = Int64.repr Int64.min_signed /\ n2 = Int.mone)));
+ repeat change (denote_tc_nodivover (Vlong ?n1) (Vlong ?n2))
+            with (!! (~ (n1 = Int64.repr Int64.min_signed /\ n2 = Int64.mone)));
+ repeat change (denote_tc_nodivover _ _)
+            with (@FF mpred _);
+ repeat change (denote_tc_nosignedover ?op (Vint ?n1) (Vint ?n2)) with
+          (!! (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed));
+ repeat change (denote_tc_nosignedover ?op (Vint ?n1) (Vlong ?n2)) with
+          (!! (Int64.min_signed <=
+            op (Int.signed n1) (Int64.signed n2) <= Int64.max_signed));
+ repeat change (denote_tc_nosignedover ?op (Vlong ?n1) (Vint ?n2)) with
+          (!! (Int64.min_signed <=
+            op (Int64.signed n1) (Int.signed n2) <=
+            Int64.max_signed));
+ repeat change (denote_tc_nosignedover ?op (Vlong ?n1) (Vlong ?n2)) with
+          (!! (Int64.min_signed <=
+            op (Int64.signed n1) (Int64.signed n2) <=
+            Int64.max_signed));
+ repeat change (denote_tc_nosignedover _ _)  with (@FF mpred _);
+ simpl denote_tc_initialized.
 
 Lemma denote_tc_test_eq_split:
   forall P x y,
@@ -405,7 +313,7 @@ Ltac pull_out_props :=
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
-    autorewrite with gather_prop;
+    gather_prop;
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true).
@@ -425,12 +333,12 @@ match goal with
 end.
 
 Ltac ent_iter :=
+    try simple apply prop_True_right;
     repeat simplify_float2int;
-    autorewrite with gather_prop;
+    gather_prop;
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
-(*   saturate_local; *)
    repeat erewrite unfold_reptype_elim in * by (apply JMeq_refl; reflexivity);
    simpl_compare;
    simpl_denote_tc;
@@ -441,22 +349,22 @@ Ltac ent_iter :=
 
 Lemma and_False: forall x, (x /\ False) = False.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply prop_ext; tauto.
 Qed.
 
 Lemma and_True: forall x, (x /\ True) = x.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply prop_ext; tauto.
 Qed.
 
 Lemma True_and: forall x, (True /\ x) = x.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply prop_ext; tauto.
 Qed.
 
 Lemma False_and: forall x, (False /\ x) = False.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply prop_ext; tauto.
 Qed.
 Ltac splittable :=
  match goal with
@@ -471,9 +379,9 @@ Ltac splittable :=
 Ltac prove_signed_range :=
   match goal with
   | |- Int.min_signed <= _ <= Int.max_signed => 
-           normalize; rep_omega
+           normalize; rep_lia
   | |- Int64.min_signed <= _ <= Int64.max_signed => 
-           normalize; rep_omega
+           normalize; rep_lia
   end.
 
 Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
@@ -508,16 +416,19 @@ Proof.
   eapply Z.le_trans; [eassumption | ]. compute; intros Hx; inv Hx.
 Qed.
 
-Hint Rewrite intsigned_intrepr_bytesigned : rep_omega.
+Hint Rewrite intsigned_intrepr_bytesigned : rep_lia.
 
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
         | apply Coq.Init.Logic.I
         | reflexivity
-        | rewrite ?intsigned_intrepr_bytesigned; rep_omega (* Omega0 *)
+        | rewrite ?intsigned_intrepr_bytesigned; rep_lia (* Omega0 *)
         | prove_signed_range
-        | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
+        | repeat match goal with
+                      | H: ?A |- _ => has_evar A; clear H 
+                      | H: @value_fits _ _ _ |- _ => clear H  (* delete these because they can cause slowness in the 'auto' *)
+                      end;
           auto with prove_it_now field_compatible;
           autorewrite with norm entailer_rewrite; normalize;
           first [eapply field_compatible_nullval; eassumption
@@ -539,15 +450,15 @@ Ltac try_prove_it_now :=
 *)
 Lemma try_conjuncts_lem2: forall A B : Prop,
    B -> A -> (A /\ B).
-Proof. intuition. Qed.
+Proof. tauto. Qed.
 
 Lemma try_conjuncts_lem: forall A B A' B' : Prop,
    (A -> A') -> (B -> B') -> (A /\ B -> A' /\ B').
-Proof. intuition. Qed.
+Proof. tauto. Qed.
 
 Lemma try_conjuncts_start: forall A B: Prop,
    (A -> B) -> (A -> B).
- Proof. intuition. Qed.
+ Proof. tauto. Qed.
 
 Ltac try_conjuncts_solver :=
     lazymatch goal with H:_ |- ?A =>
@@ -688,25 +599,25 @@ Ltac entbang :=
         clear MORE_COMMANDS
       end;
  match goal with
- | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower; (*simpl;*) try (*simple*) apply empTrue
+ | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower; try apply empTrue
  | |- ?P |-- _ =>
     match type of P with
     | ?T => unify T mpred; pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
  end;
- (* The following lines are only a temporary solution. Many current proofs
- depend on one original feature of "entailer!": sem_cast expressions and
- sem_binary_operation' expressions will be simplified. This step was done
- in go_lower. But that is not a reasonable design. Current version of
- go_lower does not "simpl" user's expressions any longer---go_lower should
- be safe. Thus we add the following lines here. *)
  repeat match goal with
         | |- context [force_val (sem_binary_operation' ?op ?t1 ?t2 ?v1 ?v2)] =>
-          progress simpl (force_val (sem_binary_operation' op t1 t2 v1 v2))
+          progress 
+              simpl  (* This simpl is safe, because its argument is not
+                           arbitrarily complex user expressions, it is ASTs
+                           produced by clightgen *)
+                (force_val (sem_binary_operation' op t1 t2 v1 v2))
         end;
- simpl sem_cast;
- (* end of temporary solution *)
+ simpl  (* This simpl is safe, because its argument is not
+                           arbitrarily complex user expressions, it is ASTs
+                           produced by clightgen *)
+        sem_cast;
  saturate_local;
  ent_iter;
  repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
@@ -731,15 +642,12 @@ Ltac elim_hyps :=  (* not in use anywhere? *)
  | H: ptr_eq _ _ |- _ => apply ptr_eq_e in H; safe_subst_any
  end.
 
-Ltac aggressive :=
-  repeat split; auto; elim_hyps; simpl; (computable || auto).
-
 (**** try this out here, for now ****)
 
-Hint Rewrite Int.signed_repr using rep_omega : norm.
-Hint Rewrite Int.unsigned_repr using rep_omega : norm.
-Hint Rewrite Int64.signed_repr using rep_omega : norm.
-Hint Rewrite Int64.unsigned_repr using rep_omega : norm.
+Hint Rewrite Int.signed_repr using rep_lia : norm.
+Hint Rewrite Int.unsigned_repr using rep_lia : norm.
+Hint Rewrite Int64.signed_repr using rep_lia : norm.
+Hint Rewrite Int64.unsigned_repr using rep_lia : norm.
 
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 
@@ -786,7 +694,7 @@ subst.
 destruct p; try contradiction.
 simpl. rewrite Z.mul_0_r.
 rewrite Ptrofs.add_zero.
-apply prop_ext; intuition.
+apply prop_ext; tauto.
 Qed.
 Hint Rewrite offset_val_sizeof_hack : norm.
 
@@ -798,7 +706,7 @@ Lemma offset_val_sizeof_hack2:
 Proof.
 intros.
 subst.
-apply prop_ext; intuition.
+apply prop_ext; tauto.
 Qed.
 Hint Rewrite offset_val_sizeof_hack2 : norm.
 
@@ -811,7 +719,7 @@ Proof.
 intros.
 subst.
 rewrite Z.mul_1_r.
-apply prop_ext; intuition.
+apply prop_ext; tauto.
 Qed.
 Hint Rewrite offset_val_sizeof_hack3 : norm.
 
@@ -823,7 +731,7 @@ Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
 Proof.
 intros. apply Z.max_r; auto.
 Qed.
-Hint Rewrite Zmax0r using (try computable; rep_omega (*Omega0*)) : norm.
+Hint Rewrite Zmax0r using (try computable; rep_lia (*Omega0*)) : norm.
 
 Import ListNotations.
 
@@ -838,12 +746,12 @@ Proof.
   destruct H0 as [? [_ [? _]]].
   destruct p; try contradiction.
   red in H3.
-  unfold sizeof in H3; clear H1.
+  unfold sizeof, Ctypes.sizeof in H3; clear H1.
   rewrite Z.max_r in H3 by list_solve.
-  fold sizeof in H3.
-  change (sizeof tschar) with 1 in H3.
+  fold Ctypes.sizeof in H3.
+  change (Ctypes.sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).
-  omega. 
+  lia. 
 Qed.
 
 Hint Resolve cstring_local_facts : saturate_local.
@@ -854,9 +762,9 @@ Lemma cstring_valid_pointer: forall {CS : compspecs} sh s p,
 Proof.
   intros; unfold cstring; Intros.
   apply data_at_valid_ptr; auto.
-  unfold tarray, tschar, sizeof.
+  unfold tarray, tschar, sizeof, Ctypes.sizeof.
   pose proof (Zlength_nonneg s).
-  rewrite Z.max_r; omega.
+  rewrite Z.max_r; lia.
 Qed.
 
 Hint Resolve cstring_valid_pointer : valid_pointer.
@@ -882,7 +790,7 @@ saturate_local. clear H0 H2.
 rewrite Zlength_map, Zlength_app, Zlength_cons, Zlength_nil in H1.
 simpl in H1.
 destruct (Z.max_spec 0 n) as [[? ?]|[? ?]].
-2:{ rewrite H2 in H1. pose proof (Zlength_nonneg s). omega. }
+2:{ rewrite H2 in H1. pose proof (Zlength_nonneg s). lia. }
 rewrite H2 in *.
 clear H0 H2.
 subst n.
@@ -908,18 +816,19 @@ Lemma cstringn_local_facts: forall {CS : compspecs} sh s n p,
    cstringn sh s n p |-- !! (isptr p /\ Zlength s + 1 <= n <= Ptrofs.max_unsigned).
 Proof.
   intros; unfold cstringn; entailer!.
-  autorewrite with sublist in H1.
-  pose proof (Zlength_nonneg s).
-  pose proof (Zlength_nonneg (list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef)).
+  rewrite !Zlength_app, !Zlength_map, Zlength_app in H1.
+  assert (H8 := Zlength_nonneg s).
+  destruct (zlt n (Zlength s + 1)).
+  rewrite Z_to_nat_neg in H1 by lia. autorewrite with sublist in H1. lia.
+  split. lia.
+  autorewrite with sublist in *.
   destruct H0 as [? [_ [? _]]].
   destruct p; try contradiction.
-  red in H5.
-  clear H2.
-  destruct (Z.max_spec 0 n) as [[? Hn] | [? Hn]]; rewrite Hn in *; split; try omega.
-  unfold sizeof in H5. rewrite Hn in H5. fold sizeof in H5.
-  change (sizeof tschar) with 1 in H5. 
+  red in H3. 
+  unfold sizeof, Ctypes.sizeof in H3;  fold Ctypes.sizeof in H3.
+  rewrite Z.max_r in H3 by lia. change (Ctypes.sizeof tschar) with 1 in H3.
   pose proof (Ptrofs.unsigned_range i).
-  rep_omega.
+  rep_lia.
 Qed.
 
 Hint Resolve cstringn_local_facts : saturate_local.
@@ -932,9 +841,9 @@ Proof.
   entailer!. 
   unfold cstringn; Intros.
   apply data_at_valid_ptr; auto.
-  unfold tarray, tschar, sizeof; cbv beta iota zeta.
+  unfold tarray, tschar, sizeof, Ctypes.sizeof; cbv beta iota zeta.
   pose proof (Zlength_nonneg s).
-  rewrite Z.max_r; omega.
+  rewrite Z.max_r; lia.
 Qed.
 
 Hint Resolve cstringn_valid_pointer : valid_pointer.
@@ -950,8 +859,8 @@ Qed.
 
 
 (* THIS TACTIC solves goals of the form,
-    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any omega consequence of)  i < Zlength ls
-    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any omega consequence of)  i >= Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any lia consequence of)  i < Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any lia consequence of)  i >= Zlength ls
 *)
 Ltac cstring :=
   lazymatch goal with
@@ -970,15 +879,15 @@ Znth _ (_++[Byte.zero]) <> Byte.zero"
   match goal with
   | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) = Byte.zero |- _ =>
      constr_eq ls ls'; apply H; rewrite <- H1;  
-    rewrite app_Znth1 by omega; apply Znth_In; omega
+    rewrite app_Znth1 by lia; apply Znth_In; lia
   | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) <> Byte.zero |- _ =>
      constr_eq ls ls'; apply H1;
-     rewrite app_Znth2 by omega; apply Znth_zero_zero
+     rewrite app_Znth2 by lia; apply Znth_zero_zero
   end) || 
   match goal with |- @eq ?t (?f1 _) (?f2 _) =>
        (unify t Z || unify t nat) ||
        (constr_eq f1 f2;
-        fail "The cstring tactic solves omega-style goals.
+        fail "The cstring tactic solves lia-style goals.
 Your goal is an equality at type" t ", not type Z.
 Try the [f_equal] tactic first.")
  end.
@@ -1003,4 +912,3 @@ match goal with
   H1: Znth ?x (?s ++ [Byte.zero]) = Byte.zero |- _ =>
   is_var x; assert  (x = Zlength s) by cstring; subst x
 end.
-

@@ -1701,7 +1701,7 @@ Module Share <: SHARE_MODEL.
       constructor.
       constructor.
       apply IHisToken'.
-      omega.
+      lia.
       simpl.
       constructor.
       apply IHisToken'.
@@ -1751,13 +1751,13 @@ Module Share <: SHARE_MODEL.
       destruct (mkCanon (split_tok2 n0 t0_2)); try discriminate.
       destruct b; discriminate.
       specialize ( IHisToken' n0).
-      spec IHisToken'; [ omega | ].
+      spec IHisToken'; [ lia | ].
       rewrite H1 in IHisToken'.
       inv IHisToken'.
       constructor.
       specialize ( IHisToken' n0).
       spec IHisToken'.
-      omega.
+      lia.
       rewrite H1 in IHisToken'.
       inversion IHisToken'.
       subst.
@@ -1831,14 +1831,14 @@ Module Share <: SHARE_MODEL.
       symmetry; apply canonicalUnique; auto.
       assert (isToken' (split_tok1 n1 tok) (S n1)).
       eapply split_tok1_correct; eauto.
-      omega.
+      lia.
       replace (mkCanon (split_tok1 n1 tok))
         with (split_tok1 n1 tok); auto.
       apply canonicalUnique; auto.
       eapply isToken_canon; eauto.
-      replace n2 with ((S n1 + n2) - S n1)%nat by omega.
+      replace n2 with ((S n1 + n2) - S n1)%nat by lia.
       eapply split_tok2_correct; auto.
-      omega.
+      lia.
       hnf; simpl; split.
       unfold glb; unfold BA.glb; simpl.
       apply canonTree_eq; simpl.
@@ -1918,7 +1918,7 @@ Module Share <: SHARE_MODEL.
       apply (IHfac2 m) in H3; auto.
       constructor; simpl.
       apply (IHfac2 m) in H3; auto.
-      replace (m + S n0)%nat with (S m + n0)%nat by omega; auto.
+      replace (m + S n0)%nat with (S m + n0)%nat by lia; auto.
     Qed.
 
     Lemma create_tok2_correct : forall fac m n,
@@ -2106,15 +2106,15 @@ Module Share <: SHARE_MODEL.
       inv H0.
       destruct (IHisTokenFactory' _ _ H6 H8)
         as [? [? ?]].
-      elim H1; omega.
+      elim H1; lia.
       destruct (IHisTokenFactory' _ _ H6 H8)
         as [? [? ?]].
-      elim H1; omega.
+      elim H1; lia.
       rewrite union_commute in H3; simpl in H3.
       inv H0; invert_ord; try discriminate.
       destruct (IHisTokenFactory' _ _ H4 H10)
         as [? [? ?]].
-      elim H7; [omega |].
+      elim H7; [lia |].
       rewrite union_commute; auto.
     Qed.
 
@@ -2177,7 +2177,7 @@ Module Share <: SHARE_MODEL.
       clear H4.
       revert tok x n H H0 H1; induction fac'; simpl; intros.
       inv H.
-      replace x with O by omega.
+      replace x with O by lia.
       constructor.
       inv H0.
       replace (mkCanon (Node fac'1 fac'2)) with
@@ -2196,7 +2196,7 @@ Module Share <: SHARE_MODEL.
       constructor.
       destruct (fac_tok_classification fac'2 (n0+S x)) with t0 n0
         as [? [? ?]]; auto.
-      elim H5; [omega|].
+      elim H5; [lia|].
       apply mkCanon_test; simpl; auto.
       rewrite union_commute; auto.
       change (Leaf false) with (mkCanon (Leaf false)) in H.
@@ -2211,7 +2211,7 @@ Module Share <: SHARE_MODEL.
       invert_ord.
       destruct (fac_tok_classification fac'2 (n0+0)) with t0 n0
         as [? [? ?]]; auto.
-      spec H0; [ omega |].
+      spec H0; [ lia |].
       apply mkCanon_test2 in H0.
       rewrite union_commute in H0.
       rewrite H in H0.
@@ -2231,7 +2231,7 @@ Module Share <: SHARE_MODEL.
       constructor.
       destruct (fac_tok_classification fac'2 (S (n0+S x))) with t0 (S n0)
         as [? [? ?]]; auto.
-      elim H5; [ omega |].
+      elim H5; [ lia |].
       apply mkCanon_test.
       rewrite union_commute.
       rewrite H.
@@ -2247,7 +2247,7 @@ Module Share <: SHARE_MODEL.
       elimtype False.
       destruct (fac_tok_classification fac'2 (S (n0 + 0))) with t0 (S n0)
         as [? [? ?]]; auto.
-      spec H0; [ omega |].
+      spec H0; [ lia |].
       apply mkCanon_test2 in H0.
       rewrite union_commute in H0; rewrite H in H0.
       discriminate.
@@ -2260,13 +2260,13 @@ Module Share <: SHARE_MODEL.
       elimtype False.
       destruct (fac_tok_classification fac'2 (n0 + 0)) with t0 (S n0)
         as [? [? ?]]; auto.
-      elim H0; omega.
+      elim H0; lia.
       case_eq (mkCanon (union_tree fac'2 t0)); intros.
       destruct b.
       constructor.
       rewrite <- H.
       eapply IHfac'2; eauto.
-      replace (S n0 + x) with (n0 + S x) by omega; auto.
+      replace (S n0 + x) with (n0 + S x) by lia; auto.
       change (Leaf false) with (mkCanon (Leaf false)) in H.
       apply mkCanon_test in H.
       destruct H.
@@ -2277,7 +2277,7 @@ Module Share <: SHARE_MODEL.
       constructor.
       rewrite <- H.
       eapply IHfac'2; eauto.
-      replace (S n0 + x) with (n0 + S x) by omega; auto.
+      replace (S n0 + x) with (n0 + S x) by lia; auto.
     Qed.
 
     Lemma mergeToken : forall tok1 n1 tok2 n2 tok',
@@ -2308,10 +2308,10 @@ Module Share <: SHARE_MODEL.
       inv H; simpl.
       do 2 constructor.
       do 2 constructor.
-      replace (n0+0) with n0 by omega; auto.
+      replace (n0+0) with n0 by lia; auto.
       constructor.
       constructor.
-      replace (n0+0) with n0 by omega; auto.
+      replace (n0+0) with n0 by lia; auto.
       apply canonicalUnique; auto.
       eapply isToken_canon; eauto.
       case_eq (mkCanon (union_tree t0 t1)); intros.
@@ -2328,7 +2328,7 @@ Module Share <: SHARE_MODEL.
       rewrite union_commute.
       apply union_upper_bound.
       elim (token_nonbot t1 (S n0)); auto.
-      omega.
+      lia.
       constructor.
       rewrite <- H1.
       apply IHisToken'; auto.
@@ -2337,9 +2337,9 @@ Module Share <: SHARE_MODEL.
       replace (mkCanon t0) with t0.
       inv H.
       do 2 constructor.
-      replace (n+0) with n by omega; auto.
+      replace (n+0) with n by lia; auto.
       do 2 constructor.
-      replace (n+0) with n by omega; auto.
+      replace (n+0) with n by lia; auto.
       apply canonicalUnique; auto.
       eapply isToken_canon; eauto.
       invert_ord.
@@ -2352,11 +2352,11 @@ Module Share <: SHARE_MODEL.
       elim (tokens_nonfull _ _ H _ _ H2); auto.
       constructor.
       rewrite <- H0.
-      replace (n + S n0) with (S n + n0) by omega.
+      replace (n + S n0) with (S n + n0) by lia.
       apply IHisToken'; auto.
       constructor.
       rewrite <- H0.
-      replace (n + S n0) with (S n + n0) by omega.
+      replace (n + S n0) with (S n + n0) by lia.
       apply IHisToken'; auto.
       invert_ord.
       simpl.
@@ -2487,7 +2487,7 @@ Proof.
  destruct c as [? [? [? ?]]].
  simpl. unfold tree_height.
  simpl.
- omega.
+ lia.
 
  intros.
  clear -teq1.
@@ -2497,7 +2497,7 @@ Proof.
  remember (max (tree_heightP s1) (tree_heightP s2) + 1).
  assert (n1 <= max n1 (tree_heightP s0)).
    apply le_max_l.
- omega.
+ lia.
 Set Warnings "-funind-cannot-build-inversion,-funind-cannot-define-graph".
  Defined.
 Set Warnings "funind-cannot-build-inversion,funind-cannot-define-graph".
@@ -2523,7 +2523,7 @@ Proof.
   icase (bool_dec b b0).
   subst.
   elimtype False.
-  icase b0;compute in  H;compute in H0; firstorder.
+  icase b0;compute in  H;compute in H0; firstorder with bool.
 Qed.
 
 Lemma identity_tree: identity (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _)).
@@ -2697,7 +2697,7 @@ Qed.
  Proof.
     intros.
     assert (exists n, n >= max (tree_heightP t1) (tree_heightP t2)).
-      exists (max (tree_heightP t1) (tree_heightP t2));omega.
+      exists (max (tree_heightP t1) (tree_heightP t2));lia.
     destruct H.
     revert H.
     revert t2 t1.
@@ -2706,7 +2706,7 @@ Qed.
       remember (tree_heightP (Node t2_1 t2_2)).
       icase n.
       inversion Heqn.
-      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;omega.
+      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;lia.
       inversion H.
       inversion H.
       destruct (max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
@@ -2734,15 +2734,15 @@ Qed.
       simpl in H.
       replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
       with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
-      in H by omega.
+      in H by lia.
       replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
       with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
-      in H by omega.
+      in H by lia.
       generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
       ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
       rewrite<- H0 in H;clear H0.
       assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
-         (max (tree_heightP t2_1) (tree_heightP t2_2))) by omega.
+         (max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
       assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
        (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
        apply le_max_l.
@@ -2753,20 +2753,20 @@ Qed.
        apply le_max_l.
       assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_1).
        apply le_max_l.
-      apply max_lub;omega.
+      apply max_lub;lia.
     assert (x >= max (tree_heightP t1_2) (tree_heightP t2_2)).
       simpl in H.
       replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
       with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
-      in H by omega.
+      in H by lia.
       replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
       with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
-      in H by omega.
+      in H by lia.
       generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
       ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
       rewrite<- H1 in H;clear H1.
       assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
-         (max (tree_heightP t2_1) (tree_heightP t2_2))) by omega.
+         (max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
       assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
        (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
        apply le_max_l.
@@ -2777,7 +2777,7 @@ Qed.
        apply le_max_r.
       assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_2).
        apply le_max_r.
-      apply max_lub;omega.
+      apply max_lub;lia.
     generalize (IHx _ _ H0);intro.
     generalize (IHx _ _ H1);intro.
     remember (mkCanon (Node t1_1 t1_2));
@@ -3096,7 +3096,7 @@ Proof.
     icase x2_1;icase x2_2.
     icase b;icase b0;
     simpl;
-    elimtype False;firstorder.
+    elimtype False; firstorder with bool.
   rewrite H1.
   simpl.
   destruct H0 as [? [? [? ?]]].
@@ -3179,7 +3179,7 @@ Qed.
     icase x1_1;icase x1_2.
     icase b;icase b0;
     simpl;
-    elimtype False;firstorder.
+    elimtype False; firstorder with bool.
   rewrite H1.
   simpl.
   destruct H0 as [? [? [? ?]]].
@@ -3392,7 +3392,7 @@ Qed.
     intros.
     simpl in H.
     destruct H as [_ [? _]].
-    replace (n-0) with n in * by omega.
+    replace (n-0) with n in * by lia.
     trivial.
    Qed.
 
@@ -3401,7 +3401,7 @@ Qed.
     intros.
     simpl in H.
     destruct H as [_ [_ ?]].
-    replace (n-0) with n in * by omega.
+    replace (n-0) with n in * by lia.
     trivial.
    Qed.
 
@@ -3415,13 +3415,13 @@ Qed.
     inversion H.
     simpl in H.
     destruct H as [_ [? ?]].
-    replace (n-0) with n in * by omega.
+    replace (n-0) with n in * by lia.
     simpl.
     generalize (IHn t0_1 H);intro.
     generalize (IHn t0_2 H0);intro.
     rewrite H1.
     rewrite H2.
-    rewrite max_l; omega.
+    rewrite max_l; lia.
   Qed.
 
   Lemma fullTreeP_combine : forall t1 t2 n, fullTreeP t1 n -> fullTreeP t2 n ->
@@ -3430,9 +3430,9 @@ Qed.
    intros.
    simpl.
    split.
-   omega.
+   lia.
    split;
-   replace (n-0) with n in * by omega;
+   replace (n-0) with n in * by lia;
    trivial.
   Qed.
 
@@ -3449,7 +3449,7 @@ Qed.
    apply fullTreeP_combine;
    simpl in Heqn;
    rewrite max_l in Heqn;trivial;
-   assert (n = tree_heightP t0) by omega;
+   assert (n = tree_heightP t0) by lia;
    rewrite H0;
    trivial.
   Qed.
@@ -3482,9 +3482,9 @@ Qed.
     simpl in *.
     rewrite H1 in *.
     split.
-    destruct (max (tree_heightP t2) (tree_heightP t2));omega.
+    destruct (max (tree_heightP t2) (tree_heightP t2));lia.
     rewrite max_l;trivial.
-    replace (tree_heightP t2 + 1 - 1) with (tree_heightP t2) in * by omega.
+    replace (tree_heightP t2 + 1 - 1) with (tree_heightP t2) in * by lia.
     tauto.
   Qed.
 
@@ -3502,7 +3502,7 @@ Qed.
     inversion H1.
     simpl.
     rewrite max_l;trivial.
-    omega.
+    lia.
     inversion H1.
     remember (mkFull n t0_1).
     destruct o.
@@ -3517,7 +3517,7 @@ Qed.
     rewrite H0.
     rewrite H2.
     rewrite max_l;trivial.
-    omega.
+    lia.
     inversion H1.
     inversion H1.
   Qed.
@@ -3624,7 +3624,7 @@ Qed.
    inversion H.
    inversion H.
    simpl in H.
-   assert (n < max (tree_heightP t0_1) (tree_heightP t0_2)) by omega.
+   assert (n < max (tree_heightP t0_1) (tree_heightP t0_2)) by lia.
    generalize (Nat.max_lt_iff);intro.
    specialize ( H1 (tree_heightP t0_1) (tree_heightP t0_2) n).
    destruct H1 as [? _].
@@ -3646,9 +3646,9 @@ Qed.
     exists (Leaf b).
     compute;trivial.
     inversion H.
-    elimtype False;omega.
+    elimtype False;lia.
     assert (n >= tree_heightP (Leaf b)).
-      compute;omega.
+      compute;lia.
     specialize ( IHn (Leaf b) H0).
     destruct IHn.
     simpl.
@@ -3656,11 +3656,11 @@ Qed.
     exists (Node x x).
     trivial.
     simpl in H.
-    assert (n >= max (tree_heightP t0_1) (tree_heightP t0_2)) by omega.
+    assert (n >= max (tree_heightP t0_1) (tree_heightP t0_2)) by lia.
     generalize (le_max_l (tree_heightP t0_1) (tree_heightP t0_2));intro.
     generalize (le_max_r (tree_heightP t0_1) (tree_heightP t0_2));intro.
-    assert (n >= tree_heightP t0_1) by omega.
-    assert (n >= tree_heightP t0_2) by omega.
+    assert (n >= tree_heightP t0_1) by lia.
+    assert (n >= tree_heightP t0_2) by lia.
     generalize (IHn _ H3);intro.
     generalize (IHn _ H4);intro.
     destruct H5.
@@ -3699,13 +3699,13 @@ Qed.
    generalize (mkCanon_Leaf b);intro.
    rewrite H in H0.
    rewrite H0.
-   omega.
+   lia.
 
    icase t'.
    symmetry in H.
    generalize (mkCanon_Leaf_split _ _ _ H);intro.
    simpl.
-   omega.
+   lia.
    generalize (mkCanon_split _ _ _ _ H);intro.
    destruct H0 as [? ?].
    specialize ( IHt0_1 t'1 H0).
@@ -3714,8 +3714,8 @@ Qed.
    assert (max (tree_heightP t'1) (tree_heightP t'2) <= max (tree_heightP t0_1) (tree_heightP t0_2) ).
     generalize (le_max_l (tree_heightP t0_1) (tree_heightP t0_2));intro.
     generalize (le_max_r (tree_heightP t0_1) (tree_heightP t0_2));intro.
-    apply max_lub;omega.
-   omega.
+    apply max_lub;lia.
+   lia.
   Qed.
 
   Lemma mkCanon_rewrite : forall t, exists t1, exists t2, mkCanon t = mkCanon (Node t1 t2).
@@ -3776,7 +3776,7 @@ Qed.
    destruct H2 as [H21 H22].
    rewrite H11,H12,H21,H22.
    simpl.
-   omega.
+   lia.
 
    symmetry in Heqs0.
    generalize (mkCanon_Leaf_split _ _ _ Heqs);intro H1.
@@ -3785,11 +3785,11 @@ Qed.
    destruct H2 as [H21 H22].
    rewrite H11,H12,H21,H22.
    simpl in H.
-   assert (max (tree_heightP s0_1) (tree_heightP s0_2) < S n) by omega.
+   assert (max (tree_heightP s0_1) (tree_heightP s0_2) < S n) by lia.
    simpl.
    generalize (le_max_l (tree_heightP s0_1) (tree_heightP s0_2));intro H31.
    generalize (le_max_r (tree_heightP s0_1) (tree_heightP s0_2));intro H32.
-   omega.
+   lia.
 
    symmetry in Heqs.
    generalize (mkCanon_split _ _ _ _ Heqs);intro H1.
@@ -3808,11 +3808,11 @@ Qed.
    by apply max_comm.
    simpl in H.
    simpl.
-   assert (max (tree_heightP s1) (tree_heightP s2) < S n) by omega.
+   assert (max (tree_heightP s1) (tree_heightP s2) < S n) by lia.
    simpl.
    generalize (le_max_l (tree_heightP s1) (tree_heightP s2));intro H31.
    generalize (le_max_r (tree_heightP s1) (tree_heightP s2));intro H32.
-   omega.
+   lia.
 
    symmetry in Heqs,Heqs0.
    generalize (mkCanon_split _ _ _ _ Heqs);intro H1.
@@ -3827,7 +3827,7 @@ Qed.
    intro H3.
    rewrite H3 in H.
    assert (max (max (tree_heightP s1) (tree_heightP s2))
-               (max (tree_heightP s0_1) (tree_heightP s0_2)) < S n) by omega.
+               (max (tree_heightP s0_1) (tree_heightP s0_2)) < S n) by lia.
    generalize (le_max_r (max (tree_heightP s1) (tree_heightP s2))
                         (max (tree_heightP s0_1) (tree_heightP s0_2)));intro H4.
    generalize (le_max_l (max (tree_heightP s1) (tree_heightP s2))
@@ -3836,13 +3836,13 @@ Qed.
    generalize (le_max_l (tree_heightP s1) (tree_heightP s2));intro H7.
    generalize (le_max_r (tree_heightP s0_1) (tree_heightP s0_2));intro H8.
    generalize (le_max_l (tree_heightP s0_1) (tree_heightP s0_2));intro H9.
-   assert (tree_heightP s1 <= n) by omega.
-   assert (tree_heightP s2 <= n) by omega.
-   assert (tree_heightP s0_1 <= n) by omega.
-   assert (tree_heightP s0_2 <= n) by omega.
+   assert (tree_heightP s1 <= n) by lia.
+   assert (tree_heightP s2 <= n) by lia.
+   assert (tree_heightP s0_1 <= n) by lia.
+   assert (tree_heightP s0_2 <= n) by lia.
    generalize (max_lub _ _ _ H1 H10);intro H14.
    generalize (max_lub _ _ _ H2 H13);intro H15.
-   omega.
+   lia.
   Qed.
 
   Lemma mkCanon_diff : forall t11 t12 t21 t22,
@@ -3893,7 +3893,7 @@ Qed.
   Proof.
     intros.
     assert (exists n, n >= max (tree_heightP t1) (tree_heightP t2)).
-      exists (max (tree_heightP t1) (tree_heightP t2));omega.
+      exists (max (tree_heightP t1) (tree_heightP t2));lia.
     destruct H.
     revert H.
     revert t2 t1.
@@ -3902,7 +3902,7 @@ Qed.
       remember (tree_heightP (Node t2_1 t2_2)).
       icase n.
       inversion Heqn.
-      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;omega.
+      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;lia.
       inversion H.
       inversion H.
       destruct (max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
@@ -3930,15 +3930,15 @@ Qed.
       simpl in H.
       replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
       with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
-      in H by omega.
+      in H by lia.
       replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
       with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
-      in H by omega.
+      in H by lia.
       generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
       ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
       rewrite<- H0 in H;clear H0.
       assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
-         (max (tree_heightP t2_1) (tree_heightP t2_2))) by omega.
+         (max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
       assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
        (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
        apply le_max_l.
@@ -3949,20 +3949,20 @@ Qed.
        apply le_max_l.
       assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_1).
        apply le_max_l.
-      apply max_lub;omega.
+      apply max_lub;lia.
     assert (x >= max (tree_heightP t1_2) (tree_heightP t2_2)).
       simpl in H.
       replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
       with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
-      in H by omega.
+      in H by lia.
       replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
       with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
-      in H by omega.
+      in H by lia.
       generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
       ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
       rewrite<- H1 in H;clear H1.
       assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
-         (max (tree_heightP t2_1) (tree_heightP t2_2))) by omega.
+         (max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
       assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
        (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
        apply le_max_l.
@@ -3973,7 +3973,7 @@ Qed.
        apply le_max_r.
       assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_2).
        apply le_max_r.
-      apply max_lub;omega.
+      apply max_lub;lia.
     generalize (IHx _ _ H0);intro.
     generalize (IHx _ _ H1);intro.
     remember (mkCanon (Node t1_1 t1_2));
@@ -4298,7 +4298,7 @@ Qed.
   Proof.
    unfold roundL,roundableL_tree.
    intros.
-   assert (H1 : n > height t0) by omega.
+   assert (H1 : n > height t0) by lia.
    clear H;rename H1 into H.
    revert H;revert t0.
    induction n;intros;unfold height;simpl in *; unfold tree_height in *.
@@ -4315,7 +4315,7 @@ Qed.
      generalize (le_max_l (tree_heightP x1) (tree_heightP x2)).
      generalize (le_max_r (tree_heightP x1) (tree_heightP x2)).
      intros.
-     omega.
+     lia.
    destruct H0 as [H1 H2].
    copy c.
    simpl in c.
@@ -4542,31 +4542,31 @@ Qed.
   icase x.
   icase x1;icase x2;unfold tree_height in *;inversion H.
   exists (exist (fun t => canonicalTree t) (Leaf b) (canonTree_Leaf _)).
-  compute;split;try omega;try f_equal;try apply exist_ext;trivial.
-  elimtype False;omega.
+  compute;split;try lia;try f_equal;try apply exist_ext;trivial.
+  elimtype False;lia.
   elimtype False;clear -H1.
-  assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by omega;
+  assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by lia;
   clear H1.
   generalize (max_0_r (max (tree_heightP x1_1) (tree_heightP x1_2) + 1));intro.
   rewrite H0 in H;clear H0.
-  omega.
+  lia.
   elimtype False;clear -H1.
   assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
-       (max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by omega;
+       (max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by lia;
   clear H1.
   generalize (plus_max_distr_r (max (tree_heightP x1_1) (tree_heightP x1_2))
                                (max (tree_heightP x2_1) (tree_heightP x2_2)) 1);intro.
-  rewrite H0 in H;omega.
+  rewrite H0 in H;lia.
 
   remember (S n) as nk.
   unfold tree_height in H.
   simpl in H.
-  assert (nk = max (tree_heightP x1) (tree_heightP x2)) by omega;clear H.
+  assert (nk = max (tree_heightP x1) (tree_heightP x2)) by lia;clear H.
   generalize (lt_dec (tree_heightP x1) (tree_heightP x2) );intro H.
   destruct H.
 
   assert (nk = tree_heightP x2).
-    assert (tree_heightP x1 <= tree_heightP x2 ) by omega.
+    assert (tree_heightP x1 <= tree_heightP x2 ) by lia.
     generalize (max_r _ _ H);intro.
     congruence.
   rewrite<- H in l.
@@ -4620,19 +4620,19 @@ Qed.
           (mkCanon_correct (Node x1 x))).
   split;trivial;subst nk.
   clear -H22 l.
-  assert (tree_heightP x1 <= n) by omega;clear l.
+  assert (tree_heightP x1 <= n) by lia;clear l.
   unfold tree_height in *;simpl in *.
   assert (tree_heightP (Node x1 x) <= S n).
    generalize (max_lub _ _ _ H H22);intro.
    simpl.
-   omega.
+   lia.
   assert (mkCanon (Node x1 x) = mkCanon (Node x1 x)) by trivial.
   generalize (mkCanon_height _ _ H1);intro.
   simpl in *.
-  omega.
+  lia.
 
   assert (tree_heightP x1 = tree_heightP x2 \/ tree_heightP x1 > tree_heightP x2).
-  omega.
+  lia.
   destruct H.
 
   rewrite<- H in H0.
@@ -4707,14 +4707,14 @@ Qed.
   assert (tree_heightP (Node x x0) <= S n).
    generalize (max_lub _ _ _ H12 H22);intro.
    simpl.
-   omega.
+   lia.
   assert (mkCanon (Node x x0) = mkCanon (Node x x0)) by trivial.
   generalize (mkCanon_height _ _ H0);intro.
   simpl in *.
-  omega.
+  lia.
 
   assert (nk = tree_heightP x1).
-    assert (tree_heightP x2 <= tree_heightP x1 ) by omega.
+    assert (tree_heightP x2 <= tree_heightP x1 ) by lia.
     generalize (max_l _ _ H1);intro.
     congruence.
   rewrite<- H1 in H.
@@ -4768,16 +4768,16 @@ Qed.
           (mkCanon_correct (Node x x2))).
   split;trivial;subst nk.
   clear -H12 H.
-  assert (tree_heightP x2 <= n) by omega;clear H.
+  assert (tree_heightP x2 <= n) by lia;clear H.
   unfold tree_height in *;simpl in *.
   assert (tree_heightP (Node x x2) <= S n).
    generalize (max_lub _ _ _ H12 H0);intro.
    simpl.
-   omega.
+   lia.
   assert (mkCanon (Node x x2) = mkCanon (Node x x2)) by trivial.
   generalize (mkCanon_height _ _ H1);intro.
   simpl in *.
-  omega.
+  lia.
   Qed.
   (*L18*)
   Lemma tree_round_left_Some : forall n t,
@@ -4796,7 +4796,7 @@ Qed.
    rewrite<- H0.
    trivial.
 
-   assert (H2 : tree_height t0 < S n) by omega.
+   assert (H2 : tree_height t0 < S n) by lia.
    apply tree_round_left_identity in H2.
    exists t0.
    trivial.
@@ -4824,13 +4824,13 @@ Qed.
    rewrite H in H1.
    inv H1.
    simpl in *.
-   omega.
-   assert (H2 : tree_height t0 < S n) by omega.
+   lia.
+   assert (H2 : tree_height t0 < S n) by lia.
    apply tree_round_left_identity in H2.
    unfold roundL,roundableL_tree in *.
    rewrite H in H2.
    inv H2.
-   omega.
+   lia.
    apply tree_round_left_None in l.
    unfold roundL,roundableL_tree in *.
    rewrite H in l.
@@ -4938,7 +4938,7 @@ Qed.
    unfold roundR,roundableR_tree in *.
    simpl.
    intros.
-   assert ( H1 : n > tree_height t0) by omega.
+   assert ( H1 : n > tree_height t0) by lia.
    clear H;rename H1 into H.
    revert H;revert t0.
    induction n;intros;unfold tree_height in *.
@@ -4955,7 +4955,7 @@ Qed.
      generalize (le_max_l (tree_heightP x1) (tree_heightP x2)).
      generalize (le_max_r (tree_heightP x1) (tree_heightP x2)).
      intros.
-     omega.
+     lia.
    destruct H0 as [H1 H2].
    copy c.
    simpl in c.
@@ -5182,31 +5182,31 @@ Qed.
   icase x.
   icase x1;icase x2;unfold tree_height in *;inversion H.
   exists (exist (fun t => canonicalTree t) (Leaf b0) (canonTree_Leaf _)).
-  compute;split;try omega;try f_equal;try apply exist_ext;trivial.
-  elimtype False;omega.
+  compute;split;try lia;try f_equal;try apply exist_ext;trivial.
+  elimtype False;lia.
   elimtype False;clear -H1.
-  assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by omega;
+  assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by lia;
   clear H1.
   generalize (max_0_r (max (tree_heightP x1_1) (tree_heightP x1_2) + 1));intro.
   rewrite H0 in H;clear H0.
-  omega.
+  lia.
   elimtype False;clear -H1.
   assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
-       (max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by omega;
+       (max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by lia;
   clear H1.
   generalize (plus_max_distr_r (max (tree_heightP x1_1) (tree_heightP x1_2))
                                (max (tree_heightP x2_1) (tree_heightP x2_2)) 1);intro.
-  rewrite H0 in H;omega.
+  rewrite H0 in H;lia.
 
   remember (S n) as nk.
   unfold tree_height in H.
   simpl in H.
-  assert (nk = max (tree_heightP x1) (tree_heightP x2)) by omega;clear H.
+  assert (nk = max (tree_heightP x1) (tree_heightP x2)) by lia;clear H.
   generalize (lt_dec (tree_heightP x1) (tree_heightP x2) );intro H.
   destruct H.
 
   assert (nk = tree_heightP x2).
-    assert (tree_heightP x1 <= tree_heightP x2 ) by omega.
+    assert (tree_heightP x1 <= tree_heightP x2 ) by lia.
     generalize (max_r _ _ H);intro.
     congruence.
   rewrite<- H in l.
@@ -5260,19 +5260,19 @@ Qed.
           (mkCanon_correct (Node x1 x))).
   split;trivial;subst nk.
   clear -H22 l.
-  assert (tree_heightP x1 <= n) by omega;clear l.
+  assert (tree_heightP x1 <= n) by lia;clear l.
   unfold tree_height in *;simpl in *.
   assert (tree_heightP (Node x1 x) <= S n).
    generalize (max_lub _ _ _ H H22);intro.
    simpl.
-   omega.
+   lia.
   assert (mkCanon (Node x1 x) = mkCanon (Node x1 x)) by trivial.
   generalize (mkCanon_height _ _ H1);intro.
   simpl in *.
-  omega.
+  lia.
 
   assert (tree_heightP x1 = tree_heightP x2 \/ tree_heightP x1 > tree_heightP x2).
-  omega.
+  lia.
   destruct H.
 
   rewrite<- H in H0.
@@ -5347,14 +5347,14 @@ Qed.
   assert (tree_heightP (Node x x0) <= S n).
    generalize (max_lub _ _ _ H12 H22);intro.
    simpl.
-   omega.
+   lia.
   assert (mkCanon (Node x x0) = mkCanon (Node x x0)) by trivial.
   generalize (mkCanon_height _ _ H0);intro.
   simpl in *.
-  omega.
+  lia.
 
   assert (nk = tree_heightP x1).
-    assert (tree_heightP x2 <= tree_heightP x1 ) by omega.
+    assert (tree_heightP x2 <= tree_heightP x1 ) by lia.
     generalize (max_l _ _ H1);intro.
     congruence.
   rewrite<- H1 in H.
@@ -5408,16 +5408,16 @@ Qed.
           (mkCanon_correct (Node x x2))).
   split;trivial;subst nk.
   clear -H12 H.
-  assert (tree_heightP x2 <= n) by omega;clear H.
+  assert (tree_heightP x2 <= n) by lia;clear H.
   unfold tree_height in *;simpl in *.
   assert (tree_heightP (Node x x2) <= S n).
    generalize (max_lub _ _ _ H12 H0);intro.
    simpl.
-   omega.
+   lia.
   assert (mkCanon (Node x x2) = mkCanon (Node x x2)) by trivial.
   generalize (mkCanon_height _ _ H1);intro.
   simpl in *.
-  omega.
+  lia.
  Qed.
  (*L25*)
  Lemma tree_round_right_Some : forall n t,
@@ -5436,7 +5436,7 @@ Qed.
    rewrite<- H0.
    trivial.
 
-   assert (H2 : tree_height t0 < S n) by omega.
+   assert (H2 : tree_height t0 < S n) by lia.
    apply tree_round_right_identity in H2.
    exists t0.
    trivial.
@@ -5464,13 +5464,13 @@ Qed.
    rewrite H in H1.
    inv H1.
    simpl in *.
-   omega.
-   assert (H2 : tree_height t0 < S n) by omega.
+   lia.
+   assert (H2 : tree_height t0 < S n) by lia.
    apply tree_round_right_identity in H2.
    unfold roundR,roundableR_tree in *.
    rewrite H in H2.
    inv H2.
-   omega.
+   lia.
    apply tree_round_right_None in l.
    unfold roundR,roundableR_tree in *.
    rewrite H in l.
@@ -5523,10 +5523,10 @@ Qed.
     apply tree_avg_Leaf.
     simpl in H.
     assert (tree_heightP x1 < n /\ tree_heightP x2 < n).
-      assert (max (tree_heightP x1) (tree_heightP x2) < n) by omega.
+      assert (max (tree_heightP x1) (tree_heightP x2) < n) by lia.
       generalize (le_max_l (tree_heightP x1) (tree_heightP x2));intro.
       generalize (le_max_r (tree_heightP x1) (tree_heightP x2));intro.
-      split;omega.
+      split;lia.
     destruct H0 as [? ?].
     copy c.
     simpl in c0.
@@ -5547,9 +5547,8 @@ Qed.
     simpl.
     icase (mkCanon s1);
     icase (mkCanon s2).
-    icase b; icase b0;simpl in *.
-    elimtype False; firstorder.
-    elimtype False; firstorder.
+    icase b; icase b0;simpl in *;
+    elimtype False; firstorder with bool.
   Qed.
 
   (*L30*)
@@ -5562,7 +5561,7 @@ Qed.
    intros.
    icase n.
    assert (n < tree_height t1 \/n < tree_height t2).
-    assert (n < max (tree_height t1) (tree_height t2)) by omega.
+    assert (n < max (tree_height t1) (tree_height t2)) by lia.
     apply Nat.max_lt_iff.
     trivial.
    destruct t1;destruct t2;
@@ -5999,11 +5998,11 @@ Qed.
    destruct t1 as [x1 c1];
    destruct t2 as [x2 c2].
    simpl in H0.
-   assert (max (tree_heightP x1) (tree_heightP x2) = 0) by omega.
+   assert (max (tree_heightP x1) (tree_heightP x2) = 0) by lia.
    generalize (le_max_l (tree_heightP x1) (tree_heightP x2));intro H2.
    generalize (le_max_r (tree_heightP x1) (tree_heightP x2));intro H3.
-   assert (tree_heightP x1 = 0) by omega.
-   assert (tree_heightP x2 = 0) by omega.
+   assert (tree_heightP x1 = 0) by lia.
+   assert (tree_heightP x2 = 0) by lia.
    icase x1;icase x2.
    simpl.
    assert (b<> b0).
@@ -6020,9 +6019,9 @@ Qed.
           (mkCanon_correct (Node (Leaf false) (Leaf true)))).
    split;trivial.
    try (elimtype False; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
-   inv H5;inv H4;elimtype False;omega.
-   inv H5;inv H4;elimtype False;omega.
-   inv H5;inv H4;elimtype False;omega.
+   inv H5;inv H4;elimtype False;lia.
+   inv H5;inv H4;elimtype False;lia.
+   inv H5;inv H4;elimtype False;lia.
 
    generalize (canonTree_rewrite1 t1);intro H3.
    generalize (canonTree_rewrite1 t2);intro H4.
@@ -6045,7 +6044,7 @@ Qed.
      trivial.
    assert (tree_heightP (mkCanon t11) < S n).
      generalize (le_max_l (tree_heightP (mkCanon t11)) (tree_heightP (mkCanon t21)));intro.
-     omega.
+     lia.
    generalize (tree_avg_identity (S n)
               (exist (fun t => canonicalTree t) (mkCanon t11) (mkCanon_correct _)) H8);
    intro H9.
@@ -6083,9 +6082,9 @@ Qed.
    rewrite H16.
    simpl.
    replace (max (tree_heightP (mkCanon t11)) (tree_heightP x3) + 1) with
-   (S (max (tree_heightP (mkCanon t11)) (tree_heightP x3))) by omega.
+   (S (max (tree_heightP (mkCanon t11)) (tree_heightP x3))) by lia.
    f_equal.
-   assert (tree_heightP (mkCanon t11) <= tree_heightP x3 ) by omega.
+   assert (tree_heightP (mkCanon t11) <= tree_heightP x3 ) by lia.
    rewrite<- H12.
    apply max_r;trivial.
 
@@ -6101,7 +6100,7 @@ Qed.
    assert (tree_heightP (mkCanon t22) < S n).
      generalize (le_max_r (tree_heightP (mkCanon t22))
                           (tree_heightP (mkCanon t22)));intro.
-     omega.
+     lia.
    generalize (tree_avg_identity (S n) (exist (fun t => canonicalTree t)
               (mkCanon t22) (mkCanon_correct _)) H10);intro H11.
    assert (exist (fun t : ShareTree => canonicalTree t) (mkCanon t12) (mkCanon_correct t12) =
@@ -6128,10 +6127,10 @@ Qed.
    rewrite H.
    simpl.
    assert (max (tree_heightP x3) (tree_heightP (mkCanon t22)) + 1 =
-           S (max (tree_heightP x3) (tree_heightP (mkCanon t22)))) by omega.
+           S (max (tree_heightP x3) (tree_heightP (mkCanon t22)))) by lia.
    rewrite H0;f_equal.
    rewrite<- H9 in *.
-   assert (tree_heightP (mkCanon t22) <= tree_heightP x3) by omega.
+   assert (tree_heightP (mkCanon t22) <= tree_heightP x3) by lia.
    apply max_l;trivial.
 
    assert (exist (fun t => canonicalTree t) (mkCanon t11) (mkCanon_correct _) <>
@@ -6168,7 +6167,7 @@ Qed.
    rewrite H10,H12.
    generalize (max_idempotent (S n));intro H.
    rewrite H.
-   omega.
+   lia.
   Qed.
 
   (*L34*)
@@ -6266,7 +6265,7 @@ Qed.
     icase (bool_dec b b0);try subst b0;
     simpl;
     apply exist_ext;trivial.
-    icase b;elimtype False;firstorder.
+    icase b; elimtype False; firstorder with bool.
 
     f_equal;
     apply proof_irr.
@@ -6313,9 +6312,8 @@ Qed.
   generalize (mkCanon_identity _ c2);intro.
   rewrite H;rewrite H0.
   icase x1;icase x2.
-  icase b;icase b0.
-  elimtype False;firstorder.
-  elimtype False;firstorder.
+  icase b;icase b0;
+  elimtype False; firstorder with bool.
   f_equal;apply exist_ext;
   rewrite H in H1;rewrite H0 in H1;
   icase x1;icase x2;try icase b;try icase b0;inv H1;auto.
@@ -6336,7 +6334,7 @@ Qed.
     destruct c1 as [? [? [? ?]]].
     inv H0.
     unfold tree_height in *;simpl in *.
-    assert (max (tree_heightP x2) (tree_heightP x3) <= n) by omega.
+    assert (max (tree_heightP x2) (tree_heightP x3) <= n) by lia.
     generalize (max_lub_l _ _ _ H0);intro.
     generalize (max_lub_r _ _ _ H0);intro.
     tauto.
@@ -6383,7 +6381,7 @@ Qed.
    icase x.
    right.
    simpl.
-   omega.
+   lia.
   Defined.
 
 
@@ -6417,8 +6415,8 @@ Proof.
   destruct pf;
   inv H;
   unfold tree_height in *;simpl in *.
-  omega.
-  assert (max (tree_heightP s1) (tree_heightP s2) <= n) by omega.
+  lia.
+  assert (max (tree_heightP s1) (tree_heightP s2) <= n) by lia.
   generalize (max_lub_l _ _ _ H);intro.
   generalize (max_lub_r _ _ _ H);intro.
   tauto.
@@ -6485,7 +6483,7 @@ Proof.
   inv H.
   unfold countBLeafCT;simpl.
   icase b.
-  icase n;compute;omega.
+  icase n;compute;lia.
   simpl in H.
   simpl in pf.
   destruct pf as [H1 [H2 [H3 H4]]].
@@ -6530,7 +6528,7 @@ Proof.
   assert (H4 := IHn _ _ H2).
   rewrite countBLeafCT_decompose with (s1:=s11) (s2:=s12);trivial.
   rewrite countBLeafCT_decompose with (s1:=s21) (s2:=s22);trivial.
-  omega.
+  lia.
 Qed.
 (*L38*)
 Lemma countBLeafCT_lt : forall n s1 s2,
@@ -6560,7 +6558,7 @@ Proof.
   elimtype False.
   unfold tree_height in H1.
   simpl in H1.
-  omega.
+  lia.
   icase s2.
   icase b.
   assert (exist (fun t : ShareTree => canonicalTree t) (Node s1_1 s1_2) pf1 = bot).
@@ -6571,7 +6569,7 @@ Proof.
   elimtype False.
   unfold tree_height in H1.
   simpl in H1.
-  omega.
+  lia.
   (*INDUCTIVE CASE*)
   remember (decompose s1) as ds1;
   remember (decompose s2) as ds2;
@@ -6588,10 +6586,10 @@ Proof.
   destruct H0 as [H0|H0].
   specialize ( IHn s11 s21 H3 H0 H1).
   assert (H5 := countBLeafCT_le n _ _ H4).
-  omega.
+  lia.
   specialize ( IHn s12 s22 H4 H0 H2).
   assert (H5 := countBLeafCT_le n _ _ H3).
-  omega.
+  lia.
 Qed.
 
 
@@ -6617,7 +6615,7 @@ Proof.
  simpl.
  assert (H1 := IHn s1).
  assert (H2 := IHn s2).
- omega.
+ lia.
 Qed.
 
 (*L40*)
@@ -6631,15 +6629,15 @@ Proof.
  intro.
  inv H.
  spec H1.
- compute;omega.
+ compute;lia.
  assert (H2 := countBLeafCT_limit 0 top).
  simpl in H2.
- omega.
+ lia.
  assert (decompose bot = (bot,bot)).
   tauto.
  apply countBLeafCT_decompose with (n := n) in H .
  rewrite IHn in H.
- omega.
+ lia.
 Qed.
 
 (*L41*)
@@ -6653,17 +6651,17 @@ Proof.
  intro.
  inv H.
  spec H1.
- compute;omega.
+ compute;lia.
  assert (H2 := countBLeafCT_limit 0 top).
  simpl in H2.
  rewrite countBLeafCT_bot in H1.
  simpl.
- omega.
+ lia.
  assert (H : decompose top = (top,top)) by auto.
  apply countBLeafCT_decompose with (n:=n) in H.
  rewrite IHn in H.
  simpl.
- omega.
+ lia.
 Qed.
 
 (*L42*)
@@ -6692,20 +6690,20 @@ Proof.
  repeat rewrite countBLeafCT_top.
  simpl.
  induction n2.
- simpl;omega.
+ simpl;lia.
  simpl.
  spec IHn2.
- omega.
- omega.
+ lia.
+ lia.
  unfold top.
  f_equal;apply proof_irr.
  icase n2;compute.
- compute;omega.
+ compute;lia.
  (*INDUCTIVE CASE*)
  intros.
  icase n2.
  inv H.
- assert (H1 : n1 <= n2) by omega.
+ assert (H1 : n1 <= n2) by lia.
  remember (decompose s) as ds.
  destruct ds as [s1 s2].
  symmetry in Heqds.
@@ -6713,7 +6711,7 @@ Proof.
  assert (H3 := countBLeafCT_decompose n2 _ _ _ Heqds).
  assert (H4 := IHn1 n2 s1).
  assert (H5 := IHn1 n2 s2).
- omega.
+ lia.
 Qed.
 
 (*L44*)
@@ -6729,13 +6727,13 @@ Proof.
  icase b;icase b0.
  replace (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf true) pf1) with top.
  replace (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf true) pf2) with top.
- omega.
+ lia.
  unfold top;f_equal;apply proof_irr.
  unfold top;f_equal;apply proof_irr.
  replace (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf false) pf2) with bot.
  repeat rewrite countBLeafCT_bot.
  simpl.
- omega.
+ lia.
  unfold bot;f_equal;apply proof_irr.
  simpl.
  replace (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf true) pf2) with top.
@@ -6743,19 +6741,19 @@ Proof.
  rewrite countBLeafCT_bot.
  rewrite countBLeafCT_top.
  induction n2.
- simpl;omega.
+ simpl;lia.
  spec IHn2.
- omega.
- simpl;omega.
+ lia.
+ simpl;lia.
  unfold bot;f_equal;apply proof_irr.
  unfold top;f_equal;apply proof_irr.
  simpl.
- omega.
+ lia.
  icase b.
  simpl.
- omega.
+ lia.
  simpl.
- omega.
+ lia.
  icase b.
  simpl.
  replace (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf true) pf2) with top.
@@ -6764,20 +6762,20 @@ Proof.
    apply top_correct.
    intro.
    inv H1.
-   compute;omega.
+   compute;lia.
  remember (countBLeafCT n2
        (exist (fun t0 : ShareTree => canonicalTree t0) (Node s1_1 s1_2) pf1)) as n0.
- omega.
+ lia.
  unfold top;f_equal;apply proof_irr.
  simpl.
- omega.
+ lia.
  simpl.
- omega.
+ lia.
  (*INDUCTIVE CASE*)
  icase n2.
  inv H.
  assert (H1 : n1 <= n2).
- omega.
+ lia.
  remember (decompose s1) as ds1.
  destruct ds1 as [s11 s12].
  symmetry in Heqds1.
@@ -6794,7 +6792,7 @@ Proof.
  rewrite countBLeafCT_decompose with (s1:=s11) (s2:=s12);trivial.
  assert (H6 := countBLeafCT_le n2 _ _ H2).
  assert (H7 := countBLeafCT_le n2 _ _ H3).
- omega.
+ lia.
 Qed.
 
 (*L45*)
@@ -6812,32 +6810,32 @@ Proof.
  replace (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf true) pf) with top.
  repeat rewrite countBLeafCT_top.
  induction n2.
- compute;omega.
+ compute;lia.
  spec IHn2.
- omega.
- simpl in *;omega.
+ lia.
+ simpl in *;lia.
  unfold top;f_equal;apply proof_irr.
  inv H0.
  (*INDUCTIVE CASE*)
  icase n2.
  inv H.
- assert ( H1 : n1 < n2) by omega.
+ assert ( H1 : n1 < n2) by lia.
  remember (decompose s) as ds;
  destruct ds as [s1 s2];
  symmetry in Heqds.
  repeat rewrite countBLeafCT_decompose with (s1:=s1)(s2:=s2);trivial.
  assert (H2 : 0 < countBLeafCT n1 s1 \/ 0 < countBLeafCT n1 s2).
   apply countBLeafCT_decompose with (n:=n1) in Heqds.
-  omega.
+  lia.
  destruct H2 as [H2|H2].
  specialize ( IHn1 n2 s1 H1 H2).
- assert (H3 : n1 <= n2) by omega.
+ assert (H3 : n1 <= n2) by lia.
  apply countBLeafCT_mono_le with (s:=s2) in H3.
- omega.
+ lia.
  specialize ( IHn1 n2 s2 H1 H2).
- assert (H3 : n1 <= n2) by omega.
+ assert (H3 : n1 <= n2) by lia.
  apply countBLeafCT_mono_le with (s:=s1) in H3.
- omega.
+ lia.
 Qed.
 
 (*Borrow those two lemmas from to_formula*)
@@ -6867,7 +6865,7 @@ Qed.
   right;unfold bot;f_equal;apply proof_irr.
   unfold tree_height in H.
   simpl in H.
-  elimtype False;omega.
+  elimtype False;lia.
  Qed.
 
  (*L55*)
@@ -6882,7 +6880,7 @@ Proof.
  rewrite H2.
  apply tree_height_0 in H1.
  apply tree_height_0 in H2.
- destruct H1;destruct H2;subst;compute;omega.
+ destruct H1;destruct H2;subst;compute;lia.
  destruct s1 as [s1 pf1].
  icase s1.
  icase b.
@@ -6907,24 +6905,24 @@ Proof.
  unfold tree_height,proj1_sig in *.
  simpl in H,H0,H1,H2.
  spec H1.
- assert (Help := le_max_l (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;omega.
+ assert (Help := le_max_l (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
  spec H1.
- assert (Help := le_max_l (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;omega.
+ assert (Help := le_max_l (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
  spec H2.
- assert (Help := le_max_r (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;omega.
+ assert (Help := le_max_r (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
  spec H2.
- assert (Help := le_max_r (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;omega.
+ assert (Help := le_max_r (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
  simpl.
  icase (mkCanon (intersect_tree s1_1 s2_1));
  icase (mkCanon (intersect_tree s1_2 s2_2)).
- icase b;icase b0;compute;omega.
- simpl in *;omega.
+ icase b;icase b0;compute;lia.
+ simpl in *;lia.
  simpl in *.
  rewrite max_0_r.
- omega.
+ lia.
  simpl in *.
  assert (H3 := max_lub _ _ _ H1 H2).
- omega.
+ lia.
 Qed.
 
  (*L57*)
@@ -6937,7 +6935,7 @@ Qed.
   apply tree_height_glb_limit.
   trivial.
   unfold height;simpl.
-  omega.
+  lia.
  Qed.
 
  (*L54*)
@@ -6951,7 +6949,7 @@ Qed.
   inv H;inv H0.
   apply tree_height_0 in H1.
   apply tree_height_0 in H2.
-  destruct H1;destruct H2;subst;compute;omega.
+  destruct H1;destruct H2;subst;compute;lia.
   destruct s1 as [s1 pf1].
   icase s1.
   icase b.
@@ -6974,23 +6972,23 @@ Qed.
   assert (H2 := IHn (exist (fun t => canonicalTree t) s1_2 c0)(exist (fun t => canonicalTree t) s2_2 c2)).
   unfold tree_height,proj1_sig in *;simpl in *.
   spec H1.
-  assert (Help := le_max_l (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;omega.
+  assert (Help := le_max_l (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
   spec H1.
-  assert (Help := le_max_l (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;omega.
+  assert (Help := le_max_l (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
   spec H2.
-  assert (Help := le_max_r (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;omega.
+  assert (Help := le_max_r (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
   spec H2.
-  assert (Help := le_max_r (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;omega.
+  assert (Help := le_max_r (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
   icase (mkCanon (union_tree s1_1 s2_1));
   icase (mkCanon (union_tree s1_2 s2_2)).
-  icase b;icase b0;compute;omega.
-  simpl in *;omega.
+  icase b;icase b0;compute;lia.
+  simpl in *;lia.
   simpl in *.
   rewrite max_0_r.
-  omega.
+  lia.
   simpl in *.
   assert (H3 := max_lub _ _ _ H1 H2).
-  omega.
+  lia.
  Qed.
 
  (*L56*)
@@ -7003,7 +7001,7 @@ Qed.
   apply tree_height_lub_limit.
   trivial.
   unfold height;simpl.
-  omega.
+  lia.
  Qed.
  (*L58*)
  Lemma height_comp: forall s, height (comp s)= height s.
@@ -7038,24 +7036,24 @@ Qed.
   destruct H.
   rewrite H;rewrite H0.
   compute.
-  omega.
+  lia.
   unfold top;f_equal;apply proof_irr.
   replace (exist (fun t : ShareTree => canonicalTree t) (Leaf false) pf1) with bot in H.
   apply bot_join in H.
   rewrite H.
   simpl.
-  omega.
+  lia.
   unfold bot;f_equal;apply proof_irr.
   elimtype False.
   destruct H as [H1 H2].
-  assert (tree_height (exist (fun t : ShareTree => canonicalTree t) (Leaf b) pf1) <= 0) by (compute;omega).
-  assert (tree_height (exist (fun t : ShareTree => canonicalTree t) (Leaf b0) pf2) <= 0) by (compute;omega).
+  assert (tree_height (exist (fun t : ShareTree => canonicalTree t) (Leaf b) pf1) <= 0) by (compute;lia).
+  assert (tree_height (exist (fun t : ShareTree => canonicalTree t) (Leaf b0) pf2) <= 0) by (compute;lia).
   assert (H3 := tree_height_lub_limit _ _ _ H H0).
   rewrite H2 in H3.
   clear - H3.
   unfold height in H3;simpl in H3;unfold tree_height,proj1_sig in H3.
   simpl in H3.
-  omega.
+  lia.
   unfold countBLeafCT;simpl.
   icase b.
   replace (exist (fun t : ShareTree => canonicalTree t) (Leaf true) pf1) with top in H.
@@ -7064,7 +7062,7 @@ Qed.
   rewrite glb_top in H.
   inv H.
   unfold top;f_equal;apply proof_irr.
-  omega.
+  lia.
   icase b.
   replace (exist (fun t : ShareTree => canonicalTree t) (Leaf true) pf1) with top in H.
   destruct H.
@@ -7084,7 +7082,7 @@ Qed.
   apply bot_join in H.
   rewrite H.
   unfold countBLeafCT,proj1_sig;simpl.
-  omega.
+  lia.
   unfold bot;f_equal;apply proof_irr.
   apply join_comm in H.
   icase b.
@@ -7095,7 +7093,7 @@ Qed.
   inv H.
   unfold top;f_equal;apply proof_irr.
   compute.
-  omega.
+  lia.
   (*INDUCTIVE CASE*)
   remember (decompose s1) as ds1;
   remember (decompose s2) as ds2;
@@ -7111,7 +7109,7 @@ Qed.
   destruct H as [H1 H2].
   assert (H4 := IHn _ _ _ H1).
   assert (H5 := IHn _ _ _ H2).
-  omega.
+  lia.
  Qed.
 
 (*L47*)
@@ -7130,10 +7128,10 @@ Proof.
  destruct H3 as [H3|H3];subst.
  apply join_top in H.
  destruct H;subst.
- compute;omega.
+ compute;lia.
  apply bot_join in H;subst.
  compute.
- omega.
+ lia.
  (*INDUCTIVE CASE*)
  remember (decompose s1) as ds1;
  remember (decompose s2) as ds2;
@@ -7153,7 +7151,7 @@ Proof.
  destruct H as [H6 H7].
  assert (H8 := IHn _ _ _ H6 H2 H4).
  assert (H9 := IHn _ _ _ H7 H3 H5).
- omega.
+ lia.
 Qed.
 
 Definition share_metric (n : nat) (s : canonTree) : nat :=
@@ -7174,9 +7172,9 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   inv H.
   simpl.
   icase (le_dec (tree_height s) n).
-  omega.
+  lia.
   unfold height in H;simpl in H.
-  omega.
+  lia.
  Qed.
 
  (*L49*)
@@ -7189,7 +7187,7 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   simpl.
   icase (le_dec (tree_height s) n).
   unfold height in H;simpl in H.
-  elimtype False;omega.
+  elimtype False;lia.
  Qed.
  (*L50*)
  Lemma share_metric_height_monotonic : forall s n1 n2,
@@ -7199,17 +7197,17 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   intros.
   icase n1.
   simpl.
-  omega.
+  lia.
   icase n2.
   inv H.
-  assert (H1 : n1 <= n2) by omega.
+  assert (H1 : n1 <= n2) by lia.
   simpl.
   icase (le_dec (tree_height s) n1);
   icase (le_dec (tree_height s) n2).
   assert (H2 := countBLeafCT_mono_le _ _ s H1).
-  omega.
-  omega.
-  omega.
+  lia.
+  lia.
+  lia.
  Qed.
  (*L51*)
  Lemma share_metric_lub : forall s s' n,
@@ -7230,7 +7228,7 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
    rewrite H3.
    apply lub_upper2.
   assert (H4 := countBLeafCT_lt _ _ _ H2 H3 l0).
-  omega.
+  lia.
   simpl in H1.
   revert H1.
   icase (le_dec (tree_height (lub s s')) n);intro.
@@ -7255,7 +7253,7 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
    rewrite<- H3.
    apply glb_lower2.
   assert (H4 := countBLeafCT_lt _ _ _ H2 H3 l0).
-  omega.
+  lia.
   simpl in H0.
   revert H0.
   icase (le_dec (tree_height s) n).
@@ -7276,19 +7274,19 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   inv H1.
   icase n0.
   inv H0.
-  assert (H3 : n <= n0) by omega.
+  assert (H3 : n <= n0) by lia.
   simpl.
   icase (le_dec (tree_height s1) n);
   icase (le_dec (tree_height s2) n);
   icase (le_dec (tree_height s1) n0);
   icase (le_dec (tree_height s2) n0);
-  simpl;try omega.
+  simpl;try lia.
   assert (H4 := countBLeafCT_mono_diff _ _ _ _ H3 H).
-  omega.
+  lia.
   unfold height in *;simpl in *.
-  omega.
+  lia.
   unfold height in *;simpl in *.
-  omega.
+  lia.
  Qed.
 
  Lemma shareTreeOrd_dec: forall t1 t2 : ShareTree,
@@ -7353,7 +7351,7 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   unfold tree_height in H.
   simpl in H.
   elimtype False.
-  omega.
+  lia.
  Defined.
 (*D10*)
  Definition add (x y : canonTree) : option canonTree :=
@@ -7449,11 +7447,11 @@ Proof.
  symmetry in Heqn.
  apply height_zero_eq in Heqn.
  icase Heqn;subst;
- inv H;compute;omega.
+ inv H;compute;lia.
  symmetry in Heqn.
  assert (H1 := decompose_height _ _ _ _ Heqn H).
  simpl in *.
- omega.
+ lia.
 Qed.
 
 
@@ -7902,7 +7900,7 @@ Lemma tree_avg_bot: forall n,
 Proof.
  intros.
  apply tree_avg_identity.
- compute. omega.
+ compute. lia.
 Qed.
 
 Lemma tree_avg_zero: forall sL sR s n,
@@ -7933,7 +7931,7 @@ Qed.
 
 Lemma tree_avg_bound: forall sL sR s n,
   avg n sL sR = Some s -> (height s <= n)%nat.
-Proof with try tauto;try omega.
+Proof with try tauto;try lia.
   intros. icase n.
   apply tree_avg_avg2round in H.
   destruct H.

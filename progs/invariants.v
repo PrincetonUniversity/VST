@@ -35,19 +35,181 @@ Proof.
   constructor; apply cored_sepcon.
 Qed.
 
+Lemma cored_emp: cored |-- |==> emp.
+Proof.
+  apply own.cored_emp.
+Qed.
+
+Lemma emp_cored : emp |-- cored.
+Proof.
+  apply own.emp_cored.
+Qed.
+
+Section Invariants.
+
+Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
+Proof. auto. Defined.
+
+Definition pred_of (P : mpred) := SomeP rmaps.Mpred (fun _ => P).
+
+Definition agree g (P : mpred) := own(RA := unit_PCM) g tt (pred_of P).
+
+Lemma agree_dup : forall g P, agree g P = agree g P * agree g P.
+Proof.
+  intros; apply own_op; constructor.
+Qed.
+
+Lemma agree_join : forall g P1 P2, agree g P1 * agree g P2 |-- (|> P1 -* |> P2) * agree g P1.
+Proof.
+  intros.
+  change (predicates_hered.derives (agree g P1 * agree g P2) ((|> P1 -* |> P2) * agree g P1)).
+  intros ? (? & ? & ? & H1 & H2).
+  do 3 eexists; [apply core_unit|].
+  pose proof (ghost_of_join _ _ _ H) as J.
+  change (agree g P1) with (own.own(RA := unit_PCM) g tt (pred_of P1)) in H1.
+  destruct H1 as (? & Hid & H1).
+  change (agree g P2) with (own.own(RA := unit_PCM) g tt (pred_of P2)) in H2.
+  destruct H2 as (? & ? & H2).
+  rewrite H1, H2, !own.ghost_fmap_singleton in J.
+  apply own.singleton_join_inv in J as ([] & J & Jg).
+  inv J; simpl in *.
+  inv H4.
+  apply SomeP_inj in H5.
+  destruct (join_level _ _ _ H) as [Hl1 Hl2]; rewrite Hl1, Hl2 in *.
+  assert (approx (level a) P1 = approx (level a) P2) as Heq.
+  { apply (@equal_f _ _ (fun _ : list Type => approx (level a) P1) (fun _ : list Type => approx (level a) P2));
+      auto.
+    apply nil. }
+  split.
+  - intros ??? Hl J HP1 ? Ha'.
+    pose proof (level_core a).
+    pose proof (necR_level _ _ Hl).
+    apply nec_identity in Hl; [|apply core_identity].
+    destruct (join_level _ _ _ J).
+    apply Hl in J; subst.
+    specialize (HP1 _ Ha').
+    apply laterR_level in Ha'.
+    assert ((approx (level a) P1) a') as HP1'.
+    { split; auto; lia. }
+    rewrite Heq in HP1'; destruct HP1'; auto.
+  - exists I; split.
+    + intro l; simpl.
+      apply (resource_at_join _ _ _ l) in H.
+      apply Hid in H as <-; auto.
+    + simpl; rewrite Jg, own.ghost_fmap_singleton; simpl.
+      repeat f_equal; auto.
+      inv H3; f_equal.
+      destruct c0; apply exist_ext; auto.
+Qed.
+
+Lemma agree_join2 : forall g P1 P2, agree g P1 * agree g P2 |-- (|> P1 -* |> P2) * agree g P2.
+Proof.
+  intros.
+  change (predicates_hered.derives (agree g P1 * agree g P2) ((|> P1 -* |> P2) * agree g P2)).
+  intros ? (? & ? & ? & H1 & H2).
+  do 3 eexists; [apply core_unit|].
+  pose proof (ghost_of_join _ _ _ H) as J.
+  change (agree g P1) with (own.own(RA := unit_PCM) g tt (pred_of P1)) in H1.
+  destruct H1 as (? & Hid & H1).
+  change (agree g P2) with (own.own(RA := unit_PCM) g tt (pred_of P2)) in H2.
+  destruct H2 as (? & ? & H2).
+  rewrite H1, H2, !own.ghost_fmap_singleton in J.
+  apply own.singleton_join_inv in J as ([] & J & Jg).
+  inv J; simpl in *.
+  inv H4.
+  apply SomeP_inj in H5.
+  destruct (join_level _ _ _ H) as [Hl1 Hl2]; rewrite Hl1, Hl2 in *.
+  assert (approx (level a) P1 = approx (level a) P2) as Heq.
+  { apply (@equal_f _ _ (fun _ : list Type => approx (level a) P1) (fun _ : list Type => approx (level a) P2));
+      auto.
+    apply nil. }
+  split.
+  - intros ??? Hl J HP1 ? Ha'.
+    pose proof (level_core a).
+    pose proof (necR_level _ _ Hl).
+    apply nec_identity in Hl; [|apply core_identity].
+    destruct (join_level _ _ _ J).
+    apply Hl in J; subst.
+    specialize (HP1 _ Ha').
+    apply laterR_level in Ha'.
+    assert ((approx (level a) P1) a') as HP1'.
+    { split; auto; lia. }
+    rewrite Heq in HP1'; destruct HP1'; auto.
+  - exists I; split.
+    + intro l; simpl.
+      apply (resource_at_join _ _ _ l) in H.
+      apply Hid in H as <-; auto.
+    + simpl; rewrite Jg, own.ghost_fmap_singleton; simpl.
+      repeat f_equal; auto.
+      inv H3; f_equal.
+      destruct c0; apply exist_ext; auto.
+Qed.
+
+Inductive list_join {P : Ghost} : Join (list (option G)) :=
+  | list_join_nil_l m: list_join nil m m
+  | list_join_nil_r m: list_join m nil m
+  | list_join_cons a1 a2 m1 m2 a3 m3: join a1 a2 a3 -> list_join m1 m2 m3 ->
+      list_join (a1 :: m1) (a2 :: m2) (a3 :: m3).
+Existing Instance list_join.
+
+Lemma list_join_inv: forall {P : Ghost} (l1 l2 l3 : list (option G)), list_join l1 l2 l3 ->
+match l1, l2 with
+| nil, _ => l3 = l2
+| _, nil => l3 = l1
+| a1 :: l1, a2 :: l2 => match l3 with nil => False
+                        | a3 :: l3 => join a1 a2 a3 /\ list_join l1 l2 l3 end
+end.
+Proof.
+  induction 1; simpl; auto.
+  destruct m; simpl; auto.
+Qed.
+
+Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join }.
+Proof.
+  - exists (fun _ => nil); auto; constructor.
+  - constructor.
+    + intros until 1.
+      revert z'; induction H; inversion 1; auto; subst.
+      f_equal; eauto.
+      eapply join_eq; eauto.
+    + induction a; intros ???? J1 J2; eapply list_join_inv in J1; subst.
+      { exists e; split; auto; constructor. }
+      destruct b; subst; [eexists; split; eauto; constructor|].
+      destruct d; [contradiction|].
+      destruct J1 as [Jc1 J1].
+      apply list_join_inv in J2.
+      destruct c; subst; [eexists; split; eauto; constructor; auto|].
+      destruct e; [contradiction|].
+      destruct J2 as [Jc2 J2].
+      destruct (join_assoc Jc1 Jc2) as (f & ? & ?).
+      destruct (IHa _ _ _ _ J1 J2) as (f' & ? & ?).
+      exists (f :: f'); split; constructor; auto.
+    + induction 1; constructor; auto.
+    + intros until 1.
+      revert b'; induction H; inversion 1; auto; subst.
+      f_equal; eauto.
+      eapply join_positivity; eauto.
+  - auto.
+Defined.
+
+Definition ghost_list {P : Ghost} g l := own(RA := list_PCM P) g l NoneP.
+
+Definition list_singleton {A} n (a : A) := repeat None n ++ [Some a].
+
+Definition list_incl {A} (l1 l2 : list (option A)) := (length l1 <= length l2)%nat /\
+  forall n a, nth n l1 None = Some a -> nth n l2 None = Some a.
+
+(* up *)
+Lemma app_nth : forall {A} n l1 l2 (d : A),
+  nth n (l1 ++ l2) d = if lt_dec n (length l1) then nth n l1 d else nth (n - length l1) l2 d.
+Proof.
+  intros.
+  if_tac; [rewrite app_nth1 | rewrite app_nth2]; auto; lia.
+Qed.
+
 Lemma cored_dup_gen : forall P, (P |-- cored) -> P |-- P * P.
 Proof.
   unseal_derives; exact cored_dup_gen.
-Qed.
-
-Lemma cored_emp: (cored |-- |==> emp)%I.
-Proof.
-  constructor; apply own.cored_emp.
-Qed.
-
-Lemma emp_cored : (emp |-- cored)%I.
-Proof.
-  constructor; apply own.emp_cored.
 Qed.
 
 Lemma iter_sepcon_eq : forall A, @invariants.iter_sepcon A = @iter_sepcon mpred A _ _.
@@ -57,21 +219,402 @@ Proof.
   rewrite IHl; auto.
 Qed.
 
+Lemma list_join_None : forall {P : Ghost} n l, (n <= length l)%nat ->
+  list_join (repeat None n) l l.
+Proof.    
+  induction n; [constructor|].
+  destruct l; simpl; [lia|].
+  repeat constructor.
+  apply IHn; lia.
+Qed.
+
+Lemma list_join_over : forall {P : Ghost} l l1 l2 l1', (length l <= length l1)%nat ->
+  list_join l l1 l1' -> list_join l (l1 ++ l2) (l1' ++ l2).
+Proof.
+  induction 2; simpl in *.
+  - constructor.
+  - destruct m; [constructor | simpl in *; lia].
+  - constructor; auto.
+    apply IHlist_join; lia.
+Qed.
+
+Lemma singleton_length : forall {A} n (a : A), length (list_singleton n a) = S n.
+Proof.
+  intros; unfold list_singleton.
+  rewrite app_length, repeat_length; simpl; lia.
+Qed.
+
+Lemma list_join_singleton : forall {P : Ghost} n a c l
+  (Hn : (n < length l)%nat) (Hjoin: join (Some a) (nth n l None) (Some c)),
+  list_join (list_singleton n a) l (replace_nth n l (Some c)).
+Proof.
+  induction l using rev_ind; simpl; intros; try lia.
+  rewrite app_length in Hn; simpl in Hn.
+  destruct (eq_dec n (length l)).
+  - subst.
+    rewrite app_nth2, minus_diag in Hjoin by lia; simpl in Hjoin.
+    rewrite replace_nth_app, if_false, minus_diag by lia; simpl.
+    apply list_join_app; try (rewrite repeat_length; auto).
+    + apply list_join_None; auto.
+    + repeat constructor; auto.
+  - assert (n < length l)%nat by lia.
+    rewrite app_nth1 in Hjoin by auto.
+    rewrite replace_nth_app, if_true by auto.
+    apply list_join_over, IHl; auto.
+    rewrite singleton_length; lia.
+Qed.
+
+(* up *)
+Lemma replace_nth_same : forall {A} n l (d : A), replace_nth n l (nth n l d) = l.
+Proof.
+  induction n; destruct l; auto; simpl; intro.
+  rewrite IHn; auto.
+Qed.
+
 Lemma nth_replace_nth : forall {A} n l a (d : A), (n < length l)%nat ->
   nth n (replace_nth n l a) d = a.
 Proof.
-  induction n; destruct l; auto; simpl; intros; try omega.
-  apply IHn; omega.
+  induction n; destruct l; auto; simpl; intros; try lia.
+  apply IHn; lia.
 Qed.
 
 Lemma nth_replace_nth' : forall {A} n m l a (d : A), m <> n ->
   nth m (replace_nth n l a) d = nth m l d.
 Proof.
-  induction n; destruct l; auto; destruct m; auto; simpl; intros; try omega.
-  apply IHn; omega.
+  induction n; destruct l; auto; destruct m; auto; simpl; intros; try lia.
+  apply IHn; lia.
 Qed.
 
-Section Invariants.
+Lemma Znth_replace_nth : forall {A} {d : Inhabitant A} n l (a : A), (n < length l)%nat ->
+  Znth (Z.of_nat n) (replace_nth n l a) = a.
+Proof.
+  intros; rewrite <- nth_Znth.
+  apply nth_replace_nth; auto.
+Qed.
+
+Lemma Znth_replace_nth' : forall {A} {d : Inhabitant A} n m l (a : A), m <> Z.of_nat n ->
+  Znth m (replace_nth n l a) = Znth m l.
+Proof.
+  intros.
+  destruct (zlt m 0); [rewrite !Znth_underflow; auto|].
+  rewrite <- (Z2Nat.id m) by lia.
+  rewrite <- !nth_Znth; apply nth_replace_nth'.
+  intro; contradiction H; subst.
+  rewrite Z2Nat.id by lia; auto.
+Qed.
+
+Lemma ghost_list_nth : forall {P : Ghost} g n l (a : G) (Ha : nth n l None = Some a),
+  ghost_list g l = ghost_list g (list_singleton n a) * ghost_list g (replace_nth n l None).
+Proof.
+  intros; apply own_op.
+  rewrite <- (replace_nth_same n l None) at 2.
+  destruct (lt_dec n (length l)); [|rewrite nth_overflow in Ha by lia; discriminate].
+  exploit (list_join_singleton n a a (replace_nth n l None)).
+  { rewrite replace_nth_length; auto. }
+  { rewrite nth_replace_nth by auto; constructor. }
+  rewrite replace_nth_replace_nth, Ha; auto.
+Qed.
+
+Lemma list_join_length : forall {P : Ghost} l1 l2 l3, list_join l1 l2 l3 ->
+  (length l1 <= length l3)%nat.
+Proof.
+  induction 1; auto; simpl; lia.
+Qed.
+
+Lemma list_join_filler : forall {P : Ghost} l1 l2 l3 n, list_join l1 l2 l3 ->
+  (n <= length l3 - length l1)%nat -> list_join (l1 ++ repeat None n) l2 l3.
+Proof.
+  induction 1; simpl; intros.
+  - apply list_join_None; lia.
+  - destruct n; [|lia].
+    rewrite app_nil_r; constructor.
+  - constructor; auto.
+Qed.
+
+Lemma list_join_nth : forall {P : Ghost} l1 l2 l3 n, list_join l1 l2 l3 ->
+  join (nth n l1 None) (nth n l2 None) (nth n l3 None).
+Proof.
+  intros; revert n.
+  induction H; intro.
+  - rewrite nth_overflow by (simpl; lia); constructor.
+  - rewrite (nth_overflow []) by (simpl; lia); constructor.
+  - destruct n; simpl; auto.
+Qed.
+
+Lemma list_join_max : forall {P : Ghost} l1 l2 l3, list_join l1 l2 l3 ->
+  length l3 = Max.max (length l1) (length l2).
+Proof.
+  induction 1; simpl; auto.
+  rewrite Nat.max_l; auto; lia.
+Qed.
+
+Lemma list_join_nth_error : forall {P : Ghost} l1 l2 l3 n, list_join l1 l2 l3 ->
+  join (nth_error l1 n) (nth_error l2 n) (nth_error l3 n).
+Proof.
+  intros; revert n.
+  induction H; intro.
+  - rewrite nth_error_nil; constructor.
+  - rewrite nth_error_nil; constructor.
+  - destruct n; simpl; auto.
+    constructor; auto.
+Qed.
+
+Lemma list_join_alt : forall {P : Ghost} l1 l2 l3,
+  list_join l1 l2 l3 <-> forall n, join (nth_error l1 n) (nth_error l2 n) (nth_error l3 n).
+Proof.
+  split; [intros; apply list_join_nth_error; auto|].
+  revert l2 l3; induction l1; simpl; intros.
+  - assert (l2 = l3); [|subst; constructor].
+    apply list_nth_error_eq; intro.
+    specialize (H j); rewrite nth_error_nil in H; inv H; auto.
+  - destruct l2.
+    + assert (a :: l1 = l3); [|subst; constructor].
+      apply list_nth_error_eq; intro.
+      specialize (H j); rewrite nth_error_nil in H; inv H; auto.
+    + destruct l3.
+      { specialize (H O); inv H. }
+      constructor.
+      * specialize (H O); inv H; auto.
+      * apply IHl1; intro.
+        apply (H (S n)).
+Qed.
+
+Lemma nth_error_replace_nth : forall {A} n l (a : A), (n < length l)%nat ->
+  nth_error (replace_nth n l a) n = Some a.
+Proof.
+  induction n; destruct l; auto; simpl; intros; try lia.
+  apply IHn; lia.
+Qed.
+
+Lemma nth_error_replace_nth' : forall {A} n m l (a : A), m <> n ->
+  nth_error (replace_nth n l a) m = nth_error l m.
+Proof.
+  induction n; destruct l; auto; destruct m; auto; simpl; intros; try lia.
+  apply IHn; lia.
+Qed.
+
+Instance list_order A : @PCM_order (list_PCM (discrete_PCM A)) list_incl.
+Proof.
+  constructor.
+  - repeat intro; split; auto.
+  - repeat intro.
+    destruct H, H0; split; auto; lia.
+  - intro a.
+    remember (length a) as n.
+    revert dependent a; induction n; intros.
+    + destruct a; inv Heqn.
+      exists b; split; auto.
+      change [] with (core b); apply core_unit.
+    + assert (a <> []) by (intro; subst; discriminate).
+      rewrite (app_removelast_last None) in H, Heqn by auto.
+      rewrite app_length in Heqn; simpl in Heqn.
+      rewrite Nat.add_1_r in Heqn; inv Heqn.
+      specialize (IHn _ eq_refl).
+      destruct (IHn b c) as (c' & ? & ?); auto.
+      { destruct H as [Hlen H].
+        split.
+        { rewrite app_length in Hlen; simpl in *; lia. }
+        intros ?? Hnth.
+        specialize (H n a0).
+        rewrite app_nth in H.
+        if_tac in H; auto.
+        rewrite nth_overflow in Hnth; [discriminate|].
+        apply not_lt; auto. }
+      pose proof (list_join_length _ _ _ H2).
+      pose proof (list_join_length _ _ _ (join_comm H2)).
+      destruct (eq_dec (length (removelast a)) (length c')).
+      * exists (c' ++ [last a None]); split.
+        -- rewrite (app_removelast_last None) at 1 by auto.
+           apply join_comm, list_join_over; try lia.
+           apply join_comm in H2; auto.
+        -- split.
+            { destruct H.
+              rewrite app_length in *; simpl in *; lia. }
+            intros ?? Hnth.
+            rewrite app_nth in Hnth.
+            if_tac in Hnth; [apply H3; auto|].
+            destruct (n - length c')%nat eqn: Hminus; [|destruct n0; discriminate].
+            simpl in Hnth.
+            apply H.
+            rewrite app_nth2 by lia.
+            replace (_ - _)%nat with O by lia; auto.
+       * destruct (last a None) eqn: Ha.
+         -- exists (replace_nth (length (removelast a)) c' (Some g)).
+            split.
+            ++ apply list_join_alt; intro.
+               pose proof (list_join_max _ _ _ H2) as Hlen.
+               destruct (Max.max_spec (length (removelast a)) (length b)) as [[? Hmax] | [? Hmax]];
+                 setoid_rewrite Hmax in Hlen; try lia.
+               hnf in H2; rewrite list_join_alt in H2.
+               specialize (H2 n0).
+               rewrite (app_removelast_last None) at 1 by auto.
+               rewrite Ha.
+               destruct (lt_dec n0 (length (removelast a))).
+               ** rewrite nth_error_app1 by auto.
+                  rewrite nth_error_replace_nth' by lia; auto.
+               ** rewrite nth_error_app2 by lia.
+                  destruct (eq_dec n0 (length (removelast a))).
+                  { subst; rewrite minus_diag; simpl.
+                    rewrite nth_error_replace_nth by (simpl in *; lia).
+                    destruct (nth_error b (length (removelast a))) eqn: Hb; setoid_rewrite Hb; constructor.
+                    destruct o; constructor.
+                    destruct H0 as [_ Hc].
+                    erewrite nth_error_nth in Hb by auto.
+                    inv Hb.
+                    apply Hc in H7.
+                    destruct H as [_ Hc'].
+                    specialize (Hc' (length (removelast a))).
+                    rewrite app_nth2, minus_diag in Hc' by auto.
+                    setoid_rewrite Hc' in H7; [|reflexivity].
+                    inv H7; constructor; auto. }
+                  { destruct (_ - _)%nat eqn: Hminus; [lia | simpl].
+                    rewrite nth_error_nil, nth_error_replace_nth' by (simpl in *; lia).
+                    destruct (nth_error_length n0 (removelast a)) as [_ Hnone].
+                    setoid_rewrite Hnone in H2; [auto | lia]. }
+            ++ destruct H3.
+               split.
+               { rewrite replace_nth_length; auto. }
+               intros ?? Hnth.
+               destruct (eq_dec n0 (length (removelast a)));
+                 [|rewrite nth_replace_nth' in Hnth; auto].
+               subst; rewrite nth_replace_nth in Hnth by (simpl in *; lia).
+               inv Hnth.
+               apply H.
+               rewrite app_nth2, minus_diag; auto.
+         -- exists c'; split; auto.
+            rewrite (app_removelast_last None), Ha by auto.
+            apply list_join_filler with (n0 := 1%nat); auto; simpl in *; lia.
+  - split.
+    + split; [eapply list_join_length; eauto|].
+      intros ?? Hnth.
+      apply list_join_nth with (n0 := n) in H.
+      rewrite Hnth in H; inv H; auto.
+      inv H3; auto.
+    + split; [apply join_comm in H; eapply list_join_length; eauto|].
+      intros ?? Hnth.
+      apply list_join_nth with (n0 := n) in H.
+      rewrite Hnth in H; inv H; auto.
+      inv H3; auto.
+  - induction a; unfold list_incl; intros.
+    + destruct b; [constructor|].
+      simpl in *; lia.
+    + destruct H as [? Hnth].
+      destruct b; constructor.
+      * destruct o; [|constructor].
+        specialize (Hnth O _ eq_refl); simpl in Hnth.
+        subst; repeat constructor.
+      * apply IHa.
+        split; [simpl in *; lia|].
+        intros.
+        apply (Hnth (S n)); auto.
+Qed.
+
+Instance set_PCM A : Ghost := { valid := fun _ : Ensemble A => True;
+   Join_G a b c := Disjoint a b /\ c = Union a b }.
+Proof.
+  - exists (fun _ => Empty_set _); auto.
+    intro; split.
+    + constructor; intros ??.
+      inv H; contradiction.
+    + apply Extensionality_Ensembles; split.
+      * repeat intro.
+        constructor 2; auto.
+      * repeat intro.
+        inv H; auto; contradiction.
+  - constructor.
+    + intros.
+      inv H; inv H0; auto.
+    + intros.
+      inv H; inv H0.
+      eexists; split; [split; eauto | split].
+      * constructor.
+        intros ? Hin; inv Hin.
+        inv H.
+        apply (H3 x); constructor; auto.
+        constructor 2; auto.
+      * constructor.
+        intros ? Hin; inv Hin.
+        inv H2.
+        -- inv H1.
+           apply (H2 x); constructor; auto.
+        -- inv H.
+           apply (H2 x); repeat constructor; auto.
+      * apply Extensionality_Ensembles; split.
+        -- repeat intro.
+           inv H0; [|repeat constructor 2; auto].
+           inv H2; [constructor 1 | constructor 2; constructor 1]; auto.
+        -- repeat intro.
+           inv H0; [repeat constructor 1; auto|].
+           inv H2; [constructor 1; constructor 2 | constructor 2]; auto.
+    + intros.
+      inv H.
+      split.
+      * inv H0; constructor.
+        intros ? Hin; inv Hin.
+        apply (H x); constructor; auto.
+      * apply Extensionality_Ensembles; split;
+          repeat intro; inv H; try solve [constructor 1; auto]; try solve [constructor 2; auto].
+    + intros.
+      inv H; inv H0.
+      rewrite H2.
+      apply Extensionality_Ensembles; split.
+      * intros ? Hin.
+        inv Hin; [|constructor 1; constructor 2; auto].
+        inv H0; [repeat constructor 1; auto | constructor 2; auto].
+      * intros ? Hin.
+        inv Hin; auto.
+        constructor 1; constructor 2; auto.
+  - auto.
+Defined.
+
+Definition ghost_set {A} g s := own(RA := set_PCM A) g s NoneP.
+
+Lemma ghost_set_join : forall {A} g (s1 s2 : Ensemble A),
+  ghost_set g s1 * ghost_set g s2 = !!(Disjoint s1 s2) && ghost_set g (Union s1 s2).
+Proof.
+  intros.
+  setoid_rewrite own_op_gen.
+  - instantiate (1 := Union s1 s2).
+    unfold ghost_set; apply pred_ext.
+    + Intros; entailer!.
+      destruct H as (? & H & ?); inv H; auto.
+    + Intros; entailer!.
+      eexists; repeat (split; auto).
+  - intros (? & H & ?); inv H; split; auto.
+Qed.
+
+Lemma ghost_set_subset : forall {A} g (s s' : Ensemble A)
+  (Hdec : forall a, In s' a \/ ~In s' a),
+  Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Setminus s s').
+Proof.
+  intros.
+  apply own_op.
+  split.
+  - constructor; intros ? Hin.
+    inv Hin.
+    inv H1; contradiction.
+  - apply Extensionality_Ensembles; split; intros ? Hin.
+    + destruct (Hdec x).
+      * constructor 1; auto.
+      * constructor 2; constructor; auto.
+    + inv Hin; auto.
+      inv H0; auto.
+Qed.
+
+Corollary ghost_set_remove : forall {A} g a (s : Ensemble A) (Hdec : forall b, b = a \/ b <> a),
+  In s a -> ghost_set g s = ghost_set g (Singleton a) * ghost_set g (Subtract s a).
+Proof.
+  intros; apply ghost_set_subset.
+  - intro x; destruct (Hdec x).
+    + subst; left; constructor.
+    + right; intro Hin; inv Hin; contradiction.
+  - intros ? Hin.
+    inv Hin; auto.
+Qed.
+
+Definition iname := nat.
+
+Class invG := { g_inv : gname; g_en : gname; g_dis : gname }.
 
 Context {inv_names : invG}.
 
@@ -80,9 +623,61 @@ Proof.
   exact invariant_dup.
 Qed.
 
+(* up *)
+Lemma Zlength_eq : forall {A B} (l1 : list A) (l2 : list B),
+  Zlength l1 = Zlength l2 <-> length l1 = length l2.
+Proof.
+  intros; rewrite !Zlength_correct.
+  split; [apply Nat2Z.inj|].
+  intro; apply Z2Nat.inj; try lia.
+  rewrite !Nat2Z.id; auto.
+Qed.
+
+Instance list_Perm {P : Ghost} : Perm_alg (list (option G)).
+Proof.
+  apply list_PCM.
+Qed.
+
+(* up *)
+Lemma nth_upto : forall m n d, (n < m)%nat -> nth n (upto m) d = Z.of_nat n.
+Proof.
+  intros.
+  erewrite nth_indep by (rewrite upto_length; auto).
+  rewrite nth_Znth, Znth_upto; auto.
+  split; [lia|].
+  apply Nat2Z.inj_lt; auto.
+Qed.
+
+Lemma nth_repeat : forall {A} n m (a : A), nth n (repeat a m) a = a.
+Proof.
+  induction n; destruct m; simpl; auto.
+Qed.
+
 Lemma invariant_cored : forall i P, invariant i P |-- cored.
 Proof.
   constructor; apply invariant_cored.
+Qed.
+
+Lemma list_incl_singleton : forall {A} n (a : A) l,
+  list_incl (list_singleton n a) l <-> nth n l None = Some a.
+Proof.
+  unfold list_incl; split.
+  - intros [? Hnth].
+    apply Hnth.
+    rewrite nth_singleton; auto.
+  - intros; split.
+    + rewrite singleton_length.
+      destruct (lt_dec n (length l)); [lia|].
+      rewrite nth_overflow in H by lia; discriminate.
+    + intros ??.
+      unfold list_singleton.
+      destruct (lt_dec n0 n).
+      * rewrite app_nth1 by (rewrite repeat_length; auto).
+        rewrite nth_repeat; discriminate.
+      * rewrite app_nth2; rewrite repeat_length; try lia.
+        destruct (eq_dec n0 n); [|rewrite nth_overflow by (simpl; lia); discriminate].
+        subst; rewrite minus_diag; simpl.
+        intro X; inv X; auto.
 Qed.
 
 Lemma wsat_alloc : forall P, (wsat * |> P |-- |==> wsat * EX i : _, invariant i P)%I.

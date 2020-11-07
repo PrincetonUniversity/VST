@@ -19,11 +19,11 @@ Definition incr_spec :=
   WITH gv : globals, sh : share
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvars gv)
+         PARAMS() GLOBALS(gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr)))
   POST [ tvoid ]
          PROP ()
-         LOCAL ()
+         RETURN ()
          SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr))).
 
 Definition read_spec :=
@@ -31,12 +31,12 @@ Definition read_spec :=
   WITH gv : globals, sh : share
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvars gv)
+         PARAMS() GLOBALS(gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr)))
   POST [ tuint ]
     EX z : Z,
          PROP ()
-         LOCAL (temp ret_temp (Vint (Int.repr z)))
+         RETURN (Vint (Int.repr z))
          SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr))).
 
 Definition thread_lock_R sh ctr lockc :=
@@ -48,22 +48,22 @@ Definition thread_lock_inv sh ctr lockc lockt :=
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : share * globals
-  PRE [ _args OF (tptr tvoid) ]
+  PRE [ tptr tvoid ]
          let '(sh, gv) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvars gv)
+         PARAMS (y) GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr));
                 lock_inv sh (gv _thread_lock) (thread_lock_inv sh (gv _ctr) (gv _ctr_lock) (gv _thread_lock)))
   POST [ tptr tvoid ]
          PROP ()
-         LOCAL ()
+         RETURN ()
          SEP ().
 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
@@ -72,7 +72,7 @@ Lemma ctr_inv_exclusive : forall p,
   exclusive_mpred (cptr_lock_inv p).
 Proof.
   intros; unfold cptr_lock_inv.
-  eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
+  eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try lia.
   Intro z; cancel.
 Qed.
 Hint Resolve ctr_inv_exclusive : exclusive.
@@ -170,6 +170,8 @@ Proof.
   { lock_props.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward.
+(* THIS NEXT LINE IS CAUSED BY A BUG IN forward_spawn, there should be no need for this. *)
+Unshelve. apply 1%positive.
 Qed.
 
 Definition extlink := ext_link_prog prog.

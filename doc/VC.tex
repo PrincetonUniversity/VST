@@ -1,8 +1,8 @@
 \documentclass[12pt,fleqn,openany,oneside,showtrims]{memoir}
 
-\newcommand\vstversion{2.4}
-\newcommand\coqversion{8.9}
-\newcommand\compcertversion{3.5}
+\newcommand\vstversion{2.5}
+\newcommand\coqversion{8.11}
+\newcommand\compcertversion{3.7}
 
 \usepackage{xr-hyper}
 \input{setup}
@@ -235,6 +235,7 @@ Verifiable C is a \emph{program logic} (higher-order impredicative concurrent se
 \begin{itemize}
   \item No casting between integers and pointers.
   \item No \lstinline{goto} statements.
+  \item No \lstinline{struct}-copying assignments, \lstinline{struct} parameters, or \lstinline{struct} returns.
   \item Only structured \lstinline{switch} statements (no Duff's device).
 \end{itemize}
 
@@ -421,7 +422,7 @@ A functional model contains not only definitions; it's also
 useful to include theorems about this mathematical domain:
 \begin{lstlisting}
 Lemma sum_Z_app: forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
-Proof.  intros. induction a; simpl; omega.  Qed.
+Proof.  intros. induction a; simpl; lia.  Qed.
 \end{lstlisting}
 The data types used in a functional model can be any kind of mathematics
 at all, as long as we have a way to relate them to the integers,
@@ -446,15 +447,15 @@ corresponding to the function prototypes.
 Definition sumarray_spec : ident * funspec  :=
 DECLARE _sumarray
  WITH a: val, sh : share, contents : list Z, size: Z
- PRE [ _a OF (tptr tuint), _n OF tint ]
+ PRE [ (tptr tuint), tint ]
     PROP  (readable_share sh;
           0 $\le$ size $\le$ Int.max_signed;
           Forall (fun x => 0 $\le$ x $\le$ Int.max_unsigned) contents)
-    LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+    PARAMS (a; Vint (Int.repr size))
     SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
     PROP ()
-    LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+    RETURN(Vint (Int.repr (sum_Z contents)))
     SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 \end{lstlisting}
 
@@ -476,22 +477,33 @@ at a particular program point.
 In an assertion
 \lstinline{PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
 the propositions in the sequence $\vec{P}$ are all of Coq type
-\lstinline{Prop}.  They describe things that are true
-independent of program state.  In the function precondition
-above, the statement \lstinline{0 $\le$ size $\le$ Int.max_signed} is
+\lstinline{Prop}, describing facts that are
+independent of program state.  In the precondition
+above, the \lstinline{0 $\le$ size $\le$ Int.max_signed} is
 true \emph{just within the scope of the quantification of
   the variable \lstinline{size}}; it is bound by
 \lstinline{WITH}, and spans the \lstinline{PRE} and
 \lstinline{POST} assertions.
 
-The \lstinline{LOCAL} propositions $\vec{Q}$ are \emph{variable
-  bindings} of type \lstinline{localdef}.  Here, the
-function-parameters $a$ and $n$ are treated as nonaddressable local
-variables, or ``temp'' variables.  The localdef
-\lstinline{(temp _a  a)}
-says that (in this program state) the contents of C local
-variable \lstinline{_a} is the Coq value \lstinline{a}.  In general,
-a C scalar variable holds something of type \lstinline{val}; this
+\emph{If you see a precondition (PRE) with \LOCAL{} instead
+  of \PARAMS{}, it is an old-style funspec; see \autoref{refcard:old-funspec}.}
+
+The \emph{local} part of a \PROP{}/\LOCAL{}/\SEP{} assertion takes different forms
+depending on what kind of local variables it describes:
+in function preconditions it is written
+\PARAMS() (or sometimes \PARAMS()\GLOBALS()); in function postconditions
+it is written \RETURN(); and inside a function body
+it is \LOCAL().
+
+Function preconditions are based on nameless, \emph{positional} parameter
+notation.  That is, $ \mathrm{PRE} [ \vec{\tau} ]$ gives the
+C-language types (but not the names) of the formal parameters,
+and $\PARAMS(\vec{v})$ gives the abstract values (but not the names) of
+those parameters.  As you can see, the abstract values are usually
+based on variables bound in the \textsc{with} clause.
+
+Values of \PARAMS{} and \RETURN{}
+are C scalar values whose Coq type is \lstinline{val}; this
 type is defined by CompCert as,
 
 \begin{lstlisting}
@@ -513,12 +525,8 @@ indicating that this function returns a value of type \lstinline{unsigned int}.
 There are no \lstinline{PROP} statements in this postcondition---no
 forever-true facts hold now, that weren't
 already true on entry to the function.
-The \lstinline{LOCAL} \emph{must not mention} the function parameters
-or local variables,
-because they are destroyed on function exit (and because your
-local variable names
-will not be meaningful to the function's caller); it will only mention
-the return-temporary \lstinline{ret_temp}.
+The \lstinline{RETURN} clause says what the return value is
+(or \lstinline{RETURN()} for a void function).
 The \lstinline{SEP} clause mentions all the spatial resources
 from the precondition, minus ones that have been freed (deallocated),
 plus ones that have been malloc'd (allocated).
@@ -528,8 +536,8 @@ So, overall, the specification for \lstinline{sumarray} is this:
 \mathit{contents},\mathit{size}$
 such that $\mathit{sh}$ gives at least read-permission;
 $\mathit{size}$ is representable as a nonnegative 32-bit signed integer;
-function-parameter \lstinline{_a} contains value $a$
-and \lstinline{_n} contains the 32-bit representation of $\mathit{size}$;
+the first function-parameter contains value $a$
+and the second contains the 32-bit representation of $\mathit{size}$;
 and there's an array in memory at address $a$
 with permission $\mathit{sh}$ containing $\mathit{contents}$.
 The function returns a value equal to \lstinline{sum_int($\mathit{contents}$)},
@@ -964,13 +972,9 @@ When we write spatial predicates outside of a
 \PROP/\LOCAL/\SEP{}, we use \lstinline{*} instead of
 semicolon to indicate separating conjunction.
 
-The \LOCAL{} part of an assertion is a
-\emph{local} predicate, that is, a predicate about the values
-of local variables.  It's an \emph{ordinary conjunction}
-(not separating) of its individual \lstinline{temp}, \lstinline{lvar} and \lstinline{gvars} clauses.
-You can think of a local predicate as Coq type
-\lstinline{environ->Prop} (but actually it is not, see \autopageref{refcard:localdefs}), where \lstinline{environ} is
-the type of run-time local-variable frames.
+The \LOCAL{} part of an assertion
+describes the values
+of local variables.
 
 A program assertion (precondition, postcondition, loop invariant, etc.)
 is a predicate \emph{both} on its local-var
@@ -1052,7 +1056,7 @@ We instantiate the existential with the only value that works here, zero:
 Now we use the \lstinline{entailer!} tactic to solve as much of this goal
 as possible (see \autoref{refcard:entailer}). In this case, the goal solves
 entirely automatically.
-In particular, $0\le i \le \mathsf{size}$ solves by \lstinline{omega};
+In particular, $0\le i \le \mathsf{size}$ solves by \lstinline{lia};
 \lstinline{sublist 0 0 contents} rewrites to \lstinline{nil};
 and \lstinline{sum_Z nil} simplifies to 0.
 
@@ -1221,7 +1225,7 @@ sublist_split: $\forall l\,m\,h\,\mathsf{al},~~ 0 \le l \le m \le h \le |\mathsf
         sublist $l$ $h$ al = sublist $l$ $m$ al ++ sublist $m$ $h$ al
 \end{lstlisting}
 So we do,
-\lstinline{rewrite (sublist_split 0 i (i+1)) by omega.}
+\lstinline{rewrite (sublist_split 0 i (i+1)) by lia.}
 A bit more rewriting with the theory of
 \lstinline{sum_Z} and \lstinline{sublist} finishes the proof.
 
@@ -1293,7 +1297,7 @@ Definition main_spec :=
     POST [ tint ]
       (* application-specific postcondition *)
       PROP()
-      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4))))
+      RETURN (Vint (Int.repr (1+2+3+4)))
       SEP(TT).
 \end{lstlisting}
 The first four lines are always the same for any program.
@@ -1321,9 +1325,10 @@ semax Delta
  $\mbox{\emph{(\ldots{}function body\ldots)}}$
  POSTCONDITION
 \end{lstlisting}
-The \lstinline{LOCAL} clause means that the C global
-variable \lstinline{_four} is at memory address
-\lstinline{(gv _four)}.    See \autoref{refcard:gvar}.
+The \lstinline{LOCAL} clause expresses
+the function-precondition's \lstinline{GLOBALS(gv)},
+constraining the global-variable map \lstinline{gv}
+to the link-time environment.   See \autoref{refcard:gvar}.
 
 The \lstinline{SEP} clause means that there's
 data of type ``array of 4 integers'' at
@@ -1602,8 +1607,8 @@ H2 : 0 $\le$ n $\le$ Int.max_signed   (* this example in progs/tutorial1.v *)
 ------------------------
 Int.min_signed $\le$ 0 $\le$ n
 \end{lstlisting}
-you can use the \lstinline{rep_omega} tactic (see \autoref{rep-omega}),
-which is basically just \lstinline{omega} with
+you can use the \lstinline{rep_lia} tactic (see \autoref{rep-lia}),
+which is basically just \lstinline{lia} with
 knowledge of the values of
 \lstinline{Int.min_signed},
 \lstinline{Int.max_signed},
@@ -2066,7 +2071,7 @@ Definition get_spec :=
     PROP () LOCAL(gvars gv)
     SEP(data_at Ews t_struct_b (repinj _ $$ v) (gv _p))
   POST [ tint ]
-    PROP() LOCAL (temp ret_temp (Vint (snd (snd v))))
+    PROP() RETURN (Vint (snd (snd v)))
     SEP (data_at Ews t_struct_b (repinj _ $$ v) (gv _p)).
 \end{lstlisting}
 In this program, \lstinline{reptype' t_struct_b = (int*(float*int))},
@@ -2082,7 +2087,7 @@ Definition get_spec :=
     PROP () LOCAL(gvars gv)
     SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) (gv _p))
   POST [ tint ]
-    PROP() LOCAL (temp ret_temp (Vint j))
+    PROP() RETURN (Vint j)
     SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) (gv _p)).
 \end{lstlisting}
 
@@ -3375,32 +3380,65 @@ elements $i,j,k$ of the \SEP{} list.  See \autoref{refcard:frame}.
 Separation Logic supports the Frame rule,
 \[\inference[Frame]{\triple{P}{c}{Q}}{\triple{P*F}{c}{Q*F}}\]
 
-To use this in a forward proof, suppose you have the
-proof goal,
-\begin{lstlisting}
-semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2;c_3$ $~\mathit{Post}$
-\end{lstlisting}
-and suppose you want to ``frame out'' $R_2$ for the duration of
-$c_1;c_2$, and have it back again for $c_3$.
-First you rewrite by \lstinline{seq_assoc}
-to yield the goal
+In VST, we recommend you use the \lstinline{freeze} tactic instead; see \autoref{freezer}.  But if you really want to use the frame rule, here is how.
+
+Suppose you have the proof goal,
 \begin{lstlisting}
 semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $(c_1;c_2);c_3$ $~\mathit{Post}$
 \end{lstlisting}
-Then \lstinline{eapply semax_seq'} to peel off the
-first command $(c_1;c_2)$ in the new sequence:
-\begin{lstlisting}
-semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2$ $~\mathsf{?88}$
+and suppose you want to ``frame out'' $R_1$ for the duration of
+$c_1;c_2$, and have it back again for $c_3$.
 
-semax $\Delta'$ $~\mathsf{?88}~$ $c_3$ $~\mathit{Post}$
+First, you grab the first 2 statements using the tactic, \newline
+\lstinline{first_N_statements 2%nat}.  (This works the same regardless of the
+  nesting structure of the semicolons; it reassociates as needed.)
+
+This leaves the two subgoals,
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2$ $~\mathsf{(normal\_ret\_assert ?88)}$
+semax $\Delta$ $~\mathsf{?88}~$ $c_3$ $~\mathit{Post}$
 \end{lstlisting}
-Then \lstinline{frame_SEP$~$0 2} to retain only $R_0;R_2$.
+
+In the first subgoal, do \lstinline{frame_SEP$~$0 2} to retain only $R_0;R_2$.
 \begin{lstlisting}
 semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_2)~$ $c_1;c_2$ $~\ldots$
 \end{lstlisting}
 Now you'll see that (in the precondition of the second subgoal)
 the unification variable $\mathsf{?88}$ has been
-instantiated in such a way that $R_2$ is added back in.
+instantiated in such a way that $R_1$ is added back in.
+Now you can prove the two subgoals, in order.
+
+
+\ychapter{The Freezer (\textsf{freeze,thaw})}{}
+\label{freezer}
+Suppose you have the proof goal,
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2;c_3$ $~\mathit{Post}$
+\end{lstlisting}
+and suppose you want to ``frame out'' $R_0$ and $R_2$ for the duration of
+$c_1;c_2$, and have them back again for $c_3$.
+Instead of using the frame rule, you can use the freezer.
+
+First, say \lstinline{freeze FR1 := R0 R2.}\newline
+The name \lstinline{FR1} is up to you; R0 and R2 must be patterns
+(perhaps with underscores,
+for example \lstinline{(data_at _$~$_$~$_$~$p)}) 
+that match conjuncts from the SEP clause.
+
+Now the proof goal looks like this:
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(\mbox{\textsc{frzl}}~\mathsf{FR1};~ R_1)~$ $c_1;c_2;c_3$ $~\mathit{Post}$\end{lstlisting}
+with a definition ~ \lstinline{FR1 := $\ldots$} ~ above the line.
+
+You can also write \qquad
+$\mathit{freeze}\ F\ \mathsf{:=}\ \mathsf{-}\ \mathit{pattern}_1  ~\mathit{pattern}_2 \ldots \mathit{pattern}_n$ \newline
+to freeze into $F$ every conjunct \emph{except} those that match the patterns.
+
+
+Proceed forward through $c_1$ and $c_2$; then you can give the command
+\lstinline{thaw FR1} that unfolds (and clears) the FR1 definition.
+
+Freezers can coexist and be arbitrarily nested, and be thawed independently; freezer-conjuncts participate in \lstinline{cancel} and other separation-logic operations.
 
 \ychapter{32-bit Integers}{(\file{compcert/lib/Integers.v})}
 \label{refcard:32bit}
@@ -3683,6 +3721,12 @@ See also: \lstinline{split3_data_at_Tarray}.
 \chapter{sublist}
 \label{refcard:sublist}
 
+\emph{Since VST 2.6, we recommend using the new \emph{\lstinline{list_solve}}
+and \emph{\lstinline{list_simplify}} tactics, described in
+\autoref{refcard:list_solve} and \autoref{refcard:list_solve-advanced}.
+Using \textbf{autorewrite with sublist} is less efficient,
+and in certain corner cases, can turn provable goals into unprovable goals.}
+
 \autoref{refcard:split-array} explained that we often need
 to reason about slices of arrays whose contents are sublists of lists.
 For that we have a function \lstinline{sublist $i$ $j$ $l$}
@@ -3750,8 +3794,161 @@ n-0=n \quad 0+n=n \quad n+0=n \quad n \le m \rightarrow \mathrm{max}(n,m) = m\\
 \end{array}
 \]
 
-\chapter{\textsf{rep\_omega}: omega with representation facts}
-\label{refcard:rep-omega}
+\chapter{list\_solve}
+\label{refcard:list_solve}
+
+One often needs to prove goals about lists.
+\lstinline{list_solve} is a convenient solver for many practical proof goals involving lists.
+
+\lstinline{list_solve} supports operators:
+\lstinline{Zlength},
+\lstinline{Znth},
+\lstinline{nil} (\lstinline{[]}),
+\lstinline{cons} (\lstinline{::}),
+\lstinline{Zrepeat},
+\lstinline{app} (\lstinline{++}),
+\lstinline{upd_Znth},
+\lstinline{sublist}, and
+\lstinline{map}.
+
+\lstinline{list_solve} supports four kinds of typical proof goals:
+\begin{itemize}
+    \item linear arithmetic involving lengths of lists,
+\begin{lstlisting}
+  e.g. Zlength ($l$ ++ $l'$) >= Zlength $l$;
+\end{lstlisting}
+  \item goal involving nth elements of lists (not limited to equality),
+\begin{lstlisting}
+  e.g. Znth $i$ ($l$ ++ $l'$) = Znth $i$ $l$;
+\end{lstlisting}
+  \item equality of lists,
+\begin{lstlisting}
+  e.g. $l_1$ ++ $l_2$ = $l_3$ ++ $l_4$;
+\end{lstlisting}
+  \item entailment of array contents,
+\begin{lstlisting}
+  e.g. data_at $sh$ (tarray $\tau$ $n$) ($l_1$ ++ $l_2$) $p$ |--
+         data_at $sh$ (tarray $\tau$ $n$) ($l_3$ ++ $l_4$) $p$.
+\end{lstlisting}
+\end{itemize}
+
+The way that \lstinline{list_solve} supports assumptions in the following forms,
+is to interpret them as quantified properties:
+\begin{itemize}
+    \item \lstinline{$l$ = $l'$} is replaced by
+      \lstinline{Zlength $l$ = Zlength $l'$ /\ forall $i$, $0 \le i < \mathsf{Zlength}\ l$ -> Znth $i$ $l$ = Znth $i$ $l'$}.
+    \item \lstinline{In $x$ $l$} is replaced by
+      \lstinline{exists $i$, $0 \le i < \mathsf{Zlength}\ l$ /\ $x$ = Znth $i$ $l$}.
+    \item \lstinline{~In $x$ $l$} is replaced by
+      \lstinline{forall $i$, $0 \le i < \mathsf{Zlength}\ l$ -> $x$ $\neq$ Znth $i$ $l$}.
+    \item \lstinline{sorted ($\le$) $l$} is replaced by
+      \lstinline{forall $i$ $j$, $0 \le i \le j < \mathsf{Zlength}\ l$ -> $\hspace{80pt}$ ${}$ $\mathsf{Znth}\ i\ l\le \mathsf{Znth}\ j\ l$}.
+    % \item \lstinline{Sorted $l$} (\lstinline{Sorted} is defined in \lstinline{Coq.Sorting.Sorted}) is replaced by
+    %   \lstinline{forall $i$ $j$, $0 \le i \le j$ /\ $j < \mathsf{Zlength}\ l$ -> Znth $i$ $l$ <= Znth $j$ $l$}.
+\end{itemize}
+
+The theory of lists with concatenation and nth-element is known to be undecidable.%
+\footnote{The reason is that an element may have relationship with other elements in the same list, directly or indirectly, and that leads to complicated deduction..
+For example, \scantokens{\lstinline{sublist $1$ (Zlength $l$) $l$ =} \lstinline{sublist $0$ (Zlength $l$ - 1) $l$}}
+indicates \scantokens{\lstinline{Znth $i$ $l$ = Znth $(i+1)$ $l$}} for every $i$ and so all the elements in $l$ are equal.
+Such kind of reasoning relies on induction and is hard to automate.
+Also see Aaron R. Bradley, Zohar Manna, and Henny B. Sipma, \emph{What’s Decidable About Arrays?}, Lecture Notes in Computer Science, vol 3855. Springer, Berlin, Heidelberg, 2006.
+}
+So \lstinline{list_solve} has such restriction that when
+  encountering quantified properties like
+  \lstinline{forall $i$, P (Znth $i$ $l$) (Znth $(i+k)$ $l$)},
+it asks user to prove $k=0$ if it cannot prove it automatically.
+If $k=0$ is not provable, \lstinline{list_solve} does not support this goal.
+User might need to perform an induction before using \lstinline{list_solve}.
+
+\lstinline{list_simplify} is an alternate tactic for \lstinline{list_solve}, like \lstinline{ring_simplify} to \lstinline{ring}.
+It performs transformations in the same way as \lstinline{list_solve},
+  and solves the goal if \lstinline{list_solve} can solve,
+  but leaves the unsolved goals to the user,
+so you may solve these goals by hand or figure out why the goal is not solved.
+\lstinline{list_simplify} will not change a provable goal into unprovable goals.
+
+\chapter{list\_solve (advanced)}
+\label{refcard:list_solve-advanced}
+You can enhance \lstinline{list_solve} by adding new rules.
+
+\paragraph{Adding a macro} A macro is an operator that can be expressed by other operators.
+For example,
+\begin{lstlisting}
+Definition rotate {X} (l : list X) k :=
+  sublist k (Zlength l) l ++ sublist 0 k l.
+\end{lstlisting}
+\vspace{-\baselineskip}
+Add \lstinline{rotate} to hint database, so \lstinline{list_solve} will unfold it automatically.
+\begin{lstlisting}
+Hint Unfold rotate : list_solve_unfold.
+\end{lstlisting}
+\vspace{-\baselineskip}
+If a macro is expressed by other operators not by conversion but by Leibniz equality, e.g.
+\begin{lstlisting}
+Lemma firstn_sublist: firstn (Z.to_nat $i$) $l$ = sublist 0 $i$ $l$,
+\end{lstlisting}
+\vspace{-\baselineskip}
+add the lemma to rewrite database by
+\begin{lstlisting}
+Hint Rewrite @firstn_sublist : list_solve_rewrite.
+\end{lstlisting}
+
+\paragraph{Adding a new kind of quantified property}
+\lstinline{list_solve} can be customized to handle predicates on lists that can be expressed by quantified properties. For example,
+\begin{lstlisting}
+Lemma Forall_Znth : forall {A} {d : Inhabitant A} l P,
+  Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l).
+Hint Rewrite Forall_Znth : list_prop_rewrite.
+\end{lstlisting}
+
+\begin{comment}
+\paragraph{Add a new extentionality rule}
+\lstinline{list_solve} handles equalities of lists and entailments of array contents by applying extentionality to reduce the goal to relationship between elements.
+\end{comment}
+
+\paragraph{Adding a new operator}
+\lstinline{list_solve} handles operators, e.g. \lstinline{app} and \lstinline{map},
+by using rules that reduce terms with head symbols \lstinline{Zlength} and \lstinline{Znth} to simpler terms,
+e.g.
+\begin{lstlisting}
+Zlength_app: Zlength ($l$ ++ $l'$) = Zlength $l$ + Zlength $l'$,
+Znth_map: Znth $i$ (map $f$ $l$) = f (Znth $i$ $l$).
+\end{lstlisting}
+\vspace{-\baselineskip}
+\lstinline{list_solve} can support new operators if reduction rules are provided.
+For example, to add the operator
+\lstinline{rev : list ?A -> list ?A} that reverses a list,
+the following reduction rules should be provided:
+\begin{lstlisting}
+Zlength_rev: Zlength (rev $l$) = Zlength $l$;
+Znth_rev: 0 <= $i$ < Zlength $l$ -> Znth $i$ (rev $l$) = Znth (Zlength $l$ - $i$ - 1) $l$.
+\end{lstlisting}
+\vspace{-\baselineskip}
+The following commands add these reduction rules to hint databases.
+Sometimes, ``@'' is necessary to prevent the rules from being specialized for a certain type before being added to the hint databases.
+The \lstinline{using} keyword in commands tells the rewrite database to prove the side condition about index, \lstinline{0 <= $i$ <= Zlength $l$}, by internal tactic \lstinline{Zlength_solve} in \lstinline{list_solve}.
+\begin{lstlisting}
+Hint Rewrite Zlength_rev : Zlength.
+Hint Rewrite @Znth_rev using Zlength_solve : Znth.
+\end{lstlisting}
+\vspace{-\baselineskip}
+If the reduction rule for \lstinline{Zlength} also has side conditions about indices, for example,
+\begin{lstlisting}
+Zlength_map2: Zlength $l_1$ = Zlength $l_2$ -> Zlength (map2 $f$ $l_1$ $l_2$) = Zlength $l_1$,
+\end{lstlisting}
+\vspace{-\baselineskip}
+the tactic to prove side condition should be provided to the rewrite database as
+\begin{lstlisting}
+Hint Rewrite Zlength_map2 using (try Zlength_solve; fail $\mathbf{4}$) : Zlength.
+\end{lstlisting}
+\vspace{-\baselineskip}
+The adjusted failure level 4 is important for internal mechanism in \lstinline{list_solve}.
+
+There is another way to add rule for \lstinline{Zlength} by hacking into \lstinline{list_solve}'s internal tactics. It utilizes caching mechanism in \lstinline{list_solve}, so it is more efficient when the length of a list appears for multiple times. See commented code in \lstinline{progs/verif_dotprod.v} and \lstinline{progs/verif_revarray.v} for detail.
+
+\chapter{\textsf{rep\_lia}: lia with representation facts [was rep\_omega]}
+\label{refcard:rep-lia}
 
 To solve goals such as
 
@@ -3770,7 +3967,7 @@ H:  Zlength al < 50
 \end{lstlisting}
 \end{minipage}
 
-you want to use the \lstinline{omega} tactic \emph{augmented} by many facts
+you want to use the \lstinline{lia} tactic \emph{augmented} by many facts
 about the \emph{representations} of integers:
 the numeric values of
 \lstinline{Int.min_signed,}
@@ -3780,9 +3977,9 @@ the fact that \lstinline{Zlength} is nonnegative;
 the fact that \lstinline{0 <= Int.unsigned $z$ <= Int.max_unsigned},
 and so on.
 
-The \lstinline{rep_omega} tactic does this.
+The \lstinline{rep_lia} tactic does this.
 In addition, it ``knows'' all the facts in the 
-\lstinline{Hint Rewrite : rep_omega} database;
+\lstinline{Hint Rewrite : rep_lia} database;
 see the next chapter.
 
 \ychapter{Opaque constants}
@@ -3816,15 +4013,45 @@ A better solution is:
 \begin{lstlisting}
 Definition N : Z    := proj1_sig (opaque_constant 1000000).
 Definition N_eq : N=1000000    := proj2_sig (opaque_constant _).
-Hint Rewrite N_eq : rep_omega.
+Hint Rewrite N_eq : rep_lia.
 \end{lstlisting}
 
 This makes \lstinline{N} opaque to all tactics, \emph{except} that the
-\lstinline{rep_omega} tactic (and any that use the
-\lstinline{rep_omega} hint database) can expand N.
+\lstinline{rep_lia} tactic (and any that use the
+\lstinline{rep_lia} hint database) can expand N.
 
 The \file{progs/tutorial1.v}, shows an example of this, in Lemmas
 \lstinline{exercise4} through \lstinline{exercise4c}.
+
+\ychapter{\upshape\textsf{computable}}
+
+One of the simplest, cheapest (in terms of Coq proof-term size) ways of solving a goal is with Coq's \lstinline{compute} tactic.  But sometimes \lstinline{compute} blows up, if it's performed on a goal with opaque constants, or where
+call-by-value evaluation happens to be very expensive.
+
+Floyd's \lstinline{computable} tactic first examines the goal to make sure it won't blow up, and then solves it using \lstinline{compute} (followed by other simple tactics), as long as the goal contains only the following operators:
+
+\begin{lstlisting}
+  (* nat constants *) O S $\qquad$ (* positive constants *) xH xI xO
+  (* Z constants *) Zpos Zneg Z0
+  (* Z operators *) + -$~$* / mod max opp < <= > >= = <>
+  Ceq Cne Clt Cle Cgt Cge   /\
+  two_power_nat 
+  {Int,Int64,Ptrofs}.{eq,lt,ltuadd,sub,mul,neg,cmp,cmpu,repr,signed,unsigned}
+  {Int,Int64,Ptrofs}.{max_unsigned,max_signed,min_signed,modulus,zwordsize}
+  (* any 0-arity (constant) definitions will be unfolded *)
+\end{lstlisting}
+
+You may add other operators to the \lstinline{computable} hint database.  For example, \lstinline{sizeof} has already been added:
+
+\begin{lstlisting}
+Lemma computable_sizeof: forall cs x, computable x -> computable (@sizeof cs x).
+Proof. intros. apply computable_any. Qed.
+Hint Resolve computable_sizeof : computable.
+\end{lstlisting}
+
+Adding this lemma to the Hint database tells the \lstinline{computable} tactic to consider \lstinline{sizeof x} ``safe'' to \lstinline{compute}, as long as its
+argument \lstinline{x} is computable.
+
 
 \ychapter{Loop peeling and other manipulations}
 
@@ -4181,10 +4408,10 @@ Definition MyModuleGlobs (gv: globals) : mpred :=
 
 DECLARE _myfunction
 WITH $\ldots$, gv: globals
-PRE [ $\ldots$ ]
-   PROP($\ldots$) LOCAL ($\ldots$; gvars gv) SEP($\ldots$; MyModuleGlobs gv)
+PRE [ $t_1,t_2$ ]
+   PROP($\ldots$) PARAMS ($v_1;v_2$) GLOBALS(gv) SEP($\ldots$; MyModuleGlobs gv)
 POST [ $\ldots$ ]
-   PROP() LOCAL (temp ret_temp $\ldots$) SEP($\ldots$; MyModuleGlobs gv).
+   PROP() RETURN ($\ldots$) SEP($\ldots$; MyModuleGlobs gv).
 \end{lstlisting}
 
 The client of \lstinline{myfunction} sees that
@@ -4193,6 +4420,18 @@ that (presumably) uses some global variables of MyModule,
 but it does not see their names.
 
 \newthought{The file} \file{progs/verif\_libglob.v} demonstrates the verification of a module that uses private global variables.
+
+Inside the \lstinline{semax_body} proof of \lstinline{_myfunction},
+the \PARAMS{}/\GLOBALS{} is transformed as follows:
+
+\begin{lstlisting}
+PROP($\ldots$)
+LOCAL(temp _x1 $v_1$; temp _x2 $v_2$; gvars gv)
+SEP($\ldots$; MyModuleGlobs gv)  
+\end{lstlisting}
+That is, the \lstinline{temp} components of the \LOCAL{} give access to
+specific local variables, and the \lstinline{gvars} component
+gives access to \emph{all} the global variables.
 
 
 \chapter{\textsf{with\_library}: Library functions}
@@ -4242,37 +4481,34 @@ have these specifications:
 \begin{lstlisting}
 DECLARE _malloc
   WITH cs: compspecs, t:type
-  PRE [ 1%positive OF tuint ]
+  PRE [ tuint ]
     PROP (0 <= sizeof t <= Int.max_unsigned;
           complete_legal_cosu_type t = true;
           natural_aligned natural_alignment t = true)
-    LOCAL (temp 1%positive (Vint (Int.repr (sizeof t))))
+    PARAMS (Vint (Int.repr (sizeof t)))
     SEP ()
   POST [ tptr tvoid ] EX p:_,
     PROP ()
-    LOCAL (temp ret_temp p)
+    RETURN (p)
     SEP (if eq_dec p nullval then emp
         else (malloc_token Ews t p * data_at_ Ews t p)).
 
 DECLARE _free
    WITH cs: compspecs, t: type, p:val
-   PRE [ 1%positive OF tptr tvoid ]
+   PRE [ tptr tvoid ]
        PROP ()
-       LOCAL (temp 1%positive p)
+       PARAMS (p)
        SEP (malloc_token Ews t p; data_at_ Ews t p)
     POST [ Tvoid ]
-       PROP ()
-       LOCAL ()
-       SEP ().
+       PROP () RETURN () SEP ().
 \end{lstlisting}
 You must \lstinline{Import VST.floyd.library.}
-Then these funspecs are made available in your Gprog by the use of the
-\lstinline{wi$$th_library} tactic (\autoref{refcard:with-library}).
+Then the \lstinline{wi$$th_library} tactic (\autoref{refcard:with-library})
+makes these funspecs available in your Gprog.
 
 The purpose of the \lstinline{malloc_token} is to describe the special
 record-descriptor that tells \lstinline{free} how big the allocated
 record was.
-
 See \file{progs/verif\_queue.v} for a demonstration of malloc/free.
 
 \chapter{exit}
@@ -4283,12 +4519,65 @@ before you define\newline
 
 \begin{lstlisting}
 DECLARE _exit
- WITH u: unit
- PRE [1%positive OF tint]
-   PROP () LOCAL() SEP()
+ WITH errcode: Z
+ PRE [ tint ]
+   PROP () PARAMS(errcode) SEP()
  POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
+   PROP(False) RETURN() SEP().
 \end{lstlisting}
+
+\chapter{Old-style funspecs}
+\label{refcard:old-funspec}
+
+Until VST version 2.5, function preconditions were written a different way.
+Instead of writing $\PROP/\PARAMS/\GLOBALS/\SEP$ they were written
+as $\PROP/\LOCAL/\SEP$.  Here's an example; compare with the new-style
+funspec on \autopageref{refcard:sumarray-spec}.
+
+\begin{lstlisting}
+Definition sumarray_spec : ident * funspec  :=
+DECLARE _sumarray
+ WITH a: val, sh : share, contents : list Z, size: Z
+ PRE [ _a OF (tptr tuint), _n OF tint ]
+    PROP  (readable_share sh;
+          0 $\le$ size $\le$ Int.max_signed;
+          Forall (fun x => 0 $\le$ x $\le$ Int.max_unsigned) contents)
+    LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+    SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
+  POST [ tuint ]
+    PROP ()
+    LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+    SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
+\end{lstlisting}
+
+Notice also that the PRE list is different: each parameter is written
+\lstinline{_x OF t}, where \lstinline{_x} is the C-language identifier
+used in the program.
+
+In the old funspec notation, the return-value part of the postcondition
+is written \lstinline{LOCAL(temp ret_temp $v$)}
+instead of \lstinline{RETURN($v$)}.
+ 
+VST proofs that use old-style funspecs should access the
+old-style notation and old-style definitions by,
+\begin{lstlisting}
+Require Import VST.floyd.Funspec_old_Notation.
+\end{lstlisting}
+
+This brings in a different notation scope, in which WITH/PRE/POST works
+differently.
+
+Whenever you do \lstinline{start_function} (in the \lstinline{semax_body}
+of an old-style funspec)
+or \lstinline{forward_call} (calling a function with an old-style funspec),
+the Floyd tactics automatically convert to a new-style funspec.
+For that conversion to work, the tactics must be able to prove
+(from what's above the line, and from the PROP and SEP clauses)
+that each of the \lstinline{temp} values is not \lstinline{Vundef}.
+
+
+
+
 
 \chapter{Function pointers}
 \label{refcard:funcptr}
@@ -4330,8 +4619,8 @@ a Definition for a \lstinline{WITH...PRE...POST} specification.
 
 Near the beginning of \lstinline{Lemma body_main},
 notice that we have \linebreak
-\lstinline{LOCAL (gvars gv)} in the precondition.
-That \lstinline{gvars} is needed by
+\lstinline{GLOBALS (gv)} in the precondition.
+That \lstinline{gv} is needed by
 the tactic \lstinline{make_func_ptr _myfunc},
 which adds \lstinline{func_ptr' myspec (gv _myfunc)} to the SEP clause.
 It ``knows'' to use \lstinline{myspec} because it looks
@@ -4440,72 +4729,14 @@ also be invoked individually, to concisely display the type context $\Delta$
 as the application of a sequence of initializations
 to the host function's func\_tycontext.
 
-\newthought{The freezer.}\label{freezer}
-A distinguishing feature of separation logic is the frame rule,
-i.e.~the ability to modularly verify a statement w.r.t.~its minimal
-resource footprint. Unfortunately, being phrased in terms of the
-syntatic program structure, the standard frame rule does not easily
-interact with forward symbolic execution as implemented by the Floyd
-tactics (and many other systems), as these continuously rearrange the
-associativity of statement sqeuencing to peel off the redex of the
-next \emph{forward}, and (purposely) hide the program continuation as
-the abbreviation \emph{MORE\_COMMANDS}.
 
-Resolving this conflict, Floyd's \emph{freezer} abstraction provides a
-means for flexible framing, by implementing a veil that opaquely hides
-selected items of a SEP clause from non-symbolic treatment by
-non-freezer tactics.
-
-The freezer abstraction consists of two main tactics, \textsf{freeze} and \textsf{thaw}.
-
-$\mathsf{freeze}\ F\ \mathsf{:=}\ \mathit{pattern}_1  ~ \mathit{pattern}_2 \ldots \mathit{pattern}_n$\qquad
-where each pattern matches \emph{one} SEP conjunct and $F$ is
- a user-supplied (fresh) Coq name.
-An example pattern is \lstinline{(data_at _ $~$ _ $~$ _ $~$ p)}.
-The result is that each conjunct matching a pattern is removed from the precondition's SEP clause, inserting
-the item $\mathit{FRZL}\ F$ at the head of the SEP list, and adding a
-hypothesis $F := \mathit{abbreviate}$ to Coq's proof context.
-
-You can also write \qquad
-$\mathit{freeze}\ F\ \mathsf{:=}\ \mathsf{-}\ \mathit{pattern}_1  ~\mathit{pattern}_2 \ldots \mathit{pattern}_n$ \newline
-to freeze into $F$ every conjunct \emph{except} those that match the patterns.
-
-$\mathsf{thaw}\ F$ \qquad expands $F$ back into separate conjuncts.
-
-
-The term $\mathit{FRZL}\ F$ participates symbolically in all
-nonfreezer tactics just like any other SEP item, so can in particular
-be canceled, and included in a function call's frame.  Unfolding a
-freezer is not tied to the associativity structure of program
-statements but can be achieved by invoking $\mathit{thaw}\ F$, which
-simply replaces $\mathit{FRZL}\ F$ by the the list of $F$'s
-constiuents.  As multiple freezers can coexists and freezers can be
-arbitrarily nested, SEP-clauses $R$ effectively contain forests of
-freezers, each constituent being thawable independently and
-freezer-level by freezer-level.
-
-Wrapping single \emph{forward} or \emph{forward\_call} commands in a
-freezer often speeds up the processing time noticably, as invocations
-of subordinate tactics \emph{entailer}, \emph{cancel}, etc.~are
-supplied with smaller and more symbolic proof goals. In our
-experience, applying the freezer throughout the proof of an entire
-function body typically yields a speedup of about 30\% on average with
-improvements of up to 55\% in some cases, while also easing the memory
-pressure and freeing up valuable real estate on the user's screen.
-
-
-A more invasive implementation of a freezer-like abstraction would
-refine the \lstinline{PROP($P$) LOCAL($Q$) SEP($R$)} structure to
-terms of the form \lstinline{PROP($P$) LOCAL($Q$) SEP($R$) FR($H$)}
-where $H: \emph{list\ mpred}$. Again, terms in $H$ would be treated
-opaquely by all tactics, and freezing/thawing would correspond to
-transfer rules between $R$ and $H$. In either case, forward symbolic
-execution is reconciled with the frame rule, and the use of the
-mechanism is sound engineering practice as documentation of
-programmer's insight is combined with performance improvements.
 
 \chapter{Separate compilation, \upshape\textsf{semax\_ext}}
 \label{refcard:sepcomp}
+
+\textbf{\textit{This chapter is obsolete, as is the progs/evenodd
+    example.  There's a newer, better way of doing modular
+verification of modular programs:  Verified Software Units (VSU).}}
 
 What to do when your program is spread over multiple .c files.
 See \file{progs/even.c} and \file{progs/odd.c} for an example.
@@ -4633,6 +4864,10 @@ it sometimes turns a provable goal into an unprovable goal.
 \item[\textsf{forward\_while} $\mathit{Inv}$]
 (tactic; \autoref{refcard:forward-while})
   Forward Hoare-logic proof of a while loop, with loop invariant $\mathit{Inv}$.
+
+\item[\textsf{list\_solve}] (tactic; \autoref{refcard:list_solve})
+  Solve goals that arise from lists with Zlength, concatentation,
+  sublist, and Znth.
 
 \item[\textsf{make\_compspecs $\mathit{prog}$}]
 (tactic; \autopageref{refcard:boilerplate})

@@ -77,10 +77,9 @@ Time cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; trivial.
-normalize.
 assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) [] c).
 { eapply derives_trans; [apply data_at_local_facts |].  Time normalize. (* 4 *) }
-rewrite (memory_block_data_at_ Tsh (tarray tuchar (@sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st))).
+rewrite (memory_block_data_at_ Tsh (tarray tuchar (@sizeof CompSpecs t_struct_hmac_ctx_st))).
   2: trivial.
   eapply derives_trans. apply data_at_data_at_. apply derives_refl.
 Time Qed. 

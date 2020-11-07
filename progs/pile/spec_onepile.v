@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import onepile.
 Require Import spec_stdlib.
 Require Import spec_pile.
+Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -19,16 +20,16 @@ Definition Onepile_init_spec :=
  DECLARE _Onepile_init
  WITH gv: globals
  PRE [ ] 
-    PROP() LOCAL(gvars gv) SEP(onepile gv None; mem_mgr gv)
+    PROP() PARAMS () GLOBALS (gv) SEP(onepile gv None; mem_mgr gv)
  POST[ tvoid ]
     PROP() LOCAL() SEP(onepile gv (Some nil); mem_mgr gv).
 
 Definition Onepile_add_spec :=
  DECLARE _Onepile_add
  WITH n: Z, sigma: list Z, gv: globals
- PRE [ _n OF tint  ]
+ PRE [ tint ]
     PROP(0 <= n <= Int.max_signed)
-    LOCAL(temp _n (Vint (Int.repr n)); gvars gv)
+    PARAMS (Vint (Int.repr n)) GLOBALS (gv)
     SEP(onepile gv (Some sigma); mem_mgr gv)
  POST[ tvoid ]
     PROP() LOCAL()
@@ -41,7 +42,7 @@ Definition Onepile_count_spec :=
  WITH sigma: list Z, gv: globals
  PRE [  ]
     PROP(0 <= sumlist sigma <= Int.max_signed)
-    LOCAL(gvars gv)
+    PARAMS () GLOBALS (gv)
     SEP(onepile gv (Some sigma))
  POST[ tint ]
       PROP() 

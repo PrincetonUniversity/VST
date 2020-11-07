@@ -7,6 +7,7 @@ Require Import compcert.lib.Integers.
 
 Require Import VST.msl.Coqlib2.
 Require Export VST.msl.eq_dec.
+Require Export Lia.
 
 Lemma max_two_power_nat: forall n1 n2, Z.max (two_power_nat n1) (two_power_nat n2) = two_power_nat (Nat.max n1 n2).
 Proof.
@@ -16,12 +17,12 @@ Proof.
   rewrite Nat2Z.inj_max.
   forget (Z.of_nat n1) as m1; forget (Z.of_nat n2) as m2.
   destruct (Z_le_dec m1 m2).
-  + rewrite (Z.max_r m1 m2) by omega.
+  + rewrite (Z.max_r m1 m2) by lia.
     apply Z.max_r.
-    apply two_p_monotone; omega.
-  + rewrite (Z.max_l m1 m2) by omega.
+    apply two_p_monotone; lia.
+  + rewrite (Z.max_l m1 m2) by lia.
     apply Z.max_l.
-    apply two_p_monotone; omega.
+    apply two_p_monotone; lia.
 Qed.
 
 Lemma Z_max_two_p: forall m1 m2, (exists n, m1 = two_power_nat n) -> (exists n, m2 = two_power_nat n) -> (exists n, Z.max m1 m2 = two_power_nat n).
@@ -38,17 +39,17 @@ Proof.
   repeat rewrite two_power_nat_two_p in *.
   unfold Z.divide.
   exists (two_p (Z.of_nat m - Z.of_nat n)).
-  assert ((Z.of_nat m) = (Z.of_nat m - Z.of_nat n) + Z.of_nat n) by omega.
+  assert ((Z.of_nat m) = (Z.of_nat m - Z.of_nat n) + Z.of_nat n) by lia.
   rewrite H0 at 1.
-  assert (Z.of_nat m >= 0) by omega.
-  assert (Z.of_nat n >= 0) by omega.
+  assert (Z.of_nat m >= 0) by lia.
+  assert (Z.of_nat n >= 0) by lia.
   assert (Z.of_nat n <= Z.of_nat m).
     destruct (Z_le_gt_dec (Z.of_nat n) (Z.of_nat m)).
     exact l.
-    assert (Z.of_nat m < Z.of_nat n) by omega.
-    assert (two_p (Z.of_nat m) < two_p (Z.of_nat n)) by (apply two_p_monotone_strict; omega).
-    omega.
-  apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); omega.
+    assert (Z.of_nat m < Z.of_nat n) by lia.
+    assert (two_p (Z.of_nat m) < two_p (Z.of_nat n)) by (apply two_p_monotone_strict; lia).
+    lia.
+  apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); lia.
 Qed.
 
 Lemma power_nat_divide_ge: forall n m: Z,
@@ -61,7 +62,7 @@ Proof.
   split; intros.
   + subst.
     apply power_nat_divide.
-    omega.
+    lia.
   + destruct H1 as [k ?].
     rewrite H1.
     pose proof two_power_nat_pos x0.
@@ -70,10 +71,10 @@ Proof.
     {
       eapply Zmult_gt_0_reg_l.
       + exact H2.
-      + rewrite <- H0, Z.mul_comm; omega.
+      + rewrite <- H0, Z.mul_comm; lia.
     } 
     rewrite <- (Z.mul_1_l m) at 2.
-    apply Zmult_ge_compat_r; omega.
+    apply Zmult_ge_compat_r; lia.
 Qed.
 
 Lemma power_nat_divide_le: forall n m: Z,
@@ -83,19 +84,19 @@ Lemma power_nat_divide_le: forall n m: Z,
 Proof.
   intros.
   rewrite <- power_nat_divide_ge; auto.
-  omega.
+  lia.
 Qed.
 
 Lemma two_p_max_divide: forall m1 m2 m, (exists n, m1 = two_power_nat n) -> (exists n, m2 = two_power_nat n) -> ((Z.max m1 m2 | m) <-> (m1 | m) /\ (m2 | m)).
 Proof.
   intros.
   destruct (Z_le_dec m1 m2).
-  + rewrite Z.max_r by omega.
+  + rewrite Z.max_r by lia.
     rewrite power_nat_divide_le in l by auto.
     pose proof Z.divide_trans m1 m2 m.
     tauto.
-  + rewrite Z.max_l by omega.
-    assert (m2 <= m1) by omega.
+  + rewrite Z.max_l by lia.
+    assert (m2 <= m1) by lia.
     rewrite power_nat_divide_le in H1 by auto.
     pose proof Z.divide_trans m2 m1 m.
     tauto.
@@ -111,7 +112,7 @@ Proof.
     - rewrite <- power_nat_divide_le in H0 by (auto; exists 0%nat; auto).
       destruct H as [n ?]; subst x.
       pose proof two_power_nat_pos n.
-      omega.
+      lia.
   + intros m1 m2 Hm1 Hm2.
     pose proof Z_max_two_p _ _ Hm1 Hm2 as Hmax.
     rewrite (H _ Hm1), (H _ Hm2), (H _ Hmax).
@@ -123,7 +124,7 @@ Proof.
   intros.
   destruct H.
   pose proof two_power_nat_pos x0.
-  omega.
+  lia.
 Qed.
 
 Hint Rewrite andb_true_iff: align.
@@ -138,14 +139,14 @@ Hint Resolve Z_max_two_p: align.
 Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
 Proof. intros.
 change 0 with (Z.of_nat O).
-apply inj_ge. clear; omega.
+apply inj_ge. clear; lia.
 Qed.
 
 Lemma nth_error_nth:
   forall A (al: list A) (z: A) i, (i < length al)%nat -> nth_error al i = Some (nth i al z).
 Proof.
-intros. revert al H; induction i; destruct al; simpl; intros; auto; try omega.
-apply IHi. omega.
+intros. revert al H; induction i; destruct al; simpl; intros; auto; try lia.
+apply IHi. lia.
 Qed.
 
 Lemma nat_of_Z_eq: forall i, Z.to_nat (Z_of_nat i) = i.
@@ -161,8 +162,8 @@ Proof.
 induction i; destruct l; simpl; intuition.
 inv H.
 inv H.
-rewrite IHi in H. omega.
-rewrite IHi. omega.
+rewrite IHi in H. lia.
+rewrite IHi. lia.
 Qed.
 
 Lemma prop_unext: forall P Q: Prop, P=Q -> (P<->Q).
@@ -471,29 +472,29 @@ Proof.
   intros.
   induction m.
   + left.
-    intros; omega.
+    intros; lia.
   + destruct (H m); [destruct IHm |].
     - left.
       intros.
       destruct (eq_dec n m).
       * subst; auto.
-      * apply p0; omega.
+      * apply p0; lia.
     - right.
       intro.
       apply n; clear n.
-      intros; apply H0; omega.
+      intros; apply H0; lia.
     - right.
       intro.
       apply n; clear n.
       apply H0.
-      omega.
+      lia.
 Qed.
 
 Lemma Z2Nat_neg: forall i, i < 0 -> Z.to_nat i = 0%nat.
 Proof.
   intros.
   destruct i; try reflexivity.
-  pose proof Zgt_pos_0 p; omega.
+  pose proof Zgt_pos_0 p; lia.
 Qed.
 
 Lemma Zrange_pred_dec: forall (P: Z -> Prop),
@@ -506,19 +507,19 @@ Proof.
   {
     split; intros.
     + specialize (H0 (Z.to_nat (z - l))).
-      rewrite <- Z2Nat.inj_lt in H0 by omega.
-      spec H0; [omega |].
-      rewrite Z2Nat.id in H0 by omega.
-      replace (l + (z - l)) with z in H0 by omega.
+      rewrite <- Z2Nat.inj_lt in H0 by lia.
+      spec H0; [lia |].
+      rewrite Z2Nat.id in H0 by lia.
+      replace (l + (z - l)) with z in H0 by lia.
       auto.
     + apply H0.
       rewrite Nat2Z.inj_lt in H1.
       destruct (zlt (r - l) 0).
-      - rewrite Z2Nat_neg in H1 by omega.
+      - rewrite Z2Nat_neg in H1 by lia.
         simpl in H1.
-        omega.
-      - rewrite Z2Nat.id in H1 by omega.
-        omega.
+        lia.
+      - rewrite Z2Nat.id in H1 by lia.
+        lia.
   }
   eapply sumbool_dec_iff; [clear H0 | eassumption].
   apply range_pred_dec.
@@ -565,14 +566,14 @@ intros.
 assert (forall j , (j <= n)%nat -> P j).
 induction n.
 intros.
-replace j with 0%nat ; try omega.
+replace j with 0%nat ; try lia.
 apply X; intros.
-elimtype False; omega.
+elimtype False; lia.
 intros.  apply X. intros.
 apply IHn.
-omega.
+lia.
 apply X0.
-omega.
+lia.
 Qed.
 
 Lemma nat_ind2:

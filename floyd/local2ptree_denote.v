@@ -714,7 +714,7 @@ Proof.
   intros.
   eapply local2ptree_soundness in H.
   match goal with |- LOCALx _ ?B = _ =>
-    replace B with (SEPx(TT::nil))
+    replace B with (@SEPx environ (TT::nil))
   end.
   instantiate (2:=@nil Prop) in H.
   simpl app in H.

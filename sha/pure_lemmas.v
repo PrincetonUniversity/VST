@@ -13,7 +13,7 @@ Require Import VST.msl.Coqlib2.
 Require Import VST.floyd.coqlib3.
 Require Import VST.floyd.sublist.
 Require Export sha.common_lemmas.
-Require Psatz.
+Require Import Lia.
 
 Global Opaque CBLOCKz LBLOCKz.
 
@@ -34,7 +34,7 @@ Lemma skipn_intlist_to_bytelist:
 Proof.
 induction i; intros.
 reflexivity.
-replace (4 * S i)%nat with (4 + 4 * i)%nat by omega.
+replace (4 * S i)%nat with (4 + 4 * i)%nat by lia.
 destruct m; try reflexivity.
 apply IHi.
 Qed.
@@ -44,7 +44,7 @@ Lemma firstn_intlist_to_bytelist:
 Proof.
 induction i; intros.
 reflexivity.
-replace (4 * S i)%nat with (4 + 4 * i)%nat by omega.
+replace (4 * S i)%nat with (4 + 4 * i)%nat by lia.
 destruct m; try reflexivity.
 simpl. f_equal. f_equal. f_equal. f_equal.
 apply IHi.
@@ -58,21 +58,20 @@ Proof.
 intros.
 unfold sublist.
 change WORD with 4.
-rewrite <- Z.mul_sub_distr_r.
-destruct (zlt (j-i) 0).
+destruct (zlt j 0).
 rewrite (Z2Nat_neg _ l).
-rewrite (Z2Nat_neg ((j-i)*4)) by omega.
+rewrite (Z2Nat_neg (j*4)) by lia.
+rewrite !skipn_nil.
 reflexivity.
 rewrite ?(Z.mul_comm _ 4).
-rewrite ?Z2Nat.inj_mul by omega.
+rewrite (Z2Nat.inj_mul 4 j) by lia.
 change (Z.to_nat 4) with 4%nat.
-rewrite <- firstn_intlist_to_bytelist.
-f_equal.
+rewrite -> firstn_intlist_to_bytelist.
 destruct (zlt i 0).
 rewrite (Z2Nat_neg _ l).
-rewrite (Z2Nat_neg (4*i)) by omega.
+rewrite (Z2Nat_neg (4*i)) by lia.
 reflexivity.
-rewrite ?Z2Nat.inj_mul by omega.
+rewrite ?Z2Nat.inj_mul by lia.
 change (Z.to_nat 4) with 4%nat.
 apply skipn_intlist_to_bytelist.
 Qed.
@@ -108,9 +107,9 @@ destruct (zeq n 0). subst.
 simpl. rewrite Z.mul_0_r in H0. destruct al; inv H0.
 rewrite mult_0_r. reflexivity.
 assert (0 <= i).
-assert (0 <= i * n) by omega.
-apply Z.mul_nonneg_cancel_r in H1; auto; omega.
-rewrite <- (Z2Nat.id (i*n)%Z) in H0 by omega.
+assert (0 <= i * n) by lia.
+apply Z.mul_nonneg_cancel_r in H1; auto; lia.
+rewrite <- (Z2Nat.id (i*n)%Z) in H0 by lia.
 apply Nat2Z.inj in H0. rewrite H0.
 rewrite Z2Nat.inj_mul; auto.
 Qed.
@@ -132,7 +131,7 @@ Lemma length_bytelist_to_intlist: forall n l,
 Proof.
 induction n; intros.
 destruct l; inv H; reflexivity.
-replace (S n) with (1 + n)%nat in H by omega.
+replace (S n) with (1 + n)%nat in H by lia.
 rewrite mult_plus_distr_l in H.
 destruct l as [|i0 l]; [ inv H |].
 destruct l as [|i1 l]; [ inv H |].
@@ -156,19 +155,19 @@ apply Int.same_bits_eq; intros.
 assert (Int.zwordsize=32) by reflexivity.
 assert (32 < Int.max_unsigned) by (compute; auto).
 autorewrite with testbit.
-if_tac; simpl; auto;  try omega.
-if_tac; simpl; auto; try omega.
-if_tac; simpl; auto; try omega.
-if_tac; simpl; auto; try omega.
-if_tac; simpl; auto; try omega.
+if_tac; simpl; auto;  try lia.
+if_tac; simpl; auto; try lia.
+if_tac; simpl; auto; try lia.
+if_tac; simpl; auto; try lia.
+if_tac; simpl; auto; try lia.
 autorewrite with testbit; auto.
 autorewrite with testbit; auto.
-replace (i - 8 - 8) with (i-16) by omega.
+replace (i - 8 - 8) with (i-16) by lia.
 rewrite orb_assoc. auto.
-if_tac; simpl; auto; try omega.
+if_tac; simpl; auto; try lia.
 autorewrite with testbit; auto.
-replace (i - 8 - 8) with (i-16) by omega.
-replace (i - 16 - 8) with (i-24) by omega.
+replace (i - 8 - 8) with (i-16) by lia.
+replace (i - 16 - 8) with (i-24) by lia.
 repeat rewrite orb_assoc. auto.
 Qed.
 
@@ -185,20 +184,20 @@ Lemma CBLOCK_zeq: (Z.of_nat CBLOCK = 64%Z).
 Proof. reflexivity. Qed.
 
 Lemma LBLOCKz_nonneg: (0 <= LBLOCKz)%Z.
-Proof. change LBLOCKz with 16%Z; omega. Qed.
-Hint Resolve LBLOCKz_nonneg.
+Proof. change LBLOCKz with 16%Z; lia. Qed.
+Hint Resolve LBLOCKz_nonneg : core.
 
 Lemma LBLOCKz_pos: (0 < LBLOCKz)%Z.
-Proof. change LBLOCKz with 16%Z; omega. Qed.
-Hint Resolve LBLOCKz_pos.
+Proof. change LBLOCKz with 16%Z; lia. Qed.
+Hint Resolve LBLOCKz_pos : core.
 
 Lemma CBLOCKz_nonneg: (0 <= CBLOCKz)%Z.
-Proof. change CBLOCKz with 64%Z; omega. Qed.
-Hint Resolve CBLOCKz_nonneg.
+Proof. change CBLOCKz with 64%Z; lia. Qed.
+Hint Resolve CBLOCKz_nonneg : core.
 
 Lemma CBLOCKz_pos: (0 < CBLOCKz)%Z.
-Proof. change CBLOCKz with 64%Z; omega. Qed.
-Hint Resolve CBLOCKz_pos.
+Proof. change CBLOCKz with 64%Z; lia. Qed.
+Hint Resolve CBLOCKz_pos : core.
 
 
 Local Open Scope Z.
@@ -235,7 +234,7 @@ Lemma hash_blocks_last:
    hash_block (hash_blocks a bl) c = hash_blocks a (bl++ c).
 Proof.
 intros.
-assert (POS: (0 < LBLOCK)%nat) by (rewrite LBLOCK_eq; omega).
+assert (POS: (0 < LBLOCK)%nat) by (rewrite LBLOCK_eq; lia).
 apply divide_hashed in H0.
 destruct H0 as [n ?].
 rewrite Zlength_correct in H,H1.
@@ -249,14 +248,14 @@ rewrite hash_blocks_equation'.
 simpl. rewrite hash_blocks_equation'.
 destruct c eqn:?. inv H1.
 rewrite <- Heql in *; clear i l Heql.
-rewrite firstn_same by omega.
+rewrite firstn_same by lia.
 replace (skipn LBLOCK c) with (@nil int).
 rewrite hash_blocks_equation'; reflexivity.
 pose proof (skipn_length c LBLOCK).
 rewrite H1 in H0.
 destruct (skipn LBLOCK c); try reflexivity; inv H0.
 replace (S n * LBLOCK)%nat with (n * LBLOCK + LBLOCK)%nat  in H0 by
-  (simpl; omega).
+  (simpl; lia).
 rewrite hash_blocks_equation'.
 destruct bl.
 simpl in H0.
@@ -282,7 +281,7 @@ rewrite skipn_length.
 apply plus_reg_l with LBLOCK.
 rewrite plus_comm.
 rewrite Nat.sub_add by Psatz.lia.
-omega.
+lia.
 Qed.
 
 Lemma length_hash_blocks: forall regs blocks,
@@ -296,7 +295,7 @@ rewrite Zlength_correct in H0.
 assert (POS := LBLOCKz_pos).
 change LBLOCKz with (Z.of_nat LBLOCK) in *.
 rewrite <- (Z2Nat.id n) in H0
- by (apply -> Z.mul_nonneg_cancel_r ; [ | apply POS]; omega).
+ by (apply -> Z.mul_nonneg_cancel_r ; [ | apply POS]; lia).
 rewrite <- Nat2Z.inj_mul in H0.
 apply Nat2Z.inj in H0.
 revert regs blocks H H0; induction (Z.to_nat n); intros.
@@ -370,7 +369,7 @@ f_equal.
 rewrite list_repeat_app.
 f_equal.
 clear - H5 H2 H1 H0 PAD.
-assert (Zlength dd' <= 56) by (change CBLOCKz with 64 in H0; omega).
+assert (Zlength dd' <= 56) by (change CBLOCKz with 64 in H0; lia).
 clear H0.
 replace (Zlength (intlist_to_bytelist hashed ++ dd))
   with (4*Zlength hashed' + Zlength dd' - (1+pad)).
@@ -384,14 +383,14 @@ rewrite Zlength_app.
 forget (Zlength (intlist_to_bytelist hashed ++ dd)) as B.
 rewrite Zlength_app.
 rewrite Zlength_cons, Zlength_nil, Zlength_correct.
-rewrite length_list_repeat. rewrite Z2Nat.id by omega. omega.
+rewrite length_list_repeat. rewrite Z2Nat.id by lia. lia.
 } 
 change (Z.of_nat CBLOCK - 8) with 56.
 clear H5.
-rewrite <- Z2Nat.inj_add by (change CBLOCKz with 64; omega).
+rewrite <- Z2Nat.inj_add by (change CBLOCKz with 64; lia).
 f_equal. {
  transitivity (- (4 * Zlength hashed' + (Zlength dd' - (1 + pad) + 9)) mod 64).
- f_equal. f_equal. omega.
+ f_equal. f_equal. lia.
  rewrite <- Z.sub_0_l.
  rewrite Zminus_mod.
  rewrite Zplus_mod.
@@ -400,7 +399,7 @@ f_equal. {
  rewrite <- Z.mul_assoc.
  change (LBLOCKz * 4)%Z with 64%Z.
  rewrite Zmult_mod.
- assert (64<>0) by (clear; omega).
+ assert (64<>0) by (clear; lia).
  rewrite Z.mod_same by auto. rewrite Z.mul_0_r.
  rewrite Z.mod_0_l at 2 by auto.
  rewrite Z.add_0_l. rewrite Z.mod_mod by auto.
@@ -408,11 +407,11 @@ f_equal. {
  change CBLOCKz with 64. change LBLOCKz with 16 in H2.
  destruct PAD; subst.
  rewrite <- Zminus_mod.
- rewrite Z.mod_small; try omega.
- rewrite Zlength_correct in H|-*; omega.
+ rewrite Z.mod_small; try lia.
+ rewrite Zlength_correct in H|-*; lia.
  rewrite Zlength_nil in *.
  rewrite <- Zminus_mod.
- rewrite Z.mod_small; omega.
+ rewrite Z.mod_small; lia.
 }
  rewrite Zlength_app, Zlength_intlist_to_bytelist.
  rewrite H7.
@@ -424,13 +423,13 @@ f_equal. {
  change (Z.succ 0) with 1.
  change WORD with 4.
  rewrite Z.add_assoc.
- replace (d + 9) with (d + 1 + 8) by omega.
+ replace (d + 9) with (d + 1 + 8) by lia.
  forget (d+1) as e.
- apply Zmod_divide; try omega.
+ apply Zmod_divide; try lia.
  clear.
  rewrite Zplus_mod.
  change 64 with (16*4)%Z.
- rewrite Zmod_mod_mult by omega.
+ rewrite Zmod_mod_mult by lia.
  rewrite <- Z.sub_0_l.
  rewrite Zminus_mod.
  rewrite (Zplus_mod e 8).
@@ -439,8 +438,8 @@ f_equal. {
  rewrite Z.add_0_r.
   rewrite <- Zminus_mod.
   rewrite <- Zplus_mod.
- replace (e + (4 - e mod 4)) with (4 + (e - e mod 4)) by omega.
- rewrite Zplus_mod. rewrite Z.mod_same by omega.
- rewrite Zminus_mod.   rewrite Z.mod_mod by omega.
+ replace (e + (4 - e mod 4)) with (4 + (e - e mod 4)) by lia.
+ rewrite Zplus_mod. rewrite Z.mod_same by lia.
+ rewrite Zminus_mod.   rewrite Z.mod_mod by lia.
  rewrite Z.sub_diag. reflexivity.
 Qed.

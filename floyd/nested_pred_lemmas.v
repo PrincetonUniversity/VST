@@ -164,9 +164,9 @@ Proof.
   apply Z.eq_mul_0 in H.
   destruct H; auto.
   right.
-  destruct (zlt 0 n); [| omega].
-  rewrite Z.max_r in H by omega.
-  omega.
+  destruct (zlt 0 n); [| lia].
+  rewrite Z.max_r in H by lia.
+  lia.
 Qed.
 
 Lemma Tstruct_sizeof_0: forall id a,
@@ -178,7 +178,7 @@ Lemma Tstruct_sizeof_0: forall id a,
    (field_offset cenv_cs i (co_members (get_co id)) +
       sizeof (field_type i (co_members (get_co id)))) = 0.
 Proof.
-  intros.
+  intros. 
   rewrite sizeof_Tstruct in H0.
   rewrite H0.
   apply sizeof_struct_0; auto.
@@ -188,7 +188,7 @@ Proof.
   pose proof align_le (sizeof_struct cenv_cs 0 (co_members (get_co id)))
      (co_alignof (get_co id)) (co_alignof_pos _).
   pose proof sizeof_struct_incr cenv_cs (co_members (get_co id)) 0.
-  omega.
+  lia.
 Qed.
 
 Lemma Tunion_sizeof_0: forall id a,
@@ -206,7 +206,7 @@ Proof.
   pose proof align_le (sizeof_union cenv_cs (co_members (get_co id)))
      (co_alignof (get_co id)) (co_alignof_pos _).
   pose proof sizeof_union_pos cenv_cs (co_members (get_co id)).
-  omega.
+  lia.
 Qed.
 
 End NESTED_PRED.
@@ -220,7 +220,7 @@ Arithmetic properties with nested_pred assumption.
 Ltac pose_mod_le A :=
   let H := fresh "H" in
   pose proof Z.mod_le A Ptrofs.modulus;
-  spec H; [try omega | spec H; [pose Ptrofs.modulus_pos; omega |]].
+  spec H; [try lia | spec H; [pose Ptrofs.modulus_pos; lia |]].
 
 Ltac pose_mul_distr_l l r :=
   match r with
@@ -229,7 +229,7 @@ Ltac pose_mul_distr_l l r :=
                    pose_mul_distr_l l B
   | Z.succ ?A => let H := fresh "H" in
                  pose proof Z.mul_add_distr_l l A 1 as H;
-                 replace (A + 1) with (Z.succ A) in H by omega;
+                 replace (A + 1) with (Z.succ A) in H by lia;
                  pose_mul_distr_l l A
   | (?A - ?B)%Z => pose proof Z.mul_sub_distr_l l A B;
                    pose_mul_distr_l l A;
@@ -246,7 +246,7 @@ Ltac pose_size_mult' env t l :=
     | nil => pose_mul_distr_l (@sizeof env t) z
     | ?z0 :: _ => pose_mul_distr_l (@sizeof env t) z;
                   assert (@sizeof env t * z <= @sizeof env t * z0) by
-                    (pose proof @sizeof_pos env t; apply Zmult_le_compat_l; omega);
+                    (pose proof @sizeof_pos env t; apply Zmult_le_compat_l; lia);
                   pose_size_mult' env t l0
     end
   end.
@@ -269,7 +269,7 @@ Ltac pose_align_le :=
   | |- context [align ?A (co_alignof ?co)] =>
          let x := fresh "x" in
          assert (A <= align A (co_alignof co)) by (apply align_le; destruct (co_alignof_two_p co) as [x ?];
-           pose proof two_power_nat_pos x; omega);
+           pose proof two_power_nat_pos x; lia);
          change (align A (co_alignof co)) with (align_alignof A (co_alignof co))
   | |- context [sizeof_struct ?env ?A ?m] =>
          pose proof sizeof_struct_incr env m A;
@@ -310,19 +310,19 @@ Ltac pose_sizeof_co t :=
 Ltac pose_field :=
   match goal with
   | _ : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
-    context [@sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
+    context [@sizeof ?cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tstruct id a);
       let H := fresh "H" in
       pose proof field_offset_in_range i (co_members (get_co id)) as H;
       spec H; [solve [auto] |];
-      pose proof @sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
+      pose proof @sizeof_pos cs (field_type i (co_members (get_co id)))
   | _ : complete_legal_cosu_type (Tunion ?id ?a) = true |-
-    context [@sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
+    context [@sizeof ?cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tunion id a);
       let H := fresh "H" in
       pose proof sizeof_union_in_members i (co_members (get_co id)) as H;
       spec H; [solve [auto] |];
-      pose proof @sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
+      pose proof @sizeof_pos cs (field_type i (co_members (get_co id)))
   | _ => idtac
   end;
   match goal with
@@ -333,5 +333,4 @@ Ltac pose_field :=
       spec H; [solve [auto] |];
       spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
   | _ => idtac
-  end
-.
+  end.

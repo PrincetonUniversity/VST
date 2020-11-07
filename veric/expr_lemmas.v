@@ -110,10 +110,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  destruct t0 as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; rewrite ?J0; eauto;
   destruct t as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; 
     destruct v; try contradiction; 
-(*
- try (rewrite denote_tc_assert_andp in H0; simpl in H0);
- unfold is_pointer_type in H0; rewrite ?J in H0; rewrite ?J0 in H0;
-*) simpl in *; rewrite ?J in *; rewrite ?J0 in *;
+  simpl in *; rewrite ?J in *; rewrite ?J0 in *;
   try solve [eexists; simpl; eauto];
  try contradiction;
  try solve [
@@ -130,7 +127,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
         | rewrite (single_to_intu_ok _ _ H5)
         ] ;
     [ eexists; reflexivity
-    | split; omega ]].
+    | split; lia ]].
  all: try (unfold is_pointer_or_null in H; rewrite Hp in H; contradiction).
 all:  try (rewrite Hp; eexists; reflexivity).
 *
@@ -174,7 +171,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
         | rewrite (single_to_int_ok _ _ H5)
         | rewrite (single_to_intu_ok _ _ H5)
         ] ;
-    [ eexists; reflexivity | omega];
+    [ eexists; reflexivity | lia];
   simpl; rewrite Hp; eauto];
   (hnf in H; rewrite Hp in H; contradiction H).
 }
@@ -196,12 +193,12 @@ split; intros; induction v. simpl in *.
 rewrite PTree.gempty in *. congruence.
 
 simpl in *. destruct a. inv H. rewrite PTree.gsspec in *. if_tac in H0.
-inv H0. auto. intuition.
+inv H0. auto. tauto.
 
 inv H0.
 
 simpl in *. destruct a. simpl in *. rewrite PTree.gsspec. destruct H0.
-inv H0. if_tac. auto. intuition. inv H. if_tac. subst.
+inv H0. if_tac. auto. tauto. inv H. if_tac. subst.
 clear - H0 H3. rewrite in_map_iff in *. destruct H3. exists (i,ty). auto.
 apply IHv; auto.
 Qed.
@@ -241,7 +238,7 @@ induction t.
       apply H; simpl in *; auto.
 
     induction p.
-       simpl in *. rewrite PTree.gsspec. if_tac. intuition.
+       simpl in *. rewrite PTree.gsspec. if_tac. tauto.
        auto.
 
        simpl in *.  repeat rewrite PTree.gsspec in *. destruct a.
@@ -258,15 +255,15 @@ induction t.
       if_tac. subst. clear - H. specialize (H i i). intuition.  apply IHp.
       unfold list_disjoint in *. intros. apply H; simpl in *; auto.
       intros. apply IHt. unfold list_disjoint in *. intros; simpl in *; apply H;      auto.
-      auto. auto. intuition.
+      auto. auto. tauto.
 
     destruct a. simpl in *. induction p.
-      simpl in *. rewrite PTree.gsspec. if_tac; subst. intuition.
+      simpl in *. rewrite PTree.gsspec. if_tac; subst. tauto.
       repeat rewrite PTree.gsspec. auto.
 
       simpl in *. destruct a. simpl in *.
       spec IHt. unfold list_disjoint in *. intros; apply H; simpl in *; auto.
-      intuition.
+      tauto.
       repeat rewrite PTree.gsspec in *. if_tac.
         subst.  auto.
 
@@ -291,12 +288,12 @@ Proof.
     - right.
       destruct a. simpl in *. rewrite PTree.gsspec in *.
       if_tac in H0. subst. inv H0. auto. destruct IHt. inv H1; auto.
-      unfold list_disjoint in *. intros. inv H4. auto. intuition. intuition.
+      unfold list_disjoint in *. intros. inv H4. auto. tauto. tauto.
     - simpl in *.
       rewrite PTree.gsspec in *.
       if_tac in H0.
       * destruct a0. simpl in *.
-        subst. inv H0. intuition.
+        subst. inv H0. tauto.
       * destruct a0. simpl in *.  destruct a. simpl in *.
         destruct IHp.
         ++ inv H; auto.
@@ -307,14 +304,14 @@ Proof.
           -- intro; intros; apply H2; simpl in *; auto.
           -- auto.
           -- destruct H7.
-            ** inv H7; intuition.
+            ** inv H7; tauto.
             ** auto.
           -- auto.
         ++ left.
            right. apply H4.
         ++ right. auto.
   + induction t; induction p; simpl in *.
-    - intuition.
+    - tauto.
     - rewrite PTree.gsspec. if_tac.
       * subst. destruct a. simpl in *.
         destruct H0; [destruct H0 |].
@@ -325,7 +322,7 @@ Proof.
        ++ inv H0.
       * destruct H0.
        ++ destruct a. destruct H0.
-         -- subst. inv H0. intuition.
+         -- subst. inv H0. tauto.
          -- simpl in *. apply IHp.
            ** inv H; auto.
            ** intro. intros. inv H5.
@@ -377,7 +374,7 @@ Proof.
             spec IHt; [auto |].
             rewrite PTree.gsspec in *.
             if_tac in IHt.
-           ** intuition.
+           ** tauto.
            ** intros. auto.
 Qed.
 
@@ -441,12 +438,6 @@ repeat match goal with |- context [eqb_type ?A ?B] =>
   let J := fresh "J" in destruct (eqb_type A B) eqn:J;
   try rewrite J in *
 end;
-(*
-repeat match goal with H: context [eqb_type ?A ?B] |- _ =>
-  let J := fresh "J" in destruct (eqb_type A B) eqn:J;
-   try rewrite J in *
-end;
-*)
 try solve [
  simpl in H; simpl in H0;
 try congruence; 
@@ -458,7 +449,7 @@ try change Byte.min_signed with (-128) in *;
 try change Byte.max_signed with 127 in *;
 try change (Z.neg (shift_pos 15 1)) with (-32768);
 try change Byte.max_unsigned with 255 in *;
-try omega;
+try lia;
 try apply H0;
 try solve [destruct H1; subst; try split; compute; congruence]
 ].
@@ -798,12 +789,12 @@ all: try (
   destruct ((@cenv_cs CS) ! i0); auto.
   destruct (field_offset (@cenv_cs CS) i (co_members c)); auto.
   destruct ((@cenv_cs CS) ! i0); auto.
- +
+ + unfold expr.sizeof.
    destruct (complete_type (@cenv_cs CS) t) eqn:?H.
   rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
   rewrite (cenv_sub_sizeof CSUB _ H0); auto.
   contradiction H; auto.
- +
+ + unfold expr.alignof.
    destruct (complete_type (@cenv_cs CS) t) eqn:?H.
   rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
   rewrite (cenv_sub_alignof CSUB _ H0); auto.
@@ -1043,7 +1034,7 @@ Proof.
   try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv1);
   try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
   try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv2); simpl; trivial.
-Qed. Print denote_tc_assert.
+Qed.
 
 Lemma denote_tc_assert_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w: forall a, 
     @denote_tc_assert CS a rho w -> @denote_tc_assert CS' a rho w.
@@ -1066,21 +1057,6 @@ Proof.
   + apply (denote_tc_nodivover_eval_expr_cenv_sub CSUB); trivial.
   + apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); trivial.
 Qed.
-(*
-Lemma typecheck_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta:
-      forall a, @typecheck_expr CS' Delta a = @typecheck_expr CS Delta a.
-Proof.
-  induction a; simpl; intros; eauto. 
-+ rewrite IHa; trivial.
-+ rewrite IHa; trivial.
-+ rewrite IHa; trivial.
-+ rewrite IHa; trivial.
-
-Lemma typecheck_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta:
-      forall a x (E: (@typecheck_expr CS Delta a) = x), (@typecheck_expr CS' Delta a) = x.
-Proof.
-  induction a; simpl; intros; eauto. 
-+ rewrite IHa.*)
 
 Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w Delta: forall a, 
     @denote_tc_assert CS (@typecheck_expr CS Delta a) rho w ->

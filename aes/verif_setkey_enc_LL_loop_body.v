@@ -93,7 +93,7 @@ Lemma update_partially_expanded_key: forall k j j' v key_chars,
                    ++ repeat_op_table (60 - (j + 1)) Vundef id).
 Proof.
 intros.
-replace (j' + k) with (j + 8) by omega. clear j' H.
+replace (j' + k) with (j + 8) by lia. clear j' H.
 Admitted.
 
 (* TODO this does not hold, we have to replace Vundef by (Vint Int.zero) in the whole proof *)
@@ -541,7 +541,7 @@ clearbody Delta_specs.
       intros j B.
       rewrite field_compatible_field_address by assumption.
       rewrite field_compatible_field_address by auto with field_compatible.
-      simpl. rewrite Ptrofs.add_assoc. rewrite ptrofs_add_repr. do 4 f_equal. omega.
+      simpl. rewrite Ptrofs.add_assoc. rewrite ptrofs_add_repr. do 4 f_equal. lia.
     }
 
     pose proof (Zlength_partially_expanded_key i key_chars H1 H) as L.
@@ -560,10 +560,10 @@ clearbody Delta_specs.
         pose proof (E _ A) as E2; clear A
       end;
       forward;
-      rewrite ?upd_Znth_diff by (repeat rewrite upd_Znth_Zlength; omega);
-      rewrite ?upd_Znth_same by (repeat rewrite upd_Znth_Zlength; omega);
+      rewrite ?upd_Znth_diff by (repeat rewrite upd_Znth_Zlength; lia);
+      rewrite ?upd_Znth_same by (repeat rewrite upd_Znth_Zlength; lia);
       match goal with L': forall j : Z,  0 <= j < 8 + _ * 8 -> _ |- _ => 
-            rewrite ?L' by omega
+            rewrite ?L' by lia
       end;
     [
      go_lowerx;
@@ -588,9 +588,9 @@ clearbody Delta_specs.
       end;
       pose proof (E _ A) as E2; clear A;
       forward;
-      repeat rewrite upd_Znth_diff by (repeat rewrite upd_Znth_Zlength; omega);
-      repeat rewrite upd_Znth_same by (repeat rewrite upd_Znth_Zlength; omega);
-      rewrite ?Znth_partially_expanded_key by omega; [ entailer! | ];
+      repeat rewrite upd_Znth_diff by (repeat rewrite upd_Znth_Zlength; lia);
+      repeat rewrite upd_Znth_same by (repeat rewrite upd_Znth_Zlength; lia);
+      rewrite ?Znth_partially_expanded_key by lia; [ entailer! | ];
       clear E2.
 *)
 
@@ -617,7 +617,7 @@ clearbody Delta_specs.
     clear.  intros. rewrite Int.and_commut.
     pose proof (Int.and_le (Int.repr 255) i).
     rewrite Int.unsigned_repr in H by computable. 
-    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). omega.
+    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). lia.
   }
 
     Arguments Z.land _ _ : simpl never.
@@ -663,14 +663,14 @@ clearbody Delta_specs.
     destruct ctx; inv P.
     thaw FR1. 
     entailer!.
-    - clear. f_equal. simpl. omega. 
+    - clear. f_equal. simpl. lia. 
     - clear.
       subst PFUN ROT KE2.
       repeat match goal with A := _ |- _ => fold A end.
       apply derives_refl'.
       f_equal.
       match goal with |- _ = ?b => set (B:=b) end.
-      rewrite ?update_partially_expanded_key by omega.
+      rewrite ?update_partially_expanded_key by lia.
       subst B. clear. 
-      f_equal. f_equal. f_equal. f_equal. omega. f_equal. omega.
+      f_equal. f_equal. f_equal. f_equal. lia. f_equal. lia.
 Time Qed.

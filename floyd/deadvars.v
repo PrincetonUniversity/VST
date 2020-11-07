@@ -1,5 +1,6 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.semax_tactics.
 Import ListNotations.
 
 (* In any of these functions, whenever there is a [list ident],
@@ -187,6 +188,7 @@ Ltac inhabited_value T :=
  | prod ?A ?B => let x := inhabited_value A in
                            let y := inhabited_value B in
                                constr:(pair x y)
+ | _ => let t := eval unfold T in T in inhabited_value t
  | _ => match goal with
             | x:T |- _ => x 
             | x := _ : T |- _ => x
@@ -261,12 +263,14 @@ Ltac deadvars :=
  lazymatch goal with
  | X := @abbreviate ret_assert ?Q |-
     semax _ ?P ?c ?Y =>
+    check_POSTCONDITION;
     constr_eq X Y;
     match find_dead_vars P c Q with
     | nil => idtac
     | ?d =>  idtac "Dropping dead vars!"; drop_LOCALs d
      end + fail 99 "deadvars failed for an unknown reason"
  | |- semax _ _ _ _ => 
+       check_POSTCONDITION;
        fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ |-- _ => idtac
  | |- _ => fail "deadvars: the proof goal should be a semax"
@@ -276,12 +280,14 @@ Tactic Notation "deadvars" "!" :=
  match goal with
  | X := @abbreviate ret_assert ?Q |-
     semax _ ?P ?c ?Y =>
+   check_POSTCONDITION;
     constr_eq X Y;
     match find_dead_vars P c Q with
     | nil => fail 2 "deadvars!: Did not find any dead variables"
     | ?d =>  drop_LOCALs d
      end
  | |- semax _ _ _ _ => 
+       check_POSTCONDITION;
        fail 1 "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ => fail 1 "deadvars!: the proof goal should be a semax"
  end.

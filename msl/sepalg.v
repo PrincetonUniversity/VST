@@ -33,7 +33,7 @@ Hint Extern 2 (@join _ _ _ _ _) =>
       join at an applied function. *)
      match goal with H: @join _ _ _ _ _ |- _ => apply H end)
     : core.
- (* Hint Immediate @join_comm. *)
+ (* Hint Immediate join_comm. *)
 
 Hint Unfold unit_for : core.
 
@@ -329,7 +329,7 @@ Qed.
     apply core_unit.
   Qed.
 
-  Hint Resolve @join_sub_refl : core.
+  Hint Resolve join_sub_refl : core.
 
   Lemma join_sub_trans {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall a b c,
     join_sub a b ->
@@ -479,7 +479,7 @@ Qed.
     auto.
   Qed.
 
-Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub' : core.
+Hint Resolve join_joins join_joins' join_join_sub join_join_sub' : core.
 
   Definition nonidentity {A} `{Perm_alg A} (a: A) := ~(identity a).
 

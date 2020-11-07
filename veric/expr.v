@@ -13,6 +13,9 @@ Require Import VST.veric.seplog. (*For definition of tycontext*)
 
 Import Ctypes.
 
+Definition sizeof {cs: compspecs} t := @Ctypes.sizeof (@cenv_cs cs) t.
+Definition alignof {cs: compspecs} t := @Ctypes.alignof (@cenv_cs cs) t.
+
 (*moved to compcert_rmaps
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
@@ -438,6 +441,12 @@ match op with
                           tc_andp (tc_bool (is_int32_type ty) (op_result_type a))
                           match (typeof a) with
                           | Tint _ Signed _ => tc_nosignedover Z.sub (Econst_int Int.zero (typeof a)) a
+                          | Tlong Signed _ => tc_nosignedover Z.sub (Econst_long Int64.zero (typeof a)) a
+                          | _ => tc_TT
+                          end
+                    | Cop.neg_case_l sg => 
+                          tc_andp (tc_bool (is_long_type ty) (op_result_type a))
+                          match (typeof a) with
                           | Tlong Signed _ => tc_nosignedover Z.sub (Econst_long Int64.zero (typeof a)) a
                           | _ => tc_TT
                           end
@@ -1168,15 +1177,12 @@ Definition weak_valid_pointer (p: val) : mpred :=
 
 (********************SUBSUME****************)
 
-Definition params_of_funspec (fs: funspec) : list (ident * type) :=
-  fst (funsig_of_funspec fs).
-
-Definition return_of_funspec (fs: funspec) : type :=
-  snd (funsig_of_funspec fs).
-
-
 Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
+
+Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      rettype_of_funspec phi1 = rettype_of_funspec phi.
+Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.
 
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
@@ -1291,3 +1297,7 @@ Proof.
   apply (ha_env_cs_sub_trans A2 B2). 
   apply (la_env_cs_sub_trans A3 B3).
 Qed.
+
+Lemma valid_pointer_is_pointer_or_null p:
+      valid_pointer p |-- !!(is_pointer_or_null p).
+Proof. intros m. destruct p; simpl; trivial. Qed.

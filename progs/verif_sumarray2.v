@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
 Require Import VST.progs.sumarray2. (* Import the AST of this C program *)
+
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -10,29 +11,29 @@ Definition sum_Z : list Z -> Z := fold_right Z.add 0.
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
 Proof.
-  intros. induction a; simpl; omega.
+  intros. induction a; simpl; lia.
 Qed.
 
 (* Beginning of the API spec for the sumarray.c program *)
 Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tuint), _n OF tint ]
+  PRE [ tptr tuint, tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed)
-          LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+          PARAMS (a; Vint (Int.repr size))
           SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
-        PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+        PROP () RETURN (Vint (Int.repr (sum_Z contents)))
            SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* The precondition of "int main(void){}" always looks like this. *)
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]  
      PROP() 
-     LOCAL (temp ret_temp (Vint (Int.repr (3+4)))) 
+     RETURN (Vint (Int.repr (3+4))) 
      SEP(TT).
 
 (* Packaging the API spec all together. *)
@@ -55,7 +56,7 @@ forward_for_simple_bound size
           (*temp _i (Vint (Int.repr i)); *)
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)).
+   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a))%assert.
 
 * (* Prove that current precondition implies loop invariant *)
 entailer!.
@@ -72,9 +73,9 @@ forward. (* s += x; *)
    postcondition of the loop body) entails the loop invariant. *)
 entailer!.
  f_equal. f_equal.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite sum_Z_app. rewrite (sublist_one i) by omega.
- simpl. autorewrite with sublist. normalize.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite sum_Z_app. rewrite (sublist_one i) by lia.
+ simpl. lia.
 * (* After the loop *)
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body
@@ -109,20 +110,16 @@ assert (Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) four_content
   by (repeat constructor; computable).
  rewrite <- (sublist_same 0 4 contents), (sublist_split 0 2 4)
     by now autorewrite with sublist.
-erewrite (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
+erewrite (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try lia; try reflexivity.
 Intros.
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tuint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
-+
- entailer!.
- rewrite field_address0_offset by auto with field_compatible.
- normalize.
 + split. auto. computable.
 +
   gather_SEP (data_at Ews (tarray tuint 2) (sublist 0 2 contents) _) 
                    (data_at Ews (tarray tuint 2) (map Vint _) _).
-  erewrite <- (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
+  erewrite <- (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try lia; try reflexivity.
   rewrite <- !sublist_map. fold contents. autorewrite with sublist.
   rewrite (sublist_same 0 4) by auto.
   forward. (* return *)
@@ -171,21 +168,22 @@ and annotate with assertions:
 
 The assertions are defined in these definitions:
 *)
+
 Definition sumarray_Inv a sh contents size i :=
    PROP  (0 <= i <= size)
-   LOCAL (temp _a a;
+    LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
+    SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 Definition sumarray_PostBody a sh contents size i :=
-   PROP  (0 <= i < size)
-   LOCAL (temp _a a;
+    PROP  (0 <= i < size)
+    LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 (i+1) contents)))))
-   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
+    SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* . . . and now you can see how these assertions are used
    in the proof, using the semax_loop rule. *)
@@ -210,8 +208,8 @@ forward.  (* i++; *)
 Exists (i+1).
 entailer!.
      f_equal. f_equal.
-     rewrite (sublist_split 0 i (i+1)) by omega.
-     rewrite sum_Z_app. rewrite (sublist_one i) by omega.
+     rewrite (sublist_split 0 i (i+1)) by lia.
+     rewrite sum_Z_app. rewrite (sublist_one i) by lia.
      simpl. autorewrite with sublist norm. reflexivity.
 * (* after the loop *)
 forward. (* return s; *)

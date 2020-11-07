@@ -140,8 +140,8 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   | Tfloat F64 _, Tfloat F32 _ => cast_case_s2f
   | Tfloat F32 _, Tfloat F64 _ => cast_case_f2s
   (* To pointer types *)
-  | Tpointer _ _, Tint _ _ _ =>
-      if Archi.ptr64 then cast_case_i2l Unsigned else cast_case_pointer
+  | Tpointer _ _, Tint _ si _ =>
+      if Archi.ptr64 then cast_case_i2l si else cast_case_pointer
   | Tpointer _ _, Tlong _ _ =>
       if Archi.ptr64 then cast_case_pointer else cast_case_l2i I32 Unsigned
   | Tpointer _ _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => cast_case_pointer
@@ -1131,7 +1131,7 @@ Qed.
 Remark val_inject_vptrofs: forall n, Val.inject f (Vptrofs n) (Vptrofs n).
 Proof. intros. unfold Vptrofs. destruct Archi.ptr64; auto. Qed.
 
-Hint Resolve val_inject_vtrue val_inject_vfalse val_inject_of_bool val_inject_vptrofs.
+Local Hint Resolve val_inject_vtrue val_inject_vfalse val_inject_of_bool val_inject_vptrofs : core.
 
 Ltac TrivialInject :=
   match goal with
@@ -1517,7 +1517,7 @@ Inductive val_casted: val -> type -> Prop :=
   | val_casted_void: forall v,
       val_casted v Tvoid.
 
-Hint Constructors val_casted.
+Local Hint Constructors val_casted : core.
 
 Remark cast_int_int_idem:
   forall sz sg i, cast_int_int sz sg (cast_int_int sz sg i) = cast_int_int sz sg i.
@@ -1578,6 +1578,27 @@ Lemma cast_idempotent:
   forall v ty ty' v' m, sem_cast v ty ty' m = Some v' -> sem_cast v' ty' ty' m = Some v'.
 Proof.
   intros. apply cast_val_casted. eapply cast_val_is_casted; eauto.
+Qed.
+
+(** Moreover, casted values belong to the machine type corresponding to the
+    C type. *)
+
+Lemma val_casted_has_type:
+  forall v ty, val_casted v ty -> ty <> Tvoid -> Val.has_type v (typ_of_type ty).
+Proof.
+  intros. inv H; simpl typ_of_type.
+- exact I.
+- exact I.
+- exact I.
+- exact I.
+- apply Val.Vptr_has_type.
+- red; unfold Tptr; rewrite H1; auto.
+- red; unfold Tptr; rewrite H1; auto.
+- red; unfold Tptr; rewrite H1; auto.
+- red; unfold Tptr; rewrite H1; auto.
+- apply Val.Vptr_has_type.
+- apply Val.Vptr_has_type.
+- congruence.
 Qed.
 
 (** Relation with the arithmetic conversions of ISO C99, section 6.3.1 *)

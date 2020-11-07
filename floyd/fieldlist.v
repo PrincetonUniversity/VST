@@ -17,7 +17,7 @@ Definition field_offset env i m :=
   | _ => 0
   end.
 
-Fixpoint field_offset_next_rec env i m ofs sz :=
+Fixpoint field_offset_next_rec (env:composite_env) i m ofs sz :=
   match m with
   | nil => 0
   | (i0, t0) :: m0 =>
@@ -25,12 +25,12 @@ Fixpoint field_offset_next_rec env i m ofs sz :=
     | nil => sz
     | (_, t1) :: _ =>
       if ident_eq i i0
-      then align (ofs + @sizeof env t0) (@alignof env t1)
-      else field_offset_next_rec env i m0 (align (ofs + @sizeof env t0) (@alignof env t1)) sz
+      then align (ofs + @Ctypes.sizeof env t0) (@Ctypes.alignof env t1)
+      else field_offset_next_rec env i m0 (align (ofs + @Ctypes.sizeof env t0) (@Ctypes.alignof env t1)) sz
     end
   end.
 
-Definition field_offset_next env i m sz := field_offset_next_rec env i m 0 sz.
+Definition field_offset_next (env:composite_env) i m sz := field_offset_next_rec env i m 0 sz.
 
 Lemma in_members_field_type: forall i m,
   in_members i m ->
@@ -192,6 +192,7 @@ Proof.
   destruct (alignof_two_p t) as [N ?].
   destruct (alignof_composite_two_p cenv_cs ((i, t) :: m)) as [M ?].
   assert (alignof t <= alignof_composite cenv_cs ((i,t)::m)) by (apply Z.le_max_l).
+  fold (alignof t) in H.
   rewrite H in *.
   rewrite H0 in *.
   exact (power_nat_divide N M H1).
@@ -258,7 +259,7 @@ Proof.
      specialize (IHm H).
      fold (sizeof t0).
      pose proof Z.le_max_r (sizeof t0) (sizeof_union cenv_cs m).
-     omega.
+     lia.
 Qed.
 
 (* if sizeof Tvoid = 0, this lemma can be nicer. *)
@@ -335,7 +336,7 @@ Proof.
     split; [| split]; auto.
     simpl in H0.
    fold (sizeof t0) in *.
-    omega.
+    lia.
   + remember ((i1, t1) :: m) as m0. simpl in H0 |- *. subst m0.
     destruct (ident_eq i i0).
     - split; [| split]; auto.
@@ -344,10 +345,12 @@ Proof.
       * pose proof sizeof_struct_incr cenv_cs m (align (align z (alignof t0) + sizeof t0)
             (alignof t1) + sizeof t1).
         pose proof sizeof_pos t1.
-        simpl in H0; omega.
+        unfold expr.sizeof, expr.alignof in *.
+        simpl in H0; lia.
     - destruct H as [H | H]; [simpl in H; congruence |].
       specialize (IHm (align z (alignof t0) + sizeof t0) i1 t1 H H0).
-      destruct (field_offset_rec cenv_cs i ((i1, t1) :: m) (align z (alignof t0) + sizeof t0)),
+        unfold expr.sizeof, expr.alignof in *.
+      destruct (field_offset_rec cenv_cs i ((i1, t1) :: m) (align z (Ctypes.alignof t0) + Ctypes.sizeof t0)),
                (field_type i ((i1, t1) :: m));
       try tauto.
 Qed.
@@ -441,7 +444,7 @@ Defined.
 Lemma neq_field_offset_rec_cons: forall env i i0 t0 m z,
   i <> i0 ->
   field_offset_rec env i ((i0, t0) :: m) z =
-  field_offset_rec env i m (align z (alignof t0) + sizeof t0).
+  field_offset_rec env i m (align z (Ctypes.alignof t0) + Ctypes.sizeof t0).
 Proof.
   intros.
   simpl.
@@ -452,7 +455,7 @@ Qed.
 Lemma neq_field_offset_next_rec_cons: forall env i i0 t0 i1 t1 m z sz,
   i <> i0 ->
   field_offset_next_rec env i ((i0, t0) :: (i1, t1) :: m) z sz =
-  field_offset_next_rec env i ((i1, t1) :: m) (align (z +  sizeof t0) (alignof t1)) sz.
+  field_offset_next_rec env i ((i1, t1) :: m) (align (z +  Ctypes.sizeof t0) (Ctypes.alignof t1)) sz.
 Proof.
   intros.
   simpl.
@@ -463,39 +466,39 @@ Qed.
 Lemma sizeof_struct_0: forall env i m,
   sizeof_struct env 0 m = 0 ->
   in_members i m ->
-  sizeof (field_type i m) = 0 /\
-  field_offset_next env i m 0 - (field_offset env i m + sizeof (field_type i m)) = 0.
+  Ctypes.sizeof (field_type i m) = 0 /\
+  field_offset_next env i m 0 - (field_offset env i m + Ctypes.sizeof (field_type i m)) = 0.
 Proof.
   intros.
   unfold field_type, field_offset, Ctypes.field_offset, field_offset_next.
   induction m as [| (i0, t0) m].
   + inversion H0.
   + simpl in H.
-    pose proof sizeof_struct_incr env m (align 0 (alignof t0) + sizeof t0).
-    pose proof align_le 0 (alignof t0) (alignof_pos _).
-    pose proof sizeof_pos t0.
+    pose proof sizeof_struct_incr env m (align 0 (Ctypes.alignof t0) + Ctypes.sizeof t0).
+    pose proof align_le 0 (Ctypes.alignof t0) (Ctypes.alignof_pos _).
+    pose proof Ctypes.sizeof_pos t0.
     destruct (ident_eq i i0).
     - simpl in *.
       if_tac; [| congruence].
-      replace (sizeof t0) with 0 by omega.
+      replace (Ctypes.sizeof t0) with 0 by lia.
       destruct m as [| (?, ?) m];
-      rewrite !align_0 by apply alignof_pos;
-      omega.
+      rewrite !align_0 by apply Ctypes.alignof_pos;
+      lia.
     - destruct H0; [simpl in H0; congruence |].
       simpl.
       if_tac; [congruence |].
-      replace (sizeof t0) with 0 by omega.
+      replace (Ctypes.sizeof t0) with 0 by lia.
       destruct m as [| (?, ?) m]; [inversion H0 |].
-      rewrite !align_0 by apply alignof_pos.
+      rewrite !align_0 by apply Ctypes.alignof_pos.
       apply IHm; [| auto].
-      replace (align 0 (alignof t0) + sizeof t0) with 0 in * by omega.
+      replace (align 0 (Ctypes.alignof t0) + Ctypes.sizeof t0) with 0 in * by lia.
       auto.
 Qed.
 
 Lemma sizeof_union_0: forall env i m,
   sizeof_union env m = 0 ->
   in_members i m ->
-  sizeof (field_type i m) = 0.
+  Ctypes.sizeof (field_type i m) = 0.
 Proof.
   intros.
   unfold field_type.
@@ -505,21 +508,21 @@ Proof.
     destruct (ident_eq i i0).
     - simpl in *.
       if_tac; [| congruence].
-      pose proof sizeof_pos t0.
-      pose proof Z.le_max_l (sizeof t0) (sizeof_union env m).
-      omega.
+      pose proof Ctypes.sizeof_pos t0.
+      pose proof Z.le_max_l (Ctypes.sizeof t0) (sizeof_union env m).
+      lia.
     - destruct H0; [simpl in H0; congruence |].
       simpl.
       if_tac; [congruence |].
       apply IHm; [| auto].
       pose proof sizeof_union_pos env m.
-      pose proof Z.le_max_r (sizeof t0) (sizeof_union env m).
-      omega.
+      pose proof Z.le_max_r (Ctypes.sizeof t0) (sizeof_union env m).
+      lia.
 Qed.
 
 Definition in_map: forall {A B : Type} (f : A -> B) (l : list A) (x : A),
        In x l -> In (f x) (map f l) :=
-fun (A B : Type) (f : A -> B) (l : list A) =>
+fun {A B : Type} (f : A -> B) (l : list A) =>
 list_ind (fun l0 : list A => forall x : A, In x l0 -> In (f x) (map f l0))
   (fun (x : A) (H : In x nil) => H)
   (fun (a : A) (l0 : list A)
@@ -652,6 +655,8 @@ Proof.
     - f_equal.
       apply alignof_change_composite; auto.
     - specialize (IHm H3).
+       fold (@alignof cs_from t0) in *. fold (@sizeof cs_from t0) in *.
+       fold (@alignof cs_to t0) in *. fold (@sizeof cs_to t0) in *.
       rewrite alignof_change_composite, sizeof_change_composite by auto.
       apply IHm.
 Qed.
@@ -675,6 +680,10 @@ Proof.
   induction H0 as [| [i1 t1] ? ]; intros.
   + reflexivity.
   + simpl.
+       fold (@alignof cs_from t0) in *. fold (@sizeof cs_from t0) in *.
+       fold (@alignof cs_to t0) in *. fold (@sizeof cs_to t0) in *.
+       fold (@alignof cs_from t1) in *. fold (@sizeof cs_from t1) in *.
+       fold (@alignof cs_to t1) in *. fold (@sizeof cs_to t1) in *.
     if_tac; auto.
     - f_equal; [f_equal |].
       * apply sizeof_change_composite; auto.

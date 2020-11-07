@@ -223,7 +223,7 @@ semax (encryption_loop_body_Delta DS)
            (Vint (Int.repr Nr),
            (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf]
               ctx, map Vint (map Int.repr buf))) ctx)))).*)
-Hint Resolve 0%Z : inhabited.
+Hint Resolve Z0 : inhabited.
 
 Lemma encryption_loop_body_proof: encryption_loop_body_proof_statement.
 Proof.
@@ -235,17 +235,17 @@ Proof.
     clear.  intros. rewrite Int.and_commut.
     pose proof (Int.and_le (Int.repr 255) i).
     rewrite Int.unsigned_repr in H by computable. 
-    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). omega.
+    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). lia.
   }
 
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by lia. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by lia. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by lia. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by lia. do 6 forward. deadvars!.
 
-  replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
-  replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
-  replace (52 - i * 8 + 1 + 1)         with (52 - i * 8 + 2) by omega.
+  replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by lia.
+  replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by lia.
+  replace (52 - i * 8 + 1 + 1)         with (52 - i * 8 + 2) by lia.
 
   pose (S' := mbed_tls_fround (mbed_tls_enc_rounds (12-2*Z.to_nat i) S0 buf 4) buf (52-i*8)).
 
@@ -264,23 +264,23 @@ Proof.
     simpl. unfold mbed_tls_fround_col, byte0, byte1, byte2, byte3, Int.and. simpl.
     rewrite !Int.unsigned_repr by computable.
     rewrite !Int.unsigned_repr by
-     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_omega end.
+     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_lia end.
     reflexivity.
   }
   apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
   rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
   clear EqY0 EqY1 EqY2 EqY3.
 
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by lia. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by lia. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by lia. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by lia. do 6 forward.
 
   pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
 
-  replace (52 - i * 8 + 4 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4 + 4) by omega.
-  replace (52 - i * 8 + 4 + 1 + 1 + 1)     with (52 - i * 8 + 4 + 3) by omega.
-  replace (52 - i * 8 + 4 + 1 + 1)         with (52 - i * 8 + 4 + 2) by omega.
+  replace (52 - i * 8 + 4 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4 + 4) by lia.
+  replace (52 - i * 8 + 4 + 1 + 1 + 1)     with (52 - i * 8 + 4 + 3) by lia.
+  replace (52 - i * 8 + 4 + 1 + 1)         with (52 - i * 8 + 4 + 2) by lia.
 
   match goal with |- context [temp _X0 (Vint ?E0)] =>
     match goal with |- context [temp _X1 (Vint ?E1)] =>
@@ -297,7 +297,7 @@ Proof.
     simpl. unfold mbed_tls_fround_col, byte0, byte1, byte2, byte3, Int.and. simpl.
     rewrite !Int.unsigned_repr by computable.
     rewrite !Int.unsigned_repr by
-     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_omega end.
+     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_lia end.
     reflexivity.
   }
   apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
@@ -305,7 +305,7 @@ Proof.
   clear EqX0 EqX1 EqX2 EqX3.
 
   Exists i.
-  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
+  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by lia.
   subst S' S''.
   assert (
     (mbed_tls_fround
@@ -324,35 +324,35 @@ Proof.
           change (Z.of_nat 12) with 12.
           rewrite Nat2Z.inj_mul.
           change (Z.of_nat 2) with 2.
-          rewrite Z2Nat.id; omega.
+          rewrite Z2Nat.id; lia.
         }
         assert (Z.to_nat i <= 6)%nat. {
           change 6%nat with (Z.to_nat 6).
-          apply Z2Nat.inj_le; omega.
+          apply Z2Nat.inj_le; lia.
         }
-        omega.
+        lia.
       * rewrite Nat2Z.inj_succ.
         change 2%nat with (Z.to_nat 2) at 2.
-        rewrite <- Z2Nat.inj_mul; [ | omega | omega ].
+        rewrite <- Z2Nat.inj_mul; [ | lia | lia ].
         change 12%nat with (Z.to_nat 12).
-        rewrite <- Z2Nat.inj_sub; [ | omega ].
-        rewrite Z2Nat.id; omega.
-    - rewrite Z2Nat.inj_sub; [ | omega ].
+        rewrite <- Z2Nat.inj_sub; [ | lia ].
+        rewrite Z2Nat.id; lia.
+    - rewrite Z2Nat.inj_sub; [ | lia ].
       change (Z.to_nat 1) with 1%nat.
       assert (Z.to_nat i <= 6)%nat. {
         change 6%nat with (Z.to_nat 6).
-        apply Z2Nat.inj_le; omega.
+        apply Z2Nat.inj_le; lia.
       }
       assert (0 < Z.to_nat i)%nat. {
         change 0%nat with (Z.to_nat 0).
-        apply Z2Nat.inj_lt; omega.
+        apply Z2Nat.inj_lt; lia.
       }
-      omega.
+      lia.
   }
   rewrite Eq2. clear Eq2.
   remember (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i - 1)) S0 buf 4) as S''.
   remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
-  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
+  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by lia.
   entailer!.
 Time Qed. 
 (* On Andrew's ThinkPad T440p, April 13, 2017, to do Qed:

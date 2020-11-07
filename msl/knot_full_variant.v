@@ -54,7 +54,7 @@ Module Type KNOT__MIXVARIANT_HERED_T_OTH_REL.
 
   Axiom approx_spec : forall n p ko,
     proj1_sig (approx n p) ko =
-     if (le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
+     if (Compare_dec.le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
 
   Definition knot_rel (k1 k2:knot) :=
     let (n,f) := unsquash k1 in
@@ -261,10 +261,10 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     intros x y; revert x; induction y; simpl; intros.
     right; auto with arith.
     destruct (IHy x) as [[m H]|H].
-    left; exists (S m); omega.
-    destruct (eq_nat_dec x y).
-    left; exists O; omega.
-    right; omega.
+    left; exists (S m); lia.
+    destruct (Peano_dec.eq_nat_dec x y).
+    left; exists O; lia.
+    right; lia.
   Qed.
 
   Definition unstratify (n:nat) (p:sinv n) : knot * other -> T := fun w =>
@@ -286,7 +286,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     revert n p1 H1 p Heqp.
     induction m1; simpl; intros.
     replace H1 with (refl_equal (S n)) by (apply proof_irr); simpl; auto.
-    assert (m1 + S n = S m1 + n) by omega.
+    assert (m1 + S n = S m1 + n) by lia.
     destruct p1 as [[p1 f'] Hp1]; simpl in *; fold guppy in *.
     generalize (IHm1 n p1 H p Heqp).
     clear.
@@ -322,8 +322,8 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     case_eq (decompose_nat x n); intros.
     destruct s.
     destruct n.
-    elimtype False; omega.
-    assert (S x0 = x1) by omega; subst x1.
+    elimtype False; lia.
+    assert (S x0 = x1) by lia; subst x1.
     revert H1.
     generalize e e0; revert p; rewrite e; intros.
     rewrite floor_shuffle.
@@ -337,7 +337,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     simpl in H2.
     eapply H2; auto.
     elimtype False.
-    omega.
+    lia.
     apply T_rel_bot.
     apply T_rel_refl.
     eapply T_rel_trans; eauto.
@@ -365,7 +365,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     destruct (decompose_nat x n).
     destruct s.
     simpl in H0.
-    2: simpl in *; elimtype False; omega.
+    2: simpl in *; elimtype False; lia.
     clear H0.
     revert p H.
     generalize e.
@@ -391,12 +391,12 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
   Proof.
     induction n; intuition.
     split.
-    assert (m2 + S n = S m2 + n) by omega.
+    assert (m2 + S n = S m2 + n) by lia.
     erewrite <- floor_shuffle.
     instantiate (1:=H1).
     replace (unstratify (m2 + S n) p2)
       with (unstratify (S m2 + n) (eq_rect (m2 + S n) sinv p2 (S m2 + n) H1)).
-    assert (m1 + S n = S m1 + n) by omega.
+    assert (m1 + S n = S m1 + n) by lia.
     eapply (IHn (S m1) (S m2)
       (eq_rect (m1 + S n) sinv p1 (S m1 + n) H2)).
     rewrite floor_shuffle.
@@ -424,12 +424,12 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     destruct (decompose_nat n (m2 + S n)).
     destruct s.
     assert (m2 = x).
-    omega.
+    lia.
     subst x.
     replace e with (refl_equal (m2 + S n)).
     simpl; tauto.
     apply proof_irr.
-    elimtype False; omega.
+    elimtype False; lia.
   Qed.
 
   Lemma stratify_unstratify : forall n p H,
@@ -454,14 +454,14 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     intros.
     destruct (decompose_nat n (S n)).
     destruct s.
-    assert (x = 0) by omega.
+    assert (x = 0) by lia.
     subst x.
     simpl.
     simpl in e.
     replace e with (refl_equal (S n)) by apply proof_irr.
     simpl.
     split; auto.
-    elimtype False; omega.
+    elimtype False; lia.
   Qed.
 
   Definition strat (n:nat) (p:predicate) : sinv n :=
@@ -489,15 +489,15 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     let (n,k) := unsquash k in squash (S n,k).
 
   Program Definition approx (n:nat) (p:predicate) : predicate :=
-    fun w => if (le_gt_dec n (knot_level_def (fst w))) then T_bot else proj1_sig p w.
+    fun w => if (Compare_dec.le_gt_dec n (knot_level_def (fst w))) then T_bot else proj1_sig p w.
   Next Obligation.
     hnf; simpl; intros.
-    destruct (le_gt_dec n (knot_level_def k)).
+    destruct (Compare_dec.le_gt_dec n (knot_level_def k)).
     apply T_rel_bot.
-    destruct (le_gt_dec n (knot_level_def k'')).
+    destruct (Compare_dec.le_gt_dec n (knot_level_def k'')).
     elimtype False.
     cut (knot_level_def k'' <= knot_level_def k).
-    omega.
+    lia.
     replace (knot_level_def k'') with (knot_level_def k').
     clear -H; induction H.
     hnf in H.
@@ -508,7 +508,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     simpl.
     unfold knot_level_def; simpl; auto.
     auto.
-    eapply le_trans; eauto.
+    eapply Le.le_trans; eauto.
     inv H0.
     unfold knot_level_def; simpl; auto.
 
@@ -548,14 +548,14 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     apply predicate_eq.
     simpl.
     extensionality k.
-    destruct (le_gt_dec n (knot_level_def (fst k))).
+    destruct (Compare_dec.le_gt_dec n (knot_level_def (fst k))).
     unfold unstratify.
     destruct k.
     destruct k.
     unfold knot_level_def in l.
     simpl in *.
     destruct (decompose_nat x0 n); simpl.
-    destruct s; simpl; elimtype False; omega.
+    destruct s; simpl; elimtype False; lia.
     auto.
     destruct x as [x Hx]; simpl.
     destruct (stratify x Hx n); simpl.
@@ -603,7 +603,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     revert k.
     induction x; simpl; intuition.
     destruct (decompose_nat 0 0); auto.
-    destruct s; elimtype False; omega.
+    destruct s; elimtype False; lia.
     eapply (stratifies_unstratify_more x 0 1).
     simpl; reflexivity.
     simpl.
@@ -611,19 +611,19 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     destruct (IHx (fst (proj1_sig k))); auto.
     destruct (decompose_nat x (S x)).
     destruct s.
-    assert (x0 = 0) by omega; subst x0.
+    assert (x0 = 0) by lia; subst x0.
     simpl in *.
     replace e with (refl_equal (S x)) by apply proof_irr; auto.
-    elimtype False; omega.
+    elimtype False; lia.
     destruct (decompose_nat x (S x)).
     destruct s.
-    assert (x0 = 0) by omega; subst x0.
+    assert (x0 = 0) by lia; subst x0.
     simpl in *.
     destruct (decompose_nat (S x) (S x)).
-    destruct s; elimtype False; omega.
+    destruct s; elimtype False; lia.
     auto.
     destruct (decompose_nat (S x) (S x)).
-    destruct s; elimtype False; omega.
+    destruct s; elimtype False; lia.
     auto.
 
     destruct (stratify (unstratify x k) (unstratify_hered x k) (S x)).
@@ -651,11 +651,11 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     intros.
     destruct (decompose_nat x (S x)).
     destruct s.
-    assert (x0 = 0) by omega; subst x0.
+    assert (x0 = 0) by lia; subst x0.
     simpl in *.
     replace e with (refl_equal (S x)) by apply proof_irr; simpl.
     tauto.
-    elimtype False; omega.
+    elimtype False; lia.
     destruct (stratify (unstratify (S x) k)
       (unstratify_hered (S x) k) x).
     simpl; auto.
@@ -678,11 +678,11 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     apply IHx.
     destruct (decompose_nat x (S x)).
     destruct s0.
-    assert (x0 = 0) by omega; subst.
+    assert (x0 = 0) by lia; subst.
     simpl in *.
     replace e with (refl_equal (S x)); simpl; auto.
     apply proof_irr.
-    elimtype False; omega.
+    elimtype False; lia.
   Qed.
 
   Lemma age1_eq : forall k,
@@ -739,7 +739,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
 
   Lemma approx_spec : forall n p ko,
     proj1_sig (approx n p) ko =
-     if (le_gt_dec n (knot_level_def (fst ko))) then T_bot else proj1_sig p ko.
+     if (Compare_dec.le_gt_dec n (knot_level_def (fst ko))) then T_bot else proj1_sig p ko.
   Proof.
     intros; simpl; auto.
   Qed.
@@ -785,20 +785,20 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     simpl fst.
     destruct (decompose_nat x0 x).
     destruct s.
-    destruct (le_gt_dec (S x) x0).
-    elimtype False; omega.
+    destruct (Compare_dec.le_gt_dec (S x) x0).
+    elimtype False; lia.
     simpl.
     destruct (decompose_nat x0 x).
     destruct s.
-    assert (x1 = x2) by omega.
+    assert (x1 = x2) by lia.
     subst x2.
     replace e0 with e by apply proof_irr.
     auto.
-    elimtype False; omega.
-    destruct (le_gt_dec (S x) x0); auto.
+    elimtype False; lia.
+    destruct (Compare_dec.le_gt_dec (S x) x0); auto.
     simpl.
     destruct (decompose_nat x0 x); auto.
-    destruct s. elimtype False. omega.
+    destruct s. elimtype False. lia.
 
     intro.
     unfold knot_age1_def, knot_level_def.
@@ -870,8 +870,8 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     apply Eqdep_dec.inj_pair2_eq_dec in H7; auto.
     subst.
     apply Rel_fmap; auto.
-    exact eq_nat_dec.
-    exact eq_nat_dec.
+    exact Peano_dec.eq_nat_dec.
+    exact Peano_dec.eq_nat_dec.
   Qed.
 
   Lemma knot_age1 : forall k:knot,
@@ -961,7 +961,7 @@ Class Input: Type := {
     p1 = p2;
   approx_spec : forall n p ko,
     p2p (approx n p) ko =
-     if (le_gt_dec n (level (fst ko))) then t0 else p2p p ko
+     if (Compare_dec.le_gt_dec n (level (fst ko))) then t0 else p2p p ko
 }.
 
 Class Output (input: Input): Prop := {
@@ -981,9 +981,9 @@ Proof.
     unfold compose.
     repeat rewrite approx_spec.
     simpl.
-    destruct (le_gt_dec n (level k)); auto.
-    destruct (le_gt_dec (m+n) (level k)); auto.
-    elimtype False; omega.
+    destruct (Compare_dec.le_gt_dec n (level k)); auto.
+    destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
+    elimtype False; lia.
   + intros.
     extensionality p.
     apply pred_ext.
@@ -991,9 +991,9 @@ Proof.
     unfold compose.
     repeat rewrite approx_spec.
     simpl.
-    destruct (le_gt_dec (m+n) (level k)); auto.
-    destruct (le_gt_dec n (level k)); auto.
-    elimtype False; omega.
+    destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
+    destruct (Compare_dec.le_gt_dec n (level k)); auto.
+    elimtype False; lia.
 Qed.
 
 End KnotLemmas2.
@@ -1097,7 +1097,7 @@ Module Type KNOT_FULL.
 
   Axiom approx_spec : forall n p ko,
     proj1_sig (bij_f _ _ KO.pkp (approx n p)) ko =
-     if (le_gt_dec n (level (fst ko)))
+     if (Compare_dec.le_gt_dec n (level (fst ko)))
      then KI.T_bot
      else proj1_sig (bij_f _ _ KO.pkp p) ko.
 
@@ -1190,7 +1190,7 @@ Module KnotFull
 
   Lemma approx_spec : forall n p ko,
     proj1_sig (bij_f _ _ KO.pkp (approx n p)) ko =
-     if (le_gt_dec n (level (fst ko)))
+     if (Compare_dec.le_gt_dec n (level (fst ko)))
      then KI.T_bot
      else proj1_sig (bij_f _ _ KO.pkp p) ko.
   Proof.

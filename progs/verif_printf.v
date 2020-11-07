@@ -14,11 +14,11 @@ Definition main_spec :=
   WITH gv : globals
   PRE  [] main_pre prog (write_list stdout (string2bytes "Hello, world!
 ");; write_list stdout (string2bytes "This is line 2.
-")) nil gv
-  POST [ tint ] main_post prog nil gv.
+")) gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=  
-   ltac:(with_library prog (ltac:(make_printf_specs prog) ++ [ main_spec ])).
+   (*ltac:(with_library prog *)(ltac:(make_printf_specs prog) ++ [ main_spec ])(*)*).
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -27,6 +27,7 @@ make_stdio.
 repeat do_string2bytes.
 repeat (sep_apply data_at_to_cstring; []).
 sep_apply (has_ext_ITREE(E := @IO_event file_id)).
+
 forward_printf tt (write_list stdout (string2bytes "This is line 2.
 ")).
 { rewrite !sepcon_assoc; apply sepcon_derives; cancel.

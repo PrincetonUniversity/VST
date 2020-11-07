@@ -21,14 +21,14 @@ Lemma isbyte_zeroExt8: forall x,
     0 <= x <= Byte.max_unsigned -> 
    Int.repr x = (Int.zero_ext 8 (Int.repr x)).
 Proof. intros. rewrite zero_ext_inrange. trivial.
-  simpl.  rewrite Int.unsigned_repr. rep_omega. rep_omega.
+  simpl.  rewrite Int.unsigned_repr. rep_lia. rep_lia.
 Qed.
 
 Lemma isbyte_zeroExt8' : forall x, Int.unsigned (Int.zero_ext 8 x) <= Byte.max_unsigned.
 Proof.
 intros.
 pose proof (Int.zero_ext_range 8 x).
-spec H. computable. change (two_p 8) with 256 in H. rep_omega.
+spec H. computable. change (two_p 8) with 256 in H. rep_lia.
 Qed.
 
 (*
@@ -36,7 +36,7 @@ Lemma eval_cast_tuchar_of_isbyteZ q: isbyteZ q ->
       eval_cast tuchar tuchar (Vint (Int.repr q)) = Vint (Int.repr q).
 Proof. unfold eval_cast. simpl. intros. f_equal. apply zero_ext_inrange. simpl.
   destruct H.
-  rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq. omega.
+  rewrite Int.unsigned_repr. lia. rewrite int_max_unsigned_eq. lia.
 Qed.
 
 Lemma Znth_map_Vint_is_int_I8: forall l (i : Z) (F: Forall isbyteZ l),
@@ -44,24 +44,24 @@ Lemma Znth_map_Vint_is_int_I8: forall l (i : Z) (F: Forall isbyteZ l),
 is_int I8 Unsigned
   (Znth i (map Vint (map Int.repr l))).
 Proof. intros. unfold Znth.
-if_tac; [omega | ].
+if_tac; [lia | ].
 assert (Z.to_nat i < length l)%nat.
 destruct H.
 rewrite Zlength_correct in H1.
-apply Z2Nat.inj_lt in H1; try omega.
+apply Z2Nat.inj_lt in H1; try lia.
 rewrite Nat2Z.id in H1. auto.
 unfold is_int. simpl.
 clear - H1 F.
 revert l F H1; induction (Z.to_nat i); destruct l; intros; simpl in *.
-omega.
+lia.
 apply Forall_inv in F. specialize (isbyteZ_range _ F); intros R.
-  rewrite Int.unsigned_repr. omega. split. omega.
+  rewrite Int.unsigned_repr. lia. split. lia.
   assert ( Byte.max_unsigned <= Int.max_unsigned).
     unfold Byte.max_unsigned, Int.max_unsigned.
-    unfold Byte.modulus, Int.modulus, Byte.wordsize, Int.wordsize. simpl. omega.
-   omega.
-  omega.
- apply IHn; try omega. inversion F; trivial.
+    unfold Byte.modulus, Int.modulus, Byte.wordsize, Int.wordsize. simpl. lia.
+   lia.
+  lia.
+ apply IHn; try lia. inversion F; trivial.
 Qed.
 
 Lemma Znth_map_Vint_is_int_I8': forall l (i : Z) ,
@@ -94,18 +94,19 @@ sublist 0 (i + 1)
   (map Vubyte
            (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad)) ++
 sublist (i + 1) 64 (default_val (Tarray tuchar 64 noattr)).
-Proof. intros. 
+Proof. intros.
   rewrite upd_Znth_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
-     upd_Znth0; repeat rewrite Zlength_sublist; try omega.
-  2: rewrite Zlength_default_val_Tarray_tuchar; omega.
-  2: rewrite Zlength_map; rewrite ZLI; omega.
-  2: rewrite Zlength_default_val_Tarray_tuchar; omega.
-  2: rewrite Zlength_map; rewrite ZLI; omega.
-  rewrite <- (sublist_rejoin 0 i (i+1)); try omega.
-  2: rewrite Zlength_map; rewrite ZLI; omega.
+     upd_Znth0_old; repeat rewrite Zlength_sublist; try lia.
+  2: rewrite Zlength_default_val_Tarray_tuchar; lia.
+  2: rewrite Zlength_default_val_Tarray_tuchar; lia.
+  2: rewrite Zlength_map; rewrite ZLI; lia.
+  2: rewrite Zlength_default_val_Tarray_tuchar; lia.
+  2: rewrite Zlength_map; rewrite ZLI; lia.
+  rewrite <- (sublist_rejoin 0 i (i+1)); try lia.
+  2: rewrite Zlength_map; rewrite ZLI; lia.
   rewrite <- app_assoc. f_equal.
   rewrite (sublist_len_1 i); simpl app.
-  2: rewrite Zlength_map; rewrite ZLI; omega.
+  2: rewrite Zlength_map; rewrite ZLI; lia.
   f_equal. rewrite Znth_map. f_equal.
            unfold HMAC_SHA256.mkArg.
            unfold Znth. unfold Znth in X. destruct (zlt i 0). discriminate.
@@ -121,11 +122,11 @@ Proof. intros.
                    unfold fst, snd. 
                    remember (HMAC_SHA256.sixtyfour Ipad).
                    assert (NTH: nth (Z.to_nat i) l Byte.zero = Byte.repr 54).
-                     subst l. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. omega. omega.
+                     subst l. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. lia. lia.
                    rewrite NTH. auto. 
                    rewrite ZLI; assumption.
-  rewrite sublist_sublist; try omega.
-  assert (64 - i + i = 64) by omega. rewrite Zplus_comm, H; trivial.
+  rewrite sublist_sublist; try lia.
+  assert (64 - i + i = 64) by lia. rewrite Zplus_comm, H; trivial.
 Qed.
 
 Lemma UPD_OPAD: forall
@@ -149,18 +150,19 @@ sublist 0 (i + 1)
   (map Vubyte (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Opad)) ++
 sublist (i + 1) 64
   (map Vubyte (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad)).
-Proof. intros. 
+Proof. intros.
   rewrite upd_Znth_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
-     upd_Znth0; repeat rewrite Zlength_sublist; try omega.
-  2: rewrite Zlength_map, ZLI; omega.
-  2: rewrite Zlength_map, ZLO; omega.
-  2: rewrite Zlength_map, ZLI; omega.
-  2: rewrite Zlength_map, ZLO; omega.
-  rewrite <- (sublist_rejoin 0 i (i+1)); try omega.
-  2: rewrite Zlength_map, ZLO; omega.
+     upd_Znth0_old; repeat rewrite Zlength_sublist; try lia.
+  2: rewrite Zlength_map, ZLI; lia.
+  2: rewrite Zlength_map, ZLI; lia.
+  2: rewrite Zlength_map, ZLO; lia.
+  2: rewrite Zlength_map, ZLI; lia.
+  2: rewrite Zlength_map, ZLO; lia.
+  rewrite <- (sublist_rejoin 0 i (i+1)); try lia.
+  2: rewrite Zlength_map, ZLO; lia.
   rewrite <- app_assoc. f_equal.
   rewrite (sublist_len_1 i); simpl app.
-  2: rewrite Zlength_map, ZLO; omega.
+  2: rewrite Zlength_map, ZLO; lia.
   f_equal. rewrite Znth_map. f_equal.
            unfold HMAC_SHA256.mkArg.
            unfold Znth. unfold Znth in X. destruct (zlt i 0). discriminate.
@@ -177,11 +179,11 @@ Proof. intros.
                     unfold fst, snd.
                    remember (HMAC_SHA256.sixtyfour Opad).
                    assert (NTH: nth (Z.to_nat i) l Byte.zero = Byte.repr 92).
-                     subst l. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. omega. omega.
+                     subst l. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. lia. lia.
                    rewrite NTH; trivial.
                    rewrite ZLO; assumption.
-  rewrite sublist_sublist; try omega.
-  assert (64 - i + i = 64) by omega. rewrite Zplus_comm, H; trivial.
+  rewrite sublist_sublist; try lia.
+  assert (64 - i + i = 64) by lia. rewrite Zplus_comm, H; trivial.
 Qed.
 
 (*Definition postResetHMS (iS oS: s256state): hmacstate :=
@@ -274,15 +276,15 @@ Proof. intros. abbreviate_semax.
         assert (Xb: exists qb, nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero = qb).
           { destruct (nth_mapIn (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero) as [? [? ?]].
              rewrite mkKey_length.
-              split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 64); omega.
+              split. apply (Z2Nat.inj_le 0); lia. apply (Z2Nat.inj_lt _ 64); lia.
             exists x; trivial.
           }
         destruct Xb as [qb Qb].
         assert (X: Znth i (map Vubyte (HMAC_SHA256.mkKey key))
                    = Vubyte qb). (* (Int.zero_ext 8 q)).*)
-          { unfold Znth. destruct (zlt i 0). omega.
+          { unfold Znth. destruct (zlt i 0). lia.
             rewrite nth_indep with (d':=Vubyte Byte.zero).
-            2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega. }
+            2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); lia. }
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
 
@@ -293,20 +295,20 @@ Proof. intros. abbreviate_semax.
         { entailer!. apply isbyte_zeroExt8'. }
         Time forward. (*1.9 versus 3.4*)
         unfold Int.xor.
-        rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
+        rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; lia.
         cbv [cast_int_int].
-        rewrite <- (isbyte_zeroExt8 (Byte.unsigned qb)) by rep_omega.
-        rewrite Int.unsigned_repr by rep_omega.
+        rewrite <- (isbyte_zeroExt8 (Byte.unsigned qb)) by rep_lia.
+        rewrite Int.unsigned_repr by rep_lia.
         assert (H54: 0 <= Z.lxor 54 (Byte.unsigned qb) <= Byte.max_unsigned). {rewrite (xor_inrange 54 (Byte.unsigned qb)).
            pose proof (Z.mod_pos_bound (Z.lxor 54 (Byte.unsigned qb)) Byte.modulus).
-           spec H; [rep_omega|]. rep_omega. reflexivity.
-           symmetry; apply Z.mod_small. pose proof (Byte.unsigned_range qb); rep_omega.
+           spec H; [rep_lia|]. rep_lia. reflexivity.
+           symmetry; apply Z.mod_small. pose proof (Byte.unsigned_range qb); rep_lia.
         }
         rewrite <- isbyte_zeroExt8 by auto.
         replace (Vint (Int.repr (Z.lxor 54 (Byte.unsigned qb))))
         with (Vubyte (Byte.xor (Byte.repr 54) qb)).
        2:{   unfold Vubyte. f_equal. f_equal. unfold Byte.xor.
-              rewrite (Byte.unsigned_repr  54) by rep_omega.
+              rewrite (Byte.unsigned_repr  54) by rep_lia.
               apply Byte.unsigned_repr; auto.
           }
         rewrite Byte.xor_commut. remember (Vubyte (Byte.xor qb (Byte.repr 54))) as xorval.
@@ -317,7 +319,7 @@ Proof. intros. abbreviate_semax.
         Time forward. (*5.4 versus 5*) (*FIXME NOW takes 20secs; this is the forward the ran out of 2GB memory in the previous version of floyd*)
         Time entailer!. (*5.7 versus 9.6*)
          thaw FR2; simpl.
-        rewrite <- isbyte_zeroExt8 by rep_omega.
+        rewrite <- isbyte_zeroExt8 by rep_lia.
         change (Vint (Int.repr (Byte.unsigned ?A))) with (Vubyte A).
         Time (rewrite (*HeqIPADcont,*) UPD_IPAD; simpl; trivial; cancel). (*0.6*)
       }
@@ -407,15 +409,15 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
         assert (Xb: exists qb, nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero = qb).
           { destruct (nth_mapIn (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero) as [? ?].
              rewrite mkKey_length.
-              split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 64); omega.
+              split. apply (Z2Nat.inj_le 0); lia. apply (Z2Nat.inj_lt _ 64); lia.
             exists x; trivial. destruct H; auto.
           }
         destruct Xb as [qb Qb].
         assert (X: Znth i (map Vubyte (HMAC_SHA256.mkKey key))
                    = Vubyte qb). (* (Int.zero_ext 8 q)).*)
-          { unfold Znth. destruct (zlt i 0). omega.
+          { unfold Znth. destruct (zlt i 0). lia.
             rewrite nth_indep with (d':=Vubyte Byte.zero).
-              2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega. }
+              2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); lia. }
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
         freeze FR2 := - (data_at _ _ _ (Vptr ckb _)).
@@ -432,20 +434,20 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
         Time entailer!. (*4.2 versus 5.6*)
         apply derives_refl'. f_equal.
         set (y := nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero).
-        rewrite <- (isbyte_zeroExt8 (Byte.unsigned _)) by rep_omega.
-        unfold Int.xor. rewrite !Int.unsigned_repr by rep_omega.
+        rewrite <- (isbyte_zeroExt8 (Byte.unsigned _)) by rep_lia.
+        unfold Int.xor. rewrite !Int.unsigned_repr by rep_lia.
         rewrite xor_inrange. 2: reflexivity.
         2:{  clear; symmetry; apply Z.mod_small.
-               pose proof (Byte.unsigned_range y); rep_omega.
+               pose proof (Byte.unsigned_range y); rep_lia.
          }
         rewrite <- isbyte_zeroExt8.
        2:{ clear. pose proof (Z_mod_lt (Z.lxor 92 (Byte.unsigned y)) Byte.modulus).
-            spec H; [rep_omega|]. rep_omega.
+            spec H; [rep_lia|]. rep_lia.
          }
         replace (Vint (Int.repr (Z.lxor 92 (Byte.unsigned y) mod Byte.modulus)))
           with (Vubyte (Byte.xor (Byte.repr 92) y)).
          2:{ unfold Vubyte. f_equal. f_equal.
-               unfold Byte.xor. rewrite (Byte.unsigned_repr 92) by rep_omega.
+               unfold Byte.xor. rewrite (Byte.unsigned_repr 92) by rep_lia.
                apply Byte.unsigned_repr_eq.
            }
         apply UPD_OPAD; try eassumption.

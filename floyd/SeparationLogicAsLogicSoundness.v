@@ -114,9 +114,21 @@ End StoreF.
 
 Module StoreB := StoreF2B (Def) (Conseq) (MinimumLogic) (StoreF).
 
+Module StoreUnionHackF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_FORWARD with Module CSHL_Def := Def.
+
+Module CSHL_Def := Def.
+  
+Definition semax_store_union_hack_forward := @MinimumLogic.semax_store_union_hack.
+
+End StoreUnionHackF.
+
+Module StoreUnionHackB := StoreUnionHackF2B (Def) (Conseq) (MinimumLogic) (StoreUnionHackF).
+
 Module Extr : CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def := MinimumLogic.
 
 Module Sset := ToSset (Def) (Conseq) (Extr) (SetB) (PtrCmpB) (LoadB) (CastLoadB).
+
+Module Sassign := ToSassign (Def) (Conseq) (Extr) (StoreB) (StoreUnionHackB).
 
 Theorem semax_sound: forall Espec CS Delta P c Q,
   @DeepEmbedded.DeepEmbeddedDef.semax Espec CS Delta P c Q ->
@@ -138,7 +150,7 @@ Proof.
   + apply CallB.semax_call_backward.
   + apply MinimumLogic.semax_return.
   + apply Sset.semax_set_ptr_compare_load_cast_load_backward.
-  + apply StoreB.semax_store_backward.
+  + apply Sassign.semax_store_store_union_hack_backward.
   + apply MinimumLogic.semax_skip.
   + rewrite <- (log_normalize.andp_dup seplog.FF).
     unfold seplog.FF at 1.
@@ -160,7 +172,7 @@ Proof.
   unfold MinimumLogic.CSHL_Defs.semax_body, CSHL_Defs.semax_body in H |- *.
   destruct id.
   destruct f0.
-  destruct H as [H' H]; split; auto. clear H'; intros.
+  destruct H as [H' [H'' H]]; split3; auto. clear H' H''; intros.
   apply semax_sound.
   apply H.
 Qed.

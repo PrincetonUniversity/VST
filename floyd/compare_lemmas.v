@@ -132,11 +132,11 @@ f_equal; auto.
 unfold Int.lt in H4.
 destruct (zlt (Int.signed i) (Int.signed i0)); auto; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i0) (Int.signed i)); auto; try omega; contradict H4; auto.
+destruct (zlt (Int.signed i0) (Int.signed i)); auto; try lia; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i0) (Int.signed i)); auto; try omega; contradict H4; auto.
+destruct (zlt (Int.signed i0) (Int.signed i)); auto; try lia; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i) (Int.signed i0)); auto; try omega; contradict H4; auto.
+destruct (zlt (Int.signed i) (Int.signed i0)); auto; try lia; contradict H4; auto.
 Qed.
 *)
 
@@ -211,11 +211,11 @@ pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); inv H5; auto.
 unfold Int.lt in H5.
 destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; auto.
 unfold Int.lt in H5.
-destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; omega.
+destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; lia.
 unfold Int.lt in H5.
-destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; omega.
+destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; lia.
 unfold Int.lt in H5.
-destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; omega.
+destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; lia.
 Qed.
 *)
 
@@ -307,39 +307,6 @@ eapply (local_entail_at 0).
 apply H. reflexivity.
 auto.
 Qed.
-
-(*
-Ltac simplify_typed_comparison :=
-match goal with
-| |- semax _ (PROPx _ (LOCALx (`(typed_true _) ?A :: _) _)) _ _ =>
- (eapply typed_true_binop_int;
-   [reflexivity | reflexivity | reflexivity
-   | try solve [go_lowerx; apply prop_right; auto ]
-   | try solve [go_lowerx; apply prop_right; auto ]
-   | ])
- ||
-  (let a := fresh "a" in set (a:=A); simpl in a; unfold a; clear a;
-   eapply local_entail_at_semax_0; [
-    first [ apply typed_true_Oeq_nullval
-           | apply typed_true_One_nullval
-           ]
-    |  ])
-| |- semax _ (PROPx _ (LOCALx (`(typed_false _) ?A :: _) _)) _ _ =>
- (eapply typed_false_binop_int;
-   [reflexivity | reflexivity | reflexivity
-   | try solve [go_lowerx; apply prop_right; auto ]
-   | try solve [go_lowerx; apply prop_right; auto ]
-   | ])
- ||
-  let a := fresh "a" in set (a:=A); simpl in a; unfold a; clear a;
-   eapply local_entail_at_semax_0; [
-    first [ apply typed_false_Oeq_nullval
-           | apply typed_false_One_nullval
-           ]
-    |  ]
-| |- _ => idtac
-end.
-*)
 
 Definition compare_pp op p q :=
    match p with

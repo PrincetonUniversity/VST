@@ -69,13 +69,17 @@ Definition update_inner_if :=
 
 Definition inv_at_inner_if wsh sh hashed len c d dd data gv :=
  (PROP ()
-   (LOCAL
+  (LOCAL (temp _fragment (Vint (Int.repr (64 - Zlength dd)));
+   temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
+   temp _n (Vint (Int.repr (Zlength dd))); temp _data d; gvars gv; temp _c c; temp _data_ d;
+   temp _len (Vint (Int.repr len)))
+   (*(LOCAL
       (temp _fragment (Vint (Int.repr (64- Zlength dd)));
        temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
        temp _n (Vint (Int.repr (Zlength dd)));
        temp _data d; temp _c c;
        temp _len (Vint (Int.repr len));
-       gvars gv)
+       gvars gv)*)
    SEP  (data_at wsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
@@ -179,7 +183,7 @@ intros.
   rewrite prop_true_andp.
   cancel. rewrite !map_app, <- ?sublist_map, <- app_assoc. cancel.
   assert (Zlength (dd ++ sublist 0 len data) < CBLOCKz).
-  autorewrite with sublist. pose proof CBLOCKz_eq; omega.
+  autorewrite with sublist. pose proof CBLOCKz_eq; lia.
   hnf; unfold s256_Nh, s256_Nl, s256_data, s256_num; simpl.
   rewrite bitlength_eq.
   replace (s256a_len (S256abs hashed dd) + len * 8)
@@ -192,8 +196,8 @@ intros.
 *
   rewrite sublist_app1. rewrite !sublist_map.
   autorewrite with sublist. auto.
-  autorewrite with sublist. omega.
-  autorewrite with sublist. omega.
+  autorewrite with sublist. lia.
+  autorewrite with sublist. lia.
 *
   autorewrite with sublist. auto.
 *
@@ -238,7 +242,7 @@ intros until 4. intros H3 H4 Hlen.
 unfold sha_update_inv, inv_at_inner_if, update_inner_if.
 abbreviate_semax.
  set (k := 64-Zlength dd).
-assert (H0: 0 < k <= 64) by rep_omega.
+assert (H0: 0 < k <= 64) by rep_lia.
 pose proof I.
 unfold data_block; simpl. normalize.
 forward_if.
@@ -265,7 +269,7 @@ forward_if.
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr (map Byte.unsigned data))  d
    (*len*) k
         Frame);
-  try reflexivity; auto; try omega.
+  try reflexivity; auto; try lia.
   unfold_data_at (data_at _ _ _ c).
   entailer!.
   rewrite field_address_offset by auto.
@@ -362,7 +366,7 @@ forward_if.
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr (map Byte.unsigned data))  d
    (*len*) (len)
         Frame);
-    try reflexivity; auto; try omega.
+    try reflexivity; auto; try lia.
   entailer!.
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by
@@ -377,7 +381,7 @@ forward_if.
   autorewrite with sublist.
   change 64%Z with CBLOCKz.
   replace (CBLOCKz - (Zlength dd + (CBLOCKz - Zlength dd)))%Z
-    with 0%Z by (clear; omega).
+    with 0%Z by (clear; lia).
   change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
   autorewrite with sublist.
   rewrite sublist_list_repeat by Omega1.
@@ -390,7 +394,7 @@ forward_if.
   unfold data_block.
   subst k.
   rewrite (prop_true_andp);
-     [ | apply update_inner_if_update_abs; auto; omega ].
+     [ | apply update_inner_if_update_abs; auto; lia ].
  rewrite (sepcon_comm (K_vector gv)).
  apply sepcon_derives; [ | auto].
  rewrite map_Vubyte_eq'. 

@@ -69,7 +69,7 @@ forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
   entailer; inversion H; subst z0; rewrite <-H5 in H2; inversion H2; subst n.
   entailer.
   assert (repr (z - 1) (Vint (Int.repr (z - 1)))).
-  { clear -H H1. inv H. constructor. omega. }
+  { clear -H H1. inv H. constructor. lia. }
   entailer!.
   after_call; forward.
   rewrite Z.even_sub; simpl.
@@ -89,7 +89,7 @@ forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
   entailer; inversion H; subst z0; rewrite <-H5 in H2; inversion H2; subst n.
   entailer.
   assert (repr (z - 1) (Vint (Int.repr (z - 1)))).
-  { clear -H H1. inv H. constructor. omega. }
+  { clear -H H1. inv H. constructor. lia. }
   entailer!.
   after_call; forward.
   rewrite Z.odd_sub; simpl.
@@ -98,7 +98,7 @@ forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
 Qed.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
-Proof with (try solve[entailer!|entailer!; constructor; omega]).
+Proof with (try solve[entailer!|entailer!; constructor; lia]).
 start_function.
 forward_call (42,Vint (Int.repr 42))... after_call.
 forward.

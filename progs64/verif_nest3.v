@@ -13,11 +13,11 @@ Definition get_spec0 :=
   WITH v : reptype' t_struct_c, gv: globals
   PRE  []
         PROP  ()
-        LOCAL (gvars gv)
+        PARAMS() GLOBALS (gv)
         SEP   (data_at Ews t_struct_c (repinj _ v) (gv _p))
   POST [ tint ]
         PROP  ()
-        LOCAL (temp 1%positive (Vint (snd (snd (snd v)))))
+        RETURN (Vint (snd (snd (snd v))))
         SEP   (data_at Ews t_struct_c (repinj _ v) (gv _p)).
 
 Definition get_spec : ident * funspec.
@@ -26,11 +26,11 @@ Definition get_spec : ident * funspec.
   WITH v : t, gv: globals
   PRE  []
         PROP  ()
-        LOCAL (gvars gv)
+        PARAMS() GLOBALS (gv)
         SEP   (data_at Ews t_struct_c (repinj t_struct_c v) (gv _p))
   POST [ tint ]
         PROP  ()
-        LOCAL (temp 1%positive (Vint (snd (snd (snd v)))))
+        RETURN (Vint (snd (snd (snd v))))
         SEP   (data_at Ews t_struct_c (repinj t_struct_c v) (gv _p))).
 Defined.
 
@@ -40,12 +40,12 @@ Definition update222 (i: int) (v: reptype' t_struct_c) : reptype' t_struct_c :=
 Definition set_spec :=
  DECLARE _set
   WITH i : int, v : reptype' t_struct_c, gv : globals
-  PRE  [ _i OF tint ]
+  PRE  [ tint ]
         PROP ()
-        LOCAL(temp _i (Vint i); gvars gv)
+        PARAMS (Vint i) GLOBALS (gv)
         SEP(data_at Ews t_struct_c (repinj _ v) (gv _p))
   POST [ tvoid ]
-        PROP() LOCAL()
+        PROP() RETURN()
         SEP(data_at Ews t_struct_c (repinj _ (update222 i v)) (gv _p)).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [get_spec; set_spec]).
@@ -78,5 +78,5 @@ Time forward.
 Time match goal with |- context [data_at _ _ ?X _] =>
   set (v1 := X) (* do this so the forward doesn't blow up *)
 end.
-Time forward. (* 125 sec -> 33 sec *)
+entailer!.
 Time Qed. (* 2.74 sec *)

@@ -1,6 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.progs.cond_queue.
 
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -165,7 +166,7 @@ Proof.
   unfold lift1; entailer'.
   { unfold field_compatible; simpl; repeat split; auto.
     unfold align_attr; simpl.
-    eapply Zdivides_trans; eauto; unfold natural_alignment; exists 2; omega. }
+    eapply Zdivides_trans; eauto; unfold natural_alignment; exists 2; lia. }
 Qed.
 
 Lemma body_process_request : semax_body Vprog Gprog f_process_request process_request_spec.
@@ -185,7 +186,7 @@ Proof.
   forward.
   unfold Znth; simpl.
   forward.
-  { apply prop_right; split; auto; rewrite Zlength_correct; omega. }
+  { apply prop_right; split; auto; rewrite Zlength_correct; lia. }
   forward.
   cancel.
   rewrite upd_complete; auto.
@@ -196,11 +197,11 @@ Proof.
   start_function.
   forward.
   assert (0 <= Zlength reqs + 1 - 1 < 10).
-  { rewrite Z.add_simpl_r; split; auto; rewrite Zlength_correct; omega. }
+  { rewrite Z.add_simpl_r; split; auto; rewrite Zlength_correct; lia. }
   assert (Znth (Zlength reqs + 1 - 1) (complete MAX (reqs ++ [req])) Vundef = req) as Hnth.
   { rewrite Z.add_simpl_r, Znth_complete;
       [|repeat rewrite Zlength_correct; rewrite app_length; simpl; Omega0].
-    rewrite app_Znth2, Zminus_diag; [auto | omega]. }
+    rewrite app_Znth2, Zminus_diag; [auto | lia]. }
   forward.
   { entailer!.
     rewrite Hnth; auto. }
@@ -250,9 +251,9 @@ Proof.
   assert (Zlength reqs1 = Zlength reqs2) as Hlen.
   { rewrite <- (Int.signed_repr (Zlength reqs1)), <- (Int.signed_repr (Zlength reqs2)).
     congruence.
-    { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; omega|].
+    { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; lia|].
       transitivity MAX; [Omega0 | unfold MAX; computable]. }
-    { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; omega|].
+    { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; lia|].
       transitivity MAX; [Omega0 | unfold MAX; computable]. } }
   pose proof (all_ptrs _ _ Hdata1) as Hptrs1.
   pose proof (all_ptrs _ _ Hdata2) as Hptrs2.
@@ -273,7 +274,7 @@ Proof.
   intros (? & Hbufs); subst.
   assert (reqs1 = reqs2); [|subst].
   { repeat rewrite Zlength_correct in Hlen.
-    eapply complete_inj; [eauto | omega]. }
+    eapply complete_inj; [eauto | lia]. }
   exploit (precise_reqs reqs2).
   { apply Hdata1. }
   { apply Hdata2. }
@@ -344,7 +345,7 @@ Proof.
     Exists reqs'; go_lower; entailer'; cancel.
   - assert (Zlength reqs0 < MAX).
     { rewrite Int.signed_repr in HRE; auto.
-      pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; omega|].
+      pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; lia|].
       transitivity MAX; [auto | unfold MAX; computable]. }
     forward_call (r, buf, len, reqs0).
     { simpl; cancel. }
@@ -362,7 +363,7 @@ Proof.
       unfold fold_right at 1; cancel; entailer'.
       Exists data; cancel.
       eapply derives_trans; [|apply prop_and_same_derives']; [cancel|].
-      split; [rewrite Forall_app; auto | rewrite Zlength_correct in *; omega]. }
+      split; [rewrite Forall_app; auto | rewrite Zlength_correct in *; lia]. }
     { split; auto; split; simpl.
       + apply inv_precise; auto.
       + apply inv_positive. }
@@ -417,7 +418,7 @@ Proof.
       rewrite Forall_app in H; destruct H as (? & Hlast); inv Hlast end.
     forward_call (buf, len, removelast reqs0, last reqs0 (Vint (Int.repr 0))).
     { simpl; cancel. }
-    { split; auto; omega. }
+    { split; auto; lia. }
     forward.
     rewrite data_at_isptr, field_at_isptr; normalize.
     forward_call (lock, sh, lock_pred buf len).
@@ -468,19 +469,19 @@ Proof.
     entailer!.
     assert (Zlength (repeat (Vint (Int.repr 0)) (Z.to_nat i)) = i) as Hlen.
     { rewrite Zlength_correct, repeat_length.
-      apply Z2Nat.id; omega. }
+      apply Z2Nat.id; lia. }
     rewrite upd_Znth_app2; rewrite Hlen; [|rewrite Zlength_correct; Omega0].
     assert (0 < Z.to_nat (10 - i))%nat by Omega0.
-    destruct (Z.to_nat (10 - i)) eqn: Hminus; [omega | simpl].
+    destruct (Z.to_nat (10 - i)) eqn: Hminus; [lia | simpl].
     rewrite Zminus_diag; unfold upd_Znth, sublist.sublist; simpl.
     rewrite Zlength_cons; unfold Z.succ; simpl.
     rewrite Z.add_simpl_r, Zlength_correct, Nat2Z.id, firstn_exact_length.
-    rewrite Z2Nat.inj_add; try omega.
+    rewrite Z2Nat.inj_add; try lia.
     rewrite repeat_plus; simpl.
     rewrite <- app_assoc; replace (Z.to_nat (10 - (i + 1))) with n; auto.
     rewrite Z.sub_add_distr.
-    rewrite Z2Nat.inj_sub; [|omega].
-    rewrite Hminus; simpl; omega. }
+    rewrite Z2Nat.inj_sub; [|lia].
+    rewrite Hminus; simpl; lia. }
   forward.
   forward_call (lock, Ews, lock_pred buf len).
   { destruct lock; try contradiction; simpl; entailer. }

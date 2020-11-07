@@ -49,16 +49,16 @@ Proof.
       exact (X1 = [Vubyte (fst w)] /\ m0 = X3 /\ putchar_pre X3 w X2).
     + destruct X as (m0 & _ & w).
       exact (X1 = [] /\ m0 = X3 /\ getchar_pre X3 w X2).
-  - simpl; intros.
+  - simpl; intros ??? ot ???.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (putchar_post m0 X3 i w X2).
+      exact (ot <> AST.Tvoid /\ putchar_post m0 X3 i w X2).
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (getchar_post m0 X3 i w X2).
+      exact (ot <> AST.Tvoid /\ getchar_post m0 X3 i w X2).
   - intros; exact True.
 Defined.
 
@@ -83,9 +83,9 @@ Proof.
       destruct H0, vl; try contradiction.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & Hargs & ? & ? & Htrace).
-      destruct Hargs as [[Harg _] _]; hnf in Harg.
-      rewrite Harg, eval_id_same.
+      destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
+      assert (Harg: v = Vubyte c) by (inv Hargs; auto). clear Hargs.
+      rewrite Harg.
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
@@ -99,7 +99,7 @@ Proof.
       unfold putchar_pre; split; auto; split; auto.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
+      destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       unfold getchar_pre.
@@ -112,11 +112,11 @@ Proof.
       destruct t as (? & (c, k)); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
+      destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
+      destruct H4 as (? & Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
@@ -126,7 +126,9 @@ Proof.
       * exists i.
         split3; simpl.
         -- split; auto.
-        -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
+        -- unfold_lift. split; auto. split; [|intro Hx; inv Hx].
+             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
+             destruct ot; try contradiction; reflexivity.
         -- unfold SEPx; simpl.
            rewrite seplog.sepcon_emp.
            unfold ITREE; exists x; split; [if_tac; auto|].
@@ -146,11 +148,11 @@ Proof.
       destruct t as (? & k); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
+      destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
+      destruct H4 as (? & Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
       unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
@@ -160,7 +162,9 @@ Proof.
       * exists i.
         split3; simpl.
         -- split; auto.
-        -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
+        -- unfold_lift. split; auto. split; [|intro Hx; inv Hx].
+             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
+             destruct ot; try contradiction; reflexivity.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
              unfold ITREE; exists x; split; [if_tac; auto|].
@@ -190,14 +194,14 @@ Proof.
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.
-    destruct Hpost; subst.
+    destruct Hpost as (? & ? & ?); subst.
     reflexivity.
   - if_tac in Hpre; [|contradiction].
     destruct w as (m0 & _ & w).
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.
-    destruct Hpost; subst.
+    destruct Hpost as (? & ? & ?); subst.
     reflexivity.
 Qed.
 

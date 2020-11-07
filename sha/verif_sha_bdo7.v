@@ -27,10 +27,10 @@ apply Zlength_length in H; [ simpl in H | computable].
 assert (forall n, (n<=16)%nat -> Xarray' b 16 n = skipn (16-n) b);
  [ | apply H0; auto ].
 induction n; intros.
-clear H0. rewrite skipn_short by omega. reflexivity.
+clear H0. rewrite skipn_short by lia. reflexivity.
 
 unfold Xarray'; fold Xarray'.
-rewrite IHn by omega. clear IHn.
+rewrite IHn by lia. clear IHn.
 change (Z.of_nat 16) with 16%Z.
 
 assert (H1: firstn 1 (skipn (16 - S n) b) =
@@ -40,7 +40,7 @@ assert (H1: firstn 1 (skipn (16 - S n) b) =
  pose proof (skipn_length b (16 - S n)).
  rewrite Heql in H1.
  simpl length in H1.
- omega.
+ lia.
  f_equal.
  pose proof (nth_skipn 0 (16 - S n)%nat b Int.zero).
  rewrite Heql in H1.
@@ -49,27 +49,24 @@ assert (H1: firstn 1 (skipn (16 - S n) b) =
  rewrite Z.sub_diag. rewrite Z.add_0_l.
  rewrite plus_0_l.
  rewrite Zminus_mod.
- rewrite Z.mod_same by omega. rewrite Z.sub_0_r.
- rewrite Z.mod_mod by omega.
- assert (0 <= (Z.of_nat (16 - S n))mod 16 < 16)%Z by (apply Z.mod_pos_bound; omega).
+ rewrite Z.mod_same by lia. rewrite Z.sub_0_r.
+ rewrite Z.mod_mod by lia.
+ assert (0 <= (Z.of_nat (16 - S n))mod 16 < 16)%Z by (apply Z.mod_pos_bound; lia).
  rewrite W_equation.
- rewrite if_true by  omega.
+ rewrite if_true by  lia.
  rewrite Z.mod_small.
  unfold nthi.
  rewrite Nat2Z.id.
  reflexivity.
- split; try omega.
- change (Z.of_nat (16 - S n) < Z.of_nat 16)%Z.
- apply Nat2Z.inj_lt.
- omega.
+ split; try lia.
 }
 assert (H2 := skipn_skipn 1 (16 - S n) b).
-replace (16 - S n + 1)%nat with (16 - n)%nat in H2 by omega.
+replace (16 - S n + 1)%nat with (16 - n)%nat in H2 by lia.
 rewrite <- H2.
 rewrite <- (firstn_skipn 1 (skipn (16 - S n) b)) at 2.
 rewrite H1.
 unfold app.
-rewrite Nat2Z.inj_sub by omega.
+rewrite Nat2Z.inj_sub by lia.
 reflexivity.
 Qed.
 
@@ -88,12 +85,12 @@ intros.
 unfold nthi at 1.
 remember (Z.to_nat k) as k'.
 rewrite <- (Nat2Z.id k') in Heqk'.
-apply Z2Nat.inj in Heqk'; try omega.
+apply Z2Nat.inj in Heqk'; try lia.
 subst k.
-assert (k'<16)%nat by omega.
+assert (k'<16)%nat by lia.
 clear H.
 do 16 (destruct k'; try reflexivity).
-elimtype False; omega.
+elimtype False; lia.
 Qed.
 
 Lemma extract_from_b:
@@ -104,25 +101,25 @@ Lemma extract_from_b:
     nthi (Xarray b (Z.to_nat i)) ((i + n) mod 16) = W (nthi b) (i - 16 + n).
 Proof.
 intros.
-rewrite nth_Xarray by (apply Z.mod_pos_bound; omega).
+rewrite nth_Xarray by (apply Z.mod_pos_bound; lia).
 f_equal.
 f_equal.
-rewrite Z2Nat.id by omega. auto.
-rewrite Z2Nat.id by omega.
+rewrite Z2Nat.id by lia. auto.
+rewrite Z2Nat.id by lia.
 rewrite Zminus_mod.
 rewrite Zmod_mod.
 rewrite Zplus_mod.
 rewrite <- Zminus_mod.
-rewrite (Zmod_small n) by omega.
-replace (i mod 16 + n - i) with (i mod 16 - i + n) by omega.
+rewrite (Zmod_small n) by lia.
+replace (i mod 16 + n - i) with (i mod 16 - i + n) by lia.
 rewrite Zplus_mod.
 rewrite Zminus_mod.
 rewrite Zmod_mod.
 rewrite Z.sub_diag.
-rewrite (Zmod_small 0) by omega.
+rewrite (Zmod_small 0) by lia.
 rewrite Z.add_0_l.
 repeat rewrite Zmod_mod.
-apply Zmod_small; omega.
+apply Zmod_small; lia.
 Qed.
 
 Global Opaque Xarray.
@@ -141,9 +138,9 @@ rewrite !sublist_map.
 rewrite <- !map_cons, <- !map_app.
 f_equal.
 repeat match type of H0 with
-| (64 <= _ < _)%Z => elimtype False; omega
+| (64 <= _ < _)%Z => elimtype False; lia
 | (?A <= _ < _)%Z =>
- assert (H9: i=A \/ (A+1 <= i < 64)%Z) by omega;
+ assert (H9: i=A \/ (A+1 <= i < 64)%Z) by lia;
  clear H0; destruct H9 as [H0|H0];
  [subst i; reflexivity
  | simpl in H0 ]
@@ -162,13 +159,13 @@ Lemma W_unfold:
 Proof.
  intros.
  rewrite W_equation.
- rewrite if_false by omega.
+ rewrite if_false by lia.
   rewrite Z.add_0_r;
       rewrite (Int.add_commut (W (nthi b) (i - 16)));
       repeat rewrite <- Int.add_assoc; f_equal;
       rewrite Int.add_commut; repeat rewrite Int.add_assoc; f_equal;
-        [do 2 f_equal; omega | ];
-      f_equal; [do 2 f_equal; omega | f_equal; omega].
+        [do 2 f_equal; lia | ];
+      f_equal; [do 2 f_equal; lia | f_equal; lia].
 Qed.
 
 
@@ -241,7 +238,7 @@ rewrite Xarray_simpl; auto.
 *
 Intros.
 destruct H0 as [_ H2].
-assert (H0: LBLOCKz <= i < 64) by (change LBLOCKz with 16%Z; omega).
+assert (H0: LBLOCKz <= i < 64) by (change LBLOCKz with 16%Z; lia).
 clear H2 H1.
 (*assert (H': length b = 16%nat) by (apply Zlength_length in H; auto). *)
 assert (LBE := LBLOCK_zeq).
@@ -265,11 +262,11 @@ replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
   with (W (nthi b) (i - 16 + 0))
  by (replace (i mod 16) with ((i + 0) mod 16)
         by (rewrite Z.add_0_r; auto);
-      rewrite extract_from_b; try omega; auto).
+      rewrite extract_from_b; try lia; auto).
 
 forward. (* t = X[(i+9)&0xf]; *)
 autorewrite with sublist. rewrite Zland_15.
-rewrite extract_from_b by (try assumption; try omega).
+rewrite extract_from_b by (try assumption; try lia).
 
 forward.  (* T1 += s0 + s1 + t; *)
 pattern (i-16) at 1; rewrite <- (Z.add_0_r (i - 16)).
@@ -296,12 +293,12 @@ forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
 rewrite <- Sigma_0_eq, <- Maj_eq.
 repeat forward.
 rewrite Z.add_simpl_r.
-rewrite Z2Nat.inj_add by omega.
+rewrite Z2Nat.inj_add by lia.
 entailer!. 2: apply derives_refl.
 clear - H H0 H1.
 rewrite Round_equation.
 forget (W (nthi bb) i) as Wbbi.
-rewrite if_false by omega.
+rewrite if_false by lia.
 rewrite <- H1; clear H1.
 unfold rnd_function, nthi; simpl.
 repeat split; try reflexivity.

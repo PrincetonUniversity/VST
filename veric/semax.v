@@ -135,7 +135,7 @@ Next Obligation.
    {simpl in H1|-*. erewrite age1_ghost_of in H1 by eauto.
       eapply ext_join_unapprox; eauto. }
    specialize (H0 (eq_refl _) H3).
-   spec H0. apply age_level in H. omega.
+   spec H0. apply age_level in H. lia.
   subst.
   change (level (m_phi jm)) with (level jm).
   change (level (m_phi jm0)) with (level jm0) in *.
@@ -227,7 +227,7 @@ Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function)
 
 Program Definition ext_spec_post' (Espec: OracleKind)
    (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
-   (tret: option typ) (ret: option val) (z: OK_ty) : pred juicy_mem :=
+   (tret: rettype) (ret: option val) (z: OK_ty) : pred juicy_mem :=
   exist (hereditary age)
    (ext_spec_post OK_spec ef x' ge_s tret ret z)
      (JE_post_hered _ _ _ _ _ _ _ _).
@@ -235,35 +235,87 @@ Program Definition ext_spec_post' (Espec: OracleKind)
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
-Definition make_ext_rval  (gx: genviron) (v: option val):=
+Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
+  match tret with AST.Tvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
+ | _ => 
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
                               (Map.set 1%positive v' (Map.empty _))
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
-  end.
+  end end.
 
 Definition semax_external
-  (Hspec: OracleKind) (ids: list ident) ef
+  (Hspec: OracleKind) ef
   (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+  (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
         pred nat :=
  ALL gx: genv, ALL Ts: list Type,
  ALL x: (dependent_type_functor_rec Ts A (pred rmap)),
    |>  ALL F: pred rmap, ALL ts: list typ,
    ALL args: list val,
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
-   juicy_mem_op (P Ts x (make_args ids args (tycontext.empty_environ gx)) * F) >=>
+   juicy_mem_op (P Ts x (filter_genv gx, args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     (ALL z:_, juicy_mem_op (ext_compat z) -->
      ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
+     ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
-          juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
+          juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) tret ret) * F).
+
+Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
+  forall l t, Forall2 P l t -> Forall2 Q l t.
+Proof. intros. induction H; constructor; auto. Qed.
+Lemma has_type_list_Forall2: forall vals ts, Val.has_type_list vals ts <-> Forall2 Val.has_type vals ts.
+Proof.
+  induction vals; destruct ts; simpl; split; intros; trivial; try contradiction.
+  inv H. inv H.
+  destruct H. apply IHvals in H0. constructor; trivial. 
+  inv H. apply IHvals in H5. split; trivial.
+Qed.
+
+Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
+  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
+                   (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
+  (HSIG: ef_sig ef = 
+         mksignature (*(typlist_of_typelist (typelist_of_type_list argtypes))*)
+                     (map typ_of_type argtypes)
+                     (rettype_of_type rtype) cc):
+  @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
+Proof.
+apply allp_derives; intros g.
+apply allp_right; intros ts.
+apply allp_right; intros x.
+destruct Hsub as [_ H]; simpl in H.
+intros n N m NM F typs vals y MY z YZ [HT [z1 [z2 [JZ [Z1 Z2]]]]].
+specialize (H ts x (filter_genv g, vals) z1).
+(*rewrite TTL2 in HSIG.*)
+simpl in H. simpl in N. rewrite HSIG in HT; simpl in HT.
+destruct H as [ts1 [x1 [FRM [[z11 [z12 [JZ1 [H_FRM H_P1]]]] HQ]]]].
+{ split; trivial. clear -HT. 
+  apply has_type_list_Forall2 in HT.
+  eapply Forall2_implication; [ | apply HT]; auto.
+}
+specialize (N ts1 x1). apply join_comm in JZ1.
+destruct (join_assoc JZ1 JZ) as [zz [JJ JJzz]]. apply join_comm in JJ.
+destruct (N _ NM (sepcon F FRM) typs vals _ MY _ YZ) as [est [EST1 EST2]]; clear N.
+{ rewrite HSIG; simpl. split; trivial.
+  exists z12, zz; split3. trivial. trivial.
+  exists z2, z11; split3; trivial. }
+exists est; split; trivial. 
+simpl; intros.
+destruct (EST2 b b0 b1 _ H _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
+destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.
+destruct (join_assoc JW JU) as [v [JV V]]. apply join_comm in V.
+exists v, w1; split3; trivial.
+apply HQ; clear HQ; split.
++ simpl. destruct b,b0; reflexivity.
++ exists w2, u1; split3; trivial.
+Qed. 
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
-    | Tvoid, None => True
-    | Tvoid, Some _ => False
+    | Tvoid, _ => True
     | ty, Some v => tc_val ty v
     | _, _ => False
   end.
@@ -276,29 +328,46 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
 
 Definition withtype_empty (A: TypeTree) : Prop :=
   forall ts (x: dependent_type_functor_rec ts A (pred rmap)), False.
-
-Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig) cc
+Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: typesig) cc
   (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+  (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
   pred nat :=
   match Genv.find_funct gx v with
   | Some (External ef sigargs sigret cc') =>
-      let ids := fst (split (fst fsig)) in
-        !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc'=cc
+        !! (fsig = (typelist2list sigargs, sigret) /\ cc'=cc
            /\ ef_sig ef = mksignature
-                           (typlist_of_typelist (type_of_params (fst fsig)))
-                           (opttyp_of_type (snd fsig)) cc
-           /\ length (typelist2list sigargs)=length ids
+                           (typlist_of_typelist (typelist_of_type_list (fst fsig)))
+                           (rettype_of_type (snd fsig)) cc
            /\ (ef_inline ef = false \/ withtype_empty A))
-        && semax_external Hspec ids ef A P Q
+        && semax_external Hspec (*ids*) ef A P Q
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),
               ALL ret:option val,
-                Q ts x (make_ext_rval (filter_genv gx) ret)
-                  && !!has_opttyp ret (opttyp_of_type (snd fsig))
+                Q ts x (make_ext_rval (filter_genv gx) (rettype_of_type (snd fsig)) ret)
+                  && !!Builtins0.val_opt_has_rettype ret (rettype_of_type (snd fsig))
                   >=> !! tc_option_val sigret ret)
   | _ => FF
   end.
+
+Lemma believe_external_funspec_sub {Espec gx v sig cc A P Q Pne Qne A' P' Q' Pne' Qne'}
+      (Hsub: funspec_sub (mk_funspec sig cc A P Q Pne Qne)(mk_funspec sig cc A' P' Q' Pne' Qne') )
+      (WTE: withtype_empty A -> (*ef_inline e = false \/*) withtype_empty A'):
+      believe_external Espec gx v sig cc A P Q |-- believe_external Espec gx v sig cc A' P' Q'.
+Proof.
+  unfold believe_external; intros n N.
+  destruct (Genv.find_funct gx v); trivial.
+  destruct f; trivial. destruct sig as [argtypes rtype].
+  destruct N as [[[N1a [N1b [N1c N1d]]] N2] N3].
+  inv N1a. simpl in N1c; rewrite TTL2 in *; split.
++ split.
+  - split3; trivial. split; trivial.
+    destruct N1d; [ left; trivial | right; auto].
+  - eapply semax_external_funspec_sub; eassumption.
++ simpl; intros. simpl in N3. simpl in Hsub.
+  destruct Hsub as [_ Hsub].
+  specialize (Hsub b b0).
+Abort.
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
@@ -315,17 +384,19 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
 
 Definition believe_internal_ CS
   (semax:semaxArg -> pred nat)
-  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: typesig) cc (A: TypeTree)
+  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+  (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) : pred nat :=
   let ce := (@cenv_cs CS) in
   (EX b: block, EX f: function,
+   let specparams := fst fsig in 
+   let fparams := fn_params f in
    prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
-                 /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
-                 /\ (map snd (fst fsig) = map snd (fst (fn_funsig f))
-                      /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst (fst fsig)))
+                 /\ list_norepet (map fst fparams ++ map fst f.(fn_temps))
+                 /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
+                 /\ specparams = map snd fparams
+                 /\ snd fsig = snd (fn_funsig f)
                  /\ f.(fn_callconv) = cc)
   &&
    ALL Delta':tycontext, ALL CS':compspecs,
@@ -334,7 +405,7 @@ Definition believe_internal_ CS
       (ALL ts: list Type,
        ALL x : dependent_type_functor_rec ts A (pred rmap),
         |> semax (SemaxArg CS' (func_tycontext' f Delta')
-                         (fun rho => (bind_args (fst fsig) (f.(fn_params)) (P ts x) rho 
+                         (fun rho => (bind_args (*(fst fsig)*) (f.(fn_params)) (P ts x) rho 
                                               * stackframe_of' (@cenv_cs CS') f rho)
                                         && funassert (func_tycontext' f Delta') rho)
                           (f.(fn_body))
@@ -349,9 +420,9 @@ Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
 
 Definition believepred CS (Espec: OracleKind) (semax: semaxArg -> pred nat)
               (Delta: tycontext) (gx: genv)  (Delta': tycontext) : pred nat :=
-  ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
+  ALL v:val, ALL fsig: typesig, ALL cc: calling_convention,
   ALL A: TypeTree,
-  ALL P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred,
+  ALL P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred,
   ALL Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred,
        !! claims gx Delta' v fsig cc A P Q  -->
       (believe_external Espec gx v fsig cc A P Q
@@ -375,36 +446,37 @@ Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat :=
      HORec (semax_ Espec) (SemaxArg CS Delta P c R).
 
 Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
-  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: typesig) cc (A: TypeTree)
+  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+  (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): pred nat :=
   let ce := @cenv_cs CS in
   (EX b: block, EX f: function,
+   let specparams := fst fsig in 
+   let fparams := fn_params f in
    prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
-                 /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
-                 /\ (map snd (fst fsig) = map snd (fst (fn_funsig f))
-                      /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst (fst fsig)))
+                 /\ list_norepet (map fst fparams ++ map fst f.(fn_temps))
+                 /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
+                 /\ specparams = map snd fparams
+                 /\ snd fsig = snd (fn_funsig f)
                  /\ f.(fn_callconv) = cc)
   && 
     ALL Delta':tycontext,ALL CS':compspecs,
      imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
       (imp (prop (cenv_sub (@cenv_cs CS) (@cenv_cs CS')))
-                                               
        (ALL ts: list Type,
      ALL x : dependent_type_functor_rec ts A (pred rmap),
      |> @semax' CS' Espec (func_tycontext' f Delta')
-                                (fun rho => (bind_args (fst fsig) (f.(fn_params)) (P ts x) rho * stackframe_of' (@cenv_cs CS') f rho)
+                                (fun rho => (bind_args (*(fst fsig)*) (f.(fn_params)) (P ts x) rho * stackframe_of' (@cenv_cs CS') f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                                (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') f))))).
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
-  ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
+  ALL v:val, ALL fsig: typesig, ALL cc: calling_convention,
   ALL A: TypeTree,
-  ALL P: (forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)),
+  ALL P: (forall ts, dependent_type_functor_rec ts (ArgsTT A) (pred rmap)),
   ALL Q: (forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)),
        !! claims gx Delta' v fsig cc A P Q  -->
       (believe_external Espec gx v fsig cc A P Q
@@ -612,7 +684,7 @@ Proof.
   simpl.
   hnf; simpl; intros.
   apply (H a).
-  omega.
+  lia.
 Qed.
 
 Lemma imp_imp:
@@ -659,7 +731,7 @@ Proof.
   apply pred_ext; unfold fash; hnf; simpl; intros.
   + destruct (ex_level a) as [r ?].
     apply (H r).
-    omega.
+    lia.
   + auto.
 Qed.
 
@@ -673,9 +745,9 @@ Proof.
   + destruct (ex_level a) as [r ?].
     specialize (H r).
     rewrite H0 in H.
-    apply H; omega.
+    apply H; lia.
   + eapply pred_nec_hereditary; [| eassumption].
-    rewrite nec_nat; omega.
+    rewrite nec_nat; lia.
 Qed.
 
 Lemma prop_true_imp:

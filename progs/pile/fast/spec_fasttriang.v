@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import triang.
 Require Import spec_stdlib.
 Require Import spec_fastpile.
+Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -17,9 +18,9 @@ Fixpoint triang (n: nat) :=
 Definition Triang_nth_spec :=
  DECLARE _Triang_nth
  WITH n:Z, gv: globals
- PRE [ _n OF tint ] 
+ PRE [ tint ] 
     PROP( 0 <= n < 1000) 
-    LOCAL(temp _n (Vint (Int.repr n)); gvars gv) 
+    PARAMS (Vint (Int.repr n)) GLOBALS (gv) 
     SEP(mem_mgr gv)
  POST[ tint ]
     PROP()

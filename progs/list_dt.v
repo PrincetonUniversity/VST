@@ -75,7 +75,7 @@ Lemma list_link_size_in_range (ls: listspec list_structid list_link list_token):
   0 < sizeof (nested_field_type list_struct (StructField list_link :: nil)) < Ptrofs.modulus.
 Proof.
   rewrite list_link_type.
-  unfold sizeof.
+  unfold sizeof, Ctypes.sizeof.
   destruct Archi.ptr64 eqn:Hp.
   rewrite Ptrofs.modulus_eq64 by auto; computable.
   rewrite Ptrofs.modulus_eq32 by auto; computable.
@@ -671,7 +671,7 @@ Proof.
 intros.
 rewrite <- list_cell_link_join.
 unfold spacer. rewrite if_true. rewrite sepcon_emp. auto.
-omega.
+lia.
 Qed.
 
 End LIST1.
@@ -1044,7 +1044,7 @@ Lemma lseg_cons_right_neq (ls: listspec list_structid list_link list_token): for
 Proof.
 intros. rename H into SH.
 assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link))).
-  rewrite list_link_type; simpl; destruct Archi.ptr64; computable.
+  unfold sizeof; rewrite list_link_type; simpl; destruct Archi.ptr64; computable.
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 revert x; induction l; simpl; intros.
@@ -1173,7 +1173,7 @@ destruct q; try contradiction.
 destruct H; subst.
 unfold Ptrofs.cmpu in H0.
 apply ptrofs_eq_e in H0.
-subst. intuition.
+subst. tauto.
 destruct p0.
 normalize.
 rewrite field_at_isptr.
@@ -1263,7 +1263,7 @@ Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Hint Resolve @lseg_local_facts : saturate_local.
+Hint Resolve lseg_local_facts : saturate_local.
 End LsegGeneral.
 
 Module LsegSpecial.
@@ -1807,7 +1807,7 @@ End LIST.
 
 Hint Rewrite @lseg_nil_eq : norm.
 Hint Rewrite @lseg_eq using reflexivity: norm.
-Hint Resolve @lseg_local_facts : saturate_local.
+Hint Resolve lseg_local_facts : saturate_local.
 
 Ltac resolve_lseg_valid_pointer :=
 match goal with
@@ -2297,7 +2297,7 @@ Lemma lseg_cons_right_neq (ls: listspec list_structid list_link list_token):
 Proof.
 intros. rename H into SH. rename H0 into NR.
 assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link)))
-  by (rewrite list_link_type; simpl; destruct Archi.ptr64; computable).
+  by (rewrite list_link_type; unfold sizeof; simpl; destruct Archi.ptr64; computable).
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 revert x; induction l; simpl; intros.
@@ -2593,7 +2593,7 @@ Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Hint Resolve @lseg_local_facts : saturate_local.
+Hint Resolve lseg_local_facts : saturate_local.
 
 Hint Resolve denote_tc_test_eq_split : valid_pointer.
 

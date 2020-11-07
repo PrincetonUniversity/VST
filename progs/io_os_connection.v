@@ -67,7 +67,7 @@ Section ListFacts.
     end.
 
   Definition strip_common_prefix (xs ys : list A) : list A :=
-    let longer := if length xs <=? length ys then ys else xs in
+    let longer := if (length xs <=? length ys)%nat then ys else xs in
     skipn (length (common_prefix xs ys)) longer.
 
   Lemma common_prefix_sym : forall xs ys,
@@ -96,7 +96,7 @@ Section ListFacts.
   Qed.
 
   Lemma common_prefix_length : forall xs ys,
-    length (common_prefix xs ys) <= length xs.
+    (length (common_prefix xs ys) <= length xs)%nat.
   Proof.
     induction xs as [| x xs]; destruct ys as [| y ys]; cbn; try lia.
     destruct (Aeq x y); cbn; try lia.
@@ -118,7 +118,7 @@ Section ListFacts.
   Qed.
 
   Lemma strip_common_prefix_correct : forall xs ys,
-    length xs <= length ys ->
+    (length xs <= length ys)%nat ->
     let post := strip_common_prefix xs ys in
     ys = common_prefix xs ys ++ post.
   Proof.
@@ -375,7 +375,7 @@ Section Invariants.
       eauto using valid_trace_ordered_snoc.
   Qed.
 
-  Local Hint Resolve valid_trace_ordered_snoc valid_trace_ordered_app.
+  Local Hint Resolve valid_trace_ordered_snoc valid_trace_ordered_app : core.
 
   Lemma in_console_in_trace' : forall tr logIdx strIdx c,
     In (c, logIdx, strIdx) (compute_console' tr) ->
@@ -1422,7 +1422,7 @@ Section Invariants.
     rewrite common_prefix_full, leb_correct, skipn_exact_length; cbn; auto.
   Qed.
 
-  Local Hint Resolve nil_trace_case_refl.
+  Local Hint Resolve nil_trace_case_refl : core.
 
   Corollary getc_trace_case_refl : forall st, getc_trace_case st st (-1).
   Proof. intros; rewrite <- nil_trace_getc_trace; auto. Qed.
@@ -1430,8 +1430,8 @@ Section Invariants.
   Corollary putc_trace_case_refl : forall st c, putc_trace_case st st c (-1).
   Proof. intros; rewrite <- nil_trace_putc_trace; auto. Qed.
 
-  Local Hint Resolve getc_trace_case_refl.
-  Local Hint Resolve putc_trace_case_refl.
+  Local Hint Resolve getc_trace_case_refl : core.
+  Local Hint Resolve putc_trace_case_refl : core.
 
   Lemma getc_trace_case_trans : forall t t' t'' r,
     nil_trace_case t t' ->
@@ -1870,13 +1870,15 @@ Section SpecsCorrect.
     putc_mem_ok : st.(HP) = st'.(HP)
   }.
 
+Import functional_base.
+
   Lemma sys_putc_correct c k z m st st' :
     (* Initial trace is valid *)
     valid_trace st ->
     (* Pre condition holds *)
     putchar_pre m (c, k) z ->
     (* c is passed as an argument *)
-    get_sys_arg1 st = functional_base.Vubyte c ->
+    get_sys_arg1 st = Vubyte c ->
     (* sys_putc returns some state *)
     sys_putc_spec st = Some st' ->
     exists ret,
@@ -1905,7 +1907,7 @@ Section SpecsCorrect.
     eapply sys_putc_trace_case in Htrace_case; eauto.
     2: unfold get_sys_ret; cbn; repeat (rewrite ZMap.gss || rewrite ZMap.gso by easy); auto.
     pose proof (Byte.unsigned_range_2 c).
-    rewrite Int.unsigned_repr in * by functional_base.rep_omega.
+    rewrite Int.unsigned_repr in * by functional_base.rep_lia.
     constructor; eauto; hnf.
     - (* putchar_post *)
       split; auto; cbn in *.
@@ -1914,7 +1916,7 @@ Section SpecsCorrect.
       destruct (eq_dec.eq_dec _ _); try easy.
       rewrite Zle_imp_le_bool by lia.
       destruct Hput as (? & [(? & ?) | (? & ?)]); subst; auto; try lia.
-      rewrite Zmod_small; auto; functional_base.rep_omega.
+      rewrite Zmod_small; auto; functional_base.rep_lia.
     - (* trace_itree_match *)
       rewrite Int.signed_repr in * by (cbn; lia).
       cbn in *; destruct Htrace_case as (Htr & Hcase).

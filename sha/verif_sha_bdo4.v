@@ -28,17 +28,7 @@ Lemma loop1_aux_lemma1:
           (Vint (Znth i b))
   =  map Vint (sublist 0 (i+1) b) ++ list_repeat (Z.to_nat (16 - (i+1))) Vundef.
 Proof.
-intros.
-unfold upd_Znth.
-autorewrite with sublist.
-rewrite (sublist_split 0 i (i+1)) by omega.
-rewrite map_app.
-rewrite app_ass.
-f_equal.
-rewrite (sublist_len_1 i) by omega.
-simpl.
-autorewrite with sublist.
-f_equal. f_equal. f_equal. omega.
+intros. list_solve2.
 Qed.
 
 Definition block_data_order_loop1 :=
@@ -124,13 +114,13 @@ assert_PROP (data_block sh (intlist_to_bytelist b) data =
  unfold data_at at 1.
    erewrite field_at_Tarray
    by (try reflexivity; auto; autorewrite with sublist; Omega1).
-   rewrite (split2_array_at _ _ _ 0 (i*4)) by (autorewrite with sublist; omega).
-   rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; omega).
+   rewrite (split2_array_at _ _ _ 0 (i*4)) by (autorewrite with sublist; lia).
+   rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; lia).
    autorewrite with sublist.
   rewrite <- !sepcon_assoc.
   f_equal. f_equal.
   rewrite Zlength_intlist_to_bytelist in H5.
-  rewrite array_at_data_at' by (auto with field_compatible; omega).
+  rewrite array_at_data_at' by (auto with field_compatible; lia).
   simpl.
   autorewrite with sublist.
   fold (tarray tuchar 4). f_equal.
@@ -138,21 +128,21 @@ assert_PROP (data_block sh (intlist_to_bytelist b) data =
   rewrite Z.add_comm, Z.mul_add_distr_r.
   reflexivity.
  rewrite field_address0_offset by auto with field_compatible.
-  f_equal. f_equal. simpl. omega.
+  f_equal. f_equal. simpl. lia.
  }
 forward_call (* l = __builtin_read32_reversed(_data) *)
       (offset_val (i*4) data, sh,
          sublist (i*4) ((i+1)*4) (intlist_to_bytelist b)).
  entailer!.
  rewrite H1; cancel.
- autorewrite with sublist; omega.
-gather_SEP 3 0 4.
+ autorewrite with sublist; lia.
+gather_SEP (array_at _ _ _ 0 _ _ data) (data_at _ _ _ (offset_val (i*4) data)) (array_at _ _ _ (i*4+4) _ _ data).
  match goal with |- context [SEPx (?A::_)] =>
   replace A with (data_block sh (intlist_to_bytelist b) data)
     by (rewrite H1,<- !sepcon_assoc; auto)
  end.
  clear H1.
-rewrite <- Znth_big_endian_integer by omega.
+rewrite <- Znth_big_endian_integer by lia.
 forward. (* data := data + 4; *)
 rewrite LBE.
 forward. (* X[i]=l; *)
@@ -162,17 +152,17 @@ rewrite loop1_aux_lemma1 by Omega1.
 (* 1,506,948 1,134,576 *)
 unfold K_vector.
 assert (i < Zlength K256)
-  by (change (Zlength K256) with 64; omega).
+  by (change (Zlength K256) with 64; lia).
 forward.  (* Ki=K256[i]; *)
 (* 1,811,028 1,406,332 *)
 autorewrite with sublist.
 subst POSTCONDITION; unfold abbreviate.
-replace (i + 1 - 1)%Z with i by omega.
+replace (i + 1 - 1)%Z with i by lia.
 rewrite (Round_equation _ _ i).
-rewrite if_false by omega.
+rewrite if_false by lia.
 forget (nthi b) as M.
 replace (M i) with (W M i)
-  by (rewrite W_equation; rewrite if_true by omega; auto).
+  by (rewrite W_equation; rewrite if_true by lia; auto).
 assert_PROP (isptr data) as H3 by entailer!.
 change (data_at Tsh (tarray tuint  (Zlength K256)) (map Vint K256) (gv _K256)) with (K_vector gv).
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
@@ -196,7 +186,7 @@ do 8 forward.
 entailer!.
 unfold nthi; simpl nth.
 split3.
-+ f_equal. omega.
++ f_equal. lia.
 + f_equal.  f_equal.
   rewrite rearrange_aux. rewrite rearrange_aux. auto.
 + f_equal. f_equal.

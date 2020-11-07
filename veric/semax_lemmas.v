@@ -39,7 +39,7 @@ unfold Coqlib.list_disjoint in *.
 intros; apply H2; auto.
 clear - H.
 rewrite in_app in *.
-intuition.
+tauto.
 Qed.
 
 Lemma join_sub_share_top: forall sh, join_sub Share.top sh -> sh = Share.top.
@@ -66,10 +66,10 @@ Proof.
   destruct (zlt 0 (z-a)).
   rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-b)).
-  omega.
-  omega.
+  lia.
+  lia.
   rewrite Coqlib.Zmax_spec.
-  destruct (zlt 0 (z-b)); omega.
+  destruct (zlt 0 (z-b)); lia.
 Qed.
 
 Section SemaxContext.
@@ -138,38 +138,12 @@ split; [ | split].
 * clear - H0 H4.
   red in H4|-*.
  intros id ty. specialize (H4 id ty). rewrite <- H4.
- rewrite H0. clear; intuition.
+ rewrite H0. clear; tauto.
 * clear - H2 H5.
  hnf; intros. eapply H5.
  specialize (H2 id). hnf in H2. rewrite H in H2. eauto.
 Qed.
-(*
-Lemma funassert_orig_resource: forall Delta rho a a' (Hl: level a = level a')
-  (Hr: resource_at a = resource_at a'),
-  funassert Delta rho a -> funassert Delta rho a'.
-Proof.
-  intros.
-  destruct H as [H1 H2]; split; repeat intro.
-  - destruct (H1 _ _ _ (rt_refl _ _ _) H0) as (b1 & ? & ?).
-    exists b1; split; auto.
-    destruct b0; simpl in *.
-    rewrite Hr in H4.
-    pose proof (necR_level _ _ H).
-    eapply necR_PURE in H; eauto.
-    rewrite H; simpl; f_equal; f_equal.
-    extensionality i a0 a1 a2.
-    match goal with |-context[compcert_rmaps.R.approx ?a (approx ?b ?c)] =>
-      change (compcert_rmaps.R.approx a (approx b c)) with ((approx a oo approx b) c) end.
-    rewrite fmap_app, approx_oo_approx', approx'_oo_approx by omega; auto.
-  - specialize (H2 b b0).
-    destruct b0; simpl in *.
-    apply (H2 _ (rt_refl _ _ _)).
-    rewrite Hr, Hl.
-    destruct H0 as [p Hp].
-    pose proof (necR_level _ _ H).
-    rewrite <- resource_at_approx.
-    eapply necR_PURE' in H as [? ->]; simpl; eauto.
-Qed.*)
+
 Lemma funassert_resource: forall Delta rho a a' (Hl: level a = level a')
   (Hr: resource_at a = resource_at a'),
   funassert Delta rho a -> funassert Delta rho a'.
@@ -186,7 +160,7 @@ Proof.
     extensionality i a0 a1 a2.
     match goal with |-context[compcert_rmaps.R.approx ?a (approx ?b ?c)] =>
       change (compcert_rmaps.R.approx a (approx b c)) with ((approx a oo approx b) c) end.
-    rewrite fmap_app, approx_oo_approx', approx'_oo_approx by omega; auto.
+    rewrite fmap_app, approx_oo_approx', approx'_oo_approx by lia; auto.
   - specialize (H2 b b0 b1). clear H1.
     destruct b0; simpl in *.
     apply (H2 _  (rt_refl _ _ _)).
@@ -209,19 +183,18 @@ try contradiction.
 -
 inversion2 H1 H16; fun_tac; auto.
 -
-admit.
+rewrite andb_true_iff in H15; destruct H15.
+pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H3 H17).
+inv H4; auto.
 -
 inv H1. inv H8.
 fun_tac.
 pose proof (alloc_variables_fun H3 H7). inv H8. auto.
-- (* not true *)
-Abort.
-
-(*
-Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).
-Proof.  repeat intro. eapply cl_corestep_fun; simpl in *; eauto. Qed.
-Hint Resolve cl_corestep_fun' : core.
-*)
+-
+rewrite andb_true_iff in H1; destruct H1.
+pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H2 H13).
+inv H1; auto.
+Qed.
 
 Lemma age1_resource_decay:
   forall jm jm', age jm jm' -> resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
@@ -230,7 +203,7 @@ Proof.
  apply age_level in H.
  change (level (m_phi jm)) with (level jm).
  change (level (m_phi jm')) with (level jm').
- omega.
+ lia.
  intro l. split. apply juicy_mem_alloc_cohere. left.
  symmetry; apply age1_resource_at with (m_phi jm); eauto.
   destruct (age1_juicy_mem_unpack _ _ H); auto.
@@ -284,9 +257,8 @@ intros.
   rename H into Hstep.
   remember (level m) as N.
   destruct N; [constructor|].
-  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; omegaContradiction].
+  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
   eapply jsafeN_step with
-   (* (c' := State f Sskip (Kseq Scontinue (Kloop1 Sskip Sskip k)) ve te)*)
     (m'0 := m').
   split3.
   replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
@@ -297,7 +269,7 @@ intros.
   unfold level at 1; simpl.
   repeat intro; auto.
   assert (N = level m')%nat.
-  apply age_level in H; omega.
+  apply age_level in H; lia.
   apply jm_bupd_intro.
   subst. apply H0. auto.
 Qed.
@@ -326,7 +298,7 @@ revert w H0.
 apply imp_derives; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
-repeat intro. (* simpl exit_tycon. *)
+repeat intro.
 simpl.
 split; auto.
 specialize (H rho). destruct R; simpl in H. simpl tycontext.RA_normal.
@@ -378,30 +350,11 @@ simpl. auto.
 inv H9.
 Qed.
 
-(*
-Lemma jsafe_corestep_forward:
-  forall {Espec: OracleKind} ge c m c' m' n z,
-    jstep (cl_core_sem ge) c m c' m' -> jsafeN (@OK_spec Espec) ge (S n) z c m ->
-    jm_bupd z (jsafeN (@OK_spec Espec) ge n z c') m'.
-Proof.
-  intros.
-  inv H0.
-  assert ((c',m') = (c'0,m'0)).
-  { eapply juicy_core_sem_preserves_corestep_fun with (csem := cl_core_sem ge); eauto. }
-  inv H0; auto.
-  setoid_rewrite (semantics.corestep_not_at_external (juicy_core_sem _)) in H2; eauto; congruence.
-  destruct H.
-  elimtype False.
-  eapply cl_corestep_not_halted. apply Int.zero.
-  simpl in H. apply H. apply H1. 
-Qed.
-*)
-
 Lemma semax_unfold {CS: compspecs} {Espec: OracleKind}:
   semax Espec = fun Delta P c R =>
     forall (psi: Clight.genv) Delta' CS' (w: nat)
           (TS: tycontext_sub Delta Delta')
-          (HGG: (*genv_cenv psi = cenv_cs*)cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi))
+          (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi))
            (Prog_OK: @believe CS' Espec Delta' psi Delta' w) (k: cont) (F: assert) f,
         closed_wrt_modvars c F ->
        rguard Espec psi Delta' f (frame_ret_assert R F) k w ->
@@ -497,7 +450,6 @@ intros.
 intros te ve ?w ? ?w ? ?.
 rewrite exp_sepcon2 in H4.
 destruct H4 as [[TC [x H5]] ?].
-(*destruct H4 as [[[TC [x H5]] ?] ?].*)
 specialize (H x).
 specialize (H psi Delta' CS' w TS HGG Prog_OK k F f H0).
 spec H. {
@@ -613,7 +565,6 @@ apply (H9 b b0 b1 b2 y H10 a' H11).
 destruct H12; split; auto; clear H13.
 pose proof I.
 destruct H12; split; auto.
-(* unfold frame_ret_assert in H14|-*. *)
 rewrite proj_frame_ret_assert in H14|-*.
 clear H12 H13.
 revert a' H11 H14.
@@ -672,8 +623,7 @@ spec H. {
  clear - H0 CL.
  hnf in *; intros; simpl in *.
  rewrite <- CL. rewrite <- H0. auto.
- intuition.
- intuition.
+ tauto. tauto.
 }
 replace (fun rho : environ => F0 rho * (P rho * F rho))
   with  (fun rho : environ => F0F rho * P rho).
@@ -708,7 +658,7 @@ intros.
 case_eq (age1 w). auto.
 clear H.
 intro; apply bupd_intro; repeat intro.
-apply age1_level0 in H. omega. 
+apply age1_level0 in H. lia. 
 Qed.
 
 Lemma pred_sub_later' {A} `{H: ageable A}:
@@ -783,7 +733,7 @@ Proof.
 intros.
 pose proof (app_cont_length prefix ctl).
 rewrite <- H in H0.
-assert (length_cont prefix = O) by omega.
+assert (length_cont prefix = O) by lia.
 clear - H1. 
 destruct prefix; inv H1; auto.
 Qed.
@@ -891,10 +841,10 @@ Lemma safe_loop_skip:
 Proof.
   intros.
   pose (M := level m).
-  assert (Hge: (M >= level m)%nat) by omega.
+  assert (Hge: (M >= level m)%nat) by lia.
   clearbody M.
   revert m Hge; induction M; intros.
-  assert (level m = O) by omega. rewrite H.
+  assert (level m = O) by lia. rewrite H.
   constructor.
   eapply jsafeN_local_step. constructor.
   intros.
@@ -903,7 +853,7 @@ Proof.
   eapply jsafeN_local_step. constructor.
   intros.
   apply IHM.
-  apply age_level in H. apply age_level in H0. apply age_level in H1. omega.
+  apply age_level in H. apply age_level in H0. apply age_level in H1. lia.
 Qed.  
 
 (*
@@ -1524,22 +1474,6 @@ rewrite semax_fold_unfold.
 apply prop_ext; intuition.
 Qed.
 
-(*
-Lemma safe_kseq_Slabel {Espec: OracleKind} psi n ora f ve te l c k m :
-  @jsafeN (@OK_ty Espec) (@OK_spec Espec) psi n ora
-      (State f ve te (@cons cont' (Kseq c) k)) m ->
-@jsafeN (@OK_ty Espec) (@OK_spec Espec) psi n ora
-  (State ve te (@cons cont' (Kseq (Slabel l c)) k)) m.
-Proof.
-inversion 1; subst.
-+ constructor.
-+ econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto. 
-  simpl in H0. simpl. eapply step_label; trivial.
-+ simpl in *; congruence.
-+ simpl in *. unfold cl_halted in H0. contradiction.
-Qed.
-*)
-
 Lemma semax_Slabel {cs:compspecs} {Espec: OracleKind}
        (Gamma:tycontext) (P:environ -> mpred) (c:statement) (Q:ret_assert) l:
 @semax cs Espec Gamma P c Q -> @semax cs Espec Gamma P (Slabel l c) Q.
@@ -1643,7 +1577,7 @@ Proof.
   change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
     (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
   eexists; apply ghost_fmap_join; eauto.
-  replace (level (m_phi jm')) with O by omega. constructor.
+  replace (level (m_phi jm')) with O by lia. constructor.
 Qed.
 
 Lemma assert_safe_jsafe': forall {Espec: OracleKind} ge f ve te k ora jm,
@@ -1667,10 +1601,10 @@ Proof.
   }
   do 2 (spec Hsafe; [auto|]).
   destruct (gt_dec (level (m_phi jm')) O).
-2:   replace (level (m_phi jm')) with O by omega; constructor.
+2:   replace (level (m_phi jm')) with O by lia; constructor.
   spec Hsafe; [auto |].
   destruct k; try contradiction; auto.
-  destruct (level (m_phi jm')); try omega.
+  destruct (level (m_phi jm')); try lia.
   inv Hsafe; try discriminate; try contradiction.
   eapply jsafeN_step; eauto.
   destruct H5; split; auto. inv H3; econstructor; simpl; eauto.
@@ -1680,7 +1614,7 @@ Proof.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
-  destruct (level (m_phi jm')); try omega.
+  destruct (level (m_phi jm')); try lia.
   inv Hsafe; try discriminate; try contradiction.
   eapply jsafeN_step; eauto.
   destruct H5; split; auto. inv H3; econstructor; simpl; eauto.

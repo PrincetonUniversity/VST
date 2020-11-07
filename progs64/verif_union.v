@@ -13,10 +13,10 @@ Definition Gprog : funspecs :=
 Definition g_spec :=
  DECLARE _g
  WITH i: Z
- PRE [ _i OF size_t]
-   PROP() LOCAL(temp _i (Vptrofs (Ptrofs.repr i))) SEP()
+ PRE [ size_t]
+   PROP() PARAMS(Vptrofs (Ptrofs.repr i)) SEP()
  POST [ size_t ]
-   PROP() LOCAL (temp ret_temp (Vptrofs (Ptrofs.repr i))) SEP().
+   PROP() RETURN (Vptrofs (Ptrofs.repr i)) SEP().
 
 Lemma body_g: semax_body Vprog Gprog f_g g_spec.
 Proof.
@@ -47,6 +47,12 @@ Lemma NOT_decode_int32_float32:
      size_chunk Mfloat32 = Z.of_nat (Datatypes.length bl) ->
      decode_val Mint32 bl = Vint (Float32.to_bits x) ->
      decode_val Mfloat32 bl = Vsingle x).
+(* This lemma illustrates a problem: it is NOT the case that
+   if (bl: list memval) decodes to Vint (Float32.to_bits x) 
+  then it also decodes to  Vsingle x.   
+  See https://github.com/AbsInt/CompCert/issues/207  for a description
+  of the problem; and see https://github.com/PrincetonUniversity/VST/issues/429
+  for a description of the solution,  forward_store_union_hack  *)
 Proof.
 intro Hp.
 intro.
@@ -69,132 +75,22 @@ unfold decode_val in H.
 simpl in H. inversion H.
 Qed.
 
-Lemma decode_float32_iff_int32:
-  forall (bl: list Memdata.memval) (x: float32),
- Memdata.size_chunk Mfloat32 = Z.of_nat (Datatypes.length bl) ->
- (Memdata.decode_val Mfloat32 bl = Vsingle x <->
-   Memdata.decode_val Mint32 bl = Vint (Float32.to_bits x)).
-Proof.
-Admitted.  (* not provable at present; see https://github.com/AbsInt/CompCert/issues/207
-    for a description of how to solve this problem. *)
-
-Definition samerep (ch1 ch2: memory_chunk) (v1 v2: val) :=
-  Memdata.size_chunk ch1 = Memdata.size_chunk ch2 /\
-  forall bl: list Memdata.memval,
-   Memdata.size_chunk ch1 = Z.of_nat (length bl) ->
-   (Memdata.decode_val ch1 bl = v1 <-> Memdata.decode_val ch2 bl = v2).
-
-Lemma mapsto_single_int: forall sh v1 v2 p,
-  is_single v1 -> is_int I32 Unsigned v2 ->
-  samerep Mfloat32 Mint32 v1 v2 ->
-  mapsto sh (Tfloat F32 noattr) p v1 = mapsto sh (Tint I32 Unsigned noattr) p v2.
-Proof.
-  intros.
-  subst.
-  unfold mapsto.
-  simpl. destruct p; auto.
-  if_tac.
-*
-    rewrite (prop_true_andp _ _ H).
-    rewrite (prop_true_andp _ _ H0).
-    f_equal.
- +
-    unfold res_predicates.address_mapsto.
-    apply predicates_hered.pred_ext'. extensionality phi.
-    simpl. apply exists_ext; intro bl.
-    f_equal; f_equal.
-    apply and_ext'; auto. intro.
-    destruct H1 as [H1' H1].
-    specialize (H1 bl).
-    f_equal.
-    apply prop_ext.
-    apply H1. rewrite H3. reflexivity.
- +
-    normalize.
-    apply pred_ext. normalize. apply exp_left; intro bl. apply exp_right with bl.
-    normalize.
-*
-    f_equal. f_equal. f_equal.
-    unfold tc_val'. apply prop_ext. intuition.
-Qed.
-
-Lemma data_at_single_int: forall sh v1 v2 p1 p2,
-  is_single v1 -> is_int I32 Unsigned v2 ->
-  samerep Mfloat32 Mint32 v1 v2 ->
-  readable_share sh ->
-  p1 = p2 ->
-  data_at sh (Tfloat F32 noattr) v1 p1 = data_at sh (Tint I32 Unsigned noattr) v2 p2.
-Proof.
-  intros.
-  subst.
-  apply pred_ext.
-  + entailer!.
-    erewrite <- mapsto_data_at'; auto.
-    erewrite <- mapsto_data_at'; auto.
-    - erewrite mapsto_single_int; try apply derives_refl; auto.
-    - destruct H3 as [? [? [? [? ?]]]].
-      split; [| split; [| split; [| split]]]; auto.
-      destruct p2; auto.
-      inv H7. econstructor.
-      * reflexivity.
-      * inv H9.
-        exact H10.
-  + entailer!.
-    erewrite <- mapsto_data_at'; auto.
-    erewrite <- mapsto_data_at'; auto.
-    - erewrite mapsto_single_int; try apply derives_refl; auto.
-    - destruct H3 as [? [? [? [? ?]]]].
-      split; [| split; [| split; [| split]]]; auto.
-      destruct p2; auto.
-      inv H7. econstructor.
-      * reflexivity.
-      * inv H9.
-        exact H10.
-Qed.
-
-Lemma float32_to_bits_abs: 
-  forall x, Float32.to_bits (Float32.abs x) = Int.and (Float32.to_bits x) (Int.repr (2 ^ 31 - 1)).
-Proof.
-intros.
-Transparent Float32.to_bits.
-unfold Float32.to_bits.
-Opaque Float32.to_bits.
-rewrite and_repr.
-f_equal.
-Transparent Float32.abs.
-unfold Float32.abs.
-Opaque Float32.abs.
-Admitted.
-
 Lemma fabs_float32_lemma:
   forall x: float32,
-  exists y: int,
-  samerep Mfloat32 Mint32 (Vsingle x) (Vint y) /\
-  samerep Mfloat32 Mint32 (Vsingle (Float32.abs x)) (Vint (Int.and y (Int.repr 2147483647))).
+  Float32.of_bits (Int.and (Float32.to_bits x) (Int.repr 2147483647)) =
+  Float32.abs x.
 Proof.
-intros.
-exists (Float32.to_bits x).
-split.
-*
-split; [ reflexivity | ].
-intros.
-apply decode_float32_iff_int32; auto.
-*
-split; [ reflexivity | ].
-intros.
-rewrite <- float32_to_bits_abs.
-apply decode_float32_iff_int32; auto.
-Qed.
+Admitted.  (* Provable in the Flocq theory, we hope *)
 
 Module Single.
 
 Definition fabs_single_spec :=
  DECLARE _fabs_single
  WITH x: float32
- PRE [ _x OF Tfloat F32 noattr]
-   PROP() LOCAL(temp _x (Vsingle x)) SEP()
+ PRE [ Tfloat F32 noattr]
+   PROP() PARAMS (Vsingle x) SEP()
  POST [ Tfloat F32 noattr ]
-   PROP() LOCAL (temp ret_temp (Vsingle (Float32.abs x))) SEP().
+   PROP() RETURN (Vsingle (Float32.abs x)) SEP().
 
 Lemma union_field_address: forall id,
   tl composites = (Composite id Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil) ->
@@ -216,31 +112,14 @@ Lemma body_fabs_single: semax_body Vprog Gprog f_fabs_single fabs_single_spec.
 Proof.
 start_function.
 forward.
-destruct (fabs_float32_lemma x) as [y [H3 H4]].
-unfold_data_at (data_at _ _ _ _).
-rewrite field_at_data_at.
-erewrite data_at_single_int with (v2:= Vint y);
- [ | apply I | apply I | exact H3 | auto | apply (union_field_address _ (eq_refl _))].
-match goal with |- context [Tunion ?structid] =>
- change (Tint I32 Unsigned noattr) with (nested_field_type (Tunion structid noattr) [UnionField _i])
-end.
-rewrite <- field_at_data_at.
 forward.
 forward.
-rewrite field_at_data_at.
-erewrite <- data_at_single_int with (v1:= Vsingle (Float32.abs x));
-    [| apply I | apply I | exact H4 | auto | apply (union_field_address _ (eq_refl _))].
-match goal with |- context [Tunion ?structid] =>
-  change (Tfloat F32 noattr) with (nested_field_type (Tunion structid noattr) [UnionField _f])
-end.
-rewrite <- field_at_data_at.
 forward.
 forward.
-unfold_data_at (data_at_ _ _ _).
-simpl.
 entailer!.
+f_equal.
+apply fabs_float32_lemma.
 Qed.
-
 End Single.
 
 Module Float.
@@ -253,10 +132,10 @@ Module Float.
 Definition fabs_single_spec :=
  DECLARE _fabs_single
  WITH x: float
- PRE [ _x OF Tfloat F32 noattr]
-   PROP() LOCAL(temp _x (Vfloat x)) SEP()
+ PRE [ Tfloat F32 noattr]
+   PROP() PARAMS (Vfloat x) SEP()
  POST [ Tfloat F32 noattr ]
-   PROP() LOCAL (temp ret_temp (Vfloat (Float.abs x))) SEP().
+   PROP() RETURN (Vfloat (Float.abs x)) SEP().
 
 Lemma body_fabs_single: semax_body Vprog Gprog f_fabs_single fabs_single_spec.
 Proof.

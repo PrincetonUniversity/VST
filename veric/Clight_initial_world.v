@@ -177,17 +177,17 @@ Proof. intros. subst.
              replace (length (map fst vl) - nat_of_Z (Zpos b - 1) - 1)%nat
                         with (length vl - Pos.to_nat b)%nat ; [intuition | ].
     rewrite map_length.
-    transitivity (length vl - (nat_of_Z (Z.pos b-1)+1))%nat; try omega.
+    transitivity (length vl - (nat_of_Z (Z.pos b-1)+1))%nat; try lia.
     f_equal.
     change (Pos.to_nat b = (nat_of_Z (Z.pos b - 1) + nat_of_Z 1)%nat).
-    rewrite <- nat_of_Z_plus by omega.
+    rewrite <- nat_of_Z_plus by lia.
     rewrite <- Z2Nat.inj_pos. unfold nat_of_Z.
-    f_equal. omega.
+    f_equal. lia.
     rewrite map_length.
     rewrite Zlength_correct in H1.
     forget (Z.pos b-1) as i; forget (length vl) as n; clear - H1.
     apply inj_lt_rev. rewrite nat_of_Z_max; auto.
-    rewrite (Coqlib.Zmax_spec i 0). if_tac; omega.
+    rewrite (Coqlib.Zmax_spec i 0). if_tac; lia.
   }
   rename H1 into Hb; revert H; induction vl; simpl rev; simpl map;
        simpl Genv.find_symbol; intros;
@@ -198,11 +198,11 @@ Proof. intros. subst.
        destruct (eq_dec (Z.pos b-1) (Zlength vl)).
         clear IHvl Hb. rewrite e. rewrite Zlength_correct. rewrite nat_of_Z_of_nat.
         replace b with (Z.to_pos (1+ (Zlength vl)))
-          by (rewrite <- e; replace (1 + (Z.pos b - 1)) with (Z.pos b) by omega;
+          by (rewrite <- e; replace (1 + (Z.pos b - 1)) with (Z.pos b) by lia;
                   apply Pos2Z.id).
         clear e b.
         rewrite <- Zlength_rev. rewrite <- rev_length.
-         replace (length (rev vl)) with (length (rev vl) + 0)%nat by omega.
+         replace (length (rev vl)) with (length (rev vl) + 0)%nat by lia.
          rewrite map_app. rewrite <- map_length with (f:=@fst ident (globdef fundef type)).
         rewrite nth_error_app.
         apply iff_trans with (i=id); [ | simpl; split; intro; subst; auto; inv H; auto].
@@ -216,9 +216,9 @@ Proof. intros. subst.
       replace (Z.to_pos (1 + Zlength (p :: dl))) with (1 + Z.to_pos (Zlength (p :: dl)))%positive ; auto.
       clear.
       rewrite Zlength_cons.      rewrite Zlength_correct.
-      rewrite Z2Pos.inj_add; try solve [simpl; omega]. reflexivity.
+      rewrite Z2Pos.inj_add; try solve [simpl; lia]. reflexivity.
     }
-    spec IHvl ; [ omega |].
+    spec IHvl ; [ lia |].
     specialize (IHvl H3).
     rewrite Genv.add_globals_app.
     unfold Genv.add_globals at 1. simpl fold_left.
@@ -236,9 +236,9 @@ Proof. intros. subst.
         clear H; rename H' into H.
           subst b. elimtype False; apply n; clear.
           rewrite <- Zlength_rev. rewrite Zlength_correct. forget (length (rev vl)) as i.
-          rewrite Zpos_Posofnat by omega. rewrite Nat2Z.inj_succ. unfold Z.succ.  omega.
+          rewrite Zpos_Posofnat by lia. rewrite Nat2Z.inj_succ. unfold Z.succ.  lia.
      - elimtype False.
-       assert (Z.pos b-1 >= 0) by (clear - Hb; omega).
+       assert (Z.pos b-1 >= 0) by (clear - Hb; lia).
        pose proof (Coqlib.nat_of_Z_eq _ H0).
        clear - H1 H H2 n.
        rewrite Zlength_correct in n. apply n. clear n.
@@ -257,24 +257,24 @@ Proof. intros. subst.
       split; intro.
       - apply H in H1. rewrite nth_error_app1; auto.
         clear - n Hb. rewrite map_length. rewrite rev_length. rewrite Zlength_correct in Hb,n.
-        assert (Z.pos b-1>=0) by omega.
+        assert (Z.pos b-1>=0) by lia.
         pose proof (Coqlib.nat_of_Z_eq _ H).
         forget (nat_of_Z(Z.pos b-1)) as j. rewrite <- H0 in *.
-        destruct Hb. clear - H2 n. omega.
+        destruct Hb. clear - H2 n. lia.
       - assert (nat_of_Z (Z.pos b-1) < length (map (@fst _ _) (rev vl)))%nat.
         { clear - Hb n H1.
           rewrite Zlength_correct in n. rewrite map_length; rewrite rev_length.
           assert (nat_of_Z (Z.pos b-1) <> length vl).
           { contradict n. rewrite <- n.
-            rewrite Coqlib.nat_of_Z_eq; auto. omega. }
+            rewrite Coqlib.nat_of_Z_eq; auto. lia. }
           forget (nat_of_Z (Z.pos b-1)) as j.
           clear - H1 H.
           assert (S (length vl) = length (map fst (rev vl) ++ map fst ((i, g) :: nil))).
-          { simpl. rewrite app_length; rewrite map_length; rewrite rev_length; simpl; omega. }
-          assert (j < S (length vl))%nat; [ | omega].
+          { simpl. rewrite app_length; rewrite map_length; rewrite rev_length; simpl; lia. }
+          assert (j < S (length vl))%nat; [ | lia].
           rewrite H0. forget (map fst (rev vl) ++ map fst ((i, g) :: nil)) as al.
-          clear - H1. revert al H1; induction j; destruct al; simpl in *; intros; inv H1; auto; try omega.
-          specialize (IHj _ H0); omega. }
+          clear - H1. revert al H1; induction j; destruct al; simpl in *; intros; inv H1; auto; try lia.
+          specialize (IHj _ H0); lia. }
         rewrite nth_error_app1 in H1 by auto.
         apply H0 in H1. auto.
 Qed.
@@ -302,9 +302,9 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  rewrite PTree.gss  in H0. inv H0.
  clear.
  split.
- match goal with |- _ <= Z.pos ?A - _ => pose proof (Zgt_pos_0  A); omega end.
+ match goal with |- _ <= Z.pos ?A - _ => pose proof (Zgt_pos_0  A); lia end.
  rewrite Zlength_cons.
- induction l. simpl. omega.
+ induction l. simpl. lia.
  rewrite Zlength_cons.
  Opaque Z.sub. simpl. Transparent Z.sub.
  rewrite Genv.add_globals_app.
@@ -313,16 +313,16 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
   forget J as j
  end.
  clear - IHl.
- replace (Z.pos (Pos.succ j) - 1) with (Z.succ (Z.pos j - 1)). omega.
-  unfold Z.succ.  rewrite Pos2Z.inj_succ.  omega.
+ replace (Z.pos (Pos.succ j) - 1) with (Z.succ (Z.pos j - 1)). lia.
+  unfold Z.succ.  rewrite Pos2Z.inj_succ.  lia.
  unfold Genv.add_global, Genv.find_symbol in IHl, H0. simpl in H0.
  rewrite PTree.gso in H0 by auto.
  apply IHl in H0.
- rewrite Zlength_cons. omega.
+ rewrite Zlength_cons. lia.
  }
  split.
  rewrite Zlength_correct in RANGE.
- rewrite rev_length in RANGE. omega.
+ rewrite rev_length in RANGE. lia.
  rewrite <- list_norepet_rev in H.
  unfold prog_defs_names in H.
  change (AST.prog_defs prog) with (prog_defs prog) in H.
@@ -340,20 +340,20 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  rewrite rev_length. rewrite map_length.
  clear - RANGE.
  rewrite Zlength_rev in RANGE. rewrite Zlength_correct in RANGE.
- rewrite <- (Coqlib.nat_of_Z_eq (Z.pos b)) in * by omega.
+ rewrite <- (Coqlib.nat_of_Z_eq (Z.pos b)) in * by lia.
  unfold nat_of_Z in *. rewrite Z2Nat.inj_pos in *.
  forget (Pos.to_nat b) as n. clear b.
- replace (Z.of_nat n - 1) with (Z.of_nat (n-1)) by (rewrite inj_minus1 by omega; f_equal; auto).
+ replace (Z.of_nat n - 1) with (Z.of_nat (n-1)) by (rewrite inj_minus1 by lia; f_equal; auto).
  rewrite Nat2Z.id.
- omega.
+ lia.
  inv H1.
  rewrite rev_length. rewrite map_length.
  clear - RANGE. rewrite Zlength_correct in RANGE.
  rewrite rev_length in RANGE.
  forget (length (prog_defs prog)) as N.
- assert (Z_of_nat N > 0) by omega.
+ assert (Z_of_nat N > 0) by lia.
  destruct N; inv H.
- assert (Pos.to_nat b > 0)%nat; [apply Pos2Nat.is_pos| omega].
+ assert (Pos.to_nat b > 0)%nat; [apply Pos2Nat.is_pos| lia].
 Qed.*)
 
 Lemma initial_core_ok: forall (prog: program) G n m,
@@ -412,7 +412,7 @@ rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
 2 : { rewrite rev_length. clear - RANGE.
       destruct RANGE.
-      apply inj_lt_iff. rewrite Z2Nat.id by omega. omega. }
+      apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
 rename H1 into H5.
 replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
@@ -421,19 +421,16 @@ replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
       replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
       assert (Z.to_nat (Z.pos b) <= length dl)%nat.
       destruct RANGE.
-      apply inj_le_iff. rewrite Z2Nat.id by omega. auto.
+      apply inj_le_iff. rewrite Z2Nat.id by lia. auto.
       assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff.
-      rewrite Z2Nat.id by omega.  simpl. omega.
-      omega. destruct RANGE as [? _].
+      rewrite Z2Nat.id by lia.  simpl. lia.
+      lia. destruct RANGE as [? _].
       apply nat_of_Z_lem1.
       assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
-      pose proof (Pos2Nat.is_pos b); omega.
-      omega. }
+      pose proof (Pos2Nat.is_pos b); lia.
+      lia. }
 assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
-{ clear - RANGE.
-  destruct RANGE; split.
-  apply inj_lt_iff. rewrite Z2Nat.id; try omega. simpl. auto.
-  apply inj_le_iff. rewrite Z2Nat.id; try omega. }
+{ clear - RANGE. lia. }
 clear RANGE; rename H0 into RANGE.
 rewrite Z2Nat.inj_pos in *.
 rewrite <- rev_length in RANGE.
@@ -464,19 +461,19 @@ destruct (eq_dec (Pos.to_nat b) (S (length dl))).
   simpl. auto.
   inv H6.
 + destruct IHdl.
-  omega.
+  lia.
   replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
   apply H5.
-  simpl. destruct (Pos.to_nat b); omega.
+  simpl. destruct (Pos.to_nat b); lia.
   assert (b < nextblock m0)%positive.
   apply alloc_globals_rev_nextblock in Hm.
   rewrite Zlength_correct in Hm. clear - Hm n H1.
   rewrite Hm.
   apply Pos2Nat.inj_lt.
   pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
-  rewrite Z2Pos.id by omega.
-  rewrite Z2Nat.inj_succ by omega.
-  rewrite Nat2Z.id. omega.
+  rewrite Z2Pos.id by lia.
+  rewrite Z2Nat.inj_succ by lia.
+  rewrite Nat2Z.id. lia.
   destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
   unfold max_access_at.
   rewrite <- H8.
@@ -532,8 +529,8 @@ rewrite fmap_app.
 match goal with
 | |- ?A (?B ?C) = _ => change (A (B C)) with ((A oo B) C)
 end.
-rewrite approx_oo_approx' by omega.
-rewrite approx'_oo_approx by omega.
+rewrite approx_oo_approx' by lia.
+rewrite approx'_oo_approx by lia.
 auto.
 rewrite Hg1, Hg2.
 unfold initial_core; rewrite !ghost_of_make_rmap; auto.
@@ -595,7 +592,7 @@ rewrite nth_error_rev in H1.
 2 : {
   rewrite rev_length. clear - RANGE.
   destruct RANGE.
-  apply inj_lt_iff. rewrite Z2Nat.id by omega. omega. }
+  apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
 rename H1 into H5.
 replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
   with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
@@ -604,19 +601,16 @@ replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
   replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
   assert (Z.to_nat (Z.pos b) <= length dl)%nat.
   destruct RANGE.
-  apply inj_le_iff. rewrite Z2Nat.id by omega. auto.
+  apply inj_le_iff. rewrite Z2Nat.id by lia. auto.
   assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff.
-  rewrite Z2Nat.id by omega.  simpl. omega.
-  omega. destruct RANGE as [? _].
+  rewrite Z2Nat.id by lia.  simpl. lia.
+  lia. destruct RANGE as [? _].
   apply nat_of_Z_lem1.
   assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
-  pose proof (Pos2Nat.is_pos b); omega.
-  omega. }
+  pose proof (Pos2Nat.is_pos b); lia.
+  lia. }
 assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
-{ clear - RANGE.
-  destruct RANGE; split.
-  apply inj_lt_iff. rewrite Z2Nat.id; try omega. simpl. auto.
-  apply inj_le_iff. rewrite Z2Nat.id; try omega. }
+{ clear - RANGE. lia. }
 clear RANGE; rename H0 into RANGE.
 rewrite Z2Nat.inj_pos in *.
 rewrite <- rev_length in RANGE.
@@ -647,19 +641,19 @@ destruct (eq_dec (Pos.to_nat b) (S (length dl))).
   simpl. auto.
   inv H6.
 + destruct IHdl.
-  omega.
+  lia.
   replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
   apply H5.
-  simpl. destruct (Pos.to_nat b); omega.
+  simpl. destruct (Pos.to_nat b); lia.
   assert (b < nextblock m0)%positive.
   { apply alloc_globals_rev_nextblock in Hm.
     rewrite Zlength_correct in Hm. clear - Hm n H1.
     rewrite Hm.
     apply Pos2Nat.inj_lt.
     pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
-    rewrite Z2Pos.id by omega.
-    rewrite Z2Nat.inj_succ by omega.
-    rewrite Nat2Z.id. omega. }
+    rewrite Z2Pos.id by lia.
+    rewrite Z2Nat.inj_succ by lia.
+    rewrite Nat2Z.id. lia. }
   destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
   unfold max_access_at.
   rewrite <- H8.
@@ -753,151 +747,201 @@ Proof.
   apply level_make_rmap.
 Qed.*)
 
+Definition matchfunspecs (ge : genv) (G : funspecs) : pred rmap :=
+  ALL b:block, ALL fs: funspec,
+  func_at fs (b,0%Z) -->
+  EX id:ident, EX fs0: funspec, 
+   !! (Genv.find_symbol ge id = Some b /\ find_id id G = Some fs0) &&
+     funspec_sub_si fs0 fs.
+
+(*
 Definition matchfunspecs (ge : genv) (G : funspecs) (Phi : rmap) : Prop :=
-  forall (b : block) fsig cc A P Q,
-    func_at'' fsig cc A P Q (b, 0%Z) Phi ->
-    exists id P' Q' P'_ne Q'_ne,
+  forall (b : block) fs,
+    app_pred (func_at fs (b, 0%Z)) Phi ->
+    exists id fs0,
       Genv.find_symbol ge id = Some b /\
-      find_id id G = Some (mk_funspec fsig cc A P' Q' P'_ne Q'_ne) /\
-      cond_approx_eq (level Phi) A P P' /\
-      cond_approx_eq (level Phi) A Q Q'.
+      find_id id G = Some fs0 /\
+      app_pred (funspec_sub_si fs0 fs) Phi.
+*)
+
+Lemma approx_min: forall i j, approx i oo approx j = approx (min i j).
+Proof.
+intros.
+extensionality a.
+unfold compose.
+apply pred_ext.
+intros ? [? [? ?]].
+split; auto.
+apply Nat.min_glb_lt; auto.
+intros ? [? ?].
+apply Nat.min_glb_lt_iff in H.
+destruct H.
+split; auto.
+split; auto.
+Qed.
 
 Lemma initial_jm_matchfunspecs prog m G n H H1 H2:
   matchfunspecs (globalenv prog) G (m_phi (initial_jm prog m G n H H1 H2)).
 Proof.
-  simpl.
-  unfold inflate_initial_mem; simpl.
-  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
-  unfold inflate_initial_mem' in E.
-  unfold resource_at in E.
-  intros b fsig cc A P Q FAT.
-  unfold func_at'' in *.
-  rewrite level_initial_core in lev.
-
-  set (pp := SomeP _ _) in FAT.
-  assert (Pi :
-            initial_core (Genv.globalenv prog) G n @ (b, 0)
-            = PURE (FUN fsig cc) (preds_fmap (approx n) (approx n) pp)).
-  {
-    simpl in FAT.
-    pose proof FAT as E2.
-    unfold "@" in *.
-    rewrite E in FAT.
-    destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := fst ( _) _) in FAT at 2.
-    destruct (fst ( (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) (b, 0))
-      as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
-    subst r.
-    injection FAT as -> ->; f_equal. subst pp. f_equal.
-    simpl. f_equal.
-    repeat extensionality.
-    repeat (f_equal; auto).
-  }
-
-  clear -Pi lev.
-
-  unfold initial_core in *.
-  rewrite resource_at_make_rmap in Pi.
-  unfold initial_core' in *.
-  if_tac in Pi. 2:tauto.
-  simpl fst in Pi.
-  unfold fundef in *.
-  destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb. 2: congruence.
-  destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence.
-  destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
-
-  subst pp.
-  injection Pi as <- -> -> EE.
-  apply inj_pair2 in EE.
-  apply Genv.invert_find_symbol in Eb.
-  unfold filter_genv in *.
-  exists i, P0, Q0, P_ne0, Q_ne0.
-  split. assumption.
-  split. assumption.
-  subst n.
-
-  constructor.
-  all: intros ts.
-  all: apply equal_f_dep with (x := ts) in EE.
-  all: extensionality a.
-  all: apply equal_f_dep with (x := a) in EE.
-
-  1: apply equal_f_dep with (x := true) in EE.
-  2: apply equal_f_dep with (x := false) in EE.
-
-  all: extensionality ge.
-  all: apply equal_f_dep with (x := ge) in EE.
-  all: simpl in *.
-  all: symmetry; rewrite (* Epp',  *)<-EE.
-  all: reflexivity.
+  intros b  [fsig cc A P Q ? ?].
+  simpl m_phi.
+  intros phi' H0 FAT.
+  simpl in FAT.
+  assert (H3 := proj2 (necR_PURE' _ _ (b,0) (FUN fsig cc) H0)).
+  spec H3. eauto.
+  destruct H3 as [pp H3].
+  unfold inflate_initial_mem at 1 in H3. rewrite resource_at_make_rmap in H3.
+  unfold inflate_initial_mem' in H3. 
+  destruct (access_at m (b,0) Cur) eqn:Haccess; [ | inv H3].
+  destruct p; try discriminate H3.
+  destruct (initial_core (Genv.globalenv prog) G n @ (b, 0)) eqn:?H; try discriminate H3.
+  inv H3.
+  assert (H3: inflate_initial_mem m (initial_core (Genv.globalenv prog) G n) @ (b,0) = PURE (FUN fsig cc) pp).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4. rewrite Haccess. auto.
+  unfold initial_core in H4. rewrite resource_at_make_rmap in H4.
+  unfold initial_world.initial_core' in H4. simpl in H4.
+  destruct (Genv.invert_symbol (Genv.globalenv prog) b) eqn:?H; try discriminate.
+  destruct (find_id i G) eqn:?H; try discriminate.
+  destruct f; inv H4.
+  assert (H8 := necR_PURE _ _ _ _ _ H0 H3). clear H0 H3.
+  rewrite FAT in H8.
+  injection H8; intro. subst A0.
+  apply PURE_inj in H8. destruct H8 as [_ H8].
+  simpl in H8.
+  do 2 eexists. split. split. 
+  apply Genv.invert_find_symbol; eauto. eauto.
+  split. split; auto.
+  clear H6 H5 i.
+  rewrite later_unfash.
+  do 3 red.
+  clear FAT. forget (level phi') as n'. clear phi'.
+  intros n1' Hn1'. apply laterR_nat in Hn1'.
+  intros ts ftor garg.
+  intros phi Hphi phi' Hphi'.
+  apply necR_level in Hphi'.
+  assert (n' > level phi')%nat by lia.
+  clear n1' Hphi phi Hphi' Hn1'.
+  rename phi' into phi.
+  intros [_ ?].
+  assert (approx n' (P ts ftor garg) phi).
+  split; auto.
+  clear H3.
+  exists ts.
+  assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
+  simpl in H5.
+  assert (HP := equal_f (equal_f_dep H5 true) garg).
+  assert (HQ := equal_f_dep H5 false).
+  clear H5.
+   simpl in HP, HQ.
+   rewrite P_ne in H4. rewrite HP in H4. clear HP.
+   change (approx _ (approx _ ?A) _) with ((approx n' oo approx n) A phi) in H4.
+   rewrite fmap_app in H4.
+   rewrite fmap_app in HQ.
+   change (approx _ (approx _ ?A)) with ((approx n' oo approx n) A) in HQ.
+   exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
+             (approx n' oo approx n) ftor).
+  rewrite (approx_min n' n) in *.
+  exists emp. rewrite !emp_sepcon.
+  destruct H4.
+  split. auto.
+  intro rho.
+  pose proof (equal_f HQ rho). simpl in H5.
+  intros phi' Hphi'.
+  rewrite emp_sepcon.
+  intros phi'' Hphi''.
+  intros [_ ?].
+  rewrite (approx_min n n') in *.
+  rewrite (Nat.min_comm n n') in *.
+  assert (approx (min n' n) (Q0 ts
+       (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
+          (approx (Init.Nat.min n' n)) ftor) rho) phi'').
+  split; auto.
+  apply necR_level in Hphi''; lia.
+  rewrite <- H5 in H7; clear H5.
+  rewrite <- Q_ne in H7.
+  destruct H7; auto.
 Qed.
 
 Lemma initial_jm_ext_matchfunspecs {Z} (ora : Z) prog m G n H H1 H2:
   matchfunspecs (globalenv prog) G (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
 Proof.
-  simpl.
-  unfold inflate_initial_mem; simpl.
-  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
-  unfold inflate_initial_mem' in E.
-  unfold resource_at in E.
-  intros b fsig cc A P Q FAT.
-  unfold func_at'' in *.
-  unfold initial_core_ext in lev; rewrite level_make_rmap in lev.
-
-  set (pp := SomeP _ _) in FAT.
-  assert (Pi :
-            initial_core_ext ora (Genv.globalenv prog) G n @ (b, 0)
-            = PURE (FUN fsig cc) (preds_fmap (approx n) (approx n) pp)).
-  {
-    simpl in FAT.
-    pose proof FAT as E2.
-    unfold "@" in *.
-    rewrite E in FAT.
-    destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := fst ( _) _) in FAT at 2.
-    destruct (fst ( (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) (b, 0))
-      as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
-    subst r.
-    injection FAT as -> ->; f_equal. subst pp. f_equal.
-    simpl. f_equal.
-    repeat extensionality.
-    repeat (f_equal; auto).
-  }
-
-  clear -Pi lev.
-
-  unfold initial_core_ext in *.
-  rewrite resource_at_make_rmap in Pi.
-  unfold initial_core' in *.
-  if_tac in Pi. 2:tauto.
-  simpl fst in Pi.
-  unfold fundef in *.
-  destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb. 2: congruence.
-  destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence.
-  destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
-
-  subst pp.
-  injection Pi as <- -> -> EE.
-  apply inj_pair2 in EE.
-  apply Genv.invert_find_symbol in Eb.
-  unfold filter_genv in *.
-  exists i, P0, Q0, P_ne0, Q_ne0.
-  split. assumption.
-  split. assumption.
-  subst n.
-
-  constructor.
-  all: intros ts.
-  all: apply equal_f_dep with (x := ts) in EE.
-  all: extensionality a.
-  all: apply equal_f_dep with (x := a) in EE.
-
-  1: apply equal_f_dep with (x := true) in EE.
-  2: apply equal_f_dep with (x := false) in EE.
-
-  all: extensionality ge.
-  all: apply equal_f_dep with (x := ge) in EE.
-  all: simpl in *.
-  all: symmetry; rewrite (* Epp',  *)<-EE.
-  all: reflexivity.
+  intros b  [fsig cc A P Q ? ?].
+  simpl m_phi.
+  intros phi' H0 FAT.
+  simpl in FAT.
+  assert (H3 := proj2 (necR_PURE' _ _ (b,0) (FUN fsig cc) H0)).
+  spec H3. eauto.
+  destruct H3 as [pp H3].
+  unfold inflate_initial_mem at 1 in H3. rewrite resource_at_make_rmap in H3.
+  unfold inflate_initial_mem' in H3. 
+  destruct (access_at m (b,0) Cur) eqn:Haccess; [ | inv H3].
+  destruct p; try discriminate H3.
+  destruct (initial_core_ext ora (Genv.globalenv prog) G n @ (b, 0)) eqn:?H; try discriminate H3.
+  inv H3.
+  assert (H3: inflate_initial_mem m (initial_core_ext ora (Genv.globalenv prog) G n) @ (b,0) = PURE (FUN fsig cc) pp).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4. rewrite Haccess. auto.
+  unfold initial_core_ext in H4. rewrite resource_at_make_rmap in H4.
+  unfold initial_world.initial_core' in H4. simpl in H4.
+  destruct (Genv.invert_symbol (Genv.globalenv prog) b) eqn:?H; try discriminate.
+  destruct (find_id i G) eqn:?H; try discriminate.
+  destruct f; inv H4.
+  assert (H8 := necR_PURE _ _ _ _ _ H0 H3). clear H0 H3.
+  rewrite FAT in H8.
+  injection H8; intro. subst A0.
+  apply PURE_inj in H8. destruct H8 as [_ H8].
+  simpl in H8.
+  do 2 eexists. split. split. 
+  apply Genv.invert_find_symbol; eauto. eauto.
+  split. split; auto.
+  clear H6 H5 i.
+  rewrite later_unfash.
+  do 3 red.
+  clear FAT. forget (level phi') as n'. clear phi'.
+  intros n1' Hn1'. apply laterR_nat in Hn1'.
+  intros ts ftor garg.
+  intros phi Hphi phi' Hphi'.
+  apply necR_level in Hphi'.
+  assert (n' > level phi')%nat by lia.
+  clear n1' Hphi phi Hphi' Hn1'.
+  rename phi' into phi.
+  intros [_ ?].
+  assert (approx n' (P ts ftor garg) phi).
+  split; auto.
+  clear H3.
+  exists ts.
+  assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
+  simpl in H5.
+  assert (HP := equal_f (equal_f_dep H5 true) garg).
+  assert (HQ := equal_f_dep H5 false).
+  clear H5.
+   simpl in HP, HQ.
+   rewrite P_ne in H4. rewrite HP in H4. clear HP.
+   change (approx _ (approx _ ?A) _) with ((approx n' oo approx n) A phi) in H4.
+   rewrite fmap_app in H4.
+   rewrite fmap_app in HQ.
+   change (approx _ (approx _ ?A)) with ((approx n' oo approx n) A) in HQ.
+   exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
+             (approx n' oo approx n) ftor).
+  rewrite (approx_min n' n) in *.
+  exists emp. rewrite !emp_sepcon.
+  destruct H4.
+  split. auto.
+  intro rho.
+  pose proof (equal_f HQ rho). simpl in H5.
+  intros phi' Hphi'.
+  rewrite emp_sepcon.
+  intros phi'' Hphi''.
+  intros [_ ?].
+  rewrite (approx_min n n') in *.
+  rewrite (Nat.min_comm n n') in *.
+  assert (approx (min n' n) (Q0 ts
+       (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
+          (approx (Init.Nat.min n' n)) ftor) rho) phi'').
+  split; auto.
+  apply necR_level in Hphi''; lia.
+  rewrite <- H5 in H7; clear H5.
+  rewrite <- Q_ne in H7.
+  destruct H7; auto.
 Qed.
