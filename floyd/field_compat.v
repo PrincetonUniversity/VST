@@ -1032,3 +1032,6 @@ Proof. intros.
   eapply (mapsto_zeros_mapsto_nullval_N N sh); trivial.
   Intros. apply sepconN_mapsto_array; trivial.
 Qed.
+
+Lemma mapsto_zeros_isptr z sh p : mapsto_zeros z sh p |-- !! isptr p.
+Proof. unfold mapsto_zeros. destruct p; try apply FF_left. apply prop_right. simpl; trivial. Qed.
