@@ -1558,7 +1558,7 @@ Ltac diagnose_further_simplification :=
  do_compute_expr_warning;
  intros _ _.
 
-Ltac do_compute_expr_helper Delta Q v :=
+Ltac do_compute_expr_helper Delta Q v e :=
    try assumption;
    eapply derives_trans; [| apply msubst_eval_expr_eq];
     [apply andp_derives; [apply derives_refl | apply derives_refl']; apply local2ptree_soundness; try assumption;
@@ -1578,6 +1578,10 @@ Ltac do_compute_expr_helper Delta Q v :=
      simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
 (* match goal with |- ?a => idtac "TWO:" a end; *)
      unfold force_val2, force_val1;
+     match goal with 
+      | |- (None = Some _) => idtac "Cannot evaluate expression " e "Possibly there are missing local declarations."; fail 100
+      | |- _ => idtac
+     end;
      simpl;
     repeat match goal with v:=_ |- _ => subst v end;
 (*     match goal with |- ?a => idtac "THREE:" a end; *)
@@ -1597,13 +1601,13 @@ Ltac do_compute_expr1 Delta Pre e :=
   let v := fresh "v" in evar (v: A -> val);
   assert (H9: forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |--
                        local (`(eq (v a)) (eval_expr e)))
-     by (let a := fresh "a" in intro a; do_compute_expr_helper Delta (Q a) v)
+     by (let a := fresh "a" in intro a; do_compute_expr_helper Delta (Q a) v e)
  | PROPx ?P (LOCALx ?Q (SEPx ?R)) =>
   let H9 := fresh "H" in
   let v := fresh "v" in evar (v: val);
   assert (H9:  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))|--
                      local (`(eq v) (eval_expr e)))
-   by (do_compute_expr_helper Delta Q v)
+   by (do_compute_expr_helper Delta Q v e)
  end.
 
 Lemma int64_eq_e: forall i, Int64.eq i Int64.zero = true -> i=Int64.zero.
