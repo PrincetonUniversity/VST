@@ -271,9 +271,9 @@ Ltac deadvars :=
      end + fail 99 "deadvars failed for an unknown reason"
  | |- semax _ _ _ _ => 
        check_POSTCONDITION;
-       fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
+       fail 100 "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ |-- _ => idtac
- | |- _ => fail "deadvars: the proof goal should be a semax"
+ | |- _ => fail 100 "deadvars: the proof goal should be a semax"
  end.
 
 Tactic Notation "deadvars" "!" :=

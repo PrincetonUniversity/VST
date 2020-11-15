@@ -214,7 +214,7 @@ match goal with
           pose (Delta := @abbreviate tycontext D);
           change D with Delta; subst D; simplify_Delta
  | |- ENTAIL (ret_tycon ?DD), _ |-- _ => simplify_Delta
- | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
+ | |- _ => fail 100 "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
 
 (*
@@ -673,8 +673,8 @@ Ltac leaf_function :=
  | |- semax_body ?Vprog ?Gprog _ _ =>
  eapply leaf_function;
  [reflexivity 
- | reflexivity; fail "Error in leaf_function tactic: your" Vprog "and" Gprog "overlap!"
- | reflexivity; fail "Error in leaf_function tactic: your function body refers to an identifier in" Gprog
+ | reflexivity; fail 100 "Error in leaf_function tactic: your" Vprog "and" Gprog "overlap!"
+ | reflexivity; fail 100 "Error in leaf_function tactic: your function body refers to an identifier in" Gprog
  | ]
 end.
 
@@ -816,7 +816,7 @@ Ltac first_N_statements n :=
    [seq_stmt_size app unfold_seqN unfold_seqN' Init.Nat.add]
       in c' in 
  lazymatch c' with
- | (_, S _, _) => fail "There were fewer than" n "statements in the sequence"
+ | (_, S _, _) => fail 100 "There were fewer than" n "statements in the sequence"
  | (?al, O, ?c'') => let al' := constr:(fold_seq al) in
                          let al' := eval cbv beta iota zeta delta [fold_seq] in al' in
                          apply semax_unfold_seq with (Ssequence al' c''); 

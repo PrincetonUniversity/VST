@@ -298,7 +298,7 @@ Ltac solve_msubst_eval_lvalue :=
   reflexivity) ||
   match goal with 
   |- msubst_eval_lvalue _ _ _ _ ?e = _ =>
-   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+   fail 100 "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
   end.
 
 Ltac solve_msubst_eval_expr :=
@@ -308,7 +308,7 @@ Ltac solve_msubst_eval_expr :=
   reflexivity) ||
   match goal with 
   |- msubst_eval_expr _ _ _ _ ?e = _ =>
-   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+   fail 100 "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
   end.
 
 Ltac solve_msubst_eval_LR :=
@@ -319,14 +319,14 @@ Ltac solve_msubst_eval_LR :=
   reflexivity) ||
   match goal with 
   |- msubst_eval_LR _ _ _ _ ?e _ = _ =>
-   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+   fail 100 "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
   end.
 
 Ltac solve_msubst_eval_lvar :=
   (unfold msubst_eval_lvar; reflexivity) ||
   match goal with 
   |- msubst_eval_lvar _ _ ?id _ = _ =>
-   fail "Cannot symbolically evaluate lvar" id "given the information in your LOCAL clause; did you forget an 'lvar' declaration?"
+   fail 100 "Cannot symbolically evaluate lvar" id "given the information in your LOCAL clause; did you forget an 'lvar' declaration?"
   end.
 
 (**********************************************************)

@@ -925,7 +925,7 @@ Ltac simplify_Sfor_setup :=
 Ltac check_forloop_test :=
  reflexivity ||
  match goal with |- ?test = ?desired =>
-  fail "To use forward_for_simple_bound, your loop test must have the form i<n, where i is the loop iteration variable and n is the bound expression.
+  fail 100 "To use forward_for_simple_bound, your loop test must have the form i<n, where i is the loop iteration variable and n is the bound expression.
  You have:" test "
 Required:" desired
   end.
@@ -933,7 +933,7 @@ Required:" desired
 Ltac check_forloop_incr :=
  reflexivity ||
  match goal with |- ?incr = ?desired =>
-  fail "To use forward_for_simple_bound, your loop increment must be i=i+1, where i is the loop iteration variable.
+  fail 100 "To use forward_for_simple_bound, your loop increment must be i=i+1, where i is the loop iteration variable.
  You have:" incr "
 Required:" desired
   end.

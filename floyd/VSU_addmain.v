@@ -803,16 +803,16 @@ Ltac solve_cenvcs_goal_eq :=
 
 Ltac prove_linked_semax_prog :=
  split3; [ | | split3; [ | | split]];
- [ reflexivity || fail "duplicate identifier in prog_defs"
- | reflexivity || fail "unaligned initializer"
- | solve [solve_cenvcs_goal_eq || solve_cenvcs_goal || fail "comp_specs not equal"]
+ [ reflexivity || fail 100 "duplicate identifier in prog_defs"
+ | reflexivity || fail 100 "unaligned initializer"
+ | solve [solve_cenvcs_goal_eq || solve_cenvcs_goal || fail 100 "comp_specs not equal"]
  |
- | reflexivity || fail "match_globvars failed"
+ | reflexivity || fail 100 "match_globvars failed"
  | (*match goal with
      |- match find_id (prog_main ?prog) ?Gprog with _ => _ end =>
      unfold prog at 1; (rewrite extract_prog_main || rewrite extract_prog_main');
      ((eexists; try (unfold NDmk_funspec'; rewrite_old_main_pre); reflexivity) || 
-        fail "Funspec of _main is not in the proper form")
+        fail 100 "Funspec of _main is not in the proper form")
     end*)
  ].
 

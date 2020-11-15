@@ -437,7 +437,7 @@ Ltac solve_is_increasing :=
    let K' := eval compute in K in
    (unify (is_increasing L' (S (List.fold_right Nat.max O L'))) false;
            fail 1 "Your freeze-list" L' "has repeated indexes") ||
-    fail "Your freeze-list" L' "contains an index >= the number of SEP conjuncts, which is" K'
+    fail 100 "Your freeze-list" L' "contains an index >= the number of SEP conjuncts, which is" K'
   end.
 
 Ltac freeze_tac L name :=

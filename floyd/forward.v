@@ -274,8 +274,8 @@ Ltac semax_func_cons_ext_tc :=
   end;
   normalize; simpl tc_option_val' .
 
-Ltac LookupID := first [ cbv;reflexivity | fail "Lookup for a function identifier in Genv failed" ].
-Ltac LookupB := first [ cbv;reflexivity | fail "Lookup for a function pointer block in Genv failed" ].
+Ltac LookupID := first [ cbv;reflexivity | fail 100 "Lookup for a function identifier in Genv failed" ].
+Ltac LookupB := first [ cbv;reflexivity | fail 100 "Lookup for a function pointer block in Genv failed" ].
 
 Lemma semax_body_subsumption' cs cs' V V' F F' f spec
       (SF: @semax_body V F cs f spec)
@@ -510,7 +510,7 @@ Ltac semax_func_cons_ext :=
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
           | reflexivity ]]]
-      || fail "Try 'eapply semax_func_cons_ext.'"
+      || fail 100 "Try 'eapply semax_func_cons_ext.'"
               "To solve [semax_external] judgments, do 'eapply semax_ext.'"
               "Make sure that the Espec declared using 'Existing Instance'
                is defined as 'add_funspecs NullExtension.Espec Gprog.'"
@@ -683,15 +683,15 @@ end.
 Ltac check_struct_params al :=
  match al with
  | nil => idtac
- | Tstruct _ _ :: _ => fail "struct parameters are not supported in VST"
- | Tunion _ _ :: _ => fail "union parameters are not supported in VST"
+ | Tstruct _ _ :: _ => fail 100 "struct parameters are not supported in VST"
+ | Tunion _ _ :: _ => fail 100 "union parameters are not supported in VST"
  | _ :: ?al' => check_struct_params al'
  end.
 
 Ltac check_callconv cc := 
- (tryif unify (cc_structret cc) false then idtac else fail "struct-returning functions are not supported in VST");
- (tryif unify (cc_unproto cc) false then idtac else fail "no-prototype functions are not supported in VST");
- (tryif unify (cc_vararg cc) false then idtac else fail "vararg function definitions are not supported in VST; there is some limited support for calling (but not defining) printf and fprintf").
+ (tryif unify (cc_structret cc) false then idtac else fail 100 "struct-returning functions are not supported in VST");
+ (tryif unify (cc_unproto cc) false then idtac else fail 100 "no-prototype functions are not supported in VST");
+ (tryif unify (cc_vararg cc) false then idtac else fail 100 "vararg function definitions are not supported in VST; there is some limited support for calling (but not defining) printf and fprintf").
 
 Ltac function_body_unsupported_features spec :=
  check_callconv (fn_callconv spec);
@@ -864,10 +864,10 @@ tryif apply exp_congr
  then (intros ?vret;
           apply equal_f; 
           apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
-          (reflexivity || fail "The funspec of the function has a POSTcondition
+          (reflexivity || fail 100 "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
 should be (temp ret_temp ...), but it is not"))
- else fail "The funspec of the function should have a POSTcondition that starts
+ else fail 100 "The funspec of the function should have a POSTcondition that starts
 with an existential, that is,  EX _:_, PROP...LOCAL...SEP".
 
 Ltac  forward_call_id1_wow_nil := 
@@ -996,7 +996,7 @@ eapply (semax_call_id00_wow_nil H);
 
     intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
-    (reflexivity || fail "The funspec of the function has a POSTcondition
+    (reflexivity || fail 100 "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
 should be empty, but it is not")
  | unify_postcondition_exps
@@ -1022,7 +1022,7 @@ eapply (semax_call_id00_wow H);
 
     intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
-    (reflexivity || fail "The funspec of the function has a POSTcondition
+    (reflexivity || fail 100 "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
 should be empty, but it is not")
  | unify_postcondition_exps
@@ -1149,7 +1149,7 @@ Ltac check_witness_type ts A witness :=
  in let TA'' := eval simpl in TA'
   in match type of witness with ?T => 
        unify T TA''
-      + (fail "Type of witness does not match type required by funspec WITH clause.
+      + (fail 100 "Type of witness does not match type required by funspec WITH clause.
 Witness value: " witness "
 Witness type: " T "
 Funspec type: " TA'')
@@ -1375,7 +1375,7 @@ Ltac new_prove_call_setup :=
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ (*OMITTED _*) -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
       ltac:(prove_call_setup_aux (@nil Type))
-      ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
+      ltac:(fun _ => try refine tt; fail 100 "Failed to infer some parts of witness")
  end].
 
 Ltac new_fwd_call' :=
@@ -2011,7 +2011,7 @@ Tactic Notation "forward_while" constr(Inv) :=
       eapply semax_seq;
       [match goal with |- semax ?Delta ?Pre (Swhile ?e ?s) _ =>
         tryif (unify (nobreaksx s) true) then idtac 
-        else fail "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";
+        else fail 100 "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";
         (* the following line was before: eapply semax_while_3g1; *)
         match goal with [ |- semax _ (@exp _ _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
         (* check if we can revert back to the previous version with coq 8.5.
@@ -2039,7 +2039,7 @@ Tactic Notation "forward_while" constr(Inv) :=
        [ reflexivity
        | special_intros_EX
        | (do_compute_expr1 Delta Pre e; eassumption) ||
-         fail "The loop invariant is not strong enough to guarantee evaluation of the loop-test expression.
+         fail 100 "The loop invariant is not strong enough to guarantee evaluation of the loop-test expression.
 Loop invariant:" Pre
 "
 Loop test expression:" e
@@ -2088,11 +2088,11 @@ Ltac forward_for_simple_bound n Pre :=
  end;
  match type of n with
       ?t => tryif (unify t Z) then idtac 
-               else fail "Type of bound" n "should be Z but is" t
+               else fail 100 "Type of bound" n "should be Z but is" t
  end;
  match type of Pre with
  | ?t => tryif (unify t (environ->mpred)) then idtac 
-               else fail "Type of precondition" Pre "should be environ->mpred but is" t
+               else fail 100 "Type of precondition" Pre "should be environ->mpred but is" t
   end;
  match goal with
     | |- semax _ _ (Sfor _ _ _ _) _ =>
@@ -2155,7 +2155,7 @@ Ltac forward_for2 Inv PreInc :=
  match goal with |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) ?body) _) _ =>
    (tryif unify (no_breaks body) true 
           then idtac
-      else fail "Since there is a break in the loop body, you need to supply an explicit postcondition using the 3-argument form of forward_for.");
+      else fail 100 "Since there is a break in the loop body, you need to supply an explicit postcondition using the 3-argument form of forward_for.");
    eapply semax_for_3g2 with (PQR:=PreInc);
         [ reflexivity 
         |intro  
@@ -2286,7 +2286,7 @@ Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) "continue:" con
     forward_loop Inv continue: PreInc break: Post.
 
 Tactic Notation "forward_loop" :=
-    fail "Usage:   forward_loop Inv,     where Inv is your loop invariant".
+    fail 100 "Usage:   forward_loop Inv,     where Inv is your loop invariant".
 
 Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  match c with
@@ -2413,11 +2413,11 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
   | _ -> environ -> mpred => idtac
-  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ => fail 100 "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch type of PreInc with
   | _ -> environ -> mpred => idtac
-  | _ => fail "PreInc (continue: argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ => fail 100 "PreInc (continue: argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch goal with
   | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
@@ -2441,7 +2441,7 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   | |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
      apply semax_pre with (exp Inv);
       [ unfold_function_derives_right | forward_for2 Inv PreInc ]
-  | |- _ => fail "forward_for2x cannot recognize the loop"
+  | |- _ => fail 100 "forward_for2x cannot recognize the loop"
   end.
 
 Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" constr(Postcond) :=
@@ -2449,15 +2449,15 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" co
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
   | _ -> environ -> mpred => idtac
-  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ => fail 100 "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch type of PreInc with
   | _ -> environ -> mpred => idtac
-  | _ => fail "PreInc (second argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ => fail 100 "PreInc (second argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch type of Postcond with
   | environ -> mpred => idtac
-  | _ => fail "Postcond (third argument to forward_for) must have type (environ -> mpred)"
+  | _ => fail 100 "Postcond (third argument to forward_for) must have type (environ -> mpred)"
   end;
   lazymatch goal with
   | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
@@ -2473,7 +2473,7 @@ Tactic Notation "forward_for" constr(Inv) "break:" constr(Postcond) "continue:" 
    forward_for Inv continue: PreInc break: Postcond.
 
 Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
-  fail "Usage of the forward_for tactic:
+  fail 100 "Usage of the forward_for tactic:
 forward_for  Inv   (* where Inv: A->environ->mpred is a predicate on index values of type A *)
 forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index values of type A *)
 forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
@@ -2499,21 +2499,21 @@ Tactic Notation "forward_for" constr(Inv) :=
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
   | _ -> environ -> mpred => idtac
-  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ => fail 100 "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch goal with
   | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
         apply semax_convert_for_while';
              [(reflexivity ||
-                 fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
-               | (reflexivity || fail "Unexpected continue statement in for-loop increment")
+                 fail 100 "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
+               | (reflexivity || fail 100 "Unexpected continue statement in for-loop increment")
                | apply semax_seq' with (exp Inv);
                    [  |  forward_while (EX x:_, Inv x); [ apply ENTAIL_refl | | |  ]  ] ]
   | |- semax _ _ (Sfor _ _ _ _) _ =>
         apply semax_convert_for_while;
              [(reflexivity ||
-                 fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
-               | (reflexivity || fail "Unexpected continue statement in for-loop increment")
+                 fail 100 "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
+               | (reflexivity || fail 100 "Unexpected continue statement in for-loop increment")
                | apply semax_seq' with (exp Inv);
                    [  |  forward_while (EX x:_, Inv x);
                              [ apply ENTAIL_refl | | | eapply semax_post_flipped'; [apply semax_skip | ] ]  ] ]
@@ -2616,15 +2616,15 @@ match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
-    else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+    else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 | |- semax _ (@exp _ _ _ _) _ _ =>
-      fail "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
+      fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
-     fail "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
+     fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
-     fail "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+     fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
 Lemma ENTAIL_break_normal:
@@ -3496,10 +3496,10 @@ Ltac advise_forward_call :=
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
   | rmaps.ConstType ?T => 
-             fail "To prove this function call, use forward_call(W), where
+             fail 100 "To prove this function call, use forward_call(W), where
 W:"T"
 is a WITH-clause witness"
-  | _ => fail "This function has a complex calling convention not recognized by forward_call"
+  | _ => fail 100 "This function has a complex calling convention not recognized by forward_call"
  end 
 end].
 
@@ -3512,10 +3512,10 @@ Ltac advise_prepare_postcondition :=
  | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ =>
      tryif (constr_eq Delta' Delta)
        then idtac
-       else fail "Please use abbreviate_semax to put your proof goal into standard form" 
+       else fail 100 "Please use abbreviate_semax to put your proof goal into standard form" 
 (*  | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ => idtac *)
- | |- semax _ _ _ _ => fail "Please use abbreviate_semax to put your proof goal into standard form."
- | |- _ => fail "Proof goal is not (semax _ _ _ _)."
+ | |- semax _ _ _ _ => fail 100 "Please use abbreviate_semax to put your proof goal into standard form."
+ | |- _ => fail 100 "Proof goal is not (semax _ _ _ _)."
  end;
  repeat match goal with
  | MC := @abbreviate statement _ |- _ => subst MC; unfold abbreviate
@@ -3528,46 +3528,46 @@ Ltac forward_advise_loop c :=
  try lazymatch c with
  | Sfor _ _ Sskip ?body =>
         unify (nobreaksx body) true;
-        fail "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail 100 "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  | Swhile _ ?body =>
         unify (nobreaksx body) true;
-        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  | Sloop (Ssequence (Sifthenelse _ Sbreak Sskip) ?body) Sskip =>
         unify (nobreaksx body) true;
-        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  end;
  lazymatch c with
   | Sfor _ ?test ?body ?incr  =>
        tryif (unify (nobreaksx body) true; test_simple_bound test incr)
-       then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+       then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
 Otherwise, you can use the general case: Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
-       else fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+       else fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
   | Sloop _ _ =>
-     fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+     fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
  end.
 
 Ltac forward_advise_for :=
  lazymatch goal with
  | |- semax _ _ (Sfor _ _ ?body Sskip) ?R =>
        tryif unify (no_breaks body) true
-       then fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+       then fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
        else tryif has_evar R
-            then fail "Use [forward_for Inv Inv Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and Post is a loop-postcondition. A is the type of whatever loop-varying quantity you have, such as the value of your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
-            else fail "Use [forward_for Inv Inv] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred).  A is the type of whatever loop-varying quantity you have, such as your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
+            then fail 100 "Use [forward_for Inv Inv Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and Post is a loop-postcondition. A is the type of whatever loop-varying quantity you have, such as the value of your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
+            else fail 100 "Use [forward_for Inv Inv] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred).  A is the type of whatever loop-varying quantity you have, such as your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
   | |- semax _ _ (Sfor _ ?test ?body ?incr) ?R =>
        tryif has_evar R
        then tryif unify (no_breaks body) true
                then tryif test_simple_bound test incr
-                  then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+                  then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
 Otherwise, you can use the general case:
 Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
-                  else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
-               else fail "Use [forward_for Inv PreInc Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), PreInc is the invariant (of the same type) just before the for-loop-increment statement, and  Post is a loop-postcondition"
+                  else fail 100 "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
+               else fail 100 "Use [forward_for Inv PreInc Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), PreInc is the invariant (of the same type) just before the for-loop-increment statement, and  Post is a loop-postcondition"
        else tryif test_simple_bound test incr
-               then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+               then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
 Otherwise, you can use the general case:
 Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
-               else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
+               else fail 100 "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
   end.
 
 
@@ -3576,19 +3576,19 @@ Ltac forward_advise_if :=
  lazymatch goal with
    | |- semax _ _ (Sifthenelse _ _ _) ?R =>
        tryif has_evar R
-       then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
-       else fail "Use [forward_if] to prove this if-statement; you don't need to supply a postcondition"
+       then fail 100 "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
+       else fail 100 "Use [forward_if] to prove this if-statement; you don't need to supply a postcondition"
    | |- semax _ _ (Sswitch _ _) ?R =>
        tryif has_evar R
-       then fail "Use [forward_if Post] to prove this switch-statement, where Post is the postcondition of all branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
-       else fail "Use [forward_if] to prove this switch-statement; you don't need to supply a postcondition"
+       then fail 100 "Use [forward_if Post] to prove this switch-statement, where Post is the postcondition of all branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
+       else fail 100 "Use [forward_if] to prove this switch-statement; you don't need to supply a postcondition"
   end.
 
 Ltac forward_advise_while := 
   advise_prepare_postcondition;
  lazymatch goal with
    | |- semax _ _ (Swhile _ _) _ =>
-       fail "Use [forward_while Inv] to prove this loop, where Inv is the loop invariant"
+       fail 100 "Use [forward_while Inv] to prove this loop, where Inv is the loop invariant"
   end.
 
 Ltac forward1 s :=  (* Note: this should match only those commands that
@@ -3649,14 +3649,14 @@ Ltac check_precondition :=
   lazymatch goal with
   | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
     lazymatch R with context [sepcon _ _ :: _] =>
-        fail "The SEP clause of the precondition contains * (separating conjunction).
+        fail 100 "The SEP clause of the precondition contains * (separating conjunction).
 You must flatten the SEP clause, e.g. by doing [Intros],
 or else hide the * by making a Definition or using a freezer"
        | _ => idtac
     end
   | |- semax _ (exp _) _ _ => 
-             fail 3 "Before going 'forward', you need to move the existentially quantified variable at the head of your precondition 'above the line'.  Do this by the tactic 'Intros x', where 'x' is the name you want to give to this Coq variable"
-  | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
+             fail 100 "Before going 'forward', you need to move the existentially quantified variable at the head of your precondition 'above the line'.  Do this by the tactic 'Intros x', where 'x' is the name you want to give to this Coq variable"
+  | |- _ => fail 100 "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
  end.
 
 Ltac  try_forward_store_union_hack e1 s2 id1 :=
@@ -3953,7 +3953,7 @@ Ltac check_parameter_types' :=
  try reflexivity;
  simpl;
  match goal with |- ?A = ?B =>
-   fail "Parameter types of funspec don't match types of fundef.
+   fail 100 "Parameter types of funspec don't match types of fundef.
 funspec:" A "
 fundef:" B
   end.
@@ -3962,7 +3962,7 @@ Ltac check_return_type :=
  try reflexivity;
  simpl;
  match goal with |- ?A = ?B =>
-   fail "Return type of funspec doesn't match return type of fundef.
+   fail 100 "Return type of funspec doesn't match return type of fundef.
 funspec:" A "
 fundef:" B
   end.
@@ -4215,7 +4215,7 @@ Ltac start_function1 :=
 
    (*WAS:split; [split3; [check_parameter_types' | check_return_type
           | try (apply compute_list_norepet_e; reflexivity);
-             fail "Duplicate formal parameter names in funspec signature"  ] 
+             fail 100 "Duplicate formal parameter names in funspec signature"  ] 
          |];*)
    (*NOW:*)split3; [check_parameter_types' | check_return_type | ];
 
@@ -4513,10 +4513,10 @@ Ltac old_with_library' p G :=
    let dups := eval simpl in dups in
    lazymatch dups with
    | nil => idtac
-   | _::_ => fail "Duplicate funspecs:" dups
+   | _::_ => fail 100 "Duplicate funspecs:" dups
    end;
    lazymatch missing with
-   | nil => fail "Superfluous funspecs?"
+   | nil => fail 100 "Superfluous funspecs?"
    | _ => fail  "The following names have funspecs but no function definitions: " missing
   end
  end.
@@ -4543,7 +4543,7 @@ Ltac with_library' p G :=
    let dups := eval simpl in dups in 
    lazymatch dups with
    | nil => idtac
-   | _::_ => fail "Duplicate funspecs:" dups
+   | _::_ => fail 100 "Duplicate funspecs:" dups
    end;
    lazymatch missing with
    | nil => idtac
@@ -4574,19 +4574,19 @@ Qed.
 
 Ltac prove_semax_prog_old :=
  split3; [ | | split3; [ | | split]];
- [ reflexivity || fail "duplicate identifier in prog_defs"
- | reflexivity || fail "unaligned initializer"
- | solve [compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"
+ [ reflexivity || fail 100 "duplicate identifier in prog_defs"
+ | reflexivity || fail 100 "unaligned initializer"
+ | solve [compute; repeat f_equal; apply proof_irr] || fail 100 "comp_specs not equal"
  |
- | reflexivity || fail "match_globvars failed"
+ | reflexivity || fail 100 "match_globvars failed"
  | match goal with |- match ?A with _ => _ end =>
       let fs := fresh "fs" in set (fs := A); hnf in fs; subst fs; cbv iota beta;
       lazymatch goal with
-      | |- False => fail "Can't find _main in Gprog" 
+      | |- False => fail 100 "Can't find _main in Gprog" 
       | |- _ =>  idtac 
       end;
       (eexists; reflexivity) || 
-        fail "Funspec of _main is not in the proper form"
+        fail 100 "Funspec of _main is not in the proper form"
     end
  ];
  repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]).
@@ -4724,19 +4724,19 @@ Ltac prove_semax_prog_aux tac :=
                     prog z Vprog x)
   end;
  split3; [ | | split3; [ | | split]];
- [ reflexivity || fail "duplicate identifier in prog_defs"
- | reflexivity || fail "unaligned initializer"
- | solve [solve_cenvcs_goal || fail "comp_specs not equal"]
-   (*compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"*)
+ [ reflexivity || fail 100 "duplicate identifier in prog_defs"
+ | reflexivity || fail 100 "unaligned initializer"
+ | solve [solve_cenvcs_goal || fail 100 "comp_specs not equal"]
+   (*compute; repeat f_equal; apply proof_irr] || fail 100 "comp_specs not equal"*)
  |
- | reflexivity || fail "match_globvars failed"
+ | reflexivity || fail 100 "match_globvars failed"
  | match goal with
      |- match initial_world.find_id (prog_main ?prog) ?Gprog with _ => _ end =>
      unfold prog at 1; (rewrite extract_prog_main || rewrite extract_prog_main');
      ((hnf; eexists;
       try match goal with |- snd ?A = _ => let j := fresh in set (j:=A); hnf in j; subst j; unfold snd at 1 end;
       try (unfold NDmk_funspec'; rewrite_old_main_pre); reflexivity) || 
-        fail "Funspec of _main is not in the proper form")
+        fail 100 "Funspec of _main is not in the proper form")
     end
  ]; 
  match goal with |- semax_func ?V ?G ?g ?D ?G' =>

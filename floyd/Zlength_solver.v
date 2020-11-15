@@ -224,7 +224,7 @@ Proof.
   auto.
 Qed.
 
-Ltac calc_Zlength := fail "defined later".
+Ltac calc_Zlength := fail 100 "defined later".
 
 Ltac Zlength_simplify :=
   init_Zlength_db;
@@ -335,7 +335,7 @@ Ltac calc_Zlength l ::=
         pose proof (Zlength_nonneg l)
       ] then idtac
       else
-        fail "calc_Zlength does not support" l
+        fail 100 "calc_Zlength does not support" l
     end
   ].
 

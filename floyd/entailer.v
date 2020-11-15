@@ -546,7 +546,7 @@ Ltac entailer :=
     | ?T => unify T (environ->mpred); clean_up_stackframe; go_lower
     | _ => clear_Delta; pull_out_props
     end
- | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
+ | |- _ => fail 100 "The entailer tactic works only on entailments   _ |-- _ "
  end;
  saturate_local;
  entailer';
@@ -604,7 +604,7 @@ Ltac entbang :=
     match type of P with
     | ?T => unify T mpred; pull_out_props
     end
- | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
+ | |- _ => fail 100 "The entailer tactic works only on entailments  _ |-- _ "
  end;
  repeat match goal with
         | |- context [force_val (sem_binary_operation' ?op ?t1 ?t2 ?v1 ?v2)] =>
@@ -865,12 +865,12 @@ Qed.
 Ltac cstring :=
   lazymatch goal with
   | H: ~In Byte.zero _ |- _ => idtac
-  | |- _ => fail "The cstring tactic expects to see a hypothesis above the line of the form, ~ In Byte.zero _"
+  | |- _ => fail 100 "The cstring tactic expects to see a hypothesis above the line of the form, ~ In Byte.zero _"
   end;
  lazymatch goal with
  | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
  | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
- | |- _ => fail "The cstring tactic expects to see one of the following hypotheses above the line:
+ | |- _ => fail 100 "The cstring tactic expects to see one of the following hypotheses above the line:
 Znth _ (_++[Byte.zero]) = Byte.zero
 Znth _ (_++[Byte.zero]) <> Byte.zero"
  end;
@@ -887,7 +887,7 @@ Znth _ (_++[Byte.zero]) <> Byte.zero"
   match goal with |- @eq ?t (?f1 _) (?f2 _) =>
        (unify t Z || unify t nat) ||
        (constr_eq f1 f2;
-        fail "The cstring tactic solves lia-style goals.
+        fail 100 "The cstring tactic solves lia-style goals.
 Your goal is an equality at type" t ", not type Z.
 Try the [f_equal] tactic first.")
  end.

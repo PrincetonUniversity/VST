@@ -1757,7 +1757,7 @@ Ltac loop1 :=
 
 Ltac check_non_zero_loop_old :=
   tryif (try (loop1; fail 1))
-  then fail "The goal has non-zero loop"
+  then fail 100 "The goal has non-zero loop"
   else idtac.
 
 Ltac check_non_zero_loop :=
@@ -2012,7 +2012,7 @@ Ltac list_prop_solve' :=
 
 Ltac list_prop_solve :=
   list_prop_solve';
-  fail "list_prop_solve cannot solve this goal".
+  fail 100 "list_prop_solve cannot solve this goal".
 
 Create HintDb list_solve_unfold.
 
@@ -2050,7 +2050,7 @@ Ltac list_solve :=
     auto with Znth_solve_hint; try fassumption
   );
   try list_prop_solve;
-  fail "list_solve cannot solve the goal".
+  fail 100 "list_solve cannot solve the goal".
 
 Ltac list_simplify :=
   list_solve_preprocess;
@@ -2081,4 +2081,4 @@ Ltac list_solve2' :=
 
 Ltac list_solve2 :=
   list_solve2';
-  fail "list_solve2 cannot solve this goal".
+  fail 100 "list_solve2 cannot solve this goal".
