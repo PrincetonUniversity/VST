@@ -378,7 +378,7 @@ Example sorted_rotate_array_prop : forall s1 s2 N,
     (sublist (Zlength s1) (Zlength (s1 ++ s2)) (s1 ++ s2) ++
     map (Z.add N) (sublist 0 (Zlength s1) (s1 ++ s2))).
 Proof.
-  idtac "sorted_rotate_array_prop (qf-array goal)".
+  idtac "sorted_rotate_array_prop (array prop goal)".
   intros.
   Time list_solve.
 Time Qed.

@@ -251,7 +251,7 @@ sd:  0.0
 min:  0.078
 max:  0.078
 
-sorted_rotate_array_prop (qf-array goal)
+sorted_rotate_array_prop (array prop goal)
 mean:  2.0747999999999998
 sd:  0.033995587949026525
 min:  2.031
