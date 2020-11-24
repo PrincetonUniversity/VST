@@ -1494,10 +1494,10 @@ Ltac rewrite_list_eq :=
     destruct H
   end.
 
-Hint Rewrite Forall_Znth : list_prop_rewrite.
-Hint Rewrite range_uni_fold : list_prop_rewrite.
-Hint Rewrite range_bin_fold : list_prop_rewrite.
-Hint Rewrite range_tri_fold : list_prop_rewrite.
+Hint Rewrite @Forall_Znth : list_prop_rewrite.
+Hint Rewrite @range_uni_fold : list_prop_rewrite.
+Hint Rewrite @range_bin_fold : list_prop_rewrite.
+Hint Rewrite @range_tri_fold : list_prop_rewrite.
 Hint Rewrite Sorted_Znth : list_prop_rewrite.
 
 Ltac range_form :=
@@ -2026,6 +2026,14 @@ Ltac apply_list_ext :=
       end
     end;
     only 1 : Zlength_solve
+  | match goal with |- @Forall ?A ?P ?l =>
+      rewrite Forall_Znth;
+      intros
+    end
+  | match goal with |- @range_uni ?A ?d ?lo ?hi ?l ?P =>
+      rewrite <- range_uni_fold;
+      intros
+    end
   ];
   Zlength_simplify;
   intros.
@@ -2038,6 +2046,7 @@ Ltac list_solve_preprocess :=
   intros.
 
 Ltac list_solve :=
+  intros;
   try lia;
   try match goal with |- context [@Zlength] => Zlength_solve end;
   list_solve_preprocess;
@@ -2053,6 +2062,7 @@ Ltac list_solve :=
   fail "list_solve cannot solve the goal".
 
 Ltac list_simplify :=
+  intros;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;
@@ -2062,7 +2072,7 @@ Ltac list_simplify :=
     apply_list_ext; Znth_solve;
     auto with Znth_solve_hint; try fassumption
   );
-  try list_prop_solve.
+  list_prop_solve'.
 
 (** * list_solve2 *)
 Ltac list_solve2' :=
