@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.list_solver.
-Require Import VST.floyd.data_at_list_solver.
+(* Require Import VST.floyd.list_solver. *)
+(* Require Import VST.floyd.data_at_list_solver. *)
 Open Scope logic.
 
 Require Import Coq.Program.Tactics.
@@ -38,40 +38,38 @@ Proof.
   Time list_solve.
 Time Qed.
 
-Example strcat_loop2 : forall {cs : compspecs} sh n x ld ls dest,
+Example strcat_loop2 : forall {cs : compspecs} n x ld ls,
   Zlength ls + Zlength ld < n ->
   0 <= x < Zlength ls ->
-  data_at sh (tarray tschar n)
-  (map Vbyte (ld ++ sublist 0 x ls) ++
-   upd_Znth 0 (list_repeat (Z.to_nat (n - (Zlength ld + x))) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero])))))) dest
-|-- data_at sh (tarray tschar n) (map Vbyte (ld ++ sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (Zlength ld + (x + 1)))) Vundef)
-      dest.
+  data_subsume (tarray tschar n)
+    (map Vbyte (ld ++ sublist 0 x ls) ++
+      upd_Znth 0 (list_repeat (Z.to_nat (n - (Zlength ld + x))) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero]))))))
+    (map Vbyte (ld ++ sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (Zlength ld + (x + 1)))) Vundef).
 Proof.
   idtac "strcat_loop2 (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example strcpy_return : forall {cs : compspecs} sh n ls dest,
+Example strcpy_return : forall {cs : compspecs} n ls,
   Zlength ls < n ->
-  data_at sh (tarray tschar n)
-  (map Vbyte ls ++ upd_Znth 0 (list_repeat (Z.to_nat (n - Zlength ls)) Vundef) (Vint (Int.repr (Byte.signed Byte.zero)))) dest
-|-- data_at sh (tarray tschar n) (map Vbyte (ls ++ [Byte.zero]) ++ list_repeat (Z.to_nat (n - (Zlength ls + 1))) Vundef) dest.
+  data_subsume (tarray tschar n)
+    (map Vbyte ls ++ upd_Znth 0 (list_repeat (Z.to_nat (n - Zlength ls)) Vundef) (Vint (Int.repr (Byte.signed Byte.zero))))
+    (map Vbyte (ls ++ [Byte.zero]) ++ list_repeat (Z.to_nat (n - (Zlength ls + 1))) Vundef).
 Proof.
   idtac "strcpy_return (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example strcpy_loop : forall {cs : compspecs} sh n x ls dest,
+Example strcpy_loop : forall {cs : compspecs} n x ls,
   Zlength ls < n ->
   0 <= x < Zlength ls + 1 ->
   Znth x (ls ++ [Byte.zero]) <> Byte.zero ->
-  data_at sh (tarray tschar n)
-  (map Vbyte (sublist 0 x ls) ++
-   upd_Znth 0 (list_repeat (Z.to_nat (n - x)) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero])))))) dest
-|-- data_at sh (tarray tschar n) (map Vbyte (sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (x + 1))) Vundef) dest.
-
+  data_subsume (tarray tschar n)
+    (map Vbyte (sublist 0 x ls) ++
+      upd_Znth 0 (list_repeat (Z.to_nat (n - x)) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero]))))))
+    (map Vbyte (sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (x + 1))) Vundef).
 Proof.
   idtac "strcpy_loop (qf-array goal)".
   intros.
@@ -127,132 +125,124 @@ Proof.
   Time list_solve.
 Time Qed.
 
-Example rotate_array1 : forall {cs : compspecs} k b s,
+Example rotate_array1 : forall {cs : compspecs} k s,
   0 < k < Zlength s ->
-  data_at Ews (tarray tint (Zlength s))
-  (list_repeat (Z.to_nat (Zlength s)) (default_val tint)) b
-  |-- data_at Ews (tarray tint (Zlength s))
-      (map Vint (map Int.repr (sublist k k s)) ++ Zrepeat Vundef (Zlength s))
-      b.
+  data_subsume (tarray tint (Zlength s))
+    (list_repeat (Z.to_nat (Zlength s)) Vundef)
+    (map Vint (map Int.repr (sublist k k s)) ++ Zrepeat Vundef (Zlength s)).
 Proof.
   idtac "rotate_array1 (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example rotate_array2 : forall {cs : compspecs} k i b s,
+Example rotate_array2 : forall {cs : compspecs} k i s,
   0 < k < Zlength s ->
   0 <= i < Zlength s - k ->
-  data_at Ews (tarray tint (Zlength s))
+  data_subsume (tarray tint (Zlength s))
     (upd_Znth i
       (map Vint (map Int.repr (sublist k (k + i) s)) ++
-        Zrepeat Vundef (Zlength s - i)) (Vint (Int.repr (Znth (i + k) s)))) b
-  |-- data_at Ews (tarray tint (Zlength s))
-        (map Vint (map Int.repr (sublist k (k + (i + 1)) s)) ++
-        Zrepeat Vundef (Zlength s - (i + 1))) b.
+        Zrepeat Vundef (Zlength s - i)) (Vint (Int.repr (Znth (i + k) s))))
+    (map Vint (map Int.repr (sublist k (k + (i + 1)) s)) ++
+        Zrepeat Vundef (Zlength s - (i + 1))).
 Proof.
   idtac "rotate_array2 (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example rotate_array3 : forall {cs : compspecs} k b s,
+Example rotate_array3 : forall {cs : compspecs} k s,
   0 < k < Zlength s ->
-  data_at Ews (tarray tint (Zlength s))
+  data_subsume (tarray tint (Zlength s))
     (map Vint (map Int.repr (sublist k (k + (Zlength s - k)) s)) ++
-    Zrepeat Vundef (Zlength s - (Zlength s - k))) b
-  |-- data_at Ews (tarray tint (Zlength s))
-        (map Vint
-          (map Int.repr
-              (sublist k (Zlength s) s ++
-              sublist 0 (Zlength s - k - (Zlength s - k)) s)) ++
-        Zrepeat Vundef (Zlength s - (Zlength s - k))) b.
+      Zrepeat Vundef (Zlength s - (Zlength s - k)))
+    (map Vint
+      (map Int.repr
+          (sublist k (Zlength s) s ++
+          sublist 0 (Zlength s - k - (Zlength s - k)) s)) ++
+    Zrepeat Vundef (Zlength s - (Zlength s - k))).
 Proof.
   idtac "rotate_array3 (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example rotate_array4 : forall {cs : compspecs} k i b s,
+Example rotate_array4 : forall {cs : compspecs} k i s,
   0 < k < Zlength s ->
   Zlength s - k <= i < Zlength s ->
-  data_at Ews (tarray tint (Zlength s))
+  data_subsume (tarray tint (Zlength s))
     (upd_Znth i
       (map Vint
           (map Int.repr
             (sublist k (Zlength s) s ++ sublist 0 (i - (Zlength s - k)) s)) ++
         Zrepeat Vundef (Zlength s - i))
-      (Vint (Int.repr (Znth (i + k - Zlength s) s)))) b
-  |-- data_at Ews (tarray tint (Zlength s))
-        (map Vint
-          (map Int.repr
-              (sublist k (Zlength s) s ++ sublist 0 (i + 1 - (Zlength s - k)) s)) ++
-        Zrepeat Vundef (Zlength s - (i + 1))) b.
+      (Vint (Int.repr (Znth (i + k - Zlength s) s))))
+    (map Vint
+      (map Int.repr
+          (sublist k (Zlength s) s ++ sublist 0 (i + 1 - (Zlength s - k)) s)) ++
+    Zrepeat Vundef (Zlength s - (i + 1))).
 Proof.
   idtac "rotate_array4 (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example rotate_array5 : forall {cs : compspecs} k b s,
+Example rotate_array5 : forall {cs : compspecs} k s,
   0 < k < Zlength s ->
-  data_at Ews (tarray tint (Zlength s))
+  data_subsume (tarray tint (Zlength s))
     (map Vint
       (map Int.repr
           (sublist k (Zlength s) s ++ sublist 0 (Zlength s - (Zlength s - k)) s)) ++
-    Zrepeat Vundef (Zlength s - Zlength s)) b
-  |-- data_at Ews (tarray tint (Zlength s))
-        (map Vint (map Int.repr (sublist k (Zlength s) s ++ sublist 0 k s))) b.
+    Zrepeat Vundef (Zlength s - Zlength s))
+    (map Vint (map Int.repr (sublist k (Zlength s) s ++ sublist 0 k s))).
 Proof.
   idtac "rotate_array5 (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example rotate_array6 : forall {cs : compspecs} k sh a s,
+Example rotate_array6 : forall {cs : compspecs} k s,
   0 < k < Zlength s ->
-  data_at sh (tarray tint (Zlength s)) (map Vint (map Int.repr s)) a
-  |-- data_at sh (tarray tint (Zlength s))
-        (map Vint
-          (map Int.repr
-              (sublist 0 0 (sublist k (Zlength s) s ++ sublist 0 k s) ++
-              sublist 0 (Zlength s) s))) a.
+  data_subsume (tarray tint (Zlength s))
+    (map Vint (map Int.repr s))
+    (map Vint
+      (map Int.repr
+          (sublist 0 0 (sublist k (Zlength s) s ++ sublist 0 k s) ++
+          sublist 0 (Zlength s) s))).
 Proof.
   idtac "rotate_array6 (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example rotate_array7 : forall {cs : compspecs} k i sh a s,
+Example rotate_array7 : forall {cs : compspecs} k i s,
   0 < k < Zlength s ->
   0 <= i < Zlength s ->
-  data_at sh (tarray tint (Zlength s))
+  data_subsume (tarray tint (Zlength s))
     (upd_Znth i
       (map Vint
           (map Int.repr
             (sublist 0 i (sublist k (Zlength s) s ++ sublist 0 k s) ++
               sublist i (Zlength s) s)))
-      (Vint (Int.repr (Znth i (sublist k (Zlength s) s ++ sublist 0 k s))))) a
-  |-- data_at sh (tarray tint (Zlength s))
-        (map Vint
-          (map Int.repr
-              (sublist 0 (i + 1) (sublist k (Zlength s) s ++ sublist 0 k s) ++
-              sublist (i + 1) (Zlength s) s))) a.
+      (Vint (Int.repr (Znth i (sublist k (Zlength s) s ++ sublist 0 k s)))))
+    (map Vint
+      (map Int.repr
+          (sublist 0 (i + 1) (sublist k (Zlength s) s ++ sublist 0 k s) ++
+          sublist (i + 1) (Zlength s) s))).
 Proof.
   idtac "rotate_array7 (qf-array goal)".
   intros.
   Time list_solve.
 Time Qed.
 
-Example rotate_array8 : forall {cs : compspecs} k sh a s,
+Example rotate_array8 : forall {cs : compspecs} k s,
   0 < k < Zlength s ->
-  data_at sh (tarray tint (Zlength s))
+  data_subsume (tarray tint (Zlength s))
     (map Vint
       (map Int.repr
           (sublist 0 (Zlength s) (sublist k (Zlength s) s ++ sublist 0 k s) ++
-          sublist (Zlength s) (Zlength s) s))) a
-  |-- data_at sh (tarray tint (Zlength s))
-        (map Vint (map Int.repr (sublist k (Zlength s) s ++ sublist 0 k s))) a.
+          sublist (Zlength s) (Zlength s) s)))
+    (map Vint (map Int.repr (sublist k (Zlength s) s ++ sublist 0 k s))).
 Proof.
   idtac "rotate_array8 (qf-array goal)".
   intros.
@@ -294,24 +284,23 @@ Proof.
   Time list_solve.
 Time Qed.
 
-Example sorted_rotate_array2 : forall {cs : compspecs} s1 s2 sh a N,
-  data_at sh (tarray tint (Zlength (s1 ++ s2)))
+Example sorted_rotate_array2 : forall {cs : compspecs} s1 s2 N,
+  data_subsume (tarray tint (Zlength (s1 ++ s2)))
     (map Vint
       (map Int.repr
           (sublist (Zlength s1) (Zlength (s1 ++ s2)) (s1 ++ s2) ++
-          sublist 0 (Zlength s1) (s1 ++ s2)))) a
-  |-- data_at sh (tarray tint (Zlength (s1 ++ s2)))
-        (map Vint
-          (map Int.repr
-              (s2 ++
-              map (fun x : Z => x + N)
-                (sublist 0
-                    (Zlength (s1 ++ s2) - Zlength s1 -
-                    (Zlength (s1 ++ s2) - Zlength s1)) s1) ++
-              sublist
+          sublist 0 (Zlength s1) (s1 ++ s2))))
+    (map Vint
+      (map Int.repr
+          (s2 ++
+          map (fun x : Z => x + N)
+            (sublist 0
                 (Zlength (s1 ++ s2) - Zlength s1 -
-                  (Zlength (s1 ++ s2) - Zlength s1)) 
-                (Zlength s1) s1))) a.
+                (Zlength (s1 ++ s2) - Zlength s1)) s1) ++
+          sublist
+            (Zlength (s1 ++ s2) - Zlength s1 -
+              (Zlength (s1 ++ s2) - Zlength s1))
+            (Zlength s1) s1))).
 Proof.
   idtac "sorted_rotate_array2 (qf-array goal)".
   intros.
@@ -330,9 +319,9 @@ Proof.
   Time list_solve.
 Time Qed.
 
-Example sorted_rotate_array3 : forall {cs : compspecs} s1 s2 sh N a i,
+Example sorted_rotate_array3 : forall {cs : compspecs} s1 s2 N i,
   Zlength (s1 ++ s2) - Zlength s1 <= i < Zlength (s1 ++ s2) ->
-  data_at sh (tarray tint (Zlength (s1 ++ s2)))
+  data_subsume (tarray tint (Zlength (s1 ++ s2)))
     (upd_Znth i
       (map Vint
           (map Int.repr
@@ -346,16 +335,15 @@ Example sorted_rotate_array3 : forall {cs : compspecs} s1 s2 sh N a i,
                 (s2 ++
                 map (fun x : Z => x + N)
                   (sublist 0 (i - (Zlength (s1 ++ s2) - Zlength s1)) s1) ++
-                sublist (i - (Zlength (s1 ++ s2) - Zlength s1)) 
-                  (Zlength s1) s1) + N)))) a
-  |-- data_at sh (tarray tint (Zlength (s1 ++ s2)))
-        (map Vint
-          (map Int.repr
-              (s2 ++
-              map (fun x : Z => x + N)
-                (sublist 0 (i + 1 - (Zlength (s1 ++ s2) - Zlength s1)) s1) ++
-              sublist (i + 1 - (Zlength (s1 ++ s2) - Zlength s1)) 
-                (Zlength s1) s1))) a.
+                sublist (i - (Zlength (s1 ++ s2) - Zlength s1))
+                  (Zlength s1) s1) + N))))
+    (map Vint
+      (map Int.repr
+          (s2 ++
+          map (fun x : Z => x + N)
+            (sublist 0 (i + 1 - (Zlength (s1 ++ s2) - Zlength s1)) s1) ++
+          sublist (i + 1 - (Zlength (s1 ++ s2) - Zlength s1))
+            (Zlength s1) s1))).
 Proof.
   idtac "sorted_rotate_array3 (qf-array goal)".
   intros.
@@ -383,27 +371,25 @@ Proof.
   Time list_solve.
 Time Qed.
 
-Example sorted_rotate_array4 : forall {cs : compspecs} s1 s2 N sh a,
-  data_at sh (tarray tint (Zlength (s1 ++ s2)))
-    (map Vint
-      (map Int.repr
-          (s2 ++
-          map (fun x : Z => x + N)
-            (sublist 0
-                (Zlength (s1 ++ s2) - (Zlength (s1 ++ s2) - Zlength s1)) s1) ++
-          sublist (Zlength (s1 ++ s2) - (Zlength (s1 ++ s2) - Zlength s1))
-            (Zlength s1) s1))) a
-  |-- data_at sh (tarray tint (Zlength (s1 ++ s2)))
-        (map Vint
-          (map Int.repr
-              (sublist (Zlength s1) (Zlength (s1 ++ s2)) (s1 ++ s2) ++
-              map (Z.add N) (sublist 0 (Zlength s1) (s1 ++ s2))))) a.
+Example sorted_rotate_array4 : forall s1 s2 N,
+  map Vint
+    (map Int.repr
+      (s2 ++
+        map (fun x : Z => x + N)
+          (sublist 0 (Zlength (s1 ++ s2) - (Zlength (s1 ++ s2) - Zlength s1))
+            s1) ++
+        sublist (Zlength (s1 ++ s2) - (Zlength (s1 ++ s2) - Zlength s1))
+          (Zlength s1) s1)) =
+  map Vint
+    (map Int.repr
+      (sublist (Zlength s1) (Zlength (s1 ++ s2)) (s1 ++ s2) ++
+        map (Z.add N) (sublist 0 (Zlength s1) (s1 ++ s2)))).
 Proof.
   idtac "sorted_rotate_array4 (qf-array goal)".
   intros.
   (* Not directly solvable by list_solve, because of the incompleteness of the base solver. *)
   Time list_simplify.
-  apply data_subsume_refl'. rewrite Z.add_comm. repeat f_equal. Time list_solve.
+  rewrite Z.add_comm. Time list_solve.
 Time Qed.
 
 End verif_rotate.
