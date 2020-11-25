@@ -36,6 +36,14 @@ Import Cop2.
 Import Clight_Cop2.
 Import LiftNotation.
 
+Inductive FailSoftly := mk_FailSoftly.
+
+Ltac should_fail_softly :=
+ lazymatch goal with H:= mk_FailSoftly |- _ => idtac end.
+
+Ltac fail_softly :=
+ lazymatch goal with H:= mk_FailSoftly |- _ => fail | |- _ => idtac end.
+
 Global Opaque denote_tc_test_eq.
 
 Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
@@ -508,12 +516,13 @@ Ltac semax_func_cons_ext :=
     | LookupID | LookupB
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
-          | apply compute_funspecs_norepeat_e; reflexivity
+          | apply extcall_lemmas.compute_funspecs_norepeat_e; reflexivity
           | reflexivity ]]]
-      || fail 100 "Try 'eapply semax_func_cons_ext.'"
-              "To solve [semax_external] judgments, do 'eapply semax_ext.'"
-              "Make sure that the Espec declared using 'Existing Instance'
-               is defined as 'add_funspecs NullExtension.Espec Gprog.'"
+      || match goal with |- ?G =>
+         fail 0 "Tactic semax_func_cons_ext failed on the subgoal," G
+"To solve [semax_external] judgments, do 'eapply semax_ext.' Make sure that the Espec declared using 'Existing Instance'
+               is defined as 'add_funspecs NullExtension.Espec Gprog.' (or with some other Espec)"
+         end
     |
     ].
 
@@ -2616,14 +2625,16 @@ match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
-    else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+    else (fail_softly; fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop")
 | |- semax _ (@exp _ _ _ _) _ _ =>
       fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
+     fail_softly; 
      fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
+     fail_softly; 
      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
@@ -3495,11 +3506,12 @@ Ltac advise_forward_call :=
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
-  | rmaps.ConstType ?T => 
+  | rmaps.ConstType ?T =>
+             fail_softly; 
              fail 100 "To prove this function call, use forward_call(W), where
 W:"T"
 is a WITH-clause witness"
-  | _ => fail 100 "This function has a complex calling convention not recognized by forward_call"
+  | _ => fail_softly; fail 100 "This function has a complex calling convention not recognized by forward_call"
  end 
 end].
 
@@ -3528,34 +3540,41 @@ Ltac forward_advise_loop c :=
  try lazymatch c with
  | Sfor _ _ Sskip ?body =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail_softly; 
+             fail 100 "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  | Swhile _ ?body =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail_softly; 
+             fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  | Sloop (Ssequence (Sifthenelse _ Sbreak Sskip) ?body) Sskip =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail_softly; 
+             fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  end;
  lazymatch c with
   | Sfor _ ?test ?body ?incr  =>
+       fail_softly; 
        tryif (unify (nobreaksx body) true; test_simple_bound test incr)
        then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
 Otherwise, you can use the general case: Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
        else fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
   | Sloop _ _ =>
-     fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+     fail_softly; 
+             fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
  end.
 
 Ltac forward_advise_for :=
  lazymatch goal with
  | |- semax _ _ (Sfor _ _ ?body Sskip) ?R =>
-       tryif unify (no_breaks body) true
+       fail_softly; 
+             tryif unify (no_breaks body) true
        then fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
        else tryif has_evar R
             then fail 100 "Use [forward_for Inv Inv Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and Post is a loop-postcondition. A is the type of whatever loop-varying quantity you have, such as the value of your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
             else fail 100 "Use [forward_for Inv Inv] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred).  A is the type of whatever loop-varying quantity you have, such as your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
   | |- semax _ _ (Sfor _ ?test ?body ?incr) ?R =>
-       tryif has_evar R
+       fail_softly; 
+             tryif has_evar R
        then tryif unify (no_breaks body) true
                then tryif test_simple_bound test incr
                   then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
@@ -3573,7 +3592,8 @@ Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant o
 
 Ltac forward_advise_if := 
   advise_prepare_postcondition;
- lazymatch goal with
+ fail_softly; 
+  lazymatch goal with
    | |- semax _ _ (Sifthenelse _ _ _) ?R =>
        tryif has_evar R
        then fail 100 "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
@@ -3586,7 +3606,8 @@ Ltac forward_advise_if :=
 
 Ltac forward_advise_while := 
   advise_prepare_postcondition;
- lazymatch goal with
+   fail_softly; 
+   lazymatch goal with
    | |- semax _ _ (Swhile _ _) _ =>
        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is the loop invariant"
   end.

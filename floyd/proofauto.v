@@ -156,6 +156,7 @@ Ltac simpl_implicit :=
   simpl projT1.
 
 Ltac step :=
+  let FS := fresh "FailSoft" in pose (FS := mk_FailSoftly);
   first
   [ progress Intros
   | let x := fresh "x" in Intros x
@@ -163,20 +164,22 @@ Ltac step :=
   | progress autorewrite with sublist in *|-
   | progress autorewrite with sublist
   | progress autorewrite with norm
-  | forward
-  | forward_if
-  | forward_call
+  | match goal with |- semax _ _ _ _ =>
+      first [forward | forward_if | forward_call]
+    end
   | rep_lia | cstring' | Zlength_solve
   | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
   | EExists_unify
   | cstring1
   | deadvars!
   | solve [match goal with |- @derives mpred _ _ _ => cancel end]
-  | solve [entailer!; try cstring']
+  | match goal with |- _ |-- _ => solve [entailer!; try cstring'] end
   | list_solve
-  ].
+  ];
+  clear FS.
 
 Tactic Notation "step!"  :=
+  let FS := fresh "FailSoft" in pose (FS := mk_FailSoftly);
   first
   [ progress Intros
   | let x := fresh "x" in
@@ -185,21 +188,22 @@ Tactic Notation "step!"  :=
   | progress autorewrite with sublist in * |-
   | progress autorewrite with sublist
   | progress autorewrite with norm
-  | forward
-  | forward_if
-  | forward_call
+  | match goal with |- semax _ _ _ _ =>
+      first [forward | forward_if | forward_call]
+    end
   | rep_lia
-  | cstring'
+  | match goal with |- _ |-- _ => solve [entailer!; try cstring'] end
   | Zlength_solve
   | EExists
   | cstring1
   | deadvars!
-  | progress_entailer
-  (* | match goal with |- _ /\ _ => split end *)
+  | match goal with |- _ |-- _ => progress_entailer end
   | list_solve
-  ].
+  ];
+  clear FS.
 
 Tactic Notation "info_step!" :=
+  let FS := fresh "FailSoft" in pose (FS := mk_FailSoftly);
   first
   [ progress Intros; idtac "Intros."
   | let x := fresh "x" in
@@ -209,19 +213,21 @@ Tactic Notation "info_step!" :=
   | progress autorewrite with sublist in * |-; idtac "autorewrite with sublist in * |-."
   | progress autorewrite with sublist; idtac "autorewrite with sublist."
   | progress autorewrite with norm; idtac "autorewrite with norm."
-  | forward; idtac "forward."
-  | forward_if; idtac "forward_if."
-  | forward_call; idtac "forward_call."
+  | match goal with |- semax _ _ _ _ =>
+        first [ forward; idtac "forward."
+               | forward_if; idtac "forward_if."
+               | forward_call; idtac "forward_call." ]
+     end
   | rep_lia; idtac "rep_lia."
   | cstring'; idtac "cstring'."
   | Zlength_solve; idtac "Zlength_solve."
   | EExists; idtac "EExists."
   | cstring1; idtac "cstring1."
   | deadvars!; idtac "deadvars!."
-  | progress_entailer; idtac "progress_entailer."
-  (* | match goal with |- _ /\ _ => split end; idtac "split." *)
+  | match goal with |- _ |-- _ => progress_entailer; idtac "progress_entailer." end
   | list_solve; idtac "list_solve."
-  ].
+  ];
+  clear FS.
 
 (* A better way to deal with sem_cast_i2bool *)
 Lemma sem_cast_i2bool_of_bool : forall (b : bool),

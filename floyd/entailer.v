@@ -858,22 +858,22 @@ if_tac; auto. destruct (Z.to_nat i). reflexivity. destruct n; reflexivity.
 Qed.
 
 
-(* THIS TACTIC solves goals of the form,
-    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any lia consequence of)  i < Zlength ls
-    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any lia consequence of)  i >= Zlength ls
-*)
-Ltac cstring :=
+Ltac check_cstring report :=
   lazymatch goal with
   | H: ~In Byte.zero _ |- _ => idtac
-  | |- _ => fail 100 "The cstring tactic expects to see a hypothesis above the line of the form, ~ In Byte.zero _"
+  | |- _ => constr_eq report true;
+                 fail 100 "The cstring tactic expects to see a hypothesis above the line of the form, ~ In Byte.zero _"
   end;
  lazymatch goal with
  | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
  | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
- | |- _ => fail 100 "The cstring tactic expects to see one of the following hypotheses above the line:
+ | |- _ => constr_eq report true;
+                 fail 100 "The cstring tactic expects to see one of the following hypotheses above the line:
 Znth _ (_++[Byte.zero]) = Byte.zero
 Znth _ (_++[Byte.zero]) <> Byte.zero"
- end;
+ end.
+
+Ltac cstring_internal := 
  (pose_Zlength_nonneg;
   apply Classical_Prop.NNPP; intro;
   match goal with
@@ -884,13 +884,20 @@ Znth _ (_++[Byte.zero]) <> Byte.zero"
      constr_eq ls ls'; apply H1;
      rewrite app_Znth2 by lia; apply Znth_zero_zero
   end) || 
-  match goal with |- @eq ?t (?f1 _) (?f2 _) =>
+  lazymatch goal with |- @eq ?t (?f1 _) (?f2 _) =>
        (unify t Z || unify t nat) ||
        (constr_eq f1 f2;
-        fail 100 "The cstring tactic solves lia-style goals.
+        fail 0 "The cstring tactic solves lia-style goals.
 Your goal is an equality at type" t ", not type Z.
 Try the [f_equal] tactic first.")
  end.
+
+
+(* THIS TACTIC solves goals of the form,
+    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any lia consequence of)  i < Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any lia consequence of)  i >= Zlength ls
+*)
+Ltac cstring :=  check_cstring true; cstring_internal. 
 
 Ltac progress_entailer :=
  lazymatch goal with
@@ -900,15 +907,18 @@ Ltac progress_entailer :=
  end.
 
 Ltac cstring' := 
+check_cstring false;
 lazymatch goal with
-| |- @eq Z _ _ => cstring
+| |- @eq Z _ _ => cstring_internal
 | |- ?A _ = ?B _ => constr_eq A B; f_equal; cstring'
-| |- _ => cstring
+| |- _ => cstring_internal
 end.
 
 Ltac cstring1 :=
 match goal with 
 | H: 0 <= ?x < Zlength ?s + 1,
   H1: Znth ?x (?s ++ [Byte.zero]) = Byte.zero |- _ =>
-  is_var x; assert  (x = Zlength s) by cstring; subst x
+  is_var x; 
+  check_cstring false;
+  assert  (x = Zlength s) by cstring; subst x
 end.

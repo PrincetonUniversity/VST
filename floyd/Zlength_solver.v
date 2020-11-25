@@ -335,7 +335,7 @@ Ltac calc_Zlength l ::=
         pose proof (Zlength_nonneg l)
       ] then idtac
       else
-        fail 100 "calc_Zlength does not support" l
+        fail 0 "calc_Zlength does not support" l
     end
   ].
 

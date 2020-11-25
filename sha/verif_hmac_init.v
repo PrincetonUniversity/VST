@@ -347,7 +347,7 @@ forward_if (EX shaStates:_ ,
   { (*Case key==null*)
     subst i.
     destruct R; subst r; simpl.
-    2: solve [apply semax_pre with (P':=FF); try entailer!; try apply semax_ff].
+    2: solve [apply semax_pre with (P':=FF); [entailer! | apply semax_ff]].
     freeze FR2 := - (hmacstate_PreInitNull _ _ _ _).
     Intros.
     rename H0 into InnerRelate.
@@ -416,7 +416,7 @@ forward_if (EX shaStates:_ ,
   { (*k is Vptr, key!=NULL*)
     freeze FR5 := - (initPostResetConditional _ _ _ _ _ _ _ _ _).
     destruct R as [R | R]; rewrite R; simpl.
-    solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
+    solve [apply semax_pre with (P':=FF); [entailer! | apply semax_ff]].
     Intros.
     rename H0 into InnerRelate.
     rename H2 into OuterRelate.
