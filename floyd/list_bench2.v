@@ -129,76 +129,174 @@ Qed.
   that hits satisfies the test function. This generalization also fits in
   this expression of association list. *)
 
+Lemma get_index_only_if1 : forall key i,
+  0 = i ->
+  0 <= i < Zlength (@nil (A*B)) /\
+  fst (Znth i (@nil (A*B))) = key /\ ~ In key (map fst (sublist 0 i (@nil (A*B)))) \/
+  i = Zlength (@nil (A*B)) /\ ~ In key (map fst (sublist 0 i (@nil (A*B)))).
+Proof.
+  (* ideal list_solve should solve here. *)
+  intros. subst. list_solve.
+Qed.
+
+Lemma get_index_only_if2 : forall (a : A) (b : B) l key i,
+  key = a ->
+  0 = i ->
+  (0 <= i < Zlength ((a, b) :: l) /\
+  fst (Znth i ((a, b) :: l)) = key /\
+  ~ In key (map fst (sublist 0 i ((a, b) :: l))) \/
+  i = Zlength ((a, b) :: l) /\ ~ In key (map fst (sublist 0 i ((a, b) :: l)))).
+Proof.
+  (* ideal list_solve should solve here. *)
+  intros. subst. left. list_solve.
+Qed.
+
+Lemma get_index_only_if3 : forall (a : A) (b : B) l key i,
+  forall (IHl: 0 <= i - 1 < Zlength l /\
+      fst (Znth (i - 1) l) = key /\ ~ In key (map fst (sublist 0 (i - 1) l)) \/
+      i - 1 = Zlength l /\ ~ In key (map fst (sublist 0 (i - 1) l))),
+  key <> a ->
+  1 + get_index l key = i ->
+  get_index l key >= 0 ->
+  (0 <= i < Zlength ((a, b) :: l) /\
+  fst (Znth i ((a, b) :: l)) = key /\
+  ~ In key (map fst (sublist 0 i ((a, b) :: l))) \/
+  i = Zlength ((a, b) :: l) /\ ~ In key (map fst (sublist 0 i ((a, b) :: l)))).
+Proof.
+  (* ideal list_solve should solve here. *)
+  intros.
+  destruct IHl as [[? []] | []].
+  + left. subst. rewrite not_In_range_uni_iff. list_simplify.
+    (* Some problems about that Inhabitant for type B cannot be filled by autorewrite
+      when dealing with map. *)
+    rewrite Znth_map by list_solve.
+    apply range_uni_map in H4; only 2 : list_solve.
+    list_solve.
+  + right. rewrite not_In_range_uni_iff. list_simplify.
+    rewrite Znth_map by list_solve.
+    apply range_uni_map in H3; only 2 : list_solve.
+    list_solve.
+Qed.
+
+Lemma get_index_only_if : forall l key i,
+  get_index l key = i
+    ->
+  (0 <= i < Zlength l /\ fst (Znth i l) = key /\ ~In key (map fst (sublist 0 i l)))
+    \/ (i = Zlength l /\ ~In key (map fst (sublist 0 i l))).
+Proof.
+  intros.
+  generalize dependent i; induction l; intros.
+  { apply get_index_only_if1; auto. }
+  unfold get_index in H; fold get_index in H.
+  destruct a as [a b].
+  destruct (Heq_dec key a).
+  (* We might need to transform into Prenex normal form to solve such goals. *)
+  - { apply get_index_only_if2; auto. }
+  - specialize (IHl (i-1) ltac:(lia)).
+    pose proof (get_index_nonneg l key).
+    { apply get_index_only_if3; auto. }
+Qed.
+
+Lemma get_index_if1 : forall key i,
+  (0 <= i < Zlength (@nil (A*B)) /\
+    fst (Znth i (@nil (A*B))) = key /\ ~ In key (map fst (sublist 0 i (@nil (A*B)))) \/
+    i = Zlength (@nil (A*B)) /\ ~ In key (map fst (sublist 0 i (@nil (A*B))))) ->
+  0 = i.
+Proof.
+  list_solve.
+Qed.
+
+Lemma get_index_if2 : forall (a : A) (b : B) l key i,
+  (0 <= i < Zlength ((a, b) :: l) /\
+    fst (Znth i ((a, b) :: l)) = key /\
+    ~ In key (map fst (sublist 0 i ((a, b) :: l))) \/
+    i = Zlength ((a, b) :: l) /\
+    ~ In key (map fst (sublist 0 i ((a, b) :: l)))) ->
+  key = a ->
+  0 = i.
+Proof.
+  (* ideal list_solve should solve here. *)
+  intros.
+  destruct H as [[? []] | []].
+  (* Some problems about (1) the map problem the same as above,
+      (2) the solver does not instantiate for the bound set (only the index set),
+      traded completeness for better efficiecy,
+      (3) incompleteness of the base solver. *)
+  - list_simplify.
+    pose proof (H2 0 ltac:(list_solve)).
+    simpl in H9.
+    rewrite Znth_map in H9 by list_solve.
+    list_simplify. simpl in H9. congruence.
+  - list_simplify.
+    specialize (H1 0 ltac:(lia)). simpl in H1. rewrite Znth_map in H1 by list_solve.
+    list_simplify. simpl in H1. congruence.
+Qed.
+
+Lemma get_index_if3 : forall (a : A) (b : B) l key i,
+  forall (IHl : 0 <= i - 1 < Zlength l /\
+    fst (Znth (i - 1) l) = key /\ ~ In key (map fst (sublist 0 (i - 1) l)) \/
+    i - 1 = Zlength l /\ ~ In key (map fst (sublist 0 (i - 1) l)) ->
+    get_index l key = i - 1),
+  (0 <= i < Zlength ((a, b) :: l) /\
+    fst (Znth i ((a, b) :: l)) = key /\
+    ~ In key (map fst (sublist 0 i ((a, b) :: l))) \/
+    i = Zlength ((a, b) :: l) /\
+    ~ In key (map fst (sublist 0 i ((a, b) :: l)))) ->
+  key <> a ->
+  1 + get_index l key = i.
+Proof.
+  (* ideal list_solve should solve here. *)
+  intros.
+  assert (0 <= i - 1 < Zlength l /\
+    fst (Znth (i - 1) l) = key /\ ~ In key (map fst (sublist 0 (i - 1) l)) \/
+    i - 1 = Zlength l /\ ~ In key (map fst (sublist 0 (i - 1) l))).
+  {
+    destruct H as [[? []] | []].
+    - left.
+      list_simplify; try (simpl in H1; congruence).
+      rewrite not_In_range_uni_iff.
+      list_simplify.
+      rewrite Znth_map by list_solve.
+      apply range_uni_map in H2; only 2 : list_solve.
+      list_solve.
+    - right.
+      list_simplify.
+      rewrite not_In_range_uni_iff.
+      list_simplify.
+      rewrite Znth_map by list_solve.
+      apply range_uni_map in H1; only 2 : list_solve.
+      list_solve.
+  }
+  rewrite (IHl H1). lia.
+Qed.
+
+Lemma get_index_if : forall l key i,
+  (0 <= i < Zlength l /\ fst (Znth i l) = key /\ ~In key (map fst (sublist 0 i l)))
+  \/ (i = Zlength l /\ ~In key (map fst (sublist 0 i l)))
+    ->
+  get_index l key = i.
+Proof.
+  intros.
+  generalize dependent i; induction l; intros.
+  { eapply get_index_if1; eauto. }
+  unfold get_index; fold get_index.
+  destruct a as [a b].
+  destruct (Heq_dec key a).
+  { eapply get_index_if2; eauto. }
+  specialize (IHl (i-1)).
+  { eapply get_index_if3; eauto. }
+Qed.
+
 Lemma get_index_spec : forall l key i,
   get_index l key = i
     <->
   (0 <= i < Zlength l /\ fst (Znth i l) = key /\ ~In key (map fst (sublist 0 i l)))
     \/ (i = Zlength l /\ ~In key (map fst (sublist 0 i l))).
 Proof.
-  intros. split; intros.
-  - generalize dependent i; induction l; intros.
-    { simpl in H. subst. list_solve. }
-    unfold get_index in H; fold get_index in H.
-    destruct a as [a b].
-    destruct (Heq_dec key a).
-    (* We might need to transform into Prenex normal form to solve such goals. *)
-    { subst. left. list_solve. }
-    specialize (IHl (i-1) ltac:(lia)).
-    pose proof (get_index_nonneg l key).
-    destruct IHl as [[? []] | []].
-    + left. subst. rewrite not_In_range_uni_iff. list_simplify.
-      (* Some problems about that Inhabitant for type B cannot be filled by autorewrite
-        when dealing with map. *)
-      rewrite Znth_map by list_solve.
-      apply range_uni_map in H3; only 2 : list_solve.
-      list_solve.
-    + right. rewrite not_In_range_uni_iff. list_simplify.
-      rewrite Znth_map by list_solve.
-      apply range_uni_map in H2; only 2 : list_solve.
-      list_solve.
-  - destruct H; generalize dependent i; induction l; intros.
-    1, 3 : simpl; list_solve.
-    + unfold get_index; fold get_index.
-      destruct H as [? []].
-      destruct a as [a b].
-      destruct (Heq_dec key a).
-      * (* Some problems about (1) the map problem the same as above,
-            (2) the solver does not instantiate for the bound set (only the index set),
-            traded completeness for better efficiecy,
-            (3) incompleteness of the base solver. *)
-        list_simplify.
-        pose proof (H1 0 ltac:(list_solve)).
-        simpl in H8.
-        rewrite Znth_map in H8 by list_solve.
-        list_simplify. simpl in H8. congruence.
-      * specialize (IHl (i-1)).
-        assert (0 <= i - 1 < Zlength l /\
-          fst (Znth (i - 1) l) = key /\ ~ In key (map fst (sublist 0 (i - 1) l))).
-        { list_simplify; try (simpl in H0; congruence).
-          rewrite not_In_range_uni_iff.
-          list_simplify.
-          rewrite Znth_map by list_solve.
-          apply range_uni_map in H1; only 2 : list_solve.
-          list_solve.
-        }
-        rewrite (IHl H2). lia.
-    + unfold get_index; fold get_index.
-      destruct H as [].
-      destruct a as [a b].
-      destruct (Heq_dec key a).
-      * list_simplify.
-        specialize (H0 0 ltac:(lia)). simpl in H0. rewrite Znth_map in H0 by list_solve.
-        list_simplify. simpl in H0. congruence.
-      * specialize (IHl (i-1)).
-        assert (i - 1 = Zlength l /\ ~ In key (map fst (sublist 0 (i - 1) l))).
-        { list_simplify.
-          rewrite not_In_range_uni_iff.
-          list_simplify.
-          rewrite Znth_map by list_solve.
-          apply range_uni_map in H0; only 2 : list_solve.
-          list_solve.
-        }
-        rewrite (IHl H1). lia.
+  intros. split; [
+    apply get_index_only_if
+  | apply get_index_if
+  ].
 Qed.
 
 End AssocList.
