@@ -2,12 +2,12 @@
 Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.coqlib4.  (* just for prop_unext *)
-Require Import VST.floyd.sublist.
+Require Export VST.floyd.sublist.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Floats.
 Require Import compcert.common.Values.
 Require Import Coq.micromega.Lia.
-Require Import VST.floyd.Zlength_solver.
+Require Export VST.floyd.Zlength_solver.
 Import ListNotations.
 
 (* stuff moved from functional_base*)

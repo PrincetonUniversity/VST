@@ -858,6 +858,8 @@ benchmark: temp $(BENCHMARK_FILES:%.v=%.out1) \
                 $(BENCHMARK_FILES:%.v=%.out5) \
                 $(BENCHMARK_FILES:%.v=%.res)
 
+list_test: floyd/list_benchmark.vo floyd/list_bench2.vo progs/verif_strlib.vo progs/verif_revarray.vo progs/verif_rotate.vo
+
 temp:
 	@mkdir temp
 

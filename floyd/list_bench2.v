@@ -1,4 +1,3 @@
-Require Import VST.floyd.sublist.
 Require Import VST.floyd.list_solver.
 Require Import BinNums.
 Import eq_dec.
