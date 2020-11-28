@@ -1507,7 +1507,6 @@ Ltac rewrite_list_eq :=
     destruct H
   end.
 
-(* Hint Rewrite @Forall_Znth : list_prop_rewrite. *)
 Hint Rewrite @range_uni_fold : list_prop_rewrite.
 Hint Rewrite @range_bin_fold : list_prop_rewrite.
 Hint Rewrite @range_tri_fold : list_prop_rewrite.
@@ -2056,7 +2055,7 @@ Ltac apply_list_ext :=
 Ltac list_solve_preprocess :=
   fold_Vbyte;
   autounfold with list_solve_unfold in *;
-  autorewrite with list_solve_rewrite in *;
+  unshelve autorewrite with list_solve_rewrite in *; [solve [auto with typeclass_instances] .. | idtac];
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 

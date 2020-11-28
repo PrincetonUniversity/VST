@@ -126,6 +126,9 @@ Qed.
   that hits satisfies the test function. This generalization also fits in
   this expression of association list. *)
 
+(* Tell list solver to interpret "not In" as a quantified formula. *)
+Hint Rewrite @not_In_range_uni_iff : list_solve_rewrite.
+
 Lemma get_index_only_if1 : forall key i,
   0 = i ->
   0 <= i < Zlength (@nil (A*B)) /\
@@ -133,7 +136,7 @@ Lemma get_index_only_if1 : forall key i,
   i = Zlength (@nil (A*B)) /\ ~ In key (map fst (sublist 0 i (@nil (A*B)))).
 Proof.
   (* ideal list_solve should solve here. *)
-  intros. subst. list_solve.
+  intros. right. list_solve.
 Qed.
 
 Lemma get_index_only_if2 : forall (a : A) (b : B) l key i,
@@ -145,7 +148,7 @@ Lemma get_index_only_if2 : forall (a : A) (b : B) l key i,
   i = Zlength ((a, b) :: l) /\ ~ In key (map fst (sublist 0 i ((a, b) :: l)))).
 Proof.
   (* ideal list_solve should solve here. *)
-  intros. subst. left. list_solve.
+  intros. left. list_solve.
 Qed.
 
 Lemma get_index_only_if3 : forall (a : A) (b : B) l key i,
@@ -163,11 +166,11 @@ Proof.
   (* ideal list_solve should solve here. *)
   intros.
   destruct IHl as [[? []] | []].
-  + left. subst. rewrite not_In_range_uni_iff. list_solve.
+  + left. list_solve.
     (* Some problems about that Inhabitant for type B cannot be filled by autorewrite
       when dealing with map. *)
     (* Now solved. *)
-  + right. rewrite not_In_range_uni_iff. list_solve.
+  + right. list_solve.
 Qed.
 
 Lemma get_index_only_if : forall l key i,
@@ -195,7 +198,7 @@ Lemma get_index_if1 : forall key i,
     i = Zlength (@nil (A*B)) /\ ~ In key (map fst (sublist 0 i (@nil (A*B))))) ->
   0 = i.
 Proof.
-  list_solve.
+  intros. destruct H; list_solve.
 Qed.
 
 Lemma get_index_if2 : forall (a : A) (b : B) l key i,
@@ -215,10 +218,10 @@ Proof.
       traded completeness for better efficiecy,
       (3) incompleteness of the base solver. *)
   - list_simplify.
-    pose proof (H7 0 ltac:(list_solve)). simpl in H10.
+    specialize (H9 0 ltac:(list_solve)). simpl in H9.
     congruence.
   - list_simplify.
-    specialize (H6 0 ltac:(lia)). simpl in H6.
+    specialize (H8 0 ltac:(lia)). simpl in H8.
     congruence.
 Qed.
 
@@ -244,12 +247,7 @@ Proof.
     destruct H as [[? []] | []].
     - left.
       list_simplify; try (simpl in H1; congruence).
-      rewrite not_In_range_uni_iff.
-      list_solve.
-    - right.
-      list_simplify.
-      rewrite not_In_range_uni_iff.
-      list_solve.
+    - right. list_solve.
   }
   rewrite (IHl H1). lia.
 Qed.
