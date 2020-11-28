@@ -167,6 +167,9 @@ Ltac Znth_solve_rec :=
     pose (H := Z.eq_dec n i);
     Zlength_simplify_in H; destruct H;
     Znth_solve_rec
+  | |- context [Znth ?n (map ?f ?l)] =>
+    unshelve erewrite @Znth_map by Zlength_solve
+      (* only 1 : auto with typeclass_instances *)
   end.
 
 Ltac Znth_solve :=
@@ -178,7 +181,7 @@ Ltac Znth_solve2 :=
   Zlength_simplify_in_all; autorewrite with Znth in *; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
   try first
   [ match goal with
-    | |- context [ Znth ?n (?al ++ ?bl) ] =>
+    | |- context [Znth ?n (?al ++ ?bl)] =>
           let H := fresh in
           pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
@@ -188,7 +191,12 @@ Ltac Znth_solve2 :=
           pose (H := Z.eq_dec n i); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
   | match goal with
-    | H0 : context [ Znth ?n (?al ++ ?bl) ] |- _ =>
+    | |- context [Znth ?n (map ?f ?l)] =>
+          unshelve erewrite @Znth_map by Zlength_solve
+            (* only 1 : auto with typeclass_instances *)
+    end
+  | match goal with
+    | H0 : context [Znth ?n (?al ++ ?bl)] |- _ =>
           let H := fresh in
           pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
@@ -196,6 +204,11 @@ Ltac Znth_solve2 :=
     | H0 : context [Znth ?n (upd_Znth ?i ?l ?x)] |- _ =>
           let H := fresh in
           pose (H := Z.eq_dec n i); Zlength_simplify_in_all; destruct H; Znth_solve2
+    end
+  | match goal with
+    | H0 : context [Znth ?n (map ?f ?l)] |- _ =>
+          unshelve erewrite @Znth_map in H0 by Zlength_solve
+            (* only 1 : auto with typeclass_instances *)
     end
   ].
 
@@ -1494,7 +1507,7 @@ Ltac rewrite_list_eq :=
     destruct H
   end.
 
-Hint Rewrite @Forall_Znth : list_prop_rewrite.
+(* Hint Rewrite @Forall_Znth : list_prop_rewrite. *)
 Hint Rewrite @range_uni_fold : list_prop_rewrite.
 Hint Rewrite @range_bin_fold : list_prop_rewrite.
 Hint Rewrite @range_tri_fold : list_prop_rewrite.
@@ -1510,8 +1523,10 @@ Ltac range_form :=
   apply_in_hyps eq_range_bin_reverse_left_offset;
   apply_in_hyps eq_range_bin_reverse_minus_offset;
   apply_in_hyps sorted_range_tri;
+  repeat (unshelve erewrite @Forall_Znth in *; [solve [auto with typeclass_instances] .. | idtac]);
   rewrite_In_Znth_iff;
   autorewrite with list_prop_rewrite in *.
+  (* or unshelve autorewrite with list_prop_rewrite in *; [solve [auto with typeclass_instances] .. | idtac]; *)
 
 Ltac Zlength_solve_print_when_fail :=
   first [
@@ -1546,7 +1561,7 @@ Ltac range_rewrite :=
     | sublist _ _ _ =>
       apply_in_using_Zlength_solve range_uni_sublist H
     | map _ _ =>
-      apply_in_using_Zlength_solve range_uni_map H
+      apply_in_using_Zlength_solve uconstr:(range_uni_map) H
     end
   | H : range_bin _ _ _ ?l1 ?l2 _ |- _ =>
     first [
@@ -1564,7 +1579,7 @@ Ltac range_rewrite :=
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_binA_sublist H
       | map _ _ =>
-        apply_in_using_Zlength_solve range_binA_map H
+        apply_in_using_Zlength_solve uconstr:(range_binA_map) H
       end
     | lazymatch l2 with
       | app _ _ =>
@@ -1580,7 +1595,7 @@ Ltac range_rewrite :=
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_binB_sublist H
       | map _ _ =>
-        apply_in_using_Zlength_solve range_binB_map H
+        apply_in_using_Zlength_solve uconstr:(range_binB_map) H
       end
     ]
   | H : range_tri _ _ _ _ _ ?l1 ?l2 _ |- _ =>
@@ -1599,7 +1614,7 @@ Ltac range_rewrite :=
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_triA_sublist H
       | map _ _ =>
-        apply_in_using_Zlength_solve range_triA_map H
+        apply_in_using_Zlength_solve uconstr:(range_triA_map) H
       end
     | lazymatch l2 with
       | app _ _ =>
@@ -1615,7 +1630,7 @@ Ltac range_rewrite :=
       | sublist _ _ _ =>
         apply_in_using_Zlength_solve range_triB_sublist H
       | map _ _ =>
-        apply_in_using_Zlength_solve range_triB_map H
+        apply_in_using_Zlength_solve uconstr:(range_triB_map) H
       end
     ]
   end.

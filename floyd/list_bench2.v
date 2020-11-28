@@ -14,8 +14,6 @@ Example Forall_app : forall A {d : Inhabitant A} (a b : list A) P,
   Forall P (a ++ b).
 Proof.
   list_solve.
-  (* There are some shelved goals of Inhabitant A. *)
-  Unshelve. all: auto.
 Qed.
 
 Example not_In_app : forall A {d : Inhabitant A} (a b : list A) x,
@@ -165,16 +163,11 @@ Proof.
   (* ideal list_solve should solve here. *)
   intros.
   destruct IHl as [[? []] | []].
-  + left. subst. rewrite not_In_range_uni_iff. list_simplify.
+  + left. subst. rewrite not_In_range_uni_iff. list_solve.
     (* Some problems about that Inhabitant for type B cannot be filled by autorewrite
       when dealing with map. *)
-    rewrite Znth_map by list_solve.
-    apply range_uni_map in H4; only 2 : list_solve.
-    list_solve.
-  + right. rewrite not_In_range_uni_iff. list_simplify.
-    rewrite Znth_map by list_solve.
-    apply range_uni_map in H3; only 2 : list_solve.
-    list_solve.
+    (* Now solved. *)
+  + right. rewrite not_In_range_uni_iff. list_solve.
 Qed.
 
 Lemma get_index_only_if : forall l key i,
@@ -222,13 +215,11 @@ Proof.
       traded completeness for better efficiecy,
       (3) incompleteness of the base solver. *)
   - list_simplify.
-    pose proof (H2 0 ltac:(list_solve)).
-    simpl in H9.
-    rewrite Znth_map in H9 by list_solve.
-    list_simplify. simpl in H9. congruence.
+    pose proof (H7 0 ltac:(list_solve)). simpl in H10.
+    congruence.
   - list_simplify.
-    specialize (H1 0 ltac:(lia)). simpl in H1. rewrite Znth_map in H1 by list_solve.
-    list_simplify. simpl in H1. congruence.
+    specialize (H6 0 ltac:(lia)). simpl in H6.
+    congruence.
 Qed.
 
 Lemma get_index_if3 : forall (a : A) (b : B) l key i,
@@ -254,16 +245,10 @@ Proof.
     - left.
       list_simplify; try (simpl in H1; congruence).
       rewrite not_In_range_uni_iff.
-      list_simplify.
-      rewrite Znth_map by list_solve.
-      apply range_uni_map in H2; only 2 : list_solve.
       list_solve.
     - right.
       list_simplify.
       rewrite not_In_range_uni_iff.
-      list_simplify.
-      rewrite Znth_map by list_solve.
-      apply range_uni_map in H1; only 2 : list_solve.
       list_solve.
   }
   rewrite (IHl H1). lia.
