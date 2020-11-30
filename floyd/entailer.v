@@ -546,7 +546,7 @@ Ltac entailer :=
     | ?T => unify T (environ->mpred); clean_up_stackframe; go_lower
     | _ => clear_Delta; pull_out_props
     end
- | |- _ => fail 100 "The entailer tactic works only on entailments   _ |-- _ "
+ | |- _ => fail 1 "The entailer tactic works only on entailments   _ |-- _ "
  end;
  saturate_local;
  entailer';
@@ -604,7 +604,7 @@ Ltac entbang :=
     match type of P with
     | ?T => unify T mpred; pull_out_props
     end
- | |- _ => fail 100 "The entailer tactic works only on entailments  _ |-- _ "
+ | |- _ => fail 1 "The entailer tactic works only on entailments  _ |-- _ "
  end;
  repeat match goal with
         | |- context [force_val (sem_binary_operation' ?op ?t1 ?t2 ?v1 ?v2)] =>
