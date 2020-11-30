@@ -16,9 +16,8 @@
 
 (** Architecture-dependent parameters for x86 in 64-bit mode *)
 
+From Flocq Require Import Binary Bits.
 Require Import ZArith List.
-From Flocq
-Require Import Binary Bits.
 
 Definition ptr64 := true.
 
@@ -58,6 +57,9 @@ Definition fma_order {A: Type} (x y z: A) := (x, y, z).
 Definition fma_invalid_mul_is_nan := false.
 
 Definition float_of_single_preserves_sNaN := false.
+
+(** Which ABI to use. *)
+Parameter win64: bool.
 
 Global Opaque ptr64 big_endian splitlong
               default_nan_64 choose_nan_64
