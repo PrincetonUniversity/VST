@@ -5,13 +5,13 @@ Open Scope logic.
 
 Require Import Coq.Program.Tactics.
 
-Example highly_dependent_example : forall (al bl : list Z),
+Example highly_nested_length_example : forall (al bl : list Z),
   Zlength al > 0 ->
   Zlength bl = Zlength al ->
   Zlength (upd_Znth 0 (upd_Znth 0 (upd_Znth 0 al 1) 1) 1)
   = Zlength (upd_Znth 0 (upd_Znth 0 (upd_Znth 0 bl 1) 1) 1).
 Proof.
-  idtac "highly_nested_length_example (length_goal)".
+  idtac "highly_nested_length_example (length goal)".
   intros.
   Time list_solve.
 Time Qed.
