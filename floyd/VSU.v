@@ -3827,12 +3827,14 @@ Ltac domV_tac := cbv; intros; auto.
 
 Ltac FunctionsPreserved_tac :=
   eapply FP_entries_sound;
-  [ cbv; reflexivity
-  | solve [repeat (constructor; [ reflexivity | ]); constructor]
-  | cbv; reflexivity
-  | repeat (constructor; [ reflexivity | ]); constructor
-  | cbv; reflexivity ].
-Ltac FDM_tac := eapply FDM; [ cbv; reflexivity | repeat (constructor; [ cbv; reflexivity | ]); constructor].
+  [ reflexivity
+  | solve [repeat constructor]
+  | reflexivity
+  | solve [repeat constructor]
+  | reflexivity ].
+Ltac FDM_tac := 
+  solve [eapply FDM; [ reflexivity | repeat constructor]];
+  fail "FDM_tac failed".
 
 Ltac find_id_subset_tac := simpl; intros ? ? H;
   repeat (if_tac in H; [ inv H; simpl; try reflexivity | ]); discriminate.
