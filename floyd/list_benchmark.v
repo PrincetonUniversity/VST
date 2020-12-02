@@ -99,10 +99,10 @@ Section verif_rotate.
 
 (* auxilary *)
 
-Lemma Forall_range_uni : forall {X} {d : Inhabitant X} l P,
-  Forall P l -> range_uni 0 (Zlength l) l P.
+Lemma Forall_forall_range : forall {X} {d : Inhabitant X} l P,
+  Forall P l -> forall_range 0 (Zlength l) l P.
 Proof.
-  intros. induction H; unfold range_uni, rangei in *; intros.
+  intros. induction H; unfold forall_range, rangei in *; intros.
   - list_solve2.
   - destruct (Z_le_lt_dec i 0).
     + list_solve2.
@@ -352,7 +352,7 @@ Time Qed.
 
 Example sorted_rotate_array_prop : forall s1 s2 N,
   sorted Z.le (s1 ++ s2) ->
-  range_uni 0 (Zlength (s1 ++ s2)) (s1 ++ s2) (fun x : Z => 0 <= x <= N) ->
+  forall_range 0 (Zlength (s1 ++ s2)) (s1 ++ s2) (fun x : Z => 0 <= x <= N) ->
   forall i j : Z,
   0 <= i <= j /\
   j <

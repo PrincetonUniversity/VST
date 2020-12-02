@@ -7,10 +7,10 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 (* auxilary *)
 
-Lemma Forall_range_uni : forall {X} {d : Inhabitant X} l P,
-  Forall P l -> range_uni 0 (Zlength l) l P.
+Lemma Forall_forall_range : forall {X} {d : Inhabitant X} l P,
+  Forall P l -> forall_range 0 (Zlength l) l P.
 Proof.
-  intros. induction H; unfold range_uni, rangei in *; intros.
+  intros. induction H; unfold forall_range, rangei in *; intros.
   - list_solve2.
   - destruct (Z_le_lt_dec i 0).
     + list_solve2.
@@ -133,7 +133,7 @@ Proof.
   assert (Zlength s2 = n-k) by (subst; list_solve2).
   assert (s = s1 ++ s2) by (subst; list_solve2).
   clear Heqs1 Heqs2. subst s.
-  apply Forall_range_uni in H3.
+  apply Forall_forall_range in H3.
   forward_call (sh, a, s1 ++ s2, n, k, gv).
   unfold rotate.
   forward_for_simple_bound n (EX i : Z,

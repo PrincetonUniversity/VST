@@ -87,8 +87,8 @@ Ltac apply_list_ext ::=
       rewrite Forall_Znth;
       intros
     end
-  | match goal with |- @range_uni ?A ?d ?lo ?hi ?l ?P =>
-      rewrite <- range_uni_fold;
+  | match goal with |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
+      rewrite <- forall_range_fold;
       intros
     end
   ];

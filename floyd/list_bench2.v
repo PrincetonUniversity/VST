@@ -22,7 +22,7 @@ Example not_In_app : forall A {d : Inhabitant A} (a b : list A) x,
   ~(In x (a ++ b)).
 Proof.
   intros.
-  rewrite not_In_range_uni_iff.
+  rewrite not_In_forall_range_iff.
   list_solve.
 Qed.
 
@@ -127,7 +127,7 @@ Qed.
   this expression of association list. *)
 
 (* Tell list solver to interpret "not In" as a quantified formula. *)
-Hint Rewrite @not_In_range_uni_iff : list_solve_rewrite.
+Hint Rewrite @not_In_forall_range_iff : list_solve_rewrite.
 
 Lemma get_index_only_if1 : forall key i,
   0 = i ->
