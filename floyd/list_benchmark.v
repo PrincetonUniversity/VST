@@ -97,20 +97,6 @@ Time Qed.
 
 Section verif_rotate.
 
-(* auxilary *)
-
-Lemma Forall_forall_range : forall {X} {d : Inhabitant X} l P,
-  Forall P l -> forall_range 0 (Zlength l) l P.
-Proof.
-  intros. induction H; unfold forall_range, rangei in *; intros.
-  - list_solve2.
-  - destruct (Z_le_lt_dec i 0).
-    + list_solve2.
-    + exploit (IHForall (i-1)); list_solve2.
-Qed.
-
-(* end auxilary *)
-
 Definition rotate {X} (l : list X) k :=
   sublist k (Zlength l) l ++ sublist 0 k l.
 

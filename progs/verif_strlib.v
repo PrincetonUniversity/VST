@@ -547,8 +547,8 @@ forward_loop (EX i : Z,
   {
   repeat step!.
   (* - list_prop_solve.
-  - list_solve2.
-  - fold_Vbyte. list_solve2. *)
+  - list_solve.
+  - fold_Vbyte. list_solve. *)
   }
 Qed.
 
@@ -619,7 +619,7 @@ forward_loop (EX i : Z,
   repeat step.
 -
   repeat step!.
-  (* + fold_Vbyte. list_solve2. *)
+  (* + fold_Vbyte. list_solve. *)
 Qed.
 
 End Alternate.

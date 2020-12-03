@@ -105,10 +105,12 @@ Proof.
     if_tac; if_tac_in IHl; list_solve.
 Qed.
 
-(* This is an awesome lemma. It can hardly be proved without list solver.
-  The current proof takes about 65 lines. Most of them are because the
-  list solver incomplete and not the same as the theoretical one.
-  The proof would be very simple if we had the theoretical solver.
+(* Starting from here, we prove an awesome lemma get_index_spec. It can
+  hardly be proved without the list solver. The current proof takes about
+  30 lines. The proof is separated into intermediate goals that can be 
+  solved by the list solver's algorithm if the base solver is complete.
+  The implemented list solver is limited by the completeness of the base
+  solver.
   
   Not only the lemma itself is good, but also its implications.
   With this lemma, and combining with the last lemma, we can express
@@ -280,7 +282,7 @@ Qed.
 
 End AssocList.
 
-Example xxx (l : list nat) n :
+Example entangled_example (l : list nat) n :
   0 < n <= Zlength l ->
   sublist 0 (n-1) l = sublist 1 n l -> False.
 Proof.

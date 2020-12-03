@@ -5,20 +5,6 @@ Require Import VST.progs.rotate.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-(* auxilary *)
-
-Lemma Forall_forall_range : forall {X} {d : Inhabitant X} l P,
-  Forall P l -> forall_range 0 (Zlength l) l P.
-Proof.
-  intros. induction H; unfold forall_range, rangei in *; intros.
-  - list_solve2.
-  - destruct (Z_le_lt_dec i 0).
-    + list_solve2.
-    + exploit (IHForall (i-1)); list_solve2.
-Qed.
-
-(* end auxilary *)
-
 Definition rotate {X} (l : list X) k :=
   sublist k (Zlength l) l ++ sublist 0 k l.
 
@@ -86,7 +72,7 @@ Proof.
   { forward.
     forward.
     entailer!.
-    Time list_solve2.
+    Time list_solve.
   }
   forward_for_simple_bound n (EX i : Z,
     PROP (n-k <= i)
@@ -95,12 +81,12 @@ Proof.
       data_at sh (tarray tint n) (map Vint (map Int.repr s)) a
     )
   ).
-  { forward. Exists (n-k). entailer!. list_solve2. }
+  { forward. Exists (n-k). entailer!. list_solve. }
   { Intros.
     forward.
     forward.
     entailer!.
-    Time list_solve2.
+    Time list_solve.
   }
   forward_for_simple_bound n (EX i : Z,
     PROP ( )
@@ -109,18 +95,18 @@ Proof.
       data_at sh (tarray tint n) (map Vint (map Int.repr (sublist 0 i (sublist k n s ++ sublist 0 k s) ++ sublist i n s))) a
     )
   ).
-  { entailer!. apply sepcon_derives; list_solve2. }
+  { entailer!. apply sepcon_derives; list_solve. }
   { forward.
     forward.
     entailer!.
-    Time list_solve2.
+    Time list_solve.
   }
   thaw FR.
   forward_call (tarray tint n, b, gv).
   { if_tac; entailer!. }
   entailer!.
   unfold rotate.
-  Time list_solve2.
+  Time list_solve.
 Time Qed.
 
 Lemma sorted_rotate_body : semax_body Vprog Gprog f_sorted_rotate sorted_rotate_spec.
@@ -129,9 +115,9 @@ Proof.
   assert_PROP (Zlength s = n). { entailer!. list_solve. }
   remember (sublist 0 k s) as s1.
   remember (sublist k n s) as s2.
-  assert (Zlength s1 = k) by (subst; list_solve2).
-  assert (Zlength s2 = n-k) by (subst; list_solve2).
-  assert (s = s1 ++ s2) by (subst; list_solve2).
+  assert (Zlength s1 = k) by (subst; list_solve).
+  assert (Zlength s2 = n-k) by (subst; list_solve).
+  assert (s = s1 ++ s2) by (subst; list_solve).
   clear Heqs1 Heqs2. subst s.
   apply Forall_forall_range in H3.
   forward_call (sh, a, s1 ++ s2, n, k, gv).
@@ -145,16 +131,16 @@ Proof.
         ++ sublist (i-(n-k)) k s1)
     )) a)
   ).
-  { forward. Exists (n-k). entailer!. list_solve2. }
+  { forward. Exists (n-k). entailer!. list_solve. }
   { Intros.
     forward.
-    exploit (H3 (i-(n-k))). list_solve2. intros.
+    exploit (H3 (i-(n-k))). list_solve. intros.
     forward.
     { entailer!. autorewrite with Znth in *.
-      replace (Znth _ s1) with (Znth (i - (Zlength (s1 ++ s2) - Zlength s1)) s1) by list_solve2.
+      replace (Znth _ s1) with (Znth (i - (Zlength (s1 ++ s2) - Zlength s1)) s1) by list_solve.
       do 2 rewrite Int.signed_repr by rep_lia. rep_lia.
     }
-    entailer!. Time list_solve2.
+    entailer!. Time list_solve.
   }
   unfold sorted_rotate. entailer!.
   {
@@ -162,8 +148,6 @@ Proof.
     Time list_prop_solve'.
   }
   {
-    Time list_solve2'.
-    (* A proof goal is remained because the base solver is incomplete. *)
-    apply data_subsume_refl'. rewrite Z.add_comm. repeat f_equal. list_solve.
+    Time list_solve.
   }
 Time Qed.
