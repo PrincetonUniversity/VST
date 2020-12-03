@@ -42,7 +42,7 @@ Definition Onepile_Pile_VSU:
    mrg_Vprog1 mrg_cs1 nil mrg_Imports1 mrg_prog1 mrg_Exports1 (one_pile PILE None).
 Proof.
   VSULink_tac (PilePrivateVSU M) (OnepileVSU M PILE).
-  extensionality gv. simpl. rewrite emp_sepcon; trivial.
+  extensionality gv. normalize.
 Qed.
 
 Definition APILE := verif_apile.APILE M PrivPILE.
@@ -72,7 +72,6 @@ Definition Apile_Onepile_Pile_VSU:
    (fun gv => one_pile PILE None gv * apile M PrivPILE [] gv)%logic.
 Proof.
   VSULink_tac (Onepile_Pile_VSU) (ApileVSU M PrivPILE).
-  intuition.
   extensionality gv; trivial.
 Qed.
 
@@ -101,7 +100,7 @@ Definition Triang_Apile_Onepile_Pile_VSU:
   (fun gv => one_pile PILE None gv * apile M PrivPILE [] gv)%logic.
 Proof.
   VSULink_tac (Apile_Onepile_Pile_VSU) (TriangVSU M PILE).
-  extensionality gv. simpl. rewrite sepcon_emp. trivial.
+  extensionality gv. normalize.
 Qed.
 
 Definition mm_triang_apile_onepile_pile_prog: Clight.program := 
@@ -130,7 +129,7 @@ Definition Core_VSU:
      (fun gv => one_pile PILE None gv * apile M PrivPILE [] gv)%logic.
 Proof.
   VSULink_tac (MallocFreeVSU M) (Triang_Apile_Onepile_Pile_VSU).
-  extensionality gv. simpl. rewrite emp_sepcon; trivial. 
+  extensionality gv. normalize.
 Qed.
 
 Definition Core_CanVSU: @CanonicalVSU NullExtension.Espec

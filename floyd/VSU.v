@@ -3802,8 +3802,8 @@ constructor; trivial; try apply C; clear - C DISJ.
   rewrite <- (sort_find_id (Comp_G_LNR C)). trivial.
 Qed.*)
 
-Ltac prove_cspecs_sub := split3; intros ?i; apply sub_option_get;
-     repeat (constructor; [ reflexivity |]); constructor.
+Ltac prove_cspecs_sub := 
+   try solve [split3; intros ?i; apply sub_option_get; repeat constructor].
 
 Ltac solve_entry H H0:=
      inv H; inv H0; first [ solve [ trivial ] | split; [ reflexivity | eexists; reflexivity] ].
@@ -3823,16 +3823,18 @@ Ltac HImports_tac := simpl; intros ? ? ? H1 H2;
 
 Ltac ImportsDef_tac := first [ reflexivity | idtac ].
 Ltac ExportsDef_tac := first [ reflexivity | idtac ].
-Ltac domV_tac := cbv; intros; auto.
+Ltac domV_tac := compute; tauto.
 
 Ltac FunctionsPreserved_tac :=
   eapply FP_entries_sound;
-  [ cbv; reflexivity
-  | solve [repeat (constructor; [ reflexivity | ]); constructor]
-  | cbv; reflexivity
-  | repeat (constructor; [ reflexivity | ]); constructor
-  | cbv; reflexivity ].
-Ltac FDM_tac := eapply FDM; [ cbv; reflexivity | repeat (constructor; [ cbv; reflexivity | ]); constructor].
+  [ reflexivity
+  | solve [repeat constructor]
+  | reflexivity
+  | solve [repeat constructor]
+  | reflexivity ].
+Ltac FDM_tac := 
+  solve [eapply FDM; [ reflexivity | repeat constructor]];
+  fail "FDM_tac failed".
 
 Ltac find_id_subset_tac := simpl; intros ? ? H;
   repeat (if_tac in H; [ inv H; simpl; try reflexivity | ]); discriminate.
@@ -4291,7 +4293,7 @@ Ltac expand_main_pre_VSU :=
   | vsu: VSU _ _ _ _ _ |- _ => 
     eapply main_pre_InitGpred; 
         [ try apply (VSU_MkInitPred vsu); report_failure
-        | try reflexivity; report_failure
+        | try (unfold Vardefs; simpl; reflexivity); report_failure
         | try solve [repeat constructor]; report_failure
         | ]
   | vsu: VSU _ _ _ _ _ |- _ =>  report_failure

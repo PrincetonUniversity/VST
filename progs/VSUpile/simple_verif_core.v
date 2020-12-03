@@ -64,7 +64,6 @@ Definition Apile_Onepile_Pile_VSU:
    (fun gv => simple_spec_onepile.onepile None gv * simple_spec_apile.apile [] gv)%logic.
 Proof.
   VSULink_tac Onepile_Pile_VSU ApileVSU.
-  tauto.
   extensionality gv; trivial.
 Qed.
 
@@ -122,7 +121,7 @@ Definition Core_VSU:
      (fun gv => simple_spec_onepile.onepile None gv * simple_spec_apile.apile [] gv)%logic.
 Proof.
   VSULink_tac MallocFreeVSU Triang_Apile_Onepile_Pile_VSU.
-  extensionality gv. simpl. rewrite emp_sepcon; trivial. 
+  extensionality gv. normalize.
 Qed.
 
 Definition Core_CanVSU: @CanonicalVSU NullExtension.Espec

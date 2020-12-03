@@ -4680,27 +4680,22 @@ Ltac treat_one_compdef :=
     subst the_rest
   end.
 
-Ltac finish_composites :=
-     match goal with
-       | [ H : ?structure = ?P |- ?structure = ?Q ] => rewrite H; clear H; try solve [match_composite; solve [reflexivity | apply proof_irr]]
-     end;
-      
-     repeat match goal with
-               | [ H: ?structure = ?P |- _ ] =>  try rewrite H; clear H
-            end;
-     match_composite; solve [reflexivity | apply proof_irr].
-
 Ltac solve_cenvcs_goal :=
- (
-  apply extract_compEnv;
+apply (f_equal (@PTree.elements composite));
+apply extract_compEnv;
   match goal with
   | |- build_composite_env ?com = Errors.OK ?cenv_cs =>
     unfold build_composite_env, com
   end;
-  repeat treat_one_compdef;
-  rewrite add_composite_definitions_nil; unfold mk_OKComposite in *; f_equal; simpl cenv_cs;
-  solve [repeat f_equal; finish_composites])
- || (cbv; repeat f_equal; apply proof_irr).
+repeat treat_one_compdef;
+rewrite add_composite_definitions_nil; unfold mk_OKComposite in *; f_equal; simpl cenv_cs;
+repeat f_equal;
+repeat   match goal with
+       | [ H : ?structure = ?P |- ?structure = ?Q ] => rewrite H; clear H
+     end;
+clear;
+apply composite_eq; reflexivity.
+(*  || (cbv; repeat f_equal; apply proof_irr). *)
 
 Ltac prove_semax_prog_aux tac :=
   match goal with
