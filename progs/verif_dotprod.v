@@ -182,7 +182,7 @@ entailer!. {
   simpl force_val.
   Hint Rewrite (Znth_map2 _ _ _ Inhabitant_float Inhabitant_float Inhabitant_float) using Zlength_solve : Znth.
   Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
-  subst fx. list_solve2.
+  subst fx. list_solve.
 }
 *
  forward.

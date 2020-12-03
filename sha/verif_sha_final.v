@@ -17,7 +17,7 @@ Lemma upd_Znth_append:
     (dd ++ [v]) ++ sublist (len+1) N ee.
 Proof.
   intros. subst.
-  list_solve2.
+  list_solve.
 Qed.
 
 Lemma body_SHA256_Final: semax_body Vprog Gtot f_SHA256_Final SHA256_Final_spec.

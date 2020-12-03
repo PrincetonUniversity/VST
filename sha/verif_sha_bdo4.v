@@ -28,7 +28,7 @@ Lemma loop1_aux_lemma1:
           (Vint (Znth i b))
   =  map Vint (sublist 0 (i+1) b) ++ list_repeat (Z.to_nat (16 - (i+1))) Vundef.
 Proof.
-intros. list_solve2.
+intros. list_solve.
 Qed.
 
 Definition block_data_order_loop1 :=
