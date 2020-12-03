@@ -1,11 +1,8 @@
 Require Import VST.floyd.list_solver.
-Require Import BinNums.
+Require Import ZArith.
 Import eq_dec.
-Import BinInt.Z.
-Import Zcomplements.
 Require Import Lia.
 Require Import Coq.Lists.List.
-Require Import Coq.ZArith.ZArith_dec.
 Open Scope Z_scope.
 
 Example Forall_app : forall A {d : Inhabitant A} (a b : list A) P,
@@ -282,3 +279,10 @@ Proof.
 Qed.
 
 End AssocList.
+
+Example xxx (l : list nat) n :
+  0 < n <= Zlength l ->
+  sublist 0 (n-1) l = sublist 1 n l -> False.
+Proof.
+  Fail list_solve.
+Abort.

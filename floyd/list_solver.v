@@ -1479,7 +1479,7 @@ Ltac destruct_range H :=
       [ clear H | Zlength_solve ]
     ) *)
     idtac
-  | forall_range2 ?lo ?hi _ _ _ =>
+  | forall_range2 ?lo ?hi _ _ _ _ =>
     (* try (
       apply forall_range2_empty in H;
       [ clear H | Zlength_solve ]
@@ -1503,7 +1503,7 @@ Ltac rewrite_In_Znth_iff :=
 Ltac rewrite_list_eq :=
   repeat lazymatch goal with
   | H : @eq (list ?A) ?al ?bl |- _ =>
-    rewrite list_eq_forall_range2 in H;
+    apply list_eq_forall_range2 in H;
     destruct H
   end.
 
@@ -1513,6 +1513,7 @@ Hint Rewrite @forall_triangle_fold : list_prop_rewrite.
 Hint Rewrite Sorted_Znth : list_prop_rewrite.
 
 Ltac range_form :=
+  rewrite_list_eq;
   apply_in_hyps not_In_forall_range;
   apply_in_hyps eq_forall_range2_no_offset;
   apply_in_hyps eq_forall_range2_offset;
@@ -1532,7 +1533,7 @@ Ltac Zlength_solve_print_when_fail :=
     Zlength_solve
   | lazymatch goal with
     | |- ?Goal =>
-      fail 0 "Cannot prove" Goal
+      fail 1 "Cannot prove" Goal
     end
   ].
 
@@ -1634,9 +1635,61 @@ Ltac range_rewrite :=
     ]
   end.
 
+Ltac range_rewrite_check :=
+  try match goal with
+  | H : forall_range _ _ ?l _ |- _ =>
+    lazymatch l with
+    | sublist _ _ _ =>
+      idtac "Warning:" l "is not simplified in" H
+    | app _ _ =>
+      idtac "Warning:" l "is not simplified in" H
+    | map _ _ =>
+      idtac "Warning:" l "is not simplified in" H
+    end
+  | H : forall_range2 _ _ ?l1 ?l2 _ |- _ =>
+    first [
+      lazymatch l1 with
+      | sublist _ _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      | app _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      | map _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      end
+    | lazymatch l2 with
+      | sublist _ _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      | app _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      | map _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      end
+    ]
+  | H : forall_triangle _ _ _ _ _ ?l1 ?l2 _ |- _ =>
+    first [
+      lazymatch l1 with
+      | sublist _ _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      | app _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      | map _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      end
+    | lazymatch l2 with
+      | sublist _ _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      | app _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      | map _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      end
+    ]
+  end.
 End range_rewrite.
 
+Ltac range_form := range_rewrite.range_form.
 Ltac range_rewrite := range_rewrite.range_rewrite.
+Ltac range_rewrite_check := range_rewrite.range_rewrite_check.
 
 Lemma range_le_lt_dec : forall lo i hi,
   {lo <= i < hi} + {~lo <= i < hi}.
@@ -1672,6 +1725,8 @@ Ltac pose_new_res_tri i j x1 x2 y1 y2 offset H res :=
   | try lia ..
   ].
 
+Ltac instantiate_bound_set := false.
+
 Module range_saturate.
 
 Definition Znth' := @Znth.
@@ -1691,8 +1746,6 @@ Definition range_saturate_shift {A : Type} (l : list A) (s : Z) :=
 Definition range_saturate_shift' := @range_saturate_shift.
 Arguments range_saturate_shift' {_}.
 
-Ltac use_bound_set := false.
-
 Module check_non_zero_loop.
 
 Lemma pose_range_saturate_shift : forall {A : Type} (l : list A) (s : Z),
@@ -1709,7 +1762,7 @@ Ltac pose_range_saturate_shift l s :=
   autorewrite with Z_normalize_0 in H.
 
 Ltac loop2 :=
-  let flag := use_bound_set in
+  let flag := instantiate_bound_set in
   repeat lazymatch goal with
   | H : range_saturate_shift ?l1 ?s1,
     H1 : forall_range2 ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
@@ -1750,7 +1803,7 @@ Ltac loop2 :=
   end.
 
 Ltac loop1 :=
-  let flag := use_bound_set in
+  let flag := instantiate_bound_set in
   repeat lazymatch goal with
   | H : forall_range2 ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
     pose_range_saturate_shift l1 0;
@@ -1775,7 +1828,9 @@ Ltac check_non_zero_loop_old :=
   else idtac.
 
 Ltac check_non_zero_loop :=
-  loop1.
+  tryif loop1
+  then idtac
+  else fail "List solver cannot solve this goal because it is entangled, which means it has assumptions like (sublist 0 (n-1) al = sublist 1 n al)".
 
 Ltac clear0 :=
   repeat lazymatch goal with
@@ -1880,7 +1935,7 @@ Ltac bound_set :=
 
 Ltac find_instantiate_index :=
   index_set;
-  let flag := use_bound_set in
+  let flag := instantiate_bound_set in
   lazymatch flag with
   | true =>
     bound_set
@@ -2017,7 +2072,9 @@ Ltac Znth_simplify_in_all :=
 Arguments Zlength_fact {_}.
 
 Ltac list_prop_solve' :=
-  list_form; range_rewrite.range_form; range_rewrite; Znth_solve2;
+  list_form; range_rewrite.range_form; range_rewrite;
+  range_rewrite_check;
+  Znth_solve2;
   autorewrite with Z_normalize_0 in *;
   range_saturate;
   Znth_solve2;
@@ -2072,8 +2129,8 @@ Ltac list_solve :=
     apply_list_ext; Znth_solve;
     auto with Znth_solve_hint; try fassumption
   );
-  try list_prop_solve;
-  fail "list_solve cannot solve the goal".
+  list_prop_solve';
+  fail "list_solve cannot solve this goal".
 
 Ltac list_simplify :=
   intros;
