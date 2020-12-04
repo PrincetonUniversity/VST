@@ -83,13 +83,20 @@ Ltac apply_list_ext ::=
       end
     end;
     only 1 : Zlength_solve
+  | match goal with |- @Forall ?A ?P ?l =>
+      rewrite Forall_Znth;
+      intros
+    end
+  | match goal with |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
+      rewrite <- forall_range_fold;
+      intros
+    end
   ];
   Zlength_simplify;
   intros.
 
 Ltac list_solve_preprocess ::=
   fold_Vbyte;
-  simpl_reptype;
   simpl_reptype;
   autounfold with list_solve_unfold in *;
   autorewrite with list_solve_rewrite in *;

@@ -1325,7 +1325,7 @@ Qed.
 Lemma upd_Znth_twice : forall {A} i l (x y : A), 0 <= i < Zlength l ->
   upd_Znth i (upd_Znth i l x) y = upd_Znth i l y.
 Proof.
-  intros. list_solve2.
+  intros. list_solve.
 Qed.
 
 Lemma hd_Znth : forall {A}{d: Inhabitant A} (l : list A), hd default l = Znth 0 l.
