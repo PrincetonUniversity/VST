@@ -252,7 +252,7 @@ endif
 
 # Compcert Clightgen flags
 
-CGFLAGS =  -DCOMPCERT
+CGFLAGS =  -DCOMPCERT -short-idents
 
 #ifeq ($(COMPCERT_NEW),true)
 #SHIM= -Q concurrency/shim VST.veric
@@ -512,6 +512,7 @@ SHA_FILES= \
   verif_sha_bdo4.v verif_sha_bdo7.v verif_sha_bdo8.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
   verif_addlength.v verif_SHA256.v call_memcpy.v
+SHA_C_FILES= sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 
 HMAC_FILES= \
   HMAC_functional_prog.v HMAC256_functional_prog.v \
@@ -748,17 +749,29 @@ clean_cvfiles:
 
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
 ifdef CLIGHTGEN
-sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
-	$(CLIGHTGEN) ${CGFLAGS} $^
-$(PROGSDIR)/even.v: $(PROGSDIR)/even.c $(PROGSDIR)/odd.c
+all-cv-files: $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES) even.c odd.c) \
+              $(patsubst %.c,%.v, $(SHA_C_FILES)) \
+              aes/aes.v tweetnacl20140427/tweetnaclVerifiableC.v \
+              mailbox/mailbox.v
+ifneq (, $(findstring -short-idents, $(CGFLAGS)))
+$(patsubst %.c,%.v, $(SHA_C_FILES)) &: $(SHA_C_FILES)
 	$(CLIGHTGEN) ${CGFLAGS} $^
 $(PROGSDIR)/odd.v: $(PROGSDIR)/even.v
 mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
+else
+ifeq (, $(findstring -canonical-idents, $(CGFLAGS)))
+  $(warning CGFLAGS contains neither -short-idents nor -canonical-idents, using default which is probably -canonical-idents)
+endif
+$(patsubst %.c,%.v, $(SHA_C_FILES)): %.v: %.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
+endif
 aes/aes.v: aes/mbedtls/library/aes.c aes/mbedtls/include/mbedtls/config.h \
               aes/mbedtls/include/mbedtls/check_config.h
 	$(CLIGHTGEN) ${CGFLAGS} -Iaes/mbedtls/include $<; mv aes/mbedtls/library/aes.v aes/aes.v
-tweetnacl20140427/tweetnaclVerifiableC.v: tweetnaclVerifiableC.c
+$(PROGSDIR)/even.v: $(PROGSDIR)/even.c $(PROGSDIR)/odd.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
+tweetnacl20140427/tweetnaclVerifiableC.v: tweetnacl20140427/tweetnaclVerifiableC.c
 	$(CLIGHTGEN) ${CGFLAGS} -normalize $<
 # GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
 $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES)): $(PROGSDIR)/%.v: $(PROGSDIR)/%.c
