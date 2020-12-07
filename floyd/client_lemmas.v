@@ -475,10 +475,8 @@ intros.
  destruct i,s,v; try inv H; simpl; eauto.
 Qed.
 
-Definition name (id: ident) := True.
-
 Tactic Notation "name" ident(s) constr(id) :=
-    assert (s: name id) by apply Coq.Init.Logic.I.
+    idtac "Warning: the 'name' tactic no loger does anything useful, and will be removed in future versions of VST".
 
 Definition reflect_temps_f (rho: environ) (b: Prop) (i: ident) (t: type) : Prop :=
   tc_val' t (eval_id i rho) /\ b.

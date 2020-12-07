@@ -586,7 +586,7 @@ Qed.
 
 Ltac prove_all_defined := 
  red; simpl makePARAMS;
-match goal with |- !! ?A _ _ _ && _ |-- !! ?B=>
+lazymatch goal with |- !! ?A _ _ _ && _ |-- !! ?B=>
  let a := fresh "a" in let b := fresh "b" in 
   set (b:=B); set (a:=A); 
   unfold fold_right in a;
@@ -612,7 +612,7 @@ Ltac convertPreElim' :=
 unfold convertPre;
 let ae := fresh "ae" in extensionality ae;
 let g := fresh "g" in let args := fresh "args" in destruct ae as [g args];
-match goal with |-
+lazymatch goal with |-
   andp _ (PROPx _ (LOCALx ?Q _) _)  =  PROPx _ (LAMBDAx ?G _ _) _ =>
  unify G (globals_localdefs Q)
 end;

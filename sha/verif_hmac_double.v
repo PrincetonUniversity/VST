@@ -53,11 +53,6 @@ Lemma body_hmac_double: semax_body HmacVarSpecs HmacFunSpecs
       f_HMAC2 HMAC_Double_spec.
 Proof.
 start_function.
-name key' _key.
-name keylen' _key_len.
-name d' _d.
-name n' _n.
-name md' _md.
 rename v_c into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
@@ -144,8 +139,8 @@ cancel.
 
 assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
 {
-  red. intuition.
-  simpl.
+  red. split3; [ | | split3]; auto.
+  2: apply I.
   constructor.
   intros.
   econstructor.

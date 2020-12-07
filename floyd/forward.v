@@ -231,18 +231,14 @@ eapply var_block_lvar0; try apply H; try eassumption.
 Qed.
 
 Ltac process_stackframe_of :=
- match goal with |- semax _ (_ * stackframe_of ?F) _ _ =>
+ lazymatch goal with |- semax _ (_ * stackframe_of ?F) _ _ =>
    let sf := fresh "sf" in set (sf:= stackframe_of F) at 1;
      unfold stackframe_of in sf; simpl map in sf; subst sf
   end;
  repeat
-   match goal with |- semax _ (_ * fold_right sepcon emp (var_block _ (?i,_) :: _)) _ _ =>
-     match goal with
-     | n: name i |- _ => simple apply var_block_lvar2;
-       [ reflexivity | reflexivity | reflexivity | reflexivity | clear n; intro n ]
-     | |- _ =>    simple apply var_block_lvar2;
+   lazymatch goal with |- semax _ (_ * fold_right sepcon emp (var_block _ (?i,_) :: _)) _ _ =>
+     simple apply var_block_lvar2;
        [ reflexivity | reflexivity | reflexivity | reflexivity | let n := fresh "v" i in intros n ]
-     end
    end;
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
@@ -274,8 +270,8 @@ Ltac semax_func_cons_ext_tc :=
   end;
   normalize; simpl tc_option_val' .
 
-Ltac LookupID := first [ cbv;reflexivity | fail "Lookup for a function identifier in Genv failed" ].
-Ltac LookupB := first [ cbv;reflexivity | fail "Lookup for a function pointer block in Genv failed" ].
+Ltac LookupID := (cbv;reflexivity) || fail "Lookup for a function identifier in Genv failed".
+Ltac LookupB :=  (cbv;reflexivity) || fail "Lookup for a function pointer block in Genv failed".
 
 Lemma semax_body_subsumption' cs cs' V V' F F' f spec
       (SF: @semax_body V F cs f spec)
@@ -681,7 +677,7 @@ end.
 
 
 Ltac check_struct_params al :=
- match al with
+ lazymatch al with
  | nil => idtac
  | Tstruct _ _ :: _ => fail "struct parameters are not supported in VST"
  | Tunion _ _ :: _ => fail "union parameters are not supported in VST"
@@ -726,7 +722,7 @@ Inductive Actual_parameters_cannot_be_coerced_to_formal_parameter_types := .
 Ltac check_cast_params :=
 reflexivity + 
 (simpl explicit_cast_exprlist;
-match goal with |- force_list (map ?F ?A) = _ =>
+lazymatch goal with |- force_list (map ?F ?A) = _ =>
   let el := constr:(A) in 
   let bl := constr:(map F A) in
   let cl := eval simpl in bl in 
@@ -4176,7 +4172,7 @@ Ltac rewrite_old_main_pre := idtac.
 
 Ltac start_function1 :=
  leaf_function;
- match goal with |- semax_body ?V ?G ?F ?spec =>
+ lazymatch goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
     function_body_unsupported_features F;
     let s := fresh "spec" in
@@ -4203,12 +4199,7 @@ Ltac start_function1 :=
  unfold NDmk_funspec; 
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
 
-   (*WAS:split; [split3; [check_parameter_types' | check_return_type
-          | try (apply compute_list_norepet_e; reflexivity);
-             fail "Duplicate formal parameter names in funspec signature"  ] 
-         |];*)
-   (*NOW:*)split3; [check_parameter_types' | check_return_type | ];
-
+   split3; [check_parameter_types' | check_return_type | ];
     match Pre with
    | (fun _ => convertPre _ _ (fun i => _)) =>  intros Espec DependedTypeList i
    | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]

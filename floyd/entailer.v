@@ -540,13 +540,16 @@ Ltac entailer :=
  try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
         clear MORE_COMMANDS
       end;
- match goal with
+ lazymatch goal with
  | |- ?P |-- _ =>
-    match type of P with
-    | ?T => unify T (environ->mpred); clean_up_stackframe; go_lower
-    | _ => clear_Delta; pull_out_props
+    lazymatch type of P with
+    | ?T => tryif unify T (environ->mpred)
+                 then (clean_up_stackframe; go_lower)
+                 else tryif unify T mpred
+                    then (clear_Delta; pull_out_props)
+                    else fail "Unexpected type of entailment, neither mpred nor environ->mpred"
     end
- | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
+ | |- _ => fail  "The entailer tactic works only on entailments   _ |-- _ "
  end;
  saturate_local;
  entailer';
@@ -592,21 +595,25 @@ Qed.
 
 Ltac entbang :=
  intros;
- try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
+ try lazymatch goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
         clear POSTCONDITION
       end;
- try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
+ try lazymatch goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
         clear MORE_COMMANDS
       end;
- match goal with
+ lazymatch goal with
  | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower; try apply empTrue
  | |- ?P |-- _ =>
-    match type of P with
-    | ?T => unify T mpred; pull_out_props
+    lazymatch type of P with
+    | ?T => tryif unify T (environ->mpred)
+                 then fail "entailer! found an (environ->mpred) entailment that is missing its 'local' left-hand-side part (that is, Delta)"
+                 else tryif unify T mpred
+                    then (clear_Delta; pull_out_props)
+                    else fail "Unexpected type of entailment, neither mpred nor environ->mpred"
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
  end;
- repeat match goal with
+ repeat lazymatch goal with
         | |- context [force_val (sem_binary_operation' ?op ?t1 ?t2 ?v1 ?v2)] =>
           progress 
               simpl  (* This simpl is safe, because its argument is not
@@ -623,7 +630,7 @@ Ltac entbang :=
  repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
  first [ contradiction
         | simple apply prop_right; my_auto
-        | match goal with |- ?Q |-- !! _ && ?Q' => constr_eq  Q Q';
+        | lazymatch goal with |- ?Q |-- !! _ && ?Q' => constr_eq  Q Q';
                       simple apply prop_and_same_derives'; my_auto
           end
         | simple apply andp_right;
@@ -635,7 +642,7 @@ Ltac entbang :=
 Tactic Notation "entailer" "!" := entbang.
 
 Ltac elim_hyps :=  (* not in use anywhere? *)
- repeat match goal with
+ repeat lazymatch goal with
  | H: isptr ?x |- _ =>
      let x1 := fresh x "_b" in let x2 := fresh x "_ofs" in
      destruct x as [ | | | | | x1 x2]; inv H
@@ -660,16 +667,13 @@ repeat match goal with
  | A := _ |- _ =>  clear A || (revert A; match goal with |- ?B => no_evars B end)
  | H : ?P |- _ =>
   match type of P with
-  | Prop => match P with name _ => fail 2 | _ => revert H; match goal with |- ?B => no_evars B end end
+  | Prop => revert H; match goal with |- ?B => no_evars B end
   | _ => clear H || (revert H; match goal with |- ?B => no_evars B end)
   end
 end;
 repeat match goal with
  | x := ?X |- _ => is_evar X; clearbody x; revert x; apply EVAR_e
-end;
-repeat match goal with
-  | H : name _ |- _ => revert H
- end.
+end.
 
 Lemma EVAR_i: forall P: Prop, P -> EVAR P.
 Proof. intros. apply H. Qed.

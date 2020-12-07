@@ -65,7 +65,8 @@ to C programs}%
 \savepagenumber
 \mainmatter
 \restorepagenumber
-\renewcommand{\chaptermark}[1]{\markboth{\thechapter.~#1\hfill{\textcolor{red}\thefile}\hspace*{2em}}{}}
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter.~#1\hfill{%\textcolor{red}
+\thefile}\hspace*{2em}}{}}
 
 \chapter{Overview}
 Verifiable C is a language and program logic for reasoning about the
@@ -4882,12 +4883,6 @@ component to the application of a sequence of initializations to the
 host function's func\_tycontext.  Used to prepare the current
 proof goal for abstracting/factoring out as a separate lemma.
 % Superordinate tactics:  $\mathit{semax\_subcommand}$\\
-
-\item[\textsf{name} $i$ $\_i$]
-  (tactic)
-  Before \lstinline{start_function}, suggest the name $i$
-  for the Coq variable
-  associated with the value of C global variable $\_i$.
 
 \item[\textsf{semax\_subcommand\ $V$\ $G$\ $F$}]
 (tactic)
