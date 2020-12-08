@@ -1,4 +1,4 @@
-Require Import VST.veric.base.
+Require Import VST.veric.base VST.veric.Cop2.
 Require Import compcert.cfrontend.Ctypes.
 
 Module QP.
@@ -440,14 +440,81 @@ Definition program_of_QPprogram {F} (p: QP.program F)
                              (sort_rank (PTree.elements (p.(QP.prog_comp_env))) nil) in
  make_program types defs public main.
 
-Module Junkyard.
-
 Definition QPprogram_of_program {F} (p: Ctypes.program F) : QP.program F :=
  {| QP.prog_defs := PTree_Properties.of_list p.(prog_defs);
    QP.prog_public := p.(prog_public);
    QP.prog_main := p.(prog_main);
    QP.prog_comp_env := QPcomposite_env_of_composite_env p.(prog_comp_env)
  |}.
+
+Import ListNotations.
+
+
+Definition merge_PTrees {X} (merge: X -> X -> Errors.res X) (a b: PTree.t X) : Errors.res (PTree.t X) :=
+  PTree.fold  (fun m i y =>
+          match m with Errors.Error _ => m
+          | Errors.OK m' =>
+                match PTree.get i m' with
+                 | Some x => match merge x y with
+                                       | Errors.Error e => Errors.Error e
+                                       | Errors.OK xy => Errors.OK (PTree.set i xy m')
+                                       end
+                 | None => Errors.OK (PTree.set i y m')
+                 end
+           end) a (Errors.OK b).
+
+
+Definition merge_disjoint_PTrees {X} (a b: PTree.t X) : Errors.res (PTree.t X) :=
+  PTree.fold  (fun m i y =>
+                      match m with Errors.Error _ => m
+                      | Errors.OK m' => match PTree.get i m' with
+                                             | Some _ => Errors.Error [Errors.MSG "nondisjoint PTrees: identifier="%string; Errors.POS i]
+                                             | None => Errors.OK (PTree.set i y m')
+                                             end
+                      end) a (Errors.OK b).
+
+Definition merge_consistent_PTrees {X} (eqb: X -> X -> bool) (a b: PTree.t X) 
+      : Errors.res (PTree.t X) :=
+  PTree.fold  (fun m i y =>
+                      match m with Errors.Error _ => m
+                      | Errors.OK m' => match PTree.get i m' with
+                                             | Some x => 
+                                                 if eqb x y then Errors.OK m' 
+                                                 else Errors.Error [Errors.MSG "inconsistent PTrees at identifier="; Errors.POS i]
+                                             | None => Errors.OK (PTree.set i y m')
+                                             end
+                      end) a (Errors.OK b).
+
+Definition QPcomposite_eq (c d: QP.composite) : bool :=
+ (eqb_su c.(QP.co_su) d.(QP.co_su) 
+ && eqb_list eqb_member c.(QP.co_members) d.(QP.co_members)
+ && eqb_attr c.(QP.co_attr) d.(QP.co_attr)
+ && Z.eqb c.(QP.co_sizeof) d.(QP.co_sizeof)
+ && Z.eqb c.(QP.co_alignof) d.(QP.co_alignof)
+ && Nat.eqb c.(QP.co_rank) d.(QP.co_rank))%bool.
+
+Require VST.floyd.linking.
+
+Definition QPlink_progs (p1 p2: QP.program Clight.function) : Errors.res (QP.program Clight.function) :=
+ match merge_PTrees linking.merge_globdef (p1.(QP.prog_defs)) p2.(QP.prog_defs) with
+ | Errors.Error m => Errors.Error m
+ | Errors.OK defs => match merge_consistent_PTrees QPcomposite_eq
+                p1.(QP.prog_comp_env) p2.(QP.prog_comp_env)
+   with Errors.Error m => Errors.Error m
+     | Errors.OK ce => 
+   if eqb_ident p1.(QP.prog_main) p2.(QP.prog_main) then
+    Errors.OK 
+    {| QP.prog_defs := defs;
+       QP.prog_public := p1.(QP.prog_public);
+       QP.prog_main := p1.(QP.prog_main);
+       QP.prog_comp_env := ce
+     |}
+   else Errors.Error [Errors.MSG "QPlink_progs disagreement on main:";
+                               Errors.POS p1.(QP.prog_main);
+                               Errors.POS p2.(QP.prog_main)]
+ end end.
+
+Module Junkyard.
 
 Fixpoint QPcomplete_type (env : QP.composite_env) (t : type) :  bool :=
   match t with
