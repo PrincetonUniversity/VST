@@ -2152,21 +2152,20 @@ Ltac list_simplify :=
   );
   list_prop_solve'.
 
-(** * list_solve2 *)
-(* Ltac list_solve2' :=
-  repeat match goal with [ |- _ /\ _ ] => split end;
-  intros;
-  try Zlength_solve;
-  list_form; Zlength_simplify_in_all; Znth_solve2;
-  auto with Znth_solve_hint;
-  first
-  [ fassumption
-  | Zlength_solve
-  | apply_list_ext; Znth_solve
-  ];
-  auto with Znth_solve_hint;
-  try fassumption.
+(** * quick_list_solve and simplify *)
+Ltac quick_list_simplify :=
+  try lia;
+  try match goal with |- context [@Zlength] => Zlength_solve end;
+  list_solve_preprocess;
+  Zlength_simplify_in_all; try lia;
+  Znth_simplify_in_all; auto with Znth_solve_hint;
+  try fassumption;
+  Zlength_simplify_in_all; try lia;
+  try (
+    apply_list_ext; Znth_solve;
+    auto with Znth_solve_hint; try fassumption
+  ).
 
-Ltac list_solve2 :=
-  list_solve2';
-  fail "list_solve2 cannot solve this goal". *)
+Ltac quick_list_solve :=
+  quick_list_simplify;
+  fail "quick_list_solve cannot solve this goal".
