@@ -4419,8 +4419,9 @@ let comp' := make_composite_env comp
             ce
        end.
 
-Ltac make_compspecs prog :=
-  let cenv := make_composite_env0 prog in
+Ltac make_compspecs_cenv cenv :=
+  let cenv := eval hnf in cenv in
+  let cenv := eval simpl in cenv in 
   let cenv_consistent_ := constr:((composite_env_consistent_i composite_consistent cenv ltac:(repeat constructor)): composite_env_consistent cenv) in
   let cenv_legal_fieldlist_ := constr:((composite_env_consistent_i' composite_legal_fieldlist cenv ltac:(repeat constructor)): composite_env_legal_fieldlist cenv) in
   let cenv_legal_su_ := constr:((composite_env_consistent_i (fun c co => composite_complete_legal_cosu_type c (co_members co) = true) cenv ltac:(repeat constructor)): composite_env_complete_legal_cosu_type cenv) in
@@ -4433,7 +4434,7 @@ Ltac make_compspecs prog :=
   let la_env_consistent := constr: (legal_alignas_env_consistency' cenv ha_env la_env cenv_consistent_ Hla_env) in
   let la_env_complete := constr: (legal_alignas_env_completeness' cenv ha_env la_env Hla_env) in
   let la_env_sound := constr: (legal_alignas_soundness cenv ha_env la_env cenv_consistent_ cenv_legal_su_ ha_env_consistent ha_env_complete la_env_consistent la_env_complete) in
-  refine (  {| cenv_cs := cenv ;
+  exact (  {| cenv_cs := cenv ;
     cenv_consistent := cenv_consistent_;
     cenv_legal_fieldlist := cenv_legal_fieldlist_;
     cenv_legal_su := cenv_legal_su_;
@@ -4443,7 +4444,12 @@ Ltac make_compspecs prog :=
     la_env_cs := la_env;
     la_env_cs_consistent := la_env_consistent;
     la_env_cs_complete := la_env_complete;
-    la_env_cs_sound := la_env_sound |}).
+    la_env_cs_sound := la_env_sound
+   |}).
+
+Ltac make_compspecs prog :=
+  let cenv := make_composite_env0 prog in
+  make_compspecs_cenv cenv.
 
 Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
   match al with
