@@ -16,12 +16,14 @@ Record composite : Type := {
 Definition composite_env : Type := PTree.t composite.
 
 Record program (F: Type) : Type := {
+  prog_builtins: list (ident * globdef (fundef F) type);
   prog_defs: PTree.t (globdef (fundef F) type);
   prog_public: list ident;
   prog_main: ident;
   prog_comp_env: composite_env
 }.
 
+Arguments prog_builtins {F} _.
 Arguments prog_defs {F} _.
 Arguments prog_public {F} _.
 Arguments prog_main {F} _.
@@ -431,9 +433,16 @@ Fixpoint sort_rank (al: list (ident * QP.composite)) (rl: list (list (ident * QP
 Definition compdef_of_compenv_element (x: ident * QP.composite) : composite_definition :=
   Composite (fst x) (QP.co_su (snd x)) (QP.co_members (snd x)) (QP.co_attr (snd x)).
 
+Definition is_builtin {F} (ix: ident * globdef (fundef F) type) : bool :=
+ match snd ix with
+ | Gfun (External (EF_builtin _ _) _ _ _) => true
+ | Gfun (External (EF_runtime _ _) _ _ _) => true
+ | _ => false
+end.
+
 Definition program_of_QPprogram {F} (p: QP.program F) 
    : Errors.res (Ctypes.program F) :=
- let defs := PTree.elements p.(QP.prog_defs) in
+ let defs := p.(QP.prog_builtins) ++ PTree.elements p.(QP.prog_defs) in
  let public := p.(QP.prog_public) in
  let main := p.(QP.prog_main) in
  let types := map compdef_of_compenv_element 
@@ -441,14 +450,14 @@ Definition program_of_QPprogram {F} (p: QP.program F)
  make_program types defs public main.
 
 Definition QPprogram_of_program {F} (p: Ctypes.program F) : QP.program F :=
- {| QP.prog_defs := PTree_Properties.of_list p.(prog_defs);
+ {| QP.prog_builtins :=  filter is_builtin p.(prog_defs);
+   QP.prog_defs := PTree_Properties.of_list (filter (Basics.compose negb is_builtin) p.(prog_defs));
    QP.prog_public := p.(prog_public);
    QP.prog_main := p.(prog_main);
    QP.prog_comp_env := QPcomposite_env_of_composite_env p.(prog_comp_env)
  |}.
 
 Import ListNotations.
-
 
 Definition merge_PTrees {X} (merge: X -> X -> Errors.res X) (a b: PTree.t X) : Errors.res (PTree.t X) :=
   PTree.fold  (fun m i y =>
@@ -495,24 +504,41 @@ Definition QPcomposite_eq (c d: QP.composite) : bool :=
 
 Require VST.floyd.linking.
 
+Fixpoint merge_builtins (al bl: list (ident * globdef (fundef Clight.function) type)) : 
+   Errors.res (list (ident * globdef (fundef Clight.function) type)) :=
+match al, bl with
+| nil, nil => Errors.OK nil
+| (i,a)::al', (j,b)::bl' => 
+     if ident_eq i j 
+     then
+           Errors.bind (linking.merge_globdef a b) (fun c => 
+                          Errors.bind (merge_builtins al' bl') (fun d =>
+                           Errors.OK((i,c)::d)))
+     else Errors.Error [Errors.MSG "identifier mismatch in builtins list:";
+                                   Errors.POS i; Errors.POS j]
+| _, _ => Errors.Error [Errors.MSG "length mismatch in builtins list"]
+end.
+
+
+
+
 Definition QPlink_progs (p1 p2: QP.program Clight.function) : Errors.res (QP.program Clight.function) :=
- match merge_PTrees linking.merge_globdef (p1.(QP.prog_defs)) p2.(QP.prog_defs) with
- | Errors.Error m => Errors.Error m
- | Errors.OK defs => match merge_consistent_PTrees QPcomposite_eq
-                p1.(QP.prog_comp_env) p2.(QP.prog_comp_env)
-   with Errors.Error m => Errors.Error m
-     | Errors.OK ce => 
-   if eqb_ident p1.(QP.prog_main) p2.(QP.prog_main) then
+ Errors.bind (merge_builtins p1.(QP.prog_builtins) p2.(QP.prog_builtins)) (fun builtins =>
+ Errors.bind (merge_PTrees linking.merge_globdef (p1.(QP.prog_defs)) p2.(QP.prog_defs)) (fun defs =>
+ Errors.bind (merge_consistent_PTrees QPcomposite_eq
+                p1.(QP.prog_comp_env) p2.(QP.prog_comp_env)) (fun ce =>
+    if eqb_ident p1.(QP.prog_main) p2.(QP.prog_main) then
     Errors.OK 
-    {| QP.prog_defs := defs;
-       QP.prog_public := p1.(QP.prog_public);
+    {| QP.prog_builtins := builtins;
+       QP.prog_defs := defs;
+       QP.prog_public := p1.(QP.prog_public) ++ p2.(QP.prog_public);
        QP.prog_main := p1.(QP.prog_main);
        QP.prog_comp_env := ce
      |}
    else Errors.Error [Errors.MSG "QPlink_progs disagreement on main:";
                                Errors.POS p1.(QP.prog_main);
                                Errors.POS p2.(QP.prog_main)]
- end end.
+  ))).
 
 Module Junkyard.
 
