@@ -2516,7 +2516,8 @@ match goal with
            [ | reflexivity | clear; compute; split; congruence];
      let E := fresh "E" in let NE := fresh "NE" in 
      destruct (zeq N (Int.unsigned (Int.repr y))) as [E|NE];
-      [ rewrite if_true; [ unfold seq_of_labeled_statement at 1 | symmetry; apply E];
+      [ try ( rewrite if_true; [  | symmetry; apply E]);
+        unfold seq_of_labeled_statement at 1;
         apply unsigned_eq_eq in E;
         match sign with
         | Signed => apply repr_inj_signed in E; [ | rep_lia | rep_lia]
@@ -2524,7 +2525,7 @@ match goal with
         end;
         try match type of E with ?a = _ => is_var a; subst a end;
         repeat apply -> semax_skip_seq
-     | rewrite if_false by (contradict NE; symmetry; apply NE);
+     | try (rewrite if_false by (contradict NE; symmetry; apply NE));
         process_cases sign
     ]
 | |- semax _ _ (seq_of_labeled_statement 
@@ -2532,7 +2533,7 @@ match goal with
       with Some _ => _ | None => _ end) _ =>
       change (select_switch_case N (LScons None C SL))
        with (select_switch_case N SL);
-      process_cases sign
+        process_cases sign
 | |- semax _ _ (seq_of_labeled_statement 
      match select_switch_case ?N LSnil
       with Some _ => _ | None => _ end) _ =>
