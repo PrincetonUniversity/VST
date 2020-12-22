@@ -16,10 +16,8 @@ homepage: "http://vst.cs.princeton.edu/"
 dev-repo: "git+https://github.com/PrincetonUniversity/VST.git"
 bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
-build: [
-    [make "IGNORECOQVERSION=true" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
-]
-run-test: [make "IGNORECOQVERSION=true" "-j%{jobs}%" "progs" "sha-hmac" "mailbox" "VSUpile"]
+build: [make "BITSIZE=64" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
+run-test: [make "BITSIZE=64" "-j%{jobs}%" "progs"]
 install: [
 	["mkdir" "-p" "%{lib}%/coq/user-contrib/VST"]
 	["cp" "-r" "msl" "%{lib}%/coq/user-contrib/VST/"]
@@ -27,18 +25,13 @@ install: [
 	["cp" "-r" "floyd" "%{lib}%/coq/user-contrib/VST/"]
 	["cp" "-r" "sepcomp" "%{lib}%/coq/user-contrib/VST/"]
 	]
-remove: [
-	["rm" "-fr" "%{lib}%/coq/user-contrib/VST"]
-	]
 depends: [
-  "ocaml"
   "coq" {>= "8.11.0"}
-  "coq-compcert" {>= "3.7~"}
+  "coq-compcert" {= "3.8"}
 ]
 synopsis: "Verified Software Toolchain"
 description:
   "The software toolchain includes static analyzers to check assertions about your program; optimizing compilers to translate your program to machine language; operating systems and libraries to supply context for your program. The Verified Software Toolchain project assures with machine-checked proofs that the assertions claimed at the top of the toolchain really hold in the machine-language program, running in the operating-system context."
-flags: light-uninstall
 url {
   src: "git+https://github.com/PrincetonUniversity/VST.git#master"
 }

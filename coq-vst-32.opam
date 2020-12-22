@@ -16,8 +16,8 @@ homepage: "http://vst.cs.princeton.edu/"
 dev-repo: "git+https://github.com/PrincetonUniversity/VST.git"
 bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
-build: [make "IGNORECOQVERSION=true" "BITSIZE=64" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
-run-test: [make "IGNORECOQVERSION=true" "BITSIZE=64" "-j%{jobs}%" "progs"]
+build: [make "BITSIZE=32" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
+run-test: [make "BITSIZE=32" "-j%{jobs}%" "progs" "sha-hmac" "mailbox"]
 install: [
 	["mkdir" "-p" "%{lib}%/coq/user-contrib/VST"]
 	["cp" "-r" "msl" "%{lib}%/coq/user-contrib/VST/"]
@@ -27,7 +27,7 @@ install: [
 	]
 depends: [
   "coq" {>= "8.11.0"}
-  "coq-compcert-64" {>= "3.7~" != "3.7"}
+  "coq-compcert-32" {= "3.8"}
 ]
 synopsis: "Verified Software Toolchain"
 description:
@@ -35,3 +35,4 @@ description:
 url {
   src: "git+https://github.com/PrincetonUniversity/VST.git#master"
 }
+
