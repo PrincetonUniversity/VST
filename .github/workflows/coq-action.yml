@@ -12,15 +12,11 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-          - '8.11'
-          - '8.12'
+          - '8.12.2'
+          - '8.13+beta'
         opam_name:
           - coq-vst
-          - coq-vst-64
-        exclude:
-          # Remove this exclusion when coq-compcert-64 supports Coq 8.12
-          - coq_version: '8.12'
-            opam_name: coq-vst-64
+          - coq-vst-32
     steps:
       - uses: actions/checkout@v2
       - name: Checkout submodules
@@ -30,7 +26,9 @@ jobs:
           opam_file: ${{ matrix.opam_name }}.opam
           coq_version: ${{ matrix.coq_version }}
           custom_script: |
-            startGroup Print opam config
+            # This mostly follows https://github.com/coq-community/docker-coq-action/tree/v1.0.0
+            startGroup Opam config
+              opam repo add -y prerelease file://$WORKDIR/opam-prerelease
               opam config list; opam repo list; opam list
             endGroup
             startGroup Build dependencies
