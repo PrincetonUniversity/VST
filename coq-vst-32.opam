@@ -19,11 +19,7 @@ license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICEN
 build: [make "BITSIZE=32" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
 run-test: [make "BITSIZE=32" "-j%{jobs}%" "progs" "sha-hmac" "mailbox"]
 install: [
-	["mkdir" "-p" "%{lib}%/coq/user-contrib/VST"]
-	["cp" "-r" "msl" "%{lib}%/coq/user-contrib/VST/"]
-	["cp" "-r" "veric" "%{lib}%/coq/user-contrib/VST/"]
-	["cp" "-r" "floyd" "%{lib}%/coq/user-contrib/VST/"]
-	["cp" "-r" "sepcomp" "%{lib}%/coq/user-contrib/VST/"]
+	make "BITSIZE=32" "install"
 	]
 depends: [
   "coq" {>= "8.11.0"}
