@@ -1,6 +1,11 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.veric.Clight_initial_world.
 Require Import VST.floyd.assoclists.
+Require Import VST.floyd.PTops.
+Require Export VST.floyd.QPcomposite.
+Require Export VST.floyd.quickprogram.
+
+(* Coercion QPprogram_of_program: program >-> QP.program. *)
 
 Lemma semax_body_subsumespec {cs} V V' F F' f iphi (SB: @semax_body V F cs f iphi)
   (HVF : forall i : positive,
@@ -41,7 +46,7 @@ Qed.
 Lemma semax_body_subsumespec_GprogNil (V : varspecs) F (cs:compspecs) f iphi:
        semax_body V nil f iphi -> list_norepet (map fst V ++ map fst F) ->
        semax_body V F f iphi.
-  Proof. intros. eapply VSU.semax_body_subsumespec. apply H.
+  Proof. intros. eapply semax_body_subsumespec. apply H.
     + intros i; red.
       rewrite 2 semax_prog.make_context_g_char; trivial.
       rewrite 2 initial_world.make_tycontext_s_find_id; simpl. 
@@ -165,31 +170,12 @@ Proof.
     - rewrite 2 make_tycontext_s_find_id; trivial.
     - rewrite PTree.gempty; simpl; trivial.
 Qed.
-(*
-Lemma InternalInfo_envs_sub {CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
-  (Gfs: forall i b, Genv.find_symbol ge i = Some b -> exists b', Genv.find_symbol ge' i=Some b')
-  (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
-  V G  i f phi (H : semaxfunc_InternalInfo CS V G ge i f phi):
-semaxfunc_InternalInfo CS' V G ge' i f phi.
-Proof. 
-  destruct H as [b [Hb1 [Hb2 [Hb3 [Hb4 [Hb5 [Hb6 Hb7]]]]]]].
-  destruct(Gfs _ _ Hb5) as [b' B']. exists b'. repeat split; try assumption.
-  - destruct CSUB as [CSE _]. clear - CSE Hb2. induction Hb2; constructor; trivial.
-    apply (@semax.complete_type_cenv_sub _ _ CSE _ H).
-  - destruct CSUB as [CSE _]. clear - CSE Hb2 Hb3. unfold var_sizes_ok in *.
-    induction Hb3; trivial. inv Hb2. constructor. 2: eauto.
-    rewrite (@expr_lemmas4.cenv_sub_sizeof _ _ CSE); trivial.
-  - specialize (Gfs i); rewrite Hb5 in Gfs. apply Gfs.
-  - specialize (Gffp b); rewrite Hb6 in Gffp; apply Gffp.
-  - apply (semax_body_cenv_sub CSUB); trivial.
-Qed.*)
 
 Lemma InternalInfo_envs_sub {CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
-  (*(Hge: forall i f, genv_find_func ge i (Internal f) -> genv_find_func ge' i (Internal f))*)
   V G  i f phi (H : semaxfunc_InternalInfo CS V G ge i f phi) (FFunc: genv_find_func ge' i (Internal f)):
 semaxfunc_InternalInfo CS' V G ge' i f phi.
 Proof. 
-  destruct H as [Hb1 [Hb2 [Hb3 [Hb4 [Hb5 Hb6]]]]]. (*clear Hge.*)
+  destruct H as [Hb1 [Hb2 [Hb3 [Hb4 [Hb5 Hb6]]]]].
   repeat split; try assumption.
   - destruct CSUB as [CSE _]. clear - CSE Hb2. induction Hb2; constructor; trivial.
     apply (@semax.complete_type_cenv_sub _ _ CSE _ H).
@@ -215,7 +201,6 @@ Proof.
 Qed.
 
 Lemma ExternalInfo_envs_sub Espec ge ge'
-  (*(Hge: forall i ef tys rt cc, genv_find_func ge i (External ef tys rt cc) -> genv_find_func ge' i (External ef tys rt cc))*)
     i ef argsig retsig cc phi
   (H : semaxfunc_ExternalInfo Espec ge i ef argsig retsig cc phi) 
   (FFunc: genv_find_func ge' i (External ef argsig retsig  cc)):
@@ -399,11 +384,12 @@ Qed.
 Definition isInternal (fd:globdef (Ctypes.fundef Clight.function) type) :=
    match fd with Gfun (Internal _) => true | _ => false end.
 
-Definition IntIDs (p: Ctypes.program function): list ident := 
-  map fst ((filter (fun x => isInternal (snd x))) (prog_defs p)).
+Definition IntIDs (p: QP.program function): list ident := 
+  map fst ((filter (fun x => isInternal (snd x))) (PTree.elements (QP.prog_defs p))).
 
-Lemma IntIDs_elim {i p}: In i (IntIDs p) -> exists f, In (i, Gfun (Internal f)) (prog_defs p).
-Proof. unfold IntIDs; forget (prog_defs p) as l. 
+Lemma IntIDs_elim {i p}:
+   In i (IntIDs p) -> exists f, In (i, Gfun (Internal f)) (PTree.elements (QP.prog_defs p)).
+Proof. unfold IntIDs; forget (PTree.elements (QP.prog_defs p)) as l. 
   induction l; simpl; intros. contradiction.
   destruct a; simpl in *.
   destruct g; simpl in *.
@@ -414,12 +400,15 @@ Proof. unfold IntIDs; forget (prog_defs p) as l.
 + apply IHl in H; destruct H. exists x; right; trivial.
 Qed.
 
-Lemma IntIDs_e {i p}: In i (IntIDs p) -> list_norepet (map fst (prog_defs p)) ->
-      exists f, find_id i (prog_defs p) = Some ( Gfun (Internal f)).
-Proof. intros. apply IntIDs_elim in H. destruct H. exists x. apply find_id_i; trivial. Qed.
+Lemma IntIDs_e {i p}: In i (IntIDs p) -> 
+      exists f, PTree.get i (QP.prog_defs p) = Some ( Gfun (Internal f)).
+Proof. intros. apply IntIDs_elim in H. destruct H. exists x.
+   apply PTree.elements_complete.  trivial.
+Qed.
 
-Lemma IntIDs_intro {i p f}: In (i, Gfun (Internal f)) (prog_defs p) -> In i (IntIDs p).
-Proof. unfold IntIDs; forget (prog_defs p) as l. 
+Lemma IntIDs_intro {i p f}: In (i, Gfun (Internal f)) (PTree.elements (QP.prog_defs p)) -> In i (IntIDs p).
+Proof. unfold IntIDs.
+  forget (PTree.elements (QP.prog_defs p)) as l. 
   induction l; simpl; intros. contradiction.
   destruct a; simpl in *.
   destruct g; simpl in *.
@@ -430,48 +419,9 @@ Proof. unfold IntIDs; forget (prog_defs p) as l.
 + destruct H. congruence. auto. 
 Qed.
 
-Lemma IntIDs_i {i p f}: find_id i (prog_defs p) = Some (Gfun (Internal f)) -> In i (IntIDs p).
-Proof. intros. apply find_id_e in H. eapply IntIDs_intro. eassumption. Qed.
-
-Lemma Fundef_of_Gfun {i p f}: find_id i (prog_defs p) = Some (Gfun f) ->
-      find_id i (prog_funct p) = Some f.
-Proof.
-  unfold prog_funct. forget (prog_defs p) as l.
-  induction l; simpl; intros. inv H.
-  destruct a. destruct g; simpl. if_tac; subst. inv H; trivial. auto. if_tac in H. inv H. auto.
-Qed.
-
-Lemma in_map_fst_prog_funct' {F V i l}: In i (map fst (@prog_funct' F V l)) -> 
-      In i (map fst l).
-Proof.
-  induction l; simpl; trivial.
-  destruct a. destruct g; simpl; intros. destruct H; subst; [ left; trivial | right; eauto].
-  right; eauto.
-Qed.
-Lemma in_map_fst_fundefs {i p}: In i (map fst (prog_funct p)) -> In i (map fst (prog_defs p)).
-Proof. apply in_map_fst_prog_funct'. Qed.
-
-Lemma Gfun_of_Fundef {i p fd}: 
-      find_id i (prog_funct p) = Some fd -> list_norepet (map fst (prog_defs p)) ->
-      find_id i (prog_defs p) = Some (Gfun fd).
-Proof. unfold prog_funct. forget (prog_defs p) as l.
-  induction l; simpl; intros. discriminate.
-  destruct a. inv H0. destruct g; simpl in *.
-+ if_tac; subst. inv H; trivial. auto.
-+ rewrite if_false. auto. specialize (IHl H H4). apply find_id_In_map_fst in IHl.
-  congruence.
-Qed.
-
-Lemma Fundef_of_Gvar {i p v}: find_id i (prog_defs p) = Some (Gvar v) -> 
-      list_norepet (map fst (prog_defs p)) -> find_id i (prog_funct p) = None.
-Proof.
-  unfold prog_funct. forget (prog_defs p) as l.
-  induction l; simpl; intros; trivial.
-  destruct a. simpl in H0; inv H0. destruct g; simpl.
-  + if_tac; subst. inv H. eauto.
-  + if_tac in H; [ subst | eauto]. inv H.
-    apply find_id_None_iff. intros N.
-    apply in_map_fst_prog_funct' in N. congruence.
+Lemma IntIDs_i {i p f}: PTree.get i (QP.prog_defs p) = Some (Gfun (Internal f)) -> In i (IntIDs p).
+Proof. intros. apply PTree.elements_correct in H.
+ eapply IntIDs_intro. eassumption.
 Qed.
 
 Definition SF {Espec cs V ge} G (i:ident) (fd:Clight.fundef) (phi:funspec) :=
@@ -483,7 +433,8 @@ Definition SF {Espec cs V ge} G (i:ident) (fd:Clight.fundef) (phi:funspec) :=
 Definition isGvar (x: ident * globdef (fundef function) type) := 
            match (snd x) with Gvar v => true | _ => false end.
 
-Definition Vardefs (p: Clight.program) := filter isGvar (prog_defs p).
+Definition Vardefs (p: QP.program Clight.function) := 
+     filter isGvar (PTree.elements (QP.prog_defs p)).
 
 Definition globs2pred (gv: globals) (x: ident * globdef (fundef function) type) : mpred :=
   match x with (i, d) => match d with
@@ -497,71 +448,69 @@ Definition InitGPred (V:list (ident * globdef (fundef function) type)) (gv: glob
 
 Definition globals_ok (gv: globals) := forall i, headptr (gv i) \/ gv i = Vundef.
 
-(*V should be the varspecs of p, and cs the compspecs* 
-VSTexterns, "E": Syscalls, functions implemented in assembly... These functions are represented
+Definition QPvarspecs (p: QP.program function) : varspecs :=
+ map (fun iv => (fst iv, gvar_info (snd iv))) (QPprog_vars p).
+
+(* VSTexterns, "E": Syscalls, functions implemented in assembly... These functions are represented
   as GFun(external ...) in Clight, but nevertheless should be in G (and hence 
   should be justified by a semaxfunc - in fact by a semax_func_extern. Since they are in G
   they may be in Exports, too. -*)
-Record Component {Espec:OracleKind} {V:varspecs} {cs:compspecs}
-      (E Imports: funspecs) (p: Clight.program) (Exports: funspecs) (GP: globals -> mpred) (G: funspecs) := {
+Record Component {Espec:OracleKind}
+      (E Imports: funspecs) (p: QP.program Clight.function) (Exports: funspecs) (GP: globals -> mpred) (G: funspecs) := {
+  Comp_prog_OK: QPprogram_OK p;
   Comp_Imports_external: forall i, In i (map fst Imports) -> 
-                         exists f ts t cc, find_id i (prog_defs p) = Some (Gfun (External f ts t cc));
+                         exists f ts t cc, PTree.get i (QP.prog_defs p) = Some (Gfun (External f ts t cc));
 
-  Comp_p_LNR: list_norepet (map fst (prog_defs p)); 
+  Comp_cs: compspecs := compspecs_of_QPcomposite_env _ (proj2 Comp_prog_OK);
   Comp_ExternsImports_LNR: list_norepet (map fst (E++Imports));
 
   Comp_Exports_LNR: list_norepet (map fst Exports);
 
   (*VSTexternals are External functions in CompCert*)
   Comp_Externs: forall i, In i (map fst E) -> 
-                exists f ts t cc, find_id i (prog_defs p) = Some (Gfun (External f ts t cc));
+                exists f ts t cc, PTree.get i (QP.prog_defs p) = Some (Gfun (External f ts t cc));
 
   Comp_G_dom: forall i, In i (IntIDs p ++ (map fst E)) <-> In i (map fst G);
   Comp_G_LNR: list_norepet (map fst G);
   Comp_G_E: forall i, In i (map fst E) -> find_id i E = find_id i G;
-
   Comp_G_justified: forall i phi fd,
-                    find_id i (prog_funct p) = Some fd ->
+                    PTree.get i (QP.prog_defs p) = Some (Gfun fd) ->
                     find_id i G = Some phi ->
-                    @SF Espec cs V (Genv.globalenv p) (Imports ++ G) i fd phi;
+                    @SF Espec Comp_cs (QPvarspecs p) (QPglobalenv p) (Imports ++ G) i fd phi;
 
   Comp_G_Exports: forall i phi (E: find_id i Exports = Some phi), 
                   exists phi', find_id i G = Some phi' /\ funspec_sub phi' phi;
 
-  (*Comp_InitPred: globals -> mpred;*)
-  Comp_MkInitPred: forall gv, globals_ok gv -> InitGPred (Vardefs p) gv |-- (*Comp_InitPred*)(GP gv(* * TT*))%logic
+  Comp_MkInitPred: forall gv,   globals_ok gv -> InitGPred (Vardefs p) gv |-- GP gv
 }.
 
-Definition Comp_G {Espec V cs E Imports p Exports GP G} (c:@Component Espec V cs E Imports p Exports GP G):= G.
+Definition Comp_G {Espec E Imports p Exports GP G} (c:@Component Espec E Imports p Exports GP G):= G.
 
-Definition VSU {Espec V cs} E Imports p Exports GP:=
-  sigT (fun G => @Component Espec V cs E Imports p Exports GP G).
-
-Arguments Comp_Imports_external {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_p_LNR {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_ExternsImports_LNR {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Exports_LNR {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Externs {Espec V cs E Imports p Exports GP G} c.
-(*Arguments Comp_G {Espec V cs E Imports p Exports} c.*)
-Arguments Comp_G_dom {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_LNR {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_justified {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_Exports {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_E {Espec V cs E Imports p Exports GP G} c.
-(*Arguments Comp_InitPred {Espec V cs E Imports p Exports GP G} c.*)
-Arguments Comp_MkInitPred {Espec V cs E Imports p Exports GP G} c.
+Definition VSU {Espec} E Imports Exports GP:=
+  sigT (fun pG => @Component Espec E Imports (fst pG) Exports GP (snd pG)).
+ 
+Arguments Comp_Imports_external {Espec E Imports p Exports GP G} c.
+Arguments Comp_prog_OK {Espec E Imports p Exports GP G} c.
+Arguments Comp_cs {Espec E Imports p Exports GP G} c.
+Arguments Comp_ExternsImports_LNR {Espec E Imports p Exports GP G} c.
+Arguments Comp_Exports_LNR {Espec E Imports p Exports GP G} c.
+Arguments Comp_Externs {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_dom {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_LNR {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_justified {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_Exports {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_E {Espec E Imports p Exports GP G} c.
+Arguments Comp_MkInitPred {Espec E Imports p Exports GP G} c.
 
 Section Component.
 Variable Espec: OracleKind.
-Variable V: varspecs.
-Variable cs: compspecs.
 Variable E Imports: funspecs.
-Variable p: Clight.program.
+Variable p: QP.program Clight.function.
 Variable Exports: funspecs.
 Variable GP: globals -> mpred.
 Variable G: funspecs.
 
-Variable c: @Component Espec V cs E Imports p Exports GP G.
+Variable c: @Component Espec E Imports p Exports GP G.
 
 Lemma Comp_Imports_LNR: list_norepet (map fst Imports).
 Proof.
@@ -585,30 +534,33 @@ Qed.
 
 Lemma Comp_LNR_Interns: list_norepet (IntIDs p).
 Proof.
-  eapply sublist_norepet. 2: apply (Comp_p_LNR c). unfold IntIDs.
-  remember (prog_defs p) as l; clear.
+  eapply sublist_norepet.
+  unfold IntIDs.
+  instantiate (1:= map fst (PTree.elements (QP.prog_defs p))).
+2: apply PTree.elements_keys_norepet.
+  remember (PTree.elements (QP.prog_defs p)) as l; clear.
   induction l; simpl; intros. constructor.
   destruct a; simpl. destruct g; [destruct f |]; subst; constructor; auto.
 Qed.
 
 Lemma LNR_Internals_Externs: list_norepet (IntIDs p ++ map fst E).
 Proof.
-  specialize (Comp_p_LNR c); specialize Comp_Externs_LNR; specialize Comp_LNR_Interns; intros.
+  specialize Comp_Externs_LNR; specialize Comp_LNR_Interns; intros.
   apply list_norepet_app; split3; trivial.
   do 5 intros ?; subst.
-  apply (Comp_Externs c) in H3. destruct H3 as [ef [tys [rt [cc Hy]]]].
-  apply IntIDs_e in H2; [destruct H2 | trivial]. congruence.
+  apply (Comp_Externs c) in H2. destruct H2 as [ef [tys [rt [cc Hy]]]].
+  apply IntIDs_e in H1; destruct H1. congruence.
 Qed.
 
 Lemma Comp_G_intern {i} (Hi: In i (map fst (Comp_G c))):
       ( ~ In i (map fst E)) <->
-      ( exists f, find_id i (prog_defs p) = Some (Gfun (Internal f)) ).
+      ( exists f, PTree.get i (QP.prog_defs p) = Some (Gfun (Internal f)) ).
 Proof. 
   apply list_in_map_inv in Hi. destruct Hi as [[ii phi] [H Hi]]; simpl in H; subst ii.
   apply in_map_fst in Hi. rewrite <- (Comp_G_dom c) in Hi.
   apply in_app_or in Hi; destruct Hi.
 + split; intros.
-  - apply IntIDs_e in H; [ destruct H | apply c].
+  - apply IntIDs_e in H; destruct H.
     rewrite H. exists x; trivial.
   - destruct H0. intros N. specialize LNR_Internals_Externs.
     rewrite list_norepet_app; intros [? [? X]]. apply (X i i); trivial.
@@ -618,7 +570,7 @@ Qed.
 
 Lemma Comp_G_extern {i} (Hi: In i (map fst (Comp_G c))):
       (In i (map fst E)) <->
-      exists ef tys rt cc, find_id i (prog_defs p) = Some (Gfun (External ef tys rt cc)).
+      exists ef tys rt cc, PTree.get i (QP.prog_defs p) = Some (Gfun (External ef tys rt cc)).
 Proof. 
   apply list_in_map_inv in Hi. destruct Hi as [[ii phi] [H Hi]]; simpl in H; subst ii.
   apply in_map_fst in Hi. rewrite <- (Comp_G_dom c) in Hi.
@@ -626,14 +578,14 @@ Proof.
 + split; intros.
   - specialize LNR_Internals_Externs.
     rewrite list_norepet_app; intros [? [? X]]. elim (X i i); trivial.
-  - apply IntIDs_e in H; [destruct H | apply c]. destruct H0 as [ef [tys [rt [cc He]]]]; congruence.
+  - apply IntIDs_e in H; destruct H. destruct H0 as [ef [tys [rt [cc He]]]]; congruence.
 + split; intros; trivial.
   apply c in H; trivial.
 Qed.
 
 Lemma Comp_G_elim {i} (Hi: In i (map fst (Comp_G c))):
-      (In i (map fst E) /\ exists ef tys rt cc, find_id i (prog_defs p) = Some (Gfun (External ef tys rt cc)))
-    \/ ((~In i (map fst E)) /\ In i (IntIDs p) /\ exists f, find_id i (prog_defs p) = Some (Gfun (Internal f))).
+      (In i (map fst E) /\ exists ef tys rt cc, PTree.get i (QP.prog_defs p) = Some (Gfun (External ef tys rt cc)))
+    \/ ((~In i (map fst E)) /\ In i (IntIDs p) /\ exists f, PTree.get i (QP.prog_defs p) = Some (Gfun (Internal f))).
 Proof.
   destruct (in_dec ident_eq i (map fst E)).
 + left. split; trivial. apply (Comp_G_extern Hi); trivial.
@@ -642,67 +594,70 @@ Proof.
 Qed.
 
 Lemma Comp_G_in_Fundefs {i} (Hi: In i (map fst (Comp_G c))):
-      exists fd, find_id i (prog_funct p) = Some fd.
+      exists fd, PTree.get i (QP.prog_defs p) = Some (Gfun fd).
 Proof. 
   destruct (in_dec ident_eq  i (map fst E)).
 + apply (Comp_G_extern Hi) in i0. destruct i0 as [ef [tys [rt [cc Hef]]]].
-  apply Fundef_of_Gfun in Hef; rewrite Hef. eexists; reflexivity.
-+ apply (Comp_G_intern Hi) in n. destruct n as [f Hf].
-  apply Fundef_of_Gfun in Hf; rewrite Hf. eexists; reflexivity.
+   eauto.
++ apply (Comp_G_intern Hi) in n. destruct n as [f Hf]. eauto.
 Qed.
 
 Lemma Comp_G_in_progdefs' {i phi} (Hi: find_id i (Comp_G c) = Some phi):
-      exists fd, find_id i (prog_defs p) = Some (Gfun fd).
+      exists fd, PTree.get i (QP.prog_defs p) = Some (Gfun fd).
 Proof. apply find_id_In_map_fst in Hi. 
   apply Comp_G_in_Fundefs in Hi; destruct Hi.
-  apply Gfun_of_Fundef in H. exists x; trivial.  apply c.
+  eauto.
 Qed.
 
 Lemma Comp_G_in_Fundefs' {i phi} (Hi: find_id i (Comp_G c) = Some phi):
-      exists fd, find_id i (prog_funct p) = Some fd.
+      exists fd, PTree.get i (QP.prog_defs p) = Some (Gfun fd).
 Proof. apply find_id_In_map_fst in Hi. apply Comp_G_in_Fundefs; trivial. Qed.
 
 Lemma Comp_G_in_progdefs {i} (Hi: In i (map fst (Comp_G c))):
-      exists fd, find_id i (prog_defs p) = Some (Gfun fd).
+      exists fd, PTree.get i (QP.prog_defs p) = Some (Gfun fd).
 Proof.
   apply Comp_G_elim in Hi.
   destruct Hi as [[HE [ef [tys [rt [cc H]]]]] | [HE [INT [f H]]]]; rewrite H; eexists; reflexivity.
 Qed.
 
 Lemma Comp_Imports_in_Fundefs {i phi}: find_id i Imports = Some phi ->
-      exists f , find_id i (prog_funct p) = Some f.
+      exists f , PTree.get i (QP.prog_defs p) = Some (Gfun f).
 Proof.
   specialize (Comp_Imports_external c); intros. apply find_id_e in H0. apply in_map_fst in H0.
-  destruct (H _ H0) as [f [ts [t [cc Hf]]]]; clear H. eexists; apply (Fundef_of_Gfun Hf).
+  destruct (H _ H0) as [f [ts [t [cc Hf]]]]; clear H. eauto.
 Qed.
 
 Lemma Comp_Exports_in_Fundefs {i phi}: find_id i Exports = Some phi ->
-      exists f , find_id i (prog_funct p) = Some f.
+      exists f , PTree.get i (QP.prog_defs p) = Some (Gfun f).
 Proof.
   intros. apply (Comp_G_Exports c) in H. destruct H as [psi [H _]].
   apply Comp_G_in_Fundefs' in H; trivial.
 Qed.
 
-Lemma Comp_Imports_in_progdefs {i}: In i (map fst(Imports)) -> In i (map fst (prog_defs p)).
+Lemma Comp_Imports_in_progdefs {i}: 
+ In i (map fst(Imports)) -> In i (map fst (PTree.elements (QP.prog_defs p))).
 Proof.
   specialize (Comp_Imports_external c); intros.
   destruct (H _ H0) as [f [ts [t [cc Hf]]]]; clear H.
-  apply find_id_In_map_fst in Hf; trivial.
+  apply PTree.elements_correct in  Hf.
+  apply (in_map fst) in Hf. auto.
 Qed.
 
-Lemma Comp_Exports_in_progdefs {i}: In i (map fst(Exports)) -> In i (map fst (prog_defs p)).
+Lemma Comp_Exports_in_progdefs {i}: 
+   In i (map fst(Exports)) -> In i (map fst (PTree.elements (QP.prog_defs p))).
 Proof.
   intros. apply In_map_fst_find_id in H; [ destruct H | apply c].
   apply Comp_Exports_in_Fundefs in H. destruct H.
-  apply find_id_In_map_fst in H. apply in_map_fst_fundefs. trivial.
+  apply PTree.elements_correct in  H.
+  apply (in_map fst) in H. auto.
 Qed.
 
-Lemma Comp_Imports_ExternalFundefs {i phi}: find_id i Imports = Some phi ->
-      exists ef tys rt cc, find_id i (prog_defs p) = Some (Gfun (External ef tys rt cc)).
+Lemma Comp_Imports_ExternalFundefs {i phi}:
+      find_id i Imports = Some phi ->
+      exists ef tys rt cc, PTree.get i (QP.prog_defs p) = Some (Gfun (External ef tys rt cc)).
 Proof.
   specialize (Comp_Imports_external c); intros. apply find_id_In_map_fst in H0.
-  apply (H _ H0). (* as [f [ts [t [cc Hf]]]]; clear H.
-  apply find_id_Externals_i in Hf. do 4 eexists; apply Hf.*)
+  apply (H _ H0).
 Qed.
 
 Lemma Comp_Interns_disjoint_from_Imports: list_disjoint (IntIDs p) (map fst Imports).
@@ -711,7 +666,8 @@ Proof.
   apply (Comp_Imports_external c) in Y. destruct Y as [f [ef [ts [t FE]]]].
   apply list_in_map_inv in X. destruct X as [[j fd] [J FD]]; simpl in J; subst j.
   apply filter_In in FD.  simpl in FD; destruct FD. unfold isInternal in H0.
-  apply find_id_i in H. intros ?; subst. rewrite H in FE. inv FE.  congruence. apply c.
+  intro; subst. destruct fd; try congruence. destruct f0; try congruence.
+  apply PTree.elements_complete in H. congruence.
 Qed. 
 
 Lemma Comp_ExternsImports_disjoint: list_disjoint (map fst E) (map fst Imports).
@@ -731,44 +687,35 @@ Proof.
   apply (Comp_G_LNR c).
   apply Comp_G_disjoint_from_Imports.
 Qed.
-(*
-Lemma Comp_Interns_disjoint_from_Imports_find_id {i phi} (Hi: find_id i Imports = Some phi): 
-      find_id i (InternalFundefs (prog_defs p)) = None.
-Proof.
-  specialize Comp_Interns_disjoint_from_Imports; intros D_ImpInt2.
-  remember (find_id i (InternalFundefs (prog_defs p))) as u; destruct u; [symmetry in Hequ | trivial].
-  apply find_id_e in Hequ. apply InternalFundefs_D in Hequ; destruct Hequ as [g [G Hg]]; subst.
-  apply InternalFundefs_char in Hg. apply in_map_fst in Hg. apply find_id_In_map_fst in Hi.
-  elim (D_ImpInt2 i i); trivial.
-Qed.
-*)
+
 Lemma Comp_G_disjoint_from_Imports_find_id {i phi} (Hi: find_id i Imports = Some phi): 
       find_id i (Comp_G c) = None.
 Proof. apply (list_disjoint_map_fst_find_id1 Comp_G_disjoint_from_Imports _ _ Hi). Qed.
 
 Lemma Comp_entail {GP'} (H: forall gv, GP gv |-- GP' gv):
-      @Component Espec V cs E Imports p Exports GP' G.
-Proof. intros. destruct c. econstructor; trivial.
+      @Component Espec E Imports p Exports GP' G.
+Proof. intros. destruct c. econstructor; try assumption.
+apply Comp_G_justified0.
  intros; eapply derives_trans. apply Comp_MkInitPred0; auto. cancel.
 Qed.
 
 Lemma Comp_entail_starTT:
-      @Component Espec V cs E Imports p Exports (GP * TT)%logic G.
+      @Component Espec E Imports p Exports (GP * TT)%logic G.
 Proof. intros. apply Comp_entail. intros; simpl; apply sepcon_TT. Qed.
 
 Lemma Comp_entail_TT:
-      @Component Espec V cs E Imports p Exports TT G.
+      @Component Espec E Imports p Exports TT G.
 Proof. intros. eapply Comp_entail. intros; simpl. apply TT_right. Qed.
 
 Lemma Comp_entail_split {GP1 GP2} (H: forall gv, GP gv |-- (GP1 gv * GP2 gv)%logic):
-      @Component Espec V cs E Imports p Exports (fun gv => GP1 gv * TT)%logic G.
+      @Component Espec E Imports p Exports (fun gv => GP1 gv * TT)%logic G.
 Proof. intros. eapply Comp_entail. intros; simpl.
   eapply derives_trans. apply H. cancel.
 Qed.
 
 Lemma Comp_Imports_sub Imports' (HI1: map fst Imports' = map fst Imports)
       (HI2: Forall2 funspec_sub (map snd Imports') (map snd Imports)): 
-      @Component Espec V cs E Imports' p Exports GP G.
+      @Component Espec E Imports' p Exports GP G.
 Proof.
   assert (AUX1: forall i, subsumespec ((find_id i (Imports ++ Comp_G c)))
                                       ((find_id i (Imports' ++ Comp_G c)))).
@@ -784,7 +731,7 @@ Proof.
     + rewrite find_id_app2 with (x:=phi); trivial.
       - exists phi; split; [ trivial | apply funspec_sub_si_refl; trivial ].
       - specialize Comp_ctx_LNR. subst. rewrite ! map_app, HI1; trivial. }
-  assert (AUX2: forall i, sub_option ((make_tycontext_g V (Imports ++ Comp_G c)) ! i)
+  assert (AUX2: forall V i, sub_option ((make_tycontext_g V (Imports ++ Comp_G c)) ! i)
                                      ((make_tycontext_g V (Imports' ++ Comp_G c)) ! i)).
   { intros. specialize (AUX1 i).
     remember ((make_tycontext_g V (Imports ++ Comp_G c)) ! i) as q; symmetry in Heqq; destruct q; simpl; trivial.
@@ -802,25 +749,21 @@ Proof.
       rewrite semax_prog.make_tycontext_g_G_None; trivial.
       apply find_id_None_iff. apply find_id_None_iff in Heqw. intros N; apply Heqw.
       rewrite map_app in *. rewrite HI1 in N. trivial. } 
-  eapply Build_Component (*with (Comp_G c)*); subst; try solve [apply c].
+  eapply Build_Component; subst; try solve [apply c].
 + rewrite HI1; apply c. 
 + rewrite map_app, HI1, <- map_app; apply c.
-+ intros. specialize (Comp_G_justified c i _ _ H H0); intros; destruct fd.
-  - eapply InternalInfo_subsumption. apply AUX2. apply AUX1. apply Comp_ctx_LNR. apply H1.
-  - apply H1.
-(*+ intros. clear - HI1 HI2. generalize dependent Imports'. 
-  induction Imports; intros; destruct Imports'; inv HI1; simpl; trivial. 
-  destruct a; destruct p; simpl in *. inv HI2. 
-  destruct (Memory.EqDec_ident i i0); subst; simpl; auto.
-  apply funspec_sub_funsigs_match in H4. apply (funsigs_match_LNR1 H4).*)
++ intros. specialize (Comp_G_justified c i _ _ H H0); intros. destruct fd.
+  -  eapply InternalInfo_subsumption. apply AUX2. apply AUX1. apply Comp_ctx_LNR. apply H1.
+  - auto.
++ apply (Comp_MkInitPred c).
 Qed.
 
 (*Together with Lemma  Comp_Exports_suboption, this lemma means we can abstract or hide exports*)
 Lemma Comp_Exports_sub1 Exports' (HE1: map fst Exports' = map fst Exports)
       (HE2: Forall2 funspec_sub (map snd Exports) (map snd Exports')):
-      @Component Espec V cs E Imports p Exports' GP G.
+      @Component Espec E Imports p Exports' GP G.
 Proof.
-  eapply Build_Component (*with (Comp_G c)*); try apply c.
+  eapply Build_Component; try apply c.
 + rewrite HE1; apply c. 
 + intros i phi Hi. rename phi into phi'.
   assert (X: exists phi, find_id i Exports = Some phi /\ funspec_sub phi phi').
@@ -828,15 +771,17 @@ Proof.
   destruct X as [phi [Phi PHI]].
   destruct (Comp_G_Exports c _ _ Phi) as [psi [Psi PSI]].
   exists psi; split; [ trivial | eapply funspec_sub_trans; eassumption ].
++apply (Comp_MkInitPred c).
 Qed.
 
 Lemma Comp_Exports_sub2 Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: forall i, sub_option (find_id i Exports') (find_id i Exports)):
-      @Component Espec V cs E Imports p Exports' GP G.
+      @Component Espec E Imports p Exports' GP G.
 Proof.
   eapply Build_Component (*with (Comp_G c)*); try apply c; trivial.
 + intros i phi' Hi. specialize (HE2 i). rewrite Hi in HE2; simpl in HE2.
   apply c; trivial.
++apply (Comp_MkInitPred c).
 Qed.
 
 Definition funspecs_sqsub Exp Exp' :=
@@ -845,81 +790,75 @@ Definition funspecs_sqsub Exp Exp' :=
 
 Lemma Comp_Exports_sub Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: funspecs_sqsub Exports Exports'):
-      @Component Espec V cs E Imports p Exports' GP G.
+      @Component Espec E Imports p Exports' GP G.
 Proof.
   eapply Build_Component (*with (Comp_G c)*); try apply c; trivial.
   intros i phi' Hi. destruct (HE2 _ _ Hi) as [phi [H1 H2]].
   apply (Comp_G_Exports c) in H1; destruct H1 as [psi [H3 H4]].
   exists psi; split; trivial. eapply funspec_sub_trans; eassumption.
+ apply (Comp_MkInitPred c).
 Qed.
 
 End Component.
 
-Arguments Comp_G_LNR {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_LNR_Interns {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_ctx_LNR {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_disjoint_from_Imports {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_disjoint_from_Imports_find_id {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Interns_disjoint_from_Imports {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Exports_in_progdefs {Espec V cs E Imports p Exports GP G} c.
+Arguments Comp_G_LNR {Espec E Imports p Exports GP G} c.
+Arguments Comp_ctx_LNR {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_disjoint_from_Imports {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_disjoint_from_Imports_find_id {Espec E Imports p Exports GP G} c.
+Arguments Comp_Interns_disjoint_from_Imports {Espec E Imports p Exports GP G} c.
+Arguments Comp_Exports_in_progdefs {Espec E Imports p Exports GP G} c.
 
-Arguments Comp_Externs_LNR {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Imports_in_Fundefs {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Exports_in_Fundefs {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Imports_in_progdefs {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Exports_in_progdefs {Espec V cs E Imports p Exports GP G} c.
+Arguments Comp_Externs_LNR {Espec E Imports p Exports GP G} c.
+Arguments Comp_Imports_in_Fundefs {Espec E Imports p Exports GP G} c.
+Arguments Comp_Exports_in_Fundefs {Espec E Imports p Exports GP G} c.
+Arguments Comp_Imports_in_progdefs {Espec E Imports p Exports GP G} c.
+Arguments Comp_Exports_in_progdefs {Espec E Imports p Exports GP G} c.
 
-Arguments Comp_G_intern {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_extern {Espec V cs E Imports p Exports GP G} c.
+Arguments Comp_G_intern {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_extern {Espec E Imports p Exports GP G} c.
 
-(*Arguments Comp_Interns_disjoint_from_Imports_find_id {Espec V cs E Imports p Exports}.*)
-
-Arguments Comp_Imports_LNR {Espec V cs E Imports p Exports GP G} c.
-Arguments LNR_Internals_Externs {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_in_Fundefs {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_in_Fundefs' {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_E_in_G {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_E_in_G_find {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_elim {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_in_progdefs {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_G_in_progdefs' {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Imports_sub {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_Exports_sub {Espec V cs E Imports p Exports GP G} c.
-Arguments Comp_entail {Espec V cs E Imports p Exports GP G} c.
+Arguments Comp_Imports_LNR {Espec E Imports p Exports GP G} c.
+Arguments LNR_Internals_Externs {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_in_Fundefs {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_in_Fundefs' {Espec E Imports p Exports GP G} c.
+Arguments Comp_E_in_G {Espec E Imports p Exports GP G} c.
+Arguments Comp_E_in_G_find {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_elim {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_in_progdefs {Espec E Imports p Exports GP G} c.
+Arguments Comp_G_in_progdefs' {Espec E Imports p Exports GP G} c.
+Arguments Comp_Imports_sub {Espec E Imports p Exports GP G} c.
+Arguments Comp_Exports_sub {Espec E Imports p Exports GP G} c.
+Arguments Comp_entail {Espec E Imports p Exports GP G} c.
 
 Section VSU_rules.
 Variable Espec: OracleKind.
-Variable V: varspecs.
-Variable cs: compspecs.
 Variable E Imports: funspecs.
-Variable p: Clight.program.
 Variable Exports: funspecs.
 Variable GP: globals -> mpred.
-Variable vsu: @VSU Espec V cs E Imports p Exports GP.
+Variable vsu: @VSU Espec E Imports Exports GP.
 
 Lemma VSU_Imports_sub Imports' (HI1: map fst Imports' = map fst Imports)
       (HI2: Forall2 funspec_sub (map snd Imports') (map snd Imports)): 
-      @VSU Espec V cs E Imports' p Exports GP.
-Proof. destruct vsu as [G c]. exists G. eapply Comp_Imports_sub; eassumption. Qed.
+      @VSU Espec E Imports' Exports GP.
+Proof. destruct vsu as [[p G] c]. exists (p,G). eapply Comp_Imports_sub; eassumption. Qed.
 
 Lemma VSU_Exports_sub1 Exports' (HE1: map fst Exports' = map fst Exports)
       (HE2: Forall2 funspec_sub (map snd Exports) (map snd Exports')):
-      @VSU Espec V cs E Imports p Exports' GP.
-Proof. destruct vsu as [G c]. exists G. eapply Comp_Exports_sub1; eassumption. Qed.
+      @VSU Espec E Imports Exports' GP.
+Proof. destruct vsu as [[p G] c]. exists (p,G). eapply Comp_Exports_sub1; eassumption. Qed.
 
 Lemma VSU_Exports_sub Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: funspecs_sqsub Exports Exports'):
-      @VSU Espec V cs E Imports p Exports' GP.
-Proof. destruct vsu as [G c]. exists G. eapply Comp_Exports_sub; eassumption. Qed.
+      @VSU Espec E Imports Exports' GP.
+Proof. destruct vsu as [pG c]. exists pG. eapply Comp_Exports_sub; eassumption. Qed.
 
 Lemma VSU_entail {GP'} : (forall gv, GP gv |-- GP' gv) -> 
-      @VSU Espec V cs E Imports p Exports GP'.
-Proof. intros. destruct vsu as [G C].
-  exists G. apply (Comp_entail C _ H).
+      @VSU Espec E Imports Exports GP'.
+Proof. intros. destruct vsu as [[p G] C].
+  exists (p,G). apply (Comp_entail C _ H).
 Qed.
 
 End VSU_rules.
-
 Definition merge_specs (phi1:funspec) (sp2: option funspec): funspec :=
   match sp2 with 
     Some phi2 => match binary_intersection phi1 phi2 with
@@ -928,24 +867,6 @@ Definition merge_specs (phi1:funspec) (sp2: option funspec): funspec :=
                             end
   | None => phi1
   end.
-(*
-Lemma merge_specs_succeed {phi1 phi2}:
-      funsig_of_funspec phi1 = funsig_of_funspec phi2 ->
-      callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2 ->
-  binary_intersection phi1 phi2 = Some (merge_specs phi1 (Some phi2)).
-Proof. clear. intros.
-  simpl. destruct phi1; destruct phi2; simpl in *. subst f0 c0. 
-  rewrite ! if_true; trivial.
-Qed.*)
-(*
-Lemma merge_specs_succeed {phi1 phi2}:
-      funsigs_match (funsig_of_funspec phi1) (funsig_of_funspec phi2) = true ->
-      callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2 ->
-  binary_intersection phi1 phi2 = Some (merge_specs phi1 (Some phi2)).
-Proof. intros.
-  simpl. destruct phi1; destruct phi2; simpl in *. rewrite H.  subst c0.
-  rewrite ! if_true; trivial.
-Qed.*)
 
 Lemma merge_specs_succeed {phi1 phi2}:
       typesig_of_funspec phi1 = typesig_of_funspec phi2 ->
@@ -1009,8 +930,6 @@ Definition G_merge (l1 l2 : list (ident * funspec)):=
 
 Lemma G_merge_find_id_SomeSome {l1 l2 i phi1 phi2}: 
       forall (Hi1: find_id i l1 = Some phi1) (Hi2: find_id i l2 = Some phi2)
-(*             (Sigs: funsig_of_funspec phi1 = funsig_of_funspec phi2)*)
-(*             (Sigs: funsigs_match (funsig_of_funspec phi1) (funsig_of_funspec phi2) = true)*)
                (Sigs: typesig_of_funspec phi1 = typesig_of_funspec phi2)
              (CCs: callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2),
       exists phi, binary_intersection phi1 phi2 = Some phi /\
@@ -1218,25 +1137,15 @@ Proof. intros.
   rewrite (G_merge_find_id_NoneNone Heqo H); trivial.
 Qed.
 
-Definition signature_of_fundef (fd: Ctypes.fundef function):signature :=
-match fd with
-    Internal f => {| sig_args := map typ_of_type (map snd (fn_params f));
-                     sig_res := rettype_of_type (fn_return f);
-                     sig_cc := fn_callconv f |}
-  | External ef tys rt cc => signature_of_type tys rt cc
- end.
-
-Definition Fundefs_match p1 p2 (Imports1 Imports2:funspecs) := 
+Definition Fundefs_match (p1 p2: QP.program Clight.function) (Imports1 Imports2:funspecs) := 
            forall i fd1 fd2,
-                         find_id i (prog_funct p1) = Some fd1 ->
-                         find_id i (prog_funct p2) = Some fd2 ->
+                         PTree.get i (QP.prog_defs p1) = Some (Gfun fd1) ->
+                         PTree.get i (QP.prog_defs p2) = Some (Gfun fd2) ->
                          match fd1, fd2 with
-                           Internal _, Internal _ => fd1=fd2
-                         | Internal _, External _ _ _ _ => signature_of_fundef fd1 = signature_of_fundef fd2 /\
-                                                           exists phi2, find_id i Imports2 = Some phi2
-                         | External _ _ _ _, Internal _ => signature_of_fundef fd1 = signature_of_fundef fd2 /\
-                                                           exists phi1, find_id i Imports1 = Some phi1
-                         | External _ _ _ _ , External _ _ _ _  => fd1=fd2
+                           Internal _, Internal _ => True
+                         | Internal _, External _ _ _ _ => exists phi2, find_id i Imports2 = Some phi2
+                         | External _ _ _ _, Internal _ => exists phi1, find_id i Imports1 = Some phi1
+                         | External _ _ _ _ , External _ _ _ _  => True
                          end.
 
 Lemma G_merge_find_id_Some_D i l1 l2 phi: find_id i (G_merge l1 l2) = Some phi ->list_norepet (map fst l2) ->
@@ -1337,30 +1246,20 @@ destruct fd.
 + apply HSF.
 Qed. 
 
-Definition Functions_preserved (p1 p2 p: Clight.program) i:=
-         match find_id i (prog_funct p1), find_id i (prog_funct p2) with
-           Some (Internal f1), _ => find_id i (prog_funct p) = Some (Internal f1)
-         | _, Some (Internal f2) => find_id i (prog_funct p) = Some (Internal f2)
-         | Some (External ef1 tys1 rt1 cc1), _ =>
-               find_id i (prog_funct p) = Some (External ef1 tys1 rt1 cc1)
-         | _, Some (External ef2 tys2 rt2 cc2) =>
-               find_id i (prog_funct p) = Some (External ef2 tys2 rt2 cc2)
-         | None, None => find_id i (prog_funct p) = None
-         end.
-
 (*It may be possible to eliminate this condition by modifying the definition
   of binary intersection such that instead of requiring parameter names
   to be identical the names are suitably renamed. Note that equality of the
-  argument (and return) types already holds, by the semaxfunc properties inside c1 and c2*)
-Lemma HContexts {Espec V1 V2 cs1 cs2 
-      E1 Imports1 Exports1 E2 Imports2 Exports2 p1 p2 GP1 GP2 G1 G2}
-      (c1: @Component Espec V1 cs1 E1 Imports1 p1 Exports1 GP1 G1)
-      (c2: @Component Espec V2 cs2 E2 Imports2 p2 Exports2 GP2  G2)
+  argument (and return) types already holds, by the semaxfunc properties inside c1 and c2 *)
+
+Lemma HContexts {Espec
+      E1 Imports1 Exports1 E2 Imports2 Exports2 p1 p2 p GP1 GP2 G1 G2}
+      (c1: @Component Espec E1 Imports1 p1 Exports1 GP1 G1)
+      (c2: @Component Espec E2 Imports2 p2 Exports2 GP2  G2)
+      (Linked : QPlink_progs p1 p2 = Errors.OK p)
       (FM: Fundefs_match p1 p2 Imports1 Imports2):
       forall i phi1 phi2,
              find_id i G1 = Some phi1 ->
              find_id i G2 = Some phi2 ->
-             (*funsigs_match (funsig_of_funspec phi1) (funsig_of_funspec phi2) = true*)
              typesig_of_funspec phi1 = typesig_of_funspec phi2.
 Proof. intros. specialize (FM i).
   specialize (Comp_G_in_Fundefs' c1 _ _ H) as [fd1 FD1].
@@ -1368,63 +1267,230 @@ Proof. intros. specialize (FM i).
   specialize (Comp_G_justified c1 _ _ _ FD1 H); intros SF1.
   specialize (Comp_G_justified c2 _ _ _ FD2 H0); intros SF2.
   rewrite FD1, FD2 in *. specialize (FM _ _ (eq_refl _) (eq_refl _)).
-  destruct fd1; destruct fd2; simpl in *.
-+ (*II*) inv FM. red in SF1, SF2.
+  unfold QPlink_progs in Linked.
+  destruct (  merge_builtins (QP.prog_builtins p1)
+              (QP.prog_builtins p2)) eqn:?H; try discriminate;
+  unfold Errors.bind at 1 in Linked.
+  destruct (merge_PTrees _ _ _) eqn:?H; try discriminate; 
+  unfold Errors.bind at 1 in Linked.
+  clear Linked.
+  apply (merge_PTrees_e i) in H2.
+  rewrite FD1,FD2 in H2.
+ destruct H2 as [fd [? _]].
+  destruct fd1; destruct fd2.
++ (*II*) inv FM. 
   destruct phi1 as [[? ?] ? ? ? ? ? ?].
-  destruct phi2 as [[? ?] ? ? ? ? ? ?]. simpl in *.
+  destruct phi2 as [[? ?] ? ? ? ? ? ?].
   destruct SF1 as [? [? [? [? [[? [? _]] _]]]]].
   destruct SF2 as [? [? [? [? [[? [? _]] _]]]]].
-  (*destruct H5 as [? [? ?]]; destruct H10 as [? [? ?]]; subst.
-  rewrite eqb_type_refl, H5, H10, Forallb2_refl, 2 compute_list_norepet_i; simpl; trivial.
-  intros; apply eqb_type_refl.*)
-  rewrite <- H5 in H11; subst l0. rewrite <- H6 in H12; subst t0; trivial.
-+ destruct FM as [_ [psi2 Psi2]].
+  simpl in *.
+  subst.
+  destruct (function_eq f f0) eqn:?H; inv H2.
+  apply function_eq_prop in H6; subst; auto.
++
+  destruct FM as [psi2 Psi2].
   apply (Comp_G_disjoint_from_Imports_find_id c2) in Psi2; unfold Comp_G in Psi2; congruence. 
-+ destruct FM as [_ [psi1 Psi1]].
++ destruct FM as [psi1 Psi1].
   apply (Comp_G_disjoint_from_Imports_find_id c1) in Psi1; unfold Comp_G in Psi1; congruence.
 + inv FM.
   destruct phi1 as [[? ?] ? ? ? ? ? ?].
-  destruct phi2 as [[? ?] ? ? ? ? ? ?]. simpl in *.
+  destruct phi2 as [[? ?] ? ? ? ? ? ?].
   destruct SF1 as [? [? [? _]]].
-  destruct SF2 as [? [? [? _]]]. subst t0 t. rewrite <- H3 in H6; subst; trivial.
+  destruct SF2 as [? [? [? _]]]. subst.
+  unfold merge_globdef in H2.
+  destruct (fundef_eq 
+         (External e t0 t4 c3) (External e0 t2 t5 c4)) eqn:?H; inv H2.
+  apply fundef_eq_prop in H3. inv H3. auto.
 Qed.
+
+Lemma find_id_elements:
+  forall {A} i (m: PTree.t A), find_id i (PTree.elements m) = PTree.get i m.
+Proof.
+ intros.
+ destruct (m ! i) eqn:?H.
+ pose proof (PTree.elements_correct _ _ H).
+ apply find_id_i; auto.
+  apply PTree.elements_keys_norepet.
+ apply find_id_None_iff.
+ intro Hx. apply list_in_map_inv in Hx. destruct Hx as [[? ?] [? ?]]; subst i.
+ apply PTree.elements_complete in H1.
+ simpl in H. congruence.
+Qed.
+
+Lemma disjoint_varspecs_e:
+  forall p1 p2 i v1 v2,
+  list_disjoint (map fst (Vardefs p1)) (map fst (Vardefs p2)) ->
+  (QP.prog_defs p1) ! i = Some (Gvar v1) ->
+  (QP.prog_defs p2) ! i = Some (Gvar v2) ->
+  False.
+Proof.
+intros.
+apply PTree.elements_correct in H0.
+apply PTree.elements_correct in H1.
+unfold Vardefs in H.
+forget (PTree.elements (QP.prog_defs p1)) as e1.
+forget (PTree.elements (QP.prog_defs p2)) as e2.
+apply (H i i); auto.
+clear - H0. induction e1; simpl in *; auto. destruct H0; subst; simpl; auto.
+destruct (isGvar a).  right; auto.  auto. 
+clear - H1. induction e2; simpl in *; auto. destruct H1; subst; simpl; auto.
+destruct (isGvar a).  right; auto.  auto. 
+Qed.
+
+Definition is_var_in {F} i p :=
+     match PTree.get i (@QP.prog_defs F p) with
+     | None => True
+     | Some (Gvar _) => True
+     | Some (Gfun _) => False
+     end.
+
+Definition PTree_disjoint {A} (a: PTree.t A) {B} (b: PTree.t B) : bool :=
+  PTree.fold (fun c i _ => c && isNone (PTree.get i b))%bool a true.
+
+Lemma QPvarspecs_norepet:
+  forall p, list_norepet (map fst (QPvarspecs p)).
+Proof.
+clear.
+intros.
+unfold QPvarspecs.
+unfold QPprog_vars.
+pose proof (PTree.elements_keys_norepet (QP.prog_defs p)).
+induction (PTree.elements (QP.prog_defs p)).
+constructor.
+inv H.
+destruct a.
+destruct g; simpl; auto.
+constructor; auto.
+contradict H2.
+clear - H2.
+simpl.
+induction l; simpl; auto.
+destruct a,g; simpl in H2; auto.
+destruct H2; auto.
+Qed.
+
+Lemma find_id_QPvarspecs: forall p i t, find_id i (QPvarspecs p) = Some t <->
+   (exists g, (QP.prog_defs p) ! i = Some (Gvar g) /\ gvar_info g = t).
+Proof.
+intros.
+unfold QPvarspecs, QPprog_vars.
+transitivity (exists g, find_id i (PTree.elements (QP.prog_defs p)) = Some (Gvar g) /\ gvar_info g = t).
+pose proof (PTree.elements_keys_norepet (QP.prog_defs p)).
+induction (PTree.elements (QP.prog_defs p)).
+simpl. split; intro H0. inv H0. destruct H0 as [? [? ?]]. inv H0.
+inv H.
+destruct a,g.
+rewrite IHl; auto.
+split; intros [g [? ?]]. exists g; split; auto. simpl; auto. rewrite if_false; auto. contradict H2. subst p0.
+simpl. eapply find_id_In_map_fst; eauto.
+exists g; split; auto.
+simpl in H. if_tac in H; auto. inv H.
+simpl.
+if_tac. subst p0.
+split;  intro. inv H. eauto. destruct H as [g [? ?]]. inv H. auto.
+simpl in H2. apply IHl; auto.
+split; intros [g [? ?]]; exists g; split; auto.
+rewrite <- find_id_elements; auto.
+rewrite find_id_elements; auto.
+Qed.
+
+Lemma cenv_cspecs_sub: (* Not true *)
+ forall cs cs', cenv_sub (@cenv_cs cs) (@cenv_cs cs') -> 
+cspecs_sub cs cs'.
+Proof.
+intros.
+split; auto.
+split; hnf; simpl.
+intros.
+hnf. destruct ((@ha_env_cs cs) ! i) eqn:?H; auto.
+specialize (H i). hnf in H.
+destruct (proj2 (@ha_env_cs_complete cs i)) as [co ?].
+eauto.
+rewrite H1 in H.
+pose proof (@ha_env_cs_consistent cs i co z H1 H0).
+destruct (proj1 (@ha_env_cs_complete cs' i)).
+eauto.
+pose proof (@ha_env_cs_consistent cs' i co x H H3).
+Abort.
 
 Section ComponentJoin.
 Variable Espec: OracleKind.
-Variable V1 V2: varspecs.
-Variable cs1 cs2 cs: compspecs. 
-Variable E1 Imports1 Exports1 G1 E2 Imports2 Exports2 G2 E Imports Exports: funspecs.
-Variable p1 p2 p: Clight.program.
+Variable E1 Imports1 Exports1 G1 E2 Imports2 Exports2 G2: funspecs.
+Variable p1 p2: QP.program Clight.function.
 Variable GP1 GP2: globals -> mpred.
-Variable c1: @Component Espec V1 cs1 E1 Imports1 p1 Exports1 GP1 G1.
-Variable c2: @Component Espec V2 cs2 E2 Imports2 p2 Exports2 GP2 G2.
+Variable c1: @Component Espec E1 Imports1 p1 Exports1 GP1 G1.
+Variable c2: @Component Espec E2 Imports2 p2 Exports2 GP2 G2.
 
-Variable DisjointVarspecs: list_disjoint (map fst V1) (map fst V2).
-Variable HV1p1: list_disjoint (map fst V1) (map fst (prog_funct p1)).
-Variable HV1p2: list_disjoint (map fst V1) (map fst (prog_funct p2)).
-Variable HV2p1: list_disjoint (map fst V2) (map fst (prog_funct p1)).
-Variable HV2p2: list_disjoint (map fst V2) (map fst (prog_funct p2)).
-Variable LNR_V1: list_norepet (map fst V1).
-Variable LNR_V2: list_norepet (map fst V2).
-Variable CS1: cspecs_sub cs1 cs.
-Variable CS2: cspecs_sub cs2 cs.
+Variable p: QP.program Clight.function.
+Variable Linked : QPlink_progs p1 p2 = Errors.OK p.
 
-Variable V: varspecs.
-Variable HV1: forall i phi, find_id i V1 = Some phi -> find_id i V = Some phi.
-Variable HV2: forall i phi, find_id i V2 = Some phi -> find_id i V = Some phi.
+Lemma ha_env_cs_of_compspecs_of_QPcomposite_env:
+ forall ce H, @ha_env_cs (compspecs_of_QPcomposite_env ce H) = PTree.map1 QP.co_ha ce.
+Proof.
+clear.
+intros.
+destruct H as [H1 [? [? [? [? [? ?]]]]]]; simpl; auto.
+Qed.
+
+Lemma la_env_cs_of_compspecs_of_QPcomposite_env:
+ forall ce H, @la_env_cs (compspecs_of_QPcomposite_env ce H) = PTree.map1 QP.co_la ce.
+Proof.
+clear.
+intros.
+destruct H as [H1 [? [? [? [? [? ?]]]]]]; simpl; auto.
+Qed.
+
+Lemma samedom_composite_env_of_QPcomposite_env:
+ forall ce H, PTree_samedom (composite_env_of_QPcomposite_env ce H) ce.
+Proof.
+induction ce; simpl; intros; auto.
+destruct H as [? [? ?]].
+simpl; auto.
+destruct o; split3; auto.
+Qed.
+
+Lemma PTree_samedom_trans {A B C}:
+ forall  (m1: PTree.t A) (m2: PTree.t B) (m3: PTree.t C),
+  PTree_samedom m1 m2 -> PTree_samedom m2 m3 -> PTree_samedom m1 m3.
+Proof.
+induction m1; destruct m2, m3; intros; try contradiction; auto.
+destruct H as [? [? ?]]; destruct H0 as [? [? ?]].
+constructor.
+destruct o,o0,o1; try contradiction; auto.
+destruct o,o0,o1; try contradiction; auto.
+split.
+eapply IHm1_1; eauto.
+eapply IHm1_2; eauto.
+split.
+eapply IHm1_1; eauto.
+eapply IHm1_2; eauto.
+Qed.
+
+Lemma PTree_samedom_sym {A B}:
+ forall  (m1: PTree.t A) (m2: PTree.t B),
+  PTree_samedom m1 m2 -> PTree_samedom m2 m1.
+Proof.
+induction m1; destruct m2; intros; try contradiction; auto.
+destruct H as [? [? ?]]; split3; auto.
+destruct o,o0; try contradiction; auto.
+Qed.
+
+Lemma PTree_samedom_map1: forall {A B} (f: A -> B),
+ forall m,  PTree_samedom (PTree.map1 f m) m.
+Proof.
+induction m; simpl; intros; auto.
+split3; auto.
+destruct o; simpl; auto.
+Qed.
 
 Variable FundefsMatch: Fundefs_match p1 p2 Imports1 Imports2.
 
-Variable FP: forall i, Functions_preserved p1 p2 p i.
-
-Definition HC := HContexts c1 c2 FundefsMatch.
+Definition HC := HContexts c1 c2 Linked FundefsMatch.
 
 (********************Assumptions involving E1 and E2  ********)
 
 Variable Externs1_Hyp: list_disjoint (map fst E1) (IntIDs p2).
 Variable Externs2_Hyp: list_disjoint (map fst E2) (IntIDs p1).
-
-Variable ExternsHyp: E = G_merge E1 E2. 
 
 (************************************************************)
 
@@ -1439,16 +1505,14 @@ Variable SC2: forall i phiI, find_id i Imports1 = Some phiI -> In i (map fst E2 
 
 Variable HImports: forall i phi1 phi2, find_id i Imports1 = Some phi1 -> find_id i Imports2 = Some phi2 -> phi1=phi2.
 
-Variable ImportsDef: Imports = 
+Definition Imports := 
                      filter (fun x => negb (in_dec ident_eq (fst x) (map fst E2 ++ IntIDs p2))) Imports1 ++
                      filter (fun x => negb (in_dec ident_eq (fst x) (map fst E1 ++ IntIDs p1 ++ map fst Imports1))) Imports2.
 
-Variable ExportsDef: Exports = G_merge Exports1 Exports2.
-
-Variable LNRp: list_norepet (map fst (prog_defs p)).
+Definition Exports := G_merge Exports1 Exports2.
 
 Lemma LNR_Imports: list_norepet (map fst Imports).
-Proof. subst. clear - c1 c2. rewrite map_app, list_norepet_app; split3.
+Proof. unfold Imports. subst. clear - c1 c2. rewrite map_app, list_norepet_app; split3.
     - specialize (Comp_Imports_LNR c1). clear. apply list_norepet_map_fst_filter.
     - specialize (Comp_Imports_LNR c2). clear. apply list_norepet_map_fst_filter.
     - clear. intros x1 x2 X1 X2.
@@ -1463,7 +1527,7 @@ Proof. subst. clear - c1 c2. rewrite map_app, list_norepet_app; split3.
 Qed.
 
 Lemma LNR_Exports: list_norepet (map fst Exports).
-Proof. subst. clear - c1 c2. rewrite G_merge_dom, map_app, list_norepet_app; split3.
+Proof. unfold Exports. subst. clear - c1 c2. rewrite G_merge_dom, map_app, list_norepet_app; split3.
     - apply c1.
     - eapply sublist_norepet. apply sublist_map_fst. apply sublist_filter. apply c2.
     - clear -c1. intros x1 x2 X1 X2 N; subst.
@@ -1473,120 +1537,118 @@ Proof. subst. clear - c1 c2. rewrite G_merge_dom, map_app, list_norepet_app; spl
       apply find_id_i in X1. rewrite X1 in Y2. congruence. apply c1.
 Qed.
 
-Lemma LNR3_V1: list_norepet (map fst V1 ++ map fst (Imports1 ++ (Comp_G c1))).
-Proof.
-  apply list_norepet_append; trivial. apply Comp_ctx_LNR. 
-  rewrite map_app. apply list_disjoint_app_R.
-  + eapply list_disjoint_mono. apply HV1p1. 2: trivial. 
-    intros. apply list_in_map_inv in H. destruct H as [[j phi] [Phi PHI]]; simpl in Phi; subst x.
-    apply find_id_i in PHI. destruct (Comp_Imports_in_Fundefs c1 _ _ PHI) as [f F].
-    apply find_id_e in F. eapply in_map_fst. apply F. apply (Comp_Imports_LNR c1).
-  + eapply list_disjoint_mono. apply HV1p1. 2: trivial. 
-    intros. apply list_in_map_inv in H. destruct H as [[j phi] [Phi PHI]]; simpl in Phi; subst x.
-    apply find_id_i in PHI; [ | apply (Comp_G_LNR c1) ].
-    destruct (@Comp_G_in_Fundefs' _ _ _ _ _ _ _ _ _ c1 _ _  PHI) as [f F]. apply find_id_In_map_fst in F; trivial.
-Qed.
-
-Lemma LNR3_V2: list_norepet (map fst V2 ++ map fst (Imports2 ++ (Comp_G c2))).
-Proof.
-  apply list_norepet_append; trivial. apply Comp_ctx_LNR. 
-  rewrite map_app. apply list_disjoint_app_R.
-  + eapply list_disjoint_mono. apply HV2p2. 2: trivial. 
-    intros. apply list_in_map_inv in H. destruct H as [[j phi] [Phi PHI]]; simpl in Phi; subst x.
-    apply find_id_i in PHI. destruct (Comp_Imports_in_Fundefs c2 _ _ PHI) as [f F].
-    apply find_id_e in F. eapply in_map_fst. apply F. apply (Comp_Imports_LNR c2).
-  + eapply list_disjoint_mono. apply HV2p2. 2: trivial. 
-    intros. apply list_in_map_inv in H. destruct H as [[j phi] [Phi PHI]]; simpl in Phi; subst x.
-    apply find_id_i in PHI; [ | apply (Comp_G_LNR c2) ].
-    destruct (Comp_G_in_Fundefs' c2 _ _ PHI) as [f F]. apply find_id_In_map_fst in F; trivial.
-Qed.
+Definition is_funct_in {F} i p :=
+     match PTree.get i (@QP.prog_defs F p) with
+     | None => False
+     | Some (Gvar _) => False
+     | Some (Gfun _) => True
+     end.
 
 Lemma Imports_in_Fundefs: forall x, In x (map fst Imports) ->
-      In x (map fst (prog_funct p1) ++ map fst (prog_funct p2)).
-Proof. subst Imports. clear - c1 c2; intros. 
+     is_funct_in x p1 \/ is_funct_in x p2.
+Proof. unfold Imports. clear - c1 c2; intros. 
           specialize (Comp_Imports_in_Fundefs c1) ; intros CIF1.
           specialize (Comp_Imports_in_Fundefs c2) ; intros CIF2.
           rewrite map_app in H.
-          apply in_or_app. apply in_app_or in H; destruct H.
+          apply in_app_or in H; destruct H.
           * apply list_in_map_inv in H; destruct H as [[i phi] [Phi PHI]]; simpl in Phi; subst x.
             apply filter_In in PHI; simpl in PHI; destruct PHI. apply find_id_i in H; [ | apply (Comp_Imports_LNR c1)].
             destruct (CIF1 _ _ H) as [f Hf].
-            left. apply find_id_e in Hf. apply in_map_fst in Hf; trivial.
+            left. hnf. rewrite Hf; auto.
           * apply list_in_map_inv in H; destruct H as [[i phi] [Phi PHI]]; simpl in Phi; subst x.
             apply filter_In in PHI; simpl in PHI; destruct PHI. apply find_id_i in H; [ | apply (Comp_Imports_LNR c2)].
             destruct (CIF2 _ _ H) as [f Hf].
-            remember (find_id i (prog_funct p1) )as k; symmetry in Heqk; destruct k.
-            ++ left. apply find_id_e in Heqk. apply in_map_fst in Heqk. trivial.
-            ++ right. apply find_id_In_map_fst in Hf. trivial. 
+            right; hnf. rewrite Hf; auto.
 Qed.
-
-Variable V_LNR: list_norepet (map fst V).
-Variable domV: forall i, In i (map fst V) -> In i (map fst V1) \/ In i (map fst V2).
 
 Lemma Calling_conventions_match {i psi1 psi2}
       (Hpsi1: find_id i (Comp_G c1) = Some psi1)
       (Hpsi2 : find_id i (Comp_G c2) = Some psi2):
 callingconvention_of_funspec psi1 = callingconvention_of_funspec psi2.
 Proof. 
-  clear - FundefsMatch c1 c2 Hpsi1 Hpsi2. specialize (FundefsMatch i).
-  destruct (Comp_G_elim c1 i).
-  { apply find_id_In_map_fst in Hpsi1; trivial. } 
-  - destruct H. destruct H0 as [? [? [? [? H0]]]]; apply Fundef_of_Gfun in H0.
-    rewrite H0 in *.
-    destruct (Comp_G_elim c2 i).
-    { apply find_id_In_map_fst in Hpsi2; trivial. } 
-    * destruct H1. destruct H2 as [? [? [? [? H2]]]]; apply Fundef_of_Gfun in H2.
-      rewrite H2 in *.
-      specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch.
-      inv FundefsMatch.
-      specialize (Comp_G_justified c1 _ _ _ H0 Hpsi1). simpl; intros.
-      apply ExternalInfo_cc in H3; rewrite <- H3.
-      specialize (Comp_G_justified c2 _ _ _ H2 Hpsi2). simpl; intros.
-      apply ExternalInfo_cc in H4; rewrite <- H4; trivial. 
-    * destruct H1 as [? [? [? ?]]]. apply Fundef_of_Gfun in H3.
-      rewrite H3 in *.
-      specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch.
-      destruct FundefsMatch as [SIG1 _]. unfold signature_of_type in SIG1. inv SIG1. simpl in *.
-      specialize (Comp_G_justified c1 _ _ _ H0 Hpsi1). simpl; intros.
-      apply ExternalInfo_cc in H4; rewrite <- H4.
-      specialize (Comp_G_justified c2 _ _ _ H3 Hpsi2). simpl; intros.
-      apply InternalInfo_cc in H7; rewrite <- H7. trivial.
-  - destruct H as [? [? [? ?]]]. apply Fundef_of_Gfun in H1.
-    rewrite H1 in *.
-    destruct (Comp_G_elim c2 i).
-    { apply find_id_In_map_fst in Hpsi2; trivial. } 
-    * destruct H2. destruct H3 as [? [? [? [? H3]]]]; apply Fundef_of_Gfun in H3.
-      rewrite H3 in *.
-      specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch.
-      destruct FundefsMatch as [SIG1 _]. unfold signature_of_type in SIG1. inv SIG1. simpl in *.
-      specialize (Comp_G_justified c1 _ _ _ H1 Hpsi1). simpl; intros.
-      apply InternalInfo_cc in H4; rewrite <- H4.
-      specialize (Comp_G_justified c2 _ _ _ H3 Hpsi2). simpl; intros.
-      apply ExternalInfo_cc in H7; rewrite <- H7; trivial.
-    * destruct H2 as [? [? [? ?]]]. apply Fundef_of_Gfun in H4.
-      rewrite H4 in *.
-      specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch.
-      inv FundefsMatch.
-      specialize (Comp_G_justified c1 _ _ _ H1 Hpsi1). simpl; intros.
-      apply InternalInfo_cc in H5; rewrite <- H5.
-      specialize (Comp_G_justified c2 _ _ _ H4 Hpsi2). simpl; intros.
-      apply InternalInfo_cc in H6; rewrite <- H6. trivial.
+  clear - Linked Hpsi1 Hpsi2.
+  unfold QPlink_progs in Linked.
+  destruct (  merge_builtins (QP.prog_builtins p1)
+              (QP.prog_builtins p2)) eqn:?H; try discriminate;
+  unfold Errors.bind at 1 in Linked.
+  destruct (merge_PTrees _ _ _) eqn:?H; try discriminate; 
+  unfold Errors.bind at 1 in Linked.
+  clear - H0 Hpsi1 Hpsi2.
+  apply (merge_PTrees_e i) in H0.
+  destruct (Comp_G_elim c1 i); [apply find_id_In_map_fst in Hpsi1; trivial | | ];
+  (destruct (Comp_G_elim c2 i); [apply find_id_In_map_fst in Hpsi2; trivial | | ]).
+-
+   destruct H as [? [? [? [? [? ?]]]]].
+   destruct H1 as [? [? [? [? [? ?]]]]].
+   rewrite H2 in *; rewrite H3 in *.
+   pose proof (Comp_G_justified c1 _ _ _ H2 Hpsi1).
+   apply ExternalInfo_cc in H4; rewrite <- H4.
+   pose proof (Comp_G_justified c2 _ _ _ H3 Hpsi2).
+   apply ExternalInfo_cc in H5; rewrite <- H5.
+   destruct H0 as [g [? _]].
+   simpl in H0.
+   destruct (eqb_external_function x x3 &&
+        eqb_typelist x0 x4 && eqb_type x1 x5)%bool; [ | discriminate].
+   destruct (eqb_calling_convention x2 x6)%bool eqn:?H; [ | discriminate].
+   apply eqb_calling_convention_prop; auto.
+-
+   destruct H as [? [? [? [? [? ?]]]]].
+   destruct H1 as [? [? [? ?]]].
+   rewrite H2 in *; rewrite H4 in *.
+   pose proof (Comp_G_justified c1 _ _ _ H2 Hpsi1).
+   apply ExternalInfo_cc in H5; rewrite <- H5.
+   pose proof (Comp_G_justified c2 _ _ _ H4 Hpsi2).
+   apply InternalInfo_cc in H6; rewrite <- H6.
+   destruct H0 as [g [? _]].
+   unfold merge_globdef in H0.
+   destruct (eqb_signature
+         (signature_of_fundef (External x x0 x1 x2))
+         (signature_of_fundef (Internal x3))) eqn:?H; [ | discriminate].
+   apply eqb_signature_prop in H7.
+   simpl in H7.
+   inv H7. auto.
+-
+   destruct H1 as [? [? [? [? [? ?]]]]].
+   destruct H as [? [? [? ?]]].
+   rewrite H2 in *; rewrite H4 in *.
+   pose proof (Comp_G_justified c1 _ _ _ H4 Hpsi1).
+   apply InternalInfo_cc in H5; rewrite <- H5.
+   pose proof (Comp_G_justified c2 _ _ _ H2 Hpsi2).
+   apply ExternalInfo_cc in H6; rewrite <- H6.
+   destruct H0 as [g [? _]].
+   unfold merge_globdef in H0.
+   destruct (eqb_signature
+         (signature_of_fundef (Internal x3))
+         (signature_of_fundef (External x x0 x1 x2))) eqn:?H; [ | discriminate].
+   apply eqb_signature_prop in H7.
+   simpl in H7.
+   inv H7. auto.
+-
+   destruct H as [? [? [? ?]]].
+   destruct H1 as [? [? [? ?]]].
+   rewrite H3 in *; rewrite H5 in *.
+   pose proof (Comp_G_justified c1 _ _ _ H3 Hpsi1).
+   apply InternalInfo_cc in H6; rewrite <- H6.
+   pose proof (Comp_G_justified c2 _ _ _ H5 Hpsi2).
+   apply InternalInfo_cc in H7; rewrite <- H7.
+   destruct H0 as [g [? _]].
+   unfold merge_globdef in H0.
+   destruct (function_eq x x0) eqn:Hx; inv H0.
+  apply function_eq_prop in Hx; subst; auto.
 Qed.
 
 Lemma Exports_sqsub1: funspecs_sqsub Exports Exports1.
 Proof.
-  clear - c1 c2 (*HContexts*) ExportsDef FundefsMatch.
+  unfold Exports.
+  clear - c1 c2 FundefsMatch Linked.
   subst; apply G_merge_sqsub1. intros; split.
+
 + apply c1 in H. destruct H as [psi1 [Hpsi1 Sub1]]. 
-  apply c2 in H0. destruct H0 as [psi2 [Hpsi2 Sub2]].  
+   apply c2 in H0. destruct H0 as [psi2 [Hpsi2 Sub2]].
   specialize (HC i _ _ Hpsi1 Hpsi2). 
-  clear - Sub1 Sub2 (*HContexts*).
+  clear - Sub1 Sub2.
   destruct psi1; destruct phi1. destruct Sub1 as [[? ?] _]; subst; simpl.
   destruct psi2; destruct phi2. destruct Sub2 as [[? ?] _]; subst; simpl. trivial.
-  (*intros.
-  rewrite funsigs_match_symm in H.
-  eapply funsigs_match_trans; [ apply H |]. 
-  eapply funsigs_match_trans; eassumption.*)
 + apply c1 in H. destruct H as [psi1 [Hpsi1 Sub1]]. 
   apply c2 in H0. destruct H0 as [psi2 [Hpsi2 Sub2]].
   apply funspec_sub_cc in Sub1.
@@ -1597,18 +1659,15 @@ Qed.
 
 Lemma Exports_sqsub2: funspecs_sqsub Exports Exports2.
 Proof.
-  clear - c1 c2 (*HContexts*) ExportsDef FundefsMatch.
+  unfold Exports.
+  clear - c1 c2 Linked FundefsMatch.
   subst; apply G_merge_sqsub2; [ apply (Comp_Exports_LNR c2) | intros; split ].
 + apply c1 in H. destruct H as [psi1 [Hpsi1 Sub1]]. 
   apply c2 in H0. destruct H0 as [psi2 [Hpsi2 Sub2]]. 
   specialize (HC i _ _ Hpsi1 Hpsi2). 
-  clear - Sub1 Sub2 (*HContexts*).
+  clear - Sub1 Sub2.
   destruct psi1; destruct phi1. destruct Sub1 as [[? ?] _]; subst; simpl.
   destruct psi2; destruct phi2. destruct Sub2 as [[? ?] _]; subst; simpl. trivial.
-  (*intros.
-  rewrite  funsigs_match_symm in H.
-  eapply funsigs_match_trans; [ apply H |]. 
-  eapply funsigs_match_trans; eassumption.*)
 + apply c1 in H. destruct H as [psi1 [Hpsi1 Sub1]]. 
   apply c2 in H0. destruct H0 as [psi2 [Hpsi2 Sub2]].
   apply funspec_sub_cc in Sub1.
@@ -1620,20 +1679,16 @@ Qed.
 Lemma Exports_sqsub3 X
       (H1: funspecs_sqsub X Exports1) (H2: funspecs_sqsub X Exports2):
 funspecs_sqsub X Exports.
-Proof. clear - H1 H2 c1 c2 (*HContexts*) ExportsDef FundefsMatch.
-  subst Exports; apply G_merge_sqsub3; trivial.
+Proof. clear - H1 H2 c1 c2 Linked FundefsMatch.
+  unfold Exports; apply G_merge_sqsub3; trivial.
 +  apply (Comp_Exports_LNR c2).
 + intros; split.
   - apply c1 in H. destruct H as [psi1 [Hpsi1 Sub1]]. 
     apply c2 in H0. destruct H0 as [psi2 [Hpsi2 Sub2]]. 
     specialize (HC i _ _ Hpsi1 Hpsi2). 
-    clear - Sub1 Sub2 (*HContexts*).
+    clear - Sub1 Sub2.
     destruct psi1; destruct phi1. destruct Sub1 as [[? ?] _]; subst; simpl.
     destruct psi2; destruct phi2. destruct Sub2 as [[? ?] _]; subst; simpl. trivial.
-    (*intros.
-    rewrite  funsigs_match_symm in H.
-    eapply funsigs_match_trans; [ apply H |]. 
-    eapply funsigs_match_trans; eassumption.*)
   - apply c1 in H. destruct H as [psi1 [Hpsi1 Sub1]]. 
     apply c2 in H0. destruct H0 as [psi2 [Hpsi2 Sub2]].
     apply funspec_sub_cc in Sub1.
@@ -1739,217 +1794,338 @@ induction l; simpl; intros. trivial.
 rewrite H. 2: left; trivial. rewrite IHl; trivial. intros. apply H. right; trivial.
 Qed.
 
-Lemma InitGPred_join {gv} VDp1 VDp2 VDp
-     (VD1: map fst (filter isGvar VDp1) = map fst V1)
-     (VD2: map fst (filter isGvar VDp2) = map fst V2)
-     (VD: map fst (filter isGvar VDp) = map fst V)
+Definition Functions_preserved (p1 p2 p: QP.program Clight.function) i:=
+         match PTree.get i (QP.prog_defs p1), PTree.get i (QP.prog_defs p2) with
+         | Some (Gfun (Internal f1)), Some (Gfun (Internal f2)) => 
+                       PTree.get i (QP.prog_defs p) = Some (Gfun (Internal f1)) /\
+                       PTree.get i (QP.prog_defs p) = Some (Gfun (Internal f2))
+         | Some (Gfun _), Some (Gvar _) => False
+         | Some (Gvar _), Some (Gfun _) => False
+         | Some (Gvar v1), Some (Gvar v2) => 
+            (v1.(gvar_info) = v2.(gvar_info) /\ 
+             v1.(gvar_readonly) = v2.(gvar_readonly) /\ 
+             v1.(gvar_volatile) = v2.(gvar_volatile)) /\ 
+           (v1.(gvar_init) = nil /\ PTree.get i (QP.prog_defs p) = Some (Gvar v2) \/
+            v2.(gvar_init) = nil /\ PTree.get i (QP.prog_defs p) = Some (Gvar v1))
+         |  Some (Gfun (Internal f1)), _ => 
+                       PTree.get i (QP.prog_defs p) = Some (Gfun (Internal f1))
+         | _, Some (Gfun (Internal f2)) => 
+                       PTree.get i (QP.prog_defs p) = Some (Gfun (Internal f2))
+         | Some (Gfun (External ef1 tys1 rt1 cc1)), Some (Gfun (External ef2 tys2 rt2 cc2)) =>
+               PTree.get i (QP.prog_defs p) = Some (Gfun (External ef1 tys1 rt1 cc1)) /\
+               PTree.get i (QP.prog_defs p) = Some (Gfun (External ef2 tys2 rt2 cc2))
+         | Some (Gfun (External ef1 tys1 rt1 cc1)), _ =>
+               PTree.get i (QP.prog_defs p) = Some (Gfun (External ef1 tys1 rt1 cc1))
+         | _, Some (Gfun (External ef2 tys2 rt2 cc2)) =>
+               PTree.get i (QP.prog_defs p) = Some (Gfun (External ef2 tys2 rt2 cc2))
+         | Some (Gvar v), None => PTree.get i (QP.prog_defs p) = Some (Gvar v)
+         | None, Some (Gvar v) => PTree.get i (QP.prog_defs p) = Some (Gvar v)
+         | None, None => PTree.get i (QP.prog_defs p) = None
+         end.
 
-     (HVardefs1: forall i d, find_id i (filter isGvar VDp1) = Some d -> find_id i (filter isGvar VDp) = Some d)
-     (HVardefs2: forall i d, find_id i (filter isGvar VDp2) = Some d -> find_id i (filter isGvar VDp) = Some d):
-      InitGPred (filter isGvar VDp) gv
-      = (InitGPred (filter isGvar VDp1) gv * InitGPred (filter isGvar VDp2) gv)%logic.
-Proof. 
-  clear HImports ImportsDef ExportsDef HV1p1 HV2p1 HV1p2 HV2p2 SC1 SC2 Externs1_Hyp Externs2_Hyp ExternsHyp CS1 CS2 FundefsMatch cs1 cs2 c1 c2 E1 Imports1 Exports1 G1 E2 Imports2 Exports2 G2
-        FP LNRp p p1 p2 E Imports Exports cs.
-  (*unfold Vardefs, prog_funct in *. forget (prog_defs p) as d.
-  forget (prog_defs p1) as d1. forget (prog_defs p2) as d2.*)
-  revert HVardefs1 HVardefs2 LNR_V2 LNR_V1 HV2 HV1 VD2 VD1 DisjointVarspecs domV VD V_LNR.
-  generalize dependent V2. generalize dependent V1.
-  generalize dependent V. generalize dependent VDp2. generalize dependent VDp1. clear.
-  induction VDp; simpl; intros.
-  - symmetry in VD; apply map_eq_nil in VD; subst V.
-    assert (V1 = nil).
-    { clear - HV1. destruct V1; trivial. destruct p. specialize (HV1 i t); simpl in HV1.
-      rewrite if_true in HV1 by trivial. specialize (HV1 (eq_refl _)); discriminate. }
-    subst V1. apply map_eq_nil in VD1; rewrite VD1; clear VD1.
-    assert (V2 = nil).
-    { clear - HV2. destruct V2; trivial. destruct p. specialize (HV2 i t); simpl in HV2.
-      rewrite if_true in HV2 by trivial. specialize (HV2 (eq_refl _)); discriminate. }
-    subst V2. apply map_eq_nil in VD2; rewrite VD2; clear VD2.
-    unfold InitGPred. simpl. (*cancel.*)rewrite emp_sepcon; trivial.
-  - remember (isGvar a) as Q1; destruct Q1; [ simpl in * | eapply (IHVDp _ _ V V1 V2); clear IHVDp; trivial ].
-    destruct V as [ | [j z] VV]; inv VD; simpl in *.
-    inv V_LNR. rewrite InitGPred_consD.
-      destruct (domV (fst a)) as  [Hj1 | Hj2]; [ left; trivial | |].
-      + (*destruct (In_map_fst_find_id Hj1) as [ tp Tp]; trivial.*)
-         rewrite <- VD1 in Hj1. destruct (In_map_fst_find_id Hj1) as [ u U]; trivial. rewrite VD1; trivial.
-         destruct a as [i gd]. simpl fst in *; simpl snd in *.
-         assert (HVD1 := HVardefs1 i _ U). rewrite if_true in HVD1 by trivial. inv HVD1.
-        (* apply in_split in Hj1. destruct Hj1 as [Y [Z YZ]].
- rewrite YZ in *.*)
-         destruct (list_in_map_inv _ _ _ Hj1) as [[jj tj] [JJ Tj]]. simpl in JJ; subst jj.
-         apply in_split in Tj. destruct Tj as [d1a [d1b App1]]. rewrite App1.
-         assert (tj = u).
-         { rewrite App1, find_id_app_char in U. remember (find_id i d1a). destruct o.
-           - symmetry in Heqo; apply find_id_e in Heqo. apply in_split in Heqo. destruct Heqo as [X1 [X2 XX]].
-             subst d1a.  rewrite <- VD1, App1 in LNR_V1. clear- LNR_V1.
-             rewrite ! map_app in LNR_V1. simpl in LNR_V1. apply list_norepet_middleD in LNR_V1. destruct LNR_V1; clear LNR_V1.
-             elim H. apply in_or_app. left. apply in_or_app. right; left; trivial.
-           - simpl in U. rewrite if_true in U by trivial. inv U; trivial. }
-         subst tj.
-         rewrite InitGPred_middleD. (*cancel*) rewrite ! sepcon_assoc. f_equal.
-         assert (filter isGvar (filter isGvar VDp1) = filter isGvar (d1a ++ (i, u) :: d1b)).
-         { rewrite App1; trivial. }
-         rewrite filter_involutive, filter_app in H.
-         rewrite App1 in VD1. destruct (map_app_inv _ _ _ VD1) as [V1a [V1b [HV1a [HV1b UU]]]]; subst V1.
-         simpl in HV1b. destruct V1b as [ |v1 V1b]. inv HV1b. simpl in HV1b.
-         destruct v1 as [j zz]; simpl in *. inv HV1b. rename H5 into HV1b.
-
-         (*eapply derives_trans. eapply (IHVDp (d1a++d1b) VDp2 VV (V1a++V1b) V2) ; clear IHVDp; trivial.*)
-         rewrite (IHVDp (d1a++d1b) VDp2 VV (V1a++V1b) V2); clear IHVDp; trivial.
-         (*9: rewrite filter_app, InitGPred_app; trivial.*)
-         * rewrite filter_app, InitGPred_app, <- ! sepcon_assoc. f_equal.
-             rewrite 2 filter_redundant; trivial.
-              intros. apply (filter_In _ _ VDp1). rewrite App1; apply in_or_app. right. right; trivial.
-              intros. apply (filter_In _ _ VDp1). rewrite App1; apply in_or_app. left; trivial.
-         * intros. rewrite H in HVardefs1. specialize (HVardefs1 i d).
-             assert (Hi: i <> j).
-             { intros N; subst. clear - App1 VD1 H H0 LNR_V1 HeqQ1 HV1a HV1b .
-               apply find_id_In_map_fst in H0. rewrite filter_app, map_app  in H0.
-               rewrite <- VD1, map_app in LNR_V1. simpl in LNR_V1.
-               apply list_norepet_middleD in LNR_V1; destruct LNR_V1 as [XX YY]; clear LNR_V1.
-               clear - XX H0. elim XX; clear XX. apply in_or_app; apply in_app_or in H0; destruct H0.
-               - left. apply in_map_iff in H; destruct H as [? [? ?]]; subst. apply filter_In in H0; destruct H0.
-                 apply in_map_iff. exists x. split; trivial.
-               - right. apply in_map_iff in H; destruct H as [? [? ?]]; subst. apply filter_In in H0; destruct H0.
-                 apply in_map_iff. exists x. split; trivial. }
-             rewrite if_false in HVardefs1 by trivial. apply HVardefs1. simpl. rewrite <- HeqQ1.
-             rewrite find_id_app_char. simpl. rewrite filter_app, find_id_app_char in H0. rewrite if_false; trivial.
-         * intros. specialize (HVardefs2 i d H0). rewrite if_false in HVardefs2; trivial.
-             intros N; subst. rewrite <- VD1, <- VD2,  map_app  in DisjointVarspecs.
-              apply find_id_In_map_fst in H0.
-              apply (DisjointVarspecs j j); trivial. apply in_or_app. right; left; trivial.
-         * rewrite map_app in *. simpl in LNR_V1. apply semax_prog.list_norepet_cut_middle in LNR_V1; trivial.
-         * intros. specialize (HV2 _ _ H0). rewrite if_false in HV2; trivial.
-              intros N; subst. rewrite <- VD1, map_app  in DisjointVarspecs.
-              apply find_id_In_map_fst in H0.
-              apply (DisjointVarspecs j j); trivial. apply in_or_app. right; left; trivial.
-         * intros. 
-             assert (JI: i <> j).
-             { rewrite map_app in LNR_V1. simpl in LNR_V1.
-               apply list_norepet_middleD in LNR_V1. clear - LNR_V1 H0. intros N; subst.
-               apply LNR_V1. apply find_id_In_map_fst in H0. rewrite map_app in H0; trivial. }
-             specialize (HV1 i phi). rewrite if_false in HV1 by trivial.
-             apply HV1. rewrite find_id_app_char in *. destruct (find_id i V1a); trivial.
-             simpl. rewrite if_false; trivial.
-         * rewrite map_app, <- HV1a, <- HV1b, filter_app, map_app. clear - App1.
-              rewrite 2 filter_redundant; trivial.
-              intros. apply (filter_In _ _ VDp1). rewrite App1; apply in_or_app. right. right; trivial.
-              intros. apply (filter_In _ _ VDp1). rewrite App1; apply in_or_app. left; trivial.
-         * rewrite map_app in DisjointVarspecs. simpl in DisjointVarspecs. rewrite map_app.
-             apply list_disjoint_middleD in DisjointVarspecs. apply  DisjointVarspecs.
-         * intros. assert (i<>j) by congruence. rewrite map_app. 
-              simpl in domV; destruct (domV i) as [HH | HH]. right; trivial.
-              rewrite map_app in HH; simpl in HH.
-              apply in_app_or in HH. destruct HH. left; apply in_or_app; left; trivial.
-              inv H5. congruence. left; apply in_or_app; right; trivial.
-              right; trivial.
-         (* * { rewrite 2 filter_redundant; trivial.
-              intros. apply (filter_In _ _ VDp1). rewrite App1; apply in_or_app. right. right; trivial.
-              intros. apply (filter_In _ _ VDp1). rewrite App1; apply in_or_app. left; trivial. }*)
-
-      + (*symmetric*)
-         rewrite <- VD2 in Hj2. destruct (In_map_fst_find_id Hj2) as [ u U]; trivial. rewrite VD2; trivial.
-         destruct a as [i gd]. simpl fst in *; simpl snd in *.
-         assert (HVD2 := HVardefs2 i _ U). rewrite if_true in HVD2 by trivial. inv HVD2.
-         destruct (list_in_map_inv _ _ _ Hj2) as [[jj tj] [JJ Tj]]. simpl in JJ; subst jj.
-         apply in_split in Tj. destruct Tj as [d2a [d2b App2]]. rewrite App2.
-         assert (tj = u).
-         { rewrite App2, find_id_app_char in U. remember (find_id i d2a). destruct o.
-           - symmetry in Heqo; apply find_id_e in Heqo. apply in_split in Heqo. destruct Heqo as [X1 [X2 XX]].
-             subst d2a.  rewrite <- VD2, App2 in LNR_V2. clear- LNR_V2.
-             rewrite ! map_app in LNR_V2. simpl in LNR_V2. apply list_norepet_middleD in LNR_V2. destruct LNR_V2; clear LNR_V2.
-             elim H. apply in_or_app. left. apply in_or_app. right; left; trivial.
-           - simpl in U. rewrite if_true in U by trivial. inv U; trivial. }
-         subst tj.
-         rewrite InitGPred_middleD. (*cancel.*) rewrite ! sepcon_assoc. 
-                 rewrite (sepcon_comm (InitGPred (filter isGvar VDp1) gv)).
-                 rewrite ! sepcon_assoc. f_equal.
-         assert (filter isGvar (filter isGvar VDp2) = filter isGvar (d2a ++ (i, u) :: d2b)).
-         { rewrite App2; trivial. }
-         rewrite filter_involutive, filter_app in H.
-         rewrite App2 in VD2. destruct (map_app_inv _ _ _ VD2) as [V2a [V2b [HV2a [HV2b UU]]]]; subst V2.
-         simpl in HV2b. destruct V2b as [ |v2 V2b]. inv HV2b. simpl in HV2b.
-         destruct v2 as [j zz]; simpl in *. inv HV2b. rename H5 into HV2b.
-
-         (*eapply derives_trans. eapply (IHVDp VDp1 (d2a++d2b)  VV V1 (V2a++V2b)) ; clear IHVDp; trivial.
-         9: rewrite filter_app, InitGPred_app; trivial.*)
-         rewrite (IHVDp VDp1 (d2a++d2b)  VV V1 (V2a++V2b)) ; clear IHVDp; trivial.
-         * rewrite sepcon_comm, filter_app, InitGPred_app, <- ! sepcon_assoc. f_equal.
-             rewrite 2 filter_redundant; trivial.
-              intros. apply (filter_In _ _ VDp2). rewrite App2; apply in_or_app. right. right; trivial.
-              intros. apply (filter_In _ _ VDp2). rewrite App2; apply in_or_app. left; trivial.
-         * intros. specialize (HVardefs1 i d H0). rewrite if_false in HVardefs1; trivial.
-             intros N; subst. rewrite <- VD1, <- VD2,  map_app  in DisjointVarspecs.
-              apply find_id_In_map_fst in H0.
-              apply (DisjointVarspecs j j); trivial. apply in_or_app. right; left; trivial.
-         * intros. rewrite H in HVardefs2. specialize (HVardefs2 i d).
-             assert (Hi: i <> j).
-             { intros N; subst. clear - App2 VD2 H H0 LNR_V2 HeqQ1 HV2a HV2b .
-               apply find_id_In_map_fst in H0. rewrite filter_app, map_app  in H0.
-               rewrite <- VD2, map_app in LNR_V2. simpl in LNR_V2.
-               apply list_norepet_middleD in LNR_V2; destruct LNR_V2 as [XX YY]; clear LNR_V2.
-               clear - XX H0. elim XX; clear XX. apply in_or_app; apply in_app_or in H0; destruct H0.
-               - left. apply in_map_iff in H; destruct H as [? [? ?]]; subst. apply filter_In in H0; destruct H0.
-                 apply in_map_iff. exists x. split; trivial.
-               - right. apply in_map_iff in H; destruct H as [? [? ?]]; subst. apply filter_In in H0; destruct H0.
-                 apply in_map_iff. exists x. split; trivial. }
-             rewrite if_false in HVardefs2 by trivial. apply HVardefs2. simpl. rewrite <- HeqQ1.
-             rewrite find_id_app_char. simpl. rewrite filter_app, find_id_app_char in H0. rewrite if_false; trivial.
-     
-         * rewrite map_app in *. simpl in LNR_V2. apply semax_prog.list_norepet_cut_middle in LNR_V2; trivial.
-         * intros. 
-             assert (JI: i <> j).
-             { rewrite map_app in LNR_V2. simpl in LNR_V2.
-               apply list_norepet_middleD in LNR_V2. clear - LNR_V2 H0. intros N; subst.
-               apply LNR_V2. apply find_id_In_map_fst in H0. rewrite map_app in H0; trivial. }
-             specialize (HV2 i phi). rewrite if_false in HV2 by trivial.
-             apply HV2. rewrite find_id_app_char in *. destruct (find_id i V2a); trivial.
-             simpl. rewrite if_false; trivial.
-         * intros. specialize (HV1 _ _ H0). rewrite if_false in HV1; trivial.
-              intros N; subst. rewrite <- VD2, map_app  in DisjointVarspecs.
-              apply find_id_In_map_fst in H0.
-              apply (DisjointVarspecs j j); trivial. apply in_or_app. right; left; trivial.
-         * rewrite map_app, <- HV2a, <- HV2b, filter_app, map_app. clear - App2.
-              rewrite 2 filter_redundant; trivial.
-              intros. apply (filter_In _ _ VDp2). rewrite App2; apply in_or_app. right. right; trivial.
-              intros. apply (filter_In _ _ VDp2). rewrite App2; apply in_or_app. left; trivial.
-         * rewrite map_app in DisjointVarspecs. simpl in DisjointVarspecs. rewrite map_app.
-             apply list_disjoint_sym in DisjointVarspecs. apply list_disjoint_sym.
-             apply list_disjoint_middleD in DisjointVarspecs. apply  DisjointVarspecs.
-         * intros. assert (i<>j) by congruence. rewrite map_app. 
-              simpl in domV; destruct (domV i) as [HH | HH]. right; trivial.
-             left; trivial.
-              rewrite map_app in HH; simpl in HH.
-              apply in_app_or in HH. destruct HH. right; apply in_or_app; left; trivial.
-              inv H5. congruence. right; apply in_or_app; right; trivial.
-         (** { cancel. rewrite 2 filter_redundant; trivial.
-              intros. apply (filter_In _ _ VDp2). rewrite App2; apply in_or_app. right. right; trivial.
-              intros. apply (filter_In _ _ VDp2). rewrite App2; apply in_or_app. left; trivial. }*)
+Lemma Linked_Functions_preserved: forall p1 p2 p (Linked: QPlink_progs p1 p2 = Errors.OK p),
+  forall i, Functions_preserved p1 p2 p i.
+Proof.
+clear.
+intros.
+  unfold QPlink_progs in Linked.
+  destruct (  merge_builtins (QP.prog_builtins p1)
+              (QP.prog_builtins p2)) eqn:?H; try discriminate;
+  unfold Errors.bind at 1 in Linked.
+  destruct (merge_PTrees _ _ _) eqn:?H; try discriminate; 
+  unfold Errors.bind at 1 in Linked.
+  destruct (merge_consistent_PTrees QPcomposite_eq
+              (QP.prog_comp_env p1)
+              (QP.prog_comp_env p2)); try discriminate.
+  unfold Errors.bind at 1 in Linked.
+  destruct (eqb_ident (QP.prog_main p1)
+               (QP.prog_main p2)); inv Linked.
+  apply (merge_PTrees_e i) in H0.
+ hnf; intros. simpl QP.prog_defs.
+  destruct ((QP.prog_defs p1) ! i) eqn:J1, ((QP.prog_defs p2) ! i) eqn:J2.
+-
+  destruct H0 as [h [H8 H0]]; rewrite ?H0.
+  destruct g0,g; unfold merge_globdef in H8.
+  destruct f,f0; inv H8;
+  match type of H2 with  (if ?A then _ else _) = _ => destruct A eqn:?H; inv H2 end; auto.
+  apply function_eq_prop in H1; subst f0; auto.
+  split; auto.
+  rewrite !andb_true_iff in H1. destruct H1 as [[[? ?] ?] ?].
+  apply eqb_typelist_prop in H2.
+  apply eqb_type_spec in H3.
+  apply eqb_calling_convention_prop in H4. subst; auto.
+  f_equal. f_equal. f_equal.
+  apply eqb_external_function_prop; auto.
+  destruct v; inv H8.
+  destruct f; inv H8.
+  destruct v, v0.
+  match type of H8 with  (if ?A then _ else _) = _ => destruct A eqn:?H; inv H8 end; auto.
+  destruct (eqb_type gvar_info gvar_info0) eqn:?H; [ | discriminate].
+  apply eqb_type_true in H2. subst.
+  destruct (bool_eq gvar_readonly gvar_readonly0) eqn:?H; [ | discriminate].
+  apply bool_eq_ok in H2; subst.
+  inv H1. (* USE THIS PART IF overlap_Gvar=true: 
+  apply bool_eq_ok in H1; subst.
+  simpl.
+  split; auto.
+  destruct (linking.isnil gvar_init) eqn:?H; inv H3; auto.
+  destruct gvar_init; inv H1.
+  right; split; auto.
+  destruct (linking.isnil gvar_init0) eqn:?H; inv H4; auto.
+  destruct gvar_init0; inv H2.
+  left; split; auto.
+*)
+-
+  destruct g; auto. destruct f; auto.
+-
+  destruct g; auto. destruct f; auto.
+- rewrite H0; auto.
 Qed.
 
-Variable VD1: map fst (Vardefs p1) = map fst V1.
-Variable VD2: map fst (Vardefs p2) = map fst V2.
-Variable VD: map fst (Vardefs p) = map fst V.
+Lemma merge_globdef_noGvar:
+ forall g1 g2 g, merge_globdef g1 g2 = Errors.OK (Gvar g) -> False.
+Proof.
+clear.
+intros.
+destruct g1,g2; simpl in H.
+destruct f,f0; simpl in H;
+try match type of H with (if ?A then _ else _) = _ => destruct A end;
+ inv H.
+destruct f; inv H.
+destruct v; inv H.
+destruct v,v0; inv H.
+Qed.
 
-Variable HVardefs1: forall i d, find_id i (Vardefs p1) = Some d -> find_id i (Vardefs p) = Some d.
-Variable HVardefs2: forall i d, find_id i (Vardefs p2) = Some d -> find_id i (Vardefs p) = Some d.
+Lemma InitGPred_join {gv}:
+  forall  (p1 p2 p : QP.program function)
+  (H : globals_ok gv)
+  (Linked : QPlink_progs p1 p2 = Errors.OK p),
+  InitGPred (Vardefs p) gv |-- InitGPred (Vardefs p1) gv * InitGPred (Vardefs p2) gv.
+Proof.
+clear.
+intros.
+unfold Vardefs.
+unfold QPlink_progs in Linked.
+destruct (merge_builtins (QP.prog_builtins p1)
+              (QP.prog_builtins p2)); try discriminate.
+destruct (merge_PTrees merge_globdef 
+                 (QP.prog_defs p1) (QP.prog_defs p2)) eqn:?H; try discriminate.
+simpl in Linked.
+destruct (merge_consistent_PTrees QPcomposite_eq
+              (QP.prog_comp_env p1) (QP.prog_comp_env p2)); try discriminate.
+simpl in Linked.
+destruct (eqb_ident (QP.prog_main p1) (QP.prog_main p2)); try discriminate.
+inv Linked. simpl.
+rename t into m.
+forget (QP.prog_defs p1) as m1.
+forget (QP.prog_defs p2) as m2.
+clear - H0.
+assert (forall i,
+match find_id i (PTree.elements m1) with
+    | Some x1 =>
+        match find_id i (PTree.elements m2) with
+        | Some x2 =>
+            exists x,
+              merge_globdef x1 x2 = Errors.OK x /\ find_id i (PTree.elements m) = Some x
+        | None => find_id i (PTree.elements m) = Some x1
+        end
+    | None =>
+        match find_id i (PTree.elements m2) with
+        | Some x2 => find_id i (PTree.elements m)= Some x2
+        | None => find_id i (PTree.elements m) = None
+        end
+    end)
+  by (intro i; rewrite !find_id_elements; apply merge_PTrees_e; auto).
+clear - H.
+pose proof (PTree.elements_keys_norepet m).
+pose proof (PTree.elements_keys_norepet m1).
+pose proof (PTree.elements_keys_norepet m2).
+forget (PTree.elements m1) as al1.
+forget (PTree.elements m2) as al2.
+forget (PTree.elements m) as al.
+clear m m1 m2.
+unfold InitGPred. {
+assert (forall i,
+ match  find_id i (filter isGvar al)  with
+ | None => find_id i (filter isGvar al1) = None /\ find_id i (filter isGvar al2) = None
+ | Some g => find_id i (filter isGvar al1) = Some g /\ find_id i (filter isGvar al2) = None
+                \/ find_id i (filter isGvar al2) = Some g /\ find_id i (filter isGvar al1) = None
+  end). {
+ intro i; specialize (H i).
+ rewrite !find_id_filter_char by auto.
+ destruct (find_id i al1) as [g1|] eqn:?H;
+ destruct (find_id i al2) as [g2|] eqn:?H;
+ first [rewrite H | (destruct H as [g [H H5]]; rewrite H5)]; auto.
+ destruct g1 as [g1|g1], g2 as [g2|g2]; simpl; auto.
+ destruct g; try (contradiction (merge_globdef_noGvar _ _ _ H)); simpl; auto.
+ destruct g; try (contradiction (merge_globdef_noGvar _ _ _ H)); simpl; auto.
+ destruct g2, g1; inv H.
+ destruct g; try (contradiction (merge_globdef_noGvar _ _ _ H)); simpl; auto.
+ destruct g1,g2; inv H.
+ destruct g1,g2; inv H.
+ destruct g1; simpl; auto.
+ destruct g2; simpl; auto.
+}
+ clear H. rename H3 into H.
+apply (@list_norepet_map_fst_filter _ isGvar) in H0.
+apply (@list_norepet_map_fst_filter _ isGvar) in H1.
+apply (@list_norepet_map_fst_filter _ isGvar) in H2.
+assert (F0: forall i g, In (i,g) (filter isGvar al) -> isGvar (i,g) = true)
+  by (intros ? ? Hx; apply (proj2 (proj1 (filter_In _ _ _) Hx))).
+assert (F1: forall i g, In (i,g) (filter isGvar al1) -> isGvar (i,g) = true)
+  by (intros ? ? Hx; apply (proj2 (proj1 (filter_In _ _ _) Hx))).
+assert (F2: forall i g, In (i,g) (filter isGvar al2) -> isGvar (i,g) = true)
+  by (intros ? ? Hx; apply (proj2 (proj1 (filter_In _ _ _) Hx))).
+ forget (filter isGvar al) as bl.
+ forget (filter isGvar al1) as bl1.
+ forget (filter isGvar al2) as bl2.
+ clear al1 al2 al. rename bl into al. rename bl1 into al1. rename bl2 into al2.
+revert al1 al2 H H1 H2 F1 F2 ; induction al as [|[i [g|g]]]; simpl; intros.
+-
+assert (al1=nil).
+ destruct al1 as [|[i g]]; auto. destruct (H i) as [Hx _]; simpl in Hx; rewrite if_true in Hx by auto; inv Hx.
+assert (al2=nil).
+ destruct al2 as [|[i g]]; auto. destruct (H i) as [_ Hx]; simpl in Hx; rewrite if_true in Hx by auto; inv Hx.
+subst. simpl. rewrite sepcon_emp; auto.
+-
+rewrite emp_sepcon.
+inv H0.
+simpl fst in *.
+apply IHal; clear IHal; auto.
+intros.
+specialize (H i); rewrite if_true in H by auto.
+destruct H as [[??]|[??]]; apply find_id_e in H.
+apply F1 in H; inv H.
+apply F2 in H; inv H.
+intro j.
+specialize (H j).
+if_tac in H.
+subst j.
+destruct H as [[??]|[??]]; apply find_id_e in H.
+apply F1 in H. inv H.
+apply F2 in H; inv H.
+auto.
+-
+simpl fst in *. inv H0.
+specialize (IHal H6).
+spec IHal. intros; apply F0; right; auto.
+pose (noti i (jx: ident * globdef (fundef function) type) := 
+             negb (Pos.eqb i (fst jx))).
+pose proof (H i). rewrite if_true in H0 by auto.
+
+assert (forall g bl i,
+          list_norepet (map fst bl) ->
+          (forall j g0, In (j, g0) bl -> isGvar (j, g0) = true) ->
+          find_id i bl = Some g ->
+             fold_right sepcon emp (map (globs2pred gv) bl) =
+             sepcon (globs2pred gv (i,g)) (fold_right sepcon emp (map (globs2pred gv) (filter (noti i) bl)))). {
+   clear.
+   intros. 
+   assert (H8: isGvar (i,g) = true). apply H0. apply find_id_e; auto.
+   destruct g; inv H8.
+   revert bl i H H0 H1.
+   induction bl as [|[??]]; intros until 1; intros H9  H0.
+   inv H0.
+   simpl in H. inv H.
+   unfold map. fold (map (globs2pred gv)).
+   unfold fold_right; fold (fold_right sepcon emp).
+   unfold filter; fold (filter (noti i0)).
+   simpl in H0.
+   if_tac in H0. subst i0. inv H0.
+   unfold noti at 1. simpl fst. rewrite Pos.eqb_refl. unfold negb. f_equal.
+  clear - H3.
+  induction bl as [|[j ?]]; simpl; auto.
+  unfold noti at 1.  simpl fst. rewrite (proj2 (Pos.eqb_neq i j)).
+  simpl. f_equal; auto. apply IHbl. contradict H3; simpl; auto.
+  contradict H3; subst; left; auto.
+  unfold noti at 1; simpl fst. rewrite (proj2 (Pos.eqb_neq i0 i)); auto.
+  unfold negb.
+  unfold map; fold (map (globs2pred gv)).
+   unfold fold_right; fold (fold_right sepcon emp).
+  rewrite <- !sepcon_assoc.
+  rewrite (sepcon_comm (globs2pred gv (i0,Gvar v))).
+ rewrite !sepcon_assoc.
+  f_equal.
+  apply IHbl; auto.
+  intros. apply H9. right; auto.
+}
+ assert (H12: forall i (bl: list (ident * globdef (fundef function) type)), find_id i (filter (noti i) bl) = None). {
+  induction bl as [|[??]]; simpl; auto.
+  unfold noti at 1. simpl fst.
+  destruct (Pos.eqb_spec i0 i1). subst; simpl; auto.
+  simpl. rewrite if_false by auto. auto.
+}
+assert (H13: forall j i, j<>i -> 
+             forall (bl: list (ident * globdef (fundef function) type)),
+                find_id j (filter (noti i) bl) = find_id j bl). {
+ clear; induction bl as [|[??]]; simpl; auto.
+ unfold noti at 1. simpl fst.
+  destruct (Pos.eqb_spec i i0). subst; simpl; auto.
+ rewrite if_false by auto. auto.
+ simpl. if_tac; auto.
+}
+destruct H0 as [[??]|[??]].
++
+ rewrite (H3 _ _ _ H1 F1 H0); clear H3.
+ rewrite sepcon_assoc.
+ apply sepcon_derives. apply derives_refl.
+ apply IHal; clear IHal; auto.
+ intro j.
+ specialize (H j).
+ if_tac in H.
+ subst j.
+ rewrite H4.
+ apply find_id_None_iff in H5.
+ rewrite H5. split; auto.
+ destruct (find_id j al) eqn:?H.
+rewrite H13 by auto.
+auto.
+rewrite H13 by auto.
+auto.
+apply list_norepet_map_fst_filter; auto.
+intros.
+apply F1; auto.
+apply filter_In in H3. destruct H3; auto.
++
+ rewrite (H3 _ _ _ H2 F2 H0); clear H3.
+ rewrite (sepcon_comm (fold_right _ _ _)).
+ rewrite sepcon_assoc.
+ apply sepcon_derives. apply derives_refl.
+ rewrite sepcon_comm.
+ apply IHal; clear IHal; auto.
+ intro j.
+ specialize (H j).
+ if_tac in H.
+ subst j.
+ rewrite H4.
+ apply find_id_None_iff in H5.
+ rewrite H5; auto.
+ rewrite H13 by auto.
+ auto.
+ apply list_norepet_map_fst_filter; auto.
+ intros.
+ apply F2; auto.
+ apply filter_In in H3. destruct H3; auto.
+}
+Qed.
+
+Lemma compspecs_eq: forall cs1 cs2: compspecs,
+  @cenv_cs cs1 = @cenv_cs cs2 ->
+  @ha_env_cs cs1 = @ha_env_cs cs2 ->
+  @la_env_cs cs1 = @la_env_cs cs2 ->
+  cs1 = cs2.
+Proof.
+clear.
+destruct cs1,cs2;simpl; intros; subst; f_equal; auto; apply proof_irr.
+Qed.
 
 Lemma ComponentJoin:
-   @Component Espec (*(V1++V2)*)V cs E Imports p Exports ((fun gv => GP1 gv * GP2 gv)%logic) (G_merge (Comp_G c1) (Comp_G c2)).
+   @Component Espec (G_merge E1 E2) Imports p Exports ((fun gv => GP1 gv * GP2 gv)%logic) (G_merge (Comp_G c1) (Comp_G c2)).
 Proof.
-  specialize (Comp_G_disjoint_from_Imports c1); intros D_GImp1.
-  specialize (Comp_G_disjoint_from_Imports c2); intros D_GImp2.
-  specialize (Comp_Interns_disjoint_from_Imports c1); intros D_ImpInt1.
-  specialize (Comp_Interns_disjoint_from_Imports c2); intros D_ImpInt2.
-  specialize (Comp_G_LNR c1); intros LNR_G1.
-  specialize (Comp_G_LNR c2); intros LNR_G2.
-  assert (LNR_Ints2 := Comp_LNR_Interns c2).
-  assert (LNR_Ints1 := Comp_LNR_Interns c1). 
+  set (E := G_merge E1 E2).
   assert (LMR_Imp:= LNR_Imports).
   assert (LMR_Exp:= LNR_Exports).
-
-  remember (G_merge (Comp_G c1) (Comp_G c2)) as G.
+  set (G := G_merge (Comp_G c1) (Comp_G c2)).
 
   assert (DOM_G: forall i, In i (map fst G) ->
           In i (map fst (Comp_G c1 ++ Comp_G c2))).
@@ -1961,14 +2137,15 @@ Proof.
       apply filter_In in J; destruct J as [J1 J2]. apply (in_map fst) in J1; right; trivial. } 
 
   assert (G_in_Fundefs: forall i, 
-          In i (map fst G) ->
-          In i (map fst (prog_funct p1) ++ map fst (prog_funct p2))).
-  { subst G; clear - c1 c2; intros. apply G_merge_InDom in H; [ apply in_or_app | apply (Comp_G_LNR c1)].
-    destruct H as [H | [_ H]]; apply Comp_G_in_Fundefs in H; 
-    destruct H; apply find_id_In_map_fst in H; auto. }
+          In i (map fst G) -> is_funct_in i p1 \/ is_funct_in i p2).
+  { subst G; clear - c1 c2; intros. apply G_merge_InDom in H; [  | apply (Comp_G_LNR c1)].
+    destruct H as [H | H].
+    apply Comp_G_in_Fundefs in H. destruct H. left; hnf; rewrite H; auto.
+    destruct H.
+    apply Comp_G_in_Fundefs in H0. destruct H0. right; hnf; rewrite H0; auto. }
 
   assert (LNR_E_Imports: list_norepet (map fst (E ++ Imports))).
-  { subst E Imports.
+  { unfold E; unfold Imports.
     rewrite map_app, list_norepet_app; split3; trivial.
     - unfold G_merge. rewrite map_app, list_norepet_app; split3. 
       * rewrite G_merge_aux_dom. apply (Comp_Externs_LNR c1).
@@ -2001,32 +2178,16 @@ Proof.
           apply filter_In in PHI. destruct PHI. exists (x,phi); split; trivial. }
 
   assert (LNR_G: list_norepet (map fst G)).
-  { subst G; clear - LNR_G1 LNR_G2 Externs2_Hyp Externs1_Hyp.
+  { subst G; clear.
     apply G_merge_LNR; [ apply (Comp_G_LNR c1) | apply (Comp_G_LNR c2)]. }
 
-  assert (V1_D1: list_disjoint (map fst V1) (map fst (Imports ++ G))).
-  { eapply list_disjoint_mono with (l2':= (map fst (prog_funct p1) ++ map fst (prog_funct p2)))
-    (l1':= map fst V1); trivial.
-    + do 5 intros ?; subst. apply in_app_or in H0; destruct H0.
-      apply (HV1p1 y y ); trivial. apply (HV1p2 y y); trivial.
-    + intros. rewrite map_app in H. apply in_app_or in H. destruct H.
-      apply Imports_in_Fundefs; trivial. apply G_in_Fundefs; trivial. }
-
-  assert (V2_D1: list_disjoint (map fst V2) (map fst (Imports ++ G))).
-  { eapply list_disjoint_mono with (l2':= (map fst (prog_funct p1) ++ map fst (prog_funct p2)))
-    (l1':= map fst V2); trivial.
-    + do 5 intros ?; subst. apply in_app_or in H0; destruct H0.
-      apply (HV2p1 y y ); trivial. apply (HV2p2 y y); trivial.
-    + intros. rewrite map_app in H. apply in_app_or in H. destruct H.
-      apply Imports_in_Fundefs; trivial. apply G_in_Fundefs; trivial. }
-
   assert (Imports_G_disjoint: list_disjoint (map fst Imports) (map fst G)).
-  { clear - ImportsDef HeqG D_GImp1 D_GImp2 LNR_G2 LNR_G1; subst Imports G. do 5 intros ?; subst.
+  { clear; unfold Imports; subst G. do 5 intros ?; subst.
       apply list_in_map_inv in H. destruct H as [[i phi] [Q Hi]]; simpl in Q; subst y.
       apply (@G_merge_InDom (Comp_G c1) (Comp_G c2) i (Comp_G_LNR c1)) in H0. 
       apply in_app_or in Hi; destruct Hi as [Hi | Hi]; apply filter_In in Hi; simpl in Hi.
       + destruct Hi. apply in_map_fst in H.
-        apply (list_disjoint_notin i D_GImp1) in H.
+        apply (list_disjoint_notin i (Comp_G_disjoint_from_Imports c1)) in H.
         destruct H0 as [HH1 | [_ HH2]]. contradiction.
         destruct (in_dec ident_eq i (map fst E2 ++ IntIDs p2)); simpl in H1. inv H1. clear H1.
         apply n; clear n; apply in_or_app.
@@ -2035,102 +2196,85 @@ Proof.
         apply n; clear n; apply in_or_app. destruct H0 as [HH1 | [_ HH2]].
         - apply Comp_G_elim in HH1. destruct HH1. left; apply H0. destruct H0 as [? [? [f Hf]]]. right.
           apply in_or_app. left; trivial.
-        - apply in_map_fst in H; elim (D_GImp2 i i); trivial. }
-
-  assert (LNR4_V1: list_norepet (map fst V1 ++ map fst (Imports ++ G))). 
-  { (*subst G.*) rewrite list_norepet_app; split3; trivial.
-    rewrite map_app, list_norepet_app; split3; trivial.  }
-
-  assert (LNR4_V2: list_norepet (map fst V2 ++ map fst (Imports ++ G))).
-  {  subst G. rewrite list_norepet_app; split3; trivial.
-     rewrite map_app, list_norepet_app; split3; trivial. }
-
-  assert (LNR2: list_norepet (map fst V ++ map fst (Imports ++ (G_merge (Comp_G c1) (Comp_G c2))))).
-  { subst G. forget (G_merge (Comp_G c1) (Comp_G c2)) as G. clear - domV V1_D1 V2_D1 LNR4_V2 V_LNR.
-    apply list_norepet_append; [ trivial | apply list_norepet_append_right in LNR4_V2; trivial | ].
-    intros ? ? ?. apply domV in H; destruct H; clear domV.
-    apply (V1_D1 _ _ H).
-    apply (V2_D1 _ _ H). }
+        - apply in_map_fst in H; elim ((Comp_G_disjoint_from_Imports c2) i i); trivial. }
 
   specialize (Comp_G_justified c2); intros JUST2. specialize (Comp_G_justified c1); intros JUST1.
 
 assert (Condition1: forall i, In i (map fst Imports) ->
         exists (f : external_function) (ts : typelist) (t : type) (cc : calling_convention),
-        find_id i (prog_defs p) = Some (Gfun (External f ts t cc))). 
-{ subst Imports; clear - c1 c2 FP LNRp. intros. rewrite map_app in H. apply in_app_or in H; destruct H.
-  - clear - H c1 c2 FP LNRp. specialize (FP i).
+        PTree.get i (QP.prog_defs p) = Some (Gfun (External f ts t cc))). 
+{ unfold Imports; clear - c1 c2 Linked. intros. rewrite map_app in H. apply in_app_or in H; destruct H.
+  - clear - H c1 c2 Linked.
     apply list_in_map_inv in H. destruct H as [[j phi] [H J]]. simpl in H; subst j.
     apply filter_In in J. simpl in J. destruct J as [J1 J2]. 
 
     destruct (Comp_Imports_external c1 i) as [ef [ts [t [cc FND]]]].
     { apply (in_map fst) in J1. apply J1. }
-    
-    apply Fundef_of_Gfun in FND. red in  FP. rewrite FND in FP.
-    remember (find_id i (prog_funct p2)) as u; symmetry in Hequ; destruct u.
-    * apply Gfun_of_Fundef in Hequ. 2: apply c2.
-      destruct f.
-      ++ destruct (in_dec ident_eq i (map fst E2 ++ IntIDs p2)). inv J2. 
+     assert (FP := Linked_Functions_preserved _ _ _ Linked i). hnf in FP. rewrite FND in FP.
+     destruct ((QP.prog_defs p2) ! i) eqn:Hequ.
+    * destruct g; eauto. destruct f; eauto.
+       destruct (in_dec ident_eq i (map fst E2 ++ IntIDs p2)). inv J2. 
          elim n. apply in_or_app. right. apply in_map_iff.
          exists (i, Gfun (Internal f)); simpl; split; trivial. 
-         rewrite filter_In; simpl. split; trivial. apply find_id_e; trivial.
-      ++ apply Gfun_of_Fundef in FP. do 4 eexists; eassumption. apply LNRp.
-    * apply Gfun_of_Fundef in FP. do 4 eexists; eassumption. apply LNRp.
+         rewrite filter_In; simpl. split; trivial.
+         apply PTree.elements_correct in Hequ; auto.
+         destruct FP. do 4 eexists; eassumption. contradiction.
+    * do 4 eexists; eassumption.
 
-  - specialize (FP i).
+  - assert (FP := Linked_Functions_preserved _ _ _ Linked i).
     apply list_in_map_inv in H. destruct H as [[j phi] [H J]]. simpl in H; subst j.
     apply filter_In in J. simpl in J. destruct J as [J1 J2]. 
 
     destruct (Comp_Imports_external c2 i) as [ef [ts [t [cc FND]]]].
     { apply (in_map fst) in J1. apply J1. }
     
-    apply Fundef_of_Gfun in FND. hnf in FP. rewrite FND in FP.
-    remember (find_id i (prog_funct p1)) as u; symmetry in Hequ; destruct u.
-    * apply Gfun_of_Fundef in Hequ. 2: apply c1.
-      destruct f.
-      ++ destruct (in_dec ident_eq i (map fst E1 ++ IntIDs p1 ++ map fst Imports1)). inv J2. 
+    hnf in FP. rewrite FND in FP.
+    remember ((QP.prog_defs p1) ! i) as u; symmetry in Hequ; destruct u.
+    * destruct g; eauto. 
+      destruct f; eauto.
+      destruct (in_dec ident_eq i (map fst E1 ++ IntIDs p1 ++ map fst Imports1)). inv J2. 
          elim n. apply in_or_app. right. apply in_or_app. left. apply in_map_iff.
          exists (i, Gfun (Internal f)); simpl; split; trivial. 
-         rewrite filter_In; simpl. split; trivial. apply find_id_e; trivial.
-      ++ apply Gfun_of_Fundef in FP. do 4 eexists; eassumption. apply LNRp.
-    * apply Gfun_of_Fundef in FP. do 4 eexists; eassumption. apply LNRp. }
+         rewrite filter_In; simpl. split; trivial.
+        apply PTree.elements_correct; trivial.
+         destruct FP. do 4 eexists; eassumption. contradiction.
+    * eauto. }
 
 assert (Condition2: forall i : ident, In i (map fst E) ->
-        exists ef ts t cc, find_id i (prog_defs p) = Some (Gfun (External ef ts t cc))).
-{ intros; subst E. specialize (FP i). hnf in FP. apply G_merge_InDom in H. destruct H as [Hi | [NE Hi]].
+        exists ef ts t cc, PTree.get i (QP.prog_defs p) = Some (Gfun (External ef ts t cc))).
+{ intros; unfold E. 
+    assert (FP := Linked_Functions_preserved _ _ _ Linked i). hnf in FP.
+    apply G_merge_InDom in H. destruct H as [Hi | [NE Hi]].
   - destruct (Comp_Externs c1 _ Hi) as [ef [tys [rt [cc P1i]]]]. exists ef, tys, rt, cc.
-    clear - P1i Hi FP Externs1_Hyp LNRp c2.
-    apply Fundef_of_Gfun in P1i. hnf in FP; rewrite P1i in FP.
-    remember (find_id i (prog_funct p2)) as u; symmetry in Hequ; destruct u.
-    * destruct f.
-      ++ apply Gfun_of_Fundef in Hequ. 2: apply c2.
+    clear - P1i Hi FP Externs1_Hyp c2.
+    hnf in FP; rewrite P1i in FP.
+    remember ((QP.prog_defs p2) ! i) as u; symmetry in Hequ; destruct u.
+    * destruct g; eauto. destruct f; eauto.
          apply IntIDs_i in Hequ.
-         elim (Externs1_Hyp i i); trivial.
-      ++ apply Gfun_of_Fundef in FP; trivial. 
-    * apply Gfun_of_Fundef in FP; trivial. 
+         elim (Externs1_Hyp i i); trivial. destruct FP; auto. contradiction.
+    * trivial.
   - destruct (Comp_Externs c2 _ Hi) as [ef [tys [rt [cc P2i]]]]. exists ef, tys, rt, cc.
-    clear - P2i Hi FP Externs2_Hyp LNRp Externs1_Hyp c2 c1 FundefsMatch.
+    clear - P2i Hi FP Externs2_Hyp Externs1_Hyp c2 c1 FundefsMatch.
     specialize (FundefsMatch i).
-    apply Fundef_of_Gfun in P2i. rewrite P2i in *. 
-    remember (find_id i (prog_funct p1)) as u; symmetry in Hequ; destruct u.
-    * destruct f.
-      ++ apply Gfun_of_Fundef in Hequ. 2: apply c1.
-         clear - Hequ Externs2_Hyp Hi. apply IntIDs_i in Hequ.
+    rewrite P2i in *. 
+    remember ((QP.prog_defs p1) ! i) as u; symmetry in Hequ; destruct u.
+    * destruct g; eauto. destruct f.
+       ++ clear - Hequ Externs2_Hyp Hi. apply IntIDs_i in Hequ.
          elim (Externs2_Hyp i i); trivial.
-      ++ specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). inv FundefsMatch.
-         apply Gfun_of_Fundef in FP; trivial. 
-    * apply Gfun_of_Fundef in FP; trivial.
+      ++ specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)).
+         destruct FP; trivial.
+      ++ contradiction.
+    * trivial.
   - apply (Comp_Externs_LNR c1). }
 
 assert ( SUBSUME1 : forall i : ident,
            subsumespec (find_id i (Imports1 ++ Comp_G c1)) (find_id i (Imports ++ G))).
-{ subst Imports G; intros i. specialize (@Calling_conventions_match i).
+{ unfold Imports; subst G; intros i. specialize (@Calling_conventions_match i).
   assert (HCi := HC i).
-  clear - c1 c2 HCi Externs2_Hyp Externs1_Hyp (*HContexts*) (*Calling_conventions_match *) SC1 SC2 JUST1 JUST2. 
+  clear - c1 c2 HCi Externs2_Hyp Externs1_Hyp SC1 SC2 JUST1 JUST2. 
   intros CC. apply subsumespec_app_left; intros.
            { rewrite ! find_id_app_char. 
              remember (find_id i Imports1) as q1; symmetry in Heqq1; destruct q1 as [phi1 |]; simpl; trivial.
-             (*assert (LNRphi1:= Comp_Imports_paramsLNR c1 i). rewrite Heqq1 in LNRphi1.
-             split; trivial.*)
              specialize (list_disjoint_map_fst_find_id1 (Comp_G_disjoint_from_Imports c1) _ _ Heqq1); intros.
              rewrite G_merge_None_l; trivial. 2: apply c2.
              rewrite find_id_filter_char, Heqq1 by apply (Comp_Imports_LNR c1); simpl.
@@ -2156,8 +2300,6 @@ assert ( SUBSUME1 : forall i : ident,
            { remember (find_id i (Comp_G c1)) as d; symmetry in Heqd; destruct d as [phi1 |]; simpl; trivial.
                rewrite!  find_id_app_char, find_id_filter_None_I; [ | trivial | apply (Comp_Imports_LNR c1) ].
                rewrite find_id_filter_char by apply (Comp_Imports_LNR c2); simpl.
-               (*assert (LNRphi1:= Comp_G_paramsLNR' c1 _ _ Heqd).
-              split; trivial.*)
                remember (find_id i Imports2) as w2; symmetry in Heqw2; destruct w2 as [psi2 |]; simpl.
                - destruct (in_dec ident_eq i (map fst E1 ++ IntIDs p1 ++ map fst Imports1)); simpl.
                  * rewrite (G_merge_find_id_SomeNone Heqd (list_disjoint_map_fst_find_id1 (Comp_G_disjoint_from_Imports c2) _ _ Heqw2)).
@@ -2182,12 +2324,10 @@ assert ( SUBSUME2 : forall i : ident,
       assert (HCi := HC i).
       remember (find_id i (Imports2 ++ Comp_G c2)) as u; symmetry in Hequ; destruct u as [phi2 |]; simpl; [| trivial].
       rewrite find_id_app_char in Hequ.
-      rewrite ImportsDef; clear ImportsDef. rewrite <- app_assoc, ! find_id_app_char, ! find_id_filter_char; try apply (Comp_Imports_LNR c2) ; try apply (Comp_Imports_LNR c1).
+      unfold Imports. rewrite <- app_assoc, ! find_id_app_char, ! find_id_filter_char; try apply (Comp_Imports_LNR c2) ; try apply (Comp_Imports_LNR c1).
       simpl. remember (find_id i Imports2) as q; symmetry in Heqq; destruct q as [phi2' |].
-      + inv Hequ. clear - D_GImp2 i HV2p1 Heqq SC1 LNR_G1 HImports.
-        (*assert (LNRphi2:= Comp_Imports_paramsLNR c2 i). rewrite Heqq in LNRphi2.
-        split; trivial.*)
-        specialize (list_disjoint_map_fst_find_id1 D_GImp2 _ _ Heqq); intros.
+      + subst G. inv Hequ. clear - i  Heqq SC1 HImports.
+         specialize (list_disjoint_map_fst_find_id1 (Comp_G_disjoint_from_Imports c2) _ _ Heqq); intros.
         rewrite G_merge_None_r; trivial. 2: apply (Comp_G_LNR c2).
         destruct (in_dec ident_eq i (map fst E2 ++ IntIDs p2)); simpl.
         - apply find_id_None_iff in H; elim H.
@@ -2205,8 +2345,6 @@ assert ( SUBSUME2 : forall i : ident,
             ++ eexists; split. reflexivity. apply funspec_sub_si_refl; trivial.
       + destruct (in_dec ident_eq i (map fst E2 ++ IntIDs p2)); simpl.
         - subst G.
-          (*assert (pLNRphi2:= Comp_G_paramsLNR' c2 _ _ Hequ).
-          split; trivial.*)
           remember (find_id i (Comp_G c1)) as q1; symmetry in Heqq1; destruct q1 as [phi1 |].
           * destruct (G_merge_find_id_SomeSome Heqq1 Hequ) as [phi [BI Sub]].
             { apply HCi; trivial. }
@@ -2220,94 +2358,343 @@ assert ( SUBSUME2 : forall i : ident,
         - elim n. apply find_id_In_map_fst in Hequ. rewrite <- (Comp_G_dom c2) in Hequ. elim n; apply in_or_app.
           apply in_app_or in Hequ; destruct Hequ; auto. }
 
-assert (TypesOfFunspecs1: forall i, sub_option (make_tycontext_g V1 (Imports1 ++ Comp_G c1)) ! i
-  (make_tycontext_g (*(V1 ++ V2)*)V (Imports ++ G_merge (Comp_G c1) (Comp_G c2))) ! i).
-{ subst G; clear - SUBSUME1 LNR_V1 LNR4_V1 HV1p1 LNR2 HV1. intros i.
+  assert (LNR4_V1 : list_norepet
+                  (map fst (QPvarspecs p1) ++ map fst (Imports ++ G))). {
+    clear - Linked Imports_G_disjoint LNR_G LMR_Imp.
+    apply list_norepet_app; split3.
+    apply QPvarspecs_norepet.
+    rewrite map_app.
+    apply list_norepet_app; split3; auto.
+    rewrite map_app.
+    apply list_disjoint_app_R.
+    -
+     intros i j ? ? ?; subst j.
+     apply Imports_in_Fundefs in H0.
+     pose proof (QPlink_progs_globdefs _ _ _ Linked).
+     apply (merge_PTrees_e i) in H1.
+     apply In_map_fst_find_id in H; [ | apply QPvarspecs_norepet].
+     destruct H as [g ?].
+     apply find_id_QPvarspecs in H.
+     destruct H as [v [? ?]].
+     unfold is_funct_in in H0.
+     rewrite H in *.
+     destruct H0; try contradiction.
+     destruct ((QP.prog_defs p2) ! i); try contradiction.
+     destruct g0; try contradiction.
+     destruct H1 as [x [? ?]].
+     destruct v; inv H1.
+  -
+    intros i j ? ? ?. subst j.
+    apply G_merge_InDom in H0; [ | apply (Comp_G_LNR c1)].
+     apply In_map_fst_find_id in H; [ | apply QPvarspecs_norepet].
+     destruct H as [g ?].
+     apply find_id_QPvarspecs in H.
+     destruct H as [v [? ?]].
+    destruct H0 as [?|[? ?]].
+    apply Comp_G_in_Fundefs in H0; destruct H0.
+    congruence.
+    apply Comp_G_in_Fundefs in H2; destruct H2.
+     pose proof (QPlink_progs_globdefs _ _ _ Linked).
+     apply (merge_PTrees_e i) in H3.
+    rewrite H,H2 in H3.
+    destruct H3 as [? [? ?]].
+    simpl in H3. destruct v; inv H3.
+ }
+  assert (LNR4_V2 : list_norepet
+                  (map fst (QPvarspecs p2) ++ map fst (Imports ++ G))). {
+    clear - Linked Imports_G_disjoint LNR_G LMR_Imp.
+    apply list_norepet_app; split3.
+    apply QPvarspecs_norepet.
+    rewrite map_app.
+    apply list_norepet_app; split3; auto.
+    rewrite map_app.
+    apply list_disjoint_app_R.
+    -
+     intros i j ? ? ?; subst j.
+     apply Imports_in_Fundefs in H0.
+     pose proof (QPlink_progs_globdefs _ _ _ Linked).
+     apply (merge_PTrees_e i) in H1.
+     apply In_map_fst_find_id in H; [ | apply QPvarspecs_norepet].
+     destruct H as [g ?].
+     apply find_id_QPvarspecs in H.
+     destruct H as [v [? ?]].
+     unfold is_funct_in in H0.
+     rewrite H in *.
+     destruct H0; try contradiction.
+     destruct ((QP.prog_defs p1) ! i); try contradiction.
+     destruct g0; try contradiction.
+     destruct H1 as [x [? ?]].
+    simpl in H1. destruct f; inv H1.
+  -
+    intros i j ? ? ?. subst j.
+    apply G_merge_InDom in H0; [ | apply (Comp_G_LNR c1)].
+     apply In_map_fst_find_id in H; [ | apply QPvarspecs_norepet].
+     destruct H as [g ?].
+     apply find_id_QPvarspecs in H.
+     destruct H as [v [? ?]].
+    destruct H0 as [?|[? ?]].
+    apply Comp_G_in_Fundefs in H0; destruct H0.
+     pose proof (QPlink_progs_globdefs _ _ _ Linked).
+     apply (merge_PTrees_e i) in H2.
+    rewrite H,H0 in H2.
+    destruct H2 as [? [? ?]].
+    simpl in H2.
+    destruct x; inv H2.
+    apply Comp_G_in_Fundefs in H2; destruct H2.
+    congruence.
+   }
+  assert (LNR2 : list_norepet
+         (map fst (QPvarspecs p) ++ map fst (Imports ++ G))). {
+     clear - Linked LNR4_V1 LNR4_V2.
+     pose proof (QPlink_progs_globdefs _ _ _ Linked).
+     apply list_norepet_app in LNR4_V1; destruct LNR4_V1 as [? [? ?]].
+     apply list_norepet_app in LNR4_V2; destruct LNR4_V2 as [? [? ?]].
+     apply list_norepet_app; split3; auto.
+     apply QPvarspecs_norepet.
+     forget (map fst (Imports ++ G)) as IG.
+     clear - H H2 H5.
+     intros i j ? ? ?. subst j. specialize (H2 i i). specialize (H5 i i).
+     apply (merge_PTrees_e i) in H.
+     apply In_map_fst_find_id in H0; [ | apply QPvarspecs_norepet].
+     destruct H0.
+     apply find_id_QPvarspecs in H0.
+     destruct H0 as [? [? ?]].
+     rewrite H0 in H.
+     destruct ( (QP.prog_defs p1) ! i) eqn:?H;
+     destruct ( (QP.prog_defs p2) ! i) eqn:?H.
+     destruct H as [? [? ?]]. inv H7.
+     apply merge_globdef_noGvar in H; auto.
+     inv H. 
+     apply H2; auto.
+     eapply find_id_In_map_fst.
+    apply find_id_QPvarspecs. eauto.
+     inv H. 
+     apply H5; auto.
+     eapply find_id_In_map_fst.
+    apply find_id_QPvarspecs. eauto.
+    inv H.
+ }
+ assert (LNR3_V1: list_norepet (map fst (QPvarspecs p1) ++ map fst (Imports1 ++ Comp_G c1))).  {
+    clear - Linked Imports_G_disjoint LNR_G LMR_Imp.
+    apply list_norepet_app; split3.
+  - apply QPvarspecs_norepet.
+  - rewrite map_app.
+    apply list_norepet_app; split3; auto.
+    pose proof (Comp_ExternsImports_LNR c1).
+    rewrite map_app in H; apply list_norepet_app in H; destruct H as [_ [? _]]; auto.
+    apply (Comp_G_LNR c1).
+    pose proof (Comp_G_dom c1).
+    pose proof (Comp_ExternsImports_LNR c1).
+    rewrite map_app in H0; apply list_norepet_app in H0; destruct H0 as [_ [_ ?]].
+    clear - H0 H. change (Comp_G c1) with G1 in *.
+    assert (H3 := Comp_Imports_external c1).
+    intros i j ? ? ?; subst j. specialize (H3 _ H1). destruct H3 as [? [? [? [? ?]]]].
+    rewrite <- H in H2; clear H.
+    apply in_app_or in H2; destruct H2.
+    unfold IntIDs in H.
+    apply list_in_map_inv in H. destruct H as [[??][??]]. simpl in *. subst p.
+    rewrite filter_In in H2. simpl in H2; destruct H2.
+    apply PTree.elements_complete in H.
+    rewrite H3 in H. inv H. inv H2.
+    apply (H0 i i); auto.
+   - rewrite map_app.
+    apply list_disjoint_app_R.
+     intros i j ? ? ?; subst j.
+     apply In_map_fst_find_id in H; try apply QPvarspecs_norepet.
+     destruct H as [v H].
+     apply find_id_QPvarspecs in H. destruct H as [g [? ?]].
+     apply (Comp_Imports_external c1) in H0.
+     destruct H0 as [? [? [? [? ?]]]]. congruence.
+     intros i j ? ? ?; subst j.
+     apply In_map_fst_find_id in H; [ | apply QPvarspecs_norepet].
+     destruct H.
+     apply find_id_QPvarspecs in H.
+     destruct H as [? [? ?]].
+     rewrite <- (Comp_G_dom c1) in H0.
+    apply in_app_or in H0; destruct H0.
+    unfold IntIDs in H0.
+    apply list_in_map_inv in H0. destruct H0 as [[j ?][??]]. simpl in *. subst j.
+    rewrite filter_In in H2. simpl in H2; destruct H2.
+    apply PTree.elements_complete in H0.
+    rewrite H in H0. inv H0. inv H2.
+    apply (Comp_Externs c1) in H0.
+     destruct H0 as [? [? [? [? ?]]]]. congruence.
+ }
+ assert (LNR3_V2: list_norepet (map fst (QPvarspecs p2) ++ map fst (Imports2 ++ Comp_G c2))).  {
+    clear - Linked Imports_G_disjoint LNR_G LMR_Imp.
+    apply list_norepet_app; split3.
+  - apply QPvarspecs_norepet.
+  - rewrite map_app.
+    apply list_norepet_app; split3; auto.
+    pose proof (Comp_ExternsImports_LNR c2).
+    rewrite map_app in H; apply list_norepet_app in H; destruct H as [_ [? _]]; auto.
+    apply (Comp_G_LNR c2).
+    pose proof (Comp_G_dom c2).
+    pose proof (Comp_ExternsImports_LNR c2).
+    rewrite map_app in H0; apply list_norepet_app in H0; destruct H0 as [_ [_ ?]].
+    clear - H0 H. change (Comp_G c2) with G2 in *.
+    assert (H3 := Comp_Imports_external c2).
+    intros i j ? ? ?; subst j. specialize (H3 _ H1). destruct H3 as [? [? [? [? ?]]]].
+    rewrite <- H in H2; clear H.
+    apply in_app_or in H2; destruct H2.
+    unfold IntIDs in H.
+    apply list_in_map_inv in H. destruct H as [[??][??]]. simpl in *. subst p.
+    rewrite filter_In in H2. simpl in H2; destruct H2.
+    apply PTree.elements_complete in H.
+    rewrite H3 in H. inv H. inv H2.
+    apply (H0 i i); auto.
+   - rewrite map_app.
+    apply list_disjoint_app_R.
+     intros i j ? ? ?; subst j.
+     apply In_map_fst_find_id in H; try apply QPvarspecs_norepet.
+     destruct H as [v H].
+     apply find_id_QPvarspecs in H. destruct H as [g [? ?]].
+     apply (Comp_Imports_external c2) in H0.
+     destruct H0 as [? [? [? [? ?]]]]. congruence.
+     intros i j ? ? ?; subst j.
+     apply In_map_fst_find_id in H; [ | apply QPvarspecs_norepet].
+     destruct H.
+     apply find_id_QPvarspecs in H.
+     destruct H as [? [? ?]].
+     rewrite <- (Comp_G_dom c2) in H0.
+    apply in_app_or in H0; destruct H0.
+    unfold IntIDs in H0.
+    apply list_in_map_inv in H0. destruct H0 as [[j ?][??]]. simpl in *. subst j.
+    rewrite filter_In in H2. simpl in H2; destruct H2.
+    apply PTree.elements_complete in H0.
+    rewrite H in H0. inv H0. inv H2.
+    apply (Comp_Externs c2) in H0.
+     destruct H0 as [? [? [? [? ?]]]]. congruence.
+ }
+ assert (HV1 : forall (i : ident) (phi : type),
+      find_id i (QPvarspecs p1) = Some phi -> find_id i (QPvarspecs p) = Some phi). {
+  clear - Linked.
+  intros.
+  apply QPlink_progs_globdefs in Linked.
+  apply (merge_PTrees_e i) in Linked.
+  rewrite find_id_QPvarspecs in H.
+  rewrite find_id_QPvarspecs.
+  destruct H as [g [? ?]]; exists g; split; auto.
+  rewrite H in Linked.
+  destruct ( (QP.prog_defs p2) ! i). destruct Linked as [? [? ?]].
+  unfold merge_globdef in H1. destruct g,g0; inv H1. destruct v; inv H4.
+  auto.
+} 
+ assert (HV2 : forall (i : ident) (phi : type),
+      find_id i (QPvarspecs p2) = Some phi -> find_id i (QPvarspecs p) = Some phi). {
+  clear - Linked.
+  intros.
+  apply QPlink_progs_globdefs in Linked.
+  apply (merge_PTrees_e i) in Linked.
+  rewrite find_id_QPvarspecs in H.
+  rewrite find_id_QPvarspecs.
+  destruct H as [g [? ?]]; exists g; split; auto.
+  rewrite H in Linked.
+  destruct ( (QP.prog_defs p1) ! i). destruct Linked as [? [? ?]].
+  unfold merge_globdef in H1. destruct g0,g; inv H1. destruct f; inv H4.
+  destruct v; inv H4. auto.
+}
+assert (TypesOfFunspecs1: forall i, sub_option (make_tycontext_g (QPvarspecs p1) (Imports1 ++ Comp_G c1)) ! i
+  (make_tycontext_g (QPvarspecs p) (Imports ++ G)) ! i).
+{
+ subst G; clear - HV1 LNR3_V1 LNR4_V1 LNR2 SUBSUME1 Linked. intros i.
   rewrite 2 semax_prog.make_context_g_char, 2 make_tycontext_s_find_id; trivial.
   specialize (SUBSUME1 i). red in SUBSUME1. destruct (find_id i (Imports1 ++ Comp_G c1)); simpl.
   + destruct SUBSUME1 as [psi2 [PHI2 Sub]]. rewrite PHI2.
     exploit (Sub (compcert_rmaps.RML.empty_rmap 0)); [ trivial | intros FS].
     apply type_of_funspec_sub_si in FS; rewrite FS; trivial.
-  + remember (find_id i V1) as w; symmetry in Heqw; destruct w as [phi |]; simpl; trivial.
-    rewrite (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V1 i phi Heqw).
+  +
+    destruct  (find_id i (QPvarspecs p1)) eqn:Heqw; auto. simpl.
+    rewrite (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V1 i _ Heqw).
     apply HV1; trivial.
-  + apply LNR3_V1.
-}
-
-assert (TypesOfFunspecs2: forall i, sub_option (make_tycontext_g V2 (Imports2 ++ Comp_G c2)) ! i
-  (make_tycontext_g (*(V1 ++ V2)*)V (Imports ++ G_merge (Comp_G c1) (Comp_G c2))) ! i).
-{ subst G; clear - DisjointVarspecs SUBSUME2 LNR_V2 LNR4_V2 HV2p2 LNR2 HV2. intros i.
+ }
+assert (TypesOfFunspecs2: forall i, sub_option (make_tycontext_g (QPvarspecs p2) (Imports2 ++ Comp_G c2)) ! i
+  (make_tycontext_g (QPvarspecs p) (Imports ++ G)) ! i).
+{ subst G; clear - SUBSUME2 LNR3_V2 LNR4_V2 LNR2 HV2. intros i.
   rewrite 2 semax_prog.make_context_g_char, 2 make_tycontext_s_find_id; trivial.
   specialize (SUBSUME2 i). red in SUBSUME2. destruct (find_id i (Imports2 ++ Comp_G c2)); simpl.
   + destruct SUBSUME2 as [psi2 [PHI2 Sub]]. rewrite PHI2.
     exploit (Sub (compcert_rmaps.RML.empty_rmap 0)); [ trivial | intros FS].
     apply type_of_funspec_sub_si in FS; rewrite FS; trivial.
-  + remember (find_id i V2) as w; symmetry in Heqw; destruct w as [phi |]; simpl; trivial.
+  + remember (find_id i (QPvarspecs p2)) as w; symmetry in Heqw; destruct w as [phi |]; simpl; trivial.
     rewrite (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V2 _ _ Heqw).
     apply HV2; trivial.
-  + apply LNR3_V2.
 }
+assert (OKp:= QPlink_progs_OK _ _ _ Linked (Comp_prog_OK c1) (Comp_prog_OK c2)).
 
-apply Build_Component (*with (Comp_G := G)*) (*with 
-     (Comp_InitPred := fun gv => (Comp_InitPred c1 gv * Comp_InitPred c2 gv)%logic)*); trivial.
-+ intros. subst G E. split; intros. 
+destruct  (linked_compspecs' _ _ _
+                   (proj2 (Comp_prog_OK c1))
+                   (proj2 (Comp_prog_OK c2))
+                   Linked)
+ as [_ [CS1 CS2]].
+ apply (cspecs_sub_of_QPsub _ _ (proj2 (Comp_prog_OK c1)) (proj2 OKp) ) in CS1.
+ apply (cspecs_sub_of_QPsub _ _ (proj2 (Comp_prog_OK c2)) (proj2 OKp)) in CS2.
+eapply Build_Component; trivial.
++ intros. subst G; unfold E. split; intros. 
   - apply G_merge_InDom; [ apply c1 | apply in_app_or in H; destruct H].
     * destruct (in_dec ident_eq i (map fst (Comp_G c1))). left; trivial. right; split; trivial.
-      apply c2. specialize (FP i). hnf in FP.
-      remember (find_id i (prog_funct p1) ) as q1; destruct q1.
-      ++ destruct f.
-         -- clear - Heqq1 FP LNRp H n.
-            symmetry in Heqq1. elim n. apply c1. apply in_or_app; left. 
-            apply Gfun_of_Fundef in Heqq1. 2: apply c1. apply IntIDs_i in Heqq1; trivial.
-         -- clear - Heqq1 FP LNRp H n c2. 
-            (*the following 8 lines are repeated below*)
-            remember (find_id i (prog_funct p2)) as q2; destruct q2.
-            ** destruct f. symmetry in Heqq2. apply in_or_app; left.
-               apply Gfun_of_Fundef in Heqq2. 2: apply c2. apply IntIDs_i in Heqq2; trivial.
-               apply In_map_fst_find_id in H. destruct H. 
+      apply c2. 
+     assert (FP := Linked_Functions_preserved _ _ _ Linked i). hnf in FP.
+      destruct ((QP.prog_defs p1) ! i ) as [ [ [|] |] | ] eqn:?.
+      ++ clear - Heqo FP H n.
+            elim n. apply c1. apply in_or_app; left. 
+            apply IntIDs_i in Heqo; trivial.
+      ++ clear - Heqo FP H n c2. 
+            destruct ((QP.prog_defs p2) ! i) as [[[|]|]|] eqn:Heqq2.
+            apply in_or_app; left.
+            apply IntIDs_i in Heqq2; trivial.
+            destruct FP as [FP FP']. inversion2 FP FP'.
+            apply In_map_fst_find_id in H. destruct H. 
                rewrite find_id_filter_char in H; trivial; simpl in H.
-               apply Gfun_of_Fundef in FP. rewrite FP in H. simpl in H; inv H.
-               trivial. apply list_norepet_map_fst_filter; trivial.
-            ** apply IntIDs_e in H; [destruct H | trivial]. apply Fundef_of_Gfun in H. congruence.
-       ++ clear - Heqq1 FP LNRp H n c2.
-          (*here's the repetition*)
-            remember (find_id i (prog_funct p2)) as q2; destruct q2.
-            ** destruct f. symmetry in Heqq2. apply in_or_app; left.
-               apply Gfun_of_Fundef in Heqq2. 2: apply c2. apply IntIDs_i in Heqq2; trivial.
-               apply In_map_fst_find_id in H. destruct H. 
+               rewrite find_id_elements in H. rewrite FP in H. inv H.
+               apply PTree.elements_keys_norepet.
+               apply list_norepet_map_fst_filter; apply PTree.elements_keys_norepet.
+            apply IntIDs_e in H; destruct H.  contradiction.
+            apply IntIDs_e in H; destruct H.  congruence.
+       ++ clear - Heqo FP H n c2.
+            apply IntIDs_e in H. destruct H as [f ?]. rewrite H in FP.
+             destruct ((QP.prog_defs p2) ! i) as [[[|]|]|] eqn:Heqq2; try contradiction.
+             destruct FP as [_ [[_ ?] | [_ ?]]]; discriminate. discriminate.
+
+       ++ clear - Heqo FP H n c2.
+            destruct ((QP.prog_defs p2) ! i) as [[[|]|]|] eqn:Heqq2; try contradiction.
+            apply in_or_app; left.
+            apply IntIDs_i in Heqq2; trivial.
+            apply In_map_fst_find_id in H. destruct H. 
                rewrite find_id_filter_char in H; trivial; simpl in H.
-               apply Gfun_of_Fundef in FP. rewrite FP in H. simpl in H; inv H.
-               trivial. apply list_norepet_map_fst_filter; trivial.
-            ** apply IntIDs_e in H; [destruct H | trivial]. apply Fundef_of_Gfun in H. congruence.
+               rewrite find_id_elements in H. rewrite FP in H. inv H.
+               apply PTree.elements_keys_norepet.
+               apply list_norepet_map_fst_filter; apply PTree.elements_keys_norepet.
+            apply IntIDs_e in H; destruct H.  congruence.
+            apply IntIDs_e in H; destruct H.  congruence.
     * apply G_merge_InDom in H; [ destruct H as [H | [HE H]] | apply (Comp_Externs_LNR c1)].
       ++ left. apply In_map_fst_find_id in H. destruct H. apply (Comp_E_in_G_find c1) in H. apply find_id_In_map_fst in H; trivial. apply (Comp_Externs_LNR c1).
       ++ right. split; [ intros N | apply Comp_E_in_G; trivial ].
          apply (list_disjoint_notin  _ Externs2_Hyp H). apply (Comp_G_dom c1) in N. apply in_app_or in N; destruct N; [ trivial | contradiction].
-  - specialize (FP i). hnf in FP. 
+  - assert (FP := Linked_Functions_preserved _ _ _ Linked i). hnf in FP. 
     apply G_merge_InDom in H; [ destruct H as [H | [HE H]] | apply (Comp_G_LNR c1)].
     * apply (Comp_G_dom c1) in H.  apply in_app_or in H; apply in_or_app; destruct H.
-      ++ left. apply In_map_fst_find_id in H; [ destruct H as [fd Hfd] | trivial].
-         clear - c1 FP Hfd LNRp. 
-         rewrite find_id_filter_char in Hfd; [ simpl in Hfd | apply c1].
-         remember (find_id i (prog_defs p1)) as q; symmetry in Heqq; destruct q; [ | discriminate].
+      ++ left. apply In_map_fst_find_id in H; [ destruct H as [fd Hfd] | apply Comp_LNR_Interns].
+         clear - c1 FP Hfd. 
+         rewrite find_id_filter_char in Hfd; [ | apply PTree.elements_keys_norepet].
+         rewrite find_id_elements in Hfd.
+         destruct ((QP.prog_defs p1) ! i); try discriminate.
          destruct g; [ simpl in Hfd | discriminate].
-         destruct f; inv Hfd. apply Fundef_of_Gfun in Heqq. rewrite Heqq in FP.
-         apply Gfun_of_Fundef in FP; trivial.
+         destruct f; inv Hfd.
+         destruct  ((QP.prog_defs p2) ! i) as [ [ [|] | ] | ]; try contradiction.
+         destruct FP as [FP _]; apply IntIDs_i in FP; trivial.
+         apply IntIDs_i in FP; trivial.
          apply IntIDs_i in FP; trivial.
       ++ right. apply G_merge_InDom. apply (Comp_Externs_LNR c1). left; trivial.
     * apply in_or_app. apply Comp_G_elim in H. destruct H as [[HE2 EXT] | [HE2 [INT [f FI]]]].
       ++ right. apply G_merge_InDom.  apply (Comp_Externs_LNR c1). 
          right; split; trivial. intros N. apply HE. apply Comp_E_in_G. apply N.
-      ++ rewrite (Fundef_of_Gfun FI) in FP.
-         remember (find_id i (prog_funct p1)) as w1; symmetry in Heqw1; destruct w1.
-         { left. clear - FP LNRp.
-           destruct f0; apply Gfun_of_Fundef in FP; trivial;
-                        apply IntIDs_i in FP; trivial. }
-         left. clear - FP LNRp.
-               apply Gfun_of_Fundef in FP; trivial;
-               apply IntIDs_i in FP; trivial.
+      ++ rewrite FI in FP. 
+             left; destruct  ((QP.prog_defs p1) ! i) as [ [ [|] | ] | ];
+                  try apply IntIDs_i in FP; trivial.
+              destruct FP as [FP _]; apply IntIDs_i in FP; trivial. contradiction.
 
-+ subst G E; intros. specialize (FP i); hnf in FP.
++ subst G; unfold E; intros. assert (FP := Linked_Functions_preserved _ _ _ Linked i); hnf in FP.
   destruct (In_map_fst_find_id H) as [phi Phi]. apply G_merge_LNR. apply (Comp_Externs_LNR c1).  apply (Comp_Externs_LNR c2). 
   symmetry; rewrite Phi. apply G_merge_find_id_Some in Phi. remember (find_id i E1) as q1; symmetry in Heqq1; destruct q1 as [phi1 |]. 
   - specialize (Comp_E_in_G_find c1 _ _ Heqq1); intros.
@@ -2319,165 +2706,152 @@ apply Build_Component (*with (Comp_G := G)*) (*with
       apply find_id_In_map_fst in Hequ. apply Comp_G_elim in Hequ. destruct Hequ as [[HH _] | [_ [? ]]].
       apply find_id_None_iff in Heqq2. contradiction. 
       apply In_map_fst_find_id in H1. destruct H1. rewrite(list_disjoint_map_fst_find_id1 Externs1_Hyp _ _ Heqq1) in H1. inv H1.
-      apply (Comp_LNR_Interns c2).
-  - specialize (Comp_E_in_G_find c2 _ _ Phi); intros. apply G_merge_find_id_NoneSome; trivial.
+      apply list_norepet_map_fst_filter.
+      apply PTree.elements_keys_norepet.
+  - specialize (Comp_E_in_G_find c2 _ _ Phi); intros.
+     apply G_merge_find_id_NoneSome; trivial; [ | apply (Comp_G_LNR c2)].
       remember (find_id i (Comp_G c1)) as u; symmetry in Hequ; destruct u as [psi1 |]; trivial.
       apply find_id_In_map_fst in Hequ. apply Comp_G_elim in Hequ. destruct Hequ as [[HH _] | [_ [? ]]].
       apply find_id_None_iff in Heqq1. contradiction. 
       apply In_map_fst_find_id in H1. destruct H1. rewrite(list_disjoint_map_fst_find_id1 Externs2_Hyp _ _ Phi) in H1. inv H1.
-      apply (Comp_LNR_Interns c1).
+      apply list_norepet_map_fst_filter.
+      apply PTree.elements_keys_norepet.
   - apply (Comp_Externs_LNR c2).
-+ (*SF*) subst G. intros. clear Condition1 Condition2 ImportsDef.
++ (*SF*) subst G. intros. clear Condition1 Condition2.
   assert (HCi := HC i).
-  specialize (FP i). hnf in FP. specialize (FundefsMatch i).
+  assert (FP := Linked_Functions_preserved _ _ _ Linked i). hnf in FP. specialize (FundefsMatch i).
   apply G_merge_find_id_Some in H0. 2: apply (Comp_G_LNR c2).
   remember (find_id i (Comp_G c1)) as q1; symmetry in Heqq1; destruct q1 as [phi1 |].
   - subst phi; 
-     clear - c1 c2 HCi LNR4_V1 LNR4_V2 HV1 HV2 Heqq1 JUST1 JUST2 CS1 CS2 LNRp (*Ge1_FS Ge2_FS Ge1_FFP Ge2_FFPGe1 Ge2*) H 
-            SUBSUME1 SUBSUME2 TypesOfFunspecs1 TypesOfFunspecs2 (*HContexts*)
+     clear - c1 c2 (*CS1 CS2*) HCi LNR4_V1 LNR4_V2 HV1 HV2 Heqq1 JUST1 JUST2 H 
+            SUBSUME1 SUBSUME2 TypesOfFunspecs1 TypesOfFunspecs2
             Externs1_Hyp Externs2_Hyp FP FundefsMatch.
     exploit (Comp_G_in_Fundefs' c1). apply Heqq1. intros [fd1 FD1].
-    specialize (JUST1 _ _ _ FD1 Heqq1). 
-    specialize (SF_subsumespec JUST1 _ V SUBSUME1 HV1 (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V1) (Comp_ctx_LNR c1)); clear JUST1 SUBSUME1; intros SF1.
+    specialize (JUST1 _ _ _ FD1 Heqq1).
+    specialize (SF_subsumespec JUST1 _ (QPvarspecs p) SUBSUME1 HV1 (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V1) (Comp_ctx_LNR c1)); clear JUST1 SUBSUME1; intros SF1.
     remember (find_id i (Comp_G c2)) as q2; symmetry in Heqq2; destruct q2 as [phi2 |].
     * exploit (Comp_G_in_Fundefs' c2). apply Heqq2. intros [fd2 FD2].
       specialize (JUST2 _ _ _ FD2 Heqq2).
-      specialize (SF_subsumespec JUST2 _ V SUBSUME2 HV2 (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V2) (Comp_ctx_LNR c2)); clear JUST2 SUBSUME2; intros SF2.
+      specialize (SF_subsumespec JUST2 _  (QPvarspecs p) SUBSUME2 HV2 (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V2) (Comp_ctx_LNR c2)); clear JUST2 SUBSUME2; intros SF2.
       rewrite FD1, FD2, H in *. specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl.
       destruct fd1; destruct fd2.
       ++ (*Internal/Internal*)
-         inv FundefsMatch. inv FP.
+         destruct FP as [FP FP']; inv FP. inv FP'.
          assert (BI : binary_intersection phi1 phi2 = Some (merge_specs phi1 (Some phi2))).
          { apply merge_specs_succeed. apply HCi; auto.
            apply InternalInfo_cc in SF1. rewrite <- SF1.
-           apply InternalInfo_cc in SF2. trivial. }
+           apply InternalInfo_cc in SF2.  trivial. }
          simpl.
          eapply internalInfo_binary_intersection; [ | | apply BI].
-         -- apply (InternalInfo_envs_sub CS1 (Genv.globalenv p1)); [ apply SF1 | clear - LNRp H(*FP*)].
-            apply Gfun_of_Fundef in H. 2: apply LNRp.
-            apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
-         -- apply (InternalInfo_envs_sub CS2 (Genv.globalenv p2)); [ apply SF2 | clear - LNRp H(*FP*)].
-            apply Gfun_of_Fundef in H. 2: apply LNRp.
-            apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
+         --  instantiate (1:=OKp).
+            apply (InternalInfo_envs_sub CS1 (QPglobalenv p1)); [ apply SF1 | clear - H OKp].
+            apply QPfind_funct_ptr_exists; auto.
+         -- apply (InternalInfo_envs_sub CS2 (QPglobalenv p2)); [ apply SF2 | clear - H OKp].
+            apply QPfind_funct_ptr_exists; auto.
       ++ (*InternalExternal*) 
          clear - FP FundefsMatch Externs2_Hyp FD1 FD2 Heqq1 Heqq2.
          apply find_id_In_map_fst in Heqq2. apply Comp_G_elim in Heqq2. destruct Heqq2 as [[? ?]|  [? ?]].
          -- elim (list_disjoint_notin i Externs2_Hyp H). clear - FD1 c1. 
-            apply Gfun_of_Fundef in FD1. apply IntIDs_i in FD1; trivial. apply c1.
-         -- destruct H0 as [? [? ?]]. apply Gfun_of_Fundef in FD2. congruence. apply c2.
+            apply IntIDs_i in FD1; trivial.
+         -- destruct H0 as [? [? ?]]. congruence.
       ++ (*ExternalInternal*)
          clear - FP FundefsMatch Externs1_Hyp FD1 FD2 Heqq1 Heqq2.
          apply find_id_In_map_fst in Heqq1. apply Comp_G_elim in Heqq1. destruct Heqq1 as [[? ?]|  [? ?]].
          -- elim (list_disjoint_notin i Externs1_Hyp H). clear - FD2 c2.
-            apply Gfun_of_Fundef in FD2. apply IntIDs_i in FD2; trivial. apply c2.
-         -- destruct H0 as [? [? ?]]. apply Gfun_of_Fundef in FD1. congruence. apply c1.
+              apply IntIDs_i in FD2; trivial. 
+         -- destruct H0 as [? [? ?]]. congruence.
       ++ (*ExternalExternal*)
-         rewrite FP in H. inv H. inv FundefsMatch. inv FP.
+         destruct FP as [FP FP']; inv FP. inv FP'.
          assert (BI : binary_intersection phi1 phi2 = Some (merge_specs phi1 (Some phi2))).
          { apply merge_specs_succeed. apply HCi; auto.
            apply ExternalInfo_cc in SF1. rewrite <- SF1. 
            apply ExternalInfo_cc in SF2. trivial. }
          eapply (externalInfo_binary_intersection); [ | | apply BI].
-         -- eapply ExternalInfo_envs_sub; [ apply SF1 | clear - LNRp H1 ].
-            apply Gfun_of_Fundef in H1. 2: apply LNRp.
-            apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
-         -- eapply ExternalInfo_envs_sub; [ apply SF2 | clear - LNRp H1 ].
-            apply Gfun_of_Fundef in H1. 2: apply LNRp.
-            apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
+         -- eapply ExternalInfo_envs_sub; [ apply SF1 |  ].
+            apply QPfind_funct_ptr_exists; auto.
+         -- eapply ExternalInfo_envs_sub; [ apply SF2 |  ].
+              apply QPfind_funct_ptr_exists; auto.
     * (*i in G1 but not in G2*)
       apply find_id_In_map_fst in Heqq1. apply Comp_G_elim in Heqq1. 
       rewrite FD1 in *. destruct Heqq1 as [[HE EF1] | [HE [INT1 IF1]]].
       ++ destruct EF1 as [ef [tys [rt [cc EF1]]]].
-         apply Gfun_of_Fundef in FD1; [ rewrite FD1 in *; inv EF1 | apply c1].
-         remember (find_id i (prog_funct p2)) as w2; symmetry in Heqw2; destruct w2.
-         -- destruct f.
-            ** clear - c2 HE Externs1_Hyp Heqw2. elim (list_disjoint_notin i Externs1_Hyp HE).
-               apply Gfun_of_Fundef in Heqw2. apply IntIDs_i in Heqw2; trivial. apply c2.
-            ** specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. inv FundefsMatch.
+          inv EF1.
+         destruct ((QP.prog_defs p2) ! i) as [ [[|]|] | ] eqn:Heqw2.
+         -- clear - c2 HE Externs1_Hyp Heqw2. elim (list_disjoint_notin i Externs1_Hyp HE).
+              apply IntIDs_i in Heqw2; trivial.
+         -- specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. inv FundefsMatch.
+              destruct FP as [FP FP']. inversion2 FP FP'.
                rewrite FP in H. inv H. simpl.
-               eapply ExternalInfo_envs_sub; [ apply SF1 | clear - LNRp FP].
-               apply Gfun_of_Fundef in FP. 2: apply LNRp.
-               apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption. (*
-               eapply ExternalInfo_envs_sub; [ intros; apply Ge1; eassumption | apply JUST1].*)
-         -- clear FundefsMatch. rewrite FP in H. inv H. simpl.
-               eapply ExternalInfo_envs_sub; [ apply SF1 | clear - LNRp FP].
-               apply Gfun_of_Fundef in FP. 2: apply LNRp.
-               apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
-            (*eapply ExternalInfo_envs_sub; [ intros; apply Ge1; eassumption | apply JUST1].*)
-      ++ destruct IF1 as [f IF1]. apply Gfun_of_Fundef in FD1; [ rewrite FD1 in IF1; inv IF1 | apply c1].
-         remember (find_id i (prog_funct p2)) as w2; symmetry in Heqw2; destruct w2.
-         -- destruct f0.
-            ** specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. inv FundefsMatch. 
+               eapply ExternalInfo_envs_sub; [ apply SF1 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
+         -- clear FundefsMatch. contradiction FP.
+         -- rewrite FP in H. inv H. simpl.
+               eapply ExternalInfo_envs_sub; [ apply SF1 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto. 
+      ++ destruct IF1 as [f IF1]. inv IF1.
+             destruct ((QP.prog_defs p2) ! i) as [ [[|]|] | ] eqn:Heqw2.
+         -- specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. inv FundefsMatch. 
+               destruct FP as [FP FP']. inversion2 FP FP'.
                rewrite FP in H. inv H. 
-               apply (InternalInfo_envs_sub CS1 (Genv.globalenv p1)); [ apply SF1 | clear - LNRp FP].
-               apply Gfun_of_Fundef in FP. 2: apply LNRp.
-               apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
-            ** specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. 
-               destruct FundefsMatch as [SIGs [psi2 PSI2]].
-               rewrite FP in H. inv H. simpl.
-               apply (InternalInfo_envs_sub CS1 (Genv.globalenv p1)); [ apply SF1 | clear - LNRp FP].
-               apply Gfun_of_Fundef in FP. 2: apply LNRp.
-               apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
-          -- clear FundefsMatch Heqw2.
+               apply (InternalInfo_envs_sub CS1 (QPglobalenv p1)); [ apply SF1 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
+         -- specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. inv FundefsMatch. 
+               rewrite FP in H. inv H. 
+               apply (InternalInfo_envs_sub CS1 (QPglobalenv p1)); [ apply SF1 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
+         -- clear FundefsMatch Heqw2.  contradiction FP.
+         -- clear FundefsMatch Heqw2.
              rewrite FP in H. inv H. simpl. 
-             apply (InternalInfo_envs_sub CS1 (Genv.globalenv p1)); [ apply SF1 | clear - LNRp FP].
-             apply Gfun_of_Fundef in FP. 2: apply LNRp.
-             apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
-
+             apply (InternalInfo_envs_sub CS1 (QPglobalenv p1)); [ apply SF1 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
    - (*i in G2 but not in G1 -- symmetric*) 
       specialize (JUST2 i phi). specialize (JUST1 i). rewrite <- H0 in JUST2.
       apply find_id_In_map_fst in H0. apply Comp_G_elim in H0.
       destruct H0 as [[HE EF2] | [HE [INT2 IF2]]].
-      ++ destruct EF2 as [ef [tys [rt [cc EF2]]]]. apply Fundef_of_Gfun in EF2. specialize (JUST2 _ EF2 (eq_refl _)).
-         remember (find_id i (prog_funct p1)) as w1; symmetry in Heqw1; destruct w1.
-         -- destruct f.
-            ** clear - c1 HE Externs2_Hyp Heqw1. elim (list_disjoint_notin i Externs2_Hyp HE). 
-               apply Gfun_of_Fundef in Heqw1. apply IntIDs_i in Heqw1; trivial. apply c1.
-            ** rewrite EF2 in FundefsMatch, FP. 
+      ++ destruct EF2 as [ef [tys [rt [cc EF2]]]]. specialize (JUST2 _ EF2 (eq_refl _)).
+             destruct ((QP.prog_defs p1) ! i) as [ [[|]|] | ] eqn:Heqw1.
+         --  clear - c1 HE Externs2_Hyp Heqw1. elim (list_disjoint_notin i Externs2_Hyp HE). 
+               apply IntIDs_i in Heqw1; trivial.
+         -- rewrite EF2 in FundefsMatch, FP. 
                specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. inv FundefsMatch.
+               destruct FP as [FP FP']. inversion2 FP FP'.
                rewrite FP in H. inv H. simpl.
-               (*eapply ExternalInfo_envs_sub; [ intros; apply Ge2; eassumption | apply JUST2].*)
-               eapply ExternalInfo_envs_sub; [ apply JUST2 | clear - LNRp FP].
-               apply Gfun_of_Fundef in FP. 2: apply LNRp.
-               apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
-
+               eapply ExternalInfo_envs_sub; [ apply JUST2 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
+         -- clear FundefsMatch. rewrite EF2 in FP. contradiction FP. 
          -- clear FundefsMatch. rewrite EF2 in FP. rewrite FP in H. inv H. simpl.
-            (*eapply ExternalInfo_envs_sub; [ intros; apply Ge2; eassumption | apply JUST2].*)
-               eapply ExternalInfo_envs_sub; [ apply JUST2 | clear - LNRp FP].
-               apply Gfun_of_Fundef in FP. 2: apply LNRp.
-               apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
-      ++ destruct IF2 as [f IF2]. apply Fundef_of_Gfun in IF2. rewrite IF2 in *.
+               eapply ExternalInfo_envs_sub; [ apply JUST2 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
+      ++ destruct IF2 as [f IF2]. rewrite IF2 in *.
          specialize (JUST2 _ (eq_refl _) (eq_refl _)).
-         specialize (SF_subsumespec JUST2 _ V SUBSUME2 HV2 (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V2) (Comp_ctx_LNR c2)); clear JUST2 SUBSUME2; intros SF2.
-  
-         remember (find_id i (prog_funct p1)) as w1; symmetry in Heqw1; destruct w1.
-         -- destruct f0.
-            ** specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. inv FundefsMatch.
+         specialize (SF_subsumespec JUST2 _ _ SUBSUME2 HV2 (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V2) (Comp_ctx_LNR c2)); clear JUST2 SUBSUME2; intros SF2.
+         destruct ((QP.prog_defs p1) ! i) as [ [[|]|] | ] eqn:Heqw1.
+         -- specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. inv FundefsMatch.
+               destruct FP as [FP FP']. inversion2 FP FP'.
                rewrite FP in H. inv H.
                clear JUST1.
-               apply (InternalInfo_envs_sub CS2 (Genv.globalenv p2)); [ apply SF2 | clear - LNRp FP].
-               apply Gfun_of_Fundef in FP. 2: apply LNRp.
-               apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption. 
-            ** specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. 
-               destruct FundefsMatch as [SIGs [psi2 PSI2]].
+               apply (InternalInfo_envs_sub CS2 (QPglobalenv p2)); [ apply SF2 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
+         -- specialize (FundefsMatch _ _ (eq_refl _) (eq_refl _)). simpl in FundefsMatch. 
+               destruct FundefsMatch as (*[SIGs*) [psi2 PSI2](*]*).
                rewrite FP in H. inv H. simpl.
-               apply (InternalInfo_envs_sub CS2 (Genv.globalenv p2)); [ apply SF2 | clear - LNRp FP].
-                    apply Gfun_of_Fundef in FP. 2: apply LNRp.
-                    apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
+               apply (InternalInfo_envs_sub CS2 (QPglobalenv p2)); [ apply SF2 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
+          -- clear FundefsMatch Heqw1. contradiction FP.
           -- clear FundefsMatch Heqw1.
              rewrite FP in H. inv H. simpl.
-             apply (InternalInfo_envs_sub CS2 (Genv.globalenv p2)); [ apply SF2 | clear - LNRp FP].
-                    apply Gfun_of_Fundef in FP. 2: apply LNRp.
-                    apply semax_prog.find_funct_ptr_exists. apply LNRp. eapply find_id_e; eassumption.
+             apply (InternalInfo_envs_sub CS2 (QPglobalenv p2)); [ apply SF2 | clear - OKp FP].
+               apply QPfind_funct_ptr_exists; auto.
 
 + (*TODO: clean up this proof*)
-  intros i phi Hi. subst Exports G.
+  intros i phi Hi. unfold Exports. subst G.
   assert (HCi := HC i).
   specialize (G_merge_find_id_Some Hi (Comp_Exports_LNR c2)); clear Hi; intros Hi.
-  specialize (FP i). hnf in FP.
+  assert (FP := Linked_Functions_preserved _ _ _ Linked i).
+  hnf in FP.
   remember (find_id i (Comp_G c1)) as u1; symmetry in Hequ1; destruct u1 as [phi1 |].
   - remember (find_id i (Comp_G c2)) as u2; symmetry in Hequ2; destruct u2 as [phi2 |]. 
-    * (*assert (SigsPhi: funsigs_match (funsig_of_funspec phi1) (funsig_of_funspec phi2) = true).*)
+    * 
       assert (SigsPhi:typesig_of_funspec phi1 = typesig_of_funspec phi2).
       { apply (HCi phi1 phi2); trivial. }
       specialize (Calling_conventions_match Hequ1 Hequ2); intros CCPhi.
@@ -2496,14 +2870,11 @@ apply Build_Component (*with (Comp_G := G)*) (*with
          destruct (Comp_G_Exports c2 _ _ Heqq2) as [tau2 [Tau2 TAU2]].
          unfold Comp_G in Hequ2; rewrite Hequ2 in Tau2; inv Tau2.
 
-         (*assert (SigsPsi: funsigs_match (funsig_of_funspec psi1) (funsig_of_funspec psi2) = true).*)
          assert (SigsPsi: typesig_of_funspec psi1 =typesig_of_funspec psi2).
          { clear - SigsPhi TAU1 TAU2. destruct tau1; destruct tau2.
            destruct psi1; destruct TAU1 as [AA1 _].
            destruct psi2; destruct TAU2 as [AA2 _]. simpl in *.
-           (*rewrite funsigs_match_symm in AA1. 
-           eapply funsigs_match_trans; [ apply AA1 |].
-           eapply funsigs_match_trans; eassumption.*) destruct AA1; destruct AA2; subst; trivial. }
+           destruct AA1; destruct AA2; subst; trivial. }
          assert (CCPsi: callingconvention_of_funspec psi1 = callingconvention_of_funspec psi2).
          { clear - CCPhi TAU1 TAU2. apply funspec_sub_cc in TAU1. apply funspec_sub_cc in TAU2. 
            rewrite <- TAU1, <- TAU2; trivial. }
@@ -2521,7 +2892,6 @@ apply Build_Component (*with (Comp_G := G)*) (*with
       ++ subst. eexists; split. reflexivity.
          destruct (Comp_G_Exports c1 _ _ Heqq1) as [psi [Psi PSI]]. unfold Comp_G in Hequ1; rewrite Hequ1 in Psi. inv Psi.
          eapply funspec_sub_trans. apply PSI.
-         (*apply funspec_sub_funsigs_match in PSI. apply funsigs_match_LNR2 in PSI.*)
          apply type_of_funspec_sub in PSI.
          clear - Heqq1 Hequ2 c2 PSI. remember (find_id i Exports2) as w; symmetry in Heqw; destruct w as [psi2 |].
          -- destruct (Comp_G_Exports c2 _ _ Heqw) as [phi2 [? ?]].
@@ -2534,27 +2904,11 @@ apply Build_Component (*with (Comp_G := G)*) (*with
     * destruct (Comp_G_Exports c2 _ _ Hi) as [psi2 [Psi2 PSI2]]. unfold Comp_G in *.
       rewrite (G_merge_find_id_NoneSome Hequ1 Psi2).
       eexists; split. reflexivity. trivial. apply (Comp_G_LNR c2).
-(*+ intros. remember (find_id i Imports) as q; destruct q; [symmetry in Heqq; simpl | simpl; trivial].
-  clear - Heqq ImportsDef c1 c2. subst. apply find_id_app in Heqq.
-  destruct Heqq as [H | H].
-  - apply find_id_filter_Some in H; [ destruct H as [? _] | apply (Comp_Imports_LNR c1)].
-    apply (Imports_paramsLNR' c1 _ _ H).
-  - apply find_id_filter_Some in H; [ destruct H as [? _] | apply (Comp_Imports_LNR c2)].
-    apply (Imports_paramsLNR' c2 _ _ H). *)
-+ clear - c1 c2 HV1 HV2 V_LNR domV V HVardefs1 HVardefs2 VD1 VD2 VD LNR_V1 LNR_V2 DisjointVarspecs; intros.
-(*
-  (*rewrite <- (Comp_MkInitPred c1 gv), <- (Comp_MkInitPred c2 gv).
-  apply InitGPred_join; trivial.*)
-  eapply derives_trans with ((GP1 gv * TT) *(GP2 gv * TT))%logic; [ eapply derives_trans | cancel].
-  2: apply sepcon_derives; [ apply (Comp_MkInitPred c1 gv) | apply (Comp_MkInitPred c2 gv)].
-  clear cs1 cs2 c1 c2 E1 Imports1 Exports1 G1 E2 Imports2 Exports2 G2.
-  unfold Vardefs in *.
-  rewrite (InitGPred_join _ _ _ VD1 VD2 VD); trivial.*)
++ 
+    intros.
   eapply derives_trans. 
   2: apply sepcon_derives; [ apply (Comp_MkInitPred c1 gv) | apply (Comp_MkInitPred c2 gv)]; auto.
-  clear cs1 cs2 c1 c2 E1 Imports1 Exports1 G1 E2 Imports2 Exports2 G2.
-  unfold Vardefs in *.
-  rewrite (InitGPred_join _ _ _ VD1 VD2 VD); trivial.
+  apply InitGPred_join; auto.
 Qed.
 
 End ComponentJoin.
@@ -2562,37 +2916,24 @@ End ComponentJoin.
 Section VSULink.
 
 Variable Espec: OracleKind.
-Variable V1 V2 V: varspecs.
-Variable cs1 cs2 cs: compspecs. 
-Variable E1 Imports1 Exports1 E2 Imports2 Exports2 E Imports Exports: funspecs.
-Variable p1 p2 p: Clight.program.
+Variable E1 Imports1 Exports1 E2 Imports2 Exports2 Imports Exports: funspecs.
 Variable GP1 GP2: globals -> mpred.
-Variable vsu1: @VSU Espec V1 cs1 E1 Imports1 p1 Exports1 GP1.
-Variable vsu2: @VSU Espec V2 cs2 E2 Imports2 p2 Exports2 GP2.
+Variable vsu1: @VSU Espec E1 Imports1 Exports1 GP1.
+Variable vsu2: @VSU Espec E2 Imports2 Exports2 GP2.
 
-Variable DisjointVarspecs: list_disjoint (map fst V1) (map fst V2).
-Variable HV1p1: list_disjoint (map fst V1) (map fst (prog_funct p1)).
-Variable HV1p2: list_disjoint (map fst V1) (map fst (prog_funct p2)).
-Variable HV2p1: list_disjoint (map fst V2) (map fst (prog_funct p1)).
-Variable HV2p2: list_disjoint (map fst V2) (map fst (prog_funct p2)).
-Variable LNR_V1: list_norepet (map fst V1).
-Variable LNR_V2: list_norepet (map fst V2).
-Variable CS1: cspecs_sub cs1 cs.
-Variable CS2: cspecs_sub cs2 cs.
-
-Variable HV1: forall i phi, find_id i V1 = Some phi -> find_id i V = Some phi.
-Variable HV2: forall i phi, find_id i V2 = Some phi -> find_id i V = Some phi.
+Variable p : QP.program Clight.function.
+Let p1 := fst (projT1 vsu1).
+Let p2 := fst (projT1 vsu2).
+Variable Linked : QPlink_progs p1 p2 = Errors.OK p.
 
 Variable FundefsMatch: Fundefs_match p1 p2 Imports1 Imports2.
 
-Variable FP: forall i, Functions_preserved p1 p2 p i.
+Definition HC' := HContexts (projT2 vsu1) (projT2 vsu2) Linked FundefsMatch.
 
 (********************Assumptions involving E1 and E2  ********)
 
 Variable Externs1_Hyp: list_disjoint (map fst E1) (IntIDs p2).
 Variable Externs2_Hyp: list_disjoint (map fst E2) (IntIDs p1).
-
-Variable ExternsHyp: E = G_merge E1 E2. 
 
 (************************************************************)
 
@@ -2607,33 +2948,32 @@ Variable SC2: forall i phiI, find_id i Imports1 = Some phiI -> In i (map fst E2 
 
 Variable HImports: forall i phi1 phi2, find_id i Imports1 = Some phi1 -> find_id i Imports2 = Some phi2 -> phi1=phi2.
 
-Variable ImportsDef: Imports = 
+Definition VSULink_Imports := 
                      filter (fun x => negb (in_dec ident_eq (fst x) (map fst E2 ++ IntIDs p2))) Imports1 ++
                      filter (fun x => negb (in_dec ident_eq (fst x) (map fst E1 ++ IntIDs p1 ++ map fst Imports1))) Imports2.
 
-Variable ExportsDef: Exports = G_merge Exports1 Exports2.
-
-Variable LNRp: list_norepet (map fst (prog_defs p)).
-Variable V_LNR: list_norepet (map fst V).
-Variable domV: forall i, In i (map fst V) -> In i (map fst V1) \/ In i (map fst V2).
-
-Variable VD1: map fst (Vardefs p1) = map fst V1.
-Variable VD2: map fst (Vardefs p2) = map fst V2.
-Variable VD: map fst (Vardefs p) = map fst V.
-
-Variable HVardefs1: forall i d, find_id i (Vardefs p1) = Some d -> find_id i (Vardefs p) = Some d.
-Variable HVardefs2: forall i d, find_id i (Vardefs p2) = Some d -> find_id i (Vardefs p) = Some d.
-
-Lemma VSULink: @VSU Espec (*(V1++V2)*)V cs E Imports p Exports (fun gv => GP1 gv * GP2 gv)%logic.
+Lemma VSULink: @VSU Espec (G_merge E1 E2) VSULink_Imports  (G_merge Exports1 Exports2) (GP1 * GP2)%logic.
 Proof.
-  destruct vsu1 as [G1 c1]. destruct vsu2 as [G2 c2].
-  exists (G_merge (Comp_G c1) (Comp_G c2)).
-  eapply ComponentJoin; trivial.
-Qed.
+  exists  (p, G_merge (Comp_G (projT2 vsu1)) (Comp_G (projT2 vsu2))).
+  apply ComponentJoin; trivial.
+Defined.
 
 End VSULink.
 
-Lemma SF_ctx_subsumption {Espec cs} V G ge i fd phi (HSF:  @SF Espec cs V ge G i fd phi)
+Arguments VSULink_Imports {Espec E1 Imports1 Exports1 E2 Imports2 Exports2 GP1 GP2} vsu1 vsu2.
+
+Definition VSULinked {Espec: OracleKind} 
+    {E1 E2 Imports1 Imports2: funspecs}
+    {Exports1 Exports2: funspecs}
+    {GP1 GP2: globals -> mpred}
+    (v1: @VSU Espec E1 Imports1 Exports1 GP1)
+    (v2: @VSU Espec E2 Imports2 Exports2 GP2) :=
+    @VSU Espec (G_merge E1 E2)
+          (VSULink_Imports v1 v2)
+           (G_merge Exports1 Exports2) (GP1 * GP2)%logic.
+
+Lemma SF_ctx_subsumption {Espec} V G ge i fd phi cs
+  (HSF:  @SF Espec cs V ge G i fd phi)
   (LNR_G: list_norepet (map fst G)) G' V' ge' cs'
   (SubCS: cspecs_sub cs cs')
   (FD: genv_find_func ge' i fd)
@@ -2648,7 +2988,7 @@ Proof.
  + eapply ExternalInfo_envs_sub; eassumption.
 Qed.
 
-Lemma SF_ctx_extensional {Espec cs} V G ge i fd phi (HSF:  @SF Espec cs V ge G i fd phi)
+Lemma SF_ctx_extensional {Espec} V G ge i fd cs phi (HSF:  @SF Espec cs V ge G i fd phi)
   (LNR_G: list_norepet (map fst G)) G'
   (GG': forall j, find_id j G = find_id j G'):
   @SF Espec cs V ge G' i fd phi.
@@ -2668,19 +3008,20 @@ Proof.
   + intros j; rewrite GG'. apply subsumespec_refl.
 Qed.
 
-Record CanonicalComponent {Espec V cs} Externs Imports p Exports GP G:= {
-  CC_component :> @Component Espec V(*(mk_varspecs' p)*) cs(*make _compspecs p)*) Externs Imports p Exports GP G;
+Record CanonicalComponent {Espec} Externs Imports p Exports GP G:= {
+  CC_component :> @Component Espec Externs Imports p Exports GP G;
   CC_canonical: map fst (Comp_G CC_component) = 
                 map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ map fst Externs))
-                        (prog_defs p))
+                        (PTree.elements (QP.prog_defs p)))
 }.
 
-Lemma CanonicalComponent_entail {Espec V cs E Imp p Exp G} GP1 GP2 : 
-      @CanonicalComponent Espec V cs E Imp p Exp GP1 G -> (forall gv, GP1 gv |-- GP2 gv) -> 
-      @CanonicalComponent Espec V cs E Imp p Exp GP2 G.
+Lemma CanonicalComponent_entail {Espec E Imp p Exp G} GP1 GP2 : 
+      @CanonicalComponent Espec E Imp p Exp GP1 G ->
+       (forall gv, GP1 gv |-- GP2 gv) -> 
+      @CanonicalComponent Espec E Imp p Exp GP2 G.
 Proof.
   intros. destruct H as [C X]. 
-  apply (Build_CanonicalComponent _ _ _ _ _ _ _ _ _ (Comp_entail C _ H0) X).
+  apply (Build_CanonicalComponent _ _ _ _ _ _ _ (Comp_entail C _ H0) X).
 Qed.
 
 Fixpoint order {A} (G:list (ident * A)) (l:list ident): option (list (ident *A)) :=
@@ -2745,105 +3086,136 @@ Proof.
   destruct (find_id i G); destruct (find_id i G'); trivial. intuition.
   elim (H _ (eq_refl _)); trivial. elim (H0 _ (eq_refl _)); trivial.
 Qed.
-(*
-Lemma C_to_CC {Espec V cs Ext Imp p Exp} (c: @Component Espec V cs Ext Imp p Exp):
-      @CanonicalComponent Espec V cs Ext Imp p Exp.
-Proof.
-  remember (order (Comp_G c) 
-                  (map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ (map fst Ext))) (prog_defs p)))) as Gopt.
-  destruct Gopt as [G |]; symmetry in HeqGopt.
-+ specialize (LNR_Internals_Externs c); intros LNR_IEc.
-  assert (X6: forall i : ident, In i (IntIDs p ++ map fst Ext) <-> In i (map fst G)).
-  { intros. rewrite <- (order_dom HeqGopt).
-    remember (prog_defs p) as l. remember (IntIDs p ++ map fst Ext) as l'.
-    assert (forall j, In j l' -> In j (map fst l)).
-    { subst. clear -c. intros. apply c in H. destruct (Comp_G_in_progdefs c j H).
-      apply find_id_In_map_fst in H0; trivial. }
-    clear - H.
-    split; intros. 
-    + specialize (H _ H0). apply in_map_iff in H. destruct H as [[j d] [J HJ]]; simpl in *; subst.
-      apply in_map_iff. exists (i,d); simpl; split; trivial. apply filter_In; simpl. split; trivial.
-      destruct (in_dec ident_eq i l'); trivial. contradiction.
-    + apply in_map_iff in H0. destruct H0 as [[j d] [J HJ]]; simpl in *; subst.
-      apply filter_In in HJ; simpl in HJ; destruct HJ. 
-      destruct (in_dec ident_eq i l'); trivial. discriminate. }
-  assert (X7: list_norepet (map fst G)).
-  { rewrite <- (order_dom HeqGopt). apply list_norepet_map_fst_filter. apply c. }
-  assert (Y: forall i, find_id i (Comp_G c) = find_id i G).
-  { clear - HeqGopt X6. apply (order_SOC HeqGopt); trivial.
-    apply list_norepet_map_fst_filter. apply c.
-    intros. rewrite (order_dom HeqGopt). apply X6. apply c. trivial. }
-  assert (X8: forall i, In i (map fst Ext) -> find_id i Ext = find_id i G).
-  { intros. rewrite (Comp_G_E c _ H); trivial. }
 
-  assert (X1: forall i, In i (map fst Imp) ->
-      exists
-        (f : external_function) (ts : typelist) (t : type) (cc : calling_convention),
-        find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply c.
+Definition keep_fun {F} (externs: list ident) (ig: ident * globdef (fundef F) type) : bool :=
+ match ig with
+ | (_,Gvar _) => true 
+ | (i, Gfun (Internal _)) => true
+ | (i, Gfun (External _ _ _ _)) => in_dec ident_eq i externs
+ end.
 
-  assert (X2: list_norepet (map fst (prog_defs p))) by apply c.
-  assert (X3: list_norepet (map fst (Ext ++ Imp))) by apply c.
+Fixpoint PTree_filter' {A} (f: positive * A -> bool) (i: positive) (m: PTree.t A) : PTree.t A  :=
+  match m with
+  | PTree.Leaf => PTree.Leaf
+  | PTree.Node  l (Some x) r => 
+      PTree.Node (PTree_filter' f (xO i) l)
+                   (if f (i,x) then (Some x) else None)
+                   (PTree_filter' f (xI i) l)
+  | PTree.Node l None r => 
+      PTree.Node (PTree_filter' f (xO i) l) None (PTree_filter' f (xI i) l)
+  end.
 
-  assert (X4: list_norepet (map fst Exp)) by apply c.
-  assert (X5: forall i, In i (map fst Ext) -> exists f ts t cc,
-    find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply c.
+Definition PTree_filter {A} (f: positive * A -> bool)  := 
+  PTree_filter' f xH.
 
-  assert (X11: forall i : ident, params_LNR (find_id i Imp)).
-  { clear -c. intros j.
-    remember (find_id j Imp) as q; destruct q; simpl; [symmetry in Heqq | trivial].
-    specialize (Imports_paramsLNR' c j); rewrite Heqq.
-    intros X; apply X; trivial. }
-  assert (X9: forall i phi fd,
-    find_id i (prog_funct p) = Some fd -> find_id i G = Some phi -> 
-   @SF Espec cs V (Genv.globalenv p) (Imp ++ G) i fd phi).
-  { intros.
-    eapply SF_ctx_extensional. 
-    + rewrite <- Y in H0; apply (Comp_G_justified c _ phi _ H H0).
-    + apply Comp_ctx_LNR.
-    + clear H H0. intros j. remember (find_id j (Imp ++ Comp_G c)) as q; destruct q; simpl; [symmetry in Heqq | trivial].
-      rewrite find_id_app_char in Heqq. specialize (X11 j).
-      destruct (find_id j Imp).
-      - inv Heqq; apply X11.
-      - apply (Comp_G_paramsLNR' c) in Heqq; trivial.
-    + intros j. rewrite 2 find_id_app_char, Y; trivial. }
+Definition prune_QPprogram {F} (p: QP.program F) (externs: list ident) : QP.program F :=
+ {| QP.prog_builtins := p.(QP.prog_builtins);
+     QP.prog_defs := PTree_filter (keep_fun externs) p.(QP.prog_defs);
+     QP.prog_public := p.(QP.prog_public);
+     QP.prog_main := p.(QP.prog_main);
+     QP.prog_comp_env := p.(QP.prog_comp_env)
+ |}.
 
-  assert (X10: forall i phi, find_id i Exp = Some phi -> 
-          exists phi', find_id i G = Some phi' /\ funspec_sub phi' phi).
-  { intros. destruct (Comp_G_Exports c _ _ H) as [phi' [Phi' Sub]].
-    exists phi'; split; trivial. rewrite <- (order_SOC HeqGopt); trivial.
-    apply list_norepet_map_fst_filter. apply c.
-    intros. rewrite (order_dom HeqGopt). apply X6. apply c. trivial. }
-
-  remember (@Build_Component Espec V cs Ext Imp p Exp X1 X2 X3 X4 X5 G X6 X7 X8 X9 X10 X11) as cc.
-
-  apply Build_CanonicalComponent with cc.
-  subst cc; simpl. symmetry; apply (order_dom HeqGopt).
-+ apply order_i' in HeqGopt. contradiction. apply c.
-  clear - c. intros.
-  apply Comp_G_dom. apply in_map_iff in H. destruct H as [[j d] [J HJ]]. simpl in J; subst.
-  apply filter_In in HJ; simpl in HJ; destruct HJ.
-  destruct (in_dec ident_eq i (IntIDs p ++ map fst Ext)). trivial. inv H0.
-Qed.*)
-
-Record CanonicalComponent_M {Espec V cs} Externs Imports p Exports GP G:= {
+Record CanonicalComponent_M {Espec} Externs Imports p Exports GP G:= {
   CCM_G: funspecs;
-  CCM_component :> @CanonicalComponent Espec V cs Externs Imports p Exports GP CCM_G;
-  CCM_main: find_id (prog_main p) CCM_G = find_id (prog_main p) G
+  CCM_component :> @CanonicalComponent Espec Externs Imports p Exports GP CCM_G;
+  CCM_main: find_id (QP.prog_main p) CCM_G = find_id (QP.prog_main p) G
 }.
-Lemma Comp_to_CanComp {Espec V cs Ext Imp p Exp GP G} (C: @Component Espec V cs Ext Imp p Exp GP G):
-      @CanonicalComponent_M Espec V cs Ext Imp p Exp GP G.
+
+(*
+Lemma Comp_to_CanComp {Espec Ext Imp p Exp GP G} (C: @Component Espec Ext Imp p Exp GP G):
+     In (QP.prog_main p) (IntIDs p ++ map fst Ext) ->
+      @CanonicalComponent_M Espec Ext Imp (prune_QPprogram p (map fst Ext)) Exp GP G.
+Proof.
+  intro Hmain.
+  set (p' := prune_QPprogram p (map fst Ext)).
+  remember (order G (map fst (QPprog_funct p'))) as Gopt.
+  destruct Gopt as [GG |]; symmetry in HeqGopt.
+-
+  exists GG.
+ +
+  assert (Comp: Component Ext Imp p' Exp GP GG). {
+    assert (C_Imports_external : forall i : ident,
+                         In i (map fst Imp) ->
+                         exists
+                           (f : external_function) 
+                         (ts : typelist) (t : type) 
+                         (cc : calling_convention),
+                           (QP.prog_defs p') ! i =
+                           Some (Gfun (External f ts t cc))). {
+   admit.
+  }
+    assert (C_Externs: forall i : ident,
+     In i (map fst Ext) ->
+     exists f ts t cc, (QP.prog_defs p') ! i = Some (Gfun (External f ts t cc))).
+   admit.
+     assert (C_G_dom: forall i : ident,
+          In i (IntIDs p' ++ map fst Ext) <-> In i (map fst GG)).
+    admit.
+     assert (C_G_LNR: list_norepet (map fst GG)).
+  { rewrite <- (order_dom HeqGopt). 
+    admit.
+  }
+     assert (C_G_E: forall i, In i (map fst Ext) -> find_id i Ext = find_id i GG).
+    admit.
+     assert (C_G_justified : forall i phi fd,
+                       (QP.prog_defs p') ! i = Some (Gfun fd) ->
+                       find_id i GG = Some phi ->
+                       @SF Espec (Comp_cs C) (QPvarspecs p') (QPglobalenv p') (Imp ++ GG) i fd phi).
+     admit.
+     assert (C_G_Exports : forall i phi,
+                     find_id i Exp = Some phi ->
+                     exists phi' : funspec,
+                       find_id i GG = Some phi' /\
+                       funspec_sub phi' phi).
+     admit. 
+     assert (C_MkInitPred : forall gv : globals,
+                      globals_ok gv ->
+                      InitGPred (Vardefs p') gv |-- GP gv). {
+     admit.
+  } 
+     apply (Build_Component Espec Ext Imp p' Exp GP GG). C_Imports_external (Comp_cs C)).
+     apply (Comp_cs_OK C).
+     apply (Comp_ExternsImports_LNR C).
+     apply (Comp_Exports_LNR C).
+     apply C_Externs.
+     apply C_G_dom.
+     apply C_G_LNR.
+     apply C_G_E. 
+     apply C_G_justified. 
+     apply C_G_Exports. 
+     apply C_MkInitPred.
+  } 
+ apply (Build_CanonicalComponent _ _ _ _ _ _ _ Comp).
+ change (Comp_G Comp) with GG.
+ rewrite <- (order_dom HeqGopt); clear HeqGopt.
+ unfold QPprog_funct.
+  admit.
+ +
+  admit.
+-
+ apply order_i' in HeqGopt. contradiction. apply C.
+  clear - C. intros i H'.  apply (Comp_G_dom C).
+ admit.
+Abort.
+
+*)
+
+Lemma Comp_to_CanComp {Espec Ext Imp p Exp GP G} (C: @Component Espec Ext Imp p Exp GP G):
+      @CanonicalComponent_M Espec Ext Imp p Exp GP G.
 Proof.
   assert (HG: G = Comp_G C). reflexivity.
   remember (order (Comp_G C) 
-                  (map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ (map fst Ext))) (prog_defs p)))) as Gopt.
+                  (map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ (map fst Ext))) 
+                     (PTree.elements (QP.prog_defs p))))) as Gopt.
   destruct Gopt as [GG |]; symmetry in HeqGopt.
 + specialize (LNR_Internals_Externs C); intros LNR_IEc.
   assert (X6: forall i : ident, In i (IntIDs p ++ map fst Ext) <-> In i (map fst GG)).
   { intros. rewrite <- (order_dom HeqGopt).
-    remember (prog_defs p) as l. remember (IntIDs p ++ map fst Ext) as l'.
+    remember  (PTree.elements (QP.prog_defs p)) as l. remember (IntIDs p ++ map fst Ext) as l'.
     assert (forall j, In j l' -> In j (map fst l)).
     { subst. clear -C. intros. apply C in H. destruct (Comp_G_in_progdefs C j H).
-      apply find_id_In_map_fst in H0; trivial. }
+       apply PTree_In_fst_elements. eauto. }
     clear - H.
     split; intros. 
     + specialize (H _ H0). apply in_map_iff in H. destruct H as [[j d] [J HJ]]; simpl in *; subst.
@@ -2853,10 +3225,12 @@ Proof.
       apply filter_In in HJ; simpl in HJ; destruct HJ. 
       destruct (in_dec ident_eq i l'); trivial. discriminate. }
   assert (X7: list_norepet (map fst GG)).
-  { rewrite <- (order_dom HeqGopt). apply list_norepet_map_fst_filter. apply C. }
+  { rewrite <- (order_dom HeqGopt). apply list_norepet_map_fst_filter.
+    apply PTree.elements_keys_norepet. }
   assert (Y: forall i, find_id i (Comp_G C) = find_id i GG).
   { clear - HeqGopt X6. apply (order_SOC HeqGopt); trivial.
-    apply list_norepet_map_fst_filter. apply C.
+    apply list_norepet_map_fst_filter. 
+    apply PTree.elements_keys_norepet.
     intros. rewrite (order_dom HeqGopt). apply X6. apply C. trivial. }
   assert (X8: forall i, In i (map fst Ext) -> find_id i Ext = find_id i GG).
   { intros. rewrite (Comp_G_E C _ H); trivial. }
@@ -2864,43 +3238,33 @@ Proof.
   assert (X1: forall i, In i (map fst Imp) ->
       exists
         (f : external_function) (ts : typelist) (t : type) (cc : calling_convention),
-        find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
+        PTree.get i (QP.prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
 
-  assert (X2: list_norepet (map fst (prog_defs p))) by apply C.
   assert (X3: list_norepet (map fst (Ext ++ Imp))) by apply C.
 
   assert (X4: list_norepet (map fst Exp)) by apply C.
   assert (X5: forall i, In i (map fst Ext) -> exists f ts t cc,
-    find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
+    PTree.get i (QP.prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
 
-  (*assert (X11: forall i : ident, params_LNR (find_id i Imp)).
-  { clear -c. intros j.
-    remember (find_id j Imp) as q; destruct q; simpl; [symmetry in Heqq | trivial].
-    specialize (Imports_paramsLNR' c j); rewrite Heqq.
-    intros X; apply X; trivial. }*)
   assert (X9: forall i phi fd,
-    find_id i (prog_funct p) = Some fd -> find_id i GG = Some phi -> 
-   @SF Espec cs V (Genv.globalenv p) (Imp ++ GG) i fd phi).
+    PTree.get i (QP.prog_defs p) = Some (Gfun fd) -> find_id i GG = Some phi -> 
+   @SF Espec (Comp_cs C) (QPvarspecs p) (QPglobalenv p) (Imp ++ GG) i fd phi).
   { intros.
     eapply SF_ctx_extensional. 
     + rewrite <- Y in H0; apply (Comp_G_justified C _ phi _ H H0).
     + apply (Comp_ctx_LNR C).
-(*    + clear H H0. intros j. unfold Comp_G in *. remember (find_id j (Imp ++ GG)) as q; destruct q; simpl; [symmetry in Heqq | trivial].
-      rewrite find_id_app_char in Heqq. (* specialize (X11 j).*)
-      destruct (find_id j Imp).
-      - inv Heqq. apply X11.
-      - apply (Comp_G_paramsLNR' c) in Heqq; trivial.*)
     + intros j. rewrite 2 find_id_app_char, Y; trivial. }
 
   assert (X10: forall i phi, find_id i Exp = Some phi -> 
           exists phi', find_id i GG = Some phi' /\ funspec_sub phi' phi).
   { intros. destruct (Comp_G_Exports C _ _ H) as [phi' [Phi' Sub]].
     exists phi'; split; trivial. rewrite <- (order_SOC HeqGopt); trivial.
-    apply list_norepet_map_fst_filter. apply C.
+    apply list_norepet_map_fst_filter. apply PTree.elements_keys_norepet.
     intros. rewrite (order_dom HeqGopt). apply X6. apply C. trivial. }
 
-  remember (@Build_Component Espec V cs Ext Imp p Exp GP GG X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 (*X11*)
-             (*(Comp_InitPred C)*) (Comp_MkInitPred C)) as cc.
+  remember (@Build_Component Espec Ext Imp p Exp GP GG
+  (Comp_prog_OK C) X1 X3 X4 X5 X6 X7 X8 X9 X10
+          (Comp_MkInitPred C)) as cc.
   exists GG.
   - apply Build_CanonicalComponent with cc.
          subst cc; simpl. symmetry; apply (order_dom HeqGopt).
@@ -2911,113 +3275,31 @@ Proof.
   apply filter_In in HJ; simpl in HJ; destruct HJ.
   destruct (in_dec ident_eq i (IntIDs p ++ map fst Ext)). trivial. inv H0.
 Qed.
-(*alternative definition but leads to Universe inconsistency (cuplirat: /\  versus InitPred/MkInitPred
-Lemma Comp_to_CanComp {Espec V cs Ext Imp p Exp G} (C: @Component Espec V cs Ext Imp p Exp G):
-  sigT (fun GG => @CanonicalComponent Espec V cs Ext Imp p Exp GG /\
-                  find_id (prog_main p) GG = find_id (prog_main p) G.
-Proof.
-  assert (HG: G = Comp_G C). reflexivity.
-  remember (order (Comp_G C) 
-                  (map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ (map fst Ext))) (prog_defs p)))) as Gopt.
-  destruct Gopt as [GG |]; symmetry in HeqGopt.
-+ specialize (LNR_Internals_Externs C); intros LNR_IEc.
-  assert (X6: forall i : ident, In i (IntIDs p ++ map fst Ext) <-> In i (map fst GG)).
-  { intros. rewrite <- (order_dom HeqGopt).
-    remember (prog_defs p) as l. remember (IntIDs p ++ map fst Ext) as l'.
-    assert (forall j, In j l' -> In j (map fst l)).
-    { subst. clear -C. intros. apply C in H. destruct (@Comp_G_in_progdefs _ _ _ _ _ _ _ _ C j H).
-      apply find_id_In_map_fst in H0; trivial. }
-    clear - H.
-    split; intros. 
-    + specialize (H _ H0). apply in_map_iff in H. destruct H as [[j d] [J HJ]]; simpl in *; subst.
-      apply in_map_iff. exists (i,d); simpl; split; trivial. apply filter_In; simpl. split; trivial.
-      destruct (in_dec ident_eq i l'); trivial. contradiction.
-    + apply in_map_iff in H0. destruct H0 as [[j d] [J HJ]]; simpl in *; subst.
-      apply filter_In in HJ; simpl in HJ; destruct HJ. 
-      destruct (in_dec ident_eq i l'); trivial. discriminate. }
-  assert (X7: list_norepet (map fst GG)).
-  { rewrite <- (order_dom HeqGopt). apply list_norepet_map_fst_filter. apply C. }
-  assert (Y: forall i, find_id i (Comp_G C) = find_id i GG).
-  { clear - HeqGopt X6. apply (order_SOC HeqGopt); trivial.
-    apply list_norepet_map_fst_filter. apply C.
-    intros. rewrite (order_dom HeqGopt). apply X6. apply C. trivial. }
-  assert (X8: forall i, In i (map fst Ext) -> find_id i Ext = find_id i GG).
-  { intros. rewrite (Comp_G_E C _ H); trivial. }
 
-  assert (X1: forall i, In i (map fst Imp) ->
-      exists
-        (f : external_function) (ts : typelist) (t : type) (cc : calling_convention),
-        find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
-
-  assert (X2: list_norepet (map fst (prog_defs p))) by apply C.
-  assert (X3: list_norepet (map fst (Ext ++ Imp))) by apply C.
-
-  assert (X4: list_norepet (map fst Exp)) by apply C.
-  assert (X5: forall i, In i (map fst Ext) -> exists f ts t cc,
-    find_id i (prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
-
-  (*assert (X11: forall i : ident, params_LNR (find_id i Imp)).
-  { clear -c. intros j.
-    remember (find_id j Imp) as q; destruct q; simpl; [symmetry in Heqq | trivial].
-    specialize (Imports_paramsLNR' c j); rewrite Heqq.
-    intros X; apply X; trivial. }*)
-  assert (X9: forall i phi fd,
-    find_id i (prog_funct p) = Some fd -> find_id i GG = Some phi -> 
-   @SF Espec cs V (Genv.globalenv p) (Imp ++ GG) i fd phi).
-  { intros.
-    eapply SF_ctx_extensional. 
-    + rewrite <- Y in H0; apply (Comp_G_justified C _ phi _ H H0).
-    + apply (Comp_ctx_LNR C).
-(*    + clear H H0. intros j. unfold Comp_G in *. remember (find_id j (Imp ++ GG)) as q; destruct q; simpl; [symmetry in Heqq | trivial].
-      rewrite find_id_app_char in Heqq. (* specialize (X11 j).*)
-      destruct (find_id j Imp).
-      - inv Heqq. apply X11.
-      - apply (Comp_G_paramsLNR' c) in Heqq; trivial.*)
-    + intros j. rewrite 2 find_id_app_char, Y; trivial. }
-
-  assert (X10: forall i phi, find_id i Exp = Some phi -> 
-          exists phi', find_id i GG = Some phi' /\ funspec_sub phi' phi).
-  { intros. destruct (Comp_G_Exports C _ _ H) as [phi' [Phi' Sub]].
-    exists phi'; split; trivial. rewrite <- (order_SOC HeqGopt); trivial.
-    apply list_norepet_map_fst_filter. apply C.
-    intros. rewrite (order_dom HeqGopt). apply X6. apply C. trivial. }
-
-  remember (@Build_Component Espec V cs Ext Imp p Exp GG X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 (*X11*)) as cc.
-  exists GG.
-  split. apply Build_CanonicalComponent with cc.
-         subst cc; simpl. symmetry; apply (order_dom HeqGopt).
-  rewrite HG, Y; trivial.
-+ apply order_i' in HeqGopt. contradiction. apply C. unfold Comp_G in *.
-  clear - C. intros.
-  apply (Comp_G_dom C). apply in_map_iff in H. destruct H as [[j d] [J HJ]]. simpl in J; subst.
-  apply filter_In in HJ; simpl in HJ; destruct HJ.
-  destruct (in_dec ident_eq i (IntIDs p ++ map fst Ext)). trivial. inv H0.
-Qed.*)
-
-Lemma CanonicalComponent_M_entail {Espec V cs E Imp p Exp G} GP1 GP2 : 
-      @CanonicalComponent_M Espec V cs E Imp p Exp GP1 G -> (forall gv, GP1 gv |-- GP2 gv) -> 
-      @CanonicalComponent_M Espec V cs E Imp p Exp GP2 G.
+Lemma CanonicalComponent_M_entail {Espec E Imp p Exp G} GP1 GP2 : 
+      @CanonicalComponent_M Espec E Imp p Exp GP1 G -> (forall gv, GP1 gv |-- GP2 gv) -> 
+      @CanonicalComponent_M Espec E Imp p Exp GP2 G.
 Proof.
   intros. eapply Build_CanonicalComponent_M. apply (CanonicalComponent_entail _ _ X H). apply X.
-Qed.
+Defined.
 
-Definition CanonicalVSU {Espec V cs} E Imports p Exports GP :=
-  sigT (fun G => @CanonicalComponent_M Espec V cs E Imports p Exports GP G).
+Definition CanonicalVSU {Espec} E Imports Exports GP :=
+  sigT (fun pG => @CanonicalComponent_M Espec E Imports (fst pG) Exports GP (snd pG)).
 
-Lemma VSU_to_CanonicalVSU {Espec V cs Ext Imp p Exp GP} (vsu: @VSU Espec V cs Ext Imp p Exp GP):
-      @CanonicalVSU Espec V cs Ext Imp p Exp GP.
+Lemma VSU_to_CanonicalVSU {Espec Ext Imp Exp GP} 
+        (vsu: @VSU Espec Ext Imp Exp GP):
+      @CanonicalVSU Espec Ext Imp Exp GP.
 Proof.
-  destruct vsu as [GG c]. remember (Comp_to_CanComp c) as CC. destruct CC as [G C M]. clear HeqCC.
-  (*exists G. econstructor. apply C. trivial.*)
-  exists GG. econstructor. apply C. trivial. (*both constructions complete the proof*)
-Qed.
+  destruct vsu as [pGG c]. remember (Comp_to_CanComp c) as CC. destruct CC as [G C M]. clear HeqCC.
+  exists pGG. econstructor. apply C. trivial.
+Defined.
 
-Lemma CanonicalVSU_entail {Espec V cs E Imp p Exp} GP1 GP2 : 
-      @CanonicalVSU Espec V cs E Imp p Exp GP1 -> (forall gv, GP1 gv |-- GP2 gv) -> 
-      @CanonicalVSU Espec V cs E Imp p Exp GP2.
-Proof. intros. destruct X as [G C].
-  exists G. apply (CanonicalComponent_M_entail _ _ C H).
-Qed.
+Lemma CanonicalVSU_entail {Espec E Imp Exp} GP1 GP2 : 
+      @CanonicalVSU Espec E Imp Exp GP1 -> (forall gv, GP1 gv |-- GP2 gv) -> 
+      @CanonicalVSU Espec E Imp Exp GP2.
+Proof. intros. destruct X as [pG C].
+  exists pG. apply (CanonicalComponent_M_entail _ _ C H).
+Defined.
 
 Inductive semaxfunc {Espec} {cs : compspecs} (V : varspecs) (G : funspecs) (ge : Genv.t Clight.fundef type):
   list (ident * Clight.fundef) -> funspecs -> Prop :=
@@ -3048,7 +3330,7 @@ Proof.
   eapply semax_func_cons; try eassumption.
   rewrite H0; simpl; trivial.
 + destruct phi; destruct t. destruct H as [? [? [? [? [? [? [H1 [H2 [H3 H4]]]]]]]]].
-  (*destruct H5 as [b [Ha1 H5b]].*) subst.
+  subst.
   eapply semax_func_cons_ext; try eassumption; trivial.
 Qed.
 
@@ -3135,42 +3417,63 @@ Proof.
   destruct H. left; trivial. right; apply (IHl _ H).
 Qed.
 
-Lemma filter_prog_funct_defs {f g p} 
+Lemma filter_prog_funct_defs {f g} {p: QP.program function}
       (GF: forall i x, f (i,x) = g (i, Gfun x))
-      (*(HG: forall i v, g (i, Gvar v) = false):*)
-      (HG: forall i v, In (i, Gvar v) (prog_defs p) -> g (i, Gvar v) = false):
-      map fst (filter f (prog_funct p)) = map fst (filter g (prog_defs p)).
+      (HG: forall i v, PTree.get i (QP.prog_defs p) = Some (Gvar v) -> g (i, Gvar v) = false):
+      map fst (filter f (QPprog_funct p)) = map fst (filter g (PTree.elements (QP.prog_defs p))).
 Proof.
-  unfold prog_funct. forget (prog_defs p) as l.
+  unfold prog_funct. unfold QPprog_funct.
+  pose proof (PTree.elements_keys_norepet (QP.prog_defs p)).
+  assert (HG': forall i v, In (i, Gvar v) (PTree.elements (QP.prog_defs p)) -> g (i, Gvar v) = false).
+    intros. apply PTree.elements_complete in H0; auto.
+  clear HG.
+ forget (PTree.elements (QP.prog_defs p)) as l.
   induction l; simpl. trivial.
   destruct a as [i d]. destruct d; simpl.
-  + rewrite GF.
-    destruct (g (i, Gfun f0)); simpl;
-     rewrite IHl; trivial; intros; apply HG; right; trivial.
-  + rewrite IHl, HG; trivial. left; trivial.
-    intros; apply HG; right; trivial.
+  + rewrite GF. inv H.
+    destruct (g (i, Gfun f0)); simpl; f_equal; apply IHl; auto;
+    intros; apply HG'; simpl; auto. 
+  + inv H. rewrite HG'; simpl; auto. apply IHl; auto.
+    intros; apply HG'; simpl; auto.
 Qed.
 
-Lemma Canonical_semaxfunc {Espec cs V E} p Exp GP G
-      (c: @CanonicalComponent Espec V cs E nil p Exp GP G):
-   semaxfunc V (Comp_G c) (Genv.globalenv p) 
+Lemma Canonical_semaxfunc {Espec E} p Exp GP G
+      (c: @CanonicalComponent Espec E nil p Exp GP G):
+   @semaxfunc Espec (Comp_cs c) (QPvarspecs p) (Comp_G c) (QPglobalenv p) 
              (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ map fst E)) 
-                     (prog_funct p))
+                     (QPprog_funct p))
              G.
 Proof.
   specialize (Comp_G_justified c); intros. destruct c as [c DOM]; simpl.
   simpl in *.
-  assert (LNRp:=Comp_p_LNR c).
-  assert (LNRfuncs: list_norepet (map fst (prog_funct p)))
-    by (apply initialize.list_norepet_prog_funct'; trivial).
+  assert (LNRfuncs: list_norepet (map fst (QPprog_funct p))). {
+    clear.
+    unfold QPprog_funct.
+    pose proof (PTree.elements_keys_norepet (QP.prog_defs p)).
+    induction (PTree.elements (QP.prog_defs p)).
+    constructor. 
+    destruct a. destruct g; simpl in *.
+    inv H. constructor; auto.
+    clear - H2. contradict H2. induction l; simpl; auto. destruct a. destruct g; simpl in *; auto. destruct H2; auto; right. inv H; auto.
+  }
   apply SF_semaxfunc.
 + intros. apply find_id_filter_Some in H0; trivial.
-  destruct H0. apply H; trivial.
-+ apply list_norepet_map_fst_filter; trivial.
+   destruct H0. apply H; auto.
+   clear - H0.
+   unfold QPprog_funct in *. 
+   rewrite <- find_id_elements.
+    pose proof (PTree.elements_keys_norepet (QP.prog_defs p)).
+    induction  (PTree.elements (QP.prog_defs p)).
+    inv H0.
+    destruct a. destruct g; simpl in *. if_tac. congruence.
+    apply IHl; auto. inv H; auto.
+    if_tac. subst p0. elimtype False; clear - H0 H.
+    inv H. apply H3; clear H3 H4. induction l; simpl in *. inv H0. destruct a. destruct g; auto.
+    simpl in *. if_tac in H0; auto. apply IHl; auto. inv H; auto.
++ apply list_norepet_map_fst_filter; auto.
 + unfold Comp_G in *. rewrite DOM; clear DOM H LNRfuncs.
   apply filter_prog_funct_defs; intros; simpl. trivial.
-  destruct (in_dec ident_eq i (IntIDs p ++ map fst E)); simpl; trivial. 
-  apply find_id_i in H; trivial.
+  destruct (in_dec ident_eq i (IntIDs p ++ map fst E)); simpl; trivial.
   apply in_app_or in i0; destruct i0.
   - destruct (IntIDs_e H0) as [f Hf]; trivial. congruence.
   - apply (Comp_Externs c) in H0. destruct H0 as [ef [tys [rt [cc Hf]]]].
@@ -3184,21 +3487,22 @@ Proof.
   rewrite IHl; trivial. intros. apply Hf. right; trivial. left; trivial.
 Qed.
 
-Lemma Canonical_semax_func {Espec cs V E p Exp GP G}
-      (c: @CanonicalComponent Espec V cs  E nil p Exp GP G)
+Lemma Canonical_semax_func {Espec E p Exp GP G}
+      (c: @CanonicalComponent Espec  E nil p Exp GP G)
       (HE: map fst E =
-           map fst (filter (fun x  => negb (isInternal (Gfun (snd x)))) (prog_funct p))):
-      @semax_func Espec V (Comp_G c) cs (Genv.globalenv p) (prog_funct p) (Comp_G c).
-Proof. 
+           map fst (filter (fun x  => negb (isInternal (Gfun (snd x)))) (QPprog_funct p))):
+      @semax_func Espec (QPvarspecs p) (Comp_G c) (Comp_cs c) (QPglobalenv p) (QPprog_funct p) (Comp_G c).
+Proof.
   apply semaxfunc_sound.
   specialize (Canonical_semaxfunc _ _ _ _ c).
   rewrite filter_true; trivial.
   rewrite HE; clear; intros. 
   destruct (in_dec ident_eq (fst i)
     (IntIDs p ++ map fst
-       (filter (fun x => negb (isInternal (Gfun (snd x)))) (prog_funct p))) ); simpl; trivial.
+       (filter (fun x => negb (isInternal (Gfun (snd x)))) (QPprog_funct p))) ); simpl; trivial.
   elim n; clear n. destruct i as [i d]; simpl. unfold IntIDs, prog_funct in *.
-  forget (prog_defs p) as l. clear p.
+  unfold QPprog_funct in *.
+  forget (PTree.elements (QP.prog_defs p)) as l. clear p.
   induction l; simpl in *; trivial.
   destruct a as [j a]; simpl in *. destruct a; simpl in *; [|auto].
   destruct f; simpl in *.
@@ -3208,39 +3512,6 @@ Proof.
     - apply in_or_app. specialize (IHl H); apply in_app_or in IHl.
       destruct IHl; [ left; trivial | right; right; trivial].
 Qed.
-(*
-Lemma CanonicalPre_PROG {Espec cs V E} {ora: OK_ty} p Exp G
-      (c: @CanonicalPreComponent Espec V cs E nil p Exp G)
-       (HE : map fst E = map fst (filter (fun x => negb (isInternal (Gfun (snd x)))) (prog_funct p)))
-
-      (LNR_Names: compute_list_norepet (prog_defs_names p) = true)
-      (ALGN: all_initializers_aligned p)
-      (HCS: cenv_cs = prog_comp_env p)
-      (HV: match_globvars (prog_vars p) V = true) 
-      (Main: exists post, find_id (prog_main p) G = Some (main_spec_ext' p ora post)):
-      @semax_prog Espec cs p ora V G.
-Proof.
-  unfold semax_prog; red. simpl.
-assert (augment_funspecs p G = G). ?
-rewrite H. destruct Main as [post M]. rewrite M. intuition.
- 2: exists post; trivial.
-Qed.*)
-(*
-Lemma Canonical_PROG_ext {Espec cs V E} p Exp
-      (c: @CanonicalComponent Espec V cs E nil p Exp)
-       (HE : map fst E = map fst (filter (fun x => negb (isInternal (Gfun (snd x)))) (prog_funct p)))
-
-      (LNR_Names: compute_list_norepet (prog_defs_names p) = true)
-      (ALGN: all_initializers_aligned p)
-      (HCS: cenv_cs = prog_comp_env p)
-      (HV: match_globvars (prog_vars p) V = true) ora MainPost
-      (Main: find_id (prog_main p) (Comp_G c) = Some (main_spec_ext' p ora MainPost)):
-      @semax_prog Espec cs p ora V (Comp_G c).
-Proof.
-  red. red. rewrite Main. intuition.
-  apply  Canonical_semax_func; trivial.
-  eexists; reflexivity.
-Qed.*)
 
 (*******************Material related to automation *****************************)
 
@@ -3257,17 +3528,7 @@ _SF_internal:
 Lemma SF_internal_sound {Espec cs V} {ge : Genv.t Clight.fundef type} G i f phi:
   SF_internal cs V ge G i f phi -> @SF Espec cs V ge G i (Internal f) phi.
 Proof. simpl; intros. inv H. red. intuition. Qed.
-(*
-Ltac semax_body_proof_to_SF P :=
-  clear; apply SF_internal_sound; eapply _SF_internal;
-   [ reflexivity 
-   | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
-   | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
-   | reflexivity 
-   | (*LookupID
-   | LookupB*)
-   | apply P].
-*)
+
 Ltac findentry := repeat try first [ left; reflexivity | right].
 
 Ltac finishComponent :=
@@ -3313,7 +3574,7 @@ Ltac mkComponent :=
     intros i H; 
     first [ repeat (destruct H; [subst; do 4 eexists; findentry; reflexivity  |]); contradiction
           | (*fail 99 "SC1"*)idtac ]
-  | apply compute_list_norepet_e; reflexivity
+  | reflexivity
   | apply compute_list_norepet_e; reflexivity
   | apply compute_list_norepet_e; reflexivity
   | let i := fresh in let H := fresh in 
@@ -3325,10 +3586,10 @@ Ltac mkComponent :=
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
   | let i := fresh "i" in let H := fresh in let H0 := fresh in 
     let phi := fresh "phi" in let fd := fresh "fd" in 
-    intros i phi fd H H0; simpl in H;
-    repeat (if_tac in H; [ inv H; inv H0 |     
-                          match goal with H1: i <> _ |- _ => clear H1 end]);
-    try discriminate; try SF_vacuous
+    intros i phi fd H H0;
+    apply PTree.elements_correct in H; revert H;
+    repeat apply or_ind; intro H; inv H; inv H0;
+    try SF_vacuous
   | finishComponent
   | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
   ].
@@ -3336,7 +3597,7 @@ Ltac mkComponent :=
  Ltac findentry_cautious := cbv.
 
  Ltac mkComponent_cautious :=
-  eapply VSU.Build_Component;
+  eapply Build_Component;
    [ intros i H; (first
       [ repeat (destruct H; [ subst; do 4 eexists; findentry_cautious; reflexivity |  ]); contradiction | idtac ])
    | apply compute_list_norepet_e; reflexivity
@@ -3344,14 +3605,14 @@ Ltac mkComponent :=
    | apply compute_list_norepet_e; reflexivity
    | intros i H; (first [ solve ltac:(contradiction) | simpl in H ]);
       repeat (destruct H; [ subst; do 4 eexists; reflexivity |  ]); try contradiction
-   | intros; (*simpl*)cbv; split; trivial; try (solve [ VSU.lookup_tac ])
+   | intros; (*simpl*)cbv; split; trivial; try (solve [ lookup_tac ])
    | apply compute_list_norepet_e; reflexivity
    | intros i H; (first [ solve ltac:(contradiction) | simpl in H ]); repeat (destruct H; [ subst; reflexivity |  ]);
       try contradiction
    | intros i phi fd H H0; simpl in H0;
      repeat (if_tac in H0; [ inv H0; cbv in H; inv H |  ]); try discriminate
      (*.intros i phi fd H H0; simpl in H; repeat (if_tac in H; [ inv H; inv H0 |  ]; try discriminate)*)
-   | VSU.finishComponent
+   | finishComponent
    | intros; (first [ solve [ apply derives_refl ] | solve [ reflexivity ] | solve [ simpl; cancel ] | idtac ]) ].
 
 Ltac solve_SF_internal P :=
@@ -3415,36 +3676,69 @@ Definition check_FDM_entry (Imports1 Imports2:funspecs)  x :=
   end.
 
 Lemma FDM {p1 p2 Imports1 Imports2}: forall entries,
-  FDM_entries (prog_funct p1) (prog_funct p2) = Some entries ->
+  FDM_entries (QPprog_funct p1) (QPprog_funct p2) = Some entries ->
   Forall (check_FDM_entry Imports1 Imports2) entries ->
   Fundefs_match p1 p2 Imports1 Imports2.
-Proof. red. forget (prog_funct p1) as funs1. forget (prog_funct p2) as funs2.
-  clear p1 p2. generalize dependent funs2. induction funs1; simpl; intros. discriminate.
-  destruct a as [j fdj].
-  remember (find_id j funs2) as J2; destruct J2; [ symmetry in HeqJ2 | ].
-  - remember (FDM_entries funs1 funs2) as entriesTL; destruct entriesTL; [inv H | discriminate].
-    symmetry in HeqentriesTL. inv H0. (*specialize (IHfuns1 _ _ HeqentriesTL H5).*)
-    if_tac in H1; subst.
-    + (*i=j*) 
-      clear IHfuns1. inv H1. rewrite HeqJ2 in H2; inv H2. simpl in H4.
-      destruct fd1; destruct fd2; trivial.
-      * destruct (find_id j Imports2); [ split; [ | exists f0]; trivial | contradiction].
-      * destruct (find_id j Imports1); [ split; [ | exists f0]; trivial | contradiction].
-    + eapply IHfuns1; eassumption.
-  - if_tac in H1; subst. congruence. eapply IHfuns1; eassumption. 
+Proof. 
+  intros.
+  hnf; intros.
+  unfold QPprog_funct in H.
+  rewrite <- find_id_elements in H1, H2.
+  forget (PTree.elements (QP.prog_defs p1)) as d1.
+  forget (PTree.elements (QP.prog_defs p2)) as d2.
+  clear p1 p2.
+  revert d2 H2 entries H H0; induction d1 as [|[j [?|?]]]; simpl; intros.
+  -
+   inv H. inv H1.
+  -
+    simpl in H1.
+    if_tac in H1.
+    +
+      subst j. inv H1.
+      assert (find_id i (QPprog_funct' d2) = Some fd2). {
+         clear - H2.
+         induction d2 as [|[??]]; simpl in *. inv H2.
+         if_tac in H2. inv H2. simpl. rewrite if_true by auto. auto.
+         apply IHd2 in H2. destruct g. simpl. rewrite if_false by auto; auto. auto.
+      }
+      rewrite H1 in H.
+      destruct (FDM_entries (QPprog_funct' d1) (QPprog_funct' d2)) eqn:?H; inv H.
+      inv H0. hnf in H5.
+      destruct fd1, fd2; auto.
+      destruct (find_id i Imports2) eqn:?H; try contradiction; eauto.
+      destruct (find_id i Imports1) eqn:?H; try contradiction; eauto.
+   +
+       specialize (IHd1 H1).
+       destruct (find_id j (QPprog_funct' d2)) eqn:?H.
+     *
+       destruct (FDM_entries (QPprog_funct' d1) (QPprog_funct' d2)) eqn:?H; inv H.
+       inv H0. eapply IHd1; eauto.
+     * eapply IHd1;  eauto.
+  -
+    simpl in H1.
+    if_tac in H1. inv H1.
+    eapply IHd1; eauto.
 Qed.
 
+(*
 Lemma FDM_complete {p1 p2 Imports1 Imports2}
   (FM: Fundefs_match p1 p2 Imports1 Imports2) 
-  (LNRp1:list_norepet (map fst (prog_defs p1))):
+(*  (LNRp1:list_norepet (map fst (prog_defs p1))) *):
   exists entries,
-  FDM_entries (prog_funct p1) (prog_funct p2) = Some entries /\
+  FDM_entries (QPprog_funct p1) (QPprog_funct p2) = Some entries /\
   Forall (check_FDM_entry Imports1 Imports2) entries.
-Proof. red in FM. remember (prog_funct p1) as funs1.
+Proof. rewrite Fundefs_match_eq in FM. 
+  remember (QPprog_funct p1) as funs1.
   assert (LNR1: list_norepet (map fst funs1)).
-  { subst. apply initialize.list_norepet_prog_funct'; trivial. }
-  forget (prog_funct p2) as funs2.
-  clear Heqfuns1 LNRp1 p1 p2. generalize dependent funs2.
+  {subst. clear. unfold QPprog_funct.
+   pose proof (PTree.elements_keys_norepet (QP.prog_defs p1)).
+   induction (PTree.elements (QP.prog_defs p1)). constructor.
+   inv H. destruct a,g; simpl; auto. constructor; auto.
+  contradict H2. clear - H2; induction l; simpl in *; auto.
+   destruct a,g; simpl in *; auto. destruct H2; auto.
+  }
+  forget (QPprog_funct p2) as funs2.
+  clear Heqfuns1 p1 p2. generalize dependent funs2.
   induction funs1; simpl; intros.
 - exists nil. split; auto.
 - destruct a as [i fi1]. inv LNR1.
@@ -3462,6 +3756,8 @@ Proof. red in FM. remember (prog_funct p1) as funs1.
     * destruct FMi as [? [phi2 X]]; rewrite X; trivial. 
     * destruct FMi as [? [phi2 X]]; rewrite X; trivial.
 Qed.
+
+*)
 
 Fixpoint FP_entries1 (funs1 funs2 funs: list (ident * fundef function)):=
   match funs1 with
@@ -3603,29 +3899,6 @@ Proof.
   apply in_app_or. forget (ids1 ++ ids2) as l. clear - H. destruct (in_dec peq i l); trivial; inv H.
 Qed.
 
-Lemma FP_entries_sound {p1 p2 p entries1 entries2}:
-  let funs1 := (prog_funct p1) in
-  let funs2 := (prog_funct p2) in
-  let funs := (prog_funct p) in
-  FP_entries1 funs1 funs2 funs = Some entries1 ->
-  Forall (fun x => fst x = snd x) entries1 ->
-  FP_entries2 (filter (fun x => (negb (in_dec peq (fst x) (map fst funs1)))) funs2)  funs = Some entries2 ->
-  Forall (fun x => fst x = snd x) entries2 ->
-  FP_entries_inv (map fst funs1) (map fst funs2) (map fst funs) = true ->
-  forall i, Functions_preserved p1 p2 p i.
-Proof. intros. subst funs1 funs2 funs.
-  specialize (FP_entries1_soundA H H0 i). clear H H0.
-  specialize (FP_entries2_soundA' H1 H2 i). clear H1 H2.
-  specialize (FP_entries_inv_sound H3 i). clear H3. intros.
-  red. unfold Functions_preserved_A in *.
-  remember (find_id i (prog_funct p1)) as q1; destruct q1. 1: eapply H1; reflexivity. symmetry in Heqq1.
-  remember (find_id i (prog_funct p2)) as q2; destruct q2. 1: eapply H0; reflexivity. symmetry in Heqq2.
-  apply assoclists.find_id_None_iff in Heqq1. apply assoclists.find_id_None_iff in Heqq2.
-  destruct (in_dec peq i (map fst (prog_funct p))).
-  + destruct (H i0) as [K | K]; contradiction.
-  + apply assoclists.find_id_None_iff; trivial.
-Qed.
-
 Lemma semaxfunc_Ext_elim {Espec cs V G ge funs specs} (Sfunc: @semaxfunc Espec cs V G ge funs specs):
    forall i ef argsig retsig cc phi, 
           find_id i funs = Some (External ef argsig retsig cc) ->
@@ -3682,14 +3955,7 @@ Module FunspecOrder <: Orders.TotalLeBool.
   Qed.
 End FunspecOrder.
 Module SortFunspec := Mergesort.Sort(FunspecOrder).
-(*
-Record SortedComponent {Espec V cs} Externs Imports p Exports G:= {
-  SC_component :> @Component Espec V cs Externs Imports p Exports G;
-  SC_sorted: (*G = SortFunspec.sort G*) Sorted.LocallySorted
-         (fun x x0 : ident * funspec =>
-          Datatypes.is_true
-            ((fun x1 y : ident * funspec => (fst x1 <=? fst y)%positive) x x0))  G
-}.*)
+
 Require Import VST.veric.initial_world.
 
 Lemma perm_In_map_fst {A}: forall {G:list (ident*A)} {G'} (P: Permutation G G') i,
@@ -3773,34 +4039,6 @@ Proof.
 apply perm_find_id; trivial.
 apply SortFunspec.Permuted_sort.
 Qed.
-(*
-Definition SortComponent {Espec V cs Externs Imports p Exports G} 
-           (C:@Component Espec V cs Externs Imports p Exports G):
-           @SortedComponent Espec V cs Externs Imports p Exports (SortFunspec.sort G).
-constructor; [ | apply SortFunspec.Sorted_sort || apply SortFunspec.LocallySorted_sort ].
-specialize (Comp_ctx_LNR C); intros DISJ.
-(*destruct C;*) unfold Comp_G in DISJ.
-constructor; trivial; try apply C; clear - C DISJ.
-+ intros. destruct (Comp_G_dom C i).
-  split; intros.
-  - apply H in H1. clear - C H1.
-    destruct (In_map_fst_find_id H1 (Comp_G_LNR C)) as [x Hx].
-    apply (@sort_In_map_fst G); trivial. 
-  - apply H0. clear - C H1.
-    apply sort_In_map_fst; trivial.
-+ apply (@sort_LNR G); apply C.
-+ intros. rewrite (Comp_G_E C _ H).
-  apply sort_find_id; apply C.
-+ intros. eapply SF_ctx_extensional.
-  - apply (Comp_G_justified C i phi fd). trivial. clear - H0 C.
-     rewrite (sort_find_id (Comp_G_LNR C)); trivial.
-  - apply DISJ.
-  - clear - DISJ C; intros. rewrite 2 find_id_app_char. 
-    rewrite (sort_find_id (Comp_G_LNR C)). trivial.
-+ intros. destruct (Comp_G_Exports C _ _ E) as [phi' [? ?]].
-  exists phi'; split; trivial. clear - H C.
-  rewrite <- (sort_find_id (Comp_G_LNR C)). trivial.
-Qed.*)
 
 Ltac prove_cspecs_sub := 
    try solve [split3; intros ?i; apply sub_option_get; repeat constructor].
@@ -3825,17 +4063,6 @@ Ltac ImportsDef_tac := first [ reflexivity | idtac ].
 Ltac ExportsDef_tac := first [ reflexivity | idtac ].
 Ltac domV_tac := compute; tauto.
 
-Ltac FunctionsPreserved_tac :=
-  eapply FP_entries_sound;
-  [ reflexivity
-  | solve [repeat constructor]
-  | reflexivity
-  | solve [repeat constructor]
-  | reflexivity ].
-Ltac FDM_tac := 
-  solve [eapply FDM; [ reflexivity | repeat constructor]];
-  fail "FDM_tac failed".
-
 Ltac find_id_subset_tac := simpl; intros ? ? H;
   repeat (if_tac in H; [ inv H; simpl; try reflexivity | ]); discriminate.
 
@@ -3851,8 +4078,8 @@ Ltac ComponentMerge C1 C2 :=
 | prove_cspecs_sub
 | first [ find_id_subset_tac | idtac]
 | first [ find_id_subset_tac | idtac]
-| FDM_tac
-| FunctionsPreserved_tac
+(*| FDM_tac *)
+(*| FunctionsPreserved_tac *)
 | list_disjoint_tac
 | list_disjoint_tac
 | ExternsHyp_tac
@@ -3875,50 +4102,49 @@ Ltac ComponentMerge C1 C2 :=
 | first [ find_id_subset_tac | idtac]
 ].
 
-Lemma VSU_ext {Espec V cs E Imp p Exp GP1 GP2}:
-      @VSU Espec V cs E Imp p Exp GP1 -> GP1=GP2 ->
-      @VSU Espec V cs E Imp p Exp GP2.
+Lemma VSU_ext {Espec E Imp Exp GP1 GP2}:
+      @VSU Espec E Imp Exp GP1 -> GP1=GP2 ->
+      @VSU Espec E Imp Exp GP2.
 Proof. intros; subst; trivial. Qed.
 
-Ltac VSULink_tac VSU1 VSU2 :=
-eapply VSU_ext;
-[ eapply (VSULink _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  VSU1 VSU2);
-[ list_disjoint_tac
-| list_disjoint_tac
-| list_disjoint_tac
-| list_disjoint_tac
-| list_disjoint_tac
-| LNR_tac
-| LNR_tac
-| prove_cspecs_sub
-| prove_cspecs_sub
-| first [ find_id_subset_tac | idtac]
-| first [ find_id_subset_tac | idtac]
+Ltac compute_QPlink_progs := 
+match goal with |- ?A = _ => 
+  let p1 := eval hnf in A in
+  lazymatch p1 with
+ | Errors.Error ?m => fail m
+ | Errors.OK ?p' => instantiate (1:=@abbreviate _ p'); reflexivity
+ | _ => fail "could not reduce QPlink_prog to hnf"
+ end
+end.
+
+Ltac FDM_tac := 
+  solve [eapply FDM; [ reflexivity | repeat constructor]];
+  fail "FDM_tac failed".
+
+Ltac VSULink_tac := 
+eapply VSULink;
+[ compute_QPlink_progs
 | FDM_tac
-| FunctionsPreserved_tac
 | list_disjoint_tac
 | list_disjoint_tac
-| ExternsHyp_tac
 | SC_tac
 | SC_tac
-| HImports_tac
-(*+  HContexts. This is the side condition we'd like to exliminate - it's also
-   why we need to define SubjectComponent/ObserverComponent using DEFINED
-  simpl; intros.
-  repeat (if_tac in H; [ inv H; inv H0 | ]). discriminate.*)
-| ImportsDef_tac
-| ExportsDef_tac
-| LNR_tac
-| LNR_tac
-| domV_tac
-| try (cbv; reflexivity)
-| try (cbv; reflexivity)
-| try (cbv; reflexivity)
-| first [ find_id_subset_tac | idtac]
-| first [ find_id_subset_tac | idtac]
-]
-|
-].
+| HImports_tac].
+
+Ltac linkVSUs v1 v2 :=
+  eapply (VSULink _ _ _ _ _ _ _ _ _ v1 v2);
+[ compute_QPlink_progs
+| FDM_tac
+| list_disjoint_tac
+| list_disjoint_tac
+| SC_tac
+| SC_tac
+| HImports_tac].
+
+Definition VSU_of_Component {Espec E Imports p Exports GP G}
+          (c: @Component Espec E Imports p Exports GP G) : 
+             @VSU Espec E Imports Exports GP :=
+  existT _ (p,G) c.
 
 Lemma progfunct_eq:SeparationLogic.prog_funct = prog_funct.
 Proof. reflexivity. Qed.
@@ -3986,55 +4212,70 @@ simpl.
 apply funspec_sub_refl.
 auto.
 Qed.
-(*
-Definition LinkedProgVSU {Espec V cs} E Imports p Exports :=
-  sigT (fun G => @CanonicalComponent Espec V cs E Imports p Exports G /\
-          exists post ora, find_id (prog_main p) G = 
-           Some (@main_spec_ext' (@OK_ty Espec) p ora post)).*)
-Record LinkedProgVSU {Espec V cs} E Imports p Exports GP := {
-  LP_G: funspecs;
-  LP_C: @CanonicalComponent Espec V cs E Imports p Exports GP LP_G;
-  LP_main: exists phi, find_id (prog_main p) LP_G = Some phi /\
-                      find_id (prog_main p) Exports = Some phi
-}.
-(*Alternative def that leads to univ inconsitency snce introduction of CompInitPred:
-Definition LinkedProgVSU {Espec V cs} E Imports p Exports :=
-  sigT (fun G => @CanonicalComponent Espec V cs E Imports p Exports G /\
-          exists phi, find_id (prog_main p) G = Some phi /\
-                      find_id (prog_main p) Exports = Some phi)
-*)
 
-Lemma LP_VSU_ext {Espec V cs E Imp p Exp GP1 GP2}:
-      @LinkedProgVSU Espec V cs E Imp p Exp GP1 -> GP1=GP2 ->
-      @LinkedProgVSU Espec V cs E Imp p Exp GP2.
+Record LinkedProgVSU {Espec} E Imports p Exports GP := {
+  LP_G: funspecs;
+  LP_C: @CanonicalComponent Espec E Imports p Exports GP LP_G;
+  LP_main: exists phi, find_id (QP.prog_main p) LP_G = Some phi /\
+                      find_id (QP.prog_main p) Exports = Some phi
+}.
+
+Lemma LP_VSU_ext {Espec E Imp p Exp GP1 GP2}:
+      @LinkedProgVSU Espec E Imp p Exp GP1 -> GP1=GP2 ->
+      @LinkedProgVSU Espec E Imp p Exp GP2.
 Proof. intros; subst; trivial. Qed.
 
-Lemma LP_VSU_entail {Espec V cs E Imp p Exp} GP1 GP2 : 
-      @LinkedProgVSU Espec V cs E Imp p Exp GP1 -> (forall gv, GP1 gv |-- GP2 gv) -> 
-      @LinkedProgVSU Espec V cs E Imp p Exp GP2.
+Lemma LP_VSU_entail {Espec E Imp p Exp} GP1 GP2 : 
+      @LinkedProgVSU Espec E Imp p Exp GP1 -> (forall gv, GP1 gv |-- GP2 gv) -> 
+      @LinkedProgVSU Espec E Imp p Exp GP2.
 Proof.
  intros. destruct X as [G C M].
- apply (Build_LinkedProgVSU _ _ _ _ _ _ _ _ _ (CanonicalComponent_entail _ _ C H) M).
+ apply (Build_LinkedProgVSU _ _ _ _ _ _ _ (CanonicalComponent_entail _ _ C H) M).
 Qed.
 
-Definition G_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP): funspecs.
-destruct vsu as [G CCM]. (*apply G.*) destruct CCM as [GG CC M]. apply GG. Defined. 
+Definition G_of_CanonicalVSU {Espec E Imports Exports GP}
+     (vsu: @CanonicalVSU Espec E Imports Exports GP): funspecs.
+destruct vsu as [pG CCM]. destruct CCM as [GG CC M]. apply GG. Defined. 
 
-Lemma G_of_CanonicalVSU_char {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
+Lemma G_of_CanonicalVSU_char {Espec E Imports Exports GP}
+        (vsu: @CanonicalVSU Espec E Imports Exports GP):
      map fst (G_of_CanonicalVSU vsu) = 
-                map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ map fst E))
-                        (prog_defs p)).
-Proof. destruct vsu as [G CCM]. simpl. destruct CCM as [GG CC M].
+                map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs (fst (projT1 vsu)) ++ map fst E))
+                        (PTree.elements (QP.prog_defs (fst (projT1 vsu))))).
+Proof. destruct vsu as [[p G] CCM]. simpl. destruct CCM as [GG CC M].
  destruct CC. unfold Comp_G in *. trivial. Qed.
 
-Lemma G_of_CanoncialVSU_justified {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
+Lemma G_of_CanoncialVSU_justified {Espec E Imports Exports GP}
+       (vsu: @CanonicalVSU Espec E Imports Exports GP):
        forall (i : ident) (phi : funspec) (fd : fundef function),
-       initial_world.find_id i (prog_funct p) = Some fd ->
+       initial_world.find_id i (QPprog_funct (fst (projT1 vsu))) = Some fd ->
        initial_world.find_id i (G_of_CanonicalVSU vsu) = Some phi -> 
-       @SF Espec cs V  (@Genv.globalenv (fundef function) type p) (Imports ++ (G_of_CanonicalVSU vsu)) i fd phi.
-Proof. intros. destruct vsu. apply (Comp_G_justified c _ _ _ H H0). Qed.
+       @SF Espec (Comp_cs (projT2 vsu)) (QPvarspecs (fst (projT1 vsu)))
+             (@QPglobalenv function (fst (projT1 vsu))) 
+             (Imports ++ (G_of_CanonicalVSU vsu)) i fd phi.
+Proof. intros. destruct vsu as [[p G] ?]. 
+ apply  (Comp_G_justified c).
+-
+ clear - H. simpl in *.
+ unfold QPprog_funct in H.
+ rewrite <- find_id_elements.
+ pose proof (PTree.elements_keys_norepet (QP.prog_defs p)).
+ induction  (PTree.elements (QP.prog_defs p)).
+ inv H.
+ inv H0.
+ destruct a,g.
+ simpl in *.
+ if_tac; subst. inv H; auto.
+ auto.
+ simpl in *. if_tac; auto. subst.
+ contradiction H3. clear - H.
+ induction l. inv H. destruct a,g; simpl in *; auto.
+ if_tac in H; auto; right; auto.
+- apply H0.
+Qed.
 
-Lemma LNR_G_of_CanoncialVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
+Lemma LNR_G_of_CanoncialVSU {Espec E Imports Exports GP}
+         (vsu: @CanonicalVSU Espec E Imports Exports GP):
       list_norepet (map fst (G_of_CanonicalVSU vsu)).
 Proof. intros. destruct vsu. apply (Comp_G_LNR c). Qed.
 
@@ -4044,21 +4285,11 @@ Proof. apply initialize.list_norepet_prog_funct'. Qed.
 
 Definition ExtIDs (p: Ctypes.program function): list ident := 
   map fst ((filter (fun x => negb (isInternal (snd x)))) (prog_defs p)).
-(*
-Definition InitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP)
-           : globals -> mpred.
-Proof. apply GP. (* destruct vsu as [G [GG CC M]]. eapply Comp_InitPred. apply CC.*) Defined.
 
-Lemma MkInitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
-      forall gv, InitGPred (Vardefs p) gv = InitPred_of_CanonicalVSU vsu gv.
-Proof. intros. destruct vsu as [G [GG CC M]]. simpl. apply (Comp_MkInitPred CC). Qed.*)
-(*
-Lemma MkInitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
-      forall gv, InitGPred (Vardefs p) gv |-- (GP gv * TT)%logic.
-Proof. destruct vsu as [G [GG CC M]]. apply (Comp_MkInitPred CC). Qed.*)
-Lemma MkInitPred_of_CanonicalVSU {Espec V cs E Imports p Exports GP} (vsu: @CanonicalVSU Espec V cs E Imports p Exports GP):
-      forall gv, globals_ok gv -> InitGPred (Vardefs p) gv |-- GP gv.
-Proof. destruct vsu as [G [GG CC M]]. apply (Comp_MkInitPred CC). Qed.
+Lemma MkInitPred_of_CanonicalVSU {Espec E Imports Exports GP} 
+       (vsu: @CanonicalVSU Espec E Imports Exports GP):
+      forall gv, globals_ok gv -> InitGPred (Vardefs (fst (projT1 vsu))) gv |-- GP gv.
+Proof. destruct vsu as [[p G] [GG CC M]]. apply (Comp_MkInitPred CC). Qed.
 
 Lemma global_is_headptr g i: isptr (globals_of_env g i) -> headptr (globals_of_env g i).
 Proof. unfold globals_of_env, headptr; simpl.
@@ -4185,20 +4416,16 @@ Qed.
 
 (*** Andrew's new stuff: *)
 
-
 Lemma globs_to_globvars:
  forall prog rho, 
-  Forall (fun ig => isptr (globals_of_env rho (fst ig))) (prog_vars prog) ->
- globvars2pred (globals_of_env rho) (prog_vars prog)
+  Forall (fun ig => isptr (globals_of_env rho (fst ig))) (QPprog_vars prog) ->
+ globvars2pred (globals_of_env rho) (QPprog_vars prog)
   |-- InitGPred (Vardefs prog) (globals_of_env rho).
 Proof.
 intros.
 unfold globvars2pred.
-simpl.
-Intros.
-unfold Vardefs.
-unfold prog_vars in *.
-induction (prog_defs prog).
+unfold QPprog_vars, Vardefs in *.
+induction (PTree.elements (QP.prog_defs prog)).
 simpl.
 apply derives_refl.
 simpl.
@@ -4219,46 +4446,73 @@ rewrite prop_true_andp by (apply global_is_headptr; auto).
 destruct (gvar_volatile v).
 apply derives_refl.
 clear H3 H2.
-forget (globals_of_env rho i) as g.
+forget (globals_of_env rho p) as g.
 change (initialize.readonly2share (gvar_readonly v))
   with (readonly2share (gvar_readonly v)).
 forget (readonly2share (gvar_readonly v)) as sh.
 revert g; induction (gvar_init v); intros; simpl; auto.
 Qed.
 
+Definition main_pre {Z: Type} (prog: QP.program function) (ora: Z) : globals -> argsEnviron -> mpred :=
+ (fun gv rho => 
+  !! (gv = initialize.genviron2globals (fst rho) /\ snd rho = []) &&
+   (globvars2pred gv (QPprog_vars prog) * has_ext ora))%logic.
+
+Definition main_pre_old {Z : Type} (prog : QP.program function) (ora : Z) 
+  (gv : globals) (rho : environ) :=
+ !! (gv = globals_of_env rho) &&
+   (globvars2pred gv (QPprog_vars prog) * has_ext ora)%logic.
+Locate close_precondition_main.
+
+(* Don't use this! 
+Lemma close_precondition_main {Z p ora gv}:
+close_precondition nil (@main_pre Z p ora gv) = @main_pre_old Z p ora gv.
+Proof.
+unfold close_precondition; extensionality rho.
+unfold main_pre, main_pre_old; simpl snd. 
+forget (QPprog_vars p) as vars. clear p.
+remember (globvars2pred gv vars) as G.
+apply pred_ext.
++ apply exp_left. intros vals. normalize.
++ Exists (@nil val). 
+  apply andp_right. apply prop_right; split; [trivial | constructor].
+  clear HeqG. normalize. rewrite prop_true_andp; auto.
+Qed.
+*)
 
 Lemma main_pre_InitGpred:
  forall globs (Espec: OracleKind) (cs: compspecs)  Delta prog1 prog2 Z (ext:Z) (gv: globals) R c Post
   (H1: globals_ok gv -> InitGPred (Vardefs prog1) gv |-- globs)
   (H: Vardefs prog1 = Vardefs prog2)
-  (H0: Forall (fun ig : ident * _ => isSome ((glob_types Delta) ! (fst ig))) (prog_vars prog2))
+  (H0: Forall (fun ig : ident * _ => isSome ((glob_types Delta) ! (fst ig))) (QPprog_vars prog2))
   (H2: semax Delta (sepcon (PROP ( )  LOCAL (gvars gv)  SEP (globs; has_ext ext)) R) c Post),
-  semax Delta (sepcon (@main_pre_old Z prog2 ext gv) R) c Post.
+  semax Delta (sepcon (close_precondition nil (@main_pre Z prog2 ext gv)) R) c Post.
 Proof.
 intros.
 rewrite H in H1. clear H prog1. rename H1 into H.
 eapply semax_pre; [ | apply H2]; clear H2.
-unfold main_pre_old, PROPx, LOCALx, SEPx, local, lift1.
+unfold main_pre, PROPx, LOCALx, SEPx, local, lift1.
 intro rho.
+unfold close_precondition.
 simpl. unfold_lift.
 normalize.
+clear H2 H3.
 rewrite prop_true_andp.
 2:{ split; auto. hnf. reflexivity. }
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
 eapply derives_trans; [ | apply H]; clear H.
 2:{
-clear. intro i. unfold globals_of_env.
-hnf.
-unfold globals_of_env.
+clear. intro i.
+unfold initialize.genviron2globals.
 destruct (Map.get (ge_of rho) i); auto.
 left; eexists; eauto.
 }
 unfold Vardefs, InitGPred.
 unfold SeparationLogic.prog_vars.
 clear - H0 H1.
-unfold Clight_initial_world.prog_vars in H0.
-induction (prog_defs prog2); simpl.
+unfold QPprog_vars in *.
+induction (PTree.elements (QP.prog_defs prog2)); simpl.
 auto.
 destruct a.
 simpl in H0.
@@ -4269,40 +4523,59 @@ rewrite prop_true_andp; auto.
 clear - H1 H3.
 destruct H1 as [_ [_ ?]].
 simpl in *.
-specialize (H i).
-destruct ((glob_types Delta) ! i); inv H3.
+specialize (H p).
+destruct ((glob_types Delta) ! p); inv H3.
 specialize (H _ (eq_refl _)) as [b ?].
-unfold globals_of_env.
+unfold initialize.genviron2globals.
 rewrite H.
 exists b; auto.
 Qed.
 
-Definition VSU_MkInitPred {Espec V cs E Imports p Exports GP} 
-  (vsu: @VSU Espec V cs E Imports p Exports GP) 
-  (gv: globals) : globals_ok gv -> InitGPred (Vardefs p) gv |-- (GP gv) :=
-let (x, c) := vsu in
-match c with
-| {| Comp_MkInitPred := Comp_MkInitPred |} => Comp_MkInitPred gv
-end.
+Definition VSU_MkInitPred {Espec E Imports Exports GP} 
+  (vsu: @VSU Espec E Imports Exports GP) 
+  (gv: globals) : globals_ok gv -> InitGPred (Vardefs (fst (projT1 vsu))) gv |-- (GP gv) :=
+  Comp_MkInitPred (projT2 vsu) gv.
 
 Ltac report_failure :=
  match goal with |- ?G => fail 99 "expand_main_pre_new failed with goal" G end.
 
+Ltac unfold_all R :=
+ match R with
+ | sepcon ?a ?ar => let b := unfold_all a in
+                      let br := unfold_all ar in
+                      constr:(sepcon b br)
+ | ?a => let x := eval unfold a in a in unfold_all x
+ | ?a => constr:(a)
+ end.
+
 Ltac expand_main_pre_VSU :=
   match goal with
-  | vsu: VSU _ _ _ _ _ |- _ => 
+  | vsu: VSU _ _ _ _ |- _ => 
     eapply main_pre_InitGpred; 
         [ try apply (VSU_MkInitPred vsu); report_failure
-        | try (unfold Vardefs; simpl; reflexivity); report_failure
+        | try reflexivity; report_failure
         | try solve [repeat constructor]; report_failure
-        | ]
-  | vsu: VSU _ _ _ _ _ |- _ =>  report_failure
+        |  ];
+     clear vsu;
+     match goal with
+      |- semax _ (PROPx _ (LOCALx _ (SEPx ((emp * emp * ?R) _ :: _))) * _)%logic _ _ =>
+        let x := unfold_all R in change R with x
+     end
+  | vsu: VSU _ _ _ _ |- _ =>  report_failure
   | |- _ => expand_main_pre_old
   end.
 
 Ltac expand_main_pre ::= 
    expand_main_pre_VSU.
 
+Ltac start_function2 ::=
+  first [ erewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
+        | rewrite close_precondition_main
+        | match goal with |- semax (func_tycontext _ ?V ?G _) 
+              (close_precondition _ (main_pre _ _ _) * _)%logic _ _ =>
+                  let x := eval hnf in V in change V with x 
+          end
+        ].
 
 Fixpoint vardefs_to_globvars (vdefs: list (ident * globdef (fundef function) type)) :
     list (ident * globvar type) :=

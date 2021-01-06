@@ -1210,23 +1210,23 @@ Section eq_dec.
   Let eq_dec_int64 := Int64.eq_dec.
   Let eq_dec_ident := ident_eq.
   Let eq_dec_signature := signature_eq.
-  Let eq_dec_attr : EqDec attr. repeat t. Qed.
-  Let eq_dec_signedness : EqDec signedness. t. Qed.
-  Let eq_dec_intsize : EqDec intsize. t. Qed.
-  Let eq_dec_floatsize : EqDec floatsize. t. Qed.
-  Let eq_dec_Z : EqDec Z. repeat t. Qed.
-  Let eq_dec_calling_convention : EqDec calling_convention. repeat t. Qed.
-  Lemma eq_dec_external_function : EqDec external_function. repeat t. Qed.
+  Let eq_dec_attr : EqDec attr. repeat t. Defined.
+  Let eq_dec_signedness : EqDec signedness. t. Defined.
+  Let eq_dec_intsize : EqDec intsize. t. Defined.
+  Let eq_dec_floatsize : EqDec floatsize. t. Defined.
+  Let eq_dec_Z : EqDec Z. repeat t. Defined.
+  Let eq_dec_calling_convention : EqDec calling_convention. repeat t. Defined.
+  Lemma eq_dec_external_function : EqDec external_function. repeat t. Defined.
   Let eq_dec_option_ident := option_eq (ident_eq).
-  Let eq_dec_option_Z : EqDec (option Z). repeat t. Qed.
-  Let eq_dec_typelist : EqDec typelist. repeat t. Qed.
+  Let eq_dec_option_Z : EqDec (option Z). repeat t. Defined.
+  Let eq_dec_typelist : EqDec typelist. repeat t. Defined.
 
   Lemma eq_dec_expr : EqDec expr.
-  Proof. repeat t. Qed.
+  Proof. repeat t. Defined.
 
   Let eq_dec_expr := eq_dec_expr.
-  Let eq_dec_option_expr : EqDec (option expr). repeat t. Qed.
-  Let eq_dec_list_expr : EqDec (list expr). repeat t. Qed.
+  Let eq_dec_option_expr : EqDec (option expr). repeat t. Defined.
+  Let eq_dec_list_expr : EqDec (list expr). repeat t. Defined.
 
   Local Ltac eq_dec a a' :=
     let H := fresh in
@@ -1255,13 +1255,13 @@ Section eq_dec.
         | |- context [ ?x ?y ?a _  _  = ?x ?y ?b _  _  ] => eq_dec a b
         | |- context [ ?x ?a _  _  _  = ?x ?b _  _  _  ] => eq_dec a b
         end.
-  Qed.
+  Defined.
 
   Lemma eq_dec_labeled_statements : forall l l' : labeled_statements, { l = l' } + { l <> l' }.
   Proof.
     decide equality.
     apply eq_dec_statement.
-  Qed.
+  Defined.
 
 End eq_dec.
 

@@ -4240,6 +4240,10 @@ Ltac start_function1 :=
 Ltac expand_main_pre := expand_main_pre_old.
 
 Ltac start_function2 :=
+  first [ erewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
+        | rewrite close_precondition_main ].
+
+Ltac start_function3 :=
 (*NEW simpl map;*) simpl app;
  simplify_func_tycontext;
  repeat match goal with
@@ -4279,9 +4283,8 @@ Ltac start_function2 :=
 
 Ltac start_function :=
   start_function1;
-  first [ erewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
-        | rewrite close_precondition_main ];
-  start_function2.
+  start_function2; 
+  start_function3.
 
 Opaque sepcon.
 Opaque emp.
