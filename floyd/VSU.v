@@ -3568,13 +3568,124 @@ Ltac SF_vacuous :=
   split3; [reflexivity | reflexivity | intros ];
   apply semax_vacuous.
 
-Ltac mkComponent := 
-  eapply Build_Component;
+Lemma compspecs_ext:
+ forall cs1 cs2 : compspecs,
+ @cenv_cs cs1 = @cenv_cs cs2 ->
+ @ha_env_cs cs1 = @ha_env_cs cs2 ->
+ @la_env_cs cs1 = @la_env_cs cs2 ->
+ cs1 = cs2.
+Proof.
+intros.
+destruct cs1,cs2.
+simpl in *; subst.
+f_equal; apply proof_irr.
+Qed.
+
+Record compositeData :=
+  { cco_su : struct_or_union;
+    cco_members : members;
+    cco_attr : attr;
+    cco_sizeof : Z;
+    cco_alignof : Z;
+    cco_rank : nat }.
+
+Definition getCompositeData (c:composite):compositeData. destruct c.
+apply (Build_compositeData co_su co_members co_attr co_sizeof co_alignof co_rank).
+Defined.
+
+Lemma composite_env_ext:
+ forall ce1 ce2, 
+ PTree.map1 getCompositeData ce1 =
+ PTree.map1 getCompositeData ce2 ->
+ ce1 = ce2.
+Proof.
+induction ce1; destruct ce2; simpl; intros; auto; try discriminate.
+inv H.
+f_equal; auto.
+destruct o,o0; inv H2; auto.
+clear - H0.
+f_equal.
+destruct c,c0; inv H0; simpl in *; subst; f_equal; apply proof_irr.
+Qed.
+
+Definition compspecs_of_QPprogram (prog: Clight.program)
+          ha_env la_env OK :=
+compspecs_of_QPcomposite_env
+  (QP.prog_comp_env
+     (QPprogram_of_program prog ha_env la_env)) OK.
+
+Lemma compspecs_eq_of_QPcomposite_env:
+forall cs (prog: Clight.program) OK,
+ PTree.map1 getCompositeData (@cenv_cs cs) =
+ PTree.map1 getCompositeData (prog_comp_env prog) ->
+ PTree_samedom  (@cenv_cs cs) (@ha_env_cs cs) ->
+ PTree_samedom  (@cenv_cs cs) (@la_env_cs cs) ->
+ cs = compspecs_of_QPprogram prog (@ha_env_cs cs) (@la_env_cs cs) OK.
+Proof.
+intros.
+assert (@cenv_cs cs = prog_comp_env prog)
+ by (apply composite_env_ext; auto).
+destruct OK as [? [? [? [? [? [? ?]]]]]].
+simpl.
+apply compspecs_ext; simpl.
+clear - H0 H1 H2.
+unfold QPprogram_of_program in x.
+simpl in x.
+forget (prog_comp_env prog) as ce.
+clear prog.
+subst ce.
+rewrite composite_env_of_QPcomposite_env_of_composite_env. auto.
+apply PTree_samedom_domain_eq; auto.
+apply PTree_samedom_domain_eq; auto.
+unfold QPcomposite_env_of_composite_env.
+rewrite PTree_map1_map3.
+symmetry; apply PTree_map3_2; rewrite <- H2; auto.
+unfold QPcomposite_env_of_composite_env.
+rewrite PTree_map1_map3.
+symmetry; apply PTree_map3_3; rewrite <- H2; auto.
+Qed.
+
+Lemma QPcompspecs_OK_i':
+ forall (cs: compspecs) ce, 
+ ce = @cenv_cs cs ->
+ @PTree_samedom composite Z (@cenv_cs cs) (@ha_env_cs cs) ->
+ @PTree_samedom composite legal_alignas_obs (@cenv_cs cs) (@la_env_cs cs) ->
+ QPcompspecs_OK
+    (QPcomposite_env_of_composite_env ce (@ha_env_cs cs) (@la_env_cs cs)).
+Proof.
+intros.
+subst.
+apply QPcompspecs_OK_i; auto.
+Qed.
+
+Ltac mkVSU prog internal_specs := 
+ lazymatch goal with |- VSU _ _ _ _ => idtac
+  | _ => fail "mkVSU must be applied to a VSU goal"
+ end;
+ exists (QPprogram_of_program prog ha_env_cs la_env_cs,
+            internal_specs);
+ unfold fst at 1; unfold snd at 1;
+ let HA := fresh "HA" in 
+   assert (HA: PTree_samedom cenv_cs ha_env_cs) by repeat constructor;
+ let LA := fresh "LA" in 
+   assert (LA: PTree_samedom cenv_cs la_env_cs) by repeat constructor;
+ let OK := fresh "OK" in
+ assert (OK: QPprogram_OK (QPprogram_of_program prog ha_env_cs la_env_cs));
+ [split; [apply compute_list_norepet_e; reflexivity | ];
+   apply @QPcompspecs_OK_i';
+   [ apply composite_env_ext; repeat constructor | assumption | assumption ]
+ | ];
+ let CSeq := fresh "CSeq" in
+ assert (CSeq: _ = compspecs_of_QPprogram prog _ _ (proj2 OK))
+   by (apply compspecs_eq_of_QPcomposite_env;
+          [reflexivity | assumption | assumption]);
+ set (cs := compspecs_of_QPprogram prog _ _ (proj2 OK)) in *;
+ clear LA HA;
+exists OK;
   [ let i := fresh in let H := fresh in 
     intros i H; 
     first [ repeat (destruct H; [subst; do 4 eexists; findentry; reflexivity  |]); contradiction
           | (*fail 99 "SC1"*)idtac ]
-  | reflexivity
   | apply compute_list_norepet_e; reflexivity
   | apply compute_list_norepet_e; reflexivity
   | let i := fresh in let H := fresh in 
@@ -3582,18 +3693,24 @@ Ltac mkComponent :=
     repeat (destruct H; [ subst; do 4 eexists; reflexivity |]); try contradiction
   | intros; simpl; split; trivial; try solve [lookup_tac]
   | apply compute_list_norepet_e; reflexivity
-  | intros i H; first [ solve contradiction | simpl in H];
+  | let i := fresh in let H := fresh in 
+    intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
   | let i := fresh "i" in let H := fresh in let H0 := fresh in 
     let phi := fresh "phi" in let fd := fresh "fd" in 
     intros i phi fd H H0;
     apply PTree.elements_correct in H; revert H;
     repeat apply or_ind; intro H; inv H; inv H0;
-    try SF_vacuous
+    try SF_vacuous;
+    clear - CSeq
   | finishComponent
   | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
   ].
 
+Definition Vardefs' {cs: compspecs} (prog: Clight.program) := 
+      (Vardefs (QPprogram_of_program prog ha_env_cs la_env_cs)).
+
+(*
  Ltac findentry_cautious := cbv.
 
  Ltac mkComponent_cautious :=
@@ -3614,18 +3731,23 @@ Ltac mkComponent :=
      (*.intros i phi fd H H0; simpl in H; repeat (if_tac in H; [ inv H; inv H0 |  ]; try discriminate)*)
    | finishComponent
    | intros; (first [ solve [ apply derives_refl ] | solve [ reflexivity ] | solve [ simpl; cancel ] | idtac ]) ].
+*)
 
 Ltac solve_SF_internal P :=
-  clear; apply SF_internal_sound; eapply _SF_internal;
+  apply SF_internal_sound; eapply _SF_internal;
    [  reflexivity 
    | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
    | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
    | reflexivity
-   | apply P
+   | match goal with OK: QPprogram_OK _, CSeq: @eq compspecs _ ?cs |- _ =>
+       change (compspecs_of_QPcomposite_env _ _) with cs; rewrite <- CSeq;
+       clear cs CSeq OK
+     end;
+     apply P
    | eexists; split; [ LookupID | LookupB ]
    ].
 
-(*slihgtly slower*)
+(*slightly slower*)
 Ltac solve_SF_external_with_intuition B :=
    first [simpl; split; intuition; [ try solve [entailer!] | try apply B | eexists; split; cbv; reflexivity ] | idtac].
 
