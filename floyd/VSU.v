@@ -484,10 +484,11 @@ Record Component {Espec:OracleKind}
   Comp_MkInitPred: forall gv,   globals_ok gv -> InitGPred (Vardefs p) gv |-- GP gv
 }.
 
+Definition Comp_prog {Espec E Imports p Exports GP G} (c:@Component Espec E Imports p Exports GP G):= p.
 Definition Comp_G {Espec E Imports p Exports GP G} (c:@Component Espec E Imports p Exports GP G):= G.
 
-Definition VSU {Espec} E Imports Exports GP:=
-  sigT (fun pG => @Component Espec E Imports (fst pG) Exports GP (snd pG)).
+Definition VSU {Espec} E Imports p Exports GP:=
+  sigT (fun G => @Component Espec E Imports p Exports GP G).
  
 Arguments Comp_Imports_external {Espec E Imports p Exports GP G} c.
 Arguments Comp_prog_OK {Espec E Imports p Exports GP G} c.
@@ -833,29 +834,30 @@ Arguments Comp_entail {Espec E Imports p Exports GP G} c.
 Section VSU_rules.
 Variable Espec: OracleKind.
 Variable E Imports: funspecs.
+Variable p : QP.program Clight.function.
 Variable Exports: funspecs.
 Variable GP: globals -> mpred.
-Variable vsu: @VSU Espec E Imports Exports GP.
+Variable vsu: @VSU Espec E Imports p Exports GP.
 
 Lemma VSU_Imports_sub Imports' (HI1: map fst Imports' = map fst Imports)
       (HI2: Forall2 funspec_sub (map snd Imports') (map snd Imports)): 
-      @VSU Espec E Imports' Exports GP.
-Proof. destruct vsu as [[p G] c]. exists (p,G). eapply Comp_Imports_sub; eassumption. Qed.
+      @VSU Espec E Imports' p Exports GP.
+Proof. destruct vsu as [G c]. exists G. eapply Comp_Imports_sub; eassumption. Qed.
 
 Lemma VSU_Exports_sub1 Exports' (HE1: map fst Exports' = map fst Exports)
       (HE2: Forall2 funspec_sub (map snd Exports) (map snd Exports')):
-      @VSU Espec E Imports Exports' GP.
-Proof. destruct vsu as [[p G] c]. exists (p,G). eapply Comp_Exports_sub1; eassumption. Qed.
+      @VSU Espec E Imports p Exports' GP.
+Proof. destruct vsu as [G c]. exists G. eapply Comp_Exports_sub1; eassumption. Qed.
 
 Lemma VSU_Exports_sub Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: funspecs_sqsub Exports Exports'):
-      @VSU Espec E Imports Exports' GP.
-Proof. destruct vsu as [pG c]. exists pG. eapply Comp_Exports_sub; eassumption. Qed.
+      @VSU Espec E Imports p Exports' GP.
+Proof. destruct vsu as [G c]. exists G. eapply Comp_Exports_sub; eassumption. Qed.
 
 Lemma VSU_entail {GP'} : (forall gv, GP gv |-- GP' gv) -> 
-      @VSU Espec E Imports Exports GP'.
-Proof. intros. destruct vsu as [[p G] C].
-  exists (p,G). apply (Comp_entail C _ H).
+      @VSU Espec E Imports p Exports GP'.
+Proof. intros. destruct vsu as [G C].
+  exists G. apply (Comp_entail C _ H).
 Qed.
 
 End VSU_rules.
@@ -2913,64 +2915,71 @@ Qed.
 
 End ComponentJoin.
 
-Section VSULink.
+Definition VSULink_Imports 
+ {Espec E1 Imports1 p1 Exports1 GP1 E2 Imports2 p2 Exports2 GP2}
+  (vsu1: @VSU Espec E1 Imports1 p1 Exports1 GP1)
+  (vsu2: @VSU Espec E2 Imports2 p2 Exports2 GP2)  := 
+      filter (fun x => negb (in_dec ident_eq (fst x) (map fst E2 ++ IntIDs p2))) Imports1 ++
+      filter (fun x => negb (in_dec ident_eq (fst x) (map fst E1 ++ IntIDs p1 ++ map fst Imports1))) Imports2.
 
-Variable Espec: OracleKind.
-Variable E1 Imports1 Exports1 E2 Imports2 Exports2 Imports Exports: funspecs.
-Variable GP1 GP2: globals -> mpred.
-Variable vsu1: @VSU Espec E1 Imports1 Exports1 GP1.
-Variable vsu2: @VSU Espec E2 Imports2 Exports2 GP2.
-
-Variable p : QP.program Clight.function.
-Let p1 := fst (projT1 vsu1).
-Let p2 := fst (projT1 vsu2).
-Variable Linked : QPlink_progs p1 p2 = Errors.OK p.
-
-Variable FundefsMatch: Fundefs_match p1 p2 Imports1 Imports2.
-
-Definition HC' := HContexts (projT2 vsu1) (projT2 vsu2) Linked FundefsMatch.
-
-(********************Assumptions involving E1 and E2  ********)
-
-Variable Externs1_Hyp: list_disjoint (map fst E1) (IntIDs p2).
-Variable Externs2_Hyp: list_disjoint (map fst E2) (IntIDs p1).
-
-(************************************************************)
-
-(*one could try to weaken this hypothesis by weakening the second condition to In i (IntIDs p1),
-  so that it is possible to delay resolving the spec for an extern in case several modules prove (mergaable but different) specs for it. The present cluase forces one to use match with the first spec one finds*)
-Variable SC1: forall i phiI, find_id i Imports2 = Some phiI -> In i (map fst E1 ++ IntIDs p1) ->
-              exists phiE, find_id i Exports1 = Some phiE /\ funspec_sub phiE phiI.
-
-(*same comment here*)
-Variable SC2: forall i phiI, find_id i Imports1 = Some phiI -> In i (map fst E2 ++ IntIDs p2) ->
-                          exists phiE, find_id i Exports2 = Some phiE /\ funspec_sub phiE phiI.
-
-Variable HImports: forall i phi1 phi2, find_id i Imports1 = Some phi1 -> find_id i Imports2 = Some phi2 -> phi1=phi2.
-
-Definition VSULink_Imports := 
-                     filter (fun x => negb (in_dec ident_eq (fst x) (map fst E2 ++ IntIDs p2))) Imports1 ++
-                     filter (fun x => negb (in_dec ident_eq (fst x) (map fst E1 ++ IntIDs p1 ++ map fst Imports1))) Imports2.
-
-Lemma VSULink: @VSU Espec (G_merge E1 E2) VSULink_Imports  (G_merge Exports1 Exports2) (GP1 * GP2)%logic.
+Lemma VSULink 
+ {Espec E1 Imports1 p1 Exports1 GP1 E2 Imports2 p2 Exports2 GP2}
+  (vsu1: @VSU Espec E1 Imports1 p1 Exports1 GP1)
+  (vsu2: @VSU Espec E2 Imports2 p2 Exports2 GP2) 
+ (p : QP.program Clight.function)
+ (Linked : QPlink_progs p1 p2 = Errors.OK p)
+ (FundefsMatch: Fundefs_match p1 p2 Imports1 Imports2)
+ (Externs1_Hyp: list_disjoint (map fst E1) (IntIDs p2))
+ (Externs2_Hyp: list_disjoint (map fst E2) (IntIDs p1))
+ (*one could try to weaken this hypothesis by weakening the second condition to In i (IntIDs p1),
+    so that it is possible to delay resolving the spec for an extern in case several modules prove (mergaable but different) specs for it. The present cluase forces one to use match with the first spec one finds*)
+ (SC1: forall i phiI, find_id i Imports2 = Some phiI -> In i (map fst E1 ++ IntIDs p1) ->
+              exists phiE, find_id i Exports1 = Some phiE /\ funspec_sub phiE phiI)
+   (*same comment here*)
+ (SC2: forall i phiI, find_id i Imports1 = Some phiI -> In i (map fst E2 ++ IntIDs p2) ->
+                          exists phiE, find_id i Exports2 = Some phiE /\ funspec_sub phiE phiI)
+ (HImports: forall i phi1 phi2, find_id i Imports1 = Some phi1 -> find_id i Imports2 = Some phi2 -> phi1=phi2) :
+ @VSU Espec (G_merge E1 E2) (VSULink_Imports vsu1 vsu2) p (G_merge Exports1 Exports2) (GP1 * GP2)%logic.
 Proof.
-  exists  (p, G_merge (Comp_G (projT2 vsu1)) (Comp_G (projT2 vsu2))).
+  exists  (G_merge (Comp_G (projT2 vsu1)) (Comp_G (projT2 vsu2))).
   apply ComponentJoin; trivial.
-Defined.
+Qed.
 
-End VSULink.
-
-Arguments VSULink_Imports {Espec E1 Imports1 Exports1 E2 Imports2 Exports2 GP1 GP2} vsu1 vsu2.
-
-Definition VSULinked {Espec: OracleKind} 
-    {E1 E2 Imports1 Imports2: funspecs}
-    {Exports1 Exports2: funspecs}
-    {GP1 GP2: globals -> mpred}
-    (v1: @VSU Espec E1 Imports1 Exports1 GP1)
-    (v2: @VSU Espec E2 Imports2 Exports2 GP2) :=
-    @VSU Espec (G_merge E1 E2)
-          (VSULink_Imports v1 v2)
-           (G_merge Exports1 Exports2) (GP1 * GP2)%logic.
+Lemma VSULink': 
+    forall Espec E1 Imports1 p1 Exports1 E2 Imports2 p2 Exports2
+         GP1 GP2
+         (vsu1 : @VSU Espec E1 Imports1 p1 Exports1 GP1)
+         (vsu2 : @VSU Espec E2 Imports2 p2 Exports2 GP2)
+         E Imports p Exports,
+       E = G_merge E1 E2 ->
+       Imports = VSULink_Imports vsu1 vsu2 ->
+       Exports = G_merge Exports1 Exports2 ->
+       QPlink_progs p1 p2 = Errors.OK p ->
+       Fundefs_match p1 p2 Imports1 Imports2 ->
+       list_disjoint (map fst E1) (IntIDs p2) ->
+       list_disjoint (map fst E2) (IntIDs p1) ->
+       (forall (i : ident) (phiI : funspec),
+        initial_world.find_id i Imports2 = Some phiI ->
+        In i (map fst E1 ++ IntIDs p1) ->
+        exists phiE : funspec,
+          initial_world.find_id i Exports1 = Some phiE /\
+          funspec_sub phiE phiI) ->
+       (forall (i : ident) (phiI : funspec),
+        initial_world.find_id i Imports1 = Some phiI ->
+        In i (map fst E2 ++ IntIDs p2) ->
+        exists phiE : funspec,
+          initial_world.find_id i Exports2 = Some phiE /\
+          funspec_sub phiE phiI) ->
+       (forall (i : ident) (phi1 phi2 : funspec),
+        initial_world.find_id i Imports1 = Some phi1 ->
+        initial_world.find_id i Imports2 = Some phi2 ->
+        phi1 = phi2) ->
+       VSU E Imports p Exports (GP1 * GP2)%logic.
+Proof.
+intros.
+subst.
+eapply VSULink; try eassumption.
+Qed.
 
 Lemma SF_ctx_subsumption {Espec} V G ge i fd phi cs
   (HSF:  @SF Espec cs V ge G i fd phi)
@@ -3283,23 +3292,23 @@ Proof.
   intros. eapply Build_CanonicalComponent_M. apply (CanonicalComponent_entail _ _ X H). apply X.
 Defined.
 
-Definition CanonicalVSU {Espec} E Imports Exports GP :=
-  sigT (fun pG => @CanonicalComponent_M Espec E Imports (fst pG) Exports GP (snd pG)).
+Definition CanonicalVSU {Espec} E Imports p Exports GP :=
+  sigT (fun G => @CanonicalComponent_M Espec E Imports p Exports GP G).
 
-Lemma VSU_to_CanonicalVSU {Espec Ext Imp Exp GP} 
-        (vsu: @VSU Espec Ext Imp Exp GP):
-      @CanonicalVSU Espec Ext Imp Exp GP.
+Lemma VSU_to_CanonicalVSU {Espec Ext Imp p Exp GP} 
+        (vsu: @VSU Espec Ext Imp p Exp GP):
+      @CanonicalVSU Espec Ext Imp p Exp GP.
 Proof.
-  destruct vsu as [pGG c]. remember (Comp_to_CanComp c) as CC. destruct CC as [G C M]. clear HeqCC.
-  exists pGG. econstructor. apply C. trivial.
-Defined.
+  destruct vsu as [GG c]. remember (Comp_to_CanComp c) as CC. destruct CC as [G C M]. clear HeqCC.
+  exists GG. econstructor. apply C. trivial.
+Qed.
 
-Lemma CanonicalVSU_entail {Espec E Imp Exp} GP1 GP2 : 
-      @CanonicalVSU Espec E Imp Exp GP1 -> (forall gv, GP1 gv |-- GP2 gv) -> 
-      @CanonicalVSU Espec E Imp Exp GP2.
-Proof. intros. destruct X as [pG C].
-  exists pG. apply (CanonicalComponent_M_entail _ _ C H).
-Defined.
+Lemma CanonicalVSU_entail {Espec E Imp p Exp} GP1 GP2 : 
+      @CanonicalVSU Espec E Imp p Exp GP1 -> (forall gv, GP1 gv |-- GP2 gv) -> 
+      @CanonicalVSU Espec E Imp p Exp GP2.
+Proof. intros. destruct X as [G C].
+  exists G. apply (CanonicalComponent_M_entail _ _ C H).
+Qed.
 
 Inductive semaxfunc {Espec} {cs : compspecs} (V : varspecs) (G : funspecs) (ge : Genv.t Clight.fundef type):
   list (ident * Clight.fundef) -> funspecs -> Prop :=
@@ -3608,6 +3617,9 @@ f_equal.
 destruct c,c0; inv H0; simpl in *; subst; f_equal; apply proof_irr.
 Qed.
 
+Definition QPprog {cs: compspecs} (p: Clight.program) :=
+  QPprogram_of_program p ha_env_cs la_env_cs.
+
 Definition compspecs_of_QPprogram (prog: Clight.program)
           ha_env la_env OK :=
 compspecs_of_QPcomposite_env
@@ -3646,42 +3658,58 @@ symmetry; apply PTree_map3_3; rewrite <- H2; auto.
 Qed.
 
 Lemma QPcompspecs_OK_i':
- forall (cs: compspecs) ce, 
+ forall (cs: compspecs) ce ha la, 
  ce = @cenv_cs cs ->
- @PTree_samedom composite Z (@cenv_cs cs) (@ha_env_cs cs) ->
- @PTree_samedom composite legal_alignas_obs (@cenv_cs cs) (@la_env_cs cs) ->
+ ha = @ha_env_cs cs ->
+ la = @la_env_cs cs ->
+ @PTree_samedom composite Z ce ha->
+ @PTree_samedom composite legal_alignas_obs ce la ->
  QPcompspecs_OK
-    (QPcomposite_env_of_composite_env ce (@ha_env_cs cs) (@la_env_cs cs)).
+    (QPcomposite_env_of_composite_env ce ha la).
 Proof.
 intros.
 subst.
 apply QPcompspecs_OK_i; auto.
 Qed.
 
-Ltac mkVSU prog internal_specs := 
- lazymatch goal with |- VSU _ _ _ _ => idtac
-  | _ => fail "mkVSU must be applied to a VSU goal"
- end;
- exists (QPprogram_of_program prog ha_env_cs la_env_cs,
-            internal_specs);
- unfold fst at 1; unfold snd at 1;
+Ltac decompose_in_elements H :=
+match type of H with
+ | (?i,_)=_ \/ _ => 
+   destruct H as [H|H];
+   [let j := eval compute in i in change i with j in H;
+                injection H; clear H; intros; subst 
+  | decompose_in_elements H ]
+ | False => contradiction H
+ | _ => idtac
+ end.
+
+Fixpoint fold_ident {A} (i: positive) (al: list (ident * A)) : ident :=
+ match al with
+ | (j,_)::al' => if Pos.eqb i j then j else fold_ident i al'
+ | nil => i
+end.
+
+Ltac mkComponent prog :=
+ let p := fresh "p" in
+ match goal with |- @Component _ _ _ ?pp _ _ _ => set (p:=pp) end;
  let HA := fresh "HA" in 
    assert (HA: PTree_samedom cenv_cs ha_env_cs) by repeat constructor;
  let LA := fresh "LA" in 
    assert (LA: PTree_samedom cenv_cs la_env_cs) by repeat constructor;
  let OK := fresh "OK" in
- assert (OK: QPprogram_OK (QPprogram_of_program prog ha_env_cs la_env_cs));
+ assert (OK: QPprogram_OK p);
  [split; [apply compute_list_norepet_e; reflexivity | ];
-   apply @QPcompspecs_OK_i';
-   [ apply composite_env_ext; repeat constructor | assumption | assumption ]
+   simpl;
+   simple apply (QPcompspecs_OK_i' _);
+   [ apply composite_env_ext; repeat constructor | reflexivity | reflexivity | assumption | assumption ]
  | ];
- let CSeq := fresh "CSeq" in
- assert (CSeq: _ = compspecs_of_QPprogram prog _ _ (proj2 OK))
+ assert (CSeq: _ = compspecs_of_QPcomposite_env 
+                 (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs))
+                     (proj2 OK))
    by (apply compspecs_eq_of_QPcomposite_env;
           [reflexivity | assumption | assumption]);
- set (cs := compspecs_of_QPprogram prog _ _ (proj2 OK)) in *;
- clear LA HA;
-exists OK;
+ change (QPprogram_of_program prog ha_env_cs la_env_cs) with p in CSeq;
+ exists OK;
   [ let i := fresh in let H := fresh in 
     intros i H; 
     first [ repeat (destruct H; [subst; do 4 eexists; findentry; reflexivity  |]); contradiction
@@ -3696,19 +3724,31 @@ exists OK;
   | let i := fresh in let H := fresh in 
     intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
-  | let i := fresh "i" in let H := fresh in let H0 := fresh in 
+  |   let i := fresh "i" in let H := fresh in let H0 := fresh in 
     let phi := fresh "phi" in let fd := fresh "fd" in 
     intros i phi fd H H0;
-    apply PTree.elements_correct in H; revert H;
-    repeat apply or_ind; intro H; inv H; inv H0;
+    apply PTree.elements_correct in H;
+    simpl in H;
+    decompose_in_elements H;
+    inv H0;
     try SF_vacuous;
-    clear - CSeq
+    clear - CSeq;
+    match goal with |- SF _ ?i _ _ =>
+      let j := constr:(fold_ident i prog.(prog_defs)) in
+      let j := eval red in j in let j := eval simpl in j in 
+       change i with j
+    end
   | finishComponent
   | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
   ].
 
-Definition Vardefs' {cs: compspecs} (prog: Clight.program) := 
-      (Vardefs (QPprogram_of_program prog ha_env_cs la_env_cs)).
+
+Ltac mkVSU prog internal_specs := 
+ lazymatch goal with |- VSU _ _ _ _ _ => idtac
+  | _ => fail "mkVSU must be applied to a VSU goal"
+ end;
+ exists internal_specs;
+ mkComponent prog.
 
 (*
  Ltac findentry_cautious := cbv.
@@ -3739,9 +3779,9 @@ Ltac solve_SF_internal P :=
    | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
    | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
    | reflexivity
-   | match goal with OK: QPprogram_OK _, CSeq: @eq compspecs _ ?cs |- _ =>
-       change (compspecs_of_QPcomposite_env _ _) with cs; rewrite <- CSeq;
-       clear cs CSeq OK
+   | match goal with OK: QPprogram_OK _, CSeq: @eq compspecs _ _ |- _ =>
+       rewrite <- CSeq;
+       clear CSeq OK
      end;
      apply P
    | eexists; split; [ LookupID | LookupB ]
@@ -4174,12 +4214,63 @@ Ltac list_disjoint_tac := (*red; simpl; intros; contradiction.*)
      apply list_norepet_append_inv; LNR_tac.
 
 Ltac ExternsHyp_tac := first [ reflexivity | idtac ].
-Ltac SC_tac := simpl; intros ? ? X H;
-  repeat (destruct H; [ subst; simpl; simpl in X; try discriminate | ]);
-  inv X; first [ eexists; split; [reflexivity | apply funspec_sub_refl] | idtac]; try contradiction.
 
-Ltac HImports_tac := simpl; intros ? ? ? H1 H2;
-  repeat (if_tac in H1; subst; simpl in *; try discriminate);try congruence.
+Inductive Identifier_not_found: ident -> funspecs -> Prop := .
+Inductive Funspecs_must_match (i: ident) (f1 f2: funspec):  Prop := 
+mk_Funspecs_must_match: f1=f2 -> Funspecs_must_match i f1 f2.
+
+Fixpoint SC_test (ids: list ident) (fds1 fds2: funspecs) : Prop :=
+ match fds1 with
+ | (i,fd)::fds' => if id_in_list i ids
+                         then match initial_world.find_id i fds2 with
+                                 | Some fd2 => Funspecs_must_match i fd fd2 
+                                 | None => Identifier_not_found i fds2
+                                 end /\ SC_test ids fds' fds2
+                         else SC_test ids fds' fds2
+ | nil => True
+ end.
+
+Lemma SC_lemma: forall (ids: list ident) (fds1 fds2: funspecs),
+ SC_test ids fds1 fds2 ->
+(forall (i:ident) (phi1: funspec),
+  initial_world.find_id i fds1 = Some phi1 ->
+  In i ids ->
+  exists phi2 : funspec, 
+  initial_world.find_id i fds2 = Some phi2 /\ funspec_sub phi2 phi1).
+Proof.
+intros ? ? ?.
+induction fds1 as [|[i?]]; simpl; intros.
+inv H0.
+if_tac in H0.
+subst i0; inv H0.
+rewrite assoclists.id_in_list_true_i in H by auto.
+destruct H.
+destruct (initial_world.find_id i fds2) eqn:?H.
+inv H.
+exists f; split; auto.
+apply funspec_sub_refl.
+inv H.
+destruct (id_in_list i ids) eqn:?H.
+destruct H.
+destruct (initial_world.find_id i fds2) eqn:?H.
+eauto.
+eauto.
+eauto.
+Qed.
+
+Ltac SC_tac :=
+clear; 
+apply SC_lemma; simpl; repeat apply conj; try apply Logic.I;
+((constructor; reflexivity) 
+|| match goal with |- Funspecs_must_match ?i _ _ =>
+     fail "funspecs don't match at identifier" i
+    end).
+
+Ltac HImports_tac := simpl;
+  let i := fresh "i" in 
+   intros i ? ? H1 H2;
+  repeat (if_tac in H1; subst; simpl in *; try discriminate);
+    (congruence || fail "Imports disagree at identifier" i).
 
 Ltac ImportsDef_tac := first [ reflexivity | idtac ].
 Ltac ExportsDef_tac := first [ reflexivity | idtac ].
@@ -4219,14 +4310,14 @@ Ltac ComponentMerge C1 C2 :=
 | domV_tac
 | try (cbv; reflexivity)
 | try (cbv; reflexivity)
-| try (cbv; reflexivity)
+| try (cbv; reflexivity) 
 | first [ find_id_subset_tac | idtac]
 | first [ find_id_subset_tac | idtac]
 ].
 
-Lemma VSU_ext {Espec E Imp Exp GP1 GP2}:
-      @VSU Espec E Imp Exp GP1 -> GP1=GP2 ->
-      @VSU Espec E Imp Exp GP2.
+Lemma VSU_ext {Espec E Imp p Exp GP1 GP2}:
+      @VSU Espec E Imp p Exp GP1 -> GP1=GP2 ->
+      @VSU Espec E Imp p Exp GP2.
 Proof. intros; subst; trivial. Qed.
 
 Ltac compute_QPlink_progs := 
@@ -4253,20 +4344,67 @@ eapply VSULink;
 | SC_tac
 | HImports_tac].
 
+Ltac red_until_NDmk_funspec x :=
+ match x with
+ | NDmk_funspec _ _ _ _ _ => constr:(x)
+ | _ => let x := eval red in x in red_until_NDmk_funspec x
+ end.
+
+Ltac simplify_funspecs G :=
+  let x := eval hnf in G in 
+ lazymatch x with
+ | nil => constr:(x)
+ | ?ia :: ?al => let al := simplify_funspecs al in
+                       let ia := eval hnf in ia in
+                       match ia with pair  ?i ?a =>
+                             let b := red_until_NDmk_funspec a in
+                              constr:( (i,@abbreviate _ b)::al )
+                       end
+ end.
+
+Definition VSU_E {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := E.
+Definition VSU_Exports {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := Exports.
+Definition VSU_prog {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := p.
+Definition VSU_Espec {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := Espec.
+Definition VSU_GP {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := GP.
+
+Ltac VSULink_type v1 v2 :=
+  let Espec := constr:(VSU_Espec v1) in
+  let Espec := eval unfold VSU_Espec in Espec in
+  let GP := constr:(sepcon (VSU_GP v1) (VSU_GP v2)) in
+  let GP := eval unfold VSU_GP in GP in 
+  let E := constr:(G_merge (VSU_E v1) (VSU_E v2)) in
+  let E := simplify_funspecs E in
+  let Imports := constr:(VSULink_Imports v1 v2) in
+  let Imports := simplify_funspecs Imports in
+  let Exports := constr:(G_merge (VSU_Exports v1) (VSU_Exports v2)) in
+  let Exports := simplify_funspecs Exports in
+  let p' :=  constr:(QPlink_progs (VSU_prog v1) (VSU_prog v2)) in
+  let p'' := eval vm_compute in p' in
+  let p := lazymatch p'' with
+               | Errors.OK ?p => constr:(@abbreviate _ p)
+               | Errors.Error ?m => fail "QPlink_progs failed:" m
+               end in
+   constr:(@VSU Espec E Imports p Exports GP).
+
 Ltac linkVSUs v1 v2 :=
-  eapply (VSULink _ _ _ _ _ _ _ _ _ v1 v2);
-[ compute_QPlink_progs
-| FDM_tac
-| list_disjoint_tac
-| list_disjoint_tac
-| SC_tac
-| SC_tac
-| HImports_tac].
+  let t := VSULink_type v1 v2 in
+ match t with @VSU ?Espec ?E ?Imports ?p ?Exports ?GP =>
+   apply (VSULink' Espec _ _ _ _ _ _ _ _ _ _ v1 v2 E Imports p Exports)
+  end;
+  [ reflexivity | reflexivity | reflexivity | reflexivity
+  | clear; FDM_tac
+  | clear;  list_disjoint_tac || fail "Externs of vsu1 overlap with Internals of vsu2"
+  | clear;  list_disjoint_tac || fail "Externs of vsu2 overlap with Internals of vsu1"
+  | SC_tac
+  | SC_tac
+  | clear; HImports_tac
+  ].
 
 Definition VSU_of_Component {Espec E Imports p Exports GP G}
           (c: @Component Espec E Imports p Exports GP G) : 
-             @VSU Espec E Imports Exports GP :=
-  existT _ (p,G) c.
+             @VSU Espec E Imports p Exports GP :=
+  existT _ G c.
 
 Lemma progfunct_eq:SeparationLogic.prog_funct = prog_funct.
 Proof. reflexivity. Qed.
@@ -4355,27 +4493,27 @@ Proof.
  apply (Build_LinkedProgVSU _ _ _ _ _ _ _ (CanonicalComponent_entail _ _ C H) M).
 Qed.
 
-Definition G_of_CanonicalVSU {Espec E Imports Exports GP}
-     (vsu: @CanonicalVSU Espec E Imports Exports GP): funspecs.
-destruct vsu as [pG CCM]. destruct CCM as [GG CC M]. apply GG. Defined. 
+Definition G_of_CanonicalVSU {Espec E Imports p Exports GP}
+     (vsu: @CanonicalVSU Espec E Imports p Exports GP): funspecs.
+destruct vsu as [G CCM]. destruct CCM as [GG CC M]. apply GG. Defined. 
 
-Lemma G_of_CanonicalVSU_char {Espec E Imports Exports GP}
-        (vsu: @CanonicalVSU Espec E Imports Exports GP):
+Lemma G_of_CanonicalVSU_char {Espec E Imports p Exports GP}
+        (vsu: @CanonicalVSU Espec E Imports p Exports GP):
      map fst (G_of_CanonicalVSU vsu) = 
-                map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs (fst (projT1 vsu)) ++ map fst E))
-                        (PTree.elements (QP.prog_defs (fst (projT1 vsu))))).
-Proof. destruct vsu as [[p G] CCM]. simpl. destruct CCM as [GG CC M].
+                map fst (filter (fun x => in_dec ident_eq (fst x) (IntIDs p ++ map fst E))
+                        (PTree.elements (QP.prog_defs p))).
+Proof. destruct vsu as [G CCM]. simpl. destruct CCM as [GG CC M].
  destruct CC. unfold Comp_G in *. trivial. Qed.
 
-Lemma G_of_CanoncialVSU_justified {Espec E Imports Exports GP}
-       (vsu: @CanonicalVSU Espec E Imports Exports GP):
+Lemma G_of_CanoncialVSU_justified {Espec E Imports p Exports GP}
+       (vsu: @CanonicalVSU Espec E Imports p Exports GP):
        forall (i : ident) (phi : funspec) (fd : fundef function),
-       initial_world.find_id i (QPprog_funct (fst (projT1 vsu))) = Some fd ->
+       initial_world.find_id i (QPprog_funct p) = Some fd ->
        initial_world.find_id i (G_of_CanonicalVSU vsu) = Some phi -> 
-       @SF Espec (Comp_cs (projT2 vsu)) (QPvarspecs (fst (projT1 vsu)))
-             (@QPglobalenv function (fst (projT1 vsu))) 
+       @SF Espec (Comp_cs (projT2 vsu)) (QPvarspecs p)
+             (@QPglobalenv function p) 
              (Imports ++ (G_of_CanonicalVSU vsu)) i fd phi.
-Proof. intros. destruct vsu as [[p G] ?]. 
+Proof. intros. destruct vsu as [G ?]. 
  apply  (Comp_G_justified c).
 -
  clear - H. simpl in *.
@@ -4396,8 +4534,8 @@ Proof. intros. destruct vsu as [[p G] ?].
 - apply H0.
 Qed.
 
-Lemma LNR_G_of_CanoncialVSU {Espec E Imports Exports GP}
-         (vsu: @CanonicalVSU Espec E Imports Exports GP):
+Lemma LNR_G_of_CanoncialVSU {Espec E Imports p Exports GP}
+         (vsu: @CanonicalVSU Espec E Imports p Exports GP):
       list_norepet (map fst (G_of_CanonicalVSU vsu)).
 Proof. intros. destruct vsu. apply (Comp_G_LNR c). Qed.
 
@@ -4408,10 +4546,10 @@ Proof. apply initialize.list_norepet_prog_funct'. Qed.
 Definition ExtIDs (p: Ctypes.program function): list ident := 
   map fst ((filter (fun x => negb (isInternal (snd x)))) (prog_defs p)).
 
-Lemma MkInitPred_of_CanonicalVSU {Espec E Imports Exports GP} 
-       (vsu: @CanonicalVSU Espec E Imports Exports GP):
-      forall gv, globals_ok gv -> InitGPred (Vardefs (fst (projT1 vsu))) gv |-- GP gv.
-Proof. destruct vsu as [[p G] [GG CC M]]. apply (Comp_MkInitPred CC). Qed.
+Lemma MkInitPred_of_CanonicalVSU {Espec E Imports p Exports GP} 
+       (vsu: @CanonicalVSU Espec E Imports p Exports GP):
+      forall gv, globals_ok gv -> InitGPred (Vardefs p) gv |-- GP gv.
+Proof. destruct vsu as [G [GG CC M]]. apply (Comp_MkInitPred CC). Qed.
 
 Lemma global_is_headptr g i: isptr (globals_of_env g i) -> headptr (globals_of_env g i).
 Proof. unfold globals_of_env, headptr; simpl.
@@ -4584,7 +4722,6 @@ Definition main_pre_old {Z : Type} (prog : QP.program function) (ora : Z)
   (gv : globals) (rho : environ) :=
  !! (gv = globals_of_env rho) &&
    (globvars2pred gv (QPprog_vars prog) * has_ext ora)%logic.
-Locate close_precondition_main.
 
 (* Don't use this! 
 Lemma close_precondition_main {Z p ora gv}:
@@ -4653,9 +4790,9 @@ rewrite H.
 exists b; auto.
 Qed.
 
-Definition VSU_MkInitPred {Espec E Imports Exports GP} 
-  (vsu: @VSU Espec E Imports Exports GP) 
-  (gv: globals) : globals_ok gv -> InitGPred (Vardefs (fst (projT1 vsu))) gv |-- (GP gv) :=
+Definition VSU_MkInitPred {Espec E Imports p Exports GP} 
+  (vsu: @VSU Espec E Imports p Exports GP) 
+  (gv: globals) : globals_ok gv -> InitGPred (Vardefs p) gv |-- (GP gv) :=
   Comp_MkInitPred (projT2 vsu) gv.
 
 Ltac report_failure :=
@@ -4672,7 +4809,7 @@ Ltac unfold_all R :=
 
 Ltac expand_main_pre_VSU :=
   match goal with
-  | vsu: VSU _ _ _ _ |- _ => 
+  | vsu: VSU _ _ _ _ _ |- _ => 
     eapply main_pre_InitGpred; 
         [ try apply (VSU_MkInitPred vsu); report_failure
         | try reflexivity; report_failure
@@ -4683,7 +4820,7 @@ Ltac expand_main_pre_VSU :=
       |- semax _ (PROPx _ (LOCALx _ (SEPx ((emp * emp * ?R) _ :: _))) * _)%logic _ _ =>
         let x := unfold_all R in change R with x
      end
-  | vsu: VSU _ _ _ _ |- _ =>  report_failure
+  | vsu: VSU _ _ _ _ _ |- _ =>  report_failure
   | |- _ => expand_main_pre_old
   end.
 
@@ -4847,8 +4984,11 @@ Qed.
 
 Hint Resolve globals_ok_genviron2globals : core.
 
+Definition VSU_initializer {cs: compspecs} (prog: Clight.program) (Gpred: globals -> mpred) :=
+ forall gv, globals_ok gv -> InitGPred (Vardefs (QPprog prog)) gv |-- Gpred gv.
+
 Ltac InitGPred_tac :=
-intros;
+intros ? ?;
 eapply InitGPred_process_globvars; auto;
 let Delta := fresh "Delta" in let Delta' := fresh "Delta'" in 
 set (Delta' := vardefs_tycontext _);
@@ -4861,3 +5001,8 @@ clear Delta;
 apply finish_process_globvars'; unfold fold_right_sepcon at 1;
 repeat change_mapsto_gvar_to_data_at.
 
+Ltac QPprog p := 
+  let q := constr:(QPprog p) in
+  let q := eval hnf in q in
+  let q := eval simpl in q in
+  exact (@abbreviate _ q).
