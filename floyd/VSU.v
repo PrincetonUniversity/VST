@@ -2945,42 +2945,6 @@ Proof.
   apply ComponentJoin; trivial.
 Qed.
 
-Lemma VSULink': 
-    forall Espec E1 Imports1 p1 Exports1 E2 Imports2 p2 Exports2
-         GP1 GP2
-         (vsu1 : @VSU Espec E1 Imports1 p1 Exports1 GP1)
-         (vsu2 : @VSU Espec E2 Imports2 p2 Exports2 GP2)
-         E Imports p Exports,
-       E = G_merge E1 E2 ->
-       Imports = VSULink_Imports vsu1 vsu2 ->
-       Exports = G_merge Exports1 Exports2 ->
-       QPlink_progs p1 p2 = Errors.OK p ->
-       Fundefs_match p1 p2 Imports1 Imports2 ->
-       list_disjoint (map fst E1) (IntIDs p2) ->
-       list_disjoint (map fst E2) (IntIDs p1) ->
-       (forall (i : ident) (phiI : funspec),
-        initial_world.find_id i Imports2 = Some phiI ->
-        In i (map fst E1 ++ IntIDs p1) ->
-        exists phiE : funspec,
-          initial_world.find_id i Exports1 = Some phiE /\
-          funspec_sub phiE phiI) ->
-       (forall (i : ident) (phiI : funspec),
-        initial_world.find_id i Imports1 = Some phiI ->
-        In i (map fst E2 ++ IntIDs p2) ->
-        exists phiE : funspec,
-          initial_world.find_id i Exports2 = Some phiE /\
-          funspec_sub phiE phiI) ->
-       (forall (i : ident) (phi1 phi2 : funspec),
-        initial_world.find_id i Imports1 = Some phi1 ->
-        initial_world.find_id i Imports2 = Some phi2 ->
-        phi1 = phi2) ->
-       VSU E Imports p Exports (GP1 * GP2)%logic.
-Proof.
-intros.
-subst.
-eapply VSULink; try eassumption.
-Qed.
-
 Lemma SF_ctx_subsumption {Espec} V G ge i fd phi cs
   (HSF:  @SF Espec cs V ge G i fd phi)
   (LNR_G: list_norepet (map fst G)) G' V' ge' cs'
@@ -4208,6 +4172,24 @@ Ltac prove_cspecs_sub :=
 Ltac solve_entry H H0:=
      inv H; inv H0; first [ solve [ trivial ] | split; [ reflexivity | eexists; reflexivity] ].
 
+Definition list_disjoint_id (al bl: list ident) :=
+  Forall (fun i => id_in_list i bl = false) al.
+
+Lemma list_disjoint_id_e: 
+ forall (al bl: list ident), 
+  (list_disjoint_id al bl) ->
+  list_disjoint al bl.
+Proof.
+intros.
+induction H.
+intros ? ? ? ? ?. inv H.
+apply id_in_list_false in H.
+apply list_disjoint_cons_l; auto.
+Qed.
+
+Ltac LDI_tac := 
+   apply Forall_nil ||  (apply Forall_cons; [ reflexivity | LDI_tac ]).
+
 Ltac LNR_tac := apply compute_list_norepet_e; reflexivity.
 
 Ltac list_disjoint_tac := (*red; simpl; intros; contradiction.*)
@@ -4258,9 +4240,38 @@ eauto.
 eauto.
 Qed.
 
+Lemma VSULink': 
+    forall Espec E1 Imports1 p1 Exports1 E2 Imports2 p2 Exports2
+         GP1 GP2
+         (vsu1 : @VSU Espec E1 Imports1 p1 Exports1 GP1)
+         (vsu2 : @VSU Espec E2 Imports2 p2 Exports2 GP2)
+         E Imports p Exports,
+       E = G_merge E1 E2 ->
+       Imports = VSULink_Imports vsu1 vsu2 ->
+       Exports = G_merge Exports1 Exports2 ->
+       QPlink_progs p1 p2 = Errors.OK p ->
+       Fundefs_match p1 p2 Imports1 Imports2 ->
+       list_disjoint_id (map fst E1) (IntIDs p2) ->
+       list_disjoint_id (map fst E2) (IntIDs p1) ->
+       SC_test (map fst E1 ++ IntIDs p1) Imports2 Exports1 ->
+       SC_test (map fst E2 ++ IntIDs p2) Imports1 Exports2 ->
+       (forall (i : ident) (phi1 phi2 : funspec),
+        initial_world.find_id i Imports1 = Some phi1 ->
+        initial_world.find_id i Imports2 = Some phi2 ->
+        phi1 = phi2) ->
+       VSU E Imports p Exports (GP1 * GP2)%logic.
+Proof.
+intros.
+subst.
+eapply VSULink; try eassumption.
+apply list_disjoint_id_e; auto.
+apply list_disjoint_id_e; auto.
+apply SC_lemma; auto.
+apply SC_lemma; auto.
+Qed.
+
 Ltac SC_tac :=
-clear; 
-apply SC_lemma; simpl; repeat apply conj; try apply Logic.I;
+clear; simpl; repeat apply conj; try apply Logic.I;
 ((constructor; reflexivity) 
 || match goal with |- Funspecs_must_match ?i _ _ =>
      fail "funspecs don't match at identifier" i
@@ -4293,11 +4304,11 @@ Ltac ComponentMerge C1 C2 :=
 | first [ find_id_subset_tac | idtac]
 (*| FDM_tac *)
 (*| FunctionsPreserved_tac *)
-| list_disjoint_tac
-| list_disjoint_tac
+| apply list_disjoint_id_e; LDI_tac
+| apply list_disjoint_id_e; LDI_tac
 | ExternsHyp_tac
-| SC_tac
-| SC_tac
+| apply SC_lemma; SC_tac
+| apply SC_lemma; SC_tac
 | HImports_tac
 (*+  HContexts. This is the side condition we'd like to exliminate - it's also
    why we need to define SubjectComponent/ObserverComponent using DEFINED
@@ -4340,8 +4351,8 @@ eapply VSULink;
 | FDM_tac
 | list_disjoint_tac
 | list_disjoint_tac
-| SC_tac
-| SC_tac
+| apply SC_lemma; SC_tac
+| apply SC_lemma; SC_tac
 | HImports_tac].
 
 Ltac red_until_NDmk_funspec x :=
@@ -4394,8 +4405,8 @@ Ltac linkVSUs v1 v2 :=
   end;
   [ reflexivity | reflexivity | reflexivity | reflexivity
   | clear; FDM_tac
-  | clear;  list_disjoint_tac || fail "Externs of vsu1 overlap with Internals of vsu2"
-  | clear;  list_disjoint_tac || fail "Externs of vsu2 overlap with Internals of vsu1"
+  | clear;  LDI_tac || fail "Externs of vsu1 overlap with Internals of vsu2"
+  | clear;  LDI_tac || fail "Externs of vsu2 overlap with Internals of vsu1"
   | SC_tac
   | SC_tac
   | clear; HImports_tac
