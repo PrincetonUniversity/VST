@@ -45,6 +45,14 @@ Proof.
   simpl; intros; intros ? ? ? ?; contradiction.
 Defined.
 
+Definition ok_alg_spec (GA : Ghost) : OracleKind.
+ refine (Build_OracleKind GA (Build_juicy_ext_spec _ (void_spec _) _ _ _)).
+Proof.
+  simpl; intros; contradiction.
+  simpl; intros; contradiction.
+  simpl; intros; intros ? ? ? ?; contradiction.
+Defined.
+
 Definition j_initial_core {C} (csem: @CoreSemantics C mem)
      (n: nat) (m: juicy_mem) (q: C) (m': juicy_mem) (v: val) (args: list val) 
      : Prop :=
