@@ -23,11 +23,11 @@ Definition main_inst_spec:=
  PRE [ ] (*(main_preinst tt G gv)*)
     PROP ()
     PARAMS () GLOBALS (gv)
-    SEP (fold_right (fun g p => g gv * p) emp G; has_ext tt)
+    SEP (fold_right (fun g p => g gv * p) emp G; has_ext@{main_pre.u0} tt)
  POST[ tint ]
     PROP()
     LOCAL(temp ret_temp (Vint (Int.repr 0)))
-    SEP(mem_mgr M gv; has_ext tt; TT).
+    SEP(mem_mgr M gv; has_ext@{main_pre.u0} tt; TT).
 End MainInstASI.
 
 Definition linked_prog : Clight.program :=
@@ -76,7 +76,7 @@ forward_for_simple_bound 10
    PROP() LOCAL(gvars gv)
    SEP (onepile ONEPILE (Some (decreasing (Z.to_nat i))) gv;
           apile APILE (decreasing (Z.to_nat i)) gv;
-          mem_mgr M gv; has_ext tt)).
+          mem_mgr M gv; has_ext@{main_pre.u0} tt)).
 - 
  entailer!.
 -

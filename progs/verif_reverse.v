@@ -221,6 +221,8 @@ Qed.
  ** to have a nicer proof theory for reasoning about this kind of thing.
  **)
 
+Section Univ.
+Universe univ.
 Lemma setup_globals:
  forall Delta gv,
   PTree.get _three (glob_types Delta) = Some (tarray t_struct_list 3) ->
@@ -235,10 +237,10 @@ Lemma setup_globals:
        (offset_val 16 (gv _three));
    mapsto Ews tuint (offset_val 16 (gv _three)) (Vint (Int.repr 3));
    mapsto Ews tuint (offset_val 20 (gv _three)) (Vint (Int.repr 0));
-   has_ext tt)
+   has_ext@{univ} tt)
   |-- PROP() LOCAL(gvars gv)
         SEP (lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
-                  (gv _three) nullval; has_ext tt).
+                  (gv _three) nullval; has_ext@{univ} tt).
 Proof.
   intros.
   go_lowerx.
@@ -282,6 +284,7 @@ Proof.
   rewrite @lseg_nil_eq.
   entailer!.
 Qed.
+End Univ.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
