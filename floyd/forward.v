@@ -2520,8 +2520,8 @@ match goal with
         unfold seq_of_labeled_statement at 1;
         apply unsigned_eq_eq in E;
         match sign with
-        | Signed => apply repr_inj_signed in E; [ | rep_lia | rep_lia]
-        | Unsigned => apply repr_inj_unsigned in E; [ | rep_lia | rep_lia]
+        | Signed => apply repr_inj_signed in E; try lia
+        | Unsigned => apply repr_inj_unsigned in E; try lia
         end;
         try match type of E with ?a = _ => is_var a; subst a end;
         repeat apply -> semax_skip_seq
