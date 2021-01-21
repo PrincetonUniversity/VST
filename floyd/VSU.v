@@ -1443,6 +1443,37 @@ Variable ImportsDef: Imports =
                      filter (fun x => negb (in_dec ident_eq (fst x) (map fst E2 ++ IntIDs p2))) Imports1 ++
                      filter (fun x => negb (in_dec ident_eq (fst x) (map fst E1 ++ IntIDs p1 ++ map fst Imports1))) Imports2.
 
+(*In the paper, we use the following definition of Imports, which is more symmetric*)
+Definition Imports' :=
+                     filter (fun x => negb (in_dec ident_eq (fst x) (map fst E2 ++ IntIDs p2))) Imports1 ++
+                     filter (fun x => negb (in_dec ident_eq (fst x) (map fst E1 ++ IntIDs p1))) Imports2.
+
+(*Use of Imports' in the paper is justfied as the paper uses set notation and the two definitions are
+  extensionally equal as mappings from identifiers to funspecs. But we can't prove that Imports' is necessarily LNR.
+  Maybe this gets easier in the more computational version of VSUs, ie when Imports are synthesized*)
+Lemma ImportDefs_ExtensionallyEQ i: find_id i Imports = find_id i Imports'.
+Proof. unfold Imports'; subst. rewrite 2 find_id_app_char.
+  rewrite ! find_id_filter_char, app_assoc.
+{ remember (find_id i Imports1) as d1; destruct d1; symmetry in Heqd1; simpl.
+  + destruct (in_dec ident_eq i (map fst E2 ++ IntIDs p2)); simpl; trivial.
+    remember (find_id i Imports2) as d2; destruct d2; symmetry in Heqd2; simpl; trivial.
+    exfalso. apply find_id_In_map_fst in Heqd2. 
+    apply in_app_or in i0; destruct i0.
+    - apply Comp_ExternsImports_LNR in c2.
+      rewrite map_app in c2. apply list_norepet_app in c2. destruct c2 as [_  [_ ?]].
+      apply (H0 i i H Heqd2); trivial.
+    - apply (Comp_Interns_disjoint_from_Imports c2 i i H Heqd2); trivial.
+  + destruct (in_dec ident_eq i ((map fst E1 ++ IntIDs p1) ++ map fst Imports1)); simpl.
+    - destruct ((in_dec ident_eq i (map fst E1 ++ IntIDs p1))); simpl; trivial.
+      apply find_id_None_iff in Heqd1.
+      apply in_app_or in i0. destruct i0; contradiction.
+    - destruct ((in_dec ident_eq i (map fst E1 ++ IntIDs p1))); simpl; trivial.
+      elim n. apply in_or_app. left; trivial. }
+apply (Comp_Imports_LNR c2).
+apply (Comp_Imports_LNR c2).
+apply (Comp_Imports_LNR c1).
+Qed.
+
 Variable ExportsDef: Exports = G_merge Exports1 Exports2.
 
 Variable LNRp: list_norepet (map fst (prog_defs p)).
