@@ -378,6 +378,21 @@ Definition overlap_Gvar :=
 Definition isnil {A} (al: list A) := 
    match al with nil => true | _ => false end.
 
+Definition merge_globvar (gv1 gv2: globvar type) : Errors.res (globvar type) :=
+ match gv1, gv2 with
+ |  {| gvar_info := i1; gvar_init := l1; gvar_readonly := r1; gvar_volatile := v1 |},
+    {| gvar_info := i2; gvar_init := l2; gvar_readonly := r2; gvar_volatile := v2 |} =>
+   if (overlap_Gvar && 
+      (eqb_type i1 i2 &&
+      bool_eq r1 r2 &&
+      bool_eq v1 v2))%bool
+   then if isnil l1 
+           then Errors.OK gv2 
+           else if isnil l2 then Errors.OK gv1
+           else Errors.Error [Errors.MSG "Gvars both initialized"]
+   else Errors.Error [Errors.MSG "Gvar type/readonly/volatile clash"]
+ end.
+
 Definition merge_globdef (g1 g2: globdef (fundef Clight.function) type) :=
  match g1, g2 with
  | Gfun (External ef1 params1 res1 cc1),
@@ -398,17 +413,8 @@ Definition merge_globdef (g1 g2: globdef (fundef Clight.function) type) :=
       if function_eq f g
       then Errors.OK g1
       else Errors.Error [Errors.MSG "internal function clash"]
- | Gvar {| gvar_info := i1; gvar_init := l1; gvar_readonly := r1; gvar_volatile := v1 |},
-   Gvar {| gvar_info := i2; gvar_init := l2; gvar_readonly := r2; gvar_volatile := v2 |} =>
-   if (overlap_Gvar && 
-      (eqb_type i1 i2 &&
-      bool_eq r1 r2 &&
-      bool_eq v1 v2))%bool
-   then if isnil l1 
-           then Errors.OK g2 
-           else if isnil l2 then Errors.OK g1 
-           else Errors.Error [Errors.MSG "Gvars both initialized"]
-   else Errors.Error [Errors.MSG "Gvar type/readonly/volatile clash"]
+ | Gvar gv1, Gvar gv2 =>
+    Errors.bind (merge_globvar gv1 gv2) (fun gv => Errors.OK (Gvar gv))
   | _, _ => Errors.Error [Errors.MSG "Gvar versus Gfun"]
  end.
 
