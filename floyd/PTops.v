@@ -668,3 +668,154 @@ end.
 Definition PTree_sub {A} (m1 m2 : PTree.t A) :=
   forall id, sub_option (m1 ! id) (m2 ! id).
 
+
+Inductive PTree_canonical' {A}: PTree.t A -> Prop :=
+| PT_canon_Node0: forall x, PTree_canonical' (PTree.Node PTree.Leaf (Some x) PTree.Leaf)
+| PT_canon_Node1: forall l o,  PTree_canonical' l ->
+                 PTree_canonical' (PTree.Node l o PTree.Leaf)
+| PT_canon_Node2: forall o r,  PTree_canonical' r ->
+                 PTree_canonical' (PTree.Node PTree.Leaf o r)
+| PT_canon_Node: forall l o r,  PTree_canonical' l -> PTree_canonical' r ->
+                 PTree_canonical' (PTree.Node l o r).
+
+Inductive PTree_canonical {A}: PTree.t A -> Prop :=
+| PT_canon_Leaf: PTree_canonical PTree.Leaf
+| PT_canon_Nonleaf: forall t, PTree_canonical' t -> PTree_canonical t.
+
+Lemma PTree_canonical'_nonempty:
+  forall {A} (t: PTree.t A), PTree_canonical' t -> 
+          exists i, exists x, PTree.get i t = Some x.
+Proof.
+induction 1.
+exists xH; simpl; eauto.
+destruct IHPTree_canonical' as [i [x ?]].
+exists (xO i); simpl; eauto.
+destruct IHPTree_canonical' as [i [x ?]].
+exists (xI i); simpl; eauto.
+destruct IHPTree_canonical'1 as [i [x ?]].
+exists (xO i); eauto.
+Qed.
+
+Lemma PTree_canonical_ext: 
+  forall {A} (t1 t2: PTree.t A),
+  PTree_canonical t1 ->
+  PTree_canonical t2 ->
+  (forall i, t1 ! i = t2 ! i) ->
+  t1=t2.
+Proof.
+destruct 1; destruct 1; auto.
+- intros.
+   elimtype False.
+   revert H0; induction H; intros.
+   specialize (H0 xH); inv H0.
+   apply IHPTree_canonical'; intro.
+   specialize (H0 (xO i)); inv H0. apply PTree.gempty.
+   apply IHPTree_canonical'; intro.
+   specialize (H0 (xI i)); inv H0. apply PTree.gempty.
+   apply IHPTree_canonical'1; intro.
+   rewrite PTree.gempty.
+   specialize (H1 (xO i)). simpl in H1. auto.
+- intros.
+   elimtype False.
+   revert H0; induction H; intros.
+   specialize (H0 xH); inv H0.
+   apply IHPTree_canonical'; intro. specialize (H0 (xO i)); inv H0; rewrite PTree.gempty; auto.
+   apply IHPTree_canonical'; intro. specialize (H0 (xI i)); inv H0; rewrite PTree.gempty; auto.
+   apply IHPTree_canonical'1; intro.
+   rewrite PTree.gempty.
+   specialize (H1 (xO i)). simpl in H1. auto.
+- revert t0 H0; induction H; induction 1; simpl; intros; auto.
+ + f_equal. f_equal. specialize (H xH); inv H; auto.
+ + destruct (PTree_canonical'_nonempty _ H0) as [i [? ?]].
+     specialize (H (xO i)); inv H. rewrite H1 in H3. rewrite PTree.gempty in H3. inv H3.
+ + destruct (PTree_canonical'_nonempty _ H0) as [i [? ?]].
+     specialize (H (xI i)); inv H. rewrite H1 in H3. rewrite PTree.gempty in H3. inv H3.
+ + destruct (PTree_canonical'_nonempty _ H0_) as [i [? ?]].
+     specialize (H (xO i)); inv H. rewrite H0 in H2. rewrite PTree.gempty in H2. inv H2.
+ + destruct (PTree_canonical'_nonempty _ H) as [i [? ?]].
+     specialize (H0 (xO i)); inv H0. rewrite H1 in H3. rewrite PTree.gempty in H3. inv H3.
+ + f_equal. apply IHPTree_canonical'; auto. intro. specialize (H1 (xO i)); inv H1; auto.
+     specialize (H1 xH); inv H1; auto.
+ + destruct (PTree_canonical'_nonempty _ H) as [i [? ?]].
+     specialize (H1 (xO i)); inv H1. rewrite H2 in H4. rewrite PTree.gempty in H4. inv H4.
+ + destruct (PTree_canonical'_nonempty _ H0_0) as [i [? ?]].
+     specialize (H0 (xI i)); inv H0. rewrite H1 in H3. rewrite PTree.gempty in H3. inv H3.
+ + destruct (PTree_canonical'_nonempty _ H) as [i [? ?]].
+     specialize (H0 (xI i)); inv H0. rewrite H1 in H3. rewrite PTree.gempty in H3. inv H3.
+ + destruct (PTree_canonical'_nonempty _ H0) as [i [? ?]].
+     specialize (H1 (xO i)); inv H1. rewrite H2 in H4. rewrite PTree.gempty in H4. inv H4.
+ + f_equal.  specialize (H1 xH); inv H1; auto.
+     apply IHPTree_canonical'; auto.
+     intro i. specialize (H1 (xI i)); inv H1; auto.
+ + destruct (PTree_canonical'_nonempty _ H0_) as [i [? ?]].
+     specialize (H0 (xO i)); inv H0. rewrite H1 in H3. rewrite PTree.gempty in H3. inv H3.
+ + destruct (PTree_canonical'_nonempty _ H) as [i [? ?]].
+     specialize (H1 (xO i)); inv H1. rewrite H2 in H4. rewrite PTree.gempty in H4. inv H4.
+ + destruct (PTree_canonical'_nonempty _ H0) as [i [? ?]].
+     specialize (H2 (xI i)); inv H2. rewrite H3 in H5. rewrite PTree.gempty in H5. inv H5.
+ + destruct (PTree_canonical'_nonempty _ H) as [i [? ?]].
+     specialize (H2 (xO i)); inv H2. rewrite H3 in H5. rewrite PTree.gempty in H5. inv H5.
+ + f_equal.
+     apply  IHPTree_canonical'1; auto. intro i. specialize (H1 (xO i)); inv H1; auto.
+     specialize (H1 xH); inv H1; auto.
+     apply  IHPTree_canonical'2; auto. intro i. specialize (H1 (xI i)); inv H1; auto.
+Qed.
+
+Lemma PTree_of_list_canonical:
+  forall {A} (d: list (positive * A)),
+  PTree_canonical (PTree_Properties.of_list d).
+Proof.
+intros.
+unfold PTree_Properties.of_list.
+rewrite <- fold_left_rev_right.
+set (al := rev d) in *. change (rev d) with al.
+clearbody al.
+induction al as [|[i ?]].
+simpl.
+constructor.
+simpl.
+set (t := fold_right _ _ _)  in *.
+clearbody t.
+assert (J: forall i, PTree_canonical' (PTree.set i a PTree.Leaf)). {
+  induction i0; simpl.
+  apply PT_canon_Node2; auto.
+  apply PT_canon_Node1; auto.
+  apply PT_canon_Node0.
+}
+clear - J IHal. rename IHal into H.
+apply PT_canon_Nonleaf.
+destruct H.
+induction i; simpl.
+apply PT_canon_Node2; auto.
+apply PT_canon_Node1; auto.
+apply PT_canon_Node0.
+revert t H; induction i; destruct t; intros; simpl.
+apply PT_canon_Node2; auto.
+inv H.
+apply PT_canon_Node2; auto.
+apply PT_canon_Node; auto.
+apply PT_canon_Node2; auto.
+apply PT_canon_Node; auto.
+apply PT_canon_Node1; auto.
+inv H.
+apply PT_canon_Node1; auto.
+destruct (PTree.set i a t1) eqn:?H.
+apply (f_equal (PTree.get i)) in H.
+rewrite PTree.gss, PTree.gempty in H; inv H.
+apply PT_canon_Node1; auto.
+rewrite <- H; auto.
+destruct (PTree.set i a PTree.Leaf) eqn:?H.
+apply (f_equal (PTree.get i)) in H.
+rewrite PTree.gss, PTree.gempty in H; inv H.
+apply PT_canon_Node; auto.
+rewrite <- H; auto.
+apply PT_canon_Node; auto.
+apply PT_canon_Node0; auto.
+inv H.
+apply PT_canon_Node0; auto.
+apply PT_canon_Node1; auto.
+apply PT_canon_Node2; auto.
+apply PT_canon_Node; auto.
+Qed.
+
+    

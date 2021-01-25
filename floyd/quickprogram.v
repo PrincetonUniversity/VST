@@ -835,6 +835,21 @@ inv EQ3.
 auto.
 Qed.
 
+Lemma rebuild_composite_env:
+  forall (ce: QP.composite_env) (OK: QPcomposite_env_OK ce),
+ build_composite_env
+    (map compdef_of_compenv_element (sort_rank (PTree.elements ce) [])) =
+  Errors.OK (composite_env_of_QPcomposite_env ce OK).
+Proof.
+Admitted.  (* Probably true, but we'll work around it for now *)
+
+Definition is_builtin' (ix: ident * QP.builtin) :=
+ match ix with
+ | (_, QP.mk_builtin (EF_builtin _ _)  _ _ _) => true
+ | (_, QP.mk_builtin (EF_runtime _ _) _ _ _) => true
+ | (_, _) => false
+end.
+
 Module Junkyard.
 
 Fixpoint QPcomplete_type (env : QP.composite_env) (t : type) :  bool :=
