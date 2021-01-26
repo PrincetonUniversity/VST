@@ -460,7 +460,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v VSU_addmain.v quickprogram.v \
+   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v quickprogram.v PTops.v Component.v QPcomposite.v \
    Zlength_solver.v list_solver.v data_at_list_solver.v
 #real_forward.v
 
@@ -855,7 +855,7 @@ progs64c: $(C64_ORDINARY:%.c=progs64/%.c)
 progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.v) depend
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
-VSUpile: floyd/proofauto.vo floyd/VSU.vo floyd/VSU_addmain.vo
+VSUpile: floyd/proofauto.vo floyd/VSU.vo
 	cd progs/VSUpile; $(MAKE)
 
 # $(CC_TARGET): compcert/make
