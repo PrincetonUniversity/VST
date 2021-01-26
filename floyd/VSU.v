@@ -269,6 +269,19 @@ Ltac check_Comp_Imports_Exports :=
                ids
       end).
 
+Lemma forallb_isSomeGfunExternal_e:
+  forall {F} (defs: PTree.t (globdef (fundef F) type)) (ids: list ident),
+   forallb (fun i => isSomeGfunExternal (defs ! i)) ids = true ->
+  forall i : ident,
+  In i ids ->
+  exists f ts t cc, defs ! i = Some (Gfun (External f ts t cc)).
+Proof.
+intros.
+rewrite forallb_forall in H.
+apply H in H0. destruct (defs ! i) as [[[]|]|]; inv H0.
+eauto.
+Qed. 
+
 Ltac mkComponent prog :=
  hnf;
  let p := fresh "p" in
@@ -295,9 +308,7 @@ Ltac mkComponent prog :=
   | apply compute_list_norepet_e; reflexivity || fail "Duplicate funspec among the Externs++Imports"
   | apply compute_list_norepet_e; reflexivity || fail "Duplicate funspec among the Exports"
   | apply compute_list_norepet_e; reflexivity
-  | let i := fresh in let H := fresh in 
-    intros i H; first [ solve contradiction | simpl in H];
-    repeat (destruct H; [ subst; reflexivity |]); try contradiction
+  | apply forallb_isSomeGfunExternal_e; reflexivity
   | intros; simpl; split; trivial; try solve [lookup_tac]
   | let i := fresh in let H := fresh in 
     intros i H; first [ solve contradiction | simpl in H];
@@ -644,18 +655,12 @@ Ltac simplify_funspecs G :=
                        end
  end.
 
-Definition VSU_E {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := E.
-Definition VSU_Exports {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := Exports.
-Definition VSU_prog {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := p.
-Definition VSU_Espec {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := Espec.
-Definition VSU_GP {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := GP.
-
 Ltac VSULink_type v1 v2 :=
   let Espec := constr:(VSU_Espec v1) in
   let Espec := eval unfold VSU_Espec in Espec in
   let GP := constr:(sepcon (VSU_GP v1) (VSU_GP v2)) in
   let GP := eval unfold VSU_GP in GP in 
-  let E := constr:(G_merge (VSU_E v1) (VSU_E v2)) in
+  let E := constr:(G_merge (VSU_Externs v1) (VSU_Externs v2)) in
   let E := simplify_funspecs E in
   let Imports := constr:(VSULink_Imports v1 v2) in
   let Imports := simplify_funspecs Imports in
@@ -2021,13 +2026,16 @@ induction H3; [ | | apply semax_func_nil]; rename IHaugment_funspecs_rel into IH
    inv H9. apply id_in_list_false_i; auto.
 Qed.
 
+Definition prog_of_component {Espec Externs p Exports GP G}
+  (c: @Component Espec (QPvarspecs p) Externs nil p Exports GP G) :=
+   wholeprog_of_QPprog p (Comp_prog_OK c)  (rebuild_composite_env _ _).
+
 Lemma WholeComponent_semax_func:
  forall {Espec Externs p Exports GP G}
   (c: @Component Espec (QPvarspecs p) Externs nil p Exports GP G)
   (EXT_OK: all_unspecified_OK p)
   (DEFS_NOT_BUILTIN: forallb not_builtin (PTree.elements (QP.prog_defs p)) = true),  (* should be part of QPprogram_OK *)
- let prog := wholeprog_of_QPprog p (Comp_prog_OK c) 
-                     (rebuild_composite_env _ _) in
+ let prog := prog_of_component c in
   @semax_func Espec
   (QPvarspecs p) (augment_funspecs prog G) (Comp_cs c)
   (Genv.globalenv prog)
@@ -2211,6 +2219,11 @@ clear - H H3 V_FDS_LNR VG_LNR GFF EXT_OK H20.
 eapply augment_funspecs_semax_func; eassumption.
 Qed.
 
+Definition WholeProgSafeType  {Espec E p Exports GP G}
+             (c:@Component Espec (QPvarspecs p) E nil p Exports GP G)
+             (z: @OK_ty Espec) :=
+  {G | @semax_prog Espec (Comp_cs c)  (prog_of_component c) z (QPvarspecs p) G}.
+
 Lemma WholeComponent_semax_prog:
  forall {Espec Externs p Exports GP G}
   (c: @Component Espec (QPvarspecs p) Externs nil p Exports GP G)
@@ -2221,12 +2234,11 @@ Lemma WholeComponent_semax_prog:
   (ALIGNED: QPall_initializers_aligned p = true) (* should be part of QPprogram_OK *)
   (DEFS_NOT_BUILTIN: forallb not_builtin (PTree.elements (QP.prog_defs p)) = true)  (* should be part of QPprogram_OK *)
     ,
-  {progG | @semax_prog Espec (Comp_cs c) (fst progG) z (QPvarspecs p) (snd progG)}.
+  WholeProgSafeType c z.
 Proof.
  intros.
- pose (prog := wholeprog_of_QPprog p (Comp_prog_OK c) (rebuild_composite_env _ _)).
- exists (prog, G).
- simpl.
+ pose (prog := prog_of_component c).
+ exists G.
  split3; [ | | split3; [ | | split]].
  4: change SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Def.semax_func
   with semax_func.
@@ -2255,11 +2267,8 @@ Proof.
  simpl in ALIGNED|-*.
  rewrite andb_true_iff in ALIGNED|-*; destruct ALIGNED; auto.
 -
-  simpl.
-  unfold Comp_cs.
-  set (H := proj2 (Comp_prog_OK c)).
-  destruct (QPcompspecs_OK_e _ H) as [? [?  ?]].
-  rewrite H0. auto.
+  f_equal.
+  apply (proj1 (QPcompspecs_OK_e _ (proj2 (Comp_prog_OK c)))).
 -
  apply (@WholeComponent_semax_func _ _ _ _ _ _ c EXT_OK DEFS_NOT_BUILTIN).
 -
@@ -2318,6 +2327,7 @@ Proof.
    clear - H. induction (PTree.elements (QP.prog_defs p)) as [|[j[|]]]; simpl in *; auto.
    destruct H; auto. inv H; auto.   destruct H; auto. inv H; auto.
    *
+   simpl.
    rewrite H.
    apply augment_funspecs'_e in H.
    destruct MAIN as [post MAIN].
@@ -2341,7 +2351,6 @@ Proof.
   destruct g; auto.
   f_equal; auto.
 Qed.
-
 
 Ltac QPlink_prog_tac p1 p2 :=
   let p' :=  constr:(QPlink_progs p1 p2) in
@@ -2369,13 +2378,6 @@ apply WholeComponent;
  | reflexivity || fail "Linked program does not Export main_spec"
  ].
 
-Definition WholeProgSafeType  {Espec V E Imports p Exports GP G}
-             (c:@Component Espec V E Imports p Exports GP G)
-             (z: @OK_ty Espec) :=
-  {progG | @semax_prog Espec
-                  (Comp_cs c)  (fst progG) z (QPvarspecs p) (snd progG)}.
-
-
 Lemma wholeProg_main_ok: 
  forall {Espec V1 E1 Imports1 p1 Exports1 GP1 G1}
     (core: @Component Espec V1 E1 Imports1 p1 Exports1 GP1 G1)
@@ -2395,10 +2397,7 @@ apply id_in_list_false; auto.
 Qed.
 
 Ltac proveWholeProgSafe :=
- hnf;
- match goal with |- {progG | @semax_prog _ (Comp_cs ?c) _ _ _ _} => 
-   apply (@WholeComponent_semax_prog _ _ _ _ _ _ c)
- end;
+ apply WholeComponent_semax_prog;
  [apply wholeProg_main_ok;
      [reflexivity || fail "specification of main erroneously present in coreVSU"
      | eexists; reflexivity  || fail "precondition of main is not main_pre"
