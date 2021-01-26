@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.11.0 or-else 8.11.1 or-else 8.11.2 or-else 8.12+beta1 or-else 8.12.0
+COQVERSION= 8.12.0 or-else 8.12.1 or-else 8.12.2 or-else 8.13+beta1 or-else 8.13 or-else 8.13.0
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -80,11 +80,11 @@ ifeq ($(COMPCERT),platform)
   ifeq ($(BITSIZE),)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
     COMPCERT_EXPLICIT_PATH = false
-  else ifeq ($(BITSIZE),32)
+  else ifeq ($(BITSIZE),64)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
     COMPCERT_EXPLICIT_PATH = false
-  else ifeq ($(BITSIZE),64)
-    COMPCERT_INST_DIR = $(COQLIB)/../coq-variant/compcert64/compcert
+  else ifeq ($(BITSIZE),32)
+    COMPCERT_INST_DIR = $(COQLIB)/../coq-variant/compcert32/compcert
   else 
     $(error ILLEGAL BITSIZE $(BITSIZE))
   endif
@@ -223,10 +223,10 @@ FLOCQ=         # this mode to use the flocq packaged with Coq or opam
 # ##### Configure installation folder #####
 
 ifeq ($(ARCH),x86)
-  ifeq ($(BITSIZE),32)
+  ifeq ($(BITSIZE),64)
     INSTALLDIR ?= $(COQLIB)/user-contrib/VST
   else
-    INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST64/VST)
+    INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST32/VST)
   endif
 else
   INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST_$(ARCH)_$(BITSIZE)/VST

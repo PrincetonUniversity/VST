@@ -12,15 +12,12 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-          - '8.11'
+          # See https://github.com/coq-community/docker-coq/wiki for supported images
           - '8.12'
+          - '8.13'
         opam_name:
           - coq-vst
-          - coq-vst-64
-        exclude:
-          # Remove this exclusion when coq-compcert-64 supports Coq 8.12
-          - coq_version: '8.12'
-            opam_name: coq-vst-64
+          - coq-vst-32
     steps:
       - uses: actions/checkout@v2
       - name: Checkout submodules
@@ -29,21 +26,12 @@ jobs:
         with:
           opam_file: ${{ matrix.opam_name }}.opam
           coq_version: ${{ matrix.coq_version }}
-          custom_script: |
-            startGroup Print opam config
-              opam config list; opam repo list; opam list
-            endGroup
-            startGroup Build dependencies
-              opam pin add -n -y -k path $PACKAGE $WORKDIR
-              opam update -y
-              opam install -y -j 2 $PACKAGE --deps-only
-            endGroup
-            startGroup Build
-              # Temporary solution to coq-community/docker-coq-action#23
-              # Added -t flag to the default script
-              opam install -y -v -t -j 2 $PACKAGE
-              opam list
-            endGroup
-            startGroup Uninstallation test
-              opam remove $PACKAGE
-            endGroup
+          # See https://github.com/coq-community/docker-coq-action/tree/v1 for usage
+          before_install: |
+              startGroup "Opam config"
+                opam repo add -y prerelease file://$WORKDIR/opam-prerelease
+                opam config list; opam repo list; opam list
+              endGroup
+          export: 'OPAMWITHTEST'
+        env:
+          OPAMWITHTEST: 'true'

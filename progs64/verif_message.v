@@ -170,7 +170,6 @@ Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
-name buf _buf.
 function_pointers.
 start_function.
 set (ipm := gv _intpair_message).
@@ -213,15 +212,15 @@ forward. (* p.y = 2; *)
 forward. (* ser = intpair_message.serialize; *)
 
 rewrite <- memory_block_data_at__tarray_tuchar_eq by computable.
-change (memory_block Tsh 8 buf)
-with (memory_block Tsh (mf_size intpair_message) buf).
+change (memory_block Tsh 8 v_buf)
+with (memory_block Tsh (mf_size intpair_message) v_buf).
 
-assert_PROP (align_compatible tint buf).
+assert_PROP (align_compatible tint v_buf).
   entailer!.
-  destruct HPbuf; subst; simpl.
+  destruct HPv_buf; subst; simpl.
   econstructor; [reflexivity | apply Z.divide_0_r].
 forward_call (* len = ser(&p, buf); *)
-      ((Vint (Int.repr 1), Vint (Int.repr 2)), v_p, buf, Tsh, Tsh).
+      ((Vint (Int.repr 1), Vint (Int.repr 2)), v_p, v_buf, Tsh, Tsh).
   split3; auto.
   repeat split; auto.
 Intros rest.
@@ -230,7 +229,7 @@ Intros. subst rest.
 
 forward. (* des = intpair_message.deserialize; *)
 forward_call (* des(&q, buf, 8); *)
-        ((Vint (Int.repr 1), Vint (Int.repr 2)), v_q, buf, Tsh, Tsh, 8).
+        ((Vint (Int.repr 1), Vint (Int.repr 2)), v_q, v_buf, Tsh, Tsh, 8).
   simpl. fold t_struct_intpair. entailer!.
   split3; auto. simpl; computable.
 (* after the call *)
@@ -239,9 +238,9 @@ forward. (* y = q.y; *)
 forward. (* return x+y; *)
 simpl.
 entailer!.
-sep_apply (data_at_memory_block Tsh (tarray tint 2) [Vint (Int.repr 1); Vint (Int.repr 2)] buf).
+sep_apply (data_at_memory_block Tsh (tarray tint 2) [Vint (Int.repr 1); Vint (Int.repr 2)] v_buf).
 unfold sizeof; simpl Ctypes.sizeof.
-sep_apply (memory_block_data_at__tarray_tuchar Tsh buf 8).
+sep_apply (memory_block_data_at__tarray_tuchar Tsh v_buf 8).
    computable.
 entailer!.
 Qed.

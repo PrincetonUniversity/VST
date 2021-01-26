@@ -3068,7 +3068,8 @@ Proof.
   unfold local, lift1; unfold_lift; simpl. normalize.
   rewrite <- imp_andp_adjoint.
   rewrite <- imp_andp_adjoint. normalize. 
-  unfold derives. apply predicates_hered.exp_right with (x:=b). eapply predicates_hered.prop_andp_right.
+  unfold derives.
+  apply predicates_hered.exp_right with (x:=b) (p := (func_ptr f (Vptr b Ptrofs.zero) && P rho)). eapply predicates_hered.prop_andp_right.
   - unfold eval_var. rewrite H3.
     destruct H4 as [_ [? _]].
     specialize (H4 id).
