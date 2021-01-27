@@ -1260,6 +1260,53 @@ apply privatize_sub_option.
 apply (Comp_Exports_LNR (projT2 v)).
 Qed.
 
+Definition restrictExports {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (Exports': funspecs) :=
+   @VSU Espec E Imports p Exports' GP.
+
+Definition funspec_sub_in (fs: funspecs) (ix: ident * funspec) :=
+  match find_id (fst ix) fs with
+  | Some f => funspec_sub f (snd ix)
+  | None => False
+ end.
+
+Lemma prove_restrictExports
+   {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (Exports': funspecs) :
+   list_norepet (map fst Exports') ->
+   Forall (funspec_sub_in Exports) Exports' ->
+   restrictExports v Exports'.
+Proof.
+intros.
+destruct v as [G c].
+exists G.
+apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
+intros.
+rewrite Forall_forall in H0.
+apply find_id_e in E0.
+apply H0 in E0.
+red in E0.
+simpl in E0.
+destruct (find_id i Exports) eqn:?H; try contradiction.
+apply (Comp_G_Exports c) in H1.
+destruct H1 as [phi' [? ?]].
+exists phi'.
+split; auto.
+eapply funspec_sub_trans; eauto.
+intros.
+apply (Comp_MkInitPred c); auto.
+Qed.
+
+Ltac prove_restrictExports :=
+ simple apply prove_restrictExports; 
+   [apply compute_list_norepet_e; reflexivity || fail "Your restricted Export list has a duplicate function name"
+   | repeat apply Forall_cons; try simple apply Forall_nil;
+       red; simpl find_id; cbv beta iota;
+       change (@abbreviate funspec ?A) with A
+   ].
+
 Ltac QPlink_progs p1 p2 :=
   let p' :=  constr:(QPlink_progs  p1 p2) in
   let p'' := eval vm_compute in p' in
