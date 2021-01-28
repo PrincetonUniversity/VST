@@ -1,62 +1,66 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.veric.initial_world.
 Require Import VST.floyd.VSU.
-Require Import VST.floyd.VSU_addmain.
 
 Require Import PileModel.
 Require Import verif_core.
 Require Import main.
 Require Import spec_main.
 
-Notation M := verif_stdlib.M.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition whole_prog := ltac:(QPlink_progs (QPprog prog) (VSU_prog Core_VSU)).
+Definition Vprog: varspecs := QPvarspecs whole_prog.
+Definition Main_imports := VSU_Exports Core_VSU. 
+Definition mainspec :=  main_spec whole_prog.
+Definition Gprog := mainspec :: Main_imports.
 
-Definition linked_prog : Clight.program :=
- ltac: (linking.link_progs_list [
-   stdlib.prog; pile.prog; onepile.prog; apile.prog;
-   triang.prog; main.prog]).
+Ltac expand_main_pre ::= 
+  lazymatch goal with
+  | vsu: VSU _ _ _ _ _ |- _ => 
+    (eapply main_pre_InitGpred || report_failure); 
+        [ try apply (VSU_MkInitPred vsu); report_failure
+        | try (unfold Vardefs; simpl; reflexivity); report_failure
+        | try solve [repeat constructor]; report_failure
+        |  ];
+     clear vsu;
+     match goal with
+      |- semax _ (PROPx _ (LOCALx _ (SEPx (?R _ :: _))) * _)%logic _ _ =>
+        let x := unfold_all R in change R with x
+     end
+  | |- _ => expand_main_pre_old
+  end.
 
-Notation mainspec:= (main_spec linked_prog).
-
-Instance LinkedCompSpecs : compspecs. make_compspecs linked_prog. Defined.
-
-Definition Vprog: varspecs. mk_varspecs linked_prog. Defined.
-
-Lemma body_main: semax_body Vprog (mainspec::coreExports) f_main mainspec.
+Lemma body_main: semax_body Vprog Gprog f_main mainspec.
 Proof.
+pose Core_VSU.
 start_function.
-sep_apply (spec_stdlib.make_mem_mgr M gv).
-sep_apply (spec_apile.make_apile APILE gv). (* yields spec_apile.apile APILE gv []; *)
-(*sep_apply (make_apile PILE gv). yields apile PILE gv []; *)
-generalize (spec_onepile.make_onepile ONEPILE gv).
-(*generalize (make_onepile PILE gv).*)
-
-assert (change_composite_env (spec_onepile.OnePileCompSpecs ONEPILE) LinkedCompSpecs).
-make_cs_preserve (spec_onepile.OnePileCompSpecs ONEPILE) LinkedCompSpecs.
-change_compspecs LinkedCompSpecs.
-(*now necessary *)unfold onepile._pile, onepile._the_pile.
-intro Hx; sep_apply Hx; clear Hx.
+repeat change ((sepcon ?A ?B) gv) with (sepcon (A gv) (B gv)).
+change (verif_onepile.one_pile PILE None gv)
+ with (spec_onepile.onepile (verif_onepile.ONEPILE PILE) None gv).
 forward_call gv.
-(*{ simpl. cancel. }*)
+cancel.  (* why is this line necessary? *)
+fold ONEPILE.
+set (APILE := verif_apile.apile verif_stdlib.M PrivPILE).
+set (M := verif_stdlib.M).
 forward_for_simple_bound 10
   (EX i:Z,
    PROP() LOCAL(gvars gv)
-   SEP (spec_onepile.onepile ONEPILE gv (Some (decreasing (Z.to_nat i)));
-          spec_apile.apile APILE gv (decreasing (Z.to_nat i));
+   SEP (spec_onepile.onepile ONEPILE (Some (decreasing (Z.to_nat i))) gv;
+          APILE (decreasing (Z.to_nat i)) gv;
           spec_stdlib.mem_mgr M gv; has_ext tt)).
 - 
- entailer!. (*  simpl; cancel.*)
+ entailer!.
 -
-unfold APILE.
+unfold APILE, M, ONEPILE.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-(*{ simpl; cancel. }*)
 rep_lia.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
 rep_lia. rewrite decreasing_inc by lia.
-entailer!. simpl; cancel. (*unfold APILE. trivial.*)
+entailer!.
+unfold APILE, M. simpl; cancel.
 -
-unfold APILE.
+unfold APILE, M, ONEPILE.
 forward_call (decreasing (Z.to_nat 10), gv).
-(*{ simpl; cancel. }*)
 compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
@@ -65,71 +69,16 @@ lia.
 forward.
 Qed.
 
-Definition MainE_pre:funspecs :=
-   filter (fun x => in_dec ident_eq (fst x) (ExtIDs linked_prog)) (augment_funspecs linked_prog verif_stdlib.MF_ASI).
-  (* Holds
-  Lemma coreE_in_MainE: forall i phi, find_id i verif_stdlib.MM_E = Some phi -> find_id i MainE_pre = Some phi.
-  Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
-    simpl in H0. repeat (destruct H0 as [HO | H0]; [ subst i; inv H; reflexivity |]). contradiction.
-  Qed. *)
-
-Definition MainE:funspecs := ltac:
-    (let x := eval hnf in MainE_pre in
-     let x := eval simpl in x in 
-(*     let x := eval compute in x in *)
-       exact x). (*Takes 30s to compute...*)
-
-Lemma HypME1 : forall i : ident,
-         In i (map fst MainE) ->
-         exists (ef : external_function) (ts : typelist) (t : type) (cc : calling_convention),
-           find_id i (prog_defs linked_prog) = Some (Gfun (External ef ts t cc)) (*/\
-           ef_sig ef = {| sig_args := typlist_of_typelist ts;
-                          sig_res := opttyp_of_type t;
-                          sig_cc := cc_of_fundef (External ef ts t cc) |} /\
-           genv_find_func (Genv.globalenv linked_prog) i (External ef ts t cc)*).
-  Proof. intros.
-    cbv in H. 
-    repeat (destruct H as [H | H];
-      [ subst; try solve [do 4 eexists; split; reflexivity ]
-      | ]).
-   (*
-    repeat (destruct H as [H | H];
-      [ subst; try solve [do 4 eexists; split3; 
-                                    [ reflexivity | reflexivity 
-                                    | eexists; split; cbv; reflexivity]]
-      | ]).*)
-    contradiction.
-  Qed.
-
-Lemma MainE_vacuous i phi: find_id i MainE = Some phi -> find_id i verif_stdlib.MF_E = None ->
-        exists ef argsig retsig cc, 
-           phi = vacuous_funspec (External ef argsig retsig cc) /\ 
-           find_id i (prog_funct coreprog) = Some (External ef argsig retsig cc) /\
-           ef_sig ef = {| sig_args := typlist_of_typelist argsig;
-                          sig_res := opttyp_of_type retsig;
-                          sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
-  Proof. intros. specialize (find_id_In_map_fst _ _ _ H); intros.
-    cbv in H1.
-    Time repeat (destruct H1 as [H1 | H1]; 
-      [ subst; inv H; try solve [do 4 eexists; split3; reflexivity]
-      | ]). (*3s*)
-    inv H0. inv H0. inv H0. contradiction.
-  Qed.
-
-Lemma disjoint_Vprog_linkedfuncts: list_disjoint (map fst Vprog) (map fst (prog_funct linked_prog)).
+Definition MainComp:  MainCompType nil (QPprog prog) Core_VSU whole_prog (snd (main_spec whole_prog))  emp.
 Proof.
-  intros x y X Y ?; subst x; cbv in X; apply assoclists.find_id_None_iff in Y; [ trivial | clear H Y];
-  repeat (destruct X as [X | X]; [ subst y; cbv; reflexivity |]); contradiction.
+mkComponent prog.
+solve_SF_internal body_main.
 Qed.
 
-Definition Imports:funspecs:=nil.
+Lemma WholeComp: WholeCompType Core_VSU MainComp.
+Proof. proveWholeComponent. Qed.
 
-Definition PILE_VSU: @LinkedProgVSU NullExtension.Espec Vprog LinkedCompSpecs
-      MainE Imports linked_prog [mainspec].
-Proof.
- AddMainProgProgVSU_tac Core_CanVSU.
-   + apply disjoint_Vprog_linkedfuncts.
-   + apply HypME1. 
-   + apply body_main.
-   + apply MainE_vacuous.
-Qed.
+Lemma WholeProgSafe: WholeProgSafeType WholeComp tt.
+Proof. proveWholeProgSafe. Qed.
+
+Eval red in WholeProgSafeType WholeComp tt.

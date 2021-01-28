@@ -75,8 +75,8 @@ Qed.
            erewrite <- (mapsto_data_at'' Ews); trivial. 
   Qed.
 
-  Lemma apile_Init gv: InitGPred (Vardefs prog) gv |-- apile nil gv.
-  Proof. unfold InitGPred. simpl; Intros. rewrite sepcon_emp, MyInitData; trivial. Qed.
+  Lemma apile_Init: VSU_initializer prog (apile nil).
+  Proof. hnf; intros. unfold InitGPred. simpl; Intros. rewrite sepcon_emp, MyInitData; trivial. Qed.
 
 Definition APILE: APileAPD := Build_APileAPD apile (*APileCompSpecs make_apile*) (*_ apile_Init*).
 
@@ -107,18 +107,13 @@ forward.
 entailer!. simpl. unfold apile. entailer!.
 Qed. 
 
-  Definition ApileComponent: @Component NullExtension.Espec ApileVprog _ 
-      nil apile_imported_specs prog Apile_ASI (apile nil) apile_internal_specs.
-  Proof. 
-    mkComponent. 
-    + solve_SF_internal body_Apile_add.
+Definition ApileVSU: @VSU NullExtension.Espec
+      nil apile_imported_specs ltac:(QPprog prog) Apile_ASI (apile nil).
+Proof.
+ mkVSU prog apile_internal_specs.
     + solve_SF_internal body_Apile_count.
-    + intros. unfold InitGPred; simpl. rewrite sepcon_emp. Intros.
-      rewrite MyInitData; trivial; cancel.
+    + solve_SF_internal body_Apile_add.
+    + apply apile_Init.
   Qed.
 
-Definition ApileVSU: @VSU NullExtension.Espec ApileVprog _ 
-      nil apile_imported_specs prog Apile_ASI (apile nil).
-  Proof. eexists; apply ApileComponent. Qed.
 End Apile_VSU.
-

@@ -250,33 +250,27 @@ unfold listrep.
 entailer!.
 Qed.
 
-  Definition PileComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI emp pile_internal_specs.
-  Proof. 
-    mkComponent.
+
+Definition PileVSU: @VSU NullExtension.Espec
+           nil pile_imported_specs ltac:(QPprog prog) Pile_ASI emp.
+ Proof. 
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_new.
-    + solve_SF_internal body_Pile_add.
     + solve_SF_internal body_Pile_count.
+    + solve_SF_internal body_Pile_add.
+    + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-  Definition PileVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI emp.
-  Proof. eexists; apply PileComponent. Qed.
-
-  Definition PilePrivateComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (PilePrivateASI M PILEPRIV) emp pile_internal_specs.
-  Proof. 
-    mkComponent.
+Definition PilePrivateVSU: @VSU NullExtension.Espec
+      nil pile_imported_specs ltac:(QPprog prog) (PilePrivateASI M PILEPRIV) emp.
+ Proof. 
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_new.
-    + solve_SF_internal body_Pile_add.
     + solve_SF_internal body_Pile_count.
+    + solve_SF_internal body_Pile_add.
+    + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-Definition PilePrivateVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (PilePrivateASI M PILEPRIV) emp.
-  Proof. eexists; apply PileComponent. Qed.
 End Pile_VSU.

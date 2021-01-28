@@ -95,20 +95,17 @@ Qed.
   Qed.
 
 
-  Lemma onepile_Init gv: globals_ok gv -> InitGPred (Vardefs prog) gv |-- one_pile None gv.
+  Lemma onepile_Init: VSU_initializer prog (one_pile None).
   Proof. InitGPred_tac. unfold one_pile. normalize. apply derives_refl. Qed.
 
-  Definition OnepileComponent: @Component NullExtension.Espec OnepileVprog _ 
-      nil onepile_imported_specs prog Onepile_ASI (one_pile None) onepile_internal_specs.
-  Proof.
-    mkComponent. 
+Definition OnepileVSU: @VSU NullExtension.Espec
+      nil onepile_imported_specs ltac:(QPprog prog) Onepile_ASI (one_pile None).
+Proof.
+ mkVSU prog onepile_internal_specs.
+    + solve_SF_internal body_Onepile_count.
     + solve_SF_internal body_Onepile_init.
     + solve_SF_internal body_Onepile_add.
-    + solve_SF_internal body_Onepile_count.
     + apply onepile_Init.
   Qed.
 
-Definition OnepileVSU: @VSU NullExtension.Espec OnepileVprog _ 
-      nil onepile_imported_specs prog Onepile_ASI (one_pile None).
-  Proof. eexists; apply OnepileComponent. Qed.
 End Onepile_VSU.

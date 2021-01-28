@@ -932,19 +932,18 @@ Ltac unfold_all R :=
  end.
 
 Ltac expand_main_pre_VSU :=
-  match goal with
+  lazymatch goal with
   | vsu: VSU _ _ _ _ _ |- _ => 
-    eapply main_pre_InitGpred; 
+    (eapply main_pre_InitGpred || report_failure); 
         [ try apply (VSU_MkInitPred vsu); report_failure
         | try (unfold Vardefs; simpl; reflexivity); report_failure
         | try solve [repeat constructor]; report_failure
         |  ];
      clear vsu;
      match goal with
-      |- semax _ (PROPx _ (LOCALx _ (SEPx ((emp * emp * ?R) _ :: _))) * _)%logic _ _ =>
+      |- semax _ (PROPx _ (LOCALx _ (SEPx (?R _ :: _))) * _)%logic _ _ =>
         let x := unfold_all R in change R with x
      end
-  | vsu: VSU _ _ _ _ _ |- _ =>  report_failure
   | |- _ => expand_main_pre_old
   end.
 
