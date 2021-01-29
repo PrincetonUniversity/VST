@@ -9,7 +9,7 @@ VFILES = PileModel.v spec_stdlib.v verif_stdlib.v spec_pile.v spec_pile_private.
          fast/spec_fastpile_concrete.v fast/verif_fastpile_concrete.v \
          fast/subsume_fastpile.v \
          fast/verif_fastapile.v fast/verif_fastcore.v \
-         fast/verif_linked_fastmain.v \
+         fast/verif_fastmain.v \
          simple_spec_stdlib.v simple_verif_stdlib.v simple_spec_pile.v simple_verif_pile.v \
          simple_spec_onepile.v simple_verif_onepile.v simple_spec_apile.v simple_verif_apile.v \
          simple_spec_triang.v simple_verif_triang.v simple_spec_main.v 
@@ -102,7 +102,6 @@ fast/verif_fastcore.vo: main.vo verif_stdlib.vo fast/spec_fastpile_private.vo fa
 fast/verif_fastmain.vo: main.vo fast/verif_fastcore.vo
 fast/link_fastpile.vo: fast/verif_fastmain.vo
 fast/verif_fasttriang.vo: triang.vo spec_stdlib.vo spec_triang.vo fast/spec_fastpile.vo
-fast/verif_linked_fastmain.vo: PileModel.vo fast/verif_fastcore.vo spec_main.vo
 simple_spec_apile.vo: apile.vo simple_spec_stdlib.vo simple_spec_pile.vo $(FLOYD)
 simple_spec_main.vo: main.vo simple_spec_stdlib.vo simple_spec_onepile.vo simple_spec_apile.vo simple_spec_triang.vo $(FLOYD)
 simple_spec_onepile.vo: onepile.vo simple_spec_stdlib.vo simple_spec_pile.vo $(FLOYD)

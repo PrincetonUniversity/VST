@@ -18,31 +18,29 @@ Lemma body_main: semax_body Vprog Gprog f_main mainspec.
 Proof.
 pose Core_VSU.
 start_function.
-change (verif_onepile.one_pile PILE None gv)
- with (spec_onepile.onepile (verif_onepile.ONEPILE PILE) None gv).
 forward_call gv.
-fold ONEPILE.
+set (ONEPILE := spec_onepile.onepile (verif_onepile.ONEPILE PILE)).
 set (APILE := verif_apile.apile verif_stdlib.M PrivPILE).
-set (M := verif_stdlib.M).
+set (MEM_MGR := spec_stdlib.mem_mgr verif_stdlib.M).
 forward_for_simple_bound 10
   (EX i:Z,
    PROP() LOCAL(gvars gv)
-   SEP (spec_onepile.onepile ONEPILE (Some (decreasing (Z.to_nat i))) gv;
+   SEP (ONEPILE (Some (decreasing (Z.to_nat i))) gv;
           APILE (decreasing (Z.to_nat i)) gv;
-          spec_stdlib.mem_mgr M gv; has_ext tt)).
+          MEM_MGR gv; has_ext tt)).
 - 
  entailer!.
 -
-unfold APILE, M, ONEPILE.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
+unfold APILE, MEM_MGR, ONEPILE; cancel.
 rep_lia.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
 rep_lia. rewrite decreasing_inc by lia.
 entailer!.
-unfold APILE, M. simpl; cancel.
+unfold APILE, MEM_MGR, ONEPILE; simpl; cancel.
 -
-unfold APILE, M, ONEPILE.
 forward_call (decreasing (Z.to_nat 10), gv).
+unfold APILE, MEM_MGR, ONEPILE; cancel.
 compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
