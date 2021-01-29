@@ -19,64 +19,29 @@ Definition apile (sigma: list Z) (gv: globals): mpred :=
   spec_pile_private.pile_rep_exposed 
   to exploit the representation exposure*)
 
-(*
 Lemma make_apile: forall gv, 
-  headptr (gv apile._a_pile) ->
-  data_at Ews tuint (Vint (Int.repr 0))
-          (gv apile._a_pile) |-- apile nil gv.
+  globals_ok gv ->
+  data_at Ews tuint (Vint (Int.repr 0)) (gv apile._a_pile) |-- apile nil gv.
 Proof.
 intros. unfold apile. rewrite pile_rep_exposed. (*HERE*) 
-unfold prep. 
- Exists (Vint (Int.repr 0)).
- unfold listrep. entailer!.
- unfold_data_at (data_at _ spec_pile.tpile _ _).
- rewrite field_at_data_at. simpl.
- rewrite field_compatible_field_address
+unfold prep.
+assert_PROP (headptr (gv _a_pile)) by entailer!.
+Exists (Vint (Int.repr 0)).
+unfold listrep. entailer!.
+unfold_data_at (data_at _ spec_pile.tpile _ _).
+rewrite field_at_data_at. simpl.
+rewrite field_compatible_field_address
    by auto with field_compatible.
- simpl. normalize.
- rewrite <- data_at_nullptr.
- cancel.
-Qed.*)
-
-(*only |-- is needed*)
-Lemma make_apile: forall gv, 
-  headptr (gv apile._a_pile) ->
-  data_at Ews tuint (Vint (Int.repr 0)) (gv apile._a_pile) = apile nil gv.
-Proof.
-intros. unfold apile. rewrite pile_rep_exposed. (*HERE*) 
-unfold prep. apply pred_ext.
-+ Exists (Vint (Int.repr 0)).
-  unfold listrep. entailer!.
-  unfold_data_at (data_at _ spec_pile.tpile _ _).
-  rewrite field_at_data_at. simpl.
-  rewrite field_compatible_field_address
-   by auto with field_compatible.
-  simpl. normalize.
-  rewrite <- data_at_nullptr.
-  cancel.
-+ Intros x.
-  unfold listrep. entailer!.
-  unfold_data_at (data_at _ spec_pile.tpile _ _).
-  rewrite field_at_data_at. simpl.
-  rewrite field_compatible_field_address
-   by auto with field_compatible.
-  simpl. normalize.
-  rewrite <- data_at_nullptr.
-  cancel.
+simpl. normalize.
+rewrite <- data_at_nullptr.
+cancel.
 Qed.
 
-  (*only |-- is needed*)
-  Lemma MyInitData gv (H: headptr (gv _a_pile)):
-        globvar2pred gv (_a_pile, v_a_pile) 
-        = apile nil gv.
-  Proof. rewrite <- (make_apile _ H).
-         unfold globvar2pred, apile. simpl.
-         rewrite sepcon_emp. forget (gv _a_pile) as p.
-           erewrite <- (mapsto_data_at'' Ews); trivial. 
-  Qed.
-
-  Lemma apile_Init: VSU_initializer prog (apile nil).
-  Proof. hnf; intros. unfold InitGPred. simpl; Intros. rewrite sepcon_emp, MyInitData; trivial. Qed.
+Lemma apile_Init: VSU_initializer prog (apile nil).
+  Proof. 
+    InitGPred_tac.  rewrite sepcon_emp.
+    apply make_apile; auto.
+Qed.
 
 Definition APILE: APileAPD := Build_APileAPD apile (*APileCompSpecs make_apile*) (*_ apile_Init*).
 

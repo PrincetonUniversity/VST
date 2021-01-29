@@ -27,10 +27,9 @@ Qed.
 
 Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile.
 
-  Definition Onepile_ASI: funspecs := OnepileASI M ONEPILE.
+Definition Onepile_ASI: funspecs := OnepileASI M ONEPILE.
 
-(*onepile's Imported specs.*)
-  Definition onepile_imported_specs:funspecs := 
+Definition onepile_imported_specs:funspecs := 
      [ Pile_new_spec M PILE; Pile_add_spec M PILE; Pile_count_spec PILE].
 (*TODO: at present we're not permitted to overapproximate here: if we define
       onepile_imported_specs := PileASI PILE.  
@@ -38,10 +37,9 @@ Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile.
   but the first (usually automatically discharged) subgoal of tactic mkComponent 
   in the definition of OnepileComponent below will fail.*)
 
-  Definition onepile_internal_specs: funspecs := (*surely_malloc_spec::*)Onepile_ASI.
-
-  Definition OnepileVprog: varspecs. mk_varspecs prog. Defined.
-  Definition OnepileGprog: funspecs := onepile_imported_specs ++ onepile_internal_specs.
+Definition onepile_internal_specs: funspecs := (*surely_malloc_spec::*)Onepile_ASI.
+Definition OnepileVprog: varspecs. mk_varspecs prog. Defined.
+Definition OnepileGprog: funspecs := onepile_imported_specs ++ onepile_internal_specs.
 
 Lemma body_Onepile_init: semax_body OnepileVprog OnepileGprog f_Onepile_init (Onepile_init_spec M ONEPILE).
 Proof.
@@ -94,20 +92,18 @@ Qed.
       econstructor. reflexivity. apply Z.divide_0_r.
   Qed.
 
-  Lemma onepile_Init gv: globals_ok gv -> InitGPred (Vardefs prog) gv |-- one_pile None gv.
-  Proof. InitGPred_tac. unfold one_pile. normalize. apply derives_refl. Qed.
+Lemma onepile_Init: VSU_initializer prog (one_pile None).
+Proof. InitGPred_tac. unfold one_pile. normalize. apply derives_refl. Qed.
 
-  Definition OnepileComponent: @Component NullExtension.Espec OnepileVprog _ 
-      nil onepile_imported_specs prog Onepile_ASI (one_pile None) onepile_internal_specs.
+Definition OnepileVSU: @VSU NullExtension.Espec
+      nil onepile_imported_specs ltac:(QPprog prog) Onepile_ASI (one_pile None).
   Proof.
-    mkComponent. 
+    mkVSU prog onepile_internal_specs. 
+    + solve_SF_internal body_Onepile_count.
     + solve_SF_internal body_Onepile_init.
     + solve_SF_internal body_Onepile_add.
-    + solve_SF_internal body_Onepile_count.
     + apply onepile_Init.
   Qed.
 
-Definition OnepileVSU: @VSU NullExtension.Espec OnepileVprog _ 
-      nil onepile_imported_specs prog Onepile_ASI (one_pile None).
-  Proof. eexists; apply OnepileComponent. Qed.
 End Onepile_VSU.
+

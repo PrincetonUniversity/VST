@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import triang.
 Require Import simple_spec_stdlib.
 Require Import PileModel.
-Instance TriangCompSpecs : compspecs. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 (*APD is empty, but the ASI still depend n the MallocFree-APD*)
 

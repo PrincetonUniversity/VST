@@ -6,7 +6,7 @@ Require Import spec_fastpile.
 Require Import spec_fastpile_private.
 Require Import spec_apile.
 
-Instance APileCompSpecs : compspecs. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section Apile_VSU.
 Variable M: MallocFreeAPD.
@@ -20,35 +20,43 @@ Definition apile (sigma: list Z) (gv: globals) : mpred :=
   to exploit the representation exposure*)
 
 Lemma make_apile: forall gv, 
-  headptr (gv apile._a_pile) ->
-  @data_at APileCompSpecs Ews tuint (Vint (Int.repr 0))
-          (gv fastapile._a_pile) |-- apile nil gv.
+  globals_ok gv ->
+  data_at Ews tuint (Vint (Int.repr 0)) (gv apile._a_pile) |-- apile nil gv.
 Proof.
 intros. unfold apile. rewrite pile_rep_exposed. (*HERE*) 
-unfold fastprep. 
+unfold fastprep.
  Exists 0.
+ assert_PROP (headptr (gv _a_pile)) by entailer!.
  entailer!. 
  unfold_data_at (data_at _ tpile _ _).
  rewrite field_at_data_at. simpl.
  rewrite field_compatible_field_address
    by auto with field_compatible.
  simpl. normalize. rewrite data_at_tuint_tint.
-assert (change_composite_env APileCompSpecs FastpileCompSpecs).
-{ make_cs_preserve APileCompSpecs FastpileCompSpecs. }
-change_compspecs FastpileCompSpecs. trivial.
+assert (change_composite_env CompSpecs FastpileCompSpecs).
+{ make_cs_preserve CompSpecs FastpileCompSpecs. }
+change_compspecs FastpileCompSpecs.
+apply derives_refl.
 Qed.
+
+Lemma apile_Init: VSU_initializer prog (apile nil).
+  Proof. 
+    InitGPred_tac.  rewrite sepcon_emp.
+    apply make_apile; auto.
+Qed.
+
 
 Definition APILE: APileAPD := Build_APileAPD apile (*APileCompSpecs make_apile*).
 
-  Definition Apile_ASI: funspecs := ApileASI M APILE.
+Definition Apile_ASI: funspecs := ApileASI M APILE.
 
-  Definition apile_imported_specs:funspecs := 
+Definition apile_imported_specs:funspecs := 
      [ Pile_add_spec M PILEPRIV; Pile_count_spec PILEPRIV].
 
-  Definition apile_internal_specs: funspecs := Apile_ASI.
+Definition apile_internal_specs: funspecs := Apile_ASI.
 
-  Definition ApileVprog: varspecs. mk_varspecs prog. Defined.
-  Definition ApileGprog: funspecs := apile_imported_specs ++ apile_internal_specs.
+Definition ApileVprog: varspecs. mk_varspecs prog. Defined.
+Definition ApileGprog: funspecs := apile_imported_specs ++ apile_internal_specs.
 
 Lemma body_Apile_add: semax_body ApileVprog ApileGprog f_Apile_add (Apile_add_spec M APILE).
 Proof.
@@ -66,22 +74,14 @@ forward_call (gv _a_pile, sigma).
 forward.
 Qed.
 
-  Lemma apile_Init gv: globals_ok gv -> InitGPred (Vardefs prog) gv |-- apile nil gv.
-  Proof. InitGPred_tac.
-  assert_PROP (headptr (gv apile._a_pile)) by entailer!.
-  sep_apply make_apile; auto.
-  Qed.
-
-  Definition ApileComponent: @Component NullExtension.Espec ApileVprog _ 
-      nil apile_imported_specs prog Apile_ASI (apile nil) apile_internal_specs.
+Definition ApileVSU: @VSU NullExtension.Espec 
+      nil apile_imported_specs ltac:(QPprog prog) Apile_ASI (apile nil).
   Proof. 
-    mkComponent. 
-    + solve_SF_internal body_Apile_add.
+    mkVSU prog apile_internal_specs.
     + solve_SF_internal body_Apile_count.
+    + solve_SF_internal body_Apile_add.
     + apply apile_Init.
   Qed.
 
-Definition ApileVSU: @VSU NullExtension.Espec ApileVprog _ 
-      nil apile_imported_specs prog Apile_ASI (apile nil).
-  Proof. eexists; apply ApileComponent. Qed.
 End Apile_VSU.
+

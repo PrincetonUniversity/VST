@@ -943,7 +943,11 @@ Ltac expand_main_pre_VSU :=
      match goal with
       |- semax _ (PROPx _ (LOCALx _ (SEPx (?R _ :: _))) * _)%logic _ _ =>
         let x := unfold_all R in change R with x
-     end
+     end;
+     repeat change ((sepcon ?A ?B) ?gv) with (sepcon (A gv) (B gv));
+     change (emp ?gv) with (@emp mpred _ _);
+     rewrite ?emp_sepcon, ?sepcon_emp;
+     repeat match goal with |- semax _ (sepcon ?PQR _) _ _ => flatten_in_SEP PQR end
   | |- _ => expand_main_pre_old
   end.
 
@@ -1119,6 +1123,9 @@ set (Delta := @abbreviate tycontext Delta');
 change Delta' with Delta;
 hnf in Delta'; simpl in Delta'; subst Delta';
 simpl vardefs_to_globvars;
+try match goal with |- context [PTree.prev ?A] =>
+  let a := constr:(PTree.prev A) in let a := eval compute in a in
+    change (PTree.prev A) with a end;
 eapply derives_trans; [process_globals | ];
 clear Delta;
 apply finish_process_globvars'; unfold fold_right_sepcon at 1;
@@ -1671,16 +1678,6 @@ simpl. rewrite if_false. auto.
 intro; subst. apply H. apply find_id_e in H1. apply (in_map fst) in H1; auto.
 auto.
 Qed.
-
-Lemma QPprogfunct_GFF:
-   forall {p i fd},
-   find_id i (QPprog_funct p) = Some fd ->
-       genv_find_func (QPglobalenv p) i fd.
-Proof.
-intros.
-red.
-Search QPprog_funct.
-Abort.
 
 Lemma QPprog_funct'_filter_isGfun: 
   forall dl, QPprog_funct' (filter isGfun dl) = QPprog_funct' dl.

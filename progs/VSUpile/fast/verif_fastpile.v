@@ -53,14 +53,14 @@ Definition surely_malloc_spec :=
        LOCAL (temp ret_temp p)
        SEP (mem_mgr M gv; malloc_token M Ews t p * data_at_ Ews t p).
 
-  Definition Pile_ASI: funspecs := PileASI M PILE.
+Definition Pile_ASI: funspecs := PileASI M PILE.
 
-  Definition pile_imported_specs:funspecs := MallocFreeASI M.
+Definition pile_imported_specs:funspecs := MallocFreeASI M.
 
-  Definition pile_internal_specs: funspecs := surely_malloc_spec::Pile_ASI.
+Definition pile_internal_specs: funspecs := surely_malloc_spec::Pile_ASI.
 
-  Definition PileVprog: varspecs. mk_varspecs prog. Defined.
-  Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
+Definition PileVprog: varspecs. mk_varspecs prog. Defined.
+Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
 
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M PILE).
 Proof.
@@ -174,33 +174,27 @@ forward_if True.
 + forward. Exists p. entailer!.
 Qed.
 
-  Definition PileComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI emp pile_internal_specs.
+  Definition PileVSU: @VSU NullExtension.Espec
+      nil pile_imported_specs ltac:(QPprog prog) Pile_ASI emp.
   Proof. 
-    mkComponent.
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_new.
-    + solve_SF_internal body_Pile_add.
     + solve_SF_internal body_Pile_count.
+    + solve_SF_internal body_Pile_add.
+    + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-  Definition PileVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI emp.
-  Proof. eexists; apply PileComponent. Qed.
-
-  Definition PilePrivateComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV) emp pile_internal_specs.
+  Definition PilePrivateVSU: @VSU NullExtension.Espec
+      nil pile_imported_specs ltac:(QPprog prog) (FastpilePrivateASI M PILEPRIV) emp.
   Proof. 
-    mkComponent.
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_new.
-    + solve_SF_internal body_Pile_add.
     + solve_SF_internal body_Pile_count.
+    + solve_SF_internal body_Pile_add.
+    + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-Definition PilePrivateVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV) emp.
-  Proof. eexists; apply PileComponent. Qed.
 End Pile_VSU.
+

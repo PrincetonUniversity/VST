@@ -6,6 +6,8 @@ Require Import simple_spec_stdlib.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
+Axiom mem_mgr_rep: forall gv, emp |-- mem_mgr gv.
+
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
    VST.floyd.library.body_lemma_of_funspec EF_malloc (snd malloc_spec').
@@ -28,12 +30,15 @@ Definition placeholder_spec :=
  POST [ tint ]
    PROP() LOCAL() SEP().
 
-  Definition MF_imported_specs:funspecs :=  nil.
+Definition MF_imported_specs:funspecs :=  nil.
 
-  Definition MF_internal_specs: funspecs := placeholder_spec::MallocFreeASI.
+Definition MF_internal_specs: funspecs := placeholder_spec::MallocFreeASI.
 
-  Definition MFVprog : varspecs. mk_varspecs prog. Defined.
-  Definition MFGprog: funspecs := MF_imported_specs ++ MF_internal_specs.
+Definition MFVprog : varspecs. mk_varspecs prog. Defined.
+Definition MFGprog: funspecs := MF_imported_specs ++ MF_internal_specs.
+
+Lemma MF_Init: VSU_initializer prog mem_mgr.
+Proof. InitGPred_tac. apply mem_mgr_rep. Qed.
 
 Lemma body_placeholder: semax_body MFVprog MFGprog f_placeholder placeholder_spec.
 Proof.
@@ -61,22 +66,19 @@ Proof.
  renormalize. entailer!.
 Qed.
 
-  Definition MF_E : funspecs := MallocFreeASI.
+Definition MF_E : funspecs := MallocFreeASI.
 
-  Definition MallocFreeComponent: @Component NullExtension.Espec MFVprog CompSpecs 
-      (*nil*)MF_E MF_imported_specs prog MallocFreeASI emp MF_internal_specs.
+Definition MallocFreeVSU: @VSU NullExtension.Espec
+        MF_E MF_imported_specs ltac:(QPprog prog) MallocFreeASI mem_mgr.
   Proof. 
-    mkComponent. 
-    - clear; solve_SF_external (@body_malloc NullExtension.Espec CompSpecs). 
+    mkVSU prog MF_internal_specs. 
+    - solve_SF_external (@body_malloc NullExtension.Espec CompSpecs). 
       Intros. eapply derives_trans.
       apply (semax_func_cons_malloc_aux gv gx ret n).
       destruct ret; simpl; trivial.
-    - clear; solve_SF_external (@body_free NullExtension.Espec CompSpecs).
-    - clear; solve_SF_external (@body_exit NullExtension.Espec).
-    - clear; solve_SF_internal body_placeholder.
+    - solve_SF_external (@body_exit NullExtension.Espec).
+    - solve_SF_internal body_placeholder.
+    - solve_SF_external (@body_free NullExtension.Espec CompSpecs).
+    - apply MF_Init.
 Qed.
-
-Definition MallocFreeVSU: @VSU NullExtension.Espec MFVprog CompSpecs 
-          MF_E MF_imported_specs prog MallocFreeASI emp.
-  Proof. eexists; apply MallocFreeComponent. Qed.
 

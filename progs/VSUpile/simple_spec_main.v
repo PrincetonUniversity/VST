@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.VSU.  (* Need this, otherwise get wrong version of main_pre *)
 Require Import main.
 
 Definition main_spec p :=

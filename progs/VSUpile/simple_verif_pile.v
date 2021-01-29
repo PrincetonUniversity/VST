@@ -21,12 +21,12 @@ Definition surely_malloc_spec :=
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 
-  Definition pile_imported_specs:funspecs := MallocFreeASI.
+Definition pile_imported_specs:funspecs := MallocFreeASI.
 
-  Definition pile_internal_specs: funspecs := surely_malloc_spec::PileASI.
+Definition pile_internal_specs: funspecs := surely_malloc_spec::PileASI.
 
-  Definition PileVprog: varspecs. mk_varspecs prog. Defined.
-  Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
+Definition PileVprog: varspecs. mk_varspecs prog. Defined.
+Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
 
 Lemma body_surely_malloc: semax_body PileVprog PileGprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -190,18 +190,14 @@ unfold listrep.
 entailer!.
 Qed.
 
-  Definition PileComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog PileASI emp pile_internal_specs.
+Definition PileVSU: @VSU NullExtension.Espec 
+      nil pile_imported_specs ltac:(QPprog prog) PileASI emp.
   Proof. 
-    mkComponent.
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_new.
-    + solve_SF_internal body_Pile_add.
     + solve_SF_internal body_Pile_count.
+    + solve_SF_internal body_Pile_add.
+    + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_free.
   Qed.
-
-  Definition PileVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog PileASI emp.
-  Proof. eexists; apply PileComponent. Qed.
 

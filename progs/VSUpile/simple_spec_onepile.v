@@ -3,8 +3,7 @@ Require Import onepile.
 Require Import simple_spec_stdlib.
 Require Import simple_spec_pile.
 Require Import PileModel.
-Instance OnePileCompSpecs : compspecs. make_compspecs prog. Defined.
-
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Definition onepile (sigma: option (list Z)) (gv: globals): mpred :=
  match sigma with
@@ -33,7 +32,6 @@ Definition Onepile_add_spec :=
  POST[ tvoid ]
     PROP() LOCAL()
     SEP(onepile (Some (n::sigma)) gv; mem_mgr gv).
-
 
 Definition Onepile_count_spec :=
  DECLARE _Onepile_count

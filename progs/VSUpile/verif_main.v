@@ -14,31 +14,13 @@ Definition Main_imports := VSU_Exports Core_VSU.
 Definition mainspec :=  main_spec whole_prog.
 Definition Gprog := mainspec :: Main_imports.
 
-Ltac expand_main_pre ::= 
-  lazymatch goal with
-  | vsu: VSU _ _ _ _ _ |- _ => 
-    (eapply main_pre_InitGpred || report_failure); 
-        [ try apply (VSU_MkInitPred vsu); report_failure
-        | try (unfold Vardefs; simpl; reflexivity); report_failure
-        | try solve [repeat constructor]; report_failure
-        |  ];
-     clear vsu;
-     match goal with
-      |- semax _ (PROPx _ (LOCALx _ (SEPx (?R _ :: _))) * _)%logic _ _ =>
-        let x := unfold_all R in change R with x
-     end
-  | |- _ => expand_main_pre_old
-  end.
-
 Lemma body_main: semax_body Vprog Gprog f_main mainspec.
 Proof.
 pose Core_VSU.
 start_function.
-repeat change ((sepcon ?A ?B) gv) with (sepcon (A gv) (B gv)).
 change (verif_onepile.one_pile PILE None gv)
  with (spec_onepile.onepile (verif_onepile.ONEPILE PILE) None gv).
 forward_call gv.
-cancel.  (* why is this line necessary? *)
 fold ONEPILE.
 set (APILE := verif_apile.apile verif_stdlib.M PrivPILE).
 set (M := verif_stdlib.M).

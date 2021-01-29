@@ -159,18 +159,16 @@ forward_if True.
 + forward. Exists p. entailer!.
 Qed.
 
-  Definition FastpileConcComponent: @Component NullExtension.Espec FastpileConcVprog _ 
-      nil fastpileconc_imported_specs prog FastpileConc_ASI emp fastpileconc_internal_specs.
+  Definition FastpileVSU: @VSU NullExtension.Espec
+      nil fastpileconc_imported_specs ltac:(QPprog prog) FastpileConc_ASI emp.
   Proof. 
-    mkComponent.
+    mkVSU prog fastpileconc_internal_specs.
     + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_new.
-    + solve_SF_internal body_Pile_add.
     + solve_SF_internal body_Pile_count.
+    + solve_SF_internal body_Pile_add.
+    + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-  Definition FastpileVSU: @VSU NullExtension.Espec FastpileConcVprog _ 
-      nil fastpileconc_imported_specs prog FastpileConc_ASI emp.
-  Proof. eexists; apply FastpileConcComponent. Qed.
 End FastpileConcrete_VSU.
+

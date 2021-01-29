@@ -70,7 +70,7 @@ unfold spec_fastpile_private.fastprep. unfold crep.
 Intros s. Exists s. simpl in *. entailer.
 Qed.
 
-(*The oder of remaining side conditions is swapped compared to the FM code base,
+(*The other remaining side conditions are swapped compared to the FM code base,
   presumably because of a reformulation of sunpec_sub or becuase of the introduction of do_funspec_sub*)
 Lemma sub_Pile_add: 
   funspec_sub (snd (spec_fastpile_concrete.Pile_add_spec M (FASTPILECONC M)))

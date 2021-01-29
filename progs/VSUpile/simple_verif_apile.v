@@ -5,11 +5,14 @@ Require Import simple_spec_stdlib.
 Require Import simple_spec_pile.
 Require Import simple_spec_apile.
 
-Lemma make_apile: forall gv, headptr (gv _a_pile) ->
+
+Lemma make_apile: forall gv, 
+     globals_ok gv ->
     @data_at APileCompSpecs Ews tuint (Vint (Int.repr 0))
           (gv _a_pile) |-- apile nil gv.
 Proof.
 intros. unfold apile, pilerep.
+assert_PROP (headptr (gv _a_pile)) by entailer!.
 Exists nullval.
 unfold listrep. entailer!.
 unfold_data_at (data_at _ tpile _ _).
@@ -21,19 +24,11 @@ rewrite <- data_at_nullptr.
 cancel.
 Qed.
 
-  Lemma MyInitData gv (H: headptr (gv _a_pile)):
-        globvar2pred gv (_a_pile, v_a_pile)
-        |-- apile nil gv.
-  Proof.
-  eapply derives_trans; [ | apply make_apile; auto].
-  unfold globvar2pred, apile. simpl.
-  rewrite sepcon_emp. forget (gv _a_pile) as p.
-  erewrite <- (mapsto_data_at'' Ews); auto.
-  apply derives_refl.
-  Qed.
-
-  Lemma apile_Init gv: InitGPred (Vardefs prog) gv |-- apile nil gv.
-  Proof. unfold InitGPred. simpl; Intros. rewrite sepcon_emp.  apply MyInitData; trivial. Qed.
+Lemma apile_Init: VSU_initializer prog (apile nil).
+  Proof. 
+    InitGPred_tac.  rewrite sepcon_emp.
+    apply make_apile; auto.
+Qed.
 
   Definition apile_imported_specs:funspecs := 
      [ Pile_add_spec; Pile_count_spec].
@@ -59,18 +54,13 @@ forward_call (gv _a_pile, sigma).
 forward.
 Qed. 
 
-  Definition ApileComponent: @Component NullExtension.Espec ApileVprog _ 
-      nil apile_imported_specs prog ApileASI (apile nil) apile_internal_specs.
+  Definition ApileVSU: @VSU NullExtension.Espec 
+      nil apile_imported_specs ltac:(QPprog prog) ApileASI (apile nil) .
   Proof. 
-    mkComponent. 
-    + solve_SF_internal body_Apile_add.
+    mkVSU prog apile_internal_specs. 
     + solve_SF_internal body_Apile_count.
-    + intros. unfold InitGPred; simpl. rewrite sepcon_emp. Intros.
-      sep_apply MyInitData. cancel.
+    + solve_SF_internal body_Apile_add.
+    + apply apile_Init.
   Qed.
-
-Definition ApileVSU: @VSU NullExtension.Espec ApileVprog _ 
-      nil apile_imported_specs prog ApileASI (apile nil).
-  Proof. eexists; apply ApileComponent. Qed.
 
 

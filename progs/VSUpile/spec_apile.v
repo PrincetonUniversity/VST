@@ -5,11 +5,7 @@ Require Import PileModel.
 
 (*Apile's predicate bundle is similar to the Onepile's bundle.*)
 Record APileAPD := {
-  apile: list Z -> globals -> mpred(*;
-  APileCompSpecs: compspecs;
-  make_apile: forall gv, headptr (gv _a_pile) ->
-    @data_at APileCompSpecs Ews tuint (Vint (Int.repr 0))
-          (gv _a_pile) |-- apile gv nil*)
+  apile: list Z -> globals -> mpred
 }.
 
 Local Open Scope assert.

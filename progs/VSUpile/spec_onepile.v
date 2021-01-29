@@ -4,10 +4,7 @@ Require Import spec_stdlib.
 Require Import PileModel.
 
 Record OnePileAPD := {
-  onepile: option (list Z) -> globals -> mpred(*;
-  OnePileCompSpecs: compspecs;
-  make_onepile: forall gv, @data_at_ OnePileCompSpecs Ews (tptr (Tstruct onepile._pile noattr)) (gv onepile._the_pile)
-   |-- onepile None gv*)
+  onepile: option (list Z) -> globals -> mpred
 }.
 
 Local Open Scope assert.
@@ -34,9 +31,6 @@ Definition Onepile_add_spec :=
  POST[ tvoid ]
     PROP() LOCAL()
     SEP(onepile ONEPILE (Some (n::sigma)) gv; mem_mgr M gv).
-
-(*Reuse definition from the model for pile, in spec_pile 
-Definition sumlist : list Z -> Z := List.fold_right Z.add 0.*)
 
 Definition Onepile_count_spec :=
  DECLARE _Onepile_count
