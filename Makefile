@@ -855,7 +855,7 @@ progs64c: $(C64_ORDINARY:%.c=progs64/%.c)
 progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.v) depend
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
-VSUpile: floyd/proofauto.vo floyd/VSU.vo
+VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
 	cd progs/VSUpile; $(MAKE)
 
 # $(CC_TARGET): compcert/make

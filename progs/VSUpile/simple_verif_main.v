@@ -1,11 +1,35 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.veric.initial_world.
 Require Import VST.floyd.VSU.
 
-Require Import PileModel.
-Require Import verif_core.
+Require Import PileModel. (*needed for decreasing etc*)
+Require Import simple_spec_stdlib.
+Require Import simple_spec_onepile.
+Require Import pile.
+Require Import apile.
+Require Import simple_spec_apile.
+Require Import simple_spec_triang.
 Require Import main.
-Require Import spec_main.
+Require Import simple_spec_main.
+Require Import simple_verif_stdlib.
+Require Import simple_verif_pile.
+Require Import simple_verif_onepile.
+Require Import simple_verif_apile.
+Require Import simple_verif_triang.
+
+Definition Onepile_Pile_VSU :=
+  ltac:(linkVSUs PileVSU OnepileVSU). 
+
+Definition Apile_Onepile_Pile_VSU :=
+  ltac:(linkVSUs Onepile_Pile_VSU ApileVSU). 
+
+Definition Triang_Apile_Onepile_Pile_VSU :=
+  ltac:(linkVSUs Apile_Onepile_Pile_VSU TriangVSU). 
+
+Definition Core_VSU :=
+  privatizeExports 
+  ltac:(linkVSUs MallocFreeVSU Triang_Apile_Onepile_Pile_VSU)
+  [stdlib._malloc; stdlib._free; stdlib._exit; pile._Pile_new;
+   pile._Pile_add; pile._Pile_count; pile._Pile_free].
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition whole_prog := ltac:(QPlink_progs (QPprog prog) (VSU_prog Core_VSU)).
@@ -19,28 +43,22 @@ Proof.
 pose Core_VSU.
 start_function.
 forward_call gv.
-set (ONEPILE := spec_onepile.onepile _).
-set (APILE := verif_apile.apile _ _).
-set (MEM_MGR := spec_stdlib.mem_mgr _).
 forward_for_simple_bound 10
   (EX i:Z,
    PROP() LOCAL(gvars gv)
-   SEP (ONEPILE (Some (decreasing (Z.to_nat i))) gv;
-          APILE (decreasing (Z.to_nat i)) gv;
-          MEM_MGR gv; has_ext tt)).
+   SEP (onepile (Some (decreasing (Z.to_nat i))) gv;
+          apile (decreasing (Z.to_nat i)) gv;
+          mem_mgr gv; has_ext tt)).
 - 
  entailer!.
 -
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-unfold APILE, MEM_MGR, ONEPILE; cancel.
 rep_lia.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
 rep_lia. rewrite decreasing_inc by lia.
 entailer!.
-unfold APILE, MEM_MGR, ONEPILE; simpl; cancel.
 -
 forward_call (decreasing (Z.to_nat 10), gv).
-unfold APILE, MEM_MGR, ONEPILE; cancel.
 compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
@@ -62,3 +80,4 @@ Lemma WholeProgSafe: WholeProgSafeType WholeComp tt.
 Proof. proveWholeProgSafe. Qed.
 
 Eval red in WholeProgSafeType WholeComp tt.
+
