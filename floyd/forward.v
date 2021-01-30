@@ -1612,6 +1612,12 @@ intros.
 pose proof (Int64.eq_spec i Int64.zero). rewrite H in H0; auto.
 Qed.
 
+Lemma ptrofs_eq_e: forall i, Ptrofs.eq i Ptrofs.zero = true -> i=Ptrofs.zero.
+Proof.
+intros.
+pose proof (Ptrofs.eq_spec i Ptrofs.zero). rewrite H in H0; auto.
+Qed.
+
 Lemma typed_true_nullptr3:
   forall p,
   typed_true tint (force_val (sem_cmp_pp Ceq p nullval)) ->
@@ -1882,6 +1888,8 @@ Ltac do_repr_inj H :=
    rewrite ?ptrofs_to_int_repr in H;
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
+   try apply int64_eq_e in H;
+   try apply ptrofs_eq_e in H;
    match type of H with
 (*  don't do these, because they weaken the statement, unfortunately.
           | _ <> _ => apply repr_neq_e (*int_eq_false_e*) in H
@@ -1890,6 +1898,8 @@ Ltac do_repr_inj H :=
           | _ <> _ => let H' := fresh H "'" in assert (H' := repr_neq_e _ _ H)
           | _ <> _ => let H' := fresh H "'" in assert (H' := repr64_neq_e _ _ H)
           | Int.eq _ _ = false => apply int_eq_false_e in H
+          | Int64.eq _ _ = false => apply int64_eq_false_e in H
+          | Ptrofs.eq _ _ = false => apply ptrofs_eq_false_e in H
           | _ => idtac
   end;
   first [ simple apply repr_inj_signed in H; [ | rep_lia | rep_lia ]
