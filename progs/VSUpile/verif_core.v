@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.VSU.
 
-Require Import VST.floyd.linking.
-
 Require Import spec_stdlib.
 
 Require Import verif_stdlib.
