@@ -647,7 +647,7 @@ Lemma empty_env_unit' {key: Type}{A: Type}: forall rho: env key A, join empty_en
 Proof.
 intros; apply empty_env_unit.
 Qed.
-Hint Resolve empty_env_unit empty_env_unit' : core.
+#[export] Hint Resolve empty_env_unit empty_env_unit' : core.
 
 Lemma env_join_sub1 {key: Type}{A: Type}:
   forall rho1 rho2: env key A, (forall id x, env_get rho1 id = Some x -> env_get rho2 id = Some x) ->

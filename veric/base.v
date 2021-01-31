@@ -17,6 +17,18 @@ Require Export compcert.common.Globalenvs.
 Require Export VST.msl.Coqlib2. 
 Require Export VST.veric.coqlib4.
 
+Export RelationClasses Morphisms Morphisms_Prop Classical_Prop. (* We import-and-reexport these 
+   because various of our proofs require Hints from them, and we 
+   want to be compatible with the new (Coq 8.13-and-after) rules
+   for Hint visibility. *)   
+
+(* See https://github.com/coq/coq/issues/13809
+   for an explanation of why 'Global Set Loose...' is currently disabled,
+  and why it's reasonable to disable deprecated-hint-without-locality
+  warnings, in Coq 8.13.0 *)
+(* Global Set Loose Hint Behavior "Warn". *)
+Global Set Warnings "-deprecated-hint-without-locality".
+
 (* Lemmas about ident lists *)
 
 Fixpoint id_in_list (id: ident) (ids: list ident) : bool :=
