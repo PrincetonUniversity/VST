@@ -1,4 +1,4 @@
-Require Import VST.msl.log_normalize.
+(*Require Import VST.msl.log_normalize. *)
 Require Import VST.msl.alg_seplog.
 Require Import VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
@@ -473,6 +473,16 @@ Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  | _ => FF
  end.
 
+Lemma FF_orp: forall (P: pred rmap), FF || P = P.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply orp_left.
+    intros ? ?. contradiction. auto.
+  + apply orp_right2.
+    apply derives_refl.
+Qed.
+
 Lemma mapsto__exp_address_mapsto: forall sh t b i_ofs ch,
   access_mode t = By_value ch ->
   type_is_volatile t = false ->
@@ -480,12 +490,10 @@ Lemma mapsto__exp_address_mapsto: forall sh t b i_ofs ch,
   mapsto_ sh t (Vptr b i_ofs) = EX  v2' : val,
             address_mapsto ch v2' sh (b, (Ptrofs.unsigned i_ofs)).
 Proof.
-  pose proof (@FF_orp (pred rmap) (algNatDed _)) as HH0.
-  change seplog.orp with orp in HH0.
-  change seplog.FF with FF in HH0.
+(*
   pose proof (@ND_prop_ext (pred rmap) (algNatDed _)) as HH1.
   change seplog.prop with prop in HH1.
-
+*)
   intros. rename H1 into RS.
   unfold mapsto_, mapsto.
   rewrite H, H0.
@@ -496,11 +504,18 @@ Proof.
   }
   rewrite H1.
 
-  rewrite FF_and, HH0.
-  assert (!!(Vundef = Vundef) = TT) by (apply HH1; tauto).
+  rewrite FF_and, FF_orp.
+  assert (!!(Vundef = Vundef) = TT).
+    apply pred_ext. auto. intros ? ?; hnf; auto.
   rewrite H2.
   rewrite TT_and.
   reflexivity.
+Qed.
+
+Lemma prop_derives {A} {agA: ageable A}: forall P Q : Prop,
+    (P -> Q) -> derives (prop P) (prop Q).
+Proof.
+intros ? ? ? ?. apply H.
 Qed.
 
 Lemma exp_address_mapsto_VALspec_range_eq:
@@ -514,7 +529,7 @@ Proof.
     unfold address_mapsto.
     apply exp_left; intro.
     do 2 apply andp_left1.
-    apply (@prop_derives (pred rmap) (algNatDed _)); tauto.
+    apply prop_derives; tauto.
   + apply prop_andp_left; intro.
     apply VALspec_range_exp_address_mapsto; auto.
 Qed.
@@ -551,11 +566,7 @@ Proof.
   rewrite <- (TT_and (EX  v2' : val,
    address_mapsto ch v2' sh (b, Ptrofs.unsigned ofs))) at 1.
   f_equal.
-  pose proof (@ND_prop_ext (pred rmap) _).
-  simpl in H3.
-  change TT with (!! True).
-  apply H3.
-  tauto.
+  apply pred_ext; auto. intros ? _. simpl. clear a; auto.
  * unfold mapsto_, mapsto, memory_block'_alt.
    rewrite prop_true_andp by auto.
    rewrite H, H0.
@@ -590,6 +601,30 @@ Proof.
    auto.
 Qed.
 
+Lemma guarded_sepcon_orp_distr 
+  {A : Type} {JA : Join A} {PA : Perm_alg A}
+  {AG : ageable A} {XA : Age_alg A}:
+  forall (P1 P2: Prop) (p1 p2 q1 q2: pred A),
+  (P1 -> P2 -> False) ->
+  (!! P1 && p1 || !! P2 && p2) * (!! P1 && q1 || !! P2 && q2) = !! P1 && (p1 * q1) || !! P2 && (p2 * q2).
+Proof.
+intros.
+apply pred_ext.
+intros ? [? [? [? [[[??]|[??]] [[??]|[??]]]]]].
+left; split; auto. do 3 eexists; try split; eassumption.
+contradiction (H H1 H3).
+contradiction (H H3 H1).
+right; split; auto. do 3 eexists; try split; eassumption.
+intros ? [[??]|[??]].
+eapply sepcon_derives; try apply H1.
+normalize.normalize; apply orp_right1; auto.
+normalize.normalize; apply orp_right1; auto.
+eapply sepcon_derives; try apply H1.
+normalize.normalize; apply orp_right2; auto.
+normalize.normalize; apply orp_right2; auto.
+apply orp_right2; normalize.normalize.
+Qed.
+
 Lemma mapsto_share_join:
  forall sh1 sh2 sh t p v,
    join sh1 sh2 sh ->
@@ -602,12 +637,11 @@ Proof.
   destruct p; try solve [rewrite FF_sepcon; auto].
   destruct (readable_share_dec sh1), (readable_share_dec sh2).
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
-    pose proof (@guarded_sepcon_orp_distr (pred rmap) (algNatDed _) (algSepLog _)).
-    simpl in H0; rewrite H0 by (intros; subst; pose proof tc_val_Vundef t; tauto); clear H0.
+    rewrite guarded_sepcon_orp_distr by (intros; subst; pose proof tc_val_Vundef t; tauto).
     f_equal; f_equal.
     - apply address_mapsto_share_join; auto.
     - rewrite exp_sepcon1.
-      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
+      pose proof (@log_normalize.exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
       rewrite exp_sepcon2.
       transitivity
        (address_mapsto m v0 sh1 (b, Ptrofs.unsigned i) *
@@ -615,42 +649,42 @@ Proof.
       * apply pred_ext; [| apply (exp_right v0); auto].
         apply exp_left; intro.
         pose proof (fun sh0 sh3 a => 
-            (@add_andp (pred rmap) (algNatDed _) _ _ (address_mapsto_value_cohere m v0 x sh0 sh3 a))).
+            (@log_normalize.add_andp (pred rmap) (algNatDed _) _ _ (address_mapsto_value_cohere m v0 x sh0 sh3 a))).
         simpl in H0; rewrite H0; clear H0.
         apply normalize.derives_extract_prop'; intro; subst; auto.
       * apply address_mapsto_share_join; auto.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
     rewrite distrib_orp_sepcon.
     f_equal; rewrite sepcon_comm, sepcon_andp_prop;
-    pose proof (@andp_prop_ext (pred rmap) _);
+    pose proof (@log_normalize.andp_prop_ext (pred rmap) _);
     (simpl in H0; apply H0; clear H0; [reflexivity | intro]).
     - rewrite (address_mapsto_align _ _ sh).
       rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
-      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      pose proof (@log_normalize.andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
       * apply tc_val_tc_val' in H0; tauto.
       * apply nonlock_permission_bytes_address_mapsto_join; auto.
     - rewrite exp_sepcon2.
-      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
+      pose proof (@log_normalize.exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
       rewrite (address_mapsto_align _ _ sh).
       rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
-      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      pose proof (@log_normalize.andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
       * subst; pose proof tc_val'_Vundef t. tauto.
       * apply nonlock_permission_bytes_address_mapsto_join; auto.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eexists; apply join_comm in H; eauto | auto]).
     rewrite sepcon_comm, distrib_orp_sepcon.
     f_equal; rewrite sepcon_comm, sepcon_andp_prop;
-    pose proof (@andp_prop_ext (pred rmap) _);
+    pose proof (@log_normalize.andp_prop_ext (pred rmap) _);
     (simpl in H0; apply H0; clear H0; [reflexivity | intro]).
     - rewrite (address_mapsto_align _ _ sh).
       rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
-      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      pose proof (@log_normalize.andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
       * apply tc_val_tc_val' in H0; tauto.
       * apply nonlock_permission_bytes_address_mapsto_join; auto.
     - rewrite exp_sepcon2.
-      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
+      pose proof (@log_normalize.exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
       rewrite (address_mapsto_align _ _ sh).
       rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
-      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      pose proof (@log_normalize.andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
       * subst; pose proof tc_val'_Vundef t. tauto.
       * apply nonlock_permission_bytes_address_mapsto_join; auto.
   + rewrite if_false by (eapply join_unreadable_shares; eauto).
@@ -819,7 +853,7 @@ Lemma mapsto_conflict:
   mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
 Proof.
   intros.
-  rewrite (@add_andp (pred rmap) (algNatDed _) _ _ (mapsto_pure_facts sh t v v3)).
+  rewrite (@log_normalize.add_andp (pred rmap) (algNatDed _) _ _ (mapsto_pure_facts sh t v v3)).
   simpl.
   rewrite andp_comm.
   rewrite sepcon_andp_prop.
@@ -831,7 +865,7 @@ Proof.
   pose proof (size_chunk_pos x).
   if_tac.
 *
-  normalize.
+  log_normalize.normalize.
   rewrite distrib_orp_sepcon, !distrib_orp_sepcon2;
   repeat apply orp_left;
   rewrite ?sepcon_andp_prop1;  repeat (apply prop_andp_left; intro);
@@ -880,9 +914,7 @@ Proof.
   unfold memory_block'.
   pose proof Ptrofs.unsigned_range z.
   assert (Ptrofs.unsigned z + n < Ptrofs.modulus) by lia.
-  apply pred_ext; normalize.
-  apply andp_right; auto.
-  intros ? _; simpl; auto.
+  apply pred_ext; normalize.normalize.
 Qed.
 
 Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh 0 (Vptr b z) = emp.

@@ -65,7 +65,7 @@ Proof.
   auto.
 Qed.
 
-Hint Resolve bot_identity : core.
+#[export] Hint Resolve bot_identity : core.
 
 Lemma identity_share_bot : forall s,
   identity s -> s = bot.
@@ -480,7 +480,7 @@ Proof.
   trivial.
 Qed.
 
-Hint Resolve bot_unit : core.
+#[export] Hint Resolve bot_unit : core.
 
 Lemma join_bot: join emptyshare emptyshare emptyshare.
 Proof.
