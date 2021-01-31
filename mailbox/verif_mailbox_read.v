@@ -70,7 +70,7 @@ Proof.
     assert (b1 = b0) by (apply repr_inj_signed; auto); subst.
     lapply (repable_buf b); auto; intro.
     rewrite Hlast.
-    erewrite <- ghost_var_share_join by eauto.
+    erewrite <- ghost_var_share_join by (try apply gsh1_gsh2_join; auto).
     Exists (-1) (if eq_dec (vint b) Empty then b0 else b)
       (if eq_dec (vint b) Empty then b2 else b0); entailer!.
     { split; [rewrite Forall_app; repeat constructor; auto|].

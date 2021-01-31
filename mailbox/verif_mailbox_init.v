@@ -211,16 +211,14 @@ Proof.
       { intro X; contradiction unreadable_bot.
         rewrite <- X; auto. } }
     fold (ghost_var Tsh (vint 1) g0') (ghost_var Tsh (vint 0) g1') (ghost_var Tsh (vint 1) g2').
-    erewrite <- !ghost_var_share_join with (sh0 := Tsh) by eauto.
+    erewrite <- !ghost_var_share_join with (sh0 := Tsh)
+        by (try apply gsh1_gsh2_join; auto).
     match goal with H : sepalg_list.list_join sh1 (sublist i N shs) sh |- _ =>
       erewrite sublist_next in H; try lia; inversion H as [|????? Hj1 Hj2] end.
     apply sepalg.join_comm in Hj1; eapply sepalg_list.list_join_assoc1 in Hj2; eauto.
     destruct Hj2 as (sh' & ? & Hsh').
     erewrite <- data_at_share_join with (sh0 := sh) by (apply Hsh').
     forward_call (l, Ews, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
-(*    { entailer!. }
-    { entailer!. }
-*)
     { lock_props.
       fast_cancel.
       unfold AE_inv.

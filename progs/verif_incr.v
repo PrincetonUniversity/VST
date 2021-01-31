@@ -117,7 +117,7 @@ Proof.
   Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
-    erewrite <- ghost_var_share_join by eauto.
+    erewrite <- ghost_var_share_join by (try apply gsh1_gsh2_join; auto).
     unfold Frame; instantiate (1 := [ghost_var gsh2 (n+1) (if left then g1 else g2)]); simpl.
     destruct left.
     - Exists (n+1) y; entailer!.

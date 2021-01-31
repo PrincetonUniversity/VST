@@ -842,7 +842,7 @@ Proof.
       rewrite <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc, 2sepcon_assoc.
       eapply derives_trans; [apply sepcon_derives, derives_refl; apply bupd_sepcon|].
       eapply derives_trans; [apply bupd_frame_r | apply bupd_mono].
-      erewrite <- !(ghost_var_share_join _ _ Tsh) by eauto.
+      erewrite <- !(ghost_var_share_join _ _ Tsh) by (try apply gsh1_gsh2_join; auto).
       Exists b b1 b2; entailer!.
       { rewrite Forall_app; repeat constructor; auto.
         exists b', b; split; [|split]; auto; lia. }
