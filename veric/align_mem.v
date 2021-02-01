@@ -480,7 +480,7 @@ Proof.
   revert z; type_induction t cenv CENV_CONS; intros.
   + inv H.
   + destruct s, i; inv H0;
-      (econstructor; [ reflexivity | ]; apply Z.divide_1_l).
+    econstructor; try reflexivity; apply Z.divide_1_l.
   + destruct s; inv H0.
   + destruct f; inv H0.
   + inv H0.

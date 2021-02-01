@@ -54,7 +54,7 @@ endif
 
 COQFLAGS= $(VSTFLAGS) -R . pile
 
-target: _CoqProject $(VOFILES) incr/verif_incr.vo
+target: _CoqProject verif_main.vo simple_verif_main.vo fast/verif_fastmain.vo incr/verif_incr.vo
 
 cvfiles: $(CVFILES)
 

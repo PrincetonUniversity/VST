@@ -24,7 +24,4 @@ Definition Triang_Apile_Onepile_Pile_VSU :=
   ltac:(linkVSUs Apile_Onepile_Pile_VSU (TriangVSU M PILE)). 
 
 Definition Core_VSU :=
-  privatizeExports 
-  ltac:(linkVSUs MallocFreeVSU Triang_Apile_Onepile_Pile_VSU)
-  [stdlib._malloc; stdlib._free; stdlib._exit; fastpile._Pile_new;
-   fastpile._Pile_add; fastpile._Pile_count; fastpile._Pile_free].
+  ltac:(linkVSUs MallocFreeVSU Triang_Apile_Onepile_Pile_VSU).

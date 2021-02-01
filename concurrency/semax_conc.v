@@ -28,7 +28,7 @@ Require Import VST.concurrency.semax_conc_pred.
 Import FashNotation.
 Import String.
 Open Scope funspec_scope.
-Import Ctypes. Import expr. (* to get the right Tcons and the right sizeof *) 
+
 Set Bullet Behavior "Strict Subproofs".
 
 (* Variables to be instantiated once the program is known. *)

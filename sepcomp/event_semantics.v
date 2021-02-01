@@ -6,7 +6,6 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
-Require Import Lia.
 
 Require Import VST.msl.Extensionality.
 Require Import VST.sepcomp.mem_lemmas.
@@ -88,7 +87,7 @@ induction T; simpl; intros.
      destruct (zlt ofs (ofs0 + Zlength bytes)); simpl in *; try discriminate.
      rewrite Zlength_correct in *.
      apply Mem.storebytes_range_perm in SB.
-     exploit (SB ofs); try lia.
+     exploit (SB ofs); try omega.
      intros; subst; assumption.
   - (*Load*)
      destruct H as [LB EV]. specialize (IHT _ _ EV); clear EV.
@@ -99,7 +98,7 @@ induction T; simpl; intros.
      destruct (zle ofs0 ofs); simpl in *; try discriminate.
      destruct (zlt ofs (ofs0 + n)); simpl in *; try discriminate.
      apply Mem.loadbytes_range_perm in LB.
-     exploit (LB ofs); try lia.
+     exploit (LB ofs); try omega.
      intros; subst; assumption.
   - (*Alloc*)
      destruct H as [m'' [ALLOC EV]]. specialize (IHT _ _ EV); clear EV.
@@ -125,7 +124,7 @@ induction T; simpl; intros.
          destruct (eq_block bb b); simpl in Heqd; inv Heqd.
          exploit (Heqp ofs); clear Heqp; trivial.
          destruct (zle lo ofs); try discriminate.
-         destruct (zlt ofs hi); try discriminate. lia. }
+         destruct (zlt ofs hi); try discriminate. omega. }
        { eapply po_trans; try eassumption. clear - Heqp.
          remember ((Mem.mem_access m0) !! b ofs Cur) as perm2.
          destruct perm2; try solve [apply po_None].
@@ -274,7 +273,7 @@ Proof. intros l FL. destruct FL as [[[? ?] ?] [? [? ?]]]; subst b0.
            ++ exploit freelist_mem_access_1. eassumption. eassumption. intros XX.
               exfalso. apply Mem.free_result in H. subst m0. simpl in XX.
               rewrite PMap.gss in XX. case_eq (zle z ofs && zlt ofs z0); intros; rewrite H in *; try discriminate.
-              destruct (zle z ofs); try lia; simpl  in *. destruct ( zlt ofs z0); try lia. inv H.
+              destruct (zle z ofs); try omega; simpl  in *. destruct ( zlt ofs z0); try omega. inv H.
            ++ split; trivial. eapply freelist_forward; eauto.
               exploit Mem.free_range_perm. eassumption. eassumption. intros.
               eapply Mem.valid_block_free_1; try eassumption. eapply Mem.perm_valid_block; eauto.
@@ -307,8 +306,7 @@ Proof.  induction ev; simpl; intros. subst; trivial.
         - destruct EV as [? [? EV]].
           apply (IHev _ _ EV); clear IHev EV.
           + Transparent Mem.alloc.
-            unfold Mem.alloc in H. Opaque Mem.alloc.  inv H. simpl. rewrite PMap.gso; trivial. unfold Mem.valid_block in VB.
-            apply Plt_ne; auto.
+            unfold Mem.alloc in H. Opaque Mem.alloc.  inv H. simpl. rewrite PMap.gso; trivial. unfold Mem.valid_block in VB. xomega.
           + eapply Mem.valid_block_alloc; eauto.
         - destruct EV as [? [? EV]]. apply (IHev _ _ EV); clear IHev.
           2: eapply freelist_forward; eauto.
@@ -420,10 +418,10 @@ Proof. unfold in_free_list.
        - destruct (zle z ofs).
          * destruct (zlt ofs z0). -- left. exists (b, z, z0). split; eauto.
            -- right. intros [[[? ?] ?] [? [? ?]]]. subst b0.
-              destruct H. inv H. lia. apply n; clear n.
+              destruct H. inv H. omega. apply n; clear n.
               exists (b, z1, z2). split; eauto.
          * right. intros [[[? ?] ?] [? [? ?]]]. subst b0.
-           destruct H. inv H. lia. apply n; clear n.
+           destruct H. inv H. omega. apply n; clear n.
            exists (b, z1, z2). split; eauto.
        - right. intros [[[? ?] ?] [? [? ?]]]. subst b1.
          destruct H. inv H. congruence.
@@ -521,7 +519,7 @@ Proof.
     + destruct (zle lo ofs); simpl in *; try solve [right; trivial].
       destruct (zlt ofs hi); simpl in *; try solve [right; trivial].
       rewrite <- H; clear H.
-      assert (A: lo <= ofs < hi) by lia.
+      assert (A: lo <= ofs < hi) by omega.
       specialize (r _ A). unfold Mem.perm, Mem.perm_order' in r.
       remember ((Mem.mem_access m) !! bb ofs Cur) as q. destruct q; try contradiction.
       left; split; trivial. destruct p; simpl in *; trivial; inv r.
@@ -545,7 +543,8 @@ Proof.
     + destruct H as (?&?&?).
       etransitivity.
       * eapply Mem.nextblock_alloc in H.
-        instantiate(1:=  Mem.nextblock x); rewrite H. lia.
+        instantiate(1:=  Mem.nextblock x); rewrite H.
+        xomega.
       * eapply IHev; eauto.
     + destruct H as (?&?&?).
       etransitivity.

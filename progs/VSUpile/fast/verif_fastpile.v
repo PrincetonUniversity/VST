@@ -42,11 +42,11 @@ Definition PILEPRIV: FastpilePrivateAPD := Build_FastpilePrivateAPD PILE (eq_ref
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ tuint ]
-       PROP (0 <= sizeof t <= Int.max_unsigned;
+   PRE [ size_t ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr M gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()

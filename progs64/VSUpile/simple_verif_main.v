@@ -26,15 +26,13 @@ Definition Triang_Apile_Onepile_Pile_VSU :=
   ltac:(linkVSUs Apile_Onepile_Pile_VSU TriangVSU). 
 
 Definition Core_VSU :=
-  privatizeExports 
-  ltac:(linkVSUs MallocFreeVSU Triang_Apile_Onepile_Pile_VSU)
-  [stdlib._malloc; stdlib._free; stdlib._exit; pile._Pile_new;
-   pile._Pile_add; pile._Pile_count; pile._Pile_free].
+  ltac:(linkVSUs MallocFreeVSU Triang_Apile_Onepile_Pile_VSU).
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition whole_prog := ltac:(QPlink_progs (QPprog prog) (VSU_prog Core_VSU)).
+Definition main_QPprog := ltac:(QPprog prog).
+Definition whole_prog := ltac:(QPlink_progs main_QPprog (VSU_prog Core_VSU)).
 Definition Vprog: varspecs := QPvarspecs whole_prog.
-Definition Main_imports := VSU_Exports Core_VSU. 
+Definition Main_imports := filter (matchImportExport main_QPprog) (VSU_Exports Core_VSU). 
 Definition mainspec :=  main_spec whole_prog.
 Definition Gprog := mainspec :: Main_imports.
 
@@ -67,7 +65,7 @@ lia.
 forward.
 Qed.
 
-Definition MainComp:  MainCompType nil (QPprog prog) Core_VSU whole_prog (snd (main_spec whole_prog))  emp.
+Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog))  emp.
 Proof.
 mkComponent prog.
 solve_SF_internal body_main.

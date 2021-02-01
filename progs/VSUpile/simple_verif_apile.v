@@ -8,7 +8,7 @@ Require Import simple_spec_apile.
 
 Lemma make_apile: forall gv, 
      globals_ok gv ->
-    @data_at APileCompSpecs Ews tuint (Vint (Int.repr 0))
+    @data_at APileCompSpecs Ews size_t nullval
           (gv _a_pile) |-- apile nil gv.
 Proof.
 intros. unfold apile, pilerep.

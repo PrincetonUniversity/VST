@@ -21,12 +21,12 @@ Definition apile (sigma: list Z) (gv: globals): mpred :=
 
 Lemma make_apile: forall gv, 
   globals_ok gv ->
-  data_at Ews tuint (Vint (Int.repr 0)) (gv apile._a_pile) |-- apile nil gv.
+  data_at Ews size_t nullval (gv apile._a_pile) |-- apile nil gv.
 Proof.
 intros. unfold apile. rewrite pile_rep_exposed. (*HERE*) 
 unfold prep.
 assert_PROP (headptr (gv _a_pile)) by entailer!.
-Exists (Vint (Int.repr 0)).
+Exists nullval.
 unfold listrep. entailer!.
 unfold_data_at (data_at _ spec_pile.tpile _ _).
 rewrite field_at_data_at. simpl.

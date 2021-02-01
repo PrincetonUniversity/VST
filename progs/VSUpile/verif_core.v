@@ -1,6 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.VSU.
 
+Require Import VST.floyd.linking.
+
 Require Import spec_stdlib.
 
 Require Import verif_stdlib.
@@ -33,7 +35,4 @@ Definition Triang_Apile_Onepile_Pile_VSU :=
 End CORE_VSU.
 
 Definition Core_VSU :=
-  privatizeExports 
-  ltac:(linkVSUs MallocFreeVSU (Triang_Apile_Onepile_Pile_VSU verif_stdlib.M))
-  [stdlib._malloc; stdlib._free; stdlib._exit; pile._Pile_new;
-   pile._Pile_add; pile._Pile_count; pile._Pile_free].
+  ltac:(linkVSUs MallocFreeVSU (Triang_Apile_Onepile_Pile_VSU verif_stdlib.M)).

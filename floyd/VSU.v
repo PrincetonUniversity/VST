@@ -1379,6 +1379,12 @@ Ltac QPlink_progs p1 p2 :=
                end in
   exact p.
 
+Definition matchImportExport (p: QP.program function) (ix: ident * funspec) : bool :=
+  match (QP.prog_defs p) ! (fst ix) with
+  | Some (Gfun (External _ _ _ _)) => true
+  | _ => false
+  end.
+
 Definition MainCompType 
    (mainE: funspecs)
    (main_prog: QP.program function)
@@ -1387,7 +1393,8 @@ Definition MainCompType
    (whole_prog: QP.program function)
    (main_spec: funspec)
    GP :=
-   @Component Espec (QPvarspecs whole_prog) mainE (VSU_Exports coreVSU)
+   @Component Espec (QPvarspecs whole_prog) mainE 
+             (filter (matchImportExport main_prog) (VSU_Exports coreVSU))
              main_prog [(QP.prog_main main_prog, main_spec)] GP [(QP.prog_main main_prog, main_spec)].
 
 Definition WholeCompType 
@@ -1459,15 +1466,41 @@ eapply Comp_Exports_sub2;
    revert H0; simple_if_tac; intros; inv  H0.
    inv H0.
    inv Linked.
-- apply Disj1.
-- apply FDM.
+- intros i j ? ? ?.
+   apply (Disj1 i j); auto.
+   clear - H0.
+   rewrite in_app in H0|-*.
+   destruct H0; [left|right]; auto.
+   rewrite in_app in H|-*.
+   destruct H; [left|right]; auto.
+   apply In_map_fst_filter3 in H; auto.
+- 
+   clear - FDM.
+   intros i fd1 fd2 H1 H2; specialize (FDM i fd1 fd2 H1 H2).
+   destruct fd1; auto. destruct fd2; auto.
+   destruct FDM as [phi1 ?]; exists phi1.
+   rewrite find_id_filter_char by apply (Comp_Exports_LNR (projT2 coreVSU)).
+   rewrite H. unfold matchImportExport. simpl.
+   rewrite H1; auto.
 - apply Disj2.
 - apply Disj3.
 - intros. inv H.
-- apply SC2.
+- intros. apply SC2; auto.
+   apply find_id_filter_Some in H;
+       [ | apply (Comp_Exports_LNR (projT2 coreVSU))].
+   destruct H; auto.
 - intros. inv H0.
 - reflexivity.
-- apply NOimports.
+- symmetry in NOimports |- *.
+   unfold JoinedImports in *.
+   change (filter _ nil) with (@nil (ident*funspec)) in *.
+   rewrite <- app_nil_end in *.
+   match goal with |- filter ?A (filter ?B ?C) = _ => forget A as F; forget B as G; forget C as al end.
+   clear - NOimports.
+   induction al as [|[i?]]; auto.
+   simpl in *.
+   destruct (G (i,f)). simpl. destruct (F (i,f)); auto.
+   inv NOimports. destruct (F (i,f)); auto. inv NOimports.
 - reflexivity.
 - reflexivity.
 - reflexivity.

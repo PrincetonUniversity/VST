@@ -12,11 +12,6 @@ Require Export Coq.Bool.Bool.
 Require Export Coq.Relations.Relations.
 Require Export Lia.
 
-(* See https://github.com/coq/coq/issues/13809  for an explanation 
-  why it's reasonable to disable deprecated-hint-without-locality
-  warnings, in Coq 8.13.0 *)
-Global Set Warnings "-deprecated-hint-without-locality".
-
 Definition compose (A B C:Type) (g:B -> C) (f:A -> B) := fun x => g (f x).
 Arguments compose [A B C] _ _ _.
 Infix "oo" := compose (at level 54, right associativity).

@@ -18,7 +18,7 @@ match s with
      s2 => match quick_shortcut_logical s2 with None => None | Some id2 =>
                  if ident_eq id id2 then Some id else None
                 end
-| Sifthenelse _ s2
+| Sifthenelse e1 s2
      (Sset id (Econst_int _ (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |})))
       => match quick_shortcut_logical s2 with None => None | Some id2 =>
                  if ident_eq id id2 then Some id else None

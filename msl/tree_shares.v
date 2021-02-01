@@ -134,12 +134,11 @@ Module Share <: SHARE_MODEL.
        shareTreeOrd r1 r2 ->
        shareTreeOrd (Node l1 r1) (Node l2 r2)
   .
-  Local Hint Constructors shareTreeOrd : core.
+  Hint Constructors shareTreeOrd : core.
 
   Definition shareTreeEq (x y:ShareTree) :=
       shareTreeOrd x y /\ shareTreeOrd y x.
-
-  Local Hint Unfold shareTreeEq : core.
+  Hint Unfold shareTreeEq : core.
 
   Ltac destruct_bool :=
     repeat (match goal with [ b:bool |- _ ] => destruct b end).
@@ -203,7 +202,7 @@ Module Share <: SHARE_MODEL.
     induction x; destruct_bool; auto.
   Qed.
 
-  Local Hint Resolve geTrueFull leFalseEmpty emptyLeFalse fullGeTrue
+  Hint Resolve geTrueFull leFalseEmpty emptyLeFalse fullGeTrue
      falseLeaf_bottom trueLeaf_top : core.
 
   Lemma eqFalseLeaf_empty : forall x,
@@ -235,7 +234,7 @@ Module Share <: SHARE_MODEL.
     induction x; simpl; intros; invert_ord; destruct_bool; intuition.
   Qed.
 
-  Local Hint Resolve eqFalseLeaf_empty eqTrueLeaf_full emptyTree_canonical_falseLeaf
+  Hint Resolve eqFalseLeaf_empty eqTrueLeaf_full emptyTree_canonical_falseLeaf
     fullTree_canonical_trueLeaf : core.
 
   (* Show that shareTreeOrd is a preorder (reflexive and transitive). *)
@@ -341,7 +340,7 @@ Module Share <: SHARE_MODEL.
     destruct (bool_dec b b0); subst; intuition; simpl; auto.
   Qed.
 
-  Local Hint Resolve mkCanon_nonEmpty mkCanon_correct mkCanon_eq : core.
+  Hint Resolve mkCanon_nonEmpty mkCanon_correct mkCanon_eq : core.
 
   (* Show that union and intersection are the LUB and GLB
      for the lattice, respectively. *)
@@ -748,7 +747,7 @@ Module Share <: SHARE_MODEL.
     rewrite IHa1; rewrite IHa2; auto.
   Qed.
 
-  Local Hint Resolve relativ_empty relativ_empty1 relativ_empty2
+  Hint Resolve relativ_empty relativ_empty1 relativ_empty2
     relativ_full relativ_full1 relativ_full2 relativ_inv : core.
 
   Lemma relativ_almost_canon : forall a x,
@@ -1080,7 +1079,7 @@ Module Share <: SHARE_MODEL.
     intro x; induction x; simpl; intros; destruct_bool; intuition.
   Qed.
 
-  Local Hint Resolve comp_full_empty comp_empty_full : core.
+  Hint Resolve comp_full_empty comp_empty_full : core.
 
   Lemma comp_canonical : forall x,
     canonicalTree x -> canonicalTree (comp_tree x).
@@ -8013,16 +8012,4 @@ Qed.
 
 End Share.
 
-Import Share.
-(*FIXME: Not necessary to define and export ALL of these; many
-   were only needed internally in Module Share. *)
-#[export]  Hint Constructors shareTreeOrd : core.
-#[export]  Hint Unfold shareTreeEq : core.
-#[export]  Hint Resolve geTrueFull leFalseEmpty emptyLeFalse fullGeTrue
-     falseLeaf_bottom trueLeaf_top : core.
-#[export]  Hint Resolve eqFalseLeaf_empty eqTrueLeaf_full emptyTree_canonical_falseLeaf
-    fullTree_canonical_trueLeaf : core.
-#[export]  Hint Resolve mkCanon_nonEmpty mkCanon_correct mkCanon_eq : core.
-#[export]  Hint Resolve relativ_empty relativ_empty1 relativ_empty2
-    relativ_full relativ_full1 relativ_full2 relativ_inv : core.
-#[export]  Hint Resolve comp_full_empty comp_empty_full : core.
+
