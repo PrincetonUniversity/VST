@@ -2257,7 +2257,8 @@ assert (TypesOfFunspecs1: forall i, sub_option (make_tycontext_g V1 (Imports1 ++
   rewrite 2 semax_prog.make_context_g_char, 2 make_tycontext_s_find_id; trivial.
   specialize (SUBSUME1 i). red in SUBSUME1. destruct (find_id i (Imports1 ++ Comp_G c1)); simpl.
   + destruct SUBSUME1 as [psi2 [PHI2 Sub]]. rewrite PHI2.
-    exploit (Sub (compcert_rmaps.RML.empty_rmap 0)); [ trivial | intros FS].
+    exploit (Sub (compcert_rmaps.RML.empty_rmap 0)); [ | intros FS].
+    apply predicates_hered.TT_i.
     apply type_of_funspec_sub_si in FS; rewrite FS; trivial.
   + remember (find_id i V1) as w; symmetry in Heqw; destruct w as [phi |]; simpl; trivial.
     rewrite (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V1 i phi Heqw).
@@ -2271,7 +2272,7 @@ assert (TypesOfFunspecs2: forall i, sub_option (make_tycontext_g V2 (Imports2 ++
   rewrite 2 semax_prog.make_context_g_char, 2 make_tycontext_s_find_id; trivial.
   specialize (SUBSUME2 i). red in SUBSUME2. destruct (find_id i (Imports2 ++ Comp_G c2)); simpl.
   + destruct SUBSUME2 as [psi2 [PHI2 Sub]]. rewrite PHI2.
-    exploit (Sub (compcert_rmaps.RML.empty_rmap 0)); [ trivial | intros FS].
+    exploit (Sub (compcert_rmaps.RML.empty_rmap 0)); [     apply predicates_hered.TT_i | intros FS].
     apply type_of_funspec_sub_si in FS; rewrite FS; trivial.
   + remember (find_id i V2) as w; symmetry in Heqw; destruct w as [phi |]; simpl; trivial.
     rewrite (@list_norepet_find_id_app_exclusive1 _ _ _ _ LNR4_V2 _ _ Heqw).
@@ -4471,7 +4472,7 @@ destruct (H i); auto.
 rewrite H1 in H0; contradiction.
 Qed.
 
-Hint Resolve globals_ok_isptr_headptr: core.
+#[export] Hint Resolve globals_ok_isptr_headptr: core.
 
 Lemma globals_ok_genviron2globals:
   forall g,  globals_ok (initialize.genviron2globals g).
@@ -4481,7 +4482,7 @@ destruct (Map.get g i); auto.
 left; eexists; eauto.
 Qed.
 
-Hint Resolve globals_ok_genviron2globals : core.
+#[export] Hint Resolve globals_ok_genviron2globals : core.
 
 Ltac InitGPred_tac :=
 intros;

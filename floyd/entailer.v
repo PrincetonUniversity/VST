@@ -23,11 +23,11 @@ Lemma isptr_force_val_sem_cast_neutral :
 Proof.
 intros. destruct p; try contradiction; apply I.
 Qed.
-Hint Resolve isptr_force_val_sem_cast_neutral : norm.
+#[export] Hint Resolve isptr_force_val_sem_cast_neutral : norm.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
-Hint Resolve FF_local_facts: saturate_local.
+#[export] Hint Resolve FF_local_facts: saturate_local.
 
 Ltac simpl_compare :=
  match goal with
@@ -278,13 +278,13 @@ Proof.
 Qed.
 
 
-Hint Resolve sepcon_valid_pointer1 sepcon_valid_pointer2 : valid_pointer.
-Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
-Hint Resolve valid_pointer_null : valid_pointer.
-Hint Resolve valid_pointer_zero32 : valid_pointer.
-Hint Resolve valid_pointer_zero64 : valid_pointer.
-Hint Resolve sepcon_weak_valid_pointer1: valid_pointer. 
-Hint Resolve sepcon_weak_valid_pointer2: valid_pointer. 
+#[export] Hint Resolve sepcon_valid_pointer1 sepcon_valid_pointer2 : valid_pointer.
+#[export] Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
+#[export] Hint Resolve valid_pointer_null : valid_pointer.
+#[export] Hint Resolve valid_pointer_zero32 : valid_pointer.
+#[export] Hint Resolve valid_pointer_zero64 : valid_pointer.
+#[export] Hint Resolve sepcon_weak_valid_pointer1: valid_pointer. 
+#[export] Hint Resolve sepcon_weak_valid_pointer2: valid_pointer. 
 
 
 (* TODO: test_order need to be added *)
@@ -389,7 +389,7 @@ Proof.
 destruct x; simpl; intros; try contradiction.
 split; auto. apply Ptrofs.eq_true.
 Qed.
-Hint Resolve ptr_eq_refl : prove_it_now.
+#[export] Hint Resolve ptr_eq_refl : prove_it_now.
 
 Lemma ptr_eq_nullval: ptr_eq nullval nullval.
 Proof.
@@ -399,9 +399,9 @@ split3; auto.
 Opaque Archi.ptr64.
 Qed.
 
-Hint Resolve ptr_eq_nullval : prove_it_now.
+#[export] Hint Resolve ptr_eq_nullval : prove_it_now.
 
-Hint Extern 4 (value_fits _ _ _) =>
+#[export] Hint Extern 4 (value_fits _ _ _) =>
    (rewrite ?proj_sumbool_is_true by auto;
     rewrite ?proj_sumbool_is_false by auto;
     repeat simplify_value_fits; auto) : prove_it_now.
@@ -758,7 +758,7 @@ Proof.
   lia. 
 Qed.
 
-Hint Resolve cstring_local_facts : saturate_local.
+#[export] Hint Resolve cstring_local_facts : saturate_local.
 
 Lemma cstring_valid_pointer: forall {CS : compspecs} sh s p, 
    nonempty_share sh -> 
@@ -771,7 +771,7 @@ Proof.
   rewrite Z.max_r; lia.
 Qed.
 
-Hint Resolve cstring_valid_pointer : valid_pointer.
+#[export] Hint Resolve cstring_valid_pointer : valid_pointer.
 Definition cstringn {CS : compspecs} sh (s: list byte) n p :=
   !!(~In Byte.zero s) &&
   data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
@@ -835,7 +835,7 @@ Proof.
   rep_lia.
 Qed.
 
-Hint Resolve cstringn_local_facts : saturate_local.
+#[export] Hint Resolve cstringn_local_facts : saturate_local.
 
 Lemma cstringn_valid_pointer: forall {CS : compspecs} sh s n p, 
      nonempty_share sh -> 
@@ -850,7 +850,7 @@ Proof.
   rewrite Z.max_r; lia.
 Qed.
 
-Hint Resolve cstringn_valid_pointer : valid_pointer.
+#[export] Hint Resolve cstringn_valid_pointer : valid_pointer.
 
 
 Lemma Znth_zero_zero:

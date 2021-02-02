@@ -448,10 +448,10 @@ forward_if
    + Intros prefix.
       destruct prefix;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H7).
+      contradiction (field_compatible_isptr _ _ _ H6).
       rewrite lseg_cons_eq by auto. simpl.
       Intros y. saturate_local.
-      contradiction (field_compatible_isptr _ _ _ H11).
+      contradiction (field_compatible_isptr _ _ _ H9).
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   unfold fifo_body.

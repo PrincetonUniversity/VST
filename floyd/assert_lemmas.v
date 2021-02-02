@@ -116,7 +116,7 @@ Hint Rewrite RA_normal_loop2_ret_assert : ret_assert.
 
 Lemma liftTrue: forall rho, `True rho.
 Proof. intro. unfold_lift; apply Coq.Init.Logic.I. Qed.
-Hint Resolve liftTrue : core.
+#[export] Hint Resolve liftTrue : core.
 
 Lemma overridePost_normal:
   forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
@@ -156,7 +156,7 @@ Qed.
 
 Hint Rewrite frame_normal frame_for1 frame_loop1
                  overridePost_normal: ret_assert.
-Hint Resolve TT_right : core.
+#[export] Hint Resolve TT_right : core.
 
 Lemma overridePost_overridePost:
  forall P Q R, overridePost P (overridePost Q R) = overridePost P R.

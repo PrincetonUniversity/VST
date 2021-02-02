@@ -78,7 +78,7 @@ Proof.
   intros; generalize (size_chunk_pos ch); lia.
 Qed.
 
-Hint Resolve zero_in_chunk : mem.
+#[export] Hint Resolve zero_in_chunk : mem.
 
 Definition range_overlap (base1: address) (sz1: Z) (base2: address) (sz2: Z) : Prop :=
   exists loc, adr_range base1 sz1 loc /\ adr_range base2 sz2 loc.

@@ -331,9 +331,9 @@ Ltac sub_unfold :=
     | v: _ |- _ => destruct v
    end.
 
-Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
+#[export] Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
 
-Hint Resolve prove_HOcontractive
+#[export] Hint Resolve prove_HOcontractive
   subp_allp subp_imp subp_refl subp_exp subp_andp subp_orp subp_subp
   allp_imp2_later_e1 allp_imp2_later_e2 : contractive.
 

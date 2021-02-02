@@ -144,7 +144,7 @@ Proof.
   exists n; auto.
 Qed.
 
-Hint Resolve corable_andp corable_orp corable_allp corable_exp
+#[export] Hint Resolve corable_andp corable_orp corable_allp corable_exp
                     corable_imp corable_prop corable_sepcon corable_wand corable_later : core.
 
 Lemma corable_andp_sepcon1{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:

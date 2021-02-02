@@ -1680,7 +1680,7 @@ Qed.
 
 End CENV.
 
-Hint Extern 2 (memory_block _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 2 (memory_block _ _ _ |-- valid_pointer _) =>
   (apply memory_block_valid_ptr; [auto with valid_pointer | rep_lia]) : valid_pointer.
 
 Lemma valid_pointer_weak:
@@ -1702,7 +1702,7 @@ eapply derives_trans; try eassumption.
 apply valid_pointer_weak.
 Qed.
 
-Hint Resolve valid_pointer_weak' : valid_pointer.
+#[export] Hint Resolve valid_pointer_weak' : valid_pointer.
 
 Lemma valid_pointer_offset_zero: forall P q, 
    P |-- valid_pointer (offset_val 0 q) ->
@@ -1723,13 +1723,13 @@ rewrite offset_val_zero_Vptr in H.
 auto.
 Qed.
 
-Hint Extern 1 (_ |-- valid_pointer ?Q) =>
+#[export] Hint Extern 1 (_ |-- valid_pointer ?Q) =>
   lazymatch Q with
   | offset_val _ _ => fail 
   | _ => apply valid_pointer_offset_zero
   end : core.
 
-Hint Extern 2 (memory_block _ _ _ |-- weak_valid_pointer _) =>
+#[export] Hint Extern 2 (memory_block _ _ _ |-- weak_valid_pointer _) =>
   (apply SeparationLogic.memory_block_weak_valid_pointer;
         [rep_lia | rep_lia | auto with valid_pointer]) : valid_pointer.
 
@@ -1838,7 +1838,7 @@ pose proof (Ptrofs.unsigned_range i).
 repeat split; simpl; auto; try lia.
 Qed.
 
-Hint Extern 2 (field_compatible _ nil _) =>
+#[export] Hint Extern 2 (field_compatible _ nil _) =>
  (apply malloc_compatible_field_compatible;
   [assumption | reflexivity | reflexivity]) : core.
 
@@ -1901,49 +1901,49 @@ end.
 Ltac data_at_valid_aux :=
  first [computable | unfold sizeof; simpl Ctypes.sizeof; rewrite ?Z.max_r by rep_lia; rep_lia | rep_lia].
 
-Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
     (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
     (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 (*
-Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
     (unfold data_at_, field_at_; 
      simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
     (unfold field_at_; simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 *)
 
-Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
     (simple apply data_at__valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
     (apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-(* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
+(* #[export] Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 
-(*Hint Resolve field_at_local_facts : saturate_local.*)
-Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
+(*#[export] Hint Resolve field_at_local_facts : saturate_local.*)
+#[export] Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
 
-(* Hint Resolve data_at_local_facts : saturate_local.*)
-Hint Extern 1 (data_at _ _ _ _ |-- _) =>
+(* #[export] Hint Resolve data_at_local_facts : saturate_local.*)
+#[export] Hint Extern 1 (data_at _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
 
-Hint Resolve array_at_local_facts array_at__local_facts : saturate_local.
+#[export] Hint Resolve array_at_local_facts array_at__local_facts : saturate_local.
 
 
-Hint Resolve field_at__local_facts : saturate_local.
-Hint Resolve data_at__local_facts : saturate_local.
-Hint Extern 0 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
+#[export] Hint Resolve field_at__local_facts : saturate_local.
+#[export] Hint Resolve data_at__local_facts : saturate_local.
+#[export] Hint Extern 0 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts'; lia) : saturate_local.
-Hint Extern 0 (data_at _ (tarray _ _) _ _ |-- _) =>
+#[export] Hint Extern 0 (data_at _ (tarray _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts'; lia) : saturate_local.
-Hint Extern 1 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
+#[export] Hint Extern 1 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts) : saturate_local.
-Hint Extern 1 (data_at _ (tarray _ _) _ _ |-- _) =>
+#[export] Hint Extern 1 (data_at _ (tarray _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts) : saturate_local.
 Hint Rewrite <- @field_at_offset_zero: norm1.
 Hint Rewrite <- @field_at__offset_zero: norm1.
@@ -1977,7 +1977,7 @@ Lemma field_at_data_at_cancel:
     field_at sh t nil v p |-- data_at sh t v p.
 Proof. intros. apply derives_refl. Qed.
 
-Hint Resolve data_at_cancel field_at_cancel
+#[export] Hint Resolve data_at_cancel field_at_cancel
    data_at_field_at_cancel field_at_data_at_cancel : cancel.
 
 Lemma field_at__data_at__cancel:
@@ -1989,38 +1989,38 @@ Lemma data_at__field_at__cancel:
   forall {cs: compspecs} sh t p,
    data_at_ sh t p |-- field_at_ sh t nil p.
 Proof. intros. apply derives_refl. Qed.
-Hint Resolve  field_at__data_at__cancel data_at__field_at__cancel : cancel.
+#[export] Hint Resolve  field_at__data_at__cancel data_at__field_at__cancel : cancel.
 
 
 (* We do these as Hint Extern, instead of Hint Resolve,
   to limit their application and make them fail faster *)
 
-Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) =>
+#[export] Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) =>
    (simple apply field_at_field_at_) : cancel.
 
-Hint Extern 2 (field_at _ _ _ _ _ |-- field_at _ _ _ _ _) =>
+#[export] Hint Extern 2 (field_at _ _ _ _ _ |-- field_at _ _ _ _ _) =>
   (simple apply field_at_field_at_default;
    match goal with |- _ = default_val _ => reflexivity end) : cancel.
 
-Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
+#[export] Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
     (simple apply data_at_data_at_) : cancel.
 
-Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
+#[export] Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
     (simple apply data_at__memory_block_cancel) : cancel.
 
-Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
+#[export] Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
   (simple apply data_at_data_at_default;
    match goal with |- _ = default_val _ => reflexivity end) : cancel.
 
 (* too slow this way.
-Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
+#[export] Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
   (apply data_at_data_at_default; reflexivity) : cancel.
 *)
 
-Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
+#[export] Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
   (simple apply array_at_array_at_) : cancel.
-Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption) : core.
-Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption) : core.
+#[export] Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption) : core.
+#[export] Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption) : core.
 Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
 Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
 
@@ -2723,7 +2723,7 @@ Ltac headptr_field_compatible :=
     repeat apply Forall_cons; try apply Forall_nil
   end.
 
-Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.
+#[export] Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.
 
 (* BEGIN New experiments *)
 
@@ -2732,7 +2732,7 @@ Lemma data_at_data_at_cancel  {cs: compspecs}: forall sh t v v' p,
   data_at sh t v p |-- data_at sh t v' p.
 Proof. intros. subst. apply derives_refl. Qed.
  
-Hint Resolve data_at_data_at_cancel : cancel.
+#[export] Hint Resolve data_at_data_at_cancel : cancel.
 
 
 Lemma field_at_field_at_cancel  {cs: compspecs}: forall sh t gfs v v' p,
@@ -2740,8 +2740,8 @@ Lemma field_at_field_at_cancel  {cs: compspecs}: forall sh t gfs v v' p,
   field_at sh t gfs v p |-- field_at sh t gfs v' p.
 Proof. intros. subst. apply derives_refl. Qed.
  
-Hint Resolve data_at_data_at_cancel : cancel.
-Hint Resolve field_at_field_at_cancel : cancel.
+#[export] Hint Resolve data_at_data_at_cancel : cancel.
+#[export] Hint Resolve field_at_field_at_cancel : cancel.
 
 Lemma data_at__data_at {cs: compspecs}:
    forall sh t v p, v = default_val t -> data_at_ sh t p |-- data_at sh t v p.
@@ -2768,18 +2768,18 @@ intros; subst; unfold field_at_; apply derives_refl.
 Qed.
 
 
-Hint Resolve data_at__data_at : cancel.
-Hint Resolve field_at__field_at : cancel.
-Hint Resolve data_at__field_at : cancel.
-Hint Resolve field_at__data_at : cancel.
+#[export] Hint Resolve data_at__data_at : cancel.
+#[export] Hint Resolve field_at__field_at : cancel.
+#[export] Hint Resolve data_at__field_at : cancel.
+#[export] Hint Resolve field_at__data_at : cancel.
 
-Hint Extern 1 (_ = @default_val _ _) =>
+#[export] Hint Extern 1 (_ = @default_val _ _) =>
  match goal with |- ?A = ?B => 
      let x := fresh "x" in set (x := B); hnf in x; subst x;
      match goal with |- ?A = ?B => constr_eq A B; reflexivity
   end end : core.
 
-Hint Extern 1 (_ = _) => 
+#[export] Hint Extern 1 (_ = _) => 
   match goal with |- ?A = ?B => constr_eq A B; reflexivity end : cancel.
 
 (* enhance cancel to solve field_at and data_at *)
@@ -2949,28 +2949,28 @@ intros.
 apply @change_compspecs_field_at_cancel3 with CCE; auto.
 Qed.
 
-Hint Extern 2 (@data_at_ ?cs1 ?sh _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
+#[export] Hint Extern 2 (@data_at_ ?cs1 ?sh _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel2; reflexivity) : cancel.
 
-Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
+#[export] Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel3; reflexivity) : cancel.
 
-Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
+#[export] Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel; 
        [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
 
-Hint Extern 2 (@field_at_ ?cs1 ?sh _ ?gfs ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
+#[export] Hint Extern 2 (@field_at_ ?cs1 ?sh _ ?gfs ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel2; reflexivity) : cancel.
 
-Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
+#[export] Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel3; reflexivity) : cancel.
 
-Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at ?cs2 ?sh _ ?gfs _ ?p) =>
+#[export] Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at ?cs2 ?sh _ ?gfs _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel; 
         [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
