@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.12.0 or-else 8.12.1 or-else 8.12.2 or-else 8.13+beta1 or-else 8.13 or-else 8.13.0
+COQVERSION= 8.12.0 or-else 8.12.1 or-else 8.12.2 or-else 8.13+beta1 or-else 8.13.0
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -229,7 +229,7 @@ ifeq ($(ARCH),x86)
     INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST32/VST)
   endif
 else
-  INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST_$(ARCH)_$(BITSIZE)/VST
+  INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST_$(ARCH)_$(BITSIZE)/VST)
 endif
 
 # ########## Flags ##########
