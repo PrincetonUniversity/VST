@@ -390,7 +390,7 @@ entailer!.
 Intros pa pb locka lockb. entailer!.
 Qed.
 
-Hint Resolve tree_rep_saturate_local: saturate_local.
+#[export] Hint Resolve tree_rep_saturate_local: saturate_local.
 
 Lemma tree_rep_valid_pointer:
   forall tl lsh t p, node_rep tl lsh t p |-- valid_pointer p.
@@ -398,7 +398,7 @@ Proof.
 intros.
 destruct t; simpl; normalize; auto with valid_pointer.
 Qed.
-Hint Resolve tree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
 (*Lemma treebox_rep_saturate_local:
    forall t b, treebox_rep t b |-- !! field_compatible (tptr t_struct_tree_t) [] b.
@@ -409,7 +409,7 @@ Intros p.
 entailer!.
 Qed.
 
-Hint Resolve treebox_rep_saturate_local: saturate_local.
+#[export] Hint Resolve treebox_rep_saturate_local: saturate_local.
 
 Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
   EX b: val, EX t: tree val,
@@ -448,7 +448,7 @@ Proof.
   Intros pa pb locka lockb. entailer!.
 Qed.
 
-Hint Resolve tree_rep_nullval: saturate_local.
+#[export] Hint Resolve tree_rep_nullval: saturate_local.
 
 (*Lemma treebox_rep_leaf: forall x p b (v: val),
   is_pointer_or_null v ->
@@ -548,7 +548,7 @@ Proof.
     auto. 
     simpl. lia.
 Qed.
-(*Hint Resolve t_lock_exclusive.*)
+(*#[export] Hint Resolve t_lock_exclusive.*)
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.

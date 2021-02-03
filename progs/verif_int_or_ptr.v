@@ -97,7 +97,7 @@ entailer!.
 apply field_compatible_valid_int_or_ptr; auto.
 Qed.
 
-Hint Resolve treerep_local_facts : saturate_local.
+#[export] Hint Resolve treerep_local_facts : saturate_local.
 
 Definition test_int_or_ptr_spec :=
  DECLARE _test_int_or_ptr

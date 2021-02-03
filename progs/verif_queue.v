@@ -94,7 +94,7 @@ apply sepalg.join_comm.
 apply Qsh_Qsh'.
 Qed.
 
-Hint Resolve Qsh_not_readable : core.
+#[export] Hint Resolve Qsh_not_readable : core.
 
 
 Lemma Qsh_nonempty: Qsh <> Share.bot.
@@ -143,7 +143,7 @@ rewrite Share.glb_absorb in H0.
 contradiction.
 Qed.
 
-Hint Resolve Qsh_nonempty : valid_pointer.
+#[export] Hint Resolve Qsh_nonempty : valid_pointer.
 
 Lemma Qsh_nonidentity: sepalg.nonidentity Qsh.
 Proof.
@@ -153,7 +153,7 @@ Proof.
   auto.
 Qed.
 
-Hint Resolve Qsh_nonidentity : valid_pointer.
+#[export] Hint Resolve Qsh_nonidentity : valid_pointer.
 
 Lemma sub_Qsh_Ews: sepalg.join_sub Qsh Ews.
 Proof.
@@ -165,7 +165,7 @@ apply leq_join_sub.
 apply Share.lub_upper1.
 Qed.
 
-Hint Resolve sub_Qsh_Ews: valid_pointer.
+#[export] Hint Resolve sub_Qsh_Ews: valid_pointer.
 
 Lemma field_at_list_cell_weak:
   forall sh i j p,
@@ -368,7 +368,7 @@ intros.
  Intros ht; destruct ht; if_tac; entailer!.
 Qed.
 
-Hint Resolve fifo_isptr : saturate_local.
+#[export] Hint Resolve fifo_isptr : saturate_local.
 
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
 Proof.
@@ -528,7 +528,7 @@ forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   apply derives_refl.
 Qed.
 
-Hint Resolve readable_share_Qsh' : core.
+#[export] Hint Resolve readable_share_Qsh' : core.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

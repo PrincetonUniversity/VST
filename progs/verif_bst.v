@@ -249,7 +249,7 @@ entailer!.
 Intros pa pb. entailer!.
 Qed.
 
-Hint Resolve tree_rep_saturate_local: saturate_local.
+#[export] Hint Resolve tree_rep_saturate_local: saturate_local.
 
 Lemma tree_rep_valid_pointer:
   forall t p, tree_rep t p |-- valid_pointer p.
@@ -257,7 +257,7 @@ Proof.
 intros.
 destruct t; simpl; Intros; try Intros pa pb; subst; auto with valid_pointer.
 Qed.
-Hint Resolve tree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
 Lemma treebox_rep_saturate_local:
    forall t b, treebox_rep t b |-- !! field_compatible (tptr t_struct_tree) [] b.
@@ -268,7 +268,7 @@ Intros p.
 entailer!.
 Qed.
 
-Hint Resolve treebox_rep_saturate_local: saturate_local.
+#[export] Hint Resolve treebox_rep_saturate_local: saturate_local.
 
 Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
   EX b: val, EX t: tree val,
@@ -296,7 +296,7 @@ Proof.
   Intros pa pb. entailer!.
 Qed.
 
-Hint Resolve tree_rep_nullval: saturate_local.
+#[export] Hint Resolve tree_rep_nullval: saturate_local.
 
 Lemma treebox_rep_leaf: forall x p b (v: val),
   is_pointer_or_null v ->

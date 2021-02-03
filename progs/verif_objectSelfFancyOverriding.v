@@ -64,7 +64,7 @@ unfold object_methods.
 Intros sh reset twiddle twiddleR.
 entailer!.
 Qed.
-Hint Resolve object_methods_local_facts : saturate_local.
+Local Hint Resolve object_methods_local_facts : saturate_local.
 
 (*Moved here from further below, and added twiddleR*)
 Lemma make_object_methods:
@@ -719,7 +719,7 @@ unfold fobject_methods.
 Intros sh reset twiddle twiddleR setcol getcol.
 entailer!.
 Qed.
-Hint Resolve fobject_methods_local_facts : saturate_local.
+Local Hint Resolve fobject_methods_local_facts : saturate_local.
 
 Lemma make_fobject_methods:
   forall sh instance reset twiddle twiddleR setcol getcol mtable,

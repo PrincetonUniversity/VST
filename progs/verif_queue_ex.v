@@ -82,7 +82,7 @@ Proof.
   do 3 apply positive_sepcon1.
   apply data_at_positive; auto.
 Qed.
-Hint Resolve f_inv_precise f_inv_positive.
+#[export] Hint Resolve f_inv_precise f_inv_positive.
 
 Lemma lock_struct_array : forall sh z (v : list val) p,
   data_at sh (tarray (tptr (Tstruct _lock_t noattr)) z) v p =

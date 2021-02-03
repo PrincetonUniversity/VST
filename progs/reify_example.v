@@ -249,7 +249,7 @@ Proof.
  simpl. intuition.
 Qed.
 
-Hint Resolve link_local_facts : saturate_local.
+#[export] Hint Resolve link_local_facts : saturate_local.
 
 Lemma link__local_facts:
  forall x, link_ x |-- !! isptr x.
@@ -260,7 +260,7 @@ eapply derives_trans; [eapply field_at__local_facts; reflexivity | ].
 apply prop_derives; intuition.
 Qed.
 
-Hint Resolve link__local_facts : saturate_local.
+#[export] Hint Resolve link__local_facts : saturate_local.
 
 
 Definition Delta :=

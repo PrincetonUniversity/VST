@@ -72,7 +72,7 @@ Proof.
   intro; apply positive_sepcon2.
   rewrite field_at_data_at; auto.
 Qed.
-Hint Resolve inv_precise inv_positive.
+#[export] Hint Resolve inv_precise inv_positive.
 
 Lemma body_g : semax_body Vprog Gprog f_g g_spec.
 Proof.

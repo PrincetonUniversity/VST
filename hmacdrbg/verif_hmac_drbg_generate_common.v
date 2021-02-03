@@ -892,11 +892,11 @@ Opaque HMAC256_DRBG_generate_function.
            inv Heqq. inv HeqUPD.
            unfold hmac256drbgstate_md_info_pointer; simpl in *. entailer!. 
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
-             apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+             apply hmac_common_lemmas.HMAC_Zlength. }
+           { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
+           }
         ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
            2: subst contents; elim n; apply Zlength_nil.
            subst na. simpl in *.
@@ -905,9 +905,7 @@ Opaque HMAC256_DRBG_generate_function.
            rewrite hmac_common_lemmas.HMAC_Zlength. 
            entailer!.
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia. 
-             apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+             apply hmac_common_lemmas.HMAC_Zlength. }
            rewrite sublist_firstn, <- Heqp; simpl. cancel.
            unfold_data_at 1%nat. cancel.
      * unfold contents_with_add in HeqCONT.
@@ -937,9 +935,7 @@ Opaque HMAC256_DRBG_generate_function.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. entailer!.
        { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
          apply hmac_common_lemmas.HMAC_Zlength.
-             2: apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+         apply hmac_common_lemmas.HMAC_Zlength. }
        unfold_data_at 1%nat. cancel.
   - subst HLP MRES'.  
       remember  MGen as MGen'. subst MGen.
@@ -978,9 +974,7 @@ Opaque HMAC256_DRBG_generate_function.
            inv Heqq. inv HeqUPD.
            unfold hmac256drbgstate_md_info_pointer; simpl in *. entailer!. 
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
-             apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+             apply hmac_common_lemmas.HMAC_Zlength. }
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
         ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
@@ -991,9 +985,7 @@ Opaque HMAC256_DRBG_generate_function.
            rewrite hmac_common_lemmas.HMAC_Zlength. 
            entailer!.
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia. 
-             apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+             apply hmac_common_lemmas.HMAC_Zlength. }
            rewrite sublist_firstn, <- Heqp; simpl. cancel.
            unfold_data_at 1%nat. cancel.
      * unfold contents_with_add in HeqCONT.
@@ -1023,9 +1015,7 @@ Opaque HMAC256_DRBG_generate_function.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. entailer!.
        { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia. 
          apply hmac_common_lemmas.HMAC_Zlength.
-             2: apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+         apply hmac_common_lemmas.HMAC_Zlength. }
        unfold_data_at 1%nat. cancel.
 Time Qed. (*laptop 11s, desktop25s*) 
 

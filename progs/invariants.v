@@ -25,7 +25,7 @@ Lemma Included_Full : forall {A} E, Included E (Full_set A).
 Proof.
   repeat intro; constructor.
 Qed.
-Hint Resolve Included_Full.
+#[export] Hint Resolve Included_Full.
 
 Notation cored := own.cored.
 

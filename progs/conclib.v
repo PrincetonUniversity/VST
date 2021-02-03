@@ -67,7 +67,7 @@ Lemma repable_0 : repable_signed 0.
 Proof.
   split; computable.
 Qed.
-Hint Resolve repable_0 : core.
+#[export] Hint Resolve repable_0 : core.
 
 Definition complete MAX l := l ++ Zrepeat (vptrofs 0) (MAX - Zlength l).
 
@@ -809,7 +809,7 @@ Lemma incl_nil : forall {A} (l : list A), incl [] l.
 Proof.
   repeat intro; contradiction.
 Qed.
-Hint Resolve incl_nil : core.
+#[export] Hint Resolve incl_nil : core.
 
 Lemma incl_cons_out : forall {A} (a : A) l1 l2, incl l1 (a :: l2) -> ~In a l1 -> incl l1 l2.
 Proof.
@@ -2054,7 +2054,7 @@ Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_
 Proof.
   intros; apply data_at__isptr.
 Qed.
-Hint Resolve lock_inv_isptr cond_var_isptr : saturate_local.
+#[export] Hint Resolve lock_inv_isptr cond_var_isptr : saturate_local.
 
 Lemma cond_var_share_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
   @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
@@ -2239,7 +2239,7 @@ Proof.
     split; [eapply sepalg.join_eq|]; auto.
 Qed. *)
 
-Hint Resolve lock_inv_exclusive selflock_exclusive cond_var_exclusive data_at_exclusive
+#[export] Hint Resolve lock_inv_exclusive selflock_exclusive cond_var_exclusive data_at_exclusive
   data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec : core.
 
 Lemma eq_dec_refl : forall {A B} {A_eq : EqDec A} (a : A) (b c : B), (if eq_dec a a then b else c) = b.
@@ -2302,7 +2302,7 @@ Proof.
   unfold readable_share, nonempty_share, sepalg.nonidentity.
   rewrite Share.glb_bot; auto.
 Qed.
-Hint Resolve unreadable_bot : core.
+#[export] Hint Resolve unreadable_bot : core.
 
 Definition join_Bot := join_Bot.
 
@@ -2332,7 +2332,7 @@ Proof.
   apply slice.cleave_join; unfold gsh1, gsh2; destruct (slice.cleave Tsh); auto.
 Qed.
 
-Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join : core.
+#[export] Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join : core.
 
 Lemma gsh1_not_bot : gsh1 <> Share.bot.
 Proof.
@@ -2343,7 +2343,7 @@ Lemma gsh2_not_bot : gsh2 <> Share.bot.
 Proof.
   intro X; contradiction unreadable_bot; rewrite <- X; auto.
 Qed.
-Hint Resolve gsh1_not_bot gsh2_not_bot : core.
+#[export] Hint Resolve gsh1_not_bot gsh2_not_bot : core.
 
 (*
 Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
@@ -2891,7 +2891,7 @@ Transparent predicates_hered.pred.
 Opaque mpred. Opaque predicates_hered.pred.
 Qed.
 
-Hint Resolve valid_pointer_isptr : saturate_local.
+#[export] Hint Resolve valid_pointer_isptr : saturate_local.
 
 Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered.imp P Q) =
   compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P)
