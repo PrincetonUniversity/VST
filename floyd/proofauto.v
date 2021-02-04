@@ -352,3 +352,6 @@ simple eapply saturate_aux21y;
       end
 ].
 
+#[export] Hint Resolve Clight_mapsto_memory_block.tc_val_pointer_nullval : core.
+#[export] Hint Resolve mapsto_memory_block.tc_val_pointer_nullval : core.
+
