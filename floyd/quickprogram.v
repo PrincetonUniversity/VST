@@ -75,14 +75,6 @@ match fd with
   | External ef tys rt cc => signature_of_type tys rt cc
  end.
 
-Definition function_eq (f1 f2: Clight.function) : bool :=
-eqb_type f1.(Clight.fn_return) f2.(Clight.fn_return) && 
-eqb_calling_convention f1.(Clight.fn_callconv) f2.(Clight.fn_callconv) &&
-eqb_list eqb_member f1.(Clight.fn_params) f2.(Clight.fn_params) && 
-eqb_list eqb_member f1.(Clight.fn_vars) f2.(Clight.fn_vars) && 
-eqb_list eqb_member f1.(Clight.fn_temps) f2.(Clight.fn_temps) && 
-semax_lemmas.eq_dec_statement f1.(Clight.fn_body) f2.(Clight.fn_body).
-
 Lemma eqb_calling_convention_refl: forall cc, eqb_calling_convention cc cc = true.
 Proof.
 destruct cc; simpl; auto.
@@ -291,6 +283,203 @@ intros. apply String.eqb_eq; auto.
 apply eqb_list_prop in H0; auto; apply eqb_typ_prop.
 Qed.
 
+Definition eqb_unop (a1 a2 : Cop.unary_operation) : bool :=
+ match a1, a2 with
+ | Cop.Onotbool, Cop.Onotbool => true
+ | Cop.Onotint, Cop.Onotint => true
+ | Cop.Oneg, Cop.Oneg => true
+ | Cop.Oabsfloat, Cop.Oabsfloat => true
+ | _, _ => false
+ end.
+
+Definition eqb_binop (a1 a2 : Cop.binary_operation) : bool :=
+ match a1, a2 with
+ | Cop.Oadd, Cop.Oadd => true
+ | Cop.Osub, Cop.Osub => true
+ | Cop.Omul, Cop.Omul => true
+ | Cop.Odiv, Cop.Odiv => true
+ | Cop.Omod, Cop.Omod => true
+ | Cop.Oand, Cop.Oand => true
+ | Cop.Oor, Cop.Oor => true
+ | Cop.Oxor, Cop.Oxor => true
+ | Cop.Oshl, Cop.Oshl => true
+ | Cop.Oshr, Cop.Oshr => true
+ | Cop.Oeq, Cop.Oeq => true
+ | Cop.One, Cop.One => true
+ | Cop.Olt, Cop.Olt => true
+ | Cop.Ogt, Cop.Ogt => true
+ | Cop.Ole, Cop.Ole => true
+ | Cop.Oge, Cop.Oge => true
+ | _, _ => false
+ end.
+
+Fixpoint eqb_expr (e1 e2 : expr) : bool :=
+ match e1, e2 with
+ | Econst_int i1 t1, Econst_int i2 t2 => 
+    andb (Int.eq i1 i2) (eqb_type t1 t2) 
+| Econst_float f1 t1, Econst_float f2 t2 =>
+    andb (Int64.eq (Float.to_bits f1) (Float.to_bits f2)) (eqb_type t1 t2) 
+| Econst_single f1 t1, Econst_single f2 t2 =>
+    andb (Int.eq (Float32.to_bits f1) (Float32.to_bits f2)) (eqb_type t1 t2) 
+| Econst_long i1 t1, Econst_long i2 t2 => 
+    andb (Int64.eq i1 i2) (eqb_type t1 t2) 
+| Evar i1 t1, Evar i2 t2 => 
+    andb (eqb_ident i1 i2) (eqb_type t1 t2) 
+| Etempvar i1 t1, Etempvar i2 t2 => 
+    andb (eqb_ident i1 i2) (eqb_type t1 t2)
+| Ederef a1 t1, Ederef a2 t2 =>
+    andb (eqb_expr a1 a2) (eqb_type t1 t2) 
+| Eaddrof a1 t1, Eaddrof a2 t2 =>
+    andb (eqb_expr a1 a2) (eqb_type t1 t2) 
+| Eunop op1 a1 t1, Eunop op2 a2 t2 =>
+    andb (eqb_unop op1 op2) (andb (eqb_expr a1 a2) (eqb_type t1 t2)) 
+| Ebinop op1 a1 b1 t1, Ebinop op2 a2 b2 t2 =>
+    andb (eqb_binop op1 op2) (andb (eqb_expr a1 a2) 
+     (andb (eqb_expr b1 b2) (eqb_type t1 t2)) )
+| Ecast a1 t1, Ecast a2 t2 =>
+    andb (eqb_expr a1 a2) (eqb_type t1 t2) 
+| Efield a1 i1 t1, Efield a2 i2 t2 =>
+    andb (eqb_expr a1 a2) 
+     (andb (eqb_ident i1 i2) (eqb_type t1 t2))
+| Esizeof a1 t1, Esizeof a2 t2 =>
+    andb (eqb_type a1 a2) (eqb_type t1 t2) 
+| Ealignof a1 t1, Ealignof a2 t2 =>
+    andb (eqb_type a1 a2) (eqb_type t1 t2) 
+| _, _ => false
+end.
+
+Lemma eqb_expr_prop: forall e1 e2, eqb_expr e1 e2 = true -> e1=e2.
+Proof.
+induction e1; destruct e2; intros; inv H; auto;
+rewrite !andb_true_iff in H1; decompose [and] H1; clear H1;
+f_equal; auto;
+try (apply Int.same_if_eq; auto);
+try (apply Int64.same_if_eq; auto);
+try (apply eqb_type_true; auto);
+try (apply Peqb_true_eq; auto).
+apply Int64.same_if_eq in H.
+rewrite <- (Float.of_to_bits f), <- (Float.of_to_bits f0); congruence.
+apply Int.same_if_eq in H.
+rewrite <- (Float32.of_to_bits f), <- (Float32.of_to_bits f0); congruence.
+destruct u,u0; inv H; auto.
+destruct b,b0; inv H; auto.
+Qed.
+
+Fixpoint eqb_statement (s1 s2: statement ) : bool :=
+match s1, s2 with
+| Sskip, Sskip => true
+| Sassign a1 b1, Sassign a2 b2 => 
+       andb (eqb_expr a1 a2) (eqb_expr b1 b2)
+| Sset i1 a1, Sset i2 a2 => 
+       andb (eqb_ident i1 i2) (eqb_expr a1 a2)
+| Scall i1 a1 b1, Scall i2 a2 b2 =>
+   andb (eqb_option eqb_ident i1 i2) 
+    (andb (eqb_expr a1 a2) (eqb_list eqb_expr b1 b2))
+| Sbuiltin i1 f1 t1 b1, Sbuiltin i2 f2 t2 b2 =>
+  andb (eqb_option eqb_ident i1 i2)
+   (andb (eqb_external_function f1 f2) 
+    (andb (eqb_typelist t1 t2) (eqb_list eqb_expr b1 b2)))
+| Ssequence a1 b1, Ssequence a2 b2 =>
+    andb (eqb_statement a1 a2) (eqb_statement b1 b2)
+| Sifthenelse e1 a1 b1, Sifthenelse e2 a2 b2 =>
+   andb (eqb_expr e1 e2)
+   (andb (eqb_statement a1 a2) (eqb_statement b1 b2))
+| Sloop a1 b1, Sloop a2 b2 =>
+    andb (eqb_statement a1 a2) (eqb_statement b1 b2)
+| Sbreak, Sbreak => true
+| Scontinue, Scontinue => true
+| Sreturn a1, Sreturn a2 => 
+         (eqb_option eqb_expr a1 a2)
+| Sswitch e1 s1, Sswitch e2 s2 =>
+  andb (eqb_expr e1 e2) (eqb_labeled_statements s1 s2)
+| Slabel i1 s1, Slabel i2 s2  =>
+       andb (eqb_ident i1 i2) (eqb_statement s1 s2)
+| Sgoto i1, Sgoto i2 =>
+       eqb_ident i1 i2
+| _, _ => false
+ end
+with eqb_labeled_statements (s1 s2: labeled_statements) :=
+match s1, s2 with
+| LSnil, LSnil => true
+| LScons i1 a1 b1, LScons i2 a2 b2 =>
+  andb (eqb_option Z.eqb i1 i2)
+    (andb (eqb_statement a1 a2) (eqb_labeled_statements b1 b2))
+| _, _ => false
+end.
+
+Lemma eqb_statement_prop: forall s1 s2, eqb_statement s1 s2 = true -> s1=s2
+with eqb_labeled_statements_prop: forall s1 s2,
+  eqb_labeled_statements s1 s2 = true -> s1=s2.
+Proof.
+- clear eqb_statement_prop.
+induction s1; destruct s2; intros; inv H; auto;
+rewrite ?andb_true_iff in H1; decompose [and] H1;
+f_equal; auto;
+try solve[apply Int.same_if_eq; auto];
+try solve[apply Int64.same_if_eq; auto];
+try solve[apply eqb_type_true; auto];
+try solve[apply Peqb_true_eq; auto];
+try solve[apply eqb_expr_prop; auto];
+try solve[destruct o,o0; try discriminate; auto; f_equal; simpl in H;
+       apply eqb_ident_spec; auto];
+try solve[apply (eqb_list_prop _ eqb_expr_prop); auto];
+try solve[apply eqb_external_function_prop; auto];
+try solve [apply eqb_typelist_prop; auto].
+destruct o,o0; try discriminate; auto; f_equal; simpl in H1.
+apply eqb_expr_prop; auto.
+- clear eqb_labeled_statements_prop.
+induction s1; destruct s2; intros; inv H; auto.
+rewrite ?andb_true_iff in H1; decompose [and] H1;
+f_equal; auto.
+destruct o,o0; try discriminate; auto; f_equal; simpl in H.
+apply Z.eqb_eq; auto.
+Qed.
+
+Lemma eqb_ident_refl: forall i, eqb_ident i i = true.
+Proof.
+intros.
+apply Pos.eqb_eq; auto.
+Qed.
+
+Lemma eqb_expr_refl: forall e, eqb_expr e e = true.
+Proof.
+induction e; simpl; auto;
+rewrite ?Int.eq_true, ?Int64.eq_true, ?eqb_type_refl, ?eqb_ident_refl,
+  ?andb_true_r; auto.
+ rewrite IHe. destruct u; reflexivity.
+ rewrite IHe1, IHe2; destruct b; reflexivity.
+Qed.
+
+Lemma eqb_statement_refl: forall s, eqb_statement s s = true
+with eqb_labeled_statements_refl: forall s, eqb_labeled_statements s s = true.
+Proof.
+- clear eqb_statement_refl.
+induction s; simpl; auto;
+rewrite ?Int.eq_true, ?Int64.eq_true, ?eqb_type_refl, ?eqb_ident_refl,
+  ?eqb_expr_refl,  ?andb_true_r; auto;
+ rewrite ?eqb_list_refl by apply eqb_expr_refl;
+ rewrite ?eqb_external_function_refl, ?eqb_typelist_refl,
+ ?IHs, ?IHs1, ?IHs2; auto.
+ destruct o; auto; simpl; rewrite eqb_ident_refl; auto.
+ destruct o; auto; simpl; rewrite eqb_ident_refl; auto.
+ destruct o; auto; simpl; rewrite eqb_expr_refl; auto.
+ simpl; auto.
+- clear eqb_labeled_statements_refl.
+induction s; simpl; auto.
+ rewrite eqb_statement_refl, IHs.
+ destruct o; auto; simpl.
+ rewrite andb_true_r.
+ apply Z.eqb_eq. auto.
+Qed.
+
+Definition function_eq (f1 f2: Clight.function) : bool :=
+eqb_type f1.(Clight.fn_return) f2.(Clight.fn_return) && 
+eqb_calling_convention f1.(Clight.fn_callconv) f2.(Clight.fn_callconv) &&
+eqb_list eqb_member f1.(Clight.fn_params) f2.(Clight.fn_params) && 
+eqb_list eqb_member f1.(Clight.fn_vars) f2.(Clight.fn_vars) && 
+eqb_list eqb_member f1.(Clight.fn_temps) f2.(Clight.fn_temps) && 
+eqb_statement f1.(Clight.fn_body) f2.(Clight.fn_body).
+
 Definition fundef_eq  (fd1 fd2: fundef Clight.function) : bool :=
 match fd1, fd2 with
 | Internal f1, Internal f2 => function_eq f1 f2
@@ -310,8 +499,7 @@ unfold function_eq in H.
 repeat (revert H; match goal with |- ?A && _ = true -> _ => destruct A eqn:?H; simpl; intro; [ | discriminate] end).
 apply eqb_type_true in H.
 apply eqb_calling_convention_prop in H4.
-destruct (semax_lemmas.eq_dec_statement (Clight.fn_body f1) (Clight.fn_body f2)); try discriminate.
-clear H0.
+apply eqb_statement_prop in H0.
 apply (eqb_list_spec _ eqb_member_spec) in H1.
 apply (eqb_list_spec _ eqb_member_spec) in H2.
 apply (eqb_list_spec _ eqb_member_spec) in H3.

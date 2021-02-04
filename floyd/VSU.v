@@ -1188,11 +1188,67 @@ clear Delta;
 apply finish_process_globvars'; unfold fold_right_sepcon at 1;
 repeat change_mapsto_gvar_to_data_at.
 
-Ltac QPprog p := 
-  let q := constr:(QPprog p) in
-  let q := eval hnf in q in
-  let q := eval simpl in q in
-  exact (@abbreviate _ q).
+Definition cenv_built_correctly
+   (comps: list composite_definition)
+   (ce: composite_env) : Errors.res unit := 
+ Errors.bind
+ (fold_left (fun (tr: Errors.res composite_env)(cd: composite_definition)  =>
+                Errors.bind tr (fun ce' => 
+                match cd with Composite i su mems att =>
+                 match PTree.get i ce' with 
+                 | None => Errors.Error [Errors.MSG "Composite identifier duplicate or not found in composite_env:";
+                                                       Errors.POS i]
+                 | Some c =>
+                             if (eqb_su su c.(co_su)
+                             && eqb_list eqb_member mems c.(co_members)
+                             && eqb_attr att c.(co_attr))%bool
+                              then Errors.OK (PTree.remove i ce')
+                              else Errors.Error [Errors.MSG "Composite definition does not match:";
+                                                          Errors.POS i]
+                end end)) comps (Errors.OK ce))
+  (fun ce' => let leftovers := PTree.elements ce' in
+                     if Nat.eqb (List.length leftovers) O
+                     then Errors.OK tt
+                     else Errors.Error (Errors.MSG "Composite_env contains extra identifiers:" ::
+                             map Errors.POS (map fst leftovers))).
+
+Definition QPprog' {cs: compspecs} 
+  {comps: list composite_definition}
+  {defs: list (prod ident (globdef Clight.fundef type))}
+  {pubs: list ident}
+  {main: ident}
+  {comps_OK: wf_composites comps}
+  (prog: Clight.program)
+  (H: prog = Clightdefs.mkprogram comps defs pubs main comps_OK)
+  (H0: cenv_built_correctly comps (@cenv_cs cs) = Errors.OK tt)
+ : QP.program function :=
+ QP.Build_program _ (filter_options is_builtin defs)
+  (PTree_Properties.of_list (filter not_builtin defs))
+  pubs main
+  (QPcomposite_env_of_composite_env 
+    (@cenv_cs cs) (@ha_env_cs cs) (@la_env_cs cs)).
+
+Ltac QPprog p :=
+  tryif (let p' := eval cbv delta [p] in p in
+          match p' with Clightdefs.mkprogram _ _ _ _ _ => idtac end)
+  then (let a := constr:(QPprog' p (eq_refl _)) in
+           (let q := constr:(a (eq_refl _)) in
+            let q := eval hnf in q in
+            let q := eval simpl in q in
+            exact (@abbreviate _ q))
+          || match type of a with ?e -> _ =>
+                 let e := eval hnf in e in
+                 let e :=eval simpl in e in
+                 lazymatch e with
+                 | Errors.OK _ => fail 0 "impossible error in QPprog'"
+                 | Errors.Error ?m => fail 0 m
+                 end
+                end)
+  else (idtac "Remark: QPprog alternate path!";
+         let q := constr:(QPprog p) in 
+         let q := eval hnf in q in
+         let q := eval simpl in q in
+         exact (@abbreviate _ q)).
 
 Lemma wholeprog_varspecsJoin:
  forall p1 p2 p, 
