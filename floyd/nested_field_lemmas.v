@@ -983,7 +983,7 @@ destruct a; auto.
 lia.
 Qed.
 
-Hint Resolve legal_nested_field0_field : core.
+Local Hint Resolve legal_nested_field0_field : core.
 (*
 Lemma nested_field_offset_type_divide: forall gfs t,
   legal_alignas_type t = true ->
@@ -1739,14 +1739,14 @@ Arguments nested_field_offset2 {cs} t gfs /.
 Arguments nested_field_type2 {cs} t gfs /.
 *)
 
-(* Hint Resolve field_address_isptr : core. *)
-Hint Resolve is_pointer_or_null_field_compatible : core.
-(* Hint Extern 1 (complete_type _ _ = true) => (eapply field_compatible_complete_type; eassumption). *)
-Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption) : core.
-Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption) : core.
-Hint Extern 1 (legal_nested_field _ _) => (eapply field_compatible_legal_nested_field; eassumption) : core.
-Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible_legal_nested_field0; eassumption) : core.
-Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_nested_field0; eassumption) : core.
+(* #[export] Hint Resolve field_address_isptr : core. *)
+#[export] Hint Resolve is_pointer_or_null_field_compatible : core.
+(* #[export] Hint Extern 1 (complete_type _ _ = true) => (eapply field_compatible_complete_type; eassumption). *)
+#[export] Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption) : core.
+#[export] Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption) : core.
+#[export] Hint Extern 1 (legal_nested_field _ _) => (eapply field_compatible_legal_nested_field; eassumption) : core.
+#[export] Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible_legal_nested_field0; eassumption) : core.
+#[export] Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_nested_field0; eassumption) : core.
 
 Lemma nested_field_type_preserves_change_composite: forall {cs_from cs_to} {CCE: change_composite_env cs_from cs_to} (t: type),
   cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
@@ -1902,7 +1902,7 @@ intros.
 apply compute_in_members_true_iff. auto.
 Qed.
 
-Hint Extern 2 (field_compatible _ (StructField _ :: _) _) =>
+#[export] Hint Extern 2 (field_compatible _ (StructField _ :: _) _) =>
   (apply field_compatible_cons; split; [ apply compute_in_members_e; reflexivity | ])
       : field_compatible.
 

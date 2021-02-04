@@ -165,7 +165,7 @@ intros.
  if_tac.  entailer!.  Intros prefix; entailer!.
 Qed.
 
-Hint Resolve fifo_isptr : saturate_local.
+#[export] Hint Resolve fifo_isptr : saturate_local.
 
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
 Proof.

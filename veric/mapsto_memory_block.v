@@ -881,6 +881,7 @@ Proof.
   pose proof Ptrofs.unsigned_range z.
   assert (Ptrofs.unsigned z + n < Ptrofs.modulus) by lia.
   apply pred_ext; normalize.
+   apply andp_left2; auto.
   apply andp_right; auto.
   intros ? _; simpl; auto.
 Qed.
@@ -1061,7 +1062,7 @@ Proof.
 unfold is_pointer_or_null, nullval.
 simple_if_tac; auto.
 Qed.
-Hint Resolve is_pointer_or_null_nullval : core.
+#[export] Hint Resolve is_pointer_or_null_nullval : core.
 
 Lemma tc_val_pointer_nullval':
  forall t a, tc_val (Tpointer t a) nullval.
@@ -1070,7 +1071,7 @@ Proof.
  simple_if_tac; hnf;
  simple_if_tac; auto.
 Qed.
-Hint Resolve tc_val_pointer_nullval' : core.
+#[export] Hint Resolve tc_val_pointer_nullval' : core.
 
 Arguments type_is_volatile ty / .
 
@@ -1123,7 +1124,7 @@ Proof.
  rewrite andb_false_r.
  hnf. simple_if_tac; auto.
 Qed.
-Hint Resolve tc_val_pointer_nullval : core.
+#[export] Hint Resolve tc_val_pointer_nullval : core.
 
 Lemma mapsto_tuint_tptr_nullval:
   forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.

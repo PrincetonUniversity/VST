@@ -830,7 +830,7 @@ Proof. start_function.
         destruct na; trivial; elim H1; trivial. }
       rewrite RNDS1 in *; clear H1 H.
       assert (NAF: na = false).
-      { destruct na; try lia. trivial. }
+      { destruct na; try lia; trivial. }
       rewrite NAF in *. clear Heqrounds.
       forward. rewrite H4, NAF.
       destruct additional; try contradiction; simpl in PNadditional.

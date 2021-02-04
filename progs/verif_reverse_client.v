@@ -27,7 +27,7 @@ Intros y. entailer!.
 split; intro. subst p. destruct H; contradiction. inv H2.
 Qed.
 
-Hint Resolve listrep_local_facts : saturate_local.
+#[export] Hint Resolve listrep_local_facts : saturate_local.
 
 Lemma listrep_valid_pointer:
   forall sigma p,
@@ -41,7 +41,7 @@ Proof.
  simpl;  computable.
 Qed.
 
-Hint Resolve listrep_valid_pointer : valid_pointer.
+#[export] Hint Resolve listrep_valid_pointer : valid_pointer.
 
 Definition reverse_spec :=
  DECLARE _reverse

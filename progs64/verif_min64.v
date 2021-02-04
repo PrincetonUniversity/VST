@@ -72,7 +72,7 @@ Lemma is_int_I32_Znth_map_Vint:
 Proof.
 intros. rewrite Znth_map; auto.
 Qed.
-Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
+#[export] Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
   (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; lia) : core.
 
 Definition minimum_spec :=

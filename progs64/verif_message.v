@@ -44,7 +44,7 @@ eapply derives_trans;[ apply mf_bufprop | ].
 entailer!.
 Qed.
 
-Hint Resolve mf_assert_local_facts : saturate_local.
+#[export] Hint Resolve mf_assert_local_facts : saturate_local.
 
 
 Definition t_struct_intpair := Tstruct _intpair noattr.

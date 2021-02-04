@@ -307,7 +307,7 @@ Proof. intros. do 2 pose proof I.
         destruct na; trivial; elim H6; trivial. }
       rewrite RNDS1 in *; clear H6 H4.
       assert (NAF: na = false).
-      { destruct na; try lia. trivial. }
+      { destruct na; try lia; trivial. }
       rewrite NAF in *. clear Heqrounds.
       forward. rewrite H9, NAF.
       destruct additional; try contradiction; simpl in PNadditional.

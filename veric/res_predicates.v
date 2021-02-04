@@ -1527,7 +1527,7 @@ Proof.
    destruct loc, b; intros [? ?]; simpl in *; lia.
    apply ghost_of_identity; auto.
 Qed.
-Hint Resolve VALspec_range_0: normalize.
+#[export] Hint Resolve VALspec_range_0: normalize.
 
 Lemma nonlock_permission_bytes_0: forall sh a, nonlock_permission_bytes sh a 0 = emp.
 Proof.

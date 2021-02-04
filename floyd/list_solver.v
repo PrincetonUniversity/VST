@@ -245,9 +245,9 @@ Ltac eq_solve_with tac :=
 Tactic Notation "eq_solve" "with" tactic(tac) := eq_solve_with (tac).
 Tactic Notation "eq_solve" := eq_solve with fail.
 
-Hint Extern 1 (@eq _ _ _) => eq_solve : Znth_solve_hint.
-(* Hint Extern 1 (@eq _ _ _) => fassumption : Znth_solve_hint.
-Hint Extern 1 (@eq _ _ _) => congruence : Znth_solve_hint. *)
+#[export] Hint Extern 1 (@eq _ _ _) => eq_solve : Znth_solve_hint.
+(* #[export] Hint Extern 1 (@eq _ _ _) => fassumption : Znth_solve_hint.
+#[export] Hint Extern 1 (@eq _ _ _) => congruence : Znth_solve_hint. *)
 
 (*************** range definitions **********************)
 Definition forall_i (lo hi : Z) (P : Z -> Prop) :=

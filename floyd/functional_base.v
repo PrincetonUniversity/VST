@@ -63,8 +63,8 @@ Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. D
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
 Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
-Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val' : core.
-Hint Resolve isptr_offset_val': norm.
+#[export] Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val' : core.
+#[export] Hint Resolve isptr_offset_val': norm.
 
 Lemma offset_val_force_ptr:
   offset_val 0 = force_ptr.
@@ -340,7 +340,7 @@ with putable x :=
   first [putable' x
          | tryif (try (assert (computable x) by (clear; auto 100 with computable); fail 1)) then fail else idtac ].
 
-Hint Extern 1 (computable ?x) => (putable' x; apply computable_any) : computable.
+#[export] Hint Extern 1 (computable ?x) => (putable' x; apply computable_any) : computable.
 
 Ltac computable := match goal with |- ?x =>
  no_evars x;
@@ -376,10 +376,10 @@ pose proof (Int.zero_ext_range n i H).
 lia.
 Qed.
 
-Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
+#[export] Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
     (apply sign_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
-Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
+#[export] Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
     (apply zero_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
 Hint Rewrite sign_ext_inrange using assumption : norm.

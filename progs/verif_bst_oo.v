@@ -269,7 +269,7 @@ destruct t.
   entailer!.
 Qed.
 
-Hint Resolve treebox_rep_saturate_local: saturate_local.
+#[export] Hint Resolve treebox_rep_saturate_local: saturate_local.
 
 (*
 Lemma tree_rep_saturate_local:
@@ -280,7 +280,7 @@ entailer!.
 Intros pa pb. entailer!.
 Qed.
 
-Hint Resolve tree_rep_saturate_local: saturate_local.
+#[export] Hint Resolve tree_rep_saturate_local: saturate_local.
 
 Lemma tree_rep_valid_pointer:
   forall t p, tree_rep t p |-- valid_pointer p.
@@ -288,7 +288,7 @@ Proof.
 intros.
 destruct t; simpl; normalize; auto with valid_pointer.
 Qed.
-Hint Resolve tree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
 *)
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:

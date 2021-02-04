@@ -17,7 +17,7 @@ Require Import VST.veric.Clight_lemmas.
 
 Open Local Scope pred.
 
-Hint Resolve @now_later @andp_derives @sepcon_derives.
+Hint Resolve now_later andp_derives sepcon_derives.
 
 (*
 Definition rmap_chain := {c: nat -> rmap | forall n, level (c n) = n /\ age (c (S n)) (c n)}.

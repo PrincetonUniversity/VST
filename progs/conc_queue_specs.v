@@ -503,7 +503,7 @@ Proof.
   apply positive_andp2.
   do 7 apply positive_sepcon1; apply positive_sepcon2; auto.
 Qed.
-Hint Resolve q_inv_precise q_inv_positive.
+#[export] Hint Resolve q_inv_precise q_inv_positive.
 
 Lemma lqueue_precise : forall lsh t P p lock gsh1 gsh2,
   precise (EX h : hist (reptype t), lqueue lsh t P p lock gsh1 gsh2 h).
@@ -516,7 +516,7 @@ Proof.
   - repeat apply precise_sepcon; auto.
     apply ghost_precise.
 Qed.
-Hint Resolve lqueue_precise.
+#[export] Hint Resolve lqueue_precise.
 
 Lemma lqueue_isptr : forall lsh t P p lock gsh1 gsh2 h, lqueue lsh t P p lock gsh1 gsh2 h =
   !!isptr p && lqueue lsh t P p lock gsh1 gsh2 h.
@@ -529,7 +529,7 @@ Lemma list_incl_refl : forall {A} (l : list A), list_incl l l.
 Proof.
   induction l; auto.
 Qed.
-Hint Resolve list_incl_refl.
+#[export] Hint Resolve list_incl_refl.
 
 Lemma consistent_inj : forall {t} (h : hist t) a b b' (Hb : consistent h a b) (Hb' : consistent h a b'), b = b'.
 Proof.
