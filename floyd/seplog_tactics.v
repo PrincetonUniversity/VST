@@ -114,12 +114,12 @@ Qed.
 
 (* These versions can sometimes take minutes,
    when A and B can't be unified
-Hint Extern 1 (_ |-- _) => (simple apply (@derives_refl mpred _) ) : cancel.
-Hint Extern 1 (_ |-- |> _) => (simple apply (@now_later mpred _ _) ) : cancel.
+#[export] Hint Extern 1 (_ |-- _) => (simple apply (@derives_refl mpred _) ) : cancel.
+#[export] Hint Extern 1 (_ |-- |> _) => (simple apply (@now_later mpred _ _) ) : cancel.
 *)
 
-Hint Extern 2 (?A |-- ?B) => (constr_eq A B; simple apply derives_refl) : cancel.
-Hint Extern 2 (?A |-- |> ?B) => (constr_eq A B; simple apply now_later) : cancel.
+#[export] Hint Extern 2 (?A |-- ?B) => (constr_eq A B; simple apply derives_refl) : cancel.
+#[export] Hint Extern 2 (?A |-- |> ?B) => (constr_eq A B; simple apply now_later) : cancel.
 
 Lemma cancel1_start:
  forall P Q : mpred,

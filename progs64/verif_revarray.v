@@ -247,7 +247,7 @@ Ltac calc_Zlength_extra l ::=
 
 Hint Rewrite Zlength_rev : Zlength.
 Hint Rewrite @Znth_rev using Zlength_solve : Znth.
-Hint Unfold flip_ends : list_solve_unfold.
+#[export] Hint Unfold flip_ends : list_solve_unfold.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.

@@ -1353,7 +1353,7 @@ simpl.
 rewrite later_sepcon.
 apply sepcon_derives; auto.
 Qed.
-Hint Resolve PROP_later_derives LOCAL_later_derives SEP_later_derives : derives.
+#[export] Hint Resolve PROP_later_derives LOCAL_later_derives SEP_later_derives : derives.
 
 Lemma local_lift0: forall P, local (lift0 P) = prop P.
 Proof.
@@ -2644,4 +2644,4 @@ erewrite lvar_eval_var; eauto.
 eapply lvar_isptr; eauto.
 Qed.
 
-Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.
+#[export] Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.

@@ -71,7 +71,7 @@ Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
   forall {cs: compspecs} sh t p, sizeof t <= 0 -> malloc_token sh t p |-- valid_pointer p.
 
-Hint Extern 1 (malloc_token _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (malloc_token _ _ _ |-- valid_pointer _) =>
   (simple apply malloc_token_valid_pointer; data_at_valid_aux) : valid_pointer.
 
 Ltac malloc_token_data_at_valid_pointer :=
@@ -87,11 +87,11 @@ Ltac malloc_token_data_at_valid_pointer :=
    end
  end.
 
-Hint Extern 4 (_ |-- valid_pointer _) => malloc_token_data_at_valid_pointer : valid_pointer.
+#[export] Hint Extern 4 (_ |-- valid_pointer _) => malloc_token_data_at_valid_pointer : valid_pointer.
 
 Parameter malloc_token_local_facts:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- !! malloc_compatible (sizeof t) p.
-Hint Resolve malloc_token_local_facts : saturate_local.
+#[export] Hint Resolve malloc_token_local_facts : saturate_local.
 Parameter malloc_token_change_composite: forall {cs_from cs_to} {CCE : change_composite_env cs_from cs_to} sh t,
   cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
   @malloc_token cs_from sh t = @malloc_token cs_to sh t.
