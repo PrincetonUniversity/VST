@@ -221,7 +221,7 @@ Proof.
   rewrite lockinv_isptr; Intros.
   apply prop_right; auto.
 Qed.
-Hint Resolve lock_inv_saturate_local : saturate_local.
+#[export] Hint Resolve lock_inv_saturate_local : saturate_local.
 
 
 Lemma unfash_fash_equiv: forall P Q: mpred,

@@ -43,7 +43,7 @@ Definition isFUN (k: kind) := match k with | FUN _ _ => True | _ => False end.
 
 Lemma isVAL_i: forall v, isVAL (VAL v).
 Proof. intros; simpl; auto. Qed.
-Hint Resolve isVAL_i : core.
+#[export] Hint Resolve isVAL_i : core.
 
 Lemma isVAL_dec: forall k, {isVAL k}+{~isVAL k}.
 Proof.
@@ -822,7 +822,7 @@ unfold bytes_writable, bytes_readable; intros.
 apply writable_readable; auto.
 Qed.
 
-Hint Resolve bytes_writable_readable : mem.
+#[export] Hint Resolve bytes_writable_readable : mem.
 
 Lemma rmap_age_i:
  forall w w' : rmap,

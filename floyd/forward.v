@@ -59,7 +59,7 @@ unfold sem_add_ptr_int.
 rewrite H; simpl; auto.
 Qed.
 
-Hint Extern 2 (isptr (force_val (sem_add_ptr_int _ _ _ _))) =>
+#[export] Hint Extern 2 (isptr (force_val (sem_add_ptr_int _ _ _ _))) =>
     apply isptr_force_sem_add_ptr_int; [reflexivity | auto with prove_it_now] : core.
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
@@ -90,7 +90,7 @@ Ltac mk_varspecs prog :=
           in let e := eval hnf in e
           in unfold_varspecs e.
 
-Hint Resolve field_address_isptr : norm.
+#[export] Hint Resolve field_address_isptr : norm.
 
 Lemma field_address_eq_offset':
  forall {cs: compspecs} t path v ofs,
@@ -101,7 +101,7 @@ Proof.
 intros. subst. apply field_compatible_field_address; auto.
 Qed.
 
-Hint Resolve field_address_eq_offset' : prove_it_now.
+#[export] Hint Resolve field_address_eq_offset' : prove_it_now.
 
 Hint Rewrite <- @prop_and using solve [auto with typeclass_instances]: norm1.
 
@@ -2642,9 +2642,9 @@ Proof.
 intros. simpl_ret_assert. apply andp_left2; apply FF_left.
 Qed.
 
-Hint Resolve ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal : core.
+#[export] Hint Resolve ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal : core.
 
-Hint Extern 0 (ENTAIL _, _ |-- _) =>
+#[export] Hint Extern 0 (ENTAIL _, _ |-- _) =>
  match goal with |- ENTAIL _, ?A |-- ?B => constr_eq A B; simple apply ENTAIL_refl end : core.
 
 Ltac forward_if_tac post :=
@@ -2888,10 +2888,10 @@ Ltac sequential :=
  end.
 
 (* move these two elsewhere, perhaps entailer.v *)
-Hint Extern 1 (@sizeof _ ?A > 0) =>
+#[export] Hint Extern 1 (@sizeof _ ?A > 0) =>
    (let a := fresh in set (a:= sizeof A); hnf in a; subst a; computable)
   : valid_pointer.
-Hint Resolve denote_tc_test_eq_split : valid_pointer.
+#[export] Hint Resolve denote_tc_test_eq_split : valid_pointer.
 
 Ltac pre_entailer :=
   try match goal with

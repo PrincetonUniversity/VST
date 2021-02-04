@@ -1128,7 +1128,7 @@ unfold data_at_rec;  simpl.
 unfold mapsto. simpl. rewrite if_true by apply H13.
 rewrite andb_false_r.
 apply orp_right1.
-rewrite prop_true_andp by auto.
+rewrite prop_true_andp by apply mapsto_memory_block.is_pointer_or_null_nullval.
 {
 change (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr).
 apply mapsto_memory_block.address_mapsto_address_mapsto_zeros; auto.

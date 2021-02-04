@@ -29,7 +29,7 @@ Proof.
 intros.
 unfold array_with_hole. entailer!.
 Qed.
-Hint Resolve array_with_hole_local_facts : saturate_local.
+#[export] Hint Resolve array_with_hole_local_facts : saturate_local.
 
 Lemma wand_slice_array:
 forall {cs: compspecs} lo hi n sh t (al: list (reptype t)) p,

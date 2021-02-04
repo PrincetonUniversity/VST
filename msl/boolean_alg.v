@@ -54,7 +54,7 @@ Module Type BOOLEAN_ALGEBRA.
 
   Axiom nontrivial : top <> bot.
 
-  Hint Resolve ord_refl ord_antisym lub_upper1 lub_upper2 lub_least
+  Global Hint Resolve ord_refl ord_antisym lub_upper1 lub_upper2 lub_least
          glb_lower1 glb_lower2 glb_greatest top_correct bot_correct
          ord_trans : ba.
 End BOOLEAN_ALGEBRA.

@@ -28,7 +28,7 @@ Lemma data_subsume_default : forall {cs : compspecs} (t : type) (x y : reptype t
   data_subsume t x y.
 Proof. unfold data_subsume. intros. subst y. apply data_at_data_at_. Qed.
 
-Hint Resolve data_subsume_refl data_subsume_refl' data_subsume_default : core.
+#[export] Hint Resolve data_subsume_refl data_subsume_refl' data_subsume_default : core.
 
 Lemma data_subsume_array_ext : forall {cs : compspecs} (t : type) (n : Z) (al bl : list (reptype t)),
   n = Zlength al ->

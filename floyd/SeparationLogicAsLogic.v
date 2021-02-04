@@ -3081,7 +3081,7 @@ Proof.
   - unfold func_ptr, seplog.func_ptr. (* apply predicates_hered.exp_right with (x:=f). *)
     apply predicates_hered.andp_left1. 
     apply predicates_hered.exp_left; intros bb.
-    apply normalize.derives_extract_prop; intros X; inv X. trivial.
+    apply normalize.derives_extract_prop; intros X; inv X. apply predicates_hered.derives_refl.
 Qed. (*old proof:
   intros.
   eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].

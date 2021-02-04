@@ -26,7 +26,7 @@ Intros s'.
 entailer!.
 Qed.
 
-Hint Resolve crep_local_facts : saturate_local.
+#[export] Hint Resolve crep_local_facts : saturate_local.
 
 Lemma crep_valid_pointer:
   forall s p, crep s p |-- valid_pointer p.
@@ -35,7 +35,7 @@ Proof.
  unfold crep. Intros s'.
  auto with valid_pointer.
 Qed.
-Hint Resolve crep_valid_pointer : valid_pointer.
+#[export] Hint Resolve crep_valid_pointer : valid_pointer.
 
 Definition FASTPILECONC: FastpileConcreteAPD :=
   Build_FastpileConcreteAPD crep crep_local_facts crep_valid_pointer cfreeable.

@@ -71,7 +71,7 @@ Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
 
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
-Hint Resolve any_environ : typeclass_instances.
+#[export] Hint Resolve any_environ : typeclass_instances.
 
 Local Open Scope logic.
 
@@ -1304,7 +1304,7 @@ Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bv
    perhaps because one needs both "contractive" and "typeclass_instances"
    Hint databases if this next line is not added. *)
 Definition subp_sepcon_mpred := @subp_sepcon mpred Nveric Iveric Sveric SIveric Rveric SRveric.
-Hint Resolve subp_sepcon_mpred: contractive.
+#[export] Hint Resolve subp_sepcon_mpred: contractive.
 
 Fixpoint unfold_Ssequence c :=
   match c with

@@ -24,7 +24,7 @@ split; intro. subst p. destruct H0; contradiction. discriminate.
 constructor; auto. lia.
 Qed.
 
-Hint Resolve listrep_local_facts : saturate_local.
+Local Hint Resolve listrep_local_facts : saturate_local.
 
 Lemma listrep_valid_pointer:
   forall sigma p,
@@ -34,7 +34,7 @@ Proof.
  intros; entailer!; auto with valid_pointer.
 Qed.
 
-Hint Resolve listrep_valid_pointer : valid_pointer.
+Local Hint Resolve listrep_valid_pointer : valid_pointer.
 
 Lemma prep_local_facts:
   forall sigma p,
@@ -45,7 +45,7 @@ unfold prep.
 Intros q.
 entailer!.
 Qed.
-Hint Resolve prep_local_facts : saturate_local.
+Local Hint Resolve prep_local_facts : saturate_local.
 
 Lemma prep_valid_pointer:
   forall sigma p,
@@ -55,7 +55,7 @@ Proof.
  unfold prep. Intros x.
  entailer!; auto with valid_pointer.
 Qed.
-Hint Resolve prep_valid_pointer : valid_pointer.
+Local Hint Resolve prep_valid_pointer : valid_pointer.
 
 Definition pilefreeable (p: val) : mpred :=
             malloc_token M Ews tpile p.

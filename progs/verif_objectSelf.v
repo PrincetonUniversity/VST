@@ -71,7 +71,7 @@ unfold object_methods.
 Intros sh reset twiddle twiddleR.
 entailer!.
 Qed.
-Hint Resolve object_methods_local_facts : saturate_local.
+#[export] Hint Resolve object_methods_local_facts : saturate_local.
 
 (*Andrew's definition
 Definition object_mpred (history: list Z) (self: val) : mpred :=

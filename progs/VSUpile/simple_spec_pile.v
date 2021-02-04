@@ -34,7 +34,7 @@ split; intro. subst p. destruct H0; contradiction. discriminate.
 constructor; auto. lia.
 Qed.
 
-Hint Resolve listrep_local_facts : saturate_local.
+#[export] Hint Resolve listrep_local_facts : saturate_local.
 
 Lemma listrep_valid_pointer:
   forall sigma p,
@@ -44,7 +44,7 @@ Proof.
  intros; entailer!; auto with valid_pointer.
 Qed.
 
-Hint Resolve listrep_valid_pointer : valid_pointer.
+#[export] Hint Resolve listrep_valid_pointer : valid_pointer.
 
 Opaque listrep.
 
@@ -67,8 +67,8 @@ Qed.
 Definition pile_freeable (p: val) : mpred :=
             malloc_token Ews tpile p.
 
-Hint Resolve pilerep_local_facts : saturate_local.
-Hint Resolve pilerep_valid_pointer : valid_pointer.
+#[export] Hint Resolve pilerep_local_facts : saturate_local.
+#[export] Hint Resolve pilerep_valid_pointer : valid_pointer.
 
 Local Open Scope assert.
 

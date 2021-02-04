@@ -23,8 +23,8 @@ Proof. intros. unfold malloc_token.
  apply andp_left2. apply malloc_token'_valid_pointer.
 Qed.
 
-Hint Resolve malloc_token'_valid_pointer : valid_pointer.
-Hint Resolve malloc_token_valid_pointer : valid_pointer.
+#[export] Hint Resolve malloc_token'_valid_pointer : valid_pointer.
+#[export] Hint Resolve malloc_token_valid_pointer : valid_pointer.
 
 Lemma malloc_token_local_facts:  forall {cs: compspecs} M sh t p,
       malloc_token M sh t p |-- !! (field_compatible t [] p /\ malloc_compatible (sizeof t) p).
@@ -34,8 +34,8 @@ Proof. intros.
  apply andp_right. apply prop_right; auto.
  apply malloc_token'_local_facts.
 Qed.
-Hint Resolve malloc_token'_local_facts : saturate_local.
-Hint Resolve malloc_token_local_facts : saturate_local.
+#[export] Hint Resolve malloc_token'_local_facts : saturate_local.
+#[export] Hint Resolve malloc_token_local_facts : saturate_local.
 
 Section MallocFreeASI.
 Variable M:MallocFreeAPD.

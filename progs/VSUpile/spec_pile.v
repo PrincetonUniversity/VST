@@ -12,8 +12,8 @@ Record PileAPD := {
   pile_freeable (p: val) : mpred (* Definitely don't expose the definition of this as malloc_token, because that would expose the fact that there's exactly one malloc'ed record in the implementation. *)
 }.
 
-Hint Resolve pilerep_local_facts : saturate_local.
-Hint Resolve pilerep_valid_pointer : valid_pointer.
+#[export] Hint Resolve pilerep_local_facts : saturate_local.
+#[export] Hint Resolve pilerep_valid_pointer : valid_pointer.
 
 Definition tpile := Tstruct _pile noattr.
 

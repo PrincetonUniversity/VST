@@ -1156,7 +1156,7 @@ destruct (H i); auto.
 rewrite H1 in H0; contradiction.
 Qed.
 
-Hint Resolve globals_ok_isptr_headptr: core.
+#[export] Hint Resolve globals_ok_isptr_headptr: core.
 
 Lemma globals_ok_genviron2globals:
   forall g,  globals_ok (initialize.genviron2globals g).
@@ -1166,7 +1166,7 @@ destruct (Map.get g i); auto.
 left; eexists; eauto.
 Qed.
 
-Hint Resolve globals_ok_genviron2globals : core.
+#[export] Hint Resolve globals_ok_genviron2globals : core.
 
 Definition VSU_initializer {cs: compspecs} (prog: Clight.program) (Gpred: globals -> mpred) :=
  forall gv, globals_ok gv -> InitGPred (Vardefs (QPprog prog)) gv |-- Gpred gv.

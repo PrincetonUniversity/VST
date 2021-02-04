@@ -8,8 +8,8 @@ Record FastpileConcreteAPD:= {
   countrep_valid_pointer: forall s p, countrep s p |-- valid_pointer p;
   count_freeable: val -> mpred
 }.
-Hint Resolve countrep_local_facts : saturate_local.
-Hint Resolve countrep_valid_pointer : valid_pointer.
+#[export] Hint Resolve countrep_local_facts : saturate_local.
+#[export] Hint Resolve countrep_valid_pointer : valid_pointer.
 
 Definition tpile := Tstruct _pile noattr.
 

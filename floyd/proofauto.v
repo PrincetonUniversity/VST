@@ -95,14 +95,14 @@ Hint Rewrite modu_repr using rep_lia : entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
 
-Hint Extern 1 (Vundef = default_val _) => reflexivity : cancel.
-Hint Extern 1 (default_val _ = Vundef) => reflexivity : cancel.
-Hint Extern 1 (list_repeat _ Vundef = default_val _) => reflexivity : cancel.
-Hint Extern 1 (default_val _ = list_repeat _ Vundef) => reflexivity : cancel.
-Hint Extern 1 (Vundef :: _ = default_val _) => reflexivity : cancel.
-Hint Extern 1 (default_val _ = Vundef :: _) => reflexivity : cancel.
-Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
-Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
+#[export] Hint Extern 1 (Vundef = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = Vundef) => reflexivity : cancel.
+#[export] Hint Extern 1 (list_repeat _ Vundef = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = list_repeat _ Vundef) => reflexivity : cancel.
+#[export] Hint Extern 1 (Vundef :: _ = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = Vundef :: _) => reflexivity : cancel.
+#[export] Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
 
 Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric.
 Instance Inhabitant_share : Inhabitant share := Share.bot.
@@ -117,7 +117,7 @@ Arguments Z.add !x !y.
 Global Transparent peq.
 Global Transparent Archi.ptr64.
 
-Hint Resolve readable_Ers : core.
+#[export] Hint Resolve readable_Ers : core.
 
 Ltac EExists_unify1 x P :=
  match P with
@@ -231,52 +231,52 @@ Proof.
 Qed.
 Hint Rewrite sem_cast_i2bool_of_bool : norm.
 
-Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
-Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
+#[export] Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
+#[export] Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
 
 Lemma computable_sizeof: forall cs x, computable x -> computable (@sizeof cs x).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_sizeof : computable.
+#[export] Hint Resolve computable_sizeof : computable.
 
 Lemma computable_Ctypes_sizeof: forall cs x, computable x -> computable (@Ctypes.sizeof cs x).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Ctypes_sizeof : computable.
+#[export] Hint Resolve computable_Ctypes_sizeof : computable.
 
 Lemma computable_alignof: forall cs x, computable x -> computable (@alignof cs x).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_alignof : computable.
+#[export] Hint Resolve computable_alignof : computable.
 
 Lemma computable_Ctypes_alignof: forall cs x, computable x -> computable (@Ctypes.alignof cs x).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Ctypes_alignof : computable.
+#[export] Hint Resolve computable_Ctypes_alignof : computable.
 
 Lemma computable_Tint: forall sz s a, computable (Tint sz s a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tint : computable.
+#[export] Hint Resolve computable_Tint : computable.
 
 Lemma computable_Tlong: forall s a, computable (Tlong s a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tlong : computable.
+#[export] Hint Resolve computable_Tlong : computable.
 
 Lemma computable_Tarray: forall t i a, computable t -> computable i -> computable (Tarray t i a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tarray : computable.
+#[export] Hint Resolve computable_Tarray : computable.
 
 Lemma computable_Tstruct: forall i a, computable i -> computable (Tstruct i a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tstruct : computable.
+#[export] Hint Resolve computable_Tstruct : computable.
 
 Lemma computable_Tunion: forall i a, computable i -> computable (Tunion i a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tunion : computable.
+#[export] Hint Resolve computable_Tunion : computable.
 
 Lemma computable_Tpointer: forall t a, computable t -> computable (Tpointer t a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tpointer : computable.
+#[export] Hint Resolve computable_Tpointer : computable.
 
 Lemma computable_tptr: forall t, computable t -> computable (tptr t).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_tptr : computable.
+#[export] Hint Resolve computable_tptr : computable.
 
 
 (* a little bit of profiling infrastructure . . .

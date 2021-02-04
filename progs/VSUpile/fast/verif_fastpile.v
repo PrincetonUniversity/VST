@@ -19,7 +19,7 @@ Intros q.
 entailer!.
 Qed.
 
-Hint Resolve fastprep_local_facts : saturate_local.
+Local Hint Resolve fastprep_local_facts : saturate_local.
 
 Lemma fastprep_valid_pointer:
   forall sigma p,
@@ -29,7 +29,7 @@ Proof.
  unfold fastprep. Intros x.
  entailer!; auto with valid_pointer.
 Qed.
-Hint Resolve fastprep_valid_pointer : valid_pointer.
+#[export] Hint Resolve fastprep_valid_pointer : valid_pointer.
 
 Definition pfreeable (p: val) : mpred :=
             malloc_token M Ews tpile p.
