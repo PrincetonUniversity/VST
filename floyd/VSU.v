@@ -1193,30 +1193,6 @@ clear Delta;
 apply finish_process_globvars'; unfold fold_right_sepcon at 1;
 repeat change_mapsto_gvar_to_data_at.
 
-Definition cenv_built_correctly
-   (comps: list composite_definition)
-   (ce: composite_env) : Errors.res unit := 
- Errors.bind
- (fold_left (fun (tr: Errors.res composite_env)(cd: composite_definition)  =>
-                Errors.bind tr (fun ce' => 
-                match cd with Composite i su mems att =>
-                 match PTree.get i ce' with 
-                 | None => Errors.Error [Errors.MSG "Composite identifier duplicate or not found in composite_env:";
-                                                       Errors.POS i]
-                 | Some c =>
-                             if (eqb_su su c.(co_su)
-                             && eqb_list eqb_member mems c.(co_members)
-                             && eqb_attr att c.(co_attr))%bool
-                              then Errors.OK (PTree.remove i ce')
-                              else Errors.Error [Errors.MSG "Composite definition does not match:";
-                                                          Errors.POS i]
-                end end)) comps (Errors.OK ce))
-  (fun ce' => let leftovers := PTree.elements ce' in
-                     if Nat.eqb (List.length leftovers) O
-                     then Errors.OK tt
-                     else Errors.Error (Errors.MSG "Composite_env contains extra identifiers:" ::
-                             map Errors.POS (map fst leftovers))).
-
 Definition QPprog' {cs: compspecs} 
   {comps: list composite_definition}
   {defs: list (prod ident (globdef Clight.fundef type))}
@@ -1232,6 +1208,37 @@ Definition QPprog' {cs: compspecs}
   pubs main
   (QPcomposite_env_of_composite_env 
     (@cenv_cs cs) (@ha_env_cs cs) (@la_env_cs cs)).
+
+Lemma QPprog'_eq:
+  forall {cs: compspecs} 
+  {comps: list composite_definition}
+  {defs: list (prod ident (globdef Clight.fundef type))}
+  {pubs: list ident}
+  {main: ident}
+  {comps_OK: wf_composites comps}
+  (prog: Clight.program)
+  (H: prog = Clightdefs.mkprogram comps defs pubs main comps_OK)
+  (H0: cenv_built_correctly comps (@cenv_cs cs) = Errors.OK tt),
+ QPprog' prog H H0 = QPprog prog.
+Proof.
+intros.
+unfold QPprog',QPprog.
+unfold QPprogram_of_program.
+assert (prog_defs prog = defs)
+  by (subst prog; rewrite prog_defs_Clight_mkprogram; auto).
+rewrite H1.
+f_equal.
+rewrite H.
+unfold Clightdefs.mkprogram.
+destruct (build_composite_env' comps comps_OK). reflexivity.
+rewrite H.
+unfold Clightdefs.mkprogram.
+destruct (build_composite_env' comps comps_OK). reflexivity.
+f_equal.
+subst prog.
+apply extract_compEnv.
+apply cenv_built_correctly_e; auto.
+Qed.
 
 Ltac QPprog p :=
   tryif (let p' := eval cbv delta [p] in p in
@@ -1608,7 +1615,7 @@ Definition wholeprog_of_QPprog (p: QP.program function)
          (sort_rank (PTree.elements (QP.prog_comp_env p)) [])) =
     Errors.OK
       (composite_env_of_QPcomposite_env (QP.prog_comp_env p)
-         (projT1 (proj2 OK))))  (* could omit this premise if prove rebuild_composite_env in quickprogram.v *)
+         (projT1 (proj2 OK)))) 
  :=  {| prog_defs := (map of_builtin p.(QP.prog_builtins)) ++ PTree.elements p.(QP.prog_defs);
     prog_public := p.(QP.prog_public);
     prog_main := p.(QP.prog_main);
@@ -2221,15 +2228,26 @@ induction H3; [ | | apply semax_func_nil]; rename IHaugment_funspecs_rel into IH
 Qed.
 
 Definition prog_of_component {Espec Externs p Exports GP G}
-  (c: @Component Espec (QPvarspecs p) Externs nil p Exports GP G) :=
-   wholeprog_of_QPprog p (Comp_prog_OK c)  (rebuild_composite_env _ _).
+  (c: @Component Espec (QPvarspecs p) Externs nil p Exports GP G)
+  (H: cenv_built_correctly
+         (map compdef_of_compenv_element
+            (sort_rank (PTree.elements (QP.prog_comp_env p)) []))
+         (composite_env_of_QPcomposite_env (QP.prog_comp_env p)
+            (projT1 (proj2 (Comp_prog_OK c))))  =  Errors.OK tt)  :=
+   wholeprog_of_QPprog p (Comp_prog_OK c) 
+   (cenv_built_correctly_e _ _ H).
 
 Lemma WholeComponent_semax_func:
  forall {Espec Externs p Exports GP G}
   (c: @Component Espec (QPvarspecs p) Externs nil p Exports GP G)
   (EXT_OK: all_unspecified_OK p)
-  (DEFS_NOT_BUILTIN: forallb not_builtin (PTree.elements (QP.prog_defs p)) = true),  (* should be part of QPprogram_OK *)
- let prog := prog_of_component c in
+  (DEFS_NOT_BUILTIN: forallb not_builtin (PTree.elements (QP.prog_defs p)) = true)
+  (CBC: cenv_built_correctly
+         (map compdef_of_compenv_element
+            (sort_rank (PTree.elements (QP.prog_comp_env p)) []))
+         (composite_env_of_QPcomposite_env (QP.prog_comp_env p)
+            (projT1 (proj2 (Comp_prog_OK c))))  =  Errors.OK tt),  (* should be part of QPprogram_OK *)
+ let prog := prog_of_component c CBC in
   @semax_func Espec
   (QPvarspecs p) (augment_funspecs prog G) (Comp_cs c)
   (Genv.globalenv prog)
@@ -2247,7 +2265,8 @@ assert (GFF: forall i fd,
               find_id i (prog_funct' (map of_builtin (QP.prog_builtins p)) ++ QPprog_funct p) = Some fd ->
                                genv_find_func (Genv.globalenv prog) i fd). {
  intros.
-  rewrite <-  (prog_funct_QP_prog_funct _ p (Comp_prog_OK c) (rebuild_composite_env _ _)) in H by reflexivity.
+  rewrite <-  (prog_funct_QP_prog_funct _ p (Comp_prog_OK c) 
+       (cenv_built_correctly_e _ _ CBC)) in H by reflexivity.
   fold prog in H.
   apply find_id_e in H. 
  apply semax_prog.find_funct_ptr_exists.
@@ -2260,8 +2279,9 @@ assert (GFF: forall i fd,
 unfold augment_funspecs.
 change SeparationLogic.prog_funct with prog_funct in *.
 change (Genv.globalenv prog) with (QPglobalenv p) in *.
-rewrite (prog_funct_QP_prog_funct _ p (Comp_prog_OK c) (rebuild_composite_env _ _)) by reflexivity.
-clear prog.
+rewrite (prog_funct_QP_prog_funct _ p (Comp_prog_OK c) 
+   (cenv_built_correctly_e _ _ CBC)) by reflexivity.
+clear prog CBC.
 assert (B_LNR: list_norepet (map fst (QP.prog_builtins p))). {
  destruct (Comp_prog_OK c) as [? _].
  rewrite list_norepet_app in H; destruct H; auto.
@@ -2415,8 +2435,9 @@ Qed.
 
 Definition WholeProgSafeType  {Espec E p Exports GP G}
              (c:@Component Espec (QPvarspecs p) E nil p Exports GP G)
+            CBC
              (z: @OK_ty Espec) :=
-  {G | @semax_prog Espec (Comp_cs c)  (prog_of_component c) z (QPvarspecs p) G}.
+  {G | @semax_prog Espec (Comp_cs c)  (prog_of_component c CBC) z (QPvarspecs p) G}.
 
 Lemma WholeComponent_semax_prog:
  forall {Espec Externs p Exports GP G}
@@ -2427,11 +2448,12 @@ Lemma WholeComponent_semax_prog:
   (EXT_OK: all_unspecified_OK p)
   (ALIGNED: QPall_initializers_aligned p = true) (* should be part of QPprogram_OK *)
   (DEFS_NOT_BUILTIN: forallb not_builtin (PTree.elements (QP.prog_defs p)) = true)  (* should be part of QPprogram_OK *)
+  CBC
     ,
-  WholeProgSafeType c z.
+  WholeProgSafeType c CBC z.
 Proof.
  intros.
- pose (prog := prog_of_component c).
+ pose (prog := prog_of_component c CBC).
  exists G.
  split3; [ | | split3; [ | | split]].
  4: change SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Def.semax_func
