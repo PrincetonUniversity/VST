@@ -29,7 +29,7 @@ Proof.
  unfold fastprep. Intros x.
  entailer!; auto with valid_pointer.
 Qed.
-#[export] Hint Resolve fastprep_valid_pointer : valid_pointer.
+Local Hint Resolve fastprep_valid_pointer : valid_pointer.
 
 Definition pfreeable (p: val) : mpred :=
             malloc_token M Ews tpile p.
