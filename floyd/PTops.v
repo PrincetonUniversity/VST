@@ -761,6 +761,51 @@ destruct 1; destruct 1; auto.
      apply  IHPTree_canonical'2; auto. intro i. specialize (H1 (xI i)); inv H1; auto.
 Qed.
 
+Lemma PTree_canonical_empty:
+ forall {A}, PTree_canonical (PTree.empty A).
+Proof.
+intros.
+constructor.
+Qed.
+
+Lemma PTree_canonical_set:
+ forall {A} i a (m: PTree.t A),
+  PTree_canonical m ->
+  PTree_canonical (PTree.set i a m).
+Proof.
+intros.
+assert (J: forall j, PTree_canonical' (PTree.set j a PTree.Leaf)). {
+  induction j; simpl.
+  apply PT_canon_Node2; auto.
+  apply PT_canon_Node1; auto.
+  apply PT_canon_Node0.
+}
+inv H.
+apply PT_canon_Nonleaf; auto.
+apply PT_canon_Nonleaf.
+revert m H0.
+induction i; destruct m; simpl; intros.
+inv H0.
+inv H0.
+apply PT_canon_Node2; auto.
+apply PT_canon_Node; auto.
+apply PT_canon_Node2; auto.
+apply PT_canon_Node; auto.
+inv H0.
+inv H0.
+apply PT_canon_Node1; auto.
+apply PT_canon_Node1; auto.
+apply PT_canon_Node; auto.
+apply PT_canon_Node; auto.
+inv H0.
+inv H0.
+apply PT_canon_Node0; auto.
+apply PT_canon_Node1; auto.
+apply PT_canon_Node2; auto.
+apply PT_canon_Node; auto.
+Qed.
+
+
 Lemma PTree_of_list_canonical:
   forall {A} (d: list (positive * A)),
   PTree_canonical (PTree_Properties.of_list d).
@@ -774,48 +819,162 @@ induction al as [|[i ?]].
 simpl.
 constructor.
 simpl.
-set (t := fold_right _ _ _)  in *.
-clearbody t.
-assert (J: forall i, PTree_canonical' (PTree.set i a PTree.Leaf)). {
-  induction i0; simpl.
-  apply PT_canon_Node2; auto.
-  apply PT_canon_Node1; auto.
-  apply PT_canon_Node0.
-}
-clear - J IHal. rename IHal into H.
+apply PTree_canonical_set; auto.
+Qed.
+
+Fixpoint test_PTree_canonical' {A} (m: PTree.t A) : bool :=
+match m with
+| PTree.Node PTree.Leaf (Some _) PTree.Leaf => true
+| PTree.Node l _ PTree.Leaf => test_PTree_canonical' l
+| PTree.Node PTree.Leaf _ r =>  test_PTree_canonical' r
+| PTree.Node l _ r =>  test_PTree_canonical' l && test_PTree_canonical' r
+| _ => false
+end.
+
+Definition test_PTree_canonical {A} (m: PTree.t A) : bool :=
+match m with
+| PTree.Leaf => true
+| _ => test_PTree_canonical' m
+end.
+
+Lemma test_PTree_canonical_e: forall {A} (m: PTree.t A),
+  test_PTree_canonical m = true -> PTree_canonical m.
+Proof.
+intros.
+destruct m.
+constructor.
 apply PT_canon_Nonleaf.
-destruct H.
-induction i; simpl.
-apply PT_canon_Node2; auto.
-apply PT_canon_Node1; auto.
+change (test_PTree_canonical' (PTree.Node m1 o m2) = true) in H.
+forget (PTree.Node m1 o m2) as m.
+clear - H.
+induction m.
+inv H.
+simpl in H.
+destruct m1.
+destruct m2.
+destruct o.
 apply PT_canon_Node0.
-revert t H; induction i; destruct t; intros; simpl.
-apply PT_canon_Node2; auto.
 inv H.
-apply PT_canon_Node2; auto.
-apply PT_canon_Node; auto.
-apply PT_canon_Node2; auto.
-apply PT_canon_Node; auto.
-apply PT_canon_Node1; auto.
-inv H.
-apply PT_canon_Node1; auto.
-destruct (PTree.set i a t1) eqn:?H.
-apply (f_equal (PTree.get i)) in H.
-rewrite PTree.gss, PTree.gempty in H; inv H.
-apply PT_canon_Node1; auto.
-rewrite <- H; auto.
-destruct (PTree.set i a PTree.Leaf) eqn:?H.
-apply (f_equal (PTree.get i)) in H.
-rewrite PTree.gss, PTree.gempty in H; inv H.
-apply PT_canon_Node; auto.
-rewrite <- H; auto.
-apply PT_canon_Node; auto.
-apply PT_canon_Node0; auto.
-inv H.
-apply PT_canon_Node0; auto.
-apply PT_canon_Node1; auto.
-apply PT_canon_Node2; auto.
+apply PT_canon_Node2.
+apply IHm2.
+destruct o; auto.
+destruct m2.
+apply PT_canon_Node1.
+apply IHm1.
+auto.
+rewrite andb_true_iff in H; destruct H.
 apply PT_canon_Node; auto.
 Qed.
 
-    
+Lemma PTree_Equal_e:
+ forall {A} (a b: PTree.t A),
+  PTree_Properties.Equal (Eqsth _) a b ->
+  forall i, a ! i = b ! i.
+Proof.
+intros.
+specialize (H i).
+destruct (a ! i), (b ! i); try contradiction; auto.
+Qed.
+
+Lemma PTree_exists_canonical: forall {A} (m: PTree.t A),
+  exists m', PTree_canonical m' /\ PTree_Properties.Equal (Eqsth _) m m'.
+Proof.
+intros.
+destruct (PTree.bempty m) eqn:?H.
+exists (PTree.empty A).
+split.
+constructor.
+intro i.
+rewrite -> PTree.bempty_correct  in H.
+rewrite H.
+rewrite PTree.gempty.
+auto.
+assert (exists m' : PTree.t A,
+  PTree_canonical' m' /\ PTree_Properties.Equal (Eqsth A) m m').
+2:{ destruct H0 as [m' [? ?]]. exists m'; split; auto. apply PT_canon_Nonleaf. auto. }
+induction m.
+inv H.
+simpl in H.
+destruct o.
+-
+ destruct (PTree.bempty m1) eqn:?H, (PTree.bempty m2) eqn:?H;
+ rewrite -> ?PTree.bempty_correct  in *.
+ +
+  exists (PTree.Node PTree.Leaf (Some a) PTree.Leaf).
+  split.
+  constructor.
+  intro i. destruct i; simpl.
+  * rewrite PTree.gempty. rewrite H1. auto.
+  * rewrite H0. rewrite PTree.gempty. auto.
+  * reflexivity.
++
+  destruct IHm2 as [m' [? ?]]; auto. clear IHm1.
+  exists (PTree.Node PTree.Leaf (Some a) m').
+  split.
+  constructor; auto.
+  intro i. destruct i; simpl.
+  * rewrite (PTree_Equal_e _ _ H3 i). destruct (m' ! i); auto. reflexivity.
+  * rewrite H0. rewrite PTree.gempty. auto.
+  * reflexivity.
++ clear IHm2. destruct IHm1 as [m' [? ?]]; auto.
+  exists (PTree.Node m' (Some a) PTree.Leaf).
+  split.
+  constructor; auto.
+  intro i. destruct i; simpl.
+  * rewrite H1. rewrite PTree.gempty; auto.
+  * rewrite (PTree_Equal_e _ _ H3 i). destruct (m' ! i); auto. reflexivity.
+  * reflexivity.
++ destruct IHm1 as [m1' [? ?]]; auto.
+    destruct IHm2 as [m2' [? ?]]; auto.
+    exists (PTree.Node m1' (Some a) m2').
+    split.
+    apply PT_canon_Node; auto.
+   intro i; destruct i; simpl.
+   rewrite (PTree_Equal_e _ _ H5 i).
+   destruct (m2' ! i); auto. reflexivity.
+   rewrite (PTree_Equal_e _ _ H3 i).
+   destruct (m1' ! i); auto. reflexivity.
+   reflexivity.
+- rewrite andb_false_iff in H.
+   destruct H.
+ + destruct IHm1 as [m1' [? ?]]; auto.
+   destruct (PTree.bempty m2) eqn:?H.
+  * clear IHm2. rewrite -> ?PTree.bempty_correct  in *.
+   exists (PTree.Node m1' None PTree.Leaf).
+   split. constructor; auto.
+   intro i; destruct i; simpl.
+   rewrite H2. rewrite PTree.gempty; auto.
+   rewrite (PTree_Equal_e _ _ H1 i).
+   destruct (m1' ! i); auto. reflexivity.
+   auto.
+  * destruct IHm2 as [m2' [? ?]]; auto.
+    exists (PTree.Node m1' None m2').
+    split.
+    apply PT_canon_Node; auto.
+    intro i; destruct i; simpl.
+   rewrite (PTree_Equal_e _ _ H4 i).
+   destruct (m2' ! i); auto. reflexivity.
+   rewrite (PTree_Equal_e _ _ H1 i).
+   destruct (m1' ! i); auto. reflexivity.
+  auto.
++
+   destruct IHm2 as [m2' [? ?]]; auto.
+   destruct (PTree.bempty m1) eqn:?H.
+  * clear IHm1. rewrite -> ?PTree.bempty_correct  in *.
+    exists (PTree.Node PTree.Leaf None m2').
+    split. constructor. auto.
+    intro i; destruct i; simpl.
+   rewrite (PTree_Equal_e _ _ H1 i).
+   destruct (m2' ! i); auto. reflexivity.
+   rewrite H2. rewrite PTree.gempty. auto.
+   auto.
+ * destruct IHm1 as [m1' [? ?]]; auto.
+    exists (PTree.Node m1' None m2').
+    split. apply PT_canon_Node; auto.
+    intro i; destruct i; simpl.
+   rewrite (PTree_Equal_e _ _ H1 i).
+   destruct (m2' ! i); auto. reflexivity.
+   rewrite (PTree_Equal_e _ _ H4 i).
+   destruct (m1' ! i); auto. reflexivity.
+   auto.
+Qed.

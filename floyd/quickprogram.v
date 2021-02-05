@@ -2,23 +2,6 @@ Require Import VST.floyd.base.
 Require Import VST.floyd.PTops.
 Require Import VST.floyd.QPcomposite.
 
-Fixpoint put_at_nth (i: nat) (c: ident * QP.composite) (rl: list (list (ident * QP.composite))) : list (list (ident * QP.composite)) :=
- match i, rl with
- | O, r::rl' =>  (c::r)::rl'
- | S j, r::rl' => r :: put_at_nth j c rl'
- | O, nil => (c::nil)::nil
- | S j, nil => nil :: put_at_nth j c nil
- end.
-
-Fixpoint sort_rank (al: list (ident * QP.composite)) (rl: list (list (ident * QP.composite))) : list (ident * QP.composite) :=
-  match al with
-  | nil => List.fold_right (@app (ident * QP.composite)) nil rl
-  | c::cl => sort_rank cl (put_at_nth (QP.co_rank (snd c)) c rl)
- end.
-
-Definition compdef_of_compenv_element (x: ident * QP.composite) : composite_definition :=
-  Composite (fst x) (QP.co_su (snd x)) (QP.co_members (snd x)) (QP.co_attr (snd x)).
-
 Fixpoint filter_options {A B} (f: A -> option B) (al: list A) : list B :=
  match al with
  | nil => nil
@@ -1022,14 +1005,6 @@ destruct (eqb_ident (QP.prog_main p1) (QP.prog_main p2));
 inv EQ3.
 auto.
 Qed.
-
-Lemma rebuild_composite_env:
-  forall (ce: QP.composite_env) (OK: QPcomposite_env_OK ce),
- build_composite_env
-    (map compdef_of_compenv_element (sort_rank (PTree.elements ce) [])) =
-  Errors.OK (composite_env_of_QPcomposite_env ce OK).
-Proof.
-Admitted.  (* Probably true, but we'll work around it for now *)
 
 Definition is_builtin' (ix: ident * QP.builtin) :=
  match ix with

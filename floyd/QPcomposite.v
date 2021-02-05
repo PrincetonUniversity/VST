@@ -139,9 +139,8 @@ match ce as t return (QPcomposite_env_OK t -> composite_env) with
 | PTree.Leaf => fun _ => PTree.Leaf
 | PTree.Node ce1 o ce2 =>
     fun H0 =>
-    match H0 with
-    | conj H1 (conj H3 H4) =>
-        PTree.Node (composite_env_of_QPcomposite_env ce1 H3)
+    PTree.Node (composite_env_of_QPcomposite_env ce1 
+               (proj1 (proj2 H0)))
           (match
              o as o0
              return
@@ -154,9 +153,10 @@ match ce as t return (QPcomposite_env_OK t -> composite_env) with
                fun H5 : QPcomposite_OK c =>
                Some (composite_of_QPcomposite c H5)
            | None => fun _ : True => None
-           end H1) (composite_env_of_QPcomposite_env ce2 H4)
-    end
-end H.
+           end (proj1 H0)) 
+            (composite_env_of_QPcomposite_env ce2 (proj2 (proj2 H0)))
+    end H.
+
 
 Lemma composite_env_of_QPcomposite_env'_eq:
  forall ce H i,
@@ -196,10 +196,8 @@ rename x into Hc'.
 pose proof (PTree.elements_complete _ _ _ H1).
 clear - c' H3.
 revert i H3; induction ce; destruct i; simpl; intros; try discriminate.
-destruct H as [? [? ?]].
-apply (IHce2 p0 i H3).
-destruct H as [? [? ?]].
-apply (IHce1 p i H3).
+apply (IHce2 (proj2 (proj2 H)) i H3). 
+apply (IHce1 (proj1 (proj2 H)) i H3).
 subst o.
 destruct H as [? [? ?]].
 f_equal. f_equal. apply proof_irr.
@@ -224,14 +222,8 @@ clear - H1.
 hnf in H.
 revert i H H1; induction ce; destruct i; simpl; intros; auto.
 destruct H as [? [? ?]].
-apply IHce2; auto.
-destruct H as [? [? ?]].
-apply IHce1; auto.
-destruct H as [? [? ?]].
-subst o.
-auto.
+subst. auto.
 Qed.
-
 
 Lemma composite_of_QPcomposite_of_composite:
   forall c ha la H, composite_of_QPcomposite (QPcomposite_of_composite c ha la) H = c.
@@ -341,10 +333,16 @@ specialize (IHce1 p).
 specialize (IHce2 p0).
 simpl.
 f_equal; auto.
+rewrite <- IHce1.
+unfold QPcomposite_env_of_composite_env.
+f_equal. f_equal. apply proof_irr.
 destruct o; auto.
 simpl.
 f_equal.
 apply QPcomposite_of_composite_of_QPcomposite.
+rewrite <- IHce2.
+unfold QPcomposite_env_of_composite_env.
+f_equal. f_equal. apply proof_irr.
 Qed.
 
 Lemma QPcomposite_of_composite_inj: forall c1 ha1 la1 c2 ha2 la2, 
@@ -1229,11 +1227,183 @@ unfold option_map.
 destruct (ce1 ! i) eqn:?H; auto. rewrite H; auto.
 Qed.
 
+Fixpoint put_at_nth (i: nat) (c: ident * QP.composite) (rl: list (list (ident * QP.composite))) : list (list (ident * QP.composite)) :=
+ match i, rl with
+ | O, r::rl' =>  (c::r)::rl'
+ | S j, r::rl' => r :: put_at_nth j c rl'
+ | O, nil => (c::nil)::nil
+ | S j, nil => nil :: put_at_nth j c nil
+ end.
+
+Fixpoint sort_rank (al: list (ident * QP.composite)) (rl: list (list (ident * QP.composite))) : list (ident * QP.composite) :=
+  match al with
+  | nil => List.fold_right (@app (ident * QP.composite)) nil rl
+  | c::cl => sort_rank cl (put_at_nth (QP.co_rank (snd c)) c rl)
+ end.
+
+Definition compdef_of_compenv_element (x: ident * QP.composite) : composite_definition :=
+  Composite (fst x) (QP.co_su (snd x)) (QP.co_members (snd x)) (QP.co_attr (snd x)).
+
+Import ListNotations.
+
+Definition cenv_built_correctly_each 
+     (cd: composite_definition) (tr: Errors.res composite_env)  :=
+                Errors.bind tr (fun ce' => 
+                match cd with Composite i su mems att =>
+                 match PTree.get i ce' with 
+                 | None => Errors.Error [Errors.MSG "Composite identifier duplicate or not found in composite_env:";
+                                                       Errors.POS i]
+                 | Some c =>
+                             let d := PTree.remove i ce' in
+                             let m := c.(co_members) in 
+                             if (eqb_su su c.(co_su)
+                             && eqb_list eqb_member mems m
+                             && eqb_attr att c.(co_attr)
+                             && complete_members d m
+                             && Z.eqb (align (sizeof_composite d c.(co_su) m) c.(co_alignof)) c.(co_sizeof)
+                             && Z.eqb (align_attr att (alignof_composite d m)) c.(co_alignof)
+                             && Nat.eqb (rank_members d m) c.(co_rank)
+                              )%bool
+                              then Errors.OK (PTree.remove i ce')
+                              else Errors.Error [Errors.MSG "Composite definition does not match:";
+                                                          Errors.POS i]
+                end end).
+
+Definition cenv_built_correctly_finish (ce': composite_env) :=
+   let leftovers := PTree.elements ce' in
+   if Nat.eqb (List.length leftovers) O
+   then Errors.OK tt
+   else Errors.Error (Errors.MSG "Composite_env contains extra identifiers:" ::
+                   map Errors.POS (map fst leftovers)).
+
+Definition cenv_built_correctly
+   (comps: list composite_definition)
+   (ce: composite_env) : Errors.res unit := 
+  if test_PTree_canonical ce 
+  then
+  Errors.bind (fold_right cenv_built_correctly_each (Errors.OK ce) comps)
+   cenv_built_correctly_finish
+  else Errors.Error [Errors.MSG "composite env is not canonical!"].
+
+Lemma cenv_built_correctly_e:
+  forall (comps : list composite_definition)
+           (ce : composite_env),
+  cenv_built_correctly comps ce = Errors.OK tt ->
+  build_composite_env comps = Errors.OK ce.
+Proof.
+intros. 
+unfold build_composite_env.
+unfold cenv_built_correctly in H.
+destruct (test_PTree_canonical ce) eqn:?H; [ | discriminate].
+rename H0 into CAN.
+apply test_PTree_canonical_e in CAN.
+unfold Errors.bind in H.
+destruct (fold_right cenv_built_correctly_each (Errors.OK ce) comps) eqn:?H; [ | discriminate].
+assert (CAN' := @PTree_canonical_empty composite).
+assert (PTree_Properties.Equal (Eqsth _) c (PTree.empty composite)). {
+  clear - H.
+  intro i.
+  rewrite PTree.gempty.
+  destruct (c ! i) eqn:?H; auto.
+  unfold cenv_built_correctly_finish in H.
+  apply PTree.elements_correct in H0.
+  destruct (PTree.elements c).
+  inv H0.
+  simpl in H. inv H.
+}
+clear H.
+forget (PTree.empty composite) as d.
+assert (exists ce', 
+         PTree_Properties.Equal (Eqsth composite) ce' ce /\
+         fold_right cenv_built_correctly_each (Errors.OK ce') comps = Errors.OK c).
+exists ce. split; auto. apply PTree_Properties.Equal_refl.
+clear H0.
+revert ce CAN c H d CAN' H1.
+induction comps; simpl; intros.
+f_equal.
+apply PTree_canonical_ext; auto.
+destruct H as [ce' [? ?]].
+inv H0.
+intros i. transitivity (c ! i).
+symmetry.
+apply PTree_Equal_e; auto.
+apply PTree_Equal_e; auto.
+destruct a.
+destruct H as [ce' [H' H]].
+destruct (fold_right cenv_built_correctly_each (Errors.OK ce') comps) eqn:?H;
+  try discriminate.
+simpl in H.
+destruct (c0 ! id) eqn:?H; try discriminate.
+match type of H with ((if ?A then _ else _) = _) =>
+  destruct A eqn:?H;  [ | discriminate H]
+end.
+InvBooleans.
+apply eqb_su_spec in H3.
+apply eqb_list_spec in H10; [ | apply eqb_member_spec].
+apply eqb_attr_spec in H9.
+apply Nat.eqb_eq in H5.
+apply Z.eqb_eq in H6.
+apply Z.eqb_eq in H7.
+subst.
+inv H.
+unfold Errors.bind.
+assert (OK: composite_consistent d c1). {
+ clear IHcomps.
+  apply (complete_members_stable _ d) in H8; auto.
+  2: intros j ?; rewrite (PTree_Equal_e _ _ H1 j); auto.
+  rewrite (sizeof_composite_stable d) in H7; auto.
+  2: intros j ?; rewrite (PTree_Equal_e _ _ H1 j); auto.
+  rewrite (rank_members_stable d) in H5; auto.
+  2: intros j ?; rewrite (PTree_Equal_e _ _ H1 j); auto.
+  rewrite (alignof_composite_stable d) in H6; auto.
+  2: intros j ?; rewrite (PTree_Equal_e _ _ H1 j); auto.
+ apply (composite_of_def_consistent d id 
+             c1.(co_su) c1.(co_members) c1.(co_attr) ).
+ unfold composite_of_def.
+  rewrite <- (PTree_Equal_e _ _ H1 id).
+  rewrite PTree.grs.
+  rewrite H8.
+  f_equal.
+  symmetry.
+  destruct c1; apply composite_eq; simpl in *; auto.
+  rewrite H6. auto.
+}
+rewrite composite_of_def_eq; auto.
+2:{ rewrite <- (PTree_Equal_e _ _ H1 id); apply PTree.grs. }
+eapply IHcomps; auto.
+exists ce'; split; auto.
+apply PTree_canonical_set; auto.
+intro i.
+destruct (ident_eq i id).
+subst i.
+rewrite PTree.gss.
+rewrite H2.
+reflexivity.
+rewrite PTree.gso by auto.
+rewrite <- (PTree_Equal_e _ _ H1 i).
+rewrite PTree.gro by auto. 
+destruct (c0 ! i); auto.
+reflexivity.
+Qed.
+
+(*
+Lemma rebuild_composite_env:
+  forall (ce: QP.composite_env) (OK: QPcomposite_env_OK ce),
+ build_composite_env
+    (map compdef_of_compenv_element (sort_rank (PTree.elements ce) nil)) =
+  Errors.OK (composite_env_of_QPcomposite_env ce OK).
+Proof.
+intros.
+apply cenv_built_correctly_e.
+
+apply test_PTree_canonical_e in CAN.
+unfold build_composite_env.
+assert (CAN' := @PTree_canonical_empty composite).
+pose proof (proj1 (PTree_Forall_elements _ _ _) OK).
 
 
 
-
-
-
+Admitted.  (* Probably true *)
+*)
 
 
