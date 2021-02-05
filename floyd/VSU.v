@@ -625,7 +625,7 @@ Ltac HImports_tac := simpl;
   let i := fresh "i" in 
    intros i ? ? H1 H2;
   repeat (if_tac in H1; subst; simpl in *; try discriminate);
-    (congruence || fail "Imports disagree at identifier" i).
+    (first [ congruence | inv H1; inv H2; reflexivity | fail "Imports disagree at identifier" i] ).
 
 Ltac ImportsDef_tac := first [ reflexivity | idtac ].
 Ltac ExportsDef_tac := first [ reflexivity | idtac ].
