@@ -440,8 +440,9 @@ Definition Comp_prog {Espec V E Imports p Exports GP G} (c:@Component Espec V E 
 Definition Comp_G {Espec V E Imports p Exports GP G} (c:@Component Espec V E Imports p Exports GP G):= G.
 
 Definition VSU {Espec} E Imports p Exports GP:=
-  sigT (fun G => @Component Espec (QPvarspecs p) E Imports p Exports GP G).
-   
+  ex (@Component Espec (QPvarspecs p) E Imports p Exports GP).
+  
+
 Arguments Comp_Imports_external {Espec V E Imports p Exports GP G} / c.
 Arguments Comp_prog_OK {Espec V E Imports p Exports GP G} / c.
 Arguments Comp_cs {Espec V E Imports p Exports GP G} / c.
@@ -838,9 +839,10 @@ Qed.
 
 End VSU_rules.
 
-
+(*
 Definition VSU_G  {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP)
-  := projT1 v.
+  := proj1_sig v.
+*)
 
 Definition VSU_Imports {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := Imports.
 Definition VSU_Externs {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := E.
@@ -2906,8 +2908,14 @@ Lemma VSULink
                           exists phiE, find_id i Exports2 = Some phiE /\ funspec_sub phiE phiI)
  (HImports: forall i phi1 phi2, find_id i Imports1 = Some phi1 -> find_id i Imports2 = Some phi2 -> phi1=phi2) :
  @VSU Espec (G_merge E1 E2) (VSULink_Imports vsu1 vsu2) p (G_merge Exports1 Exports2) (GP1 * GP2)%logic.
-Proof.
-  exists  (G_merge (Comp_G (projT2 vsu1)) (Comp_G (projT2 vsu2))).
+Proof. 
+  destruct vsu1 as [G1 comp1].
+  destruct vsu2 as [G2 comp2].
+  exists  (G_merge G1 G2).
+  assert (HG1: G1 = Comp_G comp1) by reflexivity.
+  assert (HG2: G2 = Comp_G comp2) by reflexivity.
+  replace (G_merge G1 G2) with (G_merge (Comp_G comp1) (Comp_G comp2))
+    by (clear - HG1 HG2; subst; auto).
   apply ComponentJoin; trivial.
  -
   apply QPvarspecs_norepet.
@@ -2921,8 +2929,8 @@ Proof.
   rewrite H in H1.
   assert (exists f, (QP.prog_defs p2) ! i = Some (Gfun f)). {
   rewrite !in_app in H0; destruct H0 as [?|[?|?]].
-  apply (Comp_Externs (projT2 vsu2)) in H0. destruct H0 as [? [? [? [? ?]]]]. eauto.
-  apply (Comp_Imports_external (projT2 vsu2)) in H0. destruct H0 as [? [? [? [? ?]]]]. eauto.
+  apply (Comp_Externs comp2) in H0. destruct H0 as [? [? [? [? ?]]]]. eauto.
+  apply (Comp_Imports_external comp2) in H0. destruct H0 as [? [? [? [? ?]]]]. eauto.
   apply IntIDs_elim in H0. destruct H0.
   apply PTree.elements_complete in H0. eauto.
  }
@@ -2935,8 +2943,8 @@ Proof.
   rewrite H in H1.
   assert (exists f, (QP.prog_defs p1) ! i = Some (Gfun f)). {
   rewrite !in_app in H0; destruct H0 as [?|[?|?]].
-  apply (Comp_Externs (projT2 vsu1)) in H0. destruct H0 as [? [? [? [? ?]]]]. eauto.
-  apply (Comp_Imports_external (projT2 vsu1)) in H0. destruct H0 as [? [? [? [? ?]]]]. eauto.
+  apply (Comp_Externs comp1) in H0. destruct H0 as [? [? [? [? ?]]]]. eauto.
+  apply (Comp_Imports_external comp1) in H0. destruct H0 as [? [? [? [? ?]]]]. eauto.
   apply IntIDs_elim in H0. destruct H0.
   apply PTree.elements_complete in H0. eauto.
  }

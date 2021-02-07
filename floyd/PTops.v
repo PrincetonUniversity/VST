@@ -978,3 +978,67 @@ destruct o.
    destruct (m1' ! i); auto. reflexivity.
    auto.
 Qed.
+
+Definition and_option_Prop (a b: option Prop) : option Prop :=
+match a, b with
+| None, _ => b
+| _, None => a
+| Some x, Some y => Some (x /\ y)
+end.
+
+Definition interpret_option_Prop (a: option Prop) : Prop :=
+ match a with Some x => x | None => True end.
+
+Fixpoint PTree_Foralln' {A: Type} (F: positive -> A -> option Prop) 
+  (i: positive) (m: PTree.t A): option Prop :=
+match m with
+| PTree.Leaf => None
+| PTree.Node l o r => 
+   and_option_Prop 
+     (match o with None => None | Some x => F (PTree.prev i) x end)
+    (and_option_Prop (PTree_Foralln' F (xO i) l) (PTree_Foralln' F (xI i) r))
+end.
+
+Definition PTree_Foralln {A: Type} (F: positive -> A -> option Prop) 
+      (m: PTree.t A): Prop :=
+ interpret_option_Prop (PTree_Foralln' F xH m).
+
+Lemma PTree_Foralln_e:
+  forall A (F: positive -> A -> option Prop) m, 
+  PTree_Foralln F m ->
+  forall i x, (m ! i) = Some x -> interpret_option_Prop (F i x).
+Proof.
+intros.
+red in H.
+change i with (PTree.prev_append 1 i).
+forget 1%positive as j.
+revert i H0 j H.
+induction m; simpl; intros.
+rewrite PTree.gempty in H0; inv H0.
+destruct i; simpl in H0.
+destruct o.
+apply (IHm2 _ H0 (xI j)).
+destruct (F (PTree.prev j) a), (PTree_Foralln' F j~0 m1),
+   (PTree_Foralln' F j~1 m2);
+simpl in H|-*; tauto.
+apply (IHm2 _ H0 (xI j)).
+destruct (PTree_Foralln' F j~0 m1),
+   (PTree_Foralln' F j~1 m2);
+simpl in H|-*; tauto.
+destruct o.
+apply (IHm1 _ H0 (xO j)).
+destruct (F (PTree.prev j) a), (PTree_Foralln' F j~0 m1),
+   (PTree_Foralln' F j~1 m2);
+simpl in H|-*; tauto.
+apply (IHm1 _ H0 (xO j)).
+destruct (PTree_Foralln' F j~0 m1),
+   (PTree_Foralln' F j~1 m2);
+simpl in H|-*; tauto.
+destruct o.
+inv H0.
+change (PTree.prev_append j xH) with (PTree.prev j).
+destruct (F (PTree.prev j) x), (PTree_Foralln' F j~0 m1),
+   (PTree_Foralln' F j~1 m2);
+simpl in H|-*; tauto.
+inv H0.
+Qed.

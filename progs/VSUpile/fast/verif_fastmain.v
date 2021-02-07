@@ -61,5 +61,5 @@ Qed.
 Lemma WholeComp: WholeCompType Core_VSU MainComp.
 Proof. proveWholeComponent. Qed.
 
-Lemma WholeProgSafe: WholeProgSafeType WholeComp (eq_refl _) tt.
+Lemma WholeProgSafe: WholeProgSafeType WholeComp tt.
 Proof. proveWholeProgSafe. Qed.
