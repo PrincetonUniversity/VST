@@ -405,8 +405,8 @@ Ltac mkVSU prog internal_specs :=
  exists internal_specs;
  mkComponent prog.
 
-(* this was the variant that omits the clear - CSeq,
-  but now in either case there is no "clear - CSeq" . . .*)
+(*variant that omits the clear - CSeq, simplifies less agressively and tries to avoid nontermination;
+  but note that "clear - CSeq" is no longer done by mkComponent *)
 Ltac mkComponent_cautious prog :=
  hnf;
  let p := fresh "p" in
@@ -422,11 +422,15 @@ Ltac mkComponent_cautious prog :=
    simple apply (QPcompspecs_OK_i' _);
    [ apply composite_env_ext; repeat constructor | reflexivity | reflexivity | assumption | assumption ]
  | ];
+(*INSERTING THIS ABBREVIATION REMOVES NOTERMINATION*)
+set (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
  assert (CSeq: _ = compspecs_of_QPcomposite_env 
-                 (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs))
+(*USE ABBREV HERE*) myenv (*(QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs))*)
                      (proj2 OK))
    by (apply compspecs_eq_of_QPcomposite_env;
           [reflexivity | assumption | assumption]);
+(*UNDO THE ABBREVIATION*)
+subst myenv;
  change (QPprogram_of_program prog ha_env_cs la_env_cs) with p in CSeq;
  exists OK;
   [ check_Comp_Imports_Exports
@@ -439,10 +443,10 @@ Ltac mkComponent_cautious prog :=
     intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
   |  prove_G_justified;
-     try SF_vacuous;
+    try SF_vacuous;
     match goal with |- SF _ ?i _ _ =>
       let j := constr:(fold_ident i prog.(prog_defs)) in
-      let j := eval red in j in let j := eval simpl in j in 
+      let j := eval red in j in
        change i with j
     end
   | finishComponent
@@ -845,7 +849,7 @@ Ltac HImports_tac := simpl;
   let i := fresh "i" in 
    intros i ? ? H1 H2;
   repeat (if_tac in H1; subst; simpl in *; try discriminate);
-    (congruence || fail "Imports disagree at identifier" i).
+    (first [ congruence | inv H1; inv H2; reflexivity | fail "Imports disagree at identifier" i] ).
 
 Ltac ImportsDef_tac := first [ reflexivity | idtac ].
 Ltac ExportsDef_tac := first [ reflexivity | idtac ].
