@@ -370,11 +370,14 @@ Ltac mkComponent prog :=
    simple apply (QPcompspecs_OK_i' _);
    [ apply composite_env_ext; repeat constructor | reflexivity | reflexivity | assumption | assumption ]
  | ];
- assert (CSeq: _ = compspecs_of_QPcomposite_env 
-                 (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs))
+ (* Doing the  set(myenv...), instead of before proving the CSeq assertion,
+     prevents nontermination in some cases  *)
+ set (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
+ assert (CSeq: _ = compspecs_of_QPcomposite_env myenv 
                      (proj2 OK))
    by (apply compspecs_eq_of_QPcomposite_env;
           [reflexivity | assumption | assumption]);
+ subst myenv;
  change (QPprogram_of_program prog ha_env_cs la_env_cs) with p in CSeq;
  clear HA LA;
  exists OK;
@@ -404,61 +407,6 @@ Ltac mkVSU prog internal_specs :=
  end;
  exists internal_specs;
  mkComponent prog.
-
-(*variant that omits the clear - CSeq, simplifies less agressively and tries to avoid nontermination;
-  but note that "clear - CSeq" is no longer done by mkComponent *)
-Ltac mkComponent_cautious prog :=
- hnf;
- let p := fresh "p" in
- match goal with |- @Component _ _ _ _ ?pp _ _ _ => set (p:=pp) end;
- let HA := fresh "HA" in 
-   assert (HA: PTree_samedom cenv_cs ha_env_cs) by repeat constructor;
- let LA := fresh "LA" in 
-   assert (LA: PTree_samedom cenv_cs la_env_cs) by repeat constructor;
- let OK := fresh "OK" in
- assert (OK: QPprogram_OK p);
- [split; [apply compute_list_norepet_e; reflexivity | ];
-   simpl;
-   simple apply (QPcompspecs_OK_i' _);
-   [ apply composite_env_ext; repeat constructor | reflexivity | reflexivity | assumption | assumption ]
- | ];
-(*INSERTING THIS ABBREVIATION REMOVES NOTERMINATION*)
-set (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
- assert (CSeq: _ = compspecs_of_QPcomposite_env 
-(*USE ABBREV HERE*) myenv (*(QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs))*)
-                     (proj2 OK))
-   by (apply compspecs_eq_of_QPcomposite_env;
-          [reflexivity | assumption | assumption]);
-(*UNDO THE ABBREVIATION*)
-subst myenv;
- change (QPprogram_of_program prog ha_env_cs la_env_cs) with p in CSeq;
- exists OK;
-  [ check_Comp_Imports_Exports
-  | apply compute_list_norepet_e; reflexivity || fail "Duplicate funspec among the Externs++Imports"
-  | apply compute_list_norepet_e; reflexivity || fail "Duplicate funspec among the Exports"
-  | apply compute_list_norepet_e; reflexivity
-  | apply forallb_isSomeGfunExternal_e; reflexivity
-  | intros; simpl; split; trivial; try solve [lookup_tac]
-  | let i := fresh in let H := fresh in 
-    intros i H; first [ solve contradiction | simpl in H];
-    repeat (destruct H; [ subst; reflexivity |]); try contradiction
-  |  prove_G_justified;
-    try SF_vacuous;
-    match goal with |- SF _ ?i _ _ =>
-      let j := constr:(fold_ident i prog.(prog_defs)) in
-      let j := eval red in j in
-       change i with j
-    end
-  | finishComponent
-  | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
-  ].
-
-Ltac mkVSU_cautious prog internal_specs := 
- lazymatch goal with |- VSU _ _ _ _ _ => idtac
-  | _ => fail "mkVSU must be applied to a VSU goal"
- end;
- exists internal_specs;
- mkComponent_cautious prog.
 
 Ltac solve_SF_internal P :=
   apply SF_internal_sound; eapply _SF_internal;
