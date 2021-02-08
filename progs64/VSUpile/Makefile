@@ -18,9 +18,7 @@ CC=ccomp
 CFLAGS=-O
 
 -include CONFIGURE
-ifndef VST_LOC
- $(error VST_LOC is undefined.  In a CONFIGURE file or in a command-line argument to make, define VST_LOC=platform to use VST from user-contrib (i.e., opam or Coq Platform), or VST_LOC=your/path to use VST from elsewhere)
-endif
+VST_LOC ?= ../..
 
 ifdef COMPCERT_LOC
 CLIGHTGEN ?= $(COMPCERT_LOC)/clightgen
@@ -40,19 +38,9 @@ OFILES = $(patsubst %.c,%.o,$(CFILES))
 VOFILES = $(patsubst %.v,%.vo,$(CVFILES) $(VFILES))
 
 
-ifeq ($(VST_LOC),platform)
-VSTFLAGS=
-else
 VST_DIRS= msl sepcomp veric floyd
-# Warning!  If VST_LOC is uses a "platform CompCert" rather than
-# "bundled CompCert", then the following line should work as long as
-# VST_LOC/compcert/*/*.vo are not built -- that is, if there are no
-# .vo files there, then -R $(VST_LOC)/compcert compcert  should have no
-# effect.
-VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
-endif
+VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
 
-COQFLAGS= $(VSTFLAGS) -R . pile
 
 target: _CoqProject verif_main.vo simple_verif_main.vo fast/verif_fastmain.vo incr/verif_incr.vo
 
@@ -60,28 +48,29 @@ cvfiles: $(CVFILES)
 
 %.vo: %.v
 	@echo COQC $*.v
-	@coqc $(COQFLAGS) $*.v
+	@coqc $(VSTFLAGS) $*.v
+
+CGFLAGS =  -DCOMPCERT -short-idents
 
 ifdef CLIGHTGEN
 $(CVFILES): $(CFILES) $(HFILES)
-	$(CLIGHTGEN) -normalize $(CFILES)
+	$(CLIGHTGEN) -normalize $(CGFLAGS) $(CFILES)
 
 incr/incr.v: incr/incr.c
-	$(CLIGHTGEN) -normalize $<
+	$(CLIGHTGEN) -normalize $(CGFLAGS) $<
 endif
 
 incr/verif_incr.vo: incr/verif_incr.v incr/incr.vo
 
 _CoqProject: Makefile
-	@echo $(COQFLAGS) > _CoqProject
+	@echo $(VSTFLAGS) > _CoqProject
 
 clean:
-	rm -f *.vo *.o *.aux *.vok *.vos *.glob
-	rm -f fast/*.vo fast/*.o fast/*.aux fast/*.vok fast/*.vos fast/*.glob
-	rm -f incr/*.vo incr/*.o incr/*.aux incr/*.vok incr/*.vos incr/*.glob
+	rm -f *.vo *.o *.aux *.vok *.vos
+	rm -f fast/*.vo fast/*.o fast/*.aux fast/*.vok fast/*.vos
 
 # .depend depend:
-# 	coqdep $(COQFLAGS) *.v >.depend
+# 	coqdep $(VSTFLAGS) *.v >.depend
 
 FLOYD= $(VST_LOC)/floyd/proofauto.vo $(VST_LOC)/floyd/VSU.vo
 

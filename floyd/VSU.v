@@ -776,8 +776,8 @@ Ltac SC_tac :=
  repeat (apply conj; hnf);
  lazymatch goal with
          | |- Funspecs_must_match ?i _ _ =>
-                 constructor; reflexivity ||
-                 fail "funspecs don't match at identifier" i
+                 constructor; 
+                 try simple apply eq_refl
          | |- Identifier_not_found ?i ?fds2 =>
                  fail "identifer" i "not found in funspecs" fds2
          | |- True => trivial
@@ -863,9 +863,12 @@ eapply VSULink;
 
 Ltac red_until_NDmk_funspec x :=
  lazymatch x with
- | NDmk_funspec _ _ _ _ _ => constr:(x)
- | mk_funspec _ _ _ _ _ _ _ => constr:(x)
- | _ => let x := eval red in x in red_until_NDmk_funspec x
+ | NDmk_funspec _ _ _ _ _ => uconstr:(x)
+ | mk_funspec _ _ _ _ _ _ _ => uconstr:(x)
+ | merge_specs ?A ?B => 
+     let b := eval hnf in B in 
+     match b with None => uconstr:(A) | _ => uconstr:(merge_specs A b) end
+ | _ => uconstr:(x)
  end.
 
 Ltac simplify_funspecs G :=

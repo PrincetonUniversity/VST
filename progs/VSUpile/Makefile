@@ -50,12 +50,14 @@ cvfiles: $(CVFILES)
 	@echo COQC $*.v
 	@coqc $(VSTFLAGS) $*.v
 
+CGFLAGS =  -DCOMPCERT -short-idents
+
 ifdef CLIGHTGEN
 $(CVFILES): $(CFILES) $(HFILES)
-	$(CLIGHTGEN) -normalize $(CFILES)
+	$(CLIGHTGEN) -normalize $(CGFLAGS) $(CFILES)
 
 incr/incr.v: incr/incr.c
-	$(CLIGHTGEN) -normalize $<
+	$(CLIGHTGEN) -normalize $(CGFLAGS) $<
 endif
 
 incr/verif_incr.vo: incr/verif_incr.v incr/incr.vo
