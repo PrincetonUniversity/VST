@@ -77,12 +77,12 @@ Definition MallocFreeVSU: @VSU NullExtension.Espec
          MF_E MF_imported_specs ltac:(QPprog prog) MF_ASI (mem_mgr M).
   Proof. 
     mkVSU prog MF_internal_specs.
+    - solve_SF_internal body_placeholder.
     - solve_SF_external (@body_malloc NullExtension.Espec CompSpecs). 
       Intros. eapply derives_trans.
       apply (semax_func_cons_malloc_aux gv gx ret n).
       destruct ret; simpl; trivial.
-    - solve_SF_external (@body_exit NullExtension.Espec).
-    - solve_SF_internal body_placeholder.
     - solve_SF_external (@body_free NullExtension.Espec CompSpecs).
+    - solve_SF_external (@body_exit NullExtension.Espec).
     - apply MF_Init.
 Qed.

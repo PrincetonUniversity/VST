@@ -78,10 +78,10 @@ Exists p.
 entailer!.
 Qed.
 
-  Lemma onepile_Init_aux gv: headptr (gv _the_pile) ->
+Lemma onepile_Init_aux gv: headptr (gv _the_pile) ->
     globvar2pred gv (_the_pile, v_the_pile)
     |-- data_at_ Ews (tptr (Tstruct _pile noattr)) (gv _the_pile).
-  Proof. intros.
+Proof. intros.
     unfold globvar2pred. simpl.
          rewrite sepcon_emp.
     destruct H as [b Hb]; rewrite Hb in *.
@@ -90,7 +90,7 @@ Qed.
     + rewrite <- memory_block_data_at_; simpl; trivial.
       apply headptr_field_compatible; trivial. exists b; trivial. cbv; trivial. simpl; rep_lia.
       econstructor. reflexivity. apply Z.divide_0_r.
-  Qed.
+Qed.
 
 Lemma onepile_Init: VSU_initializer prog (one_pile None).
 Proof. InitGPred_tac. unfold one_pile. normalize. apply derives_refl. Qed.
@@ -99,9 +99,9 @@ Definition OnepileVSU: @VSU NullExtension.Espec
       nil onepile_imported_specs ltac:(QPprog prog) Onepile_ASI (one_pile None).
   Proof.
     mkVSU prog onepile_internal_specs. 
-    + solve_SF_internal body_Onepile_count.
     + solve_SF_internal body_Onepile_init.
     + solve_SF_internal body_Onepile_add.
+    + solve_SF_internal body_Onepile_count.
     + apply onepile_Init.
   Qed.
 

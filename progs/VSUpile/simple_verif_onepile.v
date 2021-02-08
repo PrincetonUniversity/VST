@@ -58,9 +58,9 @@ Definition OnepileVSU: @VSU NullExtension.Espec
       nil onepile_imported_specs ltac:(QPprog prog) OnepileASI (onepile None).
   Proof.
     mkVSU prog onepile_internal_specs. 
-    + solve_SF_internal body_Onepile_count.
     + solve_SF_internal body_Onepile_init.
     + solve_SF_internal body_Onepile_add.
+    + solve_SF_internal body_Onepile_count.
     + apply onepile_Init.
   Qed.
 

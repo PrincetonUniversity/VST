@@ -297,29 +297,43 @@ rewrite eqb_ident_refl; auto.
 rewrite eqb_ident_false; auto.
 Qed.
 
+Lemma filter_options_in:
+ forall {A B} (f: A -> option B) a b al,
+   f a = Some b ->
+   In a al ->
+   In b (filter_options f al).
+Proof.
+induction al; simpl; intros; auto.
+destruct H0.
+subst.
+rewrite H.
+left; auto.
+destruct (f a0); auto.
+right; auto.
+Qed.
+
 Lemma prove_G_justified:
  forall Espec cs V p Imports G,
  let SFF := @SF Espec cs V (QPglobalenv p) (Imports ++ G) in
- PTree_Foralln (fun i x =>
-            match x with
-            | Gfun fd => 
-                     match faster_find_id i G with 
-                     | Some phi =>  Some (SFF i fd phi)
-                     | None => None
-                     end
-            | _ => None
-            end)
-      (QP.prog_defs p) ->
+ let obligations := filter_options (fun (ix: ident * funspec) => let (i,phi) := ix in 
+               match (QP.prog_defs p) ! i with
+               | Some (Gfun fd) => Some (SFF i fd phi)
+               | _ => None
+               end) G in
+ Forall (fun x => x) obligations ->
  (forall i phi fd, (QP.prog_defs p) ! i = Some (Gfun fd) ->
   find_id i G = Some phi ->
   @SF Espec cs V (QPglobalenv p) (Imports ++ G) i fd phi).
 Proof.
 intros.
 subst SFF.
-rewrite find_id_faster in H1.
-pose proof (PTree_Foralln_e _ _ _ H i _ H0); clear H.
-simpl in H2.
-rewrite H1 in H2.
+rewrite Forall_forall in H.
+apply H; clear H.
+subst obligations.
+apply find_id_e in H1.
+eapply filter_options_in; try eassumption.
+simpl.
+rewrite H0.
 auto.
 Qed.
 
@@ -334,26 +348,6 @@ Ltac compute_list p :=
        uconstr:((i,x)::t)
      end
  end.
-
-Ltac prove_G_justified :=
- apply prove_G_justified;
- let H := fresh in
-  match goal with |- context [SF (?A ++ ?B)] =>
-     remember (SF (A++B)) as H;
-     let b := compute_list B in change B with b
-  end;
-  match goal with |- PTree_Foralln _ ?X => 
-      let t := eval compute in X in change X with t
-  end;
-  unfold PTree_Foralln, PTree_Foralln';
-  repeat (repeat change (and_option_Prop None ?A) with A;
-              repeat change (and_option_Prop ?A None) with A);
-  hnf; repeat split;
-  try lazymatch goal with
-   | |- H _ (Internal ?f) _ => change f with (@abbreviate _ f)
-   | |- H _ (External ?f) _ => change f with (@abbreviate _ f)
-  end;
-  subst H.
 
 Ltac mkComponent prog :=
  hnf;
@@ -390,13 +384,9 @@ Ltac mkComponent prog :=
   | let i := fresh in let H := fresh in 
     intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
-  |  prove_G_justified;
-     try SF_vacuous;
-     match goal with |- SF _ ?i _ _ =>
-      let j := constr:(fold_ident i prog.(prog_defs)) in
-      let j := eval red in j in let j := eval simpl in j in 
-       change i with j
-     end
+  | apply prove_G_justified;
+    repeat apply Forall_cons; [ .. | apply Forall_nil];
+    try SF_vacuous
   | finishComponent
   | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
   ].

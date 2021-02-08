@@ -78,8 +78,8 @@ Definition ApileVSU: @VSU NullExtension.Espec
       nil apile_imported_specs ltac:(QPprog prog) Apile_ASI (apile nil).
   Proof. 
     mkVSU prog apile_internal_specs.
-    + solve_SF_internal body_Apile_count.
     + solve_SF_internal body_Apile_add.
+    + solve_SF_internal body_Apile_count.
     + apply apile_Init.
   Qed.
 

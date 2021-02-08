@@ -195,9 +195,9 @@ Definition PileVSU: @VSU NullExtension.Espec
   Proof. 
     mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_count.
-    + solve_SF_internal body_Pile_add.
     + solve_SF_internal body_Pile_new.
+    + solve_SF_internal body_Pile_add.
+    + solve_SF_internal body_Pile_count.
     + solve_SF_internal body_Pile_free.
   Qed.
 
