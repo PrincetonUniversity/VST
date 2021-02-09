@@ -767,8 +767,7 @@ Ltac HImports_tac' := clear; repeat apply Forall_cons; try apply Forall_nil;
      (reflexivity || match goal with |- imports_agree ?i _ _ =>
                        fail "Imports disagree at identifier" i end).
 
-(*Ltac SC_tac :=
- clear;
+Ltac SC_tac :=
  match goal with |- SC_test ?ids _ _ =>
   let a := eval compute in ids in change ids with a
  end;
@@ -776,30 +775,11 @@ Ltac HImports_tac' := clear; repeat apply Forall_cons; try apply Forall_nil;
  repeat (apply conj; hnf);
  lazymatch goal with
          | |- Funspecs_must_match ?i _ _ =>
-                 constructor; 
-                 try simple apply eq_refl
+                 try solve [constructor; unfold abbreviate; repeat f_equal]
          | |- Identifier_not_found ?i ?fds2 =>
                  fail "identifer" i "not found in funspecs" fds2
          | |- True => trivial
-          end.*)
-Ltac SC_tac:=
-(* clear; *)
-   match goal with
-   | |- SC_test ?ids _ _ =>
-         let a := eval compute in ids in
-         change ids with a
-   end; hnf; repeat (apply conj; hnf);
-   lazymatch goal with
-   | |- Funspecs_must_match ?i _ _ =>
-         constructor;
-         try match goal with |- ?A = ?B =>
-             first [ solve [ constr_eq A B; reflexivity] ||
-                     solve [ unify A B; reflexivity] || 
-                     idtac] end
-   | |- Identifier_not_found ?i ?fds2 =>
-         fail "identifer" i "not found in funspecs" fds2
-   | |- True => trivial
-   end.
+          end.
 
 Ltac HImports_tac := simpl;
   let i := fresh "i" in 
@@ -912,7 +892,7 @@ Ltac compute_VSULink_Imports v1 v2 :=
  end.
 
 Ltac VSULink_type v1 v2 :=
-  match type of v1 with @VSU ?Espec ?E1 ?Imports1 ?p1 ?Exports1 ?GP1=>
+  match type  of v1 with @VSU ?Espec ?E1 ?Imports1 ?p1 ?Exports1 ?GP1=>
   match type of v2 with @VSU Espec ?E2 ?Imports2 ?p2 ?Exports2 ?GP2=>
   let GP := uconstr:(sepcon GP1 GP2) in
   let E := uconstr:(G_merge E1 E2) in
