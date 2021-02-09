@@ -767,7 +767,7 @@ Ltac HImports_tac' := clear; repeat apply Forall_cons; try apply Forall_nil;
      (reflexivity || match goal with |- imports_agree ?i _ _ =>
                        fail "Imports disagree at identifier" i end).
 
-Ltac SC_tac :=
+(*Ltac SC_tac :=
  clear;
  match goal with |- SC_test ?ids _ _ =>
   let a := eval compute in ids in change ids with a
@@ -781,7 +781,25 @@ Ltac SC_tac :=
          | |- Identifier_not_found ?i ?fds2 =>
                  fail "identifer" i "not found in funspecs" fds2
          | |- True => trivial
-          end.
+          end.*)
+Ltac SC_tac:=
+(* clear; *)
+   match goal with
+   | |- SC_test ?ids _ _ =>
+         let a := eval compute in ids in
+         change ids with a
+   end; hnf; repeat (apply conj; hnf);
+   lazymatch goal with
+   | |- Funspecs_must_match ?i _ _ =>
+         constructor;
+         try match goal with |- ?A = ?B =>
+             first [ solve [ constr_eq A B; reflexivity] ||
+                     solve [ unify A B; reflexivity] || 
+                     idtac] end
+   | |- Identifier_not_found ?i ?fds2 =>
+         fail "identifer" i "not found in funspecs" fds2
+   | |- True => trivial
+   end.
 
 Ltac HImports_tac := simpl;
   let i := fresh "i" in 
