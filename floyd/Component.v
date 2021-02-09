@@ -2830,12 +2830,70 @@ Qed.
 
 End ComponentJoin.
 
-Definition VSULink_Imports 
+Definition VSULink_Imports'
  {Espec E1 Imports1 p1 Exports1 GP1 E2 Imports2 p2 Exports2 GP2}
   (vsu1: @VSU Espec E1 Imports1 p1 Exports1 GP1)
   (vsu2: @VSU Espec E2 Imports2 p2 Exports2 GP2)  := 
       filter (fun x => negb (in_dec ident_eq (fst x) (map fst E2 ++ IntIDs p2))) Imports1 ++
       filter (fun x => negb (in_dec ident_eq (fst x) (map fst E1 ++ IntIDs p1 ++ map fst Imports1))) Imports2.
+
+Definition VSULink_Imports_aux (Imports1 Imports2: funspecs) 
+   (kill1 kill2: PTree.t unit) :=
+  filter (fun x => isNone (kill1 ! (fst x))) Imports1 ++
+  filter (fun x => isNone (kill2 ! (fst x))) Imports2.
+
+Definition VSULink_Imports
+ {Espec E1 Imports1 p1 Exports1 GP1 E2 Imports2 p2 Exports2 GP2}
+  (vsu1: @VSU Espec E1 Imports1 p1 Exports1 GP1)
+  (vsu2: @VSU Espec E2 Imports2 p2 Exports2 GP2)  := 
+ VSULink_Imports_aux Imports1 Imports2 
+    (fold_left (fun m i => PTree.set i tt m) (map fst E2 ++ IntIDs p2) (PTree.empty unit))
+    (fold_left (fun m i => PTree.set i tt m) (map fst E1 ++ IntIDs p1 ++ map fst Imports1) (PTree.empty _)).
+
+Lemma VSULink_Imports_eq:
+  @VSULink_Imports = @VSULink_Imports'.
+Proof.
+assert (forall i al,
+  isNone
+    (fold_left
+       (fun (m : PTree.t unit) (i0 : positive) => PTree.set i0 tt m)
+       al (PTree.empty unit)) ! i =
+   negb (proj_sumbool (in_dec ident_eq i al))). {
+intros.
+replace (fold_left
+              (fun (m : PTree.t unit) (i0 : positive) => PTree.set i0 tt m)
+              al (PTree.empty unit))
+ with (PTree_Properties.of_list (map (fun i => (i,tt)) al)).
+match goal with |- isNone ?A = _ => destruct A eqn:?H end.
+apply PTree_Properties.in_of_list in H.
+destruct (in_dec ident_eq i al).
+reflexivity.
+apply (in_map fst) in H.
+simpl in H.
+rewrite map_map in H.
+simpl in H.
+rewrite map_id in H. contradiction.
+destruct (in_dec ident_eq i al); [ | reflexivity].
+simpl.
+replace al with (map fst (map (fun i => (i,tt)) al)) in i0
+  by (rewrite map_map, map_id; auto).
+apply PTree_Properties.of_list_dom in i0.
+destruct i0 as [? ?H].
+rewrite H in H0. inv H0.
+unfold PTree_Properties.of_list.
+forget (PTree.empty unit) as m.
+revert m; induction al; simpl; auto.
+}
+unfold VSULink_Imports, VSULink_Imports_aux, VSULink_Imports'.
+extensionality Espec.
+extensionality E1 Imports1 p1.
+extensionality Exports1 GP1.
+extensionality E2 Imports2 p2.
+extensionality Exports2 GP2.
+extensionality v1 v2.
+f_equal; f_equal;
+extensionality ix; destruct ix as [i x]; simpl; auto.
+Qed.
 
 Lemma QPlink_progs_varspecsJoin:
  forall (p1 p2 p : QP.program function)
@@ -2916,6 +2974,7 @@ Proof.
   assert (HG2: G2 = Comp_G comp2) by reflexivity.
   replace (G_merge G1 G2) with (G_merge (Comp_G comp1) (Comp_G comp2))
     by (clear - HG1 HG2; subst; auto).
+  rewrite VSULink_Imports_eq.
   apply ComponentJoin; trivial.
  -
   apply QPvarspecs_norepet.

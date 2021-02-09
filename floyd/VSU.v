@@ -883,24 +883,33 @@ Ltac simplify_funspecs G :=
                        end
  end.
 
-Ltac VSULink_type v1 v2 :=
-  let Espec := uconstr:(VSU_Espec v1) in
-  let Espec := eval unfold VSU_Espec in Espec in
-  let GP := uconstr:(sepcon (VSU_GP v1) (VSU_GP v2)) in
-  let GP := eval unfold VSU_GP in GP in 
-  let E := uconstr:(G_merge (VSU_Externs v1) (VSU_Externs v2)) in
-  let E := simplify_funspecs E in
+Ltac compute_VSULink_Imports v1 v2 := 
   let Imports := uconstr:(VSULink_Imports v1 v2) in
-  let Imports := simplify_funspecs Imports in
-  let Exports := constr:(G_merge (VSU_Exports v1) (VSU_Exports v2)) in
+  let x := eval cbv beta delta [VSULink_Imports] in Imports in
+  match x with VSULink_Imports_aux ?I1 ?I2 ?A ?B =>
+    let k1 := eval compute in A in
+    let k2 := eval compute in B in
+    let x := uconstr:(VSULink_Imports_aux I1 I2 k1 k2) in
+    simplify_funspecs x
+ end.
+
+Ltac VSULink_type v1 v2 :=
+  match type of v1 with @VSU ?Espec ?E1 ?Imports1 ?p1 ?Exports1 ?GP1=>
+  match type of v2 with @VSU Espec ?E2 ?Imports2 ?p2 ?Exports2 ?GP2=>
+  let GP := uconstr:(sepcon GP1 GP2) in
+  let E := uconstr:(G_merge E1 E2) in
+  let E := simplify_funspecs E in
+  let Imports := compute_VSULink_Imports v1 v2 in
+  let Exports := constr:(G_merge Exports1 Exports2) in
   let Exports := simplify_funspecs Exports in
-  let p' :=  uconstr:(QPlink_progs (VSU_prog v1) (VSU_prog v2)) in
+  let p' :=  uconstr:(QPlink_progs p1 p2) in
   let p'' := eval vm_compute in p' in
   let p := lazymatch p'' with
-               | Errors.OK ?p => constr:(@abbreviate _ p)
+               | Errors.OK ?p => uconstr:(@abbreviate _ p)
                | Errors.Error ?m => fail "QPlink_progs failed:" m
                end in
-   constr:(@VSU Espec E Imports p Exports GP).
+   constr:(@VSU Espec E Imports p Exports GP)
+ end end.
 
 Ltac linkVSUs v1 v2 :=
   let t := VSULink_type v1 v2 in
