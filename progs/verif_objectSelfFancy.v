@@ -386,7 +386,7 @@ Definition foo_data : object_invariant :=
       *  malloc_token Ews (Tstruct _foo_object noattr) (snd x)).
 Lemma foo_data_HOcontr: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x).
 Proof.
-  assert (predicates_rec.HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x)). 2: apply H.
+  assert (predicates_rec.HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x)). 2: constructor; apply H.
   unfold foo_data.
   unfold withspacer; simpl.
   apply Trashcan.sepcon_HOcontractive.
@@ -1074,7 +1074,7 @@ Definition fancyfoo_data : fobject_invariant :=
       *  malloc_token Ews (Tstruct _fancyfoo_object noattr) (snd x)).
 Lemma fancyfoo_data_HOcontr: HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => fancyfoo_data x).
 Proof.
-  assert (predicates_rec.HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => fancyfoo_data x)). 2: apply H.
+  assert (predicates_rec.HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => fancyfoo_data x)). 2: constructor; apply H.
   unfold fancyfoo_data.
   unfold withspacer; simpl.
   apply Trashcan.sepcon_HOcontractive.
@@ -1502,23 +1502,27 @@ eapply (binary_intersection' (twiddle_spec foo_obj_invariant) (ftwiddle_spec fan
 Defined.
 
 Lemma reset_sub_foo: funspec_sub reset_intersection (reset_spec foo_obj_invariant).
-Proof. 
+Proof.
+  rewrite funspec_sub_iff.
 apply (binaryintersection_sub (reset_spec foo_obj_invariant) (freset_spec fancyfoo_obj_invariant)).
 apply binary_intersection'_sound.
 Qed.
 Lemma reset_sub_fancy: funspec_sub reset_intersection (freset_spec fancyfoo_obj_invariant).
-Proof. 
+Proof.
+  rewrite funspec_sub_iff.
 apply (binaryintersection_sub (reset_spec foo_obj_invariant) (freset_spec fancyfoo_obj_invariant)).
 apply binary_intersection'_sound.
 Qed.
 
 Lemma twiddle_sub_foo: funspec_sub twiddle_intersection (twiddle_spec foo_obj_invariant).
-Proof. 
+Proof.
+  rewrite funspec_sub_iff.
 apply (binaryintersection_sub (twiddle_spec foo_obj_invariant) (ftwiddle_spec fancyfoo_obj_invariant)).
 apply binary_intersection'_sound.
 Qed.
 Lemma twiddle_sub_fancy: funspec_sub twiddle_intersection (ftwiddle_spec fancyfoo_obj_invariant).
-Proof. 
+Proof.
+  rewrite funspec_sub_iff.
 apply (binaryintersection_sub (twiddle_spec foo_obj_invariant) (ftwiddle_spec fancyfoo_obj_invariant)).
 apply binary_intersection'_sound.
 Qed.
@@ -1803,7 +1807,7 @@ Qed.
 End Putting_It_All_Together.
 Parameter QQ:mpred.
 Lemma funspec_sub_reset_foo_fancy: funspec_sub (reset_spec foo_obj_invariant) (freset_spec fancyfoo_obj_invariant).
-Proof. eapply funspec_sub_trans. apply reset_spec_local_sub. unfold fobject_invariant_of_inv.
+Proof. rewrite funspec_sub_iff. eapply funspec_sub_trans. rewrite <- funspec_sub_iff. apply reset_spec_local_sub. unfold fobject_invariant_of_inv. rewrite <- funspec_sub_iff.
  do_funspec_sub.
   rewrite fancyfoo_obj_invariant_fold_unfold' at 1. (*foo_obj_invariant_fold_unfold;*) Intros m.
   Exists w QQ. destruct w as [[hs c] p]; simpl in *. entailer!.

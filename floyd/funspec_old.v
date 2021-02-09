@@ -402,9 +402,7 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
              P at level 100, Q at level 100) : old_funspec_scope.
 
 Definition main_pre {Z: Type} (prog: Clight.program) (ora: Z) : globals -> environ -> mpred :=
-(fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
-
-
+ fun gv rho => !! (gv = globals_of_env rho) && (globvars2pred gv (prog_vars prog) * has_ext ora).
 
 Lemma old_main_pre_eq:
  forall prog,  convertPre (nil,tint) globals (main_pre prog tt) = SeparationLogic.main_pre prog tt.
@@ -422,27 +420,19 @@ destruct args; inv H.
 simpl. normalize.
 apply derives_refl'.
 f_equal.
-unfold gglobvars2pred.
 simpl.
 unfold globvars2pred.
 unfold lift2.
 simpl.
 rewrite prop_true_andp; auto.
-set (B := globvar2pred _). clearbody B.
-induction (prog_vars prog); simpl; auto.
-f_equal; auto.
 -
 simpl.
-unfold gglobvars2pred.
 unfold globvars2pred.
 unfold lift2.
 normalize.
 simpl.
-set (B := globvar2pred _). clearbody B.
-apply derives_refl'.
-f_equal; auto.
-induction (prog_vars prog); simpl; auto.
-f_equal; auto.
+rewrite prop_true_andp by (split; auto).
+auto.
 Qed.
 
 Ltac rewrite_old_main_pre ::= rewrite ?old_main_pre_eq; unfold convertPre.

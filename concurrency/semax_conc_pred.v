@@ -131,7 +131,7 @@ Qed.*)
 
 Lemma approx_derives_ge : forall n m P, (n <= m)%nat -> approx n P |-- approx m P.
 Proof.
-  intros; change (predicates_hered.derives (approx n P) (approx m P)).
+  intros; constructor. change (predicates_hered.derives (approx n P) (approx m P)).
   intros ? []; split; auto; lia.
 Qed.
 
@@ -142,6 +142,8 @@ Qed.
 
 Definition exclusive_mpred (R : mpred) :=
   (R * R |-- FF)%logic.
+
+Create HintDb exclusive.
 
 Program Definition weak_exclusive_mpred (P: mpred): mpred :=
   fun w => exclusive_mpred (approx (S (level w)) P).

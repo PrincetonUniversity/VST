@@ -205,7 +205,7 @@ Lemma combine_app' : forall {A B} (l1 l2 : list A) (l1' l2' : list B), Zlength l
   combine (l1 ++ l2) (l1' ++ l2') = combine l1 l1' ++ combine l2 l2'.
 Proof.
   intros; apply combine_app.
-  rewrite !Zlength_correct in *; omega.
+  rewrite !Zlength_correct in *; lia.
 Qed.
 
 Lemma combine_fst : forall {A B} (l : list A) (l' : list B), length l = length l' ->
@@ -242,17 +242,17 @@ Lemma combine_const1 : forall {A B} (l1 : list A) (x : B) n, Z.of_nat n >= Zleng
   combine l1 (repeat x n) = map (fun a => (a, x)) l1.
 Proof.
   induction l1; auto; simpl; intros.
-  rewrite Zlength_cons in *; destruct n; [rewrite Zlength_correct in *; simpl in *; omega | simpl].
+  rewrite Zlength_cons in *; destruct n; [rewrite Zlength_correct in *; simpl in *; lia | simpl].
   rewrite IHl1; auto.
-  rewrite Nat2Z.inj_succ in *; omega.
+  rewrite Nat2Z.inj_succ in *; lia.
 Qed.
 
 Lemma combine_const2 : forall {A B} (x : A) n (l2 : list B), Z.of_nat n >= Zlength l2 ->
   combine (repeat x n) l2 = map (fun b => (x, b)) l2.
 Proof.
   induction n; destruct l2; auto; intros; rewrite ?Nat2Z.inj_succ, ?Zlength_nil, ?Zlength_cons in *;
-    simpl in *; try (rewrite Zlength_correct in *; omega).
-  rewrite IHn; auto; omega.
+    simpl in *; try (rewrite Zlength_correct in *; lia).
+  rewrite IHn; auto; lia.
 Qed.
 
 Lemma map_const: forall {A B} (c : A) (l : list B), map (fun _ => c) l = repeat c (length l).

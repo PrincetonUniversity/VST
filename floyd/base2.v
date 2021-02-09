@@ -5,6 +5,8 @@ Require Export VST.floyd.seplog_tactics.
 Require Export VST.floyd.const_only_eval.
 Require Export VST.floyd.computable_functions.
 
+Import compcert.lib.Maps.
+
 Fixpoint delete_id {A: Type} i (al: list (ident*A)) : option (A * list (ident*A)) :=
  match al with
  | (j,x)::bl => if ident_eq i j then Some (x,bl)
@@ -91,19 +93,3 @@ Qed.
 Lemma augment_funspecs_new_eq: forall prog G,
   augment_funspecs_new prog G = augment_funspecs prog G.
 Abort.  (* Very likely true *)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -365,7 +365,7 @@ Definition foo_data : object_invariant :=
       *  malloc_token Ews (Tstruct _foo_object noattr) (snd x)).
 Lemma foo_data_HOcontr: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x).
 Proof.
-  assert (predicates_rec.HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x)). 2: apply H.
+  assert (predicates_rec.HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x)). 2: constructor; apply H.
   unfold foo_data.
   unfold withspacer; simpl.
   apply Trashcan.sepcon_HOcontractive.

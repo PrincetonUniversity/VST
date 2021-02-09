@@ -529,6 +529,8 @@ Qed.
 
 End Snapshot.
 
+#[global] Hint Resolve bupd_intro : ghost.
+
 Section Discrete.
 
 Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;

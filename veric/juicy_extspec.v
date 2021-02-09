@@ -339,7 +339,7 @@ Proof.
   rewrite <- !level_juice_level_phi in Hl.
   apply join_level in J2 as [Hl2 ?].
   rewrite <- !level_juice_level_phi in Hl2.
-  omega.
+  lia.
 Qed.
 
 Section juicy_safety.
@@ -401,95 +401,6 @@ Section juicy_safety.
   Proof.
     do 6 intro. revert c m z. induction H; auto.
     intros. apply IHle. apply jsafe_downward1. auto.
-  Qed.
-
-(*  Lemma jsafe_corestepN_forward:
-    corestep_fun Hcore ->
-    forall z c m c' m' n n0,
-      semantics_lemmas.corestepN (juicy_core_sem Hcore) ge n0 c m c' m' ->
-      jsafeN_ (n + S n0) z c m ->
-      jm_bupd (jsafeN_ n z c') m'.
-  Proof.
-    intros.
-    revert c m c' m' n H0 H1.
-    induction n0; intros; auto.
-    simpl in H0; inv H0.
-    apply jm_bupd_intro.
-    eapply jsafe_downward in H1; eauto. lia.
-    simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
-    assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by lia.
-    rewrite Heq in H1.
-    eapply jsafe_corestep_forward in H1; eauto.
-    specialize (H1 nil); spec H1.
-    { eexists; simpl; erewrite <- ghost_core.
-      apply join_comm, core_unit. }
-    destruct H1 as (? & ? & ? & ?).
-    eapply (IHn0 _ _ _ _ n).
-  Qed.*)
-
-  Lemma jsafe_step'_back2 :
-    forall
-      {ora st m st' m' n},
-      jstep Hcore st m st' m' ->
-      jsafeN_ (n-1) ora st' m' ->
-      jsafeN_ n ora st m.
-  Proof.
-    intros.
-    destruct n.
-    constructor.
-    simpl in H0. replace (n-0)%nat with n in H0.
-    eapply jsafe_corestep_backward; eauto.
-    lia.
-  Qed.
-
-  Lemma jsafe_corestepN_backward:
-    forall z c m c' m' n n0,
-      semantics_lemmas.corestepN (juicy_core_sem Hcore) n0 c m c' m' ->
-      jsafeN_ (n - n0) z c' m' ->
-      jsafeN_ n z c m.
-  Proof.
-    simpl; intros.
-    revert c m c' m' n H H0.
-    induction n0; intros; auto.
-    simpl in H; inv H.
-    solve[assert (Heq: (n = n - 0)%nat) by lia; rewrite Heq; auto].
-    simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
-    assert (H: jsafeN_ (n - 1 - n0) z c' m').
-    eapply jsafe_downward in H0; eauto. lia.
-    specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
-    solve[eapply jsafe_step'_back2; eauto].
-  Qed.
-
-  Lemma convergent_controls_jsafe :
-    forall m q1 q2,
-      (j_at_external Hcore q1 m = j_at_external Hcore q2 m) ->
-      (forall ret m q', semantics.after_external Hcore ret q1 m = Some q' ->
-                      semantics.after_external Hcore ret q2 m = Some q') ->
-      (semantics.halted Hcore q1 = semantics.halted Hcore q2) ->
-      (forall q' m', jstep Hcore q1 m q' m' ->
-                     jstep Hcore q2 m q' m') ->
-      (forall n z, jsafeN_ n z q1 m -> jsafeN_ n z q2 m).
-  Proof.
-    intros. destruct n; simpl in *; try constructor.
-    inv H3.
-    + econstructor; eauto.
-    + eapply jsafeN_external; eauto.
-      rewrite <-H; eauto.
-      intros ???? Hargsty Hretty ? H8 H9.
-      specialize (H7 _ _ _ _ Hargsty Hretty H3 H8 H9).
-      destruct H7 as [c' [? ?]].
-      exists c'; split; auto.
-    + eapply jsafeN_halted; eauto.
-      rewrite <-H1; auto.
-  Qed.
-
-  Lemma wlog_jsafeN_gt0 : forall
-    n z q m,
-    (lt 0 n -> jsafeN_ n z q m) ->
-    jsafeN_ n z q m.
-  Proof.
-    intros. destruct n. constructor.
-    apply H. lia.
   Qed.
 
 Lemma make_join_ext : forall (ora : Z) a c n,
@@ -647,9 +558,9 @@ Lemma jsafe_corestep_backward:
     induction n0; intros; auto.
     simpl in H0; inv H0.
     apply jm_bupd_intro.
-    eapply jsafe_downward in H1; eauto. omega.
+    eapply jsafe_downward in H1; eauto. lia.
     simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
-    assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
+    assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by lia.
     rewrite Heq in H1.
     eapply jsafe_corestep_forward in H1; eauto.
     specialize (H1 nil); spec H1.
@@ -671,7 +582,7 @@ Lemma jsafe_corestep_backward:
     constructor.
     simpl in H0. replace (n-0)%nat with n in H0.
     eapply jsafe_corestep_backward; eauto.
-    omega.
+    lia.
   Qed.
 
   Lemma jsafe_corestepN_backward:
@@ -684,10 +595,10 @@ Lemma jsafe_corestep_backward:
     revert c m c' m' n H H0.
     induction n0; intros; auto.
     simpl in H; inv H.
-    solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
+    solve[assert (Heq: (n = n - 0)%nat) by lia; rewrite Heq; auto].
     simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
     assert (H: jsafeN_ (n - 1 - n0) z c' m').
-    eapply jsafe_downward in H0; eauto. omega.
+    eapply jsafe_downward in H0; eauto. lia.
     specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
     solve[eapply jsafe_step'_back2; eauto].
   Qed.
@@ -721,7 +632,7 @@ Lemma jsafe_corestep_backward:
     jsafeN_ n z q m.
   Proof.
     intros. destruct n. constructor.
-    apply H. omega.
+    apply H. lia.
   Qed.
 
 (*Lemma jm_fupd_intro': forall {Z} (ora : Z) E n z q m,
@@ -739,7 +650,7 @@ Proof.
   simpl; intros.
   apply age_level in H0.
   rewrite !level_juice_level_phi in H0.
-  rewrite min_r in * by omega; auto.
+  rewrite min_r in * by lia; auto.
 Qed.
 
 End juicy_safety.

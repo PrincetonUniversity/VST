@@ -130,8 +130,8 @@ Definition HOnonexpansive {A}{NA: NatDed A}{IA: Indir A}{RA: RecIndir A}
 End SL2.
 
 Module FashNotation.
-Notation "'#' e" := (fash e) (at level 30, right associativity): logic.
-Notation "'!' e" := (unfash e) (at level 30, right associativity): logic.
+Notation "'#' e" := (fash e) (at level 20, right associativity): logic.
+Notation "'!' e" := (unfash e) (at level 20, right associativity): logic.
 Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : logic.
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : logic.
 End FashNotation.

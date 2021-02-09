@@ -960,7 +960,7 @@ Proof.
 Qed.*)
 
 Lemma approx_derives_e {n P Q}: @derives mpred Nveric  P Q -> @derives mpred Nveric (approx n P) (approx n Q).
-Proof. intros. apply approx_hered_derives_e. apply H. Qed.
+Proof. intros. constructor. apply approx_hered_derives_e. apply H. Qed.
 
 Lemma funcptr_f_equal' fs fs' v v': fs=fs' -> v=v' -> func_ptr' fs v = func_ptr' fs' v'.
 Proof. intros; subst; trivial. Qed.

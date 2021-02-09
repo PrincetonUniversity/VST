@@ -68,15 +68,19 @@ simpl in H0.
 specialize (H0 ts1). destruct H0 as [H0 H0'].
 rewrite H0.
 eapply derives_trans; [apply H3 | clear H3 ].
+eapply derives_trans; [|apply bupd_intro].
 apply (exp_right (@nil Type)). simpl.
 apply exp_derives; intros x2.
 apply exp_derives; intros F.
 apply andp_derives; trivial. simpl. apply prop_derives. intros.
-rewrite H0'. eapply derives_trans. 2: apply H1. clear H1. apply andp_derives; trivial; try apply derives_refl.
+rewrite H0'. eapply derives_trans.
+2: { eapply derives_trans. 2: apply bupd_intro. apply H1. }
+clear H1. apply andp_derives; trivial; try apply derives_refl.
 Qed.
 
+(*
 Definition funspec_sub' (f1 f2 : funspec):Prop :=
-let Delta := funsig_tycontext (funsig_of_funspec f1) in
+let Delta := rettype_tycontext (snd (typesig_of_funspec f1)) in
 match f1 with
 | mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
     match f2 with
@@ -102,6 +106,7 @@ Proof.
   unfold funspec_sub', funspec_sub.
   rewrite <- derives_eq; auto.
 Qed.
+ *)
 
 Inductive empty_type : Type := .
 
@@ -235,7 +240,7 @@ Proof. intros.
 eapply semax_pre. 2: apply semax_call with (P0:=P)(NEP0:=NEP)(NEQ0:=NEQ); trivial; eassumption.
 apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. clear. intros rho.
-rewrite andp_comm. apply func_ptr_si_mono.
+rewrite andp_comm. constructor. apply func_ptr_si_mono.
 apply derives_refl.
 Qed.
 

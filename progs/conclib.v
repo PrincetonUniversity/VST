@@ -247,11 +247,18 @@ Proof.
   rewrite H, IHl; apply pred_ext; cancel.
 Qed.
 
+Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
+  fold_right sepcon emp l1 * fold_right sepcon emp l2.
+Proof.
+  induction l1; simpl; intros.
+  - rewrite emp_sepcon; auto.
+  - rewrite IHl1, sepcon_assoc; auto.
+Qed.
+
 Lemma iter_sepcon_sepcon': forall {A} g1 g2 (l : list A),
   iter_sepcon (fun x => g1 x * g2 x) l = iter_sepcon g1 l * iter_sepcon g2 l.
 Proof.
-  intros; unfold sublist.
-  rewrite firstn_nil, skipn_nil; auto.
+  intros. apply iter_sepcon_sepcon. easy.
 Qed.
 
 Lemma iter_sepcon_derives : forall {B} f g (l : list B), (forall x, In x l -> f x |-- g x) -> iter_sepcon f l |-- iter_sepcon g l.
@@ -2455,7 +2462,7 @@ Lemma In_remove_upto : forall i j k, 0 <= j -> In i (remove_Znth j (upto k)) ->
   0 <= i < Z.of_nat k /\ i <> j.
 Proof.
   unfold remove_Znth; intros ???? Hin%in_app.
-  destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; omega.
+  destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; lia.
 Qed.
 
 Lemma In_remove_upto' : forall i j k, 0 <= j < Z.of_nat k -> In i (remove_Znth j (upto k)) <->
@@ -2463,32 +2470,32 @@ Lemma In_remove_upto' : forall i j k, 0 <= j < Z.of_nat k -> In i (remove_Znth j
 Proof.
   unfold remove_Znth; split.
   - intros Hin%in_app.
-    destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; omega.
+    destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; lia.
   - intros []; rewrite Zlength_upto.
-    rewrite !sublist_upto by omega; simpl.
-    rewrite Nat2Z.id, Nat.sub_0_r, !Nat.min_r by rep_omega.
+    rewrite !sublist_upto by lia; simpl.
+    rewrite Nat2Z.id, Nat.sub_0_r, !Nat.min_r by rep_lia.
     rewrite in_app_iff; destruct (zlt i j); [left | right]; rewrite in_map_iff; do 2 eexists; rewrite ?In_upto.
     + rewrite Z.add_0_l; reflexivity.
-    + rep_omega.
+    + rep_lia.
     + apply Zplus_minus.
-    + rep_omega.
+    + rep_lia.
 Qed.
 
 Lemma remove_Znth_app : forall {A} i (l1 l2 : list A), 0 <= i < Zlength l1 + Zlength l2 -> remove_Znth i (l1 ++ l2) =
   if zlt i (Zlength l1) then remove_Znth i l1 ++ l2 else l1 ++ remove_Znth (i - Zlength l1) l2.
 Proof.
   intros; unfold remove_Znth.
-  rewrite sublist_app by omega.
-  rewrite Z.min_l, Z.max_r by rep_omega.
-  rewrite Zlength_app, sublist_app by omega.
-  rewrite Z.add_simpl_l, (Z.min_r (_ + Zlength l2)), (Z.max_l (Zlength l2)) by rep_omega.
+  rewrite sublist_app by lia.
+  rewrite Z.min_l, Z.max_r by rep_lia.
+  rewrite Zlength_app, sublist_app by lia.
+  rewrite Z.add_simpl_l, (Z.min_r (_ + Zlength l2)), (Z.max_l (Zlength l2)) by rep_lia.
   if_tac.
-  - rewrite Z.min_l, Z.max_r, sublist_nil, app_nil_r by rep_omega.
-    rewrite Z.min_l, Z.max_r by rep_omega.
-    rewrite app_assoc, (sublist_same _ _ l2) by omega; auto.
-  - rewrite Z.min_r, Z.max_l, sublist_same by omega.
-    rewrite Z.min_r, Z.max_l, sublist_nil by omega; simpl.
-    rewrite app_assoc; f_equal; f_equal; omega.
+  - rewrite Z.min_l, Z.max_r, sublist_nil, app_nil_r by rep_lia.
+    rewrite Z.min_l, Z.max_r by rep_lia.
+    rewrite app_assoc, (sublist_same _ _ l2) by lia; auto.
+  - rewrite Z.min_r, Z.max_l, sublist_same by lia.
+    rewrite Z.min_r, Z.max_l, sublist_nil by lia; simpl.
+    rewrite app_assoc; f_equal; f_equal; lia.
 Qed.
 
 Lemma In_remove_upto2: forall (i j k : Z) (l : nat), 0 <= j < Z.of_nat l -> 0 <= k < Z.of_nat l -> j <> k ->
@@ -2496,23 +2503,19 @@ Lemma In_remove_upto2: forall (i j k : Z) (l : nat), 0 <= j < Z.of_nat l -> 0 <=
 Proof.
   unfold remove_Znth at 2; intros ??????? Hin.
   assert (Zlength (sublist 0 k (upto l)) = k) as Hk.
-  { rewrite Zlength_sublist; rewrite ?Zlength_upto; omega. }
+  { rewrite Zlength_sublist; rewrite ?Zlength_upto; lia. }
   rewrite remove_Znth_app in Hin; rewrite Hk, Zlength_upto in *.
   destruct (zlt j k).
   - rewrite if_true in Hin by auto.
     apply in_app_iff in Hin as [Hin|Hin].
-    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by omega; destruct Hin as (? & ? & ?%In_remove_upto); try omega.
-      rewrite Nat.min_r, Nat2Z.inj_sub, !Z2Nat.id in *; rep_omega.
-    + rewrite sublist_upto, in_map_iff in Hin by omega; destruct Hin as (? & ? & ?%In_upto); try omega.
-      rewrite Nat.min_r, Nat2Z.inj_sub, !Z2Nat.id in *; rep_omega.
-  - rewrite if_false in Hin by omega.
+    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_remove_upto); try lia.
+    + rewrite sublist_upto, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_upto); try lia.
+  - rewrite if_false in Hin by lia.
     apply in_app_iff in Hin as [Hin|Hin].
-    + rewrite sublist_upto, in_map_iff in Hin by omega; destruct Hin as (? & ? & ?%In_upto); try omega.
-      rewrite Nat.min_r, Nat2Z.inj_sub, !Z2Nat.id in *; rep_omega.
-    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by omega; destruct Hin as (? & ? & ?%In_remove_upto); try omega.
-      rewrite Nat.min_r, Nat2Z.inj_sub, !Z2Nat.id in *; rep_omega.
-  - rewrite Zlength_sublist by (rewrite ?Zlength_upto; omega).
-    if_tac; omega.
+    + rewrite sublist_upto, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_upto); try lia.
+    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_remove_upto); try lia.
+  - rewrite Zlength_sublist by (rewrite ?Zlength_upto; lia).
+    if_tac; lia.
 Qed.
 
 Lemma iter_sepcon_Znth: forall {A} {d : Inhabitant A} f (l : list A) i, 0 <= i < Zlength l ->
@@ -2556,21 +2559,21 @@ Proof.
   unfold remove_Znth at 1 2; rewrite Hlen.
   unfold remove_Znth in *.
   if_tac.
-  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; omega).
+  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; lia).
     autorewrite with sublist.
-    rewrite -> (sublist_split 0 i j) by omega.
+    rewrite -> (sublist_split 0 i j) by lia.
     rewrite !iter_sepcon_app.
-    rewrite -> (sublist_next i _) by omega; simpl.
-    replace (Zlength l - _ - _ + _) with (Zlength l) by omega.
+    rewrite -> (sublist_next i _) by lia; simpl.
+    replace (Zlength l - _ - _ + _) with (Zlength l) by lia.
     apply pred_ext; cancel.
-  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; omega).
+  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; lia).
     autorewrite with sublist.
-    rewrite -> (sublist_split (j + 1) i (Zlength l)) by omega.
+    rewrite -> (sublist_split (j + 1) i (Zlength l)) by lia.
     rewrite !iter_sepcon_app.
-    rewrite -> (sublist_next i _) by omega; simpl.
-    replace (Zlength l - _ - _ + _) with (Zlength l) by omega.
-    replace (i - _ - _ + _) with i by omega.
-    replace (i - _ + _) with (i + 1) by omega.
+    rewrite -> (sublist_next i _) by lia; simpl.
+    replace (Zlength l - _ - _ + _) with (Zlength l) by lia.
+    replace (i - _ - _ + _) with i by lia.
+    replace (i - _ + _) with (i + 1) by lia.
     apply pred_ext; cancel.
 Qed.
 
@@ -2944,26 +2947,6 @@ Proof.
   rewrite sepcon_app, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by lia; auto.
 Qed.
 
-(* wand lemmas *)
-Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
-Proof.
-  intros.
-  apply seplog.pred_ext, modus_ponens_wand.
-  subst; cancel.
-  rewrite <- wand_sepcon_adjoint; auto.
-  rewrite sepcon_comm; auto.
-Qed.
-
-Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
-Proof.
-  intros; apply seplog.pred_ext.
-  - rewrite <- wand_sepcon_adjoint.
-    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
-    rewrite sepcon_comm; apply modus_ponens_wand.
-  - rewrite <- !wand_sepcon_adjoint.
-    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
-Qed.
-
 Lemma sepcon_In : forall l P, In P l -> exists Q, fold_right sepcon emp l = P * Q.
 Proof.
   induction l; [contradiction|].
@@ -2988,13 +2971,6 @@ Proof.
   intros; eapply wand_eq.
   erewrite map_ext_in, sepcon_map; eauto.
   apply HR.
-Qed.
-
-Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
-Proof.
-  intros.
-  rewrite <- wand_sepcon_adjoint; cancel.
-  rewrite sepcon_comm; apply modus_ponens_wand.
 Qed.
 
 Lemma semax_extract_later_prop'':
@@ -3048,7 +3024,7 @@ Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.app
 Lemma approx_0 : forall P, compcert_rmaps.RML.R.approx 0 P = FF.
 Proof.
   intros; apply predicates_hered.pred_ext.
-  - intros ? []; omega.
+  - intros ? []; lia.
   - intros ??; contradiction.
 Qed.
 
@@ -3056,7 +3032,7 @@ Lemma approx_eq : forall n (P : mpred) r, app_pred (compcert_rmaps.RML.R.approx 
 Proof.
   intros; apply prop_ext; split.
   - intros []; if_tac; auto.
-  - if_tac; split; auto; omega.
+  - if_tac; split; auto; lia.
 Qed.
 
 Lemma approx_iter_sepcon' : forall {B} n f (lP : list B) P,
@@ -3067,7 +3043,7 @@ Proof.
   - apply predicates_hered.pred_ext; intros ? (? & ? & ? & ? & ?).
     + destruct H0; do 3 eexists; eauto.
     + do 3 eexists; eauto; split; auto; split; auto.
-      destruct H1; apply join_level in H as []; omega.
+      destruct H1; apply join_level in H as []; lia.
   - rewrite approx_sepcon, !sepcon_assoc, IHlP; auto.
 Qed.
 
@@ -3098,7 +3074,7 @@ Proof.
   intros; apply predicates_hered.pred_ext.
   - intros ? []; split; auto.
     intros ? Hlater; split; auto.
-    apply laterR_level in Hlater; omega.
+    apply laterR_level in Hlater; lia.
   - intros ? []; split; auto.
     intros ? Hlater.
     specialize (H0 _ Hlater) as []; auto.
@@ -3119,9 +3095,9 @@ Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2
 Proof.
   induction lP1; intros.
   - symmetry in H; apply Zlength_nil_inv in H; subst.
-    apply eqp_refl.
+    constructor. apply eqp_refl.
   - destruct lP2; [apply Zlength_nil_inv in H; discriminate|].
-    rewrite !Zlength_cons in H.
+    rewrite !Zlength_cons in H. constructor.
     simpl fold_right; apply eqp_sepcon.
     + apply predicates_hered.allp_left with 0.
       rewrite !Znth_0_cons; auto.
@@ -3131,58 +3107,6 @@ Proof.
       destruct (zlt i 0).
       { rewrite !(Znth_underflow _ _ l); apply eqp_refl. }
       rewrite !Znth_pos_cons, Z.add_simpl_r by lia; auto.
-Qed.
-
-Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
-  fold_right sepcon emp l1 * fold_right sepcon emp l2.
-Proof.
-  induction l1; simpl; intros.
-  - rewrite emp_sepcon; auto.
-  - rewrite IHl1, sepcon_assoc; auto.
-Qed.
-
-Lemma extract_nth_sepcon : forall l i, 0 <= i < Zlength l ->
-  fold_right sepcon emp l = Znth i l * fold_right sepcon emp (upd_Znth i l emp).
-Proof.
-  intros.
-  erewrite <- sublist_same with (al := l) at 1; auto.
-  rewrite sublist_split with (mid := i); try omega.
-  rewrite sublist_next with (i0 := i); try omega.
-  rewrite sepcon_app; simpl.
-  rewrite <- sepcon_assoc, (sepcon_comm _ (Znth i l)).
-  unfold upd_Znth; rewrite sepcon_app, sepcon_assoc; simpl.
-  rewrite emp_sepcon; auto.
-Qed.
-
-Lemma replace_nth_sepcon : forall P l i, P * fold_right sepcon emp (upd_Znth i l emp) =
-  fold_right sepcon emp (upd_Znth i l P).
-Proof.
-  intros; unfold upd_Znth.
-  rewrite !sepcon_app; simpl.
-  rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
-Qed.
-
-Lemma sepcon_map : forall {A} P Q (l : list A), fold_right sepcon emp (map (fun x => P x * Q x) l) =
-  fold_right sepcon emp (map P l) * fold_right sepcon emp (map Q l).
-Proof.
-  induction l; simpl.
-  - rewrite sepcon_emp; auto.
-  - rewrite !sepcon_assoc, <- (sepcon_assoc (fold_right _ _ _) (Q a)), (sepcon_comm (fold_right _ _ _) (Q _)).
-    rewrite IHl; rewrite sepcon_assoc; auto.
-Qed.
-
-Lemma sepcon_list_derives : forall l1 l2 (Hlen : Zlength l1 = Zlength l2)
-  (Heq : forall i, 0 <= i < Zlength l1 -> Znth i l1 |-- Znth i l2),
-  fold_right sepcon emp l1 |-- fold_right sepcon emp l2.
-Proof.
-  induction l1; destruct l2; auto; simpl; intros; rewrite ?Zlength_nil, ?Zlength_cons in *;
-    try (rewrite Zlength_correct in *; omega).
-  apply sepcon_derives.
-  - specialize (Heq 0); rewrite !Znth_0_cons in Heq; apply Heq.
-    rewrite Zlength_correct; omega.
-  - apply IHl1; [omega|].
-    intros; specialize (Heq (i + 1)); rewrite !Znth_pos_cons, !Z.add_simpl_r in Heq; try omega.
-    apply Heq; omega.
 Qed.
 
 (* tactics *)

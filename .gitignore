@@ -6,6 +6,7 @@
 *.cmx
 *.cma
 *.cmxa
+*.cmxs
 .*.aux
 *.cmti
 *.cmt

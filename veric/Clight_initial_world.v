@@ -827,6 +827,7 @@ Proof.
   assert (approx n' (P ts ftor garg) phi).
   split; auto.
   clear H3.
+  apply own.bupd_intro.
   exists ts.
   assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
   simpl in H5.
@@ -860,7 +861,8 @@ Proof.
   apply necR_level in Hphi''; lia.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
-  destruct H7; auto.
+  destruct H7.
+  now apply own.bupd_intro.
 Qed.
 
 Lemma initial_jm_ext_matchfunspecs {Z} (ora : Z) prog m G n H H1 H2:
@@ -909,7 +911,8 @@ Proof.
   intros [_ ?].
   assert (approx n' (P ts ftor garg) phi).
   split; auto.
-  clear H3.
+  clear H3. 
+  apply own.bupd_intro.
   exists ts.
   assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
   simpl in H5.
@@ -943,5 +946,6 @@ Proof.
   apply necR_level in Hphi''; lia.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
-  destruct H7; auto.
+  destruct H7.
+  now apply own.bupd_intro.
 Qed.

@@ -407,9 +407,9 @@ Fixpoint uptoN (n : nat) : list nat :=
 
 Lemma In_uptoN : forall m n, (m < n)%nat -> In m (uptoN n).
 Proof.
-  induction n; intros; [omega | simpl].
+  induction n; intros; [lia | simpl].
   rewrite in_app; destruct (lt_dec m n); auto.
-  right; simpl; omega.
+  right; simpl; lia.
 Qed.
 
 Lemma ghost_alloc_strong: forall {RA: Ghost} P a pp, pred_infinite P -> ghost.valid a ->
@@ -428,7 +428,7 @@ Proof.
     rewrite (identity_core Hg0), ghost_core in J; inv J; [|eexists; constructor].
     rewrite ghost_fmap_singleton; eexists; apply singleton_join_gen.
     rewrite nth_overflow; [constructor|].
-    destruct (lt_dec g (length x)); [|omega].
+    destruct (lt_dec g (length x)); [|lia].
     apply In_uptoN in l; contradiction.
   - apply bupd_mono, exp_left; intro g'.
     apply prop_andp_left; intros (g & ? & ?); subst.
@@ -450,7 +450,7 @@ Qed.
 Lemma fresh_nat: forall (l : list nat), exists n, ~In n l.
 Proof.
   intros; exists (S (fold_right max O l)).
-  intros X%list_max; omega.
+  intros X%list_max; lia.
 Qed.
 
 Lemma ghost_alloc: forall {RA: Ghost} a pp, ghost.valid a ->
@@ -756,23 +756,4 @@ Proof.
     eapply necR_resource_at_identity; eauto.
   - rewrite Hg, ghost_fmap_singleton.
     apply singleton_join; repeat constructor; auto.
-Qed.
-
-Require Import VST.veric.tycontext.
-Require Import VST.veric.Clight_seplog.
- 
-Lemma own_super_non_expansive: forall {RA: Ghost} n g a pp,
-  approx n (own g a pp) = approx n (own g a (preds_fmap (approx n) (approx n) pp)).
-Proof.
-  intros; unfold own.
-  rewrite !approx_exp; f_equal; extensionality v.
-  unfold Own.
-  rewrite !approx_andp; f_equal.
-  apply pred_ext; intros ? [? Hg]; split; auto; simpl in *.
-  - rewrite <- ghost_of_approx, Hg.
-    rewrite !ghost_fmap_singleton, !preds_fmap_fmap.
-    rewrite approx_oo_approx, approx_oo_approx', approx'_oo_approx by lia; auto.
-  - rewrite ghost_fmap_singleton in *.
-    rewrite preds_fmap_fmap in Hg.
-    rewrite approx_oo_approx', approx'_oo_approx in Hg by lia; auto.
 Qed.

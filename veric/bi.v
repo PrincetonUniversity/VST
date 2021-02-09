@@ -50,7 +50,7 @@ Section cofe.
       + assert (approx (S (S n)) Q a) as HP by (split; auto; lia).
         rewrite <- H in HP; apply HP.
   Qed.
-  Canonical Structure mpredC : ofeT := OfeT mpred mpred_ofe_mixin.
+  Canonical Structure mpredC : ofe := Ofe mpred mpred_ofe_mixin.
 
   Program Definition mpred_compl : Compl mpredC := fun c w => c (level w) w.
   Next Obligation.
@@ -77,7 +77,7 @@ Proof.
   intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha' HP.
   - destruct HP; split; auto.
   - apply Himp; auto; split; auto.
-    pose proof (necR_level _ _ Ha'); omega.
+    pose proof (necR_level _ _ Ha'); lia.
 Qed.
 
 Lemma wand_nonexpansive_l: forall P Q n,
@@ -87,7 +87,7 @@ Proof.
   apply predicates_hered.pred_ext; intros ? [? Hshift]; split; auto; intros ??????.
   - destruct H2; eauto.
   - eapply Hshift; eauto; split; auto.
-    apply necR_level in H0; apply join_level in H1 as []; omega.
+    apply necR_level in H0; apply join_level in H1 as []; lia.
 Qed.
 
 Lemma wand_nonexpansive_r: forall P Q n,
@@ -96,7 +96,7 @@ Proof.
   repeat intro.
   apply predicates_hered.pred_ext; intros ? [? Hshift]; split; auto; intros ??????.
   - split; eauto.
-    apply necR_level in H0; apply join_level in H1 as []; omega.
+    apply necR_level in H0; apply join_level in H1 as []; lia.
   - eapply Hshift; eauto.
 Qed.
 

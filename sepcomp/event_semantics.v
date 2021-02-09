@@ -12,6 +12,8 @@ Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 
+Require Import Coq.micromega.Lia.
+
 (** * Semantics annotated with Owens-style trace*)
 Inductive mem_event :=
   Write : forall (b : block) (ofs : Z) (bytes : list memval), mem_event
@@ -87,7 +89,7 @@ induction T; simpl; intros.
      destruct (zlt ofs (ofs0 + Zlength bytes)); simpl in *; try discriminate.
      rewrite Zlength_correct in *.
      apply Mem.storebytes_range_perm in SB.
-     exploit (SB ofs); try omega.
+     exploit (SB ofs); try lia.
      intros; subst; assumption.
   - (*Load*)
      destruct H as [LB EV]. specialize (IHT _ _ EV); clear EV.
@@ -98,7 +100,7 @@ induction T; simpl; intros.
      destruct (zle ofs0 ofs); simpl in *; try discriminate.
      destruct (zlt ofs (ofs0 + n)); simpl in *; try discriminate.
      apply Mem.loadbytes_range_perm in LB.
-     exploit (LB ofs); try omega.
+     exploit (LB ofs); try lia.
      intros; subst; assumption.
   - (*Alloc*)
      destruct H as [m'' [ALLOC EV]]. specialize (IHT _ _ EV); clear EV.
@@ -124,7 +126,7 @@ induction T; simpl; intros.
          destruct (eq_block bb b); simpl in Heqd; inv Heqd.
          exploit (Heqp ofs); clear Heqp; trivial.
          destruct (zle lo ofs); try discriminate.
-         destruct (zlt ofs hi); try discriminate. omega. }
+         destruct (zlt ofs hi); try discriminate. lia. }
        { eapply po_trans; try eassumption. clear - Heqp.
          remember ((Mem.mem_access m0) !! b ofs Cur) as perm2.
          destruct perm2; try solve [apply po_None].
@@ -273,7 +275,7 @@ Proof. intros l FL. destruct FL as [[[? ?] ?] [? [? ?]]]; subst b0.
            ++ exploit freelist_mem_access_1. eassumption. eassumption. intros XX.
               exfalso. apply Mem.free_result in H. subst m0. simpl in XX.
               rewrite PMap.gss in XX. case_eq (zle z ofs && zlt ofs z0); intros; rewrite H in *; try discriminate.
-              destruct (zle z ofs); try omega; simpl  in *. destruct ( zlt ofs z0); try omega. inv H.
+              destruct (zle z ofs); try lia; simpl  in *. destruct ( zlt ofs z0); try lia. inv H.
            ++ split; trivial. eapply freelist_forward; eauto.
               exploit Mem.free_range_perm. eassumption. eassumption. intros.
               eapply Mem.valid_block_free_1; try eassumption. eapply Mem.perm_valid_block; eauto.
@@ -418,10 +420,10 @@ Proof. unfold in_free_list.
        - destruct (zle z ofs).
          * destruct (zlt ofs z0). -- left. exists (b, z, z0). split; eauto.
            -- right. intros [[[? ?] ?] [? [? ?]]]. subst b0.
-              destruct H. inv H. omega. apply n; clear n.
+              destruct H. inv H. lia. apply n; clear n.
               exists (b, z1, z2). split; eauto.
          * right. intros [[[? ?] ?] [? [? ?]]]. subst b0.
-           destruct H. inv H. omega. apply n; clear n.
+           destruct H. inv H. lia. apply n; clear n.
            exists (b, z1, z2). split; eauto.
        - right. intros [[[? ?] ?] [? [? ?]]]. subst b1.
          destruct H. inv H. congruence.
@@ -519,7 +521,7 @@ Proof.
     + destruct (zle lo ofs); simpl in *; try solve [right; trivial].
       destruct (zlt ofs hi); simpl in *; try solve [right; trivial].
       rewrite <- H; clear H.
-      assert (A: lo <= ofs < hi) by omega.
+      assert (A: lo <= ofs < hi) by lia.
       specialize (r _ A). unfold Mem.perm, Mem.perm_order' in r.
       remember ((Mem.mem_access m) !! bb ofs Cur) as q. destruct q; try contradiction.
       left; split; trivial. destruct p; simpl in *; trivial; inv r.

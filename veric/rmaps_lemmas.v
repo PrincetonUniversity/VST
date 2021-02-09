@@ -1995,7 +1995,7 @@ hnf.
 destruct (levelS_age1 _ _ H).
 assert (x=w'); [ | subst; auto].
 assert (level x = level w')
-  by (apply age_level in H2; omega).
+  by (apply age_level in H2; lia).
 apply rmap_ext; auto.
 intros.
 specialize (H0 l).

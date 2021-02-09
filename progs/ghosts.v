@@ -287,6 +287,8 @@ Qed.
 
 End Snapshot.
 
+#[global] Hint Resolve bupd_intro : ghost.
+
 Section Reference.
 
 Context {P : Ghost}.
@@ -513,7 +515,7 @@ Qed.
 Global Instance max_order : PCM_order Peano.le.
 Proof.
   constructor; auto; intros.
-  - intros ???; lia.
+  - constructor; auto. intros ???; lia.
   - eexists; unfold join; simpl; split; eauto.
     apply Nat.max_lub; auto.
   - hnf in H; subst.
@@ -1365,7 +1367,7 @@ Proof.
   - Exists (fun _ : nat => @None hist_el); apply andp_right, derives_refl.
     apply prop_right; split; [apply hist_list_nil|].
     split; auto.
-    if_tac; auto with ghost.
+    if_tac; auto.
     reflexivity.
 Qed.
 
@@ -1479,7 +1481,7 @@ Qed.
 Lemma hist_list_weak : forall l h (Hl : hist_list h l), hist_list' h l.
 Proof.
   induction l using rev_ind; intros.
-  - apply hist_list_nil_inv2 in Hl; subst; auto with ghost.
+  - apply hist_list_nil_inv2 in Hl; subst; auto.
   - destruct (Hl (length l) x) as (_ & H); exploit H.
     { rewrite nth_error_app2, minus_diag by lia; auto. }
     intro Hx.
@@ -1579,7 +1581,7 @@ Hint Resolve add_events_nil : core.
 
 Lemma add_events_1 : forall h t e (Ht : newer h t), add_events h [e] (map_upd h t e).
 Proof.
-  intros; apply (add_events_snoc _ []); auto with ghost.
+  intros; apply (add_events_snoc _ []); auto.
 Qed.
 
 Lemma add_events_trans : forall h le h' le' h'' (H1 : add_events h le h') (H2 : add_events h' le' h''),
