@@ -891,23 +891,117 @@ Ltac compute_VSULink_Imports v1 v2 :=
     simplify_funspecs x
  end.
 
+Definition privatize_ids (ids: list ident) (fs: funspecs) : funspecs :=
+ filter (fun ix => negb (id_in_list (fst ix) ids)) fs.
+
+Lemma privatize_sub_option:
+ forall ids fs, 
+ list_norepet (map fst fs) ->
+ forall i, PTops.sub_option
+       (initial_world.find_id i (privatize_ids ids fs))
+       (initial_world.find_id i fs).
+Proof.
+intros.
+hnf.
+destruct (initial_world.find_id i (privatize_ids ids fs)) eqn:?H; auto.
+apply assoclists.find_id_filter_Some in H0; auto.
+destruct H0; auto.
+Qed.
+
+Lemma privatizeExports
+   {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP)
+   (ids: list ident)  :
+  @VSU Espec E Imports p (privatize_ids ids Exports) GP.
+Proof.
+destruct v as [G comp].
+exists G.
+apply (Comp_Exports_sub2 _ _ _ _ _ _ _ _ comp).
+apply assoclists.list_norepet_map_fst_filter.
+apply (Comp_Exports_LNR comp).
+apply privatize_sub_option.
+apply (Comp_Exports_LNR comp).
+Qed.
+
+Definition restrictExports {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (Exports': funspecs) :=
+   @VSU Espec E Imports p Exports' GP.
+
+Definition funspec_sub_in (fs: funspecs) (ix: ident * funspec) :=
+  match find_id (fst ix) fs with
+  | Some f => funspec_sub f (snd ix)
+  | None => False
+ end.
+
+Lemma prove_restrictExports
+   {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (Exports': funspecs) :
+   list_norepet (map fst Exports') ->
+   Forall (funspec_sub_in Exports) Exports' ->
+   restrictExports v Exports'.
+Proof.
+intros.
+destruct v as [G c].
+exists G.
+apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
+intros.
+rewrite Forall_forall in H0.
+apply find_id_e in E0.
+apply H0 in E0.
+red in E0.
+simpl in E0.
+destruct (find_id i Exports) eqn:?H; try contradiction.
+apply (Comp_G_Exports c) in H1.
+destruct H1 as [phi' [? ?]].
+exists phi'.
+split; auto.
+eapply funspec_sub_trans; eauto.
+intros.
+apply (Comp_MkInitPred c); auto.
+Qed.
+
+Ltac prove_restrictExports :=
+ simple apply prove_restrictExports; 
+   [apply compute_list_norepet_e; reflexivity || fail "Your restricted Export list has a duplicate function name"
+   | repeat apply Forall_cons; try simple apply Forall_nil;
+       red; simpl find_id; cbv beta iota;
+       change (@abbreviate funspec ?A) with A
+   ].
+
+Ltac simplify_VSU_type t :=
+ lazymatch t with
+ | restrictExports _ _ => let t := eval red in t in simplify_VSU_type t
+ | privatizeExports _ _ => let t := eval red in t in simplify_VSU_type t
+ | VSU _ _ _ _ _ => t
+ | _ => fail "The type of this supposed VSU is" t "which might be OK but we hesitate to reduce it for fear of blowup"
+ end.
+
 Ltac VSULink_type v1 v2 :=
-  match type  of v1 with @VSU ?Espec ?E1 ?Imports1 ?p1 ?Exports1 ?GP1=>
-  match type of v2 with @VSU Espec ?E2 ?Imports2 ?p2 ?Exports2 ?GP2=>
-  let GP := uconstr:(sepcon GP1 GP2) in
-  let E := uconstr:(G_merge E1 E2) in
-  let E := simplify_funspecs E in
-  let Imports := compute_VSULink_Imports v1 v2 in
-  let Exports := constr:(G_merge Exports1 Exports2) in
-  let Exports := simplify_funspecs Exports in
-  let p' :=  uconstr:(QPlink_progs p1 p2) in
-  let p'' := eval vm_compute in p' in
-  let p := lazymatch p'' with
-               | Errors.OK ?p => uconstr:(@abbreviate _ p)
-               | Errors.Error ?m => fail "QPlink_progs failed:" m
-               end in
-   constr:(@VSU Espec E Imports p Exports GP)
- end end.
+lazymatch type of v1 with ?t1 => let t1 := simplify_VSU_type t1 in
+lazymatch t1 with 
+  | @VSU ?Espec ?E1 ?Imports1 ?p1 ?Exports1 ?GP1 =>
+lazymatch type of v2 with ?t2 => let t2 := simplify_VSU_type t2 in
+lazymatch t2 with 
+  | @VSU Espec ?E2 ?Imports2 ?p2 ?Exports2 ?GP2 =>
+          let GP := uconstr:((GP1 * GP2)%logic) in
+          let E := uconstr:((G_merge E1 E2)) in
+          let E := simplify_funspecs E in
+          let Imports := compute_VSULink_Imports v1 v2 in
+          let Exports := constr:((G_merge Exports1 Exports2)) in
+          let Exports := simplify_funspecs Exports in
+          let p' := uconstr:((QPlink_progs p1 p2)) in
+          let p'' := eval vm_compute in p' in
+          let p :=
+           lazymatch p'' with
+           | Errors.OK ?p =>
+               uconstr:(@abbreviate _ p)
+           | Errors.Error ?m => fail "QPlink_progs failed:" m
+           end
+          in
+          constr:((@VSU Espec E Imports p Exports GP))
+  | _ => fail "Especs of VSUs don't match"
+end end end end.
 
 Ltac linkVSUs v1 v2 :=
   let t := VSULink_type v1 v2 in
@@ -1539,84 +1633,6 @@ intros.
 subst.
 apply ComponentJoin; auto.
 Qed.
-
-Definition privatize_ids (ids: list ident) (fs: funspecs) : funspecs :=
- filter (fun ix => negb (id_in_list (fst ix) ids)) fs.
-
-Lemma privatize_sub_option:
- forall ids fs, 
- list_norepet (map fst fs) ->
- forall i, PTops.sub_option
-       (initial_world.find_id i (privatize_ids ids fs))
-       (initial_world.find_id i fs).
-Proof.
-intros.
-hnf.
-destruct (initial_world.find_id i (privatize_ids ids fs)) eqn:?H; auto.
-apply assoclists.find_id_filter_Some in H0; auto.
-destruct H0; auto.
-Qed.
-
-Lemma privatizeExports
-   {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP)
-   (ids: list ident)  :
-  @VSU Espec E Imports p (privatize_ids ids Exports) GP.
-Proof.
-destruct v as [G comp].
-exists G.
-apply (Comp_Exports_sub2 _ _ _ _ _ _ _ _ comp).
-apply assoclists.list_norepet_map_fst_filter.
-apply (Comp_Exports_LNR comp).
-apply privatize_sub_option.
-apply (Comp_Exports_LNR comp).
-Qed.
-
-Definition restrictExports {Espec E Imports p Exports GP} 
-   (v: @VSU Espec E Imports p Exports GP)
-   (Exports': funspecs) :=
-   @VSU Espec E Imports p Exports' GP.
-
-Definition funspec_sub_in (fs: funspecs) (ix: ident * funspec) :=
-  match find_id (fst ix) fs with
-  | Some f => funspec_sub f (snd ix)
-  | None => False
- end.
-
-Lemma prove_restrictExports
-   {Espec E Imports p Exports GP} 
-   (v: @VSU Espec E Imports p Exports GP)
-   (Exports': funspecs) :
-   list_norepet (map fst Exports') ->
-   Forall (funspec_sub_in Exports) Exports' ->
-   restrictExports v Exports'.
-Proof.
-intros.
-destruct v as [G c].
-exists G.
-apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
-intros.
-rewrite Forall_forall in H0.
-apply find_id_e in E0.
-apply H0 in E0.
-red in E0.
-simpl in E0.
-destruct (find_id i Exports) eqn:?H; try contradiction.
-apply (Comp_G_Exports c) in H1.
-destruct H1 as [phi' [? ?]].
-exists phi'.
-split; auto.
-eapply funspec_sub_trans; eauto.
-intros.
-apply (Comp_MkInitPred c); auto.
-Qed.
-
-Ltac prove_restrictExports :=
- simple apply prove_restrictExports; 
-   [apply compute_list_norepet_e; reflexivity || fail "Your restricted Export list has a duplicate function name"
-   | repeat apply Forall_cons; try simple apply Forall_nil;
-       red; simpl find_id; cbv beta iota;
-       change (@abbreviate funspec ?A) with A
-   ].
 
 Ltac QPlink_progs p1 p2 :=
   let p' :=  constr:(QPlink_progs  p1 p2) in
