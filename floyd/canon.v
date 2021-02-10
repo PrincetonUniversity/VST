@@ -2644,4 +2644,43 @@ erewrite lvar_eval_var; eauto.
 eapply lvar_isptr; eauto.
 Qed.
 
+Lemma PARAMSx_super_non_expansive: forall A Q R,
+  super_non_expansive R ->
+  @super_non_expansive A (fun ts a rho => PARAMSx Q (fun ae:argsEnviron => R ts a rho) (ge_of rho, nil)).
+Proof. intros. simpl in *.
+  hnf; intros.
+  unfold PARAMSx.
+  simpl.
+  rewrite !approx_andp.
+  f_equal; auto.
+Qed.
+
+Lemma GLOBALSx_super_non_expansive: forall A G R,
+  super_non_expansive R ->
+  @super_non_expansive A (fun ts a rho => GLOBALSx G (fun ae : argsEnviron => let (g, _) := ae in !! gvars_denote (initialize.globals_of_genv g) rho && R ts a rho)
+  (Map.empty block, nil)).
+Proof.
+  intros. simpl in *.
+  hnf; intros.
+  unfold GLOBALSx, LOCALx, argsassert2assert, Clight_seplog.mkEnv.
+  simpl. rewrite ! approx_andp. f_equal. f_equal. apply H.
+Qed.
+
+Lemma PROP_PARAMS_GLOBALS_SEP_super_non_expansive: forall A P (Q:list val)(G : list globals) R
+  (HypP: Forall (fun P0 => @super_non_expansive A (fun ts a _ => prop (P0 ts a))) P)
+  (HypR: Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R),
+  @super_non_expansive A (fun ts a rho =>
+    PROPx (map (fun P0 => P0 ts a) P) 
+       (PARAMSx Q (fun _ : argsEnviron =>
+         GLOBALSx G (fun ae0 : argsEnviron =>
+            let (g, _) := ae0 in
+            !! gvars_denote (initialize.globals_of_genv g) rho
+            && SEPx (map (fun R0 => R0 ts a) R) rho) (Map.empty block, nil))) (ge_of rho, nil)).
+Proof. intros. simpl.
+ apply (PROPx_super_non_expansive A P) ; [ clear P HypP| apply HypP].
+  apply (PARAMSx_super_non_expansive A Q).
+  apply (GLOBALSx_super_non_expansive A G).
+  apply (SEPx_super_non_expansive A R); apply HypR.
+Qed.
+
 #[export] Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.
