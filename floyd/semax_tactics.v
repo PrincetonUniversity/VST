@@ -105,17 +105,19 @@ end.
 Ltac simplify_func_tycontext' DD :=
   match DD with context [(func_tycontext ?f ?V ?G ?A)] =>
     let D1 := fresh "D1" in let Delta := fresh "Delta" in
-    pose (Delta := @abbreviate tycontext (func_tycontext f V G A));
+    pose (D1 := (func_tycontext f V G A));
+    pose (Delta := @abbreviate tycontext D1);
     change (func_tycontext f V G A) with Delta;
-    unfold func_tycontext, make_tycontext in Delta;
+    unfold func_tycontext, make_tycontext in D1;
     let DS := fresh "Delta_specs" in let DS1 := fresh "DS1" in 
     pose (DS1 := make_tycontext_s G);
     pose (DS := @abbreviate (PTree.t funspec) DS1);
-    change (make_tycontext_s G) with DS in Delta;
+    change (make_tycontext_s G) with DS in D1;
     hnf in DS1;
     cbv beta iota delta [ptree_set] in DS1;
     subst DS1;
-    cbv beta iota zeta delta - [abbreviate DS] in Delta;
+    cbv beta iota zeta delta - [DS] in D1;
+    subst D1;
     check_ground_Delta
    end.
 
