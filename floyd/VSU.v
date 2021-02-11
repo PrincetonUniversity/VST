@@ -349,8 +349,28 @@ Ltac compute_list p :=
      end
  end.
 
+Ltac test_Component_prog_computed' :=
+lazymatch goal with
+ | |- Component _ _ _ (QPprog _) _ _ _ => 
+       fail 1  "The QPprog of this component is of the form (QPprog _), which has not been calculated out to normal form.  Perhaps you meant   ltac:(QPprog _) instead of (QPprog _) in the theorem statement"
+ | |- Component _ _ _ (@abbreviate _ {| QP.prog_builtins := _;
+         QP.prog_defs := _; QP.prog_public := _;
+       QP.prog_main := _;    QP.prog_comp_env := _ |}) _ _ _ =>
+    fail 0 "success"
+ | |- Component _ _ _ abbreviate _ _ _ => 
+     fail 1 "The QPprog of this component is not in normal form"
+ | |- Component _ _ _ ?p _ _ _ => 
+        tryif unfold p then test_Component_prog_computed'
+            else fail 1  "The QPprog of this component is not in normal form"
+ | |- _ => fail 1 "The proof goal is not a Component"
+ end.
+
+Ltac test_Component_prog_computed :=
+ try test_Component_prog_computed'.
+
 Ltac mkComponent prog :=
  hnf;
+ test_Component_prog_computed;
  let p := fresh "p" in
  match goal with |- @Component _ _ _ _ ?pp _ _ _ => set (p:=pp) end;
  let HA := fresh "HA" in 
@@ -846,7 +866,7 @@ match goal with |- ?A = _ =>
 end.
 
 Ltac FDM_tac := 
-  solve [eapply FDM; [ reflexivity | repeat constructor]];
+  try (apply compute_FDM_e;  reflexivity);
   fail "FDM_tac failed".
 
 Ltac VSULink_tac := 
@@ -1706,19 +1726,9 @@ Lemma WholeComponent
    (FDM: Fundefs_match mainprog coreprog (VSU_Exports coreVSU) [])
    (Disj2: list_disjoint (map fst mainE) (IntIDs coreprog))
    (Disj3: list_disjoint (map fst coreE) (IntIDs mainprog))
-   (SC2: forall (i : ident) (phiI : funspec),
-       find_id i (VSU_Exports coreVSU) = Some phiI ->
-        In i (map fst coreE ++ IntIDs coreprog) ->
-       exists phiE : funspec, find_id i coreExports = Some phiE /\ funspec_sub phiE phiI)
    (NOimports: [] = JoinedImports mainE (VSU_Exports coreVSU) coreE [] mainprog coreprog)
    (Hmain: id_in_list (QP.prog_main whole_prog)
-                      (map fst coreExports ++ IntIDs coreprog ++ map fst coreE) = false)
-(*
-   (Hmain:  ~In (QP.prog_main whole_prog) 
-    (IntIDs coreprog ++ map fst coreE))
-   (NOmain: find_id (QP.prog_main mainprog) coreExports = None)
-*)
-:
+                      (map fst coreExports ++ IntIDs coreprog ++ map fst coreE) = false):
    WholeCompType coreVSU mainComponent.
 Proof.
 destruct coreVSU as [coreG coreC].
@@ -1788,10 +1798,12 @@ eapply Comp_Exports_sub2;
 - apply Disj2.
 - apply Disj3.
 - intros. inv H.
-- intros. apply SC2; auto.
+- intros.
+    simpl in H.
    apply find_id_filter_Some in H;
        [ | apply (Comp_Exports_LNR coreC)].
-   destruct H; auto.
+   destruct H as [? _]. eexists phiI. split; auto.
+   apply funspec_sub_refl.
 - intros. inv H0.
 - reflexivity.
 - symmetry in NOimports |- *.
@@ -2863,7 +2875,6 @@ Ltac proveWholeComponent :=
 
  | list_disjoint_tac  || fail "Externs of main-Component overlap with internal funspecs of core-VSU"
  | list_disjoint_tac  || fail "Externs of core-VSU overlap with internal funspecs of main-Component"
- | apply SC_lemma; SC_tac
  | reflexivity || fail "Linked program has nonempty Imports"
  | reflexivity ||
     fail "main is improperly found in the core- VSU Exports or internal IDs or Externs"
