@@ -1832,7 +1832,8 @@ Ltac do_repr_inj H :=
                | unfold nullval in H; (*simple*) apply typed_true_tint_Vint in H
                | unfold nullval in H; (*simple*) apply typed_false_tint_Vint in H
                ];
-   rewrite ?ptrofs_to_int_repr, ?ptrofs_to_int64_repr in H;
+   rewrite ?ptrofs_to_int_repr in H;
+   rewrite ?ptrofs_to_int64_repr in H by reflexivity;
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
    try apply int64_eq_e in H;

@@ -36,7 +36,8 @@ destruct (Share.split t) eqn:?H.
 pose proof (split_join _ _ _ H2).
 simpl in *.
 destruct (Share.ord_spec1 t2 Share.Lsh) as [? _].
-spec H4. apply leq_join_sub. apply sepalg.join_sub_trans with t; eexists; eauto.
+spec H4. { apply leq_join_sub. apply sepalg.join_sub_trans with t.
+                  eexists. apply sepalg.join_comm. eauto. eexists; eauto. }
 rewrite Share.glb_commute,  <- H4 in H.
 subst.
 apply Share.split_nontrivial in H2; auto.
