@@ -308,7 +308,7 @@ Proof.
     + apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (x & ? & Hx).
       exploit IHlasts; eauto; [lia|].
       intro Hj'; destruct (sepalg_list.list_join_assoc2 Hj' Hx) as (? & ? & ?).
-      econstructor; eauto.
+      econstructor. apply sepalg.join_comm; eassumption. auto.
     + inversion Hsh1 as [|????? Hja]; inversion Hsh' as [|????? Hjb]; subst.
       pose proof (sepalg.join_eq Hja Hjb); subst.
       eapply IHlasts; eauto; lia.
@@ -378,7 +378,8 @@ Proof.
     destruct (eq_dec a i).
     + apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
       exploit IHlasts; eauto; [lia|].
-      intro; eapply sepalg.join_sub_trans; eauto; eexists; eauto.
+      intro; eapply sepalg.join_sub_trans; eauto.
+       eexists; apply sepalg.join_comm; eassumption.
     + inversion Hsh2 as [|????? Hj1']; subst.
       pose proof (sepalg.join_eq Hj1 Hj1'); subst.
       eapply IHlasts; eauto; lia.
@@ -406,7 +407,8 @@ Proof.
     inversion Hsh1 as [|????? Hj1 Hj2]; subst.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
     exploit make_shares_sub; eauto; [lia|].
-    intro; eapply sepalg.join_sub_joins_trans; eauto.
+    intro; eapply sepalg.join_sub_joins_trans; try eassumption.
+    eexists; apply sepalg.join_comm; eassumption.
   - rewrite Znth_pos_cons in Hj; [|lia].
     rewrite Znth_pos_cons; [|lia].
     inversion Hsh1 as [|????? Hj1 Hj2].
@@ -592,12 +594,12 @@ Proof.
       * intros (? & Hj1 & Hj2).
         apply list_join_comm.
         apply sepalg.join_comm in Hj2; destruct (sepalg_list.list_join_assoc2 Hj1 Hj2) as (? & ? & ?).
-        econstructor; eauto.
+        econstructor. apply sepalg.join_comm; eassumption.
         apply list_join_comm; auto.
       * intro Hj; apply list_join_comm in Hj.
         inversion Hj as [|????? Hj1 Hj2]; subst.
         apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
-        do 2 eexists; eauto; apply list_join_comm; auto.
+        do 2 eexists. apply list_join_comm; eassumption. apply sepalg.join_comm; eassumption.
       * rewrite upd_Znth_Zlength; rewrite !Zlength_map; auto.
       * rewrite Zlength_map, Zlength_upto; intros.
         rewrite Znth_map, Znth_upto; try lia; try assumption.
@@ -665,10 +667,10 @@ Proof.
       apply prop_ext; split.
       * intros (? & Hj1 & Hj2).
         apply sepalg.join_comm in Hj2; destruct (sepalg_list.list_join_assoc2 Hj1 Hj2) as (? & ? & ?).
-        apply list_join_comm; econstructor; eauto.
+        apply list_join_comm; econstructor; try eassumption. apply sepalg.join_comm; eauto.
       * intro Hj; apply list_join_comm in Hj; inversion Hj as [|????? Hj1 Hj2]; subst.
         apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
-        do 2 eexists; eauto.
+        do 2 eexists; eauto. apply sepalg.join_comm; eauto.
       * lia.
       * rewrite Hlenh; intros; erewrite !Znth_sublist, Znth_map, Znth_map, !Znth_upto;
           rewrite ?Zlength_upto; simpl; try (unfold N in *; lia).
