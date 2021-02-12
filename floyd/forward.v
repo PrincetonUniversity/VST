@@ -1679,59 +1679,6 @@ destruct (Int.eq i Int.zero) eqn:?; inv H1.
 apply int_eq_e in Heqb. subst; reflexivity.
 Qed.
 
-
-Lemma ltu_inv:
- forall x y, Int.ltu x y = true -> Int.unsigned x < Int.unsigned y.
-Proof.
-intros.
-apply Int.ltu_inv in H; destruct H; auto.
-Qed.
-
-Lemma ltu_false_inv:
- forall x y, Int.ltu x y = false -> Int.unsigned x >= Int.unsigned y.
-Proof.
-intros.
-unfold Int.ltu in H. if_tac in H; inv H; auto.
-Qed.
-
-Lemma lt_repr:
-     forall i j : Z,
-       repable_signed i ->
-       repable_signed j ->
-       Int.lt (Int.repr i) (Int.repr j) = true -> (i < j)%Z.
-Proof.
-intros.
-unfold Int.lt in H1. if_tac in H1; inv H1.
-normalize in H2.
-Qed.
-
-Lemma lt_repr_false:
-     forall i j : Z,
-       repable_signed i ->
-       repable_signed j ->
-       Int.lt (Int.repr i) (Int.repr j) = false -> (i >= j)%Z.
-Proof.
-intros.
-unfold Int.lt in H1. if_tac in H1; inv H1.
-normalize in H2.
-Qed.
-
-Lemma lt_inv:
- forall i j,
-   Int.lt i j = true -> (Int.signed i < Int.signed j)%Z.
-Proof.
-intros.
-unfold Int.lt in H. if_tac in H; inv H. auto.
-Qed.
-
-Lemma lt_false_inv:
- forall i j,
-   Int.lt i j = false -> (Int.signed i >= Int.signed j)%Z.
-Proof.
-intros.
-unfold Int.lt in H. if_tac in H; inv H. auto.
-Qed.
-
 Ltac cleanup_repr H :=
 rewrite ?mul_repr, ?add_repr, ?sub_repr in H;
 match type of H with
@@ -1885,7 +1832,7 @@ Ltac do_repr_inj H :=
                | unfold nullval in H; (*simple*) apply typed_true_tint_Vint in H
                | unfold nullval in H; (*simple*) apply typed_false_tint_Vint in H
                ];
-   rewrite ?ptrofs_to_int_repr in H;
+   rewrite ?ptrofs_to_int_repr, ?ptrofs_to_int64_repr in H;
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
    try apply int64_eq_e in H;
@@ -1918,13 +1865,21 @@ Ltac do_repr_inj H :=
           end
          | apply typed_false_nullptr4 in H
          | simple apply ltu_repr in H; [ | rep_lia | rep_lia]
+         | simple apply ltu_repr64 in H; [ | rep_lia | rep_lia]
          | simple apply ltu_repr_false in H; [ | rep_lia | rep_lia]
+         | simple apply ltu_repr_false64 in H; [ | rep_lia | rep_lia]
          | simple apply ltu_inv in H; cleanup_repr H
+         | simple apply ltu_inv64 in H; cleanup_repr H
          | simple apply ltu_false_inv in H; cleanup_repr H
+         | simple apply ltu_false_inv64 in H; cleanup_repr H
          | simple apply lt_repr in H; [ | rep_lia | rep_lia]
+         | simple apply lt_repr64 in H; [ | rep_lia | rep_lia]
          | simple apply lt_repr_false in H; [ | rep_lia | rep_lia]
+         | simple apply lt_repr_false64 in H; [ | rep_lia | rep_lia]
          | simple apply lt_inv in H; cleanup_repr H
+         | simple apply lt_inv64 in H; cleanup_repr H
          | simple apply lt_false_inv in H; cleanup_repr H
+         | simple apply lt_false_inv64 in H; cleanup_repr H
          | idtac
          ];
     rewrite ?Byte_signed_lem, ?Byte_signed_lem',
