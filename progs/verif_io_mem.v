@@ -354,7 +354,6 @@ Proof.
   intros.
   unfold read_sum.
   rewrite unfold_iter.
-  unfold ITree._iter, id.
   if_tac; [|rewrite bind_ret_l; reflexivity].
   rewrite bind_bind.
   apply eqit_bind; [|reflexivity].
@@ -374,7 +373,6 @@ Proof.
   intros.
   unfold for_loop.
   rewrite unfold_iter.
-  unfold ITree._iter, id.
   simple_if_tac; [|rewrite bind_ret_l; reflexivity].
   rewrite bind_bind.
   apply eqit_bind; [|reflexivity].
