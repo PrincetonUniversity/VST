@@ -763,6 +763,65 @@ Definition funspecs_sqsub Exp Exp' :=
   forall i phi', find_id i Exp' = Some phi' ->
          exists phi, find_id i Exp = Some phi /\ funspec_sub phi phi'.
 
+Lemma funspecs_sqsub_app l1 l2 m1 m2 (LM1: map fst l1 = map fst m1) (LM2: map fst l2= map fst m2)
+      (LNR: list_norepet (map fst (l1++l2))):
+      (funspecs_sqsub l1 m1 /\ funspecs_sqsub l2 m2) = funspecs_sqsub (l1++l2) (m1++m2).
+Proof. unfold funspecs_sqsub. rewrite map_app in LNR. destruct (list_norepet_append_inv _ _ _ LNR) as [_[ _ D]]; clear LNR.
+apply prop_ext; split; intros.
++ rewrite assoclists.find_id_app_char in *. destruct H. specialize (H i). specialize (H1 i).
+  destruct (find_id i m1).
+  - inv H0. destruct (H _ (eq_refl _)) as [? [X ?]]. rewrite X. eexists; split; auto.
+  - destruct (H1 _ H0) as [? [X ?]]. 
+    destruct (assoclists.find_id_None_iff i l1). rewrite H4, X. eexists; split; auto.
+    apply list_disjoint_sym in D. 
+    apply find_id_In_map_fst in H0; rewrite <- LM2 in H0.
+    apply (list_disjoint_notin i D H0).
++ split; intros.
+  - specialize (H i). rewrite assoclists.find_id_app_char, H0 in H.
+    destruct (H _ (eq_refl _)) as [? [? ?]]; clear H.
+    rewrite assoclists.find_id_app_char in H1.
+    destruct (find_id i l1). eexists; split; eauto.
+    apply find_id_In_map_fst in H0. apply find_id_In_map_fst in H1. rewrite <- LM1 in H0.
+    elim (D i i H0 H1); trivial.
+ - specialize (H i). rewrite assoclists.find_id_app_char, H0 in H.
+   apply find_id_In_map_fst in H0. rewrite <- LM2 in H0.
+   apply list_disjoint_sym in D. 
+   specialize (list_disjoint_notin i D H0); intros.
+   rewrite assoclists.find_id_app_char in H.
+   destruct (assoclists.find_id_None_iff i l1). rewrite (H3 H1) in H.
+   destruct (assoclists.find_id_None_iff i m1).
+   rewrite LM1 in H1. rewrite (H5 H1) in H. apply H; trivial.
+Qed.
+
+Lemma funspecs_sqsub_refl l: funspecs_sqsub l l.
+Proof. red; intros. exists phi'; split; trivial. apply funspec_sub_refl. Qed.
+
+Lemma funspecs_sqsub_nil: funspecs_sqsub nil nil. 
+Proof. red; intros. inv H. Qed.
+
+Lemma funspecs_sqsub_cons i phi l phi' l': 
+      funspec_sub phi phi' -> funspecs_sqsub l l' ->
+      funspecs_sqsub ((i,phi)::l) ((i,phi')::l').
+Proof. intros; simpl. red; intros; simpl. simpl in H1.
+  if_tac in H1.
++ inv H1. exists phi; split; trivial.
++ apply H0; trivial.
+ Qed.
+
+Lemma funspecs_sqsub_D i phi l phi' l': 
+      funspecs_sqsub ((i,phi)::l) ((i,phi')::l') ->
+      list_norepet (map fst ((i,phi)::l)) -> map fst l = map fst l' ->
+      funspec_sub phi phi' /\ funspecs_sqsub l l'.
+Proof. intros; simpl; split.
++ specialize (H i); simpl in H. rewrite 2 if_true in H; trivial.
+  destruct (H _ (eq_refl _)) as [? [X ?]]. inv X. trivial.
++ red; intros. specialize (H i0); simpl in H.
+  assert (Y: i0<>i). 
+  { intros N; subst. simpl in H0. inv H0.
+    apply find_id_In_map_fst in H2. rewrite H1 in H5; contradiction. }
+  rewrite 2 if_false in H; auto.
+Qed.
+
 Lemma Comp_Exports_sub Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: funspecs_sqsub Exports Exports'):
       @Component Espec V E Imports p Exports' GP G.

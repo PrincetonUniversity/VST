@@ -989,6 +989,30 @@ Ltac prove_restrictExports :=
        change (@abbreviate funspec ?A) with A
    ].
 
+Fixpoint replace_spec (specs:funspecs) p (phi:funspec):funspecs :=
+  match specs with
+     [] => nil
+   | (i,psi)::specs' => if Pos.eqb p i then (i,phi)::specs' else (i,psi)::replace_spec specs' p phi
+  end.
+
+Lemma replace_spec_find_id: forall specs p phi i,
+  find_id i (replace_spec specs p phi) =
+  if Pos.eqb i p then match find_id i specs with None => None | Some _ => Some phi end
+  else find_id i specs.
+Proof. induction specs; simpl; intros.
+  + destruct (Pos.eqb i p); trivial.
+  + destruct a.
+    remember (Pos.eqb p i0) as b; symmetry in Heqb; destruct b; simpl.
+    - apply Peqb_true_eq in Heqb. subst i0.
+      remember (Memory.EqDec_ident i p) as b; symmetry in Heqb; destruct b; subst.
+      * rewrite Pos.eqb_refl; trivial.
+      * remember (Pos.eqb i p) as w; symmetry in Heqw; destruct w; simpl in *; trivial.
+        apply Pos.eqb_eq in Heqw. congruence.
+    - rewrite IHspecs; clear IHspecs.
+      remember (Memory.EqDec_ident i i0) as w; destruct w; symmetry in Heqw; subst; simpl; trivial.
+      rewrite Pos.eqb_sym, Heqb; trivial.
+Qed.
+
 Ltac simplify_VSU_type t :=
  lazymatch t with
  | restrictExports _ _ => let t := eval red in t in simplify_VSU_type t
@@ -1036,6 +1060,20 @@ Ltac linkVSUs v1 v2 :=
   | SC_tac
   | HImports_tac'
   ].
+
+Ltac linkVSUs_Type v1 v2 := let t := VSULink_type v1 v2 in exact t.
+Ltac linkVSUs_Body v1 v2 :=
+apply (VSULink'' _ _ _ _ _ _ _ _ _ _ _ v1 v2);
+   [ reflexivity
+   | reflexivity
+   | reflexivity
+   | reflexivity
+   | reflexivity || fail "Fundefs_match failed"
+   | reflexivity || fail "Externs of vsu1 overlap with Internals of vsu2"
+   | reflexivity || fail "Externs of vsu2 overlap with Internals of vsu1"
+   | SC_tac
+   | SC_tac
+   | HImports_tac' ].
 
 Definition VSU_of_Component {Espec E Imports p Exports GP G}
           (c: @Component Espec (QPvarspecs p) E Imports p Exports GP G) : 
