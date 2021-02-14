@@ -274,7 +274,7 @@ Lemma read_sum_eq : forall n d, read_sum n d ≈
 Proof.
   intros.
   unfold read_sum; rewrite unfold_iter.
-  unfold ITree._iter.
+  unfold ITree.iter.
   if_tac; [|rewrite bind_ret_l; reflexivity].
   if_tac; [|rewrite bind_ret_l; reflexivity].
   repeat setoid_rewrite bind_bind.

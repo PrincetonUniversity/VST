@@ -518,11 +518,9 @@ subgoal 6 (ID 4578) is:
       (* obviously hasDups (thing1 :: x2) = hasDups (thing2 :: x2), since `hasDups x2` *)
       + remember (split x2) as z.
         destruct z.
-        Print hasDups.
-        (* Print in_dec. *) (* looks gnarly *)
-        (* hasDups added and removed here! :^) *)
         simpl in *.
         trivial.
+
 
       (* snd y1 = snd y2 (if there are no dups in the whole state, then the states are the same. but we know there are dups in x2, the tail of the state, so, contradiction!) *)
       + simpl in *.
@@ -533,13 +531,7 @@ subgoal 6 (ID 4578) is:
         discriminate.
         rewrite notInArrayLookupNone in H.
         discriminate.
-        intuition.
-        rewrite unzip_eq_split in H3.
-        remember (split x2) as z.
-        destruct z.
-        pairInv.
-        simpl in *.
-        intuition.
+        intuition. rewrite <- Heqz in H3. simpl in H3. auto.
 
       (* fst y1 = fst y2 (exactly the same as above! if there are no dups in the whole state... but we know there are dups in the tail of the state, so, contradiction!) *)
       + simpl in *.
@@ -550,13 +542,7 @@ subgoal 6 (ID 4578) is:
         discriminate.
         rewrite notInArrayLookupNone in H.
         discriminate.
-        intuition.
-        rewrite unzip_eq_split in H3.
-        remember (split x2) as z.
-        destruct z.
-        pairInv.
-        simpl in *.
-        intuition.
+        intuition. rewrite <- Heqz in H3. simpl in H3. auto.
     
     * (* not a duplicate -- behaves like RB -- a is not in x2 *)
       fcf_skip.
