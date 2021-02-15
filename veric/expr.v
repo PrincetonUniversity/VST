@@ -695,6 +695,7 @@ Fixpoint typecheck_expr {CS: compspecs} (Delta : tycontext) (e: expr) : tc_asser
 let tcr := typecheck_expr Delta in
 match e with
  | Econst_int _ (Tint I32 _ _) => tc_TT
+ | Econst_long _ (Tlong _ _) => tc_TT
  | Econst_float _ (Tfloat F64 _) => tc_TT
  | Econst_single _ (Tfloat F32 _) => tc_TT
  | Etempvar id ty =>
