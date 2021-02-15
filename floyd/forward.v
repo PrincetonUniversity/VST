@@ -3428,14 +3428,15 @@ Ltac no_loads_expr e as_lvalue :=
  | Econst_float _ _ => idtac
  | Econst_single _ _ => idtac
  | Econst_long _ _ => idtac
- | Evar _ ?t => match as_lvalue with true => idtac | false => is_array_type t end
+ | Evar _ ?t => lazymatch as_lvalue with true => idtac | false => is_array_type t end
  | Etempvar _ _ => idtac
- | Ederef ?e1 ?t => constr_eq as_lvalue true; no_loads_expr e1 true
+ | Ederef ?e1 ?t => lazymatch as_lvalue with true => idtac | false => is_array_type t end;
+                               no_loads_expr e1 true
  | Eaddrof ?e1 _ => no_loads_expr e1 true
  | Eunop _ ?e1 _ => no_loads_expr e1 as_lvalue
  | Ebinop _ ?e1 ?e2 _ => no_loads_expr e1 as_lvalue ; no_loads_expr e2 as_lvalue
  | Ecast ?e1 _ => no_loads_expr e1 as_lvalue
- | Efield ?e1 _ ?t => match as_lvalue with true => idtac | false => is_array_type t end;
+ | Efield ?e1 _ ?t => lazymatch as_lvalue with true => idtac | false => is_array_type t end;
                                no_loads_expr e1 true 
  | Esizeof _ _ => idtac
  | Ealignof _ _ => idtac
