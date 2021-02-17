@@ -3613,23 +3613,45 @@ or else hide the * by making a Definition or using a freezer"
   | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
  end.
 
-Ltac  try_forward_store_union_hack e1 s2 id1 :=
+Ltac union_hack_message id1 id2 :=
+ idtac "Converting numeric representations by the hack of storing to union-field" id1
+"then loading from union-field" id2 ". See 'Union casting' in VC.pdf reference manual".
+
+Ltac numeric_forward_store_union_hack id1 id2 :=
+     eapply semax_seq';
+     [ ensure_open_normal_ret_assert;
+       hoist_later_in_pre;
+       union_hack_message id1 id2;
+       forward_store_union_hack id2
+     | unfold replace_nth; abbreviate_semax].
+
+Ltac union_message := 
+ idtac "Suggestion: you are storing to one field of a union, then loading from another.  This is not always illegal.  See chapter 'Union casting' in the VC.pdf reference manual".
+
+Ltac simple_forward_store_union_hack id2 :=
+     eapply semax_seq';
+     [ ensure_open_normal_ret_assert;
+       hoist_later_in_pre;
+       clear_Delta_specs; 
+       sc_set_load_store.store_tac
+     | union_message; unfold replace_nth; abbreviate_semax].
+
+Ltac  try_forward_store_union_hack e1 s2 id1 t1 :=
  let s2' := eval hnf in s2 in
  lazymatch s2' with
- | Ssequence ?s3 _ => try_forward_store_union_hack e1 s3 id1 
- | Sset _ (Efield ?e2 ?id2 _) =>
+ | Ssequence ?s3 _ => try_forward_store_union_hack e1 s3 id1 t1
+ | Sset _ (Efield ?e2 ?id2 ?t2) =>
    tryif unify id1 id2 then fail else idtac;
    unify e1 e2;
    let t := constr:(typeof e1) in let t := eval hnf in t in
    match t with (Tunion _ _) =>
-     idtac "forward_store_union_hack" id2;
-     eapply semax_seq';
-     [ ensure_open_normal_ret_assert;
-       hoist_later_in_pre;
-       forward_store_union_hack id2
-     | unfold replace_nth; abbreviate_semax]
-   end
- end.
+   tryif unify t1 t2 
+   then simple_forward_store_union_hack id2
+   else tryif unify (andb (is_numeric_type t1) (is_numeric_type t2)) true
+      then numeric_forward_store_union_hack id1 id2
+   else fail
+  end
+end.
 
 Ltac forward :=
  lazymatch goal with
@@ -3658,8 +3680,8 @@ Ltac forward :=
     | _ => rewrite -> semax_seq_skip
     end;
     match goal with
-    | |- semax _ _ (Ssequence (Sassign (Efield ?e1 ?id1 _) _) ?s2) _ =>
-           try_forward_store_union_hack e1 s2 id1
+    | |- semax _ _ (Ssequence (Sassign (Efield ?e1 ?id1 ?t1) _) ?s2) _ =>
+           try_forward_store_union_hack e1 s2 id1 t1
     | |- semax _ _ (Ssequence ?c _) _ =>
       check_precondition;
       eapply semax_seq';
