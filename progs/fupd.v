@@ -9,6 +9,7 @@ Require Import VST.progs.invariants.
 Require Export VST.veric.bi.
 Require Import VST.msl.ghost_seplog.
 Import Ensembles.
+Import FashNotation.
 
 (* This should use veric/fupd at some point. *)
 
@@ -21,154 +22,15 @@ Proof.
   unfold Timeless; intros; simpl.
   constructor; change (predicates_hered.derives (|>P) (|>FF || P)); intros ? HP.
   destruct (level a) eqn: Ha.
-  - right; intros ? ?%laterR_level; lia.
-  - left.
+  - left; intros ? ?%laterR_level.
+    rewrite Ha in H1; apply Nat.nlt_0_r in H1; contradiction H1.
+  - right.
     destruct (levelS_age a n) as [b [Hb]]; auto.
     specialize (HP _ (semax_lemmas.age_laterR Hb)).
     eapply H; eauto.
 Qed.
 
-Lemma except0_mono : forall P Q, P |-- Q -> except0 P |-- except0 Q.
-Proof.
-  intros; unfold except0.
-  apply orp_left; [apply orp_right1 | apply orp_right2]; auto.
-Qed.
-
-Lemma except0_intro : forall P, P |-- except0 P.
-Proof.
-  intros; unfold except0.
-  apply orp_right1; auto.
-Qed.
-
-Lemma except0_trans : forall P, except0 (except0 P) |-- except0 P.
-Proof.
-  intros; unfold except0.
-  apply orp_left; [|apply orp_right2]; auto.
-Qed.
-
-Lemma except0_timeless : forall P Q, P |-- except0 Q -> timeless P -> |> P |-- except0 Q.
-Proof.
-  intros.
-  eapply derives_trans; eauto.
-  eapply derives_trans, except0_trans.
-  apply except0_mono; auto.
-Qed.
-
-Lemma except0_frame_r : forall P Q, except0 P * Q |-- except0 (P * Q).
-Proof.
-  intros; unfold except0.
-  rewrite distrib_orp_sepcon.
-  apply orp_left; [apply orp_right1 | apply orp_right2]; auto.
-  eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
-  rewrite <- later_sepcon; apply later_derives.
-  rewrite FF_sepcon; auto.
-Qed.
-
-Lemma except0_frame_l : forall P Q, P * except0 Q |-- except0 (P * Q).
-Proof.
-  intros; rewrite sepcon_comm, (sepcon_comm _ Q); apply except0_frame_r.
-Qed.
-
-Lemma except0_bupd_elim : forall P, except0 (|==> except0 P) |-- |==> except0 P.
-Proof.
-  intros; unfold except0.
-  apply orp_left; auto.
-  eapply derives_trans, bupd_intro.
-  apply orp_right2; auto.
-Qed.
-
-Lemma except0_bupd : forall P, except0 (|==> P) = |==> (except0 P).
-Proof.
-  intro; apply pred_ext.
-  - eapply derives_trans, except0_bupd_elim.
-    apply except0_mono, bupd_mono, except0_intro.
-  - change (predicates_hered.derives (own.bupd (except0 P)) (except0 (own.bupd P))).
-    intros ??; simpl in H.
-    destruct (level a) eqn: Hl.
-    + right.
-      change ((|> FF)%pred a).
-      intros ??%laterR_level; lia.
-    + left.
-      rewrite <- Hl in *.
-      intros ? J; specialize (H _ J) as (? & ? & a' & ? & ? & ? & HP); subst.
-      do 2 eexists; eauto; do 2 eexists; eauto; repeat split; auto.
-      destruct HP as [|Hfalse]; auto.
-      destruct (levelS_age a' n) as (a'' & Hage & ?); [lia|].
-      exfalso; apply (Hfalse a'').
-      constructor; auto.
-Qed.
-
-Lemma except0_sepcon : forall P Q, except0 (P * Q) = except0 P * except0 Q.
-Proof.
-  intros; unfold except0.
-  rewrite distrib_orp_sepcon, !distrib_orp_sepcon2.
-  apply pred_ext.
-  - apply orp_left.
-    + apply orp_right1, orp_right1; auto.
-    + apply orp_right2, orp_right2.
-      rewrite <- later_sepcon, FF_sepcon; auto.
-  - apply orp_left; apply orp_left.
-    + apply orp_right1; auto.
-    + apply orp_right2.
-      eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
-      rewrite <- later_sepcon; apply later_derives; rewrite sepcon_FF; auto.
-    + apply orp_right2.
-      eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
-      rewrite <- later_sepcon; apply later_derives; rewrite FF_sepcon; auto.
-    + apply orp_right2.
-      rewrite <- later_sepcon, FF_sepcon; auto.
-Qed.
-
-Lemma except0_andp : forall P Q, except0 (P && Q) = except0 P && except0 Q.
-Proof.
-  intros; unfold except0.
-  rewrite distrib_orp_andp.
-  rewrite 2(andp_comm _ (_ || _)), !distrib_orp_andp.
-  apply pred_ext.
-  - apply orp_left.
-    + apply orp_right1, orp_right1.
-      rewrite andp_comm; auto.
-    + apply orp_right2, orp_right2.
-      rewrite <- later_andp, FF_andp; auto.
-  - apply orp_left; apply orp_left.
-    + apply orp_right1.
-      rewrite andp_comm; auto.
-    + apply orp_right2.
-      rewrite andp_comm.
-      eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
-      rewrite <- later_andp; apply later_derives; rewrite andp_FF; auto.
-    + apply orp_right2.
-      rewrite andp_comm.
-      eapply derives_trans; [apply andp_derives, now_later; apply derives_refl|].
-      rewrite <- later_andp; apply later_derives; rewrite FF_andp; auto.
-    + apply orp_right2.
-      rewrite <- later_andp, FF_andp; auto.
-Qed.
-
-Lemma except0_exp : forall {A} (x : A) P, except0 (EX x : A, P x) = EX x : A, except0 (P x).
-Proof.
-  intros; unfold except0; apply pred_ext.
-  - apply orp_left.
-    + Intro y; Exists y; apply orp_right1; auto.
-    + Exists x; apply orp_right2; auto.
-  - Intro y; apply orp_left; [apply orp_right1; Exists y | apply orp_right2]; auto.
-Qed.
-
-Lemma timeless_sepcon : forall P Q, timeless P -> timeless Q -> timeless (P * Q).
-Proof.
-  unfold timeless; intros.
-  rewrite later_sepcon, except0_sepcon.
-  apply sepcon_derives; auto.
-Qed.
-
-Lemma timeless_andp : forall P Q, timeless P -> timeless Q -> timeless (P && Q).
-Proof.
-  unfold timeless; intros.
-  rewrite later_andp, except0_andp.
-  apply andp_derives; auto.
-Qed.
-
-Lemma own_timeless : forall {P : Ghost} g (a : G), timeless (own g a NoneP).
+Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
 Proof.
   intros; apply timeless'_timeless.
   intros ?? (v & ? & Hg) ?.
@@ -494,7 +356,7 @@ Proof.
   split.
   - repeat intro; hnf in *.
     setoid_rewrite fupd_nonexpansive; congruence.
-  - exact fupd_intro_mask.
+  - intros. now apply fupd_intro_mask.
   - iIntros (E1 E2 P) ">H ?".
     iApply "H"; auto.
   - exact fupd_mono.
@@ -545,7 +407,7 @@ Proof.
   apply modus_ponens_wand.
 Qed.
 
-Corollary wsat_fupd_elim : forall P, (wsat * (|={empty}=> P) |-- (|==> bi_except_0 (wsat * P)))%I.
+Corollary wsat_fupd_elim : forall P, wsat * (|={empty}=> P)%I |-- (|==> bi_except_0 (wsat * P))%I.
 Proof.
   intros; rewrite wsat_empty_eq.
   replace Empty_set with (coPset_to_Ensemble empty); [apply wsat_fupd_elim'|].

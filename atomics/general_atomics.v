@@ -47,7 +47,7 @@ Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : 
   EX P : mpred, |> P * (ashift P a Ei Eo b Q && cored).
 
 Lemma atomic_commit_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> (EX y, b x y * R' y))%I ->
+  (forall x, R * a x |-- (|==> (EX y, b x y * R' y))%I) ->
   (atomic_shift a Ei Eo b Q * R |-- |={Eo}=> (EX y, Q y * R' y))%I.
 Proof.
   intros.
@@ -60,7 +60,7 @@ Proof.
 Qed.
 
 Corollary atomic_commit_elim : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> (EX y, b x y * R' y))%I ->
+  (forall x, R * a x |-- (|==> (EX y, b x y * R' y))%I) ->
   (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * atomic_shift a Ei Eo b Q * R |-- |==> ◇ (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * (EX y, Q y * R' y)))%I.
 Proof.
   intros.
@@ -71,7 +71,7 @@ Qed.
 
 (* This is unsound: what we really need is fupd in WP. *)
 Lemma atomic_commit : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> (EX y, b x y * R' y))%I ->
+  (forall x, R * a x |-- (|==> (EX y, b x y * R' y))%I) ->
   (atomic_shift a Ei Eo b Q * R |-- |==> (EX y, Q y * R' y))%I.
 Proof.
   intros.
@@ -80,7 +80,7 @@ Proof.
 Admitted.
 
 Lemma atomic_rollback_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> a x * R')%I ->
+  (forall x, R * a x |-- (|==> a x * R')%I) ->
   (atomic_shift a Ei Eo b Q * R |-- |={Eo}=> atomic_shift a Ei Eo b Q * R')%I.
 Proof.
   intros.
@@ -95,7 +95,7 @@ Proof.
 Qed.
 
 Corollary atomic_rollback_elim : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> a x * R')%I ->
+  (forall x, R * a x |-- (|==> a x * R')%I) ->
   (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * atomic_shift a Ei Eo b Q * R |-- |==> ◇ (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * (atomic_shift a Ei Eo b Q * R')))%I.
 Proof.
   intros.
@@ -105,7 +105,7 @@ Proof.
 Qed.
 
 Lemma atomic_rollback : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
-  (forall x, R * a x |-- |==> a x * R')%I ->
+  (forall x, R * a x |-- (|==> a x * R')%I) ->
   (atomic_shift a Ei Eo b Q * R |-- atomic_shift a Ei Eo b Q * R')%I.
 Proof.
   intros.
@@ -122,7 +122,7 @@ Proof.
   apply andp_derives; auto.
   apply wand_derives; auto.
   iIntros "H".
-  iMod (updates.fupd_intro_mask Eo2 Eo1 emp with "[]") as "mask"; auto.
+  iMod (updates.fupd_mask_intro_discard Eo2 Eo1 emp with "[]") as "mask"; auto.
   iMod "H" as (x) "[Ha Hb]".
   iExists x; iFrame.
   iIntros "!>"; iSplit.
@@ -383,22 +383,23 @@ Import List.
 
 Lemma atomic_spec_nonexpansive_pre' : forall {A T} {t : Inhabitant T} W P L R S2 Ei Eo SQ
   (HP : super_non_expansive_list (fun ts w _ => map prop (P ts w)))
-  (HL : super_non_expansive_list (fun ts w rho => map (fun l => !! (locald_denote l rho)) (L ts w)))
   (HR : super_non_expansive_list (fun ts w _ => R ts w)),
   super_non_expansive_a S2 ->
   super_non_expansive_b SQ ->
-  @super_non_expansive (atomic_spec_type W T)
+  @args_super_non_expansive (atomic_spec_type W T)
   (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) =>
     let '(w, Q, inv_names) := _a in
-    PROPx (P ts w) (LOCALx (L ts w)
-     (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w)))).
+    PROPx (P ts w) (PARAMSx (L ts w) (GLOBALSx nil
+     (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))))).
 Proof.
   intros.
   hnf; intros.
   etransitivity; [|etransitivity; [
-    apply (PROP_LOCAL_SEP_super_non_expansive' (atomic_spec_type W T) (fun ts '(w, _, _) => P ts w) (fun ts '(w, _, _) => L ts w) (fun ts '(w, Q, inv_names) => atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))|]].
-  - instantiate (1 := rho); instantiate (1 := ts); instantiate (1 := x).
-    destruct x as ((?, ?), ?); reflexivity.
+    apply (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type W T) (P ts (fst (fst x))) (L ts (fst (fst x))) nil (fun ts '(w, Q, inv_names) => atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))|]].
+  - instantiate (1 := mkEnviron (fst gargs) (fun _ => None) (fun _ => None)).
+    instantiate (1 := ts). instantiate (1 := x). instantiate (1 := n).
+    destruct x as ((?, ?), ?). simpl fst.
+    reflexivity.
   - intros ? ? ((?, ?), ?) ?; apply HP; auto.
   - intros ? ? ((?, ?), ?) ?; apply HL; auto.
   - intros ? ? ((?, ?), ?) ?; constructor; [|apply HR; auto].
@@ -444,14 +445,13 @@ Qed.
 Lemma atomic_spec_nonexpansive_pre : forall {A T} {t : Inhabitant T} W P L R S2 Ei Eo SQ Pre
   (Heq : (forall ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG),
    Pre ts _a = let '(w, Q, inv_names) := _a in
-    PROPx (P ts w) (LOCALx (L ts w)
+    PROPx (P ts w) (PARAMSx (L ts w)
      (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w)))))
   (HP : super_non_expansive_list (fun ts w _ => map prop (P ts w)))
-  (HL : super_non_expansive_list (fun ts w rho => map (fun l => !! (locald_denote l rho)) (L ts w)))
   (HR : super_non_expansive_list (fun ts w _ => R ts w)),
   super_non_expansive_a S2 ->
   super_non_expansive_b SQ ->
-  @super_non_expansive (atomic_spec_type W T) Pre.
+  @args_super_non_expansive (atomic_spec_type W T) Pre.
 Proof.
   intros.
   evar (Pre' : forall ts : list Type, functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG -> environ -> mpred).
@@ -519,17 +519,18 @@ Qed.
 
 (* A is the type of the abstract data. T is the type quantified over in the postcondition.
    W is the TypeTree of the witness for the rest of the function. *)
-Program Definition atomic_spec {A T} {t : Inhabitant T} W args tz la P Qp a lb b Ei Eo
-  (Hla : super_non_expansive_la la) (HP : super_non_expansive' P) (HQp : forall v, super_non_expansive' (Qp v))
+Program Definition atomic_spec {A T} {t : Inhabitant T} W args tz la P Qp a lb
+        b Ei Eo
+   (HP : super_non_expansive' P) (HQp : forall v:T, super_non_expansive' (Qp v))
   (Ha : super_non_expansive_a(A := A) a) (Hlb : super_non_expansive_lb lb) (Hb : super_non_expansive_b b) :=
   mk_funspec (pair args tz) cc_default (atomic_spec_type W T)
   (fun (ts: list Type) '(w, Q, inv_names) =>
     PROP ()
-    (LOCALx (la ts w)
-    (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))))
+    (PARAMSx (la ts w)
+    (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))%assert5))
   (fun (ts: list Type) '(w, Q, inv_names) => EX v : T,
     PROP () (LOCALx (lb ts w v)
-    (SEP (Q v; Qp v ts w)))) _ _.
+    (SEP (Q v; Qp v ts w))%assert5)) _ _.
 Next Obligation.
 Proof.
   intros; eapply atomic_spec_nonexpansive_pre; try eassumption.

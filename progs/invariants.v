@@ -60,15 +60,15 @@ Qed.
 Lemma nth_replace_nth : forall {A} n l a (d : A), (n < length l)%nat ->
   nth n (replace_nth n l a) d = a.
 Proof.
-  induction n; destruct l; auto; simpl; intros; try omega.
-  apply IHn; omega.
+  induction n; destruct l; auto; simpl; intros; try lia.
+  apply IHn; lia.
 Qed.
 
 Lemma nth_replace_nth' : forall {A} n m l a (d : A), m <> n ->
   nth m (replace_nth n l a) d = nth m l d.
 Proof.
-  induction n; destruct l; auto; destruct m; auto; simpl; intros; try omega.
-  apply IHn; omega.
+  induction n; destruct l; auto; destruct m; auto; simpl; intros; try lia.
+  apply IHn; lia.
 Qed.
 
 Section Invariants.
@@ -120,15 +120,15 @@ Proof.
         (map (fun j => match Znth j ((lb ++ repeat None i) ++ [Some true]) with
                        | Some _ => Some (Znth j ((lg ++ repeat O i) ++ [g]))
                        | None => None
-                       end) (upto (length ((l ++ repeat emp i) ++ [P])))) with "inv") as "inv".
-  { rewrite <- !app_assoc, app_length, upto_app, map_app.
+                       end) (sublist.upto (length ((l ++ repeat emp i) ++ [P])))) with "inv") as "inv".
+  { rewrite <- !app_assoc, app_length, sublist.upto_app, map_app.
     split.
     { erewrite app_length, !map_length; lia. }
     intros ?? Hn.
     erewrite app_nth, map_length.
     if_tac; [|erewrite nth_overflow in Hn by (rewrite map_length; lia); discriminate].
     erewrite nth_map' with (d' := 0) in * by auto.
-    erewrite upto_length in *.
+    erewrite sublist.upto_length in *.
     assert (Z.of_nat n < Zlength l).
     { rewrite Zlength_correct; apply Nat2Z.inj_lt; auto. }
     erewrite nth_upto in * by auto.
@@ -146,7 +146,7 @@ Proof.
   - iExists ((l ++ repeat emp i) ++ [P]), ((lg ++ repeat O i) ++ [g]),
          ((lb ++ repeat None i) ++ [Some true]).
     erewrite !(app_length (_ ++ _)); simpl.
-    erewrite !iter_sepcon_eq, upto_app, iter_sepcon_app; simpl.
+    erewrite !iter_sepcon_eq, sublist.upto_app, iter_sepcon_app; simpl.
     erewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; erewrite !Zlength_app, !Zlength_repeat; try lia.
     erewrite Hlg, Hlb, Zminus_diag, !Znth_0_cons.
     erewrite predicates_hered.prop_true_andp by (erewrite !app_length, !repeat_length; lia).
@@ -156,9 +156,9 @@ Proof.
       constructor; intros ? X; unfold Ensembles.In in *.
       * destruct (lt_dec x (length lb)).
       rewrite !app_nth app_length.
-      destruct (lt_dec _ _); [|omega].
-      destruct (lt_dec _ _); [auto | omega].
-      { rewrite -> nth_overflow in X by omega; discriminate. }
+      destruct (lt_dec _ _); [|lia].
+      destruct (lt_dec _ _); [auto | lia].
+      { rewrite -> nth_overflow in X by lia; discriminate. }
       * rewrite !app_nth nth_repeat in X.
       repeat destruct (lt_dec _ _); auto; try discriminate.
       destruct (x - _)%nat; [|destruct n0]; inv X.
@@ -193,8 +193,8 @@ Qed.
 Existing Instance token_PCM.
 
 Lemma wsat_open : forall i P,
-  (wsat * invariant i P * ghost_set g_en (Ensembles.Singleton i) |--
-  |==> wsat * |> P * ghost_list g_dis (list_singleton i (Some tt)))%I.
+  wsat * invariant i P * ghost_set g_en (Ensembles.Singleton i) |--
+  (|==> wsat * |> P * ghost_list g_dis (list_singleton i (Some tt)))%I.
 Proof.
   intros; unfold wsat, invariant.
   iIntros "((H & inv1) & en1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".
@@ -237,7 +237,7 @@ Proof.
     iDestruct "en" as "[% en]".
     erewrite Ensembles.Extensionality_Ensembles at 1; [iFrame | constructor; intros ? X].
     + destruct (eq_dec x i).
-      * subst; unfold Ensembles.In; apply nth_replace_nth; omega.
+      * subst; unfold Ensembles.In; apply nth_replace_nth; lia.
       * inv X; unfold Ensembles.In in *.
         rewrite nth_replace_nth'; auto.
         { inv H2; contradiction. }
@@ -265,8 +265,8 @@ Proof.
 Qed.
 
 Lemma wsat_close : forall i P,
-  (wsat * invariant i P * |> P * ghost_list g_dis (list_singleton i (Some tt)) |--
-  |==> wsat * ghost_set g_en (Ensembles.Singleton i))%I.
+  wsat * invariant i P * |> P * ghost_list g_dis (list_singleton i (Some tt)) |--
+  (|==> wsat * ghost_set g_en (Ensembles.Singleton i))%I.
 Proof.
   intros; unfold wsat, invariant.
   iIntros "(((H & inv1) & HP) & dis1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".
@@ -321,7 +321,7 @@ Proof.
         rewrite nth_replace_nth' in X; auto.
       * intro X'; inv X'.
         unfold Ensembles.In in X.
-        rewrite -> nth_replace_nth in X by omega; inv X.
+        rewrite -> nth_replace_nth in X by lia; inv X.
   - erewrite !iter_sepcon_eq, iter_sepcon_Znth with (i0 := Z.of_nat i)
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
     erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l0 := upto _)

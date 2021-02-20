@@ -12,17 +12,19 @@ Section ghost.
 Context {RA: Ghost}.
 
 Lemma own_alloc_strong : forall P (a : G) (pp : preds), ghost_seplog.pred_infinite P -> valid a ->
-  (emp |-- |==> EX g : own.gname, !!(P g) && own g a pp)%I.
+  emp |-- (|==> EX g : own.gname, !!(P g) && own g a pp)%I.
 Proof.
   exact own_alloc_strong.
 Qed.
 
-Lemma own_alloc : forall (a : G) (pp : preds), valid a -> (emp |-- |==> EX g : own.gname, own g a pp)%I.
+Set Printing All.
+
+Lemma own_alloc : forall (a : G) (pp : preds), valid a -> emp%I |-- (|==> EX g : own.gname, own g a pp)%I.
 Proof.
   exact own_alloc.
 Qed.
 
-Lemma own_dealloc : forall g (a : G) (pp : preds), (own g a pp |-- |==> emp)%I.
+Lemma own_dealloc : forall g (a : G) (pp : preds), own g a pp |-- (|==> emp)%I.
 Proof.
   exact own_dealloc.
 Qed.
@@ -32,7 +34,7 @@ Proof.
   exact own_update.
 Qed.
 
-Lemma own_update_ND : forall g a B pp, fp_update_ND a B -> (own g a pp |-- |==> EX b : G, !! B b && own g b pp)%I.
+Lemma own_update_ND : forall g a B pp, fp_update_ND a B -> own g a pp |-- (|==> EX b : G, !! B b && own g b pp)%I.
 Proof.
   exact own_update_ND.
 Qed.
@@ -79,17 +81,17 @@ Section Snapshot.
 
 Context `{ORD : PCM_order}.
 
-Lemma master_update : forall v v' p, ord v v' -> (ghost_master Tsh v p |-- |==> ghost_master Tsh v' p)%I.
+Lemma master_update : forall v v' p, ord v v' -> ghost_master Tsh v p |-- (|==> ghost_master Tsh v' p)%I.
 Proof.
   exact master_update.
 Qed.
 
-Lemma make_snap : forall (sh : share) v p, (ghost_master sh v p |-- |==> ghost_snap v p * ghost_master sh v p)%I.
+Lemma make_snap : forall (sh : share) v p, ghost_master sh v p |-- (|==> ghost_snap v p * ghost_master sh v p)%I.
 Proof.
   exact make_snap.
 Qed.
 
-Lemma ghost_snap_forget : forall v1 v2 p, ord v1 v2 -> (ghost_snap v2 p |-- |==> ghost_snap v1 p)%I.
+Lemma ghost_snap_forget : forall v1 v2 p, ord v1 v2 -> ghost_snap v2 p |-- (|==> ghost_snap v1 p)%I.
 Proof.
   exact ghost_snap_forget.
 Qed.
