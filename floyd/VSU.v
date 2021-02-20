@@ -6,6 +6,45 @@ Require Export VST.floyd.QPcomposite.
 Require Export VST.floyd.quickprogram.
 Require Export VST.floyd.Component.
 
+Lemma valid_pointer_is_null_or_ptr p: valid_pointer p |-- !!( is_pointer_or_null p).
+Proof. apply valid_pointer_is_pointer_or_null. Qed.
+
+Lemma semax_body_subsumespec_VprogNil {cs V G f iphi}:
+       @semax_body [] G cs f iphi ->
+       list_norepet (map fst V ++ map fst G) ->
+       @semax_body V G cs f iphi.
+Proof. intros. eapply Component.semax_body_subsumespec. apply H.
++ intros i. red. 
+  rewrite 2 semax_prog.make_context_g_char; trivial.
+  destruct ((make_tycontext_s G) ! i); trivial. simpl; trivial.
+  simpl. eapply list_norepet_append_right. apply H0.
++ intros. apply subsumespec_refl.
+Qed.
+
+Lemma semax_body_subsumespec_NilNil {cs V G f iphi}:
+       @semax_body [] [] cs f iphi ->
+       list_norepet (map fst V ++ map fst G) ->
+       @semax_body V G cs f iphi.
+Proof. intros. eapply semax_body_subsumespec_VprogNil; trivial. 
+  eapply semax_body_subsumespec_GprogNil; trivial.
+  simpl. eapply list_norepet_append_right. apply H0.
+Qed.
+
+Lemma init_data2pred_isptr {gv d sh v}:init_data2pred gv d sh v |-- !!(isptr v).
+Proof. 
+  destruct d; simpl; entailer. apply mapsto_zeros_isptr.
+  destruct (gv i); entailer!.
+Qed.
+
+Lemma globvar2pred_headptr gv i u (G: globals_ok gv) (U: @gvar_init type u <> nil) (UU: @gvar_volatile type u = false):
+      globvar2pred gv (i, u) |-- !! headptr (gv i).
+Proof.
+  destruct (G i). entailer!. rewrite H.
+  unfold globvar2pred. simpl. rewrite UU, H.
+  destruct (@gvar_init type u). elim U; trivial. simpl.
+  sep_apply (@init_data2pred_isptr gv i0 (readonly2share (@gvar_readonly type u)) Vundef). entailer!.
+Qed.
+
 Lemma SF_ctx_subsumption {Espec} V G ge i fd phi cs
   (HSF:  @SF Espec cs V ge G i fd phi)
   (LNR_G: list_norepet (map fst G)) G' V' ge' cs'
