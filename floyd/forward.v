@@ -4211,7 +4211,7 @@ Ltac start_function2 :=
         | rewrite close_precondition_main ].
 
 Ltac start_function3 :=
-(*NEW simpl map;*) simpl app;
+ simpl app;
  simplify_func_tycontext;
  repeat match goal with
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
@@ -4243,8 +4243,8 @@ Ltac start_function3 :=
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
- try match goal with DS := @abbreviate (PTree.t funspec) PTree.Leaf |- _ =>
-     clearbody DS
+ try match goal with DS := @abbreviate (PTree.t funspec) ?DS1 |- _ =>
+     unify DS1 (PTree.empty funspec); clearbody DS
  end;
  start_function_hint.
 
@@ -4365,14 +4365,13 @@ end.
 
 Ltac make_composite_env composites :=
 let j := constr:(build_composite_env' composites I)
- (* in let j := eval unfold composites in j *)
 in let j := eval cbv beta iota zeta delta [
        build_composite_env' build_composite_env
        PTree.empty
       ] in j
- in  match j with context C [add_composite_definitions PTree.Leaf ?c] =>
-             let cd := simplify_add_composite_definitions (@PTree.Leaf composite) c in 
-             cd (* let j := context C [cd] in j *)
+ in  match j with context C [add_composite_definitions ?empty ?c] =>
+             let cd := simplify_add_composite_definitions empty c in 
+             cd
      end.
 
 Ltac make_composite_env0 prog :=

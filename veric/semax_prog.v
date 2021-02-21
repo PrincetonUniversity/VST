@@ -438,7 +438,6 @@ clear - H0.
 revert H0; induction G'; simpl; intros; auto.
 rewrite PTree.gempty in H0; inv H0.
 destruct (eq_dec id' (fst a)). subst.
-change (@ptree_set) with (@PTree.set) in H0.
 destruct a; simpl in *.
 rewrite PTree.gss in H0 by auto. inv  H0.
 auto.
@@ -818,9 +817,9 @@ assert (H9: In (id, mk_funspec f0 cc0 A a a0 P_ne Q_ne) G). {
   induction G; simpl in *.
   rewrite PTree.gempty in H1; inv H1.
   destruct (ident_eq (fst a1) id); subst.
-  change (@ptree_set) with (@PTree.set) in *. destruct a1; simpl in *.
+  destruct a1; simpl in *.
   rewrite PTree.gss in H1; inv H1. left; auto.
-  change (@ptree_set) with (@PTree.set) in *. destruct a1; simpl in *. 
+  destruct a1; simpl in *. 
   rewrite PTree.gso in H1; auto.
 }
 rewrite (find_id_i _ _ _ H9); auto.
@@ -931,9 +930,9 @@ simpl in H1. unfold make_tycontext_g in H1; simpl in H1.
 induction G; simpl in *.
 rewrite PTree.gempty in H1; inv H1.
 destruct (ident_eq (fst a1) id); subst.
-change (@ptree_set) with (@PTree.set) in *. destruct a1; simpl in *.
+destruct a1; simpl in *.
 rewrite PTree.gss in H1; inv H1. left; auto.
-change (@ptree_set) with (@PTree.set) in *. destruct a1; simpl in *. 
+destruct a1; simpl in *. 
 rewrite PTree.gso in H1; auto.
 }
 rewrite (find_id_i _ _ _ H9); auto.
