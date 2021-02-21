@@ -6,9 +6,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Import Memdata.
 
-Definition Gprog : funspecs :=
-    ltac:(with_library prog (@nil(ident*funspec))).
-
+Definition Gprog : funspecs := nil.
 
 Definition g_spec :=
  DECLARE _g
@@ -22,6 +20,30 @@ Lemma body_g: semax_body Vprog Gprog f_g g_spec.
 Proof.
 start_function.
 forward.
+forward.
+forward.
+cancel.
+Qed.
+
+Definition unconst_spec :=
+ DECLARE _unconst
+ WITH p: val
+ PRE [ tptr tschar ]
+   PROP() PARAMS(p) SEP()
+ POST [ tptr tschar ]
+   PROP() RETURN (p) SEP().
+
+Lemma unconst_aux:
+  forall (x: val) v, 
+      data_at Tsh (Tunion _const_or_not noattr) (inl x) v =
+      data_at Tsh (Tunion _const_or_not noattr) (inr x) v.
+Proof. reflexivity. Qed.
+
+Lemma body_unconst: semax_body Vprog Gprog f_unconst unconst_spec.
+Proof.
+start_function.
+forward.
+rewrite unconst_aux.
 forward.
 forward.
 cancel.
@@ -297,22 +319,6 @@ Definition fabs_single_spec :=
    PROP() PARAMS (Vsingle x) SEP()
  POST [ Tfloat F32 noattr ]
    PROP() RETURN (Vsingle (Float32.abs x)) SEP().
-
-Lemma union_field_address: forall id,
-  tl composites = (Composite id Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil) ->
- forall p,
-  field_address (Tunion id noattr) [UnionField _f] p = field_address (Tunion id noattr) [UnionField _i] p.
-Proof.
-  intros.
-  inversion H.
-  assert (field_compatible (Tunion id noattr) [UnionField _f] p 
-               <-> field_compatible (Tunion id noattr) [UnionField _i] p).
-2: subst id;  unfold field_address; if_tac; if_tac; auto; tauto.
-subst id.
-  rewrite !field_compatible_cons; simpl.
-  unfold in_members; simpl.
-  tauto.
-Qed.
 
 Lemma body_fabs_single: semax_body Vprog Gprog f_fabs_single fabs_single_spec.
 Proof.
