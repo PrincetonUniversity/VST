@@ -602,7 +602,7 @@ Ltac entbang :=
         clear MORE_COMMANDS
       end;
  lazymatch goal with
- | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower; 
+ | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower;
           rewrite ?TT_andp, ?andp_TT; try apply TT_right
  | |- ?P |-- _ =>
     lazymatch type of P with

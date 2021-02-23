@@ -96,7 +96,7 @@ Proof.
 intros.
 hnf in H. destruct p; try contradiction; simpl; auto.
 Qed.
-Hint Resolve malloc_compatible_isptr : core.
+#[export] Hint Resolve malloc_compatible_isptr : core.
 
 Lemma body_initialize_channels : semax_body Vprog Gprog f_initialize_channels initialize_channels_spec.
 Proof.
@@ -129,7 +129,7 @@ Proof.
     clear; unfold data_at, field_at, at_offset; Intros.
     rewrite !data_at_rec_eq; unfold withspacer; simpl.
     unfold array_pred, aggregate_pred.array_pred, unfold_reptype; simpl.
-    entailer!.
+    entailer!. clear H0.
     { destruct H as [? [? [? [? ?]]]].
       split; [| split; [| split; [| split]]]; auto.
       destruct b; inv H.
