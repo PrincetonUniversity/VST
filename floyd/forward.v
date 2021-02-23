@@ -2695,48 +2695,8 @@ Tactic Notation "forward_if" constr(post) :=
 Tactic Notation "forward_if" :=
   forward_if'_new.
 
-Ltac deprecate_norm1 :=
- idtac "You are using a deprecated feature of 'normalize'.  For future compatibility,
-  at this point do 'autorewrite with subst typeclass_instances' before 'normalize'.
-  To supress this message,   Ltac deprecate_norm1 ::= idtac.".
-
-Ltac deprecate_norm2 :=
- idtac "You are using a deprecated feature of 'normalize'.  For future compatibility,
-  at this point do 'autorewrite with ret_assert typeclass_instances' before 'normalize'.
-  To supress this message,   Ltac deprecate_norm2 ::= idtac.".
-
-Ltac deprecate_norm3 :=
- idtac "You are using a deprecated feature of 'normalize'.  For future compatibility,  replace 'normalize' with 
-      (floyd.seplog_tactics.normalize;
-      repeat (first [ simpl_tc_expr
-                         | simple apply semax_extract_PROP; fancy_intros true
-                         | move_from_SEP];
-      cbv beta; msl.log_normalize.normalize).
-Better yet, you might be able to replace the entire 'normalize' call with some combination of 'Intros' and other standard Floyd tactics.
-To supress this message,   Ltac deprecate_norm3 ::= idtac.".
-
 Ltac normalize :=
- try match goal with |- context[subst] =>
-         progress (autorewrite with subst typeclass_instances);
-         deprecate_norm1
-      end;
- try match goal with |- context[ret_assert] =>
-         progress (autorewrite with ret_assert typeclass_instances);
-         deprecate_norm2
-      end;
- match goal with
- | |- semax _ _ _ _ =>
-  floyd.seplog_tactics.normalize;
-  tryif progress (repeat
-  (first [ simpl_tc_expr
-         | simple apply semax_extract_PROP; fancy_intros true
-         | move_from_SEP
-         ]))
-     then deprecate_norm3; cbv beta; msl.log_normalize.normalize 
-     else idtac
-  | |- _  =>
-    floyd.seplog_tactics.normalize
-  end.
+ floyd.seplog_tactics.normalize.
 
 Ltac renormalize :=
   progress (autorewrite with subst norm1 norm2); normalize;
@@ -4680,6 +4640,34 @@ apply extract_compEnv;
   | |- build_composite_env ?com = Errors.OK ?cenv_cs =>
     unfold build_composite_env, com
   end;
+ repeat lazymatch goal with
+| |- add_composite_definitions ?env nil = _ =>
+ let e := eval hnf in env in let e := eval simpl in e in 
+ change env with e; reflexivity
+| |- 
+ add_composite_definitions ?env (Composite ?id ?su ?m ?a :: ?defs0) = _ =>
+ let e := eval hnf in env in let e := eval simpl in e in 
+ let c := constr:(composite_of_def e id su m a) in
+ let c := eval hnf in c in 
+change (add_composite_definitions env (Composite id su m a :: defs0))
+ with (Errors.bind c
+           (fun co => add_composite_definitions (PTree.set id co e) defs0));
+ match c with Errors.OK
+ {| co_su := _; co_members := ?m; co_attr := _;
+   co_sizeof := ?s; co_alignof := ?a; co_rank := ?r;
+   co_sizeof_pos := ?sp; co_alignof_two_p := ?atp;
+   co_sizeof_alignof := ?sa |} =>
+  let s' := eval compute in s in change s with s';
+  let a' := eval compute in a in change a with a';
+  let r' := eval compute in r in change r with r';
+  replace sp with (Zgeb0_ge0 s' eq_refl) by apply proof_irr;
+  replace atp with (prove_alignof_two_p a' eq_refl) by apply proof_irr;
+  replace sa with (prove_Zdivide a' s' eq_refl) by apply proof_irr
+ end;
+ unfold Errors.bind at 1
+| |- _ => fail "Unexpected error in solve_cenvcs_goal"
+end.
+(*
 repeat treat_one_compdef;
 rewrite add_composite_definitions_nil; unfold mk_OKComposite in *; f_equal; simpl cenv_cs;
 repeat f_equal;
@@ -4688,7 +4676,7 @@ repeat   match goal with
      end;
 clear;
 apply composite_eq; reflexivity.
-(*  || (cbv; repeat f_equal; apply proof_irr). *)
+*)
 
 Ltac prove_semax_prog_aux tac :=
   match goal with

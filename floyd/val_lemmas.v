@@ -449,34 +449,53 @@ pose proof (Int64.eq_spec v Int64.zero).
 destruct (Int64.eq v Int64.zero); auto. inv H.
 Qed.
 
-Ltac intro_redundant_prop :=
-  (* do it in this complicated way because the proof will come out smaller *)
-match goal with |- ?P -> _ =>
-  ((assert P by immediate; fail 1) || fail 1) || intros _
-end.
+Ltac intro_redundant P :=
+ match goal with H: P |- _ => idtac end.
+
+Ltac fancy_intro_discriminate H := idtac.
 
 Ltac fancy_intro aggressive :=
- match goal with
+ lazymatch goal with |- ~ _ => red | _ => idtac end;
+ lazymatch goal with
  | |- ?P -> _ => match type of P with Prop => idtac end
- | |- ~ _ => idtac
  end;
+ tryif 
+ lazymatch goal with |- ?P -> _ =>
+     lazymatch P with
+     | ptr_eq ?v1 ?v2 => intro_redundant (v1=v2)
+     | Vint ?x = Vint ?y => constr_eq x y + intro_redundant (x=y)
+     | tc_val ?ty ?v =>
+         lazymatch ty with
+         | Tint ?sz ?sg _ => intro_redundant(is_int sz sg v)
+         | Tlong _ _ => intro_redundant(is_long v)
+         | Tfloat F32 _ => intro_redundant(is_single v)
+         | Tfloat F64 _ => intro_redundant(is_float v)
+         | Tpointer _ _ =>
+           tryif (unify ty int_or_ptr_type) 
+           then intro_redundant (is_pointer_or_integer v)
+           else intro_redundant (is_pointer_or_null v)
+         | Tarray _ _ _ =>  intro_redundant (is_pointer_or_null v)
+         | Tfunction _ _ _ =>  intro_redundant (is_pointer_or_null v)
+         | _ =>  intro_redundant (isptr v)
+         end
+     | ?x = ?y => constr_eq x y + intro_redundant P
+     | _ => intro_redundant P + unify P True
+    end
+   end
+   then intros _
+   else 
  let H := fresh in
  intro H;
  try simple apply ptr_eq_e in H;
  try simple apply Vint_inj in H;
- try match type of H with
+ try lazymatch type of H with
  | tc_val _ _ => unfold tc_val in H; try change (eqb_type _ _) with false in H; cbv iota in H
- end;
- match type of H with
- | ?P => clear H; 
-              match goal with H': P |- _ => idtac end (* work around bug number 6998 in Coq *)
-             + (((assert (H:P) by (clear; immediate); fail 1) || fail 1) || idtac)
-                (* do it in this complicated way because the proof will come out smaller *)
- | ?x = ?y => constr_eq aggressive true;
-                     first [subst x | subst y
-                             | is_var x; rewrite H
-                             | is_var y; rewrite <- H
-                             | idtac]
+ | ?x = ?y => tryif constr_eq aggressive true
+                     then first [subst x | subst y
+                                    | is_var x; rewrite H
+                                    | is_var y; rewrite <- H
+                                    | try fancy_intro_discriminate H]
+                     else (try fancy_intro_discriminate H)
  | headptr (_ ?x) => let Hx1 := fresh "HP" x in
                      let Hx2 := fresh "P" x in
                        rename H into Hx1;
@@ -498,17 +517,12 @@ Ltac fancy_intro aggressive :=
         first [simple apply typed_true_of_bool in H
                | apply typed_true_tint_Vint in H
                | apply typed_true_tlong_Vlong in H
-(*  This one is not portable 32/64 bits 
-                | apply (typed_true_e tint) in H
-*)
                | apply typed_true_ptr in H
                | idtac ]
- (* | locald_denote _ _ => hnf in H *)
- | _ => try solve [discriminate H]
  end.
 
 Ltac fancy_intros aggressive :=
- repeat match goal with
+ repeat lazymatch goal with
   | |- (_ <= _ < _) -> _ => fancy_intro aggressive
   | |- (_ < _ <= _) -> _ => fancy_intro aggressive
   | |- (_ <= _ <= _) -> _ => fancy_intro aggressive

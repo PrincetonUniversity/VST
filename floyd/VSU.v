@@ -425,7 +425,7 @@ Ltac mkComponent prog :=
  | ];
  (* Doing the  set(myenv...), instead of before proving the CSeq assertion,
      prevents nontermination in some cases  *)
- set (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
+ pose (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
  assert (CSeq: _ = compspecs_of_QPcomposite_env myenv 
                      (proj2 OK))
    by (apply compspecs_eq_of_QPcomposite_env;

@@ -52,7 +52,7 @@ Definition sha256state_ (sh: share) (a: s256abs) (c: val) : mpred :=
 
 Lemma sha256_state__isptr sh a c: sha256state_ sh a c |-- !!isptr c.
 Proof. unfold sha256state_. Intros r. entailer!. Qed.
-Hint Resolve sha256_state__isptr : saturate_local.
+#[export] Hint Resolve sha256_state__isptr : saturate_local.
 
 Definition _ptr : ident := 81%positive.
 Definition _x : ident := 82%positive.
