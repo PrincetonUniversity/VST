@@ -122,8 +122,8 @@ Proof.
   apply andp_derives; auto.
   apply wand_derives; auto.
   iIntros "H".
-  iMod (updates.fupd_mask_intro_discard Eo2 Eo1 emp with "[]") as "mask"; auto.
-  iMod "H" as (x) "[Ha Hb]".
+  iMod (fupd_mask_subseteq _ H) as "mask".
+  iMod"H" as (x) "[Ha Hb]".
   iExists x; iFrame.
   iIntros "!>"; iSplit.
   - iIntros "a"; iMod ("Hb" with "a") as "$"; auto.
@@ -144,7 +144,7 @@ Proof.
   iMod (inv_open with "I") as "[R Hclose]"; first done.
   iMod (Ha1 with "R") as (x) "[a R]".
   iExists x; iFrame.
-  iMod (updates.fupd_intro_mask (Eo ∖ inv i) Ei emp with "[]") as "mask"; auto.
+  iMod (fupd_mask_subseteq _ Hio) as "mask".
   iIntros "!>"; iSplit.
   - iIntros "a"; iFrame.
     iMod "mask" as "_".
@@ -381,21 +381,24 @@ Import List.
      (SEP (Q v)))) _ _).*)
 
 
-Lemma atomic_spec_nonexpansive_pre' : forall {A T} {t : Inhabitant T} W P L R S2 Ei Eo SQ
-  (HP : super_non_expansive_list (fun ts w _ => map prop (P ts w)))
-  (HR : super_non_expansive_list (fun ts w _ => R ts w)),
+Lemma atomic_spec_nonexpansive_pre' : forall {A T} {t : Inhabitant T} W P L G R S2 Ei Eo SQ
+  (HP : Forall (fun P0 => @super_non_expansive W (fun ts a _ => prop (P0 ts a))) P)
+  (HQ: forall n ts x, L ts x = L ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
+  (HR : Forall (fun R0 => @super_non_expansive W (fun ts a _ => R0 ts a)) R),
   super_non_expansive_a S2 ->
   super_non_expansive_b SQ ->
   @args_super_non_expansive (atomic_spec_type W T)
   (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) =>
     let '(w, Q, inv_names) := _a in
-    PROPx (P ts w) (PARAMSx (L ts w) (GLOBALSx nil
-     (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))))).
+    PROPx (map (fun P0 => P0 ts w) P) (PARAMSx (L ts w) (GLOBALSx G
+     (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: map (fun R0 => R0 ts w) R))))).
 Proof.
   intros.
   hnf; intros.
   etransitivity; [|etransitivity; [
-    apply (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type W T) (P ts (fst (fst x))) (L ts (fst (fst x))) nil (fun ts '(w, Q, inv_names) => atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))|]].
+    eapply PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' with (R := (fun ts '(w, Q, inv_names) => atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q) :: map (fun R0 ts x => R0 ts (fst (fst x))) R)|]].
+  .
+  intros.
   - instantiate (1 := mkEnviron (fst gargs) (fun _ => None) (fun _ => None)).
     instantiate (1 := ts). instantiate (1 := x). instantiate (1 := n).
     destruct x as ((?, ?), ?). simpl fst.

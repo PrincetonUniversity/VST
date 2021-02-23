@@ -2761,13 +2761,16 @@ Qed.
 
 Lemma PARAMSx_args_super_non_expansive: forall A Q R,
   args_super_non_expansive R ->
-  @args_super_non_expansive A (fun ts a ae => PARAMSx Q (R ts a) ae).
+  (forall n ts x, Q ts x = Q ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)) ->
+  @args_super_non_expansive A (fun ts a ae => PARAMSx (Q ts a) (R ts a) ae).
 Proof. intros. simpl in *.
   hnf; intros.
   unfold PARAMSx.
   simpl.
   rewrite !approx_andp.
   f_equal; auto.
+  f_equal; f_equal; f_equal.
+  apply H0.
 Qed.
 
 Lemma GLOBALSx_args_super_non_expansive: forall A G R,
@@ -2780,16 +2783,17 @@ Proof.
   unfold argsassert2assert. simpl. apply H.
 Qed.
 
-Lemma PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive: forall A P (Q:list val)(G : list globals) R
+Lemma PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive: forall A P Q G R
   (HypP: Forall (fun P0 => @args_super_non_expansive A (fun ts a _ => prop (P0 ts a))) P)
+  (HypQ: forall n ts x, Q ts x = Q ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
   (HypR: Forall (fun R0 => @args_super_non_expansive A (fun ts a _ => R0 ts a)) R),
   @args_super_non_expansive A (fun ts a ae =>
     PROPx (map (fun P0 => P0 ts a) P)
-       (PARAMSx Q
+       (PARAMSx (Q ts a)
          (GLOBALSx G (SEPx (map (fun R0 => R0 ts a) R)))) ae).
 Proof. intros. simpl.
  apply (PROPx_args_super_non_expansive A P) ; [ clear P HypP| apply HypP].
-  apply (PARAMSx_args_super_non_expansive A Q).
+  apply (PARAMSx_args_super_non_expansive A Q); [|apply HypQ].
   apply (GLOBALSx_args_super_non_expansive A G).
   apply (SEPx_args_super_non_expansive A R); apply HypR.
 Qed.
@@ -2818,17 +2822,19 @@ Proof.
   intros. eapply super_non_expansive_args_super_non_expansive. apply H.
 Qed.
 
-Lemma PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive': forall A P (Q:list val)(G : list globals) R
+Lemma PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive': forall A P Q (G : list globals) R
   (HypP: Forall (fun P0 => @super_non_expansive A (fun ts a _ => prop (P0 ts a))) P)
+  (HypQ: forall n ts x, Q ts x = Q ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
   (HypR: Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R),
   @args_super_non_expansive A (fun ts a ae =>
     PROPx (map (fun P0 => P0 ts a) P)
-       (PARAMSx Q
+       (PARAMSx (Q ts a)
          (GLOBALSx G (SEPx (map (fun R0 => R0 ts a) R)))) ae).
 Proof. intros.
   apply PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive.
   { eapply Forall_impl; [ | eassumption]. clear. simpl; intros.
     apply super_non_expansive_args_super_non_expansive. trivial. }
+  { apply HypQ. }
   { eapply Forall_impl; [ | eassumption]. clear. simpl; intros.
     apply super_non_expansive_args_super_non_expansive. trivial. }
 Qed.
