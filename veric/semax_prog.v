@@ -2301,13 +2301,9 @@ Proof.
 apply semax_func_app.
 + eapply semax_func_subsumption; [ | | apply SF1].
 - hnf; simpl. intuition.
-* rewrite PTree.gempty; trivial.
-* rewrite PTree.gempty. simpl; trivial.
 - intros. specialize (K1 id). eapply sub_option_trans. apply K1. trivial.
 + eapply semax_func_subsumption; [ | | apply SF2].
 - hnf; simpl. intuition.
-* rewrite PTree.gempty; trivial.
-* rewrite PTree.gempty. simpl; trivial.
 - intros. specialize (N1 id). eapply sub_option_trans. apply N1. trivial.
 + clear - SF1. eapply semax_func_length. apply SF1.
 Qed.
@@ -2443,7 +2439,7 @@ forall H V (VH:list_norepet (map fst V ++ map fst H)) i,
 Proof.
 induction H; intros.
 + rewrite make_tycontext_g_nilG_find_id.
-simpl; rewrite PTree.gleaf; trivial.
+simpl. trivial.
 + apply list_norepet_cut_middle in VH.
 remember ((make_tycontext_g V (a :: H)) ! i) as d; symmetry in Heqd; destruct d. 
 - apply make_tycontext_g_consG_elim in Heqd. destruct a as [j fs]; simpl in *. rewrite PTree.gsspec.

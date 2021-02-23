@@ -14,7 +14,6 @@ Proof. eapply semax_body_subsumption. apply SB. clear SB.
     red; simpl. repeat split; trivial; intros i.
     - destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! i); trivial.
     - rewrite 2 make_tycontext_s_find_id; trivial.
-    - rewrite PTree.gempty; simpl; trivial.
 Qed.
 
 Lemma semax_body_binaryintersection':
@@ -167,7 +166,6 @@ Proof.
     red; simpl. repeat split; trivial; intros i.
     - destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! i); trivial.
     - rewrite 2 make_tycontext_s_find_id; trivial.
-    - rewrite PTree.gempty; simpl; trivial.
 Qed.
 
 Lemma InternalInfo_envs_sub {CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
@@ -1529,48 +1527,6 @@ intros.
 destruct H as [H1 [? [? [? [? [? ?]]]]]]; simpl; auto.
 Qed.
 
-Lemma samedom_composite_env_of_QPcomposite_env:
- forall ce H, PTree_samedom (composite_env_of_QPcomposite_env ce H) ce.
-Proof.
-induction ce; simpl; intros; auto.
-destruct H as [? [? ?]].
-simpl; auto.
-destruct o; split3; auto.
-Qed.
-
-Lemma PTree_samedom_trans {A B C}:
- forall  (m1: PTree.t A) (m2: PTree.t B) (m3: PTree.t C),
-  PTree_samedom m1 m2 -> PTree_samedom m2 m3 -> PTree_samedom m1 m3.
-Proof.
-induction m1; destruct m2, m3; intros; try contradiction; auto.
-destruct H as [? [? ?]]; destruct H0 as [? [? ?]].
-constructor.
-destruct o,o0,o1; try contradiction; auto.
-destruct o,o0,o1; try contradiction; auto.
-split.
-eapply IHm1_1; eauto.
-eapply IHm1_2; eauto.
-split.
-eapply IHm1_1; eauto.
-eapply IHm1_2; eauto.
-Qed.
-
-Lemma PTree_samedom_sym {A B}:
- forall  (m1: PTree.t A) (m2: PTree.t B),
-  PTree_samedom m1 m2 -> PTree_samedom m2 m1.
-Proof.
-induction m1; destruct m2; intros; try contradiction; auto.
-destruct H as [? [? ?]]; split3; auto.
-destruct o,o0; try contradiction; auto.
-Qed.
-
-Lemma PTree_samedom_map1: forall {A B} (f: A -> B),
- forall m,  PTree_samedom (PTree.map1 f m) m.
-Proof.
-induction m; simpl; intros; auto.
-split3; auto.
-destruct o; simpl; auto.
-Qed.
 
 Variable FundefsMatch: Fundefs_match p1 p2 Imports1 Imports2.
 

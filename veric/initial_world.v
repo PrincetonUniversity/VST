@@ -551,10 +551,9 @@ Lemma find_symbol_add_globals_nil:
         (Genv.add_globals (Genv.empty_genv F V prog_pub) ((i, g) :: nil)) id =
            Some p <-> (i = id /\ 1%positive = p)).
 Proof. intros. simpl.
-       unfold Genv.find_symbol, Genv.add_global in *; simpl.
+       unfold Genv.find_symbol, Genv.add_global, Genv.genv_symb, fst in *.
       destruct (eq_dec i id); subst.
-        rewrite PTree.gss. intuition. congruence.
-        rewrite PTree.gso by auto. split; intro Hx.
+        rewrite PTree.gss. intuition. inv H. reflexivity.        rewrite PTree.gso by auto. split; intro Hx.
         rewrite PTree.gempty in Hx; inv Hx.
          inv Hx. congruence.
 Qed.
@@ -791,7 +790,7 @@ Lemma add_globals_hack_nil {F}:
     gev = Genv.add_globals (Genv.empty_genv (fundef F) type prog_pub) (rev nil) ->
    forall id, Genv.find_symbol gev id = None.
 Proof. simpl; intros; subst.
-  unfold Genv.find_symbol, Genv.empty_genv. simpl. apply PTree.gempty.
+  unfold Genv.find_symbol, Genv.empty_genv. simpl. auto.
 Qed.
 
 Lemma add_globals_hack_single {F}:
@@ -799,7 +798,7 @@ Lemma add_globals_hack_single {F}:
     gev = Genv.add_globals (Genv.empty_genv (fundef F) type prog_pub) (cons v nil) ->
    forall id b, (Genv.find_symbol gev id = Some b <-> fst v = id /\ b = 1%positive).
 Proof. simpl; intros; subst.
-  unfold Genv.find_symbol, Genv.empty_genv. simpl.
+  unfold Genv.find_symbol, Genv.empty_genv, Genv.add_global, Genv.genv_symb, Genv.genv_next. 
   destruct (peq (fst v) id).
      subst id. rewrite PTree.gss.
        split; intros. split; trivial. congruence.
@@ -957,7 +956,7 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  rewrite <- (rev_involutive (prog_defs prog)) in H0.
  clear - H0.
  revert H0; induction (rev (prog_defs prog));  simpl Genv.find_symbol; intros.
- unfold Genv.find_symbol in H0. simpl in H0. rewrite PTree.gempty in H0; inv H0.
+ unfold Genv.find_symbol in H0. simpl in H0. inv H0.
  rewrite Genv.add_globals_app in H0.
  simpl in H0. destruct a.
  destruct (eq_dec i0 i). subst.

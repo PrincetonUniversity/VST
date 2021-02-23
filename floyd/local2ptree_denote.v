@@ -39,7 +39,7 @@ end.
 
 Definition local2ptree (Q: list localdef)
      : (PTree.t val * PTree.t (type * val) * list Prop * option globals) :=
-local2ptree_aux Q PTree.Leaf PTree.Leaf nil None.
+local2ptree_aux Q (PTree.empty _) (PTree.empty _) nil None.
 
 Definition CLEAR_ME {T} (x:T) := x.
 Ltac hide_it z := let x := fresh "x" in set (x:=z); change z with (CLEAR_ME z) in x.
@@ -65,7 +65,10 @@ Ltac prove_local2ptree :=
  clear;
  match goal with |- local2ptree ?A = _ => hnf_localdef_list A end;
  etransitivity;
- [unfold local2ptree, local2ptree_aux; simpl;
+ [cbv beta iota delta [local2ptree local2ptree1 local2ptree_aux
+     PTree.set PTree.empty PTree.set0 PTree.set'
+     PTree.get PTree.get' ]; 
+  simpl;
   repeat match goal with x := CLEAR_ME _ |- _ => unfold CLEAR_ME in x; subst x end;
   reflexivity |
   repeat match goal with x := CLEAR_ME _ |- _ => unfold CLEAR_ME in x; subst x end;
@@ -702,8 +705,7 @@ Lemma local2ptree_soundness  : forall P Q R T1 T2 P' Q',
   PROPx P (LOCALx Q (SEPx R)) = PROPx (P' ++ P) (LOCALx (LocalD T1 T2 Q') (SEPx R)).
 Proof. intros. eapply local2ptree_soundness' in H.
    etransitivity; [ | apply H]. clear H.
-   simpl.
-   unfold LocalD. rewrite !PTree.fold_spec. simpl. rewrite <- app_nil_end; auto.
+   simpl. rewrite <- app_nil_end; auto. 
 Qed.
 
 Lemma local2ptree_soundness'' : forall Q T1 T2 gv,

@@ -3,31 +3,26 @@ Require Import VST.floyd.base.
 Ltac make_ground_PTree a :=
  let a := eval hnf in a in
  match a with
- | PTree.Leaf => constr:(a)
- | PTree.Node ?l ?o ?r => 
-    let l := make_ground_PTree l in
-    let r := make_ground_PTree r in
-    let o := eval hnf in o in 
-    constr:(PTree.Node l o r)
+ | PTree.Empty => constr:(a)
+ | PTree.Nodes ?m => 
+    let m := make_ground_PTree m in
+    constr:(PTree.Nodes m)
+ | PTree.Node001 ?r => 
+     let r := make_ground_PTree r in constr:(PTree.Node001 r)
+ | PTree.Node010 ?x => constr:(a)
+ | PTree.Node011 ?x ?r =>
+     let r := make_ground_PTree r in constr:(PTree.Node011 x r)
+ | PTree.Node100 ?l => 
+     let l := make_ground_PTree l in constr:(PTree.Node100 l)
+ | PTree.Node101 ?l ?r =>
+     let r := make_ground_PTree r in 
+     let l := make_ground_PTree l in constr:(PTree.Node101 l r)
+ | PTree.Node110 ?l ?x => 
+     let l := make_ground_PTree l in constr:(PTree.Node110 l x)
+ | PTree.Node111 ?l ?x ?r =>
+     let r := make_ground_PTree r in 
+     let l := make_ground_PTree l in constr:(PTree.Node111 l x r)
  end.
-
-Ltac simpl_PTree_get_old :=
-  repeat match goal with
-         | |- context [PTree.get ?i' ?t] =>
-           let i'' := eval hnf in i' in
-               change (PTree.get i' t) with
-               ((fix get (A : Type) (i : positive) (m : PTree.t A) {struct i} : option A :=
-                 match m with
-                 | PTree.Leaf => None
-                 | PTree.Node l o r =>
-                     match i with
-                     | (ii~1)%positive => get A ii r
-                     | (ii~0)%positive => get A ii l
-                     | 1%positive => o
-                     end
-                 end) _ i'' t)
-         end;
-  cbv iota zeta beta.
 
 Ltac simpl_PTree_get :=
   repeat match goal with

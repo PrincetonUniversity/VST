@@ -371,7 +371,7 @@ Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normali
 
 Fixpoint make_tycontext_s (G: funspecs) :=
  match G with
- | nil => @PTree.Leaf funspec
+ | nil => PTree.empty funspec
  | (id,f)::r => PTree.set id f (make_tycontext_s r)
  end.
 

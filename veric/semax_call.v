@@ -836,16 +836,6 @@ Proof.
  subst; auto.
 Qed.
 
-Lemma xelements_app:
- forall A (rho: PTree.t A) i al bl,
-    PTree.xelements rho i al ++ bl = PTree.xelements rho i (al++bl).
-Proof.
- induction rho; simpl; intros; auto.
- destruct o; simpl.
- rewrite IHrho1. simpl. rewrite IHrho2; auto.
- rewrite IHrho1. simpl. rewrite IHrho2; auto.
-Qed.
-
 Lemma PTree_elements_remove: forall {A} (T: PTree.tree A) i e,
   In e (PTree.elements (PTree.remove i T)) ->
   In e (PTree.elements T) /\ fst e <> i.
@@ -1306,13 +1296,12 @@ intros.
 unfold closed_wrt_modvars.
 extensionality F.
 f_equal.
- extensionality i; unfold modifiedvars; simpl.
- unfold isSome, idset0, insert_idset; destruct ret; simpl; auto.
+ extensionality i; unfold modifiedvars, modifiedvars', insert_idset.
+ unfold isSome, idset0; destruct ret; simpl; auto.
  destruct (ident_eq i0 i).
  subst. rewrite PTree.gss. apply prop_ext; split; auto.
  rewrite PTree.gso by auto. rewrite PTree.gempty.
  apply prop_ext; split ;intro; try contradiction.
- rewrite PTree.gempty. auto.
 Qed.
 
 Lemma assert_safe_jmupd_for_external_call {Espec psi curf vx ret ret0 tx k z' m'}
@@ -2940,10 +2929,11 @@ apply guard_fallthrough_return; auto.
           subst rho.
          destruct ret; apply sepcon_derives; auto.
          +
-          clear - H.
+          clear - H. unfold set_opttemp.
           apply derives_refl'.
           apply H. intros. destruct (ident_eq i i0).
-          subst; left; hnf; simpl. unfold insert_idset. rewrite PTree.gss; auto.
+          unfold modifiedvars, modifiedvars', insert_idset, idset0.
+          subst; left; hnf; simpl. rewrite PTree.gss; auto.
           right; unfold Map.get; simpl; unfold make_tenv; simpl.
           rewrite PTree.gso; auto.
         +

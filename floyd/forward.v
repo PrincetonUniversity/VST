@@ -4655,24 +4655,6 @@ Lemma composite_abbrv env id su m a: composite_of_def env id su m a =
   end.
 Proof. reflexivity. Qed.
 
-Ltac treat_one_compdef :=
-  match goal with
-  | |- context[add_composite_definitions _ (?h :: ?t)] =>
-    remember t as the_rest;
-    unfold add_composite_definitions;
-    rewrite composite_abbrv;
-    fold add_composite_definitions; simpl Errors.bind;
-
-    (*variant of rem_struct*)
-    match goal with
-    | |- context[Some (mk_OKComposite ?env ?su ?m ?a ?al ?PR1 ?PR2 ?PR3)] =>
-         let struct1 := fresh "structure" 
-         in remember (mk_OKComposite env su m a al PR1 PR2 PR3) as struct1
-    end;
-
-    subst the_rest
-  end.
-
 Ltac solve_cenvcs_goal :=
 apply (f_equal (@PTree.elements composite));
 apply extract_compEnv;
@@ -4680,15 +4662,33 @@ apply extract_compEnv;
   | |- build_composite_env ?com = Errors.OK ?cenv_cs =>
     unfold build_composite_env, com
   end;
-repeat treat_one_compdef;
-rewrite add_composite_definitions_nil; unfold mk_OKComposite in *; f_equal; simpl cenv_cs;
-repeat f_equal;
-repeat   match goal with
-       | [ H : ?structure = ?P |- ?structure = ?Q ] => rewrite H; clear H
-     end;
-clear;
-apply composite_eq; reflexivity.
-(*  || (cbv; repeat f_equal; apply proof_irr). *)
+ repeat lazymatch goal with
+| |- add_composite_definitions ?env nil = _ =>
+ let e := eval hnf in env in let e := eval simpl in e in 
+ change env with e; reflexivity
+| |- 
+ add_composite_definitions ?env (Composite ?id ?su ?m ?a :: ?defs0) = _ =>
+ let e := eval hnf in env in let e := eval simpl in e in 
+ let c := constr:(composite_of_def e id su m a) in
+ let c := eval hnf in c in 
+change (add_composite_definitions env (Composite id su m a :: defs0))
+ with (Errors.bind c
+           (fun co => add_composite_definitions (PTree.set id co e) defs0));
+ match c with Errors.OK
+ {| co_su := _; co_members := ?m; co_attr := _;
+   co_sizeof := ?s; co_alignof := ?a; co_rank := ?r;
+   co_sizeof_pos := ?sp; co_alignof_two_p := ?atp;
+   co_sizeof_alignof := ?sa |} =>
+  let s' := eval compute in s in change s with s';
+  let a' := eval compute in a in change a with a';
+  let r' := eval compute in r in change r with r';
+  replace sp with (Zgeb0_ge0 s' eq_refl) by apply proof_irr;
+  replace atp with (prove_alignof_two_p a' eq_refl) by apply proof_irr;
+  replace sa with (prove_Zdivide a' s' eq_refl) by apply proof_irr
+ end;
+ unfold Errors.bind at 1
+| |- _ => fail "Unexpected error in solve_cenvcs_goal"
+end.
 
 Ltac prove_semax_prog_aux tac :=
   match goal with

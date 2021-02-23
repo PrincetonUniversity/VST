@@ -13,6 +13,8 @@
 (*                                                                     *)
 (* *********************************************************************)
 
+(** This file extended to canonical (extensional) PTrees by Andrew Appel *)
+
 (** Applicative finite maps are the main data structure used in this
   project.  A finite map associates data to keys.  The two main operations
   are [set k d m], which returns a map identical to [m] except that [d]
@@ -33,7 +35,7 @@
 *)
 
 Require Import Equivalence EquivDec.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 
 (* To avoid useless definitions of inductors in extracted code. *)
 Local Unset Elimination Schemes.
@@ -186,96 +188,187 @@ Module PTree <: TREE.
   Definition elt := positive.
   Definition elt_eq := peq.
 
-  Inductive tree (A : Type) : Type :=
-    | Leaf : tree A
-    | Node : tree A -> option A -> tree A -> tree A.
+  Inductive tree' (A: Type) : Type := 
+  | Node001: tree' A -> tree' A
+  | Node010: A -> tree' A
+  | Node011: A -> tree' A -> tree' A
+  | Node100: tree' A -> tree' A
+  | Node101: tree' A -> tree' A ->tree' A
+  | Node110: tree' A -> A -> tree' A
+  | Node111: tree' A -> A -> tree' A -> tree' A.
 
-  Arguments Leaf {A}.
-  Arguments Node [A].
-  Scheme tree_ind := Induction for tree Sort Prop.
+  Inductive tree (A: Type) : Type := 
+  | Empty : tree A
+  | Nodes: tree' A -> tree A.
+
+  Arguments Node001 {A} _.
+  Arguments Node010 {A} _.
+  Arguments Node011 {A} _ _.
+  Arguments Node100 {A} _.
+  Arguments Node101 {A} _ _.
+  Arguments Node110 {A} _ _.
+  Arguments Node111 {A} _ _ _.
+
+  Arguments Empty {A}.
+  Arguments Nodes {A} _.
+
+  Scheme tree'_ind := Induction for tree' Sort Prop.
 
   Definition t := tree.
 
-  Definition empty (A : Type) := (Leaf : t A).
+  Definition empty (A : Type) := (Empty : t A).
 
-  Fixpoint get (A : Type) (i : positive) (m : t A) {struct i} : option A :=
-    match m with
-    | Leaf => None
-    | Node l o r =>
-        match i with
-        | xH => o
-        | xO ii => get ii l
-        | xI ii => get ii r
-        end
-    end.
+  Fixpoint get' {A} (p: positive) (m: tree' A) : option A :=
+  match p, m with
+  | xH, Node001 _ => None
+  | xH, Node010 x => Some x
+  | xH, Node011 x _ => Some x
+  | xH, Node100 _ => None
+  | xH, Node101 _ _ => None
+  | xH, Node110 _ x => Some x
+  | xH, Node111 _ x _ => Some x
+  | xO q, Node001 _ => None
+  | xO q, Node010 _ => None
+  | xO q, Node011 _ _ => None
+  | xO q, Node100 m' => get' q m'
+  | xO q, Node101 m' _ => get' q m'
+  | xO q, Node110 m' _ => get' q m'
+  | xO q, Node111 m' _ _ => get' q m'
+  | xI q, Node001 m' => get' q m'
+  | xI q, Node010 _ => None
+  | xI q, Node011 _ m' => get' q m'
+  | xI q, Node100 m' => None
+  | xI q, Node101 _ m' => get' q m'
+  | xI q, Node110 _ _ => None
+  | xI q, Node111 _ _ m' => get' q m'
+end.
+ 
+  Definition get {A} (p: positive) (m: t A) : option A :=
+  match m with
+  | Empty => None
+  | Nodes m' => get' p m'
+  end.
 
-  Fixpoint set (A : Type) (i : positive) (v : A) (m : t A) {struct i} : t A :=
-    match m with
-    | Leaf =>
-        match i with
-        | xH => Node Leaf (Some v) Leaf
-        | xO ii => Node (set ii v Leaf) None Leaf
-        | xI ii => Node Leaf None (set ii v Leaf)
-        end
-    | Node l o r =>
-        match i with
-        | xH => Node l (Some v) r
-        | xO ii => Node (set ii v l) o r
-        | xI ii => Node l o (set ii v r)
-        end
-    end.
+  Fixpoint set0 {A} (p: positive) (x: A) : tree' A :=
+  match p with
+  | xH => Node010 x
+  | xO q => Node100 (set0 q x)
+  | xI q => Node001 (set0 q x)
+  end.
 
-  Fixpoint remove (A : Type) (i : positive) (m : t A) {struct i} : t A :=
-    match i with
-    | xH =>
-        match m with
-        | Leaf => Leaf
-        | Node Leaf o Leaf => Leaf
-        | Node l o r => Node l None r
-        end
-    | xO ii =>
-        match m with
-        | Leaf => Leaf
-        | Node l None Leaf =>
-            match remove ii l with
-            | Leaf => Leaf
-            | mm => Node mm None Leaf
-            end
-        | Node l o r => Node (remove ii l) o r
-        end
-    | xI ii =>
-        match m with
-        | Leaf => Leaf
-        | Node Leaf None r =>
-            match remove ii r with
-            | Leaf => Leaf
-            | mm => Node Leaf None mm
-            end
-        | Node l o r => Node l o (remove ii r)
-        end
-    end.
+  Fixpoint set' {A} (p: positive) (x: A) (m: tree' A) : tree' A :=
+  match p, m with
+  | xH, Node001 r => Node011 x r
+  | xH, Node010 _ => Node010 x
+  | xH, Node011 _ r => Node011 x r
+  | xH, Node100 l => Node110 l x
+  | xH, Node101 l r => Node111 l x r
+  | xH, Node110 l _ => Node110 l x
+  | xH, Node111 l _ r => Node111 l x r
+  | xO q, Node001 r => Node101 (set0 q x) r
+  | xO q, Node010 y => Node110 (set0 q x) y
+  | xO q, Node011 y r => Node111 (set0 q x) y r
+  | xO q, Node100 l => Node100 (set' q x l)
+  | xO q, Node101 l r => Node101 (set' q x l) r
+  | xO q, Node110 l y => Node110 (set' q x l) y
+  | xO q, Node111 l y r => Node111 (set' q x l) y r
+  | xI q, Node001 r => Node001 (set' q x r)
+  | xI q, Node010 y => Node011 y (set0 q x)
+  | xI q, Node011 y r => Node011 y (set' q x r)
+  | xI q, Node100 l => Node101 l (set0 q x)
+  | xI q, Node101 l r => Node101 l (set' q x r)
+  | xI q, Node110 l y => Node111 l y (set0 q x)
+  | xI q, Node111 l y r => Node111 l y (set' q x r)
+  end.
+
+  Definition set {A} (p: positive) (x: A) (m: t A) : t A :=
+  match m with
+  | Empty => Nodes (set0 p x)
+  | Nodes m' => Nodes (set' p x m')
+  end.
+
+  Fixpoint rem' {A} (p: positive) (m: tree' A) : tree A :=
+  match p, m with
+  | xH, Node001 r => Nodes m
+  | xH, Node010 _ => Empty
+  | xH, Node011 _ r => Nodes (Node001 r)
+  | xH, Node100 l => Nodes m
+  | xH, Node101 l r => Nodes m
+  | xH, Node110 l _ => Nodes (Node100 l)
+  | xH, Node111 l _ r => Nodes (Node101 l r)
+  | xO q, Node001 r => Nodes m
+  | xO q, Node010 y => Nodes m
+  | xO q, Node011 y r => Nodes m
+  | xO q, Node100 l => match rem' q l with Empty => Empty
+                                       | Nodes m' => Nodes (Node100 m')
+                                     end
+  | xO q, Node101 l r => match rem' q l with Empty => Nodes(Node001 r)
+                                       | Nodes m' => Nodes (Node101 m' r)
+                                     end
+  | xO q, Node110 l y => match rem' q l with Empty => Nodes(Node010 y)
+                                       | Nodes m' => Nodes (Node110 m' y)
+                                     end
+  | xO q, Node111 l y r => match rem' q l with Empty => Nodes(Node011 y r)
+                                       | Nodes m' => Nodes (Node111 m' y r)
+                                     end
+  | xI q, Node001 r => match rem' q r with Empty => Empty
+                                       | Nodes m' => Nodes (Node001 m')
+                                     end
+  | xI q, Node010 y => Nodes m
+  | xI q, Node011 y r => match rem' q r with Empty => Nodes(Node010 y)
+                                       | Nodes m' => Nodes (Node011 y m')
+                                     end
+  | xI q, Node100 l => Nodes m
+  | xI q, Node101 l r => match rem' q r with Empty => Nodes(Node100 l)
+                                       | Nodes m' => Nodes (Node101 l m')
+                                     end
+  | xI q, Node110 l y => Nodes m
+  | xI q, Node111 l y r => match rem' q r with Empty => Nodes(Node110 l y)
+                                       | Nodes m' => Nodes (Node111 l y m')
+                                     end
+  end.
+
+  Definition remove {A} (p: positive) (m: t A) : t A :=
+  match m with
+  | Empty => m
+  | Nodes m' => rem' p m'
+  end.
 
   Theorem gempty:
     forall (A: Type) (i: positive), get i (empty A) = None.
+  Proof. intros. destruct i; simpl; reflexivity. Qed.
+
+  Lemma gss0: forall {A} p (x: A), get' p (set0 p x) = Some x.
+  Proof. induction p; simpl; auto. Qed.
+
+  Lemma gso0: forall {A} p q (x: A), p<>q -> get' p (set0 q x) = None.
   Proof.
-    induction i; simpl; auto.
+   induction p; destruct q; simpl; intros; auto.
+   apply IHp. congruence.
+   apply IHp; congruence.
+   congruence.
   Qed.
 
   Theorem gss:
     forall (A: Type) (i: positive) (x: A) (m: t A), get i (set i x m) = Some x.
   Proof.
-    induction i; destruct m; simpl; auto.
+   intros.
+   destruct m as [|m]; simpl.
+   - apply gss0.
+   - revert m; induction i; destruct m; simpl; intros; auto; try apply gss0.
   Qed.
-
-    Lemma gleaf : forall (A : Type) (i : positive), get i (Leaf : t A) = None.
-    Proof. exact gempty. Qed.
 
   Theorem gso:
     forall (A: Type) (i j: positive) (x: A) (m: t A),
     i <> j -> get i (set j x m) = get i m.
   Proof.
-    induction i; intros; destruct j; destruct m; simpl;
-       try rewrite <- (gleaf A i); auto; try apply IHi; congruence.
+  intros.
+  destruct m as [|m]; simpl.
+  apply gso0; auto.
+  revert m j H; induction i; destruct j,m; simpl; intros; auto;
+  try (apply IHi; congruence);
+  try (apply gso0; congruence);
+  try congruence.
   Qed.
 
   Theorem gsspec:
@@ -290,68 +383,71 @@ Module PTree <: TREE.
     forall (A: Type) (i: positive) (m: t A) (v: A),
     get i m = Some v -> set i v m = m.
   Proof.
-    induction i; intros; destruct m; simpl; simpl in H; try congruence.
-     rewrite (IHi m2 v H); congruence.
-     rewrite (IHi m1 v H); congruence.
+    destruct m as [|m]; intros. inv H.
+    revert m H; induction i; simpl; intros; destruct m; try congruence;
+    f_equal; simpl in IHi; f_equal; apply IHi in H; injection H as H; auto.
   Qed.
 
   Theorem set2:
     forall (A: Type) (i: elt) (m: t A) (v1 v2: A),
     set i v2 (set i v1 m) = set i v2 m.
   Proof.
-    induction i; intros; destruct m; simpl; try (rewrite IHi); auto.
+    intros. destruct m as [|m]; simpl; f_equal.
+    induction i; simpl; f_equal; auto.
+    revert m; induction i; destruct m; simpl; f_equal; auto;
+    clear; induction i; simpl; f_equal; auto.
   Qed.
-
-  Lemma rleaf : forall (A : Type) (i : positive), remove i (Leaf : t A) = Leaf.
-  Proof. destruct i; simpl; auto. Qed.
 
   Theorem grs:
     forall (A: Type) (i: positive) (m: t A), get i (remove i m) = None.
   Proof.
-    induction i; destruct m.
-     simpl; auto.
-     destruct m1; destruct o; destruct m2 as [ | ll oo rr]; simpl; auto.
-      rewrite (rleaf A i); auto.
-      cut (get i (remove i (Node ll oo rr)) = None).
-        destruct (remove i (Node ll oo rr)); auto; apply IHi.
-        apply IHi.
-     simpl; auto.
-     destruct m1 as [ | ll oo rr]; destruct o; destruct m2; simpl; auto.
-      rewrite (rleaf A i); auto.
-      cut (get i (remove i (Node ll oo rr)) = None).
-        destruct (remove i (Node ll oo rr)); auto; apply IHi.
-        apply IHi.
-     simpl; auto.
-     destruct m1; destruct m2; simpl; auto.
+  unfold remove.
+  destruct m as [ |m]. apply gempty.
+  unfold get.
+  destruct (rem' i m) eqn:?H; auto.
+  rename t0 into m'.
+  revert m m' H.
+  induction i; destruct m; simpl; intros; auto; try solve [inv H; auto];
+  match type of H with match ?A with _ => _ end = _ => destruct A eqn:?H; inv H end; eauto.
+  Qed.
+
+  Lemma Nodes_inj: forall {A} (m1 m2: tree' A), Nodes m1 = Nodes m2 -> m1=m2.
+  Proof. intros. congruence. Qed.
+
+  Lemma gro_aux:
+    forall {A} p q (m: tree' A), p<>q -> rem' q m = Empty -> None = get' p m.
+  Proof.
+  induction p; destruct q,m; simpl; intros; auto;
+  try match type of H0 with match ?A with _ => _ end = _ => destruct A eqn:?H; inv H0; eauto end;
+  try (assert (H3: p<>q) by congruence; apply (IHp _ _ H3 H1)); try discriminate.
+  congruence.
   Qed.
 
   Theorem gro:
     forall (A: Type) (i j: positive) (m: t A),
     i <> j -> get i (remove j m) = get i m.
   Proof.
-    induction i; intros; destruct j; destruct m;
-        try rewrite (rleaf A (xI j));
-        try rewrite (rleaf A (xO j));
-        try rewrite (rleaf A 1); auto;
-        destruct m1; destruct o; destruct m2;
-        simpl;
-        try apply IHi; try congruence;
-        try rewrite (rleaf A j); auto;
-        try rewrite (gleaf A i); auto.
-     cut (get i (remove j (Node m2_1 o m2_2)) = get i (Node m2_1 o m2_2));
-        [ destruct (remove j (Node m2_1 o m2_2)); try rewrite (gleaf A i); auto
-        | apply IHi; congruence ].
-     destruct (remove j (Node m1_1 o0 m1_2)); simpl; try rewrite (gleaf A i);
-        auto.
-     destruct (remove j (Node m2_1 o m2_2)); simpl; try rewrite (gleaf A i);
-        auto.
-     cut (get i (remove j (Node m1_1 o0 m1_2)) = get i (Node m1_1 o0 m1_2));
-        [ destruct (remove j (Node m1_1 o0 m1_2)); try rewrite (gleaf A i); auto
-        | apply IHi; congruence ].
-     destruct (remove j (Node m2_1 o m2_2)); simpl; try rewrite (gleaf A i);
-        auto.
-     destruct (remove j (Node m1_1 o0 m1_2)); simpl; try rewrite (gleaf A i);
-        auto.
+  intros A p q ? ?.
+  destruct m as [|m].
+  simpl. reflexivity.
+  unfold get, remove.
+  destruct (rem' q m) as [|m'] eqn:?H.
+  -
+  symmetry.
+  revert q m H H0; induction p; destruct q, m; simpl; intros; auto;
+  try match type of H0 with match ?A with _ => _ end = _ => destruct A eqn:?H; inv H0; eauto end;
+  try (eapply IHp; try eassumption; auto; congruence);
+  try discriminate.
+  congruence.
+  -
+  revert q H m m' H0; induction p; destruct q,m; simpl; intros; auto;
+  try match type of H0 with match ?A with _ => _ end = _ => destruct A eqn:?H; inv H0; eauto end;
+  try (assert (H3: p<>q) by congruence; eauto);
+  try apply Nodes_inj in H0; subst; auto;
+  try solve [eapply gro_aux; eassumption];
+  try discriminate;
+  try congruence.
+  Unshelve. all: apply xH.
   Qed.
 
   Theorem grspec:
@@ -361,45 +457,191 @@ Module PTree <: TREE.
     intros. destruct (elt_eq i j). subst j. apply grs. apply gro; auto.
   Qed.
 
+  Definition getleft' {A} (m: tree' A) : t A :=
+  match m with
+  | Node100 l => Nodes l
+  | Node101 l _ => Nodes l
+  | Node110 l _ => Nodes l
+  | Node111 l _ _ => Nodes l
+  | _ => Empty
+  end.
+
+  Definition getright' {A} (m: tree' A) : t A :=
+  match m with
+  | Node001 r => Nodes r
+  | Node101 _ r => Nodes r
+  | Node011 _ r => Nodes r
+  | Node111 _ _ r => Nodes r
+  | _ => Empty
+  end.
+
+  Definition getleft {A} (m: tree A) : t A :=
+  match m with Empty => Empty | Nodes m' => getleft' m' end.
+
+  Definition getright {A} (m: tree A) : t A :=
+  match m with Empty => Empty | Nodes m' => getright' m' end.
+
+  Definition Node {A} l o r : t A := 
+    match l,o,r with
+    | Empty, None, Empty => Empty
+    | Empty, None, Nodes r' => Nodes (Node001 r')
+    | Empty, Some x, Empty => Nodes (Node010 x)
+    | Empty, Some x, Nodes r' => Nodes (Node011 x r')
+    | Nodes l', None, Empty => Nodes (Node100 l')
+    | Nodes l', None, Nodes r' => Nodes (Node101 l' r')
+    | Nodes l', Some x, Empty => Nodes (Node110 l' x)
+    | Nodes l', Some x, Nodes r' => Nodes (Node111 l' x r')
+    end.
+
+  Lemma asNode: forall {A} (m: t A),
+    m = Node (getleft m) (get xH m) (getright m).
+  Proof. destruct m as [|[]]; reflexivity. Qed.
+
+  Lemma get_xO_Node: forall {A} i l (x: option A) r,
+    get (xO i) (Node l x r) = get i l.
+  Proof. intros. destruct l, x, r; auto. Qed.
+
+  Lemma get_xI_Node: forall {A} i l (x: option A) r,
+    get (xI i) (Node l x r) = get i r.
+  Proof. intros. destruct l, x, r; auto. Qed.
+
+  Lemma get_xH_Node: forall {A} l (x: option A) r,
+    get xH (Node l x r) = x.
+  Proof. intros. destruct l, x, r; auto. Qed.
+
+  Definition equivalent {A} (m1 m2: t A) : Prop :=
+    forall i, get i m1 = get i m2.
+
+  Lemma Nodes_not_Empty:
+  forall {A} (m: tree' A), ~ (equivalent (Nodes m) Empty).
+  Proof.
+  intros.
+  induction m; simpl; intro; try (apply IHm; intro);
+  try (specialize (H xH); discriminate).
+  apply (H (xI i)).
+  apply (H (xO i)).
+  apply IHm1; intro.
+  apply (H (xO i)).
+  Qed.
+
+  Lemma tree'_not_empty:
+   forall {A} (m: tree' A), exists i, exists x, get' i m = Some x.
+  Proof.
+   induction m; simpl;
+   try destruct IHm as [p [x H]].
+   exists (xI p), x; apply H.
+   exists xH, a; reflexivity.
+   exists xH, a; reflexivity.
+   exists (xO p), x; apply H.
+   destruct IHm1 as [p [x H]]; exists (xO p), x; apply H.
+   exists xH, a; reflexivity.
+   exists xH, a; reflexivity.
+  Qed.
+
+  Lemma extensionality: 
+    forall (A : Type) (m1 m2: t A), 
+      equivalent m1 m2 ->    m1=m2.
+  Proof.
+  intro.
+  destruct m1 as [|m1], m2 as [|m2]; simpl; intros; auto.
+  -
+  exfalso.
+  apply (@Nodes_not_Empty _ m2).
+  intro. symmetry; auto.
+  -
+  exfalso.
+  apply (@Nodes_not_Empty _ m1); auto.
+  -
+  f_equal.
+  assert (forall p, get' p m1 = get' p m2).
+  apply H.
+  clear H. rename H0 into H.
+  revert m2 H; induction m1; destruct m2; simpl; intros;
+  try (specialize (H xH); discriminate).
+  f_equal; apply IHm1; intro; apply (H (xI p)).
+  exfalso. destruct (tree'_not_empty m1) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m2_1) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  f_equal. specialize (H xH); simpl in H; congruence.
+  exfalso. destruct (tree'_not_empty m2) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m2) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m2_1) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m1) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  f_equal. specialize (H xH); simpl in H; congruence. apply IHm1. intro p. apply (H (xI p)).
+  exfalso. destruct (tree'_not_empty m1) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m2_1) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m1) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  f_equal; apply IHm1; intro p. apply (H (xO p)).
+  exfalso. destruct (tree'_not_empty m2_2) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m1_1) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m1_2) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  f_equal. apply IHm1_1; intro p; apply (H (xO p)). apply IHm1_2; intro p; apply (H (xI p)).
+  exfalso. destruct (tree'_not_empty m1) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m1) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  f_equal.  apply IHm1. intro p. apply (H (xO p)). specialize (H xH); simpl in H; congruence. 
+  exfalso. destruct (tree'_not_empty m2_2) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m1_2) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m1_1) as [q [x H0]]. specialize (H (xO q)). simpl in H. congruence.
+  exfalso. destruct (tree'_not_empty m1_2) as [q [x H0]]. specialize (H (xI q)). simpl in H. congruence.
+  f_equal. apply IHm1_1. intro p; apply (H (xO p)). specialize (H xH); simpl in H; congruence. apply IHm1_2; intro p; apply (H (xI p)).
+  Qed.
+
   Section BOOLEAN_EQUALITY.
 
     Variable A: Type.
     Variable beqA: A -> A -> bool.
 
-    Fixpoint bempty (m: t A) : bool :=
+    Definition bempty (m: t A) : bool :=
       match m with
-      | Leaf => true
-      | Node l None r => bempty l && bempty r
-      | Node l (Some _) r => false
+      | Empty => true
+      | Nodes _ => false
       end.
 
-    Fixpoint beq (m1 m2: t A) {struct m1} : bool :=
-      match m1, m2 with
-      | Leaf, _ => bempty m2
-      | _, Leaf => bempty m1
-      | Node l1 o1 r1, Node l2 o2 r2 =>
-          match o1, o2 with
-          | None, None => true
-          | Some y1, Some y2 => beqA y1 y2
-          | _, _ => false
-          end
-          && beq l1 l2 && beq r1 r2
-      end.
+    Fixpoint beq' (m1 m2: tree' A) {struct m1} : bool :=
+    match m1, m2 with
+    | Node001 r1, Node001 r2 => beq' r1 r2
+    | Node010 x1, Node010 x2 => beqA x1 x2
+    | Node011 x1 r1, Node011 x2 r2 => beqA x1 x2 && beq' r1 r2
+    | Node100 l1, Node100 l2 => beq' l1 l2
+    | Node101 l1 r1, Node101 l2 r2 => beq' l1 l2 && beq' r1 r2
+    | Node110 l1 x1, Node110 l2 x2 => beqA x1 x2 && beq' l1 l2
+    | Node111 l1 x1 r1, Node111 l2 x2 r2  => beqA x1 x2 && beq' l1 l2 && beq' r1 r2
+    | _, _ => false
+    end.
+
+    Definition beq (m1 m2: t A) : bool :=
+    match m1, m2 with
+    | Empty, Empty => true
+    | Nodes m1', Nodes m2' => beq' m1' m2'
+    | _, _ => false
+    end.
 
     Lemma bempty_correct:
       forall m, bempty m = true <-> (forall x, get x m = None).
     Proof.
-      induction m; simpl.
-      split; intros. apply gleaf. auto.
-      destruct o; split; intros.
-      congruence.
-      generalize (H xH); simpl; congruence.
-      destruct (andb_prop _ _ H). rewrite IHm1 in H0. rewrite IHm2 in H1.
-      destruct x; simpl; auto.
-      apply andb_true_intro; split.
-      apply IHm1. intros; apply (H (xO x)).
-      apply IHm2. intros; apply (H (xI x)).
+      intros.
+      pose proof (@extensionality A m Empty).
+      split; intros.
+      destruct m; inv H0. reflexivity.
+      rewrite H. reflexivity.
+      intro i; apply H0.
     Qed.
+
+    Lemma beq_correct':
+      (forall x y, beqA x y = true <-> x=y) ->
+      forall m1 m2,
+      beq m1 m2 = true <-> m1 = m2.
+     Proof.
+      intro H.
+      destruct m1 as [|m1]; destruct m2 as [|m2]; simpl.
+       tauto.
+       split; intros; discriminate.  
+       split; intros; discriminate.  
+       revert m2; induction m1; destruct m2; simpl; intros;
+       try solve [split; intro; discriminate];
+       rewrite ?andb_true_iff, ?H; clear H;
+       rewrite ?IHm1, ?IHm1_1, ?IHm1_2; clear;
+       split; intro H; decompose [and] H; repeat split; try congruence.
+     Qed.
 
     Lemma beq_correct:
       forall m1 m2,
@@ -411,24 +653,75 @@ Module PTree <: TREE.
        | _, _ => False
        end).
     Proof.
-      induction m1; intros.
-    - simpl. rewrite bempty_correct. split; intros.
-      rewrite gleaf. rewrite H. auto.
-      generalize (H x). rewrite gleaf. destruct (get x m2); tauto.
-    - destruct m2.
-      + unfold beq. rewrite bempty_correct. split; intros.
-        rewrite H. rewrite gleaf. auto.
-        generalize (H x). rewrite gleaf. destruct (get x (Node m1_1 o m1_2)); tauto.
-      + simpl. split; intros.
-        * destruct (andb_prop _ _ H). destruct (andb_prop _ _ H0).
-          rewrite IHm1_1 in H3. rewrite IHm1_2 in H1.
-          destruct x; simpl. apply H1. apply H3.
-          destruct o; destruct o0; auto || congruence.
-        * apply andb_true_intro. split. apply andb_true_intro. split.
-          generalize (H xH); simpl. destruct o; destruct o0; tauto.
-          apply IHm1_1. intros; apply (H (xO x)).
-          apply IHm1_2. intros; apply (H (xI x)).
-    Qed.
+     intros.
+      destruct m1 as [|m1]; destruct m2 as [|m2]; simpl.
+     - tauto.
+     - split; [intro; discriminate |]; intro.
+       destruct (tree'_not_empty m2) as [i [x H0]]; specialize (H i); rewrite H0 in H; contradiction.
+     - split; [intro; discriminate |]; intro.
+       destruct (tree'_not_empty m1) as [i [x H0]]; specialize (H i); rewrite H0 in H; contradiction.
+    -
+      revert m2; induction m1; destruct m2; simpl; intros.
+  all: try (split; intro; [discriminate |]; contradiction (H xH)).
+  all: try (split; intro; [discriminate |];
+     destruct (tree'_not_empty m1) as [i [x H0]];
+     specialize (H (xO i)); simpl in H; rewrite H0 in H; contradiction).
+  all: try (split; intro; [discriminate |];
+     destruct (tree'_not_empty m2) as [i [x H0]];
+     specialize (H (xO i)); simpl in H; rewrite H0 in H; contradiction).
+  all: try (split; intro; [discriminate |];
+     destruct (tree'_not_empty m2) as [i [x H0]];
+     specialize (H (xI i)); simpl in H; rewrite H0 in H; contradiction).
+  all: try (split; intro; [discriminate |];
+     destruct (tree'_not_empty m1_1) as [i [x H0]];
+     specialize (H (xO i)); simpl in H; rewrite H0 in H; contradiction).
+  all: try (split; intro; [discriminate |];
+     destruct (tree'_not_empty m1_2) as [i [x H0]];
+     specialize (H (xI i)); simpl in H; rewrite H0 in H; contradiction).
+  all: try (split; intro; [discriminate |];
+     destruct (tree'_not_empty m2_1) as [i [x H0]];
+     specialize (H (xO i)); simpl in H; rewrite H0 in H; contradiction).
+  all: try (split; intro; [discriminate |];
+     destruct (tree'_not_empty m2_2) as [i [x H0]];
+     specialize (H (xI i)); simpl in H; rewrite H0 in H; contradiction).
+  all: try (split; intro; [discriminate |];
+     destruct (tree'_not_empty m1) as [i [x H0]];
+     specialize (H (xI i)); simpl in H; rewrite H0 in H; contradiction).
+  all: try (rewrite IHm1; clear IHm1);
+        try (rewrite IHm1_1; clear IHm1_1);
+        try (rewrite IHm1_2; clear IHm1_2).
+  all: try solve [ split; intros;
+   [ destruct x; simpl; auto; try apply H 
+   | try apply (H (xI x)); try apply (H (xO x))]].
+  +
+   split.
+   intros H [x|x|]; simpl; auto.
+   intros. apply (H xH).
+  + rewrite andb_true_iff.
+   split.
+   intros [? ?].
+   rewrite IHm1 in H0; clear IHm1.
+   intros [x|x|]; simpl; auto. apply (H0 x).
+   intro H. split. apply (H xH). rewrite IHm1. 
+   intro x; apply (H (xI x)).
+  + rewrite andb_true_iff.
+   rewrite IHm1_1; clear IHm1_1.
+   rewrite IHm1_2; clear IHm1_2.
+   split.
+   intros [? ?] [x|x|]. apply (H0 x). apply (H x). apply I.
+   intros H; split; intro x. apply (H (xO x)). apply (H (xI x)).
+  + rewrite andb_true_iff.
+   rewrite IHm1; clear IHm1.
+   split.
+   intros [? ?] [x|x|]. apply I. apply (H0 x). apply H.
+   intros H; split; intros. apply (H xH). apply (H (xO x)).
+  + rewrite !andb_true_iff.
+   rewrite IHm1_1; clear IHm1_1.
+   rewrite IHm1_2; clear IHm1_2.
+   split.
+   intros [[? ?] ?] [x|x|]. apply (H1 x). apply (H0 x). apply H.
+   intros H; split; [split|]; intros. apply (H xH). apply (H (xO x)). apply (H (xI x)).
+  Qed.
 
   End BOOLEAN_EQUALITY.
 
@@ -463,20 +756,27 @@ Module PTree <: TREE.
     specialize (Hi _ _ H); congruence.
   Qed.
 
-    Fixpoint xmap (A B : Type) (f : positive -> A -> B) (m : t A) (i : positive)
-             {struct m} : t B :=
+    Fixpoint xmap (A B : Type) (f : positive -> A -> B) (m : tree' A) (i : positive)
+             {struct m} : tree' B :=
       match m with
-      | Leaf => Leaf
-      | Node l o r => Node (xmap f l (xO i))
-                           (match o with None => None | Some x => Some (f (prev i) x) end)
-                           (xmap f r (xI i))
+      | Node001 r => Node001 (xmap f r (xI i))
+      | Node010 x => Node010 (f (prev i) x)
+      | Node011 x r => Node011 (f (prev i) x) (xmap f r (xI i))
+      | Node100 l => Node100 (xmap f l (xO i))
+      | Node101 l r => Node101 (xmap f l (xO i)) (xmap f r (xI i))
+      | Node110 l x => Node110 (xmap f l (xO i)) (f (prev i) x)
+      | Node111 l x r => Node111 (xmap f l (xO i)) (f (prev i) x) (xmap f r (xI i))
       end.
 
-  Definition map (A B : Type) (f : positive -> A -> B) m := xmap f m xH.
+  Definition map (A B : Type) (f : positive -> A -> B) m :=
+      match m with
+      | Empty => Empty
+      | Nodes m => Nodes (xmap f m xH)
+      end.
 
     Lemma xgmap:
-      forall (A B: Type) (f: positive -> A -> B) (i j : positive) (m: t A),
-      get i (xmap f m j) = option_map (f (prev (prev_append i j))) (get i m).
+      forall (A B: Type) (f: positive -> A -> B) (i j : positive) (m: tree' A),
+      get' i (xmap f m j) = option_map (f (prev (prev_append i j))) (get' i m).
     Proof.
       induction i; intros; destruct m; simpl; auto.
     Qed.
@@ -486,112 +786,272 @@ Module PTree <: TREE.
     get i (map f m) = option_map (f i) (get i m).
   Proof.
     intros A B f i m.
-    unfold map.
+    destruct m as [|m].
+    reflexivity.
+    unfold get, map.
     rewrite xgmap. repeat f_equal. exact (prev_involutive i).
   Qed.
 
-  Fixpoint map1 (A B: Type) (f: A -> B) (m: t A) {struct m} : t B :=
+  Fixpoint map1' (A B: Type) (f: A -> B) (m: tree' A) {struct m} : tree' B :=
     match m with
-    | Leaf => Leaf
-    | Node l o r => Node (map1 f l) (option_map f o) (map1 f r)
+      | Node001 r => Node001 (map1' f r)
+      | Node010 x => Node010 (f x)
+      | Node011 x r => Node011 (f x) (map1' f r)
+      | Node100 l => Node100 (map1' f l)
+      | Node101 l r => Node101 (map1' f l) (map1' f r)
+      | Node110 l x => Node110 (map1' f l) (f x)
+      | Node111 l x r => Node111 (map1' f l) (f x) (map1' f r)
+      end.
+
+  Definition map1 (A B: Type) (f: A -> B) (m: t A) : t B :=
+    match m with
+    | Empty => Empty
+    | Nodes m => Nodes (map1' f m)
     end.
 
   Theorem gmap1:
     forall (A B: Type) (f: A -> B) (i: elt) (m: t A),
     get i (map1 f m) = option_map f (get i m).
   Proof.
-    induction i; intros; destruct m; simpl; auto.
+    intros.
+    destruct m as [|m]. 
+    reflexivity.
+    unfold get, map1.
+    revert i; induction m; destruct i; simpl; intros; auto.
   Qed.
 
-  Definition Node' (A: Type) (l: t A) (x: option A) (r: t A): t A :=
-    match l, x, r with
-    | Leaf, None, Leaf => Leaf
-    | _, _, _ => Node l x r
-    end.
-
-  Lemma gnode':
-    forall (A: Type) (l r: t A) (x: option A) (i: positive),
-    get i (Node' l x r) = get i (Node l x r).
-  Proof.
-    intros. unfold Node'.
-    destruct l; destruct x; destruct r; auto.
-    destruct i; simpl; auto; rewrite gleaf; auto.
-  Qed.
-
-  Fixpoint filter1 (A: Type) (pred: A -> bool) (m: t A) {struct m} : t A :=
+  Fixpoint filter1' (A: Type) (pred: A -> bool) (m: tree' A) {struct m} : t A :=
     match m with
-    | Leaf => Leaf
-    | Node l o r =>
-        let o' := match o with None => None | Some x => if pred x then o else None end in
-        Node' (filter1 pred l) o' (filter1 pred r)
-    end.
+      | Node001 r => match filter1' pred r with
+                                  | Empty => Empty 
+                                  | Nodes r' => Nodes (Node001 r')
+                                  end
+      | Node010 x => if pred x then Nodes m else Empty
+      | Node011 x r => match pred x, filter1' pred r with
+                               | false, Empty => Empty
+                               | false, Nodes r' => Nodes (Node001 r')
+                               | true, Empty => Nodes (Node010 x)
+                               | true, Nodes r' => Nodes (Node011 x r')
+                               end
+      | Node100 l => match filter1' pred l with
+                                  | Empty => Empty 
+                                  | Nodes l' => Nodes (Node100 l')
+                                  end
+      | Node101 l r => match filter1' pred l, filter1' pred r with
+                           | Empty, Empty => Empty
+                           | Empty, Nodes r' => Nodes (Node001 r')
+                           | Nodes l', Empty => Nodes (Node100 l')
+                           | Nodes l', Nodes r' => Nodes (Node101 l' r')
+                           end
+      | Node110 l x => match pred x, filter1' pred l with
+                               | false, Empty => Empty
+                               | false, Nodes l' => Nodes (Node100 l')
+                               | true, Empty => Nodes (Node010 x)
+                               | true, Nodes l' => Nodes (Node110 l' x)
+                               end
+      | Node111 l x r => match filter1' pred l, pred x, filter1' pred r with
+                               | Empty, false, Empty => Empty
+                               | Empty, false, Nodes r' => Nodes (Node001 r')
+                               | Empty, true, Empty => Nodes (Node010 x)
+                               | Empty, true, Nodes r' => Nodes (Node011 x r')
+                               | Nodes l', false, Empty => Nodes (Node100 l')
+                               | Nodes l', false, Nodes r' => Nodes (Node101 l' r')
+                               | Nodes l', true, Empty => Nodes (Node110 l' x)
+                               | Nodes l', true, Nodes r' => Nodes (Node111 l' x r')
+                               end
+      end.
+
+  Definition filter1 (A: Type) (pred: A -> bool) (m: t A) : t A :=
+  match m with Empty => Empty | Nodes m' => filter1' pred m' end.
+
+  Lemma filter1'_Empty_get:
+   forall {A} pred (m: tree' A) a i, 
+     filter1' pred m = Empty -> get' i m = Some a -> pred a = false.
+  Proof.
+   induction m; destruct i; simpl; intros;
+   repeat match goal with H: match ?A with _ => _ end = _  |- _  => 
+        destruct A eqn:?; inv H end.
+   all: try (inv H0; auto).
+   all: try solve [eapply IHm; eauto]; try discriminate.
+   all: try solve [eapply IHm1; eauto]; try discriminate.
+   all: try solve [eapply IHm2; eauto]; try discriminate.
+  Qed.
 
   Theorem gfilter1:
     forall (A: Type) (pred: A -> bool) (i: elt) (m: t A),
     get i (filter1 pred m) =
     match get i m with None => None | Some x => if pred x then Some x else None end.
   Proof.
-    intros until m. revert m i. induction m; simpl; intros.
-    rewrite gleaf; auto.
-    rewrite gnode'. destruct i; simpl; auto. destruct o; auto.
+    intros until m.
+    destruct m as [|m]. reflexivity.
+    unfold get, filter1.
+    destruct (filter1' pred m) as [|m'] eqn:?H.
+   -
+    destruct (get' i m) eqn:?H; auto.
+    rewrite (filter1'_Empty_get _ _ _ H H0); auto.
+  -
+   revert i m' H; induction m; destruct i; simpl; intros.
+    all: repeat match goal with H: match ?A with _ => _ end = _  |- _  => 
+      destruct A eqn:?; inv H end; auto.
+    all: match goal with |- _ = match ?A with _ => _ end =>
+      destruct A eqn:H; auto 
+    end.
+    all: rewrite ?(filter1'_Empty_get _ _ _ Heqt0 H); auto.
+    all: rewrite ?(filter1'_Empty_get _ _ _ Heqt1 H); auto.
   Qed.
 
   Section COMBINE.
+
+  Fixpoint xcombine' {A B} (f: A -> option B) (m : tree' A) {struct m} : t B :=
+      match m with
+      | Node001 r => match xcombine' f r with
+                                  | Empty => Empty
+                                  | Nodes r' => Nodes (Node001 r')
+                                  end
+      | Node010 x => match f x with
+                                   | None => Empty
+                                   | Some y => Nodes (Node010 y)
+                                   end
+      | Node011 x r => match f x, xcombine' f r with
+                                     | None, Empty => Empty
+                                     | None, Nodes r' => Nodes (Node001 r')
+                                     | Some y, Empty => Nodes (Node010 y)
+                                     | Some y, Nodes r' => Nodes (Node011 y r')
+                                     end
+     | Node100 l => match xcombine' f l with
+                                  | Empty => Empty
+                                  | Nodes l' => Nodes (Node100 l')
+                                  end
+      | Node101 l r => match xcombine' f l, xcombine' f r with
+                                     | Empty, Empty => Empty
+                                     | Empty, Nodes r' => Nodes (Node001 r')
+                                     | Nodes l', Empty => Nodes (Node100 l')
+                                     | Nodes l', Nodes r' => Nodes (Node101 l' r')
+                                     end
+      | Node110 l x => match xcombine' f l, f x with
+                                     | Empty, None => Empty
+                                     | Empty, Some y => Nodes (Node010 y)
+                                     | Nodes l', None => Nodes (Node100 l')
+                                     | Nodes l', Some y => Nodes (Node110 l' y)
+                                     end
+      | Node111 l x r => match xcombine' f l, f x, xcombine' f r with
+                                     | Empty, None, Empty => Empty
+                                     | Empty, None, Nodes r' => Nodes (Node001 r')
+                                     | Empty, Some y, Empty => Nodes (Node010 y)
+                                     | Empty, Some y, Nodes r' => Nodes (Node011 y r')
+                                     | Nodes l', None, Empty => Nodes (Node100 l')
+                                     | Nodes l', None, Nodes r' => Nodes (Node101 l' r')
+                                     | Nodes l', Some y, Empty => Nodes (Node110 l' y)
+                                     | Nodes l', Some y, Nodes r' => Nodes (Node111 l' y r')
+                                      end
+      end.
+ 
+  Lemma xgcombine' :
+          forall A B (f: A -> option B),
+          forall (m: tree' A) (i : positive),
+          get i (xcombine' f m) = 
+          match get' i m with None => None | Some x => f x end.
+    Proof.
+      unfold get.
+      induction m; destruct i; intros; simpl;
+      repeat match goal with |- context [xcombine' ?f ?m] =>
+          destruct (xcombine' f m) eqn:?H; auto
+      end;
+      match goal with |- context [?f ?a] =>
+         destruct (f a) eqn:?H; auto
+      end.
+    Qed.
+
+  Definition xcombine {A B} (f: A -> option B) (m : t A) : t B :=
+  match m with Empty => Empty | Nodes m' => xcombine' f m' end.
+
+  Lemma xgcombine :
+          forall A B (f: A -> option B),
+          forall (m: tree A) (i : positive),
+          get i (xcombine f m) = 
+          match get i m with None => None | Some x => f x end.
+  Proof.
+   intros.
+   destruct m as [|m].
+   reflexivity.
+   apply xgcombine'.
+   Qed.
 
   Variables A B C: Type.
   Variable f: option A -> option B -> option C.
   Hypothesis f_none_none: f None None = None.
 
-  Fixpoint xcombine_l (m : t A) {struct m} : t C :=
-      match m with
-      | Leaf => Leaf
-      | Node l o r => Node' (xcombine_l l) (f o None) (xcombine_l r)
-      end.
+  Definition xcombine'_l := xcombine' (fun a => f (Some a) None).
+  Definition xcombine_l := xcombine (fun a => f (Some a) None).
+  Definition xcombine_r := xcombine (fun b => f None (Some b)).
 
-  Lemma xgcombine_l :
-          forall (m: t A) (i : positive),
-          get i (xcombine_l m) = f (get i m) None.
-    Proof.
-      induction m; intros; simpl.
-      repeat rewrite gleaf. auto.
-      rewrite gnode'. destruct i; simpl; auto.
-    Qed.
-
-  Fixpoint xcombine_r (m : t B) {struct m} : t C :=
-      match m with
-      | Leaf => Leaf
-      | Node l o r => Node' (xcombine_r l) (f None o) (xcombine_r r)
-      end.
-
-  Lemma xgcombine_r :
-          forall (m: t B) (i : positive),
-          get i (xcombine_r m) = f None (get i m).
-    Proof.
-      induction m; intros; simpl.
-      repeat rewrite gleaf. auto.
-      rewrite gnode'. destruct i; simpl; auto.
-    Qed.
-
-  Fixpoint combine (m1: t A) (m2: t B) {struct m1} : t C :=
-    match m1 with
-    | Leaf => xcombine_r m2
-    | Node l1 o1 r1 =>
-        match m2 with
-        | Leaf => xcombine_l m1
-        | Node l2 o2 r2 => Node' (combine l1 l2) (f o1 o2) (combine r1 r2)
-        end
+  Fixpoint combine' (m1: tree' A) (m2: t B) {struct m1} : t C :=
+    match m2 with
+    | Empty => xcombine'_l m1
+    | Nodes m2' => 
+   let y := get' xH m2' in
+    match m1 with 
+      | Node001 r =>
+           Node (xcombine_r (getleft' m2')) (f None y) (combine' r (getright' m2'))
+      | Node010 x => 
+           Node (xcombine_r (getleft' m2')) (f (Some x) y) (xcombine_r (getright' m2'))
+      | Node011 x r =>
+           Node (xcombine_r (getleft' m2')) (f (Some x) y) (combine' r (getright' m2'))
+      | Node100 l => 
+            Node (combine' l (getleft' m2')) (f None y) (xcombine_r (getright' m2'))
+      | Node101 l r =>
+            Node (combine' l (getleft' m2')) (f None y) (combine' r (getright' m2'))
+      | Node110 l x =>
+            Node (combine' l (getleft' m2')) (f (Some x) y) (xcombine_r (getright' m2'))
+      | Node111 l x r =>
+            Node (combine' l (getleft' m2')) (f (Some x) y) (combine' r (getright' m2'))
+      end
     end.
+
+  Definition combine (m1: t A) (m2: t B) : t C :=
+  match m1 with Empty => xcombine_r m2 | Nodes m1' => combine' m1' m2 end.
+
+  Lemma combine'_Empty: 
+   forall m, combine' m Empty = xcombine'_l m.
+  Proof. induction m; simpl; auto. Qed.
+
+ Lemma combine_equation: 
+  forall l1 x1 r1 l2 x2 r2,
+    combine (Node l1 x1 r1) (Node l2 x2 r2) = 
+    Node (combine l1 l2) (f x1 x2) (combine r1 r2).
+ Proof.
+  intros.
+  unfold combine at 1.
+  unfold Node at 1.
+  destruct l1, x1, r1, l2, x2, r2; simpl; 
+   rewrite ?f_none_none, ?combine'_Empty; auto.
+ Qed.
 
   Theorem gcombine:
       forall (m1: t A) (m2: t B) (i: positive),
       get i (combine m1 m2) = f (get i m1) (get i m2).
   Proof.
-    induction m1; intros; simpl.
-    rewrite gleaf. apply xgcombine_r.
-    destruct m2; simpl.
-    rewrite gleaf. rewrite <- xgcombine_l. auto.
-    repeat rewrite gnode'. destruct i; simpl; auto.
-  Qed.
+    intros.
+    revert m1 m2; induction i; intros.
+  -
+    rewrite (asNode m1) at 2.  rewrite get_xI_Node.
+    rewrite (asNode m2) at 2.  rewrite get_xI_Node.
+    rewrite <- IHi; clear IHi.
+    rewrite (asNode m1) at 1.
+    rewrite (asNode m2) at 1.
+    rewrite combine_equation. rewrite get_xI_Node. auto.
+  -
+    rewrite (asNode m1) at 2.  rewrite get_xO_Node.
+    rewrite (asNode m2) at 2.  rewrite get_xO_Node.
+    rewrite <- IHi; clear IHi.
+    rewrite (asNode m1) at 1.
+    rewrite (asNode m2) at 1.
+    rewrite combine_equation. rewrite get_xO_Node. auto.
+  -
+    rewrite (asNode m1) at 1.
+    rewrite (asNode m2) at 1.
+    rewrite combine_equation. rewrite get_xH_Node. auto.
+ Qed.
 
   End COMBINE.
 
@@ -600,94 +1060,93 @@ Module PTree <: TREE.
     (forall (i j : option A), f i j = g j i) ->
     xcombine_l f m = xcombine_r g m.
     Proof.
-      induction m; intros; simpl; auto.
-      rewrite IHm1; auto.
-      rewrite IHm2; auto.
-      rewrite H; auto.
+      intros. unfold xcombine_l, xcombine_r. f_equal.
+      apply FunctionalExtensionality.functional_extensionality; intro x.
+      apply H.
     Qed.
 
   Theorem combine_commut:
-    forall (A B: Type) (f g: option A -> option A -> option B),
+    forall (A B: Type) (f g: option A -> option A -> option B)
+    (f_none_none: f None None = None),
     (forall (i j: option A), f i j = g j i) ->
     forall (m1 m2: t A),
     combine f m1 m2 = combine g m2 m1.
   Proof.
-    intros A B f g EQ1.
-    assert (EQ2: forall (i j: option A), g i j = f j i).
-      intros; auto.
-    induction m1; intros; destruct m2; simpl;
-      try rewrite EQ1;
-      repeat rewrite (xcombine_lr f g);
-      repeat rewrite (xcombine_lr g f);
-      auto.
-     rewrite IHm1_1.
-     rewrite IHm1_2.
-     auto.
-  Qed.
-
-    Fixpoint xelements (A : Type) (m : t A) (i : positive)
+    intros.
+    apply extensionality. red. intro.
+    rewrite !gcombine; auto.
+    rewrite <- H; auto.
+ Qed.
+    
+    Fixpoint xelements (A : Type) (m : tree' A) (i : positive)
                        (k: list (positive * A)) {struct m}
                        : list (positive * A) :=
       match m with
-      | Leaf => k
-      | Node l None r =>
-          xelements l (xO i) (xelements r (xI i) k)
-      | Node l (Some x) r =>
-          xelements l (xO i)
-            ((prev i, x) :: xelements r (xI i) k)
+      | Node001 r => xelements r (xI i) k
+      | Node010 x => (prev i, x) :: k
+      | Node011 x r => (prev i, x) :: xelements r (xI i) k
+      | Node100 l => xelements l (xO i) k
+      | Node101 l r => xelements l (xO i) (xelements r (xI i) k)
+      | Node110 l x => xelements l (xO i) ((prev i, x)::k)
+      | Node111 l x r => xelements l (xO i) ((prev i, x):: (xelements r (xI i) k))
       end.
 
-  Definition elements (A: Type) (m : t A) := xelements m xH nil.
+  Definition elements (A: Type) (m : t A) := 
+   match m with Empty => nil | Nodes m' => xelements m' xH nil end.
 
   Remark xelements_append:
-    forall A (m: t A) i k1 k2,
+    forall A (m: tree' A) i k1 k2,
     xelements m i (k1 ++ k2) = xelements m i k1 ++ k2.
   Proof.
-    induction m; intros; simpl.
-  - auto.
-  - destruct o; rewrite IHm2; rewrite <- IHm1; auto.
+    induction m; intros; simpl; auto.
+  - f_equal; auto.
+  - rewrite <- IHm1. f_equal. apply IHm2.
+  - rewrite <- IHm. simpl. auto.
+  - rewrite <- IHm1. simpl. f_equal. f_equal. auto.
   Qed.
 
-  Remark xelements_leaf:
-    forall A i, xelements (@Leaf A) i nil = nil.
+  Remark xelements_append':
+    forall A (m: tree' A) i k,
+    xelements m i k = xelements m i nil ++ k.
   Proof.
-    intros; reflexivity.
+    intros.
+    rewrite <- (app_nil_l k). rewrite xelements_append. auto.
   Qed.
 
-  Remark xelements_node:
-    forall A (m1: t A) o (m2: t A) i,
-    xelements (Node m1 o m2) i nil =
-       xelements m1 (xO i) nil
-    ++ match o with None => nil | Some v => (prev i, v) :: nil end
-    ++ xelements m2 (xI i) nil.
+  Remark xelements_cons:
+    forall A (m: tree' A) i y k,
+    xelements m i (y::k) = xelements m i (y::nil) ++ k.
   Proof.
-    intros. simpl. destruct o; simpl; rewrite <- xelements_append; auto.
+    intros.
+    change (y::k) with ((y::nil)++k). apply xelements_append.
   Qed.
 
     Lemma xelements_incl:
-      forall (A: Type) (m: t A) (i : positive) k x,
+      forall (A: Type) (m: tree' A) (i : positive) k x,
       In x k -> In x (xelements m i k).
     Proof.
-      induction m; intros; simpl.
-      auto.
-      destruct o.
-      apply IHm1. simpl; right; auto.
-      auto.
+      induction m; intros; simpl; auto.
+      apply IHm. simpl; auto.
+      apply IHm1. right. apply IHm2. auto.
     Qed.
 
     Lemma xelements_correct:
-      forall (A: Type) (m: t A) (i j : positive) (v: A) k,
-      get i m = Some v -> In (prev (prev_append i j), v) (xelements m j k).
+      forall (A: Type) (m: tree' A) (i j : positive) (v: A) k,
+      get' i m = Some v -> In (prev (prev_append i j), v) (xelements m j k).
     Proof.
-      induction m; intros.
-       rewrite (gleaf A i) in H; congruence.
-       destruct o; destruct i; simpl; simpl in H.
-        apply xelements_incl. right. auto.
-        auto.
-        inv H. apply xelements_incl. left. reflexivity.
-        apply xelements_incl. auto.
-        auto.
-        inv H.
+      induction m; destruct i; intros;
+      try apply (IHm _ _ _ _ H); 
+      try solve [inv H; simpl; auto].
+      -  simpl. rewrite xelements_append'.
+         apply in_app; right; auto.
+      - simpl. inv H. rewrite xelements_cons.
+          apply in_app; left; auto.
+          apply xelements_incl. left; auto.
+     - simpl. simpl in H. rewrite xelements_cons.
+          apply in_app; right. auto.
+     - inv H. simpl. rewrite xelements_cons.
+          apply in_app; left.
+          apply xelements_incl. left; auto.
     Qed.
 
   Theorem elements_correct:
@@ -695,52 +1154,53 @@ Module PTree <: TREE.
     get i m = Some v -> In (i, v) (elements m).
   Proof.
     intros A m i v H.
+    destruct m as [|m]. inv H.
     generalize (xelements_correct m i xH nil H). rewrite prev_append_prev. exact id.
   Qed.
 
   Lemma in_xelements:
-    forall (A: Type) (m: t A) (i k: positive) (v: A) ,
+    forall (A: Type) (m: tree' A) (i k: positive) (v: A) ,
     In (k, v) (xelements m i nil) ->
-    exists j, k = prev (prev_append j i) /\ get j m = Some v.
+    exists j, k = prev (prev_append j i) /\ get' j m = Some v.
   Proof.
-    induction m; intros.
-  - rewrite xelements_leaf in H. contradiction.
-  - rewrite xelements_node in H. rewrite ! in_app_iff in H. destruct H as [P | [P | P]].
-    + exploit IHm1; eauto. intros (j & Q & R). exists (xO j); auto.
-    + destruct o; simpl in P; intuition auto. inv H. exists xH; auto.
-    + exploit IHm2; eauto. intros (j & Q & R). exists (xI j); auto.
+    induction m; simpl; intros.
+  - apply IHm in H.  destruct H as [j [? ?]].  exists (xI j). simpl; auto.
+  - destruct H; inv H. exists xH; simpl; auto.
+  - destruct H. inv H. exists xH; simpl; auto. apply IHm in H. destruct H as [j [? ?]]. exists (xI j); simpl; auto.
+  - apply IHm in H. destruct H as [j [? ?]]. exists (xO j); simpl; auto.
+  - rewrite xelements_append' in H.
+     apply in_app in H.
+     destruct H.
+     apply IHm1 in H. destruct H as [j [? ?]]. exists (xO j); split; auto.
+     apply IHm2 in H. destruct H as [j [? ?]]. exists (xI j); split; auto.
+  - rewrite xelements_append' in H.
+     apply in_app in H.
+     destruct H.
+     apply IHm in H. destruct H as [j [? ?]]. exists (xO j); split; auto.
+     destruct H; inv H. exists xH; simpl; auto.
+  - rewrite xelements_cons in H.
+     rewrite xelements_append' in H.
+     rewrite !in_app in H.
+     destruct H as [[?|?]|?].
+     apply IHm1 in H. destruct H as [j [? ?]]. exists (xO j); split; auto.
+     destruct H; inv H; exists xH; simpl; auto.
+     apply IHm2 in H. destruct H as [j [? ?]]. exists (xI j); split; auto.
   Qed.
 
   Theorem elements_complete:
     forall (A: Type) (m: t A) (i: positive) (v: A),
     In (i, v) (elements m) -> get i m = Some v.
   Proof.
-    unfold elements. intros A m i v H. exploit in_xelements; eauto. intros (j & P & Q).
-    rewrite prev_append_prev in P. change i with (prev_append 1 i) in P.
-    exploit prev_append_inj; eauto. intros; congruence.
+    intros.
+    destruct m as [|m]. inv H. apply in_xelements in H.
+    destruct H as [j [? ?]]. subst. rewrite prev_append_prev. simpl. auto.
   Qed.
 
-  Definition xkeys (A: Type) (m: t A) (i: positive) :=
+  Definition xkeys (A: Type) (m: tree' A) (i: positive) :=
     List.map (@fst positive A) (xelements m i nil).
 
-  Remark xkeys_leaf:
-    forall A i, xkeys (@Leaf A) i = nil.
-  Proof.
-    intros; reflexivity.
-  Qed.
-
-  Remark xkeys_node:
-    forall A (m1: t A) o (m2: t A) i,
-    xkeys (Node m1 o m2) i =
-       xkeys m1 (xO i)
-    ++ match o with None => nil | Some v => prev i :: nil end
-    ++ xkeys m2 (xI i).
-  Proof.
-    intros. unfold xkeys. rewrite xelements_node. rewrite ! map_app. destruct o; auto.
-  Qed.
-
   Lemma in_xkeys:
-    forall (A: Type) (m: t A) (i k: positive),
+    forall (A: Type) (m: tree' A) (i k: positive),
     In k (xkeys m i) ->
     (exists j, k = prev (prev_append j i)).
   Proof.
@@ -750,43 +1210,56 @@ Module PTree <: TREE.
   Qed.
 
   Lemma xelements_keys_norepet:
-    forall (A: Type) (m: t A) (i: positive),
+    forall (A: Type) (m: tree' A) (i: positive),
     list_norepet (xkeys m i).
   Proof.
-    induction m; intros.
-  - rewrite xkeys_leaf; constructor.
-  - assert (NOTIN1: ~ In (prev i) (xkeys m1 (xO i))).
-    { red; intros. exploit in_xkeys; eauto. intros (j & EQ).
-      rewrite prev_append_prev in EQ. simpl in EQ. apply prev_append_inj in EQ. discriminate. }
-    assert (NOTIN2: ~ In (prev i) (xkeys m2 (xI i))).
-    { red; intros. exploit in_xkeys; eauto. intros (j & EQ).
-      rewrite prev_append_prev in EQ. simpl in EQ. apply prev_append_inj in EQ. discriminate. }
-    assert (DISJ: forall x, In x (xkeys m1 (xO i)) -> In x (xkeys m2 (xI i)) -> False).
-    { intros. exploit in_xkeys. eexact H. intros (j1 & EQ1).
-      exploit in_xkeys. eexact H0. intros (j2 & EQ2).
+    intro.
+    assert (NOTIN1: forall (m: tree' A) i, ~ In (prev i) (xkeys m (xO i))). {
+          intros. intro. apply in_xkeys in H. destruct H as [j EQ].
+          rewrite prev_append_prev in EQ. simpl in EQ. apply prev_append_inj in EQ. discriminate. }
+    assert (NOTIN2: forall (m: tree' A) i, ~ In (prev i) (xkeys m (xI i))). {
+          intros. intro. apply in_xkeys in H. destruct H as [j EQ].
+          rewrite prev_append_prev in EQ. simpl in EQ. apply prev_append_inj in EQ. discriminate. }
+    assert (DISJ: forall (m1 m2: tree' A) i x, In x (xkeys m1 (xO i)) -> In x (xkeys m2 (xI i)) -> False).
+    { intros.
+       apply in_xkeys in H; destruct H as [j1 EQ1].
+       apply in_xkeys in H0; destruct H0 as [j2 EQ2].
       rewrite prev_append_prev in *. simpl in *. rewrite EQ2 in EQ1. apply prev_append_inj in EQ1. discriminate. }
-    rewrite xkeys_node. apply list_norepet_append. auto.
-    destruct o; simpl; auto. constructor; auto.
-    red; intros. red; intros; subst y. destruct o; simpl in H0.
-    destruct H0. subst x. tauto. eauto. eauto.
+    unfold xkeys.
+    induction m; simpl; intros; auto.
+  - constructor. intro H; inv H. constructor.
+  - constructor; auto.
+      apply NOTIN2.
+  - rewrite xelements_append'.
+     rewrite List.map_app.
+     apply list_norepet_app. split; [|split]; auto.
+     intros j j0 ? ? ?; subst j0.
+     eapply DISJ; eauto.
+  - rewrite xelements_append'.
+     rewrite List.map_app.
+     apply list_norepet_app. split; [|split]; auto.
+     constructor; auto. constructor.
+     intros j j0 ? ? ?; subst j0.
+     destruct H0; inv H0. simpl in H.
+     apply NOTIN1 in H; auto.
+  - rewrite xelements_append'.
+     rewrite List.map_app.
+     apply list_norepet_app. split; [|split]; auto.
+     simpl.
+     constructor; auto.
+     eapply NOTIN2; auto.
+     intros j j0 ? ? ?; subst j0.
+     simpl in H0. destruct H0. subst. eapply NOTIN1; eauto.
+     eapply DISJ; eauto.
   Qed.
 
   Theorem elements_keys_norepet:
     forall (A: Type) (m: t A),
     list_norepet (List.map (@fst elt A) (elements m)).
   Proof.
-    intros. apply (xelements_keys_norepet m xH).
-  Qed.
-
-  Remark xelements_empty:
-    forall (A: Type) (m: t A) i, (forall i, get i m = None) -> xelements m i nil = nil.
-  Proof.
-    induction m; intros.
-    auto.
-    rewrite xelements_node. rewrite IHm1, IHm2. destruct o; auto.
-    generalize (H xH); simpl; congruence.
-    intros. apply (H (xI i0)).
-    intros. apply (H (xO i0)).
+    intros.
+    destruct m as [|m]. constructor.
+    apply (xelements_keys_norepet m xH).
   Qed.
 
   Theorem elements_canonical_order':
@@ -796,19 +1269,41 @@ Module PTree <: TREE.
       (fun i_x i_y => fst i_x = fst i_y /\ R (snd i_x) (snd i_y))
       (elements m) (elements n).
   Proof.
-    intros until n. unfold elements. generalize 1%positive. revert m n.
-    induction m; intros.
-  - simpl. rewrite xelements_empty. constructor.
-    intros. specialize (H i). rewrite gempty in H. inv H; auto.
-  - destruct n as [ | n1 o' n2 ].
-  + rewrite (xelements_empty (Node m1 o m2)). simpl; constructor.
-    intros. specialize (H i). rewrite gempty in H. inv H; auto.
-  + rewrite ! xelements_node. repeat apply list_forall2_app.
-    apply IHm1. intros. apply (H (xO i)).
-    generalize (H xH); simpl; intros OR; inv OR.
-    constructor.
-    constructor. auto. constructor.
-    apply IHm2. intros. apply (H (xI i)).
+    intros until n.
+    destruct n as [|n], m as [|m].
+    - intros; constructor.
+    - intros. destruct (tree'_not_empty m) as [i [x H0]]. specialize (H i); unfold get in H; rewrite H0 in H; inv H.
+    - intros. destruct (tree'_not_empty n) as [i [x H0]]. specialize (H i); unfold get in H; rewrite H0 in H; inv H.
+    -
+    unfold elements. generalize 1%positive. revert m n.
+    induction m; destruct n; intros;
+    try solve [specialize (H xH); inv H].
+    all: try solve [destruct (tree'_not_empty m) as [i [x H0]]; specialize (H (xI i)); simpl in H; rewrite H0 in H; inv H].
+    all: try solve [destruct (tree'_not_empty n) as [i [x H0]]; specialize (H (xI i)); simpl in H; rewrite H0 in H; inv H].
+    all: try solve [destruct (tree'_not_empty m) as [i [x H0]]; specialize (H (xO i)); simpl in H; rewrite H0 in H; inv H].
+    all: try solve [destruct (tree'_not_empty n) as [i [x H0]]; specialize (H (xO i)); simpl in H; rewrite H0 in H; inv H].
+    all: try solve [destruct (tree'_not_empty n1) as [i [x H0]]; specialize (H (xO i)); simpl in H; rewrite H0 in H; inv H].
+    all: try solve [destruct (tree'_not_empty n2) as [i [x H0]]; specialize (H (xI i)); simpl in H; rewrite H0 in H; inv H].
+    all: try solve [destruct (tree'_not_empty m1) as [i [x H0]]; specialize (H (xO i)); simpl in H; rewrite H0 in H; inv H].
+    all: try solve [destruct (tree'_not_empty m2) as [i [x H0]]; specialize (H (xI i)); simpl in H; rewrite H0 in H; inv H].
+    + apply (IHm n (xI p)). intro i. apply (H (xI i)).
+    + simpl. specialize (H xH); simpl in H. inv H. constructor. split. auto. auto. constructor.
+    + simpl; constructor. split. auto. simpl. specialize (H xH); simpl in H. inv H; auto. apply (IHm n (xI p)). intro. apply (H (xI i)).
+    + apply (IHm n (xO p)). intro i. apply (H (xO i)).
+    + simpl. rewrite !(xelements_append' _ _ (xelements _ _ _)). apply list_forall2_app.
+        apply (IHm1 _ (xO p)). intro. apply (H (xO i)).
+        apply (IHm2 _ (xI p)). intro. apply (H (xI i)).
+    + simpl. rewrite !(xelements_append' _ _ (_ :: _)). apply list_forall2_app.
+         apply (IHm n (xO p)). intro i. apply (H (xO i)).
+         simpl. constructor. split. auto. specialize (H xH). simpl in H. inv H; auto. constructor.
+    + simpl.
+        rewrite !(xelements_cons _ _ _ (xelements _ _ _)).
+        rewrite !(xelements_append' _ _ (_::_)).
+        repeat apply list_forall2_app. 
+         apply (IHm1 n1 (xO p)). intro i. apply (H (xO i)).
+        constructor. split; auto. specialize (H xH). simpl in H. inv H; auto.
+        constructor.
+         apply (IHm2 _ (xI p)). intro i. apply (H (xI i)).
   Qed.
 
   Theorem elements_canonical_order:
@@ -839,46 +1334,68 @@ Module PTree <: TREE.
     destruct H0. congruence.
   Qed.
 
+  Definition elements' (A: Type) (m : t A) (i: positive) := 
+   match m with Empty => nil | Nodes m' => xelements m' i nil end.
+
   Lemma xelements_remove:
-    forall (A: Type) v (m: t A) i j,
-    get i m = Some v ->
+    forall (A: Type) v (m: tree' A) i j,
+    get' i m = Some v ->
     exists l1 l2,
     xelements m j nil = l1 ++ (prev (prev_append i j), v) :: l2
-    /\ xelements (remove i m) j nil = l1 ++ l2.
+    /\ elements' (rem' i m) j = l1 ++ l2.
   Proof.
-    induction m; intros.
-  - rewrite gleaf in H; discriminate.
-  - assert (REMOVE: xelements (remove i (Node m1 o m2)) j nil =
-                    xelements (match i with
-                               | xH => Node m1 None m2
-                               | xO ii => Node (remove ii m1) o m2
-                               | xI ii => Node m1 o (remove ii m2) end)
-                              j nil).
-    {
-      destruct i; simpl remove.
-      destruct m1; auto. destruct o; auto. destruct (remove i m2); auto.
-      destruct o; auto. destruct m2; auto. destruct (remove i m1); auto.
-      destruct m1; auto. destruct m2; auto.
-    }
-    rewrite REMOVE. destruct i; simpl in H.
-    + destruct (IHm2 i (xI j) H) as (l1 & l2 & EQ & EQ').
-      exists (xelements m1 (xO j) nil ++
-              match o with None => nil | Some x => (prev j, x) :: nil end ++
-              l1);
-      exists l2; split.
-      rewrite xelements_node, EQ, ! app_ass. auto.
-      rewrite xelements_node, EQ', ! app_ass. auto.
-    + destruct (IHm1 i (xO j) H) as (l1 & l2 & EQ & EQ').
-      exists l1;
-      exists (l2 ++
-              match o with None => nil | Some x => (prev j, x) :: nil end ++
-              xelements m2 (xI j) nil);
+    induction m; destruct i; intros; try discriminate.
+  - destruct (IHm i (xI j) H) as [l1 [l2 [? ?]]]. do 2 eexists; split; eauto.
+     simpl. destruct (rem' i m); simpl in *; auto.
+  - simpl in H; inv H. exists nil, nil. split; simpl; auto.
+  - destruct (IHm i (xI j) H) as [l1 [l2 [? ?]]]. exists ((prev j,a)::l1), l2.
+      simpl; split. f_equal. auto. destruct (rem' i m); simpl in *; f_equal; auto.
+  - simpl in H; inv H. exists nil. eexists.  simpl; auto.
+  - destruct (IHm i (xO j) H) as [l1 [l2 [? ?]]]. do 2 eexists; split; eauto.
+     simpl. destruct (rem' i m); simpl in *; auto.
+  -  destruct (IHm2 i (xI j) H) as [l1 [l2 [? ?]]].
+      simpl. exists (xelements m1 j~0 l1), l2.
       split.
-      rewrite xelements_node, EQ, ! app_ass. auto.
-      rewrite xelements_node, EQ', ! app_ass. auto.
-    + subst o. exists (xelements m1 (xO j) nil); exists (xelements m2 (xI j) nil); split.
-      rewrite xelements_node. rewrite prev_append_prev. auto.
-      rewrite xelements_node; auto.
+      rewrite xelements_append'. rewrite (xelements_append' _ _ l1).
+      rewrite <- app_assoc. f_equal. auto.
+      destruct (rem' i m2); simpl in *; auto.
+      rewrite (xelements_append' _ _ l1).
+      rewrite <- app_assoc. rewrite <- H1; auto. rewrite app_nil_r. auto.
+      rewrite xelements_append'.
+      rewrite (xelements_append' _ _ l1).
+      rewrite <- app_assoc. f_equal. auto. 
+  - destruct (IHm1 i (xO j) H) as [l1 [l2 [? ?]]].
+      simpl. exists l1, (l2 ++ xelements m2 j~1 nil).
+      split. rewrite xelements_append'.
+      rewrite H0.  rewrite <- app_assoc. f_equal.
+      destruct (rem' i m1); simpl in *; auto. rewrite app_assoc, <- H1. auto.
+      rewrite app_assoc, <- H1. rewrite <- xelements_append'. auto.
+  - destruct (IHm i (xO j) H) as [l1 [l2 [? ?]]].
+     simpl. exists l1. eexists. split.
+     rewrite xelements_append', H0. rewrite <- app_assoc.
+     f_equal. simpl. f_equal. rewrite app_assoc. rewrite <- H1.
+     destruct (rem' i m); simpl; auto. rewrite <- xelements_append'; auto.
+  - simpl in *. inv H. do 2 eexists. split. 
+     rewrite xelements_append'. reflexivity.
+     rewrite app_nil_r; auto.
+  - destruct (IHm2 i (xI j) H) as [l1 [l2 [? ?]]].
+     simpl. do 2 eexists. split. rewrite H0.
+     rewrite xelements_append'.
+     rewrite <- app_assoc. f_equal. change (?a::?b++?c) with ((a::b)++c).
+     reflexivity.
+     rewrite <- app_assoc. simpl. rewrite <- H1.
+     destruct (rem' i m2); simpl; rewrite <- xelements_append; auto.
+  - destruct (IHm1 i (xO j) H) as [l1 [l2 [? ?]]].
+     simpl. do 2 eexists. split.
+     rewrite xelements_append'. rewrite H0.
+     rewrite <- app_assoc. f_equal. simpl. f_equal.
+     rewrite app_assoc. rewrite <- H1.
+     destruct (rem' i m1); simpl; auto. rewrite <- xelements_append; auto.
+  - inv H. do 2 eexists. simpl.
+     rewrite xelements_cons.
+     rewrite (xelements_append' _ _ (xelements _ _ _)). 
+     rewrite (xelements_append' _ _ (_ :: _)). rewrite <- app_assoc. 
+     simpl. split. f_equal. f_equal.
   Qed.
 
   Theorem elements_remove:
@@ -886,36 +1403,37 @@ Module PTree <: TREE.
     get i m = Some v ->
     exists l1 l2, elements m = l1 ++ (i,v) :: l2 /\ elements (remove i m) = l1 ++ l2.
   Proof.
-    intros. exploit xelements_remove. eauto. instantiate (1 := xH).
-    rewrite prev_append_prev. auto.
+    intros.
+    destruct m as [|m]. inv H.
+    apply xelements_remove with (j:=xH) in H.
+     destruct H as [l1 [l2 [? ?]]].
+    rewrite prev_append_prev in H. eauto.
   Qed.
 
   Fixpoint xfold (A B: Type) (f: B -> positive -> A -> B)
-                 (i: positive) (m: t A) (v: B) {struct m} : B :=
+                 (i: positive) (m: tree' A) (v: B) {struct m} : B :=
     match m with
-    | Leaf => v
-    | Node l None r =>
-        let v1 := xfold f (xO i) l v in
-        xfold f (xI i) r v1
-    | Node l (Some x) r =>
-        let v1 := xfold f (xO i) l v in
-        let v2 := f v1 (prev i) x in
-        xfold f (xI i) r v2
+    | Node001 r => xfold f (xI i) r v
+    | Node010 x => f v (prev i) x
+    | Node011 x r => xfold f (xI i) r (f v (prev i) x)
+    | Node100 l => xfold f (xO i) l v
+    | Node101 l r => xfold f (xI i) r (xfold f (xO i) l v)
+    | Node110 l x => f (xfold f (xO i) l v) (prev i) x
+    | Node111 l x r => xfold f (xI i) r (f (xfold f (xO i) l v) (prev i) x)
     end.
 
   Definition fold (A B : Type) (f: B -> positive -> A -> B) (m: t A) (v: B) :=
-    xfold f xH m v.
+   match m with Empty => v | Nodes m' => xfold f xH m' v end.
 
   Lemma xfold_xelements:
     forall (A B: Type) (f: B -> positive -> A -> B) m i v l,
     List.fold_left (fun a p => f a (fst p) (snd p)) l (xfold f i m v) =
     List.fold_left (fun a p => f a (fst p) (snd p)) (xelements m i l) v.
   Proof.
-    induction m; intros.
-    simpl. auto.
-    destruct o; simpl.
-    rewrite <- IHm1. simpl. rewrite <- IHm2. auto.
-    rewrite <- IHm1. rewrite <- IHm2. auto.
+    induction m; intros; simpl; auto.
+    rewrite <- IHm1, <- IHm2; auto.
+    rewrite <- IHm; auto.
+    rewrite <- IHm1. simpl. rewrite <- IHm2; auto.
   Qed.
 
   Theorem fold_spec:
@@ -923,31 +1441,35 @@ Module PTree <: TREE.
     fold f m v =
     List.fold_left (fun a p => f a (fst p) (snd p)) (elements m) v.
   Proof.
-    intros. unfold fold, elements. rewrite <- xfold_xelements. auto.
+    intros.
+    destruct m as [|m]. simpl. auto.
+     unfold fold, elements. rewrite <- xfold_xelements. auto.
   Qed.
 
-  Fixpoint fold1 (A B: Type) (f: B -> A -> B) (m: t A) (v: B) {struct m} : B :=
+  Fixpoint xfold1 {A B: Type} (f: B -> A -> B) (m: tree' A) (v: B) {struct m} : B :=
     match m with
-    | Leaf => v
-    | Node l None r =>
-        let v1 := fold1 f l v in
-        fold1 f r v1
-    | Node l (Some x) r =>
-        let v1 := fold1 f l v in
-        let v2 := f v1 x in
-        fold1 f r v2
+    | Node001 r => xfold1 f r v
+    | Node010 x => f v x
+    | Node011 x r => xfold1 f r (f v x)
+    | Node100 l => xfold1 f l v
+    | Node101 l r => xfold1 f r (xfold1 f l v)
+    | Node110 l x => f (xfold1 f l v) x
+    | Node111 l x r => xfold1 f r (f (xfold1 f l v) x)
     end.
 
-  Lemma fold1_xelements:
+
+  Definition fold1 (A B: Type) (f: B -> A -> B) (m: t A) (v: B) : B :=
+    match m with Empty => v | Nodes m' => xfold1 f m' v end.
+
+  Lemma xfold1_xelements:
     forall (A B: Type) (f: B -> A -> B) m i v l,
-    List.fold_left (fun a p => f a (snd p)) l (fold1 f m v) =
+    List.fold_left (fun a p => f a (snd p)) l (xfold1 f m v) =
     List.fold_left (fun a p => f a (snd p)) (xelements m i l) v.
   Proof.
-    induction m; intros.
-    simpl. auto.
-    destruct o; simpl.
-    rewrite <- IHm1. simpl. rewrite <- IHm2. auto.
+    induction m; simpl; intros; auto.
     rewrite <- IHm1. rewrite <- IHm2. auto.
+    rewrite <- IHm. auto. 
+    rewrite <- IHm1. simpl. rewrite <- IHm2. auto.
   Qed.
 
   Theorem fold1_spec:
@@ -955,8 +1477,14 @@ Module PTree <: TREE.
     fold1 f m v =
     List.fold_left (fun a p => f a (snd p)) (elements m) v.
   Proof.
-    intros. apply fold1_xelements with (l := @nil (positive * A)).
+    intros. destruct m as [|m]. reflexivity.
+    apply xfold1_xelements with (l := @nil (positive * A)).
   Qed.
+
+  Arguments empty A : simpl never.
+  Arguments get {A} p m : simpl never.
+  Arguments set {A} p x m : simpl never.
+  Arguments remove {A} p m : simpl never.
 
 End PTree.
 
@@ -983,7 +1511,7 @@ Module PMap <: MAP.
   Theorem gi:
     forall (A: Type) (i: positive) (x: A), get i (init x) = x.
   Proof.
-    intros. unfold init. unfold get. simpl. rewrite PTree.gempty. auto.
+    intros. unfold init. unfold get. simpl. auto.
   Qed.
 
   Theorem gss:
@@ -1034,6 +1562,10 @@ Module PMap <: MAP.
   Proof.
     intros. unfold set. simpl. decEq. apply PTree.set2.
   Qed.
+
+  Arguments init A : simpl never.
+  Arguments get {A} i m : simpl never.
+  Arguments set {A} i x m : simpl never.
 
 End PMap.
 

@@ -78,8 +78,15 @@ end.
 
 Ltac check_ground_ptree t :=
 match t with
-| @PTree.Node _ ?a _ ?b => check_ground_ptree a; check_ground_ptree b
-| @PTree.Leaf _ => idtac
+| PTree.Empty => idtac
+| PTree.Nodes ?m => check_ground_ptree m
+| PTree.Node001 ?r  => check_ground_ptree r
+| PTree.Node010 _ => idtac
+| PTree.Node011 _ ?r  => check_ground_ptree r
+| PTree.Node100 ?l =>  check_ground_ptree l
+| PTree.Node101 ?l ?r => check_ground_ptree l;  check_ground_ptree r
+| PTree.Node110 ?l _ => check_ground_ptree l
+| PTree.Node111 ?l _ ?r => check_ground_ptree l;  check_ground_ptree r
 end.
 
 Ltac check_ground_Delta :=
@@ -627,13 +634,12 @@ auto.
 -
 intros; hnf; intros.
 simpl.
-rewrite PTree.gempty.
 auto.
 -
 intros.
 hnf; intros.
 simpl.
-rewrite !PTree.gempty; auto.
+auto.
 Qed.
 
 Definition check_no_overlap'

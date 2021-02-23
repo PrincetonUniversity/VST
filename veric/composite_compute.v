@@ -468,10 +468,8 @@ Proof.
   induction l as [| [i0 co0] l].
   + split; [| split]; hnf; intros.
     - simpl; tauto.
-    - unfold Env in H3; simpl in H3.
-      rewrite PTree.gempty in H3; inv H3.
-    - unfold Env in H3; simpl in H3.
-      rewrite PTree.gempty in H3; inv H3.
+    - unfold Env in H3; simpl in H3. inv H3.
+    - unfold Env in H3; simpl in H3. inv H3.
   + inv H0.
     rename H4 into RDT_list; specialize (IHl H6); clear H6.
     assert (CENV0: PTree.get i0 cenv = Some co0).
