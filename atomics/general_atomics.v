@@ -526,15 +526,15 @@ Qed.
 
 (* A is the type of the abstract data. T is the type quantified over in the postcondition.
    W is the TypeTree of the witness for the rest of the function. *)
-Program Definition atomic_spec {A T} {t : Inhabitant T} W args tz la P Qp a lb
+Program Definition atomic_spec {A T} {t : Inhabitant T} W args tz la P G Qp a lb
         b Ei Eo
    (HP : super_non_expansive' P) (HQp : forall v:T, super_non_expansive' (Qp v))
   (Ha : super_non_expansive_a(A := A) a) (Hlb : super_non_expansive_lb lb) (Hb : super_non_expansive_b b) :=
   mk_funspec (pair args tz) cc_default (atomic_spec_type W T)
   (fun (ts: list Type) '(w, Q, inv_names) =>
     PROP ()
-    (PARAMSx (la ts w)
-    (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))%assert5))
+    (PARAMSx (la ts w) (GLOBALSx G (
+    (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))%assert5))))
   (fun (ts: list Type) '(w, Q, inv_names) => EX v : T,
     PROP () (LOCALx (lb ts w v)
     (SEP (Q v; Qp v ts w))%assert5)) _ _.
