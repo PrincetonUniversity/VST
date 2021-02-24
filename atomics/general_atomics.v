@@ -380,7 +380,6 @@ Import List.
      PROP () (LOCALx (map (fun l => l ts w v) lb)
      (SEP (Q v)))) _ _).*)
 
-
 Lemma atomic_spec_nonexpansive_pre' : forall {A T} {t : Inhabitant T} W P L G R S2 Ei Eo SQ
   (HP : Forall (fun P0 => @super_non_expansive W (fun ts a _ => prop (P0 ts a))) P)
   (HL: forall n ts x, L ts x = L ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
@@ -416,48 +415,53 @@ Qed.
 
 Definition atomic_spec_type0 W := ProdType (ProdType W Mpred) (ConstType invG).
 
-Lemma atomic_spec_nonexpansive_pre0 : forall {A} W P L R S2 Ei Eo SQ
-  (HP : super_non_expansive_list (fun ts w _ => map prop (P ts w)))
-  (HL : super_non_expansive_list (fun ts w rho => map (fun l => !! (locald_denote l rho)) (L ts w)))
-  (HR : super_non_expansive_list (fun ts w _ => R ts w)),
+Lemma atomic_spec_nonexpansive_pre0 : forall {A} W P L G R S2 Ei Eo SQ
+  (HP : Forall (fun P0 => @super_non_expansive W (fun ts a _ => prop (P0 ts a))) P)
+  (HL: forall n ts x, L ts x = L ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
+  (HR : Forall (fun R0 => @super_non_expansive W (fun ts a _ => R0 ts a)) R),
   super_non_expansive_a S2 ->
   super_non_expansive_b SQ ->
-  @super_non_expansive (atomic_spec_type0 W)
+  @args_super_non_expansive (atomic_spec_type0 W)
   (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * mpred * invG) =>
     let '(w, Q, inv_names) := _a in
-    PROPx (P ts w) (LOCALx (L ts w)
-     (SEPx (atomic_shift(A := A ts)(B := unit)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) (fun _ => Q) :: R ts w)))).
+    PROPx (map (fun P0 => P0 ts w) P) (PARAMSx (L ts w) (GLOBALSx G
+     (SEPx (atomic_shift(A := A ts)(B := unit)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) (fun _ => Q) :: map (fun R0 => R0 ts w) R))))).
 Proof.
   intros.
-  hnf; intros.
-  etransitivity; [|etransitivity; [
-    apply (PROP_LOCAL_SEP_super_non_expansive' (atomic_spec_type0 W) (fun ts '(w, _, _) => P ts w) (fun ts '(w, _, _) => L ts w) (fun ts '(w, Q, inv_names) => atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) (fun _ => Q) :: R ts w))|]].
-  - instantiate (1 := rho); instantiate (1 := ts); instantiate (1 := x).
-    destruct x as ((?, ?), ?); reflexivity.
-  - intros ? ? ((?, ?), ?) ?; apply HP; auto.
-  - intros ? ? ((?, ?), ?) ?; apply HL; auto.
-  - intros ? ? ((?, ?), ?) ?; constructor; [|apply HR; auto].
-    rewrite -> atomic_shift_nonexpansive by auto; setoid_rewrite atomic_shift_nonexpansive at 2; auto.
-    f_equal; f_equal; repeat extensionality; simpl.
-    + apply H.
-    + apply H0.
-    + rewrite approx_idem; auto.
-  - destruct x as ((?, ?), ?); reflexivity.
+  pose proof (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type0 W) (map (fun P0 ts x => P0 ts (fst (fst x))) P)
+                                                                (fun ts x => L ts (fst (fst x))) G ((fun ts '(w, Q, inv_names) => atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) (fun _ => Q)) :: map (fun R0 ts x => R0 ts (fst (fst x))) R)) as Heq.
+  spec Heq; [|spec Heq; [|spec Heq]].
+  - rewrite Forall_map; eapply Forall_impl, HP.
+    clear; unfold compose, super_non_expansive; intros; apply H; auto.
+  - intros; apply HL.
+  - constructor.
+    + unfold super_non_expansive; intros.
+      destruct x as ((?, ?), ?); simpl.
+      rewrite atomic_shift_nonexpansive; setoid_rewrite atomic_shift_nonexpansive at 2.
+      f_equal; f_equal; repeat extensionality; simpl; auto.
+      symmetry; apply approx_idem.
+    + rewrite Forall_map; eapply Forall_impl, HR.
+      clear; unfold compose, super_non_expansive; intros; apply H; auto.
+  - match goal with H : args_super_non_expansive ?P1 |- args_super_non_expansive ?P2 => replace P2 with P1; [apply H|] end.
+    clear; do 2 extensionality.
+    destruct x0 as ((?, ?), ?); simpl.
+    rewrite !map_map; auto.
 Qed.
 
-Lemma atomic_spec_nonexpansive_pre : forall {A T} {t : Inhabitant T} W P L R S2 Ei Eo SQ Pre
+Lemma atomic_spec_nonexpansive_pre : forall {A T} {t : Inhabitant T} W P L G R S2 Ei Eo SQ Pre
   (Heq : (forall ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG),
    Pre ts _a = let '(w, Q, inv_names) := _a in
-    PROPx (P ts w) (PARAMSx (L ts w)
-     (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w)))))
-  (HP : super_non_expansive_list (fun ts w _ => map prop (P ts w)))
-  (HR : super_non_expansive_list (fun ts w _ => R ts w)),
+    PROPx (map (fun P0 => P0 ts w) P) (PARAMSx (L ts w) (GLOBALSx G
+     (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: map (fun R0 => R0 ts w) R))))))
+  (HP : Forall (fun P0 => @super_non_expansive W (fun ts a _ => prop (P0 ts a))) P)
+  (HL: forall n ts x, L ts x = L ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
+  (HR : Forall (fun R0 => @super_non_expansive W (fun ts a _ => R0 ts a)) R),
   super_non_expansive_a S2 ->
   super_non_expansive_b SQ ->
   @args_super_non_expansive (atomic_spec_type W T) Pre.
 Proof.
   intros.
-  evar (Pre' : forall ts : list Type, functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG -> environ -> mpred).
+  evar (Pre' : forall ts : list Type, functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG -> argsEnviron -> mpred).
   replace Pre with Pre'; subst Pre'; [apply (atomic_spec_nonexpansive_pre'(A := A)); eauto|].
   extensionality ts x; auto.
 Qed.
