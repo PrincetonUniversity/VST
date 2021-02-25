@@ -907,7 +907,6 @@ Definition spawn_pre :=
      (*(LOCALx (temp _f f :: temp _args b :: gvars (gv w) :: nil)*)
      PARAMS (f;b) GLOBALS (gv w)
      (SEP (
-       EX _y : ident,
          (func_ptr'
            (WITH y : val, x : nth 0 ts unit
              PRE [ (*_y OF *)tptr tvoid ]
@@ -999,16 +998,14 @@ Proof. repeat intro.
   rewrite !approx_sepcon. rewrite approx_idem.
   apply pred_ext; apply sepcon_derives; trivial; apply derives_refl'.
   (* f_equal.*)
-  + rewrite !approx_exp; apply f_equal; extensionality y.
-    apply approx_Sn_eq_weaken.
+  + apply approx_Sn_eq_weaken.
     rewrite approx_func_ptr'.
     setoid_rewrite approx_func_ptr' at 2. apply f_equal.
     apply funcptr_f_equal'; trivial. simpl.
     apply semax_prog.funspec_eq; trivial.
     extensionality tss a rho'; destruct a.
     rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
-  + rewrite !approx_exp; apply f_equal; extensionality y.
-    apply approx_Sn_eq_weaken.
+  + apply approx_Sn_eq_weaken.
     rewrite approx_func_ptr'.
     setoid_rewrite approx_func_ptr' at 2. apply f_equal.
     apply funcptr_f_equal'; trivial. simpl.
@@ -1056,8 +1053,6 @@ Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i)
 Proof.
   apply IH; induction n; intros i li; inversion li; eauto.
 Qed.
-
-Set Printing Implicit.
 
 Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::

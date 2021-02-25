@@ -3366,7 +3366,7 @@ Ltac forward_spawn id arg wit :=
   match goal with gv : globals |- _ =>
   make_func_ptr id; let f := fresh "f_" in set (f := gv id);
   match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
-    let y := fresh "y" in let Q := fresh "Q" in let R := fresh "R" in 
+    let Q := fresh "Q" in let R := fresh "R" in 
     
     evar (Q : A -> globals); evar (R : A -> val -> mpred);
     replace Pre with (fun '(a, w) => PROPx [] (PARAMSx (a::nil)
@@ -3382,7 +3382,7 @@ Ltac forward_spawn id arg wit :=
           reflexivity]
   ];
   forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; 
-           [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn)
+           [ .. | subst f]; try (subst f; simpl; cancel_for_forward_spawn)
   end end.
 (*
 Ltac forward_spawn id arg wit :=
