@@ -22,7 +22,7 @@ Program Definition incr_spec :=
   WITH sh, g, gv
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvars gv)
+         PARAMS () GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g n)
   POST [ tvoid ]
          PROP ()
@@ -35,7 +35,7 @@ Program Definition read_spec :=
   WITH sh, g, gv
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvars gv)
+         PARAMS () GLOBALS (gv)
          SEP   (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g n)
   POST [ tuint ]
     EX n' : nat,
@@ -53,10 +53,10 @@ Definition thread_lock_inv sh g g1 gv lockt := selflock (thread_lock_R sh g g1 g
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : iname * share * gname * gname * gname * globals * invG
-  PRE [ _args OF (tptr tvoid) ]
+  PRE [ tptr tvoid ]
          let '(i, sh, g, g1, g2, gv, inv_names) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvars gv)
+         PARAMS (y) GLOBALS (gv)
          SEP   (invariant i (cptr_inv g g1 g2); ghost_var gsh2 O g1;
                     lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)));
                 lock_inv sh (gv _thread_lock) (thread_lock_inv sh g g1 gv (gv _thread_lock)))
@@ -68,8 +68,8 @@ Definition thread_func_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [ ] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [ ] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
@@ -229,7 +229,7 @@ Proof.
     iIntros "I >[g1 g2]".
     iMod (inv_open with "I") as "[>c H]"; auto.
     iDestruct "c" as (x y) "[gs c]"; iExists (x + y)%nat; iFrame "c".
-    iMod (updates.fupd_intro_mask (⊤ ∖ inv i) ∅ emp with "[]") as "mask"; auto.
+    iMod (fupd_mask_subseteq) as "mask".
     { apply empty_subseteq. }
     iIntros "!>"; iSplit.
     - iIntros "lock"; iMod "mask" as "_".

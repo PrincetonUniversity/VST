@@ -3368,7 +3368,7 @@ Ltac forward_spawn id arg wit :=
   match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
     let y := fresh "y" in let Q := fresh "Q" in let R := fresh "R" in 
     
-    evar (y : ident); evar (Q : A -> globals); evar (R : A -> val -> mpred);
+    evar (Q : A -> globals); evar (R : A -> val -> mpred);
     replace Pre with (fun '(a, w) => PROPx [] (PARAMSx (a::nil)
                                                        (GLOBALSx ((Q w) :: nil) (SEPx [R w a]))));
     [ | let x := fresh "x" in extensionality x; destruct x as (?, x);
@@ -3377,7 +3377,7 @@ Ltac forward_spawn id arg wit :=
         instantiate (1 := fun '(a, b) => _ a) in (value of Q);
         instantiate (1 := fun '(a, b) => _ a) in (value of R));
         etransitivity; [|symmetry; apply PROP_into_SEP_LAMBDA]; f_equal; f_equal; f_equal;
-        [ instantiate (1 := fun _ => _) in (value of Q); subst y Q; f_equal; simpl; reflexivity
+        [ instantiate (1 := fun _ => _) in (value of Q); subst Q; f_equal; simpl; reflexivity
         | unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _);
           reflexivity]
   ];

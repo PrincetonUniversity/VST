@@ -428,7 +428,7 @@ Proof.
     intros ? J; specialize (H _ J) as (? & ? & a' & ? & ? & ? & HP); subst.
     do 2 eexists; eauto; do 2 eexists; eauto; repeat split; auto.
     destruct HP as [Hfalse|]; auto.
-    destruct (levelS_age a' n) as (a'' & Hage & ?); [omega|].
+    destruct (levelS_age a' n) as (a'' & Hage & ?); [lia|].
     exfalso; apply (Hfalse a'').
     constructor; auto.
 Qed.
