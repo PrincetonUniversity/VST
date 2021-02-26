@@ -23,7 +23,7 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (Genv.globalenv prog) (prog_funct prog) 
    ltac:(old_with_library prog Gprog).
 Proof.
-unfold Gprog, prog, prog_funct, (*main_pre,*) main_post, prog_vars; simpl.
+unfold prog, prog_funct, main_post, prog_vars; simpl.
 repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]).
 repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.

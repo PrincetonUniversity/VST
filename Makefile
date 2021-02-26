@@ -659,7 +659,8 @@ ifneq (,$(TIMING))
 	@$(COQC) $(COQF) -time $*.v > $<.timing
 else ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQF) $*.v; date +'%s.%N after' >>timings" 2>>timings
-	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQF) $*.v"
+	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shel
+l wc $*.v)\" $(COQC) $(COQF) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQF) $*.v"
 else ifeq ($(TIMINGS), simple)
 	@/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQF) $*.v
@@ -685,6 +686,7 @@ ifeq ($(BITSIZE),64)
 travis: default_target progs
 else
 travis: default_target progs sha hmac mailbox VSUpile
+travisx: default_target progs sha hmac mailbox
 endif
 
 files: _CoqProject $(FILES:.v=.vo)

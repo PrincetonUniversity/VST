@@ -1529,32 +1529,23 @@ Ltac intro_ex_local_semax :=
        rewrite exp_andp2; apply extract_exists_pre; let y':=fresh y in intro y'
 end).
 
-Ltac unfold_and_local_semax :=
-unfold_pre_local_andp;
-repeat intro_ex_local_semax;
-try rewrite insert_local.
+Lemma do_compute_expr_helper_lemma:
+ forall {cs: compspecs} Delta P Q R v e T1 T2 GV,
+ local2ptree Q = (T1,T2,nil,GV) ->
+ msubst_eval_expr Delta T1 T2 GV e = Some v ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
+   local (liftx (eq v) (eval_expr e)).
+Proof.
+intros.
+eapply derives_trans;
+ [ |  apply (go_lower_localdef_canon_eval_expr
+ _ P Q R _ _ _ _ v v H H0)].
+apply andp_right; auto.
+intro.
+apply prop_right; auto.
+Qed.
 
-Ltac do_compute_expr_warning := idtac. (*
- match goal with |- let _ := Some ?G1 in let _ := Some ?G2 in _ =>
- tryif constr_eq G1 G2 
- then idtac 
- else idtac "Warning: This command (forward_if, forward_while, forward, ...) produces different results in VST 2.6 than in VST 2.5.  Previously, it did 'simpl' and 'autorewrite with norm', which changed,
- Before:" G1 "
-After:" G2 "
-You may (or may not) need to adjust your proof.  Disable this message by   do_compute_expr_warning::=idtac"
-end. *)
-
-Ltac diagnose_further_simplification :=
- let u := fresh "u" in let v := fresh "v" in
- match goal with |- ?G = _ => set (v:=G); pose (u:=G) end;
- simpl in u;
- revert u; autorewrite with norm; intro;
- unfold v;
- revert u; revert v;
- do_compute_expr_warning;
- intros _ _.
-
-Ltac do_compute_expr_helper Delta Q v e :=
+Ltac do_compute_expr_helper_old Delta Q v e :=
    try assumption;
    eapply derives_trans; [| apply msubst_eval_expr_eq];
     [apply andp_derives; [apply derives_refl | apply derives_refl']; apply local2ptree_soundness; try assumption;
@@ -1581,8 +1572,31 @@ Ltac do_compute_expr_helper Delta Q v e :=
      simpl;
     repeat match goal with v:=_ |- _ => subst v end;
 (*     match goal with |- ?a => idtac "THREE:" a end; *)
-    diagnose_further_simplification; (* Eventually, remove this line (and tactic) entirely *)
      reflexivity].
+
+Ltac do_compute_expr_helper Delta Q v e :=
+ try assumption;
+ eapply do_compute_expr_helper_lemma;
+ [   prove_local2ptree
+ | unfold v;
+   cbv [msubst_eval_expr msubst_eval_lvalue];
+     repeat match goal with |- context [PTree.get ?a ?b] => 
+             let u := constr:(PTree.get a b) in
+             let u' := eval hnf in u in
+             match u' with Some ?v' => let v := fresh "v" in pose (v:=v');
+                         change u with (Some v)
+            end
+      end;
+(* match goal with |- ?a => idtac "ONE:" a end; *)
+     simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
+(* match goal with |- ?a => idtac "TWO:" a end; *)
+     unfold force_val2, force_val1;
+     (apply (f_equal Some) || fail 100 "Cannot evaluate expression " e "Possibly there are missing local declarations.");
+     simpl;
+    repeat match goal with v:=_ |- _ => subst v end;
+(*      [ match goal with |- ?A => fail "here" A end ]; *)
+     reflexivity
+ ].
 
 Ltac do_compute_expr1 Delta Pre e :=
  match Pre with
