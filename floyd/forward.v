@@ -4708,25 +4708,6 @@ let GD := fresh "GD" in
  compute in Gdefs; subst Gdefs; subst Gdefs';
  clearbody P.
 
-Ltac prove_semax_prog_setup_globalenv :=
-let P := fresh "P" in
-let Gsymb := fresh "Gsymb" in let Gsymb' := fresh "Gsymb'" in 
-let GS := fresh "GS" in
-let Gdefs := fresh "Gdefs" in let Gdefs' := fresh "Gdefs'" in 
-let GD := fresh "GD" in
- set (P := Genv.globalenv _);
- pose (Gsymb :=Genv.genv_symb P);
- pose (Gsymb' := @abbreviate _ Gsymb);
- assert (GS := eq_refl Gsymb');
- unfold Gsymb' at 1, abbreviate, Gsymb in GS;
- compute in Gsymb; subst Gsymb; subst Gsymb';
- pose (Gdefs :=Genv.genv_defs P);
- pose (Gdefs' := @abbreviate _ Gdefs);
- assert (GD := eq_refl Gdefs');
- unfold Gdefs' at 1, abbreviate, Gdefs in GD;
- compute in Gdefs; subst Gdefs; subst Gdefs';
- clearbody P.
-
 Ltac prove_semax_prog_aux tac :=
   match goal with
     | |- semax_prog ?prog ?z ?Vprog ?Gprog =>
