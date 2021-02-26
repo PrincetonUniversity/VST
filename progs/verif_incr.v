@@ -214,7 +214,6 @@ Proof.
   { lock_props.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst lock ctr; cancel. }
   forward.
-Unshelve. apply xH. (*TODO: fix (I believe) the forward_spawn tactic  so that this ident is not introduces. Is it the y?*)
 Qed.
 
 Definition extlink := ext_link_prog prog.
