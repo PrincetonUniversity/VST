@@ -278,7 +278,7 @@ Ltac LookupID :=
  | _ => idtac "Using alternate LookupID"
  end;
  compute; reflexivity
-  || fail "Lookup for a function pointer block in Genv failed".
+  || fail "Lookup for a function identifier in Genv failed".
 
 Ltac LookupB := 
  lazymatch goal with

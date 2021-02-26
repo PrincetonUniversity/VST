@@ -48,7 +48,9 @@ cvfiles: $(CVFILES)
 
 %.vo: %.v
 	@echo COQC $*.v
-ifeq ($(TIMINGS), true)
+ifneq (,$(TIMING))
+	@coqc $(VSTFLAGS) -time $*.v > $<.timing
+else ifeq ($(TIMINGS), true)
 	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" coqc $(VSTFLAGS) $*.v"
 else 
 	@coqc $(VSTFLAGS) $*.v

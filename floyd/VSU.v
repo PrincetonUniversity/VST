@@ -457,6 +457,12 @@ Ltac mkVSU prog internal_specs :=
  exists internal_specs;
  mkComponent prog.
 
+Ltac fast_Qed_reflexivity :=
+match goal with |- ?A = ?B => 
+ let a := eval compute in A in let b := eval compute in B in unify a b;
+  vm_cast_no_check (eq_refl b) 
+end.
+
 Ltac solve_SF_internal P :=
   apply SF_internal_sound; eapply _SF_internal;
    [  reflexivity 
@@ -469,8 +475,10 @@ Ltac solve_SF_internal P :=
      end;
      (apply P ||
       idtac "solve_SF_internal did not entirely succeed, because" P "does not exactly match this subgoal")
-   | eexists; split; [ LookupID | LookupB ]
-   ].
+   | eexists; split; 
+       [ fast_Qed_reflexivity || fail "Lookup for a function identifier in QPglobalenv failed"
+       | fast_Qed_reflexivity || fail "Lookup for a function pointer block in QPglobalenv failed"
+   ]    ].
 
 (*slightly slower*)
 Ltac solve_SF_external_with_intuition B :=
