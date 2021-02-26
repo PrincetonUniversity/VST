@@ -268,10 +268,26 @@ Ltac semax_func_cons_ext_tc :=
   | |- forall x:?T, _ => let t := fresh "t" in set (t:=T); progress simpl in t; subst t
   | |- forall x, _ => intro
   end;
+  try apply prop_True_right;
   normalize; simpl tc_option_val' .
 
-Ltac LookupID := (cbv;reflexivity) || fail "Lookup for a function identifier in Genv failed".
-Ltac LookupB :=  (cbv;reflexivity) || fail "Lookup for a function pointer block in Genv failed".
+Ltac LookupID := 
+ lazymatch goal with
+ | GS : Genv.genv_symb _ = @abbreviate _ _ |- _ =>
+    unfold Genv.find_symbol; rewrite GS
+ | _ => idtac "Using alternate LookupID"
+ end;
+ compute; reflexivity
+  || fail "Lookup for a function pointer block in Genv failed".
+
+Ltac LookupB := 
+ lazymatch goal with
+ | GD : Genv.genv_defs _ = @abbreviate _ _ |- _ =>
+    unfold Genv.find_funct_ptr, Genv.find_def; rewrite GD
+ | _ => idtac "Using alternate LookupB"
+ end;
+ compute; reflexivity
+ || fail "Lookup for a function pointer block in Genv failed".
 
 Lemma semax_body_subsumption' cs cs' V V' F F' f spec
       (SF: @semax_body V F cs f spec)
@@ -434,11 +450,23 @@ Ltac try_prove_tycontext_subVG L :=
      | H: tycontext_subVG V1 G1 V2 G2 |- _ => idtac
      | _ => 
       let H := fresh in
-      try assert (H: tycontext_subVG V1 G1 V2 G2) by
-       (split;
-        [ apply sub_option_get;  repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
-        | apply subsume_spec_get;
-         repeat (apply Forall_cons; [apply subsumespec_refl | ]); apply Forall_nil])
+      assert (H: tycontext_subVG V1 G1 V2 G2);
+      [split;
+        [apply sub_option_get;
+          let A1 := fresh "A1" in let A2 := fresh "A2" in
+          set (A1 := make_tycontext_g V1 G1);
+          set (A2 := make_tycontext_g V2 G2);
+          compute in A1; compute in A2; subst A1 A2;
+          repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
+         | apply subsume_spec_get;
+          let A1 := fresh "A1" in let A2 := fresh "A2" in
+          set (A1 := make_tycontext_s G1);
+          set (A2 := make_tycontext_s G2);
+          let a := make_ground_PTree A1 in change A1 with a; clear A1;
+          let a := make_ground_PTree A2 in change A2 with a; clear A2;
+          repeat (apply Forall_cons; [apply subsumespec_refl | ]); 
+          apply Forall_nil
+         ] | ]
      end end end.
 
 Ltac semax_func_cons L := 
@@ -4692,6 +4720,25 @@ clear;
 apply composite_eq; reflexivity.
 *)
 
+Ltac prove_semax_prog_setup_globalenv :=
+let P := fresh "P" in
+let Gsymb := fresh "Gsymb" in let Gsymb' := fresh "Gsymb'" in 
+let GS := fresh "GS" in
+let Gdefs := fresh "Gdefs" in let Gdefs' := fresh "Gdefs'" in 
+let GD := fresh "GD" in
+ set (P := Genv.globalenv _);
+ pose (Gsymb :=Genv.genv_symb P);
+ pose (Gsymb' := @abbreviate _ Gsymb);
+ assert (GS := eq_refl Gsymb');
+ unfold Gsymb' at 1, abbreviate, Gsymb in GS;
+ compute in Gsymb; subst Gsymb; subst Gsymb';
+ pose (Gdefs :=Genv.genv_defs P);
+ pose (Gdefs' := @abbreviate _ Gdefs);
+ assert (GD := eq_refl Gdefs');
+ unfold Gdefs' at 1, abbreviate, Gdefs in GD;
+ compute in Gdefs; subst Gdefs; subst Gdefs';
+ clearbody P.
+
 Ltac prove_semax_prog_aux tac :=
   match goal with
     | |- semax_prog ?prog ?z ?Vprog ?Gprog =>
@@ -4720,6 +4767,7 @@ Ltac prove_semax_prog_aux tac :=
    pose (Gprog := @abbreviate _ G); 
   change (semax_func V Gprog g D G')
  end;
+  prove_semax_prog_setup_globalenv;
  tac.
 
 Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]).
