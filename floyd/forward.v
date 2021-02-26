@@ -268,10 +268,26 @@ Ltac semax_func_cons_ext_tc :=
   | |- forall x:?T, _ => let t := fresh "t" in set (t:=T); progress simpl in t; subst t
   | |- forall x, _ => intro
   end;
+  try apply prop_True_right;
   normalize; simpl tc_option_val' .
 
-Ltac LookupID := (cbv;reflexivity) || fail "Lookup for a function identifier in Genv failed".
-Ltac LookupB :=  (cbv;reflexivity) || fail "Lookup for a function pointer block in Genv failed".
+Ltac LookupID := 
+ lazymatch goal with
+ | GS : Genv.genv_symb _ = @abbreviate _ _ |- _ =>
+    unfold Genv.find_symbol; rewrite GS
+ | _ => idtac "Using alternate LookupID"
+ end;
+ compute; reflexivity
+  || fail "Lookup for a function pointer block in Genv failed".
+
+Ltac LookupB := 
+ lazymatch goal with
+ | GD : Genv.genv_defs _ = @abbreviate _ _ |- _ =>
+    unfold Genv.find_funct_ptr, Genv.find_def; rewrite GD
+ | _ => idtac "Using alternate LookupB"
+ end;
+ compute; reflexivity
+ || fail "Lookup for a function pointer block in Genv failed".
 
 Lemma semax_body_subsumption' cs cs' V V' F F' f spec
       (SF: @semax_body V F cs f spec)
@@ -434,11 +450,23 @@ Ltac try_prove_tycontext_subVG L :=
      | H: tycontext_subVG V1 G1 V2 G2 |- _ => idtac
      | _ => 
       let H := fresh in
-      try assert (H: tycontext_subVG V1 G1 V2 G2) by
-       (split;
-        [ apply sub_option_get;  repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
-        | apply subsume_spec_get;
-         repeat (apply Forall_cons; [apply subsumespec_refl | ]); apply Forall_nil])
+      assert (H: tycontext_subVG V1 G1 V2 G2);
+      [split;
+        [apply sub_option_get;
+          let A1 := fresh "A1" in let A2 := fresh "A2" in
+          set (A1 := make_tycontext_g V1 G1);
+          set (A2 := make_tycontext_g V2 G2);
+          compute in A1; compute in A2; subst A1 A2;
+          repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
+         | apply subsume_spec_get;
+          let A1 := fresh "A1" in let A2 := fresh "A2" in
+          set (A1 := make_tycontext_s G1);
+          set (A2 := make_tycontext_s G2);
+          let a := make_ground_PTree A1 in change A1 with a; clear A1;
+          let a := make_ground_PTree A2 in change A2 with a; clear A2;
+          repeat (apply Forall_cons; [apply subsumespec_refl | ]); 
+          apply Forall_nil
+         ] | ]
      end end end.
 
 Ltac semax_func_cons L := 
@@ -1529,40 +1557,28 @@ Ltac intro_ex_local_semax :=
        rewrite exp_andp2; apply extract_exists_pre; let y':=fresh y in intro y'
 end).
 
-Ltac unfold_and_local_semax :=
-unfold_pre_local_andp;
-repeat intro_ex_local_semax;
-try rewrite insert_local.
-
-Ltac do_compute_expr_warning := idtac. (*
- match goal with |- let _ := Some ?G1 in let _ := Some ?G2 in _ =>
- tryif constr_eq G1 G2 
- then idtac 
- else idtac "Warning: This command (forward_if, forward_while, forward, ...) produces different results in VST 2.6 than in VST 2.5.  Previously, it did 'simpl' and 'autorewrite with norm', which changed,
- Before:" G1 "
-After:" G2 "
-You may (or may not) need to adjust your proof.  Disable this message by   do_compute_expr_warning::=idtac"
-end. *)
-
-Ltac diagnose_further_simplification :=
- let u := fresh "u" in let v := fresh "v" in
- match goal with |- ?G = _ => set (v:=G); pose (u:=G) end;
- simpl in u;
- revert u; autorewrite with norm; intro;
- unfold v;
- revert u; revert v;
- do_compute_expr_warning;
- intros _ _.
+Lemma do_compute_expr_helper_lemma:
+ forall {cs: compspecs} Delta P Q R v e T1 T2 GV,
+ local2ptree Q = (T1,T2,nil,GV) ->
+ msubst_eval_expr Delta T1 T2 GV e = Some v ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
+   local (liftx (eq v) (eval_expr e)).
+Proof.
+intros.
+eapply derives_trans;
+ [ |  apply (go_lower_localdef_canon_eval_expr
+ _ P Q R _ _ _ _ v v H H0)].
+apply andp_right; auto.
+intro.
+apply prop_right; auto.
+Qed.
 
 Ltac do_compute_expr_helper Delta Q v e :=
-   try assumption;
-   eapply derives_trans; [| apply msubst_eval_expr_eq];
-    [apply andp_derives; [apply derives_refl | apply derives_refl']; apply local2ptree_soundness; try assumption;
-     let HH := fresh "H" in
-     construct_local2ptree Q HH;
-     exact HH |
-     unfold v;
-     cbv [msubst_eval_expr msubst_eval_lvalue]; 
+ try assumption;
+ eapply do_compute_expr_helper_lemma;
+ [ prove_local2ptree |
+   unfold v;
+   cbv [msubst_eval_expr msubst_eval_lvalue];
      repeat match goal with |- context [PTree.get ?a ?b] => 
              let u := constr:(PTree.get a b) in
              let u' := eval hnf in u in
@@ -1574,15 +1590,12 @@ Ltac do_compute_expr_helper Delta Q v e :=
      simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
 (* match goal with |- ?a => idtac "TWO:" a end; *)
      unfold force_val2, force_val1;
-     match goal with 
-      | |- (None = Some _) => idtac "Cannot evaluate expression " e "Possibly there are missing local declarations."; fail 100
-      | |- _ => idtac
-     end;
+     (apply (f_equal Some) || fail 100 "Cannot evaluate expression " e "Possibly there are missing local declarations.");
      simpl;
     repeat match goal with v:=_ |- _ => subst v end;
-(*     match goal with |- ?a => idtac "THREE:" a end; *)
-    diagnose_further_simplification; (* Eventually, remove this line (and tactic) entirely *)
-     reflexivity].
+(*      [ match goal with |- ?A => fail "here" A end ]; *)
+     reflexivity
+ ].
 
 Ltac do_compute_expr1 Delta Pre e :=
  match Pre with
@@ -2828,7 +2841,7 @@ Ltac forward_setx :=
  match goal with
  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
         eapply semax_PTree_set;
-        [ reflexivity
+        [ prove_local2ptree
         | reflexivity
         | check_cast_assignment
         | solve_msubst_eval; simplify_casts; reflexivity
@@ -4650,6 +4663,25 @@ change (add_composite_definitions env (Composite id su m a :: defs0))
 | |- _ => fail "Unexpected error in solve_cenvcs_goal"
 end.
 
+Ltac prove_semax_prog_setup_globalenv :=
+let P := fresh "P" in
+let Gsymb := fresh "Gsymb" in let Gsymb' := fresh "Gsymb'" in 
+let GS := fresh "GS" in
+let Gdefs := fresh "Gdefs" in let Gdefs' := fresh "Gdefs'" in 
+let GD := fresh "GD" in
+ set (P := Genv.globalenv _);
+ pose (Gsymb :=Genv.genv_symb P);
+ pose (Gsymb' := @abbreviate _ Gsymb);
+ assert (GS := eq_refl Gsymb');
+ unfold Gsymb' at 1, abbreviate, Gsymb in GS;
+ compute in Gsymb; subst Gsymb; subst Gsymb';
+ pose (Gdefs :=Genv.genv_defs P);
+ pose (Gdefs' := @abbreviate _ Gdefs);
+ assert (GD := eq_refl Gdefs');
+ unfold Gdefs' at 1, abbreviate, Gdefs in GD;
+ compute in Gdefs; subst Gdefs; subst Gdefs';
+ clearbody P.
+
 Ltac prove_semax_prog_aux tac :=
   match goal with
     | |- semax_prog ?prog ?z ?Vprog ?Gprog =>
@@ -4678,6 +4710,7 @@ Ltac prove_semax_prog_aux tac :=
    pose (Gprog := @abbreviate _ G); 
   change (semax_func V Gprog g D G')
  end;
+  prove_semax_prog_setup_globalenv;
  tac.
 
 Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]).
