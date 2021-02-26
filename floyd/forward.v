@@ -278,7 +278,7 @@ Ltac LookupID :=
  | _ => idtac "Using alternate LookupID"
  end;
  compute; reflexivity
-  || fail "Lookup for a function pointer block in Genv failed".
+  || fail "Lookup for a function identifier in Genv failed".
 
 Ltac LookupB := 
  lazymatch goal with
@@ -1573,11 +1573,37 @@ intro.
 apply prop_right; auto.
 Qed.
 
+Ltac do_compute_expr_helper_old Delta Q v e :=
+   try assumption;
+   eapply derives_trans; [| apply msubst_eval_expr_eq];
+    [apply andp_derives; [apply derives_refl | apply derives_refl']; apply local2ptree_soundness; try assumption;
+     let HH := fresh "H" in
+     construct_local2ptree Q HH;
+     exact HH |
+     unfold v;
+     cbv [msubst_eval_expr msubst_eval_lvalue]; 
+     repeat match goal with |- context [PTree.get ?a ?b] => 
+             let u := constr:(PTree.get a b) in
+             let u' := eval hnf in u in
+             match u' with Some ?v' => let v := fresh "v" in pose (v:=v');
+                         change u with (Some v)
+            end
+      end;
+(* match goal with |- ?a => idtac "ONE:" a end; *)
+     simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
+(* match goal with |- ?a => idtac "TWO:" a end; *)
+     unfold force_val2, force_val1;
+     (apply (f_equal Some) || fail 100 "Cannot evaluate expression " e "Possibly there are missing local declarations.");
+     simpl;
+    repeat match goal with v:=_ |- _ => subst v end;
+(*     match goal with |- ?a => idtac "THREE:" a end; *)
+     reflexivity].
+
 Ltac do_compute_expr_helper Delta Q v e :=
  try assumption;
  eapply do_compute_expr_helper_lemma;
- [ prove_local2ptree |
-   unfold v;
+ [   prove_local2ptree
+ | unfold v;
    cbv [msubst_eval_expr msubst_eval_lvalue];
      repeat match goal with |- context [PTree.get ?a ?b] => 
              let u := constr:(PTree.get a b) in
@@ -4662,6 +4688,25 @@ change (add_composite_definitions env (Composite id su m a :: defs0))
  unfold Errors.bind at 1
 | |- _ => fail "Unexpected error in solve_cenvcs_goal"
 end.
+
+Ltac prove_semax_prog_setup_globalenv :=
+let P := fresh "P" in
+let Gsymb := fresh "Gsymb" in let Gsymb' := fresh "Gsymb'" in 
+let GS := fresh "GS" in
+let Gdefs := fresh "Gdefs" in let Gdefs' := fresh "Gdefs'" in 
+let GD := fresh "GD" in
+ set (P := Genv.globalenv _);
+ pose (Gsymb :=Genv.genv_symb P);
+ pose (Gsymb' := @abbreviate _ Gsymb);
+ assert (GS := eq_refl Gsymb');
+ unfold Gsymb' at 1, abbreviate, Gsymb in GS;
+ compute in Gsymb; subst Gsymb; subst Gsymb';
+ pose (Gdefs :=Genv.genv_defs P);
+ pose (Gdefs' := @abbreviate _ Gdefs);
+ assert (GD := eq_refl Gdefs');
+ unfold Gdefs' at 1, abbreviate, Gdefs in GD;
+ compute in Gdefs; subst Gdefs; subst Gdefs';
+ clearbody P.
 
 Ltac prove_semax_prog_setup_globalenv :=
 let P := fresh "P" in
