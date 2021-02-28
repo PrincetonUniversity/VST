@@ -894,6 +894,9 @@ should be (temp ret_temp ...), but it is not"))
  else fail "The funspec of the function should have a POSTcondition that starts
 with an existential, that is,  EX _:_, PROP...LOCAL...SEP".
 
+Ltac prove_PROP_preconditions :=
+  unfold fold_right_and; repeat rewrite and_True; my_auto.
+
 Ltac  forward_call_id1_wow_nil := 
 let H := fresh in intro H;
 eapply (semax_call_id1_wow_nil H); 
@@ -904,7 +907,7 @@ eapply (semax_call_id1_wow_nil H);
  | match_postcondition
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac  forward_call_id1_wow := 
@@ -917,7 +920,7 @@ eapply (semax_call_id1_wow H);
  | match_postcondition
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac forward_call_id1_x_wow_nil :=
@@ -932,7 +935,7 @@ eapply (semax_call_id1_x_wow_nil H);
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac forward_call_id1_x_wow :=
@@ -947,7 +950,7 @@ eapply (semax_call_id1_x_wow H);
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac forward_call_id1_y_wow_nil :=
@@ -962,7 +965,7 @@ eapply (semax_call_id1_y_wow_nil H);
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac forward_call_id1_y_wow :=
@@ -977,7 +980,7 @@ eapply (semax_call_id1_y_wow H);
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac forward_call_id01_wow_nil :=
@@ -988,7 +991,7 @@ eapply (semax_call_id01_wow_nil H);
  [ apply Coq.Init.Logic.I 
  | match_postcondition
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac forward_call_id01_wow :=
@@ -999,7 +1002,7 @@ eapply (semax_call_id01_wow H);
  [ apply Coq.Init.Logic.I 
  | match_postcondition
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac forward_call_id00_wow_nil  :=
@@ -1024,7 +1027,7 @@ eapply (semax_call_id00_wow_nil H);
 that is ill-formed.  The LOCALS part of the postcondition
 should be empty, but it is not")
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac forward_call_id00_wow  :=
@@ -1050,7 +1053,7 @@ eapply (semax_call_id00_wow H);
 that is ill-formed.  The LOCALS part of the postcondition
 should be empty, but it is not")
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | prove_PROP_preconditions
  ].
 
 Ltac simpl_strong_cast :=

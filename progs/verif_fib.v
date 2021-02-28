@@ -125,9 +125,7 @@ Proof.
   forward_if.
   { forward. }
   forward_call (n - 2).
-    1: lia.
   forward_call (n - 1).
-    1: lia.
   assert (0 <= fib_of_Z (n - 2) < Int.max_signed /\
           0 <= fib_of_Z (n - 1) < Int.max_signed /\
           0 <= fib_of_Z (n - 2) + fib_of_Z (n - 1) < Int.max_signed) as [R0 [R1 R2]].

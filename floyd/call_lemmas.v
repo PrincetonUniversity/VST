@@ -1069,7 +1069,9 @@ eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left
   with (TCEXPRLIST && local (tc_environ Delta) && |> PROPx P (LOCALx Q (SEPx R))).
   { rewrite andp_comm. solve_andp. } 
   rewrite VUNDEF, <- later_sepcon.
-  apply later_left2. normalize. rename H into VL.
+  apply later_left2. normalize.
+  rewrite <- andp_assoc. rewrite andp_comm.
+  apply derives_extract_prop. intro VL.
   apply msubst_eval_exprlist_eq with (P0:=P)(R0:=R)(GV0:=GV) in MSUBST.
 
 clear - PTREE PTREE' FRAME PPRE LEN CHECKG MSUBST VL.

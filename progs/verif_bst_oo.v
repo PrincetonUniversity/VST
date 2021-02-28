@@ -391,7 +391,6 @@ Proof.
     + forward. (* p = *t; *)
       forward_if; [clear H | inversion H]. (* then clause *)
       forward_call (sizeof t_struct_tree).
-        computable.
       Intros p1.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)
@@ -508,6 +507,7 @@ Proof.
   * (* After the loop *)
     forward.
     simpl loop2_ret_assert. apply andp_left2. auto.
+all:fail.
 Admitted.
 (*
 Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=

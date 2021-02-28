@@ -184,10 +184,7 @@ Proof. intros. abbreviate_semax.
       thaw FR1.
       freeze FR4 := - (sha256state_ _ _ _) (data_at _ _ _ (Vptr kb _)) (K_vector _).
       Time forward_call (@nil byte, key, Vptr cb cofs, wsh, Vptr kb kofs, sh, l, gv). (*4.5*)
-      { 
-        specialize Int.max_signed_unsigned.
-        subst l. intro; split3; [ | | split3]; auto; lia.
-      }
+
       rewrite sublist_same; trivial.
 
      (*call Final*)
@@ -346,8 +343,7 @@ Proof. intros.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
            simpl. rewrite Z.max_r. rewrite Z.mul_1_l.  apply derives_refl. lia.
        Time cancel. (*0.1 versus 2.4*) }
-     { simpl. specialize Int.max_signed_unsigned. rewrite Z.max_r, Z.mul_1_l by lia.
-      split ; [ | split3]; auto; lia. }
+     { simpl. rewrite Z.max_r, Z.mul_1_l by lia; auto. }
      unfold tarray.
      remember (64 - l) as l64.
      remember (map Vubyte key) as KCONT.
@@ -364,7 +360,6 @@ Proof. intros.
        rewrite field_address0_offset by auto with field_compatible.
        simpl. rewrite Z.add_0_l, Z.mul_1_l;  apply derives_refl.
        apply Z.max_r. lia. }
-     { split; auto. rep_lia. }
 
      Time entailer!. (*3.5 versus 6.2*)
      thaw FR2. thaw FR1. Time cancel. (*1.2 penalty*)

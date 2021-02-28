@@ -261,9 +261,6 @@ forward_if (EX shaStates:_ ,
       unfold data_block. rewrite  ZLI, HeqIPADcont.
       simpl. Time entailer!. (*0.9*)
     }
-    { clear HeqOPADcont(*; subst IPADcont*).
-        rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. intuition.
-    }
     simpl.
     rewrite sublist_same; try rewrite ZLI; trivial.
     remember (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad) as ipadSHAabs.
@@ -306,7 +303,6 @@ forward_if (EX shaStates:_ ,
       rewrite ZLO; trivial.
       Time entailer!. (*1.5*)
     }
-    { rewrite ZLO; intuition. }
 
     rewrite sublist_same; try rewrite ZLO; trivial.
 

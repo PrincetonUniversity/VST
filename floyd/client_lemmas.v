@@ -1957,10 +1957,10 @@ Ltac extract_exists_in_SEP' PQR :=
  end.
 
 Ltac extract_exists_from_SEP :=
-match goal with
+lazymatch goal with
   | |- semax _ ?Pre _ _ =>
     extract_exists_in_SEP' Pre; apply extract_exists_pre
-  | |- _ && ?Pre |-- ?Post =>
+  | |- ENTAIL _, ?Pre |-- ?Post =>
      let P := fresh "POST" in set (P := Post);
     extract_exists_in_SEP' Pre; subst P; apply exp_left
   | |- ?Pre |-- ?Post => (* this case is obsolete, should probably be deleted *)
@@ -1993,47 +1993,76 @@ normalize.
 Qed.
 
 
-Ltac Intro_prop :=
-gather_prop;
-match goal with
+
+Ltac test_for_Intro_prop R :=
+ lazymatch R with
+ | nil => fail
+ | ?A :: ?B => first [test_for_Intro_prop A | test_for_Intro_prop B]
+ | @exp _ _ _  => fail
+ | (prop _) => idtac
+ | andp ?A ?B => first [test_for_Intro_prop A | test_for_Intro_prop B]
+ | sepcon ?A ?B =>  first [test_for_Intro_prop A | test_for_Intro_prop B]
+ end.
+
+Ltac Intro_prop' :=
+lazymatch goal with
  | |- semax _ ?PQR _ _ =>
-     first [ is_evar PQR; fail 1
-            | simple apply semax_extract_PROP; fancy_intros false
-            | move_from_SEP' PQR;
+     first [ move_from_SEP' PQR;
               simple apply semax_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
             ]
- | |- _ && ?PQR |-- _ =>
-     first [ is_evar PQR; fail 1
-            | simple apply derives_extract_prop; fancy_intros false
-            | simple apply derives_extract_PROP; fancy_intros false
-            | move_from_SEP' PQR;
+ | |- ENTAIL _, ?PQR |-- _ =>
+     first [ move_from_SEP' PQR;
                simple apply derives_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
              ]
  | |- ?PQR |-- _ =>  (* this case is obsolete, should probably be deleted *)
-     first [ is_evar PQR; fail 1
-            | simple apply derives_extract_prop; fancy_intros false
-            | simple apply derives_extract_PROP; fancy_intros false
+     first [ simple apply derives_extract_prop; fancy_intros false
             | move_from_SEP' PQR;
                simple apply derives_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
              ]
 end.
 
+Ltac Intro_prop :=
+(*  Intro_prop is written this complicated way to avoid doing
+    [autorewrite with gather_prop_core] which is expensive, and
+   to avoid [autorewrite with gather_prop] which is even more expensive. *)
+lazymatch goal with
+ | |- semax _ ?PQR _ _ => tryif is_evar PQR then fail else idtac
+ | |- ENTAIL _, ?PQR |-- _ => tryif is_evar PQR then fail else idtac
+ | |- ?PQR |-- _ => tryif is_evar PQR then fail else idtac
+end;
+first
+ [ simple apply semax_extract_PROP; fancy_intros false
+ | simple apply derives_extract_PROP; fancy_intros false
+ |
+lazymatch goal with
+ | |- ENTAIL _, @exp _ _ _ |-- _ =>  fail
+ | |- semax _ (@exp _ _ _) _ _ => fail
+ | |- ENTAIL _, PROPx nil (LOCALx _ (SEPx ?R)) |-- _ => test_for_Intro_prop R
+ | |- semax _ PROPx nil (LOCALx _ (SEPx ?R)) _ _ => test_for_Intro_prop R
+ | |- _ => idtac
+ end;
+ tryif Intro_prop' then idtac
+ else tryif progress autorewrite with gather_prop_core 
+    then first [Intro_prop' | progress gather_prop; Intro_prop']
+    else (progress gather_prop; Intro_prop')
+ ].
+
 Ltac Intro'' a :=
-   ( (simple apply extract_exists_pre; intro a)
-   || (simple apply exp_left; intro a)
-   || (rewrite exp_andp1; Intro'' a)
-   || (rewrite exp_andp2; Intro'' a)
-   || (rewrite exp_sepcon1; Intro'' a)
-   || (rewrite exp_sepcon2; Intro'' a)
-   || (extract_exists_from_SEP; intro a)
-   ).
+  tryif simple apply extract_exists_pre then intro a
+  else tryif simple apply exp_left then intro a
+  else tryif extract_exists_from_SEP then intro a
+  else tryif rewrite exp_andp1 then Intro'' a
+  else tryif rewrite exp_andp2 then Intro'' a
+  else tryif rewrite exp_sepcon1 then Intro'' a
+  else tryif rewrite exp_sepcon2 then Intro'' a
+  else fail.
 
 Ltac Intro a :=
   repeat Intro_prop;
-  match goal with
+  lazymatch goal with
   | |- ?A |-- ?B =>
      let z := fresh "z" in pose (z:=B); change (A|--z); Intro'' a; subst z
   | |- semax _ _ _ _ =>
@@ -2042,42 +2071,50 @@ Ltac Intro a :=
 
 (* Tactic Notation "Intros" := repeat (let x := fresh "x" in Intro x). *)
 
-Tactic Notation "Intros" := repeat Intro_prop.
+Ltac finish_Intros :=
+repeat Intro_prop;
+(* Do this next part for backwards compatibility *)
+lazymatch goal with
+ | |- ?A _ => let x := fresh "x" in set(x:=A); 
+        gather_prop; subst x
+end.
+
+Tactic Notation "Intros" := finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0) :=
- Intro x0; repeat Intro_prop.
+ Intro x0; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) :=
- Intro x0; Intro x1; repeat Intro_prop.
+ Intro x0; Intro x1; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2) :=
- Intro x0; Intro x1; Intro x2; repeat Intro_prop.
+ Intro x0; Intro x1; Intro x2; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) :=
- Intro x0; Intro x1; Intro x2; Intro x3; repeat Intro_prop.
+ Intro x0; Intro x1; Intro x2; Intro x3; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4; repeat Intro_prop.
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4)
  simple_intropattern(x5) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; repeat Intro_prop.
+ Intro x5; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4)
  simple_intropattern(x5) simple_intropattern(x6) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; repeat Intro_prop.
+ Intro x5; Intro x6; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2085,7 +2122,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x5) simple_intropattern(x6)
  simple_intropattern(x7) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; repeat Intro_prop.
+ Intro x5; Intro x6; Intro x7; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2093,7 +2130,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x5) simple_intropattern(x6)
  simple_intropattern(x7) simple_intropattern(x8) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8; repeat Intro_prop.
+ Intro x5; Intro x6; Intro x7; Intro x8; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2102,7 +2139,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x7) simple_intropattern(x8)
  simple_intropattern(x9) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8; Intro x9; repeat Intro_prop.
+ Intro x5; Intro x6; Intro x7; Intro x8; Intro x9; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2112,7 +2149,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x9) simple_intropattern(x10) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
  Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
- Intro x10; repeat Intro_prop.
+ Intro x10; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2123,7 +2160,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x11) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
  Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
- Intro x10; Intro x11; repeat Intro_prop.
+ Intro x10; Intro x11; finish_Intros.
 
 
 Ltac extract_exists_from_SEP_right :=

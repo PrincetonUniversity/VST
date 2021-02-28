@@ -58,7 +58,7 @@ Proof.
   freeze [0;5;6;7] FR2.
   forward_call (Vptr b i, shc, (((*M1*)info,(M2,p)):mdstate), 32, V, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
   { rewrite lenV; simpl. cancel. }
-  { split; auto. split; auto. split; auto.
+  { split; auto. computable.
   }
   Intros.
 

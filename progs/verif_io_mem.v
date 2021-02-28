@@ -181,11 +181,13 @@ Proof.
     rewrite divu_repr by rep_lia.
     forward.
     forward_call (sh, i / 10, buf, contents).
-    { rewrite intr_lt by lia; split; auto.
+    { rewrite intr_lt by lia; split; auto; try lia.
       assert (i / 10 < i).
       { apply Z.div_lt; lia. }
-      split; [split|]; try lia.
-      apply Z.div_pos; lia. }
+       split.
+      apply Z.div_pos; lia. 
+      rep_lia.
+    }
     rewrite modu_repr by (lia || computable).
     assert (repable_signed (Zlength (intr (i / 10)))).
     { split; try rep_lia.

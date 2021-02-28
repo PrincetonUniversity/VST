@@ -402,7 +402,6 @@ Proof.
     + (* then clause *)
       subst p1.
       Time forward_call (sizeof t_struct_tree).
-        1: computable.
       Intros p'.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)
@@ -742,7 +741,6 @@ Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
   Time forward_call (sizeof (tptr t_struct_tree)).
-  computable.
   Intros p.
   rewrite memory_block_data_at_ by auto.
   forward.
@@ -929,20 +927,16 @@ forward_call subsume_treebox_new tt.
 Intros p. 
 sep_apply tmap_rep_isptr; Intros. 
 forward_call subsume_insert (p, 3, gv ___stringlit_1, t_empty nullval).
-split. computable. auto.
 forward_call subsume_insert (p, 1, gv ___stringlit_2, (t_update (t_empty nullval) 3 (gv ___stringlit_1))).
-split. computable. auto.
 forward_call subsume_insert (p, 4, gv ___stringlit_3, (t_update
              (t_update (t_empty nullval) 3
                 (gv ___stringlit_1)) 1 (gv ___stringlit_2))).
-split. computable. auto.
 forward_call subsume_insert (p, 1, gv ___stringlit_4, 
            (t_update
              (t_update
                 (t_update (t_empty nullval) 3
                    (gv ___stringlit_1)) 1
                 (gv ___stringlit_2)) 4 (gv ___stringlit_3))).
-split. computable. auto.
 forward_call subsume_treebox_free ((t_update
              (t_update
                 (t_update

@@ -276,8 +276,9 @@ Proof.
     { subst I aaa; cancel.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
-    { split3; auto. red in WFI; simpl in *. repeat split; trivial; try rep_lia.
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_lia.
+    { split. red in WFI; simpl in *. rep_lia.
+       red in WFI.
+       subst contents'; destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_lia.
     }
      
     Intros return_value.
@@ -414,7 +415,6 @@ Proof.
          thaw FR3. (*subst (*aaa*) IC.*)
          unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!. 
        }
-        split3; auto.
        { (*subst na.*)subst after_reseed_add_len.  entailer. simpl; entailer. 
          unfold hmac256drbgabs_common_mpreds.
          remember ( HMAC256_DRBG_update
@@ -623,9 +623,9 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
     subst ctx3. simpl. normalize. 
     apply andp_right. apply prop_right. repeat split; trivial.
     cancel. }
-  { split3; auto. subst after_reseed_add_len. rewrite <- HeqABS3; simpl.
-    split. destruct should_reseed; rep_lia.
-    split. assumption.
+  { split; auto. subst after_reseed_add_len.
+    destruct should_reseed; rep_lia.
+    split. rewrite <- HeqABS3; simpl. assumption.
     destruct should_reseed; lia. }
 
   unfold hmac256drbgabs_common_mpreds. normalize.

@@ -31,8 +31,8 @@ Proof.
                    [StructField _md_ctx] (Vptr b i)) as FC_mdctx.
         entailer!.
     forward_if.
-    + elim H; trivial.
-    + clear H. Intros.
+    + congruence.
+    + clear H H0.
       destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]].
       rewrite if_false by discriminate.
       assert_PROP (field_compatible t_struct_hmac256drbg_context_st [] (Vptr b i)) as FC by entailer!.
@@ -107,8 +107,7 @@ Proof.
   forward_call (@nil byte, nullval, Tsh, Z0, output, sho, out_len, ctx, shc, initial_state,
                I, info_contents, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
-  { rewrite Zlength_nil.
-    repeat (split; auto; try lia). }
+  { lia. }
   Intros v. forward. simpl. Exists (Vint v). entailer!.
 Qed.
 
@@ -173,8 +172,7 @@ Proof.
   forward_call (@nil byte, nullval, Tsh, Z0, output, Ews, n, ctx, Ews, i,
                 I, info, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
-  { rewrite Zlength_nil.
-    repeat (split; auto; try rep_lia). }
+  { rep_lia. }
   Intros v. forward. unfold hmac256drbgabs_common_mpreds.
   unfold generatePOST, contents_with_add; simpl. 
   apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
@@ -188,10 +186,8 @@ Proof.
   entailer!. 
   unfold hmac256drbgabs_common_mpreds; simpl.
   cancel.
-  eapply derives_trans.
-  + instantiate (1:=emp).  
-    apply orp_left; [ auto | normalize; apply derives_refl].
-  + cancel.
+  apply orp_left; auto.
+  Intros. inv H.
 Qed.
 (*
 Definition myProp s n I (i F:hmac256drbgstate): Prop :=

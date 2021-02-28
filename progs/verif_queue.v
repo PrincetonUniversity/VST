@@ -407,7 +407,6 @@ Proof.
   start_function.
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
       (t_struct_fifo, gv).
-  split3;  simpl; auto; computable.
   Intros q.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
@@ -517,7 +516,6 @@ Proof.
 start_function. rename a into a0; rename b into b0.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   (t_struct_elem, gv).
- split3; simpl; auto; computable.
  Intros p.
   forward.  (*  p->a=a; *)
   progress simpl.  (* this should not be necessary -- Qinxiang, please look *)
