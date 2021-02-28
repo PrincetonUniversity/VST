@@ -271,22 +271,29 @@ Ltac semax_func_cons_ext_tc :=
   try apply prop_True_right;
   normalize; simpl tc_option_val' .
 
+Ltac fast_Qed_reflexivity :=
+hnf;
+match goal with |- ?A = ?B => 
+ let a := eval compute in A in let b := eval compute in B in unify a b;
+  vm_cast_no_check (eq_refl b) 
+end.
+
 Ltac LookupID := 
  lazymatch goal with
  | GS : Genv.genv_symb _ = @abbreviate _ _ |- _ =>
-    unfold Genv.find_symbol; rewrite GS
+    cbv beta delta [Genv.find_symbol]; rewrite GS
  | _ => idtac "Using alternate LookupID"
  end;
- compute; reflexivity
+ fast_Qed_reflexivity
   || fail "Lookup for a function identifier in Genv failed".
 
 Ltac LookupB := 
  lazymatch goal with
  | GD : Genv.genv_defs _ = @abbreviate _ _ |- _ =>
-    unfold Genv.find_funct_ptr, Genv.find_def; rewrite GD
+    cbv beta delta [Genv.find_funct_ptr Genv.find_def]; rewrite GD
  | _ => idtac "Using alternate LookupB"
  end;
- compute; reflexivity
+ fast_Qed_reflexivity
  || fail "Lookup for a function pointer block in Genv failed".
 
 Lemma semax_body_subsumption' cs cs' V V' F F' f spec
@@ -1596,10 +1603,7 @@ Ltac do_compute_expr_helper_old Delta Q v e :=
      simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
 (* match goal with |- ?a => idtac "TWO:" a end; *)
      unfold force_val2, force_val1;
-     match goal with 
-      | |- (None = Some _) => idtac "Cannot evaluate expression " e "Possibly there are missing local declarations."; fail 100
-      | |- _ => idtac
-     end;
+      (apply (f_equal Some) || fail 100 "Cannot evaluate expression " e "Possibly there are missing local declarations.");
      simpl;
     repeat match goal with v:=_ |- _ => subst v end;
 (*     match goal with |- ?a => idtac "THREE:" a end; *)
@@ -2873,7 +2877,7 @@ Ltac forward_setx :=
  match goal with
  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
         eapply semax_PTree_set;
-        [ reflexivity
+        [ prove_local2ptree
         | reflexivity
         | check_cast_assignment
         | solve_msubst_eval; simplify_casts; reflexivity
@@ -4475,17 +4479,13 @@ Definition duplicate_ids (il: list ident) : list ident :=
   in dl.
 
 Ltac old_with_library' p G :=
-(* for augment_funspecs_new ...
-  let g := constr:(fold_left (fun t ia => PTree.set (fst ia) (snd ia) t) G (PTree.empty _)) in
-  let g := eval hnf in g in
-*)
   let g := eval hnf in G in
   let x := constr:(augment_funspecs' (prog_funct p) g) in
   let x := eval cbv beta iota zeta delta [prog_funct] in x in 
   let x := simpl_prog_defs x in 
   let x := eval hnf in x in
   match x with
-  | Some ?l => exact l
+  | Some ?l => constr:(l)
   | None => 
    let t := constr:(List.fold_right (fun i t => PTree.set i tt t) (PTree.empty _)
                            (map fst (prog_funct p))) in
@@ -4506,7 +4506,8 @@ Ltac old_with_library' p G :=
  end.
 
 Ltac old_with_library prog G :=
-  let pr := eval unfold prog in prog in  old_with_library' pr G.
+  let pr := eval unfold prog in prog in
+  let x := old_with_library' pr G in exact x.
 
 Definition ptree_incr (s:PTree.t(bool*ident)) (id:ident) := 
         match PTree.get id s with
@@ -4660,24 +4661,6 @@ Lemma composite_abbrv env id su m a: composite_of_def env id su m a =
   end.
 Proof. reflexivity. Qed.
 
-Ltac treat_one_compdef :=
-  match goal with
-  | |- context[add_composite_definitions _ (?h :: ?t)] =>
-    remember t as the_rest;
-    unfold add_composite_definitions;
-    rewrite composite_abbrv;
-    fold add_composite_definitions; simpl Errors.bind;
-
-    (*variant of rem_struct*)
-    match goal with
-    | |- context[Some (mk_OKComposite ?env ?su ?m ?a ?al ?PR1 ?PR2 ?PR3)] =>
-         let struct1 := fresh "structure" 
-         in remember (mk_OKComposite env su m a al PR1 PR2 PR3) as struct1
-    end;
-
-    subst the_rest
-  end.
-
 Ltac solve_cenvcs_goal :=
 apply (f_equal (@PTree.elements composite));
 apply extract_compEnv;
@@ -4712,16 +4695,6 @@ change (add_composite_definitions env (Composite id su m a :: defs0))
  unfold Errors.bind at 1
 | |- _ => fail "Unexpected error in solve_cenvcs_goal"
 end.
-(*
-repeat treat_one_compdef;
-rewrite add_composite_definitions_nil; unfold mk_OKComposite in *; f_equal; simpl cenv_cs;
-repeat f_equal;
-repeat   match goal with
-       | [ H : ?structure = ?P |- ?structure = ?Q ] => rewrite H; clear H
-     end;
-clear;
-apply composite_eq; reflexivity.
-*)
 
 Ltac prove_semax_prog_setup_globalenv :=
 let P := fresh "P" in
@@ -4745,17 +4718,18 @@ let GD := fresh "GD" in
 Ltac prove_semax_prog_aux tac :=
   match goal with
     | |- semax_prog ?prog ?z ?Vprog ?Gprog =>
-     let x := constr:(ltac:(old_with_library prog Gprog))
+     let pr := eval unfold prog in prog in
+     let x := old_with_library' pr Gprog
      in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
                     prog z Vprog x)
   end;
  split3; [ | | split3; [ | | split]];
- [ reflexivity || fail "duplicate identifier in prog_defs"
- | reflexivity || fail "unaligned initializer"
+ [ fast_Qed_reflexivity || fail "duplicate identifier in prog_defs"
+ | fast_Qed_reflexivity || fail "unaligned initializer"
  | solve [solve_cenvcs_goal || fail "comp_specs not equal"]
    (*compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"*)
  |
- | reflexivity || fail "match_globvars failed"
+ | fast_Qed_reflexivity || fail "match_globvars failed"
  | match goal with
      |- match initial_world.find_id (prog_main ?prog) ?Gprog with _ => _ end =>
      unfold prog at 1; (rewrite extract_prog_main || rewrite extract_prog_main');
@@ -4773,7 +4747,9 @@ Ltac prove_semax_prog_aux tac :=
   prove_semax_prog_setup_globalenv;
  tac.
 
-Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]).
+Ltac finish_semax_prog := 
+ repeat (eapply semax_func_cons_ext_vacuous; 
+   [fast_Qed_reflexivity | reflexivity | LookupID | LookupB | ]).
 
 Ltac prove_semax_prog := prove_semax_prog_aux finish_semax_prog.
 
