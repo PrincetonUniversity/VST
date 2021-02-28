@@ -160,7 +160,6 @@ Proof.
 unfold make_foo_spec.
 start_function.
 forward_call (Tstruct _foo_object noattr, gv).
-   split3; simpl; auto; computable.
 Intros p.
 forward_if
   (PROP ( )
