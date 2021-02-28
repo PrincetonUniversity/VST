@@ -1634,7 +1634,7 @@ Ltac do_compute_expr_helper Delta Q v e :=
  ].
 
 Ltac do_compute_expr1 Delta Pre e :=
- match Pre with
+ lazymatch Pre with
  | @exp _ _ ?A ?Pre1 =>
   let P := fresh "P" in let Q := fresh "Q" in let R := fresh "R" in
   let H8 := fresh "DCE" in let H9 := fresh "DCE" in
@@ -3732,21 +3732,50 @@ Ltac make_func_ptr id :=
   | (reflexivity || fail 99 "No global variable " id " in Delta, i.e., in your extern declarations")
   | split; reflexivity | ].
 
+Lemma gvars_denote_HP':
+ forall Delta P Q R gv i, 
+  In (gvars gv) Q ->
+  isSome ((glob_types Delta) ! i) ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! headptr (gv i).
+Proof.
+intros.
+intro rho.
+unfold local, lift1.
+simpl.
+normalize.
+destruct ((glob_types Delta) ! i) eqn:?H; try contradiction.
+eapply derives_trans.
+apply in_local'; eassumption.
+unfold local, lift1.
+simpl.
+apply prop_derives; intro.
+eapply gvars_denote_HP; eauto.
+Qed.
+
+Ltac prove_headptr_gv :=
+ first [simple apply gvars_denote_HP'; 
+         [solve [repeat (try (left; reflexivity) || right)] | apply I ]
+        | solve [entailer!]
+       ].
+
 Ltac change_mapsto_gvar_to_data_at' gv S :=
   match S with
   | context [mapsto ?sh ?t (offset_val 0 (gv ?i)) ?v] =>
-      assert_PROP (headptr (offset_val 0 (gv i)));
-          [entailer!;  apply <- headptr_offset_zero; auto |];
+      let H := fresh "H" in 
+      assert_PROP (headptr (gv i)) as H;
+          [prove_headptr_gv |];
+      apply <- headptr_offset_zero in H;
       erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ (gv i)));
           [| reflexivity | assumption | apply JMeq_refl ];
-      match goal with H: _ |- _ => clear H end;
-          rewrite <- ? data_at_offset_zero
+      clear H;
+      rewrite <- ? data_at_offset_zero
   | context [mapsto ?sh ?t (gv ?i) ?v] =>
-      assert_PROP (headptr (gv i));
-          [entailer! |];
+      let H := fresh "H" in 
+      assert_PROP (headptr (gv i)) as H;
+          [prove_headptr_gv |];
       erewrite (mapsto_data_at'' _ _ _ _ (gv i));
            [| reflexivity | assumption | apply JMeq_refl ];
-      match goal with H: _ |- _ => clear H end
+      clear H
    end.
 
 Ltac change_mapsto_gvar_to_data_at := 
