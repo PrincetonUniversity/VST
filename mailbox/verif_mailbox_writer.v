@@ -102,7 +102,6 @@ Proof.
   change (upto 5) with (upto (Z.to_nat B)).
   forward_call (comms, locks, bufs, b, b0, lasts,
     sh1, lsh, shs, g, g0, g1, g2, h, sh0, gv).
-  { repeat (split; auto). }
   Intros x; destruct x as (lasts', h').
   rewrite sepcon_map; Intros.
   forward.

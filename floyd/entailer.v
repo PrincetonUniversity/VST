@@ -533,28 +533,6 @@ Qed.
 
 Ltac clean_up_stackframe := idtac.
 
-Ltac entailer :=
- try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
-        clear POSTCONDITION
-      end;
- try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
-        clear MORE_COMMANDS
-      end;
- lazymatch goal with
- | |- ?P |-- _ =>
-    lazymatch type of P with
-    | ?T => tryif unify T (environ->mpred)
-                 then (clean_up_stackframe; go_lower)
-                 else tryif unify T mpred
-                    then (clear_Delta; pull_out_props)
-                    else fail "Unexpected type of entailment, neither mpred nor environ->mpred"
-    end
- | |- _ => fail  "The entailer tactic works only on entailments   _ |-- _ "
- end;
- saturate_local;
- entailer';
- rewrite <- ?sepcon_assoc.
-
 Lemma my_auto_lem:
  forall (P Q: Prop), (P -> Q) -> (P -> Q).
 Proof. auto. Qed.
@@ -586,6 +564,29 @@ Ltac my_auto :=
  try all_True;
  (eapply my_auto_lem; [intro; my_auto_reiter | ]);
  normalize.
+
+Ltac entailer :=
+ try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
+        clear POSTCONDITION
+      end;
+ try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
+        clear MORE_COMMANDS
+      end;
+ lazymatch goal with
+ | |- ?P |-- _ =>
+    lazymatch type of P with
+    | ?T => tryif unify T (environ->mpred)
+                 then (clean_up_stackframe; go_lower)
+                 else tryif unify T mpred
+                    then (clear_Delta; pull_out_props)
+                    else fail "Unexpected type of entailment, neither mpred nor environ->mpred"
+    end
+ | |- _ => fail  "The entailer tactic works only on entailments   _ |-- _ "
+ end;
+ try solve [simple apply prop_right; my_auto];
+ saturate_local;
+ entailer';
+ rewrite <- ?sepcon_assoc.
 
 Lemma prop_and_same_derives' {A}{NA: NatDed A}:
   forall (P: Prop) Q,   P   ->   Q |-- !!P && Q.

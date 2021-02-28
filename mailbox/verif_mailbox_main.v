@@ -108,7 +108,7 @@ Proof.
   { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!.
     apply derives_refl. }
   { Intros sh'.
-    forward_call (tint, gv). split3; simpl; auto; computable. Intros d.
+    forward_call (tint, gv). Intros d.
     forward.
     match goal with H : sepalg_list.list_join sh0 _ sh' |- _ => rewrite sublist_next in H;
       auto; [inversion H as [|????? Hj1 Hj2]; subst |

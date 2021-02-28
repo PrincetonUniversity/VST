@@ -61,7 +61,7 @@ Time forward_call (ctx, data, Vptr b i, wsh, d, sh, len, gv). (*6 versus 21 *)
     change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
     cancel.
   }
-split; [ | split3]; auto. rep_lia. simpl; rep_lia.
+simpl; rep_lia.
 rewrite sublist_same; trivial.
 freeze FR1 := - (FRZL FR).
 Time forward. (*12 versus 12.4*)

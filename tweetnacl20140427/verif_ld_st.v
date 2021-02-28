@@ -283,7 +283,7 @@ assert (Int.unsigned u / n <Int.modulus).
 2: unfold Int.max_unsigned; lia.
 apply Z.div_lt_upper_bound; try lia.
 specialize (Z.mul_lt_mono_nonneg 1 n (Int.unsigned u) (Int.modulus)).
-rewrite Z.mul_1_l. intros Q; apply Q; trivial.
+rewrite Z.mul_1_l. intros Q; apply Q; trivial. computable.
 Qed. 
 
 Lemma ST32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
@@ -381,7 +381,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
           rewrite (Int.unsigned_repr (Int.unsigned u / Z.pow_pos 2 24)).
           2: apply div_bound; cbv; trivial. 
           assert (Int.unsigned u / Z.pow_pos 2 24 < two_p 8). 2: lia.
-          apply Z.div_lt_upper_bound; trivial. apply Int.unsigned_range.
+          apply Z.div_lt_upper_bound; trivial. compute; auto. apply Int.unsigned_range.
         + lia. 
  }
  forward. 
@@ -419,7 +419,7 @@ Proof. unfold iter64Shr8'.
    unfold Int64.max_unsigned; simpl; lia.
    unfold Int64.min_signed, Int64.max_signed; simpl; lia.
    unfold Int64.min_signed, Int64.max_signed; simpl; lia.
- - rewrite W. unfold Int64.ltu. rewrite if_true; trivial.
+ - rewrite W. unfold Int64.ltu. rewrite if_true; trivial. normalize. computable.
  - rewrite W. unfold Int64.ltu. rewrite Int64.mul_signed, Int64.add_signed, if_true; trivial.
    rewrite (Int64.signed_repr 8). 
    2: unfold Int64.min_signed, Int64.max_signed; simpl; lia.

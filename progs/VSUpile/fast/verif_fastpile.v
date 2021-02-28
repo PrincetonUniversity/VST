@@ -66,7 +66,6 @@ Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M 
 Proof.
 start_function.
 forward_call (tpile, gv).
-split3; simpl; auto; computable.
 Intros p.
 forward.
 forward.

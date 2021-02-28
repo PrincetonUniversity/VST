@@ -264,8 +264,7 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   forward_call (gv _four,Ews,four_contents,3,0,4).
-  { split. auto.
-    change (Zlength four_contents) with 4.
+  { change (Zlength four_contents) with 4.
     repeat constructor; computable.
   }
   Intro r; forward.

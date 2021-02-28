@@ -184,6 +184,6 @@ Lemma Snuffle_Zlength r i l (SN:Snuffle i r = Some l)
 Proof.
   rewrite Zlength_correct.
   rewrite (Snuffle_length _ _ _ SN); trivial.
-  apply sublist.Zlength_length in R; trivial.
+  rewrite Zlength_correct in R.  apply Nat2Z.inj; auto.
 Qed.
 Opaque Snuffle.

@@ -269,10 +269,6 @@ Proof.
       rewrite XH1; cancel.
       unfold Vubyte. rewrite !map_map. reflexivity.
     }
-    {
-      (* prove the PROP clauses *)
-      split3; auto; lia.
-    }
     (*Intros memcpy_vret. subst memcpy_vret.*)
     forward.
     rewrite XH1, SEED.
@@ -384,9 +380,6 @@ Proof.
   }
   {
     (* prove the PROP clauses *)
-    split3; auto.
-    simpl in *. repeat split; auto; try lia. (*
-    rewrite H2 in *;*) rep_lia.
     left; rewrite Zlength_app, ZLbytes; trivial.
   }
   unfold hmac256drbgabs_common_mpreds.

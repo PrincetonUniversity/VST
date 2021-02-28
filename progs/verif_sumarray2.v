@@ -115,8 +115,6 @@ Intros.
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tuint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
-+ split. auto. computable.
-+
   gather_SEP (data_at Ews (tarray tuint 2) (sublist 0 2 contents) _) 
                    (data_at Ews (tarray tuint 2) (map Vint _) _).
   erewrite <- (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try lia; try reflexivity.
