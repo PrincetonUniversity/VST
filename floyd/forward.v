@@ -687,7 +687,7 @@ Ltac check_struct_params al :=
 Ltac check_callconv cc := 
  (tryif unify (cc_structret cc) false then idtac else fail "struct-returning functions are not supported in VST");
  (tryif unify (cc_unproto cc) false then idtac else fail "no-prototype functions are not supported in VST");
- (tryif unify (cc_vararg cc) false then idtac else fail "vararg function definitions are not supported in VST; there is some limited support for calling (but not defining) printf and fprintf").
+ (tryif unify (cc_vararg cc) (@None Z)  then idtac else fail "vararg function definitions are not supported in VST; there is some limited support for calling (but not defining) printf and fprintf").
 
 Ltac function_body_unsupported_features spec :=
  check_callconv (fn_callconv spec);

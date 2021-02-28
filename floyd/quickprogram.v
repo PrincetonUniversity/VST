@@ -58,28 +58,6 @@ match fd with
   | External ef tys rt cc => signature_of_type tys rt cc
  end.
 
-Lemma eqb_calling_convention_refl: forall cc, eqb_calling_convention cc cc = true.
-Proof.
-destruct cc; simpl; auto.
-unfold eqb_calling_convention; simpl.
-rewrite ?eqb_reflx.
-reflexivity.
-Qed.
-
-Lemma eqb_calling_convention_prop: forall cc1 cc2, eqb_calling_convention cc1 cc2 = true -> cc1=cc2.
-Proof.
-clear.
-intros.
-unfold eqb_calling_convention in H.
-destruct cc1,cc2; simpl in *.
-apply andb_prop in H. destruct H.
-apply andb_prop in H0. destruct H0.
-apply eqb_prop in H.
-apply eqb_prop in H0.
-apply eqb_prop in H1.
-subst; auto.
-Qed.
-
 Lemma eqb_typelist_prop: forall t1 t2, eqb_typelist t1 t2 = true -> t1=t2.
 Proof.
 clear.
