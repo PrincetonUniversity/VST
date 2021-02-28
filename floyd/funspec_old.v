@@ -906,7 +906,7 @@ erewrite convertPre_helper3;
  | reflexivity || fail 100 "makePARAMS filed in start_func_convert_precondition"
  | prove_norepet || fail 100 "repeated temp-identifier in LOCAL clause"
  | prove_norepet || fail 100 "repeated formal parameter in funsig"
- | intros; simpl; intuition || fail 100 "temp-ids of LOCAL not the same as temp-ids of funsig formal parameters"
+ | intros; compute; tauto || fail 100 "temp-ids of LOCAL not the same as temp-ids of funsig formal parameters"
  | repeat constructor; auto || fail 100 "unexpected lvar in LOCAL"
  | reflexivity || fail 100 "unexpected problem with gvars in old-style LOCAL"
  | prove_all_defined

@@ -165,6 +165,9 @@ Proof.
       specialize (IHtl1_2 tl2_2).
       eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives |]; [apply derives_refl | apply IHtl1_1 | apply IHtl1_2] | clear IHtl1_1 IHtl1_2].
       Intros tl_2 tl_1; subst.
+      rewrite sepcon_andp_prop. apply derives_extract_prop; intros [? ?].
+      rewrite sepcon_andp_prop, sepcon_andp_prop'.
+      apply derives_extract_prop; intros [? ?].
       Exists (T tl_1 (v, b) tl_2).
       simpl.
       apply andp_right; [apply prop_right; subst; auto |].

@@ -203,7 +203,6 @@ Proof.
   - (* else clause *)
    clear H0. simpl in H.
    forward_call (Vptr b i).
-   apply I.
    forward.
      entailer!.
      destruct p; try contradiction; apply I.

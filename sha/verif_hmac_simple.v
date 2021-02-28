@@ -54,13 +54,14 @@ Time forward_call (Tsh, shk, c, k, kl, key, HMACabs nil nil nil, gv). (*3*)
 freeze FR2 := - (hmacstate_ _ _ c).
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512 /\
              field_compatible (Tstruct _hmac_ctx_st noattr) [] c).
-  { unfold hmacstate_. Intros r. entailer!. apply H. }
-destruct H as [H0_len512 FC_c].
+  { unfold hmacstate_. Intros r. entailer!. apply H0. }
+rename H into H'.
+destruct H0 as [H0_len512 FC_c].
 thaw FR2.
 thaw FR1.
 freeze FR3 := - (K_vector _) (data_block _ _ d) (hmacstate_ _ _ c).
 Time forward_call (Tsh, shm, hmacInit key, c, d, dl, data, gv). (*2.8*)
-  { split3; auto. rewrite H0_len512; assumption. }
+  { rewrite H0_len512; assumption. }
 
 thaw FR3.
 freeze FR4 := - (K_vector _) (hmacstate_ _ _ c) (memory_block _ _ md).

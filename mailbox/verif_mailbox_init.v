@@ -96,7 +96,7 @@ Proof.
 intros.
 hnf in H. destruct p; try contradiction; simpl; auto.
 Qed.
-Hint Resolve malloc_compatible_isptr : core.
+#[export] Hint Resolve malloc_compatible_isptr : core.
 
 Lemma body_initialize_channels : semax_body Vprog Gprog f_initialize_channels initialize_channels_spec.
 Proof.
@@ -115,12 +115,10 @@ Proof.
   { entailer!.
     Exists ([] : list val); simpl; entailer!. }
   { forward_call (tbuffer, gv).
-    { split3; simpl; auto; computable. }
     Intros b bufs.
     assert_PROP (field_compatible tint [] b) by entailer!.
     forward_call (Ews, tbuffer, b, 0, 1).
-    { split; auto; repeat split; simpl; auto; try computable.
-      destruct H3 as [? [? [? [? ?]]]]; auto. }
+    { destruct H3 as [? [? [? [? ?]]]]; auto. }
     clear H3.
     forward.
     rewrite upd_init; auto; try lia.
@@ -129,7 +127,7 @@ Proof.
     clear; unfold data_at, field_at, at_offset; Intros.
     rewrite !data_at_rec_eq; unfold withspacer; simpl.
     unfold array_pred, aggregate_pred.array_pred, unfold_reptype; simpl.
-    entailer!.
+    entailer!. clear H0.
     { destruct H as [? [? [? [? ?]]]].
       split; [| split; [| split; [| split]]]; auto.
       destruct b; inv H.
@@ -186,14 +184,14 @@ Proof.
     - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; lia).
       simpl; cancel. }
   { Intros locks comms g g0 g1 g2 reads lasts sh.
-    forward_call (tint, gv).  split3; simpl; auto; computable. Intros c.
+    forward_call (tint, gv).  Intros c.
     forward.
     forward.
-    forward_call (tint, gv).  split3; simpl; auto; computable. Intros rr.
+    forward_call (tint, gv). Intros rr.
     forward.
-    forward_call (tint, gv).  split3; simpl; auto; computable. Intros ll.
+    forward_call (tint, gv).  Intros ll.
     forward.
-    forward_call (tlock, gv).  split3; simpl; auto; computable. Intros l.
+    forward_call (tlock, gv).  simpl; computable. Intros l.
     rewrite <- lock_struct_array.
     forward.
     ghost_alloc (ghost_var Tsh (vint 1)).

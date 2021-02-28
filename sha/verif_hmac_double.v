@@ -78,7 +78,7 @@ assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512) as H0_len512.
   { unfold hmacstate_. Intros r. apply prop_right. apply H. }
 remember (hmacInit key) as h0.
 forward_call (Tsh, sh, h0, c, d, dl, data, gv).
-  { rewrite H0_len512. split3; auto. }
+  { rewrite H0_len512; auto. }
 apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
 assert (GTmod64: 64 < Ptrofs.modulus).
   rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. lia.
@@ -110,7 +110,7 @@ assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
   { unfold hmacstate_. entailer!. }
 rename H into H3_len512.
 forward_call (Tsh, sh, hmacInit key, c, d, dl, data, gv).
-  { rewrite H3_len512. split3; auto. }
+  { rewrite H3_len512. auto. }
 
 assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
   as FC_c by (unfold hmacstate_; Intros r;  entailer!).

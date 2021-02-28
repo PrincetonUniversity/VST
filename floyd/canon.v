@@ -2714,6 +2714,45 @@ Proof. intros. simpl.
   apply (SEPx_args_super_non_expansive A R); apply HypR.
 Qed.
 
+Lemma super_non_expansive_args_super_non_expansive {A P}
+      (H: @super_non_expansive A (fun ts a _ => P ts a)):
+      @args_super_non_expansive A (fun ts a _ => P ts a).
+Proof. red; intros. apply H. apply any_environ. Qed.
+
+Lemma PROPx_args_super_non_expansive': forall A P Q,
+  args_super_non_expansive Q ->
+  Forall (fun P0 => @super_non_expansive A (fun ts a ae => prop (P0 ts a))) P ->
+  @args_super_non_expansive A (fun ts a ae => PROPx (map (fun P0 => P0 ts a) P) (Q ts a) ae).
+Proof.
+  intros. apply PROPx_args_super_non_expansive. trivial.
+  eapply Forall_impl; [ | eassumption]. clear.
+  intros. eapply super_non_expansive_args_super_non_expansive. apply H.
+Qed.
+
+Lemma SEPx_args_super_non_expansive': forall A R ,
+  Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R ->
+  @args_super_non_expansive A (fun ts a ae => SEPx (map (fun R0 => R0 ts a) R) ae).
+Proof.
+  intros. apply SEPx_args_super_non_expansive. trivial.
+  eapply Forall_impl; [ | eassumption]. clear.
+  intros. eapply super_non_expansive_args_super_non_expansive. apply H.
+Qed.
+
+Lemma PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive': forall A P (Q:list val)(G : list globals) R
+  (HypP: Forall (fun P0 => @super_non_expansive A (fun ts a _ => prop (P0 ts a))) P)
+  (HypR: Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R),
+  @args_super_non_expansive A (fun ts a ae =>
+    PROPx (map (fun P0 => P0 ts a) P) 
+       (PARAMSx Q 
+         (GLOBALSx G (SEPx (map (fun R0 => R0 ts a) R)))) ae).
+Proof. intros. 
+  apply PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive.
+  { eapply Forall_impl; [ | eassumption]. clear. simpl; intros.
+    apply super_non_expansive_args_super_non_expansive. trivial. }
+  { eapply Forall_impl; [ | eassumption]. clear. simpl; intros.
+    apply super_non_expansive_args_super_non_expansive. trivial. }
+Qed.
+
 (*Probably not very useful*)
 Lemma PARAMSx_super_non_expansive: forall A Q R,
   super_non_expansive R ->

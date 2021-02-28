@@ -6,6 +6,45 @@ Require Export VST.floyd.QPcomposite.
 Require Export VST.floyd.quickprogram.
 Require Export VST.floyd.Component.
 
+Lemma valid_pointer_is_null_or_ptr p: valid_pointer p |-- !!( is_pointer_or_null p).
+Proof. apply valid_pointer_is_pointer_or_null. Qed.
+
+Lemma semax_body_subsumespec_VprogNil {cs V G f iphi}:
+       @semax_body [] G cs f iphi ->
+       list_norepet (map fst V ++ map fst G) ->
+       @semax_body V G cs f iphi.
+Proof. intros. eapply Component.semax_body_subsumespec. apply H.
++ intros i. red. 
+  rewrite 2 semax_prog.make_context_g_char; trivial.
+  destruct ((make_tycontext_s G) ! i); trivial. simpl; trivial.
+  simpl. eapply list_norepet_append_right. apply H0.
++ intros. apply subsumespec_refl.
+Qed.
+
+Lemma semax_body_subsumespec_NilNil {cs V G f iphi}:
+       @semax_body [] [] cs f iphi ->
+       list_norepet (map fst V ++ map fst G) ->
+       @semax_body V G cs f iphi.
+Proof. intros. eapply semax_body_subsumespec_VprogNil; trivial. 
+  eapply semax_body_subsumespec_GprogNil; trivial.
+  simpl. eapply list_norepet_append_right. apply H0.
+Qed.
+
+Lemma init_data2pred_isptr {gv d sh v}:init_data2pred gv d sh v |-- !!(isptr v).
+Proof. 
+  destruct d; simpl; entailer. apply mapsto_zeros_isptr.
+  destruct (gv i); entailer!.
+Qed.
+
+Lemma globvar2pred_headptr gv i u (G: globals_ok gv) (U: @gvar_init type u <> nil) (UU: @gvar_volatile type u = false):
+      globvar2pred gv (i, u) |-- !! headptr (gv i).
+Proof.
+  destruct (G i). entailer!. rewrite H.
+  unfold globvar2pred. simpl. rewrite UU, H.
+  destruct (@gvar_init type u). elim U; trivial. simpl.
+  sep_apply (@init_data2pred_isptr gv i0 (readonly2share (@gvar_readonly type u)) Vundef). entailer!.
+Qed.
+
 Lemma SF_ctx_subsumption {Espec} V G ge i fd phi cs
   (HSF:  @SF Espec cs V ge G i fd phi)
   (LNR_G: list_norepet (map fst G)) G' V' ge' cs'
@@ -386,7 +425,7 @@ Ltac mkComponent prog :=
  | ];
  (* Doing the  set(myenv...), instead of before proving the CSeq assertion,
      prevents nontermination in some cases  *)
- set (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
+ pose (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
  assert (CSeq: _ = compspecs_of_QPcomposite_env myenv 
                      (proj2 OK))
    by (apply compspecs_eq_of_QPcomposite_env;
@@ -418,6 +457,12 @@ Ltac mkVSU prog internal_specs :=
  exists internal_specs;
  mkComponent prog.
 
+Ltac fast_Qed_reflexivity :=
+match goal with |- ?A = ?B => 
+ let a := eval compute in A in let b := eval compute in B in unify a b;
+  vm_cast_no_check (eq_refl b) 
+end.
+
 Ltac solve_SF_internal P :=
   apply SF_internal_sound; eapply _SF_internal;
    [  reflexivity 
@@ -430,8 +475,10 @@ Ltac solve_SF_internal P :=
      end;
      (apply P ||
       idtac "solve_SF_internal did not entirely succeed, because" P "does not exactly match this subgoal")
-   | eexists; split; [ LookupID | LookupB ]
-   ].
+   | eexists; split; 
+       [ fast_Qed_reflexivity || fail "Lookup for a function identifier in QPglobalenv failed"
+       | fast_Qed_reflexivity || fail "Lookup for a function pointer block in QPglobalenv failed"
+   ]    ].
 
 (*slightly slower*)
 Ltac solve_SF_external_with_intuition B :=
@@ -989,6 +1036,35 @@ Ltac prove_restrictExports :=
        change (@abbreviate funspec ?A) with A
    ].
 
+
+(*A Variant of prove_restrictExports that uses "Forall2 funspec_sub"
+  rather than Forall  "Forall (funspec_sub_in ..)"*)
+Lemma prove_restrictExports2
+   {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (Exports': funspecs) :
+   map fst Exports' = map fst Exports ->
+   Forall2 funspec_sub (map snd Exports) (map snd Exports') ->
+   restrictExports v Exports'.
+Proof.
+intros.
+destruct v as [G c].
+exists G.
+apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
++ rewrite H. apply c.
++ intros. destruct (find_funspec_sub Exports' Exports H H0 _ _ E0) as [psi [Psi PSI]].
+  apply (Comp_G_Exports c) in Psi. destruct Psi as [tau [Tau TAU]].
+  exists tau; split; trivial. eapply funspec_sub_trans; eassumption.
++ apply (Comp_MkInitPred c).
+Qed.
+
+Ltac prove_restrictExports2 :=
+ simple apply prove_restrictExports; 
+   [apply compute_list_norepet_e; reflexivity || fail "Your restricted Export list has a duplicate function name"
+   | 
+   ].
+
+
 Fixpoint replace_spec (specs:funspecs) p (phi:funspec):funspecs :=
   match specs with
      [] => nil
@@ -1012,6 +1088,107 @@ Proof. induction specs; simpl; intros.
       remember (Memory.EqDec_ident i i0) as w; destruct w; symmetry in Heqw; subst; simpl; trivial.
       rewrite Pos.eqb_sym, Heqb; trivial.
 Qed.
+
+Lemma replace_spec_map_fst p phi: forall l, map fst (replace_spec l p phi) = map fst l.
+Proof.
+  induction l; simpl; trivial. destruct a; simpl.
+  destruct ((p =? i)%positive); simpl. trivial. rewrite IHl; trivial.
+Qed.
+
+Lemma replace_spec_NotFound p phi: forall l (P:~ In p (map fst l)), replace_spec l p phi = l.
+Proof. induction l; intros; simpl; trivial. destruct a; simpl in *.
+   remember ((p =? i)%positive) as b; destruct b; symmetry in Heqb; simpl.
++ apply Pos.eqb_eq in Heqb; subst. elim P. left; trivial.
++ f_equal. apply IHl; clear IHl. intros N. apply P; clear P. right; trivial.
+Qed.
+
+Lemma replace_spec_Forall2_funspec_sub p phi: forall (l : funspecs)
+  (LNR: list_norepet (map fst l))
+  (Hp: match find_id p l with None => True | Some psi => funspec_sub psi phi end),
+  Forall2 funspec_sub (map snd l) (map snd (replace_spec l p phi)).
+Proof. induction l; simpl; intros. constructor. inv LNR; destruct a. specialize (IHl H2); simpl.
+   remember ((p =? i)%positive) as b; destruct b; symmetry in Heqb; simpl.
++ apply Pos.eqb_eq in Heqb; subst. destruct (Memory.EqDec_ident i i); [| contradiction].
+  constructor. trivial.
+  simpl in H1. rewrite replace_spec_NotFound in IHl; trivial.
+  apply assoclists.find_id_None_iff in H1; rewrite H1 in IHl.
+  apply IHl; trivial.
++ destruct (Memory.EqDec_ident p i); subst. apply Pos.eqb_neq in Heqb; contradiction.
+  constructor. apply funspec_sub_refl. apply (IHl Hp).
+Qed.
+
+Lemma replace_specSome_funspec_sub p phi psi: forall (l : funspecs)
+  (LNR: list_norepet (map fst l))
+  (Hp: find_id p l = Some psi) (Psi: funspec_sub psi phi),
+  Forall2 funspec_sub (map snd l) (map snd (replace_spec l p phi)).
+Proof. intros. eapply replace_spec_Forall2_funspec_sub. trivial. rewrite Hp; trivial. Qed.
+
+Lemma Forall2_funspec_sub_refl: forall l, Forall2 funspec_sub l l.
+Proof. induction l; constructor; trivial. apply funspec_sub_refl. Qed.
+
+Lemma Forall2_funspec_sub_trans: forall l1 l2 l3, Forall2 funspec_sub l1 l2 -> 
+      Forall2 funspec_sub l2 l3 -> Forall2 funspec_sub l1 l3.
+Proof.
+  induction l1; intros l2 l3 H12 H13; inv H12; inv H13; constructor.
+  eapply funspec_sub_trans; eassumption. eauto.
+Qed.
+
+Lemma replace_specNone_Forall2_funspec_sub p phi: forall (l : funspecs)
+  (Hp: find_id p l = None),
+  Forall2 funspec_sub (map snd l) (map snd (replace_spec l p phi)).
+Proof. intros. rewrite replace_spec_NotFound. apply Forall2_funspec_sub_refl.
+  apply assoclists.find_id_None_iff; trivial.
+Qed.
+
+Definition replace_specs:= List.fold_right (fun iphi l=> replace_spec l (fst iphi) (snd iphi)).
+
+Lemma replace_specs_map_fst: forall l specs, map fst (replace_specs specs l) = map fst specs.
+Proof. induction l; intros. trivial. simpl; rewrite replace_spec_map_fst; trivial. Qed.
+
+Lemma replace_specs_preserved specs: forall l i (Hi: ~In i (map fst l)),
+      find_id i (replace_specs specs l) = find_id i specs.
+Proof.
+  induction l; simpl; intros. trivial.
+  destruct a; simpl in *. rewrite replace_spec_find_id.
+  remember ((i =? i0)%positive) as b; symmetry in Heqb; destruct b.
++ apply Peqb_true_eq in Heqb. subst i0. elim Hi. left; trivial.
++ apply IHl. intros N. apply Hi. right; trivial.
+Qed.
+
+Lemma weakenExports_condition: forall (l specs:funspecs)(LNRL: list_norepet (map fst l)) (LNRspecs: list_norepet (map fst specs)),
+      Forall2 (fun x phi => match x with None => False | Some psi => funspec_sub psi phi end) 
+              (map (fun i => find_id i specs) (map fst l)) (map snd l) ->
+      Forall2 funspec_sub (map snd specs) (map snd (replace_specs specs l)).
+Proof. induction l; simpl; intros. apply Forall2_funspec_sub_refl. 
+  destruct a as [i phi]; simpl in *. inv H. inv LNRL. specialize (IHl _ H2 LNRspecs H5); clear H5.
+  remember (find_id i specs) as p; symmetry in Heqp; destruct p; [ | contradiction]. 
+  eapply Forall2_funspec_sub_trans. apply IHl. clear IHl.
+  eapply replace_specSome_funspec_sub.
+  rewrite replace_specs_map_fst; trivial.
+  rewrite replace_specs_preserved. apply Heqp. trivial.
+  trivial.
+Qed.
+
+Lemma weakenExports
+   {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (newExports: funspecs)
+   (L: list_norepet (map fst newExports))
+   (HH: Forall2 (fun x phi => match x with Some psi => funspec_sub psi phi | None => False end)
+                (map (fun i : ident => find_id i Exports) (map fst newExports)) 
+                (map snd newExports)):
+   restrictExports v (replace_specs Exports newExports).
+Proof.
+eapply prove_restrictExports2. apply replace_specs_map_fst.
+apply weakenExports_condition; trivial.
+destruct v as [G COMP]; apply COMP.
+Qed.
+
+Ltac weakenExports :=
+ simple apply weakenExports; 
+   [apply compute_list_norepet_e; reflexivity || fail "Your restricted Export list has a duplicate function name"
+   | 
+   ].
 
 Ltac simplify_VSU_type t :=
  lazymatch t with

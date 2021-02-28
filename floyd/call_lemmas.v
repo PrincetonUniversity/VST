@@ -772,8 +772,8 @@ Proof. destruct gs. trivial. apply local2ptree_aux_gvarsSome. Qed.
 
 Lemma local2ptree_gvars {gs}:
    local2ptree (map gvars gs)
-   = match gs with nil => (PTree.Leaf, PTree.Leaf, nil, None)
-     | a :: gs' => (PTree.Leaf, PTree.Leaf, rev(map (eq a) gs'), Some a)
+   = match gs with nil => (PTree.empty _, PTree.empty _, nil, None)
+     | a :: gs' => (PTree.empty _, PTree.empty _, rev(map (eq a) gs'), Some a)
      end.
 Proof. 
   unfold local2ptree; rewrite local2ptree_aux_gvarsNone.
@@ -794,7 +794,7 @@ Definition call_setup2
   (*Pre ts witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) /\*)
   Pre ts witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)) /\
 (*  local2ptree Qpre = (Qpre_temp, PTree.empty _, nil, GV') /\*)
-  local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV') /\
+  local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV') /\
 (*  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) (*WAS R*)
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) /\*)
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) /\
@@ -814,7 +814,7 @@ Lemma call_setup2_i:
 (*  Pre ts witness' = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ->
   local2ptree Qpre = (Qpre_temp, PTree.empty _, nil, GV') ->*)
   Pre ts witness' = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)) ->
-  local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV') ->
+  local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV') ->
 
 (*  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) (*WAS R*)
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->*)
@@ -843,7 +843,7 @@ Definition call_setup2_nil
 (*  Pre nil witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) /\
   local2ptree Qpre = (Qpre_temp, PTree.empty _, nil, GV') /\*)
   Pre nil witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)) /\
-  local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV') /\
+  local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV') /\
 
   (*ENTAIL Delta, PROPx P (LOCALx Q (SEPx R' )) (*WAS R*)
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) /\*)
@@ -882,7 +882,7 @@ Lemma call_setup2_i_nil:
   (*Pre nil witness' = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ->
   local2ptree Qpre = (Qpre_temp, PTree.empty _, nil, GV') ->*)
   Pre nil witness' = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)) ->
-  local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV')  ->
+  local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV')  ->
 
 (*  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) (*WAS R*)
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->*)
@@ -1013,7 +1013,7 @@ Lemma semax_call_aux55:
  (PTREE' : local2ptree Qpre = (Qpre_temp, PTree.empty _, nil, GV')) 
  (CHECKTEMP : Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))*)
  (PRE1: Pre ts witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)))
- (PTREE': local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV'))
+ (PTREE': local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV'))
  (CHECKTEMP : firstn (length argsig) vl=args)
 
  (CHECKG: check_gvars_spec GV GV' )
@@ -1061,7 +1061,9 @@ eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left
   with (TCEXPRLIST && local (tc_environ Delta) && |> PROPx P (LOCALx Q (SEPx R))).
   { rewrite andp_comm. solve_andp. } 
   rewrite VUNDEF, <- later_sepcon.
-  apply later_left2. normalize. rename H into VL.
+  apply later_left2. normalize.
+  rewrite <- andp_assoc. rewrite andp_comm.
+  apply derives_extract_prop. intro VL.
   apply msubst_eval_exprlist_eq with (P0:=P)(R0:=R)(GV0:=GV) in MSUBST.
 
 clear - PTREE PTREE' FRAME PPRE LEN CHECKG MSUBST VL.
@@ -1113,12 +1115,8 @@ Lemma semax_call_aux55_nil:
  (PTREE : local2ptree Q = (Qtemp, Qvar, nil, GV))
  (MSUBST : force_list (map (msubst_eval_expr Delta Qtemp Qvar GV)
               (explicit_cast_exprlist argsig bl)) = Some vl)
-(* (PTREE'' : pTree_from_elements (combine (var_names argsig) vl) = Qactuals)
- (PRE1 : Pre nil witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
- (PTREE' : local2ptree Qpre = (Qpre_temp, PTree.empty _, nil, GV')) 
- (CHECKTEMP : Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))*)
  (PRE1: Pre nil witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)))
- (PTREE': local2ptree (map gvars gv) = (PTree.Leaf, PTree.empty _, nil, GV'))
+ (PTREE': local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV'))
   (CHECKTEMP : firstn (length argsig) vl =args)
 
  (CHECKG: check_gvars_spec GV GV')
@@ -1150,16 +1148,14 @@ Proof.
  eapply derives_trans; [ apply IHargsig | ]. normalize.
 Qed.
 
-Lemma semax_pre_setup2 {cs Espec} Delta fs a bl argsig P Q R' (*Qactuals Qpre_temp*) Post2 rv (vl args:list val)
+Lemma semax_pre_setup2 {cs Espec} Delta fs a bl argsig P Q R' Post2 rv (vl args:list val)
       (TC0 : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- tc_expr Delta a)
       (TC1 : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- tc_exprlist Delta argsig bl)
-      (*(CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R'))
-                                       |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))*)
       (CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R'))
                                        |-- !! (firstn (length argsig) vl=args)):
   @semax cs Espec Delta
          (!! (Datatypes.length argsig = Datatypes.length bl) &&
-             !! (*Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp)*)(firstn (length argsig) vl=args) && 
+             !! (firstn (length argsig) vl=args) && 
              PROPx P (LOCALx Q (SEPx R')) && (tc_expr Delta a && tc_exprlist Delta argsig bl) &&
              (EX v : val, lift0 (func_ptr fs v) && local ((` (eq v)) (eval_expr a)))%assert)
          (Scall rv a bl) (normal_ret_assert Post2) ->
@@ -1173,7 +1169,7 @@ Proof.
   with  ((tc_expr Delta a && tc_exprlist Delta argsig bl) &&
          ((EX v : val, lift0 (func_ptr fs v) && local ((` (eq v)) (eval_expr a)))%assert &&
          (!!(Datatypes.length argsig = Datatypes.length bl) &&
-          !!(firstn (length argsig) vl=args(*Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp)*)) && 
+          !!(firstn (length argsig) vl=args) && 
          PROPx P (LOCALx Q (SEPx R'))))).
   { apply andp_right; [| apply andp_right; [apply andp_left2, andp_left1, derives_refl|]].
     eapply derives_trans; [| apply andp_right; [ apply TC0 | apply TC1]].
@@ -1192,11 +1188,10 @@ Lemma semax_call_id00_wow:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred} {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
   Espec 
              (Post2: environ -> mpred)
              (B: Type)
@@ -1212,8 +1207,6 @@ Lemma semax_call_id00_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
-(*destruct SETUP as [[PTREE [Hsub [SPEC (*[HR'*) [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]](*]*)
-                            [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].*)
 destruct SETUP as [[PTREE [Hsub [SPEC [ATY [TC0 [TC1 MSUBST]]]]]]
                             [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].
 apply SPEC. clear SPEC.
@@ -1253,11 +1246,10 @@ Lemma semax_call_id00_wow_nil:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred} {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
   Espec 
              (Post2: environ -> mpred)
              (B: Type)
@@ -1279,11 +1271,10 @@ Lemma semax_call_id1_wow:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred} {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
    ret (Post2: environ -> mpred)  (Qnew: list localdef)
     (B: Type) (Ppost: B -> list Prop) (F: B -> val) (Rpost: B -> list mpred) Espec
    (TYret: typeof_temp Delta ret = Some retty)
@@ -1299,9 +1290,7 @@ Lemma semax_call_id1_wow:
     (Scall (Some ret) a bl)
     (normal_ret_assert Post2).
 Proof.
-  intros. (*
-  destruct SETUP as [[PTREE [Hsub [SPEC (*[HR'*) [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]](*]*)
-                       [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].*)
+  intros.
   destruct SETUP as [[PTREE [Hsub [SPEC [ATY [TC0 [TC1 MSUBST ]]]]]]
                        [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].
   apply SPEC. clear SPEC.
@@ -1345,7 +1334,7 @@ Proof.
     go_lowerx.
     repeat apply andp_right; try apply prop_right; auto.
     rewrite !fold_right_and_app_low.
-    rewrite !fold_right_and_app_low in H3(*H4*). destruct H3(*H4*); split; auto.
+    rewrite !fold_right_and_app_low in H3. destruct H3; split; auto.
 Qed.
 
 Lemma semax_call_id1_wow_nil:
@@ -1354,11 +1343,10 @@ Lemma semax_call_id1_wow_nil:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred} {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
    ret (Post2: environ -> mpred)  (Qnew: list localdef)
     (B: Type) (Ppost: B -> list Prop) (F: B -> val) (Rpost: B -> list mpred) Espec
    (TYret: typeof_temp Delta ret = Some retty)
@@ -1381,11 +1369,10 @@ Lemma semax_call_id1_x_wow:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred} {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc ts A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
    retty  Espec ret ret'
              (Post2: environ -> mpred)
              (Qnew: list localdef)
@@ -1485,7 +1472,7 @@ Lemma semax_call_id1_x_wow_nil:
    {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
    retty  Espec ret ret'
              (Post2: environ -> mpred)
              (Qnew: list localdef)
@@ -1653,11 +1640,10 @@ Lemma semax_call_id01_wow:
    {witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred}
    {Frame: list mpred}
    {bl: list expr}
-   {Ppre: list Prop} (*(Qpre : list localdef)*) {Rpre: list mpred}
-   (*(Qactuals Qpre_temp : PTree.t _)*) {GV' gv args}
+   {Ppre: list Prop} {Rpre: list mpred} {GV' gv args}
    {vl : list val}
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl (*Qactuals*)
-      witness Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args)
+      witness Frame Ppre Rpre GV' gv args)
    Espec
              (Post2: environ -> mpred)
              (B: Type)

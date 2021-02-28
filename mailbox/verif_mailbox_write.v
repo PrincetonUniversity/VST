@@ -891,7 +891,6 @@ Proof.
         destruct (eq_dec b0 (-1)); [subst; contradiction n3; auto|].
         unfold last_two_reads in Hlast; destruct (find_read (rev hx) (vint 1)); inv Hlast.
         simpl; entailer!. }
-    { repeat (split; auto). }
     Intros x b'; destruct x as (t, v); simpl in *.
     gather_SEP (AE_loc _ _ _ _ _ _ _) (fold_right _ _ _).
     replace_SEP 0 (fold_right sepcon emp (map (fun r =>

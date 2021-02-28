@@ -2,15 +2,17 @@ Require Import VST.floyd.base.
 Require Import VST.floyd.val_lemmas.
 Local Open Scope logic.
 
-Hint Rewrite <- prop_and : gather_prop.
+Definition prop_and_mpred := @prop_and mpred _.
 
-Lemma gather_prop_left {A}{NA: NatDed A}:
-  forall P Q R,  !! P && (!! Q && R) = !!(P/\Q) && R.
+Hint Rewrite <- prop_and_mpred : gather_prop.
+
+Lemma gather_prop_left:
+  forall P Q (R: mpred),  !! P && (!! Q && R) = !!(P/\Q) && R.
 Proof. intros. rewrite <- andp_assoc. rewrite <- prop_and; auto.
 Qed.
 
-Lemma gather_prop_right {A}{NA: NatDed A}:
-  forall P Q R,  R && !! P && !! Q = !!(P/\Q) && R.
+Lemma gather_prop_right:
+  forall P Q (R: mpred),  R && !! P && !! Q = !!(P/\Q) && R.
 Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto.
 Qed.
 Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
@@ -53,41 +55,41 @@ Proof.
   apply andp_right1; auto.
 Qed.
 
-Definition not_a_prop {A} (P: A) := True.
+Definition not_a_prop (P: mpred) := True.
 
 Ltac not_a_prop := match goal with
   | |- not_a_prop  (prop _) => fail 1
   | |- _ => apply Coq.Init.Logic.I
 end.
 
-Lemma flip_prop {A}{NA: NatDed A}: forall P Q,
+Lemma flip_prop: forall P Q,
       not_a_prop P -> (P&& !! Q = !! Q && P).
 Proof. intros. apply andp_comm. Qed.
 
-Hint Rewrite @flip_prop using not_a_prop : gather_prop.
+Hint Rewrite flip_prop using not_a_prop : gather_prop.
 
-Lemma gather_prop3 {A}{NA: NatDed A}:
+Lemma gather_prop3:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> R && (!! P && Q) = !!P && (R && Q).
 Proof. intros. rewrite andp_comm. rewrite andp_assoc.
         rewrite (andp_comm Q); auto.
 Qed.
 
-Hint Rewrite @gather_prop3 using not_a_prop : gather_prop.
+Hint Rewrite gather_prop3 using not_a_prop : gather_prop.
 
-Lemma gather_prop4 {A}{NA: NatDed A}:
+Lemma gather_prop4:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
 Proof. intros. rewrite andp_assoc. auto.
 Qed.
-Hint Rewrite @gather_prop4 using not_a_prop : gather_prop.
+Hint Rewrite gather_prop4 using not_a_prop : gather_prop.
 
-Lemma gather_prop5 {A}{NA: NatDed A}:
+Lemma gather_prop5:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> (R && !!P && Q) = !!P && (R && Q).
 Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
   f_equal; apply andp_comm.
 Qed.
-Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
+Hint Rewrite gather_prop5 using not_a_prop : gather_prop.
 
-Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop gather_prop_core.
+Hint Rewrite sepcon_andp_prop sepcon_andp_prop' : gather_prop gather_prop_core.
 
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: mpred),

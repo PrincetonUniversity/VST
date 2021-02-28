@@ -24,7 +24,6 @@ forward_for_simple_bound n
 -
  entailer!.
 - forward_call (p, i+1, decreasing(Z.to_nat i), gv).
-rep_lia.
 entailer!.
 assert (Z.to_nat (i+1) = S (Z.to_nat i))
   by (rewrite <- Z2Nat.inj_succ by lia; f_equal).

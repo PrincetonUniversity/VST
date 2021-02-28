@@ -102,7 +102,7 @@ replace (memory_block wsh (56 - Zlength dd'))
   by (f_equal; rewrite sizeof_tarray_tuchar; auto; lia).
 cancel.
 }
- split; auto. change (Z.of_nat CBLOCK) with CBLOCKz. Omega1.
+ change (Z.of_nat CBLOCK) with CBLOCKz. Omega1.
 
 forward.  (* p += SHA_CBLOCK-8; *)
 assert_PROP (force_val
@@ -153,5 +153,5 @@ symmetry; rewrite <- hashed_data_recombine at 1; auto.
 unfold s256a_len.
 autorewrite with sublist.
 auto.
-Time Qed.  (*02/21/2020:2.6s versus 40.5 sec (14.375u) *)
+Qed.  (*02/21/2020:2.6s versus 40.5 sec (14.375u) *)
 

@@ -185,19 +185,19 @@ Proof. reflexivity. Qed.
 
 Lemma LBLOCKz_nonneg: (0 <= LBLOCKz)%Z.
 Proof. change LBLOCKz with 16%Z; lia. Qed.
-Hint Resolve LBLOCKz_nonneg : core.
+#[export] Hint Resolve LBLOCKz_nonneg : core.
 
 Lemma LBLOCKz_pos: (0 < LBLOCKz)%Z.
 Proof. change LBLOCKz with 16%Z; lia. Qed.
-Hint Resolve LBLOCKz_pos : core.
+#[export] Hint Resolve LBLOCKz_pos : core.
 
 Lemma CBLOCKz_nonneg: (0 <= CBLOCKz)%Z.
 Proof. change CBLOCKz with 64%Z; lia. Qed.
-Hint Resolve CBLOCKz_nonneg : core.
+#[export] Hint Resolve CBLOCKz_nonneg : core.
 
 Lemma CBLOCKz_pos: (0 < CBLOCKz)%Z.
 Proof. change CBLOCKz with 64%Z; lia. Qed.
-Hint Resolve CBLOCKz_pos : core.
+#[export] Hint Resolve CBLOCKz_pos : core.
 
 
 Local Open Scope Z.

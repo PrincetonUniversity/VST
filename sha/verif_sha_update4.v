@@ -105,7 +105,6 @@ fold (inv_at_inner_if wsh sh hashed len c d dd data gv).
 apply semax_seq with (sha_update_inv wsh sh hashed len c d dd data gv false).
 weak_normalize_postcondition.
 normalize. change (16*4)%Z with 64.
-Locate update_inner_if_proof.
 simple apply (update_inner_if_proof Espec hashed dd data c d wsh sh len gv);
   try assumption.
 forward.

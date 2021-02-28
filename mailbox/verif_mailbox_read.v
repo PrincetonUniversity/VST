@@ -88,7 +88,6 @@ Proof.
     - destruct (eq_dec b (-1)); [subst; contradiction n; auto|].
       entailer!.
       apply latest_read_new; auto. }
-  { repeat (split; auto); computable. }
   Intros x b'; destruct x as (t, v). simpl fst in *; simpl snd in *.
   assert (exists b, v = vint b /\ -1 <= b < B /\ if eq_dec b (-1) then b' = b0 else b' = b) as (b & ? & ? & ?).
   { destruct (eq_dec v Empty); subst.

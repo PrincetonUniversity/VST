@@ -50,7 +50,7 @@ Lemma rotate_body : semax_body Vprog Gprog f_rotate rotate_spec.
 Proof.
   start_function.
   forward_call (tarray tint n, gv).
-  simpl; split3; auto; lia.
+  simpl; lia.
   Intros b.
   forward_if (
     PROP ( )

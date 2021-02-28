@@ -51,9 +51,8 @@ forward_for_simple_bound 10
  entailer!.
 -
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-rep_lia.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-rep_lia. rewrite decreasing_inc by lia.
+rewrite decreasing_inc by lia.
 entailer!.
 -
 forward_call (decreasing (Z.to_nat 10), gv).
@@ -61,7 +60,6 @@ compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
 forward_call (10,gv).
-lia.
 forward.
 Qed.
 

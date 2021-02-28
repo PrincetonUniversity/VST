@@ -160,11 +160,11 @@ Proof. intros. do 2 pose proof I.
   ). (* 2 *)
   {
     (* Int.min_signed <= 0 <= rounds *)
-    rewrite Heqrounds; destruct na; auto.
+    rewrite Heqrounds; destruct na; auto; computable.
   }
   {
     (* rounds <= Int.max_signed *)
-    rewrite Heqrounds; destruct na; auto.
+    rewrite Heqrounds; destruct na; auto; computable.
   }
   {
     (* pre conditions imply loop invariant *)
@@ -222,7 +222,7 @@ Proof. intros. do 2 pose proof I.
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc,
                        @nil byte, V, gv). 
     {
-      rewrite H9. split3; auto.
+      rewrite H9. compute; auto.
     }
     Intros. 
     simpl.
@@ -243,7 +243,7 @@ Proof. intros. do 2 pose proof I.
 (*   rewrite <- (data_at_share_join _ _ _ _ _ _ (join_comp_Tsh shc)); cancel. *)
     {
       (* prove the PROP clauses *)
-      rewrite H9. split3; auto.
+      rewrite H9. simpl; compute; auto.
     }
     Intros.
 (*    sep_apply (data_at_share_join_W _ _ _ (tarray tuchar 1) [Vint (Int.repr i)] [Vint (Int.repr i)]  sep 
@@ -285,7 +285,6 @@ Proof. intros. do 2 pose proof I.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)),  shc,Vptr b i0, sha, V ++ [Byte.repr i], contents, gv).
       {
         (* prove the PROP clause matches *)
-        split3; auto.
         rewrite Zlength_app; rewrite H9.
         simpl. remember (Zlength contents) as n; clear - H.
         destruct H. rewrite <- Zplus_assoc.
@@ -346,11 +345,9 @@ Proof. intros. do 2 pose proof I.
     }
     rewrite hmac_common_lemmas.HMAC_Zlength. cancel. 
 
-    {
-      split3; auto.
-      + (* prove that output of HMAC can serve as its key *)
-        unfold spec_hmac.has_lengthK; simpl; auto. split; auto.
-        rewrite hmac_common_lemmas.HMAC_Zlength. simpl. split. rep_lia. compute; auto.
+    {  (* prove that output of HMAC can serve as its key *)
+        unfold spec_hmac.has_lengthK; simpl; auto.
+        rewrite hmac_common_lemmas.HMAC_Zlength. simpl. rep_lia.
     }
     Intros.
 (*    match goal with |- context [data_at (Share.comp Ews) ?t ?v ?p] =>
@@ -373,7 +370,7 @@ Proof. intros. do 2 pose proof I.
     }
     {
       (* prove the PROP clauses *)
-      rewrite H9. split3; auto.
+      rewrite H9. compute; auto.
     }
     Intros.
     rewrite H9.

@@ -72,7 +72,7 @@ Proof.
   Intros sh e next lock.
   rewrite data_at_isptr; entailer!.
 Qed.
-Hint Resolve node_isptr : saturate_local.
+#[export] Hint Resolve node_isptr : saturate_local.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -197,11 +197,11 @@ Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_and
 
 Lemma node_lock_inv_positive : forall gsh2 g, positive_mpred (EX p : val, ghost_var gsh2 p g).
 Admitted. (* probably not actually positive *)
-Hint Resolve node_lock_inv_positive.
+#[export] Hint Resolve node_lock_inv_positive.
 
 Lemma node_precise : forall gsh1 gsh2 e g v, precise (|> node gsh1 gsh2 (e, g, v)).
 Admitted.
-Hint Resolve node_precise.
+#[export] Hint Resolve node_precise.
 
 Lemma body_new_node : semax_body Vprog Gprog f_new_node new_node_spec.
 Proof.
@@ -297,7 +297,7 @@ Proof.
   eapply local_facts_isptr; [|eauto].
   unfold node_data; entailer!.
 Qed.
-Hint Resolve node_data_isptr : saturate_local.
+#[export] Hint Resolve node_data_isptr : saturate_local.
 
 Lemma node_data_share_join : forall gsh1 gsh2 sh1 sh2 sh rep p, readable_share sh1 -> readable_share sh2 ->
   sepalg.join sh1 sh2 sh ->

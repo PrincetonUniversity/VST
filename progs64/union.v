@@ -117,6 +117,22 @@ Definition f_h := {|
     (Sreturn (Some (Etempvar _t'1 (tptr tvoid))))))
 |}.
 
+Definition f_unconst := {|
+  fn_return := (tptr tschar);
+  fn_callconv := cc_default;
+  fn_params := ((_x, (tptr tschar)) :: nil);
+  fn_vars := ((_t, (Tunion _const_or_not noattr)) :: nil);
+  fn_temps := ((_t'1, (tptr tschar)) :: nil);
+  fn_body :=
+(Ssequence
+  (Sassign (Efield (Evar _t (Tunion _const_or_not noattr)) _c (tptr tschar))
+    (Etempvar _x (tptr tschar)))
+  (Ssequence
+    (Sset _t'1
+      (Efield (Evar _t (Tunion _const_or_not noattr)) _n (tptr tschar)))
+    (Sreturn (Some (Etempvar _t'1 (tptr tschar))))))
+|}.
+
 Definition f_fabs_single := {|
   fn_return := tfloat;
   fn_callconv := cc_default;
@@ -398,10 +414,11 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_g, Gfun(Internal f_g)) :: (_h, Gfun(Internal f_h)) ::
+ (_unconst, Gfun(Internal f_unconst)) ::
  (_fabs_single, Gfun(Internal f_fabs_single)) :: nil).
 
 Definition public_idents : list ident :=
-(_fabs_single :: _h :: _g :: ___builtin_debug ::
+(_fabs_single :: _unconst :: _h :: _g :: ___builtin_debug ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::

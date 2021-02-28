@@ -1809,7 +1809,6 @@ Lemma make_tycontext_s_distinct : forall a l (Ha : In a l) (Hdistinct : NoDup (m
   (make_tycontext_s l) ! (fst a) = Some (snd a).
 Proof.
   intros a l. unfold make_tycontext_s.
-  change (@ptree_set) with (@PTree.set).
   induction l; simpl; intros. 
   contradiction.
   inv Hdistinct. destruct a0. simpl in *.
@@ -1881,10 +1880,8 @@ Proof.
     revert dependent G2; induction G; simpl; intros.
     + rewrite PTree.gempty; simpl; auto.
     + destruct a; simpl. hnf.
-      change @ptree_set with @PTree.set in * at 1.
       rewrite incl_cons_iff in HG; destruct HG.
       rewrite PTree.gsspec.
-      change (@PTree.set) with @ptree_set in IHG.
       fold make_tycontext_s in *.
       destruct (peq id i); eauto; subst; simpl.
       * exists f0; split; [ | apply funspec_sub_si_refl].

@@ -369,35 +369,10 @@ Proof.
 Qed.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
 
-(* Define it this way to have more control over unfolding *)
-Fixpoint ptree_set {A : Type} (i : positive) (v : A) (m : PTree.t A) {struct i} : PTree.t A :=
-    match m with
-    | PTree.Leaf =>
-        match i with
-        | xH => PTree.Node PTree.Leaf (Some v) PTree.Leaf
-        | xO ii => PTree.Node (ptree_set ii v PTree.Leaf) None PTree.Leaf
-        | xI ii => PTree.Node PTree.Leaf None (ptree_set ii v PTree.Leaf)
-        end
-    | PTree.Node l o r =>
-        match i with
-        | xH => PTree.Node l (Some v) r
-        | xO ii => PTree.Node (ptree_set ii v l) o r
-        | xI ii => PTree.Node l o (ptree_set ii v r)
-        end
-    end.
-
-Goal forall A, @ptree_set A = @PTree.set _.  reflexivity. Qed.
-
-(*Definition make_tycontext_s (G: funspecs) :=
- (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (snd var))
-            (PTree.empty _) G).
-*)
-
-(* Define it this way to have finer control over unfolding *)
 Fixpoint make_tycontext_s (G: funspecs) :=
  match G with
  | nil => @PTree.Leaf funspec
- | b::r => let (id,f) := b in ptree_set id f (make_tycontext_s r)
+ | (id,f)::r => PTree.set id f (make_tycontext_s r)
  end.
 
 (* TWO ALTERNATE WAYS OF DOING LIFTING *)

@@ -209,8 +209,7 @@ Proof.
   rewrite <- ZL_VV.
   freeze [0;4;5;6;8] FR2.
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
-  { split3; auto. split; auto.
-  }
+  { split; auto; computable. }
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
@@ -218,7 +217,7 @@ Proof.
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
      - cancel. }
-
+  my_auto.
   (*ctx->reseed_interval = MBEDTLS_HMAC_DRBG_RESEED_INTERVAL;*)
   rewrite ZL_VV.
   thaw FR3. thaw FR2. unfold md_relate. simpl.
@@ -277,11 +276,7 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
-    split. reflexivity.
-    split. reflexivity.
-    split. lia.
-    split. (*change Int.modulus with 4294967296.*) rep_lia.
+    split. computable. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
      unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
   }
 
@@ -309,7 +304,7 @@ Proof.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
-      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. lia. }
+      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; lia. }
       unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
@@ -325,7 +320,7 @@ Proof.
   unfold reseedPOST. 
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
-  destruct d; Intros.
+  destruct d; Intros. inv H.
   remember (mbedtls_HMAC256_DRBG_reseed_function s myABS
          (contents_with_add data (Zlength Data) Data)) as MRS.
   unfold hmac256drbgabs_reseed. rewrite <- HeqMRS. subst myABS; simpl.
@@ -467,8 +462,7 @@ Proof.
   }
 *)
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
-  { split3; auto. split; auto. 
-  }
+  { split; my_auto. }
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
@@ -476,7 +470,6 @@ Proof.
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
      - cancel. }
-
   (*ctx->reseed_interval = MBEDTLS_HMAC_DRBG_RESEED_INTERVAL;*)
   rewrite ZL_VV.
   thaw FR3. thaw FR2. unfold md_relate. simpl.
@@ -535,13 +528,7 @@ Proof.
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
-  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
-    split. reflexivity.
-    split. reflexivity.
-    split. lia.
-    split. rep_lia.
-    unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
+  { subst myABS; simpl. computable. 
   }
 
   Intros v.
@@ -572,7 +559,7 @@ Proof.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
-      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. lia. }
+      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc';  lia. }
       unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
@@ -591,7 +578,7 @@ Proof.
   unfold reseedPOST.
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
-  destruct d; Intros.
+  destruct d; Intros. inv H.
   remember (mbedtls_HMAC256_DRBG_reseed_function s myABS
          (contents_with_add data (Zlength Data) Data)) as MRS.
   unfold hmac256drbgabs_reseed. rewrite <- HeqMRS. subst myABS; simpl.
@@ -765,8 +752,7 @@ Proof.
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, VV, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
   { entailer!. simpl. rewrite ZL_VV, ptrofs_add_repr_0_r; trivial. 
   }
-  { split3; auto. split; auto.
-  }
+  { split; auto. computable. }
   Intros.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
@@ -848,14 +834,7 @@ Proof.
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
-  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split3; auto. split. rep_lia. (* rewrite int_max_unsigned_eq; lia.*)
-    split. reflexivity.
-    split. reflexivity.
-    split. lia.
-    split. (*change Int.modulus with 4294967296.*) rep_lia.
-       unfold contents_with_add. simple_if_tac. rep_lia. rewrite Zlength_nil; rep_lia.
-  }
+  { subst myABS; simpl. computable.  }
 
   Intros v.
 
@@ -895,7 +874,7 @@ Proof.
   unfold reseedPOST.
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
-  destruct d; Intros.
+  destruct d; Intros. inv H.
   remember (mbedtls_HMAC256_DRBG_reseed_function s myABS
          (contents_with_add data (Zlength Data) Data)) as MRS.
   unfold return_value_relate_result in H.

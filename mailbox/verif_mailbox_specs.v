@@ -108,7 +108,7 @@ Proof.
   rewrite if_true by auto.
   rewrite if_true by auto; discriminate.
 Qed.
-Hint Resolve Ish_not_bot : core.
+#[export] Hint Resolve Ish_not_bot : core.
 
 (* messaging system function specs *)
 Definition initialize_channels_spec :=

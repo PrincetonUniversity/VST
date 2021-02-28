@@ -207,10 +207,8 @@ name four _four.
 start_function.
 forward_call  (*  revarray(four,4); *)
   (gv _four, Ews, four_contents, 4).
-   split; [computable | auto].
 forward_call  (*  revarray(four,4); *)
     (gv _four,Ews, rev four_contents,4).
-   split; [computable | auto].
 rewrite rev_involutive.
 forward. (* return s; *)
 Qed.
@@ -281,10 +279,8 @@ start_function.
 
 forward_call  (*  revarray(four,4); *)
   (gv _four, Ews, four_contents, 4).
-   split; [computable | auto].
 forward_call  (*  revarray(four,4); *)
     (gv _four,Ews, rev four_contents,4).
-   split; [computable | auto].
 rewrite rev_involutive.
 forward. (* return s; *)
 Qed.

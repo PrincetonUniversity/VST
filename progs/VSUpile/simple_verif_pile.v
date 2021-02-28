@@ -48,7 +48,6 @@ Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new Pile_new_spec.
 Proof.
 start_function.
 forward_call (tpile, gv).
-split3; simpl; auto; computable.
 Intros p.
 repeat step!.
 unfold pilerep, listrep, pile_freeable.
@@ -59,7 +58,6 @@ Lemma body_Pile_add: semax_body PileVprog PileGprog f_Pile_add Pile_add_spec.
 Proof.
 start_function.
 forward_call (tlist, gv).
-split3; simpl; auto; computable.
 Intros q.
 unfold pilerep.
 Intros head.
