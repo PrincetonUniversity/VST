@@ -565,6 +565,15 @@ Ltac my_auto :=
  (eapply my_auto_lem; [intro; my_auto_reiter | ]);
  normalize.
 
+Lemma prop_and_same_derives' {A}{NA: NatDed A}:
+  forall (P: Prop) Q,   P   ->   Q |-- !!P && Q.
+Proof.
+intros. apply andp_right; auto. apply prop_right; auto.
+Qed.
+
+Definition prop_and_same_derives_mpred := 
+  @prop_and_same_derives mpred _.
+
 Ltac entailer :=
  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
         clear POSTCONDITION
@@ -584,15 +593,11 @@ Ltac entailer :=
  | |- _ => fail  "The entailer tactic works only on entailments   _ |-- _ "
  end;
  try solve [simple apply prop_right; my_auto];
+ try solve [simple apply prop_and_same_derives_mpred; my_auto];
  saturate_local;
  entailer';
  rewrite <- ?sepcon_assoc.
 
-Lemma prop_and_same_derives' {A}{NA: NatDed A}:
-  forall (P: Prop) Q,   P   ->   Q |-- !!P && Q.
-Proof.
-intros. apply andp_right; auto. apply prop_right; auto.
-Qed.
 
 Ltac entbang :=
  intros;
