@@ -231,7 +231,7 @@ forward. (* des = intpair_message.deserialize; *)
 forward_call (* des(&q, buf, 8); *)
         ((Vint (Int.repr 1), Vint (Int.repr 2)), v_q, v_buf, Tsh, Tsh, 8).
   simpl. fold t_struct_intpair. entailer!.
-  split3; auto. simpl; computable.
+  simpl; computable.
 (* after the call *)
 forward. (* x = q.x; *)
 forward. (* y = q.y; *)

@@ -54,7 +54,7 @@ destruct contents; unfold listrep; fold listrep.
 autorewrite with norm. auto.
 apply pred_ext.
 Intros y. entailer. destruct H; contradiction.
-Intros.
+Intros. discriminate.
 Qed.
 
 Lemma is_pointer_or_null_not_null:
@@ -268,7 +268,7 @@ destruct contents; unfold lseg; fold lseg.
 f_equal. f_equal. f_equal. apply prop_ext; intuition.
 apply pred_ext.
 Intros y. contradiction.
-Intros.
+Intros. discriminate.
 Qed.
 
 Lemma lseg_null: forall sh contents,
