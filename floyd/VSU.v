@@ -388,6 +388,19 @@ Ltac compute_list p :=
      end
  end.
 
+Ltac compute_list' p :=
+  (* like compute_list but uses simpl instead of compute on the identifiers *)
+ let a := eval hnf in p in 
+ match a with
+ | nil => uconstr:(a)
+ | ?h :: ?t  => 
+    let h := eval hnf in h in 
+    match h with (?i,?x) => let i := eval simpl in i in
+       let t := compute_list' t in
+       uconstr:((i,x)::t)
+     end
+ end.
+
 Ltac test_Component_prog_computed' :=
 lazymatch goal with
  | |- Component _ _ _ (QPprog _) _ _ _ => 
@@ -409,6 +422,9 @@ Ltac test_Component_prog_computed :=
 
 Ltac mkComponent prog :=
  hnf;
+ match goal with |- Component _ _ ?IMPORTS _ _ _ _ =>
+     let i := compute_list' IMPORTS in change_no_check IMPORTS with i 
+ end;
  test_Component_prog_computed;
  let p := fresh "p" in
  match goal with |- @Component _ _ _ _ ?pp _ _ _ => set (p:=pp) end;
@@ -456,12 +472,6 @@ Ltac mkVSU prog internal_specs :=
  end;
  exists internal_specs;
  mkComponent prog.
-
-Ltac fast_Qed_reflexivity :=
-match goal with |- ?A = ?B => 
- let a := eval compute in A in let b := eval compute in B in unify a b;
-  vm_cast_no_check (eq_refl b) 
-end.
 
 Ltac solve_SF_internal P :=
   apply SF_internal_sound; eapply _SF_internal;
