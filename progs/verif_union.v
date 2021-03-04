@@ -297,22 +297,6 @@ Definition fabs_single_spec :=
  POST [ Tfloat F32 noattr ]
    PROP() RETURN (Vsingle (Float32.abs x)) SEP().
 
-Lemma union_field_address: forall id,
-  tl composites = (Composite id Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil) ->
- forall p,
-  field_address (Tunion id noattr) [UnionField _f] p = field_address (Tunion id noattr) [UnionField _i] p.
-Proof.
-  intros.
-  inversion H.
-  assert (field_compatible (Tunion id noattr) [UnionField _f] p 
-               <-> field_compatible (Tunion id noattr) [UnionField _i] p).
-2: subst id;  unfold field_address; if_tac; if_tac; auto; tauto.
-subst id.
-  rewrite !field_compatible_cons; simpl.
-  unfold in_members; simpl.
-  tauto.
-Qed.
-
 Lemma body_fabs_single: semax_body Vprog Gprog f_fabs_single fabs_single_spec.
 Proof.
 start_function.

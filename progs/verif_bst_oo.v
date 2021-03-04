@@ -269,7 +269,7 @@ destruct t.
   entailer!.
 Qed.
 
-Hint Resolve treebox_rep_saturate_local: saturate_local.
+#[export] Hint Resolve treebox_rep_saturate_local: saturate_local.
 
 (*
 Lemma tree_rep_saturate_local:
@@ -280,7 +280,7 @@ entailer!.
 Intros pa pb. entailer!.
 Qed.
 
-Hint Resolve tree_rep_saturate_local: saturate_local.
+#[export] Hint Resolve tree_rep_saturate_local: saturate_local.
 
 Lemma tree_rep_valid_pointer:
   forall t p, tree_rep t p |-- valid_pointer p.
@@ -288,7 +288,7 @@ Proof.
 intros.
 destruct t; simpl; normalize; auto with valid_pointer.
 Qed.
-Hint Resolve tree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
 *)
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
@@ -391,7 +391,6 @@ Proof.
     + forward. (* p = *t; *)
       forward_if; [clear H | inversion H]. (* then clause *)
       forward_call (sizeof t_struct_tree).
-        computable.
       Intros p1.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)
@@ -508,6 +507,7 @@ Proof.
   * (* After the loop *)
     forward.
     simpl loop2_ret_assert. apply andp_left2. auto.
+all:fail.
 Admitted.
 (*
 Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=

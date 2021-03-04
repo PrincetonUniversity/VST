@@ -1,5 +1,6 @@
 Require Import VST.veric.juicy_extspec.
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.Funspec_old_Notation.
 
 Section specs.
 

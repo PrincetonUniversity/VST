@@ -208,10 +208,8 @@ name four _four.
 start_function.
 forward_call  (*  revarray(four,4); *)
   (gv _four, Ews, four_contents, 4).
-   split; [computable | auto].
 forward_call  (*  revarray(four,4); *)
     (gv _four,Ews, rev four_contents,4).
-   split; [computable | auto].
 rewrite rev_involutive.
 forward. (* return s; *)
 Qed.
@@ -247,7 +245,7 @@ Ltac calc_Zlength_extra l ::=
 
 Hint Rewrite Zlength_rev : Zlength.
 Hint Rewrite @Znth_rev using Zlength_solve : Znth.
-Hint Unfold flip_ends : list_solve_unfold.
+#[export] Hint Unfold flip_ends : list_solve_unfold.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -267,17 +265,8 @@ Time repeat step!.
 Time repeat step!.
 (* Finished transaction in 32.154 secs (32.031u,0.s) (successful) *)
 (* solved in step! *)
-(* + unfold flip_ends. list_solve2.
-+ unfold flip_ends. list_solve2.
-+ list_solve2.
-+ list_solve2. (* a better way is eq_solve *)
-+ simpl. unfold flip_ends. Time list_solve!. *)
-(* Finished transaction in 29.44 secs (29.25u,0.171s) (successful) *)
 * (* after the loop *)
 repeat step!.
-(* simpl.
-forward. (* return; *)
-unfold flip_ends. Time list_solve!. *)
 (* Finished transaction in 2.587 secs (2.593u,0.s) (successful) *) 
 Time Qed.
 (* Finished transaction in 6.801 secs (6.796u,0.015s) (successful) *)
@@ -291,22 +280,10 @@ start_function.
 
 forward_call  (*  revarray(four,4); *)
   (gv _four, Ews, four_contents, 4).
-   split; [computable | auto].
 forward_call  (*  revarray(four,4); *)
     (gv _four,Ews, rev four_contents,4).
-   split; [computable | auto].
 rewrite rev_involutive.
 forward. (* return s; *)
-Qed.
-
-Existing Instance NullExtension.Espec.
-
-Lemma prog_correct:
-  semax_prog prog tt Vprog Gprog.
-Proof.
-prove_semax_prog.
-semax_func_cons body_reverse.
-semax_func_cons body_main.
 Qed.
 
 End Alternate.

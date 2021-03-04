@@ -114,10 +114,6 @@ Qed.
 Lemma body_dotprod:  semax_body Vprog Gprog f_dotprod dotprod_spec.
 Proof.
 start_function.
-name n_ _n.
-name i_ _i.
-name x_ _x.
-name y_ _y.
 forward. (* sum = 0.0; *)
 forward_for_simple_bound n
    (EX i:Z,
@@ -155,10 +151,6 @@ Qed.
 Lemma body_add:  semax_body Vprog Gprog f_add add_spec.
 Proof.
 start_function.
-name i_ _i.
-name x_ _x.
-name y_ _y.
-name z_ _z.
 Hint Rewrite Zlength_map2 using (try Zlength_solve; fail 4) : Zlength.
 pose (fx := map2 Float.add fy fz).
 assert_PROP (Zlength fx = 3 /\ Zlength fy = 3 /\ Zlength fz = 3). {
@@ -182,7 +174,7 @@ entailer!. {
   simpl force_val.
   Hint Rewrite (Znth_map2 _ _ _ Inhabitant_float Inhabitant_float Inhabitant_float) using Zlength_solve : Znth.
   Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
-  subst fx. list_solve2.
+  subst fx. list_solve.
 }
 *
  forward.

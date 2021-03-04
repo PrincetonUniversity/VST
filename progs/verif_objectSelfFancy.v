@@ -64,7 +64,7 @@ unfold object_methods.
 Intros sh reset twiddle twiddleR.
 entailer!.
 Qed.
-Hint Resolve object_methods_local_facts : saturate_local.
+Local Hint Resolve object_methods_local_facts : saturate_local.
 
 (*Moved here from further below, and added twiddleR*)
 Lemma make_object_methods:
@@ -585,7 +585,6 @@ Proof.
 unfold make_foo_spec.
 start_function.
 forward_call (Tstruct _foo_object noattr, gv).
-   split3; simpl; auto; computable.
 Intros p.
 forward_if
   (PROP ( )
@@ -718,7 +717,7 @@ unfold fobject_methods.
 Intros sh reset twiddle twiddleR setcol getcol.
 entailer!.
 Qed.
-Hint Resolve fobject_methods_local_facts : saturate_local.
+Local Hint Resolve fobject_methods_local_facts : saturate_local.
 
 Lemma make_fobject_methods:
   forall sh instance reset twiddle twiddleR setcol getcol mtable,
@@ -1329,7 +1328,6 @@ Proof.
 unfold make_fancyfoo_spec.
 start_function.
 forward_call (Tstruct _fancyfoo_object noattr, gv).
-   split3; simpl; auto; computable.
 Intros p.
 forward_if
   (PROP ( )
@@ -1407,7 +1405,6 @@ Proof.
 unfold make_fancyfooTyped_spec.
 start_function.
 forward_call (Tstruct _fancyfoo_object noattr, gv).
-   split3; simpl; auto; computable.
 Intros p.
 forward_if
   (PROP ( )

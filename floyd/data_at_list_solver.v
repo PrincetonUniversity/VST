@@ -28,7 +28,7 @@ Lemma data_subsume_default : forall {cs : compspecs} (t : type) (x y : reptype t
   data_subsume t x y.
 Proof. unfold data_subsume. intros. subst y. apply data_at_data_at_. Qed.
 
-Hint Resolve data_subsume_refl data_subsume_refl' data_subsume_default : core.
+#[export] Hint Resolve data_subsume_refl data_subsume_refl' data_subsume_default : core.
 
 Lemma data_subsume_array_ext : forall {cs : compspecs} (t : type) (n : Z) (al bl : list (reptype t)),
   n = Zlength al ->
@@ -83,13 +83,20 @@ Ltac apply_list_ext ::=
       end
     end;
     only 1 : Zlength_solve
+  | match goal with |- @Forall ?A ?P ?l =>
+      rewrite Forall_Znth;
+      intros
+    end
+  | match goal with |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
+      rewrite <- forall_range_fold;
+      intros
+    end
   ];
   Zlength_simplify;
   intros.
 
 Ltac list_solve_preprocess ::=
   fold_Vbyte;
-  simpl_reptype;
   simpl_reptype;
   autounfold with list_solve_unfold in *;
   autorewrite with list_solve_rewrite in *;

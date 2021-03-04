@@ -71,9 +71,9 @@ fix_hmacdrbg_compspecs.
 apply derives_refl.
 Qed.
 
-Hint Resolve UNDER_SPEC.FULL_isptr : saturate_local.
-Hint Resolve UNDER_SPEC.EMPTY_isptr : saturate_local.
-Hint Resolve UNDER_SPEC.REP_isptr : saturate_local.
+#[export] Hint Resolve UNDER_SPEC.FULL_isptr : saturate_local.
+#[export] Hint Resolve UNDER_SPEC.EMPTY_isptr : saturate_local.
+#[export] Hint Resolve UNDER_SPEC.REP_isptr : saturate_local.
 
 Definition md_free_spec :=
  DECLARE _mbedtls_md_free
@@ -1081,4 +1081,4 @@ Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
 Lemma datablock_NoVundef sh bytes v: data_block sh  bytes v |-- !!(v <> Vundef).
 Proof. unfold data_block. entailer!. Qed.
 
-Hint Resolve datablock_NoVundef : saturate_local.
+#[export] Hint Resolve datablock_NoVundef : saturate_local.

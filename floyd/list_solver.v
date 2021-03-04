@@ -2,12 +2,12 @@
 Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.coqlib4.  (* just for prop_unext *)
-Require Import VST.floyd.sublist.
+Require Export VST.floyd.sublist.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Floats.
 Require Import compcert.common.Values.
 Require Import Coq.micromega.Lia.
-Require Import VST.floyd.Zlength_solver.
+Require Export VST.floyd.Zlength_solver.
 Import ListNotations.
 
 (* stuff moved from functional_base*)
@@ -167,6 +167,9 @@ Ltac Znth_solve_rec :=
     pose (H := Z.eq_dec n i);
     Zlength_simplify_in H; destruct H;
     Znth_solve_rec
+  | |- context [Znth ?n (map ?f ?l)] =>
+    unshelve erewrite @Znth_map by Zlength_solve
+      (* only 1 : auto with typeclass_instances *)
   end.
 
 Ltac Znth_solve :=
@@ -178,7 +181,7 @@ Ltac Znth_solve2 :=
   Zlength_simplify_in_all; autorewrite with Znth in *; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
   try first
   [ match goal with
-    | |- context [ Znth ?n (?al ++ ?bl) ] =>
+    | |- context [Znth ?n (?al ++ ?bl)] =>
           let H := fresh in
           pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
@@ -188,7 +191,12 @@ Ltac Znth_solve2 :=
           pose (H := Z.eq_dec n i); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
   | match goal with
-    | H0 : context [ Znth ?n (?al ++ ?bl) ] |- _ =>
+    | |- context [Znth ?n (map ?f ?l)] =>
+          unshelve erewrite @Znth_map by Zlength_solve
+            (* only 1 : auto with typeclass_instances *)
+    end
+  | match goal with
+    | H0 : context [Znth ?n (?al ++ ?bl)] |- _ =>
           let H := fresh in
           pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
@@ -196,6 +204,11 @@ Ltac Znth_solve2 :=
     | H0 : context [Znth ?n (upd_Znth ?i ?l ?x)] |- _ =>
           let H := fresh in
           pose (H := Z.eq_dec n i); Zlength_simplify_in_all; destruct H; Znth_solve2
+    end
+  | match goal with
+    | H0 : context [Znth ?n (map ?f ?l)] |- _ =>
+          unshelve erewrite @Znth_map in H0 by Zlength_solve
+            (* only 1 : auto with typeclass_instances *)
     end
   ].
 
@@ -232,25 +245,25 @@ Ltac eq_solve_with tac :=
 Tactic Notation "eq_solve" "with" tactic(tac) := eq_solve_with (tac).
 Tactic Notation "eq_solve" := eq_solve with fail.
 
-Hint Extern 1 (@eq _ _ _) => eq_solve : Znth_solve_hint.
-(* Hint Extern 1 (@eq _ _ _) => fassumption : Znth_solve_hint.
-Hint Extern 1 (@eq _ _ _) => congruence : Znth_solve_hint. *)
+#[export] Hint Extern 1 (@eq _ _ _) => eq_solve : Znth_solve_hint.
+(* #[export] Hint Extern 1 (@eq _ _ _) => fassumption : Znth_solve_hint.
+#[export] Hint Extern 1 (@eq _ _ _) => congruence : Znth_solve_hint. *)
 
 (*************** range definitions **********************)
-Definition rangei (lo hi : Z) (P : Z -> Prop) :=
+Definition forall_i (lo hi : Z) (P : Z -> Prop) :=
   forall i, lo <= i < hi -> P i.
 
-Definition range_uni {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : A -> Prop) :=
-  rangei lo hi (fun i => P (Znth i l)).
+Definition forall_range {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : A -> Prop) :=
+  forall_i lo hi (fun i => P (Znth i l)).
 
-Definition rangei_uni {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : Z -> A -> Prop) :=
-  rangei lo hi (fun i => P i (Znth i l)).
+Definition forall_i_range {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : Z -> A -> Prop) :=
+  forall_i lo hi (fun i => P i (Znth i l)).
 
-Definition range_bin {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Definition forall_range2 {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop) :=
-  rangei lo hi (fun i => P (Znth i al) (Znth (i + offset) bl)).
+  forall_i lo hi (fun i => P (Znth i al) (Znth (i + offset) bl)).
 
-Definition range_tri {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Definition forall_triangle {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (al : list A) (bl : list B) (P : A -> B -> Prop) :=
   forall i j, x1 <= i < x2 /\ y1 <= j < y2 /\ i <= j + offset -> P (Znth i al) (Znth j bl).
 
@@ -259,9 +272,9 @@ Definition range_tri {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant 
 
 Lemma rangei_split : forall (lo mi hi : Z) (P : Z -> Prop),
   lo <= mi <= hi ->
-  rangei lo hi P <-> rangei lo mi P /\ rangei mi hi P.
+  forall_i lo hi P <-> forall_i lo mi P /\ forall_i mi hi P.
 Proof.
-  intros. unfold rangei. split; intros.
+  intros. unfold forall_i. split; intros.
   - (* -> *)
     split; intros; apply H0; lia.
   - (* <- *)
@@ -272,22 +285,22 @@ Proof.
 Qed.
 
 Lemma rangei_implies : forall (lo hi : Z) (P Q : Z -> Prop),
-  rangei lo hi (fun i => P i -> Q i) ->
-  rangei lo hi P ->
-  rangei lo hi Q.
-Proof. unfold rangei; intros; auto. Qed.
+  forall_i lo hi (fun i => P i -> Q i) ->
+  forall_i lo hi P ->
+  forall_i lo hi Q.
+Proof. unfold forall_i; intros; auto. Qed.
 
 Lemma rangei_iff : forall (lo hi : Z) (P Q : Z -> Prop),
-  rangei lo hi (fun i => P i <-> Q i) ->
-  rangei lo hi P <-> rangei lo hi Q.
+  forall_i lo hi (fun i => P i <-> Q i) ->
+  forall_i lo hi P <-> forall_i lo hi Q.
 Proof.
-  intros. split; apply rangei_implies; unfold rangei in *; intros; apply H; auto.
+  intros. split; apply rangei_implies; unfold forall_i in *; intros; apply H; auto.
 Qed.
 
 Lemma rangei_shift : forall (lo hi offset : Z) (P : Z -> Prop),
-  rangei lo hi P <-> rangei (lo + offset) (hi + offset) (fun i => P (i - offset)).
+  forall_i lo hi P <-> forall_i (lo + offset) (hi + offset) (fun i => P (i - offset)).
 Proof.
-  intros. unfold rangei. split; intros.
+  intros. unfold forall_i. split; intros.
   - (* -> *)
     apply H; lia.
   - (* <- *)
@@ -296,10 +309,10 @@ Proof.
 Qed.
 
 Lemma rangei_and : forall (lo hi : Z) (P Q : Z -> Prop),
-  rangei lo hi (fun i => P i /\ Q i) <->
-  rangei lo hi P /\ rangei lo hi Q.
+  forall_i lo hi (fun i => P i /\ Q i) <->
+  forall_i lo hi P /\ forall_i lo hi Q.
 Proof.
-  unfold rangei; intros; split; intros.
+  unfold forall_i; intros; split; intros.
   + split; intros; specialize (H i ltac:(assumption)); tauto.
   + destruct H. auto.
 Qed.
@@ -307,8 +320,8 @@ Qed.
 Lemma rangei_shift' : forall (lo hi lo' hi' : Z) (P Q : Z -> Prop),
   let offset := lo' - lo in
   offset = hi' - hi ->
-  rangei lo' hi' (fun i => Q i <-> P (i - offset)) ->
-  rangei lo hi P <-> rangei lo' hi' Q.
+  forall_i lo' hi' (fun i => Q i <-> P (i - offset)) ->
+  forall_i lo hi P <-> forall_i lo' hi' Q.
 Proof.
   intros.
   replace lo' with (lo + offset) by lia.
@@ -317,57 +330,57 @@ Proof.
   apply rangei_shift.
 Qed.
 
-Lemma range_uni_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : A -> Prop),
+Lemma forall_range_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : A -> Prop),
   lo = hi ->
-  range_uni lo hi l P <->
+  forall_range lo hi l P <->
   True.
 Proof.
-  intros; split; unfold range_uni, rangei; intros; auto; lia.
+  intros; split; unfold forall_range, forall_i; intros; auto; lia.
 Qed.
 
-Lemma range_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : A -> Prop),
+Lemma forall_range_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : A -> Prop),
   0 <= lo < hi /\ hi <= n ->
-  range_uni lo hi (Zrepeat x n) P ->
+  forall_range lo hi (Zrepeat x n) P ->
   P x.
 Proof.
-  unfold range_uni, rangei. intros.
+  unfold forall_range, forall_i. intros.
   fapply (H0 lo ltac:(lia)). f_equal. Znth_solve.
 Qed.
 
-Lemma range_uni_app1 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+Lemma forall_range_app1 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
   0 <= lo <= hi /\ hi <= Zlength al ->
-  range_uni lo hi (al ++ bl) P <->
-  range_uni lo hi al P.
+  forall_range lo hi (al ++ bl) P <->
+  forall_range lo hi al P.
 Proof.
-  unfold range_uni. intros. apply rangei_iff.
-  unfold rangei. intros. apply prop_unext, f_equal. Znth_solve.
+  unfold forall_range. intros. apply rangei_iff.
+  unfold forall_i. intros. apply prop_unext, f_equal. Znth_solve.
 Qed.
 
-Lemma range_uni_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+Lemma forall_range_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
   Zlength al <= lo <= hi /\ hi <= Zlength al + Zlength bl ->
-  range_uni lo hi (al ++ bl) P ->
-  range_uni (lo - Zlength al) (hi - Zlength al) bl P.
+  forall_range lo hi (al ++ bl) P ->
+  forall_range (lo - Zlength al) (hi - Zlength al) bl P.
 Proof.
-  unfold range_uni. intros. eapply rangei_shift'. 3 : apply H0.
+  unfold forall_range. intros. eapply rangei_shift'. 3 : apply H0.
   + lia.
-  + unfold rangei. intros. apply prop_unext, f_equal. Znth_solve.
+  + unfold forall_i. intros. apply prop_unext, f_equal. Znth_solve.
 Qed.
 
-Lemma range_uni_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+Lemma forall_range_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
   0 <= lo <= Zlength al /\ Zlength al <= hi <= Zlength al + Zlength bl ->
-  range_uni lo hi (al ++ bl) P ->
-  range_uni lo (Zlength al) al P /\
-  range_uni 0 (hi - Zlength al) bl P.
+  forall_range lo hi (al ++ bl) P ->
+  forall_range lo (Zlength al) al P /\
+  forall_range 0 (hi - Zlength al) bl P.
 Proof.
-  unfold range_uni. intros. split; intro; intros.
+  unfold forall_range. intros. split; intro; intros.
   - specialize (H0 i ltac:(lia)). simpl in H0. autorewrite with Znth in H0. apply H0.
   - specialize (H0 (i + Zlength al) ltac:(lia)). simpl in H0. autorewrite with Znth in H0. fassumption.
 Qed.
 
-Lemma range_uni_upd_Znth : forall {A : Type} {d : Inhabitant A} (lo hi i : Z) (al : list A) (x : A) (P : A -> Prop),
+Lemma forall_range_upd_Znth : forall {A : Type} {d : Inhabitant A} (lo hi i : Z) (al : list A) (x : A) (P : A -> Prop),
   0 <= i < Zlength al ->
-  range_uni lo hi (upd_Znth i al x) P <->
-  range_uni lo hi (sublist 0 i al ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength al) al) P.
+  forall_range lo hi (upd_Znth i al x) P <->
+  forall_range lo hi (sublist 0 i al ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength al) al) P.
 Proof.
   intros.
   rewrite upd_Znth_unfold by Zlength_solve.
@@ -375,70 +388,70 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma range_uni_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : Z) (l : list A) (P : A -> Prop),
+Lemma forall_range_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : Z) (l : list A) (P : A -> Prop),
   0 <= lo <= hi /\ hi <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l ->
-  range_uni lo hi (sublist lo' hi' l) P ->
-  range_uni (lo+lo') (hi+lo') l P.
+  forall_range lo hi (sublist lo' hi' l) P ->
+  forall_range (lo+lo') (hi+lo') l P.
 Proof.
-  unfold range_uni, rangei. intros.
+  unfold forall_range, forall_i. intros.
   fapply (H0 (i - lo') ltac:(lia)). f_equal. Znth_solve.
 Qed.
 
-Lemma range_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi : Z) (l : list A) (f : A -> B) (P : B -> Prop),
   0 <= lo <= hi /\ hi <= Zlength l ->
-  range_uni lo hi (map f l) P ->
-  range_uni lo hi l (fun x => P (f x)).
+  forall_range lo hi (map f l) P ->
+  forall_range lo hi l (fun x => P (f x)).
 Proof.
-  unfold range_uni, rangei. intros.
+  unfold forall_range, forall_i. intros.
   fapply (H0 i ltac:(lia)). f_equal. rewrite Znth_map by lia. auto.
 Qed.
 
 Lemma rangei_uni_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : Z -> A -> Prop),
   lo = hi->
-  rangei_uni lo hi l P <->
+  forall_i_range lo hi l P <->
   True.
 Proof.
-  intros; split; unfold rangei_uni, rangei; intros; auto; lia.
+  intros; split; unfold forall_i_range, forall_i; intros; auto; lia.
 Qed.
 
 Lemma rangei_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : Z -> A -> Prop),
   0 <= lo < hi /\ hi <= n ->
-  rangei_uni lo hi (Zrepeat x n) P ->
-  rangei lo hi (fun i => P i x).
+  forall_i_range lo hi (Zrepeat x n) P ->
+  forall_i lo hi (fun i => P i x).
 Proof.
-  unfold rangei_uni, rangei. intros.
+  unfold forall_i_range, forall_i. intros.
   fapply (H0 i ltac:(lia)). f_equal. Znth_solve.
 Qed.
 
 Lemma rangei_uni_app1 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : Z -> A -> Prop),
   0 <= lo <= hi /\ hi <= Zlength al ->
-  rangei_uni lo hi (al ++ bl) P <->
-  rangei_uni lo hi al P.
+  forall_i_range lo hi (al ++ bl) P <->
+  forall_i_range lo hi al P.
 Proof.
-  unfold rangei_uni. intros. apply rangei_iff.
-  unfold rangei. intros. apply prop_unext. f_equal. Znth_solve.
+  unfold forall_i_range. intros. apply rangei_iff.
+  unfold forall_i. intros. apply prop_unext. f_equal. Znth_solve.
 Qed.
 
 Lemma rangei_uni_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : Z -> A -> Prop),
   Zlength al <= lo <= hi /\ hi <= Zlength al + Zlength bl ->
-  rangei_uni lo hi (al ++ bl) P ->
-  rangei_uni (lo - Zlength al) (hi - Zlength al) bl (fun i => P (i + Zlength al)).
+  forall_i_range lo hi (al ++ bl) P ->
+  forall_i_range (lo - Zlength al) (hi - Zlength al) bl (fun i => P (i + Zlength al)).
 Proof.
-  unfold rangei_uni. intros. eapply rangei_shift'. 3 : apply H0.
+  unfold forall_i_range. intros. eapply rangei_shift'. 3 : apply H0.
   + lia.
-  + unfold rangei. intros. apply prop_unext. f_equal.
+  + unfold forall_i. intros. apply prop_unext. f_equal.
     - lia.
     - Znth_solve.
 Qed.
 
 Lemma rangei_uni_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : Z -> A -> Prop),
   0 <= lo <= Zlength al /\ Zlength al <= hi <= Zlength al + Zlength bl ->
-  rangei_uni lo hi (al ++ bl) P ->
-  rangei_uni lo (Zlength al) al P /\
-  rangei_uni 0 (hi - Zlength al) bl (fun i => P (i + Zlength al)).
+  forall_i_range lo hi (al ++ bl) P ->
+  forall_i_range lo (Zlength al) al P /\
+  forall_i_range 0 (hi - Zlength al) bl (fun i => P (i + Zlength al)).
 Proof.
-  unfold rangei_uni. intros. split; intro; intros.
+  unfold forall_i_range. intros. split; intro; intros.
   - specialize (H0 i ltac:(lia)). simpl in H0. autorewrite with Znth in H0. apply H0.
   - specialize (H0 (i + Zlength al) ltac:(lia)). simpl in H0. autorewrite with Znth in H0. fassumption.
 Qed.
@@ -446,92 +459,92 @@ Qed.
 Lemma rangei_uni_sublist : forall {A : Type} {d : Inhabitant A}
   (lo hi lo' hi' : Z) (l : list A) (P : Z -> A -> Prop),
   0 <= lo <= hi /\ hi <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l ->
-  rangei_uni lo hi (sublist lo' hi' l) P ->
-  rangei_uni (lo+lo') (hi+lo') l (fun i => P (i - lo')).
+  forall_i_range lo hi (sublist lo' hi' l) P ->
+  forall_i_range (lo+lo') (hi+lo') l (fun i => P (i - lo')).
 Proof.
-  unfold rangei_uni, rangei. intros.
+  unfold forall_i_range, forall_i. intros.
   fapply (H0 (i - lo') ltac:(lia)). f_equal. Znth_solve.
 Qed.
 
 Lemma rangei_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi : Z) (l : list A) (f : A -> B) (P : Z -> B -> Prop),
   0 <= lo <= hi /\ hi <= Zlength l ->
-  rangei_uni lo hi (map f l) P ->
-  rangei_uni lo hi l (fun i x => P i (f x)).
+  forall_i_range lo hi (map f l) P ->
+  forall_i_range lo hi l (fun i x => P i (f x)).
 Proof.
-  unfold rangei_uni, rangei. intros.
+  unfold forall_i_range, forall_i. intros.
   fapply (H0 i ltac:(lia)). f_equal. rewrite Znth_map by lia. auto.
 Qed.
 
-Lemma range_bin_rangei_uniA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2_rangei_uniA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop),
-  range_bin lo hi offset al bl P <->
-  rangei_uni lo hi al (fun i x => P x (Znth (i + offset) bl)).
+  forall_range2 lo hi offset al bl P <->
+  forall_i_range lo hi al (fun i x => P x (Znth (i + offset) bl)).
 Proof.
-  unfold range_bin, rangei_uni, rangei. reflexivity.
+  unfold forall_range2, forall_i_range, forall_i. reflexivity.
 Qed.
 
-Lemma range_bin_rangei_uniB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2_rangei_uniB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop),
-  range_bin lo hi offset al bl P <->
-  rangei_uni (lo+offset) (hi+offset) bl (fun i => P (Znth (i - offset) al)).
+  forall_range2 lo hi offset al bl P <->
+  forall_i_range (lo+offset) (hi+offset) bl (fun i => P (Znth (i - offset) al)).
 Proof.
-  unfold range_bin, rangei_uni.
+  unfold forall_range2, forall_i_range.
   intros. split; intros.
   + eapply rangei_shift'. 3 : exact H.
     - lia.
-    - unfold rangei. intros. eq_solve.
+    - unfold forall_i. intros. eq_solve.
   + eapply rangei_shift'. 3 : exact H.
     - eq_solve.
-    - unfold rangei. intros. eq_solve.
+    - unfold forall_i. intros. eq_solve.
 Qed.
 
-Lemma range_bin_empty : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2_empty : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   lo = hi ->
-  range_bin lo hi offset l l' P <->
+  forall_range2 lo hi offset l l' P <->
   True.
 Proof.
-  intros; split; unfold range_bin, rangei; intros; auto; lia.
+  intros; split; unfold forall_range2, forall_i; intros; auto; lia.
 Qed.
 
-Lemma range_binA_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo <= hi /\ hi <= Zlength al ->
-  range_bin lo hi offset (al ++ bl) l' P <->
-  range_bin lo hi offset al l' P.
+  forall_range2 lo hi offset (al ++ bl) l' P <->
+  forall_range2 lo hi offset al l' P.
 Proof.
-  intros *. do 2 rewrite range_bin_rangei_uniA. apply rangei_uni_app1.
+  intros *. do 2 rewrite forall_range2_rangei_uniA. apply rangei_uni_app1.
 Qed.
 
-Lemma range_binA_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   Zlength al <= lo <= hi /\ hi <= Zlength al + Zlength bl ->
-  range_bin lo hi offset (al ++ bl) l' P ->
-  range_bin (lo - Zlength al) (hi - Zlength al) (offset + Zlength al) bl l' P.
+  forall_range2 lo hi offset (al ++ bl) l' P ->
+  forall_range2 (lo - Zlength al) (hi - Zlength al) (offset + Zlength al) bl l' P.
 Proof.
-  intros *. do 2 rewrite range_bin_rangei_uniA. intros.
+  intros *. do 2 rewrite forall_range2_rangei_uniA. intros.
   apply rangei_uni_app2 in H0. 2 : assumption.
   fapply H0. eq_solve.
 Qed.
 
-Lemma range_binA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo <= Zlength al /\ Zlength al <= hi <= Zlength al + Zlength bl ->
-  range_bin lo hi offset (al ++ bl) l' P ->
-  range_bin lo (Zlength al) offset al l' P /\
-  range_bin 0 (hi - Zlength al) (offset + Zlength al) bl l' P.
+  forall_range2 lo hi offset (al ++ bl) l' P ->
+  forall_range2 lo (Zlength al) offset al l' P /\
+  forall_range2 0 (hi - Zlength al) (offset + Zlength al) bl l' P.
 Proof.
-  intros *. do 3 rewrite range_bin_rangei_uniA. intros.
+  intros *. do 3 rewrite forall_range2_rangei_uniA. intros.
   apply rangei_uni_app in H0. 2 : assumption.
   fapply H0. eq_solve.
 Qed.
 
-Lemma range_binA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= i < Zlength l ->
-  range_bin lo hi offset (upd_Znth i l x)  l' P <->
-  range_bin lo hi offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+  forall_range2 lo hi offset (upd_Znth i l x)  l' P <->
+  forall_range2 lo hi offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
 Proof.
   intros.
   rewrite upd_Znth_unfold by Zlength_solve.
@@ -539,77 +552,77 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma range_binA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi lo' hi' offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo <= hi /\ hi <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l ->
-  range_bin lo hi offset (sublist lo' hi' l) l' P ->
-  range_bin (lo+lo') (hi+lo') (offset-lo') l l' P.
+  forall_range2 lo hi offset (sublist lo' hi' l) l' P ->
+  forall_range2 (lo+lo') (hi+lo') (offset-lo') l l' P.
 Proof.
-  intros *. do 2 rewrite range_bin_rangei_uniA. intros.
+  intros *. do 2 rewrite forall_range2_rangei_uniA. intros.
   apply rangei_uni_sublist in H0. 2 : assumption.
   fapply H0. eq_solve.
 Qed.
 
-Lemma range_binA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
+Lemma forall_range2A_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (lo hi offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
   0 <= lo <= hi /\ hi <= Zlength l ->
-  range_bin lo hi offset (map f l) l' P ->
-  range_bin lo hi offset l l' (fun x => P (f x)).
+  forall_range2 lo hi offset (map f l) l' P ->
+  forall_range2 lo hi offset l l' (fun x => P (f x)).
 Proof.
-  unfold range_bin, rangei. intros.
+  unfold forall_range2, forall_i. intros.
   fapply (H0 i ltac:(lia)).
   eq_solve with (rewrite Znth_map by lia).
 Qed.
 
-Lemma range_binA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi n offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo < hi /\ hi <= n ->
-  range_bin lo hi offset (Zrepeat x n) l' P ->
-  range_uni (lo + offset) (hi + offset) l' (P x).
+  forall_range2 lo hi offset (Zrepeat x n) l' P ->
+  forall_range (lo + offset) (hi + offset) l' (P x).
 Proof.
-  unfold range_bin, range_uni. intros.
+  unfold forall_range2, forall_range. intros.
   eapply rangei_shift'. 3 : exact H0.
   + lia.
-  + unfold rangei. intros. eq_solve with Znth_solve.
+  + unfold forall_i. intros. eq_solve with Znth_solve.
 Qed.
 
-Lemma range_binB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   0 <= lo + offset <= hi + offset /\ hi + offset <= Zlength al' ->
-  range_bin lo hi offset l (al' ++ bl') P <->
-  range_bin lo hi offset l al' P.
+  forall_range2 lo hi offset l (al' ++ bl') P <->
+  forall_range2 lo hi offset l al' P.
 Proof.
-  intros *. do 2 rewrite range_bin_rangei_uniB. apply rangei_uni_app1.
+  intros *. do 2 rewrite forall_range2_rangei_uniB. apply rangei_uni_app1.
 Qed.
 
-Lemma range_binB_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   Zlength al' <= lo + offset <= hi + offset /\ hi + offset <= Zlength al' + Zlength bl' ->
-  range_bin lo hi offset l (al' ++ bl') P ->
-  range_bin lo hi (offset - Zlength al') l bl' P.
+  forall_range2 lo hi offset l (al' ++ bl') P ->
+  forall_range2 lo hi (offset - Zlength al') l bl' P.
 Proof.
-  intros *. do 2 rewrite range_bin_rangei_uniB. intros.
+  intros *. do 2 rewrite forall_range2_rangei_uniB. intros.
   apply rangei_uni_app2 in H0. 2 : assumption.
   fapply H0. eq_solve.
 Qed.
 
-Lemma range_binB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   0 <= lo + offset <= Zlength al' /\ Zlength al' <= hi + offset <= Zlength al' + Zlength bl' ->
-  range_bin lo hi offset l (al' ++ bl') P ->
-  range_bin lo (Zlength al' - offset) offset l al' P /\
-  range_bin (Zlength al' - offset) hi (offset - Zlength al') l bl' P.
+  forall_range2 lo hi offset l (al' ++ bl') P ->
+  forall_range2 lo (Zlength al' - offset) offset l al' P /\
+  forall_range2 (Zlength al' - offset) hi (offset - Zlength al') l bl' P.
 Proof.
-  intros *. do 3 rewrite range_bin_rangei_uniB. intros.
+  intros *. do 3 rewrite forall_range2_rangei_uniB. intros.
   apply rangei_uni_app in H0. 2 : assumption.
   fapply H0. eq_solve.
 Qed.
 
-Lemma range_binB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
   0 <= i < Zlength l' ->
-  range_bin lo hi offset l (upd_Znth i l' x)  P <->
-  range_bin lo hi offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+  forall_range2 lo hi offset l (upd_Znth i l' x)  P <->
+  forall_range2 lo hi offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
 Proof.
   intros.
   rewrite upd_Znth_unfold by Zlength_solve.
@@ -617,99 +630,99 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma range_binB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi lo' hi' offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo + offset <= hi + offset /\ hi + offset <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l' ->
-  range_bin lo hi offset l (sublist lo' hi' l') P ->
-  range_bin lo hi (offset + lo') l l' P.
+  forall_range2 lo hi offset l (sublist lo' hi' l') P ->
+  forall_range2 lo hi (offset + lo') l l' P.
 Proof.
-  intros *. do 2 rewrite range_bin_rangei_uniB. intros.
+  intros *. do 2 rewrite forall_range2_rangei_uniB. intros.
   apply rangei_uni_sublist in H0. 2 : assumption.
   fapply H0. eq_solve.
 Qed.
 
-Lemma range_binB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
+Lemma forall_range2B_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (lo hi offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
   0 <= lo + offset <= hi + offset /\ hi + offset <= Zlength l' ->
-  range_bin lo hi offset l (map f l') P ->
-  range_bin lo hi offset l l' (fun x y => P x (f y)).
+  forall_range2 lo hi offset l (map f l') P ->
+  forall_range2 lo hi offset l l' (fun x y => P x (f y)).
 Proof.
-  unfold range_bin, rangei. intros.
+  unfold forall_range2, forall_i. intros.
   fapply (H0 i ltac:(lia)).
   eq_solve with (rewrite Znth_map by lia).
 Qed.
 
-Lemma range_binB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
   0 <= lo + offset < hi + offset /\ hi + offset <= n ->
-  range_bin lo hi offset l (Zrepeat x n) P ->
-  range_uni lo hi l (fun y => P y x).
+  forall_range2 lo hi offset l (Zrepeat x n) P ->
+  forall_range lo hi l (fun y => P y x).
 Proof.
-  unfold range_bin, range_uni. intros.
+  unfold forall_range2, forall_range. intros.
   eapply rangei_shift'. 3 : exact H0.
   + lia.
-  + unfold rangei. intros. eq_solve with Znth_solve.
+  + unfold forall_i. intros. eq_solve with Znth_solve.
 Qed.
 
-Lemma range_tri_rangei_uniA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangle_rangei_uniA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop),
-  range_tri x1 x2 y1 y2 offset al bl P <->
-  rangei_uni x1 x2 al (fun i x => rangei_uni y1 y2 bl (fun j y => i <= j + offset -> P x y)).
+  forall_triangle x1 x2 y1 y2 offset al bl P <->
+  forall_i_range x1 x2 al (fun i x => forall_i_range y1 y2 bl (fun j y => i <= j + offset -> P x y)).
 Proof.
-  unfold range_tri, rangei_uni, rangei. intuition.
+  unfold forall_triangle, forall_i_range, forall_i. intuition.
 Qed.
 
-Lemma range_tri_rangei_uniB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangle_rangei_uniB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop),
-  range_tri x1 x2 y1 y2 offset al bl P <->
-  rangei_uni y1 y2 bl (fun j y => rangei_uni x1 x2 al (fun i x => i <= j + offset -> P x y)).
+  forall_triangle x1 x2 y1 y2 offset al bl P <->
+  forall_i_range y1 y2 bl (fun j y => forall_i_range x1 x2 al (fun i x => i <= j + offset -> P x y)).
 Proof.
-  unfold range_tri, rangei_uni, rangei. intuition.
+  unfold forall_triangle, forall_i_range, forall_i. intuition.
 Qed.
 
-Lemma range_tri_emptyA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangle_emptyA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   x1 = x2 ->
-  range_tri x1 x2 y1 y2 offset l l' P <->
+  forall_triangle x1 x2 y1 y2 offset l l' P <->
   True.
 Proof.
-  intros; split; unfold range_tri; intros; auto; lia.
+  intros; split; unfold forall_triangle; intros; auto; lia.
 Qed.
 
-Lemma range_tri_emptyB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangle_emptyB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   y1 = y2 ->
-  range_tri x1 x2 y1 y2 offset l l' P <->
+  forall_triangle x1 x2 y1 y2 offset l l' P <->
   True.
 Proof.
-  intros; split; unfold range_tri; intros; auto; lia.
+  intros; split; unfold forall_triangle; intros; auto; lia.
 Qed.
 
-Lemma range_tri_emptyAgtB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangle_emptyAgtB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   x1 >= y2 + offset ->
-  range_tri x1 x2 y1 y2 offset l l' P <->
+  forall_triangle x1 x2 y1 y2 offset l l' P <->
   True.
 Proof.
-  intros; split; unfold range_tri; intros; auto; lia.
+  intros; split; unfold forall_triangle; intros; auto; lia.
 Qed.
 
-Lemma range_triA_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= Zlength al ->
-  range_tri x1 x2 y1 y2 offset (al ++ bl) l' P <->
-  range_tri x1 x2 y1 y2 offset al l' P.
+  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P <->
+  forall_triangle x1 x2 y1 y2 offset al l' P.
 Proof.
-  intros *. do 2 rewrite range_tri_rangei_uniA. apply rangei_uni_app1.
+  intros *. do 2 rewrite forall_triangle_rangei_uniA. apply rangei_uni_app1.
 Qed.
 
-Lemma range_triA_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   Zlength al <= x1 <= x2 /\ x2 <= Zlength al + Zlength bl ->
-  range_tri x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  range_tri (x1 - Zlength al) (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
+  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
+  forall_triangle (x1 - Zlength al) (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
 Proof.
-  intros *. do 2 rewrite range_tri_rangei_uniA. intros.
+  intros *. do 2 rewrite forall_triangle_rangei_uniA. intros.
   apply rangei_uni_app2 in H0. 2 : assumption.
   fapply H0.
   repeat first [
@@ -719,14 +732,14 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
-Lemma range_triA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 <= Zlength al /\ Zlength al <= x2 <= Zlength al + Zlength bl ->
-  range_tri x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  range_tri x1 (Zlength al) y1 y2 offset al l' P /\
-  range_tri 0 (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
+  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
+  forall_triangle x1 (Zlength al) y1 y2 offset al l' P /\
+  forall_triangle 0 (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
 Proof.
-  intros *. do 3 rewrite range_tri_rangei_uniA. intros.
+  intros *. do 3 rewrite forall_triangle_rangei_uniA. intros.
   apply rangei_uni_app in H0. 2 : assumption.
   fapply H0.
   repeat first [
@@ -736,11 +749,11 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
-Lemma range_triA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= i < Zlength l ->
-  range_tri x1 x2 y1 y2 offset (upd_Znth i l x) l' P <->
-  range_tri x1 x2 y1 y2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+  forall_triangle x1 x2 y1 y2 offset (upd_Znth i l x) l' P <->
+  forall_triangle x1 x2 y1 y2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
 Proof.
   intros.
   rewrite upd_Znth_unfold by Zlength_solve.
@@ -748,13 +761,13 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma range_triA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l ->
-  range_tri x1 x2 y1 y2 offset (sublist lo hi l) l' P ->
-  range_tri (x1 + lo) (x2 + lo) y1 y2 (offset + lo) l l' P.
+  forall_triangle x1 x2 y1 y2 offset (sublist lo hi l) l' P ->
+  forall_triangle (x1 + lo) (x2 + lo) y1 y2 (offset + lo) l l' P.
 Proof.
-  intros *. do 2 rewrite range_tri_rangei_uniA. intros.
+  intros *. do 2 rewrite forall_triangle_rangei_uniA. intros.
   apply rangei_uni_sublist in H0. 2 : assumption.
   fapply H0.
   repeat first [
@@ -764,46 +777,46 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
-Lemma range_triA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
+Lemma forall_triangleA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= Zlength l ->
-  range_tri x1 x2 y1 y2 offset (map f l) l' P ->
-  range_tri x1 x2 y1 y2 offset l l' (fun x => P (f x)).
+  forall_triangle x1 x2 y1 y2 offset (map f l) l' P ->
+  forall_triangle x1 x2 y1 y2 offset l l' (fun x => P (f x)).
 Proof.
-  unfold range_tri, rangei. intros.
+  unfold forall_triangle, forall_i. intros.
   fapply (H0 i j ltac:(lia)).
   eq_solve with (rewrite Znth_map by lia).
 Qed.
 
-Lemma range_triA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (n x1 x2 y1 y2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 < x2 /\ x2 <= n ->
-  range_tri x1 x2 y1 y2 offset (Zrepeat x n) l' P <->
-  range_uni (Z.max y1 (x1 - offset)) (Z.max y2 (x1 - offset)) l' (P x).
+  forall_triangle x1 x2 y1 y2 offset (Zrepeat x n) l' P <->
+  forall_range (Z.max y1 (x1 - offset)) (Z.max y2 (x1 - offset)) l' (P x).
 Proof.
-  unfold range_tri, range_uni, rangei. intros. split; intros.
+  unfold forall_triangle, forall_range, forall_i. intros. split; intros.
   - fapply (H0 x1 i ltac:(lia)).
     eq_solve with (rewrite Znth_Zrepeat by lia).
   - fapply (H0 j ltac:(lia)).
     eq_solve with (rewrite Znth_Zrepeat by lia).
 Qed.
 
-Lemma range_triB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   0 <= y1 <= y2 /\ y2 <= Zlength al' ->
-  range_tri x1 x2 y1 y2 offset l (al' ++ bl') P <->
-  range_tri x1 x2 y1 y2 offset l al' P.
+  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P <->
+  forall_triangle x1 x2 y1 y2 offset l al' P.
 Proof.
-  intros *. do 2 rewrite range_tri_rangei_uniB. apply rangei_uni_app1.
+  intros *. do 2 rewrite forall_triangle_rangei_uniB. apply rangei_uni_app1.
 Qed.
 
-Lemma range_triB_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   Zlength al' <= y1 <= y2 /\ y2 <= Zlength al' + Zlength bl' ->
-  range_tri x1 x2 y1 y2 offset l (al' ++ bl') P ->
-  range_tri x1 x2 (y1 - Zlength al') (y2 - Zlength al') (offset + Zlength al') l bl' P.
+  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P ->
+  forall_triangle x1 x2 (y1 - Zlength al') (y2 - Zlength al') (offset + Zlength al') l bl' P.
 Proof.
-  intros *. do 2 rewrite range_tri_rangei_uniB. intros.
+  intros *. do 2 rewrite forall_triangle_rangei_uniB. intros.
   apply rangei_uni_app2 in H0. 2 : assumption.
   fapply H0.
   repeat first [
@@ -813,14 +826,14 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
-Lemma range_triB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   0 <= y1 <= Zlength al' /\ Zlength al' <= y2 <= Zlength al' + Zlength bl' ->
-  range_tri x1 x2 y1 y2 offset l (al' ++ bl') P ->
-  range_tri x1 x2 y1 (Zlength al') offset l al' P /\
-  range_tri x1 x2 0 (y2 - Zlength al') (offset + Zlength al') l bl' P.
+  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P ->
+  forall_triangle x1 x2 y1 (Zlength al') offset l al' P /\
+  forall_triangle x1 x2 0 (y2 - Zlength al') (offset + Zlength al') l bl' P.
 Proof.
-  intros *. do 3 rewrite range_tri_rangei_uniB. intros.
+  intros *. do 3 rewrite forall_triangle_rangei_uniB. intros.
   apply rangei_uni_app in H0. 2 : assumption.
   fapply H0.
   repeat first [
@@ -830,11 +843,11 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
-Lemma range_triB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
   0 <= i < Zlength l' ->
-  range_tri x1 x2 y1 y2 offset l (upd_Znth i l' x)  P <->
-  range_tri x1 x2 y1 y2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+  forall_triangle x1 x2 y1 y2 offset l (upd_Znth i l' x)  P <->
+  forall_triangle x1 x2 y1 y2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
 Proof.
   intros.
   rewrite upd_Znth_unfold by Zlength_solve.
@@ -842,13 +855,13 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma range_triB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 lo hi offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= y1 <= y2 /\ y2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l' ->
-  range_tri x1 x2 y1 y2 offset l (sublist lo hi l') P ->
-  range_tri x1 x2 (y1 + lo) (y2 + lo) (offset - lo) l l' P.
+  forall_triangle x1 x2 y1 y2 offset l (sublist lo hi l') P ->
+  forall_triangle x1 x2 (y1 + lo) (y2 + lo) (offset - lo) l l' P.
 Proof.
-  intros *. do 2 rewrite range_tri_rangei_uniB. intros.
+  intros *. do 2 rewrite forall_triangle_rangei_uniB. intros.
   apply rangei_uni_sublist in H0. 2 : assumption.
   fapply H0.
   repeat first [
@@ -858,24 +871,24 @@ Proof.
   apply prop_ext. split; intros; apply H1; lia.
 Qed.
 
-Lemma range_triB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
+Lemma forall_triangleB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
   0 <= y1 <= y2 /\ y2 <= Zlength l' ->
-  range_tri x1 x2 y1 y2 offset l (map f l') P ->
-  range_tri x1 x2 y1 y2 offset l l' (fun x y => P x (f y)).
+  forall_triangle x1 x2 y1 y2 offset l (map f l') P ->
+  forall_triangle x1 x2 y1 y2 offset l l' (fun x y => P x (f y)).
 Proof.
-  unfold range_tri, rangei. intros.
+  unfold forall_triangle, forall_i. intros.
   fapply (H0 i j ltac:(lia)).
   eq_solve with (rewrite Znth_map by lia).
 Qed.
 
-Lemma range_triB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
   0 <= y1 < y2 /\ y2 <= n ->
-  range_tri x1 x2 y1 y2 offset l (Zrepeat x n) P <->
-  range_uni (Z.min x1 (y2 + offset)) (Z.min x2 (y2 + offset)) l (fun y => P y x).
+  forall_triangle x1 x2 y1 y2 offset l (Zrepeat x n) P <->
+  forall_range (Z.min x1 (y2 + offset)) (Z.min x2 (y2 + offset)) l (fun y => P y x).
 Proof.
-  unfold range_tri, range_uni, rangei. intros. split; intros.
+  unfold forall_triangle, forall_range, forall_i. intros. split; intros.
   - fapply (H0 i (y2 - 1) ltac:(lia)).
     eq_solve with (rewrite Znth_Zrepeat by lia).
   - fapply (H0 i ltac:(lia)).
@@ -906,10 +919,10 @@ Ltac apply_in_hyps_with_Zlength_solve_destruct lem :=
   | H : _ |- _ => first [apply -> lem in H | apply lem in H]; [destruct H | Zlength_solve ..]
   end.
 
-Lemma not_In_range_uni_iff : forall {A : Type} {d : Inhabitant A} (x : A) (l : list A),
-  ~ In x l <-> range_uni 0 (Zlength l) l (fun e => e <> x).
+Lemma not_In_forall_range_iff : forall {A : Type} {d : Inhabitant A} (x : A) (l : list A),
+  ~ In x l <-> forall_range 0 (Zlength l) l (fun e => e <> x).
 Proof.
-  unfold range_uni, rangei. intros; split; intros.
+  unfold forall_range, forall_i. intros; split; intros.
   - intro. apply H. subst x. apply Znth_In. auto.
   - intro. induction l; auto.
     inversion H0.
@@ -920,44 +933,44 @@ Proof.
         fassumption.
 Qed.
 
-Lemma not_In_range_uni : forall {A : Type} {d : Inhabitant A} (x : A) (l : list A),
-  ~ In x l -> range_uni 0 (Zlength l) l (fun e => e <> x).
-Proof. intros. apply not_In_range_uni_iff. auto. Qed.
+Lemma not_In_forall_range : forall {A : Type} {d : Inhabitant A} (x : A) (l : list A),
+  ~ In x l -> forall_range 0 (Zlength l) l (fun e => e <> x).
+Proof. intros. apply not_In_forall_range_iff. auto. Qed.
 
-Lemma eq_range_bin_no_offset : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l1 l2 : list A),
+Lemma eq_forall_range2_no_offset : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth i l1 = Znth i l2) ->
-  range_bin lo hi 0 l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. replace (i + 0) with i by lia. auto. Qed.
+  forall_range2 lo hi 0 l1 l2 eq.
+Proof. unfold forall_range2, forall_i. intros. replace (i + 0) with i by lia. auto. Qed.
 
-Lemma eq_range_bin_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
+Lemma eq_forall_range2_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth i l1 = Znth (i + offset) l2) ->
-  range_bin lo hi offset l1 l2 eq.
-Proof. unfold range_bin, rangei. auto. Qed.
+  forall_range2 lo hi offset l1 l2 eq.
+Proof. unfold forall_range2, forall_i. auto. Qed.
 
-Lemma eq_range_bin_left_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
+Lemma eq_forall_range2_left_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth i l1 = Znth (offset + i) l2) ->
-  range_bin lo hi offset l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. replace (i + offset) with (offset + i) by lia. auto. Qed.
+  forall_range2 lo hi offset l1 l2 eq.
+Proof. unfold forall_range2, forall_i. intros. replace (i + offset) with (offset + i) by lia. auto. Qed.
 
-Lemma eq_range_bin_minus_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
+Lemma eq_forall_range2_minus_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth i l1 = Znth (i - offset) l2) ->
-  range_bin lo hi (-offset) l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. replace (i + - offset) with (i - offset) by lia. auto. Qed.
+  forall_range2 lo hi (-offset) l1 l2 eq.
+Proof. unfold forall_range2, forall_i. intros. replace (i + - offset) with (i - offset) by lia. auto. Qed.
 
-Lemma eq_range_bin_reverse : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
+Lemma eq_forall_range2_reverse : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth (i + offset) l1 = Znth i l2) ->
-  range_bin (lo + offset) (hi + offset) (-offset) l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. fapply (H (i - offset) ltac:(lia)). eq_solve. Qed.
+  forall_range2 (lo + offset) (hi + offset) (-offset) l1 l2 eq.
+Proof. unfold forall_range2, forall_i. intros. fapply (H (i - offset) ltac:(lia)). eq_solve. Qed.
 
-Lemma eq_range_bin_reverse_left_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
+Lemma eq_forall_range2_reverse_left_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth (offset + i) l1 = Znth i l2) ->
-  range_bin (lo + offset) (hi + offset) (-offset) l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. fapply (H (i - offset) ltac:(lia)). eq_solve. Qed.
+  forall_range2 (lo + offset) (hi + offset) (-offset) l1 l2 eq.
+Proof. unfold forall_range2, forall_i. intros. fapply (H (i - offset) ltac:(lia)). eq_solve. Qed.
 
-Lemma eq_range_bin_reverse_minus_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
+Lemma eq_forall_range2_reverse_minus_offset : forall {A : Type} {d : Inhabitant A} (lo hi offset : Z) (l1 l2 : list A),
   (forall i, lo <= i < hi -> Znth (i - offset) l1 = Znth i l2) ->
-  range_bin (lo - offset) (hi - offset) offset l1 l2 eq.
-Proof. unfold range_bin, rangei. intros. fapply (H (i + offset) ltac:(lia)). eq_solve. Qed.
+  forall_range2 (lo - offset) (hi - offset) offset l1 l2 eq.
+Proof. unfold forall_range2, forall_i. intros. fapply (H (i + offset) ltac:(lia)). eq_solve. Qed.
 
 Lemma In_Znth_iff : forall {A : Type} {d : Inhabitant A} (l : list A) (x : A),
   In x l <-> exists i, 0 <= i < Zlength l /\ Znth i l = x.
@@ -971,25 +984,25 @@ Proof.
   - destruct H as [i []]. subst x. apply Znth_In. auto.
 Qed.
 
-Lemma list_eq_range_bin : forall {A} {d : Inhabitant A} al bl,
+Lemma list_eq_forall_range2 : forall {A} {d : Inhabitant A} al bl,
   al = bl ->
-  Zlength al = Zlength bl /\ range_bin 0 (Zlength al) 0 al bl eq.
+  Zlength al = Zlength bl /\ forall_range2 0 (Zlength al) 0 al bl eq.
 Proof.
-  intros. subst; unfold range_bin, rangei; intuition.
+  intros. subst; unfold forall_range2, forall_i; intuition.
 Qed.
 
-Lemma range_uni_fold : forall {A} {d : Inhabitant A} lo hi al (P : A -> Prop),
-  (forall i, lo <= i < hi -> P (Znth i al)) = range_uni lo hi al P.
+Lemma forall_range_fold : forall {A} {d : Inhabitant A} lo hi al (P : A -> Prop),
+  (forall i, lo <= i < hi -> P (Znth i al)) = forall_range lo hi al P.
 Proof. auto. Qed.
 
-Lemma range_bin_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B},
+Lemma forall_range2_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B},
   forall lo hi offset al bl (P : A -> B -> Prop),
-  (forall i, lo <= i < hi -> P (Znth i al) (Znth (i + offset) bl)) = range_bin lo hi offset al bl P.
+  (forall i, lo <= i < hi -> P (Znth i al) (Znth (i + offset) bl)) = forall_range2 lo hi offset al bl P.
 Proof. auto. Qed.
 
-Lemma range_tri_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B},
+Lemma forall_triangle_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B},
   forall x1 x2 y1 y2 offset al bl (P : A -> B -> Prop),
-  (forall i j, x1 <= i < x2 /\ y1 <= j < y2 /\ i <= j + offset -> P (Znth i al) (Znth j bl)) = range_tri x1 x2 y1 y2 offset al bl P.
+  (forall i j, x1 <= i < x2 /\ y1 <= j < y2 /\ i <= j + offset -> P (Znth i al) (Znth j bl)) = forall_triangle x1 x2 y1 y2 offset al bl P.
 Proof. auto. Qed.
 
 Lemma Forall_Znth : forall {A} {d : Inhabitant A} l P,
@@ -1010,6 +1023,12 @@ Proof.
     - fapply (H (i+1) ltac:(Zlength_solve)). list_form; Znth_solve.
 Qed.
 
+Lemma Forall_forall_range : forall {A} {d : Inhabitant A} l P,
+  Forall P l <-> forall_range 0 (Zlength l) l P.
+Proof.
+  intros. rewrite Forall_Znth. reflexivity.
+Qed.
+
 Require Import Coq.Sorting.Sorted.
 
 Section Sorted.
@@ -1022,10 +1041,10 @@ Context {Htrans : Relations_1.Transitive le}.
 Definition sorted (l : list A) :=
   forall i j, 0 <= i <= j /\ j < Zlength l -> le (Znth i l) (Znth j l).
 
-Lemma sorted_range_tri : forall l,
-  sorted l -> range_tri 0 (Zlength l) 0 (Zlength l) 0 l l le.
+Lemma sorted_forall_triangle : forall l,
+  sorted l -> forall_triangle 0 (Zlength l) 0 (Zlength l) 0 l l le.
 Proof.
-  unfold range_tri, sorted. intros.
+  unfold forall_triangle, sorted. intros.
   apply H; lia.
 Qed.
 
@@ -1054,402 +1073,402 @@ Arguments sorted {_ _}.
 
 Module range_rewrite.
 
-Lemma range_uni_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : A -> Prop),
+Lemma forall_range_empty : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : A -> Prop),
   lo = hi ->
-  range_uni lo hi l P ->
+  forall_range lo hi l P ->
   True.
 Proof.
   intros.
-  eapply range_uni_empty; eauto.
+  eapply forall_range_empty; eauto.
 Qed.
 
-Lemma range_uni_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : A -> Prop),
+Lemma forall_range_Zrepeat : forall {A : Type} {d : Inhabitant A} (lo hi n : Z) (x : A) (P : A -> Prop),
   0 <= lo < hi /\ hi <= n ->
-  range_uni lo hi (Zrepeat x n) P ->
+  forall_range lo hi (Zrepeat x n) P ->
   P x.
 Proof.
   intros.
-  eapply range_uni_Zrepeat; eauto.
+  eapply forall_range_Zrepeat; eauto.
 Qed.
 
-Lemma range_uni_app1 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+Lemma forall_range_app1 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
   0 <= lo <= hi /\ hi <= Zlength al ->
-  range_uni lo hi (al ++ bl) P ->
-  range_uni lo hi al P.
+  forall_range lo hi (al ++ bl) P ->
+  forall_range lo hi al P.
 Proof.
   intros.
-  eapply range_uni_app1; eauto.
+  eapply forall_range_app1; eauto.
 Qed.
 
-Lemma range_uni_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+Lemma forall_range_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
   Zlength al <= lo <= hi /\ hi <= Zlength al + Zlength bl ->
-  range_uni lo hi (al ++ bl) P ->
-  range_uni (lo - Zlength al) (hi - Zlength al) bl P.
+  forall_range lo hi (al ++ bl) P ->
+  forall_range (lo - Zlength al) (hi - Zlength al) bl P.
 Proof.
   intros.
-  eapply range_uni_app2; eauto.
+  eapply forall_range_app2; eauto.
 Qed.
 
-Lemma range_uni_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+Lemma forall_range_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
   0 <= lo <= Zlength al /\ Zlength al <= hi <= Zlength al + Zlength bl ->
-  range_uni lo hi (al ++ bl) P ->
-  range_uni lo (Zlength al) al P /\
-  range_uni 0 (hi - Zlength al) bl P.
+  forall_range lo hi (al ++ bl) P ->
+  forall_range lo (Zlength al) al P /\
+  forall_range 0 (hi - Zlength al) bl P.
 Proof.
   intros.
-  eapply range_uni_app; eauto.
+  eapply forall_range_app; eauto.
 Qed.
 
-Lemma range_uni_upd_Znth : forall {A : Type} {d : Inhabitant A} (lo hi i : Z) (al : list A) (x : A) (P : A -> Prop),
+Lemma forall_range_upd_Znth : forall {A : Type} {d : Inhabitant A} (lo hi i : Z) (al : list A) (x : A) (P : A -> Prop),
   0 <= i < Zlength al ->
-  range_uni lo hi (upd_Znth i al x) P ->
-  range_uni lo hi (sublist 0 i al ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength al) al) P.
+  forall_range lo hi (upd_Znth i al x) P ->
+  forall_range lo hi (sublist 0 i al ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength al) al) P.
 Proof.
   intros.
-  eapply range_uni_upd_Znth; eauto.
+  eapply forall_range_upd_Znth; eauto.
 Qed.
 
-Lemma range_uni_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : Z) (l : list A) (P : A -> Prop),
+Lemma forall_range_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : Z) (l : list A) (P : A -> Prop),
   0 <= lo <= hi /\ hi <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l ->
-  range_uni lo hi (sublist lo' hi' l) P ->
-  range_uni (lo+lo') (hi+lo') l P.
+  forall_range lo hi (sublist lo' hi' l) P ->
+  forall_range (lo+lo') (hi+lo') l P.
 Proof.
   intros.
-  eapply range_uni_sublist; eauto.
+  eapply forall_range_sublist; eauto.
 Qed.
 
-Lemma range_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi : Z) (l : list A) (f : A -> B) (P : B -> Prop),
   0 <= lo <= hi /\ hi <= Zlength l ->
-  range_uni lo hi (map f l) P ->
-  range_uni lo hi l (fun x => P (f x)).
+  forall_range lo hi (map f l) P ->
+  forall_range lo hi l (fun x => P (f x)).
 Proof.
   intros.
-  eapply range_uni_map; eauto.
+  eapply forall_range_map; eauto.
 Qed.
 
-Lemma range_bin_empty : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2_empty : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   lo = hi ->
-  range_bin lo hi offset l l' P ->
+  forall_range2 lo hi offset l l' P ->
   True.
 Proof.
   intros.
-  eapply (range_bin_empty _ _ _ _ _ P); eauto.
+  eapply (forall_range2_empty _ _ _ _ _ P); eauto.
 Qed.
 
-Lemma range_binA_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo <= hi /\ hi <= Zlength al ->
-  range_bin lo hi offset (al ++ bl) l' P ->
-  range_bin lo hi offset al l' P.
+  forall_range2 lo hi offset (al ++ bl) l' P ->
+  forall_range2 lo hi offset al l' P.
 Proof.
   intros.
-  eapply range_binA_app1; eauto.
+  eapply forall_range2A_app1; eauto.
 Qed.
 
-Lemma range_binA_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   Zlength al <= lo <= hi /\ hi <= Zlength al + Zlength bl ->
-  range_bin lo hi offset (al ++ bl) l' P ->
-  range_bin (lo - Zlength al) (hi - Zlength al) (offset + Zlength al) bl l' P.
+  forall_range2 lo hi offset (al ++ bl) l' P ->
+  forall_range2 (lo - Zlength al) (hi - Zlength al) (offset + Zlength al) bl l' P.
 Proof.
   intros.
-  eapply range_binA_app2; eauto.
+  eapply forall_range2A_app2; eauto.
 Qed.
 
-Lemma range_binA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo <= Zlength al /\ Zlength al <= hi <= Zlength al + Zlength bl ->
-  range_bin lo hi offset (al ++ bl) l' P ->
-  range_bin lo (Zlength al) offset al l' P /\
-  range_bin 0 (hi - Zlength al) (offset + Zlength al) bl l' P.
+  forall_range2 lo hi offset (al ++ bl) l' P ->
+  forall_range2 lo (Zlength al) offset al l' P /\
+  forall_range2 0 (hi - Zlength al) (offset + Zlength al) bl l' P.
 Proof.
   intros.
-  eapply range_binA_app; eauto.
+  eapply forall_range2A_app; eauto.
 Qed.
 
-Lemma range_binA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= i < Zlength l ->
-  range_bin lo hi offset (upd_Znth i l x)  l' P ->
-  range_bin lo hi offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+  forall_range2 lo hi offset (upd_Znth i l x)  l' P ->
+  forall_range2 lo hi offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
 Proof.
   intros.
-  eapply range_binA_upd_Znth; eauto.
+  eapply forall_range2A_upd_Znth; eauto.
 Qed.
 
-Lemma range_binA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi lo' hi' offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo <= hi /\ hi <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l ->
-  range_bin lo hi offset (sublist lo' hi' l) l' P ->
-  range_bin (lo+lo') (hi+lo') (offset-lo') l l' P.
+  forall_range2 lo hi offset (sublist lo' hi' l) l' P ->
+  forall_range2 (lo+lo') (hi+lo') (offset-lo') l l' P.
 Proof.
   intros.
-  eapply range_binA_sublist; eauto.
+  eapply forall_range2A_sublist; eauto.
 Qed.
 
-Lemma range_binA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
+Lemma forall_range2A_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (lo hi offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
   0 <= lo <= hi /\ hi <= Zlength l ->
-  range_bin lo hi offset (map f l) l' P ->
-  range_bin lo hi offset l l' (fun x => P (f x)).
+  forall_range2 lo hi offset (map f l) l' P ->
+  forall_range2 lo hi offset l l' (fun x => P (f x)).
 Proof.
   intros.
-  eapply range_binA_map; eauto.
+  eapply forall_range2A_map; eauto.
 Qed.
 
-Lemma range_binA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2A_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi n offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo < hi /\ hi <= n ->
-  range_bin lo hi offset (Zrepeat x n) l' P ->
-  range_uni (lo + offset) (hi + offset) l' (P x).
+  forall_range2 lo hi offset (Zrepeat x n) l' P ->
+  forall_range (lo + offset) (hi + offset) l' (P x).
 Proof.
   intros.
-  eapply range_binA_Zrepeat; eauto.
+  eapply forall_range2A_Zrepeat; eauto.
 Qed.
 
-Lemma range_binB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   0 <= lo + offset <= hi + offset /\ hi + offset <= Zlength al' ->
-  range_bin lo hi offset l (al' ++ bl') P ->
-  range_bin lo hi offset l al' P.
+  forall_range2 lo hi offset l (al' ++ bl') P ->
+  forall_range2 lo hi offset l al' P.
 Proof.
   intros.
-  eapply range_binB_app1; eauto.
+  eapply forall_range2B_app1; eauto.
 Qed.
 
-Lemma range_binB_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   Zlength al' <= lo + offset <= hi + offset /\ hi + offset <= Zlength al' + Zlength bl' ->
-  range_bin lo hi offset l (al' ++ bl') P ->
-  range_bin lo hi (offset - Zlength al') l bl' P.
+  forall_range2 lo hi offset l (al' ++ bl') P ->
+  forall_range2 lo hi (offset - Zlength al') l bl' P.
 Proof.
   intros.
-  eapply range_binB_app2; eauto.
+  eapply forall_range2B_app2; eauto.
 Qed.
 
-Lemma range_binB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   0 <= lo + offset <= Zlength al' /\ Zlength al' <= hi + offset <= Zlength al' + Zlength bl' ->
-  range_bin lo hi offset l (al' ++ bl') P ->
-  range_bin lo (Zlength al' - offset) offset l al' P /\
-  range_bin (Zlength al' - offset) hi (offset - Zlength al') l bl' P.
+  forall_range2 lo hi offset l (al' ++ bl') P ->
+  forall_range2 lo (Zlength al' - offset) offset l al' P /\
+  forall_range2 (Zlength al' - offset) hi (offset - Zlength al') l bl' P.
 Proof.
   intros.
-  eapply range_binB_app; eauto.
+  eapply forall_range2B_app; eauto.
 Qed.
 
-Lemma range_binB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
   0 <= i < Zlength l' ->
-  range_bin lo hi offset l (upd_Znth i l' x)  P <->
-  range_bin lo hi offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+  forall_range2 lo hi offset l (upd_Znth i l' x)  P <->
+  forall_range2 lo hi offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
 Proof.
   intros.
-  eapply range_binB_upd_Znth; eauto.
+  eapply forall_range2B_upd_Znth; eauto.
 Qed.
 
-Lemma range_binB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi lo' hi' offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= lo + offset <= hi + offset /\ hi + offset <= hi' - lo' /\ 0 <= lo' <= hi' /\ hi' <= Zlength l' ->
-  range_bin lo hi offset l (sublist lo' hi' l') P ->
-  range_bin lo hi (offset + lo') l l' P.
+  forall_range2 lo hi offset l (sublist lo' hi' l') P ->
+  forall_range2 lo hi (offset + lo') l l' P.
 Proof.
   intros.
-  eapply range_binB_sublist; eauto.
+  eapply forall_range2B_sublist; eauto.
 Qed.
 
-Lemma range_binB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
+Lemma forall_range2B_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (lo hi offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
   0 <= lo + offset <= hi + offset /\ hi + offset <= Zlength l' ->
-  range_bin lo hi offset l (map f l') P ->
-  range_bin lo hi offset l l' (fun x y => P x (f y)).
+  forall_range2 lo hi offset l (map f l') P ->
+  forall_range2 lo hi offset l l' (fun x y => P x (f y)).
 Proof.
   intros.
-  eapply range_binB_map; eauto.
+  eapply forall_range2B_map; eauto.
 Qed.
 
-Lemma range_binB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_range2B_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
   0 <= lo + offset < hi + offset /\ hi + offset <= n ->
-  range_bin lo hi offset l (Zrepeat x n) P ->
-  range_uni lo hi l (fun y => P y x).
+  forall_range2 lo hi offset l (Zrepeat x n) P ->
+  forall_range lo hi l (fun y => P y x).
 Proof.
   intros.
-  eapply range_binB_Zrepeat; eauto.
+  eapply forall_range2B_Zrepeat; eauto.
 Qed.
 
-Lemma range_tri_emptyA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangle_emptyA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   x1 = x2 ->
-  range_tri x1 x2 y1 y2 offset l l' P ->
+  forall_triangle x1 x2 y1 y2 offset l l' P ->
   True.
 Proof.
   intros.
-  eapply (range_tri_emptyA _ _ _ _ _ _ _ P); eauto.
+  eapply (forall_triangle_emptyA _ _ _ _ _ _ _ P); eauto.
 Qed.
 
-Lemma range_tri_emptyB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangle_emptyB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   y1 = y2 ->
-  range_tri x1 x2 y1 y2 offset l l' P ->
+  forall_triangle x1 x2 y1 y2 offset l l' P ->
   True.
 Proof.
   intros.
-  eapply (range_tri_emptyB _ _ _ _ _ _ _ P); eauto.
+  eapply (forall_triangle_emptyB _ _ _ _ _ _ _ P); eauto.
 Qed.
 
-Lemma range_tri_emptyAgtB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangle_emptyAgtB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   x1 >= y2 + offset ->
-  range_tri x1 x2 y1 y2 offset l l' P ->
+  forall_triangle x1 x2 y1 y2 offset l l' P ->
   True.
 Proof.
   intros.
-  eapply (range_tri_emptyAgtB _ _ _ _ _ _ _ P); eauto.
+  eapply (forall_triangle_emptyAgtB _ _ _ _ _ _ _ P); eauto.
 Qed.
 
-Lemma range_triA_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= Zlength al ->
-  range_tri x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  range_tri x1 x2 y1 y2 offset al l' P.
+  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
+  forall_triangle x1 x2 y1 y2 offset al l' P.
 Proof.
   intros.
-  eapply range_triA_app1; eauto.
+  eapply forall_triangleA_app1; eauto.
 Qed.
 
-Lemma range_triA_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   Zlength al <= x1 <= x2 /\ x2 <= Zlength al + Zlength bl ->
-  range_tri x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  range_tri (x1 - Zlength al) (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
+  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
+  forall_triangle (x1 - Zlength al) (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
 Proof.
   intros.
-  eapply range_triA_app2; eauto.
+  eapply forall_triangleA_app2; eauto.
 Qed.
 
-Lemma range_triA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 <= Zlength al /\ Zlength al <= x2 <= Zlength al + Zlength bl ->
-  range_tri x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  range_tri x1 (Zlength al) y1 y2 offset al l' P /\
-  range_tri 0 (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
+  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
+  forall_triangle x1 (Zlength al) y1 y2 offset al l' P /\
+  forall_triangle 0 (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
 Proof.
   intros.
-  eapply range_triA_app; eauto.
+  eapply forall_triangleA_app; eauto.
 Qed.
 
-Lemma range_triA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= i < Zlength l ->
-  range_tri x1 x2 y1 y2 offset (upd_Znth i l x) l' P <->
-  range_tri x1 x2 y1 y2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+  forall_triangle x1 x2 y1 y2 offset (upd_Znth i l x) l' P <->
+  forall_triangle x1 x2 y1 y2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
 Proof.
   intros.
-  eapply range_triA_upd_Znth; eauto.
+  eapply forall_triangleA_upd_Znth; eauto.
 Qed.
 
-Lemma range_triA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (lo hi x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l ->
-  range_tri x1 x2 y1 y2 offset (sublist lo hi l) l' P ->
-  range_tri (x1 + lo) (x2 + lo) y1 y2 (offset + lo) l l' P.
+  forall_triangle x1 x2 y1 y2 offset (sublist lo hi l) l' P ->
+  forall_triangle (x1 + lo) (x2 + lo) y1 y2 (offset + lo) l l' P.
 Proof.
   intros.
-  eapply range_triA_sublist; eauto.
+  eapply forall_triangleA_sublist; eauto.
 Qed.
 
-Lemma range_triA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
+Lemma forall_triangleA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
   0 <= x1 <= x2 /\ x2 <= Zlength l ->
-  range_tri x1 x2 y1 y2 offset (map f l) l' P ->
-  range_tri x1 x2 y1 y2 offset l l' (fun x => P (f x)).
+  forall_triangle x1 x2 y1 y2 offset (map f l) l' P ->
+  forall_triangle x1 x2 y1 y2 offset l l' (fun x => P (f x)).
 Proof.
   intros.
-  eapply range_triA_map; eauto.
+  eapply forall_triangleA_map; eauto.
 Qed.
 
-Lemma range_triA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (n x1 x2 y1 y2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= x1 < x2 /\ x2 <= n ->
-  range_tri x1 x2 y1 y2 offset (Zrepeat x n) l' P <->
-  range_uni (Z.max y1 (x1 - offset)) (Z.max y2 (x1 - offset)) l' (P x).
+  forall_triangle x1 x2 y1 y2 offset (Zrepeat x n) l' P <->
+  forall_range (Z.max y1 (x1 - offset)) (Z.max y2 (x1 - offset)) l' (P x).
 Proof.
   intros.
-  eapply range_triA_Zrepeat; eauto.
+  eapply forall_triangleA_Zrepeat; eauto.
 Qed.
 
-Lemma range_triB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   0 <= y1 <= y2 /\ y2 <= Zlength al' ->
-  range_tri x1 x2 y1 y2 offset l (al' ++ bl') P <->
-  range_tri x1 x2 y1 y2 offset l al' P.
+  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P <->
+  forall_triangle x1 x2 y1 y2 offset l al' P.
 Proof.
   intros.
-  eapply range_triB_app1; eauto.
+  eapply forall_triangleB_app1; eauto.
 Qed.
 
-Lemma range_triB_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   Zlength al' <= y1 <= y2 /\ y2 <= Zlength al' + Zlength bl' ->
-  range_tri x1 x2 y1 y2 offset l (al' ++ bl') P ->
-  range_tri x1 x2 (y1 - Zlength al') (y2 - Zlength al') (offset + Zlength al') l bl' P.
+  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P ->
+  forall_triangle x1 x2 (y1 - Zlength al') (y2 - Zlength al') (offset + Zlength al') l bl' P.
 Proof.
   intros.
-  eapply range_triB_app2; eauto.
+  eapply forall_triangleB_app2; eauto.
 Qed.
 
-Lemma range_triB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
   0 <= y1 <= Zlength al' /\ Zlength al' <= y2 <= Zlength al' + Zlength bl' ->
-  range_tri x1 x2 y1 y2 offset l (al' ++ bl') P ->
-  range_tri x1 x2 y1 (Zlength al') offset l al' P /\
-  range_tri x1 x2 0 (y2 - Zlength al') (offset + Zlength al') l bl' P.
+  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P ->
+  forall_triangle x1 x2 y1 (Zlength al') offset l al' P /\
+  forall_triangle x1 x2 0 (y2 - Zlength al') (offset + Zlength al') l bl' P.
 Proof.
   intros.
-  eapply range_triB_app; eauto.
+  eapply forall_triangleB_app; eauto.
 Qed.
 
-Lemma range_triB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
   0 <= i < Zlength l' ->
-  range_tri x1 x2 y1 y2 offset l (upd_Znth i l' x)  P <->
-  range_tri x1 x2 y1 y2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+  forall_triangle x1 x2 y1 y2 offset l (upd_Znth i l' x)  P <->
+  forall_triangle x1 x2 y1 y2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
 Proof.
   intros.
-  eapply range_triB_upd_Znth; eauto.
+  eapply forall_triangleB_upd_Znth; eauto.
 Qed.
 
-Lemma range_triB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 lo hi offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
   0 <= y1 <= y2 /\ y2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l' ->
-  range_tri x1 x2 y1 y2 offset l (sublist lo hi l') P ->
-  range_tri x1 x2 (y1 + lo) (y2 + lo) (offset - lo) l l' P.
+  forall_triangle x1 x2 y1 y2 offset l (sublist lo hi l') P ->
+  forall_triangle x1 x2 (y1 + lo) (y2 + lo) (offset - lo) l l' P.
 Proof.
   intros.
-  eapply range_triB_sublist; eauto.
+  eapply forall_triangleB_sublist; eauto.
 Qed.
 
-Lemma range_triB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
+Lemma forall_triangleB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
   (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
   0 <= y1 <= y2 /\ y2 <= Zlength l' ->
-  range_tri x1 x2 y1 y2 offset l (map f l') P ->
-  range_tri x1 x2 y1 y2 offset l l' (fun x y => P x (f y)).
+  forall_triangle x1 x2 y1 y2 offset l (map f l') P ->
+  forall_triangle x1 x2 y1 y2 offset l l' (fun x y => P x (f y)).
 Proof.
   intros.
-  eapply range_triB_map; eauto.
+  eapply forall_triangleB_map; eauto.
 Qed.
 
-Lemma range_triB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
+Lemma forall_triangleB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
   (x1 x2 y1 y2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
   0 <= y1 < y2 /\ y2 <= n ->
-  range_tri x1 x2 y1 y2 offset l (Zrepeat x n) P <->
-  range_uni (Z.min x1 (y2 + offset)) (Z.min x2 (y2 + offset)) l (fun y => P y x).
+  forall_triangle x1 x2 y1 y2 offset l (Zrepeat x n) P <->
+  forall_range (Z.min x1 (y2 + offset)) (Z.min x2 (y2 + offset)) l (fun y => P y x).
 Proof.
   intros.
-  eapply range_triB_Zrepeat; eauto.
+  eapply forall_triangleB_Zrepeat; eauto.
 Qed.
 
 Ltac destruct_range H :=
@@ -1460,21 +1479,21 @@ Ltac destruct_range H :=
     destruct H as [H1 H2];
     destruct_range H1;
     destruct_range H2
-  | range_uni ?lo ?hi _ _ =>
+  | forall_range ?lo ?hi _ _ =>
     (* try (
-      apply range_uni_empty in H;
+      apply forall_range_empty in H;
       [ clear H | Zlength_solve ]
     ) *)
     idtac
-  | range_bin ?lo ?hi _ _ _ =>
+  | forall_range2 ?lo ?hi _ _ _ _ =>
     (* try (
-      apply range_bin_empty in H;
+      apply forall_range2_empty in H;
       [ clear H | Zlength_solve ]
     ) *)
     idtac
-  | range_tri ?lo ?hi _ _ _ _ _ _ =>
+  | forall_triangle ?lo ?hi _ _ _ _ _ _ =>
     try (
-      apply range_tri_emptyAgtB in H;
+      apply forall_triangle_emptyAgtB in H;
       [ clear H | Zlength_solve ]
     )
   end.
@@ -1490,35 +1509,38 @@ Ltac rewrite_In_Znth_iff :=
 Ltac rewrite_list_eq :=
   repeat lazymatch goal with
   | H : @eq (list ?A) ?al ?bl |- _ =>
-    rewrite list_eq_range_bin in H;
+    apply list_eq_forall_range2 in H;
     destruct H
   end.
 
-Hint Rewrite Forall_Znth : list_prop_rewrite.
-Hint Rewrite range_uni_fold : list_prop_rewrite.
-Hint Rewrite range_bin_fold : list_prop_rewrite.
-Hint Rewrite range_tri_fold : list_prop_rewrite.
+Hint Rewrite @Forall_forall_range : list_prop_rewrite.
+Hint Rewrite @forall_range_fold : list_prop_rewrite.
+Hint Rewrite @forall_range2_fold : list_prop_rewrite.
+Hint Rewrite @forall_triangle_fold : list_prop_rewrite.
 Hint Rewrite Sorted_Znth : list_prop_rewrite.
 
 Ltac range_form :=
-  apply_in_hyps not_In_range_uni;
-  apply_in_hyps eq_range_bin_no_offset;
-  apply_in_hyps eq_range_bin_offset;
-  apply_in_hyps eq_range_bin_left_offset;
-  apply_in_hyps eq_range_bin_minus_offset;
-  apply_in_hyps eq_range_bin_reverse;
-  apply_in_hyps eq_range_bin_reverse_left_offset;
-  apply_in_hyps eq_range_bin_reverse_minus_offset;
-  apply_in_hyps sorted_range_tri;
+  rewrite_list_eq;
+  apply_in_hyps not_In_forall_range;
+  apply_in_hyps eq_forall_range2_no_offset;
+  apply_in_hyps eq_forall_range2_offset;
+  apply_in_hyps eq_forall_range2_left_offset;
+  apply_in_hyps eq_forall_range2_minus_offset;
+  apply_in_hyps eq_forall_range2_reverse;
+  apply_in_hyps eq_forall_range2_reverse_left_offset;
+  apply_in_hyps eq_forall_range2_reverse_minus_offset;
+  apply_in_hyps sorted_forall_triangle;
+  (* repeat (unshelve erewrite @Forall_Znth in *; [solve [auto with typeclass_instances] .. | idtac]); *)
   rewrite_In_Znth_iff;
-  autorewrite with list_prop_rewrite in *.
+  (* autorewrite with list_prop_rewrite in *. *)
+  unshelve autorewrite with list_prop_rewrite in *; [solve [auto with typeclass_instances] .. | idtac].
 
 Ltac Zlength_solve_print_when_fail :=
   first [
     Zlength_solve
   | lazymatch goal with
     | |- ?Goal =>
-      fail 0 "Cannot prove" Goal
+      fail 1 "Cannot prove" Goal
     end
   ].
 
@@ -1531,98 +1553,150 @@ Ltac apply_in_using_Zlength_solve lem H :=
 
 Ltac range_rewrite :=
   repeat match goal with
-  | H : range_uni _ _ ?l _ |- _ =>
+  | H : forall_range _ _ ?l _ |- _ =>
     lazymatch l with
     | app ?l1 ?l2 =>
       first [
-        apply_in_using_Zlength_solve range_uni_app1 H
-      | apply_in_using_Zlength_solve range_uni_app2 H
-      | apply_in_using_Zlength_solve range_uni_app H
+        apply_in_using_Zlength_solve forall_range_app1 H
+      | apply_in_using_Zlength_solve forall_range_app2 H
+      | apply_in_using_Zlength_solve forall_range_app H
       ]
     | Zrepeat ?x ?n =>
-      apply_in_using_Zlength_solve range_uni_Zrepeat H
+      apply_in_using_Zlength_solve forall_range_Zrepeat H
     | upd_Znth _ _ _ =>
-      apply_in_using_Zlength_solve range_uni_upd_Znth H
+      apply_in_using_Zlength_solve forall_range_upd_Znth H
     | sublist _ _ _ =>
-      apply_in_using_Zlength_solve range_uni_sublist H
+      apply_in_using_Zlength_solve forall_range_sublist H
     | map _ _ =>
-      apply_in_using_Zlength_solve range_uni_map H
+      apply_in_using_Zlength_solve uconstr:(forall_range_map) H
     end
-  | H : range_bin _ _ _ ?l1 ?l2 _ |- _ =>
+  | H : forall_range2 _ _ _ ?l1 ?l2 _ |- _ =>
     first [
       lazymatch l1 with
       | app _ _ =>
         first [
-          apply_in_using_Zlength_solve range_binA_app1 H
-        | apply_in_using_Zlength_solve range_binA_app2 H
-        | apply_in_using_Zlength_solve range_binA_app H
+          apply_in_using_Zlength_solve forall_range2A_app1 H
+        | apply_in_using_Zlength_solve forall_range2A_app2 H
+        | apply_in_using_Zlength_solve forall_range2A_app H
         ]
       | Zrepeat ?x ?n =>
-        apply_in_using_Zlength_solve range_binA_Zrepeat H
+        apply_in_using_Zlength_solve forall_range2A_Zrepeat H
       | upd_Znth _ _ _ =>
-        apply_in_using_Zlength_solve range_binA_upd_Znth H
+        apply_in_using_Zlength_solve forall_range2A_upd_Znth H
       | sublist _ _ _ =>
-        apply_in_using_Zlength_solve range_binA_sublist H
+        apply_in_using_Zlength_solve forall_range2A_sublist H
       | map _ _ =>
-        apply_in_using_Zlength_solve range_binA_map H
+        apply_in_using_Zlength_solve uconstr:(forall_range2A_map) H
       end
     | lazymatch l2 with
       | app _ _ =>
         first [
-          apply_in_using_Zlength_solve range_binB_app1 H
-        | apply_in_using_Zlength_solve range_binB_app2 H
-        | apply_in_using_Zlength_solve range_binB_app H
+          apply_in_using_Zlength_solve forall_range2B_app1 H
+        | apply_in_using_Zlength_solve forall_range2B_app2 H
+        | apply_in_using_Zlength_solve forall_range2B_app H
         ]
       | Zrepeat ?x ?n =>
-        apply_in_using_Zlength_solve range_binB_Zrepeat H
+        apply_in_using_Zlength_solve forall_range2B_Zrepeat H
       | upd_Znth _ _ _ =>
-        apply_in_using_Zlength_solve range_binB_upd_Znth H
+        apply_in_using_Zlength_solve forall_range2B_upd_Znth H
       | sublist _ _ _ =>
-        apply_in_using_Zlength_solve range_binB_sublist H
+        apply_in_using_Zlength_solve forall_range2B_sublist H
       | map _ _ =>
-        apply_in_using_Zlength_solve range_binB_map H
+        apply_in_using_Zlength_solve uconstr:(forall_range2B_map) H
       end
     ]
-  | H : range_tri _ _ _ _ _ ?l1 ?l2 _ |- _ =>
+  | H : forall_triangle _ _ _ _ _ ?l1 ?l2 _ |- _ =>
     first [
       lazymatch l1 with
       | app _ _ =>
         first [
-          apply_in_using_Zlength_solve range_triA_app1 H
-        | apply_in_using_Zlength_solve range_triA_app2 H
-        | apply_in_using_Zlength_solve range_triA_app H
+          apply_in_using_Zlength_solve forall_triangleA_app1 H
+        | apply_in_using_Zlength_solve forall_triangleA_app2 H
+        | apply_in_using_Zlength_solve forall_triangleA_app H
         ]
       | Zrepeat ?x ?n =>
-        apply_in_using_Zlength_solve range_triA_Zrepeat H
+        apply_in_using_Zlength_solve forall_triangleA_Zrepeat H
       | upd_Znth _ _ _ =>
-        apply_in_using_Zlength_solve range_triA_upd_Znth H
+        apply_in_using_Zlength_solve forall_triangleA_upd_Znth H
       | sublist _ _ _ =>
-        apply_in_using_Zlength_solve range_triA_sublist H
+        apply_in_using_Zlength_solve forall_triangleA_sublist H
       | map _ _ =>
-        apply_in_using_Zlength_solve range_triA_map H
+        apply_in_using_Zlength_solve uconstr:(forall_triangleA_map) H
       end
     | lazymatch l2 with
       | app _ _ =>
         first [
-          apply_in_using_Zlength_solve range_triB_app1 H
-        | apply_in_using_Zlength_solve range_triB_app2 H
-        | apply_in_using_Zlength_solve range_triB_app H
+          apply_in_using_Zlength_solve forall_triangleB_app1 H
+        | apply_in_using_Zlength_solve forall_triangleB_app2 H
+        | apply_in_using_Zlength_solve forall_triangleB_app H
         ]
       | Zrepeat ?x ?n =>
-        apply_in_using_Zlength_solve range_triB_Zrepeat H
+        apply_in_using_Zlength_solve forall_triangleB_Zrepeat H
       | upd_Znth _ _ _ =>
-        apply_in_using_Zlength_solve range_triB_upd_Znth H
+        apply_in_using_Zlength_solve forall_triangleB_upd_Znth H
       | sublist _ _ _ =>
-        apply_in_using_Zlength_solve range_triB_sublist H
+        apply_in_using_Zlength_solve forall_triangleB_sublist H
       | map _ _ =>
-        apply_in_using_Zlength_solve range_triB_map H
+        apply_in_using_Zlength_solve uconstr:(forall_triangleB_map) H
       end
     ]
   end.
 
+Ltac range_rewrite_check :=
+  try match goal with
+  | H : forall_range _ _ ?l _ |- _ =>
+    lazymatch l with
+    | sublist _ _ _ =>
+      idtac "Warning:" l "is not simplified in" H
+    | app _ _ =>
+      idtac "Warning:" l "is not simplified in" H
+    | map _ _ =>
+      idtac "Warning:" l "is not simplified in" H
+    end
+  | H : forall_range2 _ _ ?l1 ?l2 _ |- _ =>
+    first [
+      lazymatch l1 with
+      | sublist _ _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      | app _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      | map _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      end
+    | lazymatch l2 with
+      | sublist _ _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      | app _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      | map _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      end
+    ]
+  | H : forall_triangle _ _ _ _ _ ?l1 ?l2 _ |- _ =>
+    first [
+      lazymatch l1 with
+      | sublist _ _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      | app _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      | map _ _ =>
+        idtac "Warning:" l1 "is not simplified in" H
+      end
+    | lazymatch l2 with
+      | sublist _ _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      | app _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      | map _ _ =>
+        idtac "Warning:" l2 "is not simplified in" H
+      end
+    ]
+  end.
 End range_rewrite.
 
+Ltac range_form := range_rewrite.range_form.
 Ltac range_rewrite := range_rewrite.range_rewrite.
+Ltac range_rewrite_check := range_rewrite.range_rewrite_check.
 
 Lemma range_le_lt_dec : forall lo i hi,
   {lo <= i < hi} + {~lo <= i < hi}.
@@ -1658,26 +1732,26 @@ Ltac pose_new_res_tri i j x1 x2 y1 y2 offset H res :=
   | try lia ..
   ].
 
+Ltac instantiate_bound_set := false.
+
 Module range_saturate.
 
 Definition Znth' := @Znth.
 Arguments Znth' {_ _}.
 
-Definition range_uni' := @range_uni.
-Arguments range_uni' {_ _}.
+Definition forall_range' := @forall_range.
+Arguments forall_range' {_ _}.
 
-Definition range_bin' := @range_bin.
-Arguments range_bin' {_ _}.
+Definition forall_range2' := @forall_range2.
+Arguments forall_range2' {_ _}.
 
-Definition range_tri' := @range_tri.
-Arguments range_tri' {_ _}.
+Definition forall_triangle' := @forall_triangle.
+Arguments forall_triangle' {_ _}.
 
 Definition range_saturate_shift {A : Type} (l : list A) (s : Z) :=
   True.
 Definition range_saturate_shift' := @range_saturate_shift.
 Arguments range_saturate_shift' {_}.
-
-Ltac use_bound_set := false.
 
 Module check_non_zero_loop.
 
@@ -1695,10 +1769,10 @@ Ltac pose_range_saturate_shift l s :=
   autorewrite with Z_normalize_0 in H.
 
 Ltac loop2 :=
-  let flag := use_bound_set in
+  let flag := instantiate_bound_set in
   repeat lazymatch goal with
   | H : range_saturate_shift ?l1 ?s1,
-    H1 : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
+    H1 : forall_range2 ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
     lazymatch goal with
     | H2 : range_saturate_shift l2 ?s2 |- _ =>
       tryif assert (s1 + s = s2) by Zlength_solve
@@ -1707,13 +1781,13 @@ Ltac loop2 :=
     | |- _ =>
       pose_range_saturate_shift l2 (s1 + s)
     end;
-    change @range_bin with @range_bin' in H1
+    change @forall_range2 with @forall_range2' in H1
   | H : range_saturate_shift ?l2 ?s2,
-    H1 : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
+    H1 : forall_range2 ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
     pose_range_saturate_shift l1 (s2 - s);
-    change @range_bin with @range_bin' in H1
+    change @forall_range2 with @forall_range2' in H1
   | H : range_saturate_shift ?l1 ?s1,
-    H1 : range_tri _ _ _ _ ?s ?l1 ?l2 ?P |- _ =>
+    H1 : forall_triangle _ _ _ _ ?s ?l1 ?l2 ?P |- _ =>
     lazymatch flag with
     | true =>
       lazymatch goal with
@@ -1724,26 +1798,26 @@ Ltac loop2 :=
       | |- _ =>
         pose_range_saturate_shift l2 (s1 + s)
       end;
-      change @range_tri with @range_tri' in H1
+      change @forall_triangle with @forall_triangle' in H1
     end
   | H : range_saturate_shift ?l2 ?s2,
-    H1 : range_tri _ _ _ _ ?s ?l1 ?l2 ?P |- _ =>
+    H1 : forall_triangle _ _ _ _ ?s ?l1 ?l2 ?P |- _ =>
     lazymatch flag with
     | true =>
       pose_range_saturate_shift l1 (s2 - s);
-      change @range_tri with @range_tri' in H1
+      change @forall_triangle with @forall_triangle' in H1
     end
   end.
 
 Ltac loop1 :=
-  let flag := use_bound_set in
+  let flag := instantiate_bound_set in
   repeat lazymatch goal with
-  | H : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
+  | H : forall_range2 ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
     pose_range_saturate_shift l1 0;
     tryif loop2
     then idtac
     else fail 1
-  | H : range_tri _ _ _ _ _ ?l1 ?l2 ?P |- _ =>
+  | H : forall_triangle _ _ _ _ _ ?l1 ?l2 ?P |- _ =>
     lazymatch flag with
     | true =>
       pose_range_saturate_shift l1 0;
@@ -1752,8 +1826,8 @@ Ltac loop1 :=
       else fail 1
     end
   end;
-  change @range_bin' with @range_bin in *;
-  change @range_tri' with @range_tri in *.
+  change @forall_range2' with @forall_range2 in *;
+  change @forall_triangle' with @forall_triangle in *.
 
 Ltac check_non_zero_loop_old :=
   tryif (try (loop1; fail 1))
@@ -1761,7 +1835,9 @@ Ltac check_non_zero_loop_old :=
   else idtac.
 
 Ltac check_non_zero_loop :=
-  loop1.
+  tryif loop1
+  then idtac
+  else fail "List solver cannot solve this goal because it is entangled, which means it has assumptions like (sublist 0 (n-1) al = sublist 1 n al)".
 
 Ltac clear0 :=
   repeat lazymatch goal with
@@ -1840,33 +1916,33 @@ Ltac index_set :=
 
 Ltac bound_set :=
   repeat lazymatch goal with
-  | H : range_uni ?lo ?hi ?l _ |- _ =>
+  | H : forall_range ?lo ?hi ?l _ |- _ =>
     process lo l;
     process (hi - 1) l;
-    change @range_uni with @range_uni' in H
+    change @forall_range with @forall_range' in H
   end;
-  change @range_uni' with @range_uni in *;
+  change @forall_range' with @forall_range in *;
   repeat lazymatch goal with
-  | H : range_bin ?lo ?hi _ ?l1 ?l2 _ |- _ =>
+  | H : forall_range2 ?lo ?hi _ ?l1 ?l2 _ |- _ =>
     process lo l1;
     process (hi - 1) l1;
-    change @range_bin' with @range_bin' in H
+    change @forall_range2' with @forall_range2' in H
   end;
-  change @range_bin' with @range_bin in *;
+  change @forall_range2' with @forall_range2 in *;
   repeat lazymatch goal with
-  | H : range_tri ?x1 ?x2 ?y1 ?y2 _ ?l1 ?l2 _ |- _ =>
+  | H : forall_triangle ?x1 ?x2 ?y1 ?y2 _ ?l1 ?l2 _ |- _ =>
     process x1 l1;
     process (x2 - 1) l1;
     process y1 l2;
     process (y2 - 1) l2;
-    change @range_tri with @range_tri' in H
+    change @forall_triangle with @forall_triangle' in H
   end;
-  change @range_tri' with @range_tri in *;
+  change @forall_triangle' with @forall_triangle in *;
   change @Znth' with @Znth in *.
 
 Ltac find_instantiate_index :=
   index_set;
-  let flag := use_bound_set in
+  let flag := instantiate_bound_set in
   lazymatch flag with
   | true =>
     bound_set
@@ -1907,7 +1983,7 @@ Ltac pose_new_res_tri i j x1 x2 y1 y2 offset H res :=
 
 Ltac range_saturate_uni H :=
   lazymatch type of H with
-  | range_uni ?lo ?hi ?l ?P =>
+  | forall_range ?lo ?hi ?l ?P =>
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l) |- _ =>
       let res := eval cbv beta in (P (Znth i l)) in
@@ -1919,7 +1995,7 @@ Ltac range_saturate_uni H :=
 
 Ltac range_saturate_bin H :=
   lazymatch type of H with
-  | range_bin ?lo ?hi ?offset ?l1 ?l2 ?P =>
+  | forall_range2 ?lo ?hi ?offset ?l1 ?l2 ?P =>
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l1) |- _ =>
       let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
@@ -1931,7 +2007,7 @@ Ltac range_saturate_bin H :=
 
 Ltac range_saturate_tri H :=
   lazymatch type of H with
-  | range_tri ?x1 ?x2 ?y1 ?y2 ?offset ?l1 ?l2 ?P =>
+  | forall_triangle ?x1 ?x2 ?y1 ?y2 ?offset ?l1 ?l2 ?P =>
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l1) |- _ =>
       repeat lazymatch goal with
@@ -1952,19 +2028,19 @@ Ltac range_saturate_tri H :=
 
 Ltac range_saturate :=
   repeat lazymatch goal with
-  | H : range_uni _ _ _ _ |- _ =>
+  | H : forall_range _ _ _ _ |- _ =>
     range_saturate_uni H;
-    change @range_uni with @range_uni' in H
-  | H : range_bin _ _ _ _ _ _ |- _ =>
+    change @forall_range with @forall_range' in H
+  | H : forall_range2 _ _ _ _ _ _ |- _ =>
     range_saturate_bin H;
-    change @range_bin with @range_bin' in H
-  | H : range_tri _ _ _ _ _ _ _ _ |- _ =>
+    change @forall_range2 with @forall_range2' in H
+  | H : forall_triangle _ _ _ _ _ _ _ _ |- _ =>
     range_saturate_tri H;
-    change @range_tri with @range_tri' in H
+    change @forall_triangle with @forall_triangle' in H
   end;
-  change @range_uni' with @range_uni in *;
-  change @range_bin' with @range_bin in *;
-  change @range_tri' with @range_tri in *.
+  change @forall_range' with @forall_range in *;
+  change @forall_range2' with @forall_range2 in *;
+  change @forall_triangle' with @forall_triangle in *.
 
 Goal forall A {d : Inhabitant A} (P : A -> Prop) l a0 a1 a2 a3 a4 a5,
   Zlength l = 10 ->
@@ -1976,7 +2052,7 @@ Goal forall A {d : Inhabitant A} (P : A -> Prop) l a0 a1 a2 a3 a4 a5,
   a5 = Znth 5 l /\
   a5 = Znth 6 l /\
   a5 = Znth 7 l ->
-  range_uni 5 10 l P ->
+  forall_range 5 10 l P ->
   P a5.
 Proof.
   intros.
@@ -2003,7 +2079,9 @@ Ltac Znth_simplify_in_all :=
 Arguments Zlength_fact {_}.
 
 Ltac list_prop_solve' :=
-  list_form; range_rewrite.range_form; range_rewrite; Znth_solve2;
+  list_form; range_rewrite.range_form; range_rewrite;
+  range_rewrite_check;
+  Znth_solve2;
   autorewrite with Z_normalize_0 in *;
   range_saturate;
   Znth_solve2;
@@ -2026,6 +2104,14 @@ Ltac apply_list_ext :=
       end
     end;
     only 1 : Zlength_solve
+  | match goal with |- @Forall ?A ?P ?l =>
+      rewrite Forall_Znth;
+      intros
+    end
+  | match goal with |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
+      rewrite <- forall_range_fold;
+      intros
+    end
   ];
   Zlength_simplify;
   intros.
@@ -2033,11 +2119,12 @@ Ltac apply_list_ext :=
 Ltac list_solve_preprocess :=
   fold_Vbyte;
   autounfold with list_solve_unfold in *;
-  autorewrite with list_solve_rewrite in *;
+  unshelve autorewrite with list_solve_rewrite in *; [solve [auto with typeclass_instances] .. | idtac];
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 
 Ltac list_solve :=
+  intros;
   try lia;
   try match goal with |- context [@Zlength] => Zlength_solve end;
   list_solve_preprocess;
@@ -2049,10 +2136,11 @@ Ltac list_solve :=
     apply_list_ext; Znth_solve;
     auto with Znth_solve_hint; try fassumption
   );
-  try list_prop_solve;
-  fail "list_solve cannot solve the goal".
+  list_prop_solve';
+  fail "list_solve cannot solve this goal".
 
 Ltac list_simplify :=
+  intros;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;
@@ -2062,23 +2150,22 @@ Ltac list_simplify :=
     apply_list_ext; Znth_solve;
     auto with Znth_solve_hint; try fassumption
   );
-  try list_prop_solve.
+  list_prop_solve'.
 
-(** * list_solve2 *)
-Ltac list_solve2' :=
-  repeat match goal with [ |- _ /\ _ ] => split end;
-  intros;
-  try Zlength_solve;
-  list_form; Zlength_simplify_in_all; Znth_solve2;
-  auto with Znth_solve_hint;
-  first
-  [ fassumption
-  | Zlength_solve
-  | apply_list_ext; Znth_solve
-  ];
-  auto with Znth_solve_hint;
-  try fassumption.
+(** * quick_list_solve and simplify *)
+Ltac quick_list_simplify :=
+  try lia;
+  try match goal with |- context [@Zlength] => Zlength_solve end;
+  list_solve_preprocess;
+  Zlength_simplify_in_all; try lia;
+  Znth_simplify_in_all; auto with Znth_solve_hint;
+  try fassumption;
+  Zlength_simplify_in_all; try lia;
+  try (
+    apply_list_ext; Znth_solve;
+    auto with Znth_solve_hint; try fassumption
+  ).
 
-Ltac list_solve2 :=
-  list_solve2';
-  fail "list_solve2 cannot solve this goal".
+Ltac quick_list_solve :=
+  quick_list_simplify;
+  fail "quick_list_solve cannot solve this goal".

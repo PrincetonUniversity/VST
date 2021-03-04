@@ -3081,7 +3081,8 @@ Proof.
   unfold local, lift1; unfold_lift; simpl. normalize.
   rewrite <- imp_andp_adjoint.
   rewrite <- imp_andp_adjoint. normalize. 
-  unfold derives. constructor; apply predicates_hered.exp_right with (x:=b). eapply predicates_hered.prop_andp_right.
+  unfold derives.
+  apply predicates_hered.exp_right with (x:=b) (p := (func_ptr f (Vptr b Ptrofs.zero) && P rho)). eapply predicates_hered.prop_andp_right.
   - unfold eval_var. rewrite H3.
     destruct H4 as [_ [? _]].
     specialize (H4 id).
@@ -3093,7 +3094,7 @@ Proof.
   - unfold func_ptr, seplog.func_ptr. (* apply predicates_hered.exp_right with (x:=f). *)
     apply predicates_hered.andp_left1. 
     apply predicates_hered.exp_left; intros bb.
-    apply normalize.derives_extract_prop; intros X; inv X. trivial.
+    apply normalize.derives_extract_prop; intros X; inv X. apply predicates_hered.derives_refl.
 Qed. (*old proof:
   intros.
   eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].

@@ -14,6 +14,9 @@ Lemma cored_dup : forall P, P && cored |-- (P && cored) * (P && cored).
 Proof.
   constructor; apply own.cored_dup.
 Qed.
+#[export] Hint Resolve Included_Full.
+
+Notation cored := own.cored.
 
 Lemma cored_dup_cored : forall P, P && cored |-- ((P && cored) * (P && cored)) && cored.
 Proof.

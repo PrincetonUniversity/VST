@@ -55,7 +55,7 @@ Proof.
   eapply derives_trans; [apply mapsto_local_facts |].
   apply prop_derives; tauto.
 Qed.
-Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
+#[export] Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
 
 Lemma mapsto_offset_zero:
   forall sh t v1 v2, mapsto sh t v1 v2 = mapsto sh t (offset_val 0 v1) v2.
@@ -120,7 +120,7 @@ Proof.
   destruct p; simpl; normalize. apply prop_right;split; auto.
 Qed.
 
-Hint Resolve memory_block_local_facts : saturate_local.
+#[export] Hint Resolve memory_block_local_facts : saturate_local.
 
 Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n v = memory_block sh n (offset_val 0 v).
@@ -247,22 +247,22 @@ Lemmas about specific types
 (* We do these as Hint Extern, instead of Hint Resolve,
   to limit their application and make them fail faster *)
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
    (simple apply mapsto_mapsto_int32; apply Coq.Init.Logic.I)  : cancel.
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
    (simple apply mapsto_mapsto__int32; apply Coq.Init.Logic.I)  : cancel.
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
     (apply mapsto_mapsto_) : cancel.
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
    (apply mapsto_mapsto__int32)  : cancel.
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
    (apply mapsto_mapsto_int32)  : cancel.
 
-Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
+#[export] Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 
 Lemma mapsto_force_ptr: forall sh t v v',
   mapsto sh t (force_ptr v) v' = mapsto sh t v v'.

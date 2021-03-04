@@ -29,7 +29,7 @@ Intros y. entailer!.
 split; intro. subst p. destruct H; contradiction. inv H2.
 Qed.
 
-Hint Resolve listrep_local_facts : saturate_local.
+#[export] Hint Resolve listrep_local_facts : saturate_local.
 
 Lemma listrep_valid_pointer:
   forall sh contents p,
@@ -44,7 +44,7 @@ Proof.
  simpl;  computable.
 Qed.
 
-Hint Resolve listrep_valid_pointer : valid_pointer.
+#[export] Hint Resolve listrep_valid_pointer : valid_pointer.
 
 Lemma listrep_null: forall sh contents,
     listrep sh contents nullval = !! (contents=nil) && emp.
@@ -53,7 +53,7 @@ destruct contents; unfold listrep; fold listrep.
 autorewrite with norm. auto.
 apply pred_ext.
 Intros y. entailer. destruct H; contradiction.
-Intros.
+Intros. discriminate.
 Qed.
 
 Lemma is_pointer_or_null_not_null:
@@ -245,7 +245,7 @@ entailer!.
 intuition congruence.
 Qed.
 
-Hint Resolve lseg_local_facts : saturate_local.
+#[export] Hint Resolve lseg_local_facts : saturate_local.
 
 Lemma lseg_valid_pointer:
   forall sh contents p ,
@@ -257,7 +257,7 @@ Proof.
  auto with valid_pointer.
 Qed.
 
-Hint Resolve lseg_valid_pointer : valid_pointer.
+#[export] Hint Resolve lseg_valid_pointer : valid_pointer.
 
 Lemma lseg_eq: forall sh contents x,
     lseg sh contents x x = !! (contents=nil /\ is_pointer_or_null x) && emp.
@@ -267,7 +267,7 @@ destruct contents; unfold lseg; fold lseg.
 f_equal. f_equal. f_equal. apply prop_ext; intuition.
 apply pred_ext.
 Intros y. contradiction.
-Intros.
+Intros. discriminate.
 Qed.
 
 Lemma lseg_null: forall sh contents,

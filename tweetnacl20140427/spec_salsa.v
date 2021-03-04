@@ -197,26 +197,26 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
   destruct (Byte.unsigned_range_2 c0). destruct (Byte.unsigned_range_2 c1).
   destruct (Byte.unsigned_range_2 c2). destruct (Byte.unsigned_range_2 c3).
   assert (2 ^ 8 * Byte.unsigned c1 <= 2 ^ 8 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 16 * Byte.unsigned c2 <= 2 ^ 16 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 24 * Byte.unsigned c3 <= 2 ^ 24 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 32 * Byte.unsigned b0 <= 2 ^ 32 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 40 * Byte.unsigned b1 <= 2 ^ 40 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 48 * Byte.unsigned b2 <= 2 ^ 48 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 56 * Byte.unsigned b3 <= 2 ^ 56 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
-  assert (0 <= 2 ^ 8 * Byte.unsigned c1). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 16 * Byte.unsigned c2). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 24 * Byte.unsigned c3). apply Z.mul_nonneg_cancel_l; trivial. 
-  assert (0 <= 2 ^ 32 * Byte.unsigned b0). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 40 * Byte.unsigned b1). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 48 * Byte.unsigned b2). apply Z.mul_nonneg_cancel_l; trivial. 
-  assert (0 <= 2 ^ 56 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial. 
+               apply Zmult_le_compat_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 8 * Byte.unsigned c1). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 16 * Byte.unsigned c2). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 24 * Byte.unsigned c3). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 32 * Byte.unsigned b0). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 40 * Byte.unsigned b1). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 48 * Byte.unsigned b2). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence. 
+  assert (0 <= 2 ^ 56 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
   rewrite Int64.unsigned_repr.
   2:{ split. clear H0 H2 H4 H6 H8 H10 H12 H14.
              apply OMEGA2; trivial.

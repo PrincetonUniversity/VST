@@ -274,7 +274,7 @@ Lemma read_sum_eq : forall n d, read_sum n d ≈
 Proof.
   intros.
   unfold read_sum; rewrite unfold_iter.
-  unfold ITree._iter.
+  unfold ITree.iter.
   if_tac; [|rewrite bind_ret_l; reflexivity].
   if_tac; [|rewrite bind_ret_l; reflexivity].
   repeat setoid_rewrite bind_bind.
@@ -325,7 +325,6 @@ Proof.
   destruct (zlt _ _); [|unfold char0 in *; lia].
   forward_call (n + (Byte.unsigned c - char0),
     write stdout (Byte.repr newline);; c' <- read stdin;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
-  { rep_lia. }
   forward_call (Byte.repr newline, c' <- read stdin;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
   forward_call (fun c' => read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
   Intros c'.

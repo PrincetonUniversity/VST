@@ -165,7 +165,7 @@ intros.
  if_tac.  entailer!.  Intros prefix; entailer!.
 Qed.
 
-Hint Resolve fifo_isptr : saturate_local.
+#[export] Hint Resolve fifo_isptr : saturate_local.
 
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
 Proof.
@@ -203,7 +203,6 @@ Proof.
 
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
      (t_struct_fifo, gv).
-    split3; simpl; auto; computable.
   Intros q.
   assert_PROP (field_compatible t_struct_fifo [] q).
    entailer!.
@@ -310,8 +309,7 @@ Proof.
 start_function.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *)
     (t_struct_elem, gv).
- split3; simpl; auto; computable.
- Intros p.
+Intros p.
 forward.  (*  p->data=i; *)
 simpl.
 forward. (* return p; *)

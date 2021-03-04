@@ -586,7 +586,7 @@ Qed.
 
 Ltac prove_all_defined := 
  red; simpl makePARAMS;
-match goal with |- !! ?A _ _ _ && _ |-- !! ?B=>
+lazymatch goal with |- !! ?A _ _ _ && _ |-- !! ?B=>
  let a := fresh "a" in let b := fresh "b" in 
   set (b:=B); set (a:=A); 
   unfold fold_right in a;
@@ -612,7 +612,7 @@ Ltac convertPreElim' :=
 unfold convertPre;
 let ae := fresh "ae" in extensionality ae;
 let g := fresh "g" in let args := fresh "args" in destruct ae as [g args];
-match goal with |-
+lazymatch goal with |-
   andp _ (PROPx _ (LOCALx ?Q _) _)  =  PROPx _ (LAMBDAx ?G _ _) _ =>
  unify G (globals_localdefs Q)
 end;
@@ -906,7 +906,7 @@ erewrite convertPre_helper3;
  | reflexivity || fail 100 "makePARAMS filed in start_func_convert_precondition"
  | prove_norepet || fail 100 "repeated temp-identifier in LOCAL clause"
  | prove_norepet || fail 100 "repeated formal parameter in funsig"
- | intros; simpl; intuition || fail 100 "temp-ids of LOCAL not the same as temp-ids of funsig formal parameters"
+ | intros; compute; tauto || fail 100 "temp-ids of LOCAL not the same as temp-ids of funsig formal parameters"
  | repeat constructor; auto || fail 100 "unexpected lvar in LOCAL"
  | reflexivity || fail 100 "unexpected problem with gvars in old-style LOCAL"
  | prove_all_defined

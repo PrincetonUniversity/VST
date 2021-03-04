@@ -138,7 +138,7 @@ assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
 rename H into absH_len512.
 
 forward_call (Tsh, shm, hmacInit key, buf, msg, dl, data, gv).
-  { rewrite absH_len512. split3; auto. }
+  { rewrite absH_len512. auto. }
 
 (* Call to HMAC_Final*)
 assert_PROP (@field_compatible CompSpecs (Tstruct _hmac_ctx_st noattr) nil buf).

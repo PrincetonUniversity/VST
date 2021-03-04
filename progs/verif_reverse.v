@@ -262,7 +262,7 @@ Proof.
   rewrite (sepcon_emp (lseg _ _ _ _ _)).
   rewrite sepcon_emp.
 
-  repeat
+ repeat
   match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
     assert (FC': field_compatible t_struct_list [] (offset_val n (gv _three)));
       [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
@@ -273,11 +273,11 @@ Proof.
        tauto
       |];
     apply @lseg_unroll_nonempty1 with q;
-      [destruct (gv _three); try contradiction; intro Hx; inv Hx | floyd.seplog_tactics.normalize | ];
+      [destruct (gv _three); try contradiction; intro Hx; inv Hx | normalize; try reflexivity | ];
     rewrite list_cell_eq by auto;
     do 2 (apply sepcon_derives;
       [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
-        unfold data_at_rec, at_offset; simpl; floyd.seplog_tactics.normalize; try apply derives_refl | ]);
+        unfold data_at_rec, at_offset; simpl; normalize; try apply derives_refl | ]);
     clear FC'
     end.
   rewrite mapsto_tuint_tptr_nullval; auto. apply derives_refl.

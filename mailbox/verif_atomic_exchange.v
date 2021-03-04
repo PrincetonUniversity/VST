@@ -54,7 +54,7 @@ Proof.
   Intros h v; rewrite sepcon_assoc; apply sepcon_derives; [cancel|].
   Exists h v; apply derives_refl.
 Qed.
-Hint Resolve AE_inv_exclusive : core.
+#[export] Hint Resolve AE_inv_exclusive : core.
 
 Definition AE_loc sh l p g i R (h : hist) := lock_inv sh l (AE_inv p g i R) * ghost_hist sh h g.
 

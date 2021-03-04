@@ -24,7 +24,7 @@ split; intro. subst p. destruct H0; contradiction. discriminate.
 constructor; auto. lia.
 Qed.
 
-Hint Resolve listrep_local_facts : saturate_local.
+Local Hint Resolve listrep_local_facts : saturate_local.
 
 Lemma listrep_valid_pointer:
   forall sigma p,
@@ -34,7 +34,7 @@ Proof.
  intros; entailer!; auto with valid_pointer.
 Qed.
 
-Hint Resolve listrep_valid_pointer : valid_pointer.
+Local Hint Resolve listrep_valid_pointer : valid_pointer.
 
 Lemma prep_local_facts:
   forall sigma p,
@@ -45,7 +45,7 @@ unfold prep.
 Intros q.
 entailer!.
 Qed.
-Hint Resolve prep_local_facts : saturate_local.
+Local Hint Resolve prep_local_facts : saturate_local.
 
 Lemma prep_valid_pointer:
   forall sigma p,
@@ -55,7 +55,7 @@ Proof.
  unfold prep. Intros x.
  entailer!; auto with valid_pointer.
 Qed.
-Hint Resolve prep_valid_pointer : valid_pointer.
+Local Hint Resolve prep_valid_pointer : valid_pointer.
 
 Definition pilefreeable (p: val) : mpred :=
             malloc_token M Ews tpile p.
@@ -67,11 +67,11 @@ Definition PILEPRIV: PilePrivateAPD M := Build_PilePrivateAPD M PILE (eq_refl _)
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ tuint ]
-       PROP (0 <= sizeof t <= Int.max_unsigned;
+   PRE [ size_t ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr M gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
@@ -107,7 +107,6 @@ Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M 
 Proof.
 start_function.
 forward_call (tpile, gv).
-split3; simpl; auto; computable.
 Intros p.
 repeat step!.
 simpl spec_pile.pilerep.
@@ -119,7 +118,6 @@ Lemma body_Pile_add: semax_body PileVprog PileGprog f_Pile_add (Pile_add_spec M 
 Proof.
 start_function.
 forward_call (tlist, gv).
-split3; simpl; auto; computable.
 Intros q.
 simpl spec_pile.pilerep; unfold prep.
 Intros head.
@@ -250,10 +248,11 @@ unfold listrep.
 entailer!.
 Qed.
 
-  Definition PileComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI emp pile_internal_specs.
-  Proof. 
-    mkComponent.
+
+Definition PileVSU: @VSU NullExtension.Espec
+           nil pile_imported_specs ltac:(QPprog prog) Pile_ASI emp.
+ Proof. 
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
     + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_add.
@@ -261,14 +260,10 @@ Qed.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-  Definition PileVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI emp.
-  Proof. eexists; apply PileComponent. Qed.
-
-  Definition PilePrivateComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (PilePrivateASI M PILEPRIV) emp pile_internal_specs.
-  Proof. 
-    mkComponent.
+Definition PilePrivateVSU: @VSU NullExtension.Espec
+      nil pile_imported_specs ltac:(QPprog prog) (PilePrivateASI M PILEPRIV) emp.
+ Proof. 
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
     + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_add.
@@ -276,7 +271,4 @@ Qed.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-Definition PilePrivateVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (PilePrivateASI M PILEPRIV) emp.
-  Proof. eexists; apply PileComponent. Qed.
 End Pile_VSU.

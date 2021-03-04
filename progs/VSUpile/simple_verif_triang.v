@@ -7,12 +7,10 @@ Require Import simple_spec_triang.
 Require Import PileModel.
 
 
-  Definition triang_imported_specs:funspecs := PileASI.
-
-  Definition triang_internal_specs: funspecs := TriangASI.
-
-  Definition TriangVprog: varspecs. mk_varspecs prog. Defined.
-  Definition TriangGprog: funspecs := triang_imported_specs ++ triang_internal_specs.
+Definition triang_imported_specs:funspecs := PileASI.
+Definition triang_internal_specs: funspecs := TriangASI.
+Definition TriangVprog: varspecs. mk_varspecs prog. Defined.
+Definition TriangGprog: funspecs := triang_imported_specs ++ triang_internal_specs.
 
 Lemma body_Triang_nth: semax_body TriangVprog TriangGprog f_Triang_nth Triang_nth_spec.
 Proof.
@@ -26,7 +24,6 @@ forward_for_simple_bound n
 -
  entailer!.
 - forward_call (p, i+1, decreasing(Z.to_nat i), gv).
-rep_lia.
 entailer!.
 assert (Z.to_nat (i+1) = S (Z.to_nat i))
   by (rewrite <- Z2Nat.inj_succ by lia; f_equal).
@@ -48,14 +45,10 @@ reflexivity.
 simpl. congruence.
 Qed.
 
-  Definition TriangComponent: @Component NullExtension.Espec TriangVprog _ 
-      nil triang_imported_specs prog TriangASI emp triang_internal_specs.
+Definition TriangVSU: @VSU NullExtension.Espec 
+      nil triang_imported_specs ltac:(QPprog prog) TriangASI emp.
   Proof. 
-    mkComponent. 
+    mkVSU prog triang_internal_specs. 
     + solve_SF_internal body_Triang_nth.
   Qed.
-
-Definition TriangVSU: @VSU NullExtension.Espec TriangVprog _ 
-      nil triang_imported_specs prog TriangASI emp.
-  Proof. eexists; apply TriangComponent. Qed.
 

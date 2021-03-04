@@ -7,7 +7,7 @@ Import List.
 (* Lemmas about ghost state and common instances, part 2 *)
 (* Where should this sit? *)
 
-Hint Resolve Share.nontrivial : core.
+#[export] Hint Resolve Share.nontrivial : core.
 
 Definition gname := own.gname.
 
@@ -423,8 +423,20 @@ Qed.
 
 End Reference.
 
-Hint Resolve @part_ref_valid : init.
+#[export] Hint Resolve @part_ref_valid : init.
  
+#[export] Hint Resolve self_completable : init.
+
+Section Discrete.
+
+Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
+  Join_G := Join_equiv A }.
+Next Obligation.
+  auto.
+Defined.
+
+End Discrete.
+
 Section GVar.
 
 Context {A : Type}.
@@ -1154,7 +1166,7 @@ End MapsL.
 
 Notation maps_add l := (fold_right map_add empty_map l).
 
-Hint Resolve empty_map_incl empty_map_disjoint all_disjoint_nil : core.
+#[export] Hint Resolve empty_map_incl empty_map_disjoint all_disjoint_nil : core.
 
 Section GHist.
 
@@ -1461,7 +1473,7 @@ Inductive hist_list' : hist_part -> list hist_el -> Prop :=
 | hist_list'_nil : hist_list' empty_map []
 | hist_list'_snoc : forall h l t e (Hlast : newer h t) (Hrest : hist_list' h l),
     hist_list' (map_upd h t e) (l ++ [e]).
-Hint Resolve hist_list'_nil : core.
+Local Hint Resolve hist_list'_nil : core.
 
 Lemma hist_list'_in : forall h l (Hl : hist_list' h l) e, (exists t, h t = Some e) <-> In e l.
 Proof.
@@ -1577,7 +1589,7 @@ Inductive add_events h : list hist_el -> hist_part -> Prop :=
 | add_events_nil : add_events h [] h
 | add_events_snoc : forall le h' t e (Hh' : add_events h le h') (Ht : newer h' t),
     add_events h (le ++ [e]) (map_upd h' t e).
-Hint Resolve add_events_nil : core.
+Local Hint Resolve add_events_nil : core.
 
 Lemma add_events_1 : forall h t e (Ht : newer h t), add_events h [e] (map_upd h t e).
 Proof.
@@ -1657,10 +1669,9 @@ Qed.
 
 End GHist.
 
-Hint Resolve hist_incl_nil hist_list_nil hist_list'_nil add_events_nil : core.
-
-(*Hint Resolve ghost_var_precise ghost_var_precise'.*)
-Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
+#[export] Hint Resolve hist_incl_nil hist_list_nil hist_list'_nil add_events_nil : core.
+(*#[export] Hint Resolve ghost_var_precise ghost_var_precise'.*)
+#[export] Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
 
 Ltac ghost_alloc G :=
   match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>

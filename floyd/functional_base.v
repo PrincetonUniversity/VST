@@ -63,8 +63,8 @@ Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. D
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
 Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
-Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val' : core.
-Hint Resolve isptr_offset_val': norm.
+#[export] Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val' : core.
+#[export] Hint Resolve isptr_offset_val': norm.
 
 Lemma offset_val_force_ptr:
   offset_val 0 = force_ptr.
@@ -98,6 +98,16 @@ repeat rewrite Int.unsigned_repr in H2 by assumption.
 auto.
 Qed.
 
+Lemma ltu_repr64: forall i j,
+ (0 <= i <= Int64.max_unsigned ->
+  0 <= j <= Int64.max_unsigned ->
+  Int64.ltu (Int64.repr i) (Int64.repr j) = true -> i<j)%Z.
+Proof.
+intros. unfold Int64.ltu in H1. if_tac in H1; inv H1.
+repeat rewrite Int64.unsigned_repr in H2 by assumption.
+auto.
+Qed.
+
 Lemma ltu_repr_false: forall i j,
  (0 <= i <= Int.max_unsigned ->
   0 <= j <= Int.max_unsigned ->
@@ -105,6 +115,59 @@ Lemma ltu_repr_false: forall i j,
 Proof.
 intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
 repeat rewrite Int.unsigned_repr in H2 by assumption.
+auto.
+Qed.
+
+Lemma ltu_repr_false64: forall i j,
+ (0 <= i <= Int64.max_unsigned ->
+  0 <= j <= Int64.max_unsigned ->
+  Int64.ltu (Int64.repr i) (Int64.repr j) = false -> i>=j)%Z.
+Proof.
+intros. unfold Int64.ltu in H1. if_tac in H1; inv H1.
+repeat rewrite Int64.unsigned_repr in H2 by assumption.
+auto.
+Qed.
+
+Lemma ltu_inv:
+ forall x y, Int.ltu x y = true -> Int.unsigned x < Int.unsigned y.
+Proof.
+intros.
+apply Int.ltu_inv in H; destruct H; auto.
+Qed.
+
+Lemma ltu_inv64:
+ forall x y, Int64.ltu x y = true -> Int64.unsigned x < Int64.unsigned y.
+Proof.
+intros.
+apply Int64.ltu_inv in H; destruct H; auto.
+Qed.
+
+Lemma ltu_false_inv:
+ forall x y, Int.ltu x y = false -> Int.unsigned x >= Int.unsigned y.
+Proof.
+intros.
+unfold Int.ltu in H. if_tac in H; inv H; auto.
+Qed.
+
+Lemma ltu_false_inv64:
+ forall x y, Int64.ltu x y = false -> Int64.unsigned x >= Int64.unsigned y.
+Proof.
+intros.
+unfold Int64.ltu in H. if_tac in H; inv H; auto.
+Qed.
+
+Definition repable_signed (z: Z) :=
+  Int.min_signed <= z <= Int.max_signed.
+
+Lemma lt_repr:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int.lt (Int.repr i) (Int.repr j) = true -> (i < j)%Z.
+Proof.
+intros.
+unfold Int.lt in H1. if_tac in H1; inv H1.
+rewrite !Int.signed_repr in H2 by auto.
 auto.
 Qed.
 
@@ -340,7 +403,7 @@ with putable x :=
   first [putable' x
          | tryif (try (assert (computable x) by (clear; auto 100 with computable); fail 1)) then fail else idtac ].
 
-Hint Extern 1 (computable ?x) => (putable' x; apply computable_any) : computable.
+#[export] Hint Extern 1 (computable ?x) => (putable' x; apply computable_any) : computable.
 
 Ltac computable := match goal with |- ?x =>
  no_evars x;
@@ -376,18 +439,14 @@ pose proof (Int.zero_ext_range n i H).
 lia.
 Qed.
 
-Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
+#[export] Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
     (apply sign_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
-Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
+#[export] Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
     (apply zero_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
 Hint Rewrite sign_ext_inrange using assumption : norm.
 Hint Rewrite zero_ext_inrange using assumption : norm.
-
-
-Definition repable_signed (z: Z) :=
-  Int.min_signed <= z <= Int.max_signed.
 
 Definition repable_signed_dec (z: Z) : {repable_signed z}+{~repable_signed z}.
 Proof.
@@ -692,3 +751,71 @@ rep_lia, list_solve, if_tac, autorewrite with sublist, computable, ...".
 Ltac rep_omega := idtac "Warning: rep_omega is a deprecated synonym for rep_lia"; rep_lia.
 Ltac omega := idtac "Warning: use of omega without Require Import Coq.omega.Omega; deprecated; should use lia anyway"; Coq.omega.Omega.omega.
 
+
+Lemma lt_repr64:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int64.lt (Int64.repr i) (Int64.repr j) = true -> (i < j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H1. if_tac in H1; inv H1.
+rewrite !Int64.signed_repr in H2 by rep_lia.
+auto.
+Qed.
+
+Lemma lt_repr_false:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int.lt (Int.repr i) (Int.repr j) = false -> (i >= j)%Z.
+Proof.
+intros.
+unfold Int.lt in H1. if_tac in H1; inv H1.
+rewrite !Int.signed_repr in H2 by rep_lia.
+auto.
+Qed.
+
+Lemma lt_repr_false64:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int64.lt (Int64.repr i) (Int64.repr j) = false -> (i >= j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H1. if_tac in H1; inv H1.
+rewrite !Int64.signed_repr in H2 by rep_lia.
+auto.
+Qed.
+
+Lemma lt_inv:
+ forall i j,
+   Int.lt i j = true -> (Int.signed i < Int.signed j)%Z.
+Proof.
+intros.
+unfold Int.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+Lemma lt_inv64:
+ forall i j,
+   Int64.lt i j = true -> (Int64.signed i < Int64.signed j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+Lemma lt_false_inv:
+ forall i j,
+   Int.lt i j = false -> (Int.signed i >= Int.signed j)%Z.
+Proof.
+intros.
+unfold Int.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+Lemma lt_false_inv64:
+ forall i j,
+   Int64.lt i j = false -> (Int64.signed i >= Int64.signed j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H. if_tac in H; inv H. auto.
+Qed.

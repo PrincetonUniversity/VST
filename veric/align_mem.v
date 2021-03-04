@@ -355,10 +355,10 @@ Proof.
     eexists; reflexivity.
 Qed.
 
-Hint Resolve alignof_two_p: align.
-Hint Resolve align_chunk_two_p: align.
-Hint Extern 10 (exists n: nat, hardware_alignof _ _ = two_power_nat n) => (eapply hardware_alignof_two_p; eassumption): align.
-Hint Extern 10 (exists n: nat, hardware_alignof_composite _ _ = two_power_nat n) => (eapply hardware_alignof_composite_two_p; eassumption): align.
+#[export] Hint Resolve alignof_two_p: align.
+#[export] Hint Resolve align_chunk_two_p: align.
+#[export] Hint Extern 10 (exists n: nat, hardware_alignof _ _ = two_power_nat n) => (eapply hardware_alignof_two_p; eassumption): align.
+#[export] Hint Extern 10 (exists n: nat, hardware_alignof_composite _ _ = two_power_nat n) => (eapply hardware_alignof_composite_two_p; eassumption): align.
 
 Lemma hardware_alignof_by_value: forall ha_env t ch,
   access_mode t = By_value ch ->

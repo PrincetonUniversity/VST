@@ -1,222 +1,226 @@
 From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
+Local Open Scope string_scope.
 
 Module Info.
-  Definition version := "3.7"%string.
-  Definition build_number := ""%string.
-  Definition build_tag := ""%string.
-  Definition arch := "x86"%string.
-  Definition model := "32sse2"%string.
-  Definition abi := "standard"%string.
+  Definition version := "3.8".
+  Definition build_number := "".
+  Definition build_tag := "".
+  Definition build_branch := "".
+  Definition arch := "x86".
+  Definition model := "32sse2".
+  Definition abi := "standard".
   Definition bitsize := 32.
   Definition big_endian := false.
-  Definition source_file := "aes/mbedtls/library/aes.c"%string.
+  Definition source_file := "aes/mbedtls/library/aes.c".
   Definition normalized := false.
 End Info.
 
-Definition _FSb : ident := 5%positive.
-Definition _FT0 : ident := 6%positive.
-Definition _FT1 : ident := 7%positive.
-Definition _FT2 : ident := 8%positive.
-Definition _FT3 : ident := 9%positive.
-Definition _RCON : ident := 15%positive.
-Definition _RK : ident := 108%positive.
-Definition _RSb : ident := 10%positive.
-Definition _RT0 : ident := 11%positive.
-Definition _RT1 : ident := 12%positive.
-Definition _RT2 : ident := 13%positive.
-Definition _RT3 : ident := 14%positive.
-Definition _SK : ident := 125%positive.
-Definition _X0 : ident := 131%positive.
-Definition _X1 : ident := 132%positive.
-Definition _X2 : ident := 133%positive.
-Definition _X3 : ident := 134%positive.
-Definition _Y0 : ident := 135%positive.
-Definition _Y1 : ident := 136%positive.
-Definition _Y2 : ident := 137%positive.
-Definition _Y3 : ident := 138%positive.
-Definition ___builtin_annot : ident := 25%positive.
-Definition ___builtin_annot_intval : ident := 26%positive.
-Definition ___builtin_bswap : ident := 18%positive.
-Definition ___builtin_bswap16 : ident := 20%positive.
-Definition ___builtin_bswap32 : ident := 19%positive.
-Definition ___builtin_bswap64 : ident := 17%positive.
-Definition ___builtin_clz : ident := 51%positive.
-Definition ___builtin_clzl : ident := 52%positive.
-Definition ___builtin_clzll : ident := 53%positive.
-Definition ___builtin_ctz : ident := 54%positive.
-Definition ___builtin_ctzl : ident := 55%positive.
-Definition ___builtin_ctzll : ident := 56%positive.
-Definition ___builtin_debug : ident := 67%positive.
-Definition ___builtin_fabs : ident := 21%positive.
-Definition ___builtin_fmadd : ident := 59%positive.
-Definition ___builtin_fmax : ident := 57%positive.
-Definition ___builtin_fmin : ident := 58%positive.
-Definition ___builtin_fmsub : ident := 60%positive.
-Definition ___builtin_fnmadd : ident := 61%positive.
-Definition ___builtin_fnmsub : ident := 62%positive.
-Definition ___builtin_fsqrt : ident := 22%positive.
-Definition ___builtin_membar : ident := 27%positive.
-Definition ___builtin_memcpy_aligned : ident := 23%positive.
-Definition ___builtin_read16_reversed : ident := 63%positive.
-Definition ___builtin_read32_reversed : ident := 64%positive.
-Definition ___builtin_sel : ident := 24%positive.
-Definition ___builtin_va_arg : ident := 29%positive.
-Definition ___builtin_va_copy : ident := 30%positive.
-Definition ___builtin_va_end : ident := 31%positive.
-Definition ___builtin_va_start : ident := 28%positive.
-Definition ___builtin_write16_reversed : ident := 65%positive.
-Definition ___builtin_write32_reversed : ident := 66%positive.
-Definition ___compcert_i64_dtos : ident := 36%positive.
-Definition ___compcert_i64_dtou : ident := 37%positive.
-Definition ___compcert_i64_sar : ident := 48%positive.
-Definition ___compcert_i64_sdiv : ident := 42%positive.
-Definition ___compcert_i64_shl : ident := 46%positive.
-Definition ___compcert_i64_shr : ident := 47%positive.
-Definition ___compcert_i64_smod : ident := 44%positive.
-Definition ___compcert_i64_smulh : ident := 49%positive.
-Definition ___compcert_i64_stod : ident := 38%positive.
-Definition ___compcert_i64_stof : ident := 40%positive.
-Definition ___compcert_i64_udiv : ident := 43%positive.
-Definition ___compcert_i64_umod : ident := 45%positive.
-Definition ___compcert_i64_umulh : ident := 50%positive.
-Definition ___compcert_i64_utod : ident := 39%positive.
-Definition ___compcert_i64_utof : ident := 41%positive.
-Definition ___compcert_va_composite : ident := 35%positive.
-Definition ___compcert_va_float64 : ident := 34%positive.
-Definition ___compcert_va_int32 : ident := 32%positive.
-Definition ___compcert_va_int64 : ident := 33%positive.
-Definition ___stringlit_1 : ident := 175%positive.
-Definition ___stringlit_2 : ident := 176%positive.
-Definition ___stringlit_3 : ident := 177%positive.
-Definition ___stringlit_4 : ident := 178%positive.
-Definition ___stringlit_5 : ident := 179%positive.
-Definition ___stringlit_6 : ident := 180%positive.
-Definition _aes_gen_tables : ident := 101%positive.
-Definition _aes_init_done : ident := 76%positive.
-Definition _aes_tables_struct : ident := 16%positive.
-Definition _aes_test_ecb_dec : ident := 170%positive.
-Definition _aes_test_ecb_enc : ident := 171%positive.
-Definition _b0 : ident := 110%positive.
-Definition _b0__1 : ident := 117%positive.
-Definition _b0__2 : ident := 139%positive.
-Definition _b0__3 : ident := 143%positive.
-Definition _b0__4 : ident := 147%positive.
-Definition _b0__5 : ident := 152%positive.
-Definition _b0__6 : ident := 157%positive.
-Definition _b0__7 : ident := 162%positive.
-Definition _b1 : ident := 111%positive.
-Definition _b1__1 : ident := 118%positive.
-Definition _b1__2 : ident := 140%positive.
-Definition _b1__3 : ident := 144%positive.
-Definition _b1__4 : ident := 148%positive.
-Definition _b1__5 : ident := 153%positive.
-Definition _b1__6 : ident := 158%positive.
-Definition _b1__7 : ident := 163%positive.
-Definition _b2 : ident := 112%positive.
-Definition _b2__1 : ident := 119%positive.
-Definition _b2__2 : ident := 141%positive.
-Definition _b2__3 : ident := 145%positive.
-Definition _b2__4 : ident := 149%positive.
-Definition _b2__5 : ident := 154%positive.
-Definition _b2__6 : ident := 159%positive.
-Definition _b2__7 : ident := 164%positive.
-Definition _b3 : ident := 113%positive.
-Definition _b3__1 : ident := 120%positive.
-Definition _b3__2 : ident := 142%positive.
-Definition _b3__3 : ident := 146%positive.
-Definition _b3__4 : ident := 150%positive.
-Definition _b3__5 : ident := 155%positive.
-Definition _b3__6 : ident := 160%positive.
-Definition _b3__7 : ident := 165%positive.
-Definition _buf : ident := 3%positive.
-Definition _ctx : ident := 102%positive.
-Definition _cty : ident := 124%positive.
-Definition _exit : ident := 127%positive.
-Definition _i : ident := 77%positive.
-Definition _input : ident := 129%positive.
-Definition _iv : ident := 174%positive.
-Definition _j : ident := 122%positive.
-Definition _key : ident := 105%positive.
-Definition _key_word : ident := 107%positive.
-Definition _keybits : ident := 106%positive.
-Definition _log : ident := 82%positive.
-Definition _logi : ident := 84%positive.
-Definition _logx : ident := 89%positive.
-Definition _logx__1 : ident := 92%positive.
-Definition _logx__2 : ident := 95%positive.
-Definition _logx__3 : ident := 98%positive.
-Definition _logy : ident := 90%positive.
-Definition _logy__1 : ident := 93%positive.
-Definition _logy__2 : ident := 96%positive.
-Definition _logy__3 : ident := 99%positive.
-Definition _m : ident := 91%positive.
-Definition _m__1 : ident := 94%positive.
-Definition _m__2 : ident := 97%positive.
-Definition _m__3 : ident := 100%positive.
-Definition _main : ident := 182%positive.
-Definition _mbedtls_aes_context_struct : ident := 4%positive.
-Definition _mbedtls_aes_crypt_ecb : ident := 169%positive.
-Definition _mbedtls_aes_decrypt : ident := 167%positive.
-Definition _mbedtls_aes_encrypt : ident := 166%positive.
-Definition _mbedtls_aes_free : ident := 104%positive.
-Definition _mbedtls_aes_init : ident := 103%positive.
-Definition _mbedtls_aes_self_test : ident := 181%positive.
-Definition _mbedtls_aes_setkey_dec : ident := 128%positive.
-Definition _mbedtls_aes_setkey_enc : ident := 121%positive.
-Definition _mbedtls_zeroize : ident := 74%positive.
-Definition _memcmp : ident := 68%positive.
-Definition _memset : ident := 69%positive.
-Definition _mode : ident := 168%positive.
-Definition _n : ident := 72%positive.
-Definition _nr : ident := 1%positive.
-Definition _output : ident := 130%positive.
-Definition _p : ident := 73%positive.
-Definition _pow : ident := 81%positive.
-Definition _printf : ident := 70%positive.
-Definition _prod1 : ident := 85%positive.
-Definition _prod2 : ident := 86%positive.
-Definition _prod3 : ident := 87%positive.
-Definition _prod4 : ident := 88%positive.
-Definition _rcon : ident := 116%positive.
-Definition _ret : ident := 123%positive.
-Definition _rk : ident := 2%positive.
-Definition _rk0 : ident := 114%positive.
-Definition _rk7 : ident := 115%positive.
-Definition _rk__1 : ident := 151%positive.
-Definition _rk__2 : ident := 156%positive.
-Definition _rk__3 : ident := 161%positive.
-Definition _rot : ident := 83%positive.
-Definition _sk : ident := 126%positive.
-Definition _tables : ident := 75%positive.
-Definition _tmp : ident := 109%positive.
-Definition _u : ident := 173%positive.
-Definition _v : ident := 71%positive.
-Definition _verbose : ident := 172%positive.
-Definition _x : ident := 78%positive.
-Definition _y : ident := 79%positive.
-Definition _z : ident := 80%positive.
-Definition _t'1 : ident := 183%positive.
-Definition _t'10 : ident := 192%positive.
-Definition _t'11 : ident := 193%positive.
-Definition _t'12 : ident := 194%positive.
-Definition _t'13 : ident := 195%positive.
-Definition _t'14 : ident := 196%positive.
-Definition _t'15 : ident := 197%positive.
-Definition _t'16 : ident := 198%positive.
-Definition _t'17 : ident := 199%positive.
-Definition _t'18 : ident := 200%positive.
-Definition _t'19 : ident := 201%positive.
-Definition _t'2 : ident := 184%positive.
-Definition _t'20 : ident := 202%positive.
-Definition _t'3 : ident := 185%positive.
-Definition _t'4 : ident := 186%positive.
-Definition _t'5 : ident := 187%positive.
-Definition _t'6 : ident := 188%positive.
-Definition _t'7 : ident := 189%positive.
-Definition _t'8 : ident := 190%positive.
-Definition _t'9 : ident := 191%positive.
+Definition _FSb : ident := $"FSb".
+Definition _FT0 : ident := $"FT0".
+Definition _FT1 : ident := $"FT1".
+Definition _FT2 : ident := $"FT2".
+Definition _FT3 : ident := $"FT3".
+Definition _RCON : ident := $"RCON".
+Definition _RK : ident := $"RK".
+Definition _RSb : ident := $"RSb".
+Definition _RT0 : ident := $"RT0".
+Definition _RT1 : ident := $"RT1".
+Definition _RT2 : ident := $"RT2".
+Definition _RT3 : ident := $"RT3".
+Definition _SK : ident := $"SK".
+Definition _X0 : ident := $"X0".
+Definition _X1 : ident := $"X1".
+Definition _X2 : ident := $"X2".
+Definition _X3 : ident := $"X3".
+Definition _Y0 : ident := $"Y0".
+Definition _Y1 : ident := $"Y1".
+Definition _Y2 : ident := $"Y2".
+Definition _Y3 : ident := $"Y3".
+Definition ___builtin_annot : ident := $"__builtin_annot".
+Definition ___builtin_annot_intval : ident := $"__builtin_annot_intval".
+Definition ___builtin_bswap : ident := $"__builtin_bswap".
+Definition ___builtin_bswap16 : ident := $"__builtin_bswap16".
+Definition ___builtin_bswap32 : ident := $"__builtin_bswap32".
+Definition ___builtin_bswap64 : ident := $"__builtin_bswap64".
+Definition ___builtin_clz : ident := $"__builtin_clz".
+Definition ___builtin_clzl : ident := $"__builtin_clzl".
+Definition ___builtin_clzll : ident := $"__builtin_clzll".
+Definition ___builtin_ctz : ident := $"__builtin_ctz".
+Definition ___builtin_ctzl : ident := $"__builtin_ctzl".
+Definition ___builtin_ctzll : ident := $"__builtin_ctzll".
+Definition ___builtin_debug : ident := $"__builtin_debug".
+Definition ___builtin_fabs : ident := $"__builtin_fabs".
+Definition ___builtin_fabsf : ident := $"__builtin_fabsf".
+Definition ___builtin_fmadd : ident := $"__builtin_fmadd".
+Definition ___builtin_fmax : ident := $"__builtin_fmax".
+Definition ___builtin_fmin : ident := $"__builtin_fmin".
+Definition ___builtin_fmsub : ident := $"__builtin_fmsub".
+Definition ___builtin_fnmadd : ident := $"__builtin_fnmadd".
+Definition ___builtin_fnmsub : ident := $"__builtin_fnmsub".
+Definition ___builtin_fsqrt : ident := $"__builtin_fsqrt".
+Definition ___builtin_membar : ident := $"__builtin_membar".
+Definition ___builtin_memcpy_aligned : ident := $"__builtin_memcpy_aligned".
+Definition ___builtin_read16_reversed : ident := $"__builtin_read16_reversed".
+Definition ___builtin_read32_reversed : ident := $"__builtin_read32_reversed".
+Definition ___builtin_sel : ident := $"__builtin_sel".
+Definition ___builtin_sqrt : ident := $"__builtin_sqrt".
+Definition ___builtin_va_arg : ident := $"__builtin_va_arg".
+Definition ___builtin_va_copy : ident := $"__builtin_va_copy".
+Definition ___builtin_va_end : ident := $"__builtin_va_end".
+Definition ___builtin_va_start : ident := $"__builtin_va_start".
+Definition ___builtin_write16_reversed : ident := $"__builtin_write16_reversed".
+Definition ___builtin_write32_reversed : ident := $"__builtin_write32_reversed".
+Definition ___compcert_i64_dtos : ident := $"__compcert_i64_dtos".
+Definition ___compcert_i64_dtou : ident := $"__compcert_i64_dtou".
+Definition ___compcert_i64_sar : ident := $"__compcert_i64_sar".
+Definition ___compcert_i64_sdiv : ident := $"__compcert_i64_sdiv".
+Definition ___compcert_i64_shl : ident := $"__compcert_i64_shl".
+Definition ___compcert_i64_shr : ident := $"__compcert_i64_shr".
+Definition ___compcert_i64_smod : ident := $"__compcert_i64_smod".
+Definition ___compcert_i64_smulh : ident := $"__compcert_i64_smulh".
+Definition ___compcert_i64_stod : ident := $"__compcert_i64_stod".
+Definition ___compcert_i64_stof : ident := $"__compcert_i64_stof".
+Definition ___compcert_i64_udiv : ident := $"__compcert_i64_udiv".
+Definition ___compcert_i64_umod : ident := $"__compcert_i64_umod".
+Definition ___compcert_i64_umulh : ident := $"__compcert_i64_umulh".
+Definition ___compcert_i64_utod : ident := $"__compcert_i64_utod".
+Definition ___compcert_i64_utof : ident := $"__compcert_i64_utof".
+Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
+Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
+Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
+Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
+Definition ___stringlit_1 : ident := $"__stringlit_1".
+Definition ___stringlit_2 : ident := $"__stringlit_2".
+Definition ___stringlit_3 : ident := $"__stringlit_3".
+Definition ___stringlit_4 : ident := $"__stringlit_4".
+Definition ___stringlit_5 : ident := $"__stringlit_5".
+Definition ___stringlit_6 : ident := $"__stringlit_6".
+Definition _aes_gen_tables : ident := $"aes_gen_tables".
+Definition _aes_init_done : ident := $"aes_init_done".
+Definition _aes_tables_struct : ident := $"aes_tables_struct".
+Definition _aes_test_ecb_dec : ident := $"aes_test_ecb_dec".
+Definition _aes_test_ecb_enc : ident := $"aes_test_ecb_enc".
+Definition _b0 : ident := $"b0".
+Definition _b0__1 : ident := $"b0__1".
+Definition _b0__2 : ident := $"b0__2".
+Definition _b0__3 : ident := $"b0__3".
+Definition _b0__4 : ident := $"b0__4".
+Definition _b0__5 : ident := $"b0__5".
+Definition _b0__6 : ident := $"b0__6".
+Definition _b0__7 : ident := $"b0__7".
+Definition _b1 : ident := $"b1".
+Definition _b1__1 : ident := $"b1__1".
+Definition _b1__2 : ident := $"b1__2".
+Definition _b1__3 : ident := $"b1__3".
+Definition _b1__4 : ident := $"b1__4".
+Definition _b1__5 : ident := $"b1__5".
+Definition _b1__6 : ident := $"b1__6".
+Definition _b1__7 : ident := $"b1__7".
+Definition _b2 : ident := $"b2".
+Definition _b2__1 : ident := $"b2__1".
+Definition _b2__2 : ident := $"b2__2".
+Definition _b2__3 : ident := $"b2__3".
+Definition _b2__4 : ident := $"b2__4".
+Definition _b2__5 : ident := $"b2__5".
+Definition _b2__6 : ident := $"b2__6".
+Definition _b2__7 : ident := $"b2__7".
+Definition _b3 : ident := $"b3".
+Definition _b3__1 : ident := $"b3__1".
+Definition _b3__2 : ident := $"b3__2".
+Definition _b3__3 : ident := $"b3__3".
+Definition _b3__4 : ident := $"b3__4".
+Definition _b3__5 : ident := $"b3__5".
+Definition _b3__6 : ident := $"b3__6".
+Definition _b3__7 : ident := $"b3__7".
+Definition _buf : ident := $"buf".
+Definition _ctx : ident := $"ctx".
+Definition _cty : ident := $"cty".
+Definition _exit : ident := $"exit".
+Definition _i : ident := $"i".
+Definition _input : ident := $"input".
+Definition _iv : ident := $"iv".
+Definition _j : ident := $"j".
+Definition _key : ident := $"key".
+Definition _key_word : ident := $"key_word".
+Definition _keybits : ident := $"keybits".
+Definition _log : ident := $"log".
+Definition _logi : ident := $"logi".
+Definition _logx : ident := $"logx".
+Definition _logx__1 : ident := $"logx__1".
+Definition _logx__2 : ident := $"logx__2".
+Definition _logx__3 : ident := $"logx__3".
+Definition _logy : ident := $"logy".
+Definition _logy__1 : ident := $"logy__1".
+Definition _logy__2 : ident := $"logy__2".
+Definition _logy__3 : ident := $"logy__3".
+Definition _m : ident := $"m".
+Definition _m__1 : ident := $"m__1".
+Definition _m__2 : ident := $"m__2".
+Definition _m__3 : ident := $"m__3".
+Definition _main : ident := $"main".
+Definition _mbedtls_aes_context_struct : ident := $"mbedtls_aes_context_struct".
+Definition _mbedtls_aes_crypt_ecb : ident := $"mbedtls_aes_crypt_ecb".
+Definition _mbedtls_aes_decrypt : ident := $"mbedtls_aes_decrypt".
+Definition _mbedtls_aes_encrypt : ident := $"mbedtls_aes_encrypt".
+Definition _mbedtls_aes_free : ident := $"mbedtls_aes_free".
+Definition _mbedtls_aes_init : ident := $"mbedtls_aes_init".
+Definition _mbedtls_aes_self_test : ident := $"mbedtls_aes_self_test".
+Definition _mbedtls_aes_setkey_dec : ident := $"mbedtls_aes_setkey_dec".
+Definition _mbedtls_aes_setkey_enc : ident := $"mbedtls_aes_setkey_enc".
+Definition _mbedtls_zeroize : ident := $"mbedtls_zeroize".
+Definition _memcmp : ident := $"memcmp".
+Definition _memset : ident := $"memset".
+Definition _mode : ident := $"mode".
+Definition _n : ident := $"n".
+Definition _nr : ident := $"nr".
+Definition _output : ident := $"output".
+Definition _p : ident := $"p".
+Definition _pow : ident := $"pow".
+Definition _printf : ident := $"printf".
+Definition _prod1 : ident := $"prod1".
+Definition _prod2 : ident := $"prod2".
+Definition _prod3 : ident := $"prod3".
+Definition _prod4 : ident := $"prod4".
+Definition _rcon : ident := $"rcon".
+Definition _ret : ident := $"ret".
+Definition _rk : ident := $"rk".
+Definition _rk0 : ident := $"rk0".
+Definition _rk7 : ident := $"rk7".
+Definition _rk__1 : ident := $"rk__1".
+Definition _rk__2 : ident := $"rk__2".
+Definition _rk__3 : ident := $"rk__3".
+Definition _rot : ident := $"rot".
+Definition _sk : ident := $"sk".
+Definition _tables : ident := $"tables".
+Definition _tmp : ident := $"tmp".
+Definition _u : ident := $"u".
+Definition _v : ident := $"v".
+Definition _verbose : ident := $"verbose".
+Definition _x : ident := $"x".
+Definition _y : ident := $"y".
+Definition _z : ident := $"z".
+Definition _t'1 : ident := 128%positive.
+Definition _t'10 : ident := 137%positive.
+Definition _t'11 : ident := 138%positive.
+Definition _t'12 : ident := 139%positive.
+Definition _t'13 : ident := 140%positive.
+Definition _t'14 : ident := 141%positive.
+Definition _t'15 : ident := 142%positive.
+Definition _t'16 : ident := 143%positive.
+Definition _t'17 : ident := 144%positive.
+Definition _t'18 : ident := 145%positive.
+Definition _t'19 : ident := 146%positive.
+Definition _t'2 : ident := 129%positive.
+Definition _t'20 : ident := 147%positive.
+Definition _t'3 : ident := 130%positive.
+Definition _t'4 : ident := 131%positive.
+Definition _t'5 : ident := 132%positive.
+Definition _t'6 : ident := 133%positive.
+Definition _t'7 : ident := 134%positive.
+Definition _t'8 : ident := 135%positive.
+Definition _t'9 : ident := 136%positive.
 
 Definition v___stringlit_3 := {|
   gvar_info := (tarray tschar 21);
@@ -6476,12 +6480,44 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_builtin "__builtin_bswap16"
                    (mksignature (AST.Tint :: nil) AST.Tint16unsigned
                      cc_default)) (Tcons tushort Tnil) tushort cc_default)) ::
+ (___builtin_clz,
+   Gfun(External (EF_builtin "__builtin_clz"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
+ (___builtin_clzl,
+   Gfun(External (EF_builtin "__builtin_clzl"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
+ (___builtin_clzll,
+   Gfun(External (EF_builtin "__builtin_clzll"
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tulong Tnil) tint cc_default)) ::
+ (___builtin_ctz,
+   Gfun(External (EF_builtin "__builtin_ctz"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
+ (___builtin_ctzl,
+   Gfun(External (EF_builtin "__builtin_ctzl"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
+ (___builtin_ctzll,
+   Gfun(External (EF_builtin "__builtin_ctzll"
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tulong Tnil) tint cc_default)) ::
  (___builtin_fabs,
    Gfun(External (EF_builtin "__builtin_fabs"
                    (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
      (Tcons tdouble Tnil) tdouble cc_default)) ::
+ (___builtin_fabsf,
+   Gfun(External (EF_builtin "__builtin_fabsf"
+                   (mksignature (AST.Tsingle :: nil) AST.Tsingle cc_default))
+     (Tcons tfloat Tnil) tfloat cc_default)) ::
  (___builtin_fsqrt,
    Gfun(External (EF_builtin "__builtin_fsqrt"
+                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
+     (Tcons tdouble Tnil) tdouble cc_default)) ::
+ (___builtin_sqrt,
+   Gfun(External (EF_builtin "__builtin_sqrt"
                    (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
      (Tcons tdouble Tnil) tdouble cc_default)) ::
  (___builtin_memcpy_aligned,
@@ -6617,30 +6653,6 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                    (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
                      cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
      cc_default)) ::
- (___builtin_clz,
-   Gfun(External (EF_builtin "__builtin_clz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
- (___builtin_clzl,
-   Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
- (___builtin_clzll,
-   Gfun(External (EF_builtin "__builtin_clzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
- (___builtin_ctz,
-   Gfun(External (EF_builtin "__builtin_ctz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
- (___builtin_ctzl,
-   Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
- (___builtin_ctzll,
-   Gfun(External (EF_builtin "__builtin_ctzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
                    (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
@@ -6745,18 +6757,19 @@ Definition public_idents : list ident :=
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
  ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
+ ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
+ ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
+ ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
+ ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
+ ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
+ ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
+ ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
+ ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
  ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___compcert_i64_umulh ::
- ___compcert_i64_smulh :: ___compcert_i64_sar :: ___compcert_i64_shr ::
- ___compcert_i64_shl :: ___compcert_i64_umod :: ___compcert_i64_smod ::
- ___compcert_i64_udiv :: ___compcert_i64_sdiv :: ___compcert_i64_utof ::
- ___compcert_i64_stof :: ___compcert_i64_utod :: ___compcert_i64_stod ::
- ___compcert_i64_dtou :: ___compcert_i64_dtos :: ___compcert_va_composite ::
- ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_sel :: ___builtin_memcpy_aligned ::
- ___builtin_fsqrt :: ___builtin_fabs :: ___builtin_bswap16 ::
+ ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
  ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 :: nil).
 
 Definition prog : Clight.program := 

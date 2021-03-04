@@ -43,6 +43,5 @@ make_func_ptr _myfunc.
 forward.
 
 forward_call 3.
-  computable.
 forward.
 Qed.

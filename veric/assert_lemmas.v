@@ -159,7 +159,7 @@ Qed.
    forall {A} `{ageable A} (P: pred A), P |-- !!(is_true Vtrue) && P.
   Proof.  intros. apply assert_truth. apply Val_is_true_Vtrue. Qed.
 
-Hint Resolve Val_is_true_Vtrue  @assert_Val_is_true : core.
+#[export] Hint Resolve Val_is_true_Vtrue  assert_Val_is_true : core.
 *)
 
 (****************** stuff moved from semax_prog  *****************)
@@ -328,7 +328,7 @@ Proof.
   apply corable_func_at.
 Qed.
 
-Hint Resolve corable_func_ptr corable_func_ptr_si (*corable_func_ptr_early*) : core.
+#[export] Hint Resolve corable_func_ptr corable_func_ptr_si (*corable_func_ptr_early*) : core.
 
 Lemma corable_funspecs_assert:
   forall FS rho, corable (funspecs_assert FS rho).
@@ -347,7 +347,7 @@ Proof.
 (* + apply corable_pureat.*)
 Qed.
 
-Hint Resolve corable_funspecs_assert : core.
+#[export] Hint Resolve corable_funspecs_assert : core.
 
 Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
     (forall loc, corable (P loc)) ->
@@ -378,7 +378,7 @@ apply corable_pureat.
 intro w. unfold TTat. apply prop_ext; split; intros; hnf in H|-*; auto.
 Qed.
 
-Hint Resolve corable_fun_assert : normalize.
+#[export] Hint Resolve corable_fun_assert : normalize.
 *)
 Lemma prop_derives {A}{H: ageable A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.

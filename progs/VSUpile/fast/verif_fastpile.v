@@ -19,7 +19,7 @@ Intros q.
 entailer!.
 Qed.
 
-Hint Resolve fastprep_local_facts : saturate_local.
+Local Hint Resolve fastprep_local_facts : saturate_local.
 
 Lemma fastprep_valid_pointer:
   forall sigma p,
@@ -29,7 +29,7 @@ Proof.
  unfold fastprep. Intros x.
  entailer!; auto with valid_pointer.
 Qed.
-Hint Resolve fastprep_valid_pointer : valid_pointer.
+Local Hint Resolve fastprep_valid_pointer : valid_pointer.
 
 Definition pfreeable (p: val) : mpred :=
             malloc_token M Ews tpile p.
@@ -42,31 +42,30 @@ Definition PILEPRIV: FastpilePrivateAPD := Build_FastpilePrivateAPD PILE (eq_ref
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ tuint ]
-       PROP (0 <= sizeof t <= Int.max_unsigned;
+   PRE [ size_t ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr M gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
        SEP (mem_mgr M gv; malloc_token M Ews t p * data_at_ Ews t p).
 
-  Definition Pile_ASI: funspecs := PileASI M PILE.
+Definition Pile_ASI: funspecs := PileASI M PILE.
 
-  Definition pile_imported_specs:funspecs := MallocFreeASI M.
+Definition pile_imported_specs:funspecs := MallocFreeASI M.
 
-  Definition pile_internal_specs: funspecs := surely_malloc_spec::Pile_ASI.
+Definition pile_internal_specs: funspecs := surely_malloc_spec::Pile_ASI.
 
-  Definition PileVprog: varspecs. mk_varspecs prog. Defined.
-  Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
+Definition PileVprog: varspecs. mk_varspecs prog. Defined.
+Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
 
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M PILE).
 Proof.
 start_function.
 forward_call (tpile, gv).
-split3; simpl; auto; computable.
 Intros p.
 forward.
 forward.
@@ -174,10 +173,10 @@ forward_if True.
 + forward. Exists p. entailer!.
 Qed.
 
-  Definition PileComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI emp pile_internal_specs.
+  Definition PileVSU: @VSU NullExtension.Espec
+      nil pile_imported_specs ltac:(QPprog prog) Pile_ASI emp.
   Proof. 
-    mkComponent.
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
     + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_add.
@@ -185,14 +184,10 @@ Qed.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-  Definition PileVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog Pile_ASI emp.
-  Proof. eexists; apply PileComponent. Qed.
-
-  Definition PilePrivateComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV) emp pile_internal_specs.
+  Definition PilePrivateVSU: @VSU NullExtension.Espec
+      nil pile_imported_specs ltac:(QPprog prog) (FastpilePrivateASI M PILEPRIV) emp.
   Proof. 
-    mkComponent.
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
     + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_add.
@@ -200,7 +195,5 @@ Qed.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-Definition PilePrivateVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog (FastpilePrivateASI M PILEPRIV) emp.
-  Proof. eexists; apply PileComponent. Qed.
 End Pile_VSU.
+

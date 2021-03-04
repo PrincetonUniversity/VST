@@ -892,11 +892,11 @@ Opaque HMAC256_DRBG_generate_function.
            inv Heqq. inv HeqUPD.
            unfold hmac256drbgstate_md_info_pointer; simpl in *. entailer!. 
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
-             apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+             apply hmac_common_lemmas.HMAC_Zlength. }
+           { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
+           }
         ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
            2: subst contents; elim n; apply Zlength_nil.
            subst na. simpl in *.
@@ -905,9 +905,7 @@ Opaque HMAC256_DRBG_generate_function.
            rewrite hmac_common_lemmas.HMAC_Zlength. 
            entailer!.
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia. 
-             apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+             apply hmac_common_lemmas.HMAC_Zlength. }
            rewrite sublist_firstn, <- Heqp; simpl. cancel.
            unfold_data_at 1%nat. cancel.
      * unfold contents_with_add in HeqCONT.
@@ -937,9 +935,7 @@ Opaque HMAC256_DRBG_generate_function.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. entailer!.
        { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
          apply hmac_common_lemmas.HMAC_Zlength.
-             2: apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+         apply hmac_common_lemmas.HMAC_Zlength. }
        unfold_data_at 1%nat. cancel.
   - subst HLP MRES'.  
       remember  MGen as MGen'. subst MGen.
@@ -978,9 +974,7 @@ Opaque HMAC256_DRBG_generate_function.
            inv Heqq. inv HeqUPD.
            unfold hmac256drbgstate_md_info_pointer; simpl in *. entailer!. 
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
-             apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+             apply hmac_common_lemmas.HMAC_Zlength. }
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
         ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
@@ -991,9 +985,7 @@ Opaque HMAC256_DRBG_generate_function.
            rewrite hmac_common_lemmas.HMAC_Zlength. 
            entailer!.
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia. 
-             apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+             apply hmac_common_lemmas.HMAC_Zlength. }
            rewrite sublist_firstn, <- Heqp; simpl. cancel.
            unfold_data_at 1%nat. cancel.
      * unfold contents_with_add in HeqCONT.
@@ -1023,9 +1015,7 @@ Opaque HMAC256_DRBG_generate_function.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. entailer!.
        { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia. 
          apply hmac_common_lemmas.HMAC_Zlength.
-             2: apply hmac_common_lemmas.HMAC_Zlength.
-             clear - Hreseed_interval WFI3 WFI4 H0.
-             assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. lia. }
+         apply hmac_common_lemmas.HMAC_Zlength. }
        unfold_data_at 1%nat. cancel.
 Time Qed. (*laptop 11s, desktop25s*) 
 
@@ -1358,11 +1348,8 @@ Proof. intros.
     { simpl; simpl in HZlength_V; rewrite HZlength_V (*, <- Hmultiple*).
       cancel.
     }
-    { split3; auto.
-      simpl; simpl in HZlength_V; rewrite HZlength_V. 
-      change Int.max_unsigned with 4294967295.
-      change (two_power_pos 61) with 2305843009213693952.
-      repeat split; try rep_lia.
+    { simpl; simpl in HZlength_V; rewrite HZlength_V.
+      compute; reflexivity. 
     }
 
     (*Intros vret; subst vret.*)
@@ -1418,11 +1405,11 @@ Proof. intros.
       entailer!.
     }
     Intros.
-    replace_SEP 1 (
+    replace_SEP 6 (
         data_at sho (tarray tuchar use_len) (list_repeat (Z.to_nat use_len) Vundef) done_output *
         data_at sho (tarray tuchar (out_len - done - use_len)) (list_repeat (Z.to_nat (out_len - done - use_len)) Vundef) (offset_val use_len done_output)
     ).
-    {
+    { 
       clear Hmultiple Heqdone_output.
       entailer!. 
       apply derives_refl'.
@@ -1442,7 +1429,7 @@ Proof. intros.
     }
     Intros.
 
-    replace_SEP 1 (memory_block sho use_len done_output).
+    replace_SEP 6 (memory_block sho use_len done_output).
     {
       clear Hmultiple.
       entailer!.
@@ -1456,7 +1443,7 @@ Proof. intros.
     set (H256 := HMAC256 (fst (HLP done)) key0) in *.
     assert (ZL_H256: Zlength H256 = 32).
     { subst H256. apply hmac_common_lemmas.HMAC_Zlength. }
-    replace_SEP 6 (data_at shc (tarray tuchar use_len)
+    replace_SEP 3 (data_at shc (tarray tuchar use_len)
                       (sublist 0 use_len (map Vubyte H256))
                       (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i)) *
                    data_at shc (tarray tuchar (32 - use_len))
@@ -1493,9 +1480,6 @@ Proof. intros.
                   sublist 0 use_len (map Int.repr (map Byte.unsigned H256))).
     { apply prop_right. subst; simpl. rewrite field_address_offset; trivial. } 
     { entailer!. simpl. rewrite !sublist_map, !map_map. cancel. }
-    { split3; auto.
-      subst use_len; destruct (Z.min_dec 32 (out_len - done)); try rep_lia.
-    }
 
     simpl.
     gather_SEP (data_at _ _ _ (field_address _ [StructField _V] _)) 

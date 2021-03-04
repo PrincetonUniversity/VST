@@ -899,12 +899,8 @@ Proof.
     { subst I initial_state; cancel.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
-    { split3; auto. simpl in *. repeat split; trivial; try lia.
-      rep_lia.
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; lia. 
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.
-      rep_lia.
-      rep_lia.
+    { simpl in *. split3; auto; try rep_lia.
+      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *; rep_lia.
     }
      
     Intros return_value.
@@ -1043,7 +1039,6 @@ Proof.
          thaw FR3. (*subst (*initial_state*) IC.*)
          unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!. 
        }
-       split3; auto. 
        { (*subst na.*)subst after_reseed_add_len. 
          entailer. simpl.  progress entailer. unfold hmac256drbgabs_common_mpreds.
          remember ( HMAC256_DRBG_update
@@ -1275,8 +1270,8 @@ Opaque hmac256drbgabs_reseed.
     apply andp_right. apply prop_right. repeat split; trivial.
     cancel. }
   { subst after_reseed_add_len. rewrite <- HeqABS3; simpl.
-    split3; auto. split. destruct should_reseed; lia.
-    split. assumption.
+    split; auto. destruct should_reseed; lia.
+    split; auto.
     destruct should_reseed; lia. }
 
   unfold hmac256drbgabs_common_mpreds. normalize.
@@ -1330,7 +1325,7 @@ Opaque hmac256drbgabs_reseed.
   simpl in H6. sep_apply H6; clear H6.
   + red in Hreseed_interval; red; simpl in *. repeat split; trivial; try lia.
   + unfold drbg_protocol_specs.AREP, drbg_protocol_specs.REP, hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer;
-    normalize. rewrite <- H8.
+    normalize. rewrite <- H7.
     remember (mbedtls_HMAC256_DRBG_generate_function s
        (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) out_len
        (contents_with_add additional (Zlength contents) contents)).

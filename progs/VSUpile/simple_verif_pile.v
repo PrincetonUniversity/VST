@@ -9,11 +9,11 @@ Require Import PileModel.
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ tuint ]
-       PROP (0 <= sizeof t <= Int.max_unsigned;
+   PRE [ size_t ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
@@ -21,12 +21,12 @@ Definition surely_malloc_spec :=
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 
-  Definition pile_imported_specs:funspecs := MallocFreeASI.
+Definition pile_imported_specs:funspecs := MallocFreeASI.
 
-  Definition pile_internal_specs: funspecs := surely_malloc_spec::PileASI.
+Definition pile_internal_specs: funspecs := surely_malloc_spec::PileASI.
 
-  Definition PileVprog: varspecs. mk_varspecs prog. Defined.
-  Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
+Definition PileVprog: varspecs. mk_varspecs prog. Defined.
+Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
 
 Lemma body_surely_malloc: semax_body PileVprog PileGprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -48,7 +48,6 @@ Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new Pile_new_spec.
 Proof.
 start_function.
 forward_call (tpile, gv).
-split3; simpl; auto; computable.
 Intros p.
 repeat step!.
 unfold pilerep, listrep, pile_freeable.
@@ -59,7 +58,6 @@ Lemma body_Pile_add: semax_body PileVprog PileGprog f_Pile_add Pile_add_spec.
 Proof.
 start_function.
 forward_call (tlist, gv).
-split3; simpl; auto; computable.
 Intros q.
 unfold pilerep.
 Intros head.
@@ -190,18 +188,14 @@ unfold listrep.
 entailer!.
 Qed.
 
-  Definition PileComponent: @Component NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog PileASI emp pile_internal_specs.
+Definition PileVSU: @VSU NullExtension.Espec 
+      nil pile_imported_specs ltac:(QPprog prog) PileASI emp.
   Proof. 
-    mkComponent.
+    mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
     + solve_SF_internal body_Pile_new.
     + solve_SF_internal body_Pile_add.
     + solve_SF_internal body_Pile_count.
     + solve_SF_internal body_Pile_free.
   Qed.
-
-  Definition PileVSU: @VSU NullExtension.Espec PileVprog _ 
-      nil pile_imported_specs prog PileASI emp.
-  Proof. eexists; apply PileComponent. Qed.
 

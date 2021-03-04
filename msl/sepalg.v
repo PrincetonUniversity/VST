@@ -25,7 +25,7 @@ Arguments Perm_alg _ {J}.
 Definition unit_for {t}{J: Join t} (e a: t) := join e a a.
 Definition identity {t} {J: Join t} (e: t) := forall a b, join e a b -> a=b.
 
-Hint Extern 2 (@join _ _ _ _ _) =>
+#[export] Hint Extern 2 (@join _ _ _ _ _) =>
    (eapply join_comm; trivial;
      try eassumption;
      (* This next line looks superfluous, but it is not: it catches the
@@ -35,7 +35,7 @@ Hint Extern 2 (@join _ _ _ _ _) =>
     : core.
  (* Hint Immediate join_comm. *)
 
-Hint Unfold unit_for : core.
+#[export] Hint Unfold unit_for : core.
 
 Lemma join_assoc_uniq:
   forall {t} {J: Join t} (PA1 PA2: @Perm_alg t J),
@@ -329,7 +329,7 @@ Qed.
     apply core_unit.
   Qed.
 
-  Hint Resolve join_sub_refl : core.
+  #[export] Hint Resolve join_sub_refl : core.
 
   Lemma join_sub_trans {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall a b c,
     join_sub a b ->
@@ -479,7 +479,7 @@ Qed.
     auto.
   Qed.
 
-Hint Resolve join_joins join_joins' join_join_sub join_join_sub' : core.
+#[export] Hint Resolve join_joins join_joins' join_join_sub join_join_sub' : core.
 
   Definition nonidentity {A} `{Perm_alg A} (a: A) := ~(identity a).
 

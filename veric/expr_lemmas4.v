@@ -46,6 +46,8 @@ destruct f; simpl in *; subst; destruct t; try destruct f; tauto.
 * (* Const single *)
 destruct f; simpl in *; subst; destruct t; try destruct f; tauto.
 
+* (* Const long *)
+simpl in *. destruct t; try contradiction. hnf. auto.
 * (*Var*)
 eapply typecheck_expr_sound_Evar; eauto.
 

@@ -45,7 +45,7 @@ Proof.
   unfold data_block. simpl. cancel.
 Qed.
 
-Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
+#[export] Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel; 
        [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.

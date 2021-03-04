@@ -71,7 +71,6 @@ subst.
 unfold_data_at (data_at _ _ _ _).
 forward_call (* SHA256_addlength(c, len); *)
   (len, c, wsh, s256a_len a).
- split; auto.  repeat split; simpl; auto; lia.
 (* TODO:  need a fold_data_at tactic; the next few lines do that here *)
 gather_SEP' [5;0;1;3;4]%Z.
 replace_SEP 0 (data_at wsh t_struct_SHA256state_st

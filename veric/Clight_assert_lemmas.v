@@ -16,7 +16,7 @@ Proof.
   intros. eapply corable_funspecs_assert.
 Qed.
 
-Hint Resolve corable_funassert : core.
+#[export] Hint Resolve corable_funassert : core.
 
 Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
  ALL id : ident , ALL fs : funspec ,

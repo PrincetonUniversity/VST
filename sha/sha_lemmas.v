@@ -666,6 +666,6 @@ subst n.
 apply data_at_memory_block.
 Qed.
 
-Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- memory_block _ _ _) =>
+#[export] Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- memory_block _ _ _) =>
    (apply array_at_memory_block; try reflexivity; try lia) : cancel.
 

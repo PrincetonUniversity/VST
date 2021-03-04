@@ -93,7 +93,6 @@ Proof.
     change (sizeof (*cenv_cs*) (tarray tuchar 384)) with 384.
     normalize. cancel.
   }
-
   (*freeze [1;2;3;4;5;6] FR3.*)
   assert_PROP (field_compatible (tarray tuchar 384) [] seed) as Hfield by entailer!.
   replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
@@ -117,11 +116,6 @@ Proof.
   (* get_entropy(seed, entropy_len ) *)
   thaw FR3. freeze [1;2;3;4;6;7] FR4. 
   forward_call (Tsh, s, seed, entropy_len).
-  { split. split; try lia. rep_lia.
-    apply writable_share_top.
-(*
-    subst entropy_len; auto.*)
-  }
   Intros vret. rename H1 into ENT.
   assert (AL256': add_len >? 256 = false).
   { remember (add_len >? 256) as d.

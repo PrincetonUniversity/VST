@@ -223,7 +223,7 @@ semax (encryption_loop_body_Delta DS)
            (Vint (Int.repr Nr),
            (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf]
               ctx, map Vint (map Int.repr buf))) ctx)))).*)
-Hint Resolve Z0 : inhabited.
+Local Hint Resolve Z0 : inhabited.
 
 Lemma encryption_loop_body_proof: encryption_loop_body_proof_statement.
 Proof.

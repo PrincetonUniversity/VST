@@ -182,7 +182,7 @@ Ltac hint_solves :=
      else  idtac "Hint:  'lia' solves the goal"
  | tryif (try (assert True; [ | solve [rep_lia]]; fail 1)) then fail
      else  idtac "Hint:  'rep_lia' solves the goal"
- | tryif (try (assert True; [ | solve [list_solve]]; fail 1)) then fail
+ | tryif (try (assert True; [ | solve [quick_list_solve]]; fail 1)) then fail
      else  idtac "Hint:  'list_solve' solves the goal"
  | tryif (try (assert True; [ | solve [cstring]]; fail 1)) then fail
      else  idtac "Hint:  'cstring' solves the goal"

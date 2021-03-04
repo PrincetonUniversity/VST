@@ -36,7 +36,8 @@ destruct (Share.split t) eqn:?H.
 pose proof (split_join _ _ _ H2).
 simpl in *.
 destruct (Share.ord_spec1 t2 Share.Lsh) as [? _].
-spec H4. apply leq_join_sub. apply sepalg.join_sub_trans with t; eexists; eauto.
+spec H4. { apply leq_join_sub. apply sepalg.join_sub_trans with t.
+                  eexists. apply sepalg.join_comm. eauto. eexists; eauto. }
 rewrite Share.glb_commute,  <- H4 in H.
 subst.
 apply Share.split_nontrivial in H2; auto.
@@ -94,7 +95,7 @@ apply sepalg.join_comm.
 apply Qsh_Qsh'.
 Qed.
 
-Hint Resolve Qsh_not_readable : core.
+#[export] Hint Resolve Qsh_not_readable : core.
 
 
 Lemma Qsh_nonempty: Qsh <> Share.bot.
@@ -143,7 +144,7 @@ rewrite Share.glb_absorb in H0.
 contradiction.
 Qed.
 
-Hint Resolve Qsh_nonempty : valid_pointer.
+#[export] Hint Resolve Qsh_nonempty : valid_pointer.
 
 Lemma Qsh_nonidentity: sepalg.nonidentity Qsh.
 Proof.
@@ -153,7 +154,7 @@ Proof.
   auto.
 Qed.
 
-Hint Resolve Qsh_nonidentity : valid_pointer.
+#[export] Hint Resolve Qsh_nonidentity : valid_pointer.
 
 Lemma sub_Qsh_Ews: sepalg.join_sub Qsh Ews.
 Proof.
@@ -165,7 +166,7 @@ apply leq_join_sub.
 apply Share.lub_upper1.
 Qed.
 
-Hint Resolve sub_Qsh_Ews: valid_pointer.
+#[export] Hint Resolve sub_Qsh_Ews: valid_pointer.
 
 Lemma field_at_list_cell_weak:
   forall sh i j p,
@@ -368,7 +369,7 @@ intros.
  Intros ht; destruct ht; if_tac; entailer!.
 Qed.
 
-Hint Resolve fifo_isptr : saturate_local.
+#[export] Hint Resolve fifo_isptr : saturate_local.
 
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
 Proof.
@@ -406,7 +407,6 @@ Proof.
   start_function.
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
       (t_struct_fifo, gv).
-  split3;  simpl; auto; computable.
   Intros q.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
@@ -448,10 +448,10 @@ forward_if
    + Intros prefix.
       destruct prefix;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H7).
+      contradiction (field_compatible_isptr _ _ _ H6).
       rewrite lseg_cons_eq by auto. simpl.
       Intros y. saturate_local.
-      contradiction (field_compatible_isptr _ _ _ H11).
+      contradiction (field_compatible_isptr _ _ _ H9).
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   unfold fifo_body.
@@ -516,7 +516,6 @@ Proof.
 start_function. rename a into a0; rename b into b0.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   (t_struct_elem, gv).
- split3; simpl; auto; computable.
  Intros p.
   forward.  (*  p->a=a; *)
   progress simpl.  (* this should not be necessary -- Qinxiang, please look *)
@@ -528,7 +527,7 @@ forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   apply derives_refl.
 Qed.
 
-Hint Resolve readable_share_Qsh' : core.
+#[export] Hint Resolve readable_share_Qsh' : core.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

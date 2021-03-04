@@ -53,7 +53,7 @@ Proof.
   unfold dlock_inv.
   Intros i; cancel.
 Qed.
-Hint Resolve inv_exclusive : core.
+#[export] Hint Resolve inv_exclusive : core.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.

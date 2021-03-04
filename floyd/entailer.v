@@ -23,11 +23,11 @@ Lemma isptr_force_val_sem_cast_neutral :
 Proof.
 intros. destruct p; try contradiction; apply I.
 Qed.
-Hint Resolve isptr_force_val_sem_cast_neutral : norm.
+#[export] Hint Resolve isptr_force_val_sem_cast_neutral : norm.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
-Hint Resolve FF_local_facts: saturate_local.
+#[export] Hint Resolve FF_local_facts: saturate_local.
 
 Ltac simpl_compare :=
  match goal with
@@ -278,13 +278,13 @@ Proof.
 Qed.
 
 
-Hint Resolve sepcon_valid_pointer1 sepcon_valid_pointer2 : valid_pointer.
-Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
-Hint Resolve valid_pointer_null : valid_pointer.
-Hint Resolve valid_pointer_zero32 : valid_pointer.
-Hint Resolve valid_pointer_zero64 : valid_pointer.
-Hint Resolve sepcon_weak_valid_pointer1: valid_pointer. 
-Hint Resolve sepcon_weak_valid_pointer2: valid_pointer. 
+#[export] Hint Resolve sepcon_valid_pointer1 sepcon_valid_pointer2 : valid_pointer.
+#[export] Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
+#[export] Hint Resolve valid_pointer_null : valid_pointer.
+#[export] Hint Resolve valid_pointer_zero32 : valid_pointer.
+#[export] Hint Resolve valid_pointer_zero64 : valid_pointer.
+#[export] Hint Resolve sepcon_weak_valid_pointer1: valid_pointer. 
+#[export] Hint Resolve sepcon_weak_valid_pointer2: valid_pointer. 
 
 
 (* TODO: test_order need to be added *)
@@ -389,7 +389,7 @@ Proof.
 destruct x; simpl; intros; try contradiction.
 split; auto. apply Ptrofs.eq_true.
 Qed.
-Hint Resolve ptr_eq_refl : prove_it_now.
+#[export] Hint Resolve ptr_eq_refl : prove_it_now.
 
 Lemma ptr_eq_nullval: ptr_eq nullval nullval.
 Proof.
@@ -399,9 +399,9 @@ split3; auto.
 Opaque Archi.ptr64.
 Qed.
 
-Hint Resolve ptr_eq_nullval : prove_it_now.
+#[export] Hint Resolve ptr_eq_nullval : prove_it_now.
 
-Hint Extern 4 (value_fits _ _ _) =>
+#[export] Hint Extern 4 (value_fits _ _ _) =>
    (rewrite ?proj_sumbool_is_true by auto;
     rewrite ?proj_sumbool_is_false by auto;
     repeat simplify_value_fits; auto) : prove_it_now.
@@ -533,25 +533,6 @@ Qed.
 
 Ltac clean_up_stackframe := idtac.
 
-Ltac entailer :=
- try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
-        clear POSTCONDITION
-      end;
- try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
-        clear MORE_COMMANDS
-      end;
- match goal with
- | |- ?P |-- _ =>
-    match type of P with
-    | ?T => unify T (environ->mpred); clean_up_stackframe; go_lower
-    | _ => clear_Delta; pull_out_props
-    end
- | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
- end;
- saturate_local;
- entailer';
- rewrite <- ?sepcon_assoc.
-
 Lemma my_auto_lem:
  forall (P Q: Prop), (P -> Q) -> (P -> Q).
 Proof. auto. Qed.
@@ -590,23 +571,56 @@ Proof.
 intros. apply andp_right; auto. apply prop_right; auto.
 Qed.
 
-Ltac entbang :=
- intros;
+Definition prop_and_same_derives_mpred := 
+  @prop_and_same_derives mpred _.
+
+Ltac entailer :=
  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
         clear POSTCONDITION
       end;
  try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
         clear MORE_COMMANDS
       end;
- match goal with
- | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower; try apply empTrue
+ lazymatch goal with
  | |- ?P |-- _ =>
-    match type of P with
-    | ?T => unify T mpred; pull_out_props
+    lazymatch type of P with
+    | ?T => tryif unify T (environ->mpred)
+                 then (clean_up_stackframe; go_lower)
+                 else tryif unify T mpred
+                    then (clear_Delta; pull_out_props)
+                    else fail "Unexpected type of entailment, neither mpred nor environ->mpred"
+    end
+ | |- _ => fail  "The entailer tactic works only on entailments   _ |-- _ "
+ end;
+ try solve [simple apply prop_right; my_auto];
+ try solve [simple apply prop_and_same_derives_mpred; my_auto];
+ saturate_local;
+ entailer';
+ rewrite <- ?sepcon_assoc.
+
+
+Ltac entbang :=
+ intros;
+ try lazymatch goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
+        clear POSTCONDITION
+      end;
+ try lazymatch goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
+        clear MORE_COMMANDS
+      end;
+ lazymatch goal with
+ | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower;
+          rewrite ?TT_andp, ?andp_TT; try apply TT_right
+ | |- ?P |-- _ =>
+    lazymatch type of P with
+    | ?T => tryif unify T (environ->mpred)
+                 then fail "entailer! found an (environ->mpred) entailment that is missing its 'local' left-hand-side part (that is, Delta)"
+                 else tryif unify T mpred
+                    then (clear_Delta; pull_out_props)
+                    else fail "Unexpected type of entailment, neither mpred nor environ->mpred"
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
  end;
- repeat match goal with
+ repeat lazymatch goal with
         | |- context [force_val (sem_binary_operation' ?op ?t1 ?t2 ?v1 ?v2)] =>
           progress 
               simpl  (* This simpl is safe, because its argument is not
@@ -623,7 +637,7 @@ Ltac entbang :=
  repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
  first [ contradiction
         | simple apply prop_right; my_auto
-        | match goal with |- ?Q |-- !! _ && ?Q' => constr_eq  Q Q';
+        | lazymatch goal with |- ?Q |-- !! _ && ?Q' => constr_eq  Q Q';
                       simple apply prop_and_same_derives'; my_auto
           end
         | simple apply andp_right;
@@ -635,7 +649,7 @@ Ltac entbang :=
 Tactic Notation "entailer" "!" := entbang.
 
 Ltac elim_hyps :=  (* not in use anywhere? *)
- repeat match goal with
+ repeat lazymatch goal with
  | H: isptr ?x |- _ =>
      let x1 := fresh x "_b" in let x2 := fresh x "_ofs" in
      destruct x as [ | | | | | x1 x2]; inv H
@@ -660,16 +674,13 @@ repeat match goal with
  | A := _ |- _ =>  clear A || (revert A; match goal with |- ?B => no_evars B end)
  | H : ?P |- _ =>
   match type of P with
-  | Prop => match P with name _ => fail 2 | _ => revert H; match goal with |- ?B => no_evars B end end
+  | Prop => revert H; match goal with |- ?B => no_evars B end
   | _ => clear H || (revert H; match goal with |- ?B => no_evars B end)
   end
 end;
 repeat match goal with
  | x := ?X |- _ => is_evar X; clearbody x; revert x; apply EVAR_e
-end;
-repeat match goal with
-  | H : name _ |- _ => revert H
- end.
+end.
 
 Lemma EVAR_i: forall P: Prop, P -> EVAR P.
 Proof. intros. apply H. Qed.
@@ -754,7 +765,7 @@ Proof.
   lia. 
 Qed.
 
-Hint Resolve cstring_local_facts : saturate_local.
+#[export] Hint Resolve cstring_local_facts : saturate_local.
 
 Lemma cstring_valid_pointer: forall {CS : compspecs} sh s p, 
    nonempty_share sh -> 
@@ -767,7 +778,7 @@ Proof.
   rewrite Z.max_r; lia.
 Qed.
 
-Hint Resolve cstring_valid_pointer : valid_pointer.
+#[export] Hint Resolve cstring_valid_pointer : valid_pointer.
 Definition cstringn {CS : compspecs} sh (s: list byte) n p :=
   !!(~In Byte.zero s) &&
   data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
@@ -831,7 +842,7 @@ Proof.
   rep_lia.
 Qed.
 
-Hint Resolve cstringn_local_facts : saturate_local.
+#[export] Hint Resolve cstringn_local_facts : saturate_local.
 
 Lemma cstringn_valid_pointer: forall {CS : compspecs} sh s n p, 
      nonempty_share sh -> 
@@ -846,7 +857,7 @@ Proof.
   rewrite Z.max_r; lia.
 Qed.
 
-Hint Resolve cstringn_valid_pointer : valid_pointer.
+#[export] Hint Resolve cstringn_valid_pointer : valid_pointer.
 
 
 Lemma Znth_zero_zero:

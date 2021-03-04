@@ -72,16 +72,16 @@ Proof.
   rewrite <- ZL_VV.
   freeze [0;5;6;7;9] FR2.
   forward_call (Vptr b i, shc, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
-  { split3; auto. split; auto. 
+  { split3; auto. split; auto. computable.
   }
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4;5] FR3.
-  forward_call (shc, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
+ forward_call
+  (shc, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
      - cancel. }
-
   (*ctx->reseed_interval = MBEDTLS_HMAC_DRBG_RESEED_INTERVAL;*)
   rewrite ZL_VV.
   thaw FR3. thaw FR2. unfold md_relate. simpl.
@@ -140,13 +140,8 @@ Proof.
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
-  { split3; auto. subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite hmac_pure_lemmas.ptrofs_max_unsigned_eq.
-    split. lia. (* rewrite int_max_unsigned_eq; lia.*)
-    split. reflexivity.
-    split. reflexivity.
-    split. lia.
-    split. (*change Int.modulus with 4294967296.*) lia.
-     (* change Int.modulus with 4294967296.*)
+  { split; auto. compute; congruence. subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite hmac_pure_lemmas.ptrofs_max_unsigned_eq.
+    split. lia. 
        unfold contents_with_add. simple_if_tac. lia. rewrite Zlength_nil; lia.
   }
 
@@ -157,14 +152,6 @@ Proof.
   forward.
   deadvars!. 
   forward_if (v = nullval).
-(*
-   PROP ( v = nullval)
-   LOCAL (temp _ret v; temp _t'7 v;
-   temp _entropy_len (Vint (Int.repr 32)); temp _ctx (Vptr b i);
-   gvars gv)
-   SEP (reseedPOST v Data data shd (Zlength Data) s
-          myABS (Vptr b i) shc Info gv ST; FRZL OLD_MD)).
-*)
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
@@ -182,7 +169,7 @@ Proof.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
-      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. lia. }
+      { apply Zgt_is_gt_bool_f. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; lia. }
       unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
@@ -198,7 +185,7 @@ Proof.
 
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
-  destruct d; Intros.
+  destruct d; Intros. inv H.
 
   assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
       { destruct ZLc' as [HH | HH]; rewrite HH. reflexivity.

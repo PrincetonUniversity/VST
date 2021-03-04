@@ -65,7 +65,8 @@ to C programs}%
 \savepagenumber
 \mainmatter
 \restorepagenumber
-\renewcommand{\chaptermark}[1]{\markboth{\thechapter.~#1\hfill{\textcolor{red}\thefile}\hspace*{2em}}{}}
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter.~#1\hfill{%\textcolor{red}
+\thefile}\hspace*{2em}}{}}
 
 \chapter{Overview}
 Verifiable C is a language and program logic for reasoning about the
@@ -4526,6 +4527,69 @@ DECLARE _exit
    PROP(False) RETURN() SEP().
 \end{lstlisting}
 
+\ychapter{Union casting}{\file{progs/union.c}}
+\label{refcard:union-casting}
+
+Normally in C, if you store a value to one field of a union type, you should fetch back from the same field.  But there are some special cases where you can perform a type conversion by storing to one field, then fetching from another.
+These examples are illustrated in \file{progs/union.c}
+and \file{progs/verif\_union.c}.
+
+\begin{lstlisting}[language=C]
+/* convert const char* to char */
+const char *x; char *y;
+union const_or_not {const char *c; char *n; } u;
+u.c = x;
+y = u.n;
+\end{lstlisting}
+
+This conversion is ``easy'' because VST's type for \lstinline{const char *} is exactly
+the same as its type for \lstinline{char *}.  We just need this lemma:
+
+\begin{lstlisting}
+Lemma unconst_aux:
+  forall (x: val) v, 
+      data_at Tsh (Tunion _const_or_not noattr) (inl x) v =
+      data_at Tsh (Tunion _const_or_not noattr) (inr x) v.
+Proof. reflexivity. Qed.
+\end{lstlisting}
+Here, the \lstinline{inl x} and \lstinline{inr x} correspond to the left and
+right sides of the Coq sum type that VST uses to represent
+\emph{the data stored in }
+the first or second fields of C's union type.  And in this case,
+the since the field types are the same, the \lstinline{data_at} representations
+are also the same.  You can use this lemmas in the proof of the two commands \lstinline[language=C]{u.c=x; y=u.n;}
+\begin{lstlisting}
+forward. rewrite uconst_aux. forward.
+\end{lstlisting}
+
+\newthought{Converting a float to/from its integer representation} as sign, exponent, mantissa can be done as follows:
+\begin{lstlisting}[language=C]
+float x; unsigned int n; 
+union f_or_i {float f; unsigned int i; } u;
+u.f = x; n = u.i;
+\end{lstlisting}
+
+In this case, the representation of a \lstinline{Vfloat} is not the same
+as a \lstinline{Vint}, but VST's \lstinline{forward} tactic has a special hack
+built in.  When two C commands appear sequentially, where the first
+stores to field $A$ a union, and the second loads from a different field $B$
+of the same union; and where \emph{both} are numeric types of the same size;
+then the postcondition of the first command has a \lstinline{data_at}
+adapted for $B$ rather than $A$.  You'll also get a warning message
+about ``Converting numeric representations''.
+
+When two C commands appear in a row, where the first
+stores to field $A$ a union, and the second loads from a different field $B$
+of the same union, but $A$ and $B$ are \emph{not} numeric types of the
+same size, then you get a warning message ``Suggestion: you are storing to one field of a union, then loading from another...''.  In such a case, you may wish
+to rewrite by a lemma such as \lstinline{unconst_aux} as described above.
+
+You can disable these warning messages by,
+\begin{lstlisting}
+Ltac union_hack_message id1 id2 ::= idtac.  
+Ltac numeric_forward_store_union_hack id1 id2 ::= idtac.
+\end{lstlisting}
+
 \chapter{Old-style funspecs}
 \label{refcard:old-funspec}
 
@@ -4882,12 +4946,6 @@ component to the application of a sequence of initializations to the
 host function's func\_tycontext.  Used to prepare the current
 proof goal for abstracting/factoring out as a separate lemma.
 % Superordinate tactics:  $\mathit{semax\_subcommand}$\\
-
-\item[\textsf{name} $i$ $\_i$]
-  (tactic)
-  Before \lstinline{start_function}, suggest the name $i$
-  for the Coq variable
-  associated with the value of C global variable $\_i$.
 
 \item[\textsf{semax\_subcommand\ $V$\ $G$\ $F$}]
 (tactic)

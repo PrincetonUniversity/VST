@@ -48,8 +48,8 @@ Ltac hide_it z := let x := fresh "x" in set (x:=z); change z with (CLEAR_ME z) i
 
 Ltac hnf_localdef_list A :=
   match A with
- | temp _ ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
- | lvar _ ?t ?v :: ?Q' => hide_it t; hide_it v; hnf_localdef_list Q'
+ | temp ?i ?v :: ?Q' => hide_it v; let i' := eval compute in i in change i with i'; hnf_localdef_list Q'
+ | lvar ?i ?t ?v :: ?Q' => hide_it t; hide_it v; let i' := eval compute in i in change i with i'; hnf_localdef_list Q'
  | gvars ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
   | ?B :: ?C => let x := eval hnf in B in change B with x; hnf_localdef_list (x::C)
   | nil => idtac
@@ -66,8 +66,8 @@ Ltac prove_local2ptree :=
  clear;
  match goal with |- local2ptree ?A = _ => hnf_localdef_list A end;
  etransitivity;
- [unfold local2ptree, local2ptree_aux; simpl;
-  repeat match goal with x := CLEAR_ME _ |- _ => unfold CLEAR_ME in x; subst x end;
+ [cbv beta iota delta [local2ptree local2ptree1 local2ptree_aux
+     PTree.set PTree.empty PTree.get  ]; 
   reflexivity |
   repeat match goal with x := CLEAR_ME _ |- _ => unfold CLEAR_ME in x; subst x end;
   apply f_equal;

@@ -18,6 +18,13 @@ void *h(void *p) {
 }
 
 
+char *unconst(const char *x) {
+  union const_or_not {const char *c; char *n;} t;
+  t.c= x;
+  return t.n;
+}
+
+
 /* the next function is more crazy . . . */
 
 float fabs_single (float x) {

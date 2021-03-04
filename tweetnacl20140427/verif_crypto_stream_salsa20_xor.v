@@ -347,7 +347,7 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
     rewrite Zbits.Zzero_ext_spec; trivial. rewrite (Zbits.Ztestbit_mod_two_p 8); trivial.
     rewrite Int.unsigned_repr; trivial.
     symmetry in HeqX. apply ZZ_is_byte in HeqX.
-    destruct (Byte.unsigned_range_2 (Znth i Zi)). rep_lia.
+    destruct (Byte.unsigned_range_2 (Znth i Zi)). rep_lia. computable.
   + destruct (Z_mod_lt (Int.unsigned ui + Byte.unsigned (Znth i Zi)) 256). 
     lia. rewrite byte_unsigned_max_eq; lia.
 }
@@ -812,12 +812,13 @@ forward_if
   clear H.
   forward. entailer!.
   unfold crypto_stream_xor_postsep. 
-  rewrite Int64.eq_true. cancel. }
+  rewrite Int64.eq_true. cancel. congruence.
+ }
 { unfold typed_false, strict_bool_val in H. simpl in H.
   unfold eval_unop in H. simpl in H.
   specialize (Int64.eq_spec b Int64.zero). intros.
-  destruct (Int64.eq b Int64.zero); simpl in *. inv H.
-  clear H.
+  destruct (Int64.eq b Int64.zero); simpl in *.  congruence.
+  clear H0.
   forward. Time entailer!. }
 Intros. rename H into B.
 assert_PROP (field_compatible (Tarray tuchar (Int64.unsigned b) noattr) [] c) as FC by entailer!.
@@ -927,7 +928,6 @@ forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K mCont zbyt
 }
 { entailer!. }
 { remember (Z.of_nat rounds * 64)%Z as r64.
-  apply Int64_ltu_false in HRE; rewrite Int64.unsigned_repr in HRE. 2: lia.
   destruct (zle (r64 + 64) (Int64.unsigned bInit)).
   2:{ exfalso. assert (X: 64 > Int64.unsigned bInit - r64) by lia. clear g.
            destruct (Int64.unsigned_range_2 bInit) as [X1 X2].
@@ -1086,8 +1086,6 @@ apply (CONT_succ SIGMA K mInit mCont zbytes rounds _ _ CONT _ D
 }
 
 (*continuation if (b) {...} *)
-apply Int64.ltu_inv in HRE.
-rewrite Int64.unsigned_repr in HRE. 2: lia.
 remember (Z.of_nat rounds * 64)%Z as r64.
   destruct (zle (r64 + 64) (Int64.unsigned bInit)).
   exfalso. assert (X: 64 <= Int64.unsigned bInit - r64) by lia. clear l.

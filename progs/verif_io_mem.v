@@ -181,11 +181,13 @@ Proof.
     rewrite divu_repr by rep_lia.
     forward.
     forward_call (sh, i / 10, buf, contents).
-    { rewrite intr_lt by lia; split; auto.
+    { rewrite intr_lt by lia; split; auto; try lia.
       assert (i / 10 < i).
       { apply Z.div_lt; lia. }
-      split; [split|]; try lia.
-      apply Z.div_pos; lia. }
+       split.
+      apply Z.div_pos; lia. 
+      rep_lia.
+    }
     rewrite modu_repr by (lia || computable).
     assert (repable_signed (Zlength (intr (i / 10)))).
     { split; try rep_lia.
@@ -354,7 +356,6 @@ Proof.
   intros.
   unfold read_sum.
   rewrite unfold_iter.
-  unfold ITree._iter, id.
   if_tac; [|rewrite bind_ret_l; reflexivity].
   rewrite bind_bind.
   apply eqit_bind; [|reflexivity].
@@ -374,7 +375,6 @@ Proof.
   intros.
   unfold for_loop.
   rewrite unfold_iter.
-  unfold ITree._iter, id.
   simple_if_tac; [|rewrite bind_ret_l; reflexivity].
   rewrite bind_bind.
   apply eqit_bind; [|reflexivity].

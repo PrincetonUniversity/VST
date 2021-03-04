@@ -134,6 +134,21 @@ intro; subst.
 rewrite Int.eq_true in H; inv H.
 Qed.
 
+Lemma int64_eq_false_e:
+  forall i j, Int64.eq i j = false -> i <> j.
+Proof.
+intros.
+intro; subst.
+rewrite Int64.eq_true in H; inv H.
+Qed.
+
+Lemma ptrofs_eq_false_e:
+  forall i j, Ptrofs.eq i j = false -> i <> j.
+Proof.
+intros.
+intro; subst.
+rewrite Ptrofs.eq_true in H; inv H.
+Qed.
 
 Lemma semax_ifthenelse_PQR' :
    forall Espec {cs: compspecs} (v: val) Delta P Q R (b: expr) c d Post,

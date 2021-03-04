@@ -37,11 +37,11 @@ Lemma field_address_offset:
 Proof. intros. unfold field_address; rewrite if_true by auto; reflexivity.
 Qed.
 
-Hint Extern 2 (field_compatible0 _ (ArraySubsc _ :: _) _) =>
+#[export] Hint Extern 2 (field_compatible0 _ (ArraySubsc _ :: _) _) =>
    (eapply field_compatible0_cons_Tarray; [reflexivity | | lia])
   : field_compatible.
 
-Hint Extern 2 (field_compatible _ (ArraySubsc _ :: _) _) =>
+#[export] Hint Extern 2 (field_compatible _ (ArraySubsc _ :: _) _) =>
    (eapply field_compatible_cons_Tarray; [reflexivity | | lia])
   : field_compatible.
 
@@ -102,16 +102,16 @@ lia.
 Qed.
 
 
-Hint Extern 2 (field_compatible (Tarray _ _ _) nil _) =>
+#[export] Hint Extern 2 (field_compatible (Tarray _ _ _) nil _) =>
    (eapply field_compatible_array_smaller0; [eassumption | lia]) : field_compatible.
 
-Hint Extern 2 (field_compatible (tarray _ _) nil _) =>
+#[export] Hint Extern 2 (field_compatible (tarray _ _) nil _) =>
    (eapply field_compatible_array_smaller0; [eassumption | lia]) : field_compatible.
 
-Hint Extern 2 (field_compatible0 (Tarray _ _ _) nil _) =>
+#[export] Hint Extern 2 (field_compatible0 (Tarray _ _ _) nil _) =>
    (eapply field_compatible0_array_smaller0; [eassumption | lia]) : field_compatible.
 
-Hint Extern 2 (field_compatible0 (tarray _ _) nil _) =>
+#[export] Hint Extern 2 (field_compatible0 (tarray _ _) nil _) =>
    (eapply field_compatible0_array_smaller0; [eassumption | lia]) : field_compatible.
 
 Lemma field_compatible0_array_smaller1:
@@ -146,15 +146,15 @@ lia.
    lia.
 Qed.
 
-Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
+#[export] Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
    (eapply field_compatible0_array_smaller1; [eassumption | lia | lia]) : field_compatible.
 
-Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
+#[export] Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
    (eapply field_compatible0_array_smaller1; [eassumption | lia | lia]) : field_compatible.
 
 Arguments nested_field_array_type {cs} t gfs lo hi / .
 
-Hint Resolve field_compatible_field_compatible0 : field_compatible.
+#[export] Hint Resolve field_compatible_field_compatible0 : field_compatible.
 
 Lemma field_compatible0_ArraySubsc0:
  forall {cs: compspecs} t gfs p,
@@ -256,11 +256,11 @@ hnf in H0,H2|-*.
 tauto.
 Qed.
 
-Hint Resolve field_compatible0_ArraySubsc0 : field_compatible.
+#[export] Hint Resolve field_compatible0_ArraySubsc0 : field_compatible.
 
-Hint Extern 2 (legal_nested_field0 _ _) =>
-  (apply compute_legal_nested_field0_spec'; repeat constructor; lia) : field_compatible.
-Hint Extern 2 (field_compatible0 _ _ (offset_val _ _)) =>
+#[export] Hint Extern 2 (legal_nested_field0 _ _) =>
+  (apply compute_legal_nested_field0_spec'; repeat constructor; rep_lia) : field_compatible.
+#[export] Hint Extern 2 (field_compatible0 _ _ (offset_val _ _)) =>
   (apply field_compatible0_nested_field_array; auto with field_compatible) : core. (*FIXME: should be field_compatible*)
 
 Lemma split2_data_at_Tarray_unfold {cs: compspecs}
@@ -454,10 +454,10 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
 Qed.
 
 (*
-Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
+#[export] Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
     (eapply field_compatible0_Tarray_offset; [eassumption | lia | lia]) : field_compatible.
 
-Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
+#[export] Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
     (eapply field_compatible0_Tarray_offset; [eassumption | lia | lia]) : field_compatible.
 *)
 
@@ -1034,3 +1034,6 @@ Proof. intros.
   eapply (mapsto_zeros_mapsto_nullval_N N sh); trivial.
   Intros. apply sepconN_mapsto_array; trivial.
 Qed.
+
+Lemma mapsto_zeros_isptr z sh p : mapsto_zeros z sh p |-- !! isptr p.
+Proof. unfold mapsto_zeros. destruct p; try apply FF_left. apply prop_right. simpl; trivial. Qed.

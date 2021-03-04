@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.13.0 or-else 8.13.1 or-else 8.11.2 or-else 8.12+beta1 or-else 8.12.2
+COQVERSION= 8.12.0 or-else 8.12.1 or-else 8.12.2 or-else 8.13+beta1 or-else 8.13.0
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -80,11 +80,11 @@ ifeq ($(COMPCERT),platform)
   ifeq ($(BITSIZE),)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
     COMPCERT_EXPLICIT_PATH = false
-  else ifeq ($(BITSIZE),32)
+  else ifeq ($(BITSIZE),64)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
     COMPCERT_EXPLICIT_PATH = false
-  else ifeq ($(BITSIZE),64)
-    COMPCERT_INST_DIR = $(COQLIB)/../coq-variant/compcert64/compcert
+  else ifeq ($(BITSIZE),32)
+    COMPCERT_INST_DIR = $(COQLIB)/../coq-variant/compcert32/compcert
   else 
     $(error ILLEGAL BITSIZE $(BITSIZE))
   endif
@@ -145,7 +145,7 @@ endif
 
 # ##### Configure Architecture #####
 
-ifneq ($(COMPCERT_SRC_DIR),)
+ifneq ($(COMPCERT_SRC_DIR),__NONE__)
   # We are building CompCert from source and can choose BITSIZE and ARCH
 
   ifeq ($(BITSIZE),)
@@ -223,13 +223,13 @@ FLOCQ= -Q $(COMPCERT_INST_DIR)/flocq Flocq  # this mode to use the flocq built i
 # ##### Configure installation folder #####
 
 ifeq ($(ARCH),x86)
-  ifeq ($(BITSIZE),32)
+  ifeq ($(BITSIZE),64)
     INSTALLDIR ?= $(COQLIB)/user-contrib/VST
   else
-    INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST64/VST)
+    INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST32/VST)
   endif
 else
-  INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST_$(ARCH)_$(BITSIZE)/VST
+  INSTALLDIR ?= $(abspath $(COQLIB)/../coq-variant/VST_$(ARCH)_$(BITSIZE)/VST)
 endif
 
 # ########## Flags ##########
@@ -252,7 +252,7 @@ endif
 
 # Compcert Clightgen flags
 
-CGFLAGS =  -DCOMPCERT
+CGFLAGS =  -DCOMPCERT -short-idents
 
 #ifeq ($(COMPCERT_NEW),true)
 #SHIM= -Q concurrency/shim VST.veric
@@ -460,7 +460,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v VSU_addmain.v \
+   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v quickprogram.v PTops.v Component.v QPcomposite.v \
    Zlength_solver.v list_solver.v data_at_list_solver.v
 #real_forward.v
 
@@ -512,6 +512,7 @@ SHA_FILES= \
   verif_sha_bdo4.v verif_sha_bdo7.v verif_sha_bdo8.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
   verif_addlength.v verif_SHA256.v call_memcpy.v
+SHA_C_FILES= sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 
 HMAC_FILES= \
   HMAC_functional_prog.v HMAC256_functional_prog.v \
@@ -654,10 +655,12 @@ INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
 %.vo: %.v
 	@echo COQC $*.v
-ifeq ($(TIMINGS), true)
+ifneq (,$(TIMING))
+	@$(COQC) $(COQF) -time $*.v > $<.timing
+else ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQF) $*.v; date +'%s.%N after' >>timings" 2>>timings
-	echo true timings
-	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQF) $*.v"
+	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shel
+l wc $*.v)\" $(COQC) $(COQF) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQF) $*.v"
 else ifeq ($(TIMINGS), simple)
 	@/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQF) $*.v
@@ -682,6 +685,7 @@ ifeq ($(BITSIZE),64)
 travis: default_target progs
 else
 travis: default_target progs sha hmac mailbox VSUpile
+travisx: default_target progs sha hmac mailbox
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
@@ -748,17 +752,29 @@ clean_cvfiles:
 
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
 ifdef CLIGHTGEN
-sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
-	$(CLIGHTGEN) ${CGFLAGS} $^
-$(PROGSDIR)/even.v: $(PROGSDIR)/even.c $(PROGSDIR)/odd.c
+all-cv-files: $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES) even.c odd.c) \
+              $(patsubst %.c,%.v, $(SHA_C_FILES)) \
+              aes/aes.v tweetnacl20140427/tweetnaclVerifiableC.v \
+              mailbox/mailbox.v
+ifneq (, $(findstring -short-idents, $(CGFLAGS)))
+$(patsubst %.c,%.v, $(SHA_C_FILES)) &: $(SHA_C_FILES)
 	$(CLIGHTGEN) ${CGFLAGS} $^
 $(PROGSDIR)/odd.v: $(PROGSDIR)/even.v
 mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
+else
+ifeq (, $(findstring -canonical-idents, $(CGFLAGS)))
+  $(warning CGFLAGS contains neither -short-idents nor -canonical-idents, using default which is probably -canonical-idents)
+endif
+$(patsubst %.c,%.v, $(SHA_C_FILES)): %.v: %.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
+endif
 aes/aes.v: aes/mbedtls/library/aes.c aes/mbedtls/include/mbedtls/config.h \
               aes/mbedtls/include/mbedtls/check_config.h
 	$(CLIGHTGEN) ${CGFLAGS} -Iaes/mbedtls/include $<; mv aes/mbedtls/library/aes.v aes/aes.v
-tweetnacl20140427/tweetnaclVerifiableC.v: tweetnaclVerifiableC.c
+$(PROGSDIR)/even.v: $(PROGSDIR)/even.c $(PROGSDIR)/odd.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
+tweetnacl20140427/tweetnaclVerifiableC.v: tweetnacl20140427/tweetnaclVerifiableC.c
 	$(CLIGHTGEN) ${CGFLAGS} -normalize $<
 # GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
 $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES)): $(PROGSDIR)/%.v: $(PROGSDIR)/%.c
@@ -766,7 +782,7 @@ $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES)): $(PROGSDIR)/%.v: $(PROGSDIR)
 endif
 
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
-	sh util/make_version
+	sh util/make_version ${BITSIZE}
 
 _CoqProject _CoqProject-export: Makefile util/coqflags $(COMPCERT_CONFIG)
 	echo $(COQFLAGS) > _CoqProject
@@ -842,8 +858,8 @@ progs64c: $(C64_ORDINARY:%.c=progs64/%.c)
 progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.v) depend
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
-VSUpile: floyd/proofauto.vo floyd/VSU.vo floyd/VSU_addmain.vo
-	cd progs/VSUpile; $(MAKE)
+VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
+	cd progs/VSUpile; $(MAKE) VST_LOC=../..
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)

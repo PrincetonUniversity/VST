@@ -105,32 +105,7 @@ Definition eval_sgvar (id: ident) (ty: type) (rho: environ) :=
 | Some b => Vptr b Ptrofs.zero
 | None => Vundef
 end.
-(*
-Lemma eval_sgvar_lemma1:
-  forall (F: val -> mpred) ofs id t,
-    F Vundef |-- FF ->
-   `F (`(offset_val ofs) (eval_sgvar id t)) =
-   (EX v:val, local (locald_denote (sgvar id v)) && `(F (offset_val ofs v))).
-Proof.
-intros.
-extensionality rho.
-unfold_lift. unfold local, lift1.
-unfold eval_sgvar.
-simpl.
-apply pred_ext.
-unfold sgvar_denote.
-destruct (Map.get (ge_of rho) id).
-apply exp_right with (Vptr b Ptrofs.zero).
-normalize.
-eapply derives_trans; [ apply H | ].
-apply FF_left.
-unfold sgvar_denote.
-apply exp_left; intro; normalize.
-destruct (Map.get (ge_of rho) id).
-subst. auto.
-contradiction.
-Qed.
-*)
+
 Definition init_data2pred'
      (Delta: tycontext) (gv: globals) (d: init_data)  (sh: share) (v: val) : mpred :=
  match d with
@@ -733,10 +708,6 @@ clear H H0 H1 H2 H3 H4 H5 H6.
 unfold globvars_in_process.
 unfold globvars2pred.
 change (lift_S (LiftEnviron Prop)) with environ in *.
-(*unfold lift2.
-change  (fun rho : environ => gz = globals_of_env rho)
-  with (locald_denote (gvars gz)) in H7|-*.
-*)
 go_lowerx. unfold lift2.
 normalize.
 rewrite sepcon_assoc.
@@ -885,7 +856,7 @@ Proof. intros. subst. reflexivity. Qed.
 (*
 Lemma main_pre_start:
  forall {Z} prog (gv:ident -> val) (ora : Z),
-   main_pre prog ora gv = (PROPx nil (LAMBDAx (gv::nil) nil (SEPx (has_ext ora::nil)))%assert * gglobvars2pred gv (prog_vars prog)).
+   main_pre prog ora gv = (PROPx nil (LAMBDAx (gv::nil) nil (SEPx (has_ext ora::nil)))%assert * (globvars2pred gv (prog_vars prog))).
 Proof.
 intros.
 unfold main_pre.
@@ -928,7 +899,7 @@ Qed.
 
 (*
 Lemma init_data2pred_ge_eq {rho sigma a sh v} (RS : ge_of rho = ge_of sigma):
-      init_data2pred a sh v rho = init_data2pred a sh v sigma.
+      init_data2pred a sh v = init_data2pred a sh v sigma.
 Proof. destruct a; simpl; intros; trivial. rewrite RS; trivial. Qed.
 
 Lemma initdata_list2pred_ge_eq {rho sigma} (RS : ge_of rho = ge_of sigma):
@@ -1155,7 +1126,7 @@ unfold data_at_rec;  simpl.
 unfold mapsto. simpl. rewrite if_true by apply H13.
 rewrite andb_false_r.
 apply orp_right1.
-rewrite prop_true_andp by auto.
+rewrite prop_true_andp by apply mapsto_memory_block.is_pointer_or_null_nullval.
 {
 change (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr). constructor.
 apply mapsto_memory_block.address_mapsto_address_mapsto_zeros; auto.
@@ -1349,7 +1320,9 @@ Qed.
 
 Ltac process_idstar :=
      process_one_globvar;
-     lazymatch goal with |- ENTAIL _, globvars_in_process _ _ ?A _ |-- _ =>
+     lazymatch goal with Delta := @abbreviate tycontext _ 
+                             |- ENTAIL _, globvars_in_process _ _ ?A _ |-- _ =>
+      match A with id2pred_star _ _ _ (_ ?i) _ =>
          let p := fresh "p" in set (p:=A);
          simpl in p;
          unfold id2pred_star, init_data2pred' in p;
@@ -1357,8 +1330,22 @@ Ltac process_idstar :=
          cbv beta iota zeta in p;
          simpl init_data_size in p;
          revert p; rewrite ?offset_offset_val; intro p; simpl Z.add in p;
+         let t := constr:(match (glob_types Delta) ! i with Some x => x | _ => Tvoid end) in
+         let t := eval hnf in t in
+         match t with Tpointer ?t2 _ =>
+           repeat match goal with p := ?D |- _ =>
+                       match D with context [mapsto ?sh ?t' ?q ?v] =>
+                            revert p;
+                           change (mapsto sh t' q v) with (mapsto sh size_t q nullval);
+                           rewrite <- (mapsto_size_t_tptr_nullval sh q t2);
+                           intro p
+                       end end
+         | _ => idtac end;
+         try change (mapsto ?sh _ (?gv i) ?v) with (mapsto sh t (gv i) v) in p;
          subst p;
          repeat simple apply move_globfield_into_done
+      | _ => idtac
+       end
     | |- ENTAIL _, _ |-- _ => idtac
     end.
 
@@ -1380,6 +1367,15 @@ destruct ( build_composite_env' c w).
 reflexivity.
 Qed.
 
+Ltac process_globals :=
+  repeat process_idstar; 
+  change (Share.lub extern_retainer _) with Ews;
+  change (Share.lub extern_retainer _) with Ers;
+  try change (Vint oo _) with (Vint oo id);
+  fold_types;
+  rewrite ?Combinators.compose_id_right;
+  apply ENTAIL_refl.
+
 Ltac expand_main_pre_old :=
  match goal with | |- semax _ (main_pre_old ?prog _ _ * _) _ _ =>
     rewrite main_pre_start_old;
@@ -1388,15 +1384,10 @@ Ltac expand_main_pre_old :=
     rewrite main_pre_start_old;
     unfold prog_vars, prog
  end;
+rewrite prog_defs_Clight_mkprogram;
 simpl globvars2pred;
 simple eapply semax_process_globvars;
- [repeat process_idstar; 
-  change (Share.lub extern_retainer _) with Ews;
-  change (Share.lub extern_retainer _) with Ers;
-  try change (Vint oo _) with (Vint oo id);
-  fold_types;
-  rewrite ?Combinators.compose_id_right;
-  apply ENTAIL_refl
+ [process_globals
  | tryif (simple apply finish_process_globvars) then idtac
     else idtac "Warning: could not process all the extern variables in main_pre"
  ];

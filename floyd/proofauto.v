@@ -95,14 +95,14 @@ Hint Rewrite modu_repr using rep_lia : entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
 
-Hint Extern 1 (Vundef = default_val _) => reflexivity : cancel.
-Hint Extern 1 (default_val _ = Vundef) => reflexivity : cancel.
-Hint Extern 1 (list_repeat _ Vundef = default_val _) => reflexivity : cancel.
-Hint Extern 1 (default_val _ = list_repeat _ Vundef) => reflexivity : cancel.
-Hint Extern 1 (Vundef :: _ = default_val _) => reflexivity : cancel.
-Hint Extern 1 (default_val _ = Vundef :: _) => reflexivity : cancel.
-Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
-Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
+#[export] Hint Extern 1 (Vundef = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = Vundef) => reflexivity : cancel.
+#[export] Hint Extern 1 (list_repeat _ Vundef = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = list_repeat _ Vundef) => reflexivity : cancel.
+#[export] Hint Extern 1 (Vundef :: _ = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = Vundef :: _) => reflexivity : cancel.
+#[export] Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
 
 Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric.
 Instance Inhabitant_share : Inhabitant share := Share.bot.
@@ -117,7 +117,7 @@ Arguments Z.add !x !y.
 Global Transparent peq.
 Global Transparent Archi.ptr64.
 
-Hint Resolve readable_Ers : core.
+#[export] Hint Resolve readable_Ers : core.
 
 Ltac EExists_unify1 x P :=
  match P with
@@ -231,52 +231,52 @@ Proof.
 Qed.
 Hint Rewrite sem_cast_i2bool_of_bool : norm.
 
-Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
-Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
+#[export] Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
+#[export] Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
 
 Lemma computable_sizeof: forall cs x, computable x -> computable (@sizeof cs x).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_sizeof : computable.
+#[export] Hint Resolve computable_sizeof : computable.
 
 Lemma computable_Ctypes_sizeof: forall cs x, computable x -> computable (@Ctypes.sizeof cs x).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Ctypes_sizeof : computable.
+#[export] Hint Resolve computable_Ctypes_sizeof : computable.
 
 Lemma computable_alignof: forall cs x, computable x -> computable (@alignof cs x).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_alignof : computable.
+#[export] Hint Resolve computable_alignof : computable.
 
 Lemma computable_Ctypes_alignof: forall cs x, computable x -> computable (@Ctypes.alignof cs x).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Ctypes_alignof : computable.
+#[export] Hint Resolve computable_Ctypes_alignof : computable.
 
 Lemma computable_Tint: forall sz s a, computable (Tint sz s a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tint : computable.
+#[export] Hint Resolve computable_Tint : computable.
 
 Lemma computable_Tlong: forall s a, computable (Tlong s a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tlong : computable.
+#[export] Hint Resolve computable_Tlong : computable.
 
 Lemma computable_Tarray: forall t i a, computable t -> computable i -> computable (Tarray t i a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tarray : computable.
+#[export] Hint Resolve computable_Tarray : computable.
 
 Lemma computable_Tstruct: forall i a, computable i -> computable (Tstruct i a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tstruct : computable.
+#[export] Hint Resolve computable_Tstruct : computable.
 
 Lemma computable_Tunion: forall i a, computable i -> computable (Tunion i a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tunion : computable.
+#[export] Hint Resolve computable_Tunion : computable.
 
 Lemma computable_Tpointer: forall t a, computable t -> computable (Tpointer t a).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_Tpointer : computable.
+#[export] Hint Resolve computable_Tpointer : computable.
 
 Lemma computable_tptr: forall t, computable t -> computable (tptr t).
 Proof. intros. apply computable_any. Qed.
-Hint Resolve computable_tptr : computable.
+#[export] Hint Resolve computable_tptr : computable.
 
 
 (* a little bit of profiling infrastructure . . .
@@ -288,67 +288,9 @@ Ltac gather_prop ::=
 (* autorewrite with gather_prop_core;  (* faster to do this first *)*)
  autorewrite with gather_prop.
 
-(* ALTERNATE IMPLEMENTATION OF SATURATE_LOCAL.
-  This implementation is intended to produce faster Qeds, as follows:
-  When the new Prop is a duplicate, it detects this faster without enlarging the proof.
-  But it doesn't really work that much better, and the main problem is
-  when the term is a conjunction; the line "lazymatch P' with _ /\ _ => assert P' by auto"
-  is quite slow. *)
-   
-Lemma saturate_aux21y:
-  forall (P Q: mpred) (S: Prop),
-   P |-- !! S ->
-   !! S && P |-- Q -> P |-- Q.
-Proof.
-intros. subst.
-eapply derives_trans; [ | eassumption].
-apply andp_right; auto.
-Qed.
+#[export] Hint Resolve Clight_mapsto_memory_block.tc_val_pointer_nullval : core.
+#[export] Hint Resolve mapsto_memory_block.tc_val_pointer_nullval : core.
 
-Ltac saturate_aux2 := 
-lazymatch goal with
-| |- _ * _ |-- _ => fail 
-| |- ?R |-- !! ?P =>
-  match type of R with ?t =>
-             tryif (constr_eq t mpred) then idtac
-             else fail 10 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"
-  end;
- let H := fresh "H" in
-        let PP := fresh "P" in evar (PP:Prop); 
-        assert (H: R |-- !! PP) by auto with nocore saturate_local; subst PP;
-        repeat match type of H with _ |-- !! ?Q => match Q with context [@reptype ?cs ?t] =>
-                   let j := constr:(@reptype cs t) in
-                   let j := eval hnf in j in let j := eval simpl in j in
-                   change (@reptype cs t) with j in H|-*
-            end end;
-        match type of H with _ |-- !! ?P' =>
-        first [clear H; 
-                lazymatch P' with _ /\ _ => assert P' by auto
-                | _ => lazymatch goal with H:P'|-_ => idtac end
-                end;
-                fail 1
-               | apply H ]
-        end
-end.
 
-Lemma saturate_aux33 : forall (P Q: mpred) R, P |-- !!R -> sepcon P Q |-- !!R.
-Proof.
-  intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True); eauto|].
-  - entailer!.
-  - apply prop_left; intros (? & ?); apply prop_right; auto.
-Qed.
 
-Ltac saturate_local_alt := 
-simple eapply saturate_aux21y;
- [ repeat
-   (simple apply saturate_aux20; [ | saturate_aux2 ]
-    || simple apply saturate_aux33);
-   (saturate_aux2 || simple apply prop_True_right)
-| simple apply derives_extract_prop;
-   match goal with |- _ -> ?A =>
-       let P := fresh "P" in set (P := A);
-       fancy_intros true;
-       subst P
-      end
-].
 

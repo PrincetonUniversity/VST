@@ -282,7 +282,7 @@ Proof.
  intros.
  destruct ek; simpl; normalize.
 Qed.
-Hint Resolve normal_ret_assert_derives : core.
+#[export] Hint Resolve normal_ret_assert_derives : core.
 
 Lemma normal_ret_assert_FF:
   forall ek vl rho, proj_ret_assert (normal_ret_assert (fun rho => FF)) ek vl rho = FF.

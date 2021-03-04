@@ -165,6 +165,9 @@ Proof.
       specialize (IHtl1_2 tl2_2).
       eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives |]; [apply derives_refl | apply IHtl1_1 | apply IHtl1_2] | clear IHtl1_1 IHtl1_2].
       Intros tl_2 tl_1; subst.
+      rewrite sepcon_andp_prop. apply derives_extract_prop; intros [? ?].
+      rewrite sepcon_andp_prop, sepcon_andp_prop'.
+      apply derives_extract_prop; intros [? ?].
       Exists (T tl_1 (v, b) tl_2).
       simpl.
       apply andp_right; [apply prop_right; subst; auto |].
@@ -203,7 +206,7 @@ Proof.
 intros.
 destruct t; simpl; Intros; try Intros q; subst; auto with valid_pointer.
 Qed.
-Hint Resolve xtree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve xtree_rep_valid_pointer: valid_pointer.
 
 Lemma xtree_rep_local_facts:
   forall t p, xtree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = XLeaf)).
@@ -214,7 +217,7 @@ destruct t; simpl; Intros; try Intros q;  entailer!.
 + split; intros; try congruence.
   subst; destruct H as [? _]; inv H.
 Qed.
-Hint Resolve xtree_rep_local_facts: saturate_local.
+#[export] Hint Resolve xtree_rep_local_facts: saturate_local.
 
 Lemma list_rep_Xlist_valid_pointer:
   forall (r: list val) (q: val),
@@ -225,7 +228,7 @@ Proof.
   intros.
   auto with valid_pointer.
 Qed.
-Hint Resolve list_rep_Xlist_valid_pointer: valid_pointer.
+#[export] Hint Resolve list_rep_Xlist_valid_pointer: valid_pointer.
 
 Lemma list_rep_Xlist_local_facts:
   forall (r: list val) (q: val),
@@ -236,7 +239,7 @@ Proof.
   intros.
   entailer!.
 Qed.
-Hint Resolve list_rep_Xlist_local_facts: saturate_local.
+#[export] Hint Resolve list_rep_Xlist_local_facts: saturate_local.
 
 Lemma xtree_rep_nullval: forall t,
   xtree_rep t nullval |-- !! (t = XLeaf).
@@ -246,7 +249,7 @@ Proof.
   simpl xtree_rep.
   Intros q r. entailer!.
 Qed.
-Hint Resolve xtree_rep_nullval: saturate_local.
+#[export] Hint Resolve xtree_rep_nullval: saturate_local.
 
 (* X_DEFS ends. *)
 
@@ -302,14 +305,14 @@ Proof.
   apply list_rep_valid_pointer.
   intros; auto with valid_pointer.
 Qed.
-Hint Resolve y_list_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve y_list_rep_valid_pointer: valid_pointer.
 
 Lemma y_list_rep_local_facts: forall t p, y_list_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = nil)).
 Proof.
   apply list_rep_local_facts.
   intros; entailer!.
 Qed.
-Hint Resolve y_list_rep_local_facts: saturate_local.
+#[export] Hint Resolve y_list_rep_local_facts: saturate_local.
 
 Lemma y_tree_rep_valid_pointer: forall t p, y_tree_rep t p |-- valid_pointer p.
 Proof.
@@ -317,14 +320,14 @@ Proof.
   apply tree_rep_valid_pointer.
   intros; auto with valid_pointer.
 Qed.
-Hint Resolve y_tree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve y_tree_rep_valid_pointer: valid_pointer.
 
 Lemma y_tree_rep_local_facts: forall t p, y_tree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = E)).
 Proof.
   apply tree_rep_local_facts.
   intros; entailer!.
 Qed.
-Hint Resolve y_tree_rep_local_facts: saturate_local.
+#[export] Hint Resolve y_tree_rep_local_facts: saturate_local.
 
 Lemma ytree_rep_valid_pointer:
   forall t p, ytree_rep t p |-- valid_pointer p.
@@ -332,7 +335,7 @@ Proof.
 intros.
 destruct t; simpl; Intros; try Intros q; subst; auto with valid_pointer.
 Qed.
-Hint Resolve ytree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve ytree_rep_valid_pointer: valid_pointer.
 
 Lemma ytree_rep_local_facts:
   forall t p, ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = YLeaf)).
@@ -343,7 +346,7 @@ destruct t; simpl; Intros; try Intros q; entailer!.
 + split; intros; try congruence.
   subst; destruct H as [? _]; inv H.
 Qed.
-Hint Resolve ytree_rep_local_facts: saturate_local.
+#[export] Hint Resolve ytree_rep_local_facts: saturate_local.
 
 Lemma lt_ytree_rep_valid_pointer: forall t p, lt_ytree_rep t p |-- valid_pointer p.
 Proof.
@@ -352,7 +355,7 @@ Proof.
   Intros r.
   auto with valid_pointer.
 Qed.
-Hint Resolve lt_ytree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve lt_ytree_rep_valid_pointer: valid_pointer.
 
 Lemma lt_ytree_rep_local_facts: forall t p, lt_ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = nil)).
 Proof.
@@ -366,7 +369,7 @@ Proof.
   rewrite H.
   destruct l; simpl; split; intros; congruence.
 Qed.
-Hint Resolve lt_ytree_rep_local_facts: saturate_local.
+#[export] Hint Resolve lt_ytree_rep_local_facts: saturate_local.
 
 Lemma t_ytree_rep_valid_pointer: forall t p, t_ytree_rep t p |-- valid_pointer p.
 Proof.
@@ -375,7 +378,7 @@ Proof.
   Intros s.
   auto with valid_pointer.
 Qed.
-Hint Resolve t_ytree_rep_valid_pointer: valid_pointer.
+#[export] Hint Resolve t_ytree_rep_valid_pointer: valid_pointer.
 
 Lemma t_ytree_rep_local_facts: forall t p, t_ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = E)).
 Proof.
@@ -389,7 +392,7 @@ Proof.
   rewrite H.
   destruct tl; simpl; split; intros; congruence.
 Qed.
-Hint Resolve t_ytree_rep_local_facts: saturate_local.
+#[export] Hint Resolve t_ytree_rep_local_facts: saturate_local.
 
 (* Y_DEFS ends. *)
 

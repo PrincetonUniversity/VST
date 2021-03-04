@@ -30,7 +30,7 @@ Proof.
 intros.
 rewrite Zland_15. apply Z_mod_lt. compute; congruence.
 Qed.
-Hint Resolve Zland_in_range : core.
+#[export] Hint Resolve Zland_in_range : core.
 
 
 Lemma and_mone':

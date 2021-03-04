@@ -1070,6 +1070,7 @@ Proof.
   + destruct t; auto.
     destruct f0; auto.
   + destruct t; auto.
+  + destruct t; auto.
   - destruct i0; auto;
     destruct s; auto. 
   - destruct f; auto.

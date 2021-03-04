@@ -390,8 +390,10 @@ Proof.
   rewrite <- EQ_inv0.
   Intros i.
   rewrite <- EQ_inv1.
-  rewrite denote_tc_assert_andp; apply andp_right;
-    [| rewrite <- andp_assoc; apply andp_left1, temp_tc_initialized; auto].
+  rewrite denote_tc_assert_andp; apply andp_right.
+ 2:{ eapply derives_trans; [ | apply temp_tc_initialized].
+    apply andp_derives. apply derives_refl. apply andp_left2.
+    apply andp_left1.   apply derives_refl. auto. }
   
   unfold isBinOpResultType; simpl typeof.
   rewrite CLASSIFY_CMP.
@@ -503,9 +505,13 @@ Proof.
   unfold local, lift1; intro rho; simpl; unfold_lift.
   normalize.
   apply prop_right; auto.
-  rewrite <- H3 in H1.
+  rewrite <- H4 in H.
   forget (eval_expr hi rho) as n'.
-  clear H3.
+  clear H4.
+  rename H5 into H4. rename H into H'. rename H1 into H.
+  rename H2 into H2'.
+  rename H0 into H2.
+  assert (H0 := conj H2' H3). clear H2' H3. rename H' into H1.
   unfold force_val2, Clight_Cop2.sem_cmp in H1.
   rewrite CLASSIFY_CMP in H1.
   destruct (classify_binarith type_i (typeof hi)) as [ [|] | [|] | | |] eqn:H3;
@@ -548,6 +554,9 @@ Proof.
   unfold local, lift1; intro rho; simpl; unfold_lift.
   normalize.
   apply prop_right; auto.
+  rename H into H'. rename H1 into H. rename H' into H1.
+  rename H0 into H0'. assert (H0 := conj H2 H3). clear H2 H3.
+  rename H0' into H2. rename H4 into H3. rename H5 into H4.
   rewrite <- H3 in H1.
   forget (eval_expr hi rho) as n'.
   clear H3.

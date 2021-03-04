@@ -6,6 +6,7 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
+Require Import Lia.
 
 Require Import VST.msl.Extensionality.
 Require Import VST.sepcomp.mem_lemmas.
@@ -308,7 +309,7 @@ Proof.  induction ev; simpl; intros. subst; trivial.
         - destruct EV as [? [? EV]].
           apply (IHev _ _ EV); clear IHev EV.
           + Transparent Mem.alloc.
-            unfold Mem.alloc in H. Opaque Mem.alloc.  inv H. simpl. rewrite PMap.gso; trivial. unfold Mem.valid_block in VB. xomega.
+            unfold Mem.alloc in H. Opaque Mem.alloc.  inv H. simpl. rewrite PMap.gso; trivial. unfold Mem.valid_block in VB. apply Plt_ne; auto.
           + eapply Mem.valid_block_alloc; eauto.
         - destruct EV as [? [? EV]]. apply (IHev _ _ EV); clear IHev.
           2: eapply freelist_forward; eauto.
@@ -546,7 +547,7 @@ Proof.
       etransitivity.
       * eapply Mem.nextblock_alloc in H.
         instantiate(1:=  Mem.nextblock x); rewrite H.
-        xomega.
+        lia.
       * eapply IHev; eauto.
     + destruct H as (?&?&?).
       etransitivity.

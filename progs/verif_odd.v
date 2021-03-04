@@ -15,7 +15,6 @@ forward_if.
  forward.
 *
   forward_call (z-1).
-  lia.
   forward.
   entailer!.
   rewrite Z.even_sub; simpl.

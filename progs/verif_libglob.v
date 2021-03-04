@@ -65,7 +65,7 @@ Definition initialized_globals (gv: globals) :=
    mapsto Ews tuint (offset_val 4 (gv _LG_foo))
           (Vint (Int.repr 0)) *
    data_at Ews tuint (Vint (Int.repr 0)) (gv _LG_foo) *
-   data_at Ews tuint (Vint (Int.repr 3)) (gv _LG_n).
+   data_at Ews tint (Vint (Int.repr 3)) (gv _LG_n).
 
 (*  This lemma packages up the extern global variables of LG.c
    into the client-visible [data] abstraction.  It's a bit clumsy
@@ -262,9 +262,7 @@ Lemma body_client: semax_body Vprog Gprog f_client client_spec.
 Proof.
 start_function.
 forward_call (n,gv).
-rep_lia.
 forward_call (n+1,gv).
-rep_lia.
 replace (n+1+1) with (n+2) by lia.
 forward_call (n+2,gv).
 forward.
@@ -275,7 +273,6 @@ Proof.
 start_function.
 sep_apply (LG.initial gv); auto.
 forward_call (3,gv).
-rep_lia.
 forward.
 Qed.
 

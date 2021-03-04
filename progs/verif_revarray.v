@@ -207,10 +207,8 @@ name four _four.
 start_function.
 forward_call  (*  revarray(four,4); *)
   (gv _four, Ews, four_contents, 4).
-   split; [computable | auto].
 forward_call  (*  revarray(four,4); *)
     (gv _four,Ews, rev four_contents,4).
-   split; [computable | auto].
 rewrite rev_involutive.
 forward. (* return s; *)
 Qed.
@@ -246,7 +244,7 @@ Ltac calc_Zlength_extra l ::=
 
 Hint Rewrite Zlength_rev : Zlength.
 Hint Rewrite @Znth_rev using Zlength_solve : Znth.
-Hint Unfold flip_ends : list_solve_unfold.
+#[export] Hint Unfold flip_ends : list_solve_unfold.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -281,10 +279,8 @@ start_function.
 
 forward_call  (*  revarray(four,4); *)
   (gv _four, Ews, four_contents, 4).
-   split; [computable | auto].
 forward_call  (*  revarray(four,4); *)
     (gv _four,Ews, rev four_contents,4).
-   split; [computable | auto].
 rewrite rev_involutive.
 forward. (* return s; *)
 Qed.

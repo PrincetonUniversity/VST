@@ -27,9 +27,6 @@ if [ -e "$1" -a ./GRAB ]; then
   cp $1/flocq/Calc/*.v flocq/Calc
   cp $1/flocq/IEEE754/*.v flocq/IEEE754
   cp $1/exportclight/*.v exportclight
-  for f in `grep 'From Flocq' */*.v`; do
-    sed -e '/From Flocq/s/^.*$/From Flocq/' -i $f
-  done
 else
  echo "Usage:  ./GRAB ~/compcert"
 fi

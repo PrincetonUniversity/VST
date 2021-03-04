@@ -30,12 +30,10 @@ addons:
 env:
   global:
   - NJOBS=2
-  # system is == 4.02.3
   - COMPILER="4.07.1"
-#  - COMPILER="default"
-  - COQ_VERSION="8.11.0"
-  - NEXT_VERSION="8.11.0"
-  - COMPCERT_VERSION="3.7~coq-platform~open-source"
+  - COQ_VERSION="8.12.2"
+  - NEXT_VERSION="8.12.2"
+  - COMPCERT_VERSION="3.8"
 
 branches:
   only:
@@ -68,11 +66,11 @@ install:
 - opam repo list
 - opam show coq
 - opam show coq-compcert
-- opam show coq-compcert-64
+- opam show coq-compcert-32
 - travis_wait 15 opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam install -j ${NJOBS} -y coq=${COQ_VERSION} coq-ext-lib coq-flocq
-- travis_wait 10 opam install -j ${NJOBS} -y coq-compcert=${COMPCERT_VERSION}
-- travis_wait 10 opam install -j ${NJOBS} -y coq-compcert-64=${COMPCERT_VERSION}
+- travis_wait 15 opam install -j ${NJOBS} -y coq-compcert=${COMPCERT_VERSION}
+- travis_wait 15 opam install -j ${NJOBS} -y coq-compcert-32=${COMPCERT_VERSION}
 - opam list
 - file `which coqc`
 # - WC=`which coqc`
