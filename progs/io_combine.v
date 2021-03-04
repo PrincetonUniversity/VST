@@ -77,7 +77,7 @@ Definition OS_mem (e : external_function) (args : list val) m (s : RData) : mem 
   else ...
 *)
 
-Instance IO_Espec : OracleKind := IO_Espec ext_link.
+Instance IO_Espec : OracleKind := io_dry.Espec ext_link.
 
 Theorem IO_OS_soundness:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
@@ -117,7 +117,7 @@ Proof.
       * unfold getchar_pre, getchar_pre' in *.
         apply Traces.sutt_trace_incl; auto.
   - constructor.
-  - apply juicy_dry_specs.
+  - apply (juicy_dry_specs(IO_E := @ReSum_id _ _ Id_IFun IO_event)).
   - apply dry_spec_mem.
 Qed.
 
