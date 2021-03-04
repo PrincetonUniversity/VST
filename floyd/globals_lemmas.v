@@ -948,6 +948,55 @@ apply pred_ext.
   clear HeqG. normalize. rewrite prop_true_andp; auto.
 Qed.
 
+
+Lemma process_globvar_space0:
+  forall {cs: compspecs} Delta done (i: ident)
+          gz gv al t,
+       gvar_info gv = t ->
+       (var_types Delta) ! i = None ->
+       (glob_types Delta) ! i = Some t ->
+  (complete_legal_cosu_type (gvar_info gv)
+   && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0
+   && fully_nonvolatile (rank_type cenv_cs t) t)%bool = true ->
+       gvar_volatile gv = false ->
+       gvar_init gv = (Init_space (sizeof t)::nil) ->
+       sizeof t <= Ptrofs.max_unsigned ->
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz
+       (data_at (readonly2share (gvar_readonly gv)) t  (zero_val t) (gz i) :: done)
+            emp  al.
+Proof.
+intros until t. intros H3; intros.
+rewrite andb_true_iff in H1. destruct H1 as [H1 Hvol].
+assert (H7 := unpack_globvar Delta gz i t gv _ H H0 H1 H2 H3 H4).
+spec H7.
+simpl. pose proof (sizeof_pos t). rewrite Z.max_l by lia. lia.
+specialize (H7 H5).
+go_lowerx.
+unfold globvars_in_process.
+unfold globvars2pred; fold globvars2pred.
+unfold lift2. simpl. normalize.
+pull_right (fold_right_sepcon done).
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+specialize (H7 rho).
+unfold_lift in H7. unfold local, lift1 in H7.
+simpl in H7.
+rewrite prop_true_andp in H7 by auto.
+eapply derives_trans; [ apply H7  | ].
+rewrite andb_true_iff in H1.
+destruct H1.
+rewrite H3 in *.
+apply mapsto_zero_data_at_zero; auto.
+apply readable_readonly2share.
+pose proof (la_env_cs_sound 0 t H1 H9).
+apply headptr_field_compatible; auto.
+eapply go_lower.gvars_denote_HP; eauto.
+red; auto.
+rep_lia.
+Qed.
+
 Lemma process_globvar_space:
   forall {cs: compspecs} Delta done (i: ident)
           gz gv al t,
@@ -1220,7 +1269,7 @@ Ltac process_one_globvar' :=
      [  reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
      | compute; clear; congruence
      ]
-  | simple eapply process_globvar_space;
+  | simple eapply process_globvar_space0;
     [simpl; reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | simpl; computable ]
   | simple eapply process_globvar';
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
@@ -1351,6 +1400,55 @@ Ltac process_idstar :=
     | |- ENTAIL _, _ |-- _ => idtac
     end.
 
+Create HintDb zero_val discriminated.
+
+Lemma zero_val_tarray {cs: compspecs}:
+ forall t n, zero_val (tarray t n) = list_repeat (Z.to_nat n) (zero_val t).
+Proof.
+intros.
+rewrite zero_val_eq; reflexivity.
+Qed.
+
+Lemma zero_val_tint {cs: compspecs}:
+    zero_val tint = Vint Int.zero.
+Proof.
+intros.
+apply zero_val_Tint.
+Qed.
+
+Lemma zero_val_tuint {cs: compspecs}:
+    zero_val tuint = Vint Int.zero.
+Proof.
+intros.
+apply zero_val_Tint.
+Qed.
+
+Lemma zero_val_tlong {cs: compspecs}:
+    zero_val tlong = Vlong Int64.zero.
+Proof.
+intros.
+apply zero_val_Tlong.
+Qed.
+
+Lemma zero_val_tulong {cs: compspecs}:
+    zero_val tulong = Vlong Int64.zero.
+Proof.
+intros.
+apply zero_val_Tlong.
+Qed.
+
+Lemma zero_val_tptr {cs: compspecs}:
+    forall t, zero_val (tptr t) = nullval.
+Proof.
+intros.
+apply zero_val_Tpointer.
+Qed.
+
+Hint Rewrite @zero_val_tarray : zero_val.
+Hint Rewrite @zero_val_Tpointer @zero_val_Tfloat32 @zero_val_Tfloat64 : zero_val.
+Hint Rewrite @zero_val_Tlong @zero_val_Tint : zero_val.
+Hint Rewrite @zero_val_tint @zero_val_tuint @zero_val_tlong @zero_val_tulong @zero_val_tptr : zero_val.
+
 Lemma finish_process_globvars: 
  forall {cs: compspecs}{Espec: OracleKind} Delta PQR SF c Post,
   semax Delta (PQR * SF) c Post ->
@@ -1394,6 +1492,7 @@ simple eapply semax_process_globvars;
     else idtac "Warning: could not process all the extern variables in main_pre"
  ];
  rewrite ?offset_val_unsigned_repr;
- simpl readonly2share.
+ simpl readonly2share;
+ autorewrite with zero_val.
 
 
