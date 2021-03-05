@@ -1110,7 +1110,7 @@ Ltac destruct_args t i :=
 
 Ltac start_function1 ::=
  leaf_function;
- match goal with |- semax_body ?V ?G ?F ?spec =>
+ lazymatch goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
     function_body_unsupported_features F;
     let s := fresh "spec" in
@@ -1137,12 +1137,7 @@ Ltac start_function1 ::=
  unfold NDmk_funspec; 
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
 
-   (*WAS:split; [split3; [check_parameter_types' | check_return_type
-          | try (apply compute_list_norepet_e; reflexivity);
-             fail "Duplicate formal parameter names in funspec signature"  ] 
-         |];*)
-   (*NOW:*)split3; [check_parameter_types' | check_return_type | ];
-
+   split3; [check_parameter_types' | check_return_type | ];
     match Pre with
    | (fun _ => rev_curry ?t) => let i := fresh in let x := read_names t in intros Espec DependedTypeList i; destruct_args x i; unfold rev_curry, tcurry; simpl tcurry_rev; cbn match (* added line *)
    | (fun _ => convertPre _ _ (fun i => _)) =>  intros Espec DependedTypeList i
@@ -1178,8 +1173,6 @@ Ltac start_function1 ::=
 *)
  try start_func_convert_precondition.
 
-Ltac start_function :=
-  start_function1;
-  first [ setoid_rewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
-        | rewrite close_precondition_main ];
-  start_function2.
+Ltac start_function2 :=
+  first [ setoid_rewrite (* changed from erewrite *) compute_close_precondition_eq; [ | reflexivity | reflexivity]
+        | rewrite close_precondition_main ].
