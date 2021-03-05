@@ -93,7 +93,7 @@ Proof. intros.
 Qed.
 
 Lemma onepile_Init: VSU_initializer prog (one_pile None).
-Proof. InitGPred_tac. unfold one_pile. normalize. apply derives_refl. Qed.
+Proof. InitGPred_tac. unfold one_pile. normalize. apply data_at_data_at_. Qed.
 
 Definition OnepileVSU: @VSU NullExtension.Espec
       nil onepile_imported_specs ltac:(QPprog prog) Onepile_ASI (one_pile None).
