@@ -427,16 +427,6 @@ End Reference.
  
 #[export] Hint Resolve self_completable : init.
 
-Section Discrete.
-
-Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
-  Join_G := Join_equiv A }.
-Next Obligation.
-  auto.
-Defined.
-
-End Discrete.
-
 Section GVar.
 
 Context {A : Type}.

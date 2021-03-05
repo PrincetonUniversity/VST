@@ -224,6 +224,15 @@ Qed.
 Lemma funspec_sub_sub_si f1 f2: funspec_sub f1 f2 -> TT |-- funspec_sub_si f1 f2.
 Proof. rewrite funspec_sub_iff. unseal_derives. apply funspec_sub_sub_si. Qed.
 
+Lemma funspec_sub_si_refl f: TT |-- funspec_sub_si f f.
+Proof.
+  apply funspec_sub_sub_si. apply funspec_sub_refl.
+Qed.
+
+Lemma funspec_sub_trans f1 f2 f3: funspec_sub f1 f2 -> 
+      funspec_sub f2 f3 -> funspec_sub f1 f3.
+Proof. rewrite !funspec_sub_iff. apply funspec_sub_trans. Qed.
+
 Lemma type_of_funspec_sub:
   forall fs1 fs2, funspec_sub fs1 fs2 ->
   type_of_funspec fs1 = type_of_funspec fs2.

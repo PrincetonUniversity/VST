@@ -220,7 +220,7 @@ intros.
   rename H into Hstep.
   remember (level m) as N.
   destruct N; [constructor|].
-  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; omegaContradiction].
+  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
   eapply jsafeN_step with
    (* (c' := State f Sskip (Kseq Scontinue (Kloop1 Sskip Sskip k)) ve te)*)
     (m'0 := m').
@@ -233,7 +233,7 @@ intros.
   unfold level at 1; simpl.
   repeat intro; auto.
   assert (N = level m')%nat.
-  apply age_level in H; omega.
+  apply age_level in H; lia.
   subst. apply H0. auto.
 Qed.
 

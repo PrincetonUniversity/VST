@@ -1,6 +1,7 @@
 Require Import VST.floyd.base.
 Require Import VST.floyd.PTops.
 Require Import VST.floyd.QPcomposite.
+Import compcert.lib.Maps.
 
 Fixpoint filter_options {A B} (f: A -> option B) (al: list A) : list B :=
  match al with

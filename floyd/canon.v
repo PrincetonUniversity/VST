@@ -225,22 +225,6 @@ Proof.
     auto.
 Qed.
 
-Lemma SEPx_args_super_non_expansive: forall A R ,
-  Forall (fun R0 => @args_super_non_expansive A (fun ts a _ => R0 ts a)) R ->
-  @args_super_non_expansive A (fun ts a ae => SEPx (map (fun R0 => R0 ts a) R) ae).
-Proof.
-  intros.
-  hnf; intros.
-(*  change (functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) in x.*)
-  unfold SEPx.
-  induction H.
-  + simpl; auto.
-  + simpl in *.
-    rewrite !approx_sepcon.
-    f_equal;
-    auto.
-Qed.
-
 Lemma SEPx_super_non_expansive: forall A R ,
   Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R ->
   @super_non_expansive A (fun ts a rho => SEPx (map (fun R0 => R0 ts a) R) rho).

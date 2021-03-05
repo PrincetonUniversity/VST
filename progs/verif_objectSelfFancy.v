@@ -1804,7 +1804,7 @@ Qed.
 End Putting_It_All_Together.
 Parameter QQ:mpred.
 Lemma funspec_sub_reset_foo_fancy: funspec_sub (reset_spec foo_obj_invariant) (freset_spec fancyfoo_obj_invariant).
-Proof. rewrite funspec_sub_iff. eapply funspec_sub_trans. rewrite <- funspec_sub_iff. apply reset_spec_local_sub. unfold fobject_invariant_of_inv. rewrite <- funspec_sub_iff.
+Proof. eapply funspec_sub_trans. apply reset_spec_local_sub. unfold fobject_invariant_of_inv.
  do_funspec_sub.
   rewrite fancyfoo_obj_invariant_fold_unfold' at 1. (*foo_obj_invariant_fold_unfold;*) Intros m.
   Exists w QQ. destruct w as [[hs c] p]; simpl in *. entailer!.

@@ -1,5 +1,6 @@
 Require Import VST.floyd.base.
 Require Import VST.floyd.PTops.
+Import compcert.lib.Maps.
 
 Module QP.
 

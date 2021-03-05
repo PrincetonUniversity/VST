@@ -1976,16 +1976,18 @@ Proof.
   inv H0.
   match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
   intros ? (? & ? & ? & Hlock1 & Hlock2).
-  exploit (res_predicates.LKspec_precise _ _ _ _ a _ _ Hlock1 Hlock2); try (eexists; eauto).
-  intros; subst.
-  destruct Hlock1 as [Hlock1 _]; simpl in Hlock1.
-  specialize (Hlock1 (b2, Ptrofs.unsigned ofs2)).
-  rewrite if_true in Hlock1 by (split; auto; pose proof lksize.LKSIZE_pos; lia).
-  destruct Hlock1 as [? Hl1].
-  apply compcert_rmaps.RML.resource_at_join with (loc := (b2, Ptrofs.unsigned ofs2)) in H.
-  rewrite Hl1 in H; inv H.
-  apply sepalg.join_self in RJ.
-  eapply readable_not_identity; eauto.
+  exploit (res_predicates.LKspec_precise _ _ _ _ a _ _ Hlock1 Hlock2).
+  - eexists; eauto.
+  - apply sepalg.join_comm in H. eexists; eauto.
+  - intros; subst.
+    destruct Hlock1 as [Hlock1 _]; simpl in Hlock1.
+    specialize (Hlock1 (b2, Ptrofs.unsigned ofs2)).
+    rewrite if_true in Hlock1 by (split; auto; pose proof lksize.LKSIZE_pos; lia).
+    destruct Hlock1 as [? Hl1].
+    apply compcert_rmaps.RML.resource_at_join with (loc := (b2, Ptrofs.unsigned ofs2)) in H.
+    rewrite Hl1 in H; inv H.
+    apply sepalg.join_self in RJ.
+    eapply readable_not_identity; eauto.
 Qed.
 
 Lemma selflock_exclusive : forall R sh v, exclusive_mpred R -> exclusive_mpred (selflock R v sh).
@@ -2318,7 +2320,7 @@ Proof.
   intro; pose proof (Share.comp1 sh).
   apply comp_parts_join with (L := sh)(R := Share.comp sh); auto;
     rewrite Share.glb_idem, Share.glb_top.
-  - rewrite Share.comp2; auto.
+  - rewrite Share.comp2. apply join_bot_eq.
   - rewrite Share.glb_commute, Share.comp2; auto.
 Qed.
 
@@ -2607,11 +2609,11 @@ Proof.
     intros (sh2 & ? & ?).
     rewrite Znth_pos_cons, remove_Znth_cons; try lia.
     exploit (sepalg.join_sub_joins_trans(a := a)(b := sh2)(c := w1)); eauto.
-    { eexists; eapply sepalg.join_comm; eauto. }
+    { eexists; eapply sepalg.join_comm; eauto. } {eexists; eauto. }
     intros (sh' & ?); exists sh'; split.
     + exploit (sepalg_list.list_join_assoc2(a := a)(b := Znth (i - 1) shs)
         (cl := remove_Znth (i - 1) shs)(e := sh')(f := sh2)); auto.
-      intros (d & ? & ?).
+      intros (d & ? & ?). apply sepalg.join_comm in H3.
       econstructor; eauto.
     + pose proof (sepalg.join_assoc(a := sh1)(b := a)(c := sh2)(d := w1)(e := sh)) as X.
       repeat match goal with X : ?a -> _, H : ?a |- _ => specialize (X H) end.
@@ -2630,7 +2632,7 @@ Proof.
   apply sepalg.join_comm in H1.
   destruct (sepalg_list.list_join_assoc1 H1 Hl2) as (? & ? & ?).
   eapply sepalg_list.list_join_app; eauto.
-  econstructor; eauto.
+  apply sepalg.join_comm in H2. econstructor; eauto.
 Qed.
 
 (* Split a share into an arbitrary number of subshares. *)

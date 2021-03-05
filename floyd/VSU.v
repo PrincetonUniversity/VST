@@ -5,9 +5,10 @@ Require Export VST.floyd.PTops.
 Require Export VST.floyd.QPcomposite.
 Require Export VST.floyd.quickprogram.
 Require Export VST.floyd.Component.
+Import compcert.lib.Maps.
 
 Lemma valid_pointer_is_null_or_ptr p: valid_pointer p |-- !!( is_pointer_or_null p).
-Proof. apply valid_pointer_is_pointer_or_null. Qed.
+Proof. constructor. apply valid_pointer_is_pointer_or_null. Qed.
 
 Lemma semax_body_subsumespec_VprogNil {cs V G f iphi}:
        @semax_body [] G cs f iphi ->
