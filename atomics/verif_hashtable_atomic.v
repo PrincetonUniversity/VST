@@ -1767,11 +1767,9 @@ Proof.
   { Exists (@nil val) (@nil val). rewrite later_sepcon; entailer!. }
   { (* first loop *)
     forward_call (Tstruct _lock_t noattr, gv).
-    { repeat split; auto; simpl; computable. }
     Intros l.
     forward.
     forward_call (tint, gv).
-    { repeat split; auto; simpl; computable. }
     Intros r.
     forward.
     focus_SEP 5.
@@ -1821,7 +1819,6 @@ Proof.
     simpl; if_tac; auto; lia. }
   { (* second loop *)
     forward_call (tint, gv).
-    { repeat split; auto; simpl; computable. }
     Intros t.
     forward.
     assert (3 <= Zlength shs) by lia.
