@@ -10,6 +10,7 @@ Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.floyd.sublist.
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.
+Import compcert.lib.Maps.
 
 Opaque alignof.
 
