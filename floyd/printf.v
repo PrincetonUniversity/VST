@@ -283,7 +283,7 @@ Axiom printf_spec_sub:
 
 End file_id.
 
-Hint Resolve file_at_local_facts : saturate_local.
+#[export] Hint Resolve file_at_local_facts : saturate_local.
 
 Ltac make_stdio :=
   sep_apply (@init_stdio _ _ _); let p := fresh "reentp" in let inp := fresh "inp" in let outp := fresh "outp" in

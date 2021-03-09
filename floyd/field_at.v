@@ -1003,6 +1003,28 @@ Proof.
     apply pred_ext; normalize.
 Qed.
 
+Lemma mapsto_zero_data_at_zero:
+  forall t sh p, 
+    readable_share sh -> 
+    complete_legal_cosu_type t = true ->
+    fully_nonvolatile (rank_type cenv_cs t) t = true ->
+    field_compatible t nil p ->
+    mapsto_zeros (sizeof t) sh p |-- data_at sh t (zero_val t) p.
+Proof.
+intros.
+unfold data_at, field_at.
+rewrite prop_true_andp by auto.
+destruct H2 as [? [? [? [? ?]]]].
+unfold nested_field_offset, nested_field_rec.
+unfold at_offset.
+normalize.
+destruct p; try contradiction.
+rewrite <- (Ptrofs.repr_unsigned i).
+apply mapsto_zeros_data_at_rec_zero_val; auto.
+red in H4.
+rep_lia.
+Qed.
+
 Lemma data_at_data_at_ : forall sh t v p,
   data_at sh t v p |-- data_at_ sh t p.
 Proof.

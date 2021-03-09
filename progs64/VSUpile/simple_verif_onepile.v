@@ -51,7 +51,7 @@ entailer!.
 Qed.
 
 Lemma onepile_Init: VSU_initializer prog (onepile None).
-Proof. InitGPred_tac. normalize. apply derives_refl. Qed.
+Proof. InitGPred_tac. normalize. apply data_at_data_at_. Qed.
 
 
 Definition OnepileVSU: @VSU NullExtension.Espec

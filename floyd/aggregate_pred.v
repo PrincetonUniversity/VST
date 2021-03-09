@@ -1241,6 +1241,67 @@ Proof.
     lia.
 Qed.
 
+Lemma mapsto_zeros_zero_Vptr
+     : forall (sh : share) (b : block) (z : ptrofs),
+       mapsto_zeros 0 sh (Vptr b z) = emp.
+Proof.
+intros.
+unfold mapsto_zeros. simpl.
+rewrite prop_true_andp. reflexivity.
+rep_lia.
+Qed.
+
+Lemma mapsto_zeros_split
+     : forall (sh : share) (b : block) (ofs n m : Z),
+       0 <= n ->
+       0 <= m ->
+       n + m <= n + m + ofs < Ptrofs.modulus ->
+       mapsto_zeros (n + m) sh (Vptr b (Ptrofs.repr ofs)) =
+       mapsto_zeros n sh (Vptr b (Ptrofs.repr ofs)) *
+       mapsto_zeros m sh (Vptr b (Ptrofs.repr (ofs + n))).
+Proof.
+intros.
+unfold mapsto_zeros.
+rewrite !Ptrofs.unsigned_repr by rep_lia.
+rewrite !prop_true_andp by rep_lia.
+rewrite !mapsto_memory_block.address_mapsto_zeros_eq.
+rewrite !Z2Nat.id by lia.
+apply mapsto_memory_block.address_mapsto_zeros'_split; lia.
+Qed.
+
+Lemma mapsto_zeros_array_pred: forall  {A}{d: Inhabitant A} sh t lo hi v b ofs,
+  0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi < Ptrofs.modulus ->
+  0 <= lo <= hi ->
+  Zlength v = hi - lo ->
+   mapsto_zeros (sizeof t * (hi - lo)) sh (Vptr b (Ptrofs.repr (ofs + sizeof t * lo))) |--
+  array_pred lo hi
+    (fun i _ p => mapsto_zeros (sizeof t) sh (offset_val (sizeof t * i) p)) v
+    (Vptr b (Ptrofs.repr ofs)).
+Proof.
+  intros.
+  unfold array_pred.
+Opaque mapsto_zeros.
+  rewrite prop_true_andp by auto; clear H1.
+  f_equal.
+  remember (Z.to_nat (hi - lo)) as n eqn:HH.
+  revert lo HH H H0 v; induction n; intros.
+  +  simpl. 
+    pose proof arith_aux00 _ _ (proj2 H0) HH.
+    rewrite H1, Z.mul_0_r, mapsto_zeros_zero_Vptr.
+    auto.
+  + simpl.
+    pose proof arith_aux01 _ _ _ HH.
+    solve_mod_modulus.
+    pose_size_mult cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
+    eapply derives_trans; [ | apply sepcon_derives; [apply derives_refl | apply IHn; try lia; try exact v]].
+    replace (ofs + sizeof  t * Z.succ lo) with (ofs + sizeof t * lo + sizeof t) by lia.
+    rewrite <- mapsto_zeros_split by (auto; lia).
+    apply derives_refl'.
+    f_equal.
+    lia.
+Transparent mapsto_zeros.
+Qed.
+
 Lemma memory_block_array_pred': forall {A}{d: Inhabitant A} (a: A) sh t z b ofs,
   0 <= z ->
   0 <= ofs /\ ofs + sizeof t * z < Ptrofs.modulus ->
@@ -1256,6 +1317,24 @@ Proof.
   f_equal. f_equal. lia. f_equal. f_equal. rewrite Z.mul_0_r. lia.
   rewrite Z.mul_0_r. split; lia. lia.
   rewrite Z.sub_0_r. auto. rewrite Zlength_list_repeat', Z2Nat.id by lia.
+  lia.
+Qed.
+
+Lemma mapsto_zeros_array_pred': forall {A}{d: Inhabitant A} (a: A) sh t z b ofs,
+  0 <= z ->
+  0 <= ofs /\ ofs + sizeof t * z < Ptrofs.modulus ->
+  mapsto_zeros (sizeof t * z) sh (Vptr b (Ptrofs.repr ofs)) |--
+  array_pred 0 z
+     (fun i _ p =>
+      mapsto_zeros (sizeof t) sh(offset_val (sizeof t * i) p))
+             (list_repeat (Z.to_nat z) a)
+     (Vptr b (Ptrofs.repr ofs)).
+Proof.
+  intros.
+  eapply derives_trans; [ | apply mapsto_zeros_array_pred; try lia].
+  apply derives_refl'.
+  f_equal. lia. f_equal. f_equal. lia.
+  rewrite Zlength_list_repeat', Z2Nat.id by lia.
   lia.
 Qed.
 
@@ -1324,6 +1403,83 @@ Proof.
       reflexivity.
 Qed.
 
+Lemma mapsto_zeros_zero: forall (sh : share) (p : val), 
+   mapsto_zeros 0 sh p = !! isptr p && emp.
+Proof.
+intros.
+unfold mapsto_zeros; simpl. destruct p; simpl; normalize.
+rewrite prop_true_andp by rep_lia.
+reflexivity.
+Qed.
+
+Lemma mapsto_zeros_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b ofs,
+  (m = nil -> sz = 0) ->
+  members_no_replicate m = true ->
+  sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
+  0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
+  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
+  struct_pred m
+   (fun it _ p =>
+     (mapsto_zeros (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m)) sh
+     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Ptrofs.repr ofs)).
+Proof.
+  unfold field_offset, Ctypes.field_offset, field_offset_next.
+  intros sh m sz A v b ofs NIL_CASE NO_REPLI; intros.
+  destruct m as [| (i0, t0) m].
+Opaque mapsto_zeros.
+  1: rewrite (NIL_CASE eq_refl), mapsto_zeros_zero; simpl; normalize.
+  assert (align 0 (alignof t0) = 0) by apply align_0, alignof_pos.
+  revert H0; pattern ofs at 1 3; replace ofs with (ofs + align 0 (alignof t0)) by lia; intros.
+  revert H; pattern sz at 2 3; replace sz with (sz - align 0 (alignof t0)) by lia; intros.
+  pattern 0 at 3; rewrite <- H1.
+  clear NIL_CASE H1.
+  revert H H0. generalize 0 at 1 2 4 5 6 7 8 10; revert i0 t0 v NO_REPLI;
+  induction m as [| (i1, t1) m]; intros.
+  + simpl.
+    if_tac; [| congruence].
+    solve_mod_modulus.
+   apply derives_refl. 
+  + match goal with
+    | |- _ |-- struct_pred ((i0, t0) :: (i1, t1) :: m) ?P v ?p =>
+           change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p) with
+             (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p);
+           simpl (P (i0, t0) (fst v) p)
+    end.
+    if_tac; [| congruence].
+    solve_mod_modulus.
+    erewrite struct_pred_ext.
+    - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
+      fold (sizeof t0) in *. fold (alignof t0) in *.
+      fold (sizeof t1) in *. fold (alignof t1) in *.
+      eapply derives_trans; [ | apply sepcon_derives; [apply derives_refl | 
+                       apply IHm with (z := align z (alignof t0) + sizeof t0)]];
+        [| now auto
+         | simpl in H |- *; 
+          fold (sizeof t0) in *; fold (alignof t0) in *;
+          fold (sizeof t1) in *; fold (alignof t1) in *;
+          pose_align_le; pose_sizeof_pos; lia
+         | pose_align_le; pose_sizeof_pos; lia].
+      replace (ofs + align (align z (alignof t0) + sizeof t0) (alignof t1)) with
+        (ofs + align z (alignof t0) +
+         (align (align z (alignof t0) + sizeof t0) (alignof t1) -
+          align z (alignof t0))) by lia.
+      rewrite <- mapsto_zeros_split by
+        (simpl in H; 
+          fold (sizeof t0) in *; fold (alignof t0) in *;
+          fold (sizeof t1) in *; fold (alignof t1) in *;revert H; pose_align_le; pose_sizeof_pos; intros; lia).
+     apply derives_refl';  f_equal; lia.
+    - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
+      auto.
+    - intros. instantiate (1 := (snd v)).
+      solve_mod_modulus.
+      unfold fst.
+      pose proof in_members_tail_no_replicate _ _ _ _ NO_REPLI H2.
+      rewrite (neq_field_offset_rec_cons cenv_cs i i0 t0) by auto.
+      rewrite (neq_field_offset_next_rec_cons cenv_cs i i0 t0) by auto.
+      reflexivity.
+Transparent mapsto_zeros.
+Qed.
+
 Lemma memory_block_union_pred: forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
   union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Ptrofs.repr ofs)) =
@@ -1332,6 +1488,22 @@ Proof.
   intros sh m sz A v b ofs NIL_CASE; intros.
   destruct m as [| (i0, t0) m].
   1: rewrite (NIL_CASE eq_refl), memory_block_zero; simpl; normalize.
+  clear NIL_CASE.
+  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  + simpl; auto.
+  + destruct v.
+    - simpl; auto.
+    - apply IHm.
+Qed.
+
+Lemma mapsto_zeros_union_pred: forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
+  (m = nil -> sz = 0) ->
+  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
+  union_pred m (fun it _ => mapsto_zeros sz sh) v (Vptr b (Ptrofs.repr ofs)).
+Proof.
+  intros sh m sz A v b ofs NIL_CASE; intros.
+  destruct m as [| (i0, t0) m].
+  1: rewrite (NIL_CASE eq_refl), mapsto_zeros_zero; simpl; normalize.
   clear NIL_CASE.
   revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
   + simpl; auto.
@@ -1799,6 +1971,18 @@ Definition memory_block_array_pred:
   memory_block sh (sizeof t * z) (Vptr b (Ptrofs.repr ofs))
 := @memory_block_array_pred'.
 
+Definition mapsto_zeros_array_pred:
+  forall {cs: compspecs} {A : Type} {d : Inhabitant A} (a: A) sh t z b ofs,
+  0 <= z ->
+  0 <= ofs /\ ofs + sizeof t * z < Ptrofs.modulus ->
+  mapsto_zeros (sizeof t * z) sh (Vptr b (Ptrofs.repr ofs)) |--
+  array_pred 0 z
+     (fun i _ p =>
+      mapsto_zeros (sizeof t) sh
+        (offset_val (sizeof t * i) p)) (list_repeat (Z.to_nat z) a)
+     (Vptr b (Ptrofs.repr ofs))
+:= @mapsto_zeros_array_pred'.
+
 Definition memory_block_struct_pred:
   forall {cs: compspecs} sh m sz {A} (v: compact_prod (map A m)) b ofs,
   (m = nil -> sz = 0) ->
@@ -1812,11 +1996,31 @@ Definition memory_block_struct_pred:
   memory_block sh sz (Vptr b (Ptrofs.repr ofs))
 := @memory_block_struct_pred.
 
+Definition mapsto_zeros_struct_pred:
+  forall {cs: compspecs} sh m sz {A} (v: compact_prod (map A m)) b ofs,
+  (m = nil -> sz = 0) ->
+  members_no_replicate m = true ->
+  sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
+  0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
+  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
+  struct_pred m
+   (fun it _ p =>
+     (mapsto_zeros (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m)) sh
+     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Ptrofs.repr ofs))
+:= @mapsto_zeros_struct_pred.
+
 Definition memory_block_union_pred:
   forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
   union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Ptrofs.repr ofs)) =
   memory_block sh sz (Vptr b (Ptrofs.repr ofs))
 := @memory_block_union_pred.
+
+Definition mapsto_zeros_union_pred:
+  forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
+  (m = nil -> sz = 0) ->
+  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
+  union_pred m (fun it _ => mapsto_zeros sz sh) v (Vptr b (Ptrofs.repr ofs))
+:= @mapsto_zeros_union_pred.
 
 End auxiliary_pred.
