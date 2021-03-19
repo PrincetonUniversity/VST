@@ -1728,6 +1728,126 @@ destruct (Int.eq i Int.zero) eqn:?; inv H1.
 apply int_eq_e in Heqb. subst; reflexivity.
 Qed.
 
+Lemma true_Cne_neq: 
+  forall x y, 
+    typed_true tint (force_val (sem_cmp_pp Cne x y)) -> x <> y.
+Proof.
+  intros. hnf in H. destruct x, y; try inversion H.
+  - clear H1.
+    unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H; 
+    destruct (Int64.eq i i0) eqn:?; simpl in H; try inversion H.
+    intro. 
+    inversion H0. subst i. pose proof (Int64.eq_spec i0 i0). 
+    rewrite Heqb in H1.
+    contradiction.
+  - intro. inversion H0.
+  - intro. inversion H0.
+  - unfold sem_cmp_pp in H. simpl in H.
+    destruct (eq_block b b0).
+    + destruct (Ptrofs.eq i i0) eqn:? .
+      * simpl in H. pose proof (Ptrofs.eq_spec i i0). rewrite Heqb1 in H0.
+        subst b i. inversion H.  
+      * intro. inversion H0.
+        subst i.
+        pose proof (Ptrofs.eq_spec i0 i0). rewrite Heqb1 in H2.
+        contradiction.  
+    + intro. inversion H0. subst b. contradiction.
+Qed.
+
+Lemma true_Ceq_eq: 
+  forall x y, 
+    typed_true tint (force_val (sem_cmp_pp Ceq x y)) -> x = y.
+Proof.
+  intros. hnf in H. destruct x, y; try inversion H.
+  - clear H1.
+    unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H; 
+    destruct (Int64.eq i i0) eqn:?; simpl in H; try inversion H.
+    f_equal.
+    pose proof (Int64.eq_spec i i0).
+    rewrite Heqb in H0. auto.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H;
+    destruct (Int64.eq i Int64.zero) eqn:?; simpl in H; try inversion H.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H;
+    destruct (Int64.eq i0 Int64.zero) eqn:?; simpl in H; try inversion H.
+  - unfold sem_cmp_pp in H. simpl in H.
+    destruct (eq_block b b0) eqn:E.
+    + subst b. 
+      destruct (Ptrofs.eq i i0) eqn:E'.
+      * pose proof (Ptrofs.eq_spec i i0). rewrite E' in H0. subst i.
+        reflexivity.
+      * simpl in H. inversion H.
+    + simpl in H. inversion H.
+Qed.
+
+Lemma false_Cne_neq: 
+  forall x y, 
+    typed_false tint (force_val (sem_cmp_pp Cne x y)) -> x = y.
+Proof.
+  intros. hnf in H. destruct x, y; try inversion H. 
+  - clear H1.
+    unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H; 
+    destruct (Int64.eq i i0) eqn:?; simpl in H; try inversion H.
+    f_equal.
+    pose proof (Int64.eq_spec i i0).
+    rewrite Heqb in H0. auto.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H;
+    destruct (Int64.eq i Int64.zero) eqn:?; simpl in H; try inversion H.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H;
+    destruct (Int64.eq i0 Int64.zero) eqn:?; simpl in H; try inversion H.
+  - unfold sem_cmp_pp in H. simpl in H.
+    destruct (eq_block b b0).
+    + destruct (Ptrofs.eq i i0) eqn:? .
+      * simpl in H. pose proof (Ptrofs.eq_spec i i0). rewrite Heqb1 in H0.
+        subst b i. reflexivity.  
+      * simpl in H. inversion H.
+    + simpl in H. inversion H.
+Qed.
+
+Lemma false_Ceq_eq: 
+  forall x y, 
+    typed_false tint (force_val (sem_cmp_pp Ceq x y)) -> x <> y.
+Proof.
+  intros. hnf in H. destruct x, y; try inversion H.
+  - clear H1.
+    unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H; 
+    destruct (Int64.eq i i0) eqn:?; simpl in H; try inversion H.
+    intro. 
+    inversion H0. subst i. pose proof (Int64.eq_spec i0 i0). 
+    rewrite Heqb in H1.
+    contradiction.
+  - intro. inversion H0.
+  - intro. inversion H0.
+  - unfold sem_cmp_pp in H. simpl in H.
+    destruct (eq_block b b0).
+    + destruct (Ptrofs.eq i i0) eqn:? .
+      * simpl in H. pose proof (Ptrofs.eq_spec i i0). rewrite Heqb1 in H0.
+        subst b i. inversion H.
+      * intro. inversion H0. subst b i. pose proof (Ptrofs.eq_spec i0 i0). 
+        rewrite Heqb1 in H2. contradiction.
+    + intro. inversion H0. contradiction. 
+Qed.
+
+Ltac pointer_destructor :=
+  repeat match goal with
+  | x : typed_false tint (force_val (sem_cmp_pp Ceq ?Y ?Z)) |- _  =>
+    try apply false_Ceq_eq in x; try contradiction
+  | x : typed_true tint (force_val (sem_cmp_pp Ceq ?Y ?Z)) |- _ =>
+    try apply true_Ceq_eq in x; try subst Y; try (assert_PROP False; entailer!)
+  | x : typed_true tint (force_val (sem_cmp_pp Cne ?Y ?Z)) |- _ =>
+    try apply true_Cne_neq in x; try contradiction
+  | x : typed_false tint (force_val (sem_cmp_pp Cne ?Y ?Z)) |- _ =>
+    try apply false_Cne_neq in x; try subst Y; try (assert_PROP False; entailer!)
+  | _   => idtac
+  end.
+
 Ltac cleanup_repr H :=
 rewrite ?mul_repr, ?add_repr, ?sub_repr in H;
 match type of H with
@@ -2614,7 +2734,7 @@ match goal with
        try rewrite Int.signed_repr in HRE by rep_lia;
        repeat apply -> semax_skip_seq;
        abbreviate_semax
-     ]
+     ]; pointer_destructor   (* add it here *)
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
