@@ -1853,16 +1853,16 @@ Proof.
     + intro. inversion H0. contradiction. 
 Qed.
 
-Ltac pointer_destructor :=
-  repeat match goal with
-  | x : typed_false tint (force_val (sem_cmp_pp Ceq ?Y ?Z)) |- _  =>
-    try apply false_Ceq_eq in x; try contradiction
-  | x : typed_true tint (force_val (sem_cmp_pp Ceq ?Y ?Z)) |- _ =>
-    try apply true_Ceq_eq in x; try subst Y; try (assert_PROP False; entailer!)
-  | x : typed_true tint (force_val (sem_cmp_pp Cne ?Y ?Z)) |- _ =>
-    try apply true_Cne_neq in x; try contradiction
-  | x : typed_false tint (force_val (sem_cmp_pp Cne ?Y ?Z)) |- _ =>
-    try apply false_Cne_neq in x; try subst Y; try (assert_PROP False; entailer!)
+Ltac pointer_destructor H :=
+  repeat match type of H with
+  | typed_false tint (force_val (sem_cmp_pp Ceq ?Y ?Z)) =>
+    try apply false_Ceq_eq in H; try contradiction
+  | typed_true tint (force_val (sem_cmp_pp Ceq ?Y ?Z)) =>
+    try apply true_Ceq_eq in H; try subst Y; try (assert_PROP False; entailer!)
+  | typed_true tint (force_val (sem_cmp_pp Cne ?Y ?Z)) =>
+    try apply true_Cne_neq in H; try contradiction
+  | typed_false tint (force_val (sem_cmp_pp Cne ?Y ?Z)) =>
+    try apply false_Cne_neq in H; try subst Y; try (assert_PROP False; entailer!)
   | _   => idtac
   end.
 
@@ -2072,7 +2072,8 @@ Ltac do_repr_inj H :=
          ];
     rewrite ?Byte_signed_lem, ?Byte_signed_lem',
                  ?int_repr_byte_signed_eq0, ?int_repr_byte_signed_eq0
-      in H.
+      in H; 
+      pointer_destructor H.
 
 Ltac simpl_fst_snd :=
 repeat match goal with
@@ -2752,7 +2753,7 @@ match goal with
        try rewrite Int.signed_repr in HRE by rep_lia;
        repeat apply -> semax_skip_seq;
        abbreviate_semax
-     ]; pointer_destructor   (* add it here *)
+     ]
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
