@@ -1667,68 +1667,7 @@ intros.
 pose proof (Ptrofs.eq_spec i Ptrofs.zero). rewrite H in H0; auto.
 Qed.
 
-Lemma typed_true_nullptr3:
-  forall p,
-  typed_true tint (force_val (sem_cmp_pp Ceq p nullval)) ->
-  p=nullval.
-Proof.
-unfold nullval.
-simpl; unfold strict_bool_val, sem_cmp_pp, Val.cmplu_bool, Val.cmpu_bool.
-intros.
-destruct Archi.ptr64 eqn:Hp; simpl in H;
-destruct p; inversion H;
-unfold strict_bool_val in H1.
-destruct (Int64.eq i Int64.zero) eqn:?; inv H1.
-apply int64_eq_e in Heqb. subst; reflexivity.
-destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_e in Heqb. subst; reflexivity.
-Qed.
-
-Lemma typed_false_nullptr3:
-  forall p,
-  typed_false tint (force_val (sem_cmp_pp Ceq p nullval)) ->
-  p<>nullval.
-Proof.
-intros.
-intro. subst p.
-hnf in H.
-unfold sem_cmp_pp, nullval in H.
-destruct Archi.ptr64 eqn:Hp; simpl in H.
-rewrite Int64.eq_true in H. inv H.
-inv H.
-Qed.
-
-Lemma typed_true_nullptr4:
-  forall p,
-  typed_true tint (force_val (sem_cmp_pp Cne p nullval)) ->
-  p <> nullval.
-Proof.
-intros.
-intro. subst p.
-hnf in H.
-unfold sem_cmp_pp, nullval in H.
-destruct Archi.ptr64 eqn:Hp; simpl in H.
-rewrite Int64.eq_true in H. inv H.
-inv H.
-Qed.
-
-Lemma typed_false_nullptr4:
-  forall p,
-  typed_false tint (force_val (sem_cmp_pp Cne p nullval)) ->
-  p=nullval.
-Proof.
-intros.
-hnf in H.
-unfold sem_cmp_pp, nullval in *.
-destruct Archi.ptr64 eqn:Hp; simpl in H;
-destruct p; inversion H.
-destruct (Int64.eq i Int64.zero) eqn:?; inv H1.
-apply int64_eq_e in Heqb. subst; reflexivity.
-destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_e in Heqb. subst; reflexivity.
-Qed.
-
-Lemma true_Cne_neq: 
+Lemma typed_true_Cne_neq: 
   forall x y, 
     typed_true tint (force_val (sem_cmp_pp Cne x y)) -> x <> y.
 Proof.
@@ -1758,7 +1697,7 @@ Proof.
     + intro. inversion H0. subst b. contradiction.
 Qed.
 
-Lemma true_Ceq_eq: 
+Lemma typed_true_Ceq_eq: 
   forall x y, 
     typed_true tint (force_val (sem_cmp_pp Ceq x y)) -> x = y.
 Proof.
@@ -1792,7 +1731,7 @@ Proof.
     + simpl in H. inversion H.
 Qed.
 
-Lemma false_Cne_neq: 
+Lemma typed_false_Cne_eq: 
   forall x y, 
     typed_false tint (force_val (sem_cmp_pp Cne x y)) -> x = y.
 Proof.
@@ -1825,7 +1764,7 @@ Proof.
     + simpl in H. inversion H.
 Qed.
 
-Lemma false_Ceq_eq: 
+Lemma typed_false_Ceq_neq: 
   forall x y, 
     typed_false tint (force_val (sem_cmp_pp Ceq x y)) -> x <> y.
 Proof.
@@ -1853,18 +1792,41 @@ Proof.
     + intro. inversion H0. contradiction. 
 Qed.
 
-Ltac pointer_destructor H :=
-  repeat match type of H with
-  | typed_false tint (force_val (sem_cmp_pp Ceq ?Y ?Z)) =>
-    try apply false_Ceq_eq in H; try contradiction
-  | typed_true tint (force_val (sem_cmp_pp Ceq ?Y ?Z)) =>
-    try apply true_Ceq_eq in H; try subst Y; try (assert_PROP False; entailer!)
-  | typed_true tint (force_val (sem_cmp_pp Cne ?Y ?Z)) =>
-    try apply true_Cne_neq in H; try contradiction
-  | typed_false tint (force_val (sem_cmp_pp Cne ?Y ?Z)) =>
-    try apply false_Cne_neq in H; try subst Y; try (assert_PROP False; entailer!)
-  | _   => idtac
-  end.
+Corollary typed_true_nullptr3:
+  forall p,
+  typed_true tint (force_val (sem_cmp_pp Ceq p nullval)) ->
+  p=nullval.
+Proof.
+  intros p.
+  apply (typed_true_Ceq_eq p nullval).
+Qed.
+
+Corollary typed_false_nullptr3:
+  forall p,
+  typed_false tint (force_val (sem_cmp_pp Ceq p nullval)) ->
+  p<>nullval.
+Proof.
+  intros p.
+  apply (typed_false_Ceq_neq p nullval).
+Qed.
+
+Corollary typed_true_nullptr4:
+  forall p,
+  typed_true tint (force_val (sem_cmp_pp Cne p nullval)) ->
+  p <> nullval.
+Proof.
+  intros p.
+  apply (typed_true_Cne_neq p nullval).
+Qed.
+
+Corollary typed_false_nullptr4:
+  forall p,
+  typed_false tint (force_val (sem_cmp_pp Cne p nullval)) ->
+  p=nullval.
+Proof.
+  intros p.
+  apply (typed_false_Cne_eq p nullval).
+Qed.
 
 Ltac cleanup_repr H :=
 rewrite ?mul_repr, ?add_repr, ?sub_repr in H;
@@ -2043,13 +2005,13 @@ Ltac do_repr_inj H :=
          | simple apply repr_inj_unsigned' in H; [ | rep_lia | rep_lia ]
          | match type of H with
             | typed_true _  (force_val (sem_cmp_pp Ceq _ _)) =>
-                                    apply typed_true_nullptr3 in H
+                                    apply typed_true_Ceq_eq in H
             | typed_true _  (force_val (sem_cmp_pp Cne _ _)) =>
-                                    apply typed_true_nullptr4 in H
+                                    apply typed_true_Cne_neq in H
             | typed_false _  (force_val (sem_cmp_pp Ceq _ _)) =>
-                                    apply typed_false_nullptr3 in H
+                                    apply typed_false_Ceq_neq in H
             | typed_false _  (force_val (sem_cmp_pp Cne _ _)) =>
-                                    apply typed_false_nullptr4 in H
+                                    apply typed_false_Cne_eq in H
           end
          | apply typed_false_nullptr4 in H
          | simple apply ltu_repr in H; [ | rep_lia | rep_lia]
@@ -2072,8 +2034,7 @@ Ltac do_repr_inj H :=
          ];
     rewrite ?Byte_signed_lem, ?Byte_signed_lem',
                  ?int_repr_byte_signed_eq0, ?int_repr_byte_signed_eq0
-      in H; 
-      pointer_destructor H.
+      in H.
 
 Ltac simpl_fst_snd :=
 repeat match goal with

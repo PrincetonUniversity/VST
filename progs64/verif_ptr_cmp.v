@@ -102,6 +102,9 @@ Proof.
       Exists p_oppo p_lch_l p_lch_r p_rch_l p_rch_r.
       entailer!.
     }
+    {
+      contradiction.
+    }
   }
   { 
     (* If p is the right child of p_fa *)
@@ -111,18 +114,11 @@ Proof.
     forward_if.
     { 
       (* invalid case *)
-      destruct t1. 
-      {
-        simpl.
-        Intros.
-        apply H0 in H1. destruct H1.
-      }
-      destruct t2. 
-      {
-        simpl.
-        Intros.
-        apply H0 in H1. destruct H1.
-      }
+      destruct t1; destruct t2;
+        simpl;
+        Intros;
+        subst;
+        try contradiction.
       simpl tree_rep.
       Intros p_lch_l0 p_lch_r0 p_rch_l0 p_rch_r0.
       Intros p_lch_l1 p_lch_r1 p_rch_l1 p_rch_r1.
@@ -180,6 +176,7 @@ Ltac show_the_way d :=
   destruct d; simpl fa_rep; 
   Intros p_oppo p_lch_l p_lch_r p_rch_l p_rch_r; 
   forward; forward_if; 
+  subst;
   try tree_rep_conflict. 
 
 Theorem body_get_branch_new_fashion: semax_body Vprog Gprog f_get_branch get_branch_spec.
@@ -193,7 +190,7 @@ Proof.
   { 
     destruct d; simpl fa_rep; Intros a; apply H in H1; destruct H1.
   }
-  show_the_way d; 
+  show_the_way d;
   (** The invalid cases are ruled out automatically. *)
   forward; simpl;
   Exists p_oppo p_lch_l p_lch_r p_rch_l p_rch_r;
