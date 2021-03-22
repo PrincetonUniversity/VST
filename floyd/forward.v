@@ -2005,13 +2005,17 @@ Ltac do_repr_inj H :=
          | simple apply repr_inj_unsigned' in H; [ | rep_lia | rep_lia ]
          | match type of H with
             | typed_true _  (force_val (sem_cmp_pp Ceq _ _)) =>
-                                    apply typed_true_Ceq_eq in H
+                                    try apply typed_true_nullptr3 in H;
+                                    try apply typed_true_Ceq_eq in H
             | typed_true _  (force_val (sem_cmp_pp Cne _ _)) =>
-                                    apply typed_true_Cne_neq in H
+                                    try apply typed_true_nullptr4 in H;
+                                    try apply typed_true_Cne_neq in H
             | typed_false _  (force_val (sem_cmp_pp Ceq _ _)) =>
-                                    apply typed_false_Ceq_neq in H
+                                    try apply typed_false_nullptr3 in H;
+                                    try apply typed_false_Ceq_neq in H
             | typed_false _  (force_val (sem_cmp_pp Cne _ _)) =>
-                                    apply typed_false_Cne_eq in H
+                                    try apply typed_false_nullptr4 in H;
+                                    try apply typed_false_Cne_eq in H
           end
          | apply typed_false_nullptr4 in H
          | simple apply ltu_repr in H; [ | rep_lia | rep_lia]
