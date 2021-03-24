@@ -829,7 +829,7 @@ destruct (dec_share_identity (pshare_sh sh2)).
 contradiction (@nonunit_nonidentity _ _ _ _ (pshare_sh sh2)).
 apply pshare_nonunit.
 apply join_unit1; auto.
-f_equal. f_equal. unfold mk_lifted; destruct sh2; simpl. f_equal. apply proof_irr.
+f_equal. f_equal. unfold mk_lifted; destruct sh2; simpl. f_equal.
 constructor.
 Qed.
 
@@ -954,7 +954,7 @@ Proof.
     apply env_mapsto_get in H; destruct H.
     apply env_mapsto_get in H0; destruct H0.
     rewrite H; rewrite H0.
-    repeat f_equal; auto. apply proof_irr.
+    repeat f_equal; auto.
 
     eapply env_mapsto_get_neq in H; eauto.
     eapply env_mapsto_get_neq in H0; eauto.

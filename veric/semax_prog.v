@@ -2159,8 +2159,7 @@ Proof.
         unshelve eexists; [split; auto; apply Share.nontrivial|].
         unfold set_ghost; rewrite ghost_of_make_rmap, resource_at_make_rmap.
         split; [apply resource_at_core_identity|].
-        unfold ext_ghost; repeat f_equal.
-        apply proof_irr.
+        unfold ext_ghost. repeat f_equal.
     * apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
 +
   apply initial_jm_ext_without_locks.
@@ -2720,8 +2719,7 @@ Qed.
 
 End semax_prog.
 
-      (*
-
+(*
 (*We may always add unused assumptions to G - intuitively, this context weakening rule 
   is sound since one could have done the proof of f wrt the larger gprog in the first place. *)
 Lemma semax_func_weakening_L {cs} V H G funs K:
