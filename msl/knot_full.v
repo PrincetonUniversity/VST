@@ -803,7 +803,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     generalize (approx_obligation_1 (S x)
       (exist (fun p => hered p) x0 h)).
     rewrite <- H0.
-    intros. f_equal. apply proof_irr.
+    intros. f_equal.
    }
     extensionality.
     destruct x1.

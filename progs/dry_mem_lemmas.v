@@ -42,7 +42,6 @@ Lemma has_ext_eq' : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
 Proof.
   intros ??? (? & Hno & ->); simpl; split; auto.
   unfold ext_ghost; simpl; repeat f_equal.
-  apply proof_irr.
 Qed.
 
 Corollary has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
@@ -146,7 +145,6 @@ Proof.
   unfold set_ghost; rewrite resource_at_make_rmap, ghost_of_make_rmap.
   split; auto.
   unfold ext_ghost; repeat f_equal.
-  apply proof_irr.
 Qed.
 
 Lemma ext_ref_join : forall {Z} (z : Z), join (ext_ghost z) (ext_ref z) (ext_both z).
