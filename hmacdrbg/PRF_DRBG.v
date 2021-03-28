@@ -530,7 +530,7 @@ subgoal 6 (ID 4578) is:
         destruct (in_dec (EqDec_dec D_EqDec) a l0); intuition.
         discriminate.
         rewrite notInArrayLookupNone in H.
-        discriminate.
+        discriminate. rewrite unzip_eq_split.
         intuition. rewrite <- Heqz in H3. simpl in H3. auto.
 
       (* fst y1 = fst y2 (exactly the same as above! if there are no dups in the whole state... but we know there are dups in the tail of the state, so, contradiction!) *)
@@ -541,7 +541,7 @@ subgoal 6 (ID 4578) is:
         destruct (in_dec (EqDec_dec D_EqDec) a l0).
         discriminate.
         rewrite notInArrayLookupNone in H.
-        discriminate.
+        discriminate. rewrite unzip_eq_split.
         intuition. rewrite <- Heqz in H3. simpl in H3. auto.
     
     * (* not a duplicate -- behaves like RB -- a is not in x2 *)

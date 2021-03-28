@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.list_dt.
 Require Import VST.progs.insertionsort.
 Require Import Sorted.
-Require Import Omega.
+Require Import Lia.
 Require Import Coq.Sorting.Permutation.
 
 Local Open Scope logic.

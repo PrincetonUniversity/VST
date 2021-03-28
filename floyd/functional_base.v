@@ -612,17 +612,12 @@ Ltac pose_lemmas F L :=
   | H: context [F ?A] |- _ => pose_lemma F A L
  end.
 
-Ltac warn_rep_omega := 
-  idtac "Warning: Hint database 'rep_omega' is deprecated, use Hint Rewrite ... : rep_lia".
-  
 Ltac rep_lia_setup := 
  repeat match goal with
             | x := _ : ?T |- _ => lazymatch T with Z => fail | nat => fail | _ => clearbody x end
             end;
  zify;
   try autorewrite with rep_lia in *;
-  try (progress autorewrite with rep_lia rep_omega in *;
-       warn_rep_omega);
   unfold repable_signed in *;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned Byte.unsigned_range;
@@ -747,10 +742,6 @@ imported only VST.floyd.functional_base, without separation logic.
 
 In VST.floyd.functional_base the following VST tactics are available:
 rep_lia, list_solve, if_tac, autorewrite with sublist, computable, ...".
-
-Ltac rep_omega := idtac "Warning: rep_omega is a deprecated synonym for rep_lia"; rep_lia.
-Ltac omega := idtac "Warning: use of omega without Require Import Coq.omega.Omega; deprecated; should use lia anyway"; Coq.omega.Omega.omega.
-
 
 Lemma lt_repr64:
      forall i j : Z,

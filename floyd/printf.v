@@ -210,7 +210,7 @@ Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
       ((*2%positive,*) tptr tschar) :: 
       format_argtys fl),
      tint)
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
+     {|cc_vararg:=Some 1; cc_unproto:=false; cc_structret:=false|}
      (val * share * list byte * val * format_stuff fl * (file_id * IO_itree))
      (fun x : (val * share * list byte * val * format_stuff fl * (file_id * IO_itree)) => 
       match x with (outp,sh,fmt,fmtp,stuff,(out,k)) =>
@@ -234,7 +234,7 @@ Definition printf_spec_parametrized (fmtz: list Z) :=
     ((((*1%positive,*) tptr tschar) :: 
       format_argtys (*2%positive*) fl),
      tint)
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
+     {|cc_vararg:=Some 1; cc_unproto:=false; cc_structret:=false|}
      (val * share * list byte * val * format_stuff fl * IO_itree)
      (fun x : (val * share * list byte * val * format_stuff fl * IO_itree) => 
       match x with (outp,sh,fmt,fmtp,stuff,k) =>
@@ -257,7 +257,7 @@ Definition fprintf_placeholder_spec FILEid : funspec :=
     ((((*1%positive,*) tptr (Tstruct FILEid noattr)) ::
       ((*2%positive,*) tptr tschar) :: nil),
      tint)
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
+     {|cc_vararg:=Some 2; cc_unproto:=false; cc_structret:=false|}
      unit
      (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())%argsassert
      (fun x : unit =>  PROP () LOCAL () SEP ()).
@@ -266,7 +266,7 @@ Definition printf_placeholder_spec : funspec :=
   NDmk_funspec 
     ((((*1%positive,*) tptr tschar) :: nil),
      tint)
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
+     {|cc_vararg:=Some 2; cc_unproto:=false; cc_structret:=false|}
      unit
      (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())%argsassert
      (fun x : unit =>  PROP () LOCAL () SEP ()).
