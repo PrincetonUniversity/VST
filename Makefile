@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.12.0 or-else 8.12.1 or-else 8.12.2 or-else 8.13.1 or-else 8.13.0
+COQVERSION= 8.12.0 or-else 8.12.1 or-else 8.12.2 or-else 8.13+beta1 or-else 8.13.0 or-else 8.13.1
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -234,8 +234,8 @@ endif
 
 # ########## Flags ##########
 
-VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
-OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
+VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86
+OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 
 # ##### Compcert Flags #####
@@ -290,7 +290,7 @@ endif
 
 # ##### Flag summary #####
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) -Q ../stdpp/theories stdpp -Q ../iris/iris iris
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
 
 DEPFLAGS:=$(COQFLAGS)
 
@@ -674,6 +674,7 @@ else
 	@$(COQC) $(COQF) $*.v
 #	@util/annotate $(COQC) $(COQF) $*.v
 endif
+
 
 # ########## Targets ##########
 

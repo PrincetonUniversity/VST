@@ -18,7 +18,7 @@ Definition ctr_state ctr (g : gname) n := data_at Ews tuint (Vint (Int.repr (Z.o
 
 Program Definition incr_spec :=
  DECLARE _incr
-  ATOMIC TYPE (rmaps.ConstType (_ * _ * _)) OBJ n INVS empty top
+  ATOMIC TYPE (rmaps.ConstType _) OBJ n INVS empty top
   WITH sh, g, gv
   PRE [ ]
          PROP  (readable_share sh)

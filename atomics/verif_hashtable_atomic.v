@@ -228,7 +228,7 @@ Definition f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv :=
     data_at sh (tarray tentry size) entries p *
     data_at sh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp *
     data_at sh (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp *
-    data_at Ews tint (vint (Zlength (filter id [b1; b2; b3]))) res * mem_mgr gv.
+    data_at Ews tint (vint (Zlength (List.filter id [b1; b2; b3]))) res * mem_mgr gv.
 
 Definition f_lock_pred tsh sh gsh entries gh p t locksp lockt resultsp res gv :=
   selflock (f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv) tsh lockt.
@@ -307,7 +307,7 @@ Lemma failed_entries : forall k i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= 
 Proof.
   intros.
   rewrite -> Forall_forall, prop_forall; apply allp_right; intros (k', v').
-  rewrite prop_forall; apply allp_right; intro Hin.
+  rewrite prop_forall; apply allp_right; intro Hin. apply elem_of_list_In in Hin.
   apply In_Znth in Hin; destruct Hin as (j & Hj & Hjth).
   pose proof (hash_range k).
   erewrite Zlength_sublist in Hj by (rewrite ?Zlength_rebase; lia).
@@ -1344,7 +1344,7 @@ Proof.
     { destruct tid; auto; discriminate. } }
   forward_for_simple_bound 3 (EX j : Z, EX ls : list bool, EX h : _,
     PROP (Zlength ls = j; add_events empty_map (map (fun j => HAdd (j + 1) 1 (Znth j ls)) (upto (Z.to_nat j))) h)
-    LOCAL (temp _total (vint (Zlength (filter id ls))); temp _res res; temp _l lockt; temp _t (vint t);
+    LOCAL (temp _total (vint (Zlength (List.filter id ls))); temp _res res; temp _l lockt; temp _t (vint t);
            temp _arg tid; gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          invariant i (hashtable_inv gh g lg entries);
@@ -1391,21 +1391,20 @@ Proof.
           iSplit; auto; iPureIntro.
           apply (add_events_snoc _ nil); [constructor|].
           apply hist_incl_lt; auto. }
-    { repeat (split; auto); try rep_lia.
-      match goal with H : Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries |- _ =>
-          eapply Forall_impl, H end; intros (?, ?); auto. }
+    { repeat (split; auto); try rep_lia. eapply Forall_impl. apply H2. intros.
+      destruct x. auto. }
     Intros b h'.
-    forward_if (temp _total (vint (Zlength (filter id (ls ++ [b]))))).
+    forward_if (temp _total (vint (Zlength (List.filter id (ls ++ [b]))))).
     + pose proof (Zlength_filter id ls).
       forward.
       entailer!.
-      rewrite filter_app; simpl.
+      rewrite List.filter_app; simpl.
       rewrite -> Zlength_app, Zlength_cons, Zlength_nil; auto.
     + forward.
       entailer!.
-      rewrite filter_app; simpl.
+      rewrite List.filter_app; simpl.
       rewrite -> Zlength_app, Zlength_nil, Z.add_0_r; auto.
-    + Exists (ls ++ [b]) h'; rewrite -> filter_app, ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
+    + Exists (ls ++ [b]) h'; rewrite -> List.filter_app, ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
       rewrite -> Z2Nat.inj_add, upto_app, map_app, Z2Nat.id by lia; change (upto (Z.to_nat 1)) with [0]; simpl.
       rewrite -> Z.add_0_r, app_Znth2, Zminus_diag, Znth_0_cons by lia.
       eapply add_events_trans; eauto.
@@ -1525,9 +1524,9 @@ Proof.
       unfold map_upd; if_tac; auto; subst; contradiction.
 Qed.
 
-Lemma filter_find_count : forall {A} {d : Inhabitant A} (f : A -> bool) l li (Hunique : NoDup li)
+Lemma filter_find_count : forall {A} {d : Inhabitant A} (f : A -> bool) l li (Hunique : List.NoDup li)
   (Hli : forall i, In i li -> f (Znth i l) = true) (Hrest : forall i, ~In i li -> f (Znth i l) = false),
-  Zlength (filter f l) = Zlength li.
+  Zlength (List.filter f l) = Zlength li.
 Proof.
   induction l; simpl; intros.
   - exploit (list_pigeonhole li (Zlength li + 1)); [lia|].
@@ -1547,7 +1546,7 @@ Proof.
         rewrite -> In_upto, Z2Nat.id; lia. } }
     destruct (in_dec Z.eq_dec 0 li).
     + exploit Hli; eauto.
-      rewrite Znth_0_cons; intros ->.
+      rewrite Znth_0_cons. intros ->.
       rewrite Zlength_cons.
       exploit in_split; eauto; intros (li1 & li2 & ?); subst.
       apply NoDup_remove in Hunique; destruct Hunique.
@@ -1640,11 +1639,11 @@ Lemma add_three : forall lr HT l (Hlr : Zlength lr = 3)
      HAdd 3 1 (Znth 2 ls)] h) lr) (Hlens : Forall (fun '(_, ls) => Zlength ls = 3) lr)
   (Hl : hist_list (maps_add (map fst lr)) l) (HHT : apply_hist empty_map l = Some HT)
   (Hdisj : all_disjoint (map fst lr)),
-  Zlength (filter id (concat (map snd lr))) = 3.
+  Zlength (List.filter id (concat (map snd lr))) = 3.
 Proof.
   intros.
-  assert (Permutation.Permutation (filter id (concat (map snd lr)))
-    (filter id (map (fun e => match e with HAdd _ _ b => b | _ => false end) l))) as Hperm.
+  assert (Permutation.Permutation (List.filter id (concat (map snd lr)))
+    (List.filter id (map (fun e => match e with HAdd _ _ b => b | _ => false end) l))) as Hperm.
   { apply Permutation_filter, hists_eq; auto.
     apply hist_list_weak; auto. }
   rewrite (Permutation_Zlength _ _ Hperm).
@@ -1654,7 +1653,7 @@ Proof.
     apply Hl in H.
     apply in_maps_add in H as (m & Hin & Hm).
     apply in_map_iff in Hin as ((?, h) & ? & Hin); simpl in *; subst.
-    rewrite -> Forall_forall in Hhists; specialize (Hhists _ Hin); simpl in Hhists.
+    rewrite -> List.Forall_forall in Hhists; specialize (Hhists _ Hin); simpl in Hhists.
     eapply add_events_dom in Hm; eauto; simpl in Hm.
     decompose [or] Hm; try discriminate; contradiction. }
   assert (forall i, 0 <= i < 3 -> In (HAdd (i + 1) 1 (Znth i (snd (Znth 0 lr)))) l) as Hins.
@@ -1662,7 +1661,7 @@ Proof.
     assert (exists t, maps_add (map fst lr) t = Some (HAdd (i + 1) 1 (Znth i (snd (Znth 0 lr)))))
       as (t & Hin).
     { exploit (Znth_In 0 lr); [lia | intro Hin].
-      rewrite -> Forall_forall in Hhists; specialize (Hhists _ Hin).
+      rewrite -> List.Forall_forall in Hhists; specialize (Hhists _ Hin).
       destruct (Znth 0 lr) as (h, ?); simpl in *.
       apply add_events_in with (e := HAdd (i + 1) 1 (Znth i l0)) in Hhists as (t & _ & Hh).
       exists t; eapply maps_add_in; eauto.
@@ -1707,7 +1706,7 @@ Proof.
       apply Hl in Hin.
       apply in_maps_add in Hin as (? & Hin & Hm); subst.
       rewrite -> in_map_iff in Hin; destruct Hin as ((h, ?) & ? & Hin); subst; simpl in *.
-      rewrite -> Forall_forall in Hhists; specialize (Hhists _ Hin); simpl in Hhists.
+      rewrite -> List.Forall_forall in Hhists; specialize (Hhists _ Hin); simpl in Hhists.
       eapply add_events_dom in Hhists; eauto; simpl in Hhists.
       destruct Hhists as [X | [X | [X | [X | X]]]]; inv X; auto. }
     destruct Hk as [|[|]]; [left | right; left | right; right; left];
@@ -1889,7 +1888,7 @@ Proof.
             [HAdd 1 1 (Znth 0 ls); HAdd 2 1 (Znth 1 ls); HAdd 3 1 (Znth 2 ls)] h) (snd x);
           Forall (fun '(h, ls) => Zlength ls = 3) (snd x); all_disjoint (map fst (snd x));
           readable_share sh'; sepalg_list.list_join sh' (sublist i 3 shs') Tsh)
-    LOCAL (let ls := map snd (snd x) in temp _total (vint (Zlength (filter id (concat ls)))); gvars gv)
+    LOCAL (let ls := map snd (snd x) in temp _total (vint (Zlength (List.filter id (concat ls)))); gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs (fst x) (tarray tentry size) entries (gv _m_entries);
          |>wsat; |>invariant i1 (hashtable_inv gh g lg entries);
          let h := map fst (snd x) in ghost_hist sh' (fold_right map_add empty_map h) gh;
@@ -1936,7 +1935,7 @@ Proof.
       rewrite upd_Znth_same; auto. }
     rewrite -> upd_Znth_same by auto.
     forward.
-    Opaque filter.
+    Opaque List.filter.
     erewrite sublist_next with (l := res) by (auto; lia); simpl.
     forward_call (tint, Znth i res, gv).
     { entailer!.
@@ -1966,21 +1965,21 @@ Proof.
       erewrite ghost_hist_join; eauto.
     gather_SEP (data_at sh3 _ _ _) (data_at (Znth (Zlength lr) shs) _ _ _);
       erewrite data_at_share_join by eauto.
-    assert (0 <= Zlength (filter id [b1; b2; b3]) <= 3).
+    assert (0 <= Zlength (List.filter id [b1; b2; b3]) <= 3).
     { split; [apply Zlength_nonneg|].
       etransitivity; [apply Zlength_filter|].
       rewrite -> !Zlength_cons, Zlength_nil in *; lia. }
-    assert (0 <= Zlength (filter id (concat (map snd lr))) <= 3 * Zlength shs).
+    assert (0 <= Zlength (List.filter id (concat (map snd lr))) <= 3 * Zlength shs).
     { split; [apply Zlength_nonneg|].
       etransitivity; [apply Zlength_filter|].
       etransitivity; [apply Zlength_concat_le with (n := 3)|].
       * rewrite Forall_map.
-        eapply Forall_impl; [|eauto].
+        eapply List.Forall_impl; [|eauto].
         intros []; simpl; lia.
       * rewrite Zlength_map; lia. }
     forward.
     go_lowerx; Exists (w1, lr ++ [(hi, [b1; b2; b3])]) w1'; entailer!.
-    rewrite -> !map_app, concat_app, filter_app, !Zlength_app, Zlength_cons, Zlength_nil; simpl;
+    rewrite -> !map_app, concat_app, List.filter_app, !Zlength_app, Zlength_cons, Zlength_nil; simpl;
       repeat (split; auto).
     - eapply join_readable1; eauto.
     - rewrite Forall_app; repeat constructor; auto.
@@ -1997,7 +1996,7 @@ Proof.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
     rewrite sublist_nil in H; inv H end.
   gather_SEP (ghost_hist _ _ _) (|> invariant _ _).
-  replace_SEP 0 (|={inv i1}=> !!(Zlength (filter id (concat (map snd lr))) = 3) : mpred)%I.
+  replace_SEP 0 (|={inv i1}=> !!(Zlength (List.filter id (concat (map snd lr))) = 3) : mpred)%I.
   { go_lower.
     iIntros "(hist & inv)".
     iPoseProof (timeless with "inv") as ">inv".
