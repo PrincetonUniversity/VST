@@ -4589,7 +4589,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ c);intro H23;
     rewrite H23;
     trivial.
@@ -4598,7 +4597,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x1) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ H3);intro H13;
     rewrite H13;
     trivial.
@@ -4679,7 +4677,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ c);intro H13;
     rewrite H13;
     trivial.
@@ -4689,7 +4686,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x0) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ c1);intro H23;
     rewrite H23;
     trivial.
@@ -4737,7 +4733,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ c);intro H13;
     rewrite H13;
     trivial.
@@ -4746,7 +4741,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x2) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ H5);intro H23;
     rewrite H23;
     trivial.
@@ -5229,7 +5223,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ c);intro H23;
     rewrite H23;
     trivial.
@@ -5238,7 +5231,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x1) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ H3);intro H13;
     rewrite H13;
     trivial.
@@ -5319,7 +5311,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ c);intro H13;
     rewrite H13;
     trivial.
@@ -5329,7 +5320,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x0) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ c1);intro H23;
     rewrite H23;
     trivial.
@@ -5377,7 +5367,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ c);intro H13;
     rewrite H13;
     trivial.
@@ -5386,7 +5375,6 @@ Qed.
           exist (fun t => canonicalTree t) (mkCanon x2) (mkCanon_correct _)).
     simpl;
     f_equal;
-    apply exist_ext;
     generalize (mkCanon_identity _ H5);intro H23;
     rewrite H23;
     trivial.
@@ -6554,7 +6542,6 @@ Proof.
   elimtype False.
   apply H0.
   f_equal.
-  apply proof_irr.
   elimtype False.
   unfold tree_height in H1.
   simpl in H1.
@@ -7342,11 +7329,9 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   left.
   unfold top.
   f_equal.
-  apply proof_irr.
   right.
   unfold bot.
   f_equal.
-  apply proof_irr.
   simpl in H.
   unfold tree_height in H.
   simpl in H.
@@ -7459,7 +7444,7 @@ Lemma tree_top_rewrite : forall c,
  exist _ (Leaf true) c = top.
 Proof.
  intros.
- unfold top. f_equal. apply proof_irr.
+ unfold top. f_equal.
 Qed.
 
 Lemma tree_bot_rewrite : forall c,
@@ -7467,7 +7452,7 @@ Lemma tree_bot_rewrite : forall c,
 Proof.
  intros.
  unfold bot.
- f_equal. apply proof_irr.
+ f_equal.
 Qed.
 
 Lemma tree_basic_rewrite : forall b c,
@@ -7493,8 +7478,8 @@ Lemma decompose_basic: forall b c c1 c2,
 Proof.
  intros.
  unfold decompose,decompose_tree.
- simpl. f_equal. f_equal. apply proof_irr.
- f_equal. apply proof_irr.
+ simpl. f_equal. f_equal.
+ f_equal.
 Qed.
 
 Lemma decompose_top: decompose top = (top,top).
@@ -7514,8 +7499,8 @@ Proof.
  unfold decompose. unfold decompose_tree.
  unfold tree_decompose.
  destruct c as [? [? [? ?]]].
- f_equal. f_equal. apply proof_irr.
- f_equal. apply proof_irr.
+ f_equal. f_equal.
+ f_equal.
 Qed.
 
 Lemma identity_bot: forall s, identity s <-> s = bot.
@@ -7533,7 +7518,7 @@ Qed.
 Lemma tree_proof_replace: forall (t : ShareTree) c1 c2,
  exist (fun t => canonicalTree t) t c1 = exist _ t c2.
 Proof.
- intros. f_equal. apply proof_irr.
+ intros. f_equal.
 Qed.
 
 Lemma top_unrel: forall a,
@@ -7678,7 +7663,7 @@ Proof.
  replace (tree_decompose a) with (decompose a) by trivial.
  rewrite H0.
  icase t1. icase b. try tauto.
- repeat f_equal. apply proof_irr.
+ repeat f_equal.
 Qed.
 
 Lemma unrel_left_obmit: forall a a1 a2 t c c',
@@ -7692,7 +7677,6 @@ Proof.
  replace (tree_decompose a) with (decompose a) by trivial.
  rewrite H.
  repeat f_equal.
- apply proof_irr.
 Qed.
 
 Lemma unrel_lub: forall a b1 b2,
@@ -7943,13 +7927,11 @@ Qed.
 Lemma Lsh_recompose: Lsh = recompose (top, bot).
 Proof.
  compute;f_equal.
- apply proof_irr.
 Qed.
 
 Lemma Rsh_recompose: Rsh = recompose (bot,top).
 Proof.
  compute;f_equal.
- apply proof_irr.
 Qed.
 
 Lemma decompose_Rsh: forall sh,
@@ -7980,9 +7962,9 @@ Proof.
  rewrite rel_top2.
  icase x;simpl.
  icase b;simpl.
- compute. f_equal. apply proof_irr.
- compute. f_equal. apply proof_irr.
- compute. f_equal. apply proof_irr.
+ compute. f_equal.
+ compute. f_equal.
+ compute. f_equal.
 Qed.
 
 Lemma rel_Rsh: forall sh,
@@ -7992,8 +7974,8 @@ rel Rsh sh = recompose (bot,sh).
  rewrite rel_top2.
  icase x;simpl.
  icase b;simpl.
- compute. f_equal. apply proof_irr.
- compute. f_equal. apply proof_irr.
+ compute. f_equal.
+ compute. f_equal.
 Qed.
 
 Lemma lub_rel_recompose: forall sh1 sh2,
