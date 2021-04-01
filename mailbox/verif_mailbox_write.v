@@ -141,7 +141,7 @@ Proof.
       discriminate. }
     Intros.
     forward.
-    lia.
+    entailer!. change B with 5%Z in *. lia.
     { entailer!.
       subst available; apply Forall_Znth; [rewrite Zlength_map, Zlength_upto; unfold B, N in *; simpl; lia|].
       rewrite Forall_forall; intros ? Hin.

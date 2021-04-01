@@ -893,7 +893,7 @@ Opaque HMAC256_DRBG_generate_function.
            unfold hmac256drbgstate_md_info_pointer; simpl in *. entailer!. 
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
              apply hmac_common_lemmas.HMAC_Zlength. }
-           { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia.
+           { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval.
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
            }

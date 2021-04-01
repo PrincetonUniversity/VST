@@ -2727,11 +2727,11 @@ Ltac solve_legal_nested_field_in_entailment :=
   first
   [ apply prop_right; apply compute_legal_nested_field_spec';
     simpl_compute_legal_nested_field;
-    repeat constructor; lia
+    repeat apply Forall_cons; try apply Forall_nil; lia
   |
   apply compute_legal_nested_field_spec;
   simpl_compute_legal_nested_field;
-  repeat constructor;
+  repeat apply Forall_cons; try apply Forall_nil;
   try solve [apply prop_right; auto; lia];
   try solve [normalize; apply prop_right; auto; lia]
   ].

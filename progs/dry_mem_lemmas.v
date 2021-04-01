@@ -254,9 +254,7 @@ Lemma data_at__VALspec_range: forall {cs : compspecs} sh z b o (Hsh: readable_sh
   @data_at_ cs sh (tarray tuchar z) (Vptr b o) |--
   res_predicates.VALspec_range z sh (b, Ptrofs.unsigned o).
 Proof.
-  intros.
-  change (predicates_hered.derives (data_at_ sh (tarray tuchar z) (Vptr b o))
-    (res_predicates.VALspec_range z sh (b, Ptrofs.unsigned o))).
+  intros. rewrite derives_eq.
   intros ? [(_ & _ & Hsize & _) H]; simpl in *.
   rewrite data_at_rec_eq in H; simpl in H.
   unfold default_val, unfold_reptype in H; simpl in H.
