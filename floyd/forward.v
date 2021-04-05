@@ -2462,7 +2462,8 @@ Ltac forward_loop_nocontinue Inv Post :=
           apply semax_seq with Post; [forward_loop_nocontinue1 Inv  | abbreviate_semax ]
   | |- semax _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_nocontinue1 Inv
-           else (apply (semax_post1_flipped Post); [ forward_loop_nocontinue1 Inv  | ])
+           else (apply (semax_post1_flipped Post); [ forward_loop_nocontinue1 Inv  
+                           | abbreviate_semax; simpl_ret_assert; auto ])
   end.
 
 Ltac forward_loop_nocontinue_nobreak Inv :=
@@ -2503,6 +2504,11 @@ Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
  repeat apply -> semax_seq_skip;
   lazymatch goal with
   | |- semax _ _ (Ssequence (Sfor _ ?e2 ?s3 ?s4) _) _ =>
+     let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
+      tryif (check_nocontinue c)
+       then forward_loop_nocontinue Inv Post
+       else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
+  | |- semax _ _ (Sfor _ ?e2 ?s3 ?s4) _ =>
      let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
       tryif (check_nocontinue c)
        then forward_loop_nocontinue Inv Post

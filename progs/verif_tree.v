@@ -699,8 +699,6 @@ Proof.
       Exists q'.
       cancel.
   }
-  unfold POSTCONDITION, abbreviate.
-   simpl_ret_assert.
   entailer!.
   Exists q_root. cancel.
   Exists (map snd tl).
