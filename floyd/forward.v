@@ -811,7 +811,8 @@ Ltac check_typecheck :=
  end].
 
 Ltac prove_delete_temp := match goal with |- ?A = _ =>
-  let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
+  (* This leads to exponential Qed blow up: let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity *)
+  reflexivity
 end.
 
 Ltac cancel_for_forward_call := cancel_for_evar_frame.
@@ -1083,14 +1084,23 @@ Ltac cleanup_no_post_exists :=
  end
  || unfold eq_no_post.
 
+Local Definition dummy := I.
+
 Ltac simplify_remove_localdef_temp :=
-match goal with |- context [remove_localdef_temp ?i ?L]  =>
-  let u := constr:(remove_localdef_temp i L) in
-  let u' := eval cbv [remove_localdef_temp] in u in
-  let u' := eval simpl rlt_ident_eq in u' in
-  let u' := eval cbv beta iota in u' in
-  change u with u'
-end.
+  match goal with |- context [remove_localdef_temp ?i ?L]  =>
+    let u := constr:(remove_localdef_temp i L) in
+    (* unfold remove_localdef_temp and do function and if/match conversion, 
+      but do not expand the let in remove_localdef_temp, which would lead to exponential blow up *)
+    let u' := eval lazy delta [remove_localdef_temp] beta iota in u in
+    (* now fully simplify all terms with rlt_ident_eq as head symbol *)
+    let u' := eval simpl rlt_ident_eq in u' in
+    (* do another beta iota conversion to collapse all ifs *)
+    let u' := eval lazy beta iota in u' in
+    (* now all the correct branches have been selected and we can safely expand the lets *)
+    let u' := eval lazy zeta in u' in
+    (* Note: an explicit cast with "cbv delta [dummy]" does not improve performance *)
+    change u with u'
+  end.
 
 Ltac after_forward_call :=
     check_POSTCONDITION; 
