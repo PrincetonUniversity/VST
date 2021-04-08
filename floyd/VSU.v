@@ -3238,3 +3238,79 @@ apply WholeComponent_semax_prog;
  | intro; reflexivity || fail "Surprising: cenv_built_correctly fails"].
 
 
+
+Section binary_intersection'_funspec_sub_mono.
+
+Definition sigBool_left {A B ts1} (x:functors.MixVariantFunctor._functor
+               ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                   match T with
+                   | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                   | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
+                   | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                   | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                   | rmaps.SigType I0 f0 => @functors.MixVariantFunctorGenerator.fsig I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.PiType I0 f0 => @functors.MixVariantFunctorGenerator.fpi I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                   end) A) mpred):
+{i : bool &
+             functors.MixVariantFunctor._functor
+               ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                   match T with
+                   | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                   | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
+                   | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                   | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                   | rmaps.SigType I0 f0 => @functors.MixVariantFunctorGenerator.fsig I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.PiType I0 f0 => @functors.MixVariantFunctorGenerator.fpi I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                   end) (if i then A else B)) mpred}.
+Proof. exists true; trivial. Defined.
+Definition sigBool_right {A B ts1} (x:functors.MixVariantFunctor._functor
+               ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                   match T with
+                   | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                   | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
+                   | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                   | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                   | rmaps.SigType I0 f0 => @functors.MixVariantFunctorGenerator.fsig I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.PiType I0 f0 => @functors.MixVariantFunctorGenerator.fpi I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                   end) B) mpred):
+{i : bool &
+             functors.MixVariantFunctor._functor
+               ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                   match T with
+                   | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                   | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
+                   | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                   | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                   | rmaps.SigType I0 f0 => @functors.MixVariantFunctorGenerator.fsig I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.PiType I0 f0 => @functors.MixVariantFunctorGenerator.fpi I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                   end) (if i then A else B)) mpred}.
+Proof. exists false; trivial. Defined.
+
+Lemma binary_intersection'_funspec_sub_mono {f c A1 P1 Q1 P1ne Q1ne B1 R1 S1 R1ne S1ne phi1 psi1 Phi1 Psi1 
+             A2 P2 Q2 P2ne Q2ne B2 R2 S2 R2ne S2ne phi2 psi2 Phi2 Psi2}
+(Hphi: funspec_sub phi1 phi2)
+(Hpsi: funspec_sub psi1 psi2):
+funspec_sub (@binary_intersection' f c A1 P1 Q1 P1ne Q1ne B1 R1 S1 R1ne S1ne phi1 psi1 Phi1 Psi1)
+            (@binary_intersection' f c A2 P2 Q2 P2ne Q2ne B2 R2 S2 R2ne S2ne phi2 psi2 Phi2 Psi2).
+Proof.
+split; [ split; trivial | intros].
+subst.
+unfold binarySUMArgs. destruct x2; simpl. destruct x.
++ clear Hpsi. destruct Hphi as [_ Hphi].
+  eapply derives_trans. apply (Hphi ts2 _f gargs). clear Hphi.
+  Intros ts1 x1 F. Exists ts1 (@sigBool_left A1 B1 ts1 x1) F; simpl.
+  entailer.
++ clear Hphi. destruct Hpsi as [_ Hpsi].
+  eapply derives_trans. apply (Hpsi ts2 _f gargs). clear Hpsi.
+  Intros ts1 x1 F. Exists ts1 (@sigBool_right A1 B1 ts1 x1) F; simpl.
+  entailer.
+Qed.
+End binary_intersection'_funspec_sub_mono.

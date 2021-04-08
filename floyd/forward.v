@@ -2869,6 +2869,42 @@ Qed.
 Hint Rewrite eqb_ident_true : subst.
 Hint Rewrite eqb_ident_false using solve [auto] : subst.
 
+Lemma eqb_su_refl s: eqb_su s s = true. Proof. unfold eqb_su. destruct s; trivial. Qed.
+Lemma Neqb_option_refl n: @eqb_option N N.eqb n n = true. Proof. destruct n; simpl; trivial. apply N.eqb_refl. Qed.
+Lemma eqb_attr_refl a: eqb_attr a a = true.
+Proof. unfold eqb_attr. destruct a. rewrite eqb_reflx, Neqb_option_refl; trivial. Qed.
+Lemma eqb_member_refl m: eqb_member m m = true.
+Proof. unfold eqb_member. rewrite eqb_ident_true, eqb_type_refl; trivial. Qed.
+
+Lemma eqb_list_sym {A} f: forall l1 l2, @eqb_list A f l1 l2 = @eqb_list A (fun x y => f y x) l2 l1.
+Proof. induction l1; simpl; intros; destruct l2; simpl; trivial. f_equal; auto. Qed.
+
+Lemma eqb_ident_sym i j: eqb_ident i j = eqb_ident j i.
+Proof. apply Pos.eqb_sym. Qed.
+Lemma eqb_member_sym: (fun x y : ident * type => eqb_member y x) = eqb_member.
+Proof.
+  extensionality x. extensionality y. unfold eqb_member.
+  rewrite eqb_ident_sym, expr_lemmas4.eqb_type_sym; trivial.
+Qed.
+
+Lemma eqb_su_sym a b: eqb_su a b = eqb_su b a.
+Proof. destruct a; destruct b; trivial. Qed. 
+Lemma eqb_attr_sym a b: eqb_attr a b = eqb_attr b a.
+Proof. destruct a; destruct b; simpl; f_equal.
+  apply Raux.eqb_sym. unfold eqb_option.
+  destruct attr_alignas; destruct attr_alignas0; trivial. apply N.eqb_sym.
+Qed.
+
+Lemma test_aux_sym cs1 cs2 b i: test_aux cs1 cs2 b i = test_aux cs2 cs1 b i. 
+Proof. unfold test_aux. f_equal.
+  destruct ((@cenv_cs cs1) ! i); destruct ((@cenv_cs cs2) ! i); trivial.
+  rewrite eqb_list_sym, eqb_su_sym, eqb_member_sym, eqb_attr_sym; trivial.
+Qed.
+
+Lemma cs_preserve_type_sym cs1 cs2: forall t CCE, cs_preserve_type cs1 cs2 CCE t = cs_preserve_type cs2 cs1 CCE t. 
+Proof. induction t; simpl; trivial; intros; destruct (CCE ! i); trivial; apply test_aux_sym. Qed.
+
+
 Lemma subst_temp_special:
   forall i e (f: val -> Prop) j,
    i <> j -> subst i e (`f (eval_id j)) = `f (eval_id j).
