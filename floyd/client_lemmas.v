@@ -1512,12 +1512,13 @@ Fixpoint remove_localdef_temp (i: ident) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
   | d :: l0 =>
+     let rest := remove_localdef_temp i l0 in
      match d with
      | temp j v =>
        if rlt_ident_eq i j
-       then remove_localdef_temp i l0
-       else d :: remove_localdef_temp i l0
-     | _ => d :: remove_localdef_temp i l0
+       then rest
+       else d :: rest
+     | _ => d :: rest
      end
   end.
 
