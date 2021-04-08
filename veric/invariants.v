@@ -608,7 +608,7 @@ Global Arguments In {_} _ _.
 Global Arguments Included {_} _ _.
 Global Arguments Same_set {_} _ _.
 
-Program Instance set_PCM : Ghost := { valid := fun _ : Ensemble nat => True;
+Polymorphic Program Instance set_PCM : Ghost := { valid := fun _ : Ensemble nat => True;
   Join_G a b c := Disjoint a b /\ c = Union a b(*; core2 a := empty*) }.
 Next Obligation.
 Proof.
@@ -645,9 +645,9 @@ Next Obligation.
       rewrite H2; left; auto.
 Qed.
 
-Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
+Polymorphic Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
 
-Lemma ghost_set_join : forall g s1 s2,
+Polymorphic Lemma ghost_set_join : forall g s1 s2,
   (ghost_set g s1 * ghost_set g s2 = !!(Disjoint s1 s2) && ghost_set g (Union s1 s2))%pred.
 Proof.
   intros.
@@ -662,7 +662,7 @@ Proof.
   - intros (? & H & ?); inv H; split; auto.
 Qed.
 
-Lemma ghost_set_subset : forall g s s' (Hdec : forall a, In s' a \/ ~In s' a),
+Polymorphic Lemma ghost_set_subset : forall g s s' (Hdec : forall a, In s' a \/ ~In s' a),
   (Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Setminus s s'))%pred.
 Proof.
   intros.
@@ -676,7 +676,7 @@ Proof.
       inv H0; auto.
 Qed.
 
-Corollary ghost_set_remove : forall g a s,
+Polymorphic Corollary ghost_set_remove : forall g a s,
   In s a -> (ghost_set g s = ghost_set g (Singleton a) * ghost_set g (Subtract s a))%pred.
 Proof.
   intros; apply ghost_set_subset.
@@ -708,7 +708,7 @@ Typeclasses eauto := 1.
 
 Instance Inhabitant_mpred : Inhabitant mpred := emp.
 
-Definition wsat : mpred := (EX I : list mpred, EX lg : list gname, EX lb : list (option bool),
+Polymorphic Definition wsat : mpred := (EX I : list mpred, EX lg : list gname, EX lb : list (option bool),
   !!(length lg = length I /\ length lb = length I) &&
   master_list g_inv (map (fun i => match Znth i lb with Some _ => Some (Znth i lg)
                                    | None => None end) (upto (length I))) *
@@ -891,7 +891,7 @@ Proof.
   intros; apply H; simpl; auto.
 Qed.
 
-Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
+Polymorphic Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
 Proof.
   intros; unfold wsat.
   rewrite !exp_sepcon1; apply exp_left; intro l.
@@ -1170,6 +1170,8 @@ Proof.
     apply in_seq; lia.
 Qed.*)
 
+Check (Ensemble (Maps.ZMap.t nat)).
+
 Lemma invariant_dealloc : forall i P, invariant i P |-- |==> emp.
 Proof.
   intros; unfold invariant.
@@ -1193,7 +1195,7 @@ Qed.
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
    in veric (a la own). *)
 
-Lemma ghost_set_empty : forall g s,
+Polymorphic Lemma ghost_set_empty : forall g s,
   (ghost_set g s = ghost_set g s * ghost_set g (Empty_set))%pred.
 Proof.
   intros.
@@ -1207,7 +1209,7 @@ Proof.
     inv H.
 Qed.
 
-Lemma wsat_empty_eq : (wsat = wsat * ghost_set g_en (Empty_set))%pred.
+Polymorphic Lemma wsat_empty_eq : (wsat = wsat * ghost_set g_en (Empty_set))%pred.
 Proof.
   unfold wsat.
   repeat (rewrite exp_sepcon1; f_equal; extensionality).
@@ -1219,7 +1221,7 @@ Qed.
 
 End Invariants.
 
-Lemma make_wsat : emp |-- |==> EX inv_names : invG, wsat.
+Polymorphic Lemma make_wsat : emp |-- |==> EX inv_names : invG, wsat.
 Proof.
   unfold wsat.
   eapply derives_trans with (Q := (_ * emp)%pred); [rewrite sepcon_emp; apply (ghost_alloc(RA := snap_PCM(ORD := list_order gname)) (Tsh, nil) NoneP); simpl; auto|].

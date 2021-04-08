@@ -18,6 +18,7 @@ Require Import VST.progs.io_os_specs.
 Require Import VST.progs.io_os_connection.
 Require Import VST.progs.os_combine.
 Require Import VST.progs.dry_mem_lemmas.
+Import Maps.
 
 Section IO_safety.
 
@@ -130,7 +131,7 @@ Qed.
 (* relate to OS's external events *)
 Notation ge := (globalenv prog).
 
-  Inductive OS_safeN_trace {evt}: nat -> @trace evt unit ->
+  Inductive OS_safeN_trace : nat -> @trace io_events.IO_event unit ->
                Ensemble (@trace io_events.IO_event unit * RData) -> 
                OK_ty -> RData -> CC_core -> mem -> Prop :=
   | OS_safeN_trace_0: forall t z s c m, OS_safeN_trace O t (Singleton (TEnd, s)) z s c m

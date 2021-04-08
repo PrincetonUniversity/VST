@@ -301,12 +301,12 @@ Qed.
   before the program starts, I don't see any reason to hold off. *)
 Instance inv_names : invG := { g_inv := 1%nat; g_en := 2%nat; g_dis := 3%nat}.
 
-Definition jm_fupd {Z} (ora : Z) (E1 E2 : Ensembles.Ensemble gname) P m :=
+Polymorphic Definition jm_fupd {Z} (ora : Z) (E1 E2 : Ensembles.Ensemble gname) P m :=
   forall m' w z, necR m m' -> join (m_phi m') w (m_phi z) -> app_pred (wsat * ghost_set g_en E1) w ->
   jm_bupd ora (fun z2 => level z2 = 0 \/ exists m2 w2, join (m_phi m2) w2 (m_phi z2) /\
     app_pred (wsat * ghost_set g_en E2) w2 /\ P m2) z.
 
-Lemma jm_fupd_intro: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
+Polymorphic Lemma jm_fupd_intro: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
   P m -> jm_fupd ora E E P m.
 Proof.
   intros.
@@ -314,7 +314,7 @@ Proof.
   apply jm_bupd_intro; eauto 7.
 Qed.
 
-Lemma jm_fupd_age : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m m', jm_fupd ora E1 E2 P m ->
+Polymorphic Lemma jm_fupd_age : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m m', jm_fupd ora E1 E2 P m ->
   age m m' -> jm_fupd ora E1 E2 P m'.
 Proof.
   intros.
@@ -324,7 +324,7 @@ Proof.
   constructor; auto.
 Qed.
 
-Lemma jm_fupd_mono : forall {Z} (ora : Z) E1 E2 (P1 P2 : juicy_mem -> Prop) m, jm_fupd ora E1 E2 P1 m ->
+Polymorphic Lemma jm_fupd_mono : forall {Z} (ora : Z) E1 E2 (P1 P2 : juicy_mem -> Prop) m, jm_fupd ora E1 E2 P1 m ->
   (forall m', level m' <= level m -> P1 m' -> P2 m') -> jm_fupd ora E1 E2 P2 m.
 Proof.
   intros ???????? Hmono.
@@ -642,7 +642,7 @@ Proof.
   intros; eapply necR_safe; eauto.
 Qed.*)
 
-Lemma jm_fupd_age' : forall {Z} (ora : Z) E1 E2 z q m m', jm_fupd ora E1 E2 (fun jm => jsafeN_ (min (level m) (level jm)) z q jm) m ->
+Polymorphic Lemma jm_fupd_age' : forall {Z} (ora : Z) E1 E2 z q m m', jm_fupd ora E1 E2 (fun jm => jsafeN_ (min (level m) (level jm)) z q jm) m ->
   age m m' -> jm_fupd ora E1 E2 (fun jm => jsafeN_ (min (level m') (level jm)) z q jm) m'.
 Proof.
   intros.
