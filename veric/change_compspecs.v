@@ -96,7 +96,7 @@ Proof.
   apply aux1.
 Qed.
 
-Lemma cs_preserve_env_consisent: forall (coeq: PTree.t bool),
+Lemma cs_preserve_env_consistent: forall (coeq: PTree.t bool),
   coeq = cs_preserve_env ->
   forall i co b,
     (@cenv_cs cs_to) ! i = Some co ->
@@ -154,7 +154,7 @@ End cs_preserve.
 Ltac make_cs_preserve cs_from cs_to :=
   let coeq0 := eval cbv in (cs_preserve_env cs_from cs_to) in
   let Hcoeq0 := constr: (eq_refl: coeq0 = cs_preserve_env cs_from cs_to) in
-  let coeq0_consistent := constr: (cs_preserve_env_consisent cs_from cs_to coeq0 Hcoeq0) in
+  let coeq0_consistent := constr: (cs_preserve_env_consistent cs_from cs_to coeq0 Hcoeq0) in
   let coeq0_complete := constr: (cs_preserve_completeness cs_from cs_to coeq0 Hcoeq0) in
   refine (  {| coeq := coeq0 ;
                coeq_consistent := coeq0_consistent;
@@ -515,4 +515,13 @@ Proof.
       * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
         congruence.
       * inv H.
+Qed.
+
+Lemma cs_preserve_members_char {cs1 cs2 CPE}: forall l, cs_preserve_members cs1 cs2 CPE l = true <->
+      Forall (fun t => cs_preserve_type cs1 cs2 CPE t = true) (map snd l).
+Proof. induction l; simpl.
++ split; intros. constructor. trivial.
++ destruct a; simpl. destruct IHl as [IHl1 IHl2]. split; intros.
+  - apply andb_true_iff in H; destruct H. constructor. trivial. auto.
+  - inv H. rewrite H2, (IHl2 H3); trivial.
 Qed.
