@@ -297,7 +297,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
    LOCAL (temp _x x; temp _u (Vint (iterShr8 u (Z.to_nat i))))
    SEP (data_at Tsh (tarray tuchar 4) 
               (sublist 0 i (map Vint (map Int.repr (map Byte.unsigned ([u0;u1;u2;u3])))) ++ 
-               list_repeat (Z.to_nat(4-i)) Vundef)
+               repeat Vundef (Z.to_nat(4-i)))
                 x))).
 { entailer!. simpl; cancel. }
 { rename H into I.
@@ -472,7 +472,7 @@ Time forward_for_simple_bound 8 (EX i:Z,
   (PROP  ()
    LOCAL (temp _x x; temp _u (Vlong (iter64Shr8 u (Z.to_nat i))))
    SEP (data_at Tsh (tarray tuchar 8) 
-              (list_repeat (Z.to_nat(8-i)) Vundef ++
+              (repeat Vundef (Z.to_nat(8-i)) ++
                sublist (8-i) 8 (map Vint (map Int.repr (map Byte.unsigned ([b3;b2;b1;b0;c3;c2;c1;c0])))))
                 x))).
 { entailer!. } 2: solve [forward].
@@ -1091,7 +1091,7 @@ forward_for (EX z:_,
    LOCAL (temp _i (Vint (Int.repr z)); temp _x x; 
           temp _u (Vlong u))
    SEP (data_at Tsh (tarray tuchar 8) (Data z) x))). 
-{ Exists 7. entailer!. myadmit. (*Data 7 = list_repeat 8 Vundef*) }
+{ Exists 7. entailer!. myadmit. (*Data 7 = repeat Vundef 8*) }
 
 eapply semax_for with (A:=Z)(v:= fun a => Val.of_bool (negb (Int.lt (Int.repr a) (Int.repr 0)))).
  solve [ reflexivity].
@@ -1145,7 +1145,7 @@ Time forward_for_simple_bound 8 (EX i:Z,
    LOCAL (temp _x x; temp _u (Vlong (iter64Shr8 u (Z.to_nat i))))
    SEP (data_at Tsh (tarray tuchar 8) 
               (sublist 0 i (map Vint (map Int.repr (map Byte.unsigned ([w0;w1;w2;w3;u0;u1;u2;u3])))) ++ 
-               list_repeat (Z.to_nat(8-i)) Vundef)
+               repeat Vundef (Z.to_nat(8-i)))
                 x))).
 { entailer!. }
 { rename H into I.

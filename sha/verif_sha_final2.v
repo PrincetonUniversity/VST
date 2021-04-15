@@ -14,7 +14,7 @@ Lemma cancel_field_at_array_partial_undef:
   Zlength (al++bl) = n ->
   Zlength bl = blen ->
   JMeq v1 (al++bl) ->
-  JMeq v2 (al++list_repeat (Z.to_nat blen) (default_val t)) ->
+  JMeq v2 (al++repeat (default_val t) (Z.to_nat blen)) ->
   field_at sh t1 gfs v1 p
    |-- field_at sh t1 gfs v2 p.
 Proof.
@@ -153,7 +153,7 @@ semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
               (LBLOCKz | Zlength hashed');
               intlist_to_bytelist hashed' ++ dd' =
               intlist_to_bytelist (s256a_hashed a) ++  (s256a_data a)
-                  ++ [Byte.repr 128%Z] ++ list_repeat (Z.to_nat pad) Byte.zero)
+                  ++ [Byte.repr 128%Z] ++ repeat Byte.zero (Z.to_nat pad))
    LOCAL
    (temp _n (Vint (Int.repr (Zlength dd')));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
@@ -164,7 +164,7 @@ semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
             (Vint (lo_part (s256a_len a)),
              (Vint (hi_part (s256a_len a)),
               (map Vubyte dd'
-                 ++ list_repeat (Z.to_nat (CBLOCKz - Zlength dd')) Vundef,
+                 ++ repeat Vundef (Z.to_nat (CBLOCKz - Zlength dd')),
                Vundef))))
            c;
            K_vector gv;
@@ -194,8 +194,8 @@ replace_SEP 0  (data_at wsh t_struct_SHA256state_st
            (Vint (hi_part (s256a_len a)),
            (map Vubyte (s256a_data a) ++
             [Vint (Int.repr 128)] ++
-            list_repeat (Z.to_nat (64 - (Zlength (s256a_data a) + 1)))
-              Vundef, Vint (Int.repr (Zlength (s256a_data a))))))) c).
+            repeat Vundef (Z.to_nat (64 - (Zlength (s256a_data a) + 1))),
+	        Vint (Int.repr (Zlength (s256a_data a))))))) c).
  unfold_data_at (data_at _ _ _ _).
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  unfold data_at.
@@ -242,17 +242,17 @@ evar (V: list val).
  abbreviate_semax.
 replace (ddlen + 1 + (CBLOCKz - (ddlen + 1))) with CBLOCKz by (clear; lia).
 change 64 with CBLOCKz.
-pose (ddz := ((dd ++ [Byte.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Byte.zero)).
+pose (ddz := ((dd ++ [Byte.repr 128]) ++ repeat Byte.zero (Z.to_nat (CBLOCKz-(ddlen+1))))).
 
 replace (splice_into_list (ddlen + 1) CBLOCKz
-           (list_repeat (Z.to_nat (CBLOCKz - (ddlen + 1))) (Vint Int.zero))
+           (repeat (Vint Int.zero) (Z.to_nat (CBLOCKz - (ddlen + 1))))
            (map Vubyte dd ++
-            Vint (Int.repr 128) :: list_repeat (Z.to_nat fill_len) Vundef))
+            Vint (Int.repr 128) :: repeat Vundef (Z.to_nat fill_len)))
   with  (map Vubyte ddz).
 2:{
  clear - Hddlen. subst ddz fill_len ddlen. rewrite !map_app.
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
- rewrite map_list_repeat.
+ rewrite map_repeat.
  rewrite <- ?app_ass.
  unfold splice_into_list.
  change CBLOCKz with 64 in *.

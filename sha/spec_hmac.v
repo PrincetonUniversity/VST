@@ -284,7 +284,7 @@ Definition HMAC_Cleanup_spec :=
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(data_block wsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) Byte.zero) c).
+          SEP(data_block wsh (repeat Byte.zero (Z.to_nat(sizeof t_struct_hmac_ctx_st))) c).
 
 Definition HMAC_Cleanup_spec1 :=
   DECLARE _HMAC_cleanup
@@ -296,7 +296,7 @@ Definition HMAC_Cleanup_spec1 :=
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(data_block wsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) Byte.zero) c).
+          SEP(data_block wsh (repeat Byte.zero (Z.to_nat(sizeof t_struct_hmac_ctx_st))) c).
 
 
 (************************ Specification of oneshot HMAC *******************************************************)

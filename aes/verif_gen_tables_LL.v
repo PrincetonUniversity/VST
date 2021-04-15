@@ -227,7 +227,7 @@ Proof.
          tables_uninitialized (gv _tables))).
   { (* init *)
     forward. forward. Exists 0. entailer!. do 2 Exists (repeat Vundef 256).
-    entailer!. apply derives_refl.
+    entailer!.
   }
   { (* body *)
     (* forward. TODO floyd: "forward" should tell me to use Intros instead of just failing *)

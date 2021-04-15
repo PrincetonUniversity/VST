@@ -416,7 +416,7 @@ Lemma ZContS bytes n: ZCont (S n) bytes = snd (ZZ (ZCont n bytes) 8). reflexivit
 
 Definition bytes_at x q i mbytes :=
 match x with
-  Vint _ => list_repeat (Z.to_nat i) (Byte.zero)
+  Vint _ => repeat (Byte.zero) (Z.to_nat i)
 | _ => sublist q (q+i) mbytes
 end.
 
@@ -424,7 +424,7 @@ end.
 Lemma Zlength_bytes_at x q i mbytes : 0<=q -> 0 <= i ->
   q + i <= Zlength mbytes -> Zlength (bytes_at x q i mbytes) = i.
 Proof. intros. destruct x; simpl; try rewrite Zlength_sublist; try lia.
-  rewrite Zlength_list_repeat; lia.
+  rewrite Zlength_repeat; lia.
 Qed.
 
 Definition bxorlist := combinelist _ Byte.xor.
@@ -605,11 +605,11 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
        SEP (Sigma_vector (gv _sigma);
             EX HSalsaRes:_, crypto_stream_xor_postsep d Nonce2 HSalsaRes
-              (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d)
+              (repeat Byte.zero (Z.to_nat (Int64.unsigned d))) (Int64.unsigned d)
               (offset_val 16 nonce) c nullval;
             data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
             ThirtyTwoByte K k).
-(*            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c k nullval). *)
+(*            crypto_stream_xor_postsep d Nonce K (repeat Byte.zero (Z.to_nat (Int64.unsigned d))) (Int64.unsigned d) nonce c k nullval). *)
 
 (*TODO: support the following part of the tetxual spec:
       m and c can point to the same address (in-place encryption/decryption). 
@@ -632,7 +632,7 @@ Definition f_crypto_stream_salsa20_tweet_spec :=
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
        SEP (Sigma_vector (gv _sigma);
             ThirtyTwoByte K k;
-            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c nullval). 
+            crypto_stream_xor_postsep d Nonce K (repeat Byte.zero (Z.to_nat (Int64.unsigned d))) (Int64.unsigned d) nonce c nullval). 
 
 Definition vn_spec :=
   DECLARE _vn

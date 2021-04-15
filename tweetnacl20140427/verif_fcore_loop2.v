@@ -16,11 +16,18 @@ Definition Y_content (y: list val)
           l1++yy=y /\ xx++l2=X /\
           Zlength l1=i /\ Zlength xx =i.
 
+Lemma in_repeat: forall {A : Type} (n : nat) (x y : A),
+       In y (repeat x n) -> y = x.
+Proof.
+intros.
+induction n; simpl in *. contradiction. destruct H; auto.
+Qed.
+
 Lemma f_core_loop2: forall (Espec : OracleKind) FR c k h nonce out w x y t
   (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
   (Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (xInit : list val)
-  (XInit : xInit = upd_upto data 4 (list_repeat 16 Vundef)),
+  (XInit : xInit = upd_upto data 4 (repeat Vundef 16)),
 @semax CompSpecs Espec
 Delta
   (PROP  ()
@@ -62,12 +69,12 @@ Proof. intros. abbreviate_semax.
       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
       temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
     SEP  (FR; data_at Tsh (tarray tuint 16) xInit x;
-          EX l:_, !!(Y_content xInit i l (list_repeat 16 Vundef)) &&
+          EX l:_, !!(Y_content xInit i l (repeat Vundef 16)) &&
               data_at Tsh (tarray tuint 16) l y)).
   (*1.2*)
   { clear. Time entailer!. (*1.9*)
-    Exists (list_repeat 16 Vundef). Time entailer!. (*0.4*)
-    exists nil,  (list_repeat 16 Vundef).
+    Exists (repeat Vundef 16). Time entailer!. (*0.4*)
+    exists nil,  (repeat Vundef 16).
       exists xInit, nil; simpl. repeat split; auto. }
   { rename H into I. Intros Y. rename H into YCONT.
     destruct (upd_upto_Vint data i I) as [vi Vi].
@@ -75,7 +82,7 @@ Proof. intros. abbreviate_semax.
       assert (V: exists v yT, yy = (Vint v)::yT).
         destruct yy. rewrite app_nil_r in APP2. subst l1 xInit.
          rewrite upd_upto_Zlength in L1. lia.
-         rewrite Zlength_list_repeat'. trivial. simpl; lia. subst xInit.
+         rewrite Zlength_repeat'. trivial. simpl; lia. subst xInit.
         rewrite <- APP2, app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. rewrite Vi.
         eexists; eexists; reflexivity. lia.
       destruct V as [v [yT ?]]. subst yy; simpl.
@@ -93,9 +100,9 @@ Proof. intros. abbreviate_semax.
         + clear - APP2 APP3 I L2.
           assert (TT: exists lT, l2 = Vundef::lT).
           { destruct l2.
-            - rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_list_repeat' in I.
+            - rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_repeat' in I.
               simpl in I; lia.
-            - rewrite (in_list_repeat 16 Vundef v0). eexists; reflexivity.
+            - rewrite (in_repeat 16 Vundef v0). eexists; reflexivity.
               rewrite <- APP3. apply in_app. right; left; trivial. }
           destruct TT as [lT LT2]; subst l2.
           exists (l1 ++ [Vint v]), lT, yT, (xx ++ [Vundef]).

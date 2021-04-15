@@ -72,8 +72,8 @@ Definition N : Z := 20.
 Lemma exercise4:
  let Delta := @abbreviate _ Delta1 in 
  forall sh p,
-    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: list_repeat (Z.to_nat (N-2)) Vundef) p
- |--  !! (0 <= Zlength (list_repeat (Z.to_nat (N-2)) Vundef) < Int.max_signed).
+    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: repeat Vundef (Z.to_nat (N-2))) p
+ |--  !! (0 <= Zlength (repeat Vundef (Z.to_nat (N-2))) < Int.max_signed).
 Proof.
 intros.
 simpl.
@@ -99,14 +99,14 @@ Definition N : Z := proj1_sig (opaque_constant 20).
 Lemma exercise4b:
  let Delta := @abbreviate _ Delta1 in 
  forall sh p,
-    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: list_repeat (Z.to_nat (N-2)) Vundef) p
- |--  !! (0 <= Zlength (list_repeat (Z.to_nat (N-2)) Vundef) < Int.max_signed).
+    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: repeat Vundef (Z.to_nat (N-2))) p
+ |--  !! (0 <= Zlength (repeat Vundef (Z.to_nat (N-2))) < Int.max_signed).
 Proof.
 intros.
 simpl.
 (* That's better; the data_at is more concise.  But now, unfortunately: *)
 entailer!.
-rewrite Zlength_list_repeat.
+rewrite Zlength_repeat.
 Fail rep_lia.
 (* now rep_lia does not know that N=20. *)
 Abort.
@@ -119,14 +119,14 @@ Hint Rewrite N_eq : rep_lia.
 Lemma exercise4c:
  let Delta := @abbreviate _ Delta1 in 
  forall sh p,
-    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: list_repeat (Z.to_nat (N-2)) Vundef) p
- |--  !! (0 <= Zlength (list_repeat (Z.to_nat (N-2)) Vundef) < Int.max_signed).
+    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: repeat Vundef (Z.to_nat (N-2))) p
+ |--  !! (0 <= Zlength (repeat Vundef (Z.to_nat (N-2))) < Int.max_signed).
 Proof.
 intros.
 simpl.
 (* That's still good; the data_at is more concise.  *)
 entailer!.
-rewrite Zlength_list_repeat.
+rewrite Zlength_repeat.
 rep_lia.
 rep_lia.
 Qed.

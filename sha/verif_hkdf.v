@@ -24,10 +24,10 @@ assert_PROP (isptr v_prk_len /\ field_compatible (tuint) [] v_prk_len) by entail
 unfold data_at_, field_at_.
 rewrite field_at_data_at. simpl.
 rewrite field_at_data_at. unfold tarray. simpl.
-assert (JM: default_val (Tarray tuchar 64 noattr) = sublist 0 64 (list_repeat 64 Vundef)).
-{ rewrite sublist_list_repeat with (k:=64); try lia. reflexivity. }
+assert (JM: default_val (Tarray tuchar 64 noattr) = sublist 0 64 (repeat Vundef 64)).
+{ rewrite sublist_repeat with (k:=64); try lia. reflexivity. }
 erewrite  split2_data_at_Tarray with (n1:=32); [ | lia | | apply JM | reflexivity | reflexivity]. 
-2: rewrite Zlength_list_repeat'; simpl; lia.
+2: rewrite Zlength_repeat'; simpl; lia.
 normalize. 
 freeze FR1 := - (data_at _ _ _ (field_address _ nil v_prk))
              (data_at _ _ _ (field_address _ nil v_prk_len))

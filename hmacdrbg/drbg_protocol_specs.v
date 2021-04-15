@@ -106,7 +106,7 @@ Definition drbg_seed_buf_abs_spec :=
             then seedbufREP sh gv Info info I ctx
             else match I with HMAC256DRBGabs key V RC EL PR RI =>
                  EX KEY:list byte, EX VAL:list byte, EX p:val, EX mds:mdstate,
-                 !!(hmacdrbg.HMAC256_DRBG_functional_prog.HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 Byte.one) = (KEY, VAL))
+                 !!(hmacdrbg.HMAC256_DRBG_functional_prog.HMAC256_DRBG_update (contents_with_add data d_len Data) V (repeat Byte.one 32) = (KEY, VAL))
                  && md_full key mds *
                  REP sh gv Info (HMAC256DRBGabs KEY VAL RC EL PR RI) ctx end;
             mem_mgr gv).

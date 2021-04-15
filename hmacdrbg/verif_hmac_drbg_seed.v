@@ -24,7 +24,7 @@ Require Import hmacdrbg.verif_hmac_drbg_seed_common.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 Opaque initial_key. Opaque initial_value.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
-Opaque list_repeat. 
+Opaque repeat. 
 
 Lemma body_hmac_drbg_seed_256: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_seed hmac_drbg_seed_inst256_spec.
@@ -112,7 +112,7 @@ Proof.
     rewrite Int.unsigned_repr. reflexivity. rep_lia. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
-    ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
+    ((info, (M2, p)), (map Vint (repeat Int.one 32), (Vint (Int.repr rc),
         (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 

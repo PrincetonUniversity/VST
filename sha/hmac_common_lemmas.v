@@ -24,14 +24,14 @@ Proof. apply firstn_precise. simpl. reflexivity. Qed.
 Lemma length_SF {A} (x:A): length (HMAC_SHA256.sixtyfour x) = 64%nat.
 Proof.
   unfold HMAC_SHA256.sixtyfour.
-  rewrite length_list_repeat; trivial.
+  rewrite repeat_length; trivial.
 Qed.
 
 Lemma Zlength_mkArgZ k pad: Zlength (HMAC_SHA256.mkArg k pad) = Z.of_nat (min (length k) 64).
 Proof. intros. repeat rewrite Zlength_correct.
    unfold HMAC_SHA256.mkArg, HMAC_SHA256.sixtyfour.
    repeat rewrite map_length.
-   rewrite combine_length, length_list_repeat . trivial.
+   rewrite combine_length, repeat_length. trivial.
 Qed.
 
 Lemma nth_zeropad_left {d d'}: forall l i (I: 0<= i < Zlength l),
@@ -56,7 +56,7 @@ Lemma nth_zeropad_right {d} l i (I: Zlength l <= i < 64):
       nth (Z.to_nat i) (HMAC_SHA256.zeroPad l) d = Byte.zero.
 Proof. unfold HMAC_SHA256.zeroPad.
   specialize (Zlength_nonneg l). intros.
-  rewrite app_nth2. rewrite nth_list_repeat'. trivial.
+  rewrite app_nth2. rewrite nth_repeat'. trivial.
   apply minus_lt_compat_r. destruct I. apply Z2Nat.inj_lt in H1. apply H1.
   lia.
   lia.
@@ -78,7 +78,7 @@ Qed.
 
 Lemma zeroPad_BlockSize: forall k, (length k <= SHA256.BlockSize)%nat ->
   length (HMAC_SHA256.zeroPad k) = SHA256.BlockSize%nat.
-Proof. unfold HMAC_SHA256.zeroPad. intros. rewrite app_length, (*length_Nlist*) length_list_repeat. lia.
+Proof. unfold HMAC_SHA256.zeroPad. intros. rewrite app_length, (*length_Nlist*) repeat_length. lia.
 Qed.
 
 Lemma length_SHA256': forall l,

@@ -197,10 +197,10 @@ Proof.
   { apply BLxor_length; erewrite bytes_bits_length; try eassumption.
          rewrite map_length, padded_key_len. reflexivity.
          unfold HP.HMAC_SHA256.sixtyfour.
-         rewrite -> length_list_repeat. reflexivity. }
+         rewrite -> repeat_length. reflexivity. }
   { apply BLxor_length; erewrite bytes_bits_length; try eassumption.
          rewrite map_length, padded_key_len. reflexivity.
          unfold HP.HMAC_SHA256.sixtyfour.
-         rewrite -> length_list_repeat. reflexivity. }
+         rewrite -> repeat_length. reflexivity. }
 Qed.
 *)

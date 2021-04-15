@@ -535,7 +535,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
         aaa (Vptr b i) Info; FRZL StreamAdd; 
       data_at sho (tarray tuchar out_len) ((map Vubyte
           (sublist 0 done (snd (HLP done)))) ++ 
-          list_repeat (Z.to_nat (out_len - done)) Vundef) output; 
+          repeat Vundef (Z.to_nat (out_len - done))) output; 
       K_vector gv)
   ).
   {
@@ -544,7 +544,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     change (sublist 0 0 (snd (HLP 0))) with (@nil byte).
     replace (out_len - 0) with out_len by lia.
     change ((map Vint (map Int.repr []) ++
-          list_repeat (Z.to_nat out_len) Vundef)) with (list_repeat (Z.to_nat out_len) Vundef).
+          repeat Vundef (Z.to_nat out_len))) with (repeat Vundef (Z.to_nat out_len)).
     assert (Hafter_update: (hmac256drbgabs_update_value after_update_state_abs(*AUSA*)
             (fst (HLP 0))) = after_update_state_abs(*AUSA*)).
     {
@@ -594,7 +594,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
   subst done.
   clear H H0.
   replace (out_len - out_len) with 0 by lia. clear HRE.
-  change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
+  change (repeat Vundef (Z.to_nat 0)) with (@nil val).
   rewrite app_nil_r.
   unfold hmac256drbgabs_common_mpreds.
   normalize. unfold hmac256drbg_relate.

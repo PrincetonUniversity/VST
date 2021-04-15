@@ -3243,7 +3243,7 @@ Ltac simple_value v :=
  | Vfloat _ => idtac
  | Vsingle _ => idtac
  | Vptr _ _ => idtac
- | list_repeat (Z.to_nat _) ?v' => simple_value v'
+ | repeat ?v' (Z.to_nat _) => simple_value v'
  end.
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
