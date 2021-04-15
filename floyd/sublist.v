@@ -1596,6 +1596,15 @@ Hint Rewrite @upd_Znth_Zlength using old_list_solve : sublist.
 
 Hint Rewrite @sublist_nil : sublist.
 
+Lemma repeat_app  (* duplicate this from Coq standard library
+     for compatibility with Coq 8.12, where it is not present *)
+  : forall {A: Type} (x: A) (n m: nat),
+         repeat x (n + m) = repeat x n ++ repeat x m.
+Proof.
+intros.
+induction n; simpl; auto.
+f_equal; auto.
+Qed.
 
 Lemma repeat_app':
  forall {A: Type} a b (x:A), 
