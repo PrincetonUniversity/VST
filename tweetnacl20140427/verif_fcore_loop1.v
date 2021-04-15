@@ -15,7 +15,7 @@ Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle. Opaque fcor
 
 Definition X_content (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
                      (i:Z) (l:list val) : Prop :=
-    l = upd_upto x (Z.to_nat i) (list_repeat 16 Vundef).
+    l = upd_upto x (Z.to_nat i) (repeat Vundef 16).
 
 Lemma XcontUpdate Nonce C Key1 Key2 i l
       (I: 0 <= i < 4)
@@ -142,7 +142,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
    SEP  (FR;
          EX l:_, !!(X_content data i l) && data_at Tsh (tarray tuint 16) l x;
          CoreInSEP data (nonce, c, k))). (*0.8 versus 2.1*)
-{ Exists (list_repeat 16 Vundef). Time entailer!. (*1.3 versus 4.2*) }
+{ Exists (repeat Vundef 16). Time entailer!. (*1.3 versus 4.2*) }
 { rename H into I.
 
   destruct data as ((Nonce, C), Key). unfold CoreInSEP.

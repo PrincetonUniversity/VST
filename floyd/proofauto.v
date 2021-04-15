@@ -97,8 +97,8 @@ Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
 
 #[export] Hint Extern 1 (Vundef = default_val _) => reflexivity : cancel.
 #[export] Hint Extern 1 (default_val _ = Vundef) => reflexivity : cancel.
-#[export] Hint Extern 1 (list_repeat _ Vundef = default_val _) => reflexivity : cancel.
-#[export] Hint Extern 1 (default_val _ = list_repeat _ Vundef) => reflexivity : cancel.
+#[export] Hint Extern 1 (repeat Vundef _ = default_val _) => reflexivity : cancel.
+#[export] Hint Extern 1 (default_val _ = repeat _ Vundef) => reflexivity : cancel.
 #[export] Hint Extern 1 (Vundef :: _ = default_val _) => reflexivity : cancel.
 #[export] Hint Extern 1 (default_val _ = Vundef :: _) => reflexivity : cancel.
 #[export] Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.

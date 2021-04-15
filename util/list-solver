@@ -1,0 +1,13 @@
+#!/bin/bash
+
+mkdir -p sublist
+cp floyd/sublist.v sublist/sublist.v
+sed 's/port VST.floyd./port /' floyd/Zlength_solver.v >sublist/Zlength_solver.v
+sed 's/port VST.floyd./port /' floyd/list_solver.v >sublist/list_solver.v
+cd sublist
+echo "coqc -I . sublist.v"
+coqc -I . sublist.v
+echo "coqc -I . Zlength_solver.v"
+coqc -I . Zlength_solver.v
+echo "coqc -I . list_solver.v"
+coqc -I . list_solver.v

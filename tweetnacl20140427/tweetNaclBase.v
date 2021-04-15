@@ -8,8 +8,8 @@ Require Import sha.general_lemmas.
 Require Import ZArith.
 Local Open Scope Z.
 
-Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
-Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed.
+Lemma Zlength_repeat' {A} n (v:A): Zlength (repeat v n) = Z.of_nat n.
+Proof. rewrite Zlength_correct, repeat_length; trivial. Qed.
 
 Lemma Zlength_cons' {A} (a:A) l: Zlength (a::l) = 1 + Zlength l.
   do 2 rewrite Zlength_correct. simpl. rewrite Zpos_P_of_succ_nat,<- Z.add_1_l; trivial. Qed.
@@ -86,7 +86,7 @@ Qed.
 
 Lemma app_Znth1: forall (A : Type){d: Inhabitant A} (l l' : list A) (n :Z),
            (n < Zlength l) -> Znth n (l ++ l') = Znth n l.
-Proof. intros. unfold Znth. destruct (zlt n 0). trivial.
+Proof. intros. unfold Znth. destruct (Z_lt_dec n 0). trivial.
        apply app_nth1. apply Z2Nat.inj_lt in H.
          rewrite ZtoNat_Zlength in H. trivial.
          lia.
@@ -96,13 +96,13 @@ Qed.
 Lemma app_Znth2: forall (A : Type) {d: Inhabitant A}(l l' : list A) (n : Z),
                (Zlength l <= n) -> Znth n (l ++ l') = Znth (n - Zlength l) l'.
 Proof. intros. specialize (Zlength_nonneg l); intros. unfold Znth.
-       destruct (zlt n 0). lia.
-       destruct (zlt (n - Zlength l) 0).
+       destruct (Z_lt_dec n 0). lia.
+       destruct (Z_lt_dec (n - Zlength l) 0).
          destruct (Z.sub_le_mono_r (Zlength l) n (Zlength l)) as [? _].
          specialize (H1 H). rewrite Z.sub_diag in H1. remember (n - Zlength l). clear - l0 H1. lia.
        rewrite app_nth2.
         rewrite Z2Nat.inj_sub, ZtoNat_Zlength; trivial.
-        apply Z2Nat.inj_le in H; trivial. rewrite ZtoNat_Zlength in H; trivial. clear - g; lia.
+        apply Z2Nat.inj_le in H; trivial. rewrite ZtoNat_Zlength in H; trivial. lia.
 Qed.
 
 Lemma nth_extensional {A}: forall l1 l2 (L:length l1 = length l2) (d:A)
@@ -129,7 +129,7 @@ Proof. intros.
   assert (I: 0 <= (Z.of_nat i) < Zlength l1).
     split. apply (Nat2Z.inj_le 0). apply H1. rewrite Zlength_correct. apply Nat2Z.inj_lt. apply H1.
   specialize (H0 _ I). unfold Znth in H0.
-  destruct (zlt (Z.of_nat i) 0). lia.
+  destruct (Z_lt_dec (Z.of_nat i) 0). lia.
   rewrite Nat2Z.id in H0. trivial.
 Qed.
 
@@ -141,11 +141,11 @@ Qed.
 
 (*Lemma map_Znth {A B : Type}{d: Inhabitant A} (f : A -> B) l n:
       Znth n (map f l) = f (Znth n l).
-Proof. unfold Znth. destruct (zlt n 0); simpl. trivial. apply map_nth. Qed.
+Proof. unfold Znth. destruct (Z_lt_dec n 0); simpl. trivial. apply map_nth. Qed.
 
 Lemma Znth_map' {A B : Type} (f : A -> B) d d' i al:
         (0<= i < Zlength al)%Z -> Znth i (map f al) d = f (Znth i al d').
-Proof. unfold Znth; intros. destruct (zlt i 0); simpl. lia. apply nth_map'.
+Proof. unfold Znth; intros. destruct (Z_lt_dec i 0); simpl. lia. apply nth_map'.
   destruct H. rewrite Zlength_correct in H0. apply Z2Nat.inj_lt in H0.
    rewrite Nat2Z.id in H0. assumption. assumption. lia.
 Qed.
@@ -265,7 +265,7 @@ Lemma combinelist_char_Znth {d: Inhabitant A} xs ys l (C: combinelist xs ys = So
       i (L:0 <= i < Zlength l): Znth i l = f (Znth i xs) (Znth i ys).
 Proof.
   unfold Znth.
-  destruct (zlt i 0). lia.
+  destruct (Z_lt_dec i 0). lia.
   rewrite (combinelist_char_nth _ _ _ C); trivial.
   split. lia. destruct (Z2Nat.inj_lt i (Zlength l)). lia. lia.
   rewrite ZtoNat_Zlength in H; apply H. lia.
@@ -312,12 +312,12 @@ Lemma Znth_mapVint: forall {d: Inhabitant _} l i, 0<=i< Zlength l -> exists x, Z
 Proof. unfold Znth.
   induction l; simpl; intros.
   rewrite Zlength_correct in H; simpl in *. lia.
-  destruct (zlt i 0); subst; simpl in *. lia. clear g.
+  destruct (Z_lt_dec i 0); subst; simpl in *. lia. clear n.
   remember (Z.to_nat i). destruct n. exists a; trivial.
   rewrite Zlength_cons in H.
   destruct (zeq i 0); subst.  simpl in Heqn. lia.
   destruct (IHl (i-1)). lia.
-  destruct (zlt (i - 1) 0). subst;  lia.
+  destruct (Z_lt_dec (i - 1) 0). subst;  lia.
   rewrite Z2Nat.inj_sub in H0. rewrite <- Heqn in H0. simpl in H0. rewrite <- minus_n_O in H0.
      rewrite H0. exists x; trivial. lia.
 Qed.

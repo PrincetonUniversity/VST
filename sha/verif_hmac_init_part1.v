@@ -375,11 +375,11 @@ Proof. intros.
      assert (XX: (SHA256.BlockSize - length key = Z.to_nat SF)%nat).
           subst SF. rewrite Zlength_correct, Z2Nat.inj_sub, Nat2Z.id. reflexivity. lia.
      rewrite XX(*, HeqKCONT*).
-     repeat rewrite map_list_repeat.
+     repeat rewrite map_repeat.
      rewrite sublist_same; trivial. (*subst l64 l.*)
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l.
      change (0 + Zlength key) with (Zlength key).
      Time cancel. apply derives_refl.
-     rewrite Zlength_list_repeat', Z2Nat.id; lia.
+     rewrite Zlength_repeat', Z2Nat.id; lia.
 Time Qed. (*0.6s versus 10s versus 18s*)

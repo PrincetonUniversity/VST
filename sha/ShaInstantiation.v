@@ -15,7 +15,7 @@ Require Import sha.hmac_common_lemmas.
 
 Require Import sha.pure_lemmas.
 Require Import sha.sha_padding_lemmas.
-Require Import VST.floyd.sublist. (*for Forall_list_repeat*)
+Require Import VST.floyd.sublist. (*for Forall_repeat*)
 Import List.
 
 Definition c := (32 * 8)%nat.
@@ -37,13 +37,13 @@ Definition sha_splitandpad (msg : Blist) : Blist :=
 Definition fpad_inner (msg : list byte) : list byte :=
   (let n := BlockSize + Zlength msg in
   [Byte.repr 128%Z]
-    ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero
+    ++ repeat Byte.zero (Z.to_nat (-(n + 9) mod 64))
     ++ intlist_to_bytelist ([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)]))%list.
 
 Lemma fpad_inner_length l (L:length l = p): (length (fpad_inner (bitsToBytes l)) * 8)%nat = p.
 Proof.
   unfold fpad_inner. repeat rewrite app_length.
-  rewrite length_list_repeat, length_intlist_to_bytelist.
+  rewrite repeat_length, length_intlist_to_bytelist.
   rewrite (mult_comm 4), plus_comm, Zlength_correct.
   rewrite bitsToBytes_len_gen with (n:=32%nat).
     reflexivity.
@@ -81,7 +81,7 @@ Qed.
 Definition pad_inc (msg : list byte) : list byte :=
   let n := BlockSize + Zlength msg in
   msg ++ [Byte.repr 128%Z]
-      ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero
+      ++ repeat Byte.zero (Z.to_nat (-(n + 9) mod 64))
       ++ intlist_to_bytelist ([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)]).
 
 Definition sha_splitandpad_inc (msg : Blist) : Blist :=
@@ -94,7 +94,7 @@ Lemma pad_inc_length: forall l, exists k, (0 < k /\ length (pad_inc l) = k*64)%n
 Proof. unfold pad_inc.
   induction l.
   simpl. exists (1%nat). lia.
-  destruct IHl as [k [K HK]]. repeat rewrite app_length in *. rewrite length_list_repeat in *.
+  destruct IHl as [k [K HK]]. repeat rewrite app_length in *. rewrite repeat_length in *.
   rewrite length_intlist_to_bytelist in *.
   remember (BinInt.Z.to_nat
         (BinInt.Z.modulo
@@ -251,9 +251,9 @@ Qed.
 
 Lemma pad_injective_Case5 l1 l2
   (H0 : (l1 ++ Byte.repr 128 :: nil) ++
-        list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) Byte.zero =
+        repeat Byte.zero (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) =
         (l2 ++ Byte.repr 128 :: nil) ++
-        list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) Byte.zero)
+        repeat Byte.zero (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))
   (H : (BlockSize + Zlength l1) * 8 =
        ((BlockSize + Zlength l2) * 8) mod Int.modulus)
   (Nonneg1 : 0 <= (BlockSize + Zlength l1) * 8)
@@ -271,12 +271,12 @@ Proof. symmetry in H.
          rewrite H. reflexivity.
        clear H.
        assert (length ((l1 ++ Byte.repr 128 :: nil) ++
-                list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) Byte.zero)
+                repeat Byte.zero (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)))
              = length ((l2 ++ Byte.repr 128 :: nil) ++
-                list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) Byte.zero)).
+                repeat Byte.zero (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))).
        rewrite H0; trivial.
        clear H0. repeat rewrite app_length in H.
-       repeat rewrite length_list_repeat in H.
+       repeat rewrite repeat_length in H.
        clear - K n H.
        rewrite (pad_injective_aux l1 l2 k K n) in H. lia.
 Qed.
@@ -340,12 +340,12 @@ destruct d.
         rewrite <- (Nat2Z.id (length l2)).
         rewrite H0. reflexivity. }
       { assert (length ((l1 ++ Byte.repr 128 :: nil) ++
-                 list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) Byte.zero)
+                 repeat Byte.zero (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)))
               = length ((l2 ++ Byte.repr 128 :: nil) ++
-                 list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) Byte.zero)).
+                 repeat Byte.zero (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))).
           rewrite H0; trivial.
         clear H0. repeat rewrite app_length in H1.
-        repeat rewrite length_list_repeat in H1.
+        repeat rewrite repeat_length in H1.
         rewrite (pad_injective_aux l2 l1 (k1-k2)) in H1.
           lia.
           rewrite Z.mul_sub_distr_r; lia.
@@ -404,7 +404,7 @@ Definition sha_splitandpad (msg : Blist) : Blist :=
 Definition fpad_inner (msg : list Z) : list Z :=
   (let n := BlockSize + Zlength msg in
   [128%Z]
-    ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0
+    ++ repeat 0 (Z.to_nat (-(n + 9) mod 64))
     ++ intlist_to_Zlist ([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)]))%list.
 
 Definition fpad (msg : Blist) : Blist :=
@@ -425,7 +425,7 @@ Qed.
 Definition pad_inc (msg : list Z) : list Z :=
   let n := BlockSize + Zlength msg in
   msg ++ [128%Z]
-      ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0
+      ++ repeat 0 (Z.to_nat (-(n + 9) mod 64))
       ++ intlist_to_Zlist ([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)]).
 
 Definition sha_splitandpad_inc (msg : Blist) : Blist :=
@@ -438,7 +438,7 @@ Lemma isbyteZ_pad_inc l (B:Forall isbyteZ l): Forall isbyteZ (pad_inc l).
 Proof. unfold pad_inc.
   apply Forall_app. split. trivial.
   apply Forall_app. split. constructor. split; lia. trivial.
-  apply Forall_app. split. apply Forall_list_repeat. split; lia.
+  apply Forall_app. split. apply Forall_repeat. split; lia.
   apply isbyte_intlist_to_Zlist.
 Qed.
 
@@ -446,7 +446,7 @@ Lemma pad_inc_length: forall l, exists k, (0 < k /\ length (pad_inc l) = k*64)%n
 Proof. unfold pad_inc.
   induction l.
   simpl. exists (1%nat). lia.
-  destruct IHl as [k [K HK]]. repeat rewrite app_length in *. rewrite length_list_repeat in *.
+  destruct IHl as [k [K HK]]. repeat rewrite app_length in *. rewrite repeat_length in *.
   rewrite pure_lemmas.length_intlist_to_Zlist in *.
   remember (BinInt.Z.to_nat
         (BinInt.Z.modulo
@@ -584,9 +584,9 @@ Qed.
 
 Lemma pad_injective_Case5 l1 l2
   (H0 : (l1 ++ 128 :: nil) ++
-        list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) 0 =
+        repeat 0 (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) =
         (l2 ++ 128 :: nil) ++
-        list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) 0)
+        repeat 0 (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))
   (H : (BlockSize + Zlength l1) * 8 =
        ((BlockSize + Zlength l2) * 8) mod Int.modulus)
   (Nonneg1 : 0 <= (BlockSize + Zlength l1) * 8)
@@ -604,12 +604,12 @@ Proof. symmetry in H.
          rewrite H. reflexivity.
        clear H.
        assert (length ((l1 ++ 128 :: nil) ++
-                list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) 0)
+                repeat 0 (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)))
              = length ((l2 ++ 128 :: nil) ++
-                list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) 0)).
+                repeat 0 (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))).
        rewrite H0; trivial.
        clear H0. repeat rewrite app_length in H.
-       repeat rewrite length_list_repeat in H.
+       repeat rewrite repeat_length in H.
        clear - K n H.
        rewrite (pad_injective_aux l1 l2 k K n) in H. lia.
 Qed.
@@ -673,12 +673,12 @@ destruct d.
         rewrite <- (Nat2Z.id (length l2)).
         rewrite H0. reflexivity. }
       { assert (length ((l1 ++ 128 :: nil) ++
-                 list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) 0)
+                 repeat 0 (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)))
               = length ((l2 ++ 128 :: nil) ++
-                 list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) 0)).
+                 repeat 0 (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)))).
           rewrite H0; trivial.
         clear H0. repeat rewrite app_length in H1.
-        repeat rewrite length_list_repeat in H1.
+        repeat rewrite repeat_length in H1.
         rewrite (pad_injective_aux l2 l1 (k1-k2)) in H1.
           lia.
           rewrite Z.mul_sub_distr_r; lia.

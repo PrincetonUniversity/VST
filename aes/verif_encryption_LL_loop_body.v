@@ -28,7 +28,7 @@ Definition encryption_loop_body_proof_statement :=
   (SH0 : readable_share in_sh)
   (SH1 : writable_share out_sh)
   (buf : list Z)
-  (Heqbuf : buf = exp_key ++ list_repeat 8 0)
+  (Heqbuf : buf = exp_key ++ repeat 0 8)
   (Fctx : field_compatible t_struct_aesctx [StructField _buf] ctx)
   (LenBuf : Zlength buf = 68)
   (Eq : forall i : Z,
@@ -129,7 +129,7 @@ Definition encryption_loop_body_proof_statement :=
   (SH0 : readable_share in_sh)
   (SH1 : writable_share out_sh)
   (buf : list Z)
-  (Heqbuf : buf = exp_key ++ list_repeat 8 0)
+  (Heqbuf : buf = exp_key ++ repeat 0 8)
   (Fctx : field_compatible t_struct_aesctx [StructField _buf] ctx)
   (LenBuf : Zlength buf = 68)
   (Eq : forall i : Z,

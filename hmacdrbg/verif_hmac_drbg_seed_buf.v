@@ -76,7 +76,7 @@ Proof.
 
   assert (exists xx:reptype t_struct_hmac256drbg_context_st, xx =
    (((*M1*)info, (M2, p)),
-    (list_repeat (Z.to_nat 32) (Vint Int.one),
+    (repeat (Vint Int.one) (Z.to_nat 32),
      (Vint (Int.repr reseed_counter),
       (Vint (Int.repr entropy_len),
        (Val.of_bool prediction_resistance,
@@ -95,9 +95,9 @@ Proof.
     unfold field_address. rewrite if_true. 2: assumption. simpl. cancel.
   }
   clear INI. thaw OTHER.
-  set (ABS:= HMAC256DRBGabs V (list_repeat 32 Byte.one) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
+  set (ABS:= HMAC256DRBGabs V (repeat Byte.one 32) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   gather_SEP 1 2.
-  replace_SEP 0 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
+  replace_SEP 0 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (repeat 1 32) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
   { subst ABS. simpl hmac256drbg_relate.  unfold md_full.
      entailer!. simpl. entailer!.
      apply UNDER_SPEC.REP_FULL.
@@ -110,9 +110,9 @@ Proof.
   forward. Exists (Vint (Int.repr 0)). rewrite if_false; [ | intros N; inv N]. 
   thaw ALLSEP.
   unfold hmac256drbgabs_common_mpreds. simpl.
-  fold (list_repeat 32 Byte.one). fold (list_repeat 32 (Vint Int.one)).
+  fold (repeat Byte.one 32). fold (repeat (Vint Int.one) 32).
   remember(HMAC256_DRBG_update (contents_with_add data d_len Data) V
-              (list_repeat 32 Byte.one)) as HH.
+              (repeat Byte.one 32)) as HH.
   destruct HH as [KEY VALUE]. simpl.
   Exists KEY VALUE p. normalize.
   apply andp_right; [apply prop_right; repeat split; auto | cancel].
@@ -155,7 +155,7 @@ Definition hmac_drbg_seed_buf_spec2 :=
                          with (mds, (V', (RC', (EL', (PR', RI'))))),
                               HMAC256DRBGabs key V RC EL PR RI
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
-                          !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
+                          !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (repeat 1 32) = (KEY, VAL))
                              && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) *
@@ -245,7 +245,7 @@ Proof.
 
   assert (exists xx:reptype t_struct_hmac256drbg_context_st, xx =
    (((*M1*)info, (M2, p)),
-    (list_repeat (Z.to_nat 32) (Vint Int.one),
+    (repeat (Vint Int.one) (Z.to_nat 32),
      (Vint (Int.repr reseed_counter),
       (Vint (Int.repr entropy_len),
        (Val.of_bool prediction_resistance,
@@ -265,9 +265,9 @@ Proof.
     unfold field_address. rewrite if_true. 2: assumption. simpl. cancel.
   }
   clear INI. thaw OTHER.
-  specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
-  set (ABS:= HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
-  replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
+  specialize (Forall_repeat isbyteZ 32 1); intros IB1.
+  set (ABS:= HMAC256DRBGabs V0 (repeat 1 32) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
+  replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (repeat 1 32) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
   { entailer!. subst ABS; unfold md_full. simpl.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; lia.
     apply UNDER_SPEC.REP_FULL.

@@ -64,10 +64,10 @@ Proof.
     apply map_ext_in; intros ? Hin.
     rewrite In_upto in Hin.
     destruct (eq_dec a b0); auto.
-    destruct (zlt a 0); [lia|].
+    destruct (Z_lt_dec a 0); [lia|].
     destruct Hin as (? & Hin); apply Z2Nat.inj_lt in Hin; auto; try lia.
     simpl in *; destruct (Z.to_nat a); auto.
-    repeat (destruct n0; [solve [auto]|]).
+    repeat (destruct n1; [solve [auto]|]).
     lia. }
   { assert (0 <= i < Zlength lasts) by lia.
     forward.

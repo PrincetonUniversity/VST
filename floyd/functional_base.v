@@ -11,6 +11,31 @@ Require Export VST.floyd.sublist.
 Require Export Lia.
 Require Export VST.floyd.list_solver.
 
+Definition Vubyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.unsigned c)).
+Definition Vbyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.signed c)).
+Ltac fold_Vbyte :=
+ repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
+      fold (Vbyte c)
+end.
+Ltac  customizable_list_solve_preprocess ::= fold_Vbyte.
+Instance Inhabitant_val : Inhabitant val := Vundef.
+Instance Inhabitant_int: Inhabitant int := Int.zero.
+Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
+Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
+Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
+Instance Inhabitant_float : Inhabitant float := Float.zero.
+Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
+
+Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_ptrofs) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_int64) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_byte) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_int) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_val) using Zlength_solve : Znth.
+
 Create HintDb entailer_rewrite discriminated.
 
 Require Import VST.veric.val_lemmas.

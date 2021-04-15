@@ -185,7 +185,7 @@ Qed.
   rewrite N, H in H0; clear N H.
   apply bytesToBits_injective in H0; trivial.
   unfold PAD.HM.sixtyfour in H0.
-  apply list_repeat_injective in H0. inv H0.
+  apply repeat_injective in H0. inv H0.
   apply BS_pos.
 Qed.
 
@@ -237,10 +237,10 @@ Proof.
               apply InBlocks_len. destruct m. simpl. apply HP. assumption.
     apply OPADX. apply IPADX. (*
     apply bytes_bits_comp_ind.
-             unfold PAD.HM.sixtyfour. apply Forall_list_repeat. apply EQ.isbyteZ_Ipad.
+             unfold PAD.HM.sixtyfour. apply Forall_repeat. apply EQ.isbyteZ_Ipad.
              unfold opad_v. rewrite of_length_proof_irrel. reflexivity.
     apply bytes_bits_comp_ind.
-             unfold PAD.HM.sixtyfour. apply Forall_list_repeat. apply EQ.isbyteZ_Ipad.
+             unfold PAD.HM.sixtyfour. apply Forall_repeat. apply EQ.isbyteZ_Ipad.
              unfold ipad_v. rewrite of_length_proof_irrel. reflexivity.*)
 Qed.
    (*
@@ -314,12 +314,12 @@ Proof.
 
   (* opad *)
   { apply bytes_bits_comp_ind.
-    apply Forall_list_repeat. unfold HP.Opad. lia.
+    apply Forall_repeat. unfold HP.Opad. lia.
     apply of_length_proof_irrel. }
 
   (* ipad *)
   { apply bytes_bits_comp_ind.
-    apply Forall_list_repeat. unfold HP.Ipad. lia.
+    apply Forall_repeat. unfold HP.Ipad. lia.
     apply of_length_proof_irrel. }
 
 Qed.*)

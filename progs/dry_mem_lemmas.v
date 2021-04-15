@@ -283,7 +283,7 @@ Proof.
     rewrite data_at_rec_eq in Hr1; simpl in Hr1.
     unfold unfold_reptype in Hr1; simpl in Hr1.
     rewrite <- (Nat2Z.id n) in Hr1.
-    rewrite Znth_list_repeat_inrange in Hr1.
+    rewrite Znth_repeat_inrange in Hr1.
     unfold mapsto in Hr1; simpl in Hr1.
     rewrite if_true in Hr1 by auto.
     destruct Hr1 as [[] | (_ & ? & ? & [? Hr1] & Hg1)]; [contradiction|].

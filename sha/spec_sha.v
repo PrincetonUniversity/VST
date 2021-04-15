@@ -104,7 +104,7 @@ Definition memset_spec :=
        SEP (memory_block sh n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
-       SEP(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p).
+       SEP(data_at sh (tarray tuchar n) (repeat (Vint c) (Z.to_nat n)) p).
 
 Definition K_vector (gv: globals) : mpred :=
   data_at Ews (tarray tuint (Zlength K256)) (map Vint K256) (gv _K256).

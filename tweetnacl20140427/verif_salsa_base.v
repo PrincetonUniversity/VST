@@ -370,7 +370,7 @@ Lemma upd_upto_Zlength data l (H: Zlength l = 16): forall i (I:(0<=i<=4)%nat),
 Qed.
 
 Lemma upd_upto_Vint data: forall n, 0<=n<16 ->
-      exists i, Znth n (upd_upto data 4 (list_repeat 16 Vundef)) = Vint i.
+      exists i, Znth n (upd_upto data 4 (repeat Vundef 16)) = Vint i.
   Proof. unfold upd_upto; intros. destruct data as [[N C] [K1 K2]].
    repeat rewrite (upd_Znth_lookup' 16); trivial; simpl; try lia.
    if_tac. eexists; reflexivity.   if_tac. eexists; reflexivity.
