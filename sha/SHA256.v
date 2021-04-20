@@ -46,7 +46,7 @@ Fixpoint str_to_bytes (str : string) : list byte :=
 Definition generate_and_pad msg :=
   let n := Zlength msg in
    bytelist_to_intlist (msg ++ [Byte.repr 128%Z]
-                ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero)
+                ++ repeat Byte.zero (Z.to_nat (-(n + 9) mod 64)))
            ++ [Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)].
 
 (*ROUND FUNCTION*)

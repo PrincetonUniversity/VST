@@ -1060,7 +1060,7 @@ Lemma process_globvar_ptrarray_space:
        globvars_in_process gz done emp ((i,gv)::al) |--
     globvars_in_process gz
        (data_at  (readonly2share (gvar_readonly gv)) (Tarray (Tpointer t' noattr) n noattr)
-                                  (list_repeat (Z.to_nat n) nullval)  (gz i) :: done)
+                                  (repeat nullval (Z.to_nat n))  (gz i) :: done)
             emp  al.
 Proof.
 intros until n. intros Ht H3; intros.
@@ -1215,7 +1215,7 @@ rewrite Z.sub_0_r in H0. subst i.
 rewrite !Z.sub_0_r.
 rewrite Znth_pos_cons by lia.
 rewrite <- (Nat2Z.id n0).
-rewrite Znth_list_repeat_inrange by lia.
+rewrite Znth_repeat_inrange by lia.
 apply derives_refl'. f_equal. 
 simpl.
 f_equal.
@@ -1403,7 +1403,7 @@ Ltac process_idstar :=
 Create HintDb zero_val discriminated.
 
 Lemma zero_val_tarray {cs: compspecs}:
- forall t n, zero_val (tarray t n) = list_repeat (Z.to_nat n) (zero_val t).
+ forall t n, zero_val (tarray t n) = repeat (zero_val t) (Z.to_nat n).
 Proof.
 intros.
 rewrite zero_val_eq; reflexivity.

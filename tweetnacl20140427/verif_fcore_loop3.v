@@ -456,7 +456,7 @@ Time forward_for_simple_bound 20 (EX i:Z,
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
       EX l:_, !!(WcontI r (Z.to_nat j) l) && data_at Tsh (tarray tuint 16) l w;
       data_at Tsh (tarray tuint 16) (map Vint r) x))). (*1.5*)
-  { Time entailer!. (*2.5*) Exists (list_repeat 16 Vundef). Time entailer!. (*0.1*) }
+  { Time entailer!. (*2.5*) Exists (repeat Vundef 16). Time entailer!. (*0.1*) }
   { rename H into J. rename i0 into j.
     Intros wlist. rename H into WCONT.
     destruct (Znth_mapVint r ((5 * j + 4 * 0) mod 16)) as [t0 T0].

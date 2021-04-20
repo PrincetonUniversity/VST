@@ -114,12 +114,19 @@ Proof. simpl; intros. inv H. red. intuition. Qed.
 
 Ltac findentry := repeat try first [ left; reflexivity | right].
 
-Ltac finishComponent :=
+Ltac finishComponent :=(*
     intros i phi E; simpl in E;
     repeat (if_tac in E;
             [inv E; eexists; split; [ reflexivity
                                     | try solve [apply funspec_sub_refl]]
             | ]);
+    try solve [discriminate].*)
+    intros i phi E; simpl in E;
+    repeat (if_tac in E;
+       [  inv E; first [ solve [apply funspec_sub_refl]
+                    | eexists; split; [ reflexivity
+                                    | try solve [apply funspec_sub_refl]]]
+       | ]);
     try solve [discriminate].
 
 Ltac lookup_tac := 
@@ -1022,20 +1029,20 @@ intros.
 destruct v as [G c].
 exists G.
 apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
-intros.
-rewrite Forall_forall in H0.
-apply find_id_e in E0.
-apply H0 in E0.
-red in E0.
-simpl in E0.
-destruct (find_id i Exports) eqn:?H; try contradiction.
-apply (Comp_G_Exports c) in H1.
-destruct H1 as [phi' [? ?]].
-exists phi'.
-split; auto.
-eapply funspec_sub_trans; eauto.
-intros.
-apply (Comp_MkInitPred c); auto.
++ intros.
+  rewrite Forall_forall in H0.
+  apply find_id_e in E0.
+  apply H0 in E0.
+  red in E0.
+  simpl in E0.
+  destruct (find_id i Exports) eqn:?H; try contradiction.
+  apply (Comp_G_Exports c) in H1.
+  destruct (find_id i G). eapply funspec_sub_trans; eauto. 
+  destruct H1 as [phi' [? ?]].
+  exists phi'.
+  split; auto.
+  eapply funspec_sub_trans; eauto.
++ intros. apply (Comp_MkInitPred c); auto.
 Qed.
 
 Ltac prove_restrictExports :=
@@ -1063,7 +1070,9 @@ exists G.
 apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
 + rewrite H. apply c.
 + intros. destruct (find_funspec_sub Exports' Exports H H0 _ _ E0) as [psi [Psi PSI]].
-  apply (Comp_G_Exports c) in Psi. destruct Psi as [tau [Tau TAU]].
+  apply (Comp_G_Exports c) in Psi.
+  destruct (find_id i G). eapply funspec_sub_trans;eauto.
+  destruct Psi as [tau [Tau TAU]].
   exists tau; split; trivial. eapply funspec_sub_trans; eassumption.
 + apply (Comp_MkInitPred c).
 Qed.
@@ -1200,10 +1209,124 @@ Ltac weakenExports :=
    | 
    ].
 
+Lemma QPprogdefs_GFF {p i fd}:QPprogram_OK p ->  (QP.prog_defs p) ! i = Some (Gfun fd) -> genv_find_func (QPglobalenv p) i fd.
+Proof. apply QPfind_funct_ptr_exists. Qed.
+
+Definition relaxImports {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (Imports': funspecs) :=
+   @VSU Espec E Imports' p Exports GP.
+
+Lemma prove_relaxImports2
+   {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (Imports': funspecs) :
+   map fst Imports = map fst Imports' ->
+   Forall2 funspec_sub (map snd Imports') (map snd Imports) ->
+   relaxImports v Imports'.
+Proof.
+intros.
+destruct v as [G c].
+assert (LNR1: list_norepet (map fst (QPvarspecs p) ++ map fst (G ++ Imports'))).
+{ rewrite map_app, <- H, <- map_app. apply c. }
+exists G.
+apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
++ rewrite <- H. apply c.
++ intros.
+  assert (LNR2: list_norepet (map fst (QPvarspecs p) ++ map fst (Imports' ++ G))).
+  { apply list_norepet_append_inv in LNR1; destruct LNR1 as [? [? ?]].
+    apply list_norepet_append; trivial.
+    + rewrite map_app. apply (list_norepet_append_commut). rewrite <- map_app; trivial.
+    + eapply list_disjoint_mono; eauto.
+      intros. rewrite map_app. rewrite map_app in H6.  apply in_or_app. apply in_app_or in H6. rewrite or_comm; trivial. }
+  eapply SF_ctx_subsumption.
+  - eapply (Comp_G_justified c); eassumption.
+  - apply (Comp_ctx_LNR c). 
+  - apply cspecs_sub_refl.
+  - apply QPprogdefs_GFF; trivial. apply c.
+  - intros j. red. rewrite 2 semax_prog.make_context_g_char; trivial.
+    2: rewrite map_app, H, <- map_app; trivial.
+    rewrite 2 make_tycontext_s_find_id, 2 find_id_app_char.
+    remember (find_id j Imports) as w; destruct w; symmetry in Heqw.
+    * destruct (find_funspec_sub Imports Imports' H H0 _ _ Heqw) as [psi [Psi PSI]].
+      apply type_of_funspec_sub in PSI; rewrite Psi, PSI; trivial.
+    * apply find_id_None_iff in Heqw. rewrite H in Heqw. apply find_id_None_iff in Heqw. rewrite Heqw.
+      destruct (find_id j G); trivial. destruct (find_id j (QPvarspecs p));  trivial.
+  - intros. red. remember (find_id j (Imports ++ G) ) as w; destruct w; trivial; symmetry in Heqw. 
+    rewrite find_id_app_char; rewrite find_id_app_char in Heqw.
+    remember (find_id j Imports) as q; destruct q; symmetry in Heqq.
+    * inv Heqw. destruct (find_funspec_sub _ _ H H0 _ _ Heqq) as [psi [Psi PSI]].
+      rewrite Psi. eexists; split. reflexivity. apply (funspec_sub_sub_si _ _ PSI).
+    * apply find_id_None_iff in Heqq. rewrite H in Heqq. apply find_id_None_iff in Heqq. rewrite Heqq, Heqw.
+      eexists; split. reflexivity. apply funspec_sub_si_refl.
++ intros. specialize (Comp_G_Exports c _ _ E0). destruct (find_id i G). trivial.
+  intros [psi [Psi PSI]].
+  destruct (find_funspec_sub _ _ H H0 _ _ Psi) as [tau [Tau TAU]].
+  exists tau; split. trivial. eapply funspec_sub_trans; eauto.
++ apply (Comp_MkInitPred c).
+Qed.
+
+Lemma replace_spec_Forall2_funspec_sub2 p phi: forall (l : funspecs)
+  (LNR: list_norepet (map fst l))
+  (Hp: match find_id p l with None => True | Some psi => funspec_sub phi psi end),
+  Forall2 funspec_sub (map snd (replace_spec l p phi)) (map snd l).
+Proof. induction l; simpl; intros. constructor. inv LNR; destruct a. specialize (IHl H2); simpl.
+   remember ((p =? i)%positive) as b; destruct b; symmetry in Heqb; simpl.
++ apply Pos.eqb_eq in Heqb; subst. destruct (Memory.EqDec_ident i i); [| contradiction].
+  constructor. trivial.
+  simpl in H1. rewrite replace_spec_NotFound in IHl; trivial.
+  apply assoclists.find_id_None_iff in H1; rewrite H1 in IHl.
+  apply IHl; trivial.
++ destruct (Memory.EqDec_ident p i); subst. apply Pos.eqb_neq in Heqb; contradiction.
+  constructor. apply funspec_sub_refl. apply (IHl Hp).
+Qed.
+
+Lemma replace_specSome_funspec_sub2 p phi psi: forall (l : funspecs)
+  (LNR: list_norepet (map fst l))
+  (Hp: find_id p l = Some psi) (Psi: funspec_sub phi psi),
+  Forall2 funspec_sub (map snd (replace_spec l p phi))(map snd l) .
+Proof. intros. eapply replace_spec_Forall2_funspec_sub2. trivial. rewrite Hp; trivial. Qed.
+
+Lemma strengthenImports_condition: forall (l specs:funspecs)(LNRL: list_norepet (map fst l)) (LNRspecs: list_norepet (map fst specs)),
+      Forall2 (fun phi x => match x with None => False | Some psi => funspec_sub phi psi end) 
+               (map snd l) (map (fun i => find_id i specs) (map fst l))->
+      Forall2 funspec_sub (map snd (replace_specs specs l)) (map snd specs).
+Proof. induction l; simpl; intros. apply Forall2_funspec_sub_refl. 
+  destruct a as [i phi]; simpl in *. inv H. inv LNRL. specialize (IHl _ H2 LNRspecs H5); clear H5.
+  remember (find_id i specs) as p; symmetry in Heqp; destruct p; [ | contradiction]. 
+  eapply Forall2_funspec_sub_trans. 2: apply IHl. clear IHl.
+  eapply replace_specSome_funspec_sub2.
+  rewrite replace_specs_map_fst; trivial.
+  rewrite replace_specs_preserved. apply Heqp. trivial.
+  trivial.
+Qed.
+Lemma strengthenImports
+   {Espec E Imports p Exports GP} 
+   (v: @VSU Espec E Imports p Exports GP)
+   (newImports: funspecs)
+   (L: list_norepet (map fst newImports))
+   (IdentsEq: map fst newImports = map fst Imports)
+   (HH:Forall2 (fun phi x => match x with Some psi => funspec_sub phi psi | None => False end)
+               (map snd newImports)
+               (map (fun i : ident => find_id i Imports) (map fst Imports))):
+   relaxImports v (replace_specs Imports newImports).
+Proof.
+eapply prove_relaxImports2. rewrite replace_specs_map_fst; trivial.
+eapply strengthenImports_condition; trivial. rewrite <- IdentsEq ; trivial.
+rewrite IdentsEq. trivial.
+Qed.
+
+Ltac strengthenImports :=
+ simple apply strengthenImports; 
+   [apply compute_list_norepet_e; reflexivity || fail "Your restricted Export list has a duplicate function name"
+   | try reflexivity |
+   ].
+
 Ltac simplify_VSU_type t :=
  lazymatch t with
  | restrictExports _ _ => let t := eval red in t in simplify_VSU_type t
  | privatizeExports _ _ => let t := eval red in t in simplify_VSU_type t
+ | relaxImports _ _ => let t := eval red in t in simplify_VSU_type t
  | VSU _ _ _ _ _ => t
  | _ => fail "The type of this supposed VSU is" t "which might be OK but we hesitate to reduce it for fear of blowup"
  end.
@@ -3115,3 +3238,79 @@ apply WholeComponent_semax_prog;
  | intro; reflexivity || fail "Surprising: cenv_built_correctly fails"].
 
 
+
+Section binary_intersection'_funspec_sub_mono.
+
+Definition sigBool_left {A B ts1} (x:functors.MixVariantFunctor._functor
+               ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                   match T with
+                   | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                   | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
+                   | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                   | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                   | rmaps.SigType I0 f0 => @functors.MixVariantFunctorGenerator.fsig I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.PiType I0 f0 => @functors.MixVariantFunctorGenerator.fpi I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                   end) A) mpred):
+{i : bool &
+             functors.MixVariantFunctor._functor
+               ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                   match T with
+                   | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                   | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
+                   | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                   | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                   | rmaps.SigType I0 f0 => @functors.MixVariantFunctorGenerator.fsig I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.PiType I0 f0 => @functors.MixVariantFunctorGenerator.fpi I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                   end) (if i then A else B)) mpred}.
+Proof. exists true; trivial. Defined.
+Definition sigBool_right {A B ts1} (x:functors.MixVariantFunctor._functor
+               ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                   match T with
+                   | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                   | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
+                   | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                   | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                   | rmaps.SigType I0 f0 => @functors.MixVariantFunctorGenerator.fsig I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.PiType I0 f0 => @functors.MixVariantFunctorGenerator.fpi I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                   end) B) mpred):
+{i : bool &
+             functors.MixVariantFunctor._functor
+               ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                   match T with
+                   | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                   | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
+                   | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                   | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                   | rmaps.SigType I0 f0 => @functors.MixVariantFunctorGenerator.fsig I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.PiType I0 f0 => @functors.MixVariantFunctorGenerator.fpi I0 (fun i0 : I0 => dtfr (f0 i0))
+                   | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                   end) (if i then A else B)) mpred}.
+Proof. exists false; trivial. Defined.
+
+Lemma binary_intersection'_funspec_sub_mono {f c A1 P1 Q1 P1ne Q1ne B1 R1 S1 R1ne S1ne phi1 psi1 Phi1 Psi1 
+             A2 P2 Q2 P2ne Q2ne B2 R2 S2 R2ne S2ne phi2 psi2 Phi2 Psi2}
+(Hphi: funspec_sub phi1 phi2)
+(Hpsi: funspec_sub psi1 psi2):
+funspec_sub (@binary_intersection' f c A1 P1 Q1 P1ne Q1ne B1 R1 S1 R1ne S1ne phi1 psi1 Phi1 Psi1)
+            (@binary_intersection' f c A2 P2 Q2 P2ne Q2ne B2 R2 S2 R2ne S2ne phi2 psi2 Phi2 Psi2).
+Proof.
+split; [ split; trivial | intros].
+subst.
+unfold binarySUMArgs. destruct x2; simpl. destruct x.
++ clear Hpsi. destruct Hphi as [_ Hphi].
+  eapply derives_trans. apply (Hphi ts2 _f gargs). clear Hphi.
+  Intros ts1 x1 F. Exists ts1 (@sigBool_left A1 B1 ts1 x1) F; simpl.
+  entailer.
++ clear Hphi. destruct Hpsi as [_ Hpsi].
+  eapply derives_trans. apply (Hpsi ts2 _f gargs). clear Hpsi.
+  Intros ts1 x1 F. Exists ts1 (@sigBool_right A1 B1 ts1 x1) F; simpl.
+  entailer.
+Qed.
+End binary_intersection'_funspec_sub_mono.

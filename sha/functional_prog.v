@@ -556,7 +556,7 @@ pose proof (roundup_ge (Zlength msg + 9) 64).
 assert (Zlength msg >= 0) by (rewrite Zlength_correct; lia).
 exists (Z.to_nat (roundup (Zlength msg+9) 64 / 4 - 2)).
 repeat rewrite app_length.
-rewrite length_list_repeat.
+rewrite repeat_length.
 simpl length.
 symmetry.
 transitivity (Z.to_nat (roundup (Zlength msg + 9) 64 / 4 - 2) * Z.to_nat 4)%nat; [reflexivity |].
@@ -700,7 +700,7 @@ rewrite H4.
 assert (0 <= Zlength ccc < 4)
  by (clear - H3; rewrite Zlength_correct; lia).
 rewrite Z2Nat.inj_add by lia.
-rewrite <- list_repeat_app.
+rewrite repeat_app.
 replace (Zlength msg / 4 * 4) with (Zlength msg - Zlength ccc).
 2:{
 rewrite Heqccc.
@@ -712,8 +712,8 @@ rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
 rewrite Z2Nat.id  by lia.
  lia.
 } 
-match goal with |- context [_ ++ list_repeat (Z.to_nat (4 * ?qq)) Byte.zero] =>
- assert (bytelist_to_intlist (list_repeat (Z.to_nat (4 * qq)) Byte.zero) =
+match goal with |- context [_ ++ repeat Byte.zero (Z.to_nat (4 * ?qq))] =>
+ assert (bytelist_to_intlist (repeat Byte.zero (Z.to_nat (4 * qq))) =
   zeros ((Zlength msg + 8) / 64 * 16 + 15 - (Zlength msg + 8) / 4));
   set (Q := qq) in *
 end. {

@@ -27,8 +27,8 @@ forward_call (wsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
 pose proof (sizeof_pos t_struct_hmac_ctx_st).
 forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
-unfold data_block. simpl. rewrite Zlength_list_repeat by lia.
-rewrite !map_list_repeat.
+unfold data_block. simpl. rewrite Zlength_repeat by lia.
+rewrite !map_repeat.
  entailer!; auto.
 Qed.
 
@@ -44,9 +44,9 @@ Lemma cleanupbodyproof1 Espec wsh c h
      (PROP ( )
       LOCAL ()
       SEP (data_block wsh
-             (list_repeat
-                (Z.to_nat (sizeof t_struct_hmac_ctx_st))
-                Byte.zero) c) * stackframe_of f_HMAC_cleanup)).
+             (repeat Byte.zero
+                (Z.to_nat (sizeof t_struct_hmac_ctx_st))) c) 
+		* stackframe_of f_HMAC_cleanup)).
 Proof. abbreviate_semax.
 set (x := fn_body f_HMAC_cleanup); hnf in x; subst x.
 Intros key.
@@ -60,8 +60,8 @@ forward_call (wsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
 pose proof (sizeof_pos t_struct_hmac_ctx_st).
 forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
-unfold data_block. simpl. rewrite Zlength_list_repeat by lia.
-rewrite !map_list_repeat.
+unfold data_block. simpl. rewrite Zlength_repeat by lia.
+rewrite !map_repeat.
  entailer!; auto.
 Qed.
 

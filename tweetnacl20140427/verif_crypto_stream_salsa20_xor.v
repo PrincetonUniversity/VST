@@ -382,7 +382,7 @@ Proof.
   rewrite (Z.add_assoc q), (sublist_hi_plus xbytes), (sublist_hi_plus mbytes). 
   destruct x; try contradiction.
       - destruct M as [M1 M2]. subst i y. simpl. simpl in X.
-        rewrite Z2Nat.inj_add, <- list_repeat_app.
+        rewrite Z2Nat.inj_add, repeat_app.
         apply bxorlist_app. assumption.
         rewrite sublist_len_1. simpl. subst b. reflexivity.
         lia. lia. lia.
@@ -450,7 +450,7 @@ loop1_statement
          EX  l : list byte,
           !!(bxorlist (bytes_at mInit q 64 mbytes) (sublist 0 64 xbytes) = Some l) &&
           data_at Tsh (Tarray tuchar cLen noattr)
-            (Bl2VL l ++ list_repeat (Z.to_nat (cLen - 64)) Vundef) c))).
+            (Bl2VL l ++ repeat Vundef (Z.to_nat (cLen - 64))) c))).
 Proof. intros.
 Intros.
 unfold loop1_statement.       
@@ -468,7 +468,7 @@ forward_for_simple_bound 64 (EX i:Z,
                         (sublist 0 i xbytes)
                = Some l)
          && data_at Tsh (Tarray tuchar cLen noattr)
-                        (Bl2VL l ++ list_repeat (Z.to_nat (cLen - i)) Vundef) c))).
+                        (Bl2VL l ++ repeat Vundef (Z.to_nat (cLen - i))) c))).
 { entailer!. autorewrite with sublist.
   Exists (@nil byte). 
   unfold Bl2VL; simpl.
@@ -545,7 +545,7 @@ rename H into I.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
     2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. lia. }
-    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try lia.
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_repeat; try lia.
     2: autorewrite with sublist; lia.
     2: autorewrite with sublist; lia.
     simpl. thaw FR3.
@@ -585,7 +585,7 @@ EX i:Z,
                         (sublist 0 i xbytes)
                = Some l)
          && data_at Tsh (Tarray tuchar cLen noattr)
-                        (Bl2VL l ++ list_repeat (Z.to_nat (cLen - i)) Vundef) c)).
+                        (Bl2VL l ++ repeat Vundef (Z.to_nat (cLen - i))) c)).
 
 Definition loop2_statement:=
 Sfor (Sset _i (Econst_int (Int.repr 0) tint))
@@ -727,7 +727,7 @@ forward_for_simple_bound (Int64.unsigned b)
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
     2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. lia. }
-    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try lia.
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0_old, sublist_repeat; try lia.
     2: autorewrite with sublist; lia.
     2: autorewrite with sublist; lia.
     simpl. thaw FR3.
@@ -750,7 +750,7 @@ forward_for_simple_bound (Int64.unsigned b)
       rewrite X; trivial.
 + entailer!.
 Intros l; Exists l.
-rewrite Zminus_diag, list_repeat_0, app_nil_r.
+rewrite Zminus_diag, repeat_0, app_nil_r.
 entailer!.
 Qed.
 
@@ -828,16 +828,16 @@ forward_for_simple_bound 16 (EX i:Z,
    LOCAL  (lvar _x (tarray tuchar 64) v_x; lvar _z (tarray tuchar 16) v_z;
    temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv)
    SEP  (FRZL FR1; EX l:_, !!(Zlength l + i = 16) && data_at Tsh (tarray tuchar 16) 
-          ((list_repeat (Z.to_nat i) (Vint Int.zero)) ++ l) v_z))).
-{ Exists (list_repeat 16 Vundef). entailer!. simpl; cancel. }
+          ((repeat (Vint Int.zero) (Z.to_nat i)) ++ l) v_z))).
+{ Exists (repeat Vundef 16). entailer!. simpl; cancel. }
 { rename H into I. Intros l. rename H into LI16.
   forward. Exists (sublist 1 (Zlength l) l). entailer!.
     rewrite Zlength_sublist; lia.
   apply derives_refl'. f_equal. 
-  rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc; try lia. 
+  rewrite Z2Nat.inj_add, repeat_app, <- app_assoc; try lia. 
   rewrite upd_Znth_app2.
-  rewrite Zlength_list_repeat, Zminus_diag, upd_Znth0_old. reflexivity. lia. lia.
-  repeat rewrite Zlength_list_repeat; lia. 
+  rewrite Zlength_repeat, Zminus_diag, upd_Znth0_old. reflexivity. lia. lia.
+  repeat rewrite Zlength_repeat; lia. 
 }
 Intros l. destruct l.
 2: specialize (Zlength_nonneg l); intros;
@@ -854,7 +854,7 @@ forward_for_simple_bound 8 (EX i:Z,
    SEP 
    (FRZL FR2; data_at Tsh (Tarray tuchar 16 noattr)
         (sublist 0 i (SixteenByte2ValList Nonce) ++
-         (list_repeat (Z.to_nat (16-i)) (Vint Int.zero))) v_z;
+         (repeat (Vint Int.zero) (Z.to_nat (16-i)))) v_z;
    data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce))).
 { entailer!. }
 { rename H into I.
@@ -881,7 +881,7 @@ forward_for_simple_bound 8 (EX i:Z,
   entailer!.
   apply derives_refl'. f_equal.
   rewrite upd_Znth_app2; try autorewrite with sublist. 2: lia.
-  rewrite upd_Znth0_old, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. 4 : rewrite Zlength_list_repeat; lia. f_equal.
+  rewrite upd_Znth0_old, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. 4 : rewrite Zlength_repeat; lia. f_equal.
   rewrite <- Znth_cons_sublist.
   f_equal. rewrite Znth_map.
      rewrite Znth_map.
@@ -901,7 +901,7 @@ rename c into cInit. rename m into mInit. rename b into bInit. thaw FR2.
   remember ((Byte.zero, Byte.zero, Byte.zero, Byte.zero):QuadByte) as ZeroQuadByte.
   destruct Nonce as [[[N0 N1] N2] N3].
   assert (sublist 0 8 (SixteenByte2ValList (N0, N1, N2, N3)) ++
-       list_repeat (Z.to_nat (16 - 8)) (Vint Int.zero)
+       repeat (Vint Int.zero) (Z.to_nat (16 - 8))
      = (SixteenByte2ValList (((N0, N1), ZeroQuadByte), ZeroQuadByte))).
   { do 2 rewrite SixteenByte2ValList_char. 
     rewrite app_assoc, sublist_app1; try lia. 

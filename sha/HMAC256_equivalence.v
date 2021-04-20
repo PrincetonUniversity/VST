@@ -69,7 +69,7 @@ Definition ipad_v: Bvector b := of_list_length _ ipad_length.
 *)
 Lemma fpad_length (v:Bvector c): length (fpad (Vector.to_list v)) = p.
 Proof. unfold fpad, fpad_inner. rewrite bytesToBits_len.
-  repeat rewrite app_length. rewrite length_list_repeat, length_intlist_to_bytelist.
+  repeat rewrite app_length. rewrite repeat_length, length_intlist_to_bytelist.
   rewrite (mult_comm 4), plus_comm, Zlength_correct.
   rewrite bitsToBytes_len_gen with (n:=32%nat).
     reflexivity.
@@ -346,12 +346,12 @@ SearchAbout sha_splitandpad_inc.
 
   (* opad *)
   { apply bytes_bits_comp_ind.
-    apply Forall_list_repeat. unfold HP.Opad. lia.
+    apply Forall_repeat. unfold HP.Opad. lia.
     apply of_length_proof_irrel. }
 
   (* ipad *)
   { apply bytes_bits_comp_ind.
-    apply Forall_list_repeat. unfold HP.Ipad. lia.
+    apply Forall_repeat. unfold HP.Ipad. lia.
     apply of_length_proof_irrel. }
 
 Qed.

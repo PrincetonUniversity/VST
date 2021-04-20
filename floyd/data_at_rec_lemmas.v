@@ -495,15 +495,15 @@ Ltac AUTO_IND :=
   end.
 *)
 
-Lemma nth_list_repeat: forall A i n (x :A),
-    nth i (list_repeat n x) x = x.
+Lemma nth_repeat: forall A i n (x :A),
+    nth i (repeat x n) x = x.
 Proof.
  induction i; destruct n; simpl; auto.
 Qed.
 
-Lemma nth_list_repeat': forall A i n (x y :A),
+Lemma nth_repeat': forall A i n (x y :A),
     (i < n)%nat ->
-    nth i (list_repeat n x) y = x.
+    nth i (repeat x n) y = x.
 Proof.
  induction i; destruct n; simpl; intros; auto.
  lia. lia.
@@ -546,7 +546,7 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t));
+     (v1 := repeat (default_val t) (Z.to_nat (Z.max 0 z)));
      auto.
     rewrite memory_block_array_pred; auto.
     - apply Z.le_max_l.
@@ -557,7 +557,7 @@ Proof.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
       unfold Znth. rewrite if_false by lia.
-      rewrite nth_list_repeat.
+      rewrite nth_repeat.
       unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
       pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
       assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
@@ -719,7 +719,7 @@ Proof.
     apply array_pred_ext_derives with
      (P0 := fun i _ p => mapsto_zeros (sizeof t) sh
                           (offset_val (sizeof t * i) p))
-     (v0 := list_repeat (Z.to_nat (Z.max 0 z)) (zero_val t))];
+     (v0 := repeat (zero_val t) (Z.to_nat (Z.max 0 z)))];
      auto.
     apply mapsto_zeros_array_pred; auto.
     - apply Z.le_max_l.
@@ -731,7 +731,7 @@ Proof.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
       unfold Znth. rewrite if_false by lia.
-      rewrite nth_list_repeat' by lia.
+      rewrite nth_repeat' by lia.
       unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
       pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
       assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
@@ -883,7 +883,7 @@ Proof.
       rewrite unfold_fold_reptype.
       rewrite Zlength_correct in H1.
       rewrite <- Z2Nat_max0.
-      rewrite Zlength_list_repeat by lia.
+      rewrite Zlength_repeat by lia.
       lia.
     }
     rewrite default_val_eq. simpl.
@@ -897,7 +897,7 @@ Proof.
     - eapply align_compatible_rec_Tarray_inv; eauto.
       apply range_max0; auto.
     - apply derives_refl'. f_equal. unfold Znth. rewrite if_false by lia.
-      rewrite nth_list_repeat'; auto.
+      rewrite nth_repeat'; auto.
       apply Nat2Z.inj_lt. rewrite Z2Nat.id, Z2Nat_id' by lia. lia.
   + rewrite !data_at_rec_eq.
     rewrite default_val_eq, unfold_fold_reptype.
@@ -1033,8 +1033,8 @@ Proof.
   rewrite default_val_eq, unfold_fold_reptype.
   + (* Tarray *)
     split.
-    - rewrite Zlength_list_repeat', Z2Nat_id'; auto.
-    - apply Forall_list_repeat; auto.
+    - rewrite Zlength_repeat', Z2Nat_id'; auto.
+    - apply Forall_repeat; auto.
   + (* Tstruct *)
     cbv zeta in IH.
     apply struct_Prop_compact_prod_gen.
@@ -1180,11 +1180,11 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.
+     (v1 := repeat (default_val t) (Z.to_nat (Z.max 0 z))); auto.
     rewrite memory_block_array_pred; auto.
     - apply Z.le_max_l.
     - rewrite (proj1 H2).
-      symmetry; apply Zlength_list_repeat; auto.
+      symmetry; apply Zlength_repeat; auto.
       apply Z.le_max_l.
     - intros.
       rewrite at_offset_eq3.

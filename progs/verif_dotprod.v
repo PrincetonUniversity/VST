@@ -161,7 +161,7 @@ forward_for_simple_bound 3
       PROP ()
       LOCAL (temp _x x; temp _y y; temp _z z)
       SEP (data_at Tsh (tarray tdouble 3) 
-          (map Vfloat (sublist 0 i fx) ++ list_repeat (Z.to_nat (3-i)) Vundef) x;
+          (map Vfloat (sublist 0 i fx) ++ repeat Vundef (Z.to_nat (3-i))) x;
    data_at Tsh (tarray tdouble 3) (map Vfloat fy) y;
    data_at Tsh (tarray tdouble 3) (map Vfloat fz) z)).
 * (* initializer *)

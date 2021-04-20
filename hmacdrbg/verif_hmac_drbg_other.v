@@ -379,8 +379,8 @@ Proof.
   (PROP (0<=k<=n )
    LOCAL (temp _p (offset_val k (Vptr b i)); temp _n (Vint (Int.repr (n-k)));
           temp _v (Vptr b i))
-   SEP (data_at sh (tarray tuchar n) (list_repeat (Z.to_nat k) (Vint Int.zero) ++
-                                       list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b i)))).
+   SEP (data_at sh (tarray tuchar n) (repeat (Vint Int.zero) (Z.to_nat k) ++
+                                       repeat Vundef (Z.to_nat (n-k))) (Vptr b i)))).
   { Exists 0. rewrite Zminus_0_r. entailer!. simpl; cancel. }
   apply semax_loop with (
   (EX k : Z,
@@ -388,7 +388,7 @@ Proof.
    LOCAL (temp _p (offset_val k (Vptr b i)); temp _n (Vint (Int.repr (n - k)));
    temp _v (Vptr b i))
    SEP (data_at sh (tarray tuchar n)
-          (list_repeat (Z.to_nat k) (Vint Int.zero) ++ list_repeat (Z.to_nat (n-k)) Vundef)
+          (repeat (Vint Int.zero) (Z.to_nat k) ++ repeat Vundef (Z.to_nat (n-k)))
           (Vptr b i)))).
   2:{ apply extract_exists_pre. intros k. Intros. forward. entailer.
            Exists k. entailer!.
@@ -414,17 +414,17 @@ Proof.
       forward.
       Exists (k+1). rewrite ! Z.sub_add_distr. entailer!.
       unfold Ptrofs.of_ints, Ptrofs.of_int; normalize. 
-      rewrite upd_Znth_app2 by (rewrite ! Zlength_list_repeat; lia).
-      rewrite Zlength_list_repeat, Zminus_diag by lia.
-      assert (X: list_repeat (Z.to_nat k) (Vint Int.zero) ++
-               upd_Znth 0 (list_repeat (Z.to_nat (n - k)) Vundef)(Vint (Int.zero_ext 8 (Int.repr 0)))
-           = list_repeat (Z.to_nat (k + 1)) (Vint Int.zero) ++
-             list_repeat (Z.to_nat (n - k - 1)) Vundef).
+      rewrite upd_Znth_app2 by (rewrite ! Zlength_repeat; lia).
+      rewrite Zlength_repeat, Zminus_diag by lia.
+      assert (X: repeat (Vint Int.zero) (Z.to_nat k) ++
+               upd_Znth 0 (repeat Vundef (Z.to_nat (n - k)))(Vint (Int.zero_ext 8 (Int.repr 0)))
+           = repeat (Vint Int.zero) (Z.to_nat (k + 1)) ++
+             repeat Vundef (Z.to_nat (n - k - 1))).
       2: rewrite X; cancel.
-      rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc by lia. f_equal.
+      rewrite Z2Nat.inj_add, repeat_app, <- app_assoc by lia. f_equal.
       assert (X: (Z.to_nat (n - k) = 1+Z.to_nat (n-k-1))%nat).
       { specialize (Z2Nat.inj_add 1); simpl; intros. rewrite <- H1 by lia. f_equal; lia. }
-      rewrite X, <- list_repeat_app, upd_Znth_app1; clear X; trivial.
+      rewrite X, repeat_app, upd_Znth_app1; clear X; trivial.
       simpl; rewrite Zlength_cons, Zlength_nil; lia.
 Qed.
 

@@ -84,7 +84,7 @@ Definition inv_at_inner_if wsh sh hashed len c d dd data gv :=
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (map Vubyte dd ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
+                    (map Vubyte dd ++ repeat Vundef (Z.to_nat (CBLOCKz-Zlength dd)),
                      Vint (Int.repr (Zlength dd))))))
                c;
      K_vector gv;
@@ -110,7 +110,7 @@ Definition sha_update_inv wsh sh hashed len c d (dd: list byte) (data: list byte
                  ((map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (list_repeat (Z.to_nat CBLOCKz) Vundef, Vundef)))) : reptype t_struct_SHA256state_st)
+                    (repeat Vundef (Z.to_nat CBLOCKz), Vundef)))) : reptype t_struct_SHA256state_st)
                c;
             data_block sh data d)).
 
@@ -158,7 +158,7 @@ Lemma update_inner_if_sha256_state_:
 field_at wsh t_struct_SHA256state_st [StructField _data]
   (map Vubyte dd ++
    sublist 0 len (map Vubyte data) ++
-   list_repeat (Z.to_nat (CBLOCKz - Zlength dd - len)) Vundef) c *
+   repeat Vundef (Z.to_nat (CBLOCKz - Zlength dd - len))) c *
 field_at sh (tarray tuchar (Zlength data)) [] (map Vubyte data) d *
 field_at wsh t_struct_SHA256state_st [StructField _h]
   (map Vint (hash_blocks init_registers hashed)) c *
@@ -177,7 +177,7 @@ intros.
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (map Vubyte (dd ++ sublist 0 len data)
-                       ++list_repeat (Z.to_nat (64 - Zlength dd - len)) Vundef,
+                       ++ repeat Vundef (Z.to_nat (64 - Zlength dd - len)),
                      Vint (Int.repr (Zlength dd + len)))))).
   unfold_data_at (data_at _ _ _ c).
   rewrite prop_true_andp.
@@ -264,7 +264,7 @@ forward_if.
   eapply(call_memcpy_tuchar
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
               (map Vubyte dd
-                       ++list_repeat (Z.to_nat k) Vundef)
+                       ++repeat Vundef (Z.to_nat k))
                c
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr (map Byte.unsigned data))  d
    (*len*) k
@@ -330,7 +330,7 @@ forward_if.
      by (instantiate (1:=LBLOCKz); assumption).
   rewrite splice_into_list_simplify0;
    [
-   | rewrite Zlength_correct, length_list_repeat; reflexivity
+   | rewrite Zlength_correct, repeat_length; reflexivity
    | rewrite !Zlength_map; auto
    ].
   rewrite bytelist_to_intlist_to_bytelist;
@@ -362,7 +362,7 @@ forward_if.
   eapply(call_memcpy_tuchar
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
                      (map Vubyte dd ++
-         list_repeat (Z.to_nat (CBLOCKz - Zlength dd)) Vundef) c
+         repeat Vundef (Z.to_nat (CBLOCKz - Zlength dd))) c
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr (map Byte.unsigned data))  d
    (*len*) (len)
         Frame);
@@ -382,9 +382,9 @@ forward_if.
   change 64%Z with CBLOCKz.
   replace (CBLOCKz - (Zlength dd + (CBLOCKz - Zlength dd)))%Z
     with 0%Z by (clear; lia).
-  change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
+  change (repeat Vundef (Z.to_nat 0)) with (@nil val).
   autorewrite with sublist.
-  rewrite sublist_list_repeat by Omega1.
+  rewrite sublist_repeat by Omega1.
   clear H5 H6.
   forward. (* c->num = n+(unsigned int)len; *)
   weak_normalize_postcondition.

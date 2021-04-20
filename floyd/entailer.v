@@ -782,7 +782,7 @@ Qed.
 Definition cstringn {CS : compspecs} sh (s: list byte) n p :=
   !!(~In Byte.zero s) &&
   data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
-    list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef) p.
+    repeat Vundef (Z.to_nat (n - (Zlength s + 1)))) p.
 
 Fixpoint no_zero_bytes (s: list byte) : bool :=
  match s with

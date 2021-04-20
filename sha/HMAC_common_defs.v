@@ -113,9 +113,9 @@ Proof. intros.
 Defined.
 
 Lemma add_blocksize_length l n: 0<=n ->
-      BinInt.Z.add n (Zcomplements.Zlength l) = Zcomplements.Zlength ((Coqlib.list_repeat (Z.to_nat n) true) ++ l).
+      BinInt.Z.add n (Zcomplements.Zlength l) = Zcomplements.Zlength ((repeat true (Z.to_nat n)) ++ l).
 Proof. intros. do 2 rewrite Zlength_correct.
-  rewrite app_length, length_list_repeat, Nat2Z.inj_add, Z2Nat.id; trivial.
+  rewrite app_length, repeat_length, Nat2Z.inj_add, Z2Nat.id; trivial.
 Qed.
 
 Lemma hash_blocks_bits_len c b (B:(0<b)%nat) h

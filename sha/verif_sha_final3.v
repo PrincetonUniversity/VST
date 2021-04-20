@@ -186,7 +186,7 @@ Proof.
        (map Vint (hash_blocks init_registers (generate_and_pad msg)),
         (Vundef,
          (Vundef,
-          (list_repeat (Z.to_nat CBLOCKz) (Vint Int.zero), Vint Int.zero)))) c). {
+          (repeat (Vint Int.zero) (Z.to_nat CBLOCKz), Vint Int.zero)))) c). {
    unfold_data_at (data_at _ _ _ c).
    change (Z.to_nat 64) with (Z.to_nat CBLOCKz).
    rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
@@ -212,12 +212,12 @@ Proof.
                 temp _c c)
    SEP
    (data_at wsh t_struct_SHA256state_st
-       (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat (Z.to_nat 64) (Vint Int.zero), Vint Int.zero))))
+       (map Vint hashedmsg, (Vundef, (Vundef, (repeat (Vint Int.zero) (Z.to_nat 64), Vint Int.zero))))
       c;
     K_vector gv;
     data_at shmd (tarray tuchar 32)
          (map Vubyte (intlist_to_bytelist (sublist 0 i hashedmsg))
-           ++ list_repeat (Z.to_nat (32 - WORD*i)) Vundef) md)
+           ++ repeat Vundef (Z.to_nat (32 - WORD*i))) md)
      )).
 *
  entailer!.
@@ -327,7 +327,7 @@ forall (hashed': list int) (dd' : list byte) (pad : Z),
 (0 <= pad < 8)%Z ->
 (LBLOCKz | Zlength hashed') ->
 intlist_to_bytelist hashed' ++ dd' =
-intlist_to_bytelist hashed ++ dd ++ [Byte.repr 128%Z] ++ list_repeat (Z.to_nat pad) Byte.zero ->
+intlist_to_bytelist hashed ++ dd ++ [Byte.repr 128%Z] ++ repeat Byte.zero (Z.to_nat pad) ->
 semax
      (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP  ()
@@ -339,8 +339,8 @@ semax
       SEP
       (field_at wsh t_struct_SHA256state_st [StructField _data]
            (map Vubyte dd' ++
-            list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) (Vubyte Byte.zero)
-              ++ list_repeat (Z.to_nat 8) Vundef) c;
+            repeat (Vubyte Byte.zero) (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
+              ++ repeat Vundef (Z.to_nat 8)) c;
       field_at wsh t_struct_SHA256state_st [StructField _num] Vundef c;
       field_at wsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part bitlen)) c;
       field_at wsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c;
@@ -377,7 +377,7 @@ Proof.
    | reflexivity | lia | apply JMeq_refl].
   rewrite <- app_ass.
    change (Z.to_nat 8) with (Z.to_nat 4 + Z.to_nat 4)%nat.
-   rewrite <- list_repeat_app.
+   rewrite repeat_app.
    rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_lia).
    rewrite <- !app_ass.
    assert (CBZ := CBLOCKz_eq).
@@ -423,8 +423,8 @@ Proof.
   replace_SEP 0
     (field_at wsh t_struct_SHA256state_st [StructField _data]
          (map Vubyte dd' ++
-             list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
-               (Vubyte Byte.zero) ++ ((map Vubyte hibytes) ++ (map Vubyte lobytes))) c).
+             repeat (Vubyte Byte.zero) (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
+                ++ ((map Vubyte hibytes) ++ (map Vubyte lobytes))) c).
   {
     assert (LENhi: Zlength hibytes = 4) by reflexivity.
     clearbody hibytes. clearbody lobytes.
@@ -455,7 +455,7 @@ Proof.
            make_Vptr c;  simpl;  rewrite Ptrofs.sub_add_opp;
            rewrite !Ptrofs.add_assoc; normalize).
   subst hibytes; subst lobytes.
-  rewrite <- !map_list_repeat.
+  rewrite <- !map_repeat.
   rewrite <- !map_app.
   rewrite <- intlist_to_bytelist_app.
   simpl ([_] ++ [_]).

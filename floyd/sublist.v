@@ -1,8 +1,59 @@
-Require Import compcert.lib.Coqlib.
-Require Import VST.msl.Coqlib2.
+Require Import ZArith Znumtheory.
 Require Import Coq.Lists.List.
 Require Import Lia.
 Import ListNotations.
+
+Module SublistInternalLib.
+(* Things copied from VST, to avoid dependencies *)
+Ltac inv H := inversion H; clear H; subst.
+
+Lemma if_true: forall (A: Prop) (E: {A}+{~A}) (T: Type) (B C: T), A -> (if E then B else C) = B.
+Proof.
+intros.
+destruct E; auto.
+contradiction.
+Qed.
+
+Lemma if_false: forall (A: Prop) (E: {A}+{~A}) (T: Type) (B C: T), ~A -> (if E then B else C) = C.
+Proof.
+intros.
+destruct E; auto.
+contradiction.
+Qed.
+
+Tactic Notation "if_tac" := 
+  match goal with |- context [if ?a then _ else _] =>
+    lazymatch type of a with
+    | sumbool _ _ =>destruct a as [?H | ?H]
+    | bool => fail "Use simple_if_tac instead of if_tac, since your expression"a" has type bool"
+    | ?t => fail "Use if_tac only for sumbool; your expression"a" has type" t
+   end end.
+
+Tactic Notation "if_tac" "in" hyp(H0)
+ := match type of H0 with context [if ?a then _ else _] =>
+    lazymatch type of a with
+    | sumbool _ _ =>destruct a as [?H | ?H]
+    | bool => fail "Use simple_if_tac instead of if_tac, since your expression"a" has type bool"
+    | ?t => fail "Use if_tac only for sumbool; your expression"a" has type" t
+   end end.
+
+Tactic Notation "forget" constr(X) "as" ident(y) :=
+   set (y:=X) in *; clearbody y.
+
+Lemma Zmin_spec:
+  forall x y, Z.min x y = if Z_lt_dec x y then x else y.
+Proof.
+  intros. destruct (Zmin_spec x y); destruct H as [H H0]; rewrite H0; clear H0; destruct (Z_lt_dec x y); lia.
+Qed.
+
+Lemma Zmax_spec:
+  forall x y, Z.max x y = if Z_lt_dec y x then x else y.
+Proof.
+  intros. destruct (Zmax_spec x y); destruct H as [H H0]; rewrite H0; clear H0; destruct (Z_lt_dec y x); lia.
+Qed.
+
+End SublistInternalLib.
+Import SublistInternalLib.
 
 Class Inhabitant (A: Type) := default : A.
 
@@ -14,6 +65,7 @@ Instance Inhabitant_fun {T1 T2: Type} {H: Inhabitant T2} : Inhabitant (T1->T2) :
 Instance Inhabitant_Prop : Inhabitant Prop := False.
 Instance Inhabitant_bool : Inhabitant bool := false.
 Instance Inhabitant_pair {T1 T2 : Type} {x1: Inhabitant T1} {x2: Inhabitant T2} : Inhabitant (T1*T2)%type := (x1,x2).
+
 
 Lemma Zlength_length:
   forall A (al: list A) (n: Z),
@@ -51,8 +103,8 @@ f_equal. apply IHn.
 simpl in H; lia.
 Qed.
 
-Lemma firstn_list_repeat {A} (v:A): forall i k, (i<=k)%nat ->
-      firstn i (list_repeat k v) = list_repeat i v.
+Lemma firstn_repeat {A} (v:A): forall i k, (i<=k)%nat ->
+      firstn i (repeat v k) = repeat v i.
 Proof.
   induction i; simpl; trivial; intros.
   destruct k. lia. simpl. rewrite IHi; trivial. lia.
@@ -247,13 +299,6 @@ induction n; destruct al; intros; simpl in *; try lia; auto.
 apply IHn; lia.
 Qed.
 
-Lemma list_repeat_app: forall A a b (x:A),
-  list_repeat a x ++ list_repeat b x = list_repeat (a+b) x.
-Proof.
-intros; induction a; simpl; f_equal.
-auto.
-Qed.
-
 Lemma firstn_same:
   forall A n (b: list A), (n >= length b)%nat -> firstn n b = b.
 Proof.
@@ -305,9 +350,9 @@ rewrite firstn_app1 by lia.
 reflexivity.
 Qed.
 
-Lemma Forall_list_repeat:
+Lemma Forall_repeat:
   forall {A} (P: A -> Prop) (n: nat) (a: A),
-    P a -> Forall P (list_repeat n a).
+    P a -> Forall P (repeat a n).
 Proof.
 induction n; intros.
 constructor.
@@ -433,7 +478,7 @@ Ltac pose_Zlength_nonneg :=
 Ltac old_list_solve := autorewrite with sublist; pose_Zlength_nonneg; lia.
 
 Definition Znth {X}{d: Inhabitant X} n (xs: list X) :=
-  if (zlt n 0) then default else nth (Z.to_nat n) xs d.
+  if (Z_lt_dec n 0) then default else nth (Z.to_nat n) xs d.
 
 Lemma Znth_map:
   forall {A:Type} {da: Inhabitant A}{B:Type}{db: Inhabitant B} i (f: A -> B) (al: list A),
@@ -487,7 +532,7 @@ Qed.
 Lemma Znth_In : forall {A}{a: Inhabitant A} i l, 0 <= i < Zlength l -> In (Znth i l) l.
 Proof.
   intros; unfold Znth.
-  destruct (zlt i 0); [lia|].
+  destruct (Z_lt_dec i 0); [lia|].
   apply nth_In; rewrite Zlength_correct in *.
   apply Nat2Z.inj_lt; rewrite Z2Nat.id; lia.
 Qed.
@@ -674,7 +719,7 @@ Proof.
 intros.
 apply firstn_app1.
 apply Nat2Z.inj_le. rewrite Zlength_correct in H.
-destruct (zlt n 0).
+destruct (Z_lt_dec n 0).
 rewrite Z2Nat_neg by auto. change (Z.of_nat 0) with 0; lia.
 rewrite Z2Nat.id by lia.
 lia.
@@ -712,7 +757,7 @@ Lemma Zfirstn_firstn: forall {A} (contents: list A) n m,
   firstn (Z.to_nat n) (firstn (Z.to_nat m) contents) = firstn (Z.to_nat n) contents.
 Proof.
 intros.
-destruct (zlt n 0).
+destruct (Z_lt_dec n 0).
 rewrite (Z2Nat_neg n) by lia.
 reflexivity.
 apply firstn_firstn.
@@ -727,7 +772,7 @@ intros.
 apply skipn_app1.
 rewrite Zlength_correct in H.
 apply Nat2Z.inj_le.
-destruct (zlt n 0).
+destruct (Z_lt_dec n 0).
 rewrite (Z2Nat_neg n) by lia.
 change (Z.of_nat 0) with 0.  lia.
 rewrite Z2Nat.id by lia.
@@ -747,7 +792,7 @@ rewrite Z2Nat.inj_sub by lia.
 rewrite Nat2Z.id.
 auto.
 apply Nat2Z.inj_ge.
-destruct (zlt n 0).
+destruct (Z_lt_dec n 0).
 rewrite (Z2Nat_neg n) by lia.
 change (Z.of_nat 0) with 0.  lia.
 rewrite Z2Nat.id by lia.
@@ -840,7 +885,7 @@ Ltac unfold_sublist_old :=
   rewrite !sublist_old_sublist by lia; unfold old_sublist.
 
 Definition upd_Znth {A} (i : Z) (al : list A) (x : A) : list A :=
-  if Sumbool.sumbool_and _ _ _ _ (zle 0 i) (zlt i (Zlength al)) then
+  if Sumbool.sumbool_and _ _ _ _ (Z_le_gt_dec 0 i) (Z_lt_dec i (Zlength al)) then
     sublist 0 i al ++ x :: sublist (i+1) (Zlength al) al
   else
     al.
@@ -1092,7 +1137,7 @@ rewrite sublist_old_sublist by lia.
 rewrite sublist_old_sublist by (pose_Zmin_irreducible; pose proof (Zlength_nonneg al); lia).
 rewrite sublist_old_sublist by (apply Z.le_max_r).
 unfold old_sublist.
-destruct (zlt hi (Zlength al)).
+destruct (Z_lt_dec hi (Zlength al)).
 rewrite (Z.min_l hi (Zlength al)) by lia.
 rewrite (Z.min_l lo (Zlength al)) by lia.
 rewrite (Z.max_r (hi-Zlength al) 0) by lia.
@@ -1106,7 +1151,7 @@ rewrite Zfirstn_app1
 auto.
 rewrite (Z.min_r hi (Zlength al)) by lia.
 rewrite (Z.max_l (hi-Zlength al) 0) by lia.
-destruct (zlt lo (Zlength al)).
+destruct (Z_lt_dec lo (Zlength al)).
 rewrite (Z.min_l lo (Zlength al)) by lia.
 rewrite (Z.max_r (lo-Zlength al) 0) by lia.
 rewrite Zskipn_app1 by lia.
@@ -1222,48 +1267,49 @@ Lemma sublist_sublist00 {A} i j (l:list A): 0<=i<=j ->
   sublist 0 i (sublist 0 j l) = sublist 0 i l.
 Proof. intros. apply sublist_sublist0; lia. Qed.
 
-Lemma skipn_list_repeat:
+Lemma skipn_repeat:
    forall A k n (a: A),
-     (k <= n)%nat -> skipn k (list_repeat n a) = list_repeat (n-k) a.
+     (k <= n)%nat -> skipn k (repeat a n) = repeat a (n-k).
 Proof.
  induction k; destruct n; simpl; intros; auto.
  apply IHk; auto. lia.
 Qed.
 
-Lemma sublist_list_repeat {A} i j k (v:A) (I: 0<=i)
+Lemma sublist_repeat {A} i j k (v:A) (I: 0<=i)
           (IJK: i <= j <= k):
-      sublist i j (list_repeat (Z.to_nat k) v) = list_repeat (Z.to_nat (j-i)) v.
+      sublist i j (repeat v (Z.to_nat k)) = repeat v (Z.to_nat (j-i)).
 Proof.
   unfold_sublist_old.
-  rewrite skipn_list_repeat.
-  rewrite firstn_list_repeat.
+  rewrite skipn_repeat.
+  rewrite firstn_repeat.
   trivial.
   rewrite <- Z2Nat.inj_sub by lia.
   apply Z2Nat.inj_le; lia.
   apply Z2Nat.inj_le; lia.
 Qed.
 
-Lemma Zlength_list_repeat:
+
+Lemma Zlength_repeat:
   forall {A} n (x: A),
   0 <= n ->
-  Zlength (list_repeat (Z.to_nat n) x) = n.
+  Zlength (repeat x (Z.to_nat n)) = n.
 Proof.
 intros.
 rewrite Zlength_correct.
-rewrite length_list_repeat.
+rewrite repeat_length.
 apply Z2Nat.id; auto.
 Qed.
 
-Lemma list_repeat_0:
-  forall {A} (x:A), list_repeat (Z.to_nat 0) x = nil.
+Lemma repeat_0:
+  forall {A} (x:A), repeat x (Z.to_nat 0) = nil.
 Proof.
 simpl. auto.
 Qed.
 
-Lemma Znth_list_repeat_inrange:
+Lemma Znth_repeat_inrange:
   forall {A}{d: Inhabitant A} i n (a: A),
    (0 <= i < n)%Z ->
-   Znth i (list_repeat (Z.to_nat n) a) = a.
+   Znth i (repeat a (Z.to_nat n)) = a.
 Proof.
 intros.
 unfold Znth; rewrite if_false by lia.
@@ -1294,8 +1340,8 @@ Qed.
 Lemma sublist_In {A} lo hi data (x:A) (I:In x (sublist lo hi data)): In x data.
 Proof. eapply firstn_In. eapply skipn_In. apply I. Qed.
 
-Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
-Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed.
+Lemma Zlength_repeat' {A} n (v:A): Zlength (repeat v n) = Z.of_nat n.
+Proof. rewrite Zlength_correct, repeat_length; trivial. Qed.
 
 Lemma sublist0_app2 {A : Type} i (al bl : list A):
   Zlength al <= i <= Zlength al + Zlength bl ->
@@ -1375,12 +1421,12 @@ Lemma upd_Znth_lookup K {A}{d: Inhabitant A}: forall l (L:Zlength l = K) i j (v:
    (i<>j /\ Znth i (upd_Znth j l v) = Znth i l).
 Proof.
   intros. unfold_upd_Znth_old.
-  destruct (zeq i j); subst.
+  destruct (Z.eq_dec i j); subst.
   + left; split; trivial.
     rewrite app_Znth2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try rewrite Zminus_diag; try lia.
     rewrite Znth_0_cons. trivial.
   + right; split; trivial.
-    destruct (zlt i j).
+    destruct (Z_lt_dec i j).
     - rewrite app_Znth1; try rewrite Zlength_sublist; try lia.
       rewrite Znth_sublist; try lia. rewrite Zplus_0_r; trivial.
     - rewrite app_Znth2; rewrite Zlength_sublist; try lia.
@@ -1389,7 +1435,7 @@ Proof.
 Qed.
 
 Lemma upd_Znth_lookup' K {A}{d: Inhabitant A}: forall l (L:Zlength l = K) i (I: 0<=i<K) j (J: 0<=j<K) (v:A),
-    Znth i (upd_Znth j l v) = if zeq i j then v else Znth i l.
+    Znth i (upd_Znth j l v) = if Z.eq_dec i j then v else Znth i l.
 Proof. intros.
   destruct (upd_Znth_lookup K l L i j v I J) as [[X Y] | [X Y]]; if_tac; try lia; trivial.
 Qed.
@@ -1406,14 +1452,14 @@ Qed.
 Lemma upd_Znth_same {A}{d: Inhabitant A}: forall i l u, 0<= i< Zlength l -> Znth i (upd_Znth i l u) = u.
 Proof.
   intros. rewrite (upd_Znth_lookup' _ _ (eq_refl _)); trivial.
-  rewrite zeq_true; trivial.
+  rewrite if_true; trivial.
 Qed.
 
 Lemma upd_Znth_diff {A}{d: Inhabitant A}: forall i j l u, 0<= i< Zlength l -> 0<= j< Zlength l -> i<>j ->
       Znth i (upd_Znth j l u) = Znth i l.
 Proof.
   intros. rewrite (upd_Znth_lookup' _ _ (eq_refl _)); trivial.
-  rewrite zeq_false; trivial.
+  rewrite if_false; trivial.
 Qed.
 
 Lemma upd_Znth_app1 {A} i l1 l2 (I: 0 <= i < Zlength l1) (v:A):
@@ -1434,7 +1480,7 @@ Lemma upd_Znth_app2 {A} (l1 l2:list A) i v:
   Zlength l1 <= i <= Zlength l1 + Zlength l2 ->
   upd_Znth i (l1 ++ l2) v = l1 ++ upd_Znth (i-Zlength l1) l2 v.
 Proof. intros.
-  destruct (zlt i (Zlength l1 + Zlength l2)).
+  destruct (Z_lt_dec i (Zlength l1 + Zlength l2)).
   - unfold_upd_Znth_old.
     rewrite sublist0_app2; trivial. rewrite <- app_assoc. f_equal. f_equal. f_equal.
     rewrite sublist_app2, Zlength_app, Zminus_plus.
@@ -1521,13 +1567,13 @@ Proof.
   f_equal; [| f_equal]; f_equal; lia.
 Qed.
 
-Hint Rewrite @Znth_list_repeat_inrange : sublist.
+Hint Rewrite @Znth_repeat_inrange : sublist.
 Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
-Hint Rewrite @list_repeat_0: sublist.
+Hint Rewrite @repeat_0: sublist.
 Hint Rewrite <- @app_nil_end : sublist.
 Hint Rewrite @Zlength_app: sublist.
 Hint Rewrite @Zlength_map: sublist.
-Hint Rewrite @Zlength_list_repeat using old_list_solve: sublist.
+Hint Rewrite @Zlength_repeat using old_list_solve: sublist.
 Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
 Hint Rewrite @Zlength_sublist using old_list_solve: sublist.
 Hint Rewrite Z.max_r Z.max_l using lia : sublist.
@@ -1536,7 +1582,7 @@ Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
 Hint Rewrite @sublist_sublist using old_list_solve : sublist.
 Hint Rewrite @sublist_app1 using old_list_solve : sublist.
 Hint Rewrite @sublist_app2 using old_list_solve : sublist.
-Hint Rewrite @sublist_list_repeat  using old_list_solve : sublist.
+Hint Rewrite @sublist_repeat  using old_list_solve : sublist.
 Hint Rewrite @sublist_same using old_list_solve : sublist.
 Hint Rewrite Z.add_simpl_l : sublist.
 Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
@@ -1550,14 +1596,23 @@ Hint Rewrite @upd_Znth_Zlength using old_list_solve : sublist.
 
 Hint Rewrite @sublist_nil : sublist.
 
+Lemma repeat_app  (* duplicate this from Coq standard library
+     for compatibility with Coq 8.12, where it is not present *)
+  : forall {A: Type} (x: A) (n m: nat),
+         repeat x (n + m) = repeat x n ++ repeat x m.
+Proof.
+intros.
+induction n; simpl; auto.
+f_equal; auto.
+Qed.
 
-Lemma list_repeat_app':
+Lemma repeat_app':
  forall {A: Type} a b (x:A), 
     0 <= a -> 0 <= b ->
-    list_repeat (Z.to_nat a) x ++ list_repeat (Z.to_nat b) x = list_repeat (Z.to_nat (a+b)) x.
+    repeat x (Z.to_nat a) ++ repeat x (Z.to_nat b) = repeat x (Z.to_nat (a+b)).
 Proof.
  intros.
- rewrite list_repeat_app. f_equal.
+ rewrite <- repeat_app. f_equal.
   apply Nat2Z.inj. rewrite <- Z2Nat.inj_add; auto.
 Qed.
 
@@ -1651,11 +1706,11 @@ Qed.
 Hint Rewrite @upd_Znth_app1 using old_list_solve : sublist.
 Hint Rewrite @upd_Znth_app2 using old_list_solve : sublist.
 
-Lemma map_list_repeat: forall {A B} (f: A->B) n (x:A), map f (list_repeat n x) = list_repeat n (f x).
+Lemma map_repeat: forall {A B} (f: A->B) n (x:A), map f (repeat x n) = repeat (f x) n.
 Proof.
 intros. induction n; simpl; f_equal; auto.
 Qed.
-Hint Rewrite @map_list_repeat : sublist.
+Hint Rewrite @map_repeat : sublist.
 
 Lemma Zlength_sublist_correct: forall {A} (l: list A) (lo hi: Z),
   0 <= lo <= hi ->

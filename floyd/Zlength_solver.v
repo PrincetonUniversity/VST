@@ -1,9 +1,10 @@
 (* Definitions and lemmas used in list solver *)
-Require Import compcert.lib.Coqlib.
-Require Import VST.msl.Coqlib2.
-Require Import VST.floyd.sublist.
-Require Export Coq.micromega.Lia.
+Require Import ZArith Znumtheory.
+Require Import Coq.Lists.List.
+Require Import Lia.
 Import ListNotations.
+Require Import VST.floyd.sublist.
+Import SublistInternalLib.
 
 (** This file provides a almost-complete solver for list with concatenation.
   Its core symbols include:
@@ -14,7 +15,6 @@ Import ListNotations.
     sublist
     map.
   And it also interprets these symbols by convernting to core symbols:
-    list_repeat (Z.to_nat _)
     nil
     cons
     upd_Znth. *)
@@ -23,9 +23,11 @@ Import ListNotations.
 (** Zlength_solve is a tactic that solves linear arithmetic about length of lists. *)
 
 (* Auxilary lemmas for Zlength_solve. *)
+(*
 Lemma repeat_list_repeat : forall {A : Type} (n : nat) (x : A),
   repeat x n = list_repeat n x.
 Proof. intros. induction n; simpl; try f_equal; auto. Qed.
+*)
 
 Definition Zrepeat {A : Type} (x : A) (n : Z) : list A :=
   repeat x (Z.to_nat n).
@@ -33,7 +35,7 @@ Definition Zrepeat {A : Type} (x : A) (n : Z) : list A :=
 Lemma Zlength_Zrepeat : forall (A : Type) (x : A) (n : Z),
   0 <= n ->
   Zlength (Zrepeat x n) = n.
-Proof. intros *. unfold Zrepeat. rewrite repeat_list_repeat. apply @Zlength_list_repeat. Qed.
+Proof. intros *. unfold Zrepeat. apply @Zlength_repeat. Qed.
 
 Local Lemma Zlength_firstn : forall (A : Type) n (l : list A),
   Zlength (firstn n l) = Z.min (Z.max (Z.of_nat n) 0) (Zlength l).

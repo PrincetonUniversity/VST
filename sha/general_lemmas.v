@@ -23,8 +23,8 @@ induction al; destruct bl,n; simpl; intros; auto.
 inv H.
 Qed.
 
-Lemma list_repeat_injective {A} (a a':A) n: (0<n)%nat ->
-      list_repeat n a = list_repeat n a' -> a=a'.
+Lemma repeat_injective {A} (a a':A) n: (0<n)%nat ->
+      repeat a n = repeat a' n -> a=a'.
   Proof. intros.
     destruct n. lia. simpl in H0. inversion H0. trivial.
   Qed.
@@ -357,14 +357,14 @@ Proof.
  rewrite Z.mul_add_distr_r; lia.
 Qed.
 
-Lemma nth_list_repeat: forall A i n (x :A),
-    nth i (list_repeat n x) x = x.
+Lemma nth_repeat: forall A i n (x :A),
+    nth i (repeat x n) x = x.
 Proof.
  induction i; destruct n; simpl; auto.
 Qed.
 
-Lemma map_list_repeat:
+Lemma map_repeat:
   forall A B (f: A -> B) n x,
-     map f (list_repeat n x) = list_repeat n (f x).
+     map f (repeat x n) = repeat (f x) n.
 Proof. induction n; simpl; intros; f_equal; auto.
 Qed.

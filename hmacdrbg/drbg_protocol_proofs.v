@@ -32,7 +32,7 @@ Require Import hmacdrbg.verif_hmac_drbg_seed_common.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 Opaque initial_key. Opaque initial_value.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
-Opaque list_repeat. 
+Opaque repeat. 
 
 Require hmacdrbg.verif_hmac_drbg_seed.
 
@@ -162,7 +162,7 @@ Proof.
 
   assert (exists xx:reptype t_struct_hmac256drbg_context_st, xx =
    (((*M1*)info, (M2, p)),
-    (list_repeat (Z.to_nat 32) (Vint Int.one),
+    (repeat (Vint Int.one) (Z.to_nat 32),
      (Vint (Int.repr reseed_counter),
       (Vint (Int.repr entropy_len),
        (Val.of_bool prediction_resistance,
@@ -181,7 +181,7 @@ Proof.
     unfold field_address. rewrite if_true. 2: assumption. simpl. cancel.
   }
   clear INI. thaw OTHER.
-  set (ABS:= HMAC256DRBGabs V (list_repeat 32 Byte.one) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
+  set (ABS:= HMAC256DRBGabs V (repeat Byte.one 32) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   gather_SEP 1 2.
   replace_SEP 0 (hmac256drbg_relate  ABS xx).
   { entailer!. simpl. subst ABS; unfold md_full. simpl. entailer!.
@@ -197,7 +197,7 @@ Proof.
   thaw ALLSEP.
   unfold hmac256drbgabs_common_mpreds. simpl.
   remember(HMAC256_DRBG_functional_prog.HMAC256_DRBG_update (contents_with_add data d_len Data) V
-             (list_repeat 32 Byte.one)) as HH.
+             (repeat Byte.one 32)) as HH.
   destruct HH as [KEY VALUE]. unfold hmac256drbgstate_md_info_pointer; simpl.
   Exists KEY VALUE p (M1, (M2, M3)). normalize. simpl in *.
   apply andp_right.
@@ -305,14 +305,14 @@ Proof.
 
   assert_PROP (field_compatible (tarray tuchar 384) [] seed) as Hfield by entailer!.
   replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
-         (list_repeat (Z.to_nat entropy_len) (Vint Int.zero)) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
-         (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero)) (offset_val entropy_len seed))).
+         (repeat (Vint Int.zero) (Z.to_nat entropy_len)) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
+         (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len))) (offset_val entropy_len seed))).
   {
-    erewrite <- data_at_complete_split with (length:=384)(AB:=list_repeat (Z.to_nat 384) (Vint Int.zero)); 
-    repeat rewrite Zlength_list_repeat; trivial; try lia. 
+    erewrite <- data_at_complete_split with (length:=384)(AB:=repeat (Vint Int.zero) (Z.to_nat 384)); 
+    repeat rewrite Zlength_repeat; trivial; try lia. 
     solve [go_lower; apply derives_refl]. 
     solve [rewrite Zplus_minus; assumption].
-    rewrite list_repeat_app, Z2Nat.inj_sub; try lia. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try lia.
+    rewrite <- repeat_app, Z2Nat.inj_sub; try lia. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try lia.
   }
   flatten_sepcon_in_SEP.
 
