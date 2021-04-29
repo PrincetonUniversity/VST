@@ -1567,7 +1567,7 @@ Proof.
   f_equal; [| f_equal]; f_equal; lia.
 Qed.
 
-Hint Rewrite @Znth_repeat_inrange : sublist.
+Hint Rewrite @Znth_repeat_inrange using lia : sublist.
 Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
 Hint Rewrite @repeat_0: sublist.
 Hint Rewrite <- @app_nil_end : sublist.
