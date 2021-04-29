@@ -546,17 +546,16 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := repeat (default_val t) (Z.to_nat (Z.max 0 z)));
+     (v1 := Zrepeat (default_val t) (Z.max 0 z));
      auto.
     rewrite memory_block_array_pred; auto.
     - apply Z.le_max_l.
-    - f_equal.
-      f_equal.
-      rewrite Z2Nat_max0; auto.
+    - f_equal. unfold Zrepeat.
+      f_equal.  lia.
     - intros.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
-      unfold Znth. rewrite if_false by lia.
+      unfold Znth, Zrepeat. rewrite if_false by lia.
       rewrite nth_repeat.
       unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
       pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
@@ -719,18 +718,17 @@ Proof.
     apply array_pred_ext_derives with
      (P0 := fun i _ p => mapsto_zeros (sizeof t) sh
                           (offset_val (sizeof t * i) p))
-     (v0 := repeat (zero_val t) (Z.to_nat (Z.max 0 z)))];
+     (v0 := Zrepeat (zero_val t) (Z.max 0 z))];
      auto.
     apply mapsto_zeros_array_pred; auto.
     - apply Z.le_max_l.
-    - f_equal.
-      f_equal.
+    - unfold Zrepeat. 
       rewrite Z2Nat_max0; auto.
     - intros.
       change (unfold_reptype ?A) with A.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
-      unfold Znth. rewrite if_false by lia.
+      unfold Znth, Zrepeat. rewrite if_false by lia.
       rewrite nth_repeat' by lia.
       unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
       pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
@@ -882,6 +880,7 @@ Proof.
       intros; rewrite default_val_eq.
       rewrite unfold_fold_reptype.
       rewrite Zlength_correct in H1.
+      unfold Zrepeat.
       rewrite <- Z2Nat_max0.
       rewrite Zlength_repeat by lia.
       lia.
@@ -896,7 +895,7 @@ Proof.
        unfold sizeof in H; simpl in H; fold (sizeof t) in H; lia.
     - eapply align_compatible_rec_Tarray_inv; eauto.
       apply range_max0; auto.
-    - apply derives_refl'. f_equal. unfold Znth. rewrite if_false by lia.
+    - apply derives_refl'. f_equal. unfold Znth, Zrepeat. rewrite if_false by lia.
       rewrite nth_repeat'; auto.
       apply Nat2Z.inj_lt. rewrite Z2Nat.id, Z2Nat_id' by lia. lia.
   + rewrite !data_at_rec_eq.
@@ -1033,7 +1032,7 @@ Proof.
   rewrite default_val_eq, unfold_fold_reptype.
   + (* Tarray *)
     split.
-    - rewrite Zlength_repeat', Z2Nat_id'; auto.
+    - unfold Zrepeat; rewrite Zlength_repeat', Z2Nat_id'; auto.
     - apply Forall_repeat; auto.
   + (* Tstruct *)
     cbv zeta in IH.
@@ -1180,7 +1179,7 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := repeat (default_val t) (Z.to_nat (Z.max 0 z))); auto.
+     (v1 := Zrepeat (default_val t) (Z.max 0 z)); auto.
     rewrite memory_block_array_pred; auto.
     - apply Z.le_max_l.
     - rewrite (proj1 H2).

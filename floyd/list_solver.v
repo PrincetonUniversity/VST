@@ -48,11 +48,6 @@ Proof. intros. rewrite upd_Znth_old_upd_Znth; auto. Qed.
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)
 
 (* Auxilary lemmas for Znth_solve. *)
-Lemma Znth_Zrepeat : forall (A : Type) (d : Inhabitant A) (i n : Z) (x : A),
-  0 <= i < n ->
-  Znth i (Zrepeat x n) = x.
-Proof. intros. unfold Zrepeat. apply Znth_repeat_inrange; auto. Qed.
-
 Definition Znth_app1 := app_Znth1.
 Definition Znth_app2 := app_Znth2.
 

@@ -426,6 +426,25 @@ Proof.
 induction n; destruct al; simpl; intros; auto.
 Qed.
 
+Lemma Zlength_repeat:
+  forall {A} n (x: A),
+  0 <= n ->
+  Zlength (repeat x (Z.to_nat n)) = n.
+Proof.
+intros.
+rewrite Zlength_correct.
+rewrite repeat_length.
+apply Z2Nat.id; auto.
+Qed.
+
+Definition Zrepeat {A : Type} (x : A) (n : Z) : list A :=
+  repeat x (Z.to_nat n).
+
+Lemma Zlength_Zrepeat : forall (A : Type) (x : A) (n : Z),
+  0 <= n ->
+  Zlength (Zrepeat x n) = n.
+Proof. intros *. unfold Zrepeat. apply @Zlength_repeat. Qed.
+
 Lemma Zlength_app: forall T (al bl: list T),
     Zlength (al++bl) = Zlength al + Zlength bl.
 Proof. induction al; intros. simpl app; rewrite Zlength_nil; lia.
@@ -1288,20 +1307,29 @@ Proof.
   apply Z2Nat.inj_le; lia.
 Qed.
 
-
-Lemma Zlength_repeat:
-  forall {A} n (x: A),
-  0 <= n ->
-  Zlength (repeat x (Z.to_nat n)) = n.
+Lemma sublist_Zrepeat {A} i j k (v:A) (I: 0<=i)
+          (IJK: i <= j <= k):
+      sublist i j (Zrepeat v k) = Zrepeat v (j-i).
 Proof.
-intros.
-rewrite Zlength_correct.
-rewrite repeat_length.
-apply Z2Nat.id; auto.
+  apply @sublist_repeat; auto.
 Qed.
 
 Lemma repeat_0:
   forall {A} (x:A), repeat x (Z.to_nat 0) = nil.
+Proof.
+simpl. auto.
+Qed.
+
+Lemma Zrepeat_neg: forall {A} (v: A) n, n<=0 -> Zrepeat v n = nil.
+Proof.
+intros.
+unfold Zrepeat.
+replace (Z.to_nat n) with O by lia.
+reflexivity.
+Qed.
+
+Lemma Zrepeat_0:
+  forall {A} (x:A), Zrepeat x 0 = nil.
 Proof.
 simpl. auto.
 Qed.
@@ -1319,6 +1347,11 @@ forget (Z.to_nat n) as k.
 revert k H0; induction (Z.to_nat i); destruct k; simpl; intros.
 lia. auto. lia. apply IHn0; lia.
 Qed.
+
+Lemma Znth_Zrepeat : forall (A : Type) (d : Inhabitant A) (i n : Z) (x : A),
+  0 <= i < n ->
+  Znth i (Zrepeat x n) = x.
+Proof.  exact @Znth_repeat_inrange. Qed.
 
 Lemma firstn_nil {A} n: firstn n (nil:list A) = nil.
 Proof.  destruct n; reflexivity. Qed.
@@ -1567,12 +1600,15 @@ Proof.
   f_equal; [| f_equal]; f_equal; lia.
 Qed.
 
+Hint Rewrite @Znth_Zrepeat using lia : sublist.
 Hint Rewrite @Znth_repeat_inrange using lia : sublist.
 Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
-Hint Rewrite @repeat_0: sublist.
+Hint Rewrite @Zrepeat_neg using lia : sublist.
+Hint Rewrite @repeat_0 @Zrepeat_0: sublist.
 Hint Rewrite <- @app_nil_end : sublist.
 Hint Rewrite @Zlength_app: sublist.
 Hint Rewrite @Zlength_map: sublist.
+Hint Rewrite @Zlength_Zrepeat using old_list_solve: sublist.
 Hint Rewrite @Zlength_repeat using old_list_solve: sublist.
 Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
 Hint Rewrite @Zlength_sublist using old_list_solve: sublist.
@@ -1582,7 +1618,7 @@ Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
 Hint Rewrite @sublist_sublist using old_list_solve : sublist.
 Hint Rewrite @sublist_app1 using old_list_solve : sublist.
 Hint Rewrite @sublist_app2 using old_list_solve : sublist.
-Hint Rewrite @sublist_repeat  using old_list_solve : sublist.
+Hint Rewrite @sublist_repeat @sublist_Zrepeat using old_list_solve : sublist.
 Hint Rewrite @sublist_same using old_list_solve : sublist.
 Hint Rewrite Z.add_simpl_l : sublist.
 Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
@@ -1614,6 +1650,14 @@ Proof.
  intros.
  rewrite <- repeat_app. f_equal.
   apply Nat2Z.inj. rewrite <- Z2Nat.inj_add; auto.
+Qed.
+
+Lemma Zrepeat_app:
+ forall {A: Type} (a b: Z) (x:A), 
+    0 <= a -> 0 <= b ->
+    Zrepeat x a ++ Zrepeat x b = Zrepeat x (a+b).
+Proof.
+  exact @repeat_app'.
 Qed.
 
 Lemma Znth_overflow:
@@ -1710,7 +1754,15 @@ Lemma map_repeat: forall {A B} (f: A->B) n (x:A), map f (repeat x n) = repeat (f
 Proof.
 intros. induction n; simpl; f_equal; auto.
 Qed.
-Hint Rewrite @map_repeat : sublist.
+
+Lemma map_Zrepeat: forall {A B} (f: A->B) n (x:A), 
+    map f (Zrepeat x n) = Zrepeat (f x) n.
+Proof.
+intros.
+apply map_repeat.
+Qed.
+
+Hint Rewrite @map_repeat @map_Zrepeat: sublist.
 
 Lemma Zlength_sublist_correct: forall {A} (l: list A) (lo hi: Z),
   0 <= lo <= hi ->

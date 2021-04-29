@@ -260,6 +260,7 @@ Proof.
   rewrite data_at_rec_eq in H; simpl in H.
   unfold default_val, unfold_reptype in H; simpl in H.
   unfold at_offset in H; rewrite offset_val_zero_Vptr in H.
+  unfold Zrepeat in *.
   destruct H as [_ H].
   rewrite Z.sub_0_r, Z2Nat_max0 in H.
   remember 0 as lo in H at 1.
