@@ -106,12 +106,11 @@ Proof.
     apply H0.
 Qed.
 
-Hint Rewrite repeat_Zrepeat cons_Zrepeat_1_app : list_solve_rewrite.
-Hint Rewrite app_nil_r app_nil_l : list_solve_rewrite.
-(* Hint Rewrite upd_Znth_unfold using Zlength_solve : list_solve_rewrite. *)
-
 Ltac list_form :=
-  autorewrite with list_solve_rewrite in *.
+ repeat change (?a :: ?b) with (Zrepeat a 1 ++ b) in *;
+ repeat change (repeat ?x (Z.to_nat ?n)) with (Zrepeat x n) in *;
+ repeat change (@Zrepeat ?A _ 0) with (@nil A) in *;
+ repeat change (nil ++ ?b) with b in *.
 
 (** * Znth_solve *)
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)
@@ -909,7 +908,8 @@ Proof.
     + subst a. apply H with 0. Zlength_solve.
       autorewrite with sublist. auto.
     + apply IHl; auto. intros.
-        specialize (H (i+1) ltac:(Zlength_solve)). autorewrite with list_solve_rewrite Znth in *.
+        specialize (H (i+1) ltac:(Zlength_solve)). 
+        list_form. autorewrite with Znth in *.
         fassumption.
 Qed.
 
@@ -2101,7 +2101,9 @@ Ltac customizable_list_solve_preprocess := idtac.
 Ltac list_solve_preprocess :=
   customizable_list_solve_preprocess;
   autounfold with list_solve_unfold in *;
-  unshelve autorewrite with list_solve_rewrite in *; [solve [auto with typeclass_instances] .. | idtac];
+  list_form;
+  unshelve rewrite ?app_nil_r in *; 
+  [solve [auto with typeclass_instances] .. | idtac];
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 

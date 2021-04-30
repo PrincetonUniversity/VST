@@ -80,7 +80,7 @@ Proof.
         exists 1; auto.
     - rewrite data_at__eq.
       unfold default_val, reptype_gen; simpl.
-      rewrite repeat_list_repeat; apply derives_refl. }
+      apply derives_refl. }
   - forward.
     rewrite upd_init_const; [|lia].
     entailer!.
