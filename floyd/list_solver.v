@@ -107,10 +107,30 @@ Proof.
 Qed.
 
 Ltac list_form :=
- repeat change (?a :: ?b) with (Zrepeat a 1 ++ b) in *;
- repeat change (repeat ?x (Z.to_nat ?n)) with (Zrepeat x n) in *;
- repeat change (@Zrepeat ?A _ 0) with (@nil A) in *;
- repeat change (nil ++ ?b) with b in *.
+  (* be careful not to change things to much above the line;
+    only in propositions, and don't unnecessarily revert
+    a proposition (which would change the order of things above the line) *)
+  match goal with
+  | H : ?A |- _ => 
+    lazymatch type of A with
+    | Prop => lazymatch A with
+                     | context [@cons] => idtac
+                     | context [@repeat] => idtac
+                     | context [@Zrepeat _ _ 0] => idtac
+                     | context [nil ++ _] => idtac
+                     end
+    end;
+    revert H; list_form; intro H
+  | |- context [Zrepeat _ ?A] =>
+       lazymatch A with 0%Z => fail
+         | _ => replace A with 0%Z by lia
+       end
+  | |- _ =>
+       repeat change (?a :: ?b) with (Zrepeat a 1 ++ b);
+       repeat change (repeat ?x (Z.to_nat ?n)) with (Zrepeat x n);
+       repeat change (@Zrepeat ?A _ 0) with (@nil A);
+       repeat change (nil ++ ?b) with b
+   end.
 
 (** * Znth_solve *)
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)
