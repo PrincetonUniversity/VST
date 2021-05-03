@@ -220,6 +220,18 @@ intros.
     unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
 Qed.
 
+Ltac unknown_big_endian_hack :=
+  (* This is necessary on machines where Archi.big_endian is a Parameter 
+    rather than a Definition.  When Archi.big_endian is a constant true or false,
+   then it's much easier. *)
+ match goal with H1: (align_chunk _ | _) |- _ |-- res_predicates.address_mapsto ?ch ?v ?sh (?b, Ptrofs.unsigned ?i) =>
+   replace v with (decode_val ch (list_repeat (Z.to_nat (size_chunk ch)) (Byte Byte.zero)));
+   [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
+    unfold decode_val, decode_int, rev_if_be;
+     destruct Archi.big_endian;
+     reflexivity
+ end.
+
 Lemma by_value_data_at_rec_zero_val: forall sh t p,
   type_is_by_value t = true ->
   size_compatible t p ->
@@ -244,9 +256,8 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-   pose proof (decode_byte_val Byte.zero).
    all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
-   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
+   all: try unknown_big_endian_hack.
 - rewrite zero_val_Tlong.
    change (unfold_reptype ?A) with A.
     destruct s; simpl;
@@ -256,7 +267,7 @@ Proof.
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
    all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
-   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
+   all: try unknown_big_endian_hack.
 - rewrite zero_val_Tfloat32;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
@@ -274,7 +285,7 @@ Proof.
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
    all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
-   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
+   all: try unknown_big_endian_hack.
 - rewrite zero_val_Tpointer.
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
@@ -283,8 +294,8 @@ Proof.
    rewrite (prop_true_andp (_ /\ _))
       by (split; auto; intro; apply mapsto_memory_block.tc_val_pointer_nullval'). 
    (if_tac; [apply orp_right1 | ]).
-   apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
-   apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try unknown_big_endian_hack.
 Qed.
 
 Lemma by_value_data_at_rec_nonreachable: forall sh t p v,
