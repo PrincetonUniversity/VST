@@ -353,7 +353,9 @@ Proof.
  apply identity_unit'; auto.
 + exists (Byte Byte.zero :: nil); split.
  split. split. reflexivity. split.
- unfold decode_val. simpl. f_equal.
+ unfold decode_val. simpl. apply f_equal.
+ unfold decode_int, rev_if_be.
+ rewrite Tauto.if_same; reflexivity.
  apply Z.divide_1_l.
  intro loc. hnf. if_tac. exists H0.
  destruct loc as [b' i']. destruct H8; subst b'.
@@ -1200,6 +1202,27 @@ rewrite <- (Int.unsigned_repr j) by auto.
 congruence.
 Qed.
 
+(* In case the Archi.big_endian is unknown (e.g. on ARM this is a parameter),
+   the left hand side does not compute, which the right hand side does. *)
+
+Lemma encode_nullval:
+  encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval
+= list_repeat (if Archi.ptr64 then 8 else 4) (Memdata.Byte Byte.zero).
+Proof.
+  cbv delta [nullval Archi.ptr64 encode_val encode_int rev_if_be] beta iota.
+  rewrite Tauto.if_same.
+  reflexivity.
+Qed.
+
+Lemma decode_encode_nullval :
+  decode_val Mptr (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval) = nullval.
+Proof.
+  rewrite encode_nullval.
+  cbv delta [Archi.ptr64 list_repeat decode_val decode_int proj_bytes rev_if_be rev Mptr Archi.ptr64] iota beta zeta.
+  rewrite Tauto.if_same.
+  reflexivity.
+Qed.
+
 Lemma mapsto_zeros_mapsto_nullval:
   forall sh b z t,
       readable_share sh ->
@@ -1218,7 +1241,7 @@ rewrite if_true by auto.
 apply orp_right1.
 unfold address_mapsto.
 apply exp_right with  (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval).
-rewrite prop_true_andp by (split3; simpl; auto).
+rewrite prop_true_andp by (split3; simpl; [rewrite encode_nullval; reflexivity | exact decode_encode_nullval | auto]).
 forget (Ptrofs.unsigned z) as ofs; clear z.
 replace (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval)
  with (repeat (Byte Byte.zero) (size_chunk_nat Mptr))
@@ -1461,6 +1484,15 @@ rewrite H2 in H3.
 inv H3. auto.
 Qed.
 
+Lemma decode_mptr_zero_nullval :
+  decode_val Mptr (list_repeat (size_chunk_nat Mptr) (Byte Byte.zero)) = nullval.
+Proof.
+  cbv delta [list_repeat size_chunk_nat Z.to_nat size_chunk Mptr Archi.ptr64 Pos.to_nat Pos.iter_op Init.Nat.add] iota beta zeta.
+  cbv delta [decode_val decode_int proj_bytes rev_if_be rev] iota beta zeta.
+  rewrite Tauto.if_same.
+  reflexivity.
+Qed.
+
 Lemma address_mapsto_address_mapsto_zeros:
   forall sh b z, 
   (align_chunk Mptr | z) ->
@@ -1475,7 +1507,8 @@ exists (list_repeat (size_chunk_nat Mptr) (Byte Byte.zero)).
 destruct H; split; auto.
 clear H0.
 split.
-split3; auto.
+split3; [reflexivity | exact decode_mptr_zero_nullval | auto].
+auto.
 intros y. specialize (H y).
 rewrite Z.max_l in H by (pose proof (size_chunk_pos Mptr); lia).
 hnf in H|-*.
