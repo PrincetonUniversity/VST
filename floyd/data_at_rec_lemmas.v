@@ -244,7 +244,9 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-  all: admit.
+   pose proof (decode_byte_val Byte.zero).
+   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
 - rewrite zero_val_Tlong.
    change (unfold_reptype ?A) with A.
     destruct s; simpl;
@@ -253,7 +255,8 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-  all: admit.
+   all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
+   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
 - rewrite zero_val_Tfloat32;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
@@ -261,7 +264,8 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-  all: admit.
+   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
 - rewrite zero_val_Tfloat64;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
@@ -269,7 +273,8 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-  all: admit.
+   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
 - rewrite zero_val_Tpointer.
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
@@ -278,8 +283,9 @@ Proof.
    rewrite (prop_true_andp (_ /\ _))
       by (split; auto; intro; apply mapsto_memory_block.tc_val_pointer_nullval'). 
    (if_tac; [apply orp_right1 | ]).
- all: admit.
-Admitted.
+   apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
+   apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+Qed.
 
 Lemma by_value_data_at_rec_nonreachable: forall sh t p v,
   type_is_by_value t = true ->
