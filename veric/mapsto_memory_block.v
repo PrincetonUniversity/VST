@@ -1534,3 +1534,84 @@ simpl. auto.
 simpl.
 apply IHn. lia.
 Qed.
+
+Lemma address_mapsto_zeros'_address_mapsto:
+  forall sh ch b i, 
+   (align_chunk ch | Ptrofs.unsigned i) ->
+  (address_mapsto_zeros' (size_chunk ch) sh (b, Ptrofs.unsigned i)
+   |-- address_mapsto ch (decode_val ch (list_repeat (Z.to_nat (size_chunk ch)) (Byte Byte.zero))) sh (b, Ptrofs.unsigned i)).
+Proof.
+intros.
+rename H into Halign.
+intros ? ?.
+hnf in H|-*.
+exists (list_repeat (size_chunk_nat ch) (Byte Byte.zero)).
+destruct H; split; auto.
+clear H0.
+split.
+split3; auto.
+rewrite length_list_repeat; auto.
+intros y. specialize (H y).
+rewrite Z.max_l in H by (pose proof (size_chunk_pos ch); lia).
+hnf in H|-*.
+if_tac; auto.
+replace (VAL _) with (VAL (Byte Byte.zero)); auto.
+f_equal.
+simpl.
+destruct y.
+destruct H0.
+subst b0.
+rewrite size_chunk_conv in H1.
+simpl.
+forget (size_chunk_nat Mptr) as n.
+clear b H.
+forget (Byte Byte.zero) as b.
+assert (Z.to_nat (z-Ptrofs.unsigned i) < size_chunk_nat ch)%nat by lia.
+forget (Z.to_nat (z-Ptrofs.unsigned i)) as j.
+clear - H.
+revert j H; induction (size_chunk_nat ch); intros; auto.
+lia.
+destruct j.
+simpl. auto.
+simpl.
+apply IHn. lia.
+Qed.
+
+
+Lemma address_mapsto_zeros'_nonlock_permission_bytes:
+  forall n sh a, 
+  mapsto_memory_block.address_mapsto_zeros' n sh a
+|-- res_predicates.nonlock_permission_bytes sh a n.
+Proof.
+intros.
+destruct a.
+destruct (zlt n 0).
+-
+unfold address_mapsto_zeros', nonlock_permission_bytes.
+apply andp_derives; auto.
+apply allp_derives; intros [? ?].
+rewrite !jam_false; auto.
+intros [? ?]; lia.
+intros [? ?]; lia.
+-
+rewrite <- (Z2Nat.id n) by lia.
+forget (Z.to_nat n) as k.
+clear n g.
+unfold address_mapsto_zeros', nonlock_permission_bytes.
+apply andp_derives; auto.
+apply allp_derives; intro y.
+replace (Z.max (Z.of_nat k) 0) with (Z.of_nat k) by lia.
+destruct y.
+destruct (adr_range_dec (b,z) (Z.of_nat k) (b0,z0)).
+rewrite !jam_true by auto.
+intros ? ?.
+destruct H.
+simpl in *.
+rewrite H.
+simpl.
+tauto.
+rewrite !jam_false by auto.
+auto.
+Qed.
+
+

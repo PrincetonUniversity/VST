@@ -296,7 +296,7 @@ Proof.
   apply FULL_isptr.
 Qed.
 
-Hint Resolve EMPTY_isptr FULL_isptr REP_isptr : saturate_local.
+#[export] Hint Resolve EMPTY_isptr FULL_isptr REP_isptr : saturate_local.
 (************************ Abstract specifications of HMAC_init *******************************************************)
 
 Definition hmac_reset_spec :=
