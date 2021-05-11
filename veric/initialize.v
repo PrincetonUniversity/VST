@@ -349,7 +349,11 @@ Proof.
 intros; hnf; intros.
 transitivity
   (Some (decode_val chunk (repeat (Byte Byte.zero) (size_chunk_nat chunk)))).
-2: destruct chunk; reflexivity.
+2: destruct chunk; (
+     simpl repeat;
+     cbv delta [decode_val decode_int proj_bytes rev_if_be rev] iota beta zeta;
+     try rewrite Tauto.if_same;
+     reflexivity).
 apply loadbytes_load; auto.
 clear H2.
 rewrite size_chunk_conv in *.

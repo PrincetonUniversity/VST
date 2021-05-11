@@ -1060,7 +1060,7 @@ Lemma process_globvar_ptrarray_space:
        globvars_in_process gz done emp ((i,gv)::al) |--
     globvars_in_process gz
        (data_at  (readonly2share (gvar_readonly gv)) (Tarray (Tpointer t' noattr) n noattr)
-                                  (repeat nullval (Z.to_nat n))  (gz i) :: done)
+                                  (Zrepeat nullval n)  (gz i) :: done)
             emp  al.
 Proof.
 intros until n. intros Ht H3; intros.
@@ -1087,7 +1087,6 @@ destruct (zlt n 0).
 -
 unfold sizeof; simpl.
 rewrite Z.max_l by lia.
-rewrite Z2Nat_neg by lia.
 simpl.
 rewrite Z.mul_0_r.
 assert (readable_share (readonly2share (gvar_readonly gv)))
@@ -1103,8 +1102,8 @@ unfold nested_field_type; simpl.
 normalize.
 rewrite data_at_rec_eq.
 rewrite Z.max_l by lia.
-set (x := unfold_reptype _).
-hnf in x. subst x.
+change (unfold_reptype _) with (repeat nullval (Z.to_nat n)).
+rewrite Z2Nat_neg by auto.  simpl repeat.
 rewrite aggregate_pred.aggregate_pred.array_pred_len_0 by auto.
 change predicates_sl.emp with emp.
 apply andp_right; auto.
@@ -1159,6 +1158,7 @@ unfold nested_field_type; simpl.
 unfold nested_field_offset; simpl.
 unfold at_offset.
 rewrite <- (Z2Nat.id n) in H11 by lia.
+unfold Zrepeat.
 clear - H10 H11 H13 Halign.
 revert i0 H10 H11 Halign; induction (Z.to_nat n); intros; simpl.
 rewrite Nat.mul_0_r; apply derives_refl.
@@ -1403,7 +1403,7 @@ Ltac process_idstar :=
 Create HintDb zero_val discriminated.
 
 Lemma zero_val_tarray {cs: compspecs}:
- forall t n, zero_val (tarray t n) = repeat (zero_val t) (Z.to_nat n).
+ forall t n, zero_val (tarray t n) = Zrepeat (zero_val t) n.
 Proof.
 intros.
 rewrite zero_val_eq; reflexivity.

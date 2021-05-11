@@ -353,7 +353,9 @@ Proof.
  apply identity_unit'; auto.
 + exists (Byte Byte.zero :: nil); split.
  split. split. reflexivity. split.
- unfold decode_val. simpl. f_equal.
+ unfold decode_val. simpl. apply f_equal.
+ unfold decode_int, rev_if_be.
+ rewrite Tauto.if_same; reflexivity.
  apply Z.divide_1_l.
  intro loc. hnf. if_tac. exists H0.
  destruct loc as [b' i']. destruct H8; subst b'.
@@ -1200,6 +1202,27 @@ rewrite <- (Int.unsigned_repr j) by auto.
 congruence.
 Qed.
 
+(* In case the Archi.big_endian is unknown (e.g. on ARM this is a parameter),
+   the left hand side does not compute, which the right hand side does. *)
+
+Lemma encode_nullval:
+  encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval
+= repeat (Memdata.Byte Byte.zero) (if Archi.ptr64 then 8 else 4).
+Proof.
+  cbv delta [nullval Archi.ptr64 encode_val encode_int rev_if_be] beta iota.
+  rewrite Tauto.if_same.
+  reflexivity.
+Qed.
+
+Lemma decode_encode_nullval :
+  decode_val Mptr (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval) = nullval.
+Proof.
+  rewrite encode_nullval.
+  cbv delta [Archi.ptr64 repeat decode_val decode_int proj_bytes rev_if_be rev Mptr Archi.ptr64] iota beta zeta.
+  rewrite Tauto.if_same.
+  reflexivity.
+Qed.
+
 Lemma mapsto_zeros_mapsto_nullval:
   forall sh b z t,
       readable_share sh ->
@@ -1218,7 +1241,7 @@ rewrite if_true by auto.
 apply orp_right1.
 unfold address_mapsto.
 apply exp_right with  (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval).
-rewrite prop_true_andp by (split3; simpl; auto).
+rewrite prop_true_andp by (split3; simpl; [rewrite encode_nullval; reflexivity | exact decode_encode_nullval | auto]).
 forget (Ptrofs.unsigned z) as ofs; clear z.
 replace (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval)
  with (repeat (Byte Byte.zero) (size_chunk_nat Mptr))
@@ -1461,6 +1484,15 @@ rewrite H2 in H3.
 inv H3. auto.
 Qed.
 
+Lemma decode_mptr_zero_nullval :
+  decode_val Mptr (repeat (Byte Byte.zero) (size_chunk_nat Mptr)) = nullval.
+Proof.
+  cbv delta [repeat size_chunk_nat Z.to_nat size_chunk Mptr Archi.ptr64 Pos.to_nat Pos.iter_op Init.Nat.add] iota beta zeta.
+  cbv delta [decode_val decode_int proj_bytes rev_if_be rev] iota beta zeta.
+  rewrite Tauto.if_same.
+  reflexivity.
+Qed.
+
 Lemma address_mapsto_address_mapsto_zeros:
   forall sh b z, 
   (align_chunk Mptr | z) ->
@@ -1475,7 +1507,8 @@ exists (repeat (Byte Byte.zero) (size_chunk_nat Mptr)).
 destruct H; split; auto.
 clear H0.
 split.
-split3; auto.
+split3; [reflexivity | exact decode_mptr_zero_nullval | auto].
+auto.
 intros y. specialize (H y).
 rewrite Z.max_l in H by (pose proof (size_chunk_pos Mptr); lia).
 hnf in H|-*.
@@ -1501,3 +1534,84 @@ simpl. auto.
 simpl.
 apply IHn. lia.
 Qed.
+
+Lemma address_mapsto_zeros'_address_mapsto:
+  forall sh ch b i, 
+   (align_chunk ch | Ptrofs.unsigned i) ->
+  (address_mapsto_zeros' (size_chunk ch) sh (b, Ptrofs.unsigned i)
+   |-- address_mapsto ch (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch)))) sh (b, Ptrofs.unsigned i)).
+Proof.
+intros.
+rename H into Halign.
+intros ? ?.
+hnf in H|-*.
+exists (repeat (Byte Byte.zero) (size_chunk_nat ch)).
+destruct H; split; auto.
+clear H0.
+split.
+split3; auto.
+rewrite repeat_length; auto.
+intros y. specialize (H y).
+rewrite Z.max_l in H by (pose proof (size_chunk_pos ch); lia).
+hnf in H|-*.
+if_tac; auto.
+replace (VAL _) with (VAL (Byte Byte.zero)); auto.
+f_equal.
+simpl.
+destruct y.
+destruct H0.
+subst b0.
+rewrite size_chunk_conv in H1.
+simpl.
+forget (size_chunk_nat Mptr) as n.
+clear b H.
+forget (Byte Byte.zero) as b.
+assert (Z.to_nat (z-Ptrofs.unsigned i) < size_chunk_nat ch)%nat by lia.
+forget (Z.to_nat (z-Ptrofs.unsigned i)) as j.
+clear - H.
+revert j H; induction (size_chunk_nat ch); intros; auto.
+lia.
+destruct j.
+simpl. auto.
+simpl.
+apply IHn. lia.
+Qed.
+
+
+Lemma address_mapsto_zeros'_nonlock_permission_bytes:
+  forall n sh a, 
+  mapsto_memory_block.address_mapsto_zeros' n sh a
+|-- res_predicates.nonlock_permission_bytes sh a n.
+Proof.
+intros.
+destruct a.
+destruct (zlt n 0).
+-
+unfold address_mapsto_zeros', nonlock_permission_bytes.
+apply andp_derives; auto.
+apply allp_derives; intros [? ?].
+rewrite !jam_false; auto.
+intros [? ?]; lia.
+intros [? ?]; lia.
+-
+rewrite <- (Z2Nat.id n) by lia.
+forget (Z.to_nat n) as k.
+clear n g.
+unfold address_mapsto_zeros', nonlock_permission_bytes.
+apply andp_derives; auto.
+apply allp_derives; intro y.
+replace (Z.max (Z.of_nat k) 0) with (Z.of_nat k) by lia.
+destruct y.
+destruct (adr_range_dec (b,z) (Z.of_nat k) (b0,z0)).
+rewrite !jam_true by auto.
+intros ? ?.
+destruct H.
+simpl in *.
+rewrite H.
+simpl.
+tauto.
+rewrite !jam_false by auto.
+auto.
+Qed.
+
+

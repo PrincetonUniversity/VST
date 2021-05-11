@@ -29,14 +29,6 @@ Lemma repeat_list_repeat : forall {A : Type} (n : nat) (x : A),
 Proof. intros. induction n; simpl; try f_equal; auto. Qed.
 *)
 
-Definition Zrepeat {A : Type} (x : A) (n : Z) : list A :=
-  repeat x (Z.to_nat n).
-
-Lemma Zlength_Zrepeat : forall (A : Type) (x : A) (n : Z),
-  0 <= n ->
-  Zlength (Zrepeat x n) = n.
-Proof. intros *. unfold Zrepeat. apply @Zlength_repeat. Qed.
-
 Local Lemma Zlength_firstn : forall (A : Type) n (l : list A),
   Zlength (firstn n l) = Z.min (Z.max (Z.of_nat n) 0) (Zlength l).
 Proof.

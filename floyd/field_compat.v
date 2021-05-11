@@ -878,12 +878,12 @@ Lemma split2_data_at__Tarray_tuchar
 Proof. intros. unfold data_at_ at 1; unfold field_at_.
 rewrite field_at_data_at.
 erewrite (@split2_data_at_Tarray cs sh tuchar n n1).
-instantiate (1:= repeat Vundef (Z.to_nat (n-n1))).
-instantiate (1:= repeat Vundef (Z.to_nat n1)).
+instantiate (1:= Zrepeat Vundef (n-n1)).
+instantiate (1:= Zrepeat Vundef n1).
 unfold field_address. simpl. 
 rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
 trivial.
-instantiate (1:=repeat Vundef (Z.to_nat n)).
+instantiate (1:=Zrepeat Vundef n).
 change (@reptype _ _)  with val.
 list_solve.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
@@ -901,13 +901,13 @@ Lemma split2_data_at__Tarray_tschar
 Proof. intros. unfold data_at_ at 1; unfold field_at_.
 rewrite field_at_data_at.
 erewrite (@split2_data_at_Tarray cs sh tschar n n1).
-instantiate (1:= repeat Vundef (Z.to_nat (n-n1))).
-instantiate (1:= repeat Vundef (Z.to_nat n1)).
+instantiate (1:= Zrepeat Vundef (n-n1)).
+instantiate (1:= Zrepeat Vundef n1).
 unfold field_address. simpl. 
 rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
 trivial.
 simpl.
-instantiate (1:=repeat Vundef (Z.to_nat n)).
+instantiate (1:=Zrepeat Vundef n).
 change (@reptype _ _)  with val.
 list_solve.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.

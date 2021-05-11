@@ -296,7 +296,7 @@ Proof.
   apply FULL_isptr.
 Qed.
 
-Hint Resolve EMPTY_isptr FULL_isptr REP_isptr : saturate_local.
+#[export] Hint Resolve EMPTY_isptr FULL_isptr REP_isptr : saturate_local.
 (************************ Abstract specifications of HMAC_init *******************************************************)
 
 Definition hmac_reset_spec :=
@@ -552,7 +552,7 @@ eapply semax_pre_post.
   Exists key. apply andp_left2. apply derives_refl.
 +  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
-  Opaque list_repeat. go_lowerx. Transparent list_repeat.
+  Opaque repeat. go_lowerx. Transparent repeat.
   normalize.
   unfold EMPTY. 
   rewrite <- memory_block_data_at_.  unfold data_block.

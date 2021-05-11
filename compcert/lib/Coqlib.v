@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -1151,26 +1152,6 @@ Lemma list_map_drop:
 Proof.
   induction n; simpl; intros. auto.
   destruct l; simpl; auto.
-Qed.
-
-(** A list of [n] elements, all equal to [x]. *)
-
-Fixpoint list_repeat {A: Type} (n: nat) (x: A) {struct n} :=
-  match n with
-  | O => nil
-  | S m => x :: list_repeat m x
-  end.
-
-Lemma length_list_repeat:
-  forall (A: Type) n (x: A), length (list_repeat n x) = n.
-Proof.
-  induction n; simpl; intros. auto. decEq; auto.
-Qed.
-
-Lemma in_list_repeat:
-  forall (A: Type) n (x: A) y, In y (list_repeat n x) -> y = x.
-Proof.
-  induction n; simpl; intros. elim H. destruct H; auto.
 Qed.
 
 (** * Definitions and theorems over boolean types *)
