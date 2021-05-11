@@ -1471,7 +1471,7 @@ intros.
 rename H into Halign.
 intros ? ?.
 hnf in H|-*.
-exists (list_repeat (size_chunk_nat Mptr) (Byte Byte.zero)).
+exists (repeat (Byte Byte.zero) (size_chunk_nat Mptr)).
 destruct H; split; auto.
 clear H0.
 split.

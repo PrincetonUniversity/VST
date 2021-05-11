@@ -348,7 +348,7 @@ Lemma read_as_zero_lem1:
 Proof.
 intros; hnf; intros.
 transitivity
-  (Some (decode_val chunk (list_repeat (size_chunk_nat chunk) (Byte Byte.zero)))).
+  (Some (decode_val chunk (repeat (Byte Byte.zero) (size_chunk_nat chunk)))).
 2: destruct chunk; reflexivity.
 apply loadbytes_load; auto.
 clear H2.
@@ -397,8 +397,8 @@ simpl.
 apply loadbytes_empty. lia.
 rewrite inj_S. unfold Z.succ.
 rewrite Z.add_comm.
-change (list_repeat (S n) (Byte Byte.zero)) with
- (list_repeat 1 (Byte Byte.zero) ++ list_repeat n (Byte Byte.zero)).
+change (repeat (Byte Byte.zero) (S n)) with
+ (repeat (Byte Byte.zero) 1 ++ repeat (Byte Byte.zero) n).
 apply loadbytes_concat.
 apply H2. rewrite inj_S; lia.
 apply IHn.
