@@ -14,9 +14,9 @@ Definition HMAC_DRBG_update (HMAC: list byte -> list byte -> list byte) (provide
       (K, V)
   end.
 
-Definition initial_key: list byte := list_repeat 32 Byte.zero.
+Definition initial_key: list byte := repeat Byte.zero 32.
 
-Definition initial_value: list byte := list_repeat 32 Byte.one.
+Definition initial_value: list byte := repeat Byte.one 32.
 
 Definition HMAC_DRBG_instantiate_algorithm (HMAC: list byte -> list byte -> list byte)
            (entropy_input nonce personalization_string: list byte) (security_strength: Z): DRBG_working_state :=

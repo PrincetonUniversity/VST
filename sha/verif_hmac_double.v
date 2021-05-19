@@ -121,7 +121,7 @@ simpl.
 
 forward_call (Tsh, h5,c).
 match goal with |- context [data_block  Tsh ?A c] =>
-  change A with (list_repeat (Z.to_nat n324) Byte.zero)
+  change A with (repeat Byte.zero (Z.to_nat n324))
 end.
 forward.
 clear H2.
@@ -133,7 +133,7 @@ Exists dig2.
 unfold data_block at 1. simpl. entailer!.
 rewrite <- memory_block_data_at_ by auto.
 change (sizeof (Tstruct _hmac_ctx_st noattr))
-   with (sizeof (tarray tuchar (Zlength (list_repeat (Z.to_nat n324) 0)))).
+   with (sizeof (tarray tuchar (Zlength (repeat 0 (Z.to_nat n324))))).
 rewrite memory_block_data_at_ by auto.
 cancel.
 

@@ -244,7 +244,7 @@ Definition f_main := {|
   (Ssequence
     (Scall None
       (Evar _printf (Tfunction (Tcons (tptr tschar) Tnil) tint
-                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
       ((Evar ___stringlit_1 (tarray tschar 15)) :: nil))
     (Ssequence
       (Ssequence
@@ -261,7 +261,7 @@ Definition f_main := {|
             (Evar _fprintf (Tfunction
                              (Tcons (tptr (Tstruct ___sFILE64 noattr))
                                (Tcons (tptr tschar) Tnil)) tint
-                             {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                             {|cc_vararg:=(Some 2); cc_unproto:=false; cc_structret:=false|}))
             ((Etempvar _t'2 (tptr (Tstruct ___sFILE64 noattr))) ::
              (Evar ___stringlit_3 (tarray tschar 16)) ::
              (Evar ___stringlit_2 (tarray tschar 5)) ::
@@ -458,15 +458,15 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
                    (mksignature (AST.Tint :: nil) AST.Tvoid
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons tbool Tnil) tvoid
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot,
    Gfun(External (EF_builtin "__builtin_annot"
                    (mksignature (AST.Tint :: nil) AST.Tvoid
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin "__builtin_annot_intval"
                    (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
@@ -640,9 +640,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_debug,
    Gfun(External (EF_external "__builtin_debug"
                    (mksignature (AST.Tint :: nil) AST.Tvoid
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___getreent,
    Gfun(External (EF_external "__getreent"
                    (mksignature nil AST.Tint cc_default)) Tnil
@@ -650,15 +650,15 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_fprintf,
    Gfun(External (EF_external "fprintf"
                    (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                     {|cc_vararg:=(Some 2); cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr (Tstruct ___sFILE64 noattr)) (Tcons (tptr tschar) Tnil))
-     tint {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+     tint {|cc_vararg:=(Some 2); cc_unproto:=false; cc_structret:=false|})) ::
  (_printf,
    Gfun(External (EF_external "printf"
                    (mksignature (AST.Tint :: nil) AST.Tint
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tint
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=

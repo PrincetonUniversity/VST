@@ -75,7 +75,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list byte) additional
    SEP (Stream (get_stream_result (get_entropy 0 entropy_len entropy_len false s));
    data_at Tsh (tarray tuchar entropy_len) (map Vubyte entropy_bytes) seed;
    data_at Tsh (tarray tuchar (384 - entropy_len))
-     (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))
+     (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len)))
      (offset_val entropy_len seed);
    da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional;
    md_full key md_ctx';
@@ -147,12 +147,12 @@ Proof.
   freeze [0;(*2;*)4;5;6;7] FR6. freeze [1;2] SEED.
 
   replace_SEP 0 (data_at Tsh (tarray tuchar 384)
-         ((map Vubyte entropy_bytes) ++ (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))) seed).
+         ((map Vubyte entropy_bytes) ++ (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len)))) seed).
   {
     entailer!. thaw SEED; clear FR6. (*subst entropy_len.*) rewrite ?sepcon_emp.
     apply derives_refl'. symmetry.
     apply data_at_complete_split; repeat rewrite Zlength_map;
-    try rewrite (*Hentropy_bytes_length,*) Zlength_list_repeat; try rewrite Zplus_minus; trivial; lia.
+    try rewrite (*Hentropy_bytes_length,*) Zlength_repeat; try rewrite Zplus_minus; trivial; lia.
   }
 
   (* seedlen = entropy_len; *)
@@ -199,7 +199,7 @@ Proof.
       gvars gv)
       SEP (data_at Tsh (tarray tuchar 384)
          (map Vubyte entropy_bytes ++ (map Vubyte (*contents*)contents') ++
-          list_repeat (Z.to_nat (384 - entropy_len - Zlength (*contents*)contents')) (Vint Int.zero)) seed;
+          repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len - Zlength (*contents*)contents'))) seed;
            (*FRZL FR8*)FRZL FR6;
        da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional)).
   + rewrite H in Heqnon_empty_additional. rename H into NEA.
@@ -215,13 +215,13 @@ Proof.
     clear Heqcontents'; subst contents'. clear ZLc'.
     replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
          (map Vubyte entropy_bytes) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
-         (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero)) (offset_val entropy_len seed))).
+         (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len))) (offset_val entropy_len seed))).
     {
       entailer!.
       apply derives_refl'; apply data_at_complete_split; trivial; try lia.
       rewrite Zlength_app in H0; rewrite H0; trivial.
       repeat rewrite Zlength_map; trivial.
-      rewrite Zlength_list_repeat; lia.
+      rewrite Zlength_repeat; lia.
     }
     flatten_sepcon_in_SEP. rewrite data_at_isptr with (p:=seed); Intros.
     apply isptrD in Pseed; destruct Pseed as [b [i SEED]]; rewrite SEED in *.
@@ -231,19 +231,19 @@ Proof.
     simpl in *.
     replace_SEP 1 (
       (data_at Tsh (tarray tuchar (Zlength contents))
-         (list_repeat (Z.to_nat (Zlength contents)) (Vint Int.zero)) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))) *
+         (repeat (Vint Int.zero) (Z.to_nat (Zlength contents))) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))) *
       (data_at Tsh (tarray tuchar (384 - entropy_len - Zlength contents))
-         (list_repeat (Z.to_nat (384 - entropy_len - Zlength contents)) (Vint Int.zero)) (offset_val (Zlength contents) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))))).
+         (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len - Zlength contents))) (offset_val (Zlength contents) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))))).
     { 
       remember (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))) as seed'.
       clear Heqseed'.
       (*entailer!*) go_lower.
       apply derives_refl'.
-      apply data_at_complete_split; try rewrite Zlength_list_repeat; try lia; auto.
-      + rewrite Zlength_list_repeat.
+      apply data_at_complete_split; try rewrite Zlength_repeat; try lia; auto.
+      + rewrite Zlength_repeat.
         replace (Zlength contents + (384 - entropy_len - Zlength contents)) with (384 - entropy_len); trivial; lia.
         lia.
-      + rewrite list_repeat_app, <- Z2Nat.inj_add.
+      + rewrite <- repeat_app, <- Z2Nat.inj_add.
         replace (Zlength contents + (384 - entropy_len - Zlength contents)) with (384 - entropy_len); trivial; lia.
         lia. lia.
     }
@@ -285,36 +285,34 @@ Proof.
      (p:=Vptr b i)(*(offset:=entropy_len)*)
      (AB:= (map Vubyte entropy_bytes ++
        map Vubyte contents ++
-       list_repeat (Z.to_nat (384 - entropy_len - Zlength contents))
-         (Vbyte Byte.zero))).
+       repeat (Vbyte Byte.zero) (Z.to_nat (384 - entropy_len - Zlength contents)))).
     7: solve[reflexivity].
     cancel.
     6: solve[reflexivity].
     3: solve [repeat rewrite Zlength_map; lia].
 
     3: solve [reflexivity].
-    3: solve [rewrite Zlength_app, Zlength_list_repeat; repeat rewrite Zlength_map; try lia].
+    3: solve [rewrite Zlength_app, Zlength_repeat; repeat rewrite Zlength_map; try lia].
 
-    2:{ rewrite Zlength_app, (* <- H17, *) Zlength_list_repeat; try lia.
+    2:{ rewrite Zlength_app, (* <- H17, *) Zlength_repeat; try lia.
              repeat rewrite Zlength_map. rewrite ZLbytes(*, H2*).
              assert (X: entropy_len + (Zlength contents + (384 - entropy_len - Zlength contents)) = 384) by lia.
              rewrite X; assumption.
     }
-    rewrite Zlength_app; repeat rewrite Zlength_map; rewrite Zlength_list_repeat.
+    rewrite Zlength_app; repeat rewrite Zlength_map; rewrite Zlength_repeat.
     assert (X: Zlength contents + (384 - entropy_len - Zlength contents) = 384 - entropy_len) by lia.
     rewrite X.
     erewrite data_at_complete_split with (AB:=map Vubyte contents ++
-       list_repeat (Z.to_nat (384 - entropy_len - Zlength contents))
-         (Vubyte Byte.zero))
+       repeat (Vubyte Byte.zero) (Z.to_nat (384 - entropy_len - Zlength contents)))
       (p:=(Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))))
       (A:= map Vubyte contents).
     7: reflexivity. 3: reflexivity. 5: reflexivity.
-    3: reflexivity. 3: solve [rewrite Zlength_list_repeat; repeat rewrite Zlength_map; try lia].
+    3: reflexivity. 3: solve [rewrite Zlength_repeat; repeat rewrite Zlength_map; try lia].
 
     unfold offset_val. rewrite Ptrofs.add_assoc, ptrofs_add_repr. repeat rewrite Zlength_map. cancel. (*apply derives_refl.*)
-    repeat rewrite Zlength_map. rewrite Zlength_list_repeat; try lia.
+    repeat rewrite Zlength_map. rewrite Zlength_repeat; try lia.
     unfold Vubyte. rewrite !map_map. cancel.
-    rewrite Zlength_list_repeat; repeat rewrite Zlength_map; try lia. rewrite X; assumption.
+    rewrite Zlength_repeat; repeat rewrite Zlength_map; try lia. rewrite X; assumption.
 
     lia.
 
@@ -337,8 +335,8 @@ Proof.
   replace_SEP 0 (
     (data_at Tsh (tarray tuchar (entropy_len + Zlength contents')) (map Vubyte entropy_bytes ++
             map Vubyte contents') seed) *
-    (data_at Tsh (tarray tuchar (384 - (entropy_len + Zlength contents'))) (list_repeat (Z.to_nat (384 - entropy_len - Zlength contents'))
-            (Vbyte Byte.zero)) (offset_val (entropy_len + Zlength contents') seed))
+    (data_at Tsh (tarray tuchar (384 - (entropy_len + Zlength contents'))) (repeat (Vbyte Byte.zero) (Z.to_nat (384 - entropy_len - Zlength contents'))) 
+        (offset_val (entropy_len + Zlength contents') seed))
       ).
   {
     clear Heqcontents'.
@@ -390,8 +388,7 @@ Proof.
   gather_SEP 1 2.
   replace_SEP 0 (data_at Tsh (tarray tuchar 384) ((map Vubyte entropy_bytes)
         ++ (map Vubyte contents' ++
-       list_repeat (Z.to_nat (384 - entropy_len - Zlength contents'))
-         (Vbyte Byte.zero))) seed).
+       repeat (Vbyte Byte.zero) (Z.to_nat (384 - entropy_len - Zlength contents')))) seed).
   { rewrite app_assoc.
     rewrite map_app.
 (*    replace (map (fun x : Z => Vint (Int.repr x)) contents') with (map Vint (map Int.repr contents')) by (rewrite map_map; auto). *)
@@ -401,7 +398,7 @@ Proof.
     destruct seed; simpl in Pseed; try contradiction.
     rewrite da_emp_ptr. Intros.
     apply derives_refl'; symmetry; apply data_at_complete_split;
-     repeat rewrite Zlength_list_repeat; try lia; auto; try rewrite Zlength_app;
+     repeat rewrite Zlength_repeat; try lia; auto; try rewrite Zlength_app;
      try rewrite ZLbytes; repeat rewrite Zlength_map; auto.
      replace (Zlength entropy_bytes + Zlength contents' +
       (384 - Zlength entropy_bytes - Zlength contents')) with 384 by lia.

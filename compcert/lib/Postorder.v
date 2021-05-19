@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -314,10 +315,10 @@ Proof.
   destruct (wrk s) as [ | [x succs] l].
   discriminate.
   destruct succs as [ | y succs ].
-  inv H. simpl. apply lex_ord_right. omega.
+  inv H. simpl. apply lex_ord_right. lia.
   destruct ((gr s)!y) as [succs'|] eqn:?.
   inv H. simpl. apply lex_ord_left. eapply PTree_Properties.cardinal_remove; eauto.
-  inv H. simpl. apply lex_ord_right. omega.
+  inv H. simpl. apply lex_ord_right. lia.
 Qed.
 
 End POSTORDER.

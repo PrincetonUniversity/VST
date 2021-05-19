@@ -160,14 +160,14 @@ Module HM:= HP.HMAC_FUN HF.
                      HM.sixtyfour x =
                      map Byte.unsigned (HM.sixtyfour (Byte.repr x)).
 Proof. intros. unfold HM.sixtyfour.
- rewrite map_list_repeat.
+ rewrite map_repeat.
  rewrite Byte.unsigned_repr; trivial. destruct H.
  assert (BMU: Byte.max_unsigned = 255). reflexivity. lia.
 Qed.
 *)
 (*From hmac_common_lemmas TODO: Isolate*)
 (*Lemma length_SF {A} (a:A) :length (HM.sixtyfour a) = HF.BlockSize.
-Proof. apply length_list_repeat. Qed.
+Proof. apply repeat_length. Qed.
 *)
 (*From SHaInstantiation -- TODO: Isolate*)
 Lemma xor_equiv_byte: forall xpad XPAD k K, 

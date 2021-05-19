@@ -97,7 +97,7 @@ Definition mbedtls_zeroize_spec :=
        PARAMS (v;Vint (Int.repr n)) GLOBALS ()
        SEP (data_at_ sh (tarray tuchar n ) v)
     POST [ tvoid ]
-       PROP () LOCAL () SEP (data_block sh (list_repeat (Z.to_nat n) Byte.zero) v).
+       PROP () LOCAL () SEP (data_block sh (repeat Byte.zero (Z.to_nat n)) v).
 
 Definition drbg_memcpy_spec :=
   DECLARE _memcpy
@@ -124,7 +124,7 @@ Definition drbg_memset_spec :=
        SEP (memory_block sh n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
-       SEP(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p).
+       SEP(data_at sh (tarray tuchar n) (repeat (Vint c) (Z.to_nat n)) p).
 (*This results in using sha's compspecs
 Definition drbg_memset_spec := (_memset, snd spec_sha.memset_spec). 
 Definition drbg_memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). 
@@ -613,7 +613,7 @@ Definition hmac_drbg_seed_buf_spec :=
                          with (mds, (V', (RC', (EL', (PR', RI'))))),
                               HMAC256DRBGabs key V RC EL PR RI
                          => EX KEY:list byte, EX VAL:list byte, EX p:val,
-                          !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 Byte.one) = (KEY, VAL))
+                          !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (repeat Byte.one 32) = (KEY, VAL))
                              && md_full key mds *
                                 data_at shc t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vubyte VAL, (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vubyte VAL, (RC', (EL', (PR', RI')))))
@@ -675,7 +675,7 @@ Definition hmac_drbg_init_spec :=
           PROP () 
           LOCAL ()
           SEP(data_at shc (tarray tuchar size_of_HMACDRBGCTX)
-                (list_repeat (Z.to_nat size_of_HMACDRBGCTX) (Vint Int.zero)) c).
+                (repeat (Vint Int.zero) (Z.to_nat size_of_HMACDRBGCTX)) c).
 
 Definition hmac_drbg_random_spec :=
   DECLARE _mbedtls_hmac_drbg_random
@@ -894,7 +894,7 @@ Definition hmac_drbg_free_spec :=
     POST [ tvoid ] 
       EX vret:unit, PROP ()
        LOCAL ()
-       SEP (if Val.eq ctx nullval then emp else data_block shc (list_repeat (Z.to_nat size_of_HMACDRBGCTX) Byte.zero) ctx;
+       SEP (if Val.eq ctx nullval then emp else data_block shc (repeat Byte.zero (Z.to_nat size_of_HMACDRBGCTX)) ctx;
               mem_mgr gv).
 
 Definition HmacDrbgVarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.

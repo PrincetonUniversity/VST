@@ -77,7 +77,7 @@ semax
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (map Vubyte dd ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
+                    (map Vubyte dd ++ repeat Vundef (Z.to_nat (CBLOCKz-Zlength dd)),
                      Vint (Int.repr (Zlength dd))))))
                c;
      K_vector gv;

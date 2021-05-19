@@ -340,10 +340,10 @@ Lemma generate_and_pad_lemma1:
    (H3: Zlength dd < CBLOCKz)
    (H2 : (LBLOCKz | Zlength hashed'))
    (H5 : intlist_to_bytelist hashed' ++ dd' =
-     intlist_to_bytelist hashed ++ dd ++ [Byte.repr 128] ++ list_repeat (Z.to_nat pad) Byte.zero),
+     intlist_to_bytelist hashed ++ dd ++ [Byte.repr 128] ++ repeat Byte.zero (Z.to_nat pad)),
    let lastblock :=
                (dd' ++
-                list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) Byte.zero ++
+                repeat Byte.zero (Z.to_nat (CBLOCKz - 8 - Zlength dd')) ++
                 intlist_to_bytelist [hi_part bitlen; lo_part bitlen])
    in let lastblock' :=
              bytelist_to_intlist lastblock
@@ -366,7 +366,7 @@ repeat rewrite app_ass.
 f_equal. f_equal. f_equal.
 rewrite <- app_ass.
 f_equal.
-rewrite list_repeat_app.
+rewrite <- repeat_app.
 f_equal.
 clear - H5 H2 H1 H0 PAD.
 assert (Zlength dd' <= 56) by (change CBLOCKz with 64 in H0; lia).
@@ -383,7 +383,7 @@ rewrite Zlength_app.
 forget (Zlength (intlist_to_bytelist hashed ++ dd)) as B.
 rewrite Zlength_app.
 rewrite Zlength_cons, Zlength_nil, Zlength_correct.
-rewrite length_list_repeat. rewrite Z2Nat.id by lia. lia.
+rewrite repeat_length. rewrite Z2Nat.id by lia. lia.
 } 
 change (Z.of_nat CBLOCK - 8) with 56.
 clear H5.
@@ -418,7 +418,7 @@ f_equal. {
  reflexivity.
 *
  autorewrite with sublist.
- rewrite Zlength_list_repeat by (apply Z_mod_lt; compute; auto).
+ rewrite Zlength_repeat by (apply Z_mod_lt; compute; auto).
  forget ( Zlength hashed * 4 + Zlength dd) as d.
  change (Z.succ 0) with 1.
  change WORD with 4.

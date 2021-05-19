@@ -13,9 +13,9 @@ Proof.
                                   NOT to clearbody Delta_specs, so that the 
                                   [eapply encryption_loop_body_proof] works. *)
   start_function.
-  Opaque list_repeat.
+  Opaque repeat.
   simpl.
-  Transparent list_repeat.
+  Transparent repeat.
   reassoc_seq.
 
   (* RK = ctx->rk; *)
@@ -27,7 +27,7 @@ Proof.
     reflexivity.
   }
   rewrite Eq in *. clear Eq.
-  remember (exp_key ++ (*list_repeat 8 0*)[0; 0; 0; 0; 0; 0; 0; 0]) as buf.
+  remember (exp_key ++ (*repeat 0 8*)[0; 0; 0; 0; 0; 0; 0; 0]) as buf.
   (* TODO floyd: This is important for automatic rewriting of (Znth (map Vint ...)), and if
      it's not done, the tactics might become very slow, especially if they try to simplify complex
      terms that they would never attempt to simplify if the rewriting had succeeded.

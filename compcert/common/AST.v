@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -61,7 +62,7 @@ Definition typesize (ty: typ) : Z :=
   end.
 
 Lemma typesize_pos: forall ty, typesize ty > 0.
-Proof. destruct ty; simpl; omega. Qed.
+Proof. destruct ty; simpl; lia. Qed.
 
 Lemma typesize_Tptr: typesize Tptr = if Archi.ptr64 then 8 else 4.
 Proof. unfold Tptr; destruct Archi.ptr64; auto. Qed.
@@ -122,17 +123,17 @@ These signatures are used in particular to determine appropriate
 calling conventions for the function. *)
 
 Record calling_convention : Type := mkcallconv {
-  cc_vararg: bool;                      (**r variable-arity function *)
-  cc_unproto: bool;                     (**r old-style unprototyped function *)
-  cc_structret: bool                    (**r function returning a struct  *)
+  cc_vararg: option Z;  (**r variable-arity function (+ number of fixed args) *)
+  cc_unproto: bool;     (**r old-style unprototyped function *)
+  cc_structret: bool    (**r function returning a struct  *)
 }.
 
 Definition cc_default :=
-  {| cc_vararg := false; cc_unproto := false; cc_structret := false |}.
+  {| cc_vararg := None; cc_unproto := false; cc_structret := false |}.
 
 Definition calling_convention_eq (x y: calling_convention) : {x=y} + {x<>y}.
 Proof.
-  decide equality; apply bool_dec.
+  decide equality; try (apply bool_dec). decide equality; apply Z.eq_dec.
 Defined.
 Global Opaque calling_convention_eq.
 
@@ -265,13 +266,13 @@ Fixpoint init_data_list_size (il: list init_data) {struct il} : Z :=
 Lemma init_data_size_pos:
   forall i, init_data_size i >= 0.
 Proof.
-  destruct i; simpl; try xomega. destruct Archi.ptr64; omega.
+  destruct i; simpl; try extlia. destruct Archi.ptr64; lia.
 Qed.
 
 Lemma init_data_list_size_pos:
   forall il, init_data_list_size il >= 0.
 Proof.
-  induction il; simpl. omega. generalize (init_data_size_pos a); omega.
+  induction il; simpl. lia. generalize (init_data_size_pos a); lia.
 Qed.
 
 (** Information attached to global variables. *)

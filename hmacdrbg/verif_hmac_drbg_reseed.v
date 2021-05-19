@@ -96,14 +96,14 @@ Proof.
   (*freeze [1;2;3;4;5;6] FR3.*)
   assert_PROP (field_compatible (tarray tuchar 384) [] seed) as Hfield by entailer!.
   replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
-         (list_repeat (Z.to_nat entropy_len) (Vint Int.zero)) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
-         (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero)) (offset_val entropy_len seed))).
+         (repeat (Vint Int.zero) (Z.to_nat entropy_len)) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
+         (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len))) (offset_val entropy_len seed))).
   {
     (*subst entropy_len.*)
-    erewrite <- data_at_complete_split with (length:=384)(AB:=list_repeat (Z.to_nat 384) (Vint Int.zero)); repeat rewrite Zlength_list_repeat; trivial; try lia.
+    erewrite <- data_at_complete_split with (length:=384)(AB:=repeat (Vint Int.zero) (Z.to_nat 384)); repeat rewrite Zlength_repeat; trivial; try lia.
     solve [go_lower; apply derives_refl]. 
     solve [rewrite Zplus_minus; assumption].
-    rewrite list_repeat_app, Z2Nat.inj_sub; try lia. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try lia.
+    rewrite <- repeat_app, Z2Nat.inj_sub; try lia. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try lia.
   }
   Intros.
 

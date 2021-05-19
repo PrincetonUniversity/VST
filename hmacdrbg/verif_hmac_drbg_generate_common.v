@@ -1118,7 +1118,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
              (fst (HLP done))) initial_state (Vptr b i) Info; FRZL StreamAdd;
    data_at sho (tarray tuchar out_len)
      (map Vubyte (sublist 0 done (snd (HLP done))) ++
-      list_repeat (Z.to_nat (out_len - done)) Vundef) output; K_vector gv))
+      repeat Vundef (Z.to_nat (out_len - done))) output; K_vector gv))
   (Ssequence
      (Ssequence
         (Sifthenelse
@@ -1221,7 +1221,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
                 (fst (HLP a))) initial_state (Vptr b i) Info; FRZL StreamAdd;
       data_at sho (tarray tuchar out_len)
         (map Vubyte (sublist 0 a (snd (HLP a))) ++
-         list_repeat (Z.to_nat (out_len - a)) Vundef) output; K_vector gv))%assert
+         repeat Vundef (Z.to_nat (out_len - a))) output; K_vector gv))%assert
 (*
      (overridePost
         (EX a : Z,
@@ -1246,7 +1246,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
          FRZL StreamAdd;
          data_at Tsh (tarray tuchar out_len)
            (map Vint (map Int.repr (sublist 0 a (snd (HLP a)))) ++
-            list_repeat (Z.to_nat (out_len - a)) Vundef) output; K_vector kv))%assert
+            repeat Vundef (Z.to_nat (out_len - a))) output; K_vector kv))%assert
         (function_body_ret_assert tint
            (fun a : environ =>
             EX x : val,
@@ -1376,7 +1376,7 @@ Proof. intros.
         Hfield_compat_output by entailer!.
     replace_SEP 5 (
         data_at sho (tarray tuchar done) (map Vubyte (sublist 0 done (snd (HLP done)))) output *
-        data_at sho (tarray tuchar (out_len - done)) (list_repeat (Z.to_nat (out_len - done)) Vundef) (offset_val done output)
+        data_at sho (tarray tuchar (out_len - done)) (repeat Vundef (Z.to_nat (out_len - done))) (offset_val done output)
     ).
     {
       entailer!.
@@ -1391,7 +1391,7 @@ Proof. intros.
         exists n; reflexivity.
       }
       
-      apply data_at_complete_split; try rewrite HZlength1; try rewrite Zlength_list_repeat; auto; try lia.
+      apply data_at_complete_split; try rewrite HZlength1; try rewrite Zlength_repeat; auto; try lia.
       (*simpl. simpl in HZlength1. rewrite HZlength1.*)
       replace ((n * 32)%Z + (out_len - (n * 32)%Z)) with out_len by lia. assumption.
     }
@@ -1406,8 +1406,8 @@ Proof. intros.
     }
     Intros.
     replace_SEP 6 (
-        data_at sho (tarray tuchar use_len) (list_repeat (Z.to_nat use_len) Vundef) done_output *
-        data_at sho (tarray tuchar (out_len - done - use_len)) (list_repeat (Z.to_nat (out_len - done - use_len)) Vundef) (offset_val use_len done_output)
+        data_at sho (tarray tuchar use_len) (repeat Vundef (Z.to_nat use_len)) done_output *
+        data_at sho (tarray tuchar (out_len - done - use_len)) (repeat Vundef (Z.to_nat (out_len - done - use_len))) (offset_val use_len done_output)
     ).
     { 
       clear Hmultiple Heqdone_output.
@@ -1415,14 +1415,14 @@ Proof. intros.
       apply derives_refl'.
       rewrite Zmin_spec.
       if_tac.
-      { apply data_at_complete_split; repeat rewrite Zlength_list_repeat; auto; try lia.
+      { apply data_at_complete_split; repeat rewrite Zlength_repeat; auto; try lia.
         replace (32 + (out_len - done - 32)) with (out_len - done) by lia; assumption.
-        rewrite list_repeat_app.
+        rewrite <- repeat_app.
         rewrite <- Z2Nat.inj_add; try lia.
         replace (32 + (out_len - done - 32)) with (out_len - done) by lia; reflexivity.
       }
       {
-        apply data_at_complete_split; repeat rewrite Zlength_list_repeat; auto; try lia.
+        apply data_at_complete_split; repeat rewrite Zlength_repeat; auto; try lia.
         replace (out_len - done + (out_len - done - (out_len - done))) with (out_len - done) by lia; assumption.
         replace (out_len - done - (out_len - done)) with 0 by lia; simpl; rewrite app_nil_r; reflexivity.
       }
@@ -1524,7 +1524,7 @@ Proof. intros.
                        (data_at sho (tarray tuchar (out_len - _ - _)) _ _).
     replace_SEP 0 (data_at sho (tarray tuchar (out_len - done)) 
          ( (map Vubyte (sublist 0 use_len H256))
-           ++ (list_repeat (Z.to_nat (out_len - done - use_len)) Vundef))
+           ++ (repeat Vundef (Z.to_nat (out_len - done - use_len))))
          done_output).
     {
       (*clear Heqdone_output Hmultiple*)
@@ -1536,7 +1536,7 @@ Proof. intros.
       { 
         erewrite ( data_at_complete_split
                            (map Vint (sublist 0 32 (map Int.repr (map Byte.unsigned H256))))
-                           (list_repeat (Z.to_nat (out_len - n * 32 - 32)) Vundef)); try reflexivity.
+                           (repeat Vundef (Z.to_nat (out_len - n * 32 - 32)))); try reflexivity.
         2: autorewrite with sublist; replace (_ + _) with (out_len - n*32) by lia; solve [auto].
         2: autorewrite with sublist; lia.
         2: f_equal; autorewrite with sublist; rewrite !map_map; reflexivity.
@@ -1546,12 +1546,12 @@ Proof. intros.
         rewrite !sublist_map. rewrite !map_map. 
         erewrite (data_at_complete_split 
             (map (fun x : byte => Vint (Int.repr (Byte.unsigned x))) (sublist 0 (out_len - n * 32) H256))
-            (list_repeat (Z.to_nat (out_len - n * 32 - (out_len - n * 32))) Vundef)).
+            (repeat Vundef (Z.to_nat (out_len - n * 32 - (out_len - n * 32))))).
         3: reflexivity. 3: reflexivity. 4: reflexivity.
-        + rewrite Zlength_map, Zlength_sublist, Zlength_list_repeat, Z.sub_0_r, offset_offset_val; try lia.
+        + rewrite Zlength_map, Zlength_sublist, Zlength_repeat, Z.sub_0_r, offset_offset_val; try lia.
           trivial.
-        + rewrite Zlength_map, Zlength_sublist, Zlength_list_repeat, Zminus_diag, Z.sub_0_r, Z.add_0_r; try lia. trivial.
-        + rewrite Zlength_map, Zlength_sublist, Zlength_list_repeat; try lia.
+        + rewrite Zlength_map, Zlength_sublist, Zlength_repeat, Zminus_diag, Z.sub_0_r, Z.add_0_r; try lia. trivial.
+        + rewrite Zlength_map, Zlength_sublist, Zlength_repeat; try lia.
         + unfold Vubyte. f_equal.
       }
     }
@@ -1561,7 +1561,7 @@ Proof. intros.
                   data_at sho (tarray tuchar out_len) 
                     ((map Vubyte (sublist 0 done (snd (HLP done)))) ++
                      (map Vubyte (sublist 0 use_len H256) ++
-                      list_repeat (Z.to_nat (out_len - done - use_len)) Vundef)) output).
+                      repeat Vundef (Z.to_nat (out_len - done - use_len)))) output).
     {
       entailer!.
       apply derives_refl'.
@@ -1575,13 +1575,13 @@ Proof. intros.
       rewrite Zmin_spec. simpl in *.
       if_tac.
       apply data_at_complete_split;
-      repeat rewrite Zlength_app; repeat rewrite Zlength_map; try rewrite HZlength1; repeat rewrite Zlength_list_repeat; repeat rewrite Zlength_sublist; repeat rewrite Zlength_map; try rewrite hmac_common_lemmas.HMAC_Zlength; auto; try lia;
+      repeat rewrite Zlength_app; repeat rewrite Zlength_map; try rewrite HZlength1; repeat rewrite Zlength_repeat; repeat rewrite Zlength_sublist; repeat rewrite Zlength_map; try rewrite hmac_common_lemmas.HMAC_Zlength; auto; try lia;
       try rewrite HZlength_V.
       replace ((n * 32)%Z - 0 + (32 - 0 + (out_len - (n * 32)%Z - 32))) with out_len by lia;
       assumption. 
       replace ((n * 32)%Z - 0 + (out_len - (n * 32)%Z - 0 + (out_len - (n * 32)%Z - (out_len - (n * 32)%Z)))) with out_len by lia.
       apply data_at_complete_split;
-      repeat rewrite Zlength_app; repeat rewrite Zlength_map; try rewrite HZlength1; repeat rewrite Zlength_list_repeat; repeat rewrite Zlength_sublist; repeat rewrite Zlength_map; try rewrite hmac_common_lemmas.HMAC_Zlength; auto; try lia;
+      repeat rewrite Zlength_app; repeat rewrite Zlength_map; try rewrite HZlength1; repeat rewrite Zlength_repeat; repeat rewrite Zlength_sublist; repeat rewrite Zlength_map; try rewrite hmac_common_lemmas.HMAC_Zlength; auto; try lia;
       try rewrite HZlength_V.
       replace (n * 32 - 0 + (out_len - n * 32 - 0 + (out_len - n * 32 - (out_len - n * 32)))) with
          out_len by lia.
@@ -1768,7 +1768,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
              (fst (HLP done))) a (Vptr b i) Info; FRZL StreamAdd;
    data_at sho (tarray tuchar out_len)
      (map Vubyte (sublist 0 done (snd (HLP done))) ++
-      list_repeat (Z.to_nat (out_len - done)) Vundef) output; K_vector gv))
+      repeat Vundef (Z.to_nat (out_len - done))) output; K_vector gv))
   (Ssequence
      (Ssequence
         (Sifthenelse
@@ -1871,7 +1871,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
                 (fst (HLP a0))) a (Vptr b i) Info; FRZL StreamAdd;
       data_at sho (tarray tuchar out_len)
         (map Vubyte (sublist 0 a0 (snd (HLP a0))) ++
-         list_repeat (Z.to_nat (out_len - a0)) Vundef) output; K_vector gv))%assert).
+         repeat Vundef (Z.to_nat (out_len - a0))) output; K_vector gv))%assert).
 Proof. intros.
 eapply semax_post_flipped'.
 apply (loopbody_explicit StreamAdd); try assumption;

@@ -109,7 +109,7 @@ Proof. intros.
   2: rewrite Zlength_map; rewrite ZLI; lia.
   f_equal. rewrite Znth_map. f_equal.
            unfold HMAC_SHA256.mkArg.
-           unfold Znth. unfold Znth in X. destruct (zlt i 0). discriminate.
+           unfold Znth. unfold Znth in X. destruct (Z_lt_dec i 0). discriminate.
            specialize (map_nth (fun p : byte * byte => Byte.xor (fst p) (snd p))
                                        (combine (HMAC_SHA256.mkKey key) (HMAC_SHA256.sixtyfour Ipad))
                                        (Byte.zero, Byte.zero)
@@ -122,7 +122,7 @@ Proof. intros.
                    unfold fst, snd. 
                    remember (HMAC_SHA256.sixtyfour Ipad).
                    assert (NTH: nth (Z.to_nat i) l Byte.zero = Byte.repr 54).
-                     subst l. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. lia. lia.
+                     subst l. apply nth_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. lia. lia.
                    rewrite NTH. auto. 
                    rewrite ZLI; assumption.
   rewrite sublist_sublist; try lia.
@@ -165,7 +165,7 @@ Proof. intros.
   2: rewrite Zlength_map, ZLO; lia.
   f_equal. rewrite Znth_map. f_equal.
            unfold HMAC_SHA256.mkArg.
-           unfold Znth. unfold Znth in X. destruct (zlt i 0). discriminate.
+           unfold Znth. unfold Znth in X. destruct (Z_lt_dec i 0). discriminate.
            specialize (map_nth (fun p : byte * byte => Byte.xor (fst p) (snd p))
                                        (combine (HMAC_SHA256.mkKey key) (HMAC_SHA256.sixtyfour Opad))
                                        (Byte.zero, Byte.zero)
@@ -179,7 +179,7 @@ Proof. intros.
                     unfold fst, snd.
                    remember (HMAC_SHA256.sixtyfour Opad).
                    assert (NTH: nth (Z.to_nat i) l Byte.zero = Byte.repr 92).
-                     subst l. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. lia. lia.
+                     subst l. apply nth_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. lia. lia.
                    rewrite NTH; trivial.
                    rewrite ZLO; assumption.
   rewrite sublist_sublist; try lia.
@@ -282,7 +282,7 @@ Proof. intros. abbreviate_semax.
         destruct Xb as [qb Qb].
         assert (X: Znth i (map Vubyte (HMAC_SHA256.mkKey key))
                    = Vubyte qb). (* (Int.zero_ext 8 q)).*)
-          { unfold Znth. destruct (zlt i 0). lia.
+          { unfold Znth. destruct (Z_lt_dec i 0). lia.
             rewrite nth_indep with (d':=Vubyte Byte.zero).
             2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); lia. }
             repeat rewrite map_nth. rewrite Qb. trivial.
@@ -415,7 +415,7 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
         destruct Xb as [qb Qb].
         assert (X: Znth i (map Vubyte (HMAC_SHA256.mkKey key))
                    = Vubyte qb). (* (Int.zero_ext 8 q)).*)
-          { unfold Znth. destruct (zlt i 0). lia.
+          { unfold Znth. destruct (Z_lt_dec i 0). lia.
             rewrite nth_indep with (d':=Vubyte Byte.zero).
               2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); lia. }
             repeat rewrite map_nth. rewrite Qb. trivial.

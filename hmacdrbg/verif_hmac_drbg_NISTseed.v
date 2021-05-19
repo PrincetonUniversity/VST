@@ -118,7 +118,7 @@ Proof. rewrite <- instantiate256_reseed, instantiate_eq; trivial. Qed.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 Opaque initial_key. Opaque initial_value.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
-Opaque list_repeat. 
+Opaque repeat. 
 
 (*specification for the expected case, in which 0<=len<=256.
   But use mbedtls_HMAC256_DRBG_instantiate_function PROP of PRE and assume SUCCESS*)
@@ -247,7 +247,7 @@ Proof.
     rewrite Int.unsigned_repr. reflexivity. rep_lia. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
-    ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
+    ((info, (M2, p)), (map Vint (repeat Int.one 32), (Vint (Int.repr rc),
         (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
@@ -381,7 +381,7 @@ Definition hmac_drbg_seed_full_spec :=
                    if (zlt 256 (Zlength Data) || (zlt 384 (48 + Zlength Data)))%bool
                    then !!(ret_value = Int.repr (-5)) &&
                      (Stream s *
-                     ( let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc),
+                     ( let CtxFinal:= ((info, (M2, p)), (repeat (Vint Int.one) 32, (Vint (Int.repr rc),
                                        (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000)))))) in
                        let CTXFinal:= HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000 in
                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
@@ -395,7 +395,7 @@ Definition hmac_drbg_seed_full_spec :=
                                | ENTROPY.generic_error => Vint ret_value = Vint (Int.repr ENT_GenErr)
                                | ENTROPY.catastrophic_error => Vint ret_value = Vint (Int.repr (-9))
                               end) && (Stream ss *
-                                       let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc),
+                                       let CtxFinal:= ((info, (M2, p)), (repeat (Vint Int.one) 32, (Vint (Int.repr rc),
                                                 (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000)))))) in
                                        let CTXFinal:= HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000 in
                                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
@@ -500,7 +500,7 @@ Proof.
     rewrite Int.unsigned_repr. reflexivity. rep_lia. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
-    ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
+    ((info, (M2, p)), (map Vint (repeat Int.one 32), (Vint (Int.repr rc),
         (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
@@ -673,13 +673,13 @@ Definition hmac_drbg_seed_spec :=
                    if (zlt 256 (Zlength Data) || (zlt 384 ((*hmac256drbgabs_entropy_len initial_state_abs*)48 + Zlength Data)))%bool
                    then !!(ret_value = Int.repr (-5)) &&
                      (Stream s *
-                     ( let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc),
+                     ( let CtxFinal:= ((info, (M2, p)), (repeat (Vint Int.one) 32, (Vint (Int.repr rc),
                                        (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
-                       let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000 in
+                       let CTXFinal:= HMAC256DRBGabs VV (repeat Byte.one 32) rc 48 pr 10000 in
                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                      hmac256drbg_relate CTXFinal CtxFinal))
 
-                   else let myABS := HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000
+                   else let myABS := HMAC256DRBGabs VV (repeat Byte.one 32) rc 48 pr 10000
                       in match mbedtls_HMAC256_DRBG_reseed_function s myABS
                                 (contents_with_add data (Zlength Data) Data)
                          with
@@ -688,9 +688,9 @@ Definition hmac_drbg_seed_spec :=
                                | ENTROPY.generic_error => Vint ret_value = Vint (Int.repr ENT_GenErr)
                                | ENTROPY.catastrophic_error => Vint ret_value = Vint (Int.repr (-9))
                               end) && (Stream ss *
-                                       let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc),
+                                       let CtxFinal:= ((info, (M2, p)), (repeat (Vint Int.one) 32, (Vint (Int.repr rc),
                                                 (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
-                                       let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000 in
+                                       let CTXFinal:= HMAC256DRBGabs VV (repeat Byte.one 32) rc 48 pr 10000 in
                                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                        hmac256drbg_relate CTXFinal CtxFinal))
                         | ENTROPY.success handle ss => !!(ret_value = Int.zero) &&
@@ -796,9 +796,9 @@ Proof.
   { rewrite mul_repr. simpl.
     rewrite Int.unsigned_repr. reflexivity. rep_lia. }
 
-  set (myABS := HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000) in *.
+  set (myABS := HMAC256DRBGabs VV (repeat Byte.one 32) rc 48 pr 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
-    ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
+    ((info, (M2, p)), (map Vint (repeat Int.one 32), (Vint (Int.repr rc),
         (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 

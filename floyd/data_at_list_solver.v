@@ -5,6 +5,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.field_compat.
+Require Import VST.floyd.canon.
 
 (** * list extensionality *)
 (* To prove equality between two lists, a convenient way is to apply extensionality
@@ -40,7 +41,7 @@ Proof.
   generalize dependent bl.
   generalize dependent n.
   induction al; intros; destruct bl as [ | b bl];
-    autorewrite with list_solve_rewrite in *; Zlength_simplify_in_all; try Zlength_solve;
+    list_form; Zlength_simplify_in_all; try Zlength_solve;
     unfold data_subsume; intros.
   - (* al = [] /\ bl = [] *)
     entailer!.
@@ -99,7 +100,29 @@ Ltac list_solve_preprocess ::=
   fold_Vbyte;
   simpl_reptype;
   autounfold with list_solve_unfold in *;
-  autorewrite with list_solve_rewrite in *;
+  list_form;
+  rewrite ?app_nil_r in *;
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
+
+Definition hide_cons {A} (x: A) (y: list A) := cons x y.
+Definition hide_nil {A} := @nil A.
+
+Ltac hide_conses al :=
+ match al with
+  | @cons ?A ?h ?t => let t' := hide_conses t in constr:(@hide_cons A h t')
+  | @nil ?A => constr:(@hide_nil A)
+  end.
+
+Ltac list_simplify :=
+ repeat match goal with 
+   | |- context C [PROPx ?P (LOCALx ?Q (SEPx ?R))] =>
+           let P' := hide_conses P in
+           let Q' := hide_conses Q in
+           let R' := hide_conses R in
+           let g := context C [PROPx P' (LOCALx Q' (SEPx R'))] in
+           change g
+   end;
+  list_solver.list_simplify;
+  cbv delta [hide_cons hide_nil]; cbv beta.
 

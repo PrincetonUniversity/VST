@@ -691,7 +691,9 @@ Ltac unify_for_go_lower :=
 Ltac simply_msubst_extract_locals :=
   unfold msubst_extract_locals, msubst_extract_local, VST_floyd_map;
   cbv iota zeta beta;
-  simpl_PTree_get; simpl_eqb_type.
+  simpl_PTree_get; 
+  try prove_eqb_type
+ (* ; simpl_eqb_type *).
 
 Ltac solve_clean_LOCAL_right :=
   solve

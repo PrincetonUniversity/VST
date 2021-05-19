@@ -112,9 +112,9 @@ Proof. intros i.
       destruct (IHi l d) as [? [? ?]]. lia. rewrite H. exists x; split; trivial. right; trivial.
 Qed.
 
-Lemma skipn_list_repeat:
+Lemma skipn_repeat:
    forall A k n (a: A),
-     (k <= n)%nat -> skipn k (list_repeat n a) = list_repeat (n-k) a.
+     (k <= n)%nat -> skipn k (repeat a n) = repeat a (n-k).
 Proof.
  induction k; destruct n; simpl; intros; auto.
  apply IHk; auto. lia.
@@ -269,8 +269,8 @@ Proof. intros f n.
     exists x; eauto.
 Qed.
 
-Lemma nth_list_repeat' {A}: forall (a d:A) k i (Hik: (i <k)%nat),
-      nth i (list_repeat k a) d = a.
+Lemma nth_repeat' {A}: forall (a d:A) k i (Hik: (i <k)%nat),
+      nth i (repeat a k) d = a.
 Proof. intros a d k. induction k; simpl; trivial. intros. lia.
  intros. destruct i; simpl; trivial. rewrite IHk. trivial. lia. Qed.
 

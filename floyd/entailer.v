@@ -782,7 +782,7 @@ Qed.
 Definition cstringn {CS : compspecs} sh (s: list byte) n p :=
   !!(~In Byte.zero s) &&
   data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
-    list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef) p.
+    Zrepeat Vundef (n - (Zlength s + 1))) p.
 
 Fixpoint no_zero_bytes (s: list byte) : bool :=
  match s with
@@ -830,7 +830,7 @@ Proof.
   rewrite !Zlength_app, !Zlength_map, Zlength_app in H1.
   assert (H8 := Zlength_nonneg s).
   destruct (zlt n (Zlength s + 1)).
-  rewrite Z_to_nat_neg in H1 by lia. autorewrite with sublist in H1. lia.
+  autorewrite with sublist in H1. lia.
   split. lia.
   autorewrite with sublist in *.
   destruct H0 as [? [_ [? _]]].

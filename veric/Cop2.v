@@ -63,7 +63,7 @@ Definition eqb_signedness (a b : signedness) :=
  end.
 
 Definition eqb_calling_convention (a b: calling_convention) :=
- andb (eqb (cc_vararg a) (cc_vararg b))
+ andb (eqb_option Z.eqb (cc_vararg a) (cc_vararg b))
      (andb  (eqb (cc_unproto a) (cc_unproto b))
       (eqb (cc_structret a) (cc_structret b))).
 
@@ -120,6 +120,32 @@ Proof.
  apply Pos.eqb_eq.
 Qed.
 
+Lemma eqb_calling_convention_refl: forall cc, eqb_calling_convention cc cc = true.
+Proof.
+destruct cc; simpl; auto.
+unfold eqb_calling_convention; simpl.
+rewrite ?eqb_reflx.
+simpl. rewrite andb_true_r.
+destruct cc_vararg; simpl; auto.
+apply Z.eqb_eq; auto.
+Qed.
+
+Lemma eqb_calling_convention_prop: forall cc1 cc2, eqb_calling_convention cc1 cc2 = true -> cc1=cc2.
+Proof.
+clear.
+intros.
+unfold eqb_calling_convention in H.
+destruct cc1,cc2; simpl in *.
+apply andb_prop in H. destruct H.
+apply andb_prop in H0. destruct H0.
+apply eqb_prop in H0.
+apply eqb_prop in H1.
+subst.
+destruct cc_vararg, cc_vararg0; inv H; auto.
+apply Z.eqb_eq in H1; subst.
+auto.
+Qed.
+
 Lemma eqb_type_spec: forall a b, eqb_type a b = true <-> a=b.
 Proof.
 apply (eqb_type_sch
@@ -139,10 +165,10 @@ apply (eqb_type_sch
     try solve [apply H; auto];
     try solve [inv H0; apply H; auto].
 *  apply H0; auto.
-*  clear - H2; destruct c as [[|] [|] [|]]; destruct c0 as [[|] [|] [|]]; inv H2; auto.
+*  apply eqb_calling_convention_prop; auto. 
 *  inv H1; apply H; auto.
 *  inv H1; apply H0; auto.
-*   inv H1; destruct c0 as [[|] [|] [|]]; reflexivity.
+*  inv H1. apply eqb_calling_convention_refl.
 *  apply H0; auto.
 *   inv H1; apply H; auto.
 *   inv H1; apply H0; auto.

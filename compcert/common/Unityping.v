@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -126,12 +127,12 @@ Lemma length_move:
   length e'.(te_equ) + (if changed then 1 else 0) <= S(length e.(te_equ)).
 Proof.
   unfold move; intros.
-  destruct (peq r1 r2). inv H. omega.
+  destruct (peq r1 r2). inv H. lia.
   destruct e.(te_typ)!r1 as [ty1|]; destruct e.(te_typ)!r2 as [ty2|]; inv H; simpl.
-  destruct (T.eq ty1 ty2); inv H1. omega.
-  omega.
-  omega.
-  omega.
+  destruct (T.eq ty1 ty2); inv H1. lia.
+  lia.
+  lia.
+  lia.
 Qed.
 
 Lemma length_solve_rec:
@@ -140,14 +141,14 @@ Lemma length_solve_rec:
   length e'.(te_equ) + (if ch' && negb ch then 1 else 0) <= length e.(te_equ) + length q.
 Proof.
   induction q; simpl; intros.
-- inv H. replace (ch' && negb ch') with false. omega. destruct ch'; auto.
+- inv H. replace (ch' && negb ch') with false. lia. destruct ch'; auto.
 - destruct a as [r1 r2]; monadInv H. rename x0 into e0. rename x into ch0.
   exploit IHq; eauto. intros A.
   exploit length_move; eauto. intros B.
   set (X := (if ch' && negb (ch || ch0) then 1 else 0)) in *.
   set (Y := (if ch0 then 1 else 0)) in *.
   set (Z := (if ch' && negb ch then 1 else 0)) in *.
-  cut (Z <= X + Y). intros. omega.
+  cut (Z <= X + Y). intros. lia.
   unfold X, Y, Z. destruct ch'; destruct ch; destruct ch0; simpl; auto.
 Qed.
 
@@ -164,7 +165,7 @@ Function solve_constraints (e: typenv) {measure weight_typenv e}: res typenv :=
   end.
 Proof.
   intros. exploit length_solve_rec; eauto. simpl. intros.
-  unfold weight_typenv. omega.
+  unfold weight_typenv. lia.
 Qed.
 
 Definition typassign := positive -> T.t.
@@ -199,7 +200,7 @@ Proof.
   apply A. rewrite PTree.gso by congruence. auto.
 Qed.
 
-Hint Resolve set_incr: ty.
+Global Hint Resolve set_incr: ty.
 
 Lemma set_sound:
   forall te x ty e e', set e x ty = OK e' -> satisf te e' -> te x = ty.
@@ -216,7 +217,7 @@ Proof.
   induction xl; destruct tyl; simpl; intros; monadInv H; eauto with ty.
 Qed.
 
-Hint Resolve set_list_incr: ty.
+Global Hint Resolve set_list_incr: ty.
 
 Lemma set_list_sound:
   forall te xl tyl e e', set_list e xl tyl = OK e' -> satisf te e' -> map te xl = tyl.
@@ -242,7 +243,7 @@ Proof.
 - inv H; simpl in *; split; auto.
 Qed.
 
-Hint Resolve move_incr: ty.
+Global Hint Resolve move_incr: ty.
 
 Lemma move_sound:
   forall te e r1 r2 e' changed,

@@ -166,7 +166,7 @@ Qed.
 Lemma Znth_last : forall {A}{d: Inhabitant A} l, Znth (Zlength l - 1) l = last l default.
 Proof.
   intros; unfold Znth.
-  destruct (zlt (Zlength l - 1) 0).
+  destruct (Z_lt_dec (Zlength l - 1) 0).
   - destruct l; auto.
     rewrite Zlength_correct in *; simpl length in *.
     rewrite Nat2Z.inj_succ in *; lia.
@@ -489,17 +489,13 @@ Proof.
   rewrite Zquot.Zrem_Zmod_pos; repeat rewrite Int.signed_repr; auto; lia.
 Qed.
 
+(*
 Lemma repeat_list_repeat : forall {A} n (x : A), repeat x n = list_repeat n x.
 Proof.
   induction n; auto; simpl; intro.
   rewrite IHn; auto.
 Qed.
-
-Lemma sublist_repeat : forall {A} i j k (v : A), 0 <= i -> i <= j <= k ->
-  sublist i j (repeat v (Z.to_nat k)) = repeat v (Z.to_nat (j - i)).
-Proof.
-  intros; repeat rewrite repeat_list_repeat; apply sublist_list_repeat; auto.
-Qed.
+*)
 
 Lemma Znth_head : forall reqs head m, Zlength reqs <= m -> 0 <= head < m ->
   Zlength reqs > 0 ->
@@ -659,7 +655,7 @@ Proof.
   apply In_nth with (d := d) in H; destruct H as (n & ? & ?).
   exists (Z.of_nat n); split.
   - rewrite Zlength_correct; lia.
-  - destruct (zlt (Z.of_nat n) 0); [lia|].
+  - destruct (Z_lt_dec (Z.of_nat n) 0); [lia|].
     rewrite Nat2Z.id; auto.
 Qed.
 
@@ -667,7 +663,7 @@ Lemma In_upd_Znth_old : forall {A}{d: Inhabitant A} i (x y : A) l, In x l -> x <
   In x (upd_Znth i l y).
 Proof.
   intros.
-  destruct (zlt i (Zlength l)).
+  destruct (Z_lt_dec i (Zlength l)).
   - unfold_upd_Znth_old.
     apply In_Znth in H; destruct H as (j & ? & ?); subst.
     destruct (eq_dec j i); [subst; contradiction|].
@@ -683,7 +679,7 @@ Lemma Znth_combine : forall {A B} {a: Inhabitant A} {b: Inhabitant B} i (l1: lis
   Znth i (combine l1 l2) = (Znth i l1, Znth i l2).
 Proof.
   intros; unfold Znth.
-  destruct (zlt i 0); auto.
+  destruct (Z_lt_dec i 0); auto.
   apply combine_nth.
   rewrite !Zlength_correct in *; rep_lia.
 Qed.
@@ -697,7 +693,7 @@ Qed.
 Lemma nth_Znth : forall {A}{d: Inhabitant A} i l, nth i l default = Znth (Z.of_nat i) l.
 Proof.
   intros; unfold Znth.
-  destruct (zlt (Z.of_nat i) 0); [lia|].
+  destruct (Z_lt_dec (Z.of_nat i) 0); [lia|].
   rewrite Nat2Z.id; auto.
 Qed.
 

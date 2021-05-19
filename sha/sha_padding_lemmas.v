@@ -20,7 +20,7 @@ Inductive InWords : list byte -> Prop :=
 Definition pad (msg : list byte) : list byte :=
   let n := Zlength msg in
   msg ++ [Byte.repr 128%Z]
-      ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero
+      ++ repeat Byte.zero (Z.to_nat (-(n + 9) mod 64))
       ++ intlist_to_bytelist (([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)])%list).
 
 Definition generate_and_pad' (msg : list byte) : list int :=
@@ -32,14 +32,14 @@ Definition generate_and_pad' (msg : list byte) : list int :=
 Lemma fstpad_len :
   forall (msg : list byte),
     Datatypes.length (msg ++ [Byte.repr 128]
-                 ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero)
+                 ++ repeat Byte.zero (Z.to_nat (- (Zlength msg + 9) mod 64)))
 = (Datatypes.length msg + (S (Z.to_nat (- (Zlength msg + 9) mod 64))))%nat.
 Proof.
   intros msg.
   simpl.
   rewrite -> app_length.
   simpl.
-  rewrite -> length_list_repeat.
+  rewrite -> repeat_length.
   reflexivity.
 Qed.
 
@@ -79,13 +79,13 @@ Proof.
     intros. induction n. reflexivity. lia.
   rewrite -> succ.
   assert ((length msg +
-      (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero) + 8 +
+      (length (repeat Byte.zero (Z.to_nat (- (Zlength msg + 9) mod 64))) + 8 +
        1))%nat = (length msg +
-      (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero) + 9))%nat) by lia.
+      (length (repeat Byte.zero (Z.to_nat (- (Zlength msg + 9) mod 64))) + 9))%nat) by lia.
   rewrite -> H. clear H.
 
   rewrite -> Zlength_correct.
-  rewrite -> length_list_repeat.
+  rewrite -> repeat_length.
 
   repeat rewrite -> Nat2Z.inj_add.
   rewrite -> Z2Nat.id.
@@ -155,7 +155,7 @@ Qed.
 
 Lemma total_pad_len_Zlist : forall (msg : list byte), exists (n : nat),
      length
-       (msg ++ [Byte.repr 128] ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero)
+       (msg ++ [Byte.repr 128] ++ repeat Byte.zero (Z.to_nat (- (Zlength msg + 9) mod 64)))
      =  (n * Z.to_nat WORD (* 4 *))%nat.
 Proof.
   intros msg.
@@ -171,7 +171,7 @@ Proof.
   assert (Pos.to_nat 4 = 4%nat) by reflexivity.
   (*rewrite -> H0. clear H0.*)
 
-  rewrite -> length_list_repeat in *.
+  rewrite -> repeat_length in *.
 
   assert (add_both: (length msg + S (Z.to_nat (- (Zlength msg + 9) mod 64) ))%nat =
       (x * 64 - 8)%nat) by lia. clear H.
@@ -187,7 +187,7 @@ Qed.
 Lemma pad_inwords :
   forall (msg : list byte),
     InWords (msg ++ [Byte.repr 128]
-                 ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero).
+                 ++ repeat Byte.zero (Z.to_nat (- (Zlength msg + 9) mod 64))).
 Proof.
   intros msg.
   apply InWords_len4.

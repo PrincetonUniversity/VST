@@ -8,11 +8,11 @@ Local Open Scope logic.
 Import LiftNotation.
 Import compcert.lib.Maps.
 
-Lemma Zlength_list_repeat:
-  forall {A} n (x:A), Zlength (list_repeat (Z.to_nat n) x) = Z.max 0 n.
+Lemma Zlength_repeat:
+  forall {A} n (x:A), Zlength (repeat x (Z.to_nat n)) = Z.max 0 n.
 Proof.
 intros.
-rewrite Zlength_correct, length_list_repeat.
+rewrite Zlength_correct, repeat_length.
 destruct (zlt n 0).
 rewrite Z.max_l by lia.
 rewrite Z2Nat_neg by auto. reflexivity.
@@ -67,7 +67,7 @@ rewrite <- app_nil_end.
 rewrite sublist_same by lia.
 f_equal.
 rewrite (sublist_nil hi), <- app_nil_end.
-rewrite sublist_app by (rewrite ?Zlength_list_repeat, ?Z.max_r; lia).
+rewrite sublist_app by (rewrite ?Zlength_repeat, ?Z.max_r; lia).
 rewrite ?Z.min_l by lia.
 rewrite ?Z.max_r by lia.
 rewrite sublist_nil, <- app_nil_end.
@@ -86,12 +86,12 @@ pose proof (Zlength_nonneg tgt).
 pose proof (Zlength_nonneg src).
 repeat rewrite Z.sub_diag.
 change (Z.to_nat 0) with 0.
-unfold list_repeat at 1.
+unfold repeat at 1.
 rewrite <- app_nil_end.
 rewrite sublist_same by lia.
 f_equal.
 rewrite sublist_nil, <- app_nil_end by lia.
-rewrite sublist_app by (rewrite ?Zlength_list_repeat, ?Z.max_r; lia).
+rewrite sublist_app by (rewrite ?Zlength_repeat, ?Z.max_r; lia).
 rewrite ?Z.min_l by lia.
 rewrite ?Z.max_r by lia.
 rewrite sublist_nil, <- app_nil_end by lia.
@@ -138,7 +138,7 @@ Lemma part1_splice_into_list:
 Proof.
  intros.
  unfold splice_into_list.
- rewrite (sublist_app); rewrite ?Zlength_list_repeat, ?Z.max_l by lia; try lia;
+ rewrite (sublist_app); rewrite ?Zlength_repeat, ?Z.max_l by lia; try lia;
  rewrite ?Zlength_sublist by lia;
  try (rewrite ?Zlength_correct; lia).
 rewrite ?Z.min_l by lia.
@@ -158,7 +158,7 @@ Proof.
  intros.
  unfold splice_into_list.
 rewrite <- app_ass.
- rewrite (sublist_app); rewrite ?Zlength_list_repeat, ?Z.max_r, ?Z.max_l by lia; try lia;
+ rewrite (sublist_app); rewrite ?Zlength_repeat, ?Z.max_r, ?Z.max_l by lia; try lia;
  rewrite ?Zlength_sublist by lia;
  try (rewrite ?Zlength_correct; lia).
 rewrite !Zlength_app.
@@ -183,7 +183,7 @@ Proof.
 intros.
 unfold splice_into_list.
 rewrite !Zlength_app.
-rewrite !Zlength_sublist; rewrite ?Zlength_app; rewrite ?Zlength_list_repeat; try lia.
+rewrite !Zlength_sublist; rewrite ?Zlength_app; rewrite ?Zlength_repeat; try lia.
 Qed.
 
 Local Arguments nested_field_type cs t gfs : simpl never.
@@ -474,7 +474,7 @@ Lemma call_memset_tuchar:
    (H0:  nested_field_type tp pathp = tarray tuchar np)
    (Hnp : (lop + len <= np)%Z)
    (H3:  JMeq vp vp')
-   (H4:  JMeq vp'' (splice_into_list lop (lop+len) (list_repeat (Z.to_nat len) (Vint c)) vp'))
+   (H4:  JMeq vp'' (splice_into_list lop (lop+len) (repeat (Vint c) (Z.to_nat len)) vp'))
    (H5: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          tc_exprlist Delta [tptr tvoid; tint; tuint] [e_p; e_c; e_n] &&
          local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
@@ -682,7 +682,7 @@ intros.
 apply JMeq_eq in H8. apply JMeq_eq in Hvpx.
 subst.
 apply part3_splice_into_list; try lia.
-rewrite Zlength_list_repeat. rewrite Z.max_r by lia. lia.
+rewrite Zlength_repeat. rewrite Z.max_r by lia. lia.
 } 
 cancel.
  rewrite array_at_data_at' by  (try solve [clear - FC; intuition]; lia).
