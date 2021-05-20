@@ -14,7 +14,7 @@ Definition main_spec :=
   WITH gv : globals
   PRE  [] main_pre prog (write_list stdout (string2bytes "Hello, world!
 ");; write_list stdout (string2bytes "This is line 2.
-")) gv
+"))%itree gv
   POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=  

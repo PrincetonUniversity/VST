@@ -412,7 +412,7 @@ Proof.
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
     split; [apply hash_size|].
-    rewrite -> Zlength_repeat, Z2Nat.id; auto; lia. }
+    rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; lia. }
   - Intros i i1 keys; forward.
     rewrite -> sub_repr, and_repr; simpl.
     rewrite -> Zland_two_p with (n := 14) by lia.
@@ -702,7 +702,7 @@ Proof.
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
     split; [apply hash_size|].
-    rewrite -> Zlength_repeat, Z2Nat.id; auto; lia. }
+    rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; lia. }
   - Intros i i1 keys; forward.
     rewrite -> sub_repr, and_repr; simpl.
     rewrite -> Zland_two_p with (n := 14) by lia.
@@ -898,7 +898,7 @@ Proof.
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
     split; [apply hash_size|].
-    rewrite -> Zlength_repeat, Z2Nat.id; auto; lia. }
+    rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; lia. }
   - Intros i i1 keys; forward.
     rewrite -> sub_repr, and_repr; simpl.
     rewrite -> Zland_two_p with (n := 14) by lia.
@@ -1200,7 +1200,7 @@ Proof.
   { setoid_rewrite (proj2_sig has_size); computable. }
   - Exists (@nil (val * val)) (@nil gname); entailer!.
     rewrite data_at__eq; unfold default_val; simpl.
-    rewrite repeat_list_repeat; apply derives_refl.
+    apply derives_refl.
   - Intros lg.
     ghost_alloc (ghost_master1 0).
     Intros gk.
@@ -1212,7 +1212,7 @@ Proof.
     Intros pv.
     repeat forward.
     assert (0 <= i < Zlength (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i)))).
-    { rewrite -> Zlength_app, Zlength_repeat, Z2Nat.id; lia. }
+    { rewrite -> Zlength_app, coqlib4.Zlength_repeat, Z2Nat.id; lia. }
     rewrite -> upd_Znth_twice, upd_Znth_same by auto.
     go_lower; Exists (entries ++ [(pk, pv)]) (lg ++ [gk]).
     rewrite -> !Z2Nat.inj_add, !upto_app, !iter_sepcon_app, !Z2Nat.id by lia.
@@ -1233,7 +1233,7 @@ Proof.
     rewrite -> Zminus_diag, app_nil_r.
     unfold hashtable; Exists entries g lg; entailer!.
     Exists (repeat (0, 0) (Z.to_nat size)); entailer!.
-    split; [rewrite -> Zlength_repeat, Z2Nat.id; auto; pose proof size_pos; lia|].
+    split; [rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; pose proof size_pos; lia|].
     split.
     + intros ??? Hj.
       setoid_rewrite Znth_repeat in Hj; simpl in Hj; subst; contradiction.

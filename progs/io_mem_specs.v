@@ -5,6 +5,9 @@ Require Export ITree.ITree.
 Require Export ITree.Eq.Eq.
 Require Export ITree.Eq.SimUpToTaus.
 (* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
+
+Local Open Scope itree_scope.
+
 Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
   (at level 100, t1 at next level, right associativity) : itree_scope.
 Notation "' p <- t1 ;; t2" :=

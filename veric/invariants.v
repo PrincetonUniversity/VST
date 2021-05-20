@@ -955,7 +955,7 @@ Proof.
       repeat_length; try lia.
     replace (_ - _)%nat with O by lia; simpl.
     rewrite Nat2Z.inj_add, Z.add_0_r.
-    rewrite !app_Znth2; erewrite !Zlength_app, !Zlength_repeat, <- Zlength_correct; try lia.
+    rewrite !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat, <- Zlength_correct; try lia.
     replace (_ - _) with 0 by lia; replace (_ - _) with 0 by lia; auto. }
   eapply derives_trans, bupd_intro.
   apply exp_right with ((l ++ repeat emp i) ++ [P]).
@@ -964,7 +964,7 @@ Proof.
   erewrite !(app_length (_ ++ _)); simpl.
   erewrite prop_true_andp by (erewrite !app_length, !repeat_length; lia).
   erewrite upto_app, iter_sepcon_app; simpl.
-  erewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; erewrite !Zlength_app, !Zlength_repeat; try lia.
+  erewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat; try lia.
   erewrite Hlg, Hlb, Zminus_diag, !Znth_0_cons.
   rewrite sepcon_comm, !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
   apply sepcon_derives; [apply derives_refl|].
@@ -991,10 +991,10 @@ Proof.
     + rewrite iter_sepcon_emp'; auto.
       intros ? Hin.
       eapply in_map_iff in Hin as (? & ? & Hin%In_upto); subst.
-      rewrite <- Zlength_correct, Zlength_repeat in Hin.
+      rewrite <- Zlength_correct, coqlib4.Zlength_repeat in Hin.
       rewrite <- Zlength_correct, <- app_assoc, app_Znth2 by lia.
-      erewrite app_Znth1 by (rewrite Zlength_repeat; lia).
-      unfold Znth; destruct (zlt _ _); auto.
+      erewrite app_Znth1 by (rewrite coqlib4.Zlength_repeat; lia).
+      unfold Znth; destruct (Z_lt_dec _ _); auto.
       rewrite nth_repeat; auto.
   - unfold invariant.
     rewrite emp_sepcon, !exp_sepcon2; apply exp_right with (length lg + i)%nat.

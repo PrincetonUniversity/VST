@@ -1803,7 +1803,7 @@ Proof. intros; unfold Znth; if_tac; unfold default. lia. reflexivity. Qed.
 Lemma nth_Znth' : forall {A}{d: Inhabitant A} i l, nth i l default = Znth (Z.of_nat i) l.
 Proof.
   intros; unfold Znth.
-  destruct (zlt (Z.of_nat i) 0); [lia|].
+  destruct (Z_lt_dec (Z.of_nat i) 0); [lia|].
   rewrite Nat2Z.id; auto.
 Qed.
 
@@ -1815,7 +1815,7 @@ Proof.
   apply In_nth with (d := d) in H; destruct H as (n & ? & ?).
   exists (Z.of_nat n); split.
   - rewrite Zlength_correct; lia.
-  - destruct (zlt (Z.of_nat n) 0); [lia|].
+  - destruct (Z_lt_dec (Z.of_nat n) 0); [lia|].
     rewrite Nat2Z.id; auto.
 Qed.
 
@@ -1825,7 +1825,7 @@ Proof.
   intros.
   apply In_Znth in H; destruct H as (j & ? & ?); subst.
   assert (i <> j) by (intro; now subst). unfold upd_Znth. if_tac.
-  - clear H1. rewrite in_app; simpl. destruct (zlt j i); [left | right; right].
+  - clear H1. apply in_or_app; simpl. destruct (Z_lt_dec j i); [left | right; right].
     + erewrite <- (Z.add_0_r j), <- Znth_sublist;
         [apply Znth_In; rewrite Zlength_sublist| |]; auto; lia.
     + erewrite <- (Z.sub_simpl_r _ (i + 1)), <- Znth_sublist;
@@ -1838,7 +1838,7 @@ Lemma Znth_combine : forall {A B} {a: Inhabitant A} {b: Inhabitant B} i (l1: lis
   Znth i (combine l1 l2) = (Znth i l1, Znth i l2).
 Proof.
   intros; unfold Znth.
-  destruct (zlt i 0); auto.
+  destruct (Z_lt_dec i 0); auto.
   apply combine_nth.
   rewrite !Zlength_correct in *; lia.
 Qed.
@@ -1910,9 +1910,11 @@ Lemma in_concat : forall {A} (l : list (list A)) x, In x (concat l) <-> exists l
 Proof.
   induction l; simpl; intros.
   - split; [|intros (? & ? & ?)]; contradiction.
-  - rewrite in_app, IHl; split.
-    + intros [? | (? & ? & ?)]; eauto.
-    + intros (? & ? & [? | ?]); subst; eauto.
+  - split; intros.
+    + apply in_app_or in H. destruct H; [|rewrite IHl in H]; eauto.
+      destruct H as [l1 [? ?]]; eauto.
+    + apply in_or_app. destruct H as [l1 [? [? | ?]]]; [subst|]; auto.
+      right. rewrite IHl. eauto.
 Qed.
 
 Lemma length_concat : forall {A} (l : list (list A)), length (concat l) = fold_right plus O (map (@length A) l).
@@ -1940,7 +1942,8 @@ Proof.
   - rewrite upd_Znth_cons, Znth_pos_cons by lia; simpl.
     rewrite Zlength_cons in *.
     rewrite !app_length, IHl by lia.
-    exploit (length_concat_min l (i - 1)); lia.
+    cut (length (Znth (i - 1) l) <= length (concat l))%nat. lia.
+    apply length_concat_min. lia.
 Qed.
 
 Lemma incl_nil : forall {A} (l : list A), incl [] l.
@@ -1957,7 +1960,7 @@ Qed.
 Lemma In_upd_Znth : forall {A} i l (x y : A), In x (upd_Znth i l y) -> x = y \/ In x l.
 Proof.
   unfold upd_Znth; intros. if_tac in H.
-  - rewrite in_app in H; destruct H as [? | [? | ?]]; auto; right;
+  - apply in_app_or in H; destruct H as [? | [? | ?]]; auto; right;
       eapply sublist_In; eauto.
   - now right.
 Qed.
@@ -1966,7 +1969,7 @@ Lemma upd_Znth_In : forall {A} i l (x : A),
     0 <= i < Zlength l -> In x (upd_Znth i l x).
 Proof.
   intros; unfold upd_Znth. if_tac.
-  - rewrite in_app; simpl; auto.
+  - apply in_or_app; simpl; auto.
   - exfalso; lia.
 Qed.
 
@@ -1975,7 +1978,7 @@ Lemma Znth_cons_eq : forall {A}{d : Inhabitant A} i x l,
 Proof.
   intros.
   destruct (Z.eq_dec i 0); [subst; apply Znth_0_cons|].
-  destruct (zlt i 0); [rewrite !Znth_underflow; auto; lia|].
+  destruct (Z_lt_dec i 0); [rewrite !Znth_underflow; auto; lia|].
   apply Znth_pos_cons; lia.
 Qed.
 
@@ -1991,7 +1994,7 @@ Proof.
   destruct (Z.eq_dec i 0), (Z.eq_dec j 0); subst; auto.
   - contradiction H1; apply Znth_In; lia.
   - contradiction H1; apply Znth_In; lia.
-  - exploit (IHl (i - 1) (j - 1)); auto; lia.
+  - cut (i - 1 = j - 1). lia. apply IHl; auto; lia.
 Qed.
 
 Lemma NoDup_Znth_iff : forall {A}{d: Inhabitant A} (l : list A),
@@ -2001,12 +2004,12 @@ Proof.
   split; intros; [eapply NoDup_Znth_inj; eauto|].
   induction l; rewrite ?Zlength_cons in *; constructor.
   - intro Hin; eapply In_Znth in Hin; destruct Hin as (j & ? & Hj).
-    exploit (H 0 (j + 1)); try lia.
+    cut (0 = j + 1). lia. apply H; try lia.
     rewrite !Znth_cons_eq; simpl.
     if_tac; [lia|].
     rewrite Z.add_simpl_r; eauto.
   - apply IHl; intros.
-    exploit (H (i + 1) (j + 1)); try lia.
+    cut (i + 1 = j + 1). lia. apply H; try lia.
     rewrite !Znth_cons_eq, !Z.add_simpl_r.
     if_tac; [lia|].
     if_tac; [lia | auto].
@@ -2020,7 +2023,7 @@ Proof.
   rewrite in_concat in Hin; rewrite in_concat.
   destruct Hin as (? & ? & Hin).
   apply In_upd_Znth in Hin; destruct Hin; eauto; subst.
-  do 2 eexists; [rewrite in_app; left; eauto|].
+  do 2 eexists; [apply in_or_app; left; eauto|].
   rewrite <- Hless; apply Znth_In; auto.
 Qed.
 
@@ -2030,11 +2033,10 @@ Proof.
   induction l1; intros.
   - repeat split; auto; constructor.
   - inv H.
-    exploit IHl1; eauto; intros (? & ? & ?).
-    rewrite in_app in *.
+    specialize (IHl1 _ H3); eauto. destruct IHl1 as [? [? ?]].
     repeat split; auto.
-    + constructor; auto.
-    + intros ? [? | ?]; auto; subst; auto.
+    + constructor; auto. intro. apply H2. apply in_or_app. auto.
+    + intros ? [? | ?]; auto; subst; auto. intro. apply H2. apply in_or_app; auto.
 Qed.
 
 Lemma NoDup_app_iff : forall {A} (l1 l2 : list A), NoDup (l1 ++ l2) <->
@@ -2092,7 +2094,7 @@ Lemma Forall2_app_inv : forall {A B} (P : A -> B -> Prop) l1 l2 l3 l4 (Hlen : le
 Proof.
   induction l1; destruct l3; try discriminate; auto; intros.
   inv H; inv Hlen.
-  exploit IHl1; eauto; intros (? & ?); split; [constructor|]; auto.
+  specialize (IHl1 _ _ _ H0 H5); destruct IHl1 as [? ?]; split; [constructor|]; auto.
 Qed.
 
 Lemma Forall2_firstn : forall {A B} (P : A -> B -> Prop) l1 l2 n, Forall2 P l1 l2 ->
@@ -2226,9 +2228,10 @@ Qed.
 Lemma Forall_last : forall {A} (P : A -> Prop) d l, Forall P l -> P d -> P (last l d).
 Proof.
   destruct l; auto.
-  exploit (@app_removelast_last _ (a :: l) d); [discriminate | intro Hlast].
-  intros; rewrite Forall_forall in H; apply H.
-  rewrite Hlast at 2; rewrite in_app; simpl; auto.
+  cut (a :: l = removelast (a :: l) ++ [last (a :: l) d]).
+  - intro Hlast. intros; rewrite Forall_forall in H; apply H.
+  rewrite Hlast at 2; apply in_or_app; simpl; auto.
+  - apply app_removelast_last. discriminate.
 Qed.
 
 Lemma last_map : forall {A B} (f : A -> B) d l, f (last l d) = last (map f l) (f d).
@@ -2272,7 +2275,7 @@ Lemma Znth_inbounds : forall {A}{d: Inhabitant A} i (l : list A),
     Znth i l <> default -> 0 <= i < Zlength l.
 Proof.
   intros.
-  destruct (zlt i 0); [contradiction H; apply Znth_underflow; auto|].
+  destruct (Z_lt_dec i 0); [contradiction H; apply Znth_underflow; auto|].
   destruct (Z_lt_dec i (Zlength l)); [lia|].
   rewrite Znth_overflow in H; [contradiction H; auto | lia].
 Qed.
@@ -2282,9 +2285,9 @@ Lemma upd_Znth_diff' : forall {A}{d: Inhabitant A} i j l (u : A),
   Znth i (upd_Znth j l u) = Znth i l.
 Proof.
   intros.
-  destruct (zlt i 0).
+  destruct (Z_lt_dec i 0).
   { rewrite !Znth_underflow; auto. }
-  destruct (zlt i (Zlength l)).
+  destruct (Z_lt_dec i (Zlength l)).
   apply upd_Znth_diff; auto; lia.
   { rewrite !Znth_overflow; auto.
     rewrite upd_Znth_Zlength; auto. }
@@ -2385,7 +2388,7 @@ Proof.
       change (Z.of_nat O) with 0 in H.
       assert (a = 0) by lia; subst.
       rewrite sublist_nil; auto. }
-    destruct (zlt 0 b).
+    destruct (Z_lt_dec 0 b).
     destruct (Z.eq_dec a 0).
     + subst; rewrite sublist_0_cons, sublist_map, IHn by lia; simpl; f_equal.
       rewrite Z2Nat.inj_sub, Hb by lia; simpl.

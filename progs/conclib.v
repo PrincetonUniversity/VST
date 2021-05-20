@@ -1214,11 +1214,10 @@ Proof.
   intros.
   rewrite upd_Znth_app2; rewrite ?Zlength_repeat, ?Z2Nat.id; try lia.
   subst; rewrite Zminus_diag, upd_Znth0_old. 2 : {
-    rewrite Zlength_repeat. rewrite Z2Nat.id; lia.
-  }
+    rewrite Zlength_repeat; lia. }
   destruct (Z.to_nat (b - Zlength l)) eqn: Hi.
   { change O with (Z.to_nat 0) in Hi; apply Z2Nat.inj in Hi; lia. }
-  simpl; rewrite sublist_1_cons, sublist_same; try rewrite Zlength_cons, !Zlength_repeat; try lia.
+  simpl; rewrite sublist_1_cons, sublist_same; try rewrite Zlength_cons, !coqlib4.Zlength_repeat; try lia.
   replace (Z.to_nat (b - (Zlength l + 1))) with n; auto.
   lia.
 Qed.
@@ -1228,7 +1227,7 @@ Corollary upd_init_const : forall {A} i b (v v' : A), 0 <= i < b ->
   repeat v' (Z.to_nat (i + 1)) ++ repeat v (Z.to_nat (b - (i + 1))).
 Proof.
   intros.
-  rewrite upd_init; try rewrite Zlength_repeat, Z2Nat.id; auto; try lia.
+  rewrite upd_init; try rewrite coqlib4.Zlength_repeat, Z2Nat.id; auto; try lia.
   rewrite Z2Nat.inj_add, repeat_plus, <- app_assoc; auto; lia.
 Qed.
 
@@ -2320,7 +2319,7 @@ Proof.
   - rewrite Share.glb_commute, Share.comp2; auto.
 Qed.
 
-Hint Resolve bot_unreadable : share.
+#[export] Hint Resolve bot_unreadable : share.
 
 Lemma readable_not_bot : forall sh, readable_share sh -> ~sh = Share.bot.
 Proof.
@@ -2328,7 +2327,7 @@ Proof.
 Qed.
 #[export] Hint Resolve unreadable_bot : core.
 
-Hint Resolve readable_not_bot : share.
+#[export] Hint Resolve readable_not_bot : share.
 
 Definition join_Bot := join_Bot.
 Definition join_Tsh := join_Tsh.

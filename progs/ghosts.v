@@ -76,8 +76,8 @@ Proof.
   { apply Forall_repeat; auto. }
   { rewrite !repeat_length; auto. }
   apply bupd_mono; Intros lg; Exists lg.
-  rewrite Zlength_repeat, Z2Nat.id in H1 by lia.
-  rewrite !combine_const1 by (rewrite ?Zlength_combine, ?Zlength_repeat, ?Z2Nat.id, ?Z.min_r; lia).
+  rewrite coqlib4.Zlength_repeat, Z2Nat.id in H1 by lia.
+  rewrite !combine_const1 by (rewrite ?Zlength_combine, ?coqlib4.Zlength_repeat, ?Z2Nat.id, ?Z.min_r; lia).
   entailer!.
   clear H; induction lg; simpl; entailer!.
 Qed.
@@ -200,7 +200,7 @@ Proof.
   apply join_refl.
 Qed.
 
-Hint Resolve bupd_intro : ghost.
+#[local] Hint Resolve bupd_intro : ghost.
 
 Lemma make_snap : forall (sh : share) v p, ghost_master sh v p |-- |==> ghost_snap v p * ghost_master sh v p.
 Proof.
@@ -493,7 +493,7 @@ Qed.
 
 End GVar.
 
-Hint Resolve ghost_var_exclusive : exclusive.
+#[export] Hint Resolve ghost_var_exclusive : exclusive.
 
 Section PVar.
 (* Like ghost variables, but the partial values may be out of date. *)

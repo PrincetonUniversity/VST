@@ -226,6 +226,7 @@ Ltac unknown_big_endian_hack :=
     rather than a Definition.  When Archi.big_endian is a constant true or false,
    then it's much easier. *)
  match goal with H1: (align_chunk _ | _) |- _ |-- res_predicates.address_mapsto ?ch ?v ?sh (?b, Ptrofs.unsigned ?i) =>
+   constructor;
    replace v with (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch))));
    [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
     unfold decode_val, decode_int, rev_if_be;
@@ -257,7 +258,7 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
    all: try unknown_big_endian_hack.
 - rewrite zero_val_Tlong.
    change (unfold_reptype ?A) with A.
@@ -267,7 +268,7 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-   all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
    all: try unknown_big_endian_hack.
 - rewrite zero_val_Tfloat32;
    change (unfold_reptype ?A) with A.
@@ -275,7 +276,7 @@ Proof.
    simpl. rewrite prop_true_andp by auto.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
-   (if_tac; [apply orp_right1 | ]).
+   (if_tac; [apply orp_right1 | ]); constructor.
    all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
    all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
 - rewrite zero_val_Tfloat64;
@@ -285,7 +286,7 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
    all: try unknown_big_endian_hack.
 - rewrite zero_val_Tpointer.
    change (unfold_reptype ?A) with A.
@@ -295,7 +296,7 @@ Proof.
    rewrite (prop_true_andp (_ /\ _))
       by (split; auto; intro; apply mapsto_memory_block.tc_val_pointer_nullval'). 
    (if_tac; [apply orp_right1 | ]).
-   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
    all: try unknown_big_endian_hack.
 Qed.
 
