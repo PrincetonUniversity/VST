@@ -33,7 +33,7 @@ env:
   - COMPILER="4.07.1"
   - COQ_VERSION="8.12.2"
   - NEXT_VERSION="8.12.2"
-  - COMPCERT_VERSION="3.8"
+  - COMPCERT_VERSION="3.9"
 
 branches:
   only:
