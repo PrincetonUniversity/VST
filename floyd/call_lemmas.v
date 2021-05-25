@@ -212,15 +212,6 @@ split; auto.
 apply eqb_type_refl.
 Qed.
 
-Lemma eqb_calling_convention_refl:
-  forall cc, eqb_calling_convention cc cc = true.
-Proof.
-intros.
-unfold eqb_calling_convention.
-destruct cc; simpl.
-destruct cc_vararg, cc_unproto, cc_structret; reflexivity.
-Qed.
-
 (* TODO: Change argument order. ==> A Pre Post NEPre NEPost ts x *)
 Lemma semax_call_id0:
  forall Espec {cs: compspecs} Delta P Q R id bl fs argsig retty cc A ts x Pre Post NEPre NEPost

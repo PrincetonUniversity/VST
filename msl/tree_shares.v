@@ -11,7 +11,7 @@ Require Import VST.msl.boolean_alg.
 
 Require Import Recdef.
 Require Import NPeano.
-Require Import Omega.
+Require Import ZArith.
 Require Import Coq.Arith.Max.
 
 (** This module implements a share model

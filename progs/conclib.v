@@ -489,11 +489,13 @@ Proof.
   rewrite Zquot.Zrem_Zmod_pos; repeat rewrite Int.signed_repr; auto; lia.
 Qed.
 
+(*
 Lemma repeat_list_repeat : forall {A} n (x : A), repeat x n = list_repeat n x.
 Proof.
   induction n; auto; simpl; intro.
   rewrite IHn; auto.
 Qed.
+*)
 
 Lemma Znth_head : forall reqs head m, Zlength reqs <= m -> 0 <= head < m ->
   Zlength reqs > 0 ->

@@ -225,7 +225,7 @@ Ltac unknown_big_endian_hack :=
     rather than a Definition.  When Archi.big_endian is a constant true or false,
    then it's much easier. *)
  match goal with H1: (align_chunk _ | _) |- _ |-- res_predicates.address_mapsto ?ch ?v ?sh (?b, Ptrofs.unsigned ?i) =>
-   replace v with (decode_val ch (list_repeat (Z.to_nat (size_chunk ch)) (Byte Byte.zero)));
+   replace v with (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch))));
    [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
     unfold decode_val, decode_int, rev_if_be;
      destruct Archi.big_endian;

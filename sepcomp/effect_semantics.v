@@ -397,13 +397,13 @@ Proof. intros.
                destruct (valid_block_dec m sp).
                apply andb_false_iff in N. destruct H.
                destruct (eq_block sp sp); simpl in *.
-                 destruct N. destruct (zle lo i). inv H1. xomega.
-               destruct (zlt i hi). inv H1. xomega.
+                 destruct N. destruct (zle lo i). inv H1. lia.
+               destruct (zlt i hi). inv H1. lia.
                apply n; trivial.
                apply Mem.free_range_perm in FREE.
                  apply n; clear n.
                  eapply Mem.perm_valid_block.
-                 eapply (FREE lo). omega.
+                 eapply (FREE lo). lia.
 Qed.
 
 Definition FreelistEffect
@@ -527,7 +527,7 @@ Proof. intros.
     rewrite PMap.gss. apply andb_false_iff in H.
     apply Mem.setN_outside.
     destruct H. destruct (zle (Ptrofs.unsigned i) ofs ); simpl in *. inv H.
-                left. xomega.
+                left. lia.
     right. remember (Z.of_nat (length (encode_val chunk tv'))).
        destruct (zlt ofs (Ptrofs.unsigned i + z)); simpl in *. inv H. apply g.
   rewrite PMap.gso. trivial. intros N; subst. elim n; trivial.
@@ -561,7 +561,7 @@ Lemma storev_curWR ch m vaddr v m' (ST:Mem.storev ch m vaddr v = Some m')
 Proof.
   apply StoreEffectD in EFF. destruct EFF as [? [? [? ?]]]; subst.
   apply Mem.store_valid_access_3 in ST. apply ST.
-  rewrite encode_val_length, <- size_chunk_conv in H1. omega.
+  rewrite encode_val_length, <- size_chunk_conv in H1. lia.
 Qed.
 
 Lemma freelist_curWR l: forall m m' (FR: Mem.free_list m l = Some m')

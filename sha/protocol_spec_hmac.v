@@ -552,7 +552,7 @@ eapply semax_pre_post.
   Exists key. apply andp_left2. apply derives_refl.
 +  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
-  Opaque list_repeat. go_lowerx. Transparent list_repeat.
+  Opaque repeat. go_lowerx. Transparent repeat.
   normalize.
   unfold EMPTY. 
   rewrite <- memory_block_data_at_.  unfold data_block.

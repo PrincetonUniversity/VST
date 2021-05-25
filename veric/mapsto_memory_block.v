@@ -1207,7 +1207,7 @@ Qed.
 
 Lemma encode_nullval:
   encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval
-= list_repeat (if Archi.ptr64 then 8 else 4) (Memdata.Byte Byte.zero).
+= repeat (Memdata.Byte Byte.zero) (if Archi.ptr64 then 8 else 4).
 Proof.
   cbv delta [nullval Archi.ptr64 encode_val encode_int rev_if_be] beta iota.
   rewrite Tauto.if_same.
@@ -1218,7 +1218,7 @@ Lemma decode_encode_nullval :
   decode_val Mptr (encode_val (if Archi.ptr64 then Mint64 else Mint32) nullval) = nullval.
 Proof.
   rewrite encode_nullval.
-  cbv delta [Archi.ptr64 list_repeat decode_val decode_int proj_bytes rev_if_be rev Mptr Archi.ptr64] iota beta zeta.
+  cbv delta [Archi.ptr64 repeat decode_val decode_int proj_bytes rev_if_be rev Mptr Archi.ptr64] iota beta zeta.
   rewrite Tauto.if_same.
   reflexivity.
 Qed.
@@ -1485,9 +1485,9 @@ inv H3. auto.
 Qed.
 
 Lemma decode_mptr_zero_nullval :
-  decode_val Mptr (list_repeat (size_chunk_nat Mptr) (Byte Byte.zero)) = nullval.
+  decode_val Mptr (repeat (Byte Byte.zero) (size_chunk_nat Mptr)) = nullval.
 Proof.
-  cbv delta [list_repeat size_chunk_nat Z.to_nat size_chunk Mptr Archi.ptr64 Pos.to_nat Pos.iter_op Init.Nat.add] iota beta zeta.
+  cbv delta [repeat size_chunk_nat Z.to_nat size_chunk Mptr Archi.ptr64 Pos.to_nat Pos.iter_op Init.Nat.add] iota beta zeta.
   cbv delta [decode_val decode_int proj_bytes rev_if_be rev] iota beta zeta.
   rewrite Tauto.if_same.
   reflexivity.
@@ -1503,7 +1503,7 @@ intros.
 rename H into Halign.
 intros ? ?.
 hnf in H|-*.
-exists (list_repeat (size_chunk_nat Mptr) (Byte Byte.zero)).
+exists (repeat (Byte Byte.zero) (size_chunk_nat Mptr)).
 destruct H; split; auto.
 clear H0.
 split.
@@ -1539,18 +1539,18 @@ Lemma address_mapsto_zeros'_address_mapsto:
   forall sh ch b i, 
    (align_chunk ch | Ptrofs.unsigned i) ->
   (address_mapsto_zeros' (size_chunk ch) sh (b, Ptrofs.unsigned i)
-   |-- address_mapsto ch (decode_val ch (list_repeat (Z.to_nat (size_chunk ch)) (Byte Byte.zero))) sh (b, Ptrofs.unsigned i)).
+   |-- address_mapsto ch (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch)))) sh (b, Ptrofs.unsigned i)).
 Proof.
 intros.
 rename H into Halign.
 intros ? ?.
 hnf in H|-*.
-exists (list_repeat (size_chunk_nat ch) (Byte Byte.zero)).
+exists (repeat (Byte Byte.zero) (size_chunk_nat ch)).
 destruct H; split; auto.
 clear H0.
 split.
 split3; auto.
-rewrite length_list_repeat; auto.
+rewrite repeat_length; auto.
 intros y. specialize (H y).
 rewrite Z.max_l in H by (pose proof (size_chunk_pos ch); lia).
 hnf in H|-*.

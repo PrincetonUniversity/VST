@@ -1,224 +1,228 @@
 From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
+Local Open Scope string_scope.
 
 Module Info.
-  Definition version := "3.7"%string.
-  Definition build_number := ""%string.
-  Definition build_tag := ""%string.
-  Definition arch := "x86"%string.
-  Definition model := "32sse2"%string.
-  Definition abi := "standard"%string.
+  Definition version := "3.8".
+  Definition build_number := "".
+  Definition build_tag := "".
+  Definition build_branch := "".
+  Definition arch := "x86".
+  Definition model := "32sse2".
+  Definition abi := "standard".
   Definition bitsize := 32.
   Definition big_endian := false.
-  Definition source_file := "tweetnacl20140427/tweetnaclVerifiableC.c"%string.
+  Definition source_file := "tweetnacl20140427/tweetnaclVerifiableC.c".
   Definition normalized := true.
 End Info.
 
-Definition _A : ident := 116%positive.
-Definition _Ch : ident := 133%positive.
-Definition _D : ident := 58%positive.
-Definition _D2 : ident := 59%positive.
-Definition _I : ident := 62%positive.
-Definition _K : ident := 139%positive.
-Definition _L : ident := 154%positive.
-Definition _L32 : ident := 65%positive.
-Definition _M : ident := 118%positive.
-Definition _Maj : ident := 134%positive.
-Definition _R : ident := 132%positive.
-Definition _S : ident := 119%positive.
-Definition _Sigma0 : ident := 135%positive.
-Definition _Sigma1 : ident := 136%positive.
-Definition _X : ident := 60%positive.
-Definition _Y : ident := 61%positive.
-Definition _Z : ident := 117%positive.
-Definition __0 : ident := 53%positive.
-Definition __121665 : ident := 57%positive.
-Definition __9 : ident := 54%positive.
-Definition ___builtin_annot : ident := 9%positive.
-Definition ___builtin_annot_intval : ident := 10%positive.
+Definition _A : ident := 118%positive.
+Definition _Ch : ident := 135%positive.
+Definition _D : ident := 60%positive.
+Definition _D2 : ident := 61%positive.
+Definition _I : ident := 64%positive.
+Definition _K : ident := 141%positive.
+Definition _L : ident := 156%positive.
+Definition _L32 : ident := 67%positive.
+Definition _M : ident := 120%positive.
+Definition _Maj : ident := 136%positive.
+Definition _R : ident := 134%positive.
+Definition _S : ident := 121%positive.
+Definition _Sigma0 : ident := 137%positive.
+Definition _Sigma1 : ident := 138%positive.
+Definition _X : ident := 62%positive.
+Definition _Y : ident := 63%positive.
+Definition _Z : ident := 119%positive.
+Definition __0 : ident := 55%positive.
+Definition __121665 : ident := 59%positive.
+Definition __9 : ident := 56%positive.
+Definition ___builtin_annot : ident := 17%positive.
+Definition ___builtin_annot_intval : ident := 18%positive.
 Definition ___builtin_bswap : ident := 2%positive.
 Definition ___builtin_bswap16 : ident := 4%positive.
 Definition ___builtin_bswap32 : ident := 3%positive.
 Definition ___builtin_bswap64 : ident := 1%positive.
-Definition ___builtin_clz : ident := 35%positive.
-Definition ___builtin_clzl : ident := 36%positive.
-Definition ___builtin_clzll : ident := 37%positive.
-Definition ___builtin_ctz : ident := 38%positive.
-Definition ___builtin_ctzl : ident := 39%positive.
-Definition ___builtin_ctzll : ident := 40%positive.
-Definition ___builtin_debug : ident := 51%positive.
-Definition ___builtin_fabs : ident := 5%positive.
-Definition ___builtin_fmadd : ident := 43%positive.
-Definition ___builtin_fmax : ident := 41%positive.
-Definition ___builtin_fmin : ident := 42%positive.
-Definition ___builtin_fmsub : ident := 44%positive.
-Definition ___builtin_fnmadd : ident := 45%positive.
-Definition ___builtin_fnmsub : ident := 46%positive.
-Definition ___builtin_fsqrt : ident := 6%positive.
-Definition ___builtin_membar : ident := 11%positive.
-Definition ___builtin_memcpy_aligned : ident := 7%positive.
-Definition ___builtin_read16_reversed : ident := 47%positive.
-Definition ___builtin_read32_reversed : ident := 48%positive.
-Definition ___builtin_sel : ident := 8%positive.
-Definition ___builtin_va_arg : ident := 13%positive.
-Definition ___builtin_va_copy : ident := 14%positive.
-Definition ___builtin_va_end : ident := 15%positive.
-Definition ___builtin_va_start : ident := 12%positive.
-Definition ___builtin_write16_reversed : ident := 49%positive.
-Definition ___builtin_write32_reversed : ident := 50%positive.
-Definition ___compcert_i64_dtos : ident := 20%positive.
-Definition ___compcert_i64_dtou : ident := 21%positive.
-Definition ___compcert_i64_sar : ident := 32%positive.
-Definition ___compcert_i64_sdiv : ident := 26%positive.
-Definition ___compcert_i64_shl : ident := 30%positive.
-Definition ___compcert_i64_shr : ident := 31%positive.
-Definition ___compcert_i64_smod : ident := 28%positive.
-Definition ___compcert_i64_smulh : ident := 33%positive.
-Definition ___compcert_i64_stod : ident := 22%positive.
-Definition ___compcert_i64_stof : ident := 24%positive.
-Definition ___compcert_i64_udiv : ident := 27%positive.
-Definition ___compcert_i64_umod : ident := 29%positive.
-Definition ___compcert_i64_umulh : ident := 34%positive.
-Definition ___compcert_i64_utod : ident := 23%positive.
-Definition ___compcert_i64_utof : ident := 25%positive.
-Definition ___compcert_va_composite : ident := 19%positive.
-Definition ___compcert_va_float64 : ident := 18%positive.
-Definition ___compcert_va_int32 : ident := 16%positive.
-Definition ___compcert_va_int64 : ident := 17%positive.
-Definition _a : ident := 105%positive.
-Definition _add : ident := 143%positive.
-Definition _add1305 : ident := 97%positive.
-Definition _b : ident := 90%positive.
-Definition _c : ident := 64%positive.
-Definition _car25519 : ident := 108%positive.
-Definition _carry : ident := 155%positive.
-Definition _chk : ident := 161%positive.
-Definition _core : ident := 86%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet : ident := 130%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_afternm : ident := 128%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm : ident := 127%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_keypair : ident := 126%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open : ident := 131%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm : ident := 129%positive.
-Definition _crypto_core_hsalsa20_tweet : ident := 88%positive.
-Definition _crypto_core_salsa20_tweet : ident := 87%positive.
-Definition _crypto_hash_sha512_tweet : ident := 142%positive.
-Definition _crypto_hashblocks_sha512_tweet : ident := 140%positive.
-Definition _crypto_onetimeauth_poly1305_tweet : ident := 101%positive.
-Definition _crypto_onetimeauth_poly1305_tweet_verify : ident := 102%positive.
-Definition _crypto_scalarmult_curve25519_tweet : ident := 124%positive.
-Definition _crypto_scalarmult_curve25519_tweet_base : ident := 125%positive.
-Definition _crypto_secretbox_xsalsa20poly1305_tweet : ident := 103%positive.
-Definition _crypto_secretbox_xsalsa20poly1305_tweet_open : ident := 104%positive.
-Definition _crypto_sign_ed25519_tweet : ident := 160%positive.
-Definition _crypto_sign_ed25519_tweet_keypair : ident := 153%positive.
-Definition _crypto_sign_ed25519_tweet_open : ident := 169%positive.
-Definition _crypto_stream_salsa20_tweet : ident := 93%positive.
-Definition _crypto_stream_salsa20_tweet_xor : ident := 92%positive.
-Definition _crypto_stream_xsalsa20_tweet : ident := 95%positive.
-Definition _crypto_stream_xsalsa20_tweet_xor : ident := 96%positive.
-Definition _crypto_verify_16_tweet : ident := 76%positive.
-Definition _crypto_verify_32_tweet : ident := 77%positive.
-Definition _cswap : ident := 144%positive.
-Definition _d : ident := 74%positive.
-Definition _den : ident := 163%positive.
-Definition _den2 : ident := 164%positive.
-Definition _den4 : ident := 165%positive.
-Definition _den6 : ident := 166%positive.
-Definition _dl64 : ident := 69%positive.
-Definition _e : ident := 122%positive.
-Definition _f : ident := 123%positive.
-Definition _g : ident := 100%positive.
-Definition _gf0 : ident := 55%positive.
-Definition _gf1 : ident := 56%positive.
-Definition _h : ident := 81%positive.
-Definition _i : ident := 68%positive.
-Definition _in : ident := 79%positive.
-Definition _inv25519 : ident := 120%positive.
-Definition _iv : ident := 141%positive.
-Definition _j : ident := 84%positive.
-Definition _k : ident := 80%positive.
-Definition _ld32 : ident := 67%positive.
-Definition _m : ident := 85%positive.
-Definition _main : ident := 170%positive.
-Definition _minusp : ident := 98%positive.
-Definition _mlen : ident := 168%positive.
-Definition _modL : ident := 156%positive.
-Definition _n : ident := 73%positive.
-Definition _neq25519 : ident := 113%positive.
-Definition _num : ident := 162%positive.
-Definition _o : ident := 107%positive.
-Definition _out : ident := 78%positive.
-Definition _p : ident := 109%positive.
-Definition _pack : ident := 148%positive.
-Definition _pack25519 : ident := 112%positive.
-Definition _par25519 : ident := 114%positive.
-Definition _pk : ident := 151%positive.
-Definition _pow2523 : ident := 121%positive.
-Definition _q : ident := 110%positive.
-Definition _r : ident := 99%positive.
-Definition _randombytes : ident := 52%positive.
-Definition _reduce : ident := 157%positive.
-Definition _s : ident := 94%positive.
-Definition _scalarbase : ident := 150%positive.
-Definition _scalarmult : ident := 149%positive.
-Definition _sel25519 : ident := 111%positive.
-Definition _set25519 : ident := 106%positive.
-Definition _sigma : ident := 89%positive.
-Definition _sigma0 : ident := 137%positive.
-Definition _sigma1 : ident := 138%positive.
-Definition _sk : ident := 152%positive.
-Definition _sm : ident := 158%positive.
-Definition _smlen : ident := 159%positive.
-Definition _st32 : ident := 70%positive.
-Definition _t : ident := 83%positive.
-Definition _ts64 : ident := 71%positive.
-Definition _tx : ident := 145%positive.
-Definition _ty : ident := 146%positive.
-Definition _u : ident := 66%positive.
-Definition _unpack25519 : ident := 115%positive.
-Definition _unpackneg : ident := 167%positive.
-Definition _vn : ident := 75%positive.
-Definition _w : ident := 82%positive.
-Definition _x : ident := 63%positive.
-Definition _y : ident := 72%positive.
-Definition _z : ident := 91%positive.
-Definition _zi : ident := 147%positive.
-Definition _t'1 : ident := 171%positive.
-Definition _t'10 : ident := 180%positive.
-Definition _t'11 : ident := 181%positive.
-Definition _t'12 : ident := 182%positive.
-Definition _t'13 : ident := 183%positive.
-Definition _t'14 : ident := 184%positive.
-Definition _t'15 : ident := 185%positive.
-Definition _t'16 : ident := 186%positive.
-Definition _t'17 : ident := 187%positive.
-Definition _t'18 : ident := 188%positive.
-Definition _t'19 : ident := 189%positive.
-Definition _t'2 : ident := 172%positive.
-Definition _t'20 : ident := 190%positive.
-Definition _t'21 : ident := 191%positive.
-Definition _t'22 : ident := 192%positive.
-Definition _t'23 : ident := 193%positive.
-Definition _t'24 : ident := 194%positive.
-Definition _t'25 : ident := 195%positive.
-Definition _t'26 : ident := 196%positive.
-Definition _t'27 : ident := 197%positive.
-Definition _t'28 : ident := 198%positive.
-Definition _t'29 : ident := 199%positive.
-Definition _t'3 : ident := 173%positive.
-Definition _t'30 : ident := 200%positive.
-Definition _t'31 : ident := 201%positive.
-Definition _t'32 : ident := 202%positive.
-Definition _t'33 : ident := 203%positive.
-Definition _t'34 : ident := 204%positive.
-Definition _t'4 : ident := 174%positive.
-Definition _t'5 : ident := 175%positive.
-Definition _t'6 : ident := 176%positive.
-Definition _t'7 : ident := 177%positive.
-Definition _t'8 : ident := 178%positive.
-Definition _t'9 : ident := 179%positive.
+Definition ___builtin_clz : ident := 5%positive.
+Definition ___builtin_clzl : ident := 6%positive.
+Definition ___builtin_clzll : ident := 7%positive.
+Definition ___builtin_ctz : ident := 8%positive.
+Definition ___builtin_ctzl : ident := 9%positive.
+Definition ___builtin_ctzll : ident := 10%positive.
+Definition ___builtin_debug : ident := 53%positive.
+Definition ___builtin_fabs : ident := 11%positive.
+Definition ___builtin_fabsf : ident := 12%positive.
+Definition ___builtin_fmadd : ident := 45%positive.
+Definition ___builtin_fmax : ident := 43%positive.
+Definition ___builtin_fmin : ident := 44%positive.
+Definition ___builtin_fmsub : ident := 46%positive.
+Definition ___builtin_fnmadd : ident := 47%positive.
+Definition ___builtin_fnmsub : ident := 48%positive.
+Definition ___builtin_fsqrt : ident := 13%positive.
+Definition ___builtin_membar : ident := 19%positive.
+Definition ___builtin_memcpy_aligned : ident := 15%positive.
+Definition ___builtin_read16_reversed : ident := 49%positive.
+Definition ___builtin_read32_reversed : ident := 50%positive.
+Definition ___builtin_sel : ident := 16%positive.
+Definition ___builtin_sqrt : ident := 14%positive.
+Definition ___builtin_va_arg : ident := 21%positive.
+Definition ___builtin_va_copy : ident := 22%positive.
+Definition ___builtin_va_end : ident := 23%positive.
+Definition ___builtin_va_start : ident := 20%positive.
+Definition ___builtin_write16_reversed : ident := 51%positive.
+Definition ___builtin_write32_reversed : ident := 52%positive.
+Definition ___compcert_i64_dtos : ident := 28%positive.
+Definition ___compcert_i64_dtou : ident := 29%positive.
+Definition ___compcert_i64_sar : ident := 40%positive.
+Definition ___compcert_i64_sdiv : ident := 34%positive.
+Definition ___compcert_i64_shl : ident := 38%positive.
+Definition ___compcert_i64_shr : ident := 39%positive.
+Definition ___compcert_i64_smod : ident := 36%positive.
+Definition ___compcert_i64_smulh : ident := 41%positive.
+Definition ___compcert_i64_stod : ident := 30%positive.
+Definition ___compcert_i64_stof : ident := 32%positive.
+Definition ___compcert_i64_udiv : ident := 35%positive.
+Definition ___compcert_i64_umod : ident := 37%positive.
+Definition ___compcert_i64_umulh : ident := 42%positive.
+Definition ___compcert_i64_utod : ident := 31%positive.
+Definition ___compcert_i64_utof : ident := 33%positive.
+Definition ___compcert_va_composite : ident := 27%positive.
+Definition ___compcert_va_float64 : ident := 26%positive.
+Definition ___compcert_va_int32 : ident := 24%positive.
+Definition ___compcert_va_int64 : ident := 25%positive.
+Definition _a : ident := 107%positive.
+Definition _add : ident := 145%positive.
+Definition _add1305 : ident := 99%positive.
+Definition _b : ident := 92%positive.
+Definition _c : ident := 66%positive.
+Definition _car25519 : ident := 110%positive.
+Definition _carry : ident := 157%positive.
+Definition _chk : ident := 163%positive.
+Definition _core : ident := 88%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet : ident := 132%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_afternm : ident := 130%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm : ident := 129%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_keypair : ident := 128%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open : ident := 133%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm : ident := 131%positive.
+Definition _crypto_core_hsalsa20_tweet : ident := 90%positive.
+Definition _crypto_core_salsa20_tweet : ident := 89%positive.
+Definition _crypto_hash_sha512_tweet : ident := 144%positive.
+Definition _crypto_hashblocks_sha512_tweet : ident := 142%positive.
+Definition _crypto_onetimeauth_poly1305_tweet : ident := 103%positive.
+Definition _crypto_onetimeauth_poly1305_tweet_verify : ident := 104%positive.
+Definition _crypto_scalarmult_curve25519_tweet : ident := 126%positive.
+Definition _crypto_scalarmult_curve25519_tweet_base : ident := 127%positive.
+Definition _crypto_secretbox_xsalsa20poly1305_tweet : ident := 105%positive.
+Definition _crypto_secretbox_xsalsa20poly1305_tweet_open : ident := 106%positive.
+Definition _crypto_sign_ed25519_tweet : ident := 162%positive.
+Definition _crypto_sign_ed25519_tweet_keypair : ident := 155%positive.
+Definition _crypto_sign_ed25519_tweet_open : ident := 171%positive.
+Definition _crypto_stream_salsa20_tweet : ident := 95%positive.
+Definition _crypto_stream_salsa20_tweet_xor : ident := 94%positive.
+Definition _crypto_stream_xsalsa20_tweet : ident := 97%positive.
+Definition _crypto_stream_xsalsa20_tweet_xor : ident := 98%positive.
+Definition _crypto_verify_16_tweet : ident := 78%positive.
+Definition _crypto_verify_32_tweet : ident := 79%positive.
+Definition _cswap : ident := 146%positive.
+Definition _d : ident := 76%positive.
+Definition _den : ident := 165%positive.
+Definition _den2 : ident := 166%positive.
+Definition _den4 : ident := 167%positive.
+Definition _den6 : ident := 168%positive.
+Definition _dl64 : ident := 71%positive.
+Definition _e : ident := 124%positive.
+Definition _f : ident := 125%positive.
+Definition _g : ident := 102%positive.
+Definition _gf0 : ident := 57%positive.
+Definition _gf1 : ident := 58%positive.
+Definition _h : ident := 83%positive.
+Definition _i : ident := 70%positive.
+Definition _in : ident := 81%positive.
+Definition _inv25519 : ident := 122%positive.
+Definition _iv : ident := 143%positive.
+Definition _j : ident := 86%positive.
+Definition _k : ident := 82%positive.
+Definition _ld32 : ident := 69%positive.
+Definition _m : ident := 87%positive.
+Definition _main : ident := 172%positive.
+Definition _minusp : ident := 100%positive.
+Definition _mlen : ident := 170%positive.
+Definition _modL : ident := 158%positive.
+Definition _n : ident := 75%positive.
+Definition _neq25519 : ident := 115%positive.
+Definition _num : ident := 164%positive.
+Definition _o : ident := 109%positive.
+Definition _out : ident := 80%positive.
+Definition _p : ident := 111%positive.
+Definition _pack : ident := 150%positive.
+Definition _pack25519 : ident := 114%positive.
+Definition _par25519 : ident := 116%positive.
+Definition _pk : ident := 153%positive.
+Definition _pow2523 : ident := 123%positive.
+Definition _q : ident := 112%positive.
+Definition _r : ident := 101%positive.
+Definition _randombytes : ident := 54%positive.
+Definition _reduce : ident := 159%positive.
+Definition _s : ident := 96%positive.
+Definition _scalarbase : ident := 152%positive.
+Definition _scalarmult : ident := 151%positive.
+Definition _sel25519 : ident := 113%positive.
+Definition _set25519 : ident := 108%positive.
+Definition _sigma : ident := 91%positive.
+Definition _sigma0 : ident := 139%positive.
+Definition _sigma1 : ident := 140%positive.
+Definition _sk : ident := 154%positive.
+Definition _sm : ident := 160%positive.
+Definition _smlen : ident := 161%positive.
+Definition _st32 : ident := 72%positive.
+Definition _t : ident := 85%positive.
+Definition _ts64 : ident := 73%positive.
+Definition _tx : ident := 147%positive.
+Definition _ty : ident := 148%positive.
+Definition _u : ident := 68%positive.
+Definition _unpack25519 : ident := 117%positive.
+Definition _unpackneg : ident := 169%positive.
+Definition _vn : ident := 77%positive.
+Definition _w : ident := 84%positive.
+Definition _x : ident := 65%positive.
+Definition _y : ident := 74%positive.
+Definition _z : ident := 93%positive.
+Definition _zi : ident := 149%positive.
+Definition _t'1 : ident := 173%positive.
+Definition _t'10 : ident := 182%positive.
+Definition _t'11 : ident := 183%positive.
+Definition _t'12 : ident := 184%positive.
+Definition _t'13 : ident := 185%positive.
+Definition _t'14 : ident := 186%positive.
+Definition _t'15 : ident := 187%positive.
+Definition _t'16 : ident := 188%positive.
+Definition _t'17 : ident := 189%positive.
+Definition _t'18 : ident := 190%positive.
+Definition _t'19 : ident := 191%positive.
+Definition _t'2 : ident := 174%positive.
+Definition _t'20 : ident := 192%positive.
+Definition _t'21 : ident := 193%positive.
+Definition _t'22 : ident := 194%positive.
+Definition _t'23 : ident := 195%positive.
+Definition _t'24 : ident := 196%positive.
+Definition _t'25 : ident := 197%positive.
+Definition _t'26 : ident := 198%positive.
+Definition _t'27 : ident := 199%positive.
+Definition _t'28 : ident := 200%positive.
+Definition _t'29 : ident := 201%positive.
+Definition _t'3 : ident := 175%positive.
+Definition _t'30 : ident := 202%positive.
+Definition _t'31 : ident := 203%positive.
+Definition _t'32 : ident := 204%positive.
+Definition _t'33 : ident := 205%positive.
+Definition _t'34 : ident := 206%positive.
+Definition _t'4 : ident := 176%positive.
+Definition _t'5 : ident := 177%positive.
+Definition _t'6 : ident := 178%positive.
+Definition _t'7 : ident := 179%positive.
+Definition _t'8 : ident := 180%positive.
+Definition _t'9 : ident := 181%positive.
 
 Definition v__0 := {|
   gvar_info := (tarray tuchar 16);
@@ -6748,12 +6752,44 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_builtin "__builtin_bswap16"
                    (mksignature (AST.Tint :: nil) AST.Tint16unsigned
                      cc_default)) (Tcons tushort Tnil) tushort cc_default)) ::
+ (___builtin_clz,
+   Gfun(External (EF_builtin "__builtin_clz"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
+ (___builtin_clzl,
+   Gfun(External (EF_builtin "__builtin_clzl"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
+ (___builtin_clzll,
+   Gfun(External (EF_builtin "__builtin_clzll"
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tulong Tnil) tint cc_default)) ::
+ (___builtin_ctz,
+   Gfun(External (EF_builtin "__builtin_ctz"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
+ (___builtin_ctzl,
+   Gfun(External (EF_builtin "__builtin_ctzl"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
+ (___builtin_ctzll,
+   Gfun(External (EF_builtin "__builtin_ctzll"
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tulong Tnil) tint cc_default)) ::
  (___builtin_fabs,
    Gfun(External (EF_builtin "__builtin_fabs"
                    (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
      (Tcons tdouble Tnil) tdouble cc_default)) ::
+ (___builtin_fabsf,
+   Gfun(External (EF_builtin "__builtin_fabsf"
+                   (mksignature (AST.Tsingle :: nil) AST.Tsingle cc_default))
+     (Tcons tfloat Tnil) tfloat cc_default)) ::
  (___builtin_fsqrt,
    Gfun(External (EF_builtin "__builtin_fsqrt"
+                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
+     (Tcons tdouble Tnil) tdouble cc_default)) ::
+ (___builtin_sqrt,
+   Gfun(External (EF_builtin "__builtin_sqrt"
                    (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
      (Tcons tdouble Tnil) tdouble cc_default)) ::
  (___builtin_memcpy_aligned,
@@ -6767,15 +6803,15 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
                    (mksignature (AST.Tint :: nil) AST.Tvoid
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons tbool Tnil) tvoid
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot,
    Gfun(External (EF_builtin "__builtin_annot"
                    (mksignature (AST.Tint :: nil) AST.Tvoid
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin "__builtin_annot_intval"
                    (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
@@ -6889,30 +6925,6 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                    (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
                      cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
      cc_default)) ::
- (___builtin_clz,
-   Gfun(External (EF_builtin "__builtin_clz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
- (___builtin_clzl,
-   Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
- (___builtin_clzll,
-   Gfun(External (EF_builtin "__builtin_clzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
- (___builtin_ctz,
-   Gfun(External (EF_builtin "__builtin_ctz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
- (___builtin_ctzl,
-   Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
- (___builtin_ctzll,
-   Gfun(External (EF_builtin "__builtin_ctzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
                    (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
@@ -6973,9 +6985,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_debug,
    Gfun(External (EF_external "__builtin_debug"
                    (mksignature (AST.Tint :: nil) AST.Tvoid
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_randombytes,
    Gfun(External (EF_external "randombytes"
                    (mksignature (AST.Tint :: AST.Tlong :: nil) AST.Tvoid
@@ -7063,18 +7075,19 @@ Definition public_idents : list ident :=
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
  ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
+ ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
+ ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
+ ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
+ ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
+ ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
+ ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
+ ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
+ ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
  ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___compcert_i64_umulh ::
- ___compcert_i64_smulh :: ___compcert_i64_sar :: ___compcert_i64_shr ::
- ___compcert_i64_shl :: ___compcert_i64_umod :: ___compcert_i64_smod ::
- ___compcert_i64_udiv :: ___compcert_i64_sdiv :: ___compcert_i64_utof ::
- ___compcert_i64_stof :: ___compcert_i64_utod :: ___compcert_i64_stod ::
- ___compcert_i64_dtou :: ___compcert_i64_dtos :: ___compcert_va_composite ::
- ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_sel :: ___builtin_memcpy_aligned ::
- ___builtin_fsqrt :: ___builtin_fabs :: ___builtin_bswap16 ::
+ ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
  ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 :: nil).
 
 Definition prog : Clight.program := 
