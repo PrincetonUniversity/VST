@@ -423,7 +423,7 @@ Qed.
 
 End Reference.
 
-#[export] Hint Resolve @part_ref_valid : init.
+#[export] Hint Resolve part_ref_valid : init.
  
 #[export] Hint Resolve self_completable : init.
 
