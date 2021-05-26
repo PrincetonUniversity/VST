@@ -4,8 +4,8 @@ Require Import VST.progs.conclib.
 Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import atomics.general_atomics.
-Require Import atomics.acq_rel_atomics.
+Require Import VST.atomics.general_atomics.
+Require Import VST.atomics.acq_rel_atomics.
 
 Set Bullet Behavior "Strict Subproofs".
 

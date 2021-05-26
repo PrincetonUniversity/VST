@@ -112,7 +112,7 @@ Infix "||" := orp (at level 50, left associativity) : logic.
 Infix "&&" := andp (at level 40, left associativity) : logic.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : logic.
 Notation "P '<-->' Q" := (andp (imp P Q) (imp Q P)) (at level 57, no associativity) : logic.
-Notation "'!!' e" := (prop e) (at level 25) : logic.
+Notation "'!!' e" := (prop e) (at level 15) : logic.
 
 Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   emp: A;
@@ -123,13 +123,13 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   sepcon_comm:  forall P Q, sepcon P Q = sepcon Q P;
   wand_sepcon_adjoint: forall (P Q R: A),  (sepcon P Q |-- R) <-> (P |-- wand Q R);
   sepcon_andp_prop: forall P Q R, sepcon P (!!Q && R) = !!Q && (sepcon P R);
-  sepcon_derives: forall P P' Q Q' : A, P |-- P' -> Q |-- Q' -> sepcon P Q |-- sepcon P' Q';
+  sepcon_derives: forall P P' Q Q' : A, (P |-- P') -> (Q |-- Q') -> sepcon P Q |-- sepcon P' Q';
   ewand_sepcon: forall (P Q R : A),  ewand (sepcon P Q) R = ewand P (ewand Q R);
   ewand_TT_sepcon: forall (P Q R: A),
                          andp (sepcon P Q) (ewand R TT) |--
                                sepcon (andp P (ewand R TT)) (andp Q (ewand R TT));
   exclude_elsewhere: forall P Q: A, sepcon P Q |-- sepcon (andp P (ewand Q TT)) Q;
-  ewand_conflict: forall P Q R, sepcon P Q |-- FF -> andp P (ewand Q R) |-- FF
+  ewand_conflict: forall P Q R, (sepcon P Q |-- FF) -> andp P (ewand Q R) |-- FF
 }.
 
 Notation "P '*' Q" := (sepcon P Q) : logic.
@@ -184,10 +184,10 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
   later_exp'': forall T F, later (exp F) |-- (EX x:T, later (F x)) || later FF;
   later_imp: forall P Q,  later(P --> Q) = later P --> later Q;
   later_prop: forall PP: Prop, later (!! PP) |-- !! PP || later FF;
-  loeb: forall P,   later P |-- P ->  TT |-- P
+  loeb: forall P,   (later P |-- P) ->  TT |-- P
 }.
 
-Notation "'|>' e" := (later e) (at level 30, right associativity): logic.
+Notation "'|>' e" := (later e) (at level 20, right associativity): logic.
 
 Instance LiftIndir (A: Type) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
          @Indir (A -> B) (LiftNatDed A B).

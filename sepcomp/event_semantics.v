@@ -13,6 +13,8 @@ Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 
+Require Import Coq.micromega.Lia.
+
 (** * Semantics annotated with Owens-style trace*)
 Inductive mem_event :=
   Write : forall (b : block) (ofs : Z) (bytes : list memval), mem_event

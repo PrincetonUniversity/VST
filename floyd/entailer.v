@@ -79,7 +79,7 @@ Ltac simpl_compare :=
 end.
 
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
-  forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
+  forall P Q, (Q |-- !! P)   ->   Q |-- !!P && Q.
 Proof.
 intros. apply andp_right; auto.
 Qed.
@@ -142,8 +142,8 @@ Ltac simpl_denote_tc :=
 
 Lemma denote_tc_test_eq_split:
   forall P x y,
-    P |-- valid_pointer x ->
-    P |-- valid_pointer y ->
+    (P |-- valid_pointer x) ->
+    (P |-- valid_pointer y) ->
     P |-- denote_tc_test_eq x y.
 Proof.
  intros.
@@ -182,7 +182,7 @@ intros.
  unfold valid_pointer.
  pose proof (extend_tc.extend_valid_pointer' p 0).
  pose proof (predicates_hered.boxy_e _ _ H).
- change (_ |-- _) with (predicates_hered.derives (valid_pointer' p 0 * Q) (valid_pointer' p 0)).
+ constructor; change (predicates_hered.derives (valid_pointer' p 0 * Q) (valid_pointer' p 0)).
  intros ? (w1 & w2 & Hj & Hp & ?).
  apply (H0 w1); auto.
  hnf; eauto.
@@ -196,7 +196,7 @@ Proof.
   pose proof (predicates_hered.boxy_e _ _ H). 
   pose proof (extend_tc.extend_valid_pointer' p (-1)).
   pose proof (predicates_hered.boxy_e _ _ H1).
-  change (_ |-- _) with
+  constructor; change
       (predicates_hered.derives
          (predicates_hered.orp (valid_pointer' p 0) (valid_pointer' p (-1)) * Q)
          (predicates_hered.orp (valid_pointer' p 0) (valid_pointer' p (-1)))).
@@ -206,7 +206,7 @@ Qed.
 
 Lemma sepcon_valid_pointer1:
      forall (P Q: mpred) p,
-        P |-- valid_pointer p ->
+        (P |-- valid_pointer p) ->
         P * Q |-- valid_pointer p.
 Proof.
 intros.
@@ -217,7 +217,7 @@ Qed.
 
  Lemma sepcon_valid_pointer2:
      forall (P Q: mpred) p,
-        P |-- valid_pointer p ->
+        (P |-- valid_pointer p) ->
         Q * P |-- valid_pointer p.
 Proof.
  intros. rewrite sepcon_comm; apply sepcon_valid_pointer1.
@@ -226,7 +226,7 @@ Qed.
 
 Lemma sepcon_weak_valid_pointer1: 
  forall (P Q : mpred) (p : val),
-   P |-- weak_valid_pointer p -> P * Q |-- weak_valid_pointer p.
+   (P |-- weak_valid_pointer p) -> P * Q |-- weak_valid_pointer p.
 Proof.
   intros.
   eapply derives_trans; [ | apply (extend_weak_valid_pointer p Q)].
@@ -235,7 +235,7 @@ Qed.
 
 Lemma sepcon_weak_valid_pointer2:
   forall (P Q : mpred) (p : val),
-    P |-- weak_valid_pointer p -> Q * P |-- weak_valid_pointer p.
+    (P |-- weak_valid_pointer p) -> Q * P |-- weak_valid_pointer p.
 Proof.
   intros. rewrite sepcon_comm.
   apply sepcon_weak_valid_pointer1; auto.
@@ -243,7 +243,7 @@ Qed.
 
  Lemma andp_valid_pointer1:
      forall (P Q: mpred) p,
-        P |-- valid_pointer p ->
+        (P |-- valid_pointer p) ->
         P && Q |-- valid_pointer p.
 Proof.
 intros.
@@ -252,7 +252,7 @@ Qed.
 
  Lemma andp_valid_pointer2:
      forall (P Q: mpred) p,
-        P |-- valid_pointer p ->
+        (P |-- valid_pointer p) ->
         Q && P |-- valid_pointer p.
 Proof.
 intros.
@@ -483,7 +483,7 @@ Ltac try_conjuncts :=
 Lemma try_conjuncts_prop_and:
   forall {A}{NA: NatDed A} (S: A) (P P': Prop) Q,
       (P' -> P) ->
-      S |-- !! P' && Q ->
+      (S |-- !! P' && Q) ->
       S |-- !! P && Q.
 Proof. intros.
  eapply derives_trans; [apply H0 |].
@@ -495,7 +495,7 @@ Qed.
 Lemma try_conjuncts_prop:
   forall {A}{NA: NatDed A} (S: A) (P P': Prop),
       (P' -> P) ->
-      S |-- !! P' ->
+      (S |-- !! P') ->
       S |-- !! P .
 Proof. intros.
  eapply derives_trans; [apply H0 |].

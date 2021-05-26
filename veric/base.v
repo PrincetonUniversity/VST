@@ -5,7 +5,7 @@ Require Export compcert.lib.Axioms.
 Require Export compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
 Require Export compcert.lib.Floats.
-Require Export compcert.lib.Maps.
+(*Require Export compcert.lib.Maps.*)
 Require Export compcert.common.AST.
 Require Export compcert.common.Values.
 Require Export compcert.common.Memdata.

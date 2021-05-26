@@ -1,5 +1,8 @@
-Require Import VST.veric.ghost_PCM.
+Require Import VST.msl.predicates_hered.
+Require Import VST.veric.ghosts.
 Require Export VST.msl.iter_sepcon.
+Require Import VST.msl.ageable.
+Require Import VST.msl.age_sepalg.
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
@@ -7,6 +10,7 @@ Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
 Import FashNotation.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -251,13 +255,16 @@ Proof.
   - rewrite IHl1, sepcon_assoc; auto.
 Qed.
 
-Definition rotate {A} (l : list A) n m := sublist (m - n) (Zlength l) l ++
-  sublist 0 (m - n) l.
-
-Lemma sublist_of_nil : forall {A} i j, sublist i j (@nil A) = [].
+Lemma iter_sepcon_sepcon': forall {A} g1 g2 (l : list A),
+  iter_sepcon (fun x => g1 x * g2 x) l = iter_sepcon g1 l * iter_sepcon g2 l.
 Proof.
-  intros; unfold sublist.
-  rewrite firstn_nil, skipn_nil; auto.
+  intros. apply iter_sepcon_sepcon. easy.
+Qed.
+
+Lemma iter_sepcon_derives : forall {B} f g (l : list B), (forall x, In x l -> f x |-- g x) -> iter_sepcon f l |-- iter_sepcon g l.
+Proof.
+  induction l; simpl; auto; intros.
+  apply sepcon_derives; auto.
 Qed.
 
 Lemma sublist_0_cons : forall {A} j x (l : list A), j > 0 ->
@@ -280,6 +287,9 @@ Proof.
   - simpl.
     f_equal; f_equal; lia.
 Qed.
+
+Definition rotate {A} (l : list A) n m := sublist (m - n) (Zlength l) l ++
+  sublist 0 (m - n) l.
 
 Lemma upd_rotate : forall {A} i (l : list A) n m x (Hl : Zlength l = m) (Hlt : 0 <= n <= m)
   (Hi : 0 <= i < Zlength l),
@@ -401,11 +411,6 @@ Proof.
   rewrite Forall_app; split; apply Forall_sublist; auto.
 Qed.
 
-Lemma Forall_repeat : forall {A} (P : A -> Prop) x n, P x -> Forall P (repeat x n).
-Proof.
-  induction n; simpl; auto.
-Qed.
-
 Lemma Forall_complete : forall P l m, Forall P l -> P (vptrofs 0) ->
   Forall P (complete m l).
 Proof.
@@ -453,11 +458,6 @@ Lemma Zlength_rotate : forall {A} (l : list A) n m, 0 <= n <= m -> m <= Zlength 
 Proof.
   intros; unfold rotate.
   rewrite Zlength_app; repeat rewrite Zlength_sublist; lia.
-Qed.
-
-Lemma Zlength_repeat : forall {A} (x : A) n, Zlength (repeat x n) = Z.of_nat n.
-Proof.
-  intros; rewrite Zlength_correct, repeat_length; auto.
 Qed.
 
 Lemma Zlength_complete : forall l m, Zlength l <= m -> Zlength (complete m l) = m.
@@ -1214,11 +1214,10 @@ Proof.
   intros.
   rewrite upd_Znth_app2; rewrite ?Zlength_repeat, ?Z2Nat.id; try lia.
   subst; rewrite Zminus_diag, upd_Znth0_old. 2 : {
-    rewrite Zlength_repeat. rewrite Z2Nat.id; lia.
-  }
+    rewrite Zlength_repeat; lia. }
   destruct (Z.to_nat (b - Zlength l)) eqn: Hi.
   { change O with (Z.to_nat 0) in Hi; apply Z2Nat.inj in Hi; lia. }
-  simpl; rewrite sublist_1_cons, sublist_same; try rewrite Zlength_cons, !Zlength_repeat; try lia.
+  simpl; rewrite sublist_1_cons, sublist_same; try rewrite Zlength_cons, !coqlib4.Zlength_repeat; try lia.
   replace (Z.to_nat (b - (Zlength l + 1))) with n; auto.
   lia.
 Qed.
@@ -1228,7 +1227,7 @@ Corollary upd_init_const : forall {A} i b (v v' : A), 0 <= i < b ->
   repeat v' (Z.to_nat (i + 1)) ++ repeat v (Z.to_nat (b - (i + 1))).
 Proof.
   intros.
-  rewrite upd_init; try rewrite Zlength_repeat, Z2Nat.id; auto; try lia.
+  rewrite upd_init; try rewrite coqlib4.Zlength_repeat, Z2Nat.id; auto; try lia.
   rewrite Z2Nat.inj_add, repeat_plus, <- app_assoc; auto; lia.
 Qed.
 
@@ -1842,6 +1841,34 @@ Proof.
     intro; contradiction Ha; auto.
 Qed.
 
+(* various seplog lemmas *)
+(* wand lemmas *)
+Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
+Proof.
+  intros.
+  apply seplog.pred_ext, modus_ponens_wand.
+  subst; cancel.
+  rewrite <- wand_sepcon_adjoint; auto.
+  rewrite sepcon_comm; auto.
+Qed.
+
+Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
+Proof.
+  intros; apply seplog.pred_ext.
+  - rewrite <- wand_sepcon_adjoint.
+    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
+    rewrite sepcon_comm; apply modus_ponens_wand.
+  - rewrite <- !wand_sepcon_adjoint.
+    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
+Qed.
+
+Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
+Proof.
+  intros.
+  rewrite <- wand_sepcon_adjoint; cancel.
+  rewrite sepcon_comm; apply modus_ponens_wand.
+Qed.
+
 Lemma data_at__eq : forall {cs : compspecs} sh t p, data_at_ sh t p = data_at sh t (default_val t) p.
 Proof.
   intros; unfold data_at_, data_at, field_at_; auto.
@@ -1908,7 +1935,7 @@ Proof.
   destruct (age_sepalg.join_level _ _ _ H), (age_sepalg.join_level _ _ _ Hj).
   apply Hemp in Hj; subst.
   simpl in Hexclusive.
-  match goal with H : exclusive_mpred ?P |- _ => change (predicates_hered.derives (P * P) FF) in H end.
+  inv Hexclusive; rename derivesI into Hexclusive.
   apply Hexclusive.
   do 3 eexists; eauto; repeat split; auto; lia.
 Qed.
@@ -1942,18 +1969,20 @@ Proof.
   Transparent mpred. Intros b1 ofs1 b2 ofs2. Opaque mpred.
   subst.
   inv H0.
-  match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+  match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
   intros ? (? & ? & ? & Hlock1 & Hlock2).
-  exploit (res_predicates.LKspec_precise _ _ _ _ a _ _ Hlock1 Hlock2); try (eexists; eauto).
-  intros; subst.
-  destruct Hlock1 as [Hlock1 _]; simpl in Hlock1.
-  specialize (Hlock1 (b2, Ptrofs.unsigned ofs2)).
-  rewrite if_true in Hlock1 by (split; auto; pose proof lksize.LKSIZE_pos; lia).
-  destruct Hlock1 as [? Hl1].
-  apply compcert_rmaps.RML.resource_at_join with (loc := (b2, Ptrofs.unsigned ofs2)) in H.
-  rewrite Hl1 in H; inv H.
-  apply sepalg.join_self in RJ.
-  eapply readable_not_identity; eauto.
+  exploit (res_predicates.LKspec_precise _ _ _ _ a _ _ Hlock1 Hlock2).
+  - eexists; eauto.
+  - apply sepalg.join_comm in H. eexists; eauto.
+  - intros; subst.
+    destruct Hlock1 as [Hlock1 _]; simpl in Hlock1.
+    specialize (Hlock1 (b2, Ptrofs.unsigned ofs2)).
+    rewrite if_true in Hlock1 by (split; auto; pose proof lksize.LKSIZE_pos; lia).
+    destruct Hlock1 as [? Hl1].
+    apply compcert_rmaps.RML.resource_at_join with (loc := (b2, Ptrofs.unsigned ofs2)) in H.
+    rewrite Hl1 in H; inv H.
+    apply sepalg.join_self in RJ.
+    eapply readable_not_identity; eauto.
 Qed.
 
 Lemma selflock_exclusive : forall R sh v, exclusive_mpred R -> exclusive_mpred (selflock R v sh).
@@ -2286,25 +2315,22 @@ Proof.
   intro; pose proof (Share.comp1 sh).
   apply comp_parts_join with (L := sh)(R := Share.comp sh); auto;
     rewrite Share.glb_idem, Share.glb_top.
-  - rewrite Share.comp2; auto.
+  - rewrite Share.comp2. apply join_bot_eq.
   - rewrite Share.glb_commute, Share.comp2; auto.
 Qed.
 
-Lemma unreadable_bot : ~readable_share Share.bot.
+#[export] Hint Resolve bot_unreadable : share.
+
+Lemma readable_not_bot : forall sh, readable_share sh -> ~sh = Share.bot.
 Proof.
-  unfold readable_share, nonempty_share, sepalg.nonidentity.
-  rewrite Share.glb_bot; auto.
+  repeat intro; subst; auto with share.
 Qed.
 #[export] Hint Resolve unreadable_bot : core.
 
-Definition join_Bot := join_Bot.
+#[export] Hint Resolve readable_not_bot : share.
 
-Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
-Proof.
-  intros ?? (? & ?).
-  rewrite Share.glb_commute, Share.glb_top in H; subst; split; auto.
-  apply Share.lub_bot.
-Qed.
+Definition join_Bot := join_Bot.
+Definition join_Tsh := join_Tsh.
 
 (* It's often useful to split Tsh in half. *)
 Definition gsh1 := fst (slice.cleave Tsh).
@@ -2329,12 +2355,12 @@ Qed.
 
 Lemma gsh1_not_bot : gsh1 <> Share.bot.
 Proof.
-  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto with share.
 Qed.
 
 Lemma gsh2_not_bot : gsh2 <> Share.bot.
 Proof.
-  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto with share.
 Qed.
 #[export] Hint Resolve gsh1_not_bot gsh2_not_bot : core.
 
@@ -2426,6 +2452,66 @@ Proof.
   congruence.
 Qed.
 
+Lemma In_remove_upto : forall i j k, 0 <= j -> In i (remove_Znth j (upto k)) ->
+  0 <= i < Z.of_nat k /\ i <> j.
+Proof.
+  unfold remove_Znth; intros ???? Hin%in_app.
+  destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; lia.
+Qed.
+
+Lemma In_remove_upto' : forall i j k, 0 <= j < Z.of_nat k -> In i (remove_Znth j (upto k)) <->
+  0 <= i < Z.of_nat k /\ i <> j.
+Proof.
+  unfold remove_Znth; split.
+  - intros Hin%in_app.
+    destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; lia.
+  - intros []; rewrite Zlength_upto.
+    rewrite !sublist_upto by lia; simpl.
+    rewrite Nat2Z.id, Nat.sub_0_r, !Nat.min_r by rep_lia.
+    rewrite in_app_iff; destruct (zlt i j); [left | right]; rewrite in_map_iff; do 2 eexists; rewrite ?In_upto.
+    + rewrite Z.add_0_l; reflexivity.
+    + rep_lia.
+    + apply Zplus_minus.
+    + rep_lia.
+Qed.
+
+Lemma remove_Znth_app : forall {A} i (l1 l2 : list A), 0 <= i < Zlength l1 + Zlength l2 -> remove_Znth i (l1 ++ l2) =
+  if zlt i (Zlength l1) then remove_Znth i l1 ++ l2 else l1 ++ remove_Znth (i - Zlength l1) l2.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite sublist_app by lia.
+  rewrite Z.min_l, Z.max_r by rep_lia.
+  rewrite Zlength_app, sublist_app by lia.
+  rewrite Z.add_simpl_l, (Z.min_r (_ + Zlength l2)), (Z.max_l (Zlength l2)) by rep_lia.
+  if_tac.
+  - rewrite Z.min_l, Z.max_r, sublist_nil, app_nil_r by rep_lia.
+    rewrite Z.min_l, Z.max_r by rep_lia.
+    rewrite app_assoc, (sublist_same _ _ l2) by lia; auto.
+  - rewrite Z.min_r, Z.max_l, sublist_same by lia.
+    rewrite Z.min_r, Z.max_l, sublist_nil by lia; simpl.
+    rewrite app_assoc; f_equal; f_equal; lia.
+Qed.
+
+Lemma In_remove_upto2: forall (i j k : Z) (l : nat), 0 <= j < Z.of_nat l -> 0 <= k < Z.of_nat l -> j <> k ->
+  In i (remove_Znth (if zlt j k then j else j - 1) (remove_Znth k (upto l))) -> 0 <= i < Z.of_nat l /\ i <> j /\ i <> k.
+Proof.
+  unfold remove_Znth at 2; intros ??????? Hin.
+  assert (Zlength (sublist 0 k (upto l)) = k) as Hk.
+  { rewrite Zlength_sublist; rewrite ?Zlength_upto; lia. }
+  rewrite remove_Znth_app in Hin; rewrite Hk, Zlength_upto in *.
+  destruct (zlt j k).
+  - rewrite if_true in Hin by auto.
+    apply in_app_iff in Hin as [Hin|Hin].
+    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_remove_upto); try lia.
+    + rewrite sublist_upto, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_upto); try lia.
+  - rewrite if_false in Hin by lia.
+    apply in_app_iff in Hin as [Hin|Hin].
+    + rewrite sublist_upto, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_upto); try lia.
+    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_remove_upto); try lia.
+  - rewrite Zlength_sublist by (rewrite ?Zlength_upto; lia).
+    if_tac; lia.
+Qed.
+
 Lemma iter_sepcon_Znth: forall {A} {d : Inhabitant A} f (l : list A) i, 0 <= i < Zlength l ->
   iter_sepcon f l = f (Znth i l) * iter_sepcon f (remove_Znth i l).
 Proof.
@@ -2457,8 +2543,53 @@ Proof.
     apply derives_refl.
 Qed.
 
-Instance Inhabitant_share : Inhabitant share := Share.bot. (* TODO: remove this, it's already in sublist.v *) 
-Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric. (* TODO: remove this, it's already in sublist.v *) 
+Lemma iter_sepcon_Znth_remove : forall {A} {d : Inhabitant A} f l i j,
+  0 <= i < Zlength l -> 0 <= j < Zlength l -> i <> j ->
+  iter_sepcon f (remove_Znth j l) =
+  f (Znth i l) * iter_sepcon f (remove_Znth (if zlt i j then i else i - 1) (remove_Znth j l)).
+Proof.
+  intros ?????? Hi Hj Hn.
+  pose proof (Zlength_remove_Znth _ _ Hj) as Hlen.
+  unfold remove_Znth at 1 2; rewrite Hlen.
+  unfold remove_Znth in *.
+  if_tac.
+  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; lia).
+    autorewrite with sublist.
+    rewrite -> (sublist_split 0 i j) by lia.
+    rewrite !iter_sepcon_app.
+    rewrite -> (sublist_next i _) by lia; simpl.
+    replace (Zlength l - _ - _ + _) with (Zlength l) by lia.
+    apply pred_ext; cancel.
+  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; lia).
+    autorewrite with sublist.
+    rewrite -> (sublist_split (j + 1) i (Zlength l)) by lia.
+    rewrite !iter_sepcon_app.
+    rewrite -> (sublist_next i _) by lia; simpl.
+    replace (Zlength l - _ - _ + _) with (Zlength l) by lia.
+    replace (i - _ - _ + _) with i by lia.
+    replace (i - _ + _) with (i + 1) by lia.
+    apply pred_ext; cancel.
+Qed.
+
+Lemma iter_sepcon_Znth' : forall {A} {d : Inhabitant A} (f : A -> mpred) l i,
+  0 <= i < Zlength l -> iter_sepcon f l = f (Znth i l) * (f (Znth i l) -* iter_sepcon f l).
+Proof.
+  intros; eapply wand_eq, iter_sepcon_Znth; auto.
+Qed.
+
+Lemma iter_sepcon_remove_wand : forall {A} {d : Inhabitant A} (f : A -> mpred) l i,
+  0 <= i < Zlength l -> iter_sepcon f (remove_Znth i l) |-- f (Znth i l) -* iter_sepcon f l.
+Proof.
+  intros; rewrite <- wand_sepcon_adjoint.
+  erewrite iter_sepcon_Znth with (l0 := l) by eauto; cancel.
+Qed.
+
+Lemma iter_sepcon_In : forall {B} (x : B) f l, In x l -> iter_sepcon f l = f x * (f x -* iter_sepcon f l).
+Proof.
+  intros.
+  apply (@In_Znth _ x) in H as (? & ? & Heq).
+  rewrite <- Heq; apply iter_sepcon_Znth'; auto.
+Qed.
 
 Lemma join_shares_nth : forall shs sh1 sh i, sepalg_list.list_join sh1 shs sh -> 0 <= i < Zlength shs ->
   exists sh', sepalg_list.list_join (Znth i shs) (remove_Znth i shs) sh' /\ sepalg.join sh1 sh' sh.
@@ -2473,11 +2604,11 @@ Proof.
     intros (sh2 & ? & ?).
     rewrite Znth_pos_cons, remove_Znth_cons; try lia.
     exploit (sepalg.join_sub_joins_trans(a := a)(b := sh2)(c := w1)); eauto.
-    { eexists; eapply sepalg.join_comm; eauto. }
+    { eexists; eapply sepalg.join_comm; eauto. } {eexists; eauto. }
     intros (sh' & ?); exists sh'; split.
     + exploit (sepalg_list.list_join_assoc2(a := a)(b := Znth (i - 1) shs)
         (cl := remove_Znth (i - 1) shs)(e := sh')(f := sh2)); auto.
-      intros (d & ? & ?).
+      intros (d & ? & ?). apply sepalg.join_comm in H3.
       econstructor; eauto.
     + pose proof (sepalg.join_assoc(a := sh1)(b := a)(c := sh2)(d := w1)(e := sh)) as X.
       repeat match goal with X : ?a -> _, H : ?a |- _ => specialize (X H) end.
@@ -2496,7 +2627,7 @@ Proof.
   apply sepalg.join_comm in H1.
   destruct (sepalg_list.list_join_assoc1 H1 Hl2) as (? & ? & ?).
   eapply sepalg_list.list_join_app; eauto.
-  econstructor; eauto.
+  apply sepalg.join_comm in H2. econstructor; eauto.
 Qed.
 
 (* Split a share into an arbitrary number of subshares. *)
@@ -2517,6 +2648,17 @@ Proof.
 Qed.
 
 Lemma data_at_shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
+  @data_at cs sh1 t v p * iter_sepcon (fun sh => data_at sh t v p) shs =
+  data_at sh t v p.
+Proof.
+  induction shs; intros; simpl.
+  - inv Hsplit.
+    rewrite sepcon_emp; auto.
+  - inv Hsplit.
+    erewrite <- sepcon_assoc, data_at_share_join; eauto.
+Qed.
+
+Lemma data_at_shares_join_old : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
   @data_at cs sh1 t v p * fold_right sepcon emp (map (fun sh => data_at sh t v p) shs) =
   data_at sh t v p.
 Proof.
@@ -2548,7 +2690,7 @@ Proof.
   rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
   rewrite !prop_false_andp with (P := v2 = Vundef), !orp_FF; auto; Intros.
   Opaque mpred.
-  apply res_predicates.address_mapsto_value_cohere.
+  constructor; apply res_predicates.address_mapsto_value_cohere.
 Qed.
 
 Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2, readable_share sh1 ->
@@ -2582,7 +2724,7 @@ Proof.
       * rewrite prop_false_andp with (P := v2 = Vundef), orp_FF; auto; Intros.
         Exists v2; auto.
     + Intro v2'.
-      assert_PROP (v1 = v2') by (apply res_predicates.address_mapsto_value_cohere).
+      assert_PROP (v1 = v2') by (constructor; apply res_predicates.address_mapsto_value_cohere).
       subst. apply sepcon_derives; auto. apply andp_right; auto.
       apply prop_right; auto.
     + apply sepcon_derives; auto.
@@ -2761,7 +2903,7 @@ Proof.
   rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
 Qed.
 
-Lemma sepcon_derives_prop : forall P Q R, P |-- !!R -> P * Q |-- !!R.
+Lemma sepcon_derives_prop : forall P Q R, (P |-- !!R) -> P * Q |-- !!R.
 Proof.
   intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True); eauto|].
   - entailer!.
@@ -2799,26 +2941,6 @@ Proof.
   rewrite sepcon_app, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by lia; auto.
 Qed.
 
-(* wand lemmas *)
-Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
-Proof.
-  intros.
-  apply seplog.pred_ext, modus_ponens_wand.
-  subst; cancel.
-  rewrite <- wand_sepcon_adjoint; auto.
-  rewrite sepcon_comm; auto.
-Qed.
-
-Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
-Proof.
-  intros; apply seplog.pred_ext.
-  - rewrite <- wand_sepcon_adjoint.
-    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
-    rewrite sepcon_comm; apply modus_ponens_wand.
-  - rewrite <- !wand_sepcon_adjoint.
-    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
-Qed.
-
 Lemma sepcon_In : forall l P, In P l -> exists Q, fold_right sepcon emp l = P * Q.
 Proof.
   induction l; [contradiction|].
@@ -2845,17 +2967,10 @@ Proof.
   apply HR.
 Qed.
 
-Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
-Proof.
-  intros.
-  rewrite <- wand_sepcon_adjoint; cancel.
-  rewrite sepcon_comm; apply modus_ponens_wand.
-Qed.
-
 Lemma semax_extract_later_prop'':
   forall {CS : compspecs} {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
-      P2 |-- !!PP ->
+      (P2 |-- !!PP) ->
       (PP -> semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post) ->
       semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post.
 Proof.
@@ -2900,23 +3015,38 @@ Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.app
   compcert_rmaps.RML.R.approx n (P ts (functors.MixVariantFunctor.fmap (rmaps.dependent_type_functor_rec ts A)
         (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)).
 
-Lemma approx_sepcon_list: forall n lP, lP <> [] ->
-  compcert_rmaps.RML.R.approx n (fold_right sepcon emp lP) =
-  fold_right sepcon emp (map (compcert_rmaps.RML.R.approx n) lP).
+Lemma approx_0 : forall P, compcert_rmaps.RML.R.approx 0 P = FF.
 Proof.
-  induction lP; [contradiction | intros].
-  destruct lP; simpl in *.
-  - simpl; rewrite !sepcon_emp; auto.
-  - rewrite approx_sepcon, IHlP; auto; discriminate.
+  intros; apply predicates_hered.pred_ext.
+  - intros ? []; lia.
+  - intros ??; contradiction.
 Qed.
 
-Corollary approx_sepcon_list' : forall n lP P,
-  compcert_rmaps.RML.R.approx n (fold_right sepcon emp lP)  * compcert_rmaps.RML.R.approx n P =
-  fold_right sepcon emp (map (compcert_rmaps.RML.R.approx n) lP) * compcert_rmaps.RML.R.approx n P.
+Lemma approx_eq : forall n (P : mpred) r, app_pred (compcert_rmaps.RML.R.approx n P) r = (if lt_dec (level r) n then app_pred P r else False).
 Proof.
-  intros.
-  rewrite <- !approx_sepcon, !(sepcon_comm (fold_right _ _ _)).
-  setoid_rewrite approx_sepcon_list with (lP := _ :: _); auto; discriminate.
+  intros; apply prop_ext; split.
+  - intros []; if_tac; auto.
+  - if_tac; split; auto; lia.
+Qed.
+
+Lemma approx_iter_sepcon' : forall {B} n f (lP : list B) P,
+  compcert_rmaps.RML.R.approx n (iter_sepcon f lP)  * compcert_rmaps.RML.R.approx n P =
+  iter_sepcon (compcert_rmaps.RML.R.approx n oo f) lP * compcert_rmaps.RML.R.approx n P.
+Proof.
+  induction lP; simpl; intros.
+  - apply predicates_hered.pred_ext; intros ? (? & ? & ? & ? & ?).
+    + destruct H0; do 3 eexists; eauto.
+    + do 3 eexists; eauto; split; auto; split; auto.
+      destruct H1; apply join_level in H as []; lia.
+  - rewrite approx_sepcon, !sepcon_assoc, IHlP; auto.
+Qed.
+
+Corollary approx_iter_sepcon: forall {B} n f (lP : list B), lP <> [] ->
+  compcert_rmaps.RML.R.approx n (iter_sepcon f lP) =
+  iter_sepcon (compcert_rmaps.RML.R.approx n oo f) lP.
+Proof.
+  destruct lP; [contradiction | simpl].
+  intros; rewrite approx_sepcon, !(sepcon_comm (compcert_rmaps.RML.R.approx n (f b))), approx_iter_sepcon'; auto.
 Qed.
 
 Lemma approx_FF : forall n, compcert_rmaps.RML.R.approx n FF = FF.
@@ -2925,10 +3055,32 @@ Proof.
   destruct H; contradiction.
 Qed.
 
-Lemma later_nonexpansive : nonexpansive (@later mpred _ _).
+Lemma later_nonexpansive' : nonexpansive (@later mpred _ _).
 Proof.
   apply contractive_nonexpansive, later_contractive.
   intros ??; auto.
+Qed.
+
+Lemma later_nonexpansive : forall n P, compcert_rmaps.RML.R.approx n (|> P) =
+  compcert_rmaps.RML.R.approx n (|> compcert_rmaps.RML.R.approx n P).
+Proof.
+  intros.
+  intros; apply predicates_hered.pred_ext.
+  - intros ? []; split; auto.
+    intros ? Hlater; split; auto.
+    apply laterR_level in Hlater; lia.
+  - intros ? []; split; auto.
+    intros ? Hlater.
+    specialize (H0 _ Hlater) as []; auto.
+Qed.
+
+Lemma allp_nonexpansive : forall {A} n P, compcert_rmaps.RML.R.approx n (ALL y : A, P y) =
+  compcert_rmaps.RML.R.approx n (ALL y, compcert_rmaps.RML.R.approx n (P y)).
+Proof.
+  intros.
+  apply predicates_hered.pred_ext; intros ? [? Hall]; split; auto; intro; simpl in *.
+  - split; auto.
+  - apply Hall.
 Qed.
 
 Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2 ->
@@ -2937,9 +3089,9 @@ Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2
 Proof.
   induction lP1; intros.
   - symmetry in H; apply Zlength_nil_inv in H; subst.
-    apply eqp_refl.
+    constructor. apply eqp_refl.
   - destruct lP2; [apply Zlength_nil_inv in H; discriminate|].
-    rewrite !Zlength_cons in H.
+    rewrite !Zlength_cons in H. constructor.
     simpl fold_right; apply eqp_sepcon.
     + apply predicates_hered.allp_left with 0.
       rewrite !Znth_0_cons; auto.
@@ -2972,7 +3124,7 @@ Qed.
 
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
-   try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto |
+   try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto with share exclusive |
    try timeout 20 cancel].
 
 Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
@@ -3031,89 +3183,8 @@ Qed.
 Ltac get_global_function'' _f :=
 eapply (semax_fun_id'' _f); try reflexivity.
 
-(* revised start_function that mostly works for dependent specs *)
-Ltac start_dep_function :=
-(* leaf_function;
- match goal with |- semax_body ?V ?G ?F ?spec =>
-    check_normalized F;
-    let s := fresh "spec" in
-    pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
-    match goal with
-    | s :=  (DECLARE _ WITH _: globals
-               PRE  [] main_pre _ nil _
-               POST [ tint ] _) |- _ => idtac
-    | s := ?spec' |- _ => check_canonical_funspec spec'
-   end;
-   change (semax_body V G F s); subst s
- end;
- let DependedTypeList := fresh "DependedTypeList" in
- match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
-   split; [split3; [check_parameter_types' | check_return_type
-          | try (apply compute_list_norepet_e; reflexivity);
-             fail "Duplicate formal parameter names in funspec signature"  ] 
-         |];
-   match Pre with
-   | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
-   | (fun i => _) => intros Espec DependedTypeList i
-   end;
-   simpl fn_body; simpl fn_params; simpl fn_return
- end;
- try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
-     change (fun rho => ?A rho * ?B rho) with (A * B)
-  end;
- simpl functors.MixVariantFunctor._functor in *;
- simpl rmaps.dependent_type_functor_rec;
- clear DependedTypeList;
- repeat match goal with
- | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
-             destruct p as [a b]
- | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ match ?p with (a,b) => _ end * _) _ _ =>
-             destruct p as [a b]
- | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _) _ _ =>
-             destruct p as [a b]
- | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
-             destruct p as [a b]
-       end;
- first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
-        | erewrite compute_close_precondition by reflexivity];
- simplify_func_tycontext;
- repeat match goal with
- | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
-       fold (Swhile e s)
- | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3) ] =>
-      match s3 with
-      | Sset ?i _ => match s1 with Sset ?i' _ => unify i i' | Sskip => idtac end
-      end;
-      fold (Sfor s1 e s2 s3)
- end;
- try expand_main_pre;
- process_stackframe_of;
- repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
-                                  but it needs to come after process_stackframe_of *)
- repeat rewrite <- data_at__offset_zero;
- try apply start_function_aux1;
- repeat (apply semax_extract_PROP;
-              match goal with
-              | |- _ ?sh -> _ =>
-                 match type of sh with
-                 | share => intros ?SH
-                 | Share.t => intros ?SH
-                 | _ => intro
-                 end
-               | |- _ => intro
-               end);
- first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
-        | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
-        | idtac];
- abbreviate_semax;
- lazymatch goal with 
- | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
- | _ => idtac
- end;
- try match goal with DS := @abbreviate (PTree.t funspec) PTree.Leaf |- _ =>
-     clearbody DS
- end;
- start_function_hint.*) start_function.
+(* legacy *)
+Ltac start_dep_function := start_function.
 
 (* Notations for dependent funspecs *)
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
@@ -3289,9 +3360,9 @@ Ltac forward_spawn id arg wit :=
   match goal with gv : globals |- _ =>
   make_func_ptr id; let f := fresh "f_" in set (f := gv id);
   match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
-    let y := fresh "y" in let Q := fresh "Q" in let R := fresh "R" in 
+    let Q := fresh "Q" in let R := fresh "R" in 
     
-    evar (y : ident); evar (Q : A -> globals); evar (R : A -> val -> mpred);
+    evar (Q : A -> globals); evar (R : A -> val -> mpred);
     replace Pre with (fun '(a, w) => PROPx [] (PARAMSx (a::nil)
                                                        (GLOBALSx ((Q w) :: nil) (SEPx [R w a]))));
     [ | let x := fresh "x" in extensionality x; destruct x as (?, x);
@@ -3300,12 +3371,12 @@ Ltac forward_spawn id arg wit :=
         instantiate (1 := fun '(a, b) => _ a) in (value of Q);
         instantiate (1 := fun '(a, b) => _ a) in (value of R));
         etransitivity; [|symmetry; apply PROP_into_SEP_LAMBDA]; f_equal; f_equal; f_equal;
-        [ instantiate (1 := fun _ => _) in (value of Q); subst y Q; f_equal; simpl; reflexivity
+        [ instantiate (1 := fun _ => _) in (value of Q); subst Q; f_equal; simpl; reflexivity
         | unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _);
           reflexivity]
   ];
   forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; 
-           [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn)
+           [ .. | subst f]; try (subst f; simpl; cancel_for_forward_spawn)
   end end.
 (*
 Ltac forward_spawn id arg wit :=

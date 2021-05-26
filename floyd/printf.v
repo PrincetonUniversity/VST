@@ -218,7 +218,7 @@ Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
                       PROP_of_format fl stuff)
         (PARAMSx (outp :: fmtp :: PARAMS_of_format fl stuff)
          (GLOBALSx nil 
-         (SEPx (cstring sh fmt fmtp :: file_at out outp :: ITREE (write_list out (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff))))
+         (SEPx (cstring sh fmt fmtp :: file_at out outp :: ITREE (write_list out (string_of_format fl stuff);; k)%itree :: SEP_of_format  fl stuff))))
       end)
      (fun x : (val * share * list byte * val * format_stuff fl * (file_id * IO_itree)) => 
       match x with (outp,sh,fmt,fmtp,stuff,(out,k)) =>
@@ -242,7 +242,7 @@ Definition printf_spec_parametrized (fmtz: list Z) :=
                       PROP_of_format fl stuff)
         (PARAMSx (fmtp :: PARAMS_of_format fl stuff)
          (GLOBALSx nil 
-         (SEPx (cstring sh fmt fmtp :: ITREE (write_list stdout (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff))))
+         (SEPx (cstring sh fmt fmtp :: ITREE (write_list stdout (string_of_format fl stuff);; k)%itree :: SEP_of_format  fl stuff))))
       end)
      (fun x : (val * share * list byte * val * format_stuff fl * IO_itree) => 
       match x with (outp,sh,fmt,fmtp,stuff,k) =>

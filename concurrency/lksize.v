@@ -1,7 +1,7 @@
 Require Import compcert.common.AST.
 Require Import compcert.common.Memdata.
 Require Import Coq.ZArith.ZArith.
-Require Export Lia.
+Require Import Coq.micromega.Lia.
 
 (* LKSIZE should match sizeof(semax_conc.tlock).  *)
 Definition LKSIZE:= (2 * size_chunk Mptr)%Z.
@@ -19,4 +19,4 @@ Proof.
   rewrite size_chunk_Mptr; destruct Archi.ptr64; lia.
 Qed.
 
-Ltac lkomega := pose proof LKSIZE_pos; pose proof LKSIZE_int; simpl in *; try lia.
+Ltac lklia := pose proof LKSIZE_pos; pose proof LKSIZE_int; simpl in *; try lia.

@@ -296,21 +296,21 @@ Infix "&&" := andp (at level 40, left associativity) : pred.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.
 Notation "P '<-->' Q" := (andp (imp P Q) (imp Q P)) (at level 57, no associativity) : pred.
 (* Notation "'[]' e" := (box necM e) (at level 30, right associativity): pred. *)
-Notation "'|>' e" := (box laterM e) (at level 30, right associativity): pred.
-Notation "'!!' e" := (prop e) (at level 25) : pred.
+Notation "'|>' e" := (box laterM e) (at level 20, right associativity): pred.
+Notation "'!!' e" := (prop e) (at level 15) : pred.
 
 (* Rules for the propositional connectives *)
 Lemma modus_ponens {A} `{ageable A} : forall (X P Q:pred A),
-  X |-- P ->
-  X |-- (P --> Q) ->
+  (X |-- P) ->
+  (X |-- (P --> Q)) ->
   X |-- Q.
 Proof.
   unfold derives, imp; simpl; intuition eauto.
 Qed.
 
 Lemma andp_right {A} `{ageable A} : forall (X P Q:pred A),
-  X |-- P ->
-  X |-- Q ->
+  (X |-- P) ->
+  (X |-- Q) ->
   X |-- P && Q.
 Proof.
   unfold derives, imp, andp; simpl; intuition.
@@ -344,23 +344,23 @@ Lemma andp_dup {A}{agA: ageable A}: forall P: pred A, P && P = P.
 Proof. intros. apply pred_ext; intros w ?. destruct H; auto. split; auto.
 Qed.
 
-Lemma andp_left1{A}{agA: ageable A}: forall P Q R: pred A,  P |-- R -> P && Q |-- R.
+Lemma andp_left1{A}{agA: ageable A}: forall P Q R: pred A,  (P |-- R) -> P && Q |-- R.
 Proof. repeat intro. destruct H0; auto.
 Qed.
 
-Lemma andp_left2{A}{agA: ageable A}: forall P Q R: pred A,  Q |-- R -> P && Q |-- R.
+Lemma andp_left2{A}{agA: ageable A}: forall P Q R: pred A,  (Q |-- R) -> P && Q |-- R.
 Proof. repeat intro. destruct H0; auto.
 Qed.
 
-Lemma orp_left{A}{agA: ageable A}: forall P Q R: pred A,  P |-- R -> Q |-- R -> P || Q |-- R.
+Lemma orp_left{A}{agA: ageable A}: forall P Q R: pred A,  (P |-- R) -> (Q |-- R) -> P || Q |-- R.
 Proof. repeat intro. destruct H1; auto.
 Qed.
 
-Lemma orp_right1{A}{agA: ageable A}: forall P Q R: pred A,  P |-- Q -> P |-- Q || R.
+Lemma orp_right1{A}{agA: ageable A}: forall P Q R: pred A,  (P |-- Q) -> P |-- Q || R.
 Proof. repeat intro. left; auto.
 Qed.
 
-Lemma orp_right2{A}{agA: ageable A}: forall P Q R: pred A,  P |-- R -> P |-- Q || R.
+Lemma orp_right2{A}{agA: ageable A}: forall P Q R: pred A,  (P |-- R) -> P |-- Q || R.
 Proof. repeat intro. right; auto.
 Qed.
 
@@ -370,12 +370,12 @@ Proof.
 Qed.
 
 Lemma derives_trans {A}`{ageable A}:
-    forall P Q R: pred A, P |-- Q -> Q |-- R -> P |-- R.
+    forall P Q R: pred A, (P |-- Q) -> (Q |-- R) -> P |-- R.
 Proof. firstorder. Qed.
 
 Lemma exp_right:
   forall {B A: Type}{agA: ageable A}(x:B) p (q: B -> pred A),
-    p |-- q x ->
+    (p |-- q x) ->
     p |-- exp q.
 Proof.
 intros.
@@ -449,7 +449,7 @@ Qed.
 
 (* Characterize the relation between conjunction and implication *)
 Lemma imp_andp_adjoint {A} `{ageable A} : forall (P Q R:pred A),
-  (P && Q) |-- R <-> P |-- (Q --> R).
+  ((P && Q) |-- R) <-> (P |-- (Q --> R)).
 Proof.
   split; intros.
   hnf; intros; simpl; intros.
@@ -502,7 +502,7 @@ Qed.
 
 (* relationship between box and diamond *)
 Lemma box_diamond {A} `{ageable A} : forall M (P Q:pred A),
-  (diamond M P) |-- Q <-> P |-- (box M Q).
+  ((diamond M P) |-- Q) <-> (P |-- (box M Q)).
 Proof.
   unfold derives; intuition.
   hnf; intros.
@@ -536,14 +536,14 @@ Qed.
 (* Box and diamond are positive modal operators *)
 
 Lemma box_positive {A} `{ageable A} : forall M (P Q:pred A),
-  P |-- Q ->
+  (P |-- Q) ->
   box M P |-- box M Q.
 Proof.
   unfold derives, box; simpl; intuition.
 Qed.
 
 Lemma diamond_positive {A} `{ageable A} : forall M (P Q:pred A),
-  P |-- Q ->
+  (P |-- Q) ->
   diamond M P |-- diamond M Q.
 Proof.
   unfold derives, diamond; simpl; firstorder.
@@ -661,7 +661,7 @@ Proof.
 Qed.
 
 Lemma now_later2 {A} `{ageable A} : forall G P,
-  G |-- P ->
+  (G |-- P) ->
   G |-- |>P.
 Proof.
   intros; apply @derives_trans with P; auto.
@@ -671,7 +671,7 @@ Qed.
 (* The "induction" rule for later *)
 
 Lemma goedel_loeb {A} `{ageable A} : forall (P Q:pred A),
-  Q && |>P |-- P ->
+  (Q && |>P |-- P) ->
   Q |-- P.
 Proof.
   intros; hnf; intro a.
@@ -686,7 +686,7 @@ Proof.
 Qed.
 
 Lemma loeb {A} `{ageable A} : forall (P:pred A),
-     |>P |-- P    ->     TT |-- P.
+     (|>P |-- P)    ->     TT |-- P.
 Proof.
   intros. apply goedel_loeb.
   apply andp_left2. auto.
@@ -824,7 +824,7 @@ Qed.
 
 Lemma positive_boxy {A} `{ageable A} : forall P Q M,
   boxy M P ->
-  P |-- Q ->
+  (P |-- Q) ->
   P |-- box M Q.
 Proof.
   intros.
@@ -965,7 +965,7 @@ Proof.
  repeat intro. destruct H0; auto. apply H; auto.
 Qed.
 
-Lemma prop_andp_right {A}{agA: ageable A}: forall (P: Prop) Q R, P -> Q |-- R -> Q |-- !!P && R.
+Lemma prop_andp_right {A}{agA: ageable A}: forall (P: Prop) Q R, P -> (Q |-- R) -> Q |-- !!P && R.
 Proof.
  repeat intro. split; auto.
 Qed.
@@ -1051,7 +1051,7 @@ Proof.
 Qed.
 
 Lemma box_derives {A} `{ageable A} : forall M (P Q:pred A),
-  P |-- Q ->  box M P |-- box M Q.
+  (P |-- Q) ->  box M P |-- box M Q.
 Proof. exact box_positive. Qed.
 
 Lemma allp_derives:
@@ -1111,14 +1111,14 @@ Qed.
 #[export] Hint Resolve derives_refl : core.
 
 Lemma andp_derives {A} `{ageable A}:
-  forall P Q P' Q': pred A, P |-- P' -> Q |-- Q' -> P && Q |-- P' && Q'.
+  forall P Q P' Q': pred A, (P |-- P') -> (Q |-- Q') -> P && Q |-- P' && Q'.
 Proof.
 intros.
 intros w [? ?]; split; auto.
 Qed.
 
 Lemma orp_derives {A} `{ageable A}:
-  forall P Q P' Q': pred A, P |-- P' -> Q |-- Q' -> P || Q |-- P' || Q'.
+  forall P Q P' Q': pred A, (P |-- P') -> (Q |-- Q') -> P || Q |-- P' || Q'.
 Proof.
 intros.
  apply orp_left. apply orp_right1; auto. apply orp_right2; auto.
@@ -1230,8 +1230,8 @@ Qed.
 
 Lemma imp_derives {A} `{agA : ageable A}:
   forall P P' Q Q',
-    P' |-- P ->
-    Q |-- Q' ->
+    (P' |-- P) ->
+    (Q |-- Q') ->
     P --> Q |-- P' --> Q'.
 Proof.
 intros.
@@ -1326,7 +1326,7 @@ Proof.
 Qed.
 
 Lemma allp_left {B}{A}{agA: ageable A}:
-   forall (P: B -> pred A) x Q, P x |-- Q -> allp P |-- Q.
+   forall (P: B -> pred A) x Q, (P x |-- Q) -> allp P |-- Q.
  Proof.
    intros. intros ? ?. apply H. apply H0.
 Qed.

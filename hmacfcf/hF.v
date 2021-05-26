@@ -931,7 +931,7 @@ Section hF.
     simpl in *; subst.
     destruct b1; trivial.
 
-    Grab Existential Variables.
+    Unshelve.
     trivial.
   Qed.
 

@@ -2,6 +2,7 @@ Require Import Coq.Sorting.Permutation.
 Require Import Coq.Sorting.Sorting.
 Require Import Coq.Structures.Orders.
 Require Import VST.veric.base.
+Import compcert.lib.Maps.
 
 Require Import compcert.cfrontend.Ctypes. 
 

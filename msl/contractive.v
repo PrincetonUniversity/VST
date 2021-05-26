@@ -343,7 +343,7 @@ Lemma Rec_sub {A} `{ageable A} : forall G
   (HF2 : forall R P Q, P >=> Q |-- F P R >=> F Q R)
   (HF3 : forall P Q X, |>(P >=> Q) |-- F X P >=> F X Q),
   forall P Q,
-    G |-- P >=> Q ->
+    (G |-- P >=> Q) ->
     G |-- Rec (F P) >=> Rec (F Q).
 Proof.
   intros.
@@ -369,7 +369,7 @@ Lemma HORec_sub {A} `{ageable A} : forall G B
   (HF2 : forall R a P Q, P >=> Q |-- F P R a >=> F Q R a)
   (HF3 : forall P Q X, ALL b:B, |>(P b >=> Q b) |-- ALL b:B, F X P b >=> F X Q b),
   forall P Q,
-    G |-- P >=> Q ->
+    (G |-- P >=> Q) ->
     G |-- ALL b:B, HORec (F P) b >=> HORec (F Q) b.
 Proof.
   intros.

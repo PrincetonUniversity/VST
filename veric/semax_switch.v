@@ -1,3 +1,4 @@
+Require Import VST.msl.seplog.
 Require Import VST.veric.juicy_base.
 Require Import VST.msl.normalize.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
@@ -15,6 +16,7 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
+Import compcert.lib.Maps.
 
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,
@@ -56,7 +58,7 @@ Qed.
 
 Lemma frame_tc_expr:
   forall {CS: compspecs} (Q F: mpred) Delta e rho,
-  Q |-- tc_expr Delta e rho ->
+  (Q |-- tc_expr Delta e rho) ->
   Q * F |-- tc_expr Delta e rho.
 Proof.
 intros.
@@ -114,7 +116,7 @@ Qed.
 
 Lemma imp_right:
  forall A (agA: ageable A) (P Q R : pred A),
-  P && Q |-- R ->
+  (P && Q |-- R) ->
   P |-- Q --> R.
 Proof.
 intros.
@@ -342,7 +344,7 @@ Qed.
 Lemma semax_switch: 
   forall {CS: compspecs} Espec Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
-     (forall rho, Q rho |-- tc_expr Delta a rho) ->
+     (forall rho, seplog.derives (Q rho) (tc_expr Delta a rho)) ->
      (forall n,
      semax Espec Delta (fun rho => andp (prop (eval_expr a rho = Vint n)) (Q rho))
                (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
@@ -372,6 +374,7 @@ rewrite andp_assoc.
 apply prop_andp_subp'; intros [H4 H4'].
 set (rho := construct_rho (filter_genv psi) vx tx) in *.
 specialize (H0 rho).
+inv H0. rename derivesI into H0.
 apply frame_tc_expr with (F0 := F rho) in  H0.
 rewrite sepcon_comm in H0.
 apply subp_i1.

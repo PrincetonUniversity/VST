@@ -1,5 +1,6 @@
 Require Import VST.veric.base.
 Require Import compcert.cfrontend.Ctypes.
+Import compcert.lib.Maps.
 
 Section COMPOSITE_ENV.
 

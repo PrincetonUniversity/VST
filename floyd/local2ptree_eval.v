@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.local2ptree_denote.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Local Open Scope logic.
 

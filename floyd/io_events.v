@@ -37,7 +37,7 @@ Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
 Proof.
   intros.
   etransitivity; [|apply eq_sub_eutt, bind_ret_r].
-  apply eqit_bind; [intros []|]; reflexivity.
+  apply eqit_bind; [|intros []]; reflexivity.
 Qed.
 
 Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
@@ -76,7 +76,7 @@ Proof. repeat intro. apply ITREE_ext; auto. Qed.
 Fixpoint write_list f l : IO_itree :=
   match l with
   | nil => Ret tt
-  | c :: rest => write f c ;; write_list f rest
+  | c :: rest => (write f c ;; write_list f rest)%itree
   end.
 
 Lemma write_list_app : forall f l1 l2,

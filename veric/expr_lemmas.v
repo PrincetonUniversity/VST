@@ -20,6 +20,7 @@ Import Cop2.
 Import Clight_Cop2.
 Import Ctypes.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Lemma tc_bool_val:
   forall v t,

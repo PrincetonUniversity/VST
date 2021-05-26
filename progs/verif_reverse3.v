@@ -50,8 +50,8 @@ Fixpoint lsegrec (sigma: list val) (x z: val) : mpred :=
 (* induction rule *)
 
 Lemma list_ind_in_logc: forall {A: Type} (P: mpred) (Q: list A -> mpred),
-  P |-- Q nil ->
-  P |-- ALL a: A, (ALL l: list A, Q l --> Q (a :: l)) ->
+  (P |-- Q nil) ->
+  (P |-- ALL a: A, (ALL l: list A, Q l --> Q (a :: l))) ->
   P |-- ALL l: list A, Q l.
 Proof.
   intros.

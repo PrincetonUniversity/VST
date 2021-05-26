@@ -2,6 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.fieldlist.
+Import compcert.lib.Maps.
 Open Scope Z.
 
 (************************************************

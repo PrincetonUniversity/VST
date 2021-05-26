@@ -3481,7 +3481,7 @@ Proof.
         rewrite notInArrayLookupNone in H.
         discriminate.
         intuition.
-        rewrite unzip_eq_split, <- Heqz in H4; auto.
+        rewrite <- Heqz in H4; auto.
 
       (* fst y1 = fst y2 (exactly the same as above! if there are no dups in the whole state... but we know there are dups in the tail of the state, so, contradiction!) *)
       + simpl in *.
@@ -3493,7 +3493,7 @@ Proof.
         rewrite notInArrayLookupNone in H.
         discriminate.
         intuition.
-        rewrite unzip_eq_split, <- Heqz in H4; auto.
+        rewrite <- Heqz in H4; auto.
 
     * (* not a duplicate -- behaves like RB -- a is not in x2 *)
       fcf_skip.

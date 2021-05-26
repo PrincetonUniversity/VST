@@ -7,6 +7,7 @@ Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.lift. Import LiftNotation.
 Require Export VST.veric.Clight_Cop2.
 Require Export VST.veric.val_lemmas.
+Import compcert.lib.Maps.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 
@@ -1190,7 +1191,7 @@ Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); triv
    definition (and in NDfunspec_sub). *)
 Definition subsumespec x y:=
 match x with
-| Some hspec => exists gspec, y = Some gspec /\ TT |-- funspec_sub_si gspec hspec (*contravariance!*)
+| Some hspec => exists gspec, y = Some gspec /\ (TT |-- funspec_sub_si gspec hspec) (*contravariance!*)
 | None => True
 end. 
 

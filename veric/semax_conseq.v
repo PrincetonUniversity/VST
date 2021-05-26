@@ -546,16 +546,16 @@ Qed.
 
 Lemma semax_conseq {CS: compspecs} {Espec: OracleKind}:
  forall Delta P' (R': ret_assert) P c (R: ret_assert) ,
-   (forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- bupd (|> FF || P' rho) )%pred ->
-   (forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_normal R' rho)
-                   |-- bupd (|> FF || RA_normal R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_break R' rho)
-                   |-- bupd (|> FF || RA_break R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_continue R' rho)
-                   |-- bupd (|> FF || RA_continue R rho)) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_return R' vl rho)
-                   |-- bupd (|> FF || RA_return R vl rho)) ->
+   (forall rho,  seplog.derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
+                   (bupd (|> FF || P' rho)) ) ->
+   (forall rho,  seplog.derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_normal R' rho))
+                   (bupd (|> FF || RA_normal R rho))) ->
+   (forall rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_break R' rho))
+                   (bupd (|> FF || RA_break R rho))) ->
+   (forall rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_continue R' rho))
+                   (bupd (|> FF || RA_continue R rho))) ->
+   (forall vl rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_return R' vl rho))
+                   (bupd (|> FF || RA_return R vl rho))) ->
    semax Espec Delta P' c R' ->  semax Espec Delta P c R.
 Proof.
   intros.
@@ -585,7 +585,7 @@ Proof.
          | rename H1 into Hx; pose (ek:=RA_break)
          | rename H2 into Hx ; pose (ek:=RA_continue)
          | apply H3]; clear H3.
-all:    specialize (Hx rho);  simpl in *;
+all:    specialize (Hx rho); inv Hx; simpl in *;
     apply derives_trans with (!! (vl = None) && 
        (!! typecheck_environ Delta rho &&
         (allp_fun_id Delta rho && ek R' rho))); subst ek;
@@ -599,6 +599,7 @@ all:    specialize (Hx rho);  simpl in *;
     apply guard_mono.
     intros.
     apply sepcon_derives; auto.
+    specialize (H rho); inv H; auto.
 Qed.
 
 (* Part 2: Deriving simpler and older version of consequence rules from semax_conseq. *)
@@ -927,67 +928,82 @@ Qed.
 
 Lemma semax_adapt_frame {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
-                   (EX F: assert, (!!(closed_wrt_modvars c F) && (P' rho * F rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
-                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho))))
+                   (EX F: assert, (!!(closed_wrt_modvars c F) && bupd (P' rho * F rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- bupd (RA_normal Q rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- bupd (RA_break Q rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- bupd (RA_continue Q rho)) &&
+                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- bupd (RA_return Q vl rho)))))
    (SEM: @semax cs Espec Delta P' c Q'):
    @semax cs Espec Delta P c Q.
-Proof. intros. 
-apply (semax_conseq Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) && ((sepcon (P' rho) (F rho)) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
-                         (!!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho)))))))
+Proof. intros.
+apply (semax_conseq Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) && (bupd (sepcon (P' rho) (F rho)) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- bupd (RA_normal Q rho)) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- bupd (RA_break Q rho)) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- bupd (RA_continue Q rho)) &&
+                         (!!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- bupd (RA_return Q vl rho))))))))
    Q).
-+ intros.  eapply derives_trans. apply H. clear H.
-  eapply derives_trans. 2: apply own.bupd_intro.
-  apply orp_right2. apply exp_derives; intros F. 
++ intros. eapply seplog.derives_trans. constructor. apply H. clear H.
+  eapply seplog.derives_trans. 2: { constructor. apply own.bupd_intro. }
+  constructor. apply orp_right2. apply exp_derives; intros F. 
   rewrite <- ! andp_assoc; trivial.
-+ clear H. intros. eapply derives_trans. 2: apply own.bupd_intro.
++ clear H. intros. constructor. eapply derives_trans. 2: apply own.bupd_intro.
   apply orp_right2. do 2 apply andp_left2; trivial.
-+ clear H. intros. eapply derives_trans. 2: apply own.bupd_intro.
++ clear H. intros. constructor. eapply derives_trans. 2: apply own.bupd_intro.
   apply orp_right2. do 2 apply andp_left2; trivial.
-+ clear H. intros. eapply derives_trans. 2: apply own.bupd_intro.
++ clear H. intros. constructor. eapply derives_trans. 2: apply own.bupd_intro.
   apply orp_right2. do 2 apply andp_left2; trivial.
-+ clear H. intros. eapply derives_trans. 2: apply own.bupd_intro.
++ clear H. intros. constructor. eapply derives_trans. 2: apply own.bupd_intro.
   apply orp_right2. do 2 apply andp_left2; trivial.
 + apply extract_exists_pre. intros F. clear H.
   apply semax_extract_prop. intros.
-  eapply semax_pre. 2:{ do 4 (apply semax_extract_prop; intros). 
+  eapply semax_pre_bupd. 2:{ do 4 (apply semax_extract_prop; intros). 
     eapply semax_conseq. 6:{ apply semax_frame. exact H. apply SEM. }
-  2: {
-   intros; eapply derives_trans; [ | apply own.bupd_intro]. 
-   apply orp_right2. revert rho. exact H0. }
-  2: {
-   intros; eapply derives_trans; [ | apply own.bupd_intro]. 
-   apply orp_right2. revert rho. exact H1. }
-  2: {
-   intros; eapply derives_trans; [ | apply own.bupd_intro]. 
-   apply orp_right2. revert rho. exact H2. }
-  2: {
-   intros; eapply derives_trans; [ | apply own.bupd_intro]. 
-   apply orp_right2. revert rho. revert vl. exact H3. }
+    2: {
+    intros; constructor. eapply derives_trans; [|apply bupd_mono; apply derives_refl].
+    revert rho. exact H0. }
+    2: {
+    intros; constructor. eapply derives_trans; [|apply bupd_mono; apply derives_refl].
+    revert rho. exact H1. }
+    2: {
+    intros; constructor. eapply derives_trans; [|apply bupd_mono; apply derives_refl].
+    revert rho. exact H2. }
+    2: {
+    intros; constructor. eapply derives_trans; [|apply bupd_mono; apply derives_refl].
+    revert rho. revert vl. exact H3. }
+    
+  (* 2: { *)
+  (*  intros; constructor. eapply derives_trans; [ | apply own.bupd_intro]. *)
+  (*  apply orp_right2. revert rho. exact H1. } *)
+  (* 2: { *)
+  (*  intros; constructor. eapply derives_trans; [ | apply own.bupd_intro].  *)
+  (*  apply orp_right2. revert rho. revert vl. exact H3. } *)
   
-   intros; eapply derives_trans; [ | apply own.bupd_intro]. 
+   intros; constructor. eapply derives_trans; [ | apply own.bupd_intro]. 
    apply orp_right2. apply andp_left2. apply andp_left2. apply derives_refl. }
-  intros. rewrite (andp_comm (P' rho * F rho)).
-  unfold local, liftx, lift1, tc_environ; simpl. apply andp_left2. 
-   rewrite <- ! andp_assoc. repeat apply andp_derives; auto.
-  apply prop_derives. intros. rewrite <- andp_assoc. apply H0.
-  apply prop_derives. intros. rewrite <- andp_assoc. apply H0.
-  apply prop_derives. intros. rewrite <- andp_assoc. apply H0.
-  apply prop_derives. intros. rewrite <- andp_assoc. apply H0.
+  intros. unfold local, liftx, lift1, tc_environ; simpl. apply andp_left2.
+  rewrite (andp_comm (bupd (P' rho * F rho))). rewrite !bupd_andp_prop.
+  rewrite <- ! andp_assoc. repeat apply andp_derives; auto.
+  * apply prop_derives. intros. rewrite <- andp_assoc.
+    apply derives_trans with (bupd (RA_normal Q rho0)); [apply H0|].
+    apply bupd_mono. apply orp_right2; auto.
+  * apply prop_derives. intros. rewrite <- andp_assoc.
+    apply derives_trans with (bupd (RA_break Q rho0)); [apply H0|].
+    apply bupd_mono. apply orp_right2; auto.
+  * apply prop_derives. intros. rewrite <- andp_assoc.
+    apply derives_trans with (bupd (RA_continue Q rho0)); [apply H0|].
+    apply bupd_mono. apply orp_right2; auto.
+  * apply prop_derives. intros. rewrite <- andp_assoc.
+    apply derives_trans with (bupd (RA_return Q vl rho0)); [apply H0|].
+    apply bupd_mono. apply orp_right2; auto.
 Qed.
 
 Lemma semax_adapt_frame' {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- EX F: assert, (!!(closed_wrt_modvars c F) && (P' rho * F rho) &&
-                        !!(forall rho, RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
-                        !!(forall rho, RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
-                        !!(forall rho, RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
-                        !!(forall vl rho, RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho)))
+                   |-- EX F: assert, (!!(closed_wrt_modvars c F) && bupd (P' rho * F rho) &&
+                        !!(forall rho, RA_normal (frame_ret_assert Q' F) rho |-- bupd (RA_normal Q rho)) &&
+                        !!(forall rho, RA_break (frame_ret_assert Q' F) rho |-- bupd (RA_break Q rho)) &&
+                        !!(forall rho, RA_continue (frame_ret_assert Q' F) rho |-- bupd (RA_continue Q rho)) &&
+                        !!(forall vl rho, RA_return (frame_ret_assert Q' F) vl rho |-- bupd (RA_return Q vl rho))))
    (SEM: @semax cs Espec Delta P' c Q'):
    @semax cs Espec Delta P c Q.
 Proof.
@@ -1008,11 +1024,11 @@ Qed.
 
 Lemma semax_adapt {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- (P' rho &&
-                        !!(forall rho, RA_normal Q' rho |-- RA_normal Q rho) &&
-                        !!(forall rho, RA_break Q' rho |-- RA_break Q rho) &&
-                        !!(forall rho, RA_continue Q' rho |-- RA_continue Q rho) &&
-                        !!(forall vl rho, RA_return Q' vl rho |-- RA_return Q vl rho)))
+                   |-- (bupd (P' rho) &&
+                        !!(forall rho, RA_normal Q' rho |-- bupd (RA_normal Q rho)) &&
+                        !!(forall rho, RA_break Q' rho |-- bupd (RA_break Q rho)) &&
+                        !!(forall rho, RA_continue Q' rho |-- bupd (RA_continue Q rho)) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- bupd (RA_return Q vl rho))))
    (SEM: @semax cs Espec Delta P' c Q'):
    @semax cs Espec Delta P c Q.
 Proof.

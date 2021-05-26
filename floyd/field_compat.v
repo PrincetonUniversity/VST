@@ -951,7 +951,9 @@ Lemma mapsto_zeros_mapsto_nullval_N {cenv} N sh t b z:
                (Z.of_nat N * size_chunk Mptr + Ptrofs.unsigned z < Ptrofs.modulus)%Z) &&
            sepconN N (fun p => mapsto sh (Tpointer t noattr) p nullval)
                      (@sizeof cenv (Tpointer t noattr)) (Vptr b z).
-Proof. apply mapsto_memory_block.mapsto_zeros_mapsto_nullval_N. Qed.
+Proof.
+  intros. constructor. now apply mapsto_memory_block.mapsto_zeros_mapsto_nullval_N.
+Qed.
 
 Lemma size_chunk_range: 0 < size_chunk Mptr <= Ptrofs.max_unsigned.
 Proof. rewrite size_chunk_Mptr. unfold Ptrofs.max_unsigned.

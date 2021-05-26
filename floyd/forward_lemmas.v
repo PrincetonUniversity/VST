@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.closed_lemmas.
 Import Cop.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Lemma semax_while_peel:
@@ -330,10 +331,10 @@ Qed.
 Lemma semax_for_x :
  forall Espec {cs: compspecs} Delta Q test body incr PreIncr Post,
      bool_type (typeof test) = true ->
-     local (tc_environ Delta) && Q |-- (tc_expr Delta (Eunop Cop.Onotbool test tint)) ->
-     local (tc_environ Delta)
+     (local (tc_environ Delta) && Q |-- (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
+     (local (tc_environ Delta)
       && local (`(typed_false (typeof test)) (eval_expr test))
-      && Q |-- RA_normal Post ->
+      && Q |-- RA_normal Post) ->
      @semax cs Espec Delta (local (`(typed_true (typeof test)) (eval_expr test)) && Q)
              body (loop1_ret_assert PreIncr Post) ->
      @semax cs Espec Delta PreIncr incr (normal_ret_assert Q) ->

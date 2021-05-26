@@ -18,6 +18,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.simpl_reptype.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Local Open Scope logic.
 
@@ -1612,7 +1613,7 @@ Ltac search_field_at_in_SEP := find_nth test_field_at_in_SEP.
 
 Lemma quick_derives_right:
   forall P Q : environ -> mpred,
-   TT |-- Q -> P |-- Q.
+   (TT |-- Q) -> P |-- Q.
 Proof.
 intros. eapply derives_trans; try eassumption; auto.
 Qed.

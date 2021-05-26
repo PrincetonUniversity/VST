@@ -12,6 +12,7 @@ Require Import VST.veric.juicy_mem.
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
+Import compcert.lib.Maps.
 
 Lemma denote_tc_test_eq_Vint_l: forall m i v,
   (denote_tc_test_eq (Vint i) v) m ->

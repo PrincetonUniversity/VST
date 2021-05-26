@@ -81,7 +81,7 @@ Lemma thread_inv_exclusive : forall sh ctr lock lockt,
   exclusive_mpred (thread_lock_inv sh ctr lock lockt).
 Proof.
   intros; apply selflock_exclusive.
-  unfold thread_lock_R; auto.
+  unfold thread_lock_R; auto with exclusive.
 Qed.
 #[export] Hint Resolve thread_inv_exclusive.
 

@@ -7,7 +7,9 @@ Require Import VST.veric.juicy_safety.
 Require Import VST.veric.juicy_mem. (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.*)
 
 Require Import VST.veric.ghost_PCM. (*avoids doing Require Import VST.veric.initial_world.*)
-Require Import VST.veric.own. (*for ghost_approx*)
+Require Import VST.veric.own.
+Require Import VST.veric.invariants.
+Require Import VST.veric.tycontext.
 
 Require Import VST.veric.age_to_resource_at.
 
@@ -262,7 +264,7 @@ Proof.
   - rewrite <- (age_jm_dry Hage), <- (age_jm_dry Hage2); auto.
   - extensionality l.
     apply age_jm_phi in Hage; apply age_jm_phi in Hage2.
-    rewrite (age_to_resource_at.age_resource_at Hage), (age_to_resource_at.age_resource_at Hage2).
+    rewrite (age_resource_at Hage), (age_resource_at Hage2).
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 
@@ -279,6 +281,65 @@ Lemma jm_bupd_intro: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, P m -> jm_b
 Proof.
   repeat intro.
   eexists; split; eauto; repeat split; auto.
+Qed.
+
+Lemma jm_bupd_mono : forall {Z} (ora : Z) (P1 P2 : juicy_mem -> Prop) m, jm_bupd ora P1 m ->
+  (forall m', level m' <= level m -> P1 m' -> P2 m') -> jm_bupd ora P2 m.
+Proof.
+  intros ?????? Hmono.
+  intros ? HC J.
+  destruct (H _ HC J) as (? & ? & ? & ?); eauto.
+  assert (level x = level m) by (unfold jm_update in *; tauto).
+  eexists; split; eauto; split; auto.
+  apply Hmono; auto.
+  replace (level x) with (level m); reflexivity.
+Qed.
+
+(* Just like we reserve ghost name 0 for the external ghost, we reserve 1-3 for invariants/world satisfaction.
+  Presumably we'll have to prove that this isn't vacuous somewhere in the soundness proof.
+  We could delay the instantiation and be generic in inv_names, but since we know we'll always need it and we get to allocate it
+  before the program starts, I don't see any reason to hold off. *)
+Instance inv_names : invG := { g_inv := 1%nat; g_en := 2%nat; g_dis := 3%nat}.
+
+Polymorphic Definition jm_fupd {Z} (ora : Z) (E1 E2 : Ensembles.Ensemble gname) P m :=
+  forall m' w z, necR m m' -> join (m_phi m') w (m_phi z) -> app_pred (wsat * ghost_set g_en E1) w ->
+  jm_bupd ora (fun z2 => level z2 = 0 \/ exists m2 w2, join (m_phi m2) w2 (m_phi z2) /\
+    app_pred (wsat * ghost_set g_en E2) w2 /\ P m2) z.
+
+Polymorphic Lemma jm_fupd_intro: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
+  P m -> jm_fupd ora E E P m.
+Proof.
+  intros.
+  intros ??????.
+  apply jm_bupd_intro; eauto 7.
+Qed.
+
+Polymorphic Lemma jm_fupd_age : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m m', jm_fupd ora E1 E2 P m ->
+  age m m' -> jm_fupd ora E1 E2 P m'.
+Proof.
+  intros.
+  intros ??????.
+  eapply H; [|eauto | eauto].
+  eapply necR_trans; [|eauto].
+  constructor; auto.
+Qed.
+
+Polymorphic Lemma jm_fupd_mono : forall {Z} (ora : Z) E1 E2 (P1 P2 : juicy_mem -> Prop) m, jm_fupd ora E1 E2 P1 m ->
+  (forall m', level m' <= level m -> P1 m' -> P2 m') -> jm_fupd ora E1 E2 P2 m.
+Proof.
+  intros ???????? Hmono.
+  intros ??? Hlater J HW.
+  eapply H in HW; eauto.
+  eapply jm_bupd_mono; eauto.
+  intros ?? [|(? & ? & J2 & ? & ?)]; eauto.
+  right; do 3 eexists; eauto; split; auto.
+  apply Hmono; auto.
+  apply necR_level in Hlater.
+  apply join_level in J as [Hl ?].
+  rewrite <- !level_juice_level_phi in Hl.
+  apply join_level in J2 as [Hl2 ?].
+  rewrite <- !level_juice_level_phi in Hl2.
+  lia.
 Qed.
 
 Section juicy_safety.
@@ -321,15 +382,6 @@ Section juicy_safety.
       ext_spec_exit Hspec (Some (Vint i)) z m ->
       jsafeN_ n z c m.
 
-  Lemma jsafe_corestep_backward:
-    forall c m c' m' n z,
-    jstep Hcore c m c' m' ->
-    jsafeN_ n z c' m' -> jsafeN_ (S n) z c m.
-  Proof.
-    intros; eapply jsafeN_step; eauto.
-    intros; eexists; repeat split; eauto.
-  Qed.
-
   Lemma jsafe_downward1 :
     forall n c m z,
       jsafeN_ (S n) z c m -> jsafeN_ n z c m.
@@ -337,7 +389,7 @@ Section juicy_safety.
     induction n. econstructor; eauto.
     intros c m z H. inv H.
     + econstructor; eauto.
-      intros ? HC J; destruct (H2 _ HC J) as (? & ? & ? & ?); eauto.
+      eapply jm_bupd_mono; eauto; simpl; intros.
     + eapply jsafeN_external; eauto.
     + eapply jsafeN_halted; eauto.
   Qed.
@@ -349,6 +401,149 @@ Section juicy_safety.
   Proof.
     do 6 intro. revert c m z. induction H; auto.
     intros. apply IHle. apply jsafe_downward1. auto.
+  Qed.
+
+Lemma make_join_ext : forall (ora : Z) a c n,
+  join_sub (Some (ext_ref ora, NoneP) :: nil) c ->
+  joins (ghost_fmap (approx n) (approx n) a) (ghost_fmap (approx n) (approx n) c) ->
+  join_sub (Some (ext_ref ora, NoneP) :: nil) (make_join a c).
+Proof.
+  destruct a; auto; simpl.
+  intros ?? [? HC] [? J].
+  inv J.
+  { destruct c; inv H1; inv HC. }
+  destruct c; inv H1.
+  inv H2.
+  { destruct o; inv H0; inv HC.
+    * eexists; constructor; constructor.
+    * eexists; constructor; eauto; constructor. }
+  { destruct o0; inv H1; inv HC.
+    inv H3. }
+  destruct o as [[]|], o0 as [[]|]; inv H; inv H0.
+  destruct a0; inv H1; simpl in *.
+  inv H0.
+  assert (@ghost.valid (ext_PCM Z) (None, None)) as Hv.
+  { simpl; auto. }
+  inv HC.
+  - eexists; constructor; constructor.
+    destruct p; inv H1; inj_pair_tac.
+    instantiate (1 := (existT _ (ext_PCM Z) (exist _ _ Hv), _)); repeat constructor; simpl.
+    rewrite <- H0; auto.
+  - inv H6.
+    + destruct p; inv H1; inj_pair_tac.
+      eexists; constructor; constructor.
+      instantiate (1 := (existT _ (ext_PCM Z) (exist _ _ Hv), _)); repeat constructor; simpl.
+      rewrite <- H0; auto.
+    + destruct a0; inv H5; simpl in *.
+      inv H2.
+      destruct p; inv H1; inj_pair_tac.
+      eexists; constructor; constructor.
+      instantiate (1 := (_, _)); constructor; eauto; simpl.
+      constructor; eauto.
+      unfold NoneP; f_equal.
+      rewrite <- H1; auto.
+Qed.
+
+Lemma age_safe:
+  forall jm jm0, age jm0 jm ->
+  forall ora c,
+   jsafeN_ (level jm0) ora c jm0 ->
+   jsafeN_ (level jm) ora c jm.
+Proof.
+ intros. rename H into H2.
+ rewrite (age_level _ _ H2) in H0.
+   remember (level jm) as N.
+   revert c jm0 jm HeqN H2 H0; induction N; intros.
+   constructor.
+ remember (S N) as SN.
+   subst SN.
+  inv H0.
+  + pose proof (age_level _ _ H2).
+   destruct H1 as (? & ? & ? & Hg).
+   assert (level m' > 0) by lia.
+   assert (exists i, level m' = S i).
+   destruct (level m'). lia. eauto.
+   destruct H6 as [i Hl'].
+   symmetry in Hl'; pose proof (levelS_age _ _ Hl') as [jm1' []]; subst.
+   econstructor.
+   split.
+   rewrite <- (age_jm_dry H2), <- (age_jm_dry H6); eauto.
+   split.
+   rewrite <- (age_jm_dry H2).
+   eapply age_resource_decay; try eassumption; try apply age_jm_phi; auto.
+   destruct (age1_juicy_mem_unpack _ _ H2); auto.
+   destruct (age1_juicy_mem_unpack _ _ H6); auto.
+   split.
+   apply age_level in H6. rewrite <- H6.
+   lia.
+   rewrite (age1_ghost_of _ _ (age_jm_phi H6)), (age1_ghost_of _ _ (age_jm_phi H2)), Hg.
+   rewrite H in H4; inv H4.
+   rewrite !level_juice_level_phi; congruence.
+    intros ? HC J.
+   rewrite (age1_ghost_of _ _ (age_jm_phi H6)) in J.
+   destruct (ghost_joins_approx _ _ _ J) as (J1 & HC1).
+   rewrite <- (age_level _ _ (age_jm_phi H6)) in *.
+   rewrite ghost_of_approx in J1.
+   destruct (H3 (make_join (compcert_rmaps.R.ghost_of (m_phi m')) C0)) as (m'' & ? & Hupd & ?); auto.
+   { eapply make_join_ext; eauto. }
+   destruct (jm_update_age _ _ _ Hupd H6) as (jm1'' & Hupd1 & Hage1).
+   exists jm1''; split.
+   { rewrite (age1_ghost_of _ _ (age_jm_phi Hage1)).
+     replace (level (m_phi jm1'')) with (level (m_phi jm1')); auto.
+     destruct Hupd1 as (? & ? & ?); rewrite <- !level_juice_level_phi; auto. }
+   split; auto.
+   destruct Hupd1 as (? & ? & ?).
+   eapply IHN; eauto; lia.
+  + eapply jsafeN_external; [eauto | eapply JE_pre_hered; eauto |].
+    { unfold j_at_external in *.
+      rewrite <- (age_jm_dry H2); eauto. }
+    intros.
+    destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
+    - assert (level (m_phi jm) < level (m_phi jm0)).
+      {
+        apply age_level in H2.
+        do 2 rewrite <-level_juice_level_phi.
+        destruct H0.
+        rewrite H2; lia.
+      }
+      destruct H0 as (?&?&?).
+      split3; [auto | do 2 rewrite <-level_juice_level_phi in H6; lia |].
+      split.
+      * destruct H8 as [H8 _].
+        unfold pures_sub in H8. intros adr. specialize (H8 adr).
+        assert (Hage: age (m_phi jm0) (m_phi jm)) by (apply age_jm_phi; auto).
+        case_eq (m_phi jm0 @ adr); auto.
+        intros k p Hphi.
+        apply age1_resource_at with (loc := adr) (r := PURE k p) in Hage; auto.
+       ++ rewrite Hage in H8; rewrite  H8; simpl.
+          f_equal. unfold preds_fmap. destruct p. f_equal.
+          generalize (approx_oo_approx' (level m') (level jm)); intros H9.
+          spec H9; [lia |].
+          generalize (approx'_oo_approx (level m') (level jm)); intros H10.
+          spec H10; [lia |].
+          do 2 rewrite <-level_juice_level_phi.
+          rewrite fmap_app.
+          rewrite H9, H10; auto.
+       ++ rewrite <-resource_at_approx, Hphi; auto.
+      * intros adr. case_eq (m_phi m' @ adr); auto. intros k p Hm'.
+        destruct H8 as [_ H8].
+        specialize (H8 adr). rewrite Hm' in H8. destruct H8 as [pp H8].
+        apply age_jm_phi in H2.
+        assert (Hnec: necR (m_phi jm0) (m_phi jm)) by (apply rt_step; auto).
+        eapply necR_PURE' in Hnec; eauto.
+    - exists c'; split; auto.
+  + unfold j_halted in *.
+    eapply jsafeN_halted; eauto.
+    eapply JE_exit_hered; eauto.
+Qed.
+
+Lemma jsafe_corestep_backward:
+    forall c m c' m' n z,
+    jstep Hcore c m c' m' ->
+    jsafeN_ n z c' m' -> jsafeN_ (S n) z c m.
+  Proof.
+    intros; eapply jsafeN_step; eauto.
+    intros; eexists; repeat split; eauto.
   Qed.
 
 (*  Lemma jsafe_corestepN_forward:
@@ -440,138 +635,22 @@ Section juicy_safety.
     apply H. lia.
   Qed.
 
-Lemma make_join_ext : forall (ora : Z) a c n,
-  join_sub (Some (ext_ref ora, NoneP) :: nil) c ->
-  joins (ghost_fmap (approx n) (approx n) a) (ghost_fmap (approx n) (approx n) c) ->
-  join_sub (Some (ext_ref ora, NoneP) :: nil) (make_join a c).
+(*Lemma jm_fupd_intro': forall {Z} (ora : Z) E n z q m,
+  jsafeN_ (min n (level m)) z q m -> jm_fupd ora E E (fun m' => jsafeN_ (min n (level m')) z q m') m.
 Proof.
-  destruct a; auto; simpl.
-  intros ?? [? HC] [? J].
-  inv J.
-  { destruct c; inv H1; inv HC. }
-  destruct c; inv H1.
-  inv H2.
-  { destruct o; inv H0; inv HC.
-    * eexists; constructor; constructor.
-    * eexists; constructor; eauto; constructor. }
-  { destruct o0; inv H1; inv HC.
-    inv H3. }
-  destruct o as [[]|], o0 as [[]|]; inv H; inv H0.
-  destruct a0; inv H1; simpl in *.
-  inv H0.
-  assert (@ghost.valid (ext_PCM Z) (None, None)) as Hv.
-  { simpl; auto. }
-  inv HC.
-  - eexists; constructor; constructor.
-    destruct p; inv H1; inj_pair_tac.
-    instantiate (1 := (existT _ (ext_PCM Z) (exist _ _ Hv), _)); repeat constructor; simpl.
-    rewrite <- H0; auto.
-  - inv H6.
-    + destruct p; inv H1; inj_pair_tac.
-      eexists; constructor; constructor.
-      instantiate (1 := (existT _ (ext_PCM Z) (exist _ _ Hv), _)); repeat constructor; simpl.
-      rewrite <- H0; auto.
-    + destruct a0; inv H5; simpl in *.
-      inv H2.
-      destruct p; inv H1; inj_pair_tac.
-      eexists; constructor; constructor.
-      instantiate (1 := (_, _)); constructor; eauto; simpl.
-      constructor; eauto.
-      unfold NoneP; f_equal.
-      rewrite <- H1; auto.
-Qed.
+  intros; apply jm_fupd_intro, H.
+  intros; eapply necR_safe; eauto.
+Qed.*)
 
-Lemma age_safe:
-  forall jm jm0, age jm0 jm ->
-  forall ora c,
-   jsafeN_ (level jm0) ora c jm0 ->
-   jsafeN_ (level jm) ora c jm.
+Polymorphic Lemma jm_fupd_age' : forall {Z} (ora : Z) E1 E2 z q m m', jm_fupd ora E1 E2 (fun jm => jsafeN_ (min (level m) (level jm)) z q jm) m ->
+  age m m' -> jm_fupd ora E1 E2 (fun jm => jsafeN_ (min (level m') (level jm)) z q jm) m'.
 Proof.
-  intros. rename H into H2.
-   rewrite (age_level _ _ H2) in H0.
-   remember (level jm) as N.
-   revert c jm0 jm HeqN H2 H0; induction N; intros.
-   constructor.
-  remember (S N) as SN.
-   subst SN.
-  inv H0.
-  + pose proof (age_level _ _ H2).
-   destruct H1 as (? & ? & ? & Hg).
-   assert (level m' > 0) by lia.
-   assert (exists i, level m' = S i).
-   destruct (level m'). lia. eauto.
-   destruct H6 as [i Hl'].
-   symmetry in Hl'; pose proof (levelS_age _ _ Hl') as [jm1' []]; subst.
-   econstructor.
-   split.
-   rewrite <- (age_jm_dry H2), <- (age_jm_dry H6); eauto.
-   split.
-   rewrite <- (age_jm_dry H2).
-   eapply age_resource_decay; try eassumption; try apply age_jm_phi; auto.
-   destruct (age1_juicy_mem_unpack _ _ H2); auto.
-   destruct (age1_juicy_mem_unpack _ _ H6); auto.
-   split.
-   apply age_level in H6. rewrite <- H6.
-   lia.
-   rewrite (age1_ghost_of _ _ (age_jm_phi H6)), (age1_ghost_of _ _ (age_jm_phi H2)), Hg.
-   rewrite H in H4; inv H4.
-   rewrite !level_juice_level_phi; congruence.
-   intros ? HC J.
-   rewrite (age1_ghost_of _ _ (age_jm_phi H6)) in J.
-   destruct (ghost_joins_approx _ _ _ J) as (J1 & HC1).
-   rewrite <- (age_level _ _ (age_jm_phi H6)) in *.
-   rewrite ghost_of_approx in J1.
-   destruct (H3 (make_join (compcert_rmaps.R.ghost_of (m_phi m')) C0)) as (m'' & ? & Hupd & ?); auto.
-   { eapply make_join_ext; eauto. }
-   destruct (jm_update_age _ _ _ Hupd H6) as (jm1'' & Hupd1 & Hage1).
-   exists jm1''; split.
-   { rewrite (age1_ghost_of _ _ (age_jm_phi Hage1)).
-     replace (level (m_phi jm1'')) with (level (m_phi jm1')); auto.
-     destruct Hupd1 as (? & ? & ?); rewrite <- !level_juice_level_phi; auto. }
-   split; auto.
-   destruct Hupd1 as (? & ? & ?).
-   eapply IHN; eauto; lia.
-  + eapply jsafeN_external; [eauto | eapply JE_pre_hered; eauto |].
-    { unfold j_at_external in *.
-      rewrite <- (age_jm_dry H2); eauto. }
-    intros.
-    destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
-    - assert (level (m_phi jm) < level (m_phi jm0)).
-      {
-        apply age_level in H2.
-        do 2 rewrite <-level_juice_level_phi.
-        destruct H0.
-        rewrite H2; lia.
-      }
-      destruct H0 as (?&?&?).
-      split3; [auto | do 2 rewrite <-level_juice_level_phi in H6; lia |].
-      split.
-      * destruct H8 as [H8 _].
-        unfold pures_sub in H8. intros adr. specialize (H8 adr).
-        assert (Hage: age (m_phi jm0) (m_phi jm)) by (apply age_jm_phi; auto).
-        case_eq (m_phi jm0 @ adr); auto.
-        intros k p Hphi.
-        apply age1_resource_at with (loc := adr) (r := PURE k p) in Hage; auto.
-       ++ rewrite Hage in H8; rewrite  H8; simpl.
-          f_equal. unfold preds_fmap. destruct p. f_equal.
-          generalize (approx_oo_approx' (level m') (level jm)); intros H9.
-          spec H9; [lia |].
-          generalize (approx'_oo_approx (level m') (level jm)); intros H10.
-          spec H10; [lia |].
-          do 2 rewrite <-level_juice_level_phi.
-          rewrite fmap_app.
-          rewrite H9, H10; auto.
-       ++ rewrite <-resource_at_approx, Hphi; auto.
-      * intros adr. case_eq (m_phi m' @ adr); auto. intros k p Hm'.
-        destruct H8 as [_ H8].
-        specialize (H8 adr). rewrite Hm' in H8. destruct H8 as [pp H8].
-        apply age_jm_phi in H2.
-        assert (Hnec: necR (m_phi jm0) (m_phi jm)) by (apply rt_step; auto).
-        eapply necR_PURE' in Hnec; eauto.
-    - exists c'; split; auto.
-  + unfold j_halted in *.
-    eapply jsafeN_halted; eauto.
-    eapply JE_exit_hered; eauto.
+  intros.
+  eapply jm_fupd_mono; [eapply jm_fupd_age; eauto|].
+  simpl; intros.
+  apply age_level in H0.
+  rewrite !level_juice_level_phi in H0.
+  rewrite min_r in * by lia; auto.
 Qed.
 
 End juicy_safety.

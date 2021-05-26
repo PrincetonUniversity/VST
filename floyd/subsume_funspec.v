@@ -5,6 +5,7 @@ Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 (*
 Definition NDfunspec_sub (f1 f2 : funspec) :=
@@ -67,12 +68,45 @@ simpl in H0.
 specialize (H0 ts1). destruct H0 as [H0 H0'].
 rewrite H0.
 eapply derives_trans; [apply H3 | clear H3 ].
+eapply derives_trans; [|apply bupd_intro].
 apply (exp_right (@nil Type)). simpl.
 apply exp_derives; intros x2.
 apply exp_derives; intros F.
 apply andp_derives; trivial. simpl. apply prop_derives. intros.
-rewrite H0'. eapply derives_trans. 2: apply H1. clear H1. apply andp_derives; trivial; try apply derives_refl.
+rewrite H0'. eapply derives_trans.
+2: { eapply derives_trans. 2: apply bupd_intro. apply H1. }
+clear H1. apply andp_derives; trivial; try apply derives_refl.
 Qed.
+
+(*
+Definition funspec_sub' (f1 f2 : funspec):Prop :=
+let Delta := rettype_tycontext (snd (typesig_of_funspec f1)) in
+match f1 with
+| mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec fsig2 cc2 A2 P2 Q2 _ _ =>
+        fsig1 = fsig2 /\ cc1=cc2 /\
+        forall (ts2 : list Type) x2,
+               ENTAIL Delta, P2 ts2 x2
+           |--
+               |==> (EX ts1:_,  EX x1:_, EX F:_, 
+                           (`F * (P1 ts1 x1)) &&
+                               (!! ENTAIL (ret0_tycon Delta),
+                                                 (`F * (Q1 ts1 x1))
+                                         |--
+                                           |==> (Q2 ts2 x2)))
+    end
+end.
+
+Lemma subsume_subsume:
+  forall f1 f2,
+   funspec_sub' f1 f2 ->
+   funspec_sub f1 f2.
+Proof.
+  unfold funspec_sub', funspec_sub.
+  rewrite <- derives_eq; auto.
+Qed.
+ *)
 
 Inductive empty_type : Type := .
 
@@ -206,7 +240,7 @@ Proof. intros.
 eapply semax_pre. 2: apply semax_call with (P0:=P)(NEP0:=NEP)(NEQ0:=NEQ); trivial; eassumption.
 apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. clear. intros rho.
-rewrite andp_comm. apply func_ptr_si_mono.
+rewrite andp_comm. constructor. apply func_ptr_si_mono.
 apply derives_refl.
 Qed.
 

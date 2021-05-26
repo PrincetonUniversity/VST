@@ -26,6 +26,7 @@ Require Import VST.floyd.deadvars.
 Require Import VST.floyd.list_solver.
 Import Cop.
 Import Cop2.
+Import compcert.lib.Maps.
 
 Ltac hint_loop := 
   idtac "Hint: try 'forward_for_simple_bound N (EX i:Z, PROP... LOCAL...SEP...)%assert', where N is the upper bound of the loop, i is the loop iteration value,  and the LOCAL clause does NOT contain a 'temp' binding for the loop iteration variable";

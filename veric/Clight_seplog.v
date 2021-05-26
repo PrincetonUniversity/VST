@@ -20,6 +20,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.binop_lemmas2.
 Require Export VST.veric.Clight_mapsto_memory_block.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 
@@ -274,7 +275,7 @@ Require Import VST.msl.normalize.
 
 Lemma normal_ret_assert_derives:
  forall P Q rho,
-  P rho |-- Q rho ->
+  (P rho |-- Q rho) ->
   forall ek vl, proj_ret_assert (normal_ret_assert P) ek vl rho 
             |-- proj_ret_assert (normal_ret_assert Q) ek vl rho.
 Proof.

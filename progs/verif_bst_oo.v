@@ -292,7 +292,7 @@ Qed.
 
 *)
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-  forall P Q R: A, P |-- Q -> P * (Q -* R) |-- R.
+  forall P Q R: A, (P |-- Q) -> P * (Q -* R) |-- R.
 Proof.
   intros.
   eapply derives_trans; [| apply modus_ponens_wand].
@@ -302,7 +302,7 @@ Qed.
 
 Lemma RAMIF_Q2_trans' {X Y A : Type} {ND : NatDed A} {SL : SepLog A}:
   forall (m l: A) (g' m' l' : X -> Y -> A),
-    m |-- l * (ALL p: X, ALL q: Y, l' p q -* m' p q) ->
+    (m |-- l * (ALL p: X, ALL q: Y, l' p q -* m' p q)) ->
     m * (ALL p: X, ALL q: Y, m' p q -* g' p q) |-- l * (ALL p: X, ALL q: Y, l' p q -* g' p q).
 Proof.
   intros.

@@ -128,7 +128,7 @@ Proof.
   intuition. repeat constructor.
 Qed.
 
-Lemma entail_rewrite A B : A |-- B -> A = A && B.
+Lemma entail_rewrite A B : (A |-- B) -> A = A && B.
 Proof.
   intros I.
   apply pred_ext.
@@ -144,7 +144,7 @@ Lemma list_append_null (cs : compspecs)
   |-- lseg ls sh (ct1 ++ ct2) hd nullval.
 Proof.
   intros.
-  assert (AP : forall P Q, P * emp |-- Q * emp -> P |-- Q).
+  assert (AP : forall P Q, (P * emp |-- Q * emp) -> P |-- Q).
     intros.
     eapply derives_trans; [ eapply derives_trans; [ | eassumption] | ]; cancel.
   apply AP; clear AP.

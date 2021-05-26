@@ -32,7 +32,7 @@ Section LOADSTORE_FIELD_AT.
 
 Context {cs: compspecs}.
 
-Lemma self_ramify_trans: forall {A} `{SepLog A} (g m l: A), g |-- m * TT -> m |-- l * TT -> g |-- l * TT.
+Lemma self_ramify_trans: forall {A} `{SepLog A} (g m l: A), (g |-- m * TT) -> (m |-- l * TT) -> g |-- l * TT.
 Proof.
   intros A ND SL ? ? ? ? ?.
   eapply derives_trans; [exact H |].
@@ -52,7 +52,7 @@ Lemma semax_load_nth_ram_field_at :
        local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
     readable_share sh ->
-    Pre |-- field_at sh t_root gfs v_reptype p * TT ->
+    (Pre |-- field_at sh t_root gfs v_reptype p * TT) ->
     JMeq v_reptype v_val ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
       (tc_lvalue Delta e1) && local (`(tc_val (nested_field_type t_root gfs) v_val)) ->
@@ -91,7 +91,7 @@ Lemma semax_cast_load_nth_ram_field_at :
     nth_error R n = Some Pre ->
      cast_pointer_to_bool (nested_field_type t_root gfs) t_to = false ->
     readable_share sh ->
-    Pre |-- field_at sh t_root gfs v_reptype p * TT ->
+    (Pre |-- field_at sh t_root gfs v_reptype p * TT) ->
     JMeq v_reptype v_val ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
      (tc_lvalue Delta e1) && local (`(tc_val t_to (eval_cast (nested_field_type t_root gfs) t_to v_val))) ->
@@ -123,7 +123,7 @@ Lemma lower_andp_lifted_val:
 Proof. reflexivity. Qed.
 
 Lemma remove_one_LOCAL_left: forall P Q0 Q R S,
-  PROPx P (LOCALx Q R) |-- S -> PROPx P (LOCALx (Q0 :: Q) R) |-- S.
+  (PROPx P (LOCALx Q R) |-- S) -> PROPx P (LOCALx (Q0 :: Q) R) |-- S.
 Proof.
   intros.
   simpl in H |- *.
@@ -148,7 +148,7 @@ Lemma semax_store_nth_ram_field_at:
     JMeq v_val v_reptype ->
     nth_error R n = Some Pre ->
     writable_share sh ->
-    Pre |-- field_at_ sh t_root gfs p * (field_at sh t_root gfs v_reptype p -* Post) ->
+    (Pre |-- field_at_ sh t_root gfs p * (field_at sh t_root gfs v_reptype p -* Post)) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
      (tc_lvalue Delta e1) && (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs))) ->
     semax Delta
@@ -253,6 +253,5 @@ Proof.
   apply derives_refl.
   apply derives_refl.
 Qed.
-
 
 End LOADSTORE_FIELD_AT.

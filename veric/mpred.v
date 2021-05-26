@@ -6,6 +6,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.composite_compute.
 Require Import VST.veric.align_mem.
 Require Import VST.veric.val_lemmas.
+Import compcert.lib.Maps.
 
 Open Scope Z_scope.
 
@@ -167,6 +168,17 @@ Definition args_super_non_expansive {A: TypeTree}
 Definition const_super_non_expansive: forall (T: Type) P,
   @super_non_expansive (ConstType T) P :=
   fun _ _ _ _ _ _ => eq_refl.
+
+Definition AssertListTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType environ) (ListType Mpred)).
+
+Definition super_non_expansive_list {A: TypeTree}
+  (P: forall ts, dependent_type_functor_rec ts (AssertListTT A) mpred): Prop :=
+  forall n ts
+    (x: functors.MixVariantFunctor._functor
+                         (rmaps.dependent_type_functor_rec ts A) mpred)
+    (rho: environ),
+  Forall2 (fun a b => approx n a = approx n b) (P ts x rho) (P ts (fmap _ (approx n) (approx n) x) rho).
 
 Definition args_const_super_non_expansive: forall (T: Type) P,
   @args_super_non_expansive (ConstType T) P :=

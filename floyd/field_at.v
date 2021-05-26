@@ -1613,7 +1613,7 @@ apply field_at_conflict; auto.
 Qed.
 
 Lemma sepcon_FF_derives':
-  forall (P Q: mpred), Q |-- FF -> P * Q |-- FF.
+  forall (P Q: mpred), (Q |-- FF) -> P * Q |-- FF.
 Proof.
 intros.
 eapply derives_trans. apply sepcon_derives; try eassumption; eauto.
@@ -1716,7 +1716,7 @@ auto.
 Qed.
 
 Lemma valid_pointer_weak':
-  forall P q, P |-- valid_pointer q ->
+  forall P q, (P |-- valid_pointer q) ->
                  P |-- weak_valid_pointer q.
 Proof.
 intros.
@@ -1727,7 +1727,7 @@ Qed.
 #[export] Hint Resolve valid_pointer_weak' : valid_pointer.
 
 Lemma valid_pointer_offset_zero: forall P q, 
-   P |-- valid_pointer (offset_val 0 q) ->
+   (P |-- valid_pointer (offset_val 0 q)) ->
    P |-- valid_pointer q.
 Proof.
 intros.
@@ -1736,9 +1736,9 @@ eapply derives_trans; try eassumption.
 simpl valid_pointer.
 match goal with
 | |- context [Int64.zero] =>
-    change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int64.zero)))
+    constructor; change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int64.zero)))
 | |- context [Int.zero] =>
-    change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int.zero)))
+    constructor; change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int.zero)))
 end.
 intros ? ?. contradiction H0.
 rewrite offset_val_zero_Vptr in H.

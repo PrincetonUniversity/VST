@@ -1,11 +1,12 @@
 Require Import VST.floyd.base2.
 Require Export VST.floyd.canon.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Lemma SEP_entail:
  forall R' Delta P Q R, 
-   fold_right_sepcon R |-- fold_right_sepcon R' -> 
+   (fold_right_sepcon R |-- fold_right_sepcon R') -> 
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -30,6 +31,22 @@ Proof.
 intros.
 apply andp_right.
 apply andp_left2; apply andp_left1; auto.
+apply andp_right.
+do 2 apply andp_left2; apply andp_left1; auto.
+eapply derives_trans; [ apply H|].
+apply derives_refl.
+Qed.
+
+Lemma SEP_entail'_bupd:
+ forall R' Delta P Q R, 
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (|==> fold_right_sepcon R') -> 
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- |==> PROPx P (LOCALx Q (SEPx R')).
+Proof.
+intros.
+eapply derives_trans, corable_andp_bupd, corable_prop.
+apply andp_right.
+apply andp_left2; apply andp_left1; auto.
+eapply derives_trans, local_andp_bupd.
 apply andp_right.
 do 2 apply andp_left2; apply andp_left1; auto.
 eapply derives_trans; [ apply H|].
@@ -384,7 +401,7 @@ Proof. intros; apply prop_ext; split; intro; congruence. Qed.
 
 Lemma overridePost_normal_right:
   forall P Q R,
-   P |-- Q ->
+   (P |-- Q) ->
    P |-- RA_normal (overridePost Q R).
 Proof. intros. 
   destruct R; simpl; auto.
@@ -937,12 +954,12 @@ Ltac strip1_later P cP :=
 end.
 
 Lemma andp_later_derives {A} {NA: NatDed A}{IA: Indir A}:
-  forall P Q P' Q': A, P |-- |> P' -> Q |-- |> Q' -> P && Q |-- |> (P' && Q').
+  forall P Q P' Q': A, (P |-- |> P') -> (Q |-- |> Q') -> P && Q |-- |> (P' && Q').
 Proof.
 intros. rewrite later_andp. apply andp_derives; auto. Qed.
 
 Lemma sepcon_later_derives {A} {NA: NatDed A}{SL: SepLog A}{IA: Indir A}{SI: SepIndir A}:
-  forall P Q P' Q': A, P |-- |> P' -> Q |-- |> Q' -> P * Q |-- |> (P' * Q').
+  forall P Q P' Q': A, (P |-- |> P') -> (Q |-- |> Q') -> P * Q |-- |> (P' * Q').
 Proof.
 intros. rewrite later_sepcon. apply sepcon_derives; auto. Qed.
 
@@ -1728,8 +1745,8 @@ Ltac intro_if_new :=
 
 Lemma saturate_aux20:
  forall (P Q: mpred) P' Q' ,
-    P |-- !! P' ->
-    Q |-- !! Q' ->
+    (P |-- !! P') ->
+    (Q |-- !! Q') ->
     P * Q |-- !! (P' /\ Q').
 Proof.
 intros.
@@ -1738,10 +1755,21 @@ rewrite sepcon_prop_prop.
 auto.
 Qed.
 
+Lemma saturate_aux21:  (* obsolete? *)
+  forall (P Q: mpred) S (S': Prop),
+   (P |-- S) ->
+   S = !!S' ->
+   (!! S' && P |-- Q) -> P |-- Q.
+Proof.
+intros. subst.
+eapply derives_trans; [ | eassumption].
+apply andp_right; auto.
+Qed.
+
 Lemma saturate_aux21x:
   forall (P Q S: mpred),
-   P |-- S ->
-   S && P |-- Q -> P |-- Q.
+   (P |-- S) ->
+   (S && P |-- Q) -> P |-- Q.
 Proof.
 intros. subst.
 eapply derives_trans; [ | eassumption].
@@ -1816,7 +1844,7 @@ Ltac subst_any :=
 Lemma prop_and_right {A}{NA: NatDed A}:
  forall (U: A) (X Y: Prop),
     X ->
-    U |-- !! Y ->
+    (U |-- !! Y) ->
     U |-- !! (X /\ Y).
 Proof. intros. apply derives_trans with (!!Y); auto.
 apply prop_derives; auto.

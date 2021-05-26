@@ -106,8 +106,9 @@ Lemma thread_inv_exclusive : forall tsh sh lg i ctr lock lockt,
 Proof.
   intros; apply selflock_exclusive.
   unfold thread_lock_R.
-  apply exclusive_sepcon1; auto.
+  apply exclusive_sepcon1; auto with exclusive.
 Qed.
+
 #[export] Hint Resolve thread_inv_exclusive.
 
 Lemma sum_repeat: forall i n, sum (repeat i n) = (i * Z.of_nat n)%Z.
@@ -144,14 +145,14 @@ Proof.
     Exists 0 (repeat 0 (length lg)); entailer!.
     { symmetry; apply sum_0. }
     rewrite iter_sepcon_sepcon with (g1 := ghost_var gsh1 0)(g2 := ghost_var gsh2 0)
-      by (intro; erewrite ghost_var_share_join; auto).
+      by (intro; erewrite ghost_var_share_join; auto with share).
     rewrite iter_sepcon2_spec.
     Exists (map (fun g => (g, 0)) lg); entailer!.
     { rewrite !map_map; simpl.
       rewrite map_id_eq, map_const; auto. }
     apply sepcon_derives; [|cancel].
     clear; induction lg; unfold uncurry; simpl; entailer!. }
-  forward.
+  (*forward.*)
   Exists lg; entailer!.
 Qed.
 
@@ -174,7 +175,7 @@ Proof.
       Intros l.
       destruct a as (g, v), p as (g', v'); simpl in *; subst.
       unfold uncurry at 2 3; simpl.
-      erewrite ghost_var_share_join' by eauto; Intros; subst.
+      erewrite ghost_var_share_join' by (eauto with share); Intros; subst.
       Exists ((g', v') :: l); simpl; entailer!.
       { repeat split; congruence. }
       apply derives_refl. }
@@ -183,6 +184,7 @@ Proof.
   { go_lower.
     rewrite iter_sepcon2_spec.
     Intros l; apply own_list_dealloc'. }
+
   forward.
   cancel.
 Qed.
@@ -291,7 +293,8 @@ Proof.
          iter_sepcon (fun j => lock_inv sh2 (thread_lock j)
            (thread_lock_inv sh1 (Znth j shs) lg j (gv _ctr) (gv _ctr_lock) (thread_lock j)))
            (upto (Z.to_nat i));
-         data_at_ Ews (tarray tlock (N - i)) (thread_lock i))).
+         data_at_ Ews (tarray tlock (N - i)) (thread_lock i);
+          has_ext tt)).
   { unfold N; computable. }
   { Exists Ews.
     subst thread_lock.
@@ -386,7 +389,7 @@ Proof.
     rewrite app_cons_assoc in Hshs.
     apply sepalg_list.list_join_unapp in Hshs as (sh' & Hshs1 & ?).
     apply sepalg_list.list_join_unapp in Hshs1 as (? & J & J1).
-    apply list_join_eq with (c := x) in J; auto; subst.
+    apply list_join_eq with (c := sh) in J; auto; subst.
     rewrite <- sepalg_list.list_join_1 in J1.
     gather_SEP 3 1; erewrite lock_inv_share_join; eauto.
     rewrite !(sublist_split 0 i (i + 1)), !sublist_len_1 by lia.
@@ -394,15 +397,14 @@ Proof.
     Exists sh'; entailer!.
     { eapply sepalg_list.list_join_app; eauto.
       econstructor; eauto; constructor. }
-    rewrite (sepcon_comm _ (ghost_var _ _ _)), !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
-    rewrite sepcon_comm, sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+    simpl; cancel.
     rewrite !data_at__tarray.
     rewrite Z2Nat.inj_add, <- list_repeat_app by lia.
     erewrite split2_data_at_Tarray_app by (rewrite Zlength_list_repeat; auto; lia).
     rewrite Z.add_simpl_l; cancel.
     simpl; erewrite data_at_singleton_array_eq by eauto.
     rewrite field_address0_offset.
-    cancel.
+    unfold thread_lock_inv, thread_lock_R; cancel.
     { rewrite field_compatible0_cons; split; auto; try lia.
       apply field_compatible_array_smaller0 with (n' := N); auto; lia. }
     { eapply readable_share_list_join; eauto. }

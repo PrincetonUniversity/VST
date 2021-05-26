@@ -166,7 +166,7 @@ Lemma semax_load_nth_ram :
        local (`(eq p) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
     readable_share sh ->
-    Pre |-- mapsto sh t1 p v * TT ->
+    (Pre |-- mapsto sh t1 p v * TT) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
       (tc_lvalue Delta e1) && local (`(tc_val t1 v)) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -202,7 +202,7 @@ Lemma semax_cast_load_nth_ram :
     nth_error R n = Some Pre ->
     cast_pointer_to_bool t1 t2 = false ->
     readable_share sh ->
-    Pre |-- mapsto sh t1 p v * TT ->
+    (Pre |-- mapsto sh t1 p v * TT) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
      (tc_lvalue Delta e1) && local (`(tc_val t2 (eval_cast t1 t2 v))) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -238,7 +238,7 @@ Lemma semax_store_nth_ram:
        local (`(eq v) (eval_expr (Ecast e2 t1))) ->
     nth_error R n = Some Pre ->
     writable_share sh ->
-    Pre |-- mapsto_ sh t1 p * (mapsto sh t1 p v -* Post) ->
+    (Pre |-- mapsto_ sh t1 p * (mapsto sh t1 p v -* Post)) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
      (tc_lvalue Delta e1) && (tc_expr Delta (Ecast e2 t1)) ->
     semax Delta

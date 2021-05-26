@@ -9,6 +9,13 @@ Set Bullet Behavior "Strict Subproofs".
 
 Opaque upto.
 
+Lemma iter_sepcon_fold_right_sepcon:
+  forall {A} (f: A -> mpred) (al: list A), iter_sepcon f al = fold_right sepcon emp (map f al).
+Proof.
+induction al; simpl; auto.
+f_equal; auto.
+Qed.
+
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
@@ -39,13 +46,13 @@ Proof.
     eapply readable_share_list_join; eauto.
     inv H1; auto; discriminate. }
   forward_spawn _writer (vint 0) (locks, comms, bufs, sh0, sh0, sh0, shs, g, g0, g1, g2, gv).
-  { rewrite !sepcon_andp_prop'.
+ { rewrite !sepcon_andp_prop'.
     apply andp_right; [apply prop_right; repeat (split; auto)|].
     unfold comm_loc; erewrite map_ext;
       [|intro; erewrite <- AE_loc_join with (h1 := empty_map)(h2 := empty_map);
         try apply incl_compatible; eauto; reflexivity].
     rewrite !sepcon_map.
-    do 3 (erewrite <- (data_at_shares_join Ews); eauto).
+    do 3 (erewrite <- (data_at_shares_join_old Ews); eauto).
     rewrite (extract_nth_sepcon (map (data_at _ _ _) (sublist 1 _ bufs)) 0), Znth_map;
       rewrite ?Zlength_map, ?Zlength_sublist; try (unfold B, N in *; lia).
     erewrite <- (data_at_shares_join Ews tbuffer) by eauto.
@@ -105,8 +112,9 @@ Proof.
         fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs)) (sublist i N shs));
         mem_mgr gv; has_ext tt)).
   { unfold N; computable. }
-  { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!.
-    apply derives_refl. }
+  { Exists Ews; rewrite !sublist_same; auto; unfold N.
+  rewrite iter_sepcon_fold_right_sepcon.
+    entailer!. apply derives_refl. }
   { Intros sh'.
     forward_call (tint, gv). Intros d.
     forward.
@@ -137,5 +145,4 @@ Proof.
     forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
     entailer!.
     forward. entailer!.
-Unshelve. apply xH. apply xH. (*TODO: fix (I believe) the forward_spawn tactic  so that this ident is not introduces. Is it the y?*)
 Qed.

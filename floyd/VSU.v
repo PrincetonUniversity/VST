@@ -5,9 +5,10 @@ Require Export VST.floyd.PTops.
 Require Export VST.floyd.QPcomposite.
 Require Export VST.floyd.quickprogram.
 Require Export VST.floyd.Component.
+Import compcert.lib.Maps.
 
 Lemma valid_pointer_is_null_or_ptr p: valid_pointer p |-- !!( is_pointer_or_null p).
-Proof. apply valid_pointer_is_pointer_or_null. Qed.
+Proof. constructor. apply valid_pointer_is_pointer_or_null. Qed.
 
 Lemma semax_body_subsumespec_VprogNil {cs V G f iphi}:
        @semax_body [] G cs f iphi ->
@@ -1037,8 +1038,8 @@ apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
   simpl in E0.
   destruct (find_id i Exports) eqn:?H; try contradiction.
   apply (Comp_G_Exports c) in H1.
-  destruct (find_id i G). eapply funspec_sub_trans; eauto. 
   destruct H1 as [phi' [? ?]].
+  
   exists phi'.
   split; auto.
   eapply funspec_sub_trans; eauto.
@@ -1071,7 +1072,6 @@ apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
 + rewrite H. apply c.
 + intros. destruct (find_funspec_sub Exports' Exports H H0 _ _ E0) as [psi [Psi PSI]].
   apply (Comp_G_Exports c) in Psi.
-  destruct (find_id i G). eapply funspec_sub_trans;eauto.
   destruct Psi as [tau [Tau TAU]].
   exists tau; split; trivial. eapply funspec_sub_trans; eassumption.
 + apply (Comp_MkInitPred c).
@@ -1259,10 +1259,6 @@ apply (@Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
       rewrite Psi. eexists; split. reflexivity. apply (funspec_sub_sub_si _ _ PSI).
     * apply find_id_None_iff in Heqq. rewrite H in Heqq. apply find_id_None_iff in Heqq. rewrite Heqq, Heqw.
       eexists; split. reflexivity. apply funspec_sub_si_refl.
-+ intros. specialize (Comp_G_Exports c _ _ E0). destruct (find_id i G). trivial.
-  intros [psi [Psi PSI]].
-  destruct (find_funspec_sub _ _ H H0 _ _ Psi) as [tau [Tau TAU]].
-  exists tau; split. trivial. eapply funspec_sub_trans; eauto.
 + apply (Comp_MkInitPred c).
 Qed.
 
@@ -3305,11 +3301,11 @@ split; [ split; trivial | intros].
 subst.
 unfold binarySUMArgs. destruct x2; simpl. destruct x.
 + clear Hpsi. destruct Hphi as [_ Hphi].
-  eapply derives_trans. apply (Hphi ts2 _f gargs). clear Hphi.
+  eapply derives_trans. apply (Hphi ts2 _f gargs). clear Hphi. apply bupd_mono.
   Intros ts1 x1 F. Exists ts1 (@sigBool_left A1 B1 ts1 x1) F; simpl.
   entailer.
 + clear Hphi. destruct Hpsi as [_ Hpsi].
-  eapply derives_trans. apply (Hpsi ts2 _f gargs). clear Hpsi.
+  eapply derives_trans. apply (Hpsi ts2 _f gargs). clear Hpsi. apply bupd_mono.
   Intros ts1 x1 F. Exists ts1 (@sigBool_right A1 B1 ts1 x1) F; simpl.
   entailer.
 Qed.

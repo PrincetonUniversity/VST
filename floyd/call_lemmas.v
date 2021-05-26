@@ -6,6 +6,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.subsume_funspec.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Fixpoint argtypes (al: list (ident * type)) : list type :=
@@ -523,7 +524,7 @@ Definition OLDcall_setup1
   funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) /\
 
   can_assume_funcptr  cs Delta P Q R' a fs /\
-  PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) /\
+  (PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R))) /\
   
   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc /\
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
@@ -567,11 +568,11 @@ Lemma OLDcall_setup1_i:
   local2ptree Q = (Qtemp, Qvar, nil, GV) ->
   msubst_eval_expr Delta Qtemp Qvar GV a = Some v ->
 
-  fold_right_sepcon R' |--  func_ptr fs v ->
+  (fold_right_sepcon R' |--  func_ptr fs v) ->
   
   funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
 
-  fold_right_sepcon R' |-- |> fold_right_sepcon R ->
+  (fold_right_sepcon R' |-- |> fold_right_sepcon R) ->
 
   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
@@ -586,7 +587,7 @@ Lemma OLDcall_setup1_i:
 Proof. intros.
 assert (H18 := @msubst_eval_expr_eq cs Delta P Qtemp Qvar GV R' a v H0).
 assert (H19 := local2ptree_soundness P Q R' Qtemp Qvar nil GV H).
-repeat split; auto.
+split; repeat match goal with |- _ /\ _ => split end; auto.
 hnf; intros.
 eapply semax_pre; [ | eassumption].
 clear c Post0 H8 (*H9*).
@@ -614,7 +615,7 @@ Lemma call_setup1_i:
   msubst_eval_expr Delta Qtemp Qvar GV a = Some v ->
 
   (*fold_right_sepcon R' |--  func_ptr fs v ->*)
-  fold_right_sepcon R |--  func_ptr fs v ->
+  (fold_right_sepcon R |--  func_ptr fs v) ->
   
   funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
 
@@ -634,7 +635,7 @@ Lemma call_setup1_i:
 Proof. intros.
 assert (H18 := @msubst_eval_expr_eq cs Delta P Qtemp Qvar GV (*R'*)R a v H0).
 assert (H19 := local2ptree_soundness P Q (*R'*)R Qtemp Qvar nil GV H).
-repeat split; auto.
+split; repeat match goal with |- _ /\ _ => split end; auto.
 hnf; intros.
 eapply semax_pre; [ | eassumption].
 clear c Post0 H7 (*H8*).
@@ -664,7 +665,7 @@ Lemma OLDcall_setup1_i2:
   
   funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
 
-  PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) ->
+  (PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R))) ->
   
   Cop.classify_fun ty = Cop.fun_case_f (typelist_of_type_list argsig) retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
@@ -677,7 +678,7 @@ Lemma OLDcall_setup1_i2:
 (*  pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals ->*)
  OLDcall_setup1 cs Qtemp Qvar GV (Evar id ty) Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*).
 Proof. intros.
- repeat split; auto.
+split; repeat match goal with |- _ /\ _ => split end; auto.
 Qed.
 
 Lemma call_setup1_i2:
@@ -706,7 +707,7 @@ Lemma call_setup1_i2:
 (*  pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals ->*)
  call_setup1 cs Qtemp Qvar GV (Evar id ty) Delta P Q R (*R'*) fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*).
 Proof. intros.
- repeat split; auto.
+split; repeat match goal with |- _ /\ _ => split end; auto.
 Qed.
 
 Lemma can_assume_funcptr1:
@@ -799,7 +800,7 @@ Definition call_setup2
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) /\*)
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) /\
   check_gvars_spec GV GV' /\
-  fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame.
+  (fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame).
 
 Lemma call_setup2_i:
  forall  (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
@@ -826,7 +827,7 @@ Lemma call_setup2_i:
   call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl (*Qactuals*)
       witness' Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args.
 Proof.
- intros. split. auto. repeat split; auto.
+ intros. split. auto. split; repeat match goal with |- _ /\ _ => split end; auto.
 Qed.
 
 Definition call_setup2_nil 
@@ -850,7 +851,7 @@ Definition call_setup2_nil
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) /\
 
   check_gvars_spec GV GV' /\
-  fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame.
+  (fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame).
 
 Lemma call_setup2_nil_equiv:
   forall (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
@@ -894,7 +895,7 @@ Lemma call_setup2_i_nil:
   call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*)
       witness' Frame Ppre (*Qpre*) Rpre (*Qpre_temp*) GV' gv args.
 Proof.
- intros. split. auto. repeat split; auto.
+ intros. split. auto. split; repeat match goal with |- _ /\ _ => split end; auto.
 Qed.
 
 Lemma actual_value_not_Vundef:
@@ -1739,7 +1740,7 @@ Qed.
 
 Lemma nomatch_funcptr'_funcptr:
   forall fs v A B,
-   B |-- func_ptr fs v ->
+   (B |-- func_ptr fs v) ->
   A * B |-- func_ptr fs v.
 Proof.
 intros.

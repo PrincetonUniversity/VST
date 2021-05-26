@@ -1,11 +1,11 @@
 Require Import VST.veric.rmaps.
 Require Import VST.progs.ghosts.
-From atomics Require Import general_atomics acq_rel_atomics acq_rel_SW.
+From VST.atomics Require Import general_atomics acq_rel_atomics acq_rel_SW.
 Require Import VST.progs.conclib.
-Require Import atomics.maps.
+Require Import VST.atomics.maps.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import atomics.kvnode_atomic_ra.
+Require Import VST.atomics.kvnode_atomic_ra.
 
 Set Bullet Behavior "Strict Subproofs".
 

@@ -1,4 +1,5 @@
 Require Import VST.floyd.base.
+Import compcert.lib.Maps.
 
 Ltac make_ground_PTree a :=
  let a := eval hnf in a in

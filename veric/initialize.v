@@ -11,6 +11,7 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.Clight_initial_world.
+Import compcert.lib.Maps.
 
 Import Clight.
 

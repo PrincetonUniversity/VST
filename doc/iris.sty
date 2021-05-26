@@ -1,0 +1,485 @@
+\NeedsTeXFormat{LaTeX2e}[1999/12/01]
+\ProvidesPackage{iris}
+
+\RequirePackage{faktor}
+\RequirePackage{tikz}
+\RequirePackage{scalerel}
+\RequirePackage{array}
+\RequirePackage{dashbox}
+\RequirePackage{tensor}
+\RequirePackage{xifthen}
+\RequirePackage{xparse}
+\RequirePackage{mathtools}
+
+\usetikzlibrary{shapes}
+%\usetikzlibrary{snakes}
+\usetikzlibrary{arrows}
+\usetikzlibrary{calc}
+\usetikzlibrary{arrows.meta}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% MATH SYMBOLS & NOTATION & IDENTIFIERS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\nat}{\mathbb{N}}
+
+\newcommand*{\Sep}[1][]{\scalerel*{\ast}{\sum}\ifthenelse{\isempty{#1}}{}{_{#1}\;}}
+\newcommand*{\disj}[1][]{\mathrel{\#_{#1}}}
+\newcommand\pord{\sqsubseteq}
+
+\makeatletter%
+\@ifundefined{dplus}{%
+\newcommand\dplus{\mathbin{+\kern-1.0ex+}}
+}{}
+\makeatother%
+
+\newcommand{\upclose}{\mathord{\uparrow}}
+\newcommand{\ALT}{\ |\ }
+
+\newcommand{\spac}{\hskip 0.2em plus 0.1em} % a space
+
+\def\All #1.{\forall #1.\spac}%
+\def\Exists #1.{\exists #1.\spac}%
+\def\Ret #1.{#1.\spac}%
+
+\newcommand{\any}{{\rule[-.2ex]{1ex}{.4pt}}}%
+
+\newcommand{\judgment}[2][]{\paragraph{#1}\hspace{\stretch{1}}\fbox{$#2$}}
+
+\newcommand{\pfn}{\rightharpoonup}
+\newcommand\fpfn{\xrightharpoonup{\kern-0.25ex\textrm{fin}\kern-0.25ex}}
+\newcommand{\la}{\leftarrow}
+\newcommand{\ra}{\rightarrow}
+\newcommand{\Ra}{\Rightarrow}
+\newcommand{\Lra}{\Leftrightarrow}
+\newcommand\monra{\xrightarrow{\kern-0.15ex\textrm{mon}\kern-0.05ex}}
+\newcommand\monnra{\xrightarrow{\kern-0.15ex\textrm{mon,ne}\kern-0.05ex}}
+\newcommand\nfn{\xrightarrow{\kern-0.15ex\textrm{ne}\kern-0.05ex}}
+\newcommand{\eqdef}{\triangleq}
+\newcommand{\bnfdef}{\vcentcolon\vcentcolon=}
+
+\newcommand{\maybe}[1]{#1^?}
+
+\newcommand*\setComp[2]{\left\{#1\spac\middle|\spac#2\right\}}
+\newcommand*\set[1]{\left\{#1\right\}}
+\newcommand*\record[1]{\left\{\spac#1\spac\right\}}
+\newcommand*\recordComp[2]{\left\{\spac#1\spac\middle|\spac#2\spac\right\}}
+
+\newenvironment{inbox}[1][]{
+  \begin{array}[#1]{@{}l@{}}
+}{
+  \end{array}
+}
+
+\newcommand{\op}{\textrm{op}}
+\newcommand{\dom}{\mathrm{dom}}
+\newcommand{\cod}{\mathrm{cod}}
+\newcommand{\chain}{\mathrm{chain}}
+
+\newcommand{\pset}[1]{\wp(#1)} % Powerset
+\newcommand{\psetdown}[1]{\wp^\downarrow(#1)}
+\newcommand{\finpset}[1]{\wp^\mathrm{fin}(#1)}
+\newcommand{\pmultiset}[1]{\wp^{+}(#1)}
+\newcommand{\finpmultiset}[1]{\wp^{\mathrm{fin},+}(#1)}
+
+\newcommand{\Func}{F} % functor
+
+\newcommand{\subst}[3]{{#1}[{#3} / {#2}]}
+
+\newcommand{\mapinsert}[3]{#3\left[#1\mathop{\la}#2\right]}
+\newcommand{\mapsingleton}[2]{\mapinsert{#1}{#2}{}}
+\newcommand{\mapinsertComp}[4]
+  {\mapinsert{#1}{#2 \spac\middle|\spac #3}{#4}}
+\newcommand{\mapComp}[3]
+  {\mapinsertComp{#1}{#2}{#3}{}}
+
+\newcommand{\nil}{\epsilon}
+
+% displaced dot
+\newcommand{\dispdot}[2][.2ex]{\dot{\raisebox{0pt}[\dimexpr\height+#1][\depth]{$#2$}}}% \dispdot[<displace>]{<stuff>}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% MODEL-SPECIFIC SYMBOLS & NOTATION & IDENTIFIERS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\textdom}[1]{\textit{#1}}
+
+\newcommand{\wIso}{\xi}
+
+\newcommand{\rs}{r}
+\newcommand{\rsB}{s}
+\newcommand{\rss}{R}
+
+\newcommand{\pres}{\pi}
+\newcommand{\wld}{w}
+\newcommand{\ghostRes}{g}
+
+%% Various pieces of syntax
+\newcommand{\wsat}[3]{#1 \models_{#2} #3}
+\newcommand{\wsatpre}{\textdom{pre-wsat}}
+
+\newcommand{\wtt}[2]{#1 : #2} % well-typed term
+
+\newcommand{\nequiv}[1]{\ensuremath{\mathrel{\stackrel{#1}{=}}}}
+\newcommand{\nincl}[1]{\ensuremath{\mathrel{\stackrel{#1}{\subseteq}}}}
+\newcommand{\notnequiv}[1]{\ensuremath{\mathrel{\stackrel{#1}{\neq}}}}
+\newcommand{\nequivset}[2]{\ensuremath{\mathrel{\stackrel{#1}{=}_{#2}}}}
+\newcommand{\nequivB}[1]{\ensuremath{\mathrel{\stackrel{#1}{\equiv}}}}
+\newcommand{\latert}{\mathord{\blacktriangleright}}
+\newcommand{\latertinj}{\textlog{next}}
+
+\newcommand{\Sem}[1]{\llbracket #1 \rrbracket}
+
+\newcommand{\sembox}[1]{\hfill \normalfont \mbox{\fbox{\(#1\)}}}
+\newcommand{\typedsection}[2]{\subsubsection*{\rm\em #1 \sembox{#2}}}
+
+
+%% Some commonly used identifiers
+\newcommand{\SProp}{\textdom{SProp}}
+\newcommand{\UPred}{\textdom{UPred}}
+\newcommand{\mProp}{\textdom{Prop}} % meta-level prop
+\newcommand{\iProp}{\textdom{iProp}}
+\newcommand{\iPreProp}{\textdom{iPreProp}}
+\newcommand{\Wld}{\textdom{Wld}}
+\newcommand{\Res}{\textdom{Res}}
+
+% List
+\newcommand{\List}{\ensuremath{\textdom{List}}}
+
+\newcommand{\ofe}{T}
+\newcommand{\ofeB}{U}
+\newcommand{\cofe}{\ofe}
+\newcommand{\cofeB}{\ofeB}
+\newcommand{\OFEs}{\mathbf{OFE}} % category of OFEs
+\newcommand{\COFEs}{\mathbf{COFE}} % category of COFEs
+\newcommand{\iFunc}{\Sigma}
+\newcommand{\fix}{\textdom{fix}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CMRA (RESOURCE ALGEBRA) SYMBOLS & NOTATION & IDENTIFIERS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\textmon}[1]{\textsc{#1}}
+
+\newcommand{\monoid}{M}
+\newcommand{\mval}{\mathcal{V}}
+\newcommand{\mvalFull}{\overline{\mathcal{V}}}
+
+\newcommand{\melt}{a}
+\newcommand{\meltB}{b}
+\newcommand{\meltC}{c}
+\newcommand{\melts}{A}
+\newcommand{\meltsB}{B}
+
+\newcommand{\f}{\mathrm{f}} % for "frame"
+
+\newcommand{\munit}{\varepsilon}
+\newcommand{\mcore}[1]{{\mid}#1{\mid}} % using "|" here makes LaTeX diverge. WTF.
+\newcommand{\bigmcore}[1]{{\big|}#1{\big|}} % using "|" here makes LaTeX diverge. WTF.
+\newcommand{\mnocore}{\bot}
+\newcommand{\mtimes}{\mathbin{\cdot}}
+\newcommand{\mundef}{\lightning}
+
+\newcommand{\exclusive}{\mathrm{exclusive}}
+
+\newcommand{\mupd}{\rightsquigarrow}
+\newcommand{\mincl}[1][]{%
+  \ensuremath{\mathrel{\vbox{\offinterlineskip\ialign{%
+    \hfil##\hfil\cr
+    \ensuremath{\scriptstyle #1}\cr
+    \noalign{\kern-0.25ex}
+    $\preccurlyeq$\cr
+}}}}}
+
+\newcommand{\CMRAs}{\mathbf{Camera}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% LOGIC SYMBOLS & NOTATION & IDENTIFIERS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\textlog}[1]{\textsf{#1}}
+
+\newcommand{\Sig}{\mathcal{S}}
+\newcommand{\SigType}{\mathcal{T}}
+\newcommand{\SigFn}{\mathcal{F}}
+\newcommand{\SigAx}{\mathcal{A}}
+\newcommand{\sigtype}{T}
+\newcommand{\sigfn}{F}
+\newcommand{\sigax}{A}
+
+\newcommand{\type}{\tau}
+\newcommand{\typeB}{\sigma}
+
+\newcommand{\var}{x}
+\newcommand{\varB}{y}
+\newcommand{\varC}{z}
+
+\newcommand{\term}{t}
+\newcommand{\termB}{u}
+
+\newcommand{\venv}{\rho}
+\newcommand{\vctx}{\Gamma}
+\newcommand{\pfctx}{\Theta}
+
+\newcommand{\prop}{P}
+\newcommand{\propB}{Q}
+\newcommand{\propC}{R}
+
+% pure propositions
+\newcommand{\pprop}{\phi}
+\newcommand{\ppropB}{\psi}
+
+\newcommand{\pred}{\varPhi}
+\newcommand{\predB}{\Psi}
+\newcommand{\predC}{\Zeta}
+
+\newcommand{\gname}{\gamma}
+\newcommand{\iname}{\iota}
+
+\newcommand{\mask}{\mathcal{E}}
+\newcommand{\namesp}{\mathcal{N}}
+\newcommand{\namecl}[1]{{#1^{\kern0.2ex\uparrow}}}
+
+\newcommand{\fixp}{\mathit{fix}}
+
+%% various pieces of Syntax
+\def\MU #1.{\mu\,#1.\spac}%
+\def\Lam #1.{\lambda\,#1.\spac}%
+
+\newcommand{\proves}{\vdash}
+\newcommand{\provesIff}{\mathrel{\dashv\vdash}}
+
+\newcommand{\wand}{\mathrel{-\!\!*}}
+
+% oh my... I have to wrap the "-" in a \mathrm, otherwise all hell breaks lose...
+\newcommand{\fmapsto}[1][]{\xmapsto{#1}}
+\newcommand{\gmapsto}{\hookrightarrow}%
+\newcommand{\fgmapsto}[1][\mathrm{-}]{\xhookrightarrow{#1}}%
+
+\NewDocumentCommand\wpre{O{} m O{} m}%
+  {\textlog{wp}^{#1}_{#3}\spac#2\spac{\left\{#4\right\}}}
+
+\newcommand{\stateinterp}{S}
+
+\newcommand\stuckness{s}
+\newcommand\NotStuck{\textlog{NotStuck}}
+\newcommand\MaybeStuck{\textlog{Stuck}}
+
+\newcommand{\later}{\mathop{{\triangleright}}}
+\newcommand*{\lateropt}[1]{\mathop{{\later}^{#1}}}
+\newcommand{\always}{\mathop{\Box}}
+\newcommand{\plainly}{\mathop{\blacksquare}}
+
+%% Invariants and Ghost ownership
+% PDS: Was 0pt inner, 2pt outer.
+% \boxedassert [tikzoptions] contents [name]
+\tikzstyle{boxedassert_border} = [sharp corners,line width=0.2pt]
+\NewDocumentCommand \boxedassert {O{} m o}{%
+	\tikz[baseline=(m.base)]{
+		%	  \node[rectangle, draw,inner sep=0.8pt,anchor=base,#1] (m) {${#2}\mathstrut$};
+		\node[rectangle,inner sep=0.8pt,outer sep=0.2pt,anchor=base] (m) {${\,#2\,}\mathstrut$};
+		\draw[#1,boxedassert_border] ($(m.south west) + (0,0.65pt)$) rectangle ($(m.north east) + (0, 0.7pt)$);
+	}\IfNoValueF{#3}{^{\,#3}}%
+}
+\newcommand*{\knowInv}[2]{\boxedassert{#2}[#1]}
+\newcommand*{\ownGhost}[2]{\boxedassert[densely dashed]{#2}[#1]}
+\newcommand*{\ownM}[1]{\textlog{Own}\left(#1\right)}
+\newcommand*{\ownPhys}[1]{\textlog{Phy}(#1)}
+
+%% View Shifts
+\NewDocumentCommand \vsGen {O{} m O{}}%
+  {\mathrel{%
+    \ifthenelse{\equal{#3}{}}{%
+      % Just one mask, or none
+      {#2}_{#1}%
+    }{%
+      % Two masks
+      \tensor*[^{#1}]{#2}{^{#3}}
+    }%
+  \kern0.2ex}}%
+\NewDocumentCommand \vs {O{} O{}} {\vsGen[#1]{\Rrightarrow}[#2]}
+\NewDocumentCommand \bvs {O{} O{}} {\vsGen[#1]{\dispdot[0.02ex]{\Rrightarrow}}[#2]}
+\NewDocumentCommand \vsL {O{} O{}} {\vsGen[#1]{\Lleftarrow}[#2]}
+\NewDocumentCommand \vsE {O{} O{}} %
+  {\vsGen[#1]{\Lleftarrow\!\!\!\Rrightarrow}[#2]}
+\NewDocumentCommand \pvs {O{} O{}} {\mathord{\vsGen[#1]{{\mid\kern-0.5ex\Rrightarrow\kern-0.25ex}}[#2]\kern0.2ex}}
+
+\newcommand\vsWand{{\displaystyle\equiv\kern-1.6ex-\kern-1.5ex\smash{\scalerel*{\vphantom-\ast}{\sum}}\kern-0.2ex}}
+\NewDocumentCommand \vsW {O{} O{}} {\vsGen[#1]{\vsWand}[#2]}
+
+% for now, the update modality looks like a pvs without masks.
+\NewDocumentCommand \upd {} {\mathop{\dispdot[-0.2ex]{\mid\kern-0.4ex\Rrightarrow\kern-0.25ex}}}
+
+\NewDocumentCommand\Acc{O{} O{} m m}{\langle #3 \vsE #4  \rangle_{#1}^{#2}}
+
+
+%% Hoare Triples
+\newcommand*{\hoaresizebox}[1]{%
+  \hbox{$\mathsurround=0pt{#1}\mathstrut$}}
+\newcommand*{\hoarescalebox}[2]{%
+  \hbox{\scalerel*[1ex]{#1}{#2}}}
+\newcommand{\triple}[5]{%
+  \setbox0=\hoaresizebox{{#3}{#5}}%
+  \setbox1=\hoarescalebox{#1}{\copy0}%
+  \setbox2=\hoarescalebox{#2}{\copy0}%
+  \copy1{#3}\copy2%
+  \; #4 \;%
+  \copy1{#5}\copy2}
+
+\newcommand{\bracket}[4][]{%
+  \setbox0=\hbox{$\mathsurround=0pt{#1}{#4}\mathstrut$}%
+  \scalerel*[1ex]{#2}{\copy0}%
+  {#4}%
+  \scalerel*[1ex]{#3}{\copy0}}
+% \curlybracket[other] x
+\newcommand{\curlybracket}[2][]{\bracket[{#1}]\{\}{#2}}
+\newcommand{\anglebracket}[2][]{\bracket[{#1}]\langle\rangle{#2}}
+
+\NewDocumentCommand \hoare {m m m O{}}{
+	\curlybracket{#1}\spac #2 \spac \curlybracket{#3}_{#4}%
+}
+
+% \hoareV[t] pre c post [mask]
+\NewDocumentCommand \hoareV {O{c} m m m O{}}{
+		{\begin{aligned}[#1]
+		&\curlybracket{#2} \\
+		&\quad{#3} \\
+		&{\curlybracket{#4}}_{#5}
+		\end{aligned}}%
+}
+% \hoareHV[t] pre c post [mask]
+\NewDocumentCommand \hoareHV {O{c} m m m O{}}{
+	{\begin{aligned}[#1]
+	&\curlybracket{#2} \; {#3} \\
+	&{\curlybracket{#4}}_{#5}
+	\end{aligned}}%
+}
+
+
+%% Some commonly used identifiers
+\newcommand{\inhabited}[1]{\textlog{inhabited}(#1)}
+\newcommand{\timeless}[1]{\textlog{timeless}(#1)}
+\newcommand{\persistent}[1]{\textlog{persistent}(#1)}
+\newcommand{\infinite}{\textlog{infinite}}
+
+\newcommand\InvName{\textdom{InvName}}
+\newcommand\GName{\textdom{GName}}
+
+\newcommand{\Prop}{\textlog{iProp}}
+\newcommand{\Pred}{\textlog{Pred}}
+
+\newcommand{\TRUE}{\textlog{True}}
+\newcommand{\FALSE}{\textlog{False}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GENERIC LANGUAGE SYNTAX AND SEMANTICS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\expr}{e}
+\newcommand{\val}{v}
+\newcommand{\valB}{w}
+\newcommand{\state}{\sigma}
+\newcommand{\step}[1][]{\xrightarrow{{#1}}_{\mathsf{t}}}
+\newcommand{\hstep}[1][]{\xrightarrow{{#1}}_{\mathsf{h}}}
+\newcommand{\tpstep}[1][]{\xrightarrow{{#1}}_{\mathsf{tp}}}
+\newcommand{\tpsteps}[1][]{\xrightarrow{{#1}}\mathrel{\vphantom{\to}^{*}_{\mathsf{tp}}}}
+\newcommand{\lctx}{K}
+\newcommand{\Lctx}{\textdom{Ctx}}
+\newcommand{\obs}{\kappa}
+
+\newcommand{\State}{\textdom{State}}
+\newcommand{\Val}{\textdom{Val}}
+\newcommand{\Loc}{\textdom{Loc}}
+\newcommand{\Expr}{\textdom{Expr}}
+\newcommand{\Var}{\textdom{Var}}
+\newcommand{\Obs}{\textdom{Obs}}
+\newcommand{\ThreadPool}{\textdom{ThreadPool}}
+
+\newcommand{\toval}{\mathrm{expr\any to\any val}}
+\newcommand{\ofval}{\mathrm{val\any to\any expr}}
+\newcommand{\atomic}{\mathrm{atomic}}
+\newcommand{\stronglyAtomic}{\mathrm{strongly\any atomic}}
+\newcommand{\red}{\mathrm{red}}
+\newcommand{\Lang}{\Lambda}
+
+\newcommand{\tpool}{T}
+
+\newcommand{\cfg}[2]{{#1};{#2}}
+
+\def\fillctx#1[#2]{#1 {[}\, #2\,{]} }
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% STANDARD DERIVED CONSTRUCTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\unittt}{()}
+\newcommand{\unit}{1}
+
+% Agreement
+\newcommand{\agm}{\ensuremath{\textmon{Ag}}}
+\newcommand{\aginj}{\textlog{ag}}
+
+% Fraction
+\newcommand{\fracm}{\ensuremath{\textmon{Frac}}}
+\newcommand{\fracinj}{\textlog{frac}}
+
+% Exclusive
+\newcommand{\exm}{\ensuremath{\textmon{Ex}}}
+\newcommand{\exinj}{\textlog{ex}}
+
+% Auth
+\newcommand{\authm}{\textmon{Auth}}
+\newcommand{\authfull}{\mathord{\bullet}\,}
+\newcommand{\authfrag}{\mathord{\circ}\,}
+
+\newcommand{\AuthInv}{\textsf{AuthInv}}
+\newcommand{\Auth}{\textsf{Auth}}
+
+% Sum
+\newcommand{\csumm}{\mathrel{+_{\!\mundef}}}
+\newcommand{\cinl}{\textsf{inl}}
+\newcommand{\cinr}{\textsf{inr}}
+
+% One-Shot
+\newcommand{\oneshotm}{\ensuremath{\textmon{OneShot}}}
+\newcommand{\ospending}{\textlog{pending}}
+\newcommand{\osshot}{\textlog{shot}}
+
+% STSs
+\newcommand{\STSCtx}{\textlog{StsCtx}}
+\newcommand{\STSSt}{\textlog{StsSt}}
+\newcommand{\STSclsd}{\textlog{closed}}
+\newcommand{\STSauth}{\textlog{auth}}
+\newcommand{\STSfrag}{\textlog{frag}}
+\newcommand{\STSS}{\mathcal{S}} % states
+\newcommand{\STST}{\mathcal{T}} % tokens
+\newcommand{\STSL}{\mathcal{L}} % labels
+\newcommand{\stsstep}{\ra}
+\newcommand{\ststrans}{\ra^{*}}%	the relation relevant to the STS rules
+\newcommand{\stsfstep}[1]{\xrightarrow{#1}}
+\newcommand{\stsftrans}[1]{\stsfstep{#1}^{*}}
+
+\tikzstyle{sts} = [->,every node/.style={rectangle, rounded corners, draw, minimum size=1.2cm, align=center}]
+\tikzstyle{sts_arrows} = [arrows={->[scale=1.5]},every node/.style={font=\sffamily\small}]
+
+%% Stored Propositions
+\newcommand{\mapstoprop}{\mathrel{\kern-0.5ex\tikz[baseline=(m)]{\node at (0,0) (m){}; \draw[line cap=round] (0,0.16) -- (0,-0.004);}\kern-1.5ex\Ra}}
+
+%% Cancellable invariants
+\newcommand\CInv[3]{\textlog{CInv}^{#1,#2}(#3)}
+\newcommand*\CInvTok[2]{{[}\textrm{CInv}:#1{]}_{#2}}
+
+%% Non-atomic invariants
+\newcommand*\pid{p}
+\newcommand\NaInv[3]{\textlog{NaInv}^{#1.#2}(#3)}
+
+\newcommand*\NaTok[1]{{[}\textrm{NaInv}:#1{]}}
+\newcommand*\NaTokE[2]{{[}\textrm{NaInv}:#1.#2{]}}
+
+%% Boxes
+\newcommand*\sname{i}
+\newcommand*\BoxState{\textlog{BoxState}}
+\newcommand*\BoxFull{\textlog{full}}
+\newcommand*\BoxEmp{\textlog{empty}}
+\newcommand*\BoxSlice[3]{\textlog{BoxSlice}(#1, #2, #3)}
+\newcommand*\ABox[3]{\textlog{Box}(#1, #2, #3)}
+
+
+\endinput
+
