@@ -16,7 +16,10 @@ homepage: "http://vst.cs.princeton.edu/"
 dev-repo: "git+https://github.com/PrincetonUniversity/VST.git"
 bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
-build: [make "BITSIZE=32" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
+build: [
+  [make "BITSIZE=32" "depend"]
+  [make "BITSIZE=32" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
+]
 run-test: [make "BITSIZE=32" "-j%{jobs}%" "progs" "sha-hmac" "mailbox"]
 install: [
 	make "BITSIZE=32" "install"
