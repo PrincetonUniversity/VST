@@ -7,6 +7,7 @@ Require Import compcert.common.Values.
 Require Import Decimal.
 Require Import List.
 Require Import ZArith.
+Open Scope Z.
 
 (** Utils *)
 Definition zle_le :
@@ -461,7 +462,7 @@ Notation U_EBX := 4.
 Notation U_EAX := 7.
 Notation CHAR_CR := 13.
 Notation CHAR_LF := 10.
-Notation NEXT_SEND_MAX_REC := (Nat.of_uint 12800%uint).
+Notation NEXT_SEND_MAX_REC := (Z.to_nat 12800).
 Notation E_SUCC := 0.
 Notation E_NOCHAR := 1.
 Notation E_SENDFAIL := 2.

@@ -26,19 +26,13 @@ Definition HMAC_Double_spec :=
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
         sh: share, shmd: share, md: val, gv: globals
-   PRE [ _key OF tptr tuchar,
-         _key_len OF tint,
-         _d OF tptr tuchar,
-         _n OF tint,
-         _md OF tptr tuchar ]
+   PRE [ tptr tuchar, tint, tptr tuchar, tint, tptr tuchar ]
          PROP (readable_share sh; writable_share shmd;
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
-         LOCAL (temp _md md; temp _key keyVal;
-                temp _key_len (Vint (Int.repr (LEN KEY)));
-                temp _d msgVal;
-                temp _n (Vint (Int.repr (LEN MSG)));
-                gvars gv)
+         PARAMS (keyVal; Vint (Int.repr (LEN KEY)); msgVal;
+                 Vint (Int.repr (LEN MSG)); md)
+         GLOBALS (gv)
          SEP(data_block sh (CONT KEY) keyVal;
              data_block sh (CONT MSG) msgVal;
              K_vector gv;
@@ -59,24 +53,19 @@ Lemma body_hmac_double: semax_body HmacVarSpecs HmacFunSpecs
       f_HMAC2 HMAC_Double_spec.
 Proof.
 start_function.
-name key' _key.
-name keylen' _key_len.
-name d' _d.
-name n' _n.
-name md' _md.
 rename v_c into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl CONT in *; simpl LEN in *.
-rewrite memory_block_isptr. normalize.
+rewrite memory_block_isptr.  Intros.
 rename H into KL. rename H0 into DL.
 
 forward_if (isptr c).
   { (* Branch1 *) exfalso. subst md. contradiction.  }
-  { (* Branch2 *) forward. entailer. }
+  { (* Branch2 *) forward. entailer!. }
 Intros.
 assert_PROP (isptr k).
-{ unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer. } (*Issue: used to be solved just by entailer *)
+{ unfold data_block. entailer!. }
 rename H into Pk.
 forward_call (Tsh, sh, c, k, kl, key, HMACabs nil nil nil, gv).
   { unfold initPre.
@@ -89,18 +78,19 @@ assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512) as H0_len512.
   { unfold hmacstate_. Intros r. apply prop_right. apply H. }
 remember (hmacInit key) as h0.
 forward_call (Tsh, sh, h0, c, d, dl, data, gv).
-  { rewrite H0_len512. split3; auto. }
+  { rewrite H0_len512; auto. }
 apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
 assert (GTmod64: 64 < Ptrofs.modulus).
-  rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. omega.
+  rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. lia.
 specialize (memory_block_size_compatible shmd (tarray tuint 16)). simpl; intros.
 rewrite H (*_ GTmod64)*); clear H.
-normalize. unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
+Intros.
+unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
 specialize (memory_block_split shmd b (Ptrofs.unsigned i) 32 32); intros XX.
   rewrite Ptrofs.repr_unsigned in XX.
-  assert (32 + 32 = 64) by omega. rewrite H in XX; clear H.
+  assert (32 + 32 = 64) by lia. rewrite H in XX; clear H.
   rewrite XX; trivial; clear XX.
-2: destruct (Ptrofs.unsigned_range i); omega.
+2: destruct (Ptrofs.unsigned_range i); lia.
 clear GTmod64.
 flatten_sepcon_in_SEP.
 
@@ -114,13 +104,13 @@ replace_SEP 1 (initPre Tsh sh c nullval h2 kl key).
   { entailer!. eapply hmacstate_PostFinal_PreInitNull.
     symmetry in HeqRND1. apply HeqRND1. }
 forward_call (Tsh, sh, c, nullval, kl, key, h2, gv).
-simpl; normalize.
+simpl. Intros.
 
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
   { unfold hmacstate_. entailer!. }
 rename H into H3_len512.
 forward_call (Tsh, sh, hmacInit key, c, d, dl, data, gv).
-  { rewrite H3_len512. split3; auto. }
+  { rewrite H3_len512. auto. }
 
 assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
   as FC_c by (unfold hmacstate_; Intros r;  entailer!).
@@ -131,7 +121,7 @@ simpl.
 
 forward_call (Tsh, h5,c).
 match goal with |- context [data_block  Tsh ?A c] =>
-  change A with (list_repeat (Z.to_nat n324) Byte.zero)
+  change A with (repeat Byte.zero (Z.to_nat n324))
 end.
 forward.
 clear H2.
@@ -143,14 +133,14 @@ Exists dig2.
 unfold data_block at 1. simpl. entailer!.
 rewrite <- memory_block_data_at_ by auto.
 change (sizeof (Tstruct _hmac_ctx_st noattr))
-   with (sizeof (tarray tuchar (Zlength (list_repeat (Z.to_nat n324) 0)))).
+   with (sizeof (tarray tuchar (Zlength (repeat 0 (Z.to_nat n324))))).
 rewrite memory_block_data_at_ by auto.
 cancel.
 
 assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
 {
-  red. intuition.
-  simpl.
+  red. split3; [ | | split3]; auto.
+  2: apply I.
   constructor.
   intros.
   econstructor.
@@ -158,7 +148,7 @@ assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
   + apply Z.divide_1_l.
 }
 rewrite (split2_data_block 32 _ (dig2 ++ dig2))
- by (autorewrite with sublist; omega).
+ by (autorewrite with sublist; lia).
 autorewrite with sublist.
 cancel.
 rewrite field_address0_offset  by auto with field_compatible.

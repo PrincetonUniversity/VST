@@ -41,9 +41,9 @@ Lemma initbodyproof Espec c k l wsh sh key gv h1 pad ctxkey
   (Hsh: readable_share sh):
 @semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
-   LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
-           lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key k;
-           temp _len (Vint (Int.repr l)); gvars gv)
+   LOCAL (lvar _ctx_key (tarray tuchar 64) ctxkey;
+   lvar _pad (tarray tuchar 64) pad; gvars gv; temp _ctx c; 
+   temp _key k; temp _len (Vint (Int.repr l)))
    SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
          data_at_ Tsh (tarray tuchar 64) pad;
          K_vector gv; initPre wsh sh c k h1 l key))
@@ -65,12 +65,12 @@ subst ctxkey.
 
 (*isolate branch if (key != NULL) *)
 forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
-  { apply denote_tc_test_eq_split. unfold initPre; normalize. destruct k; try contradiction.
+  { apply denote_tc_test_eq_split. unfold initPre; Intros. destruct k; try contradiction.
     clear H.
     remember (Int.eq i Int.zero). destruct b.
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; auto with valid_pointer. entailer!.
      entailer!. apply sepcon_valid_pointer2. apply @data_block_valid_pointer. auto.
-     red in H2. omega.
+     red in H2. lia.
      apply valid_pointer_null. }
 
   { (* THEN*)
@@ -82,11 +82,11 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
       destruct d; try solve [eapply semax_pre; try eapply semax_ff; entailer].
       apply binop_lemmas2.int_eq_true in Heqd. simpl in *. elim H. subst; reflexivity.
     (*key' is ptr*)
-    normalize. clear H. rename H0 into keyLen.
+    Intros. clear H. rename H0 into keyLen.
     Time assert_PROP (isptr c) as Pc by entailer!. (*1*)
     apply isptrD in Pc; destruct Pc as [cb [cofs CC]]; rewrite CC in *.
     rename b into kb; rename i into kofs.
-    replace_SEP 1 (data_at sh (tarray tuchar (Zlength key)) (map Vubyte key) (Vptr kb kofs)).
+    replace_SEP 4 (data_at sh (tarray tuchar (Zlength key)) (map Vubyte key) (Vptr kb kofs)).
        Time unfold data_block; entailer!. (*1.5*)
     Time forward. (*1secs, versus 2secs*)
     Time forward. (*0.8 versus 1.8 j=HMAC_MAX_MD_CBLOCK*)
@@ -122,8 +122,8 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
       eapply semax_pre; [  |
         eapply (Init_part1_j_lt_len Espec kb ckb cb kofs ckoff cofs l wsh sh key gv pad HMS); try eassumption; trivial].
       entailer!.
-      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_omega.
-      rewrite Int.signed_repr in lt_64_l; [ trivial | rep_omega].
+      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_lia.
+      rewrite Int.signed_repr in lt_64_l; [ trivial | rep_lia].
     }
     { (* j >= len*)
       rename H into ge_64_l. unfold MORE_COMMANDS, POSTCONDITION, abbreviate. subst.
@@ -132,8 +132,8 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
       eapply semax_pre; [  | 
         apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l wsh sh key gv pad HMS); try eassumption; trivial].
       entailer!.
-      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_omega.
-      rewrite Int.signed_repr in ge_64_l; [ trivial | rep_omega ].
+      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_lia.
+      rewrite Int.signed_repr in ge_64_l; [ trivial | rep_lia ].
     }
    subst.
    unfold PostKeyNull, initPostKeyNullConditional.
@@ -261,9 +261,6 @@ forward_if (EX shaStates:_ ,
       unfold data_block. rewrite  ZLI, HeqIPADcont.
       simpl. Time entailer!. (*0.9*)
     }
-    { clear HeqOPADcont(*; subst IPADcont*).
-        rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. intuition.
-    }
     simpl.
     rewrite sublist_same; try rewrite ZLI; trivial.
     remember (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad) as ipadSHAabs.
@@ -306,7 +303,6 @@ forward_if (EX shaStates:_ ,
       rewrite ZLO; trivial.
       Time entailer!. (*1.5*)
     }
-    { rewrite ZLO; intuition. }
 
     rewrite sublist_same; try rewrite ZLO; trivial.
 
@@ -349,12 +345,12 @@ forward_if (EX shaStates:_ ,
     destruct R; subst r; simpl.
     2: solve [apply semax_pre with (P':=FF); try entailer!; try apply semax_ff].
     freeze FR2 := - (hmacstate_PreInitNull _ _ _ _).
-    Time normalize. (*5.7*)
-    rename H into InnerRelate.
-    rename H0 into OuterRelate.
+    Intros.
+    rename H0 into InnerRelate.
+    rename H2 into OuterRelate.
     unfold hmacstate_PreInitNull.
     Intros s v.
-    rename H into Hs.
+    rename H0 into Hs.
     unfold hmac_relate_PreInitNull in Hs.
     clear InnerRelate OuterRelate iS oS.
     destruct h1.
@@ -384,7 +380,7 @@ forward_if (EX shaStates:_ ,
              Vptr cb cofs,
              Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
-             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
+             @sizeof CompSpecs t_struct_SHA256state_st).
      (*5.9 versus 13*)
      { rewrite sepcon_comm.
        rewrite (field_at_data_at _ _ [StructField _md_ctx]).
@@ -440,7 +436,7 @@ forward_if (EX shaStates:_ ,
              Vptr cb cofs,
              Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
-             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
+             @sizeof CompSpecs t_struct_SHA256state_st).
     (* 4.7 versus 14.7 *)
     { rewrite sepcon_comm.
       apply sepcon_derives.

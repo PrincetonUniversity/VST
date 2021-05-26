@@ -5,11 +5,11 @@ Require Import Coq.Bool.Bool.
 Require Import compcert.cfrontend.Ctypes.
 
 Definition in_eq: forall {A: Type} (a:A) l, In a (a::l) :=
-  fun A a l => or_introl eq_refl.
+  fun {A} a l => or_introl eq_refl.
 
 Definition Forall_forall: forall {A : Type} (P : A -> Prop) (l : list A),
        Forall P l <-> (forall x : A, In x l -> P x)   :=
-fun (A : Type) (P : A -> Prop) (l : list A) =>
+fun {A : Type} (P : A -> Prop) (l : list A) =>
 conj
   (fun H : Forall P l =>
    Forall_ind (fun l0 : list A => forall x : A, In x l0 -> P x)

@@ -10,6 +10,8 @@ Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.floyd.val_lemmas.
 Require Export VST.floyd.assert_lemmas.
+Require Export compcert.cfrontend.Ctypes.
+Require Export VST.veric.expr.
 Require VST.floyd.SeparationLogicAsLogicSoundness.
 Export SeparationLogicAsLogicSoundness.MainTheorem.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.
@@ -19,6 +21,21 @@ Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_Mini
 Import compcert.lib.Maps.
 
 Local Open Scope logic.
+
+Create HintDb gather_prop discriminated.
+Create HintDb gather_prop_core discriminated.
+
+Ltac gather_prop :=
+ autorewrite with gather_prop_core;  (* faster to do this first *)
+ autorewrite with gather_prop.
+
+Arguments sizeof {cs} !t / .
+Arguments alignof {cs} !t / .
+
+Lemma sizeof_pos: forall {cs: compspecs} (t: type), sizeof t >= 0.
+Proof. intros. apply Ctypes.sizeof_pos. Qed.
+Lemma alignof_pos: forall {cs: compspecs} (t: type), alignof t > 0.
+Proof. intros. apply Ctypes.alignof_pos. Qed.
 
 Definition extract_exists_pre:
   forall {CS: compspecs} {Espec: OracleKind},
@@ -34,7 +51,7 @@ Proof.
   intros.
   destruct (co_alignof_two_p co).
   pose proof two_power_nat_pos x.
-  omega.
+  lia.
 Qed.
 
 Section GET_CO.
@@ -111,7 +128,7 @@ Defined.
 Lemma sizeof_Tstruct: forall id a,
   sizeof (Tstruct id a) = co_sizeof (get_co id).
 Proof.
-  intros.
+  intros. unfold sizeof.
   simpl. unfold get_co.
   destruct (cenv_cs ! id); auto.
 Qed.
@@ -119,7 +136,7 @@ Qed.
 Lemma sizeof_Tunion: forall id a,
   sizeof (Tunion id a) = co_sizeof (get_co id).
 Proof.
-  intros.
+  intros. unfold sizeof.
   simpl. unfold get_co.
   destruct (cenv_cs ! id); auto.
 Qed.

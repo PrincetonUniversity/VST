@@ -32,11 +32,11 @@ Proof.
   eapply H0; auto.
   assert (level w1 = level a').
   apply comparable_fashionR.  eapply join_sub_comparable; eauto.
- apply necR_level in H4. omega.
+ apply necR_level in H4. lia.
   eapply H1; auto.
   assert (level w2 = level a').
   apply comparable_fashionR. eapply join_sub_comparable; eauto.
- apply necR_level in H4. omega.
+ apply necR_level in H4. lia.
 Qed.
 
 Lemma sub_wand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall G P P' Q Q',
@@ -50,11 +50,11 @@ Proof.
   eapply H0 in H8; try apply necR_refl.
   eapply H1; try apply necR_refl.
   apply necR_level in H4. apply necR_level in H6. apply join_comparable in H7.
-  apply comparable_fashionR in H7. unfold fashionR in H7. omega.
+  apply comparable_fashionR in H7. unfold fashionR in H7. lia.
   eapply H5; eauto.
   apply necR_level in H4. apply necR_level in H6.
    apply join_comparable2 in H7.
-  apply comparable_fashionR in H7. unfold fashionR in H7. omega.
+  apply comparable_fashionR in H7. unfold fashionR in H7. lia.
 Qed.
 
 Lemma find_superprecise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
@@ -144,13 +144,13 @@ intros w' ? w'' ? ?.
 eapply H; eauto.
 Qed.
 
-Hint Resolve @sepcon_subp' : core.
-Hint Resolve @subp_refl' : core.
-Hint Resolve @andp_subp' : core.
-Hint Resolve @allp_subp' : core.
-Hint Resolve @derives_subp : core.
-Hint Resolve @pred_eq_e1 : core.
-Hint Resolve @pred_eq_e2 : core.
+#[export] Hint Resolve sepcon_subp' : core.
+#[export] Hint Resolve subp_refl' : core.
+#[export] Hint Resolve andp_subp' : core.
+#[export] Hint Resolve allp_subp' : core.
+#[export] Hint Resolve derives_subp : core.
+#[export] Hint Resolve pred_eq_e1 : core.
+#[export] Hint Resolve pred_eq_e2 : core.
 
 
 Lemma allp_imp2_later_e2 {B}{A}{agA: ageable A}:
@@ -189,7 +189,7 @@ apply comparable_fashionR.
 eapply join_comparable; eauto.
 Qed.
 
-Hint Resolve @extend_unfash : core.
+#[export] Hint Resolve extend_unfash : core.
 
 Lemma subp_unfash {A} `{Age_alg A}:
   forall (P Q : pred nat) (n: nat), (P >=> Q) n -> ( ! P >=> ! Q) n.
@@ -199,7 +199,7 @@ intros w ?. specialize (H0 _ H1).
 intros w' ? ?. apply (H0 _ (necR_level' H2)).
 auto.
 Qed.
-Hint Resolve @subp_unfash : core.
+#[export] Hint Resolve subp_unfash : core.
 
 
 Lemma unfash_sepcon_distrib:

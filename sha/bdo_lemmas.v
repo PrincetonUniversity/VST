@@ -18,11 +18,11 @@ Lemma Znth_nthi:
   (0 <= i < Zlength b)%Z -> Znth i b = nthi b i.
 Proof.
 intros; unfold Znth.
-rewrite if_false by omega.
+rewrite if_false by lia.
 reflexivity.
 Qed.
 
-Hint Rewrite Znth_nthi using (auto; omega) : sublist.
+Hint Rewrite Znth_nthi using (auto; lia) : sublist.
 
 Lemma Zland_in_range:
   forall i, (0 <= Z.land i 15 < 16)%Z.
@@ -30,7 +30,7 @@ Proof.
 intros.
 rewrite Zland_15. apply Z_mod_lt. compute; congruence.
 Qed.
-Hint Resolve Zland_in_range.
+#[export] Hint Resolve Zland_in_range : core.
 
 
 Lemma and_mone':
@@ -148,14 +148,14 @@ Lemma and_mod_15_lem:
 Proof.
 intro n.
 unfold Int.and.
-rewrite (Int.unsigned_repr 15) by rep_omega.
+rewrite (Int.unsigned_repr 15) by rep_lia.
 change 15%Z with (Z.ones 4).
 assert (0 <= Z.land (Int.unsigned (Int.repr n)) (Z.ones 4) < 16)%Z.
 rewrite Z.land_ones.
 apply Z.mod_bound_pos.
-apply Int.unsigned_range. clear; omega. clear; omega.
+apply Int.unsigned_range. clear; lia. clear; lia.
 rewrite Int.signed_repr; auto.
-rep_omega.
+rep_lia.
 Qed.
 
 Definition c64 := 64%nat.  Global Opaque c64.

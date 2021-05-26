@@ -6,6 +6,7 @@ Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.tweetNaclBase.
@@ -90,11 +91,11 @@ Lemma ThirtyTwoByte_split16 q v:
   (SByte (fst q) v * SByte (snd q) (offset_val 16 v))%logic.
 Proof. destruct q as [s1 s2]. simpl; intros. unfold SByte.
   rewrite split2_data_at_Tarray_tuchar with (n1:= Zlength (SixteenByte2ValList s1));
-     try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; try omega.
+     try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; try lia.
   unfold offset_val. red in H. destruct v; intuition.
   rewrite field_address0_offset. simpl.
-  rewrite sublist_app1; try rewrite <- SixteenByte2ValList_Zlength; try omega.
-  rewrite sublist_app2; try rewrite <- SixteenByte2ValList_Zlength; try omega.
+  rewrite sublist_app1; try rewrite <- SixteenByte2ValList_Zlength; try lia.
+  rewrite sublist_app2; try rewrite <- SixteenByte2ValList_Zlength; try lia.
   rewrite sublist_same; try rewrite <- SixteenByte2ValList_Zlength; trivial.
   rewrite sublist_same; try rewrite <- SixteenByte2ValList_Zlength; trivial.
   red; intuition.
@@ -144,7 +145,7 @@ Lemma QuadChunk2ValList_ZLength: forall l, Zlength (QuadChunks2ValList l) = (4 *
 Proof.
   unfold QuadChunks2ValList. induction l; simpl. reflexivity.
   rewrite Zlength_app, IHl, <- QuadByteValList_ZLength.
-  rewrite Zlength_cons; omega.
+  rewrite Zlength_cons; lia.
 Qed.
 
 Lemma Select_SplitSelect16Q_Zlength Q i front back:
@@ -156,7 +157,7 @@ Proof.
   destruct (zeq i 0). inv H. split; reflexivity.
   destruct (zeq i 1). inv H. split; reflexivity.
   destruct (zeq i 2). inv H. split; reflexivity.
-  destruct (zeq i 3). inv H. split; reflexivity. omega.
+  destruct (zeq i 3). inv H. split; reflexivity. lia.
 Qed.
 
 Definition QBytes (l:list QuadByte) (v:val) : mpred :=
@@ -193,7 +194,7 @@ Lemma QuadWR_int q i: (0<=i<4)%nat -> exists ii, nth i (QuadWordRep q) Vundef = 
   destruct i. eexists; reflexivity.
   destruct i. eexists; reflexivity.
   destruct i. eexists; reflexivity.
-  destruct i. eexists; reflexivity. omega. Qed.
+  destruct i. eexists; reflexivity. lia. Qed.
 
 Lemma SixteenWR_int s i: (0<=i<16)%nat -> exists ii, nth i (SixteenWordRep s) Vundef = Vint ii.
   intros. destruct s as [[[? ?] ?] ?]. simpl.
@@ -214,22 +215,22 @@ Lemma SixteenWR_int s i: (0<=i<16)%nat -> exists ii, nth i (SixteenWordRep s) Vu
   destruct i. eexists; reflexivity.
   destruct i. eexists; reflexivity.
   destruct i. eexists; reflexivity.
-  destruct i. eexists; reflexivity. omega.
+  destruct i. eexists; reflexivity. lia.
 Qed.
 
 Lemma SixteenWR_Znth_int i s: (0 <= i < 16) ->
        exists ii : int, Znth i (SixteenWordRep s) = Vint ii.
-Proof. intros. unfold Znth. if_tac; try omega.
-   apply SixteenWR_int. destruct H. apply Z2Nat.inj_lt in H1; simpl in *; omega.
+Proof. intros. unfold Znth. if_tac; try lia.
+   apply SixteenWR_int. destruct H. apply Z2Nat.inj_lt in H1; simpl in *; lia.
 Qed.
 
 Lemma QuadWR_Z_int: forall (q : QuadWord) (i : Z),
                0 <= i < 4 -> exists ii : int, Znth i (QuadWordRep q) = Vint ii.
-Proof. intros. unfold Znth. if_tac. omega.
+Proof. intros. unfold Znth. if_tac. lia.
        apply QuadWR_int. destruct H.
        split.
-         apply Z2Nat.inj_le in H. apply H. omega. omega.
-         apply Z2Nat.inj_lt in H1. apply H1. omega. omega.
+         apply Z2Nat.inj_le in H. apply H. lia. lia.
+         apply Z2Nat.inj_lt in H1. apply H1. lia. lia.
 Qed.
 
 
@@ -313,7 +314,7 @@ Lemma QuadChunks2ValList_bytes: forall l,
     destruct IHl as [? [X1 X2]]; rewrite X2; clear X2.
     destruct (QuadByte2ValList_bytes a) as [? [Y1 Y2]]; rewrite Y2; clear Y2.
     repeat rewrite <- map_app. exists (x0 ++ x); split; trivial.
-    rewrite app_length, X1, Y1. omega.
+    rewrite app_length, X1, Y1. lia.
   Qed.
 
 Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i (l:list val):list val :=
@@ -345,16 +346,16 @@ Lemma upd_upto_Sn Nonce C Key1 Key2 n l: upd_upto (Nonce, C, (Key1, Key2)) (S n)
 
 Lemma upd_upto_Zlength data l (H: Zlength l = 16): forall i (I:(0<=i<=4)%nat),
       Zlength (upd_upto data i l) = 16.
-  Proof. apply Zlength_length in H. 2: omega. simpl in H.
-    destruct l; simpl in H. exfalso; omega.
-    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega.
-    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega.
-    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega.
-    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega.
-    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega.
-    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega.
-    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega.
-    destruct l; simpl in H. intros; omega. destruct l; simpl in H. 2: intros; omega. clear H.
+  Proof. apply Zlength_length in H. 2: lia. simpl in H.
+    destruct l; simpl in H. exfalso; lia.
+    destruct l; simpl in H. intros; lia. destruct l; simpl in H. intros; lia.
+    destruct l; simpl in H. intros; lia. destruct l; simpl in H. intros; lia.
+    destruct l; simpl in H. intros; lia. destruct l; simpl in H. intros; lia.
+    destruct l; simpl in H. intros; lia. destruct l; simpl in H. intros; lia.
+    destruct l; simpl in H. intros; lia. destruct l; simpl in H. intros; lia.
+    destruct l; simpl in H. intros; lia. destruct l; simpl in H. intros; lia.
+    destruct l; simpl in H. intros; lia. destruct l; simpl in H. intros; lia.
+    destruct l; simpl in H. intros; lia. destruct l; simpl in H. 2: intros; lia. clear H.
     intros.
     induction i; destruct data as [[N C] [K1 K2]]. reflexivity.
     rewrite upd_upto_Sn. remember (11 + Z.of_nat i) as z1. remember (6 + Z.of_nat i) as z2.
@@ -364,14 +365,14 @@ Lemma upd_upto_Zlength data l (H: Zlength l = 16): forall i (I:(0<=i<=4)%nat),
     remember (Vint (littleendian (Select16Q N (Z.of_nat i)))) as u2.
     remember (Vint (littleendian (Select16Q K2 (Z.of_nat i)))) as u1.
     assert ((0 <= i <= 4)%nat).
-      split. omega. omega. (*rewrite Nat2Z.inj_succ in I. omega.*)
-    repeat rewrite upd_Znth_Zlength; rewrite (IHi H); intros; try omega.
+      split. lia. lia. (*rewrite Nat2Z.inj_succ in I. lia.*)
+    repeat rewrite upd_Znth_Zlength; rewrite (IHi H); intros; try lia.
 Qed.
 
 Lemma upd_upto_Vint data: forall n, 0<=n<16 ->
-      exists i, Znth n (upd_upto data 4 (list_repeat 16 Vundef)) = Vint i.
+      exists i, Znth n (upd_upto data 4 (repeat Vundef 16)) = Vint i.
   Proof. unfold upd_upto; intros. destruct data as [[N C] [K1 K2]].
-   repeat rewrite (upd_Znth_lookup' 16); trivial; simpl; try omega.
+   repeat rewrite (upd_Znth_lookup' 16); trivial; simpl; try lia.
    if_tac. eexists; reflexivity.   if_tac. eexists; reflexivity.
    if_tac. eexists; reflexivity.
    if_tac. eexists; reflexivity.
@@ -386,7 +387,7 @@ Lemma upd_upto_Vint data: forall n, 0<=n<16 ->
    if_tac. eexists; reflexivity.
    if_tac. eexists; reflexivity.
    if_tac. eexists; reflexivity.
-   if_tac. eexists; reflexivity. omega.
+   if_tac. eexists; reflexivity. lia.
 Qed.
 
 (*cf xsalsa-paper, beginning of Section 2*)
@@ -400,27 +401,27 @@ Lemma upd_upto_char data l: Zlength l = 16 ->
                                   K4; C2; N1; N2;
                                   N3; N4; C3; L1;
                                   L2; L3; L4; C4]) end end end end end.
-Proof. intros. apply Zlength_length in H. 2: omega.
+Proof. intros. apply Zlength_length in H. 2: lia.
    destruct data as [[Nonce C] [Key1 Key2]].
    destruct Nonce as [[[N1 N2] N3] N4].
    destruct C as [[[C1 C2] C3] C4].
    destruct Key1 as [[[K1 K2] K3] K4].
    destruct Key2 as [[[L1 L2] L3] L4].
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. omega.
-   destruct l; simpl in H. 2: omega. clear H. reflexivity.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. lia.
+   destruct l; simpl in H. 2: lia. clear H. reflexivity.
 Qed.

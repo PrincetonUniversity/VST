@@ -2,6 +2,7 @@ Require Import VST.progs.conclib.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.incrN.
 
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -94,11 +95,11 @@ Lemma ctr_inv_exclusive : forall lg p,
 Proof.
   intros; unfold cptr_lock_inv.
   eapply derives_exclusive, exclusive_sepcon1 with (Q := EX lv : list Z, _),
-    data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
+    data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try lia.
   Intro z; apply sepcon_derives; [cancel|].
   Intros lv; Exists lv; apply derives_refl.
 Qed.
-Hint Resolve ctr_inv_exclusive : exclusive.
+#[export] Hint Resolve ctr_inv_exclusive.
 
 Lemma thread_inv_exclusive : forall tsh sh lg i ctr lock lockt,
   exclusive_mpred (thread_lock_inv tsh sh lg i ctr lock lockt).
@@ -107,7 +108,8 @@ Proof.
   unfold thread_lock_R.
   apply exclusive_sepcon1; auto with exclusive.
 Qed.
-Hint Resolve thread_inv_exclusive : exclusive.
+
+#[export] Hint Resolve thread_inv_exclusive.
 
 Lemma sum_repeat: forall i n, sum (repeat i n) = (i * Z.of_nat n)%Z.
 Proof.
@@ -199,10 +201,10 @@ Lemma upd_Znth_sum: forall l i n, 0 <= i < Zlength l ->
 Proof.
   intros.
   rewrite <- sublist_same with (al := l) at 2 by auto.
-  rewrite sublist_split with (mid := i) by omega.
-  rewrite sublist_next with (i0 := i) by omega.
+  rewrite sublist_split with (mid := i) by lia.
+  rewrite sublist_next with (i0 := i) by lia.
   unfold upd_Znth; rewrite !fold_right_app; simpl.
-  rewrite !sum_add with (n := _ + _); omega.
+  rewrite !sum_add with (n := _ + _); lia.
 Qed.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
@@ -232,10 +234,10 @@ Proof.
     unfold cptr_lock_inv; Exists (z + 1).
     erewrite <- ghost_var_share_join by eauto.
     Exists (upd_Znth i lv (n+1)); entailer!.
-    { rewrite upd_Znth_sum; omega. }
+    { rewrite upd_Znth_sum; lia. }
     rewrite iter_sepcon2_Znth with (i0 := i)(l2 := upd_Znth _ _ _)
-      by (rewrite ?upd_Znth_Zlength; auto; omega).
-    rewrite upd_Znth_same, remove_upd_Znth by omega.
+      by (rewrite ?upd_Znth_Zlength; auto; lia).
+    rewrite upd_Znth_same, remove_upd_Znth by lia.
     rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
     rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
   forward.
@@ -276,7 +278,7 @@ Proof.
   fold N.
   forward_call (N, gv).
   (*{ rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }*)
-  { unfold N; omega. }
+  { unfold N; lia. }
   Intros lg.
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
@@ -303,8 +305,8 @@ Proof.
     (*replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).*)
     rewrite data_at__tarray.
     destruct (Z.to_nat (N - i)) eqn: Hi.
-    { rewrite Z2Nat.inj_sub, Nat.sub_0_le in Hi by omega.
-      apply Z2Nat.inj_le in Hi; omega. }
+    { rewrite Z2Nat.inj_sub, Nat.sub_0_le in Hi by lia.
+      apply Z2Nat.inj_le in Hi; lia. }
     simpl.
     setoid_rewrite split2_data_at_Tarray_app with (v1 := [default_val tlock]);
       rewrite ?Zlength_cons, ?Zlength_nil, ?Zlength_list_repeat'; auto.
@@ -312,45 +314,45 @@ Proof.
     forward_call (thread_lock i, Ews, thread_lock_inv sh1 (Znth i shs) lg i
       (gv _ctr) (gv _ctr_lock) (thread_lock i)).
     { cancel. }
-    rewrite sublist_next in H7 by omega.
+    rewrite sublist_next in H7 by lia.
     inv H7.
-    assert (readable_share (Znth i shs)) by (apply Forall_Znth; auto; omega).
+    assert (readable_share (Znth i shs)) by (apply Forall_Znth; auto; lia).
     destruct (sepalg_list.list_join_assoc1 (sepalg.join_comm H11) H13) as (sh' & ? & Hsh').
     forward_spawn _thread_func (thread_lock i) (sh1, Znth i shs, lg, i, thread_lock i, gv).
     { erewrite <- lock_inv_share_join; try apply Hsh; auto.
       unshelve erewrite <- (lock_inv_share_join _ _ _ _ _ _ _ Hsh'); auto.
       { eapply readable_share_list_join; eauto. }
-      rewrite sublist_next by omega; simpl.
+      rewrite sublist_next by lia; simpl.
       entailer!. }
     { subst thread_lock; simpl.
       apply isptr_is_pointer_or_null; rewrite isptr_offset_val; auto. }
     Exists sh'; entailer!.
     apply sepcon_derives.
-    - rewrite Z2Nat.inj_add, upto_app by omega.
+    - rewrite Z2Nat.inj_add, upto_app by lia.
       rewrite iter_sepcon_app; simpl.
-      rewrite Z2Nat.id, Z.add_0_r by omega; cancel.
+      rewrite Z2Nat.id, Z.add_0_r by lia; cancel.
     - rewrite <- Z.sub_add_distr.
       subst thread_lock.
       rewrite field_address0_offset, offset_offset_val.
       rewrite Z.mul_succ_r with (m := i); cancel.
       { rewrite field_compatible0_cons.
-        split; [omega|].
+        split; [lia|].
         destruct H5 as (? & ? & ? & ? & ?).
         repeat split; auto.
         + hnf.
           destruct (gv _thread_lock); try contradiction; simpl in *.
-          rewrite Z.max_r by omega.
+          rewrite Z.max_r by lia.
           rewrite Ptrofs.add_unsigned, Ptrofs.unsigned_repr;
-            rewrite Ptrofs.unsigned_repr; unfold N in *; try rep_omega.
+            rewrite Ptrofs.unsigned_repr; unfold N in *; try rep_lia.
         + destruct (gv _thread_lock); try contradiction; simpl in *.
           inv H17; try discriminate.
           constructor.
           intros; rewrite Ptrofs.add_unsigned, Ptrofs.unsigned_repr;
-            rewrite Ptrofs.unsigned_repr; unfold N in *; try rep_omega.
+            rewrite Ptrofs.unsigned_repr; unfold N in *; try rep_lia.
           simpl; rewrite <- Z.add_assoc, Zred_factor4.
-          apply H23; omega. }
-    - apply Z2Nat.inj; try omega.
-      rewrite Nat2Z.id, Z2Nat.inj_sub by omega; simpl; omega. }
+          apply H23; lia. }
+    - apply Z2Nat.inj; try lia.
+      rewrite Nat2Z.id, Z2Nat.inj_sub by lia; simpl; lia. }
   rewrite !sublist_nil, Zminus_diag; Intros shx.
   inv H6.
   forward_for_simple_bound N (EX i : Z, EX sh : share,
@@ -369,8 +371,8 @@ Proof.
     forward.
     (*replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).*)
     Opaque upto.
-    rewrite sublist_next with (i0 := i) by (auto; rewrite Zlength_upto, Z2Nat.id; omega); simpl.
-    rewrite Znth_upto by (simpl; unfold N in *; omega).
+    rewrite sublist_next with (i0 := i) by (auto; rewrite Zlength_upto, Z2Nat.id; lia); simpl.
+    rewrite Znth_upto by (simpl; unfold N in *; lia).
     forward_call (thread_lock i, sh2, thread_lock_inv sh1 (Znth i shs) lg i
       (gv _ctr) (gv _ctr_lock) (thread_lock i)).
     { cancel. }
@@ -382,31 +384,31 @@ Proof.
       unfold thread_lock_inv, thread_lock_R.
       erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
     erewrite <- sublist_same with (al := shs) in Hshs by eauto.
-    rewrite sublist_split with (mid := i) in Hshs by omega.
-    rewrite sublist_next with (i0 := i) in Hshs by omega.
+    rewrite sublist_split with (mid := i) in Hshs by lia.
+    rewrite sublist_next with (i0 := i) in Hshs by lia.
     rewrite app_cons_assoc in Hshs.
     apply sepalg_list.list_join_unapp in Hshs as (sh' & Hshs1 & ?).
     apply sepalg_list.list_join_unapp in Hshs1 as (? & J & J1).
     apply list_join_eq with (c := sh) in J; auto; subst.
     rewrite <- sepalg_list.list_join_1 in J1.
     gather_SEP 3 1; erewrite lock_inv_share_join; eauto.
-    rewrite !(sublist_split 0 i (i + 1)), !sublist_len_1 by omega.
+    rewrite !(sublist_split 0 i (i + 1)), !sublist_len_1 by lia.
     rewrite iter_sepcon_app.
     Exists sh'; entailer!.
     { eapply sepalg_list.list_join_app; eauto.
       econstructor; eauto; constructor. }
     simpl; cancel.
     rewrite !data_at__tarray.
-    rewrite Z2Nat.inj_add, <- list_repeat_app by omega.
-    erewrite split2_data_at_Tarray_app by (rewrite Zlength_list_repeat; auto; omega).
+    rewrite Z2Nat.inj_add, <- list_repeat_app by lia.
+    erewrite split2_data_at_Tarray_app by (rewrite Zlength_list_repeat; auto; lia).
     rewrite Z.add_simpl_l; cancel.
     simpl; erewrite data_at_singleton_array_eq by eauto.
     rewrite field_address0_offset.
     unfold thread_lock_inv, thread_lock_R; cancel.
-    { rewrite field_compatible0_cons; split; auto; try omega.
-      apply field_compatible_array_smaller0 with (n' := N); auto; omega. }
+    { rewrite field_compatible0_cons; split; auto; try lia.
+      apply field_compatible_array_smaller0 with (n' := N); auto; lia. }
     { eapply readable_share_list_join; eauto. }
-    { apply Forall_Znth; auto; omega. } }
+    { apply Forall_Znth; auto; lia. } }
   Intros sh'.
   eapply list_join_eq in Hshs; [|erewrite <- (sublist_same 0 N shs) by auto; eauto]; subst.
   rewrite sublist_nil, sublist_same by auto.

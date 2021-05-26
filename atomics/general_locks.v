@@ -36,7 +36,7 @@ Proof.
 Qed.
 
 Lemma public_update : forall g (a b a' : G),
-  (my_half g Tsh a * public_half g b |-- !!(b = a) && |==> my_half g Tsh a' * public_half g a')%I.
+  my_half g Tsh a * public_half g b |-- !!(b = a) && (|==> my_half g Tsh a' * public_half g a')%I.
 Proof.
   intros.
   iIntros "H".
@@ -48,7 +48,7 @@ Proof.
 Qed.
 
 Lemma public_part_update : forall g sh (a b a' b' : G) (Ha' : forall c, sepalg.join a c b -> sepalg.join a' c b'),
-  (my_half g sh a * public_half g b |-- !!(if eq_dec sh Tsh then a = b else exists x, sepalg.join a x b) && |==> my_half g sh a' * public_half g b')%I.
+  my_half g sh a * public_half g b |-- !!(if eq_dec sh Tsh then a = b else exists x, sepalg.join a x b) && (|==> my_half g sh a' * public_half g b')%I.
 Proof.
   intros.
   iIntros "H".
@@ -84,12 +84,12 @@ Proof.
     Intros; apply bupd_mono.
     iIntros "[$ ?]".
     iExists tt; iSplit; auto.
-  - apply bupd_mono.
+  - apply ghost_seplog.bupd_mono.
     iIntros "Q"; iDestruct "Q" as (_) "$".
 Qed.
 
 Lemma sync_rollback : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R' g sh (x0 : G)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) --> (public_half g x1 -* |==> R' * a x)))%I),
+  (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) --> (public_half g x1 -* |==> R' * a x)))%I),
   (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- atomic_shift a Ei Eo b Q * my_half g sh x0 * R')%I.
 Proof.
   intros; rewrite !sepcon_assoc; apply atomic_rollback.
@@ -100,7 +100,7 @@ Proof.
 Qed.
 
 Lemma sync_commit_gen : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
+  (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
     |==> (EX x0' x1' : G, !!(forall b, sepalg.join x0 b x1 -> sepalg.join x0' b x1') && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y * R' y))))%I)%I),
   (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |==> EX y, Q y * R' y)%I.
 Proof.
@@ -115,7 +115,7 @@ Proof.
 Qed.
 
 Lemma sync_commit_same : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
+  (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
     |==> (my_half g sh x0 * public_half g x1 -* |==> (EX y, b x y * R' y)))%I)%I),
   (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |==> EX y, Q y * R' y)%I.
 Proof.
@@ -129,7 +129,7 @@ Proof.
 Qed.
 
 Lemma sync_commit_gen1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
+  (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
     |==> (EX x0' x1' : G, !!(forall b, sepalg.join x0 b x1 -> sepalg.join x0' b x1') && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y) * R')))%I)%I),
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g sh x0 * R |-- |==> Q * R')%I.
 Proof.
@@ -145,7 +145,7 @@ Proof.
 Qed.
 
 Lemma sync_commit_same1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
+  (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
     |==> (my_half g sh x0 * public_half g x1 -* |==> (EX y, b x y * R')))%I)%I),
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g sh x0 * R |-- |==> Q * R')%I.
 Proof.
@@ -161,7 +161,7 @@ Qed.
 
 (* These are useful when the shared resource matches the lock invariant exactly. *)
 Lemma sync_commit1 : forall {inv_names : invG} Ei Eo (b : G -> unit -> mpred) Q g (x0 x' : G)
-  (Hb : (public_half g x' |-- |==> b x0 tt)%I),
+  (Hb : public_half g x' |-- (|==> b x0 tt)%I),
   (atomic_shift (fun x => public_half g x) Ei Eo b (fun _ => Q) * my_half g Tsh x0 |-- |==> Q * my_half g Tsh x')%I.
 Proof.
   intros; eapply derives_trans, sync_commit_simple.
@@ -172,7 +172,7 @@ Proof.
 Qed.
 
 Lemma sync_commit2 : forall {inv_names : invG} Ei Eo (b : G -> G -> mpred) Q g (x0 x' : G)
-  (Hb : (public_half g x' |-- |==> b x0 x0)%I),
+  (Hb : public_half g x' |-- (|==> b x0 x0)%I),
   (atomic_shift (fun x => public_half g x) Ei Eo b Q * my_half g Tsh x0 |-- |==> Q x0 * my_half g Tsh x')%I.
 Proof.
   intros; eapply derives_trans, sync_commit_simple.
@@ -190,7 +190,7 @@ Qed.
 
 (* sync_commit for holding two locks simultaneously *)
 Lemma two_sync_commit : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : G)
-  (Ha : (forall x, R * a x |-- |==> EX y1 y2, public_half g1 y1 * public_half g2 y2 *
+  (Ha : forall x, R * a x |-- (|==> EX y1 y2, public_half g1 y1 * public_half g2 y2 *
     (!!((if eq_dec sh1 Tsh then x1 = y1 else exists z, sepalg.join x1 z y1) /\ (if eq_dec sh2 Tsh then x2 = y2 else exists z, sepalg.join x2 z y2)) -->
     |==> (EX x1' x2' y1' y2' : G, !!((forall z, sepalg.join x1 z y1 -> sepalg.join x1' z y1') /\ (forall z, sepalg.join x2 z y2 -> sepalg.join x2' z y2')) &&
       (my_half g1 sh1 x1' * public_half g1 y1' * my_half g2 sh2 x2' * public_half g2 y2' -* |==> (EX y, b x y * R' y))))%I)%I),
@@ -210,7 +210,7 @@ Proof.
 Qed.
 
 Lemma two_sync_commit1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : G)
-  (Ha : (forall x, R * a x |-- |==> EX y1 y2, public_half g1 y1 * public_half g2 y2 *
+  (Ha : forall x, R * a x |-- (|==> EX y1 y2, public_half g1 y1 * public_half g2 y2 *
     (!!((if eq_dec sh1 Tsh then x1 = y1 else exists z, sepalg.join x1 z y1) /\ (if eq_dec sh2 Tsh then x2 = y2 else exists z, sepalg.join x2 z y2)) -->
     |==> (EX x1' x2' y1' y2' : G, !!((forall z, sepalg.join x1 z y1 -> sepalg.join x1' z y1') /\ (forall z, sepalg.join x2 z y2 -> sepalg.join x2' z y2')) &&
       (my_half g1 sh1 x1' * public_half g1 y1' * my_half g2 sh2 x2' * public_half g2 y2' -* |==> ((EX y, b x y) * R'))))%I)%I),

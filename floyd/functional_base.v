@@ -8,6 +8,35 @@ Require Export VST.msl.eq_dec.
 Require Export VST.msl.Coqlib2.
 Require Export VST.floyd.coqlib3.
 Require Export VST.floyd.sublist.
+Require Export Lia.
+Require Export VST.floyd.list_solver.
+
+Definition Vubyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.unsigned c)).
+Definition Vbyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.signed c)).
+Ltac fold_Vbyte :=
+ repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
+      fold (Vbyte c)
+end.
+Ltac  customizable_list_solve_preprocess ::= fold_Vbyte.
+Instance Inhabitant_val : Inhabitant val := Vundef.
+Instance Inhabitant_int: Inhabitant int := Int.zero.
+Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
+Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
+Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
+Instance Inhabitant_float : Inhabitant float := Float.zero.
+Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
+
+Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_ptrofs) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_int64) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_byte) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_int) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_val) using Zlength_solve : Znth.
+
+Create HintDb entailer_rewrite discriminated.
 
 Require Import VST.veric.val_lemmas.
 
@@ -24,25 +53,11 @@ Qed.
 Lemma cons_inv {A} (a a':A) l l': a::l = a'::l' -> a=a' /\ l=l'.
 Proof. intros. inv H; eauto. Qed.
 
-Instance Inhabitant_val : Inhabitant val := Vundef.
-Instance Inhabitant_int: Inhabitant int := Int.zero.
-Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
-Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
-Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
-Instance Inhabitant_float : Inhabitant float := Float.zero.
-Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
-
-Definition Vubyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.unsigned c)).
-
-Definition Vbyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.signed c)).
-
 Hint Rewrite 
    (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)
    (@Znth_map int64 _) (@Znth_map ptrofs _) (@Znth_map float _)
    (@Znth_map float32 _)
-    using (auto; rewrite ?Zlength_map in *; omega) : sublist entailer_rewrite.
+    using (auto; rewrite ?Zlength_map in *; lia) : sublist entailer_rewrite.
 
 
 Lemma is_long_dec v: {is_long v} + {~ is_long v}.
@@ -73,8 +88,8 @@ Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. D
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
 Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
-Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val' : core.
-Hint Resolve isptr_offset_val': norm.
+#[export] Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val' : core.
+#[export] Hint Resolve isptr_offset_val': norm.
 
 Lemma offset_val_force_ptr:
   offset_val 0 = force_ptr.
@@ -108,6 +123,16 @@ repeat rewrite Int.unsigned_repr in H2 by assumption.
 auto.
 Qed.
 
+Lemma ltu_repr64: forall i j,
+ (0 <= i <= Int64.max_unsigned ->
+  0 <= j <= Int64.max_unsigned ->
+  Int64.ltu (Int64.repr i) (Int64.repr j) = true -> i<j)%Z.
+Proof.
+intros. unfold Int64.ltu in H1. if_tac in H1; inv H1.
+repeat rewrite Int64.unsigned_repr in H2 by assumption.
+auto.
+Qed.
+
 Lemma ltu_repr_false: forall i j,
  (0 <= i <= Int.max_unsigned ->
   0 <= j <= Int.max_unsigned ->
@@ -115,6 +140,59 @@ Lemma ltu_repr_false: forall i j,
 Proof.
 intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
 repeat rewrite Int.unsigned_repr in H2 by assumption.
+auto.
+Qed.
+
+Lemma ltu_repr_false64: forall i j,
+ (0 <= i <= Int64.max_unsigned ->
+  0 <= j <= Int64.max_unsigned ->
+  Int64.ltu (Int64.repr i) (Int64.repr j) = false -> i>=j)%Z.
+Proof.
+intros. unfold Int64.ltu in H1. if_tac in H1; inv H1.
+repeat rewrite Int64.unsigned_repr in H2 by assumption.
+auto.
+Qed.
+
+Lemma ltu_inv:
+ forall x y, Int.ltu x y = true -> Int.unsigned x < Int.unsigned y.
+Proof.
+intros.
+apply Int.ltu_inv in H; destruct H; auto.
+Qed.
+
+Lemma ltu_inv64:
+ forall x y, Int64.ltu x y = true -> Int64.unsigned x < Int64.unsigned y.
+Proof.
+intros.
+apply Int64.ltu_inv in H; destruct H; auto.
+Qed.
+
+Lemma ltu_false_inv:
+ forall x y, Int.ltu x y = false -> Int.unsigned x >= Int.unsigned y.
+Proof.
+intros.
+unfold Int.ltu in H. if_tac in H; inv H; auto.
+Qed.
+
+Lemma ltu_false_inv64:
+ forall x y, Int64.ltu x y = false -> Int64.unsigned x >= Int64.unsigned y.
+Proof.
+intros.
+unfold Int64.ltu in H. if_tac in H; inv H; auto.
+Qed.
+
+Definition repable_signed (z: Z) :=
+  Int.min_signed <= z <= Int.max_signed.
+
+Lemma lt_repr:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int.lt (Int.repr i) (Int.repr j) = true -> (i < j)%Z.
+Proof.
+intros.
+unfold Int.lt in H1. if_tac in H1; inv H1.
+rewrite !Int.signed_repr in H2 by auto.
 auto.
 Qed.
 
@@ -142,14 +220,14 @@ Proof.
   + destruct H. subst.
     repeat rewrite Zdiv_0_r.
     simpl.
-    omega.
+    lia.
   + destruct H.
     subst.
-    replace (x * b + c + b - 1) with (x * b + (c + b - 1)) by omega.
+    replace (x * b + c + b - 1) with (x * b + (c + b - 1)) by lia.
     rewrite Z_div_plus_full_l.
     rewrite Z.mul_add_distr_r.
     reflexivity.
-    omega.
+    lia.
 Qed.
 
 Lemma force_val_e:
@@ -258,8 +336,11 @@ Hint Rewrite isptr_force_ptr' : norm.
 
 Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
-Ltac putable x :=
- match x with
+Create HintDb computable.
+Inductive computable {t:Type} (x:t) : Prop := computable_any.
+
+Ltac putable' x :=
+ lazymatch x with
  | O => idtac
  | S ?x => putable x
  | Z.lt ?x ?y => putable x; putable y
@@ -310,12 +391,6 @@ Ltac putable x :=
  | Int.neg ?x => putable x
  | Int64.neg ?x => putable x
  | Ptrofs.neg ?x => putable x
- | Ceq => idtac
- | Cne => idtac
- | Clt => idtac
- | Cle => idtac
- | Cgt => idtac
- | Cge => idtac
  | Int.cmp ?op ?x ?y => putable op; putable x; putable y
  | Int64.cmp ?op ?x ?y => putable op; putable x; putable y
  | Ptrofs.cmp ?op ?x ?y => putable op; putable x; putable y
@@ -347,7 +422,13 @@ Ltac putable x :=
  | Int.zwordsize => idtac
  | Int64.zwordsize => idtac
  | Ptrofs.zwordsize => idtac
-end.
+ | _ => tryif (let b := eval cbv delta [x] in x in putable b) then idtac else fail
+end
+with putable x := 
+  first [putable' x
+         | tryif (try (assert (computable x) by (clear; auto 100 with computable); fail 1)) then fail else idtac ].
+
+#[export] Hint Extern 1 (computable ?x) => (putable' x; apply computable_any) : computable.
 
 Ltac computable := match goal with |- ?x =>
  no_evars x;
@@ -368,7 +449,7 @@ Proof.
 intros.
 subst.
 pose proof (Int.sign_ext_range n i H).
-omega.
+lia.
 Qed.
 
 Lemma zero_ext_range2:
@@ -380,30 +461,26 @@ Lemma zero_ext_range2:
 Proof.
 intros; subst.
 pose proof (Int.zero_ext_range n i H).
-omega.
+lia.
 Qed.
 
-Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
+#[export] Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
     (apply sign_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
-Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
+#[export] Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
     (apply zero_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
 Hint Rewrite sign_ext_inrange using assumption : norm.
 Hint Rewrite zero_ext_inrange using assumption : norm.
 
-
-Definition repable_signed (z: Z) :=
-  Int.min_signed <= z <= Int.max_signed.
-
 Definition repable_signed_dec (z: Z) : {repable_signed z}+{~repable_signed z}.
 Proof.
  intros. unfold repable_signed.
  destruct (zlt z Int.min_signed).
- right; intros [? _]; unfold Int.min_signed; omega.
+ right; intros [? _]; unfold Int.min_signed; lia.
  destruct (zlt Int.max_signed z).
- right; intros [_ ?]; unfold Int.max_signed; omega.
- left; split; omega.
+ right; intros [_ ?]; unfold Int.max_signed; lia.
+ left; split; lia.
 Defined.
 
 
@@ -415,41 +492,41 @@ intros until 1. intro HACK. intros.
 assert (MAX: 0 < Int.max_signed) by (compute; auto).
 assert (MIN: Int.min_signed < 0) by (compute; auto).
 hnf in H0|-*.
-assert (0 < i \/ i < 0) by omega; clear H.
+assert (0 < i \/ i < 0) by lia; clear H.
 destruct H1.
-replace i with ((i-1)+1) in H0 by omega.
+replace i with ((i-1)+1) in H0 by lia.
 rewrite Z.mul_add_distr_r in H0.
 rewrite Z.mul_1_l in H0.
-assert (j < 0 \/ 0 <= j) by omega. destruct H1.
-assert ((i-1)*j <= 0) by (apply Z.mul_nonneg_nonpos; omega).
-omega.
-assert (0 <= (i-1)*j) by (apply Z.mul_nonneg_nonneg; omega).
-omega.
-replace i with ((i+1)-1) in H0 by omega.
+assert (j < 0 \/ 0 <= j) by lia. destruct H1.
+assert ((i-1)*j <= 0) by (apply Z.mul_nonneg_nonpos; lia).
+lia.
+assert (0 <= (i-1)*j) by (apply Z.mul_nonneg_nonneg; lia).
+lia.
+replace i with ((i+1)-1) in H0 by lia.
 rewrite Z.mul_sub_distr_r in H0.
 rewrite Z.mul_1_l in H0.
 assert (MINMAX: Int.min_signed = -Int.max_signed - 1) by reflexivity.
-assert (j < 0 \/ 0 <= j) by omega. destruct H1.
-assert (0 <= (i+1)*j) by (apply Z.mul_nonpos_nonpos; omega).
+assert (j < 0 \/ 0 <= j) by lia. destruct H1.
+assert (0 <= (i+1)*j) by (apply Z.mul_nonpos_nonpos; lia).
 rewrite MINMAX in H0|-*.
-omega.
-assert ((i+1)*j <= 0) by (apply Z.mul_nonpos_nonneg; omega).
+lia.
+assert ((i+1)*j <= 0) by (apply Z.mul_nonpos_nonneg; lia).
 rewrite MINMAX in H0|-*.
-split; try omega.
+split; try lia.
 clear MIN MINMAX.
 destruct H0 as [? _].
-assert (- Int.max_signed <= 1 + (i+1)*j - j) by omega; clear H0.
-assert (-1 - (i + 1) * j + j <= Int.max_signed) by omega; clear H3.
+assert (- Int.max_signed <= 1 + (i+1)*j - j) by lia; clear H0.
+assert (-1 - (i + 1) * j + j <= Int.max_signed) by lia; clear H3.
 destruct HACK; auto.
-assert (i < -1) by omega.
-destruct (zlt 0 j); try omega.
+assert (i < -1) by lia.
+destruct (zlt 0 j); try lia.
 assert ((i+1)*j < 0).
 rewrite Z.mul_add_distr_r.
-replace i with ((i+1)-1) by omega.
+replace i with ((i+1)-1) by lia.
 rewrite Z.mul_sub_distr_r.
-assert ((i+1)*j<0); [ | omega].
-apply Z.mul_neg_pos; auto. omega.
-omega.
+assert ((i+1)*j<0); [ | lia].
+apply Z.mul_neg_pos; auto. lia.
+lia.
 Qed.
 
 Lemma repable_signed_mult1:
@@ -560,15 +637,13 @@ Ltac pose_lemmas F L :=
   | H: context [F ?A] |- _ => pose_lemma F A L
  end.
 
-Ltac rep_omega_setup := 
+Ltac rep_lia_setup := 
  repeat match goal with
-            |  x:= _ : Z |- _ => subst x
-            |  x:= _ : nat |- _ => subst x
-            |  x:= _ |- _ => clearbody x
+            | x := _ : ?T |- _ => lazymatch T with Z => fail | nat => fail | _ => clearbody x end
             end;
-  try autorewrite with rep_omega in *;
+ zify;
+  try autorewrite with rep_lia in *;
   unfold repable_signed in *;
-  compute_Z_of_nat;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned Byte.unsigned_range;
   pose_lemmas Byte.signed Byte.signed_range;
@@ -579,36 +654,15 @@ Ltac rep_omega_setup :=
   pose_lemmas Ptrofs.unsigned Ptrofs.unsigned_range;
   pose_standard_const_equations.
 
-Ltac rep_omega_setup2 := idtac.
+Ltac rep_lia_setup2 := idtac.
 
-Ltac rep_omega2 := 
- repeat  match goal with
-  | |- _ /\ _ => match goal with
-                        | |- context [Z.of_nat] => split
-                        | |- context [Z.to_nat] => split
-                        end
-            end;
-  match goal with
-  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
-  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
-  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
-  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
-  | |- @eq nat _ _ => apply Nat2Z.inj
-  | |- _ => idtac
-  end;
-  repeat rewrite ?Nat2Z.id, ?Nat2Z.inj_add, ?Nat2Z.inj_mul, 
-         ?Z2Nat.id, ?Nat2Z.inj_sub, ?Z2Nat.inj_sub,
-         ?Z2Nat.inj_add by rep_omega2;
-(*    simpl; *)
-   omega.
-
-Ltac rep_omega :=
-   rep_omega_setup;
-   rep_omega_setup2;
-   rep_omega2.
+Ltac rep_lia :=
+   rep_lia_setup;
+   rep_lia_setup2;
+   lia.
 
 Ltac repable_signed := 
-  idtac "Warning: repable_signed is deprecated;  use rep_omega"; rep_omega.
+  idtac "Warning: repable_signed is deprecated;  use rep_lia"; rep_lia.
 
 Lemma Vubyte_injective i j (H: Vubyte i = Vubyte j): i=j.
 Proof.
@@ -618,7 +672,7 @@ Proof.
   unfold Vubyte in H. remember (Int.repr (Byte.unsigned i)) as z.
   inv H. destruct i; destruct j. unfold Byte.testbit.
   unfold Byte.unsigned in H1. simpl in *.
-  rewrite <- 2 Int.testbit_repr, H1; trivial; omega.
+  rewrite <- 2 Int.testbit_repr, H1; trivial; lia.
 Qed. 
 
 Lemma map_Vubyte_injective: forall l m, map Vubyte l = map Vubyte m -> l=m.
@@ -638,8 +692,8 @@ Proof. unfold Vbyte in H. apply Vint_injective in H.
   assert (Byte.signed a = Byte.signed b).
   { rewrite <- (Int.signed_repr (Byte.signed a)). 
     rewrite <- (Int.signed_repr (Byte.signed b)).
-    rewrite H; trivial. specialize (Byte.signed_range b); omega.
-    specialize (Byte.signed_range a); omega. }
+    rewrite H; trivial. specialize (Byte.signed_range b); lia.
+    specialize (Byte.signed_range a); lia. }
   clear H. unfold Byte.testbit. rewrite 2 Byte.unsigned_signed. 
   unfold Byte.lt. rewrite H0. trivial. 
 Qed.
@@ -650,12 +704,7 @@ Proof.
   intros i l.
   apply Znth_map.
 Qed.
-Hint Rewrite Znth_map_Vbyte using list_solve : norm entailer_rewrite.
-
-Ltac fold_Vbyte :=
- repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
-      fold (Vbyte c)
-end.
+Hint Rewrite Znth_map_Vbyte using old_list_solve : norm entailer_rewrite.
 
 Lemma Znth_map_Vubyte: forall (i : Z) (l : list byte),
   0 <= i < Zlength l -> Znth i (map Vubyte l)  = Vubyte (Znth i l).
@@ -663,15 +712,15 @@ Proof.
   intros i l.
   apply Znth_map.
 Qed.
-Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.
+Hint Rewrite Znth_map_Vubyte using old_list_solve : norm entailer_rewrite.
 
 Lemma repr_inj_signed:
   forall i j,
     repable_signed i -> repable_signed j -> Int.repr i = Int.repr j -> i=j.
 Proof.
 intros.
-rewrite <- (Int.signed_repr i) by rep_omega.
-rewrite <- (Int.signed_repr j) by rep_omega.
+rewrite <- (Int.signed_repr i) by rep_lia.
+rewrite <- (Int.signed_repr j) by rep_lia.
 congruence.
 Qed.
 
@@ -682,8 +731,8 @@ Lemma repr_inj_unsigned:
     Int.repr i = Int.repr j -> i=j.
 Proof.
 intros.
-rewrite <- (Int.unsigned_repr i) by rep_omega.
-rewrite <- (Int.unsigned_repr j) by rep_omega.
+rewrite <- (Int.unsigned_repr i) by rep_lia.
+rewrite <- (Int.unsigned_repr j) by rep_lia.
 congruence.
 Qed.
 
@@ -717,4 +766,72 @@ that is, when VST.floyd.proofauto has been imported.  But you have
 imported only VST.floyd.functional_base, without separation logic.
 
 In VST.floyd.functional_base the following VST tactics are available:
-rep_omega, list_solve, if_tac, autorewrite with sublist, computable, ...".
+rep_lia, list_solve, if_tac, autorewrite with sublist, computable, ...".
+
+Lemma lt_repr64:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int64.lt (Int64.repr i) (Int64.repr j) = true -> (i < j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H1. if_tac in H1; inv H1.
+rewrite !Int64.signed_repr in H2 by rep_lia.
+auto.
+Qed.
+
+Lemma lt_repr_false:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int.lt (Int.repr i) (Int.repr j) = false -> (i >= j)%Z.
+Proof.
+intros.
+unfold Int.lt in H1. if_tac in H1; inv H1.
+rewrite !Int.signed_repr in H2 by rep_lia.
+auto.
+Qed.
+
+Lemma lt_repr_false64:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int64.lt (Int64.repr i) (Int64.repr j) = false -> (i >= j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H1. if_tac in H1; inv H1.
+rewrite !Int64.signed_repr in H2 by rep_lia.
+auto.
+Qed.
+
+Lemma lt_inv:
+ forall i j,
+   Int.lt i j = true -> (Int.signed i < Int.signed j)%Z.
+Proof.
+intros.
+unfold Int.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+Lemma lt_inv64:
+ forall i j,
+   Int64.lt i j = true -> (Int64.signed i < Int64.signed j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+Lemma lt_false_inv:
+ forall i j,
+   Int.lt i j = false -> (Int.signed i >= Int.signed j)%Z.
+Proof.
+intros.
+unfold Int.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+Lemma lt_false_inv64:
+ forall i j,
+   Int64.lt i j = false -> (Int64.signed i >= Int64.signed j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H. if_tac in H; inv H. auto.
+Qed.

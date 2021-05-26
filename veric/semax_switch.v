@@ -319,7 +319,7 @@ intros.
 intros w [Hw Hw'] ? J.
 eexists; split; eauto; eexists; repeat split; eauto.
 intros ora jm Hora ? ? ?. subst.
-destruct (level (m_phi jm)) eqn:?; try omega. clear LW.
+destruct (level (m_phi jm)) eqn:?; try lia. clear LW.
 destruct (levelS_age1 _ _ Heqn) as [phi' H1].
 destruct (can_age1_juicy_mem _ _ H1) as [jm' H9].
 clear phi' H1.

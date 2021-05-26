@@ -5,6 +5,7 @@ Require Import VST.floyd.library.
 Require Import VST.progs.lock_coupling.
 Require Import Sorting.
 
+Require Export VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -232,14 +233,14 @@ Proof.
   intro; eapply derives_precise, data_at__precise with (sh := Ews)(t := tint); auto.
   intros ? (? & H); apply data_at_data_at_ in H; eauto.
 Qed.
-Hint Resolve ctr_inv_precise.
+#[export] Hint Resolve ctr_inv_precise.
 
 Lemma ctr_inv_positive : forall ctr,
   positive_mpred (cptr_lock_inv ctr).
 Proof.
   intro; apply ex_positive; auto.
 Qed.
-Hint Resolve ctr_inv_positive.
+#[export] Hint Resolve ctr_inv_positive.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.

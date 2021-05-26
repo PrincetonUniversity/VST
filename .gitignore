@@ -6,6 +6,7 @@
 *.cmx
 *.cma
 *.cmxa
+*.cmxs
 .*.aux
 *.cmti
 *.cmt
@@ -14,6 +15,7 @@
 *~
 # Executables and configuration
 CONFIGURE
+VST.config
 compcert/ccomp
 compcert/ccomp.byte
 compcert/ccomp.prof
@@ -61,6 +63,8 @@ compcert/extraction/
 compcert/test/
 
 *.vo
+*.vos
+*.vok
 *.glob
 *.v.d
 .depend

@@ -32,24 +32,24 @@ forward_for_simple_bound 10
  entailer!.
 -
 forward_call (i+1, verif_fasttriang.decreasing(Z.to_nat i), gv).
-rep_omega.
+rep_lia.
 forward_call (i+1, verif_fasttriang.decreasing(Z.to_nat i), gv).
-rep_omega.
+rep_lia.
 entailer!.
 replace (verif_fasttriang.decreasing (Z.to_nat (i + 1)))
   with (i + 1 :: verif_fasttriang.decreasing (Z.to_nat i)).
 cancel.
 replace (Z.to_nat (i+1)) with (S (Z.to_nat i)).
 unfold verif_fasttriang.decreasing; fold verif_fasttriang.decreasing.
-f_equal. rewrite inj_S. rewrite Z2Nat.id by omega. omega.
-rewrite <- Z2Nat.inj_succ by omega. f_equal; omega.
+f_equal. rewrite inj_S. rewrite Z2Nat.id by lia. lia.
+rewrite <- Z2Nat.inj_succ by lia. f_equal; lia.
 -
 forward_call (verif_fasttriang.decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
 forward_call (verif_fasttriang.decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
 forward_call (10,gv).
-omega.
+lia.
 forward.
 Qed.
 

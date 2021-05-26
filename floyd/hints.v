@@ -23,6 +23,7 @@ Require Import VST.floyd.functional_base.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.deadvars.
+Require Import VST.floyd.list_solver.
 Import Cop.
 Import Cop2.
 Import compcert.lib.Maps.
@@ -177,11 +178,11 @@ Ltac hint_solves :=
      else  idtac "Hint:  'contradiction' solves the goal"
  | tryif (try (assert True; [ | discriminate]; fail 1)) then fail
      else  idtac "Hint:  'discriminate' solves the goal"
- | tryif (try (assert True; [ | solve [omega]]; fail 1)) then fail
-     else  idtac "Hint:  'omega' solves the goal"
- | tryif (try (assert True; [ | solve [rep_omega]]; fail 1)) then fail
-     else  idtac "Hint:  'rep_omega' solves the goal"
- | tryif (try (assert True; [ | solve [list_solve]]; fail 1)) then fail
+ | tryif (try (assert True; [ | solve [lia]]; fail 1)) then fail
+     else  idtac "Hint:  'lia' solves the goal"
+ | tryif (try (assert True; [ | solve [rep_lia]]; fail 1)) then fail
+     else  idtac "Hint:  'rep_lia' solves the goal"
+ | tryif (try (assert True; [ | solve [quick_list_solve]]; fail 1)) then fail
      else  idtac "Hint:  'list_solve' solves the goal"
  | tryif (try (assert True; [ | solve [cstring]]; fail 1)) then fail
      else  idtac "Hint:  'cstring' solves the goal"
@@ -215,7 +216,7 @@ match AB with
  | ?p = field_address0 _ _ ?p' =>unify p p'; idtac "Hint:  try 'rewrite field_address0_offset'"
  | ?p = field_address _ _ ?p' =>unify p p; idtac "Hint:  try 'rewrite field_address_offset'"
  | offset_val ?N1 ?A = offset_val ?N2 ?B => 
-      tryif (try (assert (N1=N2) by (simpl; omega); fail 1)) then fail
+      tryif (try (assert (N1=N2) by (simpl; lia); fail 1)) then fail
       else hint_field_address_offset' (A=B)
  | field_address0 ?a ?b ?c  = offset_val ?d ?e => 
        hint_field_address_offset' (field_address0 a b c  = offset_val d e)
@@ -258,7 +259,7 @@ match goal with
   match A with context [fold_right_sepcon ?Frame] =>
       match goal with F := ?G : list mpred |- _ => constr_eq F Frame; is_evar G end;
       match A with context [@sepcon] => idtac end;
-      idtac "Hint: In order for the 'cancel' tactic to automatically instantiate the Frame, it must be able to cancel all the other right-hand-side conjuncts against some left-hand-side conjuncts.  Right now the r.h.s. conjuncts do exactly match l.h.s. conjuncts; perhaps you can unfold or rewrite on both sides of the |-- so that they do cancel."
+      idtac "Hint: In order for the 'cancel' tactic to automatically instantiate the Frame, it must be able to cancel all the other right-hand-side conjuncts against some left-hand-side conjuncts.  Right now the r.h.s. conjuncts do not exactly match l.h.s. conjuncts; perhaps you can unfold or rewrite on both sides of the |-- so that they do cancel."
   end
 end.
 
@@ -279,10 +280,10 @@ Ltac hint_progress any n :=
                       tryif (try (clear D; fail 1)) then fail
                       else  idtac "Hint:  clear" D
                     end
- | 7%nat => tryif (try (progress rewrite if_true by (auto; omega); fail 1)) then fail
-     else  idtac "Hint:  try 'rewrite if_true by auto' or 'rewrite if_true by omega'"
- | 8%nat => tryif (try (progress rewrite if_false by (auto; omega); fail 1)) then fail
-     else  idtac "Hint:  try 'rewrite if_false by auto' or 'rewrite if_false by omega'"
+ | 7%nat => tryif (try (progress rewrite if_true by (auto; lia); fail 1)) then fail
+     else  idtac "Hint:  try 'rewrite if_true by auto' or 'rewrite if_true by lia'"
+ | 8%nat => tryif (try (progress rewrite if_false by (auto; lia); fail 1)) then fail
+     else  idtac "Hint:  try 'rewrite if_false by auto' or 'rewrite if_false by lia'"
  |9%nat => lazymatch goal with
    | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?D' ?Pre ?c ?Post =>
      tryif (constr_eq D D'; constr_eq Po Post) then print_hint_semax D Pre c Post
@@ -310,9 +311,9 @@ Ltac progress_entailer :=
    try (match goal with |- ?B => constr_eq A B end; fail 1)
   end.
 
-Ltac try_redundant_omega H :=
+Ltac try_redundant_lia H :=
   match type of H with ?P =>
-   tryif (try (clear H; assert P by omega; fail 1)) then idtac
+   tryif (try (clear H; assert P by lia; fail 1)) then idtac
    else idtac "Hint: hypothesis" H "is redundant, perhaps clear it"
  end.
 
@@ -347,15 +348,15 @@ Ltac hint_whatever :=
       idtac "Hint:" H' "implies" H ", perhaps 'clear" H "'"
     end;
  try lazymatch goal with
- | H: @eq Z _ _ |- _ => try_redundant_omega H
- | H: Z.le _ _ |- _ =>  try_redundant_omega H
- | H: Z.lt _ _ |- _ =>  try_redundant_omega H
- | H: Z.ge _ _ |- _ =>  try_redundant_omega H
- | H: Z.gt _ _ |- _ =>  try_redundant_omega H
- | H: Z.le _ _ /\ Z.le _ _ |- _ =>  try_redundant_omega H
- | H: Z.le _ _ /\ Z.lt _ _ |- _ =>  try_redundant_omega H
- | H: Z.lt _ _ /\ Z.le _ _ |- _ =>  try_redundant_omega H
- | H: Z.lt _ _ /\ Z.lt _ _ |- _ =>  try_redundant_omega H
+ | H: @eq Z _ _ |- _ => try_redundant_lia H
+ | H: Z.le _ _ |- _ =>  try_redundant_lia H
+ | H: Z.lt _ _ |- _ =>  try_redundant_lia H
+ | H: Z.ge _ _ |- _ =>  try_redundant_lia H
+ | H: Z.gt _ _ |- _ =>  try_redundant_lia H
+ | H: Z.le _ _ /\ Z.le _ _ |- _ =>  try_redundant_lia H
+ | H: Z.le _ _ /\ Z.lt _ _ |- _ =>  try_redundant_lia H
+ | H: Z.lt _ _ /\ Z.le _ _ |- _ =>  try_redundant_lia H
+ | H: Z.lt _ _ /\ Z.lt _ _ |- _ =>  try_redundant_lia H
  end;
  hint_simplify_value_fits;
  tryif (try (rewrite prop_sepcon; fail 1)) then idtac else idtac "Hint: try 'rewrite prop_sepcon'";

@@ -66,7 +66,7 @@ Proof.
   intros.
   specialize (HMAC_DRBG_update_round_incremental _ _ _ _ _ H0); intros. clear H0.
   rewrite (Z2Nat.id _ H) in H1.
-  rewrite Z2Nat.inj_add; try assumption; omega.
+  rewrite Z2Nat.inj_add; try assumption; lia.
 Qed.
 
 Lemma update_char add_len contents (HL:add_len = Zlength contents \/ add_len = 0)
@@ -93,7 +93,7 @@ destruct (Memory.EqDec_val additional nullval); simpl in *.
 + destruct (initial_world.EqDec_Z add_len 0).
   -  subst add_len. change (negb (left eq_refl)) with false in *. simpl. simpl in H. inv H; trivial.
   - change (negb (right n0)) with true in *. simpl.
-    destruct HL; try omega; subst add_len.
-    destruct contents. rewrite Zlength_nil in n0; omega. 
+    destruct HL; try lia; subst add_len.
+    destruct contents. rewrite Zlength_nil in n0; lia. 
     change  (Z.to_nat 2) with 2%nat in H. rewrite <- H; trivial.
 Qed. 

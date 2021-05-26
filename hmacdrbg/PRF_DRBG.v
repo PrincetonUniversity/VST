@@ -6,6 +6,7 @@ Require Import FCF.RndInList.
 Require Import FCF.CompFold.
 Require Import FCF.Tactics.
 Require Import Permutation.
+Require Import Lia.
 
 (* Indistinguishability definition for DRBGs *)
 Section DRBG.
@@ -517,11 +518,9 @@ subgoal 6 (ID 4578) is:
       (* obviously hasDups (thing1 :: x2) = hasDups (thing2 :: x2), since `hasDups x2` *)
       + remember (split x2) as z.
         destruct z.
-        Print hasDups.
-        (* Print in_dec. *) (* looks gnarly *)
-        (* hasDups added and removed here! :^) *)
         simpl in *.
         trivial.
+
 
       (* snd y1 = snd y2 (if there are no dups in the whole state, then the states are the same. but we know there are dups in x2, the tail of the state, so, contradiction!) *)
       + simpl in *.
@@ -532,13 +531,7 @@ subgoal 6 (ID 4578) is:
         discriminate.
         rewrite notInArrayLookupNone in H.
         discriminate.
-        intuition.
-        rewrite unzip_eq_split in H3.
-        remember (split x2) as z.
-        destruct z.
-        pairInv.
-        simpl in *.
-        intuition.
+        intuition. rewrite <- Heqz in H3. simpl in H3. auto.
 
       (* fst y1 = fst y2 (exactly the same as above! if there are no dups in the whole state... but we know there are dups in the tail of the state, so, contradiction!) *)
       + simpl in *.
@@ -549,13 +542,7 @@ subgoal 6 (ID 4578) is:
         discriminate.
         rewrite notInArrayLookupNone in H.
         discriminate.
-        intuition.
-        rewrite unzip_eq_split in H3.
-        remember (split x2) as z.
-        destruct z.
-        pairInv.
-        simpl in *.
-        intuition.
+        intuition. rewrite <- Heqz in H3. simpl in H3. auto.
     
     * (* not a duplicate -- behaves like RB -- a is not in x2 *)
       fcf_skip.
@@ -948,15 +935,15 @@ Check PRF_DRBG_f_bad_2.
      (* The rest is just arithmetic. *)
      simpl.
      rewrite mult_1_r.
-     cutrewrite ( S (length ls + length ls * S (length ls)) =  (S (length ls) + length ls * S (length ls)))%nat.
+     enough ( S (length ls + length ls * S (length ls)) =  (S (length ls) + length ls * S (length ls)))%nat as ->.
      rewrite ratAdd_num.
      eapply ratAdd_leRat_compat.
      eapply leRat_terms;
-     omega.
+     lia.
      eapply leRat_terms.
-     eapply mult_le_compat; omega.
+     eapply mult_le_compat; lia.
      trivial.
-     omega.
+     lia.
    Qed.
 
    Theorem PRF_DRBG_G3_bad_4_small :
@@ -965,7 +952,7 @@ Check PRF_DRBG_f_bad_2.
      unfold PRF_DRBG_G3_bad_4.
      rewrite dupProb_const.
      destruct l.
-     omega.
+     lia.
      
      simpl.
      rewrite forNats_length.

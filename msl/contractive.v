@@ -331,11 +331,11 @@ Ltac sub_unfold :=
     | v: _ |- _ => destruct v
    end.
 
-Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
+#[export] Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
 
-Hint Resolve @prove_HOcontractive
-  @subp_allp @subp_imp @subp_refl @subp_exp @subp_andp @subp_orp @subp_subp
-  @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
+#[export] Hint Resolve prove_HOcontractive
+  subp_allp subp_imp subp_refl subp_exp subp_andp subp_orp subp_subp
+  allp_imp2_later_e1 allp_imp2_later_e2 : contractive.
 
 Lemma Rec_sub {A} `{ageable A} : forall G
   (F   : pred A -> pred A -> pred A)
@@ -354,12 +354,12 @@ Proof.
   rewrite Rec_fold_unfold by auto.
   specialize ( HF2 (Rec (F Q)) P Q).
   specialize ( HF2 a H0 a').
-  spec  HF2.  apply necR_level in H2; omega.
+  spec  HF2.  apply necR_level in H2; lia.
   eapply HF2; auto.
   rewrite Rec_fold_unfold in H3 by auto.
   generalize (HF3 (Rec (F P)) (Rec (F Q)) P); intros.
   specialize ( H5 a H4 a').
-  spec H5.  apply necR_level in H2; omega.
+  spec H5.  apply necR_level in H2; lia.
   eapply H5; auto.
 Qed.
 
@@ -379,12 +379,12 @@ Proof.
   destruct H0.
   rewrite HORec_fold_unfold by auto.
   specialize ( HF2 (HORec (F Q)) b P Q a H0 a').
-  spec HF2. apply necR_level in H2; omega.
+  spec HF2. apply necR_level in H2; lia.
   apply HF2; auto.
   rewrite HORec_fold_unfold in H3 by auto.
   rewrite box_all in H4.
   specialize ( HF3 (HORec (F P)) (HORec (F Q)) P a H4 b a').
-  spec HF3. apply necR_level in H2; omega.
+  spec HF3. apply necR_level in H2; lia.
   apply HF3; auto.
 Qed.
 
@@ -401,26 +401,26 @@ Proof.
   split; repeat intro.
   rewrite Rec_fold_unfold by auto.
   specialize ( HF2 (Rec (F Q)) P Q a H0 a').
-  spec HF2. apply necR_level in H3; omega.
+  spec HF2. apply necR_level in H3; lia.
   destruct HF2.
   eapply H5; auto.
   rewrite Rec_fold_unfold in H4 by auto.
   generalize (HF1 P (Rec (F P)) (Rec (F Q))); intros.
   specialize ( H7 a).
   detach H7; auto.
-  specialize ( H7 a').  spec H7. apply necR_level in H3; omega.
+  specialize ( H7 a').  spec H7. apply necR_level in H3; lia.
   destruct H7; eauto.
 
   rewrite Rec_fold_unfold by auto.
   specialize ( HF2 (Rec (F P)) P Q a H0 a').
-  spec HF2. apply necR_level in H3; omega.
+  spec HF2. apply necR_level in H3; lia.
   destruct HF2.
   eapply H6; auto.
   rewrite Rec_fold_unfold in H4 by auto.
   generalize (HF1 Q (Rec (F P)) (Rec (F Q))); intros.
   specialize ( H7 a).
   detach H7; auto.
-  specialize ( H7 a').  spec H7. apply necR_level in H3; omega.
+  specialize ( H7 a').  spec H7. apply necR_level in H3; lia.
   destruct H7; eauto.
 Qed.
 
@@ -437,26 +437,26 @@ Proof.
   split; repeat intro.
   rewrite Rec_fold_unfold by auto.
   specialize ( HF2 (Rec (F Q)) P Q a H0 a').
-  spec HF2. apply necR_level in H3; omega.
+  spec HF2. apply necR_level in H3; lia.
   destruct HF2.
   eapply H5; auto.
   rewrite Rec_fold_unfold in H4 by auto.
   generalize (HF1 P (Rec (F P)) (Rec (F Q))); intros.
   specialize ( H7 a).
   detach H7; auto.
-  specialize ( H7 a').  spec H7. apply necR_level in H3; omega.
+  specialize ( H7 a').  spec H7. apply necR_level in H3; lia.
   destruct H7; eauto.
 
   rewrite Rec_fold_unfold by auto.
   specialize ( HF2 (Rec (F P)) P Q a H0 a').
-  spec HF2. apply necR_level in H3; omega.
+  spec HF2. apply necR_level in H3; lia.
   destruct HF2.
   eapply H6; auto.
   rewrite Rec_fold_unfold in H4 by auto.
   generalize (HF1 Q (Rec (F P)) (Rec (F Q))); intros.
   specialize ( H7 a).
   detach H7; auto.
-  specialize ( H7 a').  spec H7. apply necR_level in H3; omega.
+  specialize ( H7 a').  spec H7. apply necR_level in H3; lia.
   destruct H7; eauto.
 Qed.
 
@@ -480,28 +480,28 @@ Proof.
   split; repeat intro.
   rewrite HORec_fold_unfold by auto.
   specialize ( HF2 (HORec (F Q)) b P Q a H0 a').
-  spec HF2. apply necR_level in H3; omega.
+  spec HF2. apply necR_level in H3; lia.
   destruct HF2.
   eapply H5; auto.
   rewrite HORec_fold_unfold in H4 by auto.
   generalize (HF1 P (HORec (F P)) (HORec (F Q))); intros.
   specialize ( H7 a).
   detach H7.
-  specialize ( H7 b a').  spec H7. apply necR_level in H3; omega.
+  specialize ( H7 b a').  spec H7. apply necR_level in H3; lia.
   destruct H7; eauto.
   rewrite <- box_all.
   auto.
 
   rewrite HORec_fold_unfold by auto.
   specialize ( HF2 (HORec (F P)) b P Q a H0 a').
-  spec HF2. apply necR_level in H3; omega.
+  spec HF2. apply necR_level in H3; lia.
   destruct HF2.
   eapply H6; auto.
   rewrite HORec_fold_unfold in H4 by auto.
   generalize (HF1 Q (HORec (F P)) (HORec (F Q))); intros.
   specialize ( H7 a).
   detach H7.
-  specialize ( H7 b a').  spec H7. apply necR_level in H3; omega.
+  specialize ( H7 b a').  spec H7. apply necR_level in H3; lia.
   destruct H7; eauto.
   rewrite <- box_all.
   auto.
@@ -526,28 +526,28 @@ Proof.
   split; repeat intro.
   rewrite HORec_fold_unfold by auto.
   specialize ( HF2 (HORec (F Q)) b P Q a H0 a').
-  spec HF2. apply necR_level in H3; omega.
+  spec HF2. apply necR_level in H3; lia.
   destruct HF2.
   eapply H5; auto.
   rewrite HORec_fold_unfold in H4 by auto.
   generalize (HF1 P (HORec (F P)) (HORec (F Q))); intros.
   specialize ( H7 a).
   detach H7.
-  specialize ( H7 b a').  spec H7. apply necR_level in H3; omega.
+  specialize ( H7 b a').  spec H7. apply necR_level in H3; lia.
   destruct H7; eauto.
   rewrite <- box_all.
   auto.
 
   rewrite HORec_fold_unfold by auto.
   specialize ( HF2 (HORec (F P)) b P Q a H0 a').
-  spec HF2. apply necR_level in H3; omega.
+  spec HF2. apply necR_level in H3; lia.
   destruct HF2.
   eapply H6; auto.
   rewrite HORec_fold_unfold in H4 by auto.
   generalize (HF1 Q (HORec (F P)) (HORec (F Q))); intros.
   specialize ( H7 a).
   detach H7.
-  specialize ( H7 b a').  spec H7. apply necR_level in H3; omega.
+  specialize ( H7 b a').  spec H7. apply necR_level in H3; lia.
   destruct H7; eauto.
   rewrite <- box_all.
   auto.

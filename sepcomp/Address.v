@@ -3,7 +3,7 @@ Require Import compcert.lib.Integers.
 Require Import compcert.lib.Floats.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
-
+Require Import Coq.micromega.Lia.
 Require Import VST.msl.eq_dec.
 
 Definition address : Type := (block * Z)%type.
@@ -48,9 +48,9 @@ subst b'.
 destruct (zle z z').
 destruct (zlt z' (z+n)).
 left; auto.
-right; intros [? ?]; omega.
-right; intros [? ?]; omega.
-right; intros [? ?]; unfold block in *; xomega.
+right; intros [? ?]; lia.
+right; intros [? ?]; lia.
+right; intros [? ?]; lia.
 Qed.
 
 (*
@@ -70,15 +70,15 @@ Definition size_chunk (chunk: memory_chunk) : Z :=
 Remark size_chunk_pos:
   forall chunk1, size_chunk chunk1 > 0.
 Proof.
-  destruct chunk1; simpl; omega.
+  destruct chunk1; simpl; lia.
 Qed.
 
 Lemma zero_in_chunk: forall ch, 0 <= 0 < size_chunk ch.
 Proof.
-  intros; generalize (size_chunk_pos ch); omega.
+  intros; generalize (size_chunk_pos ch); lia.
 Qed.
 
-Hint Resolve zero_in_chunk : mem.
+#[export] Hint Resolve zero_in_chunk : mem.
 
 Definition range_overlap (base1: address) (sz1: Z) (base2: address) (sz2: Z) : Prop :=
   exists loc, adr_range base1 sz1 loc /\ adr_range base2 sz2 loc.
@@ -94,7 +94,7 @@ Proof.
   intros.
   unfold adr_range in H.
   destruct l1, l2.
-  destruct (zlt 0 n); omega.
+  destruct (zlt 0 n); lia.
 Qed.
 
 Lemma adr_range_shift_1: forall bl ofs n l, adr_range (bl, ofs + 1) (Z.of_nat n) l -> adr_range (bl, ofs) (Z.of_nat (S n)) l.
@@ -104,7 +104,7 @@ Proof.
   unfold adr_range in *.
   rewrite Nat2Z.inj_succ.
   destruct H.
-  repeat split; auto; omega.
+  repeat split; auto; lia.
 Qed.
 
 Lemma adr_range_S_split: forall bl ofs n l, adr_range (bl, ofs) (Z.of_nat (S n)) l -> adr_range (bl, ofs + 1) (Z.of_nat n) l \/ l = (bl, ofs).
@@ -116,6 +116,6 @@ Proof.
   destruct H.
   subst bl.
   destruct (zlt ofs z); [left | right].
-  + split; auto; omega.
-  + f_equal; omega.
+  + split; auto; lia.
+  + f_equal; lia.
 Qed.

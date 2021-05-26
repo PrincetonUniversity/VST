@@ -10,6 +10,7 @@ Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.floyd.sublist.
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.
+Import compcert.lib.Maps.
 
 Opaque alignof.
 
@@ -42,33 +43,6 @@ Section CENV.
 
 Context {cs: compspecs}.
 
-(*
-Lemma proj_struct_default: forall i m d,
-  in_members i m ->
-  members_no_replicate m = true ->
-  proj_struct i m (struct_default_val m) d = default_val (field_type i m).
-Proof.
-Qed.
-
-Lemma proj_union_default: forall i m d,
-  i = fst (members_union_inj (union_default_val m)) ->
-  m <> nil ->
-  members_no_replicate m = true ->
-  proj_union i m (union_default_val m) d = default_val (field_type2 i m).
-Proof.
-  unfold field_type2.
-  intros.
-  destruct m as [| (i0, t0) m]; [congruence |].
-  destruct m as [| (i1, t1) m].
-  + simpl in d, H |- *; subst.
-    if_tac; [| congruence].
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-  + simpl in H; subst.
-    simpl in d |- *; subst.
-    if_tac; [| congruence].
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-Qed.
-*)
 Section WITH_SHARE.
 
 Variable sh: share.
@@ -211,6 +185,121 @@ Proof.
     try rewrite if_true by auto; auto.
 Qed.
 
+Lemma zero_val_Tint: forall i s a, zero_val (Tint i s a) = Vint Int.zero.
+Proof.
+intros.
+ unfold zero_val, zero_val', reptype_gen0; simpl;
+    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
+Qed.
+   
+Lemma zero_val_Tlong: forall s a, zero_val (Tlong s a) = Vlong Int64.zero.
+Proof.
+intros.
+ unfold zero_val, zero_val', reptype_gen0; simpl;
+    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
+Qed.
+   
+Lemma zero_val_Tpointer: forall t a, zero_val (Tpointer t a) = nullval. 
+Proof.
+intros.
+ unfold zero_val, zero_val', reptype_gen0; simpl;
+    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
+Qed.
+
+Lemma zero_val_Tfloat32: forall a, zero_val (Tfloat F32 a) = Vsingle Float32.zero.
+Proof.
+intros.
+ unfold zero_val, zero_val', reptype_gen0; simpl;
+    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
+Qed.
+
+
+Lemma zero_val_Tfloat64: forall a, zero_val (Tfloat F64 a) = Vfloat Float.zero.
+Proof.
+intros.
+ unfold zero_val, zero_val', reptype_gen0; simpl;
+    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
+Qed.
+
+Ltac unknown_big_endian_hack :=
+  (* This is necessary on machines where Archi.big_endian is a Parameter 
+    rather than a Definition.  When Archi.big_endian is a constant true or false,
+   then it's much easier. *)
+ match goal with H1: (align_chunk _ | _) |- _ |-- res_predicates.address_mapsto ?ch ?v ?sh (?b, Ptrofs.unsigned ?i) =>
+   constructor;
+   replace v with (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch))));
+   [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
+    unfold decode_val, decode_int, rev_if_be;
+     destruct Archi.big_endian;
+     reflexivity
+ end.
+
+Lemma by_value_data_at_rec_zero_val: forall sh t p,
+  type_is_by_value t = true ->
+  size_compatible t p ->
+  align_compatible t p ->
+  type_is_volatile t = false ->
+  mapsto_zeros (sizeof t) sh p |-- data_at_rec sh t (zero_val t) p.
+Proof.
+  intros.
+  rewrite data_at_rec_eq.
+  pose proof (sizeof_pos t).
+  destruct t; try destruct f; try solve [inversion H]; rewrite H2;
+  destruct p; try apply FF_left;
+  unfold mapsto_zeros; apply derives_extract_prop; intros [? ?];
+  rewrite mapsto_memory_block.address_mapsto_zeros_eq;
+  rewrite Z2Nat.id by lia;
+  unfold mapsto; rewrite H2.
+- rewrite zero_val_Tint.
+   change (unfold_reptype ?A) with A.
+    destruct i,s; simpl;
+    (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]);
+   rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
+   rewrite (prop_true_andp (_ /\ _)) 
+    by (split; auto; intros _; compute; repeat split; try congruence; auto);
+   (if_tac; [apply orp_right1 | ]).
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
+   all: try unknown_big_endian_hack.
+- rewrite zero_val_Tlong.
+   change (unfold_reptype ?A) with A.
+    destruct s; simpl;
+    (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]);
+   rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
+   rewrite (prop_true_andp (_ /\ _)) 
+    by (split; auto; intros _; compute; repeat split; try congruence; auto);
+   (if_tac; [apply orp_right1 | ]).
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
+   all: try unknown_big_endian_hack.
+- rewrite zero_val_Tfloat32;
+   change (unfold_reptype ?A) with A.
+    (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
+   simpl. rewrite prop_true_andp by auto.
+   rewrite (prop_true_andp (_ /\ _)) 
+    by (split; auto; intros _; compute; repeat split; try congruence; auto);
+   (if_tac; [apply orp_right1 | ]); constructor.
+   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
+- rewrite zero_val_Tfloat64;
+   change (unfold_reptype ?A) with A.
+    (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
+   simpl. rewrite prop_true_andp by auto.
+   rewrite (prop_true_andp (_ /\ _)) 
+    by (split; auto; intros _; compute; repeat split; try congruence; auto);
+   (if_tac; [apply orp_right1 | ]).
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
+   all: try unknown_big_endian_hack.
+- rewrite zero_val_Tpointer.
+   change (unfold_reptype ?A) with A.
+    (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
+   simpl access_mode; cbv beta iota.
+  rewrite prop_true_andp by apply mapsto_memory_block.tc_val_pointer_nullval'.
+   rewrite (prop_true_andp (_ /\ _))
+      by (split; auto; intro; apply mapsto_memory_block.tc_val_pointer_nullval'). 
+   (if_tac; [apply orp_right1 | ]).
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
+   all: try unknown_big_endian_hack.
+Qed.
+
 Lemma by_value_data_at_rec_nonreachable: forall sh t p v,
   type_is_by_value t = true ->
   size_compatible t p ->
@@ -239,11 +328,32 @@ Proof.
   + unfold size_compatible.
     solve_mod_modulus.
     pose_mod_le ofs.
-    omega.
+    lia.
   + unfold align_compatible.
     solve_mod_modulus.
     pose proof sizeof_pos t.
-    rewrite Zmod_small by omega.
+    rewrite Zmod_small by lia.
+    auto.
+Qed.
+
+Lemma by_value_data_at_rec_zero_val2: forall sh t b ofs,
+  type_is_by_value t = true ->
+  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
+  align_compatible_rec cenv_cs t ofs ->
+  type_is_volatile t = false ->
+  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) |-- 
+  data_at_rec sh t (zero_val t) (Vptr b (Ptrofs.repr ofs)).
+Proof.
+  intros.
+  apply by_value_data_at_rec_zero_val; auto.
+  + unfold size_compatible.
+    solve_mod_modulus.
+    pose_mod_le ofs.
+    lia.
+  + unfold align_compatible.
+    solve_mod_modulus.
+    pose proof sizeof_pos t.
+    rewrite Zmod_small by lia.
     auto.
 Qed.
 
@@ -260,11 +370,11 @@ Proof.
   + unfold size_compatible.
     solve_mod_modulus.
     pose_mod_le ofs.
-    omega.
+    lia.
   + unfold align_compatible.
     solve_mod_modulus.
     pose proof sizeof_pos t.
-    rewrite Zmod_small by omega.
+    rewrite Zmod_small by lia.
     auto.
 Qed.
 
@@ -301,9 +411,9 @@ Proof.
   pose proof Int.unsigned_range i.
   pose proof Int.unsigned_range (Int.repr pos).
   rewrite !Int.unsigned_repr_eq in *.
-  rewrite Z.add_mod by omega.
-  rewrite Z.mod_mod by omega.
-  rewrite <- Z.add_mod by omega.
+  rewrite Z.add_mod by lia.
+  rewrite Z.mod_mod by lia.
+  rewrite <- Z.add_mod by lia.
   reflexivity.
 Qed.
 
@@ -315,10 +425,10 @@ Proof.
   destruct H.
   rewrite (unsigned_add i pos H).
   cut ((Int.unsigned i + pos) mod Int.modulus <= Int.unsigned i + pos).
-    { intros. omega. }
+    { intros. lia. }
   pose proof Int.modulus_pos.
   pose proof Int.unsigned_range i.
-  apply Z.mod_le; omega.
+  apply Z.mod_le; lia.
 Qed.
 
 Lemma memory_block_data_at__aux2: forall i pos t,
@@ -332,10 +442,10 @@ Proof.
   rewrite (unsigned_add i pos H).
   destruct (zlt (Int.unsigned i + pos) Int.modulus).
   + pose proof Int.unsigned_range i.
-    rewrite Z.mod_small by omega.
+    rewrite Z.mod_small by lia.
     apply Z.divide_add_r; assumption.
   + pose proof sizeof_pos cenv_cs t.
-    assert (Int.unsigned i + pos = Int.modulus) by omega.
+    assert (Int.unsigned i + pos = Int.modulus) by lia.
     rewrite H4.
     rewrite Z_mod_same_full.
     apply Z.divide_0_r.
@@ -404,19 +514,19 @@ Ltac AUTO_IND :=
   end.
 *)
 
-Lemma nth_list_repeat: forall A i n (x :A),
-    nth i (list_repeat n x) x = x.
+Lemma nth_repeat: forall A i n (x :A),
+    nth i (repeat x n) x = x.
 Proof.
  induction i; destruct n; simpl; auto.
 Qed.
 
-Lemma nth_list_repeat': forall A i n (x y :A),
+Lemma nth_repeat': forall A i n (x y :A),
     (i < n)%nat ->
-    nth i (list_repeat n x) y = x.
+    nth i (repeat x n) y = x.
 Proof.
  induction i; destruct n; simpl; intros; auto.
- omega. omega.
- apply IHi; auto. omega.
+ lia. lia.
+ apply IHi; auto. lia.
 Qed.
 
  Lemma Z2Nat_max0: forall z, Z.to_nat (Z.max 0 z) = Z.to_nat z.
@@ -430,12 +540,12 @@ Lemma range_max0: forall x z, 0 <= x < Z.max 0 z <-> 0 <= x < z.
 Proof.
   intros.
   destruct (zlt z 0).
-  + rewrite Z.max_l by omega.
-    omega.
-  + rewrite Z.max_r by omega.
-    omega.
+  + rewrite Z.max_l by lia.
+    lia.
+  + rewrite Z.max_r by lia.
+    lia.
 Qed.
-  
+
 (* We use (Vptr b (Int.repr ofs)) instead of p because size_compatible is more  *)
 (* difficult to use than simple arithmetic in induction proof.                  *)
 Lemma memory_block_data_at_rec_default_val: forall sh t b ofs
@@ -455,22 +565,21 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t));
+     (v1 := Zrepeat (default_val t) (Z.max 0 z));
      auto.
     rewrite memory_block_array_pred; auto.
     - apply Z.le_max_l.
-    - f_equal.
-      f_equal.
-      rewrite Z2Nat_max0; auto.
+    - f_equal. unfold Zrepeat.
+      f_equal.  lia.
     - intros.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
-      unfold Znth. rewrite if_false by omega.
-      rewrite nth_list_repeat.
-      unfold sizeof in H, H1; fold @sizeof in H,H1.
-      pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
+      unfold Znth, Zrepeat. rewrite if_false by lia.
+      rewrite nth_repeat.
+      unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
+      pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
       assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
-      apply IH; auto; try omega.
+      apply IH; auto; try lia.
       eapply align_compatible_rec_Tarray_inv; [eassumption |].
       apply range_max0; auto.
   + rewrite default_val_eq.
@@ -483,7 +592,8 @@ Proof.
                (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p))
      (v1 := (struct_default_val (co_members (get_co id))));
     [| apply get_co_members_no_replicate |].
-    - rewrite memory_block_struct_pred.
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+       rewrite memory_block_struct_pred.
       * rewrite sizeof_Tstruct; auto.
       * apply get_co_members_nil_sizeof_0.
       * apply get_co_members_no_replicate.
@@ -492,9 +602,9 @@ Proof.
         erewrite complete_legal_cosu_type_Tstruct in H1 by eauto.
         pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
         unfold sizeof_composite in H1.
-        revert H1; pose_align_le; intros; omega.
+        revert H1; pose_align_le; intros; lia.
       * rewrite sizeof_Tstruct in H.
-        omega.
+        lia.
     - intros.
       pose proof get_co_members_no_replicate id as NO_REPLI.
       rewrite withspacer_spacer.
@@ -509,12 +619,13 @@ Proof.
       specialize (IH (i, field_type i (co_members (get_co id)))).
       spec IH; [apply in_members_field_type; auto |].
       unfold snd in IH.
-      rewrite IH.
-      * rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; omega).
-        f_equal; omega.
+      rewrite IH; clear IH.
+      * rewrite Z.add_assoc, sepcon_comm.
+         rewrite <- memory_block_split by (pose_field; lia).
+        f_equal; lia.
       * apply complete_legal_cosu_type_field_type.
         auto.
-      * simpl fst. pose_field; omega.
+      * simpl fst. pose_field; lia.
       * simpl fst. eapply align_compatible_rec_Tstruct_inv'; eauto.
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (destruct (co_members (get_co id)); [left | right]; congruence).
@@ -553,57 +664,223 @@ Proof.
         spec IH; [apply in_members_field_type; auto |].
         unfold snd in IH.
         rewrite IH.
-        {
-          rewrite sepcon_comm, <- memory_block_split by (pose_field; omega).
-          f_equal; f_equal; omega.
+        { 
+          rewrite sepcon_comm, <- memory_block_split by (pose_field; lia).
+          f_equal; f_equal; lia.
         } {
           apply complete_legal_cosu_type_field_type.
           auto.
         } {
-          pose_field; omega.
+          pose_field; lia.
         } {
           simpl fst. eapply align_compatible_rec_Tunion_inv'; eauto.
         }
 Qed.
 
-(*
-Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
-  legal_alignas_type t = true ->
-  nested_legal_fieldlist t = true ->
-  nested_non_volatile_type t = true ->
-  alignof t = 1%Z ->
-  (sizeof t < Ptrofs.modulus)%Z ->
-  memory_block sh (Ptrofs.repr (sizeof t)) = data_at_ sh t.
+Print rank_type.
+
+Fixpoint fully_nonvolatile {cs: compspecs} (rank: nat) (t: type) : bool :=
+ match rank with
+ | O => negb (type_is_volatile t) 
+ | S r => negb (type_is_volatile t) &&
+               match t with
+               | Tarray t' _ _ => fully_nonvolatile r t'
+               | Tstruct id _ => match cenv_cs ! id with 
+                                          | Some co => forallb (fully_nonvolatile r) (map snd (co_members co))
+                                          | None => false
+                                          end
+               | Tunion id _ => match cenv_cs ! id with 
+                                          | Some co => forallb (fully_nonvolatile r) (map snd (co_members co))
+                                          | None => false
+                                          end
+               | _ => true
+               end
+ end.
+
+Lemma fully_nonvolatile_stable:
+  forall {cs: compspecs} r r' t, (r >= r')%nat -> fully_nonvolatile r t = true -> fully_nonvolatile r' t = true.
 Proof.
-  intros.
-  extensionality p.
-  rewrite data_at__memory_block by auto.
-  rewrite andp_comm.
-  apply add_andp.
-  normalize.
-  apply prop_right.
-  unfold align_compatible.
-  rewrite H2.
-  destruct p; auto.
-  split; [| auto].
-  apply Z.divide_1_l.
+induction r; destruct r'; simpl; intros; auto.
+inv H.
+rewrite andb_true_iff in H0; destruct H0; auto.
+rewrite andb_true_iff in H0|-*; destruct H0; split; auto.
+destruct t; auto.
+apply IHr; auto; lia.
+all: destruct (cenv_cs ! i); auto;
+rewrite forallb_forall in H1|-*; intros; apply H1 in H2; apply IHr; auto; lia.
 Qed.
 
-*)
-
-(*
-Lemma data_at_rec_readable:
-  forall sh t v p, data_at_rec sh t v p |-- !! readable_share sh.
+(* We use (Vptr b (Int.repr ofs)) instead of p because size_compatible is more  *)
+(* difficult to use than simple arithmetic in induction proof.                  *)
+Lemma mapsto_zeros_data_at_rec_zero_val: forall sh
+  (Hsh: readable_share sh)
+  t b ofs
+  (LEGAL_COSU: complete_legal_cosu_type t = true),
+  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
+  align_compatible_rec cenv_cs t ofs ->
+  fully_nonvolatile (rank_type cenv_cs t) t = true ->
+  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) |--
+    data_at_rec sh t (zero_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
-intros sh t.
-type_induction t; intros;
-rewrite data_at_rec_eq; try apply FF_left.
-if_tac.
-+ simpl. destruct i; simpl.
-rewrite memory_block_eq.
-saturate_local.
-simpl.
-*)
+  intros sh ? t.
+  type_induction t; intros;
+  try solve [inversion LEGAL_COSU];
+    try (replace (rank_type _ _) with O in H1
+         by (try destruct i; try destruct s; try destruct f; reflexivity);
+    apply negb_true_iff in H1);
+  try (apply by_value_data_at_rec_zero_val2; [reflexivity | assumption.. ]);
+  rename H1 into Hvol;
+  rewrite data_at_rec_eq.
+ + rewrite (zero_val_eq (Tarray t z a)).
+     rewrite unfold_fold_reptype.
+    eapply derives_trans; [ | 
+    apply array_pred_ext_derives with
+     (P0 := fun i _ p => mapsto_zeros (sizeof t) sh
+                          (offset_val (sizeof t * i) p))
+     (v0 := Zrepeat (zero_val t) (Z.max 0 z))];
+     auto.
+    apply mapsto_zeros_array_pred; auto.
+    - apply Z.le_max_l.
+    - unfold Zrepeat. 
+      rewrite Z2Nat_max0; auto.
+    - intros.
+      change (unfold_reptype ?A) with A.
+      rewrite at_offset_eq3.
+      unfold offset_val; solve_mod_modulus.
+      unfold Znth, Zrepeat. rewrite if_false by lia.
+      rewrite nth_repeat' by lia.
+      unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
+      pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
+      assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
+      apply IH; auto; try lia.
+      eapply align_compatible_rec_Tarray_inv; [eassumption |].
+      apply range_max0; auto.
+  + rewrite zero_val_eq.
+     rewrite unfold_fold_reptype.
+    eapply derives_trans; [ |
+    apply struct_pred_ext_derives with
+     (P0 := fun it _ p =>
+              mapsto_zeros
+               (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) -
+                  field_offset cenv_cs (fst it) (co_members (get_co id))) sh
+               (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p))
+     (v0 := (struct_zero_val (co_members (get_co id))))];
+    [| apply get_co_members_no_replicate |].
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+       eapply derives_trans; [apply mapsto_zeros_struct_pred with (m := co_members (get_co id)) | ];
+         rewrite ?sizeof_Tstruct; auto.
+      * apply get_co_members_nil_sizeof_0.
+      * apply get_co_members_no_replicate.
+      * rewrite sizeof_Tstruct in H.
+        pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
+        erewrite complete_legal_cosu_type_Tstruct in H1 by eauto.
+        pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
+        unfold sizeof_composite in H1.
+        revert H1; pose_align_le; intros; lia.
+      * rewrite sizeof_Tstruct in H.
+        lia.
+      * apply derives_refl.
+    - intros.
+      pose proof get_co_members_no_replicate id as NO_REPLI.
+      rewrite withspacer_spacer.
+      simpl @fst.
+      rewrite spacer_memory_block by (simpl; auto).
+      rewrite at_offset_eq3.
+      unfold offset_val; solve_mod_modulus.
+      unfold struct_zero_val.
+      unfold proj_struct.
+      rewrite compact_prod_proj_gen by (apply in_members_field_type; auto).
+      rewrite Forall_forall in IH.
+      specialize (IH (i, field_type i (co_members (get_co id)))).
+      spec IH; [apply in_members_field_type; auto |].
+      unfold snd in IH.
+      eapply derives_trans; [ | apply sepcon_derives; [apply derives_refl | apply IH]]; clear IH.
+      *
+      eapply derives_trans; [ | apply sepcon_derives; [apply mapsto_zeros_memory_block; auto | apply derives_refl ]].
+      simpl fst. 
+       rewrite Z.add_assoc. rewrite sepcon_comm.
+       rewrite <- aggregate_pred.mapsto_zeros_split by (pose_field; lia).
+       apply derives_refl'; f_equal; lia.
+      * apply complete_legal_cosu_type_field_type.
+        auto.
+      * simpl fst. pose_field; lia.
+      * simpl fst. eapply align_compatible_rec_Tstruct_inv'; eauto.
+      * simpl fst. clear - LEGAL_COSU Hvol.
+         unfold get_co. simpl in *.
+         destruct (cenv_cs ! id) eqn:?H; try discriminate.
+         simpl in Hvol. rewrite H in Hvol.
+         destruct (Ctypes.field_type i (co_members c)) eqn:?H; auto.
+         assert (In (i, t) (co_members c)). {
+             clear - H0. induction (co_members c) as [|[??]]; simpl. 
+             inv H0. simpl in H0. if_tac in H0. subst. inv H0; auto. right; auto.
+         }
+         rewrite forallb_forall in Hvol. specialize (Hvol  _ (in_map snd _ _ H1)).
+         pose proof (cenv_legal_su _ _ H). apply (complete_legal_cosu_member _ i t) in H2; auto.
+         eapply fully_nonvolatile_stable; try eassumption.
+         rewrite (co_consistent_rank cenv_cs c (cenv_consistent _ _ H)).        
+         apply (rank_type_members cenv_cs i t (co_members c)); auto.
+  + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
+      by (destruct (co_members (get_co id)); [left | right]; congruence).
+    destruct H1.
+    - rewrite sizeof_Tunion.
+      rewrite (get_co_members_nil_sizeof_0 _ H1).
+      generalize (unfold_reptype (zero_val (Tunion id a)));
+      rewrite H1 in *;
+      intros.
+      simpl.
+      normalize. apply derives_refl.
+    - rewrite zero_val_eq.
+      rewrite unfold_fold_reptype.
+      eapply derives_trans; [ | apply union_pred_ext_derives with
+       (P0 := fun it _ => mapsto_zeros(co_sizeof (get_co id)) sh)
+       (v0 := (union_zero_val (co_members (get_co id))))];
+      [| apply get_co_members_no_replicate | reflexivity |].
+      * rewrite sizeof_Tunion.
+         apply mapsto_zeros_union_pred. (apply get_co_members_nil_sizeof_0).
+      * intros.
+        pose proof get_co_members_no_replicate id as NO_REPLI.
+        pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (union_zero_val (co_members (get_co id))) _ _ H3.
+        apply in_map with (f := fst) in H4; unfold fst in H4.
+        rewrite withspacer_spacer.
+        simpl @fst.
+        rewrite spacer_memory_block by (simpl; auto).
+        unfold offset_val; solve_mod_modulus.
+        unfold union_zero_val.
+        unfold proj_union.
+        unfold members_union_inj in *.
+        rewrite compact_sum_proj_gen; [| auto].
+        rewrite Forall_forall in IH.
+        specialize (IH (i, field_type i (co_members (get_co id)))).
+        spec IH; [apply in_members_field_type; auto |].
+        unfold snd in IH.
+        eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply IH]]; clear IH.
+        -- rewrite sepcon_comm. simpl fst.
+             eapply derives_trans; [ | apply sepcon_derives; [apply derives_refl | apply mapsto_zeros_memory_block; auto ]].
+            rewrite <- aggregate_pred.mapsto_zeros_split by (pose_field; lia).
+          apply derives_refl'.
+          f_equal; f_equal; lia.
+       --
+          apply complete_legal_cosu_type_field_type.
+          auto.
+        --
+          pose_field; lia.
+        --
+          simpl fst. eapply align_compatible_rec_Tunion_inv'; eauto.
+       --simpl fst. clear - LEGAL_COSU Hvol.
+         unfold get_co. simpl in *.
+         destruct (cenv_cs ! id) eqn:?H; try discriminate.
+         simpl in Hvol. rewrite H in Hvol.
+         destruct (Ctypes.field_type i (co_members c)) eqn:?H; auto.
+         assert (In (i, t) (co_members c)). {
+             clear - H0. induction (co_members c) as [|[??]]; simpl. 
+             inv H0. simpl in H0. if_tac in H0. subst. inv H0; auto. right; auto.
+         }
+         rewrite forallb_forall in Hvol. specialize (Hvol  _ (in_map snd _ _ H1)).
+         pose proof (cenv_legal_su _ _ H). apply (complete_legal_cosu_member _ i t) in H2; auto.
+         eapply fully_nonvolatile_stable; try eassumption.
+         rewrite (co_consistent_rank cenv_cs c (cenv_consistent _ _ H)).        
+         apply (rank_type_members cenv_cs i t (co_members c)); auto.
+Qed.
 
 Lemma data_at_rec_data_at_rec_ : forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
@@ -622,9 +899,10 @@ Proof.
       intros; rewrite default_val_eq.
       rewrite unfold_fold_reptype.
       rewrite Zlength_correct in H1.
+      unfold Zrepeat.
       rewrite <- Z2Nat_max0.
-      rewrite Zlength_list_repeat by omega.
-      omega.
+      rewrite Zlength_repeat by lia.
+      lia.
     }
     rewrite default_val_eq. simpl.
     intros.
@@ -632,12 +910,13 @@ Proof.
     rewrite default_val_eq with (t0 := (Tarray t z a)), unfold_fold_reptype.
     eapply derives_trans.
     apply IH; auto.
-    - pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil); simpl in H; try omega.
+    - pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
+       unfold sizeof in H; simpl in H; fold (sizeof t) in H; lia.
     - eapply align_compatible_rec_Tarray_inv; eauto.
       apply range_max0; auto.
-    - apply derives_refl'. f_equal. unfold Znth. rewrite if_false by omega.
-      rewrite nth_list_repeat'; auto.
-      apply Nat2Z.inj_lt. rewrite Z2Nat.id, Z2Nat_id' by omega. omega.
+    - apply derives_refl'. f_equal. unfold Znth, Zrepeat. rewrite if_false by lia.
+      rewrite nth_repeat'; auto.
+      apply Nat2Z.inj_lt. rewrite Z2Nat.id, Z2Nat_id' by lia. lia.
   + rewrite !data_at_rec_eq.
     rewrite default_val_eq, unfold_fold_reptype.
     assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
@@ -657,7 +936,7 @@ Proof.
     rewrite compact_prod_proj_gen by (apply in_members_field_type; auto).
     apply IH; try unfold fst.
     - apply complete_legal_cosu_type_field_type; auto.
-    - pose_field; omega.
+    - pose_field; lia.
     - eapply align_compatible_rec_Tstruct_inv'; eauto.
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (destruct (co_members (get_co id)); [left | right]; congruence).
@@ -677,13 +956,14 @@ Proof.
         clear H3.
         pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (unfold_reptype v) _ _ H2.
         apply in_map with (f := fst) in H3; unfold fst in H3.
+        change (sizeof ?A) with (expr.sizeof A).
         rewrite withspacer_spacer, sizeof_Tunion.
         simpl.
         pattern (co_sizeof (get_co id)) at 2;
         replace (co_sizeof (get_co id)) with (sizeof (field_type i (co_members (get_co id))) +
-          (co_sizeof (get_co id) - sizeof (field_type i (co_members (get_co id))))) by omega.
+          (co_sizeof (get_co id) - sizeof (field_type i (co_members (get_co id))))) by lia.
         rewrite sepcon_comm.
-        rewrite memory_block_split by (pose_field; omega).
+        rewrite memory_block_split by (pose_field; lia).
         apply sepcon_derives; [| rewrite spacer_memory_block by (simpl; auto);
                                  unfold offset_val; solve_mod_modulus; auto ].
         rewrite <- memory_block_data_at_rec_default_val; auto.
@@ -694,17 +974,18 @@ Proof.
           unfold snd in IH.
           apply IH.
           + apply complete_legal_cosu_type_field_type; auto.
-          + pose_field; omega.
+          + pose_field; lia.
           + eapply align_compatible_rec_Tunion_inv'; eauto.
         } {
           apply complete_legal_cosu_type_field_type; auto.
         } {
-          pose_field; omega.
+          pose_field; lia.
         } {
           eapply align_compatible_rec_Tunion_inv'; eauto.
         }
         apply derives_refl.
-      * rewrite sizeof_Tunion.
+      * 
+        rewrite sizeof_Tunion.
         rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).
         auto.
 Qed.
@@ -770,8 +1051,8 @@ Proof.
   rewrite default_val_eq, unfold_fold_reptype.
   + (* Tarray *)
     split.
-    - rewrite Zlength_list_repeat', Z2Nat_id'; auto.
-    - apply Forall_list_repeat; auto.
+    - unfold Zrepeat; rewrite Zlength_repeat', Z2Nat_id'; auto.
+    - apply Forall_repeat; auto.
   + (* Tstruct *)
     cbv zeta in IH.
     apply struct_Prop_compact_prod_gen.
@@ -805,7 +1086,7 @@ Proof.
     - apply prop_derives.
       intros [? ?]; split; auto.
       rewrite Zlength_correct in *.
-      omega.
+      lia.
   + (* Tstruct *)
     apply struct_pred_local_facts; [apply get_co_members_no_replicate |].
     intros.
@@ -917,16 +1198,16 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.
+     (v1 := Zrepeat (default_val t) (Z.max 0 z)); auto.
     rewrite memory_block_array_pred; auto.
     - apply Z.le_max_l.
     - rewrite (proj1 H2).
-      symmetry; apply Zlength_list_repeat; auto.
+      symmetry; apply Zlength_repeat; auto.
       apply Z.le_max_l.
     - intros.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
-      unfold Znth. rewrite if_false by omega.
+      unfold Znth. rewrite if_false by lia.
       rewrite Z.sub_0_r.
       assert (value_fits t (nth (Z.to_nat i) (unfold_reptype v) (default_val t))).
       {
@@ -935,11 +1216,12 @@ Proof.
         apply H5.
         apply nth_In.
         apply Nat2Z.inj_lt.
-        rewrite <- Zlength_correct, H2, Z2Nat.id by omega.
-        omega.
+        rewrite <- Zlength_correct, H2, Z2Nat.id by lia.
+        lia.
       }
       apply IH; auto.
-      * pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil); omega.
+      * pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
+         unfold sizeof in H; simpl in H; fold (sizeof t) in H;  lia.
       * eapply align_compatible_rec_Tarray_inv; eauto.
         apply range_max0; auto.
   + rewrite struct_pred_ext with
@@ -950,7 +1232,8 @@ Proof.
                (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p))
      (v1 := (struct_default_val (co_members (get_co id))));
     [| apply get_co_members_no_replicate |].
-    - rewrite memory_block_struct_pred.
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+      rewrite memory_block_struct_pred.
       * rewrite sizeof_Tstruct; auto.
       * apply get_co_members_nil_sizeof_0.
       * apply get_co_members_no_replicate.
@@ -958,10 +1241,11 @@ Proof.
         pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
         erewrite complete_legal_cosu_type_Tstruct in H3 by exact LEGAL_COSU.
         unfold sizeof_composite in H3.
-        revert H3; pose_align_le; intros; omega.
+        revert H3; pose_align_le; intros; lia.
       * rewrite sizeof_Tstruct in H.
         auto.
     - intros.
+      change (sizeof ?A) with (expr.sizeof A) in *.
       pose proof get_co_members_no_replicate id as NO_REPLI.
       rewrite withspacer_spacer.
       simpl @fst.
@@ -975,15 +1259,16 @@ Proof.
       unfold snd in IH.
       apply struct_Prop_proj with (i := i) (d:= d0) in H2; auto.
       rewrite IH; auto.
-      * rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; omega).
-        f_equal; omega.
+      * rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; lia).
+        f_equal; lia.
       * apply complete_legal_cosu_type_field_type; auto.
-      * simpl fst. pose_field; omega.
+      * simpl fst. pose_field; lia.
       * eapply align_compatible_rec_Tstruct_inv'; eauto.
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (clear; destruct (co_members (get_co id)); [left | right]; congruence).
     destruct H3.
-    - rewrite sizeof_Tunion.
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+      rewrite sizeof_Tunion.
       rewrite (get_co_members_nil_sizeof_0 _ H3).
       forget (unfold_reptype v) as v'; simpl in v'.
       generalize (unfold_reptype (default_val (Tunion id a)));
@@ -992,7 +1277,8 @@ Proof.
       simpl.
       rewrite memory_block_zero.
       normalize.
-    - rewrite union_pred_ext with
+    - change (sizeof ?A) with (expr.sizeof A) in *.
+      rewrite union_pred_ext with
        (P1 := fun it _ => memory_block sh (co_sizeof (get_co id)))
        (v1 := (unfold_reptype v));
       [| apply get_co_members_no_replicate | reflexivity |].
@@ -1013,12 +1299,12 @@ Proof.
         unfold snd in IH.
         apply union_Prop_proj with (i := i) (d := d0) in H2; auto.
         rewrite IH; auto.
-        { rewrite sepcon_comm, <- memory_block_split by (pose_field; omega).
-          f_equal; f_equal; omega.
+        { rewrite sepcon_comm, <- memory_block_split by (pose_field; lia).
+          f_equal; f_equal; lia.
         } {
           apply complete_legal_cosu_type_field_type; auto.
         } {
-          simpl fst; pose_field; omega.
+          simpl fst; pose_field; lia.
         } {
           eapply align_compatible_rec_Tunion_inv'; eauto.
         }
@@ -1033,7 +1319,7 @@ Lemma sizeof_Tarray:
   forall t (n:Z) a, n >= 0 ->
       sizeof (Tarray t n a) = (sizeof t * n)%Z.
 Proof.
-intros; simpl. rewrite Z.max_r; omega.
+intros; simpl. rewrite Z.max_r; lia.
 Qed.
 
 Lemma data_at_Tarray_ext_derives: forall sh t n a v v',
@@ -1302,7 +1588,7 @@ intros. subst t' r.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (simple_if_tac; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; apply prop_ext; tauto).
 Qed.
 
 Lemma value_fits_by_value_Vundef:
@@ -1315,7 +1601,7 @@ intros.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (simple_if_tac; auto; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; auto; apply prop_ext; tauto).
 Qed.
 
 Lemma value_fits_by_value:
@@ -1330,7 +1616,7 @@ intros. subst r t'.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (simple_if_tac; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; apply prop_ext; tauto).
 Qed.
 
 Lemma value_fits_Tarray:
@@ -1345,7 +1631,7 @@ Proof.
 intros.
 subst. rewrite value_fits_eq.
 apply JMeq_eq in H0. rewrite H0.
-rewrite Z.max_r by omega. auto.
+rewrite Z.max_r by lia. auto.
 Qed.
 
 Ltac cleanup_unfold_reptype :=
@@ -1357,28 +1643,29 @@ Ltac simplify_value_fits' :=
 first
  [erewrite value_fits_Tstruct;
     [ | reflexivity
-    | simpl; reflexivity
+    | reflexivity
     | cleanup_unfold_reptype
-    | simpl; reflexivity]
+    | reflexivity];
+    simpl struct_Prop
  |erewrite value_fits_Tarray;
     [ | reflexivity
     | cleanup_unfold_reptype
-    | repeat subst_any; try computable; omega
-    | simpl; reflexivity
+    | repeat subst_any; try computable; lia
+    | reflexivity
     ]
  | erewrite value_fits_by_value_defined;
    [ | reflexivity
    | repeat subst_any; clear; simpl; intro; discriminate
-   | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
-   | simpl; reflexivity
+   | reflexivity
+   | reflexivity
    ]
  | rewrite value_fits_by_value_Vundef;
    [ | reflexivity | reflexivity
    ]
  | erewrite value_fits_by_value;
    [ | reflexivity
-   | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
-   | simpl; reflexivity
+   | reflexivity
+   | reflexivity
    ]
  ];
  cbv beta;

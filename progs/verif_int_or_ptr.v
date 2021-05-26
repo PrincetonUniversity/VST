@@ -34,8 +34,8 @@ left.
 rewrite Int.unsigned_repr_eq.
 rewrite Zodd_mod.
 apply Zeq_is_eq_bool.
-replace (i+i) with (2*i)%Z by omega.
-rewrite <- Zmod_div_mod; try omega.
+replace (i+i) with (2*i)%Z by lia.
+rewrite <- Zmod_div_mod; try lia.
 rewrite Z.mul_comm, Z.add_comm.
 rewrite Z_mod_plus_full.
 reflexivity.
@@ -53,8 +53,8 @@ intros.
 simpl.
 right.
 unfold POINTER_BOUNDARY in *.
-rewrite Int.unsigned_repr by rep_omega.
-rep_omega.
+rewrite Int.unsigned_repr by rep_lia.
+rep_lia.
 Qed.
 
 Lemma field_compatible_valid_int_or_ptr:
@@ -79,7 +79,7 @@ clear - H2; simpl in *.
     destruct H0 as [j H].
     rewrite Z.add_0_r in H.
     rewrite H; clear.
-    replace (j*4)%Z with (2*(2*j))%Z by omega.
+    replace (j*4)%Z with (2*(2*j))%Z by lia.
     apply Zeven_2p.
 Qed.
 
@@ -97,73 +97,71 @@ entailer!.
 apply field_compatible_valid_int_or_ptr; auto.
 Qed.
 
-Hint Resolve treerep_local_facts : saturate_local.
+#[export] Hint Resolve treerep_local_facts : saturate_local.
 
 Definition test_int_or_ptr_spec :=
  DECLARE _test_int_or_ptr
  WITH x : val
- PRE [ _x OF int_or_ptr_type ]
-   PROP(valid_int_or_ptr x) LOCAL(temp _x x) SEP()
+ PRE [ int_or_ptr_type ]
+   PROP(valid_int_or_ptr x) PARAMS (x) SEP()
  POST [ tint ]
    PROP() 
-   LOCAL(temp ret_temp 
-          (Vint (Int.repr (match x with
+   RETURN (Vint (Int.repr (match x with
                     | Vint _ => 1
                     | _ => 0
-                    end))))
+                    end)))
    SEP().
 
 Definition int_or_ptr_to_int_spec :=
  DECLARE _int_or_ptr_to_int
  WITH x : val
- PRE [ _x OF int_or_ptr_type ]
-   PROP(is_int I32 Signed x) LOCAL(temp _x x) SEP()
+ PRE [ int_or_ptr_type ]
+   PROP(is_int I32 Signed x) PARAMS (x) SEP()
  POST [ tint ]
-   PROP() LOCAL (temp ret_temp x) SEP().
+   PROP() RETURN (x) SEP().
 
 Definition int_or_ptr_to_ptr_spec :=
  DECLARE _int_or_ptr_to_ptr
  WITH x : val
- PRE [ _x OF int_or_ptr_type ]
-   PROP(isptr x) LOCAL(temp _x x) SEP()
+ PRE [ int_or_ptr_type ]
+   PROP(isptr x) PARAMS (x) SEP()
  POST [ tptr tvoid ]
-   PROP() LOCAL (temp ret_temp x) SEP().
+   PROP() RETURN (x) SEP().
 
 Definition int_to_int_or_ptr_spec :=
  DECLARE _int_to_int_or_ptr
  WITH x : val
- PRE [ _x OF tint ]
-   PROP(valid_int_or_ptr x)
-   LOCAL(temp _x x) SEP()
+ PRE [ tint ]
+   PROP(valid_int_or_ptr x) PARAMS(x) SEP()
  POST [ int_or_ptr_type ]
-   PROP() LOCAL (temp ret_temp x) SEP().
+   PROP() RETURN(x) SEP().
 
 Definition ptr_to_int_or_ptr_spec :=
  DECLARE _ptr_to_int_or_ptr
  WITH x : val
- PRE [ _x OF tptr tvoid ]
-   PROP(valid_int_or_ptr x) LOCAL(temp _x x) SEP()
+ PRE [ tptr tvoid ]
+   PROP(valid_int_or_ptr x) PARAMS(x) SEP()
  POST [ int_or_ptr_type ]
-   PROP() LOCAL (temp ret_temp x) SEP().
+   PROP() RETURN(x) SEP().
 
 Definition makenode_spec :=
  DECLARE _makenode 
   WITH p: val, q: val
-  PRE [ _left OF int_or_ptr_type, _right OF int_or_ptr_type ]
-    PROP() LOCAL(temp _left p; temp _right q) SEP()
+  PRE [ int_or_ptr_type, int_or_ptr_type ]
+    PROP() PARAMS(p; q) SEP()
   POST [ tptr (Tstruct _tree noattr) ]
     EX r:val, 
-    PROP() LOCAL(temp ret_temp r) 
+    PROP() RETURN (r) 
     SEP (data_at Tsh (Tstruct _tree noattr) (p,q) r).
 
 Definition copytree_spec :=
  DECLARE _copytree
   WITH t: tree, p : val
-  PRE  [ _t OF int_or_ptr_type ]
-    PROP() LOCAL(temp _t p) SEP (treerep t p)
+  PRE  [ int_or_ptr_type ]
+    PROP() PARAMS (p) SEP (treerep t p)
   POST [ int_or_ptr_type ]
     EX v:val,
-    PROP() LOCAL(temp ret_temp v) 
+    PROP() RETURN (v) 
     SEP (treerep t p; treerep t v).
 
 Definition Gprog : funspecs :=
@@ -205,7 +203,6 @@ Proof.
   - (* else clause *)
    clear H0. simpl in H.
    forward_call (Vptr b i).
-   apply I.
    forward.
      entailer!.
      destruct p; try contradiction; apply I.
@@ -220,6 +217,10 @@ Proof.
    Intros p2.
    forward.
    deadvars.
+  assert_PROP (p1 <> Vundef).
+  entailer!.
+  assert_PROP (p2 <> Vundef).
+  entailer!.
    forward_call (p1,p2).
   Intros r.
   assert_PROP (valid_int_or_ptr r). {

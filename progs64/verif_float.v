@@ -10,8 +10,8 @@ Local Open Scope logic.
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition t_struct_foo := Tstruct _foo noattr.
 
@@ -21,10 +21,6 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [main_spec]).
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-name x1 _x1.
-name y1 _y1.
-name y2 _y2.
-name s _s.
 start_function.
 pose (f :=  PROP () LOCAL (gvars gv)
   SEP (data_at Ews t_struct_foo (Vint (Int.repr 5),

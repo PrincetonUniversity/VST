@@ -25,7 +25,7 @@ Proof.
   unfold nonlock_permission_bytes, valid_pointer.
   intros w ?.
   simpl in H2 |- *.
-  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
+  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
   rewrite Z.add_0_r.
   destruct H2 as [H2 _].
   specialize (H2 (b, ofs + i)).
@@ -36,7 +36,7 @@ Proof.
     simpl in H3.
     apply H3.
     split; auto.
-    omega.
+    lia.
 Qed.
 
 Lemma VALspec_range_valid_pointer: forall sh b ofs n i,
@@ -48,7 +48,7 @@ Proof.
   unfold VALspec_range, valid_pointer.
   intros w ?.
   simpl in H1 |- *.
-  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
+  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
   rewrite Z.add_0_r.
   destruct H1 as [H1 _].
   specialize (H1 (b, ofs + i)).
@@ -59,7 +59,7 @@ Proof.
     simpl in H2.
     apply H2.
     split; auto.
-    omega.
+    lia.
 Qed.
 
 Lemma address_mapsto_valid_pointer: forall ch v sh b ofs i,
@@ -86,31 +86,34 @@ Proof.
   destruct (readable_share_dec sh).
   + apply orp_left; apply andp_left2.
     - simpl in H.
+      unfold sizeof in *.
       erewrite size_chunk_sizeof in H by eauto.
       erewrite size_chunk_sizeof in H0 by eauto.
       pose proof Ptrofs.unsigned_range i0.
       apply address_mapsto_valid_pointer.
-      * omega.
-      * rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
-        omega.
+      * lia.
+      * rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
+        lia.
     - apply exp_left; intro.
       simpl in H.
+      unfold sizeof in *.
       erewrite size_chunk_sizeof in H by eauto.
       erewrite size_chunk_sizeof in H0 by eauto.
       pose proof Ptrofs.unsigned_range i0.
       apply address_mapsto_valid_pointer.
-      * omega.
-      * rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
-        omega.
+      * lia.
+      * rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
+        lia.
   + simpl in H.
+      unfold sizeof in *.
     erewrite size_chunk_sizeof in H by eauto.
     erewrite size_chunk_sizeof in H0 by eauto.
     pose proof Ptrofs.unsigned_range i0.
     apply andp_left2.
     apply nonlock_permission_bytes_valid_pointer.
-    - omega.
-    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
-      omega.
+    - lia.
+    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
+      lia.
     - auto.
 Qed.
 
@@ -125,19 +128,19 @@ Proof.
   normalize.
   pose proof Ptrofs.unsigned_range i0.
   rewrite memory_block'_eq.
-  2: omega.
-  2: rewrite Z2Nat.id; omega.
+  2: lia.
+  2: rewrite Z2Nat.id; lia.
   unfold memory_block'_alt.
-  rewrite Z2Nat.id by omega.
+  rewrite Z2Nat.id by lia.
   destruct (readable_share_dec sh).
   + apply VALspec_range_valid_pointer.
-    - split; try omega.
-    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
+    - split; try lia.
+    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
       auto.
   + apply nonlock_permission_bytes_valid_pointer.
-    - omega.
-    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
-      omega.
+    - lia.
+    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
+      lia.
     - auto.
 Qed.
 
@@ -146,16 +149,16 @@ Lemma VALspec_range_weak_valid_pointer: forall sh b ofs n i,
   VALspec_range n sh (b, ofs) |-- weak_valid_pointer (Vptr b (Ptrofs.repr (ofs + i))).
 Proof.
   intros. unfold VALspec_range, weak_valid_pointer. intros w ?. simpl in H2 |- *.
-  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
+  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
   rewrite Z.add_0_r. destruct H2 as [H2 _].
-  assert (0 <= i < n \/ i = n) by omega. destruct H3.
+  assert (0 <= i < n \/ i = n) by lia. destruct H3.
   - specialize (H2 (b, ofs + i)). if_tac in H2.
     + left. destruct H2 as [? [? ?]]. rewrite H2; auto.
-    + exfalso. simpl in H4. apply H4. split; auto. omega.
+    + exfalso. simpl in H4. apply H4. split; auto. lia.
   - subst i. specialize (H2 (b, ofs + n - 1)). right. if_tac in H2.
-    + destruct H2 as [? [? ?]]. replace (ofs + n + -1) with (ofs + n - 1) by omega.
+    + destruct H2 as [? [? ?]]. replace (ofs + n + -1) with (ofs + n - 1) by lia.
       rewrite H2; auto.
-    + exfalso. simpl in H3. apply H3. split; auto. omega.
+    + exfalso. simpl in H3. apply H3. split; auto. lia.
 Qed.
 
 Lemma nonlock_permission_bytes_weak_valid_pointer: forall sh b ofs n i,
@@ -165,16 +168,16 @@ Lemma nonlock_permission_bytes_weak_valid_pointer: forall sh b ofs n i,
 Proof.
   intros. unfold nonlock_permission_bytes, weak_valid_pointer.
   intros w ?. simpl in H3 |- *.
-  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
+  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
   rewrite Z.add_0_r. destruct H3 as [H3 _].
-  assert (0 <= i < n \/ i = n) by omega. destruct H4.
+  assert (0 <= i < n \/ i = n) by lia. destruct H4.
   - left. specialize (H3 (b, ofs + i)). if_tac in H3.
     + destruct H3. destruct (w @ (b, ofs + i)); inv H3; auto.
-    + exfalso. simpl in H5. apply H5. split; auto. omega.
+    + exfalso. simpl in H5. apply H5. split; auto. lia.
   - subst i. right. specialize (H3 (b, ofs + n - 1)). if_tac in H3.
-    + destruct H3. replace (ofs + n + -1) with (ofs + n - 1) by omega.
+    + destruct H3. replace (ofs + n + -1) with (ofs + n - 1) by lia.
       destruct (w @ (b, ofs + n - 1)); inv H3; auto.
-    + exfalso. simpl in H4. apply H4. split; auto. omega.
+    + exfalso. simpl in H4. apply H4. split; auto. lia.
 Qed.
 
 Lemma memory_block_weak_valid_pointer: forall {cs: compspecs} sh n p i,
@@ -183,12 +186,12 @@ Lemma memory_block_weak_valid_pointer: forall {cs: compspecs} sh n p i,
 Proof.
   intros. unfold memory_block. destruct p; auto. normalize.
   pose proof Ptrofs.unsigned_range i0. rewrite memory_block'_eq.
-  2: omega. 2: rewrite Z2Nat.id; omega. unfold memory_block'_alt.
-  rewrite Z2Nat.id by omega. destruct (readable_share_dec sh).
+  2: lia. 2: rewrite Z2Nat.id; lia. unfold memory_block'_alt.
+  rewrite Z2Nat.id by lia. destruct (readable_share_dec sh).
   + apply VALspec_range_weak_valid_pointer; auto.
-    - split; try omega.
-    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega). auto.
+    - split; try lia.
+    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia). auto.
   + apply nonlock_permission_bytes_weak_valid_pointer; auto.
-    - omega.
-    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega). omega.
+    - lia.
+    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia). lia.
 Qed.

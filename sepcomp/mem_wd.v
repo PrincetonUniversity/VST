@@ -93,7 +93,7 @@ Proof. intros. apply mem_wd_E in H.
    destruct (plt b0 (Mem.nextblock m)).
      rewrite Zplus_0_r. trivial.
    inv J. apply eq_sym in Heqo. specialize (mi_mappedblocks _ _ _ Heqo).
-               exfalso. unfold Mem.valid_block in mi_mappedblocks. xomega.
+               exfalso. unfold Mem.valid_block in mi_mappedblocks. contradiction.
 Qed.
 
 Lemma meminj_split_flatinjL: forall j m m' (J:Mem.inject j m m'), mem_wd m ->
@@ -133,7 +133,7 @@ Lemma  mem_wd_alloc: forall m b lo hi m' (ALL: Mem.alloc m lo hi = (m',b))
      (WDm: mem_wd m), mem_wd m'.
 Proof. intros. unfold mem_wd in *.
   rewrite (Mem.nextblock_alloc _ _ _ _ _ ALL).
-  eapply (Mem.alloc_inject_neutral _ _ _ _ _ _ ALL); try omega.
+  eapply (Mem.alloc_inject_neutral _ _ _ _ _ _ ALL); try lia.
   inv WDm.
          split; intros.
              apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
@@ -144,8 +144,8 @@ Proof. intros. unfold mem_wd in *.
                   specialize (mi_memval _ _ _ _ X H0). rewrite Zplus_0_r in mi_memval.
                   eapply memval_inject_incr; try eassumption.
                        intros bb; intros.
-                        eapply flatinj_mono; try eassumption; xomega.
-       xomega.
+                        eapply flatinj_mono; try eassumption. apply Plt_succ.
+     apply Plt_succ.
 Qed.
 
 Lemma  mem_wd_drop: forall m b lo hi p m' (DROP: Mem.drop_perm m b lo hi p = Some m')
@@ -452,7 +452,7 @@ Proof. intros.
   destruct (Mem.load_valid_access _ _ _ _ _ LD) as [Perms Align].
   apply Mem.load_result in LD.
   destruct WD.
-  assert (Arith: ofs <= ofs < ofs + (size_chunk ch)). specialize (size_chunk_pos ch); omega.
+  assert (Arith: ofs <= ofs < ofs + (size_chunk ch)). specialize (size_chunk_pos ch); lia.
   specialize (Perms _ Arith).
   assert (VB:= Mem.perm_valid_block _ _ _ _ _ Perms).
   assert (Z:= flatinj_I (Mem.nextblock m) b VB).
@@ -494,7 +494,7 @@ Proof. intros. apply mem_wdI. intros.
       destruct d; clear Heqd.
       (*case <*)
         apply BytesValid; clear BytesValid.
-        apply Mem.setN_in. omega.
+        apply Mem.setN_in. lia.
       (*case >= *)
          rewrite Mem.setN_outside; try (right; assumption).
       assumption.
@@ -522,8 +522,8 @@ Proof. intros n.
   induction n; simpl; intros.
     destruct bytes1; inv H.
     destruct bytes1; simpl in *; inv H.
-      omega.
-    specialize (IHn _ _ _ _ _ H2). omega.
+      lia.
+    specialize (IHn _ _ _ _ _ H2). lia.
 Qed.
 
 Lemma loadbytes_D: forall m b ofs n bytes
@@ -550,11 +550,11 @@ Proof. intros.
                   Int.unsigned ofs' + n).
     assert (II:= getN_range _ _ _ _ _ _ B).
     clear Range LD B L.
-    split. omega.
+    split. lia.
     assert (Z.of_nat (length bytes1) < Z.of_nat (Z.to_nat n)).
-        omega.
-    rewrite Z2Nat.id in H. omega. clear H.
-        destruct n. omega. specialize (Pos2Z.is_pos p); omega.
+        lia.
+    rewrite Z2Nat.id in H. lia. clear H.
+        destruct n. lia. specialize (Pos2Z.is_pos p); lia.
         rewrite Z2Nat.inj_neg in II. destruct bytes1; simpl in II; inv II.
   specialize (Range _ I).
   assert (F: Mem.flat_inj (Mem.nextblock m) b = Some (b, 0)).

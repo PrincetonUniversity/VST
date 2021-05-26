@@ -26,8 +26,9 @@ Lemma finalbodyproof Espec c md wsh shmd gv buf (h1 : hmacabs)
       (SH : writable_share shmd):
 @semax CompSpecs Espec (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
-   LOCAL  (lvar _buf (tarray tuchar 32) buf; temp _md md;
-           temp _ctx c; gvars gv)
+   LOCAL  (lvar _buf (tarray tuchar 32) buf; gvars gv; temp _ctx c; temp _md md
+(*lvar _buf (tarray tuchar 32) buf; temp _md md;
+           temp _ctx c; gvars gv*))
    SEP  (data_at_ Tsh (tarray tuchar 32) buf; hmacstate_ wsh h1 c;
          K_vector gv; memory_block shmd 32 md))
   (fn_body f_HMAC_Final)
@@ -39,11 +40,13 @@ Lemma finalbodyproof Espec c md wsh shmd gv buf (h1 : hmacabs)
                       (fst (hmacFinal h1)) c;
                     data_block shmd (snd (hmacFinal h1))
                       md) * stackframe_of f_HMAC_Final)).
-Proof. intros. abbreviate_semax.
+Proof. intros.
 Time assert_PROP (isptr md) as isptrMD by entailer!. (*0.6*)
 unfold hmacstate_.
 Intros ST.
-destruct h1; simpl in H|-*.
+destruct h1.
+simpl in H. simpl SEPx.
+abbreviate_semax.
 destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 
 (*VST Issue: make_Vptr c. fails*)
@@ -144,7 +147,7 @@ Time forward_call (oSha, SHA256.SHA_256 ctx, Vptr b i, wsh, buf, Tsh, Z.of_nat S
   { unfold SHA256.DigestLength.
     rewrite oShaLen. simpl; intuition. }
 simpl.
-rewrite sublist_same; try omega.
+rewrite sublist_same; try lia.
 unfold sha256state_. Intros updShaST.
 rename H into updShaREL.
 
@@ -156,19 +159,28 @@ Time forward_call (updSha, md, Vptr b i, wsh, shmd, gv). (*4.2 versus 21 SLOW*)
     Exists updShaST.
     change_compspecs CompSpecs. entailer!. }
 
-Time forward. (*Sreturn None; 2.7 versus 10.2*)
+(*Time forward.*) (*Sreturn None; 2.7 versus 10.2*)
 (*    change (@data_block spec_sha.CompSpecs shmd (SHA256.SHA_256 updShaST) md)
      with (@data_block CompSpecs shmd (SHA256.SHA_256 updShaST) md).
      Time cancel. (*0.5*)*)
 (*change_compspecs CompSpecs.*)
-unfold data_block. simpl. rewrite SFL.
+unfold data_block. simpl. rewrite SFL. intros tau.
+unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift; simpl; unfold liftx, lift. simpl.
+
 Time (normalize; cancel). (*5.5*)
+unfold stackframe_of. simpl. cancel.
+eapply derives_trans. 
+2:{  apply sepcon_derives.  apply derives_refl. 
+     apply (var_block_lvar0 _ _ Delta); trivial. apply H0. }
+cancel.
 
 unfold hmacstate_PostFinal, hmac_relate_PostFinal.
 Exists (updShaST, (iCTX, oCTX)). rewrite prop_true_andp by (split3; auto).
+
 match goal with |- _ |-- data_at _ _ ?A _ =>
 change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
 end.
+subst c.
 Time unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
 Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr b i)) as FC by entailer!. (*1.2*)
 Time cancel. (*0.7*)
@@ -176,9 +188,10 @@ unfold data_at_, field_at_.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]).
 rewrite field_address_offset by auto with field_compatible. Time cancel. (*0.2*)
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
-rewrite field_address_offset by auto with field_compatible. simpl.
+rewrite field_address_offset by auto with field_compatible.
+simpl snd. simpl fst.
 rewrite field_at_data_at.
-rewrite field_address_offset by auto with field_compatible. simpl.  apply derives_refl.
+rewrite field_address_offset by auto with field_compatible. subst; simpl.  apply derives_refl.
 Time Qed. (*VST 2.0: 6s*) 
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs

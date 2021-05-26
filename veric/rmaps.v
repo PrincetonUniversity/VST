@@ -384,7 +384,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   | ghost_join_nil_r m: ghost_join PRED m nil m
   | ghost_join_cons a1 a2 m1 m2 a3 m3: join a1 a2 a3 -> ghost_join PRED m1 m2 m3 ->
       ghost_join PRED (a1 :: m1) (a2 :: m2) (a3 :: m3).
-  Hint Constructors ghost_join : core.
+  Global Hint Constructors ghost_join : core.
   Existing Instance ghost_join.
 
   Lemma elem_join_inv: forall a1 a2 a3, ghost_elem_join a1 a2 a3 ->
@@ -718,7 +718,7 @@ Module Type RMAPS.
   Next Obligation.
   destruct H0.
   split.
-  apply age_level in H. omega.
+  apply age_level in H. lia.
   apply pred_hereditary with a; auto.
   Qed.
 
@@ -1177,7 +1177,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   destruct H0.
   split.
   apply age_level in H.
-  simpl in *. omega.
+  simpl in *. lia.
   apply pred_hereditary with a; auto.
   Qed.
 

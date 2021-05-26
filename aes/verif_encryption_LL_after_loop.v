@@ -89,7 +89,7 @@ intros.
     clear.  intros. rewrite Int.and_commut.
     pose proof (Int.and_le (Int.repr 255) i).
     rewrite Int.unsigned_repr in H by computable. 
-    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). omega.
+    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). lia.
   }
   unfold Int.and.
 
@@ -109,12 +109,12 @@ intros.
   unfold Int.and.
    rewrite !(Int.unsigned_repr 255) in *|-* by computable .
     rewrite !Int.unsigned_repr by
-     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_omega end.
+     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_lia end.
   rewrite EqY0, EqY1, EqY2, EqY3; clear EqY0 EqY1 EqY2 EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
   assert (forall i, Int.unsigned (Znth i FSb) <= Byte.max_unsigned). {
-    intros. pose proof (FSb_range i) as P. change 256 with (Byte.max_unsigned + 1) in P. omega.
+    intros. pose proof (FSb_range i) as P. change 256 with (Byte.max_unsigned + 1) in P. lia.
   }
   assert (Hfinal := final_aes_eq buf plaintext S0 S12 S13 (eq_refl _) HeqS12 HeqS13);
   clear HeqS12 HeqS13.  clearbody S0.
@@ -138,7 +138,7 @@ intros.
  unfold Int.and.
    rewrite !(Int.unsigned_repr 255) in *|-* by computable .
     rewrite !Int.unsigned_repr by
-     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_omega end.
+     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_lia end.
   rewrite EqX0, EqX1, EqX2, EqX3; clear EqX0 EqX1 EqX2 EqX3.
 
  remember_temp_Vints (@nil localdef).
@@ -162,7 +162,5 @@ intros.
                  reflexivity).
   forget (mbed_tls_aes_enc plaintext buf) as Res.
   unfold tables_initialized.
-  (* return None *)
-  forward.
-  cancel.
+  entailer!.
 Time Qed.  (* On Andrew's machine: takes 32.8 seconds, 1.138 gigabytes, which is just under the limit for ocaml32 on Windows which is 1.278 gigabytes *)

@@ -16,27 +16,13 @@ Lemma upd_Znth_append:
    upd_Znth len (dd++ sublist len N ee) v =
     (dd ++ [v]) ++ sublist (len+1) N ee.
 Proof.
-intros. subst.
-unfold upd_Znth.
-pose proof (Zlength_nonneg dd).
-autorewrite with sublist.
-rewrite app_ass.
-f_equal.
-simpl.
-f_equal.
-f_equal.
-omega.
+  intros. subst.
+  list_solve.
 Qed.
 
 Lemma body_SHA256_Final: semax_body Vprog Gtot f_SHA256_Final SHA256_Final_spec.
 Proof.
 start_function.
-name md_ _md.
-name c_ _c.
-name p _p.
-name n _n.
-name cNl _cNl.
-name cNh _cNh.
 assert (CB := CBLOCKz_eq).
 unfold sha256state_.
 Intros r. destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
@@ -56,7 +42,7 @@ assert_PROP (Zlength r_data = CBLOCKz
     change  (@reptype CompSpecs tuchar) with val in LEN. (* should not be necessary *)
     rewrite <- H2.
     pose proof (Zlength_nonneg (s256a_data a)).
-    rewrite <- sublist_split; autorewrite with sublist; try omega.
+    rewrite <- sublist_split; autorewrite with sublist; try lia.
     auto.
    }
 rewrite H7. clear H7.
@@ -88,7 +74,7 @@ Intros hashed' dd' pad.
 rename H1 into DDbytes'.
 rename H2 into PAD.
 unfold_data_at (data_at _ _ _ _).
-erewrite (field_at_Tarray wsh _ [StructField _data]); try reflexivity; try apply JMeq_refl; try omega.
+erewrite (field_at_Tarray wsh _ [StructField _data]); try reflexivity; try apply JMeq_refl; try lia.
 2: apply compute_legal_nested_field_spec'; repeat constructor.
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
 2: autorewrite with sublist; Omega1.
@@ -107,18 +93,16 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
  rewrite field_address_offset by auto with field_compatible.
  rewrite field_address0_offset by auto with field_compatible.
  make_Vptr c. simpl. unfold Ptrofs.of_intu, Ptrofs.of_int. normalize.
- rewrite !mul_repr, !sub_repr.  (* Why didn't [normalize] do this? *)
- reflexivity.
 }
 {
 change  (Z.of_nat CBLOCK - 8 - Zlength dd')
    with (56 - Zlength dd').
 replace (memory_block wsh (56 - Zlength dd'))
  with (memory_block wsh (sizeof (tarray tuchar (56 - Zlength dd'))))
-  by (f_equal; rewrite sizeof_tarray_tuchar; auto; omega).
+  by (f_equal; rewrite sizeof_tarray_tuchar; auto; lia).
 cancel.
 }
- split; auto. change (Z.of_nat CBLOCK) with CBLOCKz. Omega1.
+ change (Z.of_nat CBLOCK) with CBLOCKz. Omega1.
 
 forward.  (* p += SHA_CBLOCK-8; *)
 assert_PROP (force_val
@@ -142,16 +126,16 @@ assert_PROP (force_val
 change (Z.of_nat CBLOCK) with CBLOCKz.
 change (Z.to_nat 8) with (Z.to_nat (CBLOCKz-56)).
 entailer!.
-erewrite field_at_Tarray; try reflexivity; try apply JMeq_refl; try omega;
+erewrite field_at_Tarray; try reflexivity; try apply JMeq_refl; try lia;
   [ | compute; clear; intuition].
 rewrite (split3seg_array_at _ _ _ 0 (Zlength dd') 56 64); try Omega1.
-2: rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat by omega;
-  omega.
+2: rewrite !Zlength_app, !Zlength_map, !Zlength_repeat by lia;
+  lia.
 autorewrite with sublist in *|-.
 simpl.
 autorewrite with sublist.
 cancel.
-rewrite array_at_data_at'; auto; try apply derives_refl; omega.
+rewrite array_at_data_at'; auto; try apply derives_refl; lia.
 +
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
 rewrite hashed_data_recombine by auto.
@@ -169,5 +153,5 @@ symmetry; rewrite <- hashed_data_recombine at 1; auto.
 unfold s256a_len.
 autorewrite with sublist.
 auto.
-Time Qed.  (* 40.5 sec (14.375u) *)
+Qed.  (*02/21/2020:2.6s versus 40.5 sec (14.375u) *)
 

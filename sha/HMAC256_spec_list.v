@@ -1,6 +1,6 @@
 
 Require Import VST.msl.Axioms. (*for extensionality*)
-Require Import Arith.
+Require Import Arith Lia.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import sha.hmac_pure_lemmas.
@@ -16,9 +16,9 @@ Require Import Omega.
 Definition ltb (n m:nat):bool := if beq_nat n m then false else leb n m.
 Lemma ltb_char n m: ltb n m = true <-> (n<m)%nat.
   unfold ltb. remember (beq_nat n m). destruct b; symmetry in Heqb; split; intros.
-    inv H. apply beq_nat_true in Heqb. subst. omega.
-   apply beq_nat_false in Heqb. apply leb_complete in H. omega.
-   apply leb_correct. omega.
+    inv H. apply beq_nat_true in Heqb. subst. lia.
+   apply beq_nat_false in Heqb. apply leb_complete in H. lia.
+   apply leb_correct. lia.
 Qed.
 *)
 
@@ -31,7 +31,7 @@ Function toBlocks (l : Blist) {measure length l} : list Blist :=
 Proof.
   intros. subst. remember ((b :: l0)%list) as l. clear Heql.
   apply leb_complete_conv in teq0.
-  rewrite skipn_length; omega.
+  rewrite skipn_length; lia.
 Qed.
 
 Lemma toBlocks_injective: forall l1 l2 (BLKS: toBlocks l1 = toBlocks l2)
@@ -52,7 +52,7 @@ Proof.
     destruct l1; try discriminate. destruct l2; try discriminate.
     inversion F1; clear F1. rewrite H0 in Heql.
     assert (L1: (511 < length (front ++ back))%nat).
-      rewrite app_length, H. omega.
+      rewrite app_length, H. lia.
     rewrite leb_correct_conv in Heql; trivial.
     rewrite firstn_exact in Heql; trivial.
     rewrite skipn_exact in Heql; trivial.
@@ -60,7 +60,7 @@ Proof.
 
     inversion F2; clear F2. rewrite H4 in BLKS.
     assert (L2: (511 < length (front0 ++ back0))%nat).
-      rewrite app_length, H3. omega.
+      rewrite app_length, H3. lia.
     rewrite leb_correct_conv in BLKS; trivial.
     rewrite firstn_exact in BLKS; trivial.
     rewrite skipn_exact in BLKS; trivial.
@@ -83,7 +83,7 @@ Proof. intros.
   simpl; intros. rewrite toBlocks_equation in Heql. destruct b. discriminate.
   inversion H; clear H.
   rewrite H1, app_length, H0 in Heql.
-  rewrite leb_correct_conv in Heql. 2: omega.
+  rewrite leb_correct_conv in Heql. 2: lia.
   rewrite firstn_exact in Heql; trivial.
   rewrite skipn_exact in Heql; trivial. inversion Heql; clear Heql.
   constructor. trivial.
@@ -106,8 +106,8 @@ Proof.
     rewrite -> toBlocks_equation.
     destruct full.
       assert (@length bool nil = length (front ++ back)). rewrite <- H0; reflexivity.
-      rewrite app_length, H in H1. remember (length back). clear - H1. rewrite plus_comm in H1. simpl in H1. omega.
-    rewrite H0, app_length, H, leb_correct_conv. 2: omega.
+      rewrite app_length, H in H1. remember (length back). clear - H1. rewrite plus_comm in H1. simpl in H1. lia.
+    rewrite H0, app_length, H, leb_correct_conv. 2: lia.
     rewrite -> firstn_exact; trivial.
     rewrite -> skipn_exact; trivial.
     (*rewrite -> length_not_emp.*)
@@ -138,7 +138,7 @@ Proof. intros.
 Qed.
 
 Lemma len_min : forall {A : Type} (l : list A), (length l >= 0)%nat.
-Proof. intros. destruct l; simpl. omega. omega. Qed.
+Proof. intros. destruct l; simpl. lia. lia. Qed.
 
 Theorem fold_hash_blocks_eq_ind : forall (l : list Blist) (iv : Blist),
                                     Forall (fun x => length x = 512%nat) l ->
@@ -162,7 +162,7 @@ Proof.
     assert (length l = 512%nat). apply len_l. unfold In. auto.
     rewrite -> H.
     specialize (len_min ls).
-    omega.
+    lia.
   - apply len_l. unfold In. auto.
   - apply len_l. unfold In. auto.
 Qed.
@@ -184,7 +184,7 @@ Proof.
   * rewrite -> app_length.
     rewrite len_l.
     specialize (len_min ls).
-    omega.
+    lia.
   * apply len_l.
   * apply len_l.
 Qed.
@@ -214,17 +214,17 @@ Proof.
   destruct b. reflexivity. unfold sha_splitandpad_inc in Heqb. rewrite Heqb. clear Heqb.
   destruct (sha_splitandpad_inc_length msg) as [k [K HK]].
   unfold sha_splitandpad_inc in HK. rewrite HK.
-  rewrite leb_correct_conv. 2: omega.
+  rewrite leb_correct_conv. 2: lia.
   remember (pad_inc (bitsToBytes msg)). clear Heql.
   symmetry.
   assert (HH: (firstn 512 (bytesToBits l) :: toBlocks (skipn 512 (bytesToBits l))
                = toBlocks  (bytesToBits l))%list).
     remember (bytesToBits l) as bits. rewrite (toBlocks_equation bits).
-    destruct bits. destruct l; simpl in *. omega. discriminate.
+    destruct bits. destruct l; simpl in *. lia. discriminate.
     (*rewrite Heqbits. clear Heqbits. *)
-    rewrite leb_correct_conv. trivial. rewrite HK. omega.
+    rewrite leb_correct_conv. trivial. rewrite HK. lia.
   rewrite HH. apply concat_toBlocks_id.
-  apply InBlocks_len. rewrite HK. exists k. omega.
+  apply InBlocks_len. rewrite HK. exists k. lia.
 Qed.*)
 
 Lemma toBlocks_app_split l1 l2: length l1 = 512%nat ->
@@ -236,13 +236,13 @@ Proof. intros.
   remember (l1 ++ l2).
   destruct l.
   { assert (@length bool nil = length (l1 ++ l2)). rewrite <- Heql; trivial.
-    rewrite app_length, H in H0. rewrite plus_comm in H0. simpl in H0. omega. }
-  { rewrite  leb_correct_conv. 2: rewrite H, plus_comm; omega.
+    rewrite app_length, H in H0. rewrite plus_comm in H0. simpl in H0. lia. }
+  { rewrite  leb_correct_conv. 2: rewrite H, plus_comm; lia.
     remember (toBlocks l2).
     rewrite toBlocks_equation.
-    destruct l1. simpl in H; omega.
-    rewrite leb_correct_conv. 2: rewrite H; omega.
-    rewrite sublist.firstn_same. 2: rewrite H; omega.
-    rewrite skipn_short. 2: rewrite H; omega.
+    destruct l1. simpl in H; lia.
+    rewrite leb_correct_conv. 2: rewrite H; lia.
+    rewrite sublist.firstn_same. 2: rewrite H; lia.
+    rewrite skipn_short. 2: rewrite H; lia.
     rewrite toBlocks_equation. trivial. }
 Qed.

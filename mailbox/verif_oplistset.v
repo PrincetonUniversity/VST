@@ -72,7 +72,7 @@ Proof.
   Intros sh e next lock.
   rewrite data_at_isptr; entailer!.
 Qed.
-Hint Resolve node_isptr : saturate_local.
+#[export] Hint Resolve node_isptr : saturate_local.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -197,11 +197,11 @@ Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_and
 
 Lemma node_lock_inv_positive : forall gsh2 g, positive_mpred (EX p : val, ghost_var gsh2 p g).
 Admitted. (* probably not actually positive *)
-Hint Resolve node_lock_inv_positive.
+#[export] Hint Resolve node_lock_inv_positive.
 
 Lemma node_precise : forall gsh1 gsh2 e g v, precise (|> node gsh1 gsh2 (e, g, v)).
 Admitted.
-Hint Resolve node_precise.
+#[export] Hint Resolve node_precise.
 
 Lemma body_new_node : semax_body Vprog Gprog f_new_node new_node_spec.
 Proof.
@@ -242,7 +242,7 @@ Proof.
   Intro n.
   repeat forward.
   Exists r {| data := e; next := n; lock := l; gnext := g |}; unfold node_data; simpl;
-    destruct (eq_dec e Int.max_signed); [unfold repable_signed in *; omega|]; entailer!.
+    destruct (eq_dec e Int.max_signed); [unfold repable_signed in *; lia|]; entailer!.
   { exists 2; auto. }
   { exists 2; auto. }
 Qed.
@@ -297,7 +297,7 @@ Proof.
   eapply local_facts_isptr; [|eauto].
   unfold node_data; entailer!.
 Qed.
-Hint Resolve node_data_isptr : saturate_local.
+#[export] Hint Resolve node_data_isptr : saturate_local.
 
 Lemma node_data_share_join : forall gsh1 gsh2 sh1 sh2 sh rep p, readable_share sh1 -> readable_share sh2 ->
   sepalg.join sh1 sh2 sh ->
@@ -394,8 +394,8 @@ Lemma body_validate : semax_body Vprog Gprog f_validate validate_spec.
 Proof.
   start_function.
   unfold MORE_COMMANDS, abbreviate.
-  assert (repable_signed (data repp)) by (split; omega).
-  assert (repable_signed (data repc)) by (split; omega).
+  assert (repable_signed (data repp)) by (split; lia).
+  assert (repable_signed (data repc)) by (split; lia).
   assert (repable_signed (data reph)) by (replace (data reph) with Int.min_signed; split; computable).
   assert_PROP (pred = head -> data repp = data reph).
   { destruct (eq_dec pred head); [|apply prop_right; contradiction].
@@ -418,7 +418,7 @@ Proof.
     apply incl_refl.
   - entailer!.
   - unfold node_data; Intros.
-    destruct (eq_dec (data reps) Int.max_signed); [omega|].
+    destruct (eq_dec (data reps) Int.max_signed); [lia|].
     rewrite atomic_loc_isptr; Intros.
     repeat forward.
     forward_call (shs, next reps, emp,
@@ -452,7 +452,7 @@ Proof.
     + split; [apply incl_tl; auto|].
       match goal with H : _ \/ _ |- _ => destruct H as [[]|]; auto end.
     + unfold known_nodes; simpl; cancel.
-      unfold node', node_data; Exists shs; entailer!; if_tac; auto; omega.
+      unfold node', node_data; Exists shs; entailer!; if_tac; auto; lia.
   - eapply semax_pre with (P' := EX shp : share, EX nodes2 : _,
       PROP (readable_share shp; incl nodes' ((pred, repp) :: nodes2))
       LOCAL (temp _v (vint (data reps)); temp _succ succ; gvar _head hp;
@@ -474,7 +474,7 @@ Proof.
         subst; Exists shs nodes'; entailer!.
         apply incl_tl, incl_refl. }
     unfold node_data at 1; Intros shp nodes''.
-    destruct (eq_dec (data repp) Int.max_signed); [omega|].
+    destruct (eq_dec (data repp) Int.max_signed); [lia|].
     rewrite atomic_loc_isptr; Intros.
     forward.
     forward_call (shp, next repp, ghost_var gsh2 pn (gnext repp),
@@ -574,7 +574,7 @@ Proof.
       * if_tac; [|discriminate].
         if_tac; [subst; auto | discriminate].
     + unfold node'.
-      Exists shc shp; unfold node_data; destruct (eq_dec (data repp) Int.max_signed); [omega|].
+      Exists shc shp; unfold node_data; destruct (eq_dec (data repp) Int.max_signed); [lia|].
       entailer!.
       unfold known_nodes; if_tac; simpl; entailer!.
       unfold node', node_data; Exists shs; entailer!.
@@ -595,7 +595,7 @@ Proof.
   assert (In (head, reph) nodes0) as Hin by auto.
   apply in_split in Hin; destruct Hin as (nodes1 & nodes2 & ?); subst.
   rewrite known_node; unfold node', node_data; Intros shh.
-  if_tac; [omega|].
+  if_tac; [lia|].
   rewrite atomic_loc_isptr; Intros.
   repeat forward.
   forward_call (shh, next reph, emp,
@@ -630,7 +630,7 @@ Proof.
   assert (repable_signed (data reph)) by (replace (data reph) with Int.min_signed; split; computable).
   destruct (eq_dec curr0 head).
   { subst; gather_SEP 0 5.
-    assert_PROP (data repc0 = data reph); [|omega].
+    assert_PROP (data repc0 = data reph); [|lia].
     go_lower; apply sepcon_derives_prop, node_val_eq; auto. }
   forward_while (EX pred : val, EX repp : node_rep, EX curr : val, EX shc : share, EX repc : node_rep, EX nodes' : _,
     PROP (readable_share shc; repable_signed (data repp); repable_signed (data repc);
@@ -643,12 +643,12 @@ Proof.
          data_at sh (tptr tnode) head hp)).
   - Exists head reph curr0 shc0 repc0 (nodes1 ++ (head, reph) :: nodes2).
     rewrite known_node; unfold node', node_data.
-    destruct (eq_dec (data reph) Int.max_signed); [omega|]; Exists shh; entailer!.
-    split; [omega | apply incl_refl].
+    destruct (eq_dec (data reph) Int.max_signed); [lia|]; Exists shh; entailer!.
+    split; [lia | apply incl_refl].
   - entailer!.
   - (* loop body *)
     unfold node_data; Intros.
-    destruct (eq_dec (data repc) Int.max_signed); [omega|].
+    destruct (eq_dec (data repc) Int.max_signed); [lia|].
     rewrite atomic_loc_isptr; Intros.
     repeat forward.
     forward_call (shc, next repc, emp,
@@ -679,18 +679,18 @@ Proof.
     simpl replace_nth.
     assert_PROP (curr' <> head).
     { destruct (eq_dec curr' head); [|apply prop_right; auto].
-      Intros; assert_PROP (data rep' = data reph); [|unfold repable_signed in *; omega].
+      Intros; assert_PROP (data rep' = data reph); [|unfold repable_signed in *; lia].
       gather_SEP 0 4.
       subst; go_lower; apply sepcon_derives_prop, in_nodes_eq; auto. }
     unfold node_data; rewrite !flatten_sepcon_in_SEP.
     apply assert_later_PROP with (P1 := readable_share sh'); [entailer!; tauto | intro].
     forward.
     destruct (eq_dec curr' curr).
-    { gather_SEP 0 4; assert_PROP (data rep' = data repc); [|omega].
+    { gather_SEP 0 4; assert_PROP (data rep' = data repc); [|lia].
       subst; go_lower; apply sepcon_derives_prop, node_val_eq; auto. }
     Exists (curr, repc, curr', sh', rep', (curr, repc) :: nodes').
     simpl SEPx; rewrite known_nodes_cons; unfold node', node_data.
-    Exists shc; destruct (eq_dec (data repc) Int.max_signed); [omega | entailer!].
+    Exists shc; destruct (eq_dec (data repc) Int.max_signed); [lia | entailer!].
     apply incl_tl; auto.
   - match goal with H : In (pred, repp) _ |- _ => apply in_split in H; destruct H as (nodesa & nodesb & ?); subst end.
     rewrite known_node; unfold node'; Intros shp.
@@ -704,7 +704,7 @@ Proof.
       unfold node', node_data; Exists shc shp; entailer!. }
     { split; [auto|].
       split; [unfold repable_signed in *; tauto|].
-      simpl; repeat (split; [auto|]); unfold repable_signed in *; try tauto; try omega.
+      simpl; repeat (split; [auto|]); unfold repable_signed in *; try tauto; try lia.
       rewrite in_app; simpl; auto. }
     Intros x; destruct x as (b & nodes'').
     gather_SEP 1 4.
@@ -762,7 +762,7 @@ Proof.
   rewrite known_node.
   assert (In (curr, repc) (nodesa ++ nodesb)) as Hinc.
   { match goal with H : In (curr, _) _ |- _ => rewrite in_app in * ; destruct H as [|[X|]]; auto end.
-    inv X; omega. }
+    inv X; lia. }
   apply in_split in Hinc; destruct Hinc as (nodesa' & nodesb' & Heq); rewrite Heq, known_node.
   unfold node'; Intros shp shc.
   rewrite node_data_isptr with (p := pred), node_data_isptr with (p := curr).
@@ -790,10 +790,10 @@ Proof.
   { destruct (split_readable_share shc) as (shc1 & shc2 & ? & ? & Hshc); auto.
     rewrite <- (node_data_share_join _ _ shc1 shc2 shc) by auto.
     forward_call (e, curr, shc2, repc, gsh1, gsh2).
-    { split; [unfold repable_signed; omega|].
+    { split; [unfold repable_signed; lia|].
       split; [auto|].
       split; [auto|].
-      split; [omega | auto]. }
+      split; [lia | auto]. }
     Intro x; destruct x as (n' & rep').
     destruct (in_dec EqDec_val n' (map fst nodes)).
     { rewrite in_map_iff in i; destruct i as ((n'', rep'') & ? & Hin); subst.
@@ -816,7 +816,7 @@ Proof.
         go_lower; eapply derives_trans; [apply sepcon_derives, derives_refl | rewrite FF_sepcon; auto].
         apply data_at_Tsh_conflict; auto; simpl; computable. }
     unfold node_data at 3; Intros.
-    destruct (eq_dec (data repp) Int.max_signed); [omega|].
+    destruct (eq_dec (data repp) Int.max_signed); [lia|].
     rewrite node_data_isptr, atomic_loc_isptr; Intros.
     forward.
     rewrite <- (node_data_share_join _ _ gsh1 gsh2 Tsh) by auto.
@@ -852,9 +852,9 @@ Proof.
       Exists sh' gsh2 (data rep') (next rep') (lock rep') (gnext rep')
         {| data := e'; next := next'; lock := lock'; gnext := g' |}.
       unfold node_data; simpl; entailer!.
-      simpl in *; split; [unfold repable_signed; omega|].
-      split; [omega|].
-      if_tac; auto; omega.
+      simpl in *; split; [unfold repable_signed; lia|].
+      split; [lia|].
+      if_tac; auto; lia.
       { apply derives_view_shift, andp_right; auto.
         eapply derives_trans, precise_weak_precise; auto. } }
     forward.
@@ -863,9 +863,9 @@ Proof.
     unfold node', node_data; Exists gsh1 shc'; entailer!.
     - simpl in *; if_tac; [contradiction|].
       split; split; auto; [do 2 apply incl_tl; apply incl_refl|].
-      split; [unfold repable_signed; omega|].
-      if_tac; auto; omega.
-    - if_tac; [omega | cancel].
+      split; [unfold repable_signed; lia|].
+      if_tac; auto; lia.
+    - if_tac; [lia | cancel].
       admit. (* We need to carry malloc_tokens around in all of the node assertions. *) }
   { forward.
     Exists shc curr repc (nodesa' ++ nodesb'); subst; rewrite !eq_dec_refl; entailer!.

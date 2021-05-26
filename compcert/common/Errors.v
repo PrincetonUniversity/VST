@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -164,7 +165,7 @@ Ltac monadInv1 H :=
   | (match ?X with left _ => _ | right _ => assertion_failed end = OK _) =>
       destruct X; [try (monadInv1 H) | discriminate]
   | (match (negb ?X) with true => _ | false => assertion_failed end = OK _) =>
-      destruct X as [] eqn:?; [discriminate | try (monadInv1 H)]
+      destruct X as [] eqn:?; simpl negb in H; [discriminate | try (monadInv1 H)]
   | (match ?X with true => _ | false => assertion_failed end = OK _) =>
       destruct X as [] eqn:?; [try (monadInv1 H) | discriminate]
   | (mmap ?F ?L = OK ?M) =>

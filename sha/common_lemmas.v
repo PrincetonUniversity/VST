@@ -8,6 +8,7 @@ Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 Require Import sha.general_lemmas.
 Require Import sha.SHA256.
+Require Import Lia.
 
 Lemma length_Round:
   forall regs f n,
@@ -18,18 +19,18 @@ intros.
 destruct (zlt n 0).
 rewrite Round_equation.
 rewrite if_true by auto; auto.
-replace n with (n+1-1) by omega.
-rewrite <- (Z2Nat.id (n+1)) by omega.
+replace n with (n+1-1) by lia.
+rewrite <- (Z2Nat.id (n+1)) by lia.
 revert regs H; induction (Z.to_nat (n+1)); intros.
 rewrite Round_equation.
 change (Z.of_nat 0 - 1) with (-1).
-rewrite if_true by omega. auto.
+rewrite if_true by lia. auto.
 clear n g. rename n0 into n.
 rewrite Round_equation.
 rewrite inj_S.
 unfold Z.succ.
 rewrite Z.add_simpl_r.
-rewrite if_false by omega.
+rewrite if_false by lia.
 specialize (IHn0 _ H).
 clear - IHn0.
 rename f into f'.

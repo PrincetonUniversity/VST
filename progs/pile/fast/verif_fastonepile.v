@@ -15,7 +15,6 @@ forward_call gv.
 Intros p.
 unfold onepile.
 forward.
-forward.
 unfold onepile.
 Exists p.
 entailer!.

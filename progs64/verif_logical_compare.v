@@ -2,8 +2,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs64.logical_compare.
 Import compcert.lib.Maps.
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+
+Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
 
 (****  START *)
 
@@ -20,7 +20,7 @@ match s with
      s2 => match quick_shortcut_logical s2 with None => None | Some id2 =>
                  if ident_eq id id2 then Some id else None
                 end
-| Sifthenelse e1 s2
+| Sifthenelse _ s2
      (Sset id (Econst_int _ (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |})))
       => match quick_shortcut_logical s2 with None => None | Some id2 =>
                  if ident_eq id id2 then Some id else None
@@ -84,28 +84,28 @@ Admitted.
 Definition do_or_spec :=
  DECLARE _do_or
   WITH a: int, b : int
-  PRE [ _a OF tbool, _b OF tbool ]
-        PROP () LOCAL (temp _a (Vint a); temp _b (Vint b)) SEP ()
+  PRE [ tbool, tbool ]
+        PROP () PARAMS (Vint a; Vint b) SEP ()
   POST [ tbool ]
-        PROP() LOCAL (temp ret_temp (Vint (logical_or_result a b)))
+        PROP() RETURN (Vint (logical_or_result a b))
         SEP().
 
 
 Definition do_and_spec :=
  DECLARE _do_and
   WITH a: int, b : int
-  PRE [ _a OF tbool, _b OF tbool ]
-        PROP () LOCAL (temp _a (Vint a); temp _b (Vint b)) SEP ()
+  PRE [ tbool, tbool ]
+        PROP () PARAMS (Vint a; Vint b) SEP ()
   POST [ tbool ]
-        PROP() LOCAL (temp ret_temp (Vint (logical_and_result a b)))
+        PROP() RETURN (Vint (logical_and_result a b))
         SEP().
 
 
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Vprog : varspecs := nil.
 

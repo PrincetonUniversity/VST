@@ -14,7 +14,7 @@ Lemma cancel_field_at_array_partial_undef:
   Zlength (al++bl) = n ->
   Zlength bl = blen ->
   JMeq v1 (al++bl) ->
-  JMeq v2 (al++list_repeat (Z.to_nat blen) (default_val t)) ->
+  JMeq v2 (al++repeat (default_val t) (Z.to_nat blen)) ->
   field_at sh t1 gfs v1 p
    |-- field_at sh t1 gfs v2 p.
 Proof.
@@ -47,9 +47,9 @@ rewrite (field_at_Tarray sh t1 gfs t (Zlength (al++bl)) noattr v2 v2')
 rewrite (add_andp _ _ (array_at_local_facts _ _ _ _ _ _ _)).
 normalize.
 rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl)))
-  by (try omega; rewrite Zlength_app; omega).
+  by (try lia; rewrite Zlength_app; lia).
 rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl))).
-2: rewrite Zlength_app; omega.
+2: rewrite Zlength_app; lia.
 2:{
   apply (JMeq_trans (JMeq_sym H4)) in H2.
   erewrite <- list_func_JMeq with (f := Zlength); [| | exact H2].
@@ -82,7 +82,7 @@ rewrite nested_field_type_ind.
 rewrite H.
 simpl.
 intros. apply JMeq_eq in H2; rewrite <- H2.
-rewrite sublist_app2 by omega.
+rewrite sublist_app2 by lia.
 rewrite Z.sub_diag.
 autorewrite with sublist.
 auto.
@@ -125,8 +125,11 @@ Zlength r_data = CBLOCKz ->
 semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP ( )
    LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
+   temp _p (field_address t_struct_SHA256state_st [StructField _data] c); 
+   gvars gv; temp _md md; temp _c c)
+   (*LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
    temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-   temp _md md; temp _c c; gvars gv)
+   temp _md md; temp _c c; gvars gv)*)
    SEP (K_vector gv;
    field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint (s256a_regs a)) c;
    field_at wsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (s256a_len a))) c;
@@ -150,7 +153,7 @@ semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
               (LBLOCKz | Zlength hashed');
               intlist_to_bytelist hashed' ++ dd' =
               intlist_to_bytelist (s256a_hashed a) ++  (s256a_data a)
-                  ++ [Byte.repr 128%Z] ++ list_repeat (Z.to_nat pad) Byte.zero)
+                  ++ [Byte.repr 128%Z] ++ repeat Byte.zero (Z.to_nat pad))
    LOCAL
    (temp _n (Vint (Int.repr (Zlength dd')));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
@@ -161,7 +164,7 @@ semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
             (Vint (lo_part (s256a_len a)),
              (Vint (hi_part (s256a_len a)),
               (map Vubyte dd'
-                 ++ list_repeat (Z.to_nat (CBLOCKz - Zlength dd')) Vundef,
+                 ++ repeat Vundef (Z.to_nat (CBLOCKz - Zlength dd')),
                Vundef))))
            c;
            K_vector gv;
@@ -178,16 +181,21 @@ forward_if.
  unfold POSTCONDITION, abbreviate.
  normalize_postcondition.
  rename H1 into H2.
- assert (H1: Zlength (s256a_data a) + 1 > 16 * 4 - 8) by omega.
-gather_SEP 1 2 3 4 5.
+ assert (H1: Zlength (s256a_data a) + 1 > 16 * 4 - 8) by lia.
+gather_SEP 
+ (field_at _ _ [StructField _h] _ _)
+ (field_at _ _ [StructField _Nl] _ _)
+ (field_at _ _ [StructField _Nh] _ _)
+ (field_at _ _ [StructField _data] _ _)
+ (field_at _ _ [StructField _num] _ _).
 replace_SEP 0  (data_at wsh t_struct_SHA256state_st
            (map Vint (hash_blocks init_registers (s256a_hashed a)),
            (Vint (lo_part (s256a_len a)),
            (Vint (hi_part (s256a_len a)),
            (map Vubyte (s256a_data a) ++
             [Vint (Int.repr 128)] ++
-            list_repeat (Z.to_nat (64 - (Zlength (s256a_data a) + 1)))
-              Vundef, Vint (Int.repr (Zlength (s256a_data a))))))) c).
+            repeat Vundef (Z.to_nat (64 - (Zlength (s256a_data a) + 1))),
+	        Vint (Int.repr (Zlength (s256a_data a))))))) c).
  unfold_data_at (data_at _ _ _ _).
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  unfold data_at.
@@ -197,7 +205,7 @@ replace_SEP 0  (data_at wsh t_struct_SHA256state_st
  rewrite <- app_nil_end.
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  eapply cancel_field_at_array_partial_undef; try reflexivity; try apply JMeq_refl.
- autorewrite with sublist. omega.
+ autorewrite with sublist. lia.
  autorewrite with sublist; apply JMeq_refl.
 pattern (s256a_len a); rewrite <- (S256abs_recombine a) at 1 by auto.
 rewrite <- bitlength_eq.
@@ -222,9 +230,9 @@ evar (V: list val).
                 V c
    (*src*) Int.zero
    (*len*) (CBLOCKz - (ddlen+1))
-        Frame); try reflexivity; try omega; auto.
- split; try omega. change CBLOCKz with 64; rep_omega.
- change CBLOCKz with 64; omega.
+        Frame); try reflexivity; try lia; auto.
+ split; try lia. change CBLOCKz with 64; rep_lia.
+ change CBLOCKz with 64; lia.
  subst V.
  entailer!. {
  rewrite field_address0_offset by auto with field_compatible.
@@ -232,19 +240,19 @@ evar (V: list val).
  simpl. normalize.
 }
  abbreviate_semax.
-replace (ddlen + 1 + (CBLOCKz - (ddlen + 1))) with CBLOCKz by (clear; omega).
+replace (ddlen + 1 + (CBLOCKz - (ddlen + 1))) with CBLOCKz by (clear; lia).
 change 64 with CBLOCKz.
-pose (ddz := ((dd ++ [Byte.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Byte.zero)).
+pose (ddz := ((dd ++ [Byte.repr 128]) ++ repeat Byte.zero (Z.to_nat (CBLOCKz-(ddlen+1))))).
 
 replace (splice_into_list (ddlen + 1) CBLOCKz
-           (list_repeat (Z.to_nat (CBLOCKz - (ddlen + 1))) (Vint Int.zero))
+           (repeat (Vint Int.zero) (Z.to_nat (CBLOCKz - (ddlen + 1))))
            (map Vubyte dd ++
-            Vint (Int.repr 128) :: list_repeat (Z.to_nat fill_len) Vundef))
+            Vint (Int.repr 128) :: repeat Vundef (Z.to_nat fill_len)))
   with  (map Vubyte ddz).
 2:{
  clear - Hddlen. subst ddz fill_len ddlen. rewrite !map_app.
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
- rewrite map_list_repeat.
+ rewrite map_repeat.
  rewrite <- ?app_ass.
  unfold splice_into_list.
  change CBLOCKz with 64 in *.
@@ -253,7 +261,7 @@ replace (splice_into_list (ddlen + 1) CBLOCKz
 pose (ddzw := bytelist_to_intlist ddz).
 assert (H0': Zlength ddz = CBLOCKz). {
   clear - Hddlen H3. subst ddz ddlen.
-  autorewrite with sublist. clear; omega.
+  autorewrite with sublist. clear; lia.
 }
 assert (H1': Zlength ddzw = LBLOCKz). {
   unfold ddzw.
@@ -324,7 +332,7 @@ Exists (s256a_hashed a) ((s256a_data a) ++ [Byte.repr 128]) 0.
 unfold_data_at (data_at _ _ _ _).
 Time entailer!. (* 10.2 secs (3.8u, 0.s) *)
 split3.
-autorewrite with sublist. omega.
+autorewrite with sublist. lia.
 apply s256a_hashed_divides.
 autorewrite with sublist; auto.
 rewrite !(field_at_data_at _ _ [_]).

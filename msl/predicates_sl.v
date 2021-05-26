@@ -122,8 +122,8 @@ intros; intro; simpl.
 apply comparable_refl.
 Qed.
 
-Hint Resolve @extendM_refl : core.
-Hint Resolve @compareM_refl : core.
+#[export] Hint Resolve extendM_refl : core.
+#[export] Hint Resolve compareM_refl : core.
 
 
 (* Rules for the BI connectives *)
@@ -359,7 +359,7 @@ Lemma extend_later' {A}{JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_al
 Proof.
 intros. unfold boxy in *. rewrite later_commute. rewrite H. auto.
 Qed.
-Hint Resolve @extend_later' : core.
+#[export] Hint Resolve extend_later' : core.
 
 Lemma age_sepcon {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} :
       forall P Q, (box ageM (P * Q) = box ageM P * box ageM Q)%pred.
@@ -444,18 +444,18 @@ Proof.
    intros.
    intro.
    generalize (age_noetherian' phi); intros [k [[? [? ?]] H4]].
-   assert (k <= n \/ k > n)%nat by omega.
+   assert (k <= n \/ k > n)%nat by lia.
    destruct H3.
-   replace (S n) with (k + (S n - k))%nat in H by omega.
+   replace (S n) with (k + (S n - k))%nat in H by lia.
    destruct (ageN_compose' _ _ _ _ H) as [b [? ?]].
    rewrite H1 in H5; inv H5.
-   replace (S n - k)%nat with (S (n-k))%nat in H6 by omega.
+   replace (S n - k)%nat with (S (n-k))%nat in H6 by lia.
    unfold ageN in H6; simpl in H6. rewrite H2 in H6; inv H6.
-   replace k with (S n + (k - S n))%nat in H1 by omega.
+   replace k with (S n + (k - S n))%nat in H1 by lia.
    destruct (ageN_compose' _ _ _ _ H1) as [c [? ?]].
    rewrite H in H5; inv H5.
    destruct (age_twin phi c _ _ H0 H1) as [b [? ?]].
-   replace (S n + (k - S n))%nat with ((k - S n) + S n)%nat in H5 by omega.
+   replace (S n + (k - S n))%nat with ((k - S n) + S n)%nat in H5 by lia.
    destruct (ageN_compose' _ _ _ _ H5) as [d [? ?]].
    rewrite H6 in H8; inv H8.
    clear - H9 H2.
@@ -630,7 +630,7 @@ hnf in H,H0.
 eapply necR_linear'; eauto.
 apply comparable_fashionR; auto.
 Qed.
-Hint Resolve @superprecise_exactly : core.
+#[export] Hint Resolve superprecise_exactly : core.
 
 Lemma superprecise_precise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: forall (P: pred A) , superprecise P -> precise P.
 Proof.

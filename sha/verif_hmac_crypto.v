@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
+Require Export VST.floyd.Funspec_old_Notation.
 Require Import FCF.Blist.
 
 Require Import sha.vst_lemmas.
@@ -137,7 +138,7 @@ assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
 rename H into absH_len512.
 
 forward_call (Tsh, shm, hmacInit key, buf, msg, dl, data, gv).
-  { rewrite absH_len512. split3; auto. }
+  { rewrite absH_len512. auto. }
 
 (* Call to HMAC_Final*)
 assert_PROP (@field_compatible CompSpecs (Tstruct _hmac_ctx_st noattr) nil buf).
@@ -173,7 +174,7 @@ unfold data_block.
   rewrite Zlength_correct; simpl.
   rewrite <- memory_block_data_at_; trivial.
   rewrite (memory_block_data_at_ Tsh
-                    (tarray tuchar (@sizeof (@cenv_cs CompSpecs) (Tstruct _hmac_ctx_st noattr)))).
+                    (tarray tuchar (@sizeof CompSpecs (Tstruct _hmac_ctx_st noattr)))).
   2: trivial.
   eapply derives_trans. apply data_at_data_at_. apply derives_refl.
 Qed.
@@ -182,5 +183,7 @@ Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs
       f_HMAC HMAC_crypto.
 Proof.
 start_function.
-apply hmacbodycryptoproof; trivial.
+eapply semax_pre_flipped.
+eapply hmacbodycryptoproof; trivial.
+entailer!.  (* "gvars gv" is in a different place in the lvars *)
 Qed.

@@ -2,15 +2,17 @@ Require Import VST.floyd.base.
 Require Import VST.floyd.val_lemmas.
 Local Open Scope logic.
 
-Hint Rewrite <- prop_and : gather_prop.
+Definition prop_and_mpred := @prop_and mpred _.
 
-Lemma gather_prop_left {A}{NA: NatDed A}:
-  forall P Q R,  !! P && (!! Q && R) = !!(P/\Q) && R.
+Hint Rewrite <- prop_and_mpred : gather_prop.
+
+Lemma gather_prop_left:
+  forall P Q (R: mpred),  !! P && (!! Q && R) = !!(P/\Q) && R.
 Proof. intros. rewrite <- andp_assoc. rewrite <- prop_and; auto.
 Qed.
 
-Lemma gather_prop_right {A}{NA: NatDed A}:
-  forall P Q R,  R && !! P && !! Q = !!(P/\Q) && R.
+Lemma gather_prop_right:
+  forall P Q (R: mpred),  R && !! P && !! Q = !!(P/\Q) && R.
 Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto.
 Qed.
 Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
@@ -53,43 +55,41 @@ Proof.
   apply andp_right1; auto.
 Qed.
 
-Definition not_a_prop {A} (P: A) := True.
+Definition not_a_prop (P: mpred) := True.
 
 Ltac not_a_prop := match goal with
   | |- not_a_prop  (prop _) => fail 1
   | |- _ => apply Coq.Init.Logic.I
 end.
 
-Lemma flip_prop {A}{NA: NatDed A}: forall P Q,
+Lemma flip_prop: forall P Q,
       not_a_prop P -> (P&& !! Q = !! Q && P).
 Proof. intros. apply andp_comm. Qed.
 
-Hint Rewrite @flip_prop using not_a_prop : gather_prop.
+Hint Rewrite flip_prop using not_a_prop : gather_prop.
 
-Lemma gather_prop3 {A}{NA: NatDed A}:
+Lemma gather_prop3:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> R && (!! P && Q) = !!P && (R && Q).
 Proof. intros. rewrite andp_comm. rewrite andp_assoc.
         rewrite (andp_comm Q); auto.
 Qed.
 
-Hint Rewrite @gather_prop3 using not_a_prop : gather_prop.
+Hint Rewrite gather_prop3 using not_a_prop : gather_prop.
 
-Lemma gather_prop4 {A}{NA: NatDed A}:
+Lemma gather_prop4:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
 Proof. intros. rewrite andp_assoc. auto.
 Qed.
-Hint Rewrite @gather_prop4 using not_a_prop : gather_prop.
+Hint Rewrite gather_prop4 using not_a_prop : gather_prop.
 
-Lemma gather_prop5 {A}{NA: NatDed A}:
+Lemma gather_prop5:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> (R && !!P && Q) = !!P && (R && Q).
 Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
   f_equal; apply andp_comm.
 Qed.
-Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
+Hint Rewrite gather_prop5 using not_a_prop : gather_prop.
 
-Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop.
-
-(*Hint Rewrite <- sepcon_assoc : gather_prop.*)
+Hint Rewrite sepcon_andp_prop sepcon_andp_prop' : gather_prop gather_prop_core.
 
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: mpred),
@@ -116,12 +116,12 @@ Qed.
 
 (* These versions can sometimes take minutes,
    when A and B can't be unified
-Hint Extern 1 (_ |-- _) => (simple apply (@derives_refl mpred _) ) : cancel.
-Hint Extern 1 (_ |-- |> _) => (simple apply (@now_later mpred _ _) ) : cancel.
+#[export] Hint Extern 1 (_ |-- _) => (simple apply (@derives_refl mpred _) ) : cancel.
+#[export] Hint Extern 1 (_ |-- |> _) => (simple apply (@now_later mpred _ _) ) : cancel.
 *)
 
-Hint Extern 2 (?A |-- ?B) => (constr_eq A B; simple apply derives_refl) : cancel.
-Hint Extern 2 (?A |-- |> ?B) => (constr_eq A B; simple apply now_later) : cancel.
+#[export] Hint Extern 2 (?A |-- ?B) => (constr_eq A B; simple apply derives_refl) : cancel.
+#[export] Hint Extern 2 (?A |-- |> ?B) => (constr_eq A B; simple apply now_later) : cancel.
 
 Lemma cancel1_start:
  forall P Q : mpred,
@@ -301,18 +301,18 @@ match l with
           end) a l
 end.
 
-Lemma fold_right_sepconx_eq:
-  forall l, fold_right_sepconx l = fold_right_sepcon l.
+Lemma fold_right_sepconx_eq: fold_right_sepconx = fold_right_sepcon.
 Proof.
+extensionality l.
 induction l; simpl; auto.
 rewrite IHl.
 destruct l; simpl; auto. rewrite sepcon_emp; auto.
 Qed.
 
 Lemma fold_left_sepconx_eq:
-  forall l, fold_left_sepconx l = fold_right_sepcon l.
+  fold_left_sepconx = fold_right_sepcon.
 Proof.
-  intros.
+  extensionality l.
   rewrite <- fold_right_sepconx_eq.
   destruct l; auto.
   revert m; induction l; intros.
@@ -632,7 +632,13 @@ Ltac cancel_for_evar_frame' local_tac :=
             end;
             simple apply syntactic_cancel_solve1
           | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * ?C =>
+                  let a := fresh in let b := fresh in let c := fresh in 
+                  pose (a:=A); pose (b:=B); pose (c:=C);
+                  change (fold_right_sepcon a |-- fold_right_sepcon b * c);
+                  rewrite <- fold_left_sepconx_eq;
+                  subst a b c
+(*                  rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
             end;
             unfold fold_left_sepconx; cbv iota beta ]
   ].
@@ -644,7 +650,13 @@ Ltac cancel_for_TT local_tac :=
   | cbv iota; cbv zeta beta;
     first [ simple apply syntactic_cancel_solve2
           | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * ?C =>
+                  let a := fresh in let b := fresh in let c := fresh in 
+                  pose (a:=A); pose (b:=B); pose (c:=C);
+                  change (fold_right_sepcon a |-- fold_right_sepcon b * c);
+                  rewrite <- fold_left_sepconx_eq;
+                  subst a b c
+(* rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
             end;
             unfold fold_left_sepconx; cbv iota beta ]
   ].
@@ -655,7 +667,13 @@ Ltac cancel_for_normal local_tac :=
   | cbv iota; cbv zeta beta;
     first [ simple apply syntactic_cancel_solve3
           | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B =>
+                  let a := fresh in let b := fresh in
+                  pose (a:=A); pose (b:=B);
+                  change (fold_right_sepcon a |-- fold_right_sepcon b);
+                  rewrite <- fold_left_sepconx_eq;
+                  subst a b
+(*  rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
             end;
             unfold fold_left_sepconx; cbv iota beta ]
   ].
@@ -808,7 +826,10 @@ Ltac construct_fold_right_sepcon_rec :=
   | |- construct_fold_right_sepcon_rec (sepcon _ _) _ _ =>
          eapply construct_fold_right_sepcon_rec_sepcon;
          [construct_fold_right_sepcon_rec | construct_fold_right_sepcon_rec]
-  | |- construct_fold_right_sepcon_rec emp _ _ =>
+  | |- construct_fold_right_sepcon_rec ?A ?X ?Y =>
+         lazymatch A with emp => idtac | _ => 
+             change (construct_fold_right_sepcon_rec emp X Y)
+         end;
          apply construct_fold_right_sepcon_rec_emp
   | _ =>
          apply construct_fold_right_sepcon_rec_single
@@ -846,7 +867,7 @@ Ltac fold_abnormal_mpred :=
 Ltac new_cancel local_tac :=
   match goal with
   | |- @derives mpred Nveric _ _ => idtac
-  | _ => fail 1000 "Tactic cancel can only handle proof goals with form _ |-- _ (unlifted version)."
+  | _ => fail "Tactic cancel can only handle proof goals with form _ |-- _ (unlifted version)."
   end;
   eapply symbolic_cancel_setup;
   [ construct_fold_right_sepcon
@@ -1261,7 +1282,7 @@ Ltac normalize1 :=
               end.
 
 Ltac normalize :=
-   autorewrite with gather_prop;
+   gather_prop;
    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
               || simple apply derives_extract_prop
               || simple apply derives_extract_prop');

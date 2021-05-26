@@ -75,7 +75,7 @@ Lemma list_link_size_in_range (ls: listspec list_structid list_link list_token):
   0 < sizeof (nested_field_type list_struct (StructField list_link :: nil)) < Ptrofs.modulus.
 Proof.
   rewrite list_link_type.
-  unfold sizeof.
+  unfold sizeof, Ctypes.sizeof.
   destruct Archi.ptr64 eqn:Hp.
   rewrite Ptrofs.modulus_eq64 by auto; computable.
   rewrite Ptrofs.modulus_eq32 by auto; computable.
@@ -671,7 +671,7 @@ Proof.
 intros.
 rewrite <- list_cell_link_join.
 unfold spacer. rewrite if_true. rewrite sepcon_emp. auto.
-omega.
+lia.
 Qed.
 
 End LIST1.
@@ -1044,7 +1044,7 @@ Lemma lseg_cons_right_neq (ls: listspec list_structid list_link list_token): for
 Proof.
 intros. rename H into SH.
 assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link))).
-  rewrite list_link_type; simpl; destruct Archi.ptr64; computable.
+  unfold sizeof; rewrite list_link_type; simpl; destruct Archi.ptr64; computable.
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 revert x; induction l; simpl; intros.
@@ -1126,6 +1126,7 @@ intros.
 destruct l'.
 rewrite lseg_nil_eq.
 normalize.
+rewrite prop_true_andp by apply ptr_eq_nullval.
 apply lseg_cons_right_null.
 rewrite lseg_cons_eq.
 Intros u. Exists u. subst z.
@@ -1173,7 +1174,7 @@ destruct q; try contradiction.
 destruct H; subst.
 unfold Ptrofs.cmpu in H0.
 apply ptrofs_eq_e in H0.
-subst. intuition.
+subst. tauto.
 destruct p0.
 normalize.
 rewrite field_at_isptr.
@@ -1263,7 +1264,7 @@ Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Hint Resolve @lseg_local_facts : saturate_local.
+#[export] Hint Resolve lseg_local_facts : saturate_local.
 End LsegGeneral.
 
 Module LsegSpecial.
@@ -1667,6 +1668,7 @@ intros.
 destruct l'.
 rewrite lseg_nil_eq.
 normalize.
+rewrite prop_true_andp by apply ptr_eq_nullval.
 apply lseg_cons_right_null.
 rewrite lseg_cons_eq.
 Intros u.
@@ -1807,7 +1809,7 @@ End LIST.
 
 Hint Rewrite @lseg_nil_eq : norm.
 Hint Rewrite @lseg_eq using reflexivity: norm.
-Hint Resolve @lseg_local_facts : saturate_local.
+#[export] Hint Resolve lseg_local_facts : saturate_local.
 
 Ltac resolve_lseg_valid_pointer :=
 match goal with
@@ -1820,7 +1822,7 @@ match goal with
    end
  end.
 
-Hint Extern 10 (_ |-- valid_pointer _) =>
+#[export] Hint Extern 10 (_ |-- valid_pointer _) =>
    resolve_lseg_valid_pointer : valid_pointer.
 
 Lemma list_cell_local_facts:
@@ -1832,7 +1834,7 @@ intros.
 unfold list_cell.
 normalize.
 Qed.
-Hint Resolve list_cell_local_facts : saturate_local.
+#[export] Hint Resolve list_cell_local_facts : saturate_local.
 
 End LsegSpecial.
 
@@ -2297,7 +2299,7 @@ Lemma lseg_cons_right_neq (ls: listspec list_structid list_link list_token):
 Proof.
 intros. rename H into SH. rename H0 into NR.
 assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link)))
-  by (rewrite list_link_type; simpl; destruct Archi.ptr64; computable).
+  by (rewrite list_link_type; unfold sizeof; simpl; destruct Archi.ptr64; computable).
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 revert x; induction l; simpl; intros.
@@ -2348,7 +2350,7 @@ apply ptr_eq_e in H. subst y.
 entailer!.
 destruct H. contradiction H.
 rewrite prop_true_andp by reflexivity.
-rewrite prop_true_andp by normalize.
+rewrite prop_true_andp by apply ptr_eq_nullval.
 normalize.
 apply derives_refl'; f_equal. f_equal.
 apply nonreadable_list_cell_eq; auto.
@@ -2364,7 +2366,7 @@ apply andp_right; [ | apply prop_right; auto].
 apply not_prop_right; intro.
 apply ptr_eq_e in H0. subst x.
 entailer.
-destruct H3; contradiction H3.
+destruct H2; contradiction H2.
 eapply derives_trans.
 2: apply sepcon_derives; [ | eassumption]; apply derives_refl.
 clear IHl.
@@ -2384,6 +2386,7 @@ intros.
 destruct l'.
 rewrite lseg_nil_eq.
 normalize.
+rewrite prop_true_andp by apply ptr_eq_nullval.
 apply lseg_cons_right_null; auto.
 rewrite lseg_cons_eq; auto.
 Intros u. Exists u. subst.
@@ -2587,15 +2590,15 @@ End LIST2.
 Lemma join_sub_Tsh:
   forall sh, sepalg.join_sub sh Tsh.
 Admitted. (* easy *)
-Hint Resolve join_sub_Tsh: valid_pointer.
+#[export] Hint Resolve join_sub_Tsh: valid_pointer.
 
 Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Hint Resolve @lseg_local_facts : saturate_local.
+#[export] Hint Resolve lseg_local_facts : saturate_local.
 
-Hint Resolve denote_tc_test_eq_split : valid_pointer.
+#[export] Hint Resolve denote_tc_test_eq_split : valid_pointer.
 
 Ltac resolve_lseg_valid_pointer :=
 match goal with
@@ -2608,7 +2611,7 @@ match goal with
    end
  end.
 
-Hint Extern 10 (_ |-- valid_pointer _) =>
+#[export] Hint Extern 10 (_ |-- valid_pointer _) =>
        resolve_lseg_valid_pointer : valid_pointer.
 
 Ltac resolve_list_cell_valid_pointer :=
@@ -2625,7 +2628,7 @@ Ltac resolve_list_cell_valid_pointer :=
   end
  end.
 
-Hint Extern 10 (_ |-- valid_pointer _) =>
+#[export] Hint Extern 10 (_ |-- valid_pointer _) =>
    resolve_list_cell_valid_pointer : valid_pointer.
 
 End Links.

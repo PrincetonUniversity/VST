@@ -9,10 +9,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -208,11 +209,11 @@ Proof.
   induction lo using (well_founded_induction_type (Zwf_up_well_founded hi)).
   destruct (zlt lo hi).
   destruct (perm_dec m b lo k p).
-  destruct (H (lo + 1)). red. omega.
-  left; red; intros. destruct (zeq lo ofs). congruence. apply r. omega.
-  right; red; intros. elim n. red; intros; apply H0; omega.
-  right; red; intros. elim n. apply H0. omega.
-  left; red; intros. omegaContradiction.
+  destruct (H (lo + 1)). red. lia.
+  left; red; intros. destruct (zeq lo ofs). congruence. apply r. lia.
+  right; red; intros. elim n. red; intros; apply H0; lia.
+  right; red; intros. elim n. apply H0. lia.
+  left; red; intros. extlia.
 Defined.
 
 (** [valid_access m chunk b ofs p] holds if a memory access
@@ -253,7 +254,7 @@ Theorem valid_access_valid_block:
 Proof.
   intros. destruct H.
   assert (perm m b ofs Cur Nonempty).
-    apply H. generalize (size_chunk_pos chunk). omega.
+    apply H. generalize (size_chunk_pos chunk). lia.
   eauto with mem.
 Qed.
 
@@ -264,7 +265,7 @@ Lemma valid_access_perm:
   valid_access m chunk b ofs p ->
   perm m b ofs k p.
 Proof.
-  intros. destruct H. apply perm_cur. apply H. generalize (size_chunk_pos chunk). omega.
+  intros. destruct H. apply perm_cur. apply H. generalize (size_chunk_pos chunk). lia.
 Qed.
 
 Lemma valid_access_compat:
@@ -310,9 +311,9 @@ Theorem valid_pointer_valid_access:
 Proof.
   intros. rewrite valid_pointer_nonempty_perm.
   split; intros.
-  split. simpl; red; intros. replace ofs0 with ofs by omega. auto.
+  split. simpl; red; intros. replace ofs0 with ofs by lia. auto.
   simpl. apply Z.divide_1_l.
-  destruct H. apply H. simpl. omega.
+  destruct H. apply H. simpl. lia.
 Qed.
 
 (** C allows pointers one past the last element of an array.  These are not
@@ -482,8 +483,8 @@ Proof.
   auto.
   simpl length in H. rewrite Nat2Z.inj_succ in H.
   transitivity (ZMap.get q (ZMap.set p a c)).
-  apply IHvl. intros. apply H. omega.
-  apply ZMap.gso. apply not_eq_sym. apply H. omega.
+  apply IHvl. intros. apply H. lia.
+  apply ZMap.gso. apply not_eq_sym. apply H. lia.
 Qed.
 
 Remark setN_outside:
@@ -492,7 +493,7 @@ Remark setN_outside:
   ZMap.get q (setN vl p c) = ZMap.get q c.
 Proof.
   intros. apply setN_other.
-  intros. omega.
+  intros. lia.
 Qed.
 
 Remark getN_setN_same:
@@ -502,7 +503,7 @@ Proof.
   induction vl; intros; simpl.
   auto.
   decEq.
-  rewrite setN_outside. apply ZMap.gss. omega.
+  rewrite setN_outside. apply ZMap.gss. lia.
   apply IHvl.
 Qed.
 
@@ -512,7 +513,7 @@ Remark getN_exten:
   getN n p c1 = getN n p c2.
 Proof.
   induction n; intros. auto. rewrite Nat2Z.inj_succ in H. simpl. decEq.
-  apply H. omega. apply IHn. intros. apply H. omega.
+  apply H. lia. apply IHn. intros. apply H. lia.
 Qed.
 
 Remark getN_setN_disjoint:
@@ -636,7 +637,7 @@ Qed.
 Theorem valid_access_empty: forall chunk b ofs p, ~valid_access empty chunk b ofs p.
 Proof.
   intros. red; intros. elim (perm_empty b ofs Cur p). apply H.
-  generalize (size_chunk_pos chunk); omega.
+  generalize (size_chunk_pos chunk); lia.
 Qed.
 
 (** ** Properties related to [load] *)
@@ -680,6 +681,15 @@ Theorem load_type:
 Proof.
   intros. exploit load_result; eauto; intros. rewrite H0.
   apply decode_val_type.
+Qed.
+
+Theorem load_rettype:
+  forall m chunk b ofs v,
+  load chunk m b ofs = Some v ->
+  Val.has_rettype v (rettype_of_chunk chunk).
+Proof.
+  intros. exploit load_result; eauto; intros. rewrite H0.
+  apply decode_val_rettype.
 Qed.
 
 Theorem load_cast:
@@ -792,7 +802,7 @@ Theorem loadbytes_empty:
   n <= 0 -> loadbytes m b ofs n = Some nil.
 Proof.
   intros. unfold loadbytes. rewrite pred_dec_true. rewrite Z_to_nat_neg; auto.
-  red; intros. omegaContradiction.
+  red; intros. extlia.
 Qed.
 
 Lemma getN_concat:
@@ -800,9 +810,9 @@ Lemma getN_concat:
   getN (n1 + n2)%nat p c = getN n1 p c ++ getN n2 (p + Z.of_nat n1) c.
 Proof.
   induction n1; intros.
-  simpl. decEq. omega.
+  simpl. decEq. lia.
   rewrite Nat2Z.inj_succ. simpl. decEq.
-  replace (p + Z.succ (Z.of_nat n1)) with ((p + 1) + Z.of_nat n1) by omega.
+  replace (p + Z.succ (Z.of_nat n1)) with ((p + 1) + Z.of_nat n1) by lia.
   auto.
 Qed.
 
@@ -816,12 +826,12 @@ Proof.
   unfold loadbytes; intros.
   destruct (range_perm_dec m b ofs (ofs + n1) Cur Readable); try congruence.
   destruct (range_perm_dec m b (ofs + n1) (ofs + n1 + n2) Cur Readable); try congruence.
-  rewrite pred_dec_true. rewrite Z2Nat.inj_add by omega.
-  rewrite getN_concat. rewrite Z2Nat.id by omega.
+  rewrite pred_dec_true. rewrite Z2Nat.inj_add by lia.
+  rewrite getN_concat. rewrite Z2Nat.id by lia.
   congruence.
   red; intros.
-  assert (ofs0 < ofs + n1 \/ ofs0 >= ofs + n1) by omega.
-  destruct H4. apply r; omega. apply r0; omega.
+  assert (ofs0 < ofs + n1 \/ ofs0 >= ofs + n1) by lia.
+  destruct H4. apply r; lia. apply r0; lia.
 Qed.
 
 Theorem loadbytes_split:
@@ -836,13 +846,13 @@ Proof.
   unfold loadbytes; intros.
   destruct (range_perm_dec m b ofs (ofs + (n1 + n2)) Cur Readable);
   try congruence.
-  rewrite Z2Nat.inj_add in H by omega. rewrite getN_concat in H.
-  rewrite Z2Nat.id in H by omega.
+  rewrite Z2Nat.inj_add in H by lia. rewrite getN_concat in H.
+  rewrite Z2Nat.id in H by lia.
   repeat rewrite pred_dec_true.
   econstructor; econstructor.
   split. reflexivity. split. reflexivity. congruence.
-  red; intros; apply r; omega.
-  red; intros; apply r; omega.
+  red; intros; apply r; lia.
+  red; intros; apply r; lia.
 Qed.
 
 Theorem load_rep:
@@ -862,13 +872,13 @@ Proof.
   revert ofs H; induction n; intros; simpl; auto.
   f_equal.
   rewrite Nat2Z.inj_succ in H.
-  replace ofs with (ofs+0) by omega.
-  apply H; omega.
+  replace ofs with (ofs+0) by lia.
+  apply H; lia.
   apply IHn.
   intros.
   rewrite <- Z.add_assoc.
   apply H.
-  rewrite Nat2Z.inj_succ. omega.
+  rewrite Nat2Z.inj_succ. lia.
 Qed.
 
 Theorem load_int64_split:
@@ -883,7 +893,7 @@ Proof.
   exploit load_valid_access; eauto. intros [A B]. simpl in *.
   exploit load_loadbytes. eexact H. simpl. intros [bytes [LB EQ]].
   change 8 with (4 + 4) in LB.
-  exploit loadbytes_split. eexact LB. omega. omega.
+  exploit loadbytes_split. eexact LB. lia. lia.
   intros (bytes1 & bytes2 & LB1 & LB2 & APP).
   change 4 with (size_chunk Mint32) in LB1.
   exploit loadbytes_load. eexact LB1.
@@ -915,11 +925,11 @@ Proof.
   change (Int.unsigned (Int.repr 4)) with 4.
   apply Ptrofs.unsigned_repr.
   exploit (Zdivide_interval (Ptrofs.unsigned i) Ptrofs.modulus 8).
-  omega. apply Ptrofs.unsigned_range. auto.
+  lia. apply Ptrofs.unsigned_range. auto.
   exists (two_p (Ptrofs.zwordsize - 3)).
   unfold Ptrofs.modulus, Ptrofs.zwordsize, Ptrofs.wordsize.
   unfold Wordsize_Ptrofs.wordsize. destruct Archi.ptr64; reflexivity.
-  unfold Ptrofs.max_unsigned. omega.
+  unfold Ptrofs.max_unsigned. lia.
 Qed.
 
 Theorem loadv_int64_split:
@@ -1076,7 +1086,7 @@ Qed.
 Theorem load_store_same:
   load chunk m2 b ofs = Some (Val.load_result chunk v).
 Proof.
-  apply load_store_similar_2; auto. omega.
+  apply load_store_similar_2; auto. lia.
 Qed.
 
 Theorem load_store_other:
@@ -1128,9 +1138,9 @@ Proof.
   destruct H. congruence.
   destruct (zle n 0) as [z | n0].
   rewrite (Z_to_nat_neg _ z). auto.
-  destruct H. omegaContradiction.
+  destruct H. extlia.
   apply getN_setN_outside. rewrite encode_val_length. rewrite <- size_chunk_conv.
-  rewrite Z2Nat.id. auto. omega.
+  rewrite Z2Nat.id. auto. lia.
   auto.
   red; intros. eauto with mem.
   rewrite pred_dec_false. auto.
@@ -1143,11 +1153,11 @@ Lemma setN_in:
   In (ZMap.get q (setN vl p c)) vl.
 Proof.
   induction vl; intros.
-  simpl in H. omegaContradiction.
+  simpl in H. extlia.
   simpl length in H. rewrite Nat2Z.inj_succ in H. simpl.
   destruct (zeq p q). subst q. rewrite setN_outside. rewrite ZMap.gss.
-  auto with coqlib. omega.
-  right. apply IHvl. omega.
+  auto with coqlib. lia.
+  right. apply IHvl. lia.
 Qed.
 
 Lemma getN_in:
@@ -1156,10 +1166,10 @@ Lemma getN_in:
   In (ZMap.get q c) (getN n p c).
 Proof.
   induction n; intros.
-  simpl in H; omegaContradiction.
+  simpl in H; extlia.
   rewrite Nat2Z.inj_succ in H. simpl. destruct (zeq p q).
   subst q. auto.
-  right. apply IHn. omega.
+  right. apply IHn. lia.
 Qed.
 
 End STORE.
@@ -1196,28 +1206,28 @@ Proof.
   split. rewrite V', SIZE'. apply decode_val_shape.
   destruct (zeq ofs' ofs).
 - subst ofs'. left; split. auto. unfold c'. simpl.
-  rewrite setN_outside by omega. apply ZMap.gss.
+  rewrite setN_outside by lia. apply ZMap.gss.
 - right. destruct (zlt ofs ofs').
 (* If ofs < ofs':  the load reads (at ofs') a continuation byte from the write.
        ofs   ofs'   ofs+|chunk|
         [-------------------]       write
              [-------------------]  read
 *)
-+ left; split. omega. unfold c'. simpl. apply setN_in.
++ left; split. lia. unfold c'. simpl. apply setN_in.
   assert (Z.of_nat (length (mv1 :: mvl)) = size_chunk chunk).
   { rewrite <- ENC; rewrite encode_val_length. rewrite size_chunk_conv; auto. }
-  simpl length in H3. rewrite Nat2Z.inj_succ in H3. omega.
+  simpl length in H3. rewrite Nat2Z.inj_succ in H3. lia.
 (* If ofs > ofs':  the load reads (at ofs) the first byte from the write.
        ofs'   ofs   ofs'+|chunk'|
                [-------------------]  write
          [----------------]           read
 *)
-+ right; split. omega. replace mv1 with (ZMap.get ofs c').
++ right; split. lia. replace mv1 with (ZMap.get ofs c').
   apply getN_in.
   assert (size_chunk chunk' = Z.succ (Z.of_nat sz')).
   { rewrite size_chunk_conv. rewrite SIZE'. rewrite Nat2Z.inj_succ; auto. }
-  omega.
-  unfold c'. simpl. rewrite setN_outside by omega. apply ZMap.gss.
+  lia.
+  unfold c'. simpl. rewrite setN_outside by lia. apply ZMap.gss.
 Qed.
 
 Definition compat_pointer_chunks (chunk1 chunk2: memory_chunk) : Prop :=
@@ -1304,10 +1314,10 @@ Theorem load_store_pointer_mismatch:
 Proof.
   intros.
   exploit load_store_overlap; eauto.
-  generalize (size_chunk_pos chunk'); omega.
-  generalize (size_chunk_pos chunk); omega.
+  generalize (size_chunk_pos chunk'); lia.
+  generalize (size_chunk_pos chunk); lia.
   intros (mv1 & mvl & mv1' & mvl' & ENC & DEC & CASES).
-  destruct CASES as [(A & B) | [(A & B) | (A & B)]]; try omegaContradiction.
+  destruct CASES as [(A & B) | [(A & B) | (A & B)]]; try extlia.
   inv ENC; inv DEC; auto.
 - elim H1. apply compat_pointer_chunks_true; auto.
 - contradiction.
@@ -1329,8 +1339,8 @@ Proof.
   destruct (valid_access_dec m chunk1 b ofs Writable);
   destruct (valid_access_dec m chunk2 b ofs Writable); auto.
   f_equal. apply mkmem_ext; auto. congruence.
-  elim n. apply valid_access_compat with chunk1; auto. omega.
-  elim n. apply valid_access_compat with chunk2; auto. omega.
+  elim n. apply valid_access_compat with chunk1; auto. lia.
+  elim n. apply valid_access_compat with chunk2; auto. lia.
 Qed.
 
 Theorem store_signed_unsigned_8:
@@ -1376,7 +1386,7 @@ Proof.
   destruct (valid_access_dec m Mfloat64 b ofs Writable); try discriminate.
   destruct (valid_access_dec m Mfloat64al32 b ofs Writable).
   rewrite <- H. f_equal. apply mkmem_ext; auto.
-  elim n. apply valid_access_compat with Mfloat64; auto. simpl; omega.
+  elim n. apply valid_access_compat with Mfloat64; auto. simpl; lia.
 Qed.
 
 Theorem storev_float64al32:
@@ -1539,7 +1549,7 @@ Proof.
   rewrite pred_dec_true.
   rewrite storebytes_mem_contents. decEq.
   rewrite PMap.gsspec. destruct (peq b' b). subst b'.
-  apply getN_setN_disjoint. rewrite Z2Nat.id by omega. intuition congruence.
+  apply getN_setN_disjoint. rewrite Z2Nat.id by lia. intuition congruence.
   auto.
   red; auto with mem.
   apply pred_dec_false.
@@ -1584,8 +1594,8 @@ Lemma setN_concat:
   setN (bytes1 ++ bytes2) ofs c = setN bytes2 (ofs + Z.of_nat (length bytes1)) (setN bytes1 ofs c).
 Proof.
   induction bytes1; intros.
-  simpl. decEq. omega.
-  simpl length. rewrite Nat2Z.inj_succ. simpl. rewrite IHbytes1. decEq. omega.
+  simpl. decEq. lia.
+  simpl length. rewrite Nat2Z.inj_succ. simpl. rewrite IHbytes1. decEq. lia.
 Qed.
 
 Theorem storebytes_concat:
@@ -1604,8 +1614,8 @@ Proof.
   elim n.
   rewrite app_length. rewrite Nat2Z.inj_add. red; intros.
   destruct (zlt ofs0 (ofs + Z.of_nat(length bytes1))).
-  apply r. omega.
-  eapply perm_storebytes_2; eauto. apply r0. omega.
+  apply r. lia.
+  eapply perm_storebytes_2; eauto. apply r0. lia.
 Qed.
 
 Theorem storebytes_split:
@@ -1618,10 +1628,10 @@ Proof.
   intros.
   destruct (range_perm_storebytes m b ofs bytes1) as [m1 ST1].
   red; intros. exploit storebytes_range_perm; eauto. rewrite app_length.
-  rewrite Nat2Z.inj_add. omega.
+  rewrite Nat2Z.inj_add. lia.
   destruct (range_perm_storebytes m1 b (ofs + Z.of_nat (length bytes1)) bytes2) as [m2' ST2].
   red; intros. eapply perm_storebytes_1; eauto. exploit storebytes_range_perm.
-  eexact H. instantiate (1 := ofs0). rewrite app_length. rewrite Nat2Z.inj_add. omega.
+  eexact H. instantiate (1 := ofs0). rewrite app_length. rewrite Nat2Z.inj_add. lia.
   auto.
   assert (Some m2 = Some m2').
   rewrite <- H. eapply storebytes_concat; eauto.
@@ -1729,7 +1739,7 @@ Theorem perm_alloc_2:
 Proof.
   unfold perm; intros. injection ALLOC; intros. rewrite <- H1; simpl.
   subst b. rewrite PMap.gss. unfold proj_sumbool. rewrite zle_true.
-  rewrite zlt_true. simpl. auto with mem. omega. omega.
+  rewrite zlt_true. simpl. auto with mem. lia. lia.
 Qed.
 
 Theorem perm_alloc_inv:
@@ -1773,7 +1783,7 @@ Theorem valid_access_alloc_same:
   valid_access m2 chunk b ofs Freeable.
 Proof.
   intros. constructor; auto with mem.
-  red; intros. apply perm_alloc_2. omega.
+  red; intros. apply perm_alloc_2. lia.
 Qed.
 
 Local Hint Resolve valid_access_alloc_other valid_access_alloc_same: mem.
@@ -1788,11 +1798,11 @@ Proof.
   intros. inv H.
   generalize (size_chunk_pos chunk); intro.
   destruct (eq_block b' b). subst b'.
-  assert (perm m2 b ofs Cur p). apply H0. omega.
-  assert (perm m2 b (ofs + size_chunk chunk - 1) Cur p). apply H0. omega.
+  assert (perm m2 b ofs Cur p). apply H0. lia.
+  assert (perm m2 b (ofs + size_chunk chunk - 1) Cur p). apply H0. lia.
   exploit perm_alloc_inv. eexact H2. rewrite dec_eq_true. intro.
   exploit perm_alloc_inv. eexact H3. rewrite dec_eq_true. intro.
-  intuition omega.
+  intuition lia.
   split; auto. red; intros.
   exploit perm_alloc_inv. apply H0. eauto. rewrite dec_eq_false; auto.
 Qed.
@@ -1839,7 +1849,7 @@ Theorem load_alloc_same':
 Proof.
   intros. assert (exists v, load chunk m2 b ofs = Some v).
     apply valid_access_load. constructor; auto.
-    red; intros. eapply perm_implies. apply perm_alloc_2. omega. auto with mem.
+    red; intros. eapply perm_implies. apply perm_alloc_2. lia. auto with mem.
   destruct H2 as [v LOAD]. rewrite LOAD. decEq.
   eapply load_alloc_same; eauto.
 Qed.
@@ -1949,7 +1959,7 @@ Theorem perm_free_2:
 Proof.
   intros. rewrite free_result. unfold perm, unchecked_free; simpl.
   rewrite PMap.gss. unfold proj_sumbool. rewrite zle_true. rewrite zlt_true.
-  simpl. tauto. omega. omega.
+  simpl. tauto. lia. lia.
 Qed.
 
 Theorem perm_free_3:
@@ -1982,7 +1992,7 @@ Theorem valid_access_free_1:
 Proof.
   intros. inv H. constructor; auto with mem.
   red; intros. eapply perm_free_1; eauto.
-  destruct (zlt lo hi). intuition. right. omega.
+  destruct (zlt lo hi). intuition. right. lia.
 Qed.
 
 Theorem valid_access_free_2:
@@ -1994,9 +2004,9 @@ Proof.
   generalize (size_chunk_pos chunk); intros.
   destruct (zlt ofs lo).
   elim (perm_free_2 lo Cur p).
-  omega. apply H3. omega.
+  lia. apply H3. lia.
   elim (perm_free_2 ofs Cur p).
-  omega. apply H3. omega.
+  lia. apply H3. lia.
 Qed.
 
 Theorem valid_access_free_inv_1:
@@ -2022,7 +2032,7 @@ Proof.
   destruct (zlt lo hi); auto.
   destruct (zle (ofs + size_chunk chunk) lo); auto.
   destruct (zle hi ofs); auto.
-  elim (valid_access_free_2 chunk ofs p); auto. omega.
+  elim (valid_access_free_2 chunk ofs p); auto. lia.
 Qed.
 
 Theorem load_free:
@@ -2060,7 +2070,7 @@ Proof.
   red; intros. eapply perm_free_3; eauto.
   rewrite pred_dec_false; auto.
   red; intros. elim n0; red; intros.
-  eapply perm_free_1; eauto. destruct H; auto. right; omega.
+  eapply perm_free_1; eauto. destruct H; auto. right; lia.
 Qed.
 
 Theorem loadbytes_free_2:
@@ -2130,7 +2140,7 @@ Proof.
   unfold drop_perm in DROP. destruct (range_perm_dec m b lo hi Cur Freeable); inv DROP.
   unfold perm. simpl. rewrite PMap.gss. unfold proj_sumbool.
   rewrite zle_true. rewrite zlt_true. simpl. constructor.
-  omega. omega.
+  lia. lia.
 Qed.
 
 Theorem perm_drop_2:
@@ -2140,7 +2150,7 @@ Proof.
   unfold drop_perm in DROP. destruct (range_perm_dec m b lo hi Cur Freeable); inv DROP.
   revert H0. unfold perm; simpl. rewrite PMap.gss. unfold proj_sumbool.
   rewrite zle_true. rewrite zlt_true. simpl. auto.
-  omega. omega.
+  lia. lia.
 Qed.
 
 Theorem perm_drop_3:
@@ -2150,7 +2160,7 @@ Proof.
   unfold drop_perm in DROP. destruct (range_perm_dec m b lo hi Cur Freeable); inv DROP.
   unfold perm; simpl. rewrite PMap.gsspec. destruct (peq b' b). subst b'.
   unfold proj_sumbool. destruct (zle lo ofs). destruct (zlt ofs hi).
-  byContradiction. intuition omega.
+  byContradiction. intuition lia.
   auto. auto. auto.
 Qed.
 
@@ -2176,7 +2186,7 @@ Proof.
   destruct (eq_block b' b). subst b'.
   destruct (zlt ofs0 lo). eapply perm_drop_3; eauto.
   destruct (zle hi ofs0). eapply perm_drop_3; eauto.
-  apply perm_implies with p. eapply perm_drop_1; eauto. omega.
+  apply perm_implies with p. eapply perm_drop_1; eauto. lia.
   generalize (size_chunk_pos chunk); intros. intuition.
   eapply perm_drop_3; eauto.
 Qed.
@@ -2218,7 +2228,7 @@ Proof.
   destruct (eq_block b' b). subst b'.
   destruct (zlt ofs0 lo). eapply perm_drop_3; eauto.
   destruct (zle hi ofs0). eapply perm_drop_3; eauto.
-  apply perm_implies with p. eapply perm_drop_1; eauto. omega. intuition.
+  apply perm_implies with p. eapply perm_drop_1; eauto. lia. intuition.
   eapply perm_drop_3; eauto.
   rewrite pred_dec_false; eauto.
   red; intros; elim n0; red; intros.
@@ -2276,8 +2286,8 @@ Lemma range_perm_inj:
   range_perm m2 b2 (lo + delta) (hi + delta) k p.
 Proof.
   intros; red; intros.
-  replace ofs with ((ofs - delta) + delta) by omega.
-  eapply perm_inj; eauto. apply H0. omega.
+  replace ofs with ((ofs - delta) + delta) by lia.
+  eapply perm_inj; eauto. apply H0. lia.
 Qed.
 
 Lemma valid_access_inj:
@@ -2289,7 +2299,7 @@ Lemma valid_access_inj:
 Proof.
   intros. destruct H1 as [A B]. constructor.
   replace (ofs + delta + size_chunk chunk)
-     with ((ofs + size_chunk chunk) + delta) by omega.
+     with ((ofs + size_chunk chunk) + delta) by lia.
   eapply range_perm_inj; eauto.
   apply Z.divide_add_r; auto. eapply mi_align; eauto with mem.
 Qed.
@@ -2311,9 +2321,9 @@ Proof.
   rewrite Nat2Z.inj_succ in H1.
   constructor.
   eapply mi_memval; eauto.
-  apply H1. omega.
-  replace (ofs + delta + 1) with ((ofs + 1) + delta) by omega.
-  apply IHn. red; intros; apply H1; omega.
+  apply H1. lia.
+  replace (ofs + delta + 1) with ((ofs + 1) + delta) by lia.
+  apply IHn. red; intros; apply H1; lia.
 Qed.
 
 Lemma load_inj:
@@ -2344,11 +2354,11 @@ Proof.
   destruct (range_perm_dec m1 b1 ofs (ofs + len) Cur Readable); inv H0.
   exists (getN (Z.to_nat len) (ofs + delta) (m2.(mem_contents)#b2)).
   split. apply pred_dec_true.
-  replace (ofs + delta + len) with ((ofs + len) + delta) by omega.
+  replace (ofs + delta + len) with ((ofs + len) + delta) by lia.
   eapply range_perm_inj; eauto with mem.
   apply getN_inj; auto.
-  destruct (zle 0 len). rewrite Z2Nat.id by omega. auto.
-  rewrite Z_to_nat_neg by omega. simpl. red; intros; omegaContradiction.
+  destruct (zle 0 len). rewrite Z2Nat.id by lia. auto.
+  rewrite Z_to_nat_neg by lia. simpl. red; intros; extlia.
 Qed.
 
 (** Preservation of stores. *)
@@ -2363,11 +2373,11 @@ Lemma setN_inj:
 Proof.
   induction 1; intros; simpl.
   auto.
-  replace (p + delta + 1) with ((p + 1) + delta) by omega.
+  replace (p + delta + 1) with ((p + 1) + delta) by lia.
   apply IHlist_forall2; auto.
   intros. rewrite ZMap.gsspec at 1. destruct (ZIndexed.eq q0 p). subst q0.
   rewrite ZMap.gss. auto.
-  rewrite ZMap.gso. auto. unfold ZIndexed.t in *. omega.
+  rewrite ZMap.gso. auto. unfold ZIndexed.t in *. lia.
 Qed.
 
 Definition meminj_no_overlap (f: meminj) (m: mem) : Prop :=
@@ -2422,8 +2432,8 @@ Proof.
   assert (b2 <> b2 \/ ofs0 + delta0 <> (r - delta) + delta).
     eapply H1; eauto. eauto 6 with mem.
     exploit store_valid_access_3. eexact H0. intros [A B].
-    eapply perm_implies. apply perm_cur_max. apply A. omega. auto with mem.
-  destruct H8. congruence. omega.
+    eapply perm_implies. apply perm_cur_max. apply A. lia. auto with mem.
+  destruct H8. congruence. lia.
   (* block <> b1, block <> b2 *)
   eapply mi_memval; eauto. eauto with mem.
 Qed.
@@ -2470,8 +2480,8 @@ Proof.
   rewrite setN_outside. auto.
   rewrite encode_val_length. rewrite <- size_chunk_conv.
   destruct (zlt (ofs0 + delta) ofs); auto.
-  destruct (zle (ofs + size_chunk chunk) (ofs0 + delta)). omega.
-  byContradiction. eapply H0; eauto. omega.
+  destruct (zle (ofs + size_chunk chunk) (ofs0 + delta)). lia.
+  byContradiction. eapply H0; eauto. lia.
   eauto with mem.
 Qed.
 
@@ -2492,7 +2502,7 @@ Proof.
        with ((ofs + Z.of_nat (length bytes1)) + delta).
     eapply range_perm_inj; eauto with mem.
     eapply storebytes_range_perm; eauto.
-    rewrite (list_forall2_length H3). omega.
+    rewrite (list_forall2_length H3). lia.
   destruct (range_perm_storebytes _ _ _ _ H4) as [n2 STORE].
   exists n2; split. eauto.
   constructor.
@@ -2523,9 +2533,9 @@ Proof.
     eapply H1; eauto 6 with mem.
     exploit storebytes_range_perm. eexact H0.
     instantiate (1 := r - delta).
-    rewrite (list_forall2_length H3). omega.
+    rewrite (list_forall2_length H3). lia.
     eauto 6 with mem.
-  destruct H9. congruence. omega.
+  destruct H9. congruence. lia.
   (* block <> b1, block <> b2 *)
   eauto.
 Qed.
@@ -2572,8 +2582,8 @@ Proof.
   rewrite PMap.gsspec. destruct (peq b2 b). subst b2.
   rewrite setN_outside. auto.
   destruct (zlt (ofs0 + delta) ofs); auto.
-  destruct (zle (ofs + Z.of_nat (length bytes2)) (ofs0 + delta)). omega.
-  byContradiction. eapply H0; eauto. omega.
+  destruct (zle (ofs + Z.of_nat (length bytes2)) (ofs0 + delta)). lia.
+  byContradiction. eapply H0; eauto. lia.
   eauto with mem.
 Qed.
 
@@ -2670,10 +2680,10 @@ Proof.
   intros. destruct (eq_block b0 b1).
   subst b0. assert (delta0 = delta) by congruence. subst delta0.
   assert (lo <= ofs < hi).
-  { eapply perm_alloc_3; eauto. apply H6. generalize (size_chunk_pos chunk); omega. }
+  { eapply perm_alloc_3; eauto. apply H6. generalize (size_chunk_pos chunk); lia. }
   assert (lo <= ofs + size_chunk chunk - 1 < hi).
-  { eapply perm_alloc_3; eauto. apply H6. generalize (size_chunk_pos chunk); omega. }
-  apply H2. omega.
+  { eapply perm_alloc_3; eauto. apply H6. generalize (size_chunk_pos chunk); lia. }
+  apply H2. lia.
   eapply mi_align0 with (ofs := ofs) (p := p); eauto.
   red; intros. eapply perm_alloc_4; eauto.
 (* mem_contents *)
@@ -2718,7 +2728,7 @@ Proof.
   intros. eapply perm_free_1; eauto.
   destruct (eq_block b2 b); auto. subst b. right.
   assert (~ (lo <= ofs + delta < hi)). red; intros; eapply H1; eauto.
-  omega.
+  lia.
   constructor.
 (* perm *)
   auto.
@@ -2763,8 +2773,8 @@ Proof.
   intros.
   assert ({ m2' | drop_perm m2 b2 (lo + delta) (hi + delta) p = Some m2' }).
   apply range_perm_drop_2. red; intros.
-  replace ofs with ((ofs - delta) + delta) by omega.
-  eapply perm_inj; eauto. eapply range_perm_drop_1; eauto. omega.
+  replace ofs with ((ofs - delta) + delta) by lia.
+  eapply perm_inj; eauto. eapply range_perm_drop_1; eauto. lia.
   destruct X as [m2' DROP]. exists m2'; split; auto.
   inv H.
   constructor.
@@ -2778,9 +2788,9 @@ Proof.
   destruct (zlt (ofs + delta0) (lo + delta0)). eapply perm_drop_3; eauto.
   destruct (zle (hi + delta0) (ofs + delta0)). eapply perm_drop_3; eauto.
   assert (perm_order p p0).
-    eapply perm_drop_2.  eexact H0. instantiate (1 := ofs). omega. eauto.
+    eapply perm_drop_2.  eexact H0. instantiate (1 := ofs). lia. eauto.
   apply perm_implies with p; auto.
-  eapply perm_drop_1. eauto. omega.
+  eapply perm_drop_1. eauto. lia.
   (* b1 <> b0 *)
   eapply perm_drop_3; eauto.
   destruct (eq_block b3 b2); auto.
@@ -2789,7 +2799,7 @@ Proof.
   exploit H1; eauto.
   instantiate (1 := ofs + delta0 - delta).
   apply perm_cur_max. apply perm_implies with Freeable.
-  eapply range_perm_drop_1; eauto. omega. auto with mem.
+  eapply range_perm_drop_1; eauto. lia. auto with mem.
   eapply perm_drop_4; eauto. eapply perm_max. apply perm_implies with p0. eauto.
   eauto with mem.
   intuition.
@@ -2820,7 +2830,7 @@ Proof.
   destruct (eq_block b2 b); auto. subst b2. right.
   destruct (zlt (ofs + delta) lo); auto.
   destruct (zle hi (ofs + delta)); auto.
-  byContradiction. exploit H1; eauto. omega.
+  byContradiction. exploit H1; eauto. lia.
   (* align *)
   eapply mi_align0; eauto.
   (* contents *)
@@ -2853,9 +2863,9 @@ Theorem extends_refl:
   forall m, extends m m.
 Proof.
   intros. constructor. auto. constructor.
-  intros. unfold inject_id in H; inv H. replace (ofs + 0) with ofs by omega. auto.
+  intros. unfold inject_id in H; inv H. replace (ofs + 0) with ofs by lia. auto.
   intros. unfold inject_id in H; inv H. apply Z.divide_0_r.
-  intros. unfold inject_id in H; inv H. replace (ofs + 0) with ofs by omega.
+  intros. unfold inject_id in H; inv H. replace (ofs + 0) with ofs by lia.
   apply memval_lessdef_refl.
   tauto.
 Qed.
@@ -2868,7 +2878,7 @@ Theorem load_extends:
 Proof.
   intros. inv H. exploit load_inj; eauto. unfold inject_id; reflexivity.
   intros [v2 [A B]]. exists v2; split.
-  replace (ofs + 0) with ofs in A by omega. auto.
+  replace (ofs + 0) with ofs in A by lia. auto.
   rewrite val_inject_id in B. auto.
 Qed.
 
@@ -2892,7 +2902,7 @@ Theorem loadbytes_extends:
               /\ list_forall2 memval_lessdef bytes1 bytes2.
 Proof.
   intros. inv H.
-  replace ofs with (ofs + 0) by omega. eapply loadbytes_inj; eauto.
+  replace ofs with (ofs + 0) by lia. eapply loadbytes_inj; eauto.
 Qed.
 
 Theorem store_within_extends:
@@ -2911,7 +2921,7 @@ Proof.
     rewrite val_inject_id. eauto.
   intros [m2' [A B]].
   exists m2'; split.
-  replace (ofs + 0) with ofs in A by omega. auto.
+  replace (ofs + 0) with ofs in A by lia. auto.
   constructor; auto.
   rewrite (nextblock_store _ _ _ _ _ _ H0).
   rewrite (nextblock_store _ _ _ _ _ _ A).
@@ -2929,7 +2939,7 @@ Proof.
   intros. inversion H. constructor.
   rewrite (nextblock_store _ _ _ _ _ _ H0). auto.
   eapply store_outside_inj; eauto.
-  unfold inject_id; intros. inv H2. eapply H1; eauto. omega.
+  unfold inject_id; intros. inv H2. eapply H1; eauto. lia.
   intros. eauto using perm_store_2.
 Qed.
 
@@ -2963,7 +2973,7 @@ Proof.
     unfold inject_id; reflexivity.
   intros [m2' [A B]].
   exists m2'; split.
-  replace (ofs + 0) with ofs in A by omega. auto.
+  replace (ofs + 0) with ofs in A by lia. auto.
   constructor; auto.
   rewrite (nextblock_storebytes _ _ _ _ _ H0).
   rewrite (nextblock_storebytes _ _ _ _ _ A).
@@ -2981,7 +2991,7 @@ Proof.
   intros. inversion H. constructor.
   rewrite (nextblock_storebytes _ _ _ _ _ H0). auto.
   eapply storebytes_outside_inj; eauto.
-  unfold inject_id; intros. inv H2. eapply H1; eauto. omega.
+  unfold inject_id; intros. inv H2. eapply H1; eauto. lia.
   intros. eauto using perm_storebytes_2.
 Qed.
 
@@ -3013,12 +3023,12 @@ Proof.
   intros.
   eapply perm_implies with Freeable; auto with mem.
   eapply perm_alloc_2; eauto.
-  omega.
+  lia.
   intros. eapply perm_alloc_inv in H; eauto.
   generalize (perm_alloc_inv _ _ _ _ _ H0 b0 ofs Max Nonempty); intros PERM.
   destruct (eq_block b0 b).
   subst b0.
-  assert (EITHER: lo1 <= ofs < hi1 \/ ~(lo1 <= ofs < hi1)) by omega.
+  assert (EITHER: lo1 <= ofs < hi1 \/ ~(lo1 <= ofs < hi1)) by lia.
   destruct EITHER.
   left. apply perm_implies with Freeable; auto with mem. eapply perm_alloc_2; eauto.
   right; tauto.
@@ -3050,7 +3060,7 @@ Proof.
   intros. inv H. constructor.
   rewrite (nextblock_free _ _ _ _ _ H0). auto.
   eapply free_right_inj; eauto.
-  unfold inject_id; intros. inv H. eapply H1; eauto. omega.
+  unfold inject_id; intros. inv H. eapply H1; eauto. lia.
   intros. eauto using perm_free_3.
 Qed.
 
@@ -3065,7 +3075,7 @@ Proof.
   intros. inversion H.
   assert ({ m2': mem | free m2 b lo hi = Some m2' }).
     apply range_perm_free. red; intros.
-    replace ofs with (ofs + 0) by omega.
+    replace ofs with (ofs + 0) by lia.
     eapply perm_inj with (b1 := b); eauto.
     eapply free_range_perm; eauto.
   destruct X as [m2' FREE]. exists m2'; split; auto.
@@ -3075,7 +3085,7 @@ Proof.
   eapply free_right_inj with (m1 := m1'); eauto.
   eapply free_left_inj; eauto.
   unfold inject_id; intros. inv H1.
-  eapply perm_free_2. eexact H0. instantiate (1 := ofs); omega. eauto.
+  eapply perm_free_2. eexact H0. instantiate (1 := ofs); lia. eauto.
   intros. exploit mext_perm_inv0; eauto using perm_free_3. intros [A|A].
   eapply perm_free_inv in A; eauto. destruct A as [[A B]|A]; auto.
   subst b0. right; eapply perm_free_2; eauto.
@@ -3094,7 +3104,7 @@ Theorem perm_extends:
   forall m1 m2 b ofs k p,
   extends m1 m2 -> perm m1 b ofs k p -> perm m2 b ofs k p.
 Proof.
-  intros. inv H. replace ofs with (ofs + 0) by omega.
+  intros. inv H. replace ofs with (ofs + 0) by lia.
   eapply perm_inj; eauto.
 Qed.
 
@@ -3109,7 +3119,7 @@ Theorem valid_access_extends:
   forall m1 m2 chunk b ofs p,
   extends m1 m2 -> valid_access m1 chunk b ofs p -> valid_access m2 chunk b ofs p.
 Proof.
-  intros. inv H. replace ofs with (ofs + 0) by omega.
+  intros. inv H. replace ofs with (ofs + 0) by lia.
   eapply valid_access_inj; eauto. auto.
 Qed.
 
@@ -3254,7 +3264,7 @@ Theorem weak_valid_pointer_inject:
   weak_valid_pointer m2 b2 (ofs + delta) = true.
 Proof.
   intros until 2. unfold weak_valid_pointer. rewrite !orb_true_iff.
-  replace (ofs + delta - 1) with ((ofs - 1) + delta) by omega.
+  replace (ofs + delta - 1) with ((ofs - 1) + delta) by lia.
   intros []; eauto using valid_pointer_inject.
 Qed.
 
@@ -3272,8 +3282,8 @@ Proof.
   assert (perm m1 b1 (Ptrofs.unsigned ofs1) Max Nonempty) by eauto with mem.
   exploit mi_representable; eauto. intros [A B].
   assert (0 <= delta <= Ptrofs.max_unsigned).
-    generalize (Ptrofs.unsigned_range ofs1). omega.
-  unfold Ptrofs.add. repeat rewrite Ptrofs.unsigned_repr; omega.
+    generalize (Ptrofs.unsigned_range ofs1). lia.
+  unfold Ptrofs.add. repeat rewrite Ptrofs.unsigned_repr; lia.
 Qed.
 
 Lemma address_inject':
@@ -3284,7 +3294,7 @@ Lemma address_inject':
   Ptrofs.unsigned (Ptrofs.add ofs1 (Ptrofs.repr delta)) = Ptrofs.unsigned ofs1 + delta.
 Proof.
   intros. destruct H0. eapply address_inject; eauto.
-  apply H0. generalize (size_chunk_pos chunk). omega.
+  apply H0. generalize (size_chunk_pos chunk). lia.
 Qed.
 
 Theorem weak_valid_pointer_inject_no_overflow:
@@ -3299,7 +3309,7 @@ Proof.
   exploit mi_representable; eauto. destruct H0; eauto with mem.
   intros [A B].
   pose proof (Ptrofs.unsigned_range ofs).
-  rewrite Ptrofs.unsigned_repr; omega.
+  rewrite Ptrofs.unsigned_repr; lia.
 Qed.
 
 Theorem valid_pointer_inject_no_overflow:
@@ -3339,7 +3349,7 @@ Proof.
   exploit mi_representable; eauto. destruct H0; eauto with mem.
   intros [A B].
   pose proof (Ptrofs.unsigned_range ofs).
-  unfold Ptrofs.add. repeat rewrite Ptrofs.unsigned_repr; auto; omega.
+  unfold Ptrofs.add. repeat rewrite Ptrofs.unsigned_repr; auto; lia.
 Qed.
 
 Theorem inject_no_overlap:
@@ -3374,8 +3384,8 @@ Proof.
   rewrite (address_inject' _ _ _ _ _ _ _ _ H H2 H4).
   inv H1. simpl in H5. inv H2. simpl in H1.
   eapply mi_no_overlap; eauto.
-  apply perm_cur_max. apply (H5 (Ptrofs.unsigned ofs1)). omega.
-  apply perm_cur_max. apply (H1 (Ptrofs.unsigned ofs2)). omega.
+  apply perm_cur_max. apply (H5 (Ptrofs.unsigned ofs1)). lia.
+  apply perm_cur_max. apply (H1 (Ptrofs.unsigned ofs2)). lia.
 Qed.
 
 Theorem disjoint_or_equal_inject:
@@ -3394,16 +3404,16 @@ Proof.
   intros.
   destruct (eq_block b1 b2).
   assert (b1' = b2') by congruence. assert (delta1 = delta2) by congruence. subst.
-  destruct H5. congruence. right. destruct H5. left; congruence. right. omega.
+  destruct H5. congruence. right. destruct H5. left; congruence. right. lia.
   destruct (eq_block b1' b2'); auto. subst. right. right.
   set (i1 := (ofs1 + delta1, ofs1 + delta1 + sz)).
   set (i2 := (ofs2 + delta2, ofs2 + delta2 + sz)).
   change (snd i1 <= fst i2 \/ snd i2 <= fst i1).
-  apply Intv.range_disjoint'; simpl; try omega.
+  apply Intv.range_disjoint'; simpl; try lia.
   unfold Intv.disjoint, Intv.In; simpl; intros. red; intros.
   exploit mi_no_overlap; eauto.
-  instantiate (1 := x - delta1). apply H2. omega.
-  instantiate (1 := x - delta2). apply H3. omega.
+  instantiate (1 := x - delta1). apply H2. lia.
+  instantiate (1 := x - delta2). apply H3. lia.
   intuition.
 Qed.
 
@@ -3418,9 +3428,9 @@ Theorem aligned_area_inject:
   (al | ofs + delta).
 Proof.
   intros.
-  assert (P: al > 0) by omega.
-  assert (Q: Z.abs al <= Z.abs sz). apply Zdivide_bounds; auto. omega.
-  rewrite Z.abs_eq in Q; try omega. rewrite Z.abs_eq in Q; try omega.
+  assert (P: al > 0) by lia.
+  assert (Q: Z.abs al <= Z.abs sz). apply Zdivide_bounds; auto. lia.
+  rewrite Z.abs_eq in Q; try lia. rewrite Z.abs_eq in Q; try lia.
   assert (R: exists chunk, al = align_chunk chunk /\ al = size_chunk chunk).
     destruct H0. subst; exists Mint8unsigned; auto.
     destruct H0. subst; exists Mint16unsigned; auto.
@@ -3428,7 +3438,7 @@ Proof.
     subst; exists Mint64; auto.
   destruct R as [chunk [A B]].
   assert (valid_access m chunk b ofs Nonempty).
-    split. red; intros; apply H3. omega. congruence.
+    split. red; intros; apply H3. lia. congruence.
   exploit valid_access_inject; eauto. intros [C D].
   congruence.
 Qed.
@@ -3785,7 +3795,7 @@ Proof.
     unfold f'; intros. destruct (eq_block b0 b1).
       inversion H8. subst b0 b3 delta0.
       elim (fresh_block_alloc _ _ _ _ _ H0).
-      eapply perm_valid_block with (ofs := ofs). apply H9. generalize (size_chunk_pos chunk); omega.
+      eapply perm_valid_block with (ofs := ofs). apply H9. generalize (size_chunk_pos chunk); lia.
       eauto.
     unfold f'; intros. destruct (eq_block b0 b1).
       inversion H8. subst b0 b3 delta0.
@@ -3808,10 +3818,10 @@ Proof.
   congruence.
   inversion H10; subst b0 b1' delta1.
     destruct (eq_block b2 b2'); auto. subst b2'. right; red; intros.
-    eapply H6; eauto. omega.
+    eapply H6; eauto. lia.
   inversion H11; subst b3 b2' delta2.
     destruct (eq_block b1' b2); auto. subst b1'. right; red; intros.
-    eapply H6; eauto. omega.
+    eapply H6; eauto. lia.
   eauto.
 (* representable *)
   unfold f'; intros.
@@ -3819,16 +3829,16 @@ Proof.
    subst. injection H9; intros; subst b' delta0. destruct H10.
     exploit perm_alloc_inv; eauto; rewrite dec_eq_true; intro.
     exploit H3. apply H4 with (k := Max) (p := Nonempty); eauto.
-    generalize (Ptrofs.unsigned_range_2 ofs). omega.
+    generalize (Ptrofs.unsigned_range_2 ofs). lia.
    exploit perm_alloc_inv; eauto; rewrite dec_eq_true; intro.
    exploit H3. apply H4 with (k := Max) (p := Nonempty); eauto.
-   generalize (Ptrofs.unsigned_range_2 ofs). omega.
+   generalize (Ptrofs.unsigned_range_2 ofs). lia.
   eapply mi_representable0; try eassumption.
   destruct H10; eauto using perm_alloc_4.
 (* perm inv *)
   intros. unfold f' in H9; destruct (eq_block b0 b1).
   inversion H9; clear H9; subst b0 b3 delta0.
-  assert (EITHER: lo <= ofs < hi \/ ~(lo <= ofs < hi)) by omega.
+  assert (EITHER: lo <= ofs < hi \/ ~(lo <= ofs < hi)) by lia.
   destruct EITHER.
   left. apply perm_implies with Freeable; auto with mem. eapply perm_alloc_2; eauto.
   right; intros A. eapply perm_alloc_inv in A; eauto. rewrite dec_eq_true in A. tauto.
@@ -3859,10 +3869,10 @@ Proof.
   eapply alloc_right_inject; eauto.
   eauto.
   instantiate (1 := b2). eauto with mem.
-  instantiate (1 := 0). unfold Ptrofs.max_unsigned. generalize Ptrofs.modulus_pos; omega.
+  instantiate (1 := 0). unfold Ptrofs.max_unsigned. generalize Ptrofs.modulus_pos; lia.
   auto.
   intros. apply perm_implies with Freeable; auto with mem.
-  eapply perm_alloc_2; eauto. omega.
+  eapply perm_alloc_2; eauto. lia.
   red; intros. apply Z.divide_0_r.
   intros. apply (valid_not_valid_diff m2 b2 b2); eauto with mem.
   intros [f' [A [B [C D]]]].
@@ -3985,13 +3995,13 @@ Proof.
   simpl; rewrite H0; auto.
   intros. destruct (eq_block b1 b).
   subst b1. rewrite H1 in H2; inv H2.
-  exists lo, hi; split; auto with coqlib. omega.
+  exists lo, hi; split; auto with coqlib. lia.
   exploit mi_no_overlap. eexact H. eexact n. eauto. eauto.
   eapply perm_max. eapply perm_implies. eauto. auto with mem.
   instantiate (1 := ofs + delta0 - delta).
   apply perm_cur_max. apply perm_implies with Freeable; auto with mem.
-  eapply free_range_perm; eauto. omega.
-  intros [A|A]. congruence. omega.
+  eapply free_range_perm; eauto. lia.
+  intros [A|A]. congruence. lia.
 Qed.
 
 Lemma drop_outside_inject: forall f m1 m2 b lo hi p m2',
@@ -4018,7 +4028,7 @@ Proof.
   (* perm *)
   destruct (f b1) as [[b' delta'] |] eqn:?; try discriminate.
   destruct (f' b') as [[b'' delta''] |] eqn:?; inv H.
-  replace (ofs + (delta' + delta'')) with ((ofs + delta') + delta'') by omega.
+  replace (ofs + (delta' + delta'')) with ((ofs + delta') + delta'') by lia.
   eauto.
   (* align *)
   destruct (f b1) as [[b' delta'] |] eqn:?; try discriminate.
@@ -4026,12 +4036,12 @@ Proof.
   apply Z.divide_add_r.
   eapply mi_align0; eauto.
   eapply mi_align1 with (ofs := ofs + delta') (p := p); eauto.
-  red; intros. replace ofs0 with ((ofs0 - delta') + delta') by omega.
-  eapply mi_perm0; eauto. apply H0. omega.
+  red; intros. replace ofs0 with ((ofs0 - delta') + delta') by lia.
+  eapply mi_perm0; eauto. apply H0. lia.
   (* memval *)
   destruct (f b1) as [[b' delta'] |] eqn:?; try discriminate.
   destruct (f' b') as [[b'' delta''] |] eqn:?; inv H.
-  replace (ofs + (delta' + delta'')) with ((ofs + delta') + delta'') by omega.
+  replace (ofs + (delta' + delta'')) with ((ofs + delta') + delta'') by lia.
   eapply memval_inject_compose; eauto.
 Qed.
 
@@ -4060,11 +4070,11 @@ Proof.
   exploit mi_no_overlap0; eauto. intros A.
   destruct (eq_block b1x b2x).
   subst b1x. destruct A. congruence.
-  assert (delta1y = delta2y) by congruence. right; omega.
+  assert (delta1y = delta2y) by congruence. right; lia.
   exploit mi_no_overlap1. eauto. eauto. eauto.
     eapply perm_inj. eauto. eexact H2. eauto.
     eapply perm_inj. eauto. eexact H3. eauto.
-  intuition omega.
+  intuition lia.
 (* representable *)
   intros.
   destruct (f b) as [[b1 delta1] |] eqn:?; try discriminate.
@@ -4076,15 +4086,15 @@ Proof.
   exploit mi_representable1. eauto. instantiate (1 := ofs').
   rewrite H.
   replace (Ptrofs.unsigned ofs + delta1 - 1) with
-    ((Ptrofs.unsigned ofs - 1) + delta1) by omega.
+    ((Ptrofs.unsigned ofs - 1) + delta1) by lia.
   destruct H0; eauto using perm_inj.
-  rewrite H. omega.
+  rewrite H. lia.
 (* perm inv *)
   intros.
   destruct (f b1) as [[b' delta'] |] eqn:?; try discriminate.
   destruct (f' b') as [[b'' delta''] |] eqn:?; try discriminate.
   inversion H; clear H; subst b'' delta.
-  replace (ofs + (delta' + delta'')) with ((ofs + delta') + delta'') in H0 by omega.
+  replace (ofs + (delta' + delta'')) with ((ofs + delta') + delta'') in H0 by lia.
   exploit mi_perm_inv1; eauto. intros [A|A].
   eapply mi_perm_inv0; eauto.
   right; red; intros. elim A. eapply perm_inj; eauto.
@@ -4136,7 +4146,7 @@ Proof.
 (* inj *)
   replace f with (compose_meminj f inject_id). eapply mem_inj_compose; eauto.
   apply extensionality; intros. unfold compose_meminj, inject_id.
-  destruct (f x) as [[y delta] | ]; auto. decEq. decEq. omega.
+  destruct (f x) as [[y delta] | ]; auto. decEq. decEq. lia.
 (* unmapped *)
   eauto.
 (* mapped *)
@@ -4201,7 +4211,7 @@ Proof.
   apply flat_inj_no_overlap.
 (* range *)
   unfold flat_inj; intros.
-  destruct (plt b (nextblock m)); inv H0. generalize (Ptrofs.unsigned_range_2 ofs); omega.
+  destruct (plt b (nextblock m)); inv H0. generalize (Ptrofs.unsigned_range_2 ofs); lia.
 (* perm inv *)
   unfold flat_inj; intros.
   destruct (plt b1 (nextblock m)); inv H0.
@@ -4214,7 +4224,7 @@ Proof.
   intros; red; constructor.
 (* perm *)
   unfold flat_inj; intros. destruct (plt b1 thr); inv H.
-  replace (ofs + 0) with ofs by omega; auto.
+  replace (ofs + 0) with ofs by lia; auto.
 (* align *)
   unfold flat_inj; intros. destruct (plt b1 thr); inv H. apply Z.divide_0_r.
 (* mem_contents *)
@@ -4234,7 +4244,7 @@ Proof.
   red. intros. apply Z.divide_0_r.
   intros.
   apply perm_implies with Freeable; auto with mem.
-  eapply perm_alloc_2; eauto. omega.
+  eapply perm_alloc_2; eauto. lia.
   unfold flat_inj. apply pred_dec_true.
   rewrite (alloc_result _ _ _ _ _ H). auto.
 Qed.
@@ -4250,7 +4260,7 @@ Proof.
   intros; red.
   exploit store_mapped_inj. eauto. eauto. apply flat_inj_no_overlap.
   unfold flat_inj. apply pred_dec_true; auto. eauto.
-  replace (ofs + 0) with ofs by omega.
+  replace (ofs + 0) with ofs by lia.
   intros [m'' [A B]]. congruence.
 Qed.
 
@@ -4297,7 +4307,7 @@ Lemma valid_block_unchanged_on:
   forall m m' b,
   unchanged_on m m' -> valid_block m b -> valid_block m' b.
 Proof.
-  unfold valid_block; intros. apply unchanged_on_nextblock in H. xomega.
+  unfold valid_block; intros. apply unchanged_on_nextblock in H. extlia.
 Qed.
 
 Lemma perm_unchanged_on:
@@ -4340,7 +4350,7 @@ Proof.
 + unfold loadbytes. destruct H.
   destruct (range_perm_dec m b ofs (ofs + n) Cur Readable).
   rewrite pred_dec_true. f_equal.
-  apply getN_exten. intros. rewrite Z2Nat.id in H by omega.
+  apply getN_exten. intros. rewrite Z2Nat.id in H by lia.
   apply unchanged_on_contents0; auto.
   red; intros. apply unchanged_on_perm0; auto.
   rewrite pred_dec_false. auto.
@@ -4358,7 +4368,7 @@ Proof.
   destruct (zle n 0).
 + erewrite loadbytes_empty in * by assumption. auto.
 + rewrite <- H1. apply loadbytes_unchanged_on_1; auto.
-  exploit loadbytes_range_perm; eauto. instantiate (1 := ofs). omega.
+  exploit loadbytes_range_perm; eauto. instantiate (1 := ofs). lia.
   intros. eauto with mem.
 Qed.
 
@@ -4401,7 +4411,7 @@ Proof.
   rewrite encode_val_length. rewrite <- size_chunk_conv.
   destruct (zlt ofs0 ofs); auto.
   destruct (zlt ofs0 (ofs + size_chunk chunk)); auto.
-  elim (H0 ofs0). omega. auto.
+  elim (H0 ofs0). lia. auto.
 Qed.
 
 Lemma storebytes_unchanged_on:
@@ -4417,7 +4427,7 @@ Proof.
   destruct (peq b0 b); auto. subst b0. apply setN_outside.
   destruct (zlt ofs0 ofs); auto.
   destruct (zlt ofs0 (ofs + Z.of_nat (length bytes))); auto.
-  elim (H0 ofs0). omega. auto.
+  elim (H0 ofs0). lia. auto.
 Qed.
 
 Lemma alloc_unchanged_on:
@@ -4446,7 +4456,7 @@ Proof.
 - split; intros.
   eapply perm_free_1; eauto.
   destruct (eq_block b0 b); auto. destruct (zlt ofs lo); auto. destruct (zle hi ofs); auto.
-  subst b0. elim (H0 ofs). omega. auto.
+  subst b0. elim (H0 ofs). lia. auto.
   eapply perm_free_3; eauto.
 - unfold free in H. destruct (range_perm_dec m b lo hi Cur Freeable); inv H.
   simpl. auto.
@@ -4464,7 +4474,7 @@ Proof.
   destruct (eq_block b0 b); auto.
   subst b0.
   assert (~ (lo <= ofs < hi)). { red; intros; eelim H0; eauto. }
-  right; omega.
+  right; lia.
   eapply perm_drop_4; eauto.
 - unfold drop_perm in H.
   destruct (range_perm_dec m b lo hi Cur Freeable); inv H; simpl. auto.
@@ -4491,7 +4501,7 @@ Notation mem := Mem.mem.
 
 Global Opaque Mem.alloc Mem.free Mem.store Mem.load Mem.storebytes Mem.loadbytes.
 
-Hint Resolve
+Global Hint Resolve
   Mem.valid_not_valid_diff
   Mem.perm_implies
   Mem.perm_cur

@@ -129,11 +129,12 @@ Definition HOnonexpansive {A}{NA: NatDed A}{IA: Indir A}{RA: RecIndir A}
          forall P Q: X -> A,  (ALL x:X, fash (P x <--> Q x)) |-- (ALL x:X, fash (f P x <--> f Q x)).
 End SL2.
 
-
+Module FashNotation.
 Notation "'#' e" := (fash e) (at level 20, right associativity): logic.
 Notation "'!' e" := (unfash e) (at level 20, right associativity): logic.
 Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : logic.
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : logic.
+End FashNotation.
 
 Definition algRecIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
          @RecIndir (pred T) (algNatDed T) (algIndir T).

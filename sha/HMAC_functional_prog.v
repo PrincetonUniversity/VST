@@ -23,11 +23,11 @@ End HMAC_Module.
 
 Module HMAC_FUN (HF:HASH_FUNCTION)  <: HMAC_Module.
 
-Definition sixtyfour {A} (i:A): list A:= list_repeat HF.BlockSize i.
+Definition sixtyfour {A} (i:A): list A:= repeat i HF.BlockSize.
 
 (*Reading rfc4231 reveals that padding happens on the right*)
 Definition zeroPad (k: list byte) : list byte :=
-  k ++ list_repeat (HF.BlockSize-length k) Byte.zero.
+  k ++ repeat Byte.zero (HF.BlockSize-length k).
 
 Definition mkKey (l:list byte) : list byte :=
   if Z.gtb (Zlength l) (Z.of_nat HF.BlockSize)
@@ -74,14 +74,14 @@ Lemma SF_ByteRepr x:
                      sixtyfour x =
                      map Byte.unsigned (sixtyfour (Byte.repr x)).
 Proof. intros. unfold sixtyfour.
- rewrite map_list_repeat.
+ rewrite map_repeat.
  rewrite Byte.unsigned_repr; trivial. destruct H.
- assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
+ assert (BMU: Byte.max_unsigned = 255). reflexivity. lia.
 Qed.
 *)
 
 Lemma length_SF {A} (a:A) :length (sixtyfour a) = HF.BlockSize.
-Proof. apply length_list_repeat. Qed.
+Proof. apply repeat_length. Qed.
 
 (*
 Lemma isbyte_hmaccore ipad opad m k:

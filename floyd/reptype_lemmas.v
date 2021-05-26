@@ -7,7 +7,7 @@ Require Import VST.floyd.sublist.
 Definition
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
        map g (map f l) = map (fun x : A => g (f x)) l :=
-fun (A B C : Type) (f : A -> B) (g : B -> C) (l : list A) =>
+fun {A B C : Type} (f : A -> B) (g : B -> C) (l : list A) =>
 list_ind
   (fun l0 : list A => map g (map f l0) = map (fun x : A => g (f x)) l0)
   eq_refl
@@ -28,6 +28,7 @@ Notation sigTT P := (fun tv => match tv with existT t v => P t end).
 
 Definition compact_prod_sigT_type {A} {P: A -> Type} (l: list (sigT P)): Type :=
   compact_prod (map (sigTT P) l).
+Arguments compact_prod_sigT_type {A} {P} l / .
 
 Definition compact_prod_sigT_value: forall {A} {P: A -> Type} (l: list (sigT P)), compact_prod (map (sigTT P) l).
 Proof.
@@ -41,13 +42,17 @@ Defined.
 Definition compact_sum_sigT_type {A} {P: A -> Type} (l: list (sigT P)): Type :=
   compact_sum (map (sigTT P) l).
 
+Arguments compact_sum_sigT_type {A} {P} l / .
+
 Definition compact_sum_sigT_value: forall {A} {P: A -> Type} (l: list (sigT P)), compact_sum (map (sigTT P) l).
 Proof.
   intros.
   destruct l as [| [t0 v0] l]; [exact tt |].
   revert t0 v0; destruct l as [| [t v] l]; intros.
   + exact v0.
-  + exact (inl v0).
+  + exact (@inl (P t0) (compact_sum
+  (@map {x : A & P x} Type (fun tv : {x : A & P x} => let (t1, _) := tv in P t1)
+     (@existT A P t v :: l))) v0).
 Defined.
 
 Definition compact_prod_map {X: Type} {F F0: X -> Type} (l: list X)
@@ -136,15 +141,28 @@ Proof.
   reflexivity.
 Qed.
 
-
-
 Definition reptype_gen {cs: compspecs} : type -> (sigT (fun x => x)) :=
   type_func (fun _ => (sigT (fun x => x)))
   (fun t =>
      if (type_is_by_value t)
      then existT (fun x => x) val Vundef
      else existT (fun x => x) unit tt)
-  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (list_repeat (Z.to_nat n) (projT2 TV)))
+  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (Zrepeat (projT2 TV) n))
+  (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
+  (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
+
+Definition reptype_gen0 {cs: compspecs} : type -> (sigT (fun x => x)) :=
+  type_func (fun _ => (sigT (fun x => x)))
+  (fun t =>
+     match t with
+     | Tint _ _ _ => existT (fun x => x) val (Vint Int.zero)
+     | Tlong _ _ => existT (fun x => x) val (Vlong Int64.zero)
+     | Tfloat F32 _ => existT (fun x => x) val (Vsingle Float32.zero)
+     | Tfloat F64 _ => existT (fun x => x) val (Vfloat Float.zero)
+     | Tpointer _ _ => existT (fun x => x) val (Vptrofs Ptrofs.zero)
+     | _ => existT (fun x => x) unit tt
+     end)
+  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (Zrepeat (projT2 TV) n))
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
@@ -157,13 +175,10 @@ Definition default_val {cs: compspecs} t: reptype t :=
 
 Instance Inhabitant_reptype {cs: compspecs} (t: type) : Inhabitant (reptype t) := default_val t.
 
-Section CENV.
-Context {cs: compspecs}.
-
-Lemma reptype_gen_eq: forall t,
+Lemma reptype_gen_eq {cs: compspecs}: forall t,
   reptype_gen t =
   match t with
-  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen t0))) (list_repeat (Z.to_nat n) (projT2 (reptype_gen t0)))
+  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen t0))) (Zrepeat (projT2 (reptype_gen t0)) n)
   | Tstruct id _ => existT (fun x => x)
                      (compact_prod_sigT_type (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_prod_sigT_value (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
@@ -186,6 +201,93 @@ Proof.
     rewrite map_map.
     reflexivity.
 Defined.
+
+
+Lemma reptype_gen0_eq {cs: compspecs}: forall t,
+  reptype_gen0 t =
+  match t with
+  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen0 t0))) (Zrepeat (projT2 (reptype_gen0 t0)) n)
+  | Tstruct id _ => existT (fun x => x)
+                     (compact_prod_sigT_type (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_prod_sigT_value (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
+  | Tunion id _ => existT (fun x => x)
+                     (compact_sum_sigT_type (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_sum_sigT_value (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
+  | _ => 
+     match t with
+     | Tint _ _ _ => existT (fun x => x) val (Vint Int.zero)
+     | Tlong _ _ => existT (fun x => x) val (Vlong Int64.zero)
+     | Tfloat F32 _ => existT (fun x => x) val (Vsingle Float32.zero)
+     | Tfloat F64 _ => existT (fun x => x) val (Vfloat Float.zero)
+     | Tpointer _ _ => existT (fun x => x) val (Vptrofs Ptrofs.zero)
+     | _ => existT (fun x => x) unit tt
+     end
+  end.
+Proof.
+  intros.
+  unfold reptype_gen0 at 1.
+  rewrite type_func_eq.
+  destruct t; auto.
+  +  unfold FTI_aux; rewrite decay_spec.
+    rewrite map_map.
+    reflexivity.
+  + unfold FTI_aux; rewrite decay_spec.
+    rewrite map_map.
+    reflexivity.
+Defined.
+
+Definition reptype0 {cs: compspecs} t := match reptype_gen0 t with existT t _ => t end.
+
+Lemma reptype_reptype0' {cs} t: @reptype cs t = @reptype0 cs t.
+Proof.
+unfold reptype, reptype0.
+assert (forall t, projT1 (reptype_gen t) = projT1 (reptype_gen0 t)).
+2: specialize (H t); destruct (reptype_gen t), (reptype_gen0 t); apply H.
+clear t; intro t.
+type_induction t; auto.
+- destruct f; auto.
+-  rewrite reptype_gen_eq, reptype_gen0_eq. simpl; f_equal; auto.
+- rewrite reptype_gen_eq, reptype_gen0_eq. simpl.
+   forget (co_members (get_co id)) as m. clear id.
+   cbv zeta in IH.
+   rewrite !map_map.
+   apply compact_prod_eq; intros [i t].
+   rewrite Forall_forall in IH.
+   intro. apply IH in H. auto.
+- rewrite reptype_gen_eq, reptype_gen0_eq. simpl.
+   forget (co_members (get_co id)) as m. clear id.
+   cbv zeta in IH.
+   rewrite !map_map.
+   apply compact_sum_eq; intros [i t].
+   rewrite Forall_forall in IH.
+   intro. apply IH in H. auto.
+Qed.
+
+
+Lemma reptype_reptype0: @reptype = @reptype0.
+Proof.
+extensionality cs t. apply reptype_reptype0'.
+Qed.
+
+Definition zero_val' {cs: compspecs} t: reptype0 t :=
+  match reptype_gen0 t as tv
+    return match tv with existT t _ => t end
+  with existT t v => v end.
+
+Definition zero_val {cs: compspecs} t : reptype t :=
+ eq_rect_r (fun T : Type => T) (zero_val' t) (equal_f (equal_f reptype_reptype0 cs) t).
+
+Lemma JMeq_zero_val_zero_val':
+  forall {cs} t, JMeq (@zero_val cs t) (@zero_val' cs t).
+Proof.
+intros.
+exists (equal_f (equal_f reptype_reptype0 cs) t).
+unfold zero_val.
+rewrite rew_opp_r. reflexivity.
+Qed.
+
+Section CENV.
+Context {cs: compspecs}.
 
 Definition reptype_structlist (m: members) := compact_prod (map (fun it => reptype (field_type (fst it) m)) m).
 Definition reptype_unionlist (m: members) := compact_sum (map (fun it => reptype (field_type (fst it) m)) m).
@@ -311,20 +413,32 @@ Proof.
   destruct m; simpl; auto.
 Qed.
 
-(*
-Lemma union_default_filter_legal: forall m, m <> nil ->
-  legal_compact_sum_filter (union_default_filter m) m = true.
-Proof.
-  intros.
-  destruct m; auto.
-  simpl.
-  destruct (member_dec p p); [| congruence].
-  auto.
-Qed.
-*)
-
 Definition struct_default_val (m : members) := compact_prod_gen (fun it => default_val (field_type (fst it) m)) m.
 Definition union_default_val (m : members) := compact_sum_gen (fun it => true) (fun it => default_val (field_type (fst it) m)) m.
+
+Definition struct_zero_val (m : members) := compact_prod_gen (fun it => zero_val (field_type (fst it) m)) m.
+Definition union_zero_val (m : members) := compact_sum_gen (fun it => true) (fun it => zero_val (field_type (fst it) m)) m.
+
+Definition struct_zero_val' (m : members) := compact_prod_gen (fun it => zero_val' (field_type (fst it) m)) m.
+Definition union_zero_val' (m : members) := compact_sum_gen (fun it => true) (fun it => zero_val' (field_type (fst it) m)) m.
+
+Lemma struct_zero_val_JMeq:
+  forall m, JMeq (struct_zero_val m) (struct_zero_val' m).
+Proof.
+intros.
+unfold struct_zero_val, struct_zero_val'.
+apply compact_prod_gen_JMeq; intros.
+apply JMeq_zero_val_zero_val'.
+Qed.
+
+Lemma union_zero_val_JMeq:
+  forall m, JMeq (union_zero_val m) (union_zero_val' m).
+Proof.
+intros.
+unfold union_zero_val, union_zero_val'.
+apply compact_sum_gen_JMeq; intros.
+apply JMeq_zero_val_zero_val'.
+Qed.
 
 Lemma compact_prod_sigT_compact_prod_gen:
   forall {A B} {P: A -> Type} (genT: B -> A) (genV: forall b: B, P (genT b)) (gen: B -> sigT P) (l: list B),
@@ -390,7 +504,7 @@ Lemma default_val_eq: forall t,
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => Vundef
-  | Tarray t0 n _ => list_repeat (Z.to_nat n) (default_val t0)
+  | Tarray t0 n _ => Zrepeat (default_val t0) n 
   | Tstruct id _ => struct_default_val (co_members (get_co id))
   | Tunion id _ => union_default_val (co_members (get_co id))
   end.
@@ -423,6 +537,68 @@ Proof.
       (fun it => reptype_gen (field_type (fst it) (co_members (get_co i))))); intros.
     unfold reptype, default_val.
     destruct (reptype_gen (field_type (fst b) (co_members (get_co i)))); reflexivity.
+    apply const_true_is_default_filter.
+Qed.
+
+Lemma zero_val_eq: forall t,
+  zero_val t =
+  fold_reptype
+  match t as t' return REPTYPE t'
+  with
+  | Tvoid
+  | Tfunction _ _ _ => tt
+  | Tint _ _ _ => Vint Int.zero
+  | Tlong _ _ => Vlong Int64.zero
+  | Tfloat F32 _ => Vsingle Float32.zero
+  | Tfloat F64 _ => Vfloat Float.zero
+  | Tpointer _ _ => Vptrofs Ptrofs.zero
+  | Tarray t0 n _ => Zrepeat (zero_val t0) n
+  | Tstruct id _ => struct_zero_val (co_members (get_co id))
+  | Tunion id _ => union_zero_val (co_members (get_co id))
+  end.
+Proof.
+  intros.
+  unfold fold_reptype.
+  apply JMeq_eq.
+  match goal with
+  | |- JMeq _ (@eq_rect_r ?A ?x ?F ?v ?y ?H) =>
+    eapply JMeq_trans; [| apply @JMeq_sym; apply (@eq_rect_r_JMeq A x y F v H)]
+  end.
+  apply (@JMeq_trans _ _ _ _ (zero_val' t)).
+  apply JMeq_zero_val_zero_val'.
+  unfold zero_val'.
+  unfold reptype0 at 1.
+  rewrite reptype_gen0_eq.  
+  destruct t; auto.
+  + destruct f; auto.
+  + apply (@JMeq_trans _ _ _ _  (Zrepeat (zero_val' t) z)).
+      apply eq_JMeq. f_equal.
+      apply JMeq_func; auto. rewrite reptype_reptype0. auto.
+      apply JMeq_func; auto. rewrite reptype_reptype0. auto.
+      apply JMeq_sym. apply JMeq_zero_val_zero_val'.
+      rewrite reptype_reptype0. apply JMeq_refl.
+  + 
+    apply (@JMeq_trans _ _ _ _  (struct_zero_val' (co_members (get_co i)))).
+    2: apply JMeq_sym; apply struct_zero_val_JMeq.
+    unfold struct_zero_val'.
+    rewrite map_map.
+    apply (compact_prod_sigT_compact_prod_gen
+      (fun it => reptype0 (field_type (fst it) (co_members (get_co i))))
+      (fun it => zero_val' (field_type (fst it) (co_members (get_co i))))
+      (fun it => reptype_gen0 (field_type (fst it) (co_members (get_co i))))); intros.
+    unfold reptype0, zero_val'.
+    destruct (reptype_gen0 (field_type (fst b) (co_members (get_co i)))); reflexivity.
+  + apply (@JMeq_trans _ _ _ _  (union_zero_val' (co_members (get_co i)))).
+    2: apply JMeq_sym; apply union_zero_val_JMeq.
+    unfold union_default_val.
+    rewrite map_map.
+    apply (compact_sum_sigT_compact_sum_gen
+      (fun it => reptype0 (field_type (fst it) (co_members (get_co i))))
+      (fun it => zero_val' (field_type (fst it) (co_members (get_co i))))
+      _
+      (fun it => reptype_gen0 (field_type (fst it) (co_members (get_co i))))); intros.
+    unfold reptype0, zero_val'.
+    destruct (reptype_gen0 (field_type (fst b) (co_members (get_co i)))); reflexivity.
     apply const_true_is_default_filter.
 Qed.
 
@@ -837,7 +1013,7 @@ Lemma nth_force_lengthn: forall {A} n i (xs : list A) (default: A),
 Proof.
   intros.
   revert i H xs; induction n; intros.
-  + omega.
+  + lia.
   + simpl.
     destruct xs.
     - simpl.
@@ -846,7 +1022,7 @@ Proof.
     - simpl.
       destruct i; [reflexivity |].
       apply IHn.
-      omega.
+      lia.
 Qed.
 
 Lemma force_lengthn_id: forall {A} n ct (d: A), length ct = n -> force_lengthn n ct d = ct.
@@ -887,10 +1063,10 @@ Proof.
 intros.
  unfold replist.
  forget (default_val t) as d.
- replace (hi + lo' - (lo + lo')) with (hi-lo) by omega.
+ replace (hi + lo' - (lo + lo')) with (hi-lo) by lia.
  remember (Z.to_nat (hi-lo)) as n.
  assert (hi = lo + Z.of_nat n).
-  subst n. rewrite Z2Nat.id by omega. omega.
+  subst n. rewrite Z2Nat.id by lia. lia.
  subst hi.
  clear Heqn. destruct H as [? _].
  rewrite Z.add_assoc in H1.
@@ -902,42 +1078,33 @@ intros.
   remember (Z.to_nat (hi'-lo')) as k.
   rewrite inj_S in H1.
   replace hi' with (lo' + Z.of_nat k) in H1
-    by (subst k; rewrite Z2Nat.id by omega; omega).
+    by (subst k; rewrite Z2Nat.id by lia; lia).
   clear hi' Heqk.
-  assert (lo < Z.of_nat k) by omega. clear H1.
-  revert lo lo' H H0 H2; induction k; intros. simpl in H2; omega.
+  assert (lo < Z.of_nat k) by lia. clear H1.
+  revert lo lo' H H0 H2; induction k; intros. simpl in H2; lia.
   unfold replist'; fold @replist'.
   rewrite inj_S in H2.
   simpl.
-  assert (lo=0 \/ 0<lo) by omega.
+  assert (lo=0 \/ 0<lo) by lia.
   destruct H1. subst lo.
-  unfold Znth at 1. rewrite if_false by omega. simpl. auto.
+  unfold Znth at 1. rewrite if_false by lia. simpl. auto.
   clear H.
-  unfold Znth at 1. rewrite if_false by omega.
+  unfold Znth at 1. rewrite if_false by lia.
   destruct (Z.to_nat lo) eqn:?.
-  apply Z2Nat.inj_lt in H1; try omega.
+  apply Z2Nat.inj_lt in H1; try lia.
   simpl nth.
   specialize (IHk (Z.of_nat n0) (Z.succ lo')).
   replace (lo+lo') with (Z.of_nat n0 + Z.succ lo').
 2:{
   unfold Z.succ.
-  transitivity (Z.of_nat n0 + 1 + lo'); [ omega |].
-  f_equal. apply Z2Nat.inj; try omega.
-  rewrite Z2Nat.inj_add; try omega. rewrite Nat2Z.id.
- rewrite Heqn0. change (Z.to_nat 1) with 1%nat.  omega.
+  transitivity (Z.of_nat n0 + 1 + lo'); [ lia |].
+  f_equal. lia.
 }
-  etransitivity; [ | apply IHk]; try omega.
-2:{
-  assert (lo = Z.of_nat (S n0)).  apply Z2Nat.inj; try omega.
-  rewrite Nat2Z.id. auto.
-   subst lo. clear - H2. rewrite inj_S in H2. omega.
-}
-  unfold Znth. rewrite if_false by omega. rewrite Nat2Z.id. auto.
+  etransitivity; [ | apply IHk]; try lia.
+  unfold Znth. rewrite if_false by lia. rewrite Nat2Z.id. auto.
 +
-  specialize (IHn (Z.succ lo) lo'). rewrite IHn; try omega.
-   f_equal; omega.
-   rewrite inj_S in H1.
-  omega.
+  specialize (IHn (Z.succ lo) lo'). rewrite IHn; try lia.
+   f_equal; lia.
 Qed.
 
 Lemma replist'_succ:
@@ -949,11 +1116,11 @@ revert lo al H; induction n; simpl; intros.
 auto.
 f_equal.
 unfold Znth.
- do 2 rewrite if_false by omega.
+ do 2 rewrite if_false by lia.
  replace (Z.to_nat (Z.succ lo)) with (S (Z.to_nat lo)).
- reflexivity. unfold Z.succ. rewrite Z2Nat.inj_add by omega.
- change (Z.to_nat 1) with 1%nat; omega.
- apply IHn. omega.
+ reflexivity. unfold Z.succ. rewrite Z2Nat.inj_add by lia.
+ change (Z.to_nat 1) with 1%nat; lia.
+ apply IHn. lia.
 Qed.
 
 Lemma replist_firstn_skipn {cs: compspecs}:
@@ -963,25 +1130,25 @@ Lemma replist_firstn_skipn {cs: compspecs}:
 Proof.
 intros.
  unfold replist.
- rewrite <- Nat2Z.inj_sub by omega.
+ rewrite <- Nat2Z.inj_sub by lia.
  rewrite Nat2Z.id.
- assert (hi-lo <= length al - lo)%nat by omega.
+ assert (hi-lo <= length al - lo)%nat by lia.
  clear H.
  forget (hi-lo)%nat as n. clear hi.
  revert n al H0; induction lo; intros.
  simpl.
- assert (n <= length al)%nat by omega; clear H0.
+ assert (n <= length al)%nat by lia; clear H0.
  revert al H; induction n; simpl; intros; auto.
- destruct al; simpl in H. omega.
+ destruct al; simpl in H. lia.
  f_equal.
- rewrite <- (IHn al) by omega. clear IHn.
- rewrite <- (replist'_succ 0 n r al) by omega.
+ rewrite <- (IHn al) by lia. clear IHn.
+ rewrite <- (replist'_succ 0 n r al) by lia.
  reflexivity.
  rewrite inj_S.
-  destruct al. simpl length in H0. assert (n=0)%nat by omega.
+  destruct al. simpl length in H0. assert (n=0)%nat by lia.
   subst;   simpl. auto.
   simpl length in H0. simpl in H0. simpl. rewrite <- (IHlo _ _ H0).
-  apply replist'_succ. omega.
+  apply replist'_succ. lia.
 Qed.
 
 Lemma skipn_0:
@@ -1000,7 +1167,7 @@ intros.
 subst.
 change 0 with (Z.of_nat 0).
 rewrite Zlength_correct.
-rewrite replist_firstn_skipn by omega.
+rewrite replist_firstn_skipn by lia.
 rewrite skipn_0 by auto.
 rewrite NPeano.Nat.sub_0_r.
 apply firstn_exact_length.
@@ -1012,7 +1179,7 @@ Lemma replist_Zlength {cs: compspecs}:
    Zlength (replist t lo hi al) = hi-lo.
 Proof.
 intros.
-rewrite <- (Z2Nat.id (hi-lo)) by omega.
+rewrite <- (Z2Nat.id (hi-lo)) by lia.
 unfold replist.
 clear H.
 forget (Z.to_nat (hi-lo)) as n. clear hi.
@@ -1053,5 +1220,5 @@ Qed.
 
 
 Lemma Zlength_default_val_Tarray_tuchar {cs} n a (N:0<=n): Zlength (@default_val cs (Tarray tuchar n a)) = n.
-Proof. unfold default_val; simpl. rewrite Zlength_list_repeat; trivial. Qed.
+Proof. unfold default_val; simpl. rewrite Zlength_Zrepeat; trivial. Qed.
 

@@ -19,8 +19,8 @@ Lemma updatebodyproof Espec wsh sh c d len data gv (h1 : hmacabs)
    (Hsh: readable_share sh):
 @semax CompSpecs Espec (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
-   LOCAL  (temp _ctx c; temp _data d;
-           temp _len (Vint (Int.repr len)); gvars gv)
+   LOCAL  (gvars gv; temp _ctx c; temp _data d;
+           temp _len (Vint (Int.repr len)))
    SEP  (K_vector gv; hmacstate_ wsh h1 c; data_block sh data d))
   (fn_body f_HMAC_Update)
   (normal_ret_assert
@@ -51,6 +51,7 @@ rewrite field_address_offset by auto with field_compatible.
 simpl @nested_field_type.
 make_Vptr c.
 simpl. rewrite Ptrofs.add_zero.
+assert_PROP (isptr d) as isptrD by entailer!.
 Time forward_call (ctx, data, Vptr b i, wsh, d, sh, len, gv). (*6 versus 21 *)
   { unfold sha256state_. Exists (fst ST).
     rewrite prop_true_andp by auto.
@@ -60,7 +61,7 @@ Time forward_call (ctx, data, Vptr b i, wsh, d, sh, len, gv). (*6 versus 21 *)
     change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
     cancel.
   }
-split; [ | split3]; auto. rep_omega. simpl; rep_omega.
+simpl; rep_lia.
 rewrite sublist_same; trivial.
 freeze FR1 := - (FRZL FR).
 Time forward. (*12 versus 12.4*)

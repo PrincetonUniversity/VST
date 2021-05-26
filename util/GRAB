@@ -12,9 +12,10 @@
 #
 if [ -e "$1" -a ./GRAB ]; then
   rm -f */*.v flocq/*/*.v
-  mkdir x86_32 x86_64 lib common cfrontend exportclight
+  mkdir x86 x86_32 x86_64 lib common cfrontend exportclight
   mkdir flocq flocq/Core flocq/Prop flocq/Calc flocq/IEEE754
   cp $1/LICENSE $1/README.md $1/VERSION $1/Makefile.config .
+  cp $1/x86/Builtins1.v x86
   cp $1/x86_32/Archi.v x86_32
   cp $1/x86_64/Archi.v x86_64
   cp $1/lib/*.v lib

@@ -7,6 +7,7 @@ Require Import compcert.common.Values.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
+Require Import Lia.
 
 Definition has_opttyp (v : option val) (t : option typ) :=
   match v, t with
@@ -37,7 +38,7 @@ Section safety.
       ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
       (forall ret m' z' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
-         (Hretty : has_opttyp ret (sig_res (ef_sig e))),
+         (Hretty : Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))),
          (n' <= n)%nat ->
          Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
@@ -92,7 +93,7 @@ Qed.
 
   Lemma safe_downward :
     forall n n' c m z,
-      le n' n ->
+      Peano.le n' n ->
       safeN_ n z c m -> safeN_ n' z c m.
   Proof.
     do 6 intro. revert c m z. induction H; auto.
@@ -110,10 +111,10 @@ Qed.
     revert c m c' m' n H0 H1.
     induction n0; intros; auto.
     simpl in H0; inv H0.
-    eapply safe_downward in H1; eauto. omega.
+    eapply safe_downward in H1; eauto. apply Nat.le_add_r.
     simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
     apply (IHn0 _ _ _ _ n STEPN).
-    assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
+    assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by lia.
     rewrite Heq in H1.
     eapply safe_corestep_forward in H1; auto.
    2: eauto. eauto.
@@ -131,7 +132,7 @@ Qed.
     constructor.
     simpl in H0. replace (n-0)%nat with n in H0.
     eapply safe_corestep_backward; eauto.
-    omega.
+    lia.
   Qed.
 
   Lemma safe_corestepN_backward:
@@ -144,10 +145,10 @@ Qed.
     revert c m c' m' n H H0.
     induction n0; intros; auto.
     simpl in H; inv H.
-    solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
+    solve[assert (Heq: (n = n - 0)%nat) by lia; rewrite Heq; auto].
     simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
     assert (H: safeN_ (n - 1 - n0) z c' m').
-    eapply safe_downward in H0; eauto. omega.
+    eapply safe_downward in H0; eauto. lia.
     specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
     solve[eapply safe_step'_back2; eauto].
   Qed.
@@ -181,7 +182,7 @@ Qed.
     safeN_ n z q m.
   Proof.
     intros. destruct n. constructor.
-    apply H. omega.
+    apply H. lia.
   Qed.
 
 End safety.

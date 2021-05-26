@@ -2,6 +2,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.progs64.object.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -14,24 +15,24 @@ Definition tobject := tptr (Tstruct _object noattr).
 
 Definition reset_spec (instance: object_invariant) :=
   WITH self: val, history: list Z
-  PRE [ _self OF tobject]
+  PRE [ tobject]
           PROP ()
-          LOCAL (temp _self self)
+          PARAMS (self)
           SEP (instance history self)
   POST [ tvoid ]
-          PROP() LOCAL () SEP(instance nil self).
+          PROP() RETURN () SEP(instance nil self).
 
 Definition twiddle_spec (instance: object_invariant) :=
   WITH self: val, i: Z, history: list Z
-  PRE [ _self OF tobject, _i OF tint]
+  PRE [ tobject, tint]
           PROP (0 < i <= Int.max_signed / 4;
                 0 <= fold_right Z.add 0 history <= Int.max_signed / 4)
-          LOCAL (temp _self self; temp _i (Vint (Int.repr i)))
+          PARAMS (self; Vint (Int.repr i))
           SEP (instance history self)
   POST [ tint ]
       EX v: Z, 
           PROP(2* fold_right Z.add 0 history < v <= 2* fold_right Z.add 0 (i::history))
-          LOCAL (temp ret_temp (Vint (Int.repr v))) 
+          RETURN (Vint (Int.repr v))
           SEP(instance (i::history) self).
 
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
@@ -49,7 +50,7 @@ unfold object_methods.
 Intros sh reset twiddle.
 entailer!.
 Qed.
-Hint Resolve object_methods_local_facts : saturate_local.
+#[export] Hint Resolve object_methods_local_facts : saturate_local.
 
 Definition object_mpred (history: list Z) (self: val) : mpred :=
   EX instance: object_invariant, EX mtable: val, 
@@ -73,18 +74,18 @@ Definition make_foo_spec :=
  DECLARE _make_foo
  WITH gv: globals
  PRE [ ]
-    PROP () LOCAL (gvars gv) 
+    PROP () PARAMS() GLOBALS (gv) 
     SEP (mem_mgr gv; object_methods foo_invariant (gv _foo_methods))
  POST [ tobject ]
-    EX p: val, PROP () LOCAL (temp ret_temp p)
+    EX p: val, PROP () RETURN (p)
      SEP (mem_mgr gv; object_mpred nil p; object_methods foo_invariant (gv _foo_methods)).
 
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]
-     EX i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).
+     EX i:Z, PROP(0<=i<=6) RETURN (Vint (Int.repr i)) SEP(TT).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     foo_reset_spec; foo_twiddle_spec; make_foo_spec; main_spec]).
@@ -105,7 +106,7 @@ unfold foo_reset_spec, foo_invariant, reset_spec.
 start_function.
 unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
-forward.  (* return; *)
+entailer!.
 all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
 Qed.
 
@@ -159,7 +160,6 @@ Proof.
 unfold make_foo_spec.
 start_function.
 forward_call (Tstruct _foo_object noattr, gv).
-   split3; simpl; auto; computable.
 Intros p.
 forward_if
   (PROP ( )
@@ -172,7 +172,7 @@ forward_if
 change (Memory.EqDec_val p nullval) with (eq_dec p nullval).
 if_tac; entailer!.
 *
-forward_call tt.
+forward_call 1.
 contradiction.
 *
 rewrite if_false by auto.
@@ -204,7 +204,7 @@ clear - H.
 destruct p; try contradiction.
 destruct H as [AL SZ].
 repeat split; auto.
-simpl in *; omega.
+simpl in *.  unfold sizeof in *; simpl in *; lia.
 eapply align_compatible_rec_Tstruct; [reflexivity |].
 simpl co_members; intros.
 simpl in H.
@@ -267,7 +267,7 @@ sep_apply (create_mem_mgr gv).
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 fold noattr cc_default.
 (* 0. This part should be handled automatically by start_function *)
-gather_SEP 1 2;
+gather_SEP (mapsto _ _ _ _) (data_at _ _ _ _);
 replace_SEP 0 (data_at Ews (Tstruct _methods noattr) 
    (gv _foo_reset, gv _foo_twiddle) (gv _foo_methods)). {
   entailer!.
@@ -289,11 +289,7 @@ sep_apply (make_object_methods Ews foo_invariant(gv _foo_reset) (gv _foo_twiddle
 forward_call (* p = make_foo(); *)
         gv.
 Intros p.
-
-(* 3. Done with object_methods for the foreseeable future *)
-freeze [2]  MT.
- gather_SEP 1.
-
+assert_PROP (p<>Vundef) by entailer!.
 (* Illustration of an alternate method to prove the method calls.
    Method 1:  comment out lines AA and BB and the entire range CC-DD.
    Method 2:  comment out lines AA-BB, inclusive.
@@ -328,6 +324,7 @@ forward.  (* mtable = p->mtable; *)
 unfold object_methods at 1.
 Intros sh r0 t0.
 forward.   (* p_twiddle = mtable->twiddle; *)
+assert_PROP (p<>Vundef) by entailer!.
 forward_call (* i = p_twiddle(p,3); *)
       (p, 3, @nil Z).
   simpl. computable.
@@ -335,7 +332,8 @@ Intros i.
 simpl in H0.
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
 sep_apply (object_mpred_i [3] p instance mtable0).
-deadvars!. clear - H0.
+deadvars!.
+simpl in H1.
 
 (* DD *)
 

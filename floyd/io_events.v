@@ -29,15 +29,15 @@ Definition ITREE (tr : IO_itree) := EX tr' : _, !!(sutt eq tr tr') &&
   has_ext tr'.
 
 (* this should be in ITrees *)
-Global Instance Reflexive_sutt {E R} : RelationClasses.Reflexive (@sutt E R R eq).
+Global Instance Reflexive_sutt {R} : RelationClasses.Reflexive (@sutt E R R eq).
 Proof. intro; apply eutt_sutt; reflexivity. Qed.
 
 (* not in ITree currently because it's specific to unit *)
 Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
 Proof.
   intros.
-  etransitivity; [|apply eq_sub_eutt, bind_ret2].
-  apply eqit_bind; [intros []|]; reflexivity.
+  etransitivity; [|apply eq_sub_eutt, bind_ret_r].
+  apply eqit_bind; [|intros []]; reflexivity.
 Qed.
 
 Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
@@ -76,14 +76,14 @@ Proof. repeat intro. apply ITREE_ext; auto. Qed.
 Fixpoint write_list f l : IO_itree :=
   match l with
   | nil => Ret tt
-  | c :: rest => write f c ;; write_list f rest
+  | c :: rest => (write f c ;; write_list f rest)%itree
   end.
 
 Lemma write_list_app : forall f l1 l2,
   eutt eq (write_list f (l1 ++ l2)) (write_list f l1;; write_list f l2).
 Proof.
   induction l1; simpl in *; intros.
-  - rewrite bind_ret; reflexivity.
+  - rewrite bind_ret_l; reflexivity.
   - rewrite bind_bind.
     setoid_rewrite IHl1; reflexivity.
 Qed.

@@ -201,7 +201,7 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
        (nested_field_offset t (ArraySubsc i :: gfs))) v p.
 
 Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) : val -> mpred :=
- array_at sh t gfs lo hi (list_repeat (Z.to_nat (hi-lo)) (default_val _)).
+ array_at sh t gfs lo hi (Zrepeat (default_val _) (hi-lo)).
 
 (************************************************
 
@@ -338,7 +338,7 @@ Proof.
   unfold array_at, field_at.
   normalize.
   eapply array_pred_ext_derives.
-  1: intro; omega.
+  1: intro; lia.
   intros.
   specialize (H i).
   clear ZL.
@@ -392,15 +392,15 @@ Proof.
   f_equal.
   + apply ND_prop_ext.
     rewrite !field_compatible0_cons, H0.
-    assert (0 <= 0 <= n) by omega.
-    assert (0 <= n <= n) by omega.
+    assert (0 <= 0 <= n) by lia.
+    assert (0 <= n <= n) by lia.
     tauto.
   + apply (JMeq_trans (unfold_reptype_JMeq _ v1)) in H2.
     forget (unfold_reptype v1) as v1'.
     clear v1.
     cbv iota beta in v1'.
     apply JMeq_eq in H2.
-    rewrite Z.max_r by omega.
+    rewrite Z.max_r by lia.
     apply array_pred_ext.
     - subst; auto.
     - intros.
@@ -528,8 +528,9 @@ Proof.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
     rewrite field_compatible_cons, H; tauto.
-  + rewrite sizeof_Tstruct.
-    f_equal; [| f_equal; f_equal]; omega.
+  + change (sizeof ?A) with (expr.sizeof A) in *.
+    rewrite sizeof_Tstruct.
+    f_equal; [| f_equal; f_equal]; lia.
   + rewrite Z.add_assoc.
     erewrite data_at_rec_type_changable; [reflexivity | |].
     - simpl.
@@ -610,11 +611,12 @@ Proof.
   }
   rewrite nested_field_offset_ind with (gfs0 := UnionField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
+  change (sizeof ?A) with (expr.sizeof A) in *.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
     rewrite field_compatible_cons, H; tauto.
   + rewrite sizeof_Tunion.
-    f_equal; [| f_equal; f_equal]; omega.
+    f_equal; [| f_equal; f_equal]; lia.
   + rewrite Z.add_0_r.
     erewrite data_at_rec_type_changable; [reflexivity | |].
     - simpl.
@@ -635,7 +637,7 @@ Lemma array_at_len_0: forall sh t gfs i p,
 Proof.
   intros.
   unfold array_at.
-  rewrite array_pred_len_0 by omega.
+  rewrite array_pred_len_0 by lia.
   apply pred_ext; normalize.
 Qed.
 
@@ -645,7 +647,7 @@ Lemma array_at_len_1: forall sh t gfs i v v' p,
 Proof.
   intros.
   unfold array_at, field_at.
-  rewrite array_pred_len_1 by omega.
+  rewrite array_pred_len_1 by lia.
   revert v' H.
   rewrite nested_field_type_ArraySubsc with (i0 := i).
   intros.
@@ -687,19 +689,19 @@ Lemma split3seg_array_at: forall sh t gfs lo ml mr hi v p,
     array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p.
 Proof.
   intros.
-  rewrite split2_array_at with (lo := lo) (mid := ml) (hi := hi) by omega.
+  rewrite split2_array_at with (lo := lo) (mid := ml) (hi := hi) by lia.
   rewrite sepcon_assoc; f_equal.
   assert (Zlength (sublist (ml - lo) (hi - lo) v) = hi - ml).
   {
-    replace (hi - ml) with (hi - lo - (ml - lo)) by omega.
-    apply Zlength_sublist; omega.
+    replace (hi - ml) with (hi - lo - (ml - lo)) by lia.
+    apply Zlength_sublist; lia.
   }
   rewrite H2.
-  rewrite split2_array_at with (lo := ml) (mid := mr) (hi := hi) by omega.
+  rewrite split2_array_at with (lo := ml) (mid := mr) (hi := hi) by lia.
   f_equal.
-  rewrite sublist_sublist; try omega. f_equal.  f_equal; omega.
-  rewrite Zlength_sublist by omega.
-  rewrite sublist_sublist; try omega. f_equal.  f_equal; omega.
+  rewrite sublist_sublist; try lia. f_equal.  f_equal; lia.
+  rewrite Zlength_sublist by lia.
+  rewrite sublist_sublist; try lia. f_equal.  f_equal; lia.
 Qed.
 
 Lemma split3_array_at: forall sh t gfs lo mid hi v v0 p,
@@ -713,11 +715,11 @@ Lemma split3_array_at: forall sh t gfs lo mid hi v v0 p,
 Proof.
   intros.
   rename H0 into e; rename H1 into H0.
-  rewrite split3seg_array_at with (ml := mid) (mr := mid + 1) by omega.
+  rewrite split3seg_array_at with (ml := mid) (mr := mid + 1) by lia.
   f_equal.
   f_equal.
-  replace (mid + 1 - lo) with (mid - lo + 1) by omega.
-  rewrite sublist_len_1 by omega.
+  replace (mid + 1 - lo) with (mid - lo + 1) by lia.
+  rewrite sublist_len_1 by lia.
   rewrite array_at_len_1 with (v' :=v0); [auto |].
   apply JMeq_sym; auto.
 Qed.
@@ -819,8 +821,8 @@ Proof.
   + intros [? ?].
     rewrite at_offset_eq, <- at_offset_eq2.
     rewrite at_offset_array_pred.
-    rewrite Z.max_r by omega.
-    eapply array_pred_shift; [reflexivity | omega |].
+    rewrite Z.max_r by lia.
+    eapply array_pred_shift; [reflexivity | lia |].
     intros.
     rewrite at_offset_eq at 1.
     rewrite at_offset_eq, <- at_offset_eq2, at_offset_eq.
@@ -829,15 +831,15 @@ Proof.
     f_equal.
     rewrite nested_field_offset_ind with (gfs0 := nil) by (apply (field_compatible0_nested_field_array t gfs lo hi p); auto).
     assert (field_compatible0 t (gfs SUB i') p)
-      by (apply (field_compatible0_range _ lo hi); auto; omega).
+      by (apply (field_compatible0_range _ lo hi); auto; lia).
     rewrite nested_field_offset_ind with (gfs0 := ArraySubsc i' :: _) by auto.
     rewrite nested_field_offset_ind with (gfs0 := ArraySubsc lo :: _) by auto.
     rewrite nested_field_type_ind with (gfs0 := ArraySubsc 0 :: _).
     rewrite field_compatible0_cons in H4.
     destruct (nested_field_type t gfs); try tauto.
     unfold gfield_offset, gfield_type.
-    assert (sizeof t0 * i' = sizeof t0 * lo + sizeof t0 * i)%Z by (rewrite Zred_factor4; f_equal; omega).
-    omega.
+    assert (sizeof t0 * i' = sizeof t0 * lo + sizeof t0 * i)%Z by (rewrite Zred_factor4; f_equal; lia).
+    lia.
 Qed.
 
 Lemma array_at_data_at':
@@ -898,7 +900,7 @@ Proof.
       rewrite H in *.
       destruct H2 as [[? ?] ?].
       split; [split |]; auto.
-      omega.
+      lia.
     - rewrite !prop_true_andp by auto.
       auto.
   + apply pred_ext.
@@ -951,10 +953,13 @@ Proof.
     pose proof nested_field_offset_in_range t gfs.
     spec H1; [tauto |].
     spec H1; [tauto |].
-    rewrite (Z.mod_small ofs) in * by omega.
-    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
+    change (sizeof ?A) with (expr.sizeof A) in *.
+    rewrite (Z.mod_small ofs) in * by lia.
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H
+        by (pose proof base.sizeof_pos (nested_field_type t gfs); lia).
     apply data_at_rec_data_at_rec_; try tauto.
-    omega.
+    unfold expr.sizeof in *.
+    lia.
   + unfold field_at_, field_at.
     normalize.
 Qed.
@@ -989,12 +994,35 @@ Proof.
     pose proof nested_field_offset_in_range t gfs.
     spec H1; [tauto |].
     spec H1; [tauto |].
-    rewrite (Z.mod_small ofs) in * by omega.
-    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
-    rewrite memory_block_data_at_rec_default_val; try tauto; try omega.
+    change (sizeof ?A) with (expr.sizeof A) in *.
+    rewrite (Z.mod_small ofs) in * by lia.
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof base.sizeof_pos (nested_field_type t gfs); lia).
+    rewrite memory_block_data_at_rec_default_val; try tauto; unfold expr.sizeof in *; try lia.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
     apply pred_ext; normalize.
+Qed.
+
+Lemma mapsto_zero_data_at_zero:
+  forall t sh p, 
+    readable_share sh -> 
+    complete_legal_cosu_type t = true ->
+    fully_nonvolatile (rank_type cenv_cs t) t = true ->
+    field_compatible t nil p ->
+    mapsto_zeros (sizeof t) sh p |-- data_at sh t (zero_val t) p.
+Proof.
+intros.
+unfold data_at, field_at.
+rewrite prop_true_andp by auto.
+destruct H2 as [? [? [? [? ?]]]].
+unfold nested_field_offset, nested_field_rec.
+unfold at_offset.
+normalize.
+destruct p; try contradiction.
+rewrite <- (Ptrofs.repr_unsigned i).
+apply mapsto_zeros_data_at_rec_zero_val; auto.
+red in H4.
+rep_lia.
 Qed.
 
 Lemma data_at_data_at_ : forall sh t v p,
@@ -1066,12 +1094,12 @@ Proof.
  normalize.
   unfold array_at_.
   apply array_at_ext_derives.
-  1: rewrite Zlength_list_repeat by (rewrite Zlength_correct in H1; omega); omega.
+  1: rewrite Zlength_Zrepeat by (rewrite Zlength_correct in H1; lia); lia.
   intros.
   destruct (field_compatible0_dec t (ArraySubsc i :: gfs) p).
   + revert u1 H5; erewrite <- nested_field_type_ArraySubsc with (i0 := i); intros.
-    apply JMeq_eq in H5; rewrite H5. unfold Znth. rewrite if_false by omega.
-    rewrite nth_list_repeat.
+    apply JMeq_eq in H5; rewrite H5. unfold Znth. rewrite if_false by lia.
+    unfold Zrepeat; rewrite nth_repeat.
     apply field_at_field_at_; auto.
   + unfold field_at.
     normalize.
@@ -1116,9 +1144,11 @@ Proof.
   spec HH; [unfold field_compatible in *; tauto |].
   rewrite spacer_sepcon_memory_block.
   + reflexivity.
-  + pose proof sizeof_pos (field_type i (co_members (get_co id))); omega.
-  + omega.
-  + split.
+  + pose proof sizeof_pos (field_type i (co_members (get_co id))); lia.
+  + lia.
+  +
+    change (sizeof ?A) with (expr.sizeof A) in *.
+    split.
     - rewrite sizeof_Tunion.
       erewrite co_consistent_sizeof by apply get_co_consistent.
       rewrite complete_legal_cosu_type_Tunion with (a0 := a)
@@ -1128,21 +1158,22 @@ Proof.
            (co_alignof (get_co id)) (co_alignof_pos _).
       unfold sizeof_composite in *.
       pose proof sizeof_union_in_members _ _ H0.
-      omega.
+      unfold expr.sizeof in *.
+      lia.
     - rewrite <- H.
       unfold field_compatible in *.
       unfold size_compatible in *.
       revert H1; solve_mod_modulus; intros.
-      rewrite Zmod_small in H1 by omega.
-      omega.
+      rewrite Zmod_small in H1 by lia.
+      lia.
   + rewrite <- H.
     unfold field_compatible, size_compatible in *.
-    rewrite Ptrofs.unsigned_repr in * by (unfold Ptrofs.max_unsigned; omega).
-    omega.
+    rewrite Ptrofs.unsigned_repr in * by (unfold Ptrofs.max_unsigned; lia).
+    unfold expr.sizeof in *.
+    lia.
 Qed.
 
 Lemma array_at_ramif: forall sh t gfs t0 n a lo hi i v v0 p,
-(*  let d := default_val _ in *)
   nested_field_type t gfs = Tarray t0 n a ->
   lo <= i < hi ->
   JMeq v0 (Znth (i - lo) v) ->
@@ -1166,7 +1197,7 @@ Proof.
     (array_at sh t gfs lo i (sublist 0 (i - lo) v) p *
      array_at sh t gfs (i + 1) hi (sublist (i + 1 - lo) (hi - lo) v) p).
   + simpl; auto.
-  + erewrite (split3_array_at sh t gfs lo i hi) by (eauto; omega).
+  + erewrite (split3_array_at sh t gfs lo i hi) by (eauto; lia).
     cancel.
   + clear v0 H1.
     intros [v0 v0'].
@@ -1174,15 +1205,15 @@ Proof.
     erewrite (split3_array_at sh t gfs lo i hi).
     2: auto.
     2:{
-      rewrite upd_Znth_Zlength by omega.
+      rewrite upd_Znth_Zlength by lia.
       auto.
     }
     2:{
-      rewrite upd_Znth_same by omega.
+      rewrite upd_Znth_same by lia.
       exact H1.
     }
-    rewrite sublist_upd_Znth_l with (lo0 := 0) by omega.
-    rewrite sublist_upd_Znth_r with (lo0 := (i + 1 - lo)) by omega.
+    rewrite sublist_upd_Znth_l with (lo0 := 0) by lia.
+    rewrite sublist_upd_Znth_r with (lo0 := (i + 1 - lo)) by lia.
     unfold fst; cancel.
 Qed.
 
@@ -1299,10 +1330,22 @@ Proof.
   destruct p; try tauto.
   inv_int i.
   replace (Vptr b (Ptrofs.repr ofs)) with (offset_val 0 (Vptr b (Ptrofs.repr ofs))) at 2.
-  + apply memory_block_valid_pointer with (i := 0); auto; omega.
+  + apply memory_block_valid_pointer with (i := 0); auto; lia.
   + simpl.
     rewrite ptrofs_add_repr, Z.add_0_r.
     auto.
+Qed.
+
+Lemma data_at__valid_ptr:
+  forall sh t p,
+     sepalg.nonidentity sh ->
+     sizeof t > 0 ->
+     data_at_ sh t p |-- valid_pointer p.
+Proof.
+  intros.
+  rewrite data_at__memory_block.
+  normalize.
+  apply memory_block_valid_ptr; auto.
 Qed.
 
 Lemma data_at_valid_ptr:
@@ -1313,9 +1356,7 @@ Lemma data_at_valid_ptr:
 Proof.
   intros.
   eapply derives_trans; [apply data_at_data_at_ |].
-  rewrite data_at__memory_block.
-  normalize.
-  apply memory_block_valid_ptr; auto.
+  apply data_at__valid_ptr; auto.
 Qed.
 
 Lemma field_at_valid_ptr:
@@ -1537,7 +1578,8 @@ Proof.
     destruct p; inv H1.
     simpl in H3.
     inv_int i.
-    omega.
+    unfold expr.sizeof in *.
+    lia.
   }
   clear - H H1 H8.  
   eapply derives_trans.
@@ -1547,7 +1589,7 @@ Proof.
   + fold (field_at_ sh t fld p).
     rewrite field_at__memory_block by auto.
     normalize.
-    apply memory_block_conflict; try  (unfold Ptrofs.max_unsigned; omega).
+    apply memory_block_conflict; try  (unfold Ptrofs.max_unsigned; lia).
     apply sepalg.nonidentity_nonunit; auto.
 Qed.
 
@@ -1653,15 +1695,15 @@ Proof.
   unfold isptr, legal_nested_field, size_compatible, align_compatible.
   change (Ptrofs.unsigned Ptrofs.zero) with 0.
   rewrite Z.add_0_l.
-  assert (sizeof t <= Ptrofs.modulus) by omega.
-  assert (sizeof t <= Ptrofs.max_unsigned) by (unfold Ptrofs.max_unsigned; omega).
+  assert (sizeof t <= Ptrofs.modulus) by lia.
+  assert (sizeof t <= Ptrofs.max_unsigned) by (unfold Ptrofs.max_unsigned; lia).
   apply la_env_cs_sound in H1; tauto.
 Qed.
 
 End CENV.
 
-Hint Extern 2 (memory_block _ _ _ |-- valid_pointer _) =>
-  (apply memory_block_valid_ptr; [auto with valid_pointer | rep_omega]) : valid_pointer.
+#[export] Hint Extern 2 (memory_block _ _ _ |-- valid_pointer _) =>
+  (apply memory_block_valid_ptr; [auto with valid_pointer | rep_lia]) : valid_pointer.
 
 Lemma valid_pointer_weak:
  forall a, valid_pointer a |-- weak_valid_pointer a.
@@ -1682,7 +1724,7 @@ eapply derives_trans; try eassumption.
 apply valid_pointer_weak.
 Qed.
 
-Hint Resolve valid_pointer_weak' : valid_pointer.
+#[export] Hint Resolve valid_pointer_weak' : valid_pointer.
 
 Lemma valid_pointer_offset_zero: forall P q, 
    (P |-- valid_pointer (offset_val 0 q)) ->
@@ -1703,15 +1745,15 @@ rewrite offset_val_zero_Vptr in H.
 auto.
 Qed.
 
-Hint Extern 1 (_ |-- valid_pointer ?Q) =>
+#[export] Hint Extern 1 (_ |-- valid_pointer ?Q) =>
   lazymatch Q with
   | offset_val _ _ => fail 
   | _ => apply valid_pointer_offset_zero
   end : core.
 
-Hint Extern 2 (memory_block _ _ _ |-- weak_valid_pointer _) =>
+#[export] Hint Extern 2 (memory_block _ _ _ |-- weak_valid_pointer _) =>
   (apply SeparationLogic.memory_block_weak_valid_pointer;
-        [rep_omega | rep_omega | auto with valid_pointer]) : valid_pointer.
+        [rep_lia | rep_lia | auto with valid_pointer]) : valid_pointer.
 
 Ltac field_at_conflict z fld :=
 eapply derives_trans with FF; [ | apply FF_left];
@@ -1722,7 +1764,9 @@ eapply derives_trans with FF; [ | apply FF_left];
  try (rewrite sepcon_assoc; eapply sepcon_FF_derives');
  subst x y;
  apply field_at_conflict; auto;
- try solve [simpl; computable].
+ try solve [simpl;  (* This simpl seems safe enough, it's just simplifying (sizeof (nested_field_type _ _))
+                                  and in any case it's followed by (computable) *)
+                computable].
 
 Ltac data_at_conflict z := field_at_conflict z (@nil gfield).
 
@@ -1780,7 +1824,7 @@ Proof.
     2: eapply hardware_alignof_two_p; [exact cenv_consistent | exact ha_env_cs_consistent | exact ha_env_cs_complete].
   destruct H0.
   apply la_env_cs_sound in H2; auto.
-  replace ofs with (ofs - 0) in H1 by omega.
+  replace ofs with (ofs - 0) in H1 by lia.
   eapply align_compatible_rec_hardware_alignof_divide; auto.
   + exact cenv_consistent.
   + exact cenv_legal_su.
@@ -1813,10 +1857,10 @@ destruct p; simpl in *; try contradiction.
 destruct H.
 eapply natural_aligned_sound in H; eauto.
 pose proof (Ptrofs.unsigned_range i).
-repeat split; simpl; auto; try omega.
+repeat split; simpl; auto; try lia.
 Qed.
 
-Hint Extern 2 (field_compatible _ nil _) =>
+#[export] Hint Extern 2 (field_compatible _ nil _) =>
  (apply malloc_compatible_field_compatible;
   [assumption | reflexivity | reflexivity]) : core.
 
@@ -1845,7 +1889,7 @@ intros.
 eapply derives_trans; [apply data_array_at_local_facts |].
 apply prop_derives.
 intros [? [? ?]]; split3; auto.
-rewrite Z.max_r in H1 by omega. auto.
+rewrite Z.max_r in H1 by lia. auto.
 Qed.
 
 Lemma value_fits_by_value {cs: compspecs}:
@@ -1863,11 +1907,12 @@ Ltac field_at_saturate_local :=
 unfold data_at;
 match goal with |- field_at ?sh ?t ?path ?v ?c |-- _ =>
 eapply derives_trans; [apply field_at_local_facts |];
-  cbv beta;
-  try rewrite proj_sumbool_is_true by auto;
-  try rewrite proj_sumbool_is_false by auto;
+(*  try (progress cbv beta; idtac "FASL 1");
+  try (rewrite proj_sumbool_is_true by auto; idtac "FASL 2");
+  try (rewrite proj_sumbool_is_false by auto; idtac "FASL 3");
+*)
   let p := fresh "p" in set (p := nested_field_type t path);
-  simpl in p; unfold field_type in p; simpl in p; subst p;
+  simpl in p; unfold field_type in p; simpl in p; subst p;  (* these simpls are probably not dangerous *)
   try rewrite value_fits_by_value by reflexivity;
   try match goal with |- context [repinject ?t ?v] =>
     change (repinject t v) with v
@@ -1876,49 +1921,51 @@ eapply derives_trans; [apply field_at_local_facts |];
 end.
 
 Ltac data_at_valid_aux :=
- simpl sizeof; rewrite ?Z.max_r by rep_omega; rep_omega.
+ first [computable | unfold sizeof; simpl Ctypes.sizeof; rewrite ?Z.max_r by rep_lia; rep_lia | rep_lia].
 
-Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
     (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
     (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
+(*
+#[export] Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
     (unfold data_at_, field_at_; 
      simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
+#[export] Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
     (unfold field_at_; simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+*)
 
-Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
-    (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+#[export] Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
+    (simple apply data_at__valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
-    (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+#[export] Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
+    (apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-(* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
+(* #[export] Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 
-(*Hint Resolve field_at_local_facts : saturate_local.*)
-Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
+(*#[export] Hint Resolve field_at_local_facts : saturate_local.*)
+#[export] Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
 
-(* Hint Resolve data_at_local_facts : saturate_local.*)
-Hint Extern 1 (data_at _ _ _ _ |-- _) =>
+(* #[export] Hint Resolve data_at_local_facts : saturate_local.*)
+#[export] Hint Extern 1 (data_at _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
 
-Hint Resolve @array_at_local_facts @array_at__local_facts : saturate_local.
+#[export] Hint Resolve array_at_local_facts array_at__local_facts : saturate_local.
 
 
-Hint Resolve field_at__local_facts : saturate_local.
-Hint Resolve data_at__local_facts : saturate_local.
-Hint Extern 0 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
-  (apply data_array_at_local_facts'; omega) : saturate_local.
-Hint Extern 0 (data_at _ (tarray _ _) _ _ |-- _) =>
-  (apply data_array_at_local_facts'; omega) : saturate_local.
-Hint Extern 1 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
+#[export] Hint Resolve field_at__local_facts : saturate_local.
+#[export] Hint Resolve data_at__local_facts : saturate_local.
+#[export] Hint Extern 0 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
+  (apply data_array_at_local_facts'; lia) : saturate_local.
+#[export] Hint Extern 0 (data_at _ (tarray _ _) _ _ |-- _) =>
+  (apply data_array_at_local_facts'; lia) : saturate_local.
+#[export] Hint Extern 1 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts) : saturate_local.
-Hint Extern 1 (data_at _ (tarray _ _) _ _ |-- _) =>
+#[export] Hint Extern 1 (data_at _ (tarray _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts) : saturate_local.
 Hint Rewrite <- @field_at_offset_zero: norm1.
 Hint Rewrite <- @field_at__offset_zero: norm1.
@@ -1952,7 +1999,7 @@ Lemma field_at_data_at_cancel:
     field_at sh t nil v p |-- data_at sh t v p.
 Proof. intros. apply derives_refl. Qed.
 
-Hint Resolve data_at_cancel field_at_cancel
+#[export] Hint Resolve data_at_cancel field_at_cancel
    data_at_field_at_cancel field_at_data_at_cancel : cancel.
 
 Lemma field_at__data_at__cancel:
@@ -1964,38 +2011,38 @@ Lemma data_at__field_at__cancel:
   forall {cs: compspecs} sh t p,
    data_at_ sh t p |-- field_at_ sh t nil p.
 Proof. intros. apply derives_refl. Qed.
-Hint Resolve  field_at__data_at__cancel data_at__field_at__cancel : cancel.
+#[export] Hint Resolve  field_at__data_at__cancel data_at__field_at__cancel : cancel.
 
 
 (* We do these as Hint Extern, instead of Hint Resolve,
   to limit their application and make them fail faster *)
 
-Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) =>
+#[export] Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) =>
    (simple apply field_at_field_at_) : cancel.
 
-Hint Extern 2 (field_at _ _ _ _ _ |-- field_at _ _ _ _ _) =>
+#[export] Hint Extern 2 (field_at _ _ _ _ _ |-- field_at _ _ _ _ _) =>
   (simple apply field_at_field_at_default;
    match goal with |- _ = default_val _ => reflexivity end) : cancel.
 
-Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
+#[export] Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
     (simple apply data_at_data_at_) : cancel.
 
-Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
+#[export] Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
     (simple apply data_at__memory_block_cancel) : cancel.
 
-Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
+#[export] Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
   (simple apply data_at_data_at_default;
    match goal with |- _ = default_val _ => reflexivity end) : cancel.
 
 (* too slow this way.
-Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
+#[export] Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
   (apply data_at_data_at_default; reflexivity) : cancel.
 *)
 
-Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
+#[export] Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
   (simple apply array_at_array_at_) : cancel.
-Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption) : core.
-Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption) : core.
+#[export] Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption) : core.
+#[export] Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption) : core.
 Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
 Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
 
@@ -2311,12 +2358,12 @@ Proof.
     pose proof nested_field_offset_in_range t gfs.
     spec H1; [tauto |].
     spec H1; [tauto |].
-    rewrite (Z.mod_small ofs) in * by omega.
+    rewrite (Z.mod_small ofs) in * by lia.
     pose proof Zmod_le (ofs + nested_field_offset t gfs) Ptrofs.modulus.
-    spec H2; [pose proof Ptrofs.modulus_pos; omega |].
+    spec H2; [pose proof Ptrofs.modulus_pos; lia |].
     revert H; solve_mod_modulus; intros.
-    rewrite Zmod_small in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
-    apply nonreadable_memory_block_data_at_rec; try tauto; try omega.
+    rewrite Zmod_small in H by (pose proof sizeof_pos (nested_field_type t gfs); lia).
+    apply nonreadable_memory_block_data_at_rec; try tauto; try lia.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
     apply pred_ext; normalize.
@@ -2557,7 +2604,7 @@ Proof.
   + destruct H as [b ?]; subst.
     simpl.
     change (Ptrofs.unsigned Ptrofs.zero) with 0.
-    omega.
+    lia.
   + destruct H as [b ?]; subst.
     simpl.
     change (Ptrofs.unsigned Ptrofs.zero) with 0.
@@ -2680,13 +2727,13 @@ Ltac solve_legal_nested_field_in_entailment :=
   first
   [ apply prop_right; apply compute_legal_nested_field_spec';
     simpl_compute_legal_nested_field;
-    repeat constructor; omega
+    repeat apply Forall_cons; try apply Forall_nil; lia
   |
   apply compute_legal_nested_field_spec;
   simpl_compute_legal_nested_field;
-  repeat constructor;
-  try solve [apply prop_right; auto; omega];
-  try solve [normalize; apply prop_right; auto; omega]
+  repeat apply Forall_cons; try apply Forall_nil;
+  try solve [apply prop_right; auto; lia];
+  try solve [normalize; apply prop_right; auto; lia]
   ].
 
 Ltac headptr_field_compatible :=
@@ -2698,7 +2745,7 @@ Ltac headptr_field_compatible :=
     repeat apply Forall_cons; try apply Forall_nil
   end.
 
-Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.
+#[export] Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.
 
 (* BEGIN New experiments *)
 
@@ -2707,7 +2754,7 @@ Lemma data_at_data_at_cancel  {cs: compspecs}: forall sh t v v' p,
   data_at sh t v p |-- data_at sh t v' p.
 Proof. intros. subst. apply derives_refl. Qed.
  
-Hint Resolve data_at_data_at_cancel : cancel.
+#[export] Hint Resolve data_at_data_at_cancel : cancel.
 
 
 Lemma field_at_field_at_cancel  {cs: compspecs}: forall sh t gfs v v' p,
@@ -2715,8 +2762,8 @@ Lemma field_at_field_at_cancel  {cs: compspecs}: forall sh t gfs v v' p,
   field_at sh t gfs v p |-- field_at sh t gfs v' p.
 Proof. intros. subst. apply derives_refl. Qed.
  
-Hint Resolve data_at_data_at_cancel : cancel.
-Hint Resolve field_at_field_at_cancel : cancel.
+#[export] Hint Resolve data_at_data_at_cancel : cancel.
+#[export] Hint Resolve field_at_field_at_cancel : cancel.
 
 Lemma data_at__data_at {cs: compspecs}:
    forall sh t v p, v = default_val t -> data_at_ sh t p |-- data_at sh t v p.
@@ -2743,18 +2790,18 @@ intros; subst; unfold field_at_; apply derives_refl.
 Qed.
 
 
-Hint Resolve data_at__data_at : cancel.
-Hint Resolve field_at__field_at : cancel.
-Hint Resolve data_at__field_at : cancel.
-Hint Resolve field_at__data_at : cancel.
+#[export] Hint Resolve data_at__data_at : cancel.
+#[export] Hint Resolve field_at__field_at : cancel.
+#[export] Hint Resolve data_at__field_at : cancel.
+#[export] Hint Resolve field_at__data_at : cancel.
 
-Hint Extern 1 (_ = @default_val _ _) =>
+#[export] Hint Extern 1 (_ = @default_val _ _) =>
  match goal with |- ?A = ?B => 
      let x := fresh "x" in set (x := B); hnf in x; subst x;
      match goal with |- ?A = ?B => constr_eq A B; reflexivity
   end end : core.
 
-Hint Extern 1 (_ = _) => 
+#[export] Hint Extern 1 (_ = _) => 
   match goal with |- ?A = ?B => constr_eq A B; reflexivity end : cancel.
 
 (* enhance cancel to solve field_at and data_at *)
@@ -2779,7 +2826,7 @@ Hint Rewrite
 Lemma data_at__Tarray:
   forall {CS: compspecs} sh t n a,
   data_at_ sh (Tarray t n a) = 
-  data_at sh (Tarray t n a) (list_repeat (Z.to_nat n) (default_val t)).
+  data_at sh (Tarray t n a) (Zrepeat (default_val t) n).
 Proof.
 intros.
 unfold data_at_, field_at_, data_at.
@@ -2791,12 +2838,12 @@ Qed.
 Lemma data_at__tarray:
   forall {CS: compspecs} sh t n,
   data_at_ sh (tarray t n) = 
-  data_at sh (tarray t n) (list_repeat (Z.to_nat n) (default_val t)).
+  data_at sh (tarray t n) (Zrepeat (default_val t) n).
 Proof. intros; apply data_at__Tarray; auto. Qed.
 
 Lemma data_at__Tarray':
   forall {CS: compspecs} sh t n a v, 
-  v = list_repeat (Z.to_nat n) (default_val t) ->
+  v = Zrepeat (default_val t) n ->
   data_at_ sh (Tarray t n a) = data_at sh (Tarray t n a) v.
 Proof.
 intros.
@@ -2810,7 +2857,7 @@ Qed.
 
 Lemma data_at__tarray':
   forall {CS: compspecs} sh t n v, 
-  v = list_repeat (Z.to_nat n) (default_val t) ->
+  v = Zrepeat (default_val t) n ->
   data_at_ sh (tarray t n) = data_at sh (tarray t n) v.
 Proof. intros; apply data_at__Tarray'; auto. Qed.
 
@@ -2924,28 +2971,28 @@ intros.
 apply @change_compspecs_field_at_cancel3 with CCE; auto.
 Qed.
 
-Hint Extern 2 (@data_at_ ?cs1 ?sh _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
+#[export] Hint Extern 2 (@data_at_ ?cs1 ?sh _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel2; reflexivity) : cancel.
 
-Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
+#[export] Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel3; reflexivity) : cancel.
 
-Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
+#[export] Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel; 
        [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
 
-Hint Extern 2 (@field_at_ ?cs1 ?sh _ ?gfs ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
+#[export] Hint Extern 2 (@field_at_ ?cs1 ?sh _ ?gfs ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel2; reflexivity) : cancel.
 
-Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
+#[export] Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel3; reflexivity) : cancel.
 
-Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at ?cs2 ?sh _ ?gfs _ ?p) =>
+#[export] Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at ?cs2 ?sh _ ?gfs _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel; 
         [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.

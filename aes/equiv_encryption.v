@@ -7,6 +7,8 @@ Require Import aes.bitfiddling.
 Require Import aes.list_lemmas.
 Require Import aes.equiv_GF_ops.
 Require Import List. Import ListNotations.
+Require Import Lia.
+Local Open Scope Z.
 
 Lemma split_quad_eq: forall {T : Type} (c0 c1 c2 c3 c0' c1' c2' c3' : T),
   c0 = c0' -> c1 = c1' -> c2 = c2' -> c3 = c3' -> (c0, c1, c2, c3) = (c0', c1', c2', c3').
@@ -26,11 +28,11 @@ Lemma get_uint32_le_sublist: forall i l,
   get_uint32_le l i = get_uint32_le (sublist i (i+4) l) 0.
 Proof.
   intros. unfold get_uint32_le.
-  do 4 rewrite Znth_sublist by omega.
-  replace (0 + i) with i by omega.
-  replace (0 + 1 + i) with (i + 1) by omega.
-  replace (0 + 2 + i) with (i + 2) by omega.
-  replace (0 + 3 + i) with (i + 3) by omega.
+  do 4 rewrite Znth_sublist by lia.
+  replace (0 + i) with i by lia.
+  replace (0 + 1 + i) with (i + 1) by lia.
+  replace (0 + 2 + i) with (i + 2) by lia.
+  replace (0 + 3 + i) with (i + 3) by lia.
   reflexivity.
 Qed.
 
@@ -38,7 +40,7 @@ Lemma get_uint32_le_word_to_int: forall b0 b1 b2 b3,
   get_uint32_le (map Int.unsigned [b0; b1; b2; b3]) 0 = word_to_int (b0, b1, b2, b3).
 Proof.
   intros. unfold get_uint32_le. unfold word_to_int.
-  do 4 rewrite Znth_map by (change (Zlength [b0; b1; b2; b3]) with 4; omega).
+  do 4 rewrite Znth_map by (change (Zlength [b0; b1; b2; b3]) with 4; lia).
   do 4 rewrite Int.repr_unsigned.
   reflexivity.
 Qed.
@@ -86,10 +88,10 @@ Proof.
   match goal with
   | |- context [ map Int.unsigned ?l ] => let l' := (eval_list l) in change l with l'
   end.
-  rewrite (get_uint32_le_sublist (0 * 4)) by (simpl; omega).
-  rewrite (get_uint32_le_sublist (1 * 4)) by (simpl; omega).
-  rewrite (get_uint32_le_sublist (2 * 4)) by (simpl; omega).
-  rewrite (get_uint32_le_sublist (3 * 4)) by (simpl; omega).
+  rewrite (get_uint32_le_sublist (0 * 4)) by (simpl; lia).
+  rewrite (get_uint32_le_sublist (1 * 4)) by (simpl; lia).
+  rewrite (get_uint32_le_sublist (2 * 4)) by (simpl; lia).
+  rewrite (get_uint32_le_sublist (3 * 4)) by (simpl; lia).
   do 4 rewrite sublist_map.
   do 4 match goal with
   | |- context [sublist ?i ?j ?l] =>
@@ -339,7 +341,7 @@ Proof.
   intros.
   unfold mbed_tls_initial_add_round_key.
   unfold mbed_tls_initial_add_round_key_col.
-  do 4 rewrite Znth_sublist by omega.
+  do 4 rewrite Znth_sublist by lia.
   reflexivity.
 Qed.
 
@@ -348,11 +350,11 @@ Lemma mbed_tls_fround_sublist: forall i s ks,
   mbed_tls_fround s ks i = mbed_tls_fround s (sublist i (i+4) ks) 0.
 Proof.
   intros. unfold mbed_tls_fround.
-  do 4 rewrite Znth_sublist by omega.
-  replace (0 + i) with i by omega.
-  replace (0 + 1 + i) with (i + 1) by omega.
-  replace (0 + 2 + i) with (i + 2) by omega.
-  replace (0 + 3 + i) with (i + 3) by omega.
+  do 4 rewrite Znth_sublist by lia.
+  replace (0 + i) with i by lia.
+  replace (0 + 1 + i) with (i + 1) by lia.
+  replace (0 + 2 + i) with (i + 2) by lia.
+  replace (0 + 3 + i) with (i + 3) by lia.
   reflexivity.
 Qed.
 
@@ -361,11 +363,11 @@ Lemma mbed_tls_final_fround_sublist: forall i s ks,
   mbed_tls_final_fround s ks i = mbed_tls_final_fround s (sublist i (i+4) ks) 0.
 Proof.
   intros. unfold mbed_tls_final_fround.
-  do 4 rewrite Znth_sublist by omega.
-  replace (0 + i) with i by omega.
-  replace (0 + 1 + i) with (i + 1) by omega.
-  replace (0 + 2 + i) with (i + 2) by omega.
-  replace (0 + 3 + i) with (i + 3) by omega.
+  do 4 rewrite Znth_sublist by lia.
+  replace (0 + i) with i by lia.
+  replace (0 + 1 + i) with (i + 1) by lia.
+  replace (0 + 2 + i) with (i + 2) by lia.
+  replace (0 + 3 + i) with (i + 3) by lia.
   reflexivity.
 Qed.
 
@@ -373,7 +375,7 @@ Lemma HL_equiv_LL_encryption: forall exp_key plaintext,
   Zlength exp_key = 15 ->
   (mbed_tls_aes_enc
      (map Int.unsigned (state_to_list plaintext))
-     ((blocks_to_Zwords exp_key) ++ (list_repeat (8%nat) 0))
+     ((blocks_to_Zwords exp_key) ++ (repeat 0 (8%nat)))
   ) = output_four_ints_as_bytes (state_to_four_ints (Cipher exp_key plaintext)).
 Proof.
   intros.
@@ -382,7 +384,7 @@ Proof.
   assert (exp_key = nil). {
     destruct exp_key; [ reflexivity | ].
     exfalso. do 16 rewrite Zlength_cons in H.
-    pose proof (Zlength_nonneg exp_key). omega.
+    pose proof (Zlength_nonneg exp_key). lia.
   }
   subst exp_key. clear H.
 
@@ -391,22 +393,22 @@ Proof.
   | |- context [?l1 ++ ?l2] =>
     let r := eval_list (l1 ++ l2) in change (l1 ++ l2) with r
   end.
-  rewrite mbed_tls_final_fround_sublist by (simpl; omega).
+  rewrite mbed_tls_final_fround_sublist by (simpl; lia).
   unfold mbed_tls_enc_rounds.
   simpl (4 + 4 * Z.of_nat _).
-  rewrite (mbed_tls_fround_sublist 4) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 8) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 12) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 16) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 20) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 24) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 28) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 32) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 36) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 40) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 44) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 48) by (simpl; omega).
-  rewrite (mbed_tls_fround_sublist 52) by (simpl; omega).
+  rewrite (mbed_tls_fround_sublist 4) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 8) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 12) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 16) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 20) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 24) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 28) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 32) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 36) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 40) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 44) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 48) by (simpl; lia).
+  rewrite (mbed_tls_fround_sublist 52) by (simpl; lia).
   rewrite mbed_tls_initial_round_sublist by (cbv; intro; discriminate).
   do 15 match goal with
   | |- context [sublist ?i ?j ?l] =>

@@ -1,6 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.progs.cond.
 
+Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -24,10 +25,10 @@ Definition tlock_inv sh lockt lock cond data :=
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : share * globals
-  PRE [ _args OF (tptr tvoid) ]
+  PRE [ (*_args OF *)(tptr tvoid) ]
          let '(sh, gv) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvars gv)
+         (*LOCAL (temp _args y; gvars gv)*)PARAMS (y) GLOBALS (gv)
          SEP   (cond_var sh (gv _cond);
                 lock_inv sh (gv _mutex) (dlock_inv (gv _data));
                 lock_inv sh (gv _tlock) (tlock_inv sh (gv _tlock) (gv _mutex) (gv _cond) (gv _data)))
@@ -39,8 +40,8 @@ Definition thread_func_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
@@ -48,11 +49,11 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_
 
 Lemma inv_exclusive : forall p, exclusive_mpred (dlock_inv p).
 Proof.
-  intro; eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tint); simpl; auto; try omega.
+  intro; eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tint); simpl; auto; try lia.
   unfold dlock_inv.
   Intros i; cancel.
 Qed.
-Hint Resolve inv_exclusive.
+#[export] Hint Resolve inv_exclusive : core.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.

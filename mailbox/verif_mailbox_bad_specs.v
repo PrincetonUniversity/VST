@@ -364,7 +364,7 @@ Qed.
 Lemma repable_buf : forall a, -1 <= a < B -> repable_signed a.
 Proof.
   intros ? (? & ?).
-  split; [transitivity (-1) | transitivity B]; unfold B, N in *; try computable; auto; omega.
+  split; [transitivity (-1) | transitivity B]; unfold B, N in *; try computable; auto; lia.
 Qed.
 
 Opaque upto.
@@ -385,9 +385,9 @@ Proof.
   destruct a; simpl in *.
   - inv Hsome.
     assert (w0 = w1) by (eapply sepalg.join_eq; eauto); subst.
-    eapply IHl; eauto; omega.
+    eapply IHl; eauto; lia.
   - destruct (sepalg_list.list_join_assoc1 (sepalg.join_comm H2) H4) as (x & ? & Ho).
-    exploit IHl; eauto; [omega|].
+    exploit IHl; eauto; [lia|].
     intro Hx; destruct (sepalg_list.list_join_assoc2 Hx Ho) as (? & ? & ?).
     econstructor; eauto.
 Qed.
@@ -471,8 +471,8 @@ Proof.
     rewrite in_app in Hin; destruct Hin as [? | [X | ?]]; [| | contradiction].
     + split; auto.
       rewrite Forall_app in Hlatest; destruct Hlatest; auto.
-    + exploit (repr_inj_signed r v); auto; try omega; try congruence.
-      apply repable_buf; omega.
+    + exploit (repr_inj_signed r v); auto; try lia; try congruence.
+      apply repable_buf; lia.
   - rewrite Forall_app; left; repeat split; auto.
     constructor; auto.
     rewrite Int.signed_repr; auto.
@@ -480,14 +480,14 @@ Proof.
     rewrite in_app; split; auto.
     rewrite Forall_app; split; auto.
     constructor; auto; intros.
-    exploit (repr_inj_signed r v'); auto; try omega; try congruence.
-    apply repable_buf; omega.
+    exploit (repr_inj_signed r v'); auto; try lia; try congruence.
+    apply repable_buf; lia.
 Qed.
 
 Corollary latest_read_Empty : forall h n v,
   latest_read (h ++ [(n, AE Empty Empty)]) v <-> latest_read h v.
 Proof.
-  intros; apply latest_read_bad; auto; omega.
+  intros; apply latest_read_bad; auto; lia.
 Qed.
 
 Lemma latest_read_new : forall h n v, newer h n -> 0 <= v < B ->
@@ -498,5 +498,5 @@ Proof.
   rewrite in_app; simpl; split; auto.
   rewrite Forall_app; split; auto.
   eapply Forall_impl; [|eauto]; intros.
-  destruct a, a; simpl in *; intros; omega.
+  destruct a, a; simpl in *; intros; lia.
 Qed.

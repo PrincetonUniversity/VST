@@ -39,8 +39,8 @@ Proof.
 intros until i; intros H.
 revert i l H.
 induction i; destruct l; intros; simpl in *;
-  try solve [eauto|omegaContradiction].
-apply IHi; omega.
+  try solve [eauto|lia].
+apply IHi; lia.
 Qed.
 
 Lemma nth_eq_nth_error_eq: forall {A} (d: A) (l l': list A) i,
@@ -52,8 +52,8 @@ Proof.
 intros until i; intros H H0 H1.
 revert i l l' H H0 H1.
 induction i; destruct l; destruct l'; intros; simpl in *;
-  try solve [auto|omegaContradiction].
-rewrite (IHi l l'); try solve [auto|omega].
+  try solve [auto|lia].
+rewrite (IHi l l'); try solve [auto|lia].
 Qed.
 
 Lemma core_load_fun: forall ch m loc v1 v2,
@@ -90,13 +90,13 @@ rewrite H0 in H.
 clear H0.
 simpl in *.
 inversion H.
-replace (ofs + Z_of_nat i - ofs) with (Z_of_nat i) in * by omega.
+replace (ofs + Z_of_nat i - ofs) with (Z_of_nat i) in * by lia.
 rewrite nat_of_Z_eq in *.
 rewrite <- H3 in H1.
 apply nth_eq_nth_error_eq with (d := Undef); auto.
 destruct H5 as [? [H5 H5']].
 rewrite size_chunk_conv in H5'.
-omega.
+lia.
 * (* ~adr_range *)
 cut (i >= length bl)%nat. intro Hlen.
 cut (i >= length bl')%nat. intro Hlen'.
@@ -111,13 +111,13 @@ unfold adr_range in H5.
 rewrite size_chunk_conv in H5.
 rewrite <- H1 in H5.
 cut ( ~(O <= i < length bl))%nat.
-omega.
+lia.
 intro HContra.
 apply H5.
 split; auto.
 cut (0 <= Z_of_nat i < Z_of_nat (length bl)). intro H6.
-2: omega.
-omega.
+2: lia.
+lia.
 Qed.
 
 Lemma extensible_core_load': forall ch loc v
@@ -159,7 +159,7 @@ Qed.
    forall {A} `{ageable A} (P: pred A), P |-- !!(is_true Vtrue) && P.
   Proof.  intros. apply assert_truth. apply Val_is_true_Vtrue. Qed.
 
-Hint Resolve Val_is_true_Vtrue  @assert_Val_is_true : core.
+#[export] Hint Resolve Val_is_true_Vtrue  assert_Val_is_true : core.
 *)
 
 (****************** stuff moved from semax_prog  *****************)
@@ -195,7 +195,7 @@ Proof.
 unfold adr_range; intros.
 destruct loc; destruct loc'; simpl in *.
 destruct H2; split; auto.
-omega.
+lia.
 Qed.
 
 Lemma adr_range_split_lem2: forall n m r loc loc',
@@ -205,7 +205,7 @@ Proof.
 unfold adr_range; intros.
 destruct loc; destruct loc'; simpl in *.
 destruct H2; split; auto.
-omega.
+lia.
 Qed.
 
 Lemma adr_range_split_lem3: forall n m r loc loc',
@@ -219,9 +219,9 @@ destruct loc; destruct loc'; simpl in *.
 intros [c1 c2].
 destruct (Z_lt_dec z0 (z+n)).
 apply H2.
-split; auto||omega.
+split; auto||lia.
 apply H3.
-split; auto||omega.
+split; auto||lia.
 Qed.
 
 Lemma prop_imp_i {A}{agA: ageable A}:
@@ -245,17 +245,19 @@ Qed.
 Lemma corable_funspec_sub_si f g: corable (funspec_sub_si f g).
 Proof.
  intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
-+ intros ts. rewrite level_core. specialize (H0 ts); auto.
-+ intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
++ rewrite later_unfash in H0|-*.
+    intros n ?. rewrite level_core in H1. apply (H0 _ H1).
++ rewrite later_unfash in H0|-*.
+    intros n ?. rewrite <- level_core in H1. apply (H0 _ H1).
 Qed.
-
+(*
 Lemma corable_funspec_sub_early f g: corable (funspec_sub_early f g).
 Proof.
  intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
 + intros ts. rewrite level_core. specialize (H0 ts); auto.
 + intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
 Qed.
-
+*)
 Lemma corable_pureat: forall pp k loc, corable (pureat pp k loc).
 Proof.
  intros. intro w.
@@ -304,6 +306,7 @@ Proof.
   apply corable_andp. apply corable_funspec_sub_si.
   apply corable_func_at.
 Qed.
+(*
 Lemma corable_func_ptr_early : forall f v, corable (func_ptr_early f v).
 Proof.
   intros.
@@ -313,11 +316,11 @@ Proof.
   apply corable_exp; intro.
   apply corable_andp. apply corable_funspec_sub_early.
   apply corable_func_at.
-Qed.
+Qed.*)
 Lemma corable_func_ptr : forall f v, corable (func_ptr f v).
 Proof.
   intros.
-  unfold func_ptr_early.
+  unfold func_ptr.
   apply corable_exp; intro.
   apply corable_andp; auto.
   apply corable_exp; intro.
@@ -325,7 +328,7 @@ Proof.
   apply corable_func_at.
 Qed.
 
-Hint Resolve corable_func_ptr corable_func_ptr_si corable_func_ptr_early : core.
+#[export] Hint Resolve corable_func_ptr corable_func_ptr_si (*corable_func_ptr_early*) : core.
 
 Lemma corable_funspecs_assert:
   forall FS rho, corable (funspecs_assert FS rho).
@@ -344,7 +347,7 @@ Proof.
 (* + apply corable_pureat.*)
 Qed.
 
-Hint Resolve corable_funspecs_assert : core.
+#[export] Hint Resolve corable_funspecs_assert : core.
 
 Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
     (forall loc, corable (P loc)) ->
@@ -375,7 +378,7 @@ apply corable_pureat.
 intro w. unfold TTat. apply prop_ext; split; intros; hnf in H|-*; auto.
 Qed.
 
-Hint Resolve corable_fun_assert : normalize.
+#[export] Hint Resolve corable_fun_assert : normalize.
 *)
 Lemma prop_derives {A}{H: ageable A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.

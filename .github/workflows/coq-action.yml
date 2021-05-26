@@ -1,0 +1,37 @@
+---
+name: CI
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        coq_version:
+          # See https://github.com/coq-community/docker-coq/wiki for supported images
+          - '8.12'
+          - '8.13'
+        opam_name:
+          - coq-vst
+          - coq-vst-32
+    steps:
+      - uses: actions/checkout@v2
+      - name: Checkout submodules
+        uses: textbook/git-checkout-submodule-action@2.1.1
+      - uses: coq-community/docker-coq-action@v1
+        with:
+          opam_file: ${{ matrix.opam_name }}.opam
+          coq_version: ${{ matrix.coq_version }}
+          # See https://github.com/coq-community/docker-coq-action/tree/v1 for usage
+          before_install: |
+              startGroup "Opam config"
+                opam repo add -y prerelease file://$WORKDIR/opam-prerelease
+                opam config list; opam repo list; opam list
+              endGroup
+          export: 'OPAMWITHTEST'
+        env:
+          OPAMWITHTEST: 'true'

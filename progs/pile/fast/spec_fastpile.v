@@ -1,11 +1,10 @@
 Require Import VST.floyd.proofauto.
 Require Import fastpile.
 Require Import spec_stdlib.
+Global Open Scope funspec_scope.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-
-Definition tlist := Tstruct _list noattr.
 Definition tpile := Tstruct _pile noattr.
 
 Definition sumlist : list Z -> Z := List.fold_right Z.add 0.
@@ -46,11 +45,11 @@ Local Open Scope assert.
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ _n OF tuint ]
+   PRE [ tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
@@ -60,7 +59,7 @@ Definition surely_malloc_spec :=
 Definition Pile_new_spec :=
  DECLARE _Pile_new
  WITH gv: globals
- PRE [ ] PROP() LOCAL(gvars gv) SEP(mem_mgr gv)
+ PRE [ ] PROP() PARAMS () GLOBALS (gv) SEP(mem_mgr gv)
  POST[ tptr tpile ]
    EX p: val,
      PROP() LOCAL(temp ret_temp p)
@@ -69,9 +68,9 @@ Definition Pile_new_spec :=
 Definition Pile_add_spec :=
  DECLARE _Pile_add
  WITH p: val, n: Z, sigma: list Z, gv: globals
- PRE [ _p OF tptr tpile, _n OF tint  ]
+ PRE [ tptr tpile, tint  ]
     PROP(0 <= n <= Int.max_signed)
-    LOCAL(temp _p p; temp _n (Vint (Int.repr n)); gvars gv)
+    PARAMS (p; Vint (Int.repr n)) GLOBALS (gv)
     SEP(pilerep sigma p; mem_mgr gv)
  POST[ tvoid ]
     PROP() LOCAL()
@@ -80,9 +79,9 @@ Definition Pile_add_spec :=
 Definition Pile_count_spec :=
  DECLARE _Pile_count
  WITH p: val, sigma: list Z
- PRE [ _p OF tptr tpile  ]
+ PRE [ tptr tpile ]
     PROP(0 <= sumlist sigma <= Int.max_signed)
-    LOCAL(temp _p p)
+    PARAMS (p) GLOBALS ()
     SEP(pilerep sigma p)
  POST[ tint ]
       PROP() 
@@ -92,9 +91,9 @@ Definition Pile_count_spec :=
 Definition Pile_free_spec :=
  DECLARE _Pile_free
  WITH p: val, sigma: list Z, gv: globals
- PRE [ _p OF tptr tpile  ]
+ PRE [ tptr tpile  ]
     PROP()
-    LOCAL(temp _p p; gvars gv)
+    PARAMS (p) GLOBALS (gv)
     SEP(pilerep sigma p; pile_freeable p; mem_mgr gv)
  POST[ tvoid ]
       PROP() LOCAL() SEP(mem_mgr gv).

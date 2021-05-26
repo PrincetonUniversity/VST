@@ -8,13 +8,13 @@ Require Export VST.msl.Extensionality.
 *)
 (* Can't use "Hint Resolve" because a bug in "apply proof_irr" matches
    things that are not Props, which leads the Qed to fail (later) *)
-Hint Extern 1 (@eq _ _ _) => exact (proof_irr _ _) : extensionality.
+#[export] Hint Extern 1 (@eq _ _ _) => exact (proof_irr _ _) : extensionality.
 
 (* Can't use "Hint Resolve" because it doesn't seem to do anything... *)
-Hint Extern 2 (eq _ _)  => apply exist_ext : extensionality.
+#[export] Hint Extern 2 (eq _ _)  => apply exist_ext : extensionality.
 
 (* Can't use "Hint Resolve" because it doesn't seem to do anything... *)
-Hint Extern 2 (@eq _ (@existT _ _ _ _) (@existT _ _ _ _))  => apply existT_ext : extensionality.
+#[export] Hint Extern 2 (@eq _ (@existT _ _ _ _) (@existT _ _ _ _))  => apply existT_ext : extensionality.
 
 Tactic Notation "forget" constr(X) "as" ident(y) :=
    set (y:=X) in *; clearbody y.
@@ -79,7 +79,7 @@ Proof.
 intros; f_equal; auto.
 Qed.
 
-Hint Resolve f_equal_Some f_equal_prod : core.
+#[export] Hint Resolve f_equal_Some f_equal_prod : core.
 
 Unset Implicit Arguments.
 
@@ -170,16 +170,16 @@ assert (forall m, (m <= n)%nat ->
          (exists i, F i /\ (i<m)%nat /\ ~ F (S i))).
 induction m.
 left; intros.
-omegaContradiction.
+lia.
 intro.
-assert (m<=n)%nat; try omega.
+assert (m<=n)%nat; try lia.
 destruct (IHm H2).
-assert (m < n \/ m = n)%nat; try omega.
+assert (m < n \/ m = n)%nat; try lia.
 destruct H4.
 destruct (Fdec m) as [?H|?H].
 left.
 intros.
-assert (k < m \/ k = m)%nat; try omega.
+assert (k < m \/ k = m)%nat; try lia.
 destruct H7.
 auto.
 subst k; auto.
@@ -187,25 +187,25 @@ right.
 exists (Peano.pred m).
 destruct m.
 contradiction.
-replace (Peano.pred (S m)) with m; try omega.
+replace (Peano.pred (S m)) with m; try lia.
 split.
-apply H3; try omega.
-split; try omega.
+apply H3; try lia.
+split; try lia.
 auto.
 subst m.
 right.
 destruct n.
 contradiction.
-exists n; repeat split; auto; try omega.
+exists n; repeat split; auto; try lia.
 right.
 destruct H3 as [i H4].
 destruct H4.
 destruct H4.
-exists i; repeat split; auto; omega.
-assert (n <= n)%nat; try omega.
+exists i; repeat split; auto; lia.
+assert (n <= n)%nat; try lia.
 destruct (H1 _ H2).
 destruct n; try contradiction.
-exists n; repeat split; auto; try omega.
+exists n; repeat split; auto; try lia.
 auto.
 Qed.
 

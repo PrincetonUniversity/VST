@@ -6,6 +6,7 @@ Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -137,34 +138,34 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
             && data_at Tsh (tarray tuint 4) l t;
        data_at Tsh (tarray tuint 16) (map Vint xs) x))).
   (*1.3*)
-  { Exists (list_repeat 4 Vundef). (*Time*) entailer!. (*2.2*)  intros; omega. }
+  { Exists (repeat Vundef 4). (*Time*) entailer!. (*2.2*) }
   { rename i into m. rename H into M. Intros T.
     rename H into HT.
     (*Time*) assert_PROP (Zlength T = 4) as TL by entailer!. (*2.2 versus 5.7*)
-    destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
+    destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. lia.
     destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16)) as [v NV].
        simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
     forward.
     { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr by rep_omega. 
-      rewrite Z.rem_mod_nonneg; try omega.
-      rewrite Int.unsigned_repr by rep_omega. 
-      omega. }
+      rewrite ! Int.signed_repr by rep_lia. 
+      rewrite Z.rem_mod_nonneg; try lia.
+      rewrite Int.unsigned_repr by rep_lia. 
+      lia. }
     { unfold Int.mods. 
-      rewrite ! Int.signed_repr by rep_omega.
-      rewrite Z.rem_mod_nonneg; try omega.
+      rewrite ! Int.signed_repr by rep_lia.
+      rewrite Z.rem_mod_nonneg; try lia.
       entailer!.
    }
     entailer!. destruct H5. inv H6.
     unfold Int.mods. 
-    rewrite ! Int.signed_repr by rep_omega.
-    rewrite Z.rem_mod_nonneg; try omega.
+    rewrite ! Int.signed_repr by rep_lia.
+    rewrite Z.rem_mod_nonneg; try lia.
     forward.
     { entailer!. simpl. Exists (upd_Znth m T (Vint v)). entailer!.
       intros mm ?.
       destruct (zeq mm m); subst.
-      + rewrite upd_Znth_same; try omega. autorewrite with sublist. trivial.
-      + rewrite upd_Znth_diff; try omega. apply HT; omega.
+      + rewrite upd_Znth_same; try lia. autorewrite with sublist. trivial.
+      + rewrite upd_Znth_diff; try lia. apply HT; lia.
     }
   }
   entailer!.
@@ -361,8 +362,8 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce;
+   temp _k k; temp _c c; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
          data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
@@ -372,7 +373,7 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
       LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
       lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w;
-      temp _in nonce; temp _out out; temp _c c; temp _k k;
+      temp _out out; temp _in nonce; temp _k k; temp _c c;
       temp _h (Vint (Int.repr h)))
       SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
           data_at_ Tsh (tarray tuint 4) t;
@@ -400,7 +401,7 @@ Proof. intros. abbreviate_semax.
    rewrite Zlength_correct in TL. change 4 with (Z.of_nat 4) in TL.
    apply Nat2Z.inj in TL.
    destruct tlist as [ | x0 [ | x1 [ | x2 [ | x3 [ | ]]]]]; inv TL.
-   rewrite <- HT in T0,T1,T2,T3 by omega.
+   rewrite <- HT in T0,T1,T2,T3 by lia.
    rewrite <- T0, <- T1, <- T2, <- T3. reflexivity.
  }
   subst tlist.
@@ -492,44 +493,44 @@ deadvars!.
     destruct (zeq m 0); subst; simpl. eexists; reflexivity.
     destruct (zeq m 1); subst; simpl. eexists; reflexivity.
     destruct (zeq m 2); subst; simpl. eexists; reflexivity.
-    destruct (zeq m 3); subst; simpl. eexists; reflexivity. omega.
+    destruct (zeq m 3); subst; simpl. eexists; reflexivity. lia.
   destruct TM as [tm TM].
   forward; change (@Znth val Vundef) with (@Znth val _).
   { entailer!. rewrite TM. simpl; trivial. }
-  assert (JM: 0 <= Z.rem (j + m) 4 < 4) by (apply Zquot.Zrem_lt_pos_pos; omega).
-  assert (JM2: 0<= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
+  assert (JM: 0 <= Z.rem (j + m) 4 < 4) by (apply Zquot.Zrem_lt_pos_pos; lia).
+  assert (JM2: 0<= (j + m) mod 4 < 4) by (apply Z_mod_lt; lia).
   forward.
   { entailer!. (* rewrite andb_false_r; simpl; trivial. *)
    clear H1. clear WLIST1. clear TM. clear H.
    (*rewrite and_True. *)
-   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_omega.
+   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_lia.
    change (Int.signed (Int.repr 4)) with 4. 
-   rewrite Int.signed_repr by rep_omega.
-   split. rep_omega. intros [? H9]; inv H9.  }
+   rewrite Int.signed_repr by rep_lia.
+   split. rep_lia. intros [? H9]; inv H9.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
-    rewrite ! Int.signed_repr by rep_omega(*, add_repr, Int.signed_repr*).
+    rewrite ! Int.signed_repr by rep_lia(*, add_repr, Int.signed_repr*).
     rewrite add_repr.
-    rewrite Int.unsigned_repr by rep_omega.
-    omega. }
+    rewrite Int.unsigned_repr by rep_lia.
+    lia. }
   { Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
     go_lower. rewrite TM. simpl. 
     apply andp_right.  
     + apply prop_right. split; [| repeat split; auto].
-      assert (AP: 0 <= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
-      rewrite Z.add_comm. rewrite Z2Nat.inj_add; try omega.
+      assert (AP: 0 <= (j + m) mod 4 < 4) by (apply Z_mod_lt; lia).
+      rewrite Z.add_comm. rewrite Z2Nat.inj_add; try lia.
       assert (SS: (Z.to_nat 1 + Z.to_nat m)%nat = S (Z.to_nat m)) by reflexivity.
       rewrite SS; simpl.
       exists wlist1, tm.
       assert (WL1: Zlength wlist1 = 16). erewrite WLIST'_length. 2: eassumption. assumption.
       split. rewrite upd_Znth_Zlength. eapply WLIST'_length; eassumption.
-             rewrite WL1. omega.
+             rewrite WL1. lia.
              split. trivial.
-             rewrite Z2Nat.id. split; trivial. omega. 
+             rewrite Z2Nat.id. split; trivial. lia. 
     + unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr by rep_omega(*, add_repr, Int.signed_repr*).
+      rewrite ! Int.signed_repr by rep_lia(*, add_repr, Int.signed_repr*).
       rewrite add_repr.
-      rewrite Z.rem_mod_nonneg; try omega. entailer!. }
+      rewrite Z.rem_mod_nonneg; try lia. entailer!. }
   } 
 
 Intros l. Exists l.

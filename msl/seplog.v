@@ -37,8 +37,8 @@ Program Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
  mkNatDed (A -> B)
     (*andp*) (fun P Q x => andp (P x) (Q x))
     (*orp*) (fun P Q x => orp (P x) (Q x))
-    (*exp*) (fun {T} (F: T -> A -> B) (a: A) => exp (fun x => F x a))
-    (*allp*) (fun {T} (F: T -> A -> B) (a: A) => allp (fun x => F x a))
+    (*exp*) (fun T (F: T -> A -> B) (a: A) => exp (fun x => F x a))
+    (*allp*) (fun T (F: T -> A -> B) (a: A) => allp (fun x => F x a))
     (*imp*) (fun P Q x => imp (P x) (Q x))
     (*prop*) (fun P x => prop P)
     (*derives*) (fun P Q => forall x, derives (P x) (Q x))
@@ -98,9 +98,11 @@ Next Obligation.
  intros; eapply allp_prop_left; eauto.
 Defined.
 
+Declare Scope logic.
 Delimit Scope logic with logic.
 Local Open Scope logic.
-Notation "P '|--' Q" := (derives P Q) (at level 99, Q at level 200, right associativity) : logic_derives.
+Declare Scope logic_derives.
+Notation "P '|--' Q" := (derives P%logic Q%logic) (at level 80, no associativity) : logic_derives.
 Open Scope logic_derives.
 Notation "'EX' x .. y , P " :=
   (exp (fun x => .. (exp (fun y => P%logic)) ..)) (at level 65, x binder, y binder, right associativity) : logic.

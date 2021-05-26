@@ -7,17 +7,21 @@ Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.functional_base.
 Import LiftNotation.
 
+Lemma force_Vint:  forall i, force_int (Vint i) = i.
+Proof.  reflexivity. Qed.
+Hint Rewrite force_Vint : norm.
+
 Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
 Proof. destruct v; simpl; try solve [right; intros N; trivial].
 destruct i.
 + destruct s.
-    * destruct (zle Byte.min_signed (Int.signed i0)); [| right; omega].
-      destruct (zle (Int.signed i0) Byte.max_signed). left; omega. right; omega.
-    * destruct (zle (Int.unsigned i0) Byte.max_unsigned). left; omega. right; omega.
+    * destruct (zle Byte.min_signed (Int.signed i0)); [| right; lia].
+      destruct (zle (Int.signed i0) Byte.max_signed). left; lia. right; lia.
+    * destruct (zle (Int.unsigned i0) Byte.max_unsigned). left; lia. right; lia.
 + destruct s.
-    * destruct (zle (-32768) (Int.signed i0)); [| right; omega].
-      destruct (zle (Int.signed i0) 32767). left; omega. right; omega.
-    * destruct (zle (Int.unsigned i0) 65535). left; omega. right; omega.
+    * destruct (zle (-32768) (Int.signed i0)); [| right; lia].
+      destruct (zle (Int.signed i0) 32767). left; lia. right; lia.
+    * destruct (zle (Int.unsigned i0) 65535). left; lia. right; lia.
 + left; trivial.
 + destruct (Int.eq_dec i0 Int.zero); subst. left; left; trivial.
     destruct (Int.eq_dec i0 Int.one); subst. left; right; trivial.
@@ -30,7 +34,7 @@ Proof. destruct t; simpl.
 + apply is_int_dec.
 + apply is_long_dec.
 + destruct f. apply is_single_dec. apply is_float_dec.
-+ destruct ((eqb_type t Tvoid &&
++ destruct ((eqb_type t Ctypes.Tvoid &&
     eqb_attr a
       {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |})%bool).
   apply is_pointer_or_integer_dec.
@@ -55,8 +59,8 @@ Proof.
   unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
   f_equal. f_equal. f_equal.
   destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
-  rewrite Int.signed_repr by omega; auto.
-  rewrite Int.unsigned_repr by omega; auto.
+  rewrite Int.signed_repr by lia; auto.
+  rewrite Int.unsigned_repr by lia; auto.
 Qed.
 Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
@@ -95,7 +99,7 @@ Proof.
 intros.
 hnf. auto.
 Qed.
-Hint Resolve is_int_I32_Vint : core.
+#[export] Hint Resolve is_int_I32_Vint : core.
 
 Lemma sem_cast_neutral_int: forall v,
   isVint v ->
@@ -135,12 +139,12 @@ Lemma eval_expr_unop: forall {cs: compspecs} op a1 t, eval_expr (Eunop op a1 t) 
 Proof. reflexivity. Qed.
 Hint Rewrite @eval_expr_unop : eval.
 
-Hint Resolve  eval_expr_Etempvar : core.
+#[export] Hint Resolve  eval_expr_Etempvar : core.
 
 Lemma eval_expr_Etempvar' : forall {cs: compspecs}  i t, eval_id i = eval_expr (Etempvar i t).
 Proof. intros. symmetry; auto.
 Qed.
-Hint Resolve  @eval_expr_Etempvar' : core.
+#[export] Hint Resolve  eval_expr_Etempvar' : core.
 
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
 Hint Rewrite Ptrofs.add_zero  Ptrofs.add_zero_l Ptrofs.sub_zero_l : norm.
@@ -182,7 +186,7 @@ Lemma isptr_is_pointer_or_null:
   forall v, isptr v -> is_pointer_or_null v.
 Proof. intros. destruct v; inv H; simpl; auto.
 Qed.
-Hint Resolve isptr_is_pointer_or_null : core.
+#[export] Hint Resolve isptr_is_pointer_or_null : core.
 
 Definition add_ptr_int  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
            eval_binop Cop.Oadd (tptr ty) tint v (Vint (Int.repr i)).
@@ -257,14 +261,14 @@ repeat rewrite Int.unsigned_repr_eq in e.
            end;
  match type of H0 with
            | context [if ?a then _ else _] => destruct a
-           end; omega.
+           end; lia.
 }
 unfold Zcmp.
 rewrite (Int.signed_repr _ H) in H1; rewrite (Int.signed_repr _ H0) in H1.
 repeat match type of H1 with
            | context [if ?a then _ else _] => destruct a
-           end; try omegaContradiction;
- destruct op; auto; simpl in *; try discriminate; omega.
+           end; try lia;
+ destruct op; auto; simpl in *; try discriminate; lia.
 Qed.
 
 Lemma typed_false_cmp_repr:
@@ -295,7 +299,7 @@ Qed.
 
 Ltac intcompare H :=
  (apply typed_false_cmp_repr in H || apply typed_true_cmp_repr in H);
-   [ simpl in H | auto; unfold repable_signed, Int.min_signed, Int.max_signed in *; omega .. ].
+   [ simpl in H | auto; unfold repable_signed, Int.min_signed, Int.max_signed in *; lia .. ].
 
 
 Lemma isptr_deref_noload:
@@ -317,7 +321,7 @@ Proof.
   subst.
   hnf; auto.
 Qed.
-Hint Resolve headptr_isptr : core.
+#[export] Hint Resolve headptr_isptr : core.
 
 Lemma headptr_offset_zero: forall v,
   headptr (offset_val 0 v) <->
@@ -445,34 +449,53 @@ pose proof (Int64.eq_spec v Int64.zero).
 destruct (Int64.eq v Int64.zero); auto. inv H.
 Qed.
 
-Ltac intro_redundant_prop :=
-  (* do it in this complicated way because the proof will come out smaller *)
-match goal with |- ?P -> _ =>
-  ((assert P by immediate; fail 1) || fail 1) || intros _
-end.
+Ltac intro_redundant P :=
+ match goal with H: P |- _ => idtac end.
+
+Ltac fancy_intro_discriminate H := idtac.
 
 Ltac fancy_intro aggressive :=
- match goal with
+ lazymatch goal with |- ~ _ => red | _ => idtac end;
+ lazymatch goal with
  | |- ?P -> _ => match type of P with Prop => idtac end
- | |- ~ _ => idtac
  end;
+ tryif 
+ lazymatch goal with |- ?P -> _ =>
+     lazymatch P with
+     | ptr_eq ?v1 ?v2 => intro_redundant (v1=v2)
+     | Vint ?x = Vint ?y => constr_eq x y + intro_redundant (x=y)
+     | tc_val ?ty ?v =>
+         lazymatch ty with
+         | Tint ?sz ?sg _ => intro_redundant(is_int sz sg v)
+         | Tlong _ _ => intro_redundant(is_long v)
+         | Tfloat F32 _ => intro_redundant(is_single v)
+         | Tfloat F64 _ => intro_redundant(is_float v)
+         | Tpointer _ _ =>
+           tryif (unify ty int_or_ptr_type) 
+           then intro_redundant (is_pointer_or_integer v)
+           else intro_redundant (is_pointer_or_null v)
+         | Tarray _ _ _ =>  intro_redundant (is_pointer_or_null v)
+         | Tfunction _ _ _ =>  intro_redundant (is_pointer_or_null v)
+         | _ =>  intro_redundant (isptr v)
+         end
+     | ?x = ?y => constr_eq x y + intro_redundant P
+     | _ => intro_redundant P + unify P True
+    end
+   end
+   then intros _
+   else 
  let H := fresh in
  intro H;
  try simple apply ptr_eq_e in H;
  try simple apply Vint_inj in H;
- try match type of H with
+ try lazymatch type of H with
  | tc_val _ _ => unfold tc_val in H; try change (eqb_type _ _) with false in H; cbv iota in H
- end;
- match type of H with
- | ?P => clear H; 
-              match goal with H': P |- _ => idtac end (* work around bug number 6998 in Coq *)
-             + (((assert (H:P) by (clear; immediate); fail 1) || fail 1) || idtac)
-                (* do it in this complicated way because the proof will come out smaller *)
- | ?x = ?y => constr_eq aggressive true;
-                     first [subst x | subst y
-                             | is_var x; rewrite H
-                             | is_var y; rewrite <- H
-                             | idtac]
+ | ?x = ?y => tryif constr_eq aggressive true
+                     then first [subst x | subst y
+                                    | is_var x; rewrite H
+                                    | is_var y; rewrite <- H
+                                    | try fancy_intro_discriminate H]
+                     else (try fancy_intro_discriminate H)
  | headptr (_ ?x) => let Hx1 := fresh "HP" x in
                      let Hx2 := fresh "P" x in
                        rename H into Hx1;
@@ -494,17 +517,12 @@ Ltac fancy_intro aggressive :=
         first [simple apply typed_true_of_bool in H
                | apply typed_true_tint_Vint in H
                | apply typed_true_tlong_Vlong in H
-(*  This one is not portable 32/64 bits 
-                | apply (typed_true_e tint) in H
-*)
                | apply typed_true_ptr in H
                | idtac ]
- (* | locald_denote _ _ => hnf in H *)
- | _ => try solve [discriminate H]
  end.
 
 Ltac fancy_intros aggressive :=
- repeat match goal with
+ repeat lazymatch goal with
   | |- (_ <= _ < _) -> _ => fancy_intro aggressive
   | |- (_ < _ <= _) -> _ => fancy_intro aggressive
   | |- (_ <= _ <= _) -> _ => fancy_intro aggressive
@@ -529,7 +547,7 @@ Ltac fold_types1 :=
 
 Lemma is_int_Vbyte: forall c, is_int I8 Signed (Vbyte c).
 Proof.
-intros. simpl. normalize. rewrite Int.signed_repr by rep_omega. rep_omega.
+intros. simpl. normalize. rewrite Int.signed_repr by rep_lia. rep_lia.
 Qed.
-Hint Resolve is_int_Vbyte : core.
+#[export] Hint Resolve is_int_Vbyte : core.
 

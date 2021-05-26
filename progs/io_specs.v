@@ -20,27 +20,27 @@ Context {E : Type -> Type} `{IO_event(file_id := nat) -< E}.
 
 Definition putchar_spec :=
   WITH c : byte, k : IO_itree
-  PRE [ 1%positive OF tint ]
+  PRE [ tint ]
     PROP ()
-    LOCAL (temp 1%positive (Vubyte c))
-    SEP (ITREE (write stdout c ;; k))
+    PARAMS (Vubyte c) GLOBALS()
+    SEP (ITREE (write stdout c ;; k)%itree)
   POST [ tint ]
    EX i : int,
     PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c)
     LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (write stdout c ;; k) else k)).
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (write stdout c ;; k)%itree else k)).
 
 Definition getchar_spec :=
   WITH k : byte -> IO_itree
   PRE [ ]
     PROP ()
-    LOCAL ()
-    SEP (ITREE (r <- read stdin ;; k r))
+    PARAMS () GLOBALS()
+    SEP (ITREE (r <- read stdin ;; k r)%itree)
   POST [ tint ]
    EX i : int,
     PROP (-1 <= Int.signed i <= Byte.max_unsigned)
     LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin ;; k r) else k (Byte.repr (Int.signed i)))).
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin ;; k r)%itree else k (Byte.repr (Int.signed i)))).
 
 (* Build the external specification. *)
 Program Definition IO_void_Espec : OracleKind := ok_void_spec (@IO_itree E).

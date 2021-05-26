@@ -11,7 +11,7 @@ Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Ltac unfold_for_go_lower :=
-  cbv delta [PROPx LOCALx SEPx locald_denote
+  cbv delta [PROPx LAMBDAx PARAMSx GLOBALSx LOCALx SEPx argsassert2assert locald_denote
                        eval_exprlist eval_expr eval_lvalue cast_expropt
                        eval_binop eval_unop force_val1 force_val2
                       msubst_tc_expropt msubst_tc_expr msubst_tc_exprlist msubst_tc_lvalue msubst_tc_LR (* msubst_tc_LR_strong *) msubst_tc_efield msubst_simpl_tc_assert 
@@ -40,14 +40,6 @@ Ltac go_lower0 :=
 intros ?rho;
  try (simple apply grab_tc_environ; intro);
  repeat (progress unfold_for_go_lower; simpl).
-
-Ltac old_go_lower :=
- go_lower0;
- autorewrite with go_lower;
- try findvars;
- simpl;
- autorewrite with go_lower;
- try match goal with H: tc_environ _ ?rho |- _ => clear H rho end.
 
 Hint Rewrite eval_id_same : go_lower.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
@@ -114,7 +106,7 @@ Lemma gvars_denote_HP: forall rho Delta gv i t,
   headptr (gv i).
 Proof.
   intros.
-  hnf in H.
+  hnf in H. red in H0.
   subst.
   destruct_glob_types i.
   rewrite Heqo0.
@@ -142,7 +134,7 @@ Qed.
 Lemma finish_lower:
   forall rho (D: environ -> Prop) R S,
   (D rho -> fold_right_sepcon R |-- S) ->
-  (local D && PROP() LOCAL() (SEPx R)) rho |-- S.
+  (local D && PROP() LOCAL() (SEPx R))%assert rho |-- S.
 Proof.
 intros.
 simpl.
@@ -165,12 +157,28 @@ hnf in H3. destruct v; try contradiction.
 exists i0. split3; auto.
 Qed.
 
-Ltac safe_subst x := subst x.
-Ltac safe_subst_any := subst_any.
+Ltac check_safe_subst z :=
+ try (repeat lazymatch goal with
+       | H: z = ?A |- _ => match A with context [z] => revert H end
+       | H: ?A = z |- _ => match A with context [z] => revert H end
+       | H: ?A |- _ => match A with context [z] => revert H end
+       end;
+    match goal with |- ?G => 
+       try (has_evar G; fail 3 "subst not performed because the goal contains evars") 
+    end;
+   fail).
+
+Ltac safe_subst z :=
+  check_safe_subst z; subst z.
+
+Ltac safe_subst_any :=
+  repeat
+   match goal with
+   | H:?x = ?y |- _ => first [ safe_subst x | safe_subst y ]
+   end.
+
 (* safe_subst is meant to avoid doing rewrites or substitution of variables that
-  are in the scope of a unification variable.  Right now, the tactic is a placeholder
-  for real tactic that will detect the scope violation and (if so) avoid doing the
-  substition.  See issue #186. *)
+  are in the scope of a unification variable.  See issue #186. *)
 
 Ltac lower_one_temp_Vint' :=
  match goal with
@@ -306,6 +314,7 @@ Proof.
     unfold gvars_denote in H0.
     subst g.
     unfold legal_glob_ident in LEGAL0.
+    red in H.
     destruct_glob_types a.
       2: rewrite Heqo in LEGAL0; inv LEGAL0.
     rewrite Heqo0.
@@ -319,7 +328,7 @@ Lemma go_lower_localdef_one_step_canon_left: forall Delta Ppre l Qpre Rpre post 
 Proof.
   intros.
   apply derives_trans with (local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta gvar_ident l) (LOCALx (l :: Qpre) (SEPx Rpre))); auto.
-  replace (PROPx (Ppre ++ localdef_tc Delta gvar_ident l)) with (PROPx (localdef_tc Delta gvar_ident l ++ Ppre)).
+  replace (PROPx (Ppre ++ localdef_tc Delta gvar_ident l)) with (@PROPx environ (localdef_tc Delta gvar_ident l ++ Ppre)).
   2:{
     apply PROPx_Permutation.
     apply Permutation_app_comm.
@@ -338,7 +347,7 @@ Proof.
     apply andp_left2; auto.
   + simpl fold_right.
     rewrite !prop_and, !andp_assoc.
-    apply andp_derives; auto.
+    apply andp_derives; auto; try apply derives_refl.
 Qed.
 
 Definition localdefs_tc (Delta: tycontext) gvar_ident (Pre: list localdef): list Prop :=
@@ -362,25 +371,30 @@ Proof.
     eapply derives_trans; [exact H | auto].
 Qed.
 
+Inductive No_value_for_temp_variable (i: ident) : Prop := .
+Inductive No_value_for_lvar_variable (i: ident) : Prop := .
+Inductive Wrong_type_for_lvar_variable (i: ident) : Prop := .
+Inductive Missing_gvars (gv: globals) : Prop := .
+
 Definition msubst_extract_local (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) (x: localdef): Prop :=
   match x with
   | temp i u =>
     match T1 ! i with
     | Some v => u = v
-    | None => False
+    | None => No_value_for_temp_variable i
     end
   | lvar i ti u =>
     match T2 ! i with
     | Some (tj, v) =>
       if eqb_type ti tj
       then u = v
-      else False
-    | _ => False
+      else Wrong_type_for_lvar_variable i
+    | _ => No_value_for_lvar_variable i
     end
   | gvars gv =>
     match GV with
     | Some gv0 => gv0 = gv
-    | _ => False
+    | _ => Missing_gvars gv
     end
   end.
 
@@ -412,7 +426,7 @@ Lemma go_lower_localdef_one_step_canon_canon {cs: compspecs} : forall Delta Ppre
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) && PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil) (LOCALx Qpost (SEPx Rpost)) |-- PROPx Ppost (LOCALx (l :: Qpost) (SEPx Rpost)).
 Proof.
   intros.
-  replace (PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil)) with (PROPx (msubst_extract_local Delta T1 T2 GV l :: Ppost)).
+  replace (PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil)) with (@PROPx environ (msubst_extract_local Delta T1 T2 GV l :: Ppost)).
   2:{
     apply PROPx_Permutation.
     eapply Permutation_trans; [| apply Permutation_app_comm].
@@ -637,7 +651,7 @@ Proof.
   eapply derives_trans.
   + apply andp_derives; [| apply derives_refl].
     apply andp_derives; [apply derives_refl |].
-    instantiate (1 := PROPx P (LOCALx Q SEP (TT))).
+    instantiate (1 := PROPx P (LOCALx Q (SEPx (TT::nil)))).
     apply andp_derives; auto.
     apply andp_derives; auto.
     unfold SEPx; simpl.
@@ -677,7 +691,9 @@ Ltac unify_for_go_lower :=
 Ltac simply_msubst_extract_locals :=
   unfold msubst_extract_locals, msubst_extract_local, VST_floyd_map;
   cbv iota zeta beta;
-  simpl_PTree_get; simpl_eqb_type.
+  simpl_PTree_get; 
+  try prove_eqb_type
+ (* ; simpl_eqb_type *).
 
 Ltac solve_clean_LOCAL_right :=
   solve
@@ -833,6 +849,7 @@ intros;
 match goal with
  | |- local _ && PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
  | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
+ | |- ENTAIL _, _ |-- _ => fail 10 "The left-hand-side of your entailment is not in PROP/LOCAL/SEP form"
  | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
 end;
 clean_LOCAL_canon_mix;
@@ -850,8 +867,9 @@ first
 unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp; (* for the left side *)
 unfold_for_go_lower;
 simpl tc_val; simpl msubst_denote_tc_assert;
-clear_Delta;
-try clear dependent rho].
+try clear dependent rho;
+clear_Delta
+].
 
 Ltac sep_apply_in_lifted_entailment H :=
  apply SEP_entail'; 

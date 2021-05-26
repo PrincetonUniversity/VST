@@ -139,7 +139,7 @@ Proof.
   f_equal.
   unfold nested_field_type; simpl.
   rewrite !data_at_rec_eq.
-  rewrite Z.max_l by omega.
+  rewrite Z.max_l by lia.
   unfold aggregate_pred.aggregate_pred.array_pred.
   unfold aggregate_pred.array_pred.
   simpl.
@@ -150,7 +150,7 @@ Proof.
   rewrite H. auto.
 *
   assert_PROP (Zlength (unfold_reptype v0) = n). {
-     entailer!. destruct H2 as [? _]. rewrite Z.max_r in H2 by omega. auto.
+     entailer!. destruct H2 as [? _]. rewrite Z.max_r in H2 by lia. auto.
   }
   rewrite H1 in H. symmetry in H.
   unfold field_at.
@@ -160,30 +160,31 @@ Proof.
   rewrite !data_at_rec_eq.
   unfold aggregate_pred.aggregate_pred.array_pred.
   unfold aggregate_pred.array_pred.
-  rewrite Z.max_r by omega. rewrite Z.sub_0_r.
+  rewrite Z.max_r by lia. rewrite Z.sub_0_r.
   normalize.
   apply aggregate_pred.rangespec_ext_derives.
   intros.
   unfold at_offset.
   rewrite Z.sub_0_r.
-  rewrite Z2Nat.id in H3 by omega. rewrite Z.add_0_l in H3.
+  rewrite Z2Nat.id in H3 by lia. rewrite Z.add_0_l in H3.
   specialize (H0 _ H3 sh).
   unfold data_at, field_at in H0.
   simpl in H0.
   specialize (H0 (offset_val (sizeof t0 * i) p)).
   assert (field_compatible t0 nil (offset_val (sizeof t0 * i) p)). {
    destruct (zle (sizeof t0) 0).
-  - assert (sizeof t0 = 0) by (pose proof (sizeof_pos t0); omega).
+  - assert (sizeof t0 = 0) by (pose proof (sizeof_pos t0); lia).
      rewrite H4. rewrite Z.mul_0_l.
      clear - H2 H4 H3.
     destruct H2 as [? [? [? [? ?]]]].
     destruct p; try contradiction.
     split3; [ | | split3]; auto.
     red. simpl. rewrite H4. rewrite Z.add_0_r.
-    red in H1. simpl in H1. rewrite H4 in H1. rewrite Z.mul_0_l in H1.
-    rewrite Ptrofs.add_zero. omega.
+    simpl in H1. unfold sizeof in H1; simpl in H1. fold (sizeof t0) in H1.
+    rewrite H4 in H1. rewrite Z.mul_0_l in H1.
+    rewrite Ptrofs.add_zero. lia.
    red in H2|-*. apply align_compatible_rec_Tarray_inv with (i:=i) in H2; auto.
-   rewrite H4 in H2. rewrite Z.mul_0_l, Z.add_0_r in H2. simpl.
+    fold (sizeof t0) in H2. rewrite H4 in H2. rewrite Z.mul_0_l, Z.add_0_r in H2. simpl.
     rewrite Ptrofs.add_zero. auto.
    -
     clear - H2 H3 g0.
@@ -192,26 +193,27 @@ Proof.
       replace 0 with (sizeof t0 * 0)%Z by (rewrite Z.mul_0_r; auto).
       pose proof (sizeof_pos t0).
       split.
-      apply Zmult_le_compat_l; omega.
-      apply Zmult_lt_compat_l; omega.
+      apply Zmult_le_compat_l; lia.
+      apply Zmult_lt_compat_l; lia.
     }
     hnf in H1. destruct p; try contradiction.
-    simpl in H1. rewrite Z.max_r in H1 by omega.
+    unfold sizeof in H1; simpl in H1. rewrite Z.max_r in H1 by lia.
+    fold (sizeof t0) in *.
     split3; [ | | split3]; auto.
    +
     red. simpl.
     rewrite Ptrofs.add_unsigned.
     pose proof (Ptrofs.unsigned_range i0).
     rewrite (Ptrofs.unsigned_repr (_*_))
-      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); omega).
+      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); lia).
     rewrite (Ptrofs.unsigned_repr)
-      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); omega).
+      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); lia).
     assert (sizeof t0 * i + sizeof t0 <= sizeof t0 * n). {
        rewrite <- (Z.mul_1_r (sizeof t0)) at 2.
        rewrite <- Z.mul_add_distr_l.
-      apply Zmult_le_compat_l; omega.
+      apply Zmult_le_compat_l; lia.
     }
-    omega.
+    lia.
     +
      red in H2. apply align_compatible_rec_Tarray_inv with (i:=i) in H2; auto.
      unfold offset_val. 
@@ -219,9 +221,9 @@ Proof.
      rewrite Ptrofs.add_unsigned.
     pose proof (Ptrofs.unsigned_range i0).
     rewrite (Ptrofs.unsigned_repr (_*_))
-      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); omega).
+      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); lia).
     rewrite (Ptrofs.unsigned_repr)
-      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); omega).
+      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); lia).
     auto.
   }
   rewrite !prop_true_andp in H0 by auto.

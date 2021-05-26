@@ -28,11 +28,10 @@ Defined.
 Definition memcpy_spec_data_at :=
   DECLARE _memcpy
    WITH rsh : share, wsh: share, p: val, q: val, T:TREP, n:Z
-   PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
+   PRE [ tptr tvoid, tptr tvoid, tuint ]
        PROP (readable_share rsh; writable_share wsh;
                  n= sizeof (tp_of T); 0 <= n <= Int.max_unsigned)
-       LOCAL (temp 1%positive p; temp 2%positive q;
-              temp 3%positive (Vint (Int.repr n)))
+       PARAMS (p; q; Vint (Int.repr n)) GLOBALS ()
        SEP (data_at rsh (tp_of T) (v_of T) q;
             memory_block wsh n p)
     POST [ tptr tvoid ]
@@ -195,12 +194,11 @@ Definition initPostKey (sh: share) k key:mpred :=
 Definition HMAC_Init_spec :=
   DECLARE _HMAC_Init
    WITH wsh: share, sh: share, c : val, k:val, l:Z, key:list byte, h1:hmacabs, gv:globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _key OF tptr tuchar,
-         _len OF tint ]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tuchar,
+         tint ]
          PROP (writable_share wsh; readable_share sh (*has_lengthK l key*))
-         LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
-                gvars gv)
+         PARAMS (c; k; Vint (Int.repr l)) GLOBALS (gv)
          SEP (K_vector gv; initPre wsh sh c k h1 l key)
   POST [ tvoid ]
      PROP ()
@@ -216,13 +214,12 @@ Definition has_lengthD (k l:Z) (data:list byte) :=
 Definition HMAC_Update_spec :=
   DECLARE _HMAC_Update
    WITH wsh:share, sh:share, h1: hmacabs, c : val, d:val, len:Z, data:list byte, gv: globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _data OF tptr tvoid,
-         _len OF tuint]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tvoid,
+         tuint]
          PROP (writable_share wsh; readable_share sh;
                    has_lengthD (s256a_len (absCtxt h1)) len data)
-         LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr len));
-                gvars gv)
+         PARAMS (c; d; Vint (Int.repr len)) GLOBALS (gv)
          SEP(K_vector gv; hmacstate_ wsh h1 c; data_block sh data d)
   POST [ tvoid ]
           PROP ()
@@ -248,11 +245,10 @@ Definition hmacstate_PostFinal (wsh: share) (h: hmacabs) (c: val) : mpred :=
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
    WITH wsh: share, h1: hmacabs, c : val, md:val, shmd: share, gv: globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _md OF tptr tuchar ]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tuchar ]
        PROP (writable_share wsh; writable_share shmd)
-       LOCAL (temp _md md; temp _ctx c;
-              gvars gv)
+       PARAMS (c;md) GLOBALS (gv)
        SEP(hmacstate_ wsh h1 c; K_vector gv; memory_block shmd 32 md)
   POST [ tvoid ]
           PROP ()
@@ -281,26 +277,26 @@ Qed.
 Definition HMAC_Cleanup_spec :=
   DECLARE _HMAC_cleanup
    WITH wsh: share, h: hmacabs, c : val
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
+   PRE [ tptr t_struct_hmac_ctx_st ]
          PROP (writable_share wsh)
-         LOCAL (temp _ctx c)
+         PARAMS (c) GLOBALS ()
          SEP(hmacstate_PostFinal wsh h c)
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(data_block wsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) Byte.zero) c).
+          SEP(data_block wsh (repeat Byte.zero (Z.to_nat(sizeof t_struct_hmac_ctx_st))) c).
 
 Definition HMAC_Cleanup_spec1 :=
   DECLARE _HMAC_cleanup
    WITH wsh: share, h: hmacabs, c : val
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
+   PRE [ tptr t_struct_hmac_ctx_st ]
          PROP (writable_share wsh)
-         LOCAL (temp _ctx c)
+         PARAMS (c) GLOBALS ()
          SEP(EX key:_, hmacstate_PreInitNull wsh key h c)
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(data_block wsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) Byte.zero) c).
+          SEP(data_block wsh (repeat Byte.zero (Z.to_nat(sizeof t_struct_hmac_ctx_st))) c).
 
 
 (************************ Specification of oneshot HMAC *******************************************************)
@@ -312,19 +308,12 @@ Definition HMAC_spec :=
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
         shk: share, shm: share, shmd: share, md: val, gv: globals
-   PRE [ _key OF tptr tuchar,
-         _key_len OF tint,
-         _d OF tptr tuchar,
-         _n OF tint,
-         _md OF tptr tuchar ]
+   PRE [ tptr tuchar, tint, tptr tuchar, tint, tptr tuchar ]
          PROP (readable_share shk; readable_share shm; writable_share shmd;
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
-         LOCAL (temp _md md; temp _key keyVal;
-                temp _key_len (Vint (Int.repr (LEN KEY)));
-                temp _d msgVal;
-                temp _n (Vint (Int.repr (LEN MSG)));
-                gvars gv)
+         PARAMS (keyVal; Vint (Int.repr (LEN KEY)); msgVal; Vint (Int.repr (LEN MSG)); md)
+         GLOBALS (gv)
          SEP(data_block shk (CONT KEY) keyVal;
              data_block shm (CONT MSG) msgVal;
              K_vector gv;

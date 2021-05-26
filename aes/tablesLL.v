@@ -73,10 +73,10 @@ Proof.
   intros.
   repeat match goal with
   | H : ?b <= i < 256 |- _ =>
-    assert (i = b \/ b + 1 <= i < 256) as C by omega;
+    assert (i = b \/ b + 1 <= i < 256) as C by lia;
     destruct C as [C | C];
     [ subst i; vm_compute; reflexivity
     | clear H; rename C into H; simpl in H ]
   end.
-  omega.
+  lia.
 Qed.

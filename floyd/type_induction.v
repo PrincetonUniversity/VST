@@ -246,7 +246,7 @@ Lemma type_func_rec_rank_irrelevent: forall t n n0,
   n0 >= rank_type cenv_cs t ->
   type_func_rec n t = type_func_rec n0 t.
 Proof.
- (* DON'T USE omega IN THIS PROOF!
+ (* DON'T USE lia IN THIS PROOF!
    We want the proof to compute reasonably efficiently.
 *)
   intros t.

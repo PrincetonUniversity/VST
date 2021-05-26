@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -130,6 +131,40 @@ Proof.
   induction tyl1; intros; destruct tyl2; try discriminate; destruct vl; try contradiction.
   red; auto.
   simpl in *. InvBooleans. destruct H0. split; auto. eapply has_subtype; eauto.
+Qed.
+
+Definition has_type_dec (v: val) (t: typ) : { has_type v t } + { ~ has_type v t }.
+Proof.
+  unfold has_type; destruct v.
+- auto.
+- destruct t; auto.
+- destruct t; auto.
+- destruct t; auto.
+- destruct t; auto.
+- destruct t. 
+  apply bool_dec.
+  auto.
+  apply bool_dec.
+  auto.
+  apply bool_dec.
+  auto.
+Defined.
+
+Definition has_rettype (v: val) (r: rettype) : Prop :=
+  match r, v with
+  | Tret t, _ => has_type v t
+  | Tint8signed, Vint n => n = Int.sign_ext 8 n
+  | Tint8unsigned, Vint n => n = Int.zero_ext 8 n
+  | Tint16signed, Vint n => n = Int.sign_ext 16 n
+  | Tint16unsigned, Vint n => n = Int.zero_ext 16 n
+  | _, Vundef => True
+  | _, _ => False
+  end.
+
+Lemma has_proj_rettype: forall v r,
+  has_rettype v r -> has_type v (proj_rettype r).
+Proof.
+  destruct r; simpl; intros; auto; destruct v; try contradiction; exact I.
 Qed.
 
 (** Truth values.  Non-zero integers are treated as [True].
@@ -766,6 +801,18 @@ Definition rolml (v: val) (amount: int) (mask: int64): val :=
   | _ => Vundef
   end.
 
+Definition zero_ext_l (nbits: Z) (v: val) : val :=
+  match v with
+  | Vlong n => Vlong(Int64.zero_ext nbits n)
+  | _ => Vundef
+  end.
+
+Definition sign_ext_l (nbits: Z) (v: val) : val :=
+  match v with
+  | Vlong n => Vlong(Int64.sign_ext nbits n)
+  | _ => Vundef
+  end.
+
 (** Comparisons *)
 
 Section COMPARISONS.
@@ -898,6 +945,55 @@ Definition offset_ptr (v: val) (delta: ptrofs) : val :=
   | _ => Vundef
   end.
 
+(** Normalize a value to the given type, turning it into Vundef if it does not
+    match the type. *)
+
+Definition normalize (v: val) (ty: typ) : val :=
+  match v, ty with
+  | Vundef, _ => Vundef
+  | Vint _, Tint => v
+  | Vlong _, Tlong => v
+  | Vfloat _, Tfloat => v
+  | Vsingle _, Tsingle => v
+  | Vptr _ _, (Tint | Tany32) => if Archi.ptr64 then Vundef else v
+  | Vptr _ _, Tlong => if Archi.ptr64 then v else Vundef
+  | (Vint _ | Vsingle _), Tany32 => v
+  | _, Tany64 => v
+  | _, _ => Vundef
+  end.
+
+Lemma normalize_type:
+  forall v ty, has_type (normalize v ty) ty.
+Proof.
+  intros; destruct v; simpl.
+- auto.
+- destruct ty; exact I.
+- destruct ty; exact I.
+- destruct ty; exact I.
+- destruct ty; exact I.
+- unfold has_type; destruct ty, Archi.ptr64; auto.
+Qed.
+
+Lemma normalize_idem:
+  forall v ty, has_type v ty -> normalize v ty = v.
+Proof.
+  unfold has_type, normalize; intros. destruct v.
+- auto.
+- destruct ty; intuition auto.
+- destruct ty; intuition auto.
+- destruct ty; intuition auto.
+- destruct ty; intuition auto.
+- destruct ty, Archi.ptr64; intuition congruence.
+Qed.
+
+(** Select between two values based on the result of a comparison. *)
+
+Definition select (cmp: option bool) (v1 v2: val) (ty: typ) :=
+  match cmp with
+  | Some b => normalize (if b then v1 else v2) ty
+  | None => Vundef
+  end.
+
 (** [load_result] reflects the effect of storing a value with a given
   memory chunk, then reading it back with the same chunk.  Depending
   on the chunk and the type of the value, some normalization occurs.
@@ -925,10 +1021,24 @@ Definition load_result (chunk: memory_chunk) (v: val) :=
   | _, _ => Vundef
   end.
 
+Lemma load_result_rettype:
+  forall chunk v, has_rettype (load_result chunk v) (rettype_of_chunk chunk).
+Proof.
+  intros. unfold has_rettype; destruct chunk; destruct v; simpl; auto.
+- rewrite Int.sign_ext_idem by lia; auto.
+- rewrite Int.zero_ext_idem by lia; auto.
+- rewrite Int.sign_ext_idem by lia; auto.
+- rewrite Int.zero_ext_idem by lia; auto.
+- destruct Archi.ptr64 eqn:SF; simpl; auto.
+- destruct Archi.ptr64 eqn:SF; simpl; auto.
+- destruct Archi.ptr64 eqn:SF; simpl; auto.
+Qed.
+
 Lemma load_result_type:
   forall chunk v, has_type (load_result chunk v) (type_of_chunk chunk).
 Proof.
-  intros. unfold has_type; destruct chunk; destruct v; simpl; auto; destruct Archi.ptr64 eqn:SF; simpl; auto.
+  intros. rewrite <- proj_rettype_of_chunk. apply has_proj_rettype.
+  apply load_result_rettype.
 Qed.
 
 Lemma load_result_same:
@@ -944,14 +1054,14 @@ Theorem cast8unsigned_and:
   forall x, zero_ext 8 x = and x (Vint(Int.repr 255)).
 Proof.
   destruct x; simpl; auto. decEq.
-  change 255 with (two_p 8 - 1). apply Int.zero_ext_and. omega.
+  change 255 with (two_p 8 - 1). apply Int.zero_ext_and. lia.
 Qed.
 
 Theorem cast16unsigned_and:
   forall x, zero_ext 16 x = and x (Vint(Int.repr 65535)).
 Proof.
   destruct x; simpl; auto. decEq.
-  change 65535 with (two_p 16 - 1). apply Int.zero_ext_and. omega.
+  change 65535 with (two_p 16 - 1). apply Int.zero_ext_and. lia.
 Qed.
 
 Theorem bool_of_val_of_bool:
@@ -1188,7 +1298,7 @@ Proof.
    unfold divs. rewrite Int.eq_false; try discriminate.
    simpl. rewrite (Int.eq_false Int.one Int.mone); try discriminate.
    rewrite andb_false_intro2; auto. f_equal. f_equal.
-   rewrite Int.divs_one; auto. replace Int.zwordsize with 32; auto. omega.
+   rewrite Int.divs_one; auto. replace Int.zwordsize with 32; auto. lia.
 Qed.
 
 Theorem divu_pow2:
@@ -1315,7 +1425,7 @@ Proof.
   destruct (Int.ltu i0 (Int.repr 31)) eqn:?; inv H1.
   exploit Int.ltu_inv; eauto. change (Int.unsigned (Int.repr 31)) with 31. intros.
   assert (Int.ltu i0 Int.iwordsize = true).
-    unfold Int.ltu. apply zlt_true. change (Int.unsigned Int.iwordsize) with 32. omega.
+    unfold Int.ltu. apply zlt_true. change (Int.unsigned Int.iwordsize) with 32. lia.
   simpl. rewrite H0. simpl. decEq. rewrite Int.shrx_carry; auto.
 Qed.
 
@@ -1330,7 +1440,7 @@ Proof.
   destruct (Int.ltu i0 (Int.repr 31)) eqn:?; inv H1.
   exploit Int.ltu_inv; eauto. change (Int.unsigned (Int.repr 31)) with 31. intros.
   assert (Int.ltu i0 Int.iwordsize = true).
-    unfold Int.ltu. apply zlt_true. change (Int.unsigned Int.iwordsize) with 32. omega.
+    unfold Int.ltu. apply zlt_true. change (Int.unsigned Int.iwordsize) with 32. lia.
   exists i; exists i0; intuition.
   rewrite Int.shrx_shr; auto. destruct (Int.lt i Int.zero); simpl; rewrite H0; auto.
 Qed.
@@ -1353,12 +1463,12 @@ Proof.
   replace (Int.ltu (Int.sub (Int.repr 32) n) Int.iwordsize) with true. simpl.
   replace (Int.ltu n Int.iwordsize) with true.
   f_equal; apply Int.shrx_shr_2; assumption.
-  symmetry; apply zlt_true. change (Int.unsigned n < 32); omega.
+  symmetry; apply zlt_true. change (Int.unsigned n < 32); lia.
   symmetry; apply zlt_true. unfold Int.sub. change (Int.unsigned (Int.repr 32)) with 32.
   assert (Int.unsigned n <> 0). { red; intros; elim H. rewrite <- (Int.repr_unsigned n), H0. auto. }
   rewrite Int.unsigned_repr.
-  change (Int.unsigned Int.iwordsize) with 32; omega.
-  assert (32 < Int.max_unsigned) by reflexivity. omega.
+  change (Int.unsigned Int.iwordsize) with 32; lia.
+  assert (32 < Int.max_unsigned) by reflexivity. lia.
 Qed.
 
 Theorem or_rolm:
@@ -1548,7 +1658,7 @@ Proof.
   rewrite (Int64.eq_false Int64.one Int64.mone); try discriminate.
   rewrite andb_false_intro2; auto.
   simpl. f_equal. f_equal. apply Int64.divs_one.
-  replace Int64.zwordsize with 64; auto. omega.
+  replace Int64.zwordsize with 64; auto. lia.
 Qed.
 
 Theorem divlu_pow2:
@@ -1591,7 +1701,7 @@ Proof.
   destruct (Int.ltu i0 (Int.repr 63)) eqn:?; inv H1.
   exploit Int.ltu_inv; eauto. change (Int.unsigned (Int.repr 63)) with 63. intros.
   assert (Int.ltu i0 Int64.iwordsize' = true).
-    unfold Int.ltu. apply zlt_true. change (Int.unsigned Int64.iwordsize') with 64. omega.
+    unfold Int.ltu. apply zlt_true. change (Int.unsigned Int64.iwordsize') with 64. lia.
   simpl. rewrite H0. simpl. decEq. rewrite Int64.shrx'_carry; auto.
 Qed.
 
@@ -1612,12 +1722,12 @@ Proof.
   replace (Int.ltu (Int.sub (Int.repr 64) n) Int64.iwordsize') with true. simpl.
   replace (Int.ltu n Int64.iwordsize') with true.
   f_equal; apply Int64.shrx'_shr_2; assumption.
-  symmetry; apply zlt_true. change (Int.unsigned n < 64); omega.
+  symmetry; apply zlt_true. change (Int.unsigned n < 64); lia.
   symmetry; apply zlt_true. unfold Int.sub. change (Int.unsigned (Int.repr 64)) with 64.
   assert (Int.unsigned n <> 0). { red; intros; elim H. rewrite <- (Int.repr_unsigned n), H0. auto. }
   rewrite Int.unsigned_repr.
-  change (Int.unsigned Int64.iwordsize') with 64; omega.
-  assert (64 < Int.max_unsigned) by reflexivity. omega.
+  change (Int.unsigned Int64.iwordsize') with 64; lia.
+  assert (64 < Int.max_unsigned) by reflexivity. lia.
 Qed.
 
 Theorem negate_cmp_bool:
@@ -1832,10 +1942,18 @@ Qed.
 
 Lemma zero_ext_and:
   forall n v,
-  0 < n < Int.zwordsize ->
+  0 <= n ->
   Val.zero_ext n v = Val.and v (Vint (Int.repr (two_p n - 1))).
 Proof.
-  intros. destruct v; simpl; auto. decEq. apply Int.zero_ext_and; auto. omega.
+  intros. destruct v; simpl; auto. decEq. apply Int.zero_ext_and; auto.
+Qed.
+
+Lemma zero_ext_andl:
+  forall n v,
+  0 <= n ->
+  Val.zero_ext_l n v = Val.andl v (Vlong (Int64.repr (two_p n - 1))).
+Proof.
+  intros. destruct v; simpl; auto. decEq. apply Int64.zero_ext_and; auto.
 Qed.
 
 Lemma rolm_lt_zero:
@@ -1883,7 +2001,7 @@ Inductive lessdef_list: list val -> list val -> Prop :=
       lessdef v1 v2 -> lessdef_list vl1 vl2 ->
       lessdef_list (v1 :: vl1) (v2 :: vl2).
 
-Hint Resolve lessdef_refl lessdef_undef lessdef_list_nil lessdef_list_cons.
+Global Hint Resolve lessdef_refl lessdef_undef lessdef_list_nil lessdef_list_cons : core.
 
 Lemma lessdef_list_inv:
   forall vl1 vl2, lessdef_list vl1 vl2 -> vl1 = vl2 \/ In Vundef vl1.
@@ -2044,6 +2162,36 @@ Proof.
   intros. destruct v; simpl; auto. f_equal. apply Ptrofs.add_assoc.
 Qed.
 
+Lemma lessdef_normalize:
+  forall v ty, lessdef (normalize v ty) v.
+Proof.
+  intros. destruct v; simpl.
+  - auto.
+  - destruct ty; auto.
+  - destruct ty; auto.
+  - destruct ty; auto.
+  - destruct ty; auto.
+  - destruct ty, Archi.ptr64; auto.
+Qed.
+
+Lemma normalize_lessdef:
+  forall v v' ty, lessdef v v' -> lessdef (normalize v ty) (normalize v' ty).
+Proof.
+  intros. inv H; auto.
+Qed.
+
+Lemma select_lessdef:
+  forall ob ob' v1 v1' v2 v2' ty,
+  ob = None \/ ob = ob' ->
+  lessdef v1 v1' -> lessdef v2 v2' ->
+  lessdef (select ob v1 v2 ty) (select ob' v1' v2' ty).
+Proof.
+  intros; unfold select. destruct H.
+- subst ob; auto.
+- subst ob'; destruct ob as [b|]; auto.
+  apply normalize_lessdef. destruct b; auto.
+Qed.
+
 (** * Values and memory injections *)
 
 (** A memory injection [f] is a function from addresses to either [None]
@@ -2078,7 +2226,7 @@ Inductive inject (mi: meminj): val -> val -> Prop :=
   | val_inject_undef: forall v,
       inject mi Vundef v.
 
-Hint Constructors inject.
+Global Hint Constructors inject : core.
 
 Inductive inject_list (mi: meminj): list val -> list val-> Prop:=
   | inject_list_nil :
@@ -2087,7 +2235,7 @@ Inductive inject_list (mi: meminj): list val -> list val-> Prop:=
       inject mi v v' -> inject_list mi vl vl'->
       inject_list mi (v :: vl) (v' :: vl').
 
-Hint Resolve inject_list_nil inject_list_cons.
+Global Hint Resolve inject_list_nil inject_list_cons : core.
 
 Lemma inject_ptrofs:
   forall mi i, inject mi (Vptrofs i) (Vptrofs i).
@@ -2095,7 +2243,7 @@ Proof.
   unfold Vptrofs; intros. destruct Archi.ptr64; auto.
 Qed.
 
-Hint Resolve inject_ptrofs.
+Global Hint Resolve inject_ptrofs : core.
 
 Section VAL_INJ_OPS.
 
@@ -2328,6 +2476,36 @@ Proof.
   intros. unfold Val.hiword; inv H; auto.
 Qed.
 
+Lemma normalize_inject:
+  forall v v' ty, inject f v v' -> inject f (normalize v ty) (normalize v' ty).
+Proof.
+  intros. inv H.
+- destruct ty; constructor.
+- destruct ty; constructor.
+- destruct ty; constructor.
+- destruct ty; constructor.
+- simpl. destruct ty.
++ destruct Archi.ptr64; econstructor; eauto.
++ auto.
++ destruct Archi.ptr64; econstructor; eauto.
++ auto.
++ destruct Archi.ptr64; econstructor; eauto.
++ econstructor; eauto.
+- constructor.
+Qed.
+
+Lemma select_inject:
+  forall ob ob' v1 v1' v2 v2' ty,
+  ob = None \/ ob = ob' ->
+  inject f v1 v1' -> inject f v2 v2' ->
+  inject f (select ob v1 v2 ty) (select ob' v1' v2' ty).
+Proof.
+  intros; unfold select. destruct H.
+- subst ob; auto.
+- subst ob'; destruct ob as [b|]; auto.
+  apply normalize_inject. destruct b; auto.
+Qed.
+
 End VAL_INJ_OPS.
 
 End Val.
@@ -2368,7 +2546,7 @@ Proof.
   constructor. eapply val_inject_incr; eauto. auto.
 Qed.
 
-Hint Resolve inject_incr_refl val_inject_incr val_inject_list_incr.
+Global Hint Resolve inject_incr_refl val_inject_incr val_inject_list_incr : core.
 
 Lemma val_inject_lessdef:
   forall v1 v2, Val.lessdef v1 v2 <-> Val.inject (fun b => Some(b, 0)) v1 v2.

@@ -7,6 +7,8 @@ Import List.
 (* Lemmas about ghost state and common instances, part 2 *)
 (* Where should this sit? *)
 
+#[export] Hint Resolve Share.nontrivial : core.
+
 Definition gname := own.gname.
 
 Instance Inhabitant_preds : Inhabitant preds := NoneP.
@@ -74,8 +76,8 @@ Proof.
   { apply Forall_repeat; auto. }
   { rewrite !repeat_length; auto. }
   apply bupd_mono; Intros lg; Exists lg.
-  rewrite Zlength_repeat, Z2Nat.id in H1 by omega.
-  rewrite !combine_const1 by (rewrite ?Zlength_combine, ?Zlength_repeat, ?Z2Nat.id, ?Z.min_r; omega).
+  rewrite coqlib4.Zlength_repeat, Z2Nat.id in H1 by lia.
+  rewrite !combine_const1 by (rewrite ?Zlength_combine, ?coqlib4.Zlength_repeat, ?Z2Nat.id, ?Z.min_r; lia).
   entailer!.
   clear H; induction lg; simpl; entailer!.
 Qed.
@@ -198,7 +200,7 @@ Proof.
   apply join_refl.
 Qed.
 
-Hint Resolve bupd_intro : ghost.
+#[local] Hint Resolve bupd_intro : ghost.
 
 Lemma make_snap : forall (sh : share) v p, ghost_master sh v p |-- |==> ghost_snap v p * ghost_master sh v p.
 Proof.
@@ -284,6 +286,8 @@ Proof.
 Qed.
 
 End Snapshot.
+
+#[global] Hint Resolve bupd_intro : ghost.
 
 Section Reference.
 
@@ -419,8 +423,10 @@ Qed.
 
 End Reference.
 
-Hint Resolve @part_ref_valid : init.
+#[export] Hint Resolve @part_ref_valid : init.
  
+#[export] Hint Resolve self_completable : init.
+
 Section GVar.
 
 Context {A : Type}.
@@ -487,7 +493,7 @@ Qed.
 
 End GVar.
 
-Hint Resolve ghost_var_exclusive : exclusive.
+#[export] Hint Resolve ghost_var_exclusive : exclusive.
 
 Section PVar.
 (* Like ghost variables, but the partial values may be out of date. *)
@@ -508,10 +514,10 @@ Next Obligation.
     apply Nat.le_antisymm; [subst b | subst a]; apply Nat.le_max_l.
 Qed.
 
-Global Instance max_order : PCM_order le.
+Global Instance max_order : PCM_order Peano.le.
 Proof.
   constructor; auto; intros.
-  - apply _.
+  - constructor; auto. intros ???; lia.
   - eexists; unfold join; simpl; split; eauto.
     apply Nat.max_lub; auto.
   - hnf in H; subst.
@@ -1047,7 +1053,7 @@ Qed.
 Lemma all_disjoint_nil : all_disjoint [].
 Proof.
   repeat intro.
-  rewrite Zlength_nil in H, H0; omega.
+  rewrite Zlength_nil in *; lia.
 Qed.
 
 Lemma all_disjoint_cons : forall (m : A -> option B) l, all_disjoint (m :: l) <-> disjoint m (maps_add l) /\ all_disjoint l.
@@ -1058,38 +1064,36 @@ Proof.
       eapply in_maps_add in Hl as (m2 & ? & ?).
       apply In_Znth in H1 as (j & ? & ?); subst.
       specialize (H 0 (j + 1)).
-      rewrite Znth_0_cons, Znth_pos_cons in H; try omega.
-      rewrite Z.add_simpl_r, Zlength_cons in H; try omega.
-      erewrite H in H2; eauto; omega.
+      rewrite Znth_0_cons, Znth_pos_cons, Z.add_simpl_r, Zlength_cons in H by lia.
+      erewrite H in H2; eauto; lia.
     + specialize (H (i + 1) (j + 1)).
-      rewrite !Znth_pos_cons in H; try omega.
-      rewrite !Z.add_simpl_r, Zlength_cons in H; try omega.
-      eapply H; eauto; omega.
+      rewrite !Znth_pos_cons, !Z.add_simpl_r, Zlength_cons in H by lia.
+      eapply H; eauto; lia.
   - intros []; repeat intro.
     rewrite Zlength_cons in H1, H2.
     destruct (eq_dec i 0), (eq_dec j 0); subst; try contradiction.
-    + rewrite Znth_0_cons in H4; rewrite Znth_pos_cons by omega.
+    + rewrite Znth_0_cons in H4; rewrite Znth_pos_cons by lia.
       specialize (H _ _ H4).
       destruct (Znth _ _ _) eqn: Hj; auto.
       apply maps_add_in with (l := l) in Hj; try congruence.
       * apply all_disjoint_compatible; auto.
-      * apply Znth_In; omega.
-    + rewrite Znth_0_cons; rewrite Znth_pos_cons in H4 by omega.
+      * apply Znth_In; lia.
+    + rewrite Znth_0_cons; rewrite Znth_pos_cons in H4 by lia.
       destruct (m k) eqn: Hm; auto.
       specialize (H _ _ Hm).
       apply maps_add_in with (l := l) in H4; try congruence.
       * apply all_disjoint_compatible; auto.
-      * apply Znth_In; omega.
-    + rewrite !Znth_pos_cons in H4 |- *; try omega.
-      eapply (H0 (i - 1) (j - 1)); eauto; omega.
+      * apply Znth_In; lia.
+    + rewrite Znth_pos_cons in * by lia.
+      eapply (H0 (i - 1) (j - 1)); eauto; lia.
 Qed.
 
 Lemma all_disjoint_rev1 : forall l, all_disjoint l -> all_disjoint (rev l).
 Proof.
   unfold all_disjoint; intros.
-  rewrite Zlength_rev in H0, H1.
-  rewrite !Znth_rev; auto.
-  apply H; omega.
+  rewrite Zlength_rev in *.
+  rewrite !Znth_rev by auto.
+  apply H; lia.
 Qed.
 
 Lemma all_disjoint_rev : forall l, all_disjoint l <-> all_disjoint (rev l).
@@ -1152,7 +1156,7 @@ End MapsL.
 
 Notation maps_add l := (fold_right map_add empty_map l).
 
-Hint Resolve empty_map_incl empty_map_disjoint all_disjoint_nil : ghost.
+#[export] Hint Resolve empty_map_incl empty_map_disjoint all_disjoint_nil : core.
 
 Section GHist.
 
@@ -1266,8 +1270,8 @@ Proof.
   destruct (h (length l)); auto.
   destruct (Hlist h0) as [H' _].
   pose proof (nth_error_Some l (length l)) as (Hlt & _).
-  lapply Hlt; [omega|].
-  erewrite H' by auto; discriminate.
+  lapply Hlt; [lia|].
+  rewrite H' by auto; discriminate.
 Qed.
 
 Definition ghost_hist_ref sh (h r : hist_part) g :=
@@ -1316,10 +1320,10 @@ Proof.
       intro X; rewrite nth_error_app1; auto.
       rewrite <- nth_error_Some, X; discriminate.
   - if_tac.
-    + subst; erewrite nth_error_app2, minus_diag; auto.
-    + intro X; apply H; erewrite nth_error_app1 in X; auto.
-      assert (t < length (l ++ [e]))%nat; [|erewrite app_length in *; simpl in *; omega].
-      erewrite <- nth_error_Some, X; discriminate.
+    + subst; rewrite nth_error_app2, minus_diag; auto.
+    + intro X; apply H; rewrite nth_error_app1 in X; auto.
+      assert (t < length (l ++ [e]))%nat; [|rewrite app_length in *; simpl in *; lia].
+      rewrite <- nth_error_Some, X; discriminate.
 Qed.
 
 Lemma hist_sub_list_incl : forall sh h h' l (Hsub : hist_sub sh h h') (Hlist : hist_list h' l),
@@ -1365,7 +1369,7 @@ Proof.
   - Exists (fun _ : nat => @None hist_el); apply andp_right, derives_refl.
     apply prop_right; split; [apply hist_list_nil|].
     split; auto.
-    if_tac; auto with ghost.
+    if_tac; auto.
     reflexivity.
 Qed.
 
@@ -1394,15 +1398,15 @@ Definition newer (l : hist_part) t := forall t', l t' <> None -> (t' < t)%nat.
 Lemma newer_trans : forall l t1 t2, newer l t1 -> (t1 <= t2)%nat -> newer l t2.
 Proof.
   repeat intro.
-  specialize (H _ H1); omega.
+  specialize (H _ H1); lia.
 Qed.
 
 Corollary newer_upd : forall l t1 e t2, newer l t1 -> (t1 < t2)%nat ->
   newer (map_upd l t1 e) t2.
 Proof.
   unfold newer, map_upd; intros.
-  destruct (eq_dec t' t1); [omega|].
-  eapply newer_trans; eauto; omega.
+  destruct (eq_dec t' t1); [lia|].
+  eapply newer_trans; eauto; lia.
 Qed.
 
 Lemma newer_over : forall h t t', newer h t -> (t <= t')%nat -> h t' = None.
@@ -1410,7 +1414,7 @@ Proof.
   intros.
   specialize (H t').
   destruct (h t'); auto.
-  lapply H; [omega | discriminate].
+  lapply H; [lia | discriminate].
 Qed.
 
 Corollary newer_out : forall h t, newer h t -> h t = None.
@@ -1436,7 +1440,7 @@ Proof.
   - erewrite if_false in Hh' by auto.
     lapply (Ht t'); [|rewrite Hh'; discriminate].
     lapply (Ht' t); [|rewrite <- Hh; discriminate].
-    omega.
+    lia.
 Qed.
 
 Lemma hist_incl_lt : forall h l, hist_incl h l -> newer h (length l).
@@ -1459,7 +1463,7 @@ Inductive hist_list' : hist_part -> list hist_el -> Prop :=
 | hist_list'_nil : hist_list' empty_map []
 | hist_list'_snoc : forall h l t e (Hlast : newer h t) (Hrest : hist_list' h l),
     hist_list' (map_upd h t e) (l ++ [e]).
-Hint Resolve hist_list'_nil : ghost.
+Local Hint Resolve hist_list'_nil : core.
 
 Lemma hist_list'_in : forall h l (Hl : hist_list' h l) e, (exists t, h t = Some e) <-> In e l.
 Proof.
@@ -1479,9 +1483,9 @@ Qed.
 Lemma hist_list_weak : forall l h (Hl : hist_list h l), hist_list' h l.
 Proof.
   induction l using rev_ind; intros.
-  - apply hist_list_nil_inv2 in Hl; subst; auto with ghost.
+  - apply hist_list_nil_inv2 in Hl; subst; auto.
   - destruct (Hl (length l) x) as (_ & H); exploit H.
-    { erewrite nth_error_app2, minus_diag by omega; auto. }
+    { rewrite nth_error_app2, minus_diag by lia; auto. }
     intro Hx.
     set (h0 := fun k => if eq_dec k (length l) then None else h k).
     replace h with (map_upd h0 (length l) x).
@@ -1489,17 +1493,17 @@ Proof.
     + pose proof (hist_list_lt _ _ Hl) as Hn.
       intro t; specialize (Hn t).
       subst h0; simpl; if_tac; [contradiction|].
-      intro X; specialize (Hn X); erewrite app_length in Hn; simpl in Hn; omega.
+      intro X; specialize (Hn X); rewrite app_length in Hn; simpl in Hn; lia.
     + apply IHl.
       intros t e; specialize (Hl t e).
       subst h0; simpl; if_tac.
       * split; [discriminate|].
-        intro X; assert (t < length l)%nat by (rewrite <- nth_error_Some, X; discriminate); omega.
+        intro X; assert (t < length l)%nat by (rewrite <- nth_error_Some, X; discriminate); lia.
       * rewrite Hl; destruct (lt_dec t (length l)).
         { erewrite nth_error_app1 by auto; reflexivity. }
         split; intro X.
         -- assert (t < length (l ++ [x]))%nat by (rewrite <- nth_error_Some, X; discriminate);
-             erewrite app_length in *; simpl in *; omega.
+             rewrite app_length in *; simpl in *; lia.
         -- assert (t < length l)%nat by (rewrite <- nth_error_Some, X; discriminate); contradiction.
     + unfold map_upd; subst h0; simpl.
       extensionality k'; if_tac; subst; auto.
@@ -1575,11 +1579,11 @@ Inductive add_events h : list hist_el -> hist_part -> Prop :=
 | add_events_nil : add_events h [] h
 | add_events_snoc : forall le h' t e (Hh' : add_events h le h') (Ht : newer h' t),
     add_events h (le ++ [e]) (map_upd h' t e).
-Hint Resolve add_events_nil : ghost.
+Local Hint Resolve add_events_nil : core.
 
 Lemma add_events_1 : forall h t e (Ht : newer h t), add_events h [e] (map_upd h t e).
 Proof.
-  intros; apply (add_events_snoc _ []); auto with ghost.
+  intros; apply (add_events_snoc _ []); auto.
 Qed.
 
 Lemma add_events_trans : forall h le h' le' h'' (H1 : add_events h le h') (H2 : add_events h' le' h''),
@@ -1599,7 +1603,7 @@ Proof.
     assert (compatible h h2).
     { repeat intro.
       destruct (Hh2 _ _ H1) as [Hk _].
-      specialize (Hk k); lapply Hk; [omega | congruence]. }
+      specialize (Hk k); lapply Hk; [lia | congruence]. }
     assert (newer h t).
     { repeat intro; apply Ht.
       unfold map_add.
@@ -1613,7 +1617,7 @@ Proof.
     { apply compatible_upd; [symmetry; auto|].
       specialize (H1 t).
       destruct (h t); auto.
-      lapply H1; [omega | discriminate]. }
+      lapply H1; [lia | discriminate]. }
 Qed.
 
 Corollary add_events_dom : forall h le h' t e, add_events h le h' -> h' t = Some e ->
@@ -1648,16 +1652,16 @@ Proof.
   - destruct IHadd_events as (? & ? & ?); auto.
     do 2 eexists; eauto.
     unfold map_upd; if_tac; auto; subst.
-    specialize (Ht t); rewrite H2 in Ht; lapply Ht; [omega | discriminate].
+    specialize (Ht t); rewrite H2 in Ht; lapply Ht; [lia | discriminate].
   - subst; unfold map_upd; do 2 eexists; [|apply eq_dec_refl].
     eapply add_events_newer; eauto.
 Qed.
 
 End GHist.
 
-Hint Resolve hist_incl_nil hist_list_nil hist_list'_nil add_events_nil : ghost.
-(*Hint Resolve ghost_var_precise ghost_var_precise'.*)
-Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
+#[export] Hint Resolve hist_incl_nil hist_list_nil hist_list'_nil add_events_nil : core.
+(*#[export] Hint Resolve ghost_var_precise ghost_var_precise'.*)
+#[export] Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
 
 Ltac ghost_alloc G :=
   match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
@@ -1682,11 +1686,11 @@ Proof.
   - eapply Hshift; eauto.
     apply necR_level in H1; apply necR_level in H2.
     apply join_level in H3 as [].
-    apply (H y0); auto; omega.
+    apply (H y0); auto; lia.
   - eapply Hshift; eauto.
     apply necR_level in H1; apply necR_level in H2.
     apply join_level in H3 as [].
-    apply (H y0); auto; omega.
+    apply (H y0); auto; lia.
 Qed.
 
 Lemma wand_nonexpansive_r: forall P Q n,
@@ -1698,11 +1702,11 @@ Proof.
   - eapply Hshift in H4; eauto.
     apply necR_level in H1; apply necR_level in H2.
     apply join_level in H3 as [].
-    apply (H z); auto; omega.
+    apply (H z); auto; lia.
   - eapply Hshift in H4; eauto.
     apply necR_level in H1; apply necR_level in H2.
     apply join_level in H3 as [].
-    apply (H z); auto; omega.
+    apply (H z); auto; lia.
 Qed.
 
 Lemma approx_bupd: forall P n, (approx n (own.bupd P) = (own.bupd (approx n P)))%logic.
@@ -1712,11 +1716,11 @@ Proof.
     change ((own.bupd (approx n P)) a).
     intros ? J.
     destruct (HP _ J) as (? & ? & m' & ? & ? & ? & ?);
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
+      eexists; split; eauto; eexists; split; eauto; repeat split; auto; lia.
   - intros ? HP.
     destruct (HP nil) as (? & ? & m' & ? & ? & ? & []).
     { eexists; constructor. }
-    split; [omega|].
+    split; [lia|].
     change ((own.bupd P) a).
     intros ? J.
     destruct (HP _ J) as (? & ? & m'' & ? & ? & ? & []);

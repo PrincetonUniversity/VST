@@ -2,8 +2,9 @@ Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
 Require Import aes.verif_setkey_enc_LL_loop_body.
-Open Scope Z.
 Local Open Scope logic.
+Open Scope Z.
+Require Import VST.floyd.Funspec_old_Notation.
 
 (* Calls forward_if with the current precondition to which the provided conditions are added *)
 (* QQQ TODO does this already exist? Add to library? *)
@@ -111,25 +112,25 @@ Proof.
     reassoc_seq.
     assert (Int.unsigned (Int.shl (Int.repr i) (Int.repr 2)) = (4 * i)%Z) as E1. {
       rewrite <- Int.mul_pow2 with (n := (Int.repr 4)) by reflexivity.
-      rewrite mul_repr. rewrite Z.mul_comm. apply Int.unsigned_repr. rep_omega.
+      rewrite mul_repr. rewrite Z.mul_comm. apply Int.unsigned_repr. rep_lia.
     }
     forward. 
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 1)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+        rewrite Int.unsigned_repr; [ lia | ]. rep_lia.
      }
     forward. clear Hz.
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 2)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+        rewrite Int.unsigned_repr; [ lia | ]. rep_lia.
      }
     forward. clear Hz.
     assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 3)) < Zlength key_chars). {
         rewrite H. unfold Int.add. rewrite E1.
         rewrite (Int.unsigned_repr (Z.pos _)) by computable.
-        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+        rewrite Int.unsigned_repr; [ lia | ]. rep_lia.
      }
     forward. clear Hz.
 
@@ -141,16 +142,16 @@ Proof.
       else Vundef) = field_address t_struct_aesctx [StructField _buf] ctx) by entailer!.
     forward.
     entailer!.
-    replace (4 * i)%Z with (i * 4)%Z by omega.
+    replace (4 * i)%Z with (i * 4)%Z by lia.
     assert (forall sh t gfs v1 v2 p, v1 = v2 -> field_at sh t gfs v1 p |-- field_at sh t gfs v2 p)
     as field_at_change_value. (* TODO floyd: this might be useful elsewhere *)
     { intros. replace v1 with v2 by assumption. apply derives_refl. }
     apply field_at_change_value.
     fold ((fun i0 => get_uint32_le key_chars (i0 * 4)) i).
-   rewrite <- update_partially_filled by omega. f_equal. f_equal. 
+   rewrite <- update_partially_filled by lia. f_equal. f_equal. 
    unfold get_uint32_le. unfold Int.add. rewrite E1. 
    rewrite !(Int.unsigned_repr (Z.pos _)) by computable.
-   rewrite !Int.unsigned_repr by rep_omega.
+   rewrite !Int.unsigned_repr by rep_lia.
    rewrite !(Z.mul_comm 4). reflexivity.
   }
   reassoc_seq.
@@ -177,10 +178,24 @@ Proof.
   rewrite <- E.
   rewrite key_expansion_final_eq. rewrite E.
   change (60 - 7 * 8) with 4.
+
+  (*WAS:
   forget (KeyExpansion2 (key_bytes_to_key_words key_chars)) as R.
   forward.
   rewrite Vundef_is_Vint.
-  unfold_data_at 4%nat. cancel.
+  unfold_data_at 4%nat. rewrite <- sepcon_assoc.
+  apply sepcon_derives. cancel.*)
+
+  (*NOW:*)
+  set (R:=(KeyExpansion2 (key_bytes_to_key_words key_chars))).
+  forward.
+  rewrite Vundef_is_Vint. cancel.
+  unfold_data_at (1%nat). rewrite <- sepcon_assoc.
+  apply sepcon_derives. cancel.
+  apply derives_refl'. subst R. Time (simpl; reflexivity). (*45s*)
+
+
   Fail idtac.  (* make sure there are no subgoals *)
 (* Time Qed. takes forever, many minutes on a fast machine, then I gave up.  Appel, March 2018, Coq 8.7.2 *)
+   (*Still does not terminate in 1h, Beringer, February 2020, Coq 8.10.1*)
 Admitted.

@@ -17,7 +17,7 @@ Require Import VST.veric.Clight_lemmas.
 
 Open Local Scope pred.
 
-Hint Resolve @now_later @andp_derives @sepcon_derives.
+Hint Resolve now_later andp_derives sepcon_derives.
 
 (*
 Definition rmap_chain := {c: nat -> rmap | forall n, level (c n) = n /\ age (c (S n)) (c n)}.
@@ -74,7 +74,7 @@ Next Obligation.
   hnf; simpl; intros.
   destruct (le_lt_dec (level a) (level r)).
   + pose proof age_level _ _ H.
-    destruct (le_lt_dec (level a') (level r)); try omega.
+    destruct (le_lt_dec (level a') (level r)); try lia.
     apply rt_trans with a; auto.
     apply rt_step; auto.
   + tauto.
@@ -84,7 +84,7 @@ Lemma exact_at_spec: forall r, exact_at r r.
 Proof.
   intros.
   simpl.
-  if_tac; [apply necR_refl | omega].
+  if_tac; [apply necR_refl | lia].
 Qed.
 
 Lemma exact_at_rev: forall F: assert,
@@ -132,7 +132,7 @@ Proof.
   + apply (H w); auto.
   + apply H; auto.
     apply necR_level in H1.
-    omega.
+    lia.
 Qed.
 
 Lemma semax_unfold' {CS: compspecs}:

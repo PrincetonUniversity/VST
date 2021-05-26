@@ -4,10 +4,12 @@ Require Import VST.msl.seplog.
 Require Import VST.msl.Extensionality.
 Require Import Coq.Setoids.Setoid.
 
+Create HintDb norm discriminated.
+
 Local Open Scope logic.
 
-Hint Extern 0 (_ |-- _) => match goal with |- ?A |-- ?B => constr_eq A B; simple apply derives_refl end : core.
-(* Hint Resolve @derives_refl.    too expensive sometimes when it fails . . . *)
+#[export] Hint Extern 0 (_ |-- _) => match goal with |- ?A |-- ?B => constr_eq A B; simple apply derives_refl end : core.
+(* Hint Resolve derives_refl.    too expensive sometimes when it fails . . . *)
 
 Ltac solve_andp' :=
   first [ apply derives_refl
@@ -25,8 +27,8 @@ Proof.
 intros; apply prop_left. intuition.
 Qed.
 
-Hint Resolve @TT_right: norm.
-Hint Resolve @FF_left : norm.
+#[export] Hint Resolve TT_right: norm.
+#[export] Hint Resolve FF_left : norm.
 
 Ltac norm := auto with norm.
 
@@ -75,6 +77,18 @@ intros.
 apply orp_left.
 apply orp_right1; apply H.
 apply orp_right2; apply H0.
+Qed.
+
+Lemma orp_assoc {A} {NA: NatDed A} : forall P Q R : A,
+  (P || Q) || R = P || (Q || R).
+Proof.
+  intros; apply pred_ext;   repeat apply orp_left.
+  apply orp_right1; trivial.
+  apply orp_right2; apply orp_right1; trivial.
+  do 2 apply orp_right2; auto.
+  do 2 apply orp_right1; trivial. 
+  apply orp_right1. apply orp_right2; trivial.
+  apply orp_right2; auto.
 Qed.
 
 Class CCCviaNatDed (A: Type) (prod expo: A -> A -> A) {ND: NatDed A}: Prop :=
@@ -751,7 +765,7 @@ apply @derives_trans with (P * emp).
 rewrite sepcon_emp...
 apply sepcon_derives...
 Qed.
-Hint Resolve @sepcon_TT : core.
+#[export] Hint Resolve sepcon_TT : core.
 
 Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall (P: A), P |-- (TT * P).
@@ -931,9 +945,9 @@ Proof.
 intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
 Qed.
 
-Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp
-                    @corable_imp @corable_prop @corable_sepcon @corable_wand @corable_later : core.
-Hint Resolve @corable_prop : norm.
+#[export] Hint Resolve corable_andp corable_orp corable_allp corable_exp
+                    corable_imp corable_prop corable_sepcon corable_wand corable_later : core.
+#[export] Hint Resolve corable_prop : norm.
 
 (* The followings are not in auto-rewrite lib. *)
 
@@ -1274,6 +1288,7 @@ Qed.
 
 (***** subtyping and contractiveness -- should split this into a separate file ******)
 Require Import VST.msl.alg_seplog.
+Import FashNotation.
 
 Lemma later_fash1 {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
    forall P : A, |> # P |-- # |> P.
@@ -1534,13 +1549,13 @@ Ltac sub_unfold :=
     | v: _ |- _ => destruct v
    end.
 
-Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
+#[export] Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
 
-Hint Resolve @prove_HOcontractive
-  @subp_allp @subp_imp @subp_refl @subp_exp @subp_andp @subp_orp @subp_subp
-  @subp_sepcon (* NOTE: This hint fails to work unless fully instantiated, for some reason;
+#[export] Hint Resolve prove_HOcontractive
+  subp_allp subp_imp subp_refl subp_exp subp_andp subp_orp subp_subp
+  subp_sepcon (* NOTE: This hint fails to work unless fully instantiated, for some reason;
                              so the client must re-do the subp_sepcon hint *)
-  @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
+  allp_imp2_later_e1 allp_imp2_later_e2 : contractive.
 
 Lemma  goedel_loeb {A}  {NA: NatDed A}{IA: Indir A}:
     forall P Q : A ,   (Q && later P |-- P) ->  Q |-- P.

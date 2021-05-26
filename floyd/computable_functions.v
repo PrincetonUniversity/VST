@@ -1,7 +1,18 @@
 Require Import VST.floyd.base.
 Import compcert.lib.Maps.
 
-Ltac simpl_PTree_get :=
+Ltac make_ground_PTree a :=
+ let a := eval hnf in a in
+ match a with
+ | PTree.Leaf => constr:(a)
+ | PTree.Node ?l ?o ?r => 
+    let l := make_ground_PTree l in
+    let r := make_ground_PTree r in
+    let o := eval hnf in o in 
+    constr:(PTree.Node l o r)
+ end.
+
+Ltac simpl_PTree_get_old :=
   repeat match goal with
          | |- context [PTree.get ?i' ?t] =>
            let i'' := eval hnf in i' in
@@ -16,6 +27,15 @@ Ltac simpl_PTree_get :=
                      | 1%positive => o
                      end
                  end) _ i'' t)
+         end;
+  cbv iota zeta beta.
+
+Ltac simpl_PTree_get :=
+  repeat match goal with
+         | |- context [PTree.get ?i' ?t] =>
+           let g := constr:(PTree.get i' t) in 
+           let g := eval hnf in g in
+           change (PTree.get i' t) with g
          end;
   cbv iota zeta beta.
 

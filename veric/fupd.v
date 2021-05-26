@@ -75,6 +75,8 @@ Proof.
     eapply ghost_of_identity; eauto.
 Qed.
 
+Local Set Universe Polymorphism.
+
 Section FancyUpdates.
 
 Context {inv_names : invG}.

@@ -27,7 +27,6 @@ Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.sc_set_load_store.
-(*Require Import VST.floyd.unfold_data_at.*)
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.diagnosis.
@@ -37,7 +36,7 @@ Import String.
 
 Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f: funspec) :=
   match f with mk_funspec sig _ A P Q _ _ =>
-    semax_external (map fst (fst sig)) ef A P Q
+    semax_external ef A P Q
   end.
 
 Definition try_spec  (name: string) (spec: funspec) : 
@@ -50,11 +49,11 @@ fun defs =>
 Arguments try_spec name spec defs / .
 
 Definition exit_spec' :=
- WITH u: unit
- PRE [1%positive OF tint]
-   PROP () LOCAL() SEP()
+ WITH arg: Z
+ PRE [tint]
+   PROP () PARAMS (Vint (Int.repr arg)) SEP()
  POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
+   PROP(False) RETURN() SEP().
 
 Definition exit_spec := try_spec "exit" exit_spec'.
 
@@ -62,7 +61,7 @@ Parameter body_exit:
  forall {Espec: OracleKind},
   body_lemma_of_funspec
     (EF_external "exit"
-       {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
+       {| sig_args := AST.Tint :: nil; sig_res := AST.Tvoid; sig_cc := cc_default |})
    exit_spec'.
 
 Parameter mem_mgr: globals -> mpred.
@@ -70,12 +69,29 @@ Axiom create_mem_mgr: forall gv, emp |-- mem_mgr gv.
 
 Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
-  forall {cs: compspecs} sh t p, malloc_token sh t p |-- valid_pointer p.
-Hint Resolve malloc_token_valid_pointer : valid_pointer.
+  forall {cs: compspecs} sh t p, sizeof t <= 0 -> malloc_token sh t p |-- valid_pointer p.
+
+#[export] Hint Extern 1 (malloc_token _ _ _ |-- valid_pointer _) =>
+  (simple apply malloc_token_valid_pointer; data_at_valid_aux) : valid_pointer.
+
+Ltac malloc_token_data_at_valid_pointer :=
+  (* If the size of t is unknown, can still prove valid pointer
+      from (malloc_token sh t p * ... * data_at[_] sh t p)  *)
+  match goal with |- ?A |-- valid_pointer ?p =>
+   match A with
+   | context [malloc_token _ ?t p] =>
+         try (assert (sizeof t <= 0) by (simpl sizeof in *; rep_lia); fail 1);
+         try (assert (sizeof t > 0) by (simpl sizeof in *; rep_lia); fail 1);
+         destruct (zlt 0 (sizeof t));
+         auto with valid_pointer
+   end
+ end.
+
+#[export] Hint Extern 4 (_ |-- valid_pointer _) => malloc_token_data_at_valid_pointer : valid_pointer.
 
 Parameter malloc_token_local_facts:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- !! malloc_compatible (sizeof t) p.
-Hint Resolve malloc_token_local_facts : saturate_local.
+#[export] Hint Resolve malloc_token_local_facts : saturate_local.
 Parameter malloc_token_change_composite: forall {cs_from cs_to} {CCE : change_composite_env cs_from cs_to} sh t,
   cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
   @malloc_token cs_from sh t = @malloc_token cs_to sh t.
@@ -96,7 +112,7 @@ Ltac change_compspecs' cs cs' ::=
 (*
 Parameter malloc_token_precise:
   forall {cs: compspecs} sh t p, predicates_sl.precise (malloc_token sh t p).
-*)
+*)(*
 Definition malloc_spec'  {cs: compspecs} :=
    WITH t:type, gv: globals
    PRE [ 1%positive OF size_t ]
@@ -110,12 +126,26 @@ Definition malloc_spec'  {cs: compspecs} :=
        LOCAL (temp ret_temp p)
        SEP (mem_mgr gv;
              if eq_dec p nullval then emp
+            else (malloc_token Ews t p * data_at_ Ews t p)).*)
+Definition malloc_spec'  {cs: compspecs} :=
+   WITH t:type, gv: globals
+   PRE [ size_t ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
+       SEP (mem_mgr gv)
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       RETURN (p)
+       SEP (mem_mgr gv;
+             if eq_dec p nullval then emp
             else (malloc_token Ews t p * data_at_ Ews t p)).
 
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
   body_lemma_of_funspec EF_malloc malloc_spec'.
-
+(*
 Definition free_spec'  {cs: compspecs} :=
    WITH t: type, p:val, gv: globals
    PRE [ 1%positive OF tptr tvoid ]
@@ -127,6 +157,18 @@ Definition free_spec'  {cs: compspecs} :=
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
+       SEP (mem_mgr gv).*)
+Definition free_spec'  {cs: compspecs} :=
+   WITH t: type, p:val, gv: globals
+   PRE [ tptr tvoid ]
+       PROP ()
+       PARAMS (p) GLOBALS (gv)
+       SEP (mem_mgr gv;
+              if eq_dec p nullval then emp
+              else (malloc_token Ews t p * data_at_ Ews t p))
+    POST [ Tvoid ]
+       PROP ()
+       RETURN ()
        SEP (mem_mgr gv).
 
 Parameter body_free:
@@ -152,20 +194,21 @@ Lemma semax_func_cons_malloc_aux:
   forall {cs: compspecs} (gv: globals) (gx : genviron) (t :type) (ret : option val),
 (EX p : val,
  PROP ( )
- LOCAL (temp ret_temp p)
+ RETURN (p)
  SEP (mem_mgr gv;
       if eq_dec p nullval
       then emp
       else malloc_token Ews t p * data_at_ Ews t p))%assert
-  (make_ext_rval gx ret) |-- !! is_pointer_or_null (force_val ret).
+  (make_ext_rval gx (rettype_of_type (tptr tvoid)) ret) |-- !! is_pointer_or_null (force_val ret).
 Proof.
  intros.
  rewrite exp_unfold. Intros p.
  rewrite <- insert_local.
  rewrite lower_andp.
  apply derives_extract_prop; intro.
- destruct H; unfold_lift in H. rewrite retval_ext_rval in H.
- subst p.
+ destruct H; unfold_lift in H.
+ unfold_lift in H0. destruct ret; try contradiction.
+ unfold eval_id in H. simpl in H. subst p.
  if_tac. rewrite H; entailer!.
  renormalize. entailer!.
 Qed.

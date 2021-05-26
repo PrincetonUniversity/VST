@@ -4,6 +4,7 @@ Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import ZArith.
+Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -12,11 +13,13 @@ Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.Snuffle.
 Require Import VST.floyd.library.
 
+Global Open Scope funspec_scope.
+
 Definition CoreInSEP (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
                      (v: val * val * val) : mpred :=
   match data with (Nonce, C, K) =>
   match v with (n, c, k) =>
-   (SByte Nonce n) * (SByte C c) * (ThirtyTwoByte K k)
+   ((SByte Nonce n) * (SByte C c) * (ThirtyTwoByte K k))%logic
   end end.
 
 Definition prepare_data
@@ -84,8 +87,8 @@ Definition fcore_result h data l :=
 Definition OutLen h := if Int.eq (Int.repr h) Int.zero then 64 else 32.
 
 Definition fcorePOST_SEP h data d l out :=
-  CoreInSEP data d *
-  data_at Tsh (tarray tuchar (OutLen h)) l out.
+  (CoreInSEP data d *
+  data_at Tsh (tarray tuchar (OutLen h)) l out)%logic.
 
 Definition f_core_POST d out h (data: SixteenByte * SixteenByte * (SixteenByte * SixteenByte) ) :=
 EX l:_,
@@ -98,14 +101,9 @@ Definition core_spec :=
    WITH c : val, k:val, h:Z,
         nonce:val, out:val, OUT:list val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
-   PRE [ _out OF tptr tuchar,
-         _in OF tptr tuchar,
-         _k OF tptr tuchar,
-         _c OF tptr tuchar,
-         _h OF tint ]
+   PRE [ tptr tuchar, tptr tuchar, tptr tuchar, tptr tuchar, tint ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out;
-             temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+      PARAMS (out; nonce; k; c; Vint (Int.repr h)) GLOBALS ()
       SEP (CoreInSEP data (nonce, c, k);
            data_at Tsh (tarray tuchar (OutLen h)) OUT out)
   POST [ tvoid ] (f_core_POST (nonce, c, k) out h data).
@@ -113,9 +111,9 @@ Definition core_spec :=
 Definition ld32_spec :=
   DECLARE _ld32
    WITH x : val, B:QuadByte
-   PRE [ _x OF tptr tuchar ]
+   PRE [ tptr tuchar ]
       PROP ()
-      LOCAL (temp _x x)
+      PARAMS (x) GLOBALS ()
       SEP (data_at Tsh (tarray tuchar 4) (QuadByte2ValList B) x)
   POST [ tuint ] 
      PROP ()
@@ -125,9 +123,9 @@ Definition ld32_spec :=
 Definition st32_spec :=
   DECLARE _st32
    WITH x : val, u:int
-   PRE [ _x OF tptr tuchar, _u OF tuint ]
+   PRE [ tptr tuchar, tuint ]
       PROP ()
-      LOCAL (temp _x x; temp _u (Vint u))
+      PARAMS (x; Vint u) GLOBALS ()
       SEP (data_at_ Tsh (tarray tuchar 4) x)
   POST [ tvoid ] 
      PROP ()
@@ -137,9 +135,9 @@ Definition st32_spec :=
 Definition L32_spec :=
   DECLARE _L32
    WITH x : int, c: int
-   PRE [ _x OF tuint, _c OF tint ]
+   PRE [ tuint, tint ]
       PROP (0 < Int.signed c < 32) (*yes, c=Int.zero needs to be ruled out - it leads to undefined behaviour in the shift-right operation*)
-      LOCAL (temp _x (Vint x); temp _c (Vint c))
+      PARAMS (Vint x; Vint c) GLOBALS ()
       SEP ()
   POST [ tuint ]
      PROP ()
@@ -163,9 +161,9 @@ Definition bigendian64 (b c:QuadByte): int64 :=
 Definition dl64_spec :=
   DECLARE _dl64
    WITH x : val, B:QuadByte, C: QuadByte
-   PRE [ _x OF tptr tuchar ]
+   PRE [ tptr tuchar ]
       PROP ()
-      LOCAL (temp _x x)
+      PARAMS (x) GLOBALS ()
       SEP (data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x)
   POST [ tulong ] 
      PROP ()
@@ -199,26 +197,26 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
   destruct (Byte.unsigned_range_2 c0). destruct (Byte.unsigned_range_2 c1).
   destruct (Byte.unsigned_range_2 c2). destruct (Byte.unsigned_range_2 c3).
   assert (2 ^ 8 * Byte.unsigned c1 <= 2 ^ 8 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 16 * Byte.unsigned c2 <= 2 ^ 16 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 24 * Byte.unsigned c3 <= 2 ^ 24 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 32 * Byte.unsigned b0 <= 2 ^ 32 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 40 * Byte.unsigned b1 <= 2 ^ 40 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 48 * Byte.unsigned b2 <= 2 ^ 48 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
+               apply Zmult_le_compat_l; trivial; compute; congruence.
   assert (2 ^ 56 * Byte.unsigned b3 <= 2 ^ 56 * Byte.max_unsigned).
-               apply Zmult_le_compat_l; trivial.
-  assert (0 <= 2 ^ 8 * Byte.unsigned c1). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 16 * Byte.unsigned c2). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 24 * Byte.unsigned c3). apply Z.mul_nonneg_cancel_l; trivial. 
-  assert (0 <= 2 ^ 32 * Byte.unsigned b0). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 40 * Byte.unsigned b1). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 48 * Byte.unsigned b2). apply Z.mul_nonneg_cancel_l; trivial. 
-  assert (0 <= 2 ^ 56 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial. 
+               apply Zmult_le_compat_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 8 * Byte.unsigned c1). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 16 * Byte.unsigned c2). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 24 * Byte.unsigned c3). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 32 * Byte.unsigned b0). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 40 * Byte.unsigned b1). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
+  assert (0 <= 2 ^ 48 * Byte.unsigned b2). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence. 
+  assert (0 <= 2 ^ 56 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial; compute; congruence.
   rewrite Int64.unsigned_repr.
   2:{ split. clear H0 H2 H4 H6 H8 H10 H12 H14.
              apply OMEGA2; trivial.
@@ -235,107 +233,113 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               apply Z.add_le_mono; try eassumption.
               apply Z.add_le_mono; try eassumption.  
               apply Z.add_le_mono; eassumption.
-            unfold Int64.max_unsigned; simpl. omega.
+            unfold Int64.max_unsigned; simpl. lia.
   }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+  assert (Arith1: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 +
-          2 ^ 48 * Byte.unsigned b2 < 2 ^ 56). 
+          2 ^ 48 * Byte.unsigned b2 < 2 ^ 56).
+  { 
               split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
                       + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 
-                      + 2 ^ 40 * Byte.unsigned b1 + 2 ^ 48 * Byte.unsigned b2 <= 2 ^ 56 -1). 2: omega.
+                      + 2 ^ 40 * Byte.unsigned b1 + 2 ^ 48 * Byte.unsigned b2 <= 2 ^ 56 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega.
-  erewrite (Zmod_unique _ (2^56) (Byte.unsigned b3)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^56)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+              apply Z.add_le_mono; try eassumption. simpl. lia. }
+  erewrite <- (Zmod_unique _ (2^56) (Byte.unsigned b3) _ Arith1); [ | rewrite Z.add_comm; trivial].
+
+  assert (Arith2: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 < 2 ^ 48). 
-              split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. 
+  {            split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. 
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
                       + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 
-                      + 2 ^ 40 * Byte.unsigned b1 <= 2 ^ 48 -1). 2: omega.
+                      + 2 ^ 40 * Byte.unsigned b1 <= 2 ^ 48 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. 
-  erewrite (Zmod_unique _ (2^48) (Byte.unsigned b2)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^48)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. lia. }
+  erewrite <- (Zmod_unique _ (2^48) (Byte.unsigned b2) _ Arith2); [ | rewrite Z.add_comm; trivial].
+  
+  assert (Arith3: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 < 2 ^ 40). 
-              split. apply OMEGA2; trivial. apply OMEGA2; trivial.  apply OMEGA2; trivial.  apply OMEGA2; trivial.
+  {            split. apply OMEGA2; trivial. apply OMEGA2; trivial.  apply OMEGA2; trivial.  apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
-                      + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 <= 2 ^ 40 -1). 2: omega.
+                      + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 <= 2 ^ 40 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega.
-  erewrite (Zmod_unique _ (2^40) (Byte.unsigned b1)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^40)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+              apply Z.add_le_mono; try eassumption. simpl. lia. }
+  erewrite <- (Zmod_unique _ (2^40) (Byte.unsigned b1) _ Arith3); [ | rewrite Z.add_comm; trivial].
+
+  assert (Arith4: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 < 2 ^ 32). 
-              split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
+  {            split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
-                      + 2 ^ 24 * Byte.unsigned c3 <= 2 ^ 32 -1). 2: omega.
+                      + 2 ^ 24 * Byte.unsigned c3 <= 2 ^ 32 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega.
-  erewrite (Zmod_unique _ (2^32) (Byte.unsigned b0)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^32)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 < 2 ^ 24). 
-              split. apply OMEGA2; trivial. apply OMEGA2; trivial.
-              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 <= 2 ^ 24 -1). 2: omega.
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. lia. }
+  erewrite <- (Zmod_unique _ (2^32) (Byte.unsigned b0) _ Arith4); [ | rewrite Z.add_comm; trivial].
+
+  assert (Arith5: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 < 2 ^ 24). 
+  {            split. apply OMEGA2; trivial. apply OMEGA2; trivial.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 <= 2 ^ 24 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. simpl. omega.
-  erewrite (Zmod_unique _ (2^24) (Byte.unsigned c3)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity. }
-  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 < 2 ^ 16).
-             split. apply OMEGA2; trivial.
-              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 <= 2 ^ 16 -1). 2: omega.
+              apply Z.add_le_mono; try eassumption. simpl. lia. }
+  erewrite <- (Zmod_unique _ (2^24) (Byte.unsigned c3) _ Arith5); [ | rewrite Z.add_comm; trivial].
+
+  assert (Arith6: 0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 < 2 ^ 16).
+  {          split. apply OMEGA2; trivial.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 <= 2 ^ 16 -1). 2: lia.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              simpl. omega.
-  erewrite (Zmod_unique _ (2^16) (Byte.unsigned c2)); try eassumption.
-     2:{ rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity. }
-  erewrite (Zmod_unique _ (2^8) (Byte.unsigned c1)).
-     2:{ rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity. }
-     2: apply Byte.unsigned_range. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned b3));
-       [  | rewrite (Z.mul_comm (2^56)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned b2));
-       [  | rewrite (Z.mul_comm (2^48)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned b1));
-       [  | rewrite (Z.mul_comm (2^40)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned b0));
-       [  | rewrite (Z.mul_comm (2^32)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned c3));
-       [  | rewrite (Z.mul_comm (2^24)), Z.add_comm; reflexivity
-          | assumption ].
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned c2));
-       [  | rewrite (Z.mul_comm (2^16)), Z.add_comm; reflexivity
-          | assumption ]. 
-  rewrite Byte.repr_unsigned. 
-  erewrite (Zdiv_unique _ _ (Byte.unsigned c1));
-       [  | rewrite (Z.mul_comm (2^8)), Z.add_comm; reflexivity
-          | ]. 
-  rewrite Byte.repr_unsigned. 
-  rewrite Byte.repr_unsigned. trivial.
-  apply Byte.unsigned_range. 
+              simpl. lia. }
+  erewrite <- (Zmod_unique _ (2^16) (Byte.unsigned c2) _ Arith6); [ | rewrite Z.add_comm; trivial].
+
+  erewrite <- (Zmod_unique _ (2^8) (Byte.unsigned c1)).
+     3: { rewrite Z.add_comm. reflexivity. }
+     2: apply Byte.unsigned_range.
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned b3)); [
+       clear Arith1; rewrite Byte.repr_unsigned
+     | apply Arith1
+     | rewrite (*(Z.mul_comm (2^56)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned b2)); [
+       clear Arith2; rewrite Byte.repr_unsigned
+     | apply Arith2
+     | rewrite (*(Z.mul_comm (2^48)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned b1)); [
+       clear Arith3; rewrite Byte.repr_unsigned
+     | apply Arith3
+     | rewrite (*(Z.mul_comm (2^40)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned b0)); [
+       clear Arith4; rewrite Byte.repr_unsigned
+     | apply Arith4
+     | rewrite (*(Z.mul_comm (2^32)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned c3)); [
+       clear Arith5; rewrite Byte.repr_unsigned
+     | apply Arith5
+     | rewrite (*(Z.mul_comm (2^24)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned c2)); [
+       clear Arith6; rewrite Byte.repr_unsigned
+     | apply Arith6
+     | rewrite (*(Z.mul_comm (2^16)),*) Z.add_comm; reflexivity].
+
+  erewrite <- (Zdiv_unique _ _ (Byte.unsigned c1)); [
+       rewrite 2 Byte.repr_unsigned; trivial
+     | apply Byte.unsigned_range 
+     | rewrite (*(Z.mul_comm (2^8)),*) Z.add_comm; reflexivity].
 Qed.
 
 
 Definition ts64_spec :=
   DECLARE _ts64
    WITH x : val, u:int64
-   PRE [ _x OF tptr tuchar, _u OF tulong ]
+   PRE [ tptr tuchar, tulong ]
       PROP ()
-      LOCAL (temp _x x; temp _u (Vlong u))
+      PARAMS (x; Vlong u) GLOBALS ()
       SEP (data_at_ Tsh (tarray tuchar 8) x)
   POST [ tvoid ] 
      PROP ()
@@ -343,19 +347,14 @@ Definition ts64_spec :=
      SEP (let (B, C) := bigendian64_invert u in
           data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x).
 
-
 Definition crypto_core_salsa20_spec :=
   DECLARE _crypto_core_salsa20_tweet
    WITH c : val, k:val,
         nonce:val, out:val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
-   PRE [ _out OF tptr tuchar,
-         _in OF tptr tuchar,
-         _k OF tptr tuchar,
-         _c OF tptr tuchar ]
+   PRE [ tptr tuchar, tptr tuchar, tptr tuchar, tptr tuchar ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out;
-             temp _c c; temp _k k)
+      PARAMS (out; nonce; k; c) GLOBALS ()
       SEP ( CoreInSEP data (nonce, c, k);
             data_at_ Tsh (tarray tuchar 64) out)
   POST [ tint ]
@@ -380,13 +379,9 @@ Definition crypto_core_hsalsa20_spec :=
    WITH c : val, k:val,
         nonce:val, out:val, OUT: list val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
-   PRE [ _out OF tptr tuchar,
-         _in OF tptr tuchar,
-         _k OF tptr tuchar,
-         _c OF tptr tuchar ]
+   PRE [ tptr tuchar, tptr tuchar, tptr tuchar,tptr tuchar ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out;
-             temp _c c; temp _k k)
+      PARAMS (out; nonce; k; c) GLOBALS ()
       SEP (CoreInSEP data (nonce, c, k);
            data_at Tsh (tarray tuchar 32) OUT out)
   POST [ tint ]
@@ -421,15 +416,15 @@ Lemma ZContS bytes n: ZCont (S n) bytes = snd (ZZ (ZCont n bytes) 8). reflexivit
 
 Definition bytes_at x q i mbytes :=
 match x with
-  Vint _ => list_repeat (Z.to_nat i) (Byte.zero)
+  Vint _ => repeat (Byte.zero) (Z.to_nat i)
 | _ => sublist q (q+i) mbytes
 end.
 
 
 Lemma Zlength_bytes_at x q i mbytes : 0<=q -> 0 <= i ->
   q + i <= Zlength mbytes -> Zlength (bytes_at x q i mbytes) = i.
-Proof. intros. destruct x; simpl; try rewrite Zlength_sublist; try omega.
-  rewrite Zlength_list_repeat; omega.
+Proof. intros. destruct x; simpl; try rewrite Zlength_sublist; try lia.
+  rewrite Zlength_repeat; lia.
 Qed.
 
 Definition bxorlist := combinelist _ Byte.xor.
@@ -490,8 +485,8 @@ Proof. induction n; simpl; intros.
   rewrite Zpos_P_of_succ_nat in H1.
   apply IHn in Heqp; trivial; clear IHn.
   rewrite upd_Znth_Zlength; trivial.
-  omega.
-  omega.
+  lia.
+  lia.
 Qed.
 
 Lemma Zlength_ZCont: forall n zbytes, Zlength zbytes = 16 -> Zlength (ZCont n zbytes) = 16.
@@ -500,7 +495,7 @@ Proof.
   rewrite ZContS. specialize (ZZ_Zlength 8 (ZCont n zbytes)); intros.
   remember (ZZ (ZCont n zbytes) 8). destruct p; simpl.
   apply (H0 _ _ (eq_refl _ )).
-  apply IHn; trivial. simpl; omega.
+  apply IHn; trivial. simpl; lia.
 Qed.
 
 Lemma SixteenByte2ValList_exists bytes: Zlength bytes = 16 ->
@@ -530,7 +525,7 @@ Definition ContSpec bInit SIGMA K mInit mCont zbytes  srbytes :=
 
 (*TODO: refine non-zero-case of this spec, relating COUT to mCont and K and Nonce*)
 Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c m :=
-  (if Int64.eq b Int64.zero
+  ((if Int64.eq b Int64.zero
    then data_at_ Tsh (Tarray tuchar cLen noattr) c
    else (EX COUT:_, !!(exists zbytes, match Nonce with (Nnc0, Nnc1, _, _) =>
                 SixteenByte2ValList
@@ -540,7 +535,7 @@ Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c 
                 /\  ContSpec b SIGMA K m mCont zbytes COUT end)
            && data_at Tsh (Tarray tuchar cLen noattr) (Bl2VL COUT) c))
                     * SByte Nonce nonce
-                    * message_at mCont m.
+                    * message_at mCont m)%logic.
 
 (*Precondition length mCont = Int64.unsigned b comes from textual spec in
   https://download.libsodium.org/doc/advanced/salsa20.html
@@ -552,11 +547,10 @@ Definition crypto_stream_salsa20_xor_spec :=
    WITH c : val, k:val, m:val, nonce:val, b:int64,
         Nonce : SixteenByte, K: SixteenByte * SixteenByte,
         mCont: list byte, gv: globals
-   PRE [ _c OF tptr tuchar, _m OF tptr tuchar, _b OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
+   PRE [ tptr tuchar, tptr tuchar, tulong,
+         tptr tuchar, tptr tuchar]
       PROP (Zlength mCont = Int64.unsigned b)
-      LOCAL (temp _c c; temp _m m; temp _b (Vlong b);
-             temp _n nonce; temp _k k; gvars gv)
+      PARAMS (c; m; Vlong b; nonce; k) GLOBALS (gv)
       SEP ( SByte Nonce nonce;
             data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c;
             ThirtyTwoByte K k;
@@ -574,11 +568,9 @@ Definition f_crypto_stream_xsalsa20_tweet_xor_spec :=
    WITH c : val, k:val, nonce:val, m:val, d:int64, mCont: list byte,
         Nonce : SixteenByte, Nonce2 : SixteenByte, K: SixteenByte * SixteenByte,
         gv: globals
-   PRE [ _c OF tptr tuchar, _m OF tptr tuchar,  _d OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
+   PRE [ tptr tuchar, tptr tuchar, tulong, tptr tuchar, tptr tuchar]
       PROP (Zlength mCont = Int64.unsigned d)
-      LOCAL (temp _c c; temp _m m; temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvars gv)
+      PARAMS (c; m; Vlong d; nonce; k) GLOBALS (gv)
       SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val 16 nonce);
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
@@ -600,11 +592,9 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
    WITH c : val, k:val, nonce:val, d:int64,
         Nonce : SixteenByte, Nonce2 : SixteenByte, K: SixteenByte * SixteenByte,
         gv: globals
-   PRE [ _c OF tptr tuchar,  _d OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
+   PRE [ tptr tuchar, tulong, tptr tuchar, tptr tuchar]
       PROP ()
-      LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvars gv)
+      PARAMS (c; Vlong d; nonce; k) GLOBALS (gv)
       SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val 16 nonce);
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
@@ -615,11 +605,11 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
        SEP (Sigma_vector (gv _sigma);
             EX HSalsaRes:_, crypto_stream_xor_postsep d Nonce2 HSalsaRes
-              (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d)
+              (repeat Byte.zero (Z.to_nat (Int64.unsigned d))) (Int64.unsigned d)
               (offset_val 16 nonce) c nullval;
             data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
             ThirtyTwoByte K k).
-(*            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c k nullval). *)
+(*            crypto_stream_xor_postsep d Nonce K (repeat Byte.zero (Z.to_nat (Int64.unsigned d))) (Int64.unsigned d) nonce c k nullval). *)
 
 (*TODO: support the following part of the tetxual spec:
       m and c can point to the same address (in-place encryption/decryption). 
@@ -629,11 +619,9 @@ Definition f_crypto_stream_salsa20_tweet_spec :=
    WITH c : val, k:val, nonce:val, d:int64,
         Nonce : SixteenByte, K: SixteenByte * SixteenByte,
         (*mCont: list byte, *) gv: globals
-   PRE [ _c OF tptr tuchar, (*_m OF tptr tuchar,*) _d OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
+   PRE [ tptr tuchar, tulong, tptr tuchar, tptr tuchar]
       PROP ((*Zlength mCont = Int64.unsigned b*))
-      LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvars gv)
+      PARAMS (c; Vlong d; nonce; k) GLOBALS (gv)
       SEP ( SByte Nonce nonce;
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
@@ -644,28 +632,28 @@ Definition f_crypto_stream_salsa20_tweet_spec :=
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
        SEP (Sigma_vector (gv _sigma);
             ThirtyTwoByte K k;
-            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c nullval). 
+            crypto_stream_xor_postsep d Nonce K (repeat Byte.zero (Z.to_nat (Int64.unsigned d))) (Int64.unsigned d) nonce c nullval). 
 
 Definition vn_spec :=
   DECLARE _vn
   WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
-  PRE [_x OF tptr tuchar, _y OF tptr tuchar, _n OF tint]
+  PRE [ tptr tuchar, tptr tuchar, tint]
     PROP (readable_share xsh; readable_share ysh; 0<=n<= Int.max_unsigned)
-    LOCAL (temp _x x; temp _y y; temp _n (Vint (Int.repr n)))
+    PARAMS (x; y; Vint (Int.repr n)) GLOBALS ()
     SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
          data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
   POST [tint]
     PROP ()
     LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
     SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
-         data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y). 
+         data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).
     
 Definition verify16_spec :=
   DECLARE _crypto_verify_16_tweet
   WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
-  PRE [_x OF tptr tuchar, _y OF tptr tuchar]
+  PRE [ tptr tuchar, tptr tuchar]
     PROP (readable_share xsh; readable_share ysh)
-    LOCAL (temp _x x; temp _y y)
+    PARAMS (x; y) GLOBALS ()
     SEP (data_at xsh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
          data_at ysh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
   POST [tint]
@@ -677,16 +665,16 @@ Definition verify16_spec :=
 Definition verify32_spec :=
   DECLARE _crypto_verify_32_tweet
   WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
-  PRE [_x OF tptr tuchar, _y OF tptr tuchar]
+  PRE [tptr tuchar, tptr tuchar]
     PROP (readable_share xsh; readable_share ysh)
-    LOCAL (temp _x x; temp _y y)
+    PARAMS (x; y) GLOBALS ()
     SEP (data_at xsh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
          data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
   POST [tint]
     PROP ()
     LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
     SEP (data_at xsh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
-         data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).       
+         data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).
 
 Definition SalsaVarSpecs : varspecs := (_sigma, tarray tuchar 16)::nil.
 

@@ -58,14 +58,14 @@ intros.
 specialize (H0 psi _ _ _ TS HGG Prog_OK k F f).
 specialize (H1 psi _ _ _ TS HGG Prog_OK k F f).
 spec H0.  {
-  intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition.
+  intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); try tauto; intuition.
   left; clear - H5.
  unfold modifiedvars. simpl.
  apply modifiedvars'_union. left; apply H5.
 }
 spec H1. {
  intros i te' ?.  apply H2; simpl; auto.
- clear - H4; intros i0; destruct (H4 i0); intuition.
+ clear - H4; intros i0; destruct (H4 i0); try tauto; intuition.
  left.
  unfold modifiedvars. simpl.
  apply modifiedvars'_union. right; apply H.
@@ -125,7 +125,7 @@ generalize LW; intro H9.
 subst r.
 change (level (m_phi jm)) with (level jm) in H9.
 revert H9; case_eq (level jm); intros.
-omegaContradiction.
+lia.
 apply levelS_age1 in H9. destruct H9 as [jm' ?].
 clear H10.
 apply jsafe_step'_back2 with (st' := State f (if b' then c else d) k vx tx)
@@ -144,7 +144,7 @@ rewrite <- (age_jm_dry H9); econstructor; eauto.
     unfold Cop.bool_val;
       destruct (@eval_expr CS' b rho) eqn:H15;
       simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ] eqn:?;
-      intuition; simpl in *; try rewrite TCS; eauto.
+      try tauto; simpl in *; try rewrite TCS; eauto.
   all: try apply (tc_expr_cenv_sub CSUB) in TC2.
     all: try (
              unfold tc_expr in TC2; simpl typecheck_expr in TC2; rewrite Heqt in TC2;
@@ -165,7 +165,7 @@ split; [apply age_level; auto|].
 erewrite (age1_ghost_of _ _ (age_jm_phi H9)) by (symmetry; apply ghost_of_approx).
 repeat intro; auto.
 change (level (m_phi jm)) with (level jm).
-replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H9; omega).
+replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H9; lia).
 eapply @age_safe; try apply H9.
 rewrite <- Hge in *.
 apply Hr; auto.
@@ -322,7 +322,7 @@ Proof.
   {
     apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5.
     change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.
-    omega.
+    lia.
   }
   assert (LT: level a2 < level w).
   {
@@ -330,7 +330,7 @@ Proof.
     clear - H4 H5 LEVa2.
     change w with (level w) in H4.
     change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2.
-    apply nec_nat in H5. omega.
+    apply nec_nat in H5. lia.
   }
   assert (Prog_OK2: (believe Espec Delta' psi Delta') (level a2))
     by (apply pred_nec_hereditary with w; auto).

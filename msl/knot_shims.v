@@ -64,7 +64,7 @@ Module Type KNOT__COCONTRAVARIANT_HERED_T_OTH_REL.
 
   Axiom approx_spec : forall n p ko,
     proj1_sig (approx n p) ko =
-     if (le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
+     if (Compare_dec.le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
 
   Definition knot_rel (k1 k2:knot) :=
     let (n,f) := unsquash k1 in
@@ -156,7 +156,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
 
   Axiom expandM_refl : reflexive _ expandM.
   Axiom expandM_trans : transitive _ expandM.
-  Hint Resolve expandM_refl expandM_trans : core.
+  Global Hint Resolve expandM_refl expandM_trans : core.
 
   (* Definitions of the "ageable" operations *)
   Axiom knot_level : forall (k:knot),
@@ -414,7 +414,7 @@ Module Knot_CoContraVariantHeredTOthRel
 
   Definition approx_spec : forall n p ko,
     proj1_sig (approx n p) ko =
-     if (le_gt_dec n (level (fst ko))) then KI.T_bot else proj1_sig p ko
+     if (Compare_dec.le_gt_dec n (level (fst ko))) then KI.T_bot else proj1_sig p ko
     := K.approx_spec.
 
   Definition knot_rel (k1 k2:knot) :=
@@ -672,12 +672,12 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
     destruct (K0.unsquash (fst x)).
     destruct (K0.unsquash (fst y)).
     destruct (K0.unsquash (fst z)).
-    intuition.
+    intuition. lia.
     eapply KI.Rel_trans; eauto.
     eapply KI.ORel_trans; eauto.
   Qed.
 
-  Hint Resolve expandM_refl expandM_trans : core.
+  Global Hint Resolve expandM_refl expandM_trans : core.
 
   Definition assert := { p:pred (K0.knot * KI.other) | boxy expandM p }.
 
@@ -765,15 +765,15 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
     end.
     rewrite H.
     match goal with
-    | |- (if le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
+    | |- (if Compare_dec.le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
             change B with A; remember A as TMP eqn:HHH; clear HHH
     end.
-    destruct (le_gt_dec n TMP).
+    destruct (Compare_dec.le_gt_dec n TMP).
     + split.
       - intros [].
-      - intros [? ?]; omega.
+      - intros [? ?]; lia.
     + split.
-      - intros; split; [omega | auto].
+      - intros; split; [lia | auto].
       - intros [? ?]; auto.
   Qed.
 
@@ -853,13 +853,13 @@ Module KnotLemmas_CovariantHeredPropOthRel
 
   Lemma approx_spec': forall n p ko,
     proj1_sig (approx n p) ko =
-    if (le_gt_dec n (level (fst ko))) then False else proj1_sig p ko.
+    if (Compare_dec.le_gt_dec n (level (fst ko))) then False else proj1_sig p ko.
   Proof.
     intros.
     rewrite approx_spec.
     apply prop_ext.
-    destruct (le_gt_dec n (level (fst ko))).
-    + split; [intros [? ?]; omega | intros []].
+    destruct (Compare_dec.le_gt_dec n (level (fst ko))).
+    + split; [intros [? ?]; lia | intros []].
     + tauto.
   Qed.
 
@@ -1029,15 +1029,15 @@ Module Knot_CovariantHeredPropOth (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH)
     end.
     rewrite H.
     match goal with
-    | |- (if le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
+    | |- (if Compare_dec.le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
             change B with A; remember A as TMP eqn:HHH; clear HHH
     end.
-    destruct (le_gt_dec n TMP).
+    destruct (Compare_dec.le_gt_dec n TMP).
     + split.
       - intros [].
-      - intros [? ?]; omega.
+      - intros [? ?]; lia.
     + split.
-      - intros; split; [omega | auto].
+      - intros; split; [lia | auto].
       - intros [? ?]; auto.
   Qed.
 
@@ -1099,13 +1099,13 @@ Module KnotLemmas_CovariantHeredPropOth (K: KNOT__COVARIANT_HERED_PROP_OTH).
 
   Lemma approx_spec': forall n p ko,
     (approx n p) ko =
-    if (le_gt_dec n (level (fst ko))) then False else proj1_sig p ko.
+    if (Compare_dec.le_gt_dec n (level (fst ko))) then False else proj1_sig p ko.
   Proof.
     intros.
     rewrite approx_spec.
     apply prop_ext.
-    destruct (le_gt_dec n (level (fst ko))).
-    + split; [intros [? ?]; omega | intros []].
+    destruct (Compare_dec.le_gt_dec n (level (fst ko))).
+    + split; [intros [? ?]; lia | intros []].
     + tauto.
   Qed.
 
@@ -1265,15 +1265,15 @@ Module Knot_CovariantHeredProp (KI':KNOT_INPUT__COVARIANT_HERED_PROP)
     end.
     rewrite H.
     match goal with
-    | |- (if le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
+    | |- (if Compare_dec.le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
             change B with A; remember A as TMP eqn:HHH; clear HHH
     end.
-    destruct (le_gt_dec n TMP).
+    destruct (Compare_dec.le_gt_dec n TMP).
     + split.
       - intros [].
-      - intros [? ?]; omega.
+      - intros [? ?]; lia.
     + split.
-      - intros; split; [omega | auto].
+      - intros; split; [lia | auto].
       - intros [? ?]; auto.
   Qed.
 
@@ -1347,15 +1347,15 @@ Module KnotLemmas_CovariantHeredProp (K: KNOT__COVARIANT_HERED_PROP).
 
   Lemma approx_spec': forall n p k,
     ((fun (p: knot -> Prop) ko => p (@fst _ unit ko)) oo app_pred) (approx n p) k =
-    if (le_gt_dec n (level (fst k))) then False else
+    if (Compare_dec.le_gt_dec n (level (fst k))) then False else
     ((fun (p: knot -> Prop) ko => p (@fst _ unit ko)) oo app_pred) p k.
   Proof.
     intros.
     unfold compose; simpl.
     rewrite approx_spec.
     apply prop_ext.
-    destruct (le_gt_dec n (level (fst k))).
-    + split; [intros [? ?]; omega | intros []].
+    destruct (Compare_dec.le_gt_dec n (level (fst k))).
+    + split; [intros [? ?]; lia | intros []].
     + tauto.
   Qed.
 
@@ -1516,15 +1516,15 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
     end.
     rewrite H.
     match goal with
-    | |- (if le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
+    | |- (if Compare_dec.le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
             change B with A; remember A as TMP eqn:HHH; clear HHH
     end.
-    destruct (le_gt_dec n TMP).
+    destruct (Compare_dec.le_gt_dec n TMP).
     + split.
       - intros [].
-      - intros [? ?]; omega.
+      - intros [? ?]; lia.
     + split.
-      - intros; split; [omega | auto].
+      - intros; split; [lia | auto].
       - intros [? ?]; auto.
   Qed.
 
@@ -1599,15 +1599,15 @@ Module KnotLemmas_MixVariantHeredProp (K': KNOT__MIXVARIANT_HERED_PROP).
 
   Lemma approx_spec': forall n p k,
     ((fun (p: knot -> Prop) ko => p (@fst _ unit ko)) oo app_pred) (approx n p) k =
-    if (le_gt_dec n (level (fst k))) then False else
+    if (Compare_dec.le_gt_dec n (level (fst k))) then False else
     ((fun (p: knot -> Prop) ko => p (@fst _ unit ko)) oo app_pred) p k.
   Proof.
     intros.
     unfold compose; simpl.
     rewrite approx_spec.
     apply prop_ext.
-    destruct (le_gt_dec n (level (fst k))).
-    + split; [intros [? ?]; omega | intros []].
+    destruct (Compare_dec.le_gt_dec n (level (fst k))).
+    + split; [intros [? ?]; lia | intros []].
     + tauto.
   Qed.
 

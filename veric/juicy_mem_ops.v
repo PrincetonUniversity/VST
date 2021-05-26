@@ -110,7 +110,7 @@ Proof.
  subst b.
  destruct jm; simpl in *.
  rewrite JMalloc; auto; simpl.
- xomega.
+lia.
 Qed.
 
 (* Transparent alloc. *)
@@ -171,7 +171,7 @@ if_tac.
  simpl; rewrite perm_of_freeable.
  destruct loc. destruct H1. subst b0.
  unfold max_access_at.
- rewrite (alloc_access_same _ _ _ _ _ H) by omega.
+ rewrite (alloc_access_same _ _ _ _ _ H) by lia.
  constructor.
 *
   assert (HH:= juicy_mem_max_access jm loc).
@@ -185,7 +185,7 @@ if_tac.
     destruct (eq_block b b').
     right. assert (~(lo <= z < lo + (hi - lo))).
     { intros HHH; apply H1. split; auto. }
-    xomega.
+    lia.
     left; auto.
 Qed.
 
@@ -201,14 +201,14 @@ unfold after_alloc'.
 rewrite if_false.
 apply (juicy_mem_alloc_cohere jm loc).
 rewrite (nextblock_alloc _ _ _ _ _ H) in H0.
-zify. omega.
+zify. lia.
 destruct loc as [b' z']; simpl in *; intros [? ?]; subst b'.
 pose proof (alloc_result _ _ _ _ _ H).
 pose proof (nextblock_alloc _ _ _ _ _ H).
 rewrite <- H1 in H3.
 rewrite H3 in H0.
 clear - H0.
-zify; omega.
+zify; lia.
 Qed.
 
 Definition juicy_mem_alloc (jm: juicy_mem) (lo hi: Z) : juicy_mem * block :=
@@ -269,7 +269,7 @@ Defined.
 Next Obligation.
 pose proof (juicy_mem_access j (b,ofs)).
 specialize (H ofs).
-spec H; [ omega | ].
+spec H; [ lia | ].
 hnf in H. unfold access_at in H2.
 simpl in *.
 destruct ((mem_access (m_dry j)) !! b ofs Cur); try contradiction.

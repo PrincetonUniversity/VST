@@ -22,7 +22,7 @@ Lemma Znth_is_int:
 Proof.
 intros.
 unfold Znth.
-rewrite if_false by omega.
+rewrite if_false by lia.
 rewrite (nth_map' Vint Vundef Int.zero).
 apply I.
 destruct H as [H0 H]; rewrite Zlength_correct in H.
@@ -38,8 +38,7 @@ Lemma sha256_block_load8:
      semax
          (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
-   LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
-                gvars gv)
+   LOCAL  (temp _data data; gvars gv; temp _ctx ctx; temp _in data)
    SEP  (field_at wsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
@@ -129,7 +128,7 @@ induction i; destruct b; intros.
 reflexivity.
 reflexivity.
 inv H.
-simpl. f_equal. apply IHi. simpl in H. omega.
+simpl. f_equal. apply IHi. simpl in H. lia.
 Qed.
 
 Lemma add_upto_S:
@@ -145,13 +144,17 @@ Lemma add_upto_S:
 Proof.
 intros. rename H1 into H4.
  assert ( i < length (add_upto i regs atoh))%nat
-    by (rewrite length_add_upto; omega).
- unfold upd_Znth.
+    by (rewrite length_add_upto; lia).
+ rewrite upd_Znth_old_upd_Znth. 2 : {
+   rewrite Zlength_map. rewrite Zlength_correct.
+   lia.
+ }
+ unfold old_upd_Znth.
  rewrite !sublist_map, <- map_cons, <- map_app.
  f_equal.
 
 assert (H18: length regs = length atoh) by congruence.
-assert (H19: (i < length regs)%nat) by omega.
+assert (H19: (i < length regs)%nat) by lia.
 clear - H18 H19.
 revert regs atoh H18 H19; induction i; destruct regs,atoh; intros;
 try solve [inv H19]; inv H18.
@@ -163,62 +166,62 @@ simpl in H19.
 change (add_upto (S (S i)) (i0 :: regs) (i1 :: atoh))
   with (Int.add i0 i1 :: add_upto (S i) regs atoh).
 simpl in H19.
-rewrite (IHi regs atoh); auto; [ | omega].
+rewrite (IHi regs atoh); auto; [ | lia].
 clear IHi.
 simpl add_upto.
-rewrite (sublist_split 0 1 (Z.of_nat (S i))); try omega.
+rewrite (sublist_split 0 1 (Z.of_nat (S i))); try lia.
 change (@sublist int 0 1) with (@sublist int 0 (0+1)).
-rewrite sublist_len_1; try omega.
+rewrite sublist_len_1; try lia.
 rewrite inj_S.
 simpl.
 autorewrite with sublist.
 f_equal.
 f_equal.
 change (cons (Int.add i0 i1)) with (app [Int.add i0 i1]).
-rewrite sublist_app2 by (autorewrite with sublist; omega).
+rewrite sublist_app2 by (autorewrite with sublist; lia).
 f_equal.
-autorewrite with sublist; omega.
+autorewrite with sublist; lia.
 f_equal.
 f_equal.
 unfold nthi.
-rewrite Z2Nat.inj_succ by omega.
+rewrite Z2Nat.inj_succ by lia.
 reflexivity.
 unfold nthi.
-rewrite Z2Nat.inj_succ by omega.
+rewrite Z2Nat.inj_succ by lia.
 reflexivity.
 change (cons (Int.add i0 i1)) with (app [Int.add i0 i1]).
-rewrite sublist_app2 by (autorewrite with sublist; omega).
+rewrite sublist_app2 by (autorewrite with sublist; lia).
 f_equal.
-autorewrite with sublist; omega.
-autorewrite with sublist; omega.
+autorewrite with sublist; lia.
+autorewrite with sublist; lia.
 autorewrite with sublist. Omega1.
 rewrite inj_S.
-split; try omega.
+split; try lia.
 rewrite Zlength_cons.
 unfold Z.succ.
 apply Zplus_le_compat_r.
 rewrite Zlength_correct.
 rewrite length_add_upto; auto.
 apply Nat2Z.inj_le; auto.
-omega.
+lia.
 Qed.
 
 Lemma upd_reptype_array_gso: (* perhaps move to floyd? *)
  forall t (a: list (reptype t)) v i j,
-    0 <= j <= Zlength a ->
+    0 <= j < Zlength a ->
     0 <= i < Zlength a ->
     i<>j ->
     Znth i (upd_Znth j a v) = Znth i a.
 Proof.
 intros.
-unfold upd_Znth.
-assert (i<j \/ i>j) by omega.
+unfold_upd_Znth_old.
+assert (i<j \/ i>j) by lia.
 clear H1; destruct H2.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.
 change (cons v) with (app [v]).
 autorewrite with sublist; auto.
-f_equal; omega.
+f_equal; lia.
 Qed.
 
 Lemma int_add_upto:
@@ -233,14 +236,14 @@ Proof.
 intros until 2.
   assert (ZR: Zlength regs = 8) by ( rewrite Zlength_correct, H; reflexivity).
   induction j; intros.
-  simpl. apply Znth_is_int; omega.
+  simpl. apply Znth_is_int; lia.
   unfold Znth.
-  rewrite if_false by omega.
+  rewrite if_false by lia.
  rewrite nth_map' with (d' := Int.zero).
   apply I.
-  rewrite length_add_upto by omega.
+  rewrite length_add_upto by lia.
   rewrite H. apply Nat2Z.inj_lt.
-  rewrite Z2Nat.id by omega. apply H2.
+  rewrite Z2Nat.id by lia. apply H2.
 Qed.
 
 
@@ -261,15 +264,15 @@ Proof.
 intros.
 assert (is_int I32 Unsigned (Znth i' (map Vint (add_upto i regs atoh)))).
  apply  Znth_is_int.   rewrite Zlength_correct, length_add_upto, H.
- change (Z.of_nat 8) with 8; omega. rewrite H,H0;  auto.
+ change (Z.of_nat 8) with 8; lia. rewrite H,H0;  auto.
 subst i'.
-rewrite add_upto_S; try omega.
+rewrite add_upto_S; try lia.
 f_equal.
 destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)));
    try contradiction H3.
 simpl.
 f_equal. f_equal.
-unfold Znth. rewrite if_false by omega.
+unfold Znth. rewrite if_false by lia.
 unfold nthi.
 rewrite Nat2Z.id. auto.
 Qed.
@@ -324,35 +327,35 @@ assert (ADD_S := add_s _ _ H H0).
 Opaque add_upto.
 assert (forall i i', i'=Z.of_nat i -> 0<= i' <8 -> 0 <= i' < Zlength (add_upto i regs atoh)). {
  intros;
- rewrite Zlength_correct; rewrite length_add_upto by omega;
- rewrite H; simpl; omega.
+ rewrite Zlength_correct; rewrite length_add_upto by lia;
+ rewrite H; simpl; lia.
 }
 assert (0<=0) by computable.
 forward.
 forward.
 autorewrite with sublist.
-rewrite ADD_S by (try reflexivity; clear; omega).
+rewrite ADD_S by (try reflexivity; clear; lia).
 forward; forward.
 autorewrite with sublist.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; lia).
 forward; forward.
 autorewrite with sublist.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; lia).
 forward; forward.
 autorewrite with sublist.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; lia).
 forward; forward.
 autorewrite with sublist.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; lia).
 forward; forward.
 autorewrite with sublist.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; lia).
 forward; forward.
 autorewrite with sublist.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; lia).
 forward; forward.
 autorewrite with sublist.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; lia).
 rewrite (add_upto_8 _ _ H H0).
 entailer!.
 Qed.

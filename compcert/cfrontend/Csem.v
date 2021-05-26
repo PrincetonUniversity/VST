@@ -6,28 +6,19 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
 (** Dynamic semantics for the Compcert C language *)
 
-Require Import Coqlib.
-Require Import Errors.
-Require Import Maps.
-Require Import Integers.
-Require Import Floats.
-Require Import Values.
-Require Import AST.
-Require Import Memory.
-Require Import Events.
-Require Import Globalenvs.
-Require Import Ctypes.
-Require Import Cop.
-Require Import Csyntax.
+Require Import Coqlib Errors Maps.
+Require Import Integers Floats Values AST Memory Builtins Events Globalenvs.
+Require Import Ctypes Cop Csyntax.
 Require Import Smallstep.
 
 (** * Operational semantics *)
@@ -437,6 +428,59 @@ Definition not_stuck (e: expr) (m: mem) : Prop :=
   forall k C e' ,
   context k RV C -> e = C e' -> imm_safe k e' m.
 
+(** ** Derived forms. *)
+
+(** The following are admissible reduction rules for some derived forms
+  of the CompCert C language.  They help showing that the derived forms
+  make sense. *)
+
+Lemma red_selection:
+  forall v1 ty1 v2 ty2 v3 ty3 ty m b v2' v3',
+  ty <> Tvoid ->
+  bool_val v1 ty1 m = Some b ->
+  sem_cast v2 ty2 ty m = Some v2' ->
+  sem_cast v3 ty3 ty m = Some v3' ->
+  rred (Eselection (Eval v1 ty1) (Eval v2 ty2) (Eval v3 ty3) ty) m
+    E0 (Eval (if b then v2' else v3') ty) m.
+Proof.
+  intros. unfold Eselection.
+  set (t := typ_of_type ty).
+  set (sg := mksignature (AST.Tint :: t :: t :: nil) t cc_default).
+  assert (LK: lookup_builtin_function "__builtin_sel"%string sg = Some (BI_standard (BI_select t))).
+  { unfold sg, t; destruct ty as   [ | ? ? ? | ? | [] ? | ? ? | ? ? ? | ? ? ? | ? ? | ? ? ];
+    simpl; unfold Tptr; destruct Archi.ptr64; reflexivity. }
+  set (v' := if b then v2' else v3').
+  assert (C: val_casted v' ty).
+  { unfold v'; destruct b; eapply cast_val_is_casted; eauto. }
+  assert (EQ: Val.normalize v' t = v').
+  { apply Val.normalize_idem. apply val_casted_has_type; auto. }
+  econstructor.
+- constructor. rewrite cast_bool_bool_val, H0. eauto.
+  constructor. eauto.
+  constructor. eauto.
+  constructor.
+- red. red. rewrite LK. constructor. simpl. rewrite <- EQ.
+  destruct b; auto.
+Qed.
+
+Lemma ctx_selection_1:
+  forall k C r2 r3 ty, context k RV C -> context k RV (fun x => Eselection (C x) r2 r3 ty).
+Proof.
+  intros. apply ctx_builtin. constructor; auto.
+Qed.
+
+Lemma ctx_selection_2:
+  forall k r1 C r3 ty, context k RV C -> context k RV (fun x => Eselection r1 (C x) r3 ty).
+Proof.
+  intros. apply ctx_builtin. constructor; constructor; auto.
+Qed.
+
+Lemma ctx_selection_3:
+  forall k r1 r2 C ty, context k RV C -> context k RV (fun x => Eselection r1 r2 (C x) ty).
+Proof.
+  intros. apply ctx_builtin. constructor; constructor; constructor; auto.
+Qed.
+
 End EXPR.
 
 (** ** Transition semantics. *)
@@ -796,11 +840,11 @@ Proof.
   unfold semantics; intros; red; simpl; intros.
   set (ge := globalenv p) in *.
   assert (DEREF: forall chunk m b ofs t v, deref_loc ge chunk m b ofs t v -> (length t <= 1)%nat).
-    intros. inv H0; simpl; try omega. inv H3; simpl; try omega.
+    intros. inv H0; simpl; try lia. inv H3; simpl; try lia.
   assert (ASSIGN: forall chunk m b ofs t v m', assign_loc ge chunk m b ofs v t m' -> (length t <= 1)%nat).
-    intros. inv H0; simpl; try omega. inv H3; simpl; try omega.
+    intros. inv H0; simpl; try lia. inv H3; simpl; try lia.
   destruct H.
-  inv H; simpl; try omega. inv H0; eauto; simpl; try omega.
+  inv H; simpl; try lia. inv H0; eauto; simpl; try lia.
   eapply external_call_trace_length; eauto.
-  inv H; simpl; try omega. eapply external_call_trace_length; eauto.
+  inv H; simpl; try lia. eapply external_call_trace_length; eauto.
 Qed.

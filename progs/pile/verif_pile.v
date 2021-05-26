@@ -13,19 +13,14 @@ start_function.
 forward_call (malloc_spec_sub t) gv.
 Intros p.
 if_tac.
-forward_if False.
-forward_call tt.
-contradiction.
-forward.
-contradiction.
+{ subst.
+  forward_if False.
+  - forward_call 1. contradiction.
+  - congruence. }
 forward_if True.
-forward_call tt.
-contradiction.
-forward.
-entailer!.
-forward.
-Exists p.
-entailer!.
++ contradiction.
++ forward. entailer!.
++ forward. Exists p. entailer!.
 Qed.
 
 Lemma body_Pile_new: semax_body Vprog Gprog f_Pile_new Pile_new_spec.
@@ -49,7 +44,6 @@ unfold pilerep.
 Intros head.
 forward.
 simpl.
-forward.
 forward.
 forward.
 forward.
@@ -107,13 +101,13 @@ forward. {
  entailer!.
  simpl in H0.
  clear - H0 H H2 H9.
- rewrite (Int.signed_repr z) by rep_omega.
- rewrite (Int.signed_repr) by rep_omega.
+ rewrite (Int.signed_repr z) by rep_lia.
+ rewrite (Int.signed_repr) by rep_lia.
  assert (0 <= sumlist s2). {
- clear - H9. induction s2; simpl; auto. omega.
- inv H9. apply IHs2 in H2. omega.
+ clear - H9. induction s2; simpl; auto. lia.
+ inv H9. apply IHs2 in H2. lia.
  }
- rep_omega.
+ rep_lia.
 }
 forward.
 Exists r' s2.
@@ -121,14 +115,14 @@ entailer!.
 simpl. split.
 simpl in H0.
  assert (0 <= sumlist s2). {
- clear - H9. induction s2; simpl; auto. omega.
- inv H9. apply IHs2 in H2. omega.
+ clear - H9. induction s2; simpl; auto. lia.
+ inv H9. apply IHs2 in H2. lia.
  }
- rep_omega.
- f_equal; f_equal; omega.
+ rep_lia.
+ f_equal; f_equal; lia.
 apply -> wand_sepcon_adjoint.
-match goal with |- _ * ?A * ?B * ?C |-- _ => 
- assert (A * B * C |-- listrep(z::s2) r) end.
+match goal with |-( _ * ?A * ?B * ?C)%logic |-- _ => 
+ assert ((A * B * C)%logic |-- listrep(z::s2) r) end.
 unfold listrep at 2; fold listrep. Exists r'. entailer!.
 sep_apply H10.
 sep_apply modus_ponens_wand.

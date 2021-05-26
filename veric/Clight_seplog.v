@@ -24,6 +24,13 @@ Import compcert.lib.Maps.
 
 Local Open Scope pred.
 
+Definition mkEnv g ids vals : environ := 
+      let n := Nat.min (length ids) (length vals) in
+      make_args (firstn n ids) (firstn n vals) (mkEnviron g (Map.empty (block * type)) (Map.empty val)).
+
+Lemma ge_of_mkEnv {g v vals}: ge_of (mkEnv g v vals) = g.
+Proof. apply ge_of_make_args. Qed.
+
 (*Definition expr_true (e: Clight.expr) (rho: environ): Prop :=
   bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
 
@@ -78,20 +85,14 @@ Qed.
 Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
      fun rho => tc_vals (map (@snd _ _) formals) (map (fun xt => (eval_id (fst xt) rho)) formals).
 
-(*This definition, and lemma close_precondition_i below, could be moved to general_seplog*)
-Program Definition close_precondition (specparams bodyparams: list ident) (P: environ -> pred rmap) (rho: environ) : pred rmap :=
- fun phi =>
-   exists ve', exists te',
-   (forall n i j, nth_error specparams n = Some i -> 
-                    nth_error bodyparams n = Some j ->
-                     Map.get te' i = Map.get (te_of rho) j) /\
-   app_pred (P (mkEnviron (ge_of rho) ve' te')) phi.
-Next Obligation.
-intros.
-intro; intros.
-destruct H0 as [ve' [te' [? ?]]]; exists ve',te'; split; auto.
-eapply pred_hereditary; eauto.
-Qed.
+(*This definition, and some lemmas below, could be moved to general_seplog*)
+
+Definition close_precondition (bodyparams: list ident) 
+    (P: argsEnviron -> mpred) (rho:environ) : mpred :=
+ EX vals,
+   !!(map (Map.get (te_of rho)) bodyparams = map Some vals /\
+      Forall (fun v : val => v <> Vundef) vals) &&
+   P (ge_of rho, vals).
 
 Definition precondition_closed (fs: list (ident*type)) {A: TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) : Prop :=
@@ -99,6 +100,39 @@ Definition precondition_closed (fs: list (ident*type)) {A: TypeTree}
   closed_wrt_vars (not_a_param fs) (P ts x) /\
   closed_wrt_lvars (fun _ => True) (P ts x).
 
+Lemma close_precondition_e':
+   forall al (P: argsEnviron -> pred rmap) (rho: environ) ,
+   close_precondition al P rho |-- 
+   exp (fun vals =>
+     !!(map (Map.get (te_of rho)) al = map Some vals/\
+        Forall (fun v : val => v <> Vundef) vals) &&
+   P (ge_of rho, vals)).
+Proof. intros. intros u p. simpl in p. simpl; trivial. Qed.
+
+Lemma Forall_eval_id_get: forall {vals: list val} (V:Forall (fun v : val => v = Vundef -> False) vals), 
+  forall ids rho, map (Map.get (te_of rho)) ids = map Some vals <-> map (fun i : ident => eval_id i rho) ids = vals.
+Proof.
+induction vals; simpl; intros; split; intros; destruct ids; inv H; simpl in *; trivial.
++ inv V. destruct (IHvals H4 ids rho) as [X _]. rewrite (X H2); clear X H2. f_equal.
+  unfold eval_id; rewrite H1; simpl; trivial. 
++ inv V. destruct (IHvals H2 ids rho) as [_ X]. rewrite X; clear X; trivial. f_equal.
+  clear - H1. unfold eval_id, force_val in *.
+  destruct (Map.get (te_of rho) p); trivial. elim H1; trivial.
+Qed.
+
+Lemma close_precondition_eval_id ids P rho:
+   close_precondition ids P rho = 
+   EX vals:_,
+     !!(map (fun i => eval_id i rho) ids = vals /\
+        Forall (fun v : val => v <> Vundef) vals) &&
+   P (ge_of rho, vals).
+Proof.
+unfold close_precondition. apply pred_ext; apply exp_derives; intros vals m M; simpl in *; intuition.
+apply (Forall_eval_id_get H2); trivial.
+apply (Forall_eval_id_get H2); trivial.
+Qed.
+
+(*
 Lemma close_precondition_e:
    forall al (A: TypeTree) (P:  forall ts, dependent_type_functor_rec ts (AssertTT A) mpred),
     precondition_closed al P ->
@@ -145,6 +179,10 @@ Qed.
 Definition bind_args (specparams bodyparams: list (ident * type)) (P: environ -> pred rmap) : assert :=
           fun rho => !! tc_formals bodyparams rho 
                           && close_precondition (map fst specparams) (map fst bodyparams) P rho.
+*)
+Definition bind_args (bodyparams: list (ident * type)) (P: genviron * list val -> pred rmap) : assert :=
+  fun rho => !! tc_formals bodyparams rho 
+     && close_precondition (map fst bodyparams) P rho.
 
 Definition ret_temp : ident := 1%positive.
 
@@ -244,7 +282,7 @@ Proof.
  intros.
  destruct ek; simpl; normalize.
 Qed.
-Hint Resolve normal_ret_assert_derives : core.
+#[export] Hint Resolve normal_ret_assert_derives : core.
 
 Lemma normal_ret_assert_FF:
   forall ek vl rho, proj_ret_assert (normal_ret_assert (fun rho => FF)) ek vl rho = FF.

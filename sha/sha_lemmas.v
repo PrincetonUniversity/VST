@@ -78,21 +78,21 @@ match goal with |- ?A = ?B => assert (A::nil = B::nil) end;
  [ | congruence].
 rewrite <- big_endian_integer_bytelist.
 2:{ 
-rewrite Zlength_sublist; try omega.
+rewrite Zlength_sublist; try lia.
 rewrite (Zlength_intlist_to_bytelist bl).
 rewrite Zlength_correct.
-omega.
+lia.
 }
-unfold sublist.
+unfold_sublist_old.
 replace (Z.to_nat (Z.of_nat i * 4)) with (4 * i)%nat.
-2:{ rewrite Z2Nat.inj_mul by omega. 
-     rewrite Nat2Z.id. simpl. omega.
+2:{ rewrite Z2Nat.inj_mul by lia. 
+     rewrite Nat2Z.id. simpl. lia.
 }
 rewrite skipn_intlist_to_bytelist.
 replace (Z.to_nat
         (Z.succ (Z.of_nat i) * 4 -
          Z.of_nat i * 4)) with (4*1)%nat.
-2:{ unfold Z.succ. replace ((Z.of_nat i + 1) * 4 - Z.of_nat i * 4) with 4 by omega. reflexivity.
+2:{ unfold Z.succ. replace ((Z.of_nat i + 1) * 4 - Z.of_nat i * 4) with 4 by lia. reflexivity.
 }
 rewrite firstn_intlist_to_bytelist.
 rewrite intlist_to_bytelist_to_intlist.
@@ -111,14 +111,14 @@ Lemma Znth_big_endian_integer:
 Proof.
 intros.
 unfold Znth.
- rewrite if_false by omega.
+ rewrite if_false by lia.
 pose proof (nth_error_nth _ Int.zero (Z.to_nat i) bl).
-rewrite <- (Z2Nat.id i) at 2 3 by omega.
+rewrite <- (Z2Nat.id i) at 2 3 by lia.
 apply nth_big_endian_integer.
 apply H0.
 apply Nat2Z.inj_lt.
-rewrite Z2Nat.id by omega.
-rewrite <- Zlength_correct; omega.
+rewrite Z2Nat.id by lia.
+rewrite <- Zlength_correct; lia.
 Qed.
 
 Fixpoint sequence (cs: list statement) s :=
@@ -196,7 +196,7 @@ Proof. reflexivity. Qed.
 Lemma WORD_eq: WORD = 4%Z.
 Proof. reflexivity. Qed.
 
-Hint Rewrite CBLOCKz_eq LBLOCKz_eq WORD_eq : rep_omega.
+Hint Rewrite CBLOCKz_eq LBLOCKz_eq WORD_eq : rep_lia.
 
 (*
 Ltac helper2 :=
@@ -213,10 +213,10 @@ Ltac helper2 :=
 
 Ltac Omega1 := Omega (helper1 || helper2).
 *)
-Ltac Omega1 := rep_omega.
+Ltac Omega1 := rep_lia.
 
 Ltac MyOmega :=
-  rewrite ?length_list_repeat, ?skipn_length, ?map_length,
+  rewrite ?repeat_length, ?skipn_length, ?map_length,
    ?Zlength_map, ?Zlength_nil;
   pose proof CBLOCK_eq;
 (*  pose proof CBLOCKz_eq;*)
@@ -232,12 +232,8 @@ Local Open Scope logic.
 Lemma sizeof_tarray_tuchar:
  forall (n:Z), (n>=0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
 Proof. intros.
- unfold sizeof,tarray; cbv beta iota.
-  rewrite Z.max_r by omega.
-  unfold alignof, tuchar; cbv beta iota.
-  rewrite Z.mul_1_l. auto.
+ simpl. lia.
 Qed.
-
 
 Lemma Zlength_bytelist_to_intlist:
   forall (n:Z) (l: list byte),
@@ -245,16 +241,16 @@ Lemma Zlength_bytelist_to_intlist:
 Proof.
 intros.
 rewrite Zlength_correct in *.
-rewrite (length_bytelist_to_intlist (Z.to_nat n)); rep_omega.
+rewrite (length_bytelist_to_intlist (Z.to_nat n)); rep_lia.
 Qed.
 
 Lemma nth_intlist_to_bytelist_eq:
  forall d (n i j k: nat) al, (i < n)%nat -> (i < j*4)%nat -> (i < k*4)%nat ->
     nth i (intlist_to_bytelist (firstn j al)) d = nth i (intlist_to_bytelist (firstn k al)) d.
 Proof.
- induction n; destruct i,al,j,k; simpl; intros; auto; try omega.
+ induction n; destruct i,al,j,k; simpl; intros; auto; try lia.
  destruct i; auto. destruct i; auto. destruct i; auto.
- apply IHn; omega.
+ apply IHn; lia.
 Qed.
 
 
@@ -271,28 +267,28 @@ rewrite Zlength_app.
 rewrite Zlength_intlist_to_bytelist.
 destruct H as [n ?].
 rewrite H.
-assert (CBLOCKz > 0) by rep_omega. 
+assert (CBLOCKz > 0) by rep_lia. 
 pose proof (Zmod_eq (n * CBLOCKz + Zlength data) CBLOCKz H1).
 pose proof (Zmod_eq (Zlength data) CBLOCKz H1).
 rewrite sublist_app2; rewrite Zlength_intlist_to_bytelist; rewrite H;
  rewrite <- Z.mul_assoc; change (LBLOCKz * 4)%Z with CBLOCKz.
 apply sublist_same.
-rewrite Z.div_add_l by omega.
+rewrite Z.div_add_l by lia.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by rep_omega. omega.
-omega.
-rewrite Z.div_add_l by  omega.
+rewrite Z.div_small by rep_lia. lia.
+lia.
+rewrite Z.div_add_l by  lia.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by rep_omega.
-split; [ | omega].
+rewrite Z.div_small by rep_lia.
+split; [ | lia].
 apply Z.mul_nonneg_nonneg.
 clear - H.
-assert (n < 0 \/ 0 <= n) by omega.
+assert (n < 0 \/ 0 <= n) by lia.
 destruct H0; auto.
 assert (n * LBLOCKz < 0).
 apply Z.mul_neg_pos; auto.
-rep_omega.
-omega.
+rep_lia.
+lia.
 Qed.
 
 Lemma S256abs_hashed:
@@ -305,39 +301,39 @@ intros;  unfold S256abs, s256a_hashed.
 rewrite Zlength_app.
 rewrite Zlength_intlist_to_bytelist.
 destruct H as [n ?].
-assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; omega).
+assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; lia).
 pose proof (Zmod_eq (n * CBLOCKz + Zlength data) CBLOCKz H1).
 pose proof (Zmod_eq (Zlength data) CBLOCKz H1).
 pose proof (Zlength_nonneg data).
 rewrite sublist_app1; rewrite ?Zlength_intlist_to_bytelist;
   rewrite H.
-rewrite sublist_same; try omega.
+rewrite sublist_same; try lia.
 apply intlist_to_bytelist_to_intlist.
 rewrite Zlength_intlist_to_bytelist.
   rewrite H.
 rewrite <- Z.mul_assoc; change (LBLOCKz*4)%Z with CBLOCKz.
-rewrite Z.div_add_l by omega.
+rewrite Z.div_add_l by lia.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by omega.  omega.
-split; [omega | ].
+rewrite Z.div_small by lia.  lia.
+split; [lia | ].
 rewrite <- Z.mul_assoc; change (LBLOCKz*4)%Z with CBLOCKz.
-rewrite Z.div_add_l by omega.
+rewrite Z.div_add_l by lia.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by omega.
+rewrite Z.div_small by lia.
 clear - H.
-assert (n < 0 \/ 0 <= n) by omega.
+assert (n < 0 \/ 0 <= n) by lia.
 simpl.
 destruct H0.
 pose proof (Zlength_nonneg hashed).
 assert (n * LBLOCKz < 0).
 apply Z.mul_neg_pos; auto.
-omega.
+lia.
 rewrite Z.add_0_r.
 apply Z.mul_nonneg_nonneg; auto.
 rewrite <- Z.mul_assoc; change (LBLOCKz*4)%Z with CBLOCKz.
-rewrite Z.div_add_l by omega.
+rewrite Z.div_add_l by lia.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by omega.  omega.
+rewrite Z.div_small by lia.  lia.
 Qed.
 
 Lemma s256a_hashed_divides:
@@ -350,16 +346,16 @@ rewrite Zlength_sublist.
 rewrite (Z.mul_comm WORD).
 rewrite <- Z.mul_assoc.
 change (LBLOCKz * WORD)%Z with CBLOCKz.
-omega.
-split; [ omega  |] .
+lia.
+split; [ lia  |] .
 apply Z.mul_nonneg_nonneg; auto.
 apply Z.div_pos.
 apply Zlength_nonneg.
-rewrite CBLOCKz_eq; omega.
-assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; omega).
+rewrite CBLOCKz_eq; lia.
+assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; lia).
 pose proof (Zmod_eq (Zlength a) CBLOCKz H).
 pose proof (Z_mod_lt (Zlength a) CBLOCKz H).
-omega.
+lia.
 Qed.
 
 Lemma s256a_data_len:
@@ -368,16 +364,16 @@ Lemma s256a_data_len:
 Proof.
 intros.
 unfold s256a_data.
-assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; omega).
+assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; lia).
 pose proof (Zmod_eq (Zlength a) CBLOCKz H).
 pose proof (Z_mod_lt (Zlength a) CBLOCKz H).
 rewrite H0.
-rewrite Zlength_sublist; try omega.
-split; try omega.
+rewrite Zlength_sublist; try lia.
+split; try lia.
 apply Z.mul_nonneg_nonneg.
 apply Z.div_pos.
 apply Zlength_nonneg.
-omega. omega.
+lia. lia.
 Qed.
 
 Lemma s256a_data_Zlength_less:
@@ -386,7 +382,7 @@ Proof.
 intros.
 rewrite s256a_data_len.
 apply Z_mod_lt.
-rewrite CBLOCKz_eq; omega.
+rewrite CBLOCKz_eq; lia.
 Qed.
 
 Lemma hashed_data_recombine:
@@ -395,31 +391,31 @@ Lemma hashed_data_recombine:
 Proof.
 intros.
 unfold s256a_hashed, s256a_data.
-assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; omega).
+assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; lia).
 rewrite bytelist_to_intlist_to_bytelist.
 rewrite sublist_rejoin.
 autorewrite with sublist. auto.
-split; [ omega  |] .
+split; [ lia  |] .
 apply Z.mul_nonneg_nonneg; auto.
 apply Z.div_pos.
 apply Zlength_nonneg.
-rewrite CBLOCKz_eq; omega.
-assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; omega).
+rewrite CBLOCKz_eq; lia.
+assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; lia).
 pose proof (Zmod_eq (Zlength a) CBLOCKz H).
 pose proof (Z_mod_lt (Zlength a) CBLOCKz H).
-omega.
+lia.
 rewrite Zlength_sublist.
 rewrite Z.sub_0_r.
 apply Z.divide_mul_r.
 exists LBLOCKz. reflexivity.
-split; [ omega  |] .
+split; [ lia  |] .
 apply Z.mul_nonneg_nonneg; auto.
 apply Z.div_pos.
 apply Zlength_nonneg.
-omega.
+lia.
 pose proof (Zmod_eq (Zlength a) CBLOCKz H).
 pose proof (Z_mod_lt (Zlength a) CBLOCKz H).
-omega.
+lia.
 Qed.
 
 Definition bitlength (hashed: list int) (data: list byte) : Z :=
@@ -453,24 +449,24 @@ intros.
 destruct H as [na H].
 rewrite <- (Z2Nat.id na) in H.
 2:{
-destruct (zlt na 0); try omega.
+destruct (zlt na 0); try lia.
 assert (na * WORD < 0); [apply Z.mul_neg_pos; auto | ].
-pose proof (Zlength_nonneg a); omega.
+pose proof (Zlength_nonneg a); lia.
 }
 revert a H; induction (Z.to_nat na); intros.
 simpl in H. destruct a. simpl. auto. rewrite Zlength_cons in H.
-pose proof (Zlength_nonneg a); omega.
+pose proof (Zlength_nonneg a); lia.
 rewrite inj_S in H.
 unfold Z.succ in H. rewrite Z.mul_add_distr_r in H.
 change (1*WORD)%Z with 4 in H.
 assert (Zlength a >= 4).
-assert (0 <= Z.of_nat n * WORD); [ | omega].
-apply Z.mul_nonneg_nonneg; try omega.
-change WORD with 4%Z; omega.
-do 4 (destruct a; [rewrite Zlength_nil in H0; omega | rewrite Zlength_cons in H,H0  ]).
+assert (0 <= Z.of_nat n * WORD); [ | lia].
+apply Z.mul_nonneg_nonneg; try lia.
+change WORD with 4%Z; lia.
+do 4 (destruct a; [rewrite Zlength_nil in H0; lia | rewrite Zlength_cons in H,H0  ]).
 simpl.
 do 4 f_equal. apply IHn.
-omega.
+lia.
 Qed.
 
 Lemma round_range:
@@ -480,16 +476,16 @@ Lemma round_range:
 Proof.
 intros.
 split.
-apply Z.mul_nonneg_nonneg; auto; try omega.
-apply Z.div_pos; try omega.
+apply Z.mul_nonneg_nonneg; auto; try lia.
+apply Z.div_pos; try lia.
 apply Zlength_nonneg.
 pose proof (Zmod_eq (Zlength a) N H).
 pose proof (Z_mod_lt (Zlength a) N H).
-omega.
+lia.
 Qed.
 
 Lemma CBLOCKz_gt: CBLOCKz > 0.
-Proof. rewrite CBLOCKz_eq; omega.
+Proof. rewrite CBLOCKz_eq; lia.
 Qed.
 
 Lemma bytelist_to_intlist_inj:
@@ -518,12 +514,12 @@ Proof.
 intros. pose proof I.
 unfold update_abs.
 assert (0 <= 0 <= Zlength a / CBLOCKz * CBLOCKz). {
- split; [omega | ].
+ split; [lia | ].
  apply Z.mul_nonneg_nonneg.
  apply Z.div_pos.
  apply Zlength_nonneg.
- rewrite CBLOCKz_eq; omega.
- rewrite CBLOCKz_eq; omega.
+ rewrite CBLOCKz_eq; lia.
+ rewrite CBLOCKz_eq; lia.
 }
 pose proof (round_range a _ CBLOCKz_gt).
 pose proof (round_range (a++msg) _ CBLOCKz_gt).
@@ -539,16 +535,16 @@ split.
  rewrite (sublist_split 0 (Zlength a / CBLOCKz * CBLOCKz)); auto.
  rewrite bytelist_to_intlist_app.
  f_equal.
- rewrite sublist_app1; auto. omega.
+ rewrite sublist_app1; auto. lia.
  rewrite Zlength_sublist; auto.
  rewrite Z.sub_0_r.
  apply Z.divide_mul_r.
  exists LBLOCKz; reflexivity.
  rewrite Zlength_app.
- pose proof (Zlength_nonneg msg); omega.
+ pose proof (Zlength_nonneg msg); lia.
  split; [ | apply round_range; apply CBLOCKz_gt].
- apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; omega].
- apply Z.div_le_mono; [rewrite CBLOCKz_eq; omega| ].
+ apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; lia].
+ apply Z.div_le_mono; [rewrite CBLOCKz_eq; lia| ].
  rewrite Zlength_app; Omega1.
  +
  rewrite bytelist_to_intlist_to_bytelist.
@@ -556,47 +552,47 @@ split.
  apply Z.divide_mul_r.
  exists LBLOCKz; reflexivity.
  split; [Omega1 | ].
- apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; omega].
- apply Z.div_le_mono; [rewrite CBLOCKz_eq; omega| ].
+ apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; lia].
+ apply Z.div_le_mono; [rewrite CBLOCKz_eq; lia| ].
  rewrite Zlength_app; Omega1.
  apply round_range. apply CBLOCKz_gt.
  }
  unfold s256a_data.
  destruct (zlt   (Zlength (a ++ msg) / CBLOCKz * CBLOCKz) (Zlength a) ).
   -
-   rewrite sublist_app1; try omega.
+   rewrite sublist_app1; try lia.
    rewrite (sublist_split (Zlength (a ++ msg) / CBLOCKz * CBLOCKz)
-               (Zlength a) (Zlength (a ++ msg))); try omega.
-   rewrite sublist_app1; try omega.
-   rewrite sublist_app2 by omega.
+               (Zlength a) (Zlength (a ++ msg))); try lia.
+   rewrite sublist_app1; try lia.
+   rewrite sublist_app2 by lia.
    autorewrite with sublist.
-   rewrite (sublist_same 0) by omega.
+   rewrite (sublist_same 0) by lia.
    rewrite <- app_ass. f_equal.
-   rewrite sublist_rejoin; try omega. auto.
+   rewrite sublist_rejoin; try lia. auto.
    split. apply round_range; apply CBLOCKz_gt.
- apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; omega].
- apply Z.div_le_mono; [rewrite CBLOCKz_eq; omega| ].
+ apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; lia].
+ apply Z.div_le_mono; [rewrite CBLOCKz_eq; lia| ].
   Omega1.
-  rewrite Zlength_app in l; omega.
+  rewrite Zlength_app in l; lia.
   rewrite Zlength_app; Omega1.
    split. apply round_range; apply CBLOCKz_gt.
- apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; omega].
- apply Z.div_le_mono; [rewrite CBLOCKz_eq; omega| ].
+ apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; lia].
+ apply Z.div_le_mono; [rewrite CBLOCKz_eq; lia| ].
   rewrite Zlength_app; Omega1.
  -
    rewrite (sublist_split (Zlength a / CBLOCKz * CBLOCKz) (Zlength a)
                   (Zlength (a ++ msg) / CBLOCKz * CBLOCKz) ); auto.
    rewrite app_ass.
-   rewrite sublist_app1; try omega.
-   rewrite sublist_app2; try omega.
+   rewrite sublist_app1; try lia.
+   rewrite sublist_app2; try lia.
    rewrite Z.sub_diag.
    f_equal.
-   rewrite sublist_app2; try omega.
+   rewrite sublist_app2; try lia.
    rewrite sublist_rejoin.
    autorewrite with sublist. auto.
-   omega.
-  split; try omega. rewrite Zlength_app; Omega1.
-   omega.
+   lia.
+  split; try lia. rewrite Zlength_app; Omega1.
+   lia.
 *
 destruct H3 as [blocks [? ?]].
 match type of H3 with ?A = ?B =>
@@ -608,22 +604,22 @@ match type of H4 with ?A = ?B =>
 end.
 unfold s256a_hashed, s256a_data in *.
 rewrite <- app_ass in H6.
-rewrite sublist_rejoin in H6 by omega.
-rewrite sublist_same in H6 by omega.
+rewrite sublist_rejoin in H6 by lia.
+rewrite sublist_same in H6 by lia.
 rewrite H6.
 clear H6 H4.
 rewrite <- (sublist_same 0 (Zlength a') a') at 1; auto.
 rewrite <- app_ass.
-rewrite (sublist_split 0 (Zlength a' / CBLOCKz * CBLOCKz) (Zlength a')); try omega.
+rewrite (sublist_split 0 (Zlength a' / CBLOCKz * CBLOCKz) (Zlength a')); try lia.
 f_equal.
 apply bytelist_to_intlist_inj.
 rewrite Zlength_sublist.
  rewrite Z.sub_0_r.
  apply Z.divide_mul_r.
  exists LBLOCKz; reflexivity.
- split; [clear; omega | ].
- apply Z.mul_nonneg_nonneg; [ | rewrite CBLOCKz_eq; omega].
- apply Z.div_pos; [ | rewrite CBLOCKz_eq; omega].
+ split; [clear; lia | ].
+ apply Z.mul_nonneg_nonneg; [ | rewrite CBLOCKz_eq; lia].
+ apply Z.div_pos; [ | rewrite CBLOCKz_eq; lia].
  apply Zlength_nonneg.
  apply round_range; apply CBLOCKz_gt.
  rewrite Zlength_app.
@@ -632,9 +628,9 @@ rewrite Zlength_sublist.
  rewrite Z.sub_0_r.
  apply Z.divide_mul_r.
  exists LBLOCKz; reflexivity.
- split; [clear; omega | ].
- apply Z.mul_nonneg_nonneg; [ | rewrite CBLOCKz_eq; omega].
- apply Z.div_pos; [ | rewrite CBLOCKz_eq; omega].
+ split; [clear; lia | ].
+ apply Z.mul_nonneg_nonneg; [ | rewrite CBLOCKz_eq; lia].
+ apply Z.div_pos; [ | rewrite CBLOCKz_eq; lia].
  apply Zlength_nonneg.
  apply round_range; apply CBLOCKz_gt.
  exists (Zlength blocks).
@@ -647,10 +643,10 @@ rewrite Zlength_sublist.
  apply Z.divide_mul_r.
  exists LBLOCKz; reflexivity.
  auto.
- omega.
- split; [clear; omega |].
+ lia.
+ split; [clear; lia |].
  apply round_range; apply CBLOCKz_gt.
- split; [ | clear; omega].
+ split; [ | clear; lia].
  apply round_range; apply CBLOCKz_gt.
 Qed.
 
@@ -670,6 +666,6 @@ subst n.
 apply data_at_memory_block.
 Qed.
 
-Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- memory_block _ _ _) =>
-   (apply array_at_memory_block; try reflexivity; try omega) : cancel.
+#[export] Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- memory_block _ _ _) =>
+   (apply array_at_memory_block; try reflexivity; try lia) : cancel.
 

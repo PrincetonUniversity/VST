@@ -141,7 +141,7 @@ eapply semax_func_cons;
     eapply semax_func_cons. (*leaves 9 goals*)
     + cbv; reflexivity.
     + repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity.
-    + unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega).
+    + unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia).
     + reflexivity.
     + LookupID.
     + LookupB.

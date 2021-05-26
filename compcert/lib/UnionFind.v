@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -552,10 +553,10 @@ Proof.
   rewrite H; auto. simpl in G. rewrite M.gsspec in G.
   destruct (M.elt_eq x0 (repr uf a)). rewrite e. rewrite repr_canonical. rewrite dec_eq_true.
   inversion G. subst x'. rewrite dec_eq_false; auto.
-  replace (pathlen uf (repr uf a)) with 0. omega.
+  replace (pathlen uf (repr uf a)) with 0. lia.
   symmetry. apply pathlen_none. apply repr_res_none.
   rewrite (repr_unroll uf x0), (pathlen_unroll uf x0); rewrite G.
-  destruct (M.elt_eq (repr uf x') (repr uf a)); omega.
+  destruct (M.elt_eq (repr uf x') (repr uf a)); lia.
   simpl in G. rewrite M.gsspec in G. destruct (M.elt_eq x0 (repr uf a)); try discriminate.
   rewrite (repr_none uf x0) by auto. rewrite dec_eq_false; auto.
   symmetry. apply pathlen_zero; auto. apply repr_none; auto.
@@ -570,7 +571,7 @@ Proof.
   intros. repeat rewrite pathlen_merge.
   destruct (M.elt_eq (repr uf a) (repr uf b)). auto.
   rewrite H. destruct (M.elt_eq (repr uf y) (repr uf a)).
-  omega. auto.
+  lia. auto.
 Qed.
 
 (* Path compression *)

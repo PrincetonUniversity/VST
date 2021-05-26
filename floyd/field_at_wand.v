@@ -29,7 +29,7 @@ Proof.
 intros.
 unfold array_with_hole. entailer!.
 Qed.
-Hint Resolve array_with_hole_local_facts : saturate_local.
+#[export] Hint Resolve array_with_hole_local_facts : saturate_local.
 
 Lemma wand_slice_array:
 forall {cs: compspecs} lo hi n sh t (al: list (reptype t)) p,
@@ -57,10 +57,10 @@ Proof.
     erewrite field_at_Tarray.
       2: constructor.
       2: reflexivity.
-      2: omega.
+      2: lia.
       2: apply JMeq_refl.
-    erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try omega.
-      2:etransitivity; [exact H1 | omega].
+    erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try lia.
+      2:etransitivity; [exact H1 | lia].
     unfold data_at.
     rewrite (sepcon_comm (array_at _ _ _ _ _ _ _)), sepcon_assoc.
     apply sepcon_derives.
@@ -74,18 +74,18 @@ Proof.
         normalize.
         rewrite value_fits_eq in H4; simpl in H4.
         destruct H4.
-        rewrite Z.max_r in H4 by omega.
+        rewrite Z.max_r in H4 by lia.
         change (@Zlength (reptype t) v = hi - lo) in H4.
         erewrite (field_at_Tarray _ (tarray t n)).
           2: constructor.
           2: reflexivity.
-          2: omega.
+          2: lia.
           2: apply JMeq_refl.
-        erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try omega.
+        erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try lia.
         2:{
           change (Zlength (sublist 0 lo al ++ v ++ sublist hi n al) = n - 0).
           autorewrite with sublist.
-          omega.
+          lia.
         }
         autorewrite with norm.
         change (array_at sh (tarray t n) nil 0 lo (sublist 0 lo al) p *
@@ -100,8 +100,8 @@ Proof.
                       (sublist hi n (sublist 0 lo al ++ v ++ sublist hi n al)) p).
         unfold tarray; autorewrite with sublist.
         rewrite H4.
-        replace (hi - lo - (hi - lo) + hi) with hi by omega.
-        replace (n - lo - (hi - lo) + hi) with n by omega.
+        replace (hi - lo - (hi - lo) + hi) with hi by lia.
+        replace (n - lo - (hi - lo) + hi) with n by lia.
         rewrite !sepcon_assoc.
         apply sepcon_derives; [apply derives_refl |].
         rewrite sepcon_comm.
@@ -145,7 +145,7 @@ Proof.
   assert (Zlength al = n).
   {
     destruct H2 as [? _].
-    rewrite Z.max_r in H2 by omega.
+    rewrite Z.max_r in H2 by lia.
     rewrite <- H2.
     reflexivity.
   }
@@ -153,13 +153,13 @@ Proof.
   erewrite field_at_Tarray.
       2: constructor.
       2: reflexivity.
-      2: omega.
+      2: lia.
       2: apply JMeq_refl.
-  erewrite (split3seg_array_at _ _ _ 0 i (i+1) n); try omega.
-      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  erewrite (split3seg_array_at _ _ _ 0 i (i+1) n); try lia.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
   autorewrite with sublist.
   rewrite sublist_len_1.
-      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
   erewrite array_at_len_1.
       2: apply JMeq_refl.
   rewrite field_at_data_at.
@@ -172,23 +172,23 @@ Proof.
   erewrite field_at_Tarray.
       2: constructor.
       2: reflexivity.
-      2: omega.
+      2: lia.
       2: apply JMeq_refl.
-  erewrite (split3seg_array_at _ _ _ 0 i (i+1) n); try omega.
-      2: autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  erewrite (split3seg_array_at _ _ _ 0 i (i+1) n); try lia.
+      2: autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
   autorewrite with sublist.
   rewrite sublist_len_1.
-      2: autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+      2: autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
   erewrite array_at_len_1.
       2: apply JMeq_refl.
   rewrite field_at_data_at.
   change ((nested_field_type (tarray t n) (ArraySubsc i :: nil))) with t.
   rewrite upd_Znth_same.
-      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
-  rewrite sublist_upd_Znth_l; try omega.
-      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
-  rewrite sublist_upd_Znth_r; try omega.
-      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
+  rewrite sublist_upd_Znth_l; try lia.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
+  rewrite sublist_upd_Znth_r; try lia.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
   cancel.
 Qed.
 
@@ -236,7 +236,7 @@ Proof.
   assert (Zlength al = n).
   {
     destruct H3 as [? _].
-    rewrite Z.max_r in H3 by omega.
+    rewrite Z.max_r in H3 by lia.
     rewrite <- H3.
     reflexivity.
   }
@@ -244,13 +244,13 @@ Proof.
   erewrite field_at_Tarray.
       2: constructor.
       2: reflexivity.
-      2: omega.
+      2: lia.
       2: apply JMeq_refl.
-  erewrite (split3seg_array_at _ _ _ 0 lo hi n); try omega.
-      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  erewrite (split3seg_array_at _ _ _ 0 lo hi n); try lia.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
   autorewrite with sublist.
   change (tarray t (hi - lo)) with (nested_field_array_type (tarray t n) nil lo hi).
-  erewrite <- array_at_data_at''' by first [reflexivity | omega].
+  erewrite <- array_at_data_at''' by first [reflexivity | lia].
   cancel.
   apply allp_right; intros v.
   apply -> wand_sepcon_adjoint.
@@ -262,22 +262,22 @@ Proof.
     destruct H13.
     clear - H H13.
     apply prop_right.
-    rewrite Z.max_r in H13 by omega.
+    rewrite Z.max_r in H13 by lia.
     exact H13.
   }
   erewrite field_at_Tarray.
       2: constructor.
       2: reflexivity.
-      2: omega.
+      2: lia.
       2: apply JMeq_refl.
-  erewrite (split3seg_array_at _ _ _ 0 lo hi n); try omega.
-      2: unfold splice_into_list; autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
-  erewrite <- array_at_data_at''' by first [reflexivity | omega].
+  erewrite (split3seg_array_at _ _ _ 0 lo hi n); try lia.
+      2: unfold splice_into_list; autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
+  erewrite <- array_at_data_at''' by first [reflexivity | lia].
   cancel.
   unfold splice_into_list.
   autorewrite with sublist.
-  replace (hi - lo - Zlength v + hi) with hi by omega.
-  replace (n - lo - Zlength v + hi) with n by omega.
+  replace (hi - lo - Zlength v + hi) with hi by lia.
+  replace (n - lo - Zlength v + hi) with n by lia.
   cancel.
   autorewrite with sublist.
   cancel.

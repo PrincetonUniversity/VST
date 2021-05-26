@@ -365,13 +365,13 @@ inv H. exists phi2'; exists phi3'; split; auto.
 Qed.
 
 
-Hint Resolve @join_comparable @join_comparable'  @join_comparable'' @join_comparable'''
-      @join_comparable2 @join_comparable2'  @list_join_comparable @list_join_comparable'
-      @joins_comparable  @joins_comparable2  @join_sub_comparable  @join_sub_comparable2
-      @eq_comparable  @eq_comparable2
+#[export] Hint Resolve join_comparable join_comparable'  join_comparable'' join_comparable'''
+      join_comparable2 join_comparable2' list_join_comparable list_join_comparable'
+      joins_comparable joins_comparable2 join_sub_comparable join_sub_comparable2
+      eq_comparable  eq_comparable2
   : comparable.
 
-Hint Immediate @comparable_refl  @comparable_sym  : comparable.
+#[export] Hint Immediate comparable_refl  comparable_sym  : comparable.
 
 Ltac Comp1 phi1 phi2 :=
    solve [ eauto 3 with comparable typeclass_instances |

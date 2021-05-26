@@ -53,7 +53,7 @@ Proof.
   pose proof (app_pred_age Au SAT) as SAT'.
   split.
   - split.
-    + apply age_level in A; apply age_level in Au. omega.
+    + apply age_level in A; apply age_level in Au. lia.
     + apply SAT'.
   - apply (necR_YES _ Phi') in AT.
     + rewrite AT.
@@ -63,7 +63,7 @@ Qed.
 
 Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (approx n) (phi @ loc).
 Proof.
-  assert (D : (n <= level phi \/ n >= level phi)%nat) by omega.
+  assert (D : (n <= level phi \/ n >= level phi)%nat) by lia.
   destruct D as [D | D]; swap 1 2.
   - rewrite age_to_ge; auto.
     rewrite <-resource_at_approx.
@@ -79,12 +79,12 @@ Proof.
       rewrite approx_oo_approx'; auto.
   - generalize (age_to_ageN n phi).
     generalize (age_to n phi); intros phi'.
-    replace n with (level phi - (level phi - n))%nat at 2 3 by omega.
+    replace n with (level phi - (level phi - n))%nat at 2 3 by lia.
     generalize (level phi - n)%nat; intros k. clear n D.
     revert phi phi'; induction k; intros phi phi'.
     + unfold ageN in *; simpl.
       injection 1 as <-.
-      simpl; replace (level phi - 0)%nat with (level phi) by omega.
+      simpl; replace (level phi - 0)%nat with (level phi) by lia.
       symmetry.
       apply resource_at_approx.
     + change (ageN (S k) phi) with
@@ -106,9 +106,9 @@ Proof.
         -- destruct p; auto.
            rewrite preds_fmap_fmap; auto.
       * f_equal. rewrite approx_oo_approx'; auto.
-        omega.
+        lia.
         rewrite approx'_oo_approx; auto.
-        omega.
+        lia.
 Qed.
 
 Lemma age_to_ghost_of phi n : ghost_of (age_to n phi) = ghost_fmap (approx n) (approx n) (ghost_of phi).
@@ -118,13 +118,13 @@ Proof.
   remember (level phi - n) as n'.
   revert dependent n; revert dependent phi; induction n'; intros.
   - inv H.
-    rewrite <- ghost_of_approx, ghost_fmap_fmap, approx'_oo_approx, approx_oo_approx' by omega; auto.
+    rewrite <- ghost_of_approx, ghost_fmap_fmap, approx'_oo_approx, approx_oo_approx' by lia; auto.
   - change (ageN (S n') phi) with
       (match age1 phi with Some w' => ageN n' w' | None => None end) in H.
     destruct (age1 phi) eqn: Hage; [|discriminate].
     pose proof (age_level _ _ Hage) as Hl.
     assert (n' = level r - n).
-    { rewrite Hl, <- minus_Sn_m in Heqn' by omega; inversion Heqn'; auto. }
-    rewrite (IHn' _ H n), (age1_ghost_of _ _ Hage) by (auto; omega).
-    rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; auto.
+    { rewrite Hl, <- Minus.minus_Sn_m in Heqn' by lia; inversion Heqn'; auto. }
+    rewrite (IHn' _ H n), (age1_ghost_of _ _ Hage) by (auto; lia).
+    rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx by lia; auto.
 Qed.

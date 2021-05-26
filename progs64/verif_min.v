@@ -75,19 +75,19 @@ Lemma is_int_I32_Znth_map_Vint:
 Proof.
 intros. rewrite Znth_map; auto.
 Qed.
-Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
-  (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; omega).
+#[export] Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
+  (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; lia) : core.
 
 Definition minimum_spec :=
  DECLARE _minimum
   WITH a: val, n: Z, al: list Z
-  PRE [ _a OF tptr tint , _n OF tint ]
+  PRE [ tptr tint , tint ]
     PROP  (1 <= n <= Int.max_signed; Forall repable_signed al)
-    LOCAL (temp _a a; temp _n (Vint (Int.repr n)))
+    PARAMS (a; Vint (Int.repr n))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)
   POST [ tint ]
     PROP ()
-    LOCAL(temp ret_temp  (Vint (Int.repr (fold_right Z.min (hd 0 al) al))))
+    RETURN (Vint (Int.repr (fold_right Z.min (hd 0 al) al)))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
 Definition Gprog : funspecs :=
@@ -114,25 +114,25 @@ forward_for_simple_bound n
 * (* Prove that the loop body preserves the loop invariant *)
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al))
-     by (apply Forall_Znth; auto; omega).
+     by (apply Forall_Znth; auto; lia).
  assert (repable_signed (fold_right Z.min (Znth 0 al) (sublist 0 i al)))
    by (apply Forall_fold_min;
-          [apply Forall_Znth; auto; omega
+          [apply Forall_Znth; auto; lia
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
  subst POSTCONDITION; unfold abbreviate.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite (sublist_one i (i+1) al) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  rewrite fold_min_another.
  forward_if.
  +
  forward. (* min = j; *)
  entailer!.
- rewrite Z.min_r; auto; omega.
+ rewrite Z.min_r; auto; lia.
  +
  forward. (* skip; *)
  entailer!.
- rewrite Z.min_l; auto; omega.
+ rewrite Z.min_l; auto; lia.
 * (* After the loop *)
  forward. (* return *)
  entailer!.
@@ -183,30 +183,57 @@ abbreviate_semax.
 rename a0 into i.
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al))
-     by (apply Forall_Znth; auto; omega).
+     by (apply Forall_Znth; auto; lia).
  assert (repable_signed (fold_right Z.min (Znth 0 al) (sublist 0 i al)))
    by (apply Forall_fold_min;
-          [apply Forall_Znth; auto; omega
+          [apply Forall_Znth; auto; lia
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
  apply semax_post_flipped' with (Inv 1 (Z.gt n) i).
  unfold Inv.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite (sublist_one i (i+1) al) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  rewrite fold_min_another.
  forward_if.
  +
  forward. (* min = j; *)
- entailer!. rewrite Z.min_r; auto; omega.
+ entailer!. rewrite Z.min_r; auto; lia.
  +
  forward. (* skip; *)
- entailer!. rewrite Z.min_l; auto; omega.
+ entailer!. rewrite Z.min_l; auto; lia.
  +
  intros.
  subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
  simpl_ret_assert.
- (* TODO: entailer! fails here with a misleading error message *)
- Exists i. apply andp_left2. normalize.
+
+Ltac go_lower ::=
+clear_Delta_specs;
+intros;
+match goal with
+ | |- local _ && PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
+ | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
+ | |- ENTAIL _, _ |-- _ => fail 10 "The left-hand-side of your entailment is  not in PROP/LOCAL/SEP form"
+ | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
+end;
+clean_LOCAL_canon_mix;
+repeat (simple apply derives_extract_PROP; intro_PROP);
+let rho := fresh "rho" in
+intro rho;
+first
+[ simple apply quick_finish_lower
+|          
+ (let TC := fresh "TC" in apply finish_lower; intros TC ||
+ match goal with
+ | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
+ | |- _ => fail 1 "PROP part of precondition is not a concrete list"
+ end);
+unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp; (* for the left side *)
+unfold_for_go_lower;
+simpl tc_val; simpl msubst_denote_tc_assert;
+try clear dependent rho;
+clear_Delta
+].
+Exists i. apply ENTAIL_refl.
 *
  rename a0 into i.
  forward.
@@ -220,14 +247,14 @@ Qed.
 Definition minimum_spec2 :=
  DECLARE _minimum
   WITH a: val, n: Z, al: list Z
-  PRE [ _a OF tptr tint , _n OF tint ]
+  PRE [ tptr tint , tint ]
     PROP  (1 <= n <= Int.max_signed; Forall repable_signed al)
-    LOCAL (temp _a a; temp _n (Vint (Int.repr n)))
+    PARAMS (a; Vint (Int.repr n))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)
   POST [ tint ]
    EX j: Z,
     PROP (In j al; Forall (fun x => j<=x) al)
-    LOCAL(temp ret_temp  (Vint (Int.repr j)))
+    RETURN (Vint (Int.repr j))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
 
@@ -254,13 +281,13 @@ forward_for_simple_bound n
 Exists (Znth 0 al).
 autorewrite with sublist.
 entailer!.
-rewrite sublist_one by omega.
+rewrite sublist_one by lia.
 constructor; auto.
 * (* Show that the loop body preserves the loop invariant *)
 Intros.
 forward. (* j = a[i]; *)
 assert (repable_signed (Znth i al))
-   by (apply Forall_Znth; auto; omega).
+   by (apply Forall_Znth; auto; lia).
 assert (repable_signed j)
    by (eapply Forall_forall; [ | eassumption]; apply Forall_sublist; auto).
 autorewrite with sublist.
@@ -269,32 +296,32 @@ forward_if.
  forward. (* min = j; *)
  Exists (Znth i al).
  entailer!.
- rewrite Z.max_r by omega.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite (sublist_one i (i+1) al) by omega.
+ rewrite Z.max_r by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  split.
  apply in_app; right; constructor; auto.
  apply Forall_app; split.
  eapply Forall_impl; try apply H4.
- intros; omega.
- constructor; auto. omega.
+ intros; lia.
+ constructor; auto. lia.
  + (* Else clause *)
  forward. (* skip; *)
  Exists j.
  entailer!.
- rewrite Z.max_r by omega.
+ rewrite Z.max_r by lia.
  split.
  destruct (zlt 1 i).
- rewrite Z.max_r in H3 by omega.
- rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite Z.max_r in H3 by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
  apply in_app; left; auto.
- rewrite Z.max_l in H3 by omega.
- rewrite (sublist_split 0 1 (i+1)) by omega.
+ rewrite Z.max_l in H3 by lia.
+ rewrite (sublist_split 0 1 (i+1)) by lia.
  apply in_app; left; auto.
- rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite (sublist_split 0 i (i+1)) by lia.
  apply Forall_app. split; auto.
- rewrite sublist_one by omega.
- repeat constructor. omega.
+ rewrite sublist_one by lia.
+ repeat constructor. lia.
 * (* After the loop *)
  Intros x.
  autorewrite with sublist in *.

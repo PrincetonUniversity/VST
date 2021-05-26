@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -20,6 +21,8 @@ Require Import FSets.
 Require Import Coqlib.
 Require Import Maps.
 Require Import Integers.
+
+Create HintDb ordered_type.
 
 (** The ordered type of positive numbers *)
 
@@ -68,7 +71,7 @@ Proof (@eq_trans t).
 Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
 Proof Z.lt_trans.
 Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-Proof. unfold lt, eq, t; intros. omega. Qed.
+Proof. unfold lt, eq, t; intros. lia. Qed.
 Lemma compare : forall x y : t, Compare lt eq x y.
 Proof.
   intros. destruct (Z.compare x y) as [] eqn:E.
@@ -97,11 +100,11 @@ Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
 Proof (@eq_trans t).
 Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
 Proof.
-  unfold lt; intros. omega.
+  unfold lt; intros. lia.
 Qed.
 Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
 Proof.
-  unfold lt,eq; intros; red; intros. subst. omega.
+  unfold lt,eq; intros; red; intros. subst. lia.
 Qed.
 Lemma compare : forall x y : t, Compare lt eq x y.
 Proof.
@@ -112,7 +115,7 @@ Proof.
   apply GT.
   assert (Int.unsigned x <> Int.unsigned y).
     red; intros. rewrite <- (Int.repr_unsigned x) in n. rewrite <- (Int.repr_unsigned y) in n. congruence.
-  red. omega.
+  red. lia.
 Defined.
 
 Definition eq_dec : forall x y, { eq x y } + { ~ eq x y } := Int.eq_dec.
@@ -173,17 +176,17 @@ Definition eq (x y: t) :=
 
 Lemma eq_refl : forall x : t, eq x x.
 Proof.
-  intros; split; auto.
+  intros; split; auto with ordered_type.
 Qed.
 
 Lemma eq_sym : forall x y : t, eq x y -> eq y x.
 Proof.
-  unfold eq; intros. intuition auto.
+  unfold eq; intros. intuition auto with ordered_type.
 Qed.
 
 Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
 Proof.
-  unfold eq; intros. intuition eauto.
+  unfold eq; intros. intuition eauto with ordered_type.
 Qed.
 
 Definition lt (x y: t) :=
@@ -201,7 +204,7 @@ Proof.
   case (A.compare (fst x) (fst z)); intro.
   assumption.
   generalize (A.lt_not_eq H2); intro. elim H5.
-  apply A.eq_trans with (fst z). auto. auto.
+  apply A.eq_trans with (fst z). auto. auto with ordered_type.
   generalize (@A.lt_not_eq (fst z) (fst y)); intro.
   elim H5. apply A.lt_trans with (fst x); auto.
   apply A.eq_sym; auto.

@@ -152,7 +152,7 @@ Proof.
   intros s.
   simpl.
   rewrite IHk'. clear IHk'.
-  replace (k' - k')%nat with O by omega.
+  replace (k' - k')%nat with O by lia.
   remember (s O) as sO.
   destruct sO.
   {
@@ -168,7 +168,7 @@ Proof.
         generalize dependent s.
         induction k' as [|k'']; intros.
         simpl in *. inv Heqresult. inv Heqresult2. rewrite <- HeqsO. auto.
-        simpl in *. replace (k'' - k'')%nat with O in * by omega. rewrite <- HeqsO in *.
+        simpl in *. replace (k'' - k'')%nat with O in * by lia. rewrite <- HeqsO in *.
         rewrite IHk''.
       }
       unfold get_bits_concrete.
@@ -180,12 +180,12 @@ Proof.
       reflexivity.
     }
     simpl.
-    replace (k'' - k'')%nat with O by omega.
+    replace (k'' - k'')%nat with O by lia.
     rewrite <- HeqsO in *.
     replace (match k'' with
              | 0%nat => S k''
              | S l => (k'' - l)%nat
-             end) with 1%nat by (destruct k''; omega).
+             end) with 1%nat by (destruct k''; lia).
 
   }
   {
@@ -202,7 +202,7 @@ Proof.
       destruct i as [|i']; reflexivity.
     }
     simpl.
-    replace (k'' - k'')%nat with O by omega; rewrite <- HeqsO.
+    replace (k'' - k'')%nat with O by lia; rewrite <- HeqsO.
     reflexivity.
   }
   simpl.

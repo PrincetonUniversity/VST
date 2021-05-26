@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -84,7 +85,7 @@ Definition typeof (e: expr) : type :=
 (** ** Statements *)
 
 (** Clight statements are similar to those of Compcert C, with the addition
-  of assigment (of a rvalue to a lvalue), assignment to a temporary,
+  of assignment (of a rvalue to a lvalue), assignment to a temporary,
   and function call (with assignment of the result to a temporary).
   The three C loops are replaced by a single infinite loop [Sloop s1
   s2] that executes [s1] then [s2] repeatedly.  A [continue] in [s1]
@@ -739,7 +740,7 @@ Proof.
   exploit external_call_receptive; eauto. intros [vres2 [m2 EC2]].
   exists (Returnstate vres2 k m2). econstructor; eauto.
 (* trace length *)
-  red; simpl; intros. inv H; simpl; try omega.
+  red; simpl; intros. inv H; simpl; try lia.
   eapply external_call_trace_length; eauto.
   eapply external_call_trace_length; eauto.
 Qed.

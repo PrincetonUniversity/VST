@@ -5,20 +5,23 @@ Definition tcret_proof retsig (A: rmaps.TypeTree)
           functors.MixVariantFunctor._functor
             (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred)  :=
   (forall gx ts x (ret : option val),
-     (Q ts x (make_ext_rval gx ret)
-        && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
+     (Q ts x (make_ext_rval gx (rettype_of_type retsig) ret)
+        && !!Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)
         |-- !!tc_option_val retsig ret)).
 
 Inductive semax_body_proof :=
 | mk_body: forall {Vprog: varspecs} {Gprog: funspecs} {cs: compspecs}
                                {f: function} {id: ident} {fspec: funspec},
     @semax_body Vprog Gprog cs f (id,fspec) -> semax_body_proof
-| mk_external: forall (id: ident) retsig {Espec: OracleKind} {ids: list ident} {ef: external_function} 
-    {A} {P Q: forall ts : list Type,
+| mk_external: forall (id: ident) retsig {Espec: OracleKind} (*{ids: list ident}*) {ef: external_function} 
+    {A} {P: forall ts : list Type,
+          functors.MixVariantFunctor._functor
+            (rmaps.dependent_type_functor_rec ts (ArgsTT A)) mpred}
+         {Q: forall ts : list Type,
           functors.MixVariantFunctor._functor
             (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred},
      tcret_proof retsig A Q ->
-    @semax_external Espec ids ef A P Q -> semax_body_proof.
+    @semax_external Espec (*ids*) ef A P Q -> semax_body_proof.
 
 Lemma sub_option_get' {A: Type} (s t: PTree.t A) B (f:A -> option B):
   Forall (fun x => PTree.get (fst x) t = Some (snd x)) (PTree.elements s) ->
@@ -89,7 +92,7 @@ Module SortFunspec := Mergesort.Sort(FunspecOrder).
 Definition ident_of_proof (p: semax_body_proof) : ident :=
  match p with
  | @mk_body _ _ _ _ id _ _ => id
- | @mk_external id _ _ _ _ _ _ _ _ _ => id
+ | @mk_external id _ _ _ _ _ _ _ _ => id
  end.
 
 Module BodyProofOrder <: Orders.TotalLeBool.
@@ -110,7 +113,7 @@ Module SortBodyProof := Mergesort.Sort(BodyProofOrder).
 Definition Gprog_of_proof (p: semax_body_proof) :=
  match p with
  | @mk_body _ G _ _ _ _ _ => G
- | @mk_external _ _ _ _ _ _ _ _ _ _ => nil
+ | @mk_external _ _ _ _ _ _ _ _ _ => nil
  end.
 
 Fixpoint delete_dups' id f (al: funspecs) : funspecs :=
@@ -201,7 +204,7 @@ Ltac semax_func_cons' L H :=
  first [eapply semax_func_cons;
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
-           | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+           | unfold var_sizes_ok; repeat constructor; try (simpl; rep_lia)
            | reflexivity | LookupID | LookupB |
 (* next line not needed in alphaconvert branch 
 	   simpl; precondition_closed |
@@ -209,7 +212,8 @@ Ltac semax_func_cons' L H :=
                apply_semax_body L
            | ]
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             [reflexivity | reflexivity | reflexivity
+             | left; reflexivity
              | apply H | LookupID | LookupB | apply L |
              ]
         ];

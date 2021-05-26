@@ -724,11 +724,11 @@ destruct l as [b z].
 simpl in *.
 if_tac in H1.
 destruct H as [_ ?].
-replace (z + Z_of_nat i - z) with (Z_of_nat i) in * by omega.
+replace (z + Z_of_nat i - z) with (Z_of_nat i) in * by lia.
 assert ((i < length bl)%nat).
 rewrite Hlen.
 rewrite size_chunk_conv in H.
-omega.
+lia.
 rewrite <- Hlen' in Hlen.
 rewrite Nat2Z.id in *.
 destruct H1; destruct H2.
@@ -740,21 +740,21 @@ apply (resource_at_join _ _ _ (b,z + Z_of_nat i)) in J'.
 rewrite H1 in J; rewrite H2 in J'; clear H1 H2.
 inv J; inv J'; try congruence.
 clear - Hlen H0 H5.
-revert bl bl' Hlen H0 H5; induction i; destruct bl; destruct bl'; simpl; intros; auto; try omegaContradiction.
+revert bl bl' Hlen H0 H5; induction i; destruct bl; destruct bl'; simpl; intros; auto; try lia.
 apply IHi; auto.
-omega.
+lia.
 assert (~ (i < length bl)%nat).
 contradict H.
 split; auto.
 rewrite Hlen in H.
 rewrite size_chunk_conv.
-omega.
-assert (i >= length bl)%nat by omega.
+lia.
+assert (i >= length bl)%nat by lia.
 destruct (nth_error_length i bl).
 rewrite H5; auto.
 destruct (nth_error_length i bl').
 rewrite H7; auto.
-omega.
+lia.
 clear - H.
 assert (bl=bl'); [| subst; auto].
 revert bl' H; induction bl; destruct bl'; intros; auto.
@@ -930,7 +930,7 @@ apply join_unit2; auto.
 apply join_unit1; auto.
 if_tac.
 contradiction H2. unfold adr_add in H3; destruct l; destruct l0; simpl in H3. inv H3.
-split; auto. omega.
+split; auto. lia.
 do 3 red in H1. apply identity_unit' in H1. auto.
 *
 apply join_comm, core_unit.
@@ -964,7 +964,7 @@ repeat rewrite preds_fmap_NoneP in *.
 auto.
 destruct l; unfold adr_range, adr_add. split; auto.
 destruct l; unfold adr_range, adr_add. split; auto.
-simpl; omega.
+simpl; lia.
 do 3 red.
 destruct H2 as [-> _]. unfold f.
 rewrite if_false; auto.
@@ -1043,11 +1043,11 @@ apply exist_ext; extensionality m.
 symmetry.
 if_tac.
  subst l'. rewrite if_true; auto.
-destruct l; split; auto; omega.
+destruct l; split; auto; lia.
 rewrite if_false; auto.
-destruct l; destruct l'; unfold block in *; intros [? ?]; try omega.
+destruct l; destruct l'; unfold block in *; intros [? ?]; try lia.
 subst.
-contradict H. f_equal; omega.
+contradict H. f_equal; lia.
 Qed.
 
 Lemma VALspec_range_exp_address_mapsto:
@@ -1119,18 +1119,18 @@ Proof.
     auto.
     intros.
     apply adr_range_non_zero in H0.
-    simpl in H0; omega.
+    simpl in H0; lia.
   + specialize (IHn (ofs + 1)).
     spec IHn.
     - clear - H; intros b; specialize (H b).
       intros; spec H; auto.
       apply adr_range_shift_1; auto.
     - assert (adr_range (bl, ofs) (Z.of_nat (S n)) (bl, ofs))
-        by (rewrite Nat2Z.inj_succ; repeat split; auto; omega).
+        by (rewrite Nat2Z.inj_succ; repeat split; auto; lia).
       destruct (H _ H0) as [b_hd ?H]; clear H0.
       destruct IHn as [b_tl ?H].
       exists (b_hd :: b_tl).
-      split; [simpl; omega |]; destruct H0 as [_ ?].
+      split; [simpl; lia |]; destruct H0 as [_ ?].
       intros.
       apply adr_range_S_split in H2.
       destruct H2.
@@ -1139,9 +1139,9 @@ Proof.
         exists p; clear - H2 H3.
         unfold snd in *.
         replace (Z.to_nat (z - ofs)) with (S (Z.to_nat (z - (ofs + 1)))); [exact H3 |].
-        replace (z - ofs) with (Z.succ (z - (ofs + 1))) by omega.
+        replace (z - ofs) with (Z.succ (z - (ofs + 1))) by lia.
         rewrite Z2Nat.inj_succ; auto.
-        omega.
+        lia.
       * subst. rewrite Z.sub_diag. simpl nth.
         exact H1.
 Qed.
@@ -1332,7 +1332,7 @@ hnf in H.
 red. red. red.
 rewrite H; auto.
 destruct loc; split; unfold adr_add; auto.
-simpl. omega.
+simpl. lia.
 Qed.
 
 Lemma VALspec_range_bytes_writable:
@@ -1348,7 +1348,7 @@ hnf in H0.
 do 3 red.
 rewrite H0; auto with extensionality.
 destruct loc; split; unfold adr_add; auto.
-simpl. omega.
+simpl. lia.
 Qed.
 
 Lemma yesat_join_sub:
@@ -1521,13 +1521,13 @@ Proof.
    apply all_resource_at_identity; auto.
    intro l. specialize (H l).
    rewrite if_false in H; auto.
-   destruct loc, l; intros [? ?]; simpl in *; omega.
+   destruct loc, l; intros [? ?]; simpl in *; lia.
  - intros ? ?. split. intro b. rewrite jam_false.
    do 3 red. apply resource_at_identity; auto.
-   destruct loc, b; intros [? ?]; simpl in *; omega.
+   destruct loc, b; intros [? ?]; simpl in *; lia.
    apply ghost_of_identity; auto.
 Qed.
-Hint Resolve VALspec_range_0: normalize.
+#[export] Hint Resolve VALspec_range_0: normalize.
 
 Lemma nonlock_permission_bytes_0: forall sh a, nonlock_permission_bytes sh a 0 = emp.
 Proof.
@@ -1538,10 +1538,10 @@ Proof.
     apply all_resource_at_identity; auto.
     intro l. specialize (H l).
     rewrite if_false in H; auto.
-    destruct a, l; intros [? ?]; simpl in *; omega.
+    destruct a, l; intros [? ?]; simpl in *; lia.
   + intros ? ?. split. intro b. rewrite jam_false.
     do 3 red. apply resource_at_identity; auto.
-    destruct a, b; intros [? ?]; simpl in *; omega.
+    destruct a, b; intros [? ?]; simpl in *; lia.
     apply ghost_of_identity; auto.
 Qed.
 
@@ -1600,9 +1600,9 @@ Proof.
   assert (exists resp, is_resource_pred (fun l' => EX  v: memval, yesat NoneP (VAL v) sh l') resp) by (eexists; apply is_resource_pred_YES_VAL).
   apply allp_jam_split2; auto.
   + split; intros [? ?]; unfold adr_range.
-    - assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by omega.
+    - assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by lia.
       tauto.
-    - omega.
+    - lia.
   + intros.
     simpl in H4.
     destruct (m0 @ l); try solve [inversion H5; simpl; auto].
@@ -1623,9 +1623,9 @@ Proof.
   assert (exists resp, is_resource_pred (fun i : address => shareat i sh && nonlockat i) resp) by (eexists; apply is_resource_pred_nonlock_shareat).
   apply allp_jam_split2; auto.
   + split; intros [? ?]; unfold adr_range.
-    - assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by omega.
+    - assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by lia.
       tauto.
-    - omega.
+    - lia.
   + intros.
     destruct H4 as [_ ?].
     simpl in H4.
@@ -1641,8 +1641,8 @@ Lemma VALspec_range_VALspec:
 Proof.
  intros.
   destruct l as [b ofs].
-  rewrite (VALspec_range_split2 i (n-i) n sh b ofs); try omega.
-  rewrite (VALspec_range_split2 1 (n-i-1) (n-i) sh b (ofs+i)); try omega.
+  rewrite (VALspec_range_split2 i (n-i) n sh b ofs); try lia.
+  rewrite (VALspec_range_split2 1 (n-i-1) (n-i) sh b (ofs+i)); try lia.
   change (VALspec_range 1) with (VALspec_range 1).
   rewrite VALspec1.
   rewrite <- sepcon_assoc.
@@ -1661,7 +1661,7 @@ Proof.
   specialize ( H2 p2).
   specialize ( H3 p2).
   rewrite jam_true in H2 by auto.
-  rewrite jam_true in H3 by (destruct p2; simpl; split; auto; omega).
+  rewrite jam_true in H3 by (destruct p2; simpl; split; auto; lia).
   destruct H2; destruct H3. hnf in H2,H3.
   apply (resource_at_join _ _ _ p2) in H1.
   destruct H2, H3.
@@ -1761,15 +1761,15 @@ Proof.
  hnf in Hall1,Hall2. if_tac in Hall1. destruct H as [_ [_ ?]].
  destruct Hall1 as (? & Hall1), Hall2 as (? & Hall2). simpl in Hall1, Hall2.
  rewrite Hall1 in Hall2; inversion Hall2.
- replace (z + Z.of_nat i - z) with (Z.of_nat i) in H2 by omega.
+ replace (z + Z.of_nat i - z) with (Z.of_nat i) in H2 by lia.
  rewrite Nat2Z.id in H2.
- rewrite coqlib4.nth_error_nth with (z:=Undef) by omega.
- rewrite coqlib4.nth_error_nth with (z:=Undef) by omega.
+ rewrite coqlib4.nth_error_nth with (z:=Undef) by lia.
+ rewrite coqlib4.nth_error_nth with (z:=Undef) by lia.
  f_equal; auto.
  assert (~(i<n)%nat).
- contradict H. split; auto. omega.
+ contradict H. split; auto. lia.
  transitivity (@None memval); [ | symmetry];
- apply nth_error_length; omega.
+ apply nth_error_length; lia.
  clear - H Hlen1 Hlen2.
  revert b1 b2 Hlen1 Hlen2 H.
  induction n; destruct b1,b2; intros; auto; inv Hlen1; inv Hlen2.
@@ -1801,15 +1801,15 @@ Proof.
  apply (resource_at_join _ _ _ (b, z + Z.of_nat i)) in H.
  rewrite H3,H4 in H. inv  H.
  clear - H2 H10 H1.
- replace (z + Z.of_nat i - z) with (Z.of_nat i) in H10 by omega.
+ replace (z + Z.of_nat i - z) with (Z.of_nat i) in H10 by lia.
  rewrite Nat2Z.id in H10.
- rewrite coqlib4.nth_error_nth with (z:=Undef) by omega.
- rewrite coqlib4.nth_error_nth with (z:=Undef) by omega.
+ rewrite coqlib4.nth_error_nth with (z:=Undef) by lia.
+ rewrite coqlib4.nth_error_nth with (z:=Undef) by lia.
  f_equal; auto.
  assert (~(i<n)%nat).
- contradict H2. split; auto. omega.
+ contradict H2. split; auto. lia.
  transitivity (@None memval); [ | symmetry];
- apply nth_error_length; omega.
+ apply nth_error_length; lia.
  clear - H2 H0 H1.
  revert b1 b2 H0 H1 H2.
  induction n; destruct b1,b2; intros; auto; inv H0; inv H1.

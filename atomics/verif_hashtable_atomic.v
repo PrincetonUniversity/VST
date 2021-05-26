@@ -36,23 +36,23 @@ Definition atom_CAS_spec := DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic
 Definition surely_malloc_spec :=
  DECLARE _surely_malloc
    WITH t : type, gv : globals
-   PRE [ _n OF tuint ]
+   PRE [ tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned; complete_legal_cosu_type t = true;
              natural_aligned natural_alignment t = true)
-       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p; data_at_ Ews t p).
 
 Definition integer_hash_spec :=
  DECLARE _integer_hash
   WITH i : Z
-  PRE [ _i OF tint ]
-   PROP () LOCAL (temp _i (vint i)) SEP ()
+  PRE [ tint ]
+   PROP () PARAMS (vint i) GLOBALS () SEP ()
   POST [ tint ]
-   PROP () LOCAL (temp ret_temp (vint (i * 654435761))) SEP ().
+   PROP () RETURN (vint (i * 654435761)) SEP ().
 (* One might think it should just return an unknown number, but in fact it needs to follow a known hash
    function at the logic level to be useful. *)
 
@@ -151,10 +151,10 @@ Instance Inhabitant_unit : Inhabitant unit := tt.
 Program Definition set_item_spec := DECLARE _set_item
   ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
   WITH k, v, gv, sh, entries, g, lg
-  PRE [ _key OF tint, _value OF tint ]
+  PRE [ tint, tint ]
     PROP (readable_share sh; repable_signed k; repable_signed v; k <> 0; v <> 0;
       Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
-    LOCAL (temp _key (vint k); temp _value (vint v); gvars gv)
+    PARAMS (vint k; vint v) GLOBALS (gv)
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tvoid ]
     PROP ()
@@ -165,9 +165,9 @@ Program Definition set_item_spec := DECLARE _set_item
 Program Definition get_item_spec := DECLARE _get_item
   ATOMIC TYPE (ConstType (Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
   WITH k, gv, sh, entries, g, lg
-  PRE [ _key OF tint ]
+  PRE [ tint ]
     PROP (readable_share sh; repable_signed k; k <> 0; Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
-    LOCAL (temp _key (vint k); gvars gv)
+    PARAMS (vint k) GLOBALS (gv)
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tint ]
    EX v : Z,
@@ -178,10 +178,10 @@ Program Definition get_item_spec := DECLARE _get_item
 Program Definition add_item_spec := DECLARE _add_item
   ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
   WITH k, v, gv, sh, entries, g, lg
-  PRE [ _key OF tint, _value OF tint ]
+  PRE [ tint, tint ]
     PROP (readable_share sh; repable_signed k; repable_signed v; k <> 0; v <> 0;
       Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
-    LOCAL (temp _key (vint k); temp _value (vint v); gvars gv)
+    PARAMS (vint k; vint v) GLOBALS (gv)
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tint ]
    EX b : bool,
@@ -195,7 +195,7 @@ Definition init_table_spec :=
   WITH gv : globals
   PRE [ ]
    PROP ()
-   LOCAL (gvars gv)
+   PARAMS () GLOBALS (gv)
    SEP (mem_mgr gv; data_at_ Ews (tarray tentry size) (gv _m_entries))
   POST [ tvoid ]
    EX entries : list (val * val), EX g : gname, EX lg : list gname,
@@ -228,7 +228,7 @@ Definition f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv :=
     data_at sh (tarray tentry size) entries p *
     data_at sh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp *
     data_at sh (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp *
-    data_at Ews tint (vint (Zlength (filter id [b1; b2; b3]))) res * mem_mgr gv.
+    data_at Ews tint (vint (Zlength (List.filter id [b1; b2; b3]))) res * mem_mgr gv.
 
 Definition f_lock_pred tsh sh gsh entries gh p t locksp lockt resultsp res gv :=
   selflock (f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv) tsh lockt.
@@ -237,11 +237,11 @@ Definition f_spec :=
  DECLARE _f
   WITH tid : val, x : share * share * share * list (val * val) * iname * gname * gname * list gname * globals * Z * val *
                       val * val * val * invG
-  PRE [ _arg OF (tptr tvoid) ]
+  PRE [ tptr tvoid ]
    let '(sh, gsh, tsh, entries, i, gh, g, lg, gv, t, locksp, lockt, resultsp, res, inv_names) := x in
    PROP (0 <= t < 3; isptr lockt; readable_share sh; readable_share tsh; gsh <> Share.bot;
          Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
-   LOCAL (temp _arg tid; gvars gv)
+   PARAMS (tid)  GLOBALS (gv)
    SEP (mem_mgr gv; data_at sh (tarray tentry size) entries (gv _m_entries);
         invariant i (hashtable_inv gh g lg entries);
         ghost_hist(hist_el := hashtable_hist_el) gsh empty_map gh;
@@ -256,8 +256,8 @@ Definition f_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt [] gv
-  POST [ tint ] main_post prog [] gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; freelock2_spec; acquire_spec;
   release2_spec; spawn_spec; surely_malloc_spec; make_atomic_spec; atom_load_spec; atom_store_spec; atom_CAS_spec;
@@ -270,7 +270,7 @@ Proof.
   Intros v.
   forward_if (v <> nullval).
   { if_tac; entailer!. }
-  - forward_call tt.
+  - forward_call 1.
     entailer!.
   - forward.
     entailer!.
@@ -290,7 +290,7 @@ Opaque upto.
 Lemma hash_size : forall k, (k * 654435761) mod size = hash k mod size.
 Proof.
   intro; simpl.
-  rewrite Zmod_mod; split; auto; omega.
+  rewrite Zmod_mod; split; auto; lia.
 Qed.
 
 Arguments size : simpl never.
@@ -307,21 +307,21 @@ Lemma failed_entries : forall k i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= 
 Proof.
   intros.
   rewrite -> Forall_forall, prop_forall; apply allp_right; intros (k', v').
-  rewrite prop_forall; apply allp_right; intro Hin.
+  rewrite prop_forall; apply allp_right; intro Hin. apply elem_of_list_In in Hin.
   apply In_Znth in Hin; destruct Hin as (j & Hj & Hjth).
   pose proof (hash_range k).
-  erewrite Zlength_sublist in Hj by (rewrite ?Zlength_rebase; omega).
-  rewrite -> Znth_sublist, Znth_rebase in Hjth by omega.
+  erewrite Zlength_sublist in Hj by (rewrite ?Zlength_rebase; lia).
+  rewrite -> Znth_sublist, Znth_rebase in Hjth by lia.
   assert (0 <= (j + hash k) mod size < size) by (apply Z_mod_lt, size_pos).
   pose proof (Z_mod_lt i1 _ size_pos).
   assert ((j + hash k) mod size <> i1 mod size).
   { rewrite <- Hi1; intro Heq.
     apply Zmod_plus_inv in Heq; [|apply size_pos].
-    rewrite !Zmod_small in Heq; omega. }
+    rewrite !Zmod_small in Heq; lia. }
   rewrite -> iter_sepcon_Znth_remove with (i0 := (j + hash k) mod size),
                     iter_sepcon_Znth' with (i0 := j)(l := upto _)
-    by (auto; rewrite -> Zlength_upto, Z2Nat.id; try omega).
-  rewrite -> !Znth_upto by (rewrite -> Z2Nat.id; omega).
+    by (auto; rewrite -> Zlength_upto, Z2Nat.id; try lia).
+  rewrite -> !Znth_upto by (rewrite -> Z2Nat.id; lia).
   unfold hashtable_entry at 1.
   rewrite Z.add_0_r in Hjth; replace (Zlength T) with size in Hjth; rewrite Hjth.
   destruct (Znth _ entries).
@@ -330,10 +330,10 @@ Proof.
   rewrite <- !sepcon_assoc, snap_master_join1 by auto.
   Intros; apply prop_right; simpl.
   eapply Forall_Znth in Hfail.
-  rewrite -> Znth_sublist, Z.add_0_r, Znth_rebase with (i0 := j) in Hfail; auto; try omega.
+  rewrite -> Znth_sublist, Z.add_0_r, Znth_rebase with (i0 := j) in Hfail; auto; try lia.
   replace (Zlength keys) with size in Hfail; intuition; subst; intuition.
-  { rewrite -> Zlength_sublist; auto; try omega.
-    rewrite Zlength_rebase; omega. }
+  { rewrite -> Zlength_sublist; auto; try lia.
+    rewrite Zlength_rebase; lia. }
 Qed.
 
 Corollary entries_lookup : forall k i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= i < size)
@@ -351,9 +351,9 @@ Proof.
   pose proof (hash_range k).
   unfold lookup; erewrite index_of'_succeeds.
   simpl; eauto.
-  - rewrite Zlength_rebase; omega.
+  - rewrite Zlength_rebase; lia.
   - auto.
-  - rewrite -> Znth_rebase by omega.
+  - rewrite -> Znth_rebase by lia.
     rewrite -> HT, Hi1; auto.
 Qed.
 
@@ -378,7 +378,7 @@ Proof.
   intros; apply wf_table_upd; auto.
 Qed.
 
-Lemma snaps_dealloc : forall {A} (l : list A) f g, (iter_sepcon (fun i => ghost_snap (f i) (g i)) l |-- |==> emp)%I.
+Lemma snaps_dealloc : forall {A} (l : list A) f g, iter_sepcon (fun i => ghost_snap (f i) (g i)) l |-- (|==> emp)%I.
 Proof.
   intros; apply (own_list_dealloc(RA := snap_PCM)).
   intro; do 3 eexists; apply derives_refl.
@@ -412,15 +412,14 @@ Proof.
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
     split; [apply hash_size|].
-    rewrite -> Zlength_repeat, Z2Nat.id; auto; omega.
-    { simpl; apply derives_refl. } }
+    rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; lia. }
   - Intros i i1 keys; forward.
     rewrite -> sub_repr, and_repr; simpl.
-    rewrite -> Zland_two_p with (n := 14) by omega.
+    rewrite -> Zland_two_p with (n := 14) by lia.
     replace (2 ^ 14) with size by (setoid_rewrite (proj2_sig has_size); auto).
-    exploit (Z_mod_lt i1 size); [omega | intro Hi1].
+    exploit (Z_mod_lt i1 size); [lia | intro Hi1].
     assert_PROP (Zlength entries = size) as Hentries by entailer!.
-    assert (0 <= i1 mod size < Zlength entries) as Hi1' by omega.
+    assert (0 <= i1 mod size < Zlength entries) as Hi1' by lia.
     match goal with H : Forall _ _ |- _ => pose proof (Forall_Znth _ _ _ Hi1' H) as Hptr end.
     destruct (Znth (i1 mod size) entries) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; setoid_rewrite Hpi.
@@ -436,8 +435,8 @@ Proof.
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
       rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
-          by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; omega).
-      erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
+          by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
+      erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
       unfold hashtable_entry at 1.
       rewrite Hpi.
       destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -460,32 +459,31 @@ Proof.
         Zlength (upd_Znth (i1 mod size) keys k1) = size /\
         Forall (fun z => z <> 0 /\ z <> k)
           (sublist 0 (i + 1) (rebase (upd_Znth (i1 mod size) keys k1) (hash k)))).
-      { split; [rewrite upd_Znth_Zlength; auto; omega|].
+      { split; [rewrite upd_Znth_Zlength; auto; lia|].
         replace (i1 mod size) with ((i + hash k) mod size); replace size with (Zlength keys);
-          rewrite -> !rebase_upd' by (try omega; replace (Zlength keys) with size; apply Z_mod_lt; omega).
-        rewrite -> sublist_upd_Znth_lr by (try omega; setoid_rewrite Hrebase; omega).
-        rewrite -> sublist_split with (mid := i), sublist_len_1 by (try omega; setoid_rewrite Hrebase; omega).
+          rewrite -> !rebase_upd' by (try lia; replace (Zlength keys) with size; apply Z_mod_lt; lia).
+        rewrite -> sublist_upd_Znth_lr by (try lia; setoid_rewrite Hrebase; lia).
+        rewrite -> sublist_split with (mid := i), sublist_len_1 by (try lia; setoid_rewrite Hrebase; lia).
         rewrite -> Z.sub_0_r, upd_Znth_app2, Forall_app; rewrite Zlength_sublist;
-          rewrite -> ?Zlength_cons, ?Zlength_nil; try omega; try (setoid_rewrite Hrebase; omega).
+          rewrite -> ?Zlength_cons, ?Zlength_nil; try lia; try (setoid_rewrite Hrebase; lia).
         split; auto.
-        rewrite -> Z.sub_0_r, Zminus_diag, upd_Znth0, Zlength_cons, sublist_1_cons, sublist_same
-          by (auto; omega).
-        repeat constructor; auto; tauto. }
+        rewrite -> Z.sub_0_r, Zminus_diag, upd_Znth0.
+        constructor. tauto. constructor. }
       forward_if (k1 = 0).
       { forward.
         Exists i (i1 mod size) (upd_Znth (i1 mod size) keys k1).
-        rewrite -> Z2Nat.inj_add, upto_app, iter_sepcon_app by omega.
-        change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon; rewrite -> Z2Nat.id, Z.add_0_r by omega.
-        replace ((i + hash k) mod size) with (i1 mod size); rewrite -> Zmod_mod, upd_Znth_same by omega; entailer!.
+        rewrite -> Z2Nat.inj_add, upto_app, iter_sepcon_app by lia.
+        change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon; rewrite -> Z2Nat.id, Z.add_0_r by lia.
+        replace ((i + hash k) mod size) with (i1 mod size); rewrite -> Zmod_mod, upd_Znth_same by lia; entailer!.
         { assert (Int.min_signed <= i1 mod size < Int.max_signed).
           { split; etransitivity; try apply Z_mod_lt; auto; try computable.
             setoid_rewrite (proj2_sig has_size); computable. }
-          rewrite -> Int.signed_repr by omega; auto. }
+          rewrite -> Int.signed_repr by lia; auto. }
         erewrite iter_sepcon_func_strong; [apply derives_refl|]; simpl; intros.
-        rewrite upd_Znth_diff'; auto; try omega.
+        rewrite upd_Znth_diff'; auto; try lia.
         replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
-        rewrite -> In_upto, Z2Nat.id in * by omega.
-        rewrite -> !Zmod_small in X; omega. }
+        rewrite -> In_upto, Z2Nat.id in * by lia.
+        rewrite -> !Zmod_small in X; lia. }
       { forward.
         entailer!. }
       Intros; subst.
@@ -500,8 +498,8 @@ Proof.
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
-            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; try omega).
-        erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
+            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; try lia).
+        erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
         unfold hashtable_entry at 1.
         rewrite Hpi.
         destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -511,24 +509,24 @@ Proof.
         iIntros "k".
         iMod (snap_master_update1(ORD := zero_order) _ _ _ (if eq_dec ki 0 then k else ki) with "[$snap $master]") as "[snap master]".
         { if_tac; auto. }
-        assert (0 <= i1 mod size < Zlength T) by omega.
-        assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size by omega; apply hash_range).
-        assert (0 <= i < Zlength (rebase T (hash k))) by (rewrite Zlength_rebase; auto; omega).
+        assert (0 <= i1 mod size < Zlength T) by lia.
+        assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size by lia; apply hash_range).
+        assert (0 <= i < Zlength (rebase T (hash k))) by (rewrite Zlength_rebase; auto; lia).
         assert (fst (Znth i (rebase T (hash k))) = ki).
-        { rewrite -> Znth_rebase by (auto; omega).
-          replace (Zlength T) with size by omega; replace ((i + hash k) mod size) with (i1 mod size); rewrite HHi; auto. }
+        { rewrite -> Znth_rebase by (auto; lia).
+          replace (Zlength T) with size by lia; replace ((i + hash k) mod size) with (i1 mod size); rewrite HHi; auto. }
         iAssert (!!((ki = k \/ ki = 0) -> lookup T k = Some (i1 mod size))) as %Hindex.
-        { iIntros "%".
+        { rewrite prop_impl_imp. iIntros "%".
           iApply (entries_lookup with "[$entries $snaps]"); auto.
-          rewrite HHi; destruct a; subst; auto. }
+          rewrite HHi. now simpl. }
         iFrame "snap snaps".
         iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
         unfold hashtable; iExists (upd_Znth (i1 mod size) T (if eq_dec ki 0 then k else ki, vi)); iFrame "excl".
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
-          by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
+          by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
-        rewrite -> Hpi, upd_Znth_same by omega; iFrame.
+        rewrite -> Hpi, upd_Znth_same by lia; iFrame.
         iSplitL "".
         { iSplit; auto; iPureIntro.
           split; [rewrite upd_Znth_Zlength; auto|].
@@ -536,7 +534,7 @@ Proof.
           split; [apply wf_table_upd; auto|].
           intros.
           etransitivity; eauto; split; intros (Hin & ?); split; auto.
-            - eapply In_upd_Znth_old; auto; try omega.
+            - eapply In_upd_Znth_old; auto; try lia.
               rewrite HHi; intro X; inv X; tauto.
             - apply In_upd_Znth in Hin; destruct Hin as [X|]; [inv X; tauto | auto]. }
         iSplitL "".
@@ -544,7 +542,7 @@ Proof.
           if_tac; tauto. }
         erewrite iter_sepcon_func_strong; first iFrame.
         intros ??%In_remove_upto; simpl.
-        rewrite !upd_Znth_diff'; auto; try omega.
+        rewrite !upd_Znth_diff'; auto; try lia.
         apply Z_mod_lt; auto. }
       Intros k1.
       focus_SEP 2.
@@ -561,8 +559,8 @@ Proof.
           iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
           iDestruct "hashtable" as (T) "((% & excl) & entries)".
           rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
-            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; omega).
-          erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
+            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
+          erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
           unfold hashtable_entry at 1.
           rewrite Hpi.
           destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -585,18 +583,18 @@ Proof.
         forward_if (k1 = k).
         { forward.
           Exists i (i1 mod size) (upd_Znth (i1 mod size) keys k1).
-          rewrite -> Zmod_mod, Z2Nat.inj_add, upto_app, iter_sepcon_app by omega.
-          change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon; rewrite -> Z2Nat.id, Z.add_0_r by omega.
-          replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by omega; entailer!.
+          rewrite -> Zmod_mod, Z2Nat.inj_add, upto_app, iter_sepcon_app by lia.
+          change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon; rewrite -> Z2Nat.id, Z.add_0_r by lia.
+          replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by lia; entailer!.
           { assert (Int.min_signed <= i1 mod size < Int.max_signed).
             { split; etransitivity; try apply Z_mod_lt; auto; try computable.
               setoid_rewrite (proj2_sig has_size); computable. }
-            rewrite -> Int.signed_repr by omega; auto. }
+            rewrite -> Int.signed_repr by lia; auto. }
           erewrite iter_sepcon_func_strong; [apply derives_refl|]; simpl; intros.
-          rewrite upd_Znth_diff'; auto; try omega.
+          rewrite upd_Znth_diff'; auto; try lia.
           replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
-          rewrite -> In_upto, Z2Nat.id in * by omega.
-          rewrite !Zmod_small in X; omega. }
+          rewrite -> In_upto, Z2Nat.id in * by lia.
+          rewrite !Zmod_small in X; lia. }
         { forward.
           entailer!. }
         entailer!; apply derives_refl.
@@ -616,8 +614,8 @@ Proof.
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
-          by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite -> Z2Nat.id; omega).
+          by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite -> Z2Nat.id; lia).
         unfold hashtable_entry at 1.
         rewrite Hpi.
         destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -637,41 +635,41 @@ Proof.
         iFrame.
         iExists (upd_Znth (i1 mod size) T (k, v)).
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
-            by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
+            by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
-        rewrite -> upd_Znth_same by omega.
-        assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size by omega; apply hash_range).
+        rewrite -> upd_Znth_same by lia.
+        assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size by lia; apply hash_range).
         rewrite Hpi; iSplitL "".
           { iSplit; auto; iPureIntro.
-            split; [rewrite upd_Znth_Zlength; omega|].
+            split; [rewrite upd_Znth_Zlength; lia|].
             split; [apply wf_table_upd_same; rewrite ?HHi; auto|].
             intros; unfold map_upd; if_tac.
-            * split; [intro X; inv X; split; auto; apply upd_Znth_In|].
+            * split; [intro X; inv X; split; auto; apply upd_Znth_In; lia|].
               subst; intros (Hin & ?).
               apply In_Znth in Hin; destruct Hin as (j & Hj & Hjth).
               destruct (eq_dec j (i1 mod size)).
-              { subst; rewrite -> upd_Znth_same in Hjth by omega; inv Hjth; auto. }
-              rewrite -> upd_Znth_diff' in Hjth by (auto; omega).
+              { subst; rewrite -> upd_Znth_same in Hjth by lia; inv Hjth; auto. }
+              rewrite -> upd_Znth_diff' in Hjth by (auto; lia).
               match goal with H : wf_table T |- _ => exploit (H k j); rewrite ?Hjth; auto;
                 exploit (H k (i1 mod size)); rewrite ?HHi; auto end.
               congruence.
             * etransitivity; eauto; split; intros (Hin & ?); split; auto.
-              -- eapply In_upd_Znth_old; auto; try omega.
+              -- eapply In_upd_Znth_old; auto; try lia.
                  rewrite HHi; intro X; inv X; contradiction.
               -- apply In_upd_Znth in Hin; destruct Hin as [X|]; [inv X; tauto | auto]. }
           subst; iFrame.
           iSplitL ""; auto.
           erewrite iter_sepcon_func_strong; [auto|].
           intros ??%In_remove_upto; simpl.
-          rewrite -> !upd_Znth_diff' by omega; auto.
+          rewrite -> !upd_Znth_diff' by lia; auto.
           apply Z_mod_lt; auto. }
       forward.
       cancel.
   - Intros i i1 keys.
     forward.
     { entailer!.
-      rewrite -> (Int.signed_repr 1) by computable; omega. }
+      rewrite -> (Int.signed_repr 1) by computable; lia. }
     Exists (i + 1) (i1 + 1) keys; entailer!.
     split.
     { rewrite <- Zplus_mod_idemp_l.
@@ -704,15 +702,14 @@ Proof.
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
     split; [apply hash_size|].
-    rewrite -> Zlength_repeat, Z2Nat.id; auto; omega.
-    { apply derives_refl. } }
+    rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; lia. }
   - Intros i i1 keys; forward.
     rewrite -> sub_repr, and_repr; simpl.
-    rewrite -> Zland_two_p with (n := 14) by omega.
+    rewrite -> Zland_two_p with (n := 14) by lia.
     replace (2 ^ 14) with size by (setoid_rewrite (proj2_sig has_size); auto).
-    exploit (Z_mod_lt i1 size); [omega | intro Hi1].
+    exploit (Z_mod_lt i1 size); [lia | intro Hi1].
     assert_PROP (Zlength entries = size) as Hentries by entailer!.
-    assert (0 <= i1 mod size < Zlength entries) as Hi1' by omega.
+    assert (0 <= i1 mod size < Zlength entries) as Hi1' by lia.
     match goal with H : Forall _ _ |- _ => pose proof (Forall_Znth _ _ _ Hi1' H) as Hptr end.
     destruct (Znth (i1 mod size) entries) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; setoid_rewrite Hpi.
@@ -730,8 +727,8 @@ Proof.
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
       match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
       rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
-        by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-      rewrite -> Znth_upto by (rewrite -> Z2Nat.id; omega).
+        by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+      rewrite -> Znth_upto by (rewrite -> Z2Nat.id; lia).
       unfold hashtable_entry at 1.
       rewrite Hpi.
       destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -757,8 +754,8 @@ Proof.
         unfold hashtable; iExists T.
         iSplitL ""; [auto|].
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
-          by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
+          by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
         rewrite -> Hpi, HHi; iFrame; auto.
       * iMod (make_snap with "master") as "[snap master]".
@@ -766,8 +763,8 @@ Proof.
         iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
         unfold hashtable; iExists T.
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
-          by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
+          by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
         rewrite -> Hpi, HHi; iFrame; auto. }
     Intros k1.
@@ -782,8 +779,8 @@ Proof.
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
-          by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite -> Z2Nat.id; omega).
+          by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite -> Z2Nat.id; lia).
         unfold hashtable_entry at 1.
         rewrite Hpi.
         destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -811,13 +808,13 @@ Proof.
             rewrite Hindex; congruence.
           * match goal with H : forall k v, ?P <-> _ |- _ => rewrite H end.
             split; auto.
-            exploit (Znth_In (i1 mod size) T); [omega|].
+            exploit (Znth_In (i1 mod size) T); [lia|].
             rewrite HHi; auto. }
         unfold hashtable; iExists T.
         iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
-          by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
+          by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
         rewrite -> Hpi, HHi; iFrame; auto. }
       unfold POSTCONDITION, abbreviate; simpl map.
@@ -838,37 +835,36 @@ Proof.
         entailer!.
       * intros.
         Exists i (i1 mod size) (upd_Znth (i1 mod size) keys k1).
-        rewrite -> Z2Nat.inj_add, upto_app, iter_sepcon_app by omega.
+        rewrite -> Z2Nat.inj_add, upto_app, iter_sepcon_app by lia.
         change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon.
-        rewrite -> Z2Nat.id, Z.add_0_r by omega.
+        rewrite -> Z2Nat.id, Z.add_0_r by lia.
         Intros; rewrite -> if_false by auto.
-        replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by omega; entailer!.
+        replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by lia; entailer!.
         { split.
           { assert (Int.min_signed <= i1 mod size < Int.max_signed).
             { split; etransitivity; try apply Z_mod_lt; auto; try computable.
               setoid_rewrite (proj2_sig has_size); computable. }
-            rewrite -> Int.signed_repr by omega; auto. }
+            rewrite -> Int.signed_repr by lia; auto. }
           split; [rewrite Zmod_mod; auto|].
-          split; [rewrite upd_Znth_Zlength; auto; omega|].
+          split; [rewrite upd_Znth_Zlength; auto; lia|].
           replace (i1 mod size) with ((i + hash k) mod size); replace size with (Zlength keys);
-            rewrite -> !rebase_upd' by (try omega; replace (Zlength keys) with size; apply Z_mod_lt; omega).
-          rewrite -> sublist_upd_Znth_lr by (try omega; setoid_rewrite Hrebase; omega).
-          rewrite -> sublist_split with (mid := i), sublist_len_1 by (try omega; setoid_rewrite Hrebase; omega).
+            rewrite -> !rebase_upd' by (try lia; replace (Zlength keys) with size; apply Z_mod_lt; lia).
+          rewrite -> sublist_upd_Znth_lr by (try lia; setoid_rewrite Hrebase; lia).
+          rewrite -> sublist_split with (mid := i), sublist_len_1 by (try lia; setoid_rewrite Hrebase; lia).
           rewrite -> Z.sub_0_r, upd_Znth_app2, Forall_app; rewrite Zlength_sublist;
-            rewrite -> ?Zlength_cons, ?Zlength_nil; try omega; try (setoid_rewrite Hrebase; omega).
+            rewrite -> ?Zlength_cons, ?Zlength_nil; try lia; try (setoid_rewrite Hrebase; lia).
           split; auto.
-          rewrite -> Z.sub_0_r, Zminus_diag, upd_Znth0, Zlength_cons, sublist_1_cons, sublist_same
-            by (auto; omega).
-          repeat constructor; auto; tauto. }
+          rewrite -> Z.sub_0_r, Zminus_diag, upd_Znth0.
+          constructor; auto. }
         erewrite iter_sepcon_func_strong; [apply derives_refl|]; intros; simpl.
-        rewrite upd_Znth_diff'; auto; try omega.
+        rewrite upd_Znth_diff'; auto; try lia.
         replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
-        rewrite -> In_upto, Z2Nat.id in * by omega.
-        rewrite !Zmod_small in X; omega.
+        rewrite -> In_upto, Z2Nat.id in * by lia.
+        rewrite !Zmod_small in X; lia.
   - Intros i i1 keys.
     forward.
     { entailer!.
-      rewrite -> (Int.signed_repr 1) by computable; omega. }
+      rewrite -> (Int.signed_repr 1) by computable; lia. }
     Exists (i + 1) (i1 + 1) keys; entailer!.
     split.
     { rewrite <- Zplus_mod_idemp_l.
@@ -902,15 +898,14 @@ Proof.
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
     split; [apply hash_size|].
-    rewrite -> Zlength_repeat, Z2Nat.id; auto; omega.
-    { apply derives_refl. } }
+    rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; lia. }
   - Intros i i1 keys; forward.
     rewrite -> sub_repr, and_repr; simpl.
-    rewrite -> Zland_two_p with (n := 14) by omega.
+    rewrite -> Zland_two_p with (n := 14) by lia.
     replace (2 ^ 14) with size by (setoid_rewrite (proj2_sig has_size); auto).
-    exploit (Z_mod_lt i1 size); [omega | intro Hi1].
+    exploit (Z_mod_lt i1 size); [lia | intro Hi1].
     assert_PROP (Zlength entries = size) as Hentries by entailer!.
-    assert (0 <= i1 mod size < Zlength entries) as Hi1' by omega.
+    assert (0 <= i1 mod size < Zlength entries) as Hi1' by lia.
     match goal with H : Forall _ _ |- _ => pose proof (Forall_Znth _ _ _ Hi1' H) as Hptr end.
     destruct (Znth (i1 mod size) entries) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; setoid_rewrite Hpi.
@@ -925,8 +920,8 @@ Proof.
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
       rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
-          by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; omega).
-      erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
+          by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
+      erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
       unfold hashtable_entry at 1.
       rewrite Hpi.
       destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -949,33 +944,32 @@ Proof.
         Zlength (upd_Znth (i1 mod size) keys k1) = size /\
         Forall (fun z => z <> 0 /\ z <> k)
           (sublist 0 (i + 1) (rebase (upd_Znth (i1 mod size) keys k1) (hash k)))).
-      { split; [rewrite upd_Znth_Zlength; auto; omega|].
+      { split; [rewrite upd_Znth_Zlength; auto; lia|].
         replace (i1 mod size) with ((i + hash k) mod size); replace size with (Zlength keys);
-          rewrite -> !rebase_upd' by (try omega; replace (Zlength keys) with size; apply Z_mod_lt; omega).
-        rewrite -> sublist_upd_Znth_lr by (try omega; setoid_rewrite Hrebase; omega).
-        rewrite -> sublist_split with (mid := i), sublist_len_1 by (try omega; setoid_rewrite Hrebase; omega).
+          rewrite -> !rebase_upd' by (try lia; replace (Zlength keys) with size; apply Z_mod_lt; lia).
+        rewrite -> sublist_upd_Znth_lr by (try lia; setoid_rewrite Hrebase; lia).
+        rewrite -> sublist_split with (mid := i), sublist_len_1 by (try lia; setoid_rewrite Hrebase; lia).
         rewrite -> Z.sub_0_r, upd_Znth_app2, Forall_app; rewrite Zlength_sublist;
-          rewrite -> ?Zlength_cons, ?Zlength_nil; try omega; try (setoid_rewrite Hrebase; omega).
+          rewrite -> ?Zlength_cons, ?Zlength_nil; try lia; try (setoid_rewrite Hrebase; lia).
         split; auto.
-        rewrite -> Z.sub_0_r, Zminus_diag, upd_Znth0, Zlength_cons, sublist_1_cons, sublist_same
-          by (auto; omega).
-        repeat constructor; auto; tauto. }
+        rewrite -> Z.sub_0_r, Zminus_diag, upd_Znth0.
+        constructor; auto. easy. }
       forward_if (k1 = 0).
       { forward.
         Exists i (i1 mod size) (upd_Znth (i1 mod size) keys k1).
-        rewrite -> Zmod_mod, Z2Nat.inj_add, upto_app, iter_sepcon_app by omega.
+        rewrite -> Zmod_mod, Z2Nat.inj_add, upto_app, iter_sepcon_app by lia.
         change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon.
-        rewrite -> Z2Nat.id, Z.add_0_r by omega.
-        replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by omega; entailer!.
+        rewrite -> Z2Nat.id, Z.add_0_r by lia.
+        replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by lia; entailer!.
         { assert (Int.min_signed <= i1 mod size < Int.max_signed).
           { split; etransitivity; try apply Z_mod_lt; auto; try computable.
             setoid_rewrite (proj2_sig has_size); computable. }
-          rewrite -> Int.signed_repr by omega; auto. }
+          rewrite -> Int.signed_repr by lia; auto. }
         erewrite iter_sepcon_func_strong; [apply derives_refl|]; intros; simpl.
-        rewrite upd_Znth_diff'; auto; try omega.
+        rewrite upd_Znth_diff'; auto; try lia.
         replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
-        rewrite -> In_upto, Z2Nat.id in * by omega.
-        rewrite !Zmod_small in X; omega. }
+        rewrite -> In_upto, Z2Nat.id in * by lia.
+        rewrite !Zmod_small in X; lia. }
       { forward.
         entailer!. }
       Intros; subst.
@@ -990,8 +984,8 @@ Proof.
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
-            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; try omega).
-        erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
+            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; try lia).
+        erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
         unfold hashtable_entry at 1.
         rewrite Hpi.
         destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -1001,24 +995,24 @@ Proof.
         iIntros "k".
         iMod (snap_master_update1(ORD := zero_order) _ _ _ (if eq_dec ki 0 then k else ki) with "[$snap $master]") as "[snap master]".
         { if_tac; auto. }
-        assert (0 <= i1 mod size < Zlength T) by omega.
-        assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size by omega; apply hash_range).
-        assert (0 <= i < Zlength (rebase T (hash k))) by (rewrite Zlength_rebase; auto; omega).
+        assert (0 <= i1 mod size < Zlength T) by lia.
+        assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size by lia; apply hash_range).
+        assert (0 <= i < Zlength (rebase T (hash k))) by (rewrite Zlength_rebase; auto; lia).
         assert (fst (Znth i (rebase T (hash k))) = ki).
-        { rewrite -> Znth_rebase by (auto; omega).
-          replace (Zlength T) with size by omega; replace ((i + hash k) mod size) with (i1 mod size); rewrite HHi; auto. }
+        { rewrite -> Znth_rebase by (auto; lia).
+          replace (Zlength T) with size by lia; replace ((i + hash k) mod size) with (i1 mod size); rewrite HHi; auto. }
         iAssert (!!((ki = k \/ ki = 0) -> lookup T k = Some (i1 mod size))) as %Hindex.
-        { iIntros "%".
+        { rewrite prop_impl_imp. iIntros "%".
           iApply (entries_lookup with "[$entries $snaps]"); auto.
-          rewrite HHi; destruct a; subst; auto. }
+          rewrite HHi; now simpl. }
         iFrame "snap snaps".
         iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
         unfold hashtable; iExists (upd_Znth (i1 mod size) T (if eq_dec ki 0 then k else ki, vi)); iFrame "excl".
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
-          by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
+          by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
-        rewrite -> Hpi, upd_Znth_same by omega; iFrame.
+        rewrite -> Hpi, upd_Znth_same by lia; iFrame.
         iSplitL "".
         { iSplit; auto; iPureIntro.
           split; [rewrite upd_Znth_Zlength; auto|].
@@ -1026,7 +1020,7 @@ Proof.
           split; [apply wf_table_upd; auto|].
           intros.
           etransitivity; eauto; split; intros (Hin & ?); split; auto.
-            - eapply In_upd_Znth_old; auto; try omega.
+            - eapply In_upd_Znth_old; auto; try lia.
               rewrite HHi; intro X; inv X; tauto.
             - apply In_upd_Znth in Hin; destruct Hin as [X|]; [inv X; tauto | auto]. }
         iSplitL "".
@@ -1034,7 +1028,7 @@ Proof.
           if_tac; tauto. }
         erewrite iter_sepcon_func_strong; first iFrame.
         intros ??%In_remove_upto; simpl.
-        rewrite !upd_Znth_diff'; auto; try omega.
+        rewrite !upd_Znth_diff'; auto; try lia.
         apply Z_mod_lt; auto. }
       Intros k1.
       focus_SEP 2.
@@ -1049,8 +1043,8 @@ Proof.
           iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
           iDestruct "hashtable" as (T) "((% & excl) & entries)".
           rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
-            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; omega).
-          erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
+            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
+          erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
           unfold hashtable_entry at 1.
           rewrite Hpi.
           destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -1073,19 +1067,19 @@ Proof.
         forward_if (k1 = k).
         { forward.
           Exists i (i1 mod size) (upd_Znth (i1 mod size) keys k1).
-          rewrite -> Zmod_mod, Z2Nat.inj_add, upto_app, iter_sepcon_app by omega.
+          rewrite -> Zmod_mod, Z2Nat.inj_add, upto_app, iter_sepcon_app by lia.
           change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon.
-          rewrite -> Z2Nat.id, Z.add_0_r by omega.
-          replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by omega; entailer!.
+          rewrite -> Z2Nat.id, Z.add_0_r by lia.
+          replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by lia; entailer!.
           { assert (Int.min_signed <= i1 mod size < Int.max_signed).
           { split; etransitivity; try apply Z_mod_lt; auto; try computable.
             setoid_rewrite (proj2_sig has_size); computable. }
-          rewrite -> Int.signed_repr by omega; auto. }
+          rewrite -> Int.signed_repr by lia; auto. }
           erewrite iter_sepcon_func_strong; [apply derives_refl|]; intros; simpl.
-          rewrite upd_Znth_diff'; auto; try omega.
+          rewrite upd_Znth_diff'; auto; try lia.
           replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
-          rewrite -> In_upto, Z2Nat.id in * by omega.
-          rewrite !Zmod_small in X; omega. }
+          rewrite -> In_upto, Z2Nat.id in * by lia.
+          rewrite !Zmod_small in X; lia. }
         { forward.
           entailer!. }
         entailer!.
@@ -1106,8 +1100,8 @@ Proof.
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
-          by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite -> Z2Nat.id; omega).
+          by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite -> Z2Nat.id; lia).
         unfold hashtable_entry at 1.
         rewrite Hpi.
         destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
@@ -1131,12 +1125,12 @@ Proof.
         rewrite exp_andp2.
         iExists ((if eq_dec vi 0 then upd_Znth (i1 mod size) T (k, v) else T)).
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
-            by (rewrite -> Zlength_upto, Z2Nat.id; omega).
-        rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
+            by (rewrite -> Zlength_upto, Z2Nat.id; lia).
+        rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
         if_tac; subst.
-        * rewrite -> upd_Znth_same by omega.
-          assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size by omega; apply hash_range).
+        * rewrite -> upd_Znth_same by lia.
+          assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size by lia; apply hash_range).
           rewrite Hpi; iFrame.
           assert (forall v', In (k, v') T -> v' = 0) as Hv'.
           { intros ? Hin.
@@ -1151,28 +1145,27 @@ Proof.
             destruct Hk as (Hin & ?); specialize (Hv' _ Hin); contradiction. }
           iSplitL "".
           { iSplit; auto; iPureIntro.
-            split; [rewrite upd_Znth_Zlength; omega|].
+            split; [rewrite upd_Znth_Zlength; lia|].
             split; [apply wf_table_upd_same; rewrite ?HHi; auto|].
             intros; unfold map_upd; if_tac.
-            * split; [intro X; inv X; split; auto; apply upd_Znth_In|].
+            * split; [intro X; inv X; split; auto; apply upd_Znth_In; lia|].
               subst; intros (Hin & ?).
               apply In_upd_Znth in Hin; destruct Hin as [Hin | Hin]; [inv Hin; auto|].
               specialize (Hv' _ Hin); contradiction.
             * etransitivity; eauto; split; intros (Hin & ?); split; auto.
-              -- eapply In_upd_Znth_old; auto; try omega.
+              -- eapply In_upd_Znth_old; auto; try lia.
                  rewrite HHi; intro X; inv X; contradiction.
               -- apply In_upd_Znth in Hin; destruct Hin as [X|]; [inv X; tauto | auto]. }
           iSplitL ""; [iSplit; auto; iPureIntro; auto; tauto|].
           erewrite iter_sepcon_func_strong; [auto|].
           intros ??%In_remove_upto; simpl.
-          rewrite -> !upd_Znth_diff' by omega; auto.
+          rewrite -> !upd_Znth_diff' by lia; auto.
           apply Z_mod_lt; auto.
         * rewrite Hpi HHi; iFrame.
           iSplit; auto; iPureIntro; split; [|discriminate].
           assert (HT k = Some vi) as X; [|rewrite X; discriminate].
           match goal with H : forall k v, _ <-> _ |- _ => rewrite H end.
-          split; auto; rewrite <- HHi; apply Znth_In; omega. }
-      { auto with rep. }
+          split; auto; rewrite <- HHi; apply Znth_In; lia. }
       unfold POSTCONDITION, abbreviate; simpl map.
       Intros v'; forward.
       Exists (if eq_dec v' 0 then true else false); entailer!.
@@ -1180,7 +1173,7 @@ Proof.
   - Intros i i1 keys.
     forward.
     { entailer!.
-      rewrite -> (Int.signed_repr 1) by computable; omega. }
+      rewrite -> (Int.signed_repr 1) by computable; lia. }
     Exists (i + 1) (i1 + 1) keys; entailer!.
     split.
     { rewrite <- Zplus_mod_idemp_l.
@@ -1203,11 +1196,11 @@ Proof.
          EX lg : list gname, !!(Zlength lg = i) && iter_sepcon (fun j =>
            hashtable_entry (repeat (0, 0) (Z.to_nat size)) lg entries j) (upto (Z.to_nat i)))).
   { setoid_rewrite (proj2_sig has_size); reflexivity. }
-  { pose proof size_pos; omega. }
+  { pose proof size_pos; lia. }
   { setoid_rewrite (proj2_sig has_size); computable. }
   - Exists (@nil (val * val)) (@nil gname); entailer!.
     rewrite data_at__eq; unfold default_val; simpl.
-    rewrite repeat_list_repeat; apply derives_refl.
+    apply derives_refl.
   - Intros lg.
     ghost_alloc (ghost_master1 0).
     Intros gk.
@@ -1219,28 +1212,28 @@ Proof.
     Intros pv.
     repeat forward.
     assert (0 <= i < Zlength (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i)))).
-    { rewrite -> Zlength_app, Zlength_repeat, Z2Nat.id; omega. }
+    { rewrite -> Zlength_app, coqlib4.Zlength_repeat, Z2Nat.id; lia. }
     rewrite -> upd_Znth_twice, upd_Znth_same by auto.
     go_lower; Exists (entries ++ [(pk, pv)]) (lg ++ [gk]).
-    rewrite -> !Z2Nat.inj_add, !upto_app, !iter_sepcon_app, !Z2Nat.id by omega.
+    rewrite -> !Z2Nat.inj_add, !upto_app, !iter_sepcon_app, !Z2Nat.id by lia.
     change (upto (Z.to_nat 1)) with [0]; unfold hashtable_entry at 3; simpl.
-    rewrite -> Z.add_0_r, !app_Znth2 by omega.
+    rewrite -> Z.add_0_r, !app_Znth2 by lia.
     replace (Zlength entries) with i; replace (Zlength lg) with i; rewrite -> Zminus_diag, !Znth_0_cons.
-    rewrite -> Znth_repeat', !Zlength_app, !Zlength_cons, !Zlength_nil by (rewrite Z2Nat.id; omega).
+    rewrite -> Znth_repeat', !Zlength_app, !Zlength_cons, !Zlength_nil by (rewrite Z2Nat.id; lia).
     (* local facts for atomic_int *)
     entailer!.
     { rewrite Forall_app; repeat constructor; auto. }
-    rewrite -> upd_init, <- app_assoc by (auto; omega); cancel.
+    rewrite -> upd_init, <- app_assoc by (auto; lia); cancel.
     rewrite <- iter_sepcon_map.
     erewrite iter_sepcon_func_strong; [apply derives_refl|].
     intros ??%In_upto; simpl.
     rewrite <- Zlength_correct in *.
-    unfold hashtable_entry; rewrite -> !app_Znth1 by omega; auto.
+    unfold hashtable_entry; rewrite -> !app_Znth1 by lia; auto.
   - Intros entries lg.
     rewrite -> Zminus_diag, app_nil_r.
     unfold hashtable; Exists entries g lg; entailer!.
     Exists (repeat (0, 0) (Z.to_nat size)); entailer!.
-    split; [rewrite -> Zlength_repeat, Z2Nat.id; auto; pose proof size_pos; omega|].
+    split; [rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; pose proof size_pos; lia|].
     split.
     + intros ??? Hj.
       setoid_rewrite Znth_repeat in Hj; simpl in Hj; subst; contradiction.
@@ -1284,7 +1277,7 @@ Proof.
     apply sepcon_derives; auto.
   - simpl.
     pose proof size_pos.
-    rewrite Z.max_r; omega.
+    rewrite Z.max_r; lia.
 Qed.
 Hint Resolve f_pred_exclusive.
 
@@ -1351,7 +1344,7 @@ Proof.
     { destruct tid; auto; discriminate. } }
   forward_for_simple_bound 3 (EX j : Z, EX ls : list bool, EX h : _,
     PROP (Zlength ls = j; add_events empty_map (map (fun j => HAdd (j + 1) 1 (Znth j ls)) (upto (Z.to_nat j))) h)
-    LOCAL (temp _total (vint (Zlength (filter id ls))); temp _res res; temp _l lockt; temp _t (vint t);
+    LOCAL (temp _total (vint (Zlength (List.filter id ls))); temp _res res; temp _l lockt; temp _t (vint t);
            temp _arg tid; gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          invariant i (hashtable_inv gh g lg entries);
@@ -1362,7 +1355,6 @@ Proof.
          lock_inv tsh lockt (f_lock_pred tsh sh gsh entries gh (gv _m_entries) t
                                          (gv _thread_locks) lockt (gv _results) res gv))).
   - Exists (@nil bool) (@empty_map nat hashtable_hist_el); entailer!.
-    auto with ghost.
   - forward_call (i0 + 1, 1, gv, sh, entries, g, lg,
       fun b => EX h' : _, !!(add_events h [HAdd (i0 + 1) 1 b] h') && ghost_hist gsh h' gh, inv_names).
     { simpl; entailer!.
@@ -1378,7 +1370,7 @@ Proof.
       unfold hashtable_inv.
       iDestruct "inv" as (HT) "[hashtable inv]"; iDestruct "inv" as (hr) "[% ref]".
       iExists HT; iFrame "hashtable".
-      iMod (updates.fupd_intro_mask (top ∖ inv i) empty emp with "[]") as "Hclose'"; auto.
+      iMod (fupd_mask_subseteq) as "Hclose'".
       { apply empty_subseteq. }
       iModIntro; iSplit.
       + iIntros "hashtable".
@@ -1399,27 +1391,26 @@ Proof.
           iSplit; auto; iPureIntro.
           apply (add_events_snoc _ nil); [constructor|].
           apply hist_incl_lt; auto. }
-    { repeat (split; auto); try rep_omega.
-      match goal with H : Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries |- _ =>
-          eapply Forall_impl, H end; intros (?, ?); auto. }
+    { repeat (split; auto); try rep_lia. eapply Forall_impl. apply H2. intros.
+      destruct x. auto. }
     Intros b h'.
-    forward_if (temp _total (vint (Zlength (filter id (ls ++ [b]))))).
+    forward_if (temp _total (vint (Zlength (List.filter id (ls ++ [b]))))).
     + pose proof (Zlength_filter id ls).
       forward.
       entailer!.
-      rewrite filter_app; simpl.
+      rewrite List.filter_app; simpl.
       rewrite -> Zlength_app, Zlength_cons, Zlength_nil; auto.
     + forward.
       entailer!.
-      rewrite filter_app; simpl.
+      rewrite List.filter_app; simpl.
       rewrite -> Zlength_app, Zlength_nil, Z.add_0_r; auto.
-    + Exists (ls ++ [b]) h'; rewrite -> filter_app, ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
-      rewrite -> Z2Nat.inj_add, upto_app, map_app, Z2Nat.id by omega; change (upto (Z.to_nat 1)) with [0]; simpl.
-      rewrite -> Z.add_0_r, app_Znth2, Zminus_diag, Znth_0_cons by omega.
+    + Exists (ls ++ [b]) h'; rewrite -> List.filter_app, ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
+      rewrite -> Z2Nat.inj_add, upto_app, map_app, Z2Nat.id by lia; change (upto (Z.to_nat 1)) with [0]; simpl.
+      rewrite -> Z.add_0_r, app_Znth2, Zminus_diag, Znth_0_cons by lia.
       eapply add_events_trans; eauto.
       erewrite map_ext_in; eauto.
       intros j Hj; rewrite app_Znth1; auto.
-      rewrite -> In_upto, Z2Nat.id in Hj; omega.
+      rewrite -> In_upto, Z2Nat.id in Hj; lia.
   - Intros ls h.
     viewshift_SEP 2 emp.
     { go_lower; apply invariant_dealloc. }
@@ -1496,17 +1487,17 @@ Proof.
   rewrite !Zlength_cons; intros.
   destruct (eq_dec i1 0), (eq_dec i2 0); subst; auto.
   - rewrite Znth_0_cons in Hin1; subst.
-    rewrite -> Znth_pos_cons in Hin2 by omega.
+    rewrite -> Znth_pos_cons in Hin2 by lia.
     destruct (H0 k); [discriminate|].
-    eapply add_fails in HH; [|rewrite <- Hin2; apply Znth_In; omega|]; [discriminate|].
+    eapply add_fails in HH; [|rewrite <- Hin2; apply Znth_In; lia|]; [discriminate|].
     unfold map_upd; rewrite eq_dec_refl; discriminate.
   - rewrite Znth_0_cons in Hin2; subst.
-    rewrite -> Znth_pos_cons in Hin1 by omega.
+    rewrite -> Znth_pos_cons in Hin1 by lia.
     destruct (H0 k); [discriminate|].
-    eapply add_fails in HH; [|rewrite <- Hin1; apply Znth_In; omega|]; [discriminate|].
+    eapply add_fails in HH; [|rewrite <- Hin1; apply Znth_In; lia|]; [discriminate|].
     unfold map_upd; rewrite eq_dec_refl; discriminate.
-  - rewrite -> Znth_pos_cons in Hin1, Hin2 by omega.
-    assert (i2 - 1 = i1 - 1); [|omega].
+  - rewrite -> Znth_pos_cons in Hin1, Hin2 by lia.
+    assert (i2 - 1 = i1 - 1); [|lia].
     destruct a.
     + eapply IHl; eauto.
     + destruct (H0 k0); destruct (eq_dec _ _); try discriminate; eapply IHl; eauto.
@@ -1533,12 +1524,12 @@ Proof.
       unfold map_upd; if_tac; auto; subst; contradiction.
 Qed.
 
-Lemma filter_find_count : forall {A} {d : Inhabitant A} (f : A -> bool) l li (Hunique : NoDup li)
+Lemma filter_find_count : forall {A} {d : Inhabitant A} (f : A -> bool) l li (Hunique : List.NoDup li)
   (Hli : forall i, In i li -> f (Znth i l) = true) (Hrest : forall i, ~In i li -> f (Znth i l) = false),
-  Zlength (filter f l) = Zlength li.
+  Zlength (List.filter f l) = Zlength li.
 Proof.
   induction l; simpl; intros.
-  - exploit (list_pigeonhole li (Zlength li + 1)); [omega|].
+  - exploit (list_pigeonhole li (Zlength li + 1)); [lia|].
     intros (i' & ? & ?).
     destruct li; auto.
     exploit (Hli z); simpl; auto.
@@ -1546,54 +1537,54 @@ Proof.
     rewrite !Znth_nil; intros ->; discriminate.
   - assert (f d = false) as Hd.
     { exploit (list_pigeonhole (upto (Z.to_nat (Zlength (a :: l))) ++ li)
-       (Zlength (upto (Z.to_nat (Zlength (a :: l))) ++ li) + 1)); [omega|].
+       (Zlength (upto (Z.to_nat (Zlength (a :: l))) ++ li) + 1)); [lia|].
       intros (j' & ? & Hout); exploit (Hrest j').
       { intro X; contradiction Hout; rewrite in_app; auto. }
       rewrite Znth_overflow; auto.
       { destruct (zlt j' (Zlength (a :: l))); auto.
         contradiction Hout; rewrite in_app; left.
-        rewrite -> In_upto, Z2Nat.id; omega. } }
+        rewrite -> In_upto, Z2Nat.id; lia. } }
     destruct (in_dec Z.eq_dec 0 li).
     + exploit Hli; eauto.
-      rewrite Znth_0_cons; intros ->.
+      rewrite Znth_0_cons. intros ->.
       rewrite Zlength_cons.
       exploit in_split; eauto; intros (li1 & li2 & ?); subst.
       apply NoDup_remove in Hunique; destruct Hunique.
       rewrite Zlength_app Zlength_cons.
-      erewrite (IHl (map (fun i => i - 1) (li1 ++ li2))), Zlength_map, Zlength_app; auto; try omega.
+      erewrite (IHl (map (fun i => i - 1) (li1 ++ li2))), Zlength_map, Zlength_app; auto; try lia.
       * apply FinFun.Injective_map_NoDup; auto.
-        intros ??; omega.
+        intros ??; lia.
       * intros ? Hj; rewrite -> in_map_iff in Hj; destruct Hj as (j & ? & Hj); subst.
         exploit (Hli j).
         { rewrite in_insert_iff; auto. }
         destruct (eq_dec j 0); [subst; contradiction|].
         destruct (zlt j 0).
         { rewrite -> Znth_underflow, Hd by auto; discriminate. }
-        rewrite -> Znth_pos_cons by omega; auto.
+        rewrite -> Znth_pos_cons by lia; auto.
       * intros j Hj.
         destruct (zlt j 0); [rewrite Znth_underflow; auto|].
         specialize (Hrest (j + 1)); specialize (Hli (j + 1));
-          rewrite -> Znth_pos_cons, Z.add_simpl_r in Hrest, Hli by omega.
+          rewrite -> Znth_pos_cons, Z.add_simpl_r in Hrest, Hli by lia.
         destruct (in_dec Z.eq_dec (j + 1) (li1 ++ 0 :: li2)); auto.
-        rewrite -> in_insert_iff in i0; destruct i0; [omega|].
-        contradiction Hj; rewrite in_map_iff; do 2 eexists; eauto; omega.
+        rewrite -> in_insert_iff in i0; destruct i0; [lia|].
+        contradiction Hj; rewrite in_map_iff; do 2 eexists; eauto; lia.
     + exploit Hrest; eauto.
       rewrite Znth_0_cons; intros ->.
-      erewrite (IHl (map (fun i => i - 1) li)), Zlength_map; try omega.
+      erewrite (IHl (map (fun i => i - 1) li)), Zlength_map; try lia.
       * apply FinFun.Injective_map_NoDup; auto.
-        intros ??; omega.
+        intros ??; lia.
       * intros ? Hj; rewrite -> in_map_iff in Hj; destruct Hj as (j & ? & Hj); subst.
         specialize (Hli _ Hj).
         destruct (eq_dec j 0); [subst; contradiction|].
         destruct (zlt j 0).
         { rewrite -> Znth_underflow, Hd in Hli by auto; discriminate. }
-        rewrite -> Znth_pos_cons in Hli by omega; auto.
+        rewrite -> Znth_pos_cons in Hli by lia; auto.
       * intros j Hj.
         destruct (zlt j 0); [rewrite Znth_underflow; auto|].
         specialize (Hrest (j + 1)); specialize (Hli (j + 1));
-          rewrite -> Znth_pos_cons, Z.add_simpl_r in Hrest, Hli by omega.
+          rewrite -> Znth_pos_cons, Z.add_simpl_r in Hrest, Hli by lia.
         destruct (in_dec Z.eq_dec (j + 1) li); auto.
-        contradiction Hj; rewrite in_map_iff; do 2 eexists; eauto; omega.
+        contradiction Hj; rewrite in_map_iff; do 2 eexists; eauto; lia.
 Qed.
 
 Lemma hists_eq : forall lr l (Hlr : Forall (fun '(h, ls) => add_events empty_map
@@ -1648,11 +1639,11 @@ Lemma add_three : forall lr HT l (Hlr : Zlength lr = 3)
      HAdd 3 1 (Znth 2 ls)] h) lr) (Hlens : Forall (fun '(_, ls) => Zlength ls = 3) lr)
   (Hl : hist_list (maps_add (map fst lr)) l) (HHT : apply_hist empty_map l = Some HT)
   (Hdisj : all_disjoint (map fst lr)),
-  Zlength (filter id (concat (map snd lr))) = 3.
+  Zlength (List.filter id (concat (map snd lr))) = 3.
 Proof.
   intros.
-  assert (Permutation.Permutation (filter id (concat (map snd lr)))
-    (filter id (map (fun e => match e with HAdd _ _ b => b | _ => false end) l))) as Hperm.
+  assert (Permutation.Permutation (List.filter id (concat (map snd lr)))
+    (List.filter id (map (fun e => match e with HAdd _ _ b => b | _ => false end) l))) as Hperm.
   { apply Permutation_filter, hists_eq; auto.
     apply hist_list_weak; auto. }
   rewrite (Permutation_Zlength _ _ Hperm).
@@ -1662,15 +1653,15 @@ Proof.
     apply Hl in H.
     apply in_maps_add in H as (m & Hin & Hm).
     apply in_map_iff in Hin as ((?, h) & ? & Hin); simpl in *; subst.
-    rewrite -> Forall_forall in Hhists; specialize (Hhists _ Hin); simpl in Hhists.
+    rewrite -> List.Forall_forall in Hhists; specialize (Hhists _ Hin); simpl in Hhists.
     eapply add_events_dom in Hm; eauto; simpl in Hm.
     decompose [or] Hm; try discriminate; contradiction. }
   assert (forall i, 0 <= i < 3 -> In (HAdd (i + 1) 1 (Znth i (snd (Znth 0 lr)))) l) as Hins.
   { intros.
     assert (exists t, maps_add (map fst lr) t = Some (HAdd (i + 1) 1 (Znth i (snd (Znth 0 lr)))))
       as (t & Hin).
-    { exploit (Znth_In 0 lr); [omega | intro Hin].
-      rewrite -> Forall_forall in Hhists; specialize (Hhists _ Hin).
+    { exploit (Znth_In 0 lr); [lia | intro Hin].
+      rewrite -> List.Forall_forall in Hhists; specialize (Hhists _ Hin).
       destruct (Znth 0 lr) as (h, ?); simpl in *.
       apply add_events_in with (e := HAdd (i + 1) 1 (Znth i l0)) in Hhists as (t & _ & Hh).
       exists t; eapply maps_add_in; eauto.
@@ -1678,14 +1669,14 @@ Proof.
       rewrite in_map_iff; eexists (_, _); simpl; eauto.
       { destruct (eq_dec i 0); [subst; simpl; auto|].
         destruct (eq_dec i 1); [subst; simpl; auto|].
-        destruct (eq_dec i 2); [subst; simpl; auto | omega]. } }
+        destruct (eq_dec i 2); [subst; simpl; auto | lia]. } }
     apply Hl in Hin; eapply nth_error_in; eauto. }
   exploit (one_add_succeeds 1 1 (Znth 0 (snd (Znth 0 lr))) l); eauto.
-  { eapply (Hins 0); auto; omega. }
+  { eapply (Hins 0); auto; lia. }
   exploit (one_add_succeeds 2 1 (Znth 1 (snd (Znth 0 lr))) l); eauto.
-  { eapply (Hins 1); auto; omega. }
+  { eapply (Hins 1); auto; lia. }
   exploit (one_add_succeeds 3 1 (Znth 2 (snd (Znth 0 lr))) l); eauto.
-  { eapply (Hins 2); auto; omega. }
+  { eapply (Hins 2); auto; lia. }
   intros (v3 & Hin3) (v2 & Hin2) (v1 & Hin1).
   apply In_Znth in Hin1; destruct Hin1 as (t1 & ? & Ht1).
   apply In_Znth in Hin2; destruct Hin2 as (t2 & ? & Ht2).
@@ -1697,25 +1688,25 @@ Proof.
       * rewrite Ht1 in Ht3; inv Ht3.
     + intros [|]; try contradiction; subst.
       rewrite Ht2 in Ht3; inv Ht3.
-  - intros ? [|[|[|]]]; try contradiction; subst; rewrite -> Znth_map by omega.
+  - intros ? [|[|[|]]]; try contradiction; subst; rewrite -> Znth_map by lia.
     + rewrite Ht1; auto.
     + rewrite Ht2; auto.
     + rewrite Ht3; auto.
   - intros i Hi.
     destruct (zlt i 0); [rewrite Znth_underflow; auto|].
-    destruct (zlt i (Zlength l)); [|rewrite -> Znth_overflow by (rewrite Zlength_map; omega); auto].
-    rewrite -> Znth_map by omega.
+    destruct (zlt i (Zlength l)); [|rewrite -> Znth_overflow by (rewrite Zlength_map; lia); auto].
+    rewrite -> Znth_map by lia.
     destruct (Znth i l) eqn: Hith; auto.
     destruct r; auto.
     contradiction Hi.
     assert (k = 1 \/ k = 2 \/ k = 3) as Hk.
-    { rewrite <- nth_Znth in Hith by omega.
-      exploit sublist.nth_error_nth; [apply Nat2Z.inj_lt; rewrite -> Z2Nat.id, <- Zlength_correct; eauto; omega|].
+    { rewrite <- nth_Znth in Hith by lia.
+      exploit sublist.nth_error_nth; [apply Nat2Z.inj_lt; rewrite -> Z2Nat.id, <- Zlength_correct; eauto; lia|].
       rewrite -> Hith; intro Hin.
       apply Hl in Hin.
       apply in_maps_add in Hin as (? & Hin & Hm); subst.
       rewrite -> in_map_iff in Hin; destruct Hin as ((h, ?) & ? & Hin); subst; simpl in *.
-      rewrite -> Forall_forall in Hhists; specialize (Hhists _ Hin); simpl in Hhists.
+      rewrite -> List.Forall_forall in Hhists; specialize (Hhists _ Hin); simpl in Hhists.
       eapply add_events_dom in Hhists; eauto; simpl in Hhists.
       destruct Hhists as [X | [X | [X | [X | X]]]]; inv X; auto. }
     destruct Hk as [|[|]]; [left | right; left | right; right; left];
@@ -1772,15 +1763,12 @@ Proof.
          iter_sepcon (malloc_token Ews (Tstruct _lock_t noattr)) locks *
          iter_sepcon (fun j => lock_inv Ews (Znth j locks)
            (f_lock j (Znth j locks) (Znth j res))) (upto (Z.to_nat i)); has_ext tt)).
-  { Exists (@nil val) (@nil val); rewrite !data_at__eq later_sepcon; entailer!.
-    apply derives_refl. }
+  { Exists (@nil val) (@nil val). rewrite later_sepcon; entailer!. }
   { (* first loop *)
     forward_call (Tstruct _lock_t noattr, gv).
-    { repeat split; auto; simpl; computable. }
     Intros l.
     forward.
     forward_call (tint, gv).
-    { repeat split; auto; simpl; computable. }
     Intros r.
     forward.
     focus_SEP 5.
@@ -1788,16 +1776,16 @@ Proof.
     { rewrite lock_struct; cancel. }
     Exists (res ++ [r]) (locks ++ [l]); rewrite -> !Zlength_app, !Zlength_cons, !Zlength_nil; entailer!.
     rewrite lock_inv_isptr data_at__isptr; Intros.
-    rewrite -> Z2Nat.inj_add, upto_app, !iter_sepcon_app by omega.
+    rewrite -> Z2Nat.inj_add, upto_app, !iter_sepcon_app by lia.
     simpl. change (upto 1) with [0]; simpl.
-    rewrite -> Z2Nat.id, Z.add_0_r by omega.
+    rewrite -> Z2Nat.id, Z.add_0_r by lia.
     replace (Zlength res + 1) with (Zlength (res ++ [r]))
       by (rewrite -> Zlength_app, Zlength_cons, Zlength_nil; auto).
-    rewrite <- upd_complete_gen by omega.
+    rewrite <- upd_complete_gen by lia.
     replace (Zlength (res ++ [r])) with (Zlength (locks ++ [l]))
-      by (rewrite -> !Zlength_app, !Zlength_cons, !Zlength_nil; auto; omega).
-    rewrite <- upd_complete_gen by omega.
-    rewrite -> !app_Znth2 by omega.
+      by (rewrite -> !Zlength_app, !Zlength_cons, !Zlength_nil; auto; lia).
+    rewrite <- upd_complete_gen by lia.
+    rewrite -> !app_Znth2 by lia.
     replace (Zlength locks) with (Zlength res); rewrite Zminus_diag !Znth_0_cons.
     destruct r; try contradiction.
     destruct l; try contradiction.
@@ -1806,7 +1794,7 @@ Proof.
     erewrite iter_sepcon_func_strong; [apply derives_refl|].
     intros ??%In_upto; simpl.
     rewrite <- Zlength_correct in *.
-    rewrite -> !app_Znth1 by omega; auto. }
+    rewrite -> !app_Znth1 by lia; auto. }
   Intros res locks.
   rewrite !app_nil_r.
   assert_PROP (Zlength entries = size) by (pose proof size_pos; entailer!).
@@ -1827,17 +1815,16 @@ Proof.
   { rewrite -> !sublist_same by auto; unfold f_lock; Exists Ews Tsh; entailer!.
     erewrite iter_sepcon_func_strong; [apply derives_refl|].
     intros ??%In_upto.
-    simpl; if_tac; auto; omega. }
+    simpl; if_tac; auto; lia. }
   { (* second loop *)
     forward_call (tint, gv).
-    { repeat split; auto; simpl; computable. }
     Intros t.
     forward.
-    simpl in *; assert (3 <= Zlength shs) by lia.
+    assert (3 <= Zlength shs) by lia.
     match goal with H : sepalg_list.list_join sh0 _ _ |- _ => rewrite -> sublist_next in H by auto;
       inversion H as [|????? Hj1 Hj2]; subst end.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh3 & ? & Hj3).
-    assert (3 <= Zlength shs') by omega.
+    assert (3 <= Zlength shs') by lia.
     match goal with H : sepalg_list.list_join sh0' _ _ |- _ => rewrite -> sublist_next in H by auto;
       inversion H as [|????? Hj1' Hj2']; subst end.
     apply sepalg.join_comm in Hj1'; destruct (sepalg_list.list_join_assoc1 Hj1' Hj2') as (sh3' & ? & Hj3').
@@ -1846,13 +1833,13 @@ Proof.
     rewrite mem_mgr_dup.
     forward_spawn _f t (Znth i shs, Znth i shs', sh2, entries, i1, gh, g, lg, gv, i, gv _thread_locks, Znth i locks, gv _results,
                Znth i res, inv_names1).
-    { assert (0 <= i < Zlength shs) by omega.
+    { assert (0 <= i < Zlength shs) by lia.
       assert (Znth i shs' <> Share.bot).
       { intro X; contradiction unreadable_bot; rewrite <- X.
-        apply Forall_Znth; auto; omega. }
+        apply Forall_Znth; auto; lia. }
       rewrite -> (iter_sepcon_Znth _ (upto 3) i) by auto.
-      rewrite -> Znth_upto by (auto; simpl; omega).
-      rewrite -> if_false by omega.
+      rewrite -> Znth_upto by (auto; simpl; lia).
+      rewrite -> if_false by lia.
       rewrite lock_inv_isptr; Intros.
       entailer!.
       { apply Forall_Znth; auto. }
@@ -1880,17 +1867,17 @@ Proof.
           + subst; rewrite -> upd_Znth_same by auto; apply derives_refl.
           + rewrite -> upd_Znth_diff' by auto.
             setoid_rewrite Znth_repeat with (n0 := 3%nat); apply stronger_default_val. }
-      erewrite sublist_next by (auto; omega); simpl; fast_cancel.
+      erewrite sublist_next by (auto; lia); simpl; fast_cancel.
       { intro; subst; contradiction unreadable_bot.
         eapply join_readable1, readable_share_list_join; eauto. } }
     { simpl; auto. }
     go_lowerx.
     Exists sh3 sh3'; entailer!.
     rewrite -> (iter_sepcon_Znth _ (upto 3) i), Znth_upto by auto.
-    rewrite -> if_true by omega; iFrame.
+    rewrite -> if_true by lia; iFrame.
     erewrite iter_sepcon_func_strong; [auto|].
-    intros ??%In_remove_upto; [simpl | omega].
-    if_tac; if_tac; auto; omega. }
+    intros ??%In_remove_upto; [simpl | lia].
+    if_tac; if_tac; auto; lia. }
   Intros sh sh'.
   rewrite sublist_nil.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
@@ -1901,7 +1888,7 @@ Proof.
             [HAdd 1 1 (Znth 0 ls); HAdd 2 1 (Znth 1 ls); HAdd 3 1 (Znth 2 ls)] h) (snd x);
           Forall (fun '(h, ls) => Zlength ls = 3) (snd x); all_disjoint (map fst (snd x));
           readable_share sh'; sepalg_list.list_join sh' (sublist i 3 shs') Tsh)
-    LOCAL (let ls := map snd (snd x) in temp _total (vint (Zlength (filter id (concat ls)))); gvars gv)
+    LOCAL (let ls := map snd (snd x) in temp _total (vint (Zlength (List.filter id (concat ls)))); gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs (fst x) (tarray tentry size) entries (gv _m_entries);
          |>wsat; |>invariant i1 (hashtable_inv gh g lg entries);
          let h := map fst (snd x) in ghost_hist sh' (fold_right map_add empty_map h) gh;
@@ -1914,12 +1901,11 @@ Proof.
            (f_lock j (Znth j locks) (Znth j res))) (sublist i 3 (upto 3)); has_ext tt)).
   { rewrite -> !(sublist_same 0 3) by auto.
     Exists (sh, @nil (hist * list bool)) sh'; entailer!.
-    { auto with ghost. }
     erewrite iter_sepcon_func_strong; [apply derives_refl|].
     intros ??%In_upto; simpl in *.
     if_tac; auto; lia. }
   { (* third loop *)
-    destruct x as (sh3, lr); simpl in *.
+    destruct x as (sh3, lr).
     erewrite sublist_next with (l := upto 3), Znth_upto by (auto; rewrite ?Zlength_upto; simpl; lia); simpl.
     rewrite lock_inv_isptr; Intros.
     forward.
@@ -1936,7 +1922,7 @@ Proof.
       rewrite -> (sepcon_comm _ (lock_inv _ _ _)), !sepcon_assoc, <- sepcon_assoc;
         apply sepcon_derives; [|cancel_frame].
       rewrite <- (lock_inv_share_join sh1 sh2 Ews) by auto; unfold f_lock, f_lock_pred; cancel. }
-    erewrite sublist_next with (l := locks) by (auto; omega); simpl.
+    erewrite sublist_next with (l := locks) by (auto; lia); simpl.
     forward_call (Tstruct _lock_t noattr, Znth i locks, gv).
     { rewrite if_false.
       rewrite lock_struct; cancel.
@@ -1949,8 +1935,8 @@ Proof.
       rewrite upd_Znth_same; auto. }
     rewrite -> upd_Znth_same by auto.
     forward.
-    Opaque filter.
-    erewrite sublist_next with (l := res) by (auto; omega); simpl.
+    Opaque List.filter.
+    erewrite sublist_next with (l := res) by (auto; lia); simpl.
     forward_call (tint, Znth i res, gv).
     { entailer!.
       rewrite if_false.
@@ -1959,37 +1945,41 @@ Proof.
     assert (3 <= Zlength shs) by lia.
     match goal with H : sepalg_list.list_join sh3 _ _ |- _ => rewrite -> sublist_next in H by auto;
       inversion H as [|??? w1 ? Hj1]; subst end.
-    match goal with H : sepalg_list.list_join sh'0 _ _ |- _ => rewrite -> sublist_next in H by (auto; omega);
+    match goal with H : sepalg_list.list_join sh'0 _ _ |- _ => rewrite -> sublist_next in H by (auto; lia);
       inversion H as [|??? w1' ? Hj1']; subst end.
     gather_SEP 0 5; rewrite <- mem_mgr_dup.
-    gather_SEP 11 3.
+    gather_SEP (data_at sh3 (tarray (tptr (Tstruct _lock_t noattr)) 3) _ _)
+               (data_at (Znth (Zlength lr) shs) (tarray (tptr tlock) 3) _ _).
     replace_SEP 0 (data_at w1 (tarray (tptr (Tstruct _lock_t noattr)) 3) locks (gv _thread_locks)).
     { go_lower.
       rewrite <- lock_struct_array.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join by eauto; apply derives_refl. }
-    gather_SEP 9 4.
+    gather_SEP (data_at sh3 (tarray (tptr tint) 3) _ _)
+               (data_at (Znth (Zlength lr) shs) (tarray (tptr tint) 3) _ _).
     replace_SEP 0 (data_at w1 (tarray (tptr tint) 3) res (gv _results)).
     { go_lower.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join by eauto; apply derives_refl. }
-    gather_SEP 8 3; erewrite ghost_hist_join; eauto.
-    gather_SEP 5 4; erewrite data_at_share_join by eauto.
-    assert (0 <= Zlength (filter id [b1; b2; b3]) <= 3).
+    gather_SEP (ghost_hist sh'0 _ _) (ghost_hist _ _ _);
+      erewrite ghost_hist_join; eauto.
+    gather_SEP (data_at sh3 _ _ _) (data_at (Znth (Zlength lr) shs) _ _ _);
+      erewrite data_at_share_join by eauto.
+    assert (0 <= Zlength (List.filter id [b1; b2; b3]) <= 3).
     { split; [apply Zlength_nonneg|].
       etransitivity; [apply Zlength_filter|].
-      rewrite -> !Zlength_cons, Zlength_nil in *; omega. }
-    assert (0 <= Zlength (filter id (concat (map snd lr))) <= 3 * Zlength shs).
+      rewrite -> !Zlength_cons, Zlength_nil in *; lia. }
+    assert (0 <= Zlength (List.filter id (concat (map snd lr))) <= 3 * Zlength shs).
     { split; [apply Zlength_nonneg|].
       etransitivity; [apply Zlength_filter|].
       etransitivity; [apply Zlength_concat_le with (n := 3)|].
       * rewrite Forall_map.
-        eapply Forall_impl; [|eauto].
-        intros []; simpl; omega.
-      * rewrite Zlength_map; omega. }
+        eapply List.Forall_impl; [|eauto].
+        intros []; simpl; lia.
+      * rewrite Zlength_map; lia. }
     forward.
     go_lowerx; Exists (w1, lr ++ [(hi, [b1; b2; b3])]) w1'; entailer!.
-    rewrite -> !map_app, concat_app, filter_app, !Zlength_app, Zlength_cons, Zlength_nil; simpl;
+    rewrite -> !map_app, concat_app, List.filter_app, !Zlength_app, Zlength_cons, Zlength_nil; simpl;
       repeat (split; auto).
     - eapply join_readable1; eauto.
     - rewrite Forall_app; repeat constructor; auto.
@@ -2001,12 +1991,12 @@ Proof.
       rewrite -> map_add_empty, <- fold_right_maps_add; auto.
     - intro; subst; contradiction unreadable_bot.
     - intro X; contradiction unreadable_bot; rewrite <- X.
-      apply Forall_Znth; auto; omega. }
+      apply Forall_Znth; auto; lia. }
   Intros x sh''; destruct x as (?, lr); simpl fst in *; simpl snd in *.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
     rewrite sublist_nil in H; inv H end.
-  gather_SEP 4 3.
-  replace_SEP 0 (|={inv i1}=> !!(Zlength (filter id (concat (map snd lr))) = 3) : mpred)%I.
+  gather_SEP (ghost_hist _ _ _) (|> invariant _ _).
+  replace_SEP 0 (|={inv i1}=> !!(Zlength (List.filter id (concat (map snd lr))) = 3) : mpred)%I.
   { go_lower.
     iIntros "(hist & inv)".
     iPoseProof (timeless with "inv") as ">inv".

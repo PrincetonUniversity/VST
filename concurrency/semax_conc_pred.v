@@ -38,7 +38,7 @@ Next Obligation.
   simpl in H1 |- *.
   destruct H1; split; auto.
   apply age_level in H.
-  omega.
+  lia.
 Defined.
 
 Lemma corable_weak_positive R : seplog.corable (weak_positive_mpred R).
@@ -69,7 +69,7 @@ Proof.
     destruct H3; split; auto.
     apply H0; auto.
     apply necR_level in H1.
-    omega.
+    lia.
   + hnf in H2 |- *.
     intros.
     apply H2; clear H2.
@@ -77,7 +77,7 @@ Proof.
     destruct H3; split; auto.
     apply H0; auto.
     apply necR_level in H1.
-    omega.
+    lia.
 Qed.
 
 Program Definition weak_precise_mpred (P: mpred): mpred :=
@@ -88,9 +88,9 @@ Next Obligation.
   intros.
   apply (H0 w); auto.
   + simpl in H1 |- *; destruct H1; split; auto.
-    apply age_level in H; omega.
+    apply age_level in H; lia.
   + simpl in H2 |- *; destruct H2; split; auto.
-    apply age_level in H; omega.
+    apply age_level in H; lia.
 Defined.
 
 Lemma corable_weak_precise R : seplog.corable (weak_precise_mpred R).
@@ -116,23 +116,23 @@ Proof.
   + hnf in H2 |- *; intros; apply (H2 w); auto.
     - destruct H3; split; auto.
       apply H0; auto.
-      apply necR_level in H1; omega.
+      apply necR_level in H1; lia.
     - destruct H4; split; auto.
       apply H0; auto.
-      apply necR_level in H1; omega.
+      apply necR_level in H1; lia.
   + hnf in H2 |- *; intros; apply (H2 w); auto.
     - destruct H3; split; auto.
       apply H0; auto.
-      apply necR_level in H1; omega.
+      apply necR_level in H1; lia.
     - destruct H4; split; auto.
       apply H0; auto.
-      apply necR_level in H1; omega.
+      apply necR_level in H1; lia.
 Qed.*)
 
 Lemma approx_derives_ge : forall n m P, (n <= m)%nat -> approx n P |-- approx m P.
 Proof.
-  intros; constructor; change (predicates_hered.derives (approx n P) (approx m P)).
-  intros ? []; split; auto; omega.
+  intros; constructor. change (predicates_hered.derives (approx n P) (approx m P)).
+  intros ? []; split; auto; lia.
 Qed.
 
 Lemma approx_derives : forall P n, approx n P |-- P.
@@ -143,6 +143,8 @@ Qed.
 Definition exclusive_mpred (R : mpred) :=
   (R * R |-- FF)%logic.
 
+Create HintDb exclusive.
+
 Program Definition weak_exclusive_mpred (P: mpred): mpred :=
   fun w => exclusive_mpred (approx (S (level w)) P).
 Next Obligation.
@@ -150,7 +152,7 @@ Next Obligation.
   unfold exclusive_mpred in *.
   apply age_level in H.
   eapply derives_trans, H0.
-  apply sepcon_derives; apply approx_derives_ge; omega.
+  apply sepcon_derives; apply approx_derives_ge; lia.
 Defined.
 
 Lemma corable_weak_exclusive R : seplog.corable (weak_exclusive_mpred R).
@@ -182,14 +184,14 @@ Proof.
     intros ? (? & ? & J & [] & []).
     pose proof (join_level _ _ _ J) as [].
     apply necR_level in H1.
-    do 3 eexists; eauto; split; split; try omega; apply H0; auto; omega.
+    do 3 eexists; eauto; split; split; try lia; apply H0; auto; lia.
   + unfold exclusive_mpred in *.
     eapply derives_trans, H2.
     match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
     intros ? (? & ? & J & [] & []).
     pose proof (join_level _ _ _ J) as [].
     apply necR_level in H1.
-    do 3 eexists; eauto; split; split; try omega; apply H0; auto; omega.
+    do 3 eexists; eauto; split; split; try lia; apply H0; auto; lia.
 Qed.
 
 Definition lock_inv : share -> val -> mpred -> mpred :=
@@ -221,11 +223,12 @@ Proof.
   rewrite lockinv_isptr; Intros.
   apply prop_right; auto.
 Qed.
-Hint Resolve lock_inv_saturate_local : saturate_local.
+#[export] Hint Resolve lock_inv_saturate_local : saturate_local.
+
 
 Lemma unfash_fash_equiv: forall P Q: mpred,
-  (P <=> Q |--
-  (subtypes.unfash (subtypes.fash P): mpred) <=> (subtypes.unfash (subtypes.fash Q): mpred))%pred.
+  (P <=> Q)%pred |--
+  ((subtypes.unfash (subtypes.fash P): mpred) <=> (subtypes.unfash (subtypes.fash Q): mpred))%pred.
 Proof.
   intros.
   constructor; hnf; intros.
@@ -240,15 +243,15 @@ Proof.
   hnf; intros.
   split; simpl; hnf; intros.
   + apply necR_level in H2.
-    rewrite <- H0 by omega.
+    rewrite <- H0 by lia.
     auto.
   + apply necR_level in H2.
-    rewrite H0 by omega.
+    rewrite H0 by lia.
     auto.
 Qed.
 
 Lemma iffp_equiv: forall P1 Q1 P2 Q2: mpred,
-  ((P1 <=> Q1) && (P2 <=> Q2) |-- (P1 <--> P2) <=> (Q1 <--> Q2))%pred.
+  (((P1 <=> Q1) && (P2 <=> Q2))%pred |-- ((P1 <--> P2)%pred <=> (Q1 <--> Q2))%pred)%pred.
 Proof.
   intros.
   constructor; hnf; intros.
@@ -273,25 +276,25 @@ Proof.
   + split; [destruct H5 as [? _] | destruct H5 as [_ ?]]; intros ? HH; specialize (H5 _ HH).
     - apply necR_level in H4.
       apply necR_level in HH.
-      rewrite <- H1, <- H2 by omega.
+      rewrite <- H1, <- H2 by lia.
       auto.
     - apply necR_level in H4.
       apply necR_level in HH.
-      rewrite <- H1, <- H2 by omega.
+      rewrite <- H1, <- H2 by lia.
       auto.
   + split; [destruct H5 as [? _] | destruct H5 as [_ ?]]; intros ? HH; specialize (H5 _ HH).
     - apply necR_level in H4.
       apply necR_level in HH.
-      rewrite H1, H2 by omega.
+      rewrite H1, H2 by lia.
       auto.
     - apply necR_level in H4.
       apply necR_level in HH.
-      rewrite H1, H2 by omega.
+      rewrite H1, H2 by lia.
       auto.
 Qed.
 
 Lemma sepcon_equiv: forall P1 Q1 P2 Q2: mpred,
-  ((P1 <=> Q1) && (P2 <=> Q2) |-- (P1 * P2) <=> (Q1 * Q2))%pred.
+  ((P1 <=> Q1)%pred && (P2 <=> Q2)%pred |-- ((P1 * P2) <=> (Q1 * Q2))%pred)%pred.
 Proof.
   intros.
   constructor; hnf; intros.
@@ -317,22 +320,22 @@ Proof.
     exists w1, w2; split; [| split]; auto.
     - apply necR_level in H4.
       apply join_level in H5.
-      rewrite <- H1 by omega; auto.
+      rewrite <- H1 by lia; auto.
     - apply necR_level in H4.
       apply join_level in H5.
-      rewrite <- H2 by omega; auto.
+      rewrite <- H2 by lia; auto.
   + destruct H5 as [w1 [w2 [? [? ?]]]].
     exists w1, w2; split; [| split]; auto.
     - apply necR_level in H4.
       apply join_level in H5.
-      rewrite H1 by omega; auto.
+      rewrite H1 by lia; auto.
     - apply necR_level in H4.
       apply join_level in H5.
-      rewrite H2 by omega; auto.
+      rewrite H2 by lia; auto.
 Qed.
 
 Lemma later_equiv: forall P Q: mpred,
-  (P <=> Q |-- |> P <=> |> Q)%pred.
+  (P <=> Q)%pred |-- (|> P <=> |> Q)%pred.
 Proof.
   intros.
   constructor; hnf; intros.
@@ -349,12 +352,12 @@ Proof.
   + specialize (H3 _ H4).
     apply necR_level in H2.
     apply laterR_level in H4.
-    rewrite <- H0 by omega.
+    rewrite <- H0 by lia.
     auto.
   + specialize (H3 _ H4).
     apply necR_level in H2.
     apply laterR_level in H4.
-    rewrite H0 by omega.
+    rewrite H0 by lia.
     auto.
 Qed.
 
@@ -393,9 +396,9 @@ Proof.
     clear H3 H4 p0.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
-      rewrite <- H0 by omega; auto.
+      rewrite <- H0 by lia; auto.
     - apply necR_level in H2.
-      rewrite H0 by omega; auto.
+      rewrite H0 by lia; auto.
   + if_tac; auto.
     destruct H3 as [p0 ?].
     exists p0.
@@ -405,9 +408,9 @@ Proof.
     clear H3 H4 p0.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
-      rewrite H0 by omega; auto.
+      rewrite H0 by lia; auto.
     - apply necR_level in H2.
-      rewrite <- H0 by omega; auto.
+      rewrite <- H0 by lia; auto.
 Qed.
 
 Lemma rec_inv1_nonexpansive: forall sh v Q,

@@ -34,13 +34,12 @@ Proof.
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs);
          ghost_var gsh1 (vint b0) g0))
   break: (@FF (environ->mpred) _).
-  { Exists 1 (empty_map : hist); entailer!. split. unfold B,N. computable.
+  { Exists 1 (empty_map : hist); entailer!.
     unfold latest_read.
     left; split; auto; discriminate. }
   Intros b0 h.
   subst c l; subst; forward_call (r, reads, lasts, locks, comms, bufs,
     sh, sh1, sh2, b0, g, g0, g1, g2, h, gv).
-  { repeat (split; auto). }
   Intros x; destruct x as (((b, t), e), v); cbv [fst snd] in *.
   rewrite (data_at_isptr _ tbuffer); Intros.
   forward.

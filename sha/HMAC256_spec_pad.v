@@ -6,6 +6,7 @@ Require Import sha.general_lemmas.
 Require Import sha.ByteBitRelations.
 Require Import sha.HMAC_common_defs.
 Require Import sha.HMAC_spec_pad.
+Require Import Lia.
 
 (*The sha-specific imports*)
 Require Import sha.SHA256.
@@ -22,7 +23,7 @@ Lemma front_equiv_SHA256 :
     (length FRONT)%nat = 16%nat ->
     front ++ back = convert (FRONT ++ BACK) ->
     front = convert FRONT.
-Proof. intros. eapply front_equiv; try eassumption. omega. Qed.
+Proof. intros. eapply front_equiv; try eassumption. lia. Qed.
 
 Lemma back_equiv_SHA256 :
   forall (back : Blist) (BACK : list int) (front : Blist) (FRONT : list int),
@@ -30,7 +31,7 @@ Lemma back_equiv_SHA256 :
     (length FRONT)%nat = 16%nat ->
     front ++ back = convert (FRONT ++ BACK) ->
     back = convert BACK.
-Proof. intros. eapply back_equiv; try eassumption. omega. Qed.
+Proof. intros. eapply back_equiv; try eassumption. lia. Qed.
 *)
 
 (*Lemma fold_equiv_blocks_SHA256 :
@@ -118,7 +119,7 @@ eapply PAD.HMAC_pad_concrete with (c:=c)(p:=p)(IP:=IP)(OP:=OP)(B:=B)(ip:=ip)(op:
 - intros; unfold SHA256.Hash.
   rewrite functional_prog.SHA_256'_eq; reflexivity.
 - unfold SHA256.BlockSize.
-  unfold c, p in H0. omega.
+  unfold c, p in H0. lia.
 Qed.
 
 Theorem HMAC_pad_concrete' (K : list byte) (M : list byte) (OP IP : byte)
@@ -196,10 +197,10 @@ Proof.
   { apply BLxor_length; erewrite bytes_bits_length; try eassumption.
          rewrite map_length, padded_key_len. reflexivity.
          unfold HP.HMAC_SHA256.sixtyfour.
-         rewrite -> length_list_repeat. reflexivity. }
+         rewrite -> repeat_length. reflexivity. }
   { apply BLxor_length; erewrite bytes_bits_length; try eassumption.
          rewrite map_length, padded_key_len. reflexivity.
          unfold HP.HMAC_SHA256.sixtyfour.
-         rewrite -> length_list_repeat. reflexivity. }
+         rewrite -> repeat_length. reflexivity. }
 Qed.
 *)

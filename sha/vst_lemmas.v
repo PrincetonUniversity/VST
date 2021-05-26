@@ -15,14 +15,14 @@ intros. unfold data_block, array_at.
 simpl.
 entailer!.
 Qed.
-Hint Resolve @data_block_local_facts : saturate_local.
+#[export] Hint Resolve data_block_local_facts : saturate_local.
 
 
 Lemma data_block_valid_pointer {cs: compspecs} sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
       data_block sh l p |-- valid_pointer p.
 Proof. unfold data_block. simpl; intros.
   apply data_at_valid_ptr; auto; simpl.
-  rewrite Z.max_r, Z.mul_1_l; omega.
+  rewrite Z.max_r, Z.mul_1_l; lia.
 Qed.
 
 Lemma split2_data_block:
@@ -64,8 +64,8 @@ Qed.
 
 Lemma force_lengthn_long {A}: forall n (l:list A) d, (n <= length l)%nat -> force_lengthn n l d = firstn n l.
 Proof. induction n; simpl; intros. trivial.
-  destruct l; simpl in H. omega.
-  rewrite IHn; trivial. omega.
+  destruct l; simpl in H. lia.
+  rewrite IHn; trivial. lia.
 Qed.
 
 Lemma skipn_force_lengthn_app {A} n (l m:list A) a:
@@ -73,22 +73,22 @@ Lemma skipn_force_lengthn_app {A} n (l m:list A) a:
   intros. rewrite skipn_app1.
   specialize (skipn_exact_length (force_lengthn n l a)).
            rewrite force_lengthn_length_n. intros X; rewrite X; trivial.
-  rewrite force_lengthn_length_n; omega.
+  rewrite force_lengthn_length_n; lia.
 Qed.
 
 Lemma data_at_triv {cs} sh t v v': v=v' -> @data_at cs sh t v |-- @data_at cs sh t v'.
 Proof. intros; subst. auto. Qed.
 
-Lemma sizeof_Tarray {cs: composite_env} k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
+Lemma sizeof_Tarray {cs: compspecs} k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
 Proof. intros K; simpl; rewrite K. destruct k; trivial. Qed.
 
 Lemma nth_mapVint: forall i (l:list Z) (Hi: (0 <= i < length l)%nat),
   exists n, nth i (map Vint (map Int.repr l)) Vundef = Vint n.
 Proof. intros i.
   induction i; simpl; intros.
-    destruct l; simpl in *. omega. eexists; reflexivity.
-    destruct l; simpl in *. omega.
-      destruct (IHi l). omega. rewrite H. eexists; reflexivity.
+    destruct l; simpl in *. lia. eexists; reflexivity.
+    destruct l; simpl in *. lia.
+      destruct (IHi l). lia. rewrite H. eexists; reflexivity.
 Qed.
 
 Lemma nth_mapVint' {z}: forall i (l:list Z)
@@ -97,22 +97,19 @@ Lemma nth_mapVint' {z}: forall i (l:list Z)
   Vint (Int.repr (nth i l z)).
 Proof. intros i.
   induction i; simpl; intros.
-    destruct l; simpl in *. omega. trivial.
-    destruct l; simpl in *. omega.
-      rewrite (IHi l). trivial. omega.
+    destruct l; simpl in *. lia. trivial.
+    destruct l; simpl in *. lia.
+      rewrite (IHi l). trivial. lia.
 Qed.
 
 Lemma nth_mapVintZ: forall i (l:list Z) (Hi: 0 <= i < Zlength l),
   exists n, nth (Z.to_nat i) (map Vint (map Int.repr l)) Vundef = Vint n.
 Proof. intros.
   eapply nth_mapVint. rewrite Zlength_correct in Hi.
-  destruct Hi; split.   omega.
+  destruct Hi; split.   lia.
 unfold Z.of_nat in H0. unfold Z.to_nat.
-destruct l; simpl in *. omega.
-destruct i; try omega.
-rewrite <- SuccNat2Pos.id_succ.
-apply Pos2Nat.inj_lt.
-apply H0.
+destruct l; simpl in *. lia.
+destruct i; try lia.
 Qed.
 
 Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.

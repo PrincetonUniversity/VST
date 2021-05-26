@@ -7,6 +7,10 @@ Require Export aes.spec_utils_LL.
 Require Export aes.list_utils.
 Require Export aes.spec_encryption_LL.
 
+Open Scope logic.
+Local Open Scope Z.
+
+Require Import VST.floyd.Funspec_old_Notation.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -157,10 +161,10 @@ Definition encryption_spec_ll :=
     SEP (data_at ctx_sh (t_struct_aesctx) (
           (Vint (Int.repr Nr)),
           ((field_address t_struct_aesctx [StructField _buf] ctx),
-          (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
+          (map Vint (map Int.repr (exp_key ++ (repeat 0 (8%nat))))))
           (* The following weaker precondition would also be provable, but less conveniently, and   *)
           (* since mbedtls_aes_init zeroes the whole buffer, we exploit this to simplify the proof  *)
-          (* ((map Vint (map Int.repr exp_key)) ++ (list_repeat (8%nat) Vundef))) *)
+          (* ((map Vint (map Int.repr exp_key)) ++ (repeat Vundef (8%nat)))) *)
          ) ctx;
          data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
          data_at_ out_sh (tarray tuchar 16) output;
@@ -170,12 +174,12 @@ Definition encryption_spec_ll :=
     SEP (data_at ctx_sh (t_struct_aesctx) (
           (Vint (Int.repr Nr)),
           ((field_address t_struct_aesctx [StructField _buf] ctx),
-          (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
+          (map Vint (map Int.repr (exp_key ++ (repeat 0 (8%nat))))))
          ) ctx;
          data_at in_sh  (tarray tuchar 16)
                  (map Vint (map Int.repr plaintext)) input;
          data_at out_sh (tarray tuchar 16)
-                 (map Vint (mbed_tls_aes_enc plaintext (exp_key ++ (list_repeat (8%nat) 0)))) output;
+                 (map Vint (mbed_tls_aes_enc plaintext (exp_key ++ (repeat 0 (8%nat))))) output;
          tables_initialized (gv _tables)).
 
 Definition Gprog : funspecs := ltac:(with_library prog [

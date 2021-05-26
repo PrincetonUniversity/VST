@@ -68,7 +68,7 @@ forward_if (PROP ( )
     apply sepcon_valid_pointer1. 
     apply sepcon_valid_pointer2. apply data_at_valid_ptr.
     apply readable_nonidentity. apply writable_readable; trivial.
-    rewrite HMAC_Zlength; simpl; omega.
+    rewrite HMAC_Zlength; simpl; lia.
   + auto with valid_pointer. }
 { subst out; contradiction. }
 { clear H; forward. entailer!. rewrite <- @change_compspecs_data_block. simpl; auto. }

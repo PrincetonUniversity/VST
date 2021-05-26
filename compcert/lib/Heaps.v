@@ -6,10 +6,11 @@
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
-(*  under the terms of the GNU General Public License as published by  *)
-(*  the Free Software Foundation, either version 2 of the License, or  *)
-(*  (at your option) any later version.  This file is also distributed *)
-(*  under the terms of the INRIA Non-Commercial License Agreement.     *)
+(*  under the terms of the GNU Lesser General Public License as        *)
+(*  published by the Free Software Foundation, either version 2.1 of   *)
+(*  the License, or  (at your option) any later version.               *)
+(*  This file is also distributed under the terms of the               *)
+(*  INRIA Non-Commercial License Agreement.                            *)
 (*                                                                     *)
 (* *********************************************************************)
 
@@ -256,14 +257,14 @@ Proof.
   eapply gt_heap_trans with y; eauto. red; auto.
 - intuition.
   eapply lt_heap_trans; eauto. red; auto.
-  eapply gt_heap_trans; eauto. red; auto.
+  eapply gt_heap_trans; eauto. red; auto with ordered_type.
 - intuition. eapply gt_heap_trans; eauto. red; auto.
 - rewrite e3 in *; simpl in *. intuition.
   eapply lt_heap_trans with y; eauto. red; auto.
   eapply gt_heap_trans; eauto. red; auto.
 - intuition.
   eapply lt_heap_trans with y; eauto. red; auto.
-  eapply gt_heap_trans; eauto. red; auto.
+  eapply gt_heap_trans; eauto. red; auto with ordered_type.
   eapply gt_heap_trans with x; eauto. red; auto.
 - rewrite e3 in *; simpl in *; intuition.
   eapply gt_heap_trans; eauto. red; auto.
@@ -308,7 +309,7 @@ Proof.
   intros. unfold insert.
   case_eq (partition x h). intros a b EQ; simpl.
   assert (E.eq y x \/ ~E.eq y x).
-    destruct (E.compare y x); auto.
+    destruct (E.compare y x); auto with ordered_type.
     right; red; intros. elim (E.lt_not_eq l). apply E.eq_sym; auto.
   destruct H0.
   tauto.

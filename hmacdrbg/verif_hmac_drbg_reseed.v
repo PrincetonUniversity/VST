@@ -63,10 +63,10 @@ Proof.
   { forward. entailer!. }
   { forward. entailer!. simpl.
       unfold Int.ltu; simpl.
-      rewrite Int.unsigned_repr by rep_omega.
+      rewrite Int.unsigned_repr by rep_lia.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.
-      + rep_omega.
+      + rep_lia.
   }
 
   forward_if. 
@@ -93,18 +93,17 @@ Proof.
     change (sizeof (*cenv_cs*) (tarray tuchar 384)) with 384.
     normalize. cancel.
   }
-
   (*freeze [1;2;3;4;5;6] FR3.*)
   assert_PROP (field_compatible (tarray tuchar 384) [] seed) as Hfield by entailer!.
   replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
-         (list_repeat (Z.to_nat entropy_len) (Vint Int.zero)) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
-         (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero)) (offset_val entropy_len seed))).
+         (repeat (Vint Int.zero) (Z.to_nat entropy_len)) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
+         (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len))) (offset_val entropy_len seed))).
   {
     (*subst entropy_len.*)
-    erewrite <- data_at_complete_split with (length:=384)(AB:=list_repeat (Z.to_nat 384) (Vint Int.zero)); repeat rewrite Zlength_list_repeat; trivial; try omega.
+    erewrite <- data_at_complete_split with (length:=384)(AB:=repeat (Vint Int.zero) (Z.to_nat 384)); repeat rewrite Zlength_repeat; trivial; try lia.
     solve [go_lower; apply derives_refl]. 
     solve [rewrite Zplus_minus; assumption].
-    rewrite list_repeat_app, Z2Nat.inj_sub; try omega. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try omega.
+    rewrite <- repeat_app, Z2Nat.inj_sub; try lia. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try lia.
   }
   Intros.
 
@@ -117,23 +116,18 @@ Proof.
   (* get_entropy(seed, entropy_len ) *)
   thaw FR3. freeze [1;2;3;4;6;7] FR4. 
   forward_call (Tsh, s, seed, entropy_len).
-  { split. split; try omega. rep_omega.
-    apply writable_share_top.
-(*
-    subst entropy_len; auto.*)
-  }
   Intros vret. rename H1 into ENT.
   assert (AL256': add_len >? 256 = false).
   { remember (add_len >? 256) as d.
     destruct d; symmetry in Heqd; trivial.
     apply Zgt_is_gt_bool in Heqd.
-    destruct (zlt 256 add_len); try discriminate; omega.
+    destruct (zlt 256 add_len); try discriminate; lia.
   }
   assert (EAL256': (entropy_len + add_len)  >? 384 = false).
   { remember (entropy_len + add_len >? 384) as d.
     destruct d; symmetry in Heqd; trivial.
     apply Zgt_is_gt_bool in Heqd.
-    destruct (zlt 384 (entropy_len + add_len)); try discriminate; omega.
+    destruct (zlt 384 (entropy_len + add_len)); try discriminate; lia.
   }
 
   remember (Zlength (contents_with_add additional (Zlength contents) contents)) as ZLa.
@@ -189,16 +183,16 @@ Proof.
       rewrite data_at__memory_block. entailer!.
       destruct seed; inv Pseed. unfold offset_val.
       rewrite <- Ptrofs.repr_unsigned with (i:=i). 
-      assert (XX: sizeof (tarray tuchar 384) = entropy_len + (384 - entropy_len)) by (simpl; omega). 
+      assert (XX: sizeof (tarray tuchar 384) = entropy_len + (384 - entropy_len)) by (simpl; lia). 
       rewrite XX.
-      rewrite (memory_block_split Tsh b (Ptrofs.unsigned i) entropy_len (384 - entropy_len)), ptrofs_add_repr; try omega.
+      rewrite (memory_block_split Tsh b (Ptrofs.unsigned i) entropy_len (384 - entropy_len)), ptrofs_add_repr; try lia.
       cancel.
       eapply derives_trans. apply data_at_memory_block.
-          simpl. rewrite Z.max_r, Z.mul_1_l; try omega; auto.
+          simpl. rewrite Z.max_r, Z.mul_1_l; try lia; auto.
       rewrite Zplus_minus.
-      assert (Ptrofs.unsigned i >= 0) by (pose proof (Ptrofs.unsigned_range i); omega).
-      split. omega.
-      clear - Hfield. red in Hfield; simpl in Hfield. omega.
+      assert (Ptrofs.unsigned i >= 0) by (pose proof (Ptrofs.unsigned_range i); lia).
+      split. lia.
+      clear - Hfield. red in Hfield; simpl in Hfield. lia.
   }
   {
     forward.
@@ -226,7 +220,7 @@ Proof.
   rewrite <- XH7.
   simple eapply reseed_REST  with (s0:=s0)(contents':=contents'); try eassumption;
     auto.
-idtac "Timing the Qed of drbg_reseed (goal: 25secs)". omega. 
+idtac "Timing the Qed of drbg_reseed (goal: 25secs)". lia. 
 Time Qed. (*May23th, Coq8.6:12secs
            Feb 23 2017: Finished transaction in 105.344 secs (74.078u,0.015s) (successful)*)
           (*earlier Coq8.5pl2: 24secs*)

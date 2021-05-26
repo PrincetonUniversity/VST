@@ -10,6 +10,7 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List.
 Require Import sha.general_lemmas.
+Require Import Lia.
 
 (* THIS BLOCK OF STUFF is not needed to define SHA256,
   but is useful for reasoning about it *)
@@ -45,7 +46,7 @@ Fixpoint str_to_bytes (str : string) : list byte :=
 Definition generate_and_pad msg :=
   let n := Zlength msg in
    bytelist_to_intlist (msg ++ [Byte.repr 128%Z]
-                ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero)
+                ++ repeat Byte.zero (Z.to_nat (-(n + 9) mod 64)))
            ++ [Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)].
 
 (*ROUND FUNCTION*)
@@ -94,10 +95,10 @@ Function W (M: Z -> int) (t: Z) {measure Z.to_nat t} : int :=
   else  (Int.add (Int.add (sigma_1 (W M (t-2))) (W M (t-7)))
                (Int.add (sigma_0 (W M (t-15))) (W M (t-16)))).
 Proof.
-intros; apply Z2Nat.inj_lt; omega.
-intros; apply Z2Nat.inj_lt; omega.
-intros; apply Z2Nat.inj_lt; omega.
-intros; apply Z2Nat.inj_lt; omega.
+intros; apply Z2Nat.inj_lt; lia.
+intros; apply Z2Nat.inj_lt; lia.
+intros; apply Z2Nat.inj_lt; lia.
+intros; apply Z2Nat.inj_lt; lia.
 Qed.
 
 (*registers that represent intermediate and final hash values*)
@@ -124,7 +125,7 @@ Function Round  (regs: registers) (M: Z ->int) (t: Z)
         {measure (fun t => Z.to_nat(t+1)) t} : registers :=
  if zlt t 0 then regs
  else rnd_function (Round regs M (t-1)) (nthi K256 t) (W M t).
-Proof. intros; apply Z2Nat.inj_lt; omega.
+Proof. intros; apply Z2Nat.inj_lt; lia.
 Qed.
 
 Definition hash_block (r: registers) (block: list int) : registers :=
@@ -137,9 +138,9 @@ Function hash_blocks (r: registers) (msg: list int) {measure length msg} : regis
   end.
 Proof. intros.
  destruct (lt_dec (length msg) 16).
- rewrite skipn_length_short. simpl; omega. subst; simpl in *; omega.
+ rewrite skipn_length_short. simpl; lia. subst; simpl in *; lia.
  rewrite <- teq; auto.
- rewrite skipn_length. simpl; omega.
+ rewrite skipn_length. simpl; lia.
 Qed.
 
 Definition SHA_256 (str : list byte) : list byte :=

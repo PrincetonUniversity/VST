@@ -45,7 +45,7 @@ Proof.
   unfold data_block. simpl. cancel.
 Qed.
 
-Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
+#[export] Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel; 
        [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
@@ -58,7 +58,7 @@ Proof.
     entailer!. clear - H2. destruct H2 as [? [_ [? _]]].
     destruct d; try contradiction.
     red in H0. simpl in H0. rewrite Z.max_r in H0 by list_solve.
-    rep_omega.
+    rep_lia.
   }
 
   unfold md_relate(*; unfold convert_abs*).
@@ -148,7 +148,7 @@ Proof.
   { (*null*)
     subst vret. simpl. forward.
     Exists (-20864).
-    rewrite if_false by omega.
+    rewrite if_false by lia.
     entailer!.
   }
   destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.

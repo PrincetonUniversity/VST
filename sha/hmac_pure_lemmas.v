@@ -5,6 +5,7 @@ Require Import compcert.lib.Coqlib.
 Require Import Vector.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
+Require Import Lia.
 
 Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T :=
   match v with Vector.nil => eq_refl end.
@@ -47,10 +48,10 @@ Lemma app_inv_length1 {A}: forall (l1 m1 l2 m2:list A),
   l1++l2 = m1++m2 -> length l1 = length m1 -> l1=m1 /\ l2=m2.
 Proof.
 induction l1; simpl; intros.
-{ destruct m1; simpl in *. split; trivial. omega. }
+{ destruct m1; simpl in *. split; trivial. lia. }
 { destruct m1; simpl in *. discriminate.
   inversion H; clear H; subst a0.
-  destruct (IHl1 _ _ _ H3). omega.
+  destruct (IHl1 _ _ _ H3). lia.
   subst. split; trivial. }
 Qed.
 
@@ -60,10 +61,10 @@ Proof.
 induction l1; simpl; intros.
 { destruct m1; simpl in *. split; trivial.
   assert (length l2 = length (a :: m1 ++ m2)). rewrite <- H; trivial.
-  rewrite H1 in H0; clear H H1. simpl in H0. rewrite app_length in H0. omega. }
+  rewrite H1 in H0; clear H H1. simpl in H0. rewrite app_length in H0. lia. }
 { assert (length (a :: l1 ++ l2) = length (m1 ++ m2)). rewrite <- H; trivial.
   simpl in H1. do 2 rewrite app_length in H1. rewrite H0 in H1.
-  destruct m1; simpl in *. omega.
+  destruct m1; simpl in *. lia.
   inversion H; clear H. subst a0.
   destruct (IHl1 _ _ _ H4 H0). subst. split; trivial. }
 Qed.
@@ -73,7 +74,7 @@ Lemma cons_inv {A}: forall (a1 a2:A) t1 t2, a1::t1 = a2::t2 -> a1=a2 /\ t1=t2.
 
 Lemma mod_exists a b c: a mod b = c -> b<> 0 -> exists k, k*b+c=a.
 Proof. intros. specialize (Zmod_eq_full a b H0). intros.
-  exists (a/b). rewrite H in H1; clear H H0. subst c. omega. Qed.
+  exists (a/b). rewrite H in H1; clear H H0. subst c. lia. Qed.
 
 Lemma app_inj1 {A} l2 m2: forall (l1 m1:list A) (H:l1++l2=m1++m2),
       length l1=length m1 -> l1=m1 /\ l2=m2.
@@ -81,7 +82,7 @@ Proof. induction l1.
   destruct m1; simpl; intros. split; trivial. discriminate.
   destruct m1; simpl; intros. discriminate.
   inversion H; subst.
-  destruct (IHl1 _ H3). omega.
+  destruct (IHl1 _ H3). lia.
   subst. split; trivial.
 Qed.
 Lemma max_unsigned_modulus: Int.max_unsigned + 1 = Int.modulus.
@@ -106,17 +107,17 @@ Lemma nth_mapIn {A}: forall i (l:list A) d (Hi: (0 <= i < length l)%nat),
   exists n, nth i l d = n /\ In n l.
 Proof. intros i.
   induction i; simpl; intros.
-    destruct l; simpl in *. omega. exists a. split; trivial. left; trivial.
-    destruct l; simpl in *. omega.
-      destruct (IHi l d) as [? [? ?]]. omega. rewrite H. exists x; split; trivial. right; trivial.
+    destruct l; simpl in *. lia. exists a. split; trivial. left; trivial.
+    destruct l; simpl in *. lia.
+      destruct (IHi l d) as [? [? ?]]. lia. rewrite H. exists x; split; trivial. right; trivial.
 Qed.
 
-Lemma skipn_list_repeat:
+Lemma skipn_repeat:
    forall A k n (a: A),
-     (k <= n)%nat -> skipn k (list_repeat n a) = list_repeat (n-k) a.
+     (k <= n)%nat -> skipn k (repeat a n) = repeat a (n-k).
 Proof.
  induction k; destruct n; simpl; intros; auto.
- apply IHk; auto. omega.
+ apply IHk; auto. lia.
 Qed.
 
 Lemma skipn_length:
@@ -125,7 +126,7 @@ Lemma skipn_length:
     (length (skipn n al) = length al - n)%nat.
 Proof.
  induction n; destruct al; simpl; intros; auto.
- apply IHn. omega.
+ apply IHn. lia.
 Qed.
 
 Lemma fold_left_cons {A B} (f: A -> B -> A) l b x:
@@ -143,10 +144,10 @@ Lemma Zlength_length:
 Proof.
 intros. rewrite Zlength_correct.
 split; intro.
-rewrite <- (Z2Nat.id n) in H0 by omega.
+rewrite <- (Z2Nat.id n) in H0 by lia.
 apply Nat2Z.inj in H0; auto.
 rewrite H0.
-apply Z2Nat.inj; try omega.
+apply Z2Nat.inj; try lia.
 rewrite Nat2Z.id; auto.
 Qed.
 *)
@@ -188,9 +189,9 @@ Qed.
 
 Lemma skipn_short {A}: forall n (l:list A), (length l <= n)%nat -> skipn n l = nil.
 Proof. induction n; simpl; intros.
-  destruct l; trivial. simpl in H. omega.
+  destruct l; trivial. simpl in H. lia.
   destruct l; trivial.
-  apply IHn. simpl in H. omega.
+  apply IHn. simpl in H. lia.
 Qed.
 
 Lemma skipn_app2:
@@ -199,8 +200,8 @@ Lemma skipn_app2:
   skipn n (al++bl) = skipn (n-length al) bl.
 Proof.
 intros. revert al H;
-induction n; destruct al; intros; simpl in *; try omega; auto.
-apply IHn; omega.
+induction n; destruct al; intros; simpl in *; try lia; auto.
+apply IHn; lia.
 Qed.
 (*now in floyd_sublist
 Lemma firstn_app1: forall {A} n (p l: list A),
@@ -208,7 +209,7 @@ Lemma firstn_app1: forall {A} n (p l: list A),
    firstn n (p ++ l) = firstn n p.
 Proof. intros A n.
 induction n; simpl; intros. trivial.
-  destruct p; simpl in H. omega.
+  destruct p; simpl in H. lia.
   apply le_S_n in H. simpl. f_equal. auto.
 Qed.
 
@@ -217,9 +218,9 @@ Lemma firstn_app2: forall {A} n (p l: list A),
    firstn n (p ++ l) = p ++ (firstn (n-Datatypes.length p) l).
 Proof. intros A n.
 induction n; simpl; intros.
-  destruct p; simpl in *. trivial. omega.
+  destruct p; simpl in *. trivial. lia.
   destruct p; simpl in *. trivial.
-  rewrite IHn. trivial. omega.
+  rewrite IHn. trivial. lia.
 Qed.  *)
 
 Lemma firstn_map {A B} (f:A -> B): forall n l,
@@ -261,21 +262,21 @@ Lemma nthD_1 {A B}: forall (f: A ->B) n l d fx dd, (n < length l)%nat ->
       exists x, In x l /\ nth n l dd = x /\ f x = fx.
 Proof. intros f n.
   induction n; simpl; intros.
-    destruct l; simpl in *. omega.
+    destruct l; simpl in *. lia.
       exists a; split. left; trivial. split; trivial.
-    destruct l; simpl in *. omega.
-    destruct (IHn l d fx dd) as [? [? [? ?]]]. omega. trivial.
+    destruct l; simpl in *. lia.
+    destruct (IHn l d fx dd) as [? [? [? ?]]]. lia. trivial.
     exists x; eauto.
 Qed.
 
-Lemma nth_list_repeat' {A}: forall (a d:A) k i (Hik: (i <k)%nat),
-      nth i (list_repeat k a) d = a.
-Proof. intros a d k. induction k; simpl; trivial. intros. omega.
- intros. destruct i; simpl; trivial. rewrite IHk. trivial. omega. Qed.
+Lemma nth_repeat' {A}: forall (a d:A) k i (Hik: (i <k)%nat),
+      nth i (repeat a k) d = a.
+Proof. intros a d k. induction k; simpl; trivial. intros. lia.
+ intros. destruct i; simpl; trivial. rewrite IHk. trivial. lia. Qed.
 
 Lemma minus_lt_compat_r: forall n m p : nat,
       (n < m)%nat -> (p <= n)%nat -> (n - p < m - p)%nat.
-Proof. intros. unfold lt in *. omega. Qed.
+Proof. intros. unfold lt in *. lia. Qed.
 
 Lemma map_nth_error_inv {A B}: forall n (l:list A) (f: A -> B) fd,
     nth_error (map f l) n = Some fd -> exists d, nth_error l n = Some d /\ fd = f d.
@@ -307,7 +308,7 @@ Lemma Zlength_nonneg {A}: forall (l:list A), 0 <= Zlength l.
 Proof.
  intros.
  rewrite Zlength_correct.
- induction l; simpl. omega. rewrite Zpos_P_of_succ_nat. omega.
+ induction l; simpl. lia. rewrite Zpos_P_of_succ_nat. lia.
 Qed.
 
 Lemma Zlength_max_zero {A} (l:list A): Z.max 0 (Zlength l) = Zlength l.
@@ -324,7 +325,7 @@ Proof.
         Z.lxor x y mod two_p (Z.of_nat Byte.wordsize)).
         rewrite Byte.modulus_power. reflexivity.
   rewrite ZZ; clear ZZ.
-  rewrite Zbits.Ztestbit_mod_two_p; try omega.
+  rewrite Zbits.Ztestbit_mod_two_p; try lia.
   destruct (zlt i (Z.of_nat Byte.wordsize)); trivial.
   symmetry. rewrite Z.lxor_spec.
   assert (BB: Byte.modulus = two_p (Z.of_nat Byte.wordsize)).
@@ -332,9 +333,9 @@ Proof.
   rewrite BB in H, H0.
 
   rewrite H; clear H; rewrite H0; clear H0 BB.
-   rewrite Zbits.Ztestbit_mod_two_p; try omega.
-   rewrite Zbits.Ztestbit_mod_two_p; try omega.
-   destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. omega.
+   rewrite Zbits.Ztestbit_mod_two_p; try lia.
+   rewrite Zbits.Ztestbit_mod_two_p; try lia.
+   destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. lia.
 Qed.
 
 Lemma length_mul_split A k (K:(0<k)%nat) n (N:(0<n)%nat): forall (l:list A), length l = (k * n)%nat ->
@@ -343,7 +344,7 @@ Proof.
   intros.
   assert ((k * n = n + (k-1) * n)%nat). rewrite mult_minus_distr_r. simpl. rewrite plus_0_r.
       rewrite le_plus_minus_r. (* NPeano.Nat.add_sub_assoc. rewrite minus_plus. *) trivial.
-      specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. omega.
+      specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. lia.
   rewrite H0 in H; clear H0.
   apply (list_splitLength _ _ _ H).
 Qed.

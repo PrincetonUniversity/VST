@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.closed_lemmas.
 Import Cop.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Lemma semax_while_peel:
@@ -18,6 +19,11 @@ eapply semax_pre; [ |  apply sequential; apply semax_skip].
 destruct R; apply ENTAIL_refl.
 Qed.
 
+Lemma typelist2list_arglist: forall l i, map snd (arglist i l) = typelist2list l.
+Proof. induction l. simpl; intros; trivial.
+intros. simpl. f_equal. apply IHl.
+Qed. 
+
 Lemma semax_func_cons_ext_vacuous:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
@@ -26,8 +32,8 @@ Lemma semax_func_cons_ext_vacuous:
        (id_in_list id (map fst fs)) = false ->
        ef_sig ef =
        {|
-         sig_args := typlist_of_typelist (type_of_params (arglist 1 argsig));
-         sig_res := opttyp_of_type retsig;
+         sig_args := typlist_of_typelist argsig;
+         sig_res := rettype_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        (*new*) Genv.find_symbol ge id = Some b ->
        (*new*) Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
@@ -36,21 +42,89 @@ Lemma semax_func_cons_ext_vacuous:
          ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
 Proof.
 intros.
-eapply semax_func_cons_ext with (b0:=b); try reflexivity; auto.
-*
- clear.
- forget 1%positive as i.
- revert i; induction argsig; simpl; intros; auto.
- f_equal; auto.
-*
-  forget 1%positive as i.
-  clear.
-  revert i; induction argsig; simpl; intros; auto.
-* right. clear. hnf. intros. destruct X.
-*
-  intros. simpl. apply andp_left1, FF_left.
-*  apply semax_external_FF.
+specialize (@semax_func_cons_ext Espec V G C ge fs id ef argsig retsig
+  (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) ). simpl. 
+intros HH; eapply HH; clear HH; try assumption; trivial.
+* rewrite <-(typelist2list_arglist _ 1). reflexivity.
+* right. clear. hnf. intros. simpl in X; inv X.
+* intros. simpl. apply andp_left1, FF_left.
+* eassumption.
+* assumption.
+* apply semax_external_FF.
 Qed.
+
+Lemma semax_func_cons_int_vacuous
+  (Espec : OracleKind) (V : varspecs) (G : funspecs) 
+    (cs : compspecs) (ge : Genv.t (fundef function) type)
+    (fs : list (ident * Clight.fundef)) (id : ident) ifunc
+    (b : block) G'
+  (ID: id_in_list id (map fst fs) = false)
+  (ID2: id_in_list id (map fst G) = true)
+  (GfsB: Genv.find_symbol ge id = Some b)
+  (GffpB: Genv.find_funct_ptr ge b = Some (Internal ifunc))
+  (CTvars: Forall (fun it : ident * type => complete_type cenv_cs (snd it) = true) (fn_vars ifunc))
+  (LNR_PT: list_norepet (map fst (fn_params ifunc) ++ map fst (fn_temps ifunc)))
+  (LNR_Vars: list_norepet (map fst (fn_vars ifunc)))
+  (VarSizes: semax.var_sizes_ok cenv_cs (fn_vars ifunc))
+  (Sfunc: @semax_func Espec V G cs ge fs G'):
+  @semax_func Espec V G cs ge ((id, Internal ifunc) :: fs)
+    ((id, vacuous_funspec (Internal ifunc)) :: G').
+Proof.
+eapply semax_func_cons; try eassumption.
++ rewrite ID, ID2. simpl. unfold semax_body_params_ok.
+  apply compute_list_norepet_i in LNR_PT. rewrite LNR_PT.
+  apply compute_list_norepet_i in LNR_Vars. rewrite LNR_Vars. trivial.
++ destruct ifunc; simpl; trivial.
++ red; simpl. split3.
+  - destruct ifunc; simpl; trivial.
+  - destruct ifunc; simpl; trivial.
+  - intros ? ? Impos. inv Impos.
+Qed.
+
+Lemma semax_prog_semax_func_cons_int_vacuous
+  (Espec : OracleKind) (V : varspecs) (G : funspecs) 
+    (cs : compspecs) (ge : Genv.t (fundef function) type)
+    (fs : list (ident * Clight.fundef)) (id : ident) ifunc
+    (b : block) G'
+  (ID: id_in_list id (map fst fs) = false)
+  (*(ID2: id_in_list id (map fst G) = true)*)
+  (GfsB: Genv.find_symbol ge id = Some b)
+  (GffpB: Genv.find_funct_ptr ge b = Some (Internal ifunc))
+  (CTvars: Forall (fun it : ident * type => complete_type cenv_cs (snd it) = true) (fn_vars ifunc))
+  (LNR_PT: list_norepet (map fst (fn_params ifunc) ++ map fst (fn_temps ifunc)))
+  (LNR_Vars: list_norepet (map fst (fn_vars ifunc)))
+  (VarSizes: semax.var_sizes_ok cenv_cs (fn_vars ifunc))
+  (Sfunc: @semax_prog.semax_func Espec V G cs ge fs G'):
+  @semax_prog.semax_func Espec V G cs ge ((id, Internal ifunc) :: fs)
+    ((id, vacuous_funspec (Internal ifunc)) :: G').
+Proof.
+apply id_in_list_false in ID. destruct Sfunc as [Hyp1 [Hyp2 Hyp3]].
+split3.
+{ constructor. 2: apply Hyp1. simpl. destruct ifunc; simpl.
+  unfold type_of_function. simpl. rewrite TTL1; trivial. }
+{ clear Hyp3. red; intros j fd J. destruct J; [ inv H | auto].
+  exists b; split; trivial. }
+intros. specialize (Hyp3 _ Gfs Gffp n).
+intros v sig cc A P Q m NM CL. simpl in CL. red in CL.
+destruct CL as [j [Pne [Qne [J GJ]]]]. simpl in J.
+rewrite PTree.gsspec in J.
+destruct (peq j id); subst.
++ specialize (Hyp3 v sig cc A P Q m NM).
+  clear Hyp3.
+  destruct GJ as [bb [BB VV]]. inv J. 
+  assert (bb = b). 
+  { clear - GfsB Gfs BB. specialize (Gfs id); unfold sub_option, Clight.fundef in *.
+    rewrite GfsB in Gfs. destruct ge'. simpl in *. rewrite Gfs in BB. inv BB; trivial. }
+  subst bb. right. simpl. exists b, ifunc.
+  specialize (Gffp b).
+  unfold Clight.fundef in *. simpl in *. rewrite GffpB in Gffp. simpl in Gffp.
+  repeat split; trivial.
+  destruct ifunc; trivial.
+  destruct ifunc; trivial.
+  intros until b2; intros Impos; inv Impos.
++ apply (Hyp3 v sig cc A P Q m NM).
+  simpl. exists j; do 2 eexists; split. apply J. apply GJ.
+Qed. 
 
 Lemma int_eq_false_e:
   forall i j, Int.eq i j = false -> i <> j.
@@ -60,6 +134,21 @@ intro; subst.
 rewrite Int.eq_true in H; inv H.
 Qed.
 
+Lemma int64_eq_false_e:
+  forall i j, Int64.eq i j = false -> i <> j.
+Proof.
+intros.
+intro; subst.
+rewrite Int64.eq_true in H; inv H.
+Qed.
+
+Lemma ptrofs_eq_false_e:
+  forall i j, Ptrofs.eq i j = false -> i <> j.
+Proof.
+intros.
+intro; subst.
+rewrite Ptrofs.eq_true in H; inv H.
+Qed.
 
 Lemma semax_ifthenelse_PQR' :
    forall Espec {cs: compspecs} (v: val) Delta P Q R (b: expr) c d Post,
@@ -493,7 +582,7 @@ unfold Int.eqm.
 unfold Zbits.eqmod.
 set (m := Int.modulus) in *.
 destruct H as [z ?].
-assert (x = y mod m + z * m) by omega.
+assert (x = y mod m + z * m) by lia.
 clear H. subst x.
 pose proof (Z.div_mod y m).
 spec H. intro Hx; inv Hx.
@@ -501,10 +590,10 @@ evar (k: Z).
 exists k.
 rewrite H at 2; clear H.
 rewrite (Z.mul_comm m).
-assert (z * m = k*m + (y/m*m))%Z; [ | omega].
+assert (z * m = k*m + (y/m*m))%Z; [ | lia].
 rewrite <- Z.mul_add_distr_r.
 f_equal.
-assert (k = z - y/m); [ | omega].
+assert (k = z - y/m); [ | lia].
 subst k.
 reflexivity.
 Qed.
@@ -521,7 +610,7 @@ intros.
 simpl.
 apply modulo_samerepr in H.
 rewrite <- H.
-rewrite Int.unsigned_repr by rep_omega.
+rewrite Int.unsigned_repr by rep_lia.
 auto.
 Qed.
 

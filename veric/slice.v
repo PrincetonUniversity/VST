@@ -1088,7 +1088,7 @@ apply pred_ext.
   destruct H2 as [H2 Hg1], H4 as [H4 Hg2].
   split3.
  +
-   eapply resource_at_join2; try omega.
+   eapply resource_at_join2; try lia.
   intro . rewrite H2,H4. clear dependent w1. clear dependent w2.
   specialize (H0 loc). hnf in H0.  
   if_tac in H0. destruct H0 as [rsh' H0]. proof_irr. rewrite H0.

@@ -31,9 +31,9 @@ Lemma BDY_update: forall
  (func_tycontext f_mbedtls_hmac_drbg_update HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )
-   LOCAL (lvar _K (tarray tuchar 32) K; lvar _sep (tarray tuchar 1) sep;
+   LOCAL (lvar _K (tarray tuchar 32) K; lvar _sep (tarray tuchar 1) sep; gvars gv;
    temp _ctx ctx; temp _additional additional;
-   temp _add_len (Vint (Int.repr add_len)); gvars gv)
+   temp _add_len (Vint (Int.repr add_len)))
    SEP (data_at_ Tsh (tarray tuchar 32) K;
    data_at_ Tsh (tarray tuchar 1) sep;
    da_emp sha (tarray tuchar (Zlength contents))
@@ -79,7 +79,7 @@ Proof. intros. do 2 pose proof I.
 
   (* md_len = mbedtls_md_get_size( info ); *)
   freeze [0;1] FR1.
-  forward_call tt.
+  forward_call (IS1a).
 
   (*Intros md_len. LENB: replaced by the following*)
   (*change (Z.of_nat SHA256.DigestLength) with 32.*)
@@ -99,7 +99,7 @@ Proof. intros. do 2 pose proof I.
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
-      simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; omega.
+      simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; lia.
     }
   }
 
@@ -160,11 +160,11 @@ Proof. intros. do 2 pose proof I.
   ). (* 2 *)
   {
     (* Int.min_signed <= 0 <= rounds *)
-    rewrite Heqrounds; destruct na; auto.
+    rewrite Heqrounds; destruct na; auto; computable.
   }
   {
     (* rounds <= Int.max_signed *)
-    rewrite Heqrounds; destruct na; auto.
+    rewrite Heqrounds; destruct na; auto; computable.
   }
   {
     (* pre conditions imply loop invariant *)
@@ -222,14 +222,14 @@ Proof. intros. do 2 pose proof I.
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc,
                        @nil byte, V, gv). 
     {
-      rewrite H9. split3; auto.
+      rewrite H9. compute; auto.
     }
     Intros. 
     simpl.
     assert (Hiuchar: Int.zero_ext 8 (Int.repr i) = Int.repr i).
     {
       clear - H4 Heqrounds. destruct na; subst;
-      apply zero_ext_inrange; simpl; rewrite Int.unsigned_repr;  rep_omega.
+      apply zero_ext_inrange; simpl; rewrite Int.unsigned_repr;  rep_lia.
     }
 
     (* mbedtls_md_hmac_update( &ctx->md_ctx, sep, 1 ); *)
@@ -238,12 +238,12 @@ Proof. intros. do 2 pose proof I.
     Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, sep, Tsh, V, [Byte.repr i], gv). 
      { simpl map. unfold Vubyte. rewrite Byte.unsigned_repr. cancel.
-       clear - Heqrounds H4. destruct na; rep_omega.
+       clear - Heqrounds H4. destruct na; rep_lia.
      }
 (*   rewrite <- (data_at_share_join _ _ _ _ _ _ (join_comp_Tsh shc)); cancel. *)
     {
       (* prove the PROP clauses *)
-      rewrite H9. split3; auto.
+      rewrite H9. simpl; compute; auto.
     }
     Intros.
 (*    sep_apply (data_at_share_join_W _ _ _ (tarray tuchar 1) [Vint (Int.repr i)] [Vint (Int.repr i)]  sep 
@@ -285,7 +285,6 @@ Proof. intros. do 2 pose proof I.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)),  shc,Vptr b i0, sha, V ++ [Byte.repr i], contents, gv).
       {
         (* prove the PROP clause matches *)
-        split3; auto.
         rewrite Zlength_app; rewrite H9.
         simpl. remember (Zlength contents) as n; clear - H.
         destruct H. rewrite <- Zplus_assoc.
@@ -293,7 +292,7 @@ Proof. intros. do 2 pose proof I.
         rewrite hmac_pure_lemmas.IntModulus32 in H0; rewrite two_power_pos_equiv.
         simpl. simpl in H0.
         assert (H1: Z.pow_pos 2 61 = 2305843009213693952) by reflexivity; rewrite H1; clear H1.
-        omega.
+        lia.
       }
       (* prove the post condition of the if statement *)
       rewrite <- app_assoc.
@@ -307,7 +306,7 @@ Proof. intros. do 2 pose proof I.
         destruct na; trivial; elim H6; trivial. }
       rewrite RNDS1 in *; clear H6 H4.
       assert (NAF: na = false).
-      { destruct na; try omega. trivial. }
+      { destruct na; try lia; trivial. }
       rewrite NAF in *. clear Heqrounds.
       forward. rewrite H9, NAF.
       destruct additional; try contradiction; simpl in PNadditional.
@@ -323,7 +322,7 @@ Proof. intros. do 2 pose proof I.
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, K, Tsh, gv).
         sep_apply (memory_block_data_at__tarray_tuchar Tsh K 32).
-        rep_omega. cancel.
+        rep_lia. cancel.
     Intros.
     freeze [0;1;2;4] FR9.
     rewrite data_at_isptr with (p:=K). Intros.
@@ -342,15 +341,13 @@ Proof. intros. do 2 pose proof I.
       (* prove the function parameters match up *)
       apply prop_right. 
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
-      rewrite offset_val_force_ptr, isptr_force_ptr; trivial. auto.
+      rewrite offset_val_force_ptr, isptr_force_ptr; trivial.
     }
     rewrite hmac_common_lemmas.HMAC_Zlength. cancel. 
 
-    {
-      split3; auto.
-      + (* prove that output of HMAC can serve as its key *)
-        unfold spec_hmac.has_lengthK; simpl; auto. split; auto.
-        rewrite hmac_common_lemmas.HMAC_Zlength. simpl. split. rep_omega. compute; auto.
+    {  (* prove that output of HMAC can serve as its key *)
+        unfold spec_hmac.has_lengthK; simpl; auto.
+        rewrite hmac_common_lemmas.HMAC_Zlength. simpl. rep_lia.
     }
     Intros.
 (*    match goal with |- context [data_at (Share.comp Ews) ?t ?v ?p] =>
@@ -368,13 +365,12 @@ Proof. intros. do 2 pose proof I.
                        @nil byte, V, gv). (*9 *)
     {
       (* prove the function parameters match up *)
-      rewrite H9, FA_ctx_V. apply prop_right. destruct ctx; try contradiction.
-      split; try reflexivity.
-      simpl. rewrite FA_ctx_MDCTX. rewrite ptrofs_add_repr_0_r; auto.
+      rewrite H9, FA_ctx_V, FA_ctx_MDCTX. apply prop_right. simpl. destruct ctx; try contradiction.
+      simpl. rewrite ptrofs_add_repr_0_r; auto.
     }
     {
       (* prove the PROP clauses *)
-      rewrite H9. split3; auto.
+      rewrite H9. compute; auto.
     }
     Intros.
     rewrite H9.
@@ -387,7 +383,7 @@ Proof. intros. do 2 pose proof I.
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc,
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc, gv).
     change 32 with (sizeof (tarray tuchar 32)) at 1.
-    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_omega).
+    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_lia).
     simpl sizeof. cancel.
 
     Time go_lower. (*necessary due to existence of local () && in postcondition of for-rule*)
@@ -402,7 +398,7 @@ Proof. intros. do 2 pose proof I.
     apply andp_right.
     { apply prop_right. repeat split; eauto.
       subst initial_key initial_value.
-      apply HMAC_DRBG_update_round_incremental_Z; try eassumption. omega.
+      apply HMAC_DRBG_update_round_incremental_Z; try eassumption. lia.
       apply hmac_common_lemmas.HMAC_Zlength. }
     thaw FR9; cancel.
     unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state.
@@ -425,7 +421,7 @@ Proof. intros. do 2 pose proof I.
  
   (* prove function post condition *)
   entailer!. 
-Time Qed. (*Coq8.6: 31secs*)
+Time Qed. (*Coq 8.10.1: 6.3s; Coq8.6: 31secs*)
 
 Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.

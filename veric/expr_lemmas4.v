@@ -42,10 +42,12 @@ simpl in *. destruct t; try contradiction.
 destruct i0; try contradiction. auto.
 
 * (*Const float*)
-destruct f; simpl in *; subst; destruct t; try destruct f; intuition.
+destruct f; simpl in *; subst; destruct t; try destruct f; tauto.
 * (* Const single *)
-destruct f; simpl in *; subst; destruct t; try destruct f; intuition.
+destruct f; simpl in *; subst; destruct t; try destruct f; tauto.
 
+* (* Const long *)
+simpl in *. destruct t; try contradiction. hnf. auto.
 * (*Var*)
 eapply typecheck_expr_sound_Evar; eauto.
 
@@ -149,7 +151,7 @@ Lemma typecheck_expr_sound : forall {CS: compspecs} Delta rho m e,
               denote_tc_assert (typecheck_expr Delta e) rho m ->
               tc_val (typeof e) (eval_expr e rho).
 Proof. intros.
-assert (TC := typecheck_both_sound Delta rho m e). intuition. Qed.
+assert (TC := typecheck_both_sound Delta rho m e). tauto. Qed.
 
 
 Lemma typecheck_lvalue_sound : forall {CS: compspecs} Delta rho m e,
@@ -168,7 +170,6 @@ unfold Clight_Cop2.sem_cmp, Clight_Cop2.sem_cmp_pl, Clight_Cop2.sem_cmp_lp, Clig
 
 Lemma eval_binop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho b e1 e2 t m
-(*        (Hcenv: genv_cenv ge = @cenv_cs CS)*)
         (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge)),
     rho = construct_rho (filter_genv ge) ve te ->
     typecheck_environ Delta rho ->
@@ -529,7 +530,6 @@ Qed.
 
 Lemma eval_unop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho u e t m 
- (*(Hcenv : genv_cenv ge = @cenv_cs CS)*)
  (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge))
  (H : rho = construct_rho (filter_genv ge) ve te)
  (H0 : typecheck_environ Delta rho)
@@ -614,7 +614,6 @@ Qed.
 
 Lemma eval_both_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
-           (*genv_cenv ge = cenv_cs ->*)
            cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ Delta rho ->
@@ -627,7 +626,6 @@ Lemma eval_both_relate:
               eval_lvalue e rho = Vptr b ofs).
 Proof.
 intros until m; intro Hcenv; intros.
-(*generalize dependent ge.*)
  induction e; intros;
 try solve[intuition; constructor; auto | subst; inv H1]; intuition.
 
@@ -776,8 +774,8 @@ simpl in H1.
   eapply Clight.eval_Elvalue; auto. eassumption.
   rewrite Heqt0.
   apply Clight.deref_loc_copy. auto.
-  { (*rewrite Hcenv; eassumption.*) specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
-  { (*rewrite Hcenv; eassumption.*) eapply field_offset_stable; eauto.
+  { specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
+  { eapply field_offset_stable; eauto.
     intros. specialize (Hcenv id); rewrite H in Hcenv; apply Hcenv.
     apply cenv_consistent.  }
   unfold_lift.
@@ -792,7 +790,7 @@ simpl in H1.
   eapply Clight.eval_Elvalue; eauto.
   apply Clight.deref_loc_copy.
   rewrite Heqt0. auto. eauto.
-  { (*rewrite Hcenv; eauto.*) specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
+  { specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
   rewrite H4. simpl.
   apply Clight.deref_loc_reference; auto.
 *
@@ -814,8 +812,8 @@ intuition.
  eapply Clight.eval_Efield_struct; auto; try eassumption.
 eapply Clight.eval_Elvalue in H2. apply H2.
 rewrite Heqt0. apply Clight.deref_loc_copy. simpl; auto.
-{ (*rewrite Hcenv; eassumption.*) specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
-{ (*rewrite Hcenv; eassumption.*) eapply field_offset_stable; eauto.
+{ specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
+{ eapply field_offset_stable; eauto.
   intros. specialize (Hcenv id); rewrite H5 in Hcenv; apply Hcenv.
   apply cenv_consistent.  }
 +
@@ -824,7 +822,7 @@ eapply Clight.eval_Efield_union; eauto.
 eapply Clight.eval_Elvalue; eauto.
 rewrite Heqt0. apply Clight.deref_loc_copy.
 auto.
-{ (*rewrite Hcenv; eassumption.*) specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
+{ specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
 *
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.
@@ -835,8 +833,7 @@ rewrite eqb_type_spec in H2.
 subst.
 unfold eval_expr.
 unfold_lift; simpl.
-{ (*rewrite <- Hcenv.*) 
-  rewrite H1.
+{ rewrite H1. unfold expr.sizeof.
   rewrite <- (cenv_sub_sizeof Hcenv _ H1).
   apply Clight.eval_Esizeof. }
 *
@@ -847,14 +844,13 @@ apply tc_bool_e in H1.
 apply tc_bool_e in H2.
 unfold eval_expr.
 unfold_lift; simpl.
-rewrite H1.
-(*unfold alignof. rewrite <- Hcenv.*) rewrite <- (cenv_sub_alignof Hcenv _ H1). 
+rewrite H1.  unfold expr.alignof.
+rewrite <- (cenv_sub_alignof Hcenv _ H1). 
 constructor.
 Qed.
 
 Lemma eval_expr_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
-           (*genv_cenv ge = cenv_cs ->*)
            cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ Delta rho ->
@@ -868,7 +864,6 @@ Qed.
 Lemma eval_lvalue_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
            cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
-(*           genv_cenv ge = cenv_cs ->*)
            rho = construct_rho (filter_genv ge) ve te->
            typecheck_environ Delta rho ->
            (denote_tc_assert (typecheck_lvalue Delta e) rho (m_phi m) ->
@@ -879,38 +874,6 @@ Proof.
 intros.
 edestruct eval_both_relate; eauto.
 Qed.
-
-(*
-Lemma tc_lvalue_nonvol : forall rho Delta e,
-(denote_tc_assert (typecheck_lvalue Delta e) rho) ->
-type_is_volatile (typeof e) = false.
-Proof.
-intros.
-destruct e; intuition; simpl in *.
-unfold get_var_type in *.
-
-destruct ((var_types Delta) ! i); intuition; simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
- super_unfold_lift;
-intuition. unfold tc_bool in *. rewrite if_negb in *.
-if_tac in H1; simpl in *; super_unfold_lift; intuition.
-
-super_unfold_lift; intuition. unfold tc_bool in *. rewrite if_negb in *.
-destruct ((glob_types Delta) ! i). simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
- super_unfold_lift.
-destruct H. if_tac in H0; auto; inv H0. inv H.
-
-
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-super_unfold_lift; intuition. clear - H1. unfold tc_bool in *. rewrite if_negb in *.
-if_tac in H1; intuition.
-
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-super_unfold_lift. intuition. unfold tc_bool in *.  rewrite if_negb in *.
-if_tac in H1; auto. inv H1.
-Qed.
-*)
 
 
 

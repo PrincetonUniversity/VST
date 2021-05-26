@@ -40,7 +40,7 @@ Proof.
   copy H0.
   apply (af_level2 age_facts) in H0.
   apply IHn.
-  omega.
+  lia.
 Qed.
 Arguments af_wf [A] _ _.
 
@@ -185,7 +185,7 @@ Section RtRft.
   Qed.
 End RtRft.
 
-Hint Resolve rt_refl : core.
+#[export] Hint Resolve rt_refl : core.
 
 Definition laterR {A} `{ageable A} : relation A := clos_trans A age.
 Definition necR   {A} `{ageable A} : relation A := clos_refl_trans A age.
@@ -263,7 +263,7 @@ Lemma necR_level {A} `{X: ageable A} : forall (x y:A),
 Proof.
   intros x y H; induction H; auto.
   rewrite (age_level x y); auto.
-  omega.
+  lia.
 Qed.
 
 Lemma laterR_level {A} `{X: ageable A} : forall (x y:A),
@@ -272,7 +272,7 @@ Lemma laterR_level {A} `{X: ageable A} : forall (x y:A),
 Proof.
   intros x y H; induction H; auto.
   rewrite (age_level x y); auto.
-  omega.
+  lia.
 Qed.
 
 Section NAT_AGEABLE.
@@ -305,7 +305,7 @@ Section NAT_AGEABLE.
     induction H.
     destruct x; inv H; auto.
     auto.
-    omega.
+    lia.
 
     induction H.
     apply rt_refl.
@@ -321,8 +321,8 @@ Section NAT_AGEABLE.
     induction H.
     destruct x; simpl in H.
     inv H.
-    inv H. omega.
-    omega.
+    inv H. lia.
+    lia.
     hnf in H.
     inv H.
     apply t_step.
@@ -331,7 +331,7 @@ Section NAT_AGEABLE.
     apply t_step. compute; auto.
     change (@necR _ ag_nat m n').
     rewrite nec_nat.
-    omega.
+    lia.
   Qed.
 
 End NAT_AGEABLE.
@@ -675,7 +675,7 @@ revert phi1 phi H H1 H0; induction a; intros.
 simpl in *.
 inv H0.
 rewrite H in H1; discriminate.
-replace (S a + b)%nat with (S (a+b))%nat in H by omega.
+replace (S a + b)%nat with (S (a+b))%nat in H by lia.
 unfold ageN in *;
 simpl in *.
 case_eq (age1 phi1); intros; rewrite H2 in H; try discriminate.
@@ -685,7 +685,7 @@ elimtype False.
 unfold ageN in *.
 revert phi1 H H0; induction a; intros.
 simpl in *. discriminate.
-replace (S a + b)%nat with (S (a+b))%nat in H by omega.
+replace (S a + b)%nat with (S (a+b))%nat in H by lia.
 simpl in *.
 revert H H0; case_eq (age1 phi1); intros; try discriminate.
 eapply IHa; eauto.
@@ -748,16 +748,16 @@ assert (forall m, (m <= n)%nat ->
          (exists i, F i /\ (i<m)%nat /\ ~ F (S i))).
 induction m.
 left; intros.
-elimtype False; omega.
+elimtype False; lia.
 intro.
-assert (m<=n)%nat; try omega.
+assert (m<=n)%nat; try lia.
 destruct (IHm H2).
-assert (m < n \/ m = n)%nat; try omega.
+assert (m < n \/ m = n)%nat; try lia.
 destruct H4.
 destruct (Fdec m) as [?H|?H].
 left.
 intros.
-assert (k < m \/ k = m)%nat; try omega.
+assert (k < m \/ k = m)%nat; try lia.
 destruct H7.
 auto.
 subst k; auto.
@@ -765,25 +765,25 @@ right.
 exists (Peano.pred m).
 destruct m.
 contradiction.
-replace (Peano.pred (S m)) with m; try omega.
+replace (Peano.pred (S m)) with m; try lia.
 split.
-apply H3; try omega.
-split; try omega.
+apply H3; try lia.
+split; try lia.
 auto.
 subst m.
 right.
 destruct n.
 contradiction.
-exists n; repeat split; auto; try omega.
+exists n; repeat split; auto; try lia.
 right.
 destruct H3 as [i H4].
 destruct H4.
 destruct H4.
-exists i; repeat split; auto; omega.
-assert (n <= n)%nat; try omega.
+exists i; repeat split; auto; lia.
+assert (n <= n)%nat; try lia.
 destruct (H1 _ H2).
 destruct n; try contradiction.
-exists n; repeat split; auto; try omega.
+exists n; repeat split; auto; try lia.
 auto.
 Qed.
 
@@ -851,14 +851,14 @@ unfold ageN in H, H0. simpl in *.
 revert H; case_eq (age1 phi); intros; try discriminate.
 rewrite H in H0.
 eauto.
-assert (i<x' \/ i=x' \/ i>x')%nat by omega.
+assert (i<x' \/ i=x' \/ i>x')%nat by lia.
 destruct H2 as [?| [?| ?]]; auto.
-replace x' with (i+(x'-i))%nat in H3 by omega.
+replace x' with (i+(x'-i))%nat in H3 by lia.
 specialize (H1 _ _ _ _ _ H H3 H4 H0).
-omega.
-replace i with (x'+(i-x'))%nat in H by omega.
+lia.
+replace i with (x'+(i-x'))%nat in H by lia.
 specialize (H1 _ _ _ _ _ H3 H H0 H4).
-omega.
+lia.
 Qed.
 
 Lemma ageable_ext:
@@ -899,10 +899,10 @@ destruct (necR_linear H0 H1).
 clear - H2 H3.
 apply nec_refl_or_later in H3.
 destruct H3; auto.
-apply laterR_level in H0; unfold fashionR in H2; elimtype False; omega.
+apply laterR_level in H0; unfold fashionR in H2; elimtype False; lia.
 apply nec_refl_or_later in H3.
 destruct H3; auto.
-apply laterR_level in H3; unfold fashionR in H2; elimtype False; omega.
+apply laterR_level in H3; unfold fashionR in H2; elimtype False; lia.
 Qed.
 
 Lemma laterR_necR {A} `{agA : ageable A}:
@@ -920,7 +920,7 @@ Proof.
 intros; constructor 2.
 Qed.
 
-Hint Resolve @necR_refl : core.
+#[export] Hint Resolve necR_refl : core.
 
 Lemma necR_trans  {A} `{H : ageable A}:
   forall phi1 phi2 phi3, necR phi1 phi2 -> necR phi2 phi3 -> necR phi1 phi3.

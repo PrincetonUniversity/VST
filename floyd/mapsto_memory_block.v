@@ -55,7 +55,7 @@ Proof.
   eapply derives_trans; [apply mapsto_local_facts |].
   apply prop_derives; tauto.
 Qed.
-Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
+#[export] Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
 
 Lemma mapsto_offset_zero:
   forall sh t v1 v2, mapsto sh t v1 v2 = mapsto sh t (offset_val 0 v1) v2.
@@ -120,7 +120,7 @@ Proof.
   destruct p; simpl; normalize. apply prop_right;split; auto.
 Qed.
 
-Hint Resolve memory_block_local_facts : saturate_local.
+#[export] Hint Resolve memory_block_local_facts : saturate_local.
 
 Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n v = memory_block sh n (offset_val 0 v).
@@ -195,7 +195,7 @@ Proof.
   destruct H3. destruct p; try contradiction.
   + simpl in H1, H2.
     destruct (access_mode_by_value _ H) as [ch ?].
-    unfold sizeof in *; erewrite size_chunk_sizeof in H1 |- * by eauto.
+    unfold expr.sizeof, Ctypes.sizeof in *; erewrite size_chunk_sizeof in H1 |- * by eauto.
     rewrite mapsto_memory_block.mapsto__memory_block with (ch := ch); auto.
     eapply align_compatible_rec_by_value_inv in H2; [| eassumption].
     auto.
@@ -216,6 +216,7 @@ Proof.
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
   destruct H5. destruct p; try contradiction.
   + simpl in H2, H3.
+    unfold expr.sizeof in *.
     erewrite size_chunk_sizeof in H2 |- * by eauto.
     apply mapsto_memory_block.nonreadable_memory_block_mapsto; auto.
     eapply align_compatible_rec_by_value_inv in H3; [| eassumption].
@@ -246,22 +247,22 @@ Lemmas about specific types
 (* We do these as Hint Extern, instead of Hint Resolve,
   to limit their application and make them fail faster *)
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
    (simple apply mapsto_mapsto_int32; apply Coq.Init.Logic.I)  : cancel.
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
    (simple apply mapsto_mapsto__int32; apply Coq.Init.Logic.I)  : cancel.
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
     (apply mapsto_mapsto_) : cancel.
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
    (apply mapsto_mapsto__int32)  : cancel.
 
-Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
+#[export] Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
    (apply mapsto_mapsto_int32)  : cancel.
 
-Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
+#[export] Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 
 Lemma mapsto_force_ptr: forall sh t v v',
   mapsto sh t (force_ptr v) v' = mapsto sh t v v'.
@@ -392,7 +393,7 @@ Proof.
   rewrite !withspacer_spacer.
   unfold spacer.
   simpl.
-  replace (pos + ed - (pos + be)) with (ed - be) by omega.
+  replace (pos + ed - (pos + be)) with (ed - be) by lia.
   if_tac; [reflexivity|].
   rewrite !at_offset_eq.
   replace (offset_val (pos + be) p) with
@@ -454,9 +455,9 @@ Proof.
   simpl offset_val.
   inv_int i.
   rewrite !ptrofs_add_repr.
-  rewrite sepcon_comm, Z.add_assoc, <- memory_block_split by omega.
+  rewrite sepcon_comm, Z.add_assoc, <- memory_block_split by lia.
   f_equal.
-  omega.
+  lia.
 Qed.
 
 Hint Rewrite at_offset_eq3 : at_offset_db.

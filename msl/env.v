@@ -647,7 +647,7 @@ Lemma empty_env_unit' {key: Type}{A: Type}: forall rho: env key A, join empty_en
 Proof.
 intros; apply empty_env_unit.
 Qed.
-Hint Resolve @empty_env_unit @empty_env_unit' : core.
+#[export] Hint Resolve empty_env_unit empty_env_unit' : core.
 
 Lemma env_join_sub1 {key: Type}{A: Type}:
   forall rho1 rho2: env key A, (forall id x, env_get rho1 id = Some x -> env_get rho2 id = Some x) ->
@@ -829,7 +829,7 @@ destruct (dec_share_identity (pshare_sh sh2)).
 contradiction (@nonunit_nonidentity _ _ _ _ (pshare_sh sh2)).
 apply pshare_nonunit.
 apply join_unit1; auto.
-f_equal. f_equal. unfold mk_lifted; destruct sh2; simpl. f_equal. apply proof_irr.
+f_equal. f_equal. unfold mk_lifted; destruct sh2; simpl. f_equal.
 constructor.
 Qed.
 
@@ -927,7 +927,7 @@ Proof.
 rewrite emp_empty_env.
 auto.
 Qed.
-Hint Resolve @emp_empty_env' : core.
+#[export] Hint Resolve emp_empty_env' : core.
 
 Lemma env_mapsto_cohere{key: Type}{A: Type}{KE: EqDec key}: forall id sh1 (v1: A) sh2 v2,
   (env_mapsto id sh1 v1 * TT) && (env_mapsto id sh2 v2 * TT)
@@ -954,7 +954,7 @@ Proof.
     apply env_mapsto_get in H; destruct H.
     apply env_mapsto_get in H0; destruct H0.
     rewrite H; rewrite H0.
-    repeat f_equal; auto. apply proof_irr.
+    repeat f_equal; auto.
 
     eapply env_mapsto_get_neq in H; eauto.
     eapply env_mapsto_get_neq in H0; eauto.

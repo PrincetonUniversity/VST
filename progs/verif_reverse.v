@@ -56,25 +56,25 @@ Definition t_struct_list := Tstruct _list noattr.
 Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int, p: val
-  PRE [ _p OF (tptr t_struct_list) ]
+  PRE [ tptr t_struct_list ]
      PROP(readable_share sh)
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (lseg LS sh (map Vint contents) p nullval)
   POST [ tuint ]
      PROP()
-     LOCAL(temp ret_temp (Vint (sum_int contents)))
+     RETURN (Vint (sum_int contents))
      SEP (lseg LS sh (map Vint contents) p nullval).
 
 Definition reverse_spec :=
  DECLARE _reverse
   WITH sh : share, contents : list val, p: val
-  PRE  [ _p OF (tptr t_struct_list) ]
+  PRE  [ tptr t_struct_list ]
      PROP (writable_share sh)
-     LOCAL (temp _p p)
+     PARAMS (p)
      SEP (lseg LS sh contents p nullval)
   POST [ (tptr t_struct_list) ]
     EX p:val,
-     PROP () LOCAL (temp ret_temp p)
+     PROP () RETURN (p)
      SEP (lseg LS sh (rev contents) p nullval).
 
 (** The "main" function is special, since its precondition includes
@@ -84,9 +84,9 @@ Definition reverse_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]
-     PROP() LOCAL (temp ret_temp (Vint (Int.repr (3+2+1)))) SEP(TT).
+     PROP() RETURN (Vint (Int.repr (3+2+1))) SEP(TT).
 
 (** List all the function-specs, to form the global hypothesis *)
 Definition Gprog : funspecs :=   ltac:(with_library prog [
@@ -253,7 +253,7 @@ Proof.
   assert (FC: field_compatible (tarray t_struct_list 3) [] (gv _three))
     by auto with field_compatible.
   match goal with |- ?A |-- _ => set (a:=A) end.
-  replace (gv _three) with (offset_val 0 (gv _three)) by normalize.
+  replace (gv _three) with (offset_val 0 (gv _three)) by (autorewrite with norm; auto).
   subst a.
 
   rewrite (sepcon_comm (has_ext tt)).
@@ -261,18 +261,19 @@ Proof.
   rewrite !sepcon_assoc.
   rewrite (sepcon_emp (lseg _ _ _ _ _)).
   rewrite sepcon_emp.
-  repeat
+
+ repeat
   match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
     assert (FC': field_compatible t_struct_list [] (offset_val n (gv _three)));
       [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
          [ArraySubsc (n/8)] (gv _three));
        simpl;
        unfold field_compatible in FC |- *; simpl in FC |- *;
-       assert (0 <= n/8 < 3) by (cbv [Z.div]; simpl; omega);
+       assert (0 <= n/8 < 3) by (cbv [Z.div]; simpl; lia);
        tauto
       |];
     apply @lseg_unroll_nonempty1 with q;
-      [destruct (gv _three); try contradiction; intro Hx; inv Hx | normalize; reflexivity | ];
+      [destruct (gv _three); try contradiction; intro Hx; inv Hx | normalize; try reflexivity | ];
     rewrite list_cell_eq by auto;
     do 2 (apply sepcon_derives;
       [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;

@@ -9,15 +9,11 @@ Local Open Scope logic.
 Lemma body_SHA256: semax_body Vprog Gtot f_SHA256 SHA256_spec.
 Proof.
 start_function.
-
-abbreviate_semax.
-
+rewrite data_at__isptr; Intros.
 forward_call (* SHA256_Init(&c); *)
    (v_c, Tsh).
-
 forward_call (* SHA256_Update(&c,d,n); *)
   (@nil byte, data,v_c,Tsh, d,dsh, Zlength data, gv).
- split3; auto; repeat split; auto; Omega1.
  simpl app.
 
 forward_call (* SHA256_Final(md,&c); *)

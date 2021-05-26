@@ -156,7 +156,7 @@ Proof.
     destruct H3; auto.
   + intros.
     unfold eval_vardesc in H1.
-    unfold eval_var.
+    unfold eval_var. red in H.
     destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *.
     - destruct (T2 ! i) as [[? ?]|] eqn:?; [| inv H1].
       destruct (eqb_type t t1) eqn:?; inv H1.
@@ -184,7 +184,7 @@ Lemma msubst_eval_lvar_eq_aux {cs: compspecs}: forall Delta T1 T2 GV rho,
 Proof.
   intros.
   unfold eval_lvar.
-  unfold eval_lvardesc in H1.
+  unfold eval_lvardesc in H1. red in H.
   destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *; [| inv H1].
   destruct (T2 ! i) as [[? ?]|] eqn:?; [| inv H1].
   destruct (eqb_type t t1) eqn:?; inv H1.
@@ -292,10 +292,24 @@ Proof.
   apply H2; auto.
 Qed.
 
+Ltac prove_eqb_type :=
+ match goal with |- context [eqb_type ?A ?B] => 
+  try change (eqb_type A B) with true;
+  rewrite (proj2 (eqb_type_spec A B))
+     by (repeat f_equal; rep_lia)
+ end;
+ cbv beta iota.
+
 Ltac solve_msubst_eval_lvalue :=
   (simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  unfold eval_vardesc;
+  repeat match goal with |- match match PTree.get ?A ?B with _ => _ end with _ => _ end = _ =>
+         let x := fresh "x" in set (x := PTree.get A B); hnf in x; subst x;
+          cbv beta iota
+       end;
+   try prove_eqb_type;
   reflexivity) ||
   match goal with 
   |- msubst_eval_lvalue _ _ _ _ ?e = _ =>
@@ -317,6 +331,12 @@ Ltac solve_msubst_eval_LR :=
   simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  unfold eval_vardesc;
+  repeat match goal with |- match PTree.get ?A ?B with _ => _ end = _ =>
+         let x := fresh "x" in set (x := PTree.get A B); hnf in x; subst x;
+          cbv beta iota
+       end;
+   try prove_eqb_type;
   reflexivity) ||
   match goal with 
   |- msubst_eval_LR _ _ _ _ ?e _ = _ =>
@@ -324,7 +344,14 @@ Ltac solve_msubst_eval_LR :=
   end.
 
 Ltac solve_msubst_eval_lvar :=
-  (unfold msubst_eval_lvar; reflexivity) ||
+  (unfold msubst_eval_lvar;
+   unfold eval_vardesc, eval_lvardesc;
+  repeat match goal with |- match PTree.get ?A ?B with _ => _ end = _ =>
+         let x := fresh "x" in set (x := PTree.get A B); hnf in x; subst x;
+          cbv beta iota
+       end;
+   try prove_eqb_type;
+   reflexivity) ||
   match goal with 
   |- msubst_eval_lvar _ _ ?id _ = _ =>
    fail "Cannot symbolically evaluate lvar" id "given the information in your LOCAL clause; did you forget an 'lvar' declaration?"
