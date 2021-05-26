@@ -217,8 +217,8 @@ endif
 
 # ##### Configure Flocq #####
 
-# FLOCQ=         # this mode to use the flocq packaged with Coq or opam
-FLOCQ= -Q $(COMPCERT_INST_DIR)/flocq Flocq  # this mode to use the flocq built into compcert
+FLOCQ=         # this mode to use the flocq packaged with Coq or opam
+# FLOCQ= -Q $(COMPCERT_INST_DIR)/flocq Flocq  # this mode to use the flocq built into compcert
 
 # ##### Configure installation folder #####
 
