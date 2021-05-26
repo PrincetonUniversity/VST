@@ -2,8 +2,14 @@
 name: CI
 
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - master
+      - release-v2.7
+      - release-v2.8
+  pull_request:
+    branches:
+      - '**'
 
 jobs:
   build:
