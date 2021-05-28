@@ -93,7 +93,7 @@ Arguments denote_tc_Zle z !v .
 Arguments denote_tc_samebase !v1 !v2 .
 Arguments denote_tc_nodivover !v1 !v2 .
 Arguments denote_tc_initialized id ty rho / .
-Arguments denote_tc_nosignedover op v1 v2 / .
+Arguments denote_tc_nosignedover op s v1 v2 / .
 Ltac simpl_denote_tc :=
  repeat change (denote_tc_isptr ?v) with (!! isptr v);
  repeat change (denote_tc_iszero (Vint ?i)) with (!! is_true (Int.eq i Int.zero));

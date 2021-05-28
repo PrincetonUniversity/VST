@@ -204,11 +204,12 @@ Proof.
     - simpl.
       unfold_lift.
       unfold denote_tc_nosignedover.
-      destruct (eval_expr e rho); try solve [inv H0].
-      rewrite negb_true_iff in H0.
-      rewrite Z.eqb_neq in H0.
-      apply prop_right.
-      change (Int64.signed Int64.zero) with 0.
+      destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ];
+      destruct (eval_expr e rho); try solve [inv H0];
+      rewrite negb_true_iff in H0;
+      rewrite Z.eqb_neq in H0;
+      apply prop_right;
+      change (Int64.signed Int64.zero) with 0;
       rep_lia.
   + destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].
 Qed.

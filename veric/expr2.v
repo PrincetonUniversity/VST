@@ -235,16 +235,16 @@ match v1, v2 with
           | _ , _ => FF
         end.
 
-Definition denote_tc_nosignedover (op: Z->Z->Z) v1 v2 : mpred :=
+Definition denote_tc_nosignedover (op: Z->Z->Z) (s: signedness) v1 v2 : mpred :=
  match v1,v2 with
  | Vint n1, Vint n2 => 
    prop (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed)
  | Vlong n1, Vlong n2 =>
    prop (Int64.min_signed <= op (Int64.signed n1) (Int64.signed n2) <= Int64.max_signed)
  | Vint n1, Vlong n2 =>
-   prop (Int64.min_signed <= op (Int.signed n1) (Int64.signed n2) <= Int64.max_signed)
+   prop (Int64.min_signed <= op ((if s then Int.signed else Int.unsigned) n1) (Int64.signed n2) <= Int64.max_signed)
  | Vlong n1, Vint n2 =>
-   prop (Int64.min_signed <= op (Int64.signed n1) (Int.signed n2) <= Int64.max_signed)
+   prop (Int64.min_signed <= op (Int64.signed n1) ((if s then Int.signed else Int.unsigned)  n2) <= Int64.max_signed)
  | _, _ => FF
  end.
 
@@ -301,6 +301,8 @@ Definition denote_tc_test_order v1 v2 : mpred :=
 
 Definition typecheck_error (e: tc_error) : Prop := False.
 
+Search (type->bool).
+
 Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   match a with
   | tc_FF msg => `(prop (typecheck_error msg))
@@ -321,7 +323,12 @@ Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero' e => `denote_tc_iszero (eval_expr e)
-  | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
+  | tc_nosignedover op e1 e2 => 
+     match typeof e1, typeof e2 with
+     | Tlong _ _, Tint _ Unsigned _ => `(denote_tc_nosignedover op Unsigned) (eval_expr e1) (eval_expr e2)
+     | Tint _ Unsigned _, Tlong _ _ => `(denote_tc_nosignedover op Unsigned) (eval_expr e1) (eval_expr e2)
+     | _, _ =>  `(denote_tc_nosignedover op Signed) (eval_expr e1) (eval_expr e2)
+     end
  end.
 
 Lemma and_False: forall x, (x /\ False) = False.
