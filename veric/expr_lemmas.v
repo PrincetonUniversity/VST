@@ -1016,14 +1016,14 @@ Proof.
   try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv2); simpl; trivial.
 Qed.
 
-Lemma denote_tc_nosignedover_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2 w (z:Z -> Z -> Z)
+Lemma denote_tc_nosignedover_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2 w (z:Z -> Z -> Z) (s: signedness)
       (E: @app_pred rmap ag_rmap
         (@liftx (Tarrow val (Tarrow val (LiftEnviron mpred)))
-           (denote_tc_nosignedover z) (@eval_expr CS e1) 
+           (denote_tc_nosignedover z s) (@eval_expr CS e1) 
            (@eval_expr CS e2) rho) w):
   @app_pred rmap ag_rmap
         (@liftx (Tarrow val (Tarrow val (LiftEnviron mpred)))
-           (denote_tc_nosignedover z) (@eval_expr CS' e1) 
+           (denote_tc_nosignedover z s) (@eval_expr CS' e1) 
            (@eval_expr CS' e2) rho) w.
 Proof.
   unfold liftx, lift, denote_tc_nodivover in *; simpl in *.
@@ -1055,7 +1055,9 @@ Proof.
   + apply (denote_tc_Zle_eval_expr_cenv_sub CSUB); trivial.
   + apply (istrue_sameblock_eval_expr_cenv_sub CSUB); trivial.
   + apply (denote_tc_nodivover_eval_expr_cenv_sub CSUB); trivial.
-  + apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); trivial.
+  + destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ],
+       (typeof e0) as [ | _ [ | ] _ | | | | | | | ];
+   try (apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); trivial).
 Qed.
 
 Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w Delta: forall a, 

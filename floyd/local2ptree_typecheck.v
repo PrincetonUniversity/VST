@@ -42,7 +42,15 @@ Fixpoint msubst_denote_tc_assert (tc: tc_assert): mpred :=
   | tc_nodivover' v1 v2 => denote_tc_nodivover (force_val (msubst_eval_expr Delta T1 T2 GV v1)) (force_val (msubst_eval_expr Delta T1 T2 GV v2))
   | tc_initialized id ty => FF
   | tc_iszero' e => denote_tc_iszero (force_val (msubst_eval_expr Delta T1 T2 GV e))
-  | tc_nosignedover op e1 e2 => denote_tc_nosignedover op (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
+  | tc_nosignedover op e1 e2 => 
+     match typeof e1, typeof e2 with
+     | Tlong _ _, Tint _ Unsigned _ => 
+          denote_tc_nosignedover op Unsigned (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
+     | Tint _ Unsigned _, Tlong _ _ =>
+         denote_tc_nosignedover op Unsigned (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
+     | _, _ =>  
+         denote_tc_nosignedover op Signed (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
+     end
   end.
 
 Definition msubst_tc_lvalue (e: expr) :=
@@ -337,20 +345,28 @@ Proof.
       intros rho.
       simpl.
       normalize.
+     destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ],
+       (typeof e0) as [ | _ [ | ] _ | | | | | | | ]; simpl; normalize.
     - apply andp_left1, imp_andp_adjoint, andp_left2.
       unfold denote_tc_samebase.
       unfold local, lift1; unfold_lift.
       intros rho.
-      destruct v; simpl; normalize.
+     destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ],
+       (typeof e0) as [ | _ [ | ] _ | | | | | | | ],
+         v; simpl; normalize.
     - apply andp_left1, imp_andp_adjoint, andp_left2.
       unfold denote_tc_samebase.
       unfold local, lift1; unfold_lift.
       intros rho.
-      destruct v; simpl; normalize.
+     destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ],
+       (typeof e0) as [ | _ [ | ] _ | | | | | | | ],
+         v; simpl; normalize.
     - apply andp_left1, imp_andp_adjoint, andp_left2.
       unfold denote_tc_samebase.
       unfold local, lift1; unfold_lift.
       intros rho.
+     destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ],
+       (typeof e0) as [ | _ [ | ] _ | | | | | | | ];
       simpl; normalize.
 Qed.
 

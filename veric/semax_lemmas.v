@@ -1547,6 +1547,8 @@ Proof.
     destruct (eval_expr e rho), (eval_expr e0 rho); auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
+    destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ],
+                  (typeof e0) as [ | _ [ | ] _ | | | | | | | ];
     destruct (eval_expr e rho), (eval_expr e0 rho); auto.
 Qed.
 
