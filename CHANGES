@@ -23,6 +23,7 @@ CHANGES IN RELEASE 2.8 (June 2021)
 - Fixed #487 forward_loop does not work if loop is not followed by a statement
 - Fixed #488 Universe inconsistency if Princeton VST and QuickChick is required
 - Fixed #491 forward/Qed grows exponentially with the number of locals
+- Fixed #500 incorrectly typecheck (long long)+(unsigned int)
 
 CHANGES IN RELEASE 2.7 (December 22, 2020)
 
