@@ -1,31 +1,21 @@
-(*Require Import VST.floyd.base. *)
-Require Import compcert.lib.Coqlib.
+(*Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.coqlib4.  (* just for prop_unext *)
+*)
+Require Import ZArith Znumtheory.
+Require Import Coq.Lists.List.
+Require Import Lia.
+Import ListNotations.
+Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Coq.Logic.PropExtensionality.
 Require Export VST.floyd.sublist.
+Import SublistInternalLib.
+(*
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Floats.
 Require Import compcert.common.Values.
-Require Import Coq.micromega.Lia.
+*)
 Require Export VST.floyd.Zlength_solver.
-Import ListNotations.
-
-(* stuff moved from functional_base*)
-Definition Vubyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.unsigned c)).
-Definition Vbyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.signed c)).
-Ltac fold_Vbyte :=
- repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
-      fold (Vbyte c)
-end.
-Instance Inhabitant_val : Inhabitant val := Vundef.
-Instance Inhabitant_int: Inhabitant int := Int.zero.
-Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
-Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
-Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
-Instance Inhabitant_float : Inhabitant float := Float.zero.
-Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
 
 (** This file provides a almost-complete solver for list with concatenation.
   Its core symbols include:
@@ -36,15 +26,14 @@ Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
     sublist
     map.
   And it also interprets these symbols by convernting to core symbols:
-    list_repeat (Z.to_nat _)
     nil
     cons
     upd_Znth. *)
 
 (** * list_form *)
-Lemma list_repeat_Zrepeat : forall (A : Type) (x : A) (n : Z),
-  list_repeat (Z.to_nat n) x = Zrepeat x n.
-Proof. intros *. rewrite <- repeat_list_repeat. auto. Qed.
+Lemma repeat_Zrepeat : forall (A : Type) (x : A) (n : Z),
+  repeat x (Z.to_nat n) = Zrepeat x n.
+Proof. intros *. auto. Qed.
 
 Lemma cons_Zrepeat_1_app : forall (A : Type) (x : A) (al : list A),
   x :: al = Zrepeat x 1 ++ al.
@@ -59,11 +48,6 @@ Proof. intros. rewrite upd_Znth_old_upd_Znth; auto. Qed.
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)
 
 (* Auxilary lemmas for Znth_solve. *)
-Lemma Znth_Zrepeat : forall (A : Type) (d : Inhabitant A) (i n : Z) (x : A),
-  0 <= i < n ->
-  Znth i (Zrepeat x n) = x.
-Proof. intros. unfold Zrepeat. rewrite repeat_list_repeat. apply Znth_list_repeat_inrange; auto. Qed.
-
 Definition Znth_app1 := app_Znth1.
 Definition Znth_app2 := app_Znth2.
 
@@ -80,8 +64,8 @@ Lemma Znth_upd_Znth_diff : forall (A : Type) (d : Inhabitant A) (i j : Z) (l : l
   Znth i (upd_Znth j l x) = Znth i l.
 Proof.
   intros.
-  destruct (Sumbool.sumbool_and _ _ _ _ (zle 0 i) (zlt i (Zlength l)));
-    destruct (Sumbool.sumbool_and _ _ _ _ (zle 0 j) (zlt j (Zlength l))).
+  destruct (Sumbool.sumbool_and _ _ _ _ (Z_le_gt_dec 0 i) (Z_lt_ge_dec i (Zlength l)));
+    destruct (Sumbool.sumbool_and _ _ _ _ (Z_le_gt_dec 0 j) (Z_lt_ge_dec j (Zlength l))).
   - rewrite upd_Znth_diff; auto.
   - rewrite upd_Znth_out_of_range; auto.
   - rewrite !Znth_outofbounds; auto. lia.
@@ -122,29 +106,41 @@ Proof.
     apply H0.
 Qed.
 
-Hint Rewrite list_repeat_Zrepeat cons_Zrepeat_1_app : list_solve_rewrite.
-Hint Rewrite app_nil_r app_nil_l : list_solve_rewrite.
-(* Hint Rewrite upd_Znth_unfold using Zlength_solve : list_solve_rewrite. *)
-
 Ltac list_form :=
-  autorewrite with list_solve_rewrite in *.
+  (* be careful not to change things to much above the line;
+    only in propositions, and don't unnecessarily revert
+    a proposition (which would change the order of things above the line) *)
+  match goal with
+  | H : ?A |- _ => 
+    lazymatch type of A with
+    | Prop => lazymatch A with
+                     | context [@cons] => idtac
+                     | context [@repeat] => idtac
+                     | context [@Zrepeat _ _ 0] => idtac
+                     | context [nil ++ _] => idtac
+                     end
+    end;
+    revert H; list_form; intro H
+  | |- context [Zrepeat _ ?A] =>
+       lazymatch A with 0%Z => fail
+         | _ => replace A with 0%Z by lia
+       end
+  | |- _ =>
+       repeat change (?a :: ?b) with (Zrepeat a 1 ++ b);
+       repeat change (repeat ?x (Z.to_nat ?n)) with (Zrepeat x n);
+       repeat change (@Zrepeat ?A _ 0) with (@nil A);
+       repeat change (nil ++ ?b) with b
+   end.
 
 (** * Znth_solve *)
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)
 
-Hint Rewrite @Znth_list_repeat_inrange using Zlength_solve : Znth.
+Hint Rewrite @Znth_repeat_inrange using Zlength_solve : Znth.
 Hint Rewrite @Znth_sublist using Zlength_solve : Znth.
 Hint Rewrite Znth_app1 Znth_app2 using Zlength_solve : Znth.
 Hint Rewrite Znth_Zrepeat using Zlength_solve : Znth.
 Hint Rewrite Znth_upd_Znth_same Znth_upd_Znth_diff using Zlength_solve : Znth.
 
-Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
-Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.
-Hint Rewrite (@Znth_map _ Inhabitant_ptrofs) using Zlength_solve : Znth.
-Hint Rewrite (@Znth_map _ Inhabitant_int64) using Zlength_solve : Znth.
-Hint Rewrite (@Znth_map _ Inhabitant_byte) using Zlength_solve : Znth.
-Hint Rewrite (@Znth_map _ Inhabitant_int) using Zlength_solve : Znth.
-Hint Rewrite (@Znth_map _ Inhabitant_val) using Zlength_solve : Znth.
 Hint Rewrite (@Znth_map _ Inhabitant_Z) using Zlength_solve : Znth.
 Hint Rewrite (@Znth_map _ Inhabitant_nat) using Zlength_solve : Znth.
 
@@ -159,7 +155,7 @@ Ltac Znth_solve_rec :=
   try match goal with
   | |- context [Znth ?n (app ?al ?bl)] =>
     let H := fresh in
-    pose (H := Z_lt_le_dec n (Zlength al));
+    pose (H := Z_lt_ge_dec n (Zlength al));
     Zlength_simplify_in H; destruct H;
     Znth_solve_rec
   | |- context [Znth ?n (upd_Znth ?i ?l ?x)] =>
@@ -183,7 +179,7 @@ Ltac Znth_solve2 :=
   [ match goal with
     | |- context [Znth ?n (?al ++ ?bl)] =>
           let H := fresh in
-          pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
+          pose (H := Z_lt_ge_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
   | match goal with
     | |- context [Znth ?n (upd_Znth ?i ?l ?x)] =>
@@ -198,7 +194,7 @@ Ltac Znth_solve2 :=
   | match goal with
     | H0 : context [Znth ?n (?al ++ ?bl)] |- _ =>
           let H := fresh in
-          pose (H := Z_lt_le_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
+          pose (H := Z_lt_ge_dec n (Zlength al)); Zlength_simplify_in_all; destruct H; Znth_solve2
     end
   | match goal with
     | H0 : context [Znth ?n (upd_Znth ?i ?l ?x)] |- _ =>
@@ -231,6 +227,9 @@ Ltac fassumption :=
   ].
 
 (******************* eq_solve ********************)
+Local Lemma prop_unext: forall P Q: Prop, P=Q -> (P<->Q).
+Proof. intros. subst; split; auto. Qed.
+
 Ltac eq_solve_with tac :=
   solve [
   repeat multimatch goal with
@@ -279,7 +278,7 @@ Proof.
     split; intros; apply H0; lia.
   - (* <- *)
     destruct H0.
-    destruct (Z_lt_le_dec i mi).
+    destruct (Z_lt_ge_dec i mi).
     + apply H0; lia.
     + apply H2; lia.
 Qed.
@@ -727,9 +726,9 @@ Proof.
   fapply H0.
   repeat first [
     progress f_equal
-  | apply extensionality; intros
+  | apply functional_extensionality; intros
   ].
-  apply prop_ext. split; intros; apply H1; lia.
+  apply propositional_extensionality. split; intros; apply H1; lia.
 Qed.
 
 Lemma forall_triangleA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -744,9 +743,9 @@ Proof.
   fapply H0.
   repeat first [
     progress f_equal
-  | apply extensionality; intros
+  | apply functional_extensionality; intros
   ].
-  apply prop_ext. split; intros; apply H1; lia.
+  apply propositional_extensionality. split; intros; apply H1; lia.
 Qed.
 
 Lemma forall_triangleA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -772,9 +771,9 @@ Proof.
   fapply H0.
   repeat first [
     progress f_equal
-  | apply extensionality; intros
+  | apply functional_extensionality; intros
   ].
-  apply prop_ext. split; intros; apply H1; lia.
+  apply propositional_extensionality. split; intros; apply H1; lia.
 Qed.
 
 Lemma forall_triangleA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
@@ -821,9 +820,9 @@ Proof.
   fapply H0.
   repeat first [
     progress f_equal
-  | apply extensionality; intros
+  | apply functional_extensionality; intros
   ].
-  apply prop_ext. split; intros; apply H1; lia.
+  apply propositional_extensionality. split; intros; apply H1; lia.
 Qed.
 
 Lemma forall_triangleB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -838,9 +837,9 @@ Proof.
   fapply H0.
   repeat first [
     progress f_equal
-  | apply extensionality; intros
+  | apply functional_extensionality; intros
   ].
-  apply prop_ext. split; intros; apply H1; lia.
+  apply propositional_extensionality. split; intros; apply H1; lia.
 Qed.
 
 Lemma forall_triangleB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -866,9 +865,9 @@ Proof.
   fapply H0.
   repeat first [
     progress f_equal
-  | apply extensionality; intros
+  | apply functional_extensionality; intros
   ].
-  apply prop_ext. split; intros; apply H1; lia.
+  apply propositional_extensionality. split; intros; apply H1; lia.
 Qed.
 
 Lemma forall_triangleB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
@@ -929,7 +928,8 @@ Proof.
     + subst a. apply H with 0. Zlength_solve.
       autorewrite with sublist. auto.
     + apply IHl; auto. intros.
-        specialize (H (i+1) ltac:(Zlength_solve)). autorewrite with list_solve_rewrite Znth in *.
+        specialize (H (i+1) ltac:(Zlength_solve)). 
+        list_form. autorewrite with Znth in *.
         fassumption.
 Qed.
 
@@ -1702,7 +1702,7 @@ Lemma range_le_lt_dec : forall lo i hi,
   {lo <= i < hi} + {~lo <= i < hi}.
 Proof.
   intros.
-  destruct (Z_lt_le_dec i lo); destruct (Z_lt_le_dec i hi); left + right; lia.
+  destruct (Z_lt_ge_dec i lo); destruct (Z_lt_ge_dec i hi); left + right; lia.
 Qed.
 
 Ltac destruct_range i lo hi :=
@@ -1711,7 +1711,7 @@ Ltac destruct_range i lo hi :=
 Lemma Z_le_lt_dec : forall x y,
   {x <= y} + {y < x}.
 Proof.
-  intros. destruct (Z_lt_le_dec y x); auto.
+  intros. destruct (Z_lt_ge_dec y x); [right|left]; auto. lia.
 Qed.
 
 Ltac pose_new_res i lo hi H res :=
@@ -2116,10 +2116,14 @@ Ltac apply_list_ext :=
   Zlength_simplify;
   intros.
 
+Ltac customizable_list_solve_preprocess := idtac.
+
 Ltac list_solve_preprocess :=
-  fold_Vbyte;
+  customizable_list_solve_preprocess;
   autounfold with list_solve_unfold in *;
-  unshelve autorewrite with list_solve_rewrite in *; [solve [auto with typeclass_instances] .. | idtac];
+  list_form;
+  unshelve rewrite ?app_nil_r in *; 
+  [solve [auto with typeclass_instances] .. | idtac];
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 

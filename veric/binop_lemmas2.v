@@ -7,6 +7,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.Clight_Cop2.
 Import Cop.
+Import compcert.lib.Maps.
 
 Lemma eval_expr_any:
   forall {CS: compspecs} rho e v,

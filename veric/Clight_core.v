@@ -8,6 +8,7 @@ Require Import compcert.cfrontend.Clight.
 (*To prove memsem*)
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
+Import compcert.lib.Maps.
 Require Import VST.sepcomp.event_semantics.
 
 Definition ef_deterministic (ef: external_function) : bool :=

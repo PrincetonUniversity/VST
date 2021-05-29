@@ -21,6 +21,7 @@ Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas4.
 Local Open Scope pred.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Section extensions.
   Context {CS: compspecs} {Espec: OracleKind}.
   
@@ -938,7 +939,7 @@ forall (Delta: tycontext) sh id P e1 t2 v2,
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT) ->
+   (forall rho, seplog.derives (!! typecheck_environ Delta rho && P rho) (mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT)) ->
     semax Espec Delta
        (fun rho => |>
         (tc_lvalue Delta e1 rho
@@ -1075,7 +1076,7 @@ forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT) ->
+   (forall rho, seplog.derives (!! typecheck_environ Delta rho && P rho) (mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT)) ->
     semax Espec Delta
        (fun rho => |>
         (tc_lvalue Delta e1 rho

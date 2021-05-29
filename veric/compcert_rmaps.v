@@ -76,9 +76,12 @@ Qed.
 Instance EqDec_calling_convention: EqDec calling_convention.
 Proof.
   hnf. decide equality.
-  destruct cc_structret, cc_structret0; intuition.
-  destruct cc_unproto, cc_unproto0; intuition.
-  destruct cc_vararg, cc_vararg0; intuition.
+  destruct cc_structret, cc_structret0; subst; try tauto; right; congruence.
+  destruct cc_unproto, cc_unproto0;  subst; try tauto; right; congruence.
+  destruct cc_vararg, cc_vararg0; subst; try tauto.
+  destruct (zeq z0 z); subst; [left|right]; congruence.
+  right; congruence.
+  right; congruence.
 Qed.
 
 Instance EqDec_kind: EqDec kind.

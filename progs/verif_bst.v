@@ -366,7 +366,7 @@ Proof.
 Qed.
 
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-  forall P Q R: A, P |-- Q -> P * (Q -* R) |-- R.
+  forall P Q R: A, (P |-- Q) -> P * (Q -* R) |-- R.
 Proof.
   intros.
   eapply derives_trans; [| apply modus_ponens_wand].

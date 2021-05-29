@@ -11,7 +11,7 @@ Basic lemmas about local_facts, isptr, offset_zero
 
 ******************************************)
 
-Lemma local_facts_isptr: forall P Q (p: val), P p |-- !! Q -> (Q -> isptr p) -> P p = !! (isptr p) && P p.
+Lemma local_facts_isptr: forall P Q (p: val), (P p |-- !! Q) -> (Q -> isptr p) -> P p = !! (isptr p) && P p.
 Proof.
   intros.
   rewrite andp_comm; apply add_andp.

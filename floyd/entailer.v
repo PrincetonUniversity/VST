@@ -79,7 +79,7 @@ Ltac simpl_compare :=
 end.
 
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
-  forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
+  forall P Q, (Q |-- !! P)   ->   Q |-- !!P && Q.
 Proof.
 intros. apply andp_right; auto.
 Qed.
@@ -93,7 +93,7 @@ Arguments denote_tc_Zle z !v .
 Arguments denote_tc_samebase !v1 !v2 .
 Arguments denote_tc_nodivover !v1 !v2 .
 Arguments denote_tc_initialized id ty rho / .
-Arguments denote_tc_nosignedover op v1 v2 / .
+Arguments denote_tc_nosignedover op s v1 v2 / .
 Ltac simpl_denote_tc :=
  repeat change (denote_tc_isptr ?v) with (!! isptr v);
  repeat change (denote_tc_iszero (Vint ?i)) with (!! is_true (Int.eq i Int.zero));
@@ -142,8 +142,8 @@ Ltac simpl_denote_tc :=
 
 Lemma denote_tc_test_eq_split:
   forall P x y,
-    P |-- valid_pointer x ->
-    P |-- valid_pointer y ->
+    (P |-- valid_pointer x) ->
+    (P |-- valid_pointer y) ->
     P |-- denote_tc_test_eq x y.
 Proof.
  intros.
@@ -182,7 +182,7 @@ intros.
  unfold valid_pointer.
  pose proof (extend_tc.extend_valid_pointer' p 0).
  pose proof (predicates_hered.boxy_e _ _ H).
- change (_ |-- _) with (predicates_hered.derives (valid_pointer' p 0 * Q) (valid_pointer' p 0)).
+ constructor; change (predicates_hered.derives (valid_pointer' p 0 * Q) (valid_pointer' p 0)).
  intros ? (w1 & w2 & Hj & Hp & ?).
  apply (H0 w1); auto.
  hnf; eauto.
@@ -196,7 +196,7 @@ Proof.
   pose proof (predicates_hered.boxy_e _ _ H). 
   pose proof (extend_tc.extend_valid_pointer' p (-1)).
   pose proof (predicates_hered.boxy_e _ _ H1).
-  change (_ |-- _) with
+  constructor; change
       (predicates_hered.derives
          (predicates_hered.orp (valid_pointer' p 0) (valid_pointer' p (-1)) * Q)
          (predicates_hered.orp (valid_pointer' p 0) (valid_pointer' p (-1)))).
@@ -206,7 +206,7 @@ Qed.
 
 Lemma sepcon_valid_pointer1:
      forall (P Q: mpred) p,
-        P |-- valid_pointer p ->
+        (P |-- valid_pointer p) ->
         P * Q |-- valid_pointer p.
 Proof.
 intros.
@@ -217,7 +217,7 @@ Qed.
 
  Lemma sepcon_valid_pointer2:
      forall (P Q: mpred) p,
-        P |-- valid_pointer p ->
+        (P |-- valid_pointer p) ->
         Q * P |-- valid_pointer p.
 Proof.
  intros. rewrite sepcon_comm; apply sepcon_valid_pointer1.
@@ -226,7 +226,7 @@ Qed.
 
 Lemma sepcon_weak_valid_pointer1: 
  forall (P Q : mpred) (p : val),
-   P |-- weak_valid_pointer p -> P * Q |-- weak_valid_pointer p.
+   (P |-- weak_valid_pointer p) -> P * Q |-- weak_valid_pointer p.
 Proof.
   intros.
   eapply derives_trans; [ | apply (extend_weak_valid_pointer p Q)].
@@ -235,7 +235,7 @@ Qed.
 
 Lemma sepcon_weak_valid_pointer2:
   forall (P Q : mpred) (p : val),
-    P |-- weak_valid_pointer p -> Q * P |-- weak_valid_pointer p.
+    (P |-- weak_valid_pointer p) -> Q * P |-- weak_valid_pointer p.
 Proof.
   intros. rewrite sepcon_comm.
   apply sepcon_weak_valid_pointer1; auto.
@@ -243,7 +243,7 @@ Qed.
 
  Lemma andp_valid_pointer1:
      forall (P Q: mpred) p,
-        P |-- valid_pointer p ->
+        (P |-- valid_pointer p) ->
         P && Q |-- valid_pointer p.
 Proof.
 intros.
@@ -252,7 +252,7 @@ Qed.
 
  Lemma andp_valid_pointer2:
      forall (P Q: mpred) p,
-        P |-- valid_pointer p ->
+        (P |-- valid_pointer p) ->
         Q && P |-- valid_pointer p.
 Proof.
 intros.
@@ -483,7 +483,7 @@ Ltac try_conjuncts :=
 Lemma try_conjuncts_prop_and:
   forall {A}{NA: NatDed A} (S: A) (P P': Prop) Q,
       (P' -> P) ->
-      S |-- !! P' && Q ->
+      (S |-- !! P' && Q) ->
       S |-- !! P && Q.
 Proof. intros.
  eapply derives_trans; [apply H0 |].
@@ -495,7 +495,7 @@ Qed.
 Lemma try_conjuncts_prop:
   forall {A}{NA: NatDed A} (S: A) (P P': Prop),
       (P' -> P) ->
-      S |-- !! P' ->
+      (S |-- !! P') ->
       S |-- !! P .
 Proof. intros.
  eapply derives_trans; [apply H0 |].
@@ -782,7 +782,7 @@ Qed.
 Definition cstringn {CS : compspecs} sh (s: list byte) n p :=
   !!(~In Byte.zero s) &&
   data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
-    list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef) p.
+    Zrepeat Vundef (n - (Zlength s + 1))) p.
 
 Fixpoint no_zero_bytes (s: list byte) : bool :=
  match s with
@@ -830,7 +830,7 @@ Proof.
   rewrite !Zlength_app, !Zlength_map, Zlength_app in H1.
   assert (H8 := Zlength_nonneg s).
   destruct (zlt n (Zlength s + 1)).
-  rewrite Z_to_nat_neg in H1 by lia. autorewrite with sublist in H1. lia.
+  autorewrite with sublist in H1. lia.
   split. lia.
   autorewrite with sublist in *.
   destruct H0 as [? [_ [? _]]].

@@ -133,7 +133,7 @@ Lemma thread_inv_exclusive : forall tsh sh gsh g ctr lock lockt,
 Proof.
   intros; apply selflock_exclusive.
   unfold thread_lock_R.
-  apply exclusive_sepcon1; auto.
+  apply exclusive_sepcon1; auto with exclusive.
 Qed.
 #[export] Hint Resolve thread_inv_exclusive.
 

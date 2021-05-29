@@ -701,7 +701,7 @@ Lemma address_mapsto_align: forall ch v sh l,
 Proof.
   intros.
   pose proof (@add_andp (pred rmap) _); simpl in H. apply H; clear H.
-  unfold address_mapsto.
+  constructor; unfold address_mapsto.
   apply exp_left; intro.
   do 2 apply andp_left1.
   intros ? [? [? ?]].

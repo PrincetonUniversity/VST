@@ -13,6 +13,7 @@ Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.local2ptree_typecheck.
 Import Cop.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Definition int_type_min_max (type_i type_hi: type): option (Z * Z) :=
@@ -647,8 +648,11 @@ Proof.
     try (unfold eval_id in H1;
           destruct (Map.get (te_of rho) _i); simpl in H1; try discriminate H1; subst v;
           eexists; split; [reflexivity | apply I]);
+     destruct s; 
+    rewrite <- H1; apply prop_right;
      rewrite ?Int64.signed_repr by rep_lia;
      rewrite ?Int.signed_repr by rep_lia;
+     rewrite ?Int.unsigned_repr by rep_lia;
      rep_lia.
 Qed.
 
@@ -812,7 +816,7 @@ Qed.
 
 Lemma quick_derives_right:
   forall P Q : environ -> mpred,
-   TT |-- Q -> P |-- Q.
+   (TT |-- Q) -> P |-- Q.
 Proof.
 intros. eapply derives_trans; try eassumption; auto.
 Qed.

@@ -375,7 +375,7 @@ Lemma HL_equiv_LL_encryption: forall exp_key plaintext,
   Zlength exp_key = 15 ->
   (mbed_tls_aes_enc
      (map Int.unsigned (state_to_list plaintext))
-     ((blocks_to_Zwords exp_key) ++ (list_repeat (8%nat) 0))
+     ((blocks_to_Zwords exp_key) ++ (repeat 0 (8%nat)))
   ) = output_four_ints_as_bytes (state_to_four_ints (Cipher exp_key plaintext)).
 Proof.
   intros.

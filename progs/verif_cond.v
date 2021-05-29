@@ -142,7 +142,6 @@ Proof.
     { rewrite sepcon_comm. rewrite !sepcon_assoc.
       erewrite cond_var_share_join; eauto; cancel. }
     forward.
-Unshelve. apply xH. (*TODO: fix (I believe) the forward_spawn tactic  so that this ident is not introduces. Is it the y?*)
 Qed.
 
 Definition extlink := ext_link_prog prog.

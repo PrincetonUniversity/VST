@@ -129,7 +129,7 @@ entailer!.
 erewrite field_at_Tarray; try reflexivity; try apply JMeq_refl; try lia;
   [ | compute; clear; intuition].
 rewrite (split3seg_array_at _ _ _ 0 (Zlength dd') 56 64); try Omega1.
-2: rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat by lia;
+2: rewrite !Zlength_app, !Zlength_map, !Zlength_repeat by lia;
   lia.
 autorewrite with sublist in *|-.
 simpl.

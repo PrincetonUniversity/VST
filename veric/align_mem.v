@@ -5,6 +5,7 @@ Require Import VST.veric.base.
 Require Import compcert.cfrontend.Ctypes. (*Require Import VST.veric.Clight_lemmas.*)
 Require Import VST.veric.type_induction.
 Require Import VST.veric.composite_compute.
+Import compcert.lib.Maps.
 
 (* This file contains three computational align criteria.
    1: the hardware alignof is not larger than alignof (and additional criterion for array).

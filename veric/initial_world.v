@@ -16,6 +16,7 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas. *)
 
 Require Import VST.veric.age_to_resource_at.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 

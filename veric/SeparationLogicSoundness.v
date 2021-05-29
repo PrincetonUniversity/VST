@@ -96,7 +96,7 @@ Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with M
 
 Module CSHL_Def := VericDef.
 Module CSHL_Defs := DerivedDefs (VericDef).
-  
+
 Definition semax_extract_exists := @extract_exists_pre.
 Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
@@ -105,7 +105,27 @@ Definition semax_func_cons := @semax_func_cons.
 (* Definition semax_func_skip := @semax_func_skip. *)
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
-Definition semax_func_cons_ext := @semax_func_cons_ext.
+
+Lemma semax_func_cons_ext: forall {Espec:OracleKind} (V: varspecs) (G: funspecs)
+     {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ argsig'
+      (G': funspecs) cc b,
+  argsig' = typelist2list argsig ->
+  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
+  id_in_list id (map (@fst _ _) fs) = false ->
+  (ef_inline ef = false \/ withtype_empty A) ->
+  (forall gx ts x (ret : option val),
+      (seplog.derives (seplog.andp
+                         (Q ts x (make_ext_rval gx (rettype_of_type retsig) ret))
+                         (!! Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)))
+                      (!!tc_option_val retsig ret))) ->
+  Genv.find_symbol ge id = Some b ->
+  Genv.find_funct_ptr ge b = Some (Ctypes.External ef argsig retsig cc) ->
+  @CSHL_Def.semax_external Espec ef A P Q ->
+  CSHL_Def.semax_func Espec V G C ge fs G' ->
+  CSHL_Def.semax_func Espec V G C ge ((id, Ctypes.External ef argsig retsig cc)::fs)
+             ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
+Proof. intros. eapply semax_func_cons_ext; eauto. intros. apply H3. Qed.
+
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 
 Lemma semax_external_binaryintersection: forall
@@ -128,7 +148,10 @@ Lemma semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1
                      (rettype_of_type rtype) cc)
   (SE: @CSHL_Def.semax_external Espec ef A1 P1 Q1),
   @CSHL_Def.semax_external Espec ef A P Q.
-Proof. intros. intros n. eapply semax_external_funspec_sub. apply Hsub. trivial. trivial. Qed.
+Proof.
+  intros. intros n. eapply semax_external_funspec_sub.
+  rewrite <- funspec_sub_iff. apply Hsub. trivial. trivial.
+Qed.
 
 Definition semax_body_binaryintersection := @semax_body_binaryintersection.
 
@@ -140,7 +163,17 @@ Definition semax_func_firstn := semax_func_firstn.
 Definition semax_func_skipn := semax_func_skipn.
 Definition semax_body_subsumption:= semax_body_subsumption.
 Definition semax_body_cenv_sub:= @semax_body_cenv_sub.
-Definition semax_body_funspec_sub:= @semax_body_funspec_sub.
+
+Lemma semax_body_funspec_sub:
+  forall (V : varspecs) (G : funspecs) (cs : compspecs) (f : function) 
+   (i : ident) (phi phi' : funspec),
+ CSHL_Defs.semax_body V G f (i, phi) ->
+ funspec_sub phi phi' ->
+ list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) ->
+ CSHL_Defs.semax_body V G f (i, phi').
+Proof.
+  intros. eapply semax_body_funspec_sub; eauto. now rewrite <- funspec_sub_iff.
+Qed.
 
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.

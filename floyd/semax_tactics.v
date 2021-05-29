@@ -1,5 +1,6 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
+Import compcert.lib.Maps.
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)

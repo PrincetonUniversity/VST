@@ -4,6 +4,7 @@ Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.fieldlist.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Inductive efield : Type :=
@@ -719,9 +720,9 @@ Lemma array_ind_step_ptrofs: forall Delta ei i rho t_root e efs gfs tts t n a t0
   tc_environ Delta rho ->
   efield_denote efs gfs rho ->
   field_compatible t_root gfs p ->
-  tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
+  (tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
   |-- !! (field_address t_root gfs p = eval_LR (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho) &&
-          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho ->
+          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho) ->
   tc_LR_strong Delta e (LR_of_type t_root) rho &&
   tc_efield Delta (eArraySubsc ei :: efs) rho
   |-- !! (offset_val (gfield_offset (nested_field_type t_root gfs) (ArraySubsc i))
@@ -804,9 +805,9 @@ Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
   tc_environ Delta rho ->
   efield_denote efs gfs rho ->
   field_compatible t_root gfs p ->
-  tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
+  (tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
   |-- !! (field_address t_root gfs p = eval_LR (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho) &&
-          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho ->
+          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho) ->
   tc_LR_strong Delta e (LR_of_type t_root) rho &&
   tc_efield Delta (eArraySubsc ei :: efs) rho
   |-- !! (offset_val (gfield_offset (nested_field_type t_root gfs) (ArraySubsc i))
@@ -924,10 +925,10 @@ Lemma struct_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p,
   tc_environ Delta rho ->
   efield_denote efs gfs rho ->
   field_compatible t_root gfs p ->
-  tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
+  (tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
   |-- !! (field_address t_root gfs (eval_LR e (LR_of_type t_root) rho) =
           eval_LR (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho) &&
-          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho ->
+          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho) ->
   tc_LR_strong Delta e (LR_of_type t_root) rho &&
   tc_efield Delta (eStructField i :: efs) rho
   |-- !! (offset_val (gfield_offset (nested_field_type t_root gfs) (StructField i))
@@ -983,10 +984,10 @@ Lemma union_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p,
   tc_environ Delta rho ->
   efield_denote efs gfs rho ->
   field_compatible t_root gfs p ->
-  tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
+  (tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
   |-- !! (field_address t_root gfs (eval_LR e (LR_of_type t_root) rho) =
           eval_LR (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho) &&
-          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho ->
+          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho) ->
   tc_LR_strong Delta e (LR_of_type t_root) rho &&
   tc_efield Delta (eUnionField i :: efs) rho
   |-- !! (offset_val (gfield_offset (nested_field_type t_root gfs) (UnionField i))
@@ -1011,7 +1012,7 @@ Qed.
 Definition lvalue_LR_of_type: forall Delta rho P p t e,
   t = typeof e ->
   tc_environ Delta rho ->
-  P |-- !! (p = eval_lvalue e rho) && tc_lvalue Delta e rho ->
+  (P |-- !! (p = eval_lvalue e rho) && tc_lvalue Delta e rho) ->
   P |-- !! (p = eval_LR e (LR_of_type t) rho) && tc_LR_strong Delta e (LR_of_type t) rho.
 Proof.
   intros.

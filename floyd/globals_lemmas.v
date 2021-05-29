@@ -10,6 +10,7 @@ Require Import VST.floyd.data_at_list_solver.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.nested_pred_lemmas.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Fixpoint fold_right_sepcon' (l: list(environ->mpred)) : environ -> mpred :=
@@ -79,7 +80,7 @@ Lemma tc_globalvar_sound':
    gvar_volatile gv = false ->
    gvar_init gv = idata ->
    tc_environ Delta rho ->
-   globvar2pred (globals_of_env rho)  (i, gv) |--
+   globvar2pred (globals_of_env rho) (i, gv) |--
    init_data_list2pred (globals_of_env rho) idata (readonly2share (gvar_readonly gv)) (globals_of_env rho i).
 Proof.
 intros.
@@ -148,12 +149,12 @@ simple_if_tac.
 apply FF_left.
 apply orp_left. normalize. clear H H0.
 rewrite (res_predicates.address_mapsto_align).
-match goal with |- ?A |-- ?B => change (predicates_hered.derives A B) end.
+match goal with |- ?A |-- ?B => constructor; change (predicates_hered.derives A B) end.
 intros ? ?. destruct H. apply H0.
 normalize.
 clear.
 rewrite (res_predicates.address_mapsto_align).
-match goal with |- ?A |-- ?B => change (predicates_hered.derives A B) end.
+match goal with |- ?A |-- ?B => constructor; change (predicates_hered.derives A B) end.
 intros ? ?. destruct H. apply H0.
 simple_if_tac.
 apply FF_left.
@@ -585,7 +586,6 @@ Proof.
   apply derives_refl.
 Qed.
 
-
 Definition gv_globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : mpred :=
   (fold_right_sepcon (map (globvar2pred gv) vl)).
 
@@ -593,7 +593,7 @@ Definition gv_globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) :
 Lemma globvars2pred_relate:
  forall gv vl rho, 
   gvars_denote gv rho ->
-  globvars2pred gv vl rho =
+  globvars2pred gv vl =
   gv_globvars2pred gv vl.
 Proof.
  intros.
@@ -614,7 +614,7 @@ Proof.
  hnf in H. rewrite H.
  destruct (Map.get (ge_of rho) i0); auto.
 Qed.
-*)
+ *)
 
 Definition globvars_in_process (gv: globals) (done: list mpred)
                (halfdone: mpred)
@@ -630,7 +630,7 @@ Lemma start_globvars_in_process:
           globvars_in_process gz nil emp al * SF) c Post ->
   semax Delta
     (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
-          `(globvars2pred gz al) * SF) c Post.
+     `(globvars2pred gz al) * SF) c Post.
 Proof.
 intros.
 eapply semax_pre; [ | apply H].
@@ -683,7 +683,6 @@ eapply derives_trans; [ apply H | ].
 unfold globvars2pred, lift2; simpl; normalize.
 Qed.
 
-
 Lemma process_globvar':
   forall {cs: compspecs} Delta done (i: ident)
           gz gv al (idata : init_data) t,
@@ -717,7 +716,6 @@ apply sepcon_derives; auto.
 unfold local, lift1 in H7. specialize (H7 rho). simpl in H7. rewrite prop_true_andp in H7 by (split; auto).
 apply H7.
 Qed.
-
 
 Lemma process_globvar_array:
   forall {cs: compspecs} Delta done gz (i: ident)
@@ -873,7 +871,7 @@ apply pred_ext; normalize.
 + apply andp_right. apply prop_right. intuition. trivial.
 + apply andp_right. apply prop_right. intuition. trivial.
 Qed.
-*)
+ *)
 
 Definition main_pre_old {Z: Type} (prog: Clight.program) (ora: Z) : globals -> environ -> mpred :=
 fun gv rho => 
@@ -917,7 +915,7 @@ Proof.
 destruct x; unfold globvar2pred; simpl.
 destruct (gvar_volatile g). reflexivity.
 apply (initdata_list2pred_ge_eq RS).
-Qed. 
+Qed.
 
 Lemma globvars2pred_ge_eq_entails {rho sigma gz} (RS: ge_of rho = ge_of sigma):
       forall l, globvars2pred gz l rho |-- globvars2pred gz l sigma.
@@ -932,7 +930,7 @@ Qed.
 Lemma globvars2pred_ge_eq {rho sigma gz l} (RS: ge_of rho = ge_of sigma):
       globvars2pred gz l rho = globvars2pred gz l sigma.
 Proof. apply pred_ext; apply globvars2pred_ge_eq_entails; [ | symmetry]; trivial. Qed.
-*)
+ *)
 
 Lemma close_precondition_main {Z p ora gv}:
 close_precondition nil (@main_pre Z p ora gv) = @main_pre_old Z p ora gv.
@@ -1060,7 +1058,7 @@ Lemma process_globvar_ptrarray_space:
        globvars_in_process gz done emp ((i,gv)::al) |--
     globvars_in_process gz
        (data_at  (readonly2share (gvar_readonly gv)) (Tarray (Tpointer t' noattr) n noattr)
-                                  (list_repeat (Z.to_nat n) nullval)  (gz i) :: done)
+                                  (Zrepeat nullval n)  (gz i) :: done)
             emp  al.
 Proof.
 intros until n. intros Ht H3; intros.
@@ -1087,7 +1085,6 @@ destruct (zlt n 0).
 -
 unfold sizeof; simpl.
 rewrite Z.max_l by lia.
-rewrite Z2Nat_neg by lia.
 simpl.
 rewrite Z.mul_0_r.
 assert (readable_share (readonly2share (gvar_readonly gv)))
@@ -1103,8 +1100,8 @@ unfold nested_field_type; simpl.
 normalize.
 rewrite data_at_rec_eq.
 rewrite Z.max_l by lia.
-set (x := unfold_reptype _).
-hnf in x. subst x.
+change (unfold_reptype _) with (repeat nullval (Z.to_nat n)).
+rewrite Z2Nat_neg by auto.  simpl repeat.
 rewrite aggregate_pred.aggregate_pred.array_pred_len_0 by auto.
 change predicates_sl.emp with emp.
 apply andp_right; auto.
@@ -1159,6 +1156,7 @@ unfold nested_field_type; simpl.
 unfold nested_field_offset; simpl.
 unfold at_offset.
 rewrite <- (Z2Nat.id n) in H11 by lia.
+unfold Zrepeat.
 clear - H10 H11 H13 Halign.
 revert i0 H10 H11 Halign; induction (Z.to_nat n); intros; simpl.
 rewrite Nat.mul_0_r; apply derives_refl.
@@ -1179,7 +1177,7 @@ rewrite andb_false_r.
 apply orp_right1.
 rewrite prop_true_andp by apply mapsto_memory_block.is_pointer_or_null_nullval.
 {
-change (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr).
+change (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr). constructor.
 apply mapsto_memory_block.address_mapsto_address_mapsto_zeros; auto.
 }
 unfold adr_add.
@@ -1215,7 +1213,7 @@ rewrite Z.sub_0_r in H0. subst i.
 rewrite !Z.sub_0_r.
 rewrite Znth_pos_cons by lia.
 rewrite <- (Nat2Z.id n0).
-rewrite Znth_list_repeat_inrange by lia.
+rewrite Znth_repeat_inrange by lia.
 apply derives_refl'. f_equal. 
 simpl.
 f_equal.
@@ -1403,7 +1401,7 @@ Ltac process_idstar :=
 Create HintDb zero_val discriminated.
 
 Lemma zero_val_tarray {cs: compspecs}:
- forall t n, zero_val (tarray t n) = list_repeat (Z.to_nat n) (zero_val t).
+ forall t n, zero_val (tarray t n) = Zrepeat (zero_val t) n.
 Proof.
 intros.
 rewrite zero_val_eq; reflexivity.

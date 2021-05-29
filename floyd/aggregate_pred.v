@@ -1308,7 +1308,7 @@ Lemma memory_block_array_pred': forall {A}{d: Inhabitant A} (a: A) sh t z b ofs,
   array_pred 0 z
      (fun i _ p =>
       memory_block sh (sizeof t) (offset_val (sizeof t * i) p))
-             (list_repeat (Z.to_nat z) a)
+             (Zrepeat a z)
      (Vptr b (Ptrofs.repr ofs))  =
   memory_block sh (sizeof t * z) (Vptr b (Ptrofs.repr ofs)).
 Proof.
@@ -1316,7 +1316,7 @@ Proof.
   rewrite memory_block_array_pred.
   f_equal. f_equal. lia. f_equal. f_equal. rewrite Z.mul_0_r. lia.
   rewrite Z.mul_0_r. split; lia. lia.
-  rewrite Z.sub_0_r. auto. rewrite Zlength_list_repeat', Z2Nat.id by lia.
+  rewrite Z.sub_0_r. auto. rewrite Zlength_Zrepeat by lia.
   lia.
 Qed.
 
@@ -1327,14 +1327,14 @@ Lemma mapsto_zeros_array_pred': forall {A}{d: Inhabitant A} (a: A) sh t z b ofs,
   array_pred 0 z
      (fun i _ p =>
       mapsto_zeros (sizeof t) sh(offset_val (sizeof t * i) p))
-             (list_repeat (Z.to_nat z) a)
+             (Zrepeat a z)
      (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
   eapply derives_trans; [ | apply mapsto_zeros_array_pred; try lia].
   apply derives_refl'.
   f_equal. lia. f_equal. f_equal. lia.
-  rewrite Zlength_list_repeat', Z2Nat.id by lia.
+  rewrite Zlength_Zrepeat by lia.
   lia.
 Qed.
 
@@ -1966,7 +1966,7 @@ Definition memory_block_array_pred:
   array_pred 0 z
      (fun i _ p =>
       memory_block sh (sizeof t)
-        (offset_val (sizeof t * i) p)) (list_repeat (Z.to_nat z) a)
+        (offset_val (sizeof t * i) p)) (Zrepeat a z)
      (Vptr b (Ptrofs.repr ofs))  =
   memory_block sh (sizeof t * z) (Vptr b (Ptrofs.repr ofs))
 := @memory_block_array_pred'.
@@ -1979,7 +1979,7 @@ Definition mapsto_zeros_array_pred:
   array_pred 0 z
      (fun i _ p =>
       mapsto_zeros (sizeof t) sh
-        (offset_val (sizeof t * i) p)) (list_repeat (Z.to_nat z) a)
+        (offset_val (sizeof t * i) p)) (Zrepeat a z)
      (Vptr b (Ptrofs.repr ofs))
 := @mapsto_zeros_array_pred'.
 

@@ -14,6 +14,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.own.
+Import compcert.lib.Maps.
 
 Import Ctypes Clight_core.
 
@@ -37,6 +38,17 @@ Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) (ge: genv) :=
 Lemma ext_join_approx : forall {Z} (z : Z) n g,
   joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
   joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
+Proof.
+  intros.
+  destruct H.
+  change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
+    (ghost_fmap (approx n) (approx n) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
+  eexists; apply ghost_fmap_join; eauto.
+Qed.
+
+Lemma ext_join_sub_approx : forall {Z} (z : Z) n g,
+  join_sub (Some (ghost_PCM.ext_ref z, NoneP) :: nil) g ->
+  join_sub (Some (ghost_PCM.ext_ref z, NoneP) :: nil) (ghost_fmap (approx n) (approx n) g).
 Proof.
   intros.
   destruct H.
@@ -264,7 +276,7 @@ Qed.
 
 Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
-                   (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
+                     (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
          mksignature (*(typlist_of_typelist (typelist_of_type_list argtypes))*)
                      (map typ_of_type argtypes)
@@ -277,29 +289,69 @@ apply allp_right; intros x.
 destruct Hsub as [_ H]; simpl in H.
 intros n N m NM F typs vals y MY z YZ [HT [z1 [z2 [JZ [Z1 Z2]]]]].
 specialize (H ts x (filter_genv g, vals) z1).
-(*rewrite TTL2 in HSIG.*)
-simpl in H. simpl in N. rewrite HSIG in HT; simpl in HT.
-destruct H as [ts1 [x1 [FRM [[z11 [z12 [JZ1 [H_FRM H_P1]]]] HQ]]]].
-{ split; trivial. clear -HT. 
+(*rewrite TTL2 in HSIG.*) Opaque bupd.
+simpl in H. Transparent bupd. simpl in N. rewrite HSIG in HT; simpl in HT.
+assert (HP: argsHaveTyps vals argtypes /\ P ts x (filter_genv g, vals) z1). {
+  split; trivial. clear -HT. 
   apply has_type_list_Forall2 in HT.
-  eapply Forall2_implication; [ | apply HT]; auto.
-}
+  eapply Forall2_implication; [ | apply HT]; auto. } specialize (H HP). clear HP.
+simpl in H. specialize (H (ghost_of z2)).
+destruct H as [g' [HJ2 [z1' [HL [HR [HG [ts1 [x1
+            [FRM [[z11 [z12 [JZ1 [H_FRM H_P1]]]] HQ]]]]]]]]]].
+{ rewrite <- (ghost_of_approx z1). exists (ghost_approx z1 (ghost_of (m_phi z))).
+  apply ghost_fmap_join. now apply ghost_of_join. } subst g'.
+rewrite <- (ghost_of_approx z1') in HJ2.
+replace (ghost_approx z1' (ghost_of z1')) with
+    (ghost_approx z1 (ghost_of z1')) in HJ2 by now rewrite HL.
+destruct HJ2 as [gz' HJ2]. pose proof (ghost_same_level_gen _ _ _ _ HJ2) as HGA.
+rewrite <- !age_to_resource_at.age_to_ghost_of in HJ2.
+destruct (join_level _ _ _ JZ) as [HLz1z HLz2z].
+rewrite !age_to.age_to_eq in HJ2; auto. 2: now rewrite <- HLz2z in HLz1z.
+assert (HRA: resource_fmap (approx (level z1)) (approx (level z1)) oo
+                           (resource_at (m_phi z)) = resource_at (m_phi z)). {
+  replace (level z1) with (level (m_phi z)).
+  apply resources_same_level. intros. exists (core (m_phi z @ l)).
+  apply join_comm. apply core_unit. }
+destruct (make_rmap _ _ _ HRA HGA) as [pz' [HL2 [HR2 HG]]]. clear HGA HRA.
+assert (JZ2: join z1' z2 pz'). {
+  apply resource_at_join2.
+  - now rewrite <- HL2 in HL.
+  - rewrite <- HLz1z in HLz2z. now rewrite <- HL2 in HLz2z.
+  - intros. rewrite HR, HR2. now apply resource_at_join.
+  - now rewrite HG. }
+destruct (juicy_mem_resource _ _ HR2) as [z' [HP _]]. subst pz'.
+assert (MY': m >= level z'). {
+  unfold ge in MY |-* . transitivity (level y); auto. apply necR_level in YZ.
+  unfold ge in YZ. cut (level z' = level z).
+  - intros. now rewrite H.
+  - rewrite !level_juice_level_phi. now transitivity (level z1). }
 specialize (N ts1 x1). apply join_comm in JZ1.
-destruct (join_assoc JZ1 JZ) as [zz [JJ JJzz]]. apply join_comm in JJ.
-destruct (N _ NM (sepcon F FRM) typs vals _ MY _ YZ) as [est [EST1 EST2]]; clear N.
+destruct (join_assoc JZ1 JZ2) as [zz [JJ JJzz]]. apply join_comm in JJ.
+simpl.
+destruct (N _ NM (sepcon F FRM) typs vals _ MY' _ (necR_refl z')) as
+    [est [EST1 EST2]]; clear N.
 { rewrite HSIG; simpl. split; trivial.
   exists z12, zz; split3. trivial. trivial.
   exists z2, z11; split3; trivial. }
-exists est; split; trivial. 
-simpl; intros.
-destruct (EST2 b b0 b1 _ H _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
-destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.
-destruct (join_assoc JW JU) as [v [JV V]]. apply join_comm in V.
-exists v, w1; split3; trivial.
-apply HQ; clear HQ; split.
-+ simpl. destruct b,b0; reflexivity.
-+ exists w2, u1; split3; trivial.
-Qed. 
+exists est; split.
+- simpl. intros. apply EST1; auto. apply necR_trans with z; auto.
+  rewrite age_to.necR_age_to_iff. admit.
+- simpl; intros. assert (level (m_phi z') >= level (m_phi y0)). {
+    cut (level (m_phi z') = level (m_phi z)).
+    - intros. now rewrite H2.
+    - now transitivity (level z1). }
+  destruct (EST2 b b0 b1 _ H2 _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
+  destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.
+  destruct (join_assoc JW JU) as [v [JV V]]. apply join_comm in V.
+  exists v, w1; split3; trivial.
+  specialize (HQ (make_ext_rval (filter_genv g) b b0) v).
+  assert ((!! (ve_of (make_ext_rval (filter_genv g) b b0) = Map.empty (block * type))
+           && (FRM * Q1 ts1 x1 (make_ext_rval (filter_genv g) b b0))) v). {
+    simpl. split.
+    - simpl. destruct b,b0; reflexivity.
+    - exists w2, u1; split3; trivial. }
+  specialize (HQ H3). simpl in HQ.
+Admitted.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
@@ -543,7 +595,7 @@ Opaque semax'.
 Definition semax {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) P c Q :=
   forall n, semax' Espec Delta P c Q n.
 
-Lemma any_level_pred_nat: forall P: pred nat, (forall n, P n) <-> TT |-- P.
+Lemma any_level_pred_nat: forall P: pred nat, (forall n, P n) <-> (TT |-- P).
 Proof.
   intros.
   split; intros.
@@ -553,10 +605,10 @@ Qed.
 
 Lemma semax_weakest_pre_aux: forall {A: Type} (P: pred nat) (Q R: A -> pred rmap),
   P = fash (ALL x: A, Q x --> R x) ->
-  (TT |-- P <-> forall x, Q x |-- R x).
+  ((TT |-- P) <-> forall x, Q x |-- R x).
 Proof.
   intros.
-  assert (TT |-- ALL x: A, Q x --> R x <-> (forall x : A, Q x |-- R x)).
+  assert ((TT |-- ALL x: A, Q x --> R x) <-> (forall x : A, Q x |-- R x)).
   + split; intros.
     - rewrite <- (TT_and (Q x)).
       rewrite imp_andp_adjoint.
@@ -583,16 +635,6 @@ Proof.
 Qed.
 
 (* Copied from semax_switch. *)
-
-Lemma unfash_allp:  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
-  @unfash _ agA (allp f) = allp (fun x:B => unfash (f x)).
-Proof.
-intros.
-apply pred_ext.
-intros ? ? ?.
-specialize (H b). auto.
-repeat intro. apply (H b).
-Qed.
 
 Lemma fash_TT: forall {A} {agA: ageable A}, @unfash A agA TT = TT.
 Proof.

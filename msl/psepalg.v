@@ -111,7 +111,7 @@ Section PSA_LIFT.
 
     do 2 red in H,H0.
     icase a; icase a'; icase b; icase b'. simpl in *.
-    generalize (join_positivity H H0); intro. subst; f_equal; auto. apply proof_irr.
+    generalize (join_positivity H H0); intro. subst; f_equal; auto.
   Qed.
 
   Instance Pos_lift: Pos_alg lifted.
@@ -124,7 +124,7 @@ Section PSA_LIFT.
   Proof.
     repeat intro. do 2 red in H,H0.
     destruct a1; destruct a2.    generalize (join_canc H H0); intro. simpl in H1.
-    subst; f_equal; auto. apply proof_irr.
+    subst; f_equal; auto.
   Qed.
 
   Instance Disj_lift {DA: Disj_alg A}: Disj_alg lifted.
@@ -134,7 +134,7 @@ Section PSA_LIFT.
     destruct a0, b0.
     hnf in H0; simpl in H0.
     specialize (H _ _ H0); subst.
-    f_equal.  apply proof_irr.
+    f_equal.
   Qed.
 
   (** General facts about lifting *)
@@ -145,7 +145,7 @@ Section PSA_LIFT.
   Proof.
     intros.
     destruct a. destruct b. simpl in *. subst x0.
-    f_equal. apply proof_irr.
+    f_equal. 
   Qed.
 
   Lemma mk_lifted_refl1: forall (a:A)  (pf1 pf2: nonunit a),
@@ -190,7 +190,7 @@ Section PSA_LIFT.
     simpl in H.
     specialize (H sigma'). spec H; eauto.
     intros ? ? ?. destruct a0, b. do 2 red in H1. simpl in H1. apply H in H1.
-    subst; f_equal; auto.  apply proof_irr.
+    subst; f_equal; auto.
   Qed.
 
 End PSA_LIFT.
@@ -595,6 +595,5 @@ Proof.
   intros.
   apply (Bijection _ _ lift_prod1 lift_prod2).
   intros. destruct x; simpl. destruct l. simpl. unfold mk_lifted. f_equal. f_equal.
-  apply proof_irr.
-  intros. destruct x; simpl. destruct x. simpl. unfold mk_lifted. f_equal. apply proof_irr.
+  intros. destruct x; simpl. destruct x. simpl. unfold mk_lifted. f_equal.
 Defined.

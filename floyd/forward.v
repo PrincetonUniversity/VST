@@ -35,6 +35,7 @@ Import Cop.
 Import Cop2.
 Import Clight_Cop2.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Global Opaque denote_tc_test_eq.
 
@@ -578,7 +579,7 @@ Qed.
 
 Lemma prop_Forall_cons:
  forall {B}{A} {NB: NatDed B} (P: B) F (a:A) b,
-  P |-- !! F a && !! Forall F b ->
+  (P |-- !! F a && !! Forall F b) ->
   P |-- !! Forall F (a::b).
 Proof.
 intros. eapply derives_trans; [apply H |].
@@ -587,7 +588,7 @@ Qed.
 
 Lemma prop_Forall_cons':
  forall {B}{A} {NB: NatDed B} (P: B) P1 F (a:A) b,
-  P |-- !! (P1 /\ F a) && !! Forall F b ->
+  (P |-- !! (P1 /\ F a) && !! Forall F b) ->
   P |-- !! P1 && !! Forall F (a::b).
 Proof.
 intros. eapply derives_trans; [apply H |].
@@ -603,7 +604,7 @@ Qed.
 
 Lemma prop_Forall_nil':
  forall {B}{A} {NB: NatDed B} (P: B)  P1 (F: A -> Prop),
-  P |-- !! P1->
+  (P |-- !! P1)->
   P |-- !! P1 && !! Forall F nil.
 Proof.
 intros. eapply derives_trans; [apply H |].
@@ -613,7 +614,7 @@ Qed.
 Lemma prop_Forall_cons1:
  forall {B}{A} {NB: NatDed B} (P: B) (F: A -> Prop) (a:A) b,
   F a ->
-  P |-- !! Forall F b ->
+  (P |-- !! Forall F b) ->
   P |-- !! Forall F (a::b).
 Proof.
 intros. eapply derives_trans; [apply H0 |].
@@ -722,7 +723,7 @@ Ltac check_struct_params al :=
 Ltac check_callconv cc := 
  (tryif unify (cc_structret cc) false then idtac else fail "struct-returning functions are not supported in VST");
  (tryif unify (cc_unproto cc) false then idtac else fail "no-prototype functions are not supported in VST");
- (tryif unify (cc_vararg cc) false then idtac else fail "vararg function definitions are not supported in VST; there is some limited support for calling (but not defining) printf and fprintf").
+ (tryif unify (cc_vararg cc) (@None Z)  then idtac else fail "vararg function definitions are not supported in VST; there is some limited support for calling (but not defining) printf and fprintf").
 
 Ltac function_body_unsupported_features spec :=
  check_callconv (fn_callconv spec);
@@ -819,7 +820,7 @@ Proof.
   rewrite <- !sepcon_andp_prop'.
   specialize (H rho).
   eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
-  apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
+  constructor; apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
 Qed.
 
 Ltac delete_FRZR_from_SEP :=
@@ -846,7 +847,8 @@ Ltac check_typecheck :=
  end].
 
 Ltac prove_delete_temp := match goal with |- ?A = _ =>
-  let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
+  (* This leads to exponential Qed blow up: let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity *)
+  reflexivity
 end.
 
 Ltac cancel_for_forward_call := cancel_for_evar_frame.
@@ -1121,14 +1123,23 @@ Ltac cleanup_no_post_exists :=
  end
  || unfold eq_no_post.
 
+Local Definition dummy := I.
+
 Ltac simplify_remove_localdef_temp :=
-match goal with |- context [remove_localdef_temp ?i ?L]  =>
-  let u := constr:(remove_localdef_temp i L) in
-  let u' := eval cbv [remove_localdef_temp] in u in
-  let u' := eval simpl rlt_ident_eq in u' in
-  let u' := eval cbv beta iota in u' in
-  change u with u'
-end.
+  match goal with |- context [remove_localdef_temp ?i ?L]  =>
+    let u := constr:(remove_localdef_temp i L) in
+    (* unfold remove_localdef_temp and do function and if/match conversion, 
+      but do not expand the let in remove_localdef_temp, which would lead to exponential blow up *)
+    let u' := eval lazy delta [remove_localdef_temp] beta iota in u in
+    (* now fully simplify all terms with rlt_ident_eq as head symbol *)
+    let u' := eval simpl rlt_ident_eq in u' in
+    (* do another beta iota conversion to collapse all ifs *)
+    let u' := eval lazy beta iota in u' in
+    (* now all the correct branches have been selected and we can safely expand the lets *)
+    let u' := eval lazy zeta in u' in
+    (* Note: an explicit cast with "cbv delta [dummy]" does not improve performance *)
+    change u with u'
+  end.
 
 Ltac after_forward_call :=
     check_POSTCONDITION; 
@@ -1667,65 +1678,165 @@ intros.
 pose proof (Ptrofs.eq_spec i Ptrofs.zero). rewrite H in H0; auto.
 Qed.
 
-Lemma typed_true_nullptr3:
+Lemma typed_true_Cne_neq: 
+  forall x y, 
+    typed_true tint (force_val (sem_cmp_pp Cne x y)) -> x <> y.
+Proof.
+  intros. hnf in H. destruct x, y; try inversion H.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H; 
+    try destruct (Int64.eq i i0) eqn:?;
+    try destruct (Int.eq i i0) eqn:?;
+    simpl in H; try inversion H.
+    intro. 
+    inversion H0. subst i. 
+    try pose proof (Int64.eq_spec i0 i0). 
+    try pose proof (Int.eq_spec i0 i0). 
+    rewrite Heqb in *.
+    contradiction. 
+  - intro. inversion H0.
+  - intro. inversion H0.
+  - unfold sem_cmp_pp in H. simpl in H.
+    destruct (eq_block b b0).
+    + destruct (Ptrofs.eq i i0) eqn:? .
+      * simpl in H. pose proof (Ptrofs.eq_spec i i0). rewrite Heqb1 in H0.
+        subst b i. inversion H.  
+      * intro. inversion H0.
+        subst i.
+        pose proof (Ptrofs.eq_spec i0 i0). rewrite Heqb1 in H2.
+        contradiction.  
+    + intro. inversion H0. subst b. contradiction.
+Qed.
+
+Lemma typed_true_Ceq_eq: 
+  forall x y, 
+    typed_true tint (force_val (sem_cmp_pp Ceq x y)) -> x = y.
+Proof.
+  intros. hnf in H. destruct x, y; try inversion H.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H;
+    destruct Archi.ptr64 eqn:Hp; simpl in H; 
+    try destruct (Int64.eq i i0) eqn:?; 
+    try destruct (Int.eq i i0) eqn:?; 
+    simpl in H; try inversion H.
+    f_equal.
+    try pose proof (Int64.eq_spec i i0).
+    try pose proof (Int.eq_spec i i0).
+    rewrite Heqb in *. auto.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H;
+    destruct Archi.ptr64 eqn:Hp; simpl in H;
+    try destruct (Int64.eq i Int64.zero) eqn:?; 
+    try destruct (Int.eq i Int.zero) eqn:?; 
+    simpl in H; try inversion H.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H;
+    destruct Archi.ptr64 eqn:Hp; simpl in H;
+    try destruct (Int64.eq i0 Int64.zero) eqn:?; 
+    try destruct (Int.eq i0 Int.zero) eqn:?; 
+    simpl in H; try inversion H.
+  - unfold sem_cmp_pp in H. simpl in H.
+    destruct (eq_block b b0) eqn:E.
+    + subst b. 
+      destruct (Ptrofs.eq i i0) eqn:E'.
+      * pose proof (Ptrofs.eq_spec i i0). rewrite E' in H0. subst i.
+        reflexivity.
+      * simpl in H. inversion H.
+    + simpl in H. inversion H.
+Qed.
+
+Lemma typed_false_Cne_eq: 
+  forall x y, 
+    typed_false tint (force_val (sem_cmp_pp Cne x y)) -> x = y.
+Proof.
+  intros. hnf in H. destruct x, y; try inversion H.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H;
+    destruct Archi.ptr64 eqn:Hp; simpl in H; 
+    try destruct (Int64.eq i i0) eqn:?; 
+    try destruct (Int.eq i i0) eqn:?; 
+    simpl in H; try inversion H.
+    f_equal.
+    try pose proof (Int64.eq_spec i i0).
+    try pose proof (Int.eq_spec i i0).
+    rewrite Heqb in *. auto.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H;
+    destruct Archi.ptr64 eqn:Hp; simpl in H;
+    try destruct (Int64.eq i Int64.zero) eqn:?; 
+    try destruct (Int.eq i Int.zero) eqn:?; 
+    simpl in H; try inversion H.
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H;
+    destruct Archi.ptr64 eqn:Hp; simpl in H;
+    try destruct (Int64.eq i0 Int64.zero) eqn:?; 
+    try destruct (Int.eq i0 Int.zero) eqn:?; 
+    simpl in H; try inversion H.
+  - unfold sem_cmp_pp in H. simpl in H.
+    destruct (eq_block b b0).
+    + destruct (Ptrofs.eq i i0) eqn:? .
+      * simpl in H. pose proof (Ptrofs.eq_spec i i0). rewrite Heqb1 in H0.
+        subst b i. reflexivity.  
+      * simpl in H. inversion H.
+    + simpl in H. inversion H.
+Qed.
+
+Lemma typed_false_Ceq_neq: 
+  forall x y, 
+    typed_false tint (force_val (sem_cmp_pp Ceq x y)) -> x <> y.
+Proof.
+  intros. hnf in H. destruct x, y; try inversion H. 
+  - unfold sem_cmp_pp, strict_bool_val, Val.cmplu_bool, Val.cmpu_bool in H.
+    destruct Archi.ptr64 eqn:Hp; simpl in H; 
+    try destruct (Int64.eq i i0) eqn:?;
+    try destruct (Int.eq i i0) eqn:?;
+    simpl in H; try inversion H.
+    intro. 
+    inversion H0. subst i. 
+    try pose proof (Int64.eq_spec i0 i0). 
+    try pose proof (Int.eq_spec i0 i0). 
+    rewrite Heqb in *.
+    contradiction. 
+  - intro. inversion H0.
+  - intro. inversion H0.
+  - unfold sem_cmp_pp in H. simpl in H.
+    destruct (eq_block b b0).
+    + destruct (Ptrofs.eq i i0) eqn:? .
+      * simpl in H. pose proof (Ptrofs.eq_spec i i0). rewrite Heqb1 in H0.
+        subst b i. inversion H.
+      * intro. inversion H0. subst b i. pose proof (Ptrofs.eq_spec i0 i0). 
+        rewrite Heqb1 in H2. contradiction.
+    + intro. inversion H0. contradiction. 
+Qed.
+
+Corollary typed_true_nullptr3:
   forall p,
   typed_true tint (force_val (sem_cmp_pp Ceq p nullval)) ->
   p=nullval.
 Proof.
-unfold nullval.
-simpl; unfold strict_bool_val, sem_cmp_pp, Val.cmplu_bool, Val.cmpu_bool.
-intros.
-destruct Archi.ptr64 eqn:Hp; simpl in H;
-destruct p; inversion H;
-unfold strict_bool_val in H1.
-destruct (Int64.eq i Int64.zero) eqn:?; inv H1.
-apply int64_eq_e in Heqb. subst; reflexivity.
-destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_e in Heqb. subst; reflexivity.
+  intros p.
+  apply (typed_true_Ceq_eq p nullval).
 Qed.
 
-Lemma typed_false_nullptr3:
+Corollary typed_false_nullptr3:
   forall p,
   typed_false tint (force_val (sem_cmp_pp Ceq p nullval)) ->
   p<>nullval.
 Proof.
-intros.
-intro. subst p.
-hnf in H.
-unfold sem_cmp_pp, nullval in H.
-destruct Archi.ptr64 eqn:Hp; simpl in H.
-rewrite Int64.eq_true in H. inv H.
-inv H.
+  intros p.
+  apply (typed_false_Ceq_neq p nullval).
 Qed.
 
-Lemma typed_true_nullptr4:
+Corollary typed_true_nullptr4:
   forall p,
   typed_true tint (force_val (sem_cmp_pp Cne p nullval)) ->
   p <> nullval.
 Proof.
-intros.
-intro. subst p.
-hnf in H.
-unfold sem_cmp_pp, nullval in H.
-destruct Archi.ptr64 eqn:Hp; simpl in H.
-rewrite Int64.eq_true in H. inv H.
-inv H.
+  intros p.
+  apply (typed_true_Cne_neq p nullval).
 Qed.
 
-Lemma typed_false_nullptr4:
+Corollary typed_false_nullptr4:
   forall p,
   typed_false tint (force_val (sem_cmp_pp Cne p nullval)) ->
   p=nullval.
 Proof.
-intros.
-hnf in H.
-unfold sem_cmp_pp, nullval in *.
-destruct Archi.ptr64 eqn:Hp; simpl in H;
-destruct p; inversion H.
-destruct (Int64.eq i Int64.zero) eqn:?; inv H1.
-apply int64_eq_e in Heqb. subst; reflexivity.
-destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_e in Heqb. subst; reflexivity.
+  intros p.
+  apply (typed_false_Cne_eq p nullval).
 Qed.
 
 Ltac cleanup_repr H :=
@@ -1905,13 +2016,17 @@ Ltac do_repr_inj H :=
          | simple apply repr_inj_unsigned' in H; [ | rep_lia | rep_lia ]
          | match type of H with
             | typed_true _  (force_val (sem_cmp_pp Ceq _ _)) =>
-                                    apply typed_true_nullptr3 in H
+                                    try apply typed_true_nullptr3 in H;
+                                    try apply typed_true_Ceq_eq in H
             | typed_true _  (force_val (sem_cmp_pp Cne _ _)) =>
-                                    apply typed_true_nullptr4 in H
+                                    try apply typed_true_nullptr4 in H;
+                                    try apply typed_true_Cne_neq in H
             | typed_false _  (force_val (sem_cmp_pp Ceq _ _)) =>
-                                    apply typed_false_nullptr3 in H
+                                    try apply typed_false_nullptr3 in H;
+                                    try apply typed_false_Ceq_neq in H
             | typed_false _  (force_val (sem_cmp_pp Cne _ _)) =>
-                                    apply typed_false_nullptr4 in H
+                                    try apply typed_false_nullptr4 in H;
+                                    try apply typed_false_Cne_eq in H
           end
          | apply typed_false_nullptr4 in H
          | simple apply ltu_repr in H; [ | rep_lia | rep_lia]
@@ -2358,7 +2473,8 @@ Ltac forward_loop_nocontinue Inv Post :=
           apply semax_seq with Post; [forward_loop_nocontinue1 Inv  | abbreviate_semax ]
   | |- semax _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_nocontinue1 Inv
-           else (apply (semax_post1_flipped Post); [ forward_loop_nocontinue1 Inv  | ])
+           else (apply (semax_post1_flipped Post); [ forward_loop_nocontinue1 Inv  
+                           | abbreviate_semax; simpl_ret_assert; auto ])
   end.
 
 Ltac forward_loop_nocontinue_nobreak Inv :=
@@ -2399,6 +2515,11 @@ Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
  repeat apply -> semax_seq_skip;
   lazymatch goal with
   | |- semax _ _ (Ssequence (Sfor _ ?e2 ?s3 ?s4) _) _ =>
+     let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
+      tryif (check_nocontinue c)
+       then forward_loop_nocontinue Inv Post
+       else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
+  | |- semax _ _ (Sfor _ ?e2 ?s3 ?s4) _ =>
      let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
       tryif (check_nocontinue c)
        then forward_loop_nocontinue Inv Post
@@ -2765,6 +2886,42 @@ Qed.
 Hint Rewrite eqb_ident_true : subst.
 Hint Rewrite eqb_ident_false using solve [auto] : subst.
 
+Lemma eqb_su_refl s: eqb_su s s = true. Proof. unfold eqb_su. destruct s; trivial. Qed.
+Lemma Neqb_option_refl n: @eqb_option N N.eqb n n = true. Proof. destruct n; simpl; trivial. apply N.eqb_refl. Qed.
+Lemma eqb_attr_refl a: eqb_attr a a = true.
+Proof. unfold eqb_attr. destruct a. rewrite eqb_reflx, Neqb_option_refl; trivial. Qed.
+Lemma eqb_member_refl m: eqb_member m m = true.
+Proof. unfold eqb_member. rewrite eqb_ident_true, eqb_type_refl; trivial. Qed.
+
+Lemma eqb_list_sym {A} f: forall l1 l2, @eqb_list A f l1 l2 = @eqb_list A (fun x y => f y x) l2 l1.
+Proof. induction l1; simpl; intros; destruct l2; simpl; trivial. f_equal; auto. Qed.
+
+Lemma eqb_ident_sym i j: eqb_ident i j = eqb_ident j i.
+Proof. apply Pos.eqb_sym. Qed.
+Lemma eqb_member_sym: (fun x y : ident * type => eqb_member y x) = eqb_member.
+Proof.
+  extensionality x. extensionality y. unfold eqb_member.
+  rewrite eqb_ident_sym, expr_lemmas4.eqb_type_sym; trivial.
+Qed.
+
+Lemma eqb_su_sym a b: eqb_su a b = eqb_su b a.
+Proof. destruct a; destruct b; trivial. Qed. 
+Lemma eqb_attr_sym a b: eqb_attr a b = eqb_attr b a.
+Proof. destruct a; destruct b; simpl; f_equal.
+  apply Raux.eqb_sym. unfold eqb_option.
+  destruct attr_alignas; destruct attr_alignas0; trivial. apply N.eqb_sym.
+Qed.
+
+Lemma test_aux_sym cs1 cs2 b i: test_aux cs1 cs2 b i = test_aux cs2 cs1 b i. 
+Proof. unfold test_aux. f_equal.
+  destruct ((@cenv_cs cs1) ! i); destruct ((@cenv_cs cs2) ! i); trivial.
+  rewrite eqb_list_sym, eqb_su_sym, eqb_member_sym, eqb_attr_sym; trivial.
+Qed.
+
+Lemma cs_preserve_type_sym cs1 cs2: forall t CCE, cs_preserve_type cs1 cs2 CCE t = cs_preserve_type cs2 cs1 CCE t. 
+Proof. induction t; simpl; trivial; intros; destruct (CCE ! i); trivial; apply test_aux_sym. Qed.
+
+
 Lemma subst_temp_special:
   forall i e (f: val -> Prop) j,
    i <> j -> subst i e (`f (eval_id j)) = `f (eval_id j).
@@ -2804,7 +2961,7 @@ Ltac warn s :=
 
 Lemma semax_post3:
   forall R' Espec {cs: compspecs} Delta P c R,
-    local (tc_environ Delta) && R' |-- R ->
+    (local (tc_environ Delta) && R' |-- R) ->
     @semax cs Espec Delta P c (normal_ret_assert R') ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
@@ -2814,7 +2971,7 @@ Qed.
 Lemma semax_post_flipped3:
   forall R' Espec {cs: compspecs} Delta P c R,
     @semax cs Espec Delta P c (normal_ret_assert R') ->
-    local (tc_environ Delta) && R' |-- R ->
+    (local (tc_environ Delta) && R' |-- R) ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
 intros; eapply semax_post3; eauto.
@@ -2823,7 +2980,7 @@ Qed.
 Lemma focus_make_args:
   forall A Q R R' Frame,
     R = R' ->
-    A |-- PROPx nil (LOCALx Q (SEPx (R' :: Frame)))  ->
+    (A |-- PROPx nil (LOCALx Q (SEPx (R' :: Frame))))  ->
     A |-- PROPx nil (LOCALx Q (SEPx (R :: Frame))) .
 Proof.
 intros; subst; auto.
@@ -2901,8 +3058,8 @@ Ltac construct_nested_efield e e1 efs tts lr :=
     clear pp.
 
 Lemma efield_denote_cons_array: forall {cs: compspecs} P efs gfs ei i,
-  P |-- local (efield_denote efs gfs) ->
-  P |-- local (`(eq (Vint i)) (eval_expr ei)) ->
+  (P |-- local (efield_denote efs gfs)) ->
+  (P |-- local (`(eq (Vint i)) (eval_expr ei))) ->
   is_int_type (typeof ei) = true ->
   P |-- local (efield_denote (eArraySubsc ei :: efs) 
           (ArraySubsc (int_signed_or_unsigned (typeof ei) i) :: gfs)).
@@ -2922,7 +3079,7 @@ Proof.
 Qed.
 
 Lemma efield_denote_cons_struct: forall {cs: compspecs} P efs gfs i,
-  P |-- local (efield_denote efs gfs) ->
+  (P |-- local (efield_denote efs gfs)) ->
   P |-- local (efield_denote (eStructField i :: efs) (StructField i :: gfs)).
 Proof.
   intros.
@@ -2932,7 +3089,7 @@ Proof.
 Qed.
 
 Lemma efield_denote_cons_union: forall {cs: compspecs} P efs gfs i,
-  P |-- local (efield_denote efs gfs) ->
+  (P |-- local (efield_denote efs gfs)) ->
   P |-- local (efield_denote (eUnionField i :: efs) (UnionField i :: gfs)).
 Proof.
   intros.
@@ -3087,7 +3244,7 @@ Ltac simple_value v :=
  | Vfloat _ => idtac
  | Vsingle _ => idtac
  | Vptr _ _ => idtac
- | list_repeat (Z.to_nat _) ?v' => simple_value v'
+ | repeat ?v' (Z.to_nat _) => simple_value v'
  end.
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
@@ -3147,7 +3304,7 @@ Proof. intros.
  unfold frame_ret_assert. intros ? ? ?. apply sepcon_derives; trivial. apply H. Qed.
 *)
 
-Lemma bind_ret_derives t P Q v: P|-- Q -> bind_ret v t P |-- bind_ret v t Q.
+Lemma bind_ret_derives t P Q v: (P |-- Q) -> bind_ret v t P |-- bind_ret v t Q.
 Proof. intros. destruct v. simpl; intros. entailer!. apply H.
   destruct t; try apply derives_refl. simpl; intros. apply H. 
 Qed.

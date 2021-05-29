@@ -10,6 +10,7 @@ Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.floyd.sublist.
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.
+Import compcert.lib.Maps.
 
 Opaque alignof.
 
@@ -220,6 +221,19 @@ intros.
     unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
 Qed.
 
+Ltac unknown_big_endian_hack :=
+  (* This is necessary on machines where Archi.big_endian is a Parameter 
+    rather than a Definition.  When Archi.big_endian is a constant true or false,
+   then it's much easier. *)
+ match goal with H1: (align_chunk _ | _) |- _ |-- res_predicates.address_mapsto ?ch ?v ?sh (?b, Ptrofs.unsigned ?i) =>
+   constructor;
+   replace v with (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch))));
+   [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
+    unfold decode_val, decode_int, rev_if_be;
+     destruct Archi.big_endian;
+     reflexivity
+ end.
+
 Lemma by_value_data_at_rec_zero_val: forall sh t p,
   type_is_by_value t = true ->
   size_compatible t p ->
@@ -244,7 +258,8 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-  all: admit.
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
+   all: try unknown_big_endian_hack.
 - rewrite zero_val_Tlong.
    change (unfold_reptype ?A) with A.
     destruct s; simpl;
@@ -253,15 +268,17 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-  all: admit.
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
+   all: try unknown_big_endian_hack.
 - rewrite zero_val_Tfloat32;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
    simpl. rewrite prop_true_andp by auto.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
-   (if_tac; [apply orp_right1 | ]).
-  all: admit.
+   (if_tac; [apply orp_right1 | ]); constructor.
+   all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
+   all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
 - rewrite zero_val_Tfloat64;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
@@ -269,7 +286,8 @@ Proof.
    rewrite (prop_true_andp (_ /\ _)) 
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
-  all: admit.
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
+   all: try unknown_big_endian_hack.
 - rewrite zero_val_Tpointer.
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
@@ -278,8 +296,9 @@ Proof.
    rewrite (prop_true_andp (_ /\ _))
       by (split; auto; intro; apply mapsto_memory_block.tc_val_pointer_nullval'). 
    (if_tac; [apply orp_right1 | ]).
- all: admit.
-Admitted.
+   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
+   all: try unknown_big_endian_hack.
+Qed.
 
 Lemma by_value_data_at_rec_nonreachable: forall sh t p v,
   type_is_by_value t = true ->
@@ -495,15 +514,15 @@ Ltac AUTO_IND :=
   end.
 *)
 
-Lemma nth_list_repeat: forall A i n (x :A),
-    nth i (list_repeat n x) x = x.
+Lemma nth_repeat: forall A i n (x :A),
+    nth i (repeat x n) x = x.
 Proof.
  induction i; destruct n; simpl; auto.
 Qed.
 
-Lemma nth_list_repeat': forall A i n (x y :A),
+Lemma nth_repeat': forall A i n (x y :A),
     (i < n)%nat ->
-    nth i (list_repeat n x) y = x.
+    nth i (repeat x n) y = x.
 Proof.
  induction i; destruct n; simpl; intros; auto.
  lia. lia.
@@ -546,18 +565,17 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t));
+     (v1 := Zrepeat (default_val t) (Z.max 0 z));
      auto.
     rewrite memory_block_array_pred; auto.
     - apply Z.le_max_l.
-    - f_equal.
-      f_equal.
-      rewrite Z2Nat_max0; auto.
+    - f_equal. unfold Zrepeat.
+      f_equal.  lia.
     - intros.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
-      unfold Znth. rewrite if_false by lia.
-      rewrite nth_list_repeat.
+      unfold Znth, Zrepeat. rewrite if_false by lia.
+      rewrite nth_repeat.
       unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
       pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
       assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
@@ -719,19 +737,18 @@ Proof.
     apply array_pred_ext_derives with
      (P0 := fun i _ p => mapsto_zeros (sizeof t) sh
                           (offset_val (sizeof t * i) p))
-     (v0 := list_repeat (Z.to_nat (Z.max 0 z)) (zero_val t))];
+     (v0 := Zrepeat (zero_val t) (Z.max 0 z))];
      auto.
     apply mapsto_zeros_array_pred; auto.
     - apply Z.le_max_l.
-    - f_equal.
-      f_equal.
+    - unfold Zrepeat. 
       rewrite Z2Nat_max0; auto.
     - intros.
       change (unfold_reptype ?A) with A.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
-      unfold Znth. rewrite if_false by lia.
-      rewrite nth_list_repeat' by lia.
+      unfold Znth, Zrepeat. rewrite if_false by lia.
+      rewrite nth_repeat' by lia.
       unfold expr.sizeof,  Ctypes.sizeof in H; fold @Ctypes.sizeof in H; fold (sizeof t) in H.
       pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
       assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
@@ -882,8 +899,9 @@ Proof.
       intros; rewrite default_val_eq.
       rewrite unfold_fold_reptype.
       rewrite Zlength_correct in H1.
+      unfold Zrepeat.
       rewrite <- Z2Nat_max0.
-      rewrite Zlength_list_repeat by lia.
+      rewrite Zlength_repeat by lia.
       lia.
     }
     rewrite default_val_eq. simpl.
@@ -896,8 +914,8 @@ Proof.
        unfold sizeof in H; simpl in H; fold (sizeof t) in H; lia.
     - eapply align_compatible_rec_Tarray_inv; eauto.
       apply range_max0; auto.
-    - apply derives_refl'. f_equal. unfold Znth. rewrite if_false by lia.
-      rewrite nth_list_repeat'; auto.
+    - apply derives_refl'. f_equal. unfold Znth, Zrepeat. rewrite if_false by lia.
+      rewrite nth_repeat'; auto.
       apply Nat2Z.inj_lt. rewrite Z2Nat.id, Z2Nat_id' by lia. lia.
   + rewrite !data_at_rec_eq.
     rewrite default_val_eq, unfold_fold_reptype.
@@ -1033,8 +1051,8 @@ Proof.
   rewrite default_val_eq, unfold_fold_reptype.
   + (* Tarray *)
     split.
-    - rewrite Zlength_list_repeat', Z2Nat_id'; auto.
-    - apply Forall_list_repeat; auto.
+    - unfold Zrepeat; rewrite Zlength_repeat', Z2Nat_id'; auto.
+    - apply Forall_repeat; auto.
   + (* Tstruct *)
     cbv zeta in IH.
     apply struct_Prop_compact_prod_gen.
@@ -1180,11 +1198,11 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.
+     (v1 := Zrepeat (default_val t) (Z.max 0 z)); auto.
     rewrite memory_block_array_pred; auto.
     - apply Z.le_max_l.
     - rewrite (proj1 H2).
-      symmetry; apply Zlength_list_repeat; auto.
+      symmetry; apply Zlength_repeat; auto.
       apply Z.le_max_l.
     - intros.
       rewrite at_offset_eq3.

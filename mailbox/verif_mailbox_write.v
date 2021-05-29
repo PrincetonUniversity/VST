@@ -58,17 +58,17 @@ Proof.
    data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
   { unfold N; computable. }
   { entailer!.
-    rewrite upd_Znth_eq; simpl; [|rewrite !Zlength_cons, Zlength_nil; unfold B, N in *; lia].
-    unfold Znth; simpl.
-    apply derives_refl'; f_equal.
+   apply derives_refl'; f_equal.
+    rewrite upd_Znth_eq;
+       [|simpl; rewrite !Zlength_cons, Zlength_nil; unfold B, N in *; lia].
+    change conclib.upto with upto. simpl Datatypes.length.
+    change (Z.to_nat B) with 5%nat.
     apply map_ext_in; intros ? Hin.
     rewrite In_upto in Hin.
     destruct (eq_dec a b0); auto.
-    destruct (zlt a 0); [lia|].
-    destruct Hin as (? & Hin); apply Z2Nat.inj_lt in Hin; auto; try lia.
-    simpl in *; destruct (Z.to_nat a); auto.
-    repeat (destruct n0; [solve [auto]|]).
-    lia. }
+    rewrite if_false.
+    rewrite Znth_repeat' by auto. auto.
+    list_solve. }
   { assert (0 <= i < Zlength lasts) by lia.
     forward.
     forward_if (PROP ( )
@@ -141,7 +141,7 @@ Proof.
       discriminate. }
     Intros.
     forward.
-    { unfold B, N in *; apply prop_right; lia. }
+    entailer!. change B with 5%Z in *. lia.
     { entailer!.
       subst available; apply Forall_Znth; [rewrite Zlength_map, Zlength_upto; unfold B, N in *; simpl; lia|].
       rewrite Forall_forall; intros ? Hin.

@@ -878,12 +878,12 @@ Lemma split2_data_at__Tarray_tuchar
 Proof. intros. unfold data_at_ at 1; unfold field_at_.
 rewrite field_at_data_at.
 erewrite (@split2_data_at_Tarray cs sh tuchar n n1).
-instantiate (1:= list_repeat (Z.to_nat (n-n1)) Vundef).
-instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
+instantiate (1:= Zrepeat Vundef (n-n1)).
+instantiate (1:= Zrepeat Vundef n1).
 unfold field_address. simpl. 
 rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
 trivial.
-instantiate (1:=list_repeat (Z.to_nat n) Vundef).
+instantiate (1:=Zrepeat Vundef n).
 change (@reptype _ _)  with val.
 list_solve.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
@@ -901,13 +901,13 @@ Lemma split2_data_at__Tarray_tschar
 Proof. intros. unfold data_at_ at 1; unfold field_at_.
 rewrite field_at_data_at.
 erewrite (@split2_data_at_Tarray cs sh tschar n n1).
-instantiate (1:= list_repeat (Z.to_nat (n-n1)) Vundef).
-instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
+instantiate (1:= Zrepeat Vundef (n-n1)).
+instantiate (1:= Zrepeat Vundef n1).
 unfold field_address. simpl. 
 rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
 trivial.
 simpl.
-instantiate (1:=list_repeat (Z.to_nat n) Vundef).
+instantiate (1:=Zrepeat Vundef n).
 change (@reptype _ _)  with val.
 list_solve.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
@@ -951,7 +951,9 @@ Lemma mapsto_zeros_mapsto_nullval_N {cenv} N sh t b z:
                (Z.of_nat N * size_chunk Mptr + Ptrofs.unsigned z < Ptrofs.modulus)%Z) &&
            sepconN N (fun p => mapsto sh (Tpointer t noattr) p nullval)
                      (@sizeof cenv (Tpointer t noattr)) (Vptr b z).
-Proof. apply mapsto_memory_block.mapsto_zeros_mapsto_nullval_N. Qed.
+Proof.
+  intros. constructor. now apply mapsto_memory_block.mapsto_zeros_mapsto_nullval_N.
+Qed.
 
 Lemma size_chunk_range: 0 < size_chunk Mptr <= Ptrofs.max_unsigned.
 Proof. rewrite size_chunk_Mptr. unfold Ptrofs.max_unsigned.
@@ -978,14 +980,14 @@ Lemma sepconN_mapsto_array {cenv t b sh} K : forall z
     (Hz: 0 <= Ptrofs.unsigned z /\
                Z.of_nat K * size_chunk Mptr + Ptrofs.unsigned z < Ptrofs.modulus),
     sepconN K (fun p : val => mapsto sh (Tpointer t noattr) p nullval) (size_chunk Mptr) (Vptr b z)
-|-- @data_at cenv sh (tarray (Tpointer t noattr) (Z.of_nat K)) (list_repeat K nullval) (Vptr b z).
+|-- @data_at cenv sh (tarray (Tpointer t noattr) (Z.of_nat K)) (repeat nullval K) (Vptr b z).
 Proof.
   specialize (Zle_0_nat K); specialize size_chunk_range; intros SZ Kpos.
   induction K; intros.
 + rewrite data_at_zero_array_eq; simpl; trivial. (* apply derives_refl.*)
-+ rewrite (split2_data_at_Tarray_app 1 (Z.of_nat (S K)) sh (Tpointer t noattr) [nullval] (list_repeat K nullval)).
++ rewrite (split2_data_at_Tarray_app 1 (Z.of_nat (S K)) sh (Tpointer t noattr) [nullval] (repeat nullval K)).
   2: reflexivity.
-  2: rewrite Zlength_list_repeat'; lia.
+  2: rewrite Zlength_repeat'; lia.
   replace (Z.of_nat (S K) * size_chunk Mptr)%Z with 
           (Z.of_nat K * size_chunk Mptr + size_chunk Mptr)%Z in Hz by lia.
   replace  (Z.of_nat (S K) - 1) with (Z.of_nat K) by lia.
@@ -1026,7 +1028,7 @@ Lemma mapsto_zeros_data_atTarrayTptr_nullval_N {cenv} N sh t b z:
        readable_share sh ->
        (align_chunk Mptr | Ptrofs.unsigned z) ->
        mapsto_zeros (Z.of_nat N * size_chunk Mptr) sh (Vptr b z)
-       |-- @data_at cenv sh (tarray (Tpointer t noattr) (Z.of_nat N)) (list_repeat N nullval) (Vptr b z).
+       |-- @data_at cenv sh (tarray (Tpointer t noattr) (Z.of_nat N)) (repeat nullval N) (Vptr b z).
 Proof. intros. 
   eapply derives_trans.
   eapply (mapsto_zeros_mapsto_nullval_N N sh); trivial.

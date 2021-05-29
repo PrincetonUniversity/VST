@@ -87,7 +87,21 @@ Lemma thread_inv_exclusive : forall sh g1 g2 ctr lock lockt,
 Proof.
   intros; apply selflock_exclusive.
   unfold thread_lock_R.
-  apply exclusive_sepcon1; auto.
+  apply exclusive_sepcon1; auto with exclusive.
+Qed.
+Hint Resolve thread_inv_exclusive : exclusive.
+
+Lemma ghost_var_incr : forall g1 g2 x y n (left : bool), ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * ghost_var gsh2 n (if left then g1 else g2) |--
+  |==> !!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) * ghost_var gsh1 (if left then y else x) (if left then g2 else g1).
+Proof.
+  destruct left.
+  - rewrite sepcon_assoc, (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.
+    erewrite ghost_var_share_join' by eauto with share.
+    Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
+    apply ghost_var_update.
+  - erewrite sepcon_assoc, ghost_var_share_join' by eauto with share.
+    Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
+    apply ghost_var_update.
 Qed.
 #[export] Hint Resolve thread_inv_exclusive : core.
 
@@ -108,16 +122,16 @@ Proof.
   { go_lower.
     destruct left.
     - rewrite (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.
-      erewrite ghost_var_share_join' by eauto.
+      erewrite ghost_var_share_join' by eauto with share.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update.
-    - erewrite ghost_var_share_join' by eauto.
+    - erewrite ghost_var_share_join' by eauto with share.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update. }
   Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
-    erewrite <- ghost_var_share_join by eauto.
+    rewrite <- (ghost_var_share_join gsh1 gsh2) by auto with share.
     unfold Frame; instantiate (1 := [ghost_var gsh2 (n+1) (if left then g1 else g2)]); simpl.
     destruct left.
     - Exists (n+1) y; entailer!.
@@ -158,18 +172,6 @@ Proof.
   forward.
 Qed.
 
-Ltac cancel_for_forward_call ::=
-  match goal with
-  | gv: globals |- _ =>
-    repeat
-    match goal with
-    | x := gv ?i |- context [gv ?i] =>
-        change (gv i) with x
-    end
-  | _ => idtac
-  end;
-  cancel_for_evar_frame.
-
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
@@ -184,7 +186,7 @@ Proof.
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
-    rewrite <- !(ghost_var_share_join gsh1 gsh2 Tsh) by auto.
+    rewrite <- !(ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
     unfold cptr_lock_inv; Exists 0 0 0; entailer!. }
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
@@ -192,25 +194,26 @@ Proof.
   forward_spawn _thread_func nullval (sh1, g1, g2, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
-    entailer!. }
+    subst ctr lock lockt; entailer!. }
   forward_call (sh2, g1, g2, false, 0, gv).
-  simpl.
   forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).
+  { subst ctr lock lockt; cancel. }
   unfold thread_lock_inv at 2; unfold thread_lock_R.
   rewrite selflock_eq.
   Intros.
+  simpl.
   forward_call (sh2, g1, g2, 1, 1, gv).
   (* We've proved that t is 2! *)
   forward_call (lock, sh2, cptr_lock_inv g1 g2 ctr).
+  { subst ctr lock; cancel. }
   forward_call (lockt, Ews, sh1, thread_lock_R sh1 g1 g2 ctr lock, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
-    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
+    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst ctr lock; cancel. }
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
-    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
+    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst lock ctr; cancel. }
   forward.
-Unshelve. apply xH. (*TODO: fix (I believe) the forward_spawn tactic  so that this ident is not introduces. Is it the y?*)
 Qed.
 
 Definition extlink := ext_link_prog prog.

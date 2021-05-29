@@ -773,7 +773,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     generalize (approx_obligation_1 (S x)
       (exist (fun p => hered p) x0 h)).
     rewrite <- H0.
-    intros. f_equal. apply proof_irr.
+    intros. f_equal.
     }
     extensionality.
     destruct x1.

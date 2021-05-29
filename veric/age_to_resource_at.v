@@ -61,16 +61,6 @@ Proof.
     + constructor. assumption.
 Qed.
 
-Lemma age_resource_at {phi phi' loc} :
-  age phi phi' ->
-  phi' @ loc = resource_fmap (approx (level phi')) (approx (level phi')) (phi @ loc).
-Proof.
-  intros A.
-  rewrite <- (age1_resource_at _ _ A loc (phi @ loc)).
-  - reflexivity.
-  - rewrite resource_at_approx. reflexivity.
-Qed.
-
 Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (approx n) (phi @ loc).
 Proof.
   assert (D : (n <= level phi \/ n >= level phi)%nat) by lia.

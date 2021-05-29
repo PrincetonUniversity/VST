@@ -19,9 +19,9 @@ Lemma crypto_stream_salsa20_tweet_ok: semax_body SalsaVarSpecs (*(crypto_stream_
 Proof.
 start_function.
 abbreviate_semax.
-forward_call (c, k, nullval, nonce, d, Nonce, K, list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero, gv).
+forward_call (c, k, nullval, nonce, d, Nonce, K, repeat Byte.zero (Z.to_nat (Int64.unsigned d)), gv).
 { simpl; entailer!. }
-apply Zlength_list_repeat. apply Int64.unsigned_range.
+apply Zlength_repeat. apply Int64.unsigned_range.
 
 forward.
 Qed.

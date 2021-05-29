@@ -15,7 +15,11 @@ void acquire(void *lock);
 
 void release(void *lock);
 
+void makelock2(void *lock); //for recursive locks
+
 void freelock2(void *lock); //for recursive locks
+
+void acquire2(void *lock);
 
 void release2(void *lock); //consumes the lock
 

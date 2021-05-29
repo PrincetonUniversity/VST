@@ -78,7 +78,7 @@ replace_SEP 0 (data_at wsh t_struct_SHA256state_st
         (Vint (lo_part (s256a_len a + len * 8)),
         (Vint (hi_part (s256a_len a + len * 8)),
         (map Vubyte (s256a_data a)++
-         list_repeat (Z.to_nat (CBLOCKz - Zlength (s256a_data a))) Vundef,
+         repeat Vundef (Z.to_nat (CBLOCKz - Zlength (s256a_data a))),
          Vint (Int.repr (Zlength (s256a_data a))))))) c). {
   unfold_data_at (data_at _ _ _ _); entailer!.
   assert (legal_nested_field t_struct_SHA256state_st [StructField _data]).
@@ -201,7 +201,7 @@ forward_if (   PROP  ()
   unfold_data_at (data_at _ _ _ c).
   eapply(call_memcpy_tuchar
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] 0
-                   (list_repeat (Z.to_nat CBLOCKz) Vundef) c
+                   (repeat Vundef (Z.to_nat CBLOCKz)) c
    (*src*) sh (tarray tuchar (Zlength data)) [] b4d
                    (map Int.repr (map Byte.unsigned data))
                    d
@@ -223,7 +223,7 @@ forward_if (   PROP  ()
  Exists    (map Vint (hash_blocks init_registers (hashed ++ blocks)),
                 (Vint (lo_part (bitlength hashed dd + len * 8)),
                  (Vint (hi_part (bitlength hashed dd + len * 8)),
-                  (map Vubyte dd' ++ list_repeat (Z.to_nat (64-(len-b4d))) Vundef,
+                  (map Vubyte dd' ++ repeat Vundef (Z.to_nat (64-(len-b4d))),
                    Vint (Int.repr (Zlength dd')))))).
  rewrite <- UAE.
 assert (Hbb: bitlength hashed dd + len * 8 =

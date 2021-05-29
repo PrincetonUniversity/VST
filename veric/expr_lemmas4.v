@@ -20,6 +20,7 @@ Require Import VST.veric.seplog. (*For definition of typecheck_environ*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
+Import compcert.lib.Maps.
 Import Ctypes.
 
 (** Main soundness result for the typechecker **)

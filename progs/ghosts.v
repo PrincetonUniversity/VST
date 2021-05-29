@@ -1,12 +1,10 @@
-Require Import VST.veric.compcert_rmaps.
 Require Export VST.msl.ghost.
-Require Import VST.msl.sepalg.
-Require Import VST.msl.sepalg_generators.
-Require Import VST.veric.SeparationLogic.
+Require Export VST.veric.ghosts.
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.conclib.
 Import List.
 
-(* Lemmas about ghost state and common instances *)
+(* Lemmas about ghost state and common instances, part 2 *)
 (* Where should this sit? *)
 
 #[export] Hint Resolve Share.nontrivial : core.
@@ -22,26 +20,34 @@ Context {RA: Ghost}.
 Lemma own_op' : forall g a1 a2 pp,
   own g a1 pp * own g a2 pp = EX a3 : _, !!(join a1 a2 a3 /\ valid a3) && own g a3 pp.
 Proof.
-  intros.
-  apply pred_ext.
-  - assert_PROP (valid_2 a1 a2) as Hjoin by (apply own_valid_2).
-    destruct Hjoin as (a3 & ? & ?); Exists a3; entailer!.
-    erewrite <- own_op by eauto.  apply derives_refl.
-  - Intros a3.
-    erewrite own_op by eauto.  apply derives_refl.
+  exact own_op'.
 Qed.
 
 Lemma own_op_gen : forall g a1 a2 a3 pp, (valid_2 a1 a2 -> join a1 a2 a3) ->
   own g a1 pp * own g a2 pp = !!(valid_2 a1 a2) && own g a3 pp.
 Proof.
-  intros; apply pred_ext.
-  - assert_PROP (valid_2 a1 a2) as Hv by apply own_valid_2.
-    erewrite <- own_op by eauto; entailer!.
-  - Intros.
-    erewrite own_op by eauto; entailer!.
+  exact own_op_gen.
 Qed.
 
-(* own isn't precise unless the ghost is a Disj_alg. Is this a problem? *)
+Lemma own_alloc : forall (a : G) (pp : preds), valid a -> emp |-- |==> EX g : own.gname, own g a pp.
+Proof.
+  exact own_alloc.
+Qed.
+
+Lemma own_dealloc : forall g (a : G) (pp : preds), own g a pp |-- |==> emp.
+Proof.
+  exact own_dealloc.
+Qed.
+
+Lemma own_update : forall g a b pp, fp_update a b -> own g a pp |-- |==> own g b pp.
+Proof.
+  exact own_update.
+Qed.
+
+Lemma own_update_ND : forall g a B pp, fp_update_ND a B -> own g a pp |-- |==> EX b : G, !! B b && own g b pp.
+Proof.
+  exact own_update_ND.
+Qed.
 
 Lemma own_list_alloc : forall la lp, Forall valid la -> length lp = length la ->
   emp |-- |==> (EX lg : _, !!(Zlength lg = Zlength la) &&
@@ -70,8 +76,8 @@ Proof.
   { apply Forall_repeat; auto. }
   { rewrite !repeat_length; auto. }
   apply bupd_mono; Intros lg; Exists lg.
-  rewrite Zlength_repeat, Z2Nat.id in H1 by lia.
-  rewrite !combine_const1 by (rewrite ?Zlength_combine, ?Zlength_repeat, ?Z2Nat.id, ?Z.min_r; lia).
+  rewrite coqlib4.Zlength_repeat, Z2Nat.id in H1 by lia.
+  rewrite !combine_const1 by (rewrite ?Zlength_combine, ?coqlib4.Zlength_repeat, ?Z2Nat.id, ?Z.min_r; lia).
   entailer!.
   clear H; induction lg; simpl; entailer!.
 Qed.
@@ -92,13 +98,10 @@ Lemma own_list_dealloc' : forall {A} g a p (l : list A),
   iter_sepcon (fun x => own (g x) (a x) (p x)) l |-- |==> emp.
 Proof.
   intros; apply own_list_dealloc.
-  repeat eexists; apply derives_refl.
+  do 3 eexists; apply derives_refl.
 Qed.
 
 End ghost.
-
-Program Instance exclusive_PCM A : Ghost := { valid a := True;
-  Join_G := Join_lower (Join_discrete A) }.
 
 Definition excl {A} g a := own(RA := exclusive_PCM A) g (Some a) NoneP.
 
@@ -110,163 +113,11 @@ Proof.
   inv H1.
 Qed.
 
-Local Obligation Tactic := idtac.
-
-Program Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
-  valid a := valid (fst a) /\ valid (snd a); Join_G := Join_prod _ _ _ _ }.
-Next Obligation.
-  intros GA GB ??? [] []; split; eapply join_valid; eauto.
-Defined.
-
-(* Can we use Santiago and Qinxiang's paper to simplify this? *)
-Class PCM_order `{P : Ghost} (ord : G -> G -> Prop) := { ord_refl :> RelationClasses.Reflexive ord;
-  ord_trans :> RelationClasses.Transitive ord;
-  ord_lub : forall a b c, ord a c -> ord b c -> {c' | join a b c' /\ ord c' c};
-  join_ord : forall a b c, join a b c -> ord a c /\ ord b c; ord_join : forall a b, ord b a -> join a b a }.
-
-(*Class lub_ord {A} (ord : A -> A -> Prop) := { lub_ord_refl :> RelationClasses.Reflexive ord;
-  lub_ord_trans :> RelationClasses.Transitive ord;
-  has_lub : forall a b c, ord a c -> ord b c -> exists c', ord a c' /\ ord b c' /\
-    forall d, ord a d -> ord b d -> ord c' d }.
-
-Global Instance ord_PCM `{lub_ord} : Ghost := { Join_G a b c := ord a c /\ ord b c /\
-  forall c', ord a c' -> ord b c' -> ord c c' }.
-Proof.
-  - 
-  - intros ??? (? & ? & ?); eauto.
-  - intros ????? (? & ? & Hc) (? & ? & He).
-    destruct (has_lub b d e) as (c' & ? & ? & Hlub); try solve [etransitivity; eauto].
-    exists c'; repeat split; auto.
-    + etransitivity; eauto.
-    + apply Hlub; auto; transitivity c; auto.
-    + intros.
-      apply He.
-      * apply Hc; auto; etransitivity; eauto.
-      * etransitivity; eauto.
-Defined.
-
-Global Instance ord_PCM_ord `{lub_ord} : PCM_order ord.
-Proof.
-  constructor.
-  - apply lub_ord_refl.
-  - apply lub_ord_trans.
-  - intros ??? Ha Hb.
-    destruct (has_lub _ _ _ Ha Hb) as (c' & ? & ? & ?).
-    exists c'; simpl; eauto.
-  - simpl; intros; tauto.
-  - intros; simpl.
-    repeat split; auto.
-    reflexivity.
-Defined.*)
-
-(* Instances of ghost state *)
 Section Snapshot.
-(* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
-   partial knowledge. *)
 
 Context `{ORD : PCM_order}.
 
-Lemma join_refl : forall (v : G), join v v v.
-Proof.
-  intros. apply ord_join; reflexivity.
-Qed.
-
-Lemma join_compat : forall v1 v2 v' v'', join v2 v' v'' -> ord v1 v2 -> exists v0, join v1 v' v0 /\ ord v0 v''.
-Proof.
-  intros.
-  destruct (join_ord _ _ _ H).
-  destruct (ord_lub v1 v' v'') as (? & ? & ?); eauto.
-  etransitivity; eauto.
-Qed.
-
-Lemma join_ord_eq : forall a b, ord a b <-> exists c, join a c b.
-Proof.
-  split.
-  - intros; exists b.
-    apply ord_join in H.
-    apply join_comm; auto.
-  - intros (? & H); apply join_ord in H; tauto.
-Qed.
-
-(* The master-snapshot PCM in the RCU paper divides the master into shares, which is useful for having both
-   an authoritative writer and an up-to-date invariant. *)
-
-Global Program Instance snap_PCM : Ghost :=
-  { valid _ := True; Join_G a b c := sepalg.join (fst a) (fst b) (fst c) /\
-      if eq_dec (fst a) Share.bot then if eq_dec (fst b) Share.bot then join (snd a) (snd b) (snd c)
-        else ord (snd a) (snd b) /\ snd c = snd b else snd c = snd a /\
-          if eq_dec (fst b) Share.bot then ord (snd b) (snd a) else snd c = snd b }.
-Next Obligation.
-  exists (fun '(sh, a) => (Share.bot, core a)); repeat intro.
-  + destruct t; constructor; auto; simpl.
-    rewrite eq_dec_refl.
-    if_tac; [apply core_unit | split; auto].
-    rewrite join_ord_eq; eexists; apply core_unit.
-  + destruct a, b, c; f_equal.
-    inv H; simpl in *.
-    destruct (eq_dec t Share.bot); [|destruct H1; subst; auto].
-    subst; apply bot_identity in H0; subst.
-    destruct (eq_dec t1 Share.bot); [|destruct H1; subst; auto].
-    * eapply join_core; eauto.
-    * rewrite join_ord_eq in H; destruct H.
-      eapply join_core; eauto.
-Defined.
-Next Obligation.
-  constructor.
-  - intros ???? [? Hjoin1] [? Hjoin2].
-    assert (fst z = fst z') by (eapply join_eq; eauto).
-    destruct z, z'; simpl in *; subst; f_equal.
-    destruct (eq_dec (fst x) Share.bot); [|destruct Hjoin1, Hjoin2; subst; auto].
-    destruct (eq_dec (fst y) Share.bot); [|destruct Hjoin1, Hjoin2; subst; auto].
-    eapply join_eq; eauto.
-  - intros ????? [Hsh1 Hjoin1] [Hsh2 Hjoin2].
-    destruct (sepalg.join_assoc Hsh1 Hsh2) as [sh' []].
-    destruct (eq_dec (fst b) Share.bot) eqn: Hb.
-    + assert (fst d = fst a) as Hd.
-      { eapply sepalg.join_eq; eauto.
-        rewrite e0; apply join_bot_eq. }
-      rewrite Hd in *.
-      assert (sh' = fst c) as Hc.
-      { eapply sepalg.join_eq; eauto.
-        rewrite e0; apply bot_join_eq. }
-      rewrite Hc in *.
-      destruct (eq_dec (fst c) Share.bot) eqn: Hc1.
-      * destruct (eq_dec (fst a) Share.bot) eqn: Ha.
-        -- destruct (join_assoc Hjoin1 Hjoin2) as [c' []].
-           exists (Share.bot, c'); split; split; rewrite ?e2, ?e0, ?e1, ?eq_dec_refl in *; auto.
-        -- destruct Hjoin1 as [Hc' ?]; rewrite Hc' in *.
-           destruct Hjoin2, (ord_lub (snd b) (snd c) (snd a)) as [c' []]; eauto.
-           exists (Share.bot, c'); split; split; rewrite ?e0, ?e1, ?eq_dec_refl, ?Ha in *; auto.
-      * exists c.
-        destruct (eq_dec (fst a) Share.bot) eqn: Ha; try solve [split; split; auto].
-        -- destruct Hjoin2.
-           apply join_ord in Hjoin1; destruct Hjoin1.
-           split; split; rewrite ?e0, ?Ha, ?Hc1, ?eq_dec_refl; auto; split; auto; etransitivity; eauto.
-        -- destruct Hjoin2 as [He1 He2]; rewrite He1, He2 in *.
-           destruct Hjoin1 as [Hd' ?]; rewrite Hd' in *; split; split; rewrite ?e0, ?Ha, ?Hc1, ?eq_dec_refl, ?Hd'; auto.
-    + exists (sh', snd b); simpl.
-      destruct (eq_dec (fst d) Share.bot).
-      { rewrite e0 in Hsh1; apply join_Bot in Hsh1; destruct Hsh1; contradiction. }
-      destruct (eq_dec sh' Share.bot) eqn: Hn'.
-      { subst; apply join_Bot in H; destruct H; contradiction. }
-      assert (snd d = snd b) as Hd by (destruct (eq_dec (fst a) Share.bot); tauto).
-      destruct Hjoin2 as [He ?]; rewrite He in *; split; split; simpl; rewrite ?Hb, ?Hn', ?Hd, ?He in *; auto.
-  - intros ??? []; split; [apply join_comm; auto|].
-    if_tac; if_tac; auto; tauto.
-  - intros ???? [? Hjoin1] [? Hjoin2].
-    assert (fst a = fst b) by (eapply join_positivity; eauto).
-    destruct (eq_dec (fst a) Share.bot), a, a', b, b'; simpl in *; subst; f_equal.
-    + apply join_Bot in H0 as []; subst.
-      apply join_Bot in H as []; subst.
-      rewrite eq_dec_refl in Hjoin1, Hjoin2, Hjoin2.
-      eapply join_positivity; eauto.
-    + destruct Hjoin1; auto.
-Defined.
-Next Obligation.
-  auto.
-Defined.
-
-Definition ghost_snap (a : @G P) p := own p (Share.bot, a) NoneP.
+Definition ghost_snap (a : @G P) p := own(RA := snap_PCM) p (Share.bot, a) NoneP.
 
 Lemma ghost_snap_join : forall v1 v2 p v, join v1 v2 v ->
   ghost_snap v1 p * ghost_snap v2 p = ghost_snap v p.
@@ -293,7 +144,7 @@ Proof.
   - Intros v; erewrite ghost_snap_join; eauto.  apply derives_refl.
 Qed.
 
-Definition ghost_master sh (a : @G P) p := own p (sh, a) NoneP.
+Definition ghost_master sh (a : @G P) p := own(RA := snap_PCM) p (sh, a) NoneP.
 
 Lemma snap_master_join : forall v1 sh v2 p, sh <> Share.bot ->
   ghost_snap v1 p * ghost_master sh v2 p = !!(ord v1 v2) && ghost_master sh v2 p.
@@ -319,12 +170,13 @@ Corollary snaps_master_join : forall lv sh v2 p, sh <> Share.bot ->
 Proof.
   induction lv; simpl; intros.
   - rewrite emp_sepcon, prop_true_andp; auto.
-  - rewrite sepcon_comm, <- sepcon_assoc, (sepcon_comm (ghost_master _ _ _)), snap_master_join by auto.
+  - rewrite sepcon_comm, <-sepcon_assoc, (sepcon_comm (ghost_master _ _ _)), snap_master_join; auto.
     apply pred_ext.
-    + Intros; rewrite sepcon_comm, IHlv by auto; entailer!.
+    + Intros; rewrite sepcon_comm, IHlv; auto; entailer!.
     + Intros.
       match goal with H : Forall _ _ |- _ => inv H end.
-      rewrite prop_true_andp, sepcon_comm, IHlv by auto; entailer!.
+      rewrite prop_true_andp; auto.
+      rewrite sepcon_comm, IHlv; auto; entailer!.
 Qed.
 
 Lemma master_update : forall v v' p, ord v v' -> ghost_master Tsh v p |-- |==> ghost_master Tsh v' p.
@@ -337,7 +189,7 @@ Proof.
   split; auto; simpl.
   fold share in *; destruct (eq_dec Tsh Share.bot); [contradiction Share.nontrivial|].
   destruct Hj as [? Hc']; subst.
-  rewrite eq_dec_refl in Hc' |- *; split; auto.
+  rewrite !eq_dec_refl in Hc' |- *; split; auto.
   etransitivity; eauto.
 Qed.
 
@@ -348,12 +200,14 @@ Proof.
   apply join_refl.
 Qed.
 
+#[local] Hint Resolve bupd_intro : ghost.
+
 Lemma make_snap : forall (sh : share) v p, ghost_master sh v p |-- |==> ghost_snap v p * ghost_master sh v p.
 Proof.
-  intros; destruct (eq_dec sh Share.bot).
-  - subst; setoid_rewrite ghost_snap_join; [apply bupd_intro | apply join_refl].
-  - rewrite snap_master_join by auto.
-    eapply derives_trans, bupd_intro; entailer!.
+  intros.
+  destruct (eq_dec sh Share.bot).
+  - subst; setoid_rewrite ghost_snap_join; [|apply join_refl]; auto with ghost.
+  - rewrite snap_master_join; auto; entailer!; auto with ghost.
 Qed.
 
 Lemma ghost_snap_forget : forall v1 v2 p, ord v1 v2 -> ghost_snap v2 p |-- |==> ghost_snap v1 p.
@@ -388,7 +242,7 @@ Lemma master_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
   ghost_master sh1 v p * ghost_master sh2 v p = ghost_master sh v p.
 Proof.
   intros; symmetry; apply own_op; split; auto; simpl.
-  if_tac; if_tac; try split; auto; try apply ord_refl; apply join_refl.
+  if_tac; if_tac; try split; auto; try reflexivity; apply join_refl.
 Qed.
 
 Lemma master_inj : forall sh1 sh2 v1 v2 p, readable_share sh1 -> readable_share sh2 ->
@@ -427,29 +281,26 @@ Lemma snap_master_update1 : forall v1 v2 p v', ord v2 v' ->
   ghost_snap v1 p * ghost_master1 v2 p |-- |==> ghost_snap v' p * ghost_master1 v' p.
 Proof.
   intros; rewrite !snap_master_join1.
-  Intros.
-  eapply derives_trans; [apply master_update; eauto|].
-  apply bupd_mono; entailer!.
-  apply derives_refl.
+  Intros; entailer!.
+  apply master_update; auto.
 Qed.
 
 End Snapshot.
 
-Definition pos_PCM := ghost_PCM.pos_PCM.
-Definition ref_PCM := ghost_PCM.ref_PCM.
-Notation completable := ghost_PCM.completable.
+#[global] Hint Resolve bupd_intro : ghost.
 
 Section Reference.
 
 Context {P : Ghost}.
 
-Definition ghost_reference g a := own(RA := ref_PCM P) g (None, Some a) NoneP.
-Definition ghost_part g sh a := own(RA := ref_PCM P) g (Some (sh, a), None) NoneP.
-Definition ghost_part_ref g sh a r :=
+Definition ghost_reference a g := own(RA := ref_PCM P) g (None, Some a) NoneP.
+Definition ghost_part sh a g := own(RA := ref_PCM P) g (Some (sh, a), None) NoneP.
+Definition ghost_part_ref sh a r g :=
   own(RA := ref_PCM P) g (Some (sh, a), Some r) NoneP.
 
-Lemma ghost_part_ref_join : forall g (sh : share) a b,
-  ghost_part g sh a * ghost_reference g b = ghost_part_ref g sh a b.
+Lemma ghost_part_join : forall sh1 sh2 sh a1 a2 a g, join sh1 sh2 sh -> join a1 a2 a ->
+  sh1 <> Share.bot -> sh2 <> Share.bot ->
+  ghost_part sh1 a1 g * ghost_part sh2 a2 g = ghost_part sh a g.
 Proof.
   intros.
   symmetry; apply own_op.
@@ -457,7 +308,16 @@ Proof.
   split; auto; constructor.
 Qed.
 
-Lemma ref_sub : forall g sh a b pp,
+Lemma ghost_part_ref_join : forall g (sh : share) a b,
+  ghost_part sh a g * ghost_reference b g = ghost_part_ref sh a b g.
+Proof.
+  intros.
+  symmetry; apply own_op.
+  hnf; simpl.
+  split; auto; constructor.
+Qed.
+
+Lemma ref_sub_gen : forall g sh a b pp,
   own(RA := ref_PCM P) g (Some (sh, a), None) pp * own(RA := ref_PCM P) g (None, Some b) pp |--
     !!(if eq_dec sh Tsh then a = b else exists x, join a x b).
 Proof.
@@ -477,40 +337,11 @@ Proof.
     rewrite eq_dec_refl; auto.
 Qed.
 
-Lemma ref_add : forall g sh a r b a' r' pp
-  (Ha : join a b a') (Hr : join r b r') (Hb : forall c, join_sub a c -> join_sub c r -> joins c b),
-  own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
-  own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
+Lemma ref_sub : forall g sh a b,
+  ghost_part sh a g * ghost_reference b g |--
+    !!(if eq_dec sh Tsh then a = b else exists x, join a x b).
 Proof.
-  intros; apply own_update.
-  intros (c, ?) ((x, ?) & [J1 J2] & [? Hvalid]); simpl in *.
-  inv J2; [|contradiction].
-  destruct c as [(?, c)|], x as [(shx, x)|]; try contradiction.
-  - destruct J1 as (? & ? & ? & Hx).
-    destruct (Hb x) as [x' Hx'].
-    { eexists; eauto. }
-    { destruct Hvalid as [[(?, ?)|] Hvalid]; hnf in Hvalid.
-      + destruct Hvalid as (? & ? & ? & ?); eexists; eauto.
-      + inv Hvalid; apply join_sub_refl. }
-    exists (Some (shx, x'), Some r'); repeat (split; auto); try constructor; simpl.
-    + destruct (join_assoc (join_comm Hx) Hx') as (? & ? & ?).
-      eapply join_eq in Ha; eauto; subst; auto.
-    + destruct Hvalid as (d & Hvalid); hnf in Hvalid.
-      exists d; destruct d as [(shd, d)|]; hnf.
-      * destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
-        destruct (join_assoc (join_comm Hd) Hr) as (? & ? & ?).
-        eapply join_eq in Hx'; eauto; subst; auto.
-      * inv Hvalid; f_equal.
-        eapply join_eq; eauto.
-  - inv J1.
-    exists (Some (sh, a'), Some r'); repeat split; simpl; auto; try constructor.
-    destruct Hvalid as (d & Hvalid); hnf in Hvalid.
-    exists d; destruct d as [(shd, d)|]; hnf.
-    + destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
-      destruct (join_assoc (join_comm Hd) Hr) as (? & ? & ?).
-      eapply join_eq in Ha; eauto; subst; auto.
-    + inv Hvalid; f_equal.
-      eapply join_eq; eauto.
+  intros; apply ref_sub_gen.
 Qed.
 
 Lemma self_completable : forall a, completable (Some (Tsh, a)) a.
@@ -519,19 +350,82 @@ Proof.
   exists None; constructor.
 Qed.
 
+Lemma part_ref_valid : forall a, valid(Ghost := ref_PCM P) (Some (Tsh, a), Some a).
+Proof.
+  intros; hnf; simpl.
+  split; auto with share.
+  apply self_completable.
+Qed.
+
+Lemma ref_update_gen : forall g a r a' pp,
+  own(RA := ref_PCM P) g (Some (Tsh, a), Some r) pp |-- |==>
+  own(RA := ref_PCM P) g (Some (Tsh, a'), Some a') pp.
+Proof.
+  intros; apply own_update.
+  intros (c, ?) ((x, ?) & [J1 J2] & [? Hvalid]); simpl in *.
+  inv J2; [|contradiction].
+  destruct c as [(?, c)|], x as [(shx, x)|]; try contradiction.
+  - destruct J1 as (? & ? & J & Hx).
+    apply join_Tsh in J as []; contradiction.
+  - inv J1.
+    exists (Some (Tsh, a'), Some a'); repeat split; simpl; auto; try constructor.
+    apply self_completable.
+Qed.
+
+Lemma ref_update : forall g a r a',
+  ghost_part_ref Tsh a r g |-- |==> ghost_part_ref Tsh a' a' g.
+Proof.
+  intros; apply ref_update_gen.
+Qed.
+
+Lemma part_ref_update : forall g sh a r a' r' pp
+  (Ha' : forall b, join a b r -> join a' b r'),
+  own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
+  own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
+Proof.
+  intros; apply own_update.
+  intros (c, ?) ((x, ?) & [J1 J2] & [? Hvalid]); simpl in *.
+  inv J2; [|contradiction].
+  destruct c as [(?, c)|], x as [(shx, x)|]; try contradiction.
+  - destruct J1 as (? & ? & ? & Hx).
+    assert (join_sub x r) as [f J].
+    { destruct Hvalid as [[(?, ?)|] Hvalid]; hnf in Hvalid.
+      + destruct Hvalid as (? & ? & ? & ?); eexists; eauto.
+      + inv Hvalid; apply join_sub_refl. }
+    destruct (join_assoc Hx J) as (b & Jc & Jb%Ha').
+    destruct (join_assoc (join_comm Jc) (join_comm Jb)) as (x' & Hx' & Hr').
+    exists (Some (shx, x'), Some r'); repeat (split; auto); try constructor; simpl.
+    + destruct Hvalid as (d & Hvalid); hnf in Hvalid.
+      destruct d as [(shd, d)|].
+      * exists (Some (shd, f)); destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
+      * exists None; hnf.
+        inv Hvalid; f_equal.
+        eapply join_eq; [apply Ha'|]; eauto.
+  - inv J1.
+    exists (Some (sh, a'), Some r'); repeat split; simpl; auto; try constructor.
+    destruct Hvalid as (d & Hvalid); hnf in Hvalid.
+    exists d; destruct d as [(shd, d)|]; hnf.
+    + destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
+    + inv Hvalid; f_equal.
+      symmetry; eapply core_identity.
+      apply join_comm, Ha', join_comm, core_unit.
+Qed.
+
+Corollary ref_add : forall g sh a r b a' r' pp
+  (Ha : join a b a') (Hr : join r b r'),
+  own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
+  own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
+Proof.
+  intros; apply part_ref_update; intros c J.
+  destruct (join_assoc (join_comm J) Hr) as (? & ? & ?).
+  eapply join_eq in Ha; eauto; subst; auto.
+Qed.
+
 End Reference.
 
+#[export] Hint Resolve part_ref_valid : init.
+ 
 #[export] Hint Resolve self_completable : init.
-
-Section Discrete.
-
-Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
-  Join_G := Join_equiv A }.
-Next Obligation.
-  auto.
-Defined.
-
-End Discrete.
 
 Section GVar.
 
@@ -589,19 +483,17 @@ Proof.
   - exists (Some (Tsh, v')); split; [constructor | auto].
 Qed.
 
-(*Lemma ghost_var_precise : forall sh p, precise (EX v : A, ghost_var sh v p).
+Lemma ghost_var_exclusive : forall sh v p, sh <> Share.bot -> exclusive_mpred (ghost_var sh v p).
 Proof.
-  intros; apply derives_precise' with (EX g : share * A, ghost g p), ex_ghost_precise.
-  Intro v; Exists (sh, v); auto.  apply derives_refl.
+  intros; unfold exclusive_mpred.
+  rewrite ghost_var_share_join_gen.
+  Intros sh'.
+  apply join_self, identity_share_bot in H1; contradiction.
 Qed.
 
-Lemma ghost_var_precise' : forall sh v p, precise (ghost_var sh v p).
-Proof.
-  intros; apply derives_precise with (Q := EX v : A, ghost_var sh v p);
-    [exists v; auto | apply ghost_var_precise].
-Qed.*)
-
 End GVar.
+
+#[export] Hint Resolve ghost_var_exclusive : exclusive.
 
 Section PVar.
 (* Like ghost variables, but the partial values may be out of date. *)
@@ -620,15 +512,12 @@ Next Obligation.
     rewrite Nat.max_comm; auto.
   - unfold join; intros.
     apply Nat.le_antisymm; [subst b | subst a]; apply Nat.le_max_l.
-Defined.
-Next Obligation.
-  auto.
-Defined.
+Qed.
 
 Global Instance max_order : PCM_order Peano.le.
 Proof.
   constructor; auto; intros.
-  - intros ???; lia.
+  - constructor; auto. intros ???; lia.
   - eexists; unfold join; simpl; split; eauto.
     apply Nat.max_lub; auto.
   - hnf in H; subst.
@@ -656,11 +545,60 @@ Qed.
 
 End PVar.
 
+Section Option.
+
+Context {P : Ghost}.
+
+Global Program Instance option_PCM : Ghost := { G := option G; valid a := True }.
+
+Context `{ORD : PCM_order(P := P)}.
+
+Definition option_ord (a b : G) : Prop :=
+  match a, b with
+  | None, _ => True
+  | Some a, Some b => ord a b
+  | _, _ => False
+  end.
+
+Instance option_ord_refl : Reflexive option_ord.
+Proof.
+  intros ?.
+  destruct x; simpl; auto.
+  reflexivity.
+Qed.
+
+Global Instance option_order : PCM_order option_ord.
+Proof.
+  constructor.
+  - constructor; [apply option_ord_refl|].
+    intros ???. destruct x; simpl in *; auto.
+      destruct y; [simpl in * | contradiction].
+      destruct z; [|contradiction].
+      etransitivity; eauto.
+  - intros.
+    destruct a; [destruct b|]; simpl in *.
+    + destruct c; [|contradiction].
+      destruct (ord_lub _ _ _ H H0) as (c' & ? & ?); exists (Some c'); split; auto.
+      constructor; auto.
+    + exists (Some g); split; auto; constructor.
+    + exists b; split; auto; constructor.
+  - inversion 1; subst; try solve [split; simpl; auto; reflexivity].
+    apply join_ord in H0 as []; auto.
+  - destruct b; simpl.
+    + destruct a; [|contradiction].
+      intros; constructor; apply ord_join; auto.
+    + destruct a; constructor.
+Qed.
+
+End Option.
+
 Section Maps.
 
-Context {A B : Type} {A_eq : EqDec A}.
+Context {A} {A_eq : EqDec A} {B : Type}.
 
 Implicit Types (k : A) (v : B) (m : A -> option B).
+
+Definition map_add m1 m2 k := match m1 k with Some v' => Some v' | None => m2 k end.
 
 Definition map_upd m k v k' := if eq_dec k' k then Some v else m k'.
 
@@ -670,13 +608,18 @@ Proof.
   if_tac; subst; auto.
 Qed.
 
+Lemma map_upd_comm : forall m k1 v1 k2 v2, k1 <> k2 ->
+  map_upd (map_upd m k1 v1) k2 v2 = map_upd (map_upd m k2 v2) k1 v1.
+Proof.
+  intros; unfold map_upd.
+  extensionality; if_tac; if_tac; auto; subst; contradiction.
+Qed.
+
 Fixpoint map_upd_list m l :=
   match l with
   | [] => m
   | (k, v) :: rest => map_upd_list (map_upd m k v) rest
   end.
-
-Definition map_add m1 m2 k := match m1 k with Some v' => Some v' | None => m2 k end.
 
 Definition empty_map k : option B := None.
 
@@ -684,30 +627,148 @@ Global Instance Inhabitant_map : Inhabitant (A -> option B) := empty_map.
 
 Definition singleton k v k1 := if eq_dec k1 k then Some v else None.
 
-Definition map_incl m1 m2 := forall k v, m1 k = Some v -> m2 k = Some v.
+Lemma map_add_empty : forall m, map_add m empty_map = m.
+Proof.
+  intros; extensionality; unfold map_add, empty_map.
+  destruct (m x); auto.
+Qed.
+
+Lemma map_add_single : forall m k v, map_add (singleton k v) m = map_upd m k v.
+Proof.
+  intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
+Qed.
+
+Lemma map_add_assoc : forall m1 m2 m3, map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
+Proof.
+  intros; extensionality; unfold map_add.
+  destruct (m1 x); auto.
+Qed.
+
+Lemma map_add_upd : forall m1 m2 k v, map_upd (map_add m1 m2) k v = map_add (map_upd m1 k v) m2.
+Proof.
+  intros.
+  rewrite <- !map_add_single.
+  rewrite map_add_assoc; auto.
+Qed.
+
+End Maps.
+
+Section Maps1.
+
+Context {A} {A_eq : EqDec A} {P : Ghost}.
+
+Implicit Types (k : A) (v : G) (m : A -> option G).
+
+Global Instance map_join : Join (A -> option G) := fun a b c => forall k, join (a k) (b k) (c k).
+
+Global Program Instance map_PCM : Ghost := { valid a := True; Join_G := map_join }.
+
+Context `{ORD : PCM_order(P := P)}.
+
+Definition map_incl m1 m2 := forall k, option_ord(ord := ord) (m1 k) (m2 k).
 
 Global Instance map_incl_refl : Reflexive map_incl.
 Proof.
-  repeat intro; auto.
-Qed.
-
-Global Instance map_incl_antisym : Antisymmetric _ _ map_incl.
-Proof.
-  intros x y Hx Hy a.
-  specialize (Hx a); specialize (Hy a).
-  destruct (x a); [erewrite Hx; eauto|].
-  destruct (y a); auto.
+  repeat intro; reflexivity.
 Qed.
 
 Global Instance map_incl_trans : Transitive map_incl.
 Proof.
-  repeat intro; auto.
+  repeat intro; etransitivity; eauto.
+Qed.
+
+Instance fmap_order : PCM_order map_incl.
+Proof.
+  constructor.
+  - split; [apply map_incl_refl | apply map_incl_trans].
+  - intros ??? Ha Hb. exists (fun k => proj1_sig (ord_lub _ _ _ (Ha k) (Hb k))); split;
+      intros k; destruct (ord_lub(ord := option_ord) (a k) (b k) (c k) (Ha k) (Hb k)) as (? & ? & ?); auto.
+  - split; repeat intro; specialize (H k); apply (join_ord(ord := option_ord)) in H as []; auto.
+  - intros ??? k.
+    specialize (H k); apply (ord_join(ord := option_ord)); auto.
+Qed.
+
+Lemma map_upd_single : forall m k v, m k = None -> join m (singleton k v) (map_upd m k v).
+Proof.
+  intros; intros k'.
+  unfold singleton, map_upd; if_tac; subst; [|constructor].
+  rewrite H; constructor.
+Qed.
+
+Lemma map_upd_list_app : forall l1 l2 m, map_upd_list m (l1 ++ l2) = map_upd_list (map_upd_list m l1) l2.
+Proof.
+  induction l1; auto; simpl; intros.
+  destruct a; auto.
+Qed.
+
+Lemma map_upd_list_out : forall l m k, m k = None -> ~In k (map fst l) -> map_upd_list m l k = None.
+Proof.
+  induction l; auto; simpl; intros.
+  destruct a; apply IHl.
+  - unfold map_upd; if_tac; auto.
+    subst; simpl in *; tauto.
+  - tauto.
+Qed.
+
+Lemma map_upd_incl : forall m1 m2 k v, map_incl m1 m2 ->
+  m2 k = Some v -> map_incl (map_upd m1 k v) m2.
+Proof.
+  unfold map_upd; repeat intro.
+  destruct (eq_dec k0 k); [|auto].
+  subst; rewrite H0; reflexivity.
+Qed.
+
+Lemma empty_map_incl : forall m, map_incl empty_map m.
+Proof.
+  repeat intro; constructor.
+Qed.
+
+Lemma map_upd2_incl : forall m1 m2 k v, map_incl m1 m2 -> map_incl (map_upd m1 k v) (map_upd m2 k v).
+Proof.
+  unfold map_upd; repeat intro.
+  if_tac; auto; reflexivity.
+Qed.
+
+End Maps1.
+
+Section MapsL.
+
+Context {A B : Type} {A_eq : EqDec A}.
+
+Implicit Types (k : A) (v : B) (m : A -> option B).
+
+Inductive discrete_ord : B -> B -> Prop := discrete_ordI x : discrete_ord x x.
+
+Global Instance discrete_order : PCM_order(P := discrete_PCM B) discrete_ord.
+Proof.
+  constructor.
+  - constructor.
+    + constructor.
+    + intros ???; inversion 1; inversion 1; constructor.
+  - intros.
+    assert (a = c) by (inv H; auto).
+    assert (b = c) by (inv H0; auto).
+    subst; do 2 eexists; constructor; auto.
+  - inversion 1; subst; split; constructor.
+  - inversion 1; constructor; auto.
+Qed.
+
+Local Notation map_incl := (@map_incl A (discrete_PCM B) discrete_ord).
+
+Global Instance map_incl_antisym : Antisymmetric _ eq map_incl.
+Proof.
+  intros x y Hx Hy.
+  extensionality a.
+  specialize (Hx a); specialize (Hy a).
+  destruct (x a), (y a); simpl in *; auto; try contradiction.
+  inv Hx; auto.
 Qed.
 
 Lemma map_add_incl_compat : forall m1 m2 m3, map_incl m1 m2 -> map_incl (map_add m3 m1) (map_add m3 m2).
 Proof.
   unfold map_add; repeat intro.
-  destruct (m3 k); auto.
+  destruct (m3 k); auto; simpl.
+  constructor.
 Qed.
 
 Definition compatible m1 m2 := forall k v1 v2, m1 k = Some v1 -> m2 k = Some v2 -> v1 = v2.
@@ -730,12 +791,6 @@ Proof.
   destruct (m1 x) eqn: Hm1, (m2 x) eqn: Hm2; eauto.
 Qed.
 
-Lemma map_add_assoc : forall m1 m2 m3, map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
-Proof.
-  intros; extensionality; unfold map_add.
-  destruct (m1 x); auto.
-Qed.
-
 Lemma compatible_add_assoc : forall m1 m2 m3, compatible m1 m2 ->
   compatible (map_add m1 m2) m3 -> compatible m1 (map_add m2 m3).
 Proof.
@@ -745,127 +800,71 @@ Proof.
   destruct (m2 k); auto.
 Qed.
 
+Lemma map_incl_spec : forall m1 m2 k v, map_incl m1 m2 -> m1 k = Some v -> m2 k = Some v.
+Proof.
+  intros; specialize (H k).
+  rewrite H0 in H; simpl in H.
+  destruct (m2 k); auto; inv H; auto.
+Qed.
+
 Lemma compatible_incl : forall m1 m2 m (Hcompat : compatible m2 m) (Hincl : map_incl m1 m2), compatible m1 m.
 Proof.
-  repeat intro; eauto.
+  repeat intro.
+  eapply Hcompat; eauto.
+  eapply map_incl_spec; eauto.
 Qed.
 
 Lemma map_incl_add : forall m1 m2, map_incl m1 (map_add m1 m2).
 Proof.
   repeat intro; unfold map_add.
-  rewrite H; auto.
+  destruct (m1 k); simpl; auto.
+  constructor.
 Qed.
 
 Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3),
   compatible m1 m2.
 Proof.
   intros; intros ??? Hk1 Hk2.
-  apply Hincl1 in Hk1; apply Hincl2 in Hk2.
+  apply (map_incl_spec _ _ _ _ Hincl1) in Hk1; apply (map_incl_spec _ _ _ _ Hincl2) in Hk2.
   rewrite Hk1 in Hk2; inv Hk2; auto.
 Qed.
 
 Lemma map_add_incl : forall m1 m2 m3, map_incl m1 m3 -> map_incl m2 m3 -> map_incl (map_add m1 m2) m3.
 Proof.
   unfold map_add; intros.
-  intros ?? Hk.
-  destruct (m1 k) eqn: Hk1; auto.
-  inv Hk; auto.
+  intros k.
+  destruct (m1 k) eqn: Hk1; auto; simpl.
+  eapply map_incl_spec in Hk1 as ->; eauto; constructor.
 Qed.
 
-Global Instance map_join : Join (A -> option B) :=
-  fun a b c => forall k v, c k = Some v <-> a k = Some v \/ b k = Some v.
+Local Notation map_join := (map_join(P := discrete_PCM B)).
 
-Lemma map_join_spec : forall m1 m2 m3, join m1 m2 m3 <-> compatible m1 m2 /\ m3 = map_add m1 m2.
+Lemma map_join_spec : forall m1 m2 m3, map_join m1 m2 m3 <-> compatible m1 m2 /\ m3 = map_add m1 m2.
 Proof.
   unfold join, map_join; simpl; split; intros.
   - split.
     + repeat intro.
-      assert (m3 k = Some v1) as Hk by (rewrite H; auto).
-      replace (m3 k) with (Some v2) in Hk by (symmetry; rewrite H; auto).
-      inv Hk; auto.
+      specialize (H k); rewrite H0, H1 in H; inv H.
+      inv H5; auto.
     + extensionality x; unfold map_add.
-      destruct (m1 x) eqn: Hm1; [rewrite H; auto|].
-      destruct (m2 x) eqn: Hm2; [rewrite H; auto|].
-      destruct (m3 x) eqn: Hm3; auto.
-      rewrite H in Hm3; destruct Hm3 as [Hm3 | Hm3]; rewrite Hm3 in *; discriminate.
+      specialize (H x); inv H; auto.
+      { destruct (m1 x); auto. }
+      inv H3; auto.
   - destruct H as [Hcompat]; subst; unfold map_add.
-    destruct (m1 k) eqn: Hm1; split; auto; intros [?|?]; eauto; discriminate.
+    destruct (m1 k) eqn: Hm1; simpl; try constructor.
+    destruct (m2 k) eqn: Hm2; constructor.
+    eapply Hcompat in Hm2; eauto; subst; constructor; auto.
 Qed.
 
-Global Program Instance map_PCM : Ghost := { valid a := True; Join_G := map_join }.
-Next Obligation.
-  exists (fun _ => empty_map); auto; repeat intro.
-  split; auto; intros [|]; auto; discriminate.
-Defined.
-Next Obligation.
-  constructor.
-  - intros.
-    extensionality k.
-    specialize (H k); specialize (H0 k).
-    destruct (z k).
-    + destruct (H b) as [X _]; specialize (X eq_refl).
-      rewrite <- H0 in X; auto.
-    + destruct (z' k); auto.
-      destruct (H0 b) as [X _]; specialize (X eq_refl).
-      rewrite <- H in X; auto.
-  - intros.
-    rewrite map_join_spec in *.
-    destruct H, H0; subst.
-    rewrite map_add_assoc.
-    eexists; rewrite !map_join_spec; repeat split.
-    + eapply compatible_incl; eauto.
-      rewrite map_add_comm by auto; apply map_incl_add.
-    + apply compatible_add_assoc; auto.
-  - intros ???; rewrite !map_join_spec; intros []; subst.
-    split; [symmetry | apply map_add_comm]; auto.
-  - intros.
-    extensionality k; specialize (H k); specialize (H0 k).
-    destruct (a k), (b k); auto.
-    + apply H0; auto.
-    + destruct (H b0) as [_ H']; lapply H'; auto.
-    + destruct (H0 b0) as [_ H']; lapply H'; auto.
-Defined.
-Next Obligation.
-  auto.
-Defined.
-
-Instance fmap_order : PCM_order map_incl.
-Proof.
-  constructor.
-  - apply map_incl_refl.
-  - apply map_incl_trans.
-  - intros ??? Ha Hb; exists (map_add a b); split; simpl.
-    + rewrite map_join_spec; split; auto.
-      eapply map_incl_compatible; eauto.
-    + apply map_add_incl; auto.
-  - split; repeat intro; specialize (H k v); rewrite H; auto.
-  - split; auto; intros [|]; auto.
-Defined.
-
 Lemma map_snap_join : forall m1 m2 p,
-  ghost_snap m1 p * ghost_snap m2 p = !!(compatible m1 m2) && ghost_snap (map_add m1 m2) p.
+  ghost_snap(ORD := fmap_order(P := discrete_PCM B)) m1 p * ghost_snap(ORD := fmap_order(P := discrete_PCM B)) m2 p = !!(compatible m1 m2) && ghost_snap(ORD := fmap_order(P := discrete_PCM B)) (map_add m1 m2) p.
 Proof.
   intros; rewrite ghost_snap_join'.
   apply pred_ext.
   - Intros m.
-    rewrite map_join_spec in H; destruct H; subst; entailer!.
+    apply map_join_spec in H as []; subst; entailer!.
   - Intros; Exists (map_add m1 m2).
-    rewrite map_join_spec; entailer!.
-Qed.
-
-Lemma map_upd_list_app : forall l1 l2 m, map_upd_list m (l1 ++ l2) = map_upd_list (map_upd_list m l1) l2.
-Proof.
-  induction l1; auto; simpl; intros.
-  destruct a; auto.
-Qed.
-
-Lemma map_upd_list_out : forall l m k, m k = None -> ~In k (map fst l) -> map_upd_list m l k = None.
-Proof.
-  induction l; auto; simpl; intros.
-  destruct a; apply IHl.
-  - unfold map_upd; if_tac; auto.
-    subst; simpl in *; tauto.
-  - tauto.
+    setoid_rewrite map_join_spec; entailer!.
 Qed.
 
 Lemma compatible_k : forall m1 m2 (Hcompat : compatible m1 m2) k v, m2 k = Some v -> map_add m1 m2 k = Some v.
@@ -875,56 +874,28 @@ Proof.
   destruct (m1 k) eqn: Hk; eauto.
 Qed.
 
-Lemma map_join_incl_compat : forall m1 m2 m' m'' (Hincl : map_incl m1 m2) (Hjoin : join m2 m' m''),
-  exists m, join m1 m' m /\ map_incl m m''.
+Lemma map_join_incl_compat : forall m1 m2 m' m'' (Hincl : map_incl m1 m2) (Hjoin : map_join m2 m' m''),
+  exists m, map_join m1 m' m /\ map_incl m m''.
 Proof.
   intros; apply (@join_comm _ _ (@Perm_G map_PCM)) in Hjoin.
-  rewrite map_join_spec in Hjoin; destruct Hjoin as [Hjoin]; subst.
+  apply map_join_spec in Hjoin as [Hjoin]; subst.
   do 2 eexists; [|apply map_add_incl_compat; eauto].
   symmetry in Hjoin; eapply compatible_incl in Hjoin; eauto.
   rewrite map_join_spec; split; auto.
   rewrite <- map_add_comm; auto.
 Qed.
 
-Lemma map_add_empty : forall m, map_add m empty_map = m.
-Proof.
-  intros; extensionality; unfold map_add, empty_map.
-  destruct (m x); auto.
-Qed.
-
-Lemma map_upd_incl : forall m1 m2 k v, map_incl m1 m2 ->
-  m2 k = Some v -> map_incl (map_upd m1 k v) m2.
-Proof.
-  unfold map_upd; repeat intro.
-  destruct (eq_dec k0 k); [congruence | auto].
-Qed.
-
-Lemma map_add_single : forall m k v, map_add (singleton k v) m = map_upd m k v.
-Proof.
-  intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
-Qed.
-
 Lemma incl_compatible : forall m1 m2, map_incl m1 m2 -> compatible m1 m2.
 Proof.
   intros; intros ??? Hk1 Hk2.
-  specialize (H _ _ Hk1); rewrite H in Hk2; inv Hk2; auto.
+  eapply map_incl_spec in Hk1; eauto; congruence.
 Qed.
 
 Lemma map_add_redundant : forall m1 m2, map_incl m1 m2 -> map_add m1 m2 = m2.
 Proof.
   intros; unfold map_add; extensionality k.
   destruct (m1 k) eqn: Hk; auto; symmetry; auto.
-Qed.
-
-Lemma empty_map_incl : forall m, map_incl empty_map m.
-Proof.
-  repeat intro; discriminate.
-Qed.
-
-Lemma map_upd2_incl : forall m1 m2 k v, map_incl m1 m2 -> map_incl (map_upd m1 k v) (map_upd m2 k v).
-Proof.
-  unfold map_upd; repeat intro.
-  if_tac; auto.
+  eapply map_incl_spec; eauto.
 Qed.
 
 Lemma compatible_upd : forall m1 m2 k v, compatible m1 m2 -> m2 k = None ->
@@ -932,13 +903,6 @@ Lemma compatible_upd : forall m1 m2 k v, compatible m1 m2 -> m2 k = None ->
 Proof.
   unfold map_upd; repeat intro.
   destruct (eq_dec k0 k); eauto; congruence.
-Qed.
-
-Lemma map_add_upd : forall m1 m2 k v, map_upd (map_add m1 m2) k v = map_add (map_upd m1 k v) m2.
-Proof.
-  intros.
-  rewrite <- !map_add_single.
-  rewrite map_add_assoc; auto.
 Qed.
 
 Notation maps_add l := (fold_right map_add empty_map l).
@@ -971,7 +935,7 @@ Proof.
     unfold map_add.
     replace (m k) with (Some v); auto.
   - apply all_compatible_cons in Hcompat as [].
-    rewrite map_add_comm by auto.
+    rewrite map_add_comm; auto.
     unfold map_add.
     erewrite IHl; eauto.
 Qed.
@@ -1023,6 +987,7 @@ Qed.
 Lemma disjoint_incl : forall m1 m2 m (Hcompat : disjoint m2 m) (Hincl : map_incl m1 m2), disjoint m1 m.
 Proof.
   repeat intro; eauto.
+  eapply map_incl_spec in Hincl; eauto.
 Qed.
 
 Lemma disjoint_add : forall m1 m2 m3, disjoint m1 m2 -> disjoint m1 m3 -> disjoint m1 (map_add m2 m3).
@@ -1046,8 +1011,7 @@ Next Obligation.
     specialize (H k); specialize (H0 k).
     destruct (x k), (y k); try congruence; contradiction.
   - intros.
-    rewrite map_disj_join_spec in *.
-    destruct H, H0; subst.
+    apply map_disj_join_spec in H as []; apply map_disj_join_spec in H0 as []; subst.
     rewrite map_add_assoc.
     eexists; rewrite !map_disj_join_spec; repeat split.
     + eapply disjoint_incl; eauto.
@@ -1063,17 +1027,15 @@ Next Obligation.
     + destruct (a' k); [contradiction | auto].
     + destruct (a' k); [contradiction | auto].
     + destruct (b' k); [contradiction | auto].
-Defined.
-Next Obligation.
-  auto.
-Defined.
+Qed.
 
 Lemma disj_join_sub : forall m1 m2, map_incl m1 m2 -> exists m3, join m1 m3 m2.
 Proof.
   intros; exists (fun x => match m2 x, m1 x with Some v, None => Some v | _, _ => None end).
   intro k; specialize (H k).
-  destruct (m1 k).
-  - erewrite H; eauto.
+  destruct (m1 k); simpl in H.
+  - destruct (m2 k); [|contradiction].
+    inv H; auto.
   - destruct (m2 k); auto.
 Qed.
 
@@ -1108,7 +1070,7 @@ Proof.
       rewrite !Znth_pos_cons, !Z.add_simpl_r, Zlength_cons in H by lia.
       eapply H; eauto; lia.
   - intros []; repeat intro.
-    rewrite Zlength_cons in *.
+    rewrite Zlength_cons in H1, H2.
     destruct (eq_dec i 0), (eq_dec j 0); subst; try contradiction.
     + rewrite Znth_0_cons in H4; rewrite Znth_pos_cons by lia.
       specialize (H _ _ H4).
@@ -1138,17 +1100,18 @@ Lemma all_disjoint_rev : forall l, all_disjoint l <-> all_disjoint (rev l).
 Proof.
   split; [apply all_disjoint_rev1|].
   intros ?%all_disjoint_rev1.
-  rewrite rev_involutive in *; auto.
+  rewrite rev_involutive in H0; auto.
 Qed.
 
-Lemma maps_add_rev : forall l, all_compatible l -> maps_add (rev l) = maps_add l.
+Lemma  maps_add_rev : forall l, all_compatible l -> maps_add (rev l) = maps_add l.
 Proof.
   induction l; auto; simpl; intros.
   apply all_compatible_cons in H as [].
-  rewrite map_add_comm, fold_right_app by auto; simpl.
+  rewrite map_add_comm; auto.
+  rewrite fold_right_app; simpl.
   rewrite map_add_empty.
   rewrite (fold_right_maps_add _ a).
-  rewrite <- IHl; auto.
+  rewrite IHl; auto.
 Qed.
 
 Lemma all_disjoint_snoc : forall m l, all_disjoint (l ++ [m]) <-> disjoint m (maps_add l) /\ all_disjoint l.
@@ -1156,7 +1119,7 @@ Proof.
   intros.
   replace (l ++ [m]) with (rev (m :: rev l)) by (simpl; rewrite rev_involutive; auto).
   rewrite all_disjoint_rev, rev_involutive, all_disjoint_cons, <- all_disjoint_rev.
-  split; intros []; rewrite maps_add_rev in *; auto; apply all_disjoint_compatible; auto.
+  split; intros []; rewrite ?maps_add_rev in *; auto; apply all_disjoint_compatible; auto.
 Qed.
 
 Lemma empty_map_disjoint : forall m, disjoint empty_map m.
@@ -1189,7 +1152,7 @@ Qed.
 
 End Maps_Disjoint.
 
-End Maps.
+End MapsL.
 
 Notation maps_add l := (fold_right map_add empty_map l).
 
@@ -1202,6 +1165,8 @@ Context {hist_el : Type}.
 
 Notation hist_part := (nat -> option hist_el).
 
+Local Notation map_incl := (@map_incl _ (discrete_PCM hist_el) discrete_ord).
+
 Definition hist_sub sh (h : hist_part) hr := sh <> Share.bot /\ if eq_dec sh Tsh then h = hr
   else map_incl h hr.
 
@@ -1212,11 +1177,11 @@ Proof.
     + destruct Hcase as (? & ? & Hsh & Hj); split; auto.
       if_tac.
       * subst; apply join_Tsh in Hsh; tauto.
-      * rewrite map_disj_join_spec in Hj; destruct Hj; subst.
+      * apply map_disj_join_spec in Hj as []; subst.
         apply map_incl_add.
     + hnf in Hcase.
       inv Hcase.
-      rewrite eq_dec_refl; auto.
+      rewrite eq_dec_refl; auto with share.
   - if_tac.
     + intros []; subst; exists None; split; auto.
     + intros [? Hincl].
@@ -1236,7 +1201,8 @@ Proof.
   unfold hist_sub; intros.
   destruct Hsub; split; auto.
   if_tac; subst; auto.
-  apply map_upd2_incl; auto.
+  eapply @map_upd2_incl; auto.
+  apply _.
 Qed.
 
 Definition ghost_hist (sh : share) (h : hist_part) g :=
@@ -1251,7 +1217,7 @@ Proof.
   apply pred_ext; Intros; apply andp_right, derives_refl; apply prop_right.
   - destruct H as (? & [] & ?); simpl in *.
     destruct (fst x) as [[]|]; [|contradiction].
-    rewrite map_disj_join_spec in H; tauto.
+    erewrite map_disj_join_spec in H; tauto.
   - eexists (Some (sh, map_add h1 h2), None); split; [split|]; simpl.
     + rewrite map_disj_join_spec; auto.
     + constructor.
@@ -1261,7 +1227,7 @@ Proof.
   - intros (? & [] & ?); simpl in *.
     destruct (fst x) as [[]|]; [|contradiction].
     split; [simpl | constructor].
-    rewrite map_disj_join_spec in *; tauto.
+    erewrite map_disj_join_spec in *; tauto.
 Qed.
 
 Definition hist_incl (h : hist_part) l := forall t e, h t = Some e -> nth_error l t = Some e.
@@ -1275,7 +1241,7 @@ Proof.
   destruct (nth_error l1 j).
   - symmetry; rewrite <- Hl2, Hl1; auto.
   - destruct (nth_error l2 j); auto.
-    specialize (Hl2 h0); rewrite Hl1 in Hl2; tauto.
+    specialize (Hl2 h0); erewrite Hl1 in Hl2; tauto.
 Qed.
 
 Lemma hist_list_nil_inv1 : forall l, hist_list empty_map l -> l = [].
@@ -1318,26 +1284,18 @@ Proof.
   erewrite (add_andp (ghost_hist_ref _ _ _ _)) by apply own_valid.
   Intros.
   destruct H as [? Hcomp]; simpl in *.
-  rewrite completable_alt in Hcomp; destruct Hcomp as [_ Hcomp].
+  erewrite completable_alt in Hcomp; destruct Hcomp as [_ Hcomp].
   apply (ref_add(P := map_disj_PCM)) with (b := fun k => if eq_dec k t' then Some e else None).
   - repeat intro.
     unfold map_upd.
     if_tac; [|destruct (h k); auto].
     subst; destruct (h t') eqn: Hh; auto.
     if_tac in Hcomp; [congruence|].
-    apply Hcomp in Hh; congruence.
+    eapply map_incl_spec in Hh; eauto; congruence.
   - repeat intro.
     unfold map_upd.
     if_tac; [|destruct (h' k); auto].
     subst; rewrite Hfresh; auto.
-  - intros ?? Hsub.
-    exists (map_upd c t' e); repeat intro.
-    unfold map_upd.
-    if_tac; [|destruct (c k); auto].
-    subst; destruct (c t') eqn: Hc; auto.
-    destruct Hsub as [x Hsub]; hnf in Hsub.
-    specialize (Hsub t'); rewrite Hc in Hsub.
-    destruct (x t'); congruence.
 Qed.
 
 Lemma hist_incl_nil : forall h, hist_incl empty_map h.
@@ -1357,7 +1315,7 @@ Proof.
   unfold hist_list, map_upd; split.
   - if_tac.
     + intro X; inv X.
-      rewrite nth_error_app2, minus_diag; auto.
+      erewrite nth_error_app2, minus_diag; auto.
     + rewrite H.
       intro X; rewrite nth_error_app1; auto.
       rewrite <- nth_error_Some, X; discriminate.
@@ -1375,11 +1333,12 @@ Proof.
   apply Hlist.
   destruct Hsub.
   destruct (eq_dec sh Tsh); subst; auto.
+  eapply map_incl_spec; eauto.
 Qed.
 
 Lemma hist_sub_Tsh : forall h h', hist_sub Tsh h h' <-> (h = h').
 Proof.
-  intros; unfold hist_sub; rewrite eq_dec_refl; repeat split; auto; tauto.
+  intros; unfold hist_sub; rewrite eq_dec_refl; repeat split; auto with share; tauto.
 Qed.
 
 Lemma hist_ref_join : forall sh h l p, sh <> Share.bot ->
@@ -1404,19 +1363,20 @@ Qed.
 Corollary hist_ref_join_nil : forall sh p, sh <> Share.bot ->
   ghost_hist sh empty_map p * ghost_ref [] p = ghost_hist_ref sh empty_map empty_map p.
 Proof.
-  intros; rewrite hist_ref_join by auto.
+  intros; erewrite hist_ref_join by auto.
   apply pred_ext; entailer!.
   - apply hist_list_nil_inv2 in H0; subst; auto.
   - Exists (fun _ : nat => @None hist_el); apply andp_right, derives_refl.
     apply prop_right; split; [apply hist_list_nil|].
     split; auto.
     if_tac; auto.
+    reflexivity.
 Qed.
 
 Lemma hist_ref_incl : forall sh h h' p, sh <> Share.bot ->
   ghost_hist sh h p * ghost_ref h' p |-- !!hist_incl h h'.
 Proof.
-  intros; rewrite hist_ref_join by auto.
+  intros; erewrite hist_ref_join by auto.
   Intros l; eapply prop_right, hist_sub_list_incl; eauto.
 Qed.
 
@@ -1424,7 +1384,7 @@ Lemma hist_add' : forall sh h h' e p, sh <> Share.bot ->
   ghost_hist sh h p * ghost_ref h' p |-- |==>
   ghost_hist sh (map_upd h (length h') e) p * ghost_ref (h' ++ [e]) p.
 Proof.
-  intros; rewrite !hist_ref_join by auto.
+  intros; erewrite !hist_ref_join by auto.
   Intros hr.
   eapply derives_trans; [apply hist_add|].
   { apply hist_next; eauto. }
@@ -1471,13 +1431,13 @@ Proof.
   pose proof (newer_out _ _ Ht) as Hout.
   pose proof (newer_out _ _ Ht') as Hout'.
   unfold map_upd in Hh, Hh'.
-  rewrite eq_dec_refl in Hh, Hh'.
+  rewrite !eq_dec_refl in Hh, Hh'.
   if_tac in Hh.
   - inv Hh; clear Hh'.
     repeat split; auto.
     erewrite <- (map_sub_upd h) by (eapply newer_out; eauto).
-    rewrite H, map_sub_upd; auto.
-  - rewrite if_false in Hh' by auto.
+    erewrite H, map_sub_upd; auto.
+  - erewrite if_false in Hh' by auto.
     lapply (Ht t'); [|rewrite Hh'; discriminate].
     lapply (Ht' t); [|rewrite <- Hh; discriminate].
     lia.
@@ -1510,7 +1470,7 @@ Proof.
   induction 1.
   - split; [intros (? & ?); discriminate | contradiction].
   - intro; subst; split.
-    + unfold map_upd; intros (? & Hin); rewrite in_app in *.
+    + unfold map_upd; intros (? & Hin); erewrite in_app in *.
       destruct (eq_dec x t); [inv Hin; simpl; auto|].
       rewrite <- IHHl; eauto.
     + rewrite in_app; intros [Hin | [Heq | ?]]; [| inv Heq | contradiction].
@@ -1540,7 +1500,7 @@ Proof.
       * split; [discriminate|].
         intro X; assert (t < length l)%nat by (rewrite <- nth_error_Some, X; discriminate); lia.
       * rewrite Hl; destruct (lt_dec t (length l)).
-        { rewrite nth_error_app1 by auto; reflexivity. }
+        { erewrite nth_error_app1 by auto; reflexivity. }
         split; intro X.
         -- assert (t < length (l ++ [x]))%nat by (rewrite <- nth_error_Some, X; discriminate);
              rewrite app_length in *; simpl in *; lia.
@@ -1562,7 +1522,7 @@ Proof.
     subst; split; constructor.
   - pose proof (equal_f Heqh t) as Ht.
     unfold map_upd, map_add in Ht.
-    rewrite eq_dec_refl in Ht by auto.
+    erewrite eq_dec_refl in Ht by auto.
     destruct (h1 t) eqn: Hh1.
     + inv Ht.
       destruct (IHhist_list' (map_sub h1 t) h2) as (l1 & l2 & ? & ? & ?).
@@ -1610,8 +1570,8 @@ Qed.
 
 Lemma ghost_hist_init : @valid (ref_PCM (@map_disj_PCM nat hist_el)) (Some (Tsh, empty_map), Some empty_map).
 Proof.
-  split; simpl; auto.
-  rewrite completable_alt; split; auto.
+  split; simpl; auto with share.
+  rewrite completable_alt; split; auto with share.
   rewrite eq_dec_refl; auto.
 Qed.
 
@@ -1638,7 +1598,7 @@ Lemma add_events_add : forall h le h', add_events h le h' ->
   exists h2, h' = map_add h h2 /\ forall t e, h2 t = Some e -> newer h t /\ In e le.
 Proof.
   induction 1.
-  - eexists; rewrite map_add_empty; split; auto; discriminate.
+  - eexists; erewrite map_add_empty; split; auto; discriminate.
   - destruct IHadd_events as (h2 & ? & Hh2); subst.
     assert (compatible h h2).
     { repeat intro.
@@ -1648,7 +1608,7 @@ Proof.
     { repeat intro; apply Ht.
       unfold map_add.
       destruct (h t'); auto. }
-    rewrite map_add_comm, map_add_upd, map_add_comm; auto.
+    erewrite map_add_comm, map_add_upd, map_add_comm; auto.
     eexists; split; eauto; intros.
     unfold map_upd in *.
     rewrite in_app; simpl.
@@ -1680,7 +1640,8 @@ Proof.
   repeat intro.
   apply H0.
   destruct (h t') eqn: Ht'; [|contradiction].
-  eapply add_events_incl in Ht' as ->; eauto.
+  eapply map_incl_spec in Ht' as ->; eauto.
+  eapply add_events_incl; eauto.
 Qed.
 
 Lemma add_events_in : forall h le h' e, add_events h le h' -> In e le ->
@@ -1705,16 +1666,16 @@ End GHist.
 Ltac ghost_alloc G :=
   match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
     apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
-  [go_lower; rewrite !prop_true_andp by (repeat (split; auto));
-   rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init|] end.
+  [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
+   rewrite <- emp_sepcon at 1; eapply derives_trans, ghost_seplog.bupd_frame_r;
+   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init share ghost|] end.
 
 Ltac ghosts_alloc G n :=
   match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
     apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg) :: R)))));
-  [go_lower; rewrite !prop_true_andp by (repeat (split; auto));
+  [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
    rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init|] end.
+   apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.
 
 Lemma wand_nonexpansive_l: forall P Q n,
   approx n (P -* Q)%logic = approx n (approx n P  -* Q)%logic.
@@ -1748,13 +1709,7 @@ Proof.
     apply (H z); auto; lia.
 Qed.
 
-Lemma wand_nonexpansive: forall P Q n,
-  approx n (P -* Q)%logic = approx n (approx n P  -* approx n Q)%logic.
-Proof.
-  intros; rewrite wand_nonexpansive_l, wand_nonexpansive_r; reflexivity.
-Qed.
-
-Lemma approx_bupd: forall P n, approx n (|==> P) = (|==> approx n P).
+Lemma approx_bupd: forall P n, (approx n (own.bupd P) = (own.bupd (approx n P)))%logic.
 Proof.
   intros; apply predicates_hered.pred_ext.
   - intros ? [? HP].
@@ -1770,6 +1725,12 @@ Proof.
     intros ? J.
     destruct (HP _ J) as (? & ? & m'' & ? & ? & ? & []);
       eexists; split; eauto; eexists; split; eauto; repeat split; auto.
+Qed.
+
+Lemma wand_nonexpansive: forall P Q n,
+  approx n (P -* Q)%logic = approx n (approx n P  -* approx n Q)%logic.
+Proof.
+  intros; rewrite wand_nonexpansive_l, wand_nonexpansive_r; reflexivity.
 Qed.
 
 Corollary view_shift_nonexpansive : forall P Q n,

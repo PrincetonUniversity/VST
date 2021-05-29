@@ -17,12 +17,12 @@ Definition OUTpred PrkCont InfoCont sh z r cont p: mpred:=
   memory_block sh r (offset_val z p).
 
 Definition PREVcont PRK INFO (i: Z): reptype (Tarray tuchar 32 noattr) :=
-     if zeq i 0 then list_repeat 32 Vundef 
+     if zeq i 0 then repeat Vundef 32
      else (map Vubyte (Ti (CONT PRK) (CONT INFO) (Z.to_nat i))).
 
 Lemma PREV_len PRK INFO i: 0 <= i -> Zlength (PREVcont PRK INFO i) = 32.
 Proof. intros. unfold PREVcont.
-destruct (zeq i 0). rewrite Zlength_list_repeat'; reflexivity.
+destruct (zeq i 0). rewrite Zlength_repeat'; reflexivity.
 assert (exists n, Z.to_nat i = S n).
 { specialize (Z2Nat_inj_0 i). intros.
   destruct (Z.to_nat i). lia. eexists; reflexivity. }
@@ -193,10 +193,10 @@ destruct prevPtr as [prevPtr prevFC].
 
 unfold data_at_ at 2. unfold field_at_.
 rewrite field_at_data_at. simpl. unfold tarray.
-assert (JM: default_val (Tarray tuchar 64 noattr) = sublist 0 64 (list_repeat 64 Vundef)).
-{ (*subst vv.*) rewrite sublist_list_repeat with (k:=64); try lia; reflexivity. }
+assert (JM: default_val (Tarray tuchar 64 noattr) = sublist 0 64 (repeat Vundef 64)).
+{ (*subst vv.*) rewrite sublist_repeat with (k:=64); try lia; reflexivity. }
 erewrite  split2_data_at_Tarray with (n1:=32); [ | lia | | apply JM | reflexivity | reflexivity].
- 2: rewrite Zlength_list_repeat'; simpl; lia.
+ 2: rewrite Zlength_repeat'; simpl; lia.
 normalize.
 rewrite field_address_offset by auto with field_compatible. simpl.
 rewrite isptr_offset_val_zero; trivial. 

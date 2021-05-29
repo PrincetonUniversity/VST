@@ -60,7 +60,7 @@ Section ext_trace.
   Qed.
 
   Inductive ext_safeN_trace : nat -> @trace event unit -> Ensemble (@trace event unit) -> OK_ty -> CC_core -> mem -> Prop :=
-  | ext_safeN_trace_0: forall z t c m, ext_safeN_trace O t (Singleton _ TEnd) z c m
+  | ext_safeN_trace_0: forall z t c m, ext_safeN_trace O t (Singleton TEnd) z c m
   | ext_safeN_trace_step:
       forall n t traces z c m c' m',
       cl_step ge c m c' m' ->
@@ -79,18 +79,18 @@ Section ext_trace.
          OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\
            ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
-           (forall t'', In _ traces' t'' -> In _ traces (app_trace t' t''))) ->
-      (forall t1, In _ traces t1 ->
+           (forall t'', In traces' t'' -> In traces (app_trace t' t''))) ->
+      (forall t1, In traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
          Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
          inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
-        exists t'', In _ traces' t'' /\ t1 = app_trace t' t'') ->
+        exists t'', In traces' t'' /\ t1 = app_trace t' t'') ->
       ext_safeN_trace (S n) t traces z c m
   | ext_safeN_trace_halted: forall n z t c m i,
       halted (cl_core_sem ge) c i ->
-      ext_safeN_trace n t (Singleton _ TEnd) z c m.
+      ext_safeN_trace n t (Singleton TEnd) z c m.
 
   Variable dryspec : ext_spec OK_ty.
   Hypothesis extcalls_correct : forall e w b tl args z m t s, ext_spec_pre dryspec e w b tl args z m ->
@@ -113,7 +113,7 @@ Section ext_trace.
          inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n0)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret q = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
-        exists t'', In _ traces' t'' /\ t1 = app_trace t' t'').
+        exists t'', In traces' t'' /\ t1 = app_trace t' t'').
       eapply ext_safeN_trace_external; eauto; intros.
       eapply extcalls_correct in H1 as (z' & ? & ? & ?); eauto.
       split; auto.
@@ -150,7 +150,7 @@ Section ext_trace.
   Lemma trace_correct:
    forall n (z: OK_ty) q m t traces t',
     ext_safeN_trace n t traces z q m ->
-    In _ traces t' ->
+    In traces t' ->
     exists z', consume_trace z z' t'.
   Proof.
     induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
@@ -180,7 +180,7 @@ Section ext_trace.
        initial_core  (cl_core_sem (globalenv prog))
            0 m q m (Vptr b Ptrofs.zero) nil /\
        forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m /\
-         forall t, In _ traces t -> exists z', consume_trace initial_oracle z' t.
+         forall t, In traces t -> exists z', consume_trace initial_oracle z' t.
   Proof.
     intros.
     eapply safety_trace in H as (b & q & ? & ? & Hsafe); eauto.

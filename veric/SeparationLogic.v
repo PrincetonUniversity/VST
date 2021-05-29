@@ -3,7 +3,7 @@ Require Export compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
 Require Export compcert.lib.Floats.
-Require Export compcert.lib.Maps.
+Require Import compcert.lib.Maps.
 Require Export compcert.common.AST.
 Require Export compcert.common.Values.
 Require Export compcert.cfrontend.Ctypes.
@@ -50,9 +50,60 @@ Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
 Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
 Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
-Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
-  mkBSL _ _ _ _ _ bupd (@own) bupd_intro bupd_mono bupd_trans bupd_frame_r
-    (@ghost_alloc) (@ghost_op) (@ghost_valid_2) (@ghost_update_ND) (@ghost_dealloc).
+
+Lemma derives_eq : @derives _ Nveric = predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(H := _).
+Proof.
+  do 2 extensionality; apply prop_ext; split.
+  - inversion 1; auto.
+  - constructor; auto.
+Qed.
+
+Ltac unseal_derives := rewrite derives_eq in *.
+
+
+
+Program Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
+  { bupd := bupd; own := @own }.
+Next Obligation.
+Proof.
+  apply fresh_nat.
+Qed.
+Next Obligation.
+Proof.
+  constructor; apply bupd_intro.
+Qed.
+Next Obligation.
+Proof.
+  unseal_derives; apply bupd_mono.
+Qed.
+Next Obligation.
+Proof.
+  constructor; apply bupd_trans.
+Qed.
+Next Obligation.
+Proof.
+  constructor; apply bupd_frame_r.
+Qed.
+Next Obligation.
+Proof.
+  constructor; apply ghost_alloc_strong; auto.
+Qed.
+Next Obligation.
+Proof.
+  apply @ghost_op.
+Qed.
+Next Obligation.
+Proof.
+  constructor; apply @ghost_valid_2.
+Qed.
+Next Obligation.
+Proof.
+  constructor; apply @ghost_update_ND; auto.
+Qed.
+Next Obligation.
+Proof.
+  constructor; apply @ghost_dealloc.
+Qed.
 
 Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
 Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
@@ -76,42 +127,7 @@ Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric C
 Local Open Scope logic.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
-(*
-Definition funspec_sub_si (f1 f2 : funspec):mpred :=
-let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
-match f1 with
-| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
-    match f2 with
-    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
-      (!!(tpsig1=tpsig2 /\ cc1=cc2)) &&
-        (|> ! (ALL ts2 :_, ALL x2:functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts2 A2) mpred,
-             ALL gargs:genviron * list val,
-        ((!!(tc_argsenv Delta2 (fst tpsig2) gargs) && P2 ts2 x2 gargs)
-         >=> EX ts1:_,  EX x1:functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts1 A1) mpred, EX F:_, 
-            (F * (P1 ts1 x1 gargs)) &&
-            ALL rho':_, (     !( ((local (tc_environ (rettype_tycontext (snd tpsig1))) rho') && (F * (Q1 ts1 x1 rho')))
-                         >=> (Q2 ts2 x2 rho'))))))
-    end
-end.
 
-Definition funspec_sub (f1 f2 : funspec): Prop :=
-let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
-match f1 with
-| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
-    match f2 with
-    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
-        (tpsig1=tpsig2 /\ cc1=cc2) /\
-        forall ts2 (x2: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts2 A2) mpred)
-          (rho:argsEnviron),
-        ((!! (tc_argsenv Delta2 (fst tpsig2)) rho) && P2 ts2 x2 rho)
-         |-- (EX ts1:_,  EX x1:functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts1 A1) mpred, EX F:_, 
-                           (F * (P1 ts1 x1 rho)) &&
-                               (!! (forall rho',
-                                           ((!! (tc_environ (rettype_tycontext (snd tpsig1)) rho') &&
-                                                 (F * (Q1 ts1 x1 rho')))
-                                         |-- (Q2 ts2 x2 rho')))))
-    end
-end.*)
 Definition argsHaveTyps (vals:list val) (types: list type): Prop:=
   Forall2 (fun v t => v<>Vundef -> Val.has_type v t) vals (map typ_of_type types).
 
@@ -125,10 +141,10 @@ match f1 with
                               (rmaps.dependent_type_functor_rec ts2 A2) mpred,
              ALL gargs:genviron * list val,
         ((!!((*Forall2 tc_val' (fst tpsig1) (snd gargs)*)argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
-         >=> EX ts1:_,  EX x1:_, EX F:_, 
+         >=> ghost_seplog.bupd (EX ts1:_,  EX x1:_, EX F:_, 
             (F * (P1 ts1 x1 gargs)) &&
             ALL rho':_, (     !( ((!!(ve_of rho' = Map.empty (block * type))) && (F * (Q1 ts1 x1 rho')))
-                         >=> (Q2 ts2 x2 rho'))))))
+                         >=> ghost_seplog.bupd (Q2 ts2 x2 rho')))))))
     end
 end.
 
@@ -140,19 +156,47 @@ match f1 with
         (tpsig1=tpsig2 /\ cc1=cc2) /\
         forall ts2 x2 (gargs:argsEnviron),
         ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
-         |-- (EX ts1:_,  EX x1:_, EX F:_, 
+         |-- ghost_seplog.bupd (EX ts1:_,  EX x1:_, EX F:_, 
                            (F * (P1 ts1 x1 gargs)) &&
                                (!! (forall rho',
                                            ((!!(ve_of rho' = Map.empty (block * type))) &&
                                                  (F * (Q1 ts1 x1 rho')))
-                                         |-- (Q2 ts2 x2 rho')))))
+                                         |-- ghost_seplog.bupd (Q2 ts2 x2 rho')))))
     end
 end.
- 
+
+Lemma derives_eq':
+  @derives (functors.MixVariantFunctor._functor
+              functors.MixVariantFunctorGenerator.fidentity mpred) Nveric =
+  predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(H := _).
+Proof.
+  do 2 extensionality; apply prop_ext; split.
+  - inversion 1; auto.
+  - constructor; auto.
+Qed.
+
+Lemma funspec_sub_iff: forall f1 f2, funspec_sub f1 f2 <-> seplog.funspec_sub f1 f2.
+Proof. intros. unfold funspec_sub. now rewrite derives_eq'. Qed.
+
+Lemma funspec_sub_refl f: funspec_sub f f.
+Proof.
+  rewrite funspec_sub_iff.
+  apply funspec_sub_refl.
+Qed.
+
 (*Redefining this lemma ensures that is uses @derives mpred Nveric, not @derives rmap...
   Maybe do this with other lemmas, too?*)
 Lemma funspec_sub_sub_si f1 f2: funspec_sub f1 f2 -> TT |-- funspec_sub_si f1 f2.
-Proof. apply funspec_sub_sub_si. Qed.
+Proof. rewrite funspec_sub_iff. unseal_derives. apply funspec_sub_sub_si. Qed.
+
+Lemma funspec_sub_si_refl f: TT |-- funspec_sub_si f f.
+Proof.
+  apply funspec_sub_sub_si. apply funspec_sub_refl.
+Qed.
+
+Lemma funspec_sub_trans f1 f2 f3: funspec_sub f1 f2 -> 
+      funspec_sub f2 f3 -> funspec_sub f1 f3.
+Proof. rewrite !funspec_sub_iff. apply funspec_sub_trans. Qed.
 
 Lemma type_of_funspec_sub:
   forall fs1 fs2, funspec_sub fs1 fs2 ->
@@ -165,7 +209,7 @@ Qed.
 Lemma type_of_funspec_sub_si fs1 fs2:
   funspec_sub_si fs1 fs2 |-- !!(type_of_funspec fs1 = type_of_funspec fs2).
 Proof.
-intros w W.
+unseal_derives. intros w W.
 destruct fs1, fs2. destruct W as [[? ?] _]. subst; simpl; auto.
 Qed.
 
@@ -183,7 +227,7 @@ Lemma close_precondition_e':
    !!(map (Map.get (te_of rho)) al = map Some vals /\
       Forall (fun v : val => v <> Vundef) vals) &&
    P (ge_of rho, vals)).
-Proof. intros. intros u p. simpl in p. simpl; trivial. Qed.
+Proof. intros. unseal_derives. intros u p. simpl in p. simpl; trivial. Qed.
 
 Definition argsassert2assert (ids: list ident) (M:argsassert):assert :=
   fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids).
@@ -195,7 +239,8 @@ Lemma close_argsassert f P rho vals (LNR: list_norepet (map fst (fn_params f) ++
    && argsassert2assert (map fst (fn_params f))  P rho)
  |-- close_precondition (map fst (fn_params f))  P rho.
 Proof.
-unfold close_precondition, argsassert2assert. normalize; destruct H as [TCE [EVAL TCV]].
+  unfold close_precondition, argsassert2assert. normalize; destruct H as [TCE [EVAL TCV]].
+  unseal_derives.
 exists (map (fun i : ident => eval_id i rho) (map fst (fn_params f))).
 split; simpl; trivial. clear - LNR TCV TCE EVAL. 
 specialize (semax_prog.typecheck_temp_environ_eval_id LNR TCE); intros X.
@@ -295,16 +340,16 @@ match v1, v2 with
           | _ , _ => FF
         end.
 
-Definition denote_tc_nosignedover (op: Z->Z->Z) v1 v2 : mpred :=
+Definition denote_tc_nosignedover (op: Z->Z->Z) (s: signedness) v1 v2 : mpred :=
  match v1,v2 with
  | Vint n1, Vint n2 => 
    prop (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed)
  | Vlong n1, Vlong n2 =>
    prop (Int64.min_signed <= op (Int64.signed n1) (Int64.signed n2) <= Int64.max_signed)
  | Vint n1, Vlong n2 =>
-   prop (Int64.min_signed <= op (Int.signed n1) (Int64.signed n2) <= Int64.max_signed)
+   prop (Int64.min_signed <= op ((if s then Int.signed else Int.unsigned) n1) (Int64.signed n2) <= Int64.max_signed)
  | Vlong n1, Vint n2 =>
-   prop (Int64.min_signed <= op (Int64.signed n1) (Int.signed n2) <= Int64.max_signed)
+   prop (Int64.min_signed <= op (Int64.signed n1) ((if s then Int.signed else Int.unsigned)  n2) <= Int64.max_signed)
  | _, _ => FF
  end.
 
@@ -385,7 +430,12 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero' e => `denote_tc_iszero (eval_expr e)
-  | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
+  | tc_nosignedover op e1 e2 => 
+     match typeof e1, typeof e2 with
+     | Tlong _ _, Tint _ Unsigned _ => `(denote_tc_nosignedover op Unsigned) (eval_expr e1) (eval_expr e2)
+     | Tint _ Unsigned _, Tlong _ _ => `(denote_tc_nosignedover op Unsigned) (eval_expr e1) (eval_expr e2)
+     | _, _ =>  `(denote_tc_nosignedover op Signed) (eval_expr e1) (eval_expr e2)
+     end
  end.
 
 Definition fool' := @map _ Type (fun it : ident * type => mpred).
@@ -499,11 +549,11 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
     !! (0 <= Ptrofs.unsigned z  /\ n + Ptrofs.unsigned z < Ptrofs.modulus)%Z &&
     mapsto_memory_block.address_mapsto_zeros sh (Z.to_nat n) (b, Ptrofs.unsigned z)
   | _ => FF
-  end.
+ end.
 
 Definition globals := ident -> val.
 
-Definition init_data2pred (gv: globals) (d: init_data)  (sh: share) (a: val) : mpred :=
+Definition init_data2pred (gv: globals) (d: init_data)  (sh: share) (a: val)  : mpred :=
  match d with
   | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
   | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
@@ -513,10 +563,10 @@ Definition init_data2pred (gv: globals) (d: init_data)  (sh: share) (a: val) : m
   | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
-        match gv symb with
-        | Vptr b i => mapsto sh (Tpointer Tvoid noattr) a (Vptr b (Ptrofs.add i ofs))
-        | _ => mapsto_ sh (Tpointer Tvoid noattr) a
-        end 
+       match gv symb with
+       | Vptr b i => mapsto sh (Tpointer Tvoid noattr) a (Vptr b (Ptrofs.add i ofs))
+       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
+       end
  end.
 
 Definition init_data_size (i: init_data) : Z :=
@@ -548,13 +598,11 @@ Fixpoint init_data_list2pred  (gv: globals)  (dl: list init_data)
 Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Ers else Ews.
 
-
 Definition globvar2pred (gv: ident->val) (idv: ident * globvar type) : mpred :=
    if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred gv (gvar_init (snd idv))
                                    (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
-
 
 Definition globals_of_env (rho: environ) (i: ident) : val := 
   match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
@@ -568,11 +616,11 @@ end.
 Lemma globals_of_genv_char {rho}: globals_of_genv (ge_of rho) = globals_of_env rho.
 Proof. reflexivity. Qed.
 
-Definition globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : mpred :=
-   fold_right sepcon emp (map (globvar2pred gv) vl).
+Definition globvars2pred (gv: globals)  (vl: list (ident * globvar type)): mpred :=
+  fold_right sepcon emp (map (globvar2pred gv) vl).
 
 (*
-Definition gglobvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : argsassert :=
+Definition gglobvars2pred (gv: globals) (vl: list (ident * globvar type)) : argsassert :=
   fun gvargs => globvars2pred gv vl (Clight_seplog.mkEnv (fst gvargs) nil nil).
 *)
 (*  (alift2 andp) (fun gvals => prop (gv = globals_of_genv (fst gvals)))
@@ -607,10 +655,10 @@ Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh 0 (Vptr b z) = emp.
 Proof. exact mapsto_memory_block.memory_block_zero_Vptr. Qed.
 
 Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
-Proof. exact mapsto_memory_block.mapsto_mapsto_. Qed.
+Proof. constructor; apply mapsto_memory_block.mapsto_mapsto_. Qed.
 
 Lemma mapsto_tc_val': forall sh t p v, mapsto sh t p v |-- !! tc_val' t v.
-Proof. exact mapsto_memory_block.mapsto_tc_val'. Qed.
+Proof. constructor; apply mapsto_memory_block.mapsto_tc_val'. Qed.
 
 Lemma memory_block_split:
   forall (sh : share) (b : block) (ofs n m : Z),
@@ -645,7 +693,7 @@ Lemma mapsto_conflict:
   sepalg.nonunit sh ->
   mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
 Proof.
-intros.
+constructor; intros.
 apply mapsto_memory_block.mapsto_conflict; auto.
 Qed.
 
@@ -654,7 +702,7 @@ Lemma memory_block_conflict: forall sh n m p,
   0 < n <= Ptrofs.max_unsigned -> 0 < m <= Ptrofs.max_unsigned ->
   memory_block sh n p * memory_block sh m p |-- FF.
 Proof.
-intros.
+constructor; intros.
 apply mapsto_memory_block.memory_block_conflict; auto.
 Qed.
 
@@ -676,24 +724,24 @@ Lemma mapsto_valid_pointer: forall {cs: compspecs} sh t p v i,
   0 <= i < sizeof t ->
   sepalg.nonidentity sh ->
   mapsto sh t p v |-- valid_pointer (offset_val i p).
-Proof. exact @mapsto_valid_pointer. Qed.
+Proof. constructor; eapply @mapsto_valid_pointer; auto. Qed.
 
 Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
   0 <= i < n ->
   sepalg.nonidentity sh ->
   memory_block sh n p |-- valid_pointer (offset_val i p).
-Proof. exact @memory_block_valid_pointer. Qed.
+Proof. constructor; apply @memory_block_valid_pointer; auto. Qed.
 
 Lemma memory_block_weak_valid_pointer: forall {cs: compspecs} sh n p i,
   0 <= i <= n -> 0 < n -> sepalg.nonidentity sh ->
   memory_block sh n p |-- weak_valid_pointer (offset_val i p).
-Proof. exact @memory_block_weak_valid_pointer. Qed.
+Proof. constructor; apply @memory_block_weak_valid_pointer; auto. Qed.
 
 Lemma mapsto_zeros_memory_block: forall sh n p,
   readable_share sh ->
   mapsto_zeros n sh p |--
   memory_block sh n p.
-Proof. exact mapsto_memory_block.mapsto_zeros_memory_block. Qed.
+Proof. constructor; apply mapsto_memory_block.mapsto_zeros_memory_block; auto. Qed.
 
 Lemma mapsto_pointer_void:
   forall sh t a, 
@@ -732,14 +780,14 @@ Lemma mapsto_mapsto_int32:
    is_int32_noattr_type t1 ->
    is_int32_noattr_type t2 ->
    mapsto sh t1 p v |-- mapsto sh t2 p v.
-Proof. exact mapsto_memory_block.mapsto_mapsto_int32. Qed.
+Proof. constructor; apply mapsto_memory_block.mapsto_mapsto_int32; auto. Qed.
 
 Lemma mapsto_mapsto__int32:
   forall sh t1 t2 p v,
    is_int32_noattr_type t1 ->
    is_int32_noattr_type t2 ->
    mapsto sh t1 p v |-- mapsto_ sh t2 p.
-Proof. exact mapsto_memory_block.mapsto_mapsto__int32. Qed.
+Proof. constructor; apply mapsto_memory_block.mapsto_mapsto__int32; auto. Qed.
 
 Lemma mapsto_null_mapsto_pointer:
   forall t sh v,
@@ -763,7 +811,7 @@ Definition stackframe_of {cs: compspecs} (f: Clight.function) : environ->mpred :
   fold_right sepcon emp (map (var_block Tsh) (fn_vars f)).
 
 Lemma  subst_derives {A}{NA: NatDed A}:
- forall a v (P Q: environ -> A), P |-- Q -> subst a v P |-- subst a v Q.
+ forall a v (P Q: environ -> A), (P |-- Q) -> subst a v P |-- subst a v Q.
 Proof.
 unfold subst, derives.
 simpl;
@@ -775,7 +823,8 @@ Definition func_ptr (f: funspec) (v: val): mpred := seplog.func_ptr_si f v.
 
 (*veric.seplog has a lemma that weakens the hypothesis here to funspec_sub_si*)
 Lemma func_ptr_mono fs gs v (H:funspec_sub fs gs): func_ptr fs v |-- func_ptr gs v.
-Proof. apply funspec_sub_implies_func_prt_si_mono; trivial.
+Proof. constructor; apply funspec_sub_implies_func_prt_si_mono.
+       now rewrite <- funspec_sub_iff.
 Qed.
 
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
@@ -790,7 +839,7 @@ Proof.
 Qed.
 
 Lemma func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
-Proof. exact seplog.func_ptr_si_isptr. (*
+Proof. constructor; apply seplog.func_ptr_si_isptr. (*
   intros.
   unfold func_ptr.
   destruct spec.
@@ -1054,6 +1103,7 @@ Definition main_pre {Z: Type} (prog: program) (ora: Z) : globals -> environ -> m
 Definition main_pre {Z} (prog: program) (ora: Z) : (ident->val) -> argsassert :=
 (fun gv gvals => !!(gv = initialize.genviron2globals (fst gvals) /\snd gvals=nil) 
        && globvars2pred gv (prog_vars prog) * has_ext ora).
+
 (*
 Definition main_post (prog: program) : (ident->val) -> environ->mpred :=
   (fun _ _ => TT).*)
@@ -1180,7 +1230,7 @@ Lemma typecheck_lvalue_sound {CS: compspecs} :
     typecheck_environ Delta rho ->
     tc_lvalue Delta e rho |-- !! is_pointer_or_null (eval_lvalue e rho).
 Proof.
-intros.
+constructor; intros.
 intros ? ?.
 eapply expr_lemmas4.typecheck_lvalue_sound; eauto.
 Qed.
@@ -1190,7 +1240,7 @@ Lemma typecheck_expr_sound {CS: compspecs} :
     typecheck_environ Delta rho ->
     tc_expr Delta e rho |-- !! tc_val (typeof e) (eval_expr e rho).
 Proof.
-intros.
+constructor; intros.
 intros ? ?.
 simpl.
 eapply expr_lemmas4.typecheck_expr_sound; eauto.
@@ -1204,7 +1254,7 @@ Lemma fash_func_ptr_ND:
          (ALL rho:environ, fash (Post a rho --> Post' a rho))
    |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
                   func_ptr_si (NDmk_funspec fsig cc A Pre' Post') v).
-Proof. exact seplog.fash_func_ptr_ND. Qed.
+Proof. constructor. apply seplog.fash_func_ptr_ND. Qed.
 
 (***************LENB: ADDED THESE LEMMAS IN INTERFACE************************************)
 
@@ -1228,7 +1278,7 @@ Qed.
 Lemma tc_expr_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho |-- @tc_expr CS' Delta e rho.
-Proof. intros. destruct CSUB as [CSUB _]. rewrite tc_expr_eq. intros w W. apply (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). trivial. Qed.
+Proof. intros. destruct CSUB as [CSUB _]. rewrite tc_expr_eq. constructor; intros w W. apply (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). trivial. Qed.
 
 Lemma tc_expropt_char {CS} Delta e t: @tc_expropt CS Delta e t =
                                       match e with None => `!!(t=Tvoid)
@@ -1239,24 +1289,24 @@ Proof. reflexivity. Qed.
 Lemma tc_expropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
   @tc_expropt CS Delta ret t rho |-- @tc_expropt CS' Delta ret t rho.
 Proof.
-  destruct ret; simpl. 2: apply  predicates_hered.derives_refl.
+  destruct ret; simpl. 2: constructor; apply  predicates_hered.derives_refl.
   apply (tc_expr_cspecs_sub CSUB Delta (Ecast e t) rho D). 
 Qed.
 
 Lemma tc_lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_lvalue CS Delta e rho |-- @tc_lvalue CS' Delta e rho.
-Proof. intros; simpl. destruct CSUB as [CSUB _]. red; intros. apply (extend_tc.tc_lvalue_cenv_sub CSUB e rho Delta). apply H0. Qed.
+Proof. intros; simpl. destruct CSUB as [CSUB _]. constructor; red; intros. apply (extend_tc.tc_lvalue_cenv_sub CSUB e rho Delta). apply H0. Qed.
 
 Lemma tc_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho: forall types e,
   tc_environ Delta rho ->
   @tc_exprlist CS Delta types e rho |-- @tc_exprlist CS' Delta types e rho.
-Proof. intros. destruct CSUB as [CSUB _]. intros w W. apply (extend_tc.tc_exprlist_cenv_sub CSUB Delta rho w types e W). Qed.
+Proof. intros. destruct CSUB as [CSUB _]. constructor; intros w W. apply (extend_tc.tc_exprlist_cenv_sub CSUB Delta rho w types e W). Qed.
 
 Lemma eval_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD: tc_environ Delta rho):
   forall types e,
   @tc_exprlist CS Delta types e rho |-- !! (@eval_exprlist CS types e rho = @eval_exprlist CS' types e rho).
-Proof. intros. destruct CSUB as [CSUB _]. intros w W. eapply (expr_lemmas.typecheck_exprlist_sound_cenv_sub CSUB); eassumption. Qed.
+Proof. intros. destruct CSUB as [CSUB _]. constructor; intros w W. eapply (expr_lemmas.typecheck_exprlist_sound_cenv_sub CSUB); eassumption. Qed.
 
 Lemma denote_tc_assert_tc_bool_cs_invariant {CS CS'} b E:
   @denote_tc_assert CS (tc_bool b E) = @denote_tc_assert CS' (tc_bool b E).
@@ -1265,7 +1315,7 @@ Proof. unfold tc_bool. destruct b; reflexivity. Qed.
 Lemma tc_temp_id_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho e i:
   tc_environ Delta rho -> @tc_temp_id i (typeof e) CS Delta e rho |-- @tc_temp_id i (typeof e) CS' Delta e rho.
 Proof.
-  intros.  unfold tc_temp_id, typecheck_temp_id; intros w W.
+  intros. constructor; unfold tc_temp_id, typecheck_temp_id; intros w W.
   destruct ((temp_types Delta)! i); [| apply W].
   rewrite denote_tc_assert_andp in W.
   rewrite denote_tc_assert_andp; destruct W as [W1 W2];  split.
@@ -1278,7 +1328,7 @@ Qed.
 Lemma castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
   @tc_expropt CS Delta ret t rho |-- !!(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
 Proof.
-  intros w W. destruct CSUB as [CSUB _]. rewrite tc_expropt_char in W. destruct ret; [ | reflexivity].
+  constructor; intros w W. destruct CSUB as [CSUB _]. rewrite tc_expropt_char in W. destruct ret; [ | reflexivity].
   specialize (expr_lemmas.typecheck_expr_sound_cenv_sub CSUB Delta rho D w (Ecast e t) W); clear W; intros H.
   hnf. unfold cast_expropt. simpl; simpl in H. 
   unfold force_val1, force_val, sem_cast, liftx, lift; simpl.
@@ -1290,8 +1340,9 @@ Lemma RA_return_cast_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS C
   @tc_expropt CS Delta e t rho && RA_return R (@cast_expropt CS e t rho) (id rho)
   |-- RA_return R (@cast_expropt CS' e t rho) (id rho).
 Proof.
-  intros. intros w [W1 W2].
-  rewrite (castexpropt_cenv_sub CSUB _ _ H e t w W1) in W2. apply W2.
+  intros. constructor; intros w [W1 W2].
+  pose proof (castexpropt_cenv_sub CSUB _ _ H e t) as H1. unseal_derives.
+  rewrite (H1 w W1) in W2. apply W2.
 Qed.
 
 (********************************************* LENB: END OF ADDED LEMMAS********************)
@@ -1642,7 +1693,7 @@ forall (Delta: tycontext) sh id P e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
+    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
        local (`(tc_val (typeof e1) v2)) &&
@@ -1657,7 +1708,7 @@ forall (Delta: tycontext) sh id P e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
+    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
        local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
@@ -1705,12 +1756,12 @@ Axiom semax_skip:
 
 Axiom semax_conseq:
   forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta P' (R': ret_assert) P c (R: ret_assert) ,
-    local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- |==> |> FF || P' ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- |==> |> FF || RA_normal R ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- |==> |> FF || RA_break R ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- |==> |> FF || RA_continue R ->
-    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- |==> |> FF || RA_return R vl) ->
+  forall Delta (P' : environ -> mpred) (R': ret_assert) P c (R: ret_assert) ,
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|==> |> FF || P')) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|==> |> FF || RA_normal R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|==> |> FF || RA_break R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|==> |> FF || RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (|==> |> FF || RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Axiom semax_Slabel:
@@ -1905,21 +1956,21 @@ Axiom semax_extract_later_prop:
 
 Axiom semax_adapt_frame: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
-                   (EX F: assert, (!!(closed_wrt_modvars c F) && (P' rho * F rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
-                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho))))
+                   (EX F: assert, (!!(closed_wrt_modvars c F) && (|==> P' rho * F rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- (|==> RA_normal Q rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- (|==> RA_break Q rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- (|==> RA_continue Q rho)) &&
+                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- (|==> RA_return Q vl rho)))))
    (SEM: @semax cs Espec Delta P' c Q'),
    @semax cs Espec Delta P c Q.
 
 Axiom semax_adapt: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- (P' rho &&
-                        !!(forall rho, RA_normal Q' rho |-- RA_normal Q rho) &&
-                        !!(forall rho, RA_break Q' rho |-- RA_break Q rho) &&
-                        !!(forall rho, RA_continue Q' rho |-- RA_continue Q rho) &&
-                        !!(forall vl rho, RA_return Q' vl rho |-- RA_return Q vl rho)))
+                   |-- ((|==> P' rho) &&
+                        !!(forall rho, RA_normal Q' rho |-- (|==> RA_normal Q rho)) &&
+                        !!(forall rho, RA_break Q' rho |-- (|==> RA_break Q rho)) &&
+                        !!(forall rho, RA_continue Q' rho |-- (|==> RA_continue Q rho)) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- (|==> RA_return Q vl rho))))
    (SEM: @semax cs Espec Delta P' c Q'),
    @semax cs Espec Delta P c Q.
 

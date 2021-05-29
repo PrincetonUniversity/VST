@@ -201,7 +201,7 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
        (nested_field_offset t (ArraySubsc i :: gfs))) v p.
 
 Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) : val -> mpred :=
- array_at sh t gfs lo hi (list_repeat (Z.to_nat (hi-lo)) (default_val _)).
+ array_at sh t gfs lo hi (Zrepeat (default_val _) (hi-lo)).
 
 (************************************************
 
@@ -1094,12 +1094,12 @@ Proof.
  normalize.
   unfold array_at_.
   apply array_at_ext_derives.
-  1: rewrite Zlength_list_repeat by (rewrite Zlength_correct in H1; lia); lia.
+  1: rewrite Zlength_Zrepeat by (rewrite Zlength_correct in H1; lia); lia.
   intros.
   destruct (field_compatible0_dec t (ArraySubsc i :: gfs) p).
   + revert u1 H5; erewrite <- nested_field_type_ArraySubsc with (i0 := i); intros.
     apply JMeq_eq in H5; rewrite H5. unfold Znth. rewrite if_false by lia.
-    rewrite nth_list_repeat.
+    unfold Zrepeat; rewrite nth_repeat.
     apply field_at_field_at_; auto.
   + unfold field_at.
     normalize.
@@ -1613,7 +1613,7 @@ apply field_at_conflict; auto.
 Qed.
 
 Lemma sepcon_FF_derives':
-  forall (P Q: mpred), Q |-- FF -> P * Q |-- FF.
+  forall (P Q: mpred), (Q |-- FF) -> P * Q |-- FF.
 Proof.
 intros.
 eapply derives_trans. apply sepcon_derives; try eassumption; eauto.
@@ -1716,7 +1716,7 @@ auto.
 Qed.
 
 Lemma valid_pointer_weak':
-  forall P q, P |-- valid_pointer q ->
+  forall P q, (P |-- valid_pointer q) ->
                  P |-- weak_valid_pointer q.
 Proof.
 intros.
@@ -1727,7 +1727,7 @@ Qed.
 #[export] Hint Resolve valid_pointer_weak' : valid_pointer.
 
 Lemma valid_pointer_offset_zero: forall P q, 
-   P |-- valid_pointer (offset_val 0 q) ->
+   (P |-- valid_pointer (offset_val 0 q)) ->
    P |-- valid_pointer q.
 Proof.
 intros.
@@ -1736,9 +1736,9 @@ eapply derives_trans; try eassumption.
 simpl valid_pointer.
 match goal with
 | |- context [Int64.zero] =>
-    change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int64.zero)))
+    constructor; change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int64.zero)))
 | |- context [Int.zero] =>
-    change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int.zero)))
+    constructor; change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int.zero)))
 end.
 intros ? ?. contradiction H0.
 rewrite offset_val_zero_Vptr in H.
@@ -2727,11 +2727,11 @@ Ltac solve_legal_nested_field_in_entailment :=
   first
   [ apply prop_right; apply compute_legal_nested_field_spec';
     simpl_compute_legal_nested_field;
-    repeat constructor; lia
+    repeat apply Forall_cons; try apply Forall_nil; lia
   |
   apply compute_legal_nested_field_spec;
   simpl_compute_legal_nested_field;
-  repeat constructor;
+  repeat apply Forall_cons; try apply Forall_nil;
   try solve [apply prop_right; auto; lia];
   try solve [normalize; apply prop_right; auto; lia]
   ].
@@ -2826,7 +2826,7 @@ Hint Rewrite
 Lemma data_at__Tarray:
   forall {CS: compspecs} sh t n a,
   data_at_ sh (Tarray t n a) = 
-  data_at sh (Tarray t n a) (list_repeat (Z.to_nat n) (default_val t)).
+  data_at sh (Tarray t n a) (Zrepeat (default_val t) n).
 Proof.
 intros.
 unfold data_at_, field_at_, data_at.
@@ -2838,12 +2838,12 @@ Qed.
 Lemma data_at__tarray:
   forall {CS: compspecs} sh t n,
   data_at_ sh (tarray t n) = 
-  data_at sh (tarray t n) (list_repeat (Z.to_nat n) (default_val t)).
+  data_at sh (tarray t n) (Zrepeat (default_val t) n).
 Proof. intros; apply data_at__Tarray; auto. Qed.
 
 Lemma data_at__Tarray':
   forall {CS: compspecs} sh t n a v, 
-  v = list_repeat (Z.to_nat n) (default_val t) ->
+  v = Zrepeat (default_val t) n ->
   data_at_ sh (Tarray t n a) = data_at sh (Tarray t n a) v.
 Proof.
 intros.
@@ -2857,7 +2857,7 @@ Qed.
 
 Lemma data_at__tarray':
   forall {CS: compspecs} sh t n v, 
-  v = list_repeat (Z.to_nat n) (default_val t) ->
+  v = Zrepeat (default_val t) n ->
   data_at_ sh (tarray t n) = data_at sh (tarray t n) v.
 Proof. intros; apply data_at__Tarray'; auto. Qed.
 

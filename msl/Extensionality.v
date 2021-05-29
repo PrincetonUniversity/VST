@@ -84,7 +84,6 @@ rewrite <- H; auto.
 rewrite H; auto.
 Qed.
 
-
 Lemma and_ext: forall A B C D, A=B -> C=D -> (A /\ C) = (B /\ D).
 Proof.
 intros.
@@ -128,6 +127,16 @@ intros.
 subst.
 rewrite (proof_irr Hx Hy); auto.
 Qed.
+
+Ltac f_equal :=
+  (match goal with
+     (* doing it this way can sometimes induce fewer universe constraints
+        than Prelude.f_equal produces *)
+   | |- exist _ _ _ = exist _ _ _ => apply exist_ext
+   | |- existT _ _ _ = existT _ _ _ => apply existT_ext
+  end;
+   try reflexivity; try congruence)
+   || Coq.Init.Prelude.f_equal.
 
 Lemma exist_ext' : forall A F (x y:@sig A F),
   proj1_sig x = proj1_sig y -> x = y.

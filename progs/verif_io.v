@@ -2,6 +2,8 @@ Require Import VST.progs.io.
 Require Import VST.progs.io_specs.
 Require Import VST.floyd.proofauto.
 
+Local Open Scope itree_scope.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -370,7 +372,7 @@ Ltac alloc_block m n := match n with
   | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
-  alloc_block Mem.empty 59%nat.
+  alloc_block Mem.empty 60%nat.
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end.
   reflexivity.
 Qed.
@@ -414,7 +416,7 @@ Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
   semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
      forall n s0, s0.(io_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
     exists traces, OS_safeN_trace prog n Traces.TEnd traces main_itree s0 q init_mem /\
-     forall t s, Ensembles.In _ traces (t, s) -> exists z', consume_trace main_itree z' t /\ t = trace_of_ostrace s.(io_log) /\
+     forall t s, Ensembles.In traces (t, s) -> exists z', consume_trace main_itree z' t /\ t = trace_of_ostrace s.(io_log) /\
       valid_trace_user s.(io_log).
 Proof.
   intros.

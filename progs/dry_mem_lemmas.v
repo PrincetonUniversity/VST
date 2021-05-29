@@ -6,6 +6,7 @@ Require Import VST.veric.ghost_PCM.
 Require Import VST.progs.conclib.
 Require Import VST.veric.SequentialClight.
 Require Import VST.veric.mem_lessdef.
+Import Maps.
 
 (* functions on byte arrays and CompCert mems *)
 Lemma drop_alloc m : { m' | (let (m1, b) := Mem.alloc m 0 1 in Mem.drop_perm m1 b 0 1 Nonempty) = Some m' }.
@@ -42,7 +43,6 @@ Lemma has_ext_eq' : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
 Proof.
   intros ??? (? & Hno & ->); simpl; split; auto.
   unfold ext_ghost; simpl; repeat f_equal.
-  apply proof_irr.
 Qed.
 
 Corollary has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
@@ -146,7 +146,6 @@ Proof.
   unfold set_ghost; rewrite resource_at_make_rmap, ghost_of_make_rmap.
   split; auto.
   unfold ext_ghost; repeat f_equal.
-  apply proof_irr.
 Qed.
 
 Lemma ext_ref_join : forall {Z} (z : Z), join (ext_ghost z) (ext_ref z) (ext_both z).
@@ -255,13 +254,12 @@ Lemma data_at__VALspec_range: forall {cs : compspecs} sh z b o (Hsh: readable_sh
   @data_at_ cs sh (tarray tuchar z) (Vptr b o) |--
   res_predicates.VALspec_range z sh (b, Ptrofs.unsigned o).
 Proof.
-  intros.
-  change (predicates_hered.derives (data_at_ sh (tarray tuchar z) (Vptr b o))
-    (res_predicates.VALspec_range z sh (b, Ptrofs.unsigned o))).
+  intros. rewrite derives_eq.
   intros ? [(_ & _ & Hsize & _) H]; simpl in *.
   rewrite data_at_rec_eq in H; simpl in H.
   unfold default_val, unfold_reptype in H; simpl in H.
   unfold at_offset in H; rewrite offset_val_zero_Vptr in H.
+  unfold Zrepeat in *.
   destruct H as [_ H].
   rewrite Z.sub_0_r, Z2Nat_max0 in H.
   remember 0 as lo in H at 1.
@@ -285,7 +283,7 @@ Proof.
     rewrite data_at_rec_eq in Hr1; simpl in Hr1.
     unfold unfold_reptype in Hr1; simpl in Hr1.
     rewrite <- (Nat2Z.id n) in Hr1.
-    rewrite Znth_list_repeat_inrange in Hr1.
+    rewrite Znth_repeat_inrange in Hr1.
     unfold mapsto in Hr1; simpl in Hr1.
     rewrite if_true in Hr1 by auto.
     destruct Hr1 as [[] | (_ & ? & ? & [? Hr1] & Hg1)]; [contradiction|].

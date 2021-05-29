@@ -7,6 +7,7 @@ Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.lift. Import LiftNotation.
 Require Export VST.veric.Clight_Cop2.
 Require Export VST.veric.val_lemmas.
+Import compcert.lib.Maps.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 
@@ -346,8 +347,16 @@ Definition tc_nobinover (op: Z->Z->Z) {CS: compspecs} (e1 e2: expr) : tc_assert 
     if range_s64 (op (Int.signed n1) (Int64.signed n2))
      then tc_TT else tc_nosignedover op e1 e2
  | Vlong n1, Vint n2 =>
-    if range_s64 (op (Int64.signed n1) (Int.signed n2))
-     then tc_TT else tc_nosignedover op e1 e2
+    match typeof e2 with
+    | Tint _ Signed _ => 
+       if range_s64 (op (Int64.signed n1) (Int.signed n2))
+        then tc_TT
+        else tc_nosignedover op e1 e2
+    | _ =>
+       if range_s64 (op (Int64.signed n1) (Int.unsigned n2))
+        then tc_TT
+        else tc_nosignedover op e1 e2
+     end
  | _ , _ => tc_nosignedover op e1 e2
  end.
 
@@ -1190,7 +1199,7 @@ Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); triv
    definition (and in NDfunspec_sub). *)
 Definition subsumespec x y:=
 match x with
-| Some hspec => exists gspec, y = Some gspec /\ TT |-- funspec_sub_si gspec hspec (*contravariance!*)
+| Some hspec => exists gspec, y = Some gspec /\ (TT |-- funspec_sub_si gspec hspec) (*contravariance!*)
 | None => True
 end. 
 

@@ -24,9 +24,9 @@ Lemma loop1_aux_lemma1:
   (0 <= i < Zlength b) ->
   Zlength b <= 16 ->
   upd_Znth i
-          (map Vint (sublist 0 i b) ++ list_repeat (Z.to_nat (16 - i)) Vundef)
+          (map Vint (sublist 0 i b) ++ repeat Vundef (Z.to_nat (16 - i)))
           (Vint (Znth i b))
-  =  map Vint (sublist 0 (i+1) b) ++ list_repeat (Z.to_nat (16 - (i+1))) Vundef.
+  =  map Vint (sublist 0 (i+1) b) ++ repeat Vundef (Z.to_nat (16 - (i+1))).
 Proof.
 intros. list_solve.
 Qed.
@@ -91,7 +91,7 @@ forward_for_simple_bound 16
                  gvars gv)
      SEP (K_vector gv;
        data_at Tsh (tarray tuint LBLOCKz)
-           (map Vint (sublist 0 i b) ++ list_repeat (Z.to_nat (16-i)) Vundef)
+           (map Vint (sublist 0 i b) ++ repeat Vundef (Z.to_nat (16-i)))
             Xv;
        data_block sh (intlist_to_bytelist b) data)).
 * (* precondition of loop entails the loop invariant *)

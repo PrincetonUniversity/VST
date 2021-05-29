@@ -1,5 +1,6 @@
 Require Import VST.floyd.base2.
 Import ListNotations.
+Import compcert.lib.Maps.
 
 Module PosOrder <: Orders.TotalLeBool.
   Definition t := positive.

@@ -57,7 +57,7 @@ Lemma nonexpansive_entail (F: pred rmap -> pred rmap) : nonexpansive F -> forall
 Proof.
   intros N P Q.
   specialize (N P Q).
-  eapply derives_trans; [ eapply derives_trans | ]; [ | apply N | ];
+  eapply derives_trans; [ eapply derives_trans | ]; [ | constructor; apply N | ];
   apply derives_refl.
 Qed.
 
@@ -68,11 +68,11 @@ Proof.
   + intros P Q.
     specialize (H (P tt) (Q tt)).
     rewrite !allp_unit.
-    auto.
+    constructor; auto.
   + intros P Q.
     specialize (H (fun x => P) (fun x => Q)).
     rewrite !allp_unit in H.
-    auto.
+    inv H; auto.
 Qed.
 
 Lemma selflock'_eq Q sh p : selflock' Q sh p =
@@ -82,7 +82,7 @@ Proof.
   intros P1 P2 u.
   apply subp_sepcon; [ apply subp_refl | ].
   rewrite <- subp_later.
-  repeat intro.
+  constructor; repeat intro.
   match goal with |- app_pred (?P >=> ?Q)%logic ?a => change (subtypes.fash (P --> Q) a) end.
   unfold lock_inv; repeat intro.
   destruct H3 as (b & ofs & ? & Hl & ?); exists b, ofs; split; auto; split; auto.
@@ -117,7 +117,9 @@ Lemma eqp_sepcon : forall (G : Triv) (P P' Q Q' : mpred)
 Proof.
   intros.
   rewrite fash_andp in HP, HQ |- *.
-  apply andp_right; apply subp_sepcon; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+  inv HP; rename derivesI into HP.
+  inv HQ; rename derivesI into HQ.
+  apply andp_right; apply subp_sepcon; auto; constructor; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
 Qed.
 
 Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
@@ -125,7 +127,9 @@ Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
 Proof.
   intros.
   rewrite fash_andp in HP, HQ |- *.
-  apply andp_right; apply subp_andp; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+  inv HP; rename derivesI into HP.
+  inv HQ; rename derivesI into HQ.
+  apply andp_right; apply subp_andp; auto; constructor; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
 Qed.
 
 Lemma eqp_exp : forall (A : Type) (NA : NatDed A) (IA : Indir A) (RecIndir : RecIndir A)
@@ -135,7 +139,7 @@ Lemma eqp_exp : forall (A : Type) (NA : NatDed A) (IA : Indir A) (RecIndir : Rec
 Proof.
   intros.
   rewrite fash_andp; apply andp_right; apply subp_exp; intro x; specialize (H x); rewrite fash_andp in H;
-    intros ? Ha; destruct (H _ Ha); auto.
+    inv H; rename derivesI into H; constructor; intros ? Ha; destruct (H _ Ha); auto.
 Qed.
 
 Lemma lock_inv_nonexpansive2 : forall {A} (P Q : A -> mpred) sh p x, (ALL x : _, |> (P x <=> Q x) |--
@@ -272,8 +276,7 @@ Proof.
   intros.
   apply approx_eq_i'.
   intros m ?.
-  pose proof nonexpansive_entail _ H R (approx n R) m.
-  apply H1.
+  apply nonexpansive_entail; auto.
   clear - H0.
   apply (fash_equiv_approx n R m); auto.
 Qed.
@@ -287,9 +290,11 @@ Proof.
   intros.
   apply approx_eq_i'.
   intros m ?.
-  pose proof nonexpansive_entail _ (H P) Q (approx n Q) m; cbv beta in H2.
+  pose proof nonexpansive_entail _ (H P) Q (approx n Q) as H2.
+  inv H2; rename derivesI into H2. specialize (H2 m); cbv beta in H2.
   spec H2; [apply (fash_equiv_approx n Q m); auto |].
-  pose proof nonexpansive_entail _ (H0 (approx n Q)) P (approx n P) m; cbv beta in H3.
+  pose proof nonexpansive_entail _ (H0 (approx n Q)) P (approx n P) as H3.
+  inv H3; rename derivesI into H3. specialize (H3 m); cbv beta in H3.
   spec H3; [apply (fash_equiv_approx n P m); auto |].
   remember (F P Q) as X1.
   remember (F P (approx n Q)) as X2.
@@ -902,7 +907,6 @@ Definition spawn_pre :=
      (*(LOCALx (temp _f f :: temp _args b :: gvars (gv w) :: nil)*)
      PARAMS (f;b) GLOBALS (gv w)
      (SEP (
-       EX _y : ident,
          (func_ptr'
            (WITH y : val, x : nth 0 ts unit
              PRE [ (*_y OF *)tptr tvoid ]
@@ -955,7 +959,7 @@ Proof.
 Qed.*)
 
 Lemma approx_derives_e {n P Q}: @derives mpred Nveric  P Q -> @derives mpred Nveric (approx n P) (approx n Q).
-Proof. intros. apply approx_hered_derives_e. apply H. Qed.
+Proof. intros. constructor. apply approx_hered_derives_e. apply H. Qed.
 
 Lemma funcptr_f_equal' fs fs' v v': fs=fs' -> v=v' -> func_ptr' fs v = func_ptr' fs' v'.
 Proof. intros; subst; trivial. Qed.
@@ -994,16 +998,14 @@ Proof. repeat intro.
   rewrite !approx_sepcon. rewrite approx_idem.
   apply pred_ext; apply sepcon_derives; trivial; apply derives_refl'.
   (* f_equal.*)
-  + rewrite !approx_exp; apply f_equal; extensionality y.
-    apply approx_Sn_eq_weaken.
+  + apply approx_Sn_eq_weaken.
     rewrite approx_func_ptr'.
     setoid_rewrite approx_func_ptr' at 2. apply f_equal.
     apply funcptr_f_equal'; trivial. simpl.
     apply semax_prog.funspec_eq; trivial.
     extensionality tss a rho'; destruct a.
     rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
-  + rewrite !approx_exp; apply f_equal; extensionality y.
-    apply approx_Sn_eq_weaken.
+  + apply approx_Sn_eq_weaken.
     rewrite approx_func_ptr'.
     setoid_rewrite approx_func_ptr' at 2. apply f_equal.
     apply funcptr_f_equal'; trivial. simpl.
@@ -1051,8 +1053,6 @@ Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i)
 Proof.
   apply IH; induction n; intros i li; inversion li; eauto.
 Qed.
-
-Set Printing Implicit.
 
 Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::

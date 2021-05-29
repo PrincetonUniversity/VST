@@ -72,3 +72,8 @@ Instance EqDec_option (A: Type) (EA: EqDec A) : EqDec (option A).
 Proof.
   hnf; decide equality.
 Defined.
+
+Lemma eq_dec_refl : forall {A B} {A_eq : EqDec A} (a : A) (b c : B), (if eq_dec a a then b else c) = b.
+Proof.
+  intros; destruct (eq_dec a a); [|contradiction n]; auto.
+Qed.

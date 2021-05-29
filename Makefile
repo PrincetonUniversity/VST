@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.12.0 or-else 8.12.1 or-else 8.12.2 or-else 8.13+beta1 or-else 8.13.0
+COQVERSION= 8.12.0 or-else 8.12.1 or-else 8.12.2 or-else 8.13+beta1 or-else 8.13.0 or-else 8.13.1 or-else 8.13.2
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -234,8 +234,8 @@ endif
 
 # ########## Flags ##########
 
-VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86
-OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics boringssl_fips_20180730
+VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
+OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 
 # ##### Compcert Flags #####
@@ -290,7 +290,8 @@ endif
 
 # ##### Flag summary #####
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../paco/src Paco -Q ../coq-ext-lib/theories ExtLib -Q ../fcf/src/fcf FCF
+
 
 DEPFLAGS:=$(COQFLAGS)
 
@@ -439,7 +440,7 @@ VERIC_FILES= \
   semax.v semax_lemmas.v semax_conseq.v semax_call.v semax_straight.v semax_loop.v semax_switch.v \
   initial_world.v Clight_initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
-  semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v
+  semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v ghosts.v invariants.v
 
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
@@ -486,7 +487,7 @@ PROGS32_FILES= \
   verif_strlib.v verif_fib.v bug83.v \
   tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v \
   libglob.v verif_libglob.v peel.v verif_peel.v \
-  printf.v stackframe_demo.v verif_stackframe_demo.v structerr.v verif_structerr.v \
+  printf.v stackframe_demo.v verif_stackframe_demo.v \
 	rotate.v verif_rotate.v \
   verif_objectSelf.v verif_objectSelfFancy.v verif_objectSelfFancyOverriding.v
 # verif_insertion_sort.v
@@ -581,7 +582,9 @@ AES_FILES = \
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
-SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c printf.c stackframe_demo.c structerr.c
+SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c min64.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c printf.c stackframe_demo.c rotate.c \
+  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c
+
 
 LINKED_C_FILES = even.c odd.c
 C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
@@ -714,8 +717,9 @@ aes: _CoqProject $(AES_FILES:%.v=aes/%.vo)
 hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
-atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
-io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo progs/io_specs.vo floyd/printf.vo InteractionTrees/theories/Events/Nondeterminism.vo
+# atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
+atomics: _CoqProject atomics/verif_hashtable_atomic.vo progs/verif_incr_atomic.vo
+io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo progs/io_specs.vo floyd/printf.vo
 
 $(CVOFILES): compcert
 

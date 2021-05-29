@@ -28,7 +28,7 @@ Require Import VST.msl.log_normalize.
 Local Open Scope logic.
 
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-                      forall P P' Q: A, P |-- P' ->  derives (sepcon P (wand P' Q)) Q.
+                      forall P P' Q: A, (P |-- P') ->  derives (sepcon P (wand P' Q)) Q.
 Proof.
 intros.
    eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | apply modus_ponens_wand ].
@@ -42,7 +42,7 @@ Context {A : Type}.
 Context {ND : NatDed A}.
 Context {SL : SepLog A}.
 
-Lemma solve: forall g l g' l' F, g |-- l * F -> F * l' |-- g' -> g |-- l * (l' -* g').
+Lemma solve: forall g l g' l' F, (g |-- l * F) -> (F * l' |-- g') -> g |-- l * (l' -* g').
 Proof.
   intros.
   apply derives_trans with (l * F); auto.
@@ -51,7 +51,7 @@ Proof.
   auto.
 Qed.
 
-Lemma weak_ramif_spec: forall g l g' l', g |-- l * (l' -* g') -> g |-- l * TT.
+Lemma weak_ramif_spec: forall g l g' l', (g |-- l * (l' -* g')) -> g |-- l * TT.
 Proof.
   intros.
   eapply derives_trans; [exact H |].
@@ -60,8 +60,8 @@ Proof.
 Qed.
 
 Lemma trans: forall g m l g' m' l',
-      g |-- m * (m' -* g') ->
-      m |-- l * (l' -* m') ->
+      (g |-- m * (m' -* g')) ->
+      (m |-- l * (l' -* m')) ->
       g |-- l * (l' -* g').
 Proof.
   intros.
@@ -77,7 +77,7 @@ Qed.
 
 Lemma trans':
    forall (m l g' m' l': A),
-       m |-- l * (l' -* m') ->
+       (m |-- l * (l' -* m')) ->
        m * (m' -* g') |-- l * (l' -* g').
 Proof.
   intros. eapply trans. apply derives_refl. auto.
@@ -85,7 +85,7 @@ Qed.
 
 Lemma trans'':
    forall (p g' m' l': A),
-       p |-- l' -* m' ->
+       (p |-- l' -* m') ->
        p * (m' -* g') |-- (l' -* g').
 Proof.
   intros.
@@ -97,8 +97,8 @@ Proof.
 Qed.
 
 Lemma split: forall g1 g2 l1 l2 g1' g2' l1' l2',
-  g1 |-- l1 * (l1' -* g1') ->
-  g2 |-- l2 * (l2' -* g2') ->
+  (g1 |-- l1 * (l1' -* g1')) ->
+  (g2 |-- l2 * (l2' -* g2')) ->
   g1 * g2 |-- (l1 * l2) * (l1' * l2' -* g1' * g2').
 Proof.
   intros.
@@ -111,7 +111,7 @@ Qed.
 
 (* Using split to prove frame will lead to a simpler proof. *)
 (* But it requires a unitary separation logic.              *)
-Lemma frame: forall g l g' l' F, g |-- l * (l' -* g') -> g * F |-- l * (l' -* g' * F).
+Lemma frame: forall g l g' l' F, (g |-- l * (l' -* g')) -> g * F |-- l * (l' -* g' * F).
 Proof.
   intros.
   apply solve with ((l' -* g') * F).
@@ -121,7 +121,7 @@ Proof.
     apply sepcon_derives; [apply modus_ponens_wand | auto].
 Qed.
 
-Lemma frame_post: forall g l g' l' F, g |-- l * (l' -* g') -> g |-- l * (l' * F -* g' * F).
+Lemma frame_post: forall g l g' l' F, (g |-- l * (l' -* g')) -> g |-- l * (l' * F -* g' * F).
 Proof.
   intros.
   apply solve with (l' -* g').
@@ -130,7 +130,7 @@ Proof.
     apply sepcon_derives; [rewrite sepcon_comm; apply modus_ponens_wand | auto].
 Qed.
 
-Lemma frame_pre: forall g l g' l' F, g |-- l * (l' -* g') -> g * F |-- (l * F) * (l' -* g').
+Lemma frame_pre: forall g l g' l' F, (g |-- l * (l' -* g')) -> g * F |-- (l * F) * (l' -* g').
 Proof.
   intros.
   apply solve with (l' -* g').
@@ -140,7 +140,7 @@ Proof.
 Qed.
 
 Lemma exp_right: forall {T} (a: T) g l g' l',
-  g |-- l * (l' -* g' a) ->
+  (g |-- l * (l' -* g' a)) ->
   g |-- l * (l' -* exp g').
 Proof.
   intros.
@@ -161,7 +161,7 @@ Context {ND : NatDed A}.
 Context {SL : SepLog A}.
 
 Lemma reduce: forall {B} g l (g' l': B -> A),
-  g |-- l * (allp (l' -* g')) ->
+  (g |-- l * (allp (l' -* g'))) ->
   g |-- l * (exp l' -* exp g').
 Proof.
   intros.
@@ -176,7 +176,7 @@ Proof.
 Qed.
 
 Lemma solve: forall {B} g l g' l' F,
-  g |-- l * F ->
+  (g |-- l * F) ->
   (forall x: B, F * l' x |-- g' x) ->
   g |-- l * (allp (l' -* g')).
 Proof.
@@ -190,7 +190,7 @@ Proof.
 Qed.
 
 Lemma weak_ramif_spec: forall {B} g l (g' l': B -> A),
-  g |-- l * allp (l' -* g') -> g |-- l * TT.
+  (g |-- l * allp (l' -* g')) -> g |-- l * TT.
 Proof.
   intros.
   eapply derives_trans; [exact H |].
@@ -199,7 +199,7 @@ Proof.
 Qed.
 
 Lemma plain_spec: forall {B} g l g' l' (x: B),
-  g |-- l * (allp (l' -* g')) ->
+  (g |-- l * (allp (l' -* g'))) ->
   g |-- l *  (l' x -* g' x).
 Proof.
   intros.
@@ -210,8 +210,8 @@ Qed.
 
 Lemma trans: forall {B BG BL} g m l g' mG' mL' l' (fG: B -> BG) (fL: B -> BL),
   (forall b, mL' (fL b) |-- mG' (fG b)) ->
-  g |-- m * allp (mG' -* g') ->
-  m |-- l * allp (l' -* mL') ->
+  (g |-- m * allp (mG' -* g')) ->
+  (m |-- l * allp (l' -* mL')) ->
   g |-- l * allp (Basics.compose l' fL -* Basics.compose g' fG).
 Proof.
   intros.
@@ -237,8 +237,8 @@ Proof.
 Qed.
 
 Lemma simple_trans: forall {B} g m l (g' m' l': B -> A),
-  g |-- m * allp (m' -* g') ->
-  m |-- l * allp (l' -* m') ->
+  (g |-- m * allp (m' -* g')) ->
+  (m |-- l * allp (l' -* m')) ->
   g |-- l * allp (l' -* g').
 Proof.
   intros.
@@ -249,7 +249,7 @@ Lemma trans'':
   forall {CS: ClassicalSep A}
      {B C: Type} (f: B->C) p l m g1 g2,
      g2 = g1 oo f ->
-     p |-- allp (l -* m oo f) ->
+     (p |-- allp (l -* m oo f)) ->
      p * allp (m -* g1) |-- allp (l -* g2).
 Proof.
    intros.
@@ -272,8 +272,8 @@ Proof.
 Qed.
 
 Lemma split: forall {B} g1 g2 l1 l2 (g1' g2' l1' l2': B -> A),
-  g1 |-- l1 * allp (l1' -* g1') ->
-  g2 |-- l2 * allp (l2' -* g2') ->
+  (g1 |-- l1 * allp (l1' -* g1')) ->
+  (g2 |-- l2 * allp (l2' -* g2')) ->
   g1 * g2 |-- (l1 * l2) * allp (l1' * l2' -* g1' * g2').
 Proof.
   intros.
@@ -294,7 +294,7 @@ Qed.
 (* Using split to prove frame will lead to a simpler proof. *)
 (* But it requires a unitary separation logic.              *)
 Lemma frame: forall {B} g l (g' l': B -> A) F,
-  g |-- l * allp (l' -* g') ->
+  (g |-- l * allp (l' -* g')) ->
   g * F |-- l * allp (l' -* g' * Basics.const F).
 Proof.
   intros.
@@ -309,7 +309,7 @@ Proof.
 Qed.
 
 Lemma frame_post: forall {B} g l (g' l' F: B -> A),
-  g |-- l * allp (l' -* g') ->
+  (g |-- l * allp (l' -* g')) ->
   g |-- l * allp (l' * F -* g' * F).
 Proof.
   intros.
@@ -323,7 +323,7 @@ Proof.
 Qed.
 
 Lemma frame_pre: forall {B} g l (g' l': B -> A) F,
-  g |-- l * allp (l' -* g') ->
+  (g |-- l * allp (l' -* g')) ->
   g * F |-- (l * F) * allp (l' -* g').
 Proof.
   intros.
@@ -336,7 +336,7 @@ Proof.
 Qed.
 
 Lemma exp_right: forall {T B} (a: B -> T) g l (g': T -> B -> A) (l': B -> A),
-  g |-- l * allp (l' -* (fun b => g' (a b) b)) ->
+  (g |-- l * allp (l' -* (fun b => g' (a b) b))) ->
   g |-- l * allp (l' -* exp g').
 Proof.
   intros.
@@ -392,7 +392,7 @@ Context {CoSL: CorableSepLog A}.
 
 Lemma reduce: forall {B} g l p (g' l': B -> A),
   corable p ->
-  g |-- l * (allp (p --> (l' -* g'))) ->
+  (g |-- l * (allp (p --> (l' -* g')))) ->
   g |-- l * (exp (p && l') -* exp (p && g')).
 Proof.
   intros.
@@ -414,7 +414,7 @@ Qed.
 
 Lemma solve: forall {B} g l p g' l' F,
   corable p ->
-  g |-- l * F ->
+  (g |-- l * F) ->
   (forall x: B, (p x) && (F * l' x) |-- g' x) ->
   g |-- l * (allp (p --> (l' -* g'))).
 Proof.
@@ -430,7 +430,7 @@ Proof.
 Qed.
 
 Lemma weak_ramif_spec: forall {B} g l p (g' l': B -> A),
-  g |-- l * allp (p --> l' -* g') -> g |-- l * TT.
+  (g |-- l * allp (p --> l' -* g')) -> g |-- l * TT.
 Proof.
   intros.
   eapply derives_trans; [exact H |].
@@ -440,8 +440,8 @@ Qed.
 
 Lemma plain_spec: forall {B} g l p g' l' (x: B),
   corable p ->
-  g |-- p x ->
-  g |-- l * allp (p --> (l' -* g')) ->
+  (g |-- p x) ->
+  (g |-- l * allp (p --> (l' -* g'))) ->
   g |-- l * (l' x -* g' x).
 Proof.
   intros.
@@ -458,8 +458,8 @@ Lemma trans: forall {B BG BL} g m l p pG pL g' mG' mL' l' (fG: B -> BG) (fL: B -
   corable p ->
   corable pL ->
   corable pG ->
-  g |-- m * allp (pG --> (mG' -* g')) ->
-  m |-- l * allp (pL --> (l' -* mL')) ->
+  (g |-- m * allp (pG --> (mG' -* g'))) ->
+  (m |-- l * allp (pL --> (l' -* mL'))) ->
   (forall b, p b |-- pL (fL b)) ->
   (forall b, p b && mL' (fL b) |-- pG (fG b) && mG' (fG b)) ->
   g |-- l * allp (p --> (Basics.compose l' fL -* Basics.compose g' fG)).
@@ -502,8 +502,8 @@ Qed.
 
 Lemma split: forall {B} g1 g2 l1 l2 (p g1' g2' l1' l2': B -> A),
   (forall x: B, corable (p x)) ->
-  g1 |-- l1 * allp (p --> (l1' -* g1')) ->
-  g2 |-- l2 * allp (p --> (l2' -* g2')) ->
+  (g1 |-- l1 * allp (p --> (l1' -* g1'))) ->
+  (g2 |-- l2 * allp (p --> (l2' -* g2'))) ->
   g1 * g2 |-- (l1 * l2) * allp (p --> (l1' * l2' -* g1' * g2')).
 Proof.
   intros.
@@ -536,7 +536,7 @@ Qed.
 (* But it requires a unitary separation logic.              *)
 Lemma frame: forall {B} g l p g' l' F,
   (forall x: B, corable (p x)) ->
-  g |-- l * allp (p --> (l' -* g')) ->
+  (g |-- l * allp (p --> (l' -* g'))) ->
   g * F |-- l * allp (p --> (l' -* g' * Basics.const F)).
 Proof.
   intros.
@@ -555,7 +555,7 @@ Qed.
 
 Lemma frame_post: forall {B} g l (p g' l' F: B -> A),
   (forall x: B, corable (p x)) ->
-  g |-- l * allp (p --> (l' -* g')) ->
+  (g |-- l * allp (p --> (l' -* g'))) ->
   g |-- l * allp (p --> (l' * F -* g' * F)).
 Proof.
   intros.
@@ -573,7 +573,7 @@ Qed.
 
 Lemma frame_pre: forall {B} g l (p g' l': B -> A) F,
   (forall x: B, corable (p x)) ->
-  g |-- l * allp (p --> (l' -* g')) ->
+  (g |-- l * allp (p --> (l' -* g'))) ->
   g * F |-- (l * F) * allp (p --> (l' -* g')).
 Proof.
   intros.
@@ -590,7 +590,7 @@ Qed.
 
 Lemma exp_right: forall {T B} (a: B -> T) p g l (g': T -> B -> A) (l': B -> A),
   corable p ->
-  g |-- l * allp (p --> (l' -* (fun b => g' (a b) b))) ->
+  (g |-- l * allp (p --> (l' -* (fun b => g' (a b) b)))) ->
   g |-- l * allp (p --> (l' -* exp g')).
 Proof.
   intros.

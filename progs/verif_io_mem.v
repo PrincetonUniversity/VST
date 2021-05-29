@@ -3,6 +3,8 @@ Require Import VST.progs.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 
+Local Open Scope itree_scope.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -298,7 +300,7 @@ Proof.
                  temp _k (Vint (Int.repr (Zlength (chars_of_Z i ++ [Byte.repr newline])))))
     SEP (mem_mgr gv; malloc_token Ews (tarray tuchar 5) buf;
             data_at Ews (tarray tuchar 5) (map Vubyte (chars_of_Z i) ++ Vubyte (Byte.repr newline) ::
-              list_repeat (Z.to_nat (4 - Zlength (chars_of_Z i))) Vundef) buf;
+              repeat Vundef (Z.to_nat (4 - Zlength (chars_of_Z i)))) buf;
             ITREE (write_list stdout (chars_of_Z i ++ [Byte.repr newline]);; tr))).
   - Intros.
     forward.
@@ -321,25 +323,25 @@ Proof.
     { rewrite Zlength_app, Zlength_cons, Zlength_nil, chars_of_Z_intr.
       destruct (Z.leb_spec i 0); auto; lia. }
     unfold replace_list; simpl.
-    rewrite (sublist_list_repeat _ _ 5 Vundef).
+    rewrite (sublist_repeat _ _ 5 Vundef).
     rewrite !Zlength_cons, Zlength_nil, Zlength_map; simpl.
     rewrite upd_Znth_app2.
-    rewrite Zlength_map, Zminus_diag, upd_Znth0_old, sublist_list_repeat; try lia.
+    rewrite Zlength_map, Zminus_diag, upd_Znth0_old, sublist_repeat; try lia.
     apply derives_refl'.
     f_equal.
     rewrite chars_of_Z_intr.
     destruct (Z.leb_spec i 0); try lia.
     rewrite zero_ext_inrange.
     f_equal; f_equal; f_equal; f_equal.
-    rewrite Zlength_list_repeat; try lia.
+    rewrite Zlength_repeat; try lia.
     { simpl; rewrite Int.unsigned_repr; rep_lia. }
-    { rewrite Zlength_list_repeat; lia. }
-    { rewrite Zlength_list_repeat; lia. }
-    { rewrite Zlength_map, Zlength_list_repeat; lia. }
+    { rewrite Zlength_repeat; lia. }
+    { rewrite Zlength_repeat; lia. }
+    { rewrite Zlength_map, Zlength_repeat; lia. }
     { rewrite Zlength_map; rep_lia. }
     { rewrite !Zlength_cons, Zlength_nil, Zlength_map; lia. }
   - forward_call (Ews, buf, chars_of_Z i ++ [Byte.repr newline],
-      5, list_repeat (Z.to_nat (4 - Zlength (chars_of_Z i))) Vundef, tr).
+      5, repeat Vundef (Z.to_nat (4 - Zlength (chars_of_Z i))), tr).
     { rewrite map_app, <- app_assoc; simpl; cancel. }
     forward_call (tarray tuchar 5, buf, gv).
     { rewrite if_false by auto; cancel. }
@@ -358,13 +360,13 @@ Proof.
   rewrite unfold_iter.
   if_tac; [|rewrite bind_ret_l; reflexivity].
   rewrite bind_bind.
-  apply eqit_bind; [|reflexivity].
+  apply eqit_bind; [reflexivity|].
   intros [].
   - rewrite bind_ret_l, tau_eutt.
     rewrite unfold_iter.
     rewrite bind_ret_l; reflexivity.
   - rewrite bind_bind.
-    apply eqit_bind; [|reflexivity].
+    apply eqit_bind; [reflexivity|].
     intro.
     rewrite bind_ret_l, tau_eutt; reflexivity.
 Qed.
@@ -377,7 +379,7 @@ Proof.
   rewrite unfold_iter.
   simple_if_tac; [|rewrite bind_ret_l; reflexivity].
   rewrite bind_bind.
-  apply eqit_bind; [|reflexivity].
+  apply eqit_bind; [reflexivity|].
   intros [].
   - rewrite bind_ret_l, tau_eutt, unfold_iter.
     rewrite bind_ret_l; reflexivity.
@@ -451,7 +453,7 @@ Proof.
         entailer!.
         rewrite for_loop_eq.
         destruct (Z.ltb_spec i 4); try lia.
-        unfold read_sum_inner at 2.
+        unfold read_sum_inner at 1.
         replace (_ || _)%bool with true.
         rewrite !bind_ret_l; auto.
         { symmetry; rewrite orb_true_iff.
@@ -469,7 +471,7 @@ Proof.
       rewrite add_repr.
       rewrite for_loop_eq.
       destruct (Z.ltb_spec i 4); try lia.
-      unfold read_sum_inner at 2.
+      unfold read_sum_inner at 1.
       unfold nums; rewrite Znth_map by lia.
       assert (((10 <=? Byte.unsigned (Znth i lc) - char0) || (Byte.unsigned (Znth i lc) - char0 <? 0))%bool = false) as Hin.
       { rewrite orb_false_iff.
@@ -487,7 +489,7 @@ Proof.
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
         rewrite !bind_bind.
         apply ITREE_impl.
-        apply eqit_bind; [|reflexivity].
+        apply eqit_bind; [reflexivity|].
         intros [].
         rewrite bind_ret_l; reflexivity. }
       { rewrite Hi, sum_Z_app; simpl; lia. }
@@ -547,7 +549,7 @@ Ltac alloc_block m n := match n with
   | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
-  alloc_block Mem.empty 60%nat.
+  alloc_block Mem.empty 61%nat.
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end.
   reflexivity.
 Qed.

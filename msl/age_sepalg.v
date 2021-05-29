@@ -478,6 +478,30 @@ Proof.
  - apply core_identity.
 Qed.
 
+Lemma laterR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+  forall x y : A, laterR x y -> laterR (core x) (core y).
+Proof.
+ induction 1.
+ constructor 1; apply age_core; auto.
+ constructor 2 with (core y); auto.
+Qed.
+
+Lemma unlaterR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+  forall x y : A, laterR (core x) y -> exists y0, laterR x y0 /\ y = core y0.
+Proof.
+  intros; remember (core x) as cx; revert dependent x; induction H; intros; subst.
+  - pose proof (age_level _ _ H) as Hlevel.
+    rewrite level_core in Hlevel.
+    destruct (levelS_age1 _ _ Hlevel) as (y0 & Hage).
+    exists y0; split; [constructor; auto|].
+    apply age_core in Hage.
+    unfold age in *; congruence.
+  - edestruct IHclos_trans1 as (y0 & ? & ?); eauto; subst.
+    edestruct IHclos_trans2 as (? & ? & ?); eauto; subst.
+    eexists; split; [|reflexivity].
+    econstructor 2; eauto.
+Qed.
+
 Lemma necR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall x y : A, necR x y -> necR (core x) (core y).
 Proof.

@@ -14,6 +14,7 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.semax.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.own.
+Import compcert.lib.Maps.
 
 Import Ctypes.
 
@@ -207,6 +208,42 @@ Proof.
  symmetry; apply age1_resource_at with (m_phi jm); eauto.
   destruct (age1_juicy_mem_unpack _ _ H); auto.
  symmetry; apply resource_at_approx.
+Qed.
+
+Lemma jsafeN_local_step_bupd:
+  forall {Espec: OracleKind} ge ora s1 m s2,
+  cl_step  ge s1 (m_dry m) s2 (m_dry m) ->
+  (forall m', age m m' -> jm_bupd ora (jsafeN (@OK_spec Espec) ge (level m') ora s2) m') ->
+  jsafeN (@OK_spec Espec) ge (level m) ora s1 m.
+Proof.
+intros.
+  rename H into Hstep.
+  remember (level m) as N.
+  destruct N; [constructor|].
+  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
+  eapply jsafeN_step with
+   (* (c' := State f Sskip (Kseq Scontinue (Kloop1 Sskip Sskip k)) ve te)*)
+    (m'0 := m').
+  split3.
+  replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
+  apply Hstep.
+  apply age1_resource_decay; auto. split; [apply age_level; auto|].
+  apply age_jm_phi in H.
+  erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
+  unfold level at 1; simpl.
+  repeat intro; auto.
+  assert (N = level m')%nat.
+  apply age_level in H; lia.
+  subst. apply H0. auto.
+Qed.
+
+Lemma bupd_jm_bupd: forall jm P C, bupd P (m_phi jm) -> joins (ghost_of (m_phi jm)) (ghost_approx jm C) ->
+  exists jm', jm_update jm jm' /\ P (m_phi jm') /\ joins (ghost_of (m_phi jm')) (ghost_approx jm C).
+Proof.
+  repeat intro.
+  destruct (H _ H0) as (? & ? & ? & ? & Hr & ? & ?); subst.
+  destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
+  exists jm'; repeat split; auto.
 Qed.
 
 Lemma jsafeN_local_step:
@@ -1510,6 +1547,8 @@ Proof.
     destruct (eval_expr e rho), (eval_expr e0 rho); auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
+    destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ],
+                  (typeof e0) as [ | _ [ | ] _ | | | | | | | ];
     destruct (eval_expr e rho), (eval_expr e0 rho); auto.
 Qed.
 

@@ -49,7 +49,7 @@ destruct a; inv H.
 lia.
 Qed.
 
-Notation "'#' e" := (fash e) (at level 30, right associativity): pred.
+Notation "'#' e" := (fash e) (at level 20, right associativity): pred.
 
 Lemma fash_K {A} `{H: ageable A}: forall (P Q: pred A),
                  # (P --> Q) |-- # P --> # Q.
@@ -89,7 +89,7 @@ unfold natLevel in H0. lia.
 Qed.
 
 Lemma fash_derives {A} `{agA : ageable A}:
-     forall (P Q: pred A), P |-- Q  ->  # P |-- # Q.
+     forall (P Q: pred A), (P |-- Q)  ->  # P |-- # Q.
 Proof.
 intros.
 intros w ?.
@@ -114,8 +114,8 @@ Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : pred.
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : pred.
 
 Lemma subp_eqp {A} `{ageable A} : forall G (P Q: pred A),
-  G |-- P >=> Q ->
-  G |-- Q >=> P ->
+  (G |-- P >=> Q) ->
+  (G |-- Q >=> P) ->
   G |-- P <=> Q.
 Proof.
   repeat intro.
@@ -125,7 +125,7 @@ Proof.
 Qed.
 
 Lemma eqp_subp {A} `{ageable A} : forall G P Q,
-  G |-- P <=> Q ->
+  (G |-- P <=> Q) ->
   G |-- P >=> Q.
 Proof.
   repeat intro.
@@ -135,7 +135,7 @@ Proof.
 Qed.
 
 Lemma eqp_subp2 {A} `{ageable A} : forall G P Q,
-  G |-- P <=> Q ->
+  (G |-- P <=> Q) ->
   G |-- Q >=> P.
 Proof.
   repeat intro.
@@ -163,8 +163,8 @@ Proof.
 Qed.
 
 Lemma subp_trans {A} `{ageable A} : forall G P Q R,
-  G |-- P >=> Q ->
-  G |-- Q >=> R ->
+  (G |-- P >=> Q) ->
+  (G |-- Q >=> R) ->
   G |-- P >=> R.
 Proof.
   repeat intro.
@@ -185,8 +185,8 @@ Proof.
 Qed.
 
 Lemma subp_andp {A} `{ageable A} : forall G P P' Q Q',
-  G |-- P >=> P' ->
-  G |-- Q >=> Q' ->
+  (G |-- P >=> P') ->
+  (G |-- Q >=> Q') ->
   G |-- P && Q >=> (P' && Q').
 Proof.
   repeat intro.
@@ -196,8 +196,8 @@ Proof.
 Qed.
 
 Lemma subp_imp {A} `{ageable A} : forall G P P' Q Q',
-  G |-- P' >=> P ->
-  G |-- Q >=> Q' ->
+  (G |-- P' >=> P) ->
+  (G |-- Q >=> Q') ->
   G |-- (P --> Q) >=> (P' --> Q').
 Proof.
   repeat intro.
@@ -207,8 +207,8 @@ Proof.
 Qed.
 
 Lemma subp_orp {A} `{ageable A} : forall G P P' Q Q',
-  G |-- P >=> P' ->
-  G |-- Q >=> Q' ->
+  (G |-- P >=> P') ->
+  (G |-- Q >=> Q') ->
   G |-- (P || Q) >=> (P' || Q').
 Proof.
   repeat intro.
@@ -219,8 +219,8 @@ Qed.
 
 Lemma subp_subp {A}{agA: ageable A}:
   forall (G: pred nat) (P Q R S: pred A),
-   G |-- (R >=> P) ->
-   G |-- (Q >=> S) ->
+   (G |-- (R >=> P)) ->
+   (G |-- (Q >=> S)) ->
    G |-- (P >=> Q) >=> (R >=> S).
 Proof.
  intros.
@@ -347,7 +347,7 @@ Next Obligation.
  eapply pred_hereditary; eauto. unfold age;  simpl. auto.
 Qed.
 
-Notation "'!' e" := (unfash e) (at level 30, right associativity): pred.
+Notation "'!' e" := (unfash e) (at level 20, right associativity): pred.
 
 Lemma level_later {A} `{H : ageable A}: forall {w: A} {n': nat},
          laterR (level w) n' ->
@@ -385,8 +385,8 @@ Qed.
 
 Lemma subp_derives {A} `{agA : ageable A} :
   forall (P P' Q Q': pred A),
-    P' |-- P ->
-    Q |-- Q' ->
+    (P' |-- P) ->
+    (Q |-- Q') ->
     (P >=> Q) |-- (P' >=> Q').
 Proof.
 
@@ -439,7 +439,7 @@ eapply H; auto.
 Qed.
 
  Lemma subp_i1 {A}{agA: ageable A}:
-  forall (P : pred nat) (Q R: pred A ), !P && Q |-- R -> P |-- Q >=> R.
+  forall (P : pred nat) (Q R: pred A ), (!P && Q |-- R) -> P |-- Q >=> R.
 Proof. intros.
   intros n ?. intros ? ? ? ? ?. apply H. split; auto.
  eapply pred_nec_hereditary. apply H2.
@@ -468,7 +468,7 @@ apply H in H2.
 eapply H2; eauto.
 Qed.
 
-Lemma subp_e {A}{agA : ageable A}: forall P Q : pred A, TT |-- P >=> Q -> P |-- Q.
+Lemma subp_e {A}{agA : ageable A}: forall P Q : pred A, (TT |-- P >=> Q) -> P |-- Q.
 Proof.
 intros.
 repeat intro.

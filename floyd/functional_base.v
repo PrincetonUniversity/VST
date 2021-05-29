@@ -11,6 +11,31 @@ Require Export VST.floyd.sublist.
 Require Export Lia.
 Require Export VST.floyd.list_solver.
 
+Definition Vubyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.unsigned c)).
+Definition Vbyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.signed c)).
+Ltac fold_Vbyte :=
+ repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
+      fold (Vbyte c)
+end.
+Ltac  customizable_list_solve_preprocess ::= fold_Vbyte.
+Instance Inhabitant_val : Inhabitant val := Vundef.
+Instance Inhabitant_int: Inhabitant int := Int.zero.
+Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
+Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
+Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
+Instance Inhabitant_float : Inhabitant float := Float.zero.
+Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
+
+Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_ptrofs) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_int64) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_byte) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_int) using Zlength_solve : Znth.
+Hint Rewrite (@Znth_map _ Inhabitant_val) using Zlength_solve : Znth.
+
 Create HintDb entailer_rewrite discriminated.
 
 Require Import VST.veric.val_lemmas.
@@ -612,17 +637,12 @@ Ltac pose_lemmas F L :=
   | H: context [F ?A] |- _ => pose_lemma F A L
  end.
 
-Ltac warn_rep_omega := 
-  idtac "Warning: Hint database 'rep_omega' is deprecated, use Hint Rewrite ... : rep_lia".
-  
 Ltac rep_lia_setup := 
  repeat match goal with
             | x := _ : ?T |- _ => lazymatch T with Z => fail | nat => fail | _ => clearbody x end
             end;
  zify;
   try autorewrite with rep_lia in *;
-  try (progress autorewrite with rep_lia rep_omega in *;
-       warn_rep_omega);
   unfold repable_signed in *;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned Byte.unsigned_range;
@@ -747,10 +767,6 @@ imported only VST.floyd.functional_base, without separation logic.
 
 In VST.floyd.functional_base the following VST tactics are available:
 rep_lia, list_solve, if_tac, autorewrite with sublist, computable, ...".
-
-Ltac rep_omega := idtac "Warning: rep_omega is a deprecated synonym for rep_lia"; rep_lia.
-Ltac omega := idtac "Warning: use of omega without Require Import Coq.omega.Omega; deprecated; should use lia anyway"; Coq.omega.Omega.omega.
-
 
 Lemma lt_repr64:
      forall i j : Z,

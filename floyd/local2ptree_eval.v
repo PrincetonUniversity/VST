@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.local2ptree_denote.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Local Open Scope logic.
 
@@ -296,12 +297,25 @@ Ltac cbv_msubst_eval :=
        msubst_eval_lvalue msubst_eval_expr 
        msubst_eval_LR msubst_eval_lvar eval_lvardesc
        PTree.get PTree.empty PTree.get'].
-   
+
+Ltac prove_eqb_type :=
+ match goal with |- context [eqb_type ?A ?B] => 
+  try change (eqb_type A B) with true;
+  rewrite (proj2 (eqb_type_spec A B))
+     by (repeat f_equal; rep_lia)
+ end;
+ cbv beta iota.
 
 Ltac solve_msubst_eval_lvalue :=
   (cbv_msubst_eval; simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  unfold eval_vardesc;
+  repeat match goal with |- match match PTree.get ?A ?B with _ => _ end with _ => _ end = _ =>
+         let x := fresh "x" in set (x := PTree.get A B); hnf in x; subst x;
+          cbv beta iota
+       end;
+   try prove_eqb_type;
   reflexivity) ||
   match goal with 
   |- msubst_eval_lvalue _ _ _ _ ?e = _ =>
@@ -323,6 +337,12 @@ Ltac solve_msubst_eval_LR :=
   simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  unfold eval_vardesc;
+  repeat match goal with |- match PTree.get ?A ?B with _ => _ end = _ =>
+         let x := fresh "x" in set (x := PTree.get A B); hnf in x; subst x;
+          cbv beta iota
+       end;
+   try prove_eqb_type;
   reflexivity) ||
   match goal with 
   |- msubst_eval_LR _ _ _ _ ?e _ = _ =>
@@ -330,7 +350,7 @@ Ltac solve_msubst_eval_LR :=
   end.
 
 Ltac solve_msubst_eval_lvar :=
-  (cbv_msubst_eval; reflexivity) ||
+  (cbv_msubst_eval; try prove_eqb_type; reflexivity) ||
   match goal with 
   |- msubst_eval_lvar _ _ ?id _ = _ =>
    fail "Cannot symbolically evaluate lvar" id "given the information in your LOCAL clause; did you forget an 'lvar' declaration?"

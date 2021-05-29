@@ -3,6 +3,7 @@ Require Import VST.veric.Memory.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Import cjoins.
+Import compcert.lib.Maps.
 
 Definition dec_share_nonidentity (sh: Share.t) : {~identity sh}+{identity sh} :=
    (Sumbool.sumbool_not _ _ (dec_share_identity sh)).
@@ -623,13 +624,13 @@ Qed.
 
 Lemma ghost_of_make_rmap: forall f g lev H Hg, ghost_of (proj1_sig (make_rmap f g lev H Hg)) = g.
 refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
-                           | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
+                           | conj _ (conj _ GHOST) => GHOST
                          end).
 Qed.
 
 Lemma ghost_of_remake_rmap: forall f g lev H Hg, ghost_of (proj1_sig (remake_rmap f g lev H Hg)) = g.
 refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
-                           | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
+                           | conj _ (conj _ GHOST) => GHOST
                          end).
 Qed.
 
@@ -1976,4 +1977,17 @@ Proof.
   - eapply max_access_cohere_unage; eauto.
   - eapply alloc_cohere_unage; eauto.
   - apply age1_juicy_mem_unpack''; auto.
+Qed.
+
+Lemma juicy_mem_unage' : forall jm r, age r (m_phi jm) ->
+  exists jm', age jm' jm /\ m_phi jm' = r.
+Proof.
+  intros.
+  unshelve eexists (mkJuicyMem (m_dry jm) r _ _ _ _).
+  all: destruct jm as [m phi' Co Ac Ma N]; simpl.
+  - eapply contents_cohere_unage; eauto.
+  - eapply access_cohere_unage; eauto.
+  - eapply max_access_cohere_unage; eauto.
+  - eapply alloc_cohere_unage; eauto.
+  - split; auto; apply age1_juicy_mem_unpack''; auto.
 Qed.

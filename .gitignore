@@ -6,6 +6,7 @@
 *.cmx
 *.cma
 *.cmxa
+*.cmxs
 .*.aux
 *.cmti
 *.cmt
@@ -84,3 +85,6 @@ wand_demo/vfa/*.ml
 wand_demo/vfa/*.mli
 wand/vfa/*.ml
 wand/vfa/*.mli
+*.vok
+*.vos
+doc/concurrency.synctex.gz

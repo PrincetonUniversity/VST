@@ -147,7 +147,7 @@ Definition reptype_gen {cs: compspecs} : type -> (sigT (fun x => x)) :=
      if (type_is_by_value t)
      then existT (fun x => x) val Vundef
      else existT (fun x => x) unit tt)
-  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (list_repeat (Z.to_nat n) (projT2 TV)))
+  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (Zrepeat (projT2 TV) n))
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
@@ -162,7 +162,7 @@ Definition reptype_gen0 {cs: compspecs} : type -> (sigT (fun x => x)) :=
      | Tpointer _ _ => existT (fun x => x) val (Vptrofs Ptrofs.zero)
      | _ => existT (fun x => x) unit tt
      end)
-  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (list_repeat (Z.to_nat n) (projT2 TV)))
+  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (Zrepeat (projT2 TV) n))
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
@@ -178,7 +178,7 @@ Instance Inhabitant_reptype {cs: compspecs} (t: type) : Inhabitant (reptype t) :
 Lemma reptype_gen_eq {cs: compspecs}: forall t,
   reptype_gen t =
   match t with
-  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen t0))) (list_repeat (Z.to_nat n) (projT2 (reptype_gen t0)))
+  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen t0))) (Zrepeat (projT2 (reptype_gen t0)) n)
   | Tstruct id _ => existT (fun x => x)
                      (compact_prod_sigT_type (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_prod_sigT_value (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
@@ -206,7 +206,7 @@ Defined.
 Lemma reptype_gen0_eq {cs: compspecs}: forall t,
   reptype_gen0 t =
   match t with
-  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen0 t0))) (list_repeat (Z.to_nat n) (projT2 (reptype_gen0 t0)))
+  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen0 t0))) (Zrepeat (projT2 (reptype_gen0 t0)) n)
   | Tstruct id _ => existT (fun x => x)
                      (compact_prod_sigT_type (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_prod_sigT_value (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
@@ -504,7 +504,7 @@ Lemma default_val_eq: forall t,
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => Vundef
-  | Tarray t0 n _ => list_repeat (Z.to_nat n) (default_val t0)
+  | Tarray t0 n _ => Zrepeat (default_val t0) n 
   | Tstruct id _ => struct_default_val (co_members (get_co id))
   | Tunion id _ => union_default_val (co_members (get_co id))
   end.
@@ -552,7 +552,7 @@ Lemma zero_val_eq: forall t,
   | Tfloat F32 _ => Vsingle Float32.zero
   | Tfloat F64 _ => Vfloat Float.zero
   | Tpointer _ _ => Vptrofs Ptrofs.zero
-  | Tarray t0 n _ => list_repeat (Z.to_nat n) (zero_val t0)
+  | Tarray t0 n _ => Zrepeat (zero_val t0) n
   | Tstruct id _ => struct_zero_val (co_members (get_co id))
   | Tunion id _ => union_zero_val (co_members (get_co id))
   end.
@@ -571,8 +571,9 @@ Proof.
   rewrite reptype_gen0_eq.  
   destruct t; auto.
   + destruct f; auto.
-  + apply (@JMeq_trans _ _ _ _  (list_repeat (Z.to_nat z) (zero_val' t))).
+  + apply (@JMeq_trans _ _ _ _  (Zrepeat (zero_val' t) z)).
       apply eq_JMeq. f_equal.
+      apply JMeq_func; auto. rewrite reptype_reptype0. auto.
       apply JMeq_func; auto. rewrite reptype_reptype0. auto.
       apply JMeq_sym. apply JMeq_zero_val_zero_val'.
       rewrite reptype_reptype0. apply JMeq_refl.
@@ -1219,5 +1220,5 @@ Qed.
 
 
 Lemma Zlength_default_val_Tarray_tuchar {cs} n a (N:0<=n): Zlength (@default_val cs (Tarray tuchar n a)) = n.
-Proof. unfold default_val; simpl. rewrite Zlength_list_repeat; trivial. Qed.
+Proof. unfold default_val; simpl. rewrite Zlength_Zrepeat; trivial. Qed.
 

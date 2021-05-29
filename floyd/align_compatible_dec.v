@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
+Import compcert.lib.Maps.
 Open Scope Z.
 
 Module Type ACR_DEC.

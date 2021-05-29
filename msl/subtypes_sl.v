@@ -17,8 +17,8 @@ intros. intros w ?. simpl in *. apply H. auto.
 Qed.
 
 Lemma subp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall G P P' Q Q',
-  G |-- P >=> P' ->
-  G |-- Q >=> Q' ->
+  (G |-- P >=> P') ->
+  (G |-- Q >=> Q') ->
   G |-- P * Q >=> P' * Q'.
 Proof.
   pose proof I.
@@ -40,8 +40,8 @@ Proof.
 Qed.
 
 Lemma sub_wand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall G P P' Q Q',
-  G |-- P' >=> P ->
-  G |-- Q >=> Q' ->
+  (G |-- P' >=> P) ->
+  (G |-- Q >=> Q') ->
   G |-- (P -* Q) >=> (P' -* Q').
 Proof.
   pose proof I.

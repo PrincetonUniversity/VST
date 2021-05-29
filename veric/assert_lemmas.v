@@ -6,6 +6,7 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.seplog.
 
 Require Import VST.msl.normalize.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 

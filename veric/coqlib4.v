@@ -184,6 +184,85 @@ Proof.
        apply IHl; auto.
 Qed.
 
+Lemma Zlength_repeat : forall {A} (x : A) n, Zlength (repeat x n) = Z.of_nat n.
+Proof.
+  intros; rewrite Zlength_correct, repeat_length; auto.
+Qed.
+
+Lemma Forall_repeat : forall {A} (P : A -> Prop) x n, P x -> Forall P (repeat x n).
+Proof.
+  induction n; simpl; auto.
+Qed.
+
+Lemma combine_app : forall {A B} (l1 l2 : list A) (l1' l2' : list B), length l1 = length l1' ->
+  combine (l1 ++ l2) (l1' ++ l2') = combine l1 l1' ++ combine l2 l2'.
+Proof.
+  induction l1; destruct l1'; intros; try discriminate; auto; simpl in *.
+  rewrite IHl1; auto.
+Qed.
+
+Lemma combine_app' : forall {A B} (l1 l2 : list A) (l1' l2' : list B), Zlength l1 = Zlength l1' ->
+  combine (l1 ++ l2) (l1' ++ l2') = combine l1 l1' ++ combine l2 l2'.
+Proof.
+  intros; apply combine_app.
+  rewrite !Zlength_correct in *; lia.
+Qed.
+
+Lemma combine_fst : forall {A B} (l : list A) (l' : list B), length l = length l' ->
+  map fst (combine l l') = l.
+Proof.
+  induction l; destruct l'; try discriminate; auto; intros.
+  inv H; simpl; rewrite IHl; auto.
+Qed.
+
+Lemma combine_snd : forall {A B} (l : list A) (l' : list B), length l = length l' ->
+  map snd (combine l l') = l'.
+Proof.
+  induction l; destruct l'; try discriminate; auto; intros.
+  inv H; simpl; rewrite IHl; auto.
+Qed.
+
+Lemma rev_combine : forall {A B} (l1 : list A) (l2 : list B), length l1 = length l2 ->
+  rev (combine l1 l2) = combine (rev l1) (rev l2).
+Proof.
+  induction l1; destruct l2; try discriminate; auto; simpl; intros.
+  inv H; rewrite combine_app; [|rewrite !rev_length; auto].
+  rewrite IHl1; auto.
+Qed.
+
+Lemma combine_map_snd : forall {A B C} (l1 : list A) (l2 : list B) (f : B -> C),
+  combine l1 (map f l2) = map (fun x => let '(a, b) := x in (a, f b)) (combine l1 l2).
+Proof.
+  induction l1; auto; simpl; intros.
+  destruct l2; auto; simpl.
+  rewrite IHl1; auto.
+Qed.
+
+Lemma combine_const1 : forall {A B} (l1 : list A) (x : B) n, Z.of_nat n >= Zlength l1 ->
+  combine l1 (repeat x n) = map (fun a => (a, x)) l1.
+Proof.
+  induction l1; auto; simpl; intros.
+  rewrite Zlength_cons in *; destruct n; [rewrite Zlength_correct in *; simpl in *; lia | simpl].
+  rewrite IHl1; auto.
+  rewrite Nat2Z.inj_succ in *; lia.
+Qed.
+
+Lemma combine_const2 : forall {A B} (x : A) n (l2 : list B), Z.of_nat n >= Zlength l2 ->
+  combine (repeat x n) l2 = map (fun b => (x, b)) l2.
+Proof.
+  induction n; destruct l2; auto; intros; rewrite ?Nat2Z.inj_succ, ?Zlength_nil, ?Zlength_cons in *;
+    simpl in *; try (rewrite Zlength_correct in *; lia).
+  rewrite IHn; auto; lia.
+Qed.
+
+Lemma map_const: forall {A B} (c : A) (l : list B), map (fun _ => c) l = repeat c (length l).
+Proof.
+  induction l; auto; simpl.
+  rewrite IHl; auto.
+Qed.
+
+
+
 Inductive sublist {A} : list A -> list A -> Prop :=
 | sublist_nil : sublist nil nil
 | sublist_cons a l1 l2 : sublist l1 l2 -> sublist (a :: l1) (a :: l2)

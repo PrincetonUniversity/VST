@@ -6,6 +6,7 @@ Require Export VST.veric.assert_lemmas.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.extend_tc.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 
@@ -187,8 +188,8 @@ Qed.
 Lemma tc_expr_lvalue_sub: forall rho,
   typecheck_environ Delta rho ->
   forall e,
-    tc_expr Delta e rho |-- tc_expr Delta' e rho /\
-    tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
+    (tc_expr Delta e rho |-- tc_expr Delta' e rho) /\
+    (tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho).
 Proof.
   rename extends into H.
   intros rho HHH.
