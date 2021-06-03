@@ -18,9 +18,19 @@ Definition test_spec :=
         RETURN (Vint (Int.repr 0))
         SEP ().
 
+Definition issue500_spec := 
+  DECLARE _issue500
+  WITH i: Int64.int
+  PRE [ tlong ]
+   PROP( Int64.signed i + 2147483648 <= Int64.max_signed) 
+   PARAMS (Vlong i) 
+   SEP()
+  POST [ tlong ]
+   PROP() RETURN (Vlong (Int64.add i (Int64.repr 2147483648))) SEP().
+
 Definition Vprog : varspecs := nil.
 
-Definition Gprog : funspecs := ltac:(with_library prog [test_spec]).
+Definition Gprog : funspecs := nil.
 
 Lemma body_test:  semax_body Vprog Gprog f_test test_spec.
 Proof.
@@ -45,4 +55,9 @@ rewrite Z_mod_mult.
 reflexivity.
 Qed.
 
+Lemma body_issue500: semax_body Vprog Gprog f_issue500 issue500_spec.
+Proof.
+start_function.
+forward.
+Qed.
 

@@ -1593,7 +1593,9 @@ Lemma closed_wrt_tc_nosignedover:
 Proof.
 intros; hnf; intros.
 simpl. unfold_lift.
-rewrite <- H; auto.
+destruct (typeof e1)  as [ | _ [ | ] _ | | | | | | | ]; 
+destruct (typeof e2)  as [ | _ [ | ] _ | | | | | | | ]; 
+rewrite <- H; auto;
 rewrite <- H0; auto.
 Qed.
 #[export] Hint Resolve closed_wrt_tc_nosignedover : closed.
@@ -1607,14 +1609,13 @@ Proof.
 intros.
 unfold tc_nobinover.
 unfold if_expr_signed.
-destruct (typeof e1); auto with closed.
+destruct (typeof e1); auto with closed;
+destruct s; auto with closed;
+destruct (eval_expr e1 any_environ); auto with closed;
+destruct (eval_expr e2 any_environ); auto with closed;
+repeat simple_if_tac; auto with closed;
+destruct (typeof e2); auto with closed;
 destruct s; auto with closed.
-destruct (eval_expr e1 any_environ); auto with closed;
-destruct (eval_expr e2 any_environ); auto with closed.
-all: repeat simple_if_tac; auto with closed.
-destruct (eval_expr e1 any_environ); auto with closed;
-destruct (eval_expr e2 any_environ); auto with closed.
-all: try destruct s; repeat simple_if_tac; auto with closed.
 Qed.
 
 #[export] Hint Resolve closed_wrt_tc_nobinover : closed.

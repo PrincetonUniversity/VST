@@ -268,7 +268,9 @@ Proof.
 intros.
 unfold denote_tc_assert.
 unfold_lift.
-unfold denote_tc_nosignedover.
+destruct (typeof e1) as [ | _ [ | ] _ | | | | | | | ],
+       (typeof e2) as [ | _ [ | ] _ | | | | | | | ];
+unfold denote_tc_nosignedover;
 destruct (eval_expr e1 rho); try apply extend_prop;
 destruct (eval_expr e2 rho); try apply extend_prop.
 Qed.
@@ -286,10 +288,20 @@ destruct (eval_expr e1 any_environ); try apply extend_prop;
 destruct (eval_expr e2 any_environ); try apply extend_prop;
 try apply extend_tc_nosignedover;
 simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+destruct  (typeof e2) as [ | _ [ | ] _ | | | | | | | ];
+try apply extend_prop.
+simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+destruct  (typeof e2) as [ | _ [ | ] _ | | | | | | | ];
+try apply extend_tc_nosignedover.
+simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+try destruct s; try apply extend_prop; try apply extend_tc_nosignedover.
 destruct (eval_expr e1 any_environ); try apply extend_prop;
 destruct (eval_expr e2 any_environ); try apply extend_prop;
-try apply extend_tc_nosignedover;
-try destruct s; try apply extend_prop; try apply extend_tc_nosignedover.
+try apply extend_tc_nosignedover.
+all: simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover;
+destruct  (typeof e2) as [ | _ [ | ] _ | | | | | | | ];
+try apply extend_prop;
+try apply extend_tc_nosignedover.
 all: simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
 Qed.
 
@@ -653,7 +665,8 @@ Ltac tc_expr_cenv_sub_tac2 :=
   unfold tc_nobinover.
   unfold if_expr_signed.
   intros.
-  destruct (typeof a1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; 
+  destruct (typeof a1) as [ | _ [ | ] | [ | ] | [ | ] | | | | | ]; 
+  destruct (typeof a2) as [ | _ [ | ] | | | | | | | ]; 
   tc_expr_cenv_sub_tac; repeat tc_expr_cenv_sub_tac2.
  Qed.
   
@@ -677,7 +690,19 @@ Ltac tc_expr_cenv_sub_tac2 :=
   tc_expr_cenv_sub_tac.
   unfold tc_int_or_ptr_type in *;
   tc_expr_cenv_sub_tac.  
-  all: apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); auto.
+  all: try apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); auto.
+ pose proof (denote_tc_nosignedover_eval_expr_cenv_sub CSUB rho
+                        (Econst_long Int64.zero (Ctypes.Tlong Signed a0)) a w Z.sub Signed ).
+ simpl eval_expr in H2. 
+  unfold denote_tc_assert in H1|-*. 
+  replace (typeof (Econst_long Int64.zero (Ctypes.Tlong Signed a0)))
+  with (Ctypes.Tlong Signed a0) in * by (destruct a0; reflexivity).
+  simpl in H1|-*.
+  destruct (typeof a); auto.
+  destruct s; auto.
+  apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB rho
+                        (Econst_long Int64.zero (Ctypes.Tlong Signed a0)) a w Z.sub Unsigned); 
+    auto.
  + (* Ebinop *)
  abstract (
   rewrite den_isBinOpR;

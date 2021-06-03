@@ -1950,7 +1950,7 @@ Lemma incl_nil : forall {A} (l : list A), incl [] l.
 Proof.
   repeat intro; contradiction.
 Qed.
-Hint Resolve incl_nil : list.
+#[export] Hint Resolve incl_nil : list.
 
 Lemma incl_cons_out : forall {A} (a : A) l1 l2, incl l1 (a :: l2) -> ~In a l1 -> incl l1 l2.
 Proof.

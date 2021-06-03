@@ -648,8 +648,11 @@ Proof.
     try (unfold eval_id in H1;
           destruct (Map.get (te_of rho) _i); simpl in H1; try discriminate H1; subst v;
           eexists; split; [reflexivity | apply I]);
+     destruct s; 
+    rewrite <- H1; apply prop_right;
      rewrite ?Int64.signed_repr by rep_lia;
      rewrite ?Int.signed_repr by rep_lia;
+     rewrite ?Int.unsigned_repr by rep_lia;
      rep_lia.
 Qed.
 

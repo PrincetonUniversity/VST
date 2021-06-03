@@ -1,37 +1,52 @@
-Previous broad announcement, release 2.3 (January 4, 2019).
+CHANGES IN RELEASE 2.8 (June 2021)
 
-Changes in release 2.4 (April 23, 2019):
+- Compatible with Coq 8.13 or 8.12 and with CompCert 3.9.
+- Substantial improvements to VSU (Verified Software Units), both user interface and efficiency of proof construction.
+- Substantial improvements to Iris-style reasoning about ghost state (etc.).
+- Global variables that are not explicitly initialized are now initialized to zero (matching the C semantics) instead of Vundef.
+- Improvements to opam build/install.
+- Improved the no_loads_expr tactic (part of "forward") to more accurately guess whether an evaluated expression has loads in it.
+- Better lemmas for PARAMS and GLOBALS wrt args_super_non_expansive.
+- Added simple lemmas about headptr, init_data, globals2pred, and semax_body_subsumespec_NilNil.
+- Speed improvements in entailer! and Intros tactics.
+- Several efficiency improvements in Floyd tactics.
+- forward_call proves more propositional goals than before.
+- forward_if, forward_while now have better automation for certain pointer comparisons (#490)
+- f_equal improved to use proof_irr in certain cases.
+- omega is no longer used (lia instead).
+- list_repeat(n)(x) no longer provided by CompCert; use List.repeat(x)(n) instead.
+- Use Zrepeat(x)(n) instead of List.repeat(x)(Z.to_nat n).
+- Opaque constants interact better with LOCAL(lvar...) in forward_store.
+- Adjust list_simplify so that it safely works on goals with PROP/LOCAL/SEP.
+- Support target architectures (such as ARM) where endianness is a parameter.
+- Fixed #463 Type punning is not supported
+- Fixed #487 forward_loop does not work if loop is not followed by a statement
+- Fixed #488 Universe inconsistency if Princeton VST and QuickChick is required
+- Fixed #491 forward/Qed grows exponentially with the number of locals
+- Fixed #500 incorrectly typecheck (long long)+(unsigned int)
 
-Improved error messages in forward and forward_call.
-Improved hints in "hint" tactic.
-Minor improvements in "cancel" tactic.
-Entailer no longer does "simpl", better preserving the form of user's conjuncts.
-Updates for compatibility with latest Coq release.
-Improved sep_apply, new tactics ecancel, EExists.
-Respecification of i/o API using (I-Tree) monads.
-Demonstration of i/o system calls with memory-buffer arguments.
-Improved gather_SEP tactic notation using pattern arguments.
-64-bit configurations of C now as robust as 32-bit configurations.
-Update VST to CompCert 3.5.
+CHANGES IN RELEASE 2.7 (December 22, 2020)
 
-Changes in release 2.5 (January 8, 2020):
+- Compatible with Coq 8.13 or 8.12 and with CompCert 3.8 or 3.7.
+- Improvements in opam installation.
+- Improvements in list_solve tactic.
+- Fixed Makefile for bundled CompCert with internal Flocq.
+- Disabled do_compute_expr_warning, no longer needed.
+- Improved some valid_pointer lemmas and Hints.
+- Weakened library.malloc_token_valid_pointer lemma.
+- 64-bit integers work in forward_for_simple_bound and array load.
+- Global initializers of pointer type now produce better-typed data_at in precondition of main (or of VSUs).
+- Adjust Makefile to support clightgen's -short-idents or -canonical-idents flag; short-idents is default.
+- Error message if condition cannot be evaluated in forward_if (instead of failure).
+- Adjusted the "fail" level of several error messages in Floyd.
+- Disabled the now-obsolete "name" tactic.
+- Fixed a bug in the way forward_if handles switch statements.
+- Fixed #354 Bug in forward_call with WITH-clause inference
+- Fixed #452 empty spacer should cancel
+- Fixed #456 tactic always timed
+- Fixed #458 The tactic forward_for_simple_bound does not work for long-type iterator in 64 bit version
 
-Support for proving connections to first-order external APIs
- see: Connecting Higher-Order Separation Logic to a First-Order Outside World, by William Mansky, Wolf Honoré, and Andrew W. Appel, ESOP 2020: European Symposium on Programming, April 2020.
-
-Funspec subsumption, see Abstraction and Subsumption in Modular Verification of C Programs, by Lennart Beringer and Andrew W. Appel. FM2019: 23rd International Symposium on Formal Methods, October 2019.
-
-Improved proof automation for sequences and arrays (improved "list_solve" tactic).
-
-Put backtick notation in a Module for compatibility with other libraries that have their own notations.
-Fix issues #321 (forward_for_simple_bound), #324 (error message), #332 (error message), #377 (incomplete typechecking long-integer negation).
-Performance improvements in Floyd tactics.
-In defining Gprogs, "with_library" no longer needed in most cases.
-Soundness proof now based directly on CompCert Clight, instead of 2 layers via "Clight_new" semantics.
-Avoid Coq features deprecated in Coq 8.10.
-Experimental, nonfoundational support for printf and fprintf.
-
-Changes in release 2.6 (August ...)
+CHANGES IN RELEASE 2.6 (August 2020)
 
 Improved and documented support for verifying floating-point:
 C-language floating-point proofs layered with VST and Flocq, by Andrew W. Appel and Yves Bertot, July 2020.
@@ -53,5 +68,134 @@ Fix issues #209 #270 (cancel tactic), #347 (typo in hint), #379 (sizeof, alignof
 Many other small improvements.
 Put "fash" notation in Module to avoid notation pollution.
 Reasoning about "store integer field of union, load float" and vice versa.
+
+CHANGES IN RELEASE 2.5 (January 8, 2020):
+
+Support for proving connections to first-order external APIs
+ see: Connecting Higher-Order Separation Logic to a First-Order Outside World, by William Mansky, Wolf Honoré, and Andrew W. Appel, ESOP 2020: European Symposium on Programming, April 2020.
+
+Funspec subsumption, see Abstraction and Subsumption in Modular Verification of C Programs, by Lennart Beringer and Andrew W. Appel. FM2019: 23rd International Symposium on Formal Methods, October 2019.
+
+Improved proof automation for sequences and arrays (improved "list_solve" tactic).
+
+Put backtick notation in a Module for compatibility with other libraries that have their own notations.
+Fix issues #321 (forward_for_simple_bound), #324 (error message), #332 (error message), #377 (incomplete typechecking long-integer negation).
+Performance improvements in Floyd tactics.
+In defining Gprogs, "with_library" no longer needed in most cases.
+Soundness proof now based directly on CompCert Clight, instead of 2 layers via "Clight_new" semantics.
+Avoid Coq features deprecated in Coq 8.10.
+Experimental, nonfoundational support for printf and fprintf.
+
+CHANGES IN RELEASE 2.4 (April 23, 2019):
+
+Improved error messages in forward and forward_call.
+Improved hints in "hint" tactic.
+Minor improvements in "cancel" tactic.
+Entailer no longer does "simpl", better preserving the form of user's conjuncts.
+Updates for compatibility with latest Coq release.
+Improved sep_apply, new tactics ecancel, EExists.
+Respecification of i/o API using (I-Tree) monads.
+Demonstration of i/o system calls with memory-buffer arguments.
+Improved gather_SEP tactic notation using pattern arguments.
+64-bit configurations of C now as robust as 32-bit configurations.
+Update VST to CompCert 3.5.
+
+CHANGES IN RELEASE 2.3 (January 4, 2019):
+
+* The type context Delta does not change during a function body
+   (thanks to Qinxiang Cao).
+
+* You can now invert the semax relation  (thanks to Qinxiang Cao).
+   For example, from
+     semax Delta P (Ssequence c1 c2) R
+   you can now prove that there must exist Q, such that
+     semax Delta P c1 (overridePost Q R)       /\
+     semax Delta Q c2 R.
+  Although this feature is not always easy to use, primarily because
+  of the need to manipulate ghost state, it does allow us to provide
+  useful rules, such as loop manipulation, and so on.  For example,
+  loop at the statement of semax_convert_for_while'  (which is not
+  for users to use directly but is used by the forward_for tactic).
+
+* Concurrency:  There are now semax rules for verifying shared-memory
+   concurrent C programs, with some documentation (doc/concurrency.pdf)
+   (thanks to William Mansky).
+
+* 64-bit:   VST has been ported to work in 64-bit mode as well as 32-bit,
+    that is, for the 64-bit configurations of CompCert.
+   See BUILD_ORGANIZATION.md for instructions.   Warning:
+   64-bit mode is not (yet) in our regular continuous-integration testing,
+   i.e. it's not (yet) as well supported as 32-bit mode.
+
+* funspec subsumption:  One can now prove that funspec subsumes
+   another, and then (at the call site) choose which funspec to use
+   by invoking the subsumption lemma.  Sorry, no documentation yet,
+   but search for "subsume" in progs/verif_bst.v.
+
+* freeze and unfold_data_at tactics now can take patterns instead
+   of positional notation.  This is more verbose but much more maintainable.
+   (For compatibility, the old way still works too.)
+
+* Loop tactics (forward_for, etc.) don't require a "continue:" assertion
+  when it's not needed (issue #194).
+
+* New loop tactic permits unrolling the first iteration of a loop (#268).
+
+* In several cases, when a forward tactic (forward, forward_call, etc.) fails, 
+   it gives a much more informative error message (issues #200, #255, #259).
+
+* funspec of malloc and free (in floyd/library.v) has been adjusted to match
+   an implementation/verification being developed by David Naumann (#231).
+
+* go_lower, entailer, entailer! don't do "simpl" any more.  This is good,
+  because now they won't explode your terms, but it does mean that sometimes
+  you'll have to "simpl" yourself after doing entailer!  (#299).
+
+* Resolved issues 194, 196, 207, 218, 219, 230, 231, 241, 249, 250, 254, 255, 256, 257, 259, 261, 262, 277, 282, 284, 291, 292, 298, 299.
+
+CHANGES IN RELEASE 2.2 (June 28, 2018):
+
+Issues fixed:
+#114 Getting the values of uninitialized array befor a forward_call is more convenient
+#172 sep_apply now applies rewrites as well as entailments
+#187 forward_call avoids "fail 99", making it more scriptable
+#189 improved error message in forward_call when args cannot be evaluated
+#188 switch statements can now have negative labels
+#190,#236 forward_if  statement cleans up extra skip instructions [incompatibility!]
+#195 adjusted precedence of backtick notation to avoid conflict with Coq.Program.Util
+#200 improved error message in forward_call through a function-call for which there is no funspec in Delta
+#202 improved error message in forward_call when a parameter cannot be coerced to a formal type
+#204 sep_apply handles (P |-- !!Q) better, by producing (TT * !!Q)
+#206 improved error message in forward past a pointer assignment
+#207,#245,#247 semax_loop (and the forward loop tactics) permits break statements in the "increment" part of a for loop
+#208 cstring is share-parameterized
+#212 rep_omega understands Ptrofs.max_unsigned better
+#213 abbreviate semax properly refolds the abbreviate in POSTCONDITION, better interacts with "hint" tactic
+#215 forward gives better error message at a while loop when POSTCONDITION's abbreviate is unfolded
+#216 better error message when the right hand side of store action might not be evaluated
+#217 valid_pointer Hint database better handles data_at_.
+#199 more efficient implementation of cancel tactic
+#184 improvements to the entailer in the forward tactic
+#191,#192 improvements to ghost state (relevant to concurrent separation logic proofs)
+#197 forward_if can now be given just a new LOCAL clause
+#198 semax_call rule strengthened (strips off "later" operator from precondition)
+#198 lock invariants no longer need to be precise and positive
+#210 external ghost state allows reasoning about I/O (even in sequential programs)
+#212  computable tactic now correctly handles Ptrofs.max_unsigned and similar constants
+#220 forward_for_simple_bound is better at reassociating sequences
+#221 forward load/store tactics don't backtrack as much
+#223 extern global variable initializers, that are not int32 arrays, are better handled
+#233 test compatibility with CompCert 3.3
+#234 proof goals (force_val (sem_cast_pointer _)) solved automatically in more cases
+#237  (rep_type (tarray t n)) unifies with (list (rep_type t))  even if t is abstract
+#239  "gvar" and "sgvar" LOCAL specifiers no longer supported, use "gvars" instead
+#243,#246  swap the arguments of iter_sepcon to be more like "map" (Coq typechecks better)
+f2168ee   improvements to rep_omega so it doesn't blow up in some cases
+90e164d  no longer use .loadpath, use _CoqProject instead
+6786ed4  rep_omega now understands (Z.of_nat n) where n is a constant.
+6786ed4  At a struct assignment, the forward tactic (store_tac) now gives an appropriate error message, saying this is not supported.
+7f81fcf   silence the start_function_hint
+7035c4e  new tactic "assert_after"
+
 
 

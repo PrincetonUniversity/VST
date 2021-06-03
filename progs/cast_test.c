@@ -21,3 +21,8 @@ u8 test(const i64 n)
   d = d & b;
   return d;
 }
+
+long long issue500(long long val)  /* issue #500 in VST github */
+{
+    return val + 0x80000000;
+}
