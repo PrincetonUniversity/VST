@@ -4357,7 +4357,7 @@ Ltac rewrite_old_main_pre := idtac.
 
 Ltac start_function1 :=
  leaf_function;
- lazymatch goal with |- semax_body ?V ?G ?F ?spec =>
+ lazymatch goal with |- @semax_body ?V ?G ?cs ?F ?spec =>
     check_normalized F;
     function_body_unsupported_features F;
     let s := fresh "spec" in
@@ -4377,7 +4377,7 @@ Ltac start_function1 :=
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
-   change (semax_body V G F s); subst s;
+   change (@semax_body V G cs F s); subst s;
    unfold NDmk_funspec'
  end;
  let DependedTypeList := fresh "DependedTypeList" in
