@@ -3233,14 +3233,13 @@ apply WholeComponent_semax_prog;
  | reflexivity || fail "Impossible: one of the QP.prog_defs is a builtin"
  | intro; reflexivity || fail "Surprising: cenv_built_correctly fails"].
 
-
-
 Section binary_intersection'_funspec_sub_mono.
 
 Definition sigBool_left {A B ts1} (x:functors.MixVariantFunctor._functor
                ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
                    match T with
                    | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.CompspecsType => functors.MixVariantFunctorGenerator.fconst compspecs
                    | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
                    | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
                    | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
@@ -3254,6 +3253,7 @@ Definition sigBool_left {A B ts1} (x:functors.MixVariantFunctor._functor
                ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
                    match T with
                    | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.CompspecsType => functors.MixVariantFunctorGenerator.fconst compspecs
                    | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
                    | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
                    | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
@@ -3267,6 +3267,7 @@ Definition sigBool_right {A B ts1} (x:functors.MixVariantFunctor._functor
                ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
                    match T with
                    | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.CompspecsType => functors.MixVariantFunctorGenerator.fconst compspecs
                    | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
                    | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
                    | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
@@ -3280,6 +3281,7 @@ Definition sigBool_right {A B ts1} (x:functors.MixVariantFunctor._functor
                ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
                    match T with
                    | rmaps.ConstType A => functors.MixVariantFunctorGenerator.fconst A
+                   | rmaps.CompspecsType => functors.MixVariantFunctorGenerator.fconst compspecs
                    | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
                    | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts1 unit)
                    | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)

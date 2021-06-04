@@ -6,6 +6,8 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.composite_compute.
 Require Import VST.veric.align_mem.
 Require Import VST.veric.val_lemmas.
+
+Require Export VST.veric.compspecs. (*new*)
 Import compcert.lib.Maps.
 
 Open Scope Z_scope.
@@ -234,8 +236,10 @@ Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
 Definition in_members i (m: members): Prop :=
   In i (map fst m).
 
+(*moved to compspecs.v
 Definition members_no_replicate (m: members) : bool :=
   compute_list_norepet (map fst m).
+*)
 
 Definition compute_in_members id (m: members): bool :=
   id_in_list id (map fst m).
@@ -282,6 +286,7 @@ Proof.
   - inversion H1; reflexivity.
 Qed.
 
+(*Moved to compspecs.v
 Definition composite_legal_fieldlist (co: composite): Prop :=
   members_no_replicate (co_members co) = true.
 
@@ -304,7 +309,7 @@ Class compspecs := mkcompspecs {
 }.
 
 Existing Class composite_env.
-Existing Instance cenv_cs.
+Existing Instance cenv_cs.*)
 
 Arguments sizeof {env} !t / .
 Arguments alignof {env} !t / .
