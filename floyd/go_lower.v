@@ -732,32 +732,74 @@ Ltac solve_clean_LOCAL_right :=
     | fail 1000 "The right hand side is messed up; perhaps you inadvertently did something like 'simpl in *' that changes POSTCONDITION into a form that Floyd cannot recognize.  You may do 'unfold abbreviate in POSTCONDITION' in your previous proof steps to inspect it"
     ].
 
-Ltac eapply_clean_LOCAL_right_spec_rec gv L :=
+Ltac eapply_clean_LOCAL_right_spec_rec CS gv L :=
   match goal with
   | |- context [gv ?i] =>
       match L with
       | context [i] => fail 1
-      | _ => eapply_clean_LOCAL_right_spec_rec gv (@cons ident i L)
+      | _ => eapply_clean_LOCAL_right_spec_rec CS gv (@cons ident i L)
       end
   | _ := gv ?i |- _ =>
       match L with
       | context [i] => fail 1
-      | _ => eapply_clean_LOCAL_right_spec_rec gv (@cons ident i L)
+      | _ => eapply_clean_LOCAL_right_spec_rec CS gv (@cons ident i L)
       end
   | _ => match goal with
-         | |- _ |-- |==> _ => eapply (clean_LOCAL_right_bupd_spec L)
+         | |- _ |-- |==> _ => eapply (@clean_LOCAL_right_bupd_spec CS L)
          | _ => eapply (clean_LOCAL_right_spec L)
          end
   end.
 
-Ltac eapply_clean_LOCAL_right_spec :=
-  match goal with
-  | |- context [gvars ?gv] => eapply_clean_LOCAL_right_spec_rec gv (@nil ident)
-  | _ => match goal with
-         | |- _ |-- |==> _ => eapply (clean_LOCAL_right_bupd_spec nil)
-         | _ => eapply (clean_LOCAL_right_spec nil)
+Definition emptyCS : compspecs.
+assert (composite_env_consistent (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+assert (composite_env_complete_legal_cosu_type (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+assert (hardware_alignof_env_consistent (PTree.empty _) (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+assert (hardware_alignof_env_complete (PTree.empty _) (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *;
+split; intros [? ?]; rewrite PTree.gempty in *; discriminate.
+assert (legal_alignas_env_consistent (PTree.empty _) (PTree.empty _) (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+assert (legal_alignas_env_complete (PTree.empty _) (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *;
+split; intros [? ?]; rewrite PTree.gempty in *; discriminate.
+refine (mkcompspecs (PTree.empty _) _ _ _ (PTree.empty _) _ _ (PTree.empty _) _ _ _); auto.
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+apply legal_alignas_soundness; auto.
+Defined.
+
+Ltac eapply_clean_LOCAL_right_spec' CS :=
+   match goal with
+   | |- context [gvars ?gv] => 
+          eapply_clean_LOCAL_right_spec_rec CS gv (@nil ident)
+   | _ => match goal with
+         | |- _ |-- |==> _ => eapply (@clean_LOCAL_right_bupd_spec CS nil)
+         | _ => eapply (@clean_LOCAL_right_spec CS nil)
          end
   end.
+
+Ltac eapply_clean_LOCAL_right_spec'' R :=
+  match R with context [?CS] => 
+     lazymatch type of CS with compspecs =>
+       eapply_clean_LOCAL_right_spec' CS || fail 1
+     end
+  | _ => eapply_clean_LOCAL_right_spec' emptyCS
+  end.
+
+Ltac eapply_clean_LOCAL_right_spec :=
+ (* could also add special cases to make the bupd versions faster too *)
+ lazymatch goal with
+ | |- _ |-- prop _ => eapply_clean_LOCAL_right_spec' emptyCS
+ | |- _ |-- @tc_expr ?CS _ _ => eapply_clean_LOCAL_right_spec' CS
+ | |- _ |-- @tc_exprlist ?CS _ _ _ => eapply_clean_LOCAL_right_spec' CS
+ | |- _ |-- @denote_tc_assert ?CS _ => eapply_clean_LOCAL_right_spec' CS
+ | |- _ |-- local (liftx (tc_val _ _)) => eapply_clean_LOCAL_right_spec' emptyCS
+ | |- _ |-- PROPx _ (LOCALx _ (SEPx ?R)) =>
+                          eapply_clean_LOCAL_right_spec'' R
+ | |- _ |-- ?R => eapply_clean_LOCAL_right_spec'' R
+ end.
 
 Ltac simpl_app_localdefs_tc :=
   unfold localdefs_tc, localdef_tc;
