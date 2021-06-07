@@ -746,7 +746,7 @@ Ltac eapply_clean_LOCAL_right_spec_rec CS gv L :=
       end
   | _ => match goal with
          | |- _ |-- |==> _ => eapply (@clean_LOCAL_right_bupd_spec CS L)
-         | _ => eapply (clean_LOCAL_right_spec L)
+         | _ => eapply (@clean_LOCAL_right_spec CS L)
          end
   end.
 

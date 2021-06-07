@@ -89,7 +89,7 @@ Proof.
   unfold thread_lock_R.
   apply exclusive_sepcon1; auto with exclusive.
 Qed.
-Hint Resolve thread_inv_exclusive : exclusive.
+#[export] Hint Resolve thread_inv_exclusive : exclusive.
 
 Lemma ghost_var_incr : forall g1 g2 x y n (left : bool), ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * ghost_var gsh2 n (if left then g1 else g2) |--
   |==> !!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) * ghost_var gsh1 (if left then y else x) (if left then g2 else g1).
