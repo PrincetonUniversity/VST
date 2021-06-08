@@ -291,6 +291,7 @@ Ltac gather_prop ::=
 #[export] Hint Resolve Clight_mapsto_memory_block.tc_val_pointer_nullval : core.
 #[export] Hint Resolve mapsto_memory_block.tc_val_pointer_nullval : core.
 
+(*
 Ltac eapply_clean_LOCAL_right_spec'' R ::=
   lazymatch R with
   | context [@data_at ?CS _ _ _ _] => eapply_clean_LOCAL_right_spec' CS
@@ -305,4 +306,9 @@ Ltac eapply_clean_LOCAL_right_spec'' R ::=
   | _ => eapply_clean_LOCAL_right_spec' emptyCS
   end
  end.
+
+Ltac eapply_clean_LOCAL_right_spec'' R :=
+   eapply_clean_LOCAL_right_spec' emptyCS.
+*)
+
 
