@@ -69,8 +69,8 @@ install:
 - opam show coq-compcert-32
 - travis_wait 15 opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam install -j ${NJOBS} -y coq=${COQ_VERSION} coq-ext-lib coq-flocq
-- travis_wait 15 opam install -j ${NJOBS} -y coq-compcert=${COMPCERT_VERSION}
-- travis_wait 15 opam install -j ${NJOBS} -y coq-compcert-32=${COMPCERT_VERSION}
+- travis_wait 20 opam install -j ${NJOBS} -y coq-compcert=${COMPCERT_VERSION}
+- travis_wait 20 opam install -j ${NJOBS} -y coq-compcert-32=${COMPCERT_VERSION}
 - opam list
 - file `which coqc`
 # - WC=`which coqc`
