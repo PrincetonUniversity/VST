@@ -292,6 +292,12 @@ Proof.
   apply H2; auto.
 Qed.
 
+Ltac cbv_msubst_eval :=
+  cbv beta iota zeta delta [
+       msubst_eval_lvalue msubst_eval_expr 
+       msubst_eval_LR msubst_eval_lvar eval_lvardesc
+       PTree.get PTree.empty PTree.get'].
+
 Ltac prove_eqb_type :=
  match goal with |- context [eqb_type ?A ?B] => 
   try change (eqb_type A B) with true;
@@ -301,7 +307,7 @@ Ltac prove_eqb_type :=
  cbv beta iota.
 
 Ltac solve_msubst_eval_lvalue :=
-  (simpl;
+  (cbv_msubst_eval; simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
   unfold eval_vardesc;
@@ -317,7 +323,7 @@ Ltac solve_msubst_eval_lvalue :=
   end.
 
 Ltac solve_msubst_eval_expr :=
-  (simpl;
+  (cbv_msubst_eval; simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
   reflexivity) ||
@@ -327,7 +333,7 @@ Ltac solve_msubst_eval_expr :=
   end.
 
 Ltac solve_msubst_eval_LR :=
-  (unfold msubst_eval_LR;
+  (cbv_msubst_eval;
   simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
@@ -344,14 +350,7 @@ Ltac solve_msubst_eval_LR :=
   end.
 
 Ltac solve_msubst_eval_lvar :=
-  (unfold msubst_eval_lvar;
-   unfold eval_vardesc, eval_lvardesc;
-  repeat match goal with |- match PTree.get ?A ?B with _ => _ end = _ =>
-         let x := fresh "x" in set (x := PTree.get A B); hnf in x; subst x;
-          cbv beta iota
-       end;
-   try prove_eqb_type;
-   reflexivity) ||
+  (cbv_msubst_eval; try prove_eqb_type; reflexivity) ||
   match goal with 
   |- msubst_eval_lvar _ _ ?id _ = _ =>
    fail "Cannot symbolically evaluate lvar" id "given the information in your LOCAL clause; did you forget an 'lvar' declaration?"
