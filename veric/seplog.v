@@ -1269,7 +1269,7 @@ Qed.
 Program Definition binary_intersection' {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne} phi psi 
   (Hphi: phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne) (Hpsi: psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne): funspec :=
   mk_funspec f c _ (@binarySUMArgs A1 A2 P1 P2) (binarySUM Q1 Q2) _ _.
-Proof.
+
 Next Obligation. intros. apply (binarySUMArgs_ne P1_ne P2_ne). Qed.
 Next Obligation. intros. apply (binarySUM_ne Q1_ne Q2_ne). Qed.
 
