@@ -1099,8 +1099,8 @@ Qed.
 Lemma all_disjoint_rev : forall l, all_disjoint l <-> all_disjoint (rev l).
 Proof.
   split; [apply all_disjoint_rev1|].
-  intros ?%all_disjoint_rev1.
-  rewrite rev_involutive in H0; auto.
+  intros H; apply all_disjoint_rev1 in H.
+  rewrite rev_involutive in H; auto.
 Qed.
 
 Lemma  maps_add_rev : forall l, all_compatible l -> maps_add (rev l) = maps_add l.
