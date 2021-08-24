@@ -7,7 +7,7 @@ Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.veric.Clight_core.
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.sepcomp.semantics.
 Require Import ITree.ITree.
 Require Import ITree.Interp.Traces.

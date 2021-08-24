@@ -1,5 +1,5 @@
 Require Import VST.progs.conc_queue_specs.
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.progs.queue_ex.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
