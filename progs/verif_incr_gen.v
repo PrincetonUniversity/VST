@@ -1,8 +1,8 @@
 (* Inspired by:
    Subjective Auxiliary State for Coarse-Grained Concurrency, Ley-Wild and Nanevski, POPL 2013. *)
 
-Require Import VST.progs.conclib.
-Require Import VST.progs.ghosts.
+Require Import VST.concurrency.conclib.
+Require Import VST.concurrency.ghosts.
 Require Import VST.progs.incrN.
 
 Require Export VST.floyd.Funspec_old_Notation.
