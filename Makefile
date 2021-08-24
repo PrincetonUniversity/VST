@@ -467,7 +467,7 @@ FLOYD_FILES= \
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
-CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghosts.v
+CONCPROGS= incr.v verif_incr.v cond.v verif_cond.v
 
 PROGS32_FILES= \
   $(CONCPROGS) \
