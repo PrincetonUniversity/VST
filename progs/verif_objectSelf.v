@@ -42,7 +42,7 @@ Definition twiddle_spec (instance: object_invariant) :=
           LOCAL (temp ret_temp (Vint (Int.repr v))) 
           SEP(instance (i::(fst hs), snd hs)).
 (*
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.semax_conc.
 Require Import VST.msl.seplog.
 Require Import VST.msl.predicates_hered.

@@ -3,9 +3,9 @@ Require Import VST.msl.ghost.
 Require Import VST.msl.ghost_seplog.
 Require Import VST.msl.sepalg_generators.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.progs.ghosts.
-Require Import VST.progs.conclib.
-Require Import VST.progs.invariants.
+Require Import VST.concurrency.ghosts.
+Require Import VST.concurrency.conclib.
+Require Import VST.concurrency.invariants.
 Require Export VST.veric.bi.
 Require Import VST.msl.ghost_seplog.
 Import Ensembles.

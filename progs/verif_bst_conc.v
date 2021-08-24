@@ -1,4 +1,4 @@
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.progs.bst_conc.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.

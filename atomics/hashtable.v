@@ -1,4 +1,4 @@
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.floyd.sublist.
 
 Set Bullet Behavior "Strict Subproofs".

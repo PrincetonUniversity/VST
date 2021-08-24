@@ -1,4 +1,4 @@
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.progs.ghost.
 (*Require Import VST.progs.list_dt. Import LsegSpecial.*)
 Require Import VST.floyd.library.
