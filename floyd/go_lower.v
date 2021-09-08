@@ -866,7 +866,9 @@ first
  end);
 unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp; (* for the left side *)
 unfold_for_go_lower;
-simpl tc_val; simpl msubst_denote_tc_assert;
+simpl tc_val; 
+cbv [typecheck_exprlist typecheck_expr]; simpl tc_andp;
+simpl msubst_denote_tc_assert;
 try clear dependent rho;
 clear_Delta
 ].
