@@ -1,4 +1,4 @@
-Require Export compcert.exportclight.Clightdefs.
+Require Export compcert.export.Clightdefs.
 
 Require Export VST.veric.base.
 Require Export compcert.cfrontend.Ctypes.

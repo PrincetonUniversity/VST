@@ -205,21 +205,18 @@ Definition funspecs := list (ident * funspec).
 
 End FUNSPEC.
 
-(*Lenb: moved here from mapsto_memory_block.v*)
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
   it confuses the Lift system *)
 
 Definition argsassert := argsEnviron -> mpred.
 
-(*Lenb: moved packPQ here from res_predicates.v*)
 Definition packPQ {A: rmaps.TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
   (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
   forall ts, dependent_type_functor_rec ts (SpecArgsTT A) mpred.
 Proof. intros ts a b. destruct b. apply (P ts a). apply (Q ts a). Defined.
 
-(*moved here from Clight_lemmas*)
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with
  | I8, Signed => -128 <= Int.signed i < 128
@@ -231,47 +228,6 @@ Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  | IBool, _ => 0 <= Int.unsigned i < 256
  end.
 
-Definition in_members i (m: members): Prop :=
-  In i (map fst m).
-
-Definition members_no_replicate (m: members) : bool :=
-  compute_list_norepet (map fst m).
-
-Definition compute_in_members id (m: members): bool :=
-  id_in_list id (map fst m).
-
-Lemma compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m.
-Proof.
-  intros.
-  unfold compute_in_members.
-  destruct (id_in_list i (map fst m)) eqn:HH;
-  [apply id_in_list_true in HH | apply id_in_list_false in HH].
-  + unfold in_members.
-    tauto.
-  + unfold in_members; split; [congruence | tauto].
-Qed.
-
-Lemma compute_in_members_false_iff: forall i m,
-  compute_in_members i m = false <-> ~ in_members i m.
-Proof.
-  intros.
-  pose proof compute_in_members_true_iff i m.
-  rewrite <- H; clear H.
-  destruct (compute_in_members i m); split; congruence.
-Qed.
-
-Ltac destruct_in_members i m :=
-  let H := fresh "H" in
-  destruct (compute_in_members i m) eqn:H;
-    [apply compute_in_members_true_iff in H |
-     apply compute_in_members_false_iff in H].
-
-Lemma in_members_dec: forall i m, {in_members i m} + {~ in_members i m}.
-Proof.
-  intros.
-  destruct_in_members i m; [left | right]; auto.
-Qed.
-
 Lemma size_chunk_sizeof: forall env t ch, access_mode t = By_value ch -> sizeof env t = Memdata.size_chunk ch.
 Proof.
   intros.
@@ -281,6 +237,9 @@ Proof.
   - destruct f; inversion H1; reflexivity.
   - inversion H1; reflexivity.
 Qed.
+
+Definition members_no_replicate (m: members) : bool :=
+  compute_list_norepet (map name_member m).
 
 Definition composite_legal_fieldlist (co: composite): Prop :=
   members_no_replicate (co_members co) = true.
@@ -318,14 +277,6 @@ Arguments complete_legal_cosu_type {cenv} !t / .
 Goal forall {cs: compspecs} t, sizeof t >= 0.
 Proof. intros. apply sizeof_pos.
 Abort.
-
-(*
-Definition compspecs_program (p: program): compspecs.
-  apply (mkcompspecs (prog_comp_env p)).
-  eapply build_composite_env_consistent.
-  apply (prog_comp_env_eq p).
-Defined.
-*)
 
 (*plays role of type_of_params *)
 Fixpoint typelist_of_type_list (params : list type) : typelist :=

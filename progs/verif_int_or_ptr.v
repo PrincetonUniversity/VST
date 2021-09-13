@@ -72,8 +72,8 @@ clear - H2; simpl in *.
     inv H2.
     1: inv H.
     inv H1.
-    specialize (H4 _left _ _ eq_refl eq_refl).
-    inv H4.
+    specialize (H5 _left _ _ eq_refl eq_refl).
+    inv H5.
     inv H.
     simpl in H0.
     destruct H0 as [j H].

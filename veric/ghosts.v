@@ -43,7 +43,7 @@ Qed.
 
 End ghost.
 
-Hint Resolve Share.nontrivial : share.
+#[export] Hint Resolve Share.nontrivial : share.
  
 Section Reference.
 (* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around

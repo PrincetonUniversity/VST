@@ -176,11 +176,11 @@ Definition cl_after_external (vret: option val) (c: CC_core) : option CC_core :=
 
 Inductive step: genv -> state -> mem -> state -> mem -> Prop :=
 
-  | step_assign:   forall ge f a1 a2 k e le m loc ofs v2 v m',
-      eval_lvalue ge e le m a1 loc ofs ->
+  | step_assign:   forall ge f a1 a2 k e le m loc ofs bf v2 v m',
+      eval_lvalue ge e le m a1 loc ofs bf ->
       eval_expr ge e le m a2 v2 ->
       sem_cast v2 (typeof a2) (typeof a1) m = Some v ->
-      assign_loc ge (typeof a1) m loc ofs v m' ->
+      assign_loc ge (typeof a1) m loc ofs bf v m' ->
       step ge (State f (Sassign a1 a2) k e le) m
                   (State f Sskip k e le) m'
 
@@ -421,6 +421,9 @@ apply Build_MemSem with (csem := cl_core_sem ge).
  unfold Mem.storev in H4. apply Mem.store_storebytes in H4.
  eapply mem_step_storebytes; eauto.
  eapply mem_step_storebytes; eauto.
+inv H3.
+apply Mem.store_storebytes in H9.
+eapply mem_step_storebytes; eauto.
 *
  rewrite andb_true_iff in H; destruct H.
  eapply inline_external_call_mem_step; eauto.

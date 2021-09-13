@@ -505,12 +505,12 @@ Lemma complete_legal_cosu_stable:
   forall m, composite_complete_legal_cosu_type env m = true ->
           composite_complete_legal_cosu_type env' m = true.
 Proof.
-  induction m as [|[id t]]; simpl; intros.
+  induction m; simpl; intros.
   auto.
   InvBooleans.
   apply IHm in H2; clear IHm.
   rewrite andb_true_iff; split; auto.
-  induction t; simpl in H1|-*; auto.
+  induction (type_member a); simpl in H1|-*; auto.
   destruct (env ! i) eqn:?H; try discriminate; rewrite (H _ _ H0); auto.
   destruct (env ! i) eqn:?H; try discriminate; rewrite (H _ _ H0); auto.
 Qed.
@@ -559,16 +559,7 @@ Lemma field_offset_stable'':
 Proof.
 intros.
 pose proof (co_consistent_complete _ _ (H _ _ H1)).
-unfold field_offset.
-forget 0 as ofs.
-revert ofs; induction  (co_members co) as [ | [??]]; simpl in H1|-*; auto; intros.
-simpl in H2.
-InvBooleans.
-if_tac; auto.
-f_equal. f_equal.
-symmetry;  eapply alignof_stable; auto.
-rewrite (alignof_stable _ _ H0 _ H3); auto. 
-rewrite (sizeof_stable _ _ H0 _ H3); auto.
+symmetry; apply field_offset_stable; auto.
 Qed. 
 
 Lemma align_compatible_rec_stable':
@@ -577,7 +568,7 @@ Lemma align_compatible_rec_stable':
     (COSU: composite_env_complete_legal_cosu_type env1)
     (S: forall id co, env1 ! id = Some co -> env ! id = Some co)
    t ofs
-   (H9a: @complete_legal_cosu_type env1 t = true)
+   (H9a: @complete_legal_cosu_type env1 t = true) 
    (H: align_compatible_rec env1 t ofs),
   align_compatible_rec env t ofs.
 Proof.
@@ -592,36 +583,41 @@ Proof.
     rewrite <- (sizeof_type_stable' _ _ _ S H9a).
     apply IH; auto.
  +
+   clear H9a.
    rewrite H2 in IH.
-   eapply align_compatible_rec_Tstruct. apply S; eassumption.
-   simpl in H9a. rewrite H2 in H9a. 
+   eapply align_compatible_rec_Tstruct. apply S; eassumption. auto.
    intros.
    rewrite <-  (field_offset_stable'' _ _ CONS S _ _ H2 i0) in H0.
-   specialize (H4 _ _ _ H H0).
+   specialize (H5 _ _ _ H H0).
    rewrite Forall_forall in IH.
-   apply (IH (i0,t0)); auto.
-   clear - H. induction (co_members co) as [|[??]]. inv H. simpl in *.
-   if_tac in H. inv H; auto. auto.
-   simpl.
+   assert (exists m, In m (co_members co) /\ type_member m = t0). {
+    clear - H. induction (co_members co). inv H. simpl in H. if_tac in H. exists a. inv H. simpl; auto. 
+    destruct (IHm H) as [m1 [? ?]]. exists m1; simpl; auto.
+   }
+   destruct H1 as [m [? ?]]. subst t0.
+   apply (IH m); auto. clear H1.
    pose proof (COSU  _ _ H2).
-   clear - H1 H. induction (co_members co) as [|[??]]. inv H. simpl in H,H1.
+   clear - H1 H. induction (co_members co). inv H. simpl in H,H1.
                          InvBooleans.         
                         if_tac in H. inv H. auto.  auto.
  +
+   clear H9a.
    rewrite H2 in IH.
-   eapply align_compatible_rec_Tunion. apply S; eassumption.
-   simpl in H9a. rewrite H2 in H9a. 
+   eapply align_compatible_rec_Tunion. apply S; eassumption.  auto.
    intros.
-   specialize (H4 _ _ H).
+   specialize (H5 _ _ H).
    rewrite Forall_forall in IH.
-   apply (IH (i0,t0)); auto.
-   clear - H. induction (co_members co) as [|[??]]. inv H. simpl in *.
-   if_tac in H. inv H; auto. auto.
-   simpl.
-   pose proof (COSU  _ _ H2).
-   clear - H0 H. induction (co_members co) as [|[??]]. inv H. simpl in H,H0.
-                         InvBooleans.         
-                        if_tac in H. inv H. auto.  auto.
+   assert (exists m, In m (co_members co) /\ type_member m = t0). {
+    clear - H. induction (co_members co). inv H. simpl in H. if_tac in H. exists a. inv H. simpl; auto. 
+    destruct (IHm H) as [m1 [? ?]]. exists m1; simpl; auto.
+   }
+   destruct H0 as [m [? ?]]. subst t0.
+   apply (IH m); auto.
+   apply COSU in H2.
+   clear - H2 H0.
+   induction (co_members co). inv H0.
+   destruct H0. subst. simpl in H2. rewrite andb_true_iff in H2. tauto.
+   simpl in H2. rewrite andb_true_iff in H2. tauto.
 Qed.
 
 Lemma hardware_alignof_composite_stable:
@@ -645,11 +641,12 @@ hardware_alignof_composite (PTree.map1 QP.co_ha ce) (co_members c).
 Proof.
 intros.
   pose proof (co_consistent_complete _ _  (CONSce1 _ _ H0)).
-  induction (co_members c) as [|[j?]]; simpl; auto.
+  induction (co_members c); simpl; auto.
   simpl in H1; rewrite andb_true_iff in H1; destruct H1.
   f_equal; auto.
   clear - H1 HA1 CONSce1.
   revert H1.
+  forget (type_member a) as t.
   type_induction.type_induction t (composite_env_of_QPcomposite_env ce1 OKce1) CONSce1; simpl; intros; auto.
   clear IH.
   destruct ((composite_env_of_QPcomposite_env ce1 OKce1) ! id) eqn:?H; inv H1.
@@ -768,7 +765,7 @@ intros.
   destruct (co_su c) eqn:?H.
   *
   forget 0 as ofs.
-  revert ofs; induction (co_members c) as [|[j?]]; intros; auto.
+  revert ofs; induction (co_members c); intros; auto.
   simpl in H1; rewrite andb_true_iff in H1; destruct H1.
   unfold legal_alignas_struct_members_rec.
   fold (legal_alignas_struct_members_rec (composite_env_of_QPcomposite_env ce1 OKce1)
@@ -780,13 +777,15 @@ intros.
   rewrite IHm by auto; clear IHm.
   pose proof (hardware_alignof_type_stable' _ _ SUB1 _ _ HA1).
   spec H4; [apply PTree_samedom_domain_eq; apply samedom_ha_composite_env_of_QPcomposite_env | ].
-  rewrite !(alignof_stable _ _ SUB1 _ H1), !H4 by auto.
-  rewrite (sizeof_stable _ _ SUB1 _ H1).
-  f_equal.
-  f_equal.
-  eapply legal_alignas_type_stable; eauto.
+  rewrite !(next_field_stable _ _ SUB1 ofs _ H1).
+  f_equal. f_equal.
+   2:   eapply legal_alignas_type_stable; eauto.
+  unfold legal_alignas_member.
+  destruct a; auto.
+   rewrite !H4 by auto. f_equal. f_equal. unfold bitalignof. 
+  rewrite (alignof_stable _ _ SUB1) by auto. auto.
  *
-  induction (co_members c) as [|[j?]]; intros; auto.
+  induction (co_members c); intros; auto.
   simpl in H1; rewrite andb_true_iff in H1; destruct H1.
   unfold legal_alignas_union_members_rec.
   fold (legal_alignas_union_members_rec (composite_env_of_QPcomposite_env ce1 OKce1)
@@ -1039,7 +1038,7 @@ intros.
  -
    destruct ((composite_env_of_QPcomposite_env ce OKce) ! i) eqn:?H; try discriminate H.
    destruct (co_su c) eqn:?H; try discriminate H.
-   clear H.
+   rename H into PLAIN.
  assert ( (composite_env_of_QPcomposite_env _ OKce1) ! i = Some c
    \/ (composite_env_of_QPcomposite_env _ OKce2) ! i = Some c ). {
    clear - MERGE H1.
@@ -1109,7 +1108,7 @@ intros.
    rewrite !PTree.gmap1 in H4,H5,H0 |- *. unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. auto.
+    simpl. inv H4; inv H5. simpl in H0. rewrite H3. auto.
  +
    unfold is_aligned in *; simpl in *; unfold is_aligned_aux in *.
    rewrite get_composite_env_of_QPcomposite_env in *.
@@ -1118,7 +1117,7 @@ intros.
    rewrite !PTree.gmap1 in H4,H5,H0 |- *. unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. auto.
+    simpl. inv H4; inv H5. simpl in H0. rewrite H3; auto.
  }
   hnf; intros.
   destruct (H9 _ _ H H0) as [[??]|[??]]; clear H9.

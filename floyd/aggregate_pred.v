@@ -137,55 +137,55 @@ Definition array_pred {A: Type}{d: Inhabitant A}  (lo hi: Z) (P: Z -> A -> val -
   !! (Zlength v = hi - lo) &&
   rangespec lo (Z.to_nat (hi-lo)) (fun i => P i (Znth (i-lo) v)) p.
 
-Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
+Definition struct_pred (m: members) {A: member -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact emp |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  destruct m as [| a m]; [exact emp | ].
+  revert a v; induction m as [| b m]; intros ? v.
   + simpl in v.
     exact (P _ v p).
   + simpl in v.
-    exact ((P _ (fst v) p) * IHm i0 t0 (snd v)).
+    exact ((P _ (fst v) p) * IHm _ (snd v)).
 Defined.
 
 (* when unfold, do cbv [struct_pred list_rect]. *)
 
-Definition union_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val): mpred.
+Definition union_pred (m: members) {A: member -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val): mpred.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact emp |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  destruct m as [| a m]; [exact emp |].
+  revert a v; induction m as [| b m]; intros ? v.
   + simpl in v.
     exact (P _ v p).
   + simpl in v.
     destruct v as [v | v].
     - exact (P _ v p).
-    - exact (IHm i0 t0 v).
+    - exact (IHm _ v).
 Defined.
 
 Definition array_Prop {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> Prop) (v: list A) : Prop :=
    Zlength v = hi-lo /\ Forallz P 0 v.
 
-Definition struct_Prop (m: members) {A: ident * type -> Type}
+Definition struct_Prop (m: members) {A: member -> Type}
                              (P: forall it, A it -> Prop) (v: compact_prod (map A m)) : Prop.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact True |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  destruct m as [| a m]; [exact True | ].
+  revert a v; induction m as [| b m]; intros ? v.
   + simpl in v.
     exact (P _ v).
   + simpl in v.
-    exact ((P _ (fst v)) /\ IHm i0 t0 (snd v)).
+    exact ((P _ (fst v)) /\ IHm _ (snd v)).
 Defined.
 
-Definition union_Prop (m: members) {A: ident * type -> Type}
+Definition union_Prop (m: members) {A: member -> Type}
                (P: forall it, A it -> Prop) (v: compact_sum (map A m)): Prop.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact True |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  destruct m as [| a m]; [exact True |].
+  revert a v; induction m as [| b m]; intros ? v.
   + simpl in v.
     exact (P _ v).
   + simpl in v.
     destruct v as [v | v].
     - exact (P _ v).
-    - exact (IHm i0 t0 v).
+    - exact (IHm _ v).
 Defined.
 
 (******************************************
@@ -359,6 +359,16 @@ Qed.
 
 Opaque member_dec.
 
+Lemma name_member_get:
+  forall i m, name_member (get_member i m) = i.
+Proof.
+induction m; simpl; intros.
+auto.
+if_tac.
+auto.
+auto.
+Qed.
+
 Lemma struct_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall i d0 d1, in_members i m ->
@@ -367,28 +377,28 @@ Lemma struct_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> 
 Proof.
   unfold proj_struct, field_type.
   intros.
-  destruct m as [| (i0, t0) m]; [simpl; auto |].
-  revert i0 t0 v0 v1 H H0; induction m as [| (i1, t1) m]; intros.
-  + specialize (H0 i0).
+  destruct m as [| a0 m]; [simpl; auto |].
+  revert a0 v0 v1 H H0; induction m as [| a1 m]; intros.
+  + specialize (H0 (name_member a0)).
     simpl in H0.
     if_tac in H0; [| congruence].
     specialize (H0 v0 v1).
     spec H0; [left; reflexivity |].
-    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    destruct (member_dec a0 a0); [| congruence].
     unfold eq_rect_r in H0; rewrite <- !eq_rect_eq in H0.
     simpl.
     exact H0.
-  + change (struct_pred ((i0, t0) :: (i1, t1) :: m) P0 v0 p) with
-      (P0 (i0, t0) (fst v0) p * struct_pred ((i1, t1) :: m) P0 (snd v0) p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P1 v1 p) with
-      (P1 (i0, t0) (fst v1) p * struct_pred ((i1, t1) :: m) P1 (snd v1) p).
+  + change (struct_pred (a0:: a1 :: m) P0 v0 p) with
+      (P0 a0 (fst v0) p * struct_pred (a1 :: m) P0 (snd v0) p).
+    change (struct_pred (a0 :: a1 :: m) P1 v1 p) with
+      (P1 a0 (fst v1) p * struct_pred (a1 :: m) P1 (snd v1) p).
     apply sepcon_derives.
-    - specialize (H0 i0).
+    - specialize (H0 (name_member a0)).
       simpl in H0.
       if_tac in H0; [| congruence].
       specialize (H0 (fst v0) (fst v1)).
       spec H0; [left; reflexivity |].
-      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+      destruct (member_dec a0 a0); [| congruence].
       unfold eq_rect_r in H0; rewrite <- !eq_rect_eq in H0.
       simpl.
       exact H0.
@@ -403,16 +413,11 @@ Proof.
         tauto.
       * specialize (H0 d0 d1).
         spec H0; [right; auto |].
-        change (if ident_eq i i1
-                then Errors.OK t1
-                else Ctypes.field_type i m) with (Ctypes.field_type i ((i1, t1) :: m)) in H0.
-        destruct (member_dec
-             (i,
-             match Ctypes.field_type i ((i1, t1) :: m) with
-             | Errors.OK t => t
-             | Errors.Error _ => Tvoid
-             end) (i0, t0)); [congruence |].
-        exact H0.
+        change (if ident_eq i (name_member a1) then a1 else get_member i m)
+                    with (get_member i (a1::m)) in H0.
+        destruct (member_dec (get_member i (a1::m)) a0); [ | exact H0].
+        elimtype False; clear - e H2. subst a0.
+        rewrite name_member_get in H2. contradiction.
 Qed.
 
 Lemma struct_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
@@ -427,26 +432,26 @@ Proof.
 Qed.
 
 Lemma struct_pred_not_member: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p,
-  let P' it := if ident_eq i (fst it) then fun _ _ => emp else P it in
+  let P' it := if ident_eq i (name_member it) then fun _ _ => emp else P it in
   ~ in_members i m ->
   struct_pred m P v p = struct_pred m P' v p.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [auto |].
+  destruct m as [| a0 m]; [auto |].
   unfold proj_struct, field_type in *.
-  revert i0 t0 H v; induction m as [| (i1, t1) m]; intros i0 t0 H.
+  revert a0 H v; induction m as [| a1 m]; intros a0 H.
   + intros; subst P'; simpl.
     rewrite if_false; auto.
     intro; apply H; subst; left; auto.
-  + set (M := (i1, t1) :: m).
+  + set (M := a1 :: m).
     simpl compact_prod; simpl Ctypes.field_type.
     intros v.
     subst M.
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
-      with (P _ (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p)
-      with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
-    destruct (ident_eq i i0).
+    change (struct_pred (a0:: a1 :: m) P v p)
+      with (P _ (fst v) p * struct_pred (a1 :: m) P (snd v) p).
+    change (struct_pred (a0 :: a1 :: m) P' v p)
+      with (P' _ (fst v) p * struct_pred (a1 :: m) P' (snd v) p).
+    destruct (ident_eq i (name_member a0)).
     - subst P'; intros; subst.
       exfalso; apply H.
       left; auto.
@@ -460,41 +465,42 @@ Proof.
 Qed.
 
 Lemma struct_pred_proj: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
-  let P' it := if ident_eq i (fst it) then fun _ _ => emp else P it in
+  let P' it := if ident_eq i (name_member it) then fun _ _ => emp else P it in
   members_no_replicate m = true ->
   in_members i m ->
   struct_pred m P v p = P _ (proj_struct i m v d) p * struct_pred m P' v p.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [inv H0 |].
+  destruct m as [| a0 m]; [inv H0 |].
   unfold proj_struct, field_type in *.
-  revert i0 t0 H v d H0; induction m as [| (i1, t1) m]; intros.
+  revert a0 H v d H0; induction m as [| a1 m]; intros.
   + subst P'; simpl in *.
     destruct H0; [simpl in H0; subst i | tauto].
-    destruct (ident_eq i0 i0); [| congruence].
-    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    destruct (ident_eq _ _); [| congruence].
+    destruct (member_dec a0 a0); [| congruence].
     unfold eq_rect_r; rewrite <- eq_rect_eq.
     rewrite sepcon_emp; auto.
   + pose proof H.
     apply members_no_replicate_ind in H1; destruct H1.
-    set (M := (i1, t1) :: m).
+    set (M := a1 :: m).
     simpl compact_prod in v |- *; simpl Ctypes.field_type in d |- *.
     subst M.
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
-      with (P _ (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p)
-      with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
-    destruct (ident_eq i i0).
-    - subst i0.
-      f_equal.
+    change (struct_pred (a0 :: a1 :: m) P v p)
+      with (P _ (fst v) p * struct_pred (a1 :: m) P (snd v) p).
+    change (struct_pred (a0 :: a1 :: m) P' v p)
+      with (P' _ (fst v) p * struct_pred (a1 :: m) P' (snd v) p).
+    unfold get_member in d|-*; fold (get_member i (a1::m)) in d|-*.
+     destruct (ident_eq i (name_member a0)).
+    - f_equal.
       * simpl.
-        destruct (member_dec (i, t0) (i, t0)); [| congruence].
+         destruct (member_dec _ _) ; [ | congruence].
         unfold eq_rect_r; rewrite <- eq_rect_eq.
         auto.
       * erewrite struct_pred_not_member by eauto.
         unfold P' at 1.
         rewrite if_true by auto.
-        rewrite emp_sepcon; auto.
+        rewrite emp_sepcon.
+        subst i. auto.
     - intros.
       destruct H0; [simpl in H0; congruence |].
       rewrite <- sepcon_assoc, (sepcon_comm _ (P' _ _ _)), sepcon_assoc.
@@ -505,60 +511,64 @@ Proof.
       * erewrite IHm by eauto.
         f_equal.
         simpl.
-        match goal with
-        | |- context [member_dec (i, ?t') (i0, t0)] =>
-                destruct (member_dec (i, t') (i0, t0));
-                  [inversion e; congruence |]
-        end.
+        change (if ident_eq i (name_member a1) then a1 else get_member i m) with (get_member i (a1::m)).
+        destruct (member_dec (get_member i (a1::m)) a0).
+        elimtype False. clear - H0 H1 e. subst. apply H1. 
+        rewrite name_member_get. auto.
         auto.
 Qed.
 
 Lemma struct_pred_upd: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p v0,
-  let P' it := if ident_eq i (fst it) then fun _ _ => emp else P it in
+  let P' it := if ident_eq i (name_member it) then fun _ _ => emp else P it in
   members_no_replicate m = true ->
   in_members i m ->
   struct_pred m P (upd_struct i m v v0) p = P _ v0 p * struct_pred m P' v p.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [inv H0 |].
+  destruct m as [| a0 m]; [inv H0 |].
   unfold proj_struct, field_type in *.
-  revert i0 t0 H v v0 H0; induction m as [| (i1, t1) m]; intros.
+  revert a0 H v v0 H0; induction m as [| a1 m]; intros.
   + subst P'; simpl in *.
     destruct H0; [simpl in H0; subst i | tauto].
-    destruct (ident_eq i0 i0); [| congruence].
-    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    destruct (ident_eq _ _); [| congruence].
+    destruct (member_dec a0 a0); [| congruence].
     unfold eq_rect_r; rewrite <- eq_rect_eq.
     rewrite sepcon_emp; auto.
   + pose proof H.
     apply members_no_replicate_ind in H1; destruct H1.
     simpl compact_prod in v |- *; simpl Ctypes.field_type in v0 |- *.
-    set (v' := (upd_struct i ((i0, t0) :: (i1, t1) :: m) v v0)).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v' p)
-      with (P _ (fst v') p * struct_pred ((i1, t1) :: m) P (snd v') p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p)
-      with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
+    set (v' := (upd_struct i (a0 :: a1 :: m) v v0)).
+    change (struct_pred (a0 :: a1 :: m) P v' p)
+      with (P _ (fst v') p * struct_pred (a1 :: m) P (snd v') p).
+    change (struct_pred (a0 :: a1 :: m) P' v p)
+      with (P' _ (fst v) p * struct_pred (a1 :: m) P' (snd v) p).
     subst v'.
-    simpl upd_struct.
-    destruct (ident_eq i i0).
-    - subst i0.
-      destruct (member_dec (i, t0) (i, t0)); [| congruence].
+    unfold upd_struct.
+    change (get_member i (a0::a1::m)) with
+       (if ident_eq i (name_member a0) then a0 else get_member i (a1::m))
+       in v0|-*.
+    destruct (ident_eq i _).
+    - subst i.
+      simpl.
+      destruct (member_dec a0 a0); [| congruence].
       f_equal.
       * simpl.
         unfold eq_rect_r; rewrite <- eq_rect_eq.
         auto.
-      * unfold eq_rect_r; rewrite <- eq_rect_eq.
+      * simpl.
+        unfold eq_rect_r; rewrite <- eq_rect_eq.
         change (snd (v0, snd v)) with (snd v).
+        change (struct_pred (a1 :: m) P (snd v) p = P' a0 (fst v) p * struct_pred (a1 :: m) P' (snd v) p).
         erewrite struct_pred_not_member by eauto.
         unfold P' at 1.
         rewrite if_true by auto.
         rewrite emp_sepcon; auto.
     - destruct H0; [simpl in H0; congruence |].
       rewrite <- sepcon_assoc, (sepcon_comm _ (P' _ _ _)), sepcon_assoc.
-      match goal with
-      | |- context [member_dec (i, ?t') (i0, t0)] =>
-              destruct (member_dec (i, t') (i0, t0));
-                [inversion e; congruence |]
-      end.
+      simpl. 
+      destruct (member_dec _ _).
+      change (get_member i (a1::m) = a0) in e.
+      elimtype False; clear - e H0 H1. subst. apply H1. rewrite name_member_get. auto.
       f_equal.
       * unfold P'; simpl.
         rewrite if_false by (simpl; congruence).
@@ -576,7 +586,7 @@ Lemma struct_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: i
      (ALL v0: _, P _ v0 p -* struct_pred m P (upd_struct i m v v0) p).
 Proof.
   intros.
-  set (P' it := if ident_eq i (fst it) then fun _ _ => emp else P it).
+  set (P' it := if ident_eq i (name_member it) then fun _ _ => emp else P it).
   apply RAMIF_Q.solve with (struct_pred m P' v p).
   + apply derives_refl'.
     apply struct_pred_proj; auto.
@@ -591,8 +601,8 @@ Lemma at_offset_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v
 Proof.
   intros.
   rewrite at_offset_eq.
-  destruct m as [| (i0, t0) m]; [auto |].
-  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [auto |].
+  revert a0 v; induction m as [| a1 m]; intros.
   + simpl.
     rewrite at_offset_eq.
     auto.
@@ -610,12 +620,12 @@ Lemma corable_andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred
   end.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [auto |].
-  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [auto |].
+  revert a0 v; induction m as [| a1 m]; intros.
   + simpl.
     auto.
-  + change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
-      with (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
+  + change (struct_pred (a0::a1::m) P v p)
+      with (P a0 (fst v) p * struct_pred (a1 :: m) P (snd v) p).
     pattern Q at 1; rewrite <- (andp_dup Q).
     rewrite andp_assoc.
     rewrite <- corable_sepcon_andp1 by auto.
@@ -628,17 +638,17 @@ Lemma struct_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpred) v 
   struct_pred m P v p * struct_pred m Q v p = struct_pred m (fun it => P it * Q it) v p.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [| revert i0 t0 v; induction m as [| (i1, t1) m]; intros].
+  destruct m as [| a0 m]; [| revert a0 v; induction m as [| a1 m]; intros].
   + simpl.
     rewrite emp_sepcon; auto.
   + simpl.
     auto.
-  + change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
-      with (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) Q v p)
-      with (Q (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) Q (snd v) p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) (fun it => P it * Q it) v p)
-      with (P (i0, t0) (fst v) p * Q (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) (fun it => P it * Q it) (snd v) p).
+  + change (struct_pred (a0 :: a1 :: m) P v p)
+      with (P a0 (fst v) p * struct_pred (a1 :: m) P (snd v) p).
+    change (struct_pred (a0 :: a1 :: m) Q v p)
+      with (Q a0 (fst v) p * struct_pred (a1 :: m) Q (snd v) p).
+    change (struct_pred (a0 :: a1 :: m) (fun it => P it * Q it) v p)
+      with (P a0 (fst v) p * Q a0 (fst v) p * struct_pred (a1 :: m) (fun it => P it * Q it) (snd v) p).
     rewrite !sepcon_assoc; f_equal.
     rewrite <- sepcon_assoc, (sepcon_comm _ (Q _ _ _)), sepcon_assoc; f_equal.
     apply IHm.
@@ -699,40 +709,39 @@ Qed.
 Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (i, field_type i m) -> members_union_inj v1 (i, field_type i m) ->
+  (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
      P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p.
 Proof.
   unfold members_union_inj, proj_union, field_type.
   intros.
-  destruct m as [| (i0, t0) m]; [simpl; auto |].
-  revert i0 t0 v0 v1 H H0 H1; induction m as [| (i1, t1) m]; intros.
-  + specialize (H1 i0).
+  destruct m as [| a0 m]; [simpl; auto |].
+  revert a0 v0 v1 H H0 H1; induction m as [| a1 m]; intros.
+  + specialize (H1 (name_member a0)).
     simpl in H1.
     if_tac in H1; [| congruence].
+   spec H1. left; auto.
     specialize (H1 v0 v1).
     spec H1; [if_tac; [auto | congruence] |].
     spec H1; [if_tac; [auto | congruence] |].
-    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    destruct (member_dec a0 a0); [| congruence].
     unfold eq_rect_r in H1; rewrite <- !eq_rect_eq in H1.
     simpl.
     exact H1.
   + rewrite compact_sum_inj_eq_spec in H0.
     2:{
-      clear - H.
-      pose proof in_members_tail_no_replicate i0 _ _ _ H.
-      intro HH; apply in_map with (f := fst) in HH.
-      apply H0 in HH.
-      tauto.
+      clear - H. unfold members_no_replicate in H. apply compute_list_norepet_e in H. inv H.
+      contradict H2. apply in_map with (f := name_member) in H2. auto.
     }
     destruct v0 as [v0 | v0], v1 as [v1 | v1]; try solve [inversion H0].
-    - specialize (H1 i0).
+    - specialize (H1 (name_member a0)).
       simpl in H1.
       if_tac in H1; [| congruence].
+   spec H1. left; auto.
       specialize (H1 v0 v1).
       spec H1; [if_tac; [auto | congruence] |].
       spec H1; [if_tac; [auto | congruence] |].
-      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+      destruct (member_dec a0 a0); [| congruence].
       unfold eq_rect_r in H1; rewrite <- !eq_rect_eq in H1.
       simpl.
       exact H1.
@@ -740,34 +749,29 @@ Proof.
       apply IHm; [tauto | tauto |].
       intros.
       specialize (H1 i).
-      simpl in H1.
+      change (get_member i (a0::a1::m)) with
+           (if ident_eq i (name_member a0) then a0 else get_member i (a1::m)) in *.
       if_tac in H1. (* i = i0 vs i <> i0 *)
-      * clear - H H2 H4 t0.
-        pose proof compact_sum_inj_in v0 (i, field_type i ((i1, t1) :: m)) member_dec.
+      * clear - H H2 H4.
+        pose proof compact_sum_inj_in v0 (get_member i (a1 :: m)) member_dec.
         spec H0; [exact H2 |].
         subst.
-        apply in_map with (f := fst) in H0.
-        unfold fst at 1 in H0.
+        apply in_map with (f := name_member) in H0.
+        rewrite name_member_get in H0.
         tauto.
-      * specialize (H1 d0 d1).
-        change (if ident_eq i i1
-                then Errors.OK t1
-                else Ctypes.field_type i m) with (Ctypes.field_type i ((i1, t1) :: m)) in H1.
-        destruct (member_dec
-             (i,
-             match Ctypes.field_type i ((i1, t1) :: m) with
-             | Errors.OK t => t
-             | Errors.Error _ => Tvoid
-             end) (i0, t0)); [congruence |].
-        spec H1; [auto |].
-        spec H1; [auto |].
-        exact H1.
+      * spec H1.
+         right; auto.
+         specialize (H1 d0 d1).
+         unfold compact_sum_inj, proj_compact_sum, list_rect in H1.
+        destruct (member_dec (get_member i (a1::m)) a0).
+        elimtype False. clear - e H4. subst. rewrite name_member_get in H4. congruence.
+        apply (H1 H2 H3).
 Qed.
 
 Lemma union_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (i, field_type i m) -> members_union_inj v1 (i, field_type i m) ->
+  (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
      P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p.
 Proof.
@@ -781,28 +785,30 @@ Qed.
 Lemma union_pred_derives_const: forall m {A} (P: forall it, A it -> val -> mpred) p v R,
   members_no_replicate m = true ->
   m <> nil ->
-  (forall i (v: A (i, field_type i m)), in_members i m -> P _ v p |-- R) ->
+  (forall i (v: A (get_member i m)), in_members i m -> P _ v p |-- R) ->
   union_pred m P v p |-- R.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [congruence |].
+  destruct m as [| a0 m]; [congruence |].
   clear H0.
-  revert i0 t0 v H H1; induction m as [| (i1, t1) m]; intros.
+  revert a0 v H H1; induction m as [| a1 m]; intros.
   + simpl.
-    specialize (H1 i0); simpl in H1.
-    destruct (ident_eq i0 i0); [| congruence].
+    specialize (H1 (name_member a0)); simpl in H1.
+    destruct (ident_eq (name_member a0) (name_member a0)); [| congruence].
     apply H1; left; auto.
   + destruct v; simpl.
-    - specialize (H1 i0); simpl in H1.
-      destruct (ident_eq i0 i0); [| congruence].
+    - specialize (H1 (name_member a0)); simpl in H1.
+      destruct (ident_eq (name_member a0) (name_member a0)); [| congruence].
       apply H1; left; auto.
     - pose proof H.
       rewrite members_no_replicate_ind in H; destruct H.
-      apply (IHm i1 t1); auto.
+      apply (IHm a1); auto.
       intros.
       specialize (H1 i).
-      pose proof in_members_tail_no_replicate _ _ _ _ H0 H3.
-      simpl in H1; destruct (ident_eq i i0); [congruence |].
+     change (get_member i (a0::a1::m)) with (if ident_eq i (name_member a0) then a0 else get_member i (a1::m)) in *.
+      destruct (ident_eq i (name_member a0)).
+      elimtype False; clear - H0 H3 e. subst. unfold members_no_replicate in H0. apply compute_list_norepet_e in H0. inv H0.
+      apply H2. apply H3. 
       apply H1.
       right; auto.
 Qed.
@@ -810,58 +816,52 @@ Qed.
 Lemma union_pred_proj: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
   members_no_replicate m = true ->
   in_members i m ->
-  (forall i' (v': A (i', field_type i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
+  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
   union_pred m P v p |-- P _ (proj_union i m v d) p.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [inv H0 |].
-  revert i0 t0 v d H H0 H1; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [inv H0 |].
+  revert a0 v d H H0 H1; induction m as [| a1 m]; intros.
   + destruct H0; [simpl in H0; subst i | tauto].
     simpl in *.
-    destruct (ident_eq i0 i0); [| congruence].
-    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    destruct (ident_eq _ _ ); [| congruence].
+    destruct (member_dec a0 a0); [| congruence].
     unfold eq_rect_r; rewrite <- eq_rect_eq.
     auto.
   + pose proof H.
     rewrite members_no_replicate_ind in H; destruct H.
-    simpl in *; destruct (ident_eq i i0), v.
+     change (get_member i (a0::a1::m)) with (if ident_eq i (name_member a0) then a0 else get_member i (a1::m)) in *.
+     simpl proj_union.
+     destruct (ident_eq i (name_member a0)).
     - subst i.
-      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+      destruct (member_dec a0 a0); [| congruence].
       unfold eq_rect_r; rewrite <- eq_rect_eq.
-      auto.
-    - subst i.
-      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
-      unfold eq_rect_r; rewrite <- eq_rect_eq.
-      apply (union_pred_derives_const ((i1, t1) :: m) P p y); [auto | congruence |].
+      destruct v; auto.
+      simpl. auto.
+      apply (union_pred_derives_const (a1 :: m)); [auto | congruence |].
       intros.
       specialize (H1 i).
-      pose proof in_members_tail_no_replicate _ _ _ _ H2 H4.
-      simpl in H1; destruct (ident_eq i i0); [congruence |].
-      apply H1.
-      right; auto.
-    - match goal with
-      | |- context [member_dec (i, ?t') (i0, t0)] =>
-              destruct (member_dec (i, t') (i0, t0));
-                [inversion e; congruence |]
-      end.
-      specialize (H1 i0).
-      destruct (ident_eq i0 i0); [| congruence].
-      apply H1.
-      left; auto.
-    - match goal with
-      | |- context [member_dec (i, ?t') (i0, t0)] =>
-              destruct (member_dec (i, t') (i0, t0));
-                [inversion e; congruence |]
-      end.
-      apply (IHm i1 t1); auto.
-      * destruct H0; [| auto].
-        simpl in H0; congruence.
-      * intros.
+      change (get_member i (a0::a1::m)) with (if ident_eq i (name_member a0) then a0 else get_member i (a1::m)) in *.
+      rewrite if_false in H1. apply H1.
+      right; auto. 
+      clear - H4 H2. apply compute_list_norepet_e in H2. inv H2.
+      contradict H1. subst; auto. 
+    - change (if ident_eq i (name_member a1) then a1 else get_member i m) with (get_member i (a1::m)) in *.
+       destruct (member_dec _ _).
+       elimtype False; clear - n e. subst.
+       rewrite name_member_get in *. congruence.
+       destruct v.
+       unfold union_pred. unfold list_rect.
+       specialize (H1 (name_member a0)). 
+        simpl get_member in H1.
+       rewrite if_true in H1 by auto. apply H1. left. auto.
+      apply IHm; auto. destruct H0; auto.  congruence.
+       intros.
         specialize (H1 i').
-        pose proof in_members_tail_no_replicate _ _ _ _ H2 H4.
-        simpl in H1; destruct (ident_eq i' i0); [congruence |].
-        apply H1.
-        right; auto.
+        simpl in H1. rewrite if_false in H1.
+        apply H1. right; auto.
+        clear - H2 H4. intro; subst. apply compute_list_norepet_e in H2. inv H2.
+        apply H1. auto.
 Qed.
 
 Lemma union_pred_upd: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p v0,
@@ -872,37 +872,40 @@ Proof.
   intros.
   intros.
   unfold upd_union, upd_compact_sum.
-  destruct (in_dec member_dec (i, field_type i m) m) as [?H | ?H];
-    [| apply in_members_field_type in H0; tauto].
+  destruct (in_dec member_dec (get_member i m) m) as [?H | ?H];
+   [ | contradiction H1; apply in_get_member; auto].
   clear v.
-  destruct m as [| (i0, t0) m]; [inv H0 |].
-  revert i0 t0 v0 H H0 H1; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [inv H0 |].
+  revert a0 v0 H H0 H1; induction m as [| a1 m]; intros.
   + simpl in *.
     destruct H0; [simpl in H0; subst i | tauto].
-    destruct (ident_eq i0 i0); [| congruence].
-    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    destruct (ident_eq _ _); [| congruence].
+    destruct (member_dec a0 a0); [| congruence].
     unfold eq_rect_r; rewrite <- eq_rect_eq.
     auto.
   + destruct H0; [simpl in H0; subst i |].
     - simpl in *.
-      destruct (ident_eq i0 i0); [| congruence].
-      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+      destruct (ident_eq _ _); [| congruence].
+      destruct (member_dec a0 a0); [| congruence].
       unfold eq_rect_r; rewrite <- eq_rect_eq.
       auto.
-    - simpl in *.
-      pose proof in_members_tail_no_replicate _ _ _ _ H H0.
-      destruct (ident_eq i i0); [congruence |].
-      match goal with
-      | |- context [member_dec (i, ?t') (i0, t0)] =>
-              destruct (member_dec (i, t') (i0, t0));
-                [inversion e; congruence |]
-      end.
-      rewrite members_no_replicate_ind in H; destruct H.
-      apply (IHm i1 t1); auto.
+    -
+       change (get_member i (a0::a1::m)) with (if ident_eq i (name_member a0) then a0 else get_member i (a1::m)) in *.
+      destruct (ident_eq _ _).
+      elimtype False; clear - e H H0 H1. subst.
+      apply compute_list_norepet_e in H. inv H. apply H4.
+      destruct H0. left; auto. right; auto.
+      unfold union_pred. unfold list_rect.
+      destruct (member_dec _ _).
+      elimtype False.
+      clear - H H0 H1 e. forget (a1::m) as m1. subst a0. 
+      apply compute_list_norepet_e in H. inv H. rewrite name_member_get in H4. contradiction.
+      apply (IHm a1); auto.
+      apply members_no_replicate_ind in H. tauto.
 Qed.
 
 Lemma union_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
-  (forall i' (v': A (i', field_type i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
+  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
   in_members i m ->
   members_no_replicate m = true ->
   union_pred m P v p |--
@@ -925,8 +928,8 @@ Lemma at_offset_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v 
 Proof.
   intros.
   rewrite at_offset_eq.
-  destruct m as [| (i0, t0) m]; [simpl; auto |].
-  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [simpl; auto |].
+  revert a0 v; induction m as [| a1 m]; intros.
   + simpl.
     rewrite at_offset_eq.
     auto.
@@ -945,8 +948,8 @@ Lemma andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
   end.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [auto |].
-  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [auto |].
+  revert a0 v; induction m as [| a1 m]; intros.
   + simpl.
     auto.
   + destruct v.
@@ -960,7 +963,7 @@ Lemma union_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpred) v p
   union_pred m P v p * union_pred m Q v p = union_pred m (fun it => P it * Q it) v p.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [| revert i0 t0 v; induction m as [| (i1, t1) m]; intros].
+  destruct m as [| a0 m]; [| revert a0 v; induction m as [| a1 m]; intros].
   + simpl.
     rewrite sepcon_emp; auto.
   + simpl.
@@ -970,129 +973,127 @@ Proof.
     - apply IHm.
 Qed.
 
-Lemma struct_Prop_compact_prod_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
+Lemma struct_Prop_compact_prod_gen: forall m (F: member -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
   members_no_replicate m = true ->
-  (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
+  (forall i, in_members i m -> P (get_member i m) (f (get_member i m))) ->
   struct_Prop m P (compact_prod_gen f m).
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [simpl; auto |].
-  revert i0 t0 H H0; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [simpl; auto |].
+  revert a0 H H0; induction m as [| a1 m]; intros.
   + simpl.
-    specialize (H0 i0).
+    specialize (H0 (name_member a0)).
     simpl in H0.
     rewrite if_true in H0 by auto.
     apply H0; left; auto.
-  + change (struct_Prop ((i0, t0) :: (i1, t1) :: m) P
-             (compact_prod_gen f ((i0, t0) :: (i1, t1) :: m)))
-    with (P (i0, t0) (f (i0, t0)) /\
-            struct_Prop ((i1, t1) :: m) P (compact_prod_gen f ((i1, t1) :: m))).
+  + change (struct_Prop (a0 :: a1 :: m) P
+             (compact_prod_gen f (a0 :: a1 :: m)))
+    with (P a0 (f a0) /\
+            struct_Prop (a1 :: m) P (compact_prod_gen f (a1 :: m))).
     split.
-    - specialize (H0 i0).
+    - specialize (H0 (name_member a0)).
       simpl in H0.
       rewrite if_true in H0 by auto.
       apply H0; left; auto.
     - rewrite members_no_replicate_ind in H; destruct H.
-      apply (IHm i1 t1); auto.
+      apply (IHm a1); auto.
       intros.
       specialize (H0 i).
       simpl in H0.
-      destruct (ident_eq i i0); [subst; tauto |].
+      destruct (ident_eq i (name_member a0)); [subst; tauto |].
       apply H0; right; auto.
 Qed.
 
-Lemma struct_Prop_proj: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) v i d,
+Lemma struct_Prop_proj: forall m (F: member -> Type) (P: forall it, F it -> Prop) v i d,
   in_members i m ->
   struct_Prop m P v ->
-  P (i, field_type i m) (proj_struct i m v d).
+  P (get_member i m) (proj_struct i m v d).
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [inversion H |].
-  revert i0 t0 v d H H0; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [inversion H |].
+  revert a0 v d H H0; induction m as [| a1 m]; intros.
   + inversion H; [simpl in H0; subst| tauto].
     simpl in *.
-    destruct (ident_eq i0 i0); [| tauto].
-    destruct (member_dec (i0, t0) (i0, t0)); [| tauto].
+    destruct (ident_eq _ _); [| tauto].
+    destruct (member_dec a0 a0); [| tauto].
     unfold eq_rect_r; rewrite <- eq_rect_eq.
     auto.
-  + destruct (ident_eq i i0).
+  + destruct (ident_eq i (name_member a0)).
     - subst.
       simpl in *.
-      destruct (ident_eq i0 i0); [| tauto].
-      destruct (member_dec (i0, t0) (i0, t0)); [| tauto].
+      destruct (ident_eq _ _ ); [| tauto].
+      destruct (member_dec a0 a0); [| tauto].
       unfold eq_rect_r; rewrite <- eq_rect_eq.
       exact (proj1 H0).
-    - assert (in_members i ((i1, t1) :: m)) by (inversion H; [subst; tauto | auto]).
+    - assert (in_members i (a1 :: m)) by (inversion H; [subst; tauto | auto]).
       simpl in *.
-      destruct (ident_eq i i0); [tauto |].
-      destruct (member_dec
-         (i,
-         match
-           (if ident_eq i i1 then Errors.OK t1 else Ctypes.field_type i m)
-         with
-         | Errors.OK t => t
-         | Errors.Error _ => Tvoid
-         end) (i0, t0)); [inversion e; subst; tauto |].
+      destruct (ident_eq _ _); [tauto |].
+      destruct (member_dec _ _).
+      elimtype False; clear - e n.
+      change (if  ident_eq i (name_member a1) then a1 else get_member i m) 
+       with (get_member i (a1::m))  in e. subst. rewrite name_member_get in n. contradiction.
       apply IHm; auto.
       exact (proj2 H0).
 Qed.
 
-Lemma union_Prop_compact_sum_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
+Lemma union_Prop_compact_sum_gen: forall m (F: member -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
   members_no_replicate m = true ->
-  (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
+  (forall i, in_members i m -> P (get_member i m) (f (get_member i m))) ->
   union_Prop m P (compact_sum_gen (fun _ => true) f m).
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [simpl; auto |].
-  destruct m as [| (i1, t1) m].
+  destruct m as [| a0 m]; [simpl; auto |].
+  destruct m as [| a1 m].
   + simpl.
-    specialize (H0 i0).
+    specialize (H0 (name_member a0)).
     simpl in H0.
     rewrite if_true in H0 by auto.
     apply H0; left; auto.
   + simpl.
-    specialize (H0 i0).
+    specialize (H0 (name_member a0)).
     simpl in H0.
     rewrite if_true in H0 by auto.
     apply H0; left; auto.
 Qed.
 
-Lemma union_Prop_proj: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) v i d,
-  members_union_inj v (i, field_type i m) ->
+Lemma union_Prop_proj: forall m (F: member -> Type) (P: forall it, F it -> Prop) v i d,
+  members_union_inj v (get_member i m) ->
   union_Prop m P v ->
-  P (i, field_type i m) (proj_union i m v d).
+  P (get_member i m) (proj_union i m v d).
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [inversion H |].
-  revert i0 t0 v d H H0; induction m as [| (i1, t1) m]; intros.
-  + simpl in H. if_tac in H; [| tauto].
-    inversion H1; subst i.
-    clear H1 H4.
-    simpl in *.
-    destruct (ident_eq i0 i0); [| tauto].
-    destruct (member_dec (i0, t0) (i0, t0)); [| tauto].
-    unfold eq_rect_r; rewrite <- eq_rect_eq.
-    auto.
-  + destruct (ident_eq i i0).
+  destruct m as [| a0 m]; [inversion H |].
+  revert a0 v d H H0; induction m as [| a1 m]; intros.
+  + simpl in H. simpl proj_union.
+    unfold eq_rect_r.
+     if_tac in H; [| tauto].
+    change (if ident_eq i (name_member a0) then a0 else Member_plain i Tvoid) with
+              (get_member i (a0::nil)) in *.
+    simpl in H0.
+    destruct a0; simpl in *.
+   if_tac.  rewrite <- eq_rect_eq; auto.
+   unfold eq_rect. destruct H1. simpl. auto.
+   if_tac.  rewrite <- eq_rect_eq; auto.
+   unfold eq_rect. destruct H1. simpl. auto.
+  + 
+    unfold proj_union. 
+    change (get_member i (a0::a1::m)) with (if ident_eq i (name_member a0) then a0 else get_member i (a1::m)) in *.
+    if_tac. 
     - subst.
-      simpl in *.
-      destruct (ident_eq i0 i0); [| tauto].
-      destruct (member_dec (i0, t0) (i0, t0)); [| tauto].
+     simpl. 
+      simpl in H.
+      destruct (member_dec a0 a0); [| tauto].
       unfold eq_rect_r; rewrite <- eq_rect_eq.
       destruct v; [| inversion H].
       auto.
-    - assert (members_union_inj v (i, field_type i ((i1, t1) :: m))) by (simpl in H; destruct (ident_eq i i0); [tauto | auto]).
-      simpl in *.
-      destruct (ident_eq i i0); [tauto |].
-      destruct (member_dec
-         (i,
-         match
-           (if ident_eq i i1 then Errors.OK t1 else Ctypes.field_type i m)
-         with
-         | Errors.OK t => t
-         | Errors.Error _ => Tvoid
-         end) (i0, t0)); [inversion e; subst; tauto |].
-      destruct v; [tauto |].
+    - assert (members_union_inj v (get_member i (a1 :: m))) 
+       by (simpl in H; destruct (ident_eq i (name_member a0)); [tauto | auto]).
+      set (j := get_member i (a1::m)) in *.
+      simpl in H|-*.
+      destruct (member_dec _ _).
+      subst a0.
+      elimtype False; clear - j H1. subst j. rewrite name_member_get in H1. contradiction.
+      destruct v; [ tauto | ]. 
       apply IHm; auto.
 Qed.
 
@@ -1142,68 +1143,68 @@ Qed.
 
 Lemma struct_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
   members_no_replicate m = true ->
-  (forall i v0, in_members i m -> P (i, field_type i m) v0 p |-- !! R _ v0) ->
+  (forall i v0, in_members i m -> P (get_member i m) v0 p |-- !! R _ v0) ->
   struct_pred m P v p |-- !! struct_Prop m R v.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [simpl; apply prop_right; auto |].
-  revert i0 t0 v H H0; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [simpl; apply prop_right; auto |].
+  revert a0 v H H0; induction m as [| a1 m]; intros.
   + simpl.
-    specialize (H0 i0).
+    specialize (H0 (name_member a0)).
     simpl in H0.
     rewrite if_true in H0 by auto.
     apply H0; left; auto.
-  + change (struct_Prop ((i0, t0) :: (i1, t1) :: m) R v)
-      with (R (i0, t0) (fst v) /\ struct_Prop ((i1, t1) :: m) R (snd v)).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
-      with (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
+  + change (struct_Prop (a0 :: a1 :: m) R v)
+      with (R a0 (fst v) /\ struct_Prop (a1 :: m) R (snd v)).
+    change (struct_pred (a0 :: a1 :: m) P v p)
+      with (P a0 (fst v) p * struct_pred (a1 :: m) P (snd v) p).
     rewrite members_no_replicate_ind in H.
 
-    pose proof H0 i0.
+    pose proof H0 (name_member a0).
     simpl in H1.
     if_tac in H1; [| congruence].
     specialize (H1 (fst v)).
     spec H1; [left; auto |].
 
-    specialize (IHm i1 t1 (snd v)).
+    specialize (IHm a1 (snd v)).
     spec IHm; [tauto |].
     eapply derives_trans; [apply sepcon_derives; [apply H1 | apply IHm] |].
     - intros.
       specialize (H0 i).
       simpl in H0.
-      destruct (ident_eq i i0); [subst; tauto |].
+      destruct (ident_eq i (name_member a0)); [subst; tauto |].
       apply H0; right; auto.
     - rewrite sepcon_prop_prop; normalize.
 Qed.
 
 Lemma union_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
   members_no_replicate m = true ->
-  (forall i v0, in_members i m -> P (i, field_type i m) v0 p |-- !! R _ v0) ->
+  (forall i v0, in_members i m -> P (get_member i m) v0 p |-- !! R _ v0) ->
   union_pred m P v p |-- !! union_Prop m R v.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [simpl; apply prop_right; auto |].
-  revert i0 t0 v H H0; induction m as [| (i1, t1) m]; intros.
+  destruct m as [| a0 m]; [simpl; apply prop_right; auto |].
+  revert a0 v H H0; induction m as [| a1 m]; intros.
   + simpl.
-    specialize (H0 i0).
+    specialize (H0 (name_member a0)).
     simpl in H0.
     rewrite if_true in H0 by auto.
     apply H0; left; auto.
   + rewrite members_no_replicate_ind in H.
     destruct v.
     - simpl.
-      pose proof H0 i0.
+      pose proof H0 (name_member a0).
       simpl in H1.
       if_tac in H1; [| congruence].
       specialize (H1 a).
       apply H1; left; auto.
-    - specialize (IHm i1 t1 c).
+    - specialize (IHm a1 c).
       spec IHm; [tauto |].
       apply IHm.
       intros.
       specialize (H0 i).
       simpl in H0.
-      destruct (ident_eq i i0); [subst; tauto |].
+      destruct (ident_eq i (name_member a0)); [subst; tauto |].
       apply H0; right; auto.
 Qed.
 
@@ -1340,45 +1341,52 @@ Qed.
 
 Lemma memory_block_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b ofs,
   (m = nil -> sz = 0) ->
+  plain_members m = true ->
   members_no_replicate m = true ->
   sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
   0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
   struct_pred m
    (fun it _ p =>
-     (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
-     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Ptrofs.repr ofs)) =
+     (memory_block sh (field_offset_next cenv_cs (name_member it) m sz - field_offset cenv_cs (name_member it) m))
+     (offset_val (field_offset cenv_cs (name_member it) m) p)) v (Vptr b (Ptrofs.repr ofs)) =
   memory_block sh sz (Vptr b (Ptrofs.repr ofs)).
 Proof.
   unfold field_offset, Ctypes.field_offset, field_offset_next.
-  intros sh m sz A v b ofs NIL_CASE NO_REPLI; intros.
-  destruct m as [| (i0, t0) m].
+  intros sh m sz A v b ofs NIL_CASE PLAIN NO_REPLI; intros.
+  destruct m as [| a0 m].
   1: rewrite (NIL_CASE eq_refl), memory_block_zero; simpl; normalize.
+  pose (t0 := type_member a0).
   assert (align 0 (alignof t0) = 0) by apply align_0, alignof_pos.
   revert H0; pattern ofs at 1 4; replace ofs with (ofs + align 0 (alignof t0)) by lia; intros.
   revert H; pattern sz at 2 4; replace sz with (sz - align 0 (alignof t0)) by lia; intros.
   pattern 0 at 1; rewrite <- H1.
   clear NIL_CASE H1.
-  revert H H0; generalize 0 at 1 2 4 5 6 8 10 11; revert i0 t0 v NO_REPLI;
-  induction m as [| (i1, t1) m]; intros.
+  destruct a0; try discriminate. simpl in t0. subst t0. simpl in PLAIN.
+  rename id into i0. rename t into t0. 
+  revert H H0. generalize 0 at 1 2 4 5 6 7 8 9; revert i0 t0 v PLAIN NO_REPLI;
+  induction m as [| a1 m]; intros.
   + simpl.
     if_tac; [| congruence].
     solve_mod_modulus.
     reflexivity.
   + match goal with
-    | |- struct_pred ((i0, t0) :: (i1, t1) :: m) ?P v ?p = _ =>
-           change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p) with
-             (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p);
-           simpl (P (i0, t0) (fst v) p)
+    | |- struct_pred (Member_plain i0 t0 :: a1 :: m) ?P v ?p = _ =>
+           change (struct_pred (Member_plain i0 t0 :: a1 :: m) P v p) with
+             (P (Member_plain i0 t0) (fst v) p * struct_pred (a1 :: m) P (snd v) p);
+           simpl (P (Member_plain i0 t0) (fst v) p)
     end.
     if_tac; [| congruence].
     solve_mod_modulus.
+    destruct a1 as [i1 t1|]; try discriminate.
+   destruct v as [v0 v1].
+   rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
+    specialize (IHm i1 t1 v1 PLAIN NO_REPLI (align z (alignof t0) + sizeof t0)).
+    simpl snd.
+    fold (sizeof t0) in *. fold (alignof t0) in *.
     erewrite struct_pred_ext.
-    - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
-      fold (sizeof t0) in *. fold (alignof t0) in *.
-      fold (sizeof t1) in *. fold (alignof t1) in *.
-      rewrite IHm with (z := align z (alignof t0) + sizeof t0);
-        [| now auto
-         | simpl in H |- *; 
+    -
+     rewrite IHm;
+        [| simpl in H |- *; 
           fold (sizeof t0) in *; fold (alignof t0) in *;
           fold (sizeof t1) in *; fold (alignof t1) in *;
           pose_align_le; pose_sizeof_pos; lia
@@ -1392,14 +1400,16 @@ Proof.
           fold (sizeof t0) in *; fold (alignof t0) in *;
           fold (sizeof t1) in *; fold (alignof t1) in *;revert H; pose_align_le; pose_sizeof_pos; intros; lia).
       f_equal; lia.
-    - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
+    - 
       auto.
-    - intros. instantiate (1 := (snd v)).
+    - intros.
       solve_mod_modulus.
       unfold fst.
-      pose proof in_members_tail_no_replicate _ _ _ _ NO_REPLI H2.
-      rewrite (neq_field_offset_rec_cons cenv_cs i i0 t0) by auto.
-      rewrite (neq_field_offset_next_rec_cons cenv_cs i i0 t0) by auto.
+      rewrite !name_member_get.
+      assert (i <> name_member (Member_plain i0 t0)).
+      simpl. clear - H2 NOT_IN.  contradict NOT_IN. subst i0. simpl. auto.
+      rewrite (neq_field_offset_rec_cons cenv_cs i (Member_plain i0 t0)) by auto.
+      rewrite (neq_field_offset_next_rec_cons cenv_cs i (Member_plain i0 t0)) by  auto.
       reflexivity.
 Qed.
 
@@ -1414,47 +1424,58 @@ Qed.
 
 Lemma mapsto_zeros_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b ofs,
   (m = nil -> sz = 0) ->
+  plain_members m = true ->
   members_no_replicate m = true ->
   sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
   0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
   mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
   struct_pred m
    (fun it _ p =>
-     (mapsto_zeros (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m)) sh
-     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Ptrofs.repr ofs)).
+     (mapsto_zeros (field_offset_next cenv_cs (name_member it) m sz - field_offset cenv_cs (name_member it) m)) sh
+     (offset_val (field_offset cenv_cs (name_member it) m) p)) v (Vptr b (Ptrofs.repr ofs)).
 Proof.
+  Opaque mapsto_zeros.
   unfold field_offset, Ctypes.field_offset, field_offset_next.
-  intros sh m sz A v b ofs NIL_CASE NO_REPLI; intros.
-  destruct m as [| (i0, t0) m].
-Opaque mapsto_zeros.
+  intros sh m sz A v b ofs NIL_CASE PLAIN NO_REPLI; intros.
+  destruct m as [| a0 m].
   1: rewrite (NIL_CASE eq_refl), mapsto_zeros_zero; simpl; normalize.
+  pose (t0 := type_member a0).
   assert (align 0 (alignof t0) = 0) by apply align_0, alignof_pos.
   revert H0; pattern ofs at 1 3; replace ofs with (ofs + align 0 (alignof t0)) by lia; intros.
   revert H; pattern sz at 2 3; replace sz with (sz - align 0 (alignof t0)) by lia; intros.
   pattern 0 at 3; rewrite <- H1.
   clear NIL_CASE H1.
-  revert H H0. generalize 0 at 1 2 4 5 6 7 8 10; revert i0 t0 v NO_REPLI;
-  induction m as [| (i1, t1) m]; intros.
+  destruct a0; try discriminate. simpl in t0. subst t0. simpl in PLAIN.
+  rename id into i0. rename t into t0. 
+  revert H H0. generalize 0 at 1 2 4 5 6 7 8 9. revert i0 t0 v PLAIN NO_REPLI;
+  induction m as [| a1 m]; intros.
   + simpl.
     if_tac; [| congruence].
     solve_mod_modulus.
+    unfold alignof.
    apply derives_refl. 
-  + match goal with
-    | |- _ |-- struct_pred ((i0, t0) :: (i1, t1) :: m) ?P v ?p =>
-           change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p) with
-             (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p);
-           simpl (P (i0, t0) (fst v) p)
+  +
+    destruct a1 as [i1 t1|]; try discriminate.
+   simpl in PLAIN.
+ match goal with
+    | |- _ |-- struct_pred (Member_plain i0 t0 :: Member_plain i1 t1 :: m) ?P v ?p =>
+           change (struct_pred (Member_plain i0 t0 :: Member_plain i1 t1 :: m) P v p) with
+             (P (Member_plain i0 t0) (fst v) p * struct_pred (Member_plain i1 t1 :: m) P (snd v) p);
+           simpl (P (Member_plain i0 t0) (fst v) p)
     end.
     if_tac; [| congruence].
     solve_mod_modulus.
+   destruct v as [v0 v1].
+   rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
+    specialize (IHm i1 t1 v1 PLAIN NO_REPLI (align z (alignof t0) + sizeof t0)).
+    simpl snd.
+    fold (sizeof t0) in *. fold (alignof t0) in *.
     erewrite struct_pred_ext.
-    - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
-      fold (sizeof t0) in *. fold (alignof t0) in *.
-      fold (sizeof t1) in *. fold (alignof t1) in *.
-      eapply derives_trans; [ | apply sepcon_derives; [apply derives_refl | 
-                       apply IHm with (z := align z (alignof t0) + sizeof t0)]];
-        [| now auto
-         | simpl in H |- *; 
+    fold (sizeof t0) in *. fold (alignof t0) in *.
+    fold (sizeof t1) in *. fold (alignof t1) in *.
+     eapply derives_trans; [ | apply sepcon_derives; [apply derives_refl | 
+                       apply IHm]]; clear IHm;
+        [ |  simpl in H |- *; 
           fold (sizeof t0) in *; fold (alignof t0) in *;
           fold (sizeof t1) in *; fold (alignof t1) in *;
           pose_align_le; pose_sizeof_pos; lia
@@ -1468,28 +1489,27 @@ Opaque mapsto_zeros.
           fold (sizeof t0) in *; fold (alignof t0) in *;
           fold (sizeof t1) in *; fold (alignof t1) in *;revert H; pose_align_le; pose_sizeof_pos; intros; lia).
      apply derives_refl';  f_equal; lia.
-    - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
-      auto.
-    - intros. instantiate (1 := (snd v)).
+     auto.
+     intros.
       solve_mod_modulus.
-      unfold fst.
-      pose proof in_members_tail_no_replicate _ _ _ _ NO_REPLI H2.
-      rewrite (neq_field_offset_rec_cons cenv_cs i i0 t0) by auto.
-      rewrite (neq_field_offset_next_rec_cons cenv_cs i i0 t0) by auto.
+      rewrite !name_member_get.
+      assert (i <> name_member (Member_plain i0 t0)).
+      simpl. clear - H2 NOT_IN.  contradict NOT_IN. subst i0. simpl. auto.
+      rewrite (neq_field_offset_rec_cons cenv_cs i (Member_plain i0 t0)) by auto.
+      rewrite (neq_field_offset_next_rec_cons cenv_cs i (Member_plain i0 t0)) by  auto.
       reflexivity.
 Transparent mapsto_zeros.
 Qed.
-
 Lemma memory_block_union_pred: forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
   union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Ptrofs.repr ofs)) =
   memory_block sh sz (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh m sz A v b ofs NIL_CASE; intros.
-  destruct m as [| (i0, t0) m].
+  destruct m as [| a0 m].
   1: rewrite (NIL_CASE eq_refl), memory_block_zero; simpl; normalize.
   clear NIL_CASE.
-  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  revert a0 v; induction m as [| a1 m]; intros.
   + simpl; auto.
   + destruct v.
     - simpl; auto.
@@ -1502,10 +1522,10 @@ Lemma mapsto_zeros_union_pred: forall sh m sz {A} (v: compact_sum (map A m)) b o
   union_pred m (fun it _ => mapsto_zeros sz sh) v (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh m sz A v b ofs NIL_CASE; intros.
-  destruct m as [| (i0, t0) m].
+  destruct m as [| a0 m].
   1: rewrite (NIL_CASE eq_refl), mapsto_zeros_zero; simpl; normalize.
   clear NIL_CASE.
-  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  revert a0 v; induction m as [| a1 m]; intros.
   + simpl; auto.
   + destruct v.
     - simpl; auto.
@@ -1523,15 +1543,15 @@ Open Scope logic.
 Definition array_pred: forall {A: Type}{d: Inhabitant A} (lo hi: Z) (P: Z -> A -> val -> mpred) (v: list A),
     val -> mpred := @array_pred.
 
-Definition struct_pred: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val), mpred := @struct_pred.
+Definition struct_pred: forall (m: members) {A: member -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val), mpred := @struct_pred.
 
-Definition union_pred: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val), mpred := @union_pred.
+Definition union_pred: forall (m: members) {A: member -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val), mpred := @union_pred.
 
 Definition array_Prop: forall {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> Prop) (v: list A), Prop := @array_Prop.
 
-Definition struct_Prop: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> Prop) (v: compact_prod (map A m)), Prop := @struct_Prop.
+Definition struct_Prop: forall (m: members) {A: member -> Type} (P: forall it, A it -> Prop) (v: compact_prod (map A m)), Prop := @struct_Prop.
 
-Definition union_Prop: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> Prop) (v: compact_sum (map A m)), Prop := union_Prop.
+Definition union_Prop: forall (m: members) {A: member -> Type} (P: forall it, A it -> Prop) (v: compact_sum (map A m)), Prop := union_Prop.
 
 Definition array_pred_len_0: forall {A}{d: Inhabitant A} lo hi P p,
   hi = lo ->
@@ -1626,7 +1646,7 @@ Definition struct_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpre
 := @struct_pred_sepcon.
 
 Definition union_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
-  (forall i' (v': A (i', field_type i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
+  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
   in_members i m ->
   members_no_replicate m = true ->
   union_pred m P v p |--
@@ -1638,7 +1658,7 @@ Definition union_pred_ext_derives:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (i, field_type i m) -> members_union_inj v1 (i, field_type i m) ->
+  (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
      P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p
 := @union_pred_ext_derives.
@@ -1647,7 +1667,7 @@ Definition union_pred_ext:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (i, field_type i m) -> members_union_inj v1 (i, field_type i m) ->
+  (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
      P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p
 := @union_pred_ext.
@@ -1668,28 +1688,28 @@ Definition union_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpred
   union_pred m P v p * union_pred m Q v p = union_pred m (fun it => P it * Q it) v p
 := @union_pred_sepcon.
 
-Definition struct_Prop_compact_prod_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
+Definition struct_Prop_compact_prod_gen: forall m (F: member -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
   members_no_replicate m = true ->
-  (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
+  (forall i, in_members i m -> P (get_member i m) (f (get_member i m))) ->
   struct_Prop m P (compact_prod_gen f m)
 := @struct_Prop_compact_prod_gen.
 
-Definition struct_Prop_proj: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) v i d,
+Definition struct_Prop_proj: forall m (F: member -> Type) (P: forall it, F it -> Prop) v i d,
   in_members i m ->
   struct_Prop m P v ->
-  P (i, field_type i m) (proj_struct i m v d)
+  P (get_member i m) (proj_struct i m v d)
 := @struct_Prop_proj.
 
-Definition union_Prop_compact_sum_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
+Definition union_Prop_compact_sum_gen: forall m (F: member -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
   members_no_replicate m = true ->
-  (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
+  (forall i, in_members i m -> P (get_member i m) (f (get_member i m))) ->
   union_Prop m P (compact_sum_gen (fun _ => true) f m)
 := @union_Prop_compact_sum_gen.
 
-Definition union_Prop_proj: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) v i d,
-  members_union_inj v (i, field_type i m) ->
+Definition union_Prop_proj: forall m (F: member -> Type) (P: forall it, F it -> Prop) v i d,
+  members_union_inj v (get_member i m) ->
   union_Prop m P v ->
-  P (i, field_type i m) (proj_union i m v d)
+  P (get_member i m) (proj_union i m v d)
 := @union_Prop_proj.
 
 Definition array_pred_local_facts: forall {A} {d: Inhabitant A} lo hi P v p Q,
@@ -1699,13 +1719,13 @@ Definition array_pred_local_facts: forall {A} {d: Inhabitant A} lo hi P v p Q,
 
 Definition struct_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
   members_no_replicate m = true ->
-  (forall i v0, in_members i m -> P (i, field_type i m) v0 p |-- !! R _ v0) ->
+  (forall i v0, in_members i m -> P (get_member i m) v0 p |-- !! R _ v0) ->
   struct_pred m P v p |-- !! struct_Prop m R v
 := @struct_pred_local_facts.
 
 Definition union_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
   members_no_replicate m = true ->
-  (forall i v0, in_members i m -> P (i, field_type i m) v0 p |-- !! R _ v0) ->
+  (forall i v0, in_members i m -> P (get_member i m) v0 p |-- !! R _ v0) ->
   union_pred m P v p |-- !! union_Prop m R v
 := @union_pred_local_facts.
 
@@ -1725,88 +1745,91 @@ Context {cs: compspecs}.
 
 Variable sh: share.
 
-Definition struct_data_at_rec_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)) : (val -> mpred).
+Definition struct_data_at_rec_aux (m m0: members) (sz: Z) 
+       (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m))
+       (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)) : (val -> mpred).
 Proof.
-  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
-  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
+  destruct m as [| a0 m]; [exact (fun _ => emp) |].
+  revert a0 v P; induction m as [| a0 m]; intros ? v P.
   + simpl in v, P.
     inversion P; subst.
     exact (withspacer sh
-            (field_offset cenv_cs i0 m0 + sizeof (field_type i0 m0))
-            (field_offset_next cenv_cs i0 m0 sz)
-            (at_offset (a v) (field_offset cenv_cs i0 m0))).
+            (field_offset cenv_cs (name_member a0) m0 + sizeof (field_type (name_member a0) m0))
+            (field_offset_next cenv_cs (name_member a0) m0 sz)
+            (at_offset (a v) (field_offset cenv_cs (name_member a0) m0))).
   + simpl in v, P.
-    destruct (ident_eq i1 i1); [| congruence].
+(*    destruct (ident_eq (name_member a1) (name_member a1)); [| congruence]. *)
     inversion P; subst.
     exact (withspacer sh
-            (field_offset cenv_cs i1 m0 + sizeof (field_type i1 m0))
-            (field_offset_next cenv_cs i1 m0 sz)
-            (at_offset (a (fst v)) (field_offset cenv_cs i1 m0)) * IHm i0 t0 (snd v) b)%logic.
+            (field_offset cenv_cs (name_member a1) m0 + sizeof (field_type (name_member a1) m0))
+            (field_offset_next cenv_cs (name_member a1) m0 sz)
+            (at_offset (a (fst v)) (field_offset cenv_cs (name_member a1) m0)) * IHm a0 (snd v) b)%logic.
 Defined.
 
-Definition union_data_at_rec_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)) : (val -> mpred).
+Definition union_data_at_rec_aux (m m0: members) (sz: Z)
+      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m))
+      (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)) : (val -> mpred).
 Proof.
-  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
-  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
+  destruct m as [| a0 m]; [exact (fun _ => emp) |].
+  revert a0 v P; induction m as [| a0 m]; intros ? v P.
   + simpl in v, P.
     inversion P; subst.
-    exact (withspacer sh (sizeof (field_type i0 m0)) sz (a v)).
+    exact (withspacer sh (sizeof (field_type (name_member a0) m0)) sz (a v)).
   + simpl in v, P.
     inversion P; subst.
     destruct v as [v | v].
-    - exact (withspacer sh (sizeof (field_type i1 m0)) sz (a v)).
-    - exact (IHm i0 t0 v b).
+    - exact (withspacer sh (sizeof (field_type (name_member a1) m0)) sz (a v)).
+    - exact (IHm a0 v b).
 Defined.
 
 Lemma struct_data_at_rec_aux_spec: forall m m0 sz v P,
   struct_data_at_rec_aux m m0 sz
    (ListTypeGen
-     (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
+     (fun it => reptype (field_type (name_member it) m0) -> val -> mpred)
      P m) v =
   struct_pred m
    (fun it v =>
       withspacer sh
-       (field_offset cenv_cs (fst it) m0 + sizeof (field_type (fst it) m0))
-       (field_offset_next cenv_cs (fst it) m0 sz)
-       (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v.
+       (field_offset cenv_cs (name_member it) m0 + sizeof (field_type (name_member it) m0))
+       (field_offset_next cenv_cs (name_member it) m0 sz)
+       (at_offset (P it v) (field_offset cenv_cs (name_member it) m0))) v.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [reflexivity |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
+  destruct m as [| a0 m]; [reflexivity |].
+  revert a0 v; induction m as [| a0 m]; intros.
   + simpl; reflexivity.
   + replace
-     (struct_data_at_rec_aux ((i1, t1) :: (i0, t0) :: m) m0 sz
-     (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> val -> mpred)
-        P ((i1, t1) :: (i0, t0) :: m)) v) with
+     (struct_data_at_rec_aux (a1 :: a0 :: m) m0 sz
+     (ListTypeGen (fun it : member => reptype (field_type (name_member it) m0) -> val -> mpred)
+        P (a1 :: a0 :: m)) v) with
      (withspacer sh
-       (field_offset cenv_cs i1 m0 + sizeof (field_type i1 m0))
-         (field_offset_next cenv_cs i1 m0 sz)
-           (at_offset (P (i1, t1) (fst v)) (field_offset cenv_cs i1 m0)) *
-      struct_data_at_rec_aux ((i0, t0) :: m) m0 sz
-     (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> val -> mpred)
-        P ((i0, t0) :: m)) (snd v))%logic.
+       (field_offset cenv_cs (name_member a1) m0 + sizeof (field_type (name_member a1) m0))
+         (field_offset_next cenv_cs (name_member a1) m0 sz)
+           (at_offset (P a1 (fst v)) (field_offset cenv_cs (name_member a1) m0)) *
+      struct_data_at_rec_aux (a0 :: m) m0 sz
+     (ListTypeGen (fun it : member => reptype (field_type (name_member it) m0) -> val -> mpred)
+        P (a0 :: m)) (snd v))%logic.
     - rewrite IHm.
       reflexivity.
     - simpl.
-      destruct (ident_eq i1 i1); [| congruence].
       reflexivity.
 Qed.
 
 Lemma union_data_at_rec_aux_spec: forall m m0 sz v P,
   union_data_at_rec_aux m m0 sz
    (ListTypeGen
-     (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
+     (fun it => reptype (field_type (name_member it) m0) -> val -> mpred)
      P m) v =
   union_pred m
    (fun it v =>
       withspacer sh
-       (sizeof (field_type (fst it) m0))
+       (sizeof (field_type (name_member it) m0))
        sz
        (P it v)) v.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [reflexivity |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
+  destruct m as [| a0 m]; [reflexivity |].
+  revert a0 v; induction m as [| a0 m]; intros.
   + simpl. unfold union_pred. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
@@ -1817,26 +1840,25 @@ Proof.
 Qed.
 
 Definition struct_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m))
-      (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)) : Prop.
+      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
+      (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)) : Prop.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact True |].
-  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
+  destruct m as [| a0 m]; [exact True |].
+  revert a0 v P; induction m as [| a0 m]; intros ? v P.
   + simpl in v, P.
     inversion P; subst.
     apply (a v).
   + simpl in v, P.
-    destruct (ident_eq i1 i1); [| congruence].
     inversion P; subst.
-    apply (a (fst v) /\ IHm i0 t0 (snd v) b).
+    apply (a (fst v) /\ IHm a0 (snd v) b).
 Defined.
 
 Definition union_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m))
-      (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)) : Prop.
+      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
+      (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)) : Prop.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact True |].
-  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
+  destruct m as [| a0 m]; [exact True |].
+  revert a0 v P; induction m as [| a0 m]; intros ? v P.
   + simpl in v, P.
     inversion P; subst.
     exact (a v).
@@ -1844,44 +1866,43 @@ Proof.
     inversion P; subst.
     destruct v as [v | v].
     - exact (a v).
-    - exact (IHm i0 t0 v b).
+    - exact (IHm a0 v b).
 Defined.
 
 Lemma struct_value_fits_aux_spec: forall m m0 v P,
   struct_value_fits_aux m m0
    (ListTypeGen
-     (fun it => reptype (field_type (fst it) m0) -> Prop)
+     (fun it => reptype (field_type (name_member it) m0) -> Prop)
      P m) v =
   struct_Prop m P v.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [reflexivity |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
+  destruct m as [| a0 m]; [reflexivity |].
+  revert a0 v; induction m as [| a0 m]; intros.
   + simpl; reflexivity.
   + replace
-     (struct_value_fits_aux ((i1, t1) :: (i0, t0) :: m) m0
-     (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> Prop)
-        P ((i1, t1) :: (i0, t0) :: m)) v) with
-     (P (i1, t1) (fst v) /\  struct_value_fits_aux ((i0, t0) :: m) m0
-     (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> Prop)
-        P ((i0, t0) :: m)) (snd v)).
+     (struct_value_fits_aux (a1 :: a0 :: m) m0
+     (ListTypeGen (fun it : member => reptype (field_type (name_member it) m0) -> Prop)
+        P (a1 :: a0 :: m)) v) with
+     (P a1 (fst v) /\  struct_value_fits_aux (a0 :: m) m0
+     (ListTypeGen (fun it : member => reptype (field_type (name_member it) m0) -> Prop)
+        P (a0 :: m)) (snd v)).
     - rewrite IHm.
       reflexivity.
     - simpl.
-      destruct (ident_eq i1 i1); [| congruence].
       reflexivity.
 Qed.
 
 Lemma union_value_fits_aux_spec: forall m m0 v P,
   union_value_fits_aux m m0
    (ListTypeGen
-     (fun it => reptype (field_type (fst it) m0) -> Prop)
+     (fun it => reptype (field_type (name_member it) m0) -> Prop)
      P m) v =
   union_Prop m P v.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [reflexivity |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
+  destruct m as [| a0 m]; [reflexivity |].
+  revert a0 v; induction m as [| a0 m]; intros.
   + simpl. unfold union_Prop. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
@@ -1898,55 +1919,59 @@ Module auxiliary_pred.
 Import aggregate_pred.
 
 Definition struct_data_at_rec_aux:
-   forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)), (val -> mpred)
+   forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) 
+     (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m)) 
+     (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)), (val -> mpred)
 := @struct_data_at_rec_aux.
 
 Definition union_data_at_rec_aux:
-  forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)), (val -> mpred)
+  forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) 
+    (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m)) 
+    (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)), (val -> mpred)
 := @union_data_at_rec_aux.
 
 Definition struct_data_at_rec_aux_spec: forall {cs: compspecs} (sh: share) m m0 sz v P,
   struct_data_at_rec_aux sh m m0 sz
    (ListTypeGen
-     (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
+     (fun it => reptype (field_type (name_member it) m0) -> val -> mpred)
      P m) v =
   struct_pred m
    (fun it v =>
       withspacer sh
-       (field_offset cenv_cs (fst it) m0 + sizeof (field_type (fst it) m0))
-       (field_offset_next cenv_cs (fst it) m0 sz)
-       (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v
+       (field_offset cenv_cs (name_member it) m0 + sizeof (field_type (name_member it) m0))
+       (field_offset_next cenv_cs (name_member it) m0 sz)
+       (at_offset (P it v) (field_offset cenv_cs (name_member it) m0))) v
 := @struct_data_at_rec_aux_spec.
 
 Definition union_data_at_rec_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
   union_data_at_rec_aux sh m m0 sz
    (ListTypeGen
-     (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
+     (fun it => reptype (field_type (name_member it) m0) -> val -> mpred)
      P m) v =
   union_pred m
    (fun it v =>
       withspacer sh
-       (sizeof (field_type (fst it) m0))
+       (sizeof (field_type (name_member it) m0))
        sz
        (P it v)) v
 := @union_data_at_rec_aux_spec.
 
 Definition struct_value_fits_aux:
   forall {cs: compspecs} (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m))
-      (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)), Prop
+      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
+      (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)), Prop
 := @struct_value_fits_aux.
 
 Definition union_value_fits_aux:
   forall {cs: compspecs} (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m))
-      (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)), Prop
+      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
+      (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)), Prop
 := @union_value_fits_aux.
 
 Definition struct_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
   struct_value_fits_aux m m0
    (ListTypeGen
-     (fun it => reptype (field_type (fst it) m0) -> Prop)
+     (fun it => reptype (field_type (name_member it) m0) -> Prop)
      P m) v =
   struct_Prop m P v
 := @struct_value_fits_aux_spec.
@@ -1954,7 +1979,7 @@ Definition struct_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
 Definition union_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
   union_value_fits_aux m m0
    (ListTypeGen
-     (fun it => reptype (field_type (fst it) m0) -> Prop)
+     (fun it => reptype (field_type (name_member it) m0) -> Prop)
      P m) v =
   union_Prop m P v
 := @union_value_fits_aux_spec.
@@ -1986,27 +2011,29 @@ Definition mapsto_zeros_array_pred:
 Definition memory_block_struct_pred:
   forall {cs: compspecs} sh m sz {A} (v: compact_prod (map A m)) b ofs,
   (m = nil -> sz = 0) ->
+  plain_members m = true ->
   members_no_replicate m = true ->
   sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
   0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
   struct_pred m
    (fun it _ p =>
-     (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
-     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Ptrofs.repr ofs)) =
+     (memory_block sh (field_offset_next cenv_cs (name_member it) m sz - field_offset cenv_cs (name_member it) m))
+     (offset_val (field_offset cenv_cs (name_member it) m) p)) v (Vptr b (Ptrofs.repr ofs)) =
   memory_block sh sz (Vptr b (Ptrofs.repr ofs))
 := @memory_block_struct_pred.
 
 Definition mapsto_zeros_struct_pred:
   forall {cs: compspecs} sh m sz {A} (v: compact_prod (map A m)) b ofs,
   (m = nil -> sz = 0) ->
+  plain_members m = true ->
   members_no_replicate m = true ->
   sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
   0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
   mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
   struct_pred m
    (fun it _ p =>
-     (mapsto_zeros (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m)) sh
-     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Ptrofs.repr ofs))
+     (mapsto_zeros (field_offset_next cenv_cs (name_member it) m sz - field_offset cenv_cs (name_member it) m)) sh
+     (offset_val (field_offset cenv_cs (name_member it) m) p)) v (Vptr b (Ptrofs.repr ofs))
 := @mapsto_zeros_struct_pred.
 
 Definition memory_block_union_pred:

@@ -248,7 +248,7 @@ nat_ind (fun n0 : nat => forall m : nat, m <= n0 -> max n0 m = n0)
        fun H : S m0 <= 0 =>
        (fun H0 : 0 = 0 -> S m0 = 0 => H0 eq_refl)
          match H in (_ <= n0) return (n0 = 0 -> S m0 = 0) with
-         | le_n =>
+         | le_n _ =>
              fun H0 : S m0 = 0 =>
              (fun H1 : S m0 = 0 =>
               (fun H2 : False =>
@@ -259,7 +259,7 @@ nat_ind (fun n0 : nat => forall m : nat, m <= n0 -> max n0 m = n0)
                     | 0 => False
                     | S _ => True
                     end) I 0 H1)) H0
-         | le_S m1 H0 =>
+         | le_S _ m1 H0 =>
              fun H1 : S m1 = 0 =>
              (fun H2 : S m1 = 0 =>
               (fun H3 : False =>
@@ -293,7 +293,7 @@ nat_ind (fun n0 : nat => forall m : nat, n0 <= m -> max n0 m = m)
        fun H : S n0 <= 0 =>
        (fun H0 : 0 = 0 -> S n0 = 0 => H0 eq_refl)
          match H in (_ <= n1) return (n1 = 0 -> S n0 = 0) with
-         | le_n =>
+         | le_n _ =>
              fun H0 : S n0 = 0 =>
              (fun H1 : S n0 = 0 =>
               (fun H2 : False =>
@@ -304,7 +304,7 @@ nat_ind (fun n0 : nat => forall m : nat, n0 <= m -> max n0 m = m)
                     | 0 => False
                     | S _ => True
                     end) I 0 H1)) H0
-         | le_S m0 H0 =>
+         | le_S _ m0 H0 =>
              fun H1 : S m0 = 0 =>
              (fun H2 : S m0 = 0 =>
               (fun H3 : False =>
@@ -371,11 +371,11 @@ apply lt_le_weak; auto.
 Defined.
 
 Lemma rank_type_members:
-  forall ce id t m, In (id, t) m -> (rank_type ce t <= rank_members ce m)%nat.
+  forall ce m1 m, In m1 m -> (rank_type ce (type_member m1) <= rank_members ce m)%nat.
 Proof.
-  induction m; simpl; intros; intuition auto.
-  subst a.
+  induction m as [|[|]]; simpl; intros; intuition auto; try subst m1.
   apply le_max_l.
   eapply le_trans; [eassumption | ].
   apply le_max_r.
+  apply Peano.le_0_n.
 Defined.

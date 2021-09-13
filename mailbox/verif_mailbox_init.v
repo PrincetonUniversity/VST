@@ -134,7 +134,7 @@ Proof.
       inv H2. inv H.
       specialize (H7 0 ltac:(lia)).
       simpl.
-      eapply align_compatible_rec_Tstruct; [reflexivity |].
+      eapply align_compatible_rec_Tstruct; [reflexivity.. |].
       intros.
       inv H.
       if_tac in H5; [| inv H5].
@@ -216,9 +216,6 @@ Proof.
     destruct Hj2 as (sh' & ? & Hsh').
     erewrite <- data_at_share_join with (sh0 := sh) by (apply Hsh').
     forward_call (l, Ews, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
-(*    { entailer!. }
-    { entailer!. }
-*)
     { lock_props.
       fast_cancel.
       unfold AE_inv.

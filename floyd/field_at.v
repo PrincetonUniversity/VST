@@ -24,14 +24,14 @@ Section CENV.
 Context {cs: compspecs}.
 
 Lemma struct_Prop_cons2:
-  forall it it' m (A: ident*type -> Type)
+  forall it it' m (A: member -> Type)
    (P: forall it, A it -> Prop)
    (v: compact_prod (map A (it::it'::m))),
  struct_Prop (it :: it' :: m) P v =
     (P _ (fst v) /\ struct_Prop (it'::m) P (snd v)).
 Proof.
 intros.
-destruct v. destruct it, it'.
+destruct v.
 reflexivity.
 Qed.
 
@@ -41,69 +41,70 @@ Lemma struct_Prop_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> Prop) (
      P0 _ (proj_struct i m v0 d0) -> P1 _ (proj_struct i m v1 d1)) ->
   struct_Prop m P0 v0 -> struct_Prop m P1 v1.
 Proof.
-(*  unfold proj_struct, field_type, fieldlist.field_type2. *)
   intros. revert H1.
-  destruct m as [| (i0, t0) m]; [simpl; auto |].
-  revert i0 t0 v0 v1 H H0; induction m as [| (i1, t1) m]; intros.
-  + specialize (H0 i0).
+  destruct m as [| a0 m]; [simpl; auto |].
+  revert a0 v0 v1 H H0; induction m as [| a1 m]; intros.
+  + specialize (H0 (name_member a0)).
     simpl in H0.
     unfold field_type, Ctypes.field_type in H0.
     simpl in H0.
-    destruct (ident_eq i0 i0); [ | congruence].
+    rewrite if_true in H0 by auto.
     specialize (H0 v0 v1).
     spec H0; [left; reflexivity |].
-    destruct (type_eq t0 t0); [ | congruence].
+    destruct (member_dec a0 a0); [ | congruence].
     unfold eq_rect_r in H0; rewrite <- !eq_rect_eq in H0.
     simpl. auto.
   +
     revert H1.
-    change (struct_Prop ((i0, t0) :: (i1, t1) :: m) P0 v0) with
-      (P0 (i0, t0) (fst v0) /\ struct_Prop ((i1, t1) :: m) P0 (snd v0)).
-    change (struct_Prop ((i0, t0) :: (i1, t1) :: m) P1 v1) with
-      (P1 (i0, t0) (fst v1) /\ struct_Prop ((i1, t1) :: m) P1 (snd v1)).
+    change (struct_Prop (a0 :: a1 :: m) P0 v0) with
+      (P0 a0 (fst v0) /\ struct_Prop (a1 :: m) P0 (snd v0)).
+    change (struct_Prop (a0 :: a1 :: m) P1 v1) with
+      (P1 a0 (fst v1) /\ struct_Prop (a1 :: m) P1 (snd v1)).
      intro.
       rewrite fieldlist.members_no_replicate_ind in H.
       destruct H as [H H'].
-       specialize (IHm i1 t1 (snd v0) (snd v1) H').
+       specialize (IHm a1 (snd v0) (snd v1) H').
       split.
     - destruct H1 as [H1 _]; revert H1.
-      specialize (H0 i0).
+      specialize (H0 (name_member a0)).
       unfold proj_struct in H0.
       revert H0; unfold field_type; simpl.
-      destruct (ident_eq i0 i0); [ | congruence].
-    destruct (type_eq t0 t0); [ | congruence].
+      rewrite if_true by auto.
+    destruct (member_dec a0 a0); [ | congruence].
       unfold eq_rect_r; rewrite <- !eq_rect_eq.
       intros. apply (H0 (fst v0) (fst v1)); auto.
       hnf. left; reflexivity.
     -  destruct H1 as [_ H1]; revert H1.
       apply IHm; clear IHm.
-      assert (i0<>i1) by (contradict H; left; auto).
+      assert (name_member a0 <> name_member a1) by (contradict H; left; auto).
       intros.
       specialize (H0 i).
-      assert (i<>i0). contradict H1. subst i0. contradiction.
+      assert (i<> name_member a0). contradict H1. subst i. contradiction.
       clear H H'.
-      assert (field_type i ((i0, t0) :: (i1, t1) :: m) = field_type i ((i1,t1)::m))
-         by (unfold field_type; simpl; rewrite if_false; auto).
+      assert (get_member i (a0::a1::m) = get_member i (a1::m))
+         by (simpl; rewrite if_false; auto).
       unfold proj_struct in *.
       rewrite H in H0.
       specialize (H0 d0 d1).
       spec H0; [unfold in_members; right; auto | ].
-      assert (proj_compact_prod (i, field_type i ((i1, t1) :: m))
-                  ((i0, t0) :: (i1, t1) :: m) v0 d0 member_dec =
-                proj_compact_prod (i, field_type i ((i1, t1) :: m)) ((i1, t1) :: m)
+      assert (proj_compact_prod (get_member i (a1 :: m))
+                  (a0 :: a1 :: m) v0 d0 member_dec =
+                proj_compact_prod (get_member i (a1:: m)) (a1 :: m)
                  (snd v0) d0 member_dec).
          clear - H1 H4.
          unfold proj_compact_prod. unfold list_rect; cbv beta iota.
-         destruct (member_dec (i, field_type i ((i1, t1) :: m)) (i0,t0)); [congruence | ].
+         destruct (member_dec (get_member i (a1 :: m)) a0).
+         elimtype False. subst a0. rewrite name_member_get in H1, H4. contradiction.
          reflexivity.
       rewrite H5 in H0; clear H5.
-      assert (proj_compact_prod (i, field_type i ((i1, t1) :: m))
-                  ((i0, t0) :: (i1, t1) :: m) v1 d1 member_dec =
-                proj_compact_prod (i, field_type i ((i1, t1) :: m)) ((i1, t1) :: m)
+      assert (proj_compact_prod (get_member i (a1 :: m))
+                  (a0 :: a1 :: m) v1 d1 member_dec =
+                proj_compact_prod (get_member i (a1 :: m)) (a1 :: m)
                  (snd v1) d1 member_dec).
          clear - H1 H4.
          unfold proj_compact_prod. unfold list_rect; cbv beta iota.
-         destruct (member_dec (i, field_type i ((i1, t1) :: m)) (i0,t0)); [congruence | ].
+         destruct (member_dec (get_member i (a1 :: m)) a0).
+         elimtype False. subst a0. rewrite name_member_get in H1, H4. contradiction.
          reflexivity.
       rewrite H5 in H0; clear H5.
      apply H0; auto.
@@ -135,10 +136,33 @@ Definition data_at (sh: Share.t) (t: type) (v: reptype t) := field_at sh t nil v
 Definition data_at_ (sh: Share.t) (t: type) := field_at_ sh t nil.
 
 Definition nested_reptype_structlist t gfs (m: members) :=
-  compact_prod (map (fun it => reptype (nested_field_type t (StructField (fst it) :: gfs))) m).
+  compact_prod (map (fun it => reptype (nested_field_type t (StructField (name_member it) :: gfs))) m).
 
 Definition nested_reptype_unionlist t gfs (m: members) :=
-  compact_sum (map (fun it => reptype (nested_field_type t (UnionField (fst it) :: gfs))) m).
+  compact_sum (map (fun it => reptype (nested_field_type t (UnionField (name_member it) :: gfs))) m).
+
+Lemma map_members_ext: forall A (f f':member -> A) (m: list member),
+  members_no_replicate m = true ->
+  (forall i, in_members i m -> f (get_member i m)= f' (get_member i m)) ->
+  map f m = map f' m.
+Proof.
+  intros.
+  induction m as [| a0 m].
+  + reflexivity.
+  + simpl.
+    rewrite members_no_replicate_ind in H.
+    f_equal.
+    - specialize (H0 (name_member a0)).
+      unfold field_type, in_members in H0.
+      simpl in H0; if_tac in H0; [| congruence].
+      apply H0; auto.
+    - apply IHm. tauto.
+      intros.
+      specialize (H0 i).
+      unfold in_members in H0.
+      simpl in H0; if_tac in H0; [subst; tauto |].
+      apply H0; auto.
+Defined.
 
 Lemma nested_reptype_structlist_lemma: forall t gfs id a,
   nested_field_type t gfs = Tstruct id a ->
@@ -176,10 +200,10 @@ Definition nested_sfieldlist_at sh t gfs m (v: nested_reptype_structlist t gfs m
   | _ => struct_pred m (fun it v p =>
            withspacer sh
             (nested_field_offset t gfs +
-              (field_offset cenv_cs (fst it) m + sizeof (field_type (fst it) m)))
+              (field_offset cenv_cs (name_member it) m + sizeof (field_type (name_member it) m)))
             (nested_field_offset t gfs +
-              field_offset_next cenv_cs (fst it) m (sizeof (nested_field_type t gfs)))
-            (field_at sh t (StructField (fst it) :: gfs) v) p) v p
+              field_offset_next cenv_cs (name_member it) m (sizeof (nested_field_type t gfs)))
+            (field_at sh t (StructField (name_member it) :: gfs) v) p) v p
   end.
 
 Definition nested_ufieldlist_at sh t gfs m (v: nested_reptype_unionlist t gfs m) (p: val): mpred :=
@@ -187,9 +211,9 @@ Definition nested_ufieldlist_at sh t gfs m (v: nested_reptype_unionlist t gfs m)
   | nil => (!! field_compatible t gfs p) && emp
   | _ => union_pred m (fun it v p =>
            withspacer sh
-            (nested_field_offset t gfs + sizeof (field_type (fst it) m))
+            (nested_field_offset t gfs + sizeof (field_type (name_member it) m))
             (nested_field_offset t gfs + sizeof (nested_field_type t gfs))
-            (field_at sh t (UnionField (fst it) :: gfs) v) p) v p
+            (field_at sh t (UnionField (name_member it) :: gfs) v) p) v p
   end.
 
 Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
@@ -513,37 +537,55 @@ Proof.
   solve_mod_modulus.
   normalize.
   destruct (legal_nested_field_dec t (StructField i :: gfs)).
-  2:{
-    replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
-      by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
-    simpl in n.
-    rewrite H in n.
-    simpl in n.
-    replace (!!field_compatible t gfs (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
-      by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
-    normalize.
+ 2:{
+    assert (~field_compatible t gfs (Vptr b (Ptrofs.repr ofs)))
+     by (clear - n H H1; unfold field_compatible; contradict n; simpl; rewrite H; simpl; tauto).
+    assert (~field_compatible t
+     (gfs DOT name_member (get_member i (co_members (get_co id))))
+     (Vptr b (Ptrofs.repr ofs)))
+    by (clear - n H H1; unfold field_compatible; simpl in *; rewrite H in *; simpl in *; tauto).
+    rewrite !prop_false_andp by auto; auto.
   }
+  f_equal.
+  {
+   f_equal.
+   unfold field_compatible.
+   f_equal. f_equal. f_equal. f_equal.
+   simpl. apply prop_ext.
+   split; intro; try tauto. split; auto.
+    rewrite H. simpl. rewrite name_member_get. auto.
+  }
+  replace  (field_offset cenv_cs (name_member (get_member i (co_members (get_co id)))))
+   with  (field_offset cenv_cs i)
+    by (rewrite name_member_get; auto).
+  replace  (field_offset_next cenv_cs (name_member (get_member i (co_members (get_co id)))))
+   with  (field_offset_next cenv_cs i)
+    by (rewrite name_member_get; auto).
+  f_equal.
+  f_equal.
+  rewrite name_member_get. 
+  change (sizeof ?A) with (expr.sizeof A) in *.
+  rewrite sizeof_Tstruct. lia.
+  f_equal. f_equal. 
+  rewrite name_member_get.  lia.
+  match goal with |- data_at_rec _ _ _ ?A = data_at_rec _ _ _ ?B => replace B with A end.
+ 2:{ f_equal. f_equal.
+  rewrite name_member_get.
   rewrite nested_field_offset_ind with (gfs0 := StructField i :: gfs) by auto.
-  unfold gfield_offset; rewrite H.
-  f_equal; [| f_equal].
-  + apply ND_prop_ext.
-    rewrite field_compatible_cons, H; tauto.
-  + change (sizeof ?A) with (expr.sizeof A) in *.
-    rewrite sizeof_Tstruct.
-    f_equal; [| f_equal; f_equal]; lia.
-  + rewrite Z.add_assoc.
-    erewrite data_at_rec_type_changable; [reflexivity | |].
-    - simpl.
-      rewrite nested_field_type_ind.
+  unfold gfield_offset; rewrite H. lia.
+  }
+  apply equal_f.
+  apply data_at_rec_type_changable.
+  rewrite nested_field_type_ind.
       simpl; rewrite H.
       auto.
-    - apply (proj_compact_prod_JMeq _ (i, field_type i _) (co_members (get_co id)) _ _ (unfold_reptype v1) v2); auto.
+  apply (proj_compact_prod_JMeq _ (get_member i _) (co_members (get_co id)) _ _ (unfold_reptype v1) v2); auto.
       * intros.
         rewrite nested_field_type_ind, H.
         unfold gfield_type.
         rewrite In_field_type; auto.
         apply get_co_members_no_replicate.
-      * apply in_members_field_type; auto.
+      * apply in_get_member; auto.
       * clear - H0.
         eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
@@ -562,21 +604,6 @@ Proof.
   generalize (eq_refl (co_members (get_co id))).
   generalize (co_members (get_co id)) at 2 3 9; intro m; destruct m; [auto |].
   intro HH; assert (co_members (get_co id) <> nil) by congruence; clear HH.
-
-  assert (
-   forall i : ident,
-   in_members i (co_members (get_co id)) ->
-   reptype (snd (i, field_type i (co_members (get_co id)))) =
-   reptype
-     (nested_field_type t
-        (UnionField (fst (i, field_type i (co_members (get_co id)))) :: gfs))).
-  {
-    clear - H.
-    intros.
-    unfold fst, snd.
-    rewrite nested_field_type_ind, H.
-    reflexivity.
-  }
   apply union_pred_ext; [apply get_co_members_no_replicate | |].
   {
     apply compact_sum_inj_JMeq; auto.
@@ -587,12 +614,6 @@ Proof.
   }
   intros.
   destruct_ptr p.
-  assert (in_members i (co_members (get_co id))).
-  {
-    change i with (fst (i, field_type i (co_members (get_co id)))).
-    apply in_map with (f := fst).
-    eapply compact_sum_inj_in; eauto.
-  }
   unfold field_at, fst, snd.
   autorewrite with at_offset_db.
   unfold offset_val.
@@ -600,8 +621,8 @@ Proof.
   normalize.
   destruct (legal_nested_field_dec t (UnionField i :: gfs)).
   2:{
-    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
-      by (apply ND_prop_ext; unfold field_compatible; tauto).
+    replace (!!field_compatible t (UnionField (name_member (get_member i (co_members (get_co id)))) :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
+     by (rewrite name_member_get; apply ND_prop_ext; unfold field_compatible; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
@@ -609,23 +630,26 @@ Proof.
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     normalize.
   }
+  f_equal.
+  apply ND_prop_ext.
+  rewrite name_member_get, field_compatible_cons, H; tauto.
+  f_equal. rewrite name_member_get.
+  f_equal. rewrite sizeof_Tunion. lia.
+  f_equal. f_equal. lia.
+  match goal with |- data_at_rec _ _ _ ?A = data_at_rec _ _ _ ?B => replace B with A end.
+ 2:{ f_equal. f_equal.
+  rewrite name_member_get.
   rewrite nested_field_offset_ind with (gfs0 := UnionField i :: gfs) by auto.
-  unfold gfield_offset; rewrite H.
-  change (sizeof ?A) with (expr.sizeof A) in *.
-  f_equal; [| f_equal].
-  + apply ND_prop_ext.
-    rewrite field_compatible_cons, H; tauto.
-  + rewrite sizeof_Tunion.
-    f_equal; [| f_equal; f_equal]; lia.
-  + rewrite Z.add_0_r.
-    erewrite data_at_rec_type_changable; [reflexivity | |].
-    - simpl.
-      rewrite nested_field_type_ind.
-      simpl; rewrite H.
-      auto.
-    - unfold proj_union.
-      apply (proj_compact_sum_JMeq _ (i, field_type i (co_members (get_co id))) (co_members (get_co id)) d0 d1 (unfold_reptype v1) v2); auto.
-      * intros (i0, t0) ?.
+  unfold gfield_offset; rewrite H. lia.
+  }
+  apply equal_f.
+  apply data_at_rec_type_changable.
+  rewrite name_member_get.
+  rewrite nested_field_type_ind.
+  rewrite H; reflexivity.
+  unfold proj_union.
+      apply (proj_compact_sum_JMeq _ (get_member i _) (co_members (get_co id)) d0 d1 (unfold_reptype v1) v2); auto.
+      * intros a0 ?.
         rewrite nested_field_type_ind, H.
         simpl.
         auto.
@@ -1222,18 +1246,19 @@ Lemma nested_sfieldlist_at_ramif: forall sh t gfs id a i v p,
   nested_field_type t gfs = Tstruct id a ->
   in_members i (co_members (get_co id)) ->
   nested_sfieldlist_at sh t gfs (co_members (get_co id)) v p |--
-  field_at sh t (StructField i :: gfs)
+  field_at sh t (StructField (name_member (get_member i (co_members (get_co id)))) :: gfs)
     (proj_struct i (co_members (get_co id)) v d) p *
       (ALL v0: _,
-         field_at sh t (StructField i :: gfs) v0 p -*
+         field_at sh t (StructField (name_member (get_member i (co_members (get_co id)))) :: gfs) v0 p -*
            nested_sfieldlist_at sh t gfs (co_members (get_co id))
             (upd_struct i (co_members (get_co id)) v v0) p).
 Proof.
   intros.
-  destruct (co_members (get_co id)) eqn:?; [inv H0 |].
-  revert v d H0; rewrite <- Heqm; intros.
+  pose proof (get_co_members_no_replicate id).
+ forget (co_members (get_co id)) as m.
+ destruct m; [inv H0|].
+  revert v d H0; intros.
   unfold nested_sfieldlist_at.
-  pattern (co_members (get_co id)) at 1 7; rewrite Heqm.
 
   match goal with
   | |- _ |-- _ * (ALL v0: _, ?A1 v0 p -* ?A2 (?A3 v0) p) =>
@@ -1244,17 +1269,16 @@ Proof.
 
   Opaque struct_pred. eapply @RAMIF_Q.trans. Transparent struct_pred.
   2:{
-    apply (struct_pred_ramif (co_members (get_co id))
+    apply (struct_pred_ramif (m::m0)
             (fun it v p =>
               withspacer sh
                 (nested_field_offset t gfs +
-                (field_offset cenv_cs (fst it) (co_members (get_co id)) +
-                 sizeof (field_type (fst it) (co_members (get_co id)))))
+                (field_offset cenv_cs (name_member it) (m::m0) +
+                 sizeof (field_type (name_member it) (m::m0))))
                 (nested_field_offset t gfs +
-                 field_offset_next cenv_cs (fst it) (co_members (get_co id))
+                 field_offset_next cenv_cs (name_member it) (m::m0)
                    (sizeof (nested_field_type t gfs)))
-                (field_at sh t (gfs DOT fst it) v) p)); auto.
-    apply get_co_members_no_replicate.
+                (field_at sh t (gfs DOT name_member it) v) p)); auto.
   }
   2:{
     apply withspacer_ramif_Q.
@@ -1268,18 +1292,18 @@ Lemma nested_ufieldlist_at_ramif: forall sh t gfs id a i v p,
   nested_field_type t gfs = Tunion id a ->
   in_members i (co_members (get_co id)) ->
   nested_ufieldlist_at sh t gfs (co_members (get_co id)) v p |--
-  field_at sh t (UnionField i :: gfs)
+  field_at sh t (UnionField (name_member (get_member i (co_members (get_co id)))) :: gfs)
     (proj_union i (co_members (get_co id)) v d) p *
       (ALL v0: _,
-         field_at sh t (UnionField i :: gfs) v0 p -*
+         field_at sh t (UnionField (name_member (get_member i (co_members (get_co id)))) :: gfs) v0 p -*
            nested_ufieldlist_at sh t gfs (co_members (get_co id))
             (upd_union i (co_members (get_co id)) v v0) p).
 Proof.
   intros.
-  destruct (co_members (get_co id)) eqn:?; [inv H0 |].
-  revert v d H0; rewrite <- Heqm; intros.
+  pose proof (get_co_members_no_replicate id).
+ destruct (co_members (get_co id)) eqn:?; [inv H0|].
+  revert v d H0; intros.
   unfold nested_ufieldlist_at.
-  pattern (co_members (get_co id)) at 1 5; rewrite Heqm.
 
   match goal with
   | |- _ |-- _ * (ALL v0: _, ?A1 v0 p -* ?A2 (?A3 v0) p) =>
@@ -1289,17 +1313,16 @@ Proof.
   end.
 
   Opaque union_pred. eapply @RAMIF_Q.trans. Transparent union_pred.
-  2:{
-    apply (union_pred_ramif (co_members (get_co id))
+  2:{ 
+    apply (union_pred_ramif (m::m0)
             (fun it v p =>
               withspacer sh
                 (nested_field_offset t gfs +
                  sizeof
-                   (field_type (fst it) (co_members (get_co id))))
+                   (field_type (name_member it) (m::m0)))
                 (nested_field_offset t gfs +
                  sizeof (nested_field_type t gfs))
-                (field_at sh t (gfs UDOT fst it) v) p)); auto.
-    2: apply get_co_members_no_replicate.
+                (field_at sh t (gfs UDOT name_member it) v) p)); auto.
     instantiate (1 := default_val _).
     intros.
     rewrite !withspacer_spacer.
@@ -1307,8 +1330,11 @@ Proof.
     fold (field_at_ sh t (gfs UDOT i) p).
     eapply derives_trans; [eapply sepcon_derives; [apply derives_refl | apply field_at_field_at_] |].
     rewrite <- !withspacer_spacer.
-    erewrite !withspacer_field_at__Tunion by eauto.
-    apply derives_refl.
+   rewrite name_member_get.
+   rewrite <- Heqm.
+    erewrite !withspacer_field_at__Tunion; try eassumption; auto.
+   rewrite name_member_get. rewrite Heqm. auto.
+    rewrite Heqm; auto.
   }
   2:{
     unfold fst.
@@ -2210,7 +2236,7 @@ Proof.
 Qed.
 
 Lemma struct_pred_cons2:
-  forall it it' m (A: ident*type -> Type)
+  forall it it' m (A: member -> Type)
    (P: forall it, A it -> val -> mpred)
    (v: compact_prod (map A (it::it'::m)))
    (p: val),
@@ -2218,11 +2244,12 @@ Lemma struct_pred_cons2:
     P _ (fst v) p * struct_pred (it'::m) P (snd v) p.
 Proof.
 intros.
-destruct v. destruct it, it'. reflexivity.
+destruct v. unfold fst, snd.
+reflexivity.
 Qed.
 
 Lemma union_pred_cons2:
-  forall it it' m (A: ident*type -> Type)
+  forall it it' m (A: member -> Type)
    (P: forall it, A it -> val -> mpred)
    (v: compact_sum (map A (it::it'::m)))
    (p: val),
@@ -2230,7 +2257,7 @@ Lemma union_pred_cons2:
    match v with inl v => P _ v p | inr v => union_pred (it'::m) P v p end.
 Proof.
 intros.
-destruct v, it, it'; reflexivity.
+destruct v; reflexivity.
 Qed.
 
 Lemma data_at_rec_void:
@@ -2239,64 +2266,6 @@ Lemma data_at_rec_void:
 Proof.
  intros; subst; reflexivity.
 Qed.
-
-Lemma snd_reptype_structlist_aux  {cs: compspecs}:
-  forall (p: ident * type) (m: list (ident * type)),
-   members_no_replicate (p :: m) = true ->
-  map (fun it : ident * type => reptype (field_type (fst it) (p :: m))) m =
-  map (fun it : ident * type => reptype (field_type (fst it) m)) m.
-  (* not useful? *)
-Proof.
-intros.
-change (p::m) with ((p::nil) ++ m) in *.
-forget (p::nil) as q.
-clear p.
-revert q H; induction m; intros.
-reflexivity.
-simpl; f_equal.
-+
-clear - H.
-induction q. reflexivity.
-simpl in H.
-destruct a0.
-rewrite fieldlist.members_no_replicate_ind in H.
-destruct H.
-rewrite <- IHq; auto.
-unfold field_type. simpl.
-rewrite if_false; auto.
-clear - H.
-contradict H. subst.
-induction q. left; auto.
-right. auto.
-+
-generalize (IHm (q++ a::nil)).
-rewrite app_ass; simpl; intro.
-rewrite H0.
-symmetry; apply (IHm (a::nil)).
-simpl.
-clear - H.
-induction q. auto. apply IHq.
-rewrite fieldlist.members_no_replicate_ind in H.
-destruct a0, H; auto.
-auto.
-Qed.
-
-(*
-(* TODO: remove this lemma? It is not used anywhere. *)
-Lemma readable_share_join:
-  forall sh1 sh2 sh,
-    sepalg.join sh1 sh2 sh ->
-    readable_share sh1 -> readable_share sh.
-Proof.
-intros.
-unfold readable_share in *.
-destruct H.
-subst sh.
-rewrite Share.distrib1.
-unfold nonempty_share, sepalg.nonidentity in *.
-contradict H0.
-apply identity_share_bot in H0.
-*)
 
 Lemma field_at_share_join{cs: compspecs}:
   forall sh1 sh2 sh t gfs v p,

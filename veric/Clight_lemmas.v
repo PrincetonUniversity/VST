@@ -46,34 +46,6 @@ rewrite peq_true.
 auto.
 Qed.
 
-(*moved to coqlib4
-Lemma nat_ind2_Type:
-forall P : nat -> Type,
-((forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n):Type) ->
-(forall n, P n).
-Proof.
-intros.
-assert (forall j , (j <= n)%nat -> P j).
-induction n.
-intros.
-replace j with 0%nat ; try lia.
-apply X; intros.
-elimtype False; lia.
-intros.  apply X. intros.
-apply IHn.
-lia.
-apply X0.
-lia.
-Qed.
-
-Lemma nat_ind2:
-forall P : nat -> Prop,
-(forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n) ->
-(forall n, P n).
-Proof.
-intros; apply Wf_nat.lt_wf_ind. auto.
-Qed.*)
-
 Lemma signed_zero: Int.signed Int.zero = 0.
 Proof. apply Int.signed_zero. Qed.
 
@@ -84,52 +56,42 @@ rewrite <- H; auto.
 Qed.
 Arguments equiv_e1 [A B] _ _.
 
-(*moved to coqlib4
-Lemma equiv_e2 : forall A B: Prop, A=B -> B -> A.
-Proof.
-intros.
-rewrite H; auto.
-Qed.
-Arguments equiv_e2 [A B] _ _.
-*)
-
-Lemma deref_loc_fun: forall {ty m b z v v'},
-   Clight.deref_loc ty m b z v -> Clight.deref_loc ty m b z v' -> v=v'.
- Proof. intros.  inv H; inv H0; try congruence.
+Lemma deref_loc_fun: forall {ty m b z bf v v'},
+   Clight.deref_loc ty m b z bf v -> Clight.deref_loc ty m b z bf v' -> v=v'.
+ Proof. intros.
+  inv H; inv H0; try congruence.
+  inv H1; inv H6; try congruence.
 Qed.
 
 Lemma eval_expr_lvalue_fun:
   forall ge e le m,
     (forall a v v', Clight.eval_expr ge e le m a v -> Clight.eval_expr ge e le m a v' -> v=v') /\
-    (forall a b b' i i', Clight.eval_lvalue ge e le m a b i -> Clight.eval_lvalue ge e le m a b' i' ->
-                               (b,i)=(b',i')).
+    (forall a b b' i i' bf bf', Clight.eval_lvalue ge e le m a b i bf -> Clight.eval_lvalue ge e le m a b' i' bf' ->
+                               (b,i,bf)=(b',i',bf')).
 Proof.
  intros.
  destruct (Clight.eval_expr_lvalue_ind ge e le m
    (fun a v =>  forall v', Clight.eval_expr ge e le m a v' -> v=v')
-   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i')));
+   (fun a b i bf => forall b' i' bf', Clight.eval_lvalue ge e le m a b' i' bf' -> (b,i,bf)=(b',i',bf')));
   simpl; intros;
 
   try solve [repeat
   match goal with
   |  H: eval_expr _ _ _ _ ?a _  |- _ => (is_var a; fail 1) || inv H
-  | H: eval_lvalue _ _ _ _ ?a _ _ |- _  => (is_var a; fail 1) || inv H
+  | H: eval_lvalue _ _ _ _ ?a _ _ _ |- _  => (is_var a; fail 1) || inv H
   end; congruence].
 
  * inv H1. apply H0 in H5; congruence. inv H2.
  * inv H2. apply H0 in H7; congruence. inv H3.
  * inv H4. apply H0 in H10. apply H2 in H11. congruence. inv H5.
- * inv H2. apply H0 in H5. congruence. inv H4. inv H3. inv H3. inv H3.
- * inv H; inv H2. apply H0 in H. inv H. eapply deref_loc_fun; eauto.
-   inv H. congruence. inversion2 H4 H10.  eapply deref_loc_fun; eauto.
-   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
-   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
-   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
- * inv H1. apply H0 in H6. congruence.
+ * inv H2. apply H0 in H5. congruence. inv H4. inv H3. inv H3. inv H3. inv H3.
+ * inv H; inv H2; apply H0 in H; inv H;
+    try (eapply deref_loc_fun; eauto).
+ * inv H1. apply H0 in H7. congruence.
  * inv H4. apply H0 in H8. congruence. congruence.
- * inv H3. apply H0 in H7. congruence. apply H0 in H7. congruence.
+ * inv H4. apply H0 in H8. congruence. apply H0 in H8. congruence.
 
- * split; intros; [apply (H _ _ H1 _ H2) | apply (H0 _ _ _ H1 _ _ H2)].
+ * split; intros; [apply (H _ _ H1 _ H2) | apply (H0 _ _ _ _ H1 _ _ _ H2)].
 Qed.
 
 Lemma eval_expr_fun:   forall {ge e le m a v v'},
@@ -148,8 +110,8 @@ Proof.
 Qed.
 
 
-Lemma eval_lvalue_fun:   forall {ge e le m a b b' z z'},
-    Clight.eval_lvalue ge e le m a b z -> Clight.eval_lvalue ge e le m a b' z' -> (b,z)=(b',z').
+Lemma eval_lvalue_fun:   forall {ge e le m a b b' z z' bf bf'},
+    Clight.eval_lvalue ge e le m a b z bf -> Clight.eval_lvalue ge e le m a b' z' bf' -> (b,z,bf)=(b',z',bf').
 Proof.
   intros. destruct (eval_expr_lvalue_fun ge e le m).
   eauto.
@@ -171,12 +133,13 @@ Proof.
 Qed.
 
 Lemma assign_loc_fun:
-  forall {cenv ty m b ofs v m1 m2},
-   assign_loc cenv ty m b ofs v m1 ->
-   assign_loc cenv ty m b ofs v m2 ->
+  forall {cenv ty m b ofs bf v m1 m2},
+   assign_loc cenv ty m b ofs bf v m1 ->
+   assign_loc cenv ty m b ofs bf v m2 ->
    m1=m2.
 Proof.
  intros. inv H; inv H0; try congruence.
+ inv H1; inv H7. congruence.
 Qed.
 
 Lemma alloc_variables_fun:
@@ -217,140 +180,3 @@ Proof.
  apply (inv_find_symbol_fun H1) in H5; subst; auto.
  eauto.
 Qed.
-
-Ltac fun_tac :=
-  match goal with
-  | H: ?A = Some _, H': ?A = Some _ |- _ => inversion2 H H'
-  | H: Clight.eval_expr ?ge ?e ?le ?m ?A _,
-    H': Clight.eval_expr ?ge ?e ?le ?m ?A _ |- _ =>
-        apply (eval_expr_fun H) in H'; subst
-  | H: Clight.eval_exprlist ?ge ?e ?le ?m ?A ?ty _,
-    H': Clight.eval_exprlist ?ge ?e ?le ?m ?A ?ty _ |- _ =>
-        apply (eval_exprlist_fun H) in H'; subst
-  | H: Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _,
-    H': Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _ |- _ =>
-        apply (eval_lvalue_fun H) in H'; inv H'
-  | H: Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?v _,
-    H': Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ |- _ =>
-        apply (assign_loc_fun H) in H'; inv H'
-  | H: Clight.deref_loc ?ty ?m ?b ?ofs _,
-    H': Clight.deref_loc ?ty ?m ?b ?ofs _ |- _ =>
-        apply (deref_loc_fun H) in H'; inv H'
-  | H: Clight.alloc_variables ?ge ?e ?m ?vl _ _,
-    H': Clight.alloc_variables ?ge ?e ?m ?vl _ _ |- _ =>
-        apply (alloc_variables_fun H) in H'; inv H'
-  | H: Clight.bind_parameters ?ge ?e ?m ?p ?vl _,
-    H': Clight.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>
-        apply (bind_parameters_fun H) in H'; inv H'
-  | H: Senv.find_symbol ?ge _ = Some ?b,
-    H': Senv.find_symbol ?ge _ = Some ?b |- _ =>
-       apply (inv_find_symbol_fun H) in H'; inv H'
-  | H: Events.eventval_list_match ?ge _ ?t ?v,
-    H': Events.eventval_list_match ?ge _ ?t ?v |- _ =>
-       apply (eventval_list_match_fun H) in H'; inv H'
- end.
-
-(* Lemmas about ident lists -- moved to general_base of mpred
-
-Fixpoint id_in_list (id: ident) (ids: list ident) : bool :=
- match ids with i::ids' => orb (Pos.eqb id i) (id_in_list id ids') | _ => false end.
-
-Fixpoint compute_list_norepet (ids: list ident) : bool :=
- match ids with
- | id :: ids' => if id_in_list id ids' then false else compute_list_norepet ids'
- | nil => true
- end.
-
-Lemma id_in_list_true: forall i ids, id_in_list i ids = true -> In i ids.
-Proof.
- induction ids; simpl; intros. inv H. apply orb_true_iff in H; destruct H; auto.
- apply Peqb_true_eq in H. subst; auto.
-Qed.
-
-Lemma id_in_list_false: forall i ids, id_in_list i ids = false -> ~In i ids.
-Proof.
- induction ids; simpl; intros; auto.
- apply orb_false_iff in H. destruct H.
- intros [?|?]. subst.
- rewrite Pos.eqb_refl in H; inv H.
- apply IHids; auto.
-Qed.
-
-Lemma compute_list_norepet_e: forall ids,
-     compute_list_norepet ids = true -> list_norepet ids.
-Proof.
- induction ids; simpl; intros.
- constructor.
- revert H; case_eq (id_in_list a ids); intros.
- inv H0.
- constructor; auto.
- apply id_in_list_false in H.
- auto.
-Qed.
-
-Lemma list_norepet_rev:
-  forall A (l: list A), list_norepet (rev l) = list_norepet l.
-Proof.
-induction l; simpl; auto.
-apply prop_ext; split; intros.
-apply list_norepet_app in H.
-destruct H as [? [? ?]].
-rewrite IHl in H.
-constructor; auto.
-eapply list_disjoint_notin with (a::nil).
-apply list_disjoint_sym; auto.
-intros x y ? ? ?; subst.
-contradiction (H1 y y); auto.
-rewrite <- In_rev; auto.
-simpl; auto.
-rewrite list_norepet_app.
-inv H.
-split3; auto.
-rewrite IHl; auto.
-repeat constructor.
-intro Hx. inv Hx.
-intros x y ? ? ?; subst.
-inv H0.
-rewrite <- In_rev in H; contradiction.
-auto.
-Qed.
-
-Lemma block_eq_dec: forall b1 b2: block, {b1 = b2} + {b1 <> b2}.
-Proof. exact (Coqlib.peq). Qed.
-
-(*moved to mpred
-Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
- match sz, sgn with
- | I8, Signed => -128 <= Int.signed i < 128
- | I8, Unsigned => 0 <= Int.unsigned i < 256
- | I16, Signed => -32768 <= Int.signed i < 32768
- | I16, Unsigned => 0 <= Int.unsigned i < 65536
- | I32, Signed => -2147483648 <= Int.signed i < 2147483648
- | I32, Unsigned => 0 <= Int.unsigned i < 4294967296
- | IBool, _ => 0 <= Int.unsigned i < 256
-end.*)
-
-Lemma rev_if_be_singleton:
-  forall x, rev_if_be (x::nil) = (x::nil).
-Proof. intro. unfold rev_if_be; destruct Archi.big_endian; auto. Qed.
-
-Lemma rev_if_be_1: forall i, rev_if_be (i::nil) = (i::nil).
-Proof. unfold rev_if_be; intros. destruct Archi.big_endian; reflexivity.
-Qed.
-
-Lemma decode_byte_val:
-  forall m, decode_val Mint8unsigned (Byte m :: nil) =
-              Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned m))).
-Proof.
-intros.
-unfold decode_val. simpl.
-f_equal.
-unfold decode_int.
-rewrite rev_if_be_singleton.
-unfold int_of_bytes. f_equal. f_equal. apply Z.add_0_r.
-Qed.
-
-Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
-Proof. congruence. Qed.
-
-*)

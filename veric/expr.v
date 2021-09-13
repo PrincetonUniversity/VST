@@ -16,51 +16,6 @@ Import Ctypes.
 Definition sizeof {cs: compspecs} t := @Ctypes.sizeof (@cenv_cs cs) t.
 Definition alignof {cs: compspecs} t := @Ctypes.alignof (@cenv_cs cs) t.
 
-(*moved to compcert_rmaps
-Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
-
-Definition strict_bool_val (v: val) (t: type) : option bool :=
-   match v, t with
-   | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
-   | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
-   | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-             if Archi.ptr64 then None else if Int.eq n Int.zero then Some false else None
-   | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-            if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None
-   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true
-   | Vfloat f, Tfloat F64 _ => Some (negb(Float.cmp Ceq f Float.zero))
-   | Vsingle f, Tfloat F32 _ => Some (negb(Float32.cmp Ceq f Float32.zero))
-   | _, _ => None
-   end.
-*)
-
-(*moved to mpred
-(* TWO ALTERNATE WAYS OF DOING LIFTING *)
-(* LIFTING METHOD ONE: *)
-Definition lift0 {B} (P: B) : environ -> B := fun _ => P.
-Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).
-Definition lift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: environ -> A1) (f2: environ -> A2):
-   environ -> B := fun rho => P (f1 rho) (f2 rho).
-Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B)
-     (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3) :  environ -> B :=
-     fun rho => P (f1 rho) (f2 rho) (f3 rho).
-Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
-     (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3)(f4: environ -> A4):  environ -> B :=
-     fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).
-
-(* LIFTING METHOD TWO: *)
-Set Warnings "-projection-no-head-constant,-redundant-canonical-projection".
-Canonical Structure LiftEnviron := Tend environ.
-Set Warnings "projection-no-head-constant,redundant-canonical-projection".
-
-Ltac super_unfold_lift :=
-  cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod
-  lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3] beta iota in *.
-
-Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
-
- *)
-
 (** Functions for evaluating expressions in environments,
 these return vundef if something goes wrong, meaning they always return some value **)
 
@@ -95,14 +50,18 @@ Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
                  match cenv_cs ! id with
                  | Some co =>
                          match field_offset cenv_cs fld (co_members co) with
-                         | Errors.OK delta => offset_val delta
+                         | Errors.OK (delta, Full) => offset_val delta
                          | _ => always Vundef
                          end
                  | _ => always Vundef
                  end
              | Tunion id att =>
                  match cenv_cs ! id with
-                 | Some co => force_ptr
+                 | Some co => 
+                         match union_field_offset cenv_cs fld (co_members co) with
+                         | Errors.OK (delta, Full) => offset_val delta
+                         | _ => always Vundef
+                         end
                  | _ => always Vundef
                  end
              | _ => always Vundef
@@ -735,14 +694,18 @@ match e with
                                match cenv_cs ! id with
                                | Some co =>
                                   match field_offset cenv_cs i (co_members co) with
-                                  | Errors.OK delta => tc_TT
+                                  | Errors.OK (delta,Full) => tc_TT
                                   | _ => tc_FF (invalid_struct_field i id)
                                   end
                                | _ => tc_FF (invalid_composite_name id)
                                end
                             | Tunion id att =>
                                match cenv_cs ! id with
-                               | Some co => tc_TT
+                               | Some co => 
+                                   match union_field_offset cenv_cs i (co_members co) with
+                                     | Errors.OK (0, Full) => tc_TT
+                                     | _ => tc_FF (invalid_struct_field i id)
+                                   end
                                | _ => tc_FF (invalid_composite_name id)
                                end
                             | _ => tc_FF (invalid_field_access e)
@@ -783,14 +746,18 @@ match e with
                               match cenv_cs ! id with
                               | Some co =>
                                    match field_offset cenv_cs i (co_members co) with
-                                     | Errors.OK delta => tc_TT
+                                     | Errors.OK (delta, Full) => tc_TT
                                      | _ => tc_FF (invalid_struct_field i id)
                                    end
                               | _ => tc_FF (invalid_composite_name id)
                               end
                             | Tunion id att =>
                               match cenv_cs ! id with
-                              | Some co => tc_TT
+                              | Some co => 
+                                   match union_field_offset cenv_cs i (co_members co) with
+                                     | Errors.OK (0, Full) => tc_TT
+                                     | _ => tc_FF (invalid_struct_field i id)
+                                   end
                               | _ => tc_FF (invalid_composite_name id)
                               end
                             | _ => tc_FF (invalid_field_access e)

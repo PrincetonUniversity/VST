@@ -49,7 +49,6 @@ Definition QPprogram_of_program {F} (p: Ctypes.program F)
  |}.
 
 Import ListNotations.
-(* Require VST.floyd.linking. *)
 
 Definition signature_of_fundef (fd: Ctypes.fundef Clight.function):signature :=
 match fd with
@@ -434,12 +433,27 @@ induction s; simpl; auto.
  apply Z.eqb_eq. auto.
 Qed.
 
+Definition eqb_var (a b : ident * type) : bool :=
+ eqb_ident (fst a) (fst b) && eqb_type (snd a) (snd b).
+
+Lemma eqb_var_spec
+     : forall a b : ident*type, eqb_var a b = true <-> a = b.
+Proof.
+intros.
+unfold eqb_var.
+rewrite andb_true_iff.
+rewrite (eqb_ident_spec (fst a) (fst b)).
+rewrite eqb_type_spec.
+destruct a,b; simpl.
+split; intros. destruct H; congruence. split; congruence.
+Qed.
+
 Definition function_eq (f1 f2: Clight.function) : bool :=
 eqb_type f1.(Clight.fn_return) f2.(Clight.fn_return) && 
 eqb_calling_convention f1.(Clight.fn_callconv) f2.(Clight.fn_callconv) &&
-eqb_list eqb_member f1.(Clight.fn_params) f2.(Clight.fn_params) && 
-eqb_list eqb_member f1.(Clight.fn_vars) f2.(Clight.fn_vars) && 
-eqb_list eqb_member f1.(Clight.fn_temps) f2.(Clight.fn_temps) && 
+eqb_list eqb_var f1.(Clight.fn_params) f2.(Clight.fn_params) && 
+eqb_list eqb_var f1.(Clight.fn_vars) f2.(Clight.fn_vars) && 
+eqb_list eqb_var f1.(Clight.fn_temps) f2.(Clight.fn_temps) && 
 eqb_statement f1.(Clight.fn_body) f2.(Clight.fn_body).
 
 Definition fundef_eq  (fd1 fd2: fundef Clight.function) : bool :=
@@ -462,9 +476,9 @@ repeat (revert H; match goal with |- ?A && _ = true -> _ => destruct A eqn:?H; s
 apply eqb_type_true in H.
 apply eqb_calling_convention_prop in H4.
 apply eqb_statement_prop in H0.
-apply (eqb_list_spec _ eqb_member_spec) in H1.
-apply (eqb_list_spec _ eqb_member_spec) in H2.
-apply (eqb_list_spec _ eqb_member_spec) in H3.
+apply (eqb_list_spec _ eqb_var_spec) in H1.
+apply (eqb_list_spec _ eqb_var_spec) in H2.
+apply (eqb_list_spec _ eqb_var_spec) in H3.
 destruct f1,f2; simpl in *; congruence.
 Qed.
 
@@ -481,44 +495,6 @@ apply eqb_typelist_prop; auto.
 apply eqb_type_true; auto.
 apply eqb_calling_convention_prop; auto.
 Qed.
-
-(*
-Definition eqb_init_data (a b: init_data) : bool := 
-match a,b with
-| Init_int8 i, Init_int8 j => Int.eq i j
-| Init_int16 i, Init_int16 j => Int.eq i j
-| Init_int32 i, Init_int32 j => Int.eq i j
-| Init_int64 i, Init_int64 j => Int64.eq i j
-| Init_float32 i, Init_float32 j => Float32.eq_dec i j
-| Init_float64 i, Init_float64 j =>Float.eq_dec i j
-| Init_space i, Init_space j => Z.eqb i j
-| Init_addrof i y, Init_addrof j z => eqb_ident i j && Ptrofs.eq y z
-| _, _ => false
-end.
-
-Lemma eqb_init_data_prop: forall a b, eqb_init_data a b = true -> a=b.
-Proof.
-intros.
-destruct a,b; try discriminate; f_equal; simpl in H;
-try apply Int.same_if_eq in H; auto.
-apply Int64.same_if_eq in H; auto.
-destruct (Float32.eq_dec f f0); auto; inv H.
-destruct (Float.eq_dec f f0); auto; inv H.
-apply Z.eqb_eq; auto.
-rewrite andb_true_iff in H; destruct H.
-apply eqb_ident_spec; auto.
-rewrite andb_true_iff in H; destruct H.
-apply Ptrofs.same_if_eq; auto.
-Qed.
-*)
-
-(*
-Definition globvar_eq (a b: globvar type) : bool :=
-      eqb_type a.(gvar_info) b.(gvar_info) &&
-      eqb_list eqb_init_data a.(gvar_init) b.(gvar_init) && 
-      bool_eq a.(gvar_readonly) b.(gvar_readonly) &&
-      bool_eq a.(gvar_volatile) b.(gvar_volatile).
-*)
 
 Definition overlap_Gvar := 
   (* This controls whether we permit linking programs P1 and P2 that both contain
@@ -1009,7 +985,7 @@ Fixpoint QPcomplete_type (env : QP.composite_env) (t : type) :  bool :=
 Fixpoint QPcomplete_members (e: QP.composite_env) (m: members) :=
  match m with
  | nil => true
- | (_,t)::m' => QPcomplete_type e t && QPcomplete_members e m'
+ | m1::m' => QPcomplete_type e (type_member m1) && QPcomplete_members e m'
  end.
 
 Definition QPcomposite_env_complete (e: QP.composite_env) : Prop :=

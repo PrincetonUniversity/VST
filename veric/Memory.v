@@ -2,7 +2,7 @@ Require Import Coq.Arith.EqNat.
 Require Import Coq.Relations.Relations.
 Require Import Lia.
 (*
-Require Import compcert.exportclight.Clightdefs.
+Require Import compcert.export.Clightdefs.
 Require Import compcert.cfrontend.Ctypes. (*NEW*)*)
 Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.

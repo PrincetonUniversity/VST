@@ -184,10 +184,21 @@ Proof.
   auto.
 Qed.
 
-Definition member_dec: forall (it0 it1: ident * type), {it0 = it1} + {it0 <> it1}.
+Definition member_dec: forall (it0 it1: member), {it0 = it1} + {it0 <> it1}.
   intros.
   destruct it0, it1.
-  destruct (ident_eq i i0), (type_eq t t0); [left | right | right | right]; congruence.
+  - destruct (ident_eq id id0); [ | right; congruence].
+    destruct (type_eq t t0); [ | right; congruence].
+    left; congruence.
+  - right; congruence.
+  - right; congruence.
+  - destruct (ident_eq id id0); [subst | right; congruence].
+    destruct (intsize_eq sz sz0);  [subst | right; congruence].
+    destruct (signedness_eq sg sg0);  [subst | right; congruence].
+    destruct (attr_eq a a0);  [subst | right; congruence].
+    destruct (Z.eq_dec width width0);  [subst | right; congruence].
+    destruct (bool_dec padding padding0);  [subst | right; congruence].
+    left; reflexivity.
 Defined.
 
 Fixpoint fold_right_sepcon (l: list mpred) : mpred :=

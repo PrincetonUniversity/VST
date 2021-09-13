@@ -564,7 +564,7 @@ destruct p; try contradiction.
 destruct H as [AL SZ].
 repeat split; auto.
 simpl in *.  unfold sizeof in *; simpl in *; lia.
-eapply align_compatible_rec_Tstruct; [reflexivity |].
+eapply align_compatible_rec_Tstruct; [reflexivity.. |].
 simpl co_members; intros.
 simpl in H.
 if_tac in H; [| inv H].
@@ -1204,24 +1204,24 @@ Proof.
   repeat split; auto.
   + simpl in *.  unfold sizeof in *; simpl in *; lia.
   + inv AL. inv H. inv H1. 
-    eapply align_compatible_rec_Tstruct; [reflexivity |].
-    simpl co_members in *; intros. specialize (H3 i0 t0).
+    eapply align_compatible_rec_Tstruct; [reflexivity.. |].
+    simpl co_members in *; intros. specialize (H4 i0 t0).
     simpl in H.
     if_tac in H.
-    { inv H. specialize (H3 _ (eq_refl _) (eq_refl _)).
-      inv H3. inv H0. inv H. simpl in H1.
+    { inv H. specialize (H4 _ (eq_refl _) (eq_refl _)).
+      inv H4. inv H0. inv H. simpl in H1.
       eapply align_compatible_rec_by_value.
       reflexivity. apply H1. }
     clear H1. 
     if_tac in H.
-    { inv H. specialize (H3 _ (eq_refl _) (eq_refl _)).
-      inv H3. inv H0. inv H. simpl in H1.
+    { inv H. specialize (H4 _ (eq_refl _) (eq_refl _)).
+      inv H4. inv H0. inv H. simpl in H1.
       eapply align_compatible_rec_by_value.
       reflexivity. apply H1. }
     clear H1. 
     if_tac in H.
-    { inv H. specialize (H3 _ (eq_refl _) (eq_refl _)).
-      inv H3. inv H0. inv H. simpl in H1.
+    { inv H. specialize (H4 _ (eq_refl _) (eq_refl _)).
+      inv H4. inv H0. inv H. simpl in H1.
       eapply align_compatible_rec_by_value.
       reflexivity. apply H1. }
     inv H.
@@ -1381,11 +1381,11 @@ apply sepcon_derives.
     repeat split; trivial.
     ++ red. red in SZ. simpl sizeof in *. lia.
     ++ clear SZ. inv AL. inv H.
-       eapply align_compatible_rec_Tstruct; [reflexivity | intros]. specialize (H3 i0).
+       eapply align_compatible_rec_Tstruct; [reflexivity.. | intros]. specialize (H4 i0).
        simpl co_members in *; intros. inv H. 
-       if_tac in H4; inv H4.
-       inv H0. inv H1. specialize (H3 _ 0 (eq_refl _) (eq_refl _)).
-       inv H3. inv H. econstructor. reflexivity. trivial.
+       if_tac in H5; inv H5.
+       inv H0. inv H1. specialize (H4 _ 0 (eq_refl _) (eq_refl _)).
+       inv H4. inv H. econstructor. reflexivity. trivial.
     ++ simpl. left; auto.
   - unfold at_offset. entailer!. unfold data_at_rec. simpl.
     unfold mapsto; simpl. if_tac; entailer!.
@@ -1394,15 +1394,15 @@ apply sepcon_derives.
     repeat split; trivial.
     ++ red. red in SZ. simpl sizeof in *. lia.
     ++ clear SZ; inv AL. inv H.
-       eapply align_compatible_rec_Tstruct; [reflexivity | intros]. specialize (H3 i0).
+       eapply align_compatible_rec_Tstruct; [reflexivity.. | intros]. specialize (H4 i0).
        simpl co_members in *; intros. inv H. 
-       if_tac in H4; inv H4.
-       { inv H0. inv H1. specialize (H3 _ 0 (eq_refl _) (eq_refl _)).
-          inv H3. inv H. econstructor. reflexivity. trivial. }
-       clear H.
        if_tac in H5; inv H5.
-       { inv H0. inv H1. specialize (H3 _ 4 (eq_refl _) (eq_refl _)).
-          inv H3. inv H. econstructor. reflexivity. trivial. }
+       { inv H0. inv H1. specialize (H4 _ 0 (eq_refl _) (eq_refl _)).
+          inv H4. inv H. econstructor. reflexivity. trivial. }
+       clear H.
+       if_tac in H6; inv H6.
+       { inv H0. inv H1. specialize (H4 _ 4 (eq_refl _) (eq_refl _)).
+          inv H4. inv H. econstructor. reflexivity. trivial. }
     ++ simpl. right; left; auto.
 Qed.
 
@@ -1460,11 +1460,11 @@ apply sepcon_derives.
     repeat split; trivial.
     ++ red. red in SZ. simpl sizeof in *. lia.
     ++ clear SZ. inv AL. inv H.
-       eapply align_compatible_rec_Tstruct; [reflexivity | intros]. specialize (H3 i0).
+       eapply align_compatible_rec_Tstruct; [reflexivity.. | intros]. specialize (H4 i0).
        simpl co_members in *; intros. inv H. 
-       if_tac in H4; inv H4.
-       inv H0. inv H1. specialize (H3 _ 0 (eq_refl _) (eq_refl _)).
-       inv H3. inv H. econstructor. reflexivity. trivial.
+       if_tac in H5; inv H5.
+       inv H0. inv H1. specialize (H4 _ 0 (eq_refl _) (eq_refl _)).
+       inv H4. inv H. econstructor. reflexivity. trivial.
     ++ simpl. left; auto.
   - unfold at_offset. entailer!. unfold data_at_rec. simpl.
     unfold mapsto; simpl. if_tac; entailer!.
@@ -1473,15 +1473,15 @@ apply sepcon_derives.
     repeat split; trivial.
     ++ red. red in SZ. simpl sizeof in *. lia.
     ++ clear SZ; inv AL. inv H.
-       eapply align_compatible_rec_Tstruct; [reflexivity | intros]. specialize (H3 i0).
+       eapply align_compatible_rec_Tstruct; [reflexivity.. | intros]. specialize (H4 i0).
        simpl co_members in *; intros. inv H. 
-       if_tac in H4; inv H4.
-       { inv H0. inv H1. specialize (H3 _ 0 (eq_refl _) (eq_refl _)).
-          inv H3. inv H. econstructor. reflexivity. trivial. }
-       clear H.
        if_tac in H5; inv H5.
-       { inv H0. inv H1. specialize (H3 _ 4 (eq_refl _) (eq_refl _)).
-          inv H3. inv H. econstructor. reflexivity. trivial. }
+       { inv H0. inv H1. specialize (H4 _ 0 (eq_refl _) (eq_refl _)).
+          inv H4. inv H. econstructor. reflexivity. trivial. }
+       clear H.
+       if_tac in H6; inv H6.
+       { inv H0. inv H1. specialize (H4 _ 4 (eq_refl _) (eq_refl _)).
+          inv H4. inv H. econstructor. reflexivity. trivial. }
     ++ simpl. right; left; auto.
 Qed.
 

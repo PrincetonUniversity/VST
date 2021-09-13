@@ -10,14 +10,23 @@ Section PROJ_REPTYPE.
 
 Context {cs: compspecs}.
 
+Definition field_type_name_member 
+  {i: ident} {m: members} (t: reptype (field_type (name_member (get_member i m)) m)) : 
+   reptype (field_type i m).
+rewrite name_member_get in t. apply t.
+Defined.
+
 Definition proj_gfield_reptype (t: type) (gf: gfield) (v: reptype t): reptype (gfield_type t gf) :=
   match t, gf return (REPTYPE t -> reptype (gfield_type t gf))
   with
   | Tarray t0 hi a, ArraySubsc i => fun v => @Znth _ (default_val _) i v
-  | Tstruct id _, StructField i => fun v => proj_struct i (co_members (get_co id)) v (default_val _)
-  | Tunion id _, UnionField i => fun v => proj_union i (co_members (get_co id)) v (default_val _)
+  | Tstruct id _, StructField i =>
+      fun v => field_type_name_member (proj_struct i (co_members (get_co id)) v (default_val _))
+  | Tunion id _, UnionField i => 
+      fun v => field_type_name_member (proj_union i (co_members (get_co id)) v (default_val _))
   | _, _ => fun _ => default_val _
   end (unfold_reptype v).
+
 
 Fixpoint proj_reptype (t: type) (gfs: list gfield) (v: reptype t) : reptype (nested_field_type t gfs) :=
   let res :=

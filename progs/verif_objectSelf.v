@@ -626,7 +626,7 @@ destruct p; try contradiction.
 destruct H as [AL SZ].
 repeat split; auto.
 simpl in *.  unfold sizeof in *; simpl in *; lia.
-eapply align_compatible_rec_Tstruct; [reflexivity |].
+eapply align_compatible_rec_Tstruct; [reflexivity.. |].
 simpl co_members; intros.
 simpl in H.
 if_tac in H; [| inv H].

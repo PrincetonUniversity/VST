@@ -93,8 +93,14 @@ with eqb_typelist (a b: typelist)  {struct a}: bool :=
 Scheme eqb_type_sch := Induction for type Sort Prop
   with eqb_typelist_sch := Induction for  typelist Sort Prop.
 
-Definition eqb_member (it1 it2: ident * type): bool :=
-  eqb_ident (fst it1) (fst it2) && eqb_type (snd it1) (snd it2).
+Definition eqb_member (it1 it2: member): bool :=
+  match it1, it2 with
+  | Member_plain i1 t1, Member_plain i2 t2 => eqb_ident i1 i2 && eqb_type t1 t2
+  | Member_bitfield i1 sz1 sg1 a1 w1 b1, Member_bitfield i2 sz2 sg2 a2 w2 b2 =>
+      eqb_ident i1 i2 && eqb_intsize sz1 sz2 && eqb_signedness sg1 sg2 
+      && eqb_attr a1 a2 && Z.eqb w1 w2 && Bool.eqb b1 b2
+  | _, _ => false
+  end.
 
 Definition eqb_su (su1 su2: struct_or_union): bool :=
   match su1, su2 with
@@ -199,15 +205,13 @@ Qed.
 Lemma eqb_member_spec: forall a b, eqb_member a b = true <-> a=b.
 Proof.
   intros.
-  unfold eqb_member.
-  rewrite andb_true_iff.
-  rewrite eqb_ident_spec.
-  rewrite eqb_type_spec.
-  destruct a, b; simpl.
-  split.
-  + intros [? ?]; subst; auto.
-  + intros.
-    inv H; auto.
+  destruct a,b; simpl; try solve [split; intro; congruence];
+  rewrite ?andb_true_iff, ?eqb_ident_spec, ?eqb_type_spec, ?eqb_intsize_spec, ?eqb_signedness_spec, 
+   ?eqb_attr_spec, ?Z.eqb_eq, ?eqb_true_iff.
+  split; intro.
+  destruct H; subst; auto. inv H; auto.
+  split; intro.
+  destruct H as [[[[[??]?]?]?]?]; subst. auto. inv H; auto 9.
 Qed.
 
 Lemma eqb_su_spec: forall a b, eqb_su a b = true <-> a=b.

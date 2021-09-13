@@ -180,11 +180,11 @@ Lemma reptype_gen_eq {cs: compspecs}: forall t,
   match t with
   | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen t0))) (Zrepeat (projT2 (reptype_gen t0)) n)
   | Tstruct id _ => existT (fun x => x)
-                     (compact_prod_sigT_type (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
-                     (compact_prod_sigT_value (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_prod_sigT_type (map reptype_gen (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_prod_sigT_value (map reptype_gen (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
   | Tunion id _ => existT (fun x => x)
-                     (compact_sum_sigT_type (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
-                     (compact_sum_sigT_value (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_sum_sigT_type (map reptype_gen (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_sum_sigT_value (map reptype_gen (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
   | _ => if (type_is_by_value t)
          then existT (fun x => x) val Vundef
          else existT (fun x => x) unit tt
@@ -208,11 +208,11 @@ Lemma reptype_gen0_eq {cs: compspecs}: forall t,
   match t with
   | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen0 t0))) (Zrepeat (projT2 (reptype_gen0 t0)) n)
   | Tstruct id _ => existT (fun x => x)
-                     (compact_prod_sigT_type (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
-                     (compact_prod_sigT_value (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_prod_sigT_type (map reptype_gen0 (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_prod_sigT_value (map reptype_gen0 (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
   | Tunion id _ => existT (fun x => x)
-                     (compact_sum_sigT_type (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
-                     (compact_sum_sigT_value (map reptype_gen0 (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_sum_sigT_type (map reptype_gen0 (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
+                     (compact_sum_sigT_value (map reptype_gen0 (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
   | _ => 
      match t with
      | Tint _ _ _ => existT (fun x => x) val (Vint Int.zero)
@@ -251,14 +251,18 @@ type_induction t; auto.
    forget (co_members (get_co id)) as m. clear id.
    cbv zeta in IH.
    rewrite !map_map.
-   apply compact_prod_eq; intros [i t].
+   apply compact_prod_eq; intros [i t|].
+   rewrite Forall_forall in IH.
+   intro. apply IH in H. auto.
    rewrite Forall_forall in IH.
    intro. apply IH in H. auto.
 - rewrite reptype_gen_eq, reptype_gen0_eq. simpl.
    forget (co_members (get_co id)) as m. clear id.
    cbv zeta in IH.
    rewrite !map_map.
-   apply compact_sum_eq; intros [i t].
+   apply compact_sum_eq; intros [i t|].
+   rewrite Forall_forall in IH.
+   intro. apply IH in H. auto.
    rewrite Forall_forall in IH.
    intro. apply IH in H. auto.
 Qed.
@@ -289,8 +293,8 @@ Qed.
 Section CENV.
 Context {cs: compspecs}.
 
-Definition reptype_structlist (m: members) := compact_prod (map (fun it => reptype (field_type (fst it) m)) m).
-Definition reptype_unionlist (m: members) := compact_sum (map (fun it => reptype (field_type (fst it) m)) m).
+Definition reptype_structlist (m: members) := compact_prod (map (fun it => reptype (field_type (name_member it) m)) m).
+Definition reptype_unionlist (m: members) := compact_sum (map (fun it => reptype (field_type (name_member it) m)) m).
 
 Notation REPTYPE t :=
   match t return Type with
@@ -404,23 +408,23 @@ Lemma union_default_filter_is_default_filter: forall m, is_default_filter (union
 Proof.
   intros.
   destruct m; simpl; auto.
-  destruct (member_dec p p); auto.
+  destruct (member_dec m m); auto.
 Qed.
 
-Lemma const_true_is_default_filter: forall m, is_default_filter (fun _: ident * type => true) m.
+Lemma const_true_is_default_filter: forall m, is_default_filter (fun _: member => true) m.
 Proof.
   intros.
   destruct m; simpl; auto.
 Qed.
 
-Definition struct_default_val (m : members) := compact_prod_gen (fun it => default_val (field_type (fst it) m)) m.
-Definition union_default_val (m : members) := compact_sum_gen (fun it => true) (fun it => default_val (field_type (fst it) m)) m.
+Definition struct_default_val (m : members) := compact_prod_gen (fun it => default_val (field_type (name_member it) m)) m.
+Definition union_default_val (m : members) := compact_sum_gen (fun it => true) (fun it => default_val (field_type (name_member it) m)) m.
 
-Definition struct_zero_val (m : members) := compact_prod_gen (fun it => zero_val (field_type (fst it) m)) m.
-Definition union_zero_val (m : members) := compact_sum_gen (fun it => true) (fun it => zero_val (field_type (fst it) m)) m.
+Definition struct_zero_val (m : members) := compact_prod_gen (fun it => zero_val (field_type (name_member it) m)) m.
+Definition union_zero_val (m : members) := compact_sum_gen (fun it => true) (fun it => zero_val (field_type (name_member it) m)) m.
 
-Definition struct_zero_val' (m : members) := compact_prod_gen (fun it => zero_val' (field_type (fst it) m)) m.
-Definition union_zero_val' (m : members) := compact_sum_gen (fun it => true) (fun it => zero_val' (field_type (fst it) m)) m.
+Definition struct_zero_val' (m : members) := compact_prod_gen (fun it => zero_val' (field_type (name_member it) m)) m.
+Definition union_zero_val' (m : members) := compact_sum_gen (fun it => true) (fun it => zero_val' (field_type (name_member it) m)) m.
 
 Lemma struct_zero_val_JMeq:
   forall m, JMeq (struct_zero_val m) (struct_zero_val' m).
@@ -523,20 +527,20 @@ Proof.
   + unfold struct_default_val.
     rewrite map_map.
     apply (compact_prod_sigT_compact_prod_gen
-      (fun it => reptype (field_type (fst it) (co_members (get_co i))))
-      (fun it => default_val (field_type (fst it) (co_members (get_co i))))
-      (fun it => reptype_gen (field_type (fst it) (co_members (get_co i))))); intros.
+      (fun it => reptype (field_type (name_member it) (co_members (get_co i))))
+      (fun it => default_val (field_type (name_member it) (co_members (get_co i))))
+      (fun it => reptype_gen (field_type (name_member it) (co_members (get_co i))))); intros.
     unfold reptype, default_val.
-    destruct (reptype_gen (field_type (fst b) (co_members (get_co i)))); reflexivity.
+    destruct (reptype_gen (field_type (name_member b) (co_members (get_co i)))); reflexivity.
   + unfold union_default_val.
     rewrite map_map.
     apply (compact_sum_sigT_compact_sum_gen
-      (fun it => reptype (field_type (fst it) (co_members (get_co i))))
-      (fun it => default_val (field_type (fst it) (co_members (get_co i))))
+      (fun it => reptype (field_type (name_member it) (co_members (get_co i))))
+      (fun it => default_val (field_type (name_member it) (co_members (get_co i))))
       _
-      (fun it => reptype_gen (field_type (fst it) (co_members (get_co i))))); intros.
+      (fun it => reptype_gen (field_type (name_member it) (co_members (get_co i))))); intros.
     unfold reptype, default_val.
-    destruct (reptype_gen (field_type (fst b) (co_members (get_co i)))); reflexivity.
+    destruct (reptype_gen (field_type (name_member b) (co_members (get_co i)))); reflexivity.
     apply const_true_is_default_filter.
 Qed.
 
@@ -583,22 +587,22 @@ Proof.
     unfold struct_zero_val'.
     rewrite map_map.
     apply (compact_prod_sigT_compact_prod_gen
-      (fun it => reptype0 (field_type (fst it) (co_members (get_co i))))
-      (fun it => zero_val' (field_type (fst it) (co_members (get_co i))))
-      (fun it => reptype_gen0 (field_type (fst it) (co_members (get_co i))))); intros.
+      (fun it => reptype0 (field_type (name_member it) (co_members (get_co i))))
+      (fun it => zero_val' (field_type (name_member it) (co_members (get_co i))))
+      (fun it => reptype_gen0 (field_type (name_member it) (co_members (get_co i))))); intros.
     unfold reptype0, zero_val'.
-    destruct (reptype_gen0 (field_type (fst b) (co_members (get_co i)))); reflexivity.
+    destruct (reptype_gen0 (field_type (name_member b) (co_members (get_co i)))); reflexivity.
   + apply (@JMeq_trans _ _ _ _  (union_zero_val' (co_members (get_co i)))).
     2: apply JMeq_sym; apply union_zero_val_JMeq.
     unfold union_default_val.
     rewrite map_map.
     apply (compact_sum_sigT_compact_sum_gen
-      (fun it => reptype0 (field_type (fst it) (co_members (get_co i))))
-      (fun it => zero_val' (field_type (fst it) (co_members (get_co i))))
+      (fun it => reptype0 (field_type (name_member it) (co_members (get_co i))))
+      (fun it => zero_val' (field_type (name_member it) (co_members (get_co i))))
       _
-      (fun it => reptype_gen0 (field_type (fst it) (co_members (get_co i))))); intros.
+      (fun it => reptype_gen0 (field_type (name_member it) (co_members (get_co i))))); intros.
     unfold reptype0, zero_val'.
-    destruct (reptype_gen0 (field_type (fst b) (co_members (get_co i)))); reflexivity.
+    destruct (reptype_gen0 (field_type (name_member b) (co_members (get_co i)))); reflexivity.
     apply const_true_is_default_filter.
 Qed.
 
@@ -648,8 +652,8 @@ Notation REPTYPE' t :=
   | Tfloat _ a => float
   | Tpointer _ a => pointer_val
   | Tarray t0 _ _ => list (reptype' t0)
-  | Tstruct id _ => compact_prod (map (fun it => reptype' (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
-  | Tunion id _ => compact_sum (map (fun it => reptype' (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
+  | Tstruct id _ => compact_prod (map (fun it => reptype' (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))
+  | Tunion id _ => compact_sum (map (fun it => reptype' (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))
   end.
 
 Lemma reptype'_eq: forall t,
@@ -722,10 +726,10 @@ Definition repinj_bv (t: type): reptype' t -> reptype t :=
    | Tunion id a => fun _ => union_default_val _
    end (unfold_reptype' v)).
 
-Definition repinj_aux_s (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (field_type (fst it) (co_members (get_co id))) -> reptype (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
+Definition repinj_aux_s (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
   fun v => @fold_reptype (Tstruct id a) (compact_prod_map _ F (unfold_reptype' v)).
 
-Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (field_type (fst it) (co_members (get_co id))) -> reptype (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))): reptype' (Tunion id a) -> reptype (Tunion id a) :=
+Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))): reptype' (Tunion id a) -> reptype (Tunion id a) :=
   fun v => @fold_reptype (Tunion id a) (compact_sum_map _ F (unfold_reptype' v)).
 
 Definition repinj: forall t: type, reptype' t -> reptype t :=
@@ -746,8 +750,8 @@ Lemma repinj_eq: forall t v,
    | Tfloat _ a => Vfloat
    | Tpointer _ a => pointer_val_val
    | Tarray t0 _ _ => map (repinj t0)
-   | Tstruct id a => compact_prod_map _ (ListTypeGen (fun it => reptype' (field_type (fst it) (co_members (get_co id))) -> reptype (field_type (fst it) (co_members (get_co id)))) (fun it => repinj (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
-   | Tunion id a => compact_sum_map _ (ListTypeGen (fun it => reptype' (field_type (fst it) (co_members (get_co id))) -> reptype (field_type (fst it) (co_members (get_co id)))) (fun it => repinj (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
+   | Tstruct id a => compact_prod_map _ (ListTypeGen (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => repinj (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))
+   | Tunion id a => compact_sum_map _ (ListTypeGen (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => repinj (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))
    end (unfold_reptype' v)).
 Proof.
   intros.
@@ -900,8 +904,11 @@ Proof.
     unfold reptype_structlist.
     generalize (co_members (get_co id)) at 1 3 4 5 7 9; intros.
     f_equal.
-    induction IH as [| [i t] ?].
+    induction IH as [| [i t|] ?].
     - reflexivity.
+    - Opaque field_type. simpl. Transparent field_type.
+      inv H.
+      f_equal; auto.
     - Opaque field_type. simpl. Transparent field_type.
       inv H.
       f_equal; auto.
@@ -914,8 +921,11 @@ Proof.
     unfold reptype_unionlist.
     generalize (co_members (get_co id)) at 1 3 4 5 7 9; intros.
     f_equal.
-    induction IH as [| [i t] ?].
+    induction IH as [| [i t|] ?].
     - reflexivity.
+    - Opaque field_type. simpl. Transparent field_type.
+      inv H.
+      f_equal; auto.
     - Opaque field_type. simpl. Transparent field_type.
       inv H.
       f_equal; auto.
@@ -958,8 +968,10 @@ Proof.
     rewrite <- Forall_forall.
     revert H IH.
     generalize (co_members (get_co id)) at 1 3 4 5 6 7 9 10 11 12; intros.
-    induction H as [| [i t] ?].
+    induction H as [| [i t|] ?].
     - constructor.
+    - inv IH.
+      constructor; auto.
     - inv IH.
       constructor; auto.
   + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
@@ -973,8 +985,10 @@ Proof.
     rewrite <- Forall_forall.
     revert H IH.
     generalize (co_members (get_co id)) at 1 3 4 5 6 7 9 10 11 12; intros.
-    induction H as [| [i t] ?].
+    induction H as [| [i t|] ?].
     - constructor.
+    - inv IH.
+      constructor; auto.
     - inv IH.
       constructor; auto.
 Qed.

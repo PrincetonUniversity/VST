@@ -27,9 +27,9 @@ Fixpoint is_effective_struct i (m: members) (v: reptype_skeleton) : option repty
   match m with
   | nil => None
   | _ :: nil => Some v
-  | (i', _) :: tl =>
+  | a :: tl =>
     match v with
-    | RepPair v1 v2 => if (ident_eq i i') then Some v1 else is_effective_struct i tl v2
+    | RepPair v1 v2 => if (ident_eq i (name_member a)) then Some v1 else is_effective_struct i tl v2
     | _ => None
     end
   end.
@@ -38,10 +38,10 @@ Fixpoint is_effective_union i (m: members) (v: reptype_skeleton) : option reptyp
   match m with
   | nil => None
   | _ :: nil => Some v
-  | (i', _) :: tl =>
+  | a :: tl =>
     match v with
-    | RepInl v0 => if (ident_eq i i') then Some v0 else None
-    | RepInr v0 => if (ident_eq i i') then None else is_effective_union i tl v0
+    | RepInl v0 => if (ident_eq i (name_member a)) then Some v0 else None
+    | RepInr v0 => if (ident_eq i (name_member a)) then None else is_effective_union i tl v0
     | _ => None
     end
   end.
@@ -220,30 +220,31 @@ Proof.
     - exact ((myfst v), IHl a0 (mysnd v)).
 Defined.
 
-Definition proj_struct' (i : ident) (m : members) {A: ident * type -> Type} (v: compact_prod (map A m)) (d: A (i, field_type i m)): A (i, field_type i m) :=
-  proj_compact_prod' (i, field_type i m) m v d member_dec.
+Definition proj_struct' (i : ident) (m : members) {A: member -> Type} (v: compact_prod (map A m)) (d: A (get_member i m)): A (get_member i m) :=
+  proj_compact_prod' (get_member i m) m v d member_dec.
 
 Definition upd_gfield_reptype' {cs: compspecs} t gf (v: reptype t) (v0: reptype (gfield_type t gf)) : reptype t :=
   fold_reptype
-  (match t, gf return (REPTYPE t -> reptype (gfield_type t gf) -> REPTYPE t)
+  (match t, gf return (REPTYPE t -> reptype (gfield_type' t gf) -> REPTYPE t)
   with
   | Tarray t0 n a, ArraySubsc i => upd_Znth i
-(*zl_concat (zl_concat (zl_sublist 0 i v) (zl_singleton i v0)) (zl_sublist (i + 1) n v) *)
   | Tstruct id _, StructField i =>
-      fun v v0 => upd_compact_prod' _ v (i, field_type i (co_members (get_co id))) v0 member_dec
+      fun v v0 => upd_compact_prod' _ v (get_member i (co_members (get_co id))) v0 member_dec
   | Tunion id _, UnionField i =>
-      fun v v0 => upd_compact_sum _ v (i, field_type i (co_members (get_co id))) v0 member_dec
+      fun v v0 => upd_compact_sum _ v (get_member i (co_members (get_co id))) v0 member_dec
   | _, _ => fun v _ => v
-  end (unfold_reptype v) v0).
+  end (unfold_reptype v) 
+          (eq_rect_r _ v0 (gfield_type'_eq _ _))).
+
 
 Definition proj_gfield_reptype' {cs: compspecs} (t: type) (gf: gfield) (v: reptype t): reptype (gfield_type t gf) :=
-  match t, gf return (REPTYPE t -> reptype (gfield_type t gf))
+  (match t, gf return (REPTYPE t -> reptype (gfield_type t gf))
   with
   | Tarray t0 hi a, ArraySubsc i => fun v => @Znth _ (default_val _) i v
-  | Tstruct id _, StructField i => fun v => proj_struct i (co_members (get_co id)) v (default_val _)
-  | Tunion id _, UnionField i => fun v => proj_union i (co_members (get_co id)) v (default_val _)
+  | Tstruct id _, StructField i => fun v => field_type_name_member (proj_struct i (co_members (get_co id)) v (default_val _))
+  | Tunion id _, UnionField i => fun v => field_type_name_member (proj_union i (co_members (get_co id)) v (default_val _))
   | _, _ => fun _ => default_val _
-  end (unfold_reptype v).
+  end (unfold_reptype v)).
 
 Section A.
 Context {cs: compspecs}.

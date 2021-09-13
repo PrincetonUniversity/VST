@@ -51,32 +51,6 @@ Qed.
 Hint Rewrite subst_eval_id_eq : subst.
 Hint Rewrite subst_eval_id_neq using safe_auto_with_closed : subst.
 
-(*
-Lemma subst_temp_eq:
-  forall i v w, subst i `v (temp i w) = `(eq w v).
-Proof.
-unfold temp; intros; autorewrite with subst.
-extensionality rho; unfold_lift. reflexivity.
-Qed.
-
-Lemma subst_temp_neq:
-  forall i j v w, i<>j -> subst i v (temp j w) = temp j w.
-Proof.
-unfold temp; intros. autorewrite with subst.
-f_equal. apply subst_eval_id_neq; auto.
-Qed.
-
-Lemma subst_var:
-   forall i j v t w,  subst i v (var j t w) = var j t w.
-Proof.
-unfold var; intros; autorewrite with subst; auto.
-Qed.
-
-Hint Rewrite subst_var : subst.
-Hint Rewrite subst_temp_eq : subst.
-Hint Rewrite subst_temp_neq using safe_auto_with_closed : subst.
-*)
-
 Fixpoint subst_eval_expr  {cs: compspecs}  (j: ident) (v: environ -> val) (e: expr) : environ -> val :=
  match e with
  | Econst_int i ty => `(Vint i)
@@ -1700,7 +1674,8 @@ all: repeat simple_if_tac; try destruct si2; auto with closed.
  apply closed_wrt_tc_lvalue; auto.
  destruct (typeof e); simpl; auto with closed;
  destruct (cenv_cs ! i0); simpl; auto with closed.
- destruct (field_offset cenv_cs i (co_members c)); simpl; auto with closed.
+ destruct (field_offset cenv_cs i (co_members c)) as [[? [|]]|]; simpl; auto with closed.
+ destruct (union_field_offset cenv_cs i (co_members c)) as [[[ | | ] [|]]|]; simpl; auto with closed.
 *
  clear closed_wrt_tc_lvalue.
  unfold tc_lvalue.
@@ -1717,7 +1692,8 @@ all: repeat simple_if_tac; try destruct si2; auto with closed.
  repeat apply closed_wrt_tc_andp; auto with closed.
  destruct (typeof e); simpl; auto with closed;
  destruct (cenv_cs ! i0); simpl; auto with closed.
- destruct (field_offset cenv_cs i (co_members c)); simpl; auto with closed.
+ destruct (field_offset cenv_cs i (co_members c)) as [[? [|]]|]; simpl; auto with closed.
+ destruct (union_field_offset cenv_cs i (co_members c)) as [[[ | | ] [|]]|]; simpl; auto with closed.
 Qed.
 
 #[export] Hint Resolve closed_wrt_tc_expr : closed.

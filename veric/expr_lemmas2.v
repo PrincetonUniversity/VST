@@ -62,9 +62,13 @@ destruct (typeof e); try now inversion H3.
 +
 destruct (cenv_cs ! i0) as [co |]; [| inv H3].
 destruct (field_offset cenv_cs i (co_members co)); [| inv H3].
+destruct p. destruct b0; [ | inv H3].
 unfold offset_val; eauto.
 +
 destruct (cenv_cs ! i0) as [co |]; [| inv H3].
+destruct (union_field_offset cenv_cs i (co_members co)); [| inv H3].
+destruct p. destruct z; [ | inv H3 .. ].
+destruct b0; [ | inv H3].
 simpl.
 eauto.
 Qed.
@@ -113,6 +117,16 @@ unfold tc_val; unfold is_pointer_type in H1;
 }
 Qed.
 
+Lemma ptrofs_add_repr_0:
+  forall i, Ptrofs.add i (Ptrofs.repr 0) = i.
+Proof.
+  intros.
+ rewrite <- (Ptrofs.repr_unsigned i).
+  unfold Ptrofs.add. rewrite !Ptrofs.repr_unsigned. rewrite Ptrofs.unsigned_repr.
+  rewrite Z.add_0_r. rewrite Ptrofs.repr_unsigned. auto.
+  clear; pose proof Ptrofs.max_signed_pos. pose proof Ptrofs.max_signed_unsigned. lia.
+Qed.
+
 Lemma typecheck_expr_sound_Efield:
   forall {CS: compspecs} Delta rho e i t m
   (H: typecheck_environ Delta rho)
@@ -141,13 +155,16 @@ spec H2. clear - MODE; destruct t; try destruct i; try destruct s; try destruct 
 destruct PTR.
 destruct (typeof e); try now inv H3.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H3.
-  destruct (field_offset cenv_cs i (co_members co)); try now inv H3.
+  destruct (field_offset cenv_cs i (co_members co)) as [ [ ? [|]] |  ]; try now inv H3.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
   destruct t; auto; try inversion H2.
   destruct f; inv H2.
   red. simple_if_tac; apply I.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H3.
+  destruct (union_field_offset cenv_cs i (co_members co)) as [ [ ? [|]] |  ]; try contradiction;
+  destruct z; try contradiction.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
+  rewrite ptrofs_add_repr_0; auto.
 Qed.
 
 Lemma typecheck_lvalue_sound_Efield:
@@ -177,12 +194,16 @@ subst v.
 destruct PTR as [b [ofs ?]].
 destruct (typeof e); try now inv H2.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H2.
-  destruct (field_offset cenv_cs i (co_members co)); try now inv H2.
+  destruct (field_offset cenv_cs i (co_members co)) as [ [ ? [|]] |  ]; try now inv H2.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H6.
   destruct pt; inv H1; auto.
   red; simple_if_tac; apply I.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H2.
+  destruct (union_field_offset cenv_cs i (co_members co)) as [ [ ? [|]] |  ]; try now inv H2.
+  2: destruct z; contradiction.
+  destruct z; try contradiction.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H6.
+  rewrite ptrofs_add_repr_0; auto.
 Qed.
 
 Lemma typecheck_expr_sound_Evar:

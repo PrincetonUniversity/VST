@@ -537,7 +537,7 @@ Lemma eval_unop_relate:
      Clight.eval_expr ge ve te (m_dry m) e (eval_expr e rho))
  (H2 : (denote_tc_assert (typecheck_lvalue Delta e) rho) (m_phi m) ->
      exists (b : block) (ofs : ptrofs),
-       Clight.eval_lvalue ge ve te (m_dry m) e b ofs /\
+       Clight.eval_lvalue ge ve te (m_dry m) e b ofs Full /\
        eval_lvalue e rho = Vptr b ofs)
  (H3 : (denote_tc_assert (typecheck_expr Delta (Eunop u e t)) rho)
        (m_phi m)),
@@ -622,7 +622,7 @@ Lemma eval_both_relate:
            /\
            (denote_tc_assert (typecheck_lvalue Delta e) rho (m_phi m) ->
              exists b, exists ofs,
-              Clight.eval_lvalue ge ve te (m_dry m) e b ofs /\
+              Clight.eval_lvalue ge ve te (m_dry m) e b ofs Full /\
               eval_lvalue e rho = Vptr b ofs).
 Proof.
 intros until m; intro Hcenv; intros.
@@ -642,7 +642,7 @@ remember (Map.get (ve_of rho) i); destruct o; try destruct p;
 try rewrite eqb_type_eq in *; simpl in *.
 destruct (type_eq t t0); simpl in *; [| exfalso; eapply tc_val_Vundef; eauto].
 subst t0.
-apply Clight.eval_Elvalue with b Ptrofs.zero;
+apply Clight.eval_Elvalue with b Ptrofs.zero Full;
   [ | constructor; simpl; rewrite MODE; auto].
 apply eval_Evar_local.
 subst rho.
@@ -662,7 +662,7 @@ rewrite H3.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold tc_bool in H2.
 destruct (eqb_type t t0); try contradiction.
-apply Clight.eval_Elvalue with b Ptrofs.zero; [  | econstructor 2; apply MODE].
+apply Clight.eval_Elvalue with b Ptrofs.zero Full; [  | econstructor 2; apply MODE].
 apply Clight.eval_Evar_global; auto.
 
 * (* eval_lvalue Evar *)
@@ -766,7 +766,7 @@ simpl in H1.
  destruct (typeof e) eqn:?; try solve[inv H3];
  destruct (cenv_cs ! i0) as [co |] eqn:Hco; try solve [inv H3].
 +
-   destruct (field_offset cenv_cs i (co_members co)) eqn:?;
+   destruct (field_offset cenv_cs i (co_members co)) as [[?  [|]] |]eqn:?;
      try contradiction.
   inv H3. simpl in *.
   eapply Clight.eval_Elvalue; eauto.
@@ -775,9 +775,11 @@ simpl in H1.
   rewrite Heqt0.
   apply Clight.deref_loc_copy. auto.
   { specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
-  { eapply field_offset_stable; eauto.
+  { instantiate (1:=Full). instantiate (1:=z). rewrite <- Heqr.
+    eapply field_offset_stable; try eassumption.
     intros. specialize (Hcenv id); rewrite H in Hcenv; apply Hcenv.
-    apply cenv_consistent.  }
+   apply co_consistent_complete. 
+    apply (cenv_consistent i0); auto. }
   unfold_lift.
   unfold Datatypes.id; simpl.
   rewrite Heqt0. rewrite H4. simpl. rewrite Hco. rewrite Heqr.
@@ -785,13 +787,22 @@ simpl in H1.
 
 + simpl. unfold_lift.
    rewrite Heqt0. simpl. rewrite Hco.
+  destruct (union_field_offset (@cenv_cs CS) i (co_members co) ) eqn:?H; try contradiction.
+  destruct p. destruct z; try contradiction. destruct b0; try contradiction.
   eapply Clight.eval_Elvalue; eauto.
   eapply Clight.eval_Efield_union.
   eapply Clight.eval_Elvalue; eauto.
   apply Clight.deref_loc_copy.
   rewrite Heqt0. auto. eauto.
   { specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
-  rewrite H4. simpl.
+  instantiate (1:=Full). instantiate (1:=0). rewrite <- H5.
+  eapply union_field_offset_stable; try eassumption.
+    intros. specialize (Hcenv id); rewrite H6 in Hcenv; apply Hcenv.
+   apply co_consistent_complete. 
+    apply (cenv_consistent i0); auto.
+  rewrite ptrofs_add_repr_0.
+  rewrite H4. simpl offset_val.
+  rewrite ptrofs_add_repr_0.
   apply Clight.deref_loc_reference; auto.
 *
  clear H1.
@@ -807,22 +818,32 @@ rewrite H4 in TC|-*.
 destruct (cenv_cs ! i0) as [co |] eqn:Hco; try solve [inv H3].
 +
 destruct (field_offset cenv_cs i (co_members co)) eqn:?; try contradiction.
+destruct p. destruct b0; try contradiction.
 exists b. exists (Ptrofs.add ofs (Ptrofs.repr z)).
 intuition.
  eapply Clight.eval_Efield_struct; auto; try eassumption.
 eapply Clight.eval_Elvalue in H2. apply H2.
 rewrite Heqt0. apply Clight.deref_loc_copy. simpl; auto.
 { specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
-{ eapply field_offset_stable; eauto.
+{ rewrite <- Heqr. eapply field_offset_stable; eauto.
   intros. specialize (Hcenv id); rewrite H5 in Hcenv; apply Hcenv.
-  apply cenv_consistent.  }
+   apply co_consistent_complete. 
+    apply (cenv_consistent i0); auto. }
 +
-exists b, ofs. simpl. split; auto.
-eapply Clight.eval_Efield_union; eauto.
+destruct (union_field_offset cenv_cs i (co_members co)) eqn:?; try contradiction.
+destruct p. destruct z; try contradiction. destruct b0; try contradiction.
+exists b. exists (Ptrofs.add ofs (Ptrofs.repr 0)).
+simpl. split; auto.
+eapply Clight.eval_Efield_union; eauto; try eassumption.
 eapply Clight.eval_Elvalue; eauto.
 rewrite Heqt0. apply Clight.deref_loc_copy.
 auto.
 { specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
+rewrite <- Heqr.
+apply union_field_offset_stable.
+  intros. specialize (Hcenv id); rewrite H5 in Hcenv; apply Hcenv.
+   apply co_consistent_complete. 
+    apply (cenv_consistent i0); auto.
 *
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.
@@ -868,7 +889,7 @@ Lemma eval_lvalue_relate:
            typecheck_environ Delta rho ->
            (denote_tc_assert (typecheck_lvalue Delta e) rho (m_phi m) ->
              exists b, exists ofs,
-              Clight.eval_lvalue ge ve te (m_dry m) e b ofs /\
+              Clight.eval_lvalue ge ve te (m_dry m) e b ofs Full /\
               eval_lvalue e rho = Vptr b ofs).
 Proof.
 intros.

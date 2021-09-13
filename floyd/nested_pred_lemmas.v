@@ -38,7 +38,7 @@ Definition nested_pred (atom_pred: type -> bool): type -> bool :=
     (fun id a bl => (atom_pred (Tunion id a) && fold_right andb true (decay bl))%bool).
 
 Definition nested_fields_pred (atom_pred: type -> bool) (m: members) : bool :=
-  fold_right (fun it b => (nested_pred atom_pred (field_type (fst it) m) && b)%bool) true m.
+  fold_right (fun it b => (nested_pred atom_pred (field_type (name_member it) m) && b)%bool) true m.
 
 Lemma nested_pred_eq: forall atom_pred t,
   nested_pred atom_pred t =
@@ -73,7 +73,8 @@ Proof.
   try apply andb_true_iff in H; try tauto.
 Defined.
 
-Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m, in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type i m) = true.
+Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m,
+  in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type i m) = true.
 Proof.
   intros.
   unfold nested_fields_pred in H0.
@@ -82,11 +83,18 @@ Proof.
   clear - H.
   rewrite <- map_map.
   apply in_map.
-  change (field_type i m) with ((fun it => field_type (fst it) m) (i, field_type i m)).
-  apply in_map.
-  apply in_members_field_type.
-  auto.
-Defined.
+  apply in_members_field_type' in H.
+  destruct H as [a [? [? ?]]].  
+  rewrite <- H0.
+  set (m':=m) at 1.
+  fold m' in H0.
+  clearbody m'.
+  induction m.
+  inv H1.
+  destruct H1.
+  subst; left; auto.
+  right; auto.
+Qed.
 
 Lemma nested_pred_Tarray: forall (atom_pred: type -> bool) t n a,
   nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.
@@ -105,7 +113,10 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_pred_Tstruct2: forall (atom_pred: type -> bool) id a i,
+Lemma nested_pred_Tstruct2: forall 
+  (atom_pred: type -> bool) id 
+  (PLAIN: plain_members (co_members (get_co id)) = true)
+   a i,
   nested_pred atom_pred (Tstruct id a) = true ->
   in_members i (co_members (get_co id)) ->
   nested_pred atom_pred (field_type i (co_members (get_co id))) = true.
@@ -123,7 +134,9 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_pred_Tunion2: forall (atom_pred: type -> bool) id a i,
+Lemma nested_pred_Tunion2: forall (atom_pred: type -> bool) id
+  (PLAIN: plain_members (co_members (get_co id)) = true)
+   a i,
   nested_pred atom_pred (Tunion id a) = true ->
   in_members i (co_members (get_co id)) ->
   nested_pred atom_pred (field_type i (co_members (get_co id))) = true.
@@ -169,6 +182,28 @@ Proof.
   lia.
 Qed.
 
+Lemma complete_Tstruct_plain:
+  forall {cs: compspecs} id a,
+   complete_legal_cosu_type (Tstruct id a) = true ->
+   plain_members (co_members (get_co id)) = true.
+Proof.
+intros.
+unfold get_co; simpl in H.
+destruct (cenv_cs ! id); [ | discriminate].
+destruct (co_su c); auto; discriminate.
+Qed.
+
+Lemma complete_Tunion_plain:
+  forall {cs: compspecs} id a,
+   complete_legal_cosu_type (Tunion id a) = true ->
+   plain_members (co_members (get_co id)) = true.
+Proof.
+intros.
+unfold get_co; simpl in H.
+destruct (cenv_cs ! id); [ | discriminate].
+destruct (co_su c); auto; discriminate.
+Qed.
+
 Lemma Tstruct_sizeof_0: forall id a,
   complete_legal_cosu_type (Tstruct id a) = true ->
   sizeof (Tstruct id a) = 0 ->
@@ -178,7 +213,8 @@ Lemma Tstruct_sizeof_0: forall id a,
    (field_offset cenv_cs i (co_members (get_co id)) +
       sizeof (field_type i (co_members (get_co id)))) = 0.
 Proof.
-  intros. 
+  intros.
+  assert (PLAIN := complete_Tstruct_plain _ _ H).
   rewrite sizeof_Tstruct in H0.
   rewrite H0.
   apply sizeof_struct_0; auto.
@@ -188,6 +224,8 @@ Proof.
   pose proof align_le (sizeof_struct cenv_cs 0 (co_members (get_co id)))
      (co_alignof (get_co id)) (co_alignof_pos _).
   pose proof sizeof_struct_incr cenv_cs (co_members (get_co id)) 0.
+  rewrite plain_members_sizeof_struct in * by auto.
+  rewrite H0 in *.
   lia.
 Qed.
 
@@ -296,6 +334,7 @@ Ltac pose_sizeof_co t :=
     assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id)); [
       rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
       rewrite complete_legal_cosu_type_Tstruct with (a0 := a) by auto;
+      rewrite plain_members_sizeof_struct by (eapply complete_Tstruct_plain; eauto);
       apply align_le, co_alignof_pos
        |]
   | Tunion ?id ?a =>
@@ -309,14 +348,15 @@ Ltac pose_sizeof_co t :=
 
 Ltac pose_field :=
   match goal with
-  | _ : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
+  | L : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
     context [@sizeof ?cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tstruct id a);
       let H := fresh "H" in
-      pose proof field_offset_in_range i (co_members (get_co id)) as H;
+      pose proof field_offset_in_range i (co_members (get_co id))
+                              (complete_Tstruct_plain _ _ L) as H;
       spec H; [solve [auto] |];
       pose proof @sizeof_pos cs (field_type i (co_members (get_co id)))
-  | _ : complete_legal_cosu_type (Tunion ?id ?a) = true |-
+  | L : complete_legal_cosu_type (Tunion ?id ?a) = true |-
     context [@sizeof ?cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tunion id a);
       let H := fresh "H" in
@@ -326,11 +366,13 @@ Ltac pose_field :=
   | _ => idtac
   end;
   match goal with
-  | _ : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
+  | L : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
     context [field_offset_next cenv_cs ?i (co_members (get_co ?id)) (co_sizeof (get_co ?id))] =>
       let H := fresh "H" in
-      pose proof field_offset_next_in_range i (co_members (get_co id)) (co_sizeof (get_co id));
+      pose proof field_offset_next_in_range i (co_members (get_co id))
+                      (complete_Tstruct_plain _ _ L) (co_sizeof (get_co id));
       spec H; [solve [auto] |];
       spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
   | _ => idtac
   end.
+

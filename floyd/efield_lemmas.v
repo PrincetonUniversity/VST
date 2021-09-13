@@ -873,6 +873,7 @@ Proof.
       normalize.
 Qed.
 
+(*
 Lemma in_members_Ctypes_offset: forall i m e, in_members i m -> Ctypes.field_offset cenv_cs i m = Errors.Error e -> False.
 Proof.
   intros.
@@ -885,8 +886,10 @@ Proof.
     - destruct H; [simpl in H; congruence | auto].
     - apply IHm in H3; auto.
 Qed.
+*)
 
-Lemma struct_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
+Lemma struct_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho
+  (PLAIN: plain_members (co_members (get_co i)) = true),
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
   in_members i0 (co_members (get_co i)) ->
@@ -909,15 +912,14 @@ Proof.
   unfold field_offset, fieldlist.field_offset.
   unfold get_co in *.
   destruct (cenv_cs ! i1); [| inv H1].
-  destruct (Ctypes.field_offset cenv_cs i0 (co_members c)) eqn:?H.
-  + split; auto.
-    rewrite denote_tc_assert_andp; simpl.
-    apply add_andp, prop_right; auto.
-  + exfalso.
-    pose proof in_members_Ctypes_offset i0 (co_members c) e0; auto.
+  rewrite (plain_members_field_offset _ PLAIN _ _ H1).
+  split; auto.
+  rewrite denote_tc_assert_andp; simpl.
+  apply add_andp, prop_right; auto.
 Qed.
 
-Lemma struct_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p,
+Lemma struct_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p
+  (PLAIN: plain_members (co_members (get_co i0)) = true),
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
   in_members i (co_members (get_co i0)) ->
@@ -936,9 +938,9 @@ Lemma struct_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p,
           eval_lvalue (nested_efield e (eStructField i :: efs) (t :: tts)) rho) &&
       tc_lvalue Delta (nested_efield e (eStructField i :: efs) (t :: tts)) rho.
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ? ? PLAIN
          LEGAL_NESTED_EFIELD_REC TYPE_MATCH ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
-  destruct (struct_op_facts Delta _ _ _ _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE EFIELD_DENOTE) as [TC EVAL].
+  destruct (struct_op_facts Delta _ _ _ _ _ _ _ _ t _ PLAIN LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE EFIELD_DENOTE) as [TC EVAL].
   rewrite tc_efield_ind; simpl.
   eapply derives_trans; [exact IH | ].
   unfold_lift.
@@ -950,7 +952,8 @@ Proof.
       apply derives_refl.
 Qed.
 
-Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
+Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho
+  (PLAIN: plain_members (co_members (get_co i)) = true),
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
   in_members i0 (co_members (get_co i)) ->
@@ -971,12 +974,14 @@ Proof.
   rewrite H5.
   unfold get_co in *.
   destruct (cenv_cs ! i1); [| inv H1].
+  rewrite (plain_members_union_field_offset _ PLAIN); auto.
   split; [| normalize; auto].
   rewrite denote_tc_assert_andp; simpl.
   apply add_andp, prop_right; auto.
 Qed.
 
-Lemma union_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p,
+Lemma union_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p
+  (PLAIN: plain_members (co_members (get_co i0)) = true),
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
   in_members i (co_members (get_co i0)) ->
@@ -995,9 +1000,9 @@ Lemma union_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p,
           eval_lvalue (nested_efield e (eUnionField i :: efs) (t :: tts)) rho) &&
       tc_lvalue Delta (nested_efield e (eUnionField i :: efs) (t :: tts)) rho.
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ? ? PLAIN
          LEGAL_NESTED_EFIELD_REC TYPE_MATCH ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
-  destruct (union_op_facts Delta _ _ _ _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE EFIELD_DENOTE) as [TC EVAL].
+  destruct (union_op_facts Delta _ _ _ _ _ _ _ _ t _ PLAIN LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE EFIELD_DENOTE) as [TC EVAL].
   rewrite tc_efield_ind; simpl.
   eapply derives_trans; [exact IH | ].
   unfold_lift.
@@ -1080,7 +1085,19 @@ Proof.
   + eapply array_ind_step_long; eauto.
   + eapply array_ind_step_ptrofs; eauto.
   + eapply struct_ind_step; eauto.
+     destruct FIELD_COMPATIBLE as [_ [H0 [_ [_ H1]]]].
+     assert (H2 :=nested_field_type_complete_legal_cosu_type _ _ H0 H1).
+     rewrite NESTED_FIELD_TYPE in H2. simpl in H2.
+     unfold get_co.
+     destruct (cenv_cs ! i0); try discriminate.
+     destruct (co_su c); try discriminate; auto.
   + eapply union_ind_step; eauto.
+     destruct FIELD_COMPATIBLE as [_ [H0 [_ [_ H1]]]].
+     assert (H2 :=nested_field_type_complete_legal_cosu_type _ _ H0 H1).
+     rewrite NESTED_FIELD_TYPE in H2. simpl in H2.
+     unfold get_co.
+     destruct (cenv_cs ! i0); try discriminate.
+     destruct (co_su c); try discriminate; auto.
 Qed.
 
 Lemma nested_efield_facts: forall Delta t_root e efs gfs tts lr p,
