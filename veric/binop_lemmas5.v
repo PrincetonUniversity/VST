@@ -10,6 +10,8 @@ Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.binop_lemmas3.
 Import Cop.
 
+Transparent intsize_eq.
+
 Lemma typecheck_Otest_eq_sound:
  forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)

@@ -57,7 +57,11 @@ Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
                  end
              | Tunion id att =>
                  match cenv_cs ! id with
-                 | Some co => force_ptr
+                 | Some co => 
+                         match union_field_offset cenv_cs fld (co_members co) with
+                         | Errors.OK (delta, Full) => offset_val delta
+                         | _ => always Vundef
+                         end
                  | _ => always Vundef
                  end
              | _ => always Vundef
@@ -697,7 +701,11 @@ match e with
                                end
                             | Tunion id att =>
                                match cenv_cs ! id with
-                               | Some co => tc_TT
+                               | Some co => 
+                                   match union_field_offset cenv_cs i (co_members co) with
+                                     | Errors.OK (0, Full) => tc_TT
+                                     | _ => tc_FF (invalid_struct_field i id)
+                                   end
                                | _ => tc_FF (invalid_composite_name id)
                                end
                             | _ => tc_FF (invalid_field_access e)
@@ -745,7 +753,11 @@ match e with
                               end
                             | Tunion id att =>
                               match cenv_cs ! id with
-                              | Some co => tc_TT
+                              | Some co => 
+                                   match union_field_offset cenv_cs i (co_members co) with
+                                     | Errors.OK (0, Full) => tc_TT
+                                     | _ => tc_FF (invalid_struct_field i id)
+                                   end
                               | _ => tc_FF (invalid_composite_name id)
                               end
                             | _ => tc_FF (invalid_field_access e)

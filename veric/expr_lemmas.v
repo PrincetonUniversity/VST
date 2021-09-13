@@ -22,6 +22,8 @@ Import Ctypes.
 Import LiftNotation.
 Import compcert.lib.Maps.
 
+Transparent intsize_eq.
+
 Lemma tc_bool_val:
   forall v t,
        tc_val t v ->
@@ -761,34 +763,46 @@ all: try (
   unfold eval_field;
   destruct (typeof e); auto;
   destruct ((@cenv_cs CS) ! i0) eqn:?H; auto;
-  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:?H; auto;
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) as [ [? [|]] | ] eqn:?H; auto;
+  destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [ [? [|]] | ] eqn:?H; auto;
   clear - e0;
   induction e; simpl in *; auto; rewrite ?e0; auto.
  * 
   rewrite <- eval_lvalue_cenv_sub_eq; auto.
-  unfold eval_field in *.
-  destruct (typeof e); auto.
-  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
-  assert (H1 := CSUB i0); hnf in H1; rewrite H0 in H1; rewrite H1.
-  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:H2;
-    [ | contradiction H; destruct (@eval_lvalue CS e rho); reflexivity].
-  eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H2; 
+  -- 
+   unfold eval_field in *.
+   destruct (typeof e); auto.
+   ++
+   destruct ((@cenv_cs CS) ! i0) eqn:?H; auto;
+     [ |  contradiction H; destruct (@eval_lvalue CS e rho); reflexivity].
+   assert (H1 := CSUB i0); hnf in H1; rewrite H0 in H1; rewrite H1.
+   destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]] | ] eqn:H2;
+     [ | contradiction H; destruct (@eval_lvalue CS e rho); reflexivity .. ].
+   rewrite <- (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H2; 
     try eassumption.
-  rewrite H2; auto.
-  intros. specialize (CSUB id). hnf in CSUB; rewrite H3 in CSUB; auto.
-  apply cenv_consistent.
-  contradiction H; destruct (@eval_lvalue CS e rho); reflexivity.
-  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
-  assert (H1 := CSUB i0); hnf in H1; rewrite H0 in H1; rewrite H1.
-  auto.
-  contradiction H; destruct (@eval_lvalue CS e rho); reflexivity.
+    rewrite H2; auto.
+    intros. specialize (CSUB id). hnf in CSUB; rewrite H3 in CSUB; auto.
+     apply co_consistent_complete;  apply (cenv_consistent i0); auto. 
+  ++
+    destruct ((@cenv_cs CS) ! i0) eqn:?H; auto;
+     [ |  contradiction H; destruct (@eval_lvalue CS e rho); reflexivity].
+   assert (H1 := CSUB i0); hnf in H1; rewrite H0 in H1; rewrite H1.
+   destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]] | ] eqn:H2;
+     [ | contradiction H; destruct (@eval_lvalue CS e rho); reflexivity .. ].  
+   rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H2; 
+    try eassumption.
+    rewrite H2; auto.
+    intros. specialize (CSUB id). hnf in CSUB; rewrite H3 in CSUB; auto.
+     apply co_consistent_complete;  apply (cenv_consistent i0); auto. 
+  --
   contradict H. rewrite H.
   clear.
   unfold eval_field.
   destruct (typeof e); simpl; auto.
   destruct ((@cenv_cs CS) ! i0); auto.
-  destruct (field_offset (@cenv_cs CS) i (co_members c)); auto.
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]] | ] ; auto.
   destruct ((@cenv_cs CS) ! i0); auto.
+  destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]] | ] ; auto.
  + unfold expr.sizeof.
    destruct (complete_type (@cenv_cs CS) t) eqn:?H.
   rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
@@ -811,30 +825,27 @@ all: try (
     simpl; unfold_lift.
   destruct (typeof e); simpl; auto.
   destruct ((@cenv_cs CS) ! i0); auto.
-  destruct (field_offset (@cenv_cs CS) i (co_members c)); auto.
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]] | ] ; auto.
    rewrite H; auto.
   destruct ((@cenv_cs CS) ! i0); auto.
+  destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]] | ] ; auto.
    rewrite H; auto.
   }
   specialize (IHe H0).
   rewrite <- IHe.
   unfold eval_field.
-  destruct (typeof e) eqn:H9; simpl; auto.
-  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  destruct (typeof e) eqn:H9; simpl; auto;
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto;
+   try solve [contradiction H; simpl; unfold_lift; rewrite H9; simpl; rewrite H1; reflexivity];
   rewrite (cenv_sub_e _ _ CSUB _ _ H1).
-  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:?H; auto.
-  erewrite (field_offset_stable (@cenv_cs CS)); try apply H2; auto.
-  apply cenv_sub_e; auto.
-  apply cenv_consistent. eauto.
-  contradiction H.
-  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. rewrite H2. reflexivity.
-  contradiction H.
-  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. reflexivity.
-  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
-  rewrite (cenv_sub_e _ _ CSUB _ _ H1).
-  auto.
-  contradiction H.
-  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. reflexivity.
+  destruct (field_offset (@cenv_cs CS) i (co_members c))  as [[? [|]] | ] eqn:?H; auto;
+  rewrite (field_offset_stable (@cenv_cs CS)); try rewrite H2; auto;
+  try solve [apply cenv_sub_e; auto]; 
+  try solve [apply co_consistent_complete;  apply (cenv_consistent i0); auto]. 
+  destruct (union_field_offset (@cenv_cs CS) i (co_members c))  as [[? [|]] | ] eqn:?H; auto;
+  rewrite (union_field_offset_stable (@cenv_cs CS)); try rewrite H2; auto;
+  try solve [apply cenv_sub_e; auto]; 
+  try solve [apply co_consistent_complete;  apply (cenv_consistent i0); auto]. 
 Qed.
 
 

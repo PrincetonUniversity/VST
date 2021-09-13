@@ -444,6 +444,14 @@ try solve [
   repeat extend_tc_prover;
    destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
    simpl; repeat extend_tc_prover.
+   destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]] | ]; 
+  repeat extend_tc_prover.
+   destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]] | ]; 
+  repeat extend_tc_prover.
+   destruct (field_offset (@cenv_cs CS) i (co_members c0)) as [[? [|]] | ]; 
+  repeat extend_tc_prover.
+   destruct (union_field_offset (@cenv_cs CS) i (co_members c0)) as [[[] [|]] | ]; 
+  repeat extend_tc_prover.
 *
  clear extend_tc_lvalue.
  intros.
@@ -454,6 +462,10 @@ try solve [
  repeat extend_tc_prover;
  destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  simpl; repeat extend_tc_prover.
+   destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]] | ]; 
+  repeat extend_tc_prover.
+   destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]] | ]; 
+  repeat extend_tc_prover.
 Qed.
 
 Lemma extend_tc_exprlist: forall {CS: compspecs} Delta t e rho, boxy extendM (tc_exprlist Delta t e rho).
@@ -734,7 +746,7 @@ Ltac tc_expr_cenv_sub_tac2 :=
    *
     destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
-    destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:?H; try contradiction.
+    destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]]|] eqn:?H; try contradiction.
     eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
     rewrite H1; auto.
     intros.
@@ -743,7 +755,12 @@ Ltac tc_expr_cenv_sub_tac2 :=
    *
     destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
-    auto.
+    destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try contradiction.
+    rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
+    rewrite H1. auto.
+   intros. specialize (CSUB id).  hnf in CSUB.  rewrite H3 in CSUB; auto.
+   apply co_consistent_complete. 
+   apply (cenv_consistent i0); auto.
 - clear  tc_lvalue_cenv_sub.
   unfold tc_lvalue in *.
   induction a;
@@ -754,7 +771,7 @@ Ltac tc_expr_cenv_sub_tac2 :=
    *
     destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
-    destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:?H; try contradiction.
+    destruct (field_offset (@cenv_cs CS) i (co_members c))  as [[? [|]]|] eqn:?H; try contradiction.
     eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
     rewrite H1; auto.
     intros.
@@ -763,7 +780,12 @@ Ltac tc_expr_cenv_sub_tac2 :=
    *
     destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
-    auto.
+    destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try contradiction.
+    rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
+    rewrite H1. auto.
+   intros. specialize (CSUB id).  hnf in CSUB.  rewrite H3 in CSUB; auto.
+   apply co_consistent_complete. 
+   apply (cenv_consistent i0); auto.
 Qed.
 
   Lemma tc_exprlist_cenv_sub Delta rho w:
