@@ -7,6 +7,8 @@ Require Export VST.veric.expr.
 Require Import VST.veric.mpred.
 Import LiftNotation.
 
+Transparent intsize_eq.
+
 Lemma neutral_cast_lemma: forall t1 t2 v,
   is_neutral_cast t1 t2 = true ->
   tc_val t1 v -> eval_cast t1 t2 v = v.

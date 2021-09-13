@@ -32,7 +32,7 @@ Fixpoint cs_preserve_type (coeq: PTree.t bool) (t: type): bool :=
 Fixpoint cs_preserve_members (coeq: PTree.t bool) (m: members): bool :=
   match m with
   | nil => true
-  | ((_, t) :: m) => andb (cs_preserve_type coeq t) (cs_preserve_members coeq m)
+  | (m1 :: m) => andb (cs_preserve_type coeq (type_member m1)) (cs_preserve_members coeq m)
   end.
 
 Class change_composite_env: Type := {
@@ -53,26 +53,25 @@ Definition cs_preserve_env: PTree.t bool :=
   fold_right (fun (ic: positive * composite) (T0: PTree.t bool) => let (i, co) := ic in let T := T0 in PTree.set i (cs_preserve_members T (co_members co)) T) (PTree.empty _) l.
 
 Lemma aux1: forall T co,
-  (fix fm (l : list (ident * type * bool)) : bool :=
+  (fix fm (l : list (member * bool)) : bool :=
    match l with
    | nil => true
-   | (_, _, b) :: l' => b && fm l'
+   | (_, b) :: l' => b && fm l'
    end)
   (map
-     (fun it0 : positive * type =>
-      let (i0, t0) := it0 in
-      (i0, t0,
+     (fun m : member =>
+      (m,
       type_func.F (fun t : type => match t with | Tstruct _ _ | Tunion _ _ => false | _ => true end) (fun (b : bool) (_ : type) (_ : Z) (_ : attr) => b)
         (fun (b : bool) (id : ident) (_ : attr) => test_aux b id)
-        (fun (b : bool) (id : ident) (_ : attr) => test_aux b id) T t0)) (co_members co)) =
+        (fun (b : bool) (id : ident) (_ : attr) => test_aux b id) T (type_member m))) (co_members co)) =
   cs_preserve_members T (co_members co).
 Proof.
   intros; unfold cs_preserve_members, cs_preserve_type, type_func.F.
-  induction (co_members co) as [| [i t] ?].
+  induction (co_members co).
   + auto.
   + simpl.
     f_equal; auto.
-    induction t; auto.
+    induction (type_member a); auto.
 Qed.
 
 Lemma aux2:
@@ -80,15 +79,15 @@ Lemma aux2:
         (fun (b : bool) (id : ident) (_ : attr) => test_aux b id)
         (fun (b : bool) (id : ident) (_ : attr) => test_aux b id)
         (fun _ : struct_or_union =>
-         fix fm (l : list (ident * type * bool)) : bool :=
+         fix fm (l : list (member * bool)) : bool :=
            match l with
            | nil => true
-           | (_, _, b) :: l' => b && fm l'
+           | (_, b) :: l' => b && fm l'
            end) (composite_reorder.rebuild_composite_elements cenv_cs) =
   cs_preserve_env.
 Proof.
   intros.
-  unfold type_func.Env, type_func.env_rec, cs_preserve_env.
+  unfold type_func.Env, cs_preserve_env.
   f_equal.
   extensionality ic.
   destruct ic as [i co].
@@ -111,10 +110,10 @@ Proof.
              (fun b id _ => test_aux b id)
              (fun b id _ => test_aux b id)
              (fun _ =>
-                fix fm (l: list (ident * type * bool)): bool :=
+                fix fm (l: list (member * bool)): bool :=
                 match l with
                 | nil => true
-                | (_, _, b) :: l' => b && (fm l')
+                | (_, b) :: l' => b && (fm l')
                 end)
              (@cenv_consistent cs_to)
     as HH.
@@ -122,7 +121,9 @@ Proof.
   subst coeq0.
   rewrite aux2 in HH.
   specialize (HH _ _ b H0 H1).
-  rewrite HH, aux1; auto.
+  rewrite HH; clear HH. 
+  unfold type_func.f_members.
+  rewrite aux1. auto.
 Qed.
 
 Lemma cs_preserve_completeness: forall (coeq: PTree.t bool),
@@ -138,10 +139,10 @@ Proof.
              (fun b id _ => test_aux b id)
              (fun b id _ => test_aux b id)
              (fun _ =>
-                fix fm (l: list (ident * type * bool)): bool :=
+                fix fm (l: list (member * bool)): bool :=
                 match l with
                 | nil => true
-                | (_, _, b) :: l' => b && (fm l')
+                | (_, b) :: l' => b && (fm l')
                 end)
     as HH.
   hnf in HH.
@@ -167,24 +168,27 @@ Lemma sizeof_composite_change_composite {cs_from cs_to} {CCE: change_composite_e
           (fun t : type =>
            cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
            @sizeof cs_from t = @sizeof cs_to t /\
-           @alignof cs_from t = @alignof cs_to t) snd) m ->
+           @alignof cs_from t = @alignof cs_to t) type_member) m ->
   true = cs_preserve_members cs_from cs_to (coeq cs_from cs_to) m ->
   sizeof_composite (@cenv_cs cs_from) su m = sizeof_composite (@cenv_cs cs_to) su m.
 Proof.
   intros.
   symmetry in H0.
   destruct su; simpl; auto.
-  + generalize 0 as z.
-    induction H as [| [i t] ? ?]; intros; [reflexivity |].
+  + 
+    unfold sizeof_struct.
+    generalize 0 as z.
+    induction H as [| m ? ?]; intros; [reflexivity |].
     simpl.
     simpl in H0.
     rewrite andb_true_iff in H0.
     destruct H0.
     apply H in H0; clear H; simpl in H0; destruct H0.
     unfold sizeof, alignof in H,H0.
-    rewrite H, H0.
-    apply (IHForall H2 (align z (alignof t) + sizeof t)).
-  + induction H as [| [i t] ? ?]; intros; [reflexivity |].
+    unfold next_field.
+    destruct m; auto. unfold bitalignof. simpl in H,H0.
+    rewrite (IHForall H2). unfold bitsizeof.  rewrite H,H0. auto.
+  + induction H as [| m ? ?]; intros; [reflexivity |].
     simpl.
     simpl in H0.
     rewrite andb_true_iff in H0.
@@ -199,18 +203,20 @@ Lemma alignof_composite_change_composite {cs_from cs_to} {CCE: change_composite_
           (fun t : type =>
            cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
            @sizeof cs_from t = @sizeof cs_to t /\
-           @alignof cs_from t = @alignof cs_to t) snd) m ->
+           @alignof cs_from t = @alignof cs_to t) type_member) m ->
   true = cs_preserve_members cs_from cs_to (coeq cs_from cs_to) m ->
   alignof_composite (@cenv_cs cs_from) m = alignof_composite (@cenv_cs cs_to) m.
 Proof.
   intros.
   symmetry in H0.
-  induction H as [| [i t] ? ?]; intros; [reflexivity |].
+  induction H as [| m ? ?]; intros; [reflexivity |].
   simpl.
   simpl in H0.
   rewrite andb_true_iff in H0.
   destruct H0.
   apply H in H0; clear H; simpl in H0; destruct H0.
+  destruct (member_is_padding m).
+  auto.
   f_equal; auto.
 Qed.
 
@@ -354,21 +360,28 @@ Proof.
   unfold field_offset.
   generalize 0.
   symmetry in H.
-  induction m as [| [i0 t0] m]; [auto |].
+  induction m as [| m1 m]; [auto |].
   intros.
   simpl in *.
   rewrite andb_true_iff in H.
   destruct H.
   if_tac.
   + subst.
+    destruct m1; simpl; auto.
     f_equal.
+    f_equal.
+    f_equal. f_equal.
+    unfold bitalignof.
     f_equal.
     apply alignof_change_composite; auto.
   + unfold align.
-     change (@Ctypes.alignof (@cenv_cs cs_from)  t0) with (@alignof cs_from t0).
-     change (@Ctypes.alignof (@cenv_cs cs_to)  t0) with (@alignof cs_to t0).
-     change (@Ctypes.sizeof (@cenv_cs cs_from)  t0) with (@sizeof cs_from t0).
-     change (@Ctypes.sizeof (@cenv_cs cs_to)  t0) with (@sizeof cs_to t0).
+     unfold next_field.
+     destruct m1; auto.
+     unfold bitalignof, bitsizeof.
+     change (@Ctypes.alignof (@cenv_cs cs_from)  t) with (@alignof cs_from t).
+     change (@Ctypes.alignof (@cenv_cs cs_to)  t) with (@alignof cs_to t).
+     change (@Ctypes.sizeof (@cenv_cs cs_from)  t) with (@sizeof cs_from t).
+     change (@Ctypes.sizeof (@cenv_cs cs_to)  t) with (@sizeof cs_to t).
      rewrite alignof_change_composite by auto.
     rewrite sizeof_change_composite by auto.
     apply IHm; auto.
@@ -380,14 +393,14 @@ Lemma align_compatible_rec_field_change_composite {cs_from cs_to} {CCE: change_c
     (Basics.compose
        (fun t : type =>
           cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
-          forall ofs : Z, @align_compatible_rec (@cenv_cs cs_from) t ofs <-> @align_compatible_rec (@cenv_cs cs_to) t ofs) snd)
+          forall ofs : Z, @align_compatible_rec (@cenv_cs cs_from) t ofs <-> @align_compatible_rec (@cenv_cs cs_to) t ofs) type_member)
     m ->
   forall i t,
     field_type i m = Errors.OK t ->
     forall ofs : Z, @align_compatible_rec (@cenv_cs cs_from) t ofs <-> @align_compatible_rec (@cenv_cs cs_to) t ofs.
 Proof.
   intros.
-  induction H0 as [| [i0 t0] m]; [inv H1 |].
+  induction H0 as [| m1 m]; [inv H1 |].
   simpl in H1.
   if_tac in H1.
   + subst.
@@ -519,10 +532,14 @@ Proof.
 Qed.
 
 Lemma cs_preserve_members_char {cs1 cs2 CPE}: forall l, cs_preserve_members cs1 cs2 CPE l = true <->
-      Forall (fun t => cs_preserve_type cs1 cs2 CPE t = true) (map snd l).
+      Forall (fun t => cs_preserve_type cs1 cs2 CPE t = true) (map type_member l).
 Proof. induction l; simpl.
 + split; intros. constructor. trivial.
-+ destruct a; simpl. destruct IHl as [IHl1 IHl2]. split; intros.
-  - apply andb_true_iff in H; destruct H. constructor. trivial. auto.
-  - inv H. rewrite H2, (IHl2 H3); trivial.
++ destruct a; simpl.
+  - destruct IHl as [IHl1 IHl2]. split; intros.
+  * apply andb_true_iff in H; destruct H. constructor. trivial. auto.
+  * inv H. rewrite H2, (IHl2 H3); trivial.
+  - destruct IHl as [IHl1 IHl2]. split; intros.
+  * constructor. trivial. auto.
+  * inv H. rewrite (IHl2 H3); trivial.
 Qed.

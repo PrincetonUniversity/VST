@@ -13,7 +13,7 @@ Lemma type_ind: forall P : type -> Prop,
   | Tarray t0 _ _ => P t0
   | Tstruct id _ 
   | Tunion id _ => match cenv ! id with
-                    | Some co => Forall (Basics.compose P snd) (co_members co)
+                    | Some co => Forall (Basics.compose P type_member) (co_members co)
                     | _ => True
                     end
   | _ => True
@@ -50,25 +50,37 @@ Proof.
     destruct (cenv ! i) as [co |] eqn:CO; auto.
     apply IH_TYPE; clear IH_TYPE.
     erewrite co_consistent_rank in RANK by (eapply cenv_consistent; eauto).
-    clear - RANK IHn; induction (co_members co) as [| [i t] ?]; auto.
+    clear - RANK IHn; induction (co_members co); auto.
     simpl in RANK.
-    pose proof Max.le_max_l (rank_type cenv t) (rank_members cenv m).
-    pose proof Max.le_max_r (rank_type cenv t) (rank_members cenv m).
-    constructor.
-    - apply IHn; simpl; lia.
-    - apply IHm; lia.
+    destruct a.
+    *
+     pose proof Max.le_max_l (rank_type cenv t) (rank_members cenv m).
+     pose proof Max.le_max_r (rank_type cenv t) (rank_members cenv m).
+     constructor.
+     - apply IHn; simpl; lia.
+     - apply IHm; lia.
+    *
+     constructor.
+     - apply IHn; simpl; lia.
+     - apply IHm; lia.
   + (* Tunion level positive *)
     simpl in RANK.
     destruct (cenv ! i) as [co |] eqn:CO; auto.
     apply IH_TYPE; clear IH_TYPE.
     erewrite co_consistent_rank in RANK by (eapply cenv_consistent; eauto).
-    clear - RANK IHn; induction (co_members co) as [| [i t] ?]; auto.
+    clear - RANK IHn; induction (co_members co); auto.
     simpl in RANK.
-    pose proof Max.le_max_l (rank_type cenv t) (rank_members cenv m).
-    pose proof Max.le_max_r (rank_type cenv t) (rank_members cenv m).
-    constructor.
-    - apply IHn; simpl; lia.
-    - apply IHm; lia.
+    destruct a.
+    *
+     pose proof Max.le_max_l (rank_type cenv t) (rank_members cenv m).
+     pose proof Max.le_max_r (rank_type cenv t) (rank_members cenv m).
+     constructor.
+     - apply IHn; simpl; lia.
+     - apply IHm; lia.
+    *
+     constructor.
+     - apply IHn; simpl; lia.
+     - apply IHm; lia.
 Defined.
 
 End COMPOSITE_ENV.

@@ -62,6 +62,7 @@ destruct (typeof e); try now inversion H3.
 +
 destruct (cenv_cs ! i0) as [co |]; [| inv H3].
 destruct (field_offset cenv_cs i (co_members co)); [| inv H3].
+destruct p. destruct b0; [ | inv H3].
 unfold offset_val; eauto.
 +
 destruct (cenv_cs ! i0) as [co |]; [| inv H3].
@@ -141,7 +142,7 @@ spec H2. clear - MODE; destruct t; try destruct i; try destruct s; try destruct 
 destruct PTR.
 destruct (typeof e); try now inv H3.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H3.
-  destruct (field_offset cenv_cs i (co_members co)); try now inv H3.
+  destruct (field_offset cenv_cs i (co_members co)) as [ [ ? [|]] |  ]; try now inv H3.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
   destruct t; auto; try inversion H2.
   destruct f; inv H2.
@@ -177,7 +178,7 @@ subst v.
 destruct PTR as [b [ofs ?]].
 destruct (typeof e); try now inv H2.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H2.
-  destruct (field_offset cenv_cs i (co_members co)); try now inv H2.
+  destruct (field_offset cenv_cs i (co_members co)) as [ [ ? [|]] |  ]; try now inv H2.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H6.
   destruct pt; inv H1; auto.
   red; simple_if_tac; apply I.

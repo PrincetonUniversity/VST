@@ -96,7 +96,7 @@ Qed.
 Inductive ordered_composite: list (positive * composite) -> Prop :=
 | ordered_composite_nil: ordered_composite nil
 | ordered_composite_cons: forall i co l,
-    Forall (relative_defined_type l) (map snd (co_members co)) ->
+    Forall (relative_defined_type l) (map type_member (co_members co)) ->
     ordered_composite l ->
     ordered_composite ((i, co) :: l).
 
@@ -217,7 +217,7 @@ Proof.
     specialize (H0 _ _ (or_introl eq_refl)).
     assert (rank_members cenv (co_members co) <= co_rank co)%nat by lia.
     destruct H0 as [? _].
-    induction (co_members co) as [| [i0 t0] ?].
+    induction (co_members co) as [| [i0 t0 |]].
     - constructor.
     - simpl in H0; rewrite andb_true_iff in H0; destruct H0.
       simpl in H1; pose proof Max.max_lub_r _ _ _ H1.
@@ -241,6 +241,8 @@ Proof.
         specialize (H _ _ H2).
         spec H; [lia |].
         apply (in_map fst) in H; auto.
+    - constructor. simpl; auto.
+       auto.
 Qed.
 
 End composite_reorder.
@@ -255,7 +257,7 @@ Context {A: Type}
         (f_array: A -> type -> Z -> attr -> A)
         (f_struct: A -> ident -> attr -> A)
         (f_union: A -> ident -> attr -> A)
-        (f_member: struct_or_union -> list (ident * type * A) -> A).
+        (f_member: struct_or_union -> list (member * A) -> A).
 
 Fixpoint F (env: PTree.t A) (t: type): A :=
   match t with
@@ -278,28 +280,21 @@ Definition Complete (cenv: composite_env) (env: PTree.t A): Prop :=
     (exists co, PTree.get i cenv = Some co) <->
     (exists a, PTree.get i env = Some a).
 
+Definition f_members (co: composite) (env: PTree.t A) : A :=
+  f_member (co_su co)
+            (map (fun m => (m, F env (type_member m))) (co_members co)).
+
+
 Definition Consistent (cenv: composite_env) (env: PTree.t A): Prop :=
   forall i co a,
     PTree.get i cenv = Some co ->
     PTree.get i env = Some a ->
-    a = f_member (co_su co) (map
-                              (fun it0: positive * type =>
-                                 let (i0, t0) := it0 in
-                                 (i0, t0, F env t0))
-                              (co_members co)).
-
-Definition env_rec (i: positive) (co: composite) (env: PTree.t A): PTree.t A :=
-  PTree.set i
-    (f_member (co_su co) (map
-                              (fun it0: positive * type =>
-                                 let (i0, t0) := it0 in (i0, t0, F env t0))
-                              (co_members co)))
-    env.
+    a = f_members co env.
 
 Definition Env (l: list (positive * composite)): PTree.t A :=
   fold_right
-    (fun (ic: positive * composite) =>
-       let (i, co) := ic in env_rec i co)
+    (fun (ic: positive * composite) env =>
+       let (i, co) := ic in PTree.set i (f_members co env) env)
     (PTree.empty A)
     l.
 
@@ -340,7 +335,7 @@ Context (cenv: composite_env)
 
 Hypothesis NOT_IN_LIST: ~ In i0 (map fst l).
 
-Hypothesis RDT_list: Forall (relative_defined_type l) (map snd (co_members co0)).
+Hypothesis RDT_list: Forall (relative_defined_type l) (map type_member (co_members co0)).
 
 Hypothesis CENV0: PTree.get i0 cenv = Some co0.
 
@@ -350,7 +345,7 @@ Hypothesis IH_RDT:
   forall i co a,
     PTree.get i cenv = Some co ->
     PTree.get i env = Some a ->
-    Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co)).
+    Forall (relative_defined_type (PTree.elements env)) (map type_member (co_members co)).
 
 Hypothesis IH_main:
   Consistent cenv env.
@@ -361,7 +356,7 @@ Proof.
   rewrite <- IH_In_equiv; auto.
 Qed.
 
-Lemma RDT_PTree: Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co0)).
+Lemma RDT_PTree: Forall (relative_defined_type (PTree.elements env)) (map type_member (co_members co0)).
 Proof.
   intros.
   revert RDT_list; apply Forall_impl.
@@ -371,12 +366,11 @@ Proof.
 Qed.
 
 Lemma establish_In_equiv:
-  forall i, In i (map fst ((i0, co0) :: l)) <-> In i (map fst (PTree.elements (env_rec i0 co0 env))).
+  forall i, In i (map fst ((i0, co0) :: l)) <-> In i (map fst (PTree.elements (PTree.set i0 (f_members co0 env) env))).
 Proof.
   intros.
   specialize (IH_In_equiv i).
   rewrite PTree_In_fst_elements in IH_In_equiv |- *.
-  unfold env_rec.
   rewrite <- PTree_gs_equiv.
   simpl In.
   assert (i0 = i <-> i = i0) by (split; intros; congruence).
@@ -386,12 +380,11 @@ Qed.
 Lemma establish_RDT:
   forall i co a,
     PTree.get i cenv = Some co ->
-    PTree.get i (env_rec i0 co0 env) = Some a ->
-    Forall (relative_defined_type (PTree.elements (env_rec i0 co0 env))) (map snd (co_members co)).
+    PTree.get i (PTree.set i0 (f_members co0 env) env) = Some a ->
+    Forall (relative_defined_type (PTree.elements (PTree.set i0 (f_members co0 env) env))) (map type_member (co_members co)).
 Proof.
   pose proof RDT_PTree as RDT_PTree.
   intros i co a CENV ENV.
-  unfold env_rec in ENV.
   destruct (Pos.eq_dec i i0).
   + subst i0; rewrite CENV in CENV0; inversion CENV0; subst co0; clear CENV0.
     rewrite PTree.gss in ENV.
@@ -407,35 +400,35 @@ Proof.
 Qed.
 
 Lemma establish_main:
-  Consistent cenv (env_rec i0 co0 env).
+  Consistent cenv (PTree.set i0 (f_members co0 env) env).
 Proof.
   pose proof NOT_IN as NOT_IN.
   pose proof RDT_PTree as RDT_PTree.
   intros i co a CENV ENV.
-  unfold env_rec in ENV.
   destruct (Pos.eq_dec i i0).
   + subst i0; rewrite CENV in CENV0; inversion CENV0; subst co0; clear CENV0.
     rewrite PTree.gss in ENV.
     inversion ENV; clear a ENV H0.
+    unfold f_members.
     f_equal.
-    auto.
     apply map_ext_in.
-    intros (i1, t1) ?.
+    intros. simpl.
     f_equal.
     apply F_PTree_set; auto.
     rewrite Forall_forall in RDT_PTree; apply RDT_PTree.
-    apply (in_map snd) in H; auto.
+    apply (in_map type_member) in H; auto.
   + rewrite PTree.gso in ENV by auto.
     specialize (IH_main _ _ _ CENV ENV).
     subst a.
+    unfold f_members.
     f_equal.
     apply map_ext_in.
-    intros (i1, t1) ?.
+    intros. simpl.
     f_equal.
     apply F_PTree_set; auto.
     specialize (IH_RDT _ _ _ CENV ENV).
     rewrite Forall_forall in IH_RDT; apply IH_RDT.
-    apply (in_map snd) in H; auto.
+    apply (in_map type_member) in H; auto.
 Qed.
 
 End Consistency_Induction_Step.
@@ -464,7 +457,7 @@ Proof.
     (forall i co a,
       PTree.get i cenv = Some co ->
       PTree.get i (Env l) = Some a ->
-      Forall (relative_defined_type (PTree.elements (Env l))) (map snd (co_members co))) /\
+      Forall (relative_defined_type (PTree.elements (Env l))) (map type_member (co_members co))) /\
     Consistent cenv (Env l)); [| tauto].
   induction l as [| [i0 co0] l].
   + split; [| split]; hnf; intros.
@@ -504,7 +497,6 @@ Proof.
     inv H0.
     specialize (IHl H3).
     simpl.
-    unfold env_rec.
     rewrite PTree_In_fst_elements, <- PTree_gs_equiv, <- PTree_In_fst_elements.
     assert (i = i0 <-> i0 = i) by (split; intros; congruence).
     tauto.
@@ -563,7 +555,7 @@ Fixpoint complete_legal_cosu_type t :=
 Fixpoint composite_complete_legal_cosu_type (m: members): bool :=
   match m with
   | nil => true
-  | (_, t) :: m' => complete_legal_cosu_type t && composite_complete_legal_cosu_type m'
+  | m1 :: m' => complete_legal_cosu_type (type_member m1) && composite_complete_legal_cosu_type m'
   end.
 
 Definition composite_env_complete_legal_cosu_type: Prop :=

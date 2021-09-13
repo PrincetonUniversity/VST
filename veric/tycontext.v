@@ -331,13 +331,16 @@ Proof.
     inversion H1.
   + simpl in H1 |- *.
     destruct a.
+    *
     simpl in HH.
     rewrite andb_true_iff in HH.
     if_tac.
-    - rewrite alignof_stable with (env := env) by tauto. assumption.
-    - rewrite alignof_stable with (env := env) by tauto.
-      rewrite sizeof_stable with (env := env) by tauto.
-      apply IHm; try tauto.
+    - rewrite layout_field_stable with (env:=env) by tauto. assumption.
+    - rewrite next_field_stable with (env := env) by tauto. apply IHm; try tauto.
+   *
+    if_tac.
+    - rewrite layout_field_stable with (env:=env) by tauto. assumption.
+    - rewrite next_field_stable with (env := env) by tauto. apply IHm; try tauto.
 Qed.
 
 End STABILITY.

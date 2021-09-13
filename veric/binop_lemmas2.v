@@ -117,7 +117,7 @@ all:  destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl in *; unfold always; auto.
    destruct (cenv_cs ! i0) as [co |]; auto.
-   destruct (field_offset cenv_cs i (co_members co)); auto.
+   destruct (field_offset cenv_cs i (co_members co)) as [[? [|]]|]; auto.
    f_equal.
    apply eval_lvalue_any; auto.
    intro. rewrite H in H0. apply H0; reflexivity.
@@ -138,7 +138,7 @@ all:  destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
     simpl in *; unfold always; auto.
     destruct (cenv_cs ! i0) as [co |]; auto.
-    destruct (field_offset cenv_cs i (co_members co)); auto.
+    destruct (field_offset cenv_cs i (co_members co)) as [[? [|]]|]; auto.
     f_equal.
     apply IHe; auto.
     intro. rewrite H in H0. apply H0; reflexivity.

@@ -46,34 +46,6 @@ rewrite peq_true.
 auto.
 Qed.
 
-(*moved to coqlib4
-Lemma nat_ind2_Type:
-forall P : nat -> Type,
-((forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n):Type) ->
-(forall n, P n).
-Proof.
-intros.
-assert (forall j , (j <= n)%nat -> P j).
-induction n.
-intros.
-replace j with 0%nat ; try lia.
-apply X; intros.
-elimtype False; lia.
-intros.  apply X. intros.
-apply IHn.
-lia.
-apply X0.
-lia.
-Qed.
-
-Lemma nat_ind2:
-forall P : nat -> Prop,
-(forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n) ->
-(forall n, P n).
-Proof.
-intros; apply Wf_nat.lt_wf_ind. auto.
-Qed.*)
-
 Lemma signed_zero: Int.signed Int.zero = 0.
 Proof. apply Int.signed_zero. Qed.
 
@@ -84,52 +56,42 @@ rewrite <- H; auto.
 Qed.
 Arguments equiv_e1 [A B] _ _.
 
-(*moved to coqlib4
-Lemma equiv_e2 : forall A B: Prop, A=B -> B -> A.
-Proof.
-intros.
-rewrite H; auto.
-Qed.
-Arguments equiv_e2 [A B] _ _.
-*)
-
-Lemma deref_loc_fun: forall {ty m b z v v'},
-   Clight.deref_loc ty m b z v -> Clight.deref_loc ty m b z v' -> v=v'.
- Proof. intros.  inv H; inv H0; try congruence.
+Lemma deref_loc_fun: forall {ty m b z bf v v'},
+   Clight.deref_loc ty m b z bf v -> Clight.deref_loc ty m b z bf v' -> v=v'.
+ Proof. intros.
+  inv H; inv H0; try congruence.
+  inv H1; inv H6; try congruence.
 Qed.
 
 Lemma eval_expr_lvalue_fun:
   forall ge e le m,
     (forall a v v', Clight.eval_expr ge e le m a v -> Clight.eval_expr ge e le m a v' -> v=v') /\
-    (forall a b b' i i', Clight.eval_lvalue ge e le m a b i -> Clight.eval_lvalue ge e le m a b' i' ->
-                               (b,i)=(b',i')).
+    (forall a b b' i i' bf bf', Clight.eval_lvalue ge e le m a b i bf -> Clight.eval_lvalue ge e le m a b' i' bf' ->
+                               (b,i,bf)=(b',i',bf')).
 Proof.
  intros.
  destruct (Clight.eval_expr_lvalue_ind ge e le m
    (fun a v =>  forall v', Clight.eval_expr ge e le m a v' -> v=v')
-   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i')));
+   (fun a b i bf => forall b' i' bf', Clight.eval_lvalue ge e le m a b' i' bf' -> (b,i,bf)=(b',i',bf')));
   simpl; intros;
 
   try solve [repeat
   match goal with
   |  H: eval_expr _ _ _ _ ?a _  |- _ => (is_var a; fail 1) || inv H
-  | H: eval_lvalue _ _ _ _ ?a _ _ |- _  => (is_var a; fail 1) || inv H
+  | H: eval_lvalue _ _ _ _ ?a _ _ _ |- _  => (is_var a; fail 1) || inv H
   end; congruence].
 
  * inv H1. apply H0 in H5; congruence. inv H2.
  * inv H2. apply H0 in H7; congruence. inv H3.
  * inv H4. apply H0 in H10. apply H2 in H11. congruence. inv H5.
- * inv H2. apply H0 in H5. congruence. inv H4. inv H3. inv H3. inv H3.
- * inv H; inv H2. apply H0 in H. inv H. eapply deref_loc_fun; eauto.
-   inv H. congruence. inversion2 H4 H10.  eapply deref_loc_fun; eauto.
-   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
-   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
-   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
- * inv H1. apply H0 in H6. congruence.
+ * inv H2. apply H0 in H5. congruence. inv H4. inv H3. inv H3. inv H3. inv H3.
+ * inv H; inv H2; apply H0 in H; inv H;
+    try (eapply deref_loc_fun; eauto).
+ * inv H1. apply H0 in H7. congruence.
  * inv H4. apply H0 in H8. congruence. congruence.
- * inv H3. apply H0 in H7. congruence. apply H0 in H7. congruence.
+ * inv H4. apply H0 in H8. congruence. apply H0 in H8. congruence.
 
- * split; intros; [apply (H _ _ H1 _ H2) | apply (H0 _ _ _ H1 _ _ H2)].
+ * split; intros; [apply (H _ _ H1 _ H2) | apply (H0 _ _ _ _ H1 _ _ _ H2)].
 Qed.
 
 Lemma eval_expr_fun:   forall {ge e le m a v v'},
@@ -148,8 +110,8 @@ Proof.
 Qed.
 
 
-Lemma eval_lvalue_fun:   forall {ge e le m a b b' z z'},
-    Clight.eval_lvalue ge e le m a b z -> Clight.eval_lvalue ge e le m a b' z' -> (b,z)=(b',z').
+Lemma eval_lvalue_fun:   forall {ge e le m a b b' z z' bf bf'},
+    Clight.eval_lvalue ge e le m a b z bf -> Clight.eval_lvalue ge e le m a b' z' bf' -> (b,z,bf)=(b',z',bf').
 Proof.
   intros. destruct (eval_expr_lvalue_fun ge e le m).
   eauto.
@@ -171,12 +133,13 @@ Proof.
 Qed.
 
 Lemma assign_loc_fun:
-  forall {cenv ty m b ofs v m1 m2},
-   assign_loc cenv ty m b ofs v m1 ->
-   assign_loc cenv ty m b ofs v m2 ->
+  forall {cenv ty m b ofs bf v m1 m2},
+   assign_loc cenv ty m b ofs bf v m1 ->
+   assign_loc cenv ty m b ofs bf v m2 ->
    m1=m2.
 Proof.
  intros. inv H; inv H0; try congruence.
+ inv H1; inv H7. congruence.
 Qed.
 
 Lemma alloc_variables_fun:
