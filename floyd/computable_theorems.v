@@ -371,11 +371,11 @@ apply lt_le_weak; auto.
 Defined.
 
 Lemma rank_type_members:
-  forall ce id t m, In (id, t) m -> (rank_type ce t <= rank_members ce m)%nat.
+  forall ce m1 m, In m1 m -> (rank_type ce (type_member m1) <= rank_members ce m)%nat.
 Proof.
-  induction m; simpl; intros; intuition auto.
-  subst a.
+  induction m as [|[|]]; simpl; intros; intuition auto; try subst m1.
   apply le_max_l.
   eapply le_trans; [eassumption | ].
   apply le_max_r.
+  apply Peano.le_0_n.
 Defined.

@@ -1,10 +1,12 @@
 From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
+Import Clightdefs.ClightNotations.
 Local Open Scope Z_scope.
 Local Open Scope string_scope.
+Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.8".
+  Definition version := "3.9".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -29,65 +31,67 @@ Definition ___builtin_clzll : ident := 16%positive.
 Definition ___builtin_ctz : ident := 17%positive.
 Definition ___builtin_ctzl : ident := 18%positive.
 Definition ___builtin_ctzll : ident := 19%positive.
-Definition ___builtin_debug : ident := 62%positive.
+Definition ___builtin_debug : ident := 45%positive.
+Definition ___builtin_expect : ident := 34%positive.
 Definition ___builtin_fabs : ident := 20%positive.
 Definition ___builtin_fabsf : ident := 21%positive.
-Definition ___builtin_fmadd : ident := 54%positive.
-Definition ___builtin_fmax : ident := 52%positive.
-Definition ___builtin_fmin : ident := 53%positive.
-Definition ___builtin_fmsub : ident := 55%positive.
-Definition ___builtin_fnmadd : ident := 56%positive.
-Definition ___builtin_fnmsub : ident := 57%positive.
+Definition ___builtin_fmadd : ident := 37%positive.
+Definition ___builtin_fmax : ident := 35%positive.
+Definition ___builtin_fmin : ident := 36%positive.
+Definition ___builtin_fmsub : ident := 38%positive.
+Definition ___builtin_fnmadd : ident := 39%positive.
+Definition ___builtin_fnmsub : ident := 40%positive.
 Definition ___builtin_fsqrt : ident := 22%positive.
 Definition ___builtin_membar : ident := 28%positive.
 Definition ___builtin_memcpy_aligned : ident := 24%positive.
-Definition ___builtin_read16_reversed : ident := 58%positive.
-Definition ___builtin_read32_reversed : ident := 59%positive.
+Definition ___builtin_read16_reversed : ident := 41%positive.
+Definition ___builtin_read32_reversed : ident := 42%positive.
 Definition ___builtin_sel : ident := 25%positive.
 Definition ___builtin_sqrt : ident := 23%positive.
+Definition ___builtin_unreachable : ident := 33%positive.
 Definition ___builtin_va_arg : ident := 30%positive.
 Definition ___builtin_va_copy : ident := 31%positive.
 Definition ___builtin_va_end : ident := 32%positive.
 Definition ___builtin_va_start : ident := 29%positive.
-Definition ___builtin_write16_reversed : ident := 60%positive.
-Definition ___builtin_write32_reversed : ident := 61%positive.
-Definition ___compcert_i64_dtos : ident := 37%positive.
-Definition ___compcert_i64_dtou : ident := 38%positive.
-Definition ___compcert_i64_sar : ident := 49%positive.
-Definition ___compcert_i64_sdiv : ident := 43%positive.
-Definition ___compcert_i64_shl : ident := 47%positive.
-Definition ___compcert_i64_shr : ident := 48%positive.
-Definition ___compcert_i64_smod : ident := 45%positive.
-Definition ___compcert_i64_smulh : ident := 50%positive.
-Definition ___compcert_i64_stod : ident := 39%positive.
-Definition ___compcert_i64_stof : ident := 41%positive.
-Definition ___compcert_i64_udiv : ident := 44%positive.
-Definition ___compcert_i64_umod : ident := 46%positive.
-Definition ___compcert_i64_umulh : ident := 51%positive.
-Definition ___compcert_i64_utod : ident := 40%positive.
-Definition ___compcert_i64_utof : ident := 42%positive.
-Definition ___compcert_va_composite : ident := 36%positive.
-Definition ___compcert_va_float64 : ident := 35%positive.
-Definition ___compcert_va_int32 : ident := 33%positive.
-Definition ___compcert_va_int64 : ident := 34%positive.
+Definition ___builtin_write16_reversed : ident := 43%positive.
+Definition ___builtin_write32_reversed : ident := 44%positive.
+Definition ___compcert_i64_dtos : ident := 64%positive.
+Definition ___compcert_i64_dtou : ident := 65%positive.
+Definition ___compcert_i64_sar : ident := 76%positive.
+Definition ___compcert_i64_sdiv : ident := 70%positive.
+Definition ___compcert_i64_shl : ident := 74%positive.
+Definition ___compcert_i64_shr : ident := 75%positive.
+Definition ___compcert_i64_smod : ident := 72%positive.
+Definition ___compcert_i64_smulh : ident := 77%positive.
+Definition ___compcert_i64_stod : ident := 66%positive.
+Definition ___compcert_i64_stof : ident := 68%positive.
+Definition ___compcert_i64_udiv : ident := 71%positive.
+Definition ___compcert_i64_umod : ident := 73%positive.
+Definition ___compcert_i64_umulh : ident := 78%positive.
+Definition ___compcert_i64_utod : ident := 67%positive.
+Definition ___compcert_i64_utof : ident := 69%positive.
+Definition ___compcert_va_composite : ident := 63%positive.
+Definition ___compcert_va_float64 : ident := 62%positive.
+Definition ___compcert_va_int32 : ident := 60%positive.
+Definition ___compcert_va_int64 : ident := 61%positive.
 Definition _a : ident := 3%positive.
 Definition _b : ident := 6%positive.
 Definition _c : ident := 9%positive.
-Definition _get : ident := 73%positive.
-Definition _i : ident := 72%positive.
-Definition _main : ident := 77%positive.
-Definition _multi_command : ident := 75%positive.
-Definition _multi_command_s : ident := 76%positive.
-Definition _p : ident := 63%positive.
-Definition _p0 : ident := 64%positive.
-Definition _p1 : ident := 65%positive.
-Definition _p2 : ident := 66%positive.
-Definition _p3 : ident := 67%positive.
-Definition _p4 : ident := 68%positive.
-Definition _p5 : ident := 69%positive.
-Definition _p6 : ident := 70%positive.
-Definition _p7 : ident := 71%positive.
-Definition _set : ident := 74%positive.
+Definition _get : ident := 56%positive.
+Definition _i : ident := 55%positive.
+Definition _main : ident := 79%positive.
+Definition _multi_command : ident := 58%positive.
+Definition _multi_command_s : ident := 59%positive.
+Definition _p : ident := 46%positive.
+Definition _p0 : ident := 47%positive.
+Definition _p1 : ident := 48%positive.
+Definition _p2 : ident := 49%positive.
+Definition _p3 : ident := 50%positive.
+Definition _p4 : ident := 51%positive.
+Definition _p5 : ident := 52%positive.
+Definition _p6 : ident := 53%positive.
+Definition _p7 : ident := 54%positive.
+Definition _set : ident := 57%positive.
 Definition _x1 : ident := 1%positive.
 Definition _x2 : ident := 2%positive.
 Definition _y1 : ident := 4%positive.
@@ -280,16 +284,106 @@ Definition f_multi_command_s := {|
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _a Struct ((_x1, tint) :: (_x2, tint) :: nil) noattr ::
+(Composite _a Struct
+   (Member_plain _x1 tint :: Member_plain _x2 tint :: nil)
+   noattr ::
  Composite _b Struct
-   ((_y1, (Tstruct _a noattr)) :: (_y2, (Tstruct _a noattr)) :: nil)
+   (Member_plain _y1 (Tstruct _a noattr) ::
+    Member_plain _y2 (Tstruct _a noattr) :: nil)
    noattr ::
  Composite _c Struct
-   ((_z1, (Tstruct _b noattr)) :: (_z2, (Tstruct _b noattr)) :: nil)
+   (Member_plain _z1 (Tstruct _b noattr) ::
+    Member_plain _z2 (Tstruct _b noattr) :: nil)
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
-((___builtin_bswap64,
+((___compcert_va_int32,
+   Gfun(External (EF_runtime "__compcert_va_int32"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
+ (___compcert_va_int64,
+   Gfun(External (EF_runtime "__compcert_va_int64"
+                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
+     (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
+ (___compcert_va_float64,
+   Gfun(External (EF_runtime "__compcert_va_float64"
+                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
+     (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
+ (___compcert_va_composite,
+   Gfun(External (EF_runtime "__compcert_va_composite"
+                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+     (tptr tvoid) cc_default)) ::
+ (___compcert_i64_dtos,
+   Gfun(External (EF_runtime "__compcert_i64_dtos"
+                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
+     (Tcons tdouble Tnil) tlong cc_default)) ::
+ (___compcert_i64_dtou,
+   Gfun(External (EF_runtime "__compcert_i64_dtou"
+                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
+     (Tcons tdouble Tnil) tulong cc_default)) ::
+ (___compcert_i64_stod,
+   Gfun(External (EF_runtime "__compcert_i64_stod"
+                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
+     (Tcons tlong Tnil) tdouble cc_default)) ::
+ (___compcert_i64_utod,
+   Gfun(External (EF_runtime "__compcert_i64_utod"
+                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
+     (Tcons tulong Tnil) tdouble cc_default)) ::
+ (___compcert_i64_stof,
+   Gfun(External (EF_runtime "__compcert_i64_stof"
+                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
+     (Tcons tlong Tnil) tfloat cc_default)) ::
+ (___compcert_i64_utof,
+   Gfun(External (EF_runtime "__compcert_i64_utof"
+                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
+     (Tcons tulong Tnil) tfloat cc_default)) ::
+ (___compcert_i64_sdiv,
+   Gfun(External (EF_runtime "__compcert_i64_sdiv"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_udiv,
+   Gfun(External (EF_runtime "__compcert_i64_udiv"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+     cc_default)) ::
+ (___compcert_i64_smod,
+   Gfun(External (EF_runtime "__compcert_i64_smod"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_umod,
+   Gfun(External (EF_runtime "__compcert_i64_umod"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+     cc_default)) ::
+ (___compcert_i64_shl,
+   Gfun(External (EF_runtime "__compcert_i64_shl"
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_shr,
+   Gfun(External (EF_runtime "__compcert_i64_shr"
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
+                     cc_default)) (Tcons tulong (Tcons tint Tnil)) tulong
+     cc_default)) ::
+ (___compcert_i64_sar,
+   Gfun(External (EF_runtime "__compcert_i64_sar"
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_smulh,
+   Gfun(External (EF_runtime "__compcert_i64_smulh"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_umulh,
+   Gfun(External (EF_runtime "__compcert_i64_umulh"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+     cc_default)) ::
+ (___builtin_bswap64,
    Gfun(External (EF_builtin "__builtin_bswap64"
                    (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
      (Tcons tulong Tnil) tulong cc_default)) ::
@@ -392,91 +486,14 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_builtin "__builtin_va_end"
                    (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
- (___compcert_va_int32,
-   Gfun(External (EF_external "__compcert_va_int32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
- (___compcert_va_int64,
-   Gfun(External (EF_external "__compcert_va_int64"
-                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
-     (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
- (___compcert_va_float64,
-   Gfun(External (EF_external "__compcert_va_float64"
-                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
-     (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
- (___compcert_va_composite,
-   Gfun(External (EF_external "__compcert_va_composite"
+ (___builtin_unreachable,
+   Gfun(External (EF_builtin "__builtin_unreachable"
+                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+     cc_default)) ::
+ (___builtin_expect,
+   Gfun(External (EF_builtin "__builtin_expect"
                    (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     (tptr tvoid) cc_default)) ::
- (___compcert_i64_dtos,
-   Gfun(External (EF_runtime "__compcert_i64_dtos"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tlong cc_default)) ::
- (___compcert_i64_dtou,
-   Gfun(External (EF_runtime "__compcert_i64_dtou"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tulong cc_default)) ::
- (___compcert_i64_stod,
-   Gfun(External (EF_runtime "__compcert_i64_stod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tlong Tnil) tdouble cc_default)) ::
- (___compcert_i64_utod,
-   Gfun(External (EF_runtime "__compcert_i64_utod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tulong Tnil) tdouble cc_default)) ::
- (___compcert_i64_stof,
-   Gfun(External (EF_runtime "__compcert_i64_stof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tlong Tnil) tfloat cc_default)) ::
- (___compcert_i64_utof,
-   Gfun(External (EF_runtime "__compcert_i64_utof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tulong Tnil) tfloat cc_default)) ::
- (___compcert_i64_sdiv,
-   Gfun(External (EF_runtime "__compcert_i64_sdiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_udiv,
-   Gfun(External (EF_runtime "__compcert_i64_udiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
-     cc_default)) ::
- (___compcert_i64_smod,
-   Gfun(External (EF_runtime "__compcert_i64_smod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_umod,
-   Gfun(External (EF_runtime "__compcert_i64_umod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
-     cc_default)) ::
- (___compcert_i64_shl,
-   Gfun(External (EF_runtime "__compcert_i64_shl"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_shr,
-   Gfun(External (EF_runtime "__compcert_i64_shr"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tint Tnil)) tulong
-     cc_default)) ::
- (___compcert_i64_sar,
-   Gfun(External (EF_runtime "__compcert_i64_sar"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_smulh,
-   Gfun(External (EF_runtime "__compcert_i64_smulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_umulh,
-   Gfun(External (EF_runtime "__compcert_i64_umulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                     cc_default)) (Tcons tint (Tcons tint Tnil)) tint
      cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
@@ -555,20 +572,21 @@ Definition public_idents : list ident :=
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
  ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
  ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
  ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
  ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
  ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
  ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
  ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
- ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 :: nil).
+ ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
+ ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
+ ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
+ ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
+ ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
+ ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

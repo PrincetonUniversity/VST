@@ -171,6 +171,37 @@ Proof.
     eapply necR_PURE' in H as [? ->]; simpl; eauto.
 Qed.
 
+Ltac fun_tac :=
+  match goal with
+  | H: ?A = Some _, H': ?A = Some _ |- _ => inversion2 H H'
+  | H: Clight.eval_expr ?ge ?e ?le ?m ?A _,
+    H': Clight.eval_expr ?ge ?e ?le ?m ?A _ |- _ =>
+        apply (eval_expr_fun H) in H'; subst
+  | H: Clight.eval_exprlist ?ge ?e ?le ?m ?A ?ty _,
+    H': Clight.eval_exprlist ?ge ?e ?le ?m ?A ?ty _ |- _ =>
+        apply (eval_exprlist_fun H) in H'; subst
+  | H: Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _ _,
+    H': Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _ _ |- _ =>
+        apply (eval_lvalue_fun H) in H'; inv H'
+  | H: Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?bf ?v _,
+    H': Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?bf ?v _ |- _ =>
+        apply (assign_loc_fun H) in H'; inv H'
+  | H: Clight.deref_loc ?ty ?m ?b ?ofs _,
+    H': Clight.deref_loc ?ty ?m ?b ?ofs _ |- _ =>
+        apply (deref_loc_fun H) in H'; inv H'
+  | H: Clight.alloc_variables ?ge ?e ?m ?vl _ _,
+    H': Clight.alloc_variables ?ge ?e ?m ?vl _ _ |- _ =>
+        apply (alloc_variables_fun H) in H'; inv H'
+  | H: Clight.bind_parameters ?ge ?e ?m ?p ?vl _,
+    H': Clight.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>
+        apply (bind_parameters_fun H) in H'; inv H'
+  | H: Senv.find_symbol ?ge _ = Some ?b,
+    H': Senv.find_symbol ?ge _ = Some ?b |- _ =>
+       apply (inv_find_symbol_fun H) in H'; inv H'
+  | H: Events.eventval_list_match ?ge _ ?t ?v,
+    H': Events.eventval_list_match ?ge _ ?t ?v |- _ =>
+       apply (eventval_list_match_fun H) in H'; inv H'
+ end.
 Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2,
     cl_step ge q m q1 m1 ->
     cl_step ge q m q2 m2 ->
@@ -222,7 +253,6 @@ intros.
   destruct N; [constructor|].
   case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
   eapply jsafeN_step with
-   (* (c' := State f Sskip (Kseq Scontinue (Kloop1 Sskip Sskip k)) ve te)*)
     (m'0 := m').
   split3.
   replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
