@@ -104,8 +104,8 @@ Lemma type_ind: forall P : type -> Prop,
   (forall t,
   match t with
   | Tarray t0 _ _ => P t0
-  | Tstruct id _ => let m := co_members (get_co id) in Forall (fun it => P (field_type (fst it) m)) m
-  | Tunion id _ => let m := co_members (get_co id) in Forall (fun it => P (field_type (fst it) m)) m
+  | Tstruct id _ => let m := co_members (get_co id) in Forall (fun it => P (field_type (name_member it) m)) m
+  | Tunion id _ => let m := co_members (get_co id) in Forall (fun it => P (field_type (name_member it) m)) m
   | _ => True
   end -> P t) ->
   forall t, P t.
@@ -144,9 +144,9 @@ Proof.
     destruct (cenv_cs ! i) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
     apply IH_TYPE; clear IH_TYPE.
     apply Forall_forall.
-    intros [i0 t0] ?; simpl.
-    apply IHn.
-    pose proof In_field_type _ _ H H0.
+    intros ? ?; simpl.
+    * apply IHn.
+       pose proof In_field_type _ _ H H0.
     simpl in H1; rewrite H1.
     apply rank_type_members with (ce := cenv_cs) in H0.
     rewrite <- co_consistent_rank in H0.
@@ -160,7 +160,7 @@ Proof.
     destruct (cenv_cs ! i) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
     apply IH_TYPE; clear IH_TYPE.
     apply Forall_forall.
-    intros [i0 t0] ?; simpl.
+    intros ? ?; simpl.
     apply IHn.
     pose proof In_field_type _ _ H H0.
     simpl in H1; rewrite H1.
@@ -185,14 +185,17 @@ Ltac type_induction t :=
 
 Variable A: type -> Type.
 
+Definition A_members (ms: members) (m: member) : Type :=
+    A (field_type (name_member m) ms).
+
 Definition FT_aux id :=
-    let m := co_members (get_co id) in
-    ListType (map (fun it => A (field_type (fst it) m)) m).
+    let m := co_members (get_co id) in ListType (map (fun it => A (field_type (name_member it) m)) m).
 
 Variable F_ByValue: forall t: type, A t.
 Variable F_Tarray: forall t n a, A t -> A (Tarray t n a).
 Variable F_Tstruct: forall id a, FT_aux id -> A (Tstruct id a).
 Variable F_Tunion: forall id a, FT_aux id -> A (Tunion id a).
+
 
 Fixpoint type_func_rec (n: nat) (t: type): A t :=
   match n with
@@ -201,13 +204,15 @@ Fixpoint type_func_rec (n: nat) (t: type): A t :=
     | Tstruct id a =>
        match cenv_cs ! id with
        | None => let m := co_members (get_co id) in
-                       F_Tstruct id a (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => F_ByValue (field_type (fst it) m)) m)
+                       F_Tstruct id a (ListTypeGen (fun it => A (field_type (name_member it) m))
+                                     (fun it => F_ByValue (field_type (name_member it) m)) m)
        | _ => F_ByValue (Tstruct id a)
        end
     | Tunion id a =>
        match cenv_cs ! id with
        | None => let m := co_members (get_co id) in
-                      F_Tunion id a (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => F_ByValue (field_type (fst it) m)) m)
+                      F_Tunion id a (ListTypeGen (fun it => A (field_type (name_member it) m))
+                                     (fun it => F_ByValue (field_type (name_member it) m)) m)
        | _ => F_ByValue (Tunion id a)
        end
     | t' => F_ByValue t'
@@ -216,9 +221,11 @@ Fixpoint type_func_rec (n: nat) (t: type): A t :=
     match t as t0 return A t0 with
     | Tarray t0 n a => F_Tarray t0 n a (type_func_rec n' t0)
     | Tstruct id a =>  let m := co_members (get_co id) in
-                            F_Tstruct id a (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func_rec n' (field_type (fst it) m)) m)
+                            F_Tstruct id a (ListTypeGen (fun it => A (field_type (name_member it) m))
+                                        (fun it => type_func_rec n' (field_type (name_member it) m)) m)
     | Tunion id a =>  let m := co_members (get_co id) in
-                            F_Tunion id a (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func_rec n' (field_type (fst it) m)) m)
+                            F_Tunion id a (ListTypeGen (fun it => A (field_type (name_member it) m))
+                                        (fun it => type_func_rec n' (field_type (name_member it) m)) m)
     | t' => F_ByValue t'
     end
   end.
@@ -268,14 +275,14 @@ Proof.
       simpl.
       f_equal.
       apply ListTypeGen_preserve.
-      intros [i t] Hin.
+      intros m Hin.
       simpl in IH.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
-      specialize (IH (i, t) Hin n n0).
+      specialize (IH _ Hin n n0).
       apply le_S_n in H; apply le_S_n in H0.
-      assert (H3 := rank_type_members cenv_cs i t _ Hin).
+      assert (H3 := rank_type_members cenv_cs _ _ Hin).
       pose proof get_co_members_no_replicate id.
-      pose proof In_field_type (i, t) _ H1 Hin.
+      pose proof In_field_type _ _ H1 Hin.
       rewrite <- (co_consistent_rank cenv_cs (get_co id) (get_co_consistent _)) in H3.
       unfold field_type in H2.
       apply IH;
@@ -293,13 +300,13 @@ Proof.
       simpl.
       f_equal.
       apply ListTypeGen_preserve.
-      intros [i t] Hin.
+      intros m Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
-      specialize (IH (i, t) Hin n n0).
+      specialize (IH _ Hin n n0).
       apply le_S_n in H; apply le_S_n in H0.
-      assert (H3 := rank_type_members cenv_cs i t _ Hin).
+      assert (H3 := rank_type_members cenv_cs _ _ Hin).
       pose proof get_co_members_no_replicate id.
-      pose proof In_field_type (i, t) _ H1 Hin.
+      pose proof In_field_type _ _ H1 Hin.
       rewrite <- (co_consistent_rank cenv_cs (get_co id) (get_co_consistent _)) in H3.
       apply IH;
        (eapply le_trans; [ | eassumption]; rewrite H2; auto).
@@ -310,8 +317,7 @@ Defined.
 
 Definition FTI_aux id :=
     let m := co_members (get_co id) in
-    (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func (field_type (fst it) m)) m).
-
+    (ListTypeGen (fun it => A (field_type (name_member it) m)) (fun it => type_func (field_type (name_member it) m)) m).
 
 Lemma type_func_eq: forall t,
   type_func t =
@@ -329,7 +335,7 @@ Proof.
     simpl type_func_rec.
     destruct (cenv_cs ! id) as [co |] eqn:CO; simpl.
     - f_equal.
-      apply ListTypeGen_preserve; intros [i t].
+      apply ListTypeGen_preserve; intro m.
       unfold get_co; rewrite CO.
       intro Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
@@ -350,7 +356,7 @@ Proof.
     simpl type_func_rec.
     destruct (cenv_cs ! id) as [co |] eqn:CO; simpl.
     - f_equal.
-      apply ListTypeGen_preserve; intros [i t].
+      apply ListTypeGen_preserve; intro m.
       unfold get_co; rewrite CO.
       intro Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.

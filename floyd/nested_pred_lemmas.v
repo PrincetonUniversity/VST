@@ -38,7 +38,7 @@ Definition nested_pred (atom_pred: type -> bool): type -> bool :=
     (fun id a bl => (atom_pred (Tunion id a) && fold_right andb true (decay bl))%bool).
 
 Definition nested_fields_pred (atom_pred: type -> bool) (m: members) : bool :=
-  fold_right (fun it b => (nested_pred atom_pred (field_type (fst it) m) && b)%bool) true m.
+  fold_right (fun it b => (nested_pred atom_pred (field_type (name_member it) m) && b)%bool) true m.
 
 Lemma nested_pred_eq: forall atom_pred t,
   nested_pred atom_pred t =
@@ -73,19 +73,20 @@ Proof.
   try apply andb_true_iff in H; try tauto.
 Defined.
 
-Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m, in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type i m) = true.
+Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m
+  (PLAIN: plain_members m = true),
+  in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type i m) = true.
 Proof.
   intros.
   unfold nested_fields_pred in H0.
   rewrite <- fold_right_map in H0.
   eapply fold_right_andb; [exact H0 |].
-  clear - H.
+  clear - H PLAIN.
   rewrite <- map_map.
   apply in_map.
-  change (field_type i m) with ((fun it => field_type (fst it) m) (i, field_type i m)).
+  change (field_type i m) with ((fun it => field_type (name_member it) m) (Member_plain i (field_type i m))).
   apply in_map.
-  apply in_members_field_type.
-  auto.
+  apply in_members_field_type; auto.
 Defined.
 
 Lemma nested_pred_Tarray: forall (atom_pred: type -> bool) t n a,
@@ -105,7 +106,10 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_pred_Tstruct2: forall (atom_pred: type -> bool) id a i,
+Lemma nested_pred_Tstruct2: forall 
+  (atom_pred: type -> bool) id 
+  (PLAIN: plain_members (co_members (get_co id)) = true)
+   a i,
   nested_pred atom_pred (Tstruct id a) = true ->
   in_members i (co_members (get_co id)) ->
   nested_pred atom_pred (field_type i (co_members (get_co id))) = true.
@@ -123,7 +127,9 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_pred_Tunion2: forall (atom_pred: type -> bool) id a i,
+Lemma nested_pred_Tunion2: forall (atom_pred: type -> bool) id
+  (PLAIN: plain_members (co_members (get_co id)) = true)
+   a i,
   nested_pred atom_pred (Tunion id a) = true ->
   in_members i (co_members (get_co id)) ->
   nested_pred atom_pred (field_type i (co_members (get_co id))) = true.
@@ -169,7 +175,9 @@ Proof.
   lia.
 Qed.
 
-Lemma Tstruct_sizeof_0: forall id a,
+Lemma Tstruct_sizeof_0: forall id
+  (PLAIN: plain_members (co_members (get_co id)) = true)
+  a,
   complete_legal_cosu_type (Tstruct id a) = true ->
   sizeof (Tstruct id a) = 0 ->
   forall i, in_members i (co_members (get_co id)) ->
@@ -188,6 +196,8 @@ Proof.
   pose proof align_le (sizeof_struct cenv_cs 0 (co_members (get_co id)))
      (co_alignof (get_co id)) (co_alignof_pos _).
   pose proof sizeof_struct_incr cenv_cs (co_members (get_co id)) 0.
+  rewrite plain_members_sizeof_struct in * by auto.
+  rewrite H0 in *.
   lia.
 Qed.
 
