@@ -73,21 +73,28 @@ Proof.
   try apply andb_true_iff in H; try tauto.
 Defined.
 
-Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m
-  (PLAIN: plain_members m = true),
+Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m,
   in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type i m) = true.
 Proof.
   intros.
   unfold nested_fields_pred in H0.
   rewrite <- fold_right_map in H0.
   eapply fold_right_andb; [exact H0 |].
-  clear - H PLAIN.
+  clear - H.
   rewrite <- map_map.
   apply in_map.
-  change (field_type i m) with ((fun it => field_type (name_member it) m) (Member_plain i (field_type i m))).
-  apply in_map.
-  apply in_members_field_type; auto.
-Defined.
+  apply in_members_field_type' in H.
+  destruct H as [a [? [? ?]]].  
+  rewrite <- H0.
+  set (m':=m) at 1.
+  fold m' in H0.
+  clearbody m'.
+  induction m.
+  inv H1.
+  destruct H1.
+  subst; left; auto.
+  right; auto.
+Qed.
 
 Lemma nested_pred_Tarray: forall (atom_pred: type -> bool) t n a,
   nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.

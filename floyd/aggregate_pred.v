@@ -137,28 +137,28 @@ Definition array_pred {A: Type}{d: Inhabitant A}  (lo hi: Z) (P: Z -> A -> val -
   !! (Zlength v = hi - lo) &&
   rangespec lo (Z.to_nat (hi-lo)) (fun i => P i (Znth (i-lo) v)) p.
 
-Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
+Definition struct_pred (m: members) {A: member -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact emp |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  destruct m as [| a m]; [exact emp | ].
+  revert a v; induction m as [| b m]; intros ? v.
   + simpl in v.
     exact (P _ v p).
   + simpl in v.
-    exact ((P _ (fst v) p) * IHm i0 t0 (snd v)).
+    exact ((P _ (fst v) p) * IHm _ (snd v)).
 Defined.
 
 (* when unfold, do cbv [struct_pred list_rect]. *)
 
-Definition union_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val): mpred.
+Definition union_pred (m: members) {A: member -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val): mpred.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact emp |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  destruct m as [| a m]; [exact emp |].
+  revert a v; induction m as [| b m]; intros ? v.
   + simpl in v.
     exact (P _ v p).
   + simpl in v.
     destruct v as [v | v].
     - exact (P _ v p).
-    - exact (IHm i0 t0 v).
+    - exact (IHm _ v).
 Defined.
 
 Definition array_Prop {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> Prop) (v: list A) : Prop :=

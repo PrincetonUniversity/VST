@@ -751,7 +751,7 @@ Proof.
     tauto.
   + rewrite andb_true_iff in H0.
     destruct_in_members i (co_members (get_co id)).
-    - eapply nested_fields_pred_nested_pred; auto; tauto.
+    - eapply nested_fields_pred_nested_pred; tauto.
     - rewrite not_in_members_field_type; auto.
   + rewrite andb_true_iff in H0.
     destruct_in_members i (co_members (get_co id)).
@@ -788,23 +788,35 @@ Proof.
   + destruct (cenv_cs ! id) eqn:?H; [| inv H0].
     pose proof cenv_legal_su _ _ H1.
     unfold in_members in H.
-    induction (co_members c) as [| [i0 t0] ?].
+    induction (co_members c) as [| [i0 t0|] ?].
     - inv H.
     - simpl in H2; rewrite andb_true_iff in H2; destruct H2.
       simpl in H |- *.
       if_tac; auto.
       apply IHm; auto.
       destruct H; auto; congruence.
+    - simpl in H2.
+      simpl in H |- *.
+      if_tac; auto.
+      apply IHm; auto. 
+      destruct H; auto; congruence.
+     simpl in H0. destruct (co_su c); try discriminate.
   + destruct (cenv_cs ! id) eqn:?H; [| inv H0].
     pose proof cenv_legal_su _ _ H1.
     unfold in_members in H.
-    induction (co_members c) as [| [i0 t0] ?].
+    induction (co_members c) as [| [i0 t0|] ?].
     - inv H.
     - simpl in H2; rewrite andb_true_iff in H2; destruct H2.
       simpl in H |- *.
       if_tac; auto.
       apply IHm; auto.
       destruct H; auto; congruence.
+    - simpl in H2.
+      simpl in H |- *.
+      if_tac; auto.
+      apply IHm; auto. 
+      destruct H; auto; congruence.
+     simpl in H0. destruct (co_su c); try discriminate.
 Qed.
 
 Lemma gfield_array_type_complete_legal_cosu_type: forall (t: type) lo hi,

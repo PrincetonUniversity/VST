@@ -568,7 +568,7 @@ Lemma align_compatible_rec_stable':
     (COSU: composite_env_complete_legal_cosu_type env1)
     (S: forall id co, env1 ! id = Some co -> env ! id = Some co)
    t ofs
-   (H9a: @complete_legal_cosu_type env1 t = true)
+   (H9a: @complete_legal_cosu_type env1 t = true) 
    (H: align_compatible_rec env1 t ofs),
   align_compatible_rec env t ofs.
 Proof.
@@ -583,12 +583,12 @@ Proof.
     rewrite <- (sizeof_type_stable' _ _ _ S H9a).
     apply IH; auto.
  +
+   clear H9a.
    rewrite H2 in IH.
-   eapply align_compatible_rec_Tstruct. apply S; eassumption.
-   simpl in H9a. rewrite H2 in H9a. 
+   eapply align_compatible_rec_Tstruct. apply S; eassumption. auto.
    intros.
    rewrite <-  (field_offset_stable'' _ _ CONS S _ _ H2 i0) in H0.
-   specialize (H4 _ _ _ H H0).
+   specialize (H5 _ _ _ H H0).
    rewrite Forall_forall in IH.
    assert (exists m, In m (co_members co) /\ type_member m = t0). {
     clear - H. induction (co_members co). inv H. simpl in H. if_tac in H. exists a. inv H. simpl; auto. 
@@ -601,11 +601,11 @@ Proof.
                          InvBooleans.         
                         if_tac in H. inv H. auto.  auto.
  +
+   clear H9a.
    rewrite H2 in IH.
-   eapply align_compatible_rec_Tunion. apply S; eassumption.
-   simpl in H9a. rewrite H2 in H9a. 
+   eapply align_compatible_rec_Tunion. apply S; eassumption.  auto.
    intros.
-   specialize (H4 _ _ H).
+   specialize (H5 _ _ H).
    rewrite Forall_forall in IH.
    assert (exists m, In m (co_members co) /\ type_member m = t0). {
     clear - H. induction (co_members co). inv H. simpl in H. if_tac in H. exists a. inv H. simpl; auto. 
@@ -1038,7 +1038,7 @@ intros.
  -
    destruct ((composite_env_of_QPcomposite_env ce OKce) ! i) eqn:?H; try discriminate H.
    destruct (co_su c) eqn:?H; try discriminate H.
-   clear H.
+   rename H into PLAIN.
  assert ( (composite_env_of_QPcomposite_env _ OKce1) ! i = Some c
    \/ (composite_env_of_QPcomposite_env _ OKce2) ! i = Some c ). {
    clear - MERGE H1.
@@ -1108,7 +1108,7 @@ intros.
    rewrite !PTree.gmap1 in H4,H5,H0 |- *. unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. auto.
+    simpl. inv H4; inv H5. simpl in H0. rewrite H3. auto.
  +
    unfold is_aligned in *; simpl in *; unfold is_aligned_aux in *.
    rewrite get_composite_env_of_QPcomposite_env in *.
@@ -1117,7 +1117,7 @@ intros.
    rewrite !PTree.gmap1 in H4,H5,H0 |- *. unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. auto.
+    simpl. inv H4; inv H5. simpl in H0. rewrite H3; auto.
  }
   hnf; intros.
   destruct (H9 _ _ H H0) as [[??]|[??]]; clear H9.

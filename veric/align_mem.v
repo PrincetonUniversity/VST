@@ -27,12 +27,14 @@ Inductive align_compatible_rec: type -> Z -> Prop :=
            align_compatible_rec (Tarray t n a) z
 | align_compatible_rec_Tstruct: forall i a co z, 
             cenv ! i = Some co -> 
+            plain_members (co_members co) = true ->
             (forall i0 t0 z0, field_type i0 (co_members co) = Errors.OK t0 ->
                      field_offset cenv i0 (co_members co) = Errors.OK (z0, Full) -> 
                       align_compatible_rec t0 (z + z0)) ->
             align_compatible_rec (Tstruct i a) z
 | align_compatible_rec_Tunion: forall i a co z,
             cenv ! i = Some co ->
+            plain_members (co_members co) = true ->
             (forall i0 t0, field_type i0 (co_members co) = Errors.OK t0 -> align_compatible_rec t0 z) ->
              align_compatible_rec (Tunion i a) z.
 
@@ -380,6 +382,12 @@ Proof.
   destruct t as [| [| | |] [|] | [|] | [|] | | | | |]; inv H; auto.
 Qed.
 
+Lemma plain_members_tl: forall {m ms}, plain_members (m::ms) = true -> plain_members ms = true.
+Proof.
+intros.
+destruct m; auto; discriminate.
+Qed.
+
 Lemma align_compatible_rec_hardware_alignof_divide: forall cenv ha_env t z1 z2,
   composite_env_consistent cenv ->
   composite_env_complete_legal_cosu_type cenv ->
@@ -429,6 +437,7 @@ Proof.
   + simpl in H, H0.
     destruct (cenv ! id) as [co |] eqn:?H; [| inv H].
     destruct (co_su co) eqn:?H; inv H.
+    destruct (plain_members (co_members co)) eqn:PLAIN.
     assert (forall i0 t0 ofs0,
               field_type i0 (co_members co) = Errors.OK t0 ->
               field_offset cenv i0 (co_members co) = Errors.OK (ofs0,Full) ->
@@ -449,13 +458,17 @@ Proof.
     - simpl in H, H0, H4.
       autorewrite with align in H0, H4.
       if_tac in H.
-      * inv H.
+      * inv H. simpl in H5. rewrite andb_true_iff in H5; destruct H5. 
         apply H1; [simpl; tauto |].
         replace (z1 + ofs0 - (z2 + ofs0)) with (z1 - z2) by lia; tauto.
-      * apply IHIH; tauto.
+      * apply plain_members_tl in PLAIN.
+         simpl in H5. rewrite andb_true_iff in H5; destruct H5. 
+         apply IHIH; tauto.
+    - clear - PLAIN H1; split; (intro H; inv H; try discriminate; congruence).
   + simpl in H, H0.
     destruct (cenv ! id) as [co |] eqn:?H; [| inv H].
     destruct (co_su co) eqn:?H; inv H.
+    destruct (plain_members (co_members co)) eqn:PLAIN.
     assert (forall i0 t0,
               field_type i0 (co_members co) = Errors.OK t0 ->
               (align_compatible_rec cenv t0 z1 <->
@@ -475,9 +488,12 @@ Proof.
     - simpl in H, H0, H4.
       autorewrite with align in H0, H4.
       if_tac in H.
-      * inv H.
+      * inv H. simpl in H5. rewrite andb_true_iff in H5; destruct H5. 
         apply H1; simpl; tauto.
-      * apply IHIH; tauto.
+      * apply plain_members_tl in PLAIN.
+         simpl in H5. rewrite andb_true_iff in H5; destruct H5. 
+         apply IHIH; tauto.
+    - clear - PLAIN H1; split; (intro H; inv H; try discriminate; congruence).
 Qed.
 
 Lemma align_compatible_rec_hardware_1: forall cenv ha_env t z,
@@ -514,9 +530,9 @@ Proof.
     intros; clear H1.
     induction IH.
     - inv H.
-    - simpl in H, H0, H4.
-      autorewrite with align in H0, H4.
-      destruct H0, H4.
+    - simpl in H, H0, H5.
+      autorewrite with align in H0, H5.
+      destruct H0, H5. apply plain_members_tl in H4.
       if_tac in H.
       * subst i0; inv H.
         apply H1; auto.
@@ -534,9 +550,9 @@ Proof.
     intros.
     induction IH.
     - inv H.
-    - simpl in H, H0, H4.
-      autorewrite with align in H0, H4.
-      destruct H0, H4.
+    - simpl in H, H0, H5.
+      autorewrite with align in H0, H5.
+      destruct H0, H5. apply plain_members_tl in H4.
       if_tac in H.
       * inv H.
         apply H1; auto.
@@ -822,11 +838,9 @@ Qed.
 Theorem legal_alignas_soundness:
   legal_alignas_env_sound cenv ha_env la_env.
 Proof.
-  pose proof CENV_COSU.
-  clear CENV_COSU H.
   intros.
-  hnf; intros ? ? _ ?.
-  revert ofs H; type_induction t cenv CENV_CONSI; intros.
+  hnf; intros ? ? PLAIN ?.
+  revert ofs PLAIN H; type_induction t cenv CENV_CONSI; intros.
   + inversion H.
   + eapply by_value_sound; eauto.
     destruct i, s; eexists; try reflexivity.
@@ -837,7 +851,7 @@ Proof.
   + eapply by_value_sound; eauto.
     eexists; try reflexivity.
   + apply align_compatible_rec_Tarray; intros.
-    apply IH; clear IH.
+    apply IH; clear IH. auto.
     unfold is_aligned, is_aligned_aux in H |- *.
     Opaque alignof. simpl in H |- *. Transparent alignof.
     autorewrite with align in H |- *.
@@ -861,23 +875,28 @@ Proof.
     rewrite H1 in IH; rewrite H2 in H.
     rewrite (HA_ENV_CONSI id _ _ H1 H2) in H.
     rewrite (LA_ENV_CONSI id _ _ H1 H0) in H.
-    eapply align_compatible_rec_Tstruct; [eassumption | intros].
+    assert (H9 := CENV_COSU _ _ H1). 
+    eapply align_compatible_rec_Tstruct; [eassumption | | intros].
+    simpl in PLAIN. rewrite H1 in PLAIN. destruct (co_su co); auto; discriminate.
     pose proof field_offset_aligned _ _ _ _ _ H4 H3.
     unfold field_offset in H4.
+    simpl in PLAIN. rewrite H1 in PLAIN. destruct (co_su co); try discriminate.
     clear H0 H1 H2 H4.
     unfold legal_alignas_composite in *.
     induction IH.
     - inv H3.
     - Opaque alignof. simpl in H0, H3, H. Transparent alignof.
+      destruct x as [i t|]; [|discriminate]. simpl in PLAIN, H3, H9.
+      rewrite andb_true_iff in H9; destruct H9 as [H9' H9].
       if_tac in H3.
-      * subst i0; inv H3.
-        apply H0; simpl.
+      * subst i0; symmetry in H3; inv H3.
+        apply H0; simpl; auto.
         autorewrite with align in H |- *.
         destruct H as [[_ [? ?]] [? ?]].
         split; auto.
         apply Z.divide_add_r; auto.
         apply legal_alignas_type_divide in H.
-        apply Z.divide_trans with (alignof cenv (type_member x)); try eassumption.
+        apply Z.divide_trans with (alignof cenv t); try eassumption.
       * apply IHIH; auto.
         autorewrite with align in H |- *.
         split; [split |]; tauto.
@@ -893,15 +912,20 @@ Proof.
     rewrite H1 in IH; rewrite H2 in H.
     rewrite (HA_ENV_CONSI id _ _ H1 H2) in H.
     rewrite (LA_ENV_CONSI id _ _ H1 H0) in H.
-    eapply align_compatible_rec_Tunion; [eassumption | intros].
+    assert (H9 := CENV_COSU _ _ H1). 
+    eapply align_compatible_rec_Tunion; [eassumption | | intros].
+    simpl in PLAIN. rewrite H1 in PLAIN. destruct (co_su co); [discriminate|auto].
+    simpl in PLAIN. rewrite H1 in PLAIN. destruct (co_su co); try discriminate.
     clear H0 H1 H2.
     unfold legal_alignas_composite in *.
-    induction IH.
+    induction IH; auto.
     - inv H3.
     - Opaque alignof. simpl in H0, H3, H. Transparent alignof.
+      destruct x as [i t|]; [|discriminate]. simpl in PLAIN, H3, H9.
+      rewrite andb_true_iff in H9; destruct H9 as [H9' H9].
       if_tac in H3.
       * subst i0; inv H3.
-        apply H0; simpl.
+        apply H0; simpl; auto.
         autorewrite with align in H |- *.
         destruct H as [[_ [? ?]] [? ?]].
         split; auto.
@@ -1273,7 +1297,7 @@ Proof.
     unfold legal_alignas_composite in H0.
     rewrite H2 in H.
     destruct (co_su co); [| inv H].
-    eapply align_compatible_rec_Tstruct; [eassumption | intros].
+    eapply align_compatible_rec_Tstruct; [eassumption | auto | intros].
     unfold field_offset in H7.
     clear H H1 H2 H3.
     revert H0 H4 H5 H6 H7; generalize 0.
@@ -1314,7 +1338,7 @@ Proof.
     destruct H0.
     unfold legal_alignas_composite in H0.
     destruct (co_su co); [inv H |].
-    eapply align_compatible_rec_Tunion; [eassumption | intros].
+    eapply align_compatible_rec_Tunion; [eassumption | auto | intros].
     clear H H1 H2 H3.
     revert H0 H4 H5 H6;
     induction IH; intros.

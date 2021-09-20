@@ -526,6 +526,13 @@ Proof.
   apply composite_reorder.RCT_Permutation.
 Qed.
 
+Fixpoint plain_members (m: members) : bool :=
+ match m with
+ | Member_plain i t :: m' => plain_members m'
+ | _ :: _ => false
+ | nil => true
+ end.
+
 Section cuof.
 
 Context (cenv: composite_env).
@@ -535,7 +542,7 @@ Fixpoint complete_legal_cosu_type t :=
   | Tarray t' _ _ => complete_legal_cosu_type t'
   | Tstruct id _ => match cenv ! id with
                     | Some co => match co_su co with
-                                 | Struct => true
+                                 | Struct => plain_members (co_members co)
                                  | Union => false
                                  end
                     | _ => false
@@ -543,7 +550,7 @@ Fixpoint complete_legal_cosu_type t :=
   | Tunion id _ => match cenv ! id with
                    | Some co => match co_su co with
                                 | Struct => false
-                                | Union => true
+                                | Union => plain_members (co_members co)
                                 end
                    | _ => false
                    end

@@ -331,6 +331,7 @@ Proof.
       destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
       rewrite !andb_true_iff in H. destruct H as [_ [[? ?] ?]].
       apply eqb_su_spec in H3.
+      apply eqb_list_spec in H; [ | apply eqb_member_spec]. rewrite H.
       rewrite H3; auto.
     - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
       * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
@@ -345,6 +346,7 @@ Proof.
       destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
       rewrite !andb_true_iff in H. destruct H as [_ [[? ?] ?]].
       apply eqb_su_spec in H3.
+      apply eqb_list_spec in H; [ | apply eqb_member_spec]. rewrite H.
       rewrite H3; auto.
     - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
       * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
@@ -473,21 +475,23 @@ Proof.
       * inv H7.
         1: inv H8.
         eapply align_compatible_rec_Tstruct; eauto.
+        inversion2 H2 H10. rewrite <- H; auto.
         rewrite H2 in H10; inv H10.
         intros.
         rewrite <- H5 by eauto.
         rewrite <- H in H7, H8.
-        eapply H12; eauto.
+        eapply H13; eauto.
         rewrite <- H8, H.
         apply H6.
       * inv H7.
         1: inv H8.
         eapply align_compatible_rec_Tstruct; eauto.
+       rewrite H. inversion2 H0 H10. auto.
         rewrite H0 in H10; inv H10.
         intros.
         rewrite H in H7, H8.
         rewrite H5 by eauto.
-        eapply H12; eauto.
+        eapply H13; eauto.
         rewrite <- H8.
         symmetry.
         apply H6.
@@ -512,19 +516,21 @@ Proof.
       * inv H6.
         1: inv H7.
         eapply align_compatible_rec_Tunion; eauto.
+        inversion2 H2 H9. rewrite <- H; auto.
         rewrite H2 in H9; inv H9.
         intros.
         rewrite <- H5 by eauto.
         rewrite <- H in H6.
-        eapply H11; eauto.
+        eapply H12; eauto.
       * inv H6.
         1: inv H7.
         eapply align_compatible_rec_Tunion; eauto.
+       rewrite H. inversion2 H0 H9. auto.
         rewrite H0 in H9; inv H9.
         intros.
         rewrite H in H6.
         rewrite H5 by eauto.
-        eapply H11; eauto.
+        eapply H12; eauto.
     - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
       * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
         congruence.
