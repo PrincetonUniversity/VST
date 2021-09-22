@@ -182,9 +182,29 @@ Proof.
   lia.
 Qed.
 
-Lemma Tstruct_sizeof_0: forall id
-  (PLAIN: plain_members (co_members (get_co id)) = true)
-  a,
+Lemma complete_Tstruct_plain:
+  forall {cs: compspecs} id a,
+   complete_legal_cosu_type (Tstruct id a) = true ->
+   plain_members (co_members (get_co id)) = true.
+Proof.
+intros.
+unfold get_co; simpl in H.
+destruct (cenv_cs ! id); [ | discriminate].
+destruct (co_su c); auto; discriminate.
+Qed.
+
+Lemma complete_Tunion_plain:
+  forall {cs: compspecs} id a,
+   complete_legal_cosu_type (Tunion id a) = true ->
+   plain_members (co_members (get_co id)) = true.
+Proof.
+intros.
+unfold get_co; simpl in H.
+destruct (cenv_cs ! id); [ | discriminate].
+destruct (co_su c); auto; discriminate.
+Qed.
+
+Lemma Tstruct_sizeof_0: forall id a,
   complete_legal_cosu_type (Tstruct id a) = true ->
   sizeof (Tstruct id a) = 0 ->
   forall i, in_members i (co_members (get_co id)) ->
@@ -193,7 +213,8 @@ Lemma Tstruct_sizeof_0: forall id
    (field_offset cenv_cs i (co_members (get_co id)) +
       sizeof (field_type i (co_members (get_co id)))) = 0.
 Proof.
-  intros. 
+  intros.
+  assert (PLAIN := complete_Tstruct_plain _ _ H).
   rewrite sizeof_Tstruct in H0.
   rewrite H0.
   apply sizeof_struct_0; auto.
@@ -313,6 +334,7 @@ Ltac pose_sizeof_co t :=
     assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id)); [
       rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
       rewrite complete_legal_cosu_type_Tstruct with (a0 := a) by auto;
+      rewrite plain_members_sizeof_struct by (eapply complete_Tstruct_plain; eauto);
       apply align_le, co_alignof_pos
        |]
   | Tunion ?id ?a =>
@@ -326,14 +348,15 @@ Ltac pose_sizeof_co t :=
 
 Ltac pose_field :=
   match goal with
-  | _ : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
+  | L : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
     context [@sizeof ?cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tstruct id a);
       let H := fresh "H" in
-      pose proof field_offset_in_range i (co_members (get_co id)) as H;
+      pose proof field_offset_in_range i (co_members (get_co id))
+                              (complete_Tstruct_plain _ _ L) as H;
       spec H; [solve [auto] |];
       pose proof @sizeof_pos cs (field_type i (co_members (get_co id)))
-  | _ : complete_legal_cosu_type (Tunion ?id ?a) = true |-
+  | L : complete_legal_cosu_type (Tunion ?id ?a) = true |-
     context [@sizeof ?cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tunion id a);
       let H := fresh "H" in
@@ -343,11 +366,13 @@ Ltac pose_field :=
   | _ => idtac
   end;
   match goal with
-  | _ : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
+  | L : complete_legal_cosu_type (Tstruct ?id ?a) = true |-
     context [field_offset_next cenv_cs ?i (co_members (get_co ?id)) (co_sizeof (get_co ?id))] =>
       let H := fresh "H" in
-      pose proof field_offset_next_in_range i (co_members (get_co id)) (co_sizeof (get_co id));
+      pose proof field_offset_next_in_range i (co_members (get_co id))
+                      (complete_Tstruct_plain _ _ L) (co_sizeof (get_co id));
       spec H; [solve [auto] |];
       spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
   | _ => idtac
   end.
+

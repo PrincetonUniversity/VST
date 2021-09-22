@@ -12,6 +12,13 @@ Fixpoint get_member (i: ident) (m: members) : member :=
   | nil => Member_plain i Ctypes.Tvoid
   end.
 
+Lemma name_member_get:
+  forall i m, name_member (get_member i m) = i.
+Proof.
+induction m; simpl; auto.
+if_tac; auto.
+Defined.
+
 Definition proj_struct (i : ident) (m : members) {A: member -> Type} (v: compact_prod (map A m)) 
     (d: A (get_member i m)): A (get_member i m) :=
   proj_compact_prod (get_member i m) m v d member_dec.

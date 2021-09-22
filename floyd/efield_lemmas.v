@@ -1089,16 +1089,10 @@ Proof.
   (* Induction *)
   revert tts LEGAL_NESTED_EFIELD_REC; induction EFIELD_DENOTE; intros;
   destruct tts; try solve [inversion LEGAL_NESTED_EFIELD_REC];
-  [normalize; apply derives_refl | ..].
+  [normalize; apply derives_refl | ..];
   pose proof FIELD_COMPATIBLE as FIELD_COMPATIBLE_CONS;
-  apply field_compatible_cons in FIELD_COMPATIBLE.
-
-. 4:{
-
-  destruct (nested_field_type t_root gfs) eqn:NESTED_FIELD_TYPE; try solve [inv FIELD_COMPATIBLE]
-
-. 4:{
-
+  apply field_compatible_cons in FIELD_COMPATIBLE;
+  destruct (nested_field_type t_root gfs) eqn:NESTED_FIELD_TYPE; try solve [inv FIELD_COMPATIBLE];
   rename LEGAL_NESTED_EFIELD_REC into LEGAL_NESTED_EFIELD_REC_CONS;
   pose proof (proj1 (proj1 (andb_true_iff _ _) LEGAL_NESTED_EFIELD_REC_CONS) : legal_nested_efield_rec t_root gfs tts = true) as LEGAL_NESTED_EFIELD_REC;
   (spec IHEFIELD_DENOTE; [tauto |]);
@@ -1112,7 +1106,19 @@ Proof.
   + eapply array_ind_step_long; eauto.
   + eapply array_ind_step_ptrofs; eauto.
   + eapply struct_ind_step; eauto.
+     destruct FIELD_COMPATIBLE as [_ [H0 [_ [_ H1]]]].
+     assert (H2 :=nested_field_type_complete_legal_cosu_type _ _ H0 H1).
+     rewrite NESTED_FIELD_TYPE in H2. simpl in H2.
+     unfold get_co.
+     destruct (cenv_cs ! i0); try discriminate.
+     destruct (co_su c); try discriminate; auto.
   + eapply union_ind_step; eauto.
+     destruct FIELD_COMPATIBLE as [_ [H0 [_ [_ H1]]]].
+     assert (H2 :=nested_field_type_complete_legal_cosu_type _ _ H0 H1).
+     rewrite NESTED_FIELD_TYPE in H2. simpl in H2.
+     unfold get_co.
+     destruct (cenv_cs ! i0); try discriminate.
+     destruct (co_su c); try discriminate; auto.
 Qed.
 
 Lemma nested_efield_facts: forall Delta t_root e efs gfs tts lr p,
