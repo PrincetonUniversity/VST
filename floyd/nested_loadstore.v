@@ -82,6 +82,41 @@ Proof.
   eapply nested_reptype_unionlist_lemma; eauto.
 Qed.
 
+Lemma data_at_type_changeable:
+  forall {cs : compspecs} (sh : Share.t) (t1 t2 : type) 
+    (v1 : reptype t1) (v2 : reptype t2),
+  t1 = t2 -> JMeq v1 v2 -> data_at sh t1 v1 = data_at sh t2 v2.
+Proof.
+ intros.
+ subst.
+  f_equal.
+  apply JMeq_eq in H0. auto.
+Qed.
+
+Lemma field_at_type_changeable:
+  forall {cs : compspecs} (sh : Share.t) (t1 t2 : type) 
+  (EQt: t1=t2)
+  (g1 g2: list gfield)
+  (EQg: g1 = g2)
+  v1 v2,
+  JMeq v1 v2 -> field_at sh t1 g1 v1 = field_at sh t2 g2 v2.
+Proof.
+ intros.
+ subst.
+  f_equal.
+  apply JMeq_eq in H. auto.
+Qed.
+
+Lemma JMeq_field_type_name_member {CS: compspecs} i m :
+  forall a, JMeq (@field_type_name_member CS i m a) a.
+Proof.
+intros.
+unfold field_type_name_member.
+unfold eq_rect.
+destruct (name_member_get i m ).
+apply JMeq_refl.
+Qed.
+
 (* This lemma is mainly dealing with all JMeq subtle issues and combine 3 ramif lemmas together. *)
 Lemma gfield_ramif: forall sh t gfs gf v v0 p,
   JMeq (proj_gfield_reptype (nested_field_type t gfs) gf v) v0 ->
@@ -179,8 +214,9 @@ Proof.
     eapply derives_trans; [eapply nested_sfieldlist_at_ramif; eauto |].
     apply sepcon_derives.
     - apply derives_refl'.
-      f_equal.
-      apply JMeq_eq.
+      apply equal_f.
+      apply field_at_type_changeable; auto.
+      rewrite name_member_get; auto.
       eapply JMeq_trans; [| exact H].
       clear v0 H.
       revert v H4; rewrite H2; intros.
@@ -190,14 +226,37 @@ Proof.
       cbv iota beta in v''.
       unfold reptype_structlist in v''.
       unfold nested_reptype_structlist in v'.
-      apply (@proj_compact_prod_JMeq _ (i, field_type i (co_members (get_co i0)))
+      match goal with |- context [field_type_name_member ?A] =>
+           apply (@JMeq_trans _ _ _ _ A); [ | apply JMeq_sym, JMeq_field_type_name_member]
+     end.
+     * apply (@proj_compact_prod_JMeq _ (get_member i (co_members (get_co i0)))
              _
-             (fun it : prod ident type => @reptype cs (@nested_field_type cs t (@cons gfield (StructField (@fst ident type it)) gfs)))
-             (fun it => reptype (field_type (fst it) (co_members (get_co i0))))); auto.
-      * intros.
+             (fun it : member => @reptype cs (@nested_field_type cs t (@cons gfield (StructField (name_member it)) gfs)))
+             (fun it => reptype (field_type (name_member it) (co_members (get_co i0))))); auto.
+      -- intros.
         rewrite nested_field_type_ind, H2; reflexivity.
-      * apply in_members_field_type; auto.
+      -- apply in_get_member; auto.
     - clear v0 H.
+
+(*
+assert (j: reptype (nested_field_type t (gfs DOT i))) by admit.
+Check 
+(eq_rect_r reptype j (eq_sym (nested_field_type_ind t (gfs DOT i)))).
+
+    apply derives_trans with
+ (ALL v0 : reptype (nested_field_type t (gfs DOT i)),
+field_at sh t (gfs DOT i) v0
+  p -*
+nested_sfieldlist_at sh t gfs (co_members (get_co i0))
+  (upd_struct i (co_members (get_co i0)) v' 
+   
+  p).
+      
+
+*)
+
+
+
       apply allp_derives; intro v0.
       apply wand_derives; auto.
       erewrite field_at_Tstruct; [apply derives_refl | eauto |].

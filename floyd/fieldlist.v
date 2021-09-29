@@ -688,29 +688,73 @@ Proof.
       split; intros. split; auto. destruct H; auto.
 Defined.
 
-Lemma map_members_ext: forall A (f f':member -> A) (m: list member)
-  (PLAIN: plain_members m = true),
+Fixpoint get_member (i: ident) (m: members) : member :=
+ match m with
+  | a::m' => if ident_eq i (name_member a) then a else get_member i m'
+  | nil => Member_plain i Ctypes.Tvoid
+  end.
+
+Lemma name_member_get:
+  forall i m, name_member (get_member i m) = i.
+Proof.
+induction m; simpl; auto.
+if_tac; auto.
+Defined.
+
+Lemma map_members_ext: forall A (f f':member -> A) (m: list member),
   members_no_replicate m = true ->
-  (forall i, in_members i m -> f (Member_plain i (field_type i m)) = f' (Member_plain i (field_type i m))) ->
+  (forall i, in_members i m -> f (get_member i m)= f' (get_member i m)) ->
   map f m = map f' m.
 Proof.
   intros.
-  induction m as [| [i0 t0|] m]; [ | | discriminate].
+  induction m as [| a0 m].
   + reflexivity.
-  + simpl in PLAIN|-*.
+  + simpl.
     rewrite members_no_replicate_ind in H.
     f_equal.
-    - specialize (H0 i0).
+    - specialize (H0 (name_member a0)).
       unfold field_type, in_members in H0.
       simpl in H0; if_tac in H0; [| congruence].
       apply H0; auto.
-    - apply (IHm PLAIN). tauto.
+    - apply IHm. tauto.
       intros.
       specialize (H0 i).
-      unfold field_type, in_members in H0.
+      unfold in_members in H0.
       simpl in H0; if_tac in H0; [subst; tauto |].
       apply H0; auto.
 Defined.
+
+Lemma in_plain_members: forall a m (PLAIN: plain_members m = true),
+   In a m -> 
+   a = Member_plain (name_member a) (type_member a).
+Proof.
+ induction m as [|[|]]; simpl; intros.
+ contradiction.
+ destruct H. subst. reflexivity.
+ auto.
+ inv PLAIN.
+Qed.
+
+Lemma plain_members_union_field_offset:
+  forall m (PLAIN: plain_members m = true) 
+   env i, in_members i m -> union_field_offset env i m = Errors.OK (0, Full).
+Proof.
+ unfold union_field_offset, Ctypes.union_field_offset.
+ intros.
+ unfold in_members in H.
+ induction m as [|[|]]; simpl; intros; [ | | discriminate].
+ - 
+ inv H.
+ -
+ simpl in H.
+ if_tac.
+ subst.
+ f_equal. f_equal. rewrite align_0. reflexivity.
+ unfold bitalignof. pose proof (Ctypes.alignof_pos t); lia.
+ destruct H. congruence. 
+ rewrite <- (IHm PLAIN H); clear IHm.
+ f_equal.
+Qed.
 
 Lemma in_members_tail_no_replicate: forall i a m,
   members_no_replicate (a :: m) = true ->

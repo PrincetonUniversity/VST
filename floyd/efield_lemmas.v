@@ -952,27 +952,6 @@ Proof.
       apply derives_refl.
 Qed.
 
-Lemma plain_members_union_field_offset: (* move me to fieldlist.v *)
-  forall m (PLAIN: plain_members m = true) 
-   env i, in_members i m -> union_field_offset env i m = Errors.OK (0, Full).
-Proof.
- unfold union_field_offset, Ctypes.union_field_offset.
- intros.
- unfold in_members in H.
- induction m as [|[|]]; simpl; intros; [ | | discriminate].
- - 
- inv H.
- -
- simpl in H.
- if_tac.
- subst.
- f_equal. f_equal. rewrite align_0. reflexivity.
- unfold bitalignof. pose proof (Ctypes.alignof_pos t); lia.
- destruct H. congruence. 
- rewrite <- (IHm PLAIN H); clear IHm.
- f_equal.
-Qed.
-
 Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho
   (PLAIN: plain_members (co_members (get_co i)) = true),
   legal_nested_efield_rec t_root gfs tts = true ->

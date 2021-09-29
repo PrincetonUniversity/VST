@@ -709,7 +709,7 @@ Qed.
 Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
+  (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
      P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p.
 Proof.
@@ -720,6 +720,7 @@ Proof.
   + specialize (H1 (name_member a0)).
     simpl in H1.
     if_tac in H1; [| congruence].
+   spec H1. left; auto.
     specialize (H1 v0 v1).
     spec H1; [if_tac; [auto | congruence] |].
     spec H1; [if_tac; [auto | congruence] |].
@@ -736,6 +737,7 @@ Proof.
     - specialize (H1 (name_member a0)).
       simpl in H1.
       if_tac in H1; [| congruence].
+   spec H1. left; auto.
       specialize (H1 v0 v1).
       spec H1; [if_tac; [auto | congruence] |].
       spec H1; [if_tac; [auto | congruence] |].
@@ -757,7 +759,9 @@ Proof.
         apply in_map with (f := name_member) in H0.
         rewrite name_member_get in H0.
         tauto.
-      * specialize (H1 d0 d1).
+      * spec H1.
+         right; auto.
+         specialize (H1 d0 d1).
          unfold compact_sum_inj, proj_compact_sum, list_rect in H1.
         destruct (member_dec (get_member i (a1::m)) a0).
         elimtype False. clear - e H4. subst. rewrite name_member_get in H4. congruence.
@@ -767,7 +771,7 @@ Qed.
 Lemma union_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
+  (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
      P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p.
 Proof.
@@ -1654,7 +1658,7 @@ Definition union_pred_ext_derives:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
+  (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
      P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p
 := @union_pred_ext_derives.
@@ -1663,7 +1667,7 @@ Definition union_pred_ext:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
+  (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
      P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p
 := @union_pred_ext.

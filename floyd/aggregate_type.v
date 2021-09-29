@@ -6,19 +6,6 @@ Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.compact_prod_sum.
 Require Export VST.floyd.sublist.
 
-Fixpoint get_member (i: ident) (m: members) : member :=
- match m with
-  | a::m' => if ident_eq i (name_member a) then a else get_member i m'
-  | nil => Member_plain i Ctypes.Tvoid
-  end.
-
-Lemma name_member_get:
-  forall i m, name_member (get_member i m) = i.
-Proof.
-induction m; simpl; auto.
-if_tac; auto.
-Defined.
-
 Definition proj_struct (i : ident) (m : members) {A: member -> Type} (v: compact_prod (map A m)) 
     (d: A (get_member i m)): A (get_member i m) :=
   proj_compact_prod (get_member i m) m v d member_dec.
@@ -42,17 +29,6 @@ Definition upd_struct (i : ident) (m : members) {A: member -> Type} (v: compact_
 Definition upd_union (i : ident) (m : members) {A: member -> Type} (v: compact_sum (map A m)) 
    (v0: A (get_member i m)): compact_sum (map A m) :=
   upd_compact_sum _ v (get_member i m) v0 member_dec.
-
-Lemma in_plain_members: forall a m (PLAIN: plain_members m = true),   (* move me to fieldlist.v *)
-   In a m -> 
-   a = Member_plain (name_member a) (type_member a).
-Proof.
- induction m as [|[|]]; simpl; intros.
- contradiction.
- destruct H. subst. reflexivity.
- auto.
- inv PLAIN.
-Qed.
 
 Lemma get_member_name: forall a m,
   members_no_replicate m = true ->

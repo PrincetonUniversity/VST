@@ -1431,7 +1431,6 @@ Proof.
       rewrite Forall_forall in H0.
       apply H0. apply in_get_member; auto.
     - clear HH0 HH1.
-(*assert (In (i, field_type (name_member (get_member i m)), m) m). *)
       pose proof in_get_member _ _ H.
       rewrite Forall_forall in IH, H0.
       specialize (IH _ H2); pose proof (H0 _ H2).
@@ -1485,18 +1484,16 @@ Proof.
     - auto. 
     - unfold reptype_unionlist.
       apply compact_sum_inj_in in H2.
-      apply (in_map name_member) in H2.
-      apply in_members_field_type in H2. (* FIXME *)
       rewrite Forall_forall in IH, H0.
       specialize (IH _ H2); pose proof (H0 _ H2).
       apply IH; auto.
       apply (@proj_union_JMeq i _ 
           (fun it : member => @reptype cs_from (field_type (name_member it) m)) 
           (fun it : member => @reptype cs_to (field_type (name_member it) m))); auto.
-      * intros.
-        rewrite reptype_change_composite; [reflexivity |].
-        apply H0.
-        apply in_get_member; auto.
+      intros.
+      rewrite reptype_change_composite; [reflexivity |].
+      apply H0.
+      apply in_get_member; auto.
 Qed.
 
 (**** tactics for value_fits  ****)
