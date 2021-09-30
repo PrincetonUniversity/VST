@@ -16,6 +16,8 @@ Import LiftNotation.
 Import compcert.lib.Maps.
 Local Open Scope logic.
 
+Transparent intsize_eq.
+
 Definition int_type_min_max (type_i type_hi: type): option (Z * Z) :=
   match type_i, type_hi with
   | Tint I32 Signed _, Tint I32 Unsigned _ => Some (0, Int.max_signed)

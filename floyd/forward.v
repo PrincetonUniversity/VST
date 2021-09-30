@@ -38,6 +38,9 @@ Import LiftNotation.
 Import compcert.lib.Maps.
 
 Global Opaque denote_tc_test_eq.
+Global Transparent intsize_eq signedness_eq attr_eq type_eq typelist_eq.
+Global Transparent composite_def_eq.
+Arguments Z.div _ _ / .
 
 Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
@@ -2891,17 +2894,35 @@ Lemma Neqb_option_refl n: @eqb_option N N.eqb n n = true. Proof. destruct n; sim
 Lemma eqb_attr_refl a: eqb_attr a a = true.
 Proof. unfold eqb_attr. destruct a. rewrite eqb_reflx, Neqb_option_refl; trivial. Qed.
 Lemma eqb_member_refl m: eqb_member m m = true.
-Proof. unfold eqb_member. rewrite eqb_ident_true, eqb_type_refl; trivial. Qed.
+Proof. unfold eqb_member. destruct m. rewrite eqb_ident_true, eqb_type_refl; trivial.
+     rewrite eqb_ident_true. rewrite (proj2 (eqb_intsize_spec _ _) (eq_refl _)).
+     rewrite (proj2 (eqb_signedness_spec _ _) (eq_refl _)).
+      rewrite eqb_attr_refl. rewrite Z.eqb_refl.
+      rewrite eqb_reflx. auto.
+ Qed.
 
 Lemma eqb_list_sym {A} f: forall l1 l2, @eqb_list A f l1 l2 = @eqb_list A (fun x y => f y x) l2 l1.
 Proof. induction l1; simpl; intros; destruct l2; simpl; trivial. f_equal; auto. Qed.
 
 Lemma eqb_ident_sym i j: eqb_ident i j = eqb_ident j i.
 Proof. apply Pos.eqb_sym. Qed.
-Lemma eqb_member_sym: (fun x y : ident * type => eqb_member y x) = eqb_member.
+Lemma eqb_member_sym: (fun x y : member => eqb_member y x) = eqb_member.
 Proof.
-  extensionality x. extensionality y. unfold eqb_member.
-  rewrite eqb_ident_sym, expr_lemmas4.eqb_type_sym; trivial.
+  extensionality x. extensionality y. 
+  destruct x,y; simpl; auto.
+  f_equal. apply eqb_ident_sym.
+  apply expr_lemmas4.eqb_type_sym.
+  f_equal; [f_equal; [f_equal; [f_equal; [f_equal |] |] |] |].
+  apply eqb_ident_sym.
+  destruct sz0,sz; reflexivity.
+  destruct sg0,sg; reflexivity.
+  pose proof (eqb_attr_spec a0 a).
+  pose proof (eqb_attr_spec a a0).
+  destruct (eqb_attr a0 a), (eqb_attr a a0); auto; try tauto.
+  symmetry. apply H0. symmetry; apply H; auto.
+  apply H. symmetry; apply H0; auto.
+  apply Z.eqb_sym.
+  destruct padding0, padding; auto.
 Qed.
 
 Lemma eqb_su_sym a b: eqb_su a b = eqb_su b a.
