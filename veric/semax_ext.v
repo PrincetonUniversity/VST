@@ -12,7 +12,7 @@ Require Import VST.veric.res_predicates.
 
 Require Import VST.veric.res_predicates.
 Require Import compcert.cfrontend.Clight.
-Require Import compcert.exportclight.Clightdefs.
+Require Import compcert.export.Clightdefs.
 Import compcert.lib.Maps.
 
 Definition funsig2signature (s : funsig) cc : signature :=

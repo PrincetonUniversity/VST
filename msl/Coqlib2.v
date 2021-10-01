@@ -2,6 +2,10 @@ Require Import compcert.lib.Coqlib.
 Require Import VST.msl.base.
 Require Export VST.msl.Extensionality.
 
+Global Set Asymmetric Patterns.  (* This was in CompCert up to 3.9,
+  and has been removed, which was a good idea but now we must have it
+  here in VST until we remove it . . . *)
+
 (*  These three hints are considered "dangerous"
    because they make proofs noncomputational, which is an issue
   for things we want to solve with "compute".
