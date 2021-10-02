@@ -1115,7 +1115,7 @@ red. constructor; auto. intros. lia.
 unfold sizeof; simpl.
 rewrite Z.max_r by lia.
 unfold data_at.
-erewrite field_at_Tarray with (n0:=n);
+erewrite @field_at_Tarray with (n:=n);
   [ | apply I | reflexivity | lia | apply JMeq_refl].
 unfold mapsto_zeros.
 destruct (gz i) eqn:?H;

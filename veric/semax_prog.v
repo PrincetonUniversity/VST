@@ -2617,11 +2617,11 @@ Proof.
  subst sig'.
  split3; trivial. intros.
  specialize (Sub ts x).
- eapply semax_adapt
+ eapply @semax_adapt
  with
-  (Q'0:= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' ts x))
+  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' ts x))
            (stackframe_of f))
-  (P'0 := fun tau =>
+  (P' := fun tau =>
     EX vals:list val,
     EX ts1:list Type, EX x1 : dependent_type_functor_rec ts1 A mpred,
     EX FR: mpred,

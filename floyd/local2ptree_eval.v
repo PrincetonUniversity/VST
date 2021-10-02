@@ -267,7 +267,7 @@ revert tys vl H; induction el; destruct tys, vl; intros;
   specialize (IHel _ _ Heqo0).
   simpl eval_exprlist.
   destruct (msubst_eval_expr Delta T1 T2 GV a) eqn:?; inv Heqo.
-  apply msubst_eval_expr_eq with (P0:=P)(GV0:=GV)(R0:=R) in Heqo1.
+  apply @msubst_eval_expr_eq with (P:=P) (GV:=GV) (R:=R) in Heqo1.
   apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).
   apply andp_right; auto.
   go_lowerx. unfold_lift. intros. apply prop_right.

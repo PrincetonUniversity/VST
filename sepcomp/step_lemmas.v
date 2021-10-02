@@ -68,8 +68,8 @@ Section safety.
     inv H1; auto.
     erewrite corestep_not_at_external in H3; eauto; congruence.
     eapply safeN_halted; eauto.
-    apply corestep_not_halted with (i0:=i) in H0. contradiction.
-    apply corestep_not_halted with (i0:=i) in H0. contradiction.
+    apply @corestep_not_halted with (i:=i) in H0. contradiction.
+    apply @corestep_not_halted with (i:=i) in H0. contradiction.
   Unshelve. apply Integers.Int.zero.
 Qed.
 

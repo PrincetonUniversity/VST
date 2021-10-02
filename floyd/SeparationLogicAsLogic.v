@@ -2548,11 +2548,11 @@ destruct Sub as [[Tsigs CC] Sub]. subst cc' sig'. simpl in Sub.
 destruct SB as [SB1 [SB2 SB3]].
 split3; trivial. intros.
 specialize (Sub ts x).
-eapply semax_adapt
+eapply @semax_adapt
  with
-  (Q'0:= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' ts x))
+  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' ts x))
            (stackframe_of f))
-  (P'0 := EX vals:list val,
+  (P' := EX vals:list val,
     EX ts1:list Type, EX x1 : _,
     EX FR: mpred, 
     !!((tc_vals (map snd (fn_params f)) vals) /\
