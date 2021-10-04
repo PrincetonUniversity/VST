@@ -1448,14 +1448,16 @@ Proof.
     clear v1 v2.
     intros.
     simpl in v1', v2', H1.
-    unfold reptype_structlist in *.
-    revert v1' H1.
-    rewrite co_members_get_co_change_composite in * by auto.
+    revert v1' H1;
+      rewrite (co_members_get_co_change_composite _ H0);
     intros.
+    assert (NOREPET := @get_co_members_no_replicate cs_to id).
+    unfold reptype_structlist in *.
     pose proof (fun i => field_offset_change_composite _ i H0) as HH0.
     pose proof (fun i => field_offset_next_change_composite _ i H0) as HH1.
     apply members_spec_change_composite in H0.
-    apply struct_pred_ext; [apply get_co_members_no_replicate |].
+    forget (co_members (@get_co cs_to id)) as m.
+    apply struct_pred_ext; [assumption |].
     intros.
     f_equal; [f_equal | | f_equal ]; auto.
     - apply sizeof_change_composite; auto.
@@ -1464,19 +1466,15 @@ Proof.
       apply in_members_field_type.
       auto.
     - clear HH0 HH1.
-      simpl fst in *.
-      revert d0 d1 v1' v2' IH H0 H1.
-      generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 21 23 24 26; intros.
       pose proof in_members_field_type _ _ H.
       rewrite Forall_forall in IH, H0.
       specialize (IH _ H2); pose proof (H0 _ H2).
       apply IH; auto.
-      apply (@proj_struct_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
+      apply (@proj_struct_JMeq i m (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
       * intros. 
         rewrite reptype_change_composite; [reflexivity |].
         apply H0.
         apply in_members_field_type; auto.
-      * apply get_co_members_no_replicate.
   + (* Tunion *)
     rewrite !data_at_rec_eq.
     extensionality p.
@@ -1492,19 +1490,17 @@ Proof.
     clear v1 v2.
     intros.
     simpl in v1', v2', H1.
-    unfold reptype_structlist in *.
-    revert v1' H1.
-    rewrite co_members_get_co_change_composite in * by auto.
+    revert v1' H1;
+      rewrite (co_members_get_co_change_composite _ H0);
     intros.
-    pose proof (fun i => field_offset_change_composite _ i H0) as HH0.
-    pose proof (fun i => field_offset_next_change_composite _ i H0) as HH1.
-    pose proof H0 as H0'.
+    assert (NOREPET := @get_co_members_no_replicate cs_to id).
+    unfold reptype_structlist in *.
+    assert (H0'' := co_sizeof_get_co_change_composite _ H0).
     apply members_spec_change_composite in H0.
-    apply union_pred_ext.
-    { apply get_co_members_no_replicate. }
+    forget (co_members (@get_co cs_to id)) as m.
+    apply union_pred_ext; [assumption | | ].
     {
       apply members_union_inj_JMeq; auto.
-      2: apply get_co_members_no_replicate.
       intros.
       rewrite reptype_change_composite; [reflexivity |].
       apply in_members_field_type in H.
@@ -1520,25 +1516,19 @@ Proof.
       apply compact_sum_inj_in in H.
       apply (in_map fst) in H.
       auto.
-    - apply co_sizeof_get_co_change_composite.
-      auto.
-    - clear HH0 HH1.
-      simpl fst in *.
-      revert d0 d1 v1' v2' IH H0 H1 H H2.
-      unfold reptype_unionlist.
-      generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 22 25 27 29 30 32; intros.
+    - auto. 
+    - unfold reptype_unionlist.
       apply compact_sum_inj_in in H2.
       apply (in_map fst) in H2.
       apply in_members_field_type in H2.
       rewrite Forall_forall in IH, H0.
       specialize (IH _ H2); pose proof (H0 _ H2).
       apply IH; auto.
-      apply (@proj_union_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
+      apply (@proj_union_JMeq i _ (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
       * intros.
         rewrite reptype_change_composite; [reflexivity |].
         apply H0.
         apply in_members_field_type; auto.
-      * apply get_co_members_no_replicate.
 Qed.
 
 (**** tactics for value_fits  ****)
