@@ -503,7 +503,7 @@ rewrite exp_sepcon2, exp_andp2; apply subp_exp_left; intro x2.
 rewrite exp_sepcon2, exp_andp2; apply subp_exp_left; intro G.
 eapply subp_trans, subp_exp_spec.
 eapply subp_trans, subp_exp_spec.
-eapply subp_trans, subp_exp_spec with (x0 := F*G).
+eapply subp_trans, @subp_exp_spec with (x := F*G).
 eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, distrib_sepcon_andp; apply derives_refl].
 rewrite andp_comm, andp_assoc; apply subp_andp.
 + rewrite sepcon_assoc; apply subp_refl.

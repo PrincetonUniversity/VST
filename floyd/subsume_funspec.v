@@ -211,7 +211,7 @@ Lemma semax_call_subsume:
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
 Proof. intros.
-eapply semax_pre. 2: apply semax_call with (P0:=P)(NEP0:=NEP)(NEQ0:=NEQ); trivial; eassumption.
+eapply semax_pre. 2: apply @semax_call with (P:=P) (NEP:=NEP) (NEQ:=NEQ); trivial; eassumption.
 apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. intros rho. clear - H.
 remember (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) as gs.
@@ -237,7 +237,7 @@ Lemma semax_call_subsume_si:
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
 Proof. intros.
-eapply semax_pre. 2: apply semax_call with (P0:=P)(NEP0:=NEP)(NEQ0:=NEQ); trivial; eassumption.
+eapply semax_pre. 2: apply @semax_call with (P:=P) (NEP:=NEP) (NEQ:=NEQ); trivial; eassumption.
 apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. clear. intros rho.
 rewrite andp_comm. constructor. apply func_ptr_si_mono.

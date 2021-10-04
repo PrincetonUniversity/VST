@@ -907,7 +907,7 @@ Proof.
     rewrite default_val_eq. simpl.
     intros.
     rewrite !at_offset_eq3.
-    rewrite default_val_eq with (t0 := (Tarray t z a)), unfold_fold_reptype.
+    rewrite @default_val_eq with (t := (Tarray t z a)), unfold_fold_reptype.
     eapply derives_trans.
     apply IH; auto.
     - pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
