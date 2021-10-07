@@ -1,7 +1,7 @@
 Require Import VST.veric.rmaps.
-Require Import VST.progs.ghosts.
+Require Import VST.concurrency.ghosts.
 From VST.atomics Require Import general_atomics acq_rel_atomics acq_rel_SW.
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.atomics.maps.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.

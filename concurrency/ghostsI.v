@@ -1,6 +1,6 @@
 Require Import VST.veric.compcert_rmaps.
-Require Export VST.progs.ghosts.
-Require Import VST.progs.conclib.
+Require Export VST.concurrency.ghosts.
+Require Import VST.concurrency.conclib.
 Require Import VST.veric.bi.
 Require Import VST.msl.sepalg.
 Import List.

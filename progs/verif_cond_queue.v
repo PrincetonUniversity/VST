@@ -1,4 +1,4 @@
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.progs.cond_queue.
 
 Require Export VST.floyd.Funspec_old_Notation.

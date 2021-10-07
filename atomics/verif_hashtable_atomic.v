@@ -1,5 +1,5 @@
 Require Import VST.veric.rmaps.
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.veric.bi.
 Require Import VST.floyd.library.

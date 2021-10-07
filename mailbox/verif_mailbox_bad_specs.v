@@ -1,5 +1,5 @@
 Require Import mailbox.general_atomics.
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.progs.ghost.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.

@@ -1212,7 +1212,7 @@ Lemma sublist_last_1 : forall {A}{d: Inhabitant A} lo hi (al : list A), 0 <= lo 
   sublist lo (hi + 1) al = sublist lo hi al ++ [Znth hi al].
 Proof.
   intros.
-  erewrite sublist_split with (mid := hi)(hi0 := hi + 1), sublist_len_1; auto; lia.
+  erewrite @sublist_split with (mid := hi) (hi := hi + 1), sublist_len_1; auto; lia.
 Qed.
 
 Lemma Zlen_le_1_rev:
@@ -2257,7 +2257,7 @@ Lemma Forall2_upd_Znth_l : forall {A B}{d: Inhabitant B} (P : A -> B -> Prop) l1
   P x (Znth i l2) -> 0 <= i < Zlength l1 -> Forall2 P (upd_Znth i l1 x) l2.
 Proof.
   intros.
-  erewrite <- upd_Znth_triv with (l := l2)(i0 := i); eauto.
+  erewrite <- @upd_Znth_triv with (l := l2)(i := i); eauto.
   apply Forall2_upd_Znth; eauto; lia.
   apply Forall2_Zlength in H; lia.
 Qed.
@@ -2266,7 +2266,7 @@ Lemma Forall2_upd_Znth_r : forall {A B}{d: Inhabitant A} (P : A -> B -> Prop) l1
   P (Znth i l1) x -> 0 <= i < Zlength l1 -> Forall2 P l1 (upd_Znth i l2 x).
 Proof.
   intros.
-  erewrite <- upd_Znth_triv with (l := l1)(i0 := i) by (eauto; lia).
+  erewrite <- @upd_Znth_triv with (l := l1)(i := i) by (eauto; lia).
   apply Forall2_upd_Znth; eauto.
   apply Forall2_Zlength in H; lia.
 Qed.

@@ -1482,7 +1482,7 @@ eapply Hempty. eassumption.
 }
 assert (Hty: typelist_of_type_list params = tys) by (rewrite H7, TTL3; trivial).
 rewrite (age_level _ _ Hage).
-eapply jsafeN_external with (x0 := x'); eauto.
+eapply @jsafeN_external with (x := x'); eauto.
 
 + (*1/3*)
   simpl.
@@ -2925,7 +2925,7 @@ Proof.
       eapply semax_call_aux2 with (bl:=nil)(a:=Econst_int Int.zero tint)
                                   (Q:=Q)(fsig:=(clientparams,retty)); eauto.
       + red. red. red. eauto.
-        apply ext_join_sub_approx with (n0 := level jm') in Hext.
+        apply @ext_join_sub_approx with (n := level jm') in Hext.
         eapply joins_comm, join_sub_joins_trans; eauto.
         apply joins_comm; auto.
       + rewrite closed_wrt_modvars_Scall; auto.
@@ -3768,10 +3768,10 @@ apply (boxy_e _ _ (extend_tc_expr _ _ _) _ _ H8'') in TCa.
 apply (boxy_e _ _ (extend_tc_exprlist _ _ _ _) _ _ H8'') in TCbl.
 apply (boxy_e _ _ (extend_tc_expr _ _ _) _ _ H8'') in TCa'.
 apply (boxy_e _ _ (extend_tc_exprlist _ _ _ _) _ _ H8'') in TCbl'.
-eapply denote_tc_resource with (a'1 := m_phi jm) in TCa; auto.
-eapply denote_tc_resource with (a'1 := m_phi jm) in TCa'; auto.
-eapply denote_tc_resource with (a'1 := m_phi jm) in TCbl; auto.
-eapply denote_tc_resource with (a'1 := m_phi jm) in TCbl'; auto.
+eapply @denote_tc_resource with (a' := m_phi jm) in TCa; auto.
+eapply @denote_tc_resource with (a' := m_phi jm) in TCa'; auto.
+eapply @denote_tc_resource with (a' := m_phi jm) in TCbl; auto.
+eapply @denote_tc_resource with (a' := m_phi jm) in TCbl'; auto.
 assert (forall vf, Clight.eval_expr psi vx tx (m_dry jm) a vf
                -> Clight.eval_expr psi vx tx (m_dry jm) a' vf). {
 clear - TCa TCa' H7 H7' H0 Heqrho HGG TS HGpsi.

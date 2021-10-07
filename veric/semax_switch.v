@@ -375,7 +375,7 @@ apply prop_andp_subp'; intros [H4 H4'].
 set (rho := construct_rho (filter_genv psi) vx tx) in *.
 specialize (H0 rho).
 inv H0. rename derivesI into H0.
-apply frame_tc_expr with (F0 := F rho) in  H0.
+apply @frame_tc_expr with (F := F rho) in  H0.
 rewrite sepcon_comm in H0.
 apply subp_i1.
 eapply derives_trans.

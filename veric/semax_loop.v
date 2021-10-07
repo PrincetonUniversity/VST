@@ -393,7 +393,7 @@ Proof.
       +  simpl proj_ret_assert.
           destruct vl2. intros ? ? ? ? [[_ [? _]] _]; discriminate.
           rewrite (prop_true_andp (None=None)) by auto.
-        apply (assert_safe_adj') with (k0:=Kseq (Sloop body incr) k); auto.
+        apply @assert_safe_adj' with (k:=Kseq (Sloop body incr) k); auto.
         - simpl; repeat intro. auto.
         - eapply subp_trans'; [ |  eapply H1].
           apply derives_subp.
@@ -403,7 +403,7 @@ Proof.
           unfold frame_ret_assert. normalize.
           rewrite sepcon_comm. auto.
       + unfold exit_cont.
-        apply (assert_safe_adj') with (k0:= k); auto.
+        apply @assert_safe_adj' with (k:= k); auto.
         - simpl. destruct k; simpl; auto; hnf; auto.
         - simpl proj_ret_assert.
           eapply subp_trans'; [ |  eapply (H3 EK_normal None tx2 vx2)].
@@ -429,7 +429,7 @@ Proof.
     destruct vl.
     simpl proj_ret_assert.
     intros ? ? ? ? [[_ [? _]] _]; discriminate.
-    apply (assert_safe_adj') with (k0:= Kseq incr (Kloop2 body incr k)); auto.
+    apply @assert_safe_adj' with (k:= Kseq incr (Kloop2 body incr k)); auto.
     simpl. repeat intro. eapply jsafeN_local_step. econstructor; auto.
     intros; eapply age_safe; eauto.
     eapply subp_trans'; [ | apply H0].
@@ -467,7 +467,7 @@ Proof.
     unfold exit_cont.
     destruct vl2.
     intros ? ? ? ? [[_ [? _]] _]; discriminate.
-    apply (assert_safe_adj') with (k0:=Kseq (Sloop body incr) k); auto.
+    apply @assert_safe_adj' with (k:=Kseq (Sloop body incr) k); auto.
     - repeat intro. auto.
     - eapply subp_trans'; [ | eapply H1; eauto].
       apply derives_subp.
@@ -483,7 +483,7 @@ Proof.
     }
     {
     unfold exit_cont.
-    apply (assert_safe_adj') with (k0 := k); auto.
+    apply @assert_safe_adj' with (k := k); auto.
     - simpl. destruct k; simpl; repeat intro; auto.
     - 
     destruct vl2.

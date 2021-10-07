@@ -1297,6 +1297,12 @@ Ltac check_gvars :=
 
 Ltac try_convertPreElim := reflexivity.
 
+Ltac check_gvars_spec :=
+  exact I || reflexivity ||
+  match goal with |- check_gvars_spec None (Some ?gv) =>
+   fail "Function precondition requires (gvars" gv ") in LOCAL clause"
+  end.
+
 Ltac prove_call_setup_aux  ts witness :=
  let H := fresh "SetupOne" in
  intro H;
@@ -1309,7 +1315,7 @@ Ltac prove_call_setup_aux  ts witness :=
  | check_prove_local2ptree
  | check_vl_eq_args (*WAS: Forall_pTree_from_elements*)
  | auto 50 with derives
- | unfold check_gvars_spec; solve [exact I | reflexivity]
+ | check_gvars_spec
  | try change_compspecs CS; cancel_for_forward_call
  |
  ])

@@ -1,6 +1,6 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.veric.rmaps.
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.progs.ghost.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
