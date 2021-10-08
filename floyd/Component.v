@@ -101,6 +101,50 @@ Lemma binary_intersection'_sub'  {f c A1 P1 Q1 P1_ne Q1_ne A2 P2 Q2 P2_ne Q2_ne}
   funspec_sub tau phi /\ funspec_sub tau psi.
 Proof. subst. apply binary_intersection'_sub. Qed.
 
+Lemma binary_intersection_sub1 (f : compcert_rmaps.typesig) (c : calling_convention) 
+         (A1 : rmaps.TypeTree)
+         (P1 : forall ts : list Type,
+               functors.MixVariantFunctor._functor
+                 (rmaps.dependent_type_functor_rec ts (ArgsTT A1)) mpred)
+         (Q1 : forall ts : list Type,
+               functors.MixVariantFunctor._functor
+                 (rmaps.dependent_type_functor_rec ts (AssertTT A1)) mpred)
+         (P1_ne : args_super_non_expansive P1) (Q1_ne : super_non_expansive Q1)
+         (A2 : rmaps.TypeTree)
+         (P2 : forall ts : list Type,
+               functors.MixVariantFunctor._functor
+                 (rmaps.dependent_type_functor_rec ts (ArgsTT A2)) mpred)
+         (Q2 : forall ts : list Type,
+               functors.MixVariantFunctor._functor
+                 (rmaps.dependent_type_functor_rec ts (AssertTT A2)) mpred)
+         (P2_ne : args_super_non_expansive P2) (Q2_ne : super_non_expansive Q2)
+         (phi psi : funspec) (Hphi : phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne)
+         (Hpsi : psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne):
+       funspec_sub (binary_intersection' phi psi Hphi Hpsi) phi.
+Proof. apply binary_intersection'_sub. (*apply funspec_sub_iff. apply binary_intersection'_sub1. *) Qed.
+
+Lemma binary_intersection_sub2 (f : compcert_rmaps.typesig) (c : calling_convention) 
+         (A1 : rmaps.TypeTree)
+         (P1 : forall ts : list Type,
+               functors.MixVariantFunctor._functor
+                 (rmaps.dependent_type_functor_rec ts (ArgsTT A1)) mpred)
+         (Q1 : forall ts : list Type,
+               functors.MixVariantFunctor._functor
+                 (rmaps.dependent_type_functor_rec ts (AssertTT A1)) mpred)
+         (P1_ne : args_super_non_expansive P1) (Q1_ne : super_non_expansive Q1)
+         (A2 : rmaps.TypeTree)
+         (P2 : forall ts : list Type,
+               functors.MixVariantFunctor._functor
+                 (rmaps.dependent_type_functor_rec ts (ArgsTT A2)) mpred)
+         (Q2 : forall ts : list Type,
+               functors.MixVariantFunctor._functor
+                 (rmaps.dependent_type_functor_rec ts (AssertTT A2)) mpred)
+         (P2_ne : args_super_non_expansive P2) (Q2_ne : super_non_expansive Q2)
+         (phi psi : funspec) (Hphi : phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne)
+         (Hpsi : psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne):
+       funspec_sub (binary_intersection' phi psi Hphi Hpsi) psi.
+Proof. apply binary_intersection'_sub. (*apply funspec_sub_iff. apply binary_intersection'_sub2.*) Qed.
+
 Lemma mapsto_zeros_mapsto_nullval sh b z t:
    readable_share sh ->
    Z.divide (align_chunk Mptr) (Ptrofs.unsigned z) ->

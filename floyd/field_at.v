@@ -2298,6 +2298,28 @@ contradict H0.
 apply identity_share_bot in H0.
 *)
 
+Lemma field_at_share_join_values_cohere {cs:compspecs} sh1 sh2 sh t gfs 
+    v1 v2 (R:type_is_by_value (nested_field_type t gfs)  = true) p:
+    sepalg.join sh1 sh2 sh -> 
+    type_is_volatile (nested_field_type t gfs) = false ->
+    readable_share sh1 -> readable_share sh2 ->
+    ~ (JMeq v1 Vundef) -> ~ (JMeq v2 Vundef) ->
+   (field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p) |-- !!(v1=v2).
+Proof. intros. unfold field_at, at_offset; Intros.
+  destruct H5. destruct p; inv H5.
+  unfold offset_val. 
+  apply (data_at_rec_share_join_values_cohere sh1 sh2 sh); trivial.
+Qed.
+
+Lemma data_at_share_join_values_cohere {cs:compspecs} sh1 sh2 sh t
+    v1 v2 (R:type_is_by_value (nested_field_type t nil)  = true) p:
+    sepalg.join sh1 sh2 sh -> 
+    type_is_volatile (nested_field_type t nil) = false ->
+    readable_share sh1 -> readable_share sh2 ->
+    ~ (JMeq v1 Vundef) -> ~ (JMeq v2 Vundef) ->
+   (data_at sh1 t v1 p * data_at sh2 t v2 p) |-- !!(v1=v2).
+Proof. intros. eapply field_at_share_join_values_cohere; eassumption. Qed.
+
 Lemma field_at_share_join{cs: compspecs}:
   forall sh1 sh2 sh t gfs v p,
     sepalg.join sh1 sh2 sh ->
