@@ -30,7 +30,7 @@ Lemma reptype_Tarray_JMeq_constr0: forall t gfs t0 n a (v: reptype (nested_field
 Proof.
   intros.
   apply JMeq_sigT.
-  rewrite nested_field_type_ind with (gfs0 := cons _ _).
+  rewrite @nested_field_type_ind with (gfs := cons _ _).
   rewrite !H0.
   rewrite reptype_eq.
   auto.
@@ -44,7 +44,7 @@ Lemma reptype_Tarray_JMeq_constr1: forall t gfs t0 n a i (v: reptype (nested_fie
 Proof.
   intros.
   apply JMeq_sigT.
-  rewrite nested_field_type_ind with (gfs0 := cons _ _).
+  rewrite @nested_field_type_ind with (gfs := cons _ _).
   reflexivity.
 Qed.
 
@@ -56,7 +56,7 @@ Lemma reptype_Tarray_JMeq_constr2: forall t gfs t0 n a i (v': reptype (nested_fi
 Proof.
   intros.
   apply JMeq_sigT.
-  rewrite nested_field_type_ArraySubsc with (i0 := i).
+  rewrite @nested_field_type_ArraySubsc with (i := i).
   auto.
 Qed.
 
@@ -136,7 +136,7 @@ Proof.
         unfold upd_gfield_reptype.
         eapply JMeq_trans; [apply fold_reptype_JMeq |].
         apply (JMeq_trans (unfold_reptype_JMeq _ v)) in H4.
-        revert v' v0' H4 H5; rewrite nested_field_type_ind with (gfs0 := cons _ _), H2; simpl; intros.
+        revert v' v0' H4 H5; rewrite @nested_field_type_ind with (gfs := cons _ _), H2; simpl; intros.
         apply JMeq_eq in H4; apply JMeq_eq in H5.
         subst; apply JMeq_refl.
       + apply allp_right; intro v0.
@@ -154,14 +154,14 @@ Proof.
         unfold upd_gfield_reptype.
         eapply JMeq_trans; [apply fold_reptype_JMeq |].
         apply (JMeq_trans (unfold_reptype_JMeq _ v)) in H4.
-        revert v' v0' H4 H5; rewrite nested_field_type_ind with (gfs0 := cons _ _), H2; simpl; intros.
+        revert v' v0' H4 H5; rewrite @nested_field_type_ind with (gfs := cons _ _), H2; simpl; intros.
         apply JMeq_eq in H4; apply JMeq_eq in H5.
         subst; apply JMeq_refl.
     }
     apply (array_at_ramif sh t gfs t0 z a 0 z i v' v0 p); auto.
     eapply JMeq_trans; [apply @JMeq_sym, H |]; clear v0 H.
     revert v v' H4.
-    rewrite nested_field_type_ind with (gfs0 := cons _ _), H2.
+    rewrite @nested_field_type_ind with (gfs := cons _ _), H2.
     unfold proj_gfield_reptype, gfield_type.
     intros.
     apply (JMeq_trans (unfold_reptype_JMeq _ v)) in H4.

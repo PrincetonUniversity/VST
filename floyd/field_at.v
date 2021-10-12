@@ -344,7 +344,7 @@ Proof.
   clear ZL.
   revert v0 v1 H.
   unfold field_at.
-  rewrite nested_field_type_ArraySubsc with (i0 := i).
+  rewrite @nested_field_type_ArraySubsc with (i := i).
   intros.
   specialize (H (Znth (i - lo) v0) (Znth (i - lo) v1)).
   do 3 (spec H; [auto |]).
@@ -523,7 +523,7 @@ Proof.
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     normalize.
   }
-  rewrite nested_field_offset_ind with (gfs0 := StructField i :: gfs) by auto.
+  rewrite @nested_field_offset_ind with (gfs := StructField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
@@ -609,7 +609,7 @@ Proof.
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     normalize.
   }
-  rewrite nested_field_offset_ind with (gfs0 := UnionField i :: gfs) by auto.
+  rewrite @nested_field_offset_ind with (gfs := UnionField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
   change (sizeof ?A) with (expr.sizeof A) in *.
   f_equal; [| f_equal].
@@ -649,7 +649,7 @@ Proof.
   unfold array_at, field_at.
   rewrite array_pred_len_1 by lia.
   revert v' H.
-  rewrite nested_field_type_ArraySubsc with (i0 := i).
+  rewrite @nested_field_type_ArraySubsc with (i := i).
   intros.
   apply JMeq_eq in H; rewrite H.
   f_equal.
@@ -674,7 +674,7 @@ Proof.
     assert (field_compatible0 t (gfs SUB mid) p) by (apply (field_compatible0_range _ lo hi); auto).
     tauto.
   + intros [? ?].
-    rewrite split_array_pred with (mid0 := mid) by auto.
+    rewrite @split_array_pred with (mid := mid) by auto.
     rewrite H0; auto.
 Qed.
 
@@ -829,12 +829,12 @@ Proof.
     f_equal.
     f_equal.
     f_equal.
-    rewrite nested_field_offset_ind with (gfs0 := nil) by (apply (field_compatible0_nested_field_array t gfs lo hi p); auto).
+    rewrite @nested_field_offset_ind with (gfs := nil) by (apply (field_compatible0_nested_field_array t gfs lo hi p); auto).
     assert (field_compatible0 t (gfs SUB i') p)
       by (apply (field_compatible0_range _ lo hi); auto; lia).
-    rewrite nested_field_offset_ind with (gfs0 := ArraySubsc i' :: _) by auto.
-    rewrite nested_field_offset_ind with (gfs0 := ArraySubsc lo :: _) by auto.
-    rewrite nested_field_type_ind with (gfs0 := ArraySubsc 0 :: _).
+    rewrite @nested_field_offset_ind with (gfs := ArraySubsc i' :: _) by auto.
+    rewrite @nested_field_offset_ind with (gfs := ArraySubsc lo :: _) by auto.
+    rewrite @nested_field_type_ind with (gfs := ArraySubsc 0 :: _).
     rewrite field_compatible0_cons in H4.
     destruct (nested_field_type t gfs); try tauto.
     unfold gfield_offset, gfield_type.
@@ -1097,7 +1097,7 @@ Proof.
   1: rewrite Zlength_Zrepeat by (rewrite Zlength_correct in H1; lia); lia.
   intros.
   destruct (field_compatible0_dec t (ArraySubsc i :: gfs) p).
-  + revert u1 H5; erewrite <- nested_field_type_ArraySubsc with (i0 := i); intros.
+  + revert u1 H5; erewrite <- @nested_field_type_ArraySubsc with (i := i); intros.
     apply JMeq_eq in H5; rewrite H5. unfold Znth. rewrite if_false by lia.
     unfold Zrepeat; rewrite nth_repeat.
     apply field_at_field_at_; auto.
@@ -1151,7 +1151,7 @@ Proof.
     split.
     - rewrite sizeof_Tunion.
       erewrite co_consistent_sizeof by apply get_co_consistent.
-      rewrite complete_legal_cosu_type_Tunion with (a0 := a)
+      rewrite @complete_legal_cosu_type_Tunion with (a := a)
         by (rewrite <- H; apply nested_field_type_complete_legal_cosu_type;
             unfold field_compatible in *; tauto).
       pose proof align_le (sizeof_composite cenv_cs Union (co_members (get_co id)))
@@ -1212,8 +1212,8 @@ Proof.
       rewrite upd_Znth_same by lia.
       exact H1.
     }
-    rewrite sublist_upd_Znth_l with (lo0 := 0) by lia.
-    rewrite sublist_upd_Znth_r with (lo0 := (i + 1 - lo)) by lia.
+    rewrite @sublist_upd_Znth_l with (lo := 0) by lia.
+    rewrite @sublist_upd_Znth_r with (lo := (i + 1 - lo)) by lia.
     unfold fst; cancel.
 Qed.
 
@@ -2298,6 +2298,28 @@ contradict H0.
 apply identity_share_bot in H0.
 *)
 
+Lemma field_at_share_join_values_cohere {cs:compspecs} sh1 sh2 sh t gfs 
+    v1 v2 (R:type_is_by_value (nested_field_type t gfs)  = true) p:
+    sepalg.join sh1 sh2 sh -> 
+    type_is_volatile (nested_field_type t gfs) = false ->
+    readable_share sh1 -> readable_share sh2 ->
+    ~ (JMeq v1 Vundef) -> ~ (JMeq v2 Vundef) ->
+   (field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p) |-- !!(v1=v2).
+Proof. intros. unfold field_at, at_offset; Intros.
+  destruct H5. destruct p; inv H5.
+  unfold offset_val. 
+  apply (data_at_rec_share_join_values_cohere sh1 sh2 sh); trivial.
+Qed.
+
+Lemma data_at_share_join_values_cohere {cs:compspecs} sh1 sh2 sh t
+    v1 v2 (R:type_is_by_value (nested_field_type t nil)  = true) p:
+    sepalg.join sh1 sh2 sh -> 
+    type_is_volatile (nested_field_type t nil) = false ->
+    readable_share sh1 -> readable_share sh2 ->
+    ~ (JMeq v1 Vundef) -> ~ (JMeq v2 Vundef) ->
+   (data_at sh1 t v1 p * data_at sh2 t v2 p) |-- !!(v1=v2).
+Proof. intros. eapply field_at_share_join_values_cohere; eassumption. Qed.
+
 Lemma field_at_share_join{cs: compspecs}:
   forall sh1 sh2 sh t gfs v p,
     sepalg.join sh1 sh2 sh ->
@@ -2411,10 +2433,10 @@ Lemma nonreadable_readable_memory_block_data_at_join
 Proof.
 intros.
 apply pred_ext; saturate_local.
-rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
+rewrite @nonreadable_memory_block_data_at with (v:=v); auto.
 unfold data_at.
 erewrite field_at_share_join; eauto. apply derives_refl.
-rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
+rewrite @nonreadable_memory_block_data_at with (v:=v); auto.
 unfold data_at.
 erewrite field_at_share_join; eauto.
 apply derives_refl.

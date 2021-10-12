@@ -680,7 +680,7 @@ intros.
 apply semax_loop with (Q':= (EX a:A, PQR a)).
 *
  apply extract_exists_pre; intro a.
- apply semax_seq with (Q0 := PROPx (typed_true (typeof test) (v a) :: P a) (LOCALx (Q a) (SEPx (R a)))).
+ apply @semax_seq with (Q := PROPx (typed_true (typeof test) (v a) :: P a) (LOCALx (Q a) (SEPx (R a)))).
  apply semax_pre with (tc_expr Delta (Eunop Onotbool test (Tint I32 Signed noattr)) 
                                         && (local (`(eq (v a)) (eval_expr test)) && (PROPx (P a) (LOCALx (Q a) (SEPx (R a))))));
    [ | apply semax_ifthenelse; auto].

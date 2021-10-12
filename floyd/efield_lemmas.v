@@ -396,7 +396,7 @@ Proof.
   +
     eapply isBinOpResultType_add_ptr_long; [auto | apply typeconv_typeconv'_eq; eassumption | |].
     - destruct H3 as [_ [? [_ [_ ?]]]].
-      eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
+      eapply @nested_field_type_complete_legal_cosu_type with (gfs := gfs) in H3; auto.
       rewrite H2 in H3.
       exact H3.
     - destruct (typeof (nested_efield e efs tts)); try solve [inv H5];
@@ -430,7 +430,7 @@ Proof.
    destruct i; simpl; eexists; reflexivity. (* Archi.ptr64 = false *)
   + eapply isBinOpResultType_add_ptr_ptrofs; [auto | apply typeconv_typeconv'_eq; eassumption | |].
     - destruct H3 as [_ [? [_ [_ ?]]]].
-      eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
+      eapply @nested_field_type_complete_legal_cosu_type with (gfs := gfs) in H3; auto.
       rewrite H2 in H3.
       exact H3.
     - destruct (typeof (nested_efield e efs tts)); try solve [inv H5];
@@ -463,7 +463,7 @@ Proof.
    destruct i; simpl; eexists; reflexivity.
   + eapply isBinOpResultType_add_ptr; [auto | apply typeconv_typeconv'_eq; eassumption | |].
     - destruct H3 as [_ [? [_ [_ ?]]]].
-      eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
+      eapply @nested_field_type_complete_legal_cosu_type with (gfs := gfs) in H3; auto.
       rewrite H2 in H3.
       exact H3.
     - destruct (typeof (nested_efield e efs tts)); try solve [inv H5];

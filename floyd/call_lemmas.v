@@ -1065,7 +1065,7 @@ eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left
   apply later_left2. normalize.
   rewrite <- andp_assoc. rewrite andp_comm.
   apply derives_extract_prop. intro VL.
-  apply msubst_eval_exprlist_eq with (P0:=P)(R0:=R)(GV0:=GV) in MSUBST.
+  apply @msubst_eval_exprlist_eq with (P:=P)(R:=R)(GV:=GV) in MSUBST.
 
 clear - PTREE PTREE' FRAME PPRE LEN CHECKG MSUBST VL.
 rewrite andp_assoc. apply andp_left2.

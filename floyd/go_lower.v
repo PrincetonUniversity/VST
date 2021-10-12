@@ -421,7 +421,7 @@ Proof.
     apply LocalD_sound_gvars; auto.
 Qed.
 
-Lemma go_lower_localdef_one_step_canon_canon {cs: compspecs} : forall Delta Ppre Qpre Rpre Ppost l Qpost Rpost T1 T2 GV,
+Lemma go_lower_localdef_one_step_canon_canon: forall Delta Ppre Qpre Rpre Ppost l Qpost Rpost T1 T2 GV,
   local2ptree Qpre = (T1, T2, nil, GV) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) && PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil) (LOCALx Qpost (SEPx Rpost)) |-- PROPx Ppost (LOCALx (l :: Qpost) (SEPx Rpost)).
 Proof.
@@ -441,7 +441,7 @@ Proof.
   apply localdef_local_facts_inv; auto.
 Qed.
 
-Lemma go_lower_localdef_canon_canon {cs: compspecs} : forall Delta Ppre Qpre Rpre Ppost Qpost Rpost T1 T2 GV,
+Lemma go_lower_localdef_canon_canon : forall Delta Ppre Qpre Rpre Ppost Qpost Rpost T1 T2 GV,
   local2ptree Qpre = (T1, T2, nil, GV) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) && PROPx (Ppost ++ msubst_extract_locals Delta T1 T2 GV Qpost) (LOCALx nil (SEPx Rpost)) |-- PROPx Ppost (LOCALx Qpost (SEPx Rpost)).
 Proof.
@@ -532,35 +532,35 @@ Proof.
   apply msubst_eval_expr_eq, H0.
 Qed.
 
-Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): (environ -> mpred) -> mpred -> Prop :=
+Inductive clean_LOCAL_right (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): (environ -> mpred) -> mpred -> Prop :=
 | clean_LOCAL_right_sep_lift: forall P, clean_LOCAL_right Delta T1 T2 GV (`P) (P)
 | clean_LOCAL_right_local_lift: forall P, clean_LOCAL_right Delta T1 T2 GV (local (`P)) (!! P)
 | clean_LOCAL_right_prop: forall P, clean_LOCAL_right Delta T1 T2 GV (!! P) (!! P)
-| clean_LOCAL_right_tc_lvalue: forall e, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_lvalue Delta e)) (msubst_tc_lvalue Delta T1 T2 GV e)
-| clean_LOCAL_right_tc_expr: forall e, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_expr Delta e)) (msubst_tc_expr Delta T1 T2 GV e)
-| clean_LOCAL_right_tc_LR: forall e lr, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_LR Delta e lr)) (msubst_tc_LR Delta T1 T2 GV e lr)
-| clean_LOCAL_right_tc_efield: forall efs, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_efield Delta efs)) (msubst_tc_efield Delta T1 T2 GV efs)
-| clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_exprlist Delta ts es)) (msubst_tc_exprlist Delta T1 T2 GV ts es)
-| clean_LOCAL_right_tc_expropt: forall e t, clean_LOCAL_right Delta T1 T2 GV (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 GV e t)
+| clean_LOCAL_right_tc_lvalue: forall (cs: compspecs) e, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_lvalue Delta e)) (msubst_tc_lvalue Delta T1 T2 GV e)
+| clean_LOCAL_right_tc_expr: forall (cs: compspecs) e, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_expr Delta e)) (msubst_tc_expr Delta T1 T2 GV e)
+| clean_LOCAL_right_tc_LR: forall (cs: compspecs) e lr, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_LR Delta e lr)) (msubst_tc_LR Delta T1 T2 GV e lr)
+| clean_LOCAL_right_tc_efield: forall (cs: compspecs) efs, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_efield Delta efs)) (msubst_tc_efield Delta T1 T2 GV efs)
+| clean_LOCAL_right_tc_exprlist: forall (cs: compspecs)  ts es, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_exprlist Delta ts es)) (msubst_tc_exprlist Delta T1 T2 GV ts es)
+| clean_LOCAL_right_tc_expropt: forall (cs: compspecs) e t, clean_LOCAL_right Delta T1 T2 GV (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 GV e t)
 | clean_LOCAL_right_canon': forall P Q R, clean_LOCAL_right Delta T1 T2 GV (PROPx P (LOCALx Q (SEPx R))) (fold_right_PROP_SEP (P ++ msubst_extract_locals Delta T1 T2 GV Q) R)
-| clean_LOCAL_right_eval_lvalue: forall e u v, msubst_eval_lvalue Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_lvalue e))) (!! (u = v))
-| clean_LOCAL_right_eval_expr: forall e u v, msubst_eval_expr Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_expr e))) (!! (u = v))
+| clean_LOCAL_right_eval_lvalue: forall  (cs: compspecs) e u v, msubst_eval_lvalue Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_lvalue e))) (!! (u = v))
+| clean_LOCAL_right_eval_expr: forall  (cs: compspecs) e u v, msubst_eval_expr Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_expr e))) (!! (u = v))
 | clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 GV P1 Q1 -> clean_LOCAL_right Delta T1 T2 GV P2 Q2 -> clean_LOCAL_right Delta T1 T2 GV (P1 && P2) (Q1 && Q2)
 | clean_LOCAL_right_EX': forall A (P: A -> environ -> mpred) (Q: A -> mpred), (forall a, clean_LOCAL_right Delta T1 T2 GV (P a) (Q a)) -> clean_LOCAL_right Delta T1 T2 GV (exp P) (exp Q).
 
-Lemma clean_LOCAL_right_TT {cs: compspecs} (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): clean_LOCAL_right Delta T1 T2 GV TT TT.
+Lemma clean_LOCAL_right_TT (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): clean_LOCAL_right Delta T1 T2 GV TT TT.
 Proof.
   intros.
   exact (clean_LOCAL_right_sep_lift _ _ _ _ TT).
 Qed.
 
-Lemma clean_LOCAL_right_FF {cs: compspecs} (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): clean_LOCAL_right Delta T1 T2 GV FF FF.
+Lemma clean_LOCAL_right_FF (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): clean_LOCAL_right Delta T1 T2 GV FF FF.
 Proof.
   intros.
   exact (clean_LOCAL_right_sep_lift _ _ _ _ FF).
 Qed.
 
-Lemma clean_LOCAL_right_canon {cs: compspecs} (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): forall P Q R Res, (fold_right_PROP_SEP (VST_floyd_app P (msubst_extract_locals Delta T1 T2 GV Q)) R) = Res -> clean_LOCAL_right Delta T1 T2 GV (PROPx P (LOCALx Q (SEPx R))) Res.
+Lemma clean_LOCAL_right_canon (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): forall P Q R Res, (fold_right_PROP_SEP (VST_floyd_app P (msubst_extract_locals Delta T1 T2 GV Q)) R) = Res -> clean_LOCAL_right Delta T1 T2 GV (PROPx P (LOCALx Q (SEPx R))) Res.
 Proof.
   intros.
   subst Res.
@@ -574,7 +574,7 @@ Proof.
   apply clean_LOCAL_right_andp; auto.
 Qed.
 
-Lemma clean_LOCAL_right_EX: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) A (P: A -> environ -> mpred) (Q: A -> mpred),
+Lemma clean_LOCAL_right_EX: forall (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) A (P: A -> environ -> mpred) (Q: A -> mpred),
   (forall a, exists Q', clean_LOCAL_right Delta T1 T2 GV (P a) Q' /\ Q' = Q a) ->
   clean_LOCAL_right Delta T1 T2 GV (exp P) (exp Q).
 Proof.
@@ -585,7 +585,7 @@ Proof.
   subst; auto.
 Qed.
 
-Lemma clean_LOCAL_right_aux: forall {cs: compspecs} gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
+Lemma clean_LOCAL_right_aux: forall gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
@@ -622,7 +622,7 @@ Proof.
     apply H1.
 Qed.
 
-Lemma clean_LOCAL_right_spec: forall {cs: compspecs} gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
+Lemma clean_LOCAL_right_spec: forall gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
@@ -636,7 +636,7 @@ Proof.
   eapply clean_LOCAL_right_aux; eauto.
 Qed.
 
-Lemma clean_LOCAL_right_bupd_spec: forall {cs: compspecs} gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
+Lemma clean_LOCAL_right_bupd_spec: forall gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
@@ -745,19 +745,63 @@ Ltac eapply_clean_LOCAL_right_spec_rec gv L :=
       | _ => eapply_clean_LOCAL_right_spec_rec gv (@cons ident i L)
       end
   | _ => match goal with
-         | |- _ |-- |==> _ => eapply (clean_LOCAL_right_bupd_spec L)
-         | _ => eapply (clean_LOCAL_right_spec L)
+         | |- _ |-- |==> _ => eapply (@clean_LOCAL_right_bupd_spec L)
+         | _ => eapply (@clean_LOCAL_right_spec L)
          end
   end.
 
+Definition emptyCS : compspecs.
+assert (composite_env_consistent (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+assert (composite_env_complete_legal_cosu_type (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+assert (hardware_alignof_env_consistent (PTree.empty _) (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+assert (hardware_alignof_env_complete (PTree.empty _) (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *;
+split; intros [? ?]; rewrite PTree.gempty in *; discriminate.
+assert (legal_alignas_env_consistent (PTree.empty _) (PTree.empty _) (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+assert (legal_alignas_env_complete (PTree.empty _) (PTree.empty _)).
+ hnf; intros; rewrite PTree.gempty in *;
+split; intros [? ?]; rewrite PTree.gempty in *; discriminate.
+refine (mkcompspecs (PTree.empty _) _ _ _ (PTree.empty _) _ _ (PTree.empty _) _ _ _); auto.
+ hnf; intros; rewrite PTree.gempty in *; discriminate.
+apply legal_alignas_soundness; auto.
+Defined.
+
 Ltac eapply_clean_LOCAL_right_spec :=
-  match goal with
-  | |- context [gvars ?gv] => eapply_clean_LOCAL_right_spec_rec gv (@nil ident)
-  | _ => match goal with
+   match goal with
+   | |- context [gvars ?gv] => 
+          eapply_clean_LOCAL_right_spec_rec gv (@nil ident)
+   | _ => match goal with
          | |- _ |-- |==> _ => eapply (clean_LOCAL_right_bupd_spec nil)
          | _ => eapply (clean_LOCAL_right_spec nil)
          end
   end.
+
+(*
+Ltac eapply_clean_LOCAL_right_spec'' R :=
+  match R with context [?CS] => 
+     lazymatch type of CS with compspecs =>
+       eapply_clean_LOCAL_right_spec' CS || fail 1
+     end
+  | _ => eapply_clean_LOCAL_right_spec' emptyCS
+  end.
+
+Ltac eapply_clean_LOCAL_right_spec :=
+ (* could also add special cases to make the bupd versions faster too *)
+ lazymatch goal with
+ | |- _ |-- prop _ => eapply_clean_LOCAL_right_spec' emptyCS
+ | |- _ |-- @tc_expr ?CS _ _ => eapply_clean_LOCAL_right_spec' CS
+ | |- _ |-- @tc_exprlist ?CS _ _ _ => eapply_clean_LOCAL_right_spec' CS
+ | |- _ |-- @denote_tc_assert ?CS _ => eapply_clean_LOCAL_right_spec' CS
+ | |- _ |-- local (liftx (tc_val _ _)) => eapply_clean_LOCAL_right_spec' emptyCS
+ | |- _ |-- PROPx _ (LOCALx _ (SEPx ?R)) =>
+                          eapply_clean_LOCAL_right_spec'' R
+ | |- _ |-- ?R => eapply_clean_LOCAL_right_spec'' R
+ end.
+*)
 
 Ltac simpl_app_localdefs_tc :=
   unfold localdefs_tc, localdef_tc;

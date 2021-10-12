@@ -1783,6 +1783,7 @@ Definition CALLpre CS Delta ret a bl R :=
          ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
              match T with
              | rmaps.ConstType A0 => functors.MixVariantFunctorGenerator.fconst A0
+             | rmaps.CompspecsType => functors.MixVariantFunctorGenerator.fconst compspecs
              | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
              | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts unit)
              | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
@@ -2548,11 +2549,11 @@ destruct Sub as [[Tsigs CC] Sub]. subst cc' sig'. simpl in Sub.
 destruct SB as [SB1 [SB2 SB3]].
 split3; trivial. intros.
 specialize (Sub ts x).
-eapply semax_adapt
+eapply @semax_adapt
  with
-  (Q'0:= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' ts x))
+  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' ts x))
            (stackframe_of f))
-  (P'0 := EX vals:list val,
+  (P' := EX vals:list val,
     EX ts1:list Type, EX x1 : _,
     EX FR: mpred, 
     !!((tc_vals (map snd (fn_params f)) vals) /\
