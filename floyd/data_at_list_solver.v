@@ -74,25 +74,24 @@ Ltac simpl_reptype :=
 (* Tactic apply_list_ext applies the proper extensionality lemma and proves
   the lengths are the same and reduces the goal to relation between entries. *)
 Ltac apply_list_ext ::=
-  first
-  [ apply data_subsume_array_ext;
-    simpl_reptype;
-    only 1, 2 : Zlength_solve
-  | match goal with |- @eq ?list_A _ _ =>
+  lazymatch goal with
+  | |- _ |-- _ => 
+     apply data_subsume_array_ext; simpl_reptype; 
+       [ Zlength_solve | Zlength_solve | .. ]
+  | |- data_subsume _ _ => 
+     apply data_subsume_array_ext; simpl_reptype; 
+       [ Zlength_solve | Zlength_solve | .. ]
+  | |- @eq ?list_A _ _ =>
       match eval compute in list_A with list ?A =>
         apply (@Znth_eq_ext A ltac:(auto with typeclass_instances))
-      end
-    end;
-    only 1 : Zlength_solve
-  | match goal with |- @Forall ?A ?P ?l =>
+      end; [ Zlength_solve_with_message | .. ]
+  | |- @Forall ?A ?P ?l =>
       rewrite Forall_Znth;
       intros
-    end
-  | match goal with |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
+  | |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
       rewrite <- forall_range_fold;
       intros
-    end
-  ];
+   end;
   Zlength_simplify;
   intros.
 
