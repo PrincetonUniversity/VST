@@ -364,6 +364,7 @@ eapply semax_pre_post';
  (*rewrite <- H6, <- H7, <- H8.*)
  normalize. unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift. simpl. unfold liftx, lift. simpl. normalize.
  
+ try rewrite sem_cast_i2i_correct_range by (rewrite <- H8; auto).
 (* split3; try (repeat split; auto; congruence).*)
  apply andp_right.
  { apply prop_right; split3; auto. repeat split; trivial.  congruence.  }
@@ -596,6 +597,8 @@ eapply semax_pre_post';
  unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift. simpl. unfold liftx, lift. simpl. normalize.
  
 (* split3; try (repeat split; auto; congruence).*)
+ try rewrite sem_cast_i2i_correct_range by (rewrite <- H2; auto).
+ try rewrite sem_cast_i2i_correct_range by (rewrite <- H6; auto).
  apply andp_right.
  { apply prop_right; split3; auto. repeat split; trivial; congruence. }
  subst Frame.

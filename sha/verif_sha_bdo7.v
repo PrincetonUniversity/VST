@@ -245,6 +245,8 @@ assert (LBE := LBLOCK_zeq).
 change LBLOCKz with 16%Z in H0.
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
 change LBLOCKz with 16%Z in H.
+assert (Hand15 : forall j, Int.min_signed <= Z.land j 15 <= Int.max_signed)
+ by (intros j; assert  (X:=Z.mod_pos_bound j 16); rewrite Zland_15; cbn; lia).
 forward.	(*s0 = X[(i+1)&0x0f]; *)
 autorewrite with sublist. rewrite Zland_15.
 forward. (* s0 = sigma0(s0); *)

@@ -222,7 +222,11 @@ Ltac fassumption :=
   first
   [ assumption
   | match goal with
-    | H : _ |- _ => fapply H; repeat f_equal; match goal with |- (_ = _)%Z => idtac end; Zlength_solve
+    | H : _ |- _ => fapply H;
+      solve [repeat match goal with
+      | |- @eq Z _ _ => Zlength_solve
+      | |- _ => f_equal
+      end]
     end
   ].
 
@@ -1777,7 +1781,7 @@ Ltac loop2 :=
     | H2 : range_saturate_shift l2 ?s2 |- _ =>
       tryif assert (s1 + s = s2) by Zlength_solve
       then idtac
-      else fail 1
+      else idtac "Entangled: because" s1 "+" s "=" s2 "is not provable."; fail 1
     | |- _ =>
       pose_range_saturate_shift l2 (s1 + s)
     end;
@@ -1794,7 +1798,7 @@ Ltac loop2 :=
       | H2 : range_saturate_shift l2 ?s2 |- _ =>
         tryif assert (s1 + s = s2) by Zlength_solve
         then idtac
-        else fail 1
+        else idtac "Entangled: because " s1 "+" s "=" s2 "is not provable."; fail 1
       | |- _ =>
         pose_range_saturate_shift l2 (s1 + s)
       end;
