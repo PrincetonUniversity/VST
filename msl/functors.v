@@ -119,11 +119,11 @@ Module CovariantFunctorLemmas.
 Import CovariantFunctor.
 
 Lemma fmap_id {F: functor} : forall A, fmap F (id A) = id (F A).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_id0. Qed.
+Proof. intros. destruct F as [F FM [ff_id ?]]; simpl. apply ff_id. Qed.
 
 Lemma fmap_comp {F: functor} : forall A B C (f : B -> C) (g : A -> B),
   fmap F f oo fmap F g = fmap F (f oo g).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_comp0. Qed.
+Proof. intros. destruct F as [F FM [? ff_comp]]; simpl. apply ff_comp. Qed.
 
 Lemma fmap_app {F: functor} : forall A B C (f : B -> C) (g : A -> B) x,
   fmap F f (fmap F g x) = fmap F (f oo g) x.
@@ -136,11 +136,11 @@ Module ContraVariantFunctorLemmas.
 Import ContraVariantFunctor.
 
 Lemma fmap_id {F: functor} : forall A, fmap F (id A) = id (F A).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_id0. Qed.
+Proof. intros. destruct F as [F FM [ff_id ?]]; simpl. apply ff_id. Qed.
 
 Lemma fmap_comp {F: functor} : forall A B C (f : C -> B) (g : B -> A),
   fmap F f oo fmap F g = fmap F (g oo f).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_comp0. Qed.
+Proof. intros. destruct F as [F FM [? ff_comp]]; simpl. apply ff_comp. Qed.
 
 Lemma fmap_app {F: functor} : forall A B C (f : C -> B) (g : B -> A) x,
   fmap F f (fmap F g x) = fmap F (g oo f) x.
@@ -153,12 +153,12 @@ Module MixVariantFunctorLemmas.
 Import MixVariantFunctor.
 
 Lemma fmap_id {F: functor} : forall A, fmap F (id A) (id A) = id (F A).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_id0. Qed.
+Proof. intros. destruct F as [F FM [ff_id ?]]; simpl. apply ff_id. Qed.
 
 Lemma fmap_comp {F: functor} : forall A B C (f1 : B -> C) (f2: C -> B)
 (g1 : A -> B) (g2: B -> A),
   fmap F f1 f2 oo fmap F g1 g2 = fmap F (f1 oo g1) (g2 oo f2).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_comp0. Qed.
+Proof. intros. destruct F as [F FM [? ff_comp]]; simpl. apply ff_comp. Qed.
 
 Lemma fmap_app {F: functor} : forall A B C (f1 : B -> C) (f2: C -> B)
 (g1 : A -> B) (g2: B -> A) x,
@@ -172,12 +172,12 @@ Module CovariantBiFunctorLemmas.
 Import CovariantBiFunctor.
 
 Lemma fmap_id {F: functor} : forall A1 A2, fmap F (id A1) (id A2) = id (F A1 A2).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_id0. Qed.
+Proof. intros. destruct F as [F FM [ff_id ?]]; simpl. apply ff_id. Qed.
 
 Lemma fmap_comp {F: functor} : forall A1 A2 B1 B2 C1 C2 (f1 : B1 -> C1)
 (f2: B2 -> C2) (g1 : A1 -> B1) (g2: A2 -> B2),
   fmap F f1 f2 oo fmap F g1 g2 = fmap F (f1 oo g1) (f2 oo g2).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_comp0. Qed.
+Proof. intros. destruct F as [F FM [? ff_comp]]; simpl. apply ff_comp. Qed.
 
 Lemma fmap_app {F: functor} : forall A1 A2 B1 B2 C1 C2 (f1 : B1 -> C1)
 (f2: B2 -> C2) (g1 : A1 -> B1) (g2: A2 -> B2) x,
@@ -191,12 +191,12 @@ Module CoContraVariantBiFunctorLemmas.
 Import CoContraVariantBiFunctor.
 
 Lemma fmap_id {F: functor} : forall A1 A2, fmap F (id A1) (id A2) = id (F A1 A2).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_id0. Qed.
+Proof. intros. destruct F as [F FM [ff_id ?]]; simpl. apply ff_id. Qed.
 
 Lemma fmap_comp {F: functor} : forall A1 A2 B1 B2 C1 C2 (f1 : B1 -> C1)
 (f2: C2 -> B2) (g1 : A1 -> B1) (g2: B2 -> A2),
   fmap F f1 f2 oo fmap F g1 g2 = fmap F (f1 oo g1) (g2 oo f2).
-Proof. intros. destruct F as [F FM [? ?]]; simpl. apply ff_comp0. Qed.
+Proof. intros. destruct F as [F FM [? ff_comp]]; simpl. apply ff_comp. Qed.
 
 Lemma fmap_app {F: functor} : forall A1 A2 B1 B2 C1 C2 (f1 : B1 -> C1)
 (f2: C2 -> B2) (g1 : A1 -> B1) (g2: B2 -> A2) x,
