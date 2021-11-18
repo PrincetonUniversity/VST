@@ -624,7 +624,7 @@ Definition Int_zero := Int.mkint 0 zero_in_range.
 Definition pointer_val_val (pv: pointer_val): val :=
   match pv with
   | ValidPointer b i => Vptr b i
-  | NullPointer => Vint Int.zero (* Vint Int_zero *)
+  | NullPointer => nullval
   end.
 
 Definition reptype': type -> Type :=

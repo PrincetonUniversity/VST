@@ -23,7 +23,7 @@ Proof.
   constructor; change (predicates_hered.derives (|>P) (|>FF || P)); intros ? HP.
   destruct (level a) eqn: Ha.
   - left; intros ? ?%laterR_level.
-    rewrite Ha in H1; apply Nat.nlt_0_r in H1; contradiction H1.
+    rewrite Ha in H0; apply Nat.nlt_0_r in H0; contradiction H0.
   - right.
     destruct (levelS_age a n) as [b [Hb]]; auto.
     specialize (HP _ (semax_lemmas.age_laterR Hb)).
@@ -129,17 +129,16 @@ Proof.
 Qed.
 
 Lemma struct_pred_timeless : forall {CS : compspecs} sh m f t off
-  (IH : Forall (fun it : _ * type =>
+  (IH : Forall (fun it : _ =>
         forall (v : reptype (t it)) (p : val),
         Timeless (data_at_rec sh (t it) v p)) m) v p,
-  Timeless (struct_pred m (fun (it : _ * type) v =>
+  Timeless (struct_pred m (fun (it : _) v =>
       withspacer sh (f it + sizeof (t it)) (off it)
         (at_offset (data_at_rec sh (t it) v) (f it))) v p).
 Proof.
   induction m; intros.
   - apply emp_timeless.
-  - destruct a; inv IH.
-    destruct m.
+  - inv IH. destruct m.
     + unfold withspacer, at_offset; simpl.
       if_tac; auto.
       apply (@bi.sep_timeless mpredI); auto.
@@ -159,17 +158,16 @@ Proof.
 Qed.
 
 Lemma union_pred_timeless : forall {CS : compspecs} sh m t off
-  (IH : Forall (fun it : _ * type =>
+  (IH : Forall (fun it : _ =>
         forall (v : reptype (t it)) (p : val),
         Timeless (data_at_rec sh (t it) v p)) m) v p,
-  Timeless (union_pred m (fun (it : _ * type) v =>
+  Timeless (union_pred m (fun (it : _) v =>
       withspacer sh (sizeof (t it)) (off it)
         (data_at_rec sh (t it) v)) v p).
 Proof.
   induction m; intros.
   - apply emp_timeless.
-  - destruct a; inv IH.
-    destruct m.
+  - inv IH. destruct m.
     + unfold withspacer, at_offset; simpl.
       if_tac; auto.
       apply (@bi.sep_timeless mpredI); auto.
@@ -422,7 +420,7 @@ Proof.
   + left.
     change ((|> FF)%pred a).
     intros ??%laterR_level.
-    rewrite Hl in H1; apply Nat.nlt_0_r in H1; contradiction H1.
+    rewrite Hl in H0; apply Nat.nlt_0_r in H0; contradiction H0.
   + right.
     rewrite <- Hl in *.
     intros ? J; specialize (H _ J) as (? & ? & a' & ? & ? & ? & HP); subst.
