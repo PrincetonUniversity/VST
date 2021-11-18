@@ -920,7 +920,7 @@ Proof.
     rewrite default_val_eq. simpl.
     intros.
     rewrite !at_offset_eq3.
-    rewrite default_val_eq with (t0 := (Tarray t z a)), unfold_fold_reptype.
+    rewrite @default_val_eq with (t := (Tarray t z a)), unfold_fold_reptype.
     eapply derives_trans.
     apply IH; auto.
     - pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
@@ -1127,6 +1127,131 @@ Proof.
     spec IH; [apply in_get_member; auto |].
     eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].
     rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
+Qed. 
+
+Lemma mapsto_share_join_values_cohere:
+  forall sh1 sh2 sh t (R:type_is_by_value t = true) b ofs,
+    sepalg.join sh1 sh2 sh -> 
+    type_is_volatile t = false ->
+    readable_share sh1 -> readable_share sh2 -> 
+  forall (v1 v2:val) (V1: ~ JMeq v1 Vundef) (V2: ~ JMeq v2 Vundef),
+    mapsto sh1 t (Vptr b ofs) v1 * mapsto sh2 t (Vptr b ofs) v2 |-- !!(v1=v2).
+Proof. intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
+ + destruct i; destruct s; simpl; rewrite ! if_true by trivial; rewrite H0.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+  + rewrite H0; clear R. rewrite ! if_true by trivial.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+  + rewrite H0; clear R. destruct f; rewrite ! if_true by trivial.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+  + rewrite H0; clear R. rewrite ! if_true by trivial.
+    - eapply derives_trans.
+      { apply sepcon_derives.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
+        + apply orp_left; [ apply derives_refl |].
+          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
+      normalize. rewrite derives_eq.
+      apply res_predicates.address_mapsto_value_cohere.
+Qed.
+
+Lemma data_at_rec_share_join_values_cohere:
+  forall sh1 sh2 sh t (R:type_is_by_value t = true) b ofs,
+    sepalg.join sh1 sh2 sh -> 
+    type_is_volatile t = false ->
+    readable_share sh1 -> readable_share sh2 ->
+  forall (v1 v2:reptype t) (V1: ~ JMeq v1 Vundef) (V2: ~ JMeq v2 Vundef),
+    data_at_rec sh1 t v1 (Vptr b ofs) * data_at_rec sh2 t v2 (Vptr b ofs) |-- !!(v1=v2).
+Proof.
+  intros.
+  revert v1 v2 ofs H0 H1 H2 R V1 V2.
+  pattern t; type_induction t; intros; try discriminate R; simpl in R;
+  rewrite !data_at_rec_eq; try solve [ normalize];
+  rewrite H0; apply (mapsto_share_join_values_cohere sh1 sh2 sh); trivial.
 Qed.
 
 Lemma data_at_rec_share_join:
@@ -1193,7 +1318,6 @@ Transparent field_type field_offset.
     apply JMeq_eq.
     apply (@proj_compact_sum_JMeq _ _ _ (fun it => reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => reptype (field_type (name_member it) (co_members (get_co id))))); auto.
 Qed.
-
 Lemma nonreadable_memory_block_data_at_rec:
   forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),

@@ -52,7 +52,7 @@ Proof.
   unfold nested_fields_pred.
   intros.
   unfold nested_pred.
-  rewrite type_func_eq with (t0 := t) (A := (fun _ => bool)) at 1 by auto.
+  rewrite type_func_eq with (A := (fun _ => bool)) at 1 by auto.
   destruct t; auto.
   + f_equal. unfold FTI_aux.
     rewrite decay_spec.
@@ -341,7 +341,7 @@ Ltac pose_sizeof_co t :=
     pose proof sizeof_Tunion id a;
     assert (sizeof_union cenv_cs (co_members (get_co id)) <= co_sizeof (get_co id)); [
       rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
-      rewrite complete_legal_cosu_type_Tunion with (a0 := a) by auto;
+      rewrite @complete_legal_cosu_type_Tunion with (a := a) by auto;
       apply align_le, co_alignof_pos
        |]
   end.

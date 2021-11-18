@@ -222,7 +222,11 @@ Ltac fassumption :=
   first
   [ assumption
   | match goal with
-    | H : _ |- _ => fapply H; repeat f_equal; match goal with |- (_ = _)%Z => idtac end; Zlength_solve
+    | H : _ |- _ => fapply H;
+      solve [repeat match goal with
+      | |- @eq Z _ _ => Zlength_solve
+      | |- _ => f_equal
+      end]
     end
   ].
 
@@ -1777,7 +1781,7 @@ Ltac loop2 :=
     | H2 : range_saturate_shift l2 ?s2 |- _ =>
       tryif assert (s1 + s = s2) by Zlength_solve
       then idtac
-      else fail 1
+      else idtac "Entangled: because" s1 "+" s "=" s2 "is not provable."; fail 1
     | |- _ =>
       pose_range_saturate_shift l2 (s1 + s)
     end;
@@ -1794,7 +1798,7 @@ Ltac loop2 :=
       | H2 : range_saturate_shift l2 ?s2 |- _ =>
         tryif assert (s1 + s = s2) by Zlength_solve
         then idtac
-        else fail 1
+        else idtac "Entangled: because " s1 "+" s "=" s2 "is not provable."; fail 1
       | |- _ =>
         pose_range_saturate_shift l2 (s1 + s)
       end;
@@ -2096,23 +2100,30 @@ Create HintDb list_solve_unfold.
 
 (* Tactic apply_list_ext applies the proper extensionality lemma and proves
   the lengths are the same and reduces the goal to relation between entries. *)
+
+Ltac Zlength_solve_with_message :=
+ Zlength_solve ||
+ Zlength_simplify;
+ lazymatch goal with |- ?A =>
+   (* This   [fail 1]  is potentially dangerous.  See the comments below
+    about Zlength_solve_with_message *)
+   fail 1 "list_solve cannot solve this goal.  Try asserting above the line, a hypothesis that will help prove" A
+ end.
+
+
 Ltac apply_list_ext :=
-  first
-  [ match goal with |- @eq ?list_A _ _ =>
+  lazymatch goal with
+  | |- @eq ?list_A _ _ =>
       match eval compute in list_A with list ?A =>
         apply (@Znth_eq_ext A ltac:(auto with typeclass_instances))
-      end
-    end;
-    only 1 : Zlength_solve
-  | match goal with |- @Forall ?A ?P ?l =>
+      end; [ Zlength_solve_with_message | .. ]
+  | |- @Forall ?A ?P ?l =>
       rewrite Forall_Znth;
       intros
-    end
-  | match goal with |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
+  | |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
       rewrite <- forall_range_fold;
       intros
-    end
-  ];
+   end;
   Zlength_simplify;
   intros.
 
@@ -2136,12 +2147,17 @@ Ltac list_solve :=
   Znth_simplify_in_all; auto with Znth_solve_hint;
   try fassumption;
   Zlength_simplify_in_all; try lia;
-  try (
-    apply_list_ext; Znth_solve;
-    auto with Znth_solve_hint; try fassumption
-  );
-  list_prop_solve';
-  fail "list_solve cannot solve this goal".
+ (* The following spaghetti of fail-control is to make sure that
+   the [fail 1] in Zlength_solve_with_message  does not prevent
+   the solver from calling list_prop_solve'.  Only if that call
+   fails, should the error message from apply_list_ext be printed *)
+  ((apply_list_ext; Znth_solve;
+    auto with Znth_solve_hint; try fassumption;
+    list_prop_solve';
+    fail 2 "list_solve cannot solve this goal; list_simplify can sometimes diagnose where subgoals need extra assistance"
+    ) || idtac) || 
+   (list_prop_solve'; 
+    (apply_list_ext || fail "list_solve cannot solve this goal; list_simplify can sometimes diagnose where subgoals need extra assistance")).
 
 Ltac list_simplify :=
   intros;
@@ -2150,11 +2166,13 @@ Ltac list_simplify :=
   Znth_simplify_in_all; auto with Znth_solve_hint;
   try fassumption;
   Zlength_simplify_in_all; try lia;
-  try (
-    apply_list_ext; Znth_solve;
-    auto with Znth_solve_hint; try fassumption
-  );
-  list_prop_solve'.
+ (* The following spaghetti of fail-control is to make sure that
+   the [fail 1] in Zlength_solve_with_message  does not prevent
+   the solver from calling list_prop_solve'.  Only if that call
+   fails, should the error message from apply_list_ext be printed *)
+  ((apply_list_ext; Znth_solve;
+    auto with Znth_solve_hint; try fassumption; list_prop_solve') || idtac) || 
+   list_prop_solve'.
 
 (** * quick_list_solve and simplify *)
 Ltac quick_list_simplify :=

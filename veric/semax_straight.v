@@ -590,7 +590,7 @@ Proof.
     unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t).
     destruct b; inv H0.
     apply tc_val_tc_val'.
-    apply neutral_cast_tc_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
+    apply @neutral_cast_tc_val with (Delta := Delta') (phi:=m_phi jm'); auto.
     unfold guard_environ in *. destruct TC'; auto.
   + destruct H0.
     split; auto.
@@ -714,7 +714,7 @@ split3; auto.
   assert (is_neutral_cast (implicit_deref (typeof e)) t = true).
   destruct (typeof e), t; inversion H98; reflexivity.
   apply tc_val_tc_val'.
-  apply neutral_cast_tc_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
+  apply @neutral_cast_tc_val with (Delta := Delta') (phi:=m_phi jm'); auto.
   apply neutral_isCastResultType; auto.
   unfold guard_environ in *. destruct TC'; auto.
 +
@@ -839,7 +839,7 @@ split3; auto.
   rewrite denote_tc_assert_andp in TC3. destruct TC3.
   rewrite denote_tc_assert_andp in TC3'. destruct TC3'.
   apply tc_val_tc_val'.
-  apply tc_val_sem_cast with (Delta0 := Delta')(phi:=m_phi jm'); auto.
+  apply @tc_val_sem_cast with (Delta := Delta') (phi:=m_phi jm'); auto.
   eapply guard_environ_e1; eauto.
 +
   destruct H0.

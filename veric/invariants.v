@@ -505,16 +505,16 @@ Proof.
                erewrite app_nth2, minus_diag; auto.
          -- exists c'; split; auto.
             erewrite (app_removelast_last None), Ha by auto.
-            apply list_join_filler with (n0 := 1%nat); auto; simpl in *; lia.
+            apply @list_join_filler with (n := 1%nat); auto; simpl in *; lia.
   - split.
     + split; [eapply list_join_length; eauto|].
       intros ?? Hnth.
-      apply list_join_nth with (n0 := n) in H.
+      apply @list_join_nth with (n := n) in H.
       rewrite Hnth in H; inv H; auto.
       inv H3; auto.
     + split; [apply join_comm in H; eapply list_join_length; eauto|].
       intros ?? Hnth.
-      apply list_join_nth with (n0 := n) in H.
+      apply @list_join_nth with (n := n) in H.
       rewrite Hnth in H; inv H; auto.
       inv H3; auto.
   - induction a; unfold list_incl; intros.

@@ -252,8 +252,8 @@ intros.
   remember (level m) as N.
   destruct N; [constructor|].
   case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
-  eapply jsafeN_step with
-    (m'0 := m').
+  (* eapply jsafeN_step with (m'0 := m'). *)
+  eapply jsafeN_step.
   split3.
   replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
   apply Hstep.
@@ -288,8 +288,7 @@ intros.
   remember (level m) as N.
   destruct N; [constructor|].
   case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
-  eapply jsafeN_step with
-    (m'0 := m').
+  eapply jsafeN_step.
   split3.
   replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
   apply Hstep.

@@ -1300,6 +1300,12 @@ Ltac check_gvars :=
 
 Ltac try_convertPreElim := reflexivity.
 
+Ltac check_gvars_spec :=
+  exact I || reflexivity ||
+  match goal with |- check_gvars_spec None (Some ?gv) =>
+   fail "Function precondition requires (gvars" gv ") in LOCAL clause"
+  end.
+
 Ltac prove_call_setup_aux  ts witness :=
  let H := fresh "SetupOne" in
  intro H;
@@ -1312,7 +1318,7 @@ Ltac prove_call_setup_aux  ts witness :=
  | check_prove_local2ptree
  | check_vl_eq_args (*WAS: Forall_pTree_from_elements*)
  | auto 50 with derives
- | unfold check_gvars_spec; solve [exact I | reflexivity]
+ | check_gvars_spec
  | try change_compspecs CS; cancel_for_forward_call
  |
  ])
@@ -1647,7 +1653,7 @@ Ltac do_compute_expr_helper Delta Q v e :=
      reflexivity
  ].
 
-Ltac do_compute_expr1 Delta Pre e :=
+Ltac do_compute_expr1 CS Delta Pre e :=
  lazymatch Pre with
  | @exp _ _ ?A ?Pre1 =>
   let P := fresh "P" in let Q := fresh "Q" in let R := fresh "R" in
@@ -1665,7 +1671,7 @@ Ltac do_compute_expr1 Delta Pre e :=
   let H9 := fresh "H" in
   let v := fresh "v" in evar (v: val);
   assert (H9:  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))|--
-                     local (`(eq v) (eval_expr e)))
+                     local (`(eq v) (@eval_expr CS e)))
    by (do_compute_expr_helper Delta Q v e)
  end.
 
@@ -2138,7 +2144,7 @@ Tactic Notation "forward_while" constr(Inv) :=
           rewrite exp_uncurry
       end;
       eapply semax_seq;
-      [match goal with |- semax ?Delta ?Pre (Swhile ?e ?s) _ =>
+      [match goal with |- @semax ?CS _ ?Delta ?Pre (Swhile ?e ?s) _ =>
         tryif (unify (nobreaksx s) true) then idtac 
         else fail "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";
         (* the following line was before: eapply semax_while_3g1; *)
@@ -2167,7 +2173,7 @@ Tactic Notation "forward_while" constr(Inv) :=
         simpl typeof;  (* this 'simpl' should be fine, since its argument is just clightgen-produced ASTs *)
        [ reflexivity
        | special_intros_EX
-       | (do_compute_expr1 Delta Pre e; eassumption) ||
+       | (do_compute_expr1 CS Delta Pre e; eassumption) ||
          fail "The loop invariant is not strong enough to guarantee evaluation of the loop-test expression.
 Loop invariant:" Pre
 "
@@ -2245,8 +2251,8 @@ Ltac forward_for3 Inv PreInc Postcond :=
         [ reflexivity
         |intro  
         | intro ;
-          match goal with |- ENTAIL ?Delta, ?Pre |-- local (liftx (eq _) (eval_expr ?e)) =>
-            do_compute_expr1 Delta Pre e;
+          match goal with |- ENTAIL ?Delta, ?Pre |-- local (liftx (eq _) (@eval_expr ?CS ?e)) =>
+            do_compute_expr1 CS Delta Pre e;
             match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
           end
         | intro; let HRE := fresh in
@@ -2289,8 +2295,8 @@ Ltac forward_for2 Inv PreInc :=
         [ reflexivity 
         |intro  
         | intro ;
-          match goal with |- ENTAIL ?Delta, ?Pre |-- local (liftx (eq _) (eval_expr ?e)) =>
-            do_compute_expr1 Delta Pre e;
+          match goal with |- ENTAIL ?Delta, ?Pre |-- local (liftx (eq _) (@eval_expr ?CS ?e)) =>
+            do_compute_expr1 CS Delta Pre e;
             match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
           end
         | intro; let HRE := fresh in 
@@ -2685,10 +2691,10 @@ end.
 
 Ltac forward_switch' := 
 match goal with
-| |- semax ?Delta ?Pre (Sswitch ?e _) _ =>
+| |- @semax ?CS _ ?Delta ?Pre (Sswitch ?e _) _ =>
    let sign := constr:(signof e) in let sign := eval hnf in sign in
     let HRE := fresh "H" in let v := fresh "v" in 
-    do_compute_expr1 Delta Pre e;
+    do_compute_expr1 CS Delta Pre e;
     match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
     let n := fresh "n" in evar (n: int); 
     let H := fresh in assert (H: v=Vint n) by (unfold v,n; reflexivity);
@@ -2720,9 +2726,9 @@ Ltac forward_if'_new :=
  repeat apply -> semax_seq_skip;
  repeat (apply seq_assoc1; try apply -> semax_seq_skip);
 match goal with
-| |- semax ?Delta ?Pre (Sifthenelse ?e ?c1 ?c2) _ =>
+| |- @semax ?CS _ ?Delta ?Pre (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
-    do_compute_expr1 Delta Pre e;
+    do_compute_expr1 CS Delta Pre e;
     match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
     apply (semax_ifthenelse_PQR' _ v);
      [ reflexivity | entailer | assumption
@@ -3142,9 +3148,10 @@ Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
   [ (solve_load_rule_evaluation || fail 1000 "solve_load_rule_evaluation' failed")
   | ].
 
-Ltac solve_efield_denote Delta P Q R efs gfs H :=
+(*
+Ltac solve_efield_denote CS Delta P Q R efs gfs H :=
   evar (gfs : list gfield);
-  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (efield_denote efs gfs)) as H;
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (@efield_denote CS efs gfs)) as H;
   [
     unfold efs, gfs;
     match goal with
@@ -3156,7 +3163,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
       let gfs0 := fresh "gfs" in
       let H0 := fresh "H" in
       pose efs' as efs0;
-      solve_efield_denote Delta P Q R efs0 gfs0 H0;
+      solve_efield_denote CS Delta P Q R efs0 gfs0 H0;
       match goal with
       | gfs0 := ?gfs0' |- _ =>
         match ef with
@@ -3164,7 +3171,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
 
           let HA := fresh "H" in
           let vi := fresh "vi" in
-          do_compute_expr1 Delta constr:(PROPx P (LOCALx Q (SEPx R))) ei;
+          do_compute_expr1 CS Delta constr:(PROPx P (LOCALx Q (SEPx R))) ei;
           match goal with v' := _, H:_ |- _ => rename H into HA; rename v' into vi end;
           revert vi HA;
           let vvvv := fresh "vvvv" in
@@ -3206,6 +3213,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
       end
     end
   |].
+*)
 
 Lemma sem_add_ptr_int_lem:
  forall {cs: compspecs} v t i,
@@ -3564,7 +3572,7 @@ Ltac forward_return :=
     | Some ?ret =>
         let v := fresh "v" in
         let H := fresh "HRE" in
-        do_compute_expr1 Delta Pre constr:(Ecast ret (ret_type Delta));
+        do_compute_expr1 CS Delta Pre constr:(Ecast ret (ret_type Delta));
         match goal with v' := _, H':_ |- _ => rename H' into H; rename v' into v end;
         subst v;
         eapply semax_return_Some;
@@ -4378,7 +4386,7 @@ Ltac rewrite_old_main_pre := idtac.
 
 Ltac start_function1 :=
  leaf_function;
- lazymatch goal with |- semax_body ?V ?G ?F ?spec =>
+ lazymatch goal with |- @semax_body ?V ?G ?cs ?F ?spec =>
     check_normalized F;
     function_body_unsupported_features F;
     let s := fresh "spec" in
@@ -4398,7 +4406,7 @@ Ltac start_function1 :=
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
-   change (semax_body V G F s); subst s;
+   change (@semax_body V G cs F s); subst s;
    unfold NDmk_funspec'
  end;
  let DependedTypeList := fresh "DependedTypeList" in

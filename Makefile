@@ -429,7 +429,7 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v Clight_base.v val_lemmas.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
+  base.v Clight_base.v val_lemmas.v Memory.v shares.v splice.v compspecs.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
   binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v binop_lemmas5.v binop_lemmas6.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \

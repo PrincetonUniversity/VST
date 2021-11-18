@@ -208,7 +208,7 @@ Proof.
  apply derives_extract_prop; intro.
  destruct H; unfold_lift in H.
  unfold_lift in H0. destruct ret; try contradiction.
- unfold eval_id in H. simpl in H. subst p.
+ unfold eval_id in H. Transparent peq. simpl in H. Opaque peq. subst p.
  if_tac. rewrite H; entailer!.
  renormalize. entailer!.
 Qed.

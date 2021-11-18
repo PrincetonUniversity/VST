@@ -3,6 +3,8 @@ Require Import VST.msl.ghost.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.shares.
 
+Require Import VST.veric.compspecs.
+
 Module Type ADR_VAL.
 Parameter address : Type.
 Parameter some_address:address.
@@ -14,6 +16,7 @@ End ADR_VAL.
 
 Inductive TypeTree: Type :=
   | ConstType: Type -> TypeTree
+  | CompspecsType: TypeTree
   | Mpred: TypeTree
   | DependentType: nat -> TypeTree
   | ProdType: TypeTree -> TypeTree -> TypeTree
@@ -26,6 +29,7 @@ Definition dependent_type_functor_rec (ts: list Type): TypeTree -> functor :=
   fix dtfr (T: TypeTree): functor :=
   match T with
   | ConstType A => fconst A
+  | CompspecsType => fconst compspecs
   | Mpred => fidentity
   | DependentType n => fconst (nth n ts unit)
   | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
@@ -40,6 +44,7 @@ Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree 
   fix dtfr (T: TypeTree): Type :=
   match T with
   | ConstType A => A
+  | CompspecsType => compspecs
   | Mpred => mpred'
   | DependentType n => nth n ts unit
   | ProdType T1 T2 => (dtfr T1 * dtfr T2)%type
@@ -715,7 +720,7 @@ Module Type RMAPS.
 
   Program Definition approx (n:nat) (p: pred rmap) : pred rmap :=
     fun w => level w < n /\ p w.
-  Next Obligation.
+  Next Obligation. red; intros.
   destruct H0.
   split.
   apply age_level in H. lia.
@@ -1173,7 +1178,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
 
   Program Definition approx (n:nat) (p: (pred rmap)) : (pred rmap) :=
     fun w => level w < n /\ p w.
-  Next Obligation.
+  Next Obligation. red; intros.
   destruct H0.
   split.
   apply age_level in H.

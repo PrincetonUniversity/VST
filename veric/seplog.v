@@ -503,7 +503,7 @@ rewrite exp_sepcon2, exp_andp2; apply subp_exp_left; intro x2.
 rewrite exp_sepcon2, exp_andp2; apply subp_exp_left; intro G.
 eapply subp_trans, subp_exp_spec.
 eapply subp_trans, subp_exp_spec.
-eapply subp_trans, subp_exp_spec with (x0 := F*G).
+eapply subp_trans, @subp_exp_spec with (x := F*G).
 eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, distrib_sepcon_andp; apply derives_refl].
 rewrite andp_comm, andp_assoc; apply subp_andp.
 + rewrite sepcon_assoc; apply subp_refl.
@@ -891,13 +891,51 @@ apply necR_level in H0.
 apply join_level in H4; destruct H4. lia.
 Qed.
 
+Lemma approx_func_ptr_si_general fs cc (A: TypeTree) P Q 
+      (Pne: args_super_non_expansive P) (Qne: super_non_expansive Q) (n: nat)
+      aPne aQne  (v: val):
+    approx (S n) (func_ptr_si (mk_funspec fs cc A P Q Pne Qne) v) =
+    approx (S n) (func_ptr_si (mk_funspec fs cc A
+                                          (fun ts a rho => approx n (P ts a rho))
+                                          (fun ts a rho => approx n (Q ts a rho)) aPne aQne) v).
+Proof.
+  intros.
+  unfold func_ptr_si.
+  rewrite !approx_exp. apply pred_ext; intros w [b W]; exists b.
+  + rewrite approx_andp, approx_exp in W. destruct W as [W1 [phi [Lev [Phi PHI]]]].
+    rewrite approx_andp, approx_exp. split; trivial.
+    exists phi; split3; trivial.
+    eapply funspec_sub_si_trans; split. apply Phi. clear Phi PHI; hnf.
+    split. split; trivial. 
+    intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
+    apply bupd_intro.
+    exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. }
+    intros rho' y UY k YK K. rewrite emp_sepcon in K. simpl in K.
+    rewrite <- approx_bupd.
+    apply necR_level in necU.  apply necR_level in YK.
+    split; [ | apply bupd_intro, K]. apply laterR_level in Hw'. lia.
+  + rewrite approx_andp, approx_exp in W. destruct W as [W1 [phi [Lev [Phi PHI]]]].
+    rewrite approx_andp, approx_exp. split; trivial.
+    exists phi; split3; trivial.
+    eapply funspec_sub_si_trans; split. apply Phi. clear Phi PHI; hnf.
+    split. split; trivial.
+    intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
+    apply bupd_intro.
+    exists ts2, a, emp. rewrite emp_sepcon; split. 
+    - apply necR_level in necU. apply approx_lt; trivial.
+      apply laterR_level in Hw'. lia.
+    - intros rho' k UP j KJ J.
+      rewrite emp_sepcon in J. simpl in J. apply bupd_intro, J.
+Qed.
+
 Lemma approx_func_ptr_si: forall (A: Type) fsig0 cc (P: A -> argsEnviron -> mpred)
                                  (Q: A -> environ -> mpred) (v: val) (n: nat),
     approx (S n) (func_ptr_si (NDmk_funspec fsig0 cc A P Q) v) =
     approx (S n) (func_ptr_si (NDmk_funspec fsig0 cc A
                                             (fun a rho => approx n (P a rho))
                                             (fun a rho => approx n (Q a rho))) v).
-Proof.
+Proof. intros. apply approx_func_ptr_si_general. Qed.
+(*original proof without relying on approx_func_ptr_si_general:
   intros.
   unfold func_ptr_si.
   rewrite !approx_exp; f_equal; extensionality b.
@@ -925,7 +963,7 @@ Proof.
       apply laterR_level in Hw'. lia.
     - intros rho' k UP j KJ J.
       rewrite emp_sepcon in J. simpl in J. apply bupd_intro, J.
-Qed. 
+Qed. *)
 
 Definition funspecs_assert (FunSpecs: PTree.t funspec): assert :=
  fun rho =>
