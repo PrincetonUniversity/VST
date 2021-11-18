@@ -49,6 +49,7 @@ clear modifiedvars'_union.
 intro id.
  assert (IS0: ~ isSome (idset0 ! id)). unfold idset0, isSome.
  rewrite PTree.gempty; auto.
+ unfold modifiedvars', idset0, insert_idset.
  induction c; try destruct o; simpl; intros;
  try solve [split; [auto | intros [?|?]; auto; contradiction ]];
  try solve [unfold insert_idset; destruct (eq_dec i id);

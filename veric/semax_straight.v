@@ -490,7 +490,7 @@ Proof.
         destruct (Pos.eq_dec id i).
         {
           subst.
-          left. unfold modifiedvars. simpl.
+          left. unfold modifiedvars, modifiedvars', insert_idset.
           unfold insert_idset; rewrite PTree.gss; hnf; auto.
         }
         {
@@ -620,7 +620,7 @@ Proof.
       intros.
       destruct (Pos.eq_dec id i).
       * subst.
-        left. unfold modifiedvars. simpl.
+        left. unfold modifiedvars, modifiedvars', insert_idset.
         unfold insert_idset; rewrite PTree.gss; hnf; auto.
       * right.
         rewrite Map.gso; auto. subst; auto.
@@ -747,8 +747,8 @@ rewrite <- Hcl; auto.
 intros.
 destruct (Pos.eq_dec id i).
 subst.
-left. unfold modifiedvars. simpl.
- unfold insert_idset; rewrite PTree.gss; hnf; auto.
+left. unfold modifiedvars, modifiedvars', insert_idset.
+  rewrite PTree.gss; hnf; auto.
 right.
 rewrite Map.gso; auto. subst; auto.
 apply exp_right with (eval_id id rho).
@@ -872,8 +872,8 @@ rewrite <- Hcl; auto.
 intros.
 destruct (Pos.eq_dec id i).
 subst.
-left. unfold modifiedvars. simpl.
- unfold insert_idset; rewrite PTree.gss; hnf; auto.
+left. unfold modifiedvars, modifiedvars', insert_idset. 
+ rewrite PTree.gss; hnf; auto.
 right.
 rewrite Map.gso; auto. subst; auto.
 apply exp_right with (eval_id id rho).
@@ -1071,8 +1071,8 @@ split; [split3 | ].
   intros ? ?; simpl.
   unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
  +intro i; destruct (Pos.eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
-   subst; unfold modifiedvars. simpl.
-   unfold insert_idset; rewrite PTree.gss; hnf; auto.
+   subst; unfold modifiedvars, modifiedvars', insert_idset.
+   rewrite PTree.gss; hnf; auto.
    subst. auto.
 Qed.
 
@@ -1225,8 +1225,8 @@ split; [split3 | ].
     unfold eval_id, force_val. simpl. rewrite Map.gss. auto. 
   - unfold eval_cast, force_val1 in H4. unfold liftx, lift; simpl. rewrite H4; trivial.
  + intro i; destruct (Pos.eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
-   subst; unfold modifiedvars. simpl.
-   unfold insert_idset; rewrite PTree.gss; hnf; auto.
+   subst; unfold modifiedvars, modifiedvars', insert_idset.
+   rewrite PTree.gss; hnf; auto.
    subst. auto.
 Qed.
 

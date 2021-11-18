@@ -66,7 +66,7 @@ intros id t ?.
 unfold make_tycontext, temp_types in H4.
 unfold make_tycontext_t in H4.
 set (f1 := fun param : ident * type => PTree.set (fst param) (snd param)) in *.
-set (f2 := fun (temp : ident * type) (tenv : PTree.t type) =>
+set (f2 := fun (temp : ident * type) (tenv : PTree.tree type) =>
             let (id, ty) := temp in PTree.set id ty tenv) in *.
 unfold Map.get, make_tenv.
 (***)
@@ -144,7 +144,7 @@ Proof.
 intros.
 hnf; intros.
 unfold make_tycontext_v, make_venv, Map.get.
-set (f := fun (var : ident * type) (venv : PTree.t type) =>
+set (f := fun (var : ident * type) (venv : PTree.tree type) =>
     let (id0, ty0) := var in PTree.set id0 ty0 venv).
 transitivity (option_map snd (ve' ! id) = Some ty).
 2:{ destruct (ve' ! id) as [[??]|]; simpl; split; intro.
@@ -2302,13 +2302,9 @@ Proof.
 apply semax_func_app.
 + eapply semax_func_subsumption; [ | | apply SF1].
 - hnf; simpl. intuition.
-* rewrite PTree.gempty; trivial.
-* rewrite PTree.gempty. simpl; trivial.
 - intros. specialize (K1 id). eapply sub_option_trans. apply K1. trivial.
 + eapply semax_func_subsumption; [ | | apply SF2].
 - hnf; simpl. intuition.
-* rewrite PTree.gempty; trivial.
-* rewrite PTree.gempty. simpl; trivial.
 - intros. specialize (N1 id). eapply sub_option_trans. apply N1. trivial.
 + clear - SF1. eapply semax_func_length. apply SF1.
 Qed.
@@ -2444,7 +2440,7 @@ forall H V (VH:list_norepet (map fst V ++ map fst H)) i,
 Proof.
 induction H; intros.
 + rewrite make_tycontext_g_nilG_find_id.
-simpl; rewrite PTree.gleaf; trivial.
+simpl. trivial.
 + apply list_norepet_cut_middle in VH.
 remember ((make_tycontext_g V (a :: H)) ! i) as d; symmetry in Heqd; destruct d. 
 - apply make_tycontext_g_consG_elim in Heqd. destruct a as [j fs]; simpl in *. rewrite PTree.gsspec.
