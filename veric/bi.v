@@ -250,8 +250,8 @@ Proof.
     apply core_identity.
   - intros.
     unseal_derives; intros ??; simpl in *.
-    change (` (predicates_hered.allp Ψ) (core a)); intro.
-    apply (H b).
+    change (` (predicates_hered.andp P Q) (core a)).
+    apply H.
   - intros.
     unseal_derives; intros ??; simpl in *.
     destruct H as [b ?].
