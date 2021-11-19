@@ -19,8 +19,8 @@ jobs:
       matrix:
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-          - '8.12'
           - '8.13'
+          - '8.14'
         opam_name:
           - coq-vst
           - coq-vst-32

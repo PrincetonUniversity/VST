@@ -1888,9 +1888,8 @@ Proof.
   - destruct (PTree.get _ _); auto.
   - unfold make_tycontext_g.
     revert dependent G2; revert dependent V2; revert V; induction G; simpl.
-    + induction V; simpl; intros.
-      * rewrite PTree.gempty; simpl; auto.
-      * rewrite incl_cons_iff in HV; destruct HV.
+    + induction V; simpl; intros. auto.
+        rewrite incl_cons_iff in HV; destruct HV.
         rewrite PTree.gsspec.
         destruct (peq id (fst a)); eauto; subst; simpl.
         rewrite lookup_out.
@@ -1904,7 +1903,7 @@ Proof.
       apply lookup_distinct; auto.
   - unfold make_tycontext_s.
     revert dependent G2; induction G; simpl; intros.
-    + rewrite PTree.gempty; simpl; auto.
+    + auto.
     + destruct a; simpl. hnf.
       rewrite incl_cons_iff in HG; destruct HG.
       rewrite PTree.gsspec.

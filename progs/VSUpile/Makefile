@@ -22,6 +22,7 @@ VST_LOC ?= ../..
 
 ifdef COMPCERT_LOC
 CLIGHTGEN ?= $(COMPCERT_LOC)/clightgen
+COMPCERT_FLAGS= -R $(COMPCERT_LOC)
 endif 
 
 ifdef CLIGHTGEN
@@ -39,7 +40,7 @@ VOFILES = $(patsubst %.v,%.vo,$(CVFILES) $(VFILES))
 
 
 VST_DIRS= msl sepcomp veric floyd
-VSTFLAGS= -R $(COMPCERT_LOC) compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
+VSTFLAGS= $(COMPCERT_FLAGS) $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
 
 
 target: _CoqProject verif_main.vo simple_verif_main.vo fast/verif_fastmain.vo incr/verif_incr.vo
