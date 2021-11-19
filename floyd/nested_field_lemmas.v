@@ -317,123 +317,6 @@ repeat (
   | H: @ex _ _ |- _ => destruct H as [x H1]
   | H: sigT _ |- _ => destruct H as [x H1]
   end).
-(*
-Lemma legal_nested_field_nested_field_rec_None_conflict: forall t gfs P,
-  legal_nested_field t gfs ->
-  nested_field_rec t gfs = None ->
-  P.
-Proof.
-  intros.
-  unfold legal_nested_field in H.
-  rewrite H0 in H.
-  simpl in H.
-  tauto.
-Qed.
-
-Lemma nested_field_rec_cons_eq_Some_lemma: forall t gf gfs ofs0 t0,
-  nested_field_rec t (gf :: gfs) = Some (ofs0, t0)
-  <->
-  match gf, nested_field_rec t gfs with
-  | ArraySubsc i0, Some (ofs, Tarray t1 n a) =>
-      ofs0 = ofs + sizeof t0 * i0 /\ t0 = t1
-  | StructField i, Some (ofs, Tstruct id a) =>
-      in_members i (co_members (get_co id)) /\ co_su (get_co id) = Struct /\ t0 = field_type2 i (co_members (get_co id)) /\ ofs0 = ofs + field_offset2 cenv_cs i (co_members (get_co id))
-  | UnionField i, Some (ofs, Tunion id a) =>
-      in_members i (co_members (get_co id)) /\ co_su (get_co id) = Union /\ t0 = field_type2 i (co_members (get_co id)) /\ ofs0 = ofs
-  | _, _ => False
-  end.
-Proof.
-  intros.
-  simpl (nested_field_rec t (gf :: gfs)).
-  unfold nested_field_type2.
-  destruct (nested_field_rec t gfs) as [[? tt]| ]; [destruct tt |]; destruct gf;
-  (split; intro H; auto_destruct_above_line);
-  try solve[inversion H | inversion H0 | inversion H1 | inversion H2].
-  + inversion H; subst.
-    auto.
-  + subst. auto.
-  + unfold destruct (cenv_cs ! i); [| inversion H].
-    destruct (co_su c); [| inversion H].
-    destruct_in_members i0 (co_members c); [| inversion H].
-    inversion H.
-    auto.
-  + destruct (cenv_cs ! i); [| inversion H].
-    auto_destruct_above_line.
-    apply compute_in_members_true_iff in H0.
-    rewrite H, H0.
-    subst; auto.
-  + destruct (cenv_cs ! i); [| inversion H].
-    destruct (co_su c); [inversion H |].
-    destruct_in_members i0 (co_members c); [| inversion H].
-    inversion H.
-    auto.
-  + destruct (cenv_cs ! i); [| inversion H].
-    auto_destruct_above_line.
-    apply compute_in_members_true_iff in H0.
-    rewrite H, H0.
-    subst; auto.
-Qed.
-
-Ltac solve_legal_nested_field_cons H :=
-  let HH := fresh "HH" in
-  let Heq := fresh "Heq" in
-  let HeqNFT := fresh "Heq" in
-  let H1 := fresh "H" in
-  let H2 := fresh "H" in
-  let H3 := fresh "H" in
-  let id := fresh "id" in
-  let co := fresh "co" in
-  let CO := fresh "CO" in
-  match type of H with
-  | (legal_nested_field ?T (?A :: ?GFS)) =>
-    destruct (legal_nested_field_cons_lemma T A GFS) as [HH _];
-    specialize (HH H);
-    destruct A eqn:Heq;
-    destruct (nested_field_type2 T GFS) as [ | | | | | | | id ? | id ? ] eqn:HeqNFT;
-    try solve [destruct HH as [_ HH]; inversion HH]
-  end;
-  [try solve [inversion Heq]; destruct HH as [H1 H2]
-  |try solve [inversion Heq]; destruct HH as [H1 H2];
-   destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion H2];
-   destruct H2 as [H2 H3]
-  |try solve [inversion Heq]; destruct HH as [H1 H2];
-   destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion H2];
-   destruct H2 as [H2 H3]].
-
-Ltac solve_nested_field_rec_cons_eq_Some H :=
-  let HH := fresh "HH" in
-  let HeqA := fresh "Heq" in
-  let HeqNFT := fresh "Heq" in
-  let H1 := fresh "H" in
-  let H2 := fresh "H" in
-  let H3 := fresh "H" in
-  let H4 := fresh "H" in
-  let ofs := fresh "ofs" in
-  let id := fresh "id" in
-  let co := fresh "co" in
-  let CO := fresh "CO" in
-  match type of H with
-  | (nested_field_rec ?T (?A :: ?GFS) = Some (?OFS, ?T0)) =>
-    destruct (nested_field_rec_cons_eq_Some_lemma T A GFS OFS T0) as [HH _];
-    specialize (HH H);
-    destruct A eqn:HeqA;
-    destruct (nested_field_rec T GFS) as [[ofs [ | | | | | | | id ? | id ? ]]|] eqn:HeqNFT;
-    try solve [inversion HH]
-  end;
-  [try solve [inversion HeqA]; destruct HH as [H1 H2]
-  |try solve [inversion HeqA]; destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion HH];
-   destruct HH as [H1 [H2 [H3 H4]]]
-  |try solve [inversion HeqA]; destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion HH];
-   destruct HH as [H1 [H2 [H3 H4]]]].
-
-Ltac solve_legal_nested_field :=
-  first [
-   solve [apply legal_nested_field_nil_lemma]
-  | apply legal_nested_field_cons_lemma; simpl;
-    split; [solve_legal_nested_field | auto]].
-
-Global Opaque legal_nested_field.
-*)
 
 Definition legal_nested_field_dec: forall t gfs,
   {legal_nested_field t gfs} + {~ legal_nested_field t gfs}.
@@ -751,7 +634,7 @@ Proof.
     tauto.
   + rewrite andb_true_iff in H0.
     destruct_in_members i (co_members (get_co id)).
-    - eapply nested_fields_pred_nested_pred; auto; tauto.
+    - eapply nested_fields_pred_nested_pred; tauto.
     - rewrite not_in_members_field_type; auto.
   + rewrite andb_true_iff in H0.
     destruct_in_members i (co_members (get_co id)).
@@ -788,23 +671,35 @@ Proof.
   + destruct (cenv_cs ! id) eqn:?H; [| inv H0].
     pose proof cenv_legal_su _ _ H1.
     unfold in_members in H.
-    induction (co_members c) as [| [i0 t0] ?].
+    induction (co_members c) as [| [i0 t0|] ?].
     - inv H.
     - simpl in H2; rewrite andb_true_iff in H2; destruct H2.
       simpl in H |- *.
       if_tac; auto.
       apply IHm; auto.
       destruct H; auto; congruence.
+    - simpl in H2.
+      simpl in H |- *.
+      if_tac; auto.
+      apply IHm; auto. 
+      destruct H; auto; congruence.
+     simpl in H0. destruct (co_su c); try discriminate.
   + destruct (cenv_cs ! id) eqn:?H; [| inv H0].
     pose proof cenv_legal_su _ _ H1.
     unfold in_members in H.
-    induction (co_members c) as [| [i0 t0] ?].
+    induction (co_members c) as [| [i0 t0|] ?].
     - inv H.
     - simpl in H2; rewrite andb_true_iff in H2; destruct H2.
       simpl in H |- *.
       if_tac; auto.
       apply IHm; auto.
       destruct H; auto; congruence.
+    - simpl in H2.
+      simpl in H |- *.
+      if_tac; auto.
+      apply IHm; auto. 
+      destruct H; auto; congruence.
+     simpl in H0. destruct (co_su c); try discriminate.
 Qed.
 
 Lemma gfield_array_type_complete_legal_cosu_type: forall (t: type) lo hi,
@@ -1021,6 +916,68 @@ Proof.
     - apply gfield_offset_type_divide; auto.
 Qed.
 *)
+
+
+Lemma complete_legal_cosu_type_Tstruct_get_co:
+  forall id a,
+   complete_legal_cosu_type (Tstruct id a) = true ->
+    cenv_cs ! id = Some (get_co id).
+Proof.
+intros.
+ simpl in H.
+ unfold get_co.
+ destruct (cenv_cs ! id); try discriminate. auto.
+Qed.
+
+Lemma complete_legal_cosu_type_Tunion_get_co:
+  forall id a,
+   complete_legal_cosu_type (Tunion id a) = true ->
+    cenv_cs ! id = Some (get_co id).
+Proof.
+intros.
+ simpl in H.
+ unfold get_co.
+ destruct (cenv_cs ! id); try discriminate. auto.
+Qed.
+
+Lemma sizeof_Tstruct_co_sizeof:
+  forall id a,
+   complete_legal_cosu_type (Tstruct id a) = true ->
+   sizeof (Tstruct id a) = co_sizeof (get_co id) 
+   /\ sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id).
+Proof.
+ intros.
+ simpl in H.
+ destruct (cenv_cs ! id) eqn:?H; try discriminate.
+ destruct (co_su c) eqn:?H; try discriminate.
+ assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id)).
+ rewrite co_consistent_sizeof with (env := cenv_cs) by apply get_co_consistent.
+  unfold get_co; rewrite H0, H1.
+  rewrite plain_members_sizeof_struct by auto.
+  apply align_le, co_alignof_pos.
+  split; auto.
+  unfold get_co; simpl. rewrite H0. auto.
+Qed.
+
+Lemma sizeof_Tunion_co_sizeof:
+  forall id a,
+   complete_legal_cosu_type (Tunion id a) = true ->
+   sizeof (Tunion id a) = co_sizeof (get_co id)
+   /\ sizeof_union cenv_cs (co_members (get_co id)) <= co_sizeof (get_co id).
+Proof.
+ intros.
+ simpl in H.
+ destruct (cenv_cs ! id) eqn:?H; try discriminate.
+ destruct (co_su c) eqn:?H; try discriminate.
+   assert (sizeof_union cenv_cs (co_members (get_co id)) <= co_sizeof (get_co id)).
+        rewrite co_consistent_sizeof with (env := cenv_cs) by apply get_co_consistent.
+  unfold get_co; rewrite H0, H1.
+  simpl.
+  apply align_le, co_alignof_pos.
+  split; auto.
+  unfold get_co; simpl. rewrite H0. auto.
+Qed.
+
 Lemma gfield_offset_in_range: forall t gf,
   legal_field t gf ->
   complete_legal_cosu_type t = true ->
@@ -1032,11 +989,18 @@ Proof.
     pose_size_mult cs t (0 :: i :: i + 1 :: z :: nil).
     lia.
   + unfold gfield_type, gfield_offset.
-    pose_sizeof_co (Tstruct id a).
-    pose proof field_offset_in_range _ _ H.
-    lia.
+      destruct (sizeof_Tstruct_co_sizeof _ _ H0).
+      pose proof (complete_legal_cosu_type_Tstruct_get_co _ _ H0).
+      pose proof (complete_legal_cosu_type_Tstruct _ _ H0).
+      simpl in H0; rewrite H3, H4 in H0.
+      pose proof field_offset_in_range _ _ H0 H.
+      lia.
   + unfold gfield_type, gfield_offset.
-    pose_sizeof_co (Tunion id a).
+      destruct (sizeof_Tunion_co_sizeof _ _ H0).
+      pose proof (complete_legal_cosu_type_Tunion_get_co _ _ H0).
+      pose proof (complete_legal_cosu_type_Tunion _ _ H0).
+      simpl in H0; rewrite H3, H4 in H0.
+      pose proof field_offset_in_range _ _ H0 H.
     pose proof sizeof_union_in_members _ _ H.
     lia.
 Qed.
@@ -1071,15 +1035,15 @@ Proof.
     pose_size_mult cs t (0 :: i :: z :: nil).
     lia.
   + unfold gfield_type, gfield_offset.
-    pose_sizeof_co (Tstruct id a).
-    pose proof field_offset_in_range _ _ H.
-    pose proof sizeof_pos (field_type i (co_members (get_co id))).
-    lia.
+      destruct (sizeof_Tstruct_co_sizeof _ _ H0).
+      pose proof (complete_legal_cosu_type_Tstruct_get_co _ _ H0).
+      pose proof (complete_legal_cosu_type_Tstruct _ _ H0).
+      simpl in H0; rewrite H3, H4 in H0.
+      pose proof field_offset_in_range _ _ H0 H.
+      pose proof sizeof_pos (field_type i (co_members (get_co id))).
+      lia.
   + unfold gfield_type, gfield_offset.
-    pose_sizeof_co (Tunion id a).
-    pose proof sizeof_union_in_members _ _ H.
-    pose proof sizeof_pos (field_type i (co_members (get_co id))).
-    lia.
+      pose proof (sizeof_pos (Tunion id a)). lia.
 Qed.
 
 Lemma nested_field_offset_in_range: forall t gfs,

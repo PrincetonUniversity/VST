@@ -5,6 +5,8 @@ Require Import VST.msl.base.
 Require Import VST.veric.base.
 Require Import VST.veric.mem_lessdef.
 
+Transparent intsize_eq.
+
 Lemma mem_lessdef_sem_cast:
   forall m1 m2, mem_lessdef m1 m2 ->
   forall v1 v1', Val.lessdef v1 v1' ->
@@ -146,10 +148,10 @@ Lemma mem_lessdef_eval_expr: forall ge ve te m1 m2 a v1,
    mem_lessdef m1 m2 ->
    eval_expr ge ve te m1 a v1 -> 
    exists v2, eval_expr ge ve te m2 a v2 /\ Val.lessdef v1 v2
- with mem_lessdef_eval_lvalue: forall ge ve te m1 m2 a b z,
+ with mem_lessdef_eval_lvalue: forall ge ve te m1 m2 a b z bf,
    mem_lessdef m1 m2 ->
-   eval_lvalue ge ve te m1 a b z -> 
-   eval_lvalue ge ve te m2 a b z.
+   eval_lvalue ge ve te m1 a b z bf -> 
+   eval_lvalue ge ve te m2 a b z bf.
 Proof.
 *
 clear mem_lessdef_eval_expr.
@@ -225,6 +227,7 @@ destruct op; simpl in H1.
    2: eexists; split; [eapply eval_Elvalue; eauto; econstructor 2; eassumption | apply Val.lessdef_refl].
    2: eexists; split; [eapply eval_Elvalue; eauto; econstructor 3; eassumption | apply Val.lessdef_refl].
    unfold Mem.loadv in *.
+  **
    pose proof (Mem.load_valid_access _ _ _ _ _ H3).
    destruct H1 as [_ ?].
    destruct H as [? _].
@@ -239,24 +242,44 @@ destruct op; simpl in H1.
    econstructor 1; eauto.
    clear - H5.
    apply mem_lessdef_decode_val; auto.
+  **
+   inv H2.
+   pose proof (Mem.load_valid_access _ _ _ _ _ H7).
+   destruct H as [? _].
+   apply Mem.load_loadbytes in H7.
+   destruct H7 as [bytes [? ?]].  apply H in H6.
+   destruct H6 as [v' [? ?]].
+   apply Mem.loadbytes_load in H6; auto.
+   subst.
+   assert (Val.lessdef (decode_val (chunk_for_carrier sz) bytes) (decode_val (chunk_for_carrier sz) v'))
+     by (apply mem_lessdef_decode_val; auto).
+   rewrite <- H7 in H9. inv H9.
+    exists (Vint (bitfield_extract sz sg pos width c)).
+    split; [ | constructor].
+   eapply eval_Elvalue; eauto.
+   econstructor 4; eauto.
+   rewrite <- H1.
+    econstructor; eauto.
+    rewrite H12. auto.
+    apply H2.
 *
 clear mem_lessdef_eval_lvalue.
 intros.
 induction H0.
-constructor 1; auto.
-constructor 2; auto.
-eapply mem_lessdef_eval_expr in H0; eauto.
-destruct H0 as [v2 [? ?]].
-inv H1.
-econstructor; eauto.
-eapply mem_lessdef_eval_expr in H0; eauto.
-destruct H0 as [v2 [? ?]].
-inv H4.
-econstructor 4; eauto.
-eapply mem_lessdef_eval_expr in H0; eauto.
-destruct H0 as [v2 [? ?]].
-inv H3.
-econstructor 5; eauto.
+- constructor 1; auto.
+- constructor 2; auto.
+- eapply mem_lessdef_eval_expr in H0; eauto.
+   destruct H0 as [v2 [? ?]].
+   inv H1.
+   econstructor; eauto.
+- eapply mem_lessdef_eval_expr in H0; eauto.
+   destruct H0 as [v2 [? ?]].
+   inv H4.
+   econstructor 4; eauto.
+-  eapply mem_lessdef_eval_expr in H0; eauto.
+   destruct H0 as [v2 [? ?]].
+   inv H4.
+   econstructor 5; eauto.
 Qed.
 
 Lemma unaryop_mem_lessaloc {op u t m v m2}
@@ -346,9 +369,9 @@ Lemma eval_expr_eval_lvalue_mem_lessalloc ge ve te m:
      (forall (e : expr) (v : val),
         eval_expr ge ve te m e v ->
         forall m2 : mem, mem_lessalloc m m2 -> eval_expr ge ve te m2 e v) /\
-     (forall (e : expr) (b : block) (i : ptrofs),
-        eval_lvalue ge ve te m e b i ->
-        forall m2 : mem, mem_lessalloc m m2 -> eval_lvalue ge ve te m2 e b i).
+     (forall (e : expr) (b : block) (i : ptrofs) (bf: bitfield),
+        eval_lvalue ge ve te m e b i bf ->
+        forall m2 : mem, mem_lessalloc m m2 -> eval_lvalue ge ve te m2 e b i bf).
 Proof. apply eval_expr_lvalue_ind; intros; try solve [econstructor; eauto].
 + econstructor; eauto. eapply unaryop_mem_lessaloc; eauto.
 + econstructor; eauto. eapply binaryop_mem_lessaloc; eauto.
@@ -362,6 +385,13 @@ Proof. apply eval_expr_lvalue_ind; intros; try solve [econstructor; eauto].
     eapply Mem.loadbytes_load; trivial.
   - apply deref_loc_reference; trivial.
   - apply deref_loc_copy; trivial.
+  - apply deref_loc_bitfield; auto.
+     inv H2. econstructor; eauto.
+    destruct (Mem.load_loadbytes _ _ _ _ _ H7) as [vals [X Y]]; subst.
+    rewrite M1 in X. apply Mem.load_valid_access in H7. destruct H7.
+    unfold Mem.loadv.
+    rewrite Y.
+    eapply Mem.loadbytes_load; trivial.
 Qed.
 
 Lemma eval_expr_mem_lessalloc {ge ve te m m2 e v} (M:mem_lessalloc m m2):
@@ -379,8 +409,8 @@ Proof.
    rewrite (sem_cast_mem_lessaloc M) in H2. econstructor; eauto.
 Qed.
 
-Lemma eval_lvalue_mem_lessalloc {ge ve te m m2 e b i} (M:mem_lessalloc m m2):
-      eval_lvalue ge ve te m e b i -> eval_lvalue ge ve te m2 e b i.
+Lemma eval_lvalue_mem_lessalloc {ge ve te m m2 e b i bf} (M:mem_lessalloc m m2):
+      eval_lvalue ge ve te m e b i bf -> eval_lvalue ge ve te m2 e b i bf.
 Proof. intros. eapply eval_expr_eval_lvalue_mem_lessalloc; eauto. Qed.
 
 (* Currently fails because jsafeN__ind is too weak.

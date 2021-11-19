@@ -190,13 +190,16 @@ Lemma composite_env_ext:
  PTree.map1 getCompositeData ce2 ->
  ce1 = ce2.
 Proof.
-induction ce1; destruct ce2; simpl; intros; auto; try discriminate.
-inv H.
-f_equal; auto.
-destruct o,o0; inv H2; auto.
-clear - H0.
+intros.
+apply PTree.extensionality.
+intro i.
+assert ((PTree.map1 getCompositeData ce1) ! i =
+            (PTree.map1 getCompositeData ce2) ! i) by congruence.
+rewrite !PTree.gmap1 in H0.
+clear H.
+destruct (ce1 ! i), (ce2 ! i); auto; inv H0.
 f_equal.
-destruct c,c0; inv H0; simpl in *; subst; f_equal; apply proof_irr.
+destruct c,c0; inv H1; simpl in *; subst; f_equal; apply proof_irr.
 Qed.
 
 Definition QPprog {cs: compspecs} (p: Clight.program) :=
@@ -212,11 +215,11 @@ Lemma compspecs_eq_of_QPcomposite_env:
 forall cs (prog: Clight.program) OK,
  PTree.map1 getCompositeData (@cenv_cs cs) =
  PTree.map1 getCompositeData (prog_comp_env prog) ->
- PTree_samedom  (@cenv_cs cs) (@ha_env_cs cs) ->
- PTree_samedom  (@cenv_cs cs) (@la_env_cs cs) ->
  cs = compspecs_of_QPprogram prog (@ha_env_cs cs) (@la_env_cs cs) OK.
 Proof.
 intros.
+pose proof PTree_samedom_ha.
+pose proof PTree_samedom_la.
 assert (@cenv_cs cs = prog_comp_env prog)
  by (apply composite_env_ext; auto).
 destruct OK as [? [? [? [? [? [? ?]]]]]].
@@ -228,14 +231,14 @@ simpl in x.
 forget (prog_comp_env prog) as ce.
 clear prog.
 subst ce.
-rewrite composite_env_of_QPcomposite_env_of_composite_env. auto.
-apply PTree_samedom_domain_eq; auto.
-apply PTree_samedom_domain_eq; auto.
+rewrite composite_env_of_QPcomposite_env_of_composite_env; auto.
 unfold QPcomposite_env_of_composite_env.
-rewrite PTree_map1_map3.
+rewrite PTree_map1_map3 with (e:=0); auto.
+2,3: rewrite <- H2; auto.
 symmetry; apply PTree_map3_2; rewrite <- H2; auto.
 unfold QPcomposite_env_of_composite_env.
-rewrite PTree_map1_map3.
+rewrite PTree_map1_map3 with (e:=false); auto.
+2,3: rewrite <- H2; auto.
 symmetry; apply PTree_map3_3; rewrite <- H2; auto.
 Qed.
 
@@ -441,19 +444,15 @@ Ltac mkComponent prog :=
  let LA := fresh "LA" in 
    assert (LA: PTree_samedom cenv_cs la_env_cs) by repeat constructor;
  let OK := fresh "OK" in
- assert (OK: QPprogram_OK p);
- [split; [apply compute_list_norepet_e; reflexivity | ];
-   simpl;
-   simple apply (QPcompspecs_OK_i' _);
-   [ apply composite_env_ext; repeat constructor | reflexivity | reflexivity | assumption | assumption ]
- | ];
+  assert (OK: QPprogram_OK p)
+   by (split; [apply compute_list_norepet_e; reflexivity 
+           |  apply (QPcompspecs_OK_i HA LA) ]);
  (* Doing the  set(myenv...), instead of before proving the CSeq assertion,
      prevents nontermination in some cases  *)
  pose (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
  assert (CSeq: _ = compspecs_of_QPcomposite_env myenv 
                      (proj2 OK))
-   by (apply compspecs_eq_of_QPcomposite_env;
-          [reflexivity | assumption | assumption]);
+   by (apply compspecs_eq_of_QPcomposite_env; reflexivity);
  subst myenv;
  change (QPprogram_of_program prog ha_env_cs la_env_cs) with p in CSeq;
  clear HA LA;

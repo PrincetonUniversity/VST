@@ -2032,7 +2032,7 @@ Proof.
     rewrite resource_at_make_rmap in *.
     unfold inflate_initial_mem' in HACK|-*.
     inversion H0; clear H0; subst m.
-    unfold access_at, empty in HACK; simpl in HACK; rewrite PMap.gi in HACK.
+    unfold access_at, empty in HACK; simpl in HACK.  
       destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
     destruct HACK as (? & <- & _).
     unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.

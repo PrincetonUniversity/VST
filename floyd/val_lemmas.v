@@ -7,6 +7,8 @@ Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.functional_base.
 Import LiftNotation.
 
+Transparent intsize_eq.
+
 Lemma force_Vint:  forall i, force_int (Vint i) = i.
 Proof.  reflexivity. Qed.
 Hint Rewrite force_Vint : norm.

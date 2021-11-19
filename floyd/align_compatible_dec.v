@@ -81,14 +81,17 @@ right. auto.
 Qed.
 
 Lemma field_type_in_members_strong:
- forall i t m, Ctypes.field_type i m = Errors.OK t ->
-          In (i,t) m.
+ forall i t m
+  (PLAIN: plain_members m = true),
+   Ctypes.field_type i m = Errors.OK t ->
+          In (Member_plain i t) m.
 Proof.
-induction m; intros.
+induction m as [|[|]]; intros.
 inv H.
 simpl in H.
-destruct a. if_tac in H. subst. inv H. left; auto.
+if_tac in H. subst. inv H. left; auto.
 right. apply IHm; auto.
+inv PLAIN.
 Qed.
 
 Lemma align_compatible_dec_aux:
@@ -128,24 +131,30 @@ split; try lia.
 * (* Tstruct *)
 destruct (cenv_cs ! i) eqn:?H;
  [ | right; intro H0; inv H0; [inv H1 | congruence]].
+destruct (plain_members (co_members c)) eqn:?PLAIN;
+   [ | right; intro Hx; inv Hx; [ discriminate | congruence]].
 simpl in Hrank. rewrite H in Hrank.
 pose (FO id := match Ctypes.field_offset cenv_cs id (co_members c) with
-                      | Errors.OK z0 => z0 | _ => 0 end).
-pose (D := fun x: {it: ident*type | In it (co_members c)} =>
-                align_compatible_rec cenv_cs (snd (proj1_sig x)) (z + FO (fst (proj1_sig x)))).
+                      | Errors.OK (z0, Full) => z0 | _ => 0 end).
+pose (D := fun x: {it: member | In it (co_members c)} =>
+                align_compatible_rec cenv_cs (type_member (proj1_sig x)) (z + FO (name_member (proj1_sig x)))).
 assert (H1: forall x, {D x} + {~ D x}). {
- subst D. intros. destruct x as [[id t0] ?]. simpl.
+ subst D. intros. destruct x as [[id t0|] ?].
+2:{ elimtype False. clear - i0 PLAIN. 
+   induction (co_members c) as [|[|]]; simpl in *; try discriminate; auto. destruct i0; auto. discriminate.
+ }
+ simpl.
  apply IHn.
- assert (H1:= rank_union_member cenv_cs _ a _ _ _ cenv_consistent H i0).
+ assert (H1:= rank_union_member cenv_cs _ a _ _ cenv_consistent H i0).
  simpl in H1. rewrite H in H1. lia.
 }
 destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [left|right].
 +
  eapply align_compatible_rec_Tstruct.
- eassumption.
+ eassumption. auto.
  assert (H1 := proj1 (Forall_forall _ _) H2); clear H2.
  intros.
- specialize (H1 (exist _ (i0,t0) (field_type_in_members_strong _ _ _ H0))).
+ specialize (H1 (exist _ (Member_plain i0 t0) (field_type_in_members_strong _ _ _ PLAIN H0))).
  specialize (H1 (in_make_in_list _ _ _)).
  subst D.
  simpl in H1.
@@ -157,49 +166,54 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  apply Forall_forall.
  intros.
  subst D. simpl.
- destruct x as [[id t0] ?].
+ destruct x as [[id t0|] ?].
+2:{ elimtype False. clear - i0 PLAIN. 
+   induction (co_members c) as [|[|]]; simpl in *; try discriminate; auto. destruct i0; auto. discriminate.
+ }
  eapply align_compatible_rec_Tstruct_inv in H2; try eassumption.
  instantiate (1:=id). simpl.
  pose proof (get_co_members_no_replicate i).
  unfold get_co in H1. rewrite H in H1. unfold members_no_replicate in H1.
- clear - i0 H1.
- induction (co_members c). inv i0. simpl. destruct a.
+ clear - i0 H1 PLAIN.
+ induction (co_members c) as [|[|]]; [ | | discriminate]. inv i0. simpl.
  if_tac. subst. 
- simpl in H1. destruct (id_in_list i (map fst m)) eqn:?; try discriminate.
+ simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  destruct i0. inv H. auto.
  apply id_in_list_false in Heqb.
- elimtype False. apply Heqb. apply (in_map fst) in H. apply H.
- apply IHm.
+ elimtype False. apply Heqb. apply (in_map name_member) in H. apply H.
+ apply IHm. auto.
  destruct i0. inv H0. contradiction. auto.
- simpl in H1. destruct (id_in_list i (map fst m)) eqn:?; try discriminate.
+ simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  auto.
  unfold FO; simpl.
- clear - i0.
- destruct (Ctypes.field_offset cenv_cs id (co_members c) ) eqn:?H; auto.
- elimtype False.
- unfold Ctypes.field_offset in H. forget 0 as z.
- revert z i0 H; induction (co_members c); intros. inv i0.
- simpl in H. destruct a. if_tac in H. inv H.
- destruct i0. inv H1. contradiction. apply IHm in H. auto. auto.
+ clear - i0 PLAIN.
+ assert (in_members id (co_members c)). unfold in_members. apply (in_map name_member) in i0; auto.
+ pose proof (plain_members_field_offset _ PLAIN _ _ H). rewrite H0. auto.
 * (* Tunion *)
 destruct (cenv_cs ! i) eqn:?H;
  [ | right; intro H0; inv H0; [inv H1 | congruence]].
+destruct (plain_members (co_members c)) eqn:?PLAIN;
+   [ | right; intro Hx; inv Hx; [ discriminate | congruence]].
 simpl in Hrank. rewrite H in Hrank.
-pose (D := fun x: {it: ident*type | In it (co_members c)} =>
-                align_compatible_rec cenv_cs (snd (proj1_sig x)) z).
+pose (D := fun x: {it: member | In it (co_members c)} =>
+                align_compatible_rec cenv_cs (type_member (proj1_sig x)) z).
 assert (H1: forall x, {D x} + {~ D x}). {
- subst D. intros. destruct x as [[id t0] ?]. simpl.
+ subst D. intros. destruct x as [[id t0|] ?].
+2:{ elimtype False. clear - i0 PLAIN. 
+   induction (co_members c) as [|[|]]; simpl in *; try discriminate; auto. destruct i0; auto. discriminate.
+ }
+ simpl.
  apply IHn.
- assert (H1:= rank_union_member cenv_cs _ a _ _ _ cenv_consistent H i0).
+ assert (H1:= rank_union_member cenv_cs _ a _ _ cenv_consistent H i0).
  simpl in H1. rewrite H in H1. lia.
 }
 destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [left|right].
 +
  eapply align_compatible_rec_Tunion.
- eassumption.
+ eassumption. auto.
  assert (H1 := proj1 (Forall_forall _ _) H2); clear H2.
  intros.
- specialize (H1 (exist _ (i0,t0) (field_type_in_members_strong _ _ _ H0))).
+ specialize (H1 (exist _ (Member_plain i0 t0) (field_type_in_members_strong _ _ _ PLAIN H0))).
  specialize (H1 (in_make_in_list _ _ _)).
  apply H1.
 +
@@ -207,21 +221,24 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  apply Forall_forall.
  intros.
  subst D. simpl.
- destruct x as [[id t0] ?].
+ destruct x as [[id t0|] ?].
+2:{ elimtype False. clear - i0 PLAIN. 
+   induction (co_members c) as [|[|]]; simpl in *; try discriminate; auto. destruct i0; auto. discriminate.
+ }
  eapply align_compatible_rec_Tunion_inv in H2; try eassumption.
  instantiate (1:=id). simpl.
  pose proof (get_co_members_no_replicate i).
  unfold get_co in H1. rewrite H in H1. unfold members_no_replicate in H1.
- clear - i0 H1.
- induction (co_members c). inv i0. simpl. destruct a.
+ clear - i0 H1 PLAIN.
+ induction (co_members c) as [|[|]]; [ | | discriminate]. inv i0. simpl.
  if_tac. subst. 
- simpl in H1. destruct (id_in_list i (map fst m)) eqn:?; try discriminate.
+ simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  destruct i0. inv H. auto.
  apply id_in_list_false in Heqb.
- elimtype False. apply Heqb. apply (in_map fst) in H. apply H.
- apply IHm.
+ elimtype False. apply Heqb. apply (in_map name_member) in H. apply H.
+ apply IHm; auto.  
  destruct i0. inv H0. contradiction. auto.
- simpl in H1. destruct (id_in_list i (map fst m)) eqn:?; try discriminate.
+ simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  auto.
 Qed.
 

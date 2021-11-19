@@ -1,10 +1,12 @@
 From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
+Import Clightdefs.ClightNotations.
 Local Open Scope Z_scope.
 Local Open Scope string_scope.
+Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.8".
+  Definition version := "3.9".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -23,21 +25,21 @@ Definition _FT1 : ident := 7%positive.
 Definition _FT2 : ident := 8%positive.
 Definition _FT3 : ident := 9%positive.
 Definition _RCON : ident := 15%positive.
-Definition _RK : ident := 110%positive.
+Definition _RK : ident := 93%positive.
 Definition _RSb : ident := 10%positive.
 Definition _RT0 : ident := 11%positive.
 Definition _RT1 : ident := 12%positive.
 Definition _RT2 : ident := 13%positive.
 Definition _RT3 : ident := 14%positive.
-Definition _SK : ident := 127%positive.
-Definition _X0 : ident := 133%positive.
-Definition _X1 : ident := 134%positive.
-Definition _X2 : ident := 135%positive.
-Definition _X3 : ident := 136%positive.
-Definition _Y0 : ident := 137%positive.
-Definition _Y1 : ident := 138%positive.
-Definition _Y2 : ident := 139%positive.
-Definition _Y3 : ident := 140%positive.
+Definition _SK : ident := 110%positive.
+Definition _X0 : ident := 116%positive.
+Definition _X1 : ident := 117%positive.
+Definition _X2 : ident := 118%positive.
+Definition _X3 : ident := 119%positive.
+Definition _Y0 : ident := 120%positive.
+Definition _Y1 : ident := 121%positive.
+Definition _Y2 : ident := 122%positive.
+Definition _Y3 : ident := 123%positive.
 Definition ___builtin_annot : ident := 33%positive.
 Definition ___builtin_annot_intval : ident := 34%positive.
 Definition ___builtin_bswap : ident := 18%positive.
@@ -50,177 +52,179 @@ Definition ___builtin_clzll : ident := 23%positive.
 Definition ___builtin_ctz : ident := 24%positive.
 Definition ___builtin_ctzl : ident := 25%positive.
 Definition ___builtin_ctzll : ident := 26%positive.
-Definition ___builtin_debug : ident := 69%positive.
+Definition ___builtin_debug : ident := 52%positive.
+Definition ___builtin_expect : ident := 41%positive.
 Definition ___builtin_fabs : ident := 27%positive.
 Definition ___builtin_fabsf : ident := 28%positive.
-Definition ___builtin_fmadd : ident := 61%positive.
-Definition ___builtin_fmax : ident := 59%positive.
-Definition ___builtin_fmin : ident := 60%positive.
-Definition ___builtin_fmsub : ident := 62%positive.
-Definition ___builtin_fnmadd : ident := 63%positive.
-Definition ___builtin_fnmsub : ident := 64%positive.
+Definition ___builtin_fmadd : ident := 44%positive.
+Definition ___builtin_fmax : ident := 42%positive.
+Definition ___builtin_fmin : ident := 43%positive.
+Definition ___builtin_fmsub : ident := 45%positive.
+Definition ___builtin_fnmadd : ident := 46%positive.
+Definition ___builtin_fnmsub : ident := 47%positive.
 Definition ___builtin_fsqrt : ident := 29%positive.
 Definition ___builtin_membar : ident := 35%positive.
 Definition ___builtin_memcpy_aligned : ident := 31%positive.
-Definition ___builtin_read16_reversed : ident := 65%positive.
-Definition ___builtin_read32_reversed : ident := 66%positive.
+Definition ___builtin_read16_reversed : ident := 48%positive.
+Definition ___builtin_read32_reversed : ident := 49%positive.
 Definition ___builtin_sel : ident := 32%positive.
 Definition ___builtin_sqrt : ident := 30%positive.
+Definition ___builtin_unreachable : ident := 40%positive.
 Definition ___builtin_va_arg : ident := 37%positive.
 Definition ___builtin_va_copy : ident := 38%positive.
 Definition ___builtin_va_end : ident := 39%positive.
 Definition ___builtin_va_start : ident := 36%positive.
-Definition ___builtin_write16_reversed : ident := 67%positive.
-Definition ___builtin_write32_reversed : ident := 68%positive.
-Definition ___compcert_i64_dtos : ident := 44%positive.
-Definition ___compcert_i64_dtou : ident := 45%positive.
-Definition ___compcert_i64_sar : ident := 56%positive.
-Definition ___compcert_i64_sdiv : ident := 50%positive.
-Definition ___compcert_i64_shl : ident := 54%positive.
-Definition ___compcert_i64_shr : ident := 55%positive.
-Definition ___compcert_i64_smod : ident := 52%positive.
-Definition ___compcert_i64_smulh : ident := 57%positive.
-Definition ___compcert_i64_stod : ident := 46%positive.
-Definition ___compcert_i64_stof : ident := 48%positive.
-Definition ___compcert_i64_udiv : ident := 51%positive.
-Definition ___compcert_i64_umod : ident := 53%positive.
-Definition ___compcert_i64_umulh : ident := 58%positive.
-Definition ___compcert_i64_utod : ident := 47%positive.
-Definition ___compcert_i64_utof : ident := 49%positive.
-Definition ___compcert_va_composite : ident := 43%positive.
-Definition ___compcert_va_float64 : ident := 42%positive.
-Definition ___compcert_va_int32 : ident := 40%positive.
-Definition ___compcert_va_int64 : ident := 41%positive.
-Definition ___stringlit_1 : ident := 177%positive.
-Definition ___stringlit_2 : ident := 178%positive.
-Definition ___stringlit_3 : ident := 179%positive.
-Definition ___stringlit_4 : ident := 180%positive.
-Definition ___stringlit_5 : ident := 181%positive.
-Definition ___stringlit_6 : ident := 182%positive.
-Definition _aes_gen_tables : ident := 103%positive.
-Definition _aes_init_done : ident := 78%positive.
+Definition ___builtin_write16_reversed : ident := 50%positive.
+Definition ___builtin_write32_reversed : ident := 51%positive.
+Definition ___compcert_i64_dtos : ident := 171%positive.
+Definition ___compcert_i64_dtou : ident := 172%positive.
+Definition ___compcert_i64_sar : ident := 183%positive.
+Definition ___compcert_i64_sdiv : ident := 177%positive.
+Definition ___compcert_i64_shl : ident := 181%positive.
+Definition ___compcert_i64_shr : ident := 182%positive.
+Definition ___compcert_i64_smod : ident := 179%positive.
+Definition ___compcert_i64_smulh : ident := 184%positive.
+Definition ___compcert_i64_stod : ident := 173%positive.
+Definition ___compcert_i64_stof : ident := 175%positive.
+Definition ___compcert_i64_udiv : ident := 178%positive.
+Definition ___compcert_i64_umod : ident := 180%positive.
+Definition ___compcert_i64_umulh : ident := 185%positive.
+Definition ___compcert_i64_utod : ident := 174%positive.
+Definition ___compcert_i64_utof : ident := 176%positive.
+Definition ___compcert_va_composite : ident := 170%positive.
+Definition ___compcert_va_float64 : ident := 169%positive.
+Definition ___compcert_va_int32 : ident := 167%positive.
+Definition ___compcert_va_int64 : ident := 168%positive.
+Definition ___stringlit_1 : ident := 160%positive.
+Definition ___stringlit_2 : ident := 161%positive.
+Definition ___stringlit_3 : ident := 162%positive.
+Definition ___stringlit_4 : ident := 163%positive.
+Definition ___stringlit_5 : ident := 164%positive.
+Definition ___stringlit_6 : ident := 165%positive.
+Definition _aes_gen_tables : ident := 86%positive.
+Definition _aes_init_done : ident := 61%positive.
 Definition _aes_tables_struct : ident := 16%positive.
-Definition _aes_test_ecb_dec : ident := 172%positive.
-Definition _aes_test_ecb_enc : ident := 173%positive.
-Definition _b0 : ident := 112%positive.
-Definition _b0__1 : ident := 119%positive.
-Definition _b0__2 : ident := 141%positive.
-Definition _b0__3 : ident := 145%positive.
-Definition _b0__4 : ident := 149%positive.
-Definition _b0__5 : ident := 154%positive.
-Definition _b0__6 : ident := 159%positive.
-Definition _b0__7 : ident := 164%positive.
-Definition _b1 : ident := 113%positive.
-Definition _b1__1 : ident := 120%positive.
-Definition _b1__2 : ident := 142%positive.
-Definition _b1__3 : ident := 146%positive.
-Definition _b1__4 : ident := 150%positive.
-Definition _b1__5 : ident := 155%positive.
-Definition _b1__6 : ident := 160%positive.
-Definition _b1__7 : ident := 165%positive.
-Definition _b2 : ident := 114%positive.
-Definition _b2__1 : ident := 121%positive.
-Definition _b2__2 : ident := 143%positive.
-Definition _b2__3 : ident := 147%positive.
-Definition _b2__4 : ident := 151%positive.
-Definition _b2__5 : ident := 156%positive.
-Definition _b2__6 : ident := 161%positive.
-Definition _b2__7 : ident := 166%positive.
-Definition _b3 : ident := 115%positive.
-Definition _b3__1 : ident := 122%positive.
-Definition _b3__2 : ident := 144%positive.
-Definition _b3__3 : ident := 148%positive.
-Definition _b3__4 : ident := 152%positive.
-Definition _b3__5 : ident := 157%positive.
-Definition _b3__6 : ident := 162%positive.
-Definition _b3__7 : ident := 167%positive.
+Definition _aes_test_ecb_dec : ident := 155%positive.
+Definition _aes_test_ecb_enc : ident := 156%positive.
+Definition _b0 : ident := 95%positive.
+Definition _b0__1 : ident := 102%positive.
+Definition _b0__2 : ident := 124%positive.
+Definition _b0__3 : ident := 128%positive.
+Definition _b0__4 : ident := 132%positive.
+Definition _b0__5 : ident := 137%positive.
+Definition _b0__6 : ident := 142%positive.
+Definition _b0__7 : ident := 147%positive.
+Definition _b1 : ident := 96%positive.
+Definition _b1__1 : ident := 103%positive.
+Definition _b1__2 : ident := 125%positive.
+Definition _b1__3 : ident := 129%positive.
+Definition _b1__4 : ident := 133%positive.
+Definition _b1__5 : ident := 138%positive.
+Definition _b1__6 : ident := 143%positive.
+Definition _b1__7 : ident := 148%positive.
+Definition _b2 : ident := 97%positive.
+Definition _b2__1 : ident := 104%positive.
+Definition _b2__2 : ident := 126%positive.
+Definition _b2__3 : ident := 130%positive.
+Definition _b2__4 : ident := 134%positive.
+Definition _b2__5 : ident := 139%positive.
+Definition _b2__6 : ident := 144%positive.
+Definition _b2__7 : ident := 149%positive.
+Definition _b3 : ident := 98%positive.
+Definition _b3__1 : ident := 105%positive.
+Definition _b3__2 : ident := 127%positive.
+Definition _b3__3 : ident := 131%positive.
+Definition _b3__4 : ident := 135%positive.
+Definition _b3__5 : ident := 140%positive.
+Definition _b3__6 : ident := 145%positive.
+Definition _b3__7 : ident := 150%positive.
 Definition _buf : ident := 3%positive.
-Definition _ctx : ident := 104%positive.
-Definition _cty : ident := 126%positive.
-Definition _exit : ident := 129%positive.
-Definition _i : ident := 79%positive.
-Definition _input : ident := 131%positive.
-Definition _iv : ident := 176%positive.
-Definition _j : ident := 124%positive.
-Definition _key : ident := 107%positive.
-Definition _key_word : ident := 109%positive.
-Definition _keybits : ident := 108%positive.
-Definition _log : ident := 84%positive.
-Definition _logi : ident := 86%positive.
-Definition _logx : ident := 91%positive.
-Definition _logx__1 : ident := 94%positive.
-Definition _logx__2 : ident := 97%positive.
-Definition _logx__3 : ident := 100%positive.
-Definition _logy : ident := 92%positive.
-Definition _logy__1 : ident := 95%positive.
-Definition _logy__2 : ident := 98%positive.
-Definition _logy__3 : ident := 101%positive.
-Definition _m : ident := 93%positive.
-Definition _m__1 : ident := 96%positive.
-Definition _m__2 : ident := 99%positive.
-Definition _m__3 : ident := 102%positive.
-Definition _main : ident := 184%positive.
+Definition _ctx : ident := 87%positive.
+Definition _cty : ident := 109%positive.
+Definition _exit : ident := 112%positive.
+Definition _i : ident := 62%positive.
+Definition _input : ident := 114%positive.
+Definition _iv : ident := 159%positive.
+Definition _j : ident := 107%positive.
+Definition _key : ident := 90%positive.
+Definition _key_word : ident := 92%positive.
+Definition _keybits : ident := 91%positive.
+Definition _log : ident := 67%positive.
+Definition _logi : ident := 69%positive.
+Definition _logx : ident := 74%positive.
+Definition _logx__1 : ident := 77%positive.
+Definition _logx__2 : ident := 80%positive.
+Definition _logx__3 : ident := 83%positive.
+Definition _logy : ident := 75%positive.
+Definition _logy__1 : ident := 78%positive.
+Definition _logy__2 : ident := 81%positive.
+Definition _logy__3 : ident := 84%positive.
+Definition _m : ident := 76%positive.
+Definition _m__1 : ident := 79%positive.
+Definition _m__2 : ident := 82%positive.
+Definition _m__3 : ident := 85%positive.
+Definition _main : ident := 186%positive.
 Definition _mbedtls_aes_context_struct : ident := 4%positive.
-Definition _mbedtls_aes_crypt_ecb : ident := 171%positive.
-Definition _mbedtls_aes_decrypt : ident := 169%positive.
-Definition _mbedtls_aes_encrypt : ident := 168%positive.
-Definition _mbedtls_aes_free : ident := 106%positive.
-Definition _mbedtls_aes_init : ident := 105%positive.
-Definition _mbedtls_aes_self_test : ident := 183%positive.
-Definition _mbedtls_aes_setkey_dec : ident := 130%positive.
-Definition _mbedtls_aes_setkey_enc : ident := 123%positive.
-Definition _mbedtls_zeroize : ident := 76%positive.
-Definition _memcmp : ident := 70%positive.
-Definition _memset : ident := 71%positive.
-Definition _mode : ident := 170%positive.
-Definition _n : ident := 74%positive.
+Definition _mbedtls_aes_crypt_ecb : ident := 154%positive.
+Definition _mbedtls_aes_decrypt : ident := 152%positive.
+Definition _mbedtls_aes_encrypt : ident := 151%positive.
+Definition _mbedtls_aes_free : ident := 89%positive.
+Definition _mbedtls_aes_init : ident := 88%positive.
+Definition _mbedtls_aes_self_test : ident := 166%positive.
+Definition _mbedtls_aes_setkey_dec : ident := 113%positive.
+Definition _mbedtls_aes_setkey_enc : ident := 106%positive.
+Definition _mbedtls_zeroize : ident := 59%positive.
+Definition _memcmp : ident := 53%positive.
+Definition _memset : ident := 54%positive.
+Definition _mode : ident := 153%positive.
+Definition _n : ident := 57%positive.
 Definition _nr : ident := 1%positive.
-Definition _output : ident := 132%positive.
-Definition _p : ident := 75%positive.
-Definition _pow : ident := 83%positive.
-Definition _printf : ident := 72%positive.
-Definition _prod1 : ident := 87%positive.
-Definition _prod2 : ident := 88%positive.
-Definition _prod3 : ident := 89%positive.
-Definition _prod4 : ident := 90%positive.
-Definition _rcon : ident := 118%positive.
-Definition _ret : ident := 125%positive.
+Definition _output : ident := 115%positive.
+Definition _p : ident := 58%positive.
+Definition _pow : ident := 66%positive.
+Definition _printf : ident := 55%positive.
+Definition _prod1 : ident := 70%positive.
+Definition _prod2 : ident := 71%positive.
+Definition _prod3 : ident := 72%positive.
+Definition _prod4 : ident := 73%positive.
+Definition _rcon : ident := 101%positive.
+Definition _ret : ident := 108%positive.
 Definition _rk : ident := 2%positive.
-Definition _rk0 : ident := 116%positive.
-Definition _rk7 : ident := 117%positive.
-Definition _rk__1 : ident := 153%positive.
-Definition _rk__2 : ident := 158%positive.
-Definition _rk__3 : ident := 163%positive.
-Definition _rot : ident := 85%positive.
-Definition _sk : ident := 128%positive.
-Definition _tables : ident := 77%positive.
-Definition _tmp : ident := 111%positive.
-Definition _u : ident := 175%positive.
-Definition _v : ident := 73%positive.
-Definition _verbose : ident := 174%positive.
-Definition _x : ident := 80%positive.
-Definition _y : ident := 81%positive.
-Definition _z : ident := 82%positive.
-Definition _t'1 : ident := 185%positive.
-Definition _t'10 : ident := 194%positive.
-Definition _t'11 : ident := 195%positive.
-Definition _t'12 : ident := 196%positive.
-Definition _t'13 : ident := 197%positive.
-Definition _t'14 : ident := 198%positive.
-Definition _t'15 : ident := 199%positive.
-Definition _t'16 : ident := 200%positive.
-Definition _t'17 : ident := 201%positive.
-Definition _t'18 : ident := 202%positive.
-Definition _t'19 : ident := 203%positive.
-Definition _t'2 : ident := 186%positive.
-Definition _t'20 : ident := 204%positive.
-Definition _t'3 : ident := 187%positive.
-Definition _t'4 : ident := 188%positive.
-Definition _t'5 : ident := 189%positive.
-Definition _t'6 : ident := 190%positive.
-Definition _t'7 : ident := 191%positive.
-Definition _t'8 : ident := 192%positive.
-Definition _t'9 : ident := 193%positive.
+Definition _rk0 : ident := 99%positive.
+Definition _rk7 : ident := 100%positive.
+Definition _rk__1 : ident := 136%positive.
+Definition _rk__2 : ident := 141%positive.
+Definition _rk__3 : ident := 146%positive.
+Definition _rot : ident := 68%positive.
+Definition _sk : ident := 111%positive.
+Definition _tables : ident := 60%positive.
+Definition _tmp : ident := 94%positive.
+Definition _u : ident := 158%positive.
+Definition _v : ident := 56%positive.
+Definition _verbose : ident := 157%positive.
+Definition _x : ident := 63%positive.
+Definition _y : ident := 64%positive.
+Definition _z : ident := 65%positive.
+Definition _t'1 : ident := 187%positive.
+Definition _t'10 : ident := 196%positive.
+Definition _t'11 : ident := 197%positive.
+Definition _t'12 : ident := 198%positive.
+Definition _t'13 : ident := 199%positive.
+Definition _t'14 : ident := 200%positive.
+Definition _t'15 : ident := 201%positive.
+Definition _t'16 : ident := 202%positive.
+Definition _t'17 : ident := 203%positive.
+Definition _t'18 : ident := 204%positive.
+Definition _t'19 : ident := 205%positive.
+Definition _t'2 : ident := 188%positive.
+Definition _t'20 : ident := 206%positive.
+Definition _t'3 : ident := 189%positive.
+Definition _t'4 : ident := 190%positive.
+Definition _t'5 : ident := 191%positive.
+Definition _t'6 : ident := 192%positive.
+Definition _t'7 : ident := 193%positive.
+Definition _t'8 : ident := 194%positive.
+Definition _t'9 : ident := 195%positive.
 
 Definition v___stringlit_3 := {|
   gvar_info := (tarray tschar 21);
@@ -6446,19 +6450,110 @@ Definition f_mbedtls_aes_self_test := {|
 
 Definition composites : list composite_definition :=
 (Composite _mbedtls_aes_context_struct Struct
-   ((_nr, tint) :: (_rk, (tptr tuint)) :: (_buf, (tarray tuint 68)) :: nil)
+   (Member_plain _nr tint :: Member_plain _rk (tptr tuint) ::
+    Member_plain _buf (tarray tuint 68) :: nil)
    noattr ::
  Composite _aes_tables_struct Struct
-   ((_FSb, (tarray tuchar 256)) :: (_FT0, (tarray tuint 256)) ::
-    (_FT1, (tarray tuint 256)) :: (_FT2, (tarray tuint 256)) ::
-    (_FT3, (tarray tuint 256)) :: (_RSb, (tarray tuchar 256)) ::
-    (_RT0, (tarray tuint 256)) :: (_RT1, (tarray tuint 256)) ::
-    (_RT2, (tarray tuint 256)) :: (_RT3, (tarray tuint 256)) ::
-    (_RCON, (tarray tuint 10)) :: nil)
+   (Member_plain _FSb (tarray tuchar 256) ::
+    Member_plain _FT0 (tarray tuint 256) ::
+    Member_plain _FT1 (tarray tuint 256) ::
+    Member_plain _FT2 (tarray tuint 256) ::
+    Member_plain _FT3 (tarray tuint 256) ::
+    Member_plain _RSb (tarray tuchar 256) ::
+    Member_plain _RT0 (tarray tuint 256) ::
+    Member_plain _RT1 (tarray tuint 256) ::
+    Member_plain _RT2 (tarray tuint 256) ::
+    Member_plain _RT3 (tarray tuint 256) ::
+    Member_plain _RCON (tarray tuint 10) :: nil)
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
-((___stringlit_3, Gvar v___stringlit_3) ::
+((___compcert_va_int32,
+   Gfun(External (EF_runtime "__compcert_va_int32"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
+ (___compcert_va_int64,
+   Gfun(External (EF_runtime "__compcert_va_int64"
+                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
+     (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
+ (___compcert_va_float64,
+   Gfun(External (EF_runtime "__compcert_va_float64"
+                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
+     (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
+ (___compcert_va_composite,
+   Gfun(External (EF_runtime "__compcert_va_composite"
+                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+     (tptr tvoid) cc_default)) ::
+ (___compcert_i64_dtos,
+   Gfun(External (EF_runtime "__compcert_i64_dtos"
+                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
+     (Tcons tdouble Tnil) tlong cc_default)) ::
+ (___compcert_i64_dtou,
+   Gfun(External (EF_runtime "__compcert_i64_dtou"
+                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
+     (Tcons tdouble Tnil) tulong cc_default)) ::
+ (___compcert_i64_stod,
+   Gfun(External (EF_runtime "__compcert_i64_stod"
+                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
+     (Tcons tlong Tnil) tdouble cc_default)) ::
+ (___compcert_i64_utod,
+   Gfun(External (EF_runtime "__compcert_i64_utod"
+                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
+     (Tcons tulong Tnil) tdouble cc_default)) ::
+ (___compcert_i64_stof,
+   Gfun(External (EF_runtime "__compcert_i64_stof"
+                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
+     (Tcons tlong Tnil) tfloat cc_default)) ::
+ (___compcert_i64_utof,
+   Gfun(External (EF_runtime "__compcert_i64_utof"
+                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
+     (Tcons tulong Tnil) tfloat cc_default)) ::
+ (___compcert_i64_sdiv,
+   Gfun(External (EF_runtime "__compcert_i64_sdiv"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_udiv,
+   Gfun(External (EF_runtime "__compcert_i64_udiv"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+     cc_default)) ::
+ (___compcert_i64_smod,
+   Gfun(External (EF_runtime "__compcert_i64_smod"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_umod,
+   Gfun(External (EF_runtime "__compcert_i64_umod"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+     cc_default)) ::
+ (___compcert_i64_shl,
+   Gfun(External (EF_runtime "__compcert_i64_shl"
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_shr,
+   Gfun(External (EF_runtime "__compcert_i64_shr"
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
+                     cc_default)) (Tcons tulong (Tcons tint Tnil)) tulong
+     cc_default)) ::
+ (___compcert_i64_sar,
+   Gfun(External (EF_runtime "__compcert_i64_sar"
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_smulh,
+   Gfun(External (EF_runtime "__compcert_i64_smulh"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
+     cc_default)) ::
+ (___compcert_i64_umulh,
+   Gfun(External (EF_runtime "__compcert_i64_umulh"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+     cc_default)) :: (___stringlit_3, Gvar v___stringlit_3) ::
  (___stringlit_1, Gvar v___stringlit_1) ::
  (___stringlit_5, Gvar v___stringlit_5) ::
  (___stringlit_6, Gvar v___stringlit_6) ::
@@ -6567,91 +6662,14 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_builtin "__builtin_va_end"
                    (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
- (___compcert_va_int32,
-   Gfun(External (EF_external "__compcert_va_int32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
- (___compcert_va_int64,
-   Gfun(External (EF_external "__compcert_va_int64"
-                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
-     (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
- (___compcert_va_float64,
-   Gfun(External (EF_external "__compcert_va_float64"
-                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
-     (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
- (___compcert_va_composite,
-   Gfun(External (EF_external "__compcert_va_composite"
+ (___builtin_unreachable,
+   Gfun(External (EF_builtin "__builtin_unreachable"
+                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+     cc_default)) ::
+ (___builtin_expect,
+   Gfun(External (EF_builtin "__builtin_expect"
                    (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     (tptr tvoid) cc_default)) ::
- (___compcert_i64_dtos,
-   Gfun(External (EF_runtime "__compcert_i64_dtos"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tlong cc_default)) ::
- (___compcert_i64_dtou,
-   Gfun(External (EF_runtime "__compcert_i64_dtou"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tulong cc_default)) ::
- (___compcert_i64_stod,
-   Gfun(External (EF_runtime "__compcert_i64_stod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tlong Tnil) tdouble cc_default)) ::
- (___compcert_i64_utod,
-   Gfun(External (EF_runtime "__compcert_i64_utod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tulong Tnil) tdouble cc_default)) ::
- (___compcert_i64_stof,
-   Gfun(External (EF_runtime "__compcert_i64_stof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tlong Tnil) tfloat cc_default)) ::
- (___compcert_i64_utof,
-   Gfun(External (EF_runtime "__compcert_i64_utof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tulong Tnil) tfloat cc_default)) ::
- (___compcert_i64_sdiv,
-   Gfun(External (EF_runtime "__compcert_i64_sdiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_udiv,
-   Gfun(External (EF_runtime "__compcert_i64_udiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
-     cc_default)) ::
- (___compcert_i64_smod,
-   Gfun(External (EF_runtime "__compcert_i64_smod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_umod,
-   Gfun(External (EF_runtime "__compcert_i64_umod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
-     cc_default)) ::
- (___compcert_i64_shl,
-   Gfun(External (EF_runtime "__compcert_i64_shl"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_shr,
-   Gfun(External (EF_runtime "__compcert_i64_shr"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tint Tnil)) tulong
-     cc_default)) ::
- (___compcert_i64_sar,
-   Gfun(External (EF_runtime "__compcert_i64_sar"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_smulh,
-   Gfun(External (EF_runtime "__compcert_i64_smulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
- (___compcert_i64_umulh,
-   Gfun(External (EF_runtime "__compcert_i64_umulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                     cc_default)) (Tcons tint (Tcons tint Tnil)) tint
      cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
@@ -6757,20 +6775,21 @@ Definition public_idents : list ident :=
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
  ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
  ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
  ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
  ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
  ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
  ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
  ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
- ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 :: nil).
+ ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
+ ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
+ ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
+ ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
+ ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
+ ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

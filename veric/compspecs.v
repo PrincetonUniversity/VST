@@ -6,7 +6,7 @@ Require Import VST.veric.align_mem.
 Import compcert.lib.Maps.
 
 Definition members_no_replicate (m: members) : bool :=
-  compute_list_norepet (map fst m).
+  compute_list_norepet (map name_member m).
 
 Definition composite_legal_fieldlist (co: composite): Prop :=
   members_no_replicate (co_members co) = true.

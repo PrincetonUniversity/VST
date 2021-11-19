@@ -115,17 +115,18 @@ all:  destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
      auto .. ]); auto;
   try (unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast; repeat simple_if_tac; reflexivity).
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   simpl in *; unfold always; auto.
+   simpl in *; unfold always; auto;
    destruct (cenv_cs ! i0) as [co |]; auto.
-   destruct (field_offset cenv_cs i (co_members co)); auto.
+ -
+   destruct (field_offset cenv_cs i (co_members co)) as [[? [|]]|]; auto.
    f_equal.
    apply eval_lvalue_any; auto.
    intro. rewrite H in H0. apply H0; reflexivity.
-   unfold force_ptr in *.
+ -
+   destruct (union_field_offset cenv_cs i (co_members co)) as [[? [|]]|]; auto.
    destruct (eval_lvalue e any_environ) eqn:?; simpl in *;
-   destruct (cenv_cs ! i0);
    try congruence.
-   rewrite (eval_lvalue_any _ _ _ _ Heqv); auto.
+   rewrite (eval_lvalue_any _ _ _ _ Heqv); auto. congruence.
 }
 { clear eval_lvalue_any.
  intro.
@@ -136,17 +137,18 @@ all:  destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
 *
   apply eval_expr_any; auto.
   * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-    simpl in *; unfold always; auto.
+    simpl in *; unfold always; auto;
     destruct (cenv_cs ! i0) as [co |]; auto.
-    destruct (field_offset cenv_cs i (co_members co)); auto.
+   -
+    destruct (field_offset cenv_cs i (co_members co)) as [[? [|]]|]; auto.
     f_equal.
     apply IHe; auto.
     intro. rewrite H in H0. apply H0; reflexivity.
-    unfold force_ptr in *.
+   -
+    destruct (union_field_offset cenv_cs i (co_members co)) as [[? [|]]|]; auto.
     destruct (eval_lvalue e any_environ) eqn:?; simpl in *;
-    destruct (cenv_cs ! i0);
     try congruence.
-    rewrite (IHe _ (eq_refl _)); auto.
+    rewrite (IHe _ (eq_refl _)); auto. congruence.
 }
 Qed.
 

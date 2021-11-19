@@ -727,8 +727,7 @@ assert (H8 := @msubst_eval_expr_eq cs Delta P Qtemp Qvar GV R a v H0).
 eapply local2ptree_soundness' in H.
 simpl in H; rewrite <- H in H8.
 eapply derives_trans, H8.
-unfold LocalD.
-rewrite !PTree.fold_spec. simpl fold_left. rewrite app_nil_r; auto.
+rewrite app_nil_r; auto.
 Qed.
 
 Lemma can_assume_funcptr2:

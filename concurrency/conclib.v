@@ -1888,9 +1888,8 @@ Proof.
   - destruct (PTree.get _ _); auto.
   - unfold make_tycontext_g.
     revert dependent G2; revert dependent V2; revert V; induction G; simpl.
-    + induction V; simpl; intros.
-      * rewrite PTree.gempty; simpl; auto.
-      * rewrite incl_cons_iff in HV; destruct HV.
+    + induction V; simpl; intros. auto.
+        rewrite incl_cons_iff in HV; destruct HV.
         rewrite PTree.gsspec.
         destruct (peq id (fst a)); eauto; subst; simpl.
         rewrite lookup_out.
@@ -1904,7 +1903,7 @@ Proof.
       apply lookup_distinct; auto.
   - unfold make_tycontext_s.
     revert dependent G2; induction G; simpl; intros.
-    + rewrite PTree.gempty; simpl; auto.
+    + auto.
     + destruct a; simpl. hnf.
       rewrite incl_cons_iff in HG; destruct HG.
       rewrite PTree.gsspec.
@@ -2739,23 +2738,23 @@ Qed.
 
 Lemma struct_pred_value_cohere : forall {cs : compspecs} m sh1 sh2 p t f off v1 v2
   (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
-  (IH : Forall (fun it : ident * type => forall v1 v2 (p : val),
+  (IH : Forall (fun it : member => forall v1 v2 (p : val),
         readable_share sh1 -> readable_share sh2 ->
         data_at_rec sh1 (t it) v1 p * data_at_rec sh2 (t it) v2 p |--
         data_at_rec sh1 (t it) v1 p * data_at_rec sh2 (t it) v1 p) m),
-  struct_pred m (fun (it : ident * type) v =>
+  struct_pred m (fun (it : member) v =>
     withspacer sh1 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh1 (t it) v) (f it))) v1 p *
-  struct_pred m (fun (it : ident * type) v =>
+  struct_pred m (fun (it : member) v =>
     withspacer sh2 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh2 (t it) v) (f it))) v2 p |--
-  struct_pred m (fun (it : ident * type) v =>
+  struct_pred m (fun (it : member) v =>
     withspacer sh1 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh1 (t it) v) (f it))) v1 p *
-  struct_pred m (fun (it : ident * type) v =>
+  struct_pred m (fun (it : member) v =>
     withspacer sh2 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh2 (t it) v) (f it))) v1 p.
 Proof.
   intros.
   revert v1 v2; induction m; auto; intros.
   apply derives_refl.
-  destruct a; inv IH.
+  inv IH.
   destruct m.
   - unfold withspacer, at_offset; simpl.
     if_tac; auto.

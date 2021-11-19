@@ -441,13 +441,16 @@ Proof.
       apply (IHl a1 c c0); auto.
 Qed.
 
-Lemma upd_compact_prod_JMeq: forall A i (l: list A) {F1: A -> Type} {F2: A -> Type} d1 d2 (v1: compact_prod (map F1 l)) (v2: compact_prod (map F2 l)) H,
+Lemma upd_compact_prod_JMeq: forall A i1 i2 (l: list A) {F1: A -> Type} {F2: A -> Type} 
+  (d1 : F1 i1) (d2 : F2 i2)
+  (v1: compact_prod (map F1 l)) (v2: compact_prod (map F2 l)) H,
+  i1=i2 ->
   (forall i, In i l -> @eq Type (F1 i) (F2 i)) ->
   JMeq d1 d2 ->
   JMeq v1 v2 ->
-  JMeq (upd_compact_prod l v1 i d1 H) (upd_compact_prod l v2 i d2 H).
+  JMeq (upd_compact_prod l v1 i1 d1 H) (upd_compact_prod l v2 i2 d2 H).
 Proof.
-  intros.
+  intros until 1. subst i2. rename i1 into i. intros.
   destruct l as [| a0 l]; [simpl; auto |].
   revert a0 v1 v2 H2 H0; induction l as [| a1 l]; intros.
   + simpl.
@@ -485,13 +488,15 @@ Proof.
       intros; apply H0; simpl; auto.
 Qed.
 
-Lemma upd_compact_sum_JMeq: forall A i (l: list A) {F1: A -> Type} {F2: A -> Type} d1 d2 (v1: compact_sum (map F1 l)) (v2: compact_sum (map F2 l)) H,
+Lemma upd_compact_sum_JMeq: forall A i1 i2 (l: list A) {F1: A -> Type} {F2: A -> Type} 
+  (d1 : F1 i1) (d2 : F2 i2) (v1: compact_sum (map F1 l)) (v2: compact_sum (map F2 l)) H,
+  i1=i2 ->
   (forall i, In i l -> @eq Type (F1 i) (F2 i)) ->
   JMeq d1 d2 ->
   JMeq v1 v2 ->
-  JMeq (upd_compact_sum l v1 i d1 H) (upd_compact_sum l v2 i d2 H).
+  JMeq (upd_compact_sum l v1 i1 d1 H) (upd_compact_sum l v2 i2 d2 H).
 Proof.
-  intros.
+  intros until 1. subst i2. rename i1 into i. intros.
   unfold upd_compact_sum.
   destruct (in_dec H i l) as [?H | ?H]; auto.
   clear v1 v2 H2.

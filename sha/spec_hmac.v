@@ -394,7 +394,7 @@ Proof.
   assert (@align_compatible spec_sha.CompSpecs t_struct_SHA256state_st v <-> @align_compatible CompSpecs t_struct_SHA256state_st v); [| tauto].
   destruct v; unfold align_compatible; try tauto.
   split; intros.
-  + eapply align_compatible_rec_Tstruct; [reflexivity | simpl co_members].
+  + eapply align_compatible_rec_Tstruct; [reflexivity.. | simpl co_members].
     intros.
     eapply align_compatible_rec_Tstruct_inv in H; [| reflexivity | eassumption | eassumption].
     simpl in H0.
@@ -420,7 +420,7 @@ Proof.
     - eapply align_compatible_rec_by_value; [reflexivity |].
       eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
       auto.
-  + eapply align_compatible_rec_Tstruct; [reflexivity | simpl co_members].
+  + eapply align_compatible_rec_Tstruct; [reflexivity.. | simpl co_members].
     intros.
     eapply align_compatible_rec_Tstruct_inv in H; [| reflexivity | eassumption | eassumption].
     simpl in H0.

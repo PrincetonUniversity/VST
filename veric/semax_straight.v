@@ -22,6 +22,9 @@ Require Import VST.veric.binop_lemmas4.
 Local Open Scope pred.
 Import LiftNotation.
 Import compcert.lib.Maps.
+
+Transparent intsize_eq.
+
 Section extensions.
   Context {CS: compspecs} {Espec: OracleKind}.
   
@@ -487,7 +490,7 @@ Proof.
         destruct (Pos.eq_dec id i).
         {
           subst.
-          left. unfold modifiedvars. simpl.
+          left. unfold modifiedvars, modifiedvars', insert_idset.
           unfold insert_idset; rewrite PTree.gss; hnf; auto.
         }
         {
@@ -617,7 +620,7 @@ Proof.
       intros.
       destruct (Pos.eq_dec id i).
       * subst.
-        left. unfold modifiedvars. simpl.
+        left. unfold modifiedvars, modifiedvars', insert_idset.
         unfold insert_idset; rewrite PTree.gss; hnf; auto.
       * right.
         rewrite Map.gso; auto. subst; auto.
@@ -744,8 +747,8 @@ rewrite <- Hcl; auto.
 intros.
 destruct (Pos.eq_dec id i).
 subst.
-left. unfold modifiedvars. simpl.
- unfold insert_idset; rewrite PTree.gss; hnf; auto.
+left. unfold modifiedvars, modifiedvars', insert_idset.
+  rewrite PTree.gss; hnf; auto.
 right.
 rewrite Map.gso; auto. subst; auto.
 apply exp_right with (eval_id id rho).
@@ -869,8 +872,8 @@ rewrite <- Hcl; auto.
 intros.
 destruct (Pos.eq_dec id i).
 subst.
-left. unfold modifiedvars. simpl.
- unfold insert_idset; rewrite PTree.gss; hnf; auto.
+left. unfold modifiedvars, modifiedvars', insert_idset. 
+ rewrite PTree.gss; hnf; auto.
 right.
 rewrite Map.gso; auto. subst; auto.
 apply exp_right with (eval_id id rho).
@@ -1001,7 +1004,7 @@ apply (neutral_cast_subsumption _ t2 _ TC1 TC3).
 split; [split3 | ].
 * simpl.
    rewrite <- (age_jm_dry H); constructor; auto.
-   apply Clight.eval_Elvalue with b ofs; auto.
+   apply Clight.eval_Elvalue with b ofs Full; auto.
    destruct H0 as [H0 _].
    assert ((|> (F rho * P rho))%pred
        (m_phi jm)).
@@ -1068,8 +1071,8 @@ split; [split3 | ].
   intros ? ?; simpl.
   unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
  +intro i; destruct (Pos.eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
-   subst; unfold modifiedvars. simpl.
-   unfold insert_idset; rewrite PTree.gss; hnf; auto.
+   subst; unfold modifiedvars, modifiedvars', insert_idset.
+   rewrite PTree.gss; hnf; auto.
    subst. auto.
 Qed.
 
@@ -1222,8 +1225,8 @@ split; [split3 | ].
     unfold eval_id, force_val. simpl. rewrite Map.gss. auto. 
   - unfold eval_cast, force_val1 in H4. unfold liftx, lift; simpl. rewrite H4; trivial.
  + intro i; destruct (Pos.eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
-   subst; unfold modifiedvars. simpl.
-   unfold insert_idset; rewrite PTree.gss; hnf; auto.
+   subst; unfold modifiedvars, modifiedvars', insert_idset.
+   rewrite PTree.gss; hnf; auto.
    subst. auto.
 Qed.
 
@@ -1508,131 +1511,11 @@ exists x.
 auto.
 Qed.
 
-(* OLD PROOF:
-Lemma address_mapsto_can_store: forall jm ch v sh (wsh: writable0_share sh) b ofs v' my,
-       (address_mapsto ch v sh (b, Ptrofs.unsigned ofs) * exactly my)%pred (m_phi jm) ->
-       decode_val ch (encode_val ch v') = v' ->
-       exists m',
-       {H: Mem.store ch (m_dry jm) b (Ptrofs.unsigned ofs) v' = Some m'|
-       (address_mapsto ch v' sh (b, Ptrofs.unsigned ofs) * exactly my)%pred 
-       (m_phi (store_juicy_mem _ _ _ _ _ _ H))}.
-Proof.
-intros. rename H0 into DE.
-destruct (mapsto_can_store ch v sh wsh b (Ptrofs.unsigned ofs) jm v') as [m' STORE]; auto.
-eapply sepcon_derives; eauto.
-exists m'.
-exists STORE.
-pose proof I.
-destruct H as [m1 [m2 [? [? Hmy]]]].
-do 3 red in Hmy.
-assert (H2 := I); assert (H3 := I).
-forget (Ptrofs.unsigned ofs) as i. clear ofs.
-pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
-                      then YES (Share.lub (res_retain (m1 @ loc)) Share.Rsh) 
-                               (readable_share_lub (writable0_readable writable0_Rsh))
-                               (VAL (contents_at m' loc)) NoneP
-                     else core (m_phi jm @ loc)).
-destruct (make_rmap f (core (ghost_of (m_phi jm))) (level jm)) as [mf [? [? Hg]]].
-unfold f, compose; clear f; extensionality loc.
-symmetry. if_tac.
-unfold resource_fmap. rewrite preds_fmap_NoneP.
-reflexivity.
-generalize (resource_at_approx (m_phi jm) loc);
-destruct (m_phi jm @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; try reflexivity.
-auto.
-rewrite ghost_core; auto.
-
-unfold f in H5; clear f.
-exists mf; exists m2; split3; auto.
-apply resource_at_join2.
-rewrite H4. symmetry. apply (level_store_juicy_mem _ _ _ _ _ _ STORE).
-apply join_level in H; destruct H.
-change R.rmap with rmap in *. change R.ag_rmap with ag_rmap in *.
-rewrite H6; symmetry. apply (level_store_juicy_mem _ _ _ _ _ _ STORE).
-intro; rewrite H5. clear mf H4 H5 Hg.
-simpl m_phi.
-apply (resource_at_join _ _ _ loc) in H.
-destruct H1 as [vl [[? ?] Hg]]. specialize (H4 loc). hnf in H4.
-if_tac.
-destruct H4. hnf in H4. rewrite H4 in H.
-rewrite (proof_irr x (writable0_readable wsh)) in *; clear x.
-destruct (YES_join_full _ _ _ _ _ _ H) as [sh' [nsh' H6]]; auto.
-rewrite H6.
-unfold inflate_store; simpl.
-rewrite resource_at_make_rmap.
-rewrite H6 in H.
-inversion H; clear H.
-subst sh2 k sh p.
-constructor.
-rewrite H4; simpl.
-rewrite writable0_lub_retainer_Rsh; auto.
-apply join_unit1_e in H; auto.
-rewrite H.
-unfold inflate_store; simpl.
-rewrite resource_at_make_rmap.
-rewrite resource_at_approx.
-case_eq (m_phi jm @ loc); simpl; intros.
-rewrite core_NO. constructor. apply join_unit1; auto.
-destruct k; try solve [rewrite core_YES; constructor; apply join_unit1; auto].
-rewrite core_YES.
-destruct (juicy_mem_contents _ _ _ _ _ _ H6). subst p.
-pose proof (store_phi_elsewhere_eq _ _ _ _ _ _ STORE _ _ _ _ H5 H6).
-rewrite H8.
-constructor.
-apply join_unit1; auto.
-rewrite core_PURE; constructor.
-rewrite Hg; simpl.
-unfold inflate_store; rewrite ghost_of_make_rmap.
-destruct H1 as [? [? Hid]].
-rewrite (Hid _ _ (ghost_of_join _ _ _ H)).
-apply core_unit.
-
-unfold address_mapsto in *.
-exists (encode_val ch v').
-destruct H1 as [vl [[[? [? ?]] ?] Hg1]].
-split; [split|].
-split3; auto.
-apply encode_val_length.
-intro loc. hnf.
-if_tac. exists (writable0_readable wsh).
-hnf; rewrite H5.
-rewrite if_true; auto.
-assert (STORE' := Mem.store_mem_contents _ _ _ _ _ _ STORE).
-pose proof (juicy_mem_contents (store_juicy_mem jm m' ch b i v' STORE)).
-pose proof (juicy_mem_access (store_juicy_mem jm m' ch b i v' STORE)).
-pose proof (juicy_mem_max_access (store_juicy_mem jm m' ch b i v' STORE)).
-pose proof I.
-unfold contents_cohere in H10.
-rewrite preds_fmap_NoneP.
-f_equal.
-specialize (H8 loc). rewrite jam_true in H8 by auto.
-destruct H8. hnf in H8. rewrite H8. simpl; auto.
-f_equal.
-clear - STORE H9.
-destruct loc as [b' z].
-destruct H9.
-subst b'.
-rewrite (nth_getN m' b _ _ _ H0).
-rewrite (store_mem_contents _ _ _ _ _ _ STORE).
-rewrite PMap.gss.
-replace (Z.to_nat (size_chunk ch)) with (size_chunk_nat ch) by (destruct ch; simpl; auto).
-rewrite <- (encode_val_length ch v').
-rewrite getN_setN_same.
-apply YES_ext.
-apply (writable0_lub_retainer_Rsh _ wsh).
-generalize (size_chunk_pos ch); lia.
-do 3 red. rewrite H5. rewrite if_false by auto.
-apply core_identity.
-simpl; rewrite Hg; apply core_identity.
-Qed.
-*)
-
 Ltac dec_enc :=
 match goal with
 [ |- decode_val ?CH _ = ?V] => assert (DE := decode_encode_val_general V CH CH);
                                apply decode_encode_val_similar in DE; auto
 end.
-
 
 Lemma load_cast:
  forall (t: type) (e2 : expr) (ch : memory_chunk) rho phi m,
@@ -1652,7 +1535,7 @@ assert (size_chunk ch = sizeof t). {
 unfold sizeof in *.
 destruct ch;
  destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try solve [inv H1];
-simpl in *; (*try destruct i; try destruct s; try destruct f;*)
+simpl in *; 
  try solve [inv H1]; clear H1; destruct (eval_expr e2 rho);
  destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] ;
  try solve [inv H];

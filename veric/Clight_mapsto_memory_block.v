@@ -197,7 +197,7 @@ Proof.
  f_equal; auto.
 Qed.
 
-Require Import compcert.exportclight.Clightdefs.
+Require Import compcert.export.Clightdefs.
 
 Lemma mapsto_tuint_tint:
   forall sh, mapsto sh tuint = mapsto sh tint.

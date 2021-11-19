@@ -63,9 +63,12 @@ Definition composite_of_QPcomposite (c: QP.composite)
     co_sizeof_alignof := proj2 (proj2 H)
  |}.
 
+Definition QPcomposite_bogus: QP.composite :=
+ QP.Build_composite Struct nil noattr 0 0 0 0 true.
+
 Definition QPcomposite_env_of_composite_env :
      composite_env -> PTree.t Z -> PTree.t legal_alignas_obs-> QP.composite_env :=
- PTree_map3 QPcomposite_of_composite.
+ PTree_map3 QPcomposite_of_composite QPcomposite_bogus.
 
 Definition QPcomposite_env_OK: QP.composite_env -> Prop :=
   PTree_Forall QPcomposite_OK.
@@ -82,8 +85,8 @@ Qed.
 
 Lemma QPcomposite_env_of_composite_env_OK:
   forall (ce: composite_env) ha_env la_env,
-     PTree_domain_eq ce ha_env ->
-     PTree_domain_eq ce la_env ->
+     PTree_samedom ce ha_env ->
+     PTree_samedom ce la_env ->
     QPcomposite_env_OK (QPcomposite_env_of_composite_env ce ha_env la_env).
 Proof.
 intros.
@@ -91,13 +94,17 @@ red.
 rewrite <- PTree_Forall_get_eq.
 intro i.
 unfold QPcomposite_env_of_composite_env.
-rewrite PTree_gmap3.
+rewrite PTree_gmap3 by auto.
 destruct ( ce ! i) eqn:?H; simpl; auto.
-destruct (proj1 (PTree_domain_eq_e H _) (ex_intro _ _ H1)).
-rewrite H2.
-destruct (proj1 (PTree_domain_eq_e H0 _) (ex_intro _ _ H1)).
-rewrite H3.
-apply QPcomposite_of_composite_OK.
++
+  destruct (proj1 (PTree_domain_eq_e H _) (ex_intro _ _ H1)).
+  rewrite H2.
+  destruct (proj1 (PTree_domain_eq_e H0 _) (ex_intro _ _ H1)).
+  rewrite H3.
+  apply QPcomposite_of_composite_OK.
++
+ destruct (ha_env ! i); auto.
+ destruct (la_env ! i); auto. 
 Qed.
 
 Fixpoint QP_list_helper 
@@ -133,31 +140,37 @@ Definition composite_env_of_QPcomposite_env'
  PTree_Properties.of_list
    (QP_list_helper _ (proj1 (PTree_Forall_elements _ _ _) H)).
 
-Fixpoint composite_env_of_QPcomposite_env
-   (ce: QP.composite_env)
-   (H: QPcomposite_env_OK ce) : composite_env := 
-match ce as t return (QPcomposite_env_OK t -> composite_env) with
-| PTree.Leaf => fun _ => PTree.Leaf
-| PTree.Node ce1 o ce2 =>
-    fun H0 =>
-    PTree.Node (composite_env_of_QPcomposite_env ce1 
-               (proj1 (proj2 H0)))
-          (match
-             o as o0
-             return
-               (match o0 with
-                | Some x => QPcomposite_OK x
-                | None => True
-                end -> option composite)
-           with
-           | Some c =>
-               fun H5 : QPcomposite_OK c =>
-               Some (composite_of_QPcomposite c H5)
-           | None => fun _ : True => None
-           end (proj1 H0)) 
-            (composite_env_of_QPcomposite_env ce2 (proj2 (proj2 H0)))
-    end H.
+Fixpoint ce_of_QPce'
+   (ce: PTree.tree' QP.composite) :
+   PTree_Forall' QPcomposite_OK ce -> PTree.tree' composite := 
+match ce as t return (PTree_Forall' QPcomposite_OK t -> PTree.tree' composite) with
+| PTree.Node001 r => fun H => PTree.Node001 (ce_of_QPce' r H)
+| PTree.Node010 x => fun H => PTree.Node010 (composite_of_QPcomposite x H)
+| PTree.Node011 x r => fun H => PTree.Node011 (composite_of_QPcomposite x (proj1 H)) (ce_of_QPce' r (proj2 H))
+| PTree.Node100 l => fun H => PTree.Node100 (ce_of_QPce' l H)
+| PTree.Node101 l r => fun H => PTree.Node101 (ce_of_QPce' l (proj1 H)) (ce_of_QPce' r (proj2 H))
+| PTree.Node110 l x => fun H => PTree.Node110 (ce_of_QPce' l (proj1 H)) (composite_of_QPcomposite x (proj2 H))
+| PTree.Node111 l x r => fun H => PTree.Node111
+     (ce_of_QPce' l (proj1 H)) (composite_of_QPcomposite x (proj1 (proj2 H)))
+            (ce_of_QPce' r (proj2 (proj2 H)))
+end.
 
+Definition composite_env_of_QPcomposite_env
+   (ce: QP.composite_env)
+   (H: QPcomposite_env_OK ce) : composite_env :=
+match
+  ce as t
+  return
+    (match t with
+     | PTree.Empty => True
+     | PTree.Nodes m' => PTree_Forall' QPcomposite_OK m'
+     end -> composite_env)
+with
+| PTree.Empty => fun _ : True => PTree.Empty
+| PTree.Nodes m =>
+    fun H0 : PTree_Forall' QPcomposite_OK m =>
+    PTree.Nodes (ce_of_QPce' m H0)
+end H.
 
 Lemma composite_env_of_QPcomposite_env'_eq:
  forall ce H i,
@@ -196,12 +209,13 @@ subst.
 rename x into Hc'.
 pose proof (PTree.elements_complete _ _ _ H1).
 clear - c' H3.
-revert i H3; induction ce; destruct i; simpl; intros; try discriminate.
-apply (IHce2 (proj2 (proj2 H)) i H3). 
-apply (IHce1 (proj1 (proj2 H)) i H3).
-subst o.
-destruct H as [? [? ?]].
-f_equal. f_equal. apply proof_irr.
+destruct ce as [|ce]. inv H3.
+unfold PTree.get in *.
+revert i H3; induction ce; destruct i; simpl; intros; try discriminate;
+try (apply IHce; auto);
+try (apply IHce2; auto);
+try (apply IHce1; auto);
+try (inv H3; f_equal; f_equal; apply proof_irr).
 -
 symmetry.
 set (H2 := proj1 _ _) in H0.
@@ -221,9 +235,10 @@ apply PTree_Properties.of_list_dom in H3.
 destruct H3. congruence.
 clear - H1.
 hnf in H.
-revert i H H1; induction ce; destruct i; simpl; intros; auto.
-destruct H as [? [? ?]].
-subst. auto.
+destruct ce as [|ce]; simpl; auto.
+unfold PTree.get in *.
+revert i H H1; induction ce; destruct i; simpl; intros; auto;
+try discriminate.
 Qed.
 
 Lemma composite_of_QPcomposite_of_composite:
@@ -251,70 +266,26 @@ Qed.
 
 Lemma composite_env_of_QPcomposite_env_of_composite_env:
  forall (ce: composite_env) ha la OK
- (HA: PTree_domain_eq ce ha)
- (LA: PTree_domain_eq ce la),
+ (HA: PTree_samedom ce ha)
+ (LA: PTree_samedom ce la),
    (composite_env_of_QPcomposite_env
     (QPcomposite_env_of_composite_env ce ha la) OK) =
    ce.
 Proof.
-induction ce; destruct ha,la; simpl; intros; auto;
-destruct OK as [? [? ?]].
--
-rewrite -> PTree_domain_eq_Leaf in HA.
-destruct o.
-specialize (HA xH). inv HA.
-f_equal.
-apply IHce1; auto.
-rewrite -> PTree_domain_eq_Leaf.
-intro i. apply (HA (xO i)).
-rewrite -> PTree_domain_eq_Leaf.
-intro i. apply (HA (xO i)).
-apply IHce2; auto.
-rewrite -> PTree_domain_eq_Leaf.
-intro i. apply (HA (xI i)).
-rewrite -> PTree_domain_eq_Leaf.
-intro i. apply (HA (xI i)).
--
-rewrite -> PTree_domain_eq_Leaf in HA.
-destruct o.
-specialize (HA xH). inv HA.
-f_equal.
-apply IHce1; auto.
-rewrite -> PTree_domain_eq_Leaf.
-intro i. apply (HA (xO i)).
-intro i. apply (LA (xO i)).
-apply IHce2; auto.
-rewrite -> PTree_domain_eq_Leaf.
-intro i. apply (HA (xI i)).
-intro i. apply (LA (xI i)).
--
-rewrite -> PTree_domain_eq_Leaf in LA.
-destruct o.
-specialize (LA xH). inv LA.
-f_equal.
-apply IHce1; auto.
-intro i. apply (HA (xO i)).
-rewrite -> PTree_domain_eq_Leaf.
-intro i. apply (LA (xO i)).
-apply IHce2; auto.
-intro i. apply (HA (xI i)).
-rewrite -> PTree_domain_eq_Leaf.
-intro i. apply (LA (xI i)).
--
-f_equal.
-apply IHce1; auto.
-intro i. apply (HA (xO i)).
-intro i. apply (LA (xO i)).
-specialize (HA xH); simpl in HA.
-specialize (LA xH); simpl in LA.
-destruct o; auto.
-destruct o0; try contradiction (proj1 HA Logic.I).
-destruct o1; try contradiction (proj1 LA Logic.I).
-f_equal.
+destruct ce as [|ce]; destruct ha as [|ha]; destruct la as [|la].
+all: try solve [simpl; intros; auto; try contradiction].
+intros.
+red in HA, LA.
+unfold QPcomposite_env_of_composite_env.
+unfold composite_env_of_QPcomposite_env.
+unfold PTree_map3. f_equal.
+red in OK. red in OK.
+simpl in OK.
+revert ha HA la LA OK.
+induction ce; destruct ha; intro HA; try destruct HA;
+ destruct la; intro LA; try destruct LA;
+simpl in *; intros; f_equal; auto;
 apply composite_of_QPcomposite_of_composite.
-apply IHce2; auto.
-intro i. apply (HA (xI i)).
-intro i. apply (LA (xI i)).
 Qed.
 
 Lemma QPcomposite_env_of_composite_env_of_QPcomposite_env:
@@ -326,24 +297,11 @@ Lemma QPcomposite_env_of_composite_env_of_QPcomposite_env:
     (PTree.map1 QP.co_la ce)) =
   ce.
 Proof.
-induction ce; simpl; intros.
-reflexivity.
-destruct H as [? [? ?]].
-unfold QPcomposite_env_of_composite_env.
-specialize (IHce1 p).
-specialize (IHce2 p0).
-simpl.
-f_equal; auto.
-rewrite <- IHce1.
-unfold QPcomposite_env_of_composite_env.
-f_equal. f_equal. apply proof_irr.
-destruct o; auto.
-simpl.
+destruct ce as [|ce]; simpl; intros; auto.
 f_equal.
+revert H; induction ce; simpl; intros; f_equal;
+eauto;
 apply QPcomposite_of_composite_of_QPcomposite.
-rewrite <- IHce2.
-unfold QPcomposite_env_of_composite_env.
-f_equal. f_equal. apply proof_irr.
 Qed.
 
 Lemma QPcomposite_of_composite_inj: forall c1 ha1 la1 c2 ha2 la2, 
@@ -352,6 +310,34 @@ Lemma QPcomposite_of_composite_inj: forall c1 ha1 la1 c2 ha2 la2,
 Proof.
 intros.
 destruct c1, c2; inv H; simpl in *; split3; f_equal; auto; apply proof_irr.
+Qed.
+
+Lemma Some_inj: forall {A} (x y: A), Some x = Some y -> x=y.
+Proof. intros. inv H; auto. Qed.
+
+
+Lemma samedom_ha_composite_env_of_QPcomposite_env:
+ forall ce OK, 
+  PTree_samedom (composite_env_of_QPcomposite_env ce OK)
+     (PTree.map1 QP.co_ha ce).
+Proof.
+intros.
+destruct ce as [|ce]. apply I.
+red.
+simpl.
+revert OK; induction ce; simpl; intros; auto.
+Qed.
+
+Lemma samedom_la_composite_env_of_QPcomposite_env:
+ forall ce OK, 
+  PTree_samedom (composite_env_of_QPcomposite_env ce OK)
+     (PTree.map1 QP.co_la ce).
+Proof.
+intros.
+destruct ce as [|ce]. apply I.
+red.
+simpl.
+revert OK; induction ce; simpl; intros; auto.
 Qed.
 
 Lemma get_composite_env_of_QPcomposite_env:
@@ -381,7 +367,9 @@ Proof.
  rewrite PTree_gmap3.
  rewrite <- composite_env_of_QPcomposite_env'_eq. 
  rewrite H.  rewrite !PTree.gmap1. unfold option_map; rewrite H1.
- eauto.
+ eauto. 
+ apply samedom_ha_composite_env_of_QPcomposite_env.
+ apply samedom_la_composite_env_of_QPcomposite_env.
 -
  destruct H as [ha [la ?]].
  pose proof (QPcomposite_env_of_composite_env_of_QPcomposite_env _ OK).
@@ -392,8 +380,11 @@ Proof.
  destruct ( (composite_env_of_QPcomposite_env' ce OK) ! i); try discriminate.
  destruct ((PTree.map1 QP.co_ha ce) ! i); try discriminate.
  destruct ((PTree.map1 QP.co_la ce) ! i); try discriminate.
- apply Some_inj in H. apply QPcomposite_of_composite_inj in H.
- destruct H as [? [? ?]]; subst; auto.
+ apply Some_inj in H; apply QPcomposite_of_composite_inj in H; f_equal; tauto.
+ destruct ((PTree.map1 QP.co_ha ce) ! i); try discriminate.
+ destruct ((PTree.map1 QP.co_la ce) ! i); try discriminate.
+ apply samedom_ha_composite_env_of_QPcomposite_env.
+ apply samedom_la_composite_env_of_QPcomposite_env.
 Qed.
 
 Definition QPcompspecs_OK (ce: QP.composite_env) :=
@@ -505,12 +496,12 @@ Lemma complete_legal_cosu_stable:
   forall m, composite_complete_legal_cosu_type env m = true ->
           composite_complete_legal_cosu_type env' m = true.
 Proof.
-  induction m as [|[id t]]; simpl; intros.
+  induction m; simpl; intros.
   auto.
   InvBooleans.
   apply IHm in H2; clear IHm.
   rewrite andb_true_iff; split; auto.
-  induction t; simpl in H1|-*; auto.
+  induction (type_member a); simpl in H1|-*; auto.
   destruct (env ! i) eqn:?H; try discriminate; rewrite (H _ _ H0); auto.
   destruct (env ! i) eqn:?H; try discriminate; rewrite (H _ _ H0); auto.
 Qed.
@@ -534,7 +525,7 @@ Lemma hardware_alignof_type_stable':
      (H:  forall id co,   env' ! id = Some co -> env ! id = Some co)
      (ha_env ha_env' : PTree.t Z)
      (H0: forall id  ofs,   ha_env' ! id = Some ofs -> ha_env ! id = Some ofs)
-     (H0: PTree_domain_eq env' ha_env'),
+     (H0: PTree_samedom env' ha_env'),
      forall t, complete_type env' t = true ->
        hardware_alignof ha_env' t = hardware_alignof ha_env t.
 Proof.
@@ -559,16 +550,7 @@ Lemma field_offset_stable'':
 Proof.
 intros.
 pose proof (co_consistent_complete _ _ (H _ _ H1)).
-unfold field_offset.
-forget 0 as ofs.
-revert ofs; induction  (co_members co) as [ | [??]]; simpl in H1|-*; auto; intros.
-simpl in H2.
-InvBooleans.
-if_tac; auto.
-f_equal. f_equal.
-symmetry;  eapply alignof_stable; auto.
-rewrite (alignof_stable _ _ H0 _ H3); auto. 
-rewrite (sizeof_stable _ _ H0 _ H3); auto.
+symmetry; apply field_offset_stable; auto.
 Qed. 
 
 Lemma align_compatible_rec_stable':
@@ -577,7 +559,7 @@ Lemma align_compatible_rec_stable':
     (COSU: composite_env_complete_legal_cosu_type env1)
     (S: forall id co, env1 ! id = Some co -> env ! id = Some co)
    t ofs
-   (H9a: @complete_legal_cosu_type env1 t = true)
+   (H9a: @complete_legal_cosu_type env1 t = true) 
    (H: align_compatible_rec env1 t ofs),
   align_compatible_rec env t ofs.
 Proof.
@@ -592,36 +574,41 @@ Proof.
     rewrite <- (sizeof_type_stable' _ _ _ S H9a).
     apply IH; auto.
  +
+   clear H9a.
    rewrite H2 in IH.
-   eapply align_compatible_rec_Tstruct. apply S; eassumption.
-   simpl in H9a. rewrite H2 in H9a. 
+   eapply align_compatible_rec_Tstruct. apply S; eassumption. auto.
    intros.
    rewrite <-  (field_offset_stable'' _ _ CONS S _ _ H2 i0) in H0.
-   specialize (H4 _ _ _ H H0).
+   specialize (H5 _ _ _ H H0).
    rewrite Forall_forall in IH.
-   apply (IH (i0,t0)); auto.
-   clear - H. induction (co_members co) as [|[??]]. inv H. simpl in *.
-   if_tac in H. inv H; auto. auto.
-   simpl.
+   assert (exists m, In m (co_members co) /\ type_member m = t0). {
+    clear - H. induction (co_members co). inv H. simpl in H. if_tac in H. exists a. inv H. simpl; auto. 
+    destruct (IHm H) as [m1 [? ?]]. exists m1; simpl; auto.
+   }
+   destruct H1 as [m [? ?]]. subst t0.
+   apply (IH m); auto. clear H1.
    pose proof (COSU  _ _ H2).
-   clear - H1 H. induction (co_members co) as [|[??]]. inv H. simpl in H,H1.
+   clear - H1 H. induction (co_members co). inv H. simpl in H,H1.
                          InvBooleans.         
                         if_tac in H. inv H. auto.  auto.
  +
+   clear H9a.
    rewrite H2 in IH.
-   eapply align_compatible_rec_Tunion. apply S; eassumption.
-   simpl in H9a. rewrite H2 in H9a. 
+   eapply align_compatible_rec_Tunion. apply S; eassumption.  auto.
    intros.
-   specialize (H4 _ _ H).
+   specialize (H5 _ _ H).
    rewrite Forall_forall in IH.
-   apply (IH (i0,t0)); auto.
-   clear - H. induction (co_members co) as [|[??]]. inv H. simpl in *.
-   if_tac in H. inv H; auto. auto.
-   simpl.
-   pose proof (COSU  _ _ H2).
-   clear - H0 H. induction (co_members co) as [|[??]]. inv H. simpl in H,H0.
-                         InvBooleans.         
-                        if_tac in H. inv H. auto.  auto.
+   assert (exists m, In m (co_members co) /\ type_member m = t0). {
+    clear - H. induction (co_members co). inv H. simpl in H. if_tac in H. exists a. inv H. simpl; auto. 
+    destruct (IHm H) as [m1 [? ?]]. exists m1; simpl; auto.
+   }
+   destruct H0 as [m [? ?]]. subst t0.
+   apply (IH m); auto.
+   apply COSU in H2.
+   clear - H2 H0.
+   induction (co_members co). inv H0.
+   destruct H0. subst. simpl in H2. rewrite andb_true_iff in H2. tauto.
+   simpl in H2. rewrite andb_true_iff in H2. tauto.
 Qed.
 
 Lemma hardware_alignof_composite_stable:
@@ -645,11 +632,12 @@ hardware_alignof_composite (PTree.map1 QP.co_ha ce) (co_members c).
 Proof.
 intros.
   pose proof (co_consistent_complete _ _  (CONSce1 _ _ H0)).
-  induction (co_members c) as [|[j?]]; simpl; auto.
+  induction (co_members c); simpl; auto.
   simpl in H1; rewrite andb_true_iff in H1; destruct H1.
   f_equal; auto.
   clear - H1 HA1 CONSce1.
   revert H1.
+  forget (type_member a) as t.
   type_induction.type_induction t (composite_env_of_QPcomposite_env ce1 OKce1) CONSce1; simpl; intros; auto.
   clear IH.
   destruct ((composite_env_of_QPcomposite_env ce1 OKce1) ! id) eqn:?H; inv H1.
@@ -665,28 +653,6 @@ intros.
   rewrite !PTree.gmap1 in HA1|-*. unfold option_map in HA1|-*. rewrite H in *.
   specialize (HA1 (eq_refl _)).
   destruct (ce ! id) eqn:?H; inv HA1. reflexivity.
-Qed.
-
-Lemma samedom_ha_composite_env_of_QPcomposite_env:
- forall ce OK,
-  PTree_samedom (composite_env_of_QPcomposite_env ce OK) (PTree.map1 QP.co_ha ce).
-Proof.
-induction ce; simpl; intros; auto.
-destruct OK as [? [? ?]].
-simpl; auto.
-destruct o; auto.
-simpl. split3; auto.
-Qed.
-
-Lemma samedom_la_composite_env_of_QPcomposite_env:
- forall ce OK,
-  PTree_samedom (composite_env_of_QPcomposite_env ce OK) (PTree.map1 QP.co_la ce).
-Proof.
-induction ce; simpl; intros; auto.
-destruct OK as [? [? ?]].
-simpl; auto.
-destruct o; auto.
-simpl. split3; auto.
 Qed.
 
 Lemma legal_alignas_type_stable:
@@ -720,18 +686,16 @@ intros.
   rewrite (sizeof_stable _ _ SUB1 _ H1).
  auto.
  clear IH.
- pose proof (proj1 (PTree_samedom_domain_eq _ _ (samedom_la_composite_env_of_QPcomposite_env ce1 OKce1) id)).
+ pose proof (proj1 (PTree_domain_eq_e (samedom_la_composite_env_of_QPcomposite_env ce1 OKce1) id)).
  destruct ((composite_env_of_QPcomposite_env ce1 OKce1) ! id) eqn:?H; inv H1.
- specialize (H Logic.I).
- destruct ( (PTree.map1 QP.co_la ce1) ! id) eqn:?H; try contradiction.
- unfold legal_alignas_obs in *;  rewrite H1.
- rewrite (LA1 _ _ H1). auto.
- pose proof (proj1 (PTree_samedom_domain_eq _ _ (samedom_la_composite_env_of_QPcomposite_env ce1 OKce1) id)).
+  spec H; [eauto |]. destruct H.
+ unfold legal_alignas_obs in *;  rewrite H.
+ rewrite (LA1 _ _ H). auto.
+ pose proof (proj1 (PTree_domain_eq_e (samedom_la_composite_env_of_QPcomposite_env ce1 OKce1) id)).
  destruct ((composite_env_of_QPcomposite_env ce1 OKce1) ! id) eqn:?H; inv H1.
- specialize (H Logic.I).
- destruct ( (PTree.map1 QP.co_la ce1) ! id) eqn:?H; try contradiction.
- unfold legal_alignas_obs in *;  rewrite H1.
- rewrite (LA1 _ _ H1). auto.
+ spec H; [eauto |]. destruct H.
+ unfold legal_alignas_obs in *;  rewrite H.
+ rewrite (LA1 _ _ H). auto.
 Qed.
 
 Lemma legal_alignas_composite_stable:
@@ -768,7 +732,7 @@ intros.
   destruct (co_su c) eqn:?H.
   *
   forget 0 as ofs.
-  revert ofs; induction (co_members c) as [|[j?]]; intros; auto.
+  revert ofs; induction (co_members c); intros; auto.
   simpl in H1; rewrite andb_true_iff in H1; destruct H1.
   unfold legal_alignas_struct_members_rec.
   fold (legal_alignas_struct_members_rec (composite_env_of_QPcomposite_env ce1 OKce1)
@@ -779,14 +743,16 @@ intros.
     (@PTree.map1 QP.composite legal_alignas_obs QP.co_la ce)  m).
   rewrite IHm by auto; clear IHm.
   pose proof (hardware_alignof_type_stable' _ _ SUB1 _ _ HA1).
-  spec H4; [apply PTree_samedom_domain_eq; apply samedom_ha_composite_env_of_QPcomposite_env | ].
-  rewrite !(alignof_stable _ _ SUB1 _ H1), !H4 by auto.
-  rewrite (sizeof_stable _ _ SUB1 _ H1).
-  f_equal.
-  f_equal.
-  eapply legal_alignas_type_stable; eauto.
+  spec H4; [apply samedom_ha_composite_env_of_QPcomposite_env | ].
+  rewrite !(next_field_stable _ _ SUB1 ofs _ H1).
+  f_equal. f_equal.
+   2:   eapply legal_alignas_type_stable; eauto.
+  unfold legal_alignas_member.
+  destruct a; auto.
+   rewrite !H4 by auto. f_equal. f_equal. unfold bitalignof. 
+  rewrite (alignof_stable _ _ SUB1) by auto. auto.
  *
-  induction (co_members c) as [|[j?]]; intros; auto.
+  induction (co_members c); intros; auto.
   simpl in H1; rewrite andb_true_iff in H1; destruct H1.
   unfold legal_alignas_union_members_rec.
   fold (legal_alignas_union_members_rec (composite_env_of_QPcomposite_env ce1 OKce1)
@@ -798,7 +764,7 @@ intros.
  f_equal.
   eapply legal_alignas_type_stable; eauto.
   eapply hardware_alignof_type_stable'; eauto.
-  apply PTree_samedom_domain_eq; apply samedom_ha_composite_env_of_QPcomposite_env.
+  apply samedom_ha_composite_env_of_QPcomposite_env.
   apply IHm; auto.
 Qed.
 
@@ -1029,17 +995,17 @@ intros.
   +
     rewrite (sizeof_type_stable' _ _ t SUB1 H1).
     rewrite (hardware_alignof_type_stable' _ _ SUB1 _ _ HA1); auto.
-    apply PTree_samedom_domain_eq; apply samedom_ha_composite_env_of_QPcomposite_env.
+    apply samedom_ha_composite_env_of_QPcomposite_env.
     apply complete_legal_cosu_type_complete_type; auto.
   +
     rewrite (sizeof_type_stable' _ _ t SUB2 H1).
     rewrite (hardware_alignof_type_stable' _ _ SUB2 _ _ HA2); auto.
-    apply PTree_samedom_domain_eq; apply samedom_ha_composite_env_of_QPcomposite_env.
+    apply samedom_ha_composite_env_of_QPcomposite_env.
     apply complete_legal_cosu_type_complete_type; auto.
  -
    destruct ((composite_env_of_QPcomposite_env ce OKce) ! i) eqn:?H; try discriminate H.
    destruct (co_su c) eqn:?H; try discriminate H.
-   clear H.
+   rename H into PLAIN.
  assert ( (composite_env_of_QPcomposite_env _ OKce1) ! i = Some c
    \/ (composite_env_of_QPcomposite_env _ OKce2) ! i = Some c ). {
    clear - MERGE H1.
@@ -1064,17 +1030,25 @@ intros.
    rewrite get_composite_env_of_QPcomposite_env in *.
    destruct H1 as [ha [la ?]]. destruct H as [ha' [la' ?]].
    pose proof (HA1 i ha'). pose proof (LA1 i la').
-   rewrite !PTree.gmap1 in H0, H3, H4 |- *. unfold option_map in *. rewrite H in *.  
+   rewrite !PTree.gmap1 in H0. 
+   rewrite !PTree.gmap1 in H3. 
+   rewrite !PTree.gmap1 in H4. 
+   rewrite !PTree.gmap1.
+   unfold option_map in *. rewrite H in *.  
    specialize (H3 (eq_refl _)).
-   specialize (H4 (eq_refl _)).
-    simpl.
+   specialize (H4 (eq_refl _)).   
+    simpl QP.co_ha in *; simpl QP.co_la  in *.
    destruct  (ce ! i) eqn:?H; inv H3. inv H4. inv H1. simpl in H.  auto.
  +
    unfold is_aligned in *; simpl in *; unfold is_aligned_aux in *.
    rewrite get_composite_env_of_QPcomposite_env in *.
    destruct H1 as [ha [la ?]]. destruct H as [ha' [la' ?]].
    pose proof (HA2 i ha'). pose proof (LA2 i la').
-   rewrite !PTree.gmap1 in H0, H3, H4 |- *. unfold option_map in *. rewrite H in *.  
+   rewrite !PTree.gmap1 in H0. 
+   rewrite !PTree.gmap1 in H3. 
+   rewrite !PTree.gmap1 in H4. 
+   rewrite !PTree.gmap1.
+   unfold option_map in *. rewrite H in *.  
    specialize (H3 (eq_refl _)).
    specialize (H4 (eq_refl _)).
     simpl.
@@ -1106,19 +1080,27 @@ intros.
    rewrite get_composite_env_of_QPcomposite_env in *.
    destruct H1 as [ha [la ?]]. destruct H2 as [ha' [la' ?]].
    pose proof (HA1 i ha'). pose proof (LA1 i la').
-   rewrite !PTree.gmap1 in H4,H5,H0 |- *. unfold option_map in *. rewrite H1,H2 in *.
+   rewrite !PTree.gmap1 in H0. 
+   rewrite !PTree.gmap1 in H4. 
+   rewrite !PTree.gmap1 in H5. 
+   rewrite !PTree.gmap1.
+   unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. auto.
+    simpl. inv H4; inv H5. simpl in H0. rewrite H3. auto.
  +
    unfold is_aligned in *; simpl in *; unfold is_aligned_aux in *.
    rewrite get_composite_env_of_QPcomposite_env in *.
    destruct H1 as [ha [la ?]]. destruct H2 as [ha' [la' ?]].
    pose proof (HA2 i ha'). pose proof (LA2 i la').
-   rewrite !PTree.gmap1 in H4,H5,H0 |- *. unfold option_map in *. rewrite H1,H2 in *.
+   rewrite !PTree.gmap1 in H0. 
+   rewrite !PTree.gmap1 in H4. 
+   rewrite !PTree.gmap1 in H5. 
+   rewrite !PTree.gmap1.
+   unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. auto.
+    simpl. inv H4; inv H5. simpl in H0. rewrite H3; auto.
  }
   hnf; intros.
   destruct (H9 _ _ H H0) as [[??]|[??]]; clear H9.
@@ -1130,21 +1112,108 @@ intros.
   eapply align_compatible_rec_stable'; try apply H3; auto.
 Qed.
 
-
-Lemma PTree_domain_eq_ha: forall cs, PTree_domain_eq (@cenv_cs cs) (@ha_env_cs cs).
+Lemma tree'_not_empty':
+  forall {A} (m: PTree.tree' A),
+   exists i, isSome (PTree.get' i m) = True.
 Proof.
-   intros cs i. pose proof (@ha_env_cs_complete cs i).
-  destruct ((@cenv_cs cs) ! i), ((@ha_env_cs cs) ! i); try tauto.
-  destruct (proj1 H); eauto. inv H0.
-  destruct (proj2 H); eauto. inv H0.
+intros.
+destruct (PTree.tree'_not_empty m) as [i ?].
+exists i.
+destruct (PTree.get' i m). reflexivity. congruence.
+Qed. 
+
+Lemma PTree_samedom_i {A} {B} (m1: PTree.t A) (m2: PTree.t B):
+ (forall i, isSome (m1 ! i) = isSome (m2 ! i)) ->
+ PTree_samedom m1 m2.
+Proof.
+destruct m1 as [|m1], m2 as [|m2]; simpl; intros; auto; unfold PTree.get in H.
+destruct (tree'_not_empty' m2) as [i ?]. specialize (H i). rewrite H, H0; auto.
+destruct (tree'_not_empty' m1) as [i ?]. specialize (H i). rewrite <- H, H0; auto.
+revert m2 H; induction m1; destruct m2; simpl; intros;
+try solve [apply IHm1; intro i; apply (H (xI i))];
+try solve [specialize (H xH); simpl in H; rewrite ?H; auto; rewrite <- H; auto].
+destruct (tree'_not_empty' m1) as [i H0].
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m2_1) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m2) as [i H0];
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m2) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m2_1) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1) as [i H0];
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1) as [i H0];
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m2_1) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+apply IHm1. intro i; apply (H (xO i)).
+destruct (tree'_not_empty' m2_2) as [i H0];
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1_1) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1_2) as [i H0];
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+split.
+apply IHm1_1; intro i; apply (H (xO i)).
+apply IHm1_2; intro i; apply (H (xI i)).
+destruct (tree'_not_empty' m1) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+apply IHm1. intro i; apply (H (xO i)).
+destruct (tree'_not_empty' m2_2) as [i H0];
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1_2) as [i H0];
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1_1) as [i H0];
+ specialize (H (xO i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+destruct (tree'_not_empty' m1_2) as [i H0];
+ specialize (H (xI i)); simpl in H; rewrite H0 in H; simpl in H;
+ rewrite ?H; auto; rewrite <- H; auto.
+split.
+apply IHm1_1; intro i; apply (H (xO i)).
+apply IHm1_2; intro i; apply (H (xI i)).
 Qed.
 
-Lemma PTree_domain_eq_la: forall cs, PTree_domain_eq (@cenv_cs cs) (@la_env_cs cs).
+Lemma PTree_samedom_ha: forall cs, PTree_samedom (@cenv_cs cs) (@ha_env_cs cs).
 Proof.
-   intros cs i. pose proof (@la_env_cs_complete cs i).
-  destruct ((@cenv_cs cs) ! i), ((@la_env_cs cs) ! i); try tauto.
-  destruct (proj1 H); eauto. inv H0.
-  destruct (proj2 H); eauto. inv H0.
+  intro cs.
+  apply PTree_samedom_i. intro i.
+  pose proof (@ha_env_cs_complete cs i).
+  destruct (cenv_cs ! i), (ha_env_cs ! i); auto.
+  destruct H as [[? ?] _]; eauto. inv H.
+  destruct H as [_ [? ?]]; eauto. inv H.
+Qed.
+
+Lemma PTree_samedom_la: forall cs, PTree_samedom (@cenv_cs cs) (@la_env_cs cs).
+Proof.
+  intro cs.
+  apply PTree_samedom_i. intro i.
+  pose proof (@la_env_cs_complete cs i).
+  destruct (cenv_cs ! i), (la_env_cs ! i); auto.
+  destruct H as [[? ?] _]; eauto. inv H.
+  destruct H as [_ [? ?]]; eauto. inv H.
 Qed.
 
 Lemma QPcompspecs_OK_i:
@@ -1160,11 +1229,13 @@ apply QPcomposite_env_of_composite_env_OK; auto;
   apply PTree_samedom_domain_eq; auto.
 exists H.
 rewrite composite_env_of_QPcomposite_env_of_composite_env; auto.
-2,3:   apply PTree_samedom_domain_eq; auto.
 intros ce'.
 subst ce'.
 cbv delta [QPcomposite_env_of_composite_env].
-rewrite !PTree_map1_map3.
+rewrite PTree_map1_map3 with (e:=0);
+ [ | apply PTree_samedom_ha | apply PTree_samedom_la].
+rewrite PTree_map1_map3 with (e:=false);
+ [ | apply PTree_samedom_ha | apply PTree_samedom_la].
 replace (fun (x1 : composite) (x2 : Z) (x3 : legal_alignas_obs) =>
      QP.co_ha (QPcomposite_of_composite x1 x2 x3))
  with (fun  (x1 : composite) (x2 : Z) (x3 : legal_alignas_obs)  => x2)
@@ -1280,11 +1351,8 @@ Definition cenv_built_correctly_finish (ce': composite_env) :=
 Definition cenv_built_correctly
    (comps: list composite_definition)
    (ce: composite_env) : Errors.res unit := 
-  if test_PTree_canonical ce 
-  then
   Errors.bind (fold_right cenv_built_correctly_each (Errors.OK ce) comps)
-   cenv_built_correctly_finish
-  else Errors.Error [Errors.MSG "composite env is not canonical!"].
+   cenv_built_correctly_finish.
 
 Lemma cenv_built_correctly_e:
   forall (comps : list composite_definition)
@@ -1295,43 +1363,26 @@ Proof.
 intros. 
 unfold build_composite_env.
 unfold cenv_built_correctly in H.
-destruct (test_PTree_canonical ce) eqn:?H; [ | discriminate].
-rename H0 into CAN.
-apply test_PTree_canonical_e in CAN.
 unfold Errors.bind in H.
 destruct (fold_right cenv_built_correctly_each (Errors.OK ce) comps) eqn:?H; [ | discriminate].
-assert (CAN' := @PTree_canonical_empty composite).
-assert (PTree_Properties.Equal (Eqsth _) c (PTree.empty composite)). {
-  clear - H.
-  intro i.
-  rewrite PTree.gempty.
-  destruct (c ! i) eqn:?H; auto.
-  unfold cenv_built_correctly_finish in H.
-  apply PTree.elements_correct in H0.
-  destruct (PTree.elements c).
-  inv H0.
-  simpl in H. inv H.
-}
+unfold cenv_built_correctly_finish in H.
+destruct (PTree.elements c) eqn:?H; [ | inv H].
 clear H.
+assert (c = PTree.empty _). {
+ apply PTree.extensionality.
+ intro i. destruct (c ! i) eqn:?H; auto.
+  apply PTree.elements_correct in H. rewrite H1 in H; inv H.
+}
+subst c. clear H1.
 forget (PTree.empty composite) as d.
-assert (exists ce', 
-         PTree_Properties.Equal (Eqsth composite) ce' ce /\
-         fold_right cenv_built_correctly_each (Errors.OK ce') comps = Errors.OK c).
-exists ce. split; auto. apply PTree_Properties.Equal_refl.
-clear H0.
-revert ce CAN c H d CAN' H1.
+rename H0 into H.
+rename d into c.
+revert ce c H.
+forget (PTree.empty composite) as d.
 induction comps; simpl; intros.
-f_equal.
-apply PTree_canonical_ext; auto.
-destruct H as [ce' [? ?]].
-inv H0.
-intros i. transitivity (c ! i).
-symmetry.
-apply PTree_Equal_e; auto.
-apply PTree_Equal_e; auto.
+auto.
 destruct a.
-destruct H as [ce' [H' H]].
-destruct (fold_right cenv_built_correctly_each (Errors.OK ce') comps) eqn:?H;
+destruct (fold_right cenv_built_correctly_each (Errors.OK ce) comps) eqn:?H;
   try discriminate.
 simpl in H.
 destruct (c0 ! id) eqn:?H; try discriminate.
@@ -1339,52 +1390,31 @@ match type of H with ((if ?A then _ else _) = _) =>
   destruct A eqn:?H;  [ | discriminate H]
 end.
 InvBooleans.
-apply eqb_su_spec in H3.
-apply eqb_list_spec in H10; [ | apply eqb_member_spec].
-apply eqb_attr_spec in H9.
-apply Nat.eqb_eq in H5.
+apply eqb_su_spec in H2.
+apply eqb_list_spec in H9; [ | apply eqb_member_spec].
+apply eqb_attr_spec in H8.
+apply Nat.eqb_eq in H4.
+apply Z.eqb_eq in H5.
 apply Z.eqb_eq in H6.
-apply Z.eqb_eq in H7.
 subst.
 inv H.
 unfold Errors.bind.
-assert (OK: composite_consistent d c1). {
- clear IHcomps.
-  apply (complete_members_stable _ d) in H8; auto.
-  2: intros j ?; rewrite (PTree_Equal_e _ _ H1 j); auto.
-  rewrite (sizeof_composite_stable d) in H7; auto.
-  2: intros j ?; rewrite (PTree_Equal_e _ _ H1 j); auto.
-  rewrite (rank_members_stable d) in H5; auto.
-  2: intros j ?; rewrite (PTree_Equal_e _ _ H1 j); auto.
-  rewrite (alignof_composite_stable d) in H6; auto.
-  2: intros j ?; rewrite (PTree_Equal_e _ _ H1 j); auto.
- apply (composite_of_def_consistent d id 
-             c1.(co_su) c1.(co_members) c1.(co_attr) ).
- unfold composite_of_def.
-  rewrite <- (PTree_Equal_e _ _ H1 id).
-  rewrite PTree.grs.
-  rewrite H8.
-  f_equal.
-  symmetry.
-  destruct c1; apply composite_eq; simpl in *; auto.
-  rewrite H6. auto.
-}
+clear d. rename c0 into d.
 rewrite composite_of_def_eq; auto.
-2:{ rewrite <- (PTree_Equal_e _ _ H1 id); apply PTree.grs. }
-eapply IHcomps; auto.
-exists ce'; split; auto.
-apply PTree_canonical_set; auto.
-intro i.
-destruct (ident_eq i id).
-subst i.
-rewrite PTree.gss.
-rewrite H2.
-reflexivity.
-rewrite PTree.gso by auto.
-rewrite <- (PTree_Equal_e _ _ H1 i).
-rewrite PTree.gro by auto. 
-destruct (c0 ! i); auto.
-reflexivity.
+replace  (PTree.set id c1 (PTree.remove id d)) with d.
+auto.
+apply PTree.extensionality.
+intro i. destruct (ident_eq i id). subst. rewrite PTree.gss. auto. rewrite PTree.gso by auto. rewrite PTree.gro by auto; auto.
+constructor; auto.
+rewrite PTree.grs.
+auto.
+Qed.
+
+Lemma samedom_composite_env_of_QPcomposite_env:
+ forall ce H, PTree_samedom (composite_env_of_QPcomposite_env ce H) ce.
+Proof.
+destruct ce as [|ce]; simpl; auto. 
+induction ce; simpl; intros; auto.
 Qed.
 
 (*

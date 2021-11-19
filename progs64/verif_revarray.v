@@ -48,7 +48,7 @@ autorewrite with sublist. lia.
 Qed.
 Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; lia) : sublist.
 
-Lemma flip_fact_1: forall A size (contents: list A) j,
+Lemma flip_fact_1: forall A {d: Inhabitant A} size (contents: list A) j,
   Zlength contents = size ->
   0 <= j ->
   size - j - 1 <= j <= size - j ->
@@ -57,14 +57,15 @@ Proof.
   intros.
   unfold flip_ends.
   rewrite <- (Zlen_le_1_rev (sublist j (size-j) contents))
-      by (autorewrite with sublist; lia).
-  rewrite !sublist_rev by (autorewrite with sublist; lia).
- rewrite <- !rev_app_distr, ?H.
- autorewrite with sublist; auto.
+      by list_solve.
+  rewrite !sublist_rev by list_solve.
+ rewrite <- !rev_app_distr.
+ f_equal.
+ list_solve.
 Qed.
 
 Lemma flip_fact_3:
- forall A (al: list A) j size,
+ forall A {d: Inhabitant A} (al: list A) j size,
   size = Zlength al ->
   0 <= j < size - j - 1 ->
 sublist 0 j (flip_ends j (size - j) al) ++
@@ -77,29 +78,12 @@ flip_ends (j + 1) (size - (j + 1)) al.
 Proof.
 intros.
 unfold flip_ends.
-rewrite <- H.
-autorewrite with sublist.
-rewrite (sublist_split 0 j (j+1)) by (autorewrite with sublist; lia).
-rewrite !app_ass.
-f_equal. f_equal.
-rewrite !sublist_rev, <- ?H by lia.
-rewrite Zlen_le_1_rev by (autorewrite with sublist; lia).
-f_equal; lia.
-rewrite (sublist_app2 (size-j) size)
- by (autorewrite with sublist; lia).
-autorewrite with sublist.
-rewrite sublist_app'
- by (autorewrite with sublist; lia).
-autorewrite with sublist.
-f_equal.
-f_equal; lia.
-autorewrite with sublist.
-  rewrite <- (Zlen_le_1_rev (sublist j (1+j) al))
-      by (autorewrite with sublist; lia).
-rewrite !sublist_rev, <- ?H by lia.
- rewrite <- !rev_app_distr, <- ?H.
- autorewrite with sublist.
- f_equal; f_equal; lia.
+pose proof (Zlength_rev _ al).
+list_simplify.
++ rewrite Znth_rev by list_solve. 
+     list_solve.
++ rewrite Znth_rev by list_solve. 
+     list_solve.
 Qed.
 
 Lemma flip_ends_map:
@@ -123,7 +107,8 @@ Lemma flip_fact_2:
 Proof.
 intros.
 unfold flip_ends.
-autorewrite with sublist. auto.
+pose proof (Zlength_rev _ al).
+list_solve.
 Qed.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
@@ -148,7 +133,7 @@ forward. (* t = a[lo]; *)
   clear - H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map by old_list_solve.
+  rewrite Znth_map by (autorewrite with sublist; list_solve).
   apply I.
 }
 forward.  (* s = a[hi-1]; *)
@@ -157,7 +142,7 @@ forward.  (* s = a[hi-1]; *)
   clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map by old_list_solve.
+  rewrite Znth_map by (autorewrite with sublist; list_solve).
   apply I.
 }
 rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; lia).
@@ -174,25 +159,10 @@ forward. (* hi--; *)
  unfold data_at.    f_equal.
  clear - H0 HRE H1.
  unfold Z.succ.
- rewrite <- flip_fact_3 by auto.
- rewrite <- (Znth_map (Zlength (map Vint contents)-j-1) Vint) by (autorewrite with sublist in *; old_list_solve).
- forget (map Vint contents) as al. clear contents.
- remember (Zlength al) as size.
- repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
- rewrite upd_Znth_old_upd_Znth. 2 : {
-   rewrite upd_Znth_Zlength; rewrite Zlength_flip_ends; lia.
- }
- rewrite upd_Znth_old_upd_Znth. 2 : {
-   rewrite Zlength_flip_ends; lia.
- }
- unfold old_upd_Znth.
- rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_ends; try lia).
- rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by lia.
- rewrite ?Zlength_flip_ends by lia.
- rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_ends ; lia).
- unfold Z.succ. rewrite <- Heqsize. autorewrite with sublist.
- replace (size - j - 1 + (1 + j)) with size by (clear; lia).
- reflexivity.
+ rewrite <- flip_fact_3 by auto with typeclass_instances.
+ pose proof (Zlength_flip_ends _ j (Zlength (map Vint contents) - j) (map Vint contents)
+    ltac:(lia) ltac:(lia)  ltac:(lia)).
+ list_solve.
 * (* after the loop *)
 forward. (* return; *)
 entailer!.

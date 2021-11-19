@@ -29,18 +29,44 @@ Proof.
   apply gfield_dec.
 Defined.
 
+Definition gfield_type' {cs:compspecs} (t : type) (gf : gfield) :=
+match t with
+| Tarray t0 _ _ => match gf with
+                   | ArraySubsc _ => t0
+                   | _ => Tvoid
+                   end
+| Tstruct id _ =>
+    match gf with
+    | StructField i => field_type (name_member (get_member i (co_members (get_co id)))) (co_members (get_co id))
+    | _ => Tvoid
+    end
+| Tunion id _ =>
+    match gf with
+    | UnionField i => field_type (name_member (get_member i (co_members (get_co id)))) (co_members (get_co id))
+    | _ => Tvoid
+    end
+| _ => Tvoid
+end.
+
+Lemma gfield_type'_eq: forall t gf, gfield_type' t gf = gfield_type t gf.
+Proof.
+destruct t; auto;
+destruct gf; auto;
+unfold gfield_type'; rewrite name_member_get; auto.
+Defined.
+
 Definition upd_gfield_reptype t gf (v: reptype t) (v0: reptype (gfield_type t gf)) : reptype t :=
   fold_reptype
-  (match t, gf return (REPTYPE t -> reptype (gfield_type t gf) -> REPTYPE t)
+  (match t, gf return (REPTYPE t -> reptype (gfield_type' t gf) -> REPTYPE t)
   with
   | Tarray t0 n a, ArraySubsc i => upd_Znth i
-(*zl_concat (zl_concat (zl_sublist 0 i v) (zl_singleton i v0)) (zl_sublist (i + 1) n v) *)
   | Tstruct id _, StructField i =>
-      fun v v0 => upd_compact_prod _ v (i, field_type i (co_members (get_co id))) v0 member_dec
+      fun v v0 => upd_compact_prod _ v (get_member i (co_members (get_co id))) v0 member_dec
   | Tunion id _, UnionField i =>
-      fun v v0 => upd_compact_sum _ v (i, field_type i (co_members (get_co id))) v0 member_dec
+      fun v v0 => upd_compact_sum _ v (get_member i (co_members (get_co id))) v0 member_dec
   | _, _ => fun v _ => v
-  end (unfold_reptype v) v0).
+  end (unfold_reptype v) 
+         (eq_rect_r _ v0 (gfield_type'_eq _ _))).
 
 Fixpoint upd_reptype (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (nested_field_type t gfs)): reptype t :=
   match gfs as gfs'
