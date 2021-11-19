@@ -1,3 +1,12 @@
+CHANGES IN RELEASE 2.9 (November 2021)
+
+- Compatible with Coq 8.14 or 8.13 and with CompCert 3.10.
+- Substantial efficiency improvements expected through use of Canonical PTrees data structure (see https://arxiv.org/abs/2110.05063 )
+- Improve an error message when gvars is missing in a forward_call (#524)
+- Correct the definition of pointer_val_val in 64-bit mode
+- Some of the concurrency libraries now available in 64-bit mode
+- Fixed #503 (confusion over multiple compspecs)
+
 CHANGES IN RELEASE 2.8 (June 2021)
 
 - Compatible with Coq 8.13 or 8.12 and with CompCert 3.9.
