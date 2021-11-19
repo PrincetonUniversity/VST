@@ -511,8 +511,8 @@ Proof.
   rewrite <- TTL1; trivial.
 Qed.
 
-Lemma semax_func_cons: forall 
-     fs id f fsig cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
+Lemma semax_func_cons
+     fs id f fsig cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b :
   andb (id_in_list id (map (@fst _ _) G))
   (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
     (semax_body_params_ok f)) = true ->
@@ -529,8 +529,7 @@ Lemma semax_func_cons: forall
   semax_func V G ge ((id, Internal f)::fs)
        ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').
 Proof.
-intros until C.
-intros ge b H' COMPLETE Hvars Hcc Hb1 Hb2 SB [HfsG' [Hfs HG]].
+intros H' COMPLETE Hvars Hcc Hb1 Hb2 SB [HfsG' [Hfs HG]].
 apply andb_true_iff in H'.
 destruct H' as [Hin H'].
 apply andb_true_iff in H'.
@@ -544,7 +543,7 @@ split3.
 intros ge' H0 HGG n.
 specialize (HG _ H0 HGG).
 hnf in HG |- *. 
-intros v fsig cc' A' P' Q'.
+intros v fsig0 cc' A' P' Q'.
 apply derives_imp.
 clear n.
 intros n ?.
@@ -587,7 +586,7 @@ intros ts x.
 simpl in H1. specialize (H0 id); unfold fundef in H0; simpl in H0. rewrite Hb1 in H0; simpl in H0.
 pose proof (semax_func_cons_aux (Build_genv ge' cenv_cs) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni HfsG' H1).
 destruct H2 as [H4' [H4 [H4a [H4b H4c]]]].
-subst A' fsig cc'.
+subst A' fsig0 cc'.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.
@@ -619,7 +618,7 @@ apply andp_left1.
 apply sepcon_derives; auto.
 apply andp_left2; trivial.
 * (***   Vptr b Ptrofs.zero <> v'  ********)
-apply (HG n v fsig cc' A' P' Q'); auto.
+apply (HG n v fsig0 cc' A' P' Q'); auto.
 destruct H1 as [id' [NEP' [NEQ' [? B]]]].
 simpl in H1. rewrite PTree.gsspec in H1.
 destruct (peq id' id); subst.
