@@ -1,8 +1,8 @@
 \documentclass[12pt,fleqn,openany,oneside,showtrims]{memoir}
 
-\newcommand\vstversion{2.5}
-\newcommand\coqversion{8.11}
-\newcommand\compcertversion{3.7}
+\newcommand\vstversion{2.9}
+\newcommand\coqversion{8.13}
+\newcommand\compcertversion{3.10}
 
 \usepackage{xr-hyper}
 \input{setup}
@@ -230,15 +230,27 @@ See the heading
 \textsc{using proof general and coqide}
 in the file \textsc{build\_organization}.
 
-\chapter{Verifiable C and \textsf{clightgen}}
+\chapter{Verifiable C}
 \label{refcard:verifiable-c}
 Verifiable C is a \emph{program logic} (higher-order impredicative concurrent separation logic) for C programs with these restrictions:
 \begin{itemize}
   \item No casting between integers and pointers.
   \item No \lstinline{goto} statements.
+  \item No bitfields in structs.
   \item No \lstinline{struct}-copying assignments, \lstinline{struct} parameters, or \lstinline{struct} returns.
   \item Only structured \lstinline{switch} statements (no Duff's device).
+  \item No varargs functions, except limited undocumented support for calling printf and fprintf.
 \end{itemize}
+
+The Verifiable C program logic operates on the CompCert \emph{Clight}
+language.  CompCert's \lstinline{clightgen} tool (described in the
+next chapter) translates C into C light, so that you can use VST
+to apply the program logic to the program.  Clight (and clightgen) does support
+some of the features listed above (such as goto, bitfields, struct-copying),
+but programs with those features cannot be proved in Verifiable C. 
+
+\chapter{\textsf{clightgen}}
+\label{refcard:clightgen}
 
 CompCert's \lstinline{clightgen} tool
 translates C into
@@ -246,22 +258,16 @@ abstract syntax trees (ASTs) of
 CompCert's \emph{Clight} intermediate language.
 You find \lstinline{clightgen} in the root directory of your CompCert installation, after doing \lstinline{make clightgen}.
 
-Suppose you have a C source program broken into three files
-\lstinline{x.c y.c z.c}.
+To translate a C source program \lstinline{foo.c} into its AST file \lstinline{foo.v},
+run:
 \begin{lstlisting}
-clightgen -normalize x.c y.c z.c
+clightgen -normalize foo.c
 \end{lstlisting}
 \vspace{-\baselineskip}
-This produces the files \lstinline{x.v y.v z.v} containing Coq representations of ASTs.
-
 
 Clightgen invokes the standard macro-preprocessor (to handle
 \lstinline{define} and \lstinline{include}),
-parses, type-checks, and produces ASTs.    We translate all
-three files in one call to Clightgen, so that
-the global names in the C program (``extern'' identifiers)
-will have consistent symbol-table indexes (\lstinline{ident} values)
-across all three files.
+parses, type-checks, and produces ASTs.
 
 Although your C programs may have side effects inside subexpressions,
 and memory dereferences inside subexpressions or if-tests,
@@ -278,11 +284,20 @@ before you apply the program logic:
   i.e. \lstinline{x=a[b[i]];} becomes \lstinline{t=b[i]; x=a[t];}.
 \end{itemize}
 
-
-
-
-
-
+\newthought{Short-idents.}  If you give the \lstinline{-short-idents} flag
+to clightgen, then it will represent
+identifiers in ASTs in a way that leads to faster processing by VST.
+But then, if your C program is in several modules 
+(such as \lstinline{x.c y.c z.c}) you must process them all together
+in clightgen,
+\begin{lstlisting}
+clightgen -normalize -short-idents x.c y.c z.c
+\end{lstlisting}
+\vspace{-\baselineskip}
+This produces the files \lstinline{x.v y.v z.v} containing Coq representations of ASTs,
+in a way that the representation of identifiers is consistent across the files.
+When using clightgen's default \lstinline{canonical-idents} mode,
+this all-at-once processing is not necessary.
 
 \chapter{ASTs: abstract syntax trees}
 
