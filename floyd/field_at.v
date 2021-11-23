@@ -571,7 +571,7 @@ Proof.
   match goal with |- data_at_rec _ _ _ ?A = data_at_rec _ _ _ ?B => replace B with A end.
  2:{ f_equal. f_equal.
   rewrite name_member_get.
-  rewrite nested_field_offset_ind with (gfs0 := StructField i :: gfs) by auto.
+  rewrite @nested_field_offset_ind with (gfs := StructField i :: gfs) by auto.
   unfold gfield_offset; rewrite H. lia.
   }
   apply equal_f.
@@ -639,7 +639,7 @@ Proof.
   match goal with |- data_at_rec _ _ _ ?A = data_at_rec _ _ _ ?B => replace B with A end.
  2:{ f_equal. f_equal.
   rewrite name_member_get.
-  rewrite nested_field_offset_ind with (gfs0 := UnionField i :: gfs) by auto.
+  rewrite @nested_field_offset_ind with (gfs := UnionField i :: gfs) by auto.
   unfold gfield_offset; rewrite H. lia.
   }
   apply equal_f.

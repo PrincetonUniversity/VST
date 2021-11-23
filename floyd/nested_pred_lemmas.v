@@ -333,7 +333,7 @@ Ltac pose_sizeof_co t :=
     pose proof sizeof_Tstruct id a;
     assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id)); [
       rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
-      rewrite complete_legal_cosu_type_Tstruct with (a0 := a) by auto;
+      rewrite @complete_legal_cosu_type_Tstruct with (a := a) by auto;
       rewrite plain_members_sizeof_struct by (eapply complete_Tstruct_plain; eauto);
       apply align_le, co_alignof_pos
        |]

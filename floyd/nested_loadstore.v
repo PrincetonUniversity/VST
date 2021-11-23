@@ -329,7 +329,7 @@ apply derives_trans with
       *
       subst i'.
       set (u := upd_union _ _ _ _).
-      rewrite field_at_Tunion with (id:=i0) (a0:=a)(v2:=u); auto.
+      rewrite @field_at_Tunion with (id:=i0) (a:=a)(v2:=u); auto.
       subst u.
       set (v0' := eq_rect_r _ _ _).
       assert (JMeq v0' v0) by apply eq_rect_r_JMeq.
