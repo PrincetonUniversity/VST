@@ -484,7 +484,7 @@ Lemma merge_consistent_PTrees_e': forall {X} (eqX: X -> X -> bool)
   m ! i = Some x <-> m1 ! i = Some x \/ m2 ! i = Some x.
 Proof.
  intros. 
- apply merge_consistent_PTrees_e with (i0:=i) in H; auto.
+ apply @merge_consistent_PTrees_e with (i:=i) in H; auto.
  destruct (m1 ! i) eqn:?H.
  destruct (m2 ! i) eqn:?H.
  destruct H. apply eqX_prop in H; subst x1.
