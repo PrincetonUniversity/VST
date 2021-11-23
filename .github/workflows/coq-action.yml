@@ -25,9 +25,10 @@ jobs:
           - coq-vst
           - coq-vst-32
     steps:
-      - uses: actions/checkout@v2
-      - name: Checkout submodules
-        uses: textbook/git-checkout-submodule-action@2.1.1
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - uses: coq-community/docker-coq-action@v1
         with:
           opam_file: ${{ matrix.opam_name }}.opam

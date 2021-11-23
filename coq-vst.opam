@@ -17,16 +17,16 @@ dev-repo: "git+https://github.com/PrincetonUniversity/VST.git"
 bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
 build: [
-  [make "BITSIZE=64" "depend"]
-  [make "BITSIZE=64" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
+  [make "COMPCERT=bundled" "BITSIZE=64" "depend"]
+  [make "COMPCERT=bundled" "BITSIZE=64" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
 ]
-run-test: [make "BITSIZE=64" "-j%{jobs}%" "progs"]
+run-test: [make "COMPCERT=bundled" "BITSIZE=64" "-j%{jobs}%" "progs"]
 install: [
-	make "BITSIZE=64" "install"
+        make "COMPCERT=bundled" "BITSIZE=64" "install"
 	]
 depends: [
   "coq" {>= "8.11.0"}
-  "coq-compcert" {= "3.9"}
+  "coq-flocq" {>= "3.1.0" & < "4.0.0"} | "coq-flocq3" { = "dev"}
 ]
 synopsis: "Verified Software Toolchain"
 description:
