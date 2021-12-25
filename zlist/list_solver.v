@@ -1,21 +1,12 @@
-(*Require Import compcert.lib.Coqlib.
-Require Import VST.msl.Coqlib2.
-Require Import VST.veric.coqlib4.  (* just for prop_unext *)
-*)
 Require Import ZArith Znumtheory.
 Require Import Coq.Lists.List.
 Require Import Lia.
 Import ListNotations.
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.PropExtensionality.
-Require Export VST.floyd.sublist.
+Require Export VST.zlist.sublist.
 Import SublistInternalLib.
-(*
-Require Import compcert.lib.Integers.
-Require Import compcert.lib.Floats.
-Require Import compcert.common.Values.
-*)
-Require Export VST.floyd.Zlength_solver.
+Require Export VST.zlist.Zlength_solver.
 
 (** This file provides a almost-complete solver for list with concatenation.
   Its core symbols include:

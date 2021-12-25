@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.revarray.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

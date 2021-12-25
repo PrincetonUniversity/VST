@@ -1,5 +1,5 @@
 Require Import VST.concurrency.conclib.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 

@@ -7,9 +7,9 @@ Require Export compcert.common.Values.
 Require Export VST.msl.eq_dec.
 Require Export VST.msl.Coqlib2.
 Require Export VST.floyd.coqlib3.
-Require Export VST.floyd.sublist.
+Require Export VST.zlist.sublist.
 Require Export Lia.
-Require Export VST.floyd.list_solver.
+Require Export VST.zlist.list_solver.
 
 Definition Vubyte (c: Byte.int) : val :=
   Vint (Int.repr (Byte.unsigned c)).

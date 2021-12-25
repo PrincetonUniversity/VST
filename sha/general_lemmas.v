@@ -3,7 +3,7 @@ Require Import List. Import ListNotations.
 Require Import compcert.lib.Integers.
 Require Import VST.msl.Coqlib2.
 Require Import VST.floyd.coqlib3.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import VST.floyd.functional_base.
 
 Local Open Scope nat.

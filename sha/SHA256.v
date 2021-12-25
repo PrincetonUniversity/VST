@@ -3,7 +3,7 @@
 
 Require Recdef.
 Require Import VST.floyd.coqlib3.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.

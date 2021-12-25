@@ -3,7 +3,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import VST.atomics.general_atomics.
 Require Import VST.atomics.acq_rel_atomics.
 

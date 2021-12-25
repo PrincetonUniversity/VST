@@ -2,7 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.type_induction.
 Require Export VST.floyd.compact_prod_sum.
 Require Import VST.floyd.fieldlist.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 
 Definition
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
