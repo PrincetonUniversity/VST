@@ -41,9 +41,11 @@ Program Definition juicy_mem_store j ch b ofs v: option juicy_mem :=
     else None.
 Next Obligation.
 intros.
+let H := match goal with [ H : valid_access _ _ _ _ _ |- _ ] => H end in
 apply (proj1_sig (valid_access_store (m_dry j) ch b ofs v H)).
 Defined.
 Next Obligation.
+let H := match goal with [ H : valid_access _ _ _ _ _ |- _ ] => H end in
 apply (proj2_sig (valid_access_store (m_dry j) ch b ofs v H)).
 Defined.
 
@@ -69,9 +71,11 @@ Program Definition juicy_mem_storebytes j b ofs bytes: option juicy_mem :=
     then Some (storebytes_juicy_mem j _ b ofs bytes _)
     else None.
 Next Obligation.
+let H := match goal with [ H : range_perm _ _ _ _ _ _ |- _ ] => H end in
 apply (proj1_sig (range_perm_storebytes (m_dry j) b ofs bytes H)).
 Defined.
 Next Obligation.
+let H := match goal with [ H : range_perm _ _ _ _ _ _ |- _ ] => H end in
 apply (proj2_sig (range_perm_storebytes (m_dry j) b ofs bytes H)).
 Qed.
 
