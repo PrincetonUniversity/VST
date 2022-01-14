@@ -318,8 +318,9 @@ Proof.
   { rewrite <- Hi1; intro Heq.
     apply Zmod_plus_inv in Heq; [|apply size_pos].
     rewrite !Zmod_small in Heq; lia. }
-  rewrite -> iter_sepcon_Znth_remove with (i0 := (j + hash k) mod size),
-                    iter_sepcon_Znth' with (i0 := j)(l := upto _)
+  rewrite -> @iter_sepcon_Znth_remove with (d := Inhabitant_Z)
+                                           (i := (j + hash k) mod size),
+                    @iter_sepcon_Znth' with (d := Inhabitant_Z) (i := j)(l := upto _)
     by (auto; rewrite -> Zlength_upto, Z2Nat.id; try lia).
   rewrite -> !Znth_upto by (rewrite -> Z2Nat.id; lia).
   unfold hashtable_entry at 1.
@@ -330,7 +331,7 @@ Proof.
   rewrite <- !sepcon_assoc, snap_master_join1 by auto.
   Intros; apply prop_right; simpl.
   eapply Forall_Znth in Hfail.
-  rewrite -> Znth_sublist, Z.add_0_r, Znth_rebase with (i0 := j) in Hfail; auto; try lia.
+  rewrite -> Znth_sublist, Z.add_0_r, @Znth_rebase with (i := j) in Hfail; auto; try lia.
   replace (Zlength keys) with size in Hfail; intuition; subst; intuition.
   { rewrite -> Zlength_sublist; auto; try lia.
     rewrite Zlength_rebase; lia. }
@@ -434,7 +435,7 @@ Proof.
       iIntros "([AS1 _] & P)".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
-      rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
+      rewrite -> @iter_sepcon_Znth' with (d := Inhabitant_Z) (i := i1 mod size)
           by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
       erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
       unfold hashtable_entry at 1.
@@ -497,7 +498,9 @@ Proof.
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                          (i := i1 mod size)
+                                          (f := hashtable_entry _ _ _)
             by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; try lia).
         erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
         unfold hashtable_entry at 1.
@@ -522,7 +525,8 @@ Proof.
         iFrame "snap snaps".
         iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
         unfold hashtable; iExists (upd_Znth (i1 mod size) T (if eq_dec ki 0 then k else ki, vi)); iFrame "excl".
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z) (i := i1 mod size)
+                                          (l := upto (Z.to_nat size))
           by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
@@ -558,7 +562,7 @@ Proof.
           iIntros "(([AS1 _] & snap) & P)".
           iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
           iDestruct "hashtable" as (T) "((% & excl) & entries)".
-          rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
+          rewrite -> @iter_sepcon_Znth' with (d := Inhabitant_Z) (i := i1 mod size)
             by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
           erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
           unfold hashtable_entry at 1.
@@ -613,7 +617,8 @@ Proof.
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                          (i := i1 mod size)(f := hashtable_entry _ _ _)
           by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite -> Z2Nat.id; lia).
         unfold hashtable_entry at 1.
@@ -634,7 +639,8 @@ Proof.
         unfold hashtable.
         iFrame.
         iExists (upd_Znth (i1 mod size) T (k, v)).
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                          (i := i1 mod size)(l := upto (Z.to_nat size))
             by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
@@ -726,7 +732,8 @@ Proof.
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
       match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
-      rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
+      rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                        (i := i1 mod size)(f := hashtable_entry _ _ _)
         by (rewrite -> Zlength_upto, Z2Nat.id; lia).
       rewrite -> Znth_upto by (rewrite -> Z2Nat.id; lia).
       unfold hashtable_entry at 1.
@@ -753,7 +760,8 @@ Proof.
           rewrite Hindex; congruence. }
         unfold hashtable; iExists T.
         iSplitL ""; [auto|].
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                          (i := i1 mod size)(l := upto (Z.to_nat size))
           by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
@@ -762,7 +770,8 @@ Proof.
         iFrame "snap snaps".
         iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
         unfold hashtable; iExists T.
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                          (i := i1 mod size)(l := upto (Z.to_nat size))
           by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
@@ -778,7 +787,8 @@ Proof.
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                          (i := i1 mod size)(f := hashtable_entry _ _ _)
           by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite -> Z2Nat.id; lia).
         unfold hashtable_entry at 1.
@@ -812,7 +822,8 @@ Proof.
             rewrite HHi; auto. }
         unfold hashtable; iExists T.
         iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
-       rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                          (i := i1 mod size)(l := upto (Z.to_nat size))
           by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
@@ -919,7 +930,7 @@ Proof.
       iIntros "([AS1 _] & P)".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
-      rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
+      rewrite -> @iter_sepcon_Znth' with (d := Inhabitant_Z) (i := i1 mod size)
           by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
       erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
       unfold hashtable_entry at 1.
@@ -983,7 +994,8 @@ Proof.
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z)
+                                          (i := i1 mod size)(f := hashtable_entry _ _ _)
             by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; try lia).
         erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
         unfold hashtable_entry at 1.
@@ -1008,7 +1020,8 @@ Proof.
         iFrame "snap snaps".
         iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
         unfold hashtable; iExists (upd_Znth (i1 mod size) T (if eq_dec ki 0 then k else ki, vi)); iFrame "excl".
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z) (i := i1 mod size)
+                                          (l := upto (Z.to_nat size))
           by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
@@ -1042,7 +1055,7 @@ Proof.
           iIntros "(([AS1 _] & snap) & P)".
           iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
           iDestruct "hashtable" as (T) "((% & excl) & entries)".
-          rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
+          rewrite -> @iter_sepcon_Znth' with (d := Inhabitant_Z) (i := i1 mod size)
             by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
           erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
           unfold hashtable_entry at 1.
@@ -1099,7 +1112,8 @@ Proof.
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(f := hashtable_entry _ _ _)
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z) (i := i1 mod size)
+                                          (f := hashtable_entry _ _ _)
           by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite -> Z2Nat.id; lia).
         unfold hashtable_entry at 1.
@@ -1124,7 +1138,8 @@ Proof.
         unfold hashtable.
         rewrite exp_andp2.
         iExists ((if eq_dec vi 0 then upd_Znth (i1 mod size) T (k, v) else T)).
-        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
+        rewrite -> @iter_sepcon_Znth with (d := Inhabitant_Z) (i := i1 mod size)
+                                          (l := upto (Z.to_nat size))
             by (rewrite -> Zlength_upto, Z2Nat.id; lia).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; lia).
         unfold hashtable_entry.
@@ -1857,7 +1872,7 @@ Proof.
           destruct (eq_dec j i).
           + subst; rewrite -> upd_Znth_same by auto; apply derives_refl.
           + rewrite -> upd_Znth_diff by auto.
-            setoid_rewrite Znth_repeat with (n0 := 3%nat); apply stronger_default_val. }
+            setoid_rewrite @Znth_repeat with (n := 3%nat); apply stronger_default_val. }
       rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at (Znth i shs) _ _ (gv _results))),
         !sepcon_assoc; apply sepcon_derives.
       { apply stronger_array_ext.
@@ -1866,7 +1881,7 @@ Proof.
           destruct (eq_dec j i).
           + subst; rewrite -> upd_Znth_same by auto; apply derives_refl.
           + rewrite -> upd_Znth_diff' by auto.
-            setoid_rewrite Znth_repeat with (n0 := 3%nat); apply stronger_default_val. }
+            setoid_rewrite @Znth_repeat with (n := 3%nat); apply stronger_default_val. }
       erewrite sublist_next by (auto; lia); simpl; fast_cancel.
       { intro; subst; contradiction unreadable_bot.
         eapply join_readable1, readable_share_list_join; eauto. } }
