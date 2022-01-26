@@ -419,7 +419,7 @@ Proof.
     intro Heq; apply In_Znth in Hin' as (i & Hi & ?); subst x.
     rewrite Zlength_sublist in Hi; try lia.
     rewrite Znth_sublist, Znth_rebase, Z.add_0_r in Heq by lia.
-    eapply NoDup_Znth_inj with (i0 := z)(j := (i + hash k) mod (Zlength m)) in Hwf.
+    eapply @NoDup_Znth_inj with (i := z)(j := (i + hash k) mod (Zlength m)) in Hwf.
     subst z.
     rewrite Zminus_mod_idemp_l, Z.add_simpl_r, Z.sub_0_r, Zmod_small in Hi; try lia.
     * destruct Hi; split; auto.
