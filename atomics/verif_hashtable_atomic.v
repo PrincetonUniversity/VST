@@ -1295,7 +1295,7 @@ Proof.
     pose proof size_pos.
     rewrite Z.max_r; lia.
 Qed.
-Hint Resolve f_pred_exclusive.
+Hint Resolve f_pred_exclusive : exclusive.
 
 Lemma apply_hist_app : forall h1 h2 H, apply_hist H (h1 ++ h2) =
   match apply_hist H h1 with Some H' => apply_hist H' h2 | None => None end.
