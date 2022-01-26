@@ -215,7 +215,7 @@ Proof.
   destruct b.
   erewrite ghost_list_nth with (n := i) by (erewrite nth_map' with (d' := None), Hi'; eauto; lia).
   iDestruct "dis" as "[token dis]".
-  rewrite -> @iter_sepcon_eq, iter_sepcon_Znth with (i := Z.of_nat i)
+  rewrite -> @iter_sepcon_eq, @iter_sepcon_Znth with (d := _)(i := Z.of_nat i)
     by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
   erewrite Znth_upto, Hi by lia.
   iDestruct "I" as "((agree' & HP) & I)".

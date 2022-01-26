@@ -248,10 +248,8 @@ Proof.
   - unfold persistently.
     unseal_derives; intros ??; simpl.
     apply core_identity.
-  - intros.
-    unseal_derives; intros ??; simpl in *.
-    change (` (predicates_hered.andp P Q) (core a)).
-    apply H.
+  - unfold persistently; intros.
+    unseal_derives; intros ??; auto.
   - intros.
     unseal_derives; intros ??; simpl in *.
     destruct H as [b ?].
@@ -293,7 +291,7 @@ Qed.
 Lemma mpred_bi_later_mixin : BiLaterMixin
   derives prop orp imp (@allp _ _) (@exp _ _) sepcon persistently seplog.later.
 Proof.
-  split.  
+  split.
   - repeat intro. hnf. rewrite !approx_later. destruct n.
     + rewrite !approx_0; auto.
     + apply dist_S in H; f_equal; auto.

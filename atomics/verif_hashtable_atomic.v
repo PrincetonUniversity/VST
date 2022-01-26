@@ -34,17 +34,18 @@ Definition atom_store_spec := DECLARE _atom_store (atomic_store_spec atomic_int 
 Definition atom_CAS_spec := DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic_int_at).
 
 Definition surely_malloc_spec :=
- DECLARE _surely_malloc
-   WITH t : type, gv : globals
-   PRE [ tuint ]
-       PROP (0 <= sizeof t <= Int.max_unsigned; complete_legal_cosu_type t = true;
-             natural_aligned natural_alignment t = true)
-       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+  DECLARE _surely_malloc
+   WITH t:type, gv: globals
+   PRE [ size_t ]
+       PROP (0 <= sizeof t <= Int.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        RETURN (p)
-       SEP (mem_mgr gv; malloc_token Ews t p; data_at_ Ews t p).
+       SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 Definition integer_hash_spec :=
  DECLARE _integer_hash
@@ -72,6 +73,11 @@ Qed.
 Next Obligation.
   - apply Z_mod_lt; rewrite (proj2_sig has_size); computable.
   - apply Z_mod_lt; rewrite (proj2_sig has_size); computable.
+Qed.
+
+Lemma size_signed : size <= Int.max_signed.
+Proof.
+  unfold size; simpl. rewrite (proj2_sig has_size). rep_lia.
 Qed.
 
 (* We don't need histories, but we do need to know that a non-zero key is persistent. *)
@@ -307,8 +313,8 @@ Lemma failed_entries : forall k i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= 
 Proof.
   intros.
   rewrite -> Forall_forall, prop_forall; apply allp_right; intros (k', v').
-  rewrite prop_forall; apply allp_right; intro Hin. apply elem_of_list_In in Hin.
-  apply In_Znth in Hin; destruct Hin as (j & Hj & Hjth).
+  rewrite prop_forall; apply allp_right; intro Hin.
+  apply In_Znth in Hin as (j & Hj & Hjth).
   pose proof (hash_range k).
   erewrite Zlength_sublist in Hj by (rewrite ?Zlength_rebase; lia).
   rewrite -> Znth_sublist, Znth_rebase in Hjth by lia.
@@ -395,7 +401,7 @@ Proof.
   set (AS := ashift _ _ _ _ _ _).
   forward.
   forward_call k.
-  pose proof size_pos.
+  pose proof size_pos as Hsize; pose proof size_signed as Hsigned.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
@@ -476,10 +482,9 @@ Proof.
         rewrite -> Z2Nat.inj_add, upto_app, iter_sepcon_app by lia.
         change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon; rewrite -> Z2Nat.id, Z.add_0_r by lia.
         replace ((i + hash k) mod size) with (i1 mod size); rewrite -> Zmod_mod, upd_Znth_same by lia; entailer!.
-        { assert (Int.min_signed <= i1 mod size < Int.max_signed).
-          { split; etransitivity; try apply Z_mod_lt; auto; try computable.
-            setoid_rewrite (proj2_sig has_size); computable. }
-          rewrite -> Int.signed_repr by lia; auto. }
+        { split; auto.
+          split; etransitivity; try apply Z_mod_lt; auto; try computable.
+          setoid_rewrite (proj2_sig has_size); computable. }
         erewrite iter_sepcon_func_strong; [apply derives_refl|]; simpl; intros.
         rewrite upd_Znth_diff'; auto; try lia.
         replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
@@ -590,10 +595,9 @@ Proof.
           rewrite -> Zmod_mod, Z2Nat.inj_add, upto_app, iter_sepcon_app by lia.
           change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon; rewrite -> Z2Nat.id, Z.add_0_r by lia.
           replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by lia; entailer!.
-          { assert (Int.min_signed <= i1 mod size < Int.max_signed).
-            { split; etransitivity; try apply Z_mod_lt; auto; try computable.
-              setoid_rewrite (proj2_sig has_size); computable. }
-            rewrite -> Int.signed_repr by lia; auto. }
+          { split; auto.
+            split; etransitivity; try apply Z_mod_lt; auto; try computable.
+            setoid_rewrite (proj2_sig has_size); computable. }
           erewrite iter_sepcon_func_strong; [apply derives_refl|]; simpl; intros.
           rewrite upd_Znth_diff'; auto; try lia.
           replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
@@ -690,7 +694,7 @@ Proof.
   unfold atomic_shift; Intros P.
   set (AS := ashift _ _ _ _ _ _).
   forward_call k.
-  pose proof size_pos.
+  pose proof size_pos as Hsize; pose proof size_signed as Hsigned.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
@@ -852,10 +856,8 @@ Proof.
         Intros; rewrite -> if_false by auto.
         replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by lia; entailer!.
         { split.
-          { assert (Int.min_signed <= i1 mod size < Int.max_signed).
-            { split; etransitivity; try apply Z_mod_lt; auto; try computable.
-              setoid_rewrite (proj2_sig has_size); computable. }
-            rewrite -> Int.signed_repr by lia; auto. }
+          { split; etransitivity; try apply Z_mod_lt; auto; try computable.
+            setoid_rewrite (proj2_sig has_size); computable. }
           split; [rewrite Zmod_mod; auto|].
           split; [rewrite upd_Znth_Zlength; auto; lia|].
           replace (i1 mod size) with ((i + hash k) mod size); replace size with (Zlength keys);
@@ -891,7 +893,7 @@ Proof.
   set (AS := ashift _ _ _ _ _ _).
   forward.
   forward_call k.
-  pose proof size_pos.
+  pose proof size_pos as Hsize; pose proof size_signed as Hsigned.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
@@ -972,10 +974,9 @@ Proof.
         change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon.
         rewrite -> Z2Nat.id, Z.add_0_r by lia.
         replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by lia; entailer!.
-        { assert (Int.min_signed <= i1 mod size < Int.max_signed).
-          { split; etransitivity; try apply Z_mod_lt; auto; try computable.
-            setoid_rewrite (proj2_sig has_size); computable. }
-          rewrite -> Int.signed_repr by lia; auto. }
+        { split; auto.
+          split; etransitivity; try apply Z_mod_lt; auto; try computable.
+          setoid_rewrite (proj2_sig has_size); computable. }
         erewrite iter_sepcon_func_strong; [apply derives_refl|]; intros; simpl.
         rewrite upd_Znth_diff'; auto; try lia.
         replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
@@ -1084,10 +1085,9 @@ Proof.
           change (upto (Z.to_nat 1)) with [0]; simpl iter_sepcon.
           rewrite -> Z2Nat.id, Z.add_0_r by lia.
           replace ((i + hash k) mod size) with (i1 mod size); rewrite -> upd_Znth_same by lia; entailer!.
-          { assert (Int.min_signed <= i1 mod size < Int.max_signed).
-          { split; etransitivity; try apply Z_mod_lt; auto; try computable.
+          { assert (Int.min_signed <= i1 mod size < Int.max_signed); auto.
+            split; etransitivity; try apply Z_mod_lt; auto; try computable.
             setoid_rewrite (proj2_sig has_size); computable. }
-          rewrite -> Int.signed_repr by lia; auto. }
           erewrite iter_sepcon_func_strong; [apply derives_refl|]; intros; simpl.
           rewrite upd_Znth_diff'; auto; try lia.
           replace (i1 mod size) with ((i + hash k) mod size); intro X; apply Zmod_plus_inv in X; auto.
@@ -1222,6 +1222,7 @@ Proof.
     forward_call (vint 0).
     Intros pk.
     rewrite iter_sepcon_map; Intros.
+    pose proof size_signed as Hsigned.
     forward.
     forward_call (vint 0).
     Intros pv.
@@ -1294,7 +1295,7 @@ Proof.
     pose proof size_pos.
     rewrite Z.max_r; lia.
 Qed.
-Hint Resolve f_pred_exclusive.
+Hint Resolve f_pred_exclusive : exclusive.
 
 Lemma apply_hist_app : forall h1 h2 H, apply_hist H (h1 ++ h2) =
   match apply_hist H h1 with Some H' => apply_hist H' h2 | None => None end.
@@ -1406,8 +1407,7 @@ Proof.
           iSplit; auto; iPureIntro.
           apply (add_events_snoc _ nil); [constructor|].
           apply hist_incl_lt; auto. }
-    { repeat (split; auto); try rep_lia. eapply Forall_impl. apply H2. intros.
-      destruct x. auto. }
+    { repeat (split; auto); try rep_lia. eapply Forall_impl, H2. intros (?, ?); auto. }
     Intros b h'.
     forward_if (temp _total (vint (Zlength (List.filter id (ls ++ [b]))))).
     + pose proof (Zlength_filter id ls).
@@ -1733,9 +1733,6 @@ Axiom mem_mgr_dup : forall gv, mem_mgr gv = mem_mgr gv * mem_mgr gv.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
-  name m_entries _m_entries.
-  name locksp _thread_locks.
-  name resp _results.
   start_function.
   replace 16384 with size by (setoid_rewrite (proj2_sig has_size); auto).
   sep_apply (create_mem_mgr gv).
@@ -2011,11 +2008,10 @@ Proof.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
     rewrite sublist_nil in H; inv H end.
   gather_SEP (ghost_hist _ _ _) (|> invariant _ _).
-  replace_SEP 0 (|={inv i1}=> !!(Zlength (List.filter id (concat (map snd lr))) = 3) : mpred)%I.
+  replace_SEP 0 (|> |={inv i1}=> !!(Zlength (List.filter id (concat (map snd lr))) = 3) : mpred)%I.
   { go_lower.
     iIntros "(hist & inv)".
-    iPoseProof (timeless with "inv") as ">inv".
-    { admit. } (* This isn't true; we need something to get rid of the later earlier. *)
+    iNext.
     iMod (inv_open (inv i1) with "inv") as "[>inv Hclose]"; [auto|].
     unfold hashtable_inv.
     iDestruct "inv" as (HT) "[hashtable ref]"; iDestruct "ref" as (hr) "[% ref]".
@@ -2034,6 +2030,6 @@ Proof.
   (* Without including fupd in semax, it's not clear how to extract the result
      from the fupd. In a larger application, maybe there would be another view shift. *)
   forward.
-Admitted.
+Qed.
 
 End Proofs.
