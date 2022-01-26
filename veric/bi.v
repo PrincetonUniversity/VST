@@ -291,7 +291,7 @@ Qed.
 Lemma mpred_bi_later_mixin : BiLaterMixin
   derives prop orp imp (@allp _ _) (@exp _ _) sepcon persistently seplog.later.
 Proof.
-  split.  
+  split.
   - repeat intro. hnf. rewrite !approx_later. destruct n.
     + rewrite !approx_0; auto.
     + apply dist_S in H; f_equal; auto.
