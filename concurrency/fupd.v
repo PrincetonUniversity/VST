@@ -22,8 +22,8 @@ Proof.
   unfold Timeless; intros; simpl.
   constructor; change (predicates_hered.derives (|>P) (|>FF || P)); intros ? HP.
   destruct (level a) eqn: Ha.
-  - left; intros ? ?%laterR_level.
-    rewrite Ha in H0; apply Nat.nlt_0_r in H0; contradiction H0.
+  - left; intros ? Hl%laterR_level.
+    rewrite Ha in Hl; apply Nat.nlt_0_r in Hl; contradiction Hl.
   - right.
     destruct (levelS_age a n) as [b [Hb]]; auto.
     specialize (HP _ (semax_lemmas.age_laterR Hb)).
@@ -419,8 +419,8 @@ Proof.
   destruct (level a) eqn: Hl.
   + left.
     change ((|> FF)%pred a).
-    intros ??%laterR_level.
-    rewrite Hl in H0; apply Nat.nlt_0_r in H0; contradiction H0.
+    intros ? Hl'%laterR_level.
+    rewrite Hl in Hl'; apply Nat.nlt_0_r in Hl'; contradiction Hl'.
   + right.
     rewrite <- Hl in *.
     intros ? J; specialize (H _ J) as (? & ? & a' & ? & ? & ? & HP); subst.

@@ -248,10 +248,8 @@ Proof.
   - unfold persistently.
     unseal_derives; intros ??; simpl.
     apply core_identity.
-  - intros.
-    unseal_derives; intros ??; simpl in *.
-    change (` (predicates_hered.andp P Q) (core a)).
-    apply H.
+  - unfold persistently; intros.
+    unseal_derives; intros ??; auto.
   - intros.
     unseal_derives; intros ??; simpl in *.
     destruct H as [b ?].
