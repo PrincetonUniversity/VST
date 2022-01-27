@@ -312,7 +312,7 @@ Lemma failed_entries : forall k i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= 
   |-- !! Forall (fun x => fst x <> 0 /\ fst x <> k) (sublist 0 i (rebase T (hash k))).
 Proof.
   intros.
-  rewrite -> Forall_forall, prop_forall; apply allp_right; intros (k', v').
+  rewrite -> List.Forall_forall, prop_forall; apply allp_right; intros (k', v').
   rewrite prop_forall; apply allp_right; intro Hin.
   apply In_Znth in Hin as (j & Hj & Hjth).
   pose proof (hash_range k).
@@ -1407,7 +1407,7 @@ Proof.
           iSplit; auto; iPureIntro.
           apply (add_events_snoc _ nil); [constructor|].
           apply hist_incl_lt; auto. }
-    { repeat (split; auto); try rep_lia. eapply Forall_impl, H2. intros (?, ?); auto. }
+    { repeat (split; auto); try rep_lia. eapply List.Forall_impl, H2. intros (?, ?); auto. }
     Intros b h'.
     forward_if (temp _total (vint (Zlength (List.filter id (ls ++ [b]))))).
     + pose proof (Zlength_filter id ls).
