@@ -65,6 +65,17 @@ Definition free_atomic_ptr_spec :=
     LOCAL ()
     SEP ().
 
+Definition free_atomic_int_spec :=
+  WITH p : val
+  PRE [ tptr atomic_int ]
+    PROP (is_pointer_or_null p)
+    PARAMS (p)
+    SEP (EX v : val, atomic_int_at Ews v p)
+  POST[ tvoid ]
+    PROP ()
+    LOCAL ()
+    SEP ().
+
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
   (ArrowType (ConstType val) Mpred)) (ConstType invG).
@@ -88,7 +99,7 @@ Proof.
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 3 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v. 
+  rewrite !approx_exp; apply f_equal; extensionality v.
   rewrite !approx_sepcon; f_equal.
   setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.
@@ -229,7 +240,7 @@ Proof.
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 3 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v. 
+  rewrite !approx_exp; apply f_equal; extensionality v.
   rewrite !approx_sepcon; f_equal.
   setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.
@@ -465,7 +476,7 @@ Qed.
 Definition ALI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
   (ArrowType (ConstType val) Mpred)) (ConstType invG).
-  
+
 Program Definition atomic_load_ptr_spec := TYPE ALI_ptr_type
   WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
   PRE [ tptr atomic_ptr ]
@@ -485,7 +496,7 @@ Proof.
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 3 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v. 
+  rewrite !approx_exp; apply f_equal; extensionality v.
   rewrite !approx_sepcon; f_equal.
   setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.

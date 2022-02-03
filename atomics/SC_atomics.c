@@ -26,6 +26,10 @@ int atom_exchange(atom_int *tgt, int v){
   return atomic_exchange(&tgt->i, v);
 }
 
+void free_atomic(atom_int *tgt) {
+  free(tgt);
+}
+
 atom_ptr *make_atom_ptr(void *v){
   atom_ptr *r = malloc(sizeof(atom_ptr));
   r->p = v;
@@ -46,4 +50,8 @@ int atomic_CAS_ptr(atom_ptr *tgt, void **c, void *v){
 
 void* atomic_exchange_ptr(atom_ptr *tgt, void *v){
   return atomic_exchange(&tgt->p, v);
+}
+
+void free_atomic_ptr(atom_ptr *tgt) {
+  free(tgt);
 }
