@@ -124,7 +124,7 @@ Proof. intros.
   assert (HH: Z.to_nat (Zlength l1) = Z.to_nat (Zlength l2)).
     rewrite H; trivial.
   do 2 rewrite Zlength_correct, Nat2Z.id in HH.
-  eapply nth_extensional with (d0:=d). trivial.
+  eapply (nth_extensional _ _ HH d).
   intros.
   assert (I: 0 <= (Z.of_nat i) < Zlength l1).
     split. apply (Nat2Z.inj_le 0). apply H1. rewrite Zlength_correct. apply Nat2Z.inj_lt. apply H1.

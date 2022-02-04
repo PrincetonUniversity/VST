@@ -114,7 +114,7 @@ Proof.
       destruct (sys_getc_spec) eqn:Hspec; inv H3.
       assert (sig_res (ef_sig e) <> AST.Tvoid).
       { destruct e; inv H4; discriminate. }
-      eapply sys_getc_correct with (m1 := m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
+      eapply (sys_getc_correct _ _ m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
       * split; auto; do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
         destruct Hpost as [? Hpost]; split; auto; split; auto.

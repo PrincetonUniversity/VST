@@ -22,7 +22,7 @@ VST_LOC ?= ../..
 
 ifdef COMPCERT_LOC
 CLIGHTGEN ?= $(COMPCERT_LOC)/clightgen
-COMPCERT_FLAGS= -R $(COMPCERT_LOC)
+COMPCERT_FLAGS= -R $(COMPCERT_LOC) compcert
 endif 
 
 ifdef CLIGHTGEN
