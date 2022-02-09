@@ -54,22 +54,35 @@ Section PROOFS.
 
   Program Definition release_spec :=
     DECLARE _release
-    ATOMIC TYPE (rmaps.ConstType (val * globals)) OBJ n INVS empty top
+    ATOMIC TYPE (rmaps.ConstType _) INVS empty top
     WITH p, gv
     PRE [ tptr t_lock ]
        PROP (is_pointer_or_null p)
        PARAMS (p) GLOBALS (gv)
-       SEP (mem_mgr gv) | (atomic_int_at Ews (vint n) p)
+       SEP (mem_mgr gv) | (atomic_int_at Ews (vint 1) p)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
        SEP (mem_mgr gv) | (atomic_int_at Ews (vint 0) p).
 
+  Program Definition acquire_spec :=
+    DECLARE _acquire
+    ATOMIC TYPE (rmaps.ConstType _) OBJ l INVS empty top
+    WITH p, gv
+    PRE [ tptr t_lock ]
+       PROP (is_pointer_or_null p)
+       PARAMS (p) GLOBALS (gv)
+       SEP (mem_mgr gv) | ((!! (l = true) && atomic_int_at Ews (vint 0) p) ||
+                           (!! (l = false) && atomic_int_at Ews (vint 1) p))
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (mem_mgr gv) | (!! (l = true) && atomic_int_at Ews (vint 1) p).
 
   Definition Gprog : funspecs :=
     ltac:(with_library prog [make_atomic_spec; atom_store_spec; atom_CAS_spec;
                              free_atomic_spec; makelock_spec; freelock_spec;
-                             release_spec]).
+                             release_spec; acquire_spec]).
 
   Lemma body_makelock: semax_body Vprog Gprog f_makelock makelock_spec.
   Proof.
@@ -107,5 +120,44 @@ Section PROOFS.
         iSpecialize ("HA" with "AA"). iMod ("H" $! tt with "HA"). auto.
     - entailer !.
   Qed.
+
+  Lemma body_acquire: semax_body Vprog Gprog f_acquire acquire_spec.
+    Proof.
+      start_function.
+      forward.
+      forward.
+      forward_loop (PROP ( )
+       LOCAL (temp _b (vint 0); lvar _expected tint v_expected;
+       gvars gv; temp _lock p)
+       SEP (data_at Tsh tint (vint 0) v_expected;
+            atomic_shift
+              (λ l : bool,
+                  !! (l = true) && atomic_int_at Ews (vint 0) p
+                  || !! (l = false) && atomic_int_at Ews (vint 1) p) ∅ ⊤
+              (λ (l : bool) (_ : ()),
+                fold_right_sepcon [!! (l = true) && atomic_int_at Ews (vint 1) p])
+              (λ _ : (), Q); mem_mgr gv)).
+      - entailer !.
+      - forward_call (p , Tsh, v_expected, (vint 0), (vint 1), top : coPset,
+                         empty : coPset, fun _:val => Q, inv_names).
+        + assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H0].
+          simpl fold_right_sepcon. cancel.
+          iIntros "AS".
+          unfold atomic_shift, ashift.
+          iDestruct "AS" as (P) "[P AS]".
+          iMod ("AS" with "P") as (x) "[[a | a] [_ H]]".
+          * iDestruct "a" as (a) "b". iExists Ews, (vint 0). iModIntro. iSplitL "b".
+            -- iSplit; auto.
+            -- iSpecialize ("H" $! tt). iIntros "AA". iApply "H".
+               destruct (eq_dec (vint 0) (vint 0)). 2: exfalso; now apply n.
+               iSplit; [iSplit|]; auto.
+          * iExists Ews, (vint 1). iModIntro. destruct (eq_dec (vint 1) (vint 0)).
+            1: inversion e. do 2 rewrite sepcon_andp_prop'. iSplit.
+            -- iPureIntro. apply writable_Ews.
+            -- admit.
+        + Intros r. destruct (eq_dec r (vint 0)).
+          * forward_if. 1: exfalso; apply H0'; auto. forward. entailer !.
+          * forward_if. 2: inversion H0. forward. entailer !. admit.
+    Abort.
 
 End PROOFS.
