@@ -154,8 +154,10 @@ Section PROOFS.
           iIntros "AS". iExists Ews.
           unfold atomic_shift at 1. unfold ashift.
           iDestruct "AS" as (P) "[P AS]".
+          iDestruct (cored_dup with "AS") as "[AS AS1]".
           iMod ("AS" with "P") as (x) "[[a | a] H]".
-          * iDestruct "H" as "[_ H]". iDestruct "a" as (a) "b".
+          * iDestruct "AS1" as "[_ AS1]". iMod (cored_emp with "AS1") as "_".
+            iDestruct "H" as "[_ H]". iDestruct "a" as (a) "b".
             iExists (vint 0). iModIntro. iSplitL "b".
             -- iSplit; auto.
             -- iSpecialize ("H" $! tt). iIntros "AA". iApply "H".
@@ -165,10 +167,12 @@ Section PROOFS.
             1: inversion e. do 2 rewrite sepcon_andp_prop'. iSplit.
             -- iPureIntro. apply writable_Ews.
             -- iDestruct "a" as (Hx) "a". iSplitL "a". 1: auto. iIntros "AS".
-               iExists P. admit.
+               iExists P. iMod ("H" with "[AS]").
+               { iRight; iFrame; auto. }
+               iFrame; auto.
         + Intros r. destruct (eq_dec r (vint 0)).
           * forward_if. 1: exfalso; apply H0'; auto. forward. entailer !.
           * forward_if. 2: inversion H0. forward. entailer !.
-    Abort.
+    Qed.
 
 End PROOFS.

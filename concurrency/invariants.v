@@ -40,7 +40,7 @@ Proof.
   unseal_derives; exact cored_dup_gen.
 Qed.
 
-Lemma cored_emp: (cored |-- |==> emp)%I.
+Lemma cored_emp: (cored |-- (|==> emp)%I)%I.
 Proof.
   constructor; apply own.cored_emp.
 Qed.
