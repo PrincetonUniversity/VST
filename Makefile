@@ -678,19 +678,29 @@ endif
 
 # ########## Targets ##########
 
-default_target: _CoqProject msl veric floyd $(PROGSDIR)
-
-all: default_target files travis io hmacdrbg tweetnacl aes
+default_target: vst $(PROGSDIR)
+vst: _CoqProject msl veric floyd simpleconc
 
 ifeq ($(BITSIZE),64)
-travis: default_target progs
+test: vst progs64
+	@# need this tab here to turn of special behavior of 'test' target
+test2: io
+tests: test test2
+all: tests
 else
-travis: default_target progs sha hmac mailbox VSUpile
-travisx: default_target progs sha hmac mailbox
+test: vst progs
+	@# need this tab here to turn of special behavior of 'test' target
+test2: io
+test3: sha hmac 
+test4: mailbox 
+test5: VSUpile
+tests: test test2 test3 test4 test5
+all: vst files tests hmacdrbg tweetnacl aes
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
+simpleconc: concurrency/conclib.vo concurrency/ghosts.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
@@ -810,7 +820,6 @@ endif
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
 # endif
 ifneq ($(wildcard InteractionTrees/theories),)
-	$(warning foo)
 #	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 endif

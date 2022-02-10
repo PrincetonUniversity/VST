@@ -383,7 +383,7 @@ Proof.
     destruct mv; try discriminate.
     unfold decode_val in Hdecode; simpl in *.
     rewrite Z.sub_0_r in *.
-    apply Forall_Znth with (i0 := lo) in Hdef; try lia.
+    apply (Forall_Znth _ _ lo) in Hdef; try lia.
     setoid_rewrite <- Hdecode in Hdef.
     destruct m; try contradiction; clear Hdef.
     destruct mv; try discriminate; simpl in *.
@@ -423,7 +423,7 @@ Proof.
     * unfold Ptrofs.add.
       setoid_rewrite Ptrofs.unsigned_repr at 2; [|rep_lia].
       rewrite Ptrofs.unsigned_repr; rep_lia.
-    * apply Forall_Znth with (i0 := lo - 0) in Hdef; try lia; contradiction.
+    * apply (Forall_Znth _ _ (lo - 0)) in Hdef; try lia; contradiction.
     * rewrite Z.add_assoc in *.
       replace (1 + Z.of_nat n + lo) with (Z.of_nat n + (lo + 1)) by lia; auto.
     * eapply join_sub_trans; [eexists|]; eauto.

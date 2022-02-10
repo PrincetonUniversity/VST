@@ -29,6 +29,7 @@ Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list byte :=
   match n' <=? 0 with true => [Byte.repr (n + char0)] | false => chars_of_Z n' ++ [Byte.repr (n mod 10 + char0)] end.
 Next Obligation.
 Proof.
+  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous.
   eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
@@ -235,6 +236,7 @@ Proof.
   intros.
   destruct (Z.leb_spec n 0).
   { rewrite chars_of_Z_eq; simpl.
+  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
     apply Zdiv_le_compat_r with (p := 10) in H; try lia.
     rewrite Zdiv_0_l in H.
     destruct (Z.leb_spec (n / 10) 0); auto; lia. }
@@ -242,6 +244,7 @@ Proof.
   rewrite chars_of_Z_eq, intr_eq.
   destruct (n <=? 0) eqn: Hn; [apply Zle_bool_imp_le in Hn; lia|].
   simpl.
+  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   destruct (n / 10 <=? 0) eqn: Hdiv.
   - apply Zle_bool_imp_le in Hdiv.
     assert (0 <= n / 10).
@@ -549,9 +552,17 @@ Ltac alloc_block m n := match n with
   | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
-  alloc_block Mem.empty 61%nat.
-  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end.
-  reflexivity.
+try first [
+  (* This version works in Coq 8.15, CompCert 3.10 *)
+  alloc_block Mem.empty 63%nat;
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
+  reflexivity
+ | 
+  (* This version worked in Coq 8.13, CompCert 3.9 *)
+  alloc_block Mem.empty 61%nat;
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
+  reflexivity
+].
 Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.

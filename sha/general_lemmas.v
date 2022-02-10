@@ -53,7 +53,7 @@ rewrite <- H1.
 assert (b=1 \/ b>1) by lia.
 destruct H2.
 subst b. simpl. lia.
-rewrite (Z_div_nz_opp_full 1) by (rewrite Z.mod_small; lia).
+rewrite (Z_div_nz_opp_full 1) by (rewrite ?Z.mod_small; lia).
 rewrite  Z.div_small by lia.
 lia.
 rewrite H4.

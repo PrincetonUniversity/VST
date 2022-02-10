@@ -296,7 +296,8 @@ rewrite <- Sigma_0_eq, <- Maj_eq.
 repeat forward.
 rewrite Z.add_simpl_r.
 rewrite Z2Nat.inj_add by lia.
-entailer!. 2: apply derives_refl.
+entailer!. 
+all: try apply derives_refl.  (* to support Coq 8.13 *)
 clear - H H0 H1.
 rewrite Round_equation.
 forget (W (nthi bb) i) as Wbbi.

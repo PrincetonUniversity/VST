@@ -317,7 +317,8 @@ Theorem Zmod_mod_mult :
   Zmod (Zmod n (a * b)) b = Zmod n b.
 Proof.
 intros n a [|b|b] Ha Hb.
-now rewrite 2!Zmod_0_r.
+rewrite ?Z.mul_0_r.
+now rewrite 2!Zmod_0_r.  
 rewrite (Zmod_eq n (a * Zpos b)).
 rewrite Zmult_assoc.
 unfold Zminus.
