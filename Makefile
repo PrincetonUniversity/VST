@@ -680,7 +680,7 @@ endif
 
 default_target: vst $(PROGSDIR)
 vst: _CoqProject msl veric floyd simpleconc
-all: default_target files travis io hmacdrbg tweetnacl aes
+all: default_target files tests io hmacdrbg tweetnacl aes
 
 ifeq ($(BITSIZE),64)
 test: default_target progs
