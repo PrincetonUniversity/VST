@@ -680,17 +680,22 @@ endif
 
 default_target: vst $(PROGSDIR)
 vst: _CoqProject msl veric floyd simpleconc
-all: default_target files tests io hmacdrbg tweetnacl aes
 
 ifeq ($(BITSIZE),64)
-test: default_target progs
-tests: test
+test: vst progs64
+	@# need this tab here to turn of special behavior of 'test' target
+test2: io
+tests: test test2
+all: tests
 else
-test: default_target progs
-test2: sha hmac 
-test3: mailbox 
-test4: VSUpile
-tests: test test2 test3 test4
+test: vst progs
+	@# need this tab here to turn of special behavior of 'test' target
+test2: io
+test3: sha hmac 
+test4: mailbox 
+test5: VSUpile
+tests: test test2 test3 test4 test5
+all: vst files tests hmacdrbg tweetnacl aes
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
