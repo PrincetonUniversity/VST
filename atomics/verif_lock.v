@@ -138,26 +138,37 @@ Section PROOFS.
                 fold_right_sepcon [!! (l = true) && atomic_int_at Ews (vint 1) p])
               (λ _ : (), Q); mem_mgr gv)).
       - entailer !.
-      - forward_call (p , Tsh, v_expected, (vint 0), (vint 1), top : coPset,
-                         empty : coPset, fun _:val => Q, inv_names).
+      - forward_call
+          (p , Tsh, v_expected, (vint 0), (vint 1), top : coPset,
+              empty : coPset,
+                fun v':val =>
+                  if (eq_dec v' (vint 0)) then Q else
+                    (atomic_shift
+                       (λ l : bool,
+                           !! (l = true) && atomic_int_at Ews (vint 0) p
+                           || !! (l = false) && atomic_int_at Ews (vint 1) p) ∅ ⊤
+                       (λ (l : bool) (_ : ()),
+                         fold_right_sepcon [!! (l = true) && atomic_int_at Ews (vint 1) p]) (λ _ : (), Q)), inv_names).
         + assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H0].
           simpl fold_right_sepcon. cancel.
-          iIntros "AS".
-          unfold atomic_shift, ashift.
+          iIntros "AS". iExists Ews.
+          unfold atomic_shift at 1. unfold ashift.
           iDestruct "AS" as (P) "[P AS]".
-          iMod ("AS" with "P") as (x) "[[a | a] [_ H]]".
-          * iDestruct "a" as (a) "b". iExists Ews, (vint 0). iModIntro. iSplitL "b".
+          iMod ("AS" with "P") as (x) "[[a | a] H]".
+          * iDestruct "H" as "[_ H]". iDestruct "a" as (a) "b".
+            iExists (vint 0). iModIntro. iSplitL "b".
             -- iSplit; auto.
             -- iSpecialize ("H" $! tt). iIntros "AA". iApply "H".
                destruct (eq_dec (vint 0) (vint 0)). 2: exfalso; now apply n.
                iSplit; [iSplit|]; auto.
-          * iExists Ews, (vint 1). iModIntro. destruct (eq_dec (vint 1) (vint 0)).
+          * iExists (vint 1). iModIntro. destruct (eq_dec (vint 1) (vint 0)).
             1: inversion e. do 2 rewrite sepcon_andp_prop'. iSplit.
             -- iPureIntro. apply writable_Ews.
-            -- admit.
+            -- iDestruct "a" as (Hx) "a". iSplitL "a". 1: auto. iIntros "AS".
+               iExists P. admit.
         + Intros r. destruct (eq_dec r (vint 0)).
           * forward_if. 1: exfalso; apply H0'; auto. forward. entailer !.
-          * forward_if. 2: inversion H0. forward. entailer !. admit.
+          * forward_if. 2: inversion H0. forward. entailer !.
     Abort.
 
 End PROOFS.
