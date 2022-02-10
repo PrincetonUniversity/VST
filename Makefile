@@ -678,19 +678,24 @@ endif
 
 # ########## Targets ##########
 
-default_target: _CoqProject msl veric floyd $(PROGSDIR)
-
+default_target: vst $(PROGSDIR)
+vst: _CoqProject msl veric floyd simpleconc
 all: default_target files travis io hmacdrbg tweetnacl aes
 
 ifeq ($(BITSIZE),64)
-travis: default_target progs
+test: default_target progs
+tests: test
 else
-travis: default_target progs sha hmac mailbox VSUpile
-travisx: default_target progs sha hmac mailbox
+test: default_target progs
+test2: sha hmac 
+test3: mailbox 
+test4: VSUpile
+tests: test test2 test3 test4
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
+simpleconc: concurrency/conclib.vo concurrency/ghosts.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
