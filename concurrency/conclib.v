@@ -13,6 +13,8 @@ Import LiftNotation.
 Import compcert.lib.Maps.
 
 Require Export VST.concurrency.conclib_split.
+Require Export VST.concurrency.conclib_misc.
+Require Export VST.concurrency.conclib_Znth.
 
 (* rewrite is really annoying to fix in a backwards compatible way so just set the option. *)
 Local Set Apply With Renaming.
@@ -396,7 +398,6 @@ Proof.
     destruct (eq_dec i o); [|repeat rewrite prop_false_andp; try (intro X; inv X; contradiction n); auto].
     subst; repeat rewrite prop_true_andp; auto.
 Qed.
-
 
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
