@@ -700,7 +700,7 @@ endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
-simpleconc: concurrency/conclib.vo concurrency/ghosts.vo
+simpleconc: concurrency/conclib_split.vo concurrency/conclib.vo concurrency/ghosts.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
