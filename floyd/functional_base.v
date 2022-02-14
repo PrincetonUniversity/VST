@@ -20,13 +20,13 @@ Ltac fold_Vbyte :=
       fold (Vbyte c)
 end.
 Ltac  customizable_list_solve_preprocess ::= fold_Vbyte.
-Instance Inhabitant_val : Inhabitant val := Vundef.
-Instance Inhabitant_int: Inhabitant int := Int.zero.
-Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
-Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
-Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
-Instance Inhabitant_float : Inhabitant float := Float.zero.
-Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
+#[export] Instance Inhabitant_val : Inhabitant val := Vundef.
+#[export] Instance Inhabitant_int: Inhabitant int := Int.zero.
+#[export] Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
+#[export] Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
+#[export] Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
+#[export] Instance Inhabitant_float : Inhabitant float := Float.zero.
+#[export] Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
 
 #[export] Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
 #[export] Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.

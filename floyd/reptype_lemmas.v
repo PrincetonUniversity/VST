@@ -173,7 +173,7 @@ Definition default_val {cs: compspecs} t: reptype t :=
     return match tv with existT t _ => t end
   with existT t v => v end.
 
-Instance Inhabitant_reptype {cs: compspecs} (t: type) : Inhabitant (reptype t) := default_val t.
+#[export] Instance Inhabitant_reptype {cs: compspecs} (t: type) : Inhabitant (reptype t) := default_val t.
 
 Lemma reptype_gen_eq {cs: compspecs}: forall t,
   reptype_gen t =
