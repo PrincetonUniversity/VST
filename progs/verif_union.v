@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.union.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Import Memdata.

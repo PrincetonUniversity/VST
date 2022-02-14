@@ -7,7 +7,7 @@ Require Import VST.floyd.library.
 Set Bullet Behavior "Strict Subproofs".
 
 Require Export VST.floyd.Funspec_old_Notation.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition tqueue := Tstruct _queue noattr.

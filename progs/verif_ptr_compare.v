@@ -1,7 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.ptr_compare.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope logic.

@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.int_or_ptr.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Inductive tree := 

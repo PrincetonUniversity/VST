@@ -3,7 +3,7 @@ Require Import pile.
 Require Import spec_stdlib.
 Require Import spec_pile.
 
-Instance PileCompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance PileCompSpecs : compspecs. make_compspecs prog. Defined.
 Definition tlist := Tstruct _list noattr.
 
 (*Here we have case where one APD is defined parametrically in another one*)

@@ -493,7 +493,7 @@ Qed.
 Definition extlink := ext_link_prog prog.
 
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
+#[export] Existing Instance Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

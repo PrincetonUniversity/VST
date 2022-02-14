@@ -10,7 +10,7 @@ Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.tweetNaclBase.
-Instance CompSpecs : compspecs.
+#[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
 Lemma data_at_ext sh t v v' p: v=v' -> data_at sh t v p |-- data_at sh t v' p.

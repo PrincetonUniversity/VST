@@ -6,7 +6,7 @@ Require Import spec_fastpile.
 Require Import spec_fastpile_private.
 Require Import spec_apile.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section Apile_VSU.
 Variable M: MallocFreeAPD.

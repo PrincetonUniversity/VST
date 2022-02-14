@@ -13,12 +13,12 @@ Require Import VST.veric.change_compspecs.
 
 Require Import VST.floyd.Funspec_old_Notation.
 
-Instance CompSpecs : compspecs. 
+#[export] Instance CompSpecs : compspecs. 
 Proof. make_compspecs prog. Defined. (*
-Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
+#[export] Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
   make_cs_preserve spec_sha.CompSpecs CompSpecs.
 Defined.*)
-Instance CompSpecs_Preserve: change_composite_env spec_hmac.CompSpecs CompSpecs.
+#[export] Instance CompSpecs_Preserve: change_composite_env spec_hmac.CompSpecs CompSpecs.
   make_cs_preserve spec_hmac.CompSpecs CompSpecs.
 Defined.
 

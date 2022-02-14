@@ -9,8 +9,8 @@ Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac.
 Require Import VST.veric.change_compspecs.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
   make_cs_preserve spec_sha.CompSpecs CompSpecs.
 Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.

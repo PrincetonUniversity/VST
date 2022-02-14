@@ -8,7 +8,7 @@ the client has enough knowledge to call the correct function*)
 
 (*Require Import VST.floyd.Funspec_old_Notation.*)
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope Z.

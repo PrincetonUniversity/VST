@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.dead_if.
 Require Import VST.floyd.deadvars.
 
-Instance CompSpecs : compspecs.
+#[export] Instance CompSpecs : compspecs.
 Require Export VST.floyd.Funspec_old_Notation.
 Proof. make_compspecs prog. Defined.
 

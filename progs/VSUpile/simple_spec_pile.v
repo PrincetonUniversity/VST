@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import pile.
-Instance PileCompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance PileCompSpecs : compspecs. make_compspecs prog. Defined.
 Require Import simple_spec_stdlib.
 Require Import PileModel.
 

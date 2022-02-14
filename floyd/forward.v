@@ -2158,7 +2158,7 @@ Tactic Notation "forward_while" constr(Inv) :=
 
              (* verif_example.v file (+you have to Require Import the example.v file produced by clightgen) *)
              Require Import VST.floyd.proofauto.
-             Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
+             #[export] Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
              Local Open Scope logic.
 
              Lemma body_main : semax_body [] [] f_main

@@ -18,7 +18,7 @@ Require Import VST.progs64.reverse.
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
 ** line (which looks identical for any program) builds this
 ** interpretation, called "CompSpecs" *)
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 (** Calculate the "types-of-global-variables" specification
  ** directly from the program *)

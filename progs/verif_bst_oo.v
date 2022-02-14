@@ -3,7 +3,7 @@ Require Import VST.progs.bst_oo.
 
 Open Scope logic.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_struct_tree := Tstruct _tree noattr.

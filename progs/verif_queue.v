@@ -5,14 +5,14 @@ Require Import VST.progs.queue.
 
 Open Scope logic.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
 
 
-Instance QS: listspec _elem _next (fun _ _ => emp).
+#[export] Instance QS: listspec _elem _next (fun _ _ => emp).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
@@ -563,7 +563,7 @@ forward_call (*  free(p, sizeof( *p)); *)
 forward. (* return i+j; *)
 Qed.
 
-Existing Instance NullExtension.Espec.
+#[export] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

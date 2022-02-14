@@ -5,7 +5,7 @@ Require Import VST.floyd.library.
 
 Local Open Scope itree_scope.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition putchars_spec := DECLARE _putchars putchars_spec.

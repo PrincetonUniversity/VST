@@ -4,7 +4,7 @@ Require Import fastpile.
 Require Import spec_stdlib.
 Require Import spec_fastpile_concrete.
 
-Instance FPileConcCompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance FPileConcCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section FastpileConcrete_VSU.
 Variable M: MallocFreeAPD.

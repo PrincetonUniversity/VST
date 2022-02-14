@@ -8,7 +8,7 @@ Require Import mailbox.mailbox_bad.
 Set Bullet Behavior "Strict Subproofs".
 
 (* standard VST prelude *)
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (* import funspecs from concurrency library *)

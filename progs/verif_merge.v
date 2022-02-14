@@ -4,10 +4,10 @@ Require Import VST.progs.list_dt. Import LsegSpecial.
 
 Open Scope logic.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Instance LS: listspec _list _tail (fun _ _ => emp).
+#[export] Instance LS: listspec _list _tail (fun _ _ => emp).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Definition t_struct_list := Tstruct _list noattr.

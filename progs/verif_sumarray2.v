@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
 Require Import VST.progs.sumarray2. (* Import the AST of this C program *)
 
 (* The next line is "boilerplate", always required after importing an AST. *)
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 (* Some definitions relating to the functional spec of this particular program.  *)
@@ -123,7 +123,7 @@ forward_call (*  s = sumarray(four+2,2); *)
   forward. (* return *)
 Qed.
 
-Existing Instance NullExtension.Espec.
+#[export] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

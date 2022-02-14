@@ -2,7 +2,7 @@ Require Import VST.concurrency.conclib.
 Require Import VST.progs.example.
 
 Require Export VST.floyd.Funspec_old_Notation.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.

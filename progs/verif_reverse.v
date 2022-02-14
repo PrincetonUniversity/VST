@@ -33,7 +33,7 @@ Open Scope logic.
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
 ** line (which looks identical for any program) builds this
 ** interpretation, called "CompSpecs" *)
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (** The reverse.c program uses the linked list structure [struct list].
@@ -303,7 +303,7 @@ forward_call  (* s = sumlist(r); *)
 forward.  (* return s; *)
 Qed.
 
-Existing Instance NullExtension.Espec.
+#[export] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
