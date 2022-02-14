@@ -13,6 +13,8 @@ Import compcert.lib.Maps.
 Require Import VST.concurrency.conclib_coqlib.
 Require Import VST.concurrency.conclib_sublist.
 
+(* rewrite is really annoying to fix in a backwards compatible way so just set the option. *)
+Local Set Apply With Renaming.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
