@@ -25,8 +25,8 @@ install: [
 	make "BITSIZE=64" "install"
 	]
 depends: [
-  "coq" {>= "8.11.0"}
-  "coq-compcert" {= "3.9"}
+  "coq" {>= "8.15.0"}
+  "coq-compcert" {= "3.10"}
 ]
 synopsis: "Verified Software Toolchain"
 description:

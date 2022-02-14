@@ -1,14 +1,11 @@
 ---
-name: CI
+name: Legacy CI
 
 on:
   push:
     branches:
-      - master
-      - tcarstens/conclib
-  pull_request:
-    branches:
-      - '**'
+      - release-v2.7
+      - release-v2.8
 
 jobs:
   build:
@@ -18,7 +15,8 @@ jobs:
       matrix:
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-          - '8.15'
+          - '8.13'
+          - '8.14'
         opam_name:
           - coq-vst
           - coq-vst-32
