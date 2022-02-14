@@ -8,6 +8,9 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope Z.
 
+(* rewrite is really annoying to fix in a backwards compatible way so just set the option. *)
+Local Set Apply With Renaming.
+
 Lemma Forall_forall_Znth : forall {A}{d: Inhabitant A} (P : A -> Prop) l,
   Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l).
 Proof.
@@ -257,7 +260,7 @@ Lemma Forall_sublist_le : forall {A} {d : Inhabitant A} (P : A -> Prop) i j l
 Proof.
   intros.
   destruct (Z_le_dec j i); auto.
-  eapply Forall_Znth with (i := i) in Hj; [|rewrite Zlength_sublist; lia].
+  eapply Forall_Znth with (i0 := i) in Hj; [|rewrite Zlength_sublist; lia].
   rewrite Znth_sublist, Z.add_0_r in Hj by lia.
   contradiction Hi; eauto.
 Qed.
@@ -1065,7 +1068,7 @@ Lemma Forall2_upd_Znth_l : forall {A B}{d: Inhabitant B} (P : A -> B -> Prop) l1
   P x (Znth i l2) -> 0 <= i < Zlength l1 -> Forall2 P (upd_Znth i l1 x) l2.
 Proof.
   intros.
-  erewrite <- upd_Znth_triv with (l := l2)(i := i); eauto.
+  erewrite <- upd_Znth_triv with (l := l2)(i0 := i); eauto.
   apply Forall2_upd_Znth; eauto; lia.
   apply mem_lemmas.Forall2_Zlength in H; lia.
 Qed.
@@ -1074,7 +1077,7 @@ Lemma Forall2_upd_Znth_r : forall {A B}{d: Inhabitant A} (P : A -> B -> Prop) l1
   P (Znth i l1) x -> 0 <= i < Zlength l1 -> Forall2 P l1 (upd_Znth i l2 x).
 Proof.
   intros.
-  erewrite <- upd_Znth_triv with (l := l1)(i := i) by (eauto; lia).
+  erewrite <- upd_Znth_triv with (l := l1)(i0 := i) by (eauto; lia).
   apply Forall2_upd_Znth; eauto.
   apply mem_lemmas.Forall2_Zlength in H; lia.
 Qed.
@@ -1177,7 +1180,7 @@ Proof.
   { rewrite Zlength_nil in *; lia. }
   destruct (eq_dec 0 i).
   - subst; rewrite upd_Znth0.
-    rewrite list_Znth_eq with (l := l) at 1.
+    rewrite list_Znth_eq with (l0 := l) at 1.
     rewrite map_map.
     f_equal; apply map_ext_in; intros.
     rewrite In_upto in *.
@@ -1310,7 +1313,7 @@ Lemma Zlength_filter : forall {A} f (l : list A), Zlength (filter f l) <= Zlengt
 Proof.
   intros.
   setoid_rewrite Zlength_correct at 2.
-  rewrite filter_length with (f := f).
+  rewrite filter_length with (f0 := f).
   rewrite Nat2Z.inj_add.
   rewrite <- Zlength_correct; lia.
 Qed.
@@ -1533,7 +1536,7 @@ Proof.
   assert (Zlength l1 = Zlength l2) as Heq.
   { assert (Zlength (sublist i (Zlength l1) l1) = Zlength (sublist i (Zlength l2) l2)) as Heq by congruence.
     destruct (Z_le_dec (Zlength l2) i).
-    { rewrite sublist_nil_gen with (l := l2), Zlength_nil in Heq; auto.
+    { rewrite sublist_nil_gen with (l0 := l2), Zlength_nil in Heq; auto.
       rewrite !Zlength_sublist in Heq; lia. }
     rewrite !Zlength_sublist in Heq; lia. }
   intros; destruct (Z.max_spec i j) as [(? & ->) | (? & ->)].
