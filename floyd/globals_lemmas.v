@@ -1442,10 +1442,10 @@ intros.
 apply zero_val_Tpointer.
 Qed.
 
-Hint Rewrite @zero_val_tarray : zero_val.
-Hint Rewrite @zero_val_Tpointer @zero_val_Tfloat32 @zero_val_Tfloat64 : zero_val.
-Hint Rewrite @zero_val_Tlong @zero_val_Tint : zero_val.
-Hint Rewrite @zero_val_tint @zero_val_tuint @zero_val_tlong @zero_val_tulong @zero_val_tptr : zero_val.
+#[export] Hint Rewrite @zero_val_tarray : zero_val.
+#[export] Hint Rewrite @zero_val_Tpointer @zero_val_Tfloat32 @zero_val_Tfloat64 : zero_val.
+#[export] Hint Rewrite @zero_val_Tlong @zero_val_Tint : zero_val.
+#[export] Hint Rewrite @zero_val_tint @zero_val_tuint @zero_val_tlong @zero_val_tulong @zero_val_tptr : zero_val.
 
 Lemma finish_process_globvars: 
  forall {cs: compspecs}{Espec: OracleKind} Delta PQR SF c Post,

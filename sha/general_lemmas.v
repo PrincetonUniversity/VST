@@ -104,32 +104,32 @@ Fixpoint bytelist_to_intlist (nl: list byte) : list int :=
   | _ => nil
   end.
 
-Hint Rewrite Int.bits_or using lia : testbit.
-Hint Rewrite Int.bits_shl using lia : testbit.
-Hint Rewrite Int.bits_and using lia : testbit.
-Hint Rewrite Int.bits_shru using lia : testbit.
-Hint Rewrite Int.unsigned_repr using lia : testbit.
-Hint Rewrite Int.testbit_repr using lia : testbit.
-Hint Rewrite if_false using lia : testbit.
-Hint Rewrite if_true using lia : testbit.
-Hint Rewrite Z.ones_spec_low using lia : testbit.
-Hint Rewrite Z.ones_spec_high using lia : testbit.
-Hint Rewrite orb_false_r orb_true_r andb_false_r andb_true_r : testbit.
-Hint Rewrite orb_false_l orb_true_l andb_false_l andb_true_l : testbit.
-Hint Rewrite Z.add_simpl_r : testbit.
-Hint Rewrite Int.unsigned_repr using rep_lia : testbit.
-Hint Rewrite Byte.testbit_repr using rep_lia : testbit.
-Hint Rewrite Byte.bits_above using rep_lia : testbit.
+#[export] Hint Rewrite Int.bits_or using lia : testbit.
+#[export] Hint Rewrite Int.bits_shl using lia : testbit.
+#[export] Hint Rewrite Int.bits_and using lia : testbit.
+#[export] Hint Rewrite Int.bits_shru using lia : testbit.
+#[export] Hint Rewrite Int.unsigned_repr using lia : testbit.
+#[export] Hint Rewrite Int.testbit_repr using lia : testbit.
+#[export] Hint Rewrite if_false using lia : testbit.
+#[export] Hint Rewrite if_true using lia : testbit.
+#[export] Hint Rewrite Z.ones_spec_low using lia : testbit.
+#[export] Hint Rewrite Z.ones_spec_high using lia : testbit.
+#[export] Hint Rewrite orb_false_r orb_true_r andb_false_r andb_true_r : testbit.
+#[export] Hint Rewrite orb_false_l orb_true_l andb_false_l andb_true_l : testbit.
+#[export] Hint Rewrite Z.add_simpl_r : testbit.
+#[export] Hint Rewrite Int.unsigned_repr using rep_lia : testbit.
+#[export] Hint Rewrite Byte.testbit_repr using rep_lia : testbit.
+#[export] Hint Rewrite Byte.bits_above using rep_lia : testbit.
 
 Lemma Ztest_Inttest:
  forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
 Proof. reflexivity. Qed.
-Hint Rewrite Ztest_Inttest : testbit.
+#[export] Hint Rewrite Ztest_Inttest : testbit.
 
 Lemma Ztest_Bytetest:
  forall a, Z.testbit (Byte.unsigned a) = Byte.testbit a.
 Proof. reflexivity. Qed.
-Hint Rewrite Ztest_Bytetest : testbit.
+#[export] Hint Rewrite Ztest_Bytetest : testbit.
 
 Definition swap (i: int) : int :=
  Int.or (Int.shl (Int.and i (Int.repr 255)) (Int.repr 24))

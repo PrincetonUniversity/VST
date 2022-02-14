@@ -33,7 +33,7 @@ Proof.
  intros; simpl; destruct (ident_eq i i0). left; auto.
  right; rewrite Map.gso; auto.
 Qed.
-Hint Rewrite @closed_env_set using safe_auto_with_closed : norm2.
+#[export] Hint Rewrite @closed_env_set using safe_auto_with_closed : norm2.
 
 Lemma subst_eval_id_eq:
  forall id v, subst id v (eval_id id) = v.
@@ -48,8 +48,8 @@ Proof.
     unfold force_val, env_set; simpl. rewrite Map.gso; auto.
 Qed.
 
-Hint Rewrite subst_eval_id_eq : subst.
-Hint Rewrite subst_eval_id_neq using safe_auto_with_closed : subst.
+#[export] Hint Rewrite subst_eval_id_eq : subst.
+#[export] Hint Rewrite subst_eval_id_neq using safe_auto_with_closed : subst.
 
 Fixpoint subst_eval_expr  {cs: compspecs}  (j: ident) (v: environ -> val) (e: expr) : environ -> val :=
  match e with
@@ -120,7 +120,7 @@ rewrite <- IHe.
 f_equal.
 Qed.
 
-Hint Rewrite @subst_eval_expr_eq @subst_eval_lvalue_eq : subst.
+#[export] Hint Rewrite @subst_eval_expr_eq @subst_eval_lvalue_eq : subst.
 
 
 Lemma closed_wrt_subst:
@@ -148,8 +148,8 @@ inv H.
 simpl; f_equal; auto.
 apply closed_wrt_subst; auto.
 Qed.
-Hint Rewrite @closed_wrt_map_subst using safe_auto_with_closed : subst.
-Hint Rewrite @closed_wrt_subst using safe_auto_with_closed : subst.
+#[export] Hint Rewrite @closed_wrt_map_subst using safe_auto_with_closed : subst.
+#[export] Hint Rewrite @closed_wrt_subst using safe_auto_with_closed : subst.
 
 Lemma closed_wrt_map_subst':
    forall {A: Type} id e (Q: list (environ -> A)),
@@ -159,8 +159,8 @@ Proof.
 apply @closed_wrt_map_subst.
 Qed.
 
-(*Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.*)
-Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : subst.
+(*#[export] Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.*)
+#[export] Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : subst.
 Lemma closed_wrt_subst_eval_expr:
   forall {cs: compspecs} j v e,
    closed_wrt_vars (eq j) (eval_expr e) ->
@@ -177,8 +177,8 @@ Proof.
 intros; rewrite <- subst_eval_lvalue_eq.
 apply closed_wrt_subst; auto.
 Qed.
-Hint Rewrite @closed_wrt_subst_eval_expr using solve [auto 50 with closed] : subst.
-Hint Rewrite @closed_wrt_subst_eval_lvalue using solve [auto 50 with closed] : subst.
+#[export] Hint Rewrite @closed_wrt_subst_eval_expr using solve [auto 50 with closed] : subst.
+#[export] Hint Rewrite @closed_wrt_subst_eval_lvalue using solve [auto 50 with closed] : subst.
 
 #[export] Hint Unfold closed_wrt_modvars : closed.
 

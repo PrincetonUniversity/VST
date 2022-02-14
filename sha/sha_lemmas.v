@@ -196,7 +196,7 @@ Proof. reflexivity. Qed.
 Lemma WORD_eq: WORD = 4%Z.
 Proof. reflexivity. Qed.
 
-Hint Rewrite CBLOCKz_eq LBLOCKz_eq WORD_eq : rep_lia.
+#[export] Hint Rewrite CBLOCKz_eq LBLOCKz_eq WORD_eq : rep_lia.
 
 (*
 Ltac helper2 :=

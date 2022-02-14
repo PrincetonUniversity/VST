@@ -127,13 +127,13 @@ Proof.
   lia.
 Qed.
 
-Hint Rewrite andb_true_iff: align.
-Hint Rewrite <- Zle_is_le_bool: align.
-Hint Rewrite Z.eqb_eq: align.
-Hint Rewrite power_nat_divide_le using (auto with align): align.
-Hint Rewrite Z.mod_divide using (apply two_power_nat_0; auto with align): align.
-Hint Rewrite two_p_max_divide using (auto with align): align.
-Hint Rewrite two_p_max_1 using (auto with align): align.
+#[export] Hint Rewrite andb_true_iff: align.
+#[export] Hint Rewrite <- Zle_is_le_bool: align.
+#[export] Hint Rewrite Z.eqb_eq: align.
+#[export] Hint Rewrite power_nat_divide_le using (auto with align): align.
+#[export] Hint Rewrite Z.mod_divide using (apply two_power_nat_0; auto with align): align.
+#[export] Hint Rewrite two_p_max_divide using (auto with align): align.
+#[export] Hint Rewrite two_p_max_1 using (auto with align): align.
 #[export] Hint Resolve Z_max_two_p: align.
 
 Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.

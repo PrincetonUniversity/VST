@@ -11,12 +11,12 @@ Local Open Scope logic.
 Lemma ptrofs_of_ints_unfold: 
   forall x, Ptrofs.of_ints x = Ptrofs.repr (Int.signed x).
 Proof. reflexivity. Qed.
-Hint Rewrite ptrofs_of_ints_unfold : norm.
+#[export] Hint Rewrite ptrofs_of_ints_unfold : norm.
 
 Lemma ptrofs_of_intu_unfold: 
   forall x, Ptrofs.of_intu x = Ptrofs.repr (Int.unsigned x).
 Proof. reflexivity. Qed.
-Hint Rewrite ptrofs_of_intu_unfold : norm.
+#[export] Hint Rewrite ptrofs_of_intu_unfold : norm.
 
 Lemma isptr_force_val_sem_cast_neutral :
   forall p, isptr p -> isptr (force_val (sem_cast_pointer p)).
@@ -306,8 +306,8 @@ match goal with
               auto 50 with valid_pointer
 end.
 
-Hint Rewrite (@TT_andp mpred _) : gather_prop.
-Hint Rewrite (@andp_TT mpred _) : gather_prop.
+#[export] Hint Rewrite (@TT_andp mpred _) : gather_prop.
+#[export] Hint Rewrite (@andp_TT mpred _) : gather_prop.
 
 Ltac pull_out_props :=
     repeat (( simple apply derives_extract_prop
@@ -416,7 +416,7 @@ Proof.
   eapply Z.le_trans; [eassumption | ]. compute; intros Hx; inv Hx.
 Qed.
 
-Hint Rewrite intsigned_intrepr_bytesigned : rep_lia.
+#[export] Hint Rewrite intsigned_intrepr_bytesigned : rep_lia.
 
 Ltac prove_it_now :=
  first [ splittable; fail 1
@@ -658,10 +658,10 @@ Ltac elim_hyps :=  (* not in use anywhere? *)
 
 (**** try this out here, for now ****)
 
-Hint Rewrite Int.signed_repr using rep_lia : norm.
-Hint Rewrite Int.unsigned_repr using rep_lia : norm.
-Hint Rewrite Int64.signed_repr using rep_lia : norm.
-Hint Rewrite Int64.unsigned_repr using rep_lia : norm.
+#[export] Hint Rewrite Int.signed_repr using rep_lia : norm.
+#[export] Hint Rewrite Int.unsigned_repr using rep_lia : norm.
+#[export] Hint Rewrite Int64.signed_repr using rep_lia : norm.
+#[export] Hint Rewrite Int64.unsigned_repr using rep_lia : norm.
 
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 
@@ -707,7 +707,7 @@ simpl. rewrite Z.mul_0_r.
 rewrite Ptrofs.add_zero.
 apply prop_ext; tauto.
 Qed.
-Hint Rewrite offset_val_sizeof_hack : norm.
+#[export] Hint Rewrite offset_val_sizeof_hack : norm.
 
 Lemma offset_val_sizeof_hack2:
  forall cenv t i j p,
@@ -719,7 +719,7 @@ intros.
 subst.
 apply prop_ext; tauto.
 Qed.
-Hint Rewrite offset_val_sizeof_hack2 : norm.
+#[export] Hint Rewrite offset_val_sizeof_hack2 : norm.
 
 Lemma offset_val_sizeof_hack3:
  forall cenv t i p,
@@ -732,7 +732,7 @@ subst.
 rewrite Z.mul_1_r.
 apply prop_ext; tauto.
 Qed.
-Hint Rewrite offset_val_sizeof_hack3 : norm.
+#[export] Hint Rewrite offset_val_sizeof_hack3 : norm.
 
 Ltac make_Vptr c :=
   let H := fresh in assert (isptr c) by auto;
@@ -742,7 +742,7 @@ Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
 Proof.
 intros. apply Z.max_r; auto.
 Qed.
-Hint Rewrite Zmax0r using (try computable; rep_lia (*Omega0*)) : norm.
+#[export] Hint Rewrite Zmax0r using (try computable; rep_lia (*Omega0*)) : norm.
 
 Import ListNotations.
 

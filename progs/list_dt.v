@@ -1241,14 +1241,15 @@ Admitted.
 
 End LIST2.
 
-Hint Rewrite @lseg_nil_eq : norm.
+#[export] Hint Rewrite @lseg_nil_eq : norm.
 
-Hint Rewrite @lseg_eq using reflexivity: norm.
+#[export] Hint Rewrite @lseg_eq using reflexivity: norm.
 
 #[export] Hint Resolve lseg_local_facts : saturate_local.
 End LsegGeneral.
 
 Module LsegSpecial.
+Import LsegGeneral.
 
 Section LIST.
 Context {cs: compspecs}.
@@ -1788,8 +1789,8 @@ Qed.
 
 End LIST.
 
-Hint Rewrite @lseg_nil_eq : norm.
-Hint Rewrite @lseg_eq using reflexivity: norm.
+#[export] Hint Rewrite @lseg_nil_eq : norm.
+#[export] Hint Rewrite @lseg_eq using reflexivity: norm.
 #[export] Hint Resolve lseg_local_facts : saturate_local.
 
 Ltac resolve_lseg_valid_pointer :=
@@ -2589,9 +2590,9 @@ Lemma join_sub_Tsh:
 Admitted. (* easy *)
 #[export] Hint Resolve join_sub_Tsh: valid_pointer.
 
-Hint Rewrite @lseg_nil_eq : norm.
+#[export] Hint Rewrite @lseg_nil_eq : norm.
 
-Hint Rewrite @lseg_eq using reflexivity: norm.
+#[export] Hint Rewrite @lseg_eq using reflexivity: norm.
 
 #[export] Hint Resolve lseg_local_facts : saturate_local.
 

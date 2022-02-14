@@ -1993,14 +1993,14 @@ Ltac data_at_valid_aux :=
   (apply data_array_at_local_facts) : saturate_local.
 #[export] Hint Extern 1 (data_at _ (tarray _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts) : saturate_local.
-Hint Rewrite <- @field_at_offset_zero: norm1.
-Hint Rewrite <- @field_at__offset_zero: norm1.
-Hint Rewrite <- @field_at_offset_zero: cancel.
-Hint Rewrite <- @field_at__offset_zero: cancel.
-Hint Rewrite <- @data_at__offset_zero: norm1.
-Hint Rewrite <- @data_at_offset_zero: norm1.
-Hint Rewrite <- @data_at__offset_zero: cancel.
-Hint Rewrite <- @data_at_offset_zero: cancel.
+#[export] Hint Rewrite <- @field_at_offset_zero: norm1.
+#[export] Hint Rewrite <- @field_at__offset_zero: norm1.
+#[export] Hint Rewrite <- @field_at_offset_zero: cancel.
+#[export] Hint Rewrite <- @field_at__offset_zero: cancel.
+#[export] Hint Rewrite <- @data_at__offset_zero: norm1.
+#[export] Hint Rewrite <- @data_at_offset_zero: norm1.
+#[export] Hint Rewrite <- @data_at__offset_zero: cancel.
+#[export] Hint Rewrite <- @data_at_offset_zero: cancel.
 
 
 (* We do these as specific lemmas, rather than
@@ -2069,8 +2069,8 @@ Proof. intros. apply derives_refl. Qed.
   (simple apply array_at_array_at_) : cancel.
 #[export] Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption) : core.
 #[export] Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption) : core.
-Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
-Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
+#[export] Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
+#[export] Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
 
 Global Transparent alignof. (* MOVE ME *)
 
@@ -2871,7 +2871,7 @@ Proof.
   apply data_at_field_at_cancel.
 Qed.
 
-Hint Rewrite
+#[export] Hint Rewrite
   @field_at_data_at_cancel'
   @field_at_data_at
   @field_at__data_at_

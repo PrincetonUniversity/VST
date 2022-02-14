@@ -135,8 +135,8 @@ Lemma lift4_unfoldC: forall {A1 A2 A3 A4 B} (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2
         `f a1 a2 a3 a4 rho = f (a1 rho) (a2 rho) (a3 rho) (a4 rho).
 Proof. reflexivity. Qed.
 
-Hint Rewrite @lift0_unfold @lift1_unfold @lift2_unfold @lift3_unfold @lift4_unfold : norm2.
-Hint Rewrite @lift0_unfoldC @lift1_unfoldC @lift2_unfoldC @lift3_unfoldC @lift4_unfoldC : norm2.
+#[export] Hint Rewrite @lift0_unfold @lift1_unfold @lift2_unfold @lift3_unfold @lift4_unfold : norm2.
+#[export] Hint Rewrite @lift0_unfoldC @lift1_unfoldC @lift2_unfoldC @lift3_unfoldC @lift4_unfoldC : norm2.
 
 Lemma alift0_unfold: forall {A} (f: A)  rho,  alift0 f rho = f.
 Proof. reflexivity. Qed.
@@ -157,7 +157,7 @@ Lemma alift4_unfold: forall {A1 A2 A3 A4 B} (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2
         alift4 f a1 a2 a3 a4 rho = f (a1 rho) (a2 rho) (a3 rho) (a4 rho).
 Proof. reflexivity. Qed.
 
-Hint Rewrite @alift0_unfold @alift1_unfold @alift2_unfold @alift3_unfold @alift4_unfold : norm2.
+#[export] Hint Rewrite @alift0_unfold @alift1_unfold @alift2_unfold @alift3_unfold @alift4_unfold : norm2.
 
 Lemma subst_lift0: forall {A} id v (f: A),
         subst id v (lift0 f) = lift0 f.
@@ -171,7 +171,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift0' : subst.
+#[export] Hint Rewrite @subst_lift0' : subst.
 
 Lemma subst_lift0C:
   forall {B} id (v: environ -> val) (f: B) ,
@@ -180,7 +180,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift0 (*@subst_lift0'*) @subst_lift0C : subst.
+#[export] Hint Rewrite @subst_lift0 (*@subst_lift0'*) @subst_lift0C : subst.
 
 Lemma subst_lift1:
   forall {A1 B} id v (f: A1 -> B) a,
@@ -203,7 +203,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift1 (*@subst_lift1'*) @subst_lift1C  : subst.
+#[export] Hint Rewrite @subst_lift1 (*@subst_lift1'*) @subst_lift1C  : subst.
 
 Lemma subst_lift2:
   forall {A1 A2 B} id v (f: A1 -> A2 -> B) a b,
@@ -226,7 +226,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift2 (*@subst_lift2'*) @subst_lift2C : subst.
+#[export] Hint Rewrite @subst_lift2 (*@subst_lift2'*) @subst_lift2C : subst.
 
 Lemma subst_lift3:
   forall {A1 A2 A3 B} id v (f: A1 -> A2 -> A3 -> B) a1 a2 a3,
@@ -251,7 +251,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift3 (*@subst_lift3'*) @subst_lift3C : subst.
+#[export] Hint Rewrite @subst_lift3 (*@subst_lift3'*) @subst_lift3C : subst.
 
 Lemma subst_lift4:
   forall {A1 A2 A3 A4 B} id v (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2 a3 a4,
@@ -276,7 +276,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift4 (*@subst_lift4'*) @subst_lift4C : subst.
+#[export] Hint Rewrite @subst_lift4 (*@subst_lift4'*) @subst_lift4C : subst.
 
 
 Lemma bool_val_int_eq_e:
@@ -329,8 +329,8 @@ Qed.
 
 Definition retval : environ -> val := eval_id ret_temp.
 
-Hint Rewrite eval_id_same : norm.
-Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
+#[export] Hint Rewrite eval_id_same : norm.
+#[export] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
 
 Lemma simpl_get_result1:
  forall (f: val -> Prop) i, @liftx (Tarrow environ (LiftEnviron Prop)) (@liftx (Tarrow val (LiftEnviron Prop))f retval) (get_result1 i) = `f (eval_id i).
@@ -339,14 +339,14 @@ intros; extensionality rho.
 unfold_lift; unfold retval, get_result1.
 f_equal.
 Qed.
-Hint Rewrite simpl_get_result1: norm.
+#[export] Hint Rewrite simpl_get_result1: norm.
 
 Lemma retval_get_result1:
    forall i rho, retval (get_result1 i rho) = (eval_id i rho).
 Proof. intros. unfold retval, get_result1. simpl.
  normalize.
 Qed.
-Hint Rewrite retval_get_result1 : norm.
+#[export] Hint Rewrite retval_get_result1 : norm.
 
 Lemma retval_ext_rval:
   forall ge t v, retval (make_ext_rval ge t v) = force_val v.
@@ -354,47 +354,47 @@ Proof.
  intros. unfold retval, eval_id; simpl. unfold make_ext_rval; simpl.
 destruct t eqn:?H;  destruct v eqn:?H; simpl; auto.
 Abort.
-(* Hint Rewrite retval_ext_rval : norm. *)
+(* #[export] Hint Rewrite retval_ext_rval : norm. *)
 
 Lemma retval_lemma1:
   forall rho v,     retval (env_set rho ret_temp v) = v.
 Proof.
  intros. unfold retval.  normalize.
 Qed.
-Hint Rewrite retval_lemma1 : norm.
+#[export] Hint Rewrite retval_lemma1 : norm.
 
 Lemma retval_make_args:
   forall v rho, retval (make_args (ret_temp::nil) (v::nil) rho) = v.
 Proof. intros.  unfold retval, eval_id; simpl. try rewrite Map.gss. reflexivity.
 Qed.
-Hint Rewrite retval_make_args: norm2.
+#[export] Hint Rewrite retval_make_args: norm2.
 
 Lemma andp_makeargs:
    forall (a b: environ -> mpred) d e,
    `(a && b) (make_args d e) = `a (make_args d e) && `b (make_args d e).
 Proof. intros. reflexivity. Qed.
-Hint Rewrite andp_makeargs: norm2.
+#[export] Hint Rewrite andp_makeargs: norm2.
 
 Lemma local_makeargs:
    forall (f: val -> Prop) v,
    `(local (`(f) retval)) (make_args (cons ret_temp nil) (cons v nil))
     = (local (`(f) `(v))).
 Proof. intros. reflexivity. Qed.
-Hint Rewrite local_makeargs: norm2.
+#[export] Hint Rewrite local_makeargs: norm2.
 
 Lemma simpl_and_get_result1:
   forall (Q R: environ->mpred) i,
     `(Q && R) (get_result1 i) = `Q (get_result1 i) && `R (get_result1 i).
 Proof. intros. reflexivity. Qed.
-Hint Rewrite simpl_and_get_result1 : norm2.
+#[export] Hint Rewrite simpl_and_get_result1 : norm2.
 
 Lemma liftx_local_retval:
   forall (P: val -> Prop) i,
    `(local (`P retval)) (get_result1 i) = local (`P (eval_id i)).
 Proof. intros. reflexivity. Qed.
-Hint Rewrite liftx_local_retval : norm2.
+#[export] Hint Rewrite liftx_local_retval : norm2.
 
-Hint Rewrite bool_val_notbool_ptr using apply Coq.Init.Logic.I : norm.
+#[export] Hint Rewrite bool_val_notbool_ptr using apply Coq.Init.Logic.I : norm.
 
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) =  (i=j).
 Proof. intros; apply prop_ext; split; intro; congruence. Qed.
@@ -459,7 +459,7 @@ destruct x; try tauto; intuition; try congruence;
 revert H0; simple_if_tac; intro H0; inv H0.
 Qed.
 
-Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
+#[export] Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
 
 Ltac super_unfold_lift_in H :=
    cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T
@@ -580,7 +580,7 @@ try rewrite (is_true_negb _ H); try rewrite (is_true_negb _ H0);
 destruct v; inv H1; auto.
 Qed.
 
-Hint Rewrite sem_cast_pointer2' using (try apply Coq.Init.Logic.I; try assumption; reflexivity) : norm.
+#[export] Hint Rewrite sem_cast_pointer2' using (try apply Coq.Init.Logic.I; try assumption; reflexivity) : norm.
 
 Lemma sem_cast_pointer2:
   forall v t1 t2 t3 t1' t2',
@@ -631,7 +631,7 @@ Lemma is_pointer_or_null_force_int_ptr:
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
-Hint Rewrite is_pointer_or_null_force_int_ptr using assumption : norm1.
+#[export] Hint Rewrite is_pointer_or_null_force_int_ptr using assumption : norm1.
 
 
 Lemma is_pointer_force_int_ptr:
@@ -645,7 +645,7 @@ Lemma is_pointer_force_int_ptr:
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
-Hint Rewrite is_pointer_force_int_ptr using assumption : norm1.
+#[export] Hint Rewrite is_pointer_force_int_ptr using assumption : norm1.
 
 
 Lemma is_pointer_or_null_match :
@@ -659,7 +659,7 @@ Lemma is_pointer_or_null_match :
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
-Hint Rewrite is_pointer_or_null_match using assumption : norm1.
+#[export] Hint Rewrite is_pointer_or_null_match using assumption : norm1.
 
 Lemma is_pointer_force_int_ptr2:
    forall v, isptr v ->
@@ -672,7 +672,7 @@ Lemma is_pointer_force_int_ptr2:
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
-Hint Rewrite is_pointer_force_int_ptr2 using assumption : norm1.
+#[export] Hint Rewrite is_pointer_force_int_ptr2 using assumption : norm1.
 
 Lemma is_pointer_or_null_force_int_ptr2:
    forall v, is_pointer_or_null (force_val
@@ -690,7 +690,7 @@ Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 
-Hint Rewrite is_pointer_or_null_force_int_ptr2 using assumption : norm1.
+#[export] Hint Rewrite is_pointer_or_null_force_int_ptr2 using assumption : norm1.
 
 Lemma isptr_match : forall w0,
 is_pointer_or_null
@@ -712,7 +712,7 @@ destruct Archi.ptr64 eqn:Hp;
 destruct w0; auto.
 Qed.
 
-Hint Rewrite isptr_match : norm1.
+#[export] Hint Rewrite isptr_match : norm1.
 
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) ->
@@ -727,26 +727,26 @@ destruct (eqb_type t int_or_ptr_type);
 destruct t,v; inv H0; inv H; reflexivity.
 Qed.
 
-Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
+#[export] Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
 
 Lemma eval_cast_neutral_is_pointer_or_null:
    forall v, is_pointer_or_null v -> sem_cast_pointer v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
-Hint Rewrite eval_cast_neutral_is_pointer_or_null using assumption : norm.
+#[export] Hint Rewrite eval_cast_neutral_is_pointer_or_null using assumption : norm.
 
 Lemma is_pointer_or_null_eval_cast_neutral:
   forall v, is_pointer_or_null (force_val (sem_cast_pointer v)) = is_pointer_or_null v.
 Proof. destruct v; reflexivity. Qed.
-Hint Rewrite is_pointer_or_null_eval_cast_neutral : norm.
+#[export] Hint Rewrite is_pointer_or_null_eval_cast_neutral : norm.
 
 Lemma eval_cast_neutral_isptr:
    forall v, isptr v -> sem_cast_pointer v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
-Hint Rewrite eval_cast_neutral_isptr using assumption : norm.
+#[export] Hint Rewrite eval_cast_neutral_isptr using assumption : norm.
 
 Arguments ret_type !Delta /.
 
@@ -756,7 +756,7 @@ Lemma raise_sepcon:
  forall A B : environ -> mpred ,
     (fun rho: environ => A rho * B rho) = (A * B).
 Proof. reflexivity. Qed.
-Hint Rewrite raise_sepcon : norm1.
+#[export] Hint Rewrite raise_sepcon : norm1.
 
 Lemma lift1_lift1_retval {A}: forall i (P: val -> A),
 lift1 (lift1 P retval) (get_result1 i) = lift1 P (eval_id i).
@@ -771,14 +771,14 @@ Lemma lift_lift_retval:
 Proof.
  reflexivity.
 Qed.
-Hint Rewrite lift_lift_retval: norm2.
+#[export] Hint Rewrite lift_lift_retval: norm2.
 
 Lemma lift_lift_x:  (* generalizes lift_lift_val *)
   forall t t' P (v: t),
   (@liftx (Tarrow t (LiftEnviron t')) P (@liftx (LiftEnviron t) v)) =
   (@liftx (LiftEnviron t') (P v)).
 Proof. reflexivity. Qed.
-Hint Rewrite lift_lift_x : norm2.
+#[export] Hint Rewrite lift_lift_x : norm2.
 
 Lemma lift0_exp {A}{NA: NatDed A}:
   forall (B: Type) (f: B -> A), lift0 (exp f) = EX x:B, lift0 (f x).
@@ -791,8 +791,8 @@ Lemma lift0C_exp {A}{NA: NatDed A}:
 Proof.
 intros. unfold_lift. simpl. extensionality rho. f_equal; extensionality x; auto.
 Qed.
-Hint Rewrite @lift0_exp : norm2.
-Hint Rewrite @lift0C_exp : norm2.
+#[export] Hint Rewrite @lift0_exp : norm2.
+#[export] Hint Rewrite @lift0C_exp : norm2.
 
 Lemma lift0_andp {A}{NA: NatDed A}:
  forall P Q,
@@ -843,13 +843,13 @@ Lemma lift0C_later {A}{NA: NatDed A}{IA: Indir A}:
    `(@later A NA IA P) = @later (environ->A) _ _ (`P).
 Proof. intros. reflexivity. Qed.
 
-Hint Rewrite (@lift0C_sepcon mpred _ _) : norm.
-Hint Rewrite (@lift0C_andp mpred _) : norm.
-Hint Rewrite (@lift0C_exp mpred _) : norm.
-Hint Rewrite (@lift0C_later mpred _ _) : norm.
-Hint Rewrite (@lift0C_prop mpred _) : norm.
+#[export] Hint Rewrite (@lift0C_sepcon mpred _ _) : norm.
+#[export] Hint Rewrite (@lift0C_andp mpred _) : norm.
+#[export] Hint Rewrite (@lift0C_exp mpred _) : norm.
+#[export] Hint Rewrite (@lift0C_later mpred _ _) : norm.
+#[export] Hint Rewrite (@lift0C_prop mpred _) : norm.
 
-Hint Rewrite
+#[export] Hint Rewrite
     @lift1_lift1_retval
     @lift0_exp
     @lift0_sepcon
@@ -861,7 +861,7 @@ Lemma fst_unfold: forall {A B} (x: A) (y: B), fst (x,y) = x.
 Proof. reflexivity. Qed.
 Lemma snd_unfold: forall {A B} (x: A) (y: B), snd (x,y) = y.
 Proof. reflexivity. Qed.
-Hint Rewrite @fst_unfold @snd_unfold : norm.
+#[export] Hint Rewrite @fst_unfold @snd_unfold : norm.
 
 Lemma eq_True:
    forall (A: Prop), A -> (A=True).
@@ -898,7 +898,7 @@ Lemma local_andp_prop:  forall P Q, local P && prop Q = prop Q && local P.
 Proof. intros. apply andp_comm. Qed.
 Lemma local_andp_prop1: forall P Q R, local P && (prop Q && R) = prop Q && (local P && R).
 Proof. intros. rewrite andp_comm. rewrite andp_assoc. f_equal. apply andp_comm. Qed.
-Hint Rewrite local_andp_prop local_andp_prop1 : norm2.
+#[export] Hint Rewrite local_andp_prop local_andp_prop1 : norm2.
 
 Lemma local_sepcon_assoc1:
    forall P Q R, (local P && Q) * R = local P && (Q * R).
@@ -914,7 +914,7 @@ intros.
 extensionality rho; unfold local, lift1; simpl.
 apply pred_ext; normalize.
 Qed.
-Hint Rewrite local_sepcon_assoc1 local_sepcon_assoc2 : norm2.
+#[export] Hint Rewrite local_sepcon_assoc1 local_sepcon_assoc2 : norm2.
 
 Definition do_canon (x y : environ->mpred) := (sepcon x y).
 
@@ -1397,8 +1397,8 @@ Lemma prop_true_andp1 {A}{NA: NatDed A} :
 Proof.
 intros. f_equal; auto.  f_equal.  apply prop_ext; tauto.
 Qed.
-Hint Rewrite prop_true_andp1 using solve [auto 3 with typeclass_instances]: norm1.
-Hint Rewrite prop_true_andp1 using assumption : norm.
+#[export] Hint Rewrite prop_true_andp1 using solve [auto 3 with typeclass_instances]: norm1.
+#[export] Hint Rewrite prop_true_andp1 using assumption : norm.
 
 Lemma and_assoc': forall A B C: Prop,
   ((A /\ B) /\ C) = (A /\ (B /\ C)).
@@ -1432,9 +1432,9 @@ intros. rewrite and_assoc'; auto.
 Qed.
 
 
-Hint Rewrite and_assoc_splittablex using 
+#[export] Hint Rewrite and_assoc_splittablex using 
     match goal with |- splittablex ?A => splittablex_tac A end : normalize.
-Hint Rewrite and_assoc_splittablex using 
+#[export] Hint Rewrite and_assoc_splittablex using 
     match goal with |- splittablex ?A => splittablex_tac A end : gather_prop.
 
 Ltac hoist_later_left :=
@@ -1492,7 +1492,7 @@ Lemma prop_and1 {A}{NA: NatDed A}:
   forall P Q : Prop, P -> !!(P /\ Q) = !!Q.
 Proof. intros. f_equal; apply prop_ext; tauto.
 Qed.
-Hint Rewrite prop_and1 using solve [auto 3 with typeclass_instances] : norm2.
+#[export] Hint Rewrite prop_and1 using solve [auto 3 with typeclass_instances] : norm2.
 
 Lemma subst_make_args':
   forall  {cs: compspecs}  id v (P: environ->mpred) fsig tl el,
@@ -1508,20 +1508,20 @@ reflexivity.
 specialize (IHl _ _ H2 H1).
 unfold_lift; rewrite IHl. auto.
 Qed.
-Hint Rewrite @subst_make_args' using (solve[reflexivity]) : subst.
+#[export] Hint Rewrite @subst_make_args' using (solve[reflexivity]) : subst.
 
 Lemma map_cons: forall {A B} (f: A -> B) x y,
    map f (x::y) = f x :: map f y.
 Proof. reflexivity. Qed.
 
-Hint Rewrite @map_cons : norm.
-Hint Rewrite @map_cons : subst.
+#[export] Hint Rewrite @map_cons : norm.
+#[export] Hint Rewrite @map_cons : subst.
 
 Lemma map_nil: forall {A B} (f: A -> B), map f nil = nil.
 Proof. reflexivity. Qed.
 
-Hint Rewrite @map_nil : norm.
-Hint Rewrite @map_nil : subst.
+#[export] Hint Rewrite @map_nil : norm.
+#[export] Hint Rewrite @map_nil : subst.
 
 Definition rlt_ident_eq := ident_eq.  (* for convenience in selectively simplifying *)
 
@@ -1550,7 +1550,7 @@ simpl map. repeat rewrite fold_right_cons.
 f_equal.
 apply IHl.
 Qed.
-Hint Rewrite @subst_stackframe_of : subst.
+#[export] Hint Rewrite @subst_stackframe_of : subst.
 
 Lemma remove_localdef_temp_PROP: forall (i: ident) P Q R,
   EX old: val, subst i `(old) (PROPx P (LOCALx Q (SEPx R))) |--
@@ -1924,7 +1924,7 @@ rewrite sepcon_comm; apply wand_sepcon.
 Qed.
 
 
-Hint Rewrite wand_sepcon wand_sepcon' : norm.
+#[export] Hint Rewrite wand_sepcon wand_sepcon' : norm.
 
 
 

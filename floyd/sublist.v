@@ -466,7 +466,7 @@ Lemma ZtoNat_Zlength:
 Proof.
 intros. rewrite Zlength_correct. apply Nat2Z.id.
 Qed.
-Hint Rewrite @ZtoNat_Zlength : norm.
+#[export] Hint Rewrite @ZtoNat_Zlength : norm.
 
 Lemma Zlength_nonneg:
  forall {A} (l: list A), 0 <= Zlength l.
@@ -515,12 +515,12 @@ change (Inhabitant A) with A.
 rewrite <- Zlength_correct. lia.
 Qed.
 
-Hint Rewrite 
+#[export] Hint Rewrite 
    (@Znth_map Z _) (@Znth_map nat _) (@Znth_map positive _)
     using (auto; rewrite ?Zlength_map in *; lia) : sublist.
 
 (* Add these in a later file where things are in scope ...
-Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
+#[export] Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
     using (auto; rewrite ?Zlength_map in *; lia) : sublist.
 *)
 
@@ -540,7 +540,7 @@ Qed.
 
 Lemma Znth_0_cons {A}{a: Inhabitant A} l (v:A): Znth 0 (v::l) = v.
 Proof. reflexivity. Qed.
-Hint Rewrite @Znth_0_cons : sublist.
+#[export] Hint Rewrite @Znth_0_cons : sublist.
 
 Lemma Znth_pos_cons {A}{a: Inhabitant A} i l (v:A): 0<i -> Znth i (v::l) = Znth (i-1) l.
 Proof. intros. unfold Znth. if_tac. lia. if_tac. lia.
@@ -603,7 +603,7 @@ apply IHn; auto.
 lia.
 Qed.
 
-Hint Rewrite @app_nil_l @app_nil_r : sublist.
+#[export] Hint Rewrite @app_nil_l @app_nil_r : sublist.
 
 Lemma app_Znth1:
   forall A (a: Inhabitant A) (l l': list A) (i:Z),
@@ -1399,15 +1399,15 @@ subst mid'.
 apply sublist_rejoin; auto.
 Qed.
 
-Hint Rewrite @sublist_nil' using old_list_solve: sublist.
-Hint Rewrite @app_nil_l : sublist.
-Hint Rewrite @Zlength_rev : sublist.
-Hint Rewrite @sublist_rejoin' using old_list_solve : sublist.
+#[export] Hint Rewrite @sublist_nil' using old_list_solve: sublist.
+#[export] Hint Rewrite @app_nil_l : sublist.
+#[export] Hint Rewrite @Zlength_rev : sublist.
+#[export] Hint Rewrite @sublist_rejoin' using old_list_solve : sublist.
 
 Lemma subsub1:
  forall a b : Z, (a-(a-b)) = b.
 Proof.  intros. lia. Qed.
-Hint Rewrite subsub1 : sublist.
+#[export] Hint Rewrite subsub1 : sublist.
 
 Lemma sublist_app':
   forall {A} lo hi (al bl: list A),
@@ -1601,37 +1601,37 @@ Proof.
   f_equal; [| f_equal]; f_equal; lia.
 Qed.
 
-Hint Rewrite @Znth_Zrepeat using lia : sublist.
-Hint Rewrite @Znth_repeat_inrange using lia : sublist.
-Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
-Hint Rewrite @Zrepeat_neg using lia : sublist.
-Hint Rewrite @repeat_0 @Zrepeat_0: sublist.
-Hint Rewrite <- @app_nil_end : sublist.
-Hint Rewrite @Zlength_app: sublist.
-Hint Rewrite @Zlength_map: sublist.
-Hint Rewrite @Zlength_Zrepeat using old_list_solve: sublist.
-Hint Rewrite @Zlength_repeat using old_list_solve: sublist.
-Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
-Hint Rewrite @Zlength_sublist using old_list_solve: sublist.
-Hint Rewrite Z.max_r Z.max_l using lia : sublist.
-Hint Rewrite Z.min_r Z.min_l using lia : sublist.
-Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
-Hint Rewrite @sublist_sublist using old_list_solve : sublist.
-Hint Rewrite @sublist_app1 using old_list_solve : sublist.
-Hint Rewrite @sublist_app2 using old_list_solve : sublist.
-Hint Rewrite @sublist_repeat @sublist_Zrepeat using old_list_solve : sublist.
-Hint Rewrite @sublist_same using old_list_solve : sublist.
-Hint Rewrite Z.add_simpl_l : sublist.
-Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
+#[export] Hint Rewrite @Znth_Zrepeat using lia : sublist.
+#[export] Hint Rewrite @Znth_repeat_inrange using lia : sublist.
+#[export] Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
+#[export] Hint Rewrite @Zrepeat_neg using lia : sublist.
+#[export] Hint Rewrite @repeat_0 @Zrepeat_0: sublist.
+#[export] Hint Rewrite <- @app_nil_end : sublist.
+#[export] Hint Rewrite @Zlength_app: sublist.
+#[export] Hint Rewrite @Zlength_map: sublist.
+#[export] Hint Rewrite @Zlength_Zrepeat using old_list_solve: sublist.
+#[export] Hint Rewrite @Zlength_repeat using old_list_solve: sublist.
+#[export] Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
+#[export] Hint Rewrite @Zlength_sublist using old_list_solve: sublist.
+#[export] Hint Rewrite Z.max_r Z.max_l using lia : sublist.
+#[export] Hint Rewrite Z.min_r Z.min_l using lia : sublist.
+#[export] Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
+#[export] Hint Rewrite @sublist_sublist using old_list_solve : sublist.
+#[export] Hint Rewrite @sublist_app1 using old_list_solve : sublist.
+#[export] Hint Rewrite @sublist_app2 using old_list_solve : sublist.
+#[export] Hint Rewrite @sublist_repeat @sublist_Zrepeat using old_list_solve : sublist.
+#[export] Hint Rewrite @sublist_same using old_list_solve : sublist.
+#[export] Hint Rewrite Z.add_simpl_l : sublist.
+#[export] Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
      Z.add_add_simpl_r_l Z.add_add_simpl_r_r : sublist.
-Hint Rewrite Z.add_0_r : sublist.
-Hint Rewrite @app_Znth1 using old_list_solve : sublist.
-Hint Rewrite @app_Znth2 using old_list_solve : sublist.
-Hint Rewrite @Znth_sublist using old_list_solve : sublist.
-Hint Rewrite @upd_Znth_Zlength using old_list_solve : sublist.
+#[export] Hint Rewrite Z.add_0_r : sublist.
+#[export] Hint Rewrite @app_Znth1 using old_list_solve : sublist.
+#[export] Hint Rewrite @app_Znth2 using old_list_solve : sublist.
+#[export] Hint Rewrite @Znth_sublist using old_list_solve : sublist.
+#[export] Hint Rewrite @upd_Znth_Zlength using old_list_solve : sublist.
 
 
-Hint Rewrite @sublist_nil : sublist.
+#[export] Hint Rewrite @sublist_nil : sublist.
 
 Lemma repeat_app  (* duplicate this from Coq standard library
      for compatibility with Coq 8.12, where it is not present *)
@@ -1748,8 +1748,8 @@ intros.
 apply Forall_skipn. apply Forall_firstn. auto.
 Qed.
 
-Hint Rewrite @upd_Znth_app1 using old_list_solve : sublist.
-Hint Rewrite @upd_Znth_app2 using old_list_solve : sublist.
+#[export] Hint Rewrite @upd_Znth_app1 using old_list_solve : sublist.
+#[export] Hint Rewrite @upd_Znth_app2 using old_list_solve : sublist.
 
 Lemma map_repeat: forall {A B} (f: A->B) n (x:A), map f (repeat x n) = repeat (f x) n.
 Proof.
@@ -1763,7 +1763,7 @@ intros.
 apply map_repeat.
 Qed.
 
-Hint Rewrite @map_repeat @map_Zrepeat: sublist.
+#[export] Hint Rewrite @map_repeat @map_Zrepeat: sublist.
 
 Lemma Zlength_sublist_correct: forall {A} (l: list A) (lo hi: Z),
   0 <= lo <= hi ->

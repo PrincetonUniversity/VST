@@ -71,7 +71,7 @@ Definition strlen_spec :=
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
 
-Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
+#[export] Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
 
 Lemma body_strlen: semax_body Vprog Gprog f_strlen strlen_spec.
 Proof.

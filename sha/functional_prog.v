@@ -316,7 +316,7 @@ rewrite <- H0 at 2.
 rewrite Nat2Z.id. auto.
 Qed.
 
-Hint Rewrite length_zeros : norm.
+#[export] Hint Rewrite length_zeros : norm.
 
 Local Open Scope Z.
 

@@ -317,6 +317,6 @@ extensionality gfs v.
 reflexivity.
 Qed.
 
-Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
+#[export] Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
 *)
 *)
