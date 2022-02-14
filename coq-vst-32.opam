@@ -20,7 +20,7 @@ build: [
   [make "BITSIZE=32" "depend"]
   [make "BITSIZE=32" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
 ]
-run-test: [make "BITSIZE=32" "-j%{jobs}%" "progs" "sha-hmac" "mailbox"]
+run-test: [make "BITSIZE=32" "-j%{jobs}%" "progs"]
 install: [
 	make "BITSIZE=32" "install"
 	]
