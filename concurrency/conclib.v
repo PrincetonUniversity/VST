@@ -12,9 +12,9 @@ Import FashNotation.
 Import LiftNotation.
 Import compcert.lib.Maps.
 
-Require Export VST.concurrency.conclib_split.
-Require Export VST.concurrency.conclib_misc.
-Require Export VST.concurrency.conclib_Znth.
+Require Export VST.concurrency.conclib_coqlib.
+Require Export VST.concurrency.conclib_sublist.
+Require Export VST.concurrency.conclib_veric.
 
 (* rewrite is really annoying to fix in a backwards compatible way so just set the option. *)
 Local Set Apply With Renaming.
