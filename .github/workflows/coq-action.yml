@@ -7,6 +7,7 @@ on:
       - master
       - release-v2.7
       - release-v2.8
+      - tcarstens/conclib
   pull_request:
     branches:
       - '**'
@@ -26,8 +27,8 @@ jobs:
           - coq-vst-32
     steps:
       - uses: actions/checkout@v2
-      - name: Checkout submodules
-        uses: textbook/git-checkout-submodule-action@2.1.1
+        with:
+          submodules: true
       - uses: coq-community/docker-coq-action@v1
         with:
           opam_file: ${{ matrix.opam_name }}.opam
