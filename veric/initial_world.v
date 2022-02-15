@@ -811,8 +811,6 @@ Proof. simpl; intros; subst.
   auto.
 Qed.
 
-#[export] Instance EqDec_Z : EqDec Z := zeq.
-
 Lemma advance_next_length:
   forall F V vl n, @Genv.advance_next F V vl n = (Pos.of_nat (S (length vl)) + n - 1)%positive.
 Proof.

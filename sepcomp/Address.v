@@ -20,19 +20,17 @@ Proof.
  right; congruence.
 Qed.
 
-Instance EqDec_int: EqDec int := Int.eq_dec.
-Instance EqDec_float: EqDec float := Float.eq_dec.
+#[export] Instance EqDec_Z : EqDec Z := zeq.
+#[export] Instance EqDec_int: EqDec int := Int.eq_dec.
+#[export] Instance EqDec_float: EqDec float := Float.eq_dec.
+#[export] Instance EqDec_float32: EqDec float32 := Float32.eq_dec.
+#[export] Instance EqDec_int64: EqDec int64 := Int64.eq_dec.
+#[export] Instance EqDec_ptr : EqDec ptrofs := Ptrofs.eq_dec.
 
-Instance EqDec_val: EqDec val.
+#[export] Instance EqDec_val: EqDec val.
 Proof.
- hnf. decide equality.
- apply Int.eq_dec.
- apply Int64.eq_dec.
- apply Float.eq_dec.
- apply Float32.eq_dec.
- apply Ptrofs.eq_dec. (* apply Int.eq_dec.*)
- apply eq_block.
-Qed.
+hnf. decide equality; apply eq_dec.
+Defined.
 
 Definition adr_range (base: address) (size: Z) (loc: address) : Prop :=
  match base, loc with

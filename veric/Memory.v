@@ -29,12 +29,7 @@ Require Export VST.msl.eq_dec.
 
 (*Moved to base.v so that this file does not need to Import Clightdefs ad Ctypes
   #[export] Instance EqDec_type: EqDec type := type_eq.*)
-#[export] Instance EqDec_int: EqDec int := Int.eq_dec.
-#[export] Instance EqDec_int64: EqDec int64 := Int64.eq_dec.
-#[export] Instance EqDec_float: EqDec float := Float.eq_dec.
-#[export] Instance EqDec_float32: EqDec float32 := Float32.eq_dec.
 
-#[export] Instance EqDex_ptr : EqDec ptrofs := Ptrofs.eq_dec. (*NEW*)
 
 #[export] Instance EqDec_memval: EqDec memval.
 Proof.

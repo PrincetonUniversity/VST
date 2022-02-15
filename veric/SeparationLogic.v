@@ -41,6 +41,11 @@ Import FashNotation.
 Import LiftNotation.
 Import Ctypes Clight expr.
 
+#[export] Existing Instance EqDec_ident. 
+#[export] Existing Instance EqDec_byte.
+#[export] Existing Instance EqDec_memval.
+#[export] Existing Instance EqDec_quantity.
+
 #[export] Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 #[export] Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
 #[export] Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
