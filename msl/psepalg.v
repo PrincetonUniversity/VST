@@ -53,13 +53,13 @@ Section DISCRETE.  (* Prevent these Instances from going global! *)
 (** We can turn any set into a Pos_alg by making no element join
      with any other element (including itself): the discrete PSA *)
 
-  Instance Join_discrete (A : Type): Join A := fun a1 a2 a3 : A => False.
+  #[local] Instance Join_discrete (A : Type): Join A := fun a1 a2 a3 : A => False.
 
-  Instance Perm_discrete (A: Type)  : @Perm_alg A (Join_discrete A).
+  #[local] Instance Perm_discrete (A: Type)  : @Perm_alg A (Join_discrete A).
   Proof. constructor; intros; inv H.
   Qed.
   
-  Instance psa_discrete (A: Type) :  @Pos_alg A  (Join_discrete A).
+  #[global] Instance psa_discrete (A: Type) :  @Pos_alg A  (Join_discrete A).
   Proof.
     repeat intro. inv H.
   Qed.  
@@ -84,9 +84,9 @@ Section PSA_LIFT.
   Definition mk_lifted (a : A) (pf : nonunit a) : lifted :=
     exist nonunit a pf.
 
-  Instance Join_lift: Join lifted := fun a1 a2 a3 : lifted => @join A J_A a1 a2 a3.
+  #[local] Instance Join_lift: Join lifted := fun a1 a2 a3 : lifted => @join A J_A a1 a2 a3.
 
-    Instance Perm_lift: Perm_alg lifted.
+    #[local] Instance Perm_lift: Perm_alg lifted.
    Proof.
      constructor; intros.
 
@@ -114,20 +114,20 @@ Section PSA_LIFT.
     generalize (join_positivity H H0); intro. subst; f_equal; auto.
   Qed.
 
-  Instance Pos_lift: Pos_alg lifted.
+  #[global] Instance Pos_lift: Pos_alg lifted.
   Proof.
    repeat intro. destruct e; destruct a; simpl in *.
    hnf in H. simpl in H. apply n in H. auto.
   Qed.
 
-  Instance Canc_lift {CA: Canc_alg A}: Canc_alg lifted.
+  #[global] Instance Canc_lift {CA: Canc_alg A}: Canc_alg lifted.
   Proof.
     repeat intro. do 2 red in H,H0.
     destruct a1; destruct a2.    generalize (join_canc H H0); intro. simpl in H1.
     subst; f_equal; auto.
   Qed.
 
-  Instance Disj_lift {DA: Disj_alg A}: Disj_alg lifted.
+  #[local] Instance Disj_lift {DA: Disj_alg A}: Disj_alg lifted.
   Proof.
     repeat intro. destruct a, b; hnf in H.
     simpl in H; apply join_self in H.
@@ -195,11 +195,11 @@ Section PSA_LIFT.
 
 End PSA_LIFT.
 
-Existing Instance Join_lift.  (* Must not be inside a Section *)
-Existing Instance Perm_lift.
-Existing Instance Pos_lift.
-Existing Instance Canc_lift.
-Existing Instance Disj_lift.
+#[global] Existing Instance Join_lift.  (* Must not be inside a Section *)
+#[global] Existing Instance Perm_lift.
+#[global] Existing Instance Pos_lift.
+#[global] Existing Instance Canc_lift.
+#[global] Existing Instance Disj_lift.
 Arguments mk_lifted [A J_A] _ _.
 
 (** The dual of lifting is lowering: adding a distinct unit to a Pos_alg 
@@ -218,9 +218,9 @@ Section SA_LOWER.
   | lower_Some: forall a1 a2 a3,  join a1 a2 a3 -> 
         lower_join (Some a1) (Some a2) (Some a3).
 
-  Instance Join_lower: Join (option A) := lower_join.
+  #[local] Instance Join_lower: Join (option A) := lower_join.
 
-  Instance Perm_lower: @Perm_alg (option A) Join_lower.
+  #[local] Instance Perm_lower: @Perm_alg (option A) Join_lower.
   Proof.
    constructor; intros.
 
@@ -241,24 +241,24 @@ Section SA_LOWER.
     inv H; inv H0; auto. f_equal. apply (join_positivity H1 H4).
  Qed.
 
- Instance Sep_lower: @Sep_alg _ Join_lower.
+ #[local] Instance Sep_lower: @Sep_alg _ Join_lower.
  Proof. apply mkSep with (fun _ => None); intros.
    constructor. reflexivity.
  Defined.
 
-  Instance Sing_lower: @Sing_alg _ Join_lower _.
+  #[local] Instance Sing_lower: @Sing_alg _ Join_lower _.
   Proof.
      apply (mkSing None). intros. reflexivity. 
   Defined.
 
-  Instance Canc_lower {psa_A: Pos_alg A}{CA: Canc_alg A}: @Canc_alg _ Join_lower.
+  #[local] Instance Canc_lower {psa_A: Pos_alg A}{CA: Canc_alg A}: @Canc_alg _ Join_lower.
   Proof. repeat intro.
     inv H; inv H0; auto. apply no_units in H3; contradiction.
     apply no_units in H1; contradiction.
    f_equal. apply (join_canc H1 H4). 
  Qed.
 
-  Instance Disj_lower {psa_A: Pos_alg A}{DA: Disj_alg A}: @Disj_alg _ Join_lower.
+  #[local] Instance Disj_lower {psa_A: Pos_alg A}{DA: Disj_alg A}: @Disj_alg _ Join_lower.
   Proof. repeat intro. inv H0; inv H; auto.
     - contradiction (no_units a1 a1).
       apply identity_unit; [eapply join_self | eexists]; eauto.
@@ -272,12 +272,12 @@ Arguments Sing_lower _ {Pj_A}.
 Arguments Canc_lower _ [Pj_A][psa_A][CA] _ _ _ _ _ _.
 Arguments Disj_lower _ [Pj_A][PA_A][psa_A][DA] _ _ _.
 
-Existing Instance Join_lower.  (* Must not be inside a Section *)
-Existing Instance Perm_lower.
-Existing Instance Sep_lower.
-Existing Instance Sing_lower.
-Existing Instance Canc_lower.
-Existing Instance Disj_lower.
+#[global] Existing Instance Join_lower.  (* Must not be inside a Section *)
+#[global] Existing Instance Perm_lower.
+#[global] Existing Instance Sep_lower.
+#[global] Existing Instance Sing_lower.
+#[global] Existing Instance Canc_lower.
+#[global] Existing Instance Disj_lower.
 
   (* General facts about lowering *)
 
@@ -339,8 +339,8 @@ Section SA_SMASH.
 End SA_SMASH.
 
 Arguments smashed _  {J_T}.
-Existing Instance Perm_smash. (* Must not be inside a Section *)
-Existing Instance Sep_smash. (* Must not be inside a Section *)
+#[global] Existing Instance Perm_smash. (* Must not be inside a Section *)
+#[global] Existing Instance Sep_smash. (* Must not be inside a Section *)
 
 Lemma smashed_lifted_None_identity {A}`{Perm_alg A}:
   @identity (smashed A) _ None.
@@ -349,15 +349,15 @@ Proof. intros; apply None_identity. Qed.
 (** The option separation algebra.  The bool sepalg is isomorphic
      to the option sepalg applied to units. *)
 
- Instance Perm_option (T : Type)  : @Perm_alg (option T) (@Join_lower T (@Join_discrete T)) :=
+ #[global] Instance Perm_option (T : Type)  : @Perm_alg (option T) (@Join_lower T (@Join_discrete T)) :=
     @Perm_lower T  (@Join_discrete T) (Perm_discrete T).
- Instance Sep_option (T: Type) : @Sep_alg (option T) (@Join_lower T (@Join_discrete T)) :=
+ #[global] Instance Sep_option (T: Type) : @Sep_alg (option T) (@Join_lower T (@Join_discrete T)) :=
     @Sep_lower T  (@Join_discrete T) .
 
 (** Often, once we have a Pos_alg, we want to product it with regular
     sepalgs to produce another Pos_alg, before lowering the product. *)
 
-Instance Pos_prod
+#[global] Instance Pos_prod
         (A: Type) {J_A: Join A} {Pos_A: Pos_alg A}
         (B: Type) {J_B: Join B}{PA_B: Perm_alg B}: 
         Pos_alg (A*B).
@@ -419,13 +419,13 @@ Section FinitePartialMap.
   Qed.
 
   Definition fpm := sig finMap.
-  Instance Join_fpm : Join fpm := 
+  #[local] Instance Join_fpm : Join fpm := 
      Join_prop (A -> option B)  (Join_fun A (option B) Join_Rng) finMap.
 
   Definition PAF: (@Perm_alg (A -> Rng)  (Join_fun A Rng Join_Rng))
   := Perm_fun _ _ _ Perm_Rng.
 
-  Instance Perm_fpm : @Perm_alg fpm Join_fpm :=
+  #[local] Instance Perm_fpm : @Perm_alg fpm Join_fpm :=
     Perm_prop (A -> Rng) _ _ finMap finMap_join.
 
   Lemma finMap_core  x: finMap x -> 
@@ -437,24 +437,24 @@ Section FinitePartialMap.
     exists nil; auto.
   Defined.
 
-  Instance Sep_fpm : @Sep_alg fpm Join_fpm.
+  #[local] Instance Sep_fpm : @Sep_alg fpm Join_fpm.
   Proof. 
     apply mkSep with (core := fun _ => empty_fpm).
      intros. intro a. simpl. constructor. auto.
    Defined.
 
-  Instance Sing_fpm:  @Sing_alg fpm _ _.
+  #[global] Instance Sing_fpm:  @Sing_alg fpm _ _.
   Proof.
   apply mkSing with (the_unit := empty_fpm).
   intros ?. simpl. auto.
   Defined.
 
-  Instance Canc_fpm {CA_B: Canc_alg B}: Canc_alg fpm.
+  #[local] Instance Canc_fpm {CA_B: Canc_alg B}: Canc_alg fpm.
   Proof. repeat intro.
     apply (join_canc H H0).
   Qed.
 
-  Instance Disj_fpm {DA_B: Disj_alg B}: Disj_alg fpm.
+  #[local] Instance Disj_fpm {DA_B: Disj_alg B}: Disj_alg fpm.
   Proof. repeat intro. apply (join_self H); auto. Qed.
 
   Definition lookup_fpm (f:fpm) : A -> Rng := proj1_sig f.

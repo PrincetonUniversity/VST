@@ -8,9 +8,9 @@ Require Import VST.msl.eq_dec.
 
 Definition address : Type := (block * Z)%type.
 
-Instance EqDec_block: EqDec block := eq_block.
+#[export] Instance EqDec_block: EqDec block := eq_block.
 
-Instance EqDec_address: EqDec address.
+#[export] Instance EqDec_address: EqDec address.
 Proof.
  intros [b1 z1] [b2 z2].
  destruct (eq_dec b1 b2).

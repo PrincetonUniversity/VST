@@ -126,7 +126,7 @@ Proof.
   eexists; apply core2_unit.
 Qed.*)
 
-Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdSepLog B N D} :
+#[global] Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdSepLog B N D} :
   BupdSepLog (A -> B) N D.
  apply (mkBSL _ _ _ _ _ (fun P rho => |==> P rho) (fun RA g a pp rho => own g a pp));
    repeat intro; simpl.

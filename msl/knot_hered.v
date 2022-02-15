@@ -25,8 +25,8 @@ Module Type KNOT_HERED.
 
   Parameter knot:Type.
   Parameter ag_knot : ageable knot.
-  Existing Instance ag_knot.
-  Existing Instance ag_prod.
+  #[global] Existing Instance ag_knot.
+  #[global] Existing Instance ag_prod.
 
   Definition predicate := pred (knot * other).
 
@@ -613,7 +613,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     auto.
   Qed.
 
-  Program Instance ag_knot : ageable knot :=
+  #[global] Program Instance ag_knot : ageable knot :=
   { age1 := k_age1
   ; level := level
   }.
@@ -656,7 +656,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     inv H. simpl. auto.
   Qed.
 
-  Existing Instance ag_prod.
+  #[global] Existing Instance ag_prod.
 
   Lemma approx_spec : forall n p (k:knot * other),
     proj1_sig (approx n p) k = (ageable.level k < n /\ proj1_sig p k).

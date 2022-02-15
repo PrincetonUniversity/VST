@@ -12,7 +12,7 @@ Require Import VST.msl.base.
 Class EqDec (A : Type) : Type :=
   eq_dec : forall a a' : A, {a = a'} + {a <> a'}.
 
-Instance EqDec_nat : EqDec nat := Peano_dec.eq_nat_dec.
+#[global] Instance EqDec_nat : EqDec nat := Peano_dec.eq_nat_dec.
 
 (* Theory of updateable functions, defined over decideable domain *)
 Definition upd {A} `{EqDec A} (B : Type) (f : A -> B) (a : A) (b : B) : A -> B :=
@@ -51,24 +51,24 @@ Proof with auto.
 Qed.
 Arguments upd_neq [A H B] _ _ _ _ _.
 
-Instance nat_eq_dec: EqDec nat.
+#[global] Instance nat_eq_dec: EqDec nat.
 Proof.
   repeat intro.
  destruct (Compare_dec.lt_eq_lt_dec a a') as [[?|?]| ?]; auto;
   right; intro; subst; eapply Lt.lt_irrefl; eauto.
 Defined.
 
-Instance EqDec_prod (A: Type) (EA: EqDec A) (B: Type) (EB: EqDec B) : EqDec (A*B).
+#[global] Instance EqDec_prod (A: Type) (EA: EqDec A) (B: Type) (EB: EqDec B) : EqDec (A*B).
 Proof.
  hnf. decide equality; try apply eq_dec.
 Defined.
 
-Instance EqDec_list (A: Type) (EA: EqDec A) : EqDec (list A).
+#[global] Instance EqDec_list (A: Type) (EA: EqDec A) : EqDec (list A).
 Proof.
  hnf. apply list_eq_dec; intros; apply EA.
 Defined.
 
-Instance EqDec_option (A: Type) (EA: EqDec A) : EqDec (option A).
+#[global] Instance EqDec_option (A: Type) (EA: EqDec A) : EqDec (option A).
 Proof.
   hnf; decide equality.
 Defined.

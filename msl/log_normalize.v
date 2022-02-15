@@ -173,7 +173,7 @@ Proof.
   eapply CCC_FF_prod; eauto.
 Qed.
 
-Instance andp_imp_CCC: forall A {ND : NatDed A}, CCCviaNatDed A andp imp.
+#[global] Instance andp_imp_CCC: forall A {ND : NatDed A}, CCCviaNatDed A andp imp.
 Proof.
   intros.
   constructor.
@@ -183,7 +183,7 @@ Proof.
   intros; apply andp_derives; auto.
 Qed.
 
-Instance sepcon_wand_CCC: forall A {ND : NatDed A} {SL: SepLog A}, CCCviaNatDed A sepcon wand.
+#[global] Instance sepcon_wand_CCC: forall A {ND : NatDed A} {SL: SepLog A}, CCCviaNatDed A sepcon wand.
 Proof.
   intros.
   constructor.
