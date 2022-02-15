@@ -319,7 +319,7 @@ Inductive AbsPrimcom : relation juicy_mem -> Prop :=
 *).
 Inductive AbsPrimexpr : pfunc juicy_mem val -> Prop :=.
 
-Instance abstract : GenericSemantics juicy_mem AbsPrimcom AbsPrimexpr := {}.
+#[export] Instance abstract : GenericSemantics juicy_mem AbsPrimcom AbsPrimexpr := {}.
 
 Inductive ConcPrimcom : relation mem -> Prop :=
 | ConcPrimcom_store : forall ch b ofs v,
@@ -331,7 +331,7 @@ Inductive ConcPrimcom : relation mem -> Prop :=
 
 Inductive ConcPrimexpr : pfunc mem val -> Prop :=.
 
-Instance concrete : GenericSemantics mem ConcPrimcom ConcPrimexpr := {}.
+#[export] Instance concrete : GenericSemantics mem ConcPrimcom ConcPrimexpr := {}.
 
 Inductive VU : relation juicy_mem -> relation mem -> Prop :=
 | VU_store : forall ch b ofs v,
@@ -395,10 +395,10 @@ subst. eexists; eauto.
 *)
 Qed.
 
-Existing Instance abstract.
-Existing Instance concrete.
+#[export] Existing Instance abstract.
+#[export] Existing Instance concrete.
 
-Instance stratsem : @StratifiedSemantics
+#[export] Instance stratsem : @StratifiedSemantics
   juicy_mem
   AbsPrimcom
   AbsPrimexpr
@@ -420,7 +420,7 @@ intros; elimtype False; eapply PrimexprErasure; eauto.
 intros; elimtype False; eapply PrimexprSafety; eauto.
 Qed.
 
-Existing Instance stratsem.
+#[export] Existing Instance stratsem.
 
 Require Import VST.veric.compcert_rmaps.
 
@@ -428,7 +428,7 @@ Inductive RmapPrimexpr : pfunc rmap val -> Prop :=.
 
 Inductive HG : pfunc rmap val -> pfunc juicy_mem val -> Prop :=.
 
-Instance stratsemsep : StratifiedSemanticsWithSeparation m_phi RmapPrimexpr HG.
+#[export] Instance stratsemsep : StratifiedSemanticsWithSeparation m_phi RmapPrimexpr HG.
 Proof.
 constructor; intros; inv H.
 Qed.

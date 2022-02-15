@@ -23,30 +23,30 @@ Qed.
 
 Require Export VST.msl.eq_dec.
 
-Instance EqDec_ident: EqDec ident := ident_eq.
+#[export] Instance EqDec_ident: EqDec ident := ident_eq.
 
-Instance EqDec_byte: EqDec byte := Byte.eq_dec.
+#[export] Instance EqDec_byte: EqDec byte := Byte.eq_dec.
 
 (*Moved to base.v so that this file does not need to Import Clightdefs ad Ctypes
-  Instance EqDec_type: EqDec type := type_eq.*)
-Instance EqDec_int: EqDec int := Int.eq_dec.
-Instance EqDec_int64: EqDec int64 := Int64.eq_dec.
-Instance EqDec_float: EqDec float := Float.eq_dec.
-Instance EqDec_float32: EqDec float32 := Float32.eq_dec.
+  #[export] Instance EqDec_type: EqDec type := type_eq.*)
+#[export] Instance EqDec_int: EqDec int := Int.eq_dec.
+#[export] Instance EqDec_int64: EqDec int64 := Int64.eq_dec.
+#[export] Instance EqDec_float: EqDec float := Float.eq_dec.
+#[export] Instance EqDec_float32: EqDec float32 := Float32.eq_dec.
 
-Instance EqDex_ptr : EqDec ptrofs := Ptrofs.eq_dec. (*NEW*)
+#[export] Instance EqDex_ptr : EqDec ptrofs := Ptrofs.eq_dec. (*NEW*)
 
-Instance EqDec_memval: EqDec memval.
+#[export] Instance EqDec_memval: EqDec memval.
 Proof.
  hnf; repeat decide equality; apply eq_dec.
 Defined.
 
-Instance EqDec_val: EqDec val.
+#[export] Instance EqDec_val: EqDec val.
 Proof.
 hnf. decide equality; apply eq_dec.
 Defined.
 
-Instance EqDec_quantity: EqDec quantity.
+#[export] Instance EqDec_quantity: EqDec quantity.
 Proof.
 hnf. decide equality.
 Defined.

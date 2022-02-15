@@ -112,7 +112,7 @@ Module Type STRAT_MODEL.
               res_join PRED (YES' PRED sh1 rsh1 k p) (YES' PRED sh2 rsh2 k p) (YES' PRED sh3 rsh3 k p)
     | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
   Axiom pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
-  Instance sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
+  #[global] Instance sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
   Proof. intros.
             apply mkSep 
              with (fun x => match x 
@@ -141,24 +141,24 @@ Module Type STRAT_MODEL.
   Axiom ff_ghost : functorFacts ghost ghost_fmap.
   Definition f_ghost : functor := Functor ff_ghost.
 
-  Instance preds_join PRED : Join _ := Join_equiv (fpreds PRED).
+  #[global] Instance preds_join PRED : Join _ := Join_equiv (fpreds PRED).
 
   Inductive ghost_elem_join : Join {g: Ghost & {a: @G g | ghost.valid a}} :=
   | elem_join_I g a b c va vb vc: join a b c ->
     ghost_elem_join (existT _ g (exist _ a va)) (existT _ g (exist _ b vb))
                     (existT _ g (exist _ c vc)).
-  Existing Instance ghost_elem_join.
+  #[global] Existing Instance ghost_elem_join.
 
   Inductive ghost_join PRED : Join (ghost PRED) :=
   | ghost_join_nil_l m: ghost_join PRED nil m m
   | ghost_join_nil_r m: ghost_join PRED m nil m
   | ghost_join_cons a1 a2 m1 m2 a3 m3: join a1 a2 a3 -> ghost_join PRED m1 m2 m3 ->
       ghost_join PRED (a1 :: m1) (a2 :: m2) (a3 :: m3).
-  Existing Instance ghost_join.
+  #[global] Existing Instance ghost_join.
 
   Axiom pa_gj : forall PRED, @Perm_alg _ (ghost_join PRED).
 
-  Instance sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
+  #[global] Instance sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
   Proof.
     intros; exists (fun _ => nil); auto; constructor.
   Defined.
@@ -167,15 +167,15 @@ Module Type STRAT_MODEL.
   Definition f_pre_rmap : functor :=
     fpair (ffunc (fconst address) f_res) f_ghost.
 
-  Instance Join_pre_rmap (A: Type) : Join (f_pre_rmap A) :=
+  #[global] Instance Join_pre_rmap (A: Type) : Join (f_pre_rmap A) :=
             Join_prod _ (Join_fun address (res A) (res_join A)) _ (ghost_join A).
 
-  Declare Instance Perm_pre_rmap: forall (A: Type), Perm_alg (f_pre_rmap A).
-  Declare Instance Sep_pre_rmap: forall (A: Type), Sep_alg (f_pre_rmap A).
+  #[global] Declare Instance Perm_pre_rmap: forall (A: Type), Perm_alg (f_pre_rmap A).
+  #[global] Declare Instance Sep_pre_rmap: forall (A: Type), Sep_alg (f_pre_rmap A).
   Parameter paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap.
 
-  Existing Instance ghost_join.
-  Instance Join_res A : Join (f_res A) := res_join A.
+  #[global] Existing Instance ghost_join.
+  #[global] Instance Join_res A : Join (f_res A) := res_join A.
 
 Axiom pre_rmap_core:
 forall (A : Type) (m : f_pre_rmap A),
@@ -246,9 +246,9 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
               res_join PRED (YES' PRED sh1 rsh1 k p) (YES' PRED sh2 rsh2 k p) (YES' PRED sh3 rsh3 k p)
     | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
 
-  Instance Join_res (PRED: Type) : Join (res PRED) := res_join PRED.
+  #[global] Instance Join_res (PRED: Type) : Join (res PRED) := res_join PRED.
 
-  Instance pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
+  #[global] Instance pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
   Proof. intros. constructor.
 *      (* saf_eq *)
       intros x y z z' H1 H2; inv H1; inv H2;
@@ -312,7 +312,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       repeat proof_irr; auto.
  Qed.
 
-  Instance sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
+  #[global] Instance sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
   Proof. intros.
             apply mkSep 
              with (fun x => match x 
@@ -376,13 +376,13 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
   Definition f_ghost : functor := Functor ff_ghost.
 
-  Instance preds_join PRED : Join _ := Join_equiv (fpreds PRED).
+  #[global] Instance preds_join PRED : Join _ := Join_equiv (fpreds PRED).
 
   Inductive ghost_elem_join : Join {g: Ghost & {a: @G g | ghost.valid a}} :=
   | elem_join_I g a b c va vb vc: join a b c ->
     ghost_elem_join (existT _ g (exist _ a va)) (existT _ g (exist _ b vb))
                     (existT _ g (exist _ c vc)).
-  Existing Instance ghost_elem_join.
+  #[global] Existing Instance ghost_elem_join.
 
   Inductive ghost_join PRED : Join (ghost PRED) :=
   | ghost_join_nil_l m: ghost_join PRED nil m m
@@ -390,7 +390,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   | ghost_join_cons a1 a2 m1 m2 a3 m3: join a1 a2 a3 -> ghost_join PRED m1 m2 m3 ->
       ghost_join PRED (a1 :: m1) (a2 :: m2) (a3 :: m3).
   Global Hint Constructors ghost_join : core.
-  Existing Instance ghost_join.
+  #[global] Existing Instance ghost_join.
 
   Lemma elem_join_inv: forall a1 a2 a3, ghost_elem_join a1 a2 a3 ->
   match a1, a2, a3 with
@@ -414,7 +414,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     destruct m; simpl; auto.
   Qed.
 
-  Instance pa_gej : @Perm_alg _ ghost_elem_join.
+  #[global] Instance pa_gej : @Perm_alg _ ghost_elem_join.
   Proof.
     constructor.
     - inversion 1; inversion 1; subst.
@@ -438,7 +438,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       f_equal; eapply exist_ext, join_positivity; eauto.
   Qed.
 
-  Instance pa_gj : forall PRED, @Perm_alg _ (ghost_join PRED).
+  #[global] Instance pa_gj : forall PRED, @Perm_alg _ (ghost_join PRED).
   Proof.
     constructor.
     - intros until 1; revert z'; induction H; inversion 1; subst; auto.
@@ -462,7 +462,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       eapply join_positivity; eauto.
   Qed.
 
-  Instance sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
+  #[global] Instance sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
   Proof.
     intros; exists (fun _ => nil); auto; constructor.
   Defined.
@@ -550,7 +550,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
   Notation Join_obj A := (Join_prod _ (Join_fun address (res A) (res_join A)) _ (ghost_join A)).
 
-  Instance Join_pre_rmap (A: Type) : Join (pre_rmap A) :=
+  #[global] Instance Join_pre_rmap (A: Type) : Join (pre_rmap A) :=
     Join_obj A.
 
   Definition paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap :=
@@ -594,11 +594,11 @@ Module Type RMAPS.
   Import AV.
 
   Parameter rmap : Type.
-  Axiom Join_rmap: Join rmap. Existing Instance Join_rmap.
-  Axiom Perm_rmap: Perm_alg rmap. Existing Instance Perm_rmap.
-  Axiom Sep_rmap: Sep_alg rmap. Existing Instance Sep_rmap.
-  Axiom ag_rmap: ageable rmap.  Existing Instance ag_rmap.
-  Axiom Age_rmap: Age_alg rmap.  Existing Instance Age_rmap.
+  Axiom Join_rmap: Join rmap. #[global] Existing Instance Join_rmap.
+  Axiom Perm_rmap: Perm_alg rmap. #[global] Existing Instance Perm_rmap.
+  Axiom Sep_rmap: Sep_alg rmap. #[global] Existing Instance Sep_rmap.
+  Axiom ag_rmap: ageable rmap.  #[global] Existing Instance ag_rmap.
+  Axiom Age_rmap: Age_alg rmap.  #[global] Existing Instance Age_rmap.
 
   Inductive preds : Type :=
     SomeP : forall A : TypeTree,
@@ -633,9 +633,9 @@ Module Type RMAPS.
         res_join (YES sh1 rsh1 k p) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
    | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p). 
 
-  Instance Join_resource: Join resource := res_join.
-  Axiom Perm_resource: Perm_alg resource. Existing Instance Perm_resource.
-  Axiom Sep_resource: Sep_alg resource. Existing Instance Sep_resource.
+  #[global] Instance Join_resource: Join resource := res_join.
+  Axiom Perm_resource: Perm_alg resource. #[global] Existing Instance Perm_resource.
+  Axiom Sep_resource: Sep_alg resource. #[global] Existing Instance Sep_resource.
 
   Definition preds_fmap (f g: pred rmap -> pred rmap) (x:preds) : preds :=
     match x with SomeP A Q => SomeP A (fmap (fpi _) f g Q)
@@ -657,23 +657,23 @@ Module Type RMAPS.
 
   Definition ghost : Type := list (option ({g: Ghost & {a: @G g | ghost.valid a}} * preds)%type).
 
-  Instance preds_join : Join _ := Join_equiv preds.
+  #[global] Instance preds_join : Join _ := Join_equiv preds.
 
   Inductive ghost_elem_join : Join {g: Ghost & {a: @G g | ghost.valid a}} :=
   | elem_join_I g a b c va vb vc: join a b c ->
     ghost_elem_join (existT _ g (exist _ a va)) (existT _ g (exist _ b vb))
                     (existT _ g (exist _ c vc)).
-  Existing Instance ghost_elem_join.
+  #[global] Existing Instance ghost_elem_join.
 
   Inductive ghost_join : Join ghost :=
   | ghost_join_nil_l m: ghost_join nil m m
   | ghost_join_nil_r m: ghost_join m nil m
   | ghost_join_cons a1 a2 m1 m2 a3 m3: join a1 a2 a3 -> ghost_join m1 m2 m3 ->
       ghost_join (a1 :: m1) (a2 :: m2) (a3 :: m3).
-  Existing Instance ghost_join.
+  #[global] Existing Instance ghost_join.
 
-  Axiom Perm_ghost: Perm_alg ghost. Existing Instance Perm_ghost.
-  Axiom Sep_ghost: Sep_alg ghost. Existing Instance Sep_ghost.
+  Axiom Perm_ghost: Perm_alg ghost. #[global] Existing Instance Perm_ghost.
+  Axiom Sep_ghost: Sep_alg ghost. #[global] Existing Instance Sep_ghost.
   Axiom ghost_core: forall (g: ghost), core g = nil.
 
   Definition ghost_fmap (f g:pred rmap -> pred rmap)(x:ghost) : ghost :=
@@ -707,7 +707,7 @@ Module Type RMAPS.
   Infix "@" := resource_at (at level 50, no associativity).
   Definition ghost_of (phi:rmap) : ghost := snd (snd (unsquash phi)).
 
-  Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
+  #[global] Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
 
   Axiom join_unsquash : forall phi1 phi2 phi3,
     join phi1 phi2 phi3 <->
@@ -748,7 +748,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     Module KI := TyF.
     Import KI.
 
-    Instance Join_F: forall A, Join (F A) := _.
+    #[global] Instance Join_F: forall A, Join (F A) := _.
     Definition Perm_F : forall A, Perm_alg (F A) := Perm_pre_rmap.
     Definition Sep_F := Sep_pre_rmap.
     Definition paf_F := paf_pre_rmap.
@@ -759,11 +759,11 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   Module KSa := KnotFullSa(TyFSA)(K)(KL).
 
   Definition rmap := K.knot.
-  Instance Join_rmap: Join rmap := KSa.Join_knot.
-  Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
-  Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot.
-  Instance ag_rmap : ageable rmap := K.ageable_knot.
-  Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
+  #[global] Instance Join_rmap: Join rmap := KSa.Join_knot.
+  #[global] Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
+  #[global] Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot.
+  #[global] Instance ag_rmap : ageable rmap := K.ageable_knot.
+  #[global] Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
 
   Inductive preds : Type :=
     SomeP : forall A : TypeTree,
@@ -852,8 +852,8 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
         res_join (YES sh1 rsh1 k p) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
    | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p).
 
-  Instance Join_resource: Join resource := res_join.
-  Instance Perm_resource: Perm_alg resource.
+  #[global] Instance Join_resource: Join resource := res_join.
+  #[global] Instance Perm_resource: Perm_alg resource.
   Proof. constructor.
   * (*saf_eq *)
       intros x y z z' H1 H2; inv H1; inv H2;
@@ -917,7 +917,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
       repeat proof_irr; auto.
  Qed.
 
-  Instance Sep_resource: Sep_alg resource.
+  #[global] Instance Sep_resource: Sep_alg resource.
   Proof.
   apply mkSep 
     with (fun x => match x 
@@ -929,20 +929,20 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   Defined.
 
   (* Will this give us the higher-order ghost state we want? *)
-  Instance preds_join : Join _ := Join_equiv preds.
+  #[global] Instance preds_join : Join _ := Join_equiv preds.
 
   Inductive ghost_elem_join : Join {g: Ghost & {a: @G g | ghost.valid a}} :=
   | elem_join_I g a b c va vb vc: join a b c ->
     ghost_elem_join (existT _ g (exist _ a va)) (existT _ g (exist _ b vb))
                     (existT _ g (exist _ c vc)).
-  Existing Instance ghost_elem_join.
+  #[global] Existing Instance ghost_elem_join.
 
   Inductive ghost_join : Join ghost :=
   | ghost_join_nil_l m: ghost_join nil m m
   | ghost_join_nil_r m: ghost_join m nil m
   | ghost_join_cons a1 a2 m1 m2 a3 m3: join a1 a2 a3 -> ghost_join m1 m2 m3 ->
       ghost_join (a1 :: m1) (a2 :: m2) (a3 :: m3).
-  Existing Instance ghost_join.
+  #[global] Existing Instance ghost_join.
 
   Lemma elem_join_inv: forall a1 a2 a3, ghost_elem_join a1 a2 a3 ->
   match a1, a2, a3 with
@@ -966,7 +966,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     destruct m; simpl; auto.
   Qed.
 
-  Instance pa_gej : @Perm_alg _ ghost_elem_join.
+  #[global] Instance pa_gej : @Perm_alg _ ghost_elem_join.
   Proof.
     constructor.
     - inversion 1; inversion 1; subst.
@@ -990,7 +990,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
       f_equal; eapply exist_ext, join_positivity; eauto.
   Qed.
 
-  Instance Perm_ghost : Perm_alg ghost.
+  #[global] Instance Perm_ghost : Perm_alg ghost.
   Proof.
     constructor.
     - intros until 1; revert z'; induction H; inversion 1; subst; auto.
@@ -1014,7 +1014,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
       eapply join_positivity; eauto.
   Qed.
 
-  Instance Sep_ghost : Sep_alg ghost.
+  #[global] Instance Sep_ghost : Sep_alg ghost.
   Proof.
     intros; exists (fun _ => nil); auto; constructor.
   Defined.
@@ -1228,7 +1228,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     rewrite approx_K_approx; destruct p; auto.
   Qed.
 
-  Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
+  #[global] Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
 (*
 Lemma fmap_p2p'_inj:
   forall p q,

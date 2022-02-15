@@ -672,10 +672,10 @@ eapply readable_share_join; eauto.
 Qed.
 
 
-Instance Join_rshare: Join rshare :=
+#[export] Instance Join_rshare: Join rshare :=
   fun a b c => join (proj1_sig a) (proj1_sig b) (proj1_sig c).
 
-Instance Perm_rshare: Perm_alg rshare. (* move me! *)
+#[export] Instance Perm_rshare: Perm_alg rshare. (* move me! *)
 Proof.
   unfold rshare.
   constructor; intros.

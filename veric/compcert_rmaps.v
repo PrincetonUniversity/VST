@@ -6,7 +6,7 @@ Require Import VST.veric.rmaps.
 Require Import VST.veric.rmaps_lemmas.
 Require Export VST.veric.Memory. (*for address, and eq_dec memval*)
 
-Instance EqDec_type: EqDec type := type_eq.
+Global Instance EqDec_type: EqDec type := type_eq.
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 (*moved to mpred
@@ -43,7 +43,7 @@ Definition isFUN (k: kind) := match k with | FUN _ _ => True | _ => False end.
 
 Lemma isVAL_i: forall v, isVAL (VAL v).
 Proof. intros; simpl; auto. Qed.
-#[export] Hint Resolve isVAL_i : core.
+Global Hint Resolve isVAL_i : core.
 
 Lemma isVAL_dec: forall k, {isVAL k}+{~isVAL k}.
 Proof.
@@ -73,7 +73,7 @@ intros.
 inv H; auto.
 Qed.
 
-Instance EqDec_calling_convention: EqDec calling_convention.
+Global Instance EqDec_calling_convention: EqDec calling_convention.
 Proof.
   hnf. decide equality.
   destruct cc_structret, cc_structret0; subst; try tauto; right; congruence.
@@ -84,7 +84,7 @@ Proof.
   right; congruence.
 Qed.
 
-Instance EqDec_kind: EqDec kind.
+Global Instance EqDec_kind: EqDec kind.
 Proof.
   hnf. decide equality; try apply eq_dec; try apply zeq; try apply signature_eq.
 Qed.
@@ -282,7 +282,7 @@ Proof.
   destruct H0. simpl in *. do 3 red in H. simpl in H. auto.
 Qed.
 
-Instance Cross_rmap_aux: Cross_alg (AV.address -> option (rshare * AV.kind)).
+#[export] Instance Cross_rmap_aux: Cross_alg (AV.address -> option (rshare * AV.kind)).
 Proof.
  hnf. intros a b c d z ? ?.
 (* hnf in H,H0. simpl in H,H0. *)
@@ -307,7 +307,7 @@ Proof.
  exists (c x0); apply join_comm; apply H0.
 Qed.
 
-Instance Trip_resource: Trip_alg resource.
+#[export] Instance Trip_resource: Trip_alg resource.
 Proof.
 intro; intros.
 destruct a as [ra | ra sa ka pa | ka pa].
@@ -384,7 +384,7 @@ rewrite glb_twice in H. auto.
 Qed.
 
 (* Do we need this?
-Instance Trip_rmap : Trip_alg rmap.
+#[export] Instance Trip_rmap : Trip_alg rmap.
 Proof.
 intro; intros.
 pose (f loc := @Trip_resource _ _ _ _ _ _
@@ -825,7 +825,7 @@ unfold bytes_writable, bytes_readable; intros.
 apply writable_readable; auto.
 Qed.
 
-#[export] Hint Resolve bytes_writable_readable : mem.
+Global Hint Resolve bytes_writable_readable : mem.
 
 Lemma rmap_age_i:
  forall w w' : rmap,

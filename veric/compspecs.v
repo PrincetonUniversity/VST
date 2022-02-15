@@ -29,4 +29,4 @@ Class compspecs := mkcompspecs {
 }.
 
 Existing Class composite_env.
-Existing Instance cenv_cs.
+#[export] Existing Instance cenv_cs.
