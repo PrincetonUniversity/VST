@@ -33,7 +33,7 @@ Open Scope logic.
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
 ** line (which looks identical for any program) builds this
 ** interpretation, called "CompSpecs" *)
-#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (** The reverse.c program uses the linked list structure [struct list].
@@ -41,7 +41,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
  ** field (in this case, called [tail]) and arbitrary other fields.  The [Instance]
  ** explains (and proves) how [struct list] satisfies the [listspec] pattern.
  **)
-#[export] Instance LS: listspec _list _tail (fun _ _ => emp).
+#[(*export, after Coq 8.13*)global] Instance LS: listspec _list _tail (fun _ _ => emp).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 (**  An auxiliary definition useful in the specification of [sumlist] *)
@@ -303,7 +303,7 @@ forward_call  (* s = sumlist(r); *)
 forward.  (* return s; *)
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
+#[(*export, after Coq 8.13*)global] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

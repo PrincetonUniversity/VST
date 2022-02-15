@@ -11,7 +11,7 @@ Open Scope logic.
 Local Open Scope Z.
 
 Require Import VST.floyd.Funspec_old_Notation.
-#[export] Instance CompSpecs : compspecs.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 

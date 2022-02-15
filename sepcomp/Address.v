@@ -8,9 +8,9 @@ Require Import VST.msl.eq_dec.
 
 Definition address : Type := (block * Z)%type.
 
-#[export] Instance EqDec_block: EqDec block := eq_block.
+#[(*export, after Coq 8.13*)global] Instance EqDec_block: EqDec block := eq_block.
 
-#[export] Instance EqDec_address: EqDec address.
+#[(*export, after Coq 8.13*)global] Instance EqDec_address: EqDec address.
 Proof.
  intros [b1 z1] [b2 z2].
  destruct (eq_dec b1 b2).
@@ -20,14 +20,14 @@ Proof.
  right; congruence.
 Qed.
 
-#[export] Instance EqDec_Z : EqDec Z := zeq.
-#[export] Instance EqDec_int: EqDec int := Int.eq_dec.
-#[export] Instance EqDec_float: EqDec float := Float.eq_dec.
-#[export] Instance EqDec_float32: EqDec float32 := Float32.eq_dec.
-#[export] Instance EqDec_int64: EqDec int64 := Int64.eq_dec.
-#[export] Instance EqDec_ptr : EqDec ptrofs := Ptrofs.eq_dec.
+#[(*export, after Coq 8.13*)global] Instance EqDec_Z : EqDec Z := zeq.
+#[(*export, after Coq 8.13*)global] Instance EqDec_int: EqDec int := Int.eq_dec.
+#[(*export, after Coq 8.13*)global] Instance EqDec_float: EqDec float := Float.eq_dec.
+#[(*export, after Coq 8.13*)global] Instance EqDec_float32: EqDec float32 := Float32.eq_dec.
+#[(*export, after Coq 8.13*)global] Instance EqDec_int64: EqDec int64 := Int64.eq_dec.
+#[(*export, after Coq 8.13*)global] Instance EqDec_ptr : EqDec ptrofs := Ptrofs.eq_dec.
 
-#[export] Instance EqDec_val: EqDec val.
+#[(*export, after Coq 8.13*)global] Instance EqDec_val: EqDec val.
 Proof.
 hnf. decide equality; apply eq_dec.
 Defined.

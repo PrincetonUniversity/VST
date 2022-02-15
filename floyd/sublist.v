@@ -57,15 +57,15 @@ Import SublistInternalLib.
 
 Class Inhabitant (A: Type) := default : A.
 
-#[export] Instance Inhabitant_Z : Inhabitant Z := 0.
-#[export] Instance Inhabitant_nat : Inhabitant nat := O.
-#[export] Instance Inhabitant_positive : Inhabitant positive := 1%positive.
-#[export] Instance Inhabitant_list {T: Type} : Inhabitant (list T) := @nil T.
-#[export] Instance Inhabitant_fun {T1 T2: Type} {H: Inhabitant T2} : Inhabitant (T1->T2) := fun _ => H.
-#[export] Instance Inhabitant_Prop : Inhabitant Prop := False.
-#[export] Instance Inhabitant_bool : Inhabitant bool := false.
-#[export] Instance Inhabitant_pair {T1 T2 : Type} {x1: Inhabitant T1} {x2: Inhabitant T2} : Inhabitant (T1*T2)%type := (x1,x2).
-#[export] Instance Inhabitant_option {A} : Inhabitant (option A) := None.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_Z : Inhabitant Z := 0.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_nat : Inhabitant nat := O.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_positive : Inhabitant positive := 1%positive.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_list {T: Type} : Inhabitant (list T) := @nil T.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_fun {T1 T2: Type} {H: Inhabitant T2} : Inhabitant (T1->T2) := fun _ => H.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_Prop : Inhabitant Prop := False.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_bool : Inhabitant bool := false.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_pair {T1 T2 : Type} {x1: Inhabitant T1} {x2: Inhabitant T2} : Inhabitant (T1*T2)%type := (x1,x2).
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_option {A} : Inhabitant (option A) := None.
 
 
 Lemma Zlength_length:

@@ -10,8 +10,8 @@ Open Scope funspec_scope.
 Set Bullet Behavior "Strict Subproofs".
 
 (* standard VST prelude *)
-#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-#[export] Instance CompSpecs_Preserve: change_composite_env verif_atomic_exchange.CompSpecs CompSpecs.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs_Preserve: change_composite_env verif_atomic_exchange.CompSpecs CompSpecs.
   make_cs_preserve verif_atomic_exchange.CompSpecs CompSpecs.
 Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

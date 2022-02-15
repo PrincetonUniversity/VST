@@ -1231,7 +1231,7 @@ refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                          end).
 Qed.
 
-#[export] Instance Join_trace : Join (AV.address -> option (rshare * AV.kind)) :=
+#[(*export, after Coq 8.13*)global] Instance Join_trace : Join (AV.address -> option (rshare * AV.kind)) :=
      (Join_fun AV.address (option (rshare * AV.kind))
                    (Join_lower (Join_prod rshare Join_rshare AV.kind (Join_equiv AV.kind)))).
 
@@ -1527,7 +1527,7 @@ Proof.
    rewrite Share.glb_commute. auto.
 Qed.
 
-#[export] Instance Perm_foo: Perm_alg
+#[(*export, after Coq 8.13*)global] Instance Perm_foo: Perm_alg
                {x : AV.address -> option (rshare * AV.kind) |
                AV.valid x}.
 Proof.
@@ -1738,7 +1738,7 @@ inv H.
 admit.
 Abort.
 
-#[export] Instance Cross_rmap:
+#[(*export, after Coq 8.13*)global] Instance Cross_rmap:
       @Cross_alg _ (Join_prop _ Join_trace AV.valid) ->
       Cross_alg rmap.
 Proof.

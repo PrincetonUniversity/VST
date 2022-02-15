@@ -3,7 +3,7 @@ Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
 Require Import VST.progs64.bin_search. (* Import the AST of this C program *)
 
 (* The next line is "boilerplate", always required after importing an AST. *)
-#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Fixpoint sorted (l : list Z) : Prop :=
@@ -271,7 +271,7 @@ Proof.
   Intro r; forward.
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
+#[(*export, after Coq 8.13*)global] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

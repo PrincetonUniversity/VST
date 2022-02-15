@@ -23,25 +23,25 @@ Qed.
 
 Require Export VST.msl.eq_dec.
 
-#[export] Instance EqDec_ident: EqDec ident := ident_eq.
+#[(*export, after Coq 8.13*)global] Instance EqDec_ident: EqDec ident := ident_eq.
 
-#[export] Instance EqDec_byte: EqDec byte := Byte.eq_dec.
+#[(*export, after Coq 8.13*)global] Instance EqDec_byte: EqDec byte := Byte.eq_dec.
 
 (*Moved to base.v so that this file does not need to Import Clightdefs ad Ctypes
-  #[export] Instance EqDec_type: EqDec type := type_eq.*)
+  #[(*export, after Coq 8.13*)global] Instance EqDec_type: EqDec type := type_eq.*)
 
 
-#[export] Instance EqDec_memval: EqDec memval.
+#[(*export, after Coq 8.13*)global] Instance EqDec_memval: EqDec memval.
 Proof.
  hnf; repeat decide equality; apply eq_dec.
 Defined.
 
-#[export] Instance EqDec_val: EqDec val.
+#[(*export, after Coq 8.13*)global] Instance EqDec_val: EqDec val.
 Proof.
 hnf. decide equality; apply eq_dec.
 Defined.
 
-#[export] Instance EqDec_quantity: EqDec quantity.
+#[(*export, after Coq 8.13*)global] Instance EqDec_quantity: EqDec quantity.
 Proof.
 hnf. decide equality.
 Defined.

@@ -29,4 +29,4 @@ Class compspecs := mkcompspecs {
 }.
 
 Existing Class composite_env.
-#[export] Existing Instance cenv_cs.
+#[(*export, after Coq 8.13*)global] Existing Instance cenv_cs.

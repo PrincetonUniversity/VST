@@ -282,7 +282,7 @@ Proof.
   destruct H0. simpl in *. do 3 red in H. simpl in H. auto.
 Qed.
 
-#[export] Instance Cross_rmap_aux: Cross_alg (AV.address -> option (rshare * AV.kind)).
+#[(*export, after Coq 8.13*)global] Instance Cross_rmap_aux: Cross_alg (AV.address -> option (rshare * AV.kind)).
 Proof.
  hnf. intros a b c d z ? ?.
 (* hnf in H,H0. simpl in H,H0. *)
@@ -307,7 +307,7 @@ Proof.
  exists (c x0); apply join_comm; apply H0.
 Qed.
 
-#[export] Instance Trip_resource: Trip_alg resource.
+#[(*export, after Coq 8.13*)global] Instance Trip_resource: Trip_alg resource.
 Proof.
 intro; intros.
 destruct a as [ra | ra sa ka pa | ka pa].
@@ -384,7 +384,7 @@ rewrite glb_twice in H. auto.
 Qed.
 
 (* Do we need this?
-#[export] Instance Trip_rmap : Trip_alg rmap.
+#[(*export, after Coq 8.13*)global] Instance Trip_rmap : Trip_alg rmap.
 Proof.
 intro; intros.
 pose (f loc := @Trip_resource _ _ _ _ _ _

@@ -548,7 +548,7 @@ apply level1_juicy_mem.
 apply level2_juicy_mem.
 Qed.
 
-#[export] Instance juicy_mem_ageable: ageable juicy_mem :=
+#[(*export, after Coq 8.13*)global] Instance juicy_mem_ageable: ageable juicy_mem :=
   mkAgeable _ (fun j => level (m_phi j)) age1_juicy_mem juicy_mem_ageable_facts.
 
 Lemma level_juice_level_phi: forall (j: juicy_mem), level j = level (m_phi j).

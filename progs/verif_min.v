@@ -9,7 +9,7 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.min.
-#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Require Import ZArith.

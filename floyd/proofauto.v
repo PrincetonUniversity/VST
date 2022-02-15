@@ -104,8 +104,8 @@ Qed.
 #[export] Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
 #[export] Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
 
-#[export] Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric.
-#[export] Instance Inhabitant_share : Inhabitant share := Share.bot.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_share : Inhabitant share := Share.bot.
 
 Arguments deref_noload ty v / .
 Arguments nested_field_array_type {cs} t gfs lo hi / .

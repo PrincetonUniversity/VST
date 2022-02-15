@@ -324,7 +324,7 @@ Definition cd2 := Composite 102%positive Struct ((_f3, Tstruct 101%positive noat
                                  (_f5, Tpointer (Tstruct 101%positive noattr) noattr) :: nil) noattr.
 Definition cenv := match build_composite_env (cd1 :: cd2 :: nil) with Errors.OK env => env | _ => PTree.empty _ end.
 
-#[export] Instance cs: compspecs.
+#[(*export, after Coq 8.13*)global] Instance cs: compspecs.
   apply (mkcompspecs cenv).
 +
   apply build_composite_env_consistent with (defs := cd1 :: cd2 :: nil).

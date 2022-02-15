@@ -2,7 +2,7 @@ Require Import VST.concurrency.conclib.
 Require Import VST.progs.cond.
 
 Global Open Scope funspec_scope.
-#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
@@ -147,7 +147,7 @@ Qed.
 Definition extlink := ext_link_prog prog.
 
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-#[export] Existing Instance Espec.
+#[(*export, after Coq 8.13*)global] Existing Instance Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
