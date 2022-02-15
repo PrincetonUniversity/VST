@@ -538,7 +538,7 @@ Proof.
   simpl. rewrite Hp. auto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @denote_tc_assert_andp' @denote_tc_assert_andp''
+(*after Coq 8.13: #[export]*) Hint Rewrite @denote_tc_assert_andp' @denote_tc_assert_andp''
     @denote_tc_assert_orp' @denote_tc_assert_orp''
     @denote_tc_assert_iszero' @denote_tc_assert_nonzero'
     @denote_tc_assert_nodivover' @denote_tc_assert_ilt' @denote_tc_assert_llt'

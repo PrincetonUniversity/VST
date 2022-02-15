@@ -1,5 +1,7 @@
 Require Import VST.msl.msl_standard.
 
+Set Warnings "-deprecated-hint-rewrite-without-locality". (* Delete this line after we abandon Coq 8.13 *)
+
 Local Open Scope pred.
 
 Lemma andp_TT {A}`{ageable A}: forall (P: pred A), P && TT = P.
@@ -17,7 +19,7 @@ rewrite sepcon_comm. rewrite sepcon_andp_prop.
 rewrite sepcon_comm; auto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @sepcon_emp @emp_sepcon @TT_and @andp_TT
+(*after Coq 8.13: #[export]*) Hint Rewrite @sepcon_emp @emp_sepcon @TT_and @andp_TT
              @exp_sepcon1 @exp_sepcon2
                @exp_andp1 @exp_andp2
          @sepcon_andp_prop @sepcon_andp_prop'
@@ -131,15 +133,15 @@ Proof.
 intros.
 rewrite sepcon_comm. apply FF_sepcon.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite @FF_sepcon @sepcon_FF : normalize.
+(*after Coq 8.13: #[export]*) Hint Rewrite @FF_sepcon @sepcon_FF : normalize.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @prop_true_andp using (solve [auto]) : normalize.
+(*after Coq 8.13: #[export]*) Hint Rewrite @prop_true_andp using (solve [auto]) : normalize.
 
 Lemma true_eq {A} `{ageable A}:  forall P: Prop, P -> (!! P) = (TT: pred A).
 Proof.
 intros. apply pred_ext; intros ? ?; simpl in *; intuition.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite @true_eq using (solve [auto]) : normalize.
+(*after Coq 8.13: #[export]*) Hint Rewrite @true_eq using (solve [auto]) : normalize.
 
 
 Lemma pure_con' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
@@ -174,9 +176,9 @@ Lemma andp_FF {A}`{ageable A}:  forall P: pred A, P && FF = FF.
 Proof.
 unfold FF, prop, andp; intros; apply pred_ext; intros ? ?; simpl in *; intuition.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite @FF_andp @andp_FF : normalize.
+(*after Coq 8.13: #[export]*) Hint Rewrite @FF_andp @andp_FF : normalize.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @andp_dup : normalize.
+(*after Coq 8.13: #[export]*) Hint Rewrite @andp_dup : normalize.
 
 Lemma andp_emp_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
  forall (Q: pred A),
@@ -244,7 +246,7 @@ rewrite pure_sepcon_TT_andp; auto.
 apply sepcon_comm.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @pure_sepcon_TT_andp @pure_sepcon_TT_andp' using (solve [auto]): normalize.
+(*after Coq 8.13: #[export]*) Hint Rewrite @pure_sepcon_TT_andp @pure_sepcon_TT_andp' using (solve [auto]): normalize.
 
 Lemma pure_sepcon1' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
 

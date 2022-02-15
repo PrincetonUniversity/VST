@@ -26,8 +26,8 @@ repeat rewrite Zlength_correct. rewrite length_intlist_to_bytelist.
 rewrite Nat2Z.inj_mul. rewrite Z.mul_comm. reflexivity.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite Zlength_intlist_to_bytelist : sublist.
-#[(*export, after Coq 8.13*)global] Hint Rewrite Zlength_intlist_to_bytelist : Zlength.
+(*after Coq 8.13: #[export]*) Hint Rewrite Zlength_intlist_to_bytelist : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Zlength_intlist_to_bytelist : Zlength.
 
 Lemma skipn_intlist_to_bytelist:
   forall i m, skipn (4*i) (intlist_to_bytelist m) = intlist_to_bytelist (skipn i m).

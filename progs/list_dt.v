@@ -1241,9 +1241,9 @@ Admitted.
 
 End LIST2.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @lseg_nil_eq : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite @lseg_nil_eq : norm.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @lseg_eq using reflexivity: norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite @lseg_eq using reflexivity: norm.
 
 #[export] Hint Resolve lseg_local_facts : saturate_local.
 End LsegGeneral.
@@ -1789,8 +1789,8 @@ Qed.
 
 End LIST.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @lseg_nil_eq : norm.
-#[(*export, after Coq 8.13*)global] Hint Rewrite @lseg_eq using reflexivity: norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite @lseg_nil_eq : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite @lseg_eq using reflexivity: norm.
 #[export] Hint Resolve lseg_local_facts : saturate_local.
 
 Ltac resolve_lseg_valid_pointer :=
@@ -2590,9 +2590,9 @@ Lemma join_sub_Tsh:
 Admitted. (* easy *)
 #[export] Hint Resolve join_sub_Tsh: valid_pointer.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @lseg_nil_eq : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite @lseg_nil_eq : norm.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite @lseg_eq using reflexivity: norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite @lseg_eq using reflexivity: norm.
 
 #[export] Hint Resolve lseg_local_facts : saturate_local.
 

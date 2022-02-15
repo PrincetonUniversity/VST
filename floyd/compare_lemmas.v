@@ -360,4 +360,4 @@ if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite force_sem_cmp_pp using (now auto) : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite force_sem_cmp_pp using (now auto) : norm.

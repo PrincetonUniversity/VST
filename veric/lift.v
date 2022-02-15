@@ -18,7 +18,7 @@ Definition Tend (S: Type) (A: Type) :=
           (fun f _ => f)
           (fun f => f (fun _: S => tt)).
 
-Set Warnings "-projection-no-head-constant".
+Global Set Warnings "-projection-no-head-constant".
 Canonical Structure Tarrow (A: Type) (H: Lift) :=
     mkLift (lift_S H)
       (A -> lift_T H)

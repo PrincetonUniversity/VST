@@ -477,7 +477,7 @@ replace (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x
       (map locald_denote Q)) rho);  [apply prop_ext; tauto | ].
 induction Q; simpl; auto. f_equal; auto.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite PROP_LOCAL_SEP_f: norm2.
+(*after Coq 8.13: #[export]*) Hint Rewrite PROP_LOCAL_SEP_f: norm2.
 
 Definition global_funspec Delta id argsig retty cc A Pre Post NEPre NEPost :=
    (var_types Delta) ! id = None /\

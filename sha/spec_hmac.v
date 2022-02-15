@@ -448,5 +448,5 @@ Proof.
       auto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
 

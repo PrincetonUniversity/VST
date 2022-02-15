@@ -46,7 +46,7 @@ intros.
 unfold flip_ends.
 autorewrite with sublist. lia.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; lia) : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; lia) : sublist.
 
 Lemma flip_fact_1: forall A {d: Inhabitant A} size (contents: list A) j,
   Zlength contents = size ->
@@ -213,8 +213,8 @@ Ltac calc_Zlength_extra l ::=
     add_Zlength_res (calc_Zlength_rev A l _ H)
   end. *)
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite Zlength_rev : Zlength.
-#[(*export, after Coq 8.13*)global] Hint Rewrite @Znth_rev using Zlength_solve : Znth.
+(*after Coq 8.13: #[export]*) Hint Rewrite Zlength_rev : Zlength.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 #[export] Hint Unfold flip_ends : list_solve_unfold.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.

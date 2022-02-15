@@ -84,11 +84,11 @@ extensionality rho; simpl.
 normalize.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon1 canon2 canon4 canon8 : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon3 using check_nonlocal : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon3b using check_nonlocal : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon7 using check_nonlocal : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite <- (@sepcon_assoc (environ->mpred) _) : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon1 canon2 canon4 canon8 : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon3 using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon3b using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon7 using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- (@sepcon_assoc (environ->mpred) _) : canon.
 
 Lemma canon5: forall Q R S,
        nonlocal Q ->
@@ -139,18 +139,18 @@ intros.
  apply andp_comm.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon5 using check_nonlocal : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon5b using check_nonlocal : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon5c using check_nonlocal : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon6 using check_nonlocal : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon6b using check_nonlocal : canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon6c using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon5 using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon5b using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon5c using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon6 using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon6b using check_nonlocal : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon6c using check_nonlocal : canon.
 
 Lemma canon17 : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
 Proof.
 intros. unfold PROPx. simpl. extensionality rho. apply pred_ext; normalize.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon17 : canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon17 : canon.
 
 
 Lemma finish_canon: forall R1 P Q R,
@@ -176,8 +176,8 @@ Qed.
 Lemma exp_do_canon:
    forall T (P: T -> environ->mpred) (Q: environ->mpred), do_canon (exp P) Q = EX x:_, do_canon (P x) Q.
 Proof. apply exp_sepcon1. Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite exp_do_canon: canon.
-#[(*export, after Coq 8.13*)global] Hint Rewrite exp_do_canon: norm2.
+(*after Coq 8.13: #[export]*) Hint Rewrite exp_do_canon: canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite exp_do_canon: norm2.
 
 Lemma canon9: forall Q1 P Q R,
        local (locald_denote Q1) && (PROPx P (LOCALx Q R)) =
@@ -188,12 +188,12 @@ extensionality rho.
 normalize.
 apply pred_ext; normalize; autorewrite with norm1 norm2; normalize.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon9: canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon9: canon.
 
 
 Lemma canon20: forall PQR, do_canon emp PQR = PQR.
 Proof.
 intros. apply emp_sepcon.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite canon20: canon.
+(*after Coq 8.13: #[export]*) Hint Rewrite canon20: canon.
 

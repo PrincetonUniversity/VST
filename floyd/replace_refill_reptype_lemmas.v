@@ -120,21 +120,21 @@ Qed.
 
 End zlist_hint_db.
 
-(*#[(*export, after Coq 8.13*)global] Hint Rewrite @zl_constr_correct using solve [lia] : zl_nth_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite zlist_hint_db.Znth_sub_0_r : zl_nth_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [lia] : zl_nth_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_sublist_correct A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_concat_correct_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_concat_correct_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
+(*(*after Coq 8.13: #[export]*) Hint Rewrite @zl_constr_correct using solve [lia] : zl_nth_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite zlist_hint_db.Znth_sub_0_r : zl_nth_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [lia] : zl_nth_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_sublist_correct A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_concat_correct_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_concat_correct_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_nth_db.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_sub_concat_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_sub_concat_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_sub_concat_mid A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_sub_sub A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_sub_self A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_sub_empty A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_concat_empty_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
-#[(*export, after Coq 8.13*)global] Hint Rewrite (fun A d => @zl_concat_empty_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_sub_concat_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_sub_concat_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_sub_concat_mid A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_sub_sub A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_sub_self A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_sub_empty A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_concat_empty_l A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
+(*after Coq 8.13: #[export]*) Hint Rewrite (fun A d => @zl_concat_empty_r A d _ (list_zlist_correct _ _)) using solve [lia] : zl_sub_db.
 *)
 Section POSE_TAC.
 

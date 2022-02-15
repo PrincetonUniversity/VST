@@ -11,6 +11,8 @@ Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 Require Import Lia.
 
+Global Set Warnings "-deprecated-hint-rewrite-without-locality". (* Delete this line after we abandon Coq 8.13 *)
+
 (* LINEAR-TIME FUNCTIONAL VERSION OF SHA256 *)
 Function zeros (n : Z) {measure Z.to_nat n} : list Int.int :=
  if Z.gtb n 0 then Int.zero :: zeros (n-1) else nil.
@@ -316,7 +318,7 @@ rewrite <- H0 at 2.
 rewrite Nat2Z.id. auto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite length_zeros : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite length_zeros : norm.
 
 Local Open Scope Z.
 

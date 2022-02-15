@@ -184,5 +184,5 @@ intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; au
 Qed.
 
 (* This hint doesn't work well, hence the extra clauses in normalize1 and normalize1_in *)
-#[(*export, after Coq 8.13*)global] Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
+(*after Coq 8.13: #[export]*) Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
                     @corable_sepcon_andp1 @corable_sepcon_andp2 using solve [auto with normalize typeclass_instances] : core.

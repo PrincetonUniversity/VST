@@ -1217,7 +1217,7 @@ apply replist_Zlength; auto.
 Qed.
 
 
-(* #[(*export, after Coq 8.13*)global] Hint Rewrite skipn_0 using computable : norm. *)
+(* (*after Coq 8.13: #[export]*) Hint Rewrite skipn_0 using computable : norm. *)
 
 Lemma unfold_reptype_elim:
   forall cs t v v',

@@ -58,12 +58,12 @@ Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
 Export Clight_Cop2.
  
-#[(*export, after Coq 8.13*)global] Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
-#[(*export, after Coq 8.13*)global] Hint Rewrite ptrofs_add_repr ptrofs_mul_repr ptrofs_sub_repr : entailer_rewrite.
-#[(*export, after Coq 8.13*)global] Hint Rewrite mul64_repr add64_repr sub64_repr or64_repr and64_repr : entailer_rewrite.
-#[(*export, after Coq 8.13*)global] Hint Rewrite neg_repr neg64_repr : entailer_rewrite.
-#[(*export, after Coq 8.13*)global] Hint Rewrite ptrofs_to_int_repr: entailer_rewrite norm.
-#[(*export, after Coq 8.13*)global] Hint Rewrite ptrofs_to_int64_repr using reflexivity: entailer_rewrite norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
+(*after Coq 8.13: #[export]*) Hint Rewrite ptrofs_add_repr ptrofs_mul_repr ptrofs_sub_repr : entailer_rewrite.
+(*after Coq 8.13: #[export]*) Hint Rewrite mul64_repr add64_repr sub64_repr or64_repr and64_repr : entailer_rewrite.
+(*after Coq 8.13: #[export]*) Hint Rewrite neg_repr neg64_repr : entailer_rewrite.
+(*after Coq 8.13: #[export]*) Hint Rewrite ptrofs_to_int_repr: entailer_rewrite norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite ptrofs_to_int64_repr using reflexivity: entailer_rewrite norm.
 
 Lemma Vptrofs_unfold_false: 
 Archi.ptr64 = false -> Vptrofs = fun x => Vint (Ptrofs.to_int x).
@@ -90,10 +90,10 @@ Lemma modu_repr: forall x y,
 Proof.
 intros. unfold Int.modu. rewrite !Int.unsigned_repr by auto. auto.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite modu_repr using rep_lia : entailer_rewrite norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite modu_repr using rep_lia : entailer_rewrite norm.
 
-#[(*export, after Coq 8.13*)global] Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
-#[(*export, after Coq 8.13*)global] Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
 
 #[export] Hint Extern 1 (Vundef = default_val _) => reflexivity : cancel.
 #[export] Hint Extern 1 (default_val _ = Vundef) => reflexivity : cancel.
@@ -229,7 +229,7 @@ Lemma sem_cast_i2bool_of_bool : forall (b : bool),
 Proof.
   destruct b; auto.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Rewrite sem_cast_i2bool_of_bool : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite sem_cast_i2bool_of_bool : norm.
 
 #[export] Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
 #[export] Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
