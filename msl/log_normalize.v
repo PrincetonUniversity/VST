@@ -290,7 +290,7 @@ Proof.
   apply sepcon_wand_CCC.
 Qed.
 
-#[export] Hint Rewrite @FF_sepcon @sepcon_FF : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @FF_sepcon @sepcon_FF : norm.
 
 Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
 Proof.
@@ -305,7 +305,7 @@ Proof.
   eapply CCC_prod_FF.
   apply andp_imp_CCC.
 Qed.
-#[export] Hint Rewrite @FF_andp @andp_FF : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @FF_andp @andp_FF : norm.
 
 Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
 Proof.
@@ -746,16 +746,16 @@ Qed.
 
 Ltac immediate := (assumption || reflexivity).
 
-#[export] Hint Rewrite @prop_true_andp using (solve [immediate]) : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @prop_true_andp using (solve [immediate]) : norm.
 
 Lemma true_eq {A} {NA: NatDed A}:  forall P: Prop, P -> (!! P) = (TT: A).
 Proof with norm.
 intros. apply pred_ext...
 apply prop_right...
 Qed.
-#[export] Hint Rewrite @true_eq using (solve [immediate]) : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @true_eq using (solve [immediate]) : norm.
 
-#[export] Hint Rewrite @andp_dup : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @andp_dup : norm.
 
 Lemma sepcon_TT {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall (P: A), P |-- (P * TT).
@@ -781,7 +781,7 @@ intros.
 apply exp_left. auto.
 Qed.
 
-#[export] Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
+#[(*export, after Coq 8.13*)global] Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
              @exp_sepcon1 @exp_sepcon2
                @exp_andp1 @exp_andp2
          @sepcon_andp_prop @sepcon_andp_prop'

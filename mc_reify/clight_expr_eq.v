@@ -34,7 +34,7 @@ unfold beq_int. apply Zeq_is_eq_bool. auto.
 Qed.
 
 Hint Resolve beq_int_refl : expr_beq.
-#[export] Hint Rewrite beq_int_refl : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite beq_int_refl : expr_beq.
 
 
 Definition beq_long (i1 i2 : int64) : bool :=
@@ -59,7 +59,7 @@ unfold beq_long. apply Zeq_is_eq_bool. auto.
 Qed.
 
 Hint Resolve beq_long_refl : expr_beq.
-#[export] Hint Rewrite beq_long_refl : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite beq_long_refl : expr_beq.
 Hint Resolve beq_long_true : expr_beq.
 
 Definition beq_float_dec a b:= if Float.eq_dec a b then true else false.
@@ -75,7 +75,7 @@ consider (Float.eq_dec a a); auto.
 Qed.
 
 Hint Resolve beq_float_refl : expr_beq.
-#[export] Hint Rewrite beq_float_refl : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite beq_float_refl : expr_beq.
 Hint Resolve beq_float_dec_true : expr_beq.
 
 Definition beq_float32_dec a b:= if Float32.eq_dec a b then true else false.
@@ -91,7 +91,7 @@ consider (Float32.eq_dec a a); auto.
 Qed.
 
 Hint Resolve beq_float32_refl : expr_beq.
-#[export] Hint Rewrite beq_float32_refl : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite beq_float32_refl : expr_beq.
 
 
 Hint Resolve beq_float32_dec_true : expr_beq.
@@ -114,7 +114,7 @@ destruct a; auto.
 Qed.
 
 Hint Resolve unary_op_beq_refl : expr_beq.
-#[export] Hint Rewrite unary_op_beq_refl : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite unary_op_beq_refl : expr_beq.
 Hint Resolve unary_op_beq_sound: expr_beq.
 
 Definition binary_op_beq a b :=
@@ -147,7 +147,7 @@ destruct a; auto.
 Qed.
 
 Hint Resolve binary_op_beq_refl : expr_beq.
-#[export] Hint Rewrite binary_op_beq_refl : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite binary_op_beq_refl : expr_beq.
 Hint Resolve binary_op_beq_sound : expr_beq.
 
 Fixpoint expr_beq a b :=
@@ -167,13 +167,13 @@ match a, b with
 | _, _ => false
 end.
 
-#[export] Hint Rewrite Bool.andb_true_iff : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite Bool.andb_true_iff : expr_beq.
 Hint Resolve eqb_type_true : expr_beq.
 Hint Resolve BinPos.Peqb_true_eq : expr_beq.
-#[export] Hint Rewrite BinPos.Pos.eqb_refl : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite BinPos.Pos.eqb_refl : expr_beq.
 Hint Resolve BinPos.Pos.eqb_refl : expr_beq.
 Hint Resolve eqb_type_refl : expr_beq.
-#[export] Hint Rewrite eqb_type_refl : expr_beq.
+#[(*export, after Coq 8.13*)global] Hint Rewrite eqb_type_refl : expr_beq.
 
 Ltac solve_expr_beq_sound :=
 try solve [simpl in *; try congruence]; try reflexivity;

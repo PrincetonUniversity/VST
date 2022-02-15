@@ -42,8 +42,8 @@ Global Transparent intsize_eq signedness_eq attr_eq type_eq typelist_eq.
 Global Transparent composite_def_eq.
 Arguments Z.div _ _ / .
 
-#[export] Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
-#[export] Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 
 Lemma func_ptr'_emp phi v: func_ptr' phi v |-- emp.
 Proof. apply andp_left2; trivial. Qed.
@@ -107,7 +107,7 @@ Qed.
 
 #[export] Hint Resolve field_address_eq_offset' : prove_it_now.
 
-#[export] Hint Rewrite <- @prop_and using solve [auto with typeclass_instances]: norm1.
+#[(*export, after Coq 8.13*)global] Hint Rewrite <- @prop_and using solve [auto with typeclass_instances]: norm1.
 
 Local Open Scope logic.
 
@@ -258,12 +258,12 @@ unfold tc_option_val, tc_option_val'.
 destruct t as [ | | | [ | ] |  | | | | ] eqn:?,v eqn:?; try reflexivity.
 unfold tc_val. destruct (eqb_type _ _); reflexivity.
 Qed.
-#[export] Hint Rewrite tc_option_val'_eq : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite tc_option_val'_eq : norm.
 
 Lemma emp_make_ext_rval:
   forall ge t v, @emp (environ->mpred) _ _ (make_ext_rval ge t v) = emp.
 Proof. reflexivity. Qed.
-#[export] Hint Rewrite emp_make_ext_rval : norm2.
+#[(*export, after Coq 8.13*)global] Hint Rewrite emp_make_ext_rval : norm2.
 
 Ltac semax_func_cons_ext_tc :=
   repeat match goal with
@@ -1905,7 +1905,7 @@ rewrite <- (Byte.repr_signed b). rewrite H; reflexivity.
 rewrite <- Byte.signed_repr by rep_lia.
 f_equal; auto.
 Qed.
-#[export] Hint Rewrite Byte_signed_lem: norm entailer_rewrite.
+#[(*export, after Coq 8.13*)global] Hint Rewrite Byte_signed_lem: norm entailer_rewrite.
 
 Lemma Byte_signed_lem': 
  forall b c,
@@ -1918,7 +1918,7 @@ rewrite <- (Byte.repr_signed c).
  rewrite H; reflexivity.
 congruence.
 Qed.
-#[export] Hint Rewrite Byte_signed_lem': norm entailer_rewrite.
+#[(*export, after Coq 8.13*)global] Hint Rewrite Byte_signed_lem': norm entailer_rewrite.
 
 Lemma int_repr_byte_signed_eq0:
   forall c, (Int.repr (Byte.signed c) = Int.zero) = (c = Byte.zero).
@@ -1929,7 +1929,7 @@ apply repr_inj_signed in H; try rep_lia.
 rewrite <- (Byte.repr_signed c). rewrite H. reflexivity.
 subst; reflexivity.
 Qed.
-#[export] Hint Rewrite int_repr_byte_signed_eq0: norm entailer_rewrite.
+#[(*export, after Coq 8.13*)global] Hint Rewrite int_repr_byte_signed_eq0: norm entailer_rewrite.
 
 Lemma int_repr_byte_signed_eq:
   forall c d, (Int.repr (Byte.signed c) = Int.repr (Byte.signed d)) = (c = d).
@@ -1941,7 +1941,7 @@ rewrite <- (Byte.repr_signed c).
 rewrite <- (Byte.repr_signed d). rewrite H. reflexivity.
 subst; reflexivity.
 Qed.
-#[export] Hint Rewrite int_repr_byte_signed_eq: norm entailer_rewrite.
+#[(*export, after Coq 8.13*)global] Hint Rewrite int_repr_byte_signed_eq: norm entailer_rewrite.
 
 Lemma typed_true_negb_bool_val_p:
   forall p, 
@@ -2892,8 +2892,8 @@ intros; destruct (eqb_ident i j) eqn:?; auto.
 apply Pos.eqb_eq in Heqb. congruence.
 Qed.
 
-#[export] Hint Rewrite eqb_ident_true : subst.
-#[export] Hint Rewrite eqb_ident_false using solve [auto] : subst.
+#[(*export, after Coq 8.13*)global] Hint Rewrite eqb_ident_true : subst.
+#[(*export, after Coq 8.13*)global] Hint Rewrite eqb_ident_false using solve [auto] : subst.
 
 Lemma eqb_su_refl s: eqb_su s s = true. Proof. unfold eqb_su. destruct s; trivial. Qed.
 Lemma Neqb_option_refl n: @eqb_option N N.eqb n n = true. Proof. destruct n; simpl; trivial. apply N.eqb_refl. Qed.
@@ -2956,7 +2956,7 @@ Proof.
  intros.
  autorewrite with subst; auto.
 Qed.
-#[export] Hint Rewrite subst_temp_special using safe_auto_with_closed: subst.
+#[(*export, after Coq 8.13*)global] Hint Rewrite subst_temp_special using safe_auto_with_closed: subst.
 
 Ltac ensure_normal_ret_assert :=
  match goal with
@@ -3017,8 +3017,8 @@ Lemma subst_make_args1:
   forall i e j v,
     subst i e (make_args (j::nil) (v::nil)) = make_args (j::nil) (v::nil).
 Proof. reflexivity. Qed.
-(*#[export] Hint Rewrite subst_make_args1 : norm2.*)
-(*#[export] Hint Rewrite subst_make_args1 : subst.*)
+(*#[(*export, after Coq 8.13*)global] Hint Rewrite subst_make_args1 : norm2.*)
+(*#[(*export, after Coq 8.13*)global] Hint Rewrite subst_make_args1 : subst.*)
 
 Ltac check_sequential s :=
  match s with
@@ -3225,7 +3225,7 @@ intros. destruct v; inv H0; simpl.
 unfold add_ptr_int; simpl; unfold sem_add_ptr_int.
 rewrite H. reflexivity.
 Qed.
-#[export] Hint Rewrite @sem_add_ptr_int_lem using (try reflexivity; assumption) : norm1.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @sem_add_ptr_int_lem using (try reflexivity; assumption) : norm1.
 
 Lemma sem_add_pi': forall {CS: compspecs} t0 si v i,
    complete_type cenv_cs t0 = true ->
@@ -3242,7 +3242,7 @@ Proof.
   rewrite H.
   rewrite sem_add_pi_ptr; auto.
 Qed.
-#[export] Hint Rewrite @sem_add_pi' using (solve [try reflexivity; auto with norm ; rep_lia]) : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite @sem_add_pi' using (solve [try reflexivity; auto with norm ; rep_lia]) : norm.
 
 Arguments field_type i m / .
 Arguments nested_field_type {cs} t gfs / .

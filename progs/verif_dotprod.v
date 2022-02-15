@@ -151,7 +151,7 @@ Qed.
 Lemma body_add:  semax_body Vprog Gprog f_add add_spec.
 Proof.
 start_function.
-#[export] Hint Rewrite Zlength_map2 using (try Zlength_solve; fail 4) : Zlength.
+#[(*export, after Coq 8.13*)global] Hint Rewrite Zlength_map2 using (try Zlength_solve; fail 4) : Zlength.
 pose (fx := map2 Float.add fy fz).
 assert_PROP (Zlength fx = 3 /\ Zlength fy = 3 /\ Zlength fz = 3). {
   entailer!. subst fx. list_solve.
@@ -172,8 +172,8 @@ forward.
 forward.
 entailer!. {
   simpl force_val.
-  #[export] Hint Rewrite (Znth_map2 _ _ _ Inhabitant_float Inhabitant_float Inhabitant_float) using Zlength_solve : Znth.
-  #[export] Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
+  #[(*export, after Coq 8.13*)global] Hint Rewrite (Znth_map2 _ _ _ Inhabitant_float Inhabitant_float Inhabitant_float) using Zlength_solve : Znth.
+  #[(*export, after Coq 8.13*)global] Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
   subst fx. list_solve.
 }
 *

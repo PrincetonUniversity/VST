@@ -317,6 +317,6 @@ extensionality gfs v.
 reflexivity.
 Qed.
 
-#[export] Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
 *)
 *)

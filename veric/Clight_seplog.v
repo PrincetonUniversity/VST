@@ -366,7 +366,7 @@ intros; unfold overridePost, normal_ret_assert.
 f_equal.
 Qed.
 
-#[export] Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1
+#[(*export, after Coq 8.13*)global] Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=

@@ -126,7 +126,7 @@ Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
 
 Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e.
 Proof. intros; unfold tc_andp; reflexivity. Qed.
-#[export] Hint Rewrite tc_andp_TT1 tc_andp_TT2 : norm.
+#[(*export, after Coq 8.13*)global] Hint Rewrite tc_andp_TT1 tc_andp_TT2 : norm.
 
 Definition typecheck_LR_strong {cs: compspecs} Delta e lr :=
   match lr with

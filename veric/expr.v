@@ -1066,14 +1066,14 @@ Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
 Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
 Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite Map.gss. auto.
 Qed.
-#[export] Hint Rewrite eval_id_same : normalize.
+#[(*export, after Coq 8.13*)global] Hint Rewrite eval_id_same : normalize.
 
 Lemma eval_id_other: forall rho id id' v,
    id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.
 Proof.
  unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
 Qed.
-#[export] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
+#[(*export, after Coq 8.13*)global] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
 *)
                                                                            
 Definition typecheck_store e1 :=
