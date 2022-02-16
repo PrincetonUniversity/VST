@@ -5,16 +5,13 @@ Require Import VST.msl.ageable.
 Require Import VST.msl.age_sepalg.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Import FashNotation.
 Import LiftNotation.
 Import compcert.lib.Maps.
 
 Require Import VST.concurrency.conclib_coqlib.
 Require Import VST.concurrency.conclib_sublist.
-
-(* rewrite is really annoying to fix in a backwards compatible way so just set the option. *)
-Local Set Apply With Renaming.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -175,7 +172,7 @@ Proof.
         rewrite PTree.gsspec.
         destruct (peq id (fst a)); eauto; subst; simpl.
         rewrite lookup_out.
-        apply lookup_distinct with (f0:=@id type); auto.
+        apply (lookup_distinct (@id type)); auto.
         { apply Hdistinct.
           rewrite in_map_iff; eexists; split; eauto. }
     + intros.
@@ -313,7 +310,7 @@ Proof.
   intros; unfold remove_Znth.
   rewrite <- sublist_same at 1 by auto.
   rewrite sublist_split with (mid := i) by lia.
-  rewrite sublist_next with (i0 := i) by lia.
+  rewrite (sublist_next i) by lia.
   rewrite !iter_sepcon_app; simpl; apply pred_ext; cancel.
 Qed.
 
@@ -325,17 +322,17 @@ Proof.
   intros; rewrite !iter_sepcon2_spec.
   apply pred_ext; Intros l; subst.
   - rewrite Zlength_map in *.
-    rewrite !remove_Znth_map, !Znth_map, iter_sepcon_Znth with (i0 := i) by auto.
+    rewrite !remove_Znth_map, !Znth_map, (iter_sepcon_Znth _ _ i) by auto.
     unfold uncurry at 1.
     Exists (remove_Znth i l); entailer!.
   - Exists (combine l1 l2).
     rewrite combine_fst, combine_snd
       by (rewrite <- !ZtoNat_Zlength; apply Nat2Z.inj; rewrite !Z2Nat.id; lia).
-    rewrite iter_sepcon_Znth with (i0 := i)(l0 := combine _ _)
+    rewrite (iter_sepcon_Znth _ (combine _ _) i)
       by (rewrite Zlength_combine, Z.min_l; lia).
     rewrite Znth_combine, remove_Znth_combine by auto.
     rewrite H1, H2, combine_eq; unfold uncurry; entailer!.
-    apply derives_refl.
+all:    apply derives_refl.  (* do we need this for Coq 8.13 compatibility? not sure. *)
 Qed.
 
 Lemma iter_sepcon_Znth_remove : forall {A} {d : Inhabitant A} f l i j,
@@ -376,7 +373,7 @@ Lemma iter_sepcon_remove_wand : forall {A} {d : Inhabitant A} (f : A -> mpred) l
   0 <= i < Zlength l -> iter_sepcon f (remove_Znth i l) |-- f (Znth i l) -* iter_sepcon f l.
 Proof.
   intros; rewrite <- wand_sepcon_adjoint.
-  erewrite iter_sepcon_Znth with (l0 := l) by eauto; cancel.
+  erewrite (iter_sepcon_Znth _ l) by eauto; cancel.
 Qed.
 
 Lemma iter_sepcon_In : forall {B} (x : B) f l, In x l -> iter_sepcon f l = f x * (f x -* iter_sepcon f l).
@@ -683,7 +680,7 @@ Proof.
   intros.
   erewrite <- sublist_same with (al := l) at 1; auto.
   rewrite sublist_split with (mid := i); try lia.
-  rewrite sublist_next with (i0 := i); try lia.
+  rewrite (sublist_next i); try lia.
   rewrite sepcon_app; simpl.
   rewrite <- sepcon_assoc, (sepcon_comm _ (Znth i l)).
   unfold_upd_Znth_old; rewrite sepcon_app, sepcon_assoc; simpl.

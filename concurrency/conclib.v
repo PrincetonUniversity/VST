@@ -16,10 +16,6 @@ Require Export VST.concurrency.conclib_coqlib.
 Require Export VST.concurrency.conclib_sublist.
 Require Export VST.concurrency.conclib_veric.
 
-(* rewrite is really annoying to fix in a backwards compatible way so just set the option. *)
-Local Set Apply With Renaming.
-
-
 (* exclusive *)
 Lemma weak_exclusive_conflict : forall P,
   predicates_hered.derives ((weak_exclusive_mpred P && emp) * P * P) FF.
