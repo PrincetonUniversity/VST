@@ -170,7 +170,7 @@ Section SigmaSAFunctor.
   Variables (JOIN: forall i A, Join (F i A))
             (fSA : forall i, pafunctor (F i) (JOIN i)).
 
-  Existing Instance Join_sigma.
+  #[global] Existing Instance Join_sigma.
 
   Hypothesis inj_sig : forall A i x y,
     existT (fun i => F i A) i x = existT (fun i => F i A) i y -> x = y.

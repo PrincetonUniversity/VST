@@ -2,12 +2,12 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
+Require Import sha.spec_sha.
 Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.general_lemmas.
 Require Import sha.HMAC256_functional_prog.
-Require Import sha.spec_sha.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.verif_hmac_drbg_update_common.
 

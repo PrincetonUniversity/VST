@@ -155,7 +155,7 @@ Qed.
 
 End Reference.
 
-Program Instance exclusive_PCM A : Ghost :=
+#[global] Program Instance exclusive_PCM A : Ghost :=
   { valid a := True; Join_G := Join_lower (Join_discrete A)(*; core2 a := None*) }.
 (*Next Obligation.
 Proof.
@@ -174,7 +174,7 @@ Qed.
 
 Local Obligation Tactic := idtac.
 
-Program Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
+#[global] Program Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
   valid a := valid (fst a) /\ valid (snd a); Join_G := Join_prod _ _ _ _ }.
 Next Obligation.
   intros GA GB ??? [] []; split; eapply join_valid; eauto.
@@ -533,7 +533,7 @@ End Snapshot.
 
 Section Discrete.
 
-Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
+#[global] Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
   Join_G := Join_equiv A }.
 Next Obligation.
   auto.

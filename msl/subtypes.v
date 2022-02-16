@@ -36,7 +36,7 @@ Qed.
 Definition fashionM {A} `{ageable A} : modality
   := exist _ fashionR valid_rel_fashion.
 
-Existing Instance ag_nat.   #[export] Hint Resolve ag_nat : core.
+#[global] Existing Instance ag_nat.   #[export] Hint Resolve ag_nat : core.
 
 Program Definition fash {A: Type} `{NA: ageable A} (P: pred A): pred nat :=
       fun n => forall y, n >= level y -> P y.

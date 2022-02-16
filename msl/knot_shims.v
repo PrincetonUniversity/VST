@@ -48,7 +48,7 @@ Module Type KNOT__COCONTRAVARIANT_HERED_T_OTH_REL.
 
   Parameter knot:Type.
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Parameter hered : (knot * other -> T) -> Prop.
   Definition predicate := { p:knot * other -> T | hered p }.
@@ -124,10 +124,10 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
   Parameter knot : Type.
 
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Definition ag_knot_other := ag_prod knot other ageable_knot.
-  Existing Instance ag_knot_other.
+  #[global] Existing Instance ag_knot_other.
 
   Parameter expandM : @modality (knot * other) ag_knot_other.
   Definition assert := { p:pred (knot * other) | boxy expandM p }.
@@ -188,10 +188,10 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH.
   Parameter knot : Type.
 
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Definition ag_knot_other := ag_prod knot other ageable_knot.
-  Existing Instance ag_knot_other.
+  #[global] Existing Instance ag_knot_other.
 
   Parameter squash : (nat * F (pred (knot * other))) -> knot.
   Parameter unsquash : knot -> (nat * F (pred (knot * other))).
@@ -255,7 +255,7 @@ Module Type KNOT__COVARIANT_HERED_PROP.
   Parameter knot : Type.
 
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Parameter squash : (nat * F (pred knot)) -> knot.
   Parameter unsquash : knot -> (nat * F (pred knot)).
@@ -318,7 +318,7 @@ Module Type KNOT__MIXVARIANT_HERED_PROP.
   Parameter knot : Type.
 
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Definition predicate := pred knot.
   Parameter squash : (nat * F (pred knot)) -> knot.
@@ -395,7 +395,7 @@ Module Knot_CoContraVariantHeredTOthRel
 
   Definition knot: Type := K.knot.
   Definition ageable_knot: ageable knot := K.ageable_knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Definition hered : (knot * KI.other -> KI.T) -> Prop := K.hered.
   Definition predicate := { p:knot * KI.other -> KI.T | hered p }.
@@ -575,10 +575,10 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
   Module K0 := knot_full_variant.Knot_MixVariantHeredTOthRel(Input).
   Module KL0 := knot_full_variant.KnotLemmas_MixVariantHeredTOthRel(K0).
 
-  Existing Instance K0.ageable_knot.
+  #[global] Existing Instance K0.ageable_knot.
 
   Definition ag_knot_other := ag_prod K0.knot KI.other K0.ageable_knot.
-  Existing Instance ag_knot_other.
+  #[global] Existing Instance ag_knot_other.
 
   Definition expandR : relation (K0.knot * KI.other) :=
     fun x y => K0.knot_rel (fst x) (fst y) /\ KI.ORel (snd x) (snd y).
@@ -948,9 +948,9 @@ Module Knot_CovariantHeredPropOth (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH)
 
   Module K0 := knot_full_variant.Knot_MixVariantHeredTOthRel(Input).
   Module KL0 := knot_full_variant.KnotLemmas_MixVariantHeredTOthRel(K0).
-  Existing Instance K0.ageable_knot.
+  #[global] Existing Instance K0.ageable_knot.
   Definition ag_knot_other := ag_prod K0.knot KI.other K0.ageable_knot.
-  Existing Instance ag_knot_other.
+  #[global] Existing Instance ag_knot_other.
 
   Lemma hered_hereditary : forall (p: K0.knot*KI.other -> Prop),
     K0.hered p <-> hereditary age p.
@@ -1194,7 +1194,7 @@ Module Knot_CovariantHeredProp (KI':KNOT_INPUT__COVARIANT_HERED_PROP)
 
   Module K0 := knot_full_variant.Knot_MixVariantHeredTOthRel(Input).
   Module KL0 := knot_full_variant.KnotLemmas_MixVariantHeredTOthRel(K0).
-  Existing Instance K0.ageable_knot.
+  #[global] Existing Instance K0.ageable_knot.
 
   Lemma hered_hereditary : forall (p: K0.knot -> Prop),
     K0.hered (fun ko => p (fst ko)) <-> hereditary age p.
@@ -1444,7 +1444,7 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
 
   Module K0 := knot_full_variant.Knot_MixVariantHeredTOthRel(Input).
   Module KL0 := knot_full_variant.KnotLemmas_MixVariantHeredTOthRel(K0).
-  Existing Instance K0.ageable_knot.
+  #[global] Existing Instance K0.ageable_knot.
 
   Lemma hered_hereditary : forall (p: K0.knot -> Prop),
     K0.hered (fun ko => p (fst ko)) <-> hereditary age p.

@@ -8,7 +8,7 @@ Require Import VST.msl.corable_direct.
 
 Local Open Scope logic.
 
-Instance algNatDed (T: Type) : NatDed (pred T).
+#[global] Instance algNatDed (T: Type) : NatDed (pred T).
   apply (mkNatDed _
                     predicates_sa.andp
                     predicates_sa.orp
@@ -36,7 +36,7 @@ Instance algNatDed (T: Type) : NatDed (pred T).
  repeat intro. specialize (H b); unfold prop in H. auto.
 Defined.
 
-Instance algSepLog (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T} :
+#[global] Instance algSepLog (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T} :
       @SepLog (pred T) (algNatDed T).
  apply (mkSepLog _ (algNatDed T) identity predicates_sa.sepcon predicates_sa.wand
                              predicates_sa.ewand).
@@ -51,12 +51,12 @@ Instance algSepLog (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}
  intros; simpl. apply ewand_conflict; auto.
 Defined.
 
-Instance algClassicalSep (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{CancT: Canc_alg T}:
+#[global] Instance algClassicalSep (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{CancT: Canc_alg T}:
      @ClassicalSep (pred T) (algNatDed T)(algSepLog T).
  constructor; intros. simpl. apply predicates_sa.sepcon_emp.
 Defined.
 
-Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}:
+#[global] Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}:
          @CorableSepLog (pred T) (algNatDed T) (algSepLog T).
   apply mkCorableSepLog with (corable := corable_direct.corable); unfold algNatDed, algSepLog; simpl.
   + apply corable_prop.

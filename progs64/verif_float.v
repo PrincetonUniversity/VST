@@ -2,7 +2,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs64.float.
 
-Instance CompSpecs : compspecs.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
 Local Open Scope logic.

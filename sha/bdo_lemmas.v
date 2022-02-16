@@ -22,7 +22,7 @@ rewrite if_false by lia.
 reflexivity.
 Qed.
 
-Hint Rewrite Znth_nthi using (auto; lia) : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Znth_nthi using (auto; lia) : sublist.
 
 Lemma Zland_in_range:
   forall i, (0 <= Z.land i 15 < 16)%Z.

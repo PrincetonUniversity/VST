@@ -12,11 +12,11 @@ Require Import VST.msl.shares.
 (** The prototypical example of a psepalg is the positive shares, which
     are just the lifted basic shares. *)
 Definition pshare : Type := lifted Share.Join_ba.
-Instance Join_pshare: Join pshare := @Join_lift _ _.
-Instance Perm_pshare : Perm_alg pshare := Perm_lift Share.pa.
-Instance Canc_pshare : Canc_alg pshare := @Canc_lift _ _ Share.ca.
-Instance Disj_pshare : Disj_alg pshare := @Disj_lift _ _ Share.da.
-Instance Pos_pshare : Pos_alg pshare := @Pos_lift _ _.
+#[global] Instance Join_pshare: Join pshare := @Join_lift _ _.
+#[global] Instance Perm_pshare : Perm_alg pshare := Perm_lift Share.pa.
+#[global] Instance Canc_pshare : Canc_alg pshare := @Canc_lift _ _ Share.ca.
+#[global] Instance Disj_pshare : Disj_alg pshare := @Disj_lift _ _ Share.da.
+#[global] Instance Pos_pshare : Pos_alg pshare := @Pos_lift _ _.
 
 Definition pshare_sh : pshare -> share := @lifted_obj share Share.Join_ba.
 Coercion pshare_sh : pshare >-> share.
@@ -33,7 +33,7 @@ Proof.
   contradiction n1; auto.
 Qed.
 
-Instance EqDec_pshare : EqDec pshare := pshare_eq_dec.
+#[global] Instance EqDec_pshare : EqDec pshare := pshare_eq_dec.
 
 Definition pfullshare : pshare :=
   mk_lifted fullshare top_share_nonunit.

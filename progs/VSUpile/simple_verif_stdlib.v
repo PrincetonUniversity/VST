@@ -4,7 +4,7 @@ Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
 Require Import stdlib.
 Require Import simple_spec_stdlib.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Axiom mem_mgr_rep: forall gv, emp |-- mem_mgr gv.
 

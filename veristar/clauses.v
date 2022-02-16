@@ -80,7 +80,7 @@ Definition pure_atom_cmp (a a': pure_atom) : comparison :=
      end
  end.
 
-Hint Rewrite @comp_refl using solve[auto] : comp.
+(*after Coq 8.13: #[export]*) Hint Rewrite @comp_refl using solve[auto] : comp.
 
 Ltac comp_tac :=
     progress (autorewrite with comp in *; auto)
