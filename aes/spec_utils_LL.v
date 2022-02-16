@@ -2,7 +2,7 @@ Require Export List. Export ListNotations.
 Require Export ZArith.
 Local Open Scope Z_scope.
 Require Export compcert.lib.Integers.
-Require Export VST.floyd.sublist.
+Require Export VST.zlist.sublist.
 
 Definition Nk := 8. (* number of words in key *)
 Definition Nr := 14. (* number of cipher rounds *)

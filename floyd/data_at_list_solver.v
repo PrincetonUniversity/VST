@@ -1,6 +1,6 @@
 Require Import VST.floyd.base2.
-Require Export VST.floyd.Zlength_solver.
-Require Export VST.floyd.list_solver.
+Require Export VST.zlist.Zlength_solver.
+Require Export VST.zlist.list_solver.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.entailer.

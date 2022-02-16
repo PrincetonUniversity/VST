@@ -4,7 +4,7 @@ From VST.atomics Require Import general_atomics acq_rel_atomics acq_rel_SW.
 Require Import VST.concurrency.conclib.
 Require Import VST.atomics.maps.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import VST.atomics.kvnode_atomic_ra.
 
 Set Bullet Behavior "Strict Subproofs".

@@ -3,7 +3,7 @@ Require Import VST.concurrency.conclib.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.veric.bi.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import VST.atomics.hashtable_atomic.
 Require Import VST.atomics.hashtable.
 Require Import VST.atomics.general_atomics.

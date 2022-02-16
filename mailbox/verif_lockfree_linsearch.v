@@ -2,7 +2,7 @@ Require Import mailbox.verif_atomics.
 Require Import VST.concurrency.conclib.
 Require Import VST.progs.ghost.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import mailbox.lockfree_linsearch.
 
 Set Bullet Behavior "Strict Subproofs".

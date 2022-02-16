@@ -12,7 +12,7 @@ Require Import VST.progs.io_mem_specs.
 Require Import VST.progs.io_dry.
 Require Import VST.progs.io_mem_dry.
 Require Import VST.progs.io_os_specs.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import VST.progs.os_combine.
 Import ExtLib.Structures.Monad.
 

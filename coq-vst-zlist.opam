@@ -1,0 +1,22 @@
+opam-version: "2.0"
+authors: ["Qinshi Wang"
+  "Andrew W. Appel"
+  ]
+maintainer: "VST team"
+homepage: "http://vst.cs.princeton.edu/"
+dev-repo: "git+https://github.com/PrincetonUniversity/VST.git"
+bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
+license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
+build: [
+  [make "-C" "zlist" "-j%{jobs}%"]
+]
+run-test: []
+install: [make "-C" "zlist" "install"]
+
+depends: [
+  "coq" {>= "8.11.0"}
+]
+synopsis: "A list library indexed by Z type, with a powerful automatic solver"
+url {
+  src: "git+https://github.com/PrincetonUniversity/VST.git#zlist"
+}

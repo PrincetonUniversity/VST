@@ -7,7 +7,7 @@ Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Export VST.floyd.sublist.
+Require Export VST.zlist.sublist.
 Import FashNotation.
 Import LiftNotation.
 Import compcert.lib.Maps.

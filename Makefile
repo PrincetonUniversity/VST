@@ -234,7 +234,7 @@ endif
 
 # ########## Flags ##########
 
-VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
+VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 
@@ -442,13 +442,15 @@ VERIC_FILES= \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
   semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v ghosts.v invariants.v
 
+ZLIST_FILES= \
+  sublist.v Zlength_solver.v list_solver.v
+
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
    base2.v functional_base.v go_lower.v \
    library.v proofauto.v computable_theorems.v computable_functions.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
-   sublist.v \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
@@ -462,7 +464,7 @@ FLOYD_FILES= \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
    subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v quickprogram.v PTops.v Component.v QPcomposite.v \
-   Zlength_solver.v list_solver.v data_at_list_solver.v
+  data_at_list_solver.v
 #real_forward.v
 
 
@@ -710,6 +712,7 @@ sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
+zlist:   _CoqProject $(ZLIST_FILES:%.v=zlist/%.vo)
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   _CoqProject $(PROGS_FILES:%.v=$(PROGSDIR)/%.vo)
 progsdir: $(PROGSDIR)
