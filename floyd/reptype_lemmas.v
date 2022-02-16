@@ -764,13 +764,13 @@ Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
 Proof. intros. apply Int.add_zero_l. Qed.
 Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.
 Proof. intros. apply Int.add_zero. Qed.
-Local Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
+(*after Coq 8.13: Local*) Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
 
 Lemma ptrofs_add_repr_0_l: forall i, Ptrofs.add (Ptrofs.repr 0) i = i.
 Proof. intros. apply Ptrofs.add_zero_l. Qed.
 Lemma ptrofs_add_repr_0_r: forall i, Ptrofs.add i (Ptrofs.repr 0) = i.
 Proof. intros. apply Ptrofs.add_zero. Qed.
-Local Hint Rewrite ptrofs_add_repr_0_l ptrofs_add_repr_0_r : norm.
+(*after Coq 8.13: Local*) Hint Rewrite ptrofs_add_repr_0_l ptrofs_add_repr_0_r : norm.
 
 Definition repinject (t: type) : reptype t -> val :=
   match t as t0 return reptype t0 -> val with
