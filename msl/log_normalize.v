@@ -719,6 +719,36 @@ apply wand_sepcon_adjoint.
 rewrite sepcon_emp; auto.
 Qed.
 
+Lemma wand_eq  {A}{NA: NatDed A}{SA: SepLog A}:
+   forall P Q R, P = Q * R -> P = Q * (Q -* P).
+Proof.
+  intros.
+  apply seplog.pred_ext, modus_ponens_wand.
+  subst. apply sepcon_derives. auto.
+  rewrite <- wand_sepcon_adjoint; auto.
+  rewrite sepcon_comm; auto.
+Qed.
+
+Lemma wand_twice {A}{NA: NatDed A}{SA: SepLog A}:
+   forall P Q R, P -* Q -* R = P * Q -* R.
+Proof.
+  intros; apply seplog.pred_ext.
+  - rewrite <- wand_sepcon_adjoint.
+    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
+    rewrite sepcon_comm; apply modus_ponens_wand.
+  - rewrite <- !wand_sepcon_adjoint.
+    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
+Qed.
+
+Lemma wand_frame {A}{NA: NatDed A}{SA: SepLog A}:
+   forall P Q R, P -* Q |-- P * R -* Q * R.
+Proof.
+  intros.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite <- sepcon_assoc. apply sepcon_derives; auto.
+  rewrite sepcon_comm; apply modus_ponens_wand.
+Qed.
+
 Lemma TT_andp {A}{NA: NatDed A}: forall P: A,  TT && P = P.
 Proof with norm.
   intros. apply pred_ext. apply andp_left2... apply andp_right...
@@ -1624,6 +1654,25 @@ Qed.
 
 
 (****** End contractiveness *****)
+
+Import List.
+
+Lemma sepcon_app  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
+   forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
+  fold_right sepcon emp l1 * fold_right sepcon emp l2.
+Proof.
+  induction l1; simpl; intros.
+  - rewrite emp_sepcon; auto.
+  - rewrite IHl1, sepcon_assoc; auto.
+Qed.
+
+Lemma sepcon_rev {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
+  forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
+Proof.
+  induction l; simpl; auto.
+  rewrite sepcon_app; simpl.
+  rewrite sepcon_emp, sepcon_comm, IHl; auto.
+Qed.
 
 Require Import VST.msl.ghost_seplog.
 

@@ -17,52 +17,13 @@ Require Import VST.concurrency.conclib_sublist.
 Notation vint z := (Vint (Int.repr z)).
 Notation vptrofs z := (Vptrofs (Ptrofs.repr z)).
 
-
-Lemma repable_0 : repable_signed 0.
-Proof.
-  split; computable.
-Qed.
-#[export] Hint Resolve repable_0 : core.
-
-
 Open Scope logic.
-
-Lemma iter_sepcon_sepcon: forall {A} f g1 g2 l, (forall b : A, f b = g1 b * g2 b) ->
-  iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
-Proof.
-  intros; induction l; simpl.
-  autorewrite with norm; auto.
-  rewrite H, IHl; apply pred_ext; cancel.
-Qed.
-
-Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
-  fold_right sepcon emp l1 * fold_right sepcon emp l2.
-Proof.
-  induction l1; simpl; intros.
-  - rewrite emp_sepcon; auto.
-  - rewrite IHl1, sepcon_assoc; auto.
-Qed.
-
-Lemma sepcon_rev : forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
-Proof.
-  induction l; simpl; auto.
-  rewrite sepcon_app; simpl.
-  rewrite sepcon_emp, sepcon_comm, IHl; auto.
-Qed.
-
 
 Lemma iter_sepcon_sepcon': forall {A} g1 g2 (l : list A),
   iter_sepcon (fun x => g1 x * g2 x) l = iter_sepcon g1 l * iter_sepcon g2 l.
 Proof.
   intros. apply iter_sepcon_sepcon. easy.
 Qed.
-
-Lemma iter_sepcon_derives : forall {B} f g (l : list B), (forall x, In x l -> f x |-- g x) -> iter_sepcon f l |-- iter_sepcon g l.
-Proof.
-  induction l; simpl; auto; intros.
-  apply sepcon_derives; auto.
-Qed.
-
 
 Lemma list_join_eq : forall (b : list share) a c c'
   (Hc : sepalg_list.list_join a b c) (Hc' : sepalg_list.list_join a b c'), c = c'.
@@ -122,35 +83,8 @@ Proof.
     intro; contradiction Ha; auto.
 Qed.
 
-
 (* various seplog lemmas *)
 (* wand lemmas *)
-Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
-Proof.
-  intros.
-  apply seplog.pred_ext, modus_ponens_wand.
-  subst; cancel.
-  rewrite <- wand_sepcon_adjoint; auto.
-  rewrite sepcon_comm; auto.
-Qed.
-
-Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
-Proof.
-  intros; apply seplog.pred_ext.
-  - rewrite <- wand_sepcon_adjoint.
-    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
-    rewrite sepcon_comm; apply modus_ponens_wand.
-  - rewrite <- !wand_sepcon_adjoint.
-    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
-Qed.
-
-Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
-Proof.
-  intros.
-  rewrite <- wand_sepcon_adjoint; cancel.
-  rewrite sepcon_comm; apply modus_ponens_wand.
-Qed.
-
 Lemma data_at__eq : forall {cs : compspecs} sh t p, data_at_ sh t p = data_at sh t (default_val t) p.
 Proof.
   intros; unfold data_at_, data_at, field_at_; auto.
@@ -608,27 +542,26 @@ Proof.
   - unfold at_offset; rewrite 2by_value_data_at_rec_nonvolatile by auto; cancel.
 Qed.
 
-(* This isn't true if the type contains any unions, since in fact the type of the data could be different.
 Lemma data_at_rec_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
   readable_share sh1 -> readable_share sh2 ->
   data_at_rec sh1 t v1 p * data_at_rec sh2 t v2 p |--
   data_at_rec sh1 t v1 p * data_at_rec sh2 t v1 p.
 Proof.
   intros until t; type_induction.type_induction t; intros; rewrite !data_at_rec_eq; simpl; auto;
-    try solve [destruct (type_is_volatile _); [cancel | apply mapsto_value_cohere; auto]].
+  try destruct i; try destruct s; try destruct f;
+    try solve [destruct (attr_volatile _); [cancel | apply mapsto_value_cohere; auto]].
   - unfold array_pred, aggregate_pred.array_pred.
     rewrite sepcon_andp_prop, !sepcon_andp_prop'.
     repeat (apply derives_extract_prop; intro); entailer'.
     rewrite Z.sub_0_r in *.
     set (lo := 0) at 1 3 5 7; clearbody lo.
-    forget (Z.to_nat z) as n; revert lo; induction n; simpl; intro; [cancel|].
-    rewrite !sepcon_assoc, <- (sepcon_assoc _ (at_offset _ _ _)), (sepcon_comm _ (at_offset _ _ _)).
-    rewrite <- (sepcon_assoc _ (at_offset _ _ _)), (sepcon_comm _ (at_offset _ _ _)).
-    rewrite !sepcon_assoc, <- !(sepcon_assoc (at_offset _ _ _) (at_offset _ _ _)).
-    apply sepcon_derives; unfold at_offset; auto.
+    admit.  (* This one is provable *)
   - apply struct_pred_value_cohere; auto.
-  - 
-Qed.
+  - (* This isn't true if the type contains any unions, since in fact the type of the data could be different. *)
+Abort.
+
+(*
+Corollaries of a thing that is not true:
 
 Corollary field_at_value_cohere : forall {cs : compspecs} sh1 sh2 t gfs v1 v2 p, readable_share sh1 ->
   field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |--

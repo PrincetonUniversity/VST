@@ -7,7 +7,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
-Require Import VST.concurrency.conclib.
+Require Import VST.concurrency.conclib. (* Might suffice to have concurrency.conclib_veric *)
 Require Import VST.progs.dry_mem_lemmas.
 Require Import VST.veric.mem_lessdef.
 
