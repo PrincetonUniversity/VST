@@ -158,8 +158,8 @@ Ltac solve_load_rule_evaluation_old :=
 
 (* Warning: these aren't defined until later, which should be OK,
   but might be confusing. 
-Instance Inhabitant_val : Inhabitant val := Vundef.
-Instance Inhabitant_int: Inhabitant int := Int.zero.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_val : Inhabitant val := Vundef.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_int: Inhabitant int := Int.zero.
 *)
 
 (* Given a JMEq containing the result of a load, pulls the "Vint" out of "map".

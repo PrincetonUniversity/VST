@@ -19,7 +19,10 @@ Lemma Z_div_mul: forall a b, b <> 0 ->
       (a/b*b = a - a mod b)%Z.
 Proof.
 intros.
-pose proof (Z_div_mod_eq_full a b H).
+first  [
+    pose proof (Z_div_mod_eq_full a b H)  (* for Coq 8.13 *)
+  | pose proof (Z_div_mod_eq_full a b) (* for Coq 8.15 *)
+].
 rewrite H0 at 2.
 rewrite Z.mul_comm; lia.
 Qed.
@@ -150,11 +153,6 @@ Qed.
 Lemma body_SHA256_addlength: semax_body Vprog Gtot f_SHA256_addlength SHA256_addlength_spec.
 Proof.
 start_function.
-name c_ _c.
-name len_ _len.
-name l_ _l.
-name Nl _cNl.
-name Nh _cNh.
 rename H into BOUND.
 rename H1 into Hn.
 assert (MN: Int.modulus <> 0) by (intro Hx; inv Hx).

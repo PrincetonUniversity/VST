@@ -4,7 +4,7 @@ Require Import VST.floyd.proofauto.
 
 Local Open Scope itree_scope.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition putchar_spec := DECLARE _putchar putchar_spec.

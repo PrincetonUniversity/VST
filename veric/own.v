@@ -295,7 +295,7 @@ Definition ghost_fp_update (a b : ghost) :=
   forall n c, joins (ghost_fmap (approx n) (approx n) a) c ->
                joins (ghost_fmap (approx n) (approx n) b) c.
 
-Instance ghost_fp_update_preorder: RelationClasses.PreOrder ghost_fp_update.
+#[(*export, after Coq 8.13*)global] Instance ghost_fp_update_preorder: RelationClasses.PreOrder ghost_fp_update.
 Proof.
   split; repeat intro; auto.
 Qed.

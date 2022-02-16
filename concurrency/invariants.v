@@ -215,7 +215,7 @@ Proof.
   destruct b.
   erewrite ghost_list_nth with (n := i) by (erewrite nth_map' with (d' := None), Hi'; eauto; lia).
   iDestruct "dis" as "[token dis]".
-  rewrite -> iter_sepcon_eq, iter_sepcon_Znth with (i0 := Z.of_nat i)
+  rewrite -> @iter_sepcon_eq, @iter_sepcon_Znth with (d := _)(i := Z.of_nat i)
     by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
   erewrite Znth_upto, Hi by lia.
   iDestruct "I" as "((agree' & HP) & I)".
@@ -244,7 +244,7 @@ Proof.
     + destruct (eq_dec x i); [subst; right; constructor | left].
       unfold Ensembles.In in *.
       rewrite nth_replace_nth' in X; auto.
-  - erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l0 := upto _)
+  - erewrite @iter_sepcon_Znth with (i := Z.of_nat i)(l := upto _)
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
     erewrite Znth_upto, Znth_replace_nth by lia; iFrame.
     erewrite iter_sepcon_func_strong; auto.
@@ -322,9 +322,9 @@ Proof.
       * intro X'; inv X'.
         unfold Ensembles.In in X.
         rewrite -> nth_replace_nth in X by lia; inv X.
-  - erewrite !iter_sepcon_eq, iter_sepcon_Znth with (i0 := Z.of_nat i)
+  - erewrite !iter_sepcon_eq, @iter_sepcon_Znth with (i := Z.of_nat i)
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
-    erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l0 := upto _)
+    erewrite @iter_sepcon_Znth with (i := Z.of_nat i)(l := upto _)
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
     erewrite !Znth_upto, !Znth_replace_nth by lia.
     rewrite Hi.

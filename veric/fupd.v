@@ -168,7 +168,7 @@ Proof.
   intros a0 (? & ? & J & HP & [? Hemp]).
   destruct (join_level _ _ _ J).
   apply join_comm, Hemp in J; subst.
-  eapply Himp in HP; try apply necR_refl; auto; omega.
+  eapply Himp in HP; try apply necR_refl; auto; lia.
 Qed.
 
 Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q)%pred (level a)),
@@ -185,7 +185,7 @@ Proof.
   intros a0 (? & ? & J & HP & [? Hemp]).
   destruct (join_level _ _ _ J).
   apply join_comm, Hemp in J; subst.
-  eapply Himp in HP; try apply necR_refl; auto; omega.
+  eapply Himp in HP; try apply necR_refl; auto; lia.
 Qed.
 
 Lemma fupd_bupd : forall E1 E2 P Q, (P |-- (|==> (|={E1,E2}=> Q))) -> P |-- |={E1,E2}=> Q.

@@ -34,7 +34,7 @@ Qed.
 
 Section Invariants.
 
-Program Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
+#[global] Program Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
 
 Definition pred_of (P : mpred) := SomeP rmaps.Mpred (fun _ => P).
 
@@ -134,7 +134,7 @@ Inductive list_join {P : Ghost} : Join (list (option G)) :=
   | list_join_nil_r m: list_join m nil m
   | list_join_cons a1 a2 m1 m2 a3 m3: join a1 a2 a3 -> list_join m1 m2 m3 ->
       list_join (a1 :: m1) (a2 :: m2) (a3 :: m3).
-Existing Instance list_join.
+#[global] Existing Instance list_join.
 
 Lemma list_join_inv: forall {P : Ghost} (l1 l2 l3 : list (option G)), list_join l1 l2 l3 ->
 match l1, l2 with
@@ -148,7 +148,7 @@ Proof.
   destruct m; simpl; auto.
 Qed.
 
-Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join(*; core2 := map core2*) }.
+#[global] Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join(*; core2 := map core2*) }.
 Next Obligation.
 Proof.
   intros; exists (fun _ => nil); auto; constructor.
@@ -414,7 +414,7 @@ Proof.
   apply IHn; lia.
 Qed.
 
-Instance list_order A : @PCM_order (list_PCM (discrete_PCM A)) list_incl.
+#[global] Instance list_order A : @PCM_order (list_PCM (discrete_PCM A)) list_incl.
 Proof.
   constructor.
   - constructor.
@@ -533,7 +533,7 @@ Qed.
 
 (*Notation union := base.union.
 
-Program Instance set_PCM : Ghost := { valid := fun _ : coPset => True;
+#[global] Program Instance set_PCM : Ghost := { valid := fun _ : coPset => True;
   Join_G a b c := a ## b /\ c = union a b(*; core2 a := empty*) }.
 Next Obligation.
 Proof.
@@ -608,7 +608,7 @@ Global Arguments In {_} _ _.
 Global Arguments Included {_} _ _.
 Global Arguments Same_set {_} _ _.
 
-Polymorphic Program Instance set_PCM : Ghost := { valid := fun _ : Ensemble nat => True;
+#[global] Polymorphic Program Instance set_PCM : Ghost := { valid := fun _ : Ensemble nat => True;
   Join_G a b c := Disjoint a b /\ c = Union a b(*; core2 a := empty*) }.
 Next Obligation.
 Proof.
@@ -696,7 +696,7 @@ Definition master_list {A} g (l : list (option A)) := ghost_master1(ORD := list_
    As a workaround, instead of having one ghost location with a map from indices to agrees,
    we have a map from indices to ghost locations, each with an agree. *)
 
-Instance token_PCM : Ghost := exclusive_PCM unit.
+#[global] Instance token_PCM : Ghost := exclusive_PCM unit.
 
 Fixpoint iter_sepcon {A} (p : A -> mpred) l :=
   match l with
@@ -706,7 +706,7 @@ Fixpoint iter_sepcon {A} (p : A -> mpred) l :=
 
 Typeclasses eauto := 1.
 
-Instance Inhabitant_mpred : Inhabitant mpred := emp.
+#[global] Instance Inhabitant_mpred : Inhabitant mpred := emp.
 
 Polymorphic Definition wsat : mpred := (EX I : list mpred, EX lg : list gname, EX lb : list (option bool),
   !!(length lg = length I /\ length lb = length I) &&
@@ -801,7 +801,7 @@ Proof.
   intro; apply Z2Nat.inj; try lia.
 Qed.
 
-Instance list_Perm {P : Ghost} : Perm_alg (list (option G)).
+#[global] Instance list_Perm {P : Ghost} : Perm_alg (list (option G)).
 Proof.
   apply list_PCM.
 Qed.

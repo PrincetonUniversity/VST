@@ -56,7 +56,7 @@ Module Type STRAT_MODEL.
 
   Definition f_preds : functor preds :=
     f_sigma _ (fun _ => f_fun _ f_identity).
-  Existing Instance f_preds.
+  #[global] Existing Instance f_preds.
 
   Inductive res (PRED : Type) : Type :=
     | NO'
@@ -71,7 +71,7 @@ Module Type STRAT_MODEL.
     end.
   Axiom ff_res : functorFacts res res_fmap.
   Definition f_res : functor res := Functor ff_res.
-  Existing Instance f_res.
+  #[global] Existing Instance f_res.
 
   Inductive res_join (PRED : Type) : res PRED -> res PRED -> res PRED -> Prop :=
     | res_join_NO1 : res_join PRED (NO' PRED) (NO' PRED) (NO' PRED)
@@ -87,7 +87,7 @@ Module Type STRAT_MODEL.
   Axiom da_rj : forall PRED, @Disj_alg _ (res_join PRED).
   Axiom paf_res : @pafunctor res f_res res_join.
 
-  Existing Instance paf_res.
+  #[global] Existing Instance paf_res.
 
   Definition res_option (PRED : Type) (r: res PRED) :=
     match r with
@@ -104,18 +104,18 @@ Module Type STRAT_MODEL.
   Definition pre_rmap (A:Type) := { m:address -> res A | valid' A m }.
   Definition f_pre_rmap : functor pre_rmap :=
     f_subset (f_fun _ f_res) _ valid'_res_map.
-  Existing Instance f_pre_rmap.
+  #[global] Existing Instance f_pre_rmap.
 
   Axiom valid'_res_map2 : forall A B f m, valid' B (res_fmap A B f oo m) -> valid' A m.
 
-  Instance Join_pre_rmap (A: Type) : Join (pre_rmap A) :=
+  #[global] Instance Join_pre_rmap (A: Type) : Join (pre_rmap A) :=
             Join_prop _ (Join_fun address (res A) (res_join A)) (valid' A).
 
   Parameter Perm_pre_rmap: forall (A: Type), Perm_alg (pre_rmap A).
   Parameter Sep_pre_rmap: forall (A: Type), Sep_alg (pre_rmap A).
   Parameter Canc_pre_rmap: forall (A: Type), Canc_alg (pre_rmap A).
   Parameter Disj_pre_rmap: forall (A: Type), Disj_alg (pre_rmap A).
-  Instance paf_pre_rmap : pafunctor f_pre_rmap :=
+  #[global] Instance paf_pre_rmap : pafunctor f_pre_rmap :=
     saf_subset  (paf_fun address paf_res) valid' valid'_res_map valid'_res_map2.
 
 End STRAT_MODEL.
@@ -129,9 +129,9 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
   Definition f_preds : functor preds :=
     f_sigma _ (fun _ => f_fun _ f_identity).
-  Existing Instance f_preds.
+  #[global] Existing Instance f_preds.
 
-  Instance Join_preds (A: Type) : Join (preds A) := Join_equiv _.
+  #[global] Instance Join_preds (A: Type) : Join (preds A) := Join_equiv _.
 
   Inductive res (PRED : Type) : Type :=
     | NO'
@@ -153,7 +153,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Qed.
 
   Definition f_res : functor res := Functor ff_res.
-  Existing Instance f_res.
+  #[global] Existing Instance f_res.
 
   Inductive res_join (PRED : Type) : res PRED -> res PRED -> res PRED -> Prop :=
     | res_join_NO1 : res_join PRED (NO' PRED) (NO' PRED) (NO' PRED)
@@ -164,9 +164,9 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       res_join PRED (YES' PRED sh1 k p) (YES' PRED sh2 k p) (YES' PRED sh3 k p)
     | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
 
- Instance Join_res (PRED: Type) : Join (res PRED) := res_join PRED.
+ #[global] Instance Join_res (PRED: Type) : Join (res PRED) := res_join PRED.
 
-  Instance pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
+  #[global] Instance pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
   Proof. intros. constructor.
 
       (* saf_eq *)
@@ -192,26 +192,26 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
      intros; inv H; inv H0; auto. f_equal. eapply join_positivity; eauto.
  Qed.
 
-  Instance sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
+  #[global] Instance sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
   Proof. intros.
             apply mkSep with (fun x => match x with NO' => NO' _ | YES' _ _ _ => NO' _ | PURE' k pds => PURE' _ k pds end).
             intro. destruct t; constructor.
             intros. inversion H; auto.
   Defined.
 
-  Instance ca_rj : forall PRED, @Canc_alg _ (res_join PRED).
+  #[global] Instance ca_rj : forall PRED, @Canc_alg _ (res_join PRED).
   Proof. repeat intro. inv H; inv H0; auto.
     apply no_units in H2; contradiction.
     apply no_units in H1; contradiction.
     f_equal; auto. eapply join_canc; eauto.
   Qed.
 
-  Instance da_rj : forall PRED, @Disj_alg _ (res_join PRED).
+  #[global] Instance da_rj : forall PRED, @Disj_alg _ (res_join PRED).
   Proof.  repeat intro.
     inv H; auto. apply join_self in H2. subst; auto.
   Qed.
 
-  Instance paf_res : @pafunctor res f_res res_join.
+  #[global] Instance paf_res : @pafunctor res f_res res_join.
   Proof. constructor; repeat intro.
   (* This is a little painful because of the way res_join is defined, but
       whatever... *)
@@ -269,12 +269,12 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Definition pre_rmap (A:Type) := { m:address -> res A | valid' A m }.
   Definition f_pre_rmap : functor pre_rmap :=
     f_subset (f_fun _ f_res) _ valid'_res_map.
-  Existing Instance f_pre_rmap.
+  #[global] Existing Instance f_pre_rmap.
 
-  Instance Join_pre_rmap (A: Type) : Join (pre_rmap A) :=
+  #[global] Instance Join_pre_rmap (A: Type) : Join (pre_rmap A) :=
             Join_prop _ (Join_fun address (res A) (res_join A)) (valid' A).
 
-  Instance paf_pre_rmap : pafunctor f_pre_rmap :=
+  #[global] Instance paf_pre_rmap : pafunctor f_pre_rmap :=
     saf_subset  (paf_fun address paf_res) valid' valid'_res_map valid'_res_map2.
 
     Lemma identity_jres : forall PRED (r : res PRED),
@@ -334,13 +334,13 @@ Module Type RMAPS.
   Import AV.
 
   Parameter rmap : Type.
-  Axiom Join_rmap: Join rmap. Existing Instance Join_rmap.
-  Axiom Perm_rmap: Perm_alg rmap. Existing Instance Perm_rmap.
-  Axiom Sep_rmap: Sep_alg rmap. Existing Instance Sep_rmap.
-  Axiom Canc_rmap: Canc_alg rmap.  Existing Instance Canc_rmap.
-  Axiom Disj_rmap: Disj_alg rmap.  Existing Instance Disj_rmap.
-  Axiom ag_rmap: ageable rmap.  Existing Instance ag_rmap.
-  Axiom Age_rmap: Age_alg rmap.  Existing Instance Age_rmap.
+  Axiom Join_rmap: Join rmap. #[global] Existing Instance Join_rmap.
+  Axiom Perm_rmap: Perm_alg rmap. #[global] Existing Instance Perm_rmap.
+  Axiom Sep_rmap: Sep_alg rmap. #[global] Existing Instance Sep_rmap.
+  Axiom Canc_rmap: Canc_alg rmap.  #[global] Existing Instance Canc_rmap.
+  Axiom Disj_rmap: Disj_alg rmap.  #[global] Existing Instance Disj_rmap.
+  Axiom ag_rmap: ageable rmap.  #[global] Existing Instance ag_rmap.
+  Axiom Age_rmap: Age_alg rmap.  #[global] Existing Instance Age_rmap.
 
   Inductive preds : Type :=
     SomeP : forall A : list Type, (listprod A -> pred rmap) -> preds.
@@ -370,11 +370,11 @@ Module Type RMAPS.
    | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p).
 
 
-  Instance Join_resource: Join resource := res_join.
-  Axiom Perm_resource: Perm_alg resource. Existing Instance Perm_resource.
-  Axiom Sep_resource: Sep_alg resource. Existing Instance Sep_resource.
-  Axiom Canc_resource: Canc_alg resource. Existing Instance Canc_resource.
-  Axiom Disj_resource: Disj_alg resource. Existing Instance Disj_resource.
+  #[global] Instance Join_resource: Join resource := res_join.
+  Axiom Perm_resource: Perm_alg resource. #[global] Existing Instance Perm_resource.
+  Axiom Sep_resource: Sep_alg resource. #[global] Existing Instance Sep_resource.
+  Axiom Canc_resource: Canc_alg resource. #[global] Existing Instance Canc_resource.
+  Axiom Disj_resource: Disj_alg resource. #[global] Existing Instance Disj_resource.
 
   Definition preds_fmap (f:pred rmap -> pred rmap) (x:preds) : preds :=
     match x with SomeP A Q => SomeP A (f oo Q)
@@ -420,7 +420,7 @@ Module Type RMAPS.
   Definition resource_at (phi:rmap) : address -> resource := proj1_sig (snd (unsquash phi)).
   Infix "@" := resource_at (at level 50, no associativity).
 
-  Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
+  #[global] Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
 
   Axiom join_unsquash : forall phi1 phi2 phi3,
     join phi1 phi2 phi3 <->
@@ -464,7 +464,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     Module TF := TyF.
     Import TF.
 
-  Instance Join_F: forall A, Join (F A) := _.
+  #[global] Instance Join_F: forall A, Join (F A) := _.
   Definition Perm_F : Perm_paf f_F Join_F := fun A _ _ => Perm_pre_rmap A.
   Definition Sep_F : Sep_paf f_F Join_F := fun (A : Type) (JA : Join A) _ _ => Sep_pre_rmap A.
   Definition Canc_F : Canc_paf f_F Join_F := fun (A : Type) (JA : Join A) _ _ => Canc_pre_rmap A.
@@ -477,13 +477,13 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Module KSa := KnotHeredSa(TyFSA)(K).
 
   Definition rmap := K.knot.
-  Instance Join_rmap: Join rmap := KSa.Join_knot.
-  Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
-  Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot Sep_pre_rmap.
-  Instance Canc_rmap : Canc_alg rmap:= KSa.Canc_knot Canc_pre_rmap.
-  Instance Disj_rmap : Disj_alg rmap:= KSa.Disj_knot Disj_pre_rmap.
-  Instance ag_rmap : ageable rmap := KSa.K.ag_knot.
-  Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
+  #[global] Instance Join_rmap: Join rmap := KSa.Join_knot.
+  #[global] Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
+  #[global] Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot Sep_pre_rmap.
+  #[global] Instance Canc_rmap : Canc_alg rmap:= KSa.Canc_knot Canc_pre_rmap.
+  #[global] Instance Disj_rmap : Disj_alg rmap:= KSa.Disj_knot Disj_pre_rmap.
+  #[global] Instance ag_rmap : ageable rmap := KSa.K.ag_knot.
+  #[global] Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
 
   Inductive preds : Type :=
     SomeP : forall A : list Type, (listprod A -> pred rmap) -> preds.
@@ -540,8 +540,8 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
    | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p).
 
 
-  Instance Join_resource: Join resource := res_join.
-  Instance Perm_resource: Perm_alg resource.
+  #[global] Instance Join_resource: Join resource := res_join.
+  #[global] Instance Perm_resource: Perm_alg resource.
   Proof. constructor.
 
       (* saf_eq *)
@@ -572,14 +572,14 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
       intros. inv H; inv H0; auto. f_equal. eapply join_positivity; eauto.
   Qed.
 
-  Instance Sep_resource: Sep_alg resource.
+  #[global] Instance Sep_resource: Sep_alg resource.
   Proof.
     apply mkSep with (fun x => match x with NO => NO | YES _ _ _ => NO | PURE k pds => PURE k pds end).
     intros; destruct t; constructor.
     intros; inv H; auto.
   Defined.
 
-  Instance Canc_resource: Canc_alg resource.
+  #[global] Instance Canc_resource: Canc_alg resource.
   Proof.
       intros a1 a2 b c H1 H2; inv H1; inv H2; auto.
       elim (pjoin_unit H1).
@@ -588,7 +588,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
       eapply join_canc; eauto.
   Qed.
 
-  Instance Disj_resource: Disj_alg resource.
+  #[global] Instance Disj_resource: Disj_alg resource.
   Proof.
     repeat intro. inv H; auto. f_equal. apply join_self; auto.
   Qed.
@@ -870,7 +870,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     repeat rewrite setset, setget;     intuition.
   Qed.
 
-  Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
+  #[global] Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
 
 Lemma fmap_p2p'_inj:
   forall p q,

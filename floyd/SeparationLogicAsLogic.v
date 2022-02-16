@@ -8,7 +8,7 @@ Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.veric.juicy_extspec.
 Require Import VST.veric.NullExtension.
-Require Import VST.floyd.assert_lemmas.
+Require Import VST.floyd.val_lemmas VST.floyd.assert_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
 Import LiftNotation.
 Import compcert.lib.Maps.

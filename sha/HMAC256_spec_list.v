@@ -10,8 +10,6 @@ Require Import sha.HMAC_spec_list.
 Require Import sha.HMAC_spec_concat.
 Require Import sha.ShaInstantiation.
 
-Require Import Omega.
-
 (*
 Definition ltb (n m:nat):bool := if beq_nat n m then false else leb n m.
 Lemma ltb_char n m: ltb n m = true <-> (n<m)%nat.

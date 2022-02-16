@@ -12,6 +12,8 @@ Require Export Coq.Bool.Bool.
 Require Export Coq.Relations.Relations.
 Require Export Lia.
 
+Global Set Warnings "-deprecated-hint-rewrite-without-locality". (* Delete this line after we abandon Coq 8.13 *)
+
 Definition compose (A B C:Type) (g:B -> C) (f:A -> B) := fun x => g (f x).
 Arguments compose [A B C] _ _ _.
 Infix "oo" := compose (at level 54, right associativity).

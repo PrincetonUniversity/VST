@@ -21,8 +21,8 @@ Require Import VST.veric.SeparationLogic.
 Notation "'emp'" := seplog.emp.
 
 Section cofe.
-  Instance mpred_equiv : Equiv mpred := eq.
-  Instance mpred_dist : Dist mpred := fun n P Q => approx (S n) P = approx (S n) Q.
+  #[local] Instance mpred_equiv : Equiv mpred := eq.
+  #[local] Instance mpred_dist : Dist mpred := fun n P Q => approx (S n) P = approx (S n) Q.
 
   Lemma dist_equiv : forall (P Q : pred rmap), (∀ n : nat, P ≡{n}≡ Q) -> P = Q.
   Proof.
@@ -248,10 +248,8 @@ Proof.
   - unfold persistently.
     unseal_derives; intros ??; simpl.
     apply core_identity.
-  - intros.
-    unseal_derives; intros ??; simpl in *.
-    change (` (predicates_hered.andp P Q) (core a)).
-    apply H.
+  - unfold persistently; intros.
+    unseal_derives; intros ??; auto.
   - intros.
     unseal_derives; intros ??; simpl in *.
     destruct H as [b ?].
@@ -293,7 +291,7 @@ Qed.
 Lemma mpred_bi_later_mixin : BiLaterMixin
   derives prop orp imp (@allp _ _) (@exp _ _) sepcon persistently seplog.later.
 Proof.
-  split.  
+  split.
   - repeat intro. hnf. rewrite !approx_later. destruct n.
     + rewrite !approx_0; auto.
     + apply dist_S in H; f_equal; auto.
@@ -349,8 +347,8 @@ Global Instance mpred_bi_bupd : BiBUpd mpredI := {| bi_bupd_mixin := mpred_bupd_
 
 (*(* Lifted instance *)
 Section lifted_cofe.
-  Instance env_mpred_equiv : Equiv (environ -> mpred) := eq.
-  Instance env_mpred_dist : Dist (environ -> mpred) := fun n P Q => forall rho, approx (S n) (P rho) = approx (S n) (Q rho).
+  #[local] Instance env_mpred_equiv : Equiv (environ -> mpred) := eq.
+  #[local] Instance env_mpred_dist : Dist (environ -> mpred) := fun n P Q => forall rho, approx (S n) (P rho) = approx (S n) (Q rho).
 
   Lemma lift_dist_equiv : forall (P Q : environ -> pred rmap), (∀ n : nat, P ≡{n}≡ Q) -> P = Q.
   Proof.

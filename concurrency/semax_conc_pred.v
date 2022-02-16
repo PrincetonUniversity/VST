@@ -18,6 +18,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.extspec.
+Require Import VST.floyd.base VST.floyd.seplog_tactics.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.nested_field_lemmas.

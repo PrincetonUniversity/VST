@@ -24,9 +24,9 @@ Module Type TY_FUNCTOR_SA_PROP.
   Declare Module TF:TY_FUNCTOR_PROP.
   Import TF.
 
-  Parameter Join_F: forall A, Join (F A). Existing Instance Join_F.
-(*   Parameter Perm_F: forall A, Perm_alg (F A). EXisting Instance Perm_F. *)
-  Parameter paf_F : pafunctor f_F.        Existing Instance paf_F.
+  Parameter Join_F: forall A, Join (F A). #[global] Existing Instance Join_F.
+(*   Parameter Perm_F: forall A, Perm_alg (F A). EXisting #[global] Instance Perm_F. *)
+  Parameter paf_F : pafunctor f_F.        #[global] Existing Instance paf_F.
   Parameter Perm_F: Perm_paf f_F Join_F.
   Parameter Sep_F: Sep_paf f_F Join_F.
   Parameter Canc_F: Canc_paf f_F Join_F.
@@ -41,22 +41,22 @@ Module Type KNOT_HERED_SA.
   Import TFSA.
   Import K.
 
-  Parameter Join_knot: Join knot.  Existing Instance Join_knot.
-  Parameter Perm_knot : Perm_alg knot.  Existing Instance Perm_knot.
-  Parameter Sep_knot : (forall A, Sep_alg (F A)) -> Sep_alg knot.  Existing Instance Sep_knot.
-  Parameter Canc_knot : (forall A, Canc_alg (F A)) -> Canc_alg knot.  Existing Instance Canc_knot.
-  Parameter Disj_knot : (forall A, Disj_alg (F A)) -> Disj_alg knot.  Existing Instance Disj_knot.
+  Parameter Join_knot: Join knot.  #[global] Existing Instance Join_knot.
+  Parameter Perm_knot : Perm_alg knot.  #[global] Existing Instance Perm_knot.
+  Parameter Sep_knot : (forall A, Sep_alg (F A)) -> Sep_alg knot.  #[global] Existing Instance Sep_knot.
+  Parameter Canc_knot : (forall A, Canc_alg (F A)) -> Canc_alg knot.  #[global] Existing Instance Canc_knot.
+  Parameter Disj_knot : (forall A, Disj_alg (F A)) -> Disj_alg knot.  #[global] Existing Instance Disj_knot.
 
-  Instance Join_nat_F: Join (nat * F predicate) :=
+  #[global] Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
 
- Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
+ #[global] Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
     @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F predicate _ (Perm_equiv _)).
- Instance Sep_nat_F (Sep_F: forall A, Sep_alg (F A)): Sep_alg (nat * F predicate) :=
+ #[global] Instance Sep_nat_F (Sep_F: forall A, Sep_alg (F A)): Sep_alg (nat * F predicate) :=
     @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
- Instance Canc_nat_F (Canc_F: forall A, Canc_alg (F A)): Canc_alg (nat * F predicate) :=
+ #[global] Instance Canc_nat_F (Canc_F: forall A, Canc_alg (F A)): Canc_alg (nat * F predicate) :=
     @Canc_prod nat _ _ _ (Canc_equiv _) (Canc_F predicate).
- Instance Disj_nat_F (Disj_F: forall A, Disj_alg (F A)): Disj_alg (nat * F predicate) :=
+ #[global] Instance Disj_nat_F (Disj_F: forall A, Disj_alg (F A)): Disj_alg (nat * F predicate) :=
     @Disj_prod nat _ _ _ (Disj_equiv _) (Disj_F predicate).
 
   Axiom join_unsquash : forall x1 x2 x3 : knot,
@@ -79,16 +79,16 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
   Import K.
   Import KL.
 
-  Instance Join_nat_F: Join (nat * F predicate) :=
+  #[global] Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
 
- Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
+ #[global] Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
     @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F predicate _ (Perm_equiv _)).
- Instance Sep_nat_F (Sep_F: forall A, Sep_alg (F A)): Sep_alg (nat * F predicate) :=
+ #[global] Instance Sep_nat_F (Sep_F: forall A, Sep_alg (F A)): Sep_alg (nat * F predicate) :=
     @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
- Instance Canc_nat_F (Canc_F: forall A, Canc_alg (F A)): Canc_alg (nat * F predicate) :=
+ #[global] Instance Canc_nat_F (Canc_F: forall A, Canc_alg (F A)): Canc_alg (nat * F predicate) :=
     @Canc_prod nat _ _ _ (Canc_equiv _) (Canc_F predicate).
- Instance Disj_nat_F (Disj_F: forall A, Disj_alg (F A)): Disj_alg (nat * F predicate) :=
+ #[global] Instance Disj_nat_F (Disj_F: forall A, Disj_alg (F A)): Disj_alg (nat * F predicate) :=
     @Disj_prod nat _ _ _ (Disj_equiv _) (Disj_F predicate).
 
   Lemma unsquash_squash_join_hom : join_hom (unsquash oo squash).
@@ -103,13 +103,13 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
     apply paf_join_hom. auto.
   Qed.
 
-  Instance Join_knot : Join knot :=
+  #[global] Instance Join_knot : Join knot :=
            Join_preimage knot (nat * F predicate) Join_nat_F unsquash.
 
-  Instance Perm_knot : Perm_alg knot :=
+  #[global] Instance Perm_knot : Perm_alg knot :=
     Perm_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom.
 
-  Instance Sep_knot(Sep_F: forall A, Sep_alg (F A)) : Sep_alg knot :=
+  #[global] Instance Sep_knot(Sep_F: forall A, Sep_alg (F A)) : Sep_alg knot :=
     Sep_preimage _ _ _  unsquash squash squash_unsquash unsquash_squash_join_hom.
 
   Lemma join_unsquash : forall x1 x2 x3,
@@ -119,14 +119,14 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
     intuition.
   Qed.
 
-  Instance Canc_knot(Canc_F: forall A, Canc_alg (F A)) : Canc_alg knot.
+  #[global] Instance Canc_knot(Canc_F: forall A, Canc_alg (F A)) : Canc_alg knot.
   Proof. repeat intro.
             do 3 red in H, H0.
             apply unsquash_inj.
             apply (join_canc H H0).
   Qed.
 
-  Instance Disj_knot(Disj_F: forall A, Disj_alg (F A)) : Disj_alg knot.
+  #[global] Instance Disj_knot(Disj_F: forall A, Disj_alg (F A)) : Disj_alg knot.
   Proof.
    repeat intro.
    do 3 red in H.

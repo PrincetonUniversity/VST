@@ -5,13 +5,13 @@ Require Import VST.progs.queue2.
 
 Open Scope logic.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
 
-Instance QS: listspec _elem _next (fun sh => malloc_token Ews t_struct_elem).
+#[(*export, after Coq 8.13*)global] Instance QS: listspec _elem _next (fun sh => malloc_token Ews t_struct_elem).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
@@ -347,7 +347,7 @@ assert_PROP (isptr p3); [entailer! | rewrite if_false by (intro; subst; contradi
 forward. (* return i; *)
 Qed.
 
-Existing Instance NullExtension.Espec.
+#[(*export, after Coq 8.13*)global] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

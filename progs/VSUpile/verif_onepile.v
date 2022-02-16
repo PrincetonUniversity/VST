@@ -5,7 +5,7 @@ Require Import spec_stdlib.
 Require Import spec_pile.
 Require Import spec_onepile.
 
-Instance OnePileCompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance OnePileCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section Onepile_VSU.
 Variable M: MallocFreeAPD.

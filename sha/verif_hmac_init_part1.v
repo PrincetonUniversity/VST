@@ -28,7 +28,7 @@ Proof.
   auto.
 Qed.
 
-Hint Rewrite change_compspecs_t_struct_SHA256state_st' : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite change_compspecs_t_struct_SHA256state_st' : norm.
 
 Definition initPostKeyNullConditional r (c:val) (k: val) h wsh sh key ctxkey: mpred:=
   match k with

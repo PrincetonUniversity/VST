@@ -6,7 +6,7 @@ Require Import spec_pile.
 Require Import spec_triang.
 Require Import PileModel.
 
-Instance TriangCompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance TriangCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section Triang_VSU.
 Variable M: MallocFreeAPD.

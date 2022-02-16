@@ -4,7 +4,7 @@ Require Import spec_stdlib.
 Require Import spec_fastpile.
 Require Import PileModel.
 
-Instance FastpileCompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance FastpileCompSpecs : compspecs. make_compspecs prog. Defined.
 
 (*In contrast to spec_pile_private, the APD here is not 
   defined parametrically in a MallocFree-APD.*)

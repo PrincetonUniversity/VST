@@ -264,7 +264,7 @@ Admitted.
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Admitted.
 
-Existing Instance NullExtension.Espec.
+#[(*export, after Coq 8.13*)global] Existing Instance NullExtension.Espec.
 
 Lemma two_correct:
   semax_func Vprog Gtot

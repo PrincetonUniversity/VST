@@ -175,7 +175,7 @@ Proof.
       simpl; auto.
 Qed. 
 
-Instance iter_sepcon_permutation_proper : Proper ((pointwise_relation B eq) ==> (@Permutation B) ==> eq) iter_sepcon.
+#[global] Instance iter_sepcon_permutation_proper : Proper ((pointwise_relation B eq) ==> (@Permutation B) ==> eq) iter_sepcon.
 Proof.
   repeat intro. transitivity (iter_sepcon x y0).
   + apply iter_sepcon_permutation. auto.
@@ -292,7 +292,7 @@ Proof.
   apply H0; tauto.
 Qed.
 
-Instance pred_sepcon_proper: Proper (pointwise_relation B eq ==> pointwise_relation B iff ==> eq) pred_sepcon.
+#[global] Instance pred_sepcon_proper: Proper (pointwise_relation B eq ==> pointwise_relation B iff ==> eq) pred_sepcon.
 Proof.
   intros.
   do 2 (hnf; intros).

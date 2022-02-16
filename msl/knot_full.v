@@ -50,7 +50,7 @@ Module Type KNOT_FULL.
 
   Parameter knot:Type.
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Parameter hered : (knot * other -> T) -> Prop.
   Definition predicate := { p:knot * other -> T | hered p }.
@@ -845,7 +845,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
 
   Definition ageable_knot : ageable knot :=
     mkAgeable knot knot_level_def knot_age1_def ag_knot_facts.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Definition knot_rel (k1 k2:knot) :=
     let (n,f) := unsquash k1 in

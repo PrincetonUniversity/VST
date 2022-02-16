@@ -1,7 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.dotprod.
 
-Instance CompSpecs : compspecs.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -151,7 +151,7 @@ Qed.
 Lemma body_add:  semax_body Vprog Gprog f_add add_spec.
 Proof.
 start_function.
-Hint Rewrite Zlength_map2 using (try Zlength_solve; fail 4) : Zlength.
+(*after Coq 8.13: #[export]*) Hint Rewrite Zlength_map2 using (try Zlength_solve; fail 4) : Zlength.
 pose (fx := map2 Float.add fy fz).
 assert_PROP (Zlength fx = 3 /\ Zlength fy = 3 /\ Zlength fz = 3). {
   entailer!. subst fx. list_solve.
@@ -172,8 +172,8 @@ forward.
 forward.
 entailer!. {
   simpl force_val.
-  Hint Rewrite (Znth_map2 _ _ _ Inhabitant_float Inhabitant_float Inhabitant_float) using Zlength_solve : Znth.
-  Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
+  (*after Coq 8.13: #[export]*) Hint Rewrite (Znth_map2 _ _ _ Inhabitant_float Inhabitant_float Inhabitant_float) using Zlength_solve : Znth.
+  (*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
   subst fx. list_solve.
 }
 *

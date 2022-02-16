@@ -16,30 +16,30 @@ Require Import VST.msl.sepalg.
     is the identity of the product SA operator, up to isomorphism.
 *)
 
-  Instance Join_unit : Join unit := fun x y z => True.
+  #[global] Instance Join_unit : Join unit := fun x y z => True.
 
-  Instance Perm_unit : Perm_alg unit.
+  #[global] Instance Perm_unit : Perm_alg unit.
   Proof.
   constructor; auto with typeclass_instances; try firstorder.
   destruct z; destruct z'; auto.
   destruct a; destruct b; auto.
   Qed.
 
-  Instance Sep_unit: Sep_alg unit.
+  #[global] Instance Sep_unit: Sep_alg unit.
   Proof. apply mkSep with (fun _ => tt); intros;  hnf; auto with typeclass_instances. Qed.
 
-  Instance Sing_unit: Sing_alg unit.
+  #[global] Instance Sing_unit: Sing_alg unit.
   Proof. apply (mkSing tt); intros; hnf; simpl.
         destruct (core a); destruct tt; auto.
  Qed.
 
-  Instance Canc_unit: Canc_alg unit.
+  #[global] Instance Canc_unit: Canc_alg unit.
   Proof. repeat intro. auto. hnf; destruct a1; destruct a2; auto. Qed.
 
-  Instance Disj_unit: Disj_alg unit.
+  #[global] Instance Disj_unit: Disj_alg unit.
   Proof. repeat intro. destruct a0, b0;  auto. Qed.
 
-  Instance Cross_unit: Cross_alg unit.
+  #[global] Instance Cross_unit: Cross_alg unit.
   Proof. repeat intro. exists (tt,tt,tt,tt). repeat split; constructor. Qed.
 
 (** The trivial separation algebra over the void type. This SA
@@ -48,19 +48,19 @@ Require Import VST.msl.sepalg.
 
   Inductive Void : Type :=.
 
-  Instance Join_void : Join Void := fun x y z => False.
+  #[global] Instance Join_void : Join Void := fun x y z => False.
 
-  Instance Perm_void : Perm_alg Void.
+  #[global] Instance Perm_void : Perm_alg Void.
   Proof. constructor; intuition.  Qed.
-  Instance Sep_void: Sep_alg Void.
+  #[global] Instance Sep_void: Sep_alg Void.
   Proof. apply mkSep with (fun x => x); intros.
       auto with typeclass_instances. destruct t. destruct a.
   Qed.
-  Instance Canc_void: Canc_alg Void.
+  #[global] Instance Canc_void: Canc_alg Void.
   Proof. repeat intro. destruct b. Qed.
-  Instance Disj_void: Disj_alg Void.
+  #[global] Instance Disj_void: Disj_alg Void.
   Proof. repeat intro. destruct a. Qed.
-  Instance Cross_void: Cross_alg Void.
+  #[global] Instance Cross_void: Cross_alg Void.
   Proof. repeat intro. destruct z. Qed.
 
 (** The separation algebra over booleans, e.g. Z/2 with bounded addition *)
@@ -70,9 +70,9 @@ Require Import VST.msl.sepalg.
   | jb_tft: join_bool true false true
   | jb_ftt: join_bool false true true.
 
-  Instance Join_bool : Join bool := join_bool.
+  #[global] Instance Join_bool : Join bool := join_bool.
 
-  Instance Perm_bool: Perm_alg bool.
+  #[global] Instance Perm_bool: Perm_alg bool.
   Proof.
     constructor. auto with typeclass_instances.
     intros; inv H; inv H0; hnf; auto.
@@ -85,22 +85,22 @@ Require Import VST.msl.sepalg.
     intros. inv H; inv H0; hnf; auto.
   Qed.
 
-  Instance Sep_bool: Sep_alg bool.
+  #[global] Instance Sep_bool: Sep_alg bool.
   Proof. apply mkSep with (fun t => false); intros; hnf; auto with typeclass_instances.
      icase t; constructor.
   Defined.
 
-  Instance Sing_bool: Sing_alg bool.
+  #[global] Instance Sing_bool: Sing_alg bool.
   Proof. apply (mkSing false). intros; simpl; reflexivity.
   Defined.
 
-  Instance Canc_bool: Canc_alg bool.
+  #[global] Instance Canc_bool: Canc_alg bool.
   Proof. repeat intro. inv H; inv H0; hnf; auto. Qed.
 
-  Instance Disj_bool: Disj_alg bool.
+  #[global] Instance Disj_bool: Disj_alg bool.
   Proof. repeat intro. inv H; inv H0; auto. Qed.
 
-  Instance Cross_bool: Cross_alg bool.
+  #[global] Instance Cross_bool: Cross_alg bool.
   Proof. repeat intro.
      icase a; icase b; try solve [elimtype False; (try inv H; inv H0)];
     icase z; icase c; icase d; try solve [elimtype False; (try inv H; inv H0)].
@@ -114,13 +114,13 @@ Require Import VST.msl.sepalg.
 Section JOIN_EQUIV.
 (** The "equivalance" or discrete SA.  In this SA, every element of an arbitrary
     set is made an idempotent element.  We do not add this as a global
-    Instance, because it is too widely applicable in cases where we do not
+    #[global] Instance, because it is too widely applicable in cases where we do not
     desire it.
 *)
 
-  Instance Join_equiv (A: Type) : Join A := fun x y z => x=y/\y=z.
+  #[local] Instance Join_equiv (A: Type) : Join A := fun x y z => x=y/\y=z.
 
-  Instance Perm_equiv (A: Type) :  @Perm_alg A (Join_equiv A).
+  #[local] Instance Perm_equiv (A: Type) :  @Perm_alg A (Join_equiv A).
   Proof. constructor; intros.
      destruct H; destruct H0; unfold equiv in *; subst; auto.
      destruct H; destruct H0; subst. exists e; split; split; auto.
@@ -128,20 +128,20 @@ Section JOIN_EQUIV.
      destruct H; subst; reflexivity.
   Qed.
 
-  Instance Sep_equiv (A: Type): Sep_alg A.
+  #[local] Instance Sep_equiv (A: Type): Sep_alg A.
   Proof. apply mkSep with (fun a => a); intros.
             apply Perm_equiv.
             split; reflexivity.
             destruct H; subst; reflexivity.
   Defined.
 
-  Instance Canc_equiv (A: Type): Canc_alg A.
+  #[local] Instance Canc_equiv (A: Type): Canc_alg A.
   Proof. repeat intro. destruct H; destruct H0; subst; reflexivity. Qed.
 
-  Instance Disj_equiv (A: Type): Disj_alg A.
+  #[local] Instance Disj_equiv (A: Type): Disj_alg A.
   Proof. repeat intro. inv H0; auto. Qed.
 
-  Instance Cross_equiv (A: Type): Cross_alg A.
+  #[local] Instance Cross_equiv (A: Type): Cross_alg A.
   Proof. repeat intro. destruct H; destruct H0; subst.
    exists (z,z,z,z); repeat split; reflexivity.
   Qed.
@@ -150,14 +150,14 @@ Lemma join_equiv_refl: forall A (v: A), @join A (Join_equiv A) v v v.
 Proof. split; auto. Qed.
 End JOIN_EQUIV.
 
-(* WARNING: DO NOT DO    [EXisting Instance Join_equiv]   BECAUSE
+(* WARNING: DO NOT DO    [Existing Instance Join_equiv]   BECAUSE
    IT WILL MATCH IN UNINTENDED PLACES.  But I think it will do no harm
-  to do the following EXisting Instances: *)
-Existing Instance Perm_equiv.
-Existing Instance Sep_equiv.
-Existing Instance Canc_equiv.
-Existing Instance Disj_equiv.
-Existing Instance Cross_equiv.
+  to do the following Existing Instances: *)
+#[global] Existing Instance Perm_equiv.
+#[global] Existing Instance Sep_equiv.
+#[global] Existing Instance Canc_equiv.
+#[global] Existing Instance Disj_equiv.
+#[global] Existing Instance Cross_equiv.
 
 #[export] Hint Extern 1 (@join _ _ _ _ _) =>
    match goal with |- @join _ (@Join_equiv _) _ _ _ => apply join_equiv_refl end
@@ -171,10 +171,10 @@ Section SepAlgProp.
 
   Variable HPjoin : forall x y z, join x y z -> P x -> P y -> P z.
 
-  Instance Join_prop : Join (sig P) :=
+  #[global] Instance Join_prop : Join (sig P) :=
                  fun x y z: (sig P) => join (proj1_sig x) (proj1_sig y) (proj1_sig z).
 
-  Instance Perm_prop : Perm_alg (sig P).
+  #[global] Instance Perm_prop : Perm_alg (sig P).
   Proof.
    constructor; intros.
     destruct z; destruct z'. apply exist_ext. do 2 red in H,H0; eapply join_eq; eauto.
@@ -188,7 +188,7 @@ Section SepAlgProp.
      destruct a, b; simpl; apply exist_ext; eapply join_positivity; eauto.
  Qed.
 
-  Instance Sep_prop (SA: Sep_alg A)(HPcore : forall x, P x -> P (core x)): Sep_alg (sig P).
+  #[global] Instance Sep_prop (SA: Sep_alg A)(HPcore : forall x, P x -> P (core x)): Sep_alg (sig P).
   Proof. repeat intro.
      apply mkSep with (fun a : sig P => exist P (core (proj1_sig a)) (HPcore _ (proj2_sig a)));
       intros. apply Perm_prop.
@@ -197,7 +197,7 @@ Section SepAlgProp.
       do 2 red in H. apply join_core in H. apply H.
   Defined.
 
- Instance Sing_prop  (SA: Sep_alg A)(Sing_A: Sing_alg A)
+ #[global] Instance Sing_prop  (SA: Sep_alg A)(Sing_A: Sing_alg A)
                (HPcore : forall x, P x -> P (core x)): P the_unit ->
     @Sing_alg (sig P) Join_prop (Sep_prop _ HPcore).
  Proof. intros.
@@ -207,33 +207,33 @@ Section SepAlgProp.
   apply core_uniq.
  Defined.
 
-  Instance Canc_prop  {CA: Canc_alg A}:  Canc_alg (sig P).
+  #[global] Instance Canc_prop  {CA: Canc_alg A}:  Canc_alg (sig P).
   Proof.
    intros [a Ha] [b Hb] [c1 Hc1] [c2 Hc2].
     unfold join, Join_prop; simpl; intros. apply exist_ext.
   eapply join_canc; eauto.
   Qed.
 
-  Instance Disj_prop {DA: Disj_alg A}: Disj_alg (sig P).
+  #[global] Instance Disj_prop {DA: Disj_alg A}: Disj_alg (sig P).
   Proof. intros [a Ha][b Hb].
     unfold join, Join_prop; simpl; intros.
     intros [] [] Hj.
     eapply exist_ext, join_self; eauto.
   Qed.
 
-(*  Instance CS_prop {CS: Cross_alg A}: Cross_alg (sig P). ... not true ...
+(*  #[global] Instance CS_prop {CS: Cross_alg A}: Cross_alg (sig P). ... not true ...
   Proof. intros [a Ha][b Hb][c Hc][d Hd][z Hz].
     unfold join, Join_prop, equiv, Equiv_prop; simpl; intros.
    destruct (cross_split _ _ _ _ _ H H0) as [[[[ac ad] bc] bd][? [? [? ?]]]].
 *)
 
 End SepAlgProp.
-Existing Instance Join_prop.
-Existing Instance Perm_prop.
-Existing Instance Sep_prop.
-Existing Instance Sing_prop.
-Existing Instance Canc_prop.
-Existing Instance Disj_prop.
+#[global] Existing Instance Join_prop.
+#[global] Existing Instance Perm_prop.
+#[global] Existing Instance Sep_prop.
+#[global] Existing Instance Sing_prop.
+#[global] Existing Instance Canc_prop.
+#[global] Existing Instance Disj_prop.
 
 (** The function space operator from a key type [key] to
     a separation algebra on type [t'].
@@ -244,10 +244,10 @@ Section SepAlgFun.
   Variable JOIN: Join t'.
   Variable Pt': Perm_alg t'.
 
-  Instance Join_fun: Join (key -> t') :=
+  #[global] Instance Join_fun: Join (key -> t') :=
                   fun a b c : key -> t' => forall x, join (a x) (b x) (c x).
 
-  Instance Perm_fun : Perm_alg (key -> t').
+  #[global] Instance Perm_fun : Perm_alg (key -> t').
   Proof.
    constructor; intros.
    extensionality k.
@@ -259,13 +259,13 @@ Section SepAlgFun.
   apply (join_positivity H H0).
  Qed.
 
-  Instance Sep_fun (SA: Sep_alg t'): Sep_alg (key -> t').
+  #[global] Instance Sep_fun (SA: Sep_alg t'): Sep_alg (key -> t').
   Proof. apply mkSep with (fun a k => core (a k)); intros.
    intro k; apply core_unit.
    extensionality k; apply @join_core with (b k); auto.
  Defined.
 
- Instance Sing_fun (SA: Sep_alg t'): Sing_alg t' -> Sing_alg (key -> t').
+ #[global] Instance Sing_fun (SA: Sep_alg t'): Sing_alg t' -> Sing_alg (key -> t').
  Proof.
  intros. apply (mkSing (fun _: key => the_unit)).
  intro a; extensionality k.
@@ -273,19 +273,19 @@ Section SepAlgFun.
   unfold core. simpl. auto.
  Defined.
 
- Instance Canc_fun: Canc_alg t' -> Canc_alg (key -> t').
+ #[global] Instance Canc_fun: Canc_alg t' -> Canc_alg (key -> t').
  Proof. repeat intro. extensionality x; apply (join_canc (H0 x) (H1 x)). Qed.
 
- Instance Disj_fun: Disj_alg t' -> Disj_alg (key -> t').
+ #[global] Instance Disj_fun: Disj_alg t' -> Disj_alg (key -> t').
  Proof.  repeat intro. extensionality x. eapply join_self; eauto. Qed.
 End SepAlgFun.
 
-Existing Instance Join_fun.
-Existing Instance Perm_fun.
-Existing Instance Sep_fun.
-Existing Instance Sing_fun.
-Existing Instance Canc_fun.
-Existing Instance Disj_fun.
+#[global] Existing Instance Join_fun.
+#[global] Existing Instance Perm_fun.
+#[global] Existing Instance Sep_fun.
+#[global] Existing Instance Sing_fun.
+#[global] Existing Instance Canc_fun.
+#[global] Existing Instance Disj_fun.
 
 (** The dependent product SA operator from an index set [I] into
     a SA indexed by [Pi_j].  The construction of this
@@ -303,9 +303,9 @@ Section SepAlgPi.
 
   Let P := forall i:I, Pi i.
 
-  Instance Join_pi: Join P := fun x y z => forall i:I, join (x i) (y i) (z i).
+  #[global] Instance Join_pi: Join P := fun x y z => forall i:I, join (x i) (y i) (z i).
 
-  Instance Perm_pi  : Perm_alg P.
+  #[global] Instance Perm_pi  : Perm_alg P.
   Proof.
    constructor; intros.
    extensionality i. apply (join_eq (H i) (H0 i)).
@@ -316,24 +316,24 @@ Section SepAlgPi.
    apply (join_positivity H H0).
  Qed.
 
-  Instance Sep_pi (SA : forall i:I, Sep_alg (Pi i)): Sep_alg P.
+  #[global] Instance Sep_pi (SA : forall i:I, Sep_alg (Pi i)): Sep_alg P.
   Proof. apply mkSep with (fun a i => core (a i)); intros.
    intro i; apply core_unit.
    extensionality i; apply @join_core with (b i); auto.
  Defined.
 
-  Instance Canc_pi: (forall i, Canc_alg (Pi i)) -> Canc_alg P.
+  #[global] Instance Canc_pi: (forall i, Canc_alg (Pi i)) -> Canc_alg P.
   Proof. repeat intro. extensionality i; apply (join_canc (H0 i) (H1 i)). Qed.
 
-  Instance Disj_pi: (forall i, Disj_alg (Pi i)) -> Disj_alg P.
+  #[global] Instance Disj_pi: (forall i, Disj_alg (Pi i)) -> Disj_alg P.
   Proof. repeat intro. extensionality i; apply (join_self (H0 i)); auto. Qed.
 
 End SepAlgPi.
-Existing Instance Join_pi.
-Existing Instance Perm_pi.
-Existing Instance Sep_pi.
-Existing Instance Canc_pi.
-Existing Instance Disj_pi.
+#[global] Existing Instance Join_pi.
+#[global] Existing Instance Perm_pi.
+#[global] Existing Instance Sep_pi.
+#[global] Existing Instance Canc_pi.
+#[global] Existing Instance Disj_pi.
 
 (** The dependent sum operator on SAs.
 
@@ -364,9 +364,9 @@ Section SepAlgSigma.
       join a b c ->
       join_sigma (existT Sigma i a) (existT Sigma i b) (existT Sigma i c).
 
-  Instance Join_sigma: Join S := join_sigma.
+  #[global] Instance Join_sigma: Join S := join_sigma.
 
-  Instance Perm_sigma: Perm_alg S.
+  #[global] Instance Perm_sigma: Perm_alg S.
   Proof.  constructor; intros.
 
     (* join_eq *)
@@ -416,14 +416,14 @@ Section SepAlgSigma.
 
 
 
-  Instance Sep_sigma (SA : forall i:I, Sep_alg (Sigma i)) : Sep_alg S.
+  #[global] Instance Sep_sigma (SA : forall i:I, Sep_alg (Sigma i)) : Sep_alg S.
   Proof. apply mkSep with
       (fun (a : S) => existT Sigma (projT1 a) (core (projT2 a))).
    intros [i a]. constructor. apply core_unit.
    intros. inv H. f_equal. apply (join_core H0).
  Defined.
 
-  Instance Canc_sigma: (forall i, Canc_alg (Sigma i)) -> Canc_alg S.
+  #[global] Instance Canc_sigma: (forall i, Canc_alg (Sigma i)) -> Canc_alg S.
   Proof. repeat intro.
        destruct a1; destruct a2; destruct b; destruct c;
        inv H0; inv H1; subst.
@@ -432,7 +432,7 @@ Section SepAlgSigma.
     f_equal. apply (join_canc H3 H2).
   Qed.
 
-  Instance Disj_sigma: (forall i, Disj_alg (Sigma i)) -> Disj_alg S.
+  #[global] Instance Disj_sigma: (forall i, Disj_alg (Sigma i)) -> Disj_alg S.
   Proof. repeat intro.
     destruct a as [ia a]; destruct b as [ib b].
   (* Some weird bug in Coq requires this two-stage inversion process *)
@@ -446,11 +446,11 @@ Section SepAlgSigma.
  Qed.
 End SepAlgSigma.
 
-Existing Instance Join_sigma.
-Existing Instance Perm_sigma.
-Existing Instance Sep_sigma.
-Existing Instance Canc_sigma.
-Existing Instance Disj_sigma.
+#[global] Existing Instance Join_sigma.
+#[global] Existing Instance Perm_sigma.
+#[global] Existing Instance Sep_sigma.
+#[global] Existing Instance Canc_sigma.
+#[global] Existing Instance Disj_sigma.
 
 (** The SA operator on cartesian products. *)
 Section SepAlgProd.
@@ -459,10 +459,10 @@ Section SepAlgProd.
   Variables (B: Type) (Jb: Join B) .
   Variables (PAa: Perm_alg A)(PAb: Perm_alg B).
 
-  Instance Join_prod : Join (A*B) :=
+  #[local] Instance Join_prod : Join (A*B) :=
                fun (x y z:A*B) =>  join (fst x) (fst y) (fst z) /\ join (snd x) (snd y) (snd z).
 
-  Instance Perm_prod  : Perm_alg (A*B).
+  #[local] Instance Perm_prod  : Perm_alg (A*B).
   Proof.
     constructor.
 
@@ -484,24 +484,24 @@ Section SepAlgProd.
     f_equal; simpl; eapply join_positivity; eauto.
  Qed.
 
-  Instance Sep_prod (SAa: Sep_alg A) (SAb: Sep_alg B) : Sep_alg (A*B).
+  #[global] Instance Sep_prod (SAa: Sep_alg A) (SAb: Sep_alg B) : Sep_alg (A*B).
   Proof.
     apply mkSep with (fun a => (core (fst a), core (snd a))).
     intros [? ?]; split; apply core_unit; auto.
     intros [? ?] [? ?] [? ?] [? ?]; f_equal; simpl; eapply join_core; eauto.
   Defined.
 
-  Instance Sing_prod {SAa: Sep_alg A} {SAb: Sep_alg B} {SingA: Sing_alg A}{SingB: Sing_alg B}: Sing_alg (A*B).
+  #[global] Instance Sing_prod {SAa: Sep_alg A} {SAb: Sep_alg B} {SingA: Sing_alg A}{SingB: Sing_alg B}: Sing_alg (A*B).
   Proof. apply (mkSing  (the_unit, the_unit)).
      intros [? ?].  f_equal; simpl; f_equal; apply the_unit_core.
   Defined.
 
-  Instance Canc_prod {CAa: Canc_alg A} {CAb:  Canc_alg B}: Canc_alg (A*B).
+  #[global] Instance Canc_prod {CAa: Canc_alg A} {CAb:  Canc_alg B}: Canc_alg (A*B).
   Proof. intros  [? ?] [? ?] [? ?] [? ?] [? ?] [? ?].
    f_equal; simpl in *; eapply join_canc;eauto.
   Qed.
 
-  Instance Disj_prod {DAa: Disj_alg A} {DAb:  Disj_alg B}: Disj_alg (A*B).
+  #[global] Instance Disj_prod {DAa: Disj_alg A} {DAb:  Disj_alg B}: Disj_alg (A*B).
   Proof. intros  [? ?]  [? ?] [? ?] [] [] Hj.
    f_equal; simpl in *; inv Hj; eapply join_self; eauto.
   Qed.
@@ -510,11 +510,11 @@ End SepAlgProd.
 
 Arguments Perm_prod [A] [Ja] [B] [Jb] _ _.
 Arguments Sep_prod [A] [Ja] [B] [Jb] _ _.
-Existing Instance Join_prod.
-Existing Instance Perm_prod.
-Existing Instance Sep_prod.
-Existing Instance Canc_prod.
-Existing Instance Disj_prod.
+#[global] Existing Instance Join_prod.
+#[global] Existing Instance Perm_prod.
+#[global] Existing Instance Sep_prod.
+#[global] Existing Instance Canc_prod.
+#[global] Existing Instance Disj_prod.
 
 (** The SA operator on disjoint sums. *)
 Section SepAlgSum.
@@ -522,7 +522,7 @@ Section SepAlgSum.
   Variables (A: Type) (Ja: Join A) .
   Variables (B: Type) (Jb: Join B) .
   Variables (PAa: Perm_alg A) (PAb: Perm_alg B).
-  Instance Join_sum : Join (A+B) :=
+  #[global] Instance Join_sum : Join (A+B) :=
     (fun (x y z: A+B) =>
     match x, y, z with
     | inl xa, inl ya, inl za => join xa ya za
@@ -530,7 +530,7 @@ Section SepAlgSum.
     | _, _, _ => False
     end).
 
-  Instance Perm_sum: Perm_alg (A+B).
+  #[global] Instance Perm_sum: Perm_alg (A+B).
   Proof.
     constructor.
 
@@ -552,7 +552,7 @@ Section SepAlgSum.
     f_equal; eapply join_positivity; eauto.
  Qed.
 
-  Instance Sep_sum (SAa: Sep_alg A) (SAb: Sep_alg B): Sep_alg (A+B).
+  #[global] Instance Sep_sum (SAa: Sep_alg A) (SAb: Sep_alg B): Sep_alg (A+B).
   Proof.
     apply mkSep
       with (fun ab : A+B =>
@@ -564,21 +564,21 @@ Section SepAlgSum.
     intros; icase a; icase b; icase c; hnf in *; f_equal; eapply join_core; eauto.
   Defined.
 
-  Instance Canc_sum {CAa: Canc_alg A} {CAb:  Canc_alg B}: Canc_alg (A+B).
+  #[global] Instance Canc_sum {CAa: Canc_alg A} {CAb:  Canc_alg B}: Canc_alg (A+B).
   Proof. repeat intro. icase a1; icase a2; icase b; icase c; hnf;
     f_equal; eapply join_canc; hnf in *; eauto.
   Qed.
 
-  Instance Disj_sum {DAa: Disj_alg A} {DAb:  Disj_alg B}: Disj_alg (A+B).
+  #[global] Instance Disj_sum {DAa: Disj_alg A} {DAb:  Disj_alg B}: Disj_alg (A+B).
   Proof. repeat intro. icase a; icase b; icase a0; icase b0; eapply f_equal, join_self; eauto.
   Qed.
 
 End SepAlgSum.
-Existing Instance Join_sum.
-Existing Instance Perm_sum.
-Existing Instance Sep_sum.
-Existing Instance Canc_sum.
-Existing Instance Disj_sum.
+#[global] Existing Instance Join_sum.
+#[global] Existing Instance Perm_sum.
+#[global] Existing Instance Sep_sum.
+#[global] Existing Instance Canc_sum.
+#[global] Existing Instance Disj_sum.
 
 (** The SA operator on lists.  Lists are joined componentwise.
  *)
@@ -593,9 +593,9 @@ Section sa_list.
       list_join xs ys zs ->
       list_join (x::xs) (y::ys) (z::zs).
 
-  Instance Join_list: Join (list A) := list_join.
+  #[global] Instance Join_list: Join (list A) := list_join.
 
-  Instance Perm_list: Perm_alg (list A).
+  #[global] Instance Perm_list: Perm_alg (list A).
   Proof.
     constructor.
 
@@ -623,7 +623,7 @@ Section sa_list.
     eapply IHa; eauto.
  Qed.
 
-  Instance Sep_list (SAa: Sep_alg A) : Sep_alg (list A).
+  #[global] Instance Sep_list (SAa: Sep_alg A) : Sep_alg (list A).
   Proof.
     apply mkSep with (map core).
     induction t; constructor; auto; apply core_unit.
@@ -631,7 +631,7 @@ Section sa_list.
     f_equal.  eapply join_core; eauto. eapply IHa; eauto.
  Defined.
 
-  Instance Canc_list {CA: Canc_alg A}: Canc_alg (list A).
+  #[global] Instance Canc_list {CA: Canc_alg A}: Canc_alg (list A).
   Proof.
    intro. induction a1; intros; inv H; inv H0; auto.
     f_equal.
@@ -639,17 +639,17 @@ Section sa_list.
    eapply IHa1; eauto.
   Qed.
 
-  Instance Disj_list {DAa: Disj_alg A} : Disj_alg (list A).
+  #[global] Instance Disj_list {DAa: Disj_alg A} : Disj_alg (list A).
   Proof. intro. induction a; repeat intro; inv H; inv H0; auto.
     f_equal; [eapply join_self; eauto | eapply IHa; eauto].
   Qed.
 
 End sa_list.
-Existing Instance Join_list.
-Existing Instance Perm_list.
-Existing Instance Sep_list.
-Existing Instance Canc_list.
-Existing Instance Disj_list.
+#[global] Existing Instance Join_list.
+#[global] Existing Instance Perm_list.
+#[global] Existing Instance Sep_list.
+#[global] Existing Instance Canc_list.
+#[global] Existing Instance Disj_list.
 
 (** A join homomorphism is a function from one separation
     algebra to another which preserves the join relation.
@@ -693,10 +693,10 @@ Section sa_preimage.
     rewrite H; auto.
   Qed.
 
-  Instance Join_preimage: Join A :=
+  #[global] Instance Join_preimage: Join A :=
           fun a b c => join (f a) (f b) (f c).
 
-  Instance Perm_preimage  : @Perm_alg _  Join_preimage.
+  #[global] Instance Perm_preimage  : @Perm_alg _  Join_preimage.
   Proof.
     constructor; simpl; intros.
    do 2 red in H,H0.
@@ -716,7 +716,7 @@ Section sa_preimage.
     apply f_inj; eapply join_positivity; eauto.
  Qed.
 
-  Instance Sep_preimage {SAb: Sep_alg B}: Sep_alg A.
+  #[global] Instance Sep_preimage {SAb: Sep_alg B}: Sep_alg A.
   Proof.
     apply mkSep with (fun x : A => f' (core (f x))); intros.
 
@@ -728,38 +728,38 @@ Section sa_preimage.
     f_equal; apply (join_core H).
   Defined.
 
- Instance Sing_preimage {SAb: Sep_alg B}{Sing_b: Sing_alg B}: Sing_alg A.
+ #[global] Instance Sing_preimage {SAb: Sep_alg B}{Sing_b: Sing_alg B}: Sing_alg A.
  Proof.
  apply (mkSing (f' the_unit)).
  intro.
  simpl. rewrite <- (the_unit_core (f a)). f_equal; apply core_uniq.
  Defined.
 
- Instance Canc_preimage {SAb: Sep_alg B}{CAb: Canc_alg B} : Canc_alg A.
+ #[global] Instance Canc_preimage {SAb: Sep_alg B}{CAb: Canc_alg B} : Canc_alg A.
  Proof. intros ? ? ? ? ? ?. do 2 red in H,H0.
   generalize (join_canc H H0); intro.
   apply f_inj; auto.
  Qed.
 
- Instance Disj_preimage {SAb: Sep_alg B}{DAb: Disj_alg B} : Disj_alg A.
+ #[global] Instance Disj_preimage {SAb: Sep_alg B}{DAb: Disj_alg B} : Disj_alg A.
   Proof. repeat intro. do 2 red in H. apply join_self in H. apply f_inj; auto.
   Qed.
 
 End sa_preimage.
 
-Existing Instance Join_preimage.
-Existing Instance Perm_preimage.
-Existing Instance Sep_preimage.
-Existing Instance Sing_preimage.
-Existing Instance Canc_preimage.
-Existing Instance Disj_preimage.
+#[global] Existing Instance Join_preimage.
+#[global] Existing Instance Perm_preimage.
+#[global] Existing Instance Sep_preimage.
+#[global] Existing Instance Sing_preimage.
+#[global] Existing Instance Canc_preimage.
+#[global] Existing Instance Disj_preimage.
 
 Section SepAlgBijection.
   Variables (A: Type) (Ja: Join A)(PAa: Perm_alg A).
   Variable B:Type .
 
   Variable bij : bijection A B.
-  Instance Join_bij: Join B := fun (x y z : B) => join (bij_g _ _ bij x) (bij_g _ _ bij y) (bij_g _ _ bij z).
+  #[global] Instance Join_bij: Join B := fun (x y z : B) => join (bij_g _ _ bij x) (bij_g _ _ bij y) (bij_g _ _ bij z).
 
   Lemma Perm_bij  : Perm_alg B.
   Proof.
@@ -780,7 +780,7 @@ Section SepAlgBijection.
    Qed.
 
 
-  Instance Sep_bij {SAa: Sep_alg A} : Sep_alg B.
+  #[global] Instance Sep_bij {SAa: Sep_alg A} : Sep_alg B.
   Proof.
    apply mkSep with (fun b => bij_f _ _ bij (core (bij_g _ _ bij b))); intros.
    do 3 red.
@@ -794,14 +794,14 @@ Section SepAlgBijection.
    simpl. f_equal. apply  (the_unit_core (bij_g _ _ bij a)).
   Defined.
 
- Instance Canc_bij {SAa: Canc_alg A} : Canc_alg B.
+ #[global] Instance Canc_bij {SAa: Canc_alg A} : Canc_alg B.
   Proof. repeat intro.
     do 2 red in H,H0.
     generalize (join_canc H H0);intro.
     rewrite <- (bij_fg _ _ bij a1). rewrite <- (bij_fg _ _ bij a2). rewrite H1; auto.
   Qed.
 
-  Instance  Disj_bij {DAa: Disj_alg A} : Disj_alg B.
+  #[global] Instance  Disj_bij {DAa: Disj_alg A} : Disj_alg B.
   Proof. repeat intro. do 2 red in H.
     apply join_self in H.
     specialize (H _ _ H0).
@@ -809,9 +809,9 @@ Section SepAlgBijection.
   Qed.
 
 End SepAlgBijection.
-Existing Instance Join_bij.
-Existing Instance Perm_bij.
-Existing Instance Sep_bij.
-Existing Instance Sing_bij.
-Existing Instance Canc_bij.
-Existing Instance Disj_bij.
+#[global] Existing Instance Join_bij.
+#[global] Existing Instance Perm_bij.
+#[global] Existing Instance Sep_bij.
+#[global] Existing Instance Sing_bij.
+#[global] Existing Instance Canc_bij.
+#[global] Existing Instance Disj_bij.

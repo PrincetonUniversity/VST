@@ -268,7 +268,7 @@ Proof.
     destruct shs.
     { rewrite Zlength_nil, !Zlength_correct in *; lia. }
     rewrite Zlength_cons in *; simpl; rewrite IHl1; [|lia].
-    rewrite sublist_S_cons with (i0 := Z.succ _); [|rewrite Zlength_correct; lia].
+    rewrite (sublist_S_cons (Z.succ _)); [|rewrite Zlength_correct; lia].
     unfold Z.succ; rewrite !Z.add_simpl_r.
     destruct (eq_dec a i); auto.
 Qed.
@@ -966,7 +966,7 @@ Proof.
      apply ENTAIL_refl.
     + forward. rewrite neg_repr in H18.
       rename H18 into n1.
-      erewrite upd_Znth_triv with (i0 := i).
+      erewrite (upd_Znth_triv i).
       apply ENTAIL_refl.
       * rewrite !Zlength_map, Zlength_upto; auto.
       * rewrite !Znth_map, Znth_upto; try (simpl; unfold N in *; lia).

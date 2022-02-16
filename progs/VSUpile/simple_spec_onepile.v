@@ -3,7 +3,7 @@ Require Import onepile.
 Require Import simple_spec_stdlib.
 Require Import simple_spec_pile.
 Require Import PileModel.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Definition onepile (sigma: option (list Z)) (gv: globals): mpred :=
  match sigma with

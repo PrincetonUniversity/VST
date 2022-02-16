@@ -223,7 +223,7 @@ Section join_hom_fun.
           if Key_dec_eq k k' then Some a else lookup k rho'
     end.
 
-  Instance Join_Key : Join Key := @Join_equiv Key.
+  #[global] Instance Join_Key : Join Key := @Join_equiv Key.
 
   Lemma join_hom_fun
     : join_hom (fun env k => lookup k env).

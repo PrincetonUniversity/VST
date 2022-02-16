@@ -19,7 +19,7 @@ Next Obligation.
   transitivity y; auto.
 Qed.
 
-Program Instance ProdSetoid `(Setoid A) `(Setoid B) : Setoid (A * B) :=
+#[global] Program Instance ProdSetoid `(Setoid A) `(Setoid B) : Setoid (A * B) :=
   { equiv := fun z w => equiv (fst z) (fst w) /\ equiv (snd z) (snd w)
   }.
 Next Obligation.
@@ -62,7 +62,7 @@ Proof.
   apply H0; reflexivity.
 Qed.
 
-Instance MorSetoid  `(As:Setoid A) `(Bs:Setoid B) : Setoid (Mor As Bs) :=
+#[global] Instance MorSetoid  `(As:Setoid A) `(Bs:Setoid B) : Setoid (Mor As Bs) :=
   { equiv := ext_equiv As Bs
   ; setoid_equiv := ext_is_equiv As Bs
   }.
@@ -82,7 +82,7 @@ Infix "oo" := composeM (at level 54, right associativity).
 
 Module Type TY_FUNCTOR.
   Parameter F : Type -> Type.
-  Instance Fs : forall {A}, Setoid A -> Setoid (F A).
+  #[global] Instance Fs : forall {A}, Setoid A -> Setoid (F A).
 
   Parameter fmap : forall `{As:Setoid A} `{Bs:Setoid B}, Mor As Bs -> Mor (Fs As) (Fs Bs).
 
@@ -95,7 +95,7 @@ Module Type TY_FUNCTOR.
     fmap f oo fmap g == fmap (f oo g).
 
   Parameter T : Type.
-  Instance Ts : Setoid T.
+  #[global] Instance Ts : Setoid T.
   Parameter T_bot : T.
 
   Parameter other : Type.
@@ -107,14 +107,14 @@ Module Type KNOT.
   Import TF.
 
   Parameter knot : Type.
-  Instance knotS : Setoid knot.
+  #[global] Instance knotS : Setoid knot.
   Definition koS : Setoid (knot * other) := @ProdSetoid knot knotS other otherS.
   Definition predicate := Mor koS Ts.
   Definition predS : Setoid predicate := MorSetoid koS Ts.
   Definition natFS : Setoid (nat * F predicate) := @ProdSetoid nat (EqSetoid nat) (F predicate) (Fs predS).
-  Existing Instance koS.
-  Existing Instance predS.
-  Existing Instance natFS.
+  #[global] Existing Instance koS.
+  #[global] Existing Instance predS.
+  #[global] Existing Instance natFS.
 
   Parameter squash : Mor natFS knotS.
   Parameter unsquash : Mor knotS natFS.
@@ -188,7 +188,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
       @equiv _ (Fs (projT2 (sinv n))) f1 f2 ->
       knotEq (existT (fun x => F (projT1 (sinv x))) n f1)
              (existT (fun x => F (projT1 (sinv x))) n f2).
-  Program Instance knotS : Setoid knot := { equiv := knotEq }.
+  #[global] Program Instance knotS : Setoid knot := { equiv := knotEq }.
   Next Obligation.
     constructor; hnf; intros.
     destruct x; constructor.
@@ -222,9 +222,9 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
   Definition predicate := Mor koS Ts.
   Definition predS : Setoid predicate := MorSetoid koS Ts.
   Definition natFS : Setoid (nat * F predicate) := @ProdSetoid nat (EqSetoid nat) (F predicate) (Fs predS).
-  Existing Instance koS.
-  Existing Instance predS.
-  Existing Instance natFS.
+  #[global] Existing Instance koS.
+  #[global] Existing Instance predS.
+  #[global] Existing Instance natFS.
 
   Program Definition wrap (n:nat) : Mor (ProdSetoid (Fs (projT2 (sinv n))) otherS) (ProdSetoid knotS otherS) :=
     @Build_Mor _ _ _ _ (fun v => (existT (fun x => F (projT1 (sinv x))) n (fst v), snd v)) _.

@@ -105,7 +105,7 @@ Lemma sync_commit_gen : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> m
   (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |==> EX y, Q y * R' y)%I.
 Proof.
   intros; rewrite sepcon_assoc.
-  apply atomic_commit with (R'0 := fun y => R' y).
+  apply (@atomic_commit CS) with (R' := fun y => R' y).
   intros; iIntros "((my & R) & a)".
   iMod (Ha with "[$]") as (?) "[public a']".
   iPoseProof (ref_sub(P := P) with "[$my $public]") as "%".
@@ -120,7 +120,7 @@ Lemma sync_commit_same : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> 
   (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |==> EX y, Q y * R' y)%I.
 Proof.
   intros; rewrite sepcon_assoc.
-  apply atomic_commit with (R'0 := fun y => R' y).
+  apply (@atomic_commit CS) with (R' := fun y => R' y).
   intros; iIntros "((my & R) & a)".
   iMod (Ha with "[$]") as (?) "[public a']".
   iPoseProof (ref_sub(P := P) with "[$my $public]") as "%".
@@ -133,7 +133,8 @@ Lemma sync_commit_gen1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> 
     |==> (EX x0' x1' : G, !!(forall b, sepalg.join x0 b x1 -> sepalg.join x0' b x1') && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y) * R')))%I)%I),
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g sh x0 * R |-- |==> Q * R')%I.
 Proof.
-  intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => R')|].
+  intros; rewrite sepcon_assoc; eapply derives_trans; [apply (@atomic_commit CS) with
+      (R' := fun _ => R')|].
   - intros; iIntros "((my & R) & a)".
     iMod (Ha with "[$]") as (?) "[public a']".
     iPoseProof (ref_sub(P := P) with "[$my $public]") as "%".
@@ -149,7 +150,8 @@ Lemma sync_commit_same1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B ->
     |==> (my_half g sh x0 * public_half g x1 -* |==> (EX y, b x y * R')))%I)%I),
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g sh x0 * R |-- |==> Q * R')%I.
 Proof.
-  intros; rewrite sepcon_assoc; eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => R')|].
+  intros; rewrite sepcon_assoc; eapply derives_trans; [apply (@atomic_commit CS) with
+      (R' := fun _ => R')|].
   intros; iIntros "((my & R) & a)".
   iMod (Ha with "[$]") as (?) "[public a']".
   iPoseProof (ref_sub(P := P) with "[$my $public]") as "%".
@@ -197,7 +199,7 @@ Lemma two_sync_commit : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> m
   (atomic_shift a Ei Eo b Q * my_half g1 sh1 x1 * my_half g2 sh2 x2 * R |-- |==> EX y, Q y * R' y)%I.
 Proof.
   intros; rewrite -> 2sepcon_assoc.
-  apply atomic_commit with (R'0 := fun y => R' y).
+  apply (@atomic_commit CS) with (R' := fun y => R' y).
   intros; iIntros "((my1 & my2 & R) & a)".
   iMod (Ha with "[$]") as (??) "((public1 & public2) &  a')".
   iPoseProof (ref_sub(P := P) with "[$my1 $public1]") as "%".
@@ -217,7 +219,7 @@ Lemma two_sync_commit1 : forall {A B} {inv_names : invG} a Ei Eo (b : A -> B -> 
   (atomic_shift a Ei Eo b (fun _ => Q) * my_half g1 sh1 x1 * my_half g2 sh2 x2 * R |-- |==> Q * R')%I.
 Proof.
   intros; rewrite -> 2sepcon_assoc.
-  eapply derives_trans; [apply atomic_commit with (R'0 := fun _ => R')|].
+  eapply derives_trans; [apply (@atomic_commit CS) with (R' := fun _ => R')|].
   intros; iIntros "((my1 & my2 & R) & a)".
   iMod (Ha with "[$]") as (??) "((public1 & public2) &  a')".
   iPoseProof (ref_sub(P := P) with "[$my1 $public1]") as "%".

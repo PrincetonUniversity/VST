@@ -18,7 +18,7 @@ Lemma da_emp_isptrornull sh t v p :
  Proof. unfold da_emp; apply pred_ext.
   + apply orp_left.
     - apply derives_extract_prop; intros; subst; simpl. entailer. apply orp_right1. auto.
-    - rewrite data_at_isptr with (p0:=p) at 1. normalize.
+    - rewrite (data_at_isptr _ _ _ p) at 1. normalize.
       destruct p; simpl in *; try contradiction. entailer. apply orp_right2. entailer.
   + entailer.
 Qed.
