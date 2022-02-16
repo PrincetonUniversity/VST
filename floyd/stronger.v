@@ -296,7 +296,7 @@ Proof.
   auto.
 Qed.
 
-Instance Equiv_data_equal t: Equivalence (@data_equal t).
+#[(*export, after Coq 8.13*)global] Instance Equiv_data_equal t: Equivalence (@data_equal t).
 Proof.
   unfold data_equal; split.
   + intro; intros.
@@ -322,7 +322,7 @@ Proof.
   apply pred_ext; apply field_at_stronger; tauto.
 Qed.
 
-Instance Proper_field_at: forall sh t gfs,
+#[(*export, after Coq 8.13*)global] Instance Proper_field_at: forall sh t gfs,
   Proper ((@data_equal _) ==> eq) (field_at sh t gfs).
 Proof.
   intros.
@@ -375,7 +375,7 @@ Proof.
   auto.
 Qed.
 
-Instance Proper_fold_reptype_array: forall t n a,
+#[(*export, after Coq 8.13*)global] Instance Proper_fold_reptype_array: forall t n a,
   Proper ((@zl_equiv (reptype t) (default_val _) (list_zlist _ _) 0 n)
                ==> (@data_equal (Tarray t n a))) (@fold_reptype _ _ (Tarray t n a)).
 Proof.

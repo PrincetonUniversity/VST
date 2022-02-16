@@ -1,13 +1,13 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.printf.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Require Import VST.floyd.printf.
 Require Import ITree.Eq.Eq.
 
-Instance nat_id : FileId := { file_id := nat; stdin := 0%nat; stdout := 1%nat }.
-Instance file_struct : FileStruct := {| FILEid := ___sFILE64; reent := __reent; f_stdin := __stdin; f_stdout := __stdout |}.
+#[(*export, after Coq 8.13*)global] Instance nat_id : FileId := { file_id := nat; stdin := 0%nat; stdout := 1%nat }.
+#[(*export, after Coq 8.13*)global] Instance file_struct : FileStruct := {| FILEid := ___sFILE64; reent := __reent; f_stdin := __stdin; f_stdout := __stdout |}.
 
 Definition main_spec :=
  DECLARE _main

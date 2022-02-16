@@ -41,9 +41,9 @@ intros ?rho;
  try (simple apply grab_tc_environ; intro);
  repeat (progress unfold_for_go_lower; simpl).
 
-Hint Rewrite eval_id_same : go_lower.
-Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
-(*Hint Rewrite Vint_inj' : go_lower.*)
+(*after Coq 8.13: #[export]*) Hint Rewrite eval_id_same : go_lower.
+(*after Coq 8.13: #[export]*) Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
+(*(*after Coq 8.13: #[export]*) Hint Rewrite Vint_inj' : go_lower.*)
 
 (*** New go_lower stuff ****)
 

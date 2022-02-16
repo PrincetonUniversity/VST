@@ -4,7 +4,7 @@ Require Import simple_spec_stdlib.
 Require Import simple_spec_pile.
 Require Import PileModel.
 
-Instance APileCompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance APileCompSpecs : compspecs. make_compspecs prog. Defined.
 
 Definition apile (sigma: list Z) (gv: globals): mpred :=
   !!(headptr (gv _a_pile)) && pilerep sigma (gv _a_pile).

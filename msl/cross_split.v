@@ -132,7 +132,7 @@ intro k; destruct (J k) as [ak' [bk' [[c c0] j]]];  simpl; destruct c0; auto.
 intro k; destruct (J k) as [ak' [bk' [[c c0] j]]]; simpl; auto.
 Qed.
 
-Instance cross_split_fun: forall A (JOIN: Join A) (key: Type),
+#[global] Instance cross_split_fun: forall A (JOIN: Join A) (key: Type),
           Cross_alg A -> Cross_alg (key -> A).
 Proof.
 repeat intro.
@@ -166,7 +166,7 @@ Proof.
  split; auto.
 Qed.
 
-Instance Cross_prod : forall A B saA saB,
+#[global] Instance Cross_prod : forall A B saA saB,
   @Cross_alg A saA ->
   @Cross_alg B saB ->
   @Cross_alg (A * B) (Join_prod _ saA _ saB).

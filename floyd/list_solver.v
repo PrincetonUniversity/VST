@@ -135,14 +135,14 @@ Ltac list_form :=
 (** * Znth_solve *)
 (** Znth_solve is a tactic that simplifies and solves proof goal related to terms headed by Znth. *)
 
-Hint Rewrite @Znth_repeat_inrange using Zlength_solve : Znth.
-Hint Rewrite @Znth_sublist using Zlength_solve : Znth.
-Hint Rewrite Znth_app1 Znth_app2 using Zlength_solve : Znth.
-Hint Rewrite Znth_Zrepeat using Zlength_solve : Znth.
-Hint Rewrite Znth_upd_Znth_same Znth_upd_Znth_diff using Zlength_solve : Znth.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Znth_repeat_inrange using Zlength_solve : Znth.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Znth_sublist using Zlength_solve : Znth.
+(*after Coq 8.13: #[export]*) Hint Rewrite Znth_app1 Znth_app2 using Zlength_solve : Znth.
+(*after Coq 8.13: #[export]*) Hint Rewrite Znth_Zrepeat using Zlength_solve : Znth.
+(*after Coq 8.13: #[export]*) Hint Rewrite Znth_upd_Znth_same Znth_upd_Znth_diff using Zlength_solve : Znth.
 
-Hint Rewrite (@Znth_map _ Inhabitant_Z) using Zlength_solve : Znth.
-Hint Rewrite (@Znth_map _ Inhabitant_nat) using Zlength_solve : Znth.
+(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_Z) using Zlength_solve : Znth.
+(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_nat) using Zlength_solve : Znth.
 
 Create HintDb Znth_solve_hint.
 
@@ -1517,11 +1517,13 @@ Ltac rewrite_list_eq :=
     destruct H
   end.
 
-Hint Rewrite @Forall_forall_range : list_prop_rewrite.
-Hint Rewrite @forall_range_fold : list_prop_rewrite.
-Hint Rewrite @forall_range2_fold : list_prop_rewrite.
-Hint Rewrite @forall_triangle_fold : list_prop_rewrite.
-Hint Rewrite Sorted_Znth : list_prop_rewrite.
+(* These must be Global because they are inside Module range_rewrite.
+  That's a problem; we should fix this somehow. *)
+(*after Coq 8.13: Global*) Hint Rewrite @Forall_forall_range : list_prop_rewrite.
+(*after Coq 8.13: Global*) Hint Rewrite @forall_range_fold : list_prop_rewrite.
+(*after Coq 8.13: Global*) Hint Rewrite @forall_range2_fold : list_prop_rewrite.
+(*after Coq 8.13: Global*) Hint Rewrite @forall_triangle_fold : list_prop_rewrite.
+(*after Coq 8.13: Global*) Hint Rewrite Sorted_Znth : list_prop_rewrite.
 
 Ltac range_form :=
   rewrite_list_eq;
@@ -1763,9 +1765,11 @@ Lemma pose_range_saturate_shift : forall {A : Type} (l : list A) (s : Z),
   range_saturate_shift l s.
 Proof. intros. apply I. Qed.
 
-Hint Rewrite Z.add_0_r : Z_normalize_0.
-Hint Rewrite Z.add_0_l : Z_normalize_0.
-Hint Rewrite Z.sub_0_r : Z_normalize_0.
+(* These must be Global because they are inside a Module.
+  That's a problem; we should fix this somehow. *)
+(*after Coq 8.13: Global*) Hint Rewrite Z.add_0_r : Z_normalize_0.
+(*after Coq 8.13: Global*) Hint Rewrite Z.add_0_l : Z_normalize_0.
+(*after Coq 8.13: Global*) Hint Rewrite Z.sub_0_r : Z_normalize_0.
 
 Ltac pose_range_saturate_shift l s :=
   let H := fresh in

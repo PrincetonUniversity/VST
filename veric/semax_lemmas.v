@@ -520,7 +520,7 @@ Definition all_assertions_computable  :=
   to the programming language
 *)
 
-Lemma ewand_TT_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
+Lemma ewand_TT_emp {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{aaA: Age_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
     ewand TT emp = emp.
 Proof.
 intros.
@@ -1331,8 +1331,8 @@ Section eq_dec.
 
 End eq_dec.
 
-Instance EqDec_statement: EqDec statement := eq_dec_statement.
-Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
+#[(*export, after Coq 8.13*)global] Instance EqDec_statement: EqDec statement := eq_dec_statement.
+#[(*export, after Coq 8.13*)global] Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
 
 Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
 Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.

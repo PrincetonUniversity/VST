@@ -10,7 +10,7 @@ Require Export EqNat.  (* do we need this? *)
 Require Export VST.veric.Memory.
 
 (*moved to mpred:
-Instance EqDec_type: EqDec type := type_eq.
+#[local] Instance EqDec_type: EqDec type := type_eq.
 Set Implicit Arguments.
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)

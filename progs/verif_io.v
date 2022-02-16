@@ -4,7 +4,7 @@ Require Import VST.floyd.proofauto.
 
 Local Open Scope itree_scope.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition putchar_spec := DECLARE _putchar putchar_spec.
@@ -345,7 +345,7 @@ Qed.
 
 Definition ext_link := ext_link_prog prog.
 
-Instance Espec : OracleKind := IO_Espec ext_link.
+#[(*export, after Coq 8.13*)global] Instance Espec : OracleKind := IO_Espec ext_link.
 
 Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.

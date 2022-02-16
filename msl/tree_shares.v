@@ -1057,7 +1057,7 @@ Module Share <: SHARE_MODEL.
     auto.
   Defined.
 
-  Instance EqDec_canonTree : EqDec canonTree := canonTree_eq_dec.
+  #[global] Instance EqDec_canonTree : EqDec canonTree := canonTree_eq_dec.
 
   (* Show that complement preserves canonical trees *)
 
@@ -2431,7 +2431,7 @@ Module Share <: SHARE_MODEL.
       inv H.
     Qed.
 
-    Instance EqDec_share : EqDec t := EqDec_canonTree.
+    #[global] Instance EqDec_share : EqDec t := EqDec_canonTree.
 
 (* Credits for the next part of this file:
   Specification of "unrel" operator by Andrew W. Appel and Robert Dockins
@@ -2451,7 +2451,7 @@ Module Share <: SHARE_MODEL.
     destruct pf. tauto.
    Defined.
 
-   Instance decompose_tree : decomposible t :=
+   #[global] Instance decompose_tree : decomposible t :=
      Decomposible tree_decompose.
 
   Fixpoint tree_heightP (t : ShareTree) : nat :=
@@ -2466,7 +2466,7 @@ Module Share <: SHARE_MODEL.
     left. reflexivity.
     right. unfold tree_height. simpl. intro. rewrite plus_comm in H. inversion H.
   Defined.
-  Instance tree_heightable : heightable t :=
+  #[global] Instance tree_heightable : heightable t :=
     Heightable tree_height tree_height_zero.
 
   Function unrel (t1 : t) (t2 : t) {measure tree_height t1} : t :=
@@ -3245,7 +3245,7 @@ Qed.
                   end
      | None => None
      end.
-   Instance  roundableL_tree : roundableLeft t :=
+   #[global] Instance  roundableL_tree : roundableLeft t :=
     RoundableLeft tree_round_left.
 
    Fixpoint tree_round_rightP (n : nat) (t : ShareTree) : option ShareTree :=
@@ -3272,7 +3272,7 @@ Qed.
                   end
      | None => None
      end.
-  Instance  roundableR_tree : roundableRight t :=
+  #[global] Instance  roundableR_tree : roundableRight t :=
    RoundableRight tree_round_right.
 
    Fixpoint tree_avgP (t1 t2 : ShareTree) : option ShareTree :=
@@ -3296,7 +3296,7 @@ Qed.
              |_ => None
              end
     end.
-   Instance avgable_tree : avgable t :=
+   #[global] Instance avgable_tree : avgable t :=
      Avgable tree_avg.
 
   Lemma compose_canon1 : forall b1 b2,b1 <> b2 -> canonicalTree (Leaf b1) ->
