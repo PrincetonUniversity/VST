@@ -2,7 +2,7 @@ Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import mailbox.atomic_exchange.
 Require Import Lia.
 

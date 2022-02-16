@@ -2,7 +2,7 @@ Require Import VST.concurrency.ghosts.
 Require Import atomics.verif_atomics.
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import atomics.hashtable1.
 Require Import atomics.hashtable.
 

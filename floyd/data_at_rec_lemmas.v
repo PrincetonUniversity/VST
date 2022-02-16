@@ -7,7 +7,7 @@ Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred
 Import VST.floyd.aggregate_pred.auxiliary_pred.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.
 Import compcert.lib.Maps.

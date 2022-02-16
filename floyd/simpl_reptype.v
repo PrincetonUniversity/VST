@@ -6,7 +6,7 @@ Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.simple_reify.
 Require Import VST.floyd.aggregate_type.
-Require Import VST.floyd.Zlength_solver.
+Require Import VST.zlist.Zlength_solver.
 
 Definition int_signed_or_unsigned (t: type) : int -> Z :=
   match typeconv t with

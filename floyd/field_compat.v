@@ -8,7 +8,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import VST.floyd.field_at.
 
 Lemma field_compatible_offset_zero:

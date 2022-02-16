@@ -173,6 +173,7 @@ each in a separate directory:
 - `msl` -   Mechanized Software Library
 - `examples` - examples of how to use the msl (not ported to Coq 8.6)
 - `compcert` -   front end of the CompCert compiler, specification of C light
+- `zlist` - theory of concatenable sublists, and list theory solver
 - `sepcomp` - the theory and practice of how to specify shared-memory interaction
 - `veric` -  program logic (and soundness proof) for Verifiable C
 - `floyd` -  tactics for applying the separation logic
@@ -183,6 +184,7 @@ The dependencies are:
 - `msl`:   _no dependency on other directories_
 - `examples`: msl
 - `compcert`: _no dependency on other directories_
+- `zlist` - _no dependency on other directories_
 - `sepcomp`: compcert
 - `veric`:  msl compcert sepcomp
 - `floyd`: msl sepcomp compcert veric

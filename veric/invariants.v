@@ -7,7 +7,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.own.
 Require Import VST.veric.mpred.
 Require Import VST.veric.ghosts.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Import List ListNotations.
 
 Lemma cored_dup_cored : forall P, P && cored |-- ((P && cored) * (P && cored)) && cored.

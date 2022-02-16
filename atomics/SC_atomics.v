@@ -6,7 +6,7 @@ Require Export VST.concurrency.invariants.
 Require Export VST.concurrency.fupd.
 Require Export VST.atomics.general_atomics.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 
