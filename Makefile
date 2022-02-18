@@ -702,6 +702,10 @@ endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
+# TODO:
+#
+# Add conclib_coqlib, conclib_sublist, and conclib_veric to the targets
+#
 simpleconc: concurrency/conclib.vo concurrency/ghosts.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)

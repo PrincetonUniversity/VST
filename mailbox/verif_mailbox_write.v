@@ -61,7 +61,7 @@ Proof.
    apply derives_refl'; f_equal.
     rewrite upd_Znth_eq;
        [|simpl; rewrite !Zlength_cons, Zlength_nil; unfold B, N in *; lia].
-    change conclib.upto with upto. simpl Datatypes.length.
+    simpl Datatypes.length.
     change (Z.to_nat B) with 5%nat.
     apply map_ext_in; intros ? Hin.
     rewrite In_upto in Hin.

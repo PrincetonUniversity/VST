@@ -159,6 +159,28 @@ Proof. intros; reflexivity. Qed.
 
 End SingleSepPred.
 
+Lemma iter_sepcon_sepcon: forall (f g1 g2: B -> A) l, 
+     (forall b : B, f b = g1 b * g2 b) ->
+  iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
+Proof.
+  intros; induction l; simpl.
+  autorewrite with norm; auto.
+  rewrite H, IHl.
+  rewrite !sepcon_assoc.
+  f_equal.
+  rewrite sepcon_comm.
+  rewrite !sepcon_assoc.
+  f_equal.
+  apply sepcon_comm.
+Qed.
+
+Lemma iter_sepcon_derives : 
+   forall f g (l : list B), (forall x, In x l -> f x |-- g x) -> iter_sepcon f l |-- iter_sepcon g l.
+Proof.
+  induction l; simpl; auto; intros.
+  apply sepcon_derives; auto.
+Qed.
+
 Lemma iter_sepcon_func: forall l P Q, (forall x, P x = Q x) -> iter_sepcon P l = iter_sepcon Q l.
 Proof. intros. induction l; simpl; [|f_equal]; auto. Qed.
 

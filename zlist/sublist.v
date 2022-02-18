@@ -2445,6 +2445,21 @@ Proof.
       rewrite !Znth_pos_cons, Z.add_simpl_l in Hall by (simpl Z.of_nat; lia); auto.
 Qed.
 
+Lemma Forall_forall_Znth : forall {A}{d: Inhabitant A} (P : A -> Prop) l,
+  Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l).
+Proof.
+  split; intros; [apply Forall_Znth; auto|].
+  induction l; auto.
+  rewrite Zlength_cons in *.
+  constructor.
+  - specialize (H 0); rewrite Znth_0_cons in H; apply H.
+    pose proof (Zlength_nonneg l); lia.
+  - apply IHl; intros.
+    specialize (H (i + 1)).
+    rewrite Znth_pos_cons, Z.add_simpl_r in H by lia.
+    apply H; lia.
+Qed.
+
 Lemma Forall2_forall_Znth : forall {A B}{d1: Inhabitant A}{d2: Inhabitant B}  (P : A -> B -> Prop) l1 l2,
   Forall2 P l1 l2 <->
   Zlength l1 = Zlength l2 /\ (forall i, 0 <= i < Zlength l1 -> P (Znth i l1) (Znth i l2)).
@@ -2454,3 +2469,67 @@ Proof.
   rewrite Z2Nat.id by (apply Zlength_nonneg).
   reflexivity.
 Qed.
+
+Lemma Forall_upd_Znth : forall {A} (P : A -> Prop) x l i, Forall P l -> P x ->
+  Forall P (upd_Znth i l x).
+Proof.
+  intros; unfold upd_Znth; if_tac; auto;
+  rewrite Forall_app; split; [|constructor; auto]; apply Forall_sublist; auto.
+Qed.
+
+Lemma last_cons : forall {A} (d : A) l x, l <> [] -> last (x :: l) d = last l d.
+Proof.
+  intros.
+  destruct l; auto.
+  contradiction H; auto.
+Qed.
+
+Lemma map_const: forall {A B} (c : A) (l : list B), map (fun _ => c) l = repeat c (length l).
+Proof.
+  induction l; auto; simpl.
+  rewrite IHl; auto.
+Qed.
+
+Lemma filter_length : forall {A} (f : A -> bool) l,
+  length l = (length (filter f l) + length (filter (fun x => negb (f x)) l))%nat.
+Proof.
+  induction l; simpl; intros; auto.
+  rewrite IHl.
+  destruct (f a); simpl; lia.
+Qed.
+
+Lemma Zlength_filter : forall {A} f (l : list A), Zlength (filter f l) <= Zlength l.
+Proof.
+  intros.
+  setoid_rewrite Zlength_correct at 2.
+  rewrite (filter_length f).
+  rewrite Nat2Z.inj_add.
+  rewrite <- Zlength_correct; lia.
+Qed.
+
+Lemma Zlength_concat : forall {A} (l : list (list A)),
+  Zlength (concat l) = fold_right Z.add 0 (map (@Zlength A) l).
+Proof.
+  intros.
+  rewrite Zlength_correct, length_concat.
+  change 0 with (Z.of_nat O).
+  forget O as n.
+  revert n; induction l; auto; simpl; intros.
+  rewrite Nat2Z.inj_add, IHl, Zlength_correct; auto.
+Qed.
+
+Lemma filter_concat : forall {A} f (l : list (list A)),
+  filter f (concat l) = concat (map (filter f) l).
+Proof.
+  induction l; auto; simpl.
+  rewrite filter_app, IHl; auto.
+Qed.
+
+Lemma incl_cons_iff : forall {A} (a : A) b c, incl (a :: b) c <-> In a c /\ incl b c.
+Proof.
+  split; intro.
+  - split; [|eapply incl_cons_inv; eauto].
+    specialize (H a); apply H; simpl; auto.
+  - destruct H; intros ? [? | ?]; subst; auto.
+Qed.
+

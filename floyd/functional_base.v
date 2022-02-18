@@ -835,3 +835,8 @@ Proof.
 intros.
 unfold Int64.lt in H. if_tac in H; inv H. auto.
 Qed.
+
+
+#[export] Hint Extern 2 (repable_signed ?i) =>
+  (putable i; split; computable) : core.
+
