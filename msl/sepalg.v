@@ -49,13 +49,19 @@ Proof.
   simpl. apply (join_eq j j1).
 Qed.
 
+  (** Element [a] is a subelement of [c] .  This relation forms a partial order. *)
+  Definition join_sub {A} `{Join A} (a c : A) : Prop :=
+    exists b, join a b c.
+
   (* Sep_alg: additional properties that makes a Permission Algebra
      into a Separation Algebra. *)
   Class Sep_alg A {J: Join A} : Type :=
-    mkSep {
+    {
       core: A -> A;
       core_unit: forall t, unit_for (core t) t;
-      join_core: forall {a b c}, join a b c -> core a = core c
+      (* weaker core axioms *)
+      join_core_sub: forall {a b c}, join a b c -> join_sub (core a) (core c);
+      core_idem : forall a, core (core a) = core a
     }.
 Arguments Sep_alg _ {J}.
 
@@ -63,10 +69,20 @@ Lemma core_duplicable {A}{J: Join A}{SA: Sep_alg A}:
   forall a, join (core a) (core a) (core a).
 Proof.
  intros.
- generalize (core_unit a); unfold unit_for; intro.
  generalize (core_unit (core a)); unfold unit_for; intro.
- generalize (join_core H); intro.
- rewrite H1 in H0; auto.
+ rewrite core_idem in H; apply H.
+Qed.
+
+Lemma core_sub_join {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+  forall a b, join_sub (core a) (core b) <-> join (core a) (core b) (core b).
+Proof.
+  split.
+  - intros [? Hj].
+    pose proof (core_duplicable b).
+    destruct (join_assoc (join_comm Hj) H) as (ab & ? & ?).
+    assert (core b = ab) as <-; auto.
+    eapply join_positivity; eauto.
+  - exists (core b); auto.
 Qed.
 
 Lemma core_self_join {A}{J: Join A}{SA: Sep_alg A}:
@@ -76,75 +92,24 @@ Proof.
   generalize (core_unit a); rewrite <- H; intro. apply H0.
 Qed.
 
-Lemma core_idem {A}{J: Join A}{SA: Sep_alg A}:
-  forall a, core (core a) = core a.
+Lemma identity_self_join {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+  forall a, identity a -> join a a a.
 Proof.
- intros.
- generalize (core_unit a); unfold unit_for; intro.
- apply (join_core H).
+  intros.
+  apply core_self_join.
+  symmetry; apply H.
+  apply join_comm, core_unit.
 Qed.
 
-Lemma core_hom {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall {a b c}, join a b c -> join (core a) (core b) (core c).
-Proof.
- intros.
- generalize (join_core H); intro.
-  generalize (join_core (join_comm H)); intro.
- rewrite H0; rewrite H1.
- apply core_duplicable.
-Qed.
+Class Flat_alg A {J: Join A} {SA: Sep_alg A} : Type :=
+    { join_core: forall {a b c}, join a b c -> core a = core c }.
+Arguments Flat_alg _ {J} {SA}.
 
-Lemma split_core' {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
- forall a b c, join a b (core c) -> a = core a.
-Proof.
- intros.
- generalize (join_core H); rewrite core_idem; intro.
- rewrite <- H0 in H.
- clear dependent c.
- generalize (core_unit a); unfold unit_for; intro.
- eapply join_positivity; eauto.
-Qed.
-
-Lemma split_core{A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
- forall a b c, join a b (core c) -> unit_for a a.
-Proof.
- intros.
- unfold unit_for.
- replace a with (core a).
- apply core_duplicable.
- symmetry; eapply split_core'; eauto.
-Qed.
-
-Lemma core_uniq {t} {J: Join t}{PA: Perm_alg t}:
-   forall (SA1: @Sep_alg _ J)
-          (SA2: @Sep_alg _ J),
-     forall x, @core _ _ SA1 x = @core _ _ SA2 x.
-Proof.
- pose proof I. (* hack: shift up auto-named hyps *)
- intros.
- generalize  (@core_unit _ _ SA1 x); unfold unit_for; intro.
- generalize  (@core_unit _ _ SA2 x); unfold unit_for; intro.
- destruct (join_assoc (join_comm H0) (join_comm H1)) as [f [? ?]].
- generalize (@core_unit _ _ SA2 (@core _ _ SA1 x)); unfold unit_for; intro.
- generalize (@core_unit _ _ SA1 (@core _ _ SA2 x)); unfold unit_for; intro.
- destruct (join_assoc ( H4) H2) as [g [? ?]].
- destruct (join_assoc H5 (join_comm H2)) as [h [? ?]].
- generalize (join_eq H6 (join_comm H8)); intro. rewrite <- H10 in *; clear dependent h.
- generalize (@join_core _ _ SA1 _ _ _ H4); intro.
- generalize (@join_core _ _ SA1 _ _ _ H0); intro.
- generalize (@join_core _ _ SA2 _ _ _ H0); intro.
- rewrite H11 in *. rewrite H12 in *. rewrite H10 in *.
- apply join_comm in H4.
- apply (join_eq H4 H5).
-Qed.
-
-Lemma join_core2 {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall a b c, join a b c -> core a = core b.
-Proof.
-intros. generalize H; intro.
-apply join_comm in H.
-apply join_core in H0; apply join_core in H. congruence.
-Qed.
+Class FSep_alg A {J: Join A} : Type :=
+    mkSep { fcore: A -> A;
+      fcore_unit: forall t, unit_for (fcore t) t;
+      join_fcore: forall {a b c}, join a b c -> fcore a = fcore c }.
+Arguments FSep_alg _ {J}.
 
 (* Disj_alg: adds the property that no nonempty element can join with itself. *)
 Class Disj_alg  (t: Type) {J: Join t} :=
@@ -158,7 +123,7 @@ Proof.
  eapply join_self; eauto.
 Qed.
 
-Lemma   unit_identity {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A} :
+Lemma   unit_identity {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Disj_alg A} :
         forall {e} b, unit_for e b -> identity e.
 Proof.
  intros.
@@ -166,17 +131,98 @@ Proof.
  eapply join_self; eauto.
 Qed.
 
-Lemma core_identity  {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma join_core2 {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
+  forall a b c, join a b c -> core a = core b.
+Proof.
+intros. generalize H; intro.
+apply join_comm in H.
+apply join_core in H0; apply join_core in H. congruence.
+Qed.
+
+Lemma core_identity  {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall a, identity (core a).
 Proof.
-  repeat intro.
+repeat intro.
   eapply join_eq; eauto.
   replace (core a) with (core a0); [apply core_unit|].
   symmetry; rewrite <- core_idem.
   eapply join_core2; eauto.
 Qed.
 
-Lemma join_ex_identity  {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma core_identity'  {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Disj_alg A}:
+  forall a, identity (core a).
+Proof.
+  repeat intro.
+  eapply join_self; eauto.
+  apply core_duplicable.
+Qed.
+
+Instance disj_flat {A} `{PA: Perm_alg A} {SA: Sep_alg A} {DA: Disj_alg A} : Flat_alg A.
+Proof.
+ constructor.
+ intros.
+ destruct (join_core_sub H) as [? Hj].
+ pose proof (core_duplicable c) as Hc.
+ destruct (join_assoc (join_comm Hj) Hc) as (? & Hcore & _).
+ pose proof (core_identity' c _ _ (join_comm Hcore)) as Heq; subst.
+ symmetry; eapply core_identity'; eauto.
+Qed.
+
+Lemma core_hom {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
+  forall {a b c}, join a b c -> join (core a) (core b) (core c).
+Proof.
+ intros.
+ generalize (join_core H); intro.
+  generalize (join_core (join_comm H)); intro.
+ rewrite H0; rewrite H1.
+ apply core_duplicable.
+Qed.
+
+Lemma split_core' {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
+ forall a b c, join a b (core c) -> a = core a.
+Proof.
+ intros.
+ generalize (join_core H). rewrite core_idem; intro.
+ rewrite <- H0 in H.
+ clear dependent c.
+ generalize (core_unit a); unfold unit_for; intro.
+ eapply join_positivity; eauto.
+Qed.
+
+Lemma split_core{A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
+ forall a b c, join a b (core c) -> unit_for a a.
+Proof.
+ intros.
+ unfold unit_for.
+ replace a with (core a).
+ apply core_duplicable.
+ symmetry; eapply split_core'; eauto.
+Qed.
+
+Lemma core_uniq {t} {J: Join t}{PA: Perm_alg t}:
+   forall (SA1: Sep_alg t) (FA1: @Flat_alg _ _ SA1)
+          (SA2: Sep_alg t) (FA2: @Flat_alg _ _ SA2),
+     forall x, @core _ _ SA1 x = @core _ _ SA2 x.
+Proof.
+ pose proof I. (* hack: shift up auto-named hyps *)
+ intros.
+ generalize  (@core_unit _ _ SA1 x); unfold unit_for; intro.
+ generalize  (@core_unit _ _ SA2 x); unfold unit_for; intro.
+ destruct (join_assoc (join_comm H0) (join_comm H1)) as [f [? ?]].
+ generalize (@core_unit _ _ SA2 (@core _ _ SA1 x)); unfold unit_for; intro.
+ generalize (@core_unit _ _ SA1 (@core _ _ SA2 x)); unfold unit_for; intro.
+ destruct (join_assoc H4 H2) as [g [? ?]].
+ destruct (join_assoc H5 (join_comm H2)) as [h [? ?]].
+ generalize (join_eq H6 (join_comm H8)); intro; subst.
+ generalize (@join_core _ _ _ FA1 _ _ _ H4).
+ generalize (@join_core _ _ _ FA1 _ _ _ H0).
+ generalize (@join_core _ _ _ FA2 _ _ _ H0).
+ intros. rewrite H11, H10, H12 in *.
+ apply join_comm in H4.
+ apply (join_eq H4 H5).
+Qed.
+
+Lemma join_ex_identity  {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Flat_alg A}:
      forall a, {e : A & prod (identity e) (unit_for e a) }.
 Proof.
  intros.
@@ -302,10 +348,6 @@ Qed.
    intros.
    apply joins_sym. auto.
   Qed.
-
-  (** Elememt [a] is a subelement of [c] .  This relation forms a partial order. *)
-  Definition join_sub {A} `{Join A} (a c : A) : Prop :=
-    exists b, join a b c.
 
   Lemma join_join_sub {A} `{Perm_alg A}: forall {a b c},
     join a b c ->
@@ -538,7 +580,7 @@ Qed.
   Qed.
 
   (** The existence of identity elements. *)
-  Lemma join_ex_identities {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall a,
+  Lemma join_ex_identities {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Flat_alg A}: forall a,
     {e : A & identity e /\ joins e a}.
   Proof.
     intro x.
@@ -593,18 +635,19 @@ Qed.
     rewrite H3; rewrite H2; reflexivity.
   Qed.
 
-Lemma split_identity{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma split_identity{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Flat_alg A}:
  forall a b c, join a b c -> identity c -> identity a.
 Proof.
  intros.
+ intros ?? J.
  apply identity_core in H0.
  rewrite H0 in H.
- erewrite split_core' by eauto.
- apply core_identity.
+ apply split_core' in H; rewrite H in J.
+ eapply core_identity; eauto.
 Qed.
 
   (* The contrapositive of split_identity *)
-  Lemma join_nonidentity {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall a b c,
+  Lemma join_nonidentity {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Flat_alg A}: forall a b c,
     nonidentity a -> join a b c -> nonidentity c.
   Proof.
     intros a b c H H0 H1.
@@ -691,7 +734,7 @@ Qed.
     rewrite H0; apply core_unit.
   Qed.
 
-  Lemma common_unit_comparable {A} `{Sep_alg A} : forall a b,
+  Lemma common_unit_comparable {A} `{Perm_alg A} {SA: Sep_alg A} {DA: Flat_alg A} : forall a b,
     (exists e, join e a a /\ join e b b) ->
     comparable a b.
   Proof.
@@ -701,7 +744,7 @@ Qed.
     rewrite <- (join_core H1).  apply (join_core H2).
 Qed.
 
-Lemma join_comparable  {A} `{Sep_alg A}:
+Lemma join_comparable  {A} `{Perm_alg A} {SA: Sep_alg A} {DA: Flat_alg A}:
   forall phi1 phi2 phi3, join phi1 phi2 phi3 -> comparable phi1 phi3.
 Proof.
   intros.
@@ -709,7 +752,7 @@ Proof.
   eapply join_core; eauto.
 Qed.
 
-Lemma join_comparable2  {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma join_comparable2  {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Flat_alg A}:
   forall phi1 phi2 phi3, join phi1 phi2 phi3 -> comparable phi1 phi2.
 Proof.
   intros.
@@ -719,7 +762,7 @@ Proof.
   rewrite H0; rewrite H1; reflexivity.
 Qed.
 
-Lemma join_sub_comparable  {A} `{Sep_alg A} : forall a c,
+Lemma join_sub_comparable  {A} `{Perm_alg A} {SA: Sep_alg A} {DA: Flat_alg A}: forall a c,
   join_sub a c -> comparable a c.
 Proof.
   intros.
@@ -727,7 +770,7 @@ Proof.
   eapply join_comparable; eauto.
 Qed.
 
-Lemma joins_comparable  {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A} : forall a c,
+Lemma joins_comparable  {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Flat_alg A} : forall a c,
   joins a c -> comparable a c.
 Proof.
   intros a c H0.
@@ -776,16 +819,17 @@ eapply join_eq0; eauto.
 Qed.
 
 Lemma Sep_alg_ext {T} {J} {PA: @Perm_alg _ J}:
-   forall (sa1 sa2: @Sep_alg T J), sa1=sa2.
+   forall (sa1 sa2: @Sep_alg T J) (fa1: @Flat_alg _ _ sa1) (fa2: @Flat_alg _ _ sa2), sa1=sa2.
 Proof.
 intros.
-generalize (@core_uniq _ J _ sa1 sa2); intro.
+generalize (@core_uniq _ J _ _ fa1 _ fa2); intro.
 destruct sa1; destruct sa2.
 simpl in H.
 assert (core0 = core1).
   extensionality; auto.
 subst core1.
 f_equal.
+apply proof_irr.
 apply proof_irr.
 apply proof_irr.
 Qed.
@@ -808,3 +852,38 @@ Qed.
 Class Canc_alg (t: Type) {J: Join t} :=
     join_canc: forall {a1 a2 b c}, join a1 b c -> join a2 b c -> a1 = a2.
 Arguments Canc_alg _ {J}.
+
+Instance canc_flat {A} `{PA: Perm_alg A} {SA: Sep_alg A} {DA: Canc_alg A} : Flat_alg A.
+Proof.
+ constructor.
+ intros.
+ eapply join_canc.
+ eapply core_sub_join, join_core_sub; eauto.
+ apply core_duplicable.
+Qed.
+
+Lemma fcore_idem `{FSep_alg} a : fcore (fcore a) = fcore a.
+Proof.
+ intros.
+ generalize (fcore_unit a); unfold unit_for; intro.
+ apply (join_fcore H0).
+Qed.
+
+Instance fsep_sep `(FSep_alg) : Sep_alg _.
+Proof.
+  exists fcore.
+  - apply fcore_unit.
+  - intros ????%join_fcore.
+    rewrite H1; eexists.
+    pose proof (fcore_unit (fcore c)) as Hj.
+    rewrite fcore_idem in Hj; eauto.
+  - apply fcore_idem.
+Defined.
+
+Instance fsep_flat `{FSep_alg} : Flat_alg _.
+Proof.
+  constructor.
+  intros; eapply join_fcore; eauto.
+Qed.
+
+Opaque fsep_sep.

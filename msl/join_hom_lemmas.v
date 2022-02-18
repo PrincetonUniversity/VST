@@ -285,7 +285,7 @@ Lemma join_hom_bij {A: Type} `{Perm_alg A}
     unfold unit_for in *. auto.
   Qed.
 
-  Lemma join_hom_comparable {A}{B}`{Perm_alg A}{SA: Sep_alg A}`{Perm_alg B}{SB:Sep_alg B}:
+  Lemma join_hom_comparable {A}{B}`{Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}`{Perm_alg B}{SB:Sep_alg B}{FB: Flat_alg B}:
       forall (f: A -> B) a1 a2, comparable a1 a2 -> join_hom f -> comparable (f a1) (f a2).
   Proof.
     intros.
@@ -296,7 +296,7 @@ Lemma join_hom_bij {A: Type} `{Perm_alg A}
   Qed.
 
   Lemma join_hom2_comparable {A}{B}{C}
-          `{Perm_alg A}{SA: Sep_alg A}`{Perm_alg B}{SB: Sep_alg B}`{Perm_alg C}{SC: Sep_alg C}:
+          `{Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}`{Perm_alg B}{SB: Sep_alg B}{FB: Flat_alg B}`{Perm_alg C}{SC: Sep_alg C}{FC: Flat_alg C}:
    forall (g: A -> B -> C) a1 a2 b1 b2,
      comparable a1 a2
       -> comparable b1 b2

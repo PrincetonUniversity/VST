@@ -804,17 +804,6 @@ Proof.
     auto.
 Qed.
 
-Lemma corable_unfash:
-  forall (A : Type) (JA : Join A) (PA : Perm_alg A) (SA : Sep_alg A) (agA : ageable A) 
-    (AgeA : Age_alg A) (P : pred nat), corable (! P).
-Proof.
-  intros.
-  unfold unfash; simpl.
-  hnf; simpl; intros.
-  rewrite level_core.
-  auto.
-Qed.
-
 Section believe_monotonicity.
 Context {CS: compspecs} {Espec: OracleKind}.
 

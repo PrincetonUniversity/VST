@@ -32,10 +32,8 @@ Proof.
 pose proof I.
 intros.
 apply pred_ext; intros w ?.
-assert ((emp * P)%pred w).
-eapply sepcon_derives; try apply H1; auto.
-rewrite emp_sepcon in H2.
-auto.
+destruct H1 as (? & ? & J & HP & ?).
+apply H0 in HP; apply HP in J; subst; auto.
 exists w; exists w.
 split; [|split]; auto.
 apply H0 in H1.
@@ -147,7 +145,7 @@ Lemma pure_con' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{
 Proof.
 intros.
 unfold pure in *.
-rewrite <- sepcon_emp.
+rewrite <- emp_emp_sepcon.
 apply sepcon_derives; auto.
 Qed.
 #[export] Hint Resolve pure_con' : core.
@@ -178,7 +176,7 @@ Hint Rewrite @FF_andp @andp_FF : normalize.
 
 Hint Rewrite @andp_dup : normalize.
 
-Lemma andp_emp_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma andp_emp_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{FA: Flat_alg A}{AgeA: Age_alg A}:
  forall (Q: pred A),
      (forall w1 w2, core w1 = core w2 -> Q w1 -> Q w2) ->
       (Q && emp * TT = Q).
@@ -201,8 +199,9 @@ Lemma sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{
    forall (P: pred A), P |-- (P * TT).
 Proof.
 intros.
-rewrite <- (sepcon_emp P) at 1.
-eapply sepcon_derives; try apply H0; auto.
+intros ??.
+exists a, (core a); repeat split; auto.
+apply join_comm, core_unit.
 Qed.
 #[export] Hint Resolve sepcon_TT : core.
 
@@ -354,7 +353,7 @@ Tactic Notation "normalize" "in" hyp(H) := repeat (normalize1_in H).
 
 Definition mark {A: Type} (i: nat) (j: A) := j.
 
-Lemma swap_mark1 {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma swap_mark1 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall i j Pi Pj B, (i<j)%nat -> B * mark i Pi * mark j Pj = B * mark j Pj * mark i Pi.
 Proof.
 intros.
@@ -363,7 +362,7 @@ f_equal.
 apply sepcon_comm.
 Qed.
 
-Lemma swap_mark0 {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma swap_mark0 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall i j Pi Pj,  (i<j)%nat -> mark i Pi * mark j Pj = mark j Pj * mark i Pi.
 Proof.
 intros.
@@ -402,7 +401,7 @@ Ltac prove_assoc_commut :=
      reflexivity
    end).
 
-Lemma test_prove_assoc_commut {T}{JA: Join T}{PA: Perm_alg T}{agA: ageable T}{AgeA: Age_alg T} : forall A B C D E : pred T,
+Lemma test_prove_assoc_commut {T}{JA: Join T}{PA: Perm_alg T}{SA: Sep_alg T}{agA: ageable T}{AgeA: Age_alg T} : forall A B C D E : pred T,
    D * E * A * C * B = A * B * C * D * E.
 Proof.
 intros.

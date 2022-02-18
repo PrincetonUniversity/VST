@@ -1030,9 +1030,11 @@ if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rew
 + (*unfold fundef in *; rewrite H1 in *.*)
 if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
 + rewrite ghost_of_core.
-unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
+unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core_eq; auto.
 Qed.
 
+(* This isn't true: we get a core of the external ghost state left over.
+   When would we use this, though?
 Lemma core_inflate_initial_mem':
 forall (ora : OK_ty) (m: mem) (prog: program) (G: funspecs) (n: nat)
  (INIT: Genv.init_mem prog = Some m),
@@ -1083,8 +1085,9 @@ if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rew
 + (*unfold fundef in *; rewrite H1 in *.*)
 if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
 + rewrite ghost_of_core.
-unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
-Qed.
+unfold inflate_initial_mem, initial_core_ext; rewrite !ghost_of_make_rmap, ghost_core_eq; auto.
+simpl; do 3 f_equal. unfold ext_ghost; f_equal. apply exist_ext. f_equal; intros. f_equal. Search ext_ghost.
+Qed.*)
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
 make_tycontext ((1%positive,(Tfunction Tnil Tvoid cc_default))::nil) nil nil Tvoid V G nil.
@@ -1381,8 +1384,7 @@ assert (FA: app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv
      ).
 apply funassert_initial_core; auto.
 revert FA.
-pose proof corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
-rewrite corable_spec in CO. apply CO.
+apply corable_core; [apply corable_funassert|].
 pose proof initial_mem_core as E.
 unfold juicy_mem_core in *. erewrite E; try reflexivity.
 Qed.
@@ -1396,9 +1398,8 @@ assert (FA: app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv
 (initial_world.initial_core_ext ora (Genv.globalenv prog) G n)
      ).
 apply funassert_initial_core_ext; auto.
-revert FA. 
-pose proof corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
-rewrite corable_spec in CO. apply CO.
+revert FA.
+apply corable_core; [apply corable_funassert|].
 pose proof initial_mem_core as E.
 unfold juicy_mem_core in *. erewrite E; try reflexivity.
 Qed.
@@ -1479,14 +1480,14 @@ spec H2.
   case_eq (w @ (loc,0)); intros.
   + assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
      - rewrite <- core_resource_at.
-       simpl; erewrite <- core_NO; f_equal; eassumption.
+       simpl resource_fmap; erewrite <- core_NO; f_equal; eassumption.
      - pose proof (necR_resource_at _ _ _ _ CORE H0).
        pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
        rewrite <- core_resource_at in H2; rewrite H6 in H2;
        rewrite core_PURE in H2; inv H2.
   + assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
     - rewrite <- core_resource_at.
-      simpl; erewrite <- core_YES; f_equal; eassumption.
+      simpl resource_fmap; erewrite <- core_YES; f_equal; eassumption.
     - pose proof (necR_resource_at _ _ _ _ CORE H0).
       pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
       rewrite <- core_resource_at in H2; rewrite H6 in H2;
@@ -1500,7 +1501,7 @@ spec H2.
     assert (core w @ (loc,0) =
         resource_fmap (approx (level (core w))) (approx (level (core w)))
          (PURE k p)).
-    - rewrite H1.  simpl. rewrite level_core; rewrite core_PURE; auto.
+    - rewrite H1.  simpl resource_fmap. rewrite level_core; rewrite core_PURE; auto.
     - pose proof (necR_resource_at _ _ _ _ CORE H2).
       assert (w' @ (loc,0) = resource_fmap
          (approx (level w')) (approx (level w')) (PURE k p)).
@@ -1706,7 +1707,7 @@ destruct H5 as [H5|H5].
  eapply sepcon_derives.
  apply derives_refl.
  instantiate (1:=emp); auto.
- rewrite sepcon_emp.
+ rewrite res_predicates.sepcon_emp.
  auto.
 }
  destruct (level jm) eqn:?H.
@@ -2034,7 +2035,7 @@ assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
  rewrite predicates_sl.sepcon_assoc.
  eapply predicates_sl.sepcon_derives.
  instantiate (1:=emp); intro; simpl; auto. apply predicates_hered.derives_refl.
- setoid_rewrite predicates_sl.emp_sepcon.
+ setoid_rewrite res_predicates.emp_sepcon.
 (* apply (alloc_juicy_variables_age H13 H20x) in AJV.*)
  destruct H18 as [H18a [_ H18c]]. subst params.
  assert (list_norepet (map fst (fn_params f))).

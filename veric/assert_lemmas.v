@@ -242,13 +242,19 @@ left. destruct H; eauto.
 right. destruct H0; eauto.
 Qed.
 
+Lemma corable_unfash:
+  forall (A : Type) (JA : Join A) (PA : Perm_alg A) (SA : Sep_alg A) (agA : ageable A) 
+    (AgeA : Age_alg A) (P : pred nat), corable (! P).
+Proof.
+  unfold corable; simpl; intros.
+  destruct H0 as [[? J] | [? J]]; apply join_level in J as []; congruence.
+Qed.
+
 Lemma corable_funspec_sub_si f g: corable (funspec_sub_si f g).
 Proof.
- intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
-+ rewrite later_unfash in H0|-*.
-    intros n ?. rewrite level_core in H1. apply (H0 _ H1).
-+ rewrite later_unfash in H0|-*.
-    intros n ?. rewrite <- level_core in H1. apply (H0 _ H1).
+ unfold funspec_sub_si; intros.
+ destruct f, g. apply corable_andp; [apply corable_prop|].
+ apply corable_later, corable_unfash.
 Qed.
 (*
 Lemma corable_funspec_sub_early f g: corable (funspec_sub_early f g).
@@ -260,13 +266,9 @@ Qed.
 *)
 Lemma corable_pureat: forall pp k loc, corable (pureat pp k loc).
 Proof.
- intros. intro w.
- unfold pureat.
-  simpl. rewrite <- core_resource_at.
-  destruct (w @ loc).
-  rewrite core_NO; apply prop_ext; split; intro Hx; inv Hx.
-  rewrite core_YES; apply prop_ext; split; intro Hx; inv Hx.
-  rewrite core_PURE; rewrite level_core; auto.
+ unfold corable, pureat; simpl; intros.
+ destruct H0 as [[? J] | [? J]]; destruct (join_level _ _ _ J) as [Hl _];
+   apply resource_at_join with (loc := loc) in J; rewrite H in J; inv J; rewrite Hl; auto.
 Qed.
 
 Lemma corable_func_at: forall f l, corable (func_at f l).

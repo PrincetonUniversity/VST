@@ -51,7 +51,7 @@ Definition thread_lock_inv sh g1 g2 ctr lockc lockt :=
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : share * gname * gname * globals
-  PRE [ (*_args OF*) (tptr tvoid) ]
+  PRE [ tptr tvoid ]
          let '(sh, g1, g2, gv) := x in
          PROP  (readable_share sh)
          PARAMS (y) GLOBALS (gv)

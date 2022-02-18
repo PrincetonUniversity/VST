@@ -1377,7 +1377,7 @@ pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
                                (readable_share_lub (writable0_readable writable0_Rsh))
                                (VAL (contents_at m' loc)) NoneP
                      else core (m_phi jm @ loc)).
-destruct (make_rmap f (core (ghost_of (m_phi jm))) (level jm)) as [mf [? [? Hg]]].
+destruct (make_rmap f nil (level jm)) as [mf [? [? Hg]]]; auto.
 unfold f, compose; clear f; extensionality loc.
 symmetry. if_tac.
 unfold resource_fmap. rewrite preds_fmap_NoneP.
@@ -1385,7 +1385,6 @@ reflexivity.
 generalize (resource_at_approx (m_phi jm) loc);
 destruct (m_phi jm @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; try reflexivity.
 auto.
-rewrite ghost_core; auto.
 
 unfold f in H5; clear f.
 exists mf; exists m2; split3; auto.
@@ -1413,10 +1412,10 @@ rewrite H4; simpl.
 rewrite writable0_lub_retainer_Rsh; auto.
 apply join_unit1_e in H; auto.
 rewrite H.
-unfold inflate_store; simpl.
+unfold inflate_store.
 rewrite resource_at_make_rmap.
 rewrite resource_at_approx.
-case_eq (m_phi jm @ loc); simpl; intros.
+case_eq (m_phi jm @ loc); intros.
 rewrite core_NO. constructor. apply join_unit1; auto.
 destruct k; try solve [rewrite core_YES; constructor; apply join_unit1; auto].
 rewrite core_YES.
@@ -1429,8 +1428,7 @@ rewrite core_PURE; constructor.
 rewrite Hg; simpl.
 unfold inflate_store; rewrite ghost_of_make_rmap.
 destruct H1 as [? [? Hid]].
-rewrite (Hid _ _ (ghost_of_join _ _ _ H)).
-apply core_unit.
+rewrite (Hid _ _ (ghost_of_join _ _ _ H)); constructor.
 
 unfold address_mapsto in *.
 destruct (load_store_similar' _ _ _ _ _ _ STORE ch' (eq_sym (decode_encode_val_size _ _ OK)))
@@ -1481,7 +1479,7 @@ do 3 red. rewrite H5.
 rewrite (decode_encode_val_size _ _ OK).
  rewrite if_false by auto.
 apply core_identity.
-simpl; rewrite Hg; apply core_identity.
+simpl; apply ghost_identity; auto.
 Qed.
 
 
@@ -1681,11 +1679,7 @@ rewrite level_store_juicy_mem. split; [apply age_level; auto|].
 simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
 apply age1_ghost_of, age_jm_phi; auto.
 split.
-2 : {
-      rewrite corable_funassert.
-      replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)).
-      rewrite <- corable_funassert.
-      eapply pred_hereditary; eauto. apply age_jm_phi; auto.
+2 : { eapply (corable_core _ (m_phi jm1)), pred_hereditary; eauto; [|apply age_jm_phi; auto].
       symmetry.
       forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))) as v.
       apply rmap_ext.
@@ -1693,11 +1687,11 @@ split.
       rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
       reflexivity.
       intro loc.
-      unfold store_juicy_mem.
-      simpl. rewrite <- core_resource_at. unfold inflate_store. simpl.
+      unfold store_juicy_mem. simpl.
+      rewrite <- core_resource_at. unfold inflate_store.
       rewrite resource_at_make_rmap. rewrite <- core_resource_at.
       case_eq (m_phi jm1 @ loc); intros; auto.
-      destruct k0; simpl; repeat rewrite core_YES; auto.
+      destruct k0; simpl resource_fmap; repeat rewrite core_YES; auto.
       simpl.
       rewrite !ghost_of_core.
       unfold inflate_store; rewrite ghost_of_make_rmap; auto.
@@ -1890,10 +1884,7 @@ simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
 apply age1_ghost_of, age_jm_phi; auto.
 split.
 2 : {
-      rewrite corable_funassert.
-      replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)).
-      rewrite <- corable_funassert.
-      eapply pred_hereditary; eauto. apply age_jm_phi; auto.
+      eapply (corable_core _ (m_phi jm1)), pred_hereditary; eauto; [|apply age_jm_phi; auto].
       symmetry.
       forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))) as v.
       apply rmap_ext.
@@ -1901,11 +1892,11 @@ split.
       rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
       reflexivity.
       intro loc.
-      unfold store_juicy_mem.
-      simpl. rewrite <- core_resource_at. unfold inflate_store. simpl.
+      unfold store_juicy_mem. simpl.
+      rewrite <- core_resource_at. unfold inflate_store.
       rewrite resource_at_make_rmap. rewrite <- core_resource_at.
       case_eq (m_phi jm1 @ loc); intros; auto.
-      destruct k0; simpl; repeat rewrite core_YES; auto.
+      destruct k0; simpl resource_fmap; repeat rewrite core_YES; auto.
       simpl.
       rewrite !ghost_of_core.
       unfold inflate_store; rewrite ghost_of_make_rmap; auto.

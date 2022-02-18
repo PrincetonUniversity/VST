@@ -43,7 +43,7 @@ Import Ctypes Clight expr.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
-Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
+Instance Cveric: ClassicalSep mpred := mkCS _ _ _ res_predicates.sepcon_emp.
 Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
 Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
 Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.

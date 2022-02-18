@@ -70,7 +70,7 @@ Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{
   intros; simpl. apply ewand_conflict; auto.
 Defined.
 
-Instance algClassicalSep (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}:
+Instance algClassicalSep (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{FlatT: Flat_alg T}{AgeT: Age_alg T}:
      @ClassicalSep (pred T) (algNatDed T)(algSepLog T).
  constructor; intros. simpl. apply predicates_sl.sepcon_emp.
 Qed.
@@ -78,7 +78,7 @@ Qed.
 Definition Triv := predicates_hered.pred nat.
 Instance TrivNatDed: NatDed Triv := algNatDed nat.
 Instance TrivSeplog: SepLog Triv := @algSepLog nat _ _ _ _ (asa_nat).
-Instance TrivClassical: ClassicalSep Triv := @algClassicalSep _ _ _ _ _ asa_nat.
+Instance TrivClassical: ClassicalSep Triv := @algClassicalSep _ _ _ _ _ _ asa_nat.
 Instance TrivIntuitionistic: IntuitionisticSep Triv.
  constructor. intros. hnf. constructor. hnf. intros. destruct H as [w1 [w2 [? [? _]]]].
  destruct H; subst; auto.

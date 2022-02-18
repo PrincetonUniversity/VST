@@ -380,7 +380,7 @@ Lemma jam_noat_splittable_aux:
            (rsh1: readable_share sh1) (rsh2: readable_share sh2)
            l
            (H: join sh1 sh2 sh3)
-           w (H0: allp (@jam _ _ _ _ _ _ (S' l) (S l) (Q l sh3) noat) w)
+           w (H0: allp (@jam _ _ _ _ _ _ _ (S' l) (S l) (Q l sh3) noat) w)
            f (Hf: resource_at f = fun loc => slice_resource (if S l loc then sh1 else Share.bot) (w @ loc))
            g (Hg: resource_at g = fun loc => slice_resource (if S l loc then sh2 else Share.bot) (w @ loc))
            (H1: join f g w),
@@ -433,7 +433,7 @@ Proof.
    apply YES_not_identity in H. contradiction.
 Qed.
 
-Definition splittable {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} (Q: Share.t -> pred A) := 
+Definition splittable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} (Q: Share.t -> pred A) := 
   forall (sh1 sh2 sh3: Share.t) (rsh1: readable_share sh1) (rsh2: readable_share sh2),
     join sh1 sh2 sh3 ->
     Q sh1 * Q sh2 = Q sh3.

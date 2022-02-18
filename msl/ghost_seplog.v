@@ -102,7 +102,8 @@ Proof.
   erewrite own_op by apply core_unit.
   eapply derives_trans; [apply own_valid_2|].
   apply prop_left; intros (a' & J & ?); apply prop_right.
-  apply core_identity in J; subst; auto.
+  assert (a = a') as ->; auto.
+  eapply join_eq; eauto; apply core_unit.
 Qed.
 
 Lemma own_sub: forall `{BupdSepLog} {RA: Ghost} g (a b: G) pp,

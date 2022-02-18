@@ -309,7 +309,7 @@ simpl in H.
 destruct (phi@loc); eauto 50.
 Qed.
 
-Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
+Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
              age phi1 phi1' -> age phi2 phi2' -> age phi3 phi3' ->
              join phi1 phi2 phi3 -> join phi1' phi2' phi3'.
 Proof.
@@ -319,7 +319,7 @@ unfold age in *.
 congruence.
 Qed.
 
-Lemma constructive_age1_join  {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall x y z x' : A,
+Lemma constructive_age1_join  {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall x y z x' : A,
        join x y z ->
        age x x' ->
        { yz' : A*A | join x' (fst yz') (snd yz') /\ age y (fst yz') /\ age z (snd yz')}.
@@ -342,7 +342,7 @@ unfold age in *.
 congruence.
 Qed.
 
-Lemma age1_constructive_joins_eq : forall {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}  {phi1 phi2},
+Lemma age1_constructive_joins_eq : forall {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}  {phi1 phi2},
   constructive_joins phi1 phi2
   -> forall {phi1'}, age1 phi1 = Some phi1'
   -> forall {phi2'}, age1 phi2 = Some phi2'

@@ -20,7 +20,7 @@ Require Import VST.msl.predicates_rec.
 
 Class StarOp A := {  starOp : A -> A -> A }.
 
-Instance baseStarOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{AgeA: Age_alg A}
+Instance baseStarOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}
  : StarOp (pred A) := {| starOp := sepcon |}.
 
 Instance funStarOp (B: Type)(A: Type)(StarA: StarOp A) : StarOp (B -> A) :=
@@ -47,7 +47,7 @@ Open Scope logic_derives.
 
 Class WandOp A := {  wandOp : A -> A -> A }.
 
-Instance baseWandOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{AgeA: Age_alg A}
+Instance baseWandOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}
  : WandOp (pred A) := {| wandOp := wand |}.
 
 Instance funWandOp (B: Type)(A: Type)(WandA: WandOp A) : WandOp (B -> A) :=
@@ -74,7 +74,7 @@ Variables (rmap : Type)
       (Canc_rmap: @Canc_alg rmap Join_rmap)
       (Disj_rmap: @Disj_alg rmap Join_rmap)
       (ag_rmap: ageable rmap)
-      (Age_rmap: @Age_alg rmap Join_rmap ag_rmap).
+      (Age_rmap: @Age_alg rmap Join_rmap ag_rmap Sep_rmap).
 Existing Instance  Join_rmap.
 Existing Instance  Perm_rmap.
 Existing Instance  Sep_rmap.

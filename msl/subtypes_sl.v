@@ -28,14 +28,11 @@ Proof.
   clear G H2.
   destruct H5 as [w1 [w2 [? [? ?]]]].
   exists w1; exists w2; split; auto.
+  destruct (join_level _ _ _ H2); auto.
   split.
   eapply H0; auto.
-  assert (level w1 = level a').
-  apply comparable_fashionR.  eapply join_sub_comparable; eauto.
  apply necR_level in H4. lia.
   eapply H1; auto.
-  assert (level w2 = level a').
-  apply comparable_fashionR. eapply join_sub_comparable; eauto.
  apply necR_level in H4. lia.
 Qed.
 
@@ -49,12 +46,10 @@ Proof.
   specialize (H0 _ H2); specialize (H1 _ H2); clear G H2; pose (H2:=True).
   eapply H0 in H8; try apply necR_refl.
   eapply H1; try apply necR_refl.
-  apply necR_level in H4. apply necR_level in H6. apply join_comparable in H7.
-  apply comparable_fashionR in H7. unfold fashionR in H7. lia.
+  apply necR_level in H4. apply necR_level in H6. apply join_level in H7 as []. lia.
   eapply H5; eauto.
   apply necR_level in H4. apply necR_level in H6.
-   apply join_comparable2 in H7.
-  apply comparable_fashionR in H7. unfold fashionR in H7. lia.
+  apply join_level in H7 as []. lia.
 Qed.
 
 Lemma find_superprecise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
@@ -83,16 +78,13 @@ Proof.
 intros.
 intros w' ? w'' ? [w1 [w2 [? [? ?]]]].
 destruct (nec_join4 _ _ _ _ H4 H3) as [w1' [w2' [? [? ?]]]].
+apply join_level in H7 as []; auto.
 exists w1; exists w2; repeat split; auto.
 eapply (H0 w1'); eauto.
 simpl in *.
 subst.
 replace (level w1') with (level w'); auto.
-symmetry; apply comparable_fashionR; eapply join_comparable; eauto.
-eapply (H1 w2'); eauto.
-replace (level w2') with (level w'); auto.
-symmetry. apply comparable_fashionR.
-eapply join_comparable; eauto.
+eapply (H1 w2'); eauto. lia.
 Qed.
 
 Lemma subp_refl'  {A} `{agA : ageable A} :  forall (Q: pred A) (st: nat), (Q >=> Q) st.
@@ -184,9 +176,7 @@ apply boxy_i; auto; intros.
 unfold unfash in *.
 simpl in H. destruct H.
 hnf in H0|-*.
-replace (level w') with (level w); auto.
-apply comparable_fashionR.
-eapply join_comparable; eauto.
+apply join_level in H as [<-]; auto.
 Qed.
 
 #[export] Hint Resolve extend_unfash : core.

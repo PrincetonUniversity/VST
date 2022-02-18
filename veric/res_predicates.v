@@ -358,7 +358,7 @@ Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
     + inv H0.
  Qed.
 
-Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred A) : B -> pred A :=
+Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred A) : B -> pred A :=
   fun (l: B) m => if S l then P l m else Q l m.
  Next Obligation.
     intros; intro; intros.
@@ -374,7 +374,7 @@ Proof.
     exact H.
 Qed.*)
 
-Lemma jam_true: forall A JA PA agA AgeA B (S': B -> Prop) S P Q loc, S' loc -> @jam A JA PA agA AgeA B S' S P Q loc = P loc.
+Lemma jam_true: forall A JA PA SA agA AgeA B (S': B -> Prop) S P Q loc, S' loc -> @jam A JA PA SA agA AgeA B S' S P Q loc = P loc.
 Proof.
 intros.
 apply pred_ext'.
@@ -382,7 +382,7 @@ extensionality m; unfold jam.
 simpl. rewrite if_true; auto.
 Qed.
 
-Lemma jam_false: forall A JA PA agA AgeA B (S': B -> Prop) S P Q loc, ~ S' loc -> @jam A JA PA agA AgeA B S' S P Q loc = Q loc.
+Lemma jam_false: forall A JA PA SA agA AgeA B (S': B -> Prop) S P Q loc, ~ S' loc -> @jam A JA PA SA agA AgeA B S' S P Q loc = Q loc.
 Proof.
 intros.
 apply pred_ext'.
@@ -393,7 +393,7 @@ Qed.
 Lemma boxy_jam:  forall (m: modality) A (S': A -> Prop) S P Q,
       (forall (x: A), boxy m (P x)) ->
       (forall x, boxy m (Q x)) ->
-      forall x, boxy m (@jam rmap _ _ _ _ A S' S P Q x).
+      forall x, boxy m (@jam rmap _ _ _ _ _ A S' S P Q x).
 Proof.
   intros.
    unfold boxy in *.
@@ -409,13 +409,13 @@ Qed.
 Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> pred rmap),
       (forall (x: A), boxy extendM (P x)) ->
       (forall x, boxy extendM (Q x)) ->
-      forall x, boxy extendM  (@jam _ _ _ _ _ _ S' S P Q x).
+      forall x, boxy extendM  (@jam _ _ _ _ _ _ _ S' S P Q x).
 Proof.
   apply boxy_jam; auto.
 Qed.
 
 Definition jam_vacuous:
-  forall A JA PA agA AgeA B S S' P Q, (forall x:B, ~ S x) -> @jam A JA PA agA AgeA B S S' P Q = Q.
+  forall A JA PA SA agA AgeA B S S' P Q, (forall x:B, ~ S x) -> @jam A JA PA SA agA AgeA B S S' P Q = Q.
 Proof.
 intros.
 extensionality l; apply pred_ext'; extensionality w.
@@ -459,8 +459,8 @@ Program Definition noghost : pred rmap := fun m => identity (ghost_of m).
 Next Obligation.
 Proof.
   intros ????.
-  rewrite (age1_ghost_of _ _ H), (identity_core H0), ghost_core; simpl.
-  rewrite <- (ghost_core nil); apply core_identity.
+  rewrite ghost_identity in *.
+  rewrite (age1_ghost_of _ _ H), H0; reflexivity.
 Defined.
 
 (* This is about split one segment into two segments. *)
@@ -510,7 +510,7 @@ Proof.
         rewrite identity_core by auto.
         apply core_duplicable.
       * destruct H6 as [_ ->], H8 as [_ ->].
-        destruct H4; apply identity_unit'; auto.
+        destruct H4. apply identity_self_join; auto.
     - split.
       intros l.
       destruct H4; specialize (H4 l).
@@ -554,8 +554,7 @@ Proof.
       rewrite if_false in H6 by firstorder.
       apply resource_at_join with (loc := b) in H4.
       apply H5 in H4; rewrite <- H4; auto.
-    - apply ghost_of_join in H4.
-      rewrite <- (Hg1 _ _ H4); auto.
+    - apply ghost_of_join, Hg1 in H4 as <-; auto.
 Qed.
 
 
@@ -659,7 +658,8 @@ Qed.
 
 (****** Specific specs  ****************)
 
-(* Memory predicates need to explicitly not capture any ghost state. *)
+(* Memory predicates need to explicitly not capture any ghost state,
+   at least until we add the extension order. *)
 Definition VALspec : spec :=
        fun (sh: Share.t) (l: address) =>
           allp (jam (eq_dec l)
@@ -936,7 +936,6 @@ do 3 red in H1. apply identity_unit' in H1. auto.
 apply join_comm, core_unit.
 *
 destruct H1 as [phi1 [phi2 [? ?]]].
-destruct (join_ex_identities w) as [e [? ?]].
 exists phi1; exists phi2.
 split; auto.
 split; auto.
@@ -944,7 +943,7 @@ unfold VALspec; split.
 intro l'.
 unfold jam in *.
 destruct H0 as [bl [[H0' ?] Hg]].
-specialize ( H0 l').
+specialize (H0 l').
 unfold jam in H0.
 hnf in H0|-*; if_tac.
 subst l'.
@@ -953,9 +952,9 @@ destruct H0.
 unfold yesat_raw in H0.
 destruct H2 as [H2 _].
 pose proof (equal_f H2 (adr_add l i)).
-unfold f in H5.
-rewrite if_true in H5.
-rewrite H0 in H5.
+unfold f in H3.
+rewrite if_true in H3.
+rewrite H0 in H3.
 exists (nth (Z.to_nat (snd (adr_add l i) - snd l)) bl Undef).
 exists x.
 unfold yesat_raw.
@@ -1402,12 +1401,7 @@ hnf in H, H0. if_tac in H.
   * apply (resource_at_join_sub _ _ l0) in H2.
     eapply join_sub_unit_for; eauto.
     apply identity_unit'; auto.
-+ destruct H as [H Hg], H0 as [H0 Hg0].
-  eapply same_identity; auto.
-  * destruct H1 as [? H1%ghost_of_join].
-    rewrite (Hg _ _ H1) in H1; eauto.
-  * destruct H2 as [? H2%ghost_of_join].
-    rewrite (Hg0 _ _ H2) in H2; eauto.
++ destruct H as [_ ?%ghost_identity], H0 as [_ ?%ghost_identity]; congruence.
 Qed.
 
 Lemma nonlock_permission_bytes_precise: forall sh p n,
@@ -1439,11 +1433,9 @@ Proof.
     * apply (resource_at_join_sub _ _ l) in H2.
       eapply join_sub_unit_for; eauto.
       apply identity_unit'; auto.
-  + eapply same_identity; auto.
-    * destruct H1 as [? H1%ghost_of_join].
-      rewrite (Hg _ _ H1) in H1; eauto.
-    * destruct H2 as [? H2%ghost_of_join].
-      rewrite (Hg0 _ _ H2) in H2; eauto.
+  + apply ghost_identity in Hg as ->.
+    apply ghost_identity in Hg0 as ->.
+    reflexivity.
 Qed.
 
 Lemma address_mapsto_precise: forall ch v sh l, precise (address_mapsto ch v sh l).
@@ -1474,12 +1466,9 @@ apply (resource_at_join_sub _ _ l0) in H1.
   * apply (resource_at_join_sub _ _ l0) in H2.
     eapply join_sub_unit_for; eauto.
     apply identity_unit'; auto.
--
- eapply same_identity; auto.
-    * destruct H1 as [? H1%ghost_of_join].
-      rewrite (Hg _ _ H1) in H1; eauto.
-    * destruct H2 as [? H2%ghost_of_join].
-      rewrite (Hg0 _ _ H2) in H2; eauto.
+- apply ghost_identity in Hg as ->.
+  apply ghost_identity in Hg0 as ->.
+  reflexivity.
 Qed.
 
 Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap :=
@@ -1517,7 +1506,6 @@ Proof.
  intros.
  apply pred_ext.
  - intros ? [? ?]. simpl in H.
-   do 3 red.
    apply all_resource_at_identity; auto.
    intro l. specialize (H l).
    rewrite if_false in H; auto.
@@ -1534,7 +1522,6 @@ Proof.
   intros.
   apply pred_ext.
   + intros ? [? ?]. simpl in H.
-    do 3 red.
     apply all_resource_at_identity; auto.
     intro l. specialize (H l).
     rewrite if_false in H; auto.
@@ -1542,7 +1529,7 @@ Proof.
   + intros ? ?. split. intro b. rewrite jam_false.
     do 3 red. apply resource_at_identity; auto.
     destruct a, b; intros [? ?]; simpl in *; lia.
-    apply ghost_of_identity; auto.
+   apply ghost_of_identity; auto.
 Qed.
 
 Lemma nonlock_permission_bytes_not_nonunit: forall sh p n,
@@ -1843,3 +1830,33 @@ Definition func_at' (f: funspec) (loc: address) : pred rmap :=
    | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
   end.
 *)
+
+(* Aside from its core, every rmap has a "second core" that is an
+   identity. Thus, we recover emp_sepcon even though we don't have
+   a Flat_alg. *)
+Lemma emp_sepcon : forall P, emp * P = P.
+Proof.
+  intros; apply pred_ext.
+  - intros ? (? & ? & J & Hemp & ?).
+    apply Hemp in J; subst; auto.
+  - intros ??.
+    exists (id_core a), a; repeat split; auto.
+    + apply id_core_unit.
+    + apply id_core_identity.
+Qed.
+
+Lemma sepcon_emp : forall P, P * emp = P.
+Proof.
+  intros; rewrite sepcon_comm; apply emp_sepcon.
+Qed.
+
+Lemma emp_ewand : forall P, ewand emp P = P.
+Proof.
+  intros; apply pred_ext.
+  - intros ? (? & ? & J & Hemp & ?).
+    apply Hemp in J; subst; auto.
+  - intros ??.
+    exists (id_core a), a; repeat split; auto.
+    + apply id_core_unit.
+    + apply id_core_identity.
+Qed.

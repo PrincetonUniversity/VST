@@ -387,14 +387,14 @@ spec H2.
   case_eq (w @ (loc,0)); intros.
   + assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
      - rewrite <- core_resource_at.
-       simpl; erewrite <- core_NO; f_equal; eassumption.
+       simpl; erewrite <- core_NO, H; reflexivity.
      - pose proof (necR_resource_at _ _ _ _ CORE H0).
        pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
        rewrite <- core_resource_at in H2; rewrite H6 in H2;
        rewrite core_PURE in H2; inv H2.
   + assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
     - rewrite <- core_resource_at.
-      simpl; erewrite <- core_YES; f_equal; eassumption.
+      simpl; erewrite <- core_YES, H; reflexivity.
     - pose proof (necR_resource_at _ _ _ _ CORE H0).
       pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
       rewrite <- core_resource_at in H2; rewrite H6 in H2;
@@ -408,7 +408,7 @@ spec H2.
     assert (core w @ (loc,0) =
         resource_fmap (approx (level (core w))) (approx (level (core w)))
          (PURE k p)).
-    - rewrite H1.  simpl. rewrite level_core; rewrite core_PURE; auto.
+    - rewrite H1.  simpl resource_fmap. rewrite level_core; rewrite core_PURE; auto.
     - pose proof (necR_resource_at _ _ _ _ CORE H2).
       assert (w' @ (loc,0) = resource_fmap
          (approx (level w')) (approx (level w')) (PURE k p)).
@@ -890,7 +890,7 @@ Proof.
  unfold blocks_of_env.
 match goal with |- ?A |-- _ =>
  replace A
-  with (fold_right (@sepcon _ _ _ _ _) emp
+  with (fold_right (@sepcon _ _ _ _ _ _) emp
             (map (fun idt : ident * type => var_block Share.top idt rho)
             (fn_vars f)))
 end.
@@ -1269,7 +1269,7 @@ Proof.
  apply free_juicy_mem_level.
  intros.
  repeat rewrite <- core_resource_at.
- simpl. unfold inflate_free; simpl;  rewrite resource_at_make_rmap.
+ simpl m_phi. unfold inflate_free. rewrite resource_at_make_rmap.
  destruct (m_phi jm @ l) eqn:?; auto.
  if_tac; rewrite !core_NO; auto.
  if_tac. rewrite core_YES, core_NO; auto. rewrite !core_YES; auto.
@@ -2055,7 +2055,7 @@ destruct (allocate phi
     (fun loc : address =>
       if adr_range_dec (b, 0) (n - 0) loc
       then YES Share.top readable_share_top (VAL Undef) NoneP
-      else core (phi @ loc)) (core (ghost_of phi2)))
+      else core (phi @ loc)) nil)
   as [phi3 [phi4  [? [? Hg']]]].
 * extensionality loc; unfold compose.
   if_tac. unfold resource_fmap. rewrite preds_fmap_NoneP. reflexivity.
@@ -2064,7 +2064,7 @@ destruct (allocate phi
   apply resource_at_approx.
 *
  intros.
- simpl; if_tac.
+ if_tac.
  exists (YES Share.top readable_share_top (VAL Undef) NoneP).
  destruct l as [b0 ofs]; destruct H2.
  subst; rewrite Hno; constructor.
@@ -2073,9 +2073,9 @@ destruct (allocate phi
  apply join_comm.
  apply core_unit.
 *
-rewrite ghost_core; auto.
+reflexivity.
 *
-rewrite <- Hg; eexists; apply join_comm, core_unit.
+eexists; constructor.
 *
 assert (phi4 = phi2). {
  apply rmap_ext. apply join_level in H2. destruct H2; lia.
@@ -2084,10 +2084,10 @@ assert (phi4 = phi2). {
  if_tac.
  inv H2; apply YES_ext; apply (join_top _ _ (join_comm RJ)).
  apply join_comm in H2.
- apply core_identity in H2. auto.
+ eapply join_eq; eauto; apply core_unit.
  apply ghost_of_join in H2.
- rewrite Hg' in H2.
- apply join_comm, core_identity in H2; congruence.
+ rewrite <- Hg, Hg' in H2.
+ inv H2; auto.
 }
 subst phi4.
 exists phi, phi3; split3; auto.
@@ -2116,7 +2116,7 @@ rewrite H3.
 rewrite Z.sub_0_r.
 rewrite if_false by auto.
 apply core_identity.
-simpl; rewrite Hg'; apply core_identity.
+apply ghost_identity; auto.
 Qed.
 
 Lemma juicy_mem_alloc_block:
@@ -2541,10 +2541,7 @@ apply guard_fallthrough_return; auto.
      eapply pred_nec_hereditary in H22b.
      2:{  apply laterR_necR. apply age_jm_phi in H24. apply age_laterR; eauto. }
      rewrite VR in H22b; clear - FL H22b. {
-      rewrite corable_funassert in H22b.
-      rewrite corable_funassert.
-      replace (core (m_phi jm2)) with (core (m_phi jm'')).
-      apply H22b.
+      eapply corable_core, H22b. apply corable_funassert.
       clear - FL.
       induction FL; auto.
       rewrite <-IHFL.

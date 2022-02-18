@@ -58,7 +58,6 @@ Proof.
 intros.
 rewrite denote_tc_assert_andp.
 apply boxy_andp; auto.
-apply extendM_refl.
 Qed.
 
 Lemma extend_tc_bool:
@@ -326,7 +325,6 @@ Proof.
 intros.
 rewrite denote_tc_assert_orp.
 apply boxy_orp; auto.
-apply extendM_refl.
 Qed.
 
 
@@ -358,7 +356,6 @@ Lemma extend_tc_andp':
 Proof.
 intros.
 apply boxy_andp; auto.
-apply extendM_refl.
 Qed.
 
 Ltac extend_tc_prover := 
@@ -609,7 +606,7 @@ Section CENV_SUB.
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n0).
   auto.
-  Qed.  
+  Qed.
 
 Ltac tc_expr_cenv_sub_tac := 
 repeat

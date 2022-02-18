@@ -348,7 +348,7 @@ Proof.
   eapply age_identity. apply E. auto.
 Qed.
 
-Lemma age_to_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} :
+Lemma age_to_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} :
   forall k x1 x2 x3,
     join x1 x2 x3 ->
     k <= level x3 ->
@@ -367,7 +367,7 @@ Proof.
   destruct (age_to_lt _ x1 l1) as [x1' [E1 ->]].
   destruct (age_to_lt _ x2 l2) as [x2' [E2 ->]].
   destruct (age_to_lt _ x3 l3) as [x3' [E3 ->]].
-  pose proof @age1_join_eq A _ _ _ _ _ _ _ J _ E1 _ E2 _ E3.
+  pose proof @age1_join_eq A _ _ _ _ _ _ _ _ J _ E1 _ E2 _ E3.
   pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E1.
   pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E2.
   pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E3.

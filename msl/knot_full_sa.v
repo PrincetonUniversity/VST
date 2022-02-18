@@ -83,16 +83,33 @@ Module Type KNOT_BASIC_LEMMAS.
 
 End KNOT_BASIC_LEMMAS.
 
+Module Type KNOT_ASSM.
+  Declare Module KI: KNOT_FULL_BASIC_INPUT.
+  Declare Module KSAI: KNOT_FULL_SA_INPUT with Module KI := KI.
+  Declare Module K: KNOT_BASIC with Module KI := KI.
+  Import MixVariantFunctor.
+  Import KI.
+  Import KSAI.
+  Import K.
+
+  Axiom approx_core : forall n (f : F predicate),
+    core(Sep_alg := Sep_F predicate) (fmap F (approx n) (approx n) f) = fmap F (approx n) (approx n) (core(Sep_alg := Sep_F predicate) f).
+
+End KNOT_ASSM.
+
+
 Module Type KNOT_FULL_SA.
   Declare Module KI: KNOT_FULL_BASIC_INPUT.
   Declare Module KSAI: KNOT_FULL_SA_INPUT with Module KI := KI.
   Declare Module K: KNOT_BASIC with Module KI := KI.
   Declare Module KL: KNOT_BASIC_LEMMAS with Module K := K.
+  Declare Module KA: KNOT_ASSM with Module KI := KI with Module KSAI := KSAI with Module K := K.
 
   Import KI.
   Import KSAI.
   Import K.
   Import KL.
+  Import KA.
 
   Parameter Join_knot: Join knot.  Existing Instance Join_knot.
   Parameter Perm_knot : Perm_alg knot.  Existing Instance Perm_knot.
@@ -102,7 +119,7 @@ Module Type KNOT_FULL_SA.
   Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
     @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
   Instance Sep_nat_F : Sep_alg (nat * F predicate) :=
-    @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
+    @Sep_prod nat _ _ _ _ (Perm_F predicate) (fsep_sep (Sep_equiv _)) (Sep_F predicate).
 
   Axiom join_unsquash : forall x1 x2 x3 : knot,
     join x1 x2 x3 = join (unsquash x1) (unsquash x2) (unsquash x3).
@@ -115,16 +132,19 @@ End KNOT_FULL_SA.
 Module KnotFullSa
   (KSAI': KNOT_FULL_SA_INPUT)
   (K': KNOT_BASIC with Module KI:=KSAI'.KI)
-  (KL': KNOT_BASIC_LEMMAS with Module K:=K'):
+  (KL': KNOT_BASIC_LEMMAS with Module K:=K')
+  (KA': KNOT_ASSM with Module KI := KSAI'.KI with Module KSAI := KSAI' with Module K := K'):
   KNOT_FULL_SA with Module KI := KSAI'.KI
                with Module KSAI := KSAI'
                with Module K:=K'
-               with Module KL := KL'.
+               with Module KL := KL'
+               with Module KA := KA'.
 
   Module KI := KSAI'.KI.
   Module KSAI := KSAI'.
   Module K := K'.
   Module KL := KL'.
+  Module KA := KA'.
 
   Import MixVariantFunctor.
   Import MixVariantFunctorLemmas.
@@ -132,13 +152,14 @@ Module KnotFullSa
   Import KSAI.
   Import K.
   Import KL.
+  Import KA.
 
   Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
   Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
       @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
-  Instance Sep_nat_F: Sep_alg (nat * F predicate) :=
-      @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
+  Instance Sep_nat_F : Sep_alg (nat * F predicate) :=
+    @Sep_prod nat _ _ _ _ (Perm_F predicate) (fsep_sep (Sep_equiv _)) (Sep_F predicate).
 
   Lemma unsquash_squash_join_hom : join_hom (unsquash oo squash).
   Proof.
@@ -165,8 +186,15 @@ Module KnotFullSa
   Instance Perm_knot : Perm_alg knot :=
     Perm_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom.
 
+  Lemma core_unsquash_squash : forall b, core (unsquash (squash b)) = unsquash (squash (core b)).
+  Proof.
+    intros (?, ?); simpl; rewrite !unsquash_squash; simpl.
+    pose proof approx_core n _f.
+    setoid_rewrite approx_core. reflexivity.
+  Qed.
+
   Instance Sep_knot: Sep_alg knot :=
-    Sep_preimage _ _ _  unsquash squash squash_unsquash unsquash_squash_join_hom.
+    Sep_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom core_unsquash_squash.
 
   Lemma core_unsquash : forall x, core x = squash (core (unsquash x)).
   Proof.
@@ -360,13 +388,32 @@ Module KnotFullSa
     trivial.
   Qed.
 
-  Theorem asa_knot : @Age_alg knot _ K.ageable_knot.
+  Lemma age_core :
+    forall x y, age x y -> age (core x) (core y).
+  Proof.
+    intros x y.
+    unfold age; rewrite !knot_age1; simpl.
+    destruct (unsquash x) eqn: Hx; simpl.
+    destruct n; [discriminate|].
+    intros X; inv X; simpl.
+    rewrite !unsquash_squash; simpl.
+    rewrite approx_core.
+    f_equal; apply unsquash_inj.
+    rewrite !unsquash_squash, !fmap_app.
+    change (S n) with (1 + n).
+    rewrite <- (approx_approx1 1 n), <- (approx_approx2 1 n).
+    setoid_rewrite <- (approx_approx1 0 n).
+    reflexivity.
+  Qed.
+
+  Theorem asa_knot : @Age_alg knot _ K.ageable_knot _.
   Proof.
     constructor.
     exact age_join1.
     exact age_join2.
     exact unage_join1.
     exact unage_join2.
+    exact age_core.
   Qed.
 
 End KnotFullSa.

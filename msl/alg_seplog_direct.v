@@ -56,7 +56,7 @@ Instance algClassicalSep (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_
  constructor; intros. simpl. apply predicates_sa.sepcon_emp.
 Defined.
 
-Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}:
+Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{FT: Flat_alg T}:
          @CorableSepLog (pred T) (algNatDed T) (algSepLog T).
   apply mkCorableSepLog with (corable := corable_direct.corable); unfold algNatDed, algSepLog; simpl.
   + apply corable_prop.

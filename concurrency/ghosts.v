@@ -500,7 +500,7 @@ Section PVar.
 
 Global Program Instance nat_PCM: Ghost := { valid a := True; Join_G a b c := c = Nat.max a b }.
 Next Obligation.
-  exists (fun _ => O); auto; intros.
+  exists id; auto; intros.
   apply Nat.max_0_l.
 Defined.
 Next Obligation.

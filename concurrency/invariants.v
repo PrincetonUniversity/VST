@@ -8,7 +8,7 @@ Require Import VST.veric.bi.
 Require Import VST.msl.sepalg.
 Require Import List.
 
-Definition cored : mpred := own.cored.
+(*Definition cored : mpred := own.cored.
 
 Lemma cored_dup : forall P, P && cored |-- (P && cored) * (P && cored).
 Proof.
@@ -48,7 +48,7 @@ Qed.
 Lemma emp_cored : (emp |-- cored)%I.
 Proof.
   constructor; apply own.emp_cored.
-Qed.
+Qed.*)
 
 Lemma iter_sepcon_eq : forall A, @invariants.iter_sepcon A = @iter_sepcon mpred A _ _.
 Proof.
@@ -74,6 +74,29 @@ Qed.
 Section Invariants.
 
 Context {inv_names : invG}.
+
+Global Instance inv_persistent i P : Persistent (invariant i P).
+Proof.
+  unfold Persistent, invariant.
+  constructor.
+  intros ? (g & ?).
+
+  (* need to prove that the snap is present in the core,
+     which is currently not true *)
+Abort.
+
+Global Instance inv_affine i P : Affine (invariant i P).
+Proof.
+  unfold Affine, invariant.
+  constructor.
+  intros ? (g & ?).
+  (* this isn't true *)
+Abort.
+(* Even if we could prove that inv is persistent, it still wouldn't
+   be intuitionistic (which is what Iris needs for its contexts),
+   because our emp distinguishes between presence and absence of
+   duplicable ghost state. Not sure we can change emp to fix that,
+   but maybe we can. *)
 
 Lemma invariant_dup : forall i P, invariant i P = invariant i P * invariant i P.
 Proof.

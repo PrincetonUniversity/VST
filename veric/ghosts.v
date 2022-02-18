@@ -64,8 +64,7 @@ Global Program Instance pos_PCM (P : Ghost) : Ghost := { G := option (share * G)
   | Some (sh, a), None, Some c' | None, Some (sh, a), Some c' => c' = (sh, a)
   | None, None, None => True
   | _, _, _ => False
-  end(*;
-  core2 a := None*) }.
+  end }.
 Next Obligation.
 repeat split; intros; intro X; decompose [and] X; congruence.
 Qed.
@@ -79,6 +78,7 @@ Next Obligation.
 repeat split; intros; intro X; decompose [and] X; congruence.
 Qed.
 Next Obligation.
+apply fsep_sep.
 exists (fun _ => None); auto.
 intros [[]|]; constructor.
 Defined.
@@ -121,17 +121,13 @@ Local Obligation Tactic := idtac.
 Global Program Instance ref_PCM (P : Ghost) : Ghost :=
 { valid a := valid (fst a) /\ match snd a with Some r => completable (fst a) r | None => True end;
   Join_G a b c := @Join_G (pos_PCM P) (fst a) (fst b) (fst c) /\
-    @psepalg.Join_lower _ (psepalg.Join_discrete _) (snd a) (snd b) (snd c)(*;
-  core2 a := (None, None)*) }.
+    @psepalg.Join_lower _ (psepalg.Join_discrete _) (snd a) (snd b) (snd c) }.
 Next Obligation.
-  intros P; apply sepalg_generators.Sep_prod.
-  + apply @Sep_G.
-  + apply psepalg.Sep_option.
+  intros P; apply sepalg_generators.Sep_prod; try apply _.
+  apply fsep_sep, _.
 Defined.
 Next Obligation.
-  intros P; apply sepalg_generators.Perm_prod.
-  + apply @Perm_G.
-  + apply psepalg.Perm_option.
+  intros P; apply sepalg_generators.Perm_prod; typeclasses eauto.
 Qed.
 (*Next Obligation.
   intros; hnf.
@@ -156,7 +152,7 @@ Qed.
 End Reference.
 
 Program Instance exclusive_PCM A : Ghost :=
-  { valid a := True; Join_G := Join_lower (Join_discrete A)(*; core2 a := None*) }.
+  { valid a := True; Join_G := Join_lower (Join_discrete A) }.
 (*Next Obligation.
 Proof.
   eexists; constructor.
@@ -263,14 +259,19 @@ Next Obligation.
     rewrite eq_dec_refl.
     if_tac; [apply core_unit | split; auto].
     rewrite join_ord_eq; eexists; apply core_unit.
-  + destruct a, b, c; f_equal.
-    inv H; simpl in *.
-    destruct (eq_dec t Share.bot); [|destruct H1; subst; auto].
-    subst; apply bot_identity in H0; subst.
-    destruct (eq_dec t1 Share.bot); [|destruct H1; subst; auto].
-    * eapply join_core; eauto.
-    * apply join_ord_eq in H; destruct H.
-      eapply join_core; eauto.
+  + destruct a, c, H as [? Hj]; eexists (_, _). split; simpl.
+    * apply join_bot_eq.
+    * if_tac; [|contradiction].
+      simpl in H0.
+      assert (join_sub g g0) as [].
+      { if_tac in Hj. if_tac in Hj.
+        eexists; eauto.
+        destruct Hj; simpl in *; subst.
+        apply join_ord_eq; auto.
+        destruct Hj; simpl in *; subst.
+        apply join_sub_refl. }
+      eapply core_sub_join, join_core_sub; eassumption.
+  + destruct a. rewrite core_idem; reflexivity.
 Defined.
 Next Obligation.
   constructor.
@@ -391,7 +392,7 @@ Corollary snaps_master_join : forall lv sh v2 p, sh <> Share.bot ->
   !!(Forall (fun v1 => ord v1 v2) lv) && ghost_master sh v2 p)%pred.
 Proof.
   induction lv; simpl; intros.
-  - rewrite emp_sepcon, prop_true_andp; auto.
+  - rewrite res_predicates.emp_sepcon, prop_true_andp; auto.
   - rewrite sepcon_comm, <-sepcon_assoc, (sepcon_comm (ghost_master _ _ _)), snap_master_join; auto.
     apply pred_ext.
     + rewrite sepcon_andp_prop1; apply prop_andp_left; intro.

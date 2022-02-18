@@ -127,12 +127,27 @@ Proof.
   Exists n; entailer!.
 Qed.
 
+(* remove *)
+Require Import iris.bi.lib.atomic.
+
+(* this is missing -- unprovable? *)
+Instance inv_persistent {inv_names : invG} i R : Persistent (invariant i R).
+Proof.
+Admitted.
+
+Instance inv_affine {inv_names : invG} i R : Affine (invariant i R).
+Proof.
+Admitted.
+
 (* prove a lemma about our specific use pattern of incr *)
 Lemma incr_inv_shift : forall {inv_names : invG} i g g1 g2 gv, (gv = g1 \/ gv = g2) ->
   invariant i (cptr_inv g g1 g2) * ghost_var gsh2 0%nat gv |--
   atomic_shift (λ n : nat, public_half g n) ∅ ⊤
       (λ (n : nat) (_ : ()), fold_right_sepcon [public_half g (n + 1)%nat]) (λ _ : (), ghost_var gsh2 1%nat gv).
 Proof.
+  intros.
+  iIntros "[#inv g]".
+  iAuIntro.
   intros; apply inv_atomic_shift; auto.
   { apply empty_subseteq. }
   unfold cptr_inv; iIntros "c".

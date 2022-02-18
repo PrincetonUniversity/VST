@@ -417,7 +417,7 @@ Lemma bupd_unfash: forall P, bupd (! P) |-- ! P.
 Proof.
   repeat intro; simpl in *.
   destruct (H (core (ghost_of a))) as (? & ? & ? & <- & ? & ? & ?); auto.
-  rewrite ghost_core; eexists; constructor.
+  rewrite <- ghost_of_approx at 1; eexists; apply ghost_fmap_join, join_comm, core_unit.
 Qed.
 
 Lemma bupd_andp_unfash: forall P Q, bupd (!P && Q) = !P && bupd Q.

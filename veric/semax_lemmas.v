@@ -432,7 +432,7 @@ destruct H4.
 destruct H6 as [w2 [w3 [? [? [HQ ?]]]]].
 destruct (age1 w2) as [w2' | ] eqn:?.
 *
-destruct (@age1_join _ _ _ _ _ _ _ _ H6 Heqo)
+destruct (@age1_join _ _ _ _ _ _ _ _ _ H6 Heqo)
   as [w3' [w1' [? [? ?]]]].
 hnf in H8.
 specialize (H8 _ (age_laterR H10)).
@@ -519,6 +519,8 @@ Definition all_assertions_computable  :=
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
 *)
+
+Global Existing Instance FSep_rmap.
 
 Lemma ewand_TT_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
     ewand TT emp = emp.
@@ -854,7 +856,7 @@ Proof.
   intros. rewrite andp_comm. apply FF_and.
 Qed.
 
-Lemma sepcon_FF : forall {A}{JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A} (P:pred A),
+Lemma sepcon_FF : forall {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P:pred A),
   (P * FF = FF)%pred.
 Proof.
   intros. rewrite sepcon_comm. apply FF_sepcon.
@@ -1661,4 +1663,4 @@ Lemma jm_bupd_local_step
 Proof.
 intros.
 destruct (age1 m) as [m' | ] eqn:?H.
-Abort.  
+Abort.

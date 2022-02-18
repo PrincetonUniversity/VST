@@ -318,7 +318,7 @@ Proof. constructor.
   eapply join_positivity; eauto.
 Qed.
 
-Instance Sep_combiner: Sep_alg combiner.
+Instance Sep_combiner: FSep_alg combiner.
 Proof.
   apply mkSep with (fun _ => CEmpty).
   intros. hnf.  destruct t; auto.
@@ -487,7 +487,7 @@ Section ParameterizedCombiner.
   Defined.
 
 
-  Instance Sep_fcombiner (A: Type): Sep_alg (fcombiner A).
+  Instance Sep_fcombiner (A: Type): FSep_alg (fcombiner A).
   Proof. apply Sep_combiner; auto.
   Defined.
 

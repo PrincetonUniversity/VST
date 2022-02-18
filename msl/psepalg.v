@@ -241,7 +241,7 @@ Section SA_LOWER.
     inv H; inv H0; auto. f_equal. apply (join_positivity H1 H4).
  Qed.
 
- Instance Sep_lower: @Sep_alg _ Join_lower.
+ Instance Sep_lower: @FSep_alg _ Join_lower.
  Proof. apply mkSep with (fun _ => None); intros.
    constructor. reflexivity.
  Defined.
@@ -324,7 +324,7 @@ Section SA_SMASH.
 
   Definition smashed : Type := option (lifted J_T).
   Definition Perm_smash :  Perm_alg smashed  := Perm_lower (lifted J_T). 
-  Definition Sep_smash : Sep_alg smashed := Sep_lower (lifted J_T).
+  Definition Sep_smash : FSep_alg smashed := Sep_lower (lifted J_T).
 
   Lemma smash_inv: forall a b c : smashed,
     join a b c ->
@@ -351,7 +351,7 @@ Proof. intros; apply None_identity. Qed.
 
  Instance Perm_option (T : Type)  : @Perm_alg (option T) (@Join_lower T (@Join_discrete T)) :=
     @Perm_lower T  (@Join_discrete T) (Perm_discrete T).
- Instance Sep_option (T: Type) : @Sep_alg (option T) (@Join_lower T (@Join_discrete T)) :=
+ Instance Sep_option (T: Type) : @FSep_alg (option T) (@Join_lower T (@Join_discrete T)) :=
     @Sep_lower T  (@Join_discrete T) .
 
 (** Often, once we have a Pos_alg, we want to product it with regular
@@ -429,7 +429,7 @@ Section FinitePartialMap.
     Perm_prop (A -> Rng) _ _ finMap finMap_join.
 
   Lemma finMap_core  x: finMap x -> 
-        finMap (@core _ _ (Sep_fun A (option B) Join_Rng _ ) x).
+        finMap (@core _ _ (Sep_fun A (option B) Join_Rng (Perm_lower _) (fsep_sep _)) x).
   Proof. intros. exists nil; intros; reflexivity. Qed.
 
   Definition empty_fpm : fpm.
@@ -437,9 +437,9 @@ Section FinitePartialMap.
     exists nil; auto.
   Defined.
 
-  Instance Sep_fpm : @Sep_alg fpm Join_fpm.
+  Instance Sep_fpm : @FSep_alg fpm Join_fpm.
   Proof. 
-    apply mkSep with (core := fun _ => empty_fpm).
+    apply mkSep with (fun _ => empty_fpm).
      intros. intro a. simpl. constructor. auto.
    Defined.
 

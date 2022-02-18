@@ -40,7 +40,7 @@ Proof. intros.
   repeat rewrite level_make_rmap. auto.
   repeat rewrite level_make_rmap. auto.
  intro;   repeat rewrite resource_at_make_rmap. unfold compose.
- destruct (S_dec (fst loc)); simpl.
+ destruct (S_dec (fst loc)).
   try rewrite if_false by tauto. apply join_comm; apply core_unit.
   rewrite if_true by tauto; apply core_unit.
   rewrite !ghost_of_make_rmap.
@@ -1108,7 +1108,8 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   unfold phi in *; clear phi.
   eapply init_data_lem; try eassumption.
   apply ghost_of_join in H7.
-  simpl; eapply split_identity; eauto.
+  apply ghost_identity in Hgw; rewrite Hgw in H7.
+  apply ghost_identity; inv H7; auto.
   clear - AL. apply andb_true_iff in AL. destruct AL; auto.
   pose proof (init_data_list_size_pos dl'); lia.
   pose proof (init_data_list_size_pos dl); lia.
@@ -1159,7 +1160,8 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
  contradict H12. destruct H12; split; auto.
   pose proof (init_data_size_pos a); lia.
   apply ghost_of_join, join_comm in H7.
-  simpl; eapply split_identity; eauto.
+  apply ghost_identity in Hgw; rewrite Hgw in H7.
+  apply ghost_identity; inv H7; auto.
  clear.
   induction dl'; simpl; intros; try lia.
 Qed.
@@ -2036,7 +2038,7 @@ Proof.
       destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
     destruct HACK as (? & <- & _).
     unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
-    rewrite <- (ghost_core nil); apply core_identity.
+    apply ghost_identity; auto.
   + simpl in H0.
     revert H0; case_eq (alloc_globals_rev gev empty vl); intros; try congruence.
     spec IHvl. clear - AL. simpl in AL. destruct a. destruct g; auto. simpl in AL.
@@ -2138,7 +2140,7 @@ rewrite Pos_to_nat_eq_S.
   assert (identity (ghost_of phi)) as Hg.
   { destruct HACK as (? & <- & _).
     unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
-    rewrite <- (ghost_core nil); apply core_identity. }
+    apply ghost_identity; auto. }
   pose proof (join_comm (join_upto_beyond_block (nextblock m0) phi Hg)).
   do 2 econstructor; split3; [ eassumption | |].
   unfold globvar2pred.
@@ -2190,7 +2192,7 @@ rewrite Pos_to_nat_eq_S.
 pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n)
      H3 H5 H8 H9) .
  spec H7.
- { unfold initial_core; simpl; rewrite ghost_of_make_rmap, <- (ghost_core nil); apply core_identity. }
+ { unfold initial_core; simpl; rewrite ghost_of_make_rmap; apply ghost_identity; auto. }
  spec H7.
  clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
  apply andb_true_iff in H. destruct H. apply Zlt_is_lt_bool; auto.

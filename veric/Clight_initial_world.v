@@ -370,6 +370,7 @@ rewrite <- core_resource_at.
 rewrite resource_at_make_rmap.
 unfold initial_core'.
 simpl in *.
+change fcore with (@core _ _ (fsep_sep Sep_resource)).
 if_tac; [ | rewrite core_NO; auto].
 case_eq (@Genv.invert_symbol (Ctypes.fundef function) type
        (@Genv.globalenv (Ctypes.fundef function) type prog) b);
@@ -550,6 +551,7 @@ rewrite <- core_resource_at.
 rewrite resource_at_make_rmap.
 unfold initial_core'.
 simpl in *.
+change fcore with (@core _ _ (fsep_sep Sep_resource)).
 if_tac; [ | rewrite core_NO; auto].
 case_eq (@Genv.invert_symbol (Ctypes.fundef function) type (@Genv.globalenv (Ctypes.fundef function) type prog) b);
    intros;  try now (rewrite core_NO; auto).
@@ -696,6 +698,7 @@ Proof.
     rewrite !resource_at_make_rmap.
     unfold inflate_initial_mem'.
     rewrite !resource_at_make_rmap.
+    change fcore with (@core _ _ (fsep_sep Sep_resource)).
     apply join_comm, core_unit.
   - unfold set_ghost; rewrite ghost_of_make_rmap.
     simpl.
@@ -843,13 +846,13 @@ Proof.
    exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
              (approx n' oo approx n) ftor).
   rewrite (approx_min n' n) in *.
-  exists emp. rewrite !emp_sepcon.
+  exists emp. rewrite !res_predicates.emp_sepcon.
   destruct H4.
   split. auto.
   intro rho.
   pose proof (equal_f HQ rho). simpl in H5.
   intros phi' Hphi'.
-  rewrite emp_sepcon.
+  rewrite res_predicates.emp_sepcon.
   intros phi'' Hphi''.
   intros [_ ?].
   rewrite (approx_min n n') in *.
@@ -928,13 +931,13 @@ Proof.
    exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
              (approx n' oo approx n) ftor).
   rewrite (approx_min n' n) in *.
-  exists emp. rewrite !emp_sepcon.
+  exists emp. rewrite !res_predicates.emp_sepcon.
   destruct H4.
   split. auto.
   intro rho.
   pose proof (equal_f HQ rho). simpl in H5.
   intros phi' Hphi'.
-  rewrite emp_sepcon.
+  rewrite res_predicates.emp_sepcon.
   intros phi'' Hphi''.
   intros [_ ?].
   rewrite (approx_min n n') in *.

@@ -877,7 +877,8 @@ variables [globals].
 For now, the specification of the spawned function has to be exactly
 of the form that you can see below (inside the "match ...").
 Cao Qinxiang is working on a notion of sub-specification that might
-enable us to have smoother specifications.
+enable us to have smoother specifications. (Now that Lennart has added
+this, can we make it better? -WM)
 
 The postcondition might not be emp, so we have potential memory leaks
 when a thread exists (those maps are still handled by the concurrent
@@ -913,7 +914,7 @@ Definition spawn_pre :=
                PROP ()
                (*(LOCALx (temp _y y :: gvars (gv x) :: nil)*) PARAMS (y) GLOBALS (gv x)
                (SEP   (pre x y)) (*)*)
-             POST [tptr tvoid]
+             POST [tptr tvoid] (* should be tvoid, since no one sees its return value *)
                PROP  ()
                LOCAL ()
                SEP   ())
