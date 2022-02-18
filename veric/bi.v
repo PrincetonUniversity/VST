@@ -106,52 +106,6 @@ Proof.
   intros; rewrite wand_nonexpansive_l wand_nonexpansive_r; reflexivity.
 Qed.
 
-(*Program Definition persistently (P : mpred) : mpred := fun w => P (ghost_core2 w).
-Next Obligation.
-Proof.
-  repeat intro.
-  eapply pred_hereditary; eauto.
-  apply age_ghost_core; auto.
-Qed.
-
-Lemma approx_persistently: forall P n, approx n (persistently P) = persistently (approx n P).
-Proof.
-  intros; apply predicates_hered.pred_ext; intros ??; simpl in *; intros.
-  - rewrite level_ghost_core; auto.
-  - rewrite -> level_ghost_core in *.
-    destruct H as ([] & ?); repeat (split; auto).
-Qed.
-
-Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistently Q.
-Proof.
-  intros.
-  change (predicates_hered.derives (persistently P) (persistently Q)).
-  change (predicates_hered.derives P Q) in H.
-  repeat intro.
-  apply H, H0; auto.
-Qed.
-
-Lemma persistently_persists : forall P, persistently P |-- persistently (persistently P).
-Proof.
-  intros.
-  change (predicates_hered.derives (persistently P) (persistently (persistently P))).
-  repeat intro; simpl in *.
-  rewrite -> ghost_core_idem in *.
-  apply H; eapply join_sub_trans; eauto.
-Qed.
-
-Lemma ghost_core_identity : forall w, identity w -> identity (ghost_core2 w).
-Proof.
-  intros.
-  apply resource_at_empty2.
-  - intros; rewrite resource_at_ghost_core.
-    apply resource_at_core_identity.
-  - rewrite ghost_of_ghost_core.
-    apply ghost_of_identity in H.
-    rewrite (identity_core H) R.ghost_core; simpl.
-    rewrite <- (R.ghost_core nil); apply core_identity.
-Qed.*)
-
 Program Definition persistently (P : mpred) : mpred := fun w => P (core w).
 Next Obligation.
 Proof.
@@ -167,17 +121,17 @@ Proof.
   - rewrite -> level_core in H; auto.
 Qed.
 
-Lemma persistently_derives: forall P Q, (P |-- Q) -> persistently P |-- persistently Q.
+Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistently Q.
 Proof.
   intros.
-  unseal_derives; intros ??; simpl in *.
+  unseal_derives; unfold persistently; intros ??.
   apply H; auto.
 Qed.
 
 Lemma persistently_persists : forall P, persistently P |-- persistently (persistently P).
 Proof.
   intros.
-  unseal_derives; intros ??; simpl in *.
+  unseal_derives; unfold persistently; intros ??; simpl.
   rewrite core_idem; auto.
 Qed.
 
@@ -247,7 +201,7 @@ Proof.
   - intros; apply persistently_persists.
   - unfold persistently.
     unseal_derives; intros ??; simpl.
-    apply core_identity.
+    rewrite <- identity_core; auto.
   - unfold persistently; intros.
     unseal_derives; intros ??; auto.
   - intros.
