@@ -1,7 +1,7 @@
 This is a library of list operations using Z as index, and a simple yet powerful solver.
 
 ## Installation
-This is a component of VST but can also be installed separately.
+This is a component of VST but can also be installed separately.  When used within VST does not need a separate opam install, but when used independently of vst then:
 ```
 opam install coq-vst-zlist
 ```
