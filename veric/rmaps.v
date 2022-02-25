@@ -656,6 +656,8 @@ Module Type RMAPS.
   Axiom Sep_rmap: Sep_alg rmap. Existing Instance Sep_rmap.
   Axiom ag_rmap: ageable rmap.  Existing Instance ag_rmap.
   Axiom Age_rmap: Age_alg rmap.  Existing Instance Age_rmap.
+  Axiom Ext_rmap: Ext_ord rmap.  Existing Instance Ext_rmap.
+  Axiom ExtA_rmap: Ext_alg rmap.  Existing Instance ExtA_rmap.
 
   Inductive preds : Type :=
     SomeP : forall A : TypeTree,
@@ -780,11 +782,14 @@ Module Type RMAPS.
 
   Program Definition approx (n:nat) (p: pred rmap) : pred rmap :=
     fun w => level w < n /\ p w.
-  Next Obligation. red; intros.
-  destruct H0.
+  Next Obligation. split. intros ??? [].
   split.
   apply age_level in H. lia.
   apply pred_hereditary with a; auto.
+
+  intros ??? [].
+  split; [apply ext_level in H as <-; auto|].
+  apply pred_upclosed with a; auto.
   Qed.
 
   Axiom squash_unsquash : forall phi, squash (unsquash phi) = phi.
@@ -800,8 +805,42 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   Module SM := StratModel(AV).
   Import SM.
 
-  Module TyF. (* <: TY_FUNCTOR_PROP. *)
+  Lemma ghost_fmap_join: forall {A B} (a b c : ghost A) f g, join a b c ->
+    join (ghost_fmap A B f g a) (ghost_fmap _ _ f g b) (ghost_fmap _ _ f g c).
+  Proof.
+    induction 1; constructor; auto.
+    inv H; constructor; auto.
+    destruct a0, a4, a5; inv H1; constructor; auto.
+    simpl in *; inv H2; constructor; auto.
+  Qed.
+
+  Existing Instance pa_gj.
+
+  Module TyF.
     Definition F := f_pre_rmap.
+
+    (* This is our extension order: it can be changed to anything with the properties
+       in this and the following module. *)
+    Definition Rel A (r1 r2 : f_pre_rmap A) := fst r1 = fst r2 /\ join_sub (snd r1) (snd r2).
+    Lemma Rel_fmap :
+      forall (A B : Type) (f1 : A -> B) (f2 : B -> A) (x y : F A),
+      Rel A x y -> Rel B (fmap F f1 f2 x) (fmap F f1 f2 y).
+    Proof.
+      intros ?????? []; split; simpl in *.
+      - extensionality. congruence.
+      - destruct H0. eexists; apply ghost_fmap_join; eauto.
+    Qed.
+    Lemma Rel_refl : forall (A : Type) (x : F A), Rel A x x.
+    Proof.
+      split; auto. apply join_sub_refl.
+    Qed.
+    Lemma Rel_trans :
+      forall (A : Type) (x y z : F A),
+      Rel A x y -> Rel A y z -> Rel A x z.
+    Proof.
+      intros ???? [] []; split; [congruence|].
+      eapply join_sub_trans; eauto.
+    Qed.
   End TyF.
 
   Module TyFSA <: KNOT_FULL_SA_INPUT with Module KI:=TyF.
@@ -812,6 +851,40 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     Definition Perm_F : forall A, Perm_alg (F A) := Perm_pre_rmap.
     Definition Sep_F := Sep_pre_rmap.
     Definition paf_F := paf_pre_rmap.
+
+    Lemma Rel_join_commut : forall {A} {x y z z' : F A}, join x y z ->
+      Rel A z z' -> exists x', Rel A x x' /\ join x' y z'.
+    Proof.
+      intros ? (rx, gx) (ry, gy) (rz, gz) (rz', gz') [? J] [? [g0 Jz]]; simpl in *; subst.
+      destruct (join_assoc (join_comm J) Jz) as (g' & ? & ?).
+      exists (rx, g'); repeat split; auto; simpl.
+      eexists; eauto.
+    Qed.
+
+    Lemma join_Rel_commut : forall {A} {x x' y' z' : F A}, Rel A x x' ->
+      join x' y' z' -> exists z, join x y' z /\ Rel A z z'.
+    Proof.
+      intros ? (rx, gx) (rx', gx') (ry', gy') (rz', gz') [? [g0 Jx]] [? J] ; simpl in *; subst.
+      destruct (join_assoc (join_comm Jx) J) as (g' & ? & ?).
+      exists (rz', g'); repeat split; auto; simpl.
+      eexists; eauto.
+    Qed.
+
+    Lemma id_exists : forall {A} (x : F A), exists e,
+      identity e /\ unit_for e x.
+    Proof.
+      intros ? (r, g).
+      exists (fun l => core (r l), nil); split.
+      - intros (?, ?) (?, ?) [Hr Hg]; f_equal; simpl in *.
+        + extensionality l. specialize (Hr l); simpl in Hr.
+          destruct (r l); inv Hr; auto;
+            eapply join_eq in H2; try apply bot_join_eq; subst;
+            f_equal; apply proof_irr.
+        + inv Hg; auto.
+      - split; [|constructor].
+        intros l; apply core_unit.
+    Qed.
+
   End TyFSA.
 
   Module K := Knot_MixVariantHeredProp(TyF).
@@ -841,11 +914,13 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   Module KSa := KnotFullSa(TyFSA)(K)(KL)(KA).
 
   Definition rmap := K.knot.
-  Instance Join_rmap: Join rmap := KSa.Join_knot.
+  Instance Join_rmap : Join rmap := KSa.Join_knot.
   Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
   Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot.
   Instance ag_rmap : ageable rmap := K.ageable_knot.
-  Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
+  Instance Age_rmap : Age_alg rmap := KSa.asa_knot.
+  Instance Ext_rmap : Ext_ord rmap := K.ext_knot.
+  Instance ExtA_rmap : Ext_alg rmap := KSa.ea_knot.
 
   Inductive preds : Type :=
     SomeP : forall A : TypeTree,
@@ -1285,12 +1360,14 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
 
   Program Definition approx (n:nat) (p: (pred rmap)) : (pred rmap) :=
     fun w => level w < n /\ p w.
-  Next Obligation. red; intros.
-  destruct H0.
+  Next Obligation. split. intros ??? [].
   split.
-  apply age_level in H.
-  simpl in *. lia.
+  apply age_level in H. lia.
   apply pred_hereditary with a; auto.
+
+  intros ??? [].
+  split; [apply ext_level in H as <-; auto|].
+  apply pred_upclosed with a; auto.
   Qed.
 
   Lemma approx_K_approx: approx = K.approx.

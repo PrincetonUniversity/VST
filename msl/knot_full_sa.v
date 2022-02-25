@@ -12,10 +12,23 @@ Require Import VST.msl.sepalg.
 Require Import VST.msl.sepalg_functors.
 Require Import VST.msl.sepalg_generators.
 Require Import VST.msl.age_sepalg.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.predicates_sl.
 Require Import VST.msl.knot_full_variant.
 
 Module Type KNOT_FULL_BASIC_INPUT.
-  Parameter F: MixVariantFunctor.functor.
+  Import MixVariantFunctor.
+  Parameter F: functor.
+
+  Parameter Rel : forall A, relation (F A).
+
+  Parameter Rel_fmap : forall A B (f1: A->B) (f2:B->A) x y,
+    Rel A x y ->
+    Rel B (fmap F f1 f2 x) (fmap F f1 f2 y).
+  Axiom Rel_refl : forall A x, Rel A x x.
+  Axiom Rel_trans : forall A x y z,
+    Rel A x y -> Rel A y z -> Rel A x z.
+
 End KNOT_FULL_BASIC_INPUT.
 
 Module Type KNOT_FULL_SA_INPUT.
@@ -27,6 +40,14 @@ Module Type KNOT_FULL_SA_INPUT.
   Parameter paf_F : pafunctor F Join_F.
   Parameter Perm_F: forall A, Perm_alg (F A).
   Parameter Sep_F: forall A, Sep_alg (F A).
+
+  Axiom Rel_join_commut : forall {A} {x y z z' : F A}, join x y z ->
+    Rel A z z' -> exists x', Rel A x x' /\ join x' y z'.
+  Axiom join_Rel_commut : forall {A} {x x' y' z' : F A}, Rel A x x' ->
+    join x' y' z' -> exists z, join x y' z /\ Rel A z z'.
+  Axiom id_exists : forall {A} (x : F A), exists e,
+    identity e /\ unit_for e x.
+
 End KNOT_FULL_SA_INPUT.
 
 Module Type KNOT_BASIC.
@@ -56,6 +77,12 @@ Module Type KNOT_BASIC.
 
   Axiom knot_level : forall k:knot,
     level k = fst (unsquash k).
+
+  Parameter ext_knot : Ext_ord knot.
+  Existing Instance ext_knot.
+
+  Axiom knot_order : forall k1 k2 : knot, ext_order k1 k2 <->
+    level k1 = level k2 /\ Rel predicate (snd (unsquash k1)) (snd (unsquash k2)).
 
 End KNOT_BASIC.
 
@@ -126,6 +153,8 @@ Module Type KNOT_FULL_SA.
   Axiom core_unsquash : forall x, core x = squash (core (unsquash x)).
 
   Axiom asa_knot : Age_alg knot.
+
+  Axiom ea_knot : Ext_alg knot.
 
 End KNOT_FULL_SA.
 
@@ -406,7 +435,7 @@ Module KnotFullSa
     reflexivity.
   Qed.
 
-  Theorem asa_knot : @Age_alg knot _ K.ageable_knot _.
+  Instance asa_knot : @Age_alg knot _ K.ageable_knot _.
   Proof.
     constructor.
     exact age_join1.
@@ -414,6 +443,71 @@ Module KnotFullSa
     exact unage_join1.
     exact unage_join2.
     exact age_core.
+  Qed.
+
+  Existing Instance Perm_F.
+  Existing Instance Sep_F.
+
+  Instance ea_knot : Ext_alg knot.
+  Proof.
+    constructor.
+    - intros. rewrite knot_order in H0.
+      destruct H0.
+      destruct (join_level _ _ _ H) as [Hl Hly].
+      destruct H as [? J].
+      eapply Rel_join_commut in H1 as (x' & ? & ?); eauto.
+      exists (squash (level z, x')).
+      rewrite knot_order; split.
+      + split. setoid_rewrite knot_level at 2; rewrite unsquash_squash; auto.
+        rewrite unsquash_squash; simpl.
+        destruct (unsquash x) eqn: Hx.
+        rewrite (unsquash_approx Hx).
+        rewrite <- Hl, knot_level, Hx.
+        apply Rel_fmap; auto.
+      + split; rewrite unsquash_squash; simpl. rewrite <- !knot_level; hnf; split; congruence.
+        destruct (unsquash y) eqn: Hy, (unsquash z') eqn: Hz'.
+        rewrite (unsquash_approx Hy), (unsquash_approx Hz').
+        symmetry in H0; rewrite knot_level, Hz' in H0.
+        rewrite knot_level, Hy in Hly.
+        simpl in *; subst. apply paf_join_hom; auto.
+        apply paf_F.
+    - intros.
+      rewrite knot_order in H.
+      destruct H.
+      destruct (join_level _ _ _ H0) as [Hl Hly].
+      destruct H0 as [? J].
+      eapply join_Rel_commut in H1 as (z & ? & ?); eauto.
+      exists (squash (level x, z)).
+      rewrite knot_order, unsquash_squash; simpl. split.
+      + split; rewrite unsquash_squash; simpl. rewrite <- !knot_level; hnf; split; congruence.
+        rewrite knot_level in H |- *.
+        destruct (unsquash x) eqn: Hx, (unsquash y') eqn: Hy'.
+        rewrite (unsquash_approx Hx), (unsquash_approx Hy').
+        rewrite knot_level, Hy' in Hly; simpl in *.
+        rewrite Hly, <- Hl, <- H.
+        apply paf_F; auto.
+      + split. rewrite knot_level, unsquash_squash; simpl; congruence.
+        destruct (unsquash z') eqn: Hz'.
+        rewrite (unsquash_approx Hz').
+        symmetry in Hl; rewrite knot_level, Hz' in Hl.
+        simpl in Hl; subst. rewrite H.
+        apply Rel_fmap; auto.
+    - intros. destruct (unsquash x) eqn: Hx.
+      destruct (id_exists _f) as (_f0 & ? & ?).
+      exists (squash (n, _f0)); split.
+      + intros ?? J.
+        apply unsquash_inj.
+        destruct J as [Jl J].
+        rewrite unsquash_squash in *; simpl in *.
+        destruct (unsquash a) eqn: Ha, (unsquash b) eqn: Hb; simpl in *.
+        destruct Jl; subst.
+        rewrite (unsquash_approx Ha) in J.
+        apply (paf_preserves_unmap_right paf_F) in J as (? & ? & J & ? & ?).
+        rewrite <- (unsquash_approx Ha) in *; subst.
+        apply H in J; subst; auto.
+      + split; rewrite unsquash_squash, Hx; simpl. split; auto.
+        rewrite (unsquash_approx Hx).
+        apply (paf_join_hom paf_F); auto.
   Qed.
 
 End KnotFullSa.

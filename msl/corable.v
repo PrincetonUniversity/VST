@@ -26,10 +26,10 @@ Proof.
 Qed.*)
 
 (* from Iris: "persistent and absorbing" *)
-Definition corable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}
+Definition corable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}
          (P: pred A) := forall w, P w -> forall w', (join_sub w w' \/ join_sub w' w) -> P w'.
 
-Lemma corable_core : forall {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} P w1 w2, corable P ->
+Lemma corable_core : forall {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A} P w1 w2, corable P ->
   core w1 = core w2 -> P w1 -> P w2.
 Proof.
   intros.
@@ -38,51 +38,54 @@ Proof.
   - left; rewrite H0; eexists; apply core_unit.
 Qed.
 
-Lemma corable_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall P Q, corable P -> corable Q -> corable (P && Q).
 Proof.
  unfold corable; intros; simpl.
  destruct H1; eauto.
 Qed.
-Lemma corable_orp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_orp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall P Q, corable P -> corable Q -> corable (P || Q).
 Proof.
  unfold corable; intros; simpl.
  destruct H1; eauto.
 Qed.
-Lemma corable_allp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_allp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall {B: Type} (P:  B -> pred A) ,
       (forall b, corable (P b)) -> corable (allp P).
 Proof.
  unfold corable; simpl; intros.
  eauto.
 Qed.
-Lemma corable_exp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_exp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall {B: Type} (P:  B -> pred A) ,
       (forall b, corable (P b)) -> corable (exp P).
 Proof.
  unfold corable; intros; simpl.
  destruct H0; eauto.
 Qed.
-Lemma corable_prop{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_prop{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall P, corable (prop P).
 Proof.
  unfold corable, prop; intros.
  simpl in *; auto.
 Qed.
 
-Lemma corable_imp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageable A}{AgeA: Age_alg A}:
+(*Lemma corable_imp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall P Q, corable P -> corable Q -> corable (P --> Q).
 Proof.
   unfold corable; simpl; intros.
   destruct H2 as [[? J] | [? J]].
   - eapply nec_join2 in J as (? & ? & ? & Hw & ?); eauto.
-    eapply H1 in Hw; eauto.
+    eapply ext_join_commut in H2 as (? & ? & ?); eauto.
+    eapply H1 in H2; eauto.
   - eapply nec_join in J as (? & ? & ? & ? & Hw); eauto.
-    eapply H1 in Hw; eauto.
-Qed.
+    eapply ext_join_commut in H2 as (? & ? & ?); eauto.
+    eapply H1 in H2; eauto.
 
-Lemma corable_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Qed.*)
+
+Lemma corable_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
   forall P Q, corable P -> corable Q -> corable (P * Q).
 Proof.
   unfold corable; simpl; intros.
@@ -101,7 +104,7 @@ Proof.
       * eauto.
 Qed.
 
-Lemma corable_wand: forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {XA: Age_alg A} (P Q: pred A), corable P -> corable Q -> corable (P -* Q).
+Lemma corable_wand: forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {XA: Age_alg A} {EO: Ext_ord A}{EA: Ext_alg A} (P Q: pred A), corable P -> corable Q -> corable (P -* Q).
 Proof.
   unfold corable; simpl; intros.
   destruct H2 as [[? J] | [? J]].
@@ -123,7 +126,7 @@ Proof.
       * right; eexists; apply core_unit.
 Qed.
 
-Lemma corable_later: forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {XA: Age_alg A} P, corable P -> corable (|> P).
+Lemma corable_later: forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {XA: Age_alg A} {EO: Ext_ord A}{EA: Ext_alg A} P, corable P -> corable (|> P).
 Proof.
   unfold corable; simpl; intros.
   destruct H1 as [[? J] | [? J]].
@@ -132,9 +135,9 @@ Proof.
 Qed.
 
 #[export] Hint Resolve corable_andp corable_orp corable_allp corable_exp
-                    corable_imp corable_prop corable_sepcon corable_wand corable_later : core.
+                    (*corable_imp*) corable_prop corable_sepcon corable_wand corable_later : core.
 
-Lemma corable_andp_sepcon1{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_andp_sepcon1{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
    forall P Q R, corable P ->  (P && Q) * R = P && (Q * R).
 Proof.
 intros.
@@ -148,19 +151,19 @@ split; eauto.
 Qed.
 
 (* The following 3 lemmas should not be necessary *)
-Lemma corable_andp_sepcon2{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_andp_sepcon2{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
    forall P Q R, corable P ->  (Q && P) * R = P && (Q * R).
 Proof.
 intros. rewrite andp_comm. apply corable_andp_sepcon1. auto.
 Qed.
 
-Lemma corable_sepcon_andp1 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_sepcon_andp1 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
    forall P Q R, corable P ->  Q  * (P && R) = P && (Q * R).
 Proof.
 intros. rewrite sepcon_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
 Qed.
 
-Lemma corable_sepcon_andp2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma corable_sepcon_andp2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
    forall P Q R, corable P ->  Q  * (R && P) = P && (Q * R).
 Proof.
 intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.

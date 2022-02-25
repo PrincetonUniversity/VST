@@ -164,62 +164,6 @@ Proof.
   apply assert_lemmas.corable_unfash.
 Qed.
 
-(* up *)
-Lemma eqp_unfash : forall G P Q, predicates_hered.derives G (P <=> Q)%pred ->
-  predicates_hered.derives G ((!P : mpred) <=> !Q)%pred.
-Proof.
-  intros.
-  eapply predicates_hered.derives_trans; [apply H|].
-  intros ????.
-  split; intros ???; eapply H0; eauto; apply necR_level in H2; simpl; unfold natLevel; lia.
-Qed.
-
-Lemma eqp_subp_subp : forall G (P Q R S : mpred),
-  predicates_hered.derives G (P <=> R)%pred -> predicates_hered.derives G (Q <=> S)%pred ->
-  predicates_hered.derives G ((P >=> Q) <=> (R >=> S))%pred.
-Proof.
-  intros.
-  change (subtypes.fash(NA := ag_nat)) with (fash(RecIndir := TrivRecIndir)); rewrite fash_triv.
-  apply predicates_hered.andp_right;
-    rewrite <- (predicates_hered.imp_andp_adjoint);
-    eapply subtypes.subp_trans, subtypes.subp_trans.
-  - apply predicates_hered.andp_left1, eqp_subp2, H.
-  - apply predicates_hered.andp_left2, predicates_hered.derives_refl.
-  - apply predicates_hered.andp_left1, subtypes.eqp_subp, H0.
-  - apply predicates_hered.andp_left1, subtypes.eqp_subp, H.
-  - apply predicates_hered.andp_left2, predicates_hered.derives_refl.
-  - apply predicates_hered.andp_left1, eqp_subp2, H0.
-Qed.
-
-Lemma eqp_trans : forall G (P Q R : mpred),
-  predicates_hered.derives G (P <=> Q)%pred -> predicates_hered.derives G (Q <=> R)%pred ->
-  predicates_hered.derives G (P <=> R)%pred.
-Proof.
-  intros.
-  eapply subp_eqp; eapply subtypes.subp_trans; eapply subtypes.eqp_subp.
-  - apply H.
-  - apply H0.
-  - rewrite eqp_comm; apply H0.
-  - rewrite eqp_comm; apply H.
-Qed.
-
-Lemma eqp_eqp : forall G (P Q R S : mpred),
-  predicates_hered.derives G (P <=> R)%pred -> predicates_hered.derives G (Q <=> S)%pred ->
-  predicates_hered.derives G ((P <=> Q) <=> (R <=> S))%pred.
-Proof.
-  intros.
-  change (subtypes.fash(NA := ag_nat)) with (fash(RecIndir := TrivRecIndir)); rewrite fash_triv.
-  apply predicates_hered.andp_right;
-    rewrite <- (predicates_hered.imp_andp_adjoint);
-    eapply eqp_trans, eqp_trans.
-  - apply predicates_hered.andp_left1; rewrite eqp_comm; apply H.
-  - apply predicates_hered.andp_left2, predicates_hered.derives_refl.
-  - apply predicates_hered.andp_left1, H0.
-  - apply predicates_hered.andp_left1, H.
-  - apply predicates_hered.andp_left2, predicates_hered.derives_refl.
-  - apply predicates_hered.andp_left1; rewrite eqp_comm; apply H0.
-Qed.
-
 Lemma exclusive_mpred_nonexpansive:
   nonexpansive weak_exclusive_mpred.
 Proof.

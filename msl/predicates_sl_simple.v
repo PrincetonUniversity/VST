@@ -11,25 +11,11 @@ Require Import VST.msl.age_sepalg.
 Require Import VST.msl.predicates_hered.
 Require Import VST.msl.cross_split.
 
-(* rules about ext_order, join, and core *)
-Class Ext_alg (A : Type) `{EO : Ext_ord A} {J : Join A} {SA : Sep_alg A} :=
-  { ext_join_commut : forall {x y z z'}, join x y z -> ext_order z z' ->
-      exists x', ext_order x x' /\ join x' y z';
-    join_ext_commut : forall {x x' y' z'}, ext_order x x' -> join x' y' z' ->
-      exists z, join x y' z /\ ext_order z z';
-    (* emp is implemented in terms of a minimum element, but we can
-       have different mins for different elements *)
-    id_exists : forall x, exists e, identity e /\ unit_for e x
-  }.
+Definition compareR {A} {JA: Join A}{SA: Sep_alg A}{AG: ageable A} : relation A
+   := comparable.
+Definition extendR  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} : relation A := join_sub.
 
-Section Predicates.
-
-Context {A : Type} {JA : Join A} {PA : Perm_alg A} {SA : Sep_alg A} {AG : ageable A} {XA : Age_alg A} {EO : Ext_ord A} {EA : Ext_alg A}.
-
-(*Definition compareR : relation A := comparable.
-Definition extendR : relation A := join_sub.
-
-Lemma valid_rel_compare {FA: Flat_alg A} : valid_rel compareR.
+Lemma valid_rel_compare {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A} : valid_rel compareR.
 Proof.
   split; hnf; intros.
 
@@ -49,7 +35,6 @@ Proof.
   apply common_unit_comparable.
   exists u; auto.
 
-  split; hnf; intros.
   apply comparable_common_unit in H.
   destruct H as [w [? ?]].
   destruct (unage_join2 _ H H0)
@@ -70,12 +55,9 @@ Proof.
   eapply join_eq; eauto.
   subst q.
   auto.
-
-  split; hnf; intros.
-  hnf in H.
 Qed.
 
-Lemma valid_rel_extend  : valid_rel extendR.
+Lemma valid_rel_extend {A}  {JA: Join A}{PA: Perm_alg A}{SA : Sep_alg A}{AG: ageable A}{XA: Age_alg A} : valid_rel extendR.
 Proof.
   intros; split; hnf; intros.
   destruct H0 as [w ?].
@@ -91,63 +73,45 @@ Proof.
   exists u; auto.
 Qed.
 
-Definition compareM  : modality
+Definition compareM {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A} : modality
   := exist _ compareR valid_rel_compare.
 Definition extendM {A}{JA: Join A}{PA: Perm_alg A}{SA : Sep_alg A}{AG: ageable A}{XA: Age_alg A} : modality
-  := exist _ extendR valid_rel_extend.*)
+  := exist _ extendR valid_rel_extend.
 
 (* Definitions of the BI connectives. *)
 Obligation Tactic := unfold hereditary; intros; try solve [intuition].
 
-(* This is the key point of the ordered logic: emp is true of anything
-   that's in the extension order with an identity.
-   In VeriC, this means the resources are cores but the ghost state
-   can be anything. *)
-Program Definition emp : pred A := fun w => exists e, identity e /\ ext_order e w.
+Program Definition emp {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : pred A := identity.
 Next Obligation.
-  split; intros.
-  - destruct H0 as (? & ? & ?).
-    eapply age_ext_commut in H1 as [?? Hage]; eauto.
-    apply age_identity in Hage; eauto.
-  - destruct H0 as (? & ? & ?).
-    do 2 eexists; eauto.
-    etransitivity; eauto.
+  repeat intro.
+  destruct (unage_join _ H1 H) as [a0' [b' [? [? ?]]]].
+  apply H0 in H2. subst b'. unfold age in H3, H4. congruence.
 Qed.
 
-Program Definition sepcon  (p q:pred A) : pred A := fun x:A =>
+Program Definition sepcon {A}  {JA: Join A}{PA: Perm_alg A}{SA : Sep_alg A}{AG: ageable A}{XA: Age_alg A} (p q:pred A) : pred A := fun x:A =>
   exists y:A, exists z:A, join y z x /\ p y /\ q z.
 Next Obligation.
-  split; intros.
-  destruct H0 as (y & z & J & ? & ?).
-  destruct (age1_join2 _ J H) as [y' [z' [? [? ?]]]].
-  do 3 eexists; eauto.
-  split; eapply pred_hereditary; eauto.
-
-  destruct H0 as (y & z & J & ? & ?).
-  eapply ext_join_commut in J as (? & ? & ?); eauto.
-  do 3 eexists; eauto; split; auto.
-  eapply pred_upclosed; eauto.
+  destruct H0 as [y [z [? [? ?]]]].
+  destruct (age1_join2 _ H0 H) as [w [v [? [? ?]]]].
+  exists w; exists v; split; auto.
+  split.
+  apply pred_hereditary with y; auto.
+  apply pred_hereditary with z; auto.
 Qed.
 
-Program Definition wand  (p q:pred A) : pred A := fun x =>
+Program Definition wand {A}  {JA: Join A}{PA: Perm_alg A}{SA : Sep_alg A}{AG: ageable A}{XA: Age_alg A} (p q:pred A) : pred A := fun x =>
   forall x' y z, necR x x' -> join x' y z -> p y -> q z.
 Next Obligation.
-  split; intros.
-  eapply (H0 x'); eauto.
+  apply H0 with x' y; auto.
   apply rt_trans with a'; auto.
   apply rt_step; auto.
-
-  eapply nec_ext_commut in H1 as []; eauto.
-  eapply join_ext_commut in H2 as (? & ? & ?); eauto.
-  eapply pred_upclosed; eauto.
-  eapply H0; eauto.
 Qed.
 
 Notation "P '*' Q" := (sepcon P Q) : pred.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : pred.
-(*Notation "'%' e"  := (box extendM e)(at level 30, right associativity): pred.*)
+Notation "'%' e"  := (box extendM e)(at level 30, right associativity): pred.
 
-(*Lemma extendM_refl : reflexive _ extendM.
+Lemma extendM_refl {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: reflexive _ extendM.
 Proof.
 intros; intro; simpl; apply join_sub_refl.
 Qed.
@@ -159,12 +123,12 @@ apply comparable_refl.
 Qed.
 
 #[export] Hint Resolve extendM_refl : core.
-#[export] Hint Resolve compareM_refl : core.*)
+#[export] Hint Resolve compareM_refl : core.
 
 
 (* Rules for the BI connectives *)
 
-Lemma wand_sepcon_adjoint  : forall (P Q R:pred A),
+Lemma wand_sepcon_adjoint {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P Q R:pred A),
   ((P * Q) |-- R) = (P |-- (Q -* R)).
 Proof.
   intros. apply prop_ext.
@@ -181,7 +145,7 @@ Proof.
   eapply H; eauto.
 Qed.
 
-Lemma sepcon_assoc  : forall (P Q R:pred A),
+Lemma sepcon_assoc {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P Q R:pred A),
   ((P * Q) * R = P * (Q * R))%pred.
 Proof.
   pose proof I.
@@ -200,7 +164,7 @@ Proof.
   exists x; exists z; intuition.
 Qed.
 
-Lemma sepcon_comm  : forall (P Q:pred A),
+Lemma sepcon_comm {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P Q:pred A),
   (P * Q = Q * P)%pred.
 Proof.
   pose proof I.
@@ -211,7 +175,7 @@ Proof.
   exists y; exists x; intuition; apply join_comm; auto.
 Qed.
 
-Lemma split_sepcon  : forall (P Q R S:pred A),
+Lemma split_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P Q R S:pred A),
   (P |-- Q) ->
   (R |-- S) ->
   (P * R) |-- (Q * S).
@@ -221,7 +185,7 @@ Proof.
   exists x; exists y; intuition.
 Qed.
 
-Lemma sepcon_cut  : forall (P Q R S:pred A),
+Lemma sepcon_cut {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P Q R S:pred A),
   (P |-- (Q -* R)) ->
   (S |-- Q) ->
   (P * S) |-- R.
@@ -233,26 +197,29 @@ Proof.
   eapply H; eauto.
 Qed.
 
-Lemma id_emp : forall w, identity w -> emp w.
+Lemma emp_emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} :
+  (emp * emp = emp)%pred.
 Proof.
-  intros; exists w; split; auto; reflexivity.
+  apply pred_ext; hnf; intros.
+  - destruct H as (? & ? & J & H & ?).
+    apply H in J; subst; auto.
+  - exists a, a; repeat split; auto.
+    apply identity_self_join; auto.
 Qed.
-#[local] Hint Resolve id_emp : core.
 
-Lemma emp_sepcon  : forall (P:pred A),
+Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P:pred A),
   (emp * P = P)%pred.
 Proof.
   intros; apply pred_ext; hnf; intros.
-  destruct H as [x [y [J [(? & Hid & ?) ?]]]].
-  eapply join_ext_commut in J as (? & J & ?); eauto.
-  eapply pred_upclosed; eauto.
-  apply Hid in J; subst; auto.
-
-  destruct (id_exists a) as (? & ? & ?).
-  do 3 eexists; eauto; split; auto.
+  destruct H as [x [y [? [? ?]]]].
+  simpl in H0.
+  replace a with y; auto.
+  destruct (join_ex_identities a) as [u [Hu [? Hj]]].
+  exists u; exists a. split; auto.
+  specialize (Hu _ _ Hj); subst; auto.
 Qed.
 
-Lemma sepcon_emp   : forall (P:pred A),
+Lemma sepcon_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A}  : forall (P:pred A),
   (P * emp = P)%pred.
 Proof.
   intros.
@@ -266,7 +233,7 @@ Lemma sepcon_emp : forall {A} `{Age_alg A} (P:pred A), P * emp = P.
 Proof. exact @sepcon_emp. Qed.
 *)
 	
-Lemma later_wand  : forall P Q,
+Lemma later_wand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall P Q,
   (|>(P -* Q) = |>P -* |>Q)%pred.
 Proof.
   pose proof I.
@@ -302,16 +269,16 @@ Proof.
 
   simpl; intros.
   simpl in H0.
-  destruct (valid_rel_nec) as (_ & H6 & _).
+  destruct (valid_rel_nec).
   destruct (H6 _ _ H2 _ H1).
-  destruct (unage_join _ H3 H5) as [w [v [? [? ?]]]].
+  destruct (unage_join _ H3 H7) as [w [v [? [? ?]]]].
   apply H0 with x w v; auto.
   intros.
   replace a'0 with y; auto.
   congruence.
 Qed.
 
-Lemma later_sepcon  : forall P Q,
+Lemma later_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall P Q,
   (|>(P * Q) = |>P * |>Q)%pred.
 Proof.
   pose (H:=True).
@@ -350,7 +317,7 @@ Proof.
   exists w'; exists v'; intuition.
 Qed.
 
-Lemma FF_sepcon : forall (P:pred A),
+Lemma FF_sepcon : forall {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P:pred A),
   (FF * P = FF)%pred.
 Proof.
   intros. apply pred_ext; repeat intro.
@@ -358,7 +325,7 @@ Proof.
   elim H.
 Qed.
 
-Lemma sepcon_derives :
+Lemma sepcon_derives {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall p q p' q', (p |-- p') -> (q |-- q') -> (p * q |-- p' * q').
 Proof.
 intros.
@@ -367,7 +334,7 @@ destruct H1 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; repeat split ;auto.
 Qed.
 
-Lemma exp_sepcon1 :
+Lemma exp_sepcon1 {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall T (P: T ->  pred A) Q,  (exp P * Q = exp (fun x => P x * Q))%pred.
 Proof.
 intros.
@@ -380,7 +347,7 @@ split; auto.
 exists x; auto.
 Qed.
 
-Lemma exp_sepcon2 :
+Lemma exp_sepcon2 {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall T (P: pred A) (Q: T -> pred A),  (P * exp Q = exp (fun x => P * Q x))%pred.
 Proof.
 intros.
@@ -393,7 +360,7 @@ split; auto.
 exists x; auto.
 Qed.
 
-(*Lemma extend_later : forall P, (%|>P = |>%P)%pred.
+Lemma extend_later {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: forall P, (%|>P = |>%P)%pred.
 Proof.
   intros; rewrite later_commute; auto.
 Qed.
@@ -402,9 +369,9 @@ Lemma extend_later' {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable 
 Proof.
 intros. unfold boxy in *. rewrite later_commute. rewrite H. auto.
 Qed.
-#[export] Hint Resolve extend_later' : core.*)
+#[export] Hint Resolve extend_later' : core.
 
-Lemma age_sepcon  :
+Lemma age_sepcon {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} :
       forall P Q, (box ageM (P * Q) = box ageM P * box ageM Q)%pred.
 Proof.
   pose proof I.
@@ -445,7 +412,7 @@ Proof.
 Qed.
 
 
-Lemma age_twin {FA:Flat_alg A} :
+Lemma age_twin {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall phi1 phi2 n phi1',
   comparable phi1 phi2 ->
   ageN n phi1 = Some phi1' ->
@@ -481,7 +448,7 @@ rewrite H2.
 trivial.
 Qed.
 
-Lemma ageN_different {FA: Flat_alg A} : forall n phi phi', ageN (S n) phi = Some phi' ->
+Lemma ageN_different {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A}: forall n phi phi', ageN (S n) phi = Some phi' ->
     ~ comparable phi phi'.
 Proof.
    intros.
@@ -505,7 +472,7 @@ Proof.
    unfold ageN in H9; simpl  in H9; rewrite H2 in H9; inv H9.
 Qed.
 
-Lemma necR_comparable {FA: Flat_alg A} :
+Lemma necR_comparable{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall w w', necR w w' -> comparable w w' -> w=w'.
 Proof.
 intros.
@@ -517,7 +484,7 @@ contradiction (ageN_different _ _ _ H); auto.
 Qed.
 
 
-Lemma sepcon_andp_prop :
+Lemma sepcon_andp_prop {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall P Q R, (P * (!!Q && R) = !!Q && (P * R))%pred.
 Proof.
 intros.
@@ -530,7 +497,7 @@ destruct H0 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; repeat split; auto.
 Qed.
 
-Lemma TT_sepcon_TT : (TT * TT = TT)%pred.
+Lemma TT_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: (TT * TT = TT)%pred.
 Proof.
 intros.
 apply pred_ext; intros w ?; auto.
@@ -539,32 +506,27 @@ exists x; exists w; split; auto.
 Qed.
 
 
-Lemma join_exactly {FA:Flat_alg A}:
+Lemma join_exactly {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall w1 w2 w3, join w1 w2 w3 ->  (exactly w1 * exactly w2 = exactly w3)%pred.
 Proof.
 pose proof I.
 intros.
 unfold exactly.
 apply pred_ext; intros w ?; simpl in *.
-destruct H1 as (? & ? & J & (? & ? & ?) & (w2' & ? & ?)).
-eapply join_ext_commut in J as (? & J & ?); eauto.
-eapply join_comm, join_ext_commut in J as (? & J & ?); eauto.
-destruct (nec_join H0 H1) as [a [b [J' [? ?]]]].
-assert (w2'=a); subst.
+destruct H1 as [? [? [? [? ?]]]].
+destruct (nec_join H0 H2) as [a [b [? [? ?]]]].
+assert (x0=a).
  eapply necR_linear'; eauto.
- repeat match goal with H : ext_order _ _ |- _ => apply ext_level in H
-                      | H : join _ _ _ |- _ => apply join_level in H as [] end; lia.
-eapply join_comm, join_eq in J; eauto; subst.
-do 2 eexists; eauto; etransitivity; eauto.
-
-destruct H1 as (? & ? & ?).
-eapply nec_join2 in H0 as (? & ? & J & ? & ?); eauto.
-eapply ext_join_commut in J as (? & ? & ?); eauto.
-do 3 eexists; eauto.
-split; do 2 eexists; eauto.
+  transitivity (level x).
+  symmetry; apply comparable_fashionR. eapply join_comparable2; eauto.
+  apply comparable_fashionR. eapply join_comparable2; eauto.
+subst x0.
+generalize (join_eq H4 H1); clear H4; intro; subst.
+auto.
+eapply nec_join2; eauto.
 Qed.
 
-(*Lemma extend_sepcon_andp {FA:Flat_alg A}:
+Lemma extend_sepcon_andp {A} {JA: Join A} {PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall P Q R, boxy extendM Q -> P * (Q && R) |-- Q && (P * R).
 Proof.
 intros.
@@ -576,9 +538,9 @@ exists w0.
 apply join_comm; auto.
 exists w0; exists w1; auto.
 Qed.
-Arguments extend_sepcon_andp : clear implicits.*)
+Arguments extend_sepcon_andp : clear implicits.
 
-Lemma distrib_sepcon_andp :
+Lemma distrib_sepcon_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall P Q R, P * (Q && R) |-- (P * Q) && (P * R).
 Proof.
 intros. intros w [w1 [w2 [? [? ?]]]].
@@ -586,7 +548,7 @@ destruct H1.
 split; exists w1; exists w2; split; auto.
 Qed.
 
-Lemma modus_wand :
+Lemma modus_wand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall P Q,  P * (P -* Q) |-- Q.
 Proof.
 intros.
@@ -594,7 +556,7 @@ intros w  [?w [?w [? [? ?]]]].
 eapply H1; eauto.
 Qed.
 
-(*Lemma extend_sepcon :
+Lemma extend_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall {Q R: pred A}, boxy extendM Q ->  Q * R |-- Q.
 Proof.
 intros.
@@ -602,15 +564,15 @@ intros w [w1 [w2 [? [? _]]]].
 rewrite <- H in H1. eapply H1; eauto.
 simpl; eauto.
 exists w2; auto.
-Qed.*)
+Qed.
 
-Definition precise  (P: pred A) : Prop :=
+Definition precise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P: pred A) : Prop :=
      forall w w1 w2, P w1 -> P w2 -> join_sub w1 w -> join_sub w2 w -> w1=w2.
 
-Definition precise2   (P: pred A) : Prop :=
+Definition precise2  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P: pred A) : Prop :=
      forall Q R, (P * (Q && R) = (P * Q) && (P * R))%pred.
 
-(*Lemma precise_eq {CA: Canc_alg A}: precise =
+Lemma precise_eq {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A}: precise =
                  fun P : pred A => forall Q R, (P * (Q && R) = (P * Q) && (P * R))%pred.
 Proof.
 extensionality P.
@@ -637,11 +599,11 @@ destruct H2 as [w2a ?].
 destruct H3 as [w2b ?].
 assert (((P * exactly w2a) && (P * exactly w2b)) w)%pred.
 split; do 2 econstructor; repeat split;
-try solve [simpl; do 2 eexists; [apply necR_refl | reflexivity]].
+try solve [simpl; apply necR_refl].
 eassumption. auto. eassumption. auto.
 rewrite <- H in H4.
 destruct H4 as [w1 [w2 [? [? [? ?]]]]].
-destruct H6 as (? & ? & ?), H7 as (? & ? & ?).
+simpl in H6,H7.
 rewrite (necR_comparable _ _ H6) in H2.
 rewrite (necR_comparable _ _ H7) in H3.
 eapply join_canc; eauto.
@@ -651,36 +613,36 @@ apply comparable_sym; apply join_comparable with w1; auto.
 apply comparable_trans with w.
 apply join_comparable with w1a; auto.
 apply comparable_sym; apply join_comparable with w1; auto.
-Qed.*)
+Qed.
 
-Lemma derives_precise :
+Lemma derives_precise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall P Q, (P |-- Q) -> precise Q -> precise P.
 Proof.
 intros; intro; intros; eauto.
 Qed.
 
-(*Lemma precise_emp : precise emp.
+Lemma precise_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: precise emp.
 Proof.
 repeat intro.
 eapply join_sub_same_identity with (a := w1)(c := w); auto.
 apply identity_unit'; auto.
 eapply join_sub_unit_for; eauto.
 apply identity_unit'; auto.
-Qed.*)
+Qed.
 
-Definition superprecise  (P: pred A) :=
+Definition superprecise {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P: pred A) :=
    forall w1 w2, P w1 -> P w2 -> comparable w1 w2 -> w1=w2.
 
-(*Lemma superprecise_exactly : forall w, superprecise (exactly w).
+Lemma superprecise_exactly {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: forall w, superprecise (exactly w).
 Proof.
 unfold superprecise; intros.
-destruct H as (? & ? & ?), H0 as (? & ? & ?).
-eapply necR_linear' in H; eauto; subst.
+hnf in H,H0.
+eapply necR_linear'; eauto.
 apply comparable_fashionR; auto.
 Qed.
-#[export] Hint Resolve superprecise_exactly : core.*)
+#[export] Hint Resolve superprecise_exactly : core.
 
-(*Lemma superprecise_precise : forall (P: pred A) , superprecise P -> precise P.
+Lemma superprecise_precise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A}: forall (P: pred A) , superprecise P -> precise P.
 Proof.
   pose proof I.
   unfold precise. unfold superprecise.
@@ -690,26 +652,14 @@ Proof.
     apply comparable_sym; destruct H4; eapply join_comparable; eauto.
     apply (comparable_trans H5 H6).
   apply (H0 _ _ H1 H2 H5).
-Qed.*)
+Qed.
 
 (* EXistential Magic Wand *)
 
-(* Do we use this? It seems hard to make upward-closed: we could
-   add ghost state that invalidates P.
-Program Definition ewand  (P Q: pred A) : pred A :=
+Program Definition ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P Q: pred A) : pred A :=
   fun w => exists w1, exists w2, join w1 w w2 /\ P w1 /\ Q w2.
 Next Obligation.
-split; intros.
 destruct H0 as [w1 [w2 [? [? ?]]]].
-apply join_comm in H0; eapply age1_join in H0; eauto.
-destruct H0 as [w1' [w3' [? [? ?]]]].
-exists w1'; exists w3'; split; auto.
-split;   eapply pred_nec_hereditary; try eassumption.
-constructor 1; auto.
-constructor 1; auto.
-
-destruct H0 as [w1 [w2 [? [? ?]]]].
-eapply join_comm, join_ext_commut in H0.
 apply join_comm in H0; eapply age1_join in H0; eauto.
 destruct H0 as [w1' [w3' [? [? ?]]]].
 exists w1'; exists w3'; split; auto.
@@ -718,7 +668,7 @@ constructor 1; auto.
 constructor 1; auto.
 Qed.
 
-Lemma later_ewand  : forall P Q,
+Lemma later_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall P Q,
   (|>(ewand P Q) = ewand (|>P) (|>Q))%pred.
 Proof.
 intros.
@@ -763,7 +713,7 @@ Qed.
 
 (* Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity). *)
 
-Lemma emp_ewand :
+Lemma emp_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A}:
       forall P, ewand emp P = P.
 Proof.
 intros.
@@ -779,7 +729,7 @@ specialize (He _ _ Hj); subst; auto.
 Qed.
 
 
-Lemma pry_apart {CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}:
+Lemma pry_apart {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall G P Q, superprecise G -> P = ewand G (G * P) ->
                        (P * Q) && (G * TT) |-- (P * G * (ewand G Q)).
 Proof.
@@ -822,12 +772,12 @@ split; auto.
 exists w2; exists w4; split; auto.
 unfold ewand.
 exists w4; exists w3; split; auto.
-Qed.*)
+Qed.
 
-Definition wk_split :=
+Definition wk_split {A} {JA: Join A} :=
       forall a b c d e : A, join a b c -> join d e c -> joins a d -> join_sub d b.
 
-Lemma crosssplit_wkSplit {DA: Disj_alg A}{CrA: Cross_alg A}:
+Lemma crosssplit_wkSplit {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
     wk_split.
 Proof.
 unfold wk_split; intros.
@@ -847,7 +797,7 @@ destruct (join_assoc (join_comm myH1) myH4) as [? [Hbe ?]].
 specialize (Had _ _ Hbe); subst; eauto.
 Qed.
 
-(*Lemma wk_pry_apart {CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}:
+Lemma wk_pry_apart {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall G P Q, wk_split -> superprecise G -> P = ewand G (G * P) ->
                        (P * Q) && (G * TT) |-- (P * G * (ewand G Q)).
 Proof.
@@ -929,7 +879,7 @@ split; auto.
 exists w3; exists w2; split; auto.
 Qed.
 
-Lemma ewand_derives :
+Lemma ewand_derives {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall P P' Q Q',  (P |-- P') -> (Q |-- Q') -> ewand P Q |-- ewand P' Q'.
 Proof.
 intros.
@@ -938,7 +888,7 @@ destruct H1 as [?w [?w [? [? ?]]]].
 exists w0; exists w1; split; auto.
 Qed.
 
-Lemma ewand_sepcon : forall P Q R,
+Lemma ewand_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: forall P Q R,
       (ewand (P * Q) R = ewand P (ewand Q R))%pred.
 Proof.
 intros; apply pred_ext; intros w ?.
@@ -1036,9 +986,9 @@ destruct (join_assoc H5 (join_comm H0)) as [wf [? ?]].
 generalize (join_canc (join_comm H7) H2); clear H7; intro.
 subst wf.
 auto.
-Qed.*)
+Qed.
 
-Lemma sepcon_andp_prop2 :
+Lemma sepcon_andp_prop2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall P Q R,  (P * (!!Q && R) = !!Q && (P * R))%pred.
 Proof.
 intros.
@@ -1051,13 +1001,14 @@ destruct H0 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; repeat split; auto.
 Qed.
 
-Lemma sepcon_andp_prop1 :
+Lemma sepcon_andp_prop1 {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA:  ageable A}{AgeA: Age_alg A}:
    forall (P: Prop) (Q R: pred A) , ((!! P && Q) * R = !! P && (Q * R))%pred.
 Proof.
  intros. rewrite (sepcon_comm). rewrite sepcon_andp_prop2. rewrite sepcon_comm; auto.
 Qed.
 
-Lemma distrib_orp_sepcon :
+Lemma distrib_orp_sepcon {A : Type}{JA : Join A}  {PA : Perm_alg A}{SA : Sep_alg A}{agA : ageable A}
+    {AgeA : Age_alg A}:
   forall (P Q R : pred A), ((P || Q) * R = P * R || Q * R)%pred.
 Proof.
  intros. apply pred_ext.
@@ -1066,14 +1017,15 @@ Proof.
   left; auto. right; auto.
 Qed.
 
-Lemma distrib_orp_sepcon2:
+Lemma distrib_orp_sepcon2{A : Type}{JA : Join A}{PA : Perm_alg A}{SA : Sep_alg A}{agA : ageable A}
+    {AgeA : Age_alg A}:
   forall (P Q R : pred A),
      (R * (P || Q) = R * P || R * Q)%pred.
 Proof.
 intros. rewrite !(sepcon_comm R). apply distrib_orp_sepcon.
 Qed.
 
-(*Lemma ewand_conflict {T}{agT:ageable T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}{AT: Age_alg T}:
+Lemma ewand_conflict {T}{agT:ageable T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}{AT: Age_alg T}:
        forall P Q R, (sepcon P Q |-- FF) -> andp P (ewand Q R) |-- FF.
 Proof.
  intros. intros w [? [w1 [w2 [? [? ?]]]]].
@@ -1091,11 +1043,4 @@ destruct (join_assoc (join_comm H) (join_comm H2)) as [f [? ?]].
 exists w3; exists f; repeat split; auto.
 destruct (join_assoc H (join_comm H2)) as [g [? ?]].
 exists w3; exists g; repeat split; auto.
-Qed.*)
-
-End Predicates.
-
-Notation "P '*' Q" := (sepcon P Q) : pred.
-Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : pred.
-
-#[export] Hint Resolve id_emp : core.
+Qed.
