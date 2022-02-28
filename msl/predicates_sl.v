@@ -694,39 +694,38 @@ Qed.*)
 
 (* EXistential Magic Wand *)
 
-(* Do we use this? It seems hard to make upward-closed: we could
-   add ghost state that invalidates P.
 Program Definition ewand  (P Q: pred A) : pred A :=
-  fun w => exists w1, exists w2, join w1 w w2 /\ P w1 /\ Q w2.
+  fun w => forall w' w'', necR w w' -> ext_order w' w'' -> exists w1, exists w2, join w1 w'' w2 /\ P w1 /\ Q w2.
 Next Obligation.
 split; intros.
-destruct H0 as [w1 [w2 [? [? ?]]]].
-apply join_comm in H0; eapply age1_join in H0; eauto.
-destruct H0 as [w1' [w3' [? [? ?]]]].
-exists w1'; exists w3'; split; auto.
-split;   eapply pred_nec_hereditary; try eassumption.
-constructor 1; auto.
-constructor 1; auto.
+eapply H0; [|eauto].
+eapply rt_trans, H1. apply rt_step; auto.
 
-destruct H0 as [w1 [w2 [? [? ?]]]].
-eapply join_comm, join_ext_commut in H0.
-apply join_comm in H0; eapply age1_join in H0; eauto.
-destruct H0 as [w1' [w3' [? [? ?]]]].
-exists w1'; exists w3'; split; auto.
-split;   eapply pred_nec_hereditary; try eassumption.
-constructor 1; auto.
-constructor 1; auto.
+eapply nec_ext_commut in H as []; [|eauto].
+eapply H0; eauto.
+etransitivity; eauto.
 Qed.
 
-Lemma later_ewand  : forall P Q,
+Lemma later_0 : forall a P, level a = 0 -> (|> P)%pred a.
+Proof.
+  repeat intro.
+  apply age1_level0 in H.
+  apply laterR_power_age in H0 as (? & ? & ? & ?); congruence.
+Qed.
+
+(*Lemma later_ewand  : forall P Q,
   (|>(ewand P Q) = ewand (|>P) (|>Q))%pred.
 Proof.
 intros.
 apply pred_ext.
-intros w ?.
+intros w ? ????.
+apply nec_refl_or_later in H0 as [|].
+subst w'.
 case_eq (age1 w); intros.
-destruct (H a (t_step _ _ _ _ H0)) as [a1 [a2 [? [? ?]]]].
-destruct (unage_join _ (join_comm H1) H0) as [w1 [w2 [? [? ?]]]].
+eapply ext_age_compat in H1 as (? & ? & Hext); eauto.
+specialize (H _ (t_step _ _ _ _ H0) _ _ (necR_refl _) Hext).
+destruct H as [a1 [a2 [? [? ?]]]].
+destruct (unage_join _ (join_comm H) H1) as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; split; [|split]; auto.
 hnf; intros.
 apply pred_nec_hereditary with a1; auto.
@@ -734,20 +733,25 @@ eapply age_later_nec; eauto.
 hnf; intros.
 apply pred_nec_hereditary with a2; auto.
 eapply age_later_nec; eauto.
-exists (core w), w.
-split; [|split].
+apply age1_level0 in H0.
+apply ext_level in H1.
+rewrite H0 in H1.
+eexists _, _.
+split.
 apply core_unit.
-hnf; intros.
-assert (age1 (core w) = None).
-apply age1_None_joins with w; auto.
-exists w; apply join_comm; apply core_unit.
-unfold laterM in H1. simpl in H1.
-unfold laterR in H1.
-apply clos_trans_t1n in H1. inv H1; rewrite H3 in H2; inv H2.
-intros w' ?.
-hnf in H1. apply clos_trans_t1n in H1.
-inv H1; rewrite H2 in H0; inv H0.
+split; apply later_0; auto.
+rewrite level_core; auto.
+specialize (H _ H0 _ _ (necR_refl _) H1).
+destruct H as [a1 [a2 [? [? ?]]]].
+do 3 eexists; eauto.
+split; intros ??; eapply pred_nec_hereditary; try apply laterR_necR; eauto.
 
+intros w ???????.
+hnf in H.
+destruct (H w' w'') as (? & ? & ? & ? & ?); auto.
+{ eapply rt_trans, H1. apply laterR_necR; auto. }
+eapply join_ext_commut in H2 as (? & ? & ?); eauto.
+Search necR laterR.
 intros w [w1 [w2 [? [? ?]]]].
 intros w' ?.
 hnf in H2. apply clos_trans_t1n in H2.
@@ -759,16 +763,18 @@ eapply H1. hnf; apply clos_t1n_trans. constructor 1; auto.
 eapply H2. hnf; apply clos_t1n_trans. constructor 1; auto.
 destruct (age1_join _ (join_comm H0) H) as [w1' [w2' [? [? ?]]]].
 apply (IHclos_trans_1n _ _ (join_comm H4)); auto; eapply pred_hereditary; eauto.
-Qed.
+Qed.*)
 
-(* Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity). *)
+Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity).
 
-Lemma emp_ewand :
+(*Lemma emp_ewand :
       forall P, ewand emp P = P.
 Proof.
 intros.
 apply pred_ext; intros w ?.
+specialize (H _ _ (necR_refl _) (ext_refl _)).
 destruct H as [w1 [w2 [? [? ?]]]].
+hnf in H0.
 replace w with w2; auto.
 eapply join_eq; eauto.
 eapply identity_unit; eauto.
@@ -780,7 +786,7 @@ Qed.
 
 
 Lemma pry_apart {CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}:
-  forall G P Q, superprecise G -> P = ewand G (G * P) ->
+  forall G P Q, superprecise G -> P = ewand G (G * P)%pred ->
                        (P * Q) && (G * TT) |-- (P * G * (ewand G Q)).
 Proof.
  pose proof I. intros.
@@ -927,36 +933,43 @@ generalize (join_eq H5 H); clear H5; intro; subst h.
 exists a; exists w6; split; auto.
 split; auto.
 exists w3; exists w2; split; auto.
-Qed.
+Qed.*)
 
 Lemma ewand_derives :
   forall P P' Q Q',  (P |-- P') -> (Q |-- Q') -> ewand P Q |-- ewand P' Q'.
 Proof.
 intros.
-intros w ?.
+intros w ? ????.
+specialize (H1 _ _ H2 H3).
 destruct H1 as [?w [?w [? [? ?]]]].
 exists w0; exists w1; split; auto.
 Qed.
 
-Lemma ewand_sepcon : forall P Q R,
+(*Lemma ewand_sepcon : forall P Q R,
       (ewand (P * Q) R = ewand P (ewand Q R))%pred.
 Proof.
-intros; apply pred_ext; intros w ?.
-destruct H as [w1 [w2 [? [? ?]]]].
-destruct H0 as [w3 [w4 [? [? ?]]]].
+intros; apply pred_ext; intros w ? ????.
+destruct (H _ _ H0 H1) as [w1 [w2 [? [? ?]]]].
+destruct H3 as [w3 [w4 [? [? ?]]]].
 exists w3.
-destruct (join_assoc (join_comm H0) H) as [wf [? ?]].
+destruct (join_assoc (join_comm H3) H2) as [wf [? ?]].
 exists wf.
 split; [|split]; auto.
+intros ????.
+eapply nec_join2 in H7 as (? & ? & ? & ? & ?); eauto.
+eapply ext_join_commut in H10 as (? & ? & ?); eauto.
+eapply join_ext_commut in H1 as (? & ? & ?); eauto.
+specialize (H 
+
 exists w4. exists w2. split; auto.
 destruct H as [w1 [w2 [? [? ?]]]].
 destruct H1 as [w3 [w4 [? [? ?]]]].
 destruct (join_assoc (join_comm H) (join_comm H1)) as [wf [? ?]].
 exists wf. exists w4. split; [|split]; auto.
 exists w1; exists w3; split; auto.
-Qed.
+Qed.*)
 
-Lemma ewand_sepcon_assoc {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
+(*Lemma ewand_sepcon_assoc {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
   Trip_alg A ->
   forall P Q R: pred A,
       (forall w1 w2 w3, join w1 w2 w3 -> P w3 -> P w1) ->
@@ -1073,20 +1086,27 @@ Proof.
 intros. rewrite !(sepcon_comm R). apply distrib_orp_sepcon.
 Qed.
 
-(*Lemma ewand_conflict {T}{agT:ageable T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}{AT: Age_alg T}:
+Lemma ewand_conflict :
        forall P Q R, (sepcon P Q |-- FF) -> andp P (ewand Q R) |-- FF.
 Proof.
- intros. intros w [? [w1 [w2 [? [? ?]]]]].
- specialize (H w2). apply H. exists w; exists w1; repeat split; auto.
+ intros. intros w [HP Hwand].
+ specialize (Hwand _ _ (necR_refl _) (ext_refl _)).
+ destruct Hwand as [w1 [w2 [? [? ?]]]].
+ apply (H w2). exists w; exists w1; repeat split; auto.
 Qed.
 
-Lemma ewand_TT_sepcon {T}{agT:ageable T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}{AT: Age_alg T}:
+(*Lemma ewand_TT_sepcon :
       forall P Q R,
 (P * Q && ewand R (!!True))%pred |-- (P && ewand R (!!True) * (Q && ewand R (!!True)))%pred.
 Proof.
 intros.
-intros w [[w1 [w2 [? [? ?]]]] [w3 [w4 [? [? ?]]]]].
-exists w1; exists w2; repeat split; auto.
+intros w [[w1 [w2 [? [? ?]]]] Hwand].
+exists w1; exists w2; repeat split; auto;
+intros ?? Hnec Hext.
+- eapply nec_join in Hnec as (? & ? & ? & ? & Hw); eauto.
+  specialize (Hwand _ _ Hw (ext_refl _)).
+  destruct Hwand as (? & ? & J & ? & _).
+  Search ext_order join.
 destruct (join_assoc (join_comm H) (join_comm H2)) as [f [? ?]].
 exists w3; exists f; repeat split; auto.
 destruct (join_assoc H (join_comm H2)) as [g [? ?]].
@@ -1097,5 +1117,6 @@ End Predicates.
 
 Notation "P '*' Q" := (sepcon P Q) : pred.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : pred.
+Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity).
 
 #[export] Hint Resolve id_emp : core.

@@ -13,9 +13,9 @@ Require VST.msl.normalize.
 
 Local Open Scope logic.
 
-Inductive nd_derives {T: Type}{agT: ageable T} A B := { derivesI: predicates_hered.derives A B }.
+Inductive nd_derives {T: Type}{agT: ageable T}{EO: Ext_ord T} A B := { derivesI: predicates_hered.derives A B }.
 
-Lemma nd_derives_eq {T: Type}{agT: ageable T} : nd_derives = predicates_hered.derives(H := agT).
+Lemma nd_derives_eq {T: Type}{agT: ageable T}{EO: Ext_ord T} : nd_derives = predicates_hered.derives(AG := agT)(EO := EO).
 Proof.
   do 2 extensionality.
   apply prop_ext; split.
@@ -25,12 +25,12 @@ Qed.
 
 Ltac unseal_derives := intros; rewrite ?nd_derives_eq; repeat match goal with H : context[nd_derives] |- _ => rewrite nd_derives_eq in H; revert H end.
 
-Instance algNatDed (T: Type){agT: ageable T} : NatDed (pred T).
+Instance algNatDed (T: Type){agT: ageable T}{EO: Ext_ord T} : NatDed (pred T).
   apply (mkNatDed _
                     predicates_hered.andp
                     predicates_hered.orp
-                    (@predicates_hered.exp _ _)
-                    (@predicates_hered.allp _ _)
+                    (@predicates_hered.exp _ _ _)
+                    (@predicates_hered.allp _ _ _)
                     predicates_hered.imp predicates_hered.prop
                     (nd_derives)); unseal_derives.
  apply pred_ext.
@@ -49,11 +49,11 @@ Instance algNatDed (T: Type){agT: ageable T} : NatDed (pred T).
  apply imp_andp_adjoint.
  repeat intro. eapply H; eauto. hnf; auto.
  repeat intro. hnf; auto.
- repeat intro. specialize (H a (necR_refl _)). simpl in H. auto.
+ repeat intro. specialize (H a a (necR_refl _) (ext_refl _)). simpl in H. auto.
  repeat intro. specialize (H b). simpl in H. auto.
 Defined.
 
-Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{EO: Ext_ord T}{ET: Ext_alg T} :
       @SepLog (pred T) (algNatDed T).
  apply (mkSepLog _ (algNatDed T) predicates_sl.emp predicates_sl.sepcon
             predicates_sl.wand predicates_sl.ewand); simpl; unseal_derives.
@@ -64,28 +64,40 @@ Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{
           intros ? [w1 [w2 [? [? [? ?]]]]];  split; auto. exists w1; exists w2; repeat split; auto.
           intros ? [? [w1 [w2 [? [? ?]]]]];  exists w1; exists w2; repeat split; auto.
  intros; intro; apply sepcon_derives; auto.
- intros; simpl; apply ewand_sepcon; auto.
+(* intros; simpl; apply ewand_sepcon; auto.
  intros; simpl. apply ewand_TT_sepcon; auto.
- intros; simpl. intros w [w1 [w2 [? [? ?]]]]. exists w1,w2; repeat split; auto. exists w2; exists w; repeat split; auto.
+ intros; simpl. intros w [w1 [w2 [? [? ?]]]]. exists w1,w2; repeat split; auto. intros ????. eapply nec_join in H as (? & ? & ? & ? & ?); eauto. exists w2; exists w; repeat split; auto.*)
   intros; simpl. apply ewand_conflict; auto.
 Defined.
 
-Instance algClassicalSep (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{FlatT: Flat_alg T}{AgeT: Age_alg T}:
+Instance algClassicalSep (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{EO: Ext_ord T}{ET: Ext_alg T}:
      @ClassicalSep (pred T) (algNatDed T)(algSepLog T).
  constructor; intros. simpl. apply predicates_sl.sepcon_emp.
 Qed.
 
 Definition Triv := predicates_hered.pred nat.
 Instance TrivNatDed: NatDed Triv := algNatDed nat.
-Instance TrivSeplog: SepLog Triv := @algSepLog nat _ _ _ _ (asa_nat).
-Instance TrivClassical: ClassicalSep Triv := @algClassicalSep _ _ _ _ _ _ asa_nat.
+
+Instance ea_nat : Ext_alg nat (SA := fsep_sep (sepalg_generators.Sep_equiv nat)).
+Proof.
+  constructor.
+  - simpl; intros ???? [] ?; subst.
+    do 2 eexists; eauto; split; auto.
+  - simpl; intros ????? []; subst.
+    do 2 eexists; eauto; split; auto.
+  - intros; do 2 eexists; [|split; auto].
+    intros ?? []; auto.
+Qed.
+
+Instance TrivSeplog: SepLog Triv := algSepLog _ (AgeT := asa_nat) (ET := ea_nat).
+Instance TrivClassical: ClassicalSep Triv := algClassicalSep _ (AgeT := asa_nat) (ET := ea_nat).
 Instance TrivIntuitionistic: IntuitionisticSep Triv.
  constructor. intros. hnf. constructor. hnf. intros. destruct H as [w1 [w2 [? [? _]]]].
  destruct H; subst; auto.
 Qed.
 
 Instance algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}
-                {AgeT: Age_alg T}:
+                {AgeT: Age_alg T}{EO: Ext_ord T}:
          @Indir (pred T) (algNatDed T).
  apply (mkIndir _ _ (box laterM)); intros; simpl in *; unseal_derives.
  apply @predicates_hered.now_later.
@@ -94,12 +106,12 @@ Instance algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{S
  simpl. intros; apply @box_ex.
  simpl. intros; apply @later_ex; auto.
  simpl. intros; apply @later_ex''.
- apply @predicates_hered.later_imp.
+(* apply @predicates_hered.later_imp.*)
  apply @predicates_hered.later_prop.
  apply @predicates_hered.loeb; auto.
 Defined.
 
-Instance TrivIndir: Indir Triv := @algIndir nat _ _ _ _ asa_nat.
+Instance TrivIndir: Indir Triv := algIndir _ (AgeT := asa_nat).
 
 Section SL2. Import VST.msl.seplog.
 
@@ -136,7 +148,7 @@ Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : logic
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : logic.
 End FashNotation.
 
-Definition algRecIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+Definition algRecIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{EO: Ext_ord T}{ET: Ext_alg T} :
          @RecIndir (pred T) (algNatDed T) (algIndir T).
  apply (mkRecIndir _ _ _ subtypes.fash subtypes.unfash HoRec.HORec); intros; simpl in *; unseal_derives.
  repeat intro. do 3 red in H. apply H; auto.
@@ -175,27 +187,27 @@ Class SepRec  (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A}{RA: RecIndir A
 
 End SL3.
 
-Instance algSepIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+Instance algSepIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{EO: Ext_ord T}{ET: Ext_alg T} :
          @SepIndir (pred T) (algNatDed T) (algSepLog T) (algIndir T).
  apply mkSepIndir; simpl.
  apply @predicates_sl.later_sepcon; auto.
  apply @predicates_sl.later_wand; auto.
- apply @predicates_sl.later_ewand; auto.
+(* apply @predicates_sl.later_ewand; auto.*)
 Qed.
 
-Instance algSepRec (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+Instance algSepRec (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{EO: Ext_ord T}{ET: Ext_alg T} :
          @SepRec (pred T) (algNatDed T) (algSepLog T) (algIndir T)(algRecIndir T).
 constructor.
  intros; simpl. apply subtypes_sl.unfash_sepcon_distrib.
 Qed.
 
-Instance algCorableSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+Instance algCorableSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{EO: Ext_ord T}{ET: Ext_alg T} :
          @CorableSepLog (pred T) (algNatDed T) (algSepLog T).
   apply mkCorableSepLog with (corable := corable.corable).
   + apply corable.corable_prop.
   + apply corable.corable_andp.
   + apply corable.corable_orp.
-  + apply corable.corable_imp.
+(*  + apply corable.corable_imp.*)
   + intros; apply corable.corable_allp; auto.
   + intros; apply corable.corable_exp; auto.
   + apply corable.corable_sepcon.
@@ -204,7 +216,7 @@ Instance algCorableSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_
     apply corable.corable_andp_sepcon1; auto.
 Defined.
 
-Instance algCorableIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+Instance algCorableIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{EO: Ext_ord T}{ET: Ext_alg T} :
          @CorableIndir (pred T) (algNatDed T) (algSepLog T) (algCorableSepLog T) (algIndir T).
   unfold CorableIndir; simpl.
   apply corable.corable_later.

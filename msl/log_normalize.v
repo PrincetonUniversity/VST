@@ -946,7 +946,7 @@ intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; au
 Qed.
 
 #[export] Hint Resolve corable_andp corable_orp corable_allp corable_exp
-                    corable_imp corable_prop corable_sepcon corable_wand corable_later : core.
+                    (*corable_imp*) corable_prop corable_sepcon corable_wand corable_later : core.
 #[export] Hint Resolve corable_prop : norm.
 
 (* The followings are not in auto-rewrite lib. *)
@@ -1299,31 +1299,32 @@ Lemma subp_later1 {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall P Q 
    |>(P >=> Q)  |--   |>P >=> |>Q.
 Proof.
 intros.
-rewrite later_fash. rewrite later_imp. auto.
+rewrite later_fash. apply fash_derives, later_K.
 Qed.
 
-Lemma subp_later {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall P Q : A,
+(*Lemma subp_later {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall P Q : A,
    |>(P >=> Q) = |>P >=> |>Q.
 Proof.
 intros.
 rewrite later_fash. rewrite later_imp. auto.
-Qed.
+Qed.*)
 
 Lemma eqp_later1 {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall P Q : A,
    |>(P <=> Q)  |--   |>P <=> |>Q.
 Proof.
 intros.
 rewrite later_fash.
-rewrite later_andp; repeat rewrite later_imp; repeat  rewrite fash_andp. auto.
+rewrite later_andp.
+apply fash_derives, andp_derives; apply later_K.
 Qed.
 
-Lemma eqp_later {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall P Q: A,
+(*Lemma eqp_later {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall P Q: A,
     (|>(P <=> Q) = |>P <=> |>Q).
 Proof.
 intros.
 rewrite later_fash.
 rewrite later_andp; repeat rewrite later_imp; repeat  rewrite fash_andp. auto.
-Qed.
+Qed.*)
 
 Lemma subp_refl {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P : A),
   G |-- P >=> P.
@@ -1494,18 +1495,11 @@ Lemma prove_HOcontractive {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : fora
     (ALL x:X, (|> P x <=> |> Q x) |-- F P x >=> F Q x)) ->
    HOcontractive F.
 Proof.
-  intros.
   unfold HOcontractive.
-  intros.
-  apply allp_right; intro v.
+  intros. apply allp_right. intros.
   rewrite fash_andp.
-  apply andp_right.
-  eapply derives_trans; [ | apply H].
-  apply allp_derives; intro x.
-  rewrite eqp_later. auto.
-  eapply derives_trans; [ | apply H].
-  apply allp_derives; intro x.
-  rewrite eqp_later. rewrite andp_comm. auto.
+  apply andp_right; eapply derives_trans, H; apply allp_derives; intros;
+    [|rewrite andp_comm]; apply eqp_later1.
 Qed.
 
 Lemma sub_sepcon' {A}{NA: NatDed A}{SL: SepLog A}{IA: Indir A}{RA: RecIndir A}{SRA: SepRec A}:
@@ -1563,7 +1557,7 @@ Proof.
 intros.
 assert (TT |-- Q --> P).
 apply loeb.
-rewrite later_imp.
+eapply derives_trans; [apply later_K|].
 apply imp_andp_adjoint.
 eapply derives_trans; [ | apply H].
 apply andp_right.

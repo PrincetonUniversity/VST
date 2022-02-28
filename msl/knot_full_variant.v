@@ -92,27 +92,6 @@ Module Type KNOT__MIXVARIANT_HERED_T_OTH_REL.
       intros [] []; subst; split; auto.
       eapply Rel_trans; eauto.
   Qed.
-(*  Next Obligation.
-  Proof.
-    intros ?????.
-    unfold age, knot_rel in *. rewrite knot_age1 in H0.
-    destruct (unsquash z) eqn: Hz.
-    destruct n; inv H0.
-    rewrite unsquash_squash in H.
-    destruct (unsquash x) eqn: Hx.
-    destruct H as [? H]; subst.
-    exists (squash (S n0, _f0)); simpl.
-    - rewrite knot_age1, unsquash_squash.
-      f_equal; apply unsquash_inj.
-      rewrite unsquash_squash, Hx.
-      rewrite fmap_app, <- (approx_approx1 1), <- (approx_approx2 1), <- (unsquash_approx Hx).
-      reflexivity.
-    - rewrite unsquash_squash; split; auto.
-      rewrite (unsquash_approx Hz); rewrite (unsquash_approx Hx) in *.
-      rewrite fmap_app, <- (approx_approx1 1), <- (approx_approx2 1).
-      (* may not be true: the unaged pred may not be in Rel even if the aged one is *)
-      admit.
-  Admitted.*)
   Next Obligation.
   Proof.
     intros ?????.

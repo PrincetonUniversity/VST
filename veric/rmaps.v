@@ -796,6 +796,9 @@ Module Type RMAPS.
   Axiom unsquash_squash : forall n rm, unsquash (squash (n,rm)) = (n,rmap_fmap (approx n) (approx n) rm).
   Axiom ghost_of_core : forall phi, ghost_of (core phi) = core (ghost_of phi).
 
+  Axiom rmap_order : forall k1 k2, ext_order k1 k2 <->
+    level k1 = level k2 /\ resource_at k1 = resource_at k2 /\ join_sub (ghost_of k1) (ghost_of k2).
+
 End RMAPS.
 
 Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
@@ -1611,6 +1614,48 @@ Qed.
     constructor.
     simpl in *.
   Qed.*)
+
+  Lemma rmap_order : forall k1 k2, ext_order k1 k2 <->
+    level k1 = level k2 /\ resource_at k1 = resource_at k2 /\ join_sub (ghost_of k1) (ghost_of k2).
+  Proof.
+    intros; rewrite K.knot_order.
+    unfold resource_at, ghost_of, unsquash, K.KI.Rel.
+    destruct (K.unsquash k1) as (?, (?, ?)); simpl.
+    destruct (K.unsquash k2) as (?, (?, ?)); simpl.
+    unfold g2ghost, p2pred.
+    split; intros (? & Hr & ? & J); subst; split; auto; split; auto.
+    - induction J; try solve [eexists; constructor].
+      destruct IHJ; eexists (option_map _ a2 :: _); constructor; eauto.
+      inv H0; constructor.
+      destruct a0, a4, a5, H2 as (? & ? & ?); split; auto; simpl in *.
+      inv H0; constructor; auto.
+      subst; split; auto.
+    - extensionality l.
+      apply equal_f with l in Hr.
+      unfold res2resource in Hr.
+      destruct (_f l), (_f1 l); try destruct _f3; try destruct _f4; inv Hr; f_equal; try apply proof_irr.
+    - match goal with J : join ?a _ ?c |- _ => remember a as g1; remember c as g2 end.
+      revert dependent _f0. revert dependent _f2. induction J; intros; subst.
+      + destruct _f0; inv Heqg1; eexists; constructor.
+      + assert (_f2 = _f0); [|subst; eexists; constructor].
+        clear - Heqg1. revert dependent _f2; induction _f0; intros; destruct _f2; inv Heqg1; auto.
+        f_equal; [|apply IH_f0; auto].
+        destruct o as [(?, (?, ?))|], a as [(?, (?, ?))|]; inv H0; auto.
+      + destruct _f0; inv Heqg1. destruct _f2; inv Heqg2.
+        destruct (IHJ _ eq_refl _ eq_refl).
+        assert (join_sub o o0) as []; [|eexists; constructor; eauto].
+        clear - H0. inv H0.
+        * destruct o; inv H1; eexists; constructor.
+        * destruct o as [(?, (?, ?))|], o0 as [(?, (?, ?))|]; inv H3; eexists; constructor.
+        * destruct o as [(?, (?, ?))|], o0 as [(?, (?, ?))|]; inv H; inv H1.
+          destruct a0, H3 as [J1 []]; simpl in *; subst.
+          inv H0.
+          inv J1.
+          eexists (Some (_, _)); do 3 (unshelve constructor); try apply H; eauto.
+        * inv H2; constructor.
+          destruct a1, a0, a3, H3 as (? & ? & ?); split; simpl in *; [|subst; split; auto].
+          inv H2; constructor; auto.
+  Qed.
 
 End Rmaps.
 Local Close Scope nat_scope.

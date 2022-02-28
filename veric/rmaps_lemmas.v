@@ -1254,6 +1254,7 @@ Definition empty_rmap (n:nat) : rmap := R.squash (n, empty_rmap').
 Lemma emp_empty_rmap: forall n, emp (empty_rmap n).
 Proof.
 intros.
+do 2 eexists; [|reflexivity].
 intro; intros.
 apply rmap_ext.
 apply join_level in H as []; auto.
@@ -1967,7 +1968,7 @@ Proof.
   intros; unfold id_core; rewrite core_idem; reflexivity.
 Qed.
 
-(* rmaps still induce a flat sepalg, but only with this weaker core. *)
+(*(* rmaps still induce a flat sepalg, but only with this weaker core. *)
 Instance FSep_rmap : FSep_alg rmap.
 Proof.
   exists id_core.
@@ -2005,7 +2006,7 @@ Lemma sepcon_convert : sepcon(SA := fsep_sep FSep_rmap) = sepcon(SA := Sep_rmap)
 Proof.
   intros; extensionality P; extensionality Q.
   apply pred_ext; intros ? (? & ? & ? & ? & ?); do 3 eexists; eauto.
-Qed.
+Qed.*)
 
 Lemma core_YES: forall sh rsh k pp, core (YES sh rsh k pp) = NO Share.bot bot_unreadable.
 Proof.

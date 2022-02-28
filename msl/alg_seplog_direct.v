@@ -45,9 +45,9 @@ Instance algSepLog (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}
  intros. pose proof (wand_sepcon_adjoint P Q R). simpl. rewrite H; split; auto.
  intros. apply (predicates_sa.sepcon_andp_prop P Q R).
  intros; intro; apply sepcon_derives; auto.
- intros; apply predicates_sa.ewand_sepcon.
- intros; simpl. apply ewand_TT_sepcon; auto.
- intros; simpl. intros w [w1 [w2 [? [? ?]]]]. exists w1,w2; repeat split; auto. exists w2; exists w; repeat split; auto.
+(* intros; apply predicates_sa.ewand_sepcon.*)
+(* intros; simpl. apply ewand_TT_sepcon; auto.*)
+(* intros; simpl. intros w [w1 [w2 [? [? ?]]]]. exists w1,w2; repeat split; auto. exists w2; exists w; repeat split; auto.*)
  intros; simpl. apply ewand_conflict; auto.
 Defined.
 
@@ -62,7 +62,7 @@ Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_
   + apply corable_prop.
   + apply corable_andp.
   + apply corable_orp.
-  + apply corable_imp.
+(*  + apply corable_imp.*)
   + intros. apply corable_allp; auto.
   + intros; apply corable_exp; auto.
   + apply corable_sepcon.

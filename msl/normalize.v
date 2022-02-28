@@ -2,7 +2,7 @@ Require Import VST.msl.msl_standard.
 
 Local Open Scope pred.
 
-Lemma andp_TT {A}`{ageable A}: forall (P: pred A), P && TT = P.
+Lemma andp_TT {A}`{ageable A}{EO: Ext_ord A}: forall (P: pred A), P && TT = P.
 Proof.
 intros.
 apply pred_ext; intros w ?.
@@ -10,7 +10,7 @@ destruct H0; auto.
 split; auto.
 Qed.
 
-Lemma sepcon_andp_prop' {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall P Q R, (!!Q && P)*R = !!Q&&(P*R).
+Lemma sepcon_andp_prop' {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}: forall P Q R, (!!Q && P)*R = !!Q&&(P*R).
 Proof.
 intros.
 rewrite sepcon_comm. rewrite sepcon_andp_prop.
@@ -23,25 +23,28 @@ Hint Rewrite @sepcon_emp @emp_sepcon @TT_and @andp_TT
          @sepcon_andp_prop @sepcon_andp_prop'
         : normalize.
 
-Definition pure {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}
+Definition pure {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}
      (P: pred A) : Prop :=
    P |-- emp.
 
-Lemma pure_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall (P : pred A), pure P -> P*P=P.
+(*Lemma pure_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}: forall (P : pred A), pure P -> P*P=P.
 Proof.
-pose proof I.
 intros.
 apply pred_ext; intros w ?.
-destruct H1 as (? & ? & J & HP & ?).
-apply H0 in HP; apply HP in J; subst; auto.
+destruct H0 as (? & ? & J & HP & ?).
+apply H in HP. destruct HP as (? & Hid & Hext).
+eapply join_ext_commut in Hext as (? & J1 & ?); eauto.
+apply Hid in J1; subst.
+eapply pred_upclosed; eauto.
+destruct (H _ H0) as (? & ? & ?).
 exists w; exists w.
 split; [|split]; auto.
 apply H0 in H1.
 do 3 red in H1. apply identity_unit' in H1.
 apply H1.
-Qed.
+Qed.*)
 
-Lemma pure_e {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall (P: pred A), pure P -> (P |-- emp).
+Lemma pure_e {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}: forall (P: pred A), pure P -> (P |-- emp).
 Proof.
 intros.
 apply H.
@@ -49,7 +52,7 @@ Qed.
 
 #[export] Hint Resolve pure_e : core.
 
-Lemma sepcon_pure_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+(*Lemma sepcon_pure_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
  forall P Q, pure P -> pure Q -> ((P * Q) = (P && Q)).
 Proof.
 intros.
@@ -74,9 +77,9 @@ clear dependent P. clear dependent Q.
 pose proof (core_unit w); unfold unit_for in *.
 pose proof (H1 _ _ (join_comm H)).
 rewrite H0 in H; auto.
-Qed.
+Qed.*)
 
-Lemma pure_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: pure emp.
+Lemma pure_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}: pure emp.
 Proof.
 intros. unfold pure; auto.
 Qed.
@@ -86,7 +89,7 @@ Lemma join_equiv_refl {A}: forall x:A, @join A (Join_equiv A) x x x.
 Proof. split; auto. Qed.
 #[export] Hint Resolve join_equiv_refl : core.
 
-Lemma pure_sepcon1'' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall P Q R, pure P -> (Q |-- R) -> P * Q |-- R.
+(*Lemma pure_sepcon1'' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall P Q R, pure P -> (Q |-- R) -> P * Q |-- R.
 Proof.
 pose proof I.
 intros.
@@ -94,10 +97,10 @@ intros w [w1 [w2 [? [? ?]]]].
 apply H0 in H3.
 apply join_unit1_e in H2; auto.
 subst; auto.
-Qed.
+Qed.*)
 
 
-Lemma pure_existential {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_existential {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
    forall B (P: B -> pred A),    (forall x: B , pure (P x)) -> pure (exp P).
 Proof.
 intros.
@@ -108,22 +111,22 @@ Qed.
 
 #[export] Hint Resolve pure_existential : core.
 
-Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+(*Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall P w, pure P -> P w -> P (core w).
 Proof.
 intros.
 rewrite <- identity_core; auto.
 apply H; auto.
-Qed.
+Qed.*)
 
-Lemma FF_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma FF_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
            forall P, FF * P = FF.
 Proof.
 intros.
 apply pred_ext; intros w ?; try contradiction.
 destruct H as [w1 [w2 [? [? ?]]]]; contradiction.
 Qed.
-Lemma sepcon_FF {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma sepcon_FF {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
             forall P, P * FF = FF.
 Proof.
 intros.
@@ -133,30 +136,30 @@ Hint Rewrite @FF_sepcon @sepcon_FF : normalize.
 
 Hint Rewrite @prop_true_andp using (solve [auto]) : normalize.
 
-Lemma true_eq {A} `{ageable A}:  forall P: Prop, P -> (!! P) = (TT: pred A).
+Lemma true_eq {A} `{ageable A} {EO: Ext_ord A}:  forall P: Prop, P -> (!! P) = (TT: pred A).
 Proof.
 intros. apply pred_ext; intros ? ?; simpl in *; intuition.
 Qed.
 Hint Rewrite @true_eq using (solve [auto]) : normalize.
 
 
-Lemma pure_con' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_con' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
       forall P Q, pure P -> pure Q -> pure (P*Q).
 Proof.
 intros.
 unfold pure in *.
-rewrite <- emp_emp_sepcon.
+rewrite <- emp_sepcon.
 apply sepcon_derives; auto.
 Qed.
 #[export] Hint Resolve pure_con' : core.
 
-Lemma pure_intersection1: forall {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}
+Lemma pure_intersection1: forall {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}
        (P Q: pred A), pure P -> pure (P && Q).
 Proof.
 unfold pure; intros; auto.
 intros w [? ?]; auto.
 Qed.
-Lemma pure_intersection2: forall {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}
+Lemma pure_intersection2: forall {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}
      (P Q: pred A), pure Q -> pure (P && Q).
 Proof.
 unfold pure; intros; auto.
@@ -164,11 +167,11 @@ intros w [? ?]; auto.
 Qed.
 #[export] Hint Resolve pure_intersection1 pure_intersection2 : core.
 
-Lemma FF_andp {A} `{ageable A}:  forall P: pred A, FF && P = FF.
+Lemma FF_andp {A} `{ageable A}{EO: Ext_ord A}:  forall P: pred A, FF && P = FF.
 Proof.
 unfold FF, prop, andp; intros; apply pred_ext; intros ? ?; simpl in *; intuition.
 Qed.
-Lemma andp_FF {A}`{ageable A}:  forall P: pred A, P && FF = FF.
+Lemma andp_FF {A}`{ageable A}{EO: Ext_ord A}:  forall P: pred A, P && FF = FF.
 Proof.
 unfold FF, prop, andp; intros; apply pred_ext; intros ? ?; simpl in *; intuition.
 Qed.
@@ -176,7 +179,7 @@ Hint Rewrite @FF_andp @andp_FF : normalize.
 
 Hint Rewrite @andp_dup : normalize.
 
-Lemma andp_emp_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{FA: Flat_alg A}{AgeA: Age_alg A}:
+Lemma andp_emp_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{FA: Flat_alg A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
  forall (Q: pred A),
      (forall w1 w2, core w1 = core w2 -> Q w1 -> Q w2) ->
       (Q && emp * TT = Q).
@@ -195,7 +198,7 @@ apply H with w; auto.
 symmetry; eapply join_core2; eauto.
 Qed.
 
-Lemma sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
    forall (P: pred A), P |-- (P * TT).
 Proof.
 intros.
@@ -205,7 +208,7 @@ apply join_comm, core_unit.
 Qed.
 #[export] Hint Resolve sepcon_TT : core.
 
-Lemma imp_extract_exp_left {B A: Type} `{ageable A}:
+Lemma imp_extract_exp_left {B A: Type} `{ageable A}{EO: Ext_ord A}:
     forall    (p : B -> pred A) (q: pred A),
   (forall x, p x |-- q) ->
    exp p |-- q.
@@ -215,7 +218,7 @@ intros w [x ?].
 eapply H0; eauto.
 Qed.
 
-Lemma pure_sepcon_TT_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+(*Lemma pure_sepcon_TT_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
   forall P Q, pure P -> (P * TT) && Q = (P*Q).
 Proof.
  pose proof I.
@@ -235,7 +238,7 @@ subst; auto.
 apply H0 in H2; auto.
 Qed.
 
-Lemma pure_sepcon_TT_andp' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_sepcon_TT_andp' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
   forall P Q, pure P -> Q && (P * TT) = (Q*P).
 Proof.
 intros. rewrite andp_comm.
@@ -243,25 +246,25 @@ rewrite pure_sepcon_TT_andp; auto.
 apply sepcon_comm.
 Qed.
 
-Hint Rewrite @pure_sepcon_TT_andp @pure_sepcon_TT_andp' using (solve [auto]): normalize.
+Hint Rewrite @pure_sepcon_TT_andp @pure_sepcon_TT_andp' using (solve [auto]): normalize.*)
 
-Lemma pure_sepcon1' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+(*Lemma pure_sepcon1' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
 
   forall P Q R, pure P -> (P * Q |-- P * R) -> P * Q |-- R.
 Proof.
 intros.
 eapply derives_trans; try apply H0.
 apply pure_sepcon1''; auto.
-Qed.
+Qed.*)
 
-Lemma pull_right {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pull_right {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
  forall P Q R,
    (Q * P * R) = (Q * R * P).
 Proof.
 intros. repeat rewrite sepcon_assoc. rewrite (sepcon_comm P); auto.
 Qed.
 
-Lemma pull_right0 {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall P Q,
+Lemma pull_right0 {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}: forall P Q,
    (P * Q) = (Q * P).
 Proof.
 intros. rewrite (sepcon_comm P); auto.
@@ -271,16 +274,16 @@ Ltac pull_left A := repeat (rewrite <- (pull_right A) || rewrite <- (pull_right0
 
 Ltac pull_right A := repeat (rewrite (pull_right A) || rewrite (pull_right0 A)).
 
-Lemma pure_modus {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+(*Lemma pure_modus {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall P Q,  (P |-- Q) -> pure Q -> P |-- Q && P.
 Proof.
 intros.
 intros w ?.
 split; auto.
-Qed.
+Qed.*)
 
 
-Lemma imp_exp_right {B A : Type} `{saA: ageable A}:
+Lemma imp_exp_right {B A : Type} `{saA: ageable A}{EO: Ext_ord A}:
   forall (x: B) (p: pred A) (q: B -> pred A),
     (p |-- q x) ->
     p |-- exp q.
@@ -290,14 +293,14 @@ eapply derives_trans; try apply H.
 intros w ?; exists x; auto.
 Qed.
 
-Lemma derives_extract_prop {A} `{ageable A}:
+Lemma derives_extract_prop {A} `{ageable A}{EO: Ext_ord A}:
   forall (P: Prop) (Q R: pred A), (P -> Q |-- R) ->  !!P && Q |-- R.
 Proof.
 unfold derives, prop, andp; hnf in *; intuition.
 hnf in H1; intuition.
 Qed.
 
-Lemma derives_extract_prop' {A} `{ageable A}:
+Lemma derives_extract_prop' {A} `{ageable A}{EO: Ext_ord A}:
   forall (P: Prop) (Q R: pred A), (P -> Q |-- R) ->  Q && !!P|-- R.
 Proof.
 unfold derives, prop, andp; intuition; hnf in *; intuition.
@@ -353,7 +356,7 @@ Tactic Notation "normalize" "in" hyp(H) := repeat (normalize1_in H).
 
 Definition mark {A: Type} (i: nat) (j: A) := j.
 
-Lemma swap_mark1 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma swap_mark1 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
   forall i j Pi Pj B, (i<j)%nat -> B * mark i Pi * mark j Pj = B * mark j Pj * mark i Pi.
 Proof.
 intros.
@@ -362,7 +365,7 @@ f_equal.
 apply sepcon_comm.
 Qed.
 
-Lemma swap_mark0 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma swap_mark0 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
   forall i j Pi Pj,  (i<j)%nat -> mark i Pi * mark j Pj = mark j Pj * mark i Pi.
 Proof.
 intros.
@@ -390,7 +393,7 @@ Ltac markem n P :=
   end.
 
 Ltac prove_assoc_commut :=
- clear;
+ match goal with H : Perm_alg _ |- _ => clear - H end;
  try (match goal with |- ?F _ -> ?G _ => replace G with F; auto end);
   (repeat rewrite <- sepcon_assoc;
    match goal with |- ?P = _ => markem O P end;
@@ -401,7 +404,7 @@ Ltac prove_assoc_commut :=
      reflexivity
    end).
 
-Lemma test_prove_assoc_commut {T}{JA: Join T}{PA: Perm_alg T}{SA: Sep_alg T}{agA: ageable T}{AgeA: Age_alg T} : forall A B C D E : pred T,
+Lemma test_prove_assoc_commut {T}{JA: Join T}{PA: Perm_alg T}{SA: Sep_alg T}{agA: ageable T}{AgeA: Age_alg T}{EO: Ext_ord T}{EA: Ext_alg T} : forall A B C D E : pred T,
    D * E * A * C * B = A * B * C * D * E.
 Proof.
 intros.

@@ -226,7 +226,7 @@ Proof.
   apply necR_age_by_iff.
 Qed.
 
-Lemma age_to_pred {A} `{agA : ageable A} (P : pred A) x n :
+Lemma age_to_pred {A} `{agA : ageable A} {EO : Ext_ord A} (P : pred A) x n :
   app_pred P x ->
   app_pred P (age_to n x).
 Proof.
@@ -234,7 +234,7 @@ Proof.
   destruct P as [x h]. apply h.
 Qed.
 
-Lemma age_by_pred {A} `{agA : ageable A} (P : pred A) x n :
+Lemma age_by_pred {A} `{agA : ageable A} {EO : Ext_ord A} (P : pred A) x n :
   app_pred P x ->
   app_pred P (age_by n x).
 Proof.
@@ -242,13 +242,13 @@ Proof.
   destruct P as [x h]. apply h.
 Qed.
 
-Lemma pred_age1' {A} `{agA : ageable A} (R : pred A) x : app_pred R x -> app_pred R (age1' x).
+Lemma pred_age1' {A} `{agA : ageable A} {EO : Ext_ord A} (R : pred A) x : app_pred R x -> app_pred R (age1' x).
 Proof.
   unfold age1'. destruct (age1 x) as [phi' | ] eqn:Ephi'; auto.
-  destruct R as [R h]. apply h. apply Ephi'.
+  destruct R as [R [h ?]]. apply h. apply Ephi'.
 Qed.
 
-Lemma age_by_age_by_pred {A} `{agA : ageable A} (P : pred A) x n1 n2 :
+Lemma age_by_age_by_pred {A} `{agA : ageable A} {EO : Ext_ord A} (P : pred A) x n1 n2 :
   le n1 n2 ->
   app_pred P (age_by n1 x) ->
   app_pred P (age_by n2 x).
@@ -348,7 +348,7 @@ Proof.
   eapply age_identity. apply E. auto.
 Qed.
 
-Lemma age_to_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} :
+Lemma age_to_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO : Ext_ord A}  :
   forall k x1 x2 x3,
     join x1 x2 x3 ->
     k <= level x3 ->
