@@ -1183,6 +1183,36 @@ Proof.
     eapply derives_trans; [apply bupd_frame_r | apply bupd_mono, bupd_frame_l]. }
 Qed.
 
+Lemma ghost_is_pred_nonexpansive : forall g H, nonexpansive (fun P => ghost_is (singleton g
+  (existT (fun RA : Ghost => {a : @G RA | valid a}) unit_PCM
+           (exist (fun a : G => valid a) (tt : @G unit_PCM) H),
+        pred_of P))).
+Proof.
+  unfold nonexpansive.
+  intros ??????; split; intros ???; simpl in *; etransitivity; eauto; simpl;
+    rewrite !ghost_fmap_singleton; do 2 f_equal; simpl; f_equal;
+    extensionality; apply pred_ext; intros ? []; split; auto;
+    eapply H0; try apply necR_refl; auto; apply necR_level in H2; lia.
+Qed.
+
+Lemma agree_nonexpansive : forall g, nonexpansive (agree g).
+Proof.
+  intros; unfold agree, own.
+  apply exists_nonexpansive; intros.
+  unfold Own.
+  apply conj_nonexpansive; [apply const_nonexpansive|].
+  apply ghost_is_pred_nonexpansive.
+Qed.
+
+Lemma invariant_nonexpansive : forall N, nonexpansive (invariant N).
+Proof.
+  intros; unfold invariant.
+  apply exists_nonexpansive; intros.
+  apply sepcon_nonexpansive.
+  - apply const_nonexpansive.
+  - apply agree_nonexpansive.
+Qed.
+
 Lemma invariant_super_non_expansive : forall n N P,
   approx n (invariant N P) = approx n (invariant N (approx n P)).
 Proof.
