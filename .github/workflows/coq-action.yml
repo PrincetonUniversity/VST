@@ -16,15 +16,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # ATTENTION: the "matrix" section must be identical for the "build" and "test" job
+        # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-          # - '8.13' Disabled for testing
-          # - '8.14' Disabled for testing
+          - '8.13'
+          - '8.14'
           - '8.15'
         make_target:
           - vst
         bit_size:
-          # - 32 Disabled for testing
+          - 32
           - 64
         exclude:
           - coq_version: 8.13
@@ -79,14 +81,17 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-          # See https://github.com/coq-community/docker-coq/wiki for supported images
-          # - '8.13' Disabled for testing
-          # - '8.14' Disabled for testing
+          - '8.13'
+          - '8.14'
           - '8.15'
         make_target:
           - test
+          - test2
+          - test3
+          - test4
+          - test5
         bit_size:
-          # - 32 Disabled for testing
+          - 32
           - 64
         exclude:
           - coq_version: 8.13
