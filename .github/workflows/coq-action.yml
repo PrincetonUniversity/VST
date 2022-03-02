@@ -61,8 +61,10 @@ jobs:
               make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
             endGroup
           after_script: |
-            startGroup 'Copy Opam user-contrib'
+            startGroup 'Copy Opam coq/user-contrib and coq-variant'
               cp -R -v "$(opam var lib)"/coq/user-contrib .
+              mkdir -p "$(opam var lib)"/coq-variant
+              cp -R -v "$(opam var lib)"/coq-variant
             endGroup
           uninstall:
       - name: 'Create archive'
@@ -111,8 +113,10 @@ jobs:
         with:
           coq_version: ${{ matrix.coq_version }}
           install: |
-            startGroup "Copy downloaded opam user-contrib"
+            startGroup "Copy downloaded Opam coq/user-contrib and coq-variant"
               cp -R -v user-contrib/* "$(opam var lib)"/coq/user-contrib
+              mkdir -p "$(opam var lib)"/coq-variant
+              cp -R -v coq-variant/* "$(opam var lib)"/coq-variant
             endGroup
           before_script: |
             startGroup "Workaround permission issue"
