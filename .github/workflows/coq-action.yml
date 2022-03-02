@@ -23,11 +23,11 @@ jobs:
           - '8.13'
           - '8.14'
           - '8.15'
-        make_target:
-          - vst
         bit_size:
           - 32
           - 64
+        make_target:
+          - vst
         exclude:
           - coq_version: 8.13
             bit_size: 32
@@ -49,7 +49,7 @@ jobs:
             endGroup
           install: |
             startGroup "Install dependencies"
-              opam install -y coq-compcert.3.10
+              opam install -y ${{ matrix.bit_size == 32 && format('coq-compcert{0}.3.10', '-32') || format('coq-compcert{0}.3.10', '') }}
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |
@@ -63,8 +63,8 @@ jobs:
           after_script: |
             startGroup 'Copy Opam coq/user-contrib and coq-variant'
               cp -R -v "$(opam var lib)"/coq/user-contrib .
-              mkdir -p "$(opam var lib)"/coq-variant
-              cp -R -v "$(opam var lib)"/coq-variant
+              mkdir -p "$(opam var lib)"/coq-variant/dummy
+              cp -R -v "$(opam var lib)"/coq-variant .
             endGroup
           uninstall:
       - name: 'Create archive'
