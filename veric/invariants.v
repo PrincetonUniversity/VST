@@ -882,7 +882,7 @@ Proof.
     - apply IHl.
       intros; apply H.
       simpl; auto.
-Qed. 
+Qed.
 
 Lemma iter_sepcon_emp': forall {B} p (l : list B), (forall x, List.In x l -> p x = emp) -> iter_sepcon p l = emp.
 Proof.
@@ -1211,6 +1211,41 @@ Proof.
   apply sepcon_nonexpansive.
   - apply const_nonexpansive.
   - apply agree_nonexpansive.
+Qed.
+
+Lemma ghost_is_pred_nonexpansive2 : forall g H f,
+    nonexpansive f ->
+    nonexpansive (fun P => ghost_is (singleton g
+  (existT (fun RA : Ghost => {a : @G RA | valid a}) unit_PCM
+           (exist (fun a : G => valid a) (tt : @G unit_PCM) H),
+        pred_of (f P)))).
+Proof.
+  unfold nonexpansive.
+  intros ??????; split; intros ???; specialize (H0 _ _ _ H1);
+  simpl in *; etransitivity; eauto; simpl;
+    rewrite !ghost_fmap_singleton; do 2 f_equal; simpl; f_equal;
+    extensionality; apply pred_ext; intros ? []; split; auto;
+    eapply H0; try apply necR_refl; auto; apply necR_level in H3; lia.
+Qed.
+
+Lemma agree_nonexpansive2 : forall g f,
+    nonexpansive f -> nonexpansive (fun a => agree g (f a)).
+Proof.
+  intros; unfold agree, own.
+  apply exists_nonexpansive; intros.
+  unfold Own.
+  apply conj_nonexpansive; [apply const_nonexpansive|].
+  now apply ghost_is_pred_nonexpansive2.
+Qed.
+
+Lemma invariant_nonexpansive2 : forall N f,
+    nonexpansive f -> nonexpansive (fun a => invariant N (f a)).
+Proof.
+  intros; unfold invariant.
+  apply exists_nonexpansive; intros.
+  apply sepcon_nonexpansive.
+  - apply const_nonexpansive.
+  - now apply agree_nonexpansive2.
 Qed.
 
 Lemma invariant_super_non_expansive : forall n N P,

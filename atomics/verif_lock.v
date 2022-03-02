@@ -184,39 +184,33 @@ Section PROOFS.
     unfold lock_inv.
     apply @exists_nonexpansive.
     intros i.
-    unfold invariant.
-    apply exists_nonexpansive.
-    intros x.
-    apply sepcon_nonexpansive.
-    - apply const_nonexpansive.
-    - unfold agree. unfold own.own.
-      apply exists_nonexpansive. intros.
-      unfold own.Own.
-      apply conj_nonexpansive.
+    apply invariant_nonexpansive2.
+    apply @disj_nonexpansive.
+    - apply @sepcon_nonexpansive.
+      + apply _.
       + apply const_nonexpansive.
-      + hnf. intros. simpl in *. split.
-        * unfold own.ghost_is. simpl. intros.
-          rewrite H2. remember (compcert_rmaps.RML.R.approx (ageable.level a')).
-  Admitted.
+      + apply identity_nonexpansive.
+    - apply const_nonexpansive.
+  Qed.
 
-  Program Definition makelock_spec_2 cs: funspec :=
+  Program Definition makelock_spec2 cs: funspec :=
     mk_funspec
       ((tptr Ctypes.Tvoid) :: nil, tvoid)
       cc_default
-      (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
+      (rmaps.ProdType (rmaps.ConstType (globals * val * share)) rmaps.Mpred)
       (fun _ x =>
          match x with
-         | (v, sh, R) =>
+         | (gv, v, sh, R) =>
              PROP (writable_share sh)
-                  PARAMS (v) GLOBALS ()
-                  SEP (@data_at_ cs sh t_lock v)
+                  PARAMS (v) GLOBALS (gv)
+                  SEP (mem_mgr gv; @data_at_ cs sh t_lock v)
          end)%argsassert
       (fun _ x =>
          match x with
-         | (v, sh, R) =>
+         | (gv, v, sh, R) =>
              PROP ()
                   LOCAL ()
-                  SEP (lock_inv sh v R)
+                  SEP (mem_mgr gv; lock_inv sh v R)
          end)
       _
       _
@@ -224,13 +218,20 @@ Section PROOFS.
   Next Obligation.
     intros. simpl in *.
     apply (nonexpansive_super_non_expansive
-             (fun _f => (PROP () RETURN ()  SEP (lock_inv s x _f)) rho)).
+             (fun _f => (PROP () RETURN ()  SEP (mem_mgr x; lock_inv s v _f)) rho)).
     apply (PROP_LOCAL_SEP_nonexpansive
              nil
              nil
-             ((fun _f => lock_inv s x _f) :: nil)); constructor.
-    - apply nonexpansive_lock_inv.
+             ((fun _f : mpred => mem_mgr x) :: (fun _f => lock_inv s v _f) :: nil)); constructor.
+    - apply const_nonexpansive.
     - constructor.
+      + apply nonexpansive_lock_inv.
+      + constructor.
   Qed.
+
+  Lemma makelock_funspec_sub: funspec_sub (snd makelock_spec) (makelock_spec2 CompSpecs).
+  Proof.
+    split.
+  Abort.
 
 End PROOFS.
