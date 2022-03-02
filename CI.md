@@ -29,34 +29,33 @@ At the top right of the list there is "More options" menu - select "Caches".
 GitHub Actions CI is controlled by the file `.github/workflows/coq-action.yml`.
 See [GitHub Actions Doc](https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions) for reference.
 
-GitHub Actions uses the local opam files `coq-vst.opam` and `coq-vst-32.opm` to define dependencies (especially the CompCert version used), the build precedure and the make test targets. Only the version of Coq is controlled directly in the YAML file.
+The GitHub action is split into a `build` and one or multiple `test` jobs.
+The `build` job uploads the dependencies installed via opam (the `user-contrib` folder) and the
+VST working folder as compressed tar file.
+The one or more `test` jobs download this `.tgz` file tp continue at the point where the `build`job left.
+The main advantage of this setup is that several test jobs can be run in parallel.
 
-The main actions of the YAML script are:
+The main actions of the `build` part are:
 
-- Check out the branch from CI.
-- Download a Coq docker image via (https://github.com/coq-community/docker-coq-action/tree/v1.0.0).
-- The Coq docker images are provided by (https://github.com/coq-community/docker-coq/wiki).
-- Add the local opam-prerelease repo (coq/released is already available in the docker image).
-- Install the dependencies of the local opam package `coq-vst.opam` or `coq-vst-32.opm`.
-- Install the local opam package `coq-vst.opam` or `coq-vst-32.opam` with running tests.
+- check out the branch from GIT
+- download a Coq docker image via (https://github.com/coq-community/docker-coq-action/tree/v1.0.0)
+- the Coq docker images are provided by (https://github.com/coq-community/docker-coq/wiki)
+- add the local opam-prerelease repo (coq/released is already available in the docker image)
+- install the dependency `coq-compcert`
+- run `make vst BITSIZE=32/64`
+- copy `lib/coq/user-contrib` to the working folder
+- tar gz the working folder and upload it as build artifact
+
+The main actions of the `test` part(s) are:
+
+- download and extract the working folder created by the `build` stage
+- download a Coq docker image
+- copy the backup of `lib/coq/user-contrib` to the destination folder
+- run `make test BITSIZE=32/64` where `test` is a make target
 
 The GitHub actions are based on a parameter matrix.
-The above set of actions is performed for each combination of these parameters:
-- coq_version (8.12, 8.13)
-- opam_name (coq-vst, coq-vst-32)
-
-The first parameter is the coq version part of a Coq docker image, see (https://github.com/coq-community/docker-coq/wiki) for available options.
-The second parameter is the name of a local opam package file (without .opam).
-It would be possible to add an additional parameter, e.g. a CompCert version or CompCert open source vs. full.
-It is also possible to restrict the matrix with an `exclude:` statement, see [Exclude](https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#example-excluding-configurations-from-a-matrix)
-
-# Pros and Cons
-
-- The build speed of Travis is slightly faster - usually Travis finishes together with the first matrix jobs from GitHub actions.
-- GitHub actions does not run on branches other than the master branch and PR branches - not sure how to fix this.
-- GitHub actions also checks the local opam files, so that these can serve as a template for publishing opam packages.
-  Of course one could have the same functionality in Travis.
-- The matrix approach of GitHub and the parallel build stages of Travis seem to be about equivalent in functionality.
-- The build cache of Travis gives a larger speed advantage than Docker used in GitHub actions. In a test run (commit 9291cd3) Travis finished in 29 minutes, while GitHub actions required 55 minutes - almost twice as long.
-
-In summary I would say that both systems are comparable in capabilities. One can probably drop one of them.
+The above set of actions is performed for various combination of these parameters:
+- coq_version (8.13, 8.14. 8.15)
+- make_target (`vst` for `build` or `test`for `test`)
+- bit_size (32 or 64)
+Some combinations are excluded for efficiency reasons.
