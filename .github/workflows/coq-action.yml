@@ -50,6 +50,8 @@ jobs:
           install: |
             startGroup "Install dependencies"
               opam install -y ${{ matrix.bit_size == 32 && format('coq-compcert{0}.3.10', '-32') || format('coq-compcert{0}.3.10', '') }}
+              # Required by test2
+              opam install -y coq-ext-lib
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |
@@ -91,7 +93,7 @@ jobs:
           - test2
           - test3
           - test4
-          - test5
+          # - test5 Seems to have issues with compcert path (likely -Q option to bind 32 bit version missing)
         bit_size:
           - 32
           - 64
@@ -100,6 +102,12 @@ jobs:
             bit_size: 32
           - coq_version: 8.14
             bit_size: 32
+          - bit_size: 64
+            make_target: test2
+          - bit_size: 64
+            make_target: test3
+          - bit_size: 64
+            make_target: test4
 
     steps:
       - name: 'Download archive'
