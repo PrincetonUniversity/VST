@@ -103,8 +103,6 @@ jobs:
           - coq_version: 8.14
             bit_size: 32
           - bit_size: 64
-            make_target: test2
-          - bit_size: 64
             make_target: test3
           - bit_size: 64
             make_target: test4
