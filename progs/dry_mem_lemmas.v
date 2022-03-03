@@ -846,7 +846,6 @@ Definition main_post_dry {Z} (m0 m : mem) (prog : Clight.program) (ora : Z)
 
 (* simulate funspec2pre/post *)
 
-Search genv genviron.
 Definition main_pre_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & unit})
   (ge_s: extspec.injective_PTree block) args (z : Z) (m : juicy_mem) :=
     Val.has_type_list args [] /\

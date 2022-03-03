@@ -7,13 +7,13 @@ Require Import compcert.lib.Maps.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
-Require Import VST.progs.io_specs.
-Require Import VST.progs.io_mem_specs.
-Require Import VST.progs.io_dry.
-Require Import VST.progs.io_mem_dry.
-Require Import VST.progs.io_os_specs.
+Require Import VST.progs64.io_specs.
+Require Import VST.progs64.io_mem_specs.
+Require Import VST.progs64.io_dry.
+Require Import VST.progs64.io_mem_dry.
+Require Import VST.progs64.io_os_specs.
 Require Import VST.zlist.sublist.
-Require Import VST.progs.os_combine.
+Require Import VST.progs64.os_combine.
 Import ExtLib.Structures.Monad.
 
 Local Ltac inj :=
@@ -575,7 +575,7 @@ Section Invariants.
     Zlength (enumerate xs) = Zlength xs.
   Proof.
     unfold enumerate; intros.
-    rewrite conclib.Zlength_combine, !Zlength_correct, seq_length; lia.
+    rewrite Zlength_combine, !Zlength_correct, seq_length; lia.
   Qed.
 
   Lemma seq_nth_app : forall len start n pre post,
@@ -596,7 +596,7 @@ Section Invariants.
   Proof.
     unfold enumerate; intros * Heq.
     apply (f_equal (map fst)) in Heq.
-    rewrite conclib.combine_fst, map_app in Heq; cbn in Heq.
+    rewrite coqlib4.combine_fst, map_app in Heq; cbn in Heq.
     apply seq_nth_app in Heq; subst; cbn; auto using map_length.
     rewrite <- Nat2Z.id, <- Zlength_length; rewrite <- Zlength_correct.
     - rewrite !Zlength_correct, seq_length; auto.
@@ -825,7 +825,7 @@ Section Invariants.
     - intros * Heq.
       apply in_app_case in Heq; cbn in Heq; intuition (try easy).
       all: destruct H2; subst; eapply vt_trace_user0; eauto.
-    - rewrite conclib.filter_app, app_nil_r; auto.
+    - rewrite filter_app, app_nil_r; auto.
     - simpl_rev; cbn; auto.
     - intros * Heq.
       apply in_app_case in Heq; cbn in Heq; intuition (try easy).
@@ -837,7 +837,7 @@ Section Invariants.
     - intros * Heq.
       apply in_app_case in Heq; cbn in Heq; intuition (try easy).
       all: destruct H2; subst; eapply vt_trace_user0; eauto.
-    - rewrite conclib.filter_app, app_nil_r; auto.
+    - rewrite filter_app, app_nil_r; auto.
     - simpl_rev; cbn; auto.
   Qed.
 
@@ -885,8 +885,8 @@ Section Invariants.
         eapply in_mkRecvEvents in Hin.
         destruct Hin as (? & ? & ? & ? & ?); inj; easy.
       + (* valid_trace_unique *)
-        rewrite conclib.filter_app, conclib.NoDup_app_iff; repeat split;
-          auto using mkRecvEvents_NoDup, conclib.NoDup_filter.
+        rewrite filter_app, NoDup_app_iff; repeat split;
+          auto using mkRecvEvents_NoDup, NoDup_filter.
         intros *; rewrite !filter_In.
         intros (Hin & ?) (Hin' & ?).
         eapply in_mkRecvEvents in Hin'.
@@ -945,8 +945,8 @@ Section Invariants.
         eapply in_mkRecvEvents in Hin.
         destruct Hin as (? & ? & ? & ? & ?); inj; easy.
       + (* valid_trace_unique *)
-        rewrite conclib.filter_app, conclib.NoDup_app_iff; repeat split;
-          auto using mkRecvEvents_NoDup, conclib.NoDup_filter.
+        rewrite filter_app, NoDup_app_iff; repeat split;
+          auto using mkRecvEvents_NoDup, NoDup_filter.
         intros *; rewrite !filter_In.
         intros (Hin & ?) (Hin' & ?).
         eapply in_mkRecvEvents in Hin'.
@@ -1113,7 +1113,7 @@ Section Invariants.
       apply in_console_in_trace.
       rewrite <- vt_trace_console0, Hcons; cbn; auto.
     - (* valid_trace_unique *)
-      rewrite conclib.filter_app, conclib.NoDup_app_swap; cbn.
+      rewrite filter_app, NoDup_app_swap; cbn.
       constructor; auto; intros Hin.
       rewrite filter_In in Hin; destruct Hin as (Hin & _).
       apply in_split in Hin.

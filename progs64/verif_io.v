@@ -1,5 +1,5 @@
-Require Import VST.progs.io.
-Require Import VST.progs.io_specs.
+Require Import VST.progs64.io.
+Require Import VST.progs64.io_specs.
 Require Import VST.floyd.proofauto.
 
 Local Open Scope itree_scope.
@@ -55,6 +55,7 @@ Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list byte :=
   match n' <=? 0 with true => [Byte.repr (n + char0)] | false => chars_of_Z n' ++ [Byte.repr (n mod 10 + char0)] end.
 Next Obligation.
 Proof.
+  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous.
   eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
@@ -68,6 +69,7 @@ Program Fixpoint intr n { measure (Z.to_nat n) } : list byte :=
   end.
 Next Obligation.
 Proof.
+  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous; lia.
 Defined.
@@ -239,6 +241,7 @@ Proof.
   rewrite chars_of_Z_eq, intr_eq.
   destruct (n <=? 0) eqn: Hn; [apply Zle_bool_imp_le in Hn; lia|].
   simpl.
+  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   destruct (n / 10 <=? 0) eqn: Hdiv.
   - apply Zle_bool_imp_le in Hdiv.
     assert (0 <= n / 10).
@@ -342,7 +345,7 @@ Qed.
 
 Definition ext_link := ext_link_prog prog.
 
-Instance Espec : OracleKind := IO_Espec ext_link.
+#[(*export, after Coq 8.13*)global] Instance Espec : OracleKind := IO_Espec ext_link.
 
 Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.
@@ -362,7 +365,7 @@ semax_func_cons body_main.
 Qed.
 
 Require Import VST.veric.SequentialClight.
-Require Import VST.progs.io_dry.
+Require Import VST.progs64.io_dry.
 
 Lemma init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.
@@ -372,9 +375,17 @@ Ltac alloc_block m n := match n with
   | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
-  alloc_block Mem.empty 60%nat.
-  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end.
-  reflexivity.
+try first [
+  (* This version works in Coq 8.15, CompCert 3.10 *)
+  alloc_block Mem.empty 62%nat;
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
+  reflexivity
+ | 
+  (* This version worked in Coq 8.13, CompCert 3.9 *)
+  alloc_block Mem.empty 60%nat;
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
+  reflexivity
+].
 Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.
@@ -405,10 +416,10 @@ Proof.
     split; auto.
 Qed.
 
-Require Import VST.progs.os_combine.
-Require Import VST.progs.io_combine.
-Require Import VST.progs.io_os_specs.
-Require Import VST.progs.io_os_connection.
+Require Import VST.progs64.os_combine.
+Require Import VST.progs64.io_combine.
+Require Import VST.progs64.io_os_specs.
+Require Import VST.progs64.io_os_connection.
 
 (* correctness down to OS traces, with relationship between syscall events and actual external reads/writes *)
 Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},

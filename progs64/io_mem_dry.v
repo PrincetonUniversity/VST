@@ -1,4 +1,4 @@
-Require Import VST.progs.io_mem_specs.
+Require Import VST.progs64.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.semax_ext.
@@ -8,7 +8,7 @@ Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.concurrency.conclib.
-Require Import VST.progs.dry_mem_lemmas.
+Require Import VST.progs64.dry_mem_lemmas.
 Require Import VST.veric.mem_lessdef.
 
 Section IO_Dry.

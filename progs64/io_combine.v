@@ -12,12 +12,12 @@ Require Import VST.sepcomp.semantics.
 Require Import ITree.ITree.
 Require Import ITree.Interp.Traces.
 Require Import Ensembles.
-Require Import VST.progs.io_specs.
-Require Import VST.progs.io_dry.
-Require Import VST.progs.io_os_specs.
-Require Import VST.progs.io_os_connection.
-Require Import VST.progs.os_combine.
-Require Import VST.progs.dry_mem_lemmas.
+Require Import VST.progs64.io_specs.
+Require Import VST.progs64.io_dry.
+Require Import VST.progs64.io_os_specs.
+Require Import VST.progs64.io_os_connection.
+Require Import VST.progs64.os_combine.
+Require Import VST.progs64.dry_mem_lemmas.
 Import Maps.
 
 Section IO_safety.
@@ -114,7 +114,7 @@ Proof.
       destruct (sys_getc_spec) eqn:Hspec; inv H3.
       assert (sig_res (ef_sig e) <> AST.Tvoid).
       { destruct e; inv H4; discriminate. }
-      eapply sys_getc_correct with (m1 := m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
+      eapply (sys_getc_correct _ _ m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
       * split; auto; do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
         destruct Hpost as [? Hpost]; split; auto; split; auto.
