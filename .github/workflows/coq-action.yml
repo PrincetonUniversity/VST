@@ -93,7 +93,7 @@ jobs:
           - test2
           - test3
           - test4
-          # - test5 Seems to have issues with compcert path (likely -Q option to bind 32 bit version missing)
+          - test5
         bit_size:
           - 32
           - 64
@@ -106,6 +106,8 @@ jobs:
             make_target: test3
           - bit_size: 64
             make_target: test4
+          - bit_size: 64
+            make_target: test5
 
     steps:
       - name: 'Download archive'
