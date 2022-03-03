@@ -254,24 +254,23 @@ Global Program Instance snap_PCM : Ghost :=
         else ord (snd a) (snd b) /\ snd c = snd b else snd c = snd a /\
           if eq_dec (fst b) Share.bot then ord (snd b) (snd a) else snd c = snd b }.
 Next Obligation.
-  exists (fun '(sh, a) => (Share.bot, core a)); repeat intro.
+  exists (fun '(sh, a) => (Share.bot, a)); repeat intro.
   + destruct t; constructor; auto; simpl.
     rewrite eq_dec_refl.
-    if_tac; [apply core_unit | split; auto].
-    rewrite join_ord_eq; eexists; apply core_unit.
-  + destruct a, c, H as [? Hj]; eexists (_, _). split; simpl.
+    if_tac; [apply join_refl | split; auto].
+    reflexivity.
+  + destruct a, c, H as [? Hj].
+    assert (join_sub g g0) as [].
+    { if_tac in Hj. if_tac in Hj.
+      eexists; eauto.
+      destruct Hj; simpl in *; subst.
+      apply join_ord_eq; auto.
+      destruct Hj; simpl in *; subst.
+      apply join_sub_refl. }
+    eexists (_, _). split; simpl.
     * apply join_bot_eq.
-    * if_tac; [|contradiction].
-      simpl in H0.
-      assert (join_sub g g0) as [].
-      { if_tac in Hj. if_tac in Hj.
-        eexists; eauto.
-        destruct Hj; simpl in *; subst.
-        apply join_ord_eq; auto.
-        destruct Hj; simpl in *; subst.
-        apply join_sub_refl. }
-      eapply core_sub_join, join_core_sub; eassumption.
-  + destruct a. rewrite core_idem; reflexivity.
+    * rewrite !eq_dec_refl; eauto.
+  + destruct a; reflexivity.
 Defined.
 Next Obligation.
   constructor.
@@ -392,7 +391,7 @@ Corollary snaps_master_join : forall lv sh v2 p, sh <> Share.bot ->
   !!(Forall (fun v1 => ord v1 v2) lv) && ghost_master sh v2 p)%pred.
 Proof.
   induction lv; simpl; intros.
-  - rewrite res_predicates.emp_sepcon, prop_true_andp; auto.
+  - rewrite emp_sepcon, prop_true_andp; auto.
   - rewrite sepcon_comm, <-sepcon_assoc, (sepcon_comm (ghost_master _ _ _)), snap_master_join; auto.
     apply pred_ext.
     + rewrite sepcon_andp_prop1; apply prop_andp_left; intro.

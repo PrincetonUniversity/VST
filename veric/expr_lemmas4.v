@@ -497,14 +497,14 @@ Proof.
   + destruct (classify_add (typeof e1) (typeof e2));
     rewrite ?denote_tc_assert_andp in H;
     repeat match goal with
-    | H: app_pred (_ && _) _ |- _ => destruct H
+    | H: app_pred (_ && _)%pred _ |- _ => destruct H
     end;
     try solve [eapply tc_bool_e; eauto].
     auto.
   + destruct (classify_sub (typeof e1) (typeof e2));
     rewrite ?denote_tc_assert_andp in H;
     repeat match goal with
-    | H: app_pred (_ && _) _ |- _ => destruct H
+    | H: app_pred (_ && _)%pred _ |- _ => destruct H
     end;
     try solve [eapply tc_bool_e; eauto].
     auto.

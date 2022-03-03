@@ -27,14 +27,14 @@ Qed.*)
 
 (* from Iris: "persistent and absorbing" *)
 Definition corable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}
-         (P: pred A) := forall w, P w -> forall w', (join_sub w w' \/ join_sub w' w) -> P w'.
+         (P: pred A) := forall w, P w -> forall w', (join_sub w w' \/ join_sub w' w \/ ext_order w' w) -> P w'.
 
 Lemma corable_core : forall {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A} P w1 w2, corable P ->
   core w1 = core w2 -> P w1 -> P w2.
 Proof.
   intros.
   eapply H; [eapply H; [eassumption|]|].
-  - right; eexists; apply core_unit.
+  - right; left; eexists; apply core_unit.
   - left; rewrite H0; eexists; apply core_unit.
 Qed.
 
@@ -64,74 +64,113 @@ Proof.
  unfold corable; intros; simpl.
  destruct H0; eauto.
 Qed.
-Lemma corable_prop{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
+Lemma corable_prop {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
   forall P, corable (prop P).
 Proof.
  unfold corable, prop; intros.
  simpl in *; auto.
 Qed.
 
-(*Lemma corable_imp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}:
+Lemma ext_later_compat {A}{agA: ageable A}{EO: Ext_ord A}: forall a b a', ext_order a b -> laterR a a' -> exists b', laterR b b' /\ ext_order a' b'.
+Proof.
+  intros.
+  revert dependent b; induction H0; intros.
+  - eapply ext_age_compat in H as (? & ? & ?); eauto.
+    do 2 eexists; [|eauto].
+    apply t_step; auto.
+  - apply IHclos_trans1 in H as (? & ? & Hext).
+    apply IHclos_trans2 in Hext as (? & ? & Hext).
+    do 2 eexists; [eapply t_trans|]; eauto.
+Qed.
+
+Lemma ext_nec_compat {A}{agA: ageable A}{EO: Ext_ord A}: forall a b a', ext_order a b -> necR a a' -> exists b', necR b b' /\ ext_order a' b'.
+Proof.
+  intros.
+  apply nec_refl_or_later in H0 as [|]; subst; eauto.
+  eapply ext_later_compat in H as (? & ? & ?); eauto.
+  do 2 eexists; [apply laterR_necR|]; eauto.
+Qed.
+
+Lemma corable_imp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
   forall P Q, corable P -> corable Q -> corable (P --> Q).
 Proof.
   unfold corable; simpl; intros.
-  destruct H2 as [[? J] | [? J]].
+  destruct H2 as [[? J] | [[? J] | E]].
   - eapply nec_join2 in J as (? & ? & ? & Hw & ?); eauto.
     eapply ext_join_commut in H2 as (? & ? & ?); eauto.
     eapply H1 in H2; eauto.
   - eapply nec_join in J as (? & ? & ? & ? & Hw); eauto.
-    eapply ext_join_commut in H2 as (? & ? & ?); eauto.
-    eapply H1 in H2; eauto.
-
-Qed.*)
+    eapply H1 in Hw; [| eauto | eauto].
+    + eapply pred_upclosed, H0; eauto.
+    + apply H with a'; eauto.
+  - eapply ext_nec_compat in E as (? & Hnec & ?); eauto.
+    eapply H1 in Hnec; try reflexivity.
+    + eapply pred_upclosed, H0; eauto.
+    + eapply pred_upclosed, H; eauto.
+Qed.
 
 Lemma corable_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
   forall P Q, corable P -> corable Q -> corable (P * Q).
 Proof.
   unfold corable; simpl; intros.
   destruct H1 as (? & ? & J & HP & HQ).
-  destruct H2 as [[? J'] | [? J']].
+  destruct H2 as [[? J'] | [[? J'] | E]].
   - destruct (join_assoc J J') as (? & ? & ?).
     do 3 eexists; eauto.
   - do 3 eexists; [apply core_unit|].
     split.
     + eapply H; [eapply H; [eassumption|]|].
       * left; eexists; apply J.
-      * right; eapply join_sub_trans; [|eexists; eauto].
+      * right; left; eapply join_sub_trans; [|eexists; eauto].
         eexists; apply core_unit.
     + eapply H0; [eapply H0; [eassumption|]|].
       * left; eexists; apply join_comm, J.
       * eauto.
+  - do 3 eexists; [apply core_unit|].
+    split.
+    + eapply H in HP; [|left; eexists; eauto].
+      eapply H in HP; [|right; right; eauto].
+      eapply H; eauto.
+      right; left; eexists; apply core_unit.
+    + eapply H0 in HQ; [|left; eexists; eauto]; eauto.
 Qed.
 
 Lemma corable_wand: forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {XA: Age_alg A} {EO: Ext_ord A}{EA: Ext_alg A} (P Q: pred A), corable P -> corable Q -> corable (P -* Q).
 Proof.
   unfold corable; simpl; intros.
-  destruct H2 as [[? J] | [? J]].
+  destruct H2 as [[? J] | [[? J] | E]].
   - eapply nec_join2 in J as (? & ? & J' & Hw & ?); eauto.
     eapply H1 in Hw; try apply J'; eauto.
     eapply H; [eapply H; [eapply H; [eassumption|]|]|].
     + left; eexists; apply join_comm; eassumption.
-    + right; eexists; eauto.
+    + right; left; eexists; eauto.
     + eauto.
   - eapply nec_join in J as (? & ? & J' & ? & Hw); eauto.
     eapply H1 in Hw; try apply join_comm, core_unit.
     + eapply H0; [eapply H0; [eassumption|]|].
-      * right; eexists; eauto.
+      * right; left; eexists; eauto.
       * left; eexists; eauto.
     + eapply H; [eapply H; [eapply H; [eapply H; [eassumption|]|]|]|].
       * left; eexists; eauto.
-      * right; eexists; eauto.
-      * left; eexists; eauto.  
-      * right; eexists; apply core_unit.
+      * right; left; eexists; eauto.
+      * left; eexists; eauto.
+      * right; left; eexists; apply core_unit.
+  - eapply ext_nec_compat in E as (? & Hnec & ?); eauto.
+    eapply H1 in Hnec; [| apply join_comm, core_unit |].
+    + eapply H0; [eapply H0; eauto|]; eauto.
+    + eapply H; [|right; left; eexists; apply core_unit].
+      eapply pred_upclosed; eauto.
+      eapply H; [|right; left; eexists; eauto]; eauto.
 Qed.
 
 Lemma corable_later: forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {XA: Age_alg A} {EO: Ext_ord A}{EA: Ext_alg A} P, corable P -> corable (|> P).
 Proof.
   unfold corable; simpl; intros.
-  destruct H1 as [[? J] | [? J]].
+  destruct H1 as [[? J] | [[? J] | E]].
   - eapply later_join2 in J as (? & ? & ? & ? & ?); eauto.
   - eapply later_join in J as (? & ? & ? & ? & ?); eauto.
+    eapply H; eauto.
+  - eapply ext_later_compat in E as (? & ? & ?); eauto.
 Qed.
 
 #[export] Hint Resolve corable_andp corable_orp corable_allp corable_exp

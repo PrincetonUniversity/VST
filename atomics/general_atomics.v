@@ -1198,6 +1198,7 @@ Ltac start_function1 ::=
 *)
  try start_func_convert_precondition.
 
+(* can we not do this? *)
 Ltac start_function2 ::=
   first [ setoid_rewrite (* changed from erewrite *) compute_close_precondition_eq; [ | reflexivity | reflexivity]
         | rewrite close_precondition_main ].

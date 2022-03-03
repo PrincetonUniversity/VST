@@ -207,7 +207,7 @@ Instance algCorableSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_
   + apply corable.corable_prop.
   + apply corable.corable_andp.
   + apply corable.corable_orp.
-(*  + apply corable.corable_imp.*)
+  + apply corable.corable_imp.
   + intros; apply corable.corable_allp; auto.
   + intros; apply corable.corable_exp; auto.
   + apply corable.corable_sepcon.

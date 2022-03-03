@@ -22,7 +22,6 @@ Definition assert := environ -> mpred.  (* Unfortunately
 Lemma address_mapsto_exists:
   forall ch v sh (rsh: readable_share sh) loc w0
       (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot bot_unreadable),
-      identity (ghost_of w0) ->
       (align_chunk ch | snd loc) ->
       exists w, address_mapsto ch (decode_val ch (encode_val ch v)) sh loc w 
                     /\ core w = core w0.
@@ -73,7 +72,7 @@ unfold address_mapsto.
 unfold derives.
 simpl.
 intros ? ?.
-destruct H as [bl [[[? [? ?]] ?]] ].
+destruct H as [bl [[? [? ?]]] ].
 specialize (H2 a).
 rewrite if_true in H2.
 destruct H2 as [rsh ?]. auto.
@@ -158,7 +157,7 @@ Definition address_mapsto_zeros' (n: Z) : spec :=
      fun (sh: Share.t) (l: address) =>
           allp (jam (adr_range_dec l (Z.max n 0))
                                   (fun l' => yesat NoneP (VAL (Byte Byte.zero)) sh l')
-                                  noat) && noghost.
+                                  noat).
 
 Lemma address_mapsto_zeros_eq:
   forall sh n,
@@ -170,35 +169,28 @@ Proof.
   * (* base case *)
     simpl.
     unfold address_mapsto_zeros'.
+    rewrite emp_no.
+    f_equal; extensionality l; destruct l as (b', i').
     apply pred_ext.
     intros w ?.
-    split; [intros [b' i']|].
     hnf.
-    rewrite if_false.
-    simpl. apply resource_at_identity; auto.
+    rewrite if_false; auto.
     intros [? ?]. unfold Z.max in H1;  simpl in H1. lia.
-    apply ghost_of_identity; auto.
-    intros w [].
-    simpl.
-    apply all_resource_at_identity.
-    intros [b' i'].
-    specialize (H (b',i')).
+    intros w ?.
     hnf in H.
     rewrite if_false in H. apply H.
     clear; intros [? ?]. unfold Z.max in H0; simpl in H0. lia.
-    auto.
   * (* inductive case *)
     rewrite inj_S.
     simpl.
     rewrite IHn; clear IHn.
     apply pred_ext; intros w ?.
     - (* forward case *)
-      destruct H as [w1 [w2 [? [? [? Hg2]]]]].
-      split.
+      destruct H as [w1 [w2 [? [? ?]]]].
       intros [b' i'].
       hnf.
       if_tac.
-      + destruct H0 as [bl [[[? [? ?]] ?] _]].
+      + destruct H0 as [bl [[? [? ?]] ?]].
         specialize (H5 (b',i')).
         hnf in H5.
         if_tac in H5.
@@ -277,7 +269,7 @@ Proof.
             clear.
             pose proof (Z_of_nat_ge_O n). lia. 
       + apply (resource_at_join _ _ _ (b',i')) in H.
-        destruct H0 as [bl [[[? [? ?]] ?] _]].
+        destruct H0 as [bl [[? [? ?]] ?]].
         specialize (H5 (b',i')); specialize (H1 (b',i')).
         hnf in H1,H5.
         rewrite if_false in H5.
@@ -291,10 +283,7 @@ Proof.
           lia.
        ** clear - H2; contradict H2; simpl in H2.
           destruct H2; split; auto. lia.
-      + destruct H0 as (? & ? & Hg1).
-        simpl; rewrite <- (Hg1 _ _ (ghost_of_join _ _ _ H)); auto.
     - (* backward direction *)
-      destruct H as [H Hg].
       assert (H0 := H (b,i)).
       hnf in H0.
       rewrite if_true in H0
@@ -303,11 +292,11 @@ Proof.
       pose proof I.
       destruct (make_rmap  (fun loc => if eq_dec loc (b,i) then 
        YES sh H0 (VAL (Byte Byte.zero)) NoneP
-          else core (w @ loc)) (ghost_of w) (level w)) as [w1 [? ?]].
+          else core (w @ loc)) (core (ghost_of w)) (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
-      { apply ghost_of_approx. }
+      { apply ghost_fmap_core. }
       pose proof I.
       destruct (make_rmap (fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
                        then YES sh H0 (VAL (Byte Byte.zero)) NoneP
@@ -350,9 +339,9 @@ Proof.
  apply H. apply join_unit2. apply core_unit. auto.
  destruct loc. intros [? ?]; subst. apply H2; split; auto; lia.
  destruct H4 as [_ ->], H7 as [_ ->].
- apply identity_unit'; auto.
+ apply core_unit.
 + exists (Byte Byte.zero :: nil); split.
- split. split. reflexivity. split.
+ split. reflexivity. split.
  unfold decode_val. simpl. apply f_equal.
  unfold decode_int, rev_if_be.
  rewrite Tauto.if_same; reflexivity.
@@ -364,13 +353,11 @@ Proof.
   destruct H4; rewrite H4. rewrite if_true by auto. f_equal.
  unfold noat. simpl. destruct H4; rewrite H4. rewrite if_false. apply core_identity.
   contradict H8. subst. split; auto. simpl; lia.
-  simpl; destruct H4 as [_ ->]; auto.
-+ split. intro loc. hnf.
++ intro loc. hnf.
  if_tac. exists H0. hnf. destruct H7; rewrite H7.
  rewrite if_true by auto. rewrite preds_fmap_NoneP. auto.
  unfold noat. simpl. destruct H7; rewrite H7.
  rewrite if_false by auto. apply core_identity.
- simpl; destruct H7 as [_ ->]; auto.
 Qed.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
@@ -431,20 +418,18 @@ Proof.
       apply pred_ext.
       * intros w ?.
         right; split; hnf; auto.
-        destruct H as [H Hg].
         assert (H':= H (b,i)).
         hnf in H'. rewrite if_true in H' by auto.
         destruct H' as [v H'].
         pose (l := v::nil).
         destruct v; [exists Vundef | exists (Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned i0)))) | exists Vundef];
-        exists l; split; auto; (split; [ split3; [reflexivity |unfold l; (reflexivity || apply decode_byte_val) |  apply Z.divide_1_l ] | ]);
+        exists l; (split; [ split3; [reflexivity |unfold l; (reflexivity || apply decode_byte_val) |  apply Z.divide_1_l ] | ]);
           rewrite EQ; intro loc; specialize (H loc);
          hnf in H|-*; if_tac; auto; subst loc; rewrite Zminus_diag;
          unfold l; simpl nth; auto.
       * apply orp_left.
         apply andp_left2.
-        { intros w [l [[[? [? ?]] ?] Hg]].
-          split; auto.
+        { intros w [l [[? [? ?]] ?]].
           intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
             hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
           destruct l; inv H. exists m.
@@ -452,8 +437,7 @@ Proof.
           f_equal. f_equal. rewrite Zminus_diag. reflexivity.
         }
         { rewrite prop_true_andp by auto.
-          intros w [v2' [l [[[? [? ?]] ?] Hg]]].
-          split; auto.
+          intros w [v2' [l [[? [? ?]] ?]]].
           intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
             hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
           destruct l; inv H. exists m.
@@ -515,7 +499,7 @@ Proof.
     apply andp_right; [| apply address_mapsto_VALspec_range].
     unfold address_mapsto.
     apply exp_left; intro.
-    do 2 apply andp_left1.
+    apply andp_left1.
     apply (@prop_derives (pred rmap) (algNatDed _)); tauto.
   + apply prop_andp_left; intro.
     apply VALspec_range_exp_address_mapsto; auto.
@@ -1253,13 +1237,10 @@ clear - H2. simpl snd.
 revert ofs; induction (size_chunk_nat Mptr); intros.
 *
 unfold address_mapsto_zeros.
-apply andp_right.
 apply allp_right; intro y.
 rewrite jam_false.
-intros ? ?. do 3 red. do 3 red in H.
-apply resource_at_identity; auto.
+rewrite emp_no; apply allp_left with y; auto.
 simpl; destruct y; intros [? ?]; lia.
-intros ? ?. do 3 red in H|-*. apply ghost_of_identity; auto.
 *
 rewrite inj_S.
 simpl snd in *.
@@ -1279,10 +1260,8 @@ apply sepcon_derives.
 clear IHn.
 unfold address_mapsto.
 apply exp_left; intro bl.
-rewrite andp_assoc.
 apply prop_andp_left.
  intros [? ?].
-apply andp_derives; auto.
 apply allp_derives; intro y.
 simpl.
 destruct H0.
@@ -1321,7 +1300,6 @@ auto.
 eapply derives_trans.
 apply IHn.
 clear IHn.
-apply andp_derives; auto.
 apply allp_derives; intros [b' ofs'].
 destruct (adr_range_dec (b, Z.succ ofs) (Z.of_nat n) (b',ofs')); [rewrite !jam_true | rewrite !jam_false]; auto.
  simpl snd.
@@ -1330,7 +1308,7 @@ change (?A = ?B) with (nth (Z.to_nat (ofs' - ofs)) (repeat (Byte Byte.zero) (S n
 destruct a.
 subst b'.
 assert (0 <= ofs'- Z.succ ofs < Z.of_nat n) by lia.
-replace (ofs'-ofs) with (Z.succ (ofs'-Z.succ ofs)) by lia.
+replace (ofs' - ofs) with (Z.succ (ofs'-Z.succ ofs)) by lia.
 clear - H.
 forget (ofs'-Z.succ ofs) as i.
 rewrite Z2Nat.inj_succ by lia.
@@ -1502,8 +1480,6 @@ rename H into Halign.
 intros ? ?.
 hnf in H|-*.
 exists (repeat (Byte Byte.zero) (size_chunk_nat Mptr)).
-destruct H; split; auto.
-clear H0.
 split.
 split3; [reflexivity | exact decode_mptr_zero_nullval | auto].
 auto.
@@ -1544,8 +1520,6 @@ rename H into Halign.
 intros ? ?.
 hnf in H|-*.
 exists (repeat (Byte Byte.zero) (size_chunk_nat ch)).
-destruct H; split; auto.
-clear H0.
 split.
 split3; auto.
 rewrite repeat_length; auto.
@@ -1586,7 +1560,6 @@ destruct a.
 destruct (zlt n 0).
 -
 unfold address_mapsto_zeros', nonlock_permission_bytes.
-apply andp_derives; auto.
 apply allp_derives; intros [? ?].
 rewrite !jam_false; auto.
 intros [? ?]; lia.
@@ -1596,7 +1569,6 @@ rewrite <- (Z2Nat.id n) by lia.
 forget (Z.to_nat n) as k.
 clear n g.
 unfold address_mapsto_zeros', nonlock_permission_bytes.
-apply andp_derives; auto.
 apply allp_derives; intro y.
 replace (Z.max (Z.of_nat k) 0) with (Z.of_nat k) by lia.
 destruct y.

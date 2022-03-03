@@ -297,12 +297,12 @@ Proof.
   intros. destruct f1; destruct f2; simpl in *.
   destruct H as [[? ?] H']; subst. intros w _. split; [split; trivial |].
   intros w' Hw'.
-  intros ts2 x2 rho y WY k YK K c J.
+  intros ts2 x2 rho y WY k YK N E K c J.
   destruct (H' ts2 x2 rho _ K c J) as [c' [J' [m' [? [? [? H'']]]]]]; subst.
   destruct H'' as [ts1 [x1 [F [HF1 HF2]]]]; clear H'.
   eexists; split; eauto; exists m'; repeat (split; auto).
   exists ts1, x1, F; split; trivial.
-  intros rho' v KV z VZ Z. hnf in HF2. apply HF2; trivial.
+  intros rho' v KV z VZ Z EZ. hnf in HF2. apply HF2; trivial.
 Qed.
 
 Lemma funspec_sub_sub_si' f1 f2: !!(funspec_sub f1 f2) |-- funspec_sub_si f1 f2.
@@ -364,8 +364,8 @@ Proof.
   apply andp_right; auto; intros ??; auto.
 Qed.
 
-Lemma unfash_allp':  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
-  @unfash _ agA (allp f) = allp (fun x:B => unfash (f x)).
+Lemma unfash_allp':  forall {A} {agA: ageable A} {EO: Ext_ord A} {B} (f: B -> pred nat),
+  @unfash _ agA EO (allp f) = allp (fun x:B => unfash (f x)).
 Proof.
 intros.
 apply pred_ext.
@@ -374,15 +374,15 @@ specialize (H b). auto.
 repeat intro. apply (H b).
 Qed.
 
-Lemma allp_andp1: forall {A} {agA: ageable A} {B} (P : B -> pred A) Q, (ALL a : B, P a) && Q |-- ALL a : B, P a && Q.
+Lemma allp_andp1: forall {A} {agA: ageable A} {EO: Ext_ord A} {B} (P : B -> pred A) Q, (ALL a : B, P a) && Q |-- ALL a : B, P a && Q.
 Proof.
   intros; apply allp_right; intro x.
   apply andp_derives; auto.
   apply allp_left with x; auto.
 Qed.
 
-Lemma unfash_exp:  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
-  @unfash _ agA (exp f) = exp (fun x:B => unfash (f x)).
+Lemma unfash_exp:  forall {A} {agA: ageable A} {EO: Ext_ord A} {B} (f: B -> pred nat),
+  @unfash _ agA EO (exp f) = exp (fun x:B => unfash (f x)).
 Proof.
 intros.
 apply pred_ext.
@@ -390,8 +390,8 @@ intros ? [? ?]; simpl; eauto.
 intros ? [? ?]; simpl in *; eauto.
 Qed.
 
-Lemma unfash_andp:  forall {A} {agA: ageable A} (P Q : pred nat),
-  @unfash _ agA (andp P Q) = andp (unfash P) (unfash Q).
+Lemma unfash_andp:  forall {A} {agA: ageable A} {EO: Ext_ord A} (P Q : pred nat),
+  @unfash _ agA EO (andp P Q) = andp (unfash P) (unfash Q).
 Proof.
 intros.
 apply pred_ext; intros ? []; split; auto.
@@ -444,7 +444,7 @@ Qed.
 Lemma subp_exp_left: forall {A} G P Q, (forall x, G |-- P x >=> Q) -> G |-- (EX x : A, P x) >=> Q.
 Proof.
   repeat intro.
-  destruct H3 as [x HP].
+  destruct H4 as [x HP].
   eapply H; eauto.
 Qed.
 
@@ -453,9 +453,9 @@ Proof.
   destruct f; split; [split; trivial |].
   intros a' Ha'.
   clear H. intros ts2 x2 rho.
-  intros y Hy z Hz [_ ?]. apply bupd_intro.
+  intros y Hy z ? Hz Hz' [_ ?]. apply bupd_intro.
   exists ts2, x2, emp; rewrite emp_sepcon. split; auto.
-  intros rho' k WK u necKU Z. 
+  intros rho' k WK u ? necKU E Z.
   rewrite emp_sepcon in Z. apply bupd_intro, Z.
 Qed.
 
@@ -645,7 +645,7 @@ Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
 Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
   In  i (map (@fst _ _) vars) .
 
-Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}
+Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}
    (p: list (pred A)) : pred A :=
  match p with nil => emp | h::t => h * sepcon_list t end.
 
@@ -722,7 +722,7 @@ Lemma approx_andp: forall (P Q: mpred) n,
   approx n Q.
 Proof.
   intros.
-  change andp with (@predicates_hered.andp compcert_rmaps.RML.R.rmap _) in *.
+  change andp with (@predicates_hered.andp compcert_rmaps.RML.R.rmap _ _) in *.
   apply predicates_hered.pred_ext.
   + intros w ?.
     simpl in *.
@@ -779,9 +779,9 @@ Proof.
   unfold Own.
   rewrite !approx_andp; f_equal.
   apply pred_ext; intros ? [? Hg]; split; auto; simpl in *.
-  - rewrite <- ghost_of_approx, Hg.
-    rewrite !ghost_fmap_singleton, !preds_fmap_fmap.
-    rewrite approx_oo_approx, approx_oo_approx', approx'_oo_approx by lia; auto.
+  - destruct Hg; eexists.
+    rewrite ghost_fmap_singleton in *; rewrite preds_fmap_fmap.
+    rewrite approx_oo_approx', approx'_oo_approx by lia; eauto.
   - rewrite ghost_fmap_singleton in *.
     rewrite preds_fmap_fmap in Hg.
     rewrite approx_oo_approx', approx'_oo_approx in Hg by lia; auto.
@@ -870,11 +870,11 @@ Lemma approx_derives4 {T1 T2} (P1 P2 Q2 Q1: T1 -> T2 -> mpred) n:
 |-- approx n
       (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> approx n (P2 S s0) * (approx n (Q2 S s0) -* Q1 S s0)))).
 Proof. intros ? [? ?]. split; trivial; simpl in *. intros.
-destruct (H0 b b0 _ H1 _ H2 H3) as [z1 [z2 [J [Z1 Z2]]]]; clear H0.
+destruct (H0 b b0 _ H1 _ _ H2 H3 H4) as [z1 [z2 [J [Z1 Z2]]]]; clear H0.
 do 2 eexists; split3. apply J.
 { split; trivial. apply join_level in J; destruct J.
-  apply necR_level in H2. rewrite H0; clear H0. lia. }
-intros. eapply Z2. 3: apply H5. 2: apply H4. apply H0.
+  apply necR_level in H2. apply ext_level in H3. rewrite H0; clear H0. lia. }
+intros. eapply Z2. 3: apply H6. 2: apply H5. apply H0.
 Qed.
 
 Lemma approx_derives4_inv {T1 T2} (P1 P2 Q2 Q1: T1 -> T2 -> mpred) n:
@@ -882,13 +882,13 @@ Lemma approx_derives4_inv {T1 T2} (P1 P2 Q2 Q1: T1 -> T2 -> mpred) n:
       (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> approx n (P2 S s0) * (approx n (Q2 S s0) -* Q1 S s0))))
     |-- approx n (! (ALL (S : T1) (s0 : T2), (P1 S s0 >=> P2 S s0 * (Q2 S s0 -* Q1 S s0)))).
 Proof. intros ? [? ?]. split; trivial; simpl in *. intros.
-destruct (H0 b b0 _ H1 _ H2 H3) as [z1 [z2 [J [Z1 Z2]]]]; clear H0.
+destruct (H0 b b0 _ H1 _ _ H2 H3 H4) as [z1 [z2 [J [Z1 Z2]]]]; clear H0.
 do 2 eexists; split3. apply J. apply Z1.
-intros. eapply Z2. apply H0. apply H4. split; trivial.
-clear Z2 H5. apply join_level in J; destruct J.
+intros. eapply Z2. apply H0. apply H5. split; trivial.
+clear Z2 H6. apply join_level in J; destruct J.
 apply necR_level in H2.
 apply necR_level in H0.
-apply join_level in H4; destruct H4. lia.
+apply join_level in H5; destruct H5. lia.
 Qed.
 
 Lemma approx_func_ptr_si_general fs cc (A: TypeTree) P Q 
@@ -906,25 +906,25 @@ Proof.
     rewrite approx_andp, approx_exp. split; trivial.
     exists phi; split3; trivial.
     eapply funspec_sub_si_trans; split. apply Phi. clear Phi PHI; hnf.
-    split. split; trivial. 
-    intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
+    split. split; trivial.
+    intros w' Hw' ts2 a rho m WM u ? necU extU [U1 U2]. simpl in U1.
     apply bupd_intro.
     exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. }
-    intros rho' y UY k YK K. rewrite emp_sepcon in K. simpl in K.
+    intros rho' y UY k ? YK EK K. rewrite emp_sepcon in K. simpl in K.
     rewrite <- approx_bupd.
-    apply necR_level in necU.  apply necR_level in YK.
+    apply necR_level in necU.  apply necR_level in YK. apply ext_level in extU. apply ext_level in EK.
     split; [ | apply bupd_intro, K]. apply laterR_level in Hw'. lia.
   + rewrite approx_andp, approx_exp in W. destruct W as [W1 [phi [Lev [Phi PHI]]]].
     rewrite approx_andp, approx_exp. split; trivial.
     exists phi; split3; trivial.
     eapply funspec_sub_si_trans; split. apply Phi. clear Phi PHI; hnf.
     split. split; trivial.
-    intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
+    intros w' Hw' ts2 a rho m WM u ? necU extU [U1 U2]. simpl in U1.
     apply bupd_intro.
     exists ts2, a, emp. rewrite emp_sepcon; split. 
-    - apply necR_level in necU. apply approx_lt; trivial.
+    - apply necR_level in necU. apply ext_level in extU. apply approx_lt; trivial.
       apply laterR_level in Hw'. lia.
-    - intros rho' k UP j KJ J.
+    - intros rho' k UP j ? KJ EJ J.
       rewrite emp_sepcon in J. simpl in J. apply bupd_intro, J.
 Qed.
 
@@ -1011,7 +1011,7 @@ assert (forall FS FS' rho,
              funspecs_assert FS rho |-- funspecs_assert FS' rho).
 { intros. intros w [? ?]. split.
   + intro id. rewrite <- (H id); auto.
-  + intros loc sig cc w' Hw' HH. hnf in H0. destruct (H1 loc sig cc w' Hw' HH)  as [id ID].
+  + intros loc sig cc w' ? Hw' Hw'' HH. hnf in H0. destruct (H1 loc sig cc w' _ Hw' Hw'' HH)  as [id ID].
     exists id; rewrite <- (H id); auto. }
 intros.
 extensionality rho.
@@ -1560,26 +1560,30 @@ Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
   (HP : (G |-- P <=> P')) (HQ : (G |-- Q <=> Q')), G |-- (P && Q <=> P' && Q').
 Proof.
   intros. red; intros. specialize (HP _ H). specialize (HQ _ H).
-  split; simpl; intros ? ? [X Y]; split.
-  - eapply (HP y); trivial. 
-  - eapply (HQ y); trivial.
-  - eapply (HP y); trivial.
-  - eapply (HQ y); trivial.
+  split; simpl; intros ? ? ? ? [X Y]; split.
+  - eapply (HP y); eauto.
+  - eapply (HQ y); eauto.
+  - eapply (HP y); eauto.
+  - eapply (HQ y); eauto.
 Qed.
 Lemma eqp_sepcon : forall (G : Triv) (P P' Q Q' : mpred)
   (HP : (G |-- P <=> P')) (HQ : (G |-- Q <=> Q')), (G |-- P * Q <=> P' * Q').
 Proof.
   intros. red; intros. specialize (HP _ H). specialize (HQ _ H).
-  split; simpl; intros ? ? [a1 [a2 [Ja [A1 A2]]]].
-  - destruct (nec_join4 _ _ _ _ Ja H1) as [b1 [b2 [Jb [B1 B2]]]].
-    apply join_level in Jb; destruct Jb.
-    destruct (HP b1) as [P1 _]. lia. destruct (HQ b2) as [Q1 _]. lia.
-    exists a1, a2; split3; [ | apply P1 | apply Q1]; trivial.
-  - destruct (nec_join4 _ _ _ _ Ja H1) as [b1 [b2 [Jb [B1 B2]]]].
-    apply join_level in Jb; destruct Jb.
-    destruct (HP b1) as [_ P2]. lia. destruct (HQ b2) as [_ Q2 ]. lia.
-    exists a1, a2; split3; [ | apply P2 | apply Q2]; trivial.
-Qed. 
+  split; simpl; intros ? ? ? ? [a1 [a2 [Ja [A1 A2]]]].
+  - pose proof (necR_level _ _ H1).
+    pose proof (ext_level _ _ H2).
+    destruct (join_level _ _ _ Ja).
+    eapply HP in A1; [| | apply necR_refl | reflexivity]; [|lia].
+    eapply HQ in A2; [| | apply necR_refl | reflexivity]; [|lia].
+    eauto.
+  - pose proof (necR_level _ _ H1).
+    pose proof (ext_level _ _ H2).
+    destruct (join_level _ _ _ Ja).
+    eapply HP in A1; [| | apply necR_refl | reflexivity]; [|lia].
+    eapply HQ in A2; [| | apply necR_refl | reflexivity]; [|lia].
+    eauto.
+Qed.
 
 
 Lemma fash_func_ptr_ND:
@@ -1596,43 +1600,28 @@ unfold func_ptr_si.
 apply subp_exp; intro b.
 apply subp_andp.
 apply subp_refl.
-intros ? ? ? ? ? ? [gs [? ?]].
+intros ? ? ? ? ? ? ? ? [gs [? ?]].
 exists gs. split; auto.
 eapply funspec_sub_si_trans.
 split.
 eassumption.
-clear gs H2 H3.
+clear gs H3 H4.
 split.
 split; auto.
-intros ? ? ? ? ? ? ? ? ? [? ?].
+intros ? ? ? ? ? ? ? ? ? ? ? [? ?].
 apply bupd_intro.
 exists nil, b1, emp.
 rewrite emp_sepcon.
 split.
-destruct (H b1).
-apply (H7 b2 a'1); auto.
-apply Nat.le_trans with (level y); auto.
-apply necR_level in H4.
-apply Nat.le_trans with (level y0); auto.
-apply Nat.le_trans with (level a'0); auto.
-apply Nat.le_trans with (level a'); auto.
-apply necR_level; apply laterR_necR; auto.
-apply necR_level; auto.
-intros ? ? ? ? ? [? ?].
-rewrite emp_sepcon in H10.
-destruct (H b1).
+destruct (H b1) as [Hpre _].
+eapply (Hpre b2); auto.
+apply necR_level in H1, H5. apply ext_level in H2, H6. apply laterR_level in H3. lia.
+intros ? ? ? ? ? ? ? [? Hpost].
+rewrite emp_sepcon in Hpost.
+destruct (H b1) as [_ Hpost'].
 apply bupd_intro.
-apply (H12 b3 a'2); auto.
-apply Nat.le_trans with (level y); auto.
-apply necR_level in H8.
-apply Nat.le_trans with (level y1); auto.
-apply Nat.le_trans with (level a'1); auto.
-apply Nat.le_trans with (level y0); auto.
-apply necR_level; auto.
-apply Nat.le_trans with (level a'0); auto.
-apply Nat.le_trans with (level a'); auto.
-apply necR_level; apply laterR_necR; auto.
-apply necR_level; auto.
+eapply (Hpost' b3); auto.
+apply necR_level in H1, H5, H10. apply ext_level in H2, H6, H11. apply laterR_level in H3. lia.
 Qed.
 
 

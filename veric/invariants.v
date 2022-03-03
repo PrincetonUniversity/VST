@@ -33,19 +33,22 @@ Proof.
   do 3 eexists; [apply id_core_unit|].
   pose proof (ghost_of_join _ _ _ H) as J.
   change (agree g P1) with (own.own(RA := unit_PCM) g tt (pred_of P1)) in H1.
-  destruct H1 as (? & Hid & H1).
+  destruct H1 as (? & Hid & ? & H1).
   change (agree g P2) with (own.own(RA := unit_PCM) g tt (pred_of P2)) in H2.
-  destruct H2 as (? & ? & H2).
-  erewrite H1, H2, !own.ghost_fmap_singleton in J.
-  apply own.singleton_join_inv in J as ([] & J & Jg).
-  inv J; simpl in *.
-  inv H4.
-  apply SomeP_inj in H5.
+  destruct H2 as (? & ? & ? & H2).
+  rewrite ghost_fmap_singleton in H1, H2.
+  destruct (join_assoc (join_comm H1) J) as (? & J1 & ?).
+  destruct (join_assoc (join_comm H2) (join_comm J1)) as (? & J2 & ?).
+  apply singleton_join_inv in J2 as ([] & J2 & ?); subst.
+  inv J2; simpl in *.
+  destruct H6 as [Heq1 ?].
+  apply SomeP_inj in Heq1.
   destruct (join_level _ _ _ H) as [Hl1 Hl2]; erewrite Hl1, Hl2 in *.
   assert (approx (level a) P1 = approx (level a) P2) as Heq.
   { apply (@equal_f _ _ (fun _ : list Type => approx (level a) P1) (fun _ : list Type => approx (level a) P2));
       auto.
     apply nil. }
+  clear J.
   split.
   - intros ??? Hl J HP1 ? Ha'.
     pose proof (id_core_level a).
@@ -62,10 +65,10 @@ Proof.
     + intro l; simpl.
       apply (resource_at_join _ _ _ l) in H.
       apply Hid in H as <-; auto.
-    + simpl; erewrite Jg, own.ghost_fmap_singleton; simpl.
-      repeat f_equal; auto.
-      inv H3; f_equal.
-      destruct c0; apply exist_ext; auto.
+    + rewrite ghost_fmap_singleton; simpl.
+      eapply join_sub_trans; [|eexists; apply join_comm; eauto].
+      eexists; eauto.
+      replace _ with I in J1 by (apply proof_irr); eauto.
 Qed.
 
 Lemma agree_join2 : forall g P1 P2, agree g P1 * agree g P2 |-- (|> P1 -* |> P2) * agree g P2.
@@ -75,19 +78,22 @@ Proof.
   do 3 eexists; [apply id_core_unit|].
   pose proof (ghost_of_join _ _ _ H) as J.
   change (agree g P1) with (own.own(RA := unit_PCM) g tt (pred_of P1)) in H1.
-  destruct H1 as (? & Hid & H1).
+  destruct H1 as (? & Hid & ? & H1).
   change (agree g P2) with (own.own(RA := unit_PCM) g tt (pred_of P2)) in H2.
-  destruct H2 as (? & ? & H2).
-  erewrite H1, H2, !own.ghost_fmap_singleton in J.
-  apply own.singleton_join_inv in J as ([] & J & Jg).
-  inv J; simpl in *.
-  inv H4.
-  apply SomeP_inj in H5.
+  destruct H2 as (? & ? & ? & H2).
+  rewrite ghost_fmap_singleton in H1, H2.
+  destruct (join_assoc (join_comm H1) J) as (? & J1 & ?).
+  destruct (join_assoc (join_comm H2) (join_comm J1)) as (? & J2 & ?).
+  apply singleton_join_inv in J2 as ([] & J2 & ?); subst.
+  inv J2; simpl in *.
+  destruct H6 as [Heq1 ?].
+  apply SomeP_inj in Heq1.
   destruct (join_level _ _ _ H) as [Hl1 Hl2]; erewrite Hl1, Hl2 in *.
   assert (approx (level a) P1 = approx (level a) P2) as Heq.
   { apply (@equal_f _ _ (fun _ : list Type => approx (level a) P1) (fun _ : list Type => approx (level a) P2));
       auto.
     apply nil. }
+  clear J.
   split.
   - intros ??? Hl J HP1 ? Ha'.
     pose proof (id_core_level a).
@@ -104,10 +110,10 @@ Proof.
     + intro l; simpl.
       apply (resource_at_join _ _ _ l) in H.
       apply Hid in H as <-; auto.
-    + simpl; erewrite Jg, own.ghost_fmap_singleton; simpl.
-      repeat f_equal; auto.
-      inv H3; f_equal.
-      destruct c0; apply exist_ext; auto.
+    + rewrite ghost_fmap_singleton; simpl.
+      eapply join_sub_trans; [|eexists; apply join_comm, ghost_of_join; eauto].
+      eexists; eauto.
+      replace _ with I in H2 by (apply proof_irr); eauto.
 Qed.
 
 Inductive list_join {P : Ghost} : Join (list (option G)) :=
@@ -828,7 +834,7 @@ Ltac view_shift H := eapply derives_trans; [apply sepcon_derives, derives_refl; 
 Lemma iter_sepcon_app:
   forall {B} p (l1 l2 : list B), (iter_sepcon p (l1 ++ l2) = iter_sepcon p l1 * iter_sepcon p l2)%pred.
 Proof.
-  induction l1; intros; simpl. rewrite res_predicates.emp_sepcon; auto. rewrite IHl1. rewrite sepcon_assoc. auto.
+  induction l1; intros; simpl. rewrite emp_sepcon; auto. rewrite IHl1. rewrite sepcon_assoc. auto.
 Qed.
 
 Lemma iter_sepcon_func_strong: forall {A} (l : list A) P Q, (forall x, List.In x l -> P x = Q x) -> iter_sepcon P l = iter_sepcon Q l.
@@ -847,7 +853,7 @@ Qed.
 Lemma iter_sepcon_emp': forall {B} p (l : list B), (forall x, List.In x l -> p x = emp) -> iter_sepcon p l = emp.
 Proof.
   induction l; intros; simpl; auto.
-  rewrite H, IHl, res_predicates.sepcon_emp; simpl; auto.
+  rewrite H, IHl, sepcon_emp; simpl; auto.
   intros; apply H; simpl; auto.
 Qed.
 
@@ -858,7 +864,7 @@ Proof.
   rewrite !exp_sepcon1; apply exp_left; intro lg.
   rewrite !exp_sepcon1; apply exp_left; intro lb.
   rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [].
-  eapply derives_trans with (emp * _)%pred; [rewrite res_predicates.emp_sepcon; apply derives_refl|].
+  eapply derives_trans with (emp * _)%pred; [rewrite emp_sepcon; apply derives_refl|].
   view_shift (ghost_alloc(RA := unit_PCM) tt (pred_of P)); [simpl; auto|].
   rewrite !exp_sepcon1; apply exp_left; intro g.
   replace (own(RA := unit_PCM) g tt (pred_of P)) with (agree g P) by reflexivity.
@@ -942,7 +948,7 @@ Proof.
       { rewrite nth_overflow in X by lia; discriminate. } }
   erewrite app_length, upto_app, iter_sepcon_app.
   rewrite <- 2sepcon_assoc, (sepcon_comm _ (iter_sepcon _ _)), sepcon_assoc; apply sepcon_derives.
-  - eapply derives_trans with (_ * emp)%pred; [rewrite res_predicates.sepcon_emp; apply derives_refl|].
+  - eapply derives_trans with (_ * emp)%pred; [rewrite sepcon_emp; apply derives_refl|].
     apply sepcon_derives.
     + erewrite iter_sepcon_func_strong; auto.
       intros ??%In_upto.
@@ -957,7 +963,7 @@ Proof.
       unfold Znth; destruct (Z_lt_dec _ _); auto.
       rewrite nth_repeat; auto.
   - unfold invariant.
-    rewrite res_predicates.emp_sepcon, !exp_sepcon2; apply exp_right with (length lg + i)%nat.
+    rewrite emp_sepcon, !exp_sepcon2; apply exp_right with (length lg + i)%nat.
     rewrite !exp_sepcon2; apply exp_right with g.
     rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
     rewrite sepcon_comm, sepcon_assoc; auto.
@@ -1132,15 +1138,12 @@ Qed.*)
 
 Check (Ensemble (Maps.ZMap.t nat)).
 
-Lemma invariant_dealloc : forall i P, invariant i P |-- |==> emp.
+Lemma invariant_dealloc : forall i P, invariant i P |-- emp.
 Proof.
   intros; unfold invariant.
   apply exp_left; intro g.
-  rewrite <- (res_predicates.emp_sepcon emp).
-  eapply derives_trans.
+  rewrite <- (emp_sepcon emp).
   apply sepcon_derives; apply ghost_dealloc.
-  { eapply derives_trans, bupd_trans.
-    eapply derives_trans; [apply bupd_frame_r | apply bupd_mono, bupd_frame_l]. }
 Qed.
 
 Lemma invariant_super_non_expansive : forall n N P,
@@ -1184,16 +1187,16 @@ End Invariants.
 Polymorphic Lemma make_wsat : emp |-- |==> EX inv_names : invG, wsat.
 Proof.
   unfold wsat.
-  eapply derives_trans with (Q := (_ * emp)%pred); [rewrite res_predicates.sepcon_emp; apply (ghost_alloc(RA := snap_PCM(ORD := list_order gname)) (Tsh, nil) NoneP); simpl; auto|].
+  eapply derives_trans with (Q := (_ * emp)%pred); [rewrite sepcon_emp; apply (ghost_alloc(RA := snap_PCM(ORD := list_order gname)) (Tsh, nil) NoneP); simpl; auto|].
   eapply derives_trans; [apply bupd_frame_r | eapply derives_trans, bupd_trans; apply bupd_mono].
   rewrite exp_sepcon1; apply exp_left; intro g_inv.
   eapply derives_trans; [eapply sepcon_derives with (q' := (|==> _ * emp)%pred); [apply derives_refl |
-    rewrite res_predicates.sepcon_emp; apply (ghost_alloc(RA := list_PCM (exclusive_PCM unit)) nil NoneP); simpl; auto]|].
+    rewrite sepcon_emp; apply (ghost_alloc(RA := list_PCM (exclusive_PCM unit)) nil NoneP); simpl; auto]|].
   eapply derives_trans; [apply bupd_frame_l | eapply derives_trans, bupd_trans; apply bupd_mono].
   rewrite exp_sepcon1, exp_sepcon2; apply exp_left; intro g_dis.
   rewrite <- sepcon_assoc.
   eapply derives_trans; [eapply sepcon_derives with (q' := (|==> _ * emp)%pred); [apply derives_refl |
-    rewrite res_predicates.sepcon_emp; apply (ghost_alloc(RA := set_PCM) Ensembles.Empty_set NoneP); simpl; auto]|].
+    rewrite sepcon_emp; apply (ghost_alloc(RA := set_PCM) Ensembles.Empty_set NoneP); simpl; auto]|].
   eapply derives_trans; [apply bupd_frame_l | eapply derives_trans, bupd_trans; apply bupd_mono].
   rewrite exp_sepcon1, !exp_sepcon2; apply exp_left; intro g_en.
   rewrite <- sepcon_assoc.

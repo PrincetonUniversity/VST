@@ -946,7 +946,7 @@ intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; au
 Qed.
 
 #[export] Hint Resolve corable_andp corable_orp corable_allp corable_exp
-                    (*corable_imp*) corable_prop corable_sepcon corable_wand corable_later : core.
+                    corable_imp corable_prop corable_sepcon corable_wand corable_later : core.
 #[export] Hint Resolve corable_prop : norm.
 
 (* The followings are not in auto-rewrite lib. *)

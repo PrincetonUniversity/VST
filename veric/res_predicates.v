@@ -13,11 +13,13 @@ Local Open Scope pred.
 Program Definition kind_at (k: kind) (l: address) : pred rmap :=
    fun m => exists rsh, exists sh, exists pp, m @ l = YES rsh sh k pp.
  Next Obligation.
-   try intro; intros.
+   split; repeat intro.
    destruct H0 as [rsh [sh [pp ?]]].
    generalize (eq_sym (resource_at_approx a l)); intro.
    generalize (age1_resource_at a a'  H l (a@l) H1); intro.
    rewrite H0 in H2. simpl in H2. eauto.
+
+  apply rmap_order in H as (_ & <- & _); auto.
  Qed.
 
 Definition spec : Type :=  forall (sh: Share.t) (l: AV.address), pred rmap.
@@ -26,8 +28,10 @@ Program Definition yesat_raw (pp: preds) (k: kind)
                            (sh: share) (rsh: readable_share sh) (l: address) : pred rmap :=
    fun phi => phi @ l = YES sh rsh k (preds_fmap (approx (level phi)) (approx (level phi)) pp).
   Next Obligation.
-   try intro; intros.
+   split; repeat intro.
    apply (age1_resource_at a a' H l (YES sh rsh k pp) H0).
+
+  apply rmap_order in H as (<- & <- & _); auto.
   Qed.
 
 Obligation Tactic := idtac.
@@ -36,16 +40,21 @@ Program Definition yesat (pp: preds) (k: kind) : spec :=
  fun (sh: share) (l: AV.address) (m: rmap) =>
   exists rsh, yesat_raw pp k sh rsh l m.
   Next Obligation.
-    intros; intro; intros.
+    split; repeat intro.
     destruct H0 as [p ?]; exists p.
     apply pred_hereditary with a; auto.
+
+    destruct H0 as [p ?]; exists p.
+    apply pred_upclosed with a; auto.
   Qed.
 
 Program Definition pureat (pp: preds) (k: kind) (l: AV.address): pred rmap :=
        fun phi => phi @ l = PURE k (preds_fmap (approx (level phi)) (approx (level phi)) pp).
   Next Obligation.
-    intros; intro; intros.
+    split; repeat intro.
    apply (age1_resource_at a a' H l (PURE k pp) H0).
+
+   apply rmap_order in H as (<- & <- & _); auto.
   Qed.
 
 Ltac do_map_arg :=
@@ -59,20 +68,25 @@ Lemma yesat_raw_eq_aux:
     hereditary age
     (fun phi : rmap =>
      resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) =
+     resource_fmap (approx (level phi)) (approx (level phi)) (YES rsh sh k pp)) /\
+    hereditary ext_order
+    (fun phi : rmap =>
+     resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) =
      resource_fmap (approx (level phi)) (approx (level phi)) (YES rsh sh k pp)).
 Proof.
- intros.
-  intro; intros.
+ split; repeat intro.
   generalize (resource_at_approx a l); intro.
   generalize (resource_at_approx a' l); intro.
   rewrite H2.
   rewrite H1 in H0.
   apply (age1_resource_at a a'  H); auto.
+
+  apply rmap_order in H as (<- & <- & _); auto.
 Qed.
 
 Lemma yesat_raw_eq: yesat_raw =
   fun pp k rsh sh l =>
-  ((exist (hereditary age)
+  ((exist (fun p => hereditary age p /\ hereditary ext_order p)
    (fun phi =>
    resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) =
    resource_fmap (approx (level phi)) (approx (level phi)) (YES rsh sh k pp))
@@ -156,18 +170,24 @@ Lemma yesat_eq_aux:
     (fun m : rmap =>
       exists rsh, 
      resource_fmap (approx (level m)) (approx (level m)) (m @ l) =
+     resource_fmap (approx (level m)) (approx (level m)) (YES sh rsh k pp)) /\
+    hereditary ext_order
+    (fun m : rmap =>
+      exists rsh, 
+     resource_fmap (approx (level m)) (approx (level m)) (m @ l) =
      resource_fmap (approx (level m)) (approx (level m)) (YES sh rsh k pp)).
 Proof.
- intros.
-  intro; intros.
+ split; repeat intro.
   destruct H0 as [p ?]; exists p.
   rewrite resource_at_approx.
   rewrite resource_at_approx in H0.
   apply (age1_resource_at a a' H); auto.
+
+ apply rmap_order in H as (<- & <- & _); auto.
 Qed.
 
 Lemma yesat_eq: yesat = fun pp k sh l =>
- exist (hereditary age)
+ exist (fun p => hereditary age p /\ hereditary ext_order p)
   (fun m => 
   exists rsh, 
    resource_fmap (approx (level m)) (approx (level m)) (m @ l) = 
@@ -218,8 +238,10 @@ Lemma extensionally_yesat: forall pp k sh l, extensionally (yesat pp k sh l) = y
 Program Definition noat (l: AV.address) : pred rmap :=
     fun m => identity (m @ l).
  Next Obligation.
-    intros; intro; intros.
-    apply (age1_resource_at_identity _ _ l H); auto.
+    split; repeat intro.
+    apply (proj1 (age1_resource_at_identity _ _ l H) H0); auto.
+
+    apply rmap_order in H as (_ & Hr & _); rewrite <- Hr in H1; auto.
  Qed.
 
 Definition resource_share (r: resource) : option share :=
@@ -334,7 +356,7 @@ Qed.
 Program Definition nonlockat (l: AV.address): pred rmap :=
   fun m => nonlock (m @ l).
  Next Obligation.
-    intros; intro; intros.
+    split; repeat intro.
     unfold resource_share in *.
     destruct (a @ l) eqn:?H.
     + rewrite (necR_NO a a' l _ n) in H1 by (constructor; auto).
@@ -343,12 +365,13 @@ Program Definition nonlockat (l: AV.address): pred rmap :=
       rewrite H1; assumption.
     + eapply necR_PURE in H1; [ | constructor; eassumption].
       rewrite H1; assumption.
+    + apply rmap_order in H as (_ & <- & _); auto.
  Qed.
 
 Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
   fun m => resource_share (m @ l) = Some sh.
  Next Obligation.
-    intros; intro; intros.
+    split; repeat intro.
     unfold resource_share in *.
     destruct (a @ l) eqn:?H.
     + rewrite (necR_NO a a' l _ n) in H1 by (constructor; auto).
@@ -356,13 +379,15 @@ Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
     + eapply necR_YES in H1; [ | constructor; eassumption].
       rewrite H1; assumption.
     + inv H0.
+    + apply rmap_order in H as (_ & <- & _); auto.
  Qed.
 
-Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred A) : B -> pred A :=
+Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} {EO: Ext_ord A} {EA: Ext_alg A} {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred A) : B -> pred A :=
   fun (l: B) m => if S l then P l m else Q l m.
  Next Obligation.
-    intros; intro; intros.
+    split; repeat intro.
   if_tac; try (eapply pred_hereditary; eauto).
+  if_tac; try (eapply pred_upclosed; eauto).
  Qed.
 
 (*Lemma allp_noat_emp: allp noat = emp.
@@ -374,7 +399,7 @@ Proof.
     exact H.
 Qed.*)
 
-Lemma jam_true: forall A JA PA SA agA AgeA B (S': B -> Prop) S P Q loc, S' loc -> @jam A JA PA SA agA AgeA B S' S P Q loc = P loc.
+Lemma jam_true: forall A JA PA SA agA AgeA EO EA B (S': B -> Prop) S P Q loc, S' loc -> @jam A JA PA SA agA AgeA EO EA B S' S P Q loc = P loc.
 Proof.
 intros.
 apply pred_ext'.
@@ -382,7 +407,7 @@ extensionality m; unfold jam.
 simpl. rewrite if_true; auto.
 Qed.
 
-Lemma jam_false: forall A JA PA SA agA AgeA B (S': B -> Prop) S P Q loc, ~ S' loc -> @jam A JA PA SA agA AgeA B S' S P Q loc = Q loc.
+Lemma jam_false: forall A JA PA SA agA AgeA EO EA B (S': B -> Prop) S P Q loc, ~ S' loc -> @jam A JA PA SA agA AgeA EO EA B S' S P Q loc = Q loc.
 Proof.
 intros.
 apply pred_ext'.
@@ -393,7 +418,7 @@ Qed.
 Lemma boxy_jam:  forall (m: modality) A (S': A -> Prop) S P Q,
       (forall (x: A), boxy m (P x)) ->
       (forall x, boxy m (Q x)) ->
-      forall x, boxy m (@jam rmap _ _ _ _ _ A S' S P Q x).
+      forall x, boxy m (@jam rmap _ _ _ _ _ _ _ A S' S P Q x).
 Proof.
   intros.
    unfold boxy in *.
@@ -406,16 +431,16 @@ Proof.
    rewrite <- H0 in H1; auto.
 Qed.
 
-Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> pred rmap),
+(*Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> pred rmap),
       (forall (x: A), boxy extendM (P x)) ->
       (forall x, boxy extendM (Q x)) ->
-      forall x, boxy extendM  (@jam _ _ _ _ _ _ _ S' S P Q x).
+      forall x, boxy extendM  (@jam _ _ _ _ _ _ _ _ _ S' S P Q x).
 Proof.
   apply boxy_jam; auto.
-Qed.
+Qed.*)
 
 Definition jam_vacuous:
-  forall A JA PA SA agA AgeA B S S' P Q, (forall x:B, ~ S x) -> @jam A JA PA SA agA AgeA B S S' P Q = Q.
+  forall A JA PA SA agA AgeA EO EA B S S' P Q, (forall x:B, ~ S x) -> @jam A JA PA SA agA AgeA EO EA B S S' P Q = Q.
 Proof.
 intros.
 extensionality l; apply pred_ext'; extensionality w.
@@ -440,6 +465,21 @@ Proof.
     apply ghost_of_approx.
 Qed.
 
+Lemma make_sub_rmap_core: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
+  (forall l sh k, P l -> res_option (w @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
+  {w' | level w' = level w /\ resource_at w' =
+       (fun l => if P_DEC l then w @ l else core (w @ l)) /\ ghost_of w' = core (ghost_of w)}.
+Proof.
+  intros.
+  apply remake_rmap.
+  intros.
+    if_tac; [left; eauto |].
+    destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE; simpl; auto.
+    left.
+    exists w; split; auto.
+    apply ghost_fmap_core.
+Qed.
+
 Definition is_resource_pred (p: address -> pred rmap) (q: resource -> address -> nat -> Prop) :=
   forall l w, (p l) w = q (w @ l) l (level w).
 
@@ -455,15 +495,7 @@ Proof.
   rewrite H0; auto.
 Qed.
 
-Program Definition noghost : pred rmap := fun m => identity (ghost_of m).
-Next Obligation.
-Proof.
-  intros ????.
-  rewrite ghost_identity in *.
-  rewrite (age1_ghost_of _ _ H), H0; reflexivity.
-Defined.
-
-(* This is about split one segment into two segments. *)
+(* This is about splitting one segment into two segments. *)
 Lemma allp_jam_split2: forall (P Q R: address -> Prop) (p q r: address -> pred rmap)
   (P_DEC: forall l, {P l} + {~ P l})
   (Q_DEC: forall l, {Q l} + {~ Q l})
@@ -475,24 +507,24 @@ Lemma allp_jam_split2: forall (P Q R: address -> Prop) (p q r: address -> pred r
   (forall l, Q l -> p l = q l) ->
   (forall l, R l -> p l = r l) ->
   (forall l m sh k, P l -> (p l) m -> res_option (m @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
-  allp (jam P_DEC p noat) && noghost =
-  (allp (jam Q_DEC q noat) && noghost) * (allp (jam R_DEC r noat) && noghost).
+  allp (jam P_DEC p noat) =
+  (allp (jam Q_DEC q noat)) * (allp (jam R_DEC r noat)).
 Proof.
   intros until R_DEC.
   intros ST_P ST_Q ST_R.
-  intros [? ?] ? ? ?.
+  intros [] ? ? ?.
   apply pred_ext; intros w; simpl; intros.
-  + destruct (make_sub_rmap w Q Q_DEC) as [w1 [? ?]].
+  + destruct (make_sub_rmap_core w Q Q_DEC) as [w1 [? ?]].
     {
       intros. eapply H3; [| | eauto].
       + firstorder.
-      + destruct H4; specialize (H4 l); if_tac in H4; [auto | firstorder].
+      + specialize (H4 l); if_tac in H4; [auto | firstorder].
     }
     destruct (make_sub_rmap w R R_DEC) as [w2 [? ?]].
     {
       intros. eapply H3; [| | eauto].
       + firstorder.
-      + destruct H4; specialize (H4 l); if_tac in H4; [auto | firstorder].
+      + specialize (H4 l); if_tac in H4; [auto | firstorder].
     }
     exists w1, w2.
     split3; auto.
@@ -505,15 +537,14 @@ Proof.
       * firstorder.
       * apply join_comm; auto.
       * auto.
-      * destruct H4; specialize (H4 l).
+      * specialize (H4 l).
         rewrite if_false in H4 by firstorder.
         rewrite identity_core by auto.
         apply core_duplicable.
       * destruct H6 as [_ ->], H8 as [_ ->].
-        destruct H4. apply identity_self_join; auto.
-    - split.
-      intros l.
-      destruct H4; specialize (H4 l).
+        apply core_unit.
+    - intros l.
+      specialize (H4 l).
       if_tac.
       * rewrite <- H1 by auto.
         rewrite if_true in H4 by firstorder.
@@ -521,10 +552,8 @@ Proof.
         destruct H6; rewrite H6, if_true by auto; auto.
       * destruct H6; rewrite H6, if_false by auto.
         apply core_identity.
-      * destruct H4, H6 as [_ ->]; auto.
-    - split.
-      intros l.
-      destruct H4; specialize (H4 l).
+    - intros l.
+      specialize (H4 l).
       if_tac.
       * rewrite <- H2 by auto.
         rewrite if_true in H4 by firstorder.
@@ -532,9 +561,7 @@ Proof.
         destruct H8; rewrite H8, if_true by auto; auto.
       * destruct H8; rewrite H8, if_false by auto.
         apply core_identity.
-      * destruct H4, H8 as [_ ->]; auto.
-  + destruct H4 as [y [z [? [[? Hg1] [? Hg2]]]]].
-    split; intros.
+  + destruct H4 as [y [z [? [H5 H6]]]].
     specialize (H5 b); specialize (H6 b).
     if_tac.
     - if_tac in H5; if_tac in H6.
@@ -554,7 +581,6 @@ Proof.
       rewrite if_false in H6 by firstorder.
       apply resource_at_join with (loc := b) in H4.
       apply H5 in H4; rewrite <- H4; auto.
-    - apply ghost_of_join, Hg1 in H4 as <-; auto.
 Qed.
 
 
@@ -665,17 +691,17 @@ Definition VALspec : spec :=
           allp (jam (eq_dec l)
                                   (fun l' => EX v: memval, 
                                                 yesat NoneP (VAL v) sh l')
-                                  noat) && noghost.
+                                  noat).
 
 Definition VALspec_range (n: Z) : spec :=
      fun (sh: Share.t) (l: address) =>
-          andp (allp (jam (adr_range_dec l n)
+          allp (jam (adr_range_dec l n)
                                   (fun l' => EX v: memval, 
                                                 yesat NoneP (VAL v) sh l')
-                                  noat)) noghost.
+                                  noat).
 
 Definition nonlock_permission_bytes (sh: share) (a: address) (n: Z) : pred rmap :=
-  andp (allp (jam (adr_range_dec a n) (fun i => shareat i sh && nonlockat i) noat)) noghost.
+  allp (jam (adr_range_dec a n) (fun i => shareat i sh && nonlockat i) noat).
 
 Definition nthbyte (n: Z) (l: list memval) : memval :=
      nth (Z.to_nat n) l Undef.
@@ -694,7 +720,7 @@ Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
                !! (length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l))  &&
                 (allp (jam (adr_range_dec l (size_chunk ch))
                                     (fun loc => yesat NoneP (VAL (nth (Z.to_nat (snd loc - snd l)) bl Undef)) sh loc)
-                                    noat)) && noghost.
+                                    noat)).
 
 Lemma address_mapsto_align: forall ch v sh l,
   address_mapsto ch v sh l = address_mapsto ch v sh l && !! (align_chunk ch | snd l).
@@ -703,7 +729,7 @@ Proof.
   pose proof (@add_andp (pred rmap) _); simpl in H. apply H; clear H.
   constructor; unfold address_mapsto.
   apply exp_left; intro.
-  do 2 apply andp_left1.
+  apply andp_left1.
   intros ? [? [? ?]].
   auto.
 Qed.
@@ -714,11 +740,11 @@ Lemma address_mapsto_fun:
 Proof.
 intros.
 intros m [? ?]. unfold prop.
-destruct H as [m1 [m2 [J [[bl [[[Hlen [? _]] ?] Hg]] _]]]].
-destruct H0 as [m1' [m2' [J' [[bl' [[[Hlen' [? _]] ?] Hg']] _]]]].
+destruct H as [m1 [m2 [J [[bl [[Hlen [? _]] ?]] _]]]].
+destruct H0 as [m1' [m2' [J' [[bl' [[Hlen' [? _]] ?]] _]]]].
 subst.
 assert (forall i, nth_error bl i = nth_error bl' i).
-intro i; specialize( H1 (fst l, snd l + Z_of_nat i)); specialize( H2 (fst l, snd l + Z_of_nat i)).
+intro i; specialize(H1 (fst l, snd l + Z_of_nat i)); specialize( H2 (fst l, snd l + Z_of_nat i)).
 unfold jam in *.
 destruct l as [b z].
 simpl in *.
@@ -774,7 +800,7 @@ Definition LKspec lock_size (R: pred rmap) : spec :=
    fun (sh: Share.t) (l: AV.address)  =>
     allp (jam (adr_range_dec l lock_size)
                (fun l' => yesat (SomeP Mpred (fun _ => R)) (LK lock_size (snd l' - snd l)) sh l')
-               noat) && noghost.
+               noat).
 
 (*Lenb: moved to veric/seplog.v
 Definition packPQ {A: rmaps.TypeTree}
@@ -897,8 +923,8 @@ Lemma VALspec_readable:
 Proof.
 unfold VALspec, readable;
 intros.
-destruct H as [w1 [w2 [? [[? ?] _]]]].
-specialize ( H0 l).
+destruct H as [w1 [w2 [? [? _]]]].
+specialize (H0 l).
 unfold jam in H0.
 hnf in H0|-*; rewrite if_true in H0 by auto.
 destruct H0 as [v [p ?]].
@@ -924,7 +950,7 @@ pose (g l' := if eq_dec (adr_add l i) l' then NO Share.bot bot_unreadable else w
 exploit (deallocate (w) f g); intros.
 *
 unfold f,g; clear f g.
-destruct H0 as [b [[? ?] Hg]]. specialize (H1 l0).  hnf in H1.
+destruct H0 as [b [? ?]]. specialize (H1 l0).  hnf in H1.
 if_tac in H1. destruct H1.  hnf in H1. if_tac; rewrite H1; constructor.
 apply join_unit2; auto.
 apply join_unit1; auto.
@@ -939,10 +965,10 @@ destruct H1 as [phi1 [phi2 [? ?]]].
 exists phi1; exists phi2.
 split; auto.
 split; auto.
-unfold VALspec; split.
+unfold VALspec.
 intro l'.
 unfold jam in *.
-destruct H0 as [bl [[H0' ?] Hg]].
+destruct H0 as [bl [H0' ?]].
 specialize (H0 l').
 unfold jam in H0.
 hnf in H0|-*; if_tac.
@@ -968,15 +994,12 @@ do 3 red.
 destruct H2 as [-> _]. unfold f.
 rewrite if_false; auto.
 if_tac. apply NO_identity. apply H0.
-simpl; destruct H2 as [_ ->].
-destruct H0 as [bl [[H0' ?] Hg]]; auto.
 Qed.
 
 
 Lemma address_mapsto_exists:
   forall ch v sh (rsh: readable_share sh) loc w0
-      (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot bot_unreadable)
-      (Hg: identity (ghost_of w0)),
+      (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot bot_unreadable),
       (align_chunk ch | snd loc) ->
       exists w, address_mapsto ch (decode_val ch (encode_val ch v)) sh loc w 
                     /\ core w = core w0.
@@ -996,7 +1019,7 @@ apply resource_at_approx.
 exists phi.
 split.
 + exists (encode_val ch v).
-  split; [split|].
+  split.
   split; auto.
   apply encode_val_length.
   intro l'.
@@ -1010,8 +1033,6 @@ split.
   f_equal.
   rewrite <- core_resource_at.
   apply core_identity.
-  simpl.
-  destruct H1 as [_ ->]; auto.
 + apply rmap_ext. do 2 rewrite level_core. auto.
   intro l; specialize (RESERVE l).
   rewrite <- core_resource_at. destruct H1. rewrite H1. unfold f.
@@ -1035,7 +1056,7 @@ Lemma VALspec1: VALspec_range 1 = VALspec.
 Proof.
 unfold VALspec, VALspec_range.
 extensionality sh l.
-f_equal; f_equal.
+f_equal.
 unfold jam.
 extensionality l'.
 apply exist_ext; extensionality m.
@@ -1056,7 +1077,6 @@ Lemma VALspec_range_exp_address_mapsto:
 Proof.
   intros.
   intros w ?.
-  destruct H0 as [H0 Hg].
   simpl in H0 |- *.
   cut (exists (b0 : list memval),
      length b0 = size_chunk_nat ch /\
@@ -1151,8 +1171,7 @@ Lemma address_mapsto_VALspec_range:
 Proof.
 intros.
 intros w ?. unfold VALspec_range.
-destruct H as [bl [[Hbl ?] Hg]].
-split; auto.
+destruct H as [bl [Hbl ?]].
 intro l'.
 specialize ( H l').
 unfold jam in *.
@@ -1176,7 +1195,7 @@ specialize (H _ H1).
 specialize (H m').
 spec H.
 rewrite H2; auto.
-destruct H; apply prop_ext. intuition.
+destruct H; apply prop_ext. intuition eauto.
 Qed.
 
 Lemma level_later {A} `{H : ageable A}: forall {w: A} {n': nat},
@@ -1322,8 +1341,7 @@ Lemma VALspec_range_bytes_readable:
   forall n sh loc m, VALspec_range n sh loc m -> bytes_readable loc n m.
 Proof.
 intros; intro; intros.
-destruct H.
-specialize ( H (adr_add loc i)).
+specialize (H (adr_add loc i)).
 hnf in H.
 rewrite if_true in H.
 destruct H as [v [p ?]].
@@ -1338,8 +1356,7 @@ Lemma VALspec_range_bytes_writable:
   forall n sh loc m, writable_share sh -> VALspec_range n sh loc m -> bytes_writable loc n m.
 Proof.
 intros; intro; intros.
-destruct H0.
-specialize ( H0 (adr_add loc i)).
+specialize (H0 (adr_add loc i)).
 hnf in H0.
 rewrite if_true in H0.
 destruct H0 as [v [p ?]].
@@ -1357,8 +1374,8 @@ Lemma yesat_join_sub:
          exists sh', yesat pp k sh' l m'.
 Proof.
 intros.
-destruct H0.
 unfold yesat_raw in H0.
+destruct H0.
 generalize (resource_at_join_sub _ _ l H); rewrite H0; intro.
 assert (level m = level m').
 destruct H; apply join_level in H; intuition.
@@ -1372,7 +1389,7 @@ rewrite <- H2. rewrite H3.
 subst; f_equal; auto.
 Qed.
 
-Lemma VALspec_range_precise: forall n sh l,  precise (VALspec_range n sh l).
+(*Lemma VALspec_range_precise: forall n sh l,  precise (VALspec_range n sh l).
 Proof.
 intros.
 intro; intros.
@@ -1402,9 +1419,9 @@ hnf in H, H0. if_tac in H.
     eapply join_sub_unit_for; eauto.
     apply identity_unit'; auto.
 + destruct H as [_ ?%ghost_identity], H0 as [_ ?%ghost_identity]; congruence.
-Qed.
+Qed.*)
 
-Lemma nonlock_permission_bytes_precise: forall sh p n,
+(*Lemma nonlock_permission_bytes_precise: forall sh p n,
   precise (nonlock_permission_bytes sh p n).
 Proof.
   intros.
@@ -1469,7 +1486,7 @@ apply (resource_at_join_sub _ _ l0) in H1.
 - apply ghost_identity in Hg as ->.
   apply ghost_identity in Hg0 as ->.
   reflexivity.
-Qed.
+Qed.*)
 
 Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap :=
   EX bl: list memval,
@@ -1479,11 +1496,13 @@ Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap
         = YES sh rsh (VAL (nth (Z.to_nat (snd l' - snd l)) bl Undef)) NoneP)
       (fun _ _ => True)).
  Next Obligation.
-    intros; intro; intros.
-  destruct H0 as [sh [rsh ?]]; exists sh, rsh.
+    split; repeat intro.
+    destruct H0 as [sh [rsh ?]]; exists sh, rsh.
     apply (age1_YES a a'); auto.
+
+    apply rmap_order in H as (_ & <- & _); auto.
   Qed.
-  Next Obligation.     intros; intro; intros. auto.
+  Next Obligation.     split; repeat intro; auto.
   Qed.
 
 Program Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list memval)
@@ -1494,42 +1513,53 @@ Program Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list
         = YES sh rsh (VAL (nth (Z.to_nat (snd l' - snd l)) bl Undef)) NoneP)
       (fun _ _ => True)).
  Next Obligation.
-    intros; intro; intros.
-  destruct H0 as [sh [rsh ?]]; exists sh, rsh.
+    split; repeat intro.
+    destruct H0 as [sh [rsh ?]]; exists sh, rsh.
     apply (age1_YES a a'); auto.
+
+    apply rmap_order in H as (_ & <- & _); auto.
   Qed.
-  Next Obligation.     intros; intro; intros. auto.
+  Next Obligation.     split; repeat intro; auto.
   Qed.
+
+Lemma emp_no : emp = (ALL l, noat l).
+Proof.
+  apply pred_ext.
+  - intros ? (? & ? & Hord) ?; simpl.
+    apply rmap_order in Hord as (_ & <- & _).
+    apply resource_at_identity; auto.
+  - intros ??; exists (id_core a); split; [apply id_core_identity|].
+    rewrite rmap_order, id_core_level, id_core_resource, id_core_ghost.
+    split; auto; split; [|eexists; constructor].
+    extensionality l; specialize (H l).
+    rewrite <- core_resource_at; symmetry; apply identity_core; auto.
+Qed.
 
 Lemma VALspec_range_0: forall sh loc, VALspec_range 0 sh loc = emp.
 Proof.
  intros.
+ rewrite emp_no.
  apply pred_ext.
- - intros ? [? ?]. simpl in H.
-   apply all_resource_at_identity; auto.
-   intro l. specialize (H l).
-   rewrite if_false in H; auto.
-   destruct loc, l; intros [? ?]; simpl in *; lia.
- - intros ? ?. split. intro b. rewrite jam_false.
-   do 3 red. apply resource_at_identity; auto.
-   destruct loc, b; intros [? ?]; simpl in *; lia.
-   apply ghost_of_identity; auto.
+ - intros ? H l. simpl in *.
+   specialize (H l); rewrite if_false in H; auto.
+   { unfold adr_range. destruct loc, l; intros []; lia. }
+ - intros ? H l. simpl in *.
+   rewrite if_false; auto.
+   { unfold adr_range. destruct loc, l; intros []; lia. }
 Qed.
 #[export] Hint Resolve VALspec_range_0: normalize.
 
 Lemma nonlock_permission_bytes_0: forall sh a, nonlock_permission_bytes sh a 0 = emp.
 Proof.
   intros.
+  rewrite emp_no.
   apply pred_ext.
-  + intros ? [? ?]. simpl in H.
-    apply all_resource_at_identity; auto.
-    intro l. specialize (H l).
-    rewrite if_false in H; auto.
-    destruct a, l; intros [? ?]; simpl in *; lia.
-  + intros ? ?. split. intro b. rewrite jam_false.
-    do 3 red. apply resource_at_identity; auto.
-    destruct a, b; intros [? ?]; simpl in *; lia.
-   apply ghost_of_identity; auto.
+  + intros ? H l. simpl in *.
+    specialize (H l); rewrite if_false in H; auto.
+   { unfold adr_range. destruct a, l; intros []; lia. }
+  + intros ? H l. simpl in *.
+    rewrite if_false; auto.
+   { unfold adr_range. destruct a, l; intros []; lia. }
 Qed.
 
 Lemma nonlock_permission_bytes_not_nonunit: forall sh p n,
@@ -1544,14 +1574,10 @@ Proof.
     + apply nonidentity_nonunit in n0; tauto.
   }
   subst.
-  intros ? ?. simpl in H.
-  do 3 red.
-  destruct H0.
-  apply all_resource_at_identity; auto.
-  intro l.
-  specialize (H0 l); simpl in H0.
-  if_tac in H0; [| auto].
-  destruct H0.
+  intros ? ?. simpl in H0.
+  rewrite emp_no; intros l; simpl.
+  specialize (H0 l); if_tac in H0; auto.
+  destruct H0 as [H0 _]; unfold resource_share in H0.
   destruct (a @ l); inv H0.
   + apply NO_identity. 
   + contradiction (bot_unreadable r).
@@ -1644,9 +1670,9 @@ Lemma VALspec_range_overlap': forall sh p1 p2 n1 n2,
   VALspec_range n1 sh p1 * VALspec_range n2 sh p2 |-- FF.
 Proof.
   intros.
-  intros w [w1 [w2 [? [[? Hg1] [? Hg2]]]]].
-  specialize ( H2 p2).
-  specialize ( H3 p2).
+  intros w [w1 [w2 [? [H2 H3]]]].
+  specialize (H2 p2).
+  specialize (H3 p2).
   rewrite jam_true in H2 by auto.
   rewrite jam_true in H3 by (destruct p2; simpl; split; auto; lia).
   destruct H2; destruct H3. hnf in H2,H3.
@@ -1714,7 +1740,7 @@ Lemma nonlock_permission_bytes_overlap:
   nonlock_permission_bytes sh p1 n1 * nonlock_permission_bytes sh p2 n2 |-- FF.
 Proof.
   intros.
-  eapply derives_trans; [apply sepcon_derives; apply andp_left1, derives_refl|].
+  eapply derives_trans; [apply sepcon_derives; apply derives_refl|].
   apply allp_jam_overlap.
   + eexists. apply is_resource_pred_nonlock_shareat.
   + eexists. apply is_resource_pred_nonlock_shareat.
@@ -1734,8 +1760,8 @@ Lemma address_mapsto_value_cohere':
  (Hmaps2 : address_mapsto ch v2 sh2 a r), v1=v2.
 Proof.
  intros.
- destruct Hmaps1 as [b1 [[[Hlen1 [? ?]] Hall1] Hg1]].
- destruct Hmaps2 as [b2 [[[Hlen2 [? ?]] Hall2] Hg2]].
+ destruct Hmaps1 as [b1 [[Hlen1 [? ?]] Hall1]].
+ destruct Hmaps2 as [b2 [[Hlen2 [? ?]] Hall2]].
  assert (b1 = b2); [ | subst; auto].
  clear - Hlen1 Hlen2 Hall1 Hall2.
  rewrite size_chunk_conv in *.
@@ -1772,8 +1798,8 @@ Lemma address_mapsto_value_cohere:
 Proof.
  intros.
  intros w [w1 [w2 [? [? ?]]]]. hnf.
- destruct H0 as [b1 [[[? [? ?]] ?] Hg1]].
- destruct H1 as [b2 [[[? [? ?]] ?] Hg2]].
+ destruct H0 as [b1 [[? [? ?]] ?]].
+ destruct H1 as [b2 [[? [? ?]] ?]].
  assert (b1 = b2); [ | subst; auto].
  clear - H H0 H4 H1 H7.
  rewrite size_chunk_conv in *.
@@ -1830,33 +1856,3 @@ Definition func_at' (f: funspec) (loc: address) : pred rmap :=
    | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
   end.
 *)
-
-(* Aside from its core, every rmap has a "second core" that is an
-   identity. Thus, we recover emp_sepcon even though we don't have
-   a Flat_alg. *)
-Lemma emp_sepcon : forall P, emp * P = P.
-Proof.
-  intros; apply pred_ext.
-  - intros ? (? & ? & J & Hemp & ?).
-    apply Hemp in J; subst; auto.
-  - intros ??.
-    exists (id_core a), a; repeat split; auto.
-    + apply id_core_unit.
-    + apply id_core_identity.
-Qed.
-
-Lemma sepcon_emp : forall P, P * emp = P.
-Proof.
-  intros; rewrite sepcon_comm; apply emp_sepcon.
-Qed.
-
-Lemma emp_ewand : forall P, ewand emp P = P.
-Proof.
-  intros; apply pred_ext.
-  - intros ? (? & ? & J & Hemp & ?).
-    apply Hemp in J; subst; auto.
-  - intros ??.
-    exists (id_core a), a; repeat split; auto.
-    + apply id_core_unit.
-    + apply id_core_identity.
-Qed.

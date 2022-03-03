@@ -15,7 +15,7 @@ Lemma mapsto_core_load: forall ch v sh loc m,
 Proof.
 unfold address_mapsto, core_load.
 intros until m; intros H.
-destruct H as [phi0 [phi1 [Hjoin [[bl [[[Hlen [Hdec Halign]] H] _]] ?]]]].
+destruct H as [phi0 [phi1 [Hjoin [[bl [[Hlen [Hdec Halign]] H]] ?]]]].
 unfold allp, jam in *.
 exists bl.
 repeat split; auto.
@@ -120,7 +120,7 @@ cut (0 <= Z_of_nat i < Z_of_nat (length bl)). intro H6.
 lia.
 Qed.
 
-Lemma extensible_core_load': forall ch loc v
+(*Lemma extensible_core_load': forall ch loc v
   w w', extendR w w' -> core_load ch loc v w -> core_load ch loc v w'.
 Proof.
 intros.
@@ -140,7 +140,7 @@ hnf in H2|-*.
 destruct H2 as [sh [rsh H2]].
 rewrite H2 in H.
 inv H; subst; eauto.
-Qed.
+Qed.*)
 
 (*
 Lenb: should be moved to tycontext or some other Clight-dependent file- but is in fact dead
@@ -148,7 +148,7 @@ Definition Dbool {CS: compspecs} (Delta: tycontext) (e: Clight.expr) : assert :=
   fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr e rho) = Some b).
 *)
                              
-Lemma assert_truth:  forall {A} `{ageable A} (P:  Prop), P -> forall (Q: pred A), Q |-- (!! P) && Q.
+Lemma assert_truth:  forall {A} `{ageable A} {EO: Ext_ord A} (P:  Prop), P -> forall (Q: pred A), Q |-- (!! P) && Q.
 Proof.
 intros.
 intros st ?.
@@ -227,7 +227,7 @@ Qed.
 Lemma prop_imp_i {A}{agA: ageable A}:
   forall (P: Prop) Q w, (P -> app_pred Q w) -> (!!P --> Q) w.
 Proof.
- intros. intros w' ? ?. apply H in H1. eapply pred_nec_hereditary; eauto.
+ intros. intros w' ? ? ? H1. apply H in H1. eapply pred_upclosed, pred_nec_hereditary; eauto.
 Qed.
 
 Lemma or_pred_ext {A} `{agA : ageable A}: forall P Q P' Q',
@@ -235,7 +235,7 @@ Lemma or_pred_ext {A} `{agA : ageable A}: forall P Q P' Q',
 Proof.
 intros.
 intros w [? ?].
-split; intros w' ? [?|?].
+split; intros w' ??? [?|?].
 left. destruct H; eauto.
 right. destruct H0; eauto.
 left. destruct H; eauto.
@@ -247,14 +247,15 @@ Lemma corable_unfash:
     (AgeA : Age_alg A) (P : pred nat), corable (! P).
 Proof.
   unfold corable; simpl; intros.
-  destruct H0 as [[? J] | [? J]]; apply join_level in J as []; congruence.
+  destruct H0 as [[? J] | [[? J] | E]]; try (apply join_level in J as []; congruence).
+  apply ext_level in E; congruence.
 Qed.
 
 Lemma corable_funspec_sub_si f g: corable (funspec_sub_si f g).
 Proof.
  unfold funspec_sub_si; intros.
  destruct f, g. apply corable_andp; [apply corable_prop|].
- apply corable_later, corable_unfash.
+ eapply corable_later, corable_unfash; typeclasses eauto.
 Qed.
 (*
 Lemma corable_funspec_sub_early f g: corable (funspec_sub_early f g).
@@ -264,11 +265,39 @@ Proof.
 + intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
 Qed.
 *)
+
+Lemma ext_join_sub : forall (a b : rmap), ext_order a b -> join_sub a b.
+Proof.
+  intros.
+  rewrite rmap_order in H.
+  destruct H as (? & ? & g & ?).
+  destruct (make_rmap (resource_at (core a)) (own.ghost_approx a g) (level a)) as (c & Hl & Hr & Hg).
+  { extensionality l; unfold compose.
+    rewrite <- level_core.
+    apply resource_at_approx. }
+  { rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
+  exists c; apply resource_at_join2; auto.
+  - congruence.
+  - intros; rewrite Hr, <- core_resource_at, H0.
+    apply join_comm, core_unit.
+  - rewrite Hg, <- (ghost_of_approx a), <- (ghost_of_approx b), <- H.
+    apply ghost_fmap_join; auto.
+Qed.
+
+Lemma corable_cases : forall (P : mpred), (forall w, P w -> forall w', join_sub w w' \/ join_sub w' w -> P w') ->
+  corable P.
+Proof.
+  repeat intro.
+  destruct H1 as [? | [? | ?]]; eauto.
+  apply ext_join_sub in H1; eauto.
+Qed.
+
 Lemma corable_pureat: forall pp k loc, corable (pureat pp k loc).
 Proof.
- unfold corable, pureat; simpl; intros.
- destruct H0 as [[? J] | [? J]]; destruct (join_level _ _ _ J) as [Hl _];
-   apply resource_at_join with (loc := loc) in J; rewrite H in J; inv J; rewrite Hl; auto.
+  intros; apply corable_cases.
+  unfold pureat; simpl; intros.
+  destruct H0 as [[? J] | [? J]]; destruct (join_level _ _ _ J) as [Hl _];
+    apply resource_at_join with (loc := loc) in J; rewrite H in J; inv J; rewrite Hl; auto.
 Qed.
 
 Lemma corable_func_at: forall f l, corable (func_at f l).

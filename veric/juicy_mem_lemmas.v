@@ -604,7 +604,7 @@ unfold address_mapsto in H.
 unfold Mem.valid_access, Mem.range_perm.
 split.
 destruct H as [x [y [Hjoin ?]]].
-destruct H as [[bl [[[H2 [H3 H3']] H] Hg]] ?].
+destruct H as [[bl [[H2 [H3 H3']] H]] ?].
 hnf in H.
 intros ofs' H4.
 specialize (H (b, ofs')).
@@ -645,7 +645,7 @@ unfold address_mapsto in H.
 unfold Mem.valid_access, Mem.range_perm.
 split.
 destruct H as [x [y [Hjoin ?]]].
-destruct H as [[bl [[[H2 [H3 H3']] H] Hg]] ?].
+destruct H as [[bl [[H2 [H3 H3']] H]] ?].
 hnf in H.
 intros ofs' H4.
 specialize (H (b, ofs')).
@@ -778,13 +778,13 @@ Qed.
 
 Lemma juicy_free_aux_lemma:
  forall phi b lo hi F,
- app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F) phi ->
+ app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F)%pred phi ->
   (forall ofs : Z,
    lo <= ofs < hi -> perm_of_res (phi @ (b, ofs)) = Some Freeable).
 Proof.
 intros.
 destruct H as [phi1 [phi2 [? [? ?]]]].
-destruct H1 as [H1 _]; specialize (H1 (b,ofs)).
+specialize (H1 (b,ofs)).
 apply (resource_at_join _ _ _ (b,ofs)) in H.
 hnf in H1. rewrite if_true in H1 by (split; auto; lia).
 destruct H1 as [? [? ?]].
@@ -799,8 +799,9 @@ Qed.
 Lemma juicy_free_lemma:
   forall {j b lo hi m' m1 F}
     (H: Mem.free (m_dry j) b lo hi = Some m')
-    (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F) (m_phi j)),
+    (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F)%pred (m_phi j)),
     VALspec_range (hi-lo) Share.top (b,lo) m1 ->
+    ghost_of m1 = core (ghost_of m1) ->
     core m1 = core (m_phi j) ->
     (forall l sh rsh k pp, m1 @ l = YES sh rsh k pp 
       -> exists sh', exists (rsh': readable_share sh'), 
@@ -810,16 +811,16 @@ Lemma juicy_free_lemma:
 Proof.
 intros j b lo hi m' m1.
 pose (H0 :=True).
-intros R H VR H1 H2 Hyes.
+intros R H VR H1 Hg H2 Hyes.
 assert (forall l, ~adr_range (b,lo) (hi-lo) l -> identity (m1 @ l)).
   unfold VALspec_range, allp, jam in H1.
-  intros l. destruct H1 as [H1 _]; specialize (H1 l). intros H3.
+  intros l. specialize (H1 l). intros H3.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
 assert (forall l, adr_range (b,lo) (hi-lo) l 
   -> exists mv, yesat NoneP (VAL mv) Share.top  l m1).
   unfold VALspec_range, allp, jam in H1.
-  intros l. destruct H1 as [H1 _]; specialize (H1 l). intros H4.
+  intros l. specialize (H1 l). intros H4.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
 remember (free_juicy_mem _ _ _ _ _ H) as j'.
@@ -894,8 +895,7 @@ f_equal. apply proof_irr.
     destruct (m_phi j @ (b0,ofs0)).
     rewrite core_NO in H0; inv H0. rewrite core_YES in H0; inv H0.
     rewrite core_PURE in H0. inversion H0. subst k0 p0; constructor.
-* destruct H1 as [_ Hg].
-  rewrite (identity_core Hg), core_ghost_of, H2.
+* rewrite Hg, core_ghost_of, H2.
   subst j'; simpl.
   unfold inflate_free.
   rewrite ghost_of_make_rmap.
@@ -910,6 +910,7 @@ Variables (jm :juicy_mem) (m': mem)
           (PERM: forall ofs, lo <= ofs < hi ->
                       perm_of_res (m_phi jm @ (b,ofs)) = Some Freeable)
           (phi1 phi2 : rmap) (Hphi1: VALspec_range (hi-lo) Share.top (b,lo) phi1)
+          (Hg1: identity (ghost_of phi1))
           (Hjoin : join phi1 phi2 (m_phi jm)).
 
 Lemma phi2_eq : m_phi (free_juicy_mem _ _ _ _ _ FREE) = phi2.
@@ -917,19 +918,17 @@ Proof.
   apply rmap_ext; simpl; unfold inflate_free; rewrite ?level_make_rmap, ?resource_at_make_rmap.
   - apply join_level in Hjoin; destruct Hjoin; auto.
   - intro.
-    destruct Hphi1 as [Hphi1' _]. specialize (Hphi1' l); simpl in Hphi1'.
+    specialize (Hphi1 l); simpl in Hphi1.
     apply (resource_at_join _ _ _ l) in Hjoin.
     if_tac.
-    + destruct Hphi1' as (? & ? & H1); rewrite H1 in Hjoin; inv Hjoin.
+    + destruct Hphi1 as (? & ? & H1); rewrite H1 in Hjoin; inv Hjoin.
       * pose proof (join_top _ _ RJ); subst; apply sepalg.join_comm, unit_identity, identity_share_bot in RJ.
         subst; apply f_equal, proof_irr.
       * pose proof (join_top _ _ RJ); subst; apply sepalg.join_comm, unit_identity, identity_share_bot in RJ.
         subst; contradiction bot_unreadable.
-    + apply Hphi1' in Hjoin; auto.
+    + apply Hphi1 in Hjoin; auto.
   - rewrite ghost_of_make_rmap.
-    destruct Hphi1 as [_ Hg].
-    apply ghost_of_join in Hjoin.
-    symmetry; apply Hg; auto.
+    apply ghost_of_join, Hg1 in Hjoin; auto.
 Qed.
 
 End free.
@@ -937,8 +936,9 @@ End free.
 Lemma juicy_free_lemma':
   forall {j b lo hi m' m1 m2 F}
     (H: Mem.free (m_dry j) b lo hi = Some m')
-    (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F) (m_phi j)),
+    (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F)%pred (m_phi j)),
     VALspec_range (hi-lo) Share.top (b,lo) m1 ->
+    identity (ghost_of m1) ->
     join m1 m2 (m_phi j) ->
     m_phi (free_juicy_mem _ _ _ _ _ H) = m2.
 Proof.

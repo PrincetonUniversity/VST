@@ -133,13 +133,17 @@ End upd_exit.
 
 Obligation Tactic := Tactics.program_simpl.
 
+Search ageable juicy_mem.
+
 Program Definition juicy_mem_op (P : pred rmap) : pred juicy_mem :=
   fun jm => P (m_phi jm).
  Next Obligation.
-  intro; intros.
+  split; repeat intro.
   apply age1_juicy_mem_unpack in H.
   destruct H.
   eapply pred_hereditary; eauto.
+
+  eapply pred_upclosed; eauto.
  Qed.
 
 Lemma age_resource_decay:

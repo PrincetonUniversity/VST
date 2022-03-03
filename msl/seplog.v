@@ -223,7 +223,7 @@ Class CorableSepLog (A: Type) {ND: NatDed A}{SL: SepLog A}:= mkCorableSepLog {
   corable_prop: forall P, corable (!! P);
   corable_andp: forall P Q, corable P -> corable Q -> corable (P && Q);
   corable_orp: forall P Q, corable P -> corable Q -> corable (P || Q);
-(*  corable_imp: forall P Q, corable P -> corable Q -> corable (P --> Q);*)
+  corable_imp: forall P Q, corable P -> corable Q -> corable (P --> Q);
   corable_allp: forall {B: Type} (P:  B -> A), (forall b, corable (P b)) -> corable (allp P);
   corable_exp: forall {B: Type} (P:  B -> A), (forall b, corable (P b)) -> corable (exp P);
   corable_sepcon: forall P Q, corable P -> corable Q -> corable (P * Q);
@@ -236,7 +236,7 @@ Instance LiftCorableSepLog (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {CS
   + apply corable_prop.
   + apply corable_andp; auto.
   + apply corable_orp; auto.
-(*  + apply corable_imp; auto.*)
+  + apply corable_imp; auto.
   + apply corable_allp; auto.
   + apply corable_exp; auto.
   + apply corable_sepcon; auto.

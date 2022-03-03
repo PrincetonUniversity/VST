@@ -601,6 +601,38 @@ destruct k; try inv H.
 eauto.
 Qed.
 
+Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
+  { ext_order a b := ext_order (m_phi a) (m_phi b) }.
+Next Obligation.
+Proof.
+  constructor; auto.
+  repeat intro; etransitivity; eauto.
+Qed.
+Next Obligation.
+Proof.
+  intros ?? ?%age1_juicy_mem_Some ??.
+  eapply age_ext_commut in H as [? ? Hage]; eauto.
+  destruct (age1_juicy_mem z) eqn: Hz.
+  unfold age in Hage.
+  erewrite age1_juicy_mem_Some in Hage by eauto.
+  inv Hage; eauto.
+  { apply age1_juicy_mem_None1 in Hz. congruence. }
+Qed.
+Next Obligation.
+Proof.
+  apply age1_juicy_mem_Some in H0.
+  eapply ext_age_compat in H as (? & Hage & ?); eauto.
+  destruct (age1_juicy_mem b) eqn: Hb.
+  unfold age in Hage.
+  erewrite age1_juicy_mem_Some in Hage by eauto.
+  inv Hage; eauto.
+  { apply age1_juicy_mem_None1 in Hb. congruence. }
+Qed.
+Next Obligation.
+Proof.
+  apply ext_level in H; auto.
+Qed.
+
 (* resource coherence *)
 
 (* FIXME: put somewhere else. *)

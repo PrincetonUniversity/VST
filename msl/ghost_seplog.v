@@ -25,7 +25,7 @@ Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
   own_update_ND: forall {RA: Ghost} g (a: G) B pp, fp_update_ND a B ->
     own g a pp |-- bupd (EX b : _, !!(B b) && own g b pp);
   own_dealloc: forall {RA: Ghost} g (a: G) pp,
-    own g a pp |-- bupd emp
+    own g a pp |-- emp
   }.
 
 Notation "|==> P" := (bupd P) (at level 99, P at level 200): logic.
