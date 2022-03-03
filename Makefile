@@ -876,7 +876,7 @@ progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
-	cd progs/VSUpile; $(MAKE) VST_LOC=../..
+	cd progs/VSUpile; $(MAKE) VST_LOC=../.. COMPCERT_LOC=$(COMPCERT_INST_DIR)
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)
