@@ -16,28 +16,122 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # ATTENTION: the "matrix" section must be identical for the "build" and "test" job
+        # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
           - '8.13'
           - '8.14'
           - '8.15'
-        opam_name:
-          - coq-vst
-          - coq-vst-32
+        bit_size:
+          - 32
+          - 64
+        make_target:
+          - vst
+        exclude:
+          - coq_version: 8.13
+            bit_size: 32
+          - coq_version: 8.14
+            bit_size: 32
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: true
       - uses: coq-community/docker-coq-action@v1
         with:
-          opam_file: ${{ matrix.opam_name }}.opam
           coq_version: ${{ matrix.coq_version }}
           # See https://github.com/coq-community/docker-coq-action/tree/v1 for usage
           before_install: |
-              startGroup "Opam config"
-                opam repo add -y prerelease file://$WORKDIR/opam-prerelease
-                opam config list; opam repo list; opam list
-              endGroup
-          export: 'OPAMWITHTEST'
-        env:
-          OPAMWITHTEST: 'true'
+            startGroup "Opam config"
+              opam repo add -y prerelease file://$(pwd)/opam-prerelease
+              opam update -y
+              opam config list; opam repo list; opam list
+            endGroup
+          install: |
+            startGroup "Install dependencies"
+              opam install -y ${{ matrix.bit_size == 32 && format('coq-compcert{0}.3.10', '-32') || format('coq-compcert{0}.3.10', '') }}
+              # Required by test2
+              opam install -y coq-ext-lib
+            endGroup
+          # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
+          before_script: |
+            startGroup "Workaround permission issue"
+              sudo chmod -R a=u .
+            endGroup
+          script: |
+            startGroup "Build & Install"
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
+            endGroup
+          after_script: |
+            startGroup 'Copy Opam coq/user-contrib and coq-variant'
+              cp -R -v "$(opam var lib)"/coq/user-contrib .
+              mkdir -p "$(opam var lib)"/coq-variant/dummy
+              cp -R -v "$(opam var lib)"/coq-variant .
+            endGroup
+          uninstall:
+      - name: 'Create archive'
+        run: tar -cpvzf archive.tgz *
+      - name: 'Upload archive'
+        uses: actions/upload-artifact@v2
+        with:
+          name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
+          path: archive.tgz
+          retention-days: 1
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        coq_version:
+          - '8.13'
+          - '8.14'
+          - '8.15'
+        make_target:
+          - test
+          - test2
+          - test3
+          - test4
+          # - test5 Seems to have issues with compcert path (likely -Q option to bind 32 bit version missing)
+        bit_size:
+          - 32
+          - 64
+        exclude:
+          - coq_version: 8.13
+            bit_size: 32
+          - coq_version: 8.14
+            bit_size: 32
+          - bit_size: 64
+            make_target: test2
+          - bit_size: 64
+            make_target: test3
+          - bit_size: 64
+            make_target: test4
+
+    steps:
+      - name: 'Download archive'
+        uses: actions/download-artifact@v2
+        id: download
+        with:
+          name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
+      - name: 'Extract archive'
+        run: tar -xvpzf archive.tgz
+      - uses: coq-community/docker-coq-action@v1
+        with:
+          coq_version: ${{ matrix.coq_version }}
+          install: |
+            startGroup "Copy downloaded Opam coq/user-contrib and coq-variant"
+              cp -R -v user-contrib/* "$(opam var lib)"/coq/user-contrib
+              mkdir -p "$(opam var lib)"/coq-variant
+              cp -R -v coq-variant/* "$(opam var lib)"/coq-variant
+            endGroup
+          before_script: |
+            startGroup "Workaround permission issue"
+              sudo chmod -R a=u .
+            endGroup
+          script: |
+            startGroup "Build & Install"
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
+            endGroup
+          uninstall:
