@@ -910,14 +910,14 @@ Variables (jm :juicy_mem) (m': mem)
           (PERM: forall ofs, lo <= ofs < hi ->
                       perm_of_res (m_phi jm @ (b,ofs)) = Some Freeable)
           (phi1 phi2 : rmap) (Hphi1: VALspec_range (hi-lo) Share.top (b,lo) phi1)
-          (Hg1: identity (ghost_of phi1))
           (Hjoin : join phi1 phi2 (m_phi jm)).
 
-Lemma phi2_eq : m_phi (free_juicy_mem _ _ _ _ _ FREE) = phi2.
+Lemma phi2_eq : ext_order phi2 (m_phi (free_juicy_mem _ _ _ _ _ FREE)).
 Proof.
-  apply rmap_ext; simpl; unfold inflate_free; rewrite ?level_make_rmap, ?resource_at_make_rmap.
+  apply rmap_order; simpl; unfold inflate_free; rewrite ?level_make_rmap, ?resource_at_make_rmap.
+  split; [|split].
   - apply join_level in Hjoin; destruct Hjoin; auto.
-  - intro.
+  - extensionality l.
     specialize (Hphi1 l); simpl in Hphi1.
     apply (resource_at_join _ _ _ l) in Hjoin.
     if_tac.
@@ -928,7 +928,7 @@ Proof.
         subst; contradiction bot_unreadable.
     + apply Hphi1 in Hjoin; auto.
   - rewrite ghost_of_make_rmap.
-    apply ghost_of_join, Hg1 in Hjoin; auto.
+    apply ghost_of_join in Hjoin; eexists; eauto.
 Qed.
 
 End free.
@@ -938,9 +938,8 @@ Lemma juicy_free_lemma':
     (H: Mem.free (m_dry j) b lo hi = Some m')
     (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F)%pred (m_phi j)),
     VALspec_range (hi-lo) Share.top (b,lo) m1 ->
-    identity (ghost_of m1) ->
     join m1 m2 (m_phi j) ->
-    m_phi (free_juicy_mem _ _ _ _ _ H) = m2.
+    ext_order m2 (m_phi (free_juicy_mem _ _ _ _ _ H)).
 Proof.
   intros.
   eapply phi2_eq; eauto.

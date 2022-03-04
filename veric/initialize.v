@@ -82,20 +82,18 @@ Lemma split_range:
   forall phi base n,
     (forall loc, adr_range base n loc ->
        match phi @ loc with YES _ _ k _ => isVAL k | _ => True end) ->
-    noghost phi ->
    exists phi1, exists phi2,
       join phi1 phi2 phi /\
       forall loc, if adr_range_dec base n loc then identity (phi2 @ loc)
                                                       else identity (phi1 @ loc).
 Proof.
-  intros ???? Hg.
+  intros ???.
   pose proof I.
-  destruct (make_rmap (fun loc => if adr_range_dec base n loc then phi @ loc else core (phi @ loc)) (ghost_of phi) (level phi)) as [phi1 [J1 J2]].
+  destruct (make_rmap (fun loc => if adr_range_dec base n loc then phi @ loc else core (phi @ loc)) (core (ghost_of phi)) (level phi)) as [phi1 [J1 J2]].
   extensionality loc;   unfold compose.
   if_tac.  apply resource_at_approx.
   repeat rewrite core_resource_at. rewrite <- level_core. apply resource_at_approx.
-  { apply ghost_of_approx. }
-  clear H0.
+  { apply ghost_fmap_core. }
   pose proof I.
  destruct (make_rmap (fun loc => if adr_range_dec base n loc then core (phi @ loc) else phi @ loc) (ghost_of phi) (level phi)) as [phi2 [J3 J4]].
   extensionality loc;   unfold compose.
@@ -111,7 +109,7 @@ Proof.
   if_tac.
     apply join_unit2. apply core_unit. auto.
     apply join_unit1. apply core_unit. auto.
-  rewrite Hg1, Hg2; apply identity_unit'; auto.
+  rewrite Hg1, Hg2; apply core_unit.
   intros. rewrite J2; rewrite J4. if_tac; apply core_identity.
 Qed.
 
@@ -688,7 +686,7 @@ forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
      if adr_range_dec (b, z) (init_data_size a) loc
      then identity (wf @ loc) /\ access_at m4 loc Cur = Some (Genv.perm_globvar v)
      else identity (w1 @ loc)) ->
-   forall (Hg: noghost w1) (VOL:  gvar_volatile v = false)
+   forall (VOL:  gvar_volatile v = false)
           (AL: initializer_aligned z a = true)
            (LO:   0 <= z) (HI: z + init_data_size a < Ptrofs.modulus),
   (init_data2pred (genviron2globals (filter_genv ge)) a (readonly2share (gvar_readonly v))
@@ -859,7 +857,6 @@ Proof.
  rewrite address_mapsto_zeros_eq.
  split; auto. 
   split; auto. simpl in HI. clear - HI. destruct (Z.max_spec z0 0); destruct H; lia.
- split; auto.
   intro loc. hnf. specialize (H2 loc); simpl in H2.
 rewrite Zmax_Z_of_nat.
 rewrite Z_to_nat_max.
@@ -937,7 +934,7 @@ if_tac; auto.
   split.
   simpl in AL|-*.
   apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
-  hnf. split; auto. intro loc; specialize (H2 loc). hnf.
+  hnf. intro loc; specialize (H2 loc). hnf.
   simpl init_data_size in H2.
  replace (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in H2
    by (unfold Mptr; destruct Archi.ptr64; reflexivity).
@@ -979,7 +976,7 @@ Lemma init_data_list_lem:
      drop_perm m3 b 0 (init_data_list_size (gvar_init v))
                (Genv.perm_globvar v) = Some m4 ->
   forall
-   (Hg: noghost phi0) (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
+   (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
    (VOL:  gvar_volatile v = false)
    (AL: initializers_aligned 0 (gvar_init v) = true),
      init_data_list2pred  (genviron2globals (filter_genv ge)) (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Ptrofs.zero)
@@ -1062,13 +1059,10 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
                                then identity (w' @ loc)  else identity (w @ loc)).
   intro. subst. if_tac. rewrite <- core_resource_at. apply core_identity.
   specialize (H4 loc). rewrite if_false in H4 by auto; auto.
-  assert (noghost w) as Hgw.
-  { subst w phi.
-    unfold beyond_block, only_blocks, inflate_initial_mem; simpl.
-    rewrite !ghost_of_make_rmap; auto. }
    clear Heqw' Heqw Heqdl' HeqD.
-   revert dl' w' w AL H2 H4 H5 H6 Hgw; induction dl; simpl; intros.
-   apply all_resource_at_identity; auto; intro loc.
+   revert dl' w' w AL H2 H4 H5 H6; induction dl; simpl; intros.
+   assert (emp w); auto.
+   rewrite emp_no; simpl; intro loc.
    specialize (H6 loc); if_tac in H6; auto. destruct loc; destruct H7.
    lia.
   assert (SANITY': init_data_list_size dl' + init_data_size a + init_data_list_size dl < Ptrofs.modulus).
@@ -1108,8 +1102,6 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   unfold phi in *; clear phi.
   eapply init_data_lem; try eassumption.
   apply ghost_of_join in H7.
-  apply ghost_identity in Hgw; rewrite Hgw in H7.
-  apply ghost_identity; inv H7; auto.
   clear - AL. apply andb_true_iff in AL. destruct AL; auto.
   pose proof (init_data_list_size_pos dl'); lia.
   pose proof (init_data_list_size_pos dl); lia.
@@ -1159,9 +1151,6 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
  rewrite if_false. apply H8 in H7. rewrite H7; auto.
  contradict H12. destruct H12; split; auto.
   pose proof (init_data_size_pos a); lia.
-  apply ghost_of_join, join_comm in H7.
-  apply ghost_identity in Hgw; rewrite Hgw in H7.
-  apply ghost_identity; inv H7; auto.
  clear.
   induction dl'; simpl; intros; try lia.
 Qed.
@@ -1676,9 +1665,11 @@ Lemma init_datalist_hack:
    (init_data_list2pred gv dl sh (Vptr b z)) phi.
 Proof.
   induction dl; intros. destruct H0 as [H0' [Hg H0]]. simpl in *.
-  apply all_resource_at_identity. intro loc; destruct (H0 loc).
-  apply (resource_at_identity _ loc) in H. apply H2; auto.
-  rewrite <- Hg; apply ghost_of_identity; auto.
+  assert (emp phi); auto.
+  assert (emp phi0); auto.
+  rewrite emp_no in *.
+  intro loc; simpl; destruct (H0 loc) as [<- _].
+  apply H2.
 
   rename H1 into H_READABLE.
  simpl init_data_list2pred in H|-*.
@@ -1699,14 +1690,14 @@ Proof.
            | apply sign_ext_range'; compute; split; congruence
            | apply zero_ext_range'; compute; split; congruence ]
     | simpl in H1 |- *;
-      destruct H1 as [bl [[? H8] Hg']]; exists bl; split; [|rewrite <- Hg; auto]; split; [assumption | ]; intro loc; specialize (H8 loc);
+      destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
       if_tac; [ destruct H8 as [p H8]; exists p; destruct (H4 loc) as [_ H5];
                 rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
               | destruct (H4 loc) as [HH _]; clear - H8 HH; tauto]]).
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite Z_to_nat_max in *.
  split.  destruct H1; lia.
- destruct H1 as [H1' [H1 Hg1]]; split; [|simpl; rewrite <- Hg; auto].
+ destruct H1 as [H1' H1].
  intro loc; specialize (H1 loc).
  assert (H99:  Z.max (Z.max z0 0) 0 = Z.max z0 0).
    apply Z.max_l. apply Zmax_bound_r. lia.
@@ -1721,15 +1712,14 @@ Proof.
 +
  destruct (gv i); subst p; try congruence.
  destruct H1 as [[H1' H1]|[H1' H1]];  [left|right]; split; auto.
- destruct H1 as [bl [[? H8] Hg1]].
- exists bl; split; [|simpl; rewrite <- Hg; auto]; split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct H1 as [bl [? H8]].
+ exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
  tauto.
  destruct H1 as [bl [? H8]].
- exists bl,x. destruct H8 as [[H8' H8] Hg1].
- split; [|simpl; rewrite <- Hg; auto].
+ exists bl,x. destruct H8 as [H8' H8].
  split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
@@ -1752,14 +1742,12 @@ Proof.
  destruct H as [v2' ?]; exists v2'.
  destruct H as [x ?]; exists x.
  destruct H; split; auto.
- destruct H; split; auto.
- intros loc; specialize (H1 loc).
+ intros loc; specialize (H0 loc).
  destruct (H4 loc).
- rename H1 into H8.
+ rename H0 into H8.
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
-  rewrite <- H4'; rewrite <- H3; auto. rewrite H8; apply YES_not_identity.
+  rewrite <- H4'; rewrite <- H2; auto. rewrite H8; apply YES_not_identity.
  tauto.
- hnf in H0|-*. rewrite <- Hg; auto.
  }
  destruct (gv i); subst p; try congruence; auto.
 Qed.
@@ -2028,7 +2016,7 @@ Proof.
   intros. rename H3 into HACK; revert phi HACK.
                      (* The purpose of going through hackfun is doing this induction. *)
   revert H m G0 G NRG H2 H0 H1 H1'; induction vl; intros.
-  + apply resource_at_empty2.
+  + setoid_rewrite emp_no.
     intro l. do 2 apply proj2 in HACK; specialize (HACK l).
     unfold inflate_initial_mem in HACK|-*.
     rewrite resource_at_make_rmap in *.
@@ -2036,9 +2024,6 @@ Proof.
     inversion H0; clear H0; subst m.
     unfold access_at, empty in HACK; simpl in HACK.  
       destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
-    destruct HACK as (? & <- & _).
-    unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
-    apply ghost_identity; auto.
   + simpl in H0.
     revert H0; case_eq (alloc_globals_rev gev empty vl); intros; try congruence.
     spec IHvl. clear - AL. simpl in AL. destruct a. destruct g; auto. simpl in AL.
@@ -2191,8 +2176,6 @@ rewrite Pos_to_nat_eq_S.
 
 pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n)
      H3 H5 H8 H9) .
- spec H7.
- { unfold initial_core; simpl; rewrite ghost_of_make_rmap; apply ghost_identity; auto. }
  spec H7.
  clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
  apply andb_true_iff in H. destruct H. apply Zlt_is_lt_bool; auto.
@@ -2360,7 +2343,7 @@ forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
      if adr_range_dec (b, z) (init_data_size a) loc
      then identity (wf @ loc) /\ access_at m4 loc Cur = Some (Genv.perm_globvar v)
      else identity (w1 @ loc)) ->
-   forall (Hg: noghost w1) (VOL:  gvar_volatile v = false)
+   forall (VOL:  gvar_volatile v = false)
           (AL: initializer_aligned z a = true)
            (LO:   0 <= z) (HI: z + init_data_size a < Ptrofs.modulus)
          (RHO: fst rho = filter_genv ge),
@@ -2380,7 +2363,7 @@ Lemma ginit_data_list_lem:
      drop_perm m3 b 0 (init_data_list_size (gvar_init v))
                (Genv.perm_globvar v) = Some m4 ->
   forall
-   (Hg: noghost phi0) (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
+   (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
    (VOL:  gvar_volatile v = false)
    (AL: initializers_aligned 0 (gvar_init v) = true)
    (RHO: (fst gvals) = filter_genv ge),

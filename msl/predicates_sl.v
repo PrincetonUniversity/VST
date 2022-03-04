@@ -26,10 +26,10 @@ Section Predicates.
 
 Context {A : Type} {JA : Join A} {PA : Perm_alg A} {SA : Sep_alg A} {AG : ageable A} {XA : Age_alg A} {EO : Ext_ord A} {EA : Ext_alg A}.
 
-(*Definition compareR : relation A := comparable.
+(*Definition compareR : relation A := comparable.*)
 Definition extendR : relation A := join_sub.
 
-Lemma valid_rel_compare {FA: Flat_alg A} : valid_rel compareR.
+(*Lemma valid_rel_compare {FA: Flat_alg A} : valid_rel compareR.
 Proof.
   split; hnf; intros.
 
@@ -73,28 +73,33 @@ Proof.
 
   split; hnf; intros.
   hnf in H.
-Qed.
+Qed.*)
 
 Lemma valid_rel_extend  : valid_rel extendR.
 Proof.
-  intros; split; hnf; intros.
+  split; hnf; intros.
   destruct H0 as [w ?].
   destruct (age1_join2 _ H0 H)
     as [u [v [? [? ?]]]].
   exists u; auto.
   exists v; auto.
 
+  split; hnf; intros.
   destruct H.
   destruct (unage_join _ H H0)
     as [u [v [? [? ?]]]].
   exists v; auto.
   exists u; auto.
+
+  destruct H.
+  eapply join_ext_commut in H as (? & ? & ?); eauto.
+  eexists; eauto; eexists; eauto.
 Qed.
 
-Definition compareM  : modality
-  := exist _ compareR valid_rel_compare.
+(*Definition compareM  : modality
+  := exist _ compareR valid_rel_compare.*)
 Definition extendM {A}{JA: Join A}{PA: Perm_alg A}{SA : Sep_alg A}{AG: ageable A}{XA: Age_alg A} : modality
-  := exist _ extendR valid_rel_extend.*)
+  := exist _ extendR valid_rel_extend.
 
 (* Definitions of the BI connectives. *)
 Obligation Tactic := unfold hereditary; intros; try solve [intuition].
@@ -145,21 +150,21 @@ Qed.
 
 Notation "P '*' Q" := (sepcon P Q) : pred.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : pred.
-(*Notation "'%' e"  := (box extendM e)(at level 30, right associativity): pred.*)
+Notation "'%' e"  := (box extendM e)(at level 30, right associativity): pred.
 
-(*Lemma extendM_refl : reflexive _ extendM.
+Lemma extendM_refl : reflexive _ extendM.
 Proof.
 intros; intro; simpl; apply join_sub_refl.
 Qed.
 
-Lemma compareM_refl {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A} : reflexive _ compareM.
+(*Lemma compareM_refl {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{AG: ageable A}{XA: Age_alg A} : reflexive _ compareM.
 Proof.
 intros; intro; simpl.
 apply comparable_refl.
-Qed.
+Qed.*)
 
-#[export] Hint Resolve extendM_refl : core.
-#[export] Hint Resolve compareM_refl : core.*)
+#[local] Hint Resolve extendM_refl : core.
+(*#[export] Hint Resolve compareM_refl : core.*)
 
 
 (* Rules for the BI connectives *)
@@ -393,16 +398,16 @@ split; auto.
 exists x; auto.
 Qed.
 
-(*Lemma extend_later : forall P, (%|>P = |>%P)%pred.
+Lemma extend_later : forall P, (%|>P = |>%P)%pred.
 Proof.
   intros; rewrite later_commute; auto.
 Qed.
 
-Lemma extend_later' {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall P, boxy extendM P -> boxy extendM (|> P).
+Lemma extend_later' : forall P, boxy extendM P -> boxy extendM (|> P)%pred.
 Proof.
 intros. unfold boxy in *. rewrite later_commute. rewrite H. auto.
 Qed.
-#[export] Hint Resolve extend_later' : core.*)
+#[local] Hint Resolve extend_later' : core.
 
 Lemma age_sepcon  :
       forall P Q, (box ageM (P * Q) = box ageM P * box ageM Q)%pred.
@@ -564,7 +569,7 @@ do 3 eexists; eauto.
 split; do 2 eexists; eauto.
 Qed.
 
-(*Lemma extend_sepcon_andp {FA:Flat_alg A}:
+Lemma extend_sepcon_andp :
   forall P Q R, boxy extendM Q -> P * (Q && R) |-- Q && (P * R).
 Proof.
 intros.
@@ -576,7 +581,7 @@ exists w0.
 apply join_comm; auto.
 exists w0; exists w1; auto.
 Qed.
-Arguments extend_sepcon_andp : clear implicits.*)
+Arguments extend_sepcon_andp : clear implicits.
 
 Lemma distrib_sepcon_andp :
   forall P Q R, P * (Q && R) |-- (P * Q) && (P * R).
@@ -594,7 +599,7 @@ intros w  [?w [?w [? [? ?]]]].
 eapply H1; eauto.
 Qed.
 
-(*Lemma extend_sepcon :
+Lemma extend_sepcon :
   forall {Q R: pred A}, boxy extendM Q ->  Q * R |-- Q.
 Proof.
 intros.
@@ -602,7 +607,7 @@ intros w [w1 [w2 [? [? _]]]].
 rewrite <- H in H1. eapply H1; eauto.
 simpl; eauto.
 exists w2; auto.
-Qed.*)
+Qed.
 
 Definition precise  (P: pred A) : Prop :=
      forall w w1 w2, P w1 -> P w2 -> join_sub w1 w -> join_sub w2 w -> w1=w2.
@@ -1117,6 +1122,9 @@ End Predicates.
 
 Notation "P '*' Q" := (sepcon P Q) : pred.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : pred.
+Notation "'%' e"  := (box extendM e)(at level 30, right associativity): pred.
 Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity).
 
 #[export] Hint Resolve id_emp : core.
+#[export] Hint Resolve extendM_refl : core.
+#[export] Hint Resolve extend_later' : core.

@@ -788,8 +788,10 @@ Lemma initial_jm_matchfunspecs prog m G n H H1 H2:
 Proof.
   intros b  [fsig cc A P Q ? ?].
   simpl m_phi.
-  intros phi' H0 FAT.
+  intros phi' ? H0 Hext FAT.
   simpl in FAT.
+  apply rmap_order in Hext as (Hl & Hr & _).
+  rewrite <- Hr in FAT; clear Hr.
   assert (H3 := proj2 (necR_PURE' _ _ (b,0) (FUN fsig cc) H0)).
   spec H3. eauto.
   destruct H3 as [pp H3].
@@ -818,14 +820,14 @@ Proof.
   clear H6 H5 i.
   rewrite later_unfash.
   do 3 red.
-  clear FAT. forget (level phi') as n'. clear phi'.
+  clear FAT. forget (level phi') as n'. rewrite <- Hl in *. clear phi'. clear dependent a''.
   intros n1' Hn1'. apply laterR_nat in Hn1'.
   intros ts ftor garg.
-  intros phi Hphi phi' Hphi'.
-  apply necR_level in Hphi'.
-  assert (n' > level phi')%nat by lia.
-  clear n1' Hphi phi Hphi' Hn1'.
-  rename phi' into phi.
+  intros phi Hphi phi' phi'' Hphi' Hext'.
+  apply necR_level in Hphi'. apply ext_level in Hext'.
+  assert (n' > level phi'')%nat by lia.
+  clear n1' Hphi phi Hphi' Hn1' phi' Hext'.
+  rename phi'' into phi.
   intros [_ ?].
   assert (approx n' (P ts ftor garg) phi).
   split; auto.
@@ -846,14 +848,14 @@ Proof.
    exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
              (approx n' oo approx n) ftor).
   rewrite (approx_min n' n) in *.
-  exists emp. rewrite !res_predicates.emp_sepcon.
+  exists emp. rewrite !emp_sepcon.
   destruct H4.
   split. auto.
   intro rho.
   pose proof (equal_f HQ rho). simpl in H5.
   intros phi' Hphi'.
-  rewrite res_predicates.emp_sepcon.
-  intros phi'' Hphi''.
+  rewrite emp_sepcon.
+  intros ? phi'' Hphi'' Hext''.
   intros [_ ?].
   rewrite (approx_min n n') in *.
   rewrite (Nat.min_comm n n') in *.
@@ -861,7 +863,7 @@ Proof.
        (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
           (approx (Init.Nat.min n' n)) ftor) rho) phi'').
   split; auto.
-  apply necR_level in Hphi''; lia.
+  apply necR_level in Hphi''; apply ext_level in Hext''; lia.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
   destruct H7.
@@ -873,8 +875,10 @@ Lemma initial_jm_ext_matchfunspecs {Z} (ora : Z) prog m G n H H1 H2:
 Proof.
   intros b  [fsig cc A P Q ? ?].
   simpl m_phi.
-  intros phi' H0 FAT.
+  intros ? phi' H0 Hext FAT.
   simpl in FAT.
+  apply rmap_order in Hext as (Hl & Hr & _).
+  rewrite <- Hr in FAT; clear Hr.
   assert (H3 := proj2 (necR_PURE' _ _ (b,0) (FUN fsig cc) H0)).
   spec H3. eauto.
   destruct H3 as [pp H3].
@@ -903,18 +907,18 @@ Proof.
   clear H6 H5 i.
   rewrite later_unfash.
   do 3 red.
-  clear FAT. forget (level phi') as n'. clear phi'.
+  clear FAT. forget (level phi') as n'. clear phi'. rewrite Hl in *. clear dependent a'.
   intros n1' Hn1'. apply laterR_nat in Hn1'.
   intros ts ftor garg.
-  intros phi Hphi phi' Hphi'.
-  apply necR_level in Hphi'.
+  intros phi Hphi ? phi' Hphi' Hext'.
+  apply necR_level in Hphi'. apply ext_level in Hext'.
   assert (n' > level phi')%nat by lia.
-  clear n1' Hphi phi Hphi' Hn1'.
+  clear n1' Hphi phi Hphi' Hn1' a' Hext'.
   rename phi' into phi.
   intros [_ ?].
   assert (approx n' (P ts ftor garg) phi).
   split; auto.
-  clear H3. 
+  clear H3.
   apply own.bupd_intro.
   exists ts.
   assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
@@ -931,14 +935,14 @@ Proof.
    exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
              (approx n' oo approx n) ftor).
   rewrite (approx_min n' n) in *.
-  exists emp. rewrite !res_predicates.emp_sepcon.
+  exists emp. rewrite !emp_sepcon.
   destruct H4.
   split. auto.
   intro rho.
   pose proof (equal_f HQ rho). simpl in H5.
   intros phi' Hphi'.
-  rewrite res_predicates.emp_sepcon.
-  intros phi'' Hphi''.
+  rewrite emp_sepcon.
+  intros ? phi'' Hphi'' Hext''.
   intros [_ ?].
   rewrite (approx_min n n') in *.
   rewrite (Nat.min_comm n n') in *.
@@ -946,7 +950,7 @@ Proof.
        (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
           (approx (Init.Nat.min n' n)) ftor) rho) phi'').
   split; auto.
-  apply necR_level in Hphi''; lia.
+  apply necR_level in Hphi''; apply ext_level in Hext''; lia.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
   destruct H7.

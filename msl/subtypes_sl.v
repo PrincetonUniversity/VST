@@ -166,7 +166,7 @@ apply axiomK.
 Qed.
 *)
 
-(*Lemma extend_unfash {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{EO: Ext_ord A} : forall (P: pred nat), boxy extendM (! P).
+Lemma extend_unfash {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A} : forall (P: pred nat), boxy extendM (! P).
 Proof.
 intros.
 apply boxy_i; auto; intros.
@@ -176,7 +176,7 @@ hnf in H0|-*.
 apply join_level in H as [<-]; auto.
 Qed.
 
-#[export] Hint Resolve extend_unfash : core.*)
+#[export] Hint Resolve extend_unfash : core.
 
 Lemma subp_unfash {A} `{Age_alg A} {EO: Ext_ord A}:
   forall (P Q : pred nat) (n: nat), (P >=> Q) n -> ( ! P >=> ! Q) n.

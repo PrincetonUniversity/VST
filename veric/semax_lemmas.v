@@ -74,7 +74,7 @@ Qed.
 
 Section SemaxContext.
 
-Lemma universal_imp_unfold {A} {agA: ageable A}:
+Lemma universal_imp_unfold {A} {agA: ageable A} {EO: Ext_ord A}:
    forall B (P Q: B -> pred A) w,
      (ALL psi : B, P psi --> Q psi) w = (forall psi : B, (P psi --> Q psi) w).
 Proof.
@@ -97,15 +97,15 @@ Proof.
  destruct k; auto.
 Qed.
 
-Lemma prop_imp_derives {A}{agA: ageable A}:
+Lemma prop_imp_derives {A}{agA: ageable A} {EO: Ext_ord A}:
   forall (P: Prop) (Q Q': pred A),  (P -> Q |-- Q') -> !!P --> Q |-- !!P --> Q'.
 Proof.
  intros.
  repeat intro.
- apply H; auto.
+ apply H; eauto.
 Qed.
 
-Lemma prop_imp {A}{agA: ageable A}:
+Lemma prop_imp {A}{agA: ageable A} {EO: Ext_ord A}:
   forall (P: Prop) (Q Q': pred A),  (P -> Q = Q') -> !!P --> Q = !!P --> Q'.
 Proof.
   intros.
@@ -114,7 +114,7 @@ Proof.
   + intros; rewrite H by auto; auto.
 Qed.
 
-Lemma age_laterR {A} `{ageable A}: forall {x y}, age x y -> laterR x y.
+Lemma age_laterR {A} `{ageable A} {EO: Ext_ord A}: forall {x y}, age x y -> laterR x y.
 Proof.
 intros. constructor 1; auto.
 Qed.
@@ -150,12 +150,13 @@ Lemma funassert_resource: forall Delta rho a a' (Hl: level a = level a')
 Proof.
   intros.
   destruct H as [H1 H2]; split; repeat intro. (*rename H into H1; repeat intro.*)
-  - destruct (H1 _ _ _ (rt_refl _ _ _) H0) as (b1 & ? & ?).
+  - destruct (H1 _ _ _ _ (rt_refl _ _ _) (ext_refl _) H3) as (b1 & ? & ?).
     exists b1; split; auto.
     destruct b0; simpl in *.
-    rewrite Hr in H4.
+    rewrite Hr in H5.
     pose proof (necR_level _ _ H).
     eapply necR_PURE in H; eauto.
+    apply rmap_order in H0 as (<- & <- & _).
     rewrite H; simpl; f_equal; f_equal.
     extensionality i a0 a1 a2.
     match goal with |-context[compcert_rmaps.R.approx ?a (approx ?b ?c)] =>
@@ -163,10 +164,12 @@ Proof.
     rewrite fmap_app, approx_oo_approx', approx'_oo_approx by lia; auto.
   - specialize (H2 b b0 b1). clear H1.
     destruct b0; simpl in *.
-    apply (H2 _  (rt_refl _ _ _)).
+    apply (H2 _  _ (rt_refl _ _ _) (ext_refl _)).
     rewrite Hr, Hl.
-    destruct H0 as [p Hp].
+    destruct H3 as [p Hp].
     pose proof (necR_level _ _ H).
+    apply rmap_order in H0 as (Hl' & Hr' & _).
+    rewrite <- Hl', <- Hr' in Hp.
     rewrite <- resource_at_approx.
     eapply necR_PURE' in H as [? ->]; simpl; eauto.
 Qed.
@@ -314,9 +317,9 @@ rewrite semax_fold_unfold.
 intros psi Delta' CS'.
 apply prop_imp_i; intros [? HGG].
 clear H0 Delta. rename Delta' into Delta.
-intros ?w _ _. clear n.
+intros _ ?w _ _ _. clear n.
 intros k F f.
-intros ?w _ ?.
+intros _ ?w _ _ ?.
 clear w. rename w0 into n.
 intros te ve w ?.
 destruct H0 as [H0' H0].
@@ -397,9 +400,9 @@ apply prop_ext; split; intros.
   - split; trivial.
 + intros psi Delta' CS'.
   apply prop_imp_i; intros [? HGG].
-  intros w' ? ? k F f w'' ? [? ?].
-  apply (H psi Delta' CS' w'' H0 HGG); trivial. 
-  eapply pred_nec_hereditary; eauto.
+  intros ? w' ? ? ? k F f ? w'' ? ? [? ?].
+  apply (H psi Delta' CS' w'' H0 HGG); trivial.
+  eapply pred_upclosed, pred_nec_hereditary; eauto.
 Qed.
 
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
@@ -426,7 +429,7 @@ Proof.
 rewrite semax_unfold in *.
 intros.
 intros.
-intros te ve ?w ? ?w ? ?.
+intros te ve ?w ? ? ?w ? Hext ?.
 destruct H4.
 destruct H4.
 destruct H6 as [w2 [w3 [? [? [HQ ?]]]]].
@@ -441,7 +444,7 @@ specialize (H x psi Delta' CS' w TS HGG Prog_OK k F f H0 H1).
 unfold guard, _guard in H.
 specialize (H te ve).
 cbv beta in H.
-specialize (H w0 H2 w1 H3).
+specialize (H w0 H2 _ w1 H3 Hext).
 apply H.
 split; auto. split; auto.
 exists w2, w3. split3; auto.
@@ -476,7 +479,7 @@ Proof.
 rewrite semax_unfold in *.
 intros.
 intros.
-intros te ve ?w ? ?w ? ?.
+intros te ve ?w ? ? ?w ? Hext ?.
 rewrite exp_sepcon2 in H4.
 destruct H4 as [[TC [x H5]] ?].
 specialize (H x).
@@ -507,7 +510,7 @@ Proof.
 intros Delta ge w ?.
 intro b.
 intros fsig cc A P Q.
-intros ?n ? ?.
+intros ? ?n ? Hext ?.
 destruct H1 as [id [? [b0 [? ?]]]].
 rewrite H in H1. rewrite PTree.gempty in H1.
 inv H1.
@@ -520,23 +523,7 @@ Definition all_assertions_computable  :=
   to the programming language
 *)
 
-Global Existing Instance FSep_rmap.
-
-Lemma ewand_TT_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
-    ewand TT emp = emp.
-Proof.
-intros.
-apply pred_ext; intros w ?.
-destruct H as [w1 [w3 [? [? ?]]]].
-hnf; eapply split_identity.
-eapply join_comm; eauto.
-auto.
-exists w; exists w; split; auto.
-change (identity w) in H.
-apply identity_unit'; auto.
-Qed.
-
-Lemma subp_derives' {A}{agA: ageable A}:
+Lemma subp_derives' {A}{agA: ageable A}{EO: Ext_ord A}:
   forall P Q: pred A, (forall n, (P >=> Q) n) -> P |-- Q.
 Proof.
 intros.
@@ -578,47 +565,51 @@ Lemma semax_extensionality0 {CS: compspecs} {Espec: OracleKind}:
 Proof.
 apply loeb.
 intros w ? Delta Delta' P P' c R R'.
-intros w1 ? w2 ? [[[? ?] ?] ?].
+intros w1 ? ? w2 ? Hext [[[? ?] ?] ?].
 do 3 red in H2.
 rewrite semax_fold_unfold; rewrite semax_fold_unfold in H5.
 intros gx Delta'' CS'.
 apply prop_imp_i. intros [TS HGG].
-intros w3 ? ?.
-specialize (H5 gx Delta'' CS' _ (necR_refl _)
+intros ? w3 ? Hext3 ?.
+specialize (H5 gx Delta'' CS' _ _ (necR_refl _) (ext_refl _)
  (conj (tycontext_sub_trans _ _ _ H2 TS) HGG)
-                  _ H6 H7).
+                  _ _ H6 Hext3 H7).
 
-intros k F f w4 Hw4 [? ?].
-specialize (H5 k F f w4 Hw4).
+intros k F f ? w4 Hw4 Hext4 [? ?].
+specialize (H5 k F f _ w4 Hw4 Hext4).
 assert ((rguard Espec gx Delta'' f (frame_ret_assert R F) k) w4).
-do 9 intro.
-apply (H9 b b0 b1 b2 y H10 a' H11).
+do 9 intro. intros Hext' ?.
+apply (H9 b b0 b1 b2 y H10 _ _ H11 Hext').
 destruct H12; split; auto; clear H13.
 pose proof I.
 destruct H12; split; auto.
 rewrite proj_frame_ret_assert in H14|-*.
 clear H12 H13.
-revert a' H11 H14.
+revert a'2 a'' H11 Hext' H14.
 apply sepcon_subp' with (level w2).
 apply H3.
 auto.
 apply necR_level in H6.
 apply necR_level in Hw4.
+apply ext_level in Hext3, Hext4.
 eapply le_trans; try eassumption.
 eapply le_trans; try eassumption.
+rewrite Hext3; setoid_rewrite <- Hext4; auto.
 
 specialize (H5 (conj H8 H10)). clear H8 H9 H10.
-do 7 intro.
-apply (H5 b b0 y H8 _ H9).
+do 7 intro. intros Hext' ?.
+apply (H5 b b0 y H8 _ _ H9 Hext').
 destruct H10; split; auto.
 destruct H10; split; auto.
 clear H10 H11.
-revert a' H9 H12.
+revert a'2 a'' H9 Hext' H12.
 apply sepcon_subp' with (level w2); auto.
 apply necR_level in H6.
 apply necR_level in Hw4.
+apply ext_level in Hext3, Hext4.
 eapply le_trans; try eassumption.
 eapply le_trans; try eassumption.
+rewrite Hext3; setoid_rewrite <- Hext4; auto.
 Qed.
 
 Lemma semax_extensionality1 {CS: compspecs} {Espec: OracleKind}:
@@ -630,7 +621,7 @@ Lemma semax_extensionality1 {CS: compspecs} {Espec: OracleKind}:
 Proof.
 intros.
 intros n ?.
-apply (semax_extensionality0 n I Delta Delta' P P' c R R' _ (le_refl _) _ (necR_refl _)).
+apply (semax_extensionality0 n I Delta Delta' P P' c R R' _ (le_refl _) _ _ (necR_refl _) (ext_refl _)).
 destruct H0;
 split; auto.
 destruct H0;
@@ -666,12 +657,12 @@ red in H1.
 remember ((construct_rho (filter_genv psi) vx tx)) as rho.
 red.
 hnf; intros. specialize (H1 _ H).
-hnf; intros. apply H1; auto.
-destruct H2; split; auto. destruct H2; split; auto.
-rewrite proj_frame_ret_assert in H4|-*.
+hnf; intros. eapply H1; eauto.
+destruct H3; split; auto. destruct H3; split; auto.
+rewrite proj_frame_ret_assert in H5|-*.
 rewrite proj_frame_ret_assert.
 rewrite seplog.sepcon_assoc.
-eapply sepcon_derives; try apply H4; auto. simpl.
+eapply sepcon_derives; try apply H5; auto. simpl.
 rewrite sepcon_comm; auto.
 *
 unfold F0F.
@@ -692,12 +683,12 @@ intro; apply bupd_intro; repeat intro.
 apply age1_level0 in H. lia. 
 Qed.
 
-Lemma pred_sub_later' {A} `{H: ageable A}:
+(*Lemma pred_sub_later' {A} `{H: ageable A} {EO: Ext_ord A}:
   forall (P Q: pred A),
            (|> P >=> |> Q)  |--  (|> (P >=> Q)).
 Proof.
 intros.
-rewrite later_fash; auto.
+apply subp_later1.
 rewrite later_imp.
 auto.
 Qed.
@@ -712,7 +703,7 @@ apply (@pred_sub_later' _ _ P  (assert_safe Espec f ge ve te k rho)); auto.
 eapply subp_trans'; try apply H.
 apply derives_subp; clear.
 apply now_later.
-Qed.
+Qed.*)
 
 End SemaxContext.
 
@@ -850,13 +841,13 @@ Proof.
   induction l; simpl; intros; try congruence; auto.
 Qed.
 
-Lemma and_FF : forall {A} `{ageable A} (P:pred A),
+Lemma and_FF : forall {A} `{ageable A} {EO: Ext_ord A} (P:pred A),
   P && FF = FF.
 Proof.
   intros. rewrite andp_comm. apply FF_and.
 Qed.
 
-Lemma sepcon_FF : forall {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P:pred A),
+Lemma sepcon_FF : forall {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A} (P:pred A),
   (P * FF = FF)%pred.
 Proof.
   intros. rewrite sepcon_comm. apply FF_sepcon.
@@ -1160,7 +1151,7 @@ Proof.
   if_tac; rename H into H_READ.
   + destruct H0 as [H0|H0]; [left | right].
     destruct H0 as [H0' H0]; split; auto.
-    destruct H0 as [bl [[] ?]]; exists bl; split; [split|]; auto.
+    destruct H0 as [bl []]; exists bl; split; auto.
     clear - H0 H1.
      intro loc'; specialize (H0 loc').
      hnf in *.
@@ -1171,9 +1162,8 @@ Proof.
      apply (age1_YES w r); auto.
      unfold noat in *; simpl in *.
     apply <- (age1_resource_at_identity _ _ loc' H1); auto.
-    eapply age1_ghost_of_identity; eauto.
-    destruct H0 as [? [v2' [bl [[] ?]]]].
-    hnf in H. subst v2. split; hnf; auto. exists v2', bl; split; [split|]; auto.
+    destruct H0 as [? [v2' [bl []]]].
+    hnf in H. subst v2. split; hnf; auto. exists v2', bl; split; auto.
     clear - H2 H1; rename H2 into H0.
      intro loc'; specialize (H0 loc').
      hnf in *.
@@ -1184,10 +1174,8 @@ Proof.
      apply (age1_YES w r); auto.
      unfold noat in *; simpl in *.
     apply <- (age1_resource_at_identity _ _ loc' H1); auto.
-    eapply age1_ghost_of_identity; eauto.
   + split; [exact (proj1 H0) |].
-    destruct H0 as [_ [? Hg]].
-    split; [|eapply age1_ghost_of_identity; eauto].
+    destruct H0 as [_ ?].
     intro loc'; specialize (H loc').
     hnf in *.
     if_tac.

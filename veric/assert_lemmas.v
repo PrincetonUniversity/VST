@@ -224,13 +224,13 @@ apply H3.
 split; auto||lia.
 Qed.
 
-Lemma prop_imp_i {A}{agA: ageable A}:
+Lemma prop_imp_i {A}{agA: ageable A}{EO: Ext_ord A}:
   forall (P: Prop) Q w, (P -> app_pred Q w) -> (!!P --> Q) w.
 Proof.
  intros. intros w' ? ? ? H1. apply H in H1. eapply pred_upclosed, pred_nec_hereditary; eauto.
 Qed.
 
-Lemma or_pred_ext {A} `{agA : ageable A}: forall P Q P' Q',
+Lemma or_pred_ext {A} `{agA : ageable A}{EO: Ext_ord A}: forall P Q P' Q',
        (P <--> P') && (Q <--> Q') |--  (P || Q) <--> (P' || Q').
 Proof.
 intros.
@@ -244,7 +244,7 @@ Qed.
 
 Lemma corable_unfash:
   forall (A : Type) (JA : Join A) (PA : Perm_alg A) (SA : Sep_alg A) (agA : ageable A) 
-    (AgeA : Age_alg A) (P : pred nat), corable (! P).
+    (AgeA : Age_alg A) (EO : Ext_ord A) (EA : Ext_alg A) (P : pred nat), corable (! P).
 Proof.
   unfold corable; simpl; intros.
   destruct H0 as [[? J] | [[? J] | E]]; try (apply join_level in J as []; congruence).
@@ -411,7 +411,7 @@ Qed.
 
 #[export] Hint Resolve corable_fun_assert : normalize.
 *)
-Lemma prop_derives {A}{H: ageable A}:
+Lemma prop_derives {A}{H: ageable A}{EO: Ext_ord A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.
 intros. intros w ?; apply H0; auto.

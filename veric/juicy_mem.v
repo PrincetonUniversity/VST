@@ -601,36 +601,53 @@ destruct k; try inv H.
 eauto.
 Qed.
 
+Lemma ext_ord_juicy_mem : forall m b, ext_order (m_phi m) b ->
+  exists m', m_dry m' = m_dry m /\ m_phi m' = b.
+Proof.
+  intros.
+  destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
+  apply rmap_order in H as (Hl & Hr & Hg); auto.
+Qed.
+
+Lemma ext_ord_juicy_mem' : forall m b, ext_order b (m_phi m) ->
+  exists m', m_dry m' = m_dry m /\ m_phi m' = b.
+Proof.
+  intros.
+  destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
+  apply rmap_order in H as (Hl & Hr & Hg); auto.
+Qed.
+
 Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
-  { ext_order a b := ext_order (m_phi a) (m_phi b) }.
+  { ext_order a b := m_dry a = m_dry b /\ ext_order (m_phi a) (m_phi b) }.
 Next Obligation.
 Proof.
   constructor; auto.
-  repeat intro; etransitivity; eauto.
+  intros ??? [] []; split; etransitivity; eauto.
 Qed.
 Next Obligation.
 Proof.
-  intros ?? ?%age1_juicy_mem_Some ??.
-  eapply age_ext_commut in H as [? ? Hage]; eauto.
-  destruct (age1_juicy_mem z) eqn: Hz.
-  unfold age in Hage.
-  erewrite age1_juicy_mem_Some in Hage by eauto.
-  inv Hage; eauto.
+  intros ?? Hage ? [? Hext].
+  apply age1_juicy_mem_unpack in Hage as [? ?].
+  eapply age_ext_commut in Hext as [? ? Hage]; eauto.
+  destruct (age1_juicy_mem z) as [j|] eqn: Hz.
+  destruct (age1_juicy_mem_unpack _ _ Hz) as (Hage' & ?).
+  unfold age in *; rewrite Hage' in Hage; inv Hage.
+  exists j; eauto; split; auto; congruence.
   { apply age1_juicy_mem_None1 in Hz. congruence. }
 Qed.
 Next Obligation.
 Proof.
-  apply age1_juicy_mem_Some in H0.
-  eapply ext_age_compat in H as (? & Hage & ?); eauto.
-  destruct (age1_juicy_mem b) eqn: Hb.
-  unfold age in Hage.
-  erewrite age1_juicy_mem_Some in Hage by eauto.
-  inv Hage; eauto.
+  apply age1_juicy_mem_unpack in H0 as [? ?].
+  eapply ext_age_compat in H1 as (? & Hage & ?); eauto.
+  destruct (age1_juicy_mem b) as [j|] eqn: Hb.
+  destruct (age1_juicy_mem_unpack _ _ Hb) as (Hage' & ?).
+  unfold age in *; rewrite Hage' in Hage; inv Hage.
+  exists j; split; auto; split; auto; congruence.
   { apply age1_juicy_mem_None1 in Hb. congruence. }
 Qed.
 Next Obligation.
 Proof.
-  apply ext_level in H; auto.
+  apply ext_level in H0; auto.
 Qed.
 
 (* resource coherence *)

@@ -43,7 +43,7 @@ Import Ctypes Clight expr.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
-Instance Cveric: ClassicalSep mpred := mkCS _ _ _ res_predicates.sepcon_emp.
+Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
 Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
 Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
 Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
@@ -51,7 +51,7 @@ Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.
 Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
-Lemma derives_eq : @derives _ Nveric = predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(H := _).
+Lemma derives_eq : @derives _ Nveric = predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(AG := _)(EO := _).
 Proof.
   do 2 extensionality; apply prop_ext; split.
   - inversion 1; auto.
@@ -168,7 +168,7 @@ end.
 Lemma derives_eq':
   @derives (functors.MixVariantFunctor._functor
               functors.MixVariantFunctorGenerator.fidentity mpred) Nveric =
-  predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(H := _).
+  predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(AG := _)(EO := _).
 Proof.
   do 2 extensionality; apply prop_ext; split.
   - inversion 1; auto.

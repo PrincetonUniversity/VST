@@ -1028,11 +1028,11 @@ Proof.
 Qed.
 
 Lemma denote_tc_nosignedover_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2 w (z:Z -> Z -> Z) (s: signedness)
-      (E: @app_pred rmap ag_rmap
+      (E: @app_pred rmap ag_rmap Ext_rmap
         (@liftx (Tarrow val (Tarrow val (LiftEnviron mpred)))
            (denote_tc_nosignedover z s) (@eval_expr CS e1) 
            (@eval_expr CS e2) rho) w):
-  @app_pred rmap ag_rmap
+  @app_pred rmap ag_rmap Ext_rmap
         (@liftx (Tarrow val (Tarrow val (LiftEnviron mpred)))
            (denote_tc_nosignedover z s) (@eval_expr CS' e1) 
            (@eval_expr CS' e2) rho) w.

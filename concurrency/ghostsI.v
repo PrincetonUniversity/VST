@@ -22,10 +22,8 @@ Proof.
   exact own_alloc.
 Qed.
 
-Lemma own_dealloc : forall g (a : G) (pp : preds), own g a pp |-- (|==> emp)%I.
-Proof.
-  exact own_dealloc.
-Qed.
+Instance own_dealloc g a pp : Affine (own g a pp) := own_dealloc.
+
 
 Lemma own_update : forall g a b pp, fp_update a b -> own g a pp |-- (|==> own g b pp)%I.
 Proof.
@@ -63,10 +61,10 @@ Proof.
   intros; apply own_list_dealloc'.
 Qed.
 
-(*Lemma own_persistent : forall g a p, join a a a -> Persistent (own g a p).
+Lemma own_persistent : forall g a p, a = core a -> Persistent (own g a p).
 Proof.
   exact own_persistent.
-Qed.*)
+Qed.
 
 End ghost.
 
@@ -105,12 +103,12 @@ Proof.
   exact snap_master_update1.
 Qed.
 
-(*Global Instance snap_persistent v p : Persistent (ghost_snap v p).
+Global Instance snap_persistent v p : Persistent (ghost_snap v p).
 Proof.
   apply own_persistent; hnf; simpl.
   rewrite !eq_dec_refl; split; auto.
   apply join_refl.
-Qed.*)
+Qed.
 
 End Snapshot.
 

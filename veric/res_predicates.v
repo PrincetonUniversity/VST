@@ -431,13 +431,13 @@ Proof.
    rewrite <- H0 in H1; auto.
 Qed.
 
-(*Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> pred rmap),
+Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> pred rmap),
       (forall (x: A), boxy extendM (P x)) ->
       (forall x, boxy extendM (Q x)) ->
       forall x, boxy extendM  (@jam _ _ _ _ _ _ _ _ _ S' S P Q x).
 Proof.
   apply boxy_jam; auto.
-Qed.*)
+Qed.
 
 Definition jam_vacuous:
   forall A JA PA SA agA AgeA EO EA B S S' P Q, (forall x:B, ~ S x) -> @jam A JA PA SA agA AgeA EO EA B S S' P Q = Q.

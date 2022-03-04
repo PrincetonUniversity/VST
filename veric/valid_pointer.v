@@ -27,7 +27,6 @@ Proof.
   simpl in H2 |- *.
   rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
   rewrite Z.add_0_r.
-  destruct H2 as [H2 _].
   specialize (H2 (b, ofs + i)).
   if_tac in H2.
   + destruct H2.
@@ -50,7 +49,6 @@ Proof.
   simpl in H1 |- *.
   rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
   rewrite Z.add_0_r.
-  destruct H1 as [H1 _].
   specialize (H1 (b, ofs + i)).
   if_tac in H1.
   + destruct H1 as [? [? ?]].
@@ -150,7 +148,7 @@ Lemma VALspec_range_weak_valid_pointer: forall sh b ofs n i,
 Proof.
   intros. unfold VALspec_range, weak_valid_pointer. intros w ?. simpl in H2 |- *.
   rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
-  rewrite Z.add_0_r. destruct H2 as [H2 _].
+  rewrite Z.add_0_r.
   assert (0 <= i < n \/ i = n) by lia. destruct H3.
   - specialize (H2 (b, ofs + i)). if_tac in H2.
     + left. destruct H2 as [? [? ?]]. rewrite H2; auto.
@@ -169,7 +167,7 @@ Proof.
   intros. unfold nonlock_permission_bytes, weak_valid_pointer.
   intros w ?. simpl in H3 |- *.
   rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
-  rewrite Z.add_0_r. destruct H3 as [H3 _].
+  rewrite Z.add_0_r.
   assert (0 <= i < n \/ i = n) by lia. destruct H4.
   - left. specialize (H3 (b, ofs + i)). if_tac in H3.
     + destruct H3. destruct (w @ (b, ofs + i)); inv H3; auto.
