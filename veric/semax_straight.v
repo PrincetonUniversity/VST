@@ -51,7 +51,7 @@ Lemma semax_straight_simple:
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold.
-intros psi Delta' CS' n TS [CSUB HGG'] _ k F f Hcl Hsafe te ve w Hx w0 H Hglob.
+intros psi Delta' CS' n TS [CSUB HGG'] _ k F f Hcl Hsafe te ve w Hx ? w0 H Hext Hglob.
 specialize (cenv_sub_trans CSUB HGG'); intros HGG.
 apply nec_nat in Hx.
 apply (pred_nec_hereditary _ _ _ Hx) in Hsafe.
@@ -70,6 +70,7 @@ specialize (Hc jm jm1 Delta' psi ve te _ k F f TS TC2 TC' Hcl (eq_refl _) Hage).
 specialize (Hc (conj Hglob Hglob') HGG); clear Hglob Hglob'.
 destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
 change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
+apply rmap_order in Hext as (Hl & Hr & _); rewrite Hl in *.
 rewrite H2 in Hsafe.
 rewrite <- level_juice_level_phi, (age_level _ _ Hage).
 econstructor; [eassumption | ].
@@ -79,7 +80,7 @@ simpl exit_cont in Hsafe.
 specialize (Hsafe (m_phi jm')).
 spec Hsafe.
 change R.rmap with rmap; lia.
-specialize (Hsafe _ (necR_refl _)).
+specialize (Hsafe _ _ (necR_refl _) (ext_refl _)).
 destruct H4.
 spec Hsafe; [clear Hsafe| ].
 split; auto.
@@ -176,7 +177,7 @@ destruct m; simpl; lia.
 * (* ~ readable_share sh *)
 destruct (access_mode t) eqn:?; try contradiction.
 destruct (type_is_volatile t); [inversion H0 |].
-destruct H0 as [_ [? _]].
+destruct H0 as [_ ?].
 specialize (H0 (b, Ptrofs.unsigned o)).
 simpl in H0.
 rewrite if_true in H0
@@ -1377,15 +1378,15 @@ pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
                                (readable_share_lub (writable0_readable writable0_Rsh))
                                (VAL (contents_at m' loc)) NoneP
                      else core (m_phi jm @ loc)).
-destruct (make_rmap f nil (level jm)) as [mf [? [? Hg]]]; auto.
-unfold f, compose; clear f; extensionality loc.
-symmetry. if_tac.
-unfold resource_fmap. rewrite preds_fmap_NoneP.
-reflexivity.
-generalize (resource_at_approx (m_phi jm) loc);
-destruct (m_phi jm @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; try reflexivity.
-auto.
-
+destruct (make_rmap f (ghost_of m1) (level jm)) as [mf [? [? Hg]]]; auto.
+{ unfold f, compose; clear f; extensionality loc.
+  symmetry. if_tac.
+  unfold resource_fmap. rewrite preds_fmap_NoneP.
+  reflexivity.
+  generalize (resource_at_approx (m_phi jm) loc);
+  destruct (m_phi jm @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; try reflexivity.
+  auto. }
+{ rewrite level_juice_level_phi. apply join_level in H as [<- _]. apply ghost_of_approx. }
 unfold f in H5; clear f.
 exists mf; exists m2; split3; auto.
 apply resource_at_join2.
@@ -1396,7 +1397,7 @@ rewrite H6; symmetry. apply (level_store_juicy_mem _ _ _ _ _ _ STORE).
 intro; rewrite H5. clear mf H4 H5 Hg.
 simpl m_phi.
 apply (resource_at_join _ _ _ loc) in H.
-destruct H1 as [vl [[? ?] Hg]]. specialize (H4 loc). hnf in H4.
+destruct H1 as [vl [? ?]]. specialize (H4 loc). hnf in H4.
 if_tac.
 destruct H4. hnf in H4. rewrite H4 in H.
 rewrite (proof_irr x (writable0_readable wsh)) in *; clear x.
@@ -1427,8 +1428,7 @@ apply join_unit1; auto.
 rewrite core_PURE; constructor.
 rewrite Hg; simpl.
 unfold inflate_store; rewrite ghost_of_make_rmap.
-destruct H1 as [? [? Hid]].
-rewrite (Hid _ _ (ghost_of_join _ _ _ H)); constructor.
+apply ghost_of_join; auto.
 
 unfold address_mapsto in *.
 destruct (load_store_similar' _ _ _ _ _ _ STORE ch' (eq_sym (decode_encode_val_size _ _ OK)))
@@ -1436,8 +1436,8 @@ destruct (load_store_similar' _ _ _ _ _ _ STORE ch' (eq_sym (decode_encode_val_s
 exists v''.
 rewrite prop_true_andp by auto.
 exists (encode_val ch v').
-destruct H1 as [vl [[[? [? ?]] ?] Hg1]].
-split; [split|].
+destruct H1 as [vl [[? [? ?]] ?]].
+split.
 split3; auto.
 rewrite encode_val_length.
 clear - OK. apply decode_encode_val_size in OK.
@@ -1479,7 +1479,6 @@ do 3 red. rewrite H5.
 rewrite (decode_encode_val_size _ _ OK).
  rewrite if_false by auto.
 apply core_identity.
-simpl; apply ghost_identity; auto.
 Qed.
 
 
@@ -1494,7 +1493,7 @@ Proof.
 intros.
 pose proof (address_mapsto_can_store' _ _ ch _ _ wsh _ _ v' _ H (decode_encode_val_ok_same _)).
 destruct H1 as [m' [? ?]].
-destruct H as [? [? [_ [[? [[[ _ [_ ?]] _] _]] _]]]]; auto.
+destruct H as [? [? [_ [[? [[ _ [_ ?]] _]] _]]]]; auto.
 rewrite exp_sepcon1 in a.
 destruct a as [v'' ?].
 rewrite sepcon_andp_prop1 in H1.
@@ -1614,13 +1613,8 @@ assert (H11': (res_predicates.address_mapsto ch v3 sh
  by (exists w1; exists w3; split3; auto).
 assert (H11: (res_predicates.address_mapsto ch v3  sh
         (b0, Ptrofs.unsigned i) * exactly w3)%pred (m_phi jm1)).
-generalize (address_mapsto_precise ch v3 sh (b0,Ptrofs.unsigned i)); unfold precise; intro.
-destruct H11' as [m7 [m8 [? [? _]]]].
-specialize (H2 (m_phi jm1) _ _ H4 H9).
-spec H2; [ eauto with typeclass_instances| ].
-spec H2; [ eauto with typeclass_instances | ].
-subst m7.
-exists w1; exists w3; split3; auto. hnf. apply necR_refl.
+{ exists w1; exists w3; split3; auto.
+  hnf; eauto. }
 apply address_mapsto_can_store 
    with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
   auto.
@@ -1667,7 +1661,7 @@ apply juicy_store_nodecay.
 {intros.
  clear - H11' H2 WS.
  destruct H11' as [phi1 [phi2 [? [? ?]]]].
- destruct H0 as [bl [[_ ?] Hg]]. specialize  (H0 (b0,z)).
+ destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
  hnf in H0. rewrite if_true in H0 by (split; auto; lia).
  destruct H0. hnf in H0.
  apply (resource_at_join _ _ _ (b0,z)) in H.
@@ -1716,8 +1710,9 @@ eapply tc_val_sem_cast; eauto.
 intros ? ?. apply H2.
 *
 intros ? ?.
-do 3 red in H2.
+destruct H2 as (? & H2 & ?).
 destruct (nec_join2 H6 H2) as [w2' [w' [? [? ?]]]].
+eapply pred_upclosed; eauto.
 exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
 Qed.
 
@@ -1815,13 +1810,8 @@ assert (H11': (res_predicates.address_mapsto ch v3 sh
  by (exists w1; exists w3; split3; auto).
 assert (H11: (res_predicates.address_mapsto ch v3  sh
         (b0, Ptrofs.unsigned i) * exactly w3)%pred (m_phi jm1)).
-generalize (address_mapsto_precise ch v3 sh (b0,Ptrofs.unsigned i)); unfold precise; intro.
-destruct H11' as [m7 [m8 [? [? _]]]].
-specialize (H2 (m_phi jm1) _ _ H4 H9).
-spec H2; [ eauto with typeclass_instances| ].
-spec H2; [ eauto with typeclass_instances | ].
-subst m7.
-exists w1; exists w3; split3; auto. hnf. apply necR_refl.
+{ exists w1; exists w3; split3; auto.
+  hnf; eauto. }
 apply address_mapsto_can_store'
    with (ch':=ch') (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
   auto.
@@ -1871,7 +1861,7 @@ apply juicy_store_nodecay.
 {intros.
  clear - H11' H2 WS.
  destruct H11' as [phi1 [phi2 [? [? ?]]]].
- destruct H0 as [bl [[_ ?] Hg]]. specialize  (H0 (b0,z)).
+ destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
  hnf in H0. rewrite if_true in H0 by (split; auto; lia).
  destruct H0. hnf in H0.
  apply (resource_at_join _ _ _ (b0,z)) in H.
@@ -1949,7 +1939,9 @@ end.
 *
 intros ? ?.
 clear - H9 H6 H1 H5.
+destruct H9 as (? & H9 & ?).
 destruct (nec_join2 H6 H9) as [w2' [w' [? [? ?]]]].
+eapply pred_upclosed; eauto.
 exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
 Qed.
 
