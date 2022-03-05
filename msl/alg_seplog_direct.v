@@ -62,7 +62,7 @@ Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_
   + apply corable_prop.
   + apply corable_andp.
   + apply corable_orp.
-(*  + apply corable_imp.*)
+  + apply corable_imp.
   + intros. apply corable_allp; auto.
   + intros; apply corable_exp; auto.
   + apply corable_sepcon.

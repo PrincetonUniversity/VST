@@ -95,7 +95,7 @@ erewrite make_ext_args_symb; eauto.
 Qed.
 
 Program Definition funspecOracle2jspec (ext_link: Strings.String.string -> ident) f : juicy_ext_spec Z :=
-  Build_juicy_ext_spec _ (funspecOracle2extspec ext_link f) _ _ _.
+  Build_juicy_ext_spec _ (funspecOracle2extspec ext_link f) _ _ _ _ _ _.
 Next Obligation.
 destruct f; simpl; unfold funspecOracle2pre, pureat; simpl; destruct f; simpl;
   destruct f; simpl; intros e t0 ge_s typs args z.
@@ -106,17 +106,44 @@ apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
 destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].
 exists x', y'; split; auto.
-destruct m. split. eapply h; eauto.
+destruct m as (? & h & ?). split. eapply h; eauto.
 apply (necR_trans (fst t0) phi1 y'); auto.
 unfold necR. constructor; auto.
 * intros ? ?; auto.
 destruct Espec; simpl; apply JE_pre_hered.
 Qed.
 Next Obligation.
+destruct f; simpl; unfold funspecOracle2pre, pureat; simpl; destruct f; simpl;
+  destruct f; simpl; intros e t0 ge_s typs args z.
+if_tac [e0|e0].
+* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hext.
+intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
+destruct Hext as [_ Hext]; apply rmap_order in Hext as (Hl & Hr & J).
+destruct J as [? J]; destruct (join_assoc (join_comm (ghost_of_join _ _ _ Hjoin)) J) as (g' & ? & ?).
+destruct (make_rmap (resource_at phi0) (own.ghost_approx (level phi0) g') (level phi0))
+  as (phi0' & Hl' & Hr' & Hg').
+{ extensionality; apply resource_at_approx. }
+{ rewrite ghost_fmap_fmap, !approx_oo_approx; auto. }
+destruct (join_level _ _ _ Hjoin).
+exists phi0', phi1; repeat split; auto.
++ apply resource_at_join2; try congruence.
+  - intros; rewrite Hr', <- Hr.
+    apply resource_at_join; auto.
+  - rewrite Hg'.
+    rewrite <- (ghost_of_approx phi1), <- (ghost_of_approx (m_phi a')), <- Hl, H1, H2.
+    apply ghost_fmap_join; auto.
++ eapply pred_upclosed, Hx.
+  rewrite rmap_order; repeat split; auto.
+  rewrite Hg'.
+  rewrite <- ghost_of_approx; eexists; apply ghost_fmap_join; eauto.
+* intros ? ?; auto.
+destruct Espec; simpl; apply JE_pre_ext.
+Qed.
+Next Obligation.
 destruct f; simpl; unfold funspecOracle2post, pureat; simpl; destruct f; simpl;
   destruct f; simpl. intros e t0 ge_s tret rv z.
 if_tac [e0|e0].
-* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage; destruct m0; simpl.
+* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage; destruct m0 as (? & h & ?); simpl.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
@@ -129,8 +156,39 @@ unfold necR. constructor; auto.
 destruct Espec; simpl; apply JE_post_hered.
 Qed.
 Next Obligation.
+destruct f; simpl; unfold funspecOracle2post, pureat; simpl; destruct f; simpl;
+  destruct f; simpl. intros e t0 ge_s tret rv z.
+if_tac [e0|e0].
+* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hext; destruct m0 as (? & h & e); simpl.
+intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
+destruct Hext as [_ Hext]; apply rmap_order in Hext as (Hl & Hr & ? & J).
+destruct (join_assoc (join_comm (ghost_of_join _ _ _ Hjoin)) J) as (g' & ? & ?).
+destruct (make_rmap (resource_at phi0) (own.ghost_approx (level phi0) g') (level phi0))
+  as (phi0' & Hl' & Hr' & Hg').
+{ extensionality; apply resource_at_approx. }
+{ rewrite ghost_fmap_fmap, !approx_oo_approx; auto. }
+destruct (join_level _ _ _ Hjoin).
+exists phi0', phi1; repeat split; auto.
++ apply resource_at_join2; try congruence.
+  - intros; rewrite Hr', <- Hr.
+    apply resource_at_join; auto.
+  - rewrite Hg'.
+    rewrite <- (ghost_of_approx phi1), <- (ghost_of_approx (m_phi a')), <- Hl, H1, H2.
+    apply ghost_fmap_join; auto.
++ eapply e, Hx.
+  rewrite rmap_order; repeat split; auto.
+  rewrite Hg'.
+  rewrite <- ghost_of_approx; eexists; apply ghost_fmap_join; eauto.
+* intros ? ?; auto.
+destruct Espec; simpl; apply JE_post_ext.
+Qed.
+Next Obligation.
 intros ? ? ? ?; destruct f; destruct f; destruct f; simpl.
 intros a' Hage; auto.
+Qed.
+Next Obligation.
+intros ? ? ? ?; destruct f; destruct f; destruct f; simpl.
+intros a' Hext; auto.
 Qed.
 
 End funspecsOracle2jspec.
@@ -244,14 +302,14 @@ Definition add_funspecs (Espec : OracleKind) (ext_link: string -> ident) (fs : l
 
 Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> Espec.(@OK_ty) -> environ -> pred rmap):
         pred nat :=
- ALL gx: genv, ALL x: A,
+ (ALL gx: genv, ALL x: A,
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val, ALL z : Espec.(@OK_ty),
    juicy_mem_op (P x z (seplog.make_args ids args (empty_environ gx) ) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     ext_spec_pre' Espec ef x' (genv_symb_injective gx) ts args z &&
      ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Espec ef x' (genv_symb_injective gx) tret ret z' >=>
-          juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) tret ret) * F).
+          juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) tret ret) * F))%pred.
 
 Section semax_ext_oracle.
 
@@ -271,7 +329,7 @@ Lemma semax_ext'_oracle (ext_link: Strings.String.string -> ident) id sig cc A P
 Proof.
 intros f Hin Hnorepeat.
 unfold semax_external.
-intros n ge x n0 Hlater F ts args z jm H jm' H2 H3.
+intros n ge x n0 Hlater F ts args z jm H ? jm' H2 Hext H3.
 destruct H3 as [s [t [Hjoin [Hp Hf]]]].
 
 assert (Hp'': P x z (seplog.make_args 
@@ -289,7 +347,7 @@ destruct (@add_funspecs_pre
 simpl.
 exists x'.
 split; [solve[apply Hpre]|].
-intros tret ret z' jm2 Hlev jm3 Hnec Hpost.
+intros tret ret z' jm2 Hlev ? jm3 Hnec Hext' Hpost.
 
 eapply add_funspecs_post in Hpost; eauto. 2:eapply (in_map fst _ _ Hin).
 destruct Hpost as [phi0 [phi1 [phi1' [x'' [Hjoin' [Hnec' [Hjmeq' Hq']]]]]]].

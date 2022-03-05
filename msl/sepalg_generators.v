@@ -26,7 +26,7 @@ Require Import VST.msl.sepalg.
   Qed.
 
   Instance Sep_unit: FSep_alg unit.
-  Proof. apply mkSep with (fun _ => tt); intros;  hnf; auto with typeclass_instances. Qed.
+  Proof. apply mkSep with (fun _ => tt); intros;  hnf; auto with typeclass_instances. Defined.
 
   Instance Sing_unit: Sing_alg unit.
   Proof. apply (mkSing tt); intros; hnf; simpl.
@@ -55,7 +55,7 @@ Require Import VST.msl.sepalg.
   Instance Sep_void: FSep_alg Void.
   Proof. apply mkSep with (fun x => x); intros.
       auto with typeclass_instances. destruct t. destruct a.
-  Qed.
+  Defined.
   Instance Canc_void: Canc_alg Void.
   Proof. repeat intro. destruct b. Qed.
   Instance Disj_void: Disj_alg Void.
@@ -425,7 +425,7 @@ Section SepAlgSigma.
    intros [i a]. constructor. apply core_unit.
    intros. inv H. eexists; constructor. eapply core_sub_join, join_core_sub, H0.
    intros. simpl. rewrite core_idem; reflexivity.
- Defined.
+  Defined.
 
   Instance Canc_sigma: (forall i, Canc_alg (Sigma i)) -> Canc_alg S.
   Proof. repeat intro.

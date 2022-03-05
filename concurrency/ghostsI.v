@@ -22,8 +22,11 @@ Proof.
   exact own_alloc.
 Qed.
 
-Instance own_dealloc g a pp : Affine (own g a pp) := own_dealloc.
-
+Global Instance own_dealloc g a pp : Affine (own g a pp).
+Proof.
+  unfold Affine.
+  apply own_dealloc.
+Qed.
 
 Lemma own_update : forall g a b pp, fp_update a b -> own g a pp |-- (|==> own g b pp)%I.
 Proof.
@@ -50,20 +53,23 @@ Qed.
 
 Lemma own_list_dealloc : forall {A} f (l : list A),
   (forall b, exists g a pp, f b |-- own g a pp) ->
-  iter_sepcon f l |-- (|==> emp)%I.
+  iter_sepcon f l |-- (emp)%I.
 Proof.
   intros; apply own_list_dealloc; auto.
 Qed.
 
 Lemma own_list_dealloc' : forall {A} g a p (l : list A),
-  iter_sepcon (fun x => own (g x) (a x) (p x)) l |-- (|==> emp)%I.
+  iter_sepcon (fun x => own (g x) (a x) (p x)) l |-- (emp)%I.
 Proof.
   intros; apply own_list_dealloc'.
 Qed.
 
-Lemma own_persistent : forall g a p, a = core a -> Persistent (own g a p).
+Lemma core_persistent : forall g a p, a = core a -> Persistent (own g a p).
 Proof.
-  exact own_persistent.
+  intros; unfold Persistent.
+  constructor.
+  intros ??; unfold bi_persistently; simpl.
+  apply own.own_core; auto.
 Qed.
 
 End ghost.
@@ -105,9 +111,7 @@ Qed.
 
 Global Instance snap_persistent v p : Persistent (ghost_snap v p).
 Proof.
-  apply own_persistent; hnf; simpl.
-  rewrite !eq_dec_refl; split; auto.
-  apply join_refl.
+  apply core_persistent; auto.
 Qed.
 
 End Snapshot.
@@ -117,7 +121,7 @@ Section Reference.
 Context {P : Ghost}.
 
 Lemma part_ref_update : forall g sh a r a' r' pp
-  (Ha' : forall b, join a b r -> join a' b r'),
+  (Ha' : forall b, join a b r -> join a' b r' /\ (a = r -> a' = r')),
   own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- (|==>
   own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp)%I.
 Proof.

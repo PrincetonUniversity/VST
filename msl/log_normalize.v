@@ -1502,6 +1502,20 @@ Proof.
     [|rewrite andp_comm]; apply eqp_later1.
 Qed.
 
+Lemma prove_HOcontractive' {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall X F,
+  (forall (P Q: X -> A) (x: X),
+    (ALL x:X, |>(P x <=> Q x) |-- F P x >=> F Q x)) ->
+   HOcontractive F.
+Proof.
+  unfold HOcontractive.
+  intros. apply allp_right. intros v.
+  setoid_rewrite fash_andp at 2.
+  apply andp_right; auto.
+  eapply derives_trans, H.
+  apply allp_derives; intros.
+  rewrite andp_comm; auto.
+Qed.
+
 Lemma sub_sepcon' {A}{NA: NatDed A}{SL: SepLog A}{IA: Indir A}{RA: RecIndir A}{SRA: SepRec A}:
   forall P P' Q Q': A, (P >=> P') && (Q >=> Q') |-- (P * Q) >=> (P' * Q').
 Proof.

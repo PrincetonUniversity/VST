@@ -161,7 +161,7 @@ Program Definition weak_exclusive_mpred (P: mpred): mpred :=
 
 Lemma corable_weak_exclusive R : seplog.corable (weak_exclusive_mpred R).
 Proof.
-  apply assert_lemmas.corable_unfash.
+  apply assert_lemmas.corable_unfash, _.
 Qed.
 
 Lemma exclusive_mpred_nonexpansive:
@@ -351,7 +351,6 @@ Proof.
   apply @const_nonexpansive.
 
   unfold LKspec.
-  apply conj_nonexpansive, const_nonexpansive.
   apply forall_nonexpansive; intros.
   hnf; intros.
   intros n ?.
@@ -360,30 +359,32 @@ Proof.
     clear - H.
     intros; specialize (H y H0).
     destruct H.
-    specialize (H y). spec H; [auto |].
-    specialize (H1 y). spec H1; [auto |].
+    specialize (H _ _ (necR_refl _) (ext_refl _)).
+    specialize (H1 _ _ (necR_refl _) (ext_refl _)).
     tauto.
   }
   simpl; split; intros.
   + if_tac; auto.
-    destruct H3 as [p0 ?].
+    destruct H4 as [p0 ?].
     exists p0.
-    rewrite H3; f_equal.
+    rewrite H4; f_equal.
     f_equal.
     extensionality ts; clear ts.
-    clear H3 H4 p0.
+    clear H4 H5 p0.
+    apply ext_level in H3 as <-.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
       rewrite <- H0 by lia; auto.
     - apply necR_level in H2.
       rewrite H0 by lia; auto.
   + if_tac; auto.
-    destruct H3 as [p0 ?].
+    destruct H4 as [p0 ?].
     exists p0.
-    rewrite H3; f_equal.
+    rewrite H4; f_equal.
     f_equal.
     extensionality ts; clear ts.
-    clear H3 H4 p0.
+    clear H4 H5 p0.
+    apply ext_level in H3 as <-.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
       rewrite H0 by lia; auto.
@@ -397,7 +398,7 @@ Proof.
   unfold weak_rec_inv, nonexpansive; intros.
   apply eqp_unfash, eqp_eqp; auto.
   apply eqp_sepcon; [apply eqp_refl|].
-  rewrite <- subtypes.eqp_later.
+  eapply predicates_hered.derives_trans, subtypes.eqp_later1.
   eapply predicates_hered.derives_trans, predicates_hered.now_later.
   apply nonexpansive_lock_inv.
 Qed.
@@ -408,7 +409,7 @@ Proof.
   unfold weak_rec_inv, nonexpansive; intros.
   apply eqp_unfash, eqp_eqp; [apply eqp_refl|].
   apply eqp_sepcon; auto.
-  rewrite <- subtypes.eqp_later.
+  eapply predicates_hered.derives_trans, subtypes.eqp_later1.
   eapply predicates_hered.derives_trans, predicates_hered.now_later.
   apply eqp_refl.
 Qed.
@@ -418,7 +419,7 @@ Lemma exclusive_weak_exclusive: forall R,
   TT |-- weak_exclusive_mpred R.
 Proof.
   intros.
-  constructor; intros ???????.
+  constructor; intros ?????????.
   eapply H; auto.
 Qed.
 
@@ -428,7 +429,7 @@ Lemma rec_inv_weak_rec_inv: forall sh v Q R,
 Proof.
   intros.
   unfold weak_rec_inv.
-  constructor. intros ? _ ??; split; intros ???.
+  constructor. intros ? _ ??; split; intros ?????.
   - rewrite H in * |-; auto.
   - rewrite H; auto.
 Qed.

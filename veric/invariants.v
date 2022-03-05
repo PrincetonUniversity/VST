@@ -19,7 +19,7 @@ Defined.
 
 Definition pred_of (P : mpred) := SomeP rmaps.Mpred (fun _ => P).
 
-Definition agree g (P : mpred) := own(RA := unit_PCM) g tt (pred_of P).
+Definition agree g (P : mpred) : mpred := own(RA := unit_PCM) g tt (pred_of P).
 
 Lemma agree_dup : forall g P, (agree g P = agree g P * agree g P)%pred.
 Proof.

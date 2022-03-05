@@ -8,48 +8,6 @@ Require Import VST.veric.bi.
 Require Import VST.msl.sepalg.
 Require Import List.
 
-(*Definition cored : mpred := own.cored.
-
-Lemma cored_dup : forall P, P && cored |-- (P && cored) * (P && cored).
-Proof.
-  constructor; apply own.cored_dup.
-Qed.
-
-Lemma cored_dup_cored : forall P, P && cored |-- ((P && cored) * (P && cored)) && cored.
-Proof.
-  constructor; apply cored_dup_cored.
-Qed.
-
-Lemma cored_duplicable : cored = cored * cored.
-Proof.
-  apply own.cored_duplicable.
-Qed.
-
-Lemma own_cored: forall {RA: Ghost} g a pp, join a a a -> own g a pp |-- cored.
-Proof.
-  intros; constructor; apply own.own_cored; auto.
-Qed.
-
-Lemma cored_sepcon: forall P Q, (P && cored) * (Q && cored) |-- (P * Q) && cored.
-Proof.
-  constructor; apply cored_sepcon.
-Qed.
-
-Lemma cored_dup_gen : forall P, (P |-- cored) -> P |-- P * P.
-Proof.
-  unseal_derives; exact cored_dup_gen.
-Qed.
-
-Lemma cored_emp: (cored |-- (|==> emp)%I)%I.
-Proof.
-  constructor; apply own.cored_emp.
-Qed.
-
-Lemma emp_cored : (emp |-- cored)%I.
-Proof.
-  constructor; apply own.emp_cored.
-Qed.*)
-
 Lemma iter_sepcon_eq : forall A, @invariants.iter_sepcon A = @iter_sepcon mpred A _ _.
 Proof.
   intros; extensionality f; extensionality l.
@@ -75,38 +33,29 @@ Section Invariants.
 
 Context {inv_names : invG}.
 
+Global Instance agree_persistent g P : Persistent (agree g P : mpred).
+Proof.
+  apply core_persistent; auto.
+Admitted.
+
 Global Instance inv_persistent i P : Persistent (invariant i P).
 Proof.
-  unfold Persistent, invariant.
-  constructor.
-  intros ? (g & ?).
-
-  (* need to prove that the snap is present in the core,
-     which is currently not true *)
-Abort.
+  apply _.
+Qed.
 
 Global Instance inv_affine i P : Affine (invariant i P).
 Proof.
-  unfold Affine, invariant.
+(* apply _. unfold invariant.
+  apply @bi.exist_affine; intros.
+  apply @bi.sep_affine.
+
+2: { apply _.
+  Search Affine bi_exist.
   constructor.
   intros ? (g & ?).
   (* this isn't true *)
-Abort.
-(* Even if we could prove that inv is persistent, it still wouldn't
-   be intuitionistic (which is what Iris needs for its contexts),
-   because our emp distinguishes between presence and absence of
-   duplicable ghost state. Not sure we can change emp to fix that,
-   but maybe we can. *)
-
-Lemma invariant_dup : forall i P, invariant i P = invariant i P * invariant i P.
-Proof.
-  exact invariant_dup.
-Qed.
-
-Lemma invariant_cored : forall i P, invariant i P |-- cored.
-Proof.
-  constructor; apply invariant_cored.
-Qed.
+Abort.*)
+Admitted.
 
 Lemma wsat_alloc : forall P, wsat * |> P |-- (|==> wsat * EX i : _, invariant i P)%I.
 Proof.
@@ -231,7 +180,7 @@ Proof.
     erewrite nth_map' with (d' := 0) in H0 by (rewrite upto_length; lia).
     erewrite nth_upto in H0 by lia.
     destruct (Znth (Z.of_nat i) lb); inv H0; iPureIntro; eauto. }
-  iMod (@own_dealloc (snap_PCM(ORD := list_order _)) with "snap").
+  iDestruct "snap" as "_".
   iModIntro.
   destruct Hi as (? & ? & b & Hi).
   assert (nth i lb None = Some b) as Hi' by (rewrite <- nth_Znth' in Hi; auto).
@@ -303,7 +252,7 @@ Proof.
     erewrite nth_map' with (d' := 0) in H0 by (rewrite upto_length; lia).
     erewrite nth_upto in H0 by lia.
     destruct (Znth (Z.of_nat i) lb); inv H0; eauto. }
-  iMod (@own_dealloc (snap_PCM(ORD := list_order _)) with "snap").
+  iDestruct "snap" as "_".
   iModIntro.
   destruct Hi as (? & ? & b & Hi).
   assert (nth i lb None = Some b) as Hi' by (rewrite <- nth_Znth' in Hi; auto).
@@ -360,11 +309,6 @@ Proof.
     intro; subst.
     apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia.
   - unfold Ensembles.In; auto.
-Qed.
-
-Lemma invariant_dealloc : forall i P, invariant i P |-- |==> emp.
-Proof.
-  constructor; apply invariant_dealloc.
 Qed.
 
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs

@@ -207,7 +207,7 @@ Proof.
 Qed.
 *)
 
-Lemma contractive_nonexpansive {A} `{ageable A} : forall F,
+Lemma contractive_nonexpansive {A} `{ageable A} {EO: Ext_ord A}: forall F,
   contractive F ->
   nonexpansive F.
 Proof.
