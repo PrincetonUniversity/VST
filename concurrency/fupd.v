@@ -20,7 +20,7 @@ Definition timeless' (P : mpred) := forall (a a' : rmap),
 Lemma timeless'_timeless : forall P, timeless' P -> Timeless P.
 Proof.
   unfold Timeless; intros; simpl.
-  constructor; change (predicates_hered.derives (|>P) (|>FF || P)); intros ? HP.
+  constructor; change (predicates_hered.derives (|>P) (|>FF || P)%pred); intros ? HP.
   destruct (level a) eqn: Ha.
   - left; intros ? Hl%laterR_level.
     rewrite Ha in Hl; apply Nat.nlt_0_r in Hl; contradiction Hl.
@@ -28,6 +28,13 @@ Proof.
     destruct (levelS_age a n) as [b [Hb]]; auto.
     specialize (HP _ (semax_lemmas.age_laterR Hb)).
     eapply H; eauto.
+Qed.
+
+Lemma list_set_replace : forall {A} n l (a : A), (n < length l)%nat ->
+  own.list_set l n a = replace_nth n l (Some a).
+Proof.
+  induction n; destruct l; unfold own.list_set; auto; simpl; try lia; intros.
+  setoid_rewrite IHn; auto; lia.
 Qed.
 
 Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
@@ -38,13 +45,31 @@ Proof.
   split.
   + intros; eapply age1_resource_at_identity; eauto.
   + erewrite age1_ghost_of in Hg by eauto.
-    erewrite own.ghost_fmap_singleton in *.
-    apply own.ghost_fmap_singleton_inv in Hg as ([] & -> & Heq).
-    inv Heq.
-    destruct p; inv H3.
-    simpl; repeat f_equal.
-    extensionality l.
-    destruct (_f l); auto.
+    erewrite own.ghost_fmap_singleton in *; simpl in *.
+    destruct Hg as [? Hg]; apply own.singleton_join_inv_gen in Hg as (J & ? & ? & ?).
+    rewrite (map_nth _ _ None) in H1, J.
+    destruct (nth g (ghost_of a0) None) as [(?, ?)|] eqn: Hga; [|inv J].
+    inv H1.
+    rewrite <- (own.list_set_same _ _ _ Hga).
+    assert (g < length (ghost_of a0))%nat.
+    { destruct (lt_dec g (length (ghost_of a0))); auto.
+      rewrite -> nth_overflow in Hga by lia; discriminate. }
+    inv J.
+    * erewrite list_set_replace, <- replace_nth_replace_nth, <- list_set_replace; rewrite ?replace_nth_length; auto.
+      eexists; apply own.singleton_join_gen; rewrite -> nth_replace_nth by auto.
+      destruct p; inv H7.
+      replace _f with (fun _ : list Type => tt).
+      apply lower_None2.
+      { extensionality i; destruct (_f i); auto. }
+    * destruct a2, p, H6 as (? & ? & ?); simpl in *; subst.
+      inv H6.
+      erewrite list_set_replace, <- replace_nth_replace_nth, <- list_set_replace; rewrite ?replace_nth_length; auto.
+      eexists; apply own.singleton_join_gen; rewrite -> nth_replace_nth by auto.
+      constructor.
+      instantiate (1 := (_, _)).
+      split; simpl; [|split; auto]; eauto.
+      f_equal.
+      extensionality i; destruct (_f i); auto.
 Qed.
 
 Lemma address_mapsto_timeless : forall m v sh p, Timeless (res_predicates.address_mapsto m v sh p : mpred).
@@ -52,17 +77,16 @@ Proof.
   intros; apply timeless'_timeless.
   repeat intro.
   simpl in *.
-  destruct H as (b & [? HYES] & ?); exists b; split; [split|]; auto.
+  destruct H as (b & [? HYES]); exists b; split; auto.
   intro b'; specialize (HYES b').
   if_tac.
   - destruct HYES as (rsh & Ha'); exists rsh.
     erewrite age_resource_at in Ha' by eauto.
     destruct (a @ b'); try discriminate; inv Ha'.
-    destruct p0; inv H6; simpl.
+    destruct p0; inv H5; simpl.
     f_equal.
     apply proof_irr.
   - rewrite age1_resource_at_identity; eauto.
-  - rewrite age1_ghost_of_identity; eauto.
 Qed.
 
 Instance timeless_FF : Timeless FF.
@@ -77,13 +101,11 @@ Proof.
   intros; apply timeless'_timeless.
   repeat intro.
   simpl in *.
-  destruct H; split.
-  intro b'; specialize (H b').
+  specialize (H b).
   if_tac.
   - erewrite age1_resource_at in H by (erewrite ?resource_at_approx; eauto).
-    destruct (a @ b'); auto.
+    destruct (a @ b); auto.
   - rewrite age1_resource_at_identity; eauto.
-  - rewrite age1_ghost_of_identity; eauto.
 Qed.
 
 Lemma mapsto_timeless : forall sh t v p, Timeless (mapsto sh t p v).
@@ -103,12 +125,10 @@ Qed.
 Instance emp_timeless : (@Timeless mpredI) emp.
 Proof.
   apply timeless'_timeless; intros ????.
-  apply all_resource_at_identity.
-  - intro.
-    eapply age1_resource_at_identity; eauto.
-    eapply resource_at_identity; eauto.
-  - eapply age1_ghost_of_identity; eauto.
-    eapply ghost_of_identity; eauto.
+  setoid_rewrite res_predicates.emp_no in H.
+  setoid_rewrite res_predicates.emp_no.
+  intros l.
+  eapply age1_resource_at_identity, H; auto.
 Qed.
 
 Lemma memory_block'_timeless : forall sh n b z,
@@ -272,6 +292,13 @@ Proof.
   intros; erewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
 Qed.
 
+Lemma core_emp : forall (w : rmap), app_pred emp (core w).
+Proof.
+  intros; setoid_rewrite res_predicates.emp_no.
+  intros l; simpl.
+  apply resource_at_core_identity.
+Qed.
+
 (* This is a generally useful pattern. *)
 Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
   app_pred (fupd E1 E2 P) a -> app_pred (fupd E1 E2 Q) a.
@@ -281,14 +308,15 @@ Proof.
   { pose proof (fupd_frame_r E1 E2 P (approx (S (level a)) emp)) as Hframe.
     inv Hframe; rename derivesI into Hframe; apply Hframe.
     do 3 eexists; [apply join_comm, core_unit | split; auto].
-    split; [|apply core_identity].
+    split; [|apply core_emp].
     rewrite level_core; auto. }
   eapply fupd_mono in HP'; eauto.
   constructor; change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
   intros a0 (? & ? & J & HP & [? Hemp]).
+  assert (app_pred (P * emp) a0) as Ha0 by (do 3 eexists; eauto).
+  rewrite sepcon_emp in Ha0.
   destruct (join_level _ _ _ J).
-  apply join_comm, Hemp in J; subst.
-  eapply Himp in HP; try apply necR_refl; auto; lia.
+  eapply Himp in Ha0; try apply necR_refl; try apply ext_refl; auto; lia.
 Qed.
 
 Lemma fupd_bupd : forall E1 E2 P Q, (P |-- (|==> (|={E1,E2}=> Q))) -> P |-- |={E1,E2}=> Q.

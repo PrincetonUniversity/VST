@@ -3,10 +3,10 @@ Require Import VST.concurrency.conclib.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.veric.bi.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
 Require Import VST.atomics.hashtable_atomic.
-Require Import VST.atomics.hashtable.
 Require Import VST.atomics.general_atomics.
+Require Import VST.floyd.sublist.
+Require Import VST.atomics.hashtable.
 Require Import VST.msl.iter_sepcon.
 Import List.
 
@@ -32,6 +32,9 @@ Definition make_atomic_spec := DECLARE _make_atomic (make_atomic_spec atomic_int
 Definition atom_load_spec := DECLARE _atom_load (atomic_load_spec atomic_int atomic_int_at).
 Definition atom_store_spec := DECLARE _atom_store (atomic_store_spec atomic_int atomic_int_at).
 Definition atom_CAS_spec := DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic_int_at).
+
+Open Scope Z.
+Open Scope logic.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -115,7 +118,8 @@ Program Instance zero_PCM : Ghost := { valid a := True;
 Next Obligation.
 Proof.
   exists (fun _ => 0); auto.
-  intro; hnf; auto.
+  - intro; hnf; auto.
+  - intros; exists O; hnf; auto.
 Defined.
 
 Instance zero_order : PCM_order (fun a b => a = 0 \/ a = b).
@@ -146,7 +150,7 @@ Definition hashtable_entry T lg entries i :=
   ghost_master1(ORD := zero_order) ki (Znth i lg) *
   atomic_int_at Ews (vint ki) pk * atomic_int_at Ews (vint vi) pv.
 
-Definition wf_table T := forall k i, k <> 0 -> fst (Znth i T) = k -> lookup T k = Some i.
+Definition wf_table (T : list (Z * Z)) := forall k i, k <> 0 -> fst (Znth i T) = k -> lookup T k = Some i.
 
 Definition hashtable H g lg entries := EX T : list (Z * Z),
   !!(Zlength T = size /\ wf_table T /\ forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) &&
@@ -385,7 +389,7 @@ Proof.
   intros; apply wf_table_upd; auto.
 Qed.
 
-Lemma snaps_dealloc : forall {A} (l : list A) f g, iter_sepcon (fun i => ghost_snap (f i) (g i)) l |-- (|==> emp)%I.
+Lemma snaps_dealloc : forall {A} (l : list A) f g, iter_sepcon (fun i => ghost_snap (f i) (g i)) l |-- (emp)%I.
 Proof.
   intros; apply (own_list_dealloc(RA := snap_PCM)).
   intro; do 3 eexists; apply derives_refl.

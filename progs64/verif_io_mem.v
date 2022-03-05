@@ -1,5 +1,5 @@
-Require Import VST.progs.io_mem.
-Require Import VST.progs.io_mem_specs.
+Require Import VST.progs64.io_mem.
+Require Import VST.progs64.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 

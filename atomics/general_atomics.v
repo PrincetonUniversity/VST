@@ -8,9 +8,8 @@ Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 (* trying to import Iris's definition directly *)
 Require Export iris.bi.lib.atomic.
+Require Import Program.Equality.
 
-
-Set Bullet Behavior "Strict Subproofs".
 
 (* Thoughts on invariants and the two-level structure:
    I expect that our version of the operational semantics will keep nonatomic locations as is,
@@ -37,15 +36,8 @@ Context {inv_names : invG}.
 Section atomicity.
 
 (* The logical atomicity of Iris. *)
-(* We use the cored predicate to mimic Iris's persistent modality. *)
-(*Definition ashift {A B} P (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
-  ((|> P -* |={Eo,Ei}=> (EX x : A, a x *
-    ((a x -* |={Ei,Eo}=> |> P) &&
-     ALL y : B, b x y -* |={Ei,Eo}=> Q y))))%I.*)
 
-(*Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
-  EX P : mpred, |> P * (ashift P a Ei Eo b Q && cored).*)
-
+(* for people who don't want telescope notation *)
 Definition tele_unwrap {A} (x : tele_arg (TeleS (fun _ : A => TeleO))) :=
   match x with
   | TargS _ _ x _ => x
@@ -76,7 +68,8 @@ Proof.
   iApply atomic_commit_fupd; eauto; iFrame.
 Qed.
 
-(* This is unsound: what we really need is fupd in WP. *)
+(* This is unsound: what we really need is fupd in WP.
+   But that might not be necessary if we use atomic specs for all concurrent operations. *)
 Lemma atomic_commit : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- (|==> (EX y, b x y * R' y))%I) ->
   (atomic_shift a Ei Eo b Q * R |-- |==> (EX y, Q y * R' y))%I.
@@ -125,82 +118,51 @@ Proof.
   apply atomic_update_mask_weaken; auto.
 Qed.
 
+(* might be able to get rid of this if we do iInv instances *)
 Lemma inv_atomic_shift : forall {A B} a Ei Eo (b : A -> B -> mpred) Q i R P
   (Hi : inv i ⊆ Eo) (Hio : Ei ⊆ Eo ∖ inv i)
-  (Ha1 : (|>R |-- |={Eo ∖ inv i}=> EX x, a x * ((a x -* |={Eo ∖ inv i}=> |>R) &&
-    (ALL y, |> P * b x y -* |={Eo ∖ inv i}=> |>R * Q y)))%I),
-  invariant i R * P |-- atomic_shift a Ei Eo b Q.
+  (Ha1 : (|>R |-- |={Eo ∖ inv i}=> EX x, a x * ((a x -* |={Ei}=> |>R) &&
+    (ALL y, |> P * b x y -* |={Ei}=> |>R * Q y)))%I),
+  invariant i R * |> P |-- atomic_shift a Ei Eo b Q.
 Proof.
   intros; unfold atomic_shift.
-  iIntros "
-  Exists P; cancel.
-  apply andp_right, invariant_cored.
-  unfold ashift.
-  iIntros "I P".
+  iIntros "[#I P]". iAuIntro.
+  rewrite /atomic_acc /=.
   iMod (inv_open with "I") as "[R Hclose]"; first done.
-  iMod (Ha1 with "R") as (x) "[a R]".
-  iExists x; iFrame.
-  iMod (fupd_mask_subseteq _ Hio) as "mask".
+  iMod (Ha1 with "R") as (x) "(a & shift)".
+  iExists x; iFrame "a".
+  iMod fupd_mask_subseteq as "mask"; first done.
   iIntros "!>"; iSplit.
-  - iIntros "a"; iFrame.
-    iMod "mask" as "_".
-    iMod ("R" with "a").
-    iApply "Hclose"; auto.
+  - iIntros "a"; iMod ("shift" with "a") as "R".
+    iMod "mask"; iMod ("Hclose" with "R"); auto.
   - iIntros (y) "b".
-    iMod "mask" as "_".
-    iMod ("R" with "[$P $b]") as "[R $]".
-    iApply "Hclose"; auto.
+    iMod ("shift" with "[$P $b]") as "[R Q]".
+    iMod "mask"; iMod ("Hclose" with "R"); auto.
 Qed.
-
-(*Lemma ashift_nonexpansive : forall {A B} P n a Ei Eo (b : A -> B -> mpred) Q,
-  approx n (ashift P a Ei Eo b Q) =
-  approx n (ashift P (fun x => approx n (a x)) Ei Eo (fun x y => approx n (b x y)) (fun y => approx n (Q y))).
-Proof.
-  intros; unfold ashift.
-  setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; f_equal.
-  rewrite !approx_exp; f_equal; extensionality.
-  rewrite -> !approx_sepcon, !approx_andp, !approx_idem; f_equal; auto.
-  f_equal.
-  * setoid_rewrite fview_shift_nonexpansive; rewrite !approx_idem; f_equal; f_equal; auto.
-  * rewrite allp_nonexpansive; setoid_rewrite allp_nonexpansive at 2; f_equal; f_equal; extensionality.
-    setoid_rewrite fview_shift_nonexpansive; rewrite !approx_idem; auto.
-Qed.*)
 
 Lemma atomic_shift_nonexpansive : forall {A B} n a Ei Eo (b : A -> B -> mpred) Q,
   approx n (atomic_shift a Ei Eo b Q) =
   approx n (atomic_shift (fun x => approx n (a x)) Ei Eo (fun x y => approx n (b x y)) (fun y => approx n (Q y))).
 Proof.
   intros; unfold atomic_shift.
-  apply approx_Sn_eq_weaken.
+  destruct n as [|n].
+  { rewrite !approx_0; auto. }
   unshelve eapply (atomic_update_ne _ _ n (λ.. x : [tele _ : A], a (tele_unwrap x))).
-  { intros a1; simpl. hnf. simpl. (*destruct a1.*) admit. }
-  { admit. }
-  { admit. }
-Admitted.
-
-(*Lemma atomic_shift_derives_frame_cored : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
-  (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred) F R
-  (HF : F |-- cored)
-  (Ha : (forall x, a x * F * |>R |-- |={Ei}=> EX x' : A', a' x' *
-    ((a' x' -* |={Ei}=> a x * |>R) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
-  atomic_shift a Ei Eo b Q * F * |>R |-- atomic_shift a' Ei Eo b' Q'.
-Proof.
-  intros; unfold atomic_shift, ashift.
-  Intros P; Exists (P * R); rewrite later_sepcon; cancel.
-  erewrite (add_andp F) by apply HF.
-  sep_apply cored_sepcon.
-  apply andp_derives; auto.
-  iIntros "[H F] [P R]"; iMod ("H" with "P") as (x) "[a H]".
-  iMod (Ha with "[$a $F $R]") as (x') "[? Hrest]"; iExists x'; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "a".
-    iDestruct "Hrest" as "[Hrest _]".
-    iMod ("Hrest" with "a") as "[? $]"; iApply "H"; auto.
-  - iIntros (y') "b".
-    iDestruct "Hrest" as "[_ Hb]".
-    iMod ("Hb" $! y' with "b") as (y) "[b HQ]".
-    iMod ("H" with "b").
-    iApply "HQ"; auto.
+  { intros a1; simpl. dependent destruction a1; simpl.
+    dependent destruction a1; simpl. hnf.
+    rewrite approx_idem; auto. }
+  { intros a1 b1; simpl.
+    dependent destruction a1; simpl.
+    dependent destruction a1; simpl.
+    dependent destruction b1; simpl.
+    dependent destruction b1; simpl.
+    hnf. rewrite approx_idem; auto. }
+  { intros a1 b1; simpl.
+    dependent destruction a1; simpl.
+    dependent destruction a1; simpl.
+    dependent destruction b1; simpl.
+    dependent destruction b1; simpl.
+    hnf. rewrite approx_idem; auto. }
 Qed.
 
 Lemma atomic_shift_derives_frame : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
@@ -209,44 +171,20 @@ Lemma atomic_shift_derives_frame : forall {A A' B B'} (a : A -> mpred) (a' : A' 
     ((a' x' -* |={Ei}=> a x * |>R) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
   atomic_shift a Ei Eo b Q * |>R |-- atomic_shift a' Ei Eo b' Q'.
 Proof.
-  intros; unfold atomic_shift, ashift.
-  Intros P; Exists (P * R); rewrite later_sepcon; cancel.
-  apply andp_derives; auto.
-  iIntros "H [P R]"; iMod ("H" with "P") as (x) "[a H]".
-  iMod (Ha with "[$a $R]") as (x') "[? Hrest]"; iExists x'; iFrame.
+  intros; unfold atomic_shift.
+  iIntros "[AU P]". iAuIntro.
+  iApply (aacc_aupd with "AU"); auto; simpl.
+  iIntros (x) "a".
+  iMod (Ha with "[$a $P]") as (x') "(a' & A)".
+  rewrite /atomic_acc /=.
+  iExists x'; iFrame "a'".
   iIntros "!>"; iSplit.
-  - iIntros "a".
-    iMod ("Hrest" with "a") as "[? $]"; iApply "H"; auto.
-  - iIntros (y') "b".
-    iDestruct "Hrest" as "[_ Hb]".
-    iMod ("Hb" $! y' with "b") as (y) "[b HQ]".
-    iMod ("H" with "b").
-    iApply "HQ"; auto.
+  - iIntros "a'".
+    iMod ("A" with "a'") as "[$ $]"; auto.
+  - iIntros (y') "b'".
+    iMod ("A" with "b'") as (y) "[b HQ]".
+    iRight; iExists y; iFrame; auto.
 Qed.
-
-Lemma ashift_derives : forall {A A' B B'} P (a : A -> mpred) (a' : A' -> mpred) Ei Eo
-  (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred)
-  (Ha : (forall x, a x  |-- |={Ei}=> EX x' : A', a' x' *
-    (((a' x' * (ashift P a Ei Eo b Q && cored)) -* |={Ei}=> a x) &&
-     ALL y' : _, (b' x' y' * (ashift P a Ei Eo b Q && cored)) -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
-  (ashift P a Ei Eo b Q && cored |-- ashift P a' Ei Eo b' Q' && cored)%logic.
-Proof.
-  intros.
-  sep_apply cored_dup_cored.
-  apply andp_derives; auto.
-  unfold ashift at 1 3.
-  iIntros "[H AS] P"; iMod ("H" with "P") as (x) "[a H]".
-  iMod (Ha with "a") as (x') "[? Hrest]"; iExists x'; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "a".
-    iDestruct "Hrest" as "[Hrest _]".
-    iMod ("Hrest" with "[$a $AS]") as "a"; iApply "H"; auto.
-  - iIntros (y') "b".
-    iDestruct "Hrest" as "[_ Hb]".
-    iMod ("Hb" $! y' with "[$b $AS]") as (y) "[b HQ]".
-    iMod ("H" with "b").
-    iApply "HQ"; auto.
-Qed.*)
 
 Lemma atomic_shift_derives : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
   (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred)
@@ -254,10 +192,9 @@ Lemma atomic_shift_derives : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpr
     ((a' x' -* |={Ei}=> a x) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
   atomic_shift a Ei Eo b Q |-- atomic_shift a' Ei Eo b' Q'.
 Proof.
-  intros.
-  unfold atomic_shift; iIntros "AS".
-  iAuIntro.
-  iApply (aacc_aupd with "AS"); first auto.
+  intros; unfold atomic_shift.
+  iIntros "AU". iAuIntro.
+  iApply (aacc_aupd with "AU"); auto; simpl.
   iIntros (x) "a".
   iMod (Ha with "a") as (x') "[a' H']".
   iAaccIntro with "a'".
@@ -265,22 +202,6 @@ Proof.
   - iIntros (y') "b'". iMod ("H'" with "b'") as (y) "[b H]".
     iRight; iExists y; iFrame; auto.
 Qed.
-
-(*Lemma atomic_shift_derives_cored : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
-  (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred) F
-  (HF : F |-- cored)
-  (Ha : (forall x, a x * F |-- |={Ei}=> EX x' : A', a' x' *
-    ((a' x' -* |={Ei}=> a x) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
-  atomic_shift a Ei Eo b Q * F |-- atomic_shift a' Ei Eo b' Q'.
-Proof.
-  intros; eapply derives_trans, atomic_shift_derives_frame_cored; eauto.
-  { rewrite <- sepcon_emp at 1; apply sepcon_derives; [apply derives_refl | apply now_later]. }
-  iIntros (x) "[a >_]".
-  iMod (Ha with "a") as (x') "[? H]".
-  iExists x'; iFrame; iIntros "!>"; iSplit.
-  - iIntros "a"; iMod ("H" with "a") as "$"; auto.
-  - iDestruct "H" as "[_ H]"; auto.
-Qed.*)
 
 Lemma atomic_shift_derives' : forall {A A' B} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
   (b : A -> B -> mpred) (b' : A' -> B -> mpred) (Q : B -> mpred)
@@ -299,24 +220,6 @@ Proof.
     iIntros "!> $"; auto.
 Qed.
 
-(*Lemma atomic_shift_derives'_cored : forall {A A' B} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
-  (b : A -> B -> mpred) (b' : A' -> B -> mpred) (Q : B -> mpred) F
-  (HF : F |-- cored)
-  (Ha : (forall x, a x * F |-- |={Ei}=> EX x' : A', a' x' *
-    ((a' x' -* |={Ei}=> a x) && ALL y : _, b' x' y -* |={Ei}=> b x y))%I),
-  atomic_shift a Ei Eo b Q * F |-- atomic_shift a' Ei Eo b' Q.
-Proof.
-  intros; apply atomic_shift_derives_cored; auto.
-  iIntros (x) "a"; iMod (Ha with "a") as (x') "[a H]".
-  iExists x'; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "a"; iMod ("H" with "a") as "$"; auto.
-  - iIntros (y) "b"; iExists y.
-    iDestruct "H" as "[_ H]".
-    iMod ("H" with "b") as "$".
-    iIntros "!> $"; auto.
-Qed.*)
-
 Lemma atomic_shift_derives_simple : forall {A B} (a a' : A -> mpred) Ei Eo (b b' : A -> B -> mpred) (Q : B -> mpred)
   (Ha1 : (forall x, a x |-- |={Ei}=> a' x)%I)
   (Ha2 : (forall x, a' x |-- |={Ei}=> a x)%I)
@@ -330,21 +233,24 @@ Proof.
   - iIntros (?); iApply Hb.
 Qed.
 
-(*Lemma atomic_shift_exists : forall {A B} a Ei Eo (b : A -> B -> mpred) Q,
+Lemma atomic_shift_exists : forall {A B} a Ei Eo (b : A -> B -> mpred) Q,
   atomic_shift (fun (_ : unit) => EX x : A, a x) Ei Eo (fun (_ : unit) => EX x : A, b x) Q |-- atomic_shift a Ei Eo b Q.
 Proof.
   intros; unfold atomic_shift.
-  Intros P; Exists P; cancel.
-  unfold ashift.
-  apply andp_derives; auto.
-  iIntros "H P"; iMod ("H" with "P") as (_) "[a H]".
-  iDestruct "a" as (x) "a"; iExists x; iFrame.
+  iIntros "AU". iAuIntro.
+  iApply (aacc_aupd with "AU"); auto; simpl.
+  iIntros (_) "a"; iDestruct "a" as (x) "a".
+  rewrite /atomic_acc /=.
+  iExists x; iFrame.
   iIntros "!>"; iSplit.
-  - iIntros "a"; iApply "H".
+  - iIntros "a !>".
+    iSplitR ""; auto.
     iExists x; auto.
-  - iIntros (y) "b"; iApply "H".
-    simpl; iExists x; auto.
-Qed.*)
+  - iIntros (y) "b !>".
+    iRight; iExists y.
+    iSplitR ""; auto.
+    iExists x; auto.
+Qed.
 
 End atomicity.
 

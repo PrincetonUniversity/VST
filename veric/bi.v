@@ -504,5 +504,5 @@ Canonical Structure env_mpredSI : sbi :=
 Ltac iVST := iStopProof; match goal with |-bi_entails ?P ?Q => change (P |-- Q) end;
   repeat match goal with |-context[bi_sep ?P ?Q] => change (bi_sep P Q) with (P * Q) end.
 
-Open Scope Z.
-Open Scope logic.
+Global Open Scope Z.
+Global Open Scope logic.

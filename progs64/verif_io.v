@@ -1,5 +1,5 @@
-Require Import VST.progs.io.
-Require Import VST.progs.io_specs.
+Require Import VST.progs64.io.
+Require Import VST.progs64.io_specs.
 Require Import VST.floyd.proofauto.
 
 Local Open Scope itree_scope.

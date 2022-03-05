@@ -36,7 +36,7 @@ Context {inv_names : invG}.
 Global Instance agree_persistent g P : Persistent (agree g P : mpred).
 Proof.
   apply core_persistent; auto.
-Admitted.
+Qed.
 
 Global Instance inv_persistent i P : Persistent (invariant i P).
 Proof.
@@ -45,17 +45,8 @@ Qed.
 
 Global Instance inv_affine i P : Affine (invariant i P).
 Proof.
-(* apply _. unfold invariant.
-  apply @bi.exist_affine; intros.
-  apply @bi.sep_affine.
-
-2: { apply _.
-  Search Affine bi_exist.
-  constructor.
-  intros ? (g & ?).
-  (* this isn't true *)
-Abort.*)
-Admitted.
+  apply _.
+Qed.
 
 Lemma wsat_alloc : forall P, wsat * |> P |-- (|==> wsat * EX i : _, invariant i P)%I.
 Proof.
@@ -313,6 +304,21 @@ Qed.
 
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
    in veric (a la own). *)
+
+(*
+
+need to do namespaces if we want to use iInv!
+
+Global Instance into_inv_inv N P : IntoInv (invariant N P) N := {}.
+
+Global Instance into_acc_inv N P E:
+  IntoAcc (X := unit) (inv N P)
+          (↑N ⊆ E) True (fupd E (E ∖ ↑N)) (fupd (E ∖ ↑N) E)
+          (λ _ : (), (▷ P)%I) (λ _ : (), (▷ P)%I) (λ _ : (), None).
+Proof.
+  rewrite inv_eq /IntoAcc /accessor bi.exist_unit.
+  iIntros (?) "#Hinv _". iApply "Hinv"; done.
+Qed.*)
 
 End Invariants.
 
