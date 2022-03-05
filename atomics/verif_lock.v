@@ -193,20 +193,6 @@ Section PROOFS.
     - apply const_nonexpansive.
   Qed.
 
-  Lemma nonexpansive_lock_inv_exist : nonexpansive (EX p, lock_inv p).
-  Proof.
-    unfold lock_inv.
-    apply @exists_nonexpansive. intros.
-    apply @exists_nonexpansive. intros.
-    apply invariant_nonexpansive2.
-    apply @disj_nonexpansive.
-    - apply @sepcon_nonexpansive.
-      + apply _.
-      + apply const_nonexpansive.
-      + apply identity_nonexpansive.
-    - apply const_nonexpansive.
-  Qed.
-
   Program Definition makelock_spec2: funspec :=
     mk_funspec
       (nil, tptr t_lock)
@@ -245,7 +231,7 @@ Section PROOFS.
         constructor.
       + apply const_nonexpansive.
       + constructor.
-        * apply nonexpansive_lock_inv_exist.
+        * apply @exists_nonexpansive. apply nonexpansive_lock_inv.
         * constructor.
     - extensionality f. unfold PROPx, LOCALx, SEPx. simpl. normalize.
       f_equal. extensionality y. normalize.
@@ -253,8 +239,15 @@ Section PROOFS.
 
   Lemma makelock_funspec_sub: funspec_sub (snd makelock_spec) makelock_spec2.
   Proof.
-    split.
-    - auto.
+    split; auto. intros. simpl in *. destruct x2 as [gv R]. Intros.
+    match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end. iIntros "H !>".
+    iExists nil, gv, emp. rewrite emp_sepcon. iSplit; auto. iPureIntro. intros. Intros.
+    rewrite emp_sepcon. Intros x.
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
+    rewrite <- !exp_andp2. normalize. rewrite <- exp_sepcon2.
+    match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
+    iIntros "(% & H1 & H2)". iSplitL "H1"; auto. iExists x. rewrite sepcon_emp.
+    unfold lock_inv.
   Abort.
 
 End PROOFS.
