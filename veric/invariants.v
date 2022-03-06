@@ -1152,10 +1152,12 @@ Lemma ghost_is_pred_nonexpansive : forall g H, nonexpansive (fun P => ghost_is (
         pred_of P))).
 Proof.
   unfold nonexpansive.
-  intros ??????; split; intros ???; simpl in *; etransitivity; eauto; simpl;
+  intros ??????; split; intros ?????; simpl in *;
+    match goal with H : join_sub ?a ?b |- join_sub ?c ?b =>
+      assert (a = c) as <-; auto end; simpl;
     rewrite !ghost_fmap_singleton; do 2 f_equal; simpl; f_equal;
     extensionality; apply pred_ext; intros ? []; split; auto;
-    eapply H0; try apply necR_refl; auto; apply necR_level in H2; lia.
+    eapply H0; try apply necR_refl; auto; apply necR_level in H2; apply ext_level in H3; lia.
 Qed.
 
 Lemma agree_nonexpansive : forall g, nonexpansive (agree g).
@@ -1184,11 +1186,12 @@ Lemma ghost_is_pred_nonexpansive2 : forall g H f,
         pred_of (f P)))).
 Proof.
   unfold nonexpansive.
-  intros ??????; split; intros ???; specialize (H0 _ _ _ H1);
-  simpl in *; etransitivity; eauto; simpl;
+  intros ??????; split; intros ?????; specialize (H0 _ _ _ H1);
+  simpl in *; match goal with H : join_sub ?a ?b |- join_sub ?c ?b =>
+      assert (a = c) as <-; auto end; simpl;
     rewrite !ghost_fmap_singleton; do 2 f_equal; simpl; f_equal;
     extensionality; apply pred_ext; intros ? []; split; auto;
-    eapply H0; try apply necR_refl; auto; apply necR_level in H3; lia.
+    eapply H0; try apply necR_refl; auto; apply necR_level in H3; apply ext_level in H4; lia.
 Qed.
 
 Lemma agree_nonexpansive2 : forall g f,
