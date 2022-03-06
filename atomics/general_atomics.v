@@ -2,12 +2,11 @@ Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.concurrency.ghosts.
 Require Import VST.concurrency.conclib.
+Require Export iris.bi.lib.atomic.
 Require Import VST.concurrency.invariants.
 Require Import VST.concurrency.fupd.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
-(* trying to import Iris's definition directly *)
-Require Export iris.bi.lib.atomic.
+Require Export VST.floyd.sublist.
 Require Import Program.Equality.
 
 

@@ -48,6 +48,11 @@ Proof.
   apply _.
 Qed.
 
+Lemma invariant_dup : forall i P, invariant i P = invariant i P * invariant i P.
+Proof.
+  intros; apply pred_ext; rewrite <- (bi.persistent_sep_dup (invariant i P)); auto.
+Qed.
+
 Lemma wsat_alloc : forall P, wsat * |> P |-- (|==> wsat * EX i : _, invariant i P)%I.
 Proof.
   intros; iIntros "[wsat P]".
