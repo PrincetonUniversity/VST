@@ -38,7 +38,29 @@ Proof.
   apply subp_andp; apply eqp_subp2; auto.
 Qed.
 
-Lemma impl_contractive {A} `{ageable A} {EO : Ext_ord A} : forall F G,
+Lemma disj_nonexpansive {A} `{ageable A}  {EO : Ext_ord A} : forall (F G:pred A -> pred A),
+  nonexpansive F ->
+  nonexpansive G ->
+  nonexpansive (fun x:pred A => F x || G x).
+Proof.
+  unfold nonexpansive; intros.
+  apply subp_eqp.
+  apply subp_orp; apply eqp_subp; auto.
+  apply subp_orp; apply eqp_subp2; auto.
+Qed.
+
+Lemma disj_contractive {A} `{ageable A}  {EO : Ext_ord A} : forall F G,
+  contractive F ->
+  contractive G ->
+  contractive (fun x => F x || G x).
+Proof.
+  unfold contractive; intros.
+  apply subp_eqp.
+  apply subp_orp; apply eqp_subp; auto.
+  apply subp_orp; apply eqp_subp2; auto.
+Qed.
+
+Lemma impl_contractive {A} `{ageable A}  {EO : Ext_ord A} : forall F G,
   contractive F ->
   contractive G ->
   contractive (fun x => F x --> G x).
@@ -646,4 +668,3 @@ Proof.
 Qed.
 
 End Trashcan.
-
