@@ -440,7 +440,7 @@ Proof.
     { rewrite !sepcon_assoc; apply sepcon_derives; [|cancel].
       iIntros ">AS".
       iDestruct ("AS") as (HT) "[hashtable Hclose]"; simpl.
-      iDestruct "hashtable" as (T) "((% & excl) & entries)". (* why is this slow now? *)
+      iDestruct "hashtable" as (T) "((% & excl) & entries)".
       rewrite -> @iter_sepcon_Znth' with (d := Inhabitant_Z) (i := i1 mod size)
           by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
       erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
