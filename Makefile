@@ -33,7 +33,7 @@ endif
 # ##### Configure Compcert #####
 
 # Note:  You can make a CONFIGURE file with the below definitions or give them
-# on th emake command line
+# on the make command line
 #
 # # Choosing compcert #
 # COMPCERT=platform     (default, choose 32 or 64 bit platform supplied x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
@@ -139,7 +139,7 @@ endif
 
 ifeq ($(COMPCERT_BUILD_FROM_SRC),false)
   ifeq ($(wildcard $(COMPCERT_INST_DIR)/*/Clight.vo), )
-    $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT_INST_DIR); make clightgen)
+    $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT_INST_DIR); $(MAKE) clightgen)
   endif
 endif
 
@@ -637,7 +637,7 @@ endif
 
 PROGS64_FILES=$(V64_ORDINARY)
 
-INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) BITSIZE=$(BITSIZE) ARCH=$(ARCH) util/calc_install_files $(PROGSDIR))
+INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) BITSIZE=$(BITSIZE) ARCH=$(ARCH) MAKE=$(MAKE) util/calc_install_files $(PROGSDIR))
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
