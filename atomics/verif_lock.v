@@ -5,6 +5,24 @@ Require Import VST.atomics.SC_atomics.
 Require Import VST.atomics.general_atomics.
 Require Import VST.atomics.lock.
 
+Definition funspec_sub (f1 f2 : funspec): Prop :=
+match f1 with
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+        (tpsig1=tpsig2 /\ cc1=cc2) /\
+        forall ts2 x2 (gargs:argsEnviron),
+        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
+         |-- (|={⊤}=> (EX ts1:_,  EX x1:_, EX F:_,
+                           (F * (P1 ts1 x1 gargs)) &&
+                               (!! (forall rho',
+                                           ((!!(ve_of rho' = Map.empty (Values.block * type))) &&
+                                                 (F * (Q1 ts1 x1 rho')))
+                                         |-- |={⊤}=> (Q2 ts2 x2 rho'))))))%I
+    end
+end.
+
+
 #[local] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -123,7 +141,7 @@ Section PROOFS.
 
   Lemma body_acquire: semax_body Vprog Gprog f_acquire acquire_spec.
   Proof.
-    start_function.
+    start_function. clear H.
     forward.
     forward.
     forward_loop (PROP ( )
@@ -149,7 +167,7 @@ Section PROOFS.
                          || !! (l = false) && atomic_int_at Ews (vint 1) p) ∅ ⊤
                      (λ (l : bool) (_ : ()),
                        fold_right_sepcon [!! (l = true) && atomic_int_at Ews (vint 1) p]) (λ _ : (), Q)), inv_names).
-      + assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H0].
+      + assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H].
         simpl fold_right_sepcon. cancel.
         iIntros "AS". iExists Ews.
         unfold atomic_shift at 1. unfold ashift.
@@ -171,8 +189,8 @@ Section PROOFS.
              { iRight; iFrame; auto. }
              iFrame; auto.
       + Intros r. destruct (eq_dec r (vint 0)).
-        * forward_if. 1: exfalso; apply H0'; auto. forward. entailer !.
-        * forward_if. 2: inversion H0. forward. entailer !.
+        * forward_if. 1: exfalso; apply H'; auto. forward. entailer !.
+        * forward_if. 2: inversion H. forward. entailer !.
   Qed.
 
   Definition lock_inv (l: val) (R: mpred): mpred :=
@@ -240,14 +258,101 @@ Section PROOFS.
   Lemma makelock_funspec_sub: funspec_sub (snd makelock_spec) makelock_spec2.
   Proof.
     split; auto. intros. simpl in *. destruct x2 as [gv R]. Intros.
-    match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end. iIntros "H !>".
-    iExists nil, gv, emp. rewrite emp_sepcon. iSplit; auto. iPureIntro. intros. Intros.
-    rewrite emp_sepcon. Intros x.
+    iIntros "H !>". iExists nil, gv, emp. rewrite emp_sepcon. iSplit; auto.
+    iPureIntro. intros. Intros. rewrite emp_sepcon. Intros x.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
     rewrite <- !exp_andp2. normalize. rewrite <- exp_sepcon2.
-    match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
     iIntros "(% & H1 & H2)". iSplitL "H1"; auto. iExists x. rewrite sepcon_emp.
-    unfold lock_inv.
+    unfold lock_inv. iApply make_inv. 2: iApply "H2". apply orp_right1. cancel.
   Abort.
+
+  Definition acquire_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * globals)) rmaps.Mpred.
+
+  Definition acquire_pre: val * globals * mpred -> argsEnviron -> mpred :=
+    fun args =>
+      match args with
+      | (v, gv, R) =>
+          PROP ()
+               PARAMS (v) GLOBALS (gv)
+               SEP (mem_mgr gv; lock_inv v R)
+      end%argsassert.
+
+  Notation acquire_post :=
+    (fun args =>
+       match args with
+       | (v, gv, R) =>
+           PROP ()
+                LOCAL ()
+                SEP (mem_mgr gv; lock_inv v R; R)
+       end).
+
+  Lemma NP_acquire_pre: @args_super_non_expansive acquire_arg_type (fun _ => acquire_pre).
+  Proof.
+    hnf.
+    intros.
+    destruct x as [[v gv] R]; simpl in *.
+    unfold PROPx. simpl. do 2 rewrite approx_andp. f_equal.
+    unfold LAMBDAx. do 2 rewrite approx_andp. f_equal.
+    unfold GLOBALSx, LOCALx. simpl. do 2 rewrite approx_andp. f_equal.
+    unfold argsassert2assert, SEPx. simpl. do 2 rewrite sepcon_emp.
+    do 2 rewrite approx_sepcon. f_equal.
+    apply nonexpansive_super_non_expansive. apply nonexpansive_lock_inv.
+  Qed.
+
+  Lemma NP_acquire_post: @super_non_expansive acquire_arg_type (fun _ => acquire_post).
+  Proof.
+    hnf.
+    intros.
+    destruct x as [[v gv] R]; simpl in *.
+    apply (nonexpansive_super_non_expansive
+             (fun R => (PROP ()  LOCAL ()  SEP (mem_mgr gv; lock_inv v R; R)) rho)).
+    apply (PROP_LOCAL_SEP_nonexpansive
+             nil
+             nil
+             ((fun R: mpred => mem_mgr gv) :: (fun R => lock_inv v R) :: (fun R => R) :: nil));
+      constructor.
+    - apply const_nonexpansive.
+    - constructor.
+      + apply nonexpansive_lock_inv.
+      + constructor; [apply identity_nonexpansive | constructor].
+  Qed.
+
+  Definition acquire_spec2: funspec := mk_funspec
+                                        (tptr t_lock :: nil, tvoid)
+                                        cc_default
+                                        acquire_arg_type
+                                        (fun _ => acquire_pre)
+                                        (fun _ => acquire_post)
+                                        NP_acquire_pre
+                                        NP_acquire_post.
+
+  Lemma acquire_funspec_sub: funspec_sub (snd acquire_spec) acquire_spec2.
+  Proof.
+    split; auto. intros. simpl in *. destruct x2 as [[v gv] R]. Intros.
+    unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
+    iExists (((v, gv), R), inv_names), emp. simpl in *. rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. normalize.
+      iDestruct "H" as "(% & H1 & H2 & H3)". iSplit.
+      + admit.
+      + iSplit; auto. unfold argsassert2assert. iSplitL "H3"; auto. unfold lock_inv.
+        iDestruct "H3" as (i) "H". iApply inv_atomic_shift; eauto.
+        3: { rewrite <- (sepcon_emp (invariant i (atomic_int_at Ews (vint 0) v * R || atomic_int_at Ews (vint 1) v))).
+             iApply "H". }
+        * apply empty_subseteq.
+        * rewrite later_orp. iIntros "[H|H]".
+          -- iIntros "!>". iExists true. rewrite later_sepcon. normalize.
+             iDestruct "H" as "(H1 & H2)". iSplitL "H1".
+             ++ iApply orp_right1. 2: iApply "H1". admit.
+             ++ iSplit.
+                ** iIntros "[H1 | [% H3]]". 2: exfalso; inversion H1.
+                   iIntros "!>". iApply orp_right1. apply derives_refl.
+                   iSplitL "H1"; auto.
+                ** iIntros (_) "(H1 & H3) !>". iSplitR "H2". 2: admit.
+                   iApply orp_right2. apply derives_refl.
+                   iApply now_later. admit.
+          --
+
+  Abort.
+
 
 End PROOFS.
