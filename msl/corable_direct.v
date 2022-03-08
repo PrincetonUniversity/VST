@@ -67,7 +67,7 @@ Proof.
   eapply H0; eauto.
 Qed.
 
-Lemma corable_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma corable_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall P Q, corable P -> corable Q -> corable (P * Q).
 Proof.
   intros.
@@ -88,7 +88,7 @@ Proof.
     congruence.
 Qed.
 
-Lemma corable_wand: forall {A:Type} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} (P Q: pred A), corable P -> corable Q -> corable (P -* Q).
+Lemma corable_wand: forall {A:Type} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {FA: Flat_alg A} (P Q: pred A), corable P -> corable Q -> corable (P -* Q).
 Proof.
   intros.
   rewrite corable_spec in H, H0 |- *.
@@ -105,7 +105,7 @@ Proof.
     congruence.
 Qed.
 
-Lemma corable_andp_sepcon1{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma corable_andp_sepcon1{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
    forall P Q R, corable P ->  (P && Q) * R = P && (Q * R).
 Proof.
 intros.

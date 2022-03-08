@@ -64,8 +64,7 @@ Global Program Instance pos_PCM (P : Ghost) : Ghost := { G := option (share * G)
   | Some (sh, a), None, Some c' | None, Some (sh, a), Some c' => c' = (sh, a)
   | None, None, None => True
   | _, _, _ => False
-  end(*;
-  core2 a := None*) }.
+  end }.
 Next Obligation.
 repeat split; intros; intro X; decompose [and] X; congruence.
 Qed.
@@ -79,6 +78,7 @@ Next Obligation.
 repeat split; intros; intro X; decompose [and] X; congruence.
 Qed.
 Next Obligation.
+apply fsep_sep.
 exists (fun _ => None); auto.
 intros [[]|]; constructor.
 Defined.
@@ -121,17 +121,13 @@ Local Obligation Tactic := idtac.
 Global Program Instance ref_PCM (P : Ghost) : Ghost :=
 { valid a := valid (fst a) /\ match snd a with Some r => completable (fst a) r | None => True end;
   Join_G a b c := @Join_G (pos_PCM P) (fst a) (fst b) (fst c) /\
-    @psepalg.Join_lower _ (psepalg.Join_discrete _) (snd a) (snd b) (snd c)(*;
-  core2 a := (None, None)*) }.
+    @psepalg.Join_lower _ (psepalg.Join_discrete _) (snd a) (snd b) (snd c) }.
 Next Obligation.
-  intros P; apply sepalg_generators.Sep_prod.
-  + apply @Sep_G.
-  + apply psepalg.Sep_option.
+  intros P; apply sepalg_generators.Sep_prod; try apply _.
+  apply fsep_sep, _.
 Defined.
 Next Obligation.
-  intros P; apply sepalg_generators.Perm_prod.
-  + apply @Perm_G.
-  + apply psepalg.Perm_option.
+  intros P; apply sepalg_generators.Perm_prod; typeclasses eauto.
 Qed.
 (*Next Obligation.
   intros; hnf.
@@ -156,7 +152,7 @@ Qed.
 End Reference.
 
 Program Instance exclusive_PCM A : Ghost :=
-  { valid a := True; Join_G := Join_lower (Join_discrete A)(*; core2 a := None*) }.
+  { valid a := True; Join_G := Join_lower (Join_discrete A) }.
 (*Next Obligation.
 Proof.
   eexists; constructor.
@@ -258,19 +254,23 @@ Global Program Instance snap_PCM : Ghost :=
         else ord (snd a) (snd b) /\ snd c = snd b else snd c = snd a /\
           if eq_dec (fst b) Share.bot then ord (snd b) (snd a) else snd c = snd b }.
 Next Obligation.
-  exists (fun '(sh, a) => (Share.bot, core a)); repeat intro.
+  exists (fun '(sh, a) => (Share.bot, a)); repeat intro.
   + destruct t; constructor; auto; simpl.
     rewrite eq_dec_refl.
-    if_tac; [apply core_unit | split; auto].
-    rewrite join_ord_eq; eexists; apply core_unit.
-  + destruct a, b, c; f_equal.
-    inv H; simpl in *.
-    destruct (eq_dec t Share.bot); [|destruct H1; subst; auto].
-    subst; apply bot_identity in H0; subst.
-    destruct (eq_dec t1 Share.bot); [|destruct H1; subst; auto].
-    * eapply join_core; eauto.
-    * apply join_ord_eq in H; destruct H.
-      eapply join_core; eauto.
+    if_tac; [apply join_refl | split; auto].
+    reflexivity.
+  + destruct a, c, H as [? Hj].
+    assert (join_sub g g0) as [].
+    { if_tac in Hj. if_tac in Hj.
+      eexists; eauto.
+      destruct Hj; simpl in *; subst.
+      apply join_ord_eq; auto.
+      destruct Hj; simpl in *; subst.
+      apply join_sub_refl. }
+    eexists (_, _). split; simpl.
+    * apply join_bot_eq.
+    * rewrite !eq_dec_refl; eauto.
+  + destruct a; reflexivity.
 Defined.
 Next Obligation.
   constructor.

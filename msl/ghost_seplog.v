@@ -25,7 +25,7 @@ Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
   own_update_ND: forall {RA: Ghost} g (a: G) B pp, fp_update_ND a B ->
     own g a pp |-- bupd (EX b : _, !!(B b) && own g b pp);
   own_dealloc: forall {RA: Ghost} g (a: G) pp,
-    own g a pp |-- bupd emp
+    own g a pp |-- emp
   }.
 
 Notation "|==> P" := (bupd P) (at level 99, P at level 200): logic.
@@ -102,7 +102,8 @@ Proof.
   erewrite own_op by apply core_unit.
   eapply derives_trans; [apply own_valid_2|].
   apply prop_left; intros (a' & J & ?); apply prop_right.
-  apply core_identity in J; subst; auto.
+  assert (a = a') as ->; auto.
+  eapply join_eq; eauto; apply core_unit.
 Qed.
 
 Lemma own_sub: forall `{BupdSepLog} {RA: Ghost} g (a b: G) pp,

@@ -1,6 +1,7 @@
 Require Import VST.msl.base.
 Require Import VST.msl.ageable.
 Require Import VST.msl.functors.
+Require Import VST.msl.predicates_hered.
 Import VST.msl.functors.MixVariantFunctor.
 Import VST.msl.functors.MixVariantFunctorLemmas.
 
@@ -78,6 +79,54 @@ Module Type KNOT__MIXVARIANT_HERED_T_OTH_REL.
       knot_rel  k' k'' ->
       ORel o o' ->
       T_rel (p (k,o)) (p (k'',o'))).
+
+  Program Instance ext_knot : Ext_ord knot := { ext_order := knot_rel }.
+  Next Obligation.
+  Proof.
+    unfold knot_rel. split.
+    - intros k.
+      destruct (unsquash k); split; auto.
+      apply Rel_refl.
+    - intros k1 k2 k3.
+      destruct (unsquash k1), (unsquash k2), (unsquash k3).
+      intros [] []; subst; split; auto.
+      eapply Rel_trans; eauto.
+  Qed.
+  Next Obligation.
+  Proof.
+    intros ?????.
+    unfold age, knot_rel in *. rewrite knot_age1 in H.
+    destruct (unsquash y) eqn: Hy.
+    destruct n; inv H; simpl.
+    destruct (unsquash z) eqn: Hz.
+    destruct H0 as [? H0]; subst.
+    exists (squash (n, _f0)).
+    - rewrite !unsquash_squash.
+      split; auto.
+      apply Rel_fmap; auto.
+    - rewrite knot_age1, Hz; auto.
+  Qed.
+  Next Obligation.
+  Proof.
+    unfold age, knot_rel in *. rewrite knot_age1 in H0.
+    destruct (unsquash a) eqn: Ha.
+    destruct n; inv H0.
+    destruct (unsquash b) eqn: Hb.
+    destruct H as [? H]; subst.
+    exists (squash (n, _f0)).
+    split.
+    - rewrite knot_age1, Hb; auto.
+    - rewrite !unsquash_squash; split; auto.
+      apply Rel_fmap; auto.
+  Qed.
+  Next Obligation.
+  Proof.
+    rewrite !knot_level. unfold knot_rel in H.
+    destruct (unsquash a), (unsquash b), H; auto.
+  Qed.
+
+  Lemma knot_order : ext_order = knot_rel.
+  Proof. reflexivity. Qed.
 
 End KNOT__MIXVARIANT_HERED_T_OTH_REL.
 
@@ -890,6 +939,75 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     intros; reflexivity.
   Qed.
 
+  Program Instance ext_knot : Ext_ord knot := { ext_order := knot_rel }.
+  Next Obligation.
+  Proof.
+    unfold knot_rel. split.
+    - intros k.
+      destruct (unsquash k); split; auto.
+      apply Rel_refl.
+    - intros k1 k2 k3.
+      destruct (unsquash k1), (unsquash k2), (unsquash k3).
+      intros [] []; subst; split; auto.
+      eapply Rel_trans; eauto.
+  Qed.
+(*  Next Obligation.
+  Proof.
+    intros ?????.
+    unfold age, knot_rel in *. rewrite knot_age1 in H0.
+    destruct (unsquash z) eqn: Hz.
+    destruct n; inv H0.
+    rewrite unsquash_squash in H.
+    destruct (unsquash x) eqn: Hx.
+    destruct H as [? H]; subst.
+    exists (squash (S n0, _f0)); simpl.
+    - rewrite knot_age1, unsquash_squash.
+      f_equal; apply unsquash_inj.
+      rewrite unsquash_squash, Hx.
+      rewrite fmap_app, <- (approx_approx1 1), <- (approx_approx2 1), <- (unsquash_approx Hx).
+      reflexivity.
+    - rewrite unsquash_squash; split; auto.
+      rewrite (unsquash_approx Hz); rewrite (unsquash_approx Hx) in *.
+      rewrite fmap_app, <- (approx_approx1 1), <- (approx_approx2 1).
+      (* may not be true: the unaged pred may not be in Rel even if the aged one is *)
+      admit.
+  Admitted.*)
+  Next Obligation.
+  Proof.
+    intros ?????.
+    unfold age, knot_rel in *. rewrite knot_age1 in H.
+    destruct (unsquash y) eqn: Hy.
+    destruct n; inv H; simpl.
+    destruct (unsquash z) eqn: Hz.
+    destruct H0 as [? H0]; subst.
+    exists (squash (n, _f0)); simpl.
+    - split; auto.
+      do 2 apply Rel_fmap; auto.
+    - rewrite knot_age1, Hz; auto.
+  Qed.
+  Next Obligation.
+  Proof.
+    unfold age, knot_rel in *. rewrite knot_age1 in H0.
+    destruct (unsquash a) eqn: Ha.
+    destruct n; inv H0.
+    destruct (unsquash b) eqn: Hb.
+    destruct H as [? H]; subst.
+    exists (squash (n, _f0)).
+    split.
+    - rewrite knot_age1, Hb; auto.
+    - rewrite !unsquash_squash; split; auto.
+      rewrite fmap_app, unstrat_strat.
+      apply Rel_fmap; auto.
+  Qed.
+  Next Obligation.
+  Proof.
+    rewrite !knot_level. unfold knot_rel in H.
+    destruct (unsquash a), (unsquash b), H; auto.
+  Qed.
+
+  Lemma knot_order : ext_order = knot_rel.
+  Proof. reflexivity. Qed.
+
 End Knot_MixVariantHeredTOthRel.
 
 Module KnotLemmas1.
@@ -1084,10 +1202,17 @@ Module Type KNOT_FULL.
   Definition knot : Type := KO.K0.knot.
   Definition ageable_knot : ageable knot := KO.K0.ageable_knot.
   Existing Instance ageable_knot.
+  Definition ext_knot : Ext_ord knot := KO.K0.ext_knot.
+  Existing Instance ext_knot.
   Definition predicate: Type := KO.predicate.
 
-  Parameter squash : (nat * F predicate) -> knot.
-  Parameter unsquash : knot -> (nat * F predicate).
+  Definition squash : (nat * KI.F predicate) -> knot :=
+    fun k => KO.K0.squash
+     (fst k, fmap KI.F (bij_f _ _ KO.pkp) (bij_g _ _ KO.pkp) (snd k)).
+
+  Definition unsquash : knot -> (nat * KI.F predicate) :=
+    fun k => let (n, f) := KO.K0.unsquash k in
+      (n, fmap KI.F (bij_g _ _ KO.pkp) (bij_f _ _ KO.pkp) f).
 
   Parameter approx : nat -> predicate -> predicate.
 
@@ -1158,6 +1283,8 @@ Module KnotFull
   Definition knot: Type := KO.K0.knot.
   Definition ageable_knot : ageable knot := KO.K0.ageable_knot.
   Existing Instance ageable_knot.
+  Definition ext_knot : Ext_ord knot := KO.K0.ext_knot.
+  Existing Instance ext_knot.
   Definition predicate: Type := KO.predicate.
 
   Definition squash : (nat * KI.F predicate) -> knot :=

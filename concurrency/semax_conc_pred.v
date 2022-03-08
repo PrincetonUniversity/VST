@@ -145,53 +145,31 @@ Definition exclusive_mpred (R : mpred) :=
 
 Create HintDb exclusive.
 
+(*  (! (R <=> Q * |>lock_inv sh v R))%pred.
+
 Program Definition weak_exclusive_mpred (P: mpred): mpred :=
-  fun w => exclusive_mpred (approx (S (level w)) P).
+  unfash (fun n => exclusive_mpred (approx (S n) P)).
 Next Obligation.
-  intros; hnf; intros.
-  unfold exclusive_mpred in *.
-  apply age_level in H.
+  unfold exclusive_mpred; intros; hnf; intros.
+  apply age_level in H; simpl in H; unfold natLevel in H; subst.
   eapply derives_trans, H0.
-  apply sepcon_derives; apply approx_derives_ge; lia.
-Defined.
+  apply sepcon_derives; apply approx_derives_ge; auto.
+Defined.*)
+
+Program Definition weak_exclusive_mpred (P: mpred): mpred :=
+  (! (P * P >=> FF))%pred.
 
 Lemma corable_weak_exclusive R : seplog.corable (weak_exclusive_mpred R).
 Proof.
-  change (corable.corable (weak_exclusive_mpred R)).
-  intro; simpl.
-  rewrite level_core; auto.
+  apply assert_lemmas.corable_unfash, _.
 Qed.
 
 Lemma exclusive_mpred_nonexpansive:
   nonexpansive weak_exclusive_mpred.
 Proof.
-  hnf; intros.
-  intros n ?.
-  simpl in H |- *.
-  assert (forall y, (n >= level y)%nat -> (P y <-> Q y)).
-  {
-    intros; specialize (H y H0).
-    destruct H.
-    specialize (H y). spec H; [auto |].
-    specialize (H1 y). spec H1; [auto |].
-    tauto.
-  }
-  clear H.
-  intros; split; intros.
-  + unfold exclusive_mpred in *.
-    eapply derives_trans, H2.
-    match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
-    intros ? (? & ? & J & [] & []).
-    pose proof (join_level _ _ _ J) as [].
-    apply necR_level in H1.
-    do 3 eexists; eauto; split; split; try lia; apply H0; auto; lia.
-  + unfold exclusive_mpred in *.
-    eapply derives_trans, H2.
-    match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
-    intros ? (? & ? & J & [] & []).
-    pose proof (join_level _ _ _ J) as [].
-    apply necR_level in H1.
-    do 3 eexists; eauto; split; split; try lia; apply H0; auto; lia.
+  unfold weak_exclusive_mpred, nonexpansive; intros.
+  apply eqp_unfash, eqp_subp_subp, eqp_refl.
+  apply eqp_sepcon; auto.
 Qed.
 
 Definition lock_inv : share -> val -> mpred -> mpred :=
@@ -226,7 +204,7 @@ Qed.
 #[export] Hint Resolve lock_inv_saturate_local : saturate_local.
 
 
-Lemma unfash_fash_equiv: forall P Q: mpred,
+(*Lemma unfash_fash_equiv: forall P Q: mpred,
   (P <=> Q)%pred |--
   ((subtypes.unfash (subtypes.fash P): mpred) <=> (subtypes.unfash (subtypes.fash Q): mpred))%pred.
 Proof.
@@ -359,7 +337,7 @@ Proof.
     apply laterR_level in H4.
     rewrite H0 by lia.
     auto.
-Qed.
+Qed.*)
 
 Lemma nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
 Proof.
@@ -373,7 +351,6 @@ Proof.
   apply @const_nonexpansive.
 
   unfold LKspec.
-  apply conj_nonexpansive, const_nonexpansive.
   apply forall_nonexpansive; intros.
   hnf; intros.
   intros n ?.
@@ -382,30 +359,32 @@ Proof.
     clear - H.
     intros; specialize (H y H0).
     destruct H.
-    specialize (H y). spec H; [auto |].
-    specialize (H1 y). spec H1; [auto |].
+    specialize (H _ _ (necR_refl _) (ext_refl _)).
+    specialize (H1 _ _ (necR_refl _) (ext_refl _)).
     tauto.
   }
   simpl; split; intros.
   + if_tac; auto.
-    destruct H3 as [p0 ?].
+    destruct H4 as [p0 ?].
     exists p0.
-    rewrite H3; f_equal.
+    rewrite H4; f_equal.
     f_equal.
     extensionality ts; clear ts.
-    clear H3 H4 p0.
+    clear H4 H5 p0.
+    apply ext_level in H3 as <-.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
       rewrite <- H0 by lia; auto.
     - apply necR_level in H2.
       rewrite H0 by lia; auto.
   + if_tac; auto.
-    destruct H3 as [p0 ?].
+    destruct H4 as [p0 ?].
     exists p0.
-    rewrite H3; f_equal.
+    rewrite H4; f_equal.
     f_equal.
     extensionality ts; clear ts.
-    clear H3 H4 p0.
+    clear H4 H5 p0.
+    apply ext_level in H3 as <-.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
       rewrite H0 by lia; auto.
@@ -416,19 +395,10 @@ Qed.
 Lemma rec_inv1_nonexpansive: forall sh v Q,
   nonexpansive (weak_rec_inv sh v Q).
 Proof.
-  intros.
-  unfold weak_rec_inv.
-  intros P1 P2.
-  eapply predicates_hered.derives_trans; [| apply unfash_fash_equiv].
-  eapply predicates_hered.derives_trans; [| apply iffp_equiv].
-  apply predicates_hered.andp_right; auto.
-  eapply predicates_hered.derives_trans; [| apply sepcon_equiv].
-  apply predicates_hered.andp_right.
-  {
-    intros n ?.
-    split; intros; hnf; intros; auto.
-  }
-  rewrite <- subtypes.eqp_later.
+  unfold weak_rec_inv, nonexpansive; intros.
+  apply eqp_unfash, eqp_eqp; auto.
+  apply eqp_sepcon; [apply eqp_refl|].
+  eapply predicates_hered.derives_trans, subtypes.eqp_later1.
   eapply predicates_hered.derives_trans, predicates_hered.now_later.
   apply nonexpansive_lock_inv.
 Qed.
@@ -436,21 +406,12 @@ Qed.
 Lemma rec_inv2_nonexpansive: forall sh v R,
   nonexpansive (fun Q => weak_rec_inv sh v Q R).
 Proof.
-  intros.
-  unfold weak_rec_inv.
-  intros P1 P2.
-  eapply predicates_hered.derives_trans; [| apply unfash_fash_equiv].
-  eapply predicates_hered.derives_trans; [| apply iffp_equiv].
-  apply predicates_hered.andp_right.
-  {
-    intros n ?.
-    split; intros; hnf; intros; auto.
-  }
-  eapply predicates_hered.derives_trans; [| apply sepcon_equiv].
-  apply predicates_hered.andp_right; auto.
-
-  intros n ?.
-  split; intros; hnf; intros; auto.
+  unfold weak_rec_inv, nonexpansive; intros.
+  apply eqp_unfash, eqp_eqp; [apply eqp_refl|].
+  apply eqp_sepcon; auto.
+  eapply predicates_hered.derives_trans, subtypes.eqp_later1.
+  eapply predicates_hered.derives_trans, predicates_hered.now_later.
+  apply eqp_refl.
 Qed.
 
 Lemma exclusive_weak_exclusive: forall R,
@@ -458,11 +419,8 @@ Lemma exclusive_weak_exclusive: forall R,
   TT |-- weak_exclusive_mpred R.
 Proof.
   intros.
-  constructor; change (predicates_hered.derives TT (weak_exclusive_mpred R)).
-  intros w _.
-  simpl.
-  eapply derives_trans, H.
-  apply sepcon_derives; apply approx_derives.
+  constructor; intros ?????????.
+  eapply H; auto.
 Qed.
 
 Lemma rec_inv_weak_rec_inv: forall sh v Q R,
@@ -470,10 +428,8 @@ Lemma rec_inv_weak_rec_inv: forall sh v Q R,
   TT |-- weak_rec_inv sh v Q R.
 Proof.
   intros.
-  constructor; change (predicates_hered.derives TT (weak_rec_inv sh v Q R)).
-  intros w _.
-  hnf in H |- *.
-  intros.
-  rewrite H at 1 4.
-  split; intros; hnf; intros; auto.
+  unfold weak_rec_inv.
+  constructor. intros ? _ ??; split; intros ?????.
+  - rewrite H in * |-; auto.
+  - rewrite H; auto.
 Qed.

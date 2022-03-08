@@ -34,7 +34,7 @@ Proof.
   exact own_alloc.
 Qed.
 
-Lemma own_dealloc : forall g (a : G) (pp : preds), own g a pp |-- |==> emp.
+Lemma own_dealloc : forall g (a : G) (pp : preds), own g a pp |-- emp.
 Proof.
   exact own_dealloc.
 Qed.
@@ -84,18 +84,16 @@ Qed.
 
 Lemma own_list_dealloc : forall {A} f (l : list A),
   (forall b, exists g a pp, f b |-- own g a pp) ->
-  iter_sepcon f l |-- |==> emp.
+  iter_sepcon f l |-- emp.
 Proof.
-  intros; induction l; simpl.
-  - apply bupd_intro.
-  - eapply derives_trans; [apply sepcon_derives, IHl|].
-    + destruct (H a) as (? & ? & ? & Hf).
-      eapply derives_trans; [apply Hf | apply own_dealloc].
-    + eapply derives_trans, bupd_mono; [apply bupd_sepcon | cancel].
+  intros; induction l; simpl; auto.
+  eapply derives_trans; [apply sepcon_derives, IHl | rewrite emp_sepcon; auto].
+  destruct (H a) as (? & ? & ? & Hf).
+  eapply derives_trans; [apply Hf | apply own_dealloc].
 Qed.
 
 Lemma own_list_dealloc' : forall {A} g a p (l : list A),
-  iter_sepcon (fun x => own (g x) (a x) (p x)) l |-- |==> emp.
+  iter_sepcon (fun x => own (g x) (a x) (p x)) l |-- emp.
 Proof.
   intros; apply own_list_dealloc.
   do 3 eexists; apply derives_refl.
@@ -379,7 +377,7 @@ Proof.
 Qed.
 
 Lemma part_ref_update : forall g sh a r a' r' pp
-  (Ha' : forall b, join a b r -> join a' b r'),
+  (Ha' : forall b, join a b r -> join a' b r' /\ (a = r -> a' = r')),
   own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
   own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
 Proof.
@@ -393,6 +391,7 @@ Proof.
       + destruct Hvalid as (? & ? & ? & ?); eexists; eauto.
       + inv Hvalid; apply join_sub_refl. }
     destruct (join_assoc Hx J) as (b & Jc & Jb%Ha').
+    destruct Jb as [Jb Heq].
     destruct (join_assoc (join_comm Jc) (join_comm Jb)) as (x' & Hx' & Hr').
     exists (Some (shx, x'), Some r'); repeat (split; auto); try constructor; simpl.
     + destruct Hvalid as (d & Hvalid); hnf in Hvalid.
@@ -403,12 +402,14 @@ Proof.
         eapply join_eq; [apply Ha'|]; eauto.
   - inv J1.
     exists (Some (sh, a'), Some r'); repeat split; simpl; auto; try constructor.
+    unfold completable in *.
     destruct Hvalid as (d & Hvalid); hnf in Hvalid.
     exists d; destruct d as [(shd, d)|]; hnf.
     + destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
-    + inv Hvalid; f_equal.
-      symmetry; eapply core_identity.
-      apply join_comm, Ha', join_comm, core_unit.
+      eapply Ha'; auto.
+    + inv Hvalid. f_equal.
+      symmetry; eapply Ha'; auto.
+      apply join_comm, core_unit.
 Qed.
 
 Corollary ref_add : forall g sh a r b a' r' pp
@@ -419,6 +420,8 @@ Proof.
   intros; apply part_ref_update; intros c J.
   destruct (join_assoc (join_comm J) Hr) as (? & ? & ?).
   eapply join_eq in Ha; eauto; subst; auto.
+  split; auto; intros; subst.
+  eapply join_eq; eauto.
 Qed.
 
 End Reference.
@@ -500,8 +503,9 @@ Section PVar.
 
 Global Program Instance nat_PCM: Ghost := { valid a := True; Join_G a b c := c = Nat.max a b }.
 Next Obligation.
-  exists (fun _ => O); auto; intros.
-  apply Nat.max_0_l.
+  exists (id _); auto; intros.
+  - hnf. symmetry; apply Nat.max_id.
+  - eexists; eauto.
 Defined.
 Next Obligation.
   constructor.
@@ -524,7 +528,7 @@ Proof.
     split; [apply Nat.le_max_l | apply Nat.le_max_r].
   - hnf.
     rewrite Nat.max_l; auto.
-Defined.
+Qed.
 
 Lemma ghost_snap_join_N : forall v1 v2 p, ghost_snap v1 p * ghost_snap v2 p = ghost_snap (Nat.max v1 v2) p.
 Proof.
@@ -1001,8 +1005,10 @@ Qed.
 Global Program Instance map_disj_PCM : Ghost := { valid a := True; Join_G := map_disj_join }.
 Next Obligation.
   exists (fun _ => empty_map); auto; repeat intro.
-  simpl.
-  destruct (t k); auto.
+  - simpl.
+    destruct (t k); auto.
+  - exists empty_map; hnf.
+    intros; simpl; auto.
 Defined.
 Next Obligation.
   constructor.
@@ -1682,15 +1688,15 @@ Lemma wand_nonexpansive_l: forall P Q n,
 Proof.
   repeat intro.
   apply (nonexpansive_super_non_expansive (fun P => predicates_sl.wand P Q)).
-  split; intros ?? Hshift ??????.
+  split; intros ???? Hshift ??????.
   - eapply Hshift; eauto.
-    apply necR_level in H1; apply necR_level in H2.
-    apply join_level in H3 as [].
-    apply (H y0); auto; lia.
+    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
+    apply join_level in H4 as [].
+    eapply (H y0); auto; lia.
   - eapply Hshift; eauto.
-    apply necR_level in H1; apply necR_level in H2.
-    apply join_level in H3 as [].
-    apply (H y0); auto; lia.
+    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
+    apply join_level in H4 as [].
+    eapply (H y0); auto; lia.
 Qed.
 
 Lemma wand_nonexpansive_r: forall P Q n,
@@ -1698,15 +1704,15 @@ Lemma wand_nonexpansive_r: forall P Q n,
 Proof.
   repeat intro.
   apply (nonexpansive_super_non_expansive (fun Q => predicates_sl.wand P Q)).
-  split; intros ?? Hshift ??????.
-  - eapply Hshift in H4; eauto.
-    apply necR_level in H1; apply necR_level in H2.
-    apply join_level in H3 as [].
-    apply (H z); auto; lia.
-  - eapply Hshift in H4; eauto.
-    apply necR_level in H1; apply necR_level in H2.
-    apply join_level in H3 as [].
-    apply (H z); auto; lia.
+  split; intros ???? Hshift ??????.
+  - eapply Hshift in H5; eauto.
+    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
+    apply join_level in H4 as [].
+    eapply (H z); auto; lia.
+  - eapply Hshift in H5; eauto.
+    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
+    apply join_level in H4 as [].
+    eapply (H z); auto; lia.
 Qed.
 
 Lemma approx_bupd: forall P n, (approx n (own.bupd P) = (own.bupd (approx n P)))%logic.

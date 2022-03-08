@@ -75,14 +75,14 @@ Lemma allp_fun_id_sigcc_sub: forall Delta Delta' rho,
 Proof.
   intros.
   apply allp_derives; intros id.
-  intros w W fs u WU FS.
+  intros w W fs u ? WU EU FS.
   destruct H as [_ [_ [_ [_ [? _]]]]].
   specialize (H id).
   hnf in H.
   rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
-  destruct (W gs u WU GSA) as [b [B1 B2]].
-  exists b; split; [trivial | destruct fs; destruct gs].  
-  destruct GSB as [[GSBa GCBb] _]. subst c0 t0. trivial. 
+  destruct (W gs u _ WU EU GSA) as [b [B1 B2]].
+  exists b; split; [trivial | destruct fs; destruct gs].
+  destruct GSB as [[GSBa GCBb] _]. subst c0 t0. trivial.
 Qed.
 
 Lemma allp_fun_id_sub: forall Delta Delta' rho,
@@ -91,15 +91,15 @@ Lemma allp_fun_id_sub: forall Delta Delta' rho,
 Proof.
   intros.
   apply allp_derives; intros id.
-  intros w W fs u WU FS.
+  intros w W fs u ? WU EU FS.
   destruct H as [_ [_ [_ [_ [? _]]]]].
   specialize (H id).
   hnf in H.
   rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
-  destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
+  destruct (W gs u _ WU EU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
   simpl in X; inv X.
   exists bb; split; [trivial | ]. exists bb; split; [ reflexivity |].
-  exists hs; split; trivial. eapply funspec_sub_si_trans; split. apply HS. apply GSB.
+  exists hs; split; trivial. eapply funspec_sub_si_trans; split. apply HS. eapply pred_upclosed, GSB; auto.
 Qed.
 
 Lemma funassert_allp_fun_id Delta rho: funassert Delta rho |-- allp_fun_id Delta rho.
@@ -153,7 +153,7 @@ apply H.
 apply H0.
 Qed.
 *)
-Lemma prop_derives {A}{H: ageable A}:
+Lemma prop_derives {A}{H: ageable A}{EO: Ext_ord A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.
 intros. intros w ?; apply H0; auto.

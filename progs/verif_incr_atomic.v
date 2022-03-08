@@ -133,27 +133,33 @@ Lemma incr_inv_shift : forall {inv_names : invG} i g g1 g2 gv, (gv = g1 \/ gv = 
   atomic_shift (λ n : nat, public_half g n) ∅ ⊤
       (λ (n : nat) (_ : ()), fold_right_sepcon [public_half g (n + 1)%nat]) (λ _ : (), ghost_var gsh2 1%nat gv).
 Proof.
-  intros; apply inv_atomic_shift; auto.
-  { apply empty_subseteq. }
-  unfold cptr_inv; iIntros "c".
-  iDestruct "c" as (x y0) "[[>g1 >g2] >c]"; iModIntro.
-  iExists (x + y0)%nat; iFrame; iSplit.
-  - iIntros "c !>".
-    iExists x, y0; iFrame; auto.
-  - iIntros (_) "(>g & c & _)".
+  intros; unfold cptr_inv.
+  iIntros "[#inv g]".
+  iAuIntro.
+  rewrite /atomic_acc /=.
+  iMod (inv_open with "inv") as "[c Hclose]"; auto.
+  iDestruct "c" as (x y) "[[>g1 >g2] >c]".
+  iMod fupd_mask_subseteq as "Hclose'"; [|iModIntro]; first set_solver.
+  iExists (x + y)%nat; iFrame "c"; iSplit.
+  - iIntros "c". iFrame.
+    iMod "Hclose'" as "_"; iApply "Hclose".
+    iExists x, y; iFrame; auto.
+  - iIntros (_) "(c & _)".
     destruct H; subst.
     + iPoseProof (ghost_var_inj(A := nat) with "[$g1 $g]") as "%"; auto with share; subst.
       iMod (ghost_var_update with "[g1 g]") as "g1".
       { rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; iFrame. }
       rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
       iDestruct "g1" as "[g1 $]".
-      iExists 1%nat, y0; iFrame; auto.
+      iMod "Hclose'" as "_"; iApply "Hclose".
+      iExists 1%nat, y; iFrame; auto.
       rewrite Nat.add_0_l Nat.add_comm; auto.
     + iPoseProof (ghost_var_inj(A := nat) with "[$g2 $g]") as "%"; auto with share; subst.
       iMod (ghost_var_update with "[g2 g]") as "g2".
       { rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; iFrame. }
       rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
       iDestruct "g2" as "[g2 $]".
+      iMod "Hclose'" as "_"; iApply "Hclose".
       iExists x, 1%nat; iFrame; auto.
       rewrite Nat.add_0_r; auto.
 Qed.
@@ -197,9 +203,9 @@ Proof.
   { go_lower; apply make_wsat. }
   Intros inv_names.
   rewrite <- 2(ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; Intros.
-  gather_SEP 0 2 3 5; viewshift_SEP 0 (EX i, |> (wsat * invariant i (cptr_inv g g1 g2))).
+  gather_SEP wsat (public_half _ _) (ghost_var gsh1 _ _) (ghost_var gsh1 _ _); viewshift_SEP 0 (EX i, |> (wsat * invariant i (cptr_inv g g1 g2))).
   { go_lower.
-    apply make_inv'.
+    rewrite !sepcon_assoc; apply make_inv'.
     unfold cptr_inv.
     Exists O O; simpl; cancel. }
   Intros i.
@@ -223,17 +229,16 @@ Proof.
   gather_SEP (invariant _ _) (ghost_var _ _ g1) (ghost_var _ _ g2).
   forward_call (sh2, g, gv, fun n => !!(n = 2)%nat && ghost_var gsh2 1%nat g1 * ghost_var gsh2 1%nat g2, inv_names).
   { rewrite -> 4sepcon_assoc; apply sepcon_derives; cancel.
-    unfold atomic_shift; Exists (ghost_var gsh2 1%nat g1 * ghost_var gsh2 1%nat g2);
-      rewrite later_sepcon; cancel.
-    erewrite (add_andp (invariant _ _)) by apply invariant_cored; apply andp_derives; auto.
-    iIntros "I >[g1 g2]".
+    unfold atomic_shift.
+    iIntros "[[#I g1] g2]"; iAuIntro.
+    rewrite /atomic_acc /=.
     iMod (inv_open with "I") as "[>c H]"; auto.
     iDestruct "c" as (x y) "[gs c]"; iExists (x + y)%nat; iFrame "c".
     iMod (fupd_mask_subseteq) as "mask".
     { apply empty_subseteq. }
     iIntros "!>"; iSplit.
     - iIntros "lock"; iMod "mask" as "_".
-      iMod ("H" with "[-g1 g2]"); last by rewrite later_sepcon; iFrame; auto.
+      iMod ("H" with "[-g1 g2]"); last by iFrame.
       unfold cptr_inv.
       iExists x, y; iFrame; auto.
     - iIntros (z) "[[% c] _]".

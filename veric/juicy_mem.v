@@ -309,7 +309,7 @@ simpl in H.
 destruct (phi@loc); eauto 50.
 Qed.
 
-Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
+Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
              age phi1 phi1' -> age phi2 phi2' -> age phi3 phi3' ->
              join phi1 phi2 phi3 -> join phi1' phi2' phi3'.
 Proof.
@@ -319,7 +319,7 @@ unfold age in *.
 congruence.
 Qed.
 
-Lemma constructive_age1_join  {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall x y z x' : A,
+Lemma constructive_age1_join  {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall x y z x' : A,
        join x y z ->
        age x x' ->
        { yz' : A*A | join x' (fst yz') (snd yz') /\ age y (fst yz') /\ age z (snd yz')}.
@@ -342,7 +342,7 @@ unfold age in *.
 congruence.
 Qed.
 
-Lemma age1_constructive_joins_eq : forall {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}  {phi1 phi2},
+Lemma age1_constructive_joins_eq : forall {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}  {phi1 phi2},
   constructive_joins phi1 phi2
   -> forall {phi1'}, age1 phi1 = Some phi1'
   -> forall {phi2'}, age1 phi2 = Some phi2'
@@ -599,6 +599,55 @@ intros phi loc H.
 destruct (phi @ loc); try solve [inversion H].
 destruct k; try inv H.
 eauto.
+Qed.
+
+Lemma ext_ord_juicy_mem : forall m b, ext_order (m_phi m) b ->
+  exists m', m_dry m' = m_dry m /\ m_phi m' = b.
+Proof.
+  intros.
+  destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
+  apply rmap_order in H as (Hl & Hr & Hg); auto.
+Qed.
+
+Lemma ext_ord_juicy_mem' : forall m b, ext_order b (m_phi m) ->
+  exists m', m_dry m' = m_dry m /\ m_phi m' = b.
+Proof.
+  intros.
+  destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
+  apply rmap_order in H as (Hl & Hr & Hg); auto.
+Qed.
+
+Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
+  { ext_order a b := m_dry a = m_dry b /\ ext_order (m_phi a) (m_phi b) }.
+Next Obligation.
+Proof.
+  constructor; auto.
+  intros ??? [] []; split; etransitivity; eauto.
+Qed.
+Next Obligation.
+Proof.
+  intros ?? Hage ? [? Hext].
+  apply age1_juicy_mem_unpack in Hage as [? ?].
+  eapply age_ext_commut in Hext as [? ? Hage]; eauto.
+  destruct (age1_juicy_mem z) as [j|] eqn: Hz.
+  destruct (age1_juicy_mem_unpack _ _ Hz) as (Hage' & ?).
+  unfold age in *; rewrite Hage' in Hage; inv Hage.
+  exists j; eauto; split; auto; congruence.
+  { apply age1_juicy_mem_None1 in Hz. congruence. }
+Qed.
+Next Obligation.
+Proof.
+  apply age1_juicy_mem_unpack in H0 as [? ?].
+  eapply ext_age_compat in H1 as (? & Hage & ?); eauto.
+  destruct (age1_juicy_mem b) as [j|] eqn: Hb.
+  destruct (age1_juicy_mem_unpack _ _ Hb) as (Hage' & ?).
+  unfold age in *; rewrite Hage' in Hage; inv Hage.
+  exists j; split; auto; split; auto; congruence.
+  { apply age1_juicy_mem_None1 in Hb. congruence. }
+Qed.
+Next Obligation.
+Proof.
+  apply ext_level in H0; auto.
 Qed.
 
 (* resource coherence *)

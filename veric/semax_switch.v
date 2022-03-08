@@ -66,73 +66,51 @@ eapply derives_trans; [apply sepcon_derives; [apply H | apply derives_refl ] | ]
 apply extend_sepcon; apply extend_tc_expr.
 Qed.
 
-Lemma subp_trans':
-  forall A (NA: ageable A) (P Q R: pred A) w,  
-    app_pred (P >=> Q) w ->
-    app_pred (Q >=> R) w -> 
-    app_pred (P >=> R) w.
-Proof.
- repeat intro.
- eapply H0; eauto.
- eapply H; eauto.
-Qed.
-
 Lemma prop_subp:
-   forall A (NA: ageable A) (P Q: Prop) (w: nat),
-    (P -> Q) -> app_pred (!! P >=> !! Q)  w.
+   forall A (NA: ageable A) (EO: Ext_ord A) (P Q: Prop) (w: nat),
+    (P -> Q) -> app_pred (!! P >=> !! Q)%pred w.
 Proof.
-repeat intro. apply H. apply H2.
+repeat intro. apply H. apply H3.
 Qed.
 
 Lemma andp_subp'_right:
-  forall A (NA: ageable A) (P Q R: pred A) w,  
-    app_pred (P >=> Q) w ->
-    app_pred (P >=> R) w -> 
-    app_pred (P >=> Q && R) w.
+  forall A (NA: ageable A) (EO: Ext_ord A) (P Q R: pred A) w,  
+    app_pred (P >=> Q)%pred w ->
+    app_pred (P >=> R)%pred w -> 
+    app_pred (P >=> Q && R)%pred w.
 Proof.
 repeat intro.
 split. eapply H; eauto. eapply H0; eauto.
 Qed.
 
-Lemma prop_true_imp:
-  forall {A} {agA: ageable A} (P: Prop) (Q: pred A),
-   P ->   (!! P --> Q)%pred = Q.
-Proof.
-intros.
-apply pred_ext.
-intros ? ?. apply H0; auto.
-intros ? ? ? ? ?.
-eapply pred_nec_hereditary; eauto.
-Qed.
-
-Lemma prop_imp_right: forall A (agA: ageable A) (P: Prop) (Q R: pred A),
+Lemma prop_imp_right: forall A (agA: ageable A) (EO: Ext_ord A) (P: Prop) (Q R: pred A),
    (P -> (Q |-- R)) ->
    Q |-- !! P --> R.
 Proof.
 intros.
-intros w ? ? ? ?.
-apply H; auto. eapply pred_nec_hereditary; eauto.
+intros w ? ? ? ? ? ?.
+apply H; auto. eapply pred_upclosed, pred_nec_hereditary; eauto.
 Qed.
 
 Lemma imp_right:
- forall A (agA: ageable A) (P Q R : pred A),
+ forall A (agA: ageable A) (EO: Ext_ord A) (P Q R : pred A),
   (P && Q |-- R) ->
   P |-- Q --> R.
 Proof.
 intros.
-intros ? ? ? ? ?.
+intros ? ? ? ? ? ? ?.
 apply H.
 split; auto.
-eapply pred_nec_hereditary; eauto.
+eapply pred_upclosed, pred_nec_hereditary; eauto.
 Qed.
 
 Lemma prop_andp_subp':
-  forall (A : Type) (agA : ageable A) (P : Prop) (S: pred nat) (Q R : pred A),
+  forall (A : Type) (agA : ageable A) (EO : Ext_ord A) (P : Prop) (S: pred nat) (Q R : pred A),
   (P -> S |-- Q >=> R)%pred
   ->  (S  |--  !! P && Q >=> R)%pred.
 Proof.
 intros.
-intros ? ? ? ? ? ? [? ?].
+intros ? ? ? ? ? ? ? ? [? ?].
 eapply H; eauto.
 Qed.
 
@@ -144,8 +122,8 @@ repeat intro.
 eapply typecheck_expr_sound; eauto.
 Qed.
 
-Lemma unfash_allp:  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
-  @unfash _ agA (allp f) = allp (fun x:B => unfash (f x)).
+Lemma unfash_allp:  forall {A} {agA: ageable A} {EO: Ext_ord A} {B} (f: B -> pred nat),
+  @unfash _ agA _ (allp f) = allp (fun x:B => unfash (f x)).
 Proof.
 intros.
 apply pred_ext.
@@ -154,88 +132,11 @@ specialize (H b). auto.
 repeat intro. apply (H b).
 Qed.
 
-Lemma fash_TT: forall {A} {agA: ageable A}, @unfash A agA TT = TT.
-Proof.
-intros.
-apply pred_ext; intros ? ?; apply I.
-Qed.
-
-Lemma allp_andp: 
-  forall {A} {NA: ageable A} {B: Type} (b0: B) (P: B -> pred A) (Q: pred A),
-   (allp P && Q = allp (fun x => P x && Q))%pred.
-Proof.
-intros.
-apply pred_ext.
-intros ? [? ?] b. split; auto.
-intros ? ?.
-split.
-intro b. apply (H b).
-apply (H b0).
-Qed.
-
-Lemma unfash_prop_imp:
-  forall {A} {agA: ageable A} (P: Prop) (Q: pred nat),
-  (@unfash _ agA (prop P --> Q) = prop P --> @unfash _ agA Q)%pred.
-Proof.
-intros.
-apply pred_ext; repeat intro.
-apply H; auto. apply necR_level'; auto.
-hnf in H.
-specialize (H a (necR_refl _) H1).
-eapply pred_nec_hereditary; try apply H0.
-apply H.
-Qed.
-
-Import age_to.
-
-Lemma unfash_imp:
-  forall {A} {NA: ageable A} (P Q: pred nat),
-  (@unfash A _ (P --> Q) = (@unfash A _ P) --> @unfash A _ Q)%pred.
-Proof.
-intros.
-apply pred_ext; repeat intro.
-apply H; auto. apply necR_level'; auto.
-specialize (H (age_to a' a)).
-spec H.
-apply age_to_necR.
-spec H.
-do 3 red. 
-rewrite level_age_to; auto.
-apply necR_level in H0. apply H0.
-do 3 red in H.
-rewrite level_age_to in H; auto.
-apply necR_level in H0.
-apply H0.
-Qed.
-
-Lemma unfash_andp:  forall {A} {agA: ageable A} (P Q: pred nat),
-  (@unfash A agA (andp P Q) = andp (@unfash A agA P) (@unfash A agA Q)).
-Proof.
-intros.
-apply pred_ext.
-intros ? ?.
-destruct H.
-split; auto.
-intros ? [? ?].
-split; auto.
-Qed.
-
 Lemma andp_imp_e:
-  forall (A : Type) (agA : ageable A) (P Q : pred A),
+  forall (A : Type) (agA : ageable A) (EO : Ext_ord A) (P Q : pred A),
    P && (P --> Q) |-- Q.
 Proof.
 intros.
-intros ? [? ?].
-eapply H0; auto.
-Qed.
-
-Lemma andp_imp_e':
-  forall (A : Type) (agA : ageable A) (P Q : pred A),
-   P && (P --> Q) |-- P && Q.
-Proof.
-intros.
-apply andp_right.
-apply andp_left1; auto.
 intros ? [? ?].
 eapply H0; auto.
 Qed.
@@ -294,8 +195,8 @@ apply allp_right; intro vx'.
 Qed.
 
 Lemma unfash_fash_imp:
-  forall A (NA: ageable A) P Q,
-  @unfash A _ (# (P --> Q)) |-- P --> Q.
+  forall A (NA: ageable A) (EO : Ext_ord A) P Q,
+  @unfash A _ _ (# (P --> Q)) |-- P --> Q.
 Proof.
 intros.
 intros ? ?.
@@ -386,7 +287,7 @@ eapply derives_trans.
  eapply tc_expr_sound; eauto.
  eapply typecheck_environ_sub; eauto.
 rewrite andp_comm.
-rewrite (andp_comm (_ * _)).
+rewrite (andp_comm (_ * _)%pred).
 rewrite !andp_assoc.
 apply derives_extract_prop; intro H0'.
 destruct (typeof a) eqn:?; inv H.

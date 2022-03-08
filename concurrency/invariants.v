@@ -8,48 +8,6 @@ Require Import VST.veric.bi.
 Require Import VST.msl.sepalg.
 Require Import List.
 
-Definition cored : mpred := own.cored.
-
-Lemma cored_dup : forall P, P && cored |-- (P && cored) * (P && cored).
-Proof.
-  constructor; apply own.cored_dup.
-Qed.
-
-Lemma cored_dup_cored : forall P, P && cored |-- ((P && cored) * (P && cored)) && cored.
-Proof.
-  constructor; apply cored_dup_cored.
-Qed.
-
-Lemma cored_duplicable : cored = cored * cored.
-Proof.
-  apply own.cored_duplicable.
-Qed.
-
-Lemma own_cored: forall {RA: Ghost} g a pp, join a a a -> own g a pp |-- cored.
-Proof.
-  intros; constructor; apply own.own_cored; auto.
-Qed.
-
-Lemma cored_sepcon: forall P Q, (P && cored) * (Q && cored) |-- (P * Q) && cored.
-Proof.
-  constructor; apply cored_sepcon.
-Qed.
-
-Lemma cored_dup_gen : forall P, (P |-- cored) -> P |-- P * P.
-Proof.
-  unseal_derives; exact cored_dup_gen.
-Qed.
-
-Lemma cored_emp: (cored |-- (|==> emp)%I)%I.
-Proof.
-  constructor; apply own.cored_emp.
-Qed.
-
-Lemma emp_cored : (emp |-- cored)%I.
-Proof.
-  constructor; apply own.emp_cored.
-Qed.
-
 Lemma iter_sepcon_eq : forall A, @invariants.iter_sepcon A = @iter_sepcon mpred A _ _.
 Proof.
   intros; extensionality f; extensionality l.
@@ -75,14 +33,24 @@ Section Invariants.
 
 Context {inv_names : invG}.
 
-Lemma invariant_dup : forall i P, invariant i P = invariant i P * invariant i P.
+Global Instance agree_persistent g P : Persistent (agree g P : mpred).
 Proof.
-  exact invariant_dup.
+  apply core_persistent; auto.
 Qed.
 
-Lemma invariant_cored : forall i P, invariant i P |-- cored.
+Global Instance inv_persistent i P : Persistent (invariant i P).
 Proof.
-  constructor; apply invariant_cored.
+  apply _.
+Qed.
+
+Global Instance inv_affine i P : Affine (invariant i P).
+Proof.
+  apply _.
+Qed.
+
+Lemma invariant_dup : forall i P, invariant i P = invariant i P * invariant i P.
+Proof.
+  intros; apply pred_ext; rewrite <- (bi.persistent_sep_dup (invariant i P)); auto.
 Qed.
 
 Lemma wsat_alloc : forall P, wsat * |> P |-- (|==> wsat * EX i : _, invariant i P)%I.
@@ -208,7 +176,7 @@ Proof.
     erewrite nth_map' with (d' := 0) in H0 by (rewrite upto_length; lia).
     erewrite nth_upto in H0 by lia.
     destruct (Znth (Z.of_nat i) lb); inv H0; iPureIntro; eauto. }
-  iMod (@own_dealloc (snap_PCM(ORD := list_order _)) with "snap").
+  iDestruct "snap" as "_".
   iModIntro.
   destruct Hi as (? & ? & b & Hi).
   assert (nth i lb None = Some b) as Hi' by (rewrite <- nth_Znth' in Hi; auto).
@@ -280,7 +248,7 @@ Proof.
     erewrite nth_map' with (d' := 0) in H0 by (rewrite upto_length; lia).
     erewrite nth_upto in H0 by lia.
     destruct (Znth (Z.of_nat i) lb); inv H0; eauto. }
-  iMod (@own_dealloc (snap_PCM(ORD := list_order _)) with "snap").
+  iDestruct "snap" as "_".
   iModIntro.
   destruct Hi as (? & ? & b & Hi).
   assert (nth i lb None = Some b) as Hi' by (rewrite <- nth_Znth' in Hi; auto).
@@ -339,13 +307,23 @@ Proof.
   - unfold Ensembles.In; auto.
 Qed.
 
-Lemma invariant_dealloc : forall i P, invariant i P |-- |==> emp.
-Proof.
-  constructor; apply invariant_dealloc.
-Qed.
-
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
    in veric (a la own). *)
+
+(*
+
+need to do namespaces if we want to use iInv!
+
+Global Instance into_inv_inv N P : IntoInv (invariant N P) N := {}.
+
+Global Instance into_acc_inv N P E:
+  IntoAcc (X := unit) (inv N P)
+          (↑N ⊆ E) True (fupd E (E ∖ ↑N)) (fupd (E ∖ ↑N) E)
+          (λ _ : (), (▷ P)%I) (λ _ : (), (▷ P)%I) (λ _ : (), None).
+Proof.
+  rewrite inv_eq /IntoAcc /accessor bi.exist_unit.
+  iIntros (?) "#Hinv _". iApply "Hinv"; done.
+Qed.*)
 
 End Invariants.
 

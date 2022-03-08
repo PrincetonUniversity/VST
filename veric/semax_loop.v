@@ -90,11 +90,10 @@ intros tx vx; specialize (H0 tx vx); specialize (H1 tx vx).
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 slurp.
 rewrite <- fash_and.
-intros ? ?. clear w H0.
-revert a'.
+intros a' a'' ? Hext. clear w H0.
 apply fash_derives.
 intros w [? ?].
-intros ?w ? [[?TC  ?] ?].
+intros ? ?w ? Hext' [[?TC  ?] ?].
 assert (typecheck_environ Delta rho) as TC_ENV. {
   destruct TC as [TC _].
   eapply typecheck_environ_sub; eauto.
@@ -104,8 +103,8 @@ destruct H4 as [TC2 H4].
 pose proof TC2 as TC2'.
 apply (tc_expr_sub _ _ _ TS) in TC2'; [| auto].
 destruct H4 as [w1 [w2 [? [? ?]]]].
-specialize (H0 w0 H3).
-specialize (H1 w0 H3).
+specialize (H0 _ _ H3 Hext').
+specialize (H1 _ _ H3 Hext').
 unfold expr_true, expr_false, Cnot in *.
 
 pose proof (typecheck_expr_sound _ _ _ _ TC_ENV TC2) as HTCb; simpl in HTCb.
@@ -200,7 +199,7 @@ clear - Prog_OK.
 unfold believe in *.
 unfold believe_internal in *.
 intros v fsig cc A P Q; specialize (Prog_OK v fsig cc A P Q).
-intros ? ? ?. specialize (Prog_OK a' H).
+intros ? a' ? Hext H0. specialize (Prog_OK _ _ H Hext).
 spec Prog_OK.
 destruct H0 as [id [NEP [NEQ [? ?]]]]. exists id, NEP, NEQ; split; auto.
 auto.
@@ -233,7 +232,7 @@ remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (app_pred
 (!!guard_environ Delta' f rho &&
 (F rho * (Q rho)) && funassert Delta' rho >=>
-assert_safe Espec psi f vx tx (Cont (Kseq t k)) rho) w). {
+assert_safe Espec psi f vx tx (Cont (Kseq t k)) rho)%pred w). {
 subst.
 specialize (H0 k F f).
 spec H0.
@@ -252,7 +251,7 @@ apply H0.
 }
 simpl proj_ret_assert.
 destruct vl.
-repeat intro. destruct H5 as [[_ [? [? [? [[? _] _]]]]] _]; discriminate.
+repeat intro. destruct H6 as [[_ [? [? [? [[? _] _]]]]] _]; discriminate.
 eapply subp_trans'; [ | apply H].
 apply derives_subp. apply andp_derives; auto.
  apply andp_derives; auto.
@@ -316,18 +315,18 @@ Proof.
   }
   revert Prog_OK; induction w using (well_founded_induction lt_wf); intros.
   intros tx vx.
-  intros ? ? ? ? [[? ?] ?]. hnf in H6.
+  intros ? ? ? ? ? Hext [[? ?] ?]. hnf in H6.
   apply assert_safe_last; intros a2 LEVa2.
   assert (NEC2: necR w (level a2)).
   {
     apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5.
-    change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.
+    change w with (level w) in H4|-*. apply nec_nat. apply ext_level in Hext. clear - H4 H5 LEVa2 Hext.
     lia.
   }
   assert (LT: level a2 < level w).
   {
-    apply age_level in LEVa2. apply necR_nat in H5.
-    clear - H4 H5 LEVa2.
+    apply age_level in LEVa2. apply necR_nat in H5. apply ext_level in Hext.
+    clear - H4 H5 LEVa2 Hext.
     change w with (level w) in H4.
     change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2.
     apply nec_nat in H5. lia.
@@ -371,10 +370,10 @@ Proof.
   specialize (H1 (level jm2) LT).
   clear RE w NEC2 Prog_OK H3 H4 LT y H5.
   assert (H10' := laterR_necR (age_laterR (age_jm_phi LEVa2'))).
-  apply (pred_nec_hereditary _ _ _  H10') in Hora.
+  eapply ext_join_approx in Hora. erewrite <- necR_ghost_of in Hora by eauto.
   apply (pred_nec_hereditary _ _ _  H10') in H7.
   apply (pred_nec_hereditary _ _ _  H10') in H8.
-  clear jm LEVa2 LEVa2' LW H10 H10' H9.
+  clear jm Hext LEVa2 LEVa2' LW H10 H10' H9.
   rename H3' into H3. rename Prog_OK2 into Prog_OK.
   specialize (H' psi Delta' CS' (level jm2) (tycontext_sub_refl _) HGG Prog_OK).
   specialize (H' (Kloop1 body incr k) F f CLO_body).
@@ -391,7 +390,7 @@ Proof.
       intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
       destruct ek2.
       +  simpl proj_ret_assert.
-          destruct vl2. intros ? ? ? ? [[_ [? _]] _]; discriminate.
+          destruct vl2. intros ? ? ? ? ? Hext [[_ [? _]] _]; discriminate.
           rewrite (prop_true_andp (None=None)) by auto.
         apply @assert_safe_adj' with (k:=Kseq (Sloop body incr) k); auto.
         - simpl; repeat intro. auto.
@@ -428,7 +427,7 @@ Proof.
     intros tx2 vx2.
     destruct vl.
     simpl proj_ret_assert.
-    intros ? ? ? ? [[_ [? _]] _]; discriminate.
+    intros ? ? ? ? ? Hext [[_ [? _]] _]; discriminate.
     apply @assert_safe_adj' with (k:= Kseq incr (Kloop2 body incr k)); auto.
     simpl. repeat intro. eapply jsafeN_local_step. econstructor; auto.
     intros; eapply age_safe; eauto.
@@ -466,7 +465,7 @@ Proof.
     {
     unfold exit_cont.
     destruct vl2.
-    intros ? ? ? ? [[_ [? _]] _]; discriminate.
+    intros ? ? ? ? ? Hext [[_ [? _]] _]; discriminate.
     apply @assert_safe_adj' with (k:=Kseq (Sloop body incr) k); auto.
     - repeat intro. auto.
     - eapply subp_trans'; [ | eapply H1; eauto].
@@ -487,7 +486,7 @@ Proof.
     - simpl. destruct k; simpl; repeat intro; auto.
     - 
     destruct vl2.
-    intros ? ? ? ? [[_ [? _]] _]; discriminate.
+    intros ? ? ? ? ? Hext [[_ [? _]] _]; discriminate.
     eapply subp_trans'; [ |  eapply (H3 EK_normal None tx2 vx2)].
       apply derives_subp.
       auto.
@@ -501,7 +500,7 @@ Proof.
     eapply subp_trans'; [ | eapply (H3 EK_return) ; eauto].
     simpl proj_ret_assert. destruct POST; simpl tycontext.RA_return.
     apply subp_refl'. }
-  specialize (H' tx vx _ (le_refl _) _ (necR_refl _)); spec H'.
+  specialize (H' tx vx _ (le_refl _) _ _ (necR_refl _) (ext_refl _)); spec H'.
   { subst; split; auto; split; auto. }
  auto.
 Qed.

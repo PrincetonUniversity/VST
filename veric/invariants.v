@@ -10,35 +10,16 @@ Require Import VST.veric.ghosts.
 Require Import VST.floyd.sublist.
 Import List ListNotations.
 
-Lemma cored_dup_cored : forall P, P && cored |-- ((P && cored) * (P && cored)) && cored.
-Proof.
-  intros; apply andp_right.
-  - apply cored_dup.
-  - apply andp_left2; auto.
-Qed.
-
-Lemma cored_sepcon: forall P Q, (P && cored) * (Q && cored) |-- (P * Q) && cored.
-Proof.
-  intros.
-  apply andp_right.
-  + apply sepcon_derives; apply andp_left1; auto.
-  + eapply derives_trans; [apply sepcon_derives; apply andp_left2, derives_refl|].
-      rewrite <- cored_duplicable; auto.
-Qed.
-
-Lemma cored_dup_gen : forall P, (P |-- cored) -> P |-- P * P.
-Proof.
-  intros.
-  erewrite (log_normalize.add_andp P) by (constructor; apply H); apply cored_dup.
-Qed.
-
 Section Invariants.
 
 Program Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
+Next Obligation.
+  apply fsep_sep, _.
+Defined.
 
 Definition pred_of (P : mpred) := SomeP rmaps.Mpred (fun _ => P).
 
-Definition agree g (P : mpred) := own(RA := unit_PCM) g tt (pred_of P).
+Definition agree g (P : mpred) : mpred := own(RA := unit_PCM) g tt (pred_of P).
 
 Lemma agree_dup : forall g P, (agree g P = agree g P * agree g P)%pred.
 Proof.
@@ -49,27 +30,30 @@ Lemma agree_join : forall g P1 P2, agree g P1 * agree g P2 |-- (|> P1 -* |> P2) 
 Proof.
   intros.
   intros ? (? & ? & ? & H1 & H2).
-  do 3 eexists; [apply core_unit|].
+  do 3 eexists; [apply id_core_unit|].
   pose proof (ghost_of_join _ _ _ H) as J.
   change (agree g P1) with (own.own(RA := unit_PCM) g tt (pred_of P1)) in H1.
-  destruct H1 as (? & Hid & H1).
+  destruct H1 as (? & Hid & ? & H1).
   change (agree g P2) with (own.own(RA := unit_PCM) g tt (pred_of P2)) in H2.
-  destruct H2 as (? & ? & H2).
-  erewrite H1, H2, !own.ghost_fmap_singleton in J.
-  apply own.singleton_join_inv in J as ([] & J & Jg).
-  inv J; simpl in *.
-  inv H4.
-  apply SomeP_inj in H5.
+  destruct H2 as (? & ? & ? & H2).
+  rewrite ghost_fmap_singleton in H1, H2.
+  destruct (join_assoc (join_comm H1) J) as (? & J1 & ?).
+  destruct (join_assoc (join_comm H2) (join_comm J1)) as (? & J2 & ?).
+  apply singleton_join_inv in J2 as ([] & J2 & ?); subst.
+  inv J2; simpl in *.
+  destruct H6 as [Heq1 ?].
+  apply SomeP_inj in Heq1.
   destruct (join_level _ _ _ H) as [Hl1 Hl2]; erewrite Hl1, Hl2 in *.
   assert (approx (level a) P1 = approx (level a) P2) as Heq.
   { apply (@equal_f _ _ (fun _ : list Type => approx (level a) P1) (fun _ : list Type => approx (level a) P2));
       auto.
     apply nil. }
+  clear J.
   split.
   - intros ??? Hl J HP1 ? Ha'.
-    pose proof (level_core a).
+    pose proof (id_core_level a).
     pose proof (necR_level _ _ Hl).
-    apply nec_identity in Hl; [|apply core_identity].
+    apply nec_identity in Hl; [|apply id_core_identity].
     destruct (join_level _ _ _ J).
     apply Hl in J; subst.
     specialize (HP1 _ Ha').
@@ -81,37 +65,40 @@ Proof.
     + intro l; simpl.
       apply (resource_at_join _ _ _ l) in H.
       apply Hid in H as <-; auto.
-    + simpl; erewrite Jg, own.ghost_fmap_singleton; simpl.
-      repeat f_equal; auto.
-      inv H3; f_equal.
-      destruct c0; apply exist_ext; auto.
+    + rewrite ghost_fmap_singleton; simpl.
+      eapply join_sub_trans; [|eexists; apply join_comm; eauto].
+      eexists; eauto.
+      replace _ with I in J1 by (apply proof_irr); eauto.
 Qed.
 
 Lemma agree_join2 : forall g P1 P2, agree g P1 * agree g P2 |-- (|> P1 -* |> P2) * agree g P2.
 Proof.
   intros.
   intros ? (? & ? & ? & H1 & H2).
-  do 3 eexists; [apply core_unit|].
+  do 3 eexists; [apply id_core_unit|].
   pose proof (ghost_of_join _ _ _ H) as J.
   change (agree g P1) with (own.own(RA := unit_PCM) g tt (pred_of P1)) in H1.
-  destruct H1 as (? & Hid & H1).
+  destruct H1 as (? & Hid & ? & H1).
   change (agree g P2) with (own.own(RA := unit_PCM) g tt (pred_of P2)) in H2.
-  destruct H2 as (? & ? & H2).
-  erewrite H1, H2, !own.ghost_fmap_singleton in J.
-  apply own.singleton_join_inv in J as ([] & J & Jg).
-  inv J; simpl in *.
-  inv H4.
-  apply SomeP_inj in H5.
+  destruct H2 as (? & ? & ? & H2).
+  rewrite ghost_fmap_singleton in H1, H2.
+  destruct (join_assoc (join_comm H1) J) as (? & J1 & ?).
+  destruct (join_assoc (join_comm H2) (join_comm J1)) as (? & J2 & ?).
+  apply singleton_join_inv in J2 as ([] & J2 & ?); subst.
+  inv J2; simpl in *.
+  destruct H6 as [Heq1 ?].
+  apply SomeP_inj in Heq1.
   destruct (join_level _ _ _ H) as [Hl1 Hl2]; erewrite Hl1, Hl2 in *.
   assert (approx (level a) P1 = approx (level a) P2) as Heq.
   { apply (@equal_f _ _ (fun _ : list Type => approx (level a) P1) (fun _ : list Type => approx (level a) P2));
       auto.
     apply nil. }
+  clear J.
   split.
   - intros ??? Hl J HP1 ? Ha'.
-    pose proof (level_core a).
+    pose proof (id_core_level a).
     pose proof (necR_level _ _ Hl).
-    apply nec_identity in Hl; [|apply core_identity].
+    apply nec_identity in Hl; [|apply id_core_identity].
     destruct (join_level _ _ _ J).
     apply Hl in J; subst.
     specialize (HP1 _ Ha').
@@ -123,10 +110,10 @@ Proof.
     + intro l; simpl.
       apply (resource_at_join _ _ _ l) in H.
       apply Hid in H as <-; auto.
-    + simpl; erewrite Jg, own.ghost_fmap_singleton; simpl.
-      repeat f_equal; auto.
-      inv H3; f_equal.
-      destruct c0; apply exist_ext; auto.
+    + rewrite ghost_fmap_singleton; simpl.
+      eapply join_sub_trans; [|eexists; apply join_comm, ghost_of_join; eauto].
+      eexists; eauto.
+      replace _ with I in H2 by (apply proof_irr); eauto.
 Qed.
 
 Inductive list_join {P : Ghost} : Join (list (option G)) :=
@@ -148,10 +135,10 @@ Proof.
   destruct m; simpl; auto.
 Qed.
 
-Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join(*; core2 := map core2*) }.
+Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join }.
 Next Obligation.
 Proof.
-  intros; exists (fun _ => nil); auto; constructor.
+  apply fsep_sep; exists (fun _ => nil); auto; constructor.
 Defined.
 Next Obligation.
   constructor.
@@ -609,10 +596,10 @@ Global Arguments Included {_} _ _.
 Global Arguments Same_set {_} _ _.
 
 Polymorphic Program Instance set_PCM : Ghost := { valid := fun _ : Ensemble nat => True;
-  Join_G a b c := Disjoint a b /\ c = Union a b(*; core2 a := empty*) }.
+  Join_G a b c := Disjoint a b /\ c = Union a b }.
 Next Obligation.
 Proof.
-  exists (fun _ => Empty_set); auto.
+  apply fsep_sep; exists (fun _ => Empty_set); auto.
   intro; split.
   - constructor; intros ? X.
     rewrite Intersection_Empty in X; contradiction.
@@ -746,27 +733,6 @@ Lemma singleton_join_self : forall {P: Ghost} k (a : G), join a a a ->
 Proof.
   intros.
   induction k; repeat constructor; auto.
-Qed.
-
-(* not currently useful *)
-(*Global Instance invariant_persistent i P : Persistent (invariant i P).
-Proof.
-  apply bi.exist_persistent; intro.
-  apply bi.sep_persistent; apply own_persistent; hnf; simpl; auto.
-  rewrite !eq_dec_refl; split; auto.
-  apply @singleton_join_self, join_refl.
-Qed.*)
-
-Lemma invariant_cored : forall i P, invariant i P |-- cored.
-Proof.
-  intros; unfold invariant.
-  apply exp_left; intro g.
-  rewrite cored_duplicable.
-  apply sepcon_derives; apply own_cored; hnf; auto; simpl.
-  split; auto.
-  rewrite !eq_dec_refl.
-  apply (singleton_join_self(P := discrete_PCM _)).
-  constructor; auto.
 Qed.
 
 Lemma invariant_dup : forall i P, (invariant i P = invariant i P * invariant i P)%pred.
@@ -1172,15 +1138,12 @@ Qed.*)
 
 Check (Ensemble (Maps.ZMap.t nat)).
 
-Lemma invariant_dealloc : forall i P, invariant i P |-- |==> emp.
+Lemma invariant_dealloc : forall i P, invariant i P |-- emp.
 Proof.
   intros; unfold invariant.
   apply exp_left; intro g.
   rewrite <- (emp_sepcon emp).
-  eapply derives_trans.
   apply sepcon_derives; apply ghost_dealloc.
-  { eapply derives_trans, bupd_trans.
-    eapply derives_trans; [apply bupd_frame_r | apply bupd_mono, bupd_frame_l]. }
 Qed.
 
 Lemma ghost_is_pred_nonexpansive : forall g H, nonexpansive (fun P => ghost_is (singleton g
@@ -1189,10 +1152,12 @@ Lemma ghost_is_pred_nonexpansive : forall g H, nonexpansive (fun P => ghost_is (
         pred_of P))).
 Proof.
   unfold nonexpansive.
-  intros ??????; split; intros ???; simpl in *; etransitivity; eauto; simpl;
+  intros ??????; split; intros ?????; simpl in *;
+    match goal with H : join_sub ?a ?b |- join_sub ?c ?b =>
+      assert (a = c) as <-; auto end; simpl;
     rewrite !ghost_fmap_singleton; do 2 f_equal; simpl; f_equal;
     extensionality; apply pred_ext; intros ? []; split; auto;
-    eapply H0; try apply necR_refl; auto; apply necR_level in H2; lia.
+    eapply H0; try apply necR_refl; auto; apply necR_level in H2; apply ext_level in H3; lia.
 Qed.
 
 Lemma agree_nonexpansive : forall g, nonexpansive (agree g).
@@ -1221,11 +1186,12 @@ Lemma ghost_is_pred_nonexpansive2 : forall g H f,
         pred_of (f P)))).
 Proof.
   unfold nonexpansive.
-  intros ??????; split; intros ???; specialize (H0 _ _ _ H1);
-  simpl in *; etransitivity; eauto; simpl;
+  intros ??????; split; intros ?????; specialize (H0 _ _ _ H1);
+  simpl in *; match goal with H : join_sub ?a ?b |- join_sub ?c ?b =>
+      assert (a = c) as <-; auto end; simpl;
     rewrite !ghost_fmap_singleton; do 2 f_equal; simpl; f_equal;
     extensionality; apply pred_ext; intros ? []; split; auto;
-    eapply H0; try apply necR_refl; auto; apply necR_level in H3; lia.
+    eapply H0; try apply necR_refl; auto; apply necR_level in H3; apply ext_level in H4; lia.
 Qed.
 
 Lemma agree_nonexpansive2 : forall g f,

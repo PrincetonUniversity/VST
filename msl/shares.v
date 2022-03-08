@@ -529,7 +529,7 @@ Section SM.
   Definition map := fpm A (lifted Share.Join_ba * B).
   Instance Join_map : Join map := Join_fpm _.
   Instance pa_map : Perm_alg map := Perm_fpm _ _.
-  Instance sa_map : Sep_alg map := Sep_fpm _ _.
+  Instance sa_map : FSep_alg map := Sep_fpm _ _.
   Instance ca_map {CA: Canc_alg B} : Canc_alg map := Canc_fpm _.
   Instance da_map {DA: Disj_alg B} : Disj_alg map := @Disj_fpm _ _ _ _ _ _.
 

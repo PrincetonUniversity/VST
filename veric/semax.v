@@ -35,55 +35,22 @@ Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) (ge: genv) :=
   @jsafeN_ genv _ _ genv_symb_injective (*(genv_symb := fun ge: genv => Genv.genv_symb ge)*)
                (cl_core_sem ge) Hspec ge.
 
-Lemma ext_join_approx : forall {Z} (z : Z) n g,
-  joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
-  joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
-Proof.
-  intros.
-  destruct H.
-  change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
-    (ghost_fmap (approx n) (approx n) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
-  eexists; apply ghost_fmap_join; eauto.
-Qed.
-
-Lemma ext_join_sub_approx : forall {Z} (z : Z) n g,
-  join_sub (Some (ghost_PCM.ext_ref z, NoneP) :: nil) g ->
-  join_sub (Some (ghost_PCM.ext_ref z, NoneP) :: nil) (ghost_fmap (approx n) (approx n) g).
-Proof.
-  intros.
-  destruct H.
-  change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
-    (ghost_fmap (approx n) (approx n) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
-  eexists; apply ghost_fmap_join; eauto.
-Qed.
-
-Lemma ext_join_unapprox : forall {Z} (z : Z) n g,
-  joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
-  joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
-Proof.
-  intros.
-  destruct H as (g' & J).
-  destruct g; [eexists; constructor|].
-  inv J.
-  exists (a3 :: g); repeat constructor.
-  destruct o; inv H4; constructor.
-  destruct p; inv H1; constructor; simpl in *; auto.
-  destruct p; simpl in *.
-  inv H0.
-  inv H1.
-  inj_pair_tac.
-  constructor; auto.
-  unfold NoneP; f_equal; auto.
-Qed.
-
-Program Definition ext_compat {Z} (ora : Z) : mpred :=
+(*Program Definition ext_compat {Z} (ora : Z) : mpred :=
   fun w => joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
 Next Obligation.
 Proof.
-  repeat intro.
+  split; repeat intro.
   erewrite age1_ghost_of by eauto.
   apply ext_join_approx; auto.
-Qed.
+
+  apply rmap_order in H as (_ & _ & ? & Hg).
+  destruct H0.
+  inv H.
+  - rewrite <- H1 in Hg; inv Hg.
+Qed.*)
+
+Definition ext_compat {Z} (ora : Z) (w : rmap) :=
+  joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
 
 Inductive contx :=
 | Stuck
@@ -126,13 +93,13 @@ Program Definition assert_safe
      (ctl: contx) : assert :=
   fun rho => bupd (assert_safe'_ (Espec : OracleKind) ge f ve te ctl rho).
 Next Obligation.
-  intro; intros.
-   hnf; intros.
+  split; repeat intro.
    subst.
    destruct (oracle_unage _ _ H) as [jm0 [? ?]].
    specialize (H0 ora jm0).
-   spec H0. 
-   {simpl in H1|-*. erewrite age1_ghost_of in H1 by eauto.
+   spec H0.
+   { unfold ext_compat in *.
+simpl in H1|-*. erewrite age1_ghost_of in H1 by eauto.
       eapply ext_join_unapprox; eauto. }
    specialize (H0 (eq_refl _) H3).
    spec H0. apply age_level in H. lia.
@@ -150,6 +117,33 @@ Next Obligation.
   eapply age_safe; eauto.
   apply (H0 e v'); auto;  rewrite (age_jm_dry H2); auto.
   eapply age_safe; eauto.
+
+  subst. destruct (ext_ord_juicy_mem' _ _ H) as (? & Hd & Ha).
+  destruct (proj1 (rmap_order _ _) H) as (Hl & Hr & Hg).
+  destruct (juicy_mem_resource jm a) as (jm0 & Hjm & Hdry).
+  { congruence. }
+  specialize (H0 ora jm0).
+   spec H0.
+   { unfold ext_compat in *.
+     eapply join_sub_joins_trans; eauto. }
+   specialize (H0 (eq_refl _) Hjm).
+   spec H0. rewrite Hl; auto.
+  subst.
+  rewrite <- Hjm in *.
+  change (level (m_phi jm)) with (level jm).
+  change (level (m_phi jm0)) with (level jm0) in *.
+  assert (ext_order jm0 jm) by (split; auto; congruence).
+  destruct ctl; auto. destruct c; try contradiction.
+  eapply ext_safe; eauto.
+  eapply ext_safe; eauto.
+  eapply ext_safe; eauto.
+  eapply ext_safe; eauto.
+  destruct o; intros; auto;
+  eapply ext_safe; eauto.
+  destruct o; intros; auto.
+  eapply ext_safe; eauto.
+  apply (H0 e v'); auto; rewrite Hdry; auto.
+  eapply ext_safe; eauto.
 Qed.
 
 Definition list2opt {T: Type} (vl: list T) : option T :=
@@ -221,19 +215,19 @@ Record semaxArg :Type := SemaxArg {
 Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function)
    (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
    (ts: list typ) (args: list val) (z: OK_ty) : pred juicy_mem :=
-  exist (hereditary age)
+  exist (fun p => hereditary age p /\ hereditary ext_order p)
      (ext_spec_pre OK_spec ef x' ge_s ts args z)
-     (JE_pre_hered _ _ _ _ _ _ _ _).
+     (conj (JE_pre_hered _ _ _ _ _ _ _ _) (JE_pre_ext _ _ _ _ _ _ _ _) ).
 
 Program Definition ext_spec_post' (Espec: OracleKind)
    (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
    (tret: rettype) (ret: option val) (z: OK_ty) : pred juicy_mem :=
-  exist (hereditary age)
+  exist (fun p => hereditary age p /\ hereditary ext_order p)
    (ext_spec_post OK_spec ef x' ge_s tret ret z)
-     (JE_post_hered _ _ _ _ _ _ _ _).
+     (conj (JE_post_hered _ _ _ _ _ _ _ _) (JE_post_ext _ _ _ _ _ _ _ _) ).
 
-Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
-     # diamond fashionM (exactly (m_phi jm) && P).
+(*Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
+     # diamond fashionM (exactly (m_phi jm) && P).*)
 
 Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
   match tret with AST.Tvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
@@ -243,6 +237,19 @@ Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
                               (Map.set 1%positive v' (Map.empty _))
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
   end end.
+
+Program Definition if_ext_compat {Z} (z : Z) (P : pred juicy_mem) : pred juicy_mem :=
+  fun jm => ext_compat z (m_phi jm) -> P jm.
+Next Obligation.
+Proof.
+  unfold ext_compat; split; repeat intro.
+  - eapply pred_hereditary, H0; auto.
+    erewrite age1_ghost_of in H1 by (apply age1_juicy_mem_Some; eauto).
+    apply ext_join_unapprox in H1; auto.
+  - eapply pred_upclosed, H0; auto.
+    rewrite rmap_order in H; destruct H as (_ & _ & _ & ?).
+    eapply join_sub_joins_trans; eauto.
+Qed.
 
 Definition semax_external
   (Hspec: OracleKind) ef
@@ -257,8 +264,8 @@ Definition semax_external
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
    juicy_mem_op (P Ts x (filter_genv gx, args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
-    (ALL z:_, juicy_mem_op (ext_compat z) -->
-     ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
+    (ALL z:_, if_ext_compat z
+       (ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z)) &&
      ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) tret ret) * F).
@@ -287,70 +294,37 @@ apply allp_derives; intros g.
 apply allp_right; intros ts.
 apply allp_right; intros x.
 destruct Hsub as [_ H]; simpl in H.
-intros n N m NM F typs vals y MY z YZ [HT [z1 [z2 [JZ [Z1 Z2]]]]].
-specialize (H ts x (filter_genv g, vals) z1).
-(*rewrite TTL2 in HSIG.*) Opaque bupd.
-simpl in H. Transparent bupd. simpl in N. rewrite HSIG in HT; simpl in HT.
-assert (HP: argsHaveTyps vals argtypes /\ P ts x (filter_genv g, vals) z1). {
-  split; trivial. clear -HT. 
+intros n N m NM F typs vals y MY ? z YZ EZ [HT HP].
+simpl in HP.
+rewrite HSIG in HT; simpl in HT.
+eapply sepcon_derives, bupd_frame_r in HP; [| intros ??; eapply H; split; eauto | apply derives_refl].
+2: { clear -HT. 
   apply has_type_list_Forall2 in HT.
-  eapply Forall2_implication; [ | apply HT]; auto. } specialize (H HP). clear HP.
-simpl in H. specialize (H (ghost_of z2)).
-destruct H as [g' [HJ2 [z1' [HL [HR [HG [ts1 [x1
-            [FRM [[z11 [z12 [JZ1 [H_FRM H_P1]]]] HQ]]]]]]]]]].
-{ rewrite <- (ghost_of_approx z1). exists (ghost_approx z1 (ghost_of (m_phi z))).
-  apply ghost_fmap_join. now apply ghost_of_join. } subst g'.
-rewrite <- (ghost_of_approx z1') in HJ2.
-replace (ghost_approx z1' (ghost_of z1')) with
-    (ghost_approx z1 (ghost_of z1')) in HJ2 by now rewrite HL.
-destruct HJ2 as [gz' HJ2]. pose proof (ghost_same_level_gen _ _ _ _ HJ2) as HGA.
-rewrite <- !age_to_resource_at.age_to_ghost_of in HJ2.
-destruct (join_level _ _ _ JZ) as [HLz1z HLz2z].
-rewrite !age_to.age_to_eq in HJ2; auto. 2: now rewrite <- HLz2z in HLz1z.
-assert (HRA: resource_fmap (approx (level z1)) (approx (level z1)) oo
-                           (resource_at (m_phi z)) = resource_at (m_phi z)). {
-  replace (level z1) with (level (m_phi z)).
-  apply resources_same_level. intros. exists (core (m_phi z @ l)).
-  apply join_comm. apply core_unit. }
-destruct (make_rmap _ _ _ HRA HGA) as [pz' [HL2 [HR2 HG]]]. clear HGA HRA.
-assert (JZ2: join z1' z2 pz'). {
-  apply resource_at_join2.
-  - now rewrite <- HL2 in HL.
-  - rewrite <- HLz1z in HLz2z. now rewrite <- HL2 in HLz2z.
-  - intros. rewrite HR, HR2. now apply resource_at_join.
-  - now rewrite HG. }
-destruct (juicy_mem_resource _ _ HR2) as [z' [HP _]]. subst pz'.
-assert (MY': m >= level z'). {
-  unfold ge in MY |-* . transitivity (level y); auto. apply necR_level in YZ.
-  unfold ge in YZ. cut (level z' = level z).
-  - intros. now rewrite H.
-  - rewrite !level_juice_level_phi. now transitivity (level z1). }
+  eapply Forall2_implication; [ | apply HT]; auto.
+}
+clear H.
+edestruct HP as (? & ? & z0 & ? & ? & ? & H); subst.
+{ eexists. rewrite ghost_fmap_core. apply join_comm, core_unit. }
+destruct H as [z1 [z2 [JZ [[ts1 [x1 [FRM [[z11 [z12 [JZ1 [H_FRM H_P1]]]] HQ]]]] Z2]]]].
 specialize (N ts1 x1). apply join_comm in JZ1.
-destruct (join_assoc JZ1 JZ2) as [zz [JJ JJzz]]. apply join_comm in JJ.
-simpl.
-destruct (N _ NM (sepcon F FRM) typs vals _ MY' _ (necR_refl z')) as
-    [est [EST1 EST2]]; clear N.
+destruct (join_assoc JZ1 JZ) as [zz [JJ JJzz]]. apply join_comm in JJ.
+destruct (juicy_mem_resource _ _ H2) as (jm0 & ? & ?); subst.
+edestruct (N _ NM (sepcon F FRM) typs vals jm0) as [est [EST1 EST2]]; clear N; eauto.
+{ apply necR_level in YZ. destruct EZ as [_ EZ%ext_level]. rewrite !level_juice_level_phi in *. lia. }
 { rewrite HSIG; simpl. split; trivial.
   exists z12, zz; split3. trivial. trivial.
   exists z2, z11; split3; trivial. }
-exists est; split.
-- simpl. intros. apply EST1; auto. apply necR_trans with z; auto.
+(*exists est; split.
+{ simpl. intros. apply EST1; auto. apply necR_trans with z; auto.
   rewrite age_to.necR_age_to_iff. admit.
-- simpl; intros. assert (level (m_phi z') >= level (m_phi y0)). {
-    cut (level (m_phi z') = level (m_phi z)).
-    - intros. now rewrite H2.
-    - now transitivity (level z1). }
-  destruct (EST2 b b0 b1 _ H2 _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
-  destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.
-  destruct (join_assoc JW JU) as [v [JV V]]. apply join_comm in V.
-  exists v, w1; split3; trivial.
-  specialize (HQ (make_ext_rval (filter_genv g) b b0) v).
-  assert ((!! (ve_of (make_ext_rval (filter_genv g) b b0) = Map.empty (block * type))
-           && (FRM * Q1 ts1 x1 (make_ext_rval (filter_genv g) b b0))) v). {
-    simpl. split.
-    - simpl. destruct b,b0; reflexivity.
-    - exists w2, u1; split3; trivial. }
-  specialize (HQ H3). simpl in HQ.
+simpl; intros.
+destruct (EST2 b b0 b1 _ H _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
+destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.
+destruct (join_assoc JW JU) as [v [JV V]]. apply join_comm in V.
+exists v, w1; split3; trivial.
+apply HQ; clear HQ; split.
++ simpl. destruct b,b0; reflexivity.
++ exists w2, u1; split3; trivial.*)
 Admitted.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
@@ -566,10 +540,9 @@ Proof.
   apply allp_derives; intros gx.
   apply allp_derives; intros Delta'.
   apply allp_derives; intros CS''.
-  intros w W m WM [TC [M1 M2]] u MU U. specialize (W m WM).
-  assert (X: (!! (tycontext_sub Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS'') /\ cenv_sub (@cenv_cs CS'') gx)) m).
-  { clear W U. split. apply TC. split; trivial. intros i. eapply sub_option_trans. apply CSUB. apply M1. }
-  apply (W X); trivial.
+  apply imp_derives; auto.
+  intros ? [TC [M1 M2]].
+  split. apply TC. split; trivial. intros i. eapply sub_option_trans. apply CSUB. apply M1.
 Qed.
 Lemma semax'_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
       @semax' CS Espec Delta P c R |-- @semax' CS' Espec Delta P c R.
@@ -636,14 +609,14 @@ Qed.
 
 (* Copied from semax_switch. *)
 
-Lemma fash_TT: forall {A} {agA: ageable A}, @unfash A agA TT = TT.
+Lemma fash_TT: forall {A} {agA: ageable A} {EO: Ext_ord A}, @unfash A agA EO TT = TT.
 Proof.
 intros.
 apply pred_ext; intros ? ?; apply I.
 Qed.
 
 Lemma allp_andp: 
-  forall {A} {NA: ageable A} {B: Type} (b0: B) (P: B -> pred A) (Q: pred A),
+  forall {A} {NA: ageable A} {EO: Ext_ord A} {B: Type} (b0: B) (P: B -> pred A) (Q: pred A),
    (allp P && Q = allp (fun x => P x && Q))%pred.
 Proof.
 intros.
@@ -656,42 +629,36 @@ apply (H b0).
 Qed.
 
 Lemma unfash_prop_imp:
-  forall {A} {agA: ageable A} (P: Prop) (Q: pred nat),
-  (@unfash _ agA (prop P --> Q) = prop P --> @unfash _ agA Q)%pred.
+  forall {A} {agA: ageable A} {EO: Ext_ord A} (P: Prop) (Q: pred nat),
+  (@unfash _ agA _ (prop P --> Q) = prop P --> @unfash _ agA _ Q)%pred.
 Proof.
 intros.
 apply pred_ext; repeat intro.
-apply H; auto. apply necR_level'; auto.
-hnf in H.
-specialize (H a (necR_refl _) H1).
-eapply pred_nec_hereditary; try apply H0.
-apply H.
+simpl in H; eapply H in H2; eauto.
+eapply pred_upclosed, pred_nec_hereditary; eauto.
+simpl in H.
+specialize (H a _ (necR_refl _)  (ext_refl _) H2).
+eapply pred_upclosed, pred_nec_hereditary; eauto.
 Qed.
 
 Import age_to.
 
 Lemma unfash_imp:
-  forall {A} {NA: ageable A} (P Q: pred nat),
-  (@unfash A _ (P --> Q) = (@unfash A _ P) --> @unfash A _ Q)%pred.
+  forall {A} {NA: ageable A} {EO: Ext_ord A} (P Q: pred nat),
+  (@unfash A _ _ (P --> Q) = (@unfash A _ _ P) --> @unfash A _ _ Q)%pred.
 Proof.
 intros.
 apply pred_ext; repeat intro.
-apply H; auto. apply necR_level'; auto.
-specialize (H (age_to a' a)).
-spec H.
-apply age_to_necR.
-spec H.
-do 3 red. 
-rewrite level_age_to; auto.
-apply necR_level in H0. apply H0.
-do 3 red in H.
-rewrite level_age_to in H; auto.
+apply ext_level in H1.
+simpl in H; eapply H in H2; [| eapply necR_level', H0 | ..]; auto.
+simpl in *; subst a''.
+specialize (H (age_to a' a) _ (age_to_necR _ _) (ext_refl _)).
 apply necR_level in H0.
-apply H0.
+rewrite level_age_to in H; auto.
 Qed.
 
-Lemma unfash_andp:  forall {A} {agA: ageable A} (P Q: pred nat),
-  (@unfash A agA (andp P Q) = andp (@unfash A agA P) (@unfash A agA Q)).
+Lemma unfash_andp:  forall {A} {agA: ageable A} {EO: Ext_ord A} (P Q: pred nat),
+  (@unfash A agA _ (andp P Q) = andp (@unfash A agA _ P) (@unfash A agA _ Q)).
 Proof.
 intros.
 apply pred_ext.
@@ -703,7 +670,7 @@ split; auto.
 Qed.
 
 Lemma andp_imp_e':
-  forall (A : Type) (agA : ageable A) (P Q : pred A),
+  forall (A : Type) (agA : ageable A) (EO: Ext_ord A) (P Q : pred A),
    P && (P --> Q) |-- P && Q.
 Proof.
 intros.
@@ -716,7 +683,7 @@ Qed.
 (* End copied from semax_switch. *)
 
 Lemma unfash_fash:
-  forall (A : Type) (agA : ageable A) (P : pred A),
+  forall (A : Type) (agA : ageable A) (EO : Ext_ord A) (P : pred A),
    unfash (fash P) |-- P.
 Proof.
   intros.
@@ -728,7 +695,7 @@ Proof.
 Qed.
 
 Lemma imp_imp:
-  forall (A : Type) (agA : ageable A) (P Q R: pred A),
+  forall (A : Type) (agA : ageable A) (EO : Ext_ord A) (P Q R: pred A),
     P --> (Q --> R) = P && Q --> R.
 Proof.
   intros.
@@ -746,7 +713,7 @@ Proof.
 Qed.
 
 Lemma imp_allp:
-  forall B (A : Type) (agA : ageable A) (P: pred A) (Q: B -> pred A),
+  forall B (A : Type) (agA : ageable A) (EO : Ext_ord A) (P: pred A) (Q: B -> pred A),
     P --> allp Q  = ALL x: B, P --> Q x.
 Proof.
   intros.
@@ -804,17 +771,6 @@ Proof.
     auto.
 Qed.
 
-Lemma corable_unfash:
-  forall (A : Type) (JA : Join A) (PA : Perm_alg A) (SA : Sep_alg A) (agA : ageable A) 
-    (AgeA : Age_alg A) (P : pred nat), corable (! P).
-Proof.
-  intros.
-  unfold unfash; simpl.
-  hnf; simpl; intros.
-  rewrite level_core.
-  auto.
-Qed.
-
 Section believe_monotonicity.
 Context {CS: compspecs} {Espec: OracleKind}.
 
@@ -828,8 +784,8 @@ Lemma guard_mono gx Delta Gamma f (P Q:assert) ctl
                      (funassert Delta (construct_rho (filter_genv gx) e te))):
   @guard Espec gx Delta f P ctl |--
   @guard Espec gx Gamma f Q ctl.
-Proof. intros n G te e r R a' A' [[[X1 X2] X3] X4].
-  apply (G te e r R a' A').
+Proof. intros n G te e r R ? a' A' ? [[[X1 X2] X3] X4].
+  eapply G; eauto.
   split; [split; [split;[auto | rewrite GD2; trivial] | apply GD3; trivial] | apply GD4; trivial].
 Qed.
 
@@ -844,7 +800,7 @@ Lemma believe_antimonoR gx Delta Gamma Gamma'
   (DG1: forall id spec, (glob_specs Gamma') ! id = Some spec ->
                         (glob_specs Gamma) ! id = Some spec):
   @believe CS Espec Delta gx Gamma |-- @believe CS Espec Delta gx Gamma'.
-Proof. intros n B v sig cc A P Q k nec CL. apply B; trivial. eapply claims_antimono; eauto. Qed.
+Proof. intros n B v sig cc A P Q ? k nec ? CL. eapply B; eauto. eapply claims_antimono; eauto. Qed.
 
 Lemma cenv_sub_complete_legal_cosu_type cenv1 cenv2 (CSUB: cenv_sub cenv1 cenv2): forall t,
     @composite_compute.complete_legal_cosu_type cenv1 t = true ->
@@ -879,9 +835,9 @@ Proof. destruct BI as [b [f [Hv X]]].
     + clear - CSUB H0 H4. forget (fn_vars f) as vars. induction vars.
       constructor. inv H4. inv H0.  specialize (IHvars H5 H3).
       constructor; [ rewrite (cenv_sub_sizeof CSUB); trivial | apply IHvars].
-  - intros PSI CS'' w W HSUB u WU HU ts x. apply (X PSI CS'' w W); trivial.
+  - intros PSI CS'' ? w W ? HSUB ? u WU ? HU ts x. eapply X; eauto.
     + simpl; intros. eapply tycontext_sub_trans. 2: apply HSUB. eauto.
-    + clear - CSUB HU; simpl. apply (cenv_sub_trans CSUB HU). 
+    + clear - CSUB HU; simpl. apply (cenv_sub_trans CSUB HU).
 Qed.
 Lemma believe_internal_mono {CS'} gx Delta Delta' v sig cc A P Q
   (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
@@ -900,11 +856,10 @@ Lemma believe_cenv_sub_L {CS'} gx Delta Delta' Gamma
   (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')):
   @believe CS Espec Delta gx Gamma |-- @believe CS' Espec Delta' gx Gamma.
 Proof.
- intros n B v sig cc A P Q k nec CL.
- destruct (B v sig cc A P Q k nec).
-+ eapply claims_antimono; eauto.
+ intros n B; repeat intro.
+ edestruct B; eauto.
 + left; trivial.
-+ right. clear -SUB CSUB H.
++ right. clear -SUB CSUB H H2.
   apply (@believe_internal_cenv_sub CS' gx Delta); eauto.
 Qed.
 Lemma believe_monoL {CS'} gx Delta Delta' Gamma
@@ -931,7 +886,7 @@ Lemma believe_internal__mono sem gx Delta Delta' v sig cc A P Q
 (believe_internal_ CS sem gx Delta' v sig cc A P Q) k.
 Proof. destruct BI as [b [f [Hv X]]].
   exists b, f; split; [trivial | clear Hv].
-  intros PSI CS' w W HSUB u WU HU ts x. apply (X PSI CS' w W); trivial.
+  intros PSI CS' ? w W ? HSUB u WU HU ts x. eapply X; eauto.
   simpl; intros. eapply tycontext_sub_trans. 2: apply HSUB. eauto.
 Qed.
 End believe_monotonicity.
@@ -940,28 +895,30 @@ Lemma semax__mono {CS} Espec Delta Delta'
   (SUB: tycontext_sub Delta Delta') sem P c R:
   derives (@semax_ Espec sem {| sa_cs := CS; sa_Delta := Delta; sa_P := P; sa_c := c; sa_R := R |})
       (@semax_ Espec sem {| sa_cs:=CS; sa_Delta := Delta'; sa_P := P; sa_c := c; sa_R := R |}).
-Proof. unfold semax_; intros w W.
-intros gx Gamma CS' n N [HSUB HCS] m M B k F a A CL.
-assert (X: tycontext_sub Delta Gamma) by (eapply tycontext_sub_trans; eauto).
-apply (W gx Gamma CS' n N (conj X HCS) m M B k F a A CL).
+Proof. unfold semax_.
+  repeat (apply allp_derives; intros).
+  eapply imp_derives; auto.
+  intros ? [HSUB HCS]; split; auto.
+  eapply tycontext_sub_trans; eauto.
 Qed.
 
 Lemma semax_mono {CS} Espec Delta Delta' P Q
-  (SUB: tycontext_sub Delta Delta') c w
-  (Hyp: @semax' CS Espec Delta P c Q w):
-   @semax' CS Espec Delta' P c Q w.
+  (SUB: tycontext_sub Delta Delta') c:
+  @semax' CS Espec Delta P c Q |--
+   @semax' CS Espec Delta' P c Q.
 Proof.
 rewrite semax_fold_unfold in *.
-intros gx Gamma CS' m M [HH HCS].
-assert (SUB': tycontext_sub Delta Gamma) by (eapply tycontext_sub_trans; eassumption).
-apply (Hyp gx Gamma CS' m M (conj SUB' HCS)).
+  repeat (apply allp_derives; intros).
+  eapply imp_derives; auto.
+  intros ? [HSUB HCS]; split; auto.
+  eapply tycontext_sub_trans; eauto.
 Qed.
 
 Lemma semax_mono_box {CS} Espec Delta Delta' P Q
   (SUB: tycontext_sub Delta Delta') c w
-  (BI: @box nat ag_nat (@laterM nat ag_nat)
+  (BI: @box nat ag_nat _ (@laterM nat ag_nat _)
           (@semax' CS Espec Delta P c Q) w):
-  @box nat ag_nat (@laterM nat ag_nat)
+  @box nat ag_nat _ (@laterM nat ag_nat _)
           (@semax' CS Espec Delta' P c Q) w.
 Proof. eapply box_positive; [ clear BI | apply BI].
 intros a Hyp.
@@ -972,9 +929,9 @@ Qed.
 Lemma semax_mono' {CS} Espec Delta Delta' P Q
   (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
                                 (func_tycontext' f Delta')) c w f
-  (BI: @box nat ag_nat (@laterM nat ag_nat)
+  (BI: @box nat ag_nat _ (@laterM nat ag_nat _)
           (@semax' CS Espec (func_tycontext' f Delta) P c Q) w):
-  @box nat ag_nat (@laterM nat ag_nat)
+  @box nat ag_nat _ (@laterM nat ag_nat _)
           (@semax' CS Espec (func_tycontext' f Delta') P c Q) w.
 Proof. eapply semax_mono_box. eauto. eassumption. Qed.
 

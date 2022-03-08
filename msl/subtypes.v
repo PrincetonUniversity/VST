@@ -9,10 +9,13 @@ Require Import VST.msl.predicates_hered.
 
 Local Open Scope pred.
 
-Lemma valid_rel_fashion {A} `{AG: ageable A} : valid_rel fashionR.
+Section Fash.
+
+Context {A : Type} {AG : ageable A} {EO : Ext_ord A}.
+
+Lemma valid_rel_fashion : valid_rel fashionR.
 Proof.
   split; hnf; intros.
-
   unfold fashionR in *.
   hnf in H.
   case_eq (age1 z); intros.
@@ -26,44 +29,65 @@ Proof.
   rewrite <- (af_level1 age_facts) in H0.
   rewrite H in H0; discriminate.
 
+  split; hnf; intros.
   hnf in H.
   destruct (af_unage age_facts x). exists x0. apply H1.
   hnf.
   rewrite (af_level2 age_facts x0 x); auto.
   rewrite (af_level2 age_facts z y); auto.
+
+(*  split; hnf; intros.*)
+  eexists; [reflexivity|].
+  apply ext_level in H0; hnf in *; lia.
+(*  eexists; [|reflexivity].
+  apply ext_level in H; hnf in *; lia.*)
 Qed.
 
-Definition fashionM {A} `{ageable A} : modality
+Definition fashionM : modality
   := exist _ fashionR valid_rel_fashion.
 
-Existing Instance ag_nat.   #[export] Hint Resolve ag_nat : core.
+Global Existing Instance ag_nat.
+Global Program Instance nat_ext : Ext_ord nat := { ext_order := eq }.
+Next Obligation.
+Proof.
+  hnf; intros; subst; eauto.
+Qed.
+Next Obligation.
+Proof.
+  hnf; intros; subst; eauto.
+Qed.
+(*Next Obligation.
+Proof.
+  hnf; intros; subst; eauto.
+Qed.*)
 
-Program Definition fash {A: Type} `{NA: ageable A} (P: pred A): pred nat :=
+Program Definition fash (P: pred A): pred nat :=
       fun n => forall y, n >= level y -> P y.
 Next Obligation.
+split; repeat intro.
 destruct P as [P HP].
 simpl in *.
 apply H0.
 unfold age, age1, ag_nat,natAge1 in H.
 destruct a; inv H.
 lia.
+
+subst; auto.
 Qed.
 
 Notation "'#' e" := (fash e) (at level 20, right associativity): pred.
 
-Lemma fash_K {A} `{H: ageable A}: forall (P Q: pred A),
+Lemma fash_K : forall (P Q: pred A),
                  # (P --> Q) |-- # P --> # Q.
 Proof.
 intros.
 intros n ?.
 simpl in H.
 simpl.
-intros w ? ? ? ?.
-apply (pred_nec_hereditary _ _ _ H1) in H0.
-clear n H1.
-specialize (H2 _ H3).
-simpl in H0.
-eapply H0; eauto.
+intros w ? ? ? ? ? HP; subst.
+eapply H; eauto.
+apply necR_level in H0; simpl in H0.
+unfold natLevel in H0; lia.
 Qed.
 
 Lemma laterR_nat: forall (n n': nat), laterR n n' <-> (n > n')%nat.
@@ -78,17 +102,7 @@ constructor 2 with m; auto.
 constructor 1. unfold age, age1; simpl. auto.
 Qed.
 
-Lemma fash_fash {A} `{NA: ageable A}:  forall P: pred A,  # # P = # P.
-Proof.
-intros.
-apply pred_ext; intro; simpl in *; intros.
-apply H with a; auto.
-subst.
-apply H.
-unfold natLevel in H0. lia.
-Qed.
-
-Lemma fash_derives {A} `{agA : ageable A}:
+Lemma fash_derives :
      forall (P Q: pred A), (P |-- Q)  ->  # P |-- # Q.
 Proof.
 intros.
@@ -98,53 +112,68 @@ apply H.
 eapply H0; auto.
 Qed.
 
-Lemma fash_and {A} `{H : ageable A}: forall (P Q:pred A),
+Lemma fash_and : forall (P Q:pred A),
   # (P && Q) = # P && # Q.
 Proof.
   intros; apply pred_ext; hnf; intros.
-  split; hnf; intros; destruct (H0 y H1); auto.
+  split; hnf; intros; destruct (H y H0); auto.
   hnf; intros.
-  destruct H0.
+  destruct H.
   split; auto.
 Qed.
+
+End Fash.
+
+Notation "'#' e" := (fash e) (at level 20, right associativity): pred.
+
+Lemma fash_triv : forall (P : pred nat), # P = P.
+Proof.
+  intros; apply pred_ext; repeat intro; auto.
+  eapply pred_nec_hereditary, H.
+  rewrite nec_nat; auto.
+Qed.
+
+Section Subtypes.
+
+Context {A : Type} {AG : ageable A} {EO : Ext_ord A}.
 
 Definition fashionable  (P: pred nat) := # P = P.
 
 Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : pred.
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : pred.
 
-Lemma subp_eqp {A} `{ageable A} : forall G (P Q: pred A),
+Lemma subp_eqp : forall G (P Q: pred A),
   (G |-- P >=> Q) ->
   (G |-- Q >=> P) ->
   G |-- P <=> Q.
 Proof.
   repeat intro.
   split.
+  eapply H; eauto.
   eapply H0; eauto.
-  eapply H1; eauto.
 Qed.
 
-Lemma eqp_subp {A} `{ageable A} : forall G P Q,
+Lemma eqp_subp : forall G P Q,
   (G |-- P <=> Q) ->
   G |-- P >=> Q.
 Proof.
   repeat intro.
-  apply H0 in H1.
-  simpl in H1.
-  destruct (H1 _ H2); auto.
+  apply H in H0.
+  simpl in H0.
+  destruct (H0 _ H1); eauto.
 Qed.
 
-Lemma eqp_subp2 {A} `{ageable A} : forall G P Q,
+Lemma eqp_subp2 : forall G P Q,
   (G |-- P <=> Q) ->
   G |-- Q >=> P.
 Proof.
   repeat intro.
-  apply H0 in H1.
-  simpl in H1.
-  destruct (H1 _ H2); auto.
+  apply H in H0.
+  simpl in H0.
+  destruct (H0 _ H1); eauto.
 Qed.
 
-Lemma eqp_comm : forall {A} `{ageable A} (P Q:pred A),
+Lemma eqp_comm : forall (P Q:pred A),
   P <=> Q = Q <=> P.
 Proof.
   intros. apply pred_ext.
@@ -156,68 +185,70 @@ Proof.
     apply eqp_subp. hnf; auto.
 Qed.
 
-Lemma subp_refl {A} `{ageable A} : forall G P,
+Lemma subp_refl : forall G P,
   G |-- P >=> P.
 Proof.
   repeat intro; auto.
 Qed.
 
-Lemma subp_trans {A} `{ageable A} : forall G P Q R,
+Lemma subp_trans : forall G P Q R,
   (G |-- P >=> Q) ->
   (G |-- Q >=> R) ->
   G |-- P >=> R.
 Proof.
   repeat intro.
-  eapply H1; eauto.
   eapply H0; eauto.
+  eapply H; eauto.
 Qed.
 
-Lemma subp_top {A} `{ageable A} : forall G P,
+Lemma subp_top : forall G P,
   G |-- P >=> TT.
 Proof.
   repeat intro; simpl; auto.
 Qed.
 
-Lemma subp_bot {A} `{ageable A} : forall G P,
+Lemma subp_bot : forall G P,
   G |-- FF >=> P.
 Proof.
   repeat intro; simpl in *; intuition.
 Qed.
 
-Lemma subp_andp {A} `{ageable A} : forall G P P' Q Q',
+Lemma subp_andp : forall G P P' Q Q',
   (G |-- P >=> P') ->
   (G |-- Q >=> Q') ->
   G |-- P && Q >=> (P' && Q').
 Proof.
   repeat intro.
   destruct H5; split.
+  eapply H; eauto.
   eapply H0; eauto.
-  eapply H1; eauto.
 Qed.
 
-Lemma subp_imp {A} `{ageable A} : forall G P P' Q Q',
+Lemma subp_imp : forall G P P' Q Q',
   (G |-- P' >=> P) ->
   (G |-- Q >=> Q') ->
   G |-- (P --> Q) >=> (P' --> Q').
 Proof.
   repeat intro.
-  eapply H1; eauto.
-  apply H5; auto.
-  eapply H0; eauto.
+  assert (a >= level a'').
+  { apply necR_level in H3; apply ext_level in H4; lia. }
+  eapply (H0); eauto.
+  eapply H5; eauto.
+  eapply H; eauto.
 Qed.
 
-Lemma subp_orp {A} `{ageable A} : forall G P P' Q Q',
+Lemma subp_orp : forall G P P' Q Q',
   (G |-- P >=> P') ->
   (G |-- Q >=> Q') ->
   G |-- (P || Q) >=> (P' || Q').
 Proof.
   repeat intro.
   destruct H5; [ left | right ].
+  eapply H; eauto.
   eapply H0; eauto.
-  eapply H1; eauto.
 Qed.
 
-Lemma subp_subp {A}{agA: ageable A}:
+Lemma subp_subp :
   forall (G: pred nat) (P Q R S: pred A),
    (G |-- (R >=> P)) ->
    (G |-- (Q >=> S)) ->
@@ -226,42 +257,36 @@ Proof.
  intros.
  intros w ?.
  specialize (H _ H1). specialize (H0 _ H1). clear G H1.
- intros ? ? ? ? ? ? ? ? ? ?.
- eapply H0.
- 3: eapply H3.
- 5: eapply H; auto.
- 2: eassumption. 3: eassumption.
- apply necR_level in H2. apply Le.le_trans with (level y); auto. apply Le.le_trans with (level a'); auto.
- auto.
- apply necR_level in H5.
- apply Le.le_trans with (level y0); auto. apply Le.le_trans with a'; auto.
- apply necR_level in H2.  apply Le.le_trans with (level y); auto.
+ intros ? ? ? ? ? ? ? ? ? ? ? ? ? ?.
+ assert (w >= level y0).
+ { apply necR_level in H2. apply ext_level in H3. simpl in *; unfold natLevel in *. lia. }
+ eapply H0, H4, H; eassumption.
 Qed.
 
-Lemma subp_allp {A} `{ageable A} : forall G B (X Y:B -> pred A),
+Lemma subp_allp : forall G B (X Y:B -> pred A),
   (forall x:B, G |-- X x >=> Y x) ->
   G |-- allp X >=> allp Y.
 Proof.
   repeat intro.
-  eapply H0; eauto.
+  eapply H; eauto.
 Qed.
 
-Lemma subp_exp {A} `{ageable A} : forall G B (X Y:B -> pred A),
+Lemma subp_exp : forall G B (X Y:B -> pred A),
   (forall x:B, G |-- X x >=> Y x) ->
   G |-- exp X >=> exp Y.
 Proof.
   repeat intro.
   destruct H4; exists x.
-  eapply H0; eauto.
+  eapply H; eauto.
 Qed.
 
-Lemma subp_allp_spec {A} `{ageable A} : forall G B (X:B -> pred A) x,
+Lemma subp_allp_spec : forall G B (X:B -> pred A) x,
   G |-- allp X >=> X x.
 Proof.
   repeat intro; eauto.
 Qed.
 
-Lemma subp_exp_spec {A} `{ageable A} : forall G B(X:B -> pred A) x,
+Lemma subp_exp_spec : forall G B(X:B -> pred A) x,
   G |-- X x >=> exp X.
 Proof.
   repeat intro.
@@ -269,7 +294,7 @@ Proof.
 Qed.
 
 
-Lemma later_fash1 {A} `{agA: ageable A}:
+Lemma later_fash1 :
    forall P, |> # P |-- # |> P.
 Proof.
 intros.
@@ -282,7 +307,7 @@ apply laterR_level in H1.
 lia.
 Qed.
 
-Lemma later_fash {A} `{agA : ageable A}:
+Lemma later_fash :
     forall P, |> # P = # |> P.
 Proof.
 intros.
@@ -300,34 +325,38 @@ lia.
 constructor 1; auto.
 Qed.
 
-Lemma subp_later1 {A} `{ageable A} : forall P Q,
+Lemma subp_later1 : forall P Q,
    |>(P >=> Q)  |--   |>P >=> |>Q.
 Proof.
 intros.
-eapply derives_trans; [apply later_fash1 | ].
-rewrite later_imp.
-intros ? ?; auto.
+rewrite later_fash.
+apply fash_derives, axiomK.
 Qed.
 
-Lemma subp_later {A} `{ageable A} : forall P Q,
+(*Lemma subp_later : forall P Q,
    |>(P >=> Q) = |>P >=> |>Q.
 Proof.
 intros.
+apply pred_ext.
+apply subp_later1.
 rewrite later_fash.
+intros ???????????.
+eapply H.
 f_equal.
 apply later_imp.
-Qed.
+Qed.*)
 
-Lemma eqp_later1 {A} `{ageable A} : forall P Q,
+Lemma eqp_later1 : forall P Q,
    |>(P <=> Q)  |--   |>P <=> |>Q.
 Proof.
 intros.
-eapply derives_trans; [apply later_fash1 | ].
+rewrite later_fash.
+apply fash_derives.
 rewrite later_and.
-repeat rewrite later_imp. auto.
+apply andp_derives; apply axiomK.
 Qed.
 
-Lemma eqp_later {A} `{ageable A} : forall P Q,
+(*Lemma eqp_later : forall P Q,
     (|>(P <=> Q) = |>P <=> |>Q)%pred.
 Proof.
 intros.
@@ -336,32 +365,35 @@ f_equal.
 rewrite later_and.
 repeat rewrite later_imp.
 auto.
-Qed.
+Qed.*)
 
 
-Program Definition unfash {A} `{agA: ageable A} (P: pred nat) : pred A :=
+Program Definition unfash  (P: pred nat) : pred A :=
      fun x => P (level x).
 Next Obligation.
+ split; hnf; intros.
  apply age_level in H.
  rewrite H in H0.
- eapply pred_hereditary; eauto. unfold age;  simpl. auto.
+ eapply pred_hereditary; eauto. unfold age; simpl. auto.
+
+ apply ext_level in H as <-; auto.
 Qed.
 
 Notation "'!' e" := (unfash e) (at level 20, right associativity): pred.
 
-Lemma level_later {A} `{H : ageable A}: forall {w: A} {n': nat},
+Lemma level_later : forall {w: A} {n': nat},
          laterR (level w) n' ->
        exists w', laterR w w' /\ n' = level w'.
 Proof.
 intros.
 remember (level w) as n.
-revert w Heqn; induction H0; intros; subst.
+revert w Heqn; induction H; intros; subst.
 case_eq (age1 w); intros.
 exists a; split. constructor; auto.
-symmetry; unfold age in H0; simpl in H0.
-  unfold natAge1 in H0; simpl in H0. revert H0; case_eq (level w); intros; inv H2.
-  apply age_level in H1. congruence. rewrite age1_level0 in H1.
-   rewrite H1 in H0. inv H0.
+symmetry; unfold age in H; simpl in H.
+  unfold natAge1 in H; simpl in H. revert H; case_eq (level w); intros; inv H1.
+  apply age_level in H0. congruence. rewrite age1_level0 in H0.
+   rewrite H0 in H. inv H.
  specialize (IHclos_trans1 _ (refl_equal _)).
   destruct IHclos_trans1 as [w2 [? ?]].
   subst.
@@ -371,19 +403,19 @@ symmetry; unfold age in H0; simpl in H0.
   exists w3; split; auto. econstructor 2; eauto.
 Qed.
 
-Lemma later_unfash {A} `{H : ageable A}:
+Lemma later_unfash :
      forall P, |> (unfash P: pred A) = unfash ( |> P).
 Proof.
 unfold unfash; intros.
 apply pred_ext; intros w ?; hnf in *.
 intros n' ?.
-simpl in H1. destruct (level_later H1) as [w' [? ?]].
-  subst. apply H0. auto.
- intros ? ?. simpl in H1. apply H0. simpl.
-  apply laterR_level in H1. rewrite laterR_nat; auto.
+simpl in H0. destruct (level_later H0) as [w' [? ?]].
+  subst. apply H. auto.
+ intros ? ?. simpl in H0. apply H. simpl.
+  apply laterR_level in H0. rewrite laterR_nat; auto.
 Qed.
 
-Lemma subp_derives {A} `{agA : ageable A} :
+Lemma subp_derives  :
   forall (P P' Q Q': pred A),
     (P' |-- P) ->
     (Q |-- Q') ->
@@ -392,12 +424,12 @@ Proof.
 
 intros.
 intros w ?.
-intros ? ? ? ? ?.
+intros ? ? ? ? ? ? ?.
 apply H0.
 eapply H1; eauto.
 Qed.
 
-Lemma derives_subp {A} `{agA : ageable A} :
+Lemma derives_subp  :
       forall (P Q: pred A) (st: nat), (P |-- Q) -> (P >=> Q) st.
 Proof.
 
@@ -406,26 +438,36 @@ intros w' ? w'' ? ?.
 eauto.
 Qed.
 
-Lemma exp_subp' {A} `{H : ageable A}:
+Lemma exp_subp' :
   forall (T: Type) (P Q: T -> pred A) (st: nat),
                 (forall x, (P x >=> Q x) st) -> ((EX x : T, P x) >=> (EX x : T, Q x)) st.
 Proof.
 intros.
 repeat intro.
 destruct H3 as [x ?]; exists x.
-eapply H0; eauto.
+eapply H; eauto.
 Qed.
 
-Lemma fash_subp {A} `{agA: ageable A}:
+Lemma fash_fash :  forall P: pred A,  # # P = # P.
+Proof.
+intros.
+apply pred_ext; intro; simpl in *; intros.
+apply H with a; auto.
+subst.
+apply H.
+unfold natLevel in H0. lia.
+Qed.
+
+Lemma fash_subp :
     forall (P Q: pred A), fashionable (P >=> Q).
 Proof.
 intros.
 unfold fashionable.
 rewrite fash_fash. auto.
 Qed.
-#[export] Hint Resolve fash_subp : core.
+#[local] Hint Resolve fash_subp : core.
 
-Lemma fash_allp {A} {agA:ageable A}:
+Lemma fash_allp :
   forall  (B: Type) (F: B -> pred A),
       # (allp F) = allp (fun z: B => # F z).
 Proof.
@@ -438,13 +480,13 @@ intros ? ? ?.
 eapply H; auto.
 Qed.
 
- Lemma subp_i1 {A}{agA: ageable A}:
+ Lemma subp_i1 :
   forall (P : pred nat) (Q R: pred A ), (!P && Q |-- R) -> P |-- Q >=> R.
 Proof. intros.
-  intros n ?. intros ? ? ? ? ?. apply H. split; auto.
- eapply pred_nec_hereditary. apply H2.
- assert (P (level y)). eapply pred_nec_hereditary; try apply H0.
- apply nec_nat. auto. apply H4.
+ intros n ?. intros ? ? ? ? ? ? ?. apply H. split; auto.
+ assert (P (level a')). eapply pred_nec_hereditary; try apply H0.
+ apply nec_nat. apply necR_level in H2. lia.
+ hnf. apply ext_level in H3 as <-. auto.
 Qed.
 
 Lemma eqp_nat: forall P Q: pred nat, (P <=> Q) = (P <--> Q).
@@ -458,21 +500,79 @@ apply nec_nat.
 unfold level in H1. simpl in H1. unfold natLevel in H1. lia.
 Qed.
 
-Lemma prop_andp_subp {A}{agA : ageable A}:
+Lemma prop_andp_subp :
   forall (P: Prop) Q R w, (P -> app_pred (Q >=> R) w) -> app_pred ((!!P && Q) >=> R) w.
 Proof.
 intros.
 repeat intro.
-destruct H2.
-apply H in H2.
-eapply H2; eauto.
+destruct H3.
+apply H in H3.
+eapply H3; eauto.
 Qed.
 
-Lemma subp_e {A}{agA : ageable A}: forall P Q : pred A, (TT |-- P >=> Q) -> P |-- Q.
+Lemma subp_e : forall P Q : pred A, (TT |-- P >=> Q) -> P |-- Q.
 Proof.
 intros.
 repeat intro.
-apply (H (@level _ agA a) I a (Le.le_refl _) a (necR_refl _) H0).
+eapply H; eauto.
 Qed.
 
+Lemma eqp_unfash : forall G P Q, G |-- P <=> Q -> G |-- (!P <=> !Q).
+Proof.
+  intros.
+  eapply derives_trans; [apply H|].
+  intros ????.
+  split; intros ?????; eapply H0; eauto; apply necR_level in H2; apply ext_level in H3; simpl; unfold natLevel; lia.
+Qed.
 
+Lemma eqp_subp_subp : forall G (P Q R S : pred A),
+  G |-- P <=> R -> G |-- Q <=> S ->
+  G |-- (P >=> Q) <=> (R >=> S).
+Proof.
+  intros.
+  rewrite fash_triv.
+  apply andp_right; rewrite <- imp_andp_adjoint; eapply subp_trans, subp_trans.
+  - apply andp_left1, eqp_subp2, H.
+  - apply andp_left2, derives_refl.
+  - apply andp_left1, eqp_subp, H0.
+  - apply andp_left1, eqp_subp, H.
+  - apply andp_left2, derives_refl.
+  - apply andp_left1, eqp_subp2, H0.
+Qed.
+
+Lemma eqp_trans : forall G (P Q R : pred A),
+  G |-- P <=> Q -> G |-- Q <=> R ->
+  G |-- P <=> R.
+Proof.
+  intros.
+  eapply subp_eqp; eapply subp_trans; eapply eqp_subp.
+  - apply H.
+  - apply H0.
+  - rewrite eqp_comm; apply H0.
+  - rewrite eqp_comm; apply H.
+Qed.
+
+Lemma eqp_eqp : forall G (P Q R S : pred A),
+  G |-- P <=> R -> G |-- Q <=> S ->
+  G |-- (P <=> Q) <=> (R <=> S).
+Proof.
+  intros.
+  rewrite fash_triv.
+  apply andp_right; rewrite <- imp_andp_adjoint; eapply eqp_trans, eqp_trans.
+  - apply andp_left1; rewrite eqp_comm; apply H.
+  - apply andp_left2, derives_refl.
+  - apply andp_left1, H0.
+  - apply andp_left1, H.
+  - apply andp_left2, derives_refl.
+  - apply andp_left1; rewrite eqp_comm; apply H0.
+Qed.
+
+End Subtypes.
+
+Notation "'#' e" := (fash e) (at level 20, right associativity): pred.
+Notation "'!' e" := (unfash e) (at level 20, right associativity): pred.
+Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : pred.
+Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : pred.
+
+#[export] Hint Resolve ag_nat : core.
+#[export] Hint Resolve fash_subp : core.

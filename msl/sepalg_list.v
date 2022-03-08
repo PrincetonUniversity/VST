@@ -106,7 +106,7 @@ Qed.
 
 Definition age1_list {A} `{ageable A} := list_forall2 age.
 
-Lemma age1_list_join {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma age1_list_join {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall l (phi phi' phi2: A),
         age phi phi' ->
         list_join phi l phi2 ->
@@ -125,7 +125,7 @@ exists phi2'.
 repeat split; auto; econstructor 2; eauto.
 Qed.
 
-Lemma age1_list_join2 {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma age1_list_join2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall (l: list A) phi phi2 phi2',  age1 phi2 = Some phi2' -> list_join phi l phi2 ->
         exists l', exists phi',  age1 phi = Some phi' /\ age1_list l l' /\ list_join phi' l' phi2'.
 Proof.
@@ -197,7 +197,7 @@ Qed.
 
 (*****************************)
 
-Lemma list_join_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma list_join_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall (phi1: A) l phi2, list_join phi1 l phi2 -> comparable phi1 phi2.
 Proof.
   intros; revert phi1 phi2 H; induction l; simpl; intros; inv H.
@@ -208,27 +208,27 @@ Proof.
   auto.
 Qed.
 
-Lemma join_comparable'  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma join_comparable'  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall phi1 phi2 phi3: A, join phi1 phi2 phi3 -> comparable phi2 phi3.
 Proof. intros; apply join_comparable with phi1; apply join_comm; auto. Qed.
 
-Lemma join_comparable2'  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma join_comparable2'  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall phi1 phi2 phi3: A, join phi1 phi2 phi3 -> comparable phi2 phi1.
 Proof. intros; apply comparable_sym; eapply join_comparable2; eauto. Qed.
 
-Lemma list_join_comparable'  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma list_join_comparable'  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall (phi1: A) l phi2, list_join phi1 l phi2 -> comparable phi2 phi1.
 Proof. intros; apply comparable_sym; eapply list_join_comparable; eauto. Qed.
 
-Lemma join_comparable''  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma join_comparable''  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall phi1 phi2 phi3: A, join phi1 phi2 phi3 -> comparable phi3 phi2.
 Proof. intros; apply comparable_sym; eapply join_comparable'; eauto. Qed.
 
-Lemma join_comparable'''  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma join_comparable'''  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall phi1 phi2 phi3: A, join phi1 phi2 phi3 -> comparable phi3 phi1.
 Proof. intros; apply comparable_sym; eapply join_comparable; eauto. Qed.
 
-Lemma joins_comparable  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma joins_comparable  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall phi1 phi2: A, joins phi1 phi2 -> comparable phi1 phi2.
 Proof.
   unfold joins; intros.
@@ -236,7 +236,7 @@ Proof.
   eapply join_comparable2; eauto.
 Qed.
 
-Lemma joins_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma joins_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
      forall phi1 phi2: A, joins phi2 phi1 -> comparable phi1 phi2.
 Proof.
 unfold joins; intros.
@@ -245,7 +245,7 @@ apply comparable_sym.
 eapply join_comparable2; eauto.
 Qed.
 
-Lemma join_sub_comparable  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma join_sub_comparable  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
   forall phi1 phi2: A, join_sub phi1 phi2 -> comparable phi1 phi2.
 Proof.
 unfold joins; intros.
@@ -253,7 +253,7 @@ destruct H as [phi3 ?].
 eapply join_comparable; eauto.
 Qed.
 
-Lemma join_sub_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma join_sub_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
      forall phi1 phi2: A, join_sub phi2 phi1 -> comparable phi1 phi2.
 Proof.
 unfold joins; intros.
@@ -274,7 +274,7 @@ Proof.
 intros; subst; apply comparable_refl.
 Qed.
 
-Lemma ageN_join {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma ageN_join {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall n (w1 w2 w3 w1': A),
    join w1 w2 w3 ->
       ageN n w1 = Some w1' ->
@@ -293,7 +293,7 @@ exists w2''; exists w3''. rewrite H3; rewrite H4.
 repeat split; auto.
 Qed.
 
-Lemma ageN_join2 {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma ageN_join2 {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall n (w1 w2 w3 w3': A),
    join w1 w2 w3 ->
       ageN n w3 = Some w3' ->
@@ -312,7 +312,7 @@ exists w1''; exists w2''. rewrite H3; rewrite H4.
 repeat split; auto.
 Qed.
 
-Lemma ageN_comparable {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma ageN_comparable {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{FA: Flat_alg A}:
   forall n (w1 w2 w1' w2': A),
         ageN n w1 = Some w1' -> ageN n w2 = Some w2' -> comparable w1 w2 -> comparable w1' w2'.
 Proof.
@@ -426,7 +426,7 @@ Lemma not_any_younger_refl {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: 
  forall phi : A, not_any_younger phi phi.
 Proof. intros; exists phi; split; auto. apply comparable_refl. Qed.
 
-Lemma not_any_younger_trans {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma not_any_younger_trans {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall phi1 phi2 phi3, not_any_younger phi1 phi2 -> not_any_younger phi2 phi3 ->
             not_any_younger phi1 phi3.
 Proof.

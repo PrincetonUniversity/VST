@@ -1933,13 +1933,11 @@ Qed.
 Lemma weak_exclusive_conflict : forall P,
   predicates_hered.derives ((weak_exclusive_mpred P && emp) * P * P) FF.
 Proof.
-  intros ?? (r1 & r2 & ? & (? & ? & Hj & [Hexclusive Hemp] & ?) & ?).
-  destruct (age_sepalg.join_level _ _ _ H), (age_sepalg.join_level _ _ _ Hj).
-  apply Hemp in Hj; subst.
-  simpl in Hexclusive.
-  inv Hexclusive; rename derivesI into Hexclusive.
-  apply Hexclusive.
-  do 3 eexists; eauto; repeat split; auto; lia.
+  intros; unfold weak_exclusive_mpred.
+  rewrite sepcon_assoc.
+  intros ? (r1 & r2 & ? & [Hexclusive _] & HP).
+  eapply (Hexclusive r2) in HP; eauto.
+  apply join_level in H as [-> ->]; auto.
 Qed.
 
 Lemma exclusive_sepcon1 : forall (P Q : mpred) (HP : exclusive_mpred P), exclusive_mpred (P * Q).
@@ -1973,18 +1971,16 @@ Proof.
   inv H0.
   match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
   intros ? (? & ? & ? & Hlock1 & Hlock2).
-  exploit (res_predicates.LKspec_precise _ _ _ _ a _ _ Hlock1 Hlock2).
-  - eexists; eauto.
-  - apply sepalg.join_comm in H. eexists; eauto.
-  - intros; subst.
-    destruct Hlock1 as [Hlock1 _]; simpl in Hlock1.
-    specialize (Hlock1 (b2, Ptrofs.unsigned ofs2)).
-    rewrite if_true in Hlock1 by (split; auto; pose proof lksize.LKSIZE_pos; lia).
-    destruct Hlock1 as [? Hl1].
-    apply compcert_rmaps.RML.resource_at_join with (loc := (b2, Ptrofs.unsigned ofs2)) in H.
-    rewrite Hl1 in H; inv H.
-    apply sepalg.join_self in RJ.
-    eapply readable_not_identity; eauto.
+  set (l := (b2, Ptrofs.unsigned ofs2)).
+  apply (compcert_rmaps.RML.resource_at_join _ _ _ l) in H.
+  specialize (Hlock1 l); specialize (Hlock2 l).
+  simpl in *.
+  if_tac in Hlock1.
+  destruct Hlock1 as [? H1], Hlock2 as [? H2]; rewrite H1, H2 in H; inv H.
+  apply sepalg.join_self in RJ.
+  eapply readable_not_identity; eauto.
+  { contradiction H0.
+    subst l; unfold adr_range. pose proof lksize.LKSIZE_pos; lia. }
 Qed.
 
 Lemma selflock_exclusive : forall R sh v, exclusive_mpred R -> exclusive_mpred (selflock R v sh).
@@ -2277,7 +2273,7 @@ Lemma LKspec_readable lock_size :
   forall R sh p, predicates_hered.derives (res_predicates.LKspec lock_size R sh p)
   (!!(readable_share sh)).
 Proof.
-  intros pos R sh p a [H _].
+  intros pos R sh p a H.
   specialize (H p); simpl in H.
   destruct (adr_range_dec p lock_size p).
   destruct (eq_dec p p); [|contradiction n; auto].
@@ -3007,10 +3003,10 @@ Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered
   compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P)
     (compcert_rmaps.RML.R.approx n Q)).
 Proof.
-  intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha' HP.
-  - destruct HP; split; auto.
-  - apply Himp; auto; split; auto.
-    pose proof (ageable.necR_level _ _ Ha'); lia.
+  intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? ? Ha' Hext HP.
+  - destruct HP; split; eauto.
+  - eapply Himp; eauto; split; auto.
+    pose proof (ageable.necR_level _ _ Ha'); apply ext_level in Hext; lia.
 Qed.
 
 Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.approx n (P ts x) =
@@ -3063,8 +3059,8 @@ Proof.
   intros ??; auto.
 Qed.
 
-Lemma later_nonexpansive : forall n P, compcert_rmaps.RML.R.approx n (|> P) =
-  compcert_rmaps.RML.R.approx n (|> compcert_rmaps.RML.R.approx n P).
+Lemma later_nonexpansive : forall n P, compcert_rmaps.RML.R.approx n (|> P)%pred =
+  compcert_rmaps.RML.R.approx n (|> compcert_rmaps.RML.R.approx n P)%pred.
 Proof.
   intros.
   intros; apply predicates_hered.pred_ext.
@@ -3076,11 +3072,11 @@ Proof.
     specialize (H0 _ Hlater) as []; auto.
 Qed.
 
-Lemma allp_nonexpansive : forall {A} n P, compcert_rmaps.RML.R.approx n (ALL y : A, P y) =
-  compcert_rmaps.RML.R.approx n (ALL y, compcert_rmaps.RML.R.approx n (P y)).
+Lemma allp_nonexpansive : forall {A} n P, compcert_rmaps.RML.R.approx n (ALL y : A, P y)%pred =
+  compcert_rmaps.RML.R.approx n (ALL y, compcert_rmaps.RML.R.approx n (P y))%pred.
 Proof.
   intros.
-  apply predicates_hered.pred_ext; intros ? [? Hall]; split; auto; intro; simpl in *.
+  apply predicates_hered.pred_ext; intros ? [? Hall]; split; auto; intro.
   - split; auto.
   - apply Hall.
 Qed.
