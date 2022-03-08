@@ -1,9 +1,16 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
+Require Import VST.concurrency.invariants.
 Require Import VST.floyd.library.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.atomics.general_atomics.
 Require Import VST.atomics.lock.
+
+(*Open Scope logic. (* we shouldn't need this *)*)
+
+Section PROOFS.
+
+Context {inv_names0 : invG}.
 
 Definition funspec_sub (f1 f2 : funspec): Prop :=
 match f1 with
@@ -27,8 +34,6 @@ end.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_lock := Tstruct _atom_int noattr.
-
-Section PROOFS.
 
   Definition atomic_int := Tstruct _atom_int noattr.
   Variable atomic_int_at : share -> val -> val -> mpred.
@@ -56,7 +61,7 @@ Section PROOFS.
     POST [ tptr t_lock ] EX p: val,
        PROP ()
        RETURN (p)
-       SEP (mem_mgr gv; atomic_int_at Ews (vint 0) p).
+       SEP (mem_mgr gv; atomic_int_at Ews (vint 1) p).
 
   Definition freelock_spec :=
     DECLARE _freelock
@@ -125,10 +130,8 @@ Section PROOFS.
     forward_call (p, (vint 0), top: coPset, empty: coPset, Q, inv_names).
     - assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H0].
       simpl fold_right_sepcon. cancel.
-      iIntros "AS".
-      unfold atomic_shift, ashift.
-      iDestruct "AS" as (P) "[P AS]".
-      iMod ("AS" with "P") as (x) "[a [_ H]]".
+      iIntros ">AS".
+      iDestruct "AS" as (x) "[a [_ H]]".
       iExists Ews. iModIntro. iSplitL "a".
       + iSplit.
         * iPureIntro. apply writable_Ews.
@@ -169,13 +172,9 @@ Section PROOFS.
                        fold_right_sepcon [!! (l = true) && atomic_int_at Ews (vint 1) p]) (λ _ : (), Q)), inv_names).
       + assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H].
         simpl fold_right_sepcon. cancel.
-        iIntros "AS". iExists Ews.
-        unfold atomic_shift at 1. unfold ashift.
-        iDestruct "AS" as (P) "[P AS]".
-        iDestruct (cored_dup with "AS") as "[AS AS1]".
-        iMod ("AS" with "P") as (x) "[[a | a] H]".
-        * iDestruct "AS1" as "[_ AS1]". iMod (cored_emp with "AS1") as "_".
-          iDestruct "H" as "[_ H]". iDestruct "a" as (a) "b".
+        iIntros ">AS". iExists Ews.
+        iDestruct "AS" as (x) "[[a | a] H]".
+        * iDestruct "H" as "[_ H]". iDestruct "a" as (a) "b".
           iExists (vint 0). iModIntro. iSplitL "b".
           -- iSplit; auto.
           -- iSpecialize ("H" $! tt). iIntros "AA". iApply "H".
@@ -185,7 +184,7 @@ Section PROOFS.
           1: inversion e. do 2 rewrite sepcon_andp_prop'. iSplit.
           -- iPureIntro. apply writable_Ews.
           -- iDestruct "a" as (Hx) "a". iSplitL "a". 1: auto. iIntros "AS".
-             iExists P. iMod ("H" with "[AS]").
+             iMod ("H" with "[AS]").
              { iRight; iFrame; auto. }
              iFrame; auto.
       + Intros r. destruct (eq_dec r (vint 0)).
@@ -326,32 +325,37 @@ Section PROOFS.
                                         NP_acquire_pre
                                         NP_acquire_post.
 
+  Hypothesis atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p).
+  Existing Instance atomic_int_timeless.
+
   Lemma acquire_funspec_sub: funspec_sub (snd acquire_spec) acquire_spec2.
   Proof.
     split; auto. intros. simpl in *. destruct x2 as [[v gv] R]. Intros.
     unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
-    iExists (((v, gv), R), inv_names), emp. simpl in *. rewrite emp_sepcon. iSplit.
+    iExists (((v, gv), R), inv_names0), emp. simpl in *. rewrite emp_sepcon. iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. normalize.
       iDestruct "H" as "(% & H1 & H2 & H3)". iSplit.
       + admit.
       + iSplit; auto. unfold argsassert2assert. iSplitL "H3"; auto. unfold lock_inv.
         iDestruct "H3" as (i) "H". iApply inv_atomic_shift; eauto.
-        3: { rewrite <- (sepcon_emp (invariant i (atomic_int_at Ews (vint 0) v * R || atomic_int_at Ews (vint 1) v))).
-             iApply "H". }
-        * apply empty_subseteq.
-        * rewrite later_orp. iIntros "[H|H]".
-          -- iIntros "!>". iExists true. rewrite later_sepcon. normalize.
-             iDestruct "H" as "(H1 & H2)". iSplitL "H1".
-             ++ iApply orp_right1. 2: iApply "H1". admit.
-             ++ iSplit.
-                ** iIntros "[H1 | [% H3]]". 2: exfalso; inversion H1.
-                   iIntros "!>". iApply orp_right1. apply derives_refl.
-                   iSplitL "H1"; auto.
-                ** iIntros (_) "(H1 & H3) !>". iSplitR "H2". 2: admit.
-                   iApply orp_right2. apply derives_refl.
-                   iApply now_later. admit.
-          --
-
+        3: { iFrame "H". instantiate (1 := emp); auto. }
+        { apply empty_subseteq. }
+        rewrite later_orp. iIntros "[[>H R]|>H]".
+        -- iIntros "!>". iExists true. rewrite later_sepcon. normalize.
+           iSplitL "H".
+           ++ iLeft; auto.
+           ++ iSplit.
+              ** iIntros "[H1 | [% H3]]". 2: exfalso; inversion H1.
+                 iIntros "!>". iLeft; iFrame; auto.
+              ** iIntros (_) "(H1 & H3) !>". iSplitR "R". 2: admit.
+                 iRight; iFrame.
+        -- iIntros "!>". iExists false. iSplitL "H".
+           ++ iRight; iFrame; auto.
+           ++ iSplit.
+              ** admit.
+              ** iIntros (_) "[? [[% ?] ?]]"; discriminate.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      admit.
   Abort.
 
 
