@@ -332,7 +332,7 @@ Definition t_lock := Tstruct _atom_int noattr.
   Proof.
     split; auto. intros. simpl in *. destruct x2 as [[v gv] R]. Intros.
     unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
-    iExists (((v, gv), R), inv_names0), emp. simpl in *. rewrite emp_sepcon. iSplit.
+    iExists (((v, gv), lock_inv v R * R), inv_names0), emp. simpl in *. rewrite emp_sepcon. iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. normalize.
       iDestruct "H" as "(% & H1 & H2 & H3)". iSplit.
       + admit.
@@ -347,7 +347,7 @@ Definition t_lock := Tstruct _atom_int noattr.
            ++ iSplit.
               ** iIntros "[H1 | [% H3]]". 2: exfalso; inversion H1.
                  iIntros "!>". iLeft; iFrame; auto.
-              ** iIntros (_) "(H1 & H3) !>". iSplitR "R". 2: admit.
+              ** iIntros (_) "(H1 & H3) !>". iExists i. iSplitR "R". 2: admit.
                  iRight; iFrame.
         -- iIntros "!>". iExists false. iSplitL "H".
            ++ iRight; iFrame; auto.
