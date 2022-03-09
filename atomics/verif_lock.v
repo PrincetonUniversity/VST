@@ -93,7 +93,7 @@ Definition t_lock := Tstruct _atom_int noattr.
     ATOMIC TYPE (rmaps.ConstType _) OBJ l INVS empty top
     WITH p, gv
     PRE [ tptr t_lock ]
-       PROP (is_pointer_or_null p)
+       PROP ()
        PARAMS (p) GLOBALS (gv)
        SEP (mem_mgr gv) | ((!! (l = true) && atomic_int_at Ews (vint 0) p) ||
                            (!! (l = false) && atomic_int_at Ews (vint 1) p))
@@ -110,7 +110,7 @@ Definition t_lock := Tstruct _atom_int noattr.
   Lemma body_makelock: semax_body Vprog Gprog f_makelock makelock_spec.
   Proof.
     start_function.
-    forward_call (vint 0).
+    forward_call (vint 1).
     Intros p.
     forward.
     Exists p.
@@ -144,7 +144,7 @@ Definition t_lock := Tstruct _atom_int noattr.
 
   Lemma body_acquire: semax_body Vprog Gprog f_acquire acquire_spec.
   Proof.
-    start_function. clear H.
+    start_function.
     forward.
     forward.
     forward_loop (PROP ( )
@@ -262,8 +262,8 @@ Definition t_lock := Tstruct _atom_int noattr.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
     rewrite <- !exp_andp2. normalize. rewrite <- exp_sepcon2.
     iIntros "(% & H1 & H2)". iSplitL "H1"; auto. iExists x. rewrite sepcon_emp.
-    unfold lock_inv. iApply make_inv. 2: iApply "H2". apply orp_right1. cancel.
-  Abort.
+    unfold lock_inv. iApply make_inv. 2: iApply "H2". apply orp_right2. cancel.
+  Qed.
 
   Definition acquire_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * globals)) rmaps.Mpred.
 
@@ -282,7 +282,7 @@ Definition t_lock := Tstruct _atom_int noattr.
        | (v, gv, R) =>
            PROP ()
                 LOCAL ()
-                SEP (mem_mgr gv; lock_inv v R; R)
+                SEP (mem_mgr gv; lock_inv v R; |> R)
        end).
 
   Lemma NP_acquire_pre: @args_super_non_expansive acquire_arg_type (fun _ => acquire_pre).
@@ -304,16 +304,16 @@ Definition t_lock := Tstruct _atom_int noattr.
     intros.
     destruct x as [[v gv] R]; simpl in *.
     apply (nonexpansive_super_non_expansive
-             (fun R => (PROP ()  LOCAL ()  SEP (mem_mgr gv; lock_inv v R; R)) rho)).
+             (fun R => (PROP ()  LOCAL ()  SEP (mem_mgr gv; lock_inv v R; |> R)) rho)).
     apply (PROP_LOCAL_SEP_nonexpansive
              nil
              nil
-             ((fun R: mpred => mem_mgr gv) :: (fun R => lock_inv v R) :: (fun R => R) :: nil));
+             ((fun R: mpred => mem_mgr gv) :: (fun R => lock_inv v R) :: (fun R => |> R) :: nil));
       constructor.
     - apply const_nonexpansive.
     - constructor.
       + apply nonexpansive_lock_inv.
-      + constructor; [apply identity_nonexpansive | constructor].
+      + constructor; [apply later_nonexpansive' | constructor].
   Qed.
 
   Definition acquire_spec2: funspec := mk_funspec
@@ -332,31 +332,32 @@ Definition t_lock := Tstruct _atom_int noattr.
   Proof.
     split; auto. intros. simpl in *. destruct x2 as [[v gv] R]. Intros.
     unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
-    iExists (((v, gv), lock_inv v R * R), inv_names0), emp. simpl in *. rewrite emp_sepcon. iSplit.
+    iExists (((v, gv), lock_inv v R * |> R), inv_names0), emp. simpl in *.
+    rewrite emp_sepcon. iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. normalize.
       iDestruct "H" as "(% & H1 & H2 & H3)". iSplit.
-      + admit.
+      + iPureIntro. auto.
       + iSplit; auto. unfold argsassert2assert. iSplitL "H3"; auto. unfold lock_inv.
-        iDestruct "H3" as (i) "H". iApply inv_atomic_shift; eauto.
-        3: { iFrame "H". instantiate (1 := emp); auto. }
-        { apply empty_subseteq. }
-        rewrite later_orp. iIntros "[[>H R]|>H]".
-        -- iIntros "!>". iExists true. rewrite later_sepcon. normalize.
-           iSplitL "H".
-           ++ iLeft; auto.
-           ++ iSplit.
-              ** iIntros "[H1 | [% H3]]". 2: exfalso; inversion H1.
-                 iIntros "!>". iLeft; iFrame; auto.
-              ** iIntros (_) "(H1 & H3) !>". iExists i. iSplitR "R". 2: admit.
-                 iRight; iFrame.
-        -- iIntros "!>". iExists false. iSplitL "H".
-           ++ iRight; iFrame; auto.
-           ++ iSplit.
-              ** admit.
-              ** iIntros (_) "[? [[% ?] ?]]"; discriminate.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      admit.
-  Abort.
-
+        iDestruct "H3" as (i) "# H". unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
+        iMod (inv_open with "H") as "[inv Hclose]". set_solver.
+        rewrite later_orp. rewrite later_sepcon.
+        iDestruct "inv" as "[[> H1 R]|> H1]".
+        * iApply fupd_mask_intro; try set_solver. iIntros "H2". iExists true.
+          normalize. iSplitL "H1".
+          -- iLeft; auto.
+          -- iSplit.
+             ++ iIntros "[H1 | [% H3]]". 2: exfalso; inversion H1.
+                 iMod "H2". iApply "Hclose". iLeft; iFrame; auto.
+             ++ iIntros (_) "H1". iMod "H2". iExists i. iFrame "#". iFrame. iApply "Hclose".
+                iRight. iFrame. auto.
+        * iExists false. iApply fupd_mask_intro; try set_solver. iIntros "H2". iSplitL "H1".
+          -- iRight; iFrame; auto.
+          -- iSplit.
+             ++ iIntros "[[% H1] | [% H1]]". 1: inversion H1. iMod "H2". iApply "Hclose".
+                iRight. iFrame; auto.
+             ++ iIntros (_) "[[% ?] _]"; discriminate.
+    - iPureIntro. iIntros (rho') "[% [_ H]]". iIntros "!>".
+      unfold PROPx, LOCALx, SEPx; simpl. normalize. rewrite sepcon_comm. auto.
+  Qed.
 
 End PROOFS.

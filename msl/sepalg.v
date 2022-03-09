@@ -873,7 +873,7 @@ Instance fsep_sep `(FSep_alg) : Sep_alg _.
 Proof.
   exists fcore.
   - apply fcore_unit.
-  - intros ????%join_fcore.
+  - intros a b c H1%join_fcore.
     rewrite H1; eexists.
     pose proof (fcore_unit (fcore c)) as Hj.
     rewrite fcore_idem in Hj; eauto.

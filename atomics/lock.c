@@ -1,7 +1,7 @@
 #include "lock.h"
 
 lock_t* makelock() {
-    return make_atomic(0);
+    return make_atomic(1);
 }
 
 void freelock(lock_t *lock) {

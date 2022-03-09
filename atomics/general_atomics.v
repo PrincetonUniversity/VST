@@ -44,7 +44,7 @@ Definition tele_unwrap {A} (x : tele_arg (TeleS (fun _ : A => TeleO))) :=
   end.
 
 Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) : mpred :=
-  atomic_update Eo Ei (λ.. x, a (tele_unwrap x)) (λ.. x y, b (tele_unwrap x) (tele_unwrap y)) (λ.. x y, Q (tele_unwrap y)).
+  @atomic_update mpredI _ [tele _ : A] [tele _ : B] Eo Ei (λ.. x, a (tele_unwrap x)) (λ.. x y, b (tele_unwrap x) (tele_unwrap y)) (λ.. x y, Q (tele_unwrap y)).
 
 Lemma atomic_commit_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- (|==> (EX y, b x y * R' y))%I) ->
@@ -1029,6 +1029,28 @@ Notation "'ATOMIC' 'TYPE' W 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))) _ _))
   (at level 200, x1 closed binder, xn closed binder, Ei at level 0, Eo at level 0, S2 at level 0).
 
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+  (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     PROPx nil
+     (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
+     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
+   (@atomic_spec_nonexpansive_pre0 _ W
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Lx%type .. (cons Ly%type nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Gx .. (cons Gy nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons S1x%logic .. (cons S1y%logic nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x => S2)) ..)))
+      Ei Eo
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..))) ..)))
+     _ _ _ _ _ _)
+  (atomic_spec_nonexpansive_post0 W
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))) _ _))
+  (at level 200, x1 closed binder, xn closed binder, x at level 0, Ei at level 0, Eo at level 0, S2 at level 0).
+
 Ltac atomic_nonexpansive_tac := try (let x := fresh "x" in intros ?? x;
   try match type of x with list Type => (let ts := fresh "ts" in rename x into ts; intros x) end;
   repeat destruct x as [x ?]; unfold rev_curry, tcurry; simpl; auto); repeat constructor.
@@ -1088,7 +1110,7 @@ Ltac start_function1 ::=
    unfold NDmk_funspec'
  end;
  let DependedTypeList := fresh "DependedTypeList" in
- unfold NDmk_funspec; 
+ unfold NDmk_funspec;
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
 
    split3; [check_parameter_types' | check_return_type | ];
