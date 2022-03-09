@@ -121,7 +121,7 @@ Qed.
 (* might be able to get rid of this if we do iInv instances *)
 Lemma inv_atomic_shift : forall {A B} a Ei Eo (b : A -> B -> mpred) Q i R P
   (Hi : inv i ⊆ Eo) (Hio : Ei ⊆ Eo ∖ inv i)
-  (Ha1 : (|>R |-- |={Eo ∖ inv i}=> EX x, a x * ((a x -* |={Ei}=> |>R) &&
+  (Ha1 : (invariant i R * |>R |-- |={Eo ∖ inv i}=> EX x, a x * ((a x -* |={Ei}=> |>R) &&
     (ALL y, |> P * b x y -* |={Ei}=> |>R * Q y)))%I),
   invariant i R * |> P |-- atomic_shift a Ei Eo b Q.
 Proof.
@@ -129,7 +129,7 @@ Proof.
   iIntros "[#I P]". iAuIntro.
   rewrite /atomic_acc /=.
   iMod (inv_open with "I") as "[R Hclose]"; first done.
-  iMod (Ha1 with "R") as (x) "(a & shift)".
+  iMod (Ha1 with "[$I $R]") as (x) "(a & shift)".
   iExists x; iFrame "a".
   iMod fupd_mask_subseteq as "mask"; first done.
   iIntros "!>"; iSplit.
