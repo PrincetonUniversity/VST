@@ -436,11 +436,11 @@ Definition t_lock := Tstruct _atom_int noattr.
       iDestruct "H" as "(% & H1 & H2 & H3 & H4 & H5)". iSplit.
       + iPureIntro. auto.
       + iSplit; auto. unfold argsassert2assert. iSplitR "H2"; auto. unfold lock_inv.
-        iDestruct "H4" as (i) "# H". unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
+        iDestruct "H4" as (i) "#H". unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
         iMod (inv_open with "H") as "[inv Hclose]". set_solver.
         rewrite later_orp. rewrite later_sepcon.
         iDestruct "inv" as "[[> H2 R]|> H2]".
-        * iExists tt. iApply fupd_mask_intro; try set_solver. iIntros "H4". admit.
+        * iPoseProof (weak_exclusive_conflict with "[$H3 $H5 $R]") as "[]".
         * iExists tt. iApply fupd_mask_intro; try set_solver. iIntros "H4".
           iSplitL "H2"; auto. iSplit.
           -- iIntros "H2". iFrame. iMod "H4". iApply "Hclose". iRight. iFrame. auto.

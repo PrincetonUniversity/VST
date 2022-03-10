@@ -1931,11 +1931,11 @@ Qed.
 
 (* exclusive *)
 Lemma weak_exclusive_conflict : forall P,
-  predicates_hered.derives ((weak_exclusive_mpred P && emp) * P * P) FF.
+  (weak_exclusive_mpred P && emp) * P * P |-- FF.
 Proof.
   intros; unfold weak_exclusive_mpred.
   rewrite sepcon_assoc.
-  intros ? (r1 & r2 & ? & [Hexclusive _] & HP).
+  constructor; intros ? (r1 & r2 & ? & [Hexclusive _] & HP).
   eapply (Hexclusive r2) in HP; eauto.
   apply join_level in H as [-> ->]; auto.
 Qed.
