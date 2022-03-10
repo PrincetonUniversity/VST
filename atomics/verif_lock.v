@@ -440,7 +440,8 @@ Definition t_lock := Tstruct _atom_int noattr.
         iMod (inv_open with "H") as "[inv Hclose]". set_solver.
         rewrite later_orp. rewrite later_sepcon.
         iDestruct "inv" as "[[> H2 R]|> H2]".
-        * iPoseProof (weak_exclusive_conflict with "[$H3 $H5 $R]") as "[]".
+        * iAssert (|>FF) with "[H3 H5 R]" as ">[]".
+          iNext; iApply weak_exclusive_conflict; iFrame; iFrame.
         * iExists tt. iApply fupd_mask_intro; try set_solver. iIntros "H4".
           iSplitL "H2"; auto. iSplit.
           -- iIntros "H2". iFrame. iMod "H4". iApply "Hclose". iRight. iFrame. auto.
