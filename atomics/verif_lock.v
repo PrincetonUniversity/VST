@@ -80,7 +80,7 @@ Definition t_lock := Tstruct _atom_int noattr.
     ATOMIC TYPE (rmaps.ConstType _) INVS empty top
     WITH p, gv
     PRE [ tptr t_lock ]
-       PROP (is_pointer_or_null p)
+       PROP ()
        PARAMS (p) GLOBALS (gv)
        SEP (mem_mgr gv) | (atomic_int_at Ews (vint 1) p)
     POST [ tvoid ]
@@ -128,7 +128,7 @@ Definition t_lock := Tstruct _atom_int noattr.
   Proof.
     start_function.
     forward_call (p, (vint 0), top: coPset, empty: coPset, Q, inv_names).
-    - assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H0].
+    - assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H].
       simpl fold_right_sepcon. cancel.
       iIntros ">AS".
       iDestruct "AS" as (x) "[a [_ H]]".
@@ -359,5 +359,95 @@ Definition t_lock := Tstruct _atom_int noattr.
     - iPureIntro. iIntros (rho') "[% [_ H]]". iIntros "!>".
       unfold PROPx, LOCALx, SEPx; simpl. normalize. rewrite sepcon_comm. auto.
   Qed.
+
+  Definition release_arg_type: rmaps.TypeTree :=
+    rmaps.ProdType (rmaps.ConstType (val * globals)) rmaps.Mpred.
+
+  Definition release_pre: val * globals * mpred -> argsEnviron -> mpred :=
+    fun args =>
+      match args with
+      | (v, gv, R) =>
+          PROP ()
+               PARAMS (v) GLOBALS (gv)
+               SEP (mem_mgr gv; weak_exclusive_mpred R && emp; lock_inv v R; R)
+      end%argsassert.
+
+  Notation release_post :=
+    (fun args =>
+       match args with
+       | (v, gv, R) =>
+           PROP ()
+                LOCAL ()
+                SEP (mem_mgr gv; lock_inv v R)
+       end).
+
+  Lemma NP_release_pre: @args_super_non_expansive release_arg_type (fun _ => release_pre).
+  Proof.
+    hnf.
+    intros.
+    destruct x as [[v gv] R]; simpl in *.
+    unfold PROPx. simpl. do 2 rewrite approx_andp. f_equal.
+    unfold LAMBDAx. simpl. do 2 rewrite approx_andp. f_equal.
+    unfold GLOBALSx, LOCALx. simpl. do 2 rewrite approx_andp. f_equal.
+    unfold argsassert2assert. simpl. unfold SEPx; simpl. do 2 rewrite sepcon_emp.
+    repeat rewrite -> approx_sepcon. do 2 f_equal; [|f_equal].
+    - apply (nonexpansive_super_non_expansive (fun R => weak_exclusive_mpred R && emp))%logic.
+      apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
+      + apply exclusive_mpred_nonexpansive.
+      + apply const_nonexpansive.
+    - apply (nonexpansive_super_non_expansive). apply nonexpansive_lock_inv.
+    - remember (compcert_rmaps.RML.R.approx
+                  n (compcert_rmaps.RML.R.approx n R)).
+      rewrite <- (compcert_rmaps.RML.approx_oo_approx n). subst. reflexivity.
+  Qed.
+
+  Lemma NP_release_post: @super_non_expansive release_arg_type (fun _ => release_post).
+  Proof.
+    hnf.
+    intros.
+    destruct x as [[v gv] R]; simpl in *.
+    apply (nonexpansive_super_non_expansive
+             (fun R => (PROP ()  LOCAL ()  SEP (mem_mgr gv; lock_inv v R)) rho)).
+    apply (PROP_LOCAL_SEP_nonexpansive
+             nil
+             nil
+             ((fun R: mpred => mem_mgr gv) :: (fun R => lock_inv v R) :: nil)); constructor.
+    - apply const_nonexpansive.
+    - constructor; [apply nonexpansive_lock_inv | constructor].
+  Qed.
+
+  Definition release_spec2: funspec := mk_funspec
+                                         (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
+                                         ((tptr t_lock) :: nil, tvoid)
+                                         cc_default
+                                         release_arg_type
+                                         (fun _ => release_pre)
+                                         (fun _ => release_post)
+                                         NP_release_pre
+                                         NP_release_post.
+
+  Lemma release_funspec_sub: funspec_sub (snd release_spec) release_spec2.
+  Proof.
+    split; auto. intros. simpl in *. destruct x2 as [[v gv] R]. Intros.
+    unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
+    iExists (((v, gv), lock_inv v R), inv_names0), emp. simpl in *.
+    rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. normalize.
+      iDestruct "H" as "(% & H1 & H2 & H3 & H4 & H5)". iSplit.
+      + iPureIntro. auto.
+      + iSplit; auto. unfold argsassert2assert. iSplitR "H2"; auto. unfold lock_inv.
+        iDestruct "H4" as (i) "# H". unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
+        iMod (inv_open with "H") as "[inv Hclose]". set_solver.
+        rewrite later_orp. rewrite later_sepcon.
+        iDestruct "inv" as "[[> H2 R]|> H2]".
+        * iExists tt. iApply fupd_mask_intro; try set_solver. iIntros "H4". admit.
+        * iExists tt. iApply fupd_mask_intro; try set_solver. iIntros "H4".
+          iSplitL "H2"; auto. iSplit.
+          -- iIntros "H2". iFrame. iMod "H4". iApply "Hclose". iRight. iFrame. auto.
+          -- iIntros (_) "H2". iFrame. iExists i. iFrame "#". iMod "H4". iApply "Hclose".
+             iLeft. iFrame. auto.
+    - iPureIntro. iIntros (rho') "[% [_ H]]". iIntros "!>".
+      unfold PROPx, LOCALx, SEPx; simpl. normalize. rewrite sepcon_comm. auto.
+  Abort.
 
 End PROOFS.
