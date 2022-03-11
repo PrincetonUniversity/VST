@@ -6,8 +6,6 @@ Require Import VST.atomics.SC_atomics.
 Require Import VST.atomics.general_atomics.
 Require Import VST.atomics.lock.
 
-(*Open Scope logic. (* we shouldn't need this *)*)
-
 Section PROOFS.
 
 Context {inv_names0 : invG}.
@@ -67,7 +65,7 @@ Definition t_lock := Tstruct _atom_int noattr.
     DECLARE _freelock
     WITH p : val
     PRE [ tptr t_lock ]
-     PROP (is_pointer_or_null p)
+     PROP ()
      PARAMS (p)
      SEP (EX v : val, atomic_int_at Ews v p)
    POST[ tvoid ]
@@ -120,8 +118,11 @@ Definition t_lock := Tstruct _atom_int noattr.
   Lemma body_freelock: semax_body Vprog Gprog f_freelock freelock_spec.
   Proof.
     start_function.
+    Intros v.
+    assert_PROP (is_pointer_or_null p) by entailer.
     forward_call (p).
-    entailer !.
+    - Exists v. cancel.
+    - entailer !.
   Qed.
 
   Lemma body_release: semax_body Vprog Gprog f_release release_spec.
@@ -449,6 +450,73 @@ Definition t_lock := Tstruct _atom_int noattr.
              iLeft. iFrame. auto.
     - iPureIntro. iIntros (rho') "[% [_ H]]". iIntros "!>".
       unfold PROPx, LOCALx, SEPx; simpl. normalize. rewrite sepcon_comm. auto.
+  Qed.
+
+  Program Definition freelock_spec2: funspec :=
+    mk_funspec
+      ((tptr t_lock) :: nil, tvoid)
+      cc_default
+      (rmaps.ProdType (rmaps.ConstType val) rmaps.Mpred)
+      (fun _ x =>
+         match x with
+         | (v,R) =>
+             PROP ()
+                  PARAMS (v) GLOBALS()
+                  SEP (weak_exclusive_mpred R && emp; lock_inv v R; R)
+         end)%argsassert
+      (fun _ x =>
+         match x with
+         | (v, R) =>
+             PROP ()
+                  LOCAL ()
+                  SEP (R)
+         end)
+      _
+      _.
+  Next Obligation.
+    intros. simpl in *. rename x into v. rename _f into R.
+    apply (nonexpansive_super_non_expansive
+             (fun R => (PROP () PARAMS(v) GLOBALS()
+                     SEP (weak_exclusive_mpred R && emp; lock_inv v R; R))%argsassert gargs)).
+    unfold PARAMSx, GLOBALSx, SEPx, PROPx, LOCALx, argsassert2assert. simpl.
+    apply @conj_nonexpansive.
+    - apply const_nonexpansive.
+    - apply @conj_nonexpansive.
+      + apply const_nonexpansive.
+      + apply @conj_nonexpansive.
+        * apply const_nonexpansive.
+        * apply sepcon_nonexpansive.
+          -- apply @conj_nonexpansive.
+             ++ apply exclusive_mpred_nonexpansive.
+             ++ apply const_nonexpansive.
+          -- apply sepcon_nonexpansive.
+             ++ apply nonexpansive_lock_inv.
+             ++ apply sepcon_nonexpansive.
+                ** apply identity_nonexpansive.
+                ** apply const_nonexpansive.
+  Qed.
+  Next Obligation.
+    intros. rename x into v. rename _f into R. simpl in *.
+    apply (nonexpansive_super_non_expansive
+             (fun R => (PROP ()  LOCAL ()  SEP (R)) rho)).
+    apply (PROP_LOCAL_SEP_nonexpansive
+             nil
+             nil
+             ((fun R => R) :: nil)); constructor.
+    - apply identity_nonexpansive.
+    - constructor.
+  Qed.
+
+  Lemma freelock_funspec_sub: funspec_sub (snd freelock_spec) freelock_spec2.
+  Proof.
+    split; auto. intros. simpl in *. destruct x2 as [p R]. Intros.
+    iIntros "H !>". iExists nil, p, R. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. unfold argsassert2assert.
+      rewrite !sepcon_emp. iDestruct "H" as "(_ & % & % & H1 & H2 & R)". iSplitL "R"; auto.
+      do 3 (iSplit; auto). unfold lock_inv. iDestruct "H2" as "(% & H2)". admit.
+    - iPureIntro. intros. Intros.
+      unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
+      normalize. iIntros "H !>". auto.
   Abort.
 
 End PROOFS.
