@@ -1,6 +1,5 @@
-#!/bin/bash
-
-#  The $1 argument of this script should be $(PROGSDIR)
+#!/usr/bin/env bash
+#  The $1 argument of this script should be the desired make target
 
 MAKE=${MAKE:-make}
 ${MAKE} depend >& /dev/null

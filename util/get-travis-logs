@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SINCE=236
 BUILDS=`travis history --all --no-interactive | awk '$2=="passed:"{A=$1; sub(/#/,"",A); print A;}' `

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 F=veric/version.v
 set -e
 printf >$F 'Require Import ZArith Coq.Strings.String. Open Scope string.\n'

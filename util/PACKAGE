@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script builds a VST distribution as a tgz file.
 # To run it:
 # FIRST DO A "git push" if necessary.
