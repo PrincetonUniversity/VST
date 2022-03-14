@@ -51,11 +51,11 @@ Section BIJECTION.
   Variable SA: Sep_alg A.
   Variable asa : Age_alg A.
 
-  Existing Instance PA.
+  #[local] Existing Instance PA.
 
-  Instance agB : ageable B := (ag_bij _ _ ag bijAB).
+  #[local] Instance agB : ageable B := (ag_bij _ _ ag bijAB).
 
-(*  Instance PA_B:  @Perm_alg B (Join_bij _ _ _ bijAB ) := @Perm_bij A JA PA B bijAB. *)
+(*  #[local] Instance PA_B:  @Perm_alg B (Join_bij _ _ _ bijAB ) := @Perm_bij A JA PA B bijAB. *)
 
   Theorem asa_bijection : @Age_alg B (Join_bij _ _ _ bijAB) agB (Sep_bij _ _ _ bijAB).
   Proof.

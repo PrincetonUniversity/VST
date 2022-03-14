@@ -11,7 +11,7 @@ Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 Require Import VST.msl.Coqlib2.
 Require Import VST.floyd.coqlib3.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Export sha.common_lemmas.
 Require Import Lia.
 
@@ -26,8 +26,8 @@ repeat rewrite Zlength_correct. rewrite length_intlist_to_bytelist.
 rewrite Nat2Z.inj_mul. rewrite Z.mul_comm. reflexivity.
 Qed.
 
-Hint Rewrite Zlength_intlist_to_bytelist : sublist.
-Hint Rewrite Zlength_intlist_to_bytelist : Zlength.
+(*after Coq 8.13: #[export]*) Hint Rewrite Zlength_intlist_to_bytelist : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Zlength_intlist_to_bytelist : Zlength.
 
 Lemma skipn_intlist_to_bytelist:
   forall i m, skipn (4*i) (intlist_to_bytelist m) = intlist_to_bytelist (skipn i m).
@@ -317,7 +317,8 @@ Theorem Zmod_mod_mult :
   Zmod (Zmod n (a * b)) b = Zmod n b.
 Proof.
 intros n a [|b|b] Ha Hb.
-now rewrite 2!Zmod_0_r.
+rewrite ?Z.mul_0_r.
+now rewrite 2!Zmod_0_r.  
 rewrite (Zmod_eq n (a * Zpos b)).
 rewrite Zmult_assoc.
 unfold Zminus.

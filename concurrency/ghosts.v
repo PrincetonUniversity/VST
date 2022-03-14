@@ -11,7 +11,7 @@ Import List.
 
 Definition gname := own.gname.
 
-Instance Inhabitant_preds : Inhabitant preds := NoneP.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_preds : Inhabitant preds := NoneP.
 
 Section ghost.
 
@@ -564,7 +564,7 @@ Definition option_ord (a b : G) : Prop :=
   | _, _ => False
   end.
 
-Instance option_ord_refl : Reflexive option_ord.
+#[(*export, after Coq 8.13*)global] Instance option_ord_refl : Reflexive option_ord.
 Proof.
   intros ?.
   destruct x; simpl; auto.
@@ -681,7 +681,7 @@ Proof.
   repeat intro; etransitivity; eauto.
 Qed.
 
-Instance fmap_order : PCM_order map_incl.
+#[(*export, after Coq 8.13*)global] Instance fmap_order : PCM_order map_incl.
 Proof.
   constructor.
   - split; [apply map_incl_refl | apply map_incl_trans].

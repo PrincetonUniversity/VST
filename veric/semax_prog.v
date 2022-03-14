@@ -1860,7 +1860,7 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
  assert (SFFB := stackframe_of_freeable_blocks Delta f rho' (globalenv prog) ve
      HGG COMPLETE H17'  (eq_refl _) H8).
   subst a'.
-  exploit predicates_sl.sepcon_derives; [ | | apply H9 |].
+  exploit (@predicates_sl.sepcon_derives rmap _ _ _ _); [ | | apply H9 |].
    2:  apply SFFB.  apply predicates_hered.derives_refl.  clear H9.
   pull_left (freeable_blocks (blocks_of_env (globalenv prog) ve)).
  intro H13.

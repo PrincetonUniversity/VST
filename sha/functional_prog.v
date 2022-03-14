@@ -5,11 +5,13 @@ Require Coq.Strings.Ascii.
 Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 Require Import VST.floyd.coqlib3.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 Require Import Lia.
+
+Global Set Warnings "-deprecated-hint-rewrite-without-locality". (* Delete this line after we abandon Coq 8.13 *)
 
 (* LINEAR-TIME FUNCTIONAL VERSION OF SHA256 *)
 Function zeros (n : Z) {measure Z.to_nat n} : list Int.int :=
@@ -316,7 +318,7 @@ rewrite <- H0 at 2.
 rewrite Nat2Z.id. auto.
 Qed.
 
-Hint Rewrite length_zeros : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite length_zeros : norm.
 
 Local Open Scope Z.
 

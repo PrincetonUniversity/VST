@@ -7,7 +7,7 @@ Require Import VST.floyd.compact_prod_sum.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.

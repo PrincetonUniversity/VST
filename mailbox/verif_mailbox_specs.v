@@ -2,7 +2,7 @@ Require Import mailbox.verif_atomic_exchange.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import Lia.
 Open Scope funspec_scope.
@@ -10,8 +10,8 @@ Open Scope funspec_scope.
 Set Bullet Behavior "Strict Subproofs".
 
 (* standard VST prelude *)
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Instance CompSpecs_Preserve: change_composite_env verif_atomic_exchange.CompSpecs CompSpecs.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs_Preserve: change_composite_env verif_atomic_exchange.CompSpecs CompSpecs.
   make_cs_preserve verif_atomic_exchange.CompSpecs CompSpecs.
 Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

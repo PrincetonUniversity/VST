@@ -110,6 +110,9 @@ intros.
    rewrite !(Int.unsigned_repr 255) in *|-* by computable .
     rewrite !Int.unsigned_repr by
      match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_lia end.
+  change (52+1) with 53. (* Became necessary in Coq 8.14 or 8.15 *)
+  change (53+1) with 54. (* Became necessary in Coq 8.14 or 8.15 *)
+  change (54+1) with 55. (* Became necessary in Coq 8.14 or 8.15 *)
   rewrite EqY0, EqY1, EqY2, EqY3; clear EqY0 EqY1 EqY2 EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
@@ -139,6 +142,10 @@ intros.
    rewrite !(Int.unsigned_repr 255) in *|-* by computable .
     rewrite !Int.unsigned_repr by
      match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_lia end.
+  change (55+1) with 56. (* Became necessary in Coq 8.14 or 8.15 *)
+  change (56+1) with 57. (* Became necessary in Coq 8.14 or 8.15 *)
+  change (57+1) with 58. (* Became necessary in Coq 8.14 or 8.15 *)
+  change (58+1) with 59. (* Became necessary in Coq 8.14 or 8.15 *)
   rewrite EqX0, EqX1, EqX2, EqX3; clear EqX0 EqX1 EqX2 EqX3.
 
  remember_temp_Vints (@nil localdef).

@@ -52,7 +52,7 @@ Parameter env: forall (key: Type) (A: Type), Type.
 Section ENVSEC.
 Context {key: Type}{A: Type}.
 
-Instance JA: Join A := Join_equiv A. (* It's a feature, not a bug, that this Instance is not visible as an Instance
+#[local] Instance JA: Join A := Join_equiv A. (* It's a feature, not a bug, that this Instance is not visible as an Instance
    outside the Section *)
 
 Parameter env_get: forall (rho: env key A) (id: key), option (pshare * A).
@@ -99,23 +99,23 @@ Axiom env_get_empty: forall id, env_get empty_env id = None.
   Only the variables-as-resources clients should add these instances,
   which is done in the Module EnvSA,  below
 *)
-Instance Join_env: Join (env key A) :=
+#[local] Instance Join_env: Join (env key A) :=
     fun (rho1 rho2 rho3: env key A) => join (env_get rho1) (env_get rho2) (env_get rho3).
-Parameter Perm_env: forall {PA: Perm_alg A}, Perm_alg (env key A).  Existing Instance Perm_env.
+Parameter Perm_env: forall {PA: Perm_alg A}, Perm_alg (env key A).  #[global] Existing Instance Perm_env.
 
-Instance Sep_env {SA: Sep_alg A}: FSep_alg (env key A).
+#[global] Instance Sep_env {SA: Sep_alg A}: FSep_alg (env key A).
  refine (mkSep Join_env (fun _ => empty_env) _ _).
  repeat intro; rewrite env_get_empty; constructor.
  auto.
 Defined.
 
-Instance Sing_env  {SA: Sep_alg A} : Sing_alg (env key A).
+#[local] Instance Sing_env  {SA: Sep_alg A} : Sing_alg (env key A).
   refine (mkSing empty_env _). reflexivity.
 Defined.
 
-Parameter Canc_env: forall {PA: Perm_alg A}{CA: Canc_alg A}, Canc_alg (env key A). Existing Instance Canc_env.
-Parameter Disj_env: forall {PA: Perm_alg A}{DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
-Parameter Cross_env : Cross_alg (env key A).  Existing Instance Cross_env.
+Parameter Canc_env: forall {PA: Perm_alg A}{CA: Canc_alg A}, Canc_alg (env key A). #[global] Existing Instance Canc_env.
+Parameter Disj_env: forall {PA: Perm_alg A}{DA: Disj_alg A}, Disj_alg (env key A).   #[global] Existing Instance Disj_env.
+Parameter Cross_env : Cross_alg (env key A).  #[global] Existing Instance Cross_env.
 
 
 (* env_mapsto and the lemmas about it are in a Separation Logic, not just a separation algebra.
@@ -166,7 +166,7 @@ Module Env: ENV.
 
 Section ENVSEC.
 Context {key: Type}{A: Type}.
-Instance JA: Join A := Join_equiv A.
+#[local] Instance JA: Join A := Join_equiv A.
 
 Definition env := fpm key (pshare * A).
 
@@ -277,7 +277,7 @@ intros.
 unfold empty_env. rewrite env_get_mk_env; auto.
 Qed.
 
-Instance Join_env: Join env :=
+#[local] Instance Join_env: Join env :=
     fun (rho1 rho2 rho3: env) => join (env_get rho1) (env_get rho2) (env_get rho3).
 
 Lemma Join_env_eq: Join_env = Join_fpm (Join_prod _ Join_pshare _ JA).
@@ -298,30 +298,30 @@ rewrite (proof_irr v1 v3); constructor.
 rewrite (proof_irr v2 v3); constructor.
 Qed.
 
-Instance Perm_env {PA: Perm_alg A}: @Perm_alg env Join_env.
+#[local] Instance Perm_env {PA: Perm_alg A}: @Perm_alg env Join_env.
 Proof.
   rewrite Join_env_eq. apply Perm_fpm; auto with typeclass_instances.
 Qed.
 
-Instance Sep_env {SA: Sep_alg A}: @FSep_alg env Join_env.
+#[local] Instance Sep_env {SA: Sep_alg A}: @FSep_alg env Join_env.
  refine (mkSep Join_env (fun _ => empty_env) _ _).
  repeat intro; rewrite env_get_empty; constructor.
  auto.
 Defined.
 
-Instance Sing_env {SA: Sep_alg A}: @Sing_alg env Join_env (fsep_sep Sep_env).
+#[local] Instance Sing_env {SA: Sep_alg A}: @Sing_alg env Join_env (fsep_sep Sep_env).
   refine (mkSing empty_env _). reflexivity.
 Defined.
 
-Instance Canc_env {PA: Perm_alg A}{CA: Canc_alg A}: @Canc_alg env Join_env.
+#[local] Instance Canc_env {PA: Perm_alg A}{CA: Canc_alg A}: @Canc_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Canc_fpm; auto with typeclass_instances.
 Qed.
 
-Instance Disj_env {PA: Perm_alg A}{DA: Disj_alg A}: @Disj_alg env Join_env.
+#[local] Instance Disj_env {PA: Perm_alg A}{DA: Disj_alg A}: @Disj_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Disj_fpm; auto with typeclass_instances.
 Qed.
 
-Instance Cross_env: Cross_alg env.
+#[local] Instance Cross_env: Cross_alg env.
 Proof.
  rewrite Join_env_eq.
  unfold env.
@@ -625,13 +625,13 @@ Export Env.
 
 Module EnvSA.
 
-Existing Instance Join_env.
-Existing Instance Perm_env.
-Existing Instance Sep_env.
-Existing Instance Sing_env.
-Existing Instance Canc_env.
-Existing Instance Disj_env.
-Existing Instance Cross_env.
+#[global] Existing Instance Join_env.
+#[global] Existing Instance Perm_env.
+#[global] Existing Instance Sep_env.
+#[global] Existing Instance Sing_env.
+#[global] Existing Instance Canc_env.
+#[global] Existing Instance Disj_env.
+#[global] Existing Instance Cross_env.
 
 Lemma empty_env_unit {key: Type}{A: Type}:
     forall rho: env key A, unit_for empty_env rho.
@@ -1077,7 +1077,7 @@ rewrite In_rev in i; contradiction.
 Qed.
 
 
-Instance Trip_pshareval {B} : @Trip_alg (option (pshare * B)) (Join_lower (Join_prod _ _ _ (Join_equiv B))).
+#[global] Instance Trip_pshareval {B} : @Trip_alg (option (pshare * B)) (Join_lower (Join_prod _ _ _ (Join_equiv B))).
 Proof.
 intro; intros.
 apply pshareval_join_e in H.
@@ -1117,7 +1117,7 @@ exists (Some (mk_lifted _ pbc, vac)); inv H1; inv H; constructor; simpl; auto.
 constructor; auto.
 Qed.
 
-Instance Trip_env {A} {EA: EqDec A} {B} {JB: Join B}: Trip_alg (env A B).
+#[global] Instance Trip_env {A} {EA: EqDec A} {B} {JB: Join B}: Trip_alg (env A B).
 Proof.
 intro; intros.
 pose (f id := Trip_pshareval _ _ _ _ _ _ (H id) (H0 id) (H1 id)).

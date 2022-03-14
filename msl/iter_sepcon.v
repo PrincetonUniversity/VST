@@ -159,6 +159,28 @@ Proof. intros; reflexivity. Qed.
 
 End SingleSepPred.
 
+Lemma iter_sepcon_sepcon: forall (f g1 g2: B -> A) l, 
+     (forall b : B, f b = g1 b * g2 b) ->
+  iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
+Proof.
+  intros; induction l; simpl.
+  autorewrite with norm; auto.
+  rewrite H, IHl.
+  rewrite !sepcon_assoc.
+  f_equal.
+  rewrite sepcon_comm.
+  rewrite !sepcon_assoc.
+  f_equal.
+  apply sepcon_comm.
+Qed.
+
+Lemma iter_sepcon_derives : 
+   forall f g (l : list B), (forall x, In x l -> f x |-- g x) -> iter_sepcon f l |-- iter_sepcon g l.
+Proof.
+  induction l; simpl; auto; intros.
+  apply sepcon_derives; auto.
+Qed.
+
 Lemma iter_sepcon_func: forall l P Q, (forall x, P x = Q x) -> iter_sepcon P l = iter_sepcon Q l.
 Proof. intros. induction l; simpl; [|f_equal]; auto. Qed.
 
@@ -175,7 +197,7 @@ Proof.
       simpl; auto.
 Qed. 
 
-Instance iter_sepcon_permutation_proper : Proper ((pointwise_relation B eq) ==> (@Permutation B) ==> eq) iter_sepcon.
+#[global] Instance iter_sepcon_permutation_proper : Proper ((pointwise_relation B eq) ==> (@Permutation B) ==> eq) iter_sepcon.
 Proof.
   repeat intro. transitivity (iter_sepcon x y0).
   + apply iter_sepcon_permutation. auto.
@@ -292,7 +314,7 @@ Proof.
   apply H0; tauto.
 Qed.
 
-Instance pred_sepcon_proper: Proper (pointwise_relation B eq ==> pointwise_relation B iff ==> eq) pred_sepcon.
+#[global] Instance pred_sepcon_proper: Proper (pointwise_relation B eq ==> pointwise_relation B iff ==> eq) pred_sepcon.
 Proof.
   intros.
   do 2 (hnf; intros).

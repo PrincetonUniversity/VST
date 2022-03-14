@@ -29,7 +29,7 @@ Local Open Scope nat_scope.
 Module Type TY_FUNCTOR_PROP.
   Parameter F : Type -> Type.
   Parameter f_F : functor F.
-  EXisting Instance f_F.
+  #[global] Existing Instance f_F.
 
   Parameter other : Type.
 End TY_FUNCTOR_PROP.
@@ -39,7 +39,7 @@ Module Type TY_FUNCTOR_SA_PROP.
   Import TF.
 
   Parameter saf_F : safunctor f_F.
-  EXisting Instance saf_F.
+  #[global] Existing Instance saf_F.
 End TY_FUNCTOR_SA_PROP.
 *)
 
@@ -50,8 +50,8 @@ Module Type KNOT_PROP.
   Parameter knot : Type.
 
   Parameter ag_knot : ageable knot.
-  Existing Instance ag_knot.
-  Existing Instance ag_prod.
+  #[global] Existing Instance ag_knot.
+  #[global] Existing Instance ag_prod.
 
   Definition predicate := (knot * other) -> Prop.
 
@@ -102,8 +102,8 @@ Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
     Knot_G.unsquash.
 
   Definition ag_knot := Knot_G.ag_knot.
-  Existing Instance ag_knot.
-  Existing Instance ag_prod.
+  #[global] Existing Instance ag_knot.
+  #[global] Existing Instance ag_prod.
 
   Definition approx (n:nat) (p:predicate) : predicate :=
      fun w => level w < n /\ p w.
@@ -139,8 +139,8 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
 
   Definition ag_knot : ageable knot :=
     K.ag_knot.
-  Existing Instance ag_knot.
-  Existing Instance ag_prod.
+  #[global] Existing Instance ag_knot.
+  #[global] Existing Instance ag_prod.
 
   Definition squash : (nat * F predicate) -> knot :=
     K.squash.

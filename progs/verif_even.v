@@ -30,7 +30,7 @@ Qed.
 
 
 Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog even.prog) Gprog.
-Existing Instance Espec.
+#[(*export, after Coq 8.13*)global] Existing Instance Espec.
 (* The Espec for odd is different from the Espec for even;
   the former has only "even" as an external function, and vice versa. *)
 Lemma prog_correct:

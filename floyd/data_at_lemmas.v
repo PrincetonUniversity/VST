@@ -20,6 +20,7 @@ Require Import VST.floyd.stronger.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.unfold_data_at.
+Require Import VST.floyd.entailer.
 
 Lemma 
   sbyte_ubyte_convert:

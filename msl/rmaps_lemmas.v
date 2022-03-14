@@ -1077,7 +1077,7 @@ refine (fun f V lev H => match proj2_sig (make_rmap f V lev H) with
                          end).
 Qed.
 
-Instance Join_trace : Join (AV.address -> option (pshare * AV.kind)) :=
+#[global] Instance Join_trace : Join (AV.address -> option (pshare * AV.kind)) :=
      (Join_fun AV.address (option (pshare * AV.kind))
                    (Join_lower (Join_prod pshare Join_pshare AV.kind (Join_equiv AV.kind)))).
 
@@ -1235,7 +1235,7 @@ inv H. inv H0.
 repeat split; constructor; auto.
 Qed.
 
-Instance Cross_rmap:
+#[global] Instance Cross_rmap:
       @Cross_alg _ (Join_prop _ Join_trace AV.valid) ->
       Cross_alg rmap.
 Proof.

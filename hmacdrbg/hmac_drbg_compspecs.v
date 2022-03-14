@@ -9,12 +9,12 @@ Ltac make_cs_preserve' :=
   make_cs_preserve a b
 end.
 
-Instance CompSpecs : compspecs.
+Global Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
-Instance CompSpecs_Preserve: change_composite_env
+Global Instance CompSpecs_Preserve: change_composite_env
       spec_hmac.CompSpecs CompSpecs := ltac:(make_cs_preserve').
-Instance CompSpecs_Preserve': change_composite_env 
+Global Instance CompSpecs_Preserve': change_composite_env 
              CompSpecs spec_hmac.CompSpecs := ltac:(make_cs_preserve').
 
 Lemma change_compspecs_data_block: forall sh v,

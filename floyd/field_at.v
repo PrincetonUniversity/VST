@@ -8,7 +8,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Import LiftNotation.
 
 Local Open Scope logic.
@@ -1988,14 +1988,14 @@ Ltac data_at_valid_aux :=
   (apply data_array_at_local_facts) : saturate_local.
 #[export] Hint Extern 1 (data_at _ (tarray _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts) : saturate_local.
-Hint Rewrite <- @field_at_offset_zero: norm1.
-Hint Rewrite <- @field_at__offset_zero: norm1.
-Hint Rewrite <- @field_at_offset_zero: cancel.
-Hint Rewrite <- @field_at__offset_zero: cancel.
-Hint Rewrite <- @data_at__offset_zero: norm1.
-Hint Rewrite <- @data_at_offset_zero: norm1.
-Hint Rewrite <- @data_at__offset_zero: cancel.
-Hint Rewrite <- @data_at_offset_zero: cancel.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @field_at_offset_zero: norm1.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @field_at__offset_zero: norm1.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @field_at_offset_zero: cancel.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @field_at__offset_zero: cancel.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @data_at__offset_zero: norm1.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @data_at_offset_zero: norm1.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @data_at__offset_zero: cancel.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @data_at_offset_zero: cancel.
 
 
 (* We do these as specific lemmas, rather than
@@ -2064,8 +2064,8 @@ Proof. intros. apply derives_refl. Qed.
   (simple apply array_at_array_at_) : cancel.
 #[export] Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption) : core.
 #[export] Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption) : core.
-Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
-Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
+(*after Coq 8.13: #[export]*) Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
+(*after Coq 8.13: #[export]*) Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
 
 Global Transparent alignof. (* MOVE ME *)
 
@@ -2866,7 +2866,7 @@ Proof.
   apply data_at_field_at_cancel.
 Qed.
 
-Hint Rewrite
+(*after Coq 8.13: #[export]*) Hint Rewrite
   @field_at_data_at_cancel'
   @field_at_data_at
   @field_at__data_at_

@@ -373,7 +373,7 @@ Qed.
   Presumably we'll have to prove that this isn't vacuous somewhere in the soundness proof.
   We could delay the instantiation and be generic in inv_names, but since we know we'll always need it and we get to allocate it
   before the program starts, I don't see any reason to hold off. *)
-Instance inv_names : invG := { g_inv := 1%nat; g_en := 2%nat; g_dis := 3%nat}.
+#[(*export, after Coq 8.13*)global] Instance inv_names : invG := { g_inv := 1%nat; g_en := 2%nat; g_dis := 3%nat}.
 
 Polymorphic Definition jm_fupd {Z} (ora : Z) (E1 E2 : Ensembles.Ensemble gname) P m :=
   forall m' w z, necR m m' -> join (m_phi m') w (m_phi z) -> app_pred (wsat * ghost_set g_en E1) w ->

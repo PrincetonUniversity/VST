@@ -7,7 +7,7 @@ Require Import ZArith.
 Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetNaclBase.
-Require Import tweetnacl20140427.verif_salsa_base.
+Require Export tweetnacl20140427.verif_salsa_base.
 
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.Snuffle.

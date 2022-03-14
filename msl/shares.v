@@ -18,9 +18,9 @@ Import Share.
 
 Definition share : Type := Share.t.
 
-Instance pa_share : Perm_alg share := Share.pa.
-Instance sa_share : Sep_alg share := Share.sa.
-Instance ca_share : Canc_alg share := Share.ca.
+#[global] Instance pa_share : Perm_alg share := Share.pa.
+#[global] Instance sa_share : Sep_alg share := Share.sa.
+#[global] Instance ca_share : Canc_alg share := Share.ca.
 Definition emptyshare : share := Share.bot.
 Definition fullshare : share := Share.top.
 
@@ -219,7 +219,7 @@ Proof.
   subst x; apply bot_identity.
 Qed.
 
-Instance share_cross_split : Cross_alg t.
+#[global] Instance share_cross_split : Cross_alg t.
 Proof.
   hnf; simpl; intuition. destruct H as [H1 H2]. destruct H0 as [H H3].
   exists (glb a c, glb a d, glb b c, glb b d); intuition; constructor.
@@ -527,11 +527,11 @@ Section SM.
   Variable saB : Sep_alg B.
 
   Definition map := fpm A (lifted Share.Join_ba * B).
-  Instance Join_map : Join map := Join_fpm _.
-  Instance pa_map : Perm_alg map := Perm_fpm _ _.
-  Instance sa_map : FSep_alg map := Sep_fpm _ _.
-  Instance ca_map {CA: Canc_alg B} : Canc_alg map := Canc_fpm _.
-  Instance da_map {DA: Disj_alg B} : Disj_alg map := @Disj_fpm _ _ _ _ _ _.
+  #[local] Instance Join_map : Join map := Join_fpm _.
+  #[local] Instance pa_map : Perm_alg map := Perm_fpm _ _.
+  #[local] Instance sa_map : FSep_alg map := Sep_fpm _ _.
+  #[local] Instance ca_map {CA: Canc_alg B} : Canc_alg map := Canc_fpm _.
+  #[local] Instance da_map {DA: Disj_alg B} : Disj_alg map := @Disj_fpm _ _ _ _ _ _.
 
   Definition map_share (a:A) (m:map) : share :=
     match lookup_fpm m a with
@@ -888,4 +888,3 @@ Qed.
 
 End SM.
 End ShareMap.
-

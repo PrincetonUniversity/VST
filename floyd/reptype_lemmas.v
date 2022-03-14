@@ -2,7 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.type_induction.
 Require Export VST.floyd.compact_prod_sum.
 Require Import VST.floyd.fieldlist.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 
 Definition
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
@@ -173,7 +173,7 @@ Definition default_val {cs: compspecs} t: reptype t :=
     return match tv with existT t _ => t end
   with existT t v => v end.
 
-Instance Inhabitant_reptype {cs: compspecs} (t: type) : Inhabitant (reptype t) := default_val t.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_reptype {cs: compspecs} (t: type) : Inhabitant (reptype t) := default_val t.
 
 Lemma reptype_gen_eq {cs: compspecs}: forall t,
   reptype_gen t =
@@ -764,13 +764,13 @@ Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
 Proof. intros. apply Int.add_zero_l. Qed.
 Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.
 Proof. intros. apply Int.add_zero. Qed.
-Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
+(*after Coq 8.13: Local*) Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
 
 Lemma ptrofs_add_repr_0_l: forall i, Ptrofs.add (Ptrofs.repr 0) i = i.
 Proof. intros. apply Ptrofs.add_zero_l. Qed.
 Lemma ptrofs_add_repr_0_r: forall i, Ptrofs.add i (Ptrofs.repr 0) = i.
 Proof. intros. apply Ptrofs.add_zero. Qed.
-Hint Rewrite ptrofs_add_repr_0_l ptrofs_add_repr_0_r : norm.
+(*after Coq 8.13: Local*) Hint Rewrite ptrofs_add_repr_0_l ptrofs_add_repr_0_r : norm.
 
 Definition repinject (t: type) : reptype t -> val :=
   match t as t0 return reptype t0 -> val with
@@ -1217,7 +1217,7 @@ apply replist_Zlength; auto.
 Qed.
 
 
-(* Hint Rewrite skipn_0 using computable : norm. *)
+(* (*after Coq 8.13: #[export]*) Hint Rewrite skipn_0 using computable : norm. *)
 
 Lemma unfold_reptype_elim:
   forall cs t v v',

@@ -44,7 +44,7 @@ Qed.
 End ghost.
 
 #[export] Hint Resolve Share.nontrivial : share.
- 
+
 Section Reference.
 (* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
    partial knowledge. When a client recovers all pieces, it can gain full knowledge. *)
@@ -151,7 +151,7 @@ Qed.
 
 End Reference.
 
-Program Instance exclusive_PCM A : Ghost :=
+#[global] Program Instance exclusive_PCM A : Ghost :=
   { valid a := True; Join_G := Join_lower (Join_discrete A) }.
 (*Next Obligation.
 Proof.
@@ -170,7 +170,7 @@ Qed.
 
 Local Obligation Tactic := idtac.
 
-Program Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
+#[global] Program Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
   valid a := valid (fst a) /\ valid (snd a); Join_G := Join_prod _ _ _ _ }.
 Next Obligation.
   intros GA GB ??? [] []; split; eapply join_valid; eauto.
@@ -189,7 +189,7 @@ Class PCM_order `{P : Ghost} (ord : G -> G -> Prop) := { ord_preorder :> PreOrde
 Global Instance ord_PCM `{lub_ord} : Ghost := { Join_G a b c := ord a c /\ ord b c /\
   forall c', ord a c' -> ord b c' -> ord c c' }.
 Proof.
-  - 
+  -
   - intros ??? (? & ? & ?); eauto.
   - intros ????? (? & ? & Hc) (? & ? & He).
     destruct (has_lub b d e) as (c' & ? & ? & Hlub); try solve [etransitivity; eauto].
@@ -533,7 +533,7 @@ End Snapshot.
 
 Section Discrete.
 
-Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
+#[global] Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
   Join_G := Join_equiv A }.
 Next Obligation.
   auto.

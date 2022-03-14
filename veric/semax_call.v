@@ -23,6 +23,17 @@ Import LiftNotation.
 Import compcert.lib.Maps.
 Local Open Scope pred.
 
+(* up *)
+Lemma sepcon_andp_unfash {A}{JA: Join A}{PA: Perm_alg A}{agA: ageable A}{aaA: Age_alg A}{SA: Sep_alg A} :
+     forall (P: pred A) (Q: pred nat) (R: pred A), P * (! Q && R) = ! Q && (P * R).
+Proof.
+  intros; apply pred_ext.
+  - intros ? (? & ? & J & ? & []); split; simpl in *; eauto.
+    apply join_level in J as [? <-]; auto.
+  - rewrite unfash_sepcon_distrib; apply sepcon_derives; auto.
+    apply andp_left2; auto.
+Qed.
+
 Lemma TTL3 l: typelist_of_type_list (Clight_core.typelist2list l) = l.
 Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
 
@@ -3417,16 +3428,6 @@ destruct ret.
   + destruct M2 as [z [TCv M2]].
     eapply own.bupd_mono, HG2; [apply exp_right with z; apply prop_andp_right; auto |
                                 simpl; split; auto; exists u2, m2; auto].
-Qed.
-
-(* up *)
-Lemma sepcon_andp_unfash : forall P Q R, P * (! Q && R) = ! Q && (P * R).
-Proof.
-  intros; apply pred_ext.
-  - intros ? (? & ? & J & ? & []); split; simpl in *; eauto.
-    apply join_level in J as [? <-]; auto.
-  - rewrite unfash_sepcon_distrib; apply sepcon_derives; auto.
-    apply andp_left2; auto.
 Qed.
 
 Lemma semax_call_si {CS Espec}:

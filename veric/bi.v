@@ -21,8 +21,8 @@ Require Import VST.veric.SeparationLogic.
 Notation "'emp'" := seplog.emp.
 
 Section cofe.
-  Instance mpred_equiv : Equiv mpred := eq.
-  Instance mpred_dist : Dist mpred := fun n P Q => approx (S n) P = approx (S n) Q.
+  #[local] Instance mpred_equiv : Equiv mpred := eq.
+  #[local] Instance mpred_dist : Dist mpred := fun n P Q => approx (S n) P = approx (S n) Q.
 
   Lemma dist_equiv : forall (P Q : pred rmap), (∀ n : nat, P ≡{n}≡ Q) -> P = Q.
   Proof.
@@ -332,8 +332,8 @@ Global Instance mpred_bi_bupd : BiBUpd mpredI := {| bi_bupd_mixin := mpred_bupd_
 
 (*(* Lifted instance *)
 Section lifted_cofe.
-  Instance env_mpred_equiv : Equiv (environ -> mpred) := eq.
-  Instance env_mpred_dist : Dist (environ -> mpred) := fun n P Q => forall rho, approx (S n) (P rho) = approx (S n) (Q rho).
+  #[local] Instance env_mpred_equiv : Equiv (environ -> mpred) := eq.
+  #[local] Instance env_mpred_dist : Dist (environ -> mpred) := fun n P Q => forall rho, approx (S n) (P rho) = approx (S n) (Q rho).
 
   Lemma lift_dist_equiv : forall (P Q : environ -> pred rmap), (∀ n : nat, P ≡{n}≡ Q) -> P = Q.
   Proof.

@@ -329,10 +329,13 @@ Time forward_for_simple_bound 4 (EX i:Z,
         destruct (zeq i 1); subst; simpl. f_equal. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.
           2:{ assert (0 <= (Int.unsigned u mod Z.pow_pos 2 24) mod Z.pow_pos 2 16 / Z.pow_pos 2 8 < Byte.modulus).
-                   2:{ unfold Byte.max_unsigned. lia. }
+                   2: unfold Byte.max_unsigned; 
+                         rewrite ?Zaux.Zdiv_eucl_unique; (* for Coq 8.15 *)
+                         lia.
                    split. apply Z_div_pos. cbv; trivial. apply Z_mod_lt. cbv; trivial.
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Z_mod_lt. cbv; trivial.
           }
+          rewrite ?Zaux.Zdiv_eucl_unique; (* for Coq 8.15 *)
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H.
           rewrite (Z.div_pow2_bits _ 8); try lia.
@@ -346,10 +349,13 @@ Time forward_for_simple_bound 4 (EX i:Z,
           f_equal.
         { rewrite Byte.unsigned_repr.
           2:{ assert (0 <= Int.unsigned u mod Z.pow_pos 2 24 / Z.pow_pos 2 16 < Byte.modulus).
-                   2: unfold Byte.max_unsigned; lia.
+                   2: unfold Byte.max_unsigned; 
+                         rewrite ?Zaux.Zdiv_eucl_unique; (* for Coq 8.15 *)
+                         lia.
                    split. apply Z_div_pos. cbv; trivial. apply Z_mod_lt. cbv; trivial.
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Z_mod_lt. cbv; trivial.
           }
+          rewrite ?Zaux.Zdiv_eucl_unique; (* for Coq 8.15 *)
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H.
           rewrite Int.bits_shru; try lia. rewrite EIGHT, ZW.
@@ -365,7 +371,9 @@ Time forward_for_simple_bound 4 (EX i:Z,
           f_equal.
           rewrite Byte.unsigned_repr.  
           2:{ assert (0 <= Int.unsigned u / Z.pow_pos 2 24 < Byte.modulus).
-                   2: unfold Byte.max_unsigned; lia.
+                   2: unfold Byte.max_unsigned; 
+                         rewrite ?Zaux.Zdiv_eucl_unique; (* for Coq 8.15 *)
+                         lia.
                    split. apply Z_div_pos. cbv; trivial. apply Int.unsigned_range. 
                    apply Zdiv_lt_upper_bound. cbv; trivial. apply Int.unsigned_range. 
           }
@@ -378,6 +386,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
           2: apply div_bound; cbv; trivial.
           replace (two_p 16 * two_p 8)%Z with (two_p 24) by reflexivity.
           apply zero_ext_inrange.
+          rewrite ?Zaux.Zdiv_eucl_unique; (* for Coq 8.15 *)
           rewrite (Int.unsigned_repr (Int.unsigned u / Z.pow_pos 2 24)).
           2: apply div_bound; cbv; trivial. 
           assert (Int.unsigned u / Z.pow_pos 2 24 < two_p 8). 2: lia.

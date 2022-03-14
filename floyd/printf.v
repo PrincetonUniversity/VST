@@ -130,6 +130,7 @@ Proof.
 Defined.
 Next Obligation.
 Proof.
+  rewrite ?Zaux.Zdiv_eucl_unique in *. (* for Coq 8.15 *)
   rewrite <- Heq_anonymous0.
   destruct (Z.ltb_spec n 0); try discriminate.
   pose proof (Z.div_pos _ 10 H).

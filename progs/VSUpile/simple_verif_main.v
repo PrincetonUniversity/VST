@@ -28,7 +28,7 @@ Definition Triang_Apile_Onepile_Pile_VSU :=
 Definition Core_VSU :=
   ltac:(linkVSUs MallocFreeVSU Triang_Apile_Onepile_Pile_VSU).
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition main_QPprog := ltac:(QPprog prog).
 Definition whole_prog := ltac:(QPlink_progs main_QPprog (VSU_prog Core_VSU)).
 Definition Vprog: varspecs := QPvarspecs whole_prog.

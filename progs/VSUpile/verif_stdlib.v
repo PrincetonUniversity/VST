@@ -4,7 +4,7 @@ Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
 Require Import stdlib.
 Require Import spec_stdlib.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Parameter M: MallocFreeAPD.
 

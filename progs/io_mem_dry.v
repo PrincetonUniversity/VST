@@ -7,9 +7,10 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
-Require Import VST.concurrency.conclib.
 Require Import VST.progs.dry_mem_lemmas.
 Require Import VST.veric.mem_lessdef.
+Require Import VST.concurrency.conclib_veric.
+Require Import Coq.Classes.Morphisms.
 
 Section IO_Dry.
 

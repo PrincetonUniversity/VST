@@ -2,7 +2,7 @@ Require Import mailbox.verif_atomic_exchange.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 
@@ -61,7 +61,7 @@ Proof.
    apply derives_refl'; f_equal.
     rewrite upd_Znth_eq;
        [|simpl; rewrite !Zlength_cons, Zlength_nil; unfold B, N in *; lia].
-    change conclib.upto with upto. simpl Datatypes.length.
+    simpl Datatypes.length.
     change (Z.to_nat B) with 5%nat.
     apply map_ext_in; intros ? Hin.
     rewrite In_upto in Hin.
@@ -268,7 +268,7 @@ Proof.
     destruct shs.
     { rewrite Zlength_nil, !Zlength_correct in *; lia. }
     rewrite Zlength_cons in *; simpl; rewrite IHl1; [|lia].
-    rewrite sublist_S_cons with (i0 := Z.succ _); [|rewrite Zlength_correct; lia].
+    rewrite (sublist_S_cons (Z.succ _)); [|rewrite Zlength_correct; lia].
     unfold Z.succ; rewrite !Z.add_simpl_r.
     destruct (eq_dec a i); auto.
 Qed.
@@ -966,7 +966,7 @@ Proof.
      apply ENTAIL_refl.
     + forward. rewrite neg_repr in H18.
       rename H18 into n1.
-      erewrite upd_Znth_triv with (i0 := i).
+      erewrite (upd_Znth_triv i).
       apply ENTAIL_refl.
       * rewrite !Zlength_map, Zlength_upto; auto.
       * rewrite !Znth_map, Znth_upto; try (simpl; unfold N in *; lia).

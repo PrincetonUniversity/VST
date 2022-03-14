@@ -3,6 +3,8 @@ Require Import Coq.Lists.List.
 Require Import Lia.
 Import ListNotations.
 
+Global Set Warnings "-deprecated-hint-rewrite-without-locality". (* Delete this line after we abandon Coq 8.13 *)
+
 Module SublistInternalLib.
 (* Things copied from VST, to avoid dependencies *)
 Ltac inv H := inversion H; clear H; subst.
@@ -57,15 +59,15 @@ Import SublistInternalLib.
 
 Class Inhabitant (A: Type) := default : A.
 
-Instance Inhabitant_Z : Inhabitant Z := 0.
-Instance Inhabitant_nat : Inhabitant nat := O.
-Instance Inhabitant_positive : Inhabitant positive := 1%positive.
-Instance Inhabitant_list {T: Type} : Inhabitant (list T) := @nil T.
-Instance Inhabitant_fun {T1 T2: Type} {H: Inhabitant T2} : Inhabitant (T1->T2) := fun _ => H.
-Instance Inhabitant_Prop : Inhabitant Prop := False.
-Instance Inhabitant_bool : Inhabitant bool := false.
-Instance Inhabitant_pair {T1 T2 : Type} {x1: Inhabitant T1} {x2: Inhabitant T2} : Inhabitant (T1*T2)%type := (x1,x2).
-Instance Inhabitant_option {A} : Inhabitant (option A) := None.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_Z : Inhabitant Z := 0.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_nat : Inhabitant nat := O.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_positive : Inhabitant positive := 1%positive.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_list {T: Type} : Inhabitant (list T) := @nil T.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_fun {T1 T2: Type} {H: Inhabitant T2} : Inhabitant (T1->T2) := fun _ => H.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_Prop : Inhabitant Prop := False.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_bool : Inhabitant bool := false.
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_pair {T1 T2 : Type} {x1: Inhabitant T1} {x2: Inhabitant T2} : Inhabitant (T1*T2)%type := (x1,x2).
+#[(*export, after Coq 8.13*)global] Instance Inhabitant_option {A} : Inhabitant (option A) := None.
 
 
 Lemma Zlength_length:
@@ -466,7 +468,7 @@ Lemma ZtoNat_Zlength:
 Proof.
 intros. rewrite Zlength_correct. apply Nat2Z.id.
 Qed.
-Hint Rewrite @ZtoNat_Zlength : norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite @ZtoNat_Zlength : norm.
 
 Lemma Zlength_nonneg:
  forall {A} (l: list A), 0 <= Zlength l.
@@ -515,12 +517,12 @@ change (Inhabitant A) with A.
 rewrite <- Zlength_correct. lia.
 Qed.
 
-Hint Rewrite 
+(*after Coq 8.13: #[export]*) Hint Rewrite 
    (@Znth_map Z _) (@Znth_map nat _) (@Znth_map positive _)
     using (auto; rewrite ?Zlength_map in *; lia) : sublist.
 
 (* Add these in a later file where things are in scope ...
-Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
+(*after Coq 8.13: #[export]*) Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
     using (auto; rewrite ?Zlength_map in *; lia) : sublist.
 *)
 
@@ -540,7 +542,7 @@ Qed.
 
 Lemma Znth_0_cons {A}{a: Inhabitant A} l (v:A): Znth 0 (v::l) = v.
 Proof. reflexivity. Qed.
-Hint Rewrite @Znth_0_cons : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Znth_0_cons : sublist.
 
 Lemma Znth_pos_cons {A}{a: Inhabitant A} i l (v:A): 0<i -> Znth i (v::l) = Znth (i-1) l.
 Proof. intros. unfold Znth. if_tac. lia. if_tac. lia.
@@ -603,7 +605,7 @@ apply IHn; auto.
 lia.
 Qed.
 
-Hint Rewrite @app_nil_l @app_nil_r : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @app_nil_l @app_nil_r : sublist.
 
 Lemma app_Znth1:
   forall A (a: Inhabitant A) (l l': list A) (i:Z),
@@ -1399,15 +1401,15 @@ subst mid'.
 apply sublist_rejoin; auto.
 Qed.
 
-Hint Rewrite @sublist_nil' using old_list_solve: sublist.
-Hint Rewrite @app_nil_l : sublist.
-Hint Rewrite @Zlength_rev : sublist.
-Hint Rewrite @sublist_rejoin' using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @sublist_nil' using old_list_solve: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @app_nil_l : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_rev : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @sublist_rejoin' using old_list_solve : sublist.
 
 Lemma subsub1:
  forall a b : Z, (a-(a-b)) = b.
 Proof.  intros. lia. Qed.
-Hint Rewrite subsub1 : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite subsub1 : sublist.
 
 Lemma sublist_app':
   forall {A} lo hi (al bl: list A),
@@ -1601,37 +1603,37 @@ Proof.
   f_equal; [| f_equal]; f_equal; lia.
 Qed.
 
-Hint Rewrite @Znth_Zrepeat using lia : sublist.
-Hint Rewrite @Znth_repeat_inrange using lia : sublist.
-Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
-Hint Rewrite @Zrepeat_neg using lia : sublist.
-Hint Rewrite @repeat_0 @Zrepeat_0: sublist.
-Hint Rewrite <- @app_nil_end : sublist.
-Hint Rewrite @Zlength_app: sublist.
-Hint Rewrite @Zlength_map: sublist.
-Hint Rewrite @Zlength_Zrepeat using old_list_solve: sublist.
-Hint Rewrite @Zlength_repeat using old_list_solve: sublist.
-Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
-Hint Rewrite @Zlength_sublist using old_list_solve: sublist.
-Hint Rewrite Z.max_r Z.max_l using lia : sublist.
-Hint Rewrite Z.min_r Z.min_l using lia : sublist.
-Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
-Hint Rewrite @sublist_sublist using old_list_solve : sublist.
-Hint Rewrite @sublist_app1 using old_list_solve : sublist.
-Hint Rewrite @sublist_app2 using old_list_solve : sublist.
-Hint Rewrite @sublist_repeat @sublist_Zrepeat using old_list_solve : sublist.
-Hint Rewrite @sublist_same using old_list_solve : sublist.
-Hint Rewrite Z.add_simpl_l : sublist.
-Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
+(*after Coq 8.13: #[export]*) Hint Rewrite @Znth_Zrepeat using lia : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Znth_repeat_inrange using lia : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zrepeat_neg using lia : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @repeat_0 @Zrepeat_0: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite <- @app_nil_end : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_app: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_map: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_Zrepeat using old_list_solve: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_repeat using old_list_solve: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_sublist using old_list_solve: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Z.max_r Z.max_l using lia : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Z.min_r Z.min_l using lia : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @sublist_sublist using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @sublist_app1 using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @sublist_app2 using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @sublist_repeat @sublist_Zrepeat using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @sublist_same using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Z.add_simpl_l : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
      Z.add_add_simpl_r_l Z.add_add_simpl_r_r : sublist.
-Hint Rewrite Z.add_0_r : sublist.
-Hint Rewrite @app_Znth1 using old_list_solve : sublist.
-Hint Rewrite @app_Znth2 using old_list_solve : sublist.
-Hint Rewrite @Znth_sublist using old_list_solve : sublist.
-Hint Rewrite @upd_Znth_Zlength using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite Z.add_0_r : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @app_Znth1 using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @app_Znth2 using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @Znth_sublist using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @upd_Znth_Zlength using old_list_solve : sublist.
 
 
-Hint Rewrite @sublist_nil : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @sublist_nil : sublist.
 
 Lemma repeat_app  (* duplicate this from Coq standard library
      for compatibility with Coq 8.12, where it is not present *)
@@ -1748,8 +1750,8 @@ intros.
 apply Forall_skipn. apply Forall_firstn. auto.
 Qed.
 
-Hint Rewrite @upd_Znth_app1 using old_list_solve : sublist.
-Hint Rewrite @upd_Znth_app2 using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @upd_Znth_app1 using old_list_solve : sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @upd_Znth_app2 using old_list_solve : sublist.
 
 Lemma map_repeat: forall {A B} (f: A->B) n (x:A), map f (repeat x n) = repeat (f x) n.
 Proof.
@@ -1763,7 +1765,7 @@ intros.
 apply map_repeat.
 Qed.
 
-Hint Rewrite @map_repeat @map_Zrepeat: sublist.
+(*after Coq 8.13: #[export]*) Hint Rewrite @map_repeat @map_Zrepeat: sublist.
 
 Lemma Zlength_sublist_correct: forall {A} (l: list A) (lo hi: Z),
   0 <= lo <= hi ->
@@ -2443,6 +2445,21 @@ Proof.
       rewrite !Znth_pos_cons, Z.add_simpl_l in Hall by (simpl Z.of_nat; lia); auto.
 Qed.
 
+Lemma Forall_forall_Znth : forall {A}{d: Inhabitant A} (P : A -> Prop) l,
+  Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l).
+Proof.
+  split; intros; [apply Forall_Znth; auto|].
+  induction l; auto.
+  rewrite Zlength_cons in *.
+  constructor.
+  - specialize (H 0); rewrite Znth_0_cons in H; apply H.
+    pose proof (Zlength_nonneg l); lia.
+  - apply IHl; intros.
+    specialize (H (i + 1)).
+    rewrite Znth_pos_cons, Z.add_simpl_r in H by lia.
+    apply H; lia.
+Qed.
+
 Lemma Forall2_forall_Znth : forall {A B}{d1: Inhabitant A}{d2: Inhabitant B}  (P : A -> B -> Prop) l1 l2,
   Forall2 P l1 l2 <->
   Zlength l1 = Zlength l2 /\ (forall i, 0 <= i < Zlength l1 -> P (Znth i l1) (Znth i l2)).
@@ -2452,3 +2469,67 @@ Proof.
   rewrite Z2Nat.id by (apply Zlength_nonneg).
   reflexivity.
 Qed.
+
+Lemma Forall_upd_Znth : forall {A} (P : A -> Prop) x l i, Forall P l -> P x ->
+  Forall P (upd_Znth i l x).
+Proof.
+  intros; unfold upd_Znth; if_tac; auto;
+  rewrite Forall_app; split; [|constructor; auto]; apply Forall_sublist; auto.
+Qed.
+
+Lemma last_cons : forall {A} (d : A) l x, l <> [] -> last (x :: l) d = last l d.
+Proof.
+  intros.
+  destruct l; auto.
+  contradiction H; auto.
+Qed.
+
+Lemma map_const: forall {A B} (c : A) (l : list B), map (fun _ => c) l = repeat c (length l).
+Proof.
+  induction l; auto; simpl.
+  rewrite IHl; auto.
+Qed.
+
+Lemma filter_length : forall {A} (f : A -> bool) l,
+  length l = (length (filter f l) + length (filter (fun x => negb (f x)) l))%nat.
+Proof.
+  induction l; simpl; intros; auto.
+  rewrite IHl.
+  destruct (f a); simpl; lia.
+Qed.
+
+Lemma Zlength_filter : forall {A} f (l : list A), Zlength (filter f l) <= Zlength l.
+Proof.
+  intros.
+  setoid_rewrite Zlength_correct at 2.
+  rewrite (filter_length f).
+  rewrite Nat2Z.inj_add.
+  rewrite <- Zlength_correct; lia.
+Qed.
+
+Lemma Zlength_concat : forall {A} (l : list (list A)),
+  Zlength (concat l) = fold_right Z.add 0 (map (@Zlength A) l).
+Proof.
+  intros.
+  rewrite Zlength_correct, length_concat.
+  change 0 with (Z.of_nat O).
+  forget O as n.
+  revert n; induction l; auto; simpl; intros.
+  rewrite Nat2Z.inj_add, IHl, Zlength_correct; auto.
+Qed.
+
+Lemma filter_concat : forall {A} f (l : list (list A)),
+  filter f (concat l) = concat (map (filter f) l).
+Proof.
+  induction l; auto; simpl.
+  rewrite filter_app, IHl; auto.
+Qed.
+
+Lemma incl_cons_iff : forall {A} (a : A) b c, incl (a :: b) c <-> In a c /\ incl b c.
+Proof.
+  split; intro.
+  - split; [|eapply incl_cons_inv; eauto].
+    specialize (H a); apply H; simpl; auto.
+  - destruct H; intros ? [? | ?]; subst; auto.
+Qed.
+

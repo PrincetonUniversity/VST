@@ -33,7 +33,7 @@ Class NatDed (A: Type) := mkNatDed {
 (* not_prop_right: forall (P: A) (Q: Prop), (Q -> derives P FF) -> derives P (prop (not Q)) *)
 }.
 
-Program Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
+#[global] Program Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
  mkNatDed (A -> B)
     (*andp*) (fun P Q x => andp (P x) (Q x))
     (*orp*) (fun P Q x => orp (P x) (Q x))
@@ -136,7 +136,7 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
 Notation "P '*' Q" := (sepcon P Q) : logic.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : logic.
 
-Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} : SepLog (A -> B).
+#[global] Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} : SepLog (A -> B).
  apply (mkSepLog (A -> B) _ (fun rho => emp)
             (fun P Q rho => P rho * Q rho) (fun P Q rho => P rho -* Q rho)
             (fun P Q rho => ewand (P rho) (Q rho))).
@@ -157,7 +157,7 @@ Class ClassicalSep  (A: Type) {ND: NatDed A}{SL: SepLog A} := mkCS {
    sepcon_emp: forall P, P * emp = P
 }.
 
-Instance LiftClassicalSep (A B: Type)  {NB: NatDed B}{SB: SepLog B}{CB: ClassicalSep B} :
+#[global] Instance LiftClassicalSep (A B: Type)  {NB: NatDed B}{SB: SepLog B}{CB: ClassicalSep B} :
         ClassicalSep (A -> B).
  apply mkCS.
  intros. extensionality x. simpl. apply sepcon_emp.
@@ -169,7 +169,7 @@ Class IntuitionisticSep (A: Type) {ND: NatDed A}{SL: SepLog A} := mkIS {
    all_extensible: forall P, extensible P
 }.
 
-Instance LiftIntuitionisticSep (A B: Type)  {NB: NatDed B}{SB: SepLog B}{IB: IntuitionisticSep B} :
+#[global] Instance LiftIntuitionisticSep (A B: Type)  {NB: NatDed B}{SB: SepLog B}{IB: IntuitionisticSep B} :
         IntuitionisticSep (A -> B).
  apply mkIS.
  intros. intro. simpl. apply all_extensible.
@@ -190,7 +190,7 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
 
 Notation "'|>' e" := (later e) (at level 20, right associativity): logic.
 
-Instance LiftIndir (A: Type) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
+#[global] Instance LiftIndir (A: Type) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
          @Indir (A -> B) (LiftNatDed A B).
  apply (mkIndir _ _ (fun P rho => later (P rho))); intros; simpl in *; intros.
  apply now_later.
@@ -210,7 +210,7 @@ Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir
   later_ewand: forall P Q, |> (ewand P Q) = ewand (|>P) (|>Q)*)
 }.
 
-Instance LiftSepIndir  (A: Type) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} :
+#[global] Instance LiftSepIndir  (A: Type) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} :
      @SepIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A B).
  constructor.
  intros; simpl. extensionality rho.  apply later_sepcon.
@@ -231,7 +231,7 @@ Class CorableSepLog (A: Type) {ND: NatDed A}{SL: SepLog A}:= mkCorableSepLog {
   corable_andp_sepcon1: forall P Q R, corable P ->  (P && Q) * R = P && (Q * R)
 }.
 
-Instance LiftCorableSepLog (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {CSL: CorableSepLog B} : @CorableSepLog (A -> B) (LiftNatDed A B) (LiftSepLog A B).
+#[global] Instance LiftCorableSepLog (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {CSL: CorableSepLog B} : @CorableSepLog (A -> B) (LiftNatDed A B) (LiftSepLog A B).
   apply (@mkCorableSepLog _ _ _ (fun P => forall b, corable (P b))); intros; simpl in *; intros.
   + apply corable_prop.
   + apply corable_andp; auto.
@@ -248,7 +248,7 @@ Defined.
 Class CorableIndir (A: Type) {ND: NatDed A}{SL: SepLog A}{CSL: CorableSepLog A}{ID: Indir A} :=
   corable_later: forall P, corable P -> corable (|> P).
 
-Instance LiftCorableIndir (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {CSL: CorableSepLog B} {ID: Indir B} {CI: CorableIndir B}: @CorableIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftCorableSepLog A B) (LiftIndir A B).
+#[global] Instance LiftCorableIndir (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {CSL: CorableSepLog B} {ID: Indir B} {CI: CorableIndir B}: @CorableIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftCorableSepLog A B) (LiftIndir A B).
   unfold CorableIndir; simpl; intros.
   apply corable_later; auto.
 Defined.

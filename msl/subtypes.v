@@ -46,8 +46,8 @@ Qed.
 Definition fashionM : modality
   := exist _ fashionR valid_rel_fashion.
 
-Global Existing Instance ag_nat.
-Global Program Instance nat_ext : Ext_ord nat := { ext_order := eq }.
+#[global] Existing Instance ag_nat.
+#[global] Program Instance nat_ext : Ext_ord nat := { ext_order := eq }.
 Next Obligation.
 Proof.
   hnf; intros; subst; eauto.
@@ -60,6 +60,7 @@ Qed.
 Proof.
   hnf; intros; subst; eauto.
 Qed.*)
+#[export] Hint Resolve ag_nat : core.
 
 Program Definition fash (P: pred A): pred nat :=
       fun n => forall y, n >= level y -> P y.

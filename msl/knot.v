@@ -30,8 +30,8 @@ Module Type KNOT.
   Parameter knot : Type.
 
   Parameter ag_knot : ageable knot.
-  Existing Instance ag_knot.
-  Existing Instance ag_prod.
+  #[global] Existing Instance ag_knot.
+  #[global] Existing Instance ag_prod.
 
   Definition predicate := (knot * other) -> T.
 
@@ -468,8 +468,8 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
 
   Definition ag_knot : ageable knot :=
     mkAgeable knot def_knot_level def_knot_age1 ag_knot_facts .
-  Existing Instance ag_knot.
-  Existing Instance ag_prod.
+  #[global] Existing Instance ag_knot.
+  #[global] Existing Instance ag_prod.
 
 
   Lemma knot_level : forall k:knot,

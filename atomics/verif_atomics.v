@@ -2,12 +2,12 @@ Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import atomics.sim_atomics.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.

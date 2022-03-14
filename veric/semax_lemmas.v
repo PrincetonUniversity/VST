@@ -282,7 +282,7 @@ Qed.
 Lemma jsafeN_local_step:
   forall {Espec: OracleKind} ge ora s1 m s2,
   cl_step  ge s1 (m_dry m) s2 (m_dry m) ->
-  (forall m', age m m' -> 
+  (forall m', age m m' ->
     jsafeN (@OK_spec Espec) ge (level m') ora s2 m') ->
   jsafeN (@OK_spec Espec) ge (level m) ora s1 m.
 Proof.
@@ -396,7 +396,7 @@ unfold semax; rewrite semax_fold_unfold.
 extensionality Delta P c R.
 apply prop_ext; split; intros.
 + eapply (H w); eauto.
-  - split; auto. 
+  - split; auto.
   - split; trivial.
 + intros psi Delta' CS'.
   apply prop_imp_i; intros [? HGG].
@@ -517,13 +517,28 @@ inv H1.
 Qed.
 
 Definition all_assertions_computable  :=
-  forall (Espec: OracleKind) psi f tx vx (Q: assert), 
+  forall (Espec: OracleKind) psi f tx vx (Q: assert),
      exists k,  assert_safe Espec psi f tx vx k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
 *)
 
+Lemma ewand_TT_emp {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{aaA: Age_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
+    ewand TT emp = emp.
+Proof.
+intros.
+apply pred_ext; intros w ?.
+destruct H as [w1 [w3 [? [? ?]]]].
+hnf; eapply split_identity.
+eapply join_comm; eauto.
+auto.
+exists w; exists w; split; auto.
+change (identity w) in H.
+apply identity_unit'; auto.
+Qed.
+
 Lemma subp_derives' {A}{agA: ageable A}{EO: Ext_ord A}:
+>>>>>>> master
   forall P Q: pred A, (forall n, (P >=> Q) n) -> P |-- Q.
 Proof.
 intros.
@@ -546,7 +561,7 @@ Qed.
 
 Lemma proj_frame_ret_assert:
  forall (R: ret_assert) (F: assert) ek vl,
-  proj_ret_assert (frame_ret_assert R F) ek vl = 
+  proj_ret_assert (frame_ret_assert R F) ek vl =
   seplog.sepcon (proj_ret_assert R ek vl) F.
 Proof.
 intros; extensionality rho; destruct R, ek; simpl;
@@ -559,7 +574,7 @@ Lemma semax_extensionality0 {CS: compspecs} {Espec: OracleKind}:
       ALL P:assert, ALL P':assert,
       ALL c: statement, ALL R:ret_assert, ALL R':ret_assert,
        ((!! tycontext_sub Delta Delta'
-       &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  
+       &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,
                (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && semax' Espec Delta P c R) >=> semax' Espec Delta' P' c R').
 Proof.
@@ -615,7 +630,7 @@ Qed.
 Lemma semax_extensionality1 {CS: compspecs} {Espec: OracleKind}:
   forall Delta Delta' (P P': assert) c (R R': ret_assert) ,
        tycontext_sub Delta Delta' ->
-       ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  
+       ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,
           (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && (semax' Espec Delta P c R) |-- semax' Espec Delta' P' c R').
 Proof.
@@ -680,7 +695,7 @@ intros.
 case_eq (age1 w). auto.
 clear H.
 intro; apply bupd_intro; repeat intro.
-apply age1_level0 in H. lia. 
+apply age1_level0 in H. lia.
 Qed.
 
 (*Lemma pred_sub_later' {A} `{H: ageable A} {EO: Ext_ord A}:
@@ -725,7 +740,7 @@ Fixpoint app_cont (k1 k2: cont) : cont :=
  | Kcall i f ve te k1' => Kcall i f ve te (app_cont k1' k2)
  end.
 
-Lemma cons_app: forall x y, 
+Lemma cons_app: forall x y,
   Kseq x y = app_cont (Kseq x Kstop) y.
 Proof. auto. Qed.
 
@@ -743,7 +758,7 @@ match k with
 | Kcall _ _ _ _ k' =>  S (length_cont k')
 end.
 
-Lemma app_cont_length: forall k1 k2, 
+Lemma app_cont_length: forall k1 k2,
   length_cont (app_cont k1 k2) = (length_cont k1 + length_cont k2)%nat.
 Proof.
 induction k1; simpl; intros; auto.
@@ -756,7 +771,7 @@ intros.
 pose proof (app_cont_length prefix ctl).
 rewrite <- H in H0.
 assert (length_cont prefix = O) by lia.
-clear - H1. 
+clear - H1.
 destruct prefix; inv H1; auto.
 Qed.
 
@@ -835,7 +850,7 @@ Proof.
 Qed.
 
 Lemma call_cont_app_cons:
-  forall l, call_cont l <> Kstop -> 
+  forall l, call_cont l <> Kstop ->
     forall k, call_cont (app_cont l k) = app_cont (call_cont l)  k.
 Proof.
   induction l; simpl; intros; try congruence; auto.
@@ -876,7 +891,7 @@ Proof.
   intros.
   apply IHM.
   apply age_level in H. apply age_level in H0. apply age_level in H1. lia.
-Qed.  
+Qed.
 
 (*
 Lemma safe_seq_skip {Espec: OracleKind} ge n ora ve te k m :
@@ -913,23 +928,23 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
  match ctl1, ctl2 with
  | Kseq c1 k1, Kseq c2 k2 =>
                    control_as_safex ge c1 k1 c2 k2
- | Kseq c1 k1, Kloop1 _ _ _ => 
+ | Kseq c1 k1, Kloop1 _ _ _ =>
                    control_as_safex ge c1 k1 Sskip ctl2
- | Kseq c1 k1, Kloop2 body incr k2 => 
+ | Kseq c1 k1, Kloop2 body incr k2 =>
                    control_as_safex ge c1 k1 (Sloop body incr) k2
- | Kseq c1 k1, Kstop => 
+ | Kseq c1 k1, Kstop =>
                    control_as_safex ge c1 k1 (Sreturn None) Kstop
- | Kseq c1 k1, Kcall _ _ _ _ _ => 
+ | Kseq c1 k1, Kcall _ _ _ _ _ =>
                    control_as_safex ge c1 k1 (Sreturn None) ctl2
- | Kseq _ _, _ => 
+ | Kseq _ _, _ =>
                    False
  | Kloop1 _ _ _, Kseq c2 k2 =>
                    control_as_safex ge Sskip ctl1 c2 k2
- | Kloop1 _ _ _, Kloop1 _ _ _ => 
+ | Kloop1 _ _ _, Kloop1 _ _ _ =>
                    control_as_safex ge Sskip ctl1 Sskip ctl2
- | Kloop1 _ _ _, Kloop2 body incr k2 => 
+ | Kloop1 _ _ _, Kloop2 body incr k2 =>
                    control_as_safex ge Sskip ctl1 (Sloop body incr) k2
- | Kloop1 _ _ _, _ => 
+ | Kloop1 _ _ _, _ =>
                    False
  | Kloop2 b1 i1 k1, Kseq c2 k2 =>
                    control_as_safex ge (Sloop b1 i1) k1 c2 k2
@@ -939,10 +954,10 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
                    control_as_safex ge (Sloop b1 i1) k1 (Sloop b2 i2) k2
  | Kloop2 _ _ _, _ =>
                    False
- | Kstop, Kseq c2 k2 => 
-                   control_as_safex ge (Sreturn None) Kstop c2 k2 
- | Kcall _ _ _ _ _, Kseq c2 k2=> 
-                   control_as_safex ge (Sreturn None) ctl1 c2 k2 
+ | Kstop, Kseq c2 k2 =>
+                   control_as_safex ge (Sreturn None) Kstop c2 k2
+ | Kcall _ _ _ _ _, Kseq c2 k2=>
+                   control_as_safex ge (Sreturn None) ctl1 c2 k2
 
   | _, _ => ctl1 = ctl2
    end.
@@ -976,11 +991,11 @@ induction j; simpl; f_equal; auto.
 Qed.
 
 Lemma find_label_prefix:
-  forall lbl s ctl s' k, find_label lbl s ctl = Some (s',k) -> 
+  forall lbl s ctl s' k, find_label lbl s ctl = Some (s',k) ->
      exists j, Kseq s' k = app_cont j ctl
 with
   find_label_ls_prefix:
-  forall lbl s ctl s' k, find_label_ls lbl s ctl = Some (s',k) -> 
+  forall lbl s ctl s' k, find_label_ls lbl s ctl = Some (s',k) ->
      exists j, Kseq s' k = app_cont j ctl.
 Proof.
 -
@@ -988,7 +1003,7 @@ Proof.
   clear find_label_prefix.
   revert ctl k H; induction s; simpl; intros; try congruence.
  + revert H; case_eq (find_label lbl s1 (Kseq s2 ctl)); intros; [inv H0 | auto ].
-    destruct (IHs1 _ _ H) as [j ?]. 
+    destruct (IHs1 _ _ H) as [j ?].
     exists (app_cont j (Kseq s2 Kstop)); rewrite app_cont_ass; auto.
   + revert H; case_eq (find_label lbl s1 ctl); intros; [inv H0 | auto ]; auto.
   + destruct (find_label lbl s1 (Kloop1 s1 s2 ctl)) eqn:H0; inv H.
@@ -1081,7 +1096,7 @@ Qed.
 Lemma assert_safe_adj:
   forall {Espec: OracleKind} ge f ve te k k' rho,
      control_as_safe ge k k' ->
-     assert_safe Espec ge f ve te (Cont k) rho 
+     assert_safe Espec ge f ve te (Cont k) rho
     |-- assert_safe Espec ge f ve te (Cont k') rho.
 Proof.
  intros. apply bupd_mono.
@@ -1321,8 +1336,8 @@ Section eq_dec.
 
 End eq_dec.
 
-Instance EqDec_statement: EqDec statement := eq_dec_statement.
-Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
+#[(*export, after Coq 8.13*)global] Instance EqDec_statement: EqDec statement := eq_dec_statement.
+#[(*export, after Coq 8.13*)global] Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
 
 Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
 Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.
@@ -1475,7 +1490,7 @@ Qed.
 
 Lemma semax_eq:
  forall {CS: compspecs} {Espec: OracleKind} Delta P c R,
-  semax Espec Delta P c R = 
+  semax Espec Delta P c R =
   (TT |-- (ALL psi : genv,
          ALL Delta' : tycontext, ALL CS':compspecs,
          !! (tycontext_sub Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\
@@ -1496,7 +1511,7 @@ Qed.
 Lemma semax_Slabel {cs:compspecs} {Espec: OracleKind}
        (Gamma:tycontext) (P:environ -> mpred) (c:statement) (Q:ret_assert) l:
 @semax cs Espec Gamma P c Q -> @semax cs Espec Gamma P (Slabel l c) Q.
-Proof. intros. 
+Proof. intros.
 rewrite semax_eq. rewrite semax_eq in H.
 eapply derives_trans. eassumption. clear H.
 apply allp_derives; intros psi.

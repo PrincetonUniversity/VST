@@ -6,7 +6,7 @@ Require Export iris.bi.lib.atomic.
 Require Import VST.concurrency.invariants.
 Require Import VST.concurrency.fupd.
 Require Import VST.floyd.library.
-Require Export VST.floyd.sublist.
+Require Export VST.zlist.sublist.
 Require Import Program.Equality.
 
 Open Scope logic. (* we shouldn't need this *)

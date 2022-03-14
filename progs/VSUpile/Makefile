@@ -22,7 +22,7 @@ VST_LOC ?= ../..
 
 ifdef COMPCERT_LOC
 CLIGHTGEN ?= $(COMPCERT_LOC)/clightgen
-COMPCERT_FLAGS= -R $(COMPCERT_LOC)
+COMPCERT_FLAGS= -R $(COMPCERT_LOC) compcert
 endif 
 
 ifdef CLIGHTGEN
@@ -39,7 +39,7 @@ OFILES = $(patsubst %.c,%.o,$(CFILES))
 VOFILES = $(patsubst %.v,%.vo,$(CVFILES) $(VFILES))
 
 
-VST_DIRS= msl sepcomp veric floyd
+VST_DIRS= msl sepcomp zlist veric floyd
 VSTFLAGS= $(COMPCERT_FLAGS) $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
 
 

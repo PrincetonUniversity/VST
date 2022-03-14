@@ -78,7 +78,7 @@ coqide
 .#*
 *.aux
 doc/html/
-_CoqProject
+/_CoqProject
 .loadpath-export
 _CoqProject-export
 wand_demo/vfa/*.ml

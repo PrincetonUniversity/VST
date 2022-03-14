@@ -2,7 +2,7 @@ Require Import mailbox.verif_atomic_exchange.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 Require Import mailbox.verif_mailbox_read.
@@ -16,7 +16,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
+#[(*export, after Coq 8.13*)global] Existing Instance Espec.
 
 (* This lemma ties all the function proofs into a single proof for the entire program. *)
 Lemma all_funcs_correct:

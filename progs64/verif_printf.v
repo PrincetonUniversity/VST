@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.progs.printf.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Require Import VST.progs64.printf.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Require Import VST.floyd.printf.

@@ -22,7 +22,7 @@ Definition HKDF_expand (PRK info:list byte) (L:Z):list byte :=
   if zle L 0 then nil else
   let N := Z.of_nat SHA256.DigestLength in 
   let k := if zeq (L mod N) 0 then Z.div L N else (Z.div L N) + 1 in
-  floyd.sublist.sublist 0 L (T PRK info (Z.to_nat k)).
+  sublist.sublist 0 L (T PRK info (Z.to_nat k)).
 
 Definition HKDF salt IKM info L:=
   let PRK := HKDF_extract salt IKM in
@@ -83,7 +83,7 @@ End HKDF_test_rfc5869_A3.
 
 Require Import VST.msl.Coqlib2.
 Require Import compcert.lib.Integers.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import sha.hmac_common_lemmas.
 
 Lemma Zlength_Ti PRK INFO n: Zlength (Ti PRK INFO n) = match n with O => 0 | S k => 32 end.

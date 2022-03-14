@@ -39,7 +39,7 @@ Module Type KNOT__MIXVARIANT_HERED_T_OTH_REL.
 
   Parameter knot:Type.
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Parameter hered : (knot * other -> T) -> Prop.
   Definition predicate := { p:knot * other -> T | hered p }.
@@ -864,7 +864,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
 
   Definition ageable_knot : ageable knot :=
     mkAgeable knot knot_level_def knot_age1_def ag_knot_facts.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Definition knot_rel (k1 k2:knot) :=
     let (n,f) := unsquash k1 in
@@ -1201,9 +1201,9 @@ Module Type KNOT_FULL.
 
   Definition knot : Type := KO.K0.knot.
   Definition ageable_knot : ageable knot := KO.K0.ageable_knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
   Definition ext_knot : Ext_ord knot := KO.K0.ext_knot.
-  Existing Instance ext_knot.
+  #[global] Existing Instance ext_knot.
   Definition predicate: Type := KO.predicate.
 
   Definition squash : (nat * KI.F predicate) -> knot :=
@@ -1282,9 +1282,9 @@ Module KnotFull
 
   Definition knot: Type := KO.K0.knot.
   Definition ageable_knot : ageable knot := KO.K0.ageable_knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
   Definition ext_knot : Ext_ord knot := KO.K0.ext_knot.
-  Existing Instance ext_knot.
+  #[global] Existing Instance ext_knot.
   Definition predicate: Type := KO.predicate.
 
   Definition squash : (nat * KI.F predicate) -> knot :=
@@ -1527,7 +1527,7 @@ Module Type KNOT_FULL.
 
   Parameter knot:Type.
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
   Parameter knot_rel: knot -> knot -> Prop.
 
   Definition predicate: Type := Pred knot ageable_knot knot_rel.
@@ -1601,7 +1601,7 @@ Module KnotFull (KI': KNOT_FULL_INPUT): KNOT_FULL with Module KI:=KI'.
 
   Definition knot: Type := K.knot.
   Definition ageable_knot : ageable knot := K.ageable_knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
   Definition knot_rel: knot -> knot -> Prop := K.knot_rel.
   Definition predicate: Type := KI.Pred knot ageable_knot knot_rel.
 

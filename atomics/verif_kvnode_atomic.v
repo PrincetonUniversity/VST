@@ -4,12 +4,12 @@ Require Import VST.concurrency.ghosts.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.atomics.maps.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import VST.atomics.kvnode_atomic.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition load_SC_spec := DECLARE _load_SC load_SC_spec.

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This file adapts to the VST the 'pg' script distributed with CompCert. -Gordon
 # Purpose: start Proof General with the right -I options
 # Usage: ./pg [desired-proofgeneral-start-directory]

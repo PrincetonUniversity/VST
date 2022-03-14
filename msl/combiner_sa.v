@@ -156,7 +156,7 @@ Inductive combiner : Type :=
   | CPart : forall (sh : ijoinable A) (v : T1), combiner
   | CFull : forall (v : T2), combiner.
 
-Instance Join_combiner : Join combiner :=
+#[global] Instance Join_combiner : Join combiner :=
   fun c1 c2 c3 =>
   match (c1,c2,c3) with
   | (CEmpty, CEmpty, CEmpty) => True
@@ -299,7 +299,7 @@ Proof.
   intros; eapply combineJ_self'; eauto.
 Qed.
 
-Instance Perm_combiner : Perm_alg combiner.
+#[global] Instance Perm_combiner : Perm_alg combiner.
 Proof. constructor.
   apply combineJ_eq.
   apply combineJ_assoc.
@@ -318,25 +318,25 @@ Proof. constructor.
   eapply join_positivity; eauto.
 Qed.
 
-Instance Sep_combiner: FSep_alg combiner.
+#[global] Instance Sep_combiner: FSep_alg combiner.
 Proof.
   apply mkSep with (fun _ => CEmpty).
   intros. hnf.  destruct t; auto.
   auto.
 Defined.
 
-Instance Sing_combiner: Sing_alg combiner.
+#[global] Instance Sing_combiner: Sing_alg combiner.
 Proof.
   apply (mkSing CEmpty).
   auto.
 Defined.
 
-Instance Canc_combiner {C1: Canc_alg T1}: Canc_alg combiner.
+#[global] Instance Canc_combiner {C1: Canc_alg T1}: Canc_alg combiner.
 Proof.
  repeat intro. eapply combineJ_canc; eauto.
 Qed.
 
-Instance Disj_combiner {D1: Disj_alg A}: Disj_alg combiner.
+#[global] Instance Disj_combiner {D1: Disj_alg A}: Disj_alg combiner.
 Proof.
  intro; apply combineJ_self'.
 Qed.
@@ -420,7 +420,7 @@ Arguments combiner_full.
 *)
 Section ParameterizedCombiner.
 
-  Existing Instance Join_combiner.
+  #[global] Existing Instance Join_combiner.
 
   Variable S : Type.
   Variable JS : Join S.
@@ -477,21 +477,21 @@ Section ParameterizedCombiner.
     v1 = v1'.
   Variable saf_T1 : pafunctor T1 J1.
 
-  Instance Join_fcombiner (A: Type) : Join (fcombiner A) :=
+  #[global] Instance Join_fcombiner (A: Type) : Join (fcombiner A) :=
     Join_combiner top_S (J1 A) (combjoin A).
 
 
-  Instance Perm_fcombiner (A: Type): Perm_alg (fcombiner A).
+  #[global] Instance Perm_fcombiner (A: Type): Perm_alg (fcombiner A).
   Proof. apply Perm_combiner; auto.
      apply combjoin_eq. apply combjoin_assoc.
   Defined.
 
 
-  Instance Sep_fcombiner (A: Type): FSep_alg (fcombiner A).
+  #[global] Instance Sep_fcombiner (A: Type): FSep_alg (fcombiner A).
   Proof. apply Sep_combiner; auto.
   Defined.
 
-  Instance Canc_fcombiner (A: Type) (CA: Canc_alg (T1 A)): Canc_alg (fcombiner A).
+  #[global] Instance Canc_fcombiner (A: Type) (CA: Canc_alg (T1 A)): Canc_alg (fcombiner A).
   Proof.  apply Canc_combiner; auto. apply combjoin_canc.
   Qed.
 

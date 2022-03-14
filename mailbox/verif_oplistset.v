@@ -2,12 +2,12 @@ Require Import VST.progs.ghost.
 Require Import mailbox.verif_ptr_atomics.
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import mailbox.oplistset.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition tnode := Tstruct _node noattr.

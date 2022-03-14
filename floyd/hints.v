@@ -23,7 +23,7 @@ Require Import VST.floyd.functional_base.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.deadvars.
-Require Import VST.floyd.list_solver.
+Require Import VST.zlist.list_solver.
 Import Cop.
 Import Cop2.
 Import compcert.lib.Maps.

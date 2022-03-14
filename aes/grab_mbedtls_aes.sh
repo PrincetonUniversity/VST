@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Run this script to copy the AES files of mbed TLS to ./mbedtls
 
 if [ -e "$1" ]; then

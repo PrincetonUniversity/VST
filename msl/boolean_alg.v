@@ -90,13 +90,13 @@ Module Type BA_FACTS.
   Axiom demorgan2 : forall x y, comp (glb x y) = lub (comp x) (comp y).
   Axiom comp_inv : forall x, comp (comp x) = x.
 
-  Instance Join_ba: Join t := fun x y z : t => glb x y = bot /\ lub x y = z.
+  #[global] Instance Join_ba: Join t := fun x y z : t => glb x y = bot /\ lub x y = z.
 
-  Axiom pa: Perm_alg t.   Existing Instance pa.
-  Axiom sa : Sep_alg t.   Existing Instance sa.
-  Axiom ca : Canc_alg t. Existing Instance ca.
-  Axiom singa : Sing_alg t.   Existing Instance singa.
-  Axiom da : Disj_alg t.   Existing Instance da.
+  Axiom pa: Perm_alg t.   #[global] Existing Instance pa.
+  Axiom sa : Sep_alg t.   #[global] Existing Instance sa.
+  Axiom ca : Canc_alg t. #[global] Existing Instance ca.
+  Axiom singa : Sing_alg t.   #[global] Existing Instance singa.
+  Axiom da : Disj_alg t.   #[global] Existing Instance da.
 End BA_FACTS.
 
 (* BEGIN NEW MATERIAL *)
@@ -117,7 +117,7 @@ Fixpoint list_is_height_zero_bool {A} `{heightable A} (L : list A) : bool :=
    | a :: L' =>
       if is_height_zero a then list_is_height_zero_bool L' else false
   end.
-Instance list_heightable {A} `{heightable A} : heightable (list A).
+#[global] Instance list_heightable {A} `{heightable A} : heightable (list A).
   apply Heightable with list_height.
   induction a. left. trivial.
   unfold list_height in *.
@@ -153,7 +153,7 @@ Module Type SHARE_MODEL.
   Include BA_FACTS.
 
   Parameter EqDec_share: EqDec t.
-  Existing Instance EqDec_share.
+  #[global] Existing Instance EqDec_share.
 
   (* Splittability *)
   Parameter split : t -> t * t.
@@ -254,19 +254,19 @@ Module Type SHARE_MODEL.
  (*D1*)
  Parameter tree_height : t -> nat.
  Parameter tree_height_zero : forall t, {tree_height t = 0} + {tree_height t <> 0}.
- Instance tree_heightable : heightable t :=
+ #[global] Instance tree_heightable : heightable t :=
    Heightable tree_height tree_height_zero.
  (*D2*)
  Parameter tree_round_left : nat -> t -> option t.
- Instance  roundableL_tree : roundableLeft t :=
+ #[global] Instance  roundableL_tree : roundableLeft t :=
    RoundableLeft tree_round_left.
  (*D3*)
  Parameter tree_round_right : nat -> t -> option t.
- Instance  roundableR_tree : roundableRight t :=
+ #[global] Instance  roundableR_tree : roundableRight t :=
    RoundableRight tree_round_right.
  (*D4*)
  Parameter tree_avg : nat -> t -> t -> option t.
- Instance avgable_tree : avgable t :=
+ #[global] Instance avgable_tree : avgable t :=
     Avgable tree_avg.
  (*D5*)
  Parameter countBLeafCT : nat -> t -> nat.
@@ -274,7 +274,7 @@ Module Type SHARE_MODEL.
  Parameter share_metric : nat -> t -> nat.
  (*D7*)
  Parameter tree_decompose : t -> (t * t).
- Instance decompose_tree : decomposible t :=
+ #[global] Instance decompose_tree : decomposible t :=
    Decomposible tree_decompose.
  (*D8*)
  Parameter recompose : (t * t) -> t.
@@ -792,9 +792,9 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
     auto.
   Qed.
 
-  Instance Join_ba: Join t := fun x y z : t => glb x y = bot /\ lub x y = z.
+  #[global] Instance Join_ba: Join t := fun x y z : t => glb x y = bot /\ lub x y = z.
 
-  Instance pa: Perm_alg t.
+  #[global] Instance pa: Perm_alg t.
   Proof. constructor; simpl; intros.
     (* saf_eq *)
     hnf in *. destruct H; destruct H0; subst; auto.
@@ -842,7 +842,7 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
     apply ord_spec2. rewrite (lub_commute b'). rewrite lub_assoc. rewrite lub_idem; auto.
   Qed.
 
-  Instance sa: Sep_alg t.
+  #[global] Instance sa: Sep_alg t.
   Proof.  exists (fun _ => bot).
     intros. unfold unit_for. constructor. rewrite glb_commute; apply glb_bot.
              rewrite lub_commute; apply lub_bot.
@@ -850,11 +850,11 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
     intros. reflexivity.
   Defined.
 
-  Instance singa: Sing_alg t.
+  #[global] Instance singa: Sing_alg t.
   Proof.  apply (mkSing bot). unfold core; intros; simpl. reflexivity.
   Defined.
 
-  Instance ca: Canc_alg t.
+  #[global] Instance ca: Canc_alg t.
   Proof. repeat intro.  hnf in *. intuition.
     apply distrib_spec with b.
     rewrite lub_commute; rewrite H2.
@@ -865,7 +865,7 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
     trivial.
   Qed.
 
-  Instance da: Disj_alg t.
+  #[global] Instance da: Disj_alg t.
   Proof. repeat intro.
     destruct H, H0.
     rewrite lub_idem in H1; subst.

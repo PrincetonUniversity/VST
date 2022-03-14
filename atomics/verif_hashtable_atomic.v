@@ -3,6 +3,7 @@ Require Import VST.concurrency.conclib.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.veric.bi.
 Require Import VST.floyd.library.
+Require Import VST.zlist.sublist.
 Require Import VST.atomics.hashtable_atomic.
 Require Import VST.atomics.general_atomics.
 Require Import VST.atomics.hashtable.
@@ -11,7 +12,7 @@ Import List.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Section Proofs.

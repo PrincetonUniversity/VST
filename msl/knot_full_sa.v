@@ -36,7 +36,7 @@ Module Type KNOT_FULL_SA_INPUT.
   Import MixVariantFunctor.
   Import KI.
 
-  Parameter Join_F: forall A, Join (F A). Existing Instance Join_F.
+  Parameter Join_F: forall A, Join (F A). #[global] Existing Instance Join_F.
   Parameter paf_F : pafunctor F Join_F.
   Parameter Perm_F: forall A, Perm_alg (F A).
   Parameter Sep_F: forall A, Sep_alg (F A).
@@ -56,7 +56,7 @@ Module Type KNOT_BASIC.
   Import KI.
   Parameter knot: Type.
   Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  #[global] Existing Instance ageable_knot.
 
   Parameter predicate: Type.
   Parameter squash : (nat * F predicate) -> knot.
@@ -138,14 +138,14 @@ Module Type KNOT_FULL_SA.
   Import KL.
   Import KA.
 
-  Parameter Join_knot: Join knot.  Existing Instance Join_knot.
-  Parameter Perm_knot : Perm_alg knot.  Existing Instance Perm_knot.
-  Parameter Sep_knot : Sep_alg knot.  Existing Instance Sep_knot.
-  Instance Join_nat_F: Join (nat * F predicate) :=
+  Parameter Join_knot: Join knot.  #[global] Existing Instance Join_knot.
+  Parameter Perm_knot : Perm_alg knot.  #[global] Existing Instance Perm_knot.
+  Parameter Sep_knot : Sep_alg knot.  #[global] Existing Instance Sep_knot.
+  #[global] Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
-  Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
+  #[global] Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
     @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
-  Instance Sep_nat_F : Sep_alg (nat * F predicate) :=
+  #[global] Instance Sep_nat_F : Sep_alg (nat * F predicate) :=
     @Sep_prod nat _ _ _ _ (Perm_F predicate) (fsep_sep (Sep_equiv _)) (Sep_F predicate).
 
   Axiom join_unsquash : forall x1 x2 x3 : knot,
@@ -183,11 +183,11 @@ Module KnotFullSa
   Import KL.
   Import KA.
 
-  Instance Join_nat_F: Join (nat * F predicate) :=
+  #[global] Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
-  Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
+  #[global] Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
       @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
-  Instance Sep_nat_F : Sep_alg (nat * F predicate) :=
+  #[global] Instance Sep_nat_F : Sep_alg (nat * F predicate) :=
     @Sep_prod nat _ _ _ _ (Perm_F predicate) (fsep_sep (Sep_equiv _)) (Sep_F predicate).
 
   Lemma unsquash_squash_join_hom : join_hom (unsquash oo squash).
@@ -202,7 +202,7 @@ Module KnotFullSa
     apply (paf_join_hom paf_F); auto.
   Qed.
 
-  Instance Join_knot : Join knot :=
+  #[global] Instance Join_knot : Join knot :=
            Join_preimage knot (nat * F predicate) Join_nat_F unsquash.
 
   Lemma join_unsquash : forall x1 x2 x3,
@@ -212,7 +212,7 @@ Module KnotFullSa
     intuition.
   Qed.
 
-  Instance Perm_knot : Perm_alg knot :=
+  #[global] Instance Perm_knot : Perm_alg knot :=
     Perm_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom.
 
   Lemma core_unsquash_squash : forall b, core (unsquash (squash b)) = unsquash (squash (core b)).
@@ -222,7 +222,7 @@ Module KnotFullSa
     setoid_rewrite approx_core. reflexivity.
   Qed.
 
-  Instance Sep_knot: Sep_alg knot :=
+  #[global] Instance Sep_knot: Sep_alg knot :=
     Sep_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom core_unsquash_squash.
 
   Lemma core_unsquash : forall x, core x = squash (core (unsquash x)).

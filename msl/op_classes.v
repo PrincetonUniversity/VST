@@ -20,10 +20,10 @@ Require Import VST.msl.predicates_rec.
 
 Class StarOp A := {  starOp : A -> A -> A }.
 
-Instance baseStarOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}
+#[global] Instance baseStarOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}
  : StarOp (pred A) := {| starOp := sepcon |}.
 
-Instance funStarOp (B: Type)(A: Type)(StarA: StarOp A) : StarOp (B -> A) :=
+#[global] Instance funStarOp (B: Type)(A: Type)(StarA: StarOp A) : StarOp (B -> A) :=
    {| starOp := fun (P Q : B -> A) (b : B) =>  starOp (P b) (Q b) |}.
 
 Set Warnings "-notation-overridden".
@@ -33,10 +33,10 @@ Set Warnings "notation-overridden".
 
 Class DerivesOp A := {  derivesOp : A -> A -> Prop }.
 
-Instance baseDerivesOp {A}{agA: ageable A}{EO: Ext_ord A}
+#[global] Instance baseDerivesOp {A}{agA: ageable A}{EO: Ext_ord A}
  : DerivesOp (pred A) := {| derivesOp := @derives A agA EO|}.
 
-Instance funDerivesOp (B: Type)(A: Type)(DerivesA: DerivesOp A) : DerivesOp (B -> A)
+#[global] Instance funDerivesOp (B: Type)(A: Type)(DerivesA: DerivesOp A) : DerivesOp (B -> A)
  := {| derivesOp := fun (P Q : B -> A)  => forall b, derivesOp (P b) (Q b) |}.
 Set Warnings "-notation-overridden".
 Declare Scope logic_derives.
@@ -47,10 +47,10 @@ Open Scope logic_derives.
 
 Class WandOp A := {  wandOp : A -> A -> A }.
 
-Instance baseWandOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}
+#[global] Instance baseWandOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}
  : WandOp (pred A) := {| wandOp := wand |}.
 
-Instance funWandOp (B: Type)(A: Type)(WandA: WandOp A) : WandOp (B -> A) :=
+#[global] Instance funWandOp (B: Type)(A: Type)(WandA: WandOp A) : WandOp (B -> A) :=
    {| wandOp := fun (P Q : B -> A) (b : B) =>  wandOp (P b) (Q b) |}.
 
 Set Warnings "-notation-overridden".
@@ -60,10 +60,10 @@ Set Warnings "notation-overridden".
 
 Class EmpOp A := { Emp: A}.
 
-Instance baseEmpOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}{EO: Ext_ord A}
+#[global] Instance baseEmpOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}{EO: Ext_ord A}
   : EmpOp (pred A) := {| Emp := @emp A JA SA agA AgeA EO |}.
 
-Instance funEmpOp  (B: Type)(A: Type)(EmpA: EmpOp A) : EmpOp (B -> A) :=
+#[global] Instance funEmpOp  (B: Type)(A: Type)(EmpA: EmpOp A) : EmpOp (B -> A) :=
    {| Emp := fun (b : B) =>  Emp  |}.
 
 Section Test.
@@ -77,15 +77,15 @@ Variables (rmap : Type)
       (Age_rmap: @Age_alg rmap Join_rmap ag_rmap Sep_rmap)
       (Ext_rmap: @Ext_ord rmap ag_rmap)
       (ExtA_rmap: @Ext_alg rmap ag_rmap Ext_rmap Join_rmap Sep_rmap).
-Existing Instance  Join_rmap.
-Existing Instance  Perm_rmap.
-Existing Instance  Sep_rmap.
-Existing Instance  Canc_rmap.
-Existing Instance  Disj_rmap.
-Existing Instance  ag_rmap.
-Existing Instance  Age_rmap.
-Existing Instance  Ext_rmap.
-Existing Instance  ExtA_rmap.
+#[local] Existing Instance  Join_rmap.
+#[local] Existing Instance  Perm_rmap.
+#[local] Existing Instance  Sep_rmap.
+#[local] Existing Instance  Canc_rmap.
+#[local] Existing Instance  Disj_rmap.
+#[local] Existing Instance  ag_rmap.
+#[local] Existing Instance  Age_rmap.
+#[local] Existing Instance  Ext_rmap.
+#[local] Existing Instance  ExtA_rmap.
 
 Lemma test1: forall (P : environ -> pred rmap) (Q: pred rmap),
    P * Emp |-- P.

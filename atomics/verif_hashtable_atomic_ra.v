@@ -6,7 +6,7 @@ Require Import VST.concurrency.invariants.
 Require Import VST.atomics.acq_rel_atomics.
 Require Import VST.atomics.maps.
 Require Import VST.floyd.library.
-Require Import VST.floyd.sublist.
+Require Import VST.zlist.sublist.
 Require Import VST.atomics.hashtable_atomic_ra.
 Require Import VST.atomics.hashtable.
 Require Import VST.atomics.general_atomics.
@@ -14,7 +14,7 @@ Import List.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).

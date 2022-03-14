@@ -33,7 +33,7 @@ endif
 # ##### Configure Compcert #####
 
 # Note:  You can make a CONFIGURE file with the below definitions or give them
-# on th emake command line
+# on the make command line
 #
 # # Choosing compcert #
 # COMPCERT=platform     (default, choose 32 or 64 bit platform supplied x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
@@ -139,7 +139,7 @@ endif
 
 ifeq ($(COMPCERT_BUILD_FROM_SRC),false)
   ifeq ($(wildcard $(COMPCERT_INST_DIR)/*/Clight.vo), )
-    $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT_INST_DIR); make clightgen)
+    $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT_INST_DIR); $(MAKE) clightgen)
   endif
 endif
 
@@ -234,7 +234,7 @@ endif
 
 # ########## Flags ##########
 
-VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
+VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 
@@ -442,13 +442,15 @@ VERIC_FILES= \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
   semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v ghosts.v invariants.v
 
+ZLIST_FILES= \
+  sublist.v Zlength_solver.v list_solver.v
+
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
    base2.v functional_base.v go_lower.v \
    library.v proofauto.v computable_theorems.v computable_functions.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
-   sublist.v \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
@@ -462,7 +464,7 @@ FLOYD_FILES= \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
    subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v quickprogram.v PTops.v Component.v QPcomposite.v \
-   Zlength_solver.v list_solver.v data_at_list_solver.v
+  data_at_list_solver.v
 #real_forward.v
 
 
@@ -635,7 +637,7 @@ endif
 
 PROGS64_FILES=$(V64_ORDINARY)
 
-INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) BITSIZE=$(BITSIZE) ARCH=$(ARCH) util/calc_install_files $(PROGSDIR))
+INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) BITSIZE=$(BITSIZE) ARCH=$(ARCH) MAKE=$(MAKE) util/calc_install_files $(PROGSDIR))
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
@@ -678,24 +680,39 @@ endif
 
 # ########## Targets ##########
 
-default_target: _CoqProject msl veric floyd $(PROGSDIR)
-
-all: default_target files travis io hmacdrbg tweetnacl aes
+default_target: vst $(PROGSDIR)
+vst: _CoqProject msl veric floyd simpleconc
 
 ifeq ($(BITSIZE),64)
-travis: default_target progs
+test: vst progs64
+	@# need this tab here to turn of special behavior of 'test' target
+test2: io
+tests: test test2
+all: tests
 else
-travis: default_target progs sha hmac mailbox VSUpile
-travisx: default_target progs sha hmac mailbox
+test: vst progs
+	@# need this tab here to turn of special behavior of 'test' target
+test2: io
+test3: sha hmac 
+test4: mailbox 
+test5: VSUpile
+tests: test test2 test3 test4 test5
+all: vst files tests hmacdrbg tweetnacl aes
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
+# TODO:
+#
+# Add conclib_coqlib, conclib_sublist, and conclib_veric to the targets
+#
+simpleconc: concurrency/conclib.vo concurrency/ghosts.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
+zlist:   _CoqProject $(ZLIST_FILES:%.v=zlist/%.vo)
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   _CoqProject $(PROGS_FILES:%.v=$(PROGSDIR)/%.vo)
 progsdir: $(PROGSDIR)
@@ -810,7 +827,6 @@ endif
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
 # endif
 ifneq ($(wildcard InteractionTrees/theories),)
-	$(warning foo)
 #	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 endif
@@ -860,7 +876,7 @@ progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
-	cd progs/VSUpile; $(MAKE) VST_LOC=../..
+	cd progs/VSUpile; $(MAKE) VST_LOC=../.. COMPCERT_LOC=$(COMPCERT_INST_DIR)
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)
