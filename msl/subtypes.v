@@ -60,7 +60,6 @@ Qed.
 Proof.
   hnf; intros; subst; eauto.
 Qed.*)
-#[export] Hint Resolve ag_nat : core.
 
 Program Definition fash (P: pred A): pred nat :=
       fun n => forall y, n >= level y -> P y.
@@ -124,6 +123,8 @@ Proof.
 Qed.
 
 End Fash.
+
+#[export] Hint Resolve ag_nat : core.
 
 Notation "'#' e" := (fash e) (at level 20, right associativity): pred.
 

@@ -24,7 +24,7 @@ Import compcert.lib.Maps.
 Local Open Scope pred.
 
 (* up *)
-Lemma sepcon_andp_unfash {A}{JA: Join A}{PA: Perm_alg A}{agA: ageable A}{aaA: Age_alg A}{SA: Sep_alg A} :
+Lemma sepcon_andp_unfash {A}{JA: Join A}{PA: Perm_alg A}{agA: ageable A}{SA: Sep_alg A}{aaA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
      forall (P: pred A) (Q: pred nat) (R: pred A), P * (! Q && R) = ! Q && (P * R).
 Proof.
   intros; apply pred_ext.
@@ -3590,7 +3590,7 @@ specialize (ClientAdaptation x (ge_of rho, args)). hnf in ClientAdaptation.
 assert (LW2': (level w' >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); lia. }
 specialize (ClientAdaptation _ LW2' _ _ (necR_refl _) (ext_refl _)). spec ClientAdaptation.
 { split; trivial. simpl.
-  clear - TC3 LENargs TC2 Hage. destruct TC3. 
+  clear - TC3 LENargs TC2 Hage. destruct TC3.
   apply age_laterR in Hage. specialize (TC2 w' Hage).
   specialize (tc_eval_exprlist _ _ _ _ _ H TC2).
   subst args.
@@ -3764,7 +3764,7 @@ simpl; intros ? ?. unfold cl_after_external. destruct ret0; auto.
 reflexivity.
 intros.
 destruct H8 as [w1 [w2 [H8' [_ ?]]]]. subst m'.
-assert (H8'': extendM w2 a'') by (eexists; eauto). clear H8'.
+assert (H8'': @extendM rmap _ _ _ _ _ _ rmap _ _ _ _ _ w2 a'') by (eexists; eauto). clear H8'.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (H7': typecheck_environ Delta rho).
 destruct H7; eapply typecheck_environ_sub; eauto.

@@ -18,15 +18,13 @@ Require Export VST.concurrency.conclib_veric.
 
 (* exclusive *)
 Lemma weak_exclusive_conflict : forall P,
-  predicates_hered.derives ((weak_exclusive_mpred P && emp) * P * P) FF.
+  (weak_exclusive_mpred P && emp) * P * P |-- FF.
 Proof.
-  intros ?? (r1 & r2 & ? & (? & ? & Hj & [Hexclusive Hemp] & ?) & ?).
-  destruct (age_sepalg.join_level _ _ _ H), (age_sepalg.join_level _ _ _ Hj).
-  apply Hemp in Hj; subst.
-  simpl in Hexclusive.
-  inv Hexclusive; rename derivesI into Hexclusive.
-  apply Hexclusive.
-  do 3 eexists; eauto; repeat split; auto; lia.
+  intros; unfold weak_exclusive_mpred.
+  rewrite sepcon_assoc.
+  constructor; intros ? (r1 & r2 & ? & [Hexclusive _] & HP).
+  eapply (Hexclusive r2) in HP; eauto.
+  apply join_level in H as [-> ->]; auto.
 Qed.
 
 Lemma exclusive_sepcon1 : forall (P Q : mpred) (HP : exclusive_mpred P), exclusive_mpred (P * Q).
@@ -60,18 +58,16 @@ Proof.
   inv H0.
   match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
   intros ? (? & ? & ? & Hlock1 & Hlock2).
-  exploit (res_predicates.LKspec_precise _ _ _ _ a _ _ Hlock1 Hlock2).
-  - eexists; eauto.
-  - apply sepalg.join_comm in H. eexists; eauto.
-  - intros; subst.
-    destruct Hlock1 as [Hlock1 _]; simpl in Hlock1.
-    specialize (Hlock1 (b2, Ptrofs.unsigned ofs2)).
-    rewrite if_true in Hlock1 by (split; auto; pose proof lksize.LKSIZE_pos; lia).
-    destruct Hlock1 as [? Hl1].
-    apply compcert_rmaps.RML.resource_at_join with (loc := (b2, Ptrofs.unsigned ofs2)) in H.
-    rewrite Hl1 in H; inv H.
-    apply sepalg.join_self in RJ.
-    eapply readable_not_identity; eauto.
+  set (l := (b2, Ptrofs.unsigned ofs2)).
+  apply (compcert_rmaps.RML.resource_at_join _ _ _ l) in H.
+  specialize (Hlock1 l); specialize (Hlock2 l).
+  simpl in *.
+  if_tac in Hlock1.
+  destruct Hlock1 as [? H1], Hlock2 as [? H2]; rewrite H1, H2 in H; inv H.
+  apply sepalg.join_self in RJ.
+  eapply readable_not_identity; eauto.
+  { contradiction H0.
+    subst l; unfold adr_range. pose proof lksize.LKSIZE_pos; lia. }
 Qed.
 
 Lemma selflock_exclusive : forall R sh v, exclusive_mpred R -> exclusive_mpred (selflock R v sh).
@@ -248,7 +244,7 @@ Proof.
       instantiate (2 := l1).
       erewrite array_pred_shift; try simple apply Ht1;
       try rewrite !Z.max_r by lia; auto; try lia.
-      intros; unfold at_offset.      
+      intros; unfold at_offset.
       rewrite offset_offset_val; do 2 f_equal; lia. }
     { rewrite data_at_rec_eq; simpl.
       setoid_rewrite at_offset_array_pred.
@@ -360,7 +356,7 @@ Lemma LKspec_readable lock_size :
   forall R sh p, predicates_hered.derives (res_predicates.LKspec lock_size R sh p)
   (!!(readable_share sh)).
 Proof.
-  intros pos R sh p a [H _].
+  intros pos R sh p a H.
   specialize (H p); simpl in H.
   destruct (adr_range_dec p lock_size p).
   destruct (eq_dec p p); [|contradiction n; auto].
@@ -503,7 +499,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
      match x with (x1,x2,x3,x4,x5,x6) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
      match x with (x1,x2,x3,x4,x5,x6) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0,
              P at level 100, Q at level 100).
 
@@ -617,7 +613,7 @@ Qed.
 Lemma PROP_into_SEP_LAMBDA : forall P U Q R, PROPx P (LAMBDAx U Q (SEPx R)) =
   PROPx [] (LAMBDAx U Q (SEPx (!!fold_right and True P && emp :: R))).
 Proof.
-  intros; unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx, argsassert2assert; 
+  intros; unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx, argsassert2assert;
   extensionality; simpl.
   apply pred_ext; entailer!; apply derives_refl.
 Qed.
@@ -633,8 +629,8 @@ Ltac forward_spawn id arg wit :=
   match goal with gv : globals |- _ =>
   make_func_ptr id; let f := fresh "f_" in set (f := gv id);
   match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
-    let Q := fresh "Q" in let R := fresh "R" in 
-    
+    let Q := fresh "Q" in let R := fresh "R" in
+
     evar (Q : A -> globals); evar (R : A -> val -> mpred);
     replace Pre with (fun '(a, w) => PROPx [] (PARAMSx (a::nil)
                                                        (GLOBALSx ((Q w) :: nil) (SEPx [R w a]))));
@@ -648,7 +644,7 @@ Ltac forward_spawn id arg wit :=
         | unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _);
           reflexivity]
   ];
-  forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; 
+  forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R;
            [ .. | subst f]; try (subst f; simpl; cancel_for_forward_spawn)
   end end.
 (*

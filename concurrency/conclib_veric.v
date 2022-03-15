@@ -46,7 +46,7 @@ Lemma make_tycontext_s_distinct : forall a l (Ha : In a l) (Hdistinct : NoDup (m
   (make_tycontext_s l) ! (fst a) = Some (snd a).
 Proof.
   intros a l. unfold make_tycontext_s.
-  induction l; simpl; intros. 
+  induction l; simpl; intros.
   contradiction.
   inv Hdistinct. destruct a0. simpl in *.
   destruct Ha. subst.
@@ -457,7 +457,7 @@ Proof.
     + apply sepcon_derives; auto.
       Intros. apply andp_right; auto.
       apply prop_right; split; auto.
-      intro; auto. 
+      intro; auto.
 Opaque mpred.
 Qed.
 
@@ -731,10 +731,10 @@ Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered
   compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P)
     (compcert_rmaps.RML.R.approx n Q)).
 Proof.
-  intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha' HP.
-  - destruct HP; split; auto.
-  - apply Himp; auto; split; auto.
-    pose proof (ageable.necR_level _ _ Ha'); lia.
+  intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? ? Ha' Hext HP.
+  - destruct HP; split; eauto.
+  - eapply Himp; eauto; split; auto.
+    pose proof (ageable.necR_level _ _ Ha'); apply ext_level in Hext; lia.
 Qed.
 
 Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.approx n (P ts x) =
@@ -787,8 +787,8 @@ Proof.
   intros ??; auto.
 Qed.
 
-Lemma later_nonexpansive : forall n P, compcert_rmaps.RML.R.approx n (|> P) =
-  compcert_rmaps.RML.R.approx n (|> compcert_rmaps.RML.R.approx n P).
+Lemma later_nonexpansive : forall n P, compcert_rmaps.RML.R.approx n (|> P)%pred =
+  compcert_rmaps.RML.R.approx n (|> compcert_rmaps.RML.R.approx n P)%pred.
 Proof.
   intros.
   intros; apply predicates_hered.pred_ext.
@@ -800,8 +800,8 @@ Proof.
     specialize (H0 _ Hlater) as []; auto.
 Qed.
 
-Lemma allp_nonexpansive : forall {A} n P, compcert_rmaps.RML.R.approx n (ALL y : A, P y) =
-  compcert_rmaps.RML.R.approx n (ALL y, compcert_rmaps.RML.R.approx n (P y)).
+Lemma allp_nonexpansive : forall {A} n P, compcert_rmaps.RML.R.approx n (ALL y : A, P y)%pred =
+  compcert_rmaps.RML.R.approx n (ALL y, compcert_rmaps.RML.R.approx n (P y))%pred.
 Proof.
   intros.
   apply predicates_hered.pred_ext; intros ? [? Hall]; split; auto; intro; simpl in *.
@@ -848,5 +848,3 @@ Proof.
   apply malloc_compatible_field_compatible; auto.
 Qed.
 *)
-
-

@@ -27,10 +27,10 @@ Transparent intsize_eq.
 
 Section extensions.
   Context {CS: compspecs} {Espec: OracleKind}.
-  
+
 Lemma semax_straight_simple:
  forall Delta (B: assert) P c Q,
-  (forall rho, boxy extendM (B rho)) ->
+  (forall rho, boxy (@extendM rmap _ _ _ _ _ _ rmap _ _ _ _ _) (B rho)) ->
   (forall jm jm1 Delta' ge ve te rho k F f,
               tycontext_sub Delta Delta' ->
               app_pred (B rho) (m_phi jm) ->
@@ -114,7 +114,7 @@ match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
 | _ => True
 end.
 
-Lemma later_sepcon2  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
+Lemma later_sepcon2  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
   forall P Q,  P * |> Q |-- |> (P * Q).
 Proof.
 intros. apply @derives_trans with (|> P * |> Q).
@@ -151,14 +151,14 @@ destruct H0.
 econstructor; apply H0. destruct H0 as [_ [v2' H0]]; exists v2'; apply H0.
 clear H0; destruct H2 as [x1 H0].
 
-pose proof mapsto_core_load m x1 sh (b, Ptrofs.unsigned o) (m_phi jm). 
+pose proof mapsto_core_load m x1 sh (b, Ptrofs.unsigned o) (m_phi jm).
 
 destruct H2. simpl; eauto.
 simpl in H2.
 destruct H2.
 specialize (H3 (b, Ptrofs.unsigned o)).
 if_tac in H3.
-destruct H3.  destruct H3. 
+destruct H3.  destruct H3.
 
 rewrite valid_pointer_nonempty_perm.
 unfold perm.
@@ -172,7 +172,7 @@ rewrite JMA.
 repeat if_tac; try constructor. subst.
 simpl in H3.
 contradiction.
-destruct H4.  repeat split. lia. 
+destruct H4.  repeat split. lia.
 destruct m; simpl; lia.
 * (* ~ readable_share sh *)
 destruct (access_mode t) eqn:?; try contradiction.
@@ -269,7 +269,7 @@ destruct t2; try solve [simpl in *; try destruct f; try tauto; congruence].
 simpl.
 unfold sem_binary_operation', sem_cmp.
 rewrite NE1,NE2.
-destruct cmp; 
+destruct cmp;
 inv H; subst; simpl;
 unfold Cop.sem_cmp, sem_cmp_pp, cmp_ptr, Val.cmpu_bool, Val.cmplu_bool; simpl;
 try rewrite MT_1; try rewrite MT_2; simpl;
@@ -347,7 +347,7 @@ match (eval_expr e rho) with
 | _ => FF
 end.
 
-Lemma extend_sepcon_TT {A} {JA: Join A} {PA: Perm_alg A}{SA: Sep_alg A} {AG: ageable A} {Aga: Age_alg A}:
+Lemma extend_sepcon_TT {A} {JA: Join A} {PA: Perm_alg A}{SA: Sep_alg A} {AG: ageable A} {Aga: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
  forall P, boxy extendM (P * TT).
 Proof. intros. hnf.
  apply pred_ext.
@@ -609,7 +609,7 @@ Proof.
     split.
     2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
     assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
-    { rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto. } 
+    { rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto. }
     assert (laterR (m_phi jm) (m_phi jm')).
     { constructor 1. destruct (age1_juicy_mem_unpack _ _ H); auto. }
     specialize (H2 _ H3).
@@ -653,7 +653,7 @@ Proof.
         unfold subst.
         rewrite H4.
         unfold eval_id at 1. unfold force_val; simpl.
-        rewrite Map.gss. auto. 
+        rewrite Map.gss. auto.
       * unfold liftx, lift; simpl. unfold subst; rewrite H4.
         auto.
 Qed.
@@ -873,7 +873,7 @@ rewrite <- Hcl; auto.
 intros.
 destruct (Pos.eq_dec id i).
 subst.
-left. unfold modifiedvars, modifiedvars', insert_idset. 
+left. unfold modifiedvars, modifiedvars', insert_idset.
  rewrite PTree.gss; hnf; auto.
 right.
 rewrite Map.gso; auto. subst; auto.
@@ -905,7 +905,7 @@ apply andp_right.
   unfold eval_id at 1. unfold force_val; simpl.
   rewrite Map.gss. auto.
 - unfold liftx, lift; simpl. (*rewrite <- H4. simpl.*)
-  unfold subst. simpl. 
+  unfold subst. simpl.
   change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr e) rho)) with (eval_expr (Ecast e t) rho).
   rewrite H4; trivial.
 Qed.
@@ -1223,7 +1223,7 @@ split; [split3 | ].
  (* rewrite H4.*)
   apply andp_right; auto.
   - intros ? ?; simpl. unfold liftx, lift; simpl.
-    unfold eval_id, force_val. simpl. rewrite Map.gss. auto. 
+    unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
   - unfold eval_cast, force_val1 in H4. unfold liftx, lift; simpl. rewrite H4; trivial.
  + intro i; destruct (Pos.eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
    subst; unfold modifiedvars, modifiedvars', insert_idset.
@@ -1236,10 +1236,10 @@ Proof.
  destruct r. rewrite core_NO; auto. rewrite core_YES; auto. rewrite core_PURE; auto.
 Qed.
 
-Lemma writable0_lub_retainer_Rsh: 
+Lemma writable0_lub_retainer_Rsh:
  forall sh, writable0_share sh ->
   Share.lub (retainer_part sh) Share.Rsh = sh.
-  intros. symmetry.  
+  intros. symmetry.
   unfold retainer_part.
   rewrite (comp_parts comp_Lsh_Rsh sh) at 1.
   f_equal; auto.
@@ -1278,7 +1278,7 @@ Qed.
 
 Lemma decode_encode_val_fun:
   forall ch1 ch2, decode_encode_val_ok ch1 ch2 ->
-  forall v v1 v2, 
+  forall v v1 v2,
      decode_encode_val v ch1 ch2 v1 ->
      decode_encode_val v ch1 ch2 v2 ->
      v1=v2.
@@ -1327,7 +1327,7 @@ simpl in *; subst; auto.
 Qed.
 
 Theorem load_store_similar':
-   forall (chunk : memory_chunk) (m1 : Memory.mem) 
+   forall (chunk : memory_chunk) (m1 : Memory.mem)
          (b : block) (ofs : Z) (v : val) (m2 : Memory.mem),
        store chunk m1 b ofs v = Some m2 ->
   forall chunk',
@@ -1359,8 +1359,8 @@ Lemma address_mapsto_can_store': forall jm ch ch' v sh (wsh: writable0_share sh)
        (align_chunk ch' | Ptrofs.unsigned ofs) ->
        exists m',
        {H: Mem.store ch (m_dry jm) b (Ptrofs.unsigned ofs) v' = Some m'|
-       ((EX v'':val, !! (decode_encode_val v' ch ch' v'') && 
-          address_mapsto ch' v'' sh (b, Ptrofs.unsigned ofs)) * exactly my)%pred 
+       ((EX v'':val, !! (decode_encode_val v' ch ch' v'') &&
+          address_mapsto ch' v'' sh (b, Ptrofs.unsigned ofs)) * exactly my)%pred
        (m_phi (store_juicy_mem _ _ _ _ _ _ H))}.
 Proof.
 intros * wsh * H OK AL.
@@ -1374,7 +1374,7 @@ do 3 red in Hmy.
 assert (H2 := I); assert (H3 := I).
 forget (Ptrofs.unsigned ofs) as i. clear ofs.
 pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
-                      then YES (Share.lub (res_retain (m1 @ loc)) Share.Rsh) 
+                      then YES (Share.lub (res_retain (m1 @ loc)) Share.Rsh)
                                (readable_share_lub (writable0_readable writable0_Rsh))
                                (VAL (contents_at m' loc)) NoneP
                      else core (m_phi jm @ loc)).
@@ -1487,7 +1487,7 @@ Lemma address_mapsto_can_store: forall jm ch v sh (wsh: writable0_share sh) b of
        decode_val ch (encode_val ch v') = v' ->
        exists m',
        {H: Mem.store ch (m_dry jm) b (Ptrofs.unsigned ofs) v' = Some m'|
-       (address_mapsto ch v' sh (b, Ptrofs.unsigned ofs) * exactly my)%pred 
+       (address_mapsto ch v' sh (b, Ptrofs.unsigned ofs) * exactly my)%pred
        (m_phi (store_juicy_mem _ _ _ _ _ _ H))}.
 Proof.
 intros.
@@ -1532,7 +1532,7 @@ assert (size_chunk ch = sizeof t). {
 unfold sizeof in *.
 destruct ch;
  destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try solve [inv H1];
-simpl in *; 
+simpl in *;
  try solve [inv H1]; clear H1; destruct (eval_expr e2 rho);
  destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] ;
  try solve [inv H];
@@ -1580,7 +1580,7 @@ intros jm jm1 Delta' ge ve te rho k F f TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'] H
 specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 assert (typecheck_environ Delta rho) as TC.
-{ destruct TC4. eapply typecheck_environ_sub; eauto. } 
+{ destruct TC4. eapply typecheck_environ_sub; eauto. }
 pose proof TC1 as TC1'.
 pose proof TC2 as TC2'.
 apply (tc_lvalue_sub _ _ _ TS) in TC1'; [| auto].
@@ -1602,7 +1602,7 @@ rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 rewrite if_true in H4 by auto.
-assert (exists v, address_mapsto ch v 
+assert (exists v, address_mapsto ch v
              sh
         (b0, Ptrofs.unsigned i) w1)
        by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
@@ -1615,7 +1615,7 @@ assert (H11: (res_predicates.address_mapsto ch v3  sh
         (b0, Ptrofs.unsigned i) * exactly w3)%pred (m_phi jm1)).
 { exists w1; exists w3; split3; auto.
   hnf; eauto. }
-apply address_mapsto_can_store 
+apply address_mapsto_can_store
    with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
   auto.
 2: {
@@ -1623,7 +1623,7 @@ apply address_mapsto_can_store
   destruct TC4 as [TC4 _].
   simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.
   remember (eval_expr e2 rho).
-  dec_enc. rewrite DE. clear DE. subst. 
+  dec_enc. rewrite DE. clear DE. subst.
   eapply load_cast; eauto.
 }
 destruct H11 as [m' [H11 AM]].
@@ -1667,7 +1667,7 @@ apply juicy_store_nodecay.
  apply (resource_at_join _ _ _ (b0,z)) in H.
  rewrite H0 in H.
  inv H; simpl; apply join_writable01 in RJ; auto;
- unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor. 
+ unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor.
 }
 rewrite level_store_juicy_mem. split; [apply age_level; auto|].
 simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
@@ -1697,7 +1697,7 @@ unfold mapsto.
 destruct TC4 as [TC4 _].
 
 rewrite Hmode.
-rewrite He1'. 
+rewrite He1'.
 *
 rewrite cop2_sem_cast'; auto.
 2: eapply typecheck_expr_sound; eauto.
@@ -1726,7 +1726,7 @@ match t with
 end.
 
 Lemma semax_store_union_hack:
-     forall  
+     forall
          (Delta : tycontext) (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
        (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
        access_mode (typeof e1) = By_value ch ->
@@ -1737,10 +1737,10 @@ Lemma semax_store_union_hack:
          (fun rho =>
            |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho &&
               ( (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) && mapsto_ sh t2 (eval_lvalue e1 rho))
-               * P rho))) 
+               * P rho)))
          (Sassign e1 e2)
          (normal_ret_assert
-            (fun rho => (EX v':val, 
+            (fun rho => (EX v':val,
               andp (!! (decode_encode_val  (force_val (sem_cast (typeof e2) (typeof e1) (eval_expr e2 rho
 ))) ch ch' v'))
               (mapsto sh t2 (eval_lvalue e1 rho) v' * P rho)))).
@@ -1762,7 +1762,7 @@ intros jm jm1 Delta' ge ve te rho k F f TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'] H
 specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 assert (typecheck_environ Delta rho) as TC.
-{ destruct TC4. eapply typecheck_environ_sub; eauto. } 
+{ destruct TC4. eapply typecheck_environ_sub; eauto. }
 pose proof TC1 as TC1'.
 pose proof TC2 as TC2'.
 apply (tc_lvalue_sub _ _ _ TS) in TC1'; [| auto].
@@ -1786,7 +1786,7 @@ rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 rewrite if_true in H4 by auto.
-assert (exists v, address_mapsto ch v 
+assert (exists v, address_mapsto ch v
              sh
         (b0, Ptrofs.unsigned i) w1)
        by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
@@ -1822,7 +1822,7 @@ apply address_mapsto_can_store'
   destruct TC4 as [TC4 _].
   simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.
   remember (eval_expr e2 rho).
-  dec_enc. rewrite DE. clear DE. subst. 
+  dec_enc. rewrite DE. clear DE. subst.
   eapply load_cast; eauto.
 }
 *)
@@ -1867,7 +1867,7 @@ apply juicy_store_nodecay.
  apply (resource_at_join _ _ _ (b0,z)) in H.
  rewrite H0 in H.
  inv H; simpl; apply join_writable01 in RJ; auto;
- unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor. 
+ unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor.
 }
 rewrite level_store_juicy_mem. split; [apply age_level; auto|].
 simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
@@ -1911,7 +1911,7 @@ unfold mapsto.
 destruct TC4 as [TC4 _].
 
 rewrite AM'.
-rewrite He1'. 
+rewrite He1'.
 *
 apply exp_left; intro v''.
 apply prop_andp_left; intro.

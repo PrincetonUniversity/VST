@@ -1178,9 +1178,6 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     match x with existT _ (exist _ V) => existT _ _ (exist _ _ (core_valid _ V)) end.
 
   #[global] Instance Sep_ghost : Sep_alg ghost.
-=======
-  #[global] Instance Sep_ghost : Sep_alg ghost.
->>>>>>> master
   Proof.
     intros; exists (fun g => map (option_map (fun '(a, b) => (ghost_core a, b))) g).
     - intros; unfold unit_for.

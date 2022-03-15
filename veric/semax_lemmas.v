@@ -521,24 +521,23 @@ Definition all_assertions_computable  :=
      exists k,  assert_safe Espec psi f tx vx k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
-*)
+ *)
 
-Lemma ewand_TT_emp {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{aaA: Age_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
-    ewand TT emp = emp.
+Lemma ewand_TT_emp {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{SA: Sep_alg A}{aaA: Age_alg A}{CA: Canc_alg A} {EO: Ext_ord A}:
+  ewand TT emp = emp.
 Proof.
 intros.
 apply pred_ext; intros w ?.
-destruct H as [w1 [w3 [? [? ?]]]].
-hnf; eapply split_identity.
-eapply join_comm; eauto.
-auto.
-exists w; exists w; split; auto.
-change (identity w) in H.
-apply identity_unit'; auto.
-Qed.
+- destruct (H w w) as [w1 [w3 [? [? ?]]]].
+  + apply necR_refl.
+  + apply ext_refl.
+  + destruct H2 as [e3 [? ?]].
+    admit.
+- exists w; exists w; split; auto.
+  destruct H as [e [? ?]].
+Abort.
 
 Lemma subp_derives' {A}{agA: ageable A}{EO: Ext_ord A}:
->>>>>>> master
   forall P Q: pred A, (forall n, (P >=> Q) n) -> P |-- Q.
 Proof.
 intros.
