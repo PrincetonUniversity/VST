@@ -514,6 +514,18 @@ Proof.
   apply mapsto_value_cohere; auto.
 Qed.
 
+Lemma data_at_value_eq : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
+  readable_share sh1 -> readable_share sh2 ->
+  is_pointer_or_null v1 -> is_pointer_or_null v2 ->
+  data_at sh1 (tptr t) v1 p * data_at sh2 (tptr t) v2 p |-- !! (v1 = v2).
+Proof.
+  intros; unfold data_at, field_at, at_offset; Intros.
+  rewrite !by_value_data_at_rec_nonvolatile by auto.
+  apply mapsto_value_eq; auto.
+  { intros X; subst; contradiction. }
+  { intros X; subst; contradiction. }
+Qed.
+
 Lemma data_at_array_value_cohere : forall {cs : compspecs} sh1 sh2 t z a v1 v2 p, readable_share sh1 ->
   type_is_by_value t = true -> type_is_volatile t = false ->
   data_at sh1 (Tarray t z a) v1 p * data_at sh2 (Tarray t z a) v2 p |--
