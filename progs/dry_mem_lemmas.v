@@ -38,19 +38,6 @@ Proof.
   if_tac; if_tac; constructor || contradiction.
 Qed.
 
-Lemma has_ext_eq' : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
-  ghost_of phi = [Some (ext_ghost z, NoneP)] /\ forall l, identity (phi @ l).
-Proof.
-  intros ??? (? & Hno & ->); simpl; split; auto.
-  unfold ext_ghost; simpl; repeat f_equal.
-Qed.
-
-Corollary has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
-  ghost_of phi = [Some (ext_ghost z, NoneP)].
-Proof.
-  intros; apply has_ext_eq'; auto.
-Qed.
-
 Lemma nth_nil : forall {A} n (d : A), nth n nil d = d.
 Proof.
   destruct n; auto.
@@ -63,7 +50,36 @@ Proof.
   destruct n; eauto.
 Qed.
 
-Lemma has_ext_join : forall {Z} phi1 phi2 phi3 (z1 z2 : Z) (Hext : nth O (ghost_of phi1) None = Some (ext_ghost z1, NoneP))
+Lemma ext_ghost_join : forall {Z} (z : Z) (p : preds) b c, join (Some (ext_ghost z, p)) b c ->
+  (c = Some (ext_ghost z, p) /\ (forall d, join (Some (existT _ (ext_PCM Z) d, p)) b (Some (existT _ (ext_PCM Z) d, p)))) \/
+  (b = Some (ext_ref z, p) /\ c = Some (ext_both z, p)).
+Proof.
+  intros.
+  inv H; auto.
+  { left; split; auto.
+    intros; constructor. }
+  destruct a2, a3, H1 as (? & ? & ?); simpl in *; subst.
+  inv H.
+  inj_pair_tac.
+  destruct b0, c0, H4 as [J1 J2]; simpl in *.
+  assert (o0 = o) by (inv J2; auto); subst; clear J2.
+  destruct g as [(?, ?)|], g0 as [(?, ?)|]; try contradiction.
+  { destruct J1 as (? & ? & ?%join_Tsh & ?); tauto. }
+  inv J1.
+  destruct o.
+  - right.
+    destruct vc as (? & d & J); hnf in J.
+    destruct d as [(?, ?)|].
+    { exfalso; destruct J as (? & ? & ?%join_Tsh & ?); tauto. }
+    injection J as ?; subst.
+    unfold ext_ref, ext_both; split; repeat f_equal.
+  - left; split; [unfold ext_ghost; repeat f_equal|].
+    intros; repeat constructor; simpl.
+    destruct d; repeat constructor; simpl.
+    destruct x as ([(?, ?)|], ?); simpl; auto.
+Qed.
+
+(*Lemma has_ext_join : forall {Z} phi1 phi2 phi3 (z1 z2 : Z) (Hext : nth O (ghost_of phi1) None = Some (ext_ghost z1, NoneP))
   (Hj : join phi1 phi2 phi3) (Hrest : joins (ghost_of phi3) [Some (ext_ref z2, NoneP)]),
   z1 = z2 /\ nth O (ghost_of phi3) None = Some (ext_ghost z1, NoneP).
 Proof.
@@ -101,50 +117,52 @@ Proof.
     + destruct vc0 as (? & [[]|] & vc0); hnf in vc0; try congruence.
       clear - vc0; destruct vc0 as (? & ? & ?%join_Tsh & ?); tauto.
     + unfold ext_ghost; simpl; repeat f_equal; apply proof_irr.
+Qed.*)
+
+Lemma no_two_ref : forall {Z} (a b : Z) (pa pb : preds),
+  ~joins (Some (ext_both a, pa)) (Some (ext_ref b, pb)).
+Proof.
+  intros ????? [? J].
+  inv J.
+  destruct H1 as [J _]; simpl in *.
+  inv J.
+  repeat inj_pair_tac.
+  destruct H0 as [_ J].
+  inv J.
+  inv H2.
 Qed.
 
-Lemma change_ext : forall {Z} (a a' z : Z) (b c : ghost),
-  join [Some (ext_ghost a, NoneP)] b c ->
+Lemma ghost_not_both : forall {Z} (a1 a2 : Z) (p1 p2 : preds), 
+  Some (ext_ghost a1, p1) <> Some (ext_both a2, p2).
+Proof.
+  repeat intro.
+  assert (ext_ghost a1 = ext_both a2) as Heq by congruence.
+  unfold ext_ghost, ext_both in Heq; inj_pair_tac.
+  inv H0.
+Qed.
+
+Lemma change_ext : forall {Z} (a a' z : Z) (rest b c : ghost),
+  join (Some (ext_ghost a, NoneP) :: rest) b c ->
   joins c [Some (ext_ref z, NoneP)] ->
-  join [Some (ext_ghost a', NoneP)] b (Some (ext_ghost a', NoneP) :: tl c).
+  join (Some (ext_ghost a', NoneP) :: rest) b (Some (ext_ghost a', NoneP) :: tl c).
 Proof.
   intros.
   inv H; [constructor|].
-  constructor; [|inv H6; constructor].
-  inv H3; [constructor|].
-  inv H1.
-  destruct a0, a4; simpl in *.
-  inv H.
-  inj_pair_tac.
-  inv H7.
-  constructor.
+  constructor; auto.
+  apply ext_ghost_join in H3 as [[]|[]]; subst; eauto.
   destruct H0 as [? J]; inv J.
-  inv H8.
-  inv H4; simpl in *.
-  destruct a4; simpl in *.
-  inv H3.
-  inv H2.
-  constructor; constructor; auto.
-  destruct b0, c0; simpl in *; inv H0; repeat constructor; simpl.
-  - repeat inj_pair_tac.
-    destruct o as [[]|]; auto.
-    destruct o1 as [[]|]; [|contradiction].
-    destruct H as (? & ? & ? & ?).
-    apply join_Tsh in H2 as []; contradiction.
-  - repeat inj_pair_tac.
-    inv H1; [|constructor].
-    inv H8; simpl in *.
-    inv H1; [constructor|].
-    inv H7.
+  exfalso; eapply no_two_ref; eexists; eauto.
 Qed.
 
-Lemma change_has_ext : forall {Z} (a a' : Z) r H, app_pred (has_ext a) r ->
-  app_pred (has_ext a') (set_ghost r [Some (ext_ghost a', NoneP)] H).
+Lemma change_has_ext : forall {Z} (a a' : Z) r rest H, app_pred (has_ext a) r ->
+  app_pred (has_ext a') (set_ghost r (Some (ext_ghost a', NoneP) :: rest) H).
 Proof.
   intros; simpl in *.
   destruct H0 as (p & ? & ?); exists p.
   unfold set_ghost; rewrite resource_at_make_rmap, ghost_of_make_rmap.
   split; auto.
+  exists (None :: rest); repeat constructor.
+  match goal with |- join ?a _ ?b => assert (a = b) as ->; [|constructor] end.
   unfold ext_ghost; repeat f_equal.
 Qed.
 
@@ -153,23 +171,23 @@ Proof.
   intros; repeat constructor.
 Qed.
 
-Lemma set_ghost_join : forall a w1 w2 w (J : join w1 w2 w) (Hw2 : res_predicates.noghost w2) H1 H,
-  join (set_ghost w1 a H1) w2 (set_ghost w a H).
+Lemma set_ghost_join : forall a c w1 w2 w (J : join w1 w2 w) H1 H,
+  join a (ghost_of w2) c ->
+  join (set_ghost w1 a H1) w2 (set_ghost w c H).
 Proof.
   intros.
   destruct (join_level _ _ _ J).
   apply resource_at_join2; unfold set_ghost; intros; rewrite ?level_make_rmap, ?resource_at_make_rmap, ?ghost_of_make_rmap; auto.
-  - apply resource_at_join; auto.
-  - rewrite (identity_core Hw2), ghost_core; constructor.
+  apply resource_at_join; auto.
 Qed.
 
 Lemma age_rejoin : forall {Z} w1 w2 w w' (a a' z : Z) H (J : join w1 w2 w)
   (Hc : joins (ghost_of w) [Some (ext_ref z, NoneP)])
-  (Hg1 : ghost_of w1 = [Some (ext_ghost a, NoneP)])
+  (Hg1 : ghost_of w1 = Some (ext_ghost a, NoneP) :: tl (ghost_of w1))
   (Hl' : (level w' <= level w)%nat)
   (Hr' : forall l, w' @ l = resource_fmap (approx (level w')) (approx (level w')) (w @ l))
   (Hg' : ghost_of w' = Some (ext_ghost a', NoneP) :: own.ghost_approx (level w') (tl (ghost_of w))),
-  join (age_to.age_to (level w') (set_ghost w1 [Some (ext_ghost a', NoneP)] H)) (age_to.age_to (level w') w2) w'.
+  join (age_to.age_to (level w') (set_ghost w1 (Some (ext_ghost a', NoneP) :: tl (ghost_of w1)) H)) (age_to.age_to (level w') w2) w'.
 Proof.
   intros.
   destruct (join_level _ _ _ J).
@@ -272,26 +290,24 @@ Proof.
   replace (Ptrofs.unsigned o) with (Ptrofs.unsigned o + lo) by lia.
   clear Heqlo Heqn.
   generalize dependent lo; generalize dependent z; revert a; induction hi; simpl in *.
-  - split; [|apply ghost_of_identity; auto].
-    intros (?, ?); if_tac; [|apply resource_at_identity; auto].
-    unfold adr_range in *. destruct (zlt 0 z); try lia.
+  - intros. setoid_rewrite res_predicates.emp_no in H. destruct b0 as (?, ?); if_tac; [|apply H; auto].
+    unfold adr_range in *. destruct (zlt 0 z); lia.
   - intros.
     destruct H as (? & ? & J & Hr1 & Hr2).
     assert (lo < Z.of_nat n) by lia.
     assert (z >= 1) by lia.
-    apply IHhi with (z := z - 1) in Hr2 as [Hr2 Hg2].
+    apply IHhi with (z := z - 1)(b0 := b0) in Hr2.
     rewrite data_at_rec_eq in Hr1; simpl in Hr1.
     unfold unfold_reptype in Hr1; simpl in Hr1.
     rewrite <- (Nat2Z.id n) in Hr1.
     rewrite Znth_repeat_inrange in Hr1.
     unfold mapsto in Hr1; simpl in Hr1.
     rewrite if_true in Hr1 by auto.
-    destruct Hr1 as [[] | (_ & ? & ? & [? Hr1] & Hg1)]; [contradiction|].
+    destruct Hr1 as [[] | (_ & ? & ? & [? Hr1])]; [contradiction|].
     rewrite Z.mul_1_l in *.
     unfold Ptrofs.add in Hr1; rewrite !Ptrofs.unsigned_repr in Hr1; auto.
-    split.
-    + intro l.
-        specialize (Hr1 l); specialize (Hr2 l); simpl in *.
+    + rename b0 into l.
+        specialize (Hr1 l); simpl in *.
         apply (resource_at_join _ _ _ l) in J.
         destruct l as (b', o'); if_tac in Hr1; [|if_tac in Hr2].
         * destruct H5; subst.
@@ -313,8 +329,6 @@ Proof.
           intros X%adr_range_divide; try lia.
           destruct X; try contradiction.
           unfold Z.succ in *; rewrite Z.add_assoc in *; contradiction. }
-    + apply ghost_of_join in J.
-        apply Hg1 in J; rewrite <- J; auto.
     + rewrite Ptrofs.unsigned_repr; auto; rep_lia.
     + lia.
     + lia.
@@ -374,7 +388,7 @@ Proof.
     unfold unfold_reptype, mapsto in Hbyte; simpl in Hbyte.
     rewrite if_true in Hbyte by auto.
     destruct Hbyte as [[? Hbyte] | [? Hbyte]].
-    destruct Hbyte as (mv & ((? & Hdecode & _) & Hbyte) & _); subst.
+    destruct Hbyte as (mv & (? & Hdecode & _) & Hbyte); subst.
     specialize (Hbyte (b, Ptrofs.unsigned i + lo)); simpl in Hbyte.
     replace (Ptrofs.unsigned (Ptrofs.add _ _)) with (Ptrofs.unsigned i +lo) in Hbyte.
     rewrite if_true in Hbyte by (split; auto; lia).
@@ -519,10 +533,10 @@ Defined.
 Lemma has_ext_noat : forall {Z} (z : Z), has_ext z |-- ALL x : _, res_predicates.noat x.
 Proof.
   intros; unfold has_ext, own.own.
-change (@predicates_hered.exp rmap ag_rmap) with (@exp mpred _).
+  change (@predicates_hered.exp rmap ag_rmap _) with (@exp mpred _).
   apply exp_left; intro.
  unfold own.Own.
- change (@predicates_hered.andp rmap ag_rmap) with (@andp mpred _).
+ change (@predicates_hered.andp rmap ag_rmap _) with (@andp mpred _).
   apply andp_left1.
   apply derives_refl.
 Qed.
@@ -724,13 +738,11 @@ Qed.
 Lemma inflate_emp : forall m phi, app_pred emp phi -> app_pred emp (inflate_store m phi).
 Proof.
   simpl; intros.
-  apply all_resource_at_identity.
-  - intros; unfold inflate_store; rewrite resource_at_make_rmap.
-    apply (resource_at_identity _ l) in H.
-    destruct (phi @ l); auto.
-    apply YES_not_identity in H; contradiction.
-  - unfold inflate_store; rewrite ghost_of_make_rmap.
-    apply ghost_of_identity; auto.
+  setoid_rewrite res_predicates.emp_no in H. setoid_rewrite res_predicates.emp_no.
+  intros l; unfold inflate_store; simpl. rewrite resource_at_make_rmap.
+  specialize (H l); simpl in H.
+  destruct (phi @ l); auto.
+  apply YES_not_identity in H; contradiction.
 Qed.
 
 Lemma encode_vals_length : forall lv,
@@ -794,8 +806,6 @@ Proof.
     { setoid_rewrite Hi; auto. }
     unfold res_predicates.address_mapsto.
     exists [Byte (Byte.repr (Int.unsigned i))].
-    destruct Hval1 as [Hval1 Hg].
-    split; [|simpl; unfold inflate_store; rewrite ghost_of_make_rmap; auto].
     split.
     { split; auto.
       setoid_rewrite Hi.
@@ -868,6 +878,58 @@ Definition main_post_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & 
          (m_phi m)(*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 
+Lemma ext_compat_sub : forall {Z} (z : Z) a b, semax.ext_compat z b -> join_sub a b ->
+  semax.ext_compat z a.
+Proof.
+  unfold semax.ext_compat; intros.
+  eapply join_sub_joins_trans; eauto.
+  destruct H0; eexists; apply ghost_of_join; eauto.
+Qed.
+
+Lemma ext_ghost_join' : forall {Z} (z z' : Z) (p p' : preds) c, join (Some (ext_ghost z, p)) (Some (ext_ref z', p')) c ->
+  z = z' /\ p = p'.
+Proof.
+  intros.
+  apply ext_ghost_join in H as [[]|[]]; subst.
+  - assert (ghost.valid(Ghost := ext_PCM Z) (None, None)) as H.
+    { split; simpl; auto. }
+    specialize (H0 (exist _ (None, None) H)); inv H0.
+    destruct H4 as [J _]; simpl in *.
+    inv J.
+    repeat inj_pair_tac.
+    destruct H1 as [_ J]; inv J.
+  - assert (ext_ref z' = ext_ref z) as Heq by congruence.
+    unfold ext_ref in Heq; inj_pair_tac.
+    inv H0; inv H; auto.
+Qed.
+
+Lemma has_ext_compat : forall {Z} (z1 z2 : Z) a b, app_pred (has_ext z1) a ->
+  join_sub a b -> semax.ext_compat z2 b -> z1 = z2 /\
+    ghost_of a = (Some (ext_ghost z1, NoneP)) :: tl (ghost_of a) /\
+    ghost_of b = (Some (ext_ghost z1, NoneP)) :: tl (ghost_of b).
+Proof.
+  intros.
+  destruct H as [? [_ H]].
+  destruct H, H1, H0 as [? Hsub%ghost_of_join].
+  rewrite own.ghost_fmap_singleton in H; apply own.singleton_join_inv_gen in H as (? & (?, ?) & ? & ?).
+  rewrite H2 in *; unfold own.list_set in *; simpl in *.
+  match goal with H : join ?a _ _ |- _ => replace a with (Some (ext_ghost z1, NoneP)) in H
+    by (unfold ext_ghost; repeat f_equal) end.
+  apply ext_ghost_join in H as [[]|[]]; subst.
+  - inv H.
+    inv Hsub.
+    + rewrite <- H6 in H1; inv H1.
+      apply ext_ghost_join' in H10 as []; subst; auto.
+    + rewrite <- H6 in H1; inv H1.
+      apply ext_ghost_join in H7 as [[]|[]]; subst.
+      * apply ext_ghost_join' in H12 as []; subst; auto.
+      * exfalso; eapply no_two_ref; eexists; eauto.
+  - inv H3.
+    destruct (join_assoc (join_comm Hsub) H1) as (? & ? & ?).
+    inv H3.
+    exfalso; eapply no_two_ref; eexists; eauto.
+Qed.
+
 Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
   (forall t b vl x jm,
   Genv.init_mem (program_of_program prog) = Some (m_dry jm) ->
@@ -886,11 +948,10 @@ Proof.
     destruct H0 as (? & Hpre & Hext).
     unfold main_pre in Hpre.
     destruct Hpre as (? & ? & J & Hglobals & Htrace).
-    apply has_ext_eq in Htrace.
     split.
     + apply Genv.init_mem_characterization_gen; auto.
-    + eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join, join_comm; eauto].
-      eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
+    + symmetry; eapply has_ext_compat; eauto.
+      eexists; eauto.
   - unfold main_post_juicy.
     split; [apply I|].
     rewrite H2.

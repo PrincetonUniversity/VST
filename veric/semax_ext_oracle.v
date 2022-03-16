@@ -116,7 +116,7 @@ Next Obligation.
 destruct f; simpl; unfold funspecOracle2pre, pureat; simpl; destruct f; simpl;
   destruct f; simpl; intros e t0 ge_s typs args z.
 if_tac [e0|e0].
-* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hext.
+* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hext Hj.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 destruct Hext as [_ Hext]; apply rmap_order in Hext as (Hl & Hr & J).
 destruct J as [? J]; destruct (join_assoc (join_comm (ghost_of_join _ _ _ Hjoin)) J) as (g' & ? & ?).
@@ -346,7 +346,7 @@ destruct (@add_funspecs_pre
   as [x' [Heq Hpre]].
 simpl.
 exists x'.
-split; [solve[apply Hpre]|].
+split; [solve[intros; apply Hpre]|].
 intros tret ret z' jm2 Hlev ? jm3 Hnec Hext' Hpost.
 
 eapply add_funspecs_post in Hpost; eauto. 2:eapply (in_map fst _ _ Hin).
