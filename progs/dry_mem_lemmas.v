@@ -296,7 +296,8 @@ Proof.
     destruct H as (? & ? & J & Hr1 & Hr2).
     assert (lo < Z.of_nat n) by lia.
     assert (z >= 1) by lia.
-    apply IHhi with (z := z - 1)(b0 := b0) in Hr2.
+    eapply IHhi with (z := z - 1) in Hr2.
+    instantiate (1 := b0) in Hr2.
     rewrite data_at_rec_eq in Hr1; simpl in Hr1.
     unfold unfold_reptype in Hr1; simpl in Hr1.
     rewrite <- (Nat2Z.id n) in Hr1.
