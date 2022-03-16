@@ -64,6 +64,7 @@ Export Clight_Cop2.
 (*after Coq 8.13: #[export]*) Hint Rewrite neg_repr neg64_repr : entailer_rewrite.
 (*after Coq 8.13: #[export]*) Hint Rewrite ptrofs_to_int_repr: entailer_rewrite norm.
 (*after Coq 8.13: #[export]*) Hint Rewrite ptrofs_to_int64_repr using reflexivity: entailer_rewrite norm.
+(*after Coq 8.13: #[export]*) Hint Rewrite eqb_type_refl : entailer_rewrite.
 
 Lemma Vptrofs_unfold_false: 
 Archi.ptr64 = false -> Vptrofs = fun x => Vint (Ptrofs.to_int x).
