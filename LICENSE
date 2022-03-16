@@ -1,12 +1,31 @@
 License for the Verified Software Toolchain (VST)
 
-All parts of the Coq Platform standard distribution of VST
-(coq-vst opam package) are licensed via the BSD-2-Clause license, as follows:
-
-Copyright (c) 2007-2022 by Andrew W. Appel,
+Verified Software Toolchain copyright 2007-2022 by Andrew W. Appel,
 Lennart Beringer, Robert Dockins, Josiah Dodds, Aquinas Hobor,
-Gordon Stewart, and Qinxiang Cao, Qinshi Wang, and others.
+Gordon Stewart, Qinxiang Cao, Qinshi Wang, and other contributors.
 
+All parts of the VST opam distribution, (make target "vst"),
+(including msl, sepcomp, veric, floyd, concurrency) and the VST test suite
+(including progs, progs64, sha, hmacdrbg, hmacfcf, aes) are
+licensed by the BSD 2-clause license (below).
+
+The github repo contains certain subdirectories, not distributed
+in the opam package, that are licensed differently:
+
+- The "compcert" subdirectory is Copyright (c) 2004-2013 by INRIA,
+and licensed according to the terms in "compcert/LICENSE";
+basically, those files are dual licensed with a proprietary license
+and an open-source license.
+
+- The "compcert_new" subdirectory is Copyright (c) 2004-2013 by INRIA,
+and contains some files that are not dual-licensed; therefore you should
+not use compcert_new unless you satisfy the terms of the CompCert license.
+
+- The hub submodules (including fcf, InteractionTrees, paco, etc.)
+are licensed by the terms of their own LICENSE files,
+and are not part of the VST opam distribution.
+
+----------------- BSD License for VST ----------------------------
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
@@ -27,21 +46,4 @@ SERVICES; LOSS OF USE, DATA OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH .
-
----------------------------------------------------------------
-The above license covers all directories and subdirectories EXCEPT as follows.
-The following directories in the git repository are NOT part of the standard opam build ("vst" target of Makefile).
-
-compcert:  The "compcert" subdirectory is Copyright (c) 2004-2013 by INRIA,
-and licensed according to the terms in "compcert/LICENSE"; basically, those 
-files are dual licensed with a proprietary license and an open-source license.
-
-compcert_new:  The "compcert_new" subdirectory is Copyright (c) 2004-2013 by INRIA,
-and is subject to the AbsInt license, which is not open-source. (Read compcert_new/LICENSE)
-WARNING: compcert_new contains some files that are not dual-licensed;
-therefore you should not use compcert_new unless you satisfy
-the terms of the CompCert license.
-
-Submodules:  The following directories are git submodules and each comes with
-its own license:   coq-ext-lib, fcf, InteractionTrees, paco
 
