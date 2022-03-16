@@ -1,27 +1,31 @@
 License for the Verified Software Toolchain (VST)
 
-1.  The "msl" subdirectory is Copyright (c) 2009-2013 by Andrew W. Appel,
-Robert Dockins and Aquinas Hobor, and others,
-and open-source licensed according to the terms in "msl/LICENSE".
+Verified Software Toolchain copyright 2007-2022 by Andrew W. Appel,
+Lennart Beringer, Robert Dockins, Josiah Dodds, Aquinas Hobor,
+Gordon Stewart, Qinxiang Cao, Qinshi Wang, and other contributors.
 
-2.  The "compcert" subdirectory is Copyright (c) 2004-2013 by INRIA,
+All parts of the VST opam distribution, (make target "vst"),
+(including msl, sepcomp, veric, floyd, concurrency) and the VST test suite
+(including progs, progs64, sha, hmacdrbg, hmacfcf, aes) are
+licensed by the BSD 2-clause license (below).
+
+The github repo contains certain subdirectories, not distributed
+in the opam package, that are licensed differently:
+
+- The "compcert" subdirectory is Copyright (c) 2004-2013 by INRIA,
 and licensed according to the terms in "compcert/LICENSE";
 basically, those files are dual licensed with a proprietary license
 and an open-source license.
-The "compcert_new" subdirectory is Copyright (c) 2004-2013 by INRIA;
-WARNING: compcert_new contains some files that are not dual-licensed;
-therefore you should not use compcert_new unless you satisfy
-the terms of the CompCert license.
 
-3. The "fcf" and "hmacfcf" subdirectories are Copyright (c) 2012-2015
-by Adam Petcher and other contributors, and open-source licensed as 
-per the fcf/LICENSE file.
+- The "compcert_new" subdirectory is Copyright (c) 2004-2013 by INRIA,
+and contains some files that are not dual-licensed; therefore you should
+not use compcert_new unless you satisfy the terms of the CompCert license.
 
-4.  All other subdirectories are Copyright (c) 2007-2018 by Andrew W. Appel,
-Lennart Beringer, Robert Dockins, Josiah Dodds, Aquinas Hobor,
-Gordon Stewart, and Qinxiang Cao, and others,
-and open-source licensed as follows:
+- The github submodules (including fcf, InteractionTrees, paco)
+are licensed by the terms of their own LICENSE files,
+and are not part of the VST opam distribution.
 
+----------------- BSD License for VST ----------------------------
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 

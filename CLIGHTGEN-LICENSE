@@ -1,0 +1,39 @@
+IF YOU WANT LEGAL ADVICE YOU CAN RELY ON, GET YOUR OWN LAWYER.
+THIS IS JUST A GENERAL GUIDELINE FOR THE USE OF CompCert clightgen.
+
+Users of VST may need to use the CompCert "clightgen" tool to parse
+and type-check their C programs into a .v file that represents the
+program in Abstract Syntax Trees (ASTs) of the CompCert Clight language.
+
+That is:   clightgen -normalize foo.c    produces the file foo.v containing ASTs.
+
+CompCert clightgen is not open-source.  You need a license to use it.
+
+If you are using VST with predigested C programs, on which
+someone else has already run clightgen to produce the AST files,
+then you don't need to use clightgen at all, and you don't need a license.
+
+If you are an academic user (at a university) using clightgen
+for academic or research purposes, then the INRIA CompCert license
+permits you to use clightgen (and the rest of CompCert) for free.
+
+If you are not an academic user, and your use is "educational, research, personal,
+or evaluation" then you may use CompCert for free under the INRIA CompCert license.
+
+"Any other use is commercial use" according to the INRIA CompCert license.
+ You can obtain a CompCert license from AbsInt.com:
+https://www.absint.com/ai_eval.pdf
+
+If your commercial use is to produce open-source 
+proofs of open-source software, then the cost may be very
+small, perhaps as low as zero.  But you still have to fill
+out the ai_eval.pdf web form to explain yourself and your purpose.
+
+If you are a commercial user, and you want a clightgen license for
+making a commercial product, you can get a free 30-day evaluation
+license from AbsInt.com (time limit can be extended upon request), but
+eventually you will need to pay.  AbsInt sells the CompCert
+clightgen-only license for approximately 15% of the cost of a full
+CompCert license.  Depending on the size of your product development
+group, the cost may be as low as 3000 Euros.  Fill out the ai_eval.pdf
+form and ask about it.
