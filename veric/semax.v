@@ -52,6 +52,22 @@ Qed.*)
 Definition ext_compat {Z} (ora : Z) (w : rmap) :=
   joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
 
+Lemma ext_compat_unage : forall {Z} (ora : Z) w w', age w w' ->
+  ext_compat ora w' -> ext_compat ora w.
+Proof.
+  unfold ext_compat; intros.
+  erewrite age1_ghost_of in H0 by eauto.
+  eapply ext_join_unapprox; eauto.
+Qed.
+
+Lemma ext_compat_unext : forall {Z} (ora : Z) w w', ext_order w w' ->
+  ext_compat ora w' -> ext_compat ora w.
+Proof.
+  unfold ext_compat; intros.
+  apply rmap_order in H as (? & ? & ?).
+  eapply join_sub_joins_trans; eauto.
+Qed.
+
 Inductive contx :=
 | Stuck
 | Cont: cont -> contx
@@ -98,9 +114,7 @@ Next Obligation.
    destruct (oracle_unage _ _ H) as [jm0 [? ?]].
    specialize (H0 ora jm0).
    spec H0.
-   { unfold ext_compat in *.
-simpl in H1|-*. erewrite age1_ghost_of in H1 by eauto.
-      eapply ext_join_unapprox; eauto. }
+   { eapply ext_compat_unage; eauto. }
    specialize (H0 (eq_refl _) H3).
    spec H0. apply age_level in H. lia.
   subst.
@@ -124,8 +138,7 @@ simpl in H1|-*. erewrite age1_ghost_of in H1 by eauto.
   { congruence. }
   specialize (H0 ora jm0).
    spec H0.
-   { unfold ext_compat in *.
-     eapply join_sub_joins_trans; eauto. }
+   { eapply ext_compat_unext; eauto. }
    specialize (H0 (eq_refl _) Hjm).
    spec H0. rewrite Hl; auto.
   subst.
@@ -212,12 +225,18 @@ Record semaxArg :Type := SemaxArg {
  sa_R: ret_assert
 }.
 
-Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function)
+Program Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function)
    (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
    (ts: list typ) (args: list val) (z: OK_ty) : pred juicy_mem :=
-  exist (fun p => hereditary age p /\ hereditary ext_order p)
-     (ext_spec_pre OK_spec ef x' ge_s ts args z)
-     (conj (JE_pre_hered _ _ _ _ _ _ _ _) (JE_pre_ext _ _ _ _ _ _ _ _) ).
+  fun jm => ext_compat z (m_phi jm) -> ext_spec_pre OK_spec ef x' ge_s ts args z jm.
+Next Obligation.
+Proof.
+  split; repeat intro.
+  - eapply ext_compat_unage in H1; [|eapply age_jm_phi; eauto].
+    eapply JE_pre_hered; eauto.
+  - eapply JE_pre_ext, H0; auto.
+    destruct H; eapply ext_compat_unext; eauto.
+Qed.
 
 Program Definition ext_spec_post' (Espec: OracleKind)
    (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
@@ -238,7 +257,7 @@ Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
   end end.
 
-Program Definition if_ext_compat {Z} (z : Z) (P : pred juicy_mem) : pred juicy_mem :=
+(*Program Definition if_ext_compat {Z} (z : Z) (P : pred juicy_mem) : pred juicy_mem :=
   fun jm => ext_compat z (m_phi jm) -> P jm.
 Next Obligation.
 Proof.
@@ -249,7 +268,7 @@ Proof.
   - eapply pred_upclosed, H0; auto.
     rewrite rmap_order in H; destruct H as (_ & _ & _ & ?).
     eapply join_sub_joins_trans; eauto.
-Qed.
+Qed.*)
 
 Definition semax_external
   (Hspec: OracleKind) ef
@@ -264,8 +283,7 @@ Definition semax_external
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
    juicy_mem_op (P Ts x (filter_genv gx, args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
-    (ALL z:_, if_ext_compat z
-       (ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z)) &&
+    (ALL z:_, ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
      ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) tret ret) * F).

@@ -95,13 +95,12 @@ Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (*(ids: list ident)*) (id: ident) (sig : signature) (ef: external_function) x (ge_s: injective_PTree block)
            (tys : list typ) args (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
-  return ((if s then (rmap* (sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
+  return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => Val.has_type_list args (sig_args (ef_sig ef)) /\
-        (joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
-                      exists phi0 phi1, join phi0 phi1 (m_phi m)
+        exists phi0 phi1, join phi0 phi1 (m_phi m)
                        /\ P (projT1 (snd x')) (projT2 (snd x')) (filter_genv (symb2genv ge_s), args) phi0
-                       /\ necR (fst x') phi1)
+                       /\ necR (fst x') phi1 /\ ext_compat z (m_phi m)
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
 
@@ -113,7 +112,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
                        /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
-                       /\ necR (fst x') phi1 (* /\ joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) *)
+                       /\ necR (fst x') phi1 (*/\ ext_compat z (m_phi m)*)
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
 
@@ -125,7 +124,7 @@ Definition funspec2post' (ext_link: Strings.String.string -> ident) (A : TypeTre
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
                        /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
-                       /\ necR (fst x') phi1 (* /\ joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) *)
+                       /\ necR (fst x') phi1 (*/\ ext_compat z (m_phi m)*)
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
 
@@ -178,6 +177,7 @@ destruct f; simpl; intros ts a ge ge' n args H.
 erewrite make_ext_args_filtergenv; eauto.
 Qed.
 
+
 Program Definition funspec2jspec (ext_link: Strings.String.string -> ident) f : juicy_ext_spec Z :=
   Build_juicy_ext_spec _ (funspec2extspec ext_link f) _ _ _ _ _ _.
 Next Obligation.
@@ -186,16 +186,16 @@ destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl;
 if_tac [e0|e0].
 * destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage.
 intros [Hargs H].
-split; auto; intros Hg.
+split; auto.
 apply age_jm_phi in Hage.
-erewrite (age1_ghost_of _ _ Hage) in Hg.
-apply ext_join_unapprox in Hg.
-specialize (H Hg); destruct H as [phi0 [phi1 [Hjoin [Hx Hy]]]].
+destruct H as [phi0 [phi1 [Hjoin [Hx [Hy Hg]]]]].
 destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].
 exists x', y'; split; auto.
 destruct P as (? & h & ?). split. eapply h; eauto.
-apply (necR_trans (fst t0) phi1 y'); auto.
+split. apply (necR_trans (fst t0) phi1 y'); auto.
 unfold necR. constructor; auto.
+unfold ext_compat in *; rewrite (age1_ghost_of _ _ Hage).
+apply ext_join_approx; auto.
 * intros ? ?; auto.
 destruct Espec; simpl; apply JE_pre_hered.
 Qed.
@@ -203,12 +203,11 @@ Next Obligation.
 destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl;
   destruct t; simpl; intros.
 if_tac [e0|e0].
-* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hext.
-intros [Hargs H].
-split; auto; intros Hg.
-destruct Hext as [_ Hext]; apply rmap_order in Hext as (Hl & Hr & J).
-eapply join_sub_joins' in Hg; eauto; [|apply join_sub_refl].
-specialize (H Hg); destruct H as [phi0 [phi1 [Hjoin [Hx Hy]]]].
+* destruct e; try discriminate; injection e0 as E; subst i sg.
+destruct H as [_ Hext]; apply rmap_order in Hext as (Hl & Hr & J).
+destruct H1 as [? H].
+split; auto.
+destruct H as [phi0 [phi1 [Hjoin [Hx [Hy Hg]]]]].
 destruct J as [? J]; destruct (join_assoc (join_comm (ghost_of_join _ _ _ Hjoin)) J) as (g' & ? & ?).
 destruct (make_rmap (resource_at phi0) (own.ghost_approx (level phi0) g') (level phi0))
   as (phi0' & Hl' & Hr' & Hg').
@@ -220,14 +219,13 @@ exists phi0', phi1; repeat split; auto.
   - intros; rewrite Hr', <- Hr.
     apply resource_at_join; auto.
   - rewrite Hg'.
-    rewrite <- (ghost_of_approx phi1), <- (ghost_of_approx (m_phi a')), <- Hl, H1, H2.
+    rewrite <- (ghost_of_approx phi1), <- (ghost_of_approx (m_phi a')), <- Hl, H3, H4.
     apply ghost_fmap_join; auto.
 + eapply pred_upclosed, Hx.
   rewrite rmap_order; repeat split; auto.
   rewrite Hg'.
   rewrite <- ghost_of_approx; eexists; apply ghost_fmap_join; eauto.
-* intros ? ?; auto.
-destruct Espec; simpl; apply JE_pre_ext.
+* eapply JE_pre_ext, H1; auto.
 Qed.
 Next Obligation.
 destruct f; simpl; unfold funspec2post, pureat; simpl; destruct f; simpl;
@@ -303,7 +301,7 @@ Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
   P (projT1 x) (projT2 x) (filter_genv (symb2genv ge_s), args) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Z Espec fs)) ef,
     JMeq (phi1, x) x'
-    /\ forall z, joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
+    /\ forall z, ext_compat z (m_phi m) ->
           ext_spec_pre (add_funspecs_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hargsty Hpre.
@@ -347,7 +345,7 @@ Lemma add_funspecs_pre_void  (ext_link: Strings.String.string -> ident)
   P (projT1 x) (projT2 x) (filter_genv (symb2genv ge_s), args) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Z Espec fs)) ef,
     JMeq (phi1, x) x'
-    /\ forall z, joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
+    /\ forall z, ext_compat z (m_phi m) ->
           ext_spec_pre (add_funspecs_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hargsty Hpre.

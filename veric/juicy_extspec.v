@@ -19,7 +19,10 @@ Local Open Scope pred.
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;
   JE_pre_hered: forall e t ge_s typs args z, hereditary age (ext_spec_pre JE_spec e t ge_s typs args z);
-  JE_pre_ext: forall e t ge_s typs args z, hereditary ext_order (ext_spec_pre JE_spec e t ge_s typs args z);
+  JE_pre_ext: forall e t ge_s typs args z a a', ext_order a a' ->
+    joins (ghost_of (m_phi a')) (Some (ext_ref z, NoneP) :: nil) ->
+    ext_spec_pre JE_spec e t ge_s typs args z a ->
+    ext_spec_pre JE_spec e t ge_s typs args z a';
   JE_post_hered: forall e t ge_s tret rv z, hereditary age (ext_spec_post JE_spec e t ge_s tret rv z);
   JE_post_ext: forall e t ge_s tret rv z, hereditary ext_order (ext_spec_post JE_spec e t ge_s tret rv z);
   JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z);
@@ -138,8 +141,6 @@ Section upd_exit.
 End upd_exit.
 
 Obligation Tactic := Tactics.program_simpl.
-
-Search ageable juicy_mem.
 
 Program Definition juicy_mem_op (P : pred rmap) : pred juicy_mem :=
   fun jm => P (m_phi jm).
@@ -347,7 +348,9 @@ Proof.
 Qed.
 
 Lemma jm_bupd_ext : forall {Z} (ora : Z) (P : juicy_mem -> Prop) m m', jm_bupd ora P m ->
-  ext_order m m' -> (forall a b, level a = level m -> ext_order a b -> P a -> P b) ->
+  ext_order m m' ->
+  (forall a b, level a = level m -> ext_order a b -> joins (ghost_of (m_phi b)) (Some (ext_ref ora, NoneP) :: nil) ->
+      P a -> P b) ->
   jm_bupd ora P m'.
 Proof.
   intros ????? H [? Hext] Hclosed ? Hora H1.
@@ -630,12 +633,13 @@ Qed.
 Lemma ext_safe:
   forall jm jm0, ext_order jm0 jm ->
   forall ora c,
+   joins (ghost_of (m_phi jm)) (Some (ext_ref ora, NoneP) :: nil) ->
    jsafeN_ (level jm0) ora c jm0 ->
    jsafeN_ (level jm) ora c jm.
 Proof.
-  intros.
+  intros ????? Hext ?.
   remember (level jm0) as N.
-  revert dependent c; revert dependent jm0; revert jm; induction N; intros.
+  revert dependent c; revert dependent jm0; revert dependent jm; induction N; intros.
   { destruct H as [_ H].
     destruct (proj1 (rmap_order _ _) H) as (Hl & _ & _).
     rewrite level_juice_level_phi, <- Hl, <- level_juice_level_phi, <- HeqN; constructor. }
@@ -656,12 +660,12 @@ Proof.
       * simpl; rewrite rmap_order; repeat split; auto.
         rewrite Hg', Hg'', level_juice_level_phi, H1.
         destruct Hg; eexists; apply ghost_fmap_join; eauto.
-      * intros ?? Hl1 Hext ?. rewrite <- Hl1, (ext_level _ _ Hext). eauto.
+      * intros ?? Hl1 Hb ??. rewrite <- Hl1, (ext_level _ _ Hb). eauto.
   - rewrite level_juice_level_phi, <- Hl, <- level_juice_level_phi, <- HeqN.
     eapply jsafeN_external.
     + unfold j_at_external in *.
       rewrite <- Hdry; eauto.
-    + eapply JE_pre_ext; [|eauto].
+    + eapply JE_pre_ext, H3; auto.
       split; auto.
     + intros.
       apply H4; auto.

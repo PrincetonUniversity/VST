@@ -86,9 +86,8 @@ Proof.
       destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
       assert (Harg: v = Vubyte c) by (inv Hargs; auto). clear Hargs.
       rewrite Harg.
-      apply has_ext_eq in Htrace.
-      eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
-      eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
+      eapply has_ext_compat in Hext as []; eauto; subst; auto.
+      eexists; eauto.
     + unfold funspec2pre; simpl.
       if_tac; [|contradiction].
       intros; subst.
@@ -100,27 +99,27 @@ Proof.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
-      apply has_ext_eq in Htrace.
-      eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
-      unfold getchar_pre.
-      eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
+      eapply has_ext_compat in Hext as []; eauto; subst; auto.
+      eexists; eauto.
   - unfold funspec2pre, funspec2post, dessicate; simpl.
     intros ?; if_tac.
     + intros; subst.
-      destruct H0 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
+      destruct H0 as (_ & vl & z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
       destruct t as (phi1 & t); subst; simpl in *.
       destruct t as (? & (c, k)); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
-      pose proof (has_ext_eq _ _ Htrace) as Hgx.
+      edestruct (has_ext_compat _ z0 _ (m_phi jm0) Htrace) as (? & ? & ?); eauto; [eexists; eauto|]; subst.
       destruct v; try contradiction.
       destruct v; try contradiction.
       destruct H4 as (? & Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
-      split; [|split3].
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 (Some (ext_ghost x, NoneP) :: tl (ghost_of phi0)) _)), (age_to.age_to (level jm) phi1'); auto.
+      { rewrite <- ghost_of_approx at 2; simpl.
+        destruct (ghost_of phi0); auto. }
+      split; [|split].
       * eapply age_rejoin; eauto.
         intro; rewrite H2; auto.
       * exists i.
@@ -135,10 +134,6 @@ Proof.
            { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
            eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
-      * rewrite H3; eexists; constructor; constructor.
-        instantiate (1 := (_, _)).
-        constructor; simpl; [|constructor; auto].
-        apply ext_ref_join.
     + unfold funspec2pre, funspec2post, dessicate; simpl.
       if_tac; [|contradiction].
       clear H0.
@@ -149,14 +144,16 @@ Proof.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as [_ [Hargs [_ [it [H8 Htrace]]]]].
-      pose proof (has_ext_eq _ _ Htrace) as Hgx.
+      edestruct (has_ext_compat _ z0 _ (m_phi jm0) Htrace) as (? & ? & ?); eauto; [eexists; eauto|]; subst.
       destruct v; try contradiction.
       destruct v; try contradiction.
       destruct H4 as (? & Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
-      split; [|split3].
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 (Some (ext_ghost x, NoneP) :: tl (ghost_of phi0)) _)), (age_to.age_to (level jm) phi1'); auto.
+      { rewrite <- ghost_of_approx at 2; simpl.
+        destruct (ghost_of phi0); auto. }
+      split; [|split].
       * eapply age_rejoin; eauto.
         intro; rewrite H2; auto.
       * exists i.
@@ -171,10 +168,6 @@ Proof.
              { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
-      * rewrite H3; eexists; constructor; constructor.
-        instantiate (1 := (_, _)).
-        constructor; simpl; [|constructor; auto].
-        apply ext_ref_join.
 Qed.
 
 Instance mem_evolve_refl : Reflexive mem_evolve.
