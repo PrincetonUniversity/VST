@@ -1,5 +1,7 @@
-#!/bin/bash
-#  The $1 argument of this script should be $(PROGSDIR)
-make depend >& /dev/null
-make CLIGHTGEN="CLIGHTGEN" IGNORECOQVERSION=true -Bn vst $1 2>/dev/null | \
+#!/usr/bin/env bash
+#  The $1 argument of this script should be the desired make target
+
+MAKE=${MAKE:-make}
+${MAKE} depend >& /dev/null
+${MAKE} CLIGHTGEN="CLIGHTGEN" -Bn veric floyd $1 2>/dev/null | \
  awk '/^echo COQC /{print $NF}/^CLIGHTGEN/{print $NF}'

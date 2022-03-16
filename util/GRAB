@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Run this script to copy over all the files of a (new) CompCert
 # version into the vst repository.
 #

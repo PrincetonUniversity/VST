@@ -1,14 +1,16 @@
 opam-version: "2.0"
 authors: ["Andrew W. Appel"
   "Lennart Beringer"
-  "Sandrine Blazy"
+  "Josiah Dodds"
   "Qinxiang Cao"
+  "Aquinas Hobor"
+  "Gordon Stewart"
+  "Qinshi Wang"
+  "Sandrine Blazy"
   "Santiago Cuellar"
   "Robert Dockins"
-  "Josiah Dodds"
   "Nick Giannarakis"
   "Samuel Gruetter"
-  "Aquinas Hobor"
   "Jean-Marie Madiot"
   ]
 maintainer: "VST team"
@@ -18,9 +20,9 @@ bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
 build: [
   [make "BITSIZE=64" "depend"]
-  [make "BITSIZE=64" "-j%{jobs}%" "msl" "sepcomp" "veric" "floyd"]
+  [make "BITSIZE=64" "-j%{jobs}%" "vst"]
 ]
-run-test: [make "BITSIZE=64" "-j%{jobs}%" "progs"]
+run-test: [make "BITSIZE=64" "-j%{jobs}%" "test"]
 install: [
 	make "BITSIZE=64" "install"
 	]

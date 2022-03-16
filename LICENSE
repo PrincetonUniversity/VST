@@ -21,7 +21,7 @@ and an open-source license.
 and contains some files that are not dual-licensed; therefore you should
 not use compcert_new unless you satisfy the terms of the CompCert license.
 
-- The github submodules (including fcf, InteractionTrees, paco)
+- The hub submodules (including fcf, InteractionTrees, paco, etc.)
 are licensed by the terms of their own LICENSE files,
 and are not part of the VST opam distribution.
 
@@ -29,10 +29,10 @@ and are not part of the VST opam distribution.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-- Redistribution of source code must retain the above copyright notice,
+1. Redistribution of source code must retain the above copyright notice,
 this list of conditions and the following disclaimer.
 
-- Redistribution in binary form must reproduce the above copyright notice,
+2. Redistribution in binary form must reproduce the above copyright notice,
 this list of conditions and the following disclaimer in the documentation
 and/or other materials provided with the distribution.
 
@@ -45,4 +45,5 @@ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 SERVICES; LOSS OF USE, DATA OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH .
+

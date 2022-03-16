@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script deletes, from each directory in Makefile/DIRS, all files
 # that don't appear in the VST Makefile.
