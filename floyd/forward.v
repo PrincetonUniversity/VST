@@ -2513,6 +2513,11 @@ Tactic Notation "forward_loop" constr(Inv)  :=
     tryif (check_nocontinue c)
      then forward_loop_nocontinue_nobreak Inv
      else (check_no_incr c; forward_loop Inv continue: Inv)
+  | |- semax _ _ (Sfor _ ?e2 ?s3 ?s4) _ =>
+     let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
+    tryif (check_nocontinue c)
+     then forward_loop_nocontinue_nobreak Inv
+     else (check_no_incr c; forward_loop Inv continue: Inv)
   | |- semax _ _ ?c _ =>
   tryif (check_nocontinue c)
    then forward_loop_nocontinue_nobreak Inv
