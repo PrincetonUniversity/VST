@@ -127,9 +127,9 @@ Definition f_acquire := {|
   fn_body :=
 (Ssequence
   (Sset _b (Econst_int (Int.repr 0) tint))
-  (Ssequence
-    (Sassign (Evar _expected tint) (Econst_int (Int.repr 0) tint))
-    (Sloop
+  (Sloop
+    (Ssequence
+      (Sassign (Evar _expected tint) (Econst_int (Int.repr 0) tint))
       (Ssequence
         (Scall (Some _t'1)
           (Evar _atom_CAS (Tfunction
@@ -139,11 +139,11 @@ Definition f_acquire := {|
           ((Etempvar _lock (tptr (Tstruct _atom_int noattr))) ::
            (Eaddrof (Evar _expected tint) (tptr tint)) ::
            (Econst_int (Int.repr 1) tint) :: nil))
-        (Sset _b (Etempvar _t'1 tint)))
-      (Sifthenelse (Ebinop Oeq (Etempvar _b tint)
-                     (Econst_int (Int.repr 0) tint) tint)
-        Sskip
-        Sbreak))))
+        (Sset _b (Etempvar _t'1 tint))))
+    (Sifthenelse (Ebinop Oeq (Etempvar _b tint)
+                   (Econst_int (Int.repr 0) tint) tint)
+      Sskip
+      Sbreak)))
 |}.
 
 Definition f_release := {|

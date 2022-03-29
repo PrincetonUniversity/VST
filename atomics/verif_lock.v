@@ -147,11 +147,10 @@ Definition t_lock := Tstruct _atom_int noattr.
   Proof.
     start_function.
     forward.
-    forward.
     forward_loop (PROP ( )
                        LOCAL (temp _b (vint 0); lvar _expected tint v_expected;
                               gvars gv; temp _lock p)
-                       SEP (data_at Tsh tint (vint 0) v_expected;
+                       SEP (data_at_ Tsh tint v_expected;
                             atomic_shift
                               (λ l : bool,
                                   !! (l = true) && atomic_int_at Ews (vint 0) p
@@ -160,7 +159,8 @@ Definition t_lock := Tstruct _atom_int noattr.
                                 fold_right_sepcon [!! (l = true) && atomic_int_at Ews (vint 1) p])
                               (λ _ : (), Q); mem_mgr gv)).
     - entailer !.
-    - forward_call
+    - forward.
+      forward_call
         (p , Tsh, v_expected, (vint 0), (vint 1), top : coPset,
             empty : coPset,
               fun v':val =>
