@@ -1,4 +1,5 @@
 #include "SC_atomics.h"
+#include "threads.h"
 
 typedef struct entry { atom_int *key; atom_int *value; } entry;
 
@@ -29,7 +30,9 @@ void set_item(int key, int value){
       if (probed_key != 0)
 	continue;
       int result = atom_CAS(i, &ref, key);
-      if(!result && ref != key) continue; //Another thread just stole the slot for a different key.
+      if(!result) {
+          if (ref != key) continue; //Another thread just stole the slot for a different key.
+      }
     }
     i = m_entries[idx].value;
     atom_store(i, value);
@@ -113,7 +116,7 @@ int main(void){
   int total = 0;
 
   init_table();
-  
+
   for(int i = 0; i < 3; i++){
     lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
     thread_locks[i] = l;

@@ -344,7 +344,7 @@ Program Definition atomic_CAS_int_spec := TYPE ACASI_type
    EX v' : Z,
    PROP (repable_signed v')
    LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
-   SEP (data_at shc tint (vint c) pc; Q v').
+   SEP (data_at shc tint (vint v') pc; Q v').
 Next Obligation.
 Proof.
   repeat intro.
@@ -402,7 +402,7 @@ Proof.
       + rewrite Int.repr_signed in H2; contradiction.
       + apply Vint_inj in H2; subst.
         rewrite -> Int.signed_repr in H1 by auto; contradiction. }
-    rewrite sepcon_emp; iFrame.
+    rewrite Int.repr_signed sepcon_emp; iFrame.
 Qed.
 
 Definition AEXI_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))

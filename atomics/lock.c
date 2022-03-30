@@ -1,6 +1,6 @@
 #include "lock.h"
 
-lock_t* makelock() {
+lock_t* makelock(void) {
     return make_atomic(1);
 }
 
