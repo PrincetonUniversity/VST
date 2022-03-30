@@ -66,11 +66,9 @@ int add_item(int key, int value){
       if (probed_key != 0)
 	continue;
       int result = atom_CAS(i, &ref, key);
-      if(!result){
-	probed_key = atom_load(i);
-	if(probed_key != key) continue;
-      }
+      if(!result && ref != key) continue; //Another thread just stole the slot for a different key.
     }
+    ref = 0;
     i = m_entries[idx].value;
     return atom_CAS(i, &ref, value); //only add if no one else has set the value
   }
