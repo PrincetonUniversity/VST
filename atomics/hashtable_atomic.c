@@ -19,8 +19,8 @@ int integer_hash(int i){
 }
 
 void set_item(int key, int value){
-  int ref = 0;
   for(int idx = integer_hash(key);; idx++){
+    int ref = 0;
     idx &= ARRAY_SIZE - 1;
     atom_int *i = m_entries[idx].key;
     int probed_key = atom_load(i);
@@ -29,12 +29,7 @@ void set_item(int key, int value){
       if (probed_key != 0)
 	continue;
       int result = atom_CAS(i, &ref, key);
-      //This bit is a little different, since C11 doesn't have a CAS that returns the old value.
-      if(!result){
-	//CAS failed, so a key has been added. Is it the one we're looking for?
-	probed_key = atom_load(i);
-	if(probed_key != key) continue; //Another thread just stole the slot for a different key.
-      }
+      if(!result && ref != key) continue; //Another thread just stole the slot for a different key.
     }
     i = m_entries[idx].value;
     atom_store(i, value);

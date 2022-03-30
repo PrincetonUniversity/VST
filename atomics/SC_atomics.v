@@ -158,7 +158,7 @@ Program Definition atomic_CAS_spec := TYPE ACAS_type
    EX v' : val,
    PROP ()
    LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
-   SEP (data_at shc tint c pc; Q v').
+   SEP (data_at shc tint v' pc; Q v').
 Next Obligation.
 Proof.
   repeat intro.
