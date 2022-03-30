@@ -57,8 +57,8 @@ int get_item(int key){
 //overwrite a set's value. In other words, the version in hashtable1.c isn't linearizable
 //wrt set (and we discovered this through atomicity proofs!).
 int add_item(int key, int value){
-  int ref = 0;
   for(int idx = integer_hash(key);; idx++){
+    int ref = 0;
     idx &= ARRAY_SIZE - 1;
     atom_int *i = m_entries[idx].key;
     int probed_key = atom_load(i);
