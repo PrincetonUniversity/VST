@@ -402,14 +402,13 @@ Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
   start_function.
   set (AS := atomic_shift _ _ _ _ _).
-  forward.
   forward_call k.
   pose proof size_pos as Hsize; pose proof size_signed as Hsigned.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
     LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
-    SEP (AS; data_at Tsh tint (vint 0) v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
+    SEP (AS; data_at_ Tsh tint v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))))%assert
     continue: (EX i : Z, EX i1 : Z, EX keys : list Z,
@@ -417,13 +416,13 @@ Proof.
           0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase keys (hash k))))
     LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
-    SEP (AS; data_at Tsh tint (vint 0) v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
+    SEP (AS; data_at_ Tsh tint v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
     split; [apply hash_size|].
     rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; lia. }
-  - Intros i i1 keys; forward.
+  - Intros i i1 keys; forward. forward.
     rewrite -> sub_repr, and_repr; simpl.
     rewrite -> Zland_two_p with (n := 14) by lia.
     replace (2 ^ 14) with size by (setoid_rewrite (proj2_sig has_size); auto).
@@ -460,9 +459,10 @@ Proof.
       rewrite Hpi HHi; iFrame.
       iSplit; auto; iPureIntro; split; auto; tauto. }
     Intros k1.
-    focus_SEP 1.
-    match goal with |- semax _ (PROP () (LOCALx (_ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
-      forward_if (PROP () (LOCALx Q (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
+    focus_SEP 2.
+    focus_SEP 2.
+    match goal with |- semax _ (PROP () (LOCALx (_ :: ?Q) (SEPx (_ :: _ :: ?R)))) _ _ =>
+      forward_if (PROP () (LOCALx Q (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: data_at_ Tsh tint v_ref :: R)))) end.
     + assert (forall k1, (k1 <> k /\ k1 <> 0) ->
         Zlength (upd_Znth (i1 mod size) keys k1) = size /\
         Forall (fun z => z <> 0 /\ z <> k)
@@ -558,36 +558,7 @@ Proof.
       match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
-        forward_call atomic_load_int (pki, top, empty,
-          fun v : Z => AS * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
-        { simpl; cancel.
-          subst Frame; instantiate (1 := [iter_sepcon _ _; data_at _ tint (vint 0) v_ref; data_at _ (tarray tentry _) entries _]); simpl; cancel.
-          apply sepcon_derives, derives_refl.
-          iIntros "(snap & >AS)".
-          iDestruct ("AS") as (HT) "[hashtable Hclose]".
-          iDestruct "hashtable" as (T) "((% & excl) & entries)".
-          rewrite -> @iter_sepcon_Znth' with (d := Inhabitant_Z) (i := i1 mod size)
-            by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; lia).
-          erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; lia).
-          unfold hashtable_entry at 1.
-          rewrite Hpi.
-          destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
-          iDestruct "entries" as "((((% & master) & k) & v) & entries)".
-          iModIntro; iExists Ews, ki; iFrame "k".
-          iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
-          iIntros "k".
-          iAssert (!!(ki = k1)) as %Heq.
-          { iCombine "snap master" as "master"; rewrite -> snap_master_join1.
-            iDestruct "master" as "[[% | %] master]"; auto; contradiction. }
-          rewrite -> prop_true_andp by auto.
-          iFrame "snap".
-          iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
-          unfold hashtable; iExists T; iFrame "excl".
-          iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
-          iApply "entries"; unfold hashtable_entry.
-          rewrite Hpi HHi; iFrame.
-          iSplit; auto; iPureIntro; split; auto; tauto. }
-        Intros k2; subst.
+        forward.
         forward_if (k1 = k).
         { forward.
           Exists i (i1 mod size) (upd_Znth (i1 mod size) keys k1).
@@ -615,7 +586,7 @@ Proof.
     + forward; setoid_rewrite Hpi.
       { entailer!. }
       forward_call atomic_store_int (pvi, v, top, empty, Q, inv_names).
-      { subst Frame; instantiate (1 := [data_at Tsh tint (vint 0) v_ref; data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
+      { subst Frame; instantiate (1 := [data_at_ Tsh tint v_ref; data_at sh (tarray tentry size) entries (gv _m_entries)]); simpl; cancel.
         iIntros "((snap & >AS) & snaps)".
         iDestruct ("AS") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
@@ -884,14 +855,13 @@ Lemma body_add_item : semax_body Vprog Gprog f_add_item add_item_spec.
 Proof.
   start_function.
   set (AS := atomic_shift _ _ _ _ _).
-  forward.
   forward_call k.
   pose proof size_pos as Hsize; pose proof size_signed as Hsigned.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
     LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
-    SEP (AS; data_at Tsh tint (vint 0) v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
+    SEP (AS; data_at_ Tsh tint v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))))%assert
     continue: (EX i : Z, EX i1 : Z, EX keys : list Z,
@@ -899,13 +869,13 @@ Proof.
           i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase keys (hash k))))
     LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
-    SEP (AS; data_at Tsh tint (vint 0) v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
+    SEP (AS; data_at_ Tsh tint v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat (i + 1)))))%assert.
   { Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); rewrite sublist_nil; entailer!.
     split; [apply hash_size|].
     rewrite -> coqlib4.Zlength_repeat, Z2Nat.id; auto; lia. }
-  - Intros i i1 keys; forward.
+  - Intros i i1 keys; forward. forward.
     rewrite -> sub_repr, and_repr; simpl.
     rewrite -> Zland_two_p with (n := 14) by lia.
     replace (2 ^ 14) with size by (setoid_rewrite (proj2_sig has_size); auto).
@@ -1041,7 +1011,7 @@ Proof.
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
             forward_call atomic_load_int (pki, top, empty, fun v : Z => AS * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
-        { subst Frame; instantiate (1 := [iter_sepcon _ _; data_at Tsh tint (vint 0) v_ref; data_at _ (tarray tentry _) entries _]); simpl; cancel.
+        { subst Frame; instantiate (1 := [iter_sepcon _ _; data_at Tsh tint (vint k1) v_ref; data_at _ (tarray tentry _) entries _]); simpl; cancel.
           apply sepcon_derives, derives_refl.
           iIntros "(snap & >AS)".
           iDestruct "AS" as (HT) "[hashtable Hclose]".

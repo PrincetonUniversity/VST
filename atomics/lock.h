@@ -5,7 +5,7 @@
 
 typedef atom_int lock_t;
 
-lock_t* makelock();
+lock_t* makelock(void);
 void freelock(lock_t *lock);
 void acquire(lock_t *lock);
 void release(lock_t *lock);
