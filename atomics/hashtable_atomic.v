@@ -353,9 +353,9 @@ Definition f_add_item := {|
   fn_params := ((_key, tint) :: (_value, tint) :: nil);
   fn_vars := ((_ref, tint) :: nil);
   fn_temps := ((_idx, tint) :: (_i, (tptr (Tstruct _atom_int noattr))) ::
-               (_probed_key, tint) :: (_result, tint) :: (_t'5, tint) ::
-               (_t'4, tint) :: (_t'3, tint) :: (_t'2, tint) ::
-               (_t'1, tint) :: nil);
+               (_probed_key, tint) :: (_result, tint) :: (_t'4, tint) ::
+               (_t'3, tint) :: (_t'2, tint) :: (_t'1, tint) ::
+               (_t'5, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -414,44 +414,37 @@ Definition f_add_item := {|
                       (Sifthenelse (Eunop Onotbool (Etempvar _result tint)
                                      tint)
                         (Ssequence
-                          (Ssequence
-                            (Scall (Some _t'4)
-                              (Evar _atom_load (Tfunction
-                                                 (Tcons
-                                                   (tptr (Tstruct _atom_int noattr))
-                                                   Tnil) tint cc_default))
-                              ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
-                               nil))
-                            (Sset _probed_key (Etempvar _t'4 tint)))
-                          (Sifthenelse (Ebinop One
-                                         (Etempvar _probed_key tint)
+                          (Sset _t'5 (Evar _ref tint))
+                          (Sifthenelse (Ebinop One (Etempvar _t'5 tint)
                                          (Etempvar _key tint) tint)
                             Scontinue
                             Sskip))
                         Sskip)))
                   Sskip)
                 (Ssequence
-                  (Sset _i
-                    (Efield
-                      (Ederef
-                        (Ebinop Oadd
-                          (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
-                          (Etempvar _idx tint)
-                          (tptr (Tstruct _entry noattr)))
-                        (Tstruct _entry noattr)) _value
-                      (tptr (Tstruct _atom_int noattr))))
+                  (Sassign (Evar _ref tint) (Econst_int (Int.repr 0) tint))
                   (Ssequence
-                    (Scall (Some _t'5)
-                      (Evar _atom_CAS (Tfunction
-                                        (Tcons
-                                          (tptr (Tstruct _atom_int noattr))
-                                          (Tcons (tptr tint)
-                                            (Tcons tint Tnil))) tint
-                                        cc_default))
-                      ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
-                       (Eaddrof (Evar _ref tint) (tptr tint)) ::
-                       (Etempvar _value tint) :: nil))
-                    (Sreturn (Some (Etempvar _t'5 tint)))))))))))
+                    (Sset _i
+                      (Efield
+                        (Ederef
+                          (Ebinop Oadd
+                            (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
+                            (Etempvar _idx tint)
+                            (tptr (Tstruct _entry noattr)))
+                          (Tstruct _entry noattr)) _value
+                        (tptr (Tstruct _atom_int noattr))))
+                    (Ssequence
+                      (Scall (Some _t'4)
+                        (Evar _atom_CAS (Tfunction
+                                          (Tcons
+                                            (tptr (Tstruct _atom_int noattr))
+                                            (Tcons (tptr tint)
+                                              (Tcons tint Tnil))) tint
+                                          cc_default))
+                        ((Etempvar _i (tptr (Tstruct _atom_int noattr))) ::
+                         (Eaddrof (Evar _ref tint) (tptr tint)) ::
+                         (Etempvar _value tint) :: nil))
+                      (Sreturn (Some (Etempvar _t'4 tint))))))))))))
     (Sset _idx
       (Ebinop Oadd (Etempvar _idx tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
