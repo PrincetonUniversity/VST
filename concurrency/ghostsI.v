@@ -198,4 +198,4 @@ Qed.
 End GHist.
 
 (* speed up destructs of the form [% H] *)
-Existing Instance class_instances.into_sep_and_persistent_l.
+#[(*export, after Coq 8.13*)global] Existing Instance class_instances.into_sep_and_persistent_l.

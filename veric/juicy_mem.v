@@ -617,7 +617,7 @@ Proof.
   apply rmap_order in H as (Hl & Hr & Hg); auto.
 Qed.
 
-#[export] Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
+#[(*export, after Coq 8.13*)global] Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
   { ext_order a b := m_dry a = m_dry b /\ ext_order (m_phi a) (m_phi b) }.
 Next Obligation.
 Proof.

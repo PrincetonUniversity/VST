@@ -79,7 +79,7 @@ Module Type KNOT_BASIC.
     level k = fst (unsquash k).
 
   Parameter ext_knot : Ext_ord knot.
-  #[export] Existing Instance ext_knot.
+  #[(*export, after Coq 8.13*)global] Existing Instance ext_knot.
 
   Axiom knot_order : forall k1 k2 : knot, ext_order k1 k2 <->
     level k1 = level k2 /\ Rel predicate (snd (unsquash k1)) (snd (unsquash k2)).
@@ -435,7 +435,7 @@ Module KnotFullSa
     reflexivity.
   Qed.
 
-  #[export] Instance asa_knot : @Age_alg knot _ K.ageable_knot _.
+  #[(*export, after Coq 8.13*)global] Instance asa_knot : @Age_alg knot _ K.ageable_knot _.
   Proof.
     constructor.
     exact age_join1.
@@ -445,10 +445,10 @@ Module KnotFullSa
     exact age_core.
   Qed.
 
-  #[export] Existing Instance Perm_F.
-  #[export] Existing Instance Sep_F.
+  #[(*export, after Coq 8.13*)global] Existing Instance Perm_F.
+  #[(*export, after Coq 8.13*)global] Existing Instance Sep_F.
 
-  #[export] Instance ea_knot : Ext_alg knot.
+  #[(*export, after Coq 8.13*)global] Instance ea_knot : Ext_alg knot.
   Proof.
     constructor.
     - intros. rewrite knot_order in H0.

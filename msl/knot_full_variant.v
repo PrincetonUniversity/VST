@@ -80,7 +80,7 @@ Module Type KNOT__MIXVARIANT_HERED_T_OTH_REL.
       ORel o o' ->
       T_rel (p (k,o)) (p (k'',o'))).
 
-  #[export] Program Instance ext_knot : Ext_ord knot := { ext_order := knot_rel }.
+  #[(*export, after Coq 8.13*)global] Program Instance ext_knot : Ext_ord knot := { ext_order := knot_rel }.
   Next Obligation.
   Proof.
     unfold knot_rel. split.
@@ -939,7 +939,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     intros; reflexivity.
   Qed.
 
-  #[export] Program Instance ext_knot : Ext_ord knot := { ext_order := knot_rel }.
+  #[(*export, after Coq 8.13*)global] Program Instance ext_knot : Ext_ord knot := { ext_order := knot_rel }.
   Next Obligation.
   Proof.
     unfold knot_rel. split.

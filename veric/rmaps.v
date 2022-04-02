@@ -817,7 +817,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     simpl in *; inv H2; constructor; auto.
   Qed.
 
-  #[export] Existing Instance pa_gj.
+  #[(*export, after Coq 8.13*)global] Existing Instance pa_gj.
 
   Module TyF.
     Definition F := f_pre_rmap.

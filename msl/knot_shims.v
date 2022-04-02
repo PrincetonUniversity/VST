@@ -330,7 +330,7 @@ Module Type KNOT__MIXVARIANT_HERED_PROP.
   #[global] Existing Instance ageable_knot.
 
   Parameter ext_knot : Ext_ord knot.
-  #[export] Existing Instance ext_knot.
+  #[(*export, after Coq 8.13*)global] Existing Instance ext_knot.
 
   Definition predicate := pred knot.
   Parameter squash : (nat * F (pred knot)) -> knot.

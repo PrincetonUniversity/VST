@@ -42,7 +42,7 @@ Qed.
 
 #[export] Hint Resolve ext_refl : core.
 
-#[export] Program Instance Ext_prod A B `(Ext_ord A) (relB : relation B) {P : PreOrder relB} : @Ext_ord (A * B) (ag_prod A B _) :=
+#[(*export, after Coq 8.13*)global] Program Instance Ext_prod A B `(Ext_ord A) (relB : relation B) {P : PreOrder relB} : @Ext_ord (A * B) (ag_prod A B _) :=
   { ext_order := fun a b => ext_order (fst a) (fst b) /\ relB (snd a) (snd b) }.
 Next Obligation.
 Proof.
