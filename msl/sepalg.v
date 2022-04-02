@@ -157,7 +157,7 @@ Proof.
   apply core_duplicable.
 Qed.
 
-Instance disj_flat {A} `{PA: Perm_alg A} {SA: Sep_alg A} {DA: Disj_alg A} : Flat_alg A.
+#[export] Instance disj_flat {A} `{PA: Perm_alg A} {SA: Sep_alg A} {DA: Disj_alg A} : Flat_alg A.
 Proof.
  constructor.
  intros.
@@ -853,7 +853,7 @@ Class Canc_alg (t: Type) {J: Join t} :=
     join_canc: forall {a1 a2 b c}, join a1 b c -> join a2 b c -> a1 = a2.
 Arguments Canc_alg _ {J}.
 
-Instance canc_flat {A} `{PA: Perm_alg A} {SA: Sep_alg A} {DA: Canc_alg A} : Flat_alg A.
+#[export] Instance canc_flat {A} `{PA: Perm_alg A} {SA: Sep_alg A} {DA: Canc_alg A} : Flat_alg A.
 Proof.
  constructor.
  intros.
@@ -869,7 +869,7 @@ Proof.
  apply (join_fcore H0).
 Qed.
 
-Instance fsep_sep `(FSep_alg) : Sep_alg _.
+#[export] Instance fsep_sep `(FSep_alg) : Sep_alg _.
 Proof.
   exists fcore.
   - apply fcore_unit.
@@ -880,7 +880,7 @@ Proof.
   - apply fcore_idem.
 Defined.
 
-Instance fsep_flat `{FSep_alg} : Flat_alg _.
+#[export] Instance fsep_flat `{FSep_alg} : Flat_alg _.
 Proof.
   constructor.
   intros; eapply join_fcore; eauto.

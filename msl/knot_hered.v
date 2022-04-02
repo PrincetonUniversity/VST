@@ -689,7 +689,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     intros. discriminate.
   Qed.
 
-  Program Instance ext_knot : Ext_ord knot := { ext_order := eq }.
+  #[export] Program Instance ext_knot : Ext_ord knot := { ext_order := eq }.
   Next Obligation.
   Proof.
     intros ?????; subst; eauto.

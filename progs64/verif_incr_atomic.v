@@ -82,7 +82,7 @@ Proof.
   apply exclusive_sepcon1.
   apply ghost_var_exclusive; auto with share.
 Qed.
-Hint Resolve thread_inv_exclusive : exclusive.
+#[local] Hint Resolve thread_inv_exclusive : exclusive.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.

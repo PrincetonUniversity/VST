@@ -237,4 +237,4 @@ Qed.
 
 End locks.
 
-Hint Resolve sync_inv_exclusive : exclusive.
+#[export] Hint Resolve sync_inv_exclusive : exclusive.
