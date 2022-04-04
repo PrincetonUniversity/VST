@@ -124,11 +124,12 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   wand_sepcon_adjoint: forall (P Q R: A),  (sepcon P Q |-- R) <-> (P |-- wand Q R);
   sepcon_andp_prop: forall P Q R, sepcon P (!!Q && R) = !!Q && (sepcon P R);
   sepcon_derives: forall P P' Q Q' : A, (P |-- P') -> (Q |-- Q') -> sepcon P Q |-- sepcon P' Q';
-  ewand_sepcon: forall (P Q R : A),  ewand (sepcon P Q) R = ewand P (ewand Q R);
+(* how necessary is ewand? *)
+(*  ewand_sepcon: forall (P Q R : A),  ewand (sepcon P Q) R = ewand P (ewand Q R);
   ewand_TT_sepcon: forall (P Q R: A),
                          andp (sepcon P Q) (ewand R TT) |--
                                sepcon (andp P (ewand R TT)) (andp Q (ewand R TT));
-  exclude_elsewhere: forall P Q: A, sepcon P Q |-- sepcon (andp P (ewand Q TT)) Q;
+  exclude_elsewhere: forall P Q: A, sepcon P Q |-- sepcon (andp P (ewand Q TT)) Q;*)
   ewand_conflict: forall P Q R, (sepcon P Q |-- FF) -> andp P (ewand Q R) |-- FF
 }.
 
@@ -146,9 +147,9 @@ Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : logic.
     intro. intro rho.     apply <- wand_sepcon_adjoint; auto.
  simpl; intros. extensionality x. apply sepcon_andp_prop.
  simpl; intros; apply sepcon_derives; auto.
- simpl; intros; extensionality x; apply ewand_sepcon.
+(* simpl; intros; extensionality x; apply ewand_sepcon.
  simpl; intros; eapply ewand_TT_sepcon.
- simpl; intros; eapply exclude_elsewhere.
+ simpl; intros; eapply exclude_elsewhere.*)
  simpl; intros; eapply ewand_conflict; eauto.
 Defined.
 
@@ -182,7 +183,7 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
   later_exp: forall T (F: T-> A), EX x:T, later (F x) |-- later (exp F);
   later_exp': forall T (any:T) F, later (exp F) = EX x:T, later (F x);
   later_exp'': forall T F, later (exp F) |-- (EX x:T, later (F x)) || later FF;
-  later_imp: forall P Q,  later(P --> Q) = later P --> later Q;
+(*  later_imp: forall P Q,  later(P --> Q) = later P --> later Q;*)
   later_prop: forall PP: Prop, later (!! PP) |-- !! PP || later FF;
   loeb: forall P,   (later P |-- P) ->  TT |-- P
 }.
@@ -198,15 +199,15 @@ Notation "'|>' e" := (later e) (at level 20, right associativity): logic.
  simpl; intros. apply later_exp.
  simpl; intros. extensionality rho. apply later_exp'; auto.
  simpl; intros. apply later_exp''.
- simpl; intros. extensionality rho. apply later_imp.
+(* simpl; intros. extensionality rho. apply later_imp.*)
  simpl; intros. apply later_prop.
  simpl; intros. apply loeb; auto.
 Defined.
 
 Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir {
   later_sepcon: forall P Q, |> (P * Q) = |>P * |>Q;
-  later_wand: forall P Q, |> (P -* Q) = |>P -* |>Q;
-  later_ewand: forall P Q, |> (ewand P Q) = ewand (|>P) (|>Q)
+  later_wand: forall P Q, |> (P -* Q) = |>P -* |>Q(*;
+  later_ewand: forall P Q, |> (ewand P Q) = ewand (|>P) (|>Q)*)
 }.
 
 #[global] Instance LiftSepIndir  (A: Type) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} :
@@ -214,7 +215,7 @@ Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir
  constructor.
  intros; simpl. extensionality rho.  apply later_sepcon.
  intros; simpl. extensionality rho.  apply later_wand.
- intros; simpl. extensionality rho.  apply later_ewand.
+(* intros; simpl. extensionality rho.  apply later_ewand.*)
 Defined.
 
 Class CorableSepLog (A: Type) {ND: NatDed A}{SL: SepLog A}:= mkCorableSepLog {

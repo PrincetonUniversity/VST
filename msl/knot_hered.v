@@ -27,8 +27,12 @@ Module Type KNOT_HERED.
   Parameter ag_knot : ageable knot.
   #[global] Existing Instance ag_knot.
   #[global] Existing Instance ag_prod.
+  Parameter ext_knot : Ext_ord knot.
+  #[global] Existing Instance ext_knot.
+  #[global] Existing Instance Ext_prod.
 
-  Definition predicate := pred (knot * other).
+  Parameter hered : (knot * other -> Prop) -> Prop.
+  Definition predicate := { p:knot * other -> Prop | hered p }.
 
   Parameter squash : (nat * F predicate) -> knot.
   Parameter unsquash : knot -> (nat * F predicate).
@@ -108,7 +112,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     end.
   Definition ko_age x y := ko_age1 x = Some y.
 
-
+  Definition hered := hereditary ko_age.
   Definition predicate := { p:knot * other -> Prop | hereditary ko_age p }.
 
   Definition app_sinv (n:nat) (p:sinv (S n)) (x:F (sinv n) * other) :=
@@ -414,12 +418,12 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   Next Obligation.
     hnf; simpl; intros.
     intuition.
-    unfold level in *.
-    unfold unsquash in *.
-    destruct a0; simpl in H.
-    destruct x; try discriminate.
-    inv H.
-    simpl in *; lia.
+    unfold ko_age, ko_age1 in H.
+    destruct (k_age1 (fst a)) eqn: Hage; inv H; simpl.
+    assert (level k < level (fst a)); [|lia].
+    unfold level, unsquash.
+    destruct a as ((n', ?), ?); simpl in *.
+    destruct n'; inv Hage; simpl in *; lia.
     destruct p; simpl in *.
     eapply h; eauto.
   Qed.
@@ -683,6 +687,16 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     auto.
     destruct k; simpl. destruct x. auto.
     intros. discriminate.
+  Qed.
+
+  #[(*export, after Coq 8.13*)global] Program Instance ext_knot : Ext_ord knot := { ext_order := eq }.
+  Next Obligation.
+  Proof.
+    intros ?????; subst; eauto.
+  Qed.
+  Next Obligation.
+  Proof.
+    eauto.
   Qed.
 
 End KnotHered.

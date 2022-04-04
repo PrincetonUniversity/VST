@@ -55,10 +55,13 @@ Section cofe.
   Program Definition mpred_compl : Compl mpredC := fun c w => c (level w) w.
   Next Obligation.
   Proof.
-    repeat intro; simpl in *.
+    split; repeat intro; simpl in *.
     eapply pred_hereditary in H0; eauto.
     assert (approx (S (level a')) (c (level a)) a') as Ha by (split; auto).
     rewrite chain_cauchy in Ha; [apply Ha | apply age_level in H; lia].
+
+    eapply pred_upclosed in H0; eauto.
+    apply ext_level in H as <-; auto.
   Qed.
   Global Program Instance mpred_cofe : Cofe mpredC := {| compl := mpred_compl |}.
   Next Obligation.
@@ -72,16 +75,16 @@ Section cofe.
 End cofe.
 Arguments mpredC : clear implicits.
 
-Lemma approx_imp : forall n P Q, approx n (P --> Q) = approx n (approx n P --> approx n Q).
+Lemma approx_imp : forall n P Q, approx n (P --> Q)%pred = approx n (approx n P --> approx n Q)%pred.
 Proof.
-  intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha' HP.
-  - destruct HP; split; auto.
-  - apply Himp; auto; split; auto.
-    pose proof (necR_level _ _ Ha'); lia.
+  intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? ? Ha' Hext HP.
+  - destruct HP; split; eauto.
+  - eapply Himp; eauto; split; auto.
+    pose proof (necR_level _ _ Ha'); apply ext_level in Hext; lia.
 Qed.
 
 Lemma wand_nonexpansive_l: forall P Q n,
-  approx n (P -* Q) = approx n (approx n P  -* Q).
+  approx n (P -* Q)%pred = approx n (approx n P  -* Q)%pred.
 Proof.
   repeat intro.
   apply predicates_hered.pred_ext; intros ? [? Hshift]; split; auto; intros ??????.
@@ -91,7 +94,7 @@ Proof.
 Qed.
 
 Lemma wand_nonexpansive_r: forall P Q n,
-  approx n (P -* Q) = approx n (P  -* approx n Q).
+  approx n (P -* Q)%pred = approx n (P  -* approx n Q)%pred.
 Proof.
   repeat intro.
   apply predicates_hered.pred_ext; intros ? [? Hshift]; split; auto; intros ??????.
@@ -101,63 +104,40 @@ Proof.
 Qed.
 
 Lemma wand_nonexpansive: forall P Q n,
-  approx n (P -* Q) = approx n (approx n P  -* approx n Q).
+  approx n (P -* Q)%pred = approx n (approx n P  -* approx n Q)%pred.
 Proof.
   intros; rewrite wand_nonexpansive_l wand_nonexpansive_r; reflexivity.
 Qed.
 
-(*Program Definition persistently (P : mpred) : mpred := fun w => P (ghost_core2 w).
-Next Obligation.
-Proof.
-  repeat intro.
-  eapply pred_hereditary; eauto.
-  apply age_ghost_core; auto.
-Qed.
-
-Lemma approx_persistently: forall P n, approx n (persistently P) = persistently (approx n P).
-Proof.
-  intros; apply predicates_hered.pred_ext; intros ??; simpl in *; intros.
-  - rewrite level_ghost_core; auto.
-  - rewrite -> level_ghost_core in *.
-    destruct H as ([] & ?); repeat (split; auto).
-Qed.
-
-Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistently Q.
+Lemma core_ext_ord : forall (a b : rmap), join_sub a b -> ext_order (core a) (core b).
 Proof.
   intros.
-  change (predicates_hered.derives (persistently P) (persistently Q)).
-  change (predicates_hered.derives P Q) in H.
-  repeat intro.
-  apply H, H0; auto.
+  destruct H as [? J%join_core_sub].
+  destruct J; rewrite rmap_order.
+  split; [apply join_level in H as []; auto|].
+  split.
+  - extensionality l; apply (resource_at_join _ _ _ l) in H.
+    eapply join_sub_same_identity; try apply resource_at_core_identity;
+      try (rewrite <- core_resource_at; apply core_duplicable).
+    rewrite !core_resource_at; eexists; eauto.
+  - eexists; apply ghost_of_join; eauto.
 Qed.
 
-Lemma persistently_persists : forall P, persistently P |-- persistently (persistently P).
+Lemma ext_ord_core : forall (a b : rmap), ext_order a b -> ext_order (core a) (core b).
 Proof.
   intros.
-  change (predicates_hered.derives (persistently P) (persistently (persistently P))).
-  repeat intro; simpl in *.
-  rewrite -> ghost_core_idem in *.
-  apply H; eapply join_sub_trans; eauto.
+  apply core_ext_ord, assert_lemmas.ext_join_sub; auto.
 Qed.
-
-Lemma ghost_core_identity : forall w, identity w -> identity (ghost_core2 w).
-Proof.
-  intros.
-  apply resource_at_empty2.
-  - intros; rewrite resource_at_ghost_core.
-    apply resource_at_core_identity.
-  - rewrite ghost_of_ghost_core.
-    apply ghost_of_identity in H.
-    rewrite (identity_core H) R.ghost_core; simpl.
-    rewrite <- (R.ghost_core nil); apply core_identity.
-Qed.*)
 
 Program Definition persistently (P : mpred) : mpred := fun w => P (core w).
 Next Obligation.
 Proof.
-  repeat intro.
+  split; repeat intro.
   eapply pred_hereditary; eauto.
   apply age_core; auto.
+
+  eapply pred_upclosed, H0.
+  apply ext_ord_core; auto.
 Qed.
 
 Lemma approx_persistently: forall P n, approx n (persistently P) = persistently (approx n P).
@@ -167,17 +147,17 @@ Proof.
   - rewrite -> level_core in H; auto.
 Qed.
 
-Lemma persistently_derives: forall P Q, (P |-- Q) -> persistently P |-- persistently Q.
+Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistently Q.
 Proof.
   intros.
-  unseal_derives; intros ??; simpl in *.
+  unseal_derives; unfold persistently; intros ??.
   apply H; auto.
 Qed.
 
 Lemma persistently_persists : forall P, persistently P |-- persistently (persistently P).
 Proof.
   intros.
-  unseal_derives; intros ??; simpl in *.
+  unseal_derives; unfold persistently; intros ??; simpl.
   rewrite core_idem; auto.
 Qed.
 
@@ -247,7 +227,8 @@ Proof.
   - intros; apply persistently_persists.
   - unfold persistently.
     unseal_derives; intros ??; simpl.
-    apply core_identity.
+    setoid_rewrite res_predicates.emp_no; intros l.
+    apply resource_at_core_identity.
   - unfold persistently; intros.
     unseal_derives; intros ??; auto.
   - intros.
@@ -256,14 +237,15 @@ Proof.
     exists b; auto.
   - intros.
     unseal_derives; intros ? (? & ? & J & ? & ?); simpl in *.
-    apply join_core in J as <-; auto.
+    eapply pred_upclosed, H.
+    apply core_ext_ord; eexists; eauto.
   - intros.
     unseal_derives; intros ? []; simpl in *.
     exists (core a), a; repeat (split; auto).
     apply core_unit.
 Qed.
 
-Lemma approx_later : forall n P, approx (S n) (|> P) = seplog.later (approx n P).
+Lemma approx_later : forall n P, approx (S n) (|> P)%pred = seplog.later (approx n P).
 Proof.
   intros; apply predicates_hered.pred_ext.
   - intros ? [].
@@ -318,14 +300,17 @@ Proof.
   - intros.
     unseal_derives.
     change (predicates_hered.derives (box laterM P)
-      (box laterM (prop False) || predicates_hered.imp (box laterM (prop False)) P)).
-   repeat intro; simpl in *.
+      (box laterM (prop False) || predicates_hered.imp (box laterM (prop False)) P)%pred).
+    repeat intro; simpl in *.
     destruct (level a) eqn: Ha.
     + left; intros ??%laterR_level; lia.
     + right; intros.
+      eapply pred_upclosed; eauto.
       apply H.
       apply nec_refl_or_later in H0 as [|]; auto; subst.
-      symmetry in Ha; apply levelS_age in Ha as (? & ? & ?); exfalso; eapply H1.
+      symmetry in Ha; apply levelS_age in Ha as (? & ? & ?); exfalso.
+      eapply ext_age_compat in H1 as (? & ? & ?); eauto.
+      eapply H2.
       constructor; eauto.
 Qed.
 
@@ -519,5 +504,5 @@ Canonical Structure env_mpredSI : sbi :=
 Ltac iVST := iStopProof; match goal with |-bi_entails ?P ?Q => change (P |-- Q) end;
   repeat match goal with |-context[bi_sep ?P ?Q] => change (bi_sep P Q) with (P * Q) end.
 
-Open Scope Z.
-Open Scope logic.
+Global Open Scope Z.
+Global Open Scope logic.

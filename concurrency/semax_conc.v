@@ -78,26 +78,26 @@ Qed.
 Lemma selflock'_eq Q sh p : selflock' Q sh p =
   selflock_fun Q sh p (selflock' Q sh p).
 Proof.
-  apply HORec_fold_unfold, prove_HOcontractive.
+  apply HORec_fold_unfold, prove_HOcontractive'.
   intros P1 P2 u.
   apply subp_sepcon; [ apply subp_refl | ].
-  rewrite <- subp_later.
+  eapply derives_trans, subp_later1.
   constructor; repeat intro.
-  match goal with |- app_pred (?P >=> ?Q)%logic ?a => change (subtypes.fash (P --> Q) a) end.
+  match goal with |- app_pred (?P >=> ?Q)%logic ?a => change (subtypes.fash (P --> Q)%pred a) end.
   unfold lock_inv; repeat intro.
-  destruct H3 as (b & ofs & ? & Hl & ?); exists b, ofs; split; auto; split; auto.
+  destruct H4 as (b & ofs & ? & Hl); exists b, ofs; split; auto.
   intro l; specialize (Hl l); simpl in *.
   if_tac; auto.
   destruct Hl as [rsh Hl]; exists rsh; rewrite Hl; repeat f_equal.
   extensionality.
-  specialize (H tt); rewrite <- eqp_later in H.
+  specialize (H tt).
   specialize (H _ H0).
-  apply necR_level in H2.
+  apply necR_level in H2. apply ext_level in H3.
   apply predicates_hered.pred_ext; intros ? []; split; auto.
   - destruct (H a0) as [X _]; [lia|].
-    specialize (X _ (necR_refl _)); auto.
+    specialize (X _ _ (necR_refl _) (ext_refl _)); auto.
   - destruct (H a0) as [_ X]; [lia|].
-    specialize (X _ (necR_refl _)); auto.
+    specialize (X _ _ (necR_refl _) (ext_refl _)); auto.
 Qed.
 
 Lemma selflock_eq Q sh p : selflock Q sh p = (Q * |>lock_inv sh p (selflock Q sh p))%logic.
@@ -147,7 +147,7 @@ Lemma lock_inv_nonexpansive2 : forall {A} (P Q : A -> mpred) sh p x, (ALL x : _,
 Proof.
   intros.
   apply allp_left with x.
-  rewrite <- eqp_later; apply later_derives.
+  eapply derives_trans, eqp_later1; apply later_derives.
   apply nonexpansive_entail; apply nonexpansive_lock_inv.
 Qed.
 
@@ -261,9 +261,9 @@ Lemma fash_equiv_approx: forall n (R: pred rmap),
   (|> (R <=> approx n R))%pred n.
 Proof.
   intros.
-  intros m ? x ?; split; intros y ? ?.
+  intros m ? x ?; split; intros ? y ? ? ?.
   + apply approx_lt; auto.
-    apply necR_level in H1.
+    apply necR_level in H1. apply ext_level in H2.
     apply later_nat in H; lia.
   + eapply approx_p; eauto.
 Qed.
@@ -877,7 +877,8 @@ variables [globals].
 For now, the specification of the spawned function has to be exactly
 of the form that you can see below (inside the "match ...").
 Cao Qinxiang is working on a notion of sub-specification that might
-enable us to have smoother specifications.
+enable us to have smoother specifications. (Now that Lennart has added
+this, can we make it better? -WM)
 
 The postcondition might not be emp, so we have potential memory leaks
 when a thread exists (those maps are still handled by the concurrent
@@ -913,7 +914,7 @@ Definition spawn_pre :=
                PROP ()
                (*(LOCALx (temp _y y :: gvars (gv x) :: nil)*) PARAMS (y) GLOBALS (gv x)
                (SEP   (pre x y)) (*)*)
-             POST [tptr tvoid]
+             POST [tptr tvoid] (* should be tvoid, since no one sees its return value *)
                PROP  ()
                LOCAL ()
                SEP   ())

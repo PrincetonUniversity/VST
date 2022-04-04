@@ -823,7 +823,7 @@ Proof.
   rewrite <- !sepcon_andp_prop'.
   specialize (H rho).
   eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
-  constructor; apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
+  constructor; apply predicates_sl.extend_sepcon; auto.
 Qed.
 
 Ltac delete_FRZR_from_SEP :=

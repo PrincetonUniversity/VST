@@ -8,9 +8,9 @@ Require Import VST.veric.compcert_rmaps.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Lemma pred_hered {A} {_ : ageable A} (P : pred A) : hereditary age (app_pred P).
+Lemma pred_hered {A} {_ : ageable A} {EO : Ext_ord A} (P : pred A) : hereditary age (app_pred P).
 Proof.
-  destruct P; auto.
+  destruct P as (? & ? & ?); auto.
 Qed.
 
 Lemma hereditary_necR {phi phi' : rmap} {P} :

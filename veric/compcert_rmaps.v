@@ -591,7 +591,7 @@ Program Definition writable (l: address): pred rmap :=
     | _ => False
   end.
  Next Obligation.
-  intro; intros.
+  split; intro; intros.
   generalize (age1_res_option a a' l H); intro.
   destruct (a @ l); try contradiction.
   simpl in H1.
@@ -606,17 +606,21 @@ Program Definition writable (l: address): pred rmap :=
   clear H0.
   rewrite H3.
   apply Share.glb_lower2.
+
+  rewrite rmap_order in H; destruct H as (? & <- & ?); auto.
 Qed.
 
 Program Definition readable (loc: address) : pred rmap :=
    fun phi => match phi @ loc with YES _ _ k _ => isVAL k | _ => False end.
  Next Obligation.
-  intro; intros.
+  split; intro; intros.
   generalize (age1_res_option a a' loc H); intro.
   destruct (a @ loc); try contradiction.
   simpl in H1.
   destruct (a' @ loc); inv H1; auto.
-  Qed.
+
+  rewrite rmap_order in H; destruct H as (? & <- & ?); auto.
+ Qed.
 
 Lemma readable_join:
   forall phi1 phi2 phi3 loc, join phi1 phi2 phi3 ->

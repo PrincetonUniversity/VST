@@ -1,4 +1,5 @@
 #include "SC_atomics.h"
+#include "threads.h"
 
 typedef struct entry { atom_int *key; atom_int *value; } entry;
 
@@ -19,8 +20,8 @@ int integer_hash(int i){
 }
 
 void set_item(int key, int value){
-  int ref = 0;
   for(int idx = integer_hash(key);; idx++){
+    int ref = 0;
     idx &= ARRAY_SIZE - 1;
     atom_int *i = m_entries[idx].key;
     int probed_key = atom_load(i);
@@ -29,11 +30,8 @@ void set_item(int key, int value){
       if (probed_key != 0)
 	continue;
       int result = atom_CAS(i, &ref, key);
-      //This bit is a little different, since C11 doesn't have a CAS that returns the old value.
-      if(!result){
-	//CAS failed, so a key has been added. Is it the one we're looking for?
-	probed_key = atom_load(i);
-	if(probed_key != key) continue; //Another thread just stole the slot for a different key.
+      if(!result) {
+          if (ref != key) continue; //Another thread just stole the slot for a different key.
       }
     }
     i = m_entries[idx].value;
@@ -62,8 +60,8 @@ int get_item(int key){
 //overwrite a set's value. In other words, the version in hashtable1.c isn't linearizable
 //wrt set (and we discovered this through atomicity proofs!).
 int add_item(int key, int value){
-  int ref = 0;
   for(int idx = integer_hash(key);; idx++){
+    int ref = 0;
     idx &= ARRAY_SIZE - 1;
     atom_int *i = m_entries[idx].key;
     int probed_key = atom_load(i);
@@ -71,11 +69,11 @@ int add_item(int key, int value){
       if (probed_key != 0)
 	continue;
       int result = atom_CAS(i, &ref, key);
-      if(!result){
-	probed_key = atom_load(i);
-	if(probed_key != key) continue;
+      if(!result) {
+        if (ref != key) continue; //Another thread just stole the slot for a different key.
       }
     }
+    ref = 0;
     i = m_entries[idx].value;
     return atom_CAS(i, &ref, value); //only add if no one else has set the value
   }
@@ -118,7 +116,7 @@ int main(void){
   int total = 0;
 
   init_table();
-  
+
   for(int i = 0; i < 3; i++){
     lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
     thread_locks[i] = l;

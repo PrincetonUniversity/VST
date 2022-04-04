@@ -65,6 +65,17 @@ Definition free_atomic_ptr_spec :=
     LOCAL ()
     SEP ().
 
+Definition free_atomic_int_spec :=
+  WITH p : val
+  PRE [ tptr atomic_int ]
+    PROP (is_pointer_or_null p)
+    PARAMS (p)
+    SEP (EX v : val, atomic_int_at Ews v p)
+  POST[ tvoid ]
+    PROP ()
+    LOCAL ()
+    SEP ().
+
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
   (ArrowType (ConstType val) Mpred)) (ConstType invG).
@@ -88,7 +99,7 @@ Proof.
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 3 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v. 
+  rewrite !approx_exp; apply f_equal; extensionality v.
   rewrite !approx_sepcon; f_equal.
   setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.
@@ -147,7 +158,7 @@ Program Definition atomic_CAS_spec := TYPE ACAS_type
    EX v' : val,
    PROP ()
    LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
-   SEP (data_at shc tint c pc; Q v').
+   SEP (data_at shc tint v' pc; Q v').
 Next Obligation.
 Proof.
   repeat intro.
@@ -229,7 +240,7 @@ Proof.
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 3 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v. 
+  rewrite !approx_exp; apply f_equal; extensionality v.
   rewrite !approx_sepcon; f_equal.
   setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.
@@ -333,7 +344,7 @@ Program Definition atomic_CAS_int_spec := TYPE ACASI_type
    EX v' : Z,
    PROP (repable_signed v')
    LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
-   SEP (data_at shc tint (vint c) pc; Q v').
+   SEP (data_at shc tint (vint v') pc; Q v').
 Next Obligation.
 Proof.
   repeat intro.
@@ -391,7 +402,7 @@ Proof.
       + rewrite Int.repr_signed in H2; contradiction.
       + apply Vint_inj in H2; subst.
         rewrite -> Int.signed_repr in H1 by auto; contradiction. }
-    rewrite sepcon_emp; iFrame.
+    rewrite Int.repr_signed sepcon_emp; iFrame.
 Qed.
 
 Definition AEXI_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
@@ -465,7 +476,7 @@ Qed.
 Definition ALI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
   (ArrowType (ConstType val) Mpred)) (ConstType invG).
-  
+
 Program Definition atomic_load_ptr_spec := TYPE ALI_ptr_type
   WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
   PRE [ tptr atomic_ptr ]
@@ -485,7 +496,7 @@ Proof.
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 3 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v. 
+  rewrite !approx_exp; apply f_equal; extensionality v.
   rewrite !approx_sepcon; f_equal.
   setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.

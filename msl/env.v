@@ -103,7 +103,7 @@ Axiom env_get_empty: forall id, env_get empty_env id = None.
     fun (rho1 rho2 rho3: env key A) => join (env_get rho1) (env_get rho2) (env_get rho3).
 Parameter Perm_env: forall {PA: Perm_alg A}, Perm_alg (env key A).  #[global] Existing Instance Perm_env.
 
-#[local] Instance Sep_env {SA: Sep_alg A}: Sep_alg (env key A).
+#[global] Instance Sep_env {SA: Sep_alg A}: FSep_alg (env key A).
  refine (mkSep Join_env (fun _ => empty_env) _ _).
  repeat intro; rewrite env_get_empty; constructor.
  auto.
@@ -303,13 +303,13 @@ Proof.
   rewrite Join_env_eq. apply Perm_fpm; auto with typeclass_instances.
 Qed.
 
-#[local] Instance Sep_env {SA: Sep_alg A}: @Sep_alg env Join_env.
+#[local] Instance Sep_env {SA: Sep_alg A}: @FSep_alg env Join_env.
  refine (mkSep Join_env (fun _ => empty_env) _ _).
  repeat intro; rewrite env_get_empty; constructor.
  auto.
 Defined.
 
-#[local] Instance Sing_env {SA: Sep_alg A}: @Sing_alg env Join_env Sep_env.
+#[local] Instance Sing_env {SA: Sep_alg A}: @Sing_alg env Join_env (fsep_sep Sep_env).
   refine (mkSing empty_env _). reflexivity.
 Defined.
 

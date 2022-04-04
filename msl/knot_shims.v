@@ -116,7 +116,7 @@ Module Type KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL.
 
 End KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL.
 
-Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
+(*Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
   Import CovariantFunctor.
   Declare Module KI : KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL.
   Import KI.
@@ -169,7 +169,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
     | (S n,x) => Some (squash (n,x))
     end.
 
-End KNOT__COVARIANT_HERED_PROP_OTH_REL.
+End KNOT__COVARIANT_HERED_PROP_OTH_REL.*)
 
 Module Type KNOT_INPUT__COVARIANT_HERED_PROP_OTH.
 
@@ -179,7 +179,7 @@ Module Type KNOT_INPUT__COVARIANT_HERED_PROP_OTH.
 
 End KNOT_INPUT__COVARIANT_HERED_PROP_OTH.
 
-Module Type KNOT__COVARIANT_HERED_PROP_OTH.
+(*Module Type KNOT__COVARIANT_HERED_PROP_OTH.
   Declare Module KI : KNOT_INPUT__COVARIANT_HERED_PROP_OTH.
   Import CovariantFunctor.
   Import CovariantFunctorLemmas.
@@ -300,12 +300,21 @@ Module Type KNOT__COVARIANT_HERED_PROP.
   Axiom approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
 *)
-End KNOT__COVARIANT_HERED_PROP.
+End KNOT__COVARIANT_HERED_PROP.*)
 
 Module Type KNOT_INPUT__MIXVARIANT_HERED_PROP.
 
   Import MixVariantFunctor.
   Parameter F : functor.
+
+  Parameter Rel : forall A, relation (F A).
+
+  Parameter Rel_fmap : forall A B (f1: A->B) (f2:B->A) x y,
+    Rel A x y ->
+    Rel B (fmap F f1 f2 x) (fmap F f1 f2 y).
+  Axiom Rel_refl : forall A x, Rel A x x.
+  Axiom Rel_trans : forall A x y z,
+    Rel A x y -> Rel A y z -> Rel A x z.
 
 End KNOT_INPUT__MIXVARIANT_HERED_PROP.
 
@@ -319,6 +328,9 @@ Module Type KNOT__MIXVARIANT_HERED_PROP.
 
   Parameter ageable_knot : ageable knot.
   #[global] Existing Instance ageable_knot.
+
+  Parameter ext_knot : Ext_ord knot.
+  #[(*export, after Coq 8.13*)global] Existing Instance ext_knot.
 
   Definition predicate := pred knot.
   Parameter squash : (nat * F (pred knot)) -> knot.
@@ -343,6 +355,9 @@ Module Type KNOT__MIXVARIANT_HERED_PROP.
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
     end.
+
+  Axiom knot_order : forall k1 k2 : knot, ext_order k1 k2 <->
+    level k1 = level k2 /\ Rel predicate (snd (unsquash k1)) (snd (unsquash k2)).
 
 End KNOT__MIXVARIANT_HERED_PROP.
 
@@ -518,7 +533,7 @@ Module KnotLemmas_CoContraVariantHeredTOthRel
 
 End KnotLemmas_CoContraVariantHeredTOthRel.
 
-Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL)
+(*Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL)
   : KNOT__COVARIANT_HERED_PROP_OTH_REL with Module KI:=KI'.
 
   Module KI:=KI'.
@@ -1379,7 +1394,7 @@ Module KnotLemmas_CovariantHeredProp (K: KNOT__COVARIANT_HERED_PROP).
      (knot_full_variant.KnotLemmas2.Proof).
   Qed.
 
-End KnotLemmas_CovariantHeredProp.
+End KnotLemmas_CovariantHeredProp.*)
 
 Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
   : KNOT__MIXVARIANT_HERED_PROP with Module KI:=KI'.
@@ -1393,24 +1408,15 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
     Definition F: functor := KI.F.
     Definition other := unit.
 
-    Definition Rel A := @eq (F A).
-    Lemma Rel_fmap : forall A B (f:A -> B) (s:B -> A) x y,
+    Definition Rel A := KI.Rel A.
+    Definition Rel_fmap : forall A B (f:A -> B) (s:B -> A) x y,
       Rel A x y ->
-      Rel B (fmap F f s x) (fmap F f s y).
-    Proof.
-      unfold Rel; intuition; subst; auto.
-    Qed.
+      Rel B (fmap F f s x) (fmap F f s y) := KI.Rel_fmap.
 
-    Lemma Rel_refl : forall A x, Rel A x x.
-    Proof.
-      intros; hnf; auto.
-    Qed.
+    Definition Rel_refl : forall A x, Rel A x x := KI.Rel_refl.
 
-    Lemma Rel_trans : forall A x y z,
-      Rel A x y -> Rel A y z -> Rel A x z.
-    Proof.
-      unfold Rel; intuition congruence.
-    Qed.
+    Definition Rel_trans : forall A x y z,
+      Rel A x y -> Rel A y z -> Rel A x z := KI.Rel_trans.
 
     Definition ORel := @eq other.
     Lemma ORel_refl : reflexive other ORel.
@@ -1445,39 +1451,40 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
   Module K0 := knot_full_variant.Knot_MixVariantHeredTOthRel(Input).
   Module KL0 := knot_full_variant.KnotLemmas_MixVariantHeredTOthRel(K0).
   #[global] Existing Instance K0.ageable_knot.
+  #[global] Existing Instance K0.ext_knot.
 
   Lemma hered_hereditary : forall (p: K0.knot -> Prop),
-    K0.hered (fun ko => p (fst ko)) <-> hereditary age p.
+    K0.hered (fun ko => p (fst ko)) <-> hereditary age p /\ hereditary K0.knot_rel p.
   Proof.
     intros; split; repeat intro.
     rewrite K0.hered_spec in H.
+    split; repeat intro.
     hnf in H0.
     simpl in H0.
-    specialize ( H a a' a').
-    specialize ( H tt tt).
+    specialize (H a a' a').
+    specialize (H tt tt).
     spec H.
     apply rt_step; auto.
     spec H.
     hnf.
     destruct (K0.unsquash a'); split; auto.
-    hnf; auto.
+    apply Input.Rel_refl.
     apply H; auto.
     hnf; auto.
 
+    eapply (H _ _ _ tt tt); eauto.
+    reflexivity.
+
     rewrite K0.hered_spec; intros.
-    assert (k' = k'').
-    apply KL0.unsquash_inj.
-    hnf in H1.
-    destruct (K0.unsquash k').
-    destruct (K0.unsquash k'').
-    destruct H1; hnf in H3.
-    subst; auto.
-    subst k''.
+    hnf; simpl.
+    intros Hp.
+    destruct H as [H Hrel].
+    eapply Hrel; eauto.
     hnf in H.
 
     hnf.
     simpl.
-    clear -H H0.
+    clear -H H0 Hp.
     induction H0; auto.
     eapply H; eauto.
   Qed.
@@ -1500,6 +1507,7 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
 
   Definition knot := K.knot.
   Definition ageable_knot := K.ageable_knot.
+  Definition ext_knot := K.ext_knot.
   Definition predicate := pred knot.
   Definition squash: (nat * KI.F (pred knot)) -> knot := K.squash.
   Definition unsquash: knot -> (nat * KI.F (pred knot)) := K.unsquash.
@@ -1535,6 +1543,20 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
   Definition knot_age1 := K.knot_age1.
 
   Definition knot_level := K.knot_level.
+
+  Lemma knot_order : forall k1 k2 : knot, ext_order k1 k2 <->
+    level k1 = level k2 /\ Input.Rel predicate (snd (unsquash k1)) (snd (unsquash k2)).
+  Proof.
+    intros; simpl.
+    unfold Output.K0.knot_rel, Output.K0.unsquash, unsquash, K.unsquash.
+    rewrite !K0.knot_level.
+    destruct (K0.unsquash k1) eqn: Hk1, (K0.unsquash k2) eqn: Hk2; unfold snd.
+    unfold Output.K0.KI.Rel.
+    split; intros [? H]; split; auto.
+    - apply KI.Rel_fmap; auto.
+    - apply (KI.Rel_fmap _ _ (bij_f _ _ Output.pkp) (bij_g _ _ Output.pkp)) in H.
+      rewrite !fmap_app, bij_fg_id, fmap_id in H; auto.
+  Qed.
 
 End Knot_MixVariantHeredProp.
 
@@ -1632,6 +1654,3 @@ Module KnotLemmas_MixVariantHeredProp (K': KNOT__MIXVARIANT_HERED_PROP).
   Qed.
 
 End KnotLemmas_MixVariantHeredProp.
-
-
-

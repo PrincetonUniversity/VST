@@ -49,7 +49,7 @@ Definition perm_of_res (r: resource) :=
  end.
 
 (*To do a case analysis over perm_of_res, use:
-functional induction (perm_of_res_explicit r1) using perm_of_res_expl_ind 
+functional induction (perm_of_res_explicit r1) using perm_of_res_expl_ind
 We define the induction shceme bellow. *)
 Definition perm_of_res_lock_explicit
              (r : compcert_rmaps.RML.R.resource):=
@@ -64,7 +64,7 @@ Definition perm_of_res_lock_explicit
     | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => None
     | compcert_rmaps.RML.R.PURE _ _ => None
     end.
-      
+
   Functional Scheme perm_of_res_lock_expl_ind := Induction for perm_of_res_lock_explicit Sort Prop.
 
 
@@ -77,14 +77,14 @@ Definition perm_of_res' (r: resource) :=
  | YES sh _ _ _ => perm_of_sh sh
  end.
 
-Definition perm_of_res_lock (r: resource) := 
+Definition perm_of_res_lock (r: resource) :=
   (*  perm_of_sh (res_retain' r) (valshare r). *)
  match r with
  | YES sh rsh (LK _ _) _ => perm_of_sh (Share.glb Share.Rsh sh)
- | _ => None 
+ | _ => None
  end.
 (*To do a case analysis over perm_of_res_lock, use:
-functional induction (perm_of_res_lock_explicit r1) using perm_of_res_lock_expl_ind 
+functional induction (perm_of_res_lock_explicit r1) using perm_of_res_lock_expl_ind
 We define the induction shceme bellow. *)
 Definition perm_of_res_explicit
                (r : compcert_rmaps.RML.R.resource):=
@@ -101,7 +101,7 @@ Definition perm_of_res_explicit
            | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => Some Nonempty
            | compcert_rmaps.RML.R.PURE _ _ => Some Nonempty
         end.
-      
+
 Functional Scheme perm_of_res_expl_ind := Induction for perm_of_res_explicit Sort Prop.
 
 
@@ -287,8 +287,8 @@ contradiction (join_writable0_readable RJ H0 rsh2).
 Qed.
 
 Lemma writable_inv: forall phi loc, writable loc phi ->
-  exists sh, exists rsh, exists k, exists pp, 
-       phi @ loc = YES sh rsh k pp /\ 
+  exists sh, exists rsh, exists k, exists pp,
+       phi @ loc = YES sh rsh k pp /\
        writable0_share sh /\
        isVAL k.
 Proof.
@@ -299,7 +299,7 @@ destruct H.
 do 4 eexists. split. reflexivity. split; auto.
 Qed.
 
-Lemma nreadable_inv: forall phi loc, ~readable loc phi 
+Lemma nreadable_inv: forall phi loc, ~readable loc phi
   -> (exists sh, exists nsh, phi @ loc = NO sh nsh)
    \/ (exists sh, exists rsh, exists k, exists pp, phi @ loc = YES sh rsh k pp /\ ~isVAL k)
    \/ (exists k, exists pp, phi @ loc = PURE k pp).
@@ -309,7 +309,7 @@ simpl in H.
 destruct (phi@loc); eauto 50.
 Qed.
 
-Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
+Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
              age phi1 phi1' -> age phi2 phi2' -> age phi3 phi3' ->
              join phi1 phi2 phi3 -> join phi1' phi2' phi3'.
 Proof.
@@ -319,7 +319,7 @@ unfold age in *.
 congruence.
 Qed.
 
-Lemma constructive_age1_join  {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall x y z x' : A,
+Lemma constructive_age1_join  {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall x y z x' : A,
        join x y z ->
        age x x' ->
        { yz' : A*A | join x' (fst yz') (snd yz') /\ age y (fst yz') /\ age z (snd yz')}.
@@ -342,7 +342,7 @@ unfold age in *.
 congruence.
 Qed.
 
-Lemma age1_constructive_joins_eq : forall {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}  {phi1 phi2},
+Lemma age1_constructive_joins_eq : forall {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}  {phi1 phi2},
   constructive_joins phi1 phi2
   -> forall {phi1'}, age1 phi1 = Some phi1'
   -> forall {phi2'}, age1 phi2 = Some phi2'
@@ -601,6 +601,55 @@ destruct k; try inv H.
 eauto.
 Qed.
 
+Lemma ext_ord_juicy_mem : forall m b, ext_order (m_phi m) b ->
+  exists m', m_dry m' = m_dry m /\ m_phi m' = b.
+Proof.
+  intros.
+  destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
+  apply rmap_order in H as (Hl & Hr & Hg); auto.
+Qed.
+
+Lemma ext_ord_juicy_mem' : forall m b, ext_order b (m_phi m) ->
+  exists m', m_dry m' = m_dry m /\ m_phi m' = b.
+Proof.
+  intros.
+  destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
+  apply rmap_order in H as (Hl & Hr & Hg); auto.
+Qed.
+
+#[(*export, after Coq 8.13*)global] Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
+  { ext_order a b := m_dry a = m_dry b /\ ext_order (m_phi a) (m_phi b) }.
+Next Obligation.
+Proof.
+  constructor; auto.
+  intros ??? [] []; split; etransitivity; eauto.
+Qed.
+Next Obligation.
+Proof.
+  intros ?? Hage ? [? Hext].
+  apply age1_juicy_mem_unpack in Hage as [? ?].
+  eapply age_ext_commut in Hext as [? ? Hage]; eauto.
+  destruct (age1_juicy_mem z) as [j|] eqn: Hz.
+  destruct (age1_juicy_mem_unpack _ _ Hz) as (Hage' & ?).
+  unfold age in *; rewrite Hage' in Hage; inv Hage.
+  exists j; eauto; split; auto; congruence.
+  { apply age1_juicy_mem_None1 in Hz. congruence. }
+Qed.
+Next Obligation.
+Proof.
+  apply age1_juicy_mem_unpack in H0 as [? ?].
+  eapply ext_age_compat in H1 as (? & Hage & ?); eauto.
+  destruct (age1_juicy_mem b) as [j|] eqn: Hb.
+  destruct (age1_juicy_mem_unpack _ _ Hb) as (Hage' & ?).
+  unfold age in *; rewrite Hage' in Hage; inv Hage.
+  exists j; split; auto; split; auto; congruence.
+  { apply age1_juicy_mem_None1 in Hb. congruence. }
+Qed.
+Next Obligation.
+Proof.
+  apply ext_level in H0; auto.
+Qed.
+
 (* resource coherence *)
 
 (* FIXME: put somewhere else. *)
@@ -655,7 +704,7 @@ Definition inflate_initial_mem' (w: rmap) (loc: address) :=
            | Some Freeable => YES Share.top readable_share_top (VAL (contents_at m loc)) NoneP
            | Some Writable => YES Ews (writable_readable writable_Ews) (VAL (contents_at m loc)) NoneP
            | Some Readable => YES Ers readable_Ers (VAL (contents_at m loc)) NoneP
-           | Some Nonempty => 
+           | Some Nonempty =>
                          match w @ loc with PURE _ _ => w @ loc | _ => NO _ nonreadable_extern_retainer end
            | None =>  NO Share.bot bot_unreadable
          end.
@@ -708,7 +757,7 @@ Definition inflate_alloc: rmap.
   (* phi = NO *)
   (fmap_option (access_at m loc Cur)
     (NO Share.bot bot_unreadable)
-    (fun p => 
+    (fun p =>
       match p with
         | Freeable => YES Share.top readable_share_top (VAL (contents_at m loc)) NoneP
         | _ => NO Share.Lsh Lsh_nonreadable
@@ -798,7 +847,7 @@ Lemma range_inv: forall ofs ofs' ch,
   ofs' < ofs \/ ofs' >= ofs + size_chunk ch.
 Proof. intros; eapply range_inv0; eauto. Qed.
 
-Lemma perm_of_sh_Freeable_top: forall sh, perm_of_sh sh = Some Freeable -> 
+Lemma perm_of_sh_Freeable_top: forall sh, perm_of_sh sh = Some Freeable ->
      sh = Share.top.
 Proof.
 intros sh H.
@@ -818,12 +867,12 @@ Qed.
 Section initial_mem.
 Variables (m: mem) (w: rmap).
 
-Definition initial_rmap_ok := 
+Definition initial_rmap_ok :=
    forall loc, ((fst loc >= nextblock m)%positive -> core w @ loc = NO Share.bot bot_unreadable) /\
-                   (match w @ loc with 
-                    | PURE _ _ => (fst loc < nextblock m)%positive /\ 
-                                           access_at m loc Cur = Some Nonempty /\  
-                                            max_access_at m loc = Some Nonempty 
+                   (match w @ loc with
+                    | PURE _ _ => (fst loc < nextblock m)%positive /\
+                                           access_at m loc Cur = Some Nonempty /\
+                                            max_access_at m loc = Some Nonempty
                     | _ => True end).
 Hypothesis IOK: initial_rmap_ok.
 End initial_mem.
@@ -837,7 +886,7 @@ rewrite if_true. rewrite if_true; auto.
 auto.
 Qed.
 
-Lemma perm_of_writable: 
+Lemma perm_of_writable:
    forall sh, writable_share sh -> sh <> Share.top -> perm_of_sh sh = Some Writable.
 Proof.
 intros.
@@ -1355,10 +1404,10 @@ Qed.
 
 (* The empty juicy memory *)
 
-Definition after_alloc' 
+Definition after_alloc'
   (lo hi: Z) (b: block) (phi: rmap)(H: forall ofs, phi @ (b,ofs) = NO Share.bot bot_unreadable)
   : address -> resource := fun loc =>
-    if adr_range_dec (b,lo) (hi-lo) loc 
+    if adr_range_dec (b,lo) (hi-lo) loc
       then YES Share.top readable_share_top (VAL Undef) NoneP
       else phi @ loc.
 
@@ -1395,7 +1444,7 @@ Definition after_alloc
 
 Definition mod_after_alloc' (phi: rmap) (lo hi: Z) (b: block)
   : address -> resource := fun loc =>
-    if adr_range_dec (b,lo) (hi-lo) loc 
+    if adr_range_dec (b,lo) (hi-lo) loc
       then YES Share.top readable_share_top (VAL Undef) NoneP
       else core phi @ loc.
 
@@ -1528,11 +1577,11 @@ Definition resource_decay (nextb: block) (phi1 phi2: rmap) :=
   ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot bot_unreadable) /\
   (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
   (exists sh, exists (wsh: writable0_share sh), exists v, exists v',
-       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = 
-                       YES sh (writable0_readable wsh) (VAL v) NoneP /\ 
+       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) =
+                       YES sh (writable0_readable wsh) (VAL v) NoneP /\
        phi2 @ l = YES sh (writable0_readable wsh) (VAL v') NoneP)
   \/ ((fst l >= nextb)%positive /\ exists v, phi2 @ l = YES Share.top readable_share_top (VAL v) NoneP)
-  \/ (exists v, exists pp, phi1 @ l = YES Share.top readable_share_top (VAL v) pp 
+  \/ (exists v, exists pp, phi1 @ l = YES Share.top readable_share_top (VAL v) pp
                         /\ phi2 @ l = NO Share.bot bot_unreadable)).
 
 Definition resource_nodecay (nextb: block) (phi1 phi2: rmap) :=
@@ -1551,7 +1600,7 @@ Proof.
 specialize (H0 l); intuition.
 Qed.
 
-Lemma resource_decay_refl: forall b phi, 
+Lemma resource_decay_refl: forall b phi,
   (forall l, (fst l >= b)%positive -> phi @ l = NO Share.bot bot_unreadable) ->
   resource_decay b phi phi.
 Proof.
@@ -1595,7 +1644,7 @@ rewrite H1. auto.
  exists v, p. split; auto. f_equal. apply proof_irr.
  destruct H2.
  destruct H1 as [[sh [wsh [v [v' [? ?]]]]]|[[? [v ?]] |?]].
- right; left; exists sh,wsh,v,v'; split. 
+ right; left; exists sh,wsh,v,v'; split.
  rewrite <- (approx_oo_approx' (level m3) (level m2)) at 1 by auto.
  rewrite <- (approx'_oo_approx (level m3) (level m2)) at 2 by auto.
  rewrite <- resource_fmap_fmap. rewrite H1.
@@ -1710,7 +1759,7 @@ remember (m_phi jm @ (b', ofs')) as HPHI; destruct HPHI; try destruct k; auto;
   try solve [rewrite HeqHPHI; rewrite resource_at_approx; auto].
 rewrite (store_phi_elsewhere_eq jm _ _ _ _ _ STORE _ r m (b', ofs')); auto.
 assert (H: p = NoneP).
-  symmetry in HeqHPHI; 
+  symmetry in HeqHPHI;
   destruct  (juicy_mem_contents jm _ _ _ _ _ HeqHPHI); auto.
 rewrite H.
 unfold resource_fmap; f_equal; try reflexivity.

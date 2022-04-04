@@ -12,10 +12,23 @@ Require Import VST.msl.sepalg.
 Require Import VST.msl.sepalg_functors.
 Require Import VST.msl.sepalg_generators.
 Require Import VST.msl.age_sepalg.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.predicates_sl.
 Require Import VST.msl.knot_full_variant.
 
 Module Type KNOT_FULL_BASIC_INPUT.
-  Parameter F: MixVariantFunctor.functor.
+  Import MixVariantFunctor.
+  Parameter F: functor.
+
+  Parameter Rel : forall A, relation (F A).
+
+  Parameter Rel_fmap : forall A B (f1: A->B) (f2:B->A) x y,
+    Rel A x y ->
+    Rel B (fmap F f1 f2 x) (fmap F f1 f2 y).
+  Axiom Rel_refl : forall A x, Rel A x x.
+  Axiom Rel_trans : forall A x y z,
+    Rel A x y -> Rel A y z -> Rel A x z.
+
 End KNOT_FULL_BASIC_INPUT.
 
 Module Type KNOT_FULL_SA_INPUT.
@@ -27,6 +40,14 @@ Module Type KNOT_FULL_SA_INPUT.
   Parameter paf_F : pafunctor F Join_F.
   Parameter Perm_F: forall A, Perm_alg (F A).
   Parameter Sep_F: forall A, Sep_alg (F A).
+
+  Axiom Rel_join_commut : forall {A} {x y z z' : F A}, join x y z ->
+    Rel A z z' -> exists x', Rel A x x' /\ join x' y z'.
+  Axiom join_Rel_commut : forall {A} {x x' y' z' : F A}, Rel A x x' ->
+    join x' y' z' -> exists z, join x y' z /\ Rel A z z'.
+  Axiom id_exists : forall {A} (x : F A), exists e,
+    identity e /\ unit_for e x.
+
 End KNOT_FULL_SA_INPUT.
 
 Module Type KNOT_BASIC.
@@ -57,6 +78,12 @@ Module Type KNOT_BASIC.
   Axiom knot_level : forall k:knot,
     level k = fst (unsquash k).
 
+  Parameter ext_knot : Ext_ord knot.
+  #[(*export, after Coq 8.13*)global] Existing Instance ext_knot.
+
+  Axiom knot_order : forall k1 k2 : knot, ext_order k1 k2 <->
+    level k1 = level k2 /\ Rel predicate (snd (unsquash k1)) (snd (unsquash k2)).
+
 End KNOT_BASIC.
 
 Module Type KNOT_BASIC_LEMMAS.
@@ -83,16 +110,33 @@ Module Type KNOT_BASIC_LEMMAS.
 
 End KNOT_BASIC_LEMMAS.
 
+Module Type KNOT_ASSM.
+  Declare Module KI: KNOT_FULL_BASIC_INPUT.
+  Declare Module KSAI: KNOT_FULL_SA_INPUT with Module KI := KI.
+  Declare Module K: KNOT_BASIC with Module KI := KI.
+  Import MixVariantFunctor.
+  Import KI.
+  Import KSAI.
+  Import K.
+
+  Axiom approx_core : forall n (f : F predicate),
+    core(Sep_alg := Sep_F predicate) (fmap F (approx n) (approx n) f) = fmap F (approx n) (approx n) (core(Sep_alg := Sep_F predicate) f).
+
+End KNOT_ASSM.
+
+
 Module Type KNOT_FULL_SA.
   Declare Module KI: KNOT_FULL_BASIC_INPUT.
   Declare Module KSAI: KNOT_FULL_SA_INPUT with Module KI := KI.
   Declare Module K: KNOT_BASIC with Module KI := KI.
   Declare Module KL: KNOT_BASIC_LEMMAS with Module K := K.
+  Declare Module KA: KNOT_ASSM with Module KI := KI with Module KSAI := KSAI with Module K := K.
 
   Import KI.
   Import KSAI.
   Import K.
   Import KL.
+  Import KA.
 
   Parameter Join_knot: Join knot.  #[global] Existing Instance Join_knot.
   Parameter Perm_knot : Perm_alg knot.  #[global] Existing Instance Perm_knot.
@@ -102,7 +146,7 @@ Module Type KNOT_FULL_SA.
   #[global] Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
     @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
   #[global] Instance Sep_nat_F : Sep_alg (nat * F predicate) :=
-    @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
+    @Sep_prod nat _ _ _ _ (Perm_F predicate) (fsep_sep (Sep_equiv _)) (Sep_F predicate).
 
   Axiom join_unsquash : forall x1 x2 x3 : knot,
     join x1 x2 x3 = join (unsquash x1) (unsquash x2) (unsquash x3).
@@ -110,21 +154,26 @@ Module Type KNOT_FULL_SA.
 
   Axiom asa_knot : Age_alg knot.
 
+  Axiom ea_knot : Ext_alg knot.
+
 End KNOT_FULL_SA.
 
 Module KnotFullSa
   (KSAI': KNOT_FULL_SA_INPUT)
   (K': KNOT_BASIC with Module KI:=KSAI'.KI)
-  (KL': KNOT_BASIC_LEMMAS with Module K:=K'):
+  (KL': KNOT_BASIC_LEMMAS with Module K:=K')
+  (KA': KNOT_ASSM with Module KI := KSAI'.KI with Module KSAI := KSAI' with Module K := K'):
   KNOT_FULL_SA with Module KI := KSAI'.KI
                with Module KSAI := KSAI'
                with Module K:=K'
-               with Module KL := KL'.
+               with Module KL := KL'
+               with Module KA := KA'.
 
   Module KI := KSAI'.KI.
   Module KSAI := KSAI'.
   Module K := K'.
   Module KL := KL'.
+  Module KA := KA'.
 
   Import MixVariantFunctor.
   Import MixVariantFunctorLemmas.
@@ -132,13 +181,14 @@ Module KnotFullSa
   Import KSAI.
   Import K.
   Import KL.
+  Import KA.
 
   #[global] Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
   #[global] Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
       @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
-  #[global] Instance Sep_nat_F: Sep_alg (nat * F predicate) :=
-      @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
+  #[global] Instance Sep_nat_F : Sep_alg (nat * F predicate) :=
+    @Sep_prod nat _ _ _ _ (Perm_F predicate) (fsep_sep (Sep_equiv _)) (Sep_F predicate).
 
   Lemma unsquash_squash_join_hom : join_hom (unsquash oo squash).
   Proof.
@@ -165,8 +215,15 @@ Module KnotFullSa
   #[global] Instance Perm_knot : Perm_alg knot :=
     Perm_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom.
 
+  Lemma core_unsquash_squash : forall b, core (unsquash (squash b)) = unsquash (squash (core b)).
+  Proof.
+    intros (?, ?); simpl; rewrite !unsquash_squash; simpl.
+    pose proof approx_core n _f.
+    setoid_rewrite approx_core. reflexivity.
+  Qed.
+
   #[global] Instance Sep_knot: Sep_alg knot :=
-    Sep_preimage _ _ _  unsquash squash squash_unsquash unsquash_squash_join_hom.
+    Sep_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom core_unsquash_squash.
 
   Lemma core_unsquash : forall x, core x = squash (core (unsquash x)).
   Proof.
@@ -360,13 +417,97 @@ Module KnotFullSa
     trivial.
   Qed.
 
-  Theorem asa_knot : @Age_alg knot _ K.ageable_knot.
+  Lemma age_core :
+    forall x y, age x y -> age (core x) (core y).
+  Proof.
+    intros x y.
+    unfold age; rewrite !knot_age1; simpl.
+    destruct (unsquash x) eqn: Hx; simpl.
+    destruct n; [discriminate|].
+    intros X; inv X; simpl.
+    rewrite !unsquash_squash; simpl.
+    rewrite approx_core.
+    f_equal; apply unsquash_inj.
+    rewrite !unsquash_squash, !fmap_app.
+    change (S n) with (1 + n).
+    rewrite <- (approx_approx1 1 n), <- (approx_approx2 1 n).
+    setoid_rewrite <- (approx_approx1 0 n).
+    reflexivity.
+  Qed.
+
+  #[(*export, after Coq 8.13*)global] Instance asa_knot : @Age_alg knot _ K.ageable_knot _.
   Proof.
     constructor.
     exact age_join1.
     exact age_join2.
     exact unage_join1.
     exact unage_join2.
+    exact age_core.
+  Qed.
+
+  #[(*export, after Coq 8.13*)global] Existing Instance Perm_F.
+  #[(*export, after Coq 8.13*)global] Existing Instance Sep_F.
+
+  #[(*export, after Coq 8.13*)global] Instance ea_knot : Ext_alg knot.
+  Proof.
+    constructor.
+    - intros. rewrite knot_order in H0.
+      destruct H0.
+      destruct (join_level _ _ _ H) as [Hl Hly].
+      destruct H as [? J].
+      eapply Rel_join_commut in H1 as (x' & ? & ?); eauto.
+      exists (squash (level z, x')).
+      rewrite knot_order; split.
+      + split. setoid_rewrite knot_level at 2; rewrite unsquash_squash; auto.
+        rewrite unsquash_squash; simpl.
+        destruct (unsquash x) eqn: Hx.
+        rewrite (unsquash_approx Hx).
+        rewrite <- Hl, knot_level, Hx.
+        apply Rel_fmap; auto.
+      + split; rewrite unsquash_squash; simpl. rewrite <- !knot_level; hnf; split; congruence.
+        destruct (unsquash y) eqn: Hy, (unsquash z') eqn: Hz'.
+        rewrite (unsquash_approx Hy), (unsquash_approx Hz').
+        symmetry in H0; rewrite knot_level, Hz' in H0.
+        rewrite knot_level, Hy in Hly.
+        simpl in *; subst. apply paf_join_hom; auto.
+        apply paf_F.
+    - intros.
+      rewrite knot_order in H.
+      destruct H.
+      destruct (join_level _ _ _ H0) as [Hl Hly].
+      destruct H0 as [? J].
+      eapply join_Rel_commut in H1 as (z & ? & ?); eauto.
+      exists (squash (level x, z)).
+      rewrite knot_order, unsquash_squash; simpl. split.
+      + split; rewrite unsquash_squash; simpl. rewrite <- !knot_level; hnf; split; congruence.
+        rewrite knot_level in H |- *.
+        destruct (unsquash x) eqn: Hx, (unsquash y') eqn: Hy'.
+        rewrite (unsquash_approx Hx), (unsquash_approx Hy').
+        rewrite knot_level, Hy' in Hly; simpl in *.
+        rewrite Hly, <- Hl, <- H.
+        apply paf_F; auto.
+      + split. rewrite knot_level, unsquash_squash; simpl; congruence.
+        destruct (unsquash z') eqn: Hz'.
+        rewrite (unsquash_approx Hz').
+        symmetry in Hl; rewrite knot_level, Hz' in Hl.
+        simpl in Hl; subst. rewrite H.
+        apply Rel_fmap; auto.
+    - intros. destruct (unsquash x) eqn: Hx.
+      destruct (id_exists _f) as (_f0 & ? & ?).
+      exists (squash (n, _f0)); split.
+      + intros ?? J.
+        apply unsquash_inj.
+        destruct J as [Jl J].
+        rewrite unsquash_squash in *; simpl in *.
+        destruct (unsquash a) eqn: Ha, (unsquash b) eqn: Hb; simpl in *.
+        destruct Jl; subst.
+        rewrite (unsquash_approx Ha) in J.
+        apply (paf_preserves_unmap_right paf_F) in J as (? & ? & J & ? & ?).
+        rewrite <- (unsquash_approx Ha) in *; subst.
+        apply H in J; subst; auto.
+      + split; rewrite unsquash_squash, Hx; simpl. split; auto.
+        rewrite (unsquash_approx Hx).
+        apply (paf_join_hom paf_F); auto.
   Qed.
 
 End KnotFullSa.

@@ -1125,7 +1125,7 @@ Next Obligation.
 split; intros; congruence.
 Qed.
 Next Obligation.
-hnf; simpl; intros. hnf; simpl; intros. 
+split; simpl; repeat intro.
 destruct (a@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction.
 rewrite (necR_NO a a') in Heqr.
 rewrite Heqr; auto.
@@ -1134,6 +1134,8 @@ subst.
 apply (necR_YES a a') in Heqr; [ | constructor; auto].
 rewrite Heqr.
 auto.
+
+apply rmap_order in H as (_ & <- & _); auto.
 Qed.
 Next Obligation.
 split3; intros; congruence.

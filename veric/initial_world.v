@@ -39,7 +39,7 @@ Lemma VALspec_range_e:
                 {x | m @ loc = YES sh (snd x) (VAL (fst x)) NoneP}.
 Proof.
 intros.
-destruct H as [H _]; specialize (H loc).
+specialize (H loc).
 rewrite jam_true in H; auto.
 simpl in H.
 destruct (m @ loc); try destruct k;
@@ -158,10 +158,13 @@ pose (f loc :=
    then YES sh (writable_readable_share wsh) (VAL (contents_at m' loc)) NoneP
    else core (w @ loc)).
 pose (H0 := True).
-destruct (remake_rmap f (core (ghost_of w)) (level w)) as [m2 [? ?]].
+destruct (remake_rmap f (ghost_of m1) (level w)) as [m2 [? ?]]; auto.
 intros; unfold f, no_preds; simpl; intros; repeat if_tac; auto.
-left. exists (core w). rewrite core_resource_at. rewrite level_core.  auto.
-{ rewrite <- ghost_of_core, <- level_core; apply ghost_of_approx. }
+left. change fcore with (@core _ _ (fsep_sep Sep_resource)). exists (core w). rewrite core_resource_at. rewrite level_core.  auto.
+{ apply join_level in H4 as [_ Hl].
+  simpl in Hl.
+  unfold inflate_initial_mem in Hl; rewrite level_make_rmap in Hl.
+  rewrite <- Hl; apply ghost_of_approx. }
 unfold f in *; clear f.
 exists m2.
 destruct H2 as [H2 Hg2].
@@ -178,7 +181,7 @@ simpl; repeat rewrite inflate_initial_mem_level; auto.
 rewrite H1; simpl; rewrite inflate_initial_mem_level; auto.
 destruct H as [H [H5 H7]].
 intros [b' z']; apply (resource_at_join _ _ _ (b',z')) in H4; specialize (H b' z').
-destruct H3 as [H3 Hg]. specialize (H3 (b',z')). unfold jam in H3.
+specialize (H3 (b',z')). unfold jam in H3.
 hnf in H3. if_tac in H3.
 2: rename H6 into H8.
 clear H. destruct H6 as [H H8].
@@ -207,7 +210,7 @@ destruct (w @ (b,z')); inv H4.
 inv H4.
 + (* case 1.2 *)
 apply join_unit2_e in H4; auto.
-clear m1 H3 Hg.
+clear m1 H3 Hg2.
 destruct H. contradiction.
 rewrite H2; clear H2.
 rewrite if_false; auto.
@@ -222,22 +225,18 @@ specialize (IOK (b',z')). simpl in IOK.
 destruct IOK as [IOK1 IOK2].
 rewrite <- H.
 revert IOK2; case_eq (w @ (b',z')); intros.
-rewrite core_NO.
+change fcore with (@core _ _ (fsep_sep Sep_resource)). rewrite core_NO.
 destruct (access_at m (b', z')); try destruct p; try constructor; auto.
-rewrite core_YES.
+change fcore with (@core _ _ (fsep_sep Sep_resource)). rewrite core_YES.
 destruct (access_at m (b', z')); try destruct p0; try constructor; auto.
 destruct IOK2 as [? [? ?]].
-rewrite H2. rewrite core_PURE; constructor.
+rewrite H2. change fcore with (@core _ _ (fsep_sep Sep_resource)). rewrite core_PURE; constructor.
 +
-destruct H3 as [_ Hg].
 apply ghost_of_join in H4.
 unfold initial_mem in *; simpl in *; unfold inflate_initial_mem in *; simpl in *.
 rewrite ghost_of_make_rmap in *.
-rewrite (Hg _ _ (join_comm H4)).
-rewrite Hg2; apply join_comm, core_unit.
+rewrite Hg2; auto.
 * (**** case 2 of 3 ****)
-destruct H3 as [H3 Hg].
-split.
 intro loc.
 specialize (H3 loc).
 hnf in H3|-*.
@@ -251,7 +250,6 @@ apply H6.
 do 3 red. rewrite H2.
 rewrite if_false; auto.
 apply core_identity.
-simpl; rewrite Hg2; apply core_identity.
 Qed.
 
 (*Lemma mem_alloc_juicy:
@@ -599,7 +597,7 @@ intros.
               unfold Genv.find_symbol in H2. rewrite H2.
               split; intros. congruence. subst. exfalso. apply n1; trivial.
 
-        replace ((n + Z.to_pos (Z.succ (Zlength (p ::dl))))%positive) with
+        replace ((n + Z.to_pos (Z.succ (Zlength (p :: dl))))%positive) with
           ((Pos.succ n) + Z.to_pos (Zlength (p ::dl)))%positive.
         2: { clear - n dl. rewrite Z2Pos.inj_succ.
                    rewrite Pplus_one_succ_r. rewrite Pplus_one_succ_l.

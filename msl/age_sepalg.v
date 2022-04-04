@@ -7,7 +7,7 @@ Require Import VST.msl.ageable.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.sepalg_generators.
 
-Class Age_alg (A:Type) {JOIN: Join A}{as_age : ageable A} :=
+Class Age_alg (A:Type) {JOIN: Join A}{as_age : ageable A}{SA: Sep_alg A} :=
 mkAge {
   age1_join : forall x {y z x'}, join x y z -> age x x' ->
     exists y':A, exists z':A, join x' y' z' /\ age y y' /\ age z z'
@@ -17,9 +17,10 @@ mkAge {
     exists y:A, exists z:A, join x y z /\ age y y' /\ age z z'
 ; unage_join2 : forall z {x' y' z'}, join x' y' z' -> age z z' ->
     exists x:A, exists y:A, join x y z /\ age x x' /\ age y y'
+; age_core : forall x y : A, age x y -> age (core x) (core y)
 }.
 
-Lemma age1_None_joins {A}{JA: Join A}{PA: Perm_alg A}{agA: ageable A}{XA: Age_alg A}: forall phi1 phi2, joins phi1 phi2 -> age1 phi1 = None -> age1 phi2 = None.
+Lemma age1_None_joins {A}{JA: Join A}{PA: Perm_alg A}{agA: ageable A}{SA: Sep_alg A}{XA: Age_alg A}: forall phi1 phi2, joins phi1 phi2 -> age1 phi1 = None -> age1 phi2 = None.
 Proof.
   intros.
   destruct H.
@@ -28,7 +29,7 @@ Proof.
   unfold age in *; rewrite H0 in H3; inv H3.
 Qed.
 
-Lemma age1_joins_eq {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{XA: Age_alg A}: forall phi1 phi2,
+Lemma age1_joins_eq {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{SA: Sep_alg A}{XA: Age_alg A}: forall phi1 phi2,
         joins phi1 phi2 ->
         forall phi1', age1 phi1 = Some phi1' ->
         forall phi2', age1 phi2 = Some phi2' ->
@@ -47,6 +48,7 @@ Section BIJECTION.
   Variable PA: Perm_alg A.
   Variable ag: ageable A.
   Variable bijAB: bijection A B.
+  Variable SA: Sep_alg A.
   Variable asa : Age_alg A.
 
   #[local] Existing Instance PA.
@@ -55,7 +57,7 @@ Section BIJECTION.
 
 (*  #[local] Instance PA_B:  @Perm_alg B (Join_bij _ _ _ bijAB ) := @Perm_bij A JA PA B bijAB. *)
 
-  Theorem asa_bijection : @Age_alg B (Join_bij _ _ _ bijAB) agB.
+  Theorem asa_bijection : @Age_alg B (Join_bij _ _ _ bijAB) agB (Sep_bij _ _ _ bijAB).
   Proof.
     constructor; unfold age, Join_bij; simpl;     destruct bijAB as [f g fg gf]; simpl  in *; intros.
 
@@ -102,6 +104,11 @@ Section BIJECTION.
     repeat rewrite gf.
     rewrite H2; rewrite H3.
     repeat rewrite fg; split; auto.
+
+    (* core *)
+    rewrite gf. destruct (age1 (g x)) eqn: Hage; [|discriminate].
+    inv H. apply age_core in Hage; rewrite Hage.
+    rewrite gf; reflexivity.
   Qed.
 End BIJECTION.
 
@@ -109,13 +116,15 @@ Section PROD.
   Variable A : Type.
   Variable J_A: Join A.
   Variable saA : Perm_alg A.
+  Variable SA : Sep_alg A.
   Variable agA : ageable A.
   Variable B: Type.
   Variable J_B: Join B.
   Variable saB : Perm_alg B.
+  Variable SB : Sep_alg B.
   Variable asa : Age_alg A.
 
-  Theorem asa_prod : @Age_alg (prod A B) _ (ag_prod A B agA).
+  Theorem asa_prod : @Age_alg (prod A B) _ (ag_prod A B agA) (Sep_prod SA SB).
   Proof.
     constructor; unfold age; simpl; unfold Join_prod.
 
@@ -150,6 +159,12 @@ Section PROD.
     destruct (unage_join2 _ H H1) as [xa [ya [? [? ?]]]].
     exists (xa,xb'); exists (ya,yb'); simpl.
     rewrite H3; rewrite H4; repeat split; auto.
+
+    (* core *)
+    intros (?, ?) ?; simpl.
+    destruct (age1 a) eqn: Hage; [|discriminate].
+    intros X; inv X.
+    apply age_core in Hage; rewrite Hage. reflexivity.
   Qed.
 End PROD.
 
@@ -157,14 +172,16 @@ Section PROD'.
   Variable A : Type.
   Variable J_A: Join A.
   Variable saA : Perm_alg A.
+  Variable SA : Sep_alg A.
   Variable B: Type.
   Variable J_B: Join B.
   Variable saB : Perm_alg B.
+  Variable SB : Sep_alg B.
   Variable agB : ageable B.
   Variable asb : Age_alg B.
 
 
-  Theorem asa_prod' : @Age_alg (prod A B) _ (ag_prod' A B agB).
+  Theorem asa_prod' : @Age_alg (prod A B) _ (ag_prod' A B agB) (Sep_prod SA SB).
   Proof.
     constructor; unfold age; simpl; unfold Join_prod.
 
@@ -199,11 +216,17 @@ Section PROD'.
     destruct (unage_join2 _ H0 H1) as [xb [yb [? [? ?]]]].
     exists (xa',xb); exists (ya',yb); simpl.
     rewrite H3; rewrite H4; repeat split; auto.
+
+    (* core *)
+    intros (?, ?) ?; simpl.
+    destruct (age1 b) eqn: Hage; [|discriminate].
+    intros X; inv X.
+    apply age_core in Hage; rewrite Hage. reflexivity.
   Qed.
 End PROD'.
 
 
-Lemma joins_fashionR {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{XA: Age_alg A} : forall x y,
+Lemma joins_fashionR {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{SA: Sep_alg A}{XA: Age_alg A} : forall x y,
   joins x y -> fashionR x y.
 Proof.
   pose proof I.
@@ -248,12 +271,12 @@ intros.
 unfold identity in *.
 intros.
 destruct (unage_join _ H1 H) as [y [? [? [? ?]]]].
-specialize ( H0 y x H2).
+specialize (H0 y x H2).
 subst.
 unfold age in *. congruence.
 Qed.
 
-Lemma age_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageable A}{asaA: Age_alg A}:
+Lemma age_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Flat_alg A} {agA: ageable A}{asaA: Age_alg A}:
     forall phi1 phi2 phi1' phi2', age phi1 phi1' -> age phi2 phi2' ->
       comparable phi1 phi2 -> comparable phi1' phi2'.
 Proof.
@@ -269,7 +292,7 @@ Proof.
   split; apply join_comm; auto.
 Qed.
 
-  Lemma asa_nat : @Age_alg nat (Join_equiv nat) ag_nat.
+  Lemma asa_nat : @Age_alg nat (Join_equiv nat) ag_nat _.
   Proof.
     constructor.
     repeat intro. hnf in H; subst; auto.
@@ -284,6 +307,7 @@ Qed.
     exists x; exists x. intuition.
     intros. destruct H; subst.
     exists z; exists z; intuition.
+    intros; simpl; auto.
   Qed.
 
 Lemma nec_identity {A} `{asaA: Age_alg A}: forall phi phi', necR phi phi'->
@@ -291,6 +315,25 @@ Lemma nec_identity {A} `{asaA: Age_alg A}: forall phi phi', necR phi phi'->
 Proof.
   induction 1; auto.
   apply age_identity; auto.
+Qed.
+
+Lemma later_join2 {A} `{asaA : Age_alg A}: forall {x y z z' : A},
+       join x y z ->
+       laterR z z' ->
+       exists x',
+         exists y',
+           join x' y' z' /\ laterR x x' /\ laterR y y'.
+Proof.
+intros.
+revert x y H; induction H0; intros.
+edestruct (age1_join2) as [x' [y' [? [? ?]]]]; eauto.
+exists x'; exists y'; split; auto.
+split; constructor 1; auto.
+destruct (IHclos_trans1 _ _ H) as [x' [y' [? [? ?]]]].
+destruct (IHclos_trans2 _ _ H0) as [x'' [y'' [? [? ?]]]].
+exists x''; exists y''.
+split; auto.
+split; econstructor 2; eauto.
 Qed.
 
 Lemma nec_join2 {A} `{asaA : Age_alg A}: forall {x y z z' : A},
@@ -301,16 +344,28 @@ Lemma nec_join2 {A} `{asaA : Age_alg A}: forall {x y z z' : A},
            join x' y' z' /\ necR x x' /\ necR y y'.
 Proof.
 intros.
-revert x y H; induction H0; intros.
-edestruct (age1_join2) as [x' [y' [? [? ?]]]]; eauto.
-exists x'; exists y'; split; auto.
+apply nec_refl_or_later in H0 as [|]; [subst; eauto|].
+eapply later_join2 in H0 as (? & ? & ? & ? & ?); eauto.
+do 3 eexists; eauto; split; apply laterR_necR; auto.
+Qed.
+
+Lemma later_join {A} `{asaA : Age_alg A}: forall {x y z x' : A},
+       join x y z ->
+       laterR x x' ->
+       exists y' ,
+         exists z' ,
+           join x' y' z' /\ laterR y y' /\ laterR z z'.
+Proof.
+intros.
+revert y z H; induction H0; intros.
+edestruct age1_join as [y' [z' [? [? ?]]]]; eauto.
+exists y'; exists z'; split; auto.
 split; constructor 1; auto.
-exists x0; exists y; split; auto.
-destruct (IHclos_refl_trans1 _ _ H) as [x' [y' [? [? ?]]]].
-destruct (IHclos_refl_trans2 _ _ H0) as [x'' [y'' [? [? ?]]]].
-exists x''; exists y''.
+destruct (IHclos_trans1 _ _ H) as [y' [z' [? [? ?]]]].
+destruct (IHclos_trans2 _ _ H0) as [y'' [z'' [? [? ?]]]].
+exists y''; exists z''.
 split; auto.
-split; econstructor 3; eauto.
+split; econstructor 2; eauto.
 Qed.
 
 Lemma nec_join {A} `{asaA : Age_alg A}: forall {x y z x' : A},
@@ -321,16 +376,9 @@ Lemma nec_join {A} `{asaA : Age_alg A}: forall {x y z x' : A},
            join x' y' z' /\ necR y y' /\ necR z z'.
 Proof.
 intros.
-revert y z H; induction H0; intros.
-edestruct age1_join as [y' [z' [? [? ?]]]]; eauto.
-exists y'; exists z'; split; auto.
-split; constructor 1; auto.
-exists y; exists z; split; auto.
-destruct (IHclos_refl_trans1 _ _ H) as [y' [z' [? [? ?]]]].
-destruct (IHclos_refl_trans2 _ _ H0) as [y'' [z'' [? [? ?]]]].
-exists y''; exists z''.
-split; auto.
-split; econstructor 3; eauto.
+apply nec_refl_or_later in H0 as [|]; [subst; eauto|].
+eapply later_join in H0 as (? & ? & ? & ? & ?); eauto.
+do 3 eexists; eauto; split; apply laterR_necR; auto.
 Qed.
 
 Lemma nec_join4 {A} `{asaA : Age_alg A}: forall z x' y' z' : A,
@@ -357,8 +405,32 @@ split; auto.
 split; econstructor 3; eauto.
 Qed.
 
+Lemma nec_join3 {A} `{asaA : Age_alg A}: forall x x' y' z' : A,
+       join x' y' z' ->
+       necR x x' ->
+       exists y,
+         exists z,
+           join x y z /\ necR y y' /\ necR z z'.
+Proof.
+intros.
+revert y' z' H.
+induction H0; intros.
+destruct (unage_join _ H0 H) as  [y0 [z0 [? [? ?]]]].
+exists y0; exists z0; split; auto.
+split; constructor 1; auto.
+exists y'; exists z'; split; auto.
 
-Lemma join_level {A}{JA: Join A}{PA: Perm_alg A}{AG: ageable A}{AgeA: Age_alg A}:
+rename y into x1.
+rename z into x2.
+destruct (IHclos_refl_trans2 _ _ H) as [y'' [z'' [? [? ?]]]].
+destruct (IHclos_refl_trans1 _ _ H0) as [y0 [z0 [? [? ?]]]].
+exists y0; exists z0.
+split; auto.
+split; econstructor 3; eauto.
+Qed.
+
+
+Lemma join_level {A}{JA: Join A}{PA: Perm_alg A}{AG: ageable A}{SA: Sep_alg A}{AgeA: Age_alg A}:
   forall x y z, join x y z -> level x = level z /\ level y = level z.
 Proof.
   intros.
@@ -394,14 +466,9 @@ Lemma age_core_eq {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}
   forall x y x' y', age x x' -> age y y' -> core x = core y -> core x' = core y'.
 Proof.
  intros.
- generalize (core_unit x); unfold unit_for; intro. apply join_comm in H2.
- generalize (core_unit y); unfold unit_for; intro. apply join_comm in H3.
- destruct (age1_join _ H2 H) as [u [v [? [? ?]]]].
- destruct (age1_join _ H3 H0) as [i [j [? [? ?]]]].
- unfold age in *. rewrite H in H6. inv H6. rewrite H0 in H9; inv H9.
- rewrite H1 in *. rewrite H5 in H8; inv H8.
- apply join_core2 in H4. apply join_core2 in H7.
-  congruence.
+ pose proof (age_core _ _ H) as Hc1.
+ pose proof (age_core _ _ H0) as Hc2.
+ rewrite H1 in Hc1; unfold age in *; congruence.
 Qed.
 
 Lemma age_twin {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
@@ -437,7 +504,7 @@ rewrite H2.
 trivial.
 Qed.
 
-Lemma age1_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3,
+Lemma age1_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{SA: Sep_alg A}{AgeA: Age_alg A} : forall phi1 phi2 phi3,
         join phi1 phi2 phi3 ->
         forall phi1', age1 phi1 = Some phi1' ->
         forall phi2', age1 phi2 = Some phi2' ->
@@ -460,22 +527,6 @@ Qed.
 Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i) -> P n) n : P n.
 Proof.
   apply IH; induction n; intros i li; inversion li; eauto.
-Qed.
-
-Lemma age_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall x y : A, age x y -> age (core x) (core y).
-Proof.
- intros. unfold age in *.
- pose proof (core_unit x).
- unfold unit_for in H0.
- destruct (age1_join2 _ H0 H) as [a [b [? [? ?]]]].
- unfold age in H3. rewrite H3 in H; inv H.
- pose proof (core_unit y).
- assert (a = core y); [|subst; auto].
- eapply same_identity; eauto.
- - eapply age_identity; eauto.
-   apply core_identity.
- - apply core_identity.
 Qed.
 
 Lemma laterR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:

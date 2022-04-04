@@ -108,7 +108,7 @@ Proof.
   apply pred_ext.
   + hnf; intros.
     hnf; intros.
-    hnf; intros.
+    intros ?? H1 Hext H2.
     destruct H2 as [[? ?] ?].
     apply bupd_trans.
     hnf.
@@ -117,10 +117,8 @@ Proof.
     destruct H3 as [b [? [m' [? [? [? ?]]]]]].
     exists b; split; auto.
     exists m'; split; [| split; [| split]]; auto.
-    change (assert_safe Espec gx f vx tx k rho m').
-    specialize (H m' ltac: (apply necR_level in H1; lia)).
-    specialize (H m' ltac: (apply necR_refl)).
-    apply H.
+    eapply H; try reflexivity; try apply necR_refl.
+    { apply necR_level in H1; apply ext_level in Hext; lia. }
     split; [split |]; auto.
     subst PP2.
     pose proof funassert_resource Delta rho _ _ (eq_sym H6) (eq_sym H7).
@@ -128,9 +126,8 @@ Proof.
   + hnf; intros.
     hnf; intros.
     specialize (H y H0).
-    hnf; intros.
-    specialize (H a' H1).
-    apply H.
+    intros ?? H1 Hext H2.
+    eapply H; eauto.
     destruct H2 as [[? ?] ?].
     split; [split |]; auto.
     apply bupd_intro; auto.
@@ -180,7 +177,7 @@ Proof.
   apply pred_ext.
   + hnf; intros.
     hnf; intros.
-    hnf; intros.
+    intros ?? H1 Hext H2.
     destruct H2 as [[? ?] ?].
     apply bupd_trans.
     hnf.
@@ -190,10 +187,8 @@ Proof.
     destruct H3 as [b [? [m' [? [? [? ?]]]]]].
     exists b; split; auto.
     exists m'; split; [| split; [| split]]; auto.
-    change (assert_safe Espec gx f vx tx k rho m').
-    specialize (H m' ltac: (apply necR_level in H1; lia)).
-    specialize (H m' ltac: (apply necR_refl)).
-    apply H.
+    eapply H; try reflexivity; try apply necR_refl.
+    { apply necR_level in H1; apply ext_level in Hext; lia. }
     split; [split |]; auto.
     subst PP2.
     pose proof funassert_resource Delta rho _ _ (eq_sym H6) (eq_sym H7).
@@ -201,9 +196,8 @@ Proof.
   + hnf; intros.
     hnf; intros.
     specialize (H y H0).
-    hnf; intros.
-    specialize (H a' H1).
-    apply H.
+    intros ?? H1 Hext H2.
+    eapply H; eauto.
     destruct H2 as [[? ?] ?].
     split; [split |]; auto.
     revert H3.
@@ -273,10 +267,10 @@ Proof.
   + hnf; intros.
     hnf; intros.
     specialize (H y H0).
-    hnf; intros.
-    specialize (H a' H1).
+    intros ?? H1 Hext H2.
+    specialize (H _ _ H1 Hext).
     clear - H H2.
-    destruct (level a') eqn:?H in |- *.
+    destruct (level a'') eqn:?H in |- *.
     - hnf.
       intros.
       eexists; split; [exact H1 |].
@@ -291,16 +285,15 @@ Proof.
       destruct H2; auto.
       hnf in H2.
       unfold laterM in H2; simpl in H2.
-      pose proof levelS_age a' n (eq_sym H0) as [? [? ?]].
+      pose proof levelS_age a'' n (eq_sym H0) as [? [? ?]].
       exfalso; apply (H2 x).
       apply age_laterR.
       auto.
   + hnf; intros.
     hnf; intros.
     specialize (H y H0).
-    hnf; intros.
-    specialize (H a' H1).
-    apply H.
+    intros ?? H1 Hext H2.
+    eapply H; eauto.
     destruct H2 as [[? ?] ?].
     split; [split |]; auto.
     right; auto.
@@ -358,10 +351,10 @@ Proof.
   + hnf; intros.
     hnf; intros.
     specialize (H y H0).
-    hnf; intros.
-    specialize (H a' H1).
+    intros ?? H1 Hext H2.
+    specialize (H _ _ H1 Hext).
     clear - H H2.
-    destruct (level a') eqn:?H in |- *.
+    destruct (level a'') eqn:?H in |- *.
     - hnf.
       intros.
       eexists; split; [exact H1 |].
@@ -388,9 +381,8 @@ Proof.
   + hnf; intros.
     hnf; intros.
     specialize (H y H0).
-    hnf; intros.
-    specialize (H a' H1).
-    apply H.
+    intros ?? H1 Hext H2.
+    eapply H; eauto.
     destruct H2 as [[? ?] ?].
     split; [split |]; auto.
     destruct H3 as [? [? [? [? ?]]]].
@@ -437,7 +429,7 @@ Proof.
   apply allp_derives; intro vx;
   forget (construct_rho (filter_genv ge) vx tx) as rho;
   cbv beta iota zeta;
-  (destruct vl; simpl; [intros ? ? ? ? ? ? [[_ [? [? [? [_ [? _]]]]]] _]; discriminate | ]);
+  (destruct vl; simpl; [intros ? ? ? ? ? ? ? ? [[_ [? [? [? [_ [? _]]]]]] _]; discriminate | ]);
   rewrite !(prop_true_andp (None=None)) by auto;
   rewrite assert_safe_except_0; auto.
 Qed.
@@ -591,7 +583,7 @@ all:    specialize (Hx rho); inv Hx; simpl in *;
         (allp_fun_id Delta rho && ek R' rho))); subst ek;
      [  intros ? [? [? [? ?]]];  split3; auto; split; auto | ];
     apply prop_andp_left; intro Hvl;
-    rewrite (prop_true_andp _ _ _ Hvl); auto.
+    rewrite (prop_true_andp _ _ Hvl); auto.
   + erewrite (guard_allp_fun_id _ _ _ _ _ P) by eauto.
     erewrite (guard_tc_environ _ _ _ _ _ (fun rho => allp_fun_id Delta rho && P rho)) by eauto.
     rewrite (guard_except_0 _ _ _ _ P').
@@ -628,10 +620,10 @@ apply allp_derives; intro vl.
 apply allp_derives; intro te.
 apply allp_derives; intro ve.
 intros ? ?.
-intros ? ? ? ? ?.
+intros ? ? ? ? ? Hext ?.
 destruct H3 as [[? HFP] ?].
 assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
-  (construct_rho (filter_genv psi) ve te)) a') as HFP'.
+  (construct_rho (filter_genv psi) ve te)) a'') as HFP'.
 { specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
   rewrite prop_true_andp in H.
   destruct ek; [ | simpl in * |- .. ].
@@ -660,15 +652,16 @@ assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
     destruct R; auto.
   * destruct H3; eapply typecheck_environ_sub; eauto. }
 assert ((bupd (assert_safe Espec psi f ve te (exit_cont ek vl k)
-  (construct_rho (filter_genv psi) ve te))) a') as Hsafe.
+  (construct_rho (filter_genv psi) ve te))) a'') as Hsafe.
 { intros ? J.
   destruct (HFP' _ J) as (b & ? & m' & ? & ? & ? & ?).
   exists b; split; auto; exists m'; repeat split; auto.
   pose proof (necR_level _ _ H2).
+  apply rmap_order in Hext as (? & Hr & ?).
   lapply (H0 m'); [|lia].
-  intro X; apply X; auto.
+  intro X; eapply X; auto.
   split; [split|]; auto.
-  apply funassert_resource with (a := a'); auto. }
+  apply funassert_resource with (a := a''); auto. }
 eapply bupd_trans; eauto.
 Qed.
 
@@ -704,7 +697,7 @@ unfold guard.
 apply allp_derives; intro te.
 apply allp_derives; intro ve.
 intros ? ?.
-intros ? ? ? ? ?.
+intros ? ? ? ? ? Hext ?.
 destruct H3 as [[? HFP] ?].
 eapply sepcon_derives in HFP; [| apply derives_refl | apply H].
 apply bupd_frame_l in HFP.
@@ -712,10 +705,11 @@ apply bupd_trans; intros ? J.
 destruct (HFP _ J) as (b & ? & m' & ? & ? & ? & HFP').
 exists b; split; auto; exists m'; repeat split; auto.
 pose proof (necR_level _ _ H2).
+apply rmap_order in Hext as (? & ? & ?).
 lapply (H0 m'); [|lia].
-intro X; apply X; auto.
+intro X; eapply X; auto.
 split; [split|]; auto.
-apply funassert_resource with (a := a'); auto.
+apply funassert_resource with (a := a''); auto.
 { destruct H3; eapply typecheck_environ_sub; eauto. }
 Qed.
 
@@ -791,7 +785,7 @@ apply semax'_post_bupd.
 intros; destruct ek; simpl;
 repeat (apply normalize.derives_extract_prop; intro); rewrite ?prop_true_andp by auto;
 specialize (H rho); specialize (H0 rho); specialize (H1 rho); specialize (H2 vl rho);
-rewrite prop_true_andp in * by auto; auto.
+rewrite ?prop_true_andp in H, H0, H1, H2 by auto; auto.
 Qed.
 
 Lemma semax_post' {CS: compspecs} {Espec: OracleKind}:
@@ -827,7 +821,7 @@ apply semax'_post.
 intros; destruct ek; simpl;
 repeat (apply normalize.derives_extract_prop; intro); rewrite ?prop_true_andp by auto;
 specialize (H rho); specialize (H0 rho); specialize (H1 rho); specialize (H2 vl rho);
-rewrite prop_true_andp in * by auto; auto.
+rewrite prop_true_andp in H, H0, H1, H2 by auto; auto.
 Qed.
 
 Lemma semax_pre_bupd {CS: compspecs} {Espec: OracleKind} :

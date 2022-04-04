@@ -105,11 +105,11 @@ split3.
 { clear Hyp3. red; intros j fd J. destruct J; [ inv H | auto].
   exists b; split; trivial. }
 intros. specialize (Hyp3 _ Gfs Gffp n).
-intros v sig cc A P Q m NM CL. simpl in CL. red in CL.
+intros v sig cc A P Q ? m NM EM CL. simpl in CL. red in CL.
 destruct CL as [j [Pne [Qne [J GJ]]]]. simpl in J.
 rewrite PTree.gsspec in J.
 destruct (peq j id); subst.
-+ specialize (Hyp3 v sig cc A P Q m NM).
++ specialize (Hyp3 v sig cc A P Q _ _ NM EM).
   clear Hyp3.
   destruct GJ as [bb [BB VV]]. inv J. 
   assert (bb = b). 
@@ -122,7 +122,7 @@ destruct (peq j id); subst.
   destruct ifunc; trivial.
   destruct ifunc; trivial.
   intros until b2; intros Impos; inv Impos.
-+ apply (Hyp3 v sig cc A P Q m NM).
++ apply (Hyp3 v sig cc A P Q _ _ NM EM).
   simpl. exists j; do 2 eexists; split. apply J. apply GJ.
 Qed. 
 

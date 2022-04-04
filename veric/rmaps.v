@@ -97,25 +97,25 @@ Module Type STRAT_MODEL.
   Inductive res_join (PRED : Type) : f_res PRED -> f_res PRED -> f_res PRED -> Prop :=
     | res_join_NO1 : forall sh1 nsh1 sh2 nsh2 sh3 nsh3,
                                join sh1 sh2 sh3 ->
-                               res_join PRED (NO' PRED sh1 nsh1) (NO' PRED sh2 nsh2) 
+                               res_join PRED (NO' PRED sh1 nsh1) (NO' PRED sh2 nsh2)
                                      (NO' PRED sh3 nsh3)
     | res_join_NO2 : forall sh1 nsh1 sh2 rsh2 sh3 rsh3 k p,
                                join sh1 sh2 sh3 ->
-                               res_join PRED (NO' PRED sh1 nsh1) (YES' PRED sh2 rsh2 k p) 
+                               res_join PRED (NO' PRED sh1 nsh1) (YES' PRED sh2 rsh2 k p)
                                    (YES' PRED sh3 rsh3 k p)
     | res_join_NO3 : forall sh1 rsh1 sh2 nsh2 sh3 rsh3 k p,
                                join sh1 sh2 sh3 ->
-                               res_join PRED (YES' PRED sh1 rsh1 k p) (NO' PRED sh2 nsh2) 
+                               res_join PRED (YES' PRED sh1 rsh1 k p) (NO' PRED sh2 nsh2)
                                    (YES' PRED sh3 rsh3 k p)
     | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p,
                               join sh1 sh2 sh3 ->
               res_join PRED (YES' PRED sh1 rsh1 k p) (YES' PRED sh2 rsh2 k p) (YES' PRED sh3 rsh3 k p)
     | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
   Axiom pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
-  #[global] Instance sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
+  #[global] Instance sa_rj : forall PRED, @FSep_alg _ (res_join PRED).
   Proof. intros.
-            apply mkSep 
-             with (fun x => match x 
+            apply mkSep
+             with (fun x => match x
                              with NO' _ _ => NO' _ Share.bot bot_unreadable
                                | YES' _ _ _ _ => NO' _ Share.bot bot_unreadable
                                | PURE' k pds => PURE' _ k pds end).
@@ -134,6 +134,7 @@ Module Type STRAT_MODEL.
 
   Definition ghost (PRED : Type) : Type :=
     list (option ({g: Ghost & {a: @G g | ghost.valid a}} * fpreds PRED)%type).
+
 
   Definition ghost_fmap (A B:Type) (f:A->B) (g:B->A)(x:ghost A) : ghost B :=
     fmap (flist (foption (fpair (fconst _) fpreds))) f g x.
@@ -158,9 +159,32 @@ Module Type STRAT_MODEL.
 
   Axiom pa_gj : forall PRED, @Perm_alg _ (ghost_join PRED).
 
+  Definition ghost_core (x : {g: Ghost & {a: @G g | ghost.valid a}}) : {g: Ghost & {a: @G g | ghost.valid a}} :=
+    match x with existT _ (exist _ V) => existT _ _ (exist _ _ (core_valid _ V)) end.
+
   #[global] Instance sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
   Proof.
-    intros; exists (fun _ => nil); auto; constructor.
+    intros; exists (fun g => map (option_map (fun '(a, b) => (ghost_core a, b))) g); auto; intros.
+    - hnf.
+      induction t; constructor; auto; simpl.
+      destruct a as [(?, ?)|]; repeat constructor; simpl.
+      unfold ghost_core. destruct s as (? & ? & ?); constructor. apply core_unit.
+    - induction H; try solve [eexists; constructor].
+      destruct IHghost_join as [x J].
+      exists (option_map (fun '(x, y) => (ghost_core x, y)) a3 :: x); constructor; auto.
+      inv H; try constructor.
+      + destruct a3 as [(?, ?)|]; constructor.
+        split; hnf; auto; simpl.
+        destruct s as (? & ? & ?); simpl. constructor.
+        apply core_duplicable.
+      + destruct a0, a4, a5; simpl in *.
+        destruct H1; split; simpl in *.
+        * inv H; simpl. constructor.
+          eapply core_sub_join, join_core_sub; eassumption.
+        * destruct H1; subst; split; auto.
+    - rewrite map_map; apply map_ext.
+      intros [((? & ? & ?), ?)|]; auto; simpl.
+      do 3 f_equal. apply exist_ext, core_idem.
   Defined.
   Axiom paf_ghost : @pafunctor f_ghost ghost_join.
 
@@ -191,10 +215,15 @@ forall (A : Type) (m : f_pre_rmap A),
                  (fun _ : (fconst address) A => f_res A)
                  (fun _ : (fconst address) A => Join_res A))
               (f_ghost A) (ghost_join A)
+              (Perm_pi ((fconst address) A)
+                 (fun _ : (fconst address) A => f_res A)
+                 (fun _ : (fconst address) A => Join_res A)
+                 (fun _ : (fconst address) A => pa_rj A)) (pa_gj A)
               (Sep_pi ((fconst address) A)
                  (fun _ : (fconst address) A => f_res A)
                  (fun _ : (fconst address) A => Join_res A)
-                 (fun _ : (fconst address) A => sa_rj A)) 
+                 (fun _ : (fconst address) A => pa_rj A)
+                 (fun _ : (fconst address) A => fsep_sep (sa_rj A)))
               (sa_gj A)) m).
 
 End STRAT_MODEL.
@@ -231,15 +260,15 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Inductive res_join (PRED : Type) : f_res PRED -> f_res PRED -> f_res PRED -> Prop :=
     | res_join_NO1 : forall sh1 nsh1 sh2 nsh2 sh3 nsh3,
                                join sh1 sh2 sh3 ->
-                               res_join PRED (NO' PRED sh1 nsh1) (NO' PRED sh2 nsh2) 
+                               res_join PRED (NO' PRED sh1 nsh1) (NO' PRED sh2 nsh2)
                                      (NO' PRED sh3 nsh3)
     | res_join_NO2 : forall sh1 nsh1 sh2 rsh2 sh3 rsh3 k p,
                                join sh1 sh2 sh3 ->
-                               res_join PRED (NO' PRED sh1 nsh1) (YES' PRED sh2 rsh2 k p) 
+                               res_join PRED (NO' PRED sh1 nsh1) (YES' PRED sh2 rsh2 k p)
                                    (YES' PRED sh3 rsh3 k p)
     | res_join_NO3 : forall sh1 rsh1 sh2 nsh2 sh3 rsh3 k p,
                                join sh1 sh2 sh3 ->
-                               res_join PRED (YES' PRED sh1 rsh1 k p) (NO' PRED sh2 nsh2) 
+                               res_join PRED (YES' PRED sh1 rsh1 k p) (NO' PRED sh2 nsh2)
                                    (YES' PRED sh3 rsh3 k p)
     | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p,
                               join sh1 sh2 sh3 ->
@@ -305,17 +334,17 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       intros a b c H; inv H; econstructor;  apply join_comm; auto.
 
 *     (* saf_positivity *)
-     intros; inv H; inv H0; 
-      repeat match goal with H: join ?A ?B ?C, H': join ?C ?D ?A |- _ => 
-                    pose proof (join_positivity H H'); subst C 
-      end; 
+     intros; inv H; inv H0;
+      repeat match goal with H: join ?A ?B ?C, H': join ?C ?D ?A |- _ =>
+                    pose proof (join_positivity H H'); subst C
+      end;
       repeat proof_irr; auto.
  Qed.
 
-  #[global] Instance sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
+  #[global] Instance sa_rj : forall PRED, @FSep_alg _ (res_join PRED).
   Proof. intros.
-            apply mkSep 
-             with (fun x => match x 
+            apply mkSep
+             with (fun x => match x
                              with NO' _ _ => NO' _ Share.bot bot_unreadable
                                | YES' _ _ _ _ => NO' _ Share.bot bot_unreadable
                                | PURE' k pds => PURE' _ k pds end).
@@ -462,9 +491,32 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       eapply join_positivity; eauto.
   Qed.
 
+  Definition ghost_core (x : {g: Ghost & {a: @G g | ghost.valid a}}) : {g: Ghost & {a: @G g | ghost.valid a}} :=
+    match x with existT _ (exist _ V) => existT _ _ (exist _ _ (core_valid _ V)) end.
+
   #[global] Instance sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
   Proof.
-    intros; exists (fun _ => nil); auto; constructor.
+    intros; exists (fun g => map (option_map (fun '(a, b) => (ghost_core a, b))) g); auto; intros.
+    - hnf.
+      induction t; constructor; auto; simpl.
+      destruct a as [(?, ?)|]; repeat constructor; simpl.
+      unfold ghost_core. destruct s as (? & ? & ?); constructor. apply core_unit.
+    - induction H; try solve [eexists; constructor].
+      destruct IHghost_join as [x J].
+      exists (option_map (fun '(x, y) => (ghost_core x, y)) a3 :: x); constructor; auto.
+      inv H; try constructor.
+      + destruct a3 as [(?, ?)|]; constructor.
+        split; hnf; auto; simpl.
+        destruct s as (? & ? & ?); simpl. constructor.
+        apply core_duplicable.
+      + destruct a0, a4, a5; simpl in *.
+        destruct H1; split; simpl in *.
+        * inv H; simpl. constructor.
+          eapply core_sub_join, join_core_sub; eassumption.
+        * destruct H1; subst; split; auto.
+    - rewrite map_map; apply map_ext.
+      intros [((? & ? & ?), ?)|]; auto; simpl.
+      do 3 f_equal. apply exist_ext, core_idem.
   Defined.
 
   Opaque fpreds.
@@ -560,7 +612,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     Perm_prod (Perm_fun address _ _ _) (pa_gj A).
 
   Definition Sep_pre_rmap (A: Type): Sep_alg (pre_rmap A) :=
-    Sep_prod (Sep_fun address _ _ _) (sa_gj A).
+    Sep_prod(PAa := Perm_fun address _ _ _) (Sep_fun address _ _ _ (fsep_sep (sa_rj _))) (sa_gj A).
 
 Lemma pre_rmap_core:
 forall (A : Type) (m : f_pre_rmap A),
@@ -576,10 +628,15 @@ forall (A : Type) (m : f_pre_rmap A),
                  (fun _ : (fconst address) A => f_res A)
                  (fun _ : (fconst address) A => Join_res A))
               (f_ghost A) (ghost_join A)
+              (Perm_pi ((fconst address) A)
+                 (fun _ : (fconst address) A => f_res A)
+                 (fun _ : (fconst address) A => Join_res A)
+                 (fun _ : (fconst address) A => pa_rj A)) (pa_gj A)
               (Sep_pi ((fconst address) A)
                  (fun _ : (fconst address) A => f_res A)
                  (fun _ : (fconst address) A => Join_res A)
-                 (fun _ : (fconst address) A => sa_rj A)) 
+                 (fun _ : (fconst address) A => pa_rj A)
+                 (fun _ : (fconst address) A => fsep_sep (sa_rj A)))
               (sa_gj A)) m).
 Proof.
 intros. reflexivity.
@@ -597,8 +654,10 @@ Module Type RMAPS.
   Axiom Join_rmap: Join rmap. #[global] Existing Instance Join_rmap.
   Axiom Perm_rmap: Perm_alg rmap. #[global] Existing Instance Perm_rmap.
   Axiom Sep_rmap: Sep_alg rmap. #[global] Existing Instance Sep_rmap.
-  Axiom ag_rmap: ageable rmap.  #[global] Existing Instance ag_rmap.
-  Axiom Age_rmap: Age_alg rmap.  #[global] Existing Instance Age_rmap.
+  Axiom ag_rmap: ageable rmap. #[global] Existing Instance ag_rmap.
+  Axiom Age_rmap: Age_alg rmap. #[global] Existing Instance Age_rmap.
+  Axiom Ext_rmap: Ext_ord rmap. #[global] Existing Instance Ext_rmap.
+  Axiom ExtA_rmap: Ext_alg rmap. #[global] Existing Instance ExtA_rmap.
 
   Inductive preds : Type :=
     SomeP : forall A : TypeTree,
@@ -623,19 +682,19 @@ Module Type RMAPS.
                  (RJ: join sh1 sh2 sh3),
                  res_join (NO sh1 nsh1) (NO sh2 nsh2) (NO sh3 nsh3)
    | res_join_NO2 : forall sh1 rsh1 sh2 nsh2 sh3 rsh3 k p
-                 (RJ: join sh1 sh2 sh3), 
-                 res_join (YES sh1 rsh1 k p) (NO sh2 nsh2) (YES sh3 rsh3 k p) 
+                 (RJ: join sh1 sh2 sh3),
+                 res_join (YES sh1 rsh1 k p) (NO sh2 nsh2) (YES sh3 rsh3 k p)
    | res_join_NO3 : forall sh1 nsh1 sh2 rsh2 sh3 rsh3 k p
                  (RJ: join sh1 sh2 sh3),
-                 res_join (NO sh1 nsh1) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p) 
+                 res_join (NO sh1 nsh1) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
    | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p
                  (RJ: join sh1 sh2 sh3),
         res_join (YES sh1 rsh1 k p) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
-   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p). 
+   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p).
 
   #[global] Instance Join_resource: Join resource := res_join.
   Axiom Perm_resource: Perm_alg resource. #[global] Existing Instance Perm_resource.
-  Axiom Sep_resource: Sep_alg resource. #[global] Existing Instance Sep_resource.
+  Axiom Sep_resource: FSep_alg resource. #[global] Existing Instance Sep_resource.
 
   Definition preds_fmap (f g: pred rmap -> pred rmap) (x:preds) : preds :=
     match x with SomeP A Q => SomeP A (fmap (fpi _) f g Q)
@@ -674,7 +733,10 @@ Module Type RMAPS.
 
   Axiom Perm_ghost: Perm_alg ghost. #[global] Existing Instance Perm_ghost.
   Axiom Sep_ghost: Sep_alg ghost. #[global] Existing Instance Sep_ghost.
-  Axiom ghost_core: forall (g: ghost), core g = nil.
+  Definition ghost_core (x : {g: Ghost & {a: @G g | ghost.valid a}}) : {g: Ghost & {a: @G g | ghost.valid a}} :=
+    match x with existT _ (exist _ V) => existT _ _ (exist _ _ (core_valid _ V)) end.
+
+  Axiom ghost_core_eq: forall (g: ghost), core g = map (option_map (fun '(a, b) => (ghost_core a, b))) g.
 
   Definition ghost_fmap (f g:pred rmap -> pred rmap)(x:ghost) : ghost :=
     map (option_map (fun '(a, b) => (a, preds_fmap f g b))) x.
@@ -720,16 +782,22 @@ Module Type RMAPS.
 
   Program Definition approx (n:nat) (p: pred rmap) : pred rmap :=
     fun w => level w < n /\ p w.
-  Next Obligation. red; intros.
-  destruct H0.
+  Next Obligation. split. intros ??? [].
   split.
   apply age_level in H. lia.
   apply pred_hereditary with a; auto.
+
+  intros ??? [].
+  split; [apply ext_level in H as <-; auto|].
+  apply pred_upclosed with a; auto.
   Qed.
 
   Axiom squash_unsquash : forall phi, squash (unsquash phi) = phi.
   Axiom unsquash_squash : forall n rm, unsquash (squash (n,rm)) = (n,rmap_fmap (approx n) (approx n) rm).
   Axiom ghost_of_core : forall phi, ghost_of (core phi) = core (ghost_of phi).
+
+  Axiom rmap_order : forall k1 k2, ext_order k1 k2 <->
+    level k1 = level k2 /\ resource_at k1 = resource_at k2 /\ join_sub (ghost_of k1) (ghost_of k2).
 
 End RMAPS.
 
@@ -740,8 +808,42 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   Module SM := StratModel(AV).
   Import SM.
 
-  Module TyF. (* <: TY_FUNCTOR_PROP. *)
+  Lemma ghost_fmap_join: forall {A B} (a b c : ghost A) f g, join a b c ->
+    join (ghost_fmap A B f g a) (ghost_fmap _ _ f g b) (ghost_fmap _ _ f g c).
+  Proof.
+    induction 1; constructor; auto.
+    inv H; constructor; auto.
+    destruct a0, a4, a5; inv H1; constructor; auto.
+    simpl in *; inv H2; constructor; auto.
+  Qed.
+
+  #[(*export, after Coq 8.13*)global] Existing Instance pa_gj.
+
+  Module TyF.
     Definition F := f_pre_rmap.
+
+    (* This is our extension order: it can be changed to anything with the properties
+       in this and the following module. *)
+    Definition Rel A (r1 r2 : f_pre_rmap A) := fst r1 = fst r2 /\ join_sub (snd r1) (snd r2).
+    Lemma Rel_fmap :
+      forall (A B : Type) (f1 : A -> B) (f2 : B -> A) (x y : F A),
+      Rel A x y -> Rel B (fmap F f1 f2 x) (fmap F f1 f2 y).
+    Proof.
+      intros ?????? []; split; simpl in *.
+      - extensionality. congruence.
+      - destruct H0. eexists; apply ghost_fmap_join; eauto.
+    Qed.
+    Lemma Rel_refl : forall (A : Type) (x : F A), Rel A x x.
+    Proof.
+      split; auto. apply join_sub_refl.
+    Qed.
+    Lemma Rel_trans :
+      forall (A : Type) (x y z : F A),
+      Rel A x y -> Rel A y z -> Rel A x z.
+    Proof.
+      intros ???? [] []; split; [congruence|].
+      eapply join_sub_trans; eauto.
+    Qed.
   End TyF.
 
   Module TyFSA <: KNOT_FULL_SA_INPUT with Module KI:=TyF.
@@ -752,18 +854,76 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     Definition Perm_F : forall A, Perm_alg (F A) := Perm_pre_rmap.
     Definition Sep_F := Sep_pre_rmap.
     Definition paf_F := paf_pre_rmap.
+
+    Lemma Rel_join_commut : forall {A} {x y z z' : F A}, join x y z ->
+      Rel A z z' -> exists x', Rel A x x' /\ join x' y z'.
+    Proof.
+      intros ? (rx, gx) (ry, gy) (rz, gz) (rz', gz') [? J] [? [g0 Jz]]; simpl in *; subst.
+      destruct (join_assoc (join_comm J) Jz) as (g' & ? & ?).
+      exists (rx, g'); repeat split; auto; simpl.
+      eexists; eauto.
+    Qed.
+
+    Lemma join_Rel_commut : forall {A} {x x' y' z' : F A}, Rel A x x' ->
+      join x' y' z' -> exists z, join x y' z /\ Rel A z z'.
+    Proof.
+      intros ? (rx, gx) (rx', gx') (ry', gy') (rz', gz') [? [g0 Jx]] [? J] ; simpl in *; subst.
+      destruct (join_assoc (join_comm Jx) J) as (g' & ? & ?).
+      exists (rz', g'); repeat split; auto; simpl.
+      eexists; eauto.
+    Qed.
+
+    Lemma id_exists : forall {A} (x : F A), exists e,
+      identity e /\ unit_for e x.
+    Proof.
+      intros ? (r, g).
+      exists (fun l => core (r l), nil); split.
+      - intros (?, ?) (?, ?) [Hr Hg]; f_equal; simpl in *.
+        + extensionality l. specialize (Hr l); simpl in Hr.
+          destruct (r l); inv Hr; auto;
+            eapply join_eq in H2; try apply bot_join_eq; subst;
+            f_equal; apply proof_irr.
+        + inv Hg; auto.
+      - split; [|constructor].
+        intros l; apply core_unit.
+    Qed.
+
   End TyFSA.
 
   Module K := Knot_MixVariantHeredProp(TyF).
   Module KL := KnotLemmas_MixVariantHeredProp(K).
-  Module KSa := KnotFullSa(TyFSA)(K)(KL).
+
+  Module KA <: KNOT_ASSM with Module KI := TyF with Module KSAI := TyFSA
+    with Module K := K.
+    Module KI := TyF.
+    Module KSAI := TyFSA.
+    Module K := K.
+    Import K.
+
+    Lemma approx_core : forall n f,
+      core(Sep_alg := Sep_pre_rmap predicate) (fmap f_pre_rmap (approx n) (approx n) f) = fmap f_pre_rmap (approx n) (approx n) (core(Sep_alg := Sep_pre_rmap predicate) f).
+    Proof.
+      intros ? (ra, g).
+      rewrite !pre_rmap_core; simpl; f_equal.
+      - extensionality a.
+        destruct (ra a); auto.
+      - induction g; [reflexivity|].
+        unfold ghost_fmap; simpl; f_equal; auto.
+        destruct a as [(?, ?)|]; auto.
+    Qed.
+
+  End KA.
+
+  Module KSa := KnotFullSa(TyFSA)(K)(KL)(KA).
 
   Definition rmap := K.knot.
-  #[global] Instance Join_rmap: Join rmap := KSa.Join_knot.
+  #[global] Instance Join_rmap : Join rmap := KSa.Join_knot.
   #[global] Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
   #[global] Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot.
   #[global] Instance ag_rmap : ageable rmap := K.ageable_knot.
-  #[global] Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
+  #[global] Instance Age_rmap : Age_alg rmap := KSa.asa_knot.
+  #[global] Instance Ext_rmap : Ext_ord rmap := K.ext_knot.
+  #[global] Instance ExtA_rmap : Ext_alg rmap := KSa.ea_knot.
 
   Inductive preds : Type :=
     SomeP : forall A : TypeTree,
@@ -842,11 +1002,11 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
                  (RJ: join sh1 sh2 sh3),
                  res_join (NO sh1 nsh1) (NO sh2 nsh2) (NO sh3 nsh3)
    | res_join_NO2 : forall sh1 rsh1 sh2 nsh2 sh3 rsh3 k p
-                 (RJ: join sh1 sh2 sh3), 
-                 res_join (YES sh1 rsh1 k p) (NO sh2 nsh2) (YES sh3 rsh3 k p) 
+                 (RJ: join sh1 sh2 sh3),
+                 res_join (YES sh1 rsh1 k p) (NO sh2 nsh2) (YES sh3 rsh3 k p)
    | res_join_NO3 : forall sh1 nsh1 sh2 rsh2 sh3 rsh3 k p
                  (RJ: join sh1 sh2 sh3),
-                 res_join (NO sh1 nsh1) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p) 
+                 res_join (NO sh1 nsh1) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
    | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p
                  (RJ: join sh1 sh2 sh3),
         res_join (YES sh1 rsh1 k p) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
@@ -910,17 +1070,17 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
       intros a b c H; inv H; econstructor;  apply join_comm; auto.
 
 *     (* saf_positivity *)
-     intros; inv H; inv H0; 
-      repeat match goal with H: join ?A ?B ?C, H': join ?C ?D ?A |- _ => 
-                    pose proof (join_positivity H H'); subst C 
-      end; 
+     intros; inv H; inv H0;
+      repeat match goal with H: join ?A ?B ?C, H': join ?C ?D ?A |- _ =>
+                    pose proof (join_positivity H H'); subst C
+      end;
       repeat proof_irr; auto.
  Qed.
 
-  #[global] Instance Sep_resource: Sep_alg resource.
+  #[global] Instance Sep_resource: FSep_alg resource.
   Proof.
-  apply mkSep 
-    with (fun x => match x 
+  apply mkSep
+    with (fun x => match x
                    with NO _ _ => NO Share.bot bot_unreadable
                       | YES _ _ _ _ => NO Share.bot bot_unreadable
                       | PURE k pds => PURE k pds end).
@@ -1014,12 +1174,37 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
       eapply join_positivity; eauto.
   Qed.
 
+  Definition ghost_core (x : {g: Ghost & {a: @G g | ghost.valid a}}) : {g: Ghost & {a: @G g | ghost.valid a}} :=
+    match x with existT _ (exist _ V) => existT _ _ (exist _ _ (core_valid _ V)) end.
+
   #[global] Instance Sep_ghost : Sep_alg ghost.
   Proof.
-    intros; exists (fun _ => nil); auto; constructor.
+    intros; exists (fun g => map (option_map (fun '(a, b) => (ghost_core a, b))) g).
+    - intros; unfold unit_for.
+      induction t; constructor; auto.
+      destruct a as [(?, ?)|]; constructor.
+      split; [|split; auto]; simpl.
+      destruct s as (? & ? & ?); constructor.
+      apply core_unit.
+    - induction 1; try solve [eexists; constructor].
+      destruct IHghost_join; eexists; constructor; eauto.
+      inv H; try constructor.
+      + destruct a3 as [(?, ?)|]; constructor.
+        split; [|split]; auto; simpl.
+        destruct s as (? & ? & ?); constructor.
+        apply core_duplicable.
+      + destruct a0, a4, a5, H2; simpl in *.
+        constructor; split; simpl.
+        * inv H; constructor.
+          eapply core_sub_join, join_core_sub; eassumption.
+        * destruct H2; subst; split; auto.
+    - intros; rewrite map_map; apply map_ext.
+      intros [(?, ?)|]; auto; simpl.
+      destruct s as (? & ? & ?); simpl; do 3 f_equal.
+      apply exist_ext, core_idem.
   Defined.
 
-  Lemma ghost_core : forall (g: ghost), core g = nil.
+  Lemma ghost_core_eq : forall (g: ghost), core g = map (option_map (fun '(a, b) => (ghost_core a, b))) g.
   Proof.
     auto.
   Qed.
@@ -1178,12 +1363,14 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
 
   Program Definition approx (n:nat) (p: (pred rmap)) : (pred rmap) :=
     fun w => level w < n /\ p w.
-  Next Obligation. red; intros.
-  destruct H0.
+  Next Obligation. split. intros ??? [].
   split.
-  apply age_level in H.
-  simpl in *. lia.
+  apply age_level in H. lia.
   apply pred_hereditary with a; auto.
+
+  intros ??? [].
+  split; [apply ext_level in H as <-; auto|].
+  apply pred_upclosed with a; auto.
   Qed.
 
   Lemma approx_K_approx: approx = K.approx.
@@ -1285,7 +1472,7 @@ Qed.
     destruct p; simpl in *.
     constructor; auto.
 
-    destruct f, f0, f1; simpl in *. 
+    destruct f, f0, f1; simpl in *.
     clear - H2; induction H2; constructor; auto.
     inv H; constructor; auto.
     destruct a0, a4, a5; inv H0; simpl in *.
@@ -1340,10 +1527,19 @@ Qed.
   Proof.
     intro; rewrite KSa.core_unsquash.
     unfold ghost_of, KSa.K.unsquash, KSa.K.squash, unsquash, squash.
-    destruct (K.unsquash phi); simpl.
+    destruct (K.unsquash phi) eqn: Hunsquash; simpl.
+    pose proof (KL.unsquash_approx Hunsquash) as Happrox.
     rewrite K.unsquash_squash; simpl.
-    setoid_rewrite (pre_rmap_core _ _f). auto.
-Qed.
+    pose proof (KA.approx_core n _f).
+    setoid_rewrite (pre_rmap_core _ _f).
+    setoid_rewrite pre_rmap_core in H.
+    destruct _f as [? g]; simpl in *.
+    inv H; inv Happrox. rewrite <- H3.
+    unfold g2ghost; setoid_rewrite <- H2.
+    rewrite <- H3.
+    rewrite !map_map; apply map_ext.
+    intros [(?, ?)|]; auto.
+  Qed.
 
   Definition rmap_age1 (k:rmap) : option rmap :=
     match unsquash k with
@@ -1419,6 +1615,47 @@ Qed.
     simpl in *.
   Qed.*)
 
+  Lemma rmap_order : forall k1 k2, ext_order k1 k2 <->
+    level k1 = level k2 /\ resource_at k1 = resource_at k2 /\ join_sub (ghost_of k1) (ghost_of k2).
+  Proof.
+    intros; rewrite K.knot_order.
+    unfold resource_at, ghost_of, unsquash, K.KI.Rel.
+    destruct (K.unsquash k1) as (?, (?, ?)); simpl.
+    destruct (K.unsquash k2) as (?, (?, ?)); simpl.
+    unfold g2ghost, p2pred.
+    split; intros (? & Hr & ? & J); subst; split; auto; split; auto.
+    - induction J; try solve [eexists; constructor].
+      destruct IHJ; eexists (option_map _ a2 :: _); constructor; eauto.
+      inv H0; constructor.
+      destruct a0, a4, a5, H2 as (? & ? & ?); split; auto; simpl in *.
+      inv H0; constructor; auto.
+      subst; split; auto.
+    - extensionality l.
+      apply equal_f with l in Hr.
+      unfold res2resource in Hr.
+      destruct (_f l), (_f1 l); try destruct _f3; try destruct _f4; inv Hr; f_equal; try apply proof_irr.
+    - match goal with J : join ?a _ ?c |- _ => remember a as g1; remember c as g2 end.
+      revert dependent _f0. revert dependent _f2. induction J; intros; subst.
+      + destruct _f0; inv Heqg1; eexists; constructor.
+      + assert (_f2 = _f0); [|subst; eexists; constructor].
+        clear - Heqg1. revert dependent _f2; induction _f0; intros; destruct _f2; inv Heqg1; auto.
+        f_equal; [|apply IH_f0; auto].
+        destruct o as [(?, (?, ?))|], a as [(?, (?, ?))|]; inv H0; auto.
+      + destruct _f0; inv Heqg1. destruct _f2; inv Heqg2.
+        destruct (IHJ _ eq_refl _ eq_refl).
+        assert (join_sub o o0) as []; [|eexists; constructor; eauto].
+        clear - H0. inv H0.
+        * destruct o; inv H1; eexists; constructor.
+        * destruct o as [(?, (?, ?))|], o0 as [(?, (?, ?))|]; inv H3; eexists; constructor.
+        * destruct o as [(?, (?, ?))|], o0 as [(?, (?, ?))|]; inv H; inv H1.
+          destruct a0, H3 as [J1 []]; simpl in *; subst.
+          inv H0.
+          inv J1.
+          eexists (Some (_, _)); do 3 (unshelve constructor); try apply H; eauto.
+        * inv H2; constructor.
+          destruct a1, a0, a3, H3 as (? & ? & ?); split; simpl in *; [|subst; split; auto].
+          inv H2; constructor; auto.
+  Qed.
+
 End Rmaps.
 Local Close Scope nat_scope.
-

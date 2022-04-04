@@ -56,7 +56,7 @@ Import Ctypes Clight expr.
 #[(*export, after Coq 8.13*)global] Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
 #[(*export, after Coq 8.13*)global] Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
-Lemma derives_eq : @derives _ Nveric = predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(H := _).
+Lemma derives_eq : @derives _ Nveric = predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(AG := _)(EO := _).
 Proof.
   do 2 extensionality; apply prop_ext; split.
   - inversion 1; auto.
@@ -173,7 +173,7 @@ end.
 Lemma derives_eq':
   @derives (functors.MixVariantFunctor._functor
               functors.MixVariantFunctorGenerator.fidentity mpred) Nveric =
-  predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(H := _).
+  predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(AG := _)(EO := _).
 Proof.
   do 2 extensionality; apply prop_ext; split.
   - inversion 1; auto.

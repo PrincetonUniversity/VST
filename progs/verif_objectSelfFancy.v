@@ -157,7 +157,7 @@ apply subp_exp; intro v.
 apply subp_sepcon_mpred; [ | apply subp_refl].
 clear oi.
 apply subp_andp; [ apply subp_refl | ].
-rewrite <- subp_later.
+eapply derives_trans, subp_later1.
 rewrite <- later_allp.
 apply later_derives.
 unfold object_methods.
@@ -772,7 +772,7 @@ apply subp_exp; intro v.
 apply subp_sepcon_mpred; [ | apply subp_refl].
 clear oi.
 apply subp_andp; [ apply subp_refl | ].
-rewrite <- subp_later.
+eapply derives_trans, subp_later1.
 rewrite <- later_allp.
 apply later_derives.
 unfold fobject_methods.

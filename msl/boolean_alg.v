@@ -843,9 +843,10 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
   Qed.
 
   #[global] Instance sa: Sep_alg t.
-  Proof.  apply mkSep with (fun _ => bot).
+  Proof.  exists (fun _ => bot).
     intros. unfold unit_for. constructor. rewrite glb_commute; apply glb_bot.
              rewrite lub_commute; apply lub_bot.
+    intros. exists bot; auto. split; [apply glb_bot | apply lub_bot].
     intros. reflexivity.
   Defined.
 

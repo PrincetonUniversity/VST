@@ -113,7 +113,6 @@ apply exp_right with v';
 unfold address_mapsto;
 apply exp_left; intro bl; 
 apply exp_right with bl;
-apply andp_derives; auto;
 apply prop_andp_left; intros [? [? ?]];
 destruct bl as [| ? [|]]; try solve [inv H];
 (rewrite prop_true_andp; [auto | 
@@ -217,7 +216,7 @@ destruct (zlt i (Zlength bytes)).
  unfold res_predicates.address_mapsto; simpl;
  f_equal;
  extensionality bl;
- f_equal; f_equal; f_equal;
+ f_equal; f_equal;
  apply prop_ext; intuition;
  destruct bl as [| ? [|]]; inv H3;
  destruct m; inv H; reflexivity.
@@ -226,7 +225,6 @@ forget (Znth i bytes) as c.
 unfold res_predicates.address_mapsto; simpl.
 f_equal.
 extensionality bl.
-f_equal.
 f_equal.
 f_equal.
  apply prop_ext; intuition;

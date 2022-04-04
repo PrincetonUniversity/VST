@@ -16,26 +16,26 @@ Local Open Scope pred.
 
 Set Implicit Arguments.
 
-Definition contractive {A} `{ageable A} (f: pred A -> pred A) : Prop :=
+Definition contractive {A} `{ageable A} {EO : Ext_ord A} (f: pred A -> pred A) : Prop :=
   forall P Q,  |> (P <=> Q)  |-- f P <=> f Q.
 
-Definition nonexpansive {A} `{ageable A} (f: pred A -> pred A) : Prop :=
+Definition nonexpansive {A} `{ageable A} {EO : Ext_ord A} (f: pred A -> pred A) : Prop :=
   forall P Q,  (P <=> Q)  |-- f P <=> f Q.
 
-Definition HOcontractive {A} `{ageable A} (X: Type) (f: (X -> pred A) -> (X -> pred A)) : Prop :=
+Definition HOcontractive {A} `{ageable A} {EO : Ext_ord A} (X: Type) (f: (X -> pred A) -> (X -> pred A)) : Prop :=
   forall P Q,  (ALL x:X, |> (P x <=> Q x)) |-- (ALL x:X, f P x <=> f Q x).
 
-Definition HOnonexpansive {A} `{ageable A} (X: Type) (f: (X -> pred A) -> (X -> pred A)) : Prop :=
+Definition HOnonexpansive {A} `{ageable A} {EO : Ext_ord A} (X: Type) (f: (X -> pred A) -> (X -> pred A)) : Prop :=
   forall P Q, (ALL x:X, P x <=> Q x)  |-- (ALL x:X, f P x <=> f Q x).
 
 Module Type HO_REC.
 
-  Parameter HORec : forall {A} `{ageable A} X (f: (X -> pred A) -> (X -> pred A)), X -> pred A.
-  Axiom HORec_fold_unfold : forall {A} `{ageable A} X f (H:HOcontractive (X:=X) f),
+  Parameter HORec : forall {A} `{ageable A} {EO : Ext_ord A} X (f: (X -> pred A) -> (X -> pred A)), X -> pred A.
+  Axiom HORec_fold_unfold : forall {A} `{ageable A} {EO : Ext_ord A} X f (H:HOcontractive (X:=X) f),
     HORec f = f (HORec f).
 
-  Parameter Rec : forall {A} `{ageable A} (f: pred A -> pred A), pred A.
-  Axiom Rec_fold_unfold : forall {A} `{ageable A} f (H:contractive f),
+  Parameter Rec : forall {A} `{ageable A} {EO : Ext_ord A} (f: pred A -> pred A), pred A.
+  Axiom Rec_fold_unfold : forall {A} `{ageable A} {EO : Ext_ord A} f (H:contractive f),
     Rec f = f (Rec f).
 
 End HO_REC.
@@ -45,6 +45,7 @@ Module HoRec : HO_REC.
 Section HORec.
   Variable A:Type.
   Variable ag: ageable A.
+  Variable eo: Ext_ord A.
   Variable X:Type.
   Variable f: (X-> pred A) -> (X -> pred A).
 
@@ -84,15 +85,15 @@ Section HORec.
    intro s. intros ? ?. apply IHi.  simpl  in H0.  rewrite laterR_nat in H0; lia.
    clear - H0.
    destruct (H0 x a); auto.
-   split; auto.
+   split; eauto.
   Qed.
 
 End HORec.
 
-Definition HORec {A} `{ag: ageable A}  {X: Type} (f:  (X-> pred A) -> (X -> pred A)) (x: X) : pred A :=
-     mkPred (fun a : A => app_pred (@HORec' A ag X f (level a) x) a).
+Definition HORec {A} `{ag: ageable A} {EO : Ext_ord A} {X: Type} (f:  (X-> pred A) -> (X -> pred A)) (x: X) : pred A :=
+     mkPred (fun a : A => app_pred (@HORec' A ag EO X f (level a) x) a).
 
-Lemma HORec_fold_unfold {A} `{ageable A} : forall X f (H:HOcontractive (X:=X) f),
+Lemma HORec_fold_unfold {A} `{ageable A} {EO : Ext_ord A} : forall X f (H:HOcontractive (X:=X) f),
             HORec f = f (HORec f).
 Proof.
   intros. rename H into ag. rename H0 into Hcont.
@@ -113,27 +114,33 @@ Proof.
     assert (n >= level y) by lia.
     clear - Hcont H1.
     split; hnf; simpl; intros.
-    generalize (necR_level _ _ H2); intro.
+    generalize (necR_level _ _ H3); intro.
     generalize (necR_level _ _ H); intro.
-    apply (@HORec'_unage _ _ X f  Hcont (n - level x') (level x') b x' (Le.le_refl _)).
-    replace (n - level x' + level x') with n by lia.
-    apply pred_nec_hereditary with a'; auto.
-    specialize (H0 _ (necR_refl _)).
-    apply (@HORec'_unage _ _ X f Hcont (n - level a') (level a') b a' (Le.le_refl _)) in H0.
+    pose proof (ext_level _ _ H0) as Hl0.
+    pose proof (ext_level _ _ H4) as Hl.
+    apply (@HORec'_unage _ _ _ X f  Hcont (n - level x'') (level x'') b x'' ltac:(lia)).
+    replace (n - level x'' + level x'') with n by lia.
+    apply pred_upclosed with x'; auto.
+    apply pred_nec_hereditary with a''; auto.
+    specialize (H2 _ _ (necR_refl _) (ext_refl _)).
+    apply (@HORec'_unage _ _ _ X f Hcont (n - level a'') (level a'') b a'' (Le.le_refl _)) in H2.
     generalize (necR_level _ _ H); intro.
-    replace (n - level a' + level a') with n in H0 by lia.
+    pose proof (ext_level _ _ H0) as Hl0.
+    replace (n - level a'' + level a'') with n in H2 by lia.
     auto.
     split; intros.
-    specialize (H2 _ (necR_refl _)).
+    specialize (H2 _ _ (necR_refl _) (ext_refl _)).
     rewrite H in H2. simpl in H2.
-    apply H0 in H2; auto.
-    apply H1 in H2; auto.
+    eapply H0 in H2; auto.
+    eapply H1 in H2; auto.
     assert (app_pred (HORec' f (level a) x) a).
     rewrite H. apply H2.
-     clear - H3 H4 Hcont.
-    apply (@HORec'_unage _ _ X f Hcont (level a - level x') (level x') x x' (Le.le_refl _)).
-    replace (level a - level x' + level x') with (level a)
+     clear - H3 H4 H5 Hcont.
+    apply (@HORec'_unage _ _ _ X f Hcont (level a - level x'') (level x'') x x'' (Le.le_refl _)).
+    pose proof (ext_level _ _ H4).
+    replace (level a - level x'' + level x'') with (level a)
         by (apply necR_level in H3; lia).
+    apply pred_upclosed with x'; auto.
     apply pred_nec_hereditary with a; auto.
  (* None  case *)
     assert (level a = 0) by (apply age1_level0; auto).
@@ -143,10 +150,11 @@ Proof.
     repeat (hnf; intros); split; hnf; simpl; intros.
     simpl in H2.  apply laterR_level in H2. elimtype False; lia.
         simpl in H2.  apply laterR_level in H2. clear - H2. simpl in H2.  unfold natLevel in H2; lia.
-     specialize (H1 _ (necR_refl _)). rewrite H0 in H1. simpl in H1.
-     apply H2; auto.
+     specialize (H1 _ _ (necR_refl _) (ext_refl _)). rewrite H0 in H1. simpl in H1.
+     eapply H2; auto.
      apply clos_rt_rt1n in H2.
     inv H2; [ | unfold age in H3; congruence].
+    pose proof (ext_level _ _ H3) as <-.
     rewrite H0; simpl.
     specialize (Hcont (HORec f) (fun _ => FF)).
     specialize (Hcont 0).
@@ -154,17 +162,19 @@ Proof.
     simpl. intros. apply laterR_level in H2. simpl in H2. unfold natLevel in H2. elimtype False; lia.
     specialize ( Hcont x).
     hnf in Hcont. specialize ( Hcont x'). spec Hcont. lia.
-    apply Hcont; auto.
+    eapply Hcont; auto.
+    eapply pred_upclosed; eauto.
 Qed.
 
 Section recursive.
   Variable A:Type.
   Variable ag:ageable A.
+  Variable eo:Ext_ord A.
 
   Variable f:pred A -> pred A.
   Variable Hc : contractive f.
 
-  Lemma cont_HOcont : @HOcontractive A ag unit (fun x _ => f (x tt)).
+  Lemma cont_HOcont : @HOcontractive A ag eo unit (fun x _ => f (x tt)).
   Proof.
     repeat intro.
     specialize ( H tt).
@@ -173,10 +183,10 @@ Section recursive.
 End recursive.
 
 
-Definition Rec {A} `{ageable A} f : pred A
+Definition Rec {A} `{ageable A} {EO : Ext_ord A} f : pred A
   := HORec (fun x _ => f (x tt)) tt.
 
-Lemma Rec_fold_unfold : forall {A} `{ageable A} f (H:contractive f),
+Lemma Rec_fold_unfold : forall {A} `{ageable A} {EO : Ext_ord A} f (H:contractive f),
   Rec f = f (Rec f).
 Proof.
   intros.

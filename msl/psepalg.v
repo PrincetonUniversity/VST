@@ -33,7 +33,7 @@ Proof with eauto.
   destruct H0 as [a' ?]. unfold full in H.
   specialize (H a'). spec H...
   destruct H0 as [c ?].
-  specialize (H c). spec H... subst. apply join_comm in H0. 
+  specialize (H c). spec H... subst. apply join_comm in H0.
   apply no_units in H0. contradiction.
 Qed.
 
@@ -58,11 +58,11 @@ Section DISCRETE.  (* Prevent these Instances from going global! *)
   #[local] Instance Perm_discrete (A: Type)  : @Perm_alg A (Join_discrete A).
   Proof. constructor; intros; inv H.
   Qed.
-  
+
   #[global] Instance psa_discrete (A: Type) :  @Pos_alg A  (Join_discrete A).
   Proof.
     repeat intro. inv H.
-  Qed.  
+  Qed.
 End DISCRETE.
 
 Set Implicit Arguments.
@@ -73,9 +73,9 @@ Section PSA_LIFT.
   Variable A : Type.
   Variable J_A: Join A.
   Variable PA_A : Perm_alg A.
-  
+
   Definition lifted : Type := sig nonunit.
-  
+
   Definition lifted_obj (la: lifted) : A := proj1_sig la.
 (*  Definition lifted_nonidentity (la : lifted) : nonidentity (lifted_obj la) :=
     proj2_sig la.
@@ -92,9 +92,9 @@ Section PSA_LIFT.
 
     icase x; icase y; icase z; icase z'.
     do 2 red in H, H0.
-    generalize (join_eq H H0); intro. simpl in H1. subst; auto. 
+    generalize (join_eq H H0); intro. simpl in H1. subst; auto.
     apply exist_ext. auto.
-    
+
     icase a; icase b; icase c; icase d; icase e; red in H, H0; simpl in *.
     red  in H, H0. simpl in *.
     destruct (join_assoc H H0) as [f [? ?]].
@@ -106,7 +106,7 @@ Section PSA_LIFT.
     apply n0 in H5.  auto.
     unfold lifted.
     exists (exist _ f H3). simpl. split; auto.
-    
+
     do 2 red in H|-*. icase a; icase b; icase c; simpl in *; apply join_comm; auto.
 
     do 2 red in H,H0.
@@ -139,13 +139,13 @@ Section PSA_LIFT.
 
   (** General facts about lifting *)
 
-  Lemma lifted_eq : forall a b, 
-    lifted_obj a = lifted_obj b -> 
+  Lemma lifted_eq : forall a b,
+    lifted_obj a = lifted_obj b ->
     a = b.
   Proof.
     intros.
     destruct a. destruct b. simpl in *. subst x0.
-    f_equal. 
+    f_equal.
   Qed.
 
   Lemma mk_lifted_refl1: forall (a:A)  (pf1 pf2: nonunit a),
@@ -171,8 +171,8 @@ Section PSA_LIFT.
     apply Hb in H1; auto.
     exists (exist _ x H0). trivial.
   Qed.
-  
-  Lemma lifted_psub : forall a b : lifted, 
+
+  Lemma lifted_psub : forall a b : lifted,
     join_sub a b -> @join_sub A J_A a b.  (* converse not provable *)
   Proof.
     intros.
@@ -202,7 +202,7 @@ End PSA_LIFT.
 #[global] Existing Instance Disj_lift.
 Arguments mk_lifted [A J_A] _ _.
 
-(** The dual of lifting is lowering: adding a distinct unit to a Pos_alg 
+(** The dual of lifting is lowering: adding a distinct unit to a Pos_alg
     produces a sepalg.  Note that lower o lift is not an isomorphism for
     sepalgs with multiple units.  However, for sepalgs with a test for
     identity in Type, lower o lift is an isomorphism. *)
@@ -210,12 +210,12 @@ Arguments mk_lifted [A J_A] _ _.
 Section SA_LOWER.
   Variable A : Type.
   Variable Pj_A: Join A.
-  Variable PA_A : Perm_alg A.  
+  Variable PA_A : Perm_alg A.
 
   Inductive lower_join: option A -> option A -> option A -> Prop :=
   | lower_None1: forall a, lower_join None a a
   | lower_None2: forall a, lower_join a None a
-  | lower_Some: forall a1 a2 a3,  join a1 a2 a3 -> 
+  | lower_Some: forall a1 a2 a3,  join a1 a2 a3 ->
         lower_join (Some a1) (Some a2) (Some a3).
 
   #[local] Instance Join_lower: Join (option A) := lower_join.
@@ -241,21 +241,21 @@ Section SA_LOWER.
     inv H; inv H0; auto. f_equal. apply (join_positivity H1 H4).
  Qed.
 
- #[local] Instance Sep_lower: @Sep_alg _ Join_lower.
+ #[local] Instance Sep_lower: @FSep_alg _ Join_lower.
  Proof. apply mkSep with (fun _ => None); intros.
    constructor. reflexivity.
  Defined.
 
   #[local] Instance Sing_lower: @Sing_alg _ Join_lower _.
   Proof.
-     apply (mkSing None). intros. reflexivity. 
+     apply (mkSing None). intros. reflexivity.
   Defined.
 
   #[local] Instance Canc_lower {psa_A: Pos_alg A}{CA: Canc_alg A}: @Canc_alg _ Join_lower.
   Proof. repeat intro.
     inv H; inv H0; auto. apply no_units in H3; contradiction.
     apply no_units in H1; contradiction.
-   f_equal. apply (join_canc H1 H4). 
+   f_equal. apply (join_canc H1 H4).
  Qed.
 
   #[local] Instance Disj_lower {psa_A: Pos_alg A}{DA: Disj_alg A}: @Disj_alg _ Join_lower.
@@ -281,7 +281,7 @@ Arguments Disj_lower _ [Pj_A][PA_A][psa_A][DA] _ _ _.
 
   (* General facts about lowering *)
 
-Lemma None_unit {A}{JOIN: Join A}: 
+Lemma None_unit {A}{JOIN: Join A}:
       forall x: option A, @unit_for (option A) (@Join_lower _ _) None x.
 Proof.
 intros. simpl. auto.
@@ -290,7 +290,7 @@ Qed.
 
 #[export] Hint Resolve None_unit : core.
 
-Lemma None_identity {A} {JA: Join A}{psaA: Pos_alg A}: 
+Lemma None_identity {A} {JA: Join A}{psaA: Pos_alg A}:
      @identity (option A) (Join_lower _) None.
 Proof.
 intros.
@@ -301,12 +301,12 @@ Qed.
 
   Lemma lower_inv: forall {A}{JA: Join A} {PA: Perm_alg A} {psa_A: Pos_alg A} (a b c : option A),
     join a b c ->
-    (a = None /\ b = c) + (a = c /\ b = None) + 
+    (a = None /\ b = c) + (a = c /\ b = None) +
     ({a' : A & {b' : A & {c' : A | a = Some a' /\ b = Some b' /\ c = Some c' /\
     join a' b' c'}}}).
   Proof.
     intros.
-    icase a; icase b; icase c; 
+    icase a; icase b; icase c;
     try solve [elimtype False; inv H];
     try solve [right; exists a; exists a0; exists a1; inv H; intuition].
     left; right; inv H; auto.
@@ -314,21 +314,21 @@ Qed.
   Qed.
 
 (** The "smash" sepalg generator is the direct composition of lift and
-      lower.  In previous versions of MSL (v0.3 and earlier) this was 
+      lower.  In previous versions of MSL (v0.3 and earlier) this was
       called "lift" and was constructed directly *)
 
 Section SA_SMASH.
   Variable T : Type.
   Variable J_T: Join T.
-  Variable PA_T : Perm_alg T. 
+  Variable PA_T : Perm_alg T.
 
   Definition smashed : Type := option (lifted J_T).
-  Definition Perm_smash :  Perm_alg smashed  := Perm_lower (lifted J_T). 
-  Definition Sep_smash : Sep_alg smashed := Sep_lower (lifted J_T).
+  Definition Perm_smash :  Perm_alg smashed  := Perm_lower (lifted J_T).
+  Definition Sep_smash : FSep_alg smashed := Sep_lower (lifted J_T).
 
   Lemma smash_inv: forall a b c : smashed,
     join a b c ->
-    (a = None /\ b = c) + (a = c /\ b = None) + 
+    (a = None /\ b = c) + (a = c /\ b = None) +
     ({a' : lifted J_T & {b' : lifted J_T & {c' : lifted J_T | a = Some a' /\ b = Some b' /\ c = Some c' /\
     join (lifted_obj a') (lifted_obj b') (lifted_obj c')}}}).
   Proof.
@@ -351,7 +351,7 @@ Proof. intros; apply None_identity. Qed.
 
  #[global] Instance Perm_option (T : Type)  : @Perm_alg (option T) (@Join_lower T (@Join_discrete T)) :=
     @Perm_lower T  (@Join_discrete T) (Perm_discrete T).
- #[global] Instance Sep_option (T: Type) : @Sep_alg (option T) (@Join_lower T (@Join_discrete T)) :=
+ #[global] Instance Sep_option (T: Type) : @FSep_alg (option T) (@Join_lower T (@Join_discrete T)) :=
     @Sep_lower T  (@Join_discrete T) .
 
 (** Often, once we have a Pos_alg, we want to product it with regular
@@ -359,7 +359,7 @@ Proof. intros; apply None_identity. Qed.
 
 #[global] Instance Pos_prod
         (A: Type) {J_A: Join A} {Pos_A: Pos_alg A}
-        (B: Type) {J_B: Join B}{PA_B: Perm_alg B}: 
+        (B: Type) {J_B: Join B}{PA_B: Perm_alg B}:
         Pos_alg (A*B).
   Proof.
    auto with typeclass_instances.
@@ -386,7 +386,7 @@ Section FinitePartialMap.
   Let Rng := option B.
   Let Join_Rng := Join_lower PJ_B.
   Let Sep_Rng := Sep_lower B.
-  Let Perm_Rng := Perm_lower B. 
+  Let Perm_Rng := Perm_lower B.
 
   Definition finMap (f:A -> Rng) : Prop :=
     exists l, forall a:A, ~In a l -> f a = None.
@@ -419,7 +419,7 @@ Section FinitePartialMap.
   Qed.
 
   Definition fpm := sig finMap.
-  #[local] Instance Join_fpm : Join fpm := 
+  #[local] Instance Join_fpm : Join fpm :=
      Join_prop (A -> option B)  (Join_fun A (option B) Join_Rng) finMap.
 
   Definition PAF: (@Perm_alg (A -> Rng)  (Join_fun A Rng Join_Rng))
@@ -428,8 +428,8 @@ Section FinitePartialMap.
   #[local] Instance Perm_fpm : @Perm_alg fpm Join_fpm :=
     Perm_prop (A -> Rng) _ _ finMap finMap_join.
 
-  Lemma finMap_core  x: finMap x -> 
-        finMap (@core _ _ (Sep_fun A (option B) Join_Rng _ ) x).
+  Lemma finMap_core  x: finMap x ->
+        finMap (@core _ _ (Sep_fun A (option B) Join_Rng (Perm_lower _) (fsep_sep _)) x).
   Proof. intros. exists nil; intros; reflexivity. Qed.
 
   Definition empty_fpm : fpm.
@@ -437,9 +437,9 @@ Section FinitePartialMap.
     exists nil; auto.
   Defined.
 
-  #[local] Instance Sep_fpm : @Sep_alg fpm Join_fpm.
-  Proof. 
-    apply mkSep with (core := fun _ => empty_fpm).
+  #[local] Instance Sep_fpm : @FSep_alg fpm Join_fpm.
+  Proof.
+    apply mkSep with (fun _ => empty_fpm).
      intros. intro a. simpl. constructor. auto.
    Defined.
 
@@ -493,7 +493,7 @@ Section FinitePartialMap.
     destruct (eq_dec a a0); auto.
   Defined.
 
-  Lemma fpm_gss: forall  i v rho, 
+  Lemma fpm_gss: forall  i v rho,
         lookup_fpm (insert_fpm i v rho) i = Some v.
   Proof.
     unfold lookup_fpm, insert_fpm.
@@ -502,7 +502,7 @@ Section FinitePartialMap.
     destruct (eq_dec i i); auto. contradiction n; auto.
   Qed.
 
-  Lemma fpm_gso: forall i j v rho, 
+  Lemma fpm_gso: forall i j v rho,
        i <> j -> lookup_fpm (insert_fpm j v rho) i =
                                lookup_fpm rho i.
   Proof.
@@ -525,22 +525,22 @@ Section FinitePartialMap.
     @join _ Join_fpm x y z ->
     @join _ Join_fpm (insert_fpm i v x) y (insert_fpm i v z).
   Proof.
-    intros. 
+    intros.
     intro j.
     change (@join _ (Join_lower PJ_B)
       (lookup_fpm (insert_fpm i v x) j)
       (lookup_fpm y j)
       (lookup_fpm (insert_fpm i v z) j)).
     destruct (eq_dec i j). subst j.
-    do 2 rewrite fpm_gss. 
+    do 2 rewrite fpm_gss.
     rewrite H.
     constructor.
     do 2 (rewrite fpm_gso; auto).
   Qed.
 End FinitePartialMap.
 
-Lemma fpm_bij_aux: forall A B B' (f: B -> B') (rho: A -> option B), 
-       @finMap A B rho -> 
+Lemma fpm_bij_aux: forall A B B' (f: B -> B') (rho: A -> option B),
+       @finMap A B rho ->
        @finMap A B' (fun i => match rho i with None => None | Some j => Some (f j) end).
 Proof.
   intros. destruct H as [l ?]. exists l. intros. rewrite (H _ H0). auto.
@@ -574,7 +574,7 @@ split; auto.
 apply (mk_lifted a (lift_prod_aux1 Hx)).
 Defined.
 
-Lemma lift_prod_aux2 {A}{JA: Join A}{B}: 
+Lemma lift_prod_aux2 {A}{JA: Join A}{B}:
   forall x,
     nonunit (fst x) -> @nonunit (A * B) (Join_prod A JA B (Join_equiv B)) x.
 Proof.

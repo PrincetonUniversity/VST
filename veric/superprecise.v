@@ -446,7 +446,7 @@ Qed.
 Abort.
 
 
-Lemma superprecise_ewand_lem1:
+(*Lemma superprecise_ewand_lem1:
   forall S P: pred rmap, superprecise P ->
           (S |-- P * TT) ->
           S = (P * (ewand P S))%pred.
@@ -464,7 +464,7 @@ apply join_core2 in H1; apply join_core2 in H3; unfold comparable; congruence.
 subst w3.
 pose proof (join_eq H1 H3); subst w4.
 auto.
-Qed.
+Qed.*)
 
 (*Lemma superprecise_address_mapsto:
   wishes_eq_horses -> 

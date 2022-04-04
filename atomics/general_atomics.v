@@ -2,12 +2,14 @@ Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.concurrency.ghosts.
 Require Import VST.concurrency.conclib.
+Require Export iris.bi.lib.atomic.
 Require Import VST.concurrency.invariants.
 Require Import VST.concurrency.fupd.
 Require Import VST.floyd.library.
-Require Import VST.zlist.sublist.
+Require Export VST.zlist.sublist.
+Require Import Program.Equality.
 
-Set Bullet Behavior "Strict Subproofs".
+Open Scope logic. (* we shouldn't need this *)
 
 (* Thoughts on invariants and the two-level structure:
    I expect that our version of the operational semantics will keep nonatomic locations as is,
@@ -29,22 +31,20 @@ Set Bullet Behavior "Strict Subproofs".
 
 Section atomics.
 
-Context {CS : compspecs} {inv_names : invG}.
+Context {inv_names : invG}.
 
 Section atomicity.
 
 (* The logical atomicity of Iris. *)
-(* We use the cored predicate to mimic Iris's persistent modality. *)
-Definition ashift {A B} P (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
-  ((|> P -* |={Eo,Ei}=> (EX x : A, a x *
-    ((a x -* |={Ei,Eo}=> |> P) &&
-     ALL y : B, b x y -* |={Ei,Eo}=> Q y))))%I.
 
-(* switch to Ralf's? *)
-Locate atomic_update.
+(* for people who don't want telescope notation *)
+Definition tele_unwrap {A} (x : tele_arg (TeleS (fun _ : A => TeleO))) :=
+  match x with
+  | TargS _ _ x _ => x
+  end.
 
-Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
-  EX P : mpred, |> P * (ashift P a Ei Eo b Q && cored).
+Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) : mpred :=
+  @atomic_update mpredI _ [tele _ : A] [tele _ : B] Eo Ei (λ.. x, a (tele_unwrap x)) (λ.. x y, b (tele_unwrap x) (tele_unwrap y)) (λ.. x y, Q (tele_unwrap y)).
 
 Lemma atomic_commit_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- (|==> (EX y, b x y * R' y))%I) ->
@@ -52,11 +52,10 @@ Lemma atomic_commit_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mp
 Proof.
   intros.
   iIntros "[AS R]".
-  unfold atomic_shift, ashift.
-  iDestruct "AS" as (P) "[P AS]".
-  iMod ("AS" with "P") as (x) "[a [_ H]]".
-  iMod (H with "[$R $a]") as (y) "[b R']".
-  iExists y; iMod ("H" with "b") as "$"; auto.
+  unfold atomic_shift.
+  iMod "AS" as (x) "[a [_ commit]]"; simpl.
+  iMod (H with "[$R $a]") as (y) "[b Q]".
+  iExists y; iMod ("commit" with "b") as "$"; auto.
 Qed.
 
 Corollary atomic_commit_elim : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
@@ -69,7 +68,8 @@ Proof.
   iApply atomic_commit_fupd; eauto; iFrame.
 Qed.
 
-(* This is unsound: what we really need is fupd in WP. *)
+(* This is unsound: what we really need is fupd in WP.
+   But that might not be necessary if we use atomic specs for all concurrent operations. *)
 Lemma atomic_commit : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- (|==> (EX y, b x y * R' y))%I) ->
   (atomic_shift a Ei Eo b Q * R |-- |==> (EX y, Q y * R' y))%I.
@@ -85,13 +85,10 @@ Lemma atomic_rollback_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> 
 Proof.
   intros.
   iIntros "[AS R]".
-  unfold atomic_shift, ashift.
-  iDestruct "AS" as (P) "[P AS]".
-  rewrite cored_dup; iDestruct "AS" as "[AS AS1]".
-  iMod ("AS" with "P") as (x) "[a H]".
-  iMod (H with "[$R $a]") as "[a $]".
-  iMod ("H" with "a").
-  iIntros "!>"; iExists P; iFrame.
+  unfold atomic_shift.
+  iMod "AS" as (x) "[a [rollback _]]"; simpl.
+  iMod (H with "[$R $a]") as "[a R]".
+  iMod ("rollback" with "a") as "$"; auto.
 Qed.
 
 Corollary atomic_rollback_elim : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
@@ -117,57 +114,30 @@ Lemma atomic_shift_mask_weaken {A B} Eo1 Eo2 Ei a (b : A -> B -> mpred) Q :
   Eo1 ⊆ Eo2 ->
   atomic_shift a Ei Eo1 b Q |-- atomic_shift a Ei Eo2 b Q.
 Proof.
-  intros; unfold atomic_shift, ashift.
-  Intros P; Exists P; cancel.
-  apply andp_derives; auto.
-  apply wand_derives; auto.
-  iIntros "H".
-  iMod (fupd_mask_subseteq _ H) as "mask".
-  iMod"H" as (x) "[Ha Hb]".
-  iExists x; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "a"; iMod ("Hb" with "a") as "$"; auto.
-  - iIntros (y) "b"; iMod ("Hb" with "b") as "$"; auto.
+  intros; unfold atomic_shift.
+  apply atomic_update_mask_weaken; auto.
 Qed.
 
+(* might be able to get rid of this if we do iInv instances *)
 Lemma inv_atomic_shift : forall {A B} a Ei Eo (b : A -> B -> mpred) Q i R P
   (Hi : inv i ⊆ Eo) (Hio : Ei ⊆ Eo ∖ inv i)
-  (Ha1 : (|>R |-- |={Eo ∖ inv i}=> EX x, a x * ((a x -* |={Eo ∖ inv i}=> |>R) &&
-    (ALL y, |> P * b x y -* |={Eo ∖ inv i}=> |>R * Q y)))%I),
-  invariant i R * P |-- atomic_shift a Ei Eo b Q.
+  (Ha1 : (invariant i R * |>R |-- |={Eo ∖ inv i}=> EX x, a x * ((a x -* |={Ei}=> |>R) &&
+    (ALL y, |> P * b x y -* |={Ei}=> |>R * Q y)))%I),
+  invariant i R * |> P |-- atomic_shift a Ei Eo b Q.
 Proof.
   intros; unfold atomic_shift.
-  Exists P; cancel.
-  apply andp_right, invariant_cored.
-  unfold ashift.
-  iIntros "I P".
+  iIntros "[#I P]". iAuIntro.
+  rewrite /atomic_acc /=.
   iMod (inv_open with "I") as "[R Hclose]"; first done.
-  iMod (Ha1 with "R") as (x) "[a R]".
-  iExists x; iFrame.
-  iMod (fupd_mask_subseteq _ Hio) as "mask".
+  iMod (Ha1 with "[$I $R]") as (x) "(a & shift)".
+  iExists x; iFrame "a".
+  iMod fupd_mask_subseteq as "mask"; first done.
   iIntros "!>"; iSplit.
-  - iIntros "a"; iFrame.
-    iMod "mask" as "_".
-    iMod ("R" with "a").
-    iApply "Hclose"; auto.
+  - iIntros "a"; iMod ("shift" with "a") as "R".
+    iMod "mask"; iMod ("Hclose" with "R"); auto.
   - iIntros (y) "b".
-    iMod "mask" as "_".
-    iMod ("R" with "[$P $b]") as "[R $]".
-    iApply "Hclose"; auto.
-Qed.
-
-Lemma ashift_nonexpansive : forall {A B} P n a Ei Eo (b : A -> B -> mpred) Q,
-  approx n (ashift P a Ei Eo b Q) =
-  approx n (ashift P (fun x => approx n (a x)) Ei Eo (fun x y => approx n (b x y)) (fun y => approx n (Q y))).
-Proof.
-  intros; unfold ashift.
-  setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; f_equal.
-  rewrite !approx_exp; f_equal; extensionality.
-  rewrite -> !approx_sepcon, !approx_andp, !approx_idem; f_equal; auto.
-  f_equal.
-  * setoid_rewrite fview_shift_nonexpansive; rewrite !approx_idem; f_equal; f_equal; auto.
-  * rewrite allp_nonexpansive; setoid_rewrite allp_nonexpansive at 2; f_equal; f_equal; extensionality.
-    setoid_rewrite fview_shift_nonexpansive; rewrite !approx_idem; auto.
+    iMod ("shift" with "[$P $b]") as "[R Q]".
+    iMod "mask"; iMod ("Hclose" with "R"); auto.
 Qed.
 
 Lemma atomic_shift_nonexpansive : forall {A B} n a Ei Eo (b : A -> B -> mpred) Q,
@@ -175,33 +145,24 @@ Lemma atomic_shift_nonexpansive : forall {A B} n a Ei Eo (b : A -> B -> mpred) Q
   approx n (atomic_shift (fun x => approx n (a x)) Ei Eo (fun x y => approx n (b x y)) (fun y => approx n (Q y))).
 Proof.
   intros; unfold atomic_shift.
-  rewrite !approx_exp; f_equal; extensionality.
-  rewrite !approx_sepcon !approx_andp ashift_nonexpansive; auto.
-Qed.
-
-Lemma atomic_shift_derives_frame_cored : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
-  (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred) F R
-  (HF : F |-- cored)
-  (Ha : (forall x, a x * F * |>R |-- |={Ei}=> EX x' : A', a' x' *
-    ((a' x' -* |={Ei}=> a x * |>R) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
-  atomic_shift a Ei Eo b Q * F * |>R |-- atomic_shift a' Ei Eo b' Q'.
-Proof.
-  intros; unfold atomic_shift, ashift.
-  Intros P; Exists (P * R); rewrite later_sepcon; cancel.
-  erewrite (add_andp F) by apply HF.
-  sep_apply cored_sepcon.
-  apply andp_derives; auto.
-  iIntros "[H F] [P R]"; iMod ("H" with "P") as (x) "[a H]".
-  iMod (Ha with "[$a $F $R]") as (x') "[? Hrest]"; iExists x'; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "a".
-    iDestruct "Hrest" as "[Hrest _]".
-    iMod ("Hrest" with "a") as "[? $]"; iApply "H"; auto.
-  - iIntros (y') "b".
-    iDestruct "Hrest" as "[_ Hb]".
-    iMod ("Hb" $! y' with "b") as (y) "[b HQ]".
-    iMod ("H" with "b").
-    iApply "HQ"; auto.
+  destruct n as [|n].
+  { rewrite !approx_0; auto. }
+  unshelve eapply (atomic_update_ne _ _ n (λ.. x : [tele _ : A], a (tele_unwrap x))).
+  { intros a1; simpl. dependent destruction a1; simpl.
+    dependent destruction a1; simpl. hnf.
+    rewrite approx_idem; auto. }
+  { intros a1 b1; simpl.
+    dependent destruction a1; simpl.
+    dependent destruction a1; simpl.
+    dependent destruction b1; simpl.
+    dependent destruction b1; simpl.
+    hnf. rewrite approx_idem; auto. }
+  { intros a1 b1; simpl.
+    dependent destruction a1; simpl.
+    dependent destruction a1; simpl.
+    dependent destruction b1; simpl.
+    dependent destruction b1; simpl.
+    hnf. rewrite approx_idem; auto. }
 Qed.
 
 Lemma atomic_shift_derives_frame : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
@@ -210,43 +171,19 @@ Lemma atomic_shift_derives_frame : forall {A A' B B'} (a : A -> mpred) (a' : A' 
     ((a' x' -* |={Ei}=> a x * |>R) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
   atomic_shift a Ei Eo b Q * |>R |-- atomic_shift a' Ei Eo b' Q'.
 Proof.
-  intros; unfold atomic_shift, ashift.
-  Intros P; Exists (P * R); rewrite later_sepcon; cancel.
-  apply andp_derives; auto.
-  iIntros "H [P R]"; iMod ("H" with "P") as (x) "[a H]".
-  iMod (Ha with "[$a $R]") as (x') "[? Hrest]"; iExists x'; iFrame.
+  intros; unfold atomic_shift.
+  iIntros "[AU P]". iAuIntro.
+  iApply (aacc_aupd with "AU"); auto; simpl.
+  iIntros (x) "a".
+  iMod (Ha with "[$a $P]") as (x') "(a' & A)".
+  rewrite /atomic_acc /=.
+  iExists x'; iFrame "a'".
   iIntros "!>"; iSplit.
-  - iIntros "a".
-    iMod ("Hrest" with "a") as "[? $]"; iApply "H"; auto.
-  - iIntros (y') "b".
-    iDestruct "Hrest" as "[_ Hb]".
-    iMod ("Hb" $! y' with "b") as (y) "[b HQ]".
-    iMod ("H" with "b").
-    iApply "HQ"; auto.
-Qed.
-
-Lemma ashift_derives : forall {A A' B B'} P (a : A -> mpred) (a' : A' -> mpred) Ei Eo
-  (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred)
-  (Ha : (forall x, a x  |-- |={Ei}=> EX x' : A', a' x' *
-    (((a' x' * (ashift P a Ei Eo b Q && cored)) -* |={Ei}=> a x) &&
-     ALL y' : _, (b' x' y' * (ashift P a Ei Eo b Q && cored)) -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
-  (ashift P a Ei Eo b Q && cored |-- ashift P a' Ei Eo b' Q' && cored)%logic.
-Proof.
-  intros.
-  sep_apply cored_dup_cored.
-  apply andp_derives; auto.
-  unfold ashift at 1 3.
-  iIntros "[H AS] P"; iMod ("H" with "P") as (x) "[a H]".
-  iMod (Ha with "a") as (x') "[? Hrest]"; iExists x'; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "a".
-    iDestruct "Hrest" as "[Hrest _]".
-    iMod ("Hrest" with "[$a $AS]") as "a"; iApply "H"; auto.
-  - iIntros (y') "b".
-    iDestruct "Hrest" as "[_ Hb]".
-    iMod ("Hb" $! y' with "[$b $AS]") as (y) "[b HQ]".
-    iMod ("H" with "b").
-    iApply "HQ"; auto.
+  - iIntros "a'".
+    iMod ("A" with "a'") as "[$ $]"; auto.
+  - iIntros (y') "b'".
+    iMod ("A" with "b'") as (y) "[b HQ]".
+    iRight; iExists y; iFrame; auto.
 Qed.
 
 Lemma atomic_shift_derives : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
@@ -255,29 +192,15 @@ Lemma atomic_shift_derives : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpr
     ((a' x' -* |={Ei}=> a x) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
   atomic_shift a Ei Eo b Q |-- atomic_shift a' Ei Eo b' Q'.
 Proof.
-  intros; eapply derives_trans, atomic_shift_derives_frame.
-  { rewrite <- sepcon_emp at 1; apply sepcon_derives; [apply derives_refl | apply now_later]. }
-  iIntros (x) "[a >_]".
-  iMod (Ha with "a") as (x') "[? H]".
-  iExists x'; iFrame; iIntros "!>"; iSplit.
-  - iIntros "a"; iMod ("H" with "a") as "$"; auto.
-  - iDestruct "H" as "[_ H]"; auto.
-Qed.
-
-Lemma atomic_shift_derives_cored : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
-  (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred) F
-  (HF : F |-- cored)
-  (Ha : (forall x, a x * F |-- |={Ei}=> EX x' : A', a' x' *
-    ((a' x' -* |={Ei}=> a x) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
-  atomic_shift a Ei Eo b Q * F |-- atomic_shift a' Ei Eo b' Q'.
-Proof.
-  intros; eapply derives_trans, atomic_shift_derives_frame_cored; eauto.
-  { rewrite <- sepcon_emp at 1; apply sepcon_derives; [apply derives_refl | apply now_later]. }
-  iIntros (x) "[a >_]".
-  iMod (Ha with "a") as (x') "[? H]".
-  iExists x'; iFrame; iIntros "!>"; iSplit.
-  - iIntros "a"; iMod ("H" with "a") as "$"; auto.
-  - iDestruct "H" as "[_ H]"; auto.
+  intros; unfold atomic_shift.
+  iIntros "AU". iAuIntro.
+  iApply (aacc_aupd with "AU"); auto; simpl.
+  iIntros (x) "a".
+  iMod (Ha with "a") as (x') "[a' H']".
+  iAaccIntro with "a'".
+  - iIntros "a'". iMod ("H'" with "a'") as "$"; auto.
+  - iIntros (y') "b'". iMod ("H'" with "b'") as (y) "[b H]".
+    iRight; iExists y; iFrame; auto.
 Qed.
 
 Lemma atomic_shift_derives' : forall {A A' B} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
@@ -287,24 +210,6 @@ Lemma atomic_shift_derives' : forall {A A' B} (a : A -> mpred) (a' : A' -> mpred
   atomic_shift a Ei Eo b Q |-- atomic_shift a' Ei Eo b' Q.
 Proof.
   intros; apply atomic_shift_derives.
-  iIntros (x) "a"; iMod (Ha with "a") as (x') "[a H]".
-  iExists x'; iFrame.
-  iIntros "!>"; iSplit.
-  - iIntros "a"; iMod ("H" with "a") as "$"; auto.
-  - iIntros (y) "b"; iExists y.
-    iDestruct "H" as "[_ H]".
-    iMod ("H" with "b") as "$".
-    iIntros "!> $"; auto.
-Qed.
-
-Lemma atomic_shift_derives'_cored : forall {A A' B} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
-  (b : A -> B -> mpred) (b' : A' -> B -> mpred) (Q : B -> mpred) F
-  (HF : F |-- cored)
-  (Ha : (forall x, a x * F |-- |={Ei}=> EX x' : A', a' x' *
-    ((a' x' -* |={Ei}=> a x) && ALL y : _, b' x' y -* |={Ei}=> b x y))%I),
-  atomic_shift a Ei Eo b Q * F |-- atomic_shift a' Ei Eo b' Q.
-Proof.
-  intros; apply atomic_shift_derives_cored; auto.
   iIntros (x) "a"; iMod (Ha with "a") as (x') "[a H]".
   iExists x'; iFrame.
   iIntros "!>"; iSplit.
@@ -332,23 +237,26 @@ Lemma atomic_shift_exists : forall {A B} a Ei Eo (b : A -> B -> mpred) Q,
   atomic_shift (fun (_ : unit) => EX x : A, a x) Ei Eo (fun (_ : unit) => EX x : A, b x) Q |-- atomic_shift a Ei Eo b Q.
 Proof.
   intros; unfold atomic_shift.
-  Intros P; Exists P; cancel.
-  unfold ashift.
-  apply andp_derives; auto.
-  iIntros "H P"; iMod ("H" with "P") as (_) "[a H]".
-  iDestruct "a" as (x) "a"; iExists x; iFrame.
+  iIntros "AU". iAuIntro.
+  iApply (aacc_aupd with "AU"); auto; simpl.
+  iIntros (_) "a"; iDestruct "a" as (x) "a".
+  rewrite /atomic_acc /=.
+  iExists x; iFrame.
   iIntros "!>"; iSplit.
-  - iIntros "a"; iApply "H".
+  - iIntros "a !>".
+    iSplitR ""; auto.
     iExists x; auto.
-  - iIntros (y) "b"; iApply "H".
-    simpl; iExists x; auto.
+  - iIntros (y) "b !>".
+    iRight; iExists y.
+    iSplitR ""; auto.
+    iExists x; auto.
 Qed.
 
 End atomicity.
 
 End atomics.
 
-Hint Resolve empty_subseteq : core.
+Global Hint Resolve empty_subseteq : core.
 
 Definition atomic_spec_type W T := ProdType (ProdType W (ArrowType (ConstType T) Mpred)) (ConstType invG).
 
@@ -716,6 +624,29 @@ Definition tcurry_rev (A : tlist) : tuple_type_rev A -> tuple_type A
 Definition rev_curry {A B} (f : tuple_type A -> B) : tuple_type_rev A -> B
   := fun v => f (tcurry_rev _ v).
 
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x : A 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+  (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T)
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     PROPx (cons Px%type .. (cons Py%type nil) ..)
+     (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
+     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+    @exp (environ -> mpred) _ T (fun r =>
+     PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))))))) ..)))
+   (@atomic_spec_nonexpansive_pre' (fun _ => A) T _ W
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Lx%type .. (cons Ly%type nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Gx .. (cons Gy nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons S1x%logic .. (cons S1y%logic nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x => S2)) ..)))
+      Ei Eo
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..))) ..)))
+     _ _ _ _ _ _)
+  (atomic_spec_nonexpansive_post' W
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons LQx%assert3 .. (cons LQy%assert3 nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) r => (cons SPx%assert3 .. (cons SPy%assert3 nil) ..))) ..))) _ _))
+  (at level 200, x1 closed binder, xn closed binder, x at level 0, Ei at level 0, Eo at level 0, S2 at level 0, r at level 0, T at level 0).
+
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T)
    (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
@@ -1075,6 +1006,51 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))) _ _))
   (at level 200, x1 closed binder, xn closed binder, x at level 0, Ei at level 0, Eo at level 0, S2 at level 0).
+
+Notation "'ATOMIC' 'TYPE' W 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+  (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     PROPx nil
+     (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
+     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun _ : unit => S2) Ei Eo (fun _ _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
+   (@atomic_spec_nonexpansive_pre0 _ W
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Lx%type .. (cons Ly%type nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Gx .. (cons Gy nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons S1x%logic .. (cons S1y%logic nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) (_:unit) => S2)) ..)))
+      Ei Eo
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) _ _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..))) ..)))
+     _ _ _ _ _ _)
+  (atomic_spec_nonexpansive_post0 W
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))) _ _))
+  (at level 200, x1 closed binder, xn closed binder, Ei at level 0, Eo at level 0, S2 at level 0).
+
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+  (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     PROPx nil
+     (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
+     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
+   (@atomic_spec_nonexpansive_pre0 _ W
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Lx%type .. (cons Ly%type nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Gx .. (cons Gy nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons S1x%logic .. (cons S1y%logic nil) ..))) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x => S2)) ..)))
+      Ei Eo
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..))) ..)))
+     _ _ _ _ _ _)
+  (atomic_spec_nonexpansive_post0 W
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))
+      (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons SPx%assert5%assert3 .. (cons SPy%assert5%assert3 nil) ..))) ..))) _ _))
+  (at level 200, x1 closed binder, xn closed binder, x at level 0, Ei at level 0, Eo at level 0, S2 at level 0).
+
 Ltac atomic_nonexpansive_tac := try (let x := fresh "x" in intros ?? x;
   try match type of x with list Type => (let ts := fresh "ts" in rename x into ts; intros x) end;
   repeat destruct x as [x ?]; unfold rev_curry, tcurry; simpl; auto); repeat constructor.
@@ -1134,7 +1110,7 @@ Ltac start_function1 ::=
    unfold NDmk_funspec'
  end;
  let DependedTypeList := fresh "DependedTypeList" in
- unfold NDmk_funspec; 
+ unfold NDmk_funspec;
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
 
    split3; [check_parameter_types' | check_return_type | ];
@@ -1146,25 +1122,25 @@ Ltac start_function1 ::=
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
- try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
-     change (fun rho => ?A rho * ?B rho) with (A * B)
+ try match goal with |- semax _ (fun rho => ?A rho * ?B rho)%logic _ _ =>
+     change (fun rho => ?A rho * ?B rho)%logic with (A * B)%logic
   end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
  clear DependedTypeList;
  rewrite_old_main_pre;
  repeat match goal with
- | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
+ | |- @semax _ _ _ (match ?p with (a,b) => _ end * _)%logic _ _ =>
              destruct p as [a b]
  | |- @semax _ _ _ (close_precondition _ match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
- | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _) _ _ =>
+ | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _)%logic _ _ =>
              destruct p as [a b]
  | |- @semax _ _ _ (close_precondition _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
              destruct p as [a b]
  | |- semax _ (close_precondition _
                                                 (fun ae => !! (Datatypes.length (snd ae) = ?A) && ?B
-                                                      (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) * _) _ _ =>
+                                                      (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) * _)%logic _ _ =>
           match B with match ?p with (a,b) => _ end => destruct p as [a b] end
        end;
 (* this speeds things up, but only in the very rare case where it applies,
@@ -1173,6 +1149,7 @@ Ltac start_function1 ::=
 *)
  try start_func_convert_precondition.
 
+(* can we not do this? *)
 Ltac start_function2 ::=
   first [ setoid_rewrite (* changed from erewrite *) compute_close_precondition_eq; [ | reflexivity | reflexivity]
         | rewrite close_precondition_main ].

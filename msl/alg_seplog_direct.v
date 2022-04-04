@@ -45,9 +45,9 @@ Defined.
  intros. pose proof (wand_sepcon_adjoint P Q R). simpl. rewrite H; split; auto.
  intros. apply (predicates_sa.sepcon_andp_prop P Q R).
  intros; intro; apply sepcon_derives; auto.
- intros; apply predicates_sa.ewand_sepcon.
- intros; simpl. apply ewand_TT_sepcon; auto.
- intros; simpl. intros w [w1 [w2 [? [? ?]]]]. exists w1,w2; repeat split; auto. exists w2; exists w; repeat split; auto.
+(* intros; apply predicates_sa.ewand_sepcon.*)
+(* intros; simpl. apply ewand_TT_sepcon; auto.*)
+(* intros; simpl. intros w [w1 [w2 [? [? ?]]]]. exists w1,w2; repeat split; auto. exists w2; exists w; repeat split; auto.*)
  intros; simpl. apply ewand_conflict; auto.
 Defined.
 
@@ -56,7 +56,7 @@ Defined.
  constructor; intros. simpl. apply predicates_sa.sepcon_emp.
 Defined.
 
-#[global] Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}:
+#[global] Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{FT: Flat_alg T}:
          @CorableSepLog (pred T) (algNatDed T) (algSepLog T).
   apply mkCorableSepLog with (corable := corable_direct.corable); unfold algNatDed, algSepLog; simpl.
   + apply corable_prop.
