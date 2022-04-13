@@ -7,8 +7,6 @@ Require Export VST.concurrency.invariants.
 Require Export VST.concurrency.fupd.
 Require Export VST.atomics.general_atomics.
 
-Open Scope logic.
-
 Section locks.
 
 Context {P : Ghost}.

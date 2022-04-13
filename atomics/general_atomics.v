@@ -1,33 +1,14 @@
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
+Require Export iris.bi.lib.atomic.
+Require Export VST.veric.bi.
 Require Import VST.concurrency.ghosts.
 Require Import VST.concurrency.conclib.
-Require Export iris.bi.lib.atomic.
 Require Import VST.concurrency.invariants.
 Require Import VST.concurrency.fupd.
 Require Import VST.floyd.library.
 Require Export VST.zlist.sublist.
 Require Import Program.Equality.
-
-Open Scope logic. (* we shouldn't need this *)
-
-(* Thoughts on invariants and the two-level structure:
-   I expect that our version of the operational semantics will keep nonatomic locations as is,
-   so that the points-to assertions won't need view parameters (and in fact will be objective?).
-   The question then is: do we need the two-level structure in which iGPS-style assertions are
-   functions from view to mpred, or can even protocol assertions simply be mpreds? We might be able
-   to use something like the external state construction to use ghost state to remember per-thread
-   timestamps, so that we don't need to include timestamps in the rmap (or as an extra argument
-   to assertions). In this model, there would be no objectivity requirement at all: instead,
-   protocol assertions from other threads would be incompatible with the current thread because
-   they refer to a different location for their timestamp ghost state.
-   On the other hand, if we do need the two-level structure, we should still define invariants
-   without objectivity here (as Iris-level invariants), and define iGPS-level invariants elsewhere. *)
-(* We will still, of course, have to choose between SC and RA atomics in any given proof/program,
-   since there's no soundness proof (or operational model) for a language with both. And invariants
-   must still be accessible only via atomics. Does this make the fancy-update style useless,
-   since we can't insert it into the definition of semax? Well, iGPS still uses it in the RA atomic
-   rules, so maybe it's still useful. *)
 
 Section atomics.
 

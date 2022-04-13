@@ -33,9 +33,6 @@ Definition atom_load_spec := DECLARE _atom_load (atomic_load_spec atomic_int ato
 Definition atom_store_spec := DECLARE _atom_store (atomic_store_spec atomic_int atomic_int_at).
 Definition atom_CAS_spec := DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic_int_at).
 
-Open Scope Z.
-Open Scope logic.
-
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
