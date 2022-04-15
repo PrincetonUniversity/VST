@@ -83,32 +83,6 @@ Proof.
     pose proof (necR_level _ _ Ha'); apply ext_level in Hext; lia.
 Qed.
 
-Lemma wand_nonexpansive_l: forall P Q n,
-  approx n (P -* Q)%pred = approx n (approx n P  -* Q)%pred.
-Proof.
-  repeat intro.
-  apply predicates_hered.pred_ext; intros ? [? Hshift]; split; auto; intros ??????.
-  - destruct H2; eauto.
-  - eapply Hshift; eauto; split; auto.
-    apply necR_level in H0; apply join_level in H1 as []; lia.
-Qed.
-
-Lemma wand_nonexpansive_r: forall P Q n,
-  approx n (P -* Q)%pred = approx n (P  -* approx n Q)%pred.
-Proof.
-  repeat intro.
-  apply predicates_hered.pred_ext; intros ? [? Hshift]; split; auto; intros ??????.
-  - split; eauto.
-    apply necR_level in H0; apply join_level in H1 as []; lia.
-  - eapply Hshift; eauto.
-Qed.
-
-Lemma wand_nonexpansive: forall P Q n,
-  approx n (P -* Q)%pred = approx n (approx n P  -* approx n Q)%pred.
-Proof.
-  intros; rewrite wand_nonexpansive_l wand_nonexpansive_r; reflexivity.
-Qed.
-
 Lemma core_ext_ord : forall (a b : rmap), join_sub a b -> ext_order (core a) (core b).
 Proof.
   intros.

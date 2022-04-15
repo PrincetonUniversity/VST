@@ -11,6 +11,13 @@ Definition timeless' (P : pred rmap) := forall (a a' : rmap),
   predicates_hered.app_pred P a' -> age a a' ->
   predicates_hered.app_pred P a.
 
+Lemma list_set_replace : forall {A} n l (a : A), (n < length l)%nat ->
+  own.list_set l n a = replace_nth n l (Some a).
+Proof.
+  induction n; destruct l; unfold own.list_set; auto; simpl; try lia; intros.
+  setoid_rewrite IHn; auto; lia.
+Qed.
+
 Lemma own_timeless : forall {P : Ghost} g (a : G), timeless' (own(RA := P) g a NoneP).
 Proof.
   intros ????? (v & ? & Hg) ?.
@@ -18,30 +25,46 @@ Proof.
   split.
   + intros; eapply age1_resource_at_identity; eauto.
   + erewrite age1_ghost_of in Hg by eauto.
-    erewrite own.ghost_fmap_singleton in *.
-    apply own.ghost_fmap_singleton_inv in Hg as ([] & -> & Heq).
-    inv Heq.
-    destruct p; inv H3.
-    simpl; repeat f_equal.
-    extensionality l.
-    destruct (_f l); auto.
+    erewrite own.ghost_fmap_singleton in *; simpl in *.
+    destruct Hg as [? Hg]; apply singleton_join_inv_gen in Hg as (J & ? & Hnth & ?).
+    setoid_rewrite (map_nth _ _ None) in Hnth; setoid_rewrite (map_nth _ _ None) in J.
+    destruct (nth g (ghost_of a0) None) as [(?, ?)|] eqn: Hga; [|inv J].
+    rewrite <- (list_set_same _ _ _ Hga).
+    assert (g < length (ghost_of a0))%nat.
+    { destruct (lt_dec g (length (ghost_of a0))); auto.
+      rewrite -> nth_overflow in Hga by lia; discriminate. }
+    inv J.
+    * erewrite list_set_replace, <- replace_nth_replace_nth, <- list_set_replace; rewrite ?replace_nth_length; auto.
+      eexists; apply singleton_join_gen; rewrite -> nth_replace_nth by auto.
+      destruct p; inv H7.
+      replace _f with (fun _ : list Type => tt).
+      apply lower_None2.
+      { extensionality i; destruct (_f i); auto. }
+    * destruct a2, p, H6 as (? & ? & ?); simpl in *; subst.
+      inv H6.
+      erewrite list_set_replace, <- replace_nth_replace_nth, <- list_set_replace; rewrite ?replace_nth_length; auto.
+      eexists; apply singleton_join_gen; rewrite -> nth_replace_nth by auto.
+      constructor.
+      instantiate (1 := (_, _)).
+      split; simpl; [|split; auto]; eauto.
+      f_equal.
+      extensionality i; destruct (_f i); auto.
 Qed.
 
 Lemma address_mapsto_timeless : forall m v sh p, timeless' (res_predicates.address_mapsto m v sh p).
 Proof.
   repeat intro.
   simpl in *.
-  destruct H as (b & [? HYES] & ?); exists b; split; [split|]; auto.
+  destruct H as (b & [? HYES]); exists b; split; auto.
   intro b'; specialize (HYES b').
   if_tac.
   - destruct HYES as (rsh & Ha'); exists rsh.
     erewrite age_resource_at in Ha' by eauto.
     destruct (a @ b'); try discriminate; inv Ha'.
-    destruct p0; inv H6; simpl.
+    destruct p0; inv H5; simpl.
     f_equal.
     apply proof_irr.
   - rewrite age1_resource_at_identity; eauto.
-  - rewrite age1_ghost_of_identity; eauto.
 Qed.
 
 Lemma timeless_FF : timeless' FF.
@@ -55,31 +78,56 @@ Lemma nonlock_permission_bytes_timeless : forall sh l z,
 Proof.
   repeat intro.
   simpl in *.
-  destruct H; split.
-  intro b'; specialize (H b').
+  specialize (H b).
   if_tac.
   - erewrite age1_resource_at in H by (erewrite ?resource_at_approx; eauto).
-    destruct (a @ b'); auto.
+    destruct (a @ b); auto.
   - rewrite age1_resource_at_identity; eauto.
-  - rewrite age1_ghost_of_identity; eauto.
 Qed.
 
 Lemma emp_timeless : timeless' emp.
 Proof.
   intros ????.
-  apply all_resource_at_identity.
-  - intro.
-    eapply age1_resource_at_identity; eauto.
-    eapply resource_at_identity; eauto.
-  - eapply age1_ghost_of_identity; eauto.
-    eapply ghost_of_identity; eauto.
+  setoid_rewrite res_predicates.emp_no in H.
+  setoid_rewrite res_predicates.emp_no.
+  intros l.
+  eapply age1_resource_at_identity, H; auto.
 Qed.
 
-Local Set Universe Polymorphism.
+Lemma sepcon_timeless : forall P Q, timeless' P -> timeless' Q ->
+  timeless' (P * Q)%pred.
+Proof.
+  intros ?????? (? & ? & J & ? & ?) ?.
+  eapply unage_join2 in J as (? & ? & ? & ? & ?); eauto.
+  do 3 eexists; eauto.
+Qed.
+
+Lemma exp_timeless : forall {A} (P : A -> pred rmap), (forall x, timeless' (P x)) ->
+  timeless' (exp P).
+Proof.
+  intros ????? [? HP] Hage.
+  eapply H in Hage; eauto.
+  exists x; auto.
+Qed.
+
+Lemma andp_timeless : forall P Q, timeless' P -> timeless' Q ->
+  timeless' (P && Q)%pred.
+Proof.
+  intros ?????? [] ?; split; eauto.
+Qed.
 
 Section FancyUpdates.
 
 Context {inv_names : invG}.
+
+Lemma join_preds : forall a b c d e, join(Join := Join_lower (Join_prod _ ghost_elem_join _ preds_join)) (Some (a, b)) c (Some (d, e)) ->
+  b = e.
+Proof.
+  intros.
+  inv H; auto.
+  destruct H3 as [_ H]; simpl in H.
+  inv H; auto.
+Qed.
 
 Definition fupd E1 E2 P :=
   ((wsat * ghost_set g_en E1) -* |==> |>FF || (wsat * ghost_set g_en E2 * P))%pred.
@@ -153,12 +201,12 @@ Proof.
   intros; erewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
 Qed.
 
-(* This is a generally useful pattern. *)
+(*(* This is a generally useful pattern. *)
 Lemma bupd_mono' : forall P Q (a : rmap) (Himp : (P >=> Q)%pred (level a)),
   app_pred (bupd P) a -> app_pred (bupd Q) a.
 Proof.
   intros.
-  assert (app_pred ((|==> P * approx (S (level a)) emp)) a) as HP'.
+  assert (app_pred ((|==> P * approx (S (level a)) emp))%pred a) as HP'.
   { apply (bupd_frame_r _ _ a).
     do 3 eexists; [apply join_comm, core_unit | split; auto].
     split; [|apply core_identity].
@@ -186,7 +234,7 @@ Proof.
   destruct (join_level _ _ _ J).
   apply join_comm, Hemp in J; subst.
   eapply Himp in HP; try apply necR_refl; auto; lia.
-Qed.
+Qed.*)
 
 Lemma fupd_bupd : forall E1 E2 P Q, (P |-- (|==> (|={E1,E2}=> Q))) -> P |-- |={E1,E2}=> Q.
 Proof.
@@ -203,18 +251,7 @@ Proof.
   intros; eapply derives_trans, bupd_fupd; apply bupd_intro.
 Qed.
 
-(*Lemma fupd_nonexpansive: forall E1 E2 P n, approx n (|={E1,E2}=> P) = approx n (|={E1,E2}=> approx n P).
-Proof.
-  intros; unfold fupd.
-  rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 2.
-  f_equal; f_equal.
-  rewrite !approx_bupd; f_equal.
-  unfold sbi_except_0.
-  setoid_rewrite approx_orp; f_equal.
-  erewrite !approx_sepcon, approx_idem; reflexivity.
-Qed.
-
-Corollary fview_shift_nonexpansive : forall E1 E2 P Q n,
+(*Corollary fview_shift_nonexpansive : forall E1 E2 P Q n,
   approx n (P -* |={E1,E2}=> Q)%logic = approx n (approx n P  -* |={E1,E2}=> approx n Q)%logic.
 Proof.
   intros.
@@ -291,22 +328,60 @@ Proof.
   - rewrite sepcon_andp_prop, andp_comm; auto.
 Qed.
 
+Lemma unfash_sepcon: forall P (Q : pred rmap), !P * Q |-- !P.
+Proof.
+  intros ??? (? & ? & J & ? & ?); simpl in *.
+  apply join_level in J as [<- _]; auto.
+Qed.
+
+Lemma bupd_unfash: forall P, bupd (! P) |-- ! P.
+Proof.
+  repeat intro; simpl in *.
+  destruct (H (core (ghost_of a))) as (? & ? & ? & <- & ? & ? & ?); auto.
+  rewrite <- ghost_of_approx at 1; eexists; apply ghost_fmap_join, join_comm, core_unit.
+Qed.
+
+Lemma bupd_andp_unfash: forall P Q, (bupd (!P && Q) = !P && bupd Q)%pred.
+Proof.
+  intros; apply pred_ext.
+  - apply andp_right.
+    + eapply derives_trans; [apply bupd_mono, andp_left1, derives_refl|].
+      apply bupd_unfash.
+    + apply bupd_mono, andp_left2, derives_refl.
+  - intros ? [? HQ] ? J.
+    destruct (HQ _ J) as (? & ? & a' & Hl & ? & ? & ?); subst.
+    eexists; split; eauto.
+    exists a'; repeat (split; auto).
+    simpl in *.
+    rewrite Hl; auto.
+Qed.
+
 Lemma fupd_andp_unfash: forall E1 E2 P Q, !P && fupd E1 E2 Q |-- fupd E1 E2 (!P && Q).
 Proof.
   unfold fupd; intros.
   rewrite <- wand_sepcon_adjoint.
   eapply derives_trans; [apply andp_right|].
-  { eapply derives_trans, seplog.unfash_sepcon.
+  { eapply derives_trans, unfash_sepcon.
     apply sepcon_derives, derives_refl; apply andp_left1; auto. }
   { apply sepcon_derives, derives_refl; apply andp_left2, derives_refl. }
   eapply derives_trans; [apply andp_derives; [apply derives_refl | rewrite sepcon_comm; apply modus_wand]|].
-  rewrite <- seplog.bupd_andp_unfash.
+  rewrite <- bupd_andp_unfash.
   apply bupd_mono.
   rewrite andp_comm, distrib_orp_andp; apply orp_derives.
   - apply andp_left1; auto.
   - rewrite andp_comm, unfash_sepcon_distrib; apply sepcon_derives; auto.
     apply andp_left2; auto.
 Qed.
+
+Lemma subp_fupd : forall (G : pred nat) E (P P' : pred rmap),
+  (G |-- P >=> P' -> G |-- (fupd E E P) >=> (fupd E E P'))%pred.
+Proof.
+  intros; unfold fupd.
+  apply sub_wand; [apply subp_refl|].
+  apply subp_bupd, subp_orp; [apply subp_refl|].
+  apply subp_sepcon; auto; apply subp_refl.
+Qed.
+
 
 (*Lemma fupd_prop' : forall E1 E2 E2' P Q, subseteq E1 E2 ->
   (Q |-- (|={E1,E2'}=> !!P) ->

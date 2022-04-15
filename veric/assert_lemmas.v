@@ -251,6 +251,10 @@ Proof.
   apply ext_level in E; congruence.
 Qed.
 
+Section invs.
+
+Context {inv_names : invariants.invG}.
+
 Lemma corable_funspec_sub_si f g: corable (funspec_sub_si f g).
 Proof.
  unfold funspec_sub_si; intros.
@@ -358,6 +362,8 @@ Proof.
   apply corable_andp. apply corable_prop.
   apply corable_func_at.
 Qed.
+
+End invs.
 
 #[export] Hint Resolve corable_func_ptr corable_func_ptr_si (*corable_func_ptr_early*) : core.
 

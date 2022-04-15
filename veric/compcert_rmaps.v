@@ -307,6 +307,17 @@ Proof.
  exists (c x0); apply join_comm; apply H0.
 Qed.
 
+#[(*export, after Coq 8.13*)global] Instance Disj_resource: Disj_alg resource.
+Proof.
+intros ?? J.
+inv J.
+- apply join_self, identity_share_bot in RJ; subst.
+  apply NO_identity.
+- apply join_self, identity_share_bot in RJ; subst.
+  apply bot_unreadable in rsh0 as [].
+- apply PURE_identity.
+Qed.
+
 #[(*export, after Coq 8.13*)global] Instance Trip_resource: Trip_alg resource.
 Proof.
 intro; intros.

@@ -14,6 +14,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.own.
+Require Import VST.veric.fupd.
 Import compcert.lib.Maps.
 
 Import Ctypes Clight_core.
@@ -86,28 +87,30 @@ Definition assert_safe'_
        match ctl with
        | Stuck => False
        | Cont (Kseq s ctl') => 
-             jsafeN (@OK_spec Espec) ge (level w) ora (State f s ctl' ve te) jm
+             jsafeN (@OK_spec Espec) ge ora (State f s ctl' ve te) jm
        | Cont (Kloop1 body incr ctl') =>
-             jsafeN (@OK_spec Espec) ge (level w) ora (State f Sskip (Kloop1 body incr ctl') ve te) jm
+             jsafeN (@OK_spec Espec) ge ora (State f Sskip (Kloop1 body incr ctl') ve te) jm
        | Cont (Kloop2 body incr ctl') =>
-             jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sloop body incr) ctl' ve te) jm
+             jsafeN (@OK_spec Espec) ge ora (State f (Sloop body incr) ctl' ve te) jm
        | Cont (Kcall id' f' ve' te' k') => 
-               jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te) jm
+               jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te) jm
        | Cont Kstop =>
-               jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) Kstop ve te) jm
+               jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) Kstop ve te) jm
        | Cont _ => False
        | Ret None ctl' =>
-                jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) ctl' ve te) jm
+                jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) ctl' ve te) jm
        | Ret (Some v) ctl' =>  forall e v',
                   Clight.eval_expr ge ve te (m_dry jm) e v' ->
                   Cop.sem_cast v' (typeof e) (fn_return f) (m_dry jm) = Some v ->
-              jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn (Some e)) ctl' ve te) jm
+              jsafeN (@OK_spec Espec) ge ora (State f (Sreturn (Some e)) ctl' ve te) jm
        end.
+
+Notation fupd := (fupd Ensembles.Full_set Ensembles.Full_set).
 
 Program Definition assert_safe
      (Espec : OracleKind) (ge: genv) (f: function) (ve: env) (te: temp_env) 
      (ctl: contx) : assert :=
-  fun rho => bupd (assert_safe'_ (Espec : OracleKind) ge f ve te ctl rho).
+  fun rho => fupd (assert_safe'_ (Espec : OracleKind) ge f ve te ctl rho).
 Next Obligation.
   split; repeat intro.
    subst.

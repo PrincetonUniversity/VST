@@ -1162,6 +1162,10 @@ Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 p
       rettype_of_funspec phi1 = rettype_of_funspec phi.
 Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.
 
+Section invs.
+
+Context {inv_names : invariants.invG}.
+
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this
@@ -1229,6 +1233,8 @@ Proof.
   * intros. apply subsumespec_refl.
   * intros. eapply Annotation_sub_refl.
 Qed.
+
+End invs.
 
 (*************************************)
 
