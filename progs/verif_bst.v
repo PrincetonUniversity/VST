@@ -393,14 +393,13 @@ Proof.
     Exists b t. entailer.
     apply ramify_PPQQ.
   * (* Loop body *)
-    unfold insert_inv.
+    unfold insert_inv at 1.
     Intros b1 t1.
     forward. (* Sskip *)
-    unfold treebox_rep at 1. Intros p1.
     forward. (* p = *t; *)
     forward_if.
     + (* then clause *)
-      subst p1.
+      subst p.
       Time forward_call (sizeof t_struct_tree).
       Intros p'.
       rewrite memory_block_data_at_ by auto.
@@ -426,7 +425,7 @@ Proof.
       - (* Inner if, then clause: x<k *)
         forward. (* t=&p->left *)
         unfold insert_inv.
-        Exists (field_address t_struct_tree [StructField _left] p1) t1_1.
+        Exists (field_address t_struct_tree [StructField _left] p) t1_1.
         entailer!. simpl.
         simpl_compb.
         (* TODO: SIMPLY THIS LINE 
@@ -440,7 +439,7 @@ Proof.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
         unfold insert_inv.
-        Exists (field_address t_struct_tree [StructField _right] p1) t1_2.
+        Exists (field_address t_struct_tree [StructField _right] p) t1_2.
         entailer!. simpl.
         simpl_compb; simpl_compb.
         (* TODO: SIMPLY THIS LINE 
@@ -460,11 +459,11 @@ Proof.
         simpl_compb.
         simpl_compb.
         apply modus_ponens_wand'.
-        unfold treebox_rep. Exists p1.
+        unfold treebox_rep. Exists p.
         simpl tree_rep. Exists pa pb. entailer!.
   * (* After the loop *)
     forward.
-    unfold loop2_ret_assert. apply andp_left2. auto.
+    apply andp_left2. auto.
 Qed.
 
 Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
@@ -476,7 +475,6 @@ Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof.
   start_function.
-  unfold treebox_rep. Intros p.
   forward. (* p=*t; *)
   apply (semax_post_ret1 nil
           (data_at Tsh (tptr t_struct_tree) p b :: tree_rep t p :: nil)).
@@ -518,7 +516,6 @@ Proof.
       assert (x=k) by lia. subst x. clear H H3 H4.
       forward. (* v=p->value *)
       forward. (* return v; *) simpl.
-      unfold treebox_rep. unfold normal_ret_assert.
       entailer!.
       - rewrite <- H0. simpl.
         simpl_compb; simpl_compb; auto.

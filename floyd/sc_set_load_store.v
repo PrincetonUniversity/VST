@@ -800,6 +800,142 @@ then use assert_PROP to prove an equality of the form" eq1
   end
  end.
 
+Ltac has_at_already_aux R p :=
+  lazymatch R with
+  | nil => fail
+  | ?R1::?R' =>
+    first
+    [ lazymatch R1 with
+      | data_at _ _ _ p => idtac
+      | field_at _ _ _ _ p => idtac
+      | data_at_ _ _ p => idtac
+      | field_at_ _ _ _ p => idtac
+      | memory_block _ _ p => idtac
+      end
+    | has_at_already_aux R' p
+    ]
+  end.
+
+Ltac has_at_already p :=
+  lazymatch goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+    has_at_already_aux R p
+  end.
+
+Ltac handle_intros :=
+  try Intros;
+  repeat lazymatch goal with
+  | |- semax _ (PROPx _ (LOCALx _ (SEPx ?X))) _ _=>
+    lazymatch X with
+    | context [EX X', _] =>
+      let x := fresh X' in Intros x
+    end
+  end.
+
+Ltac find_unfold_mpred_aux P A p :=
+  let x := fresh "x" in
+  set (x := P);
+  unfold A in x;
+  subst x;
+  handle_intros;
+  has_at_already p.
+
+Ltac find_unfold_mpred_aux' P A p :=
+  lazymatch A with
+  | ?A' _ _ _ _ => find_unfold_mpred_aux' P A' p
+  | ?A' _ _ _ => find_unfold_mpred_aux' P A' p
+  | ?A' _ _ => find_unfold_mpred_aux' P A' p
+  | ?A' _ => find_unfold_mpred_aux' P A' p
+  | ?A' =>
+    lazymatch A' with
+    | data_at => fail
+    | field_at => fail
+    | data_at_ => fail
+    | field_at_ => fail
+    | memory_block => fail
+    | _ => find_unfold_mpred_aux P A' p
+    end
+  end.
+
+Ltac find_unfold_mpred_aux2 R1 p :=
+  lazymatch R1 with
+  | context [_ p] => find_unfold_mpred_aux' R1 R1 p
+  end.
+
+Ltac find_unfold_mpred R p :=
+  lazymatch R with
+   | nil => fail
+   | ?R1 :: ?R' =>
+    first
+    [ find_unfold_mpred_aux2 R1 p
+    | find_unfold_mpred R' p
+    ]
+  end.
+
+Lemma check_unfold_lemma: forall {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint,
+  local2ptree Q = (T1, T2, nil, GV) ->
+  compute_nested_efield e = (e_root, efs, lr) ->
+  msubst_eval_lvalue Delta T1 T2 GV e = Some p_full_from_e ->
+  msubst_eval_LR Delta T1 T2 GV e_root lr = Some p_root_from_e ->
+  msubst_efield_denote Delta T1 T2 GV efs gfs_from_e ->
+  compute_root_type (typeof e_root) lr t_root_from_e ->
+  field_address_gen (t_root_from_e, gfs_from_e, p_root_from_e) (t_root_from_hint, gfs_from_hint, p_root_from_hint) ->
+  p_full_from_e = p_full_from_e /\
+  goal -> goal.
+Proof.
+  intros.
+  destruct H6 as [_ ?].
+  apply H6.
+Qed.
+
+Ltac check_unfold_mpred_for_at_aux Delta P Q R e :=
+  let T1 := fresh "T1" in evar (T1: PTree.t val);
+  let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
+  let G := fresh "GV" in evar (G: option globals);
+  let LOCAL2PTREE := fresh "LOCAL2PTREE" in
+  assert (local2ptree Q = (T1, T2, nil, G)) as LOCAL2PTREE;
+  [subst T1 T2 G; prove_local2ptree |];
+  eapply (check_unfold_lemma Delta e);
+  [ exact LOCAL2PTREE
+  | reflexivity
+  | solve_msubst_eval_lvalue
+  | solve_msubst_eval_LR
+  | solve_msubst_efield_denote
+  | econstructor
+  | solve_field_address_gen
+  | ];
+  lazymatch goal with
+  | |- ?p = ?p /\ _ =>
+    split; [ reflexivity | ];
+    lazymatch p with
+    | offset_val _ ?p' =>
+      first
+      (* `fail 1` isn't necessary, but in case `find_unfold_mpred` has unexpected side-effects *)
+      [ has_at_already_aux R p'; fail 1
+      | find_unfold_mpred R p'
+      ]
+    | ?p' =>
+      first
+      [ has_at_already_aux R p; fail 1
+      | find_unfold_mpred R p
+      ]
+    end
+  end;
+  clear T1 T2 G LOCAL2PTREE.
+
+Ltac check_unfold_mpred_for_at_aux2 Delta P Q R e :=
+  try lazymatch e with
+  | Ssequence ?e' _ => check_unfold_mpred_for_at_aux2 Delta P Q R e'
+  | Sset _ (Ecast ?e' _) => check_unfold_mpred_for_at_aux Delta P Q R e'
+  | Sset _ ?e' => check_unfold_mpred_for_at_aux Delta P Q R e'
+  | Sassign ?e' _ => check_unfold_mpred_for_at_aux Delta P Q R e'
+  end.
+
+Ltac check_unfold_mpred_for_at :=
+  lazymatch goal with
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e _ =>
+    check_unfold_mpred_for_at_aux2 Delta P Q R e
+  end.
+
 Section SEMAX_PTREE.
 
 Context {cs: compspecs}.

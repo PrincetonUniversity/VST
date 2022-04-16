@@ -3884,6 +3884,7 @@ Ltac forward :=
            try_forward_store_union_hack e1 s2 id1 t1
     | |- semax _ _ (Ssequence ?c _) _ =>
       check_precondition;
+      check_unfold_mpred_for_at;
       eapply semax_seq';
       [ forward1 c
       | fwd_result;
