@@ -310,6 +310,7 @@ Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne 
                      (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc):
   @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
+  (* This needs a fupd, but it's unclear how, since it's a pred nat. *)
 Proof.
 apply allp_derives; intros g.
 apply allp_right; intros ts.
@@ -318,12 +319,12 @@ destruct Hsub as [_ H]; simpl in H.
 intros n N m NM F typs vals y MY ? z YZ EZ [HT HP].
 simpl in HP.
 rewrite HSIG in HT; simpl in HT.
-eapply sepcon_derives, bupd_frame_r in HP; [| intros ??; eapply H; split; eauto | apply derives_refl].
+eapply sepcon_derives, fupd_frame_r in HP; [| intros ??; eapply H; split; eauto | apply derives_refl].
 2: { clear -HT. 
   apply has_type_list_Forall2 in HT.
   eapply Forall2_implication; [ | apply HT]; auto.
 }
-clear H.
+clear H. (*
 edestruct HP as (? & ? & z0 & ? & ? & ? & H); subst.
 { eexists. rewrite ghost_fmap_core. apply join_comm, core_unit. }
 destruct H as [z1 [z2 [JZ [[ts1 [x1 [FRM [[z11 [z12 [JZ1 [H_FRM H_P1]]]] HQ]]]] Z2]]]].
@@ -335,7 +336,7 @@ edestruct (N _ NM (sepcon F FRM) typs vals jm0) as [est [EST1 EST2]]; clear N; e
 { rewrite HSIG; simpl. split; trivial.
   exists z12, zz; split3. trivial. trivial.
   exists z2, z11; split3; trivial. }
-(*exists est; split.
+exists est; split.
 { simpl. intros. apply EST1; auto. apply necR_trans with z; auto.
   rewrite age_to.necR_age_to_iff. admit.
 simpl; intros.

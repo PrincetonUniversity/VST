@@ -484,6 +484,10 @@ match (temp_types Delta) ! id with
 | None => false
 end.
 
+Section invs.
+
+Context {inv_names : invariants.invG}.
+
 Lemma typecheck_tid_ptr_compare_sub:
    forall Delta Delta',
     tycontext_sub Delta Delta' ->
@@ -498,6 +502,8 @@ destruct ((temp_types Delta) ! id) as [? |]; try discriminate.
 destruct ((temp_types Delta') ! id) as [? |]; try contradiction.
  destruct H; subst; auto.
 Qed.
+
+End invs.
 
 Lemma int64_eq_e:
  forall i j, Int64.eq i j = true -> i=j.

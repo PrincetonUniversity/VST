@@ -618,6 +618,8 @@ Section juicy_safety.
   | jsafeN_step:
       forall z c m c' m',
       jstep Hcore c m c' m' ->
+        (* For full generality, we'd parameterize by a mask E here, but that would
+           have to propagate all the way up to semax. *)
         jm_fupd z Ensembles.Full_set Ensembles.Full_set (jsafeN_ z c') m' ->
       jsafeN_ z c m
   | jsafeN_external:

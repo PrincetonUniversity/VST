@@ -244,16 +244,16 @@ Proof.
  symmetry; apply resource_at_approx.
 Qed.
 
-Lemma jsafeN_local_step_bupd:
+Lemma jsafeN_local_step_fupd:
   forall {Espec: OracleKind} ge ora s1 m s2,
   cl_step  ge s1 (m_dry m) s2 (m_dry m) ->
-  (forall m', age m m' -> jm_bupd ora (jsafeN (@OK_spec Espec) ge (level m') ora s2) m') ->
-  jsafeN (@OK_spec Espec) ge (level m) ora s1 m.
+  (forall m', age m m' -> jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora s2) m') ->
+  jsafeN (@OK_spec Espec) ge ora s1 m.
 Proof.
 intros.
   rename H into Hstep.
   remember (level m) as N.
-  destruct N; [constructor|].
+  destruct N; [constructor; auto|].
   case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
   (* eapply jsafeN_step with (m'0 := m'). *)
   eapply jsafeN_step.
@@ -283,13 +283,13 @@ Lemma jsafeN_local_step:
   forall {Espec: OracleKind} ge ora s1 m s2,
   cl_step  ge s1 (m_dry m) s2 (m_dry m) ->
   (forall m', age m m' ->
-    jsafeN (@OK_spec Espec) ge (level m') ora s2 m') ->
-  jsafeN (@OK_spec Espec) ge (level m) ora s1 m.
+    jsafeN (@OK_spec Espec) ge ora s2 m') ->
+  jsafeN (@OK_spec Espec) ge ora s1 m.
 Proof.
 intros.
   rename H into Hstep.
   remember (level m) as N.
-  destruct N; [constructor|].
+  destruct N; [constructor; auto|].
   case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
   eapply jsafeN_step.
   split3.
@@ -302,8 +302,8 @@ intros.
   repeat intro; auto.
   assert (N = level m')%nat.
   apply age_level in H; lia.
-  apply jm_bupd_intro.
-  subst. apply H0. auto.
+  apply jm_fupd_intro, H0; auto; intros.
+  eapply necR_safe; eauto.
 Qed.
 
 Lemma derives_skip:
@@ -338,48 +338,39 @@ rewrite prop_true_andp in H by auto.
 rewrite sepcon_comm.
 eapply sepcon_derives; try apply H0; auto.
 
-repeat intro.
-destruct (H0 _ H1) as (b & ? & m' & ? & ? & ? & HP); clear H0.
-exists b; split; auto; exists m'; repeat split; auto.
-simpl.
-intros ? ? ? ? ? ?.
-specialize (HP ora jm H0 H6 H7 LW).
+apply fupd.fupd_mono.
+intros ? HP ? ? ? ? ? ?; simpl in HP.
+specialize (HP ora jm H0 H1 H2 LW).
 simpl in HP.
-rewrite <- H7 in HP|-*.
+subst a.
 change (level (m_phi jm)) with (level jm) in HP|-*.
 destruct k as [ | s ctl' | | | |]; try contradiction; auto.
 -
 inv HP; try contradiction.
-change (level jm) with (level (m_phi jm)); rewrite <- H9.
-constructor.
-change (level jm) with (level (m_phi jm)); rewrite <- H8.
+constructor; auto.
 eapply jsafeN_step; eauto.
-destruct H9; split; auto.
-inv H5.
+destruct H2; split; auto.
+inv H2.
 econstructor; eauto.
 simpl. auto.
-inv H9.
+inv H2.
 -
 eapply jsafeN_local_step. constructor.
 intros.
-eapply age_safe in HP; try apply H8.
-auto.
+eapply age_safe in HP; eauto.
 -
 eapply jsafeN_local_step. constructor.
 intros.
-eapply age_safe in HP; try apply H8.
-auto.
+eapply age_safe in HP; eauto.
 -
 inv HP; try contradiction.
-change (level jm) with (level (m_phi jm)); rewrite <- H9.
-constructor.
-change (level jm) with (level (m_phi jm)); rewrite <- H8.
+constructor; auto.
 eapply jsafeN_step; eauto.
-destruct H9; split; auto.
-inv H5.
+destruct H2; split; auto.
+inv H2.
 econstructor; eauto.
 simpl. auto.
-inv H9.
+inv H2.
 Qed.
 
 Lemma semax_unfold {CS: compspecs} {Espec: OracleKind}:
@@ -461,14 +452,10 @@ assert (level w1 = O). {
 }
 hnf.
 intros.
-eexists; split.
-apply H10.
-exists w1.
-split3; auto. split; auto.
-simpl.
-hnf; intros.
-rewrite H9.
-constructor.
+apply bupd_intro.
+left.
+apply later_0.
+apply join_level in H11 as []; apply necR_level in H10; lia.
 Qed.
 
 Lemma extract_exists_pre {CS: compspecs} {Espec: OracleKind}:
@@ -532,9 +519,6 @@ apply pred_ext; intros w ?.
   + apply necR_refl.
   + apply ext_refl.
   + destruct H2 as [e3 [? ?]].
-    admit.
-- exists w; exists w; split; auto.
-  destruct H as [e [? ?]].
 Abort.
 
 Lemma subp_derives' {A}{agA: ageable A}{EO: Ext_ord A}:
@@ -693,7 +677,7 @@ Proof.
 intros.
 case_eq (age1 w). auto.
 clear H.
-intro; apply bupd_intro; repeat intro.
+intro; apply fupd.fupd_intro; repeat intro.
 apply age1_level0 in H. lia.
 Qed.
 
@@ -872,23 +856,19 @@ Section extensions.
 Lemma safe_loop_skip:
   forall {Espec: OracleKind}
     ge ora f ve te k m,
-    jsafeN (@OK_spec Espec) ge (level m) ora
-           (State f (Sloop Clight.Sskip Clight.Sskip) k ve te ) m.
+    jsafeN (@OK_spec Espec) ge ora
+           (State f (Sloop Clight.Sskip Clight.Sskip) k ve te) m.
 Proof.
   intros.
-  pose (M := level m).
-  assert (Hge: (M >= level m)%nat) by lia.
-  clearbody M.
-  revert m Hge; induction M; intros.
-  assert (level m = O) by lia. rewrite H.
-  constructor.
+  remember (level m) as M.
+  revert dependent m; induction M as [? IHM] using lt_wf_ind; intros.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply jsafeN_local_step. constructor. auto.
   intros.
   eapply jsafeN_local_step. constructor.
   intros.
-  apply IHM.
+  eapply IHM; eauto.
   apply age_level in H. apply age_level in H0. apply age_level in H1. lia.
 Qed.
 
@@ -920,8 +900,8 @@ Local Open Scope nat_scope.
 
 Definition control_as_safex {Espec: OracleKind} ge c1 k1 c2 k2 :=
     forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem),
-        jsafeN (@OK_spec Espec) ge (level m) ora (State f c1 k1 ve te) m ->
-          jsafeN (@OK_spec Espec) ge (level m) ora (State f c2 k2 ve te) m.
+        jsafeN (@OK_spec Espec) ge ora (State f c1 k1 ve te) m ->
+          jsafeN (@OK_spec Espec) ge ora (State f c2 k2 ve te) m.
 
 Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
  match ctl1, ctl2 with
@@ -1049,12 +1029,12 @@ clear find_label_ls_None; induction s; simpl; intros; try congruence;
  rewrite (find_label_None _ _ _ H). eauto.
 Qed.
 
-Lemma guard_safe_adj {Espec: OracleKind}:
+Lemma guard_safe_adj' {Espec: OracleKind}:
  forall
    psi Delta f P c1 k1 c2 k2,
-  (forall ora m ve te n,
-     jsafeN (@OK_spec Espec) psi n ora (State f c1 k1 ve te) m ->
-     jsafeN (@OK_spec Espec) psi n ora (State f c2 k2 ve te) m) ->
+  (forall ora m ve te,
+     jsafeN (@OK_spec Espec) psi ora (State f c1 k1 ve te) m ->
+     jsafeN (@OK_spec Espec) psi ora (State f c2 k2 ve te) m) ->
   guard Espec psi Delta f P (Kseq c1 k1) |-- guard Espec psi Delta f P (Kseq c2 k2).
 Proof.
 intros.
@@ -1062,33 +1042,12 @@ unfold guard.
 apply allp_derives. intros tx.
 apply allp_derives. intros vx.
 apply subp_derives; auto.
-apply bupd_mono.
+apply fupd.fupd_mono.
 intros w ? ? ? ? .
 simpl in H0.
 specialize (H0 ora jm H1).
 simpl.
 intros.
-apply H; auto.
-Qed.
-
-Lemma guard_safe_adj' {Espec: OracleKind}:
- forall
-   psi Delta f P c1 k1 c2 k2,
-  (forall ora m ve te,
-     jsafeN (@OK_spec Espec) psi (level m) ora (State f c1 k1 ve te) m ->
-     jsafeN (@OK_spec Espec) psi (level m) ora (State f c2 k2 ve te) m) ->
-  guard Espec psi Delta f P (Kseq c1 k1) |-- guard Espec psi Delta f P (Kseq c2 k2).
-Proof.
-intros.
-unfold guard.
-apply allp_derives. intros tx.
-apply allp_derives. intros vx.
-apply subp_derives; auto.
-apply bupd_mono.
-simpl.
-intros ? ? ? ? ? ? ? ?.
-simpl in H0.
-subst.
 apply H; auto.
 Qed.
 
@@ -1098,7 +1057,7 @@ Lemma assert_safe_adj:
      assert_safe Espec ge f ve te (Cont k) rho
     |-- assert_safe Espec ge f ve te (Cont k') rho.
 Proof.
- intros. apply bupd_mono.
+ intros. apply fupd.fupd_mono.
  simpl in *.
  intros w ?. simpl in H0|-*.
  intros ? ?. specialize (H0 ora jm).
@@ -1585,83 +1544,98 @@ Proof.
     destruct (eval_expr e rho), (eval_expr e0 rho); auto.
 Qed.
 
-Lemma bupd_denote_tc: forall {cs: compspecs} P t rho a,
-  denote_tc_assert t rho a -> bupd P a -> bupd (denote_tc_assert t rho && P) a.
+Lemma fupd_denote_tc: forall {cs: compspecs} P t rho a,
+  denote_tc_assert t rho a -> fupd P a -> fupd (denote_tc_assert t rho && P) a.
 Proof.
+  intros.
   repeat intro.
-  destruct (H0 _ H1) as (b & ? & m & ? & ? & ? & ?); subst.
+  eapply H0 in H4; eauto.
+  destruct H4 as (b & ? & m & ? & ? & ? & HP); subst.
   eexists; split; eauto; exists m; repeat split; eauto.
+  destruct HP; [left; auto|].
+(*  right; split; auto.
   eapply denote_tc_resource; [|eauto]; auto.
-Qed.
+Qed.*) Abort. (* What if we put the valid_pointer info into an invariant? *)
 
 Lemma assert_safe_jsafe: forall {Espec: OracleKind} ge f ve te c k ora jm,
   assert_safe Espec ge f ve te (Cont (Kseq c k)) (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
-  jm_bupd ora (jsafeN OK_spec ge (level jm) ora (State f c k ve te)) jm.
+  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN OK_spec ge ora (State f c k ve te)) jm.
 Proof.
   repeat intro.
-  destruct (H _ H1) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
+  eapply H in H2; try apply necR_jm_phi; eauto.
+  destruct (H2 _ H4) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
   do 2 red in Hsafe.
   destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
   exists jm'; repeat split; auto.
-  rewrite level_juice_level_phi, <- Hl.
-  destruct (gt_dec (level (m_phi jm')) O).
-  specialize (Hsafe ora jm').
+  rewrite level_juice_level_phi; destruct (level (m_phi jm')) eqn: Hl'; auto.
+  destruct Hsafe as [HF | Hsafe].
+  { symmetry in Hl'; apply levelS_age in Hl' as (? & Hage & ?).
+    rewrite later_age in HF; apply HF in Hage; contradiction. }
+  destruct Hsafe as (? & ? & ? & ? & Hsafe).
+  edestruct (juicy_mem_sub jm' x0); subst.
+  { eexists; eauto. }
+  right; do 3 eexists; eauto; split; auto.
   apply Hsafe; auto.
-  eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
-  destruct H0.
+  eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
+  eapply joins_comm, join_sub_joins_trans, joins_comm; [|eauto].
   change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
-    (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
-  eexists; apply ghost_fmap_join; eauto.
-  replace (level (m_phi jm')) with O by lia. constructor.
+    (ghost_approx (m_phi z) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
+  destruct H3; eexists; apply ghost_fmap_join; eauto.
+  apply join_level in H6 as []; lia.
 Qed.
 
 Lemma assert_safe_jsafe': forall {Espec: OracleKind} ge f ve te k ora jm,
   assert_safe Espec ge f ve te (Cont k) (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
-  jm_bupd ora (jsafeN OK_spec ge (level jm) ora (State f Sskip k ve te)) jm.
+  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN OK_spec ge ora (State f Sskip k ve te)) jm.
 Proof.
-  intros.
   repeat intro.
-  destruct (H _ H1) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
-  simpl in Hsafe.
+  eapply H in H2; try apply necR_jm_phi; eauto.
+  destruct (H2 _ H4) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
+  do 2 red in Hsafe.
   destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
   exists jm'; repeat split; auto.
-  rewrite level_juice_level_phi, <- Hl.
-  specialize (Hsafe ora jm').
+  rewrite level_juice_level_phi; destruct (level (m_phi jm')) eqn: Hl'; auto.
+  destruct Hsafe as [HF | Hsafe].
+  { symmetry in Hl'; apply levelS_age in Hl' as (? & Hage & ?).
+    rewrite later_age in HF; apply HF in Hage; contradiction. }
+  destruct Hsafe as (? & ? & ? & ? & Hsafe).
+  edestruct (juicy_mem_sub jm' x0) as [jm0 ?]; subst.
+  { eexists; eauto. }
+  right; do 3 eexists; eauto; split; auto.
+  specialize (Hsafe ora jm0).
   spec Hsafe. {
-    eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
-    destruct H0.
+    eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
+    eapply joins_comm, join_sub_joins_trans, joins_comm; [|eauto].
     change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
-      (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
-    eexists; apply ghost_fmap_join; eauto.
-  }
+      (ghost_approx (m_phi z) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
+    destruct H3; eexists; apply ghost_fmap_join; eauto. }
   do 2 (spec Hsafe; [auto|]).
-  destruct (gt_dec (level (m_phi jm')) O).
-2:   replace (level (m_phi jm')) with O by lia; constructor.
   spec Hsafe; [auto |].
+  { apply join_level in H6 as []; lia. }
   destruct k; try contradiction; auto.
-  destruct (level (m_phi jm')); try lia.
   inv Hsafe; try discriminate; try contradiction.
+  constructor; auto.
   eapply jsafeN_step; eauto.
-  destruct H5; split; auto. inv H3; econstructor; simpl; eauto.
+  destruct H9; split; auto. inv H9; econstructor; simpl; eauto.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
-  destruct (level (m_phi jm')); try lia.
   inv Hsafe; try discriminate; try contradiction.
+  constructor; auto.
   eapply jsafeN_step; eauto.
-  destruct H5; split; auto. inv H3; econstructor; simpl; eauto.
+  destruct H9; split; auto. inv H9; econstructor; simpl; eauto.
 Qed.
 
-Lemma jm_bupd_local_step
+Lemma jm_fupd_local_step
      : forall {Espec: OracleKind} (ge : genv) (ora : OK_ty) (s1 : CC_core)
          (m : juicy_mem) (s2 : CC_core),
        cl_step ge s1 (m_dry m) s2 (m_dry m) ->
        (forall m' : juicy_mem,
-        age m m' -> jm_bupd ora (jsafeN (@OK_spec Espec) ge (level m') ora s2) m') ->
-       jm_bupd ora (jsafeN (@OK_spec Espec) ge (level m) ora s1) m.
+        age m m' -> jm_bupd ora (jsafeN (@OK_spec Espec) ge ora s2) m') ->
+       jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora s1) m.
 Proof.
 intros.
 destruct (age1 m) as [m' | ] eqn:?H.

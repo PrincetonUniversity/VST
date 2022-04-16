@@ -872,7 +872,7 @@ Proof.
   + intros; reduce2derives; apply derives_refl.
 Qed.
 
-Lemma semax_pre_post_bupd:
+Lemma semax_pre_post_fupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- (|==> P')) ->

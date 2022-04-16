@@ -316,16 +316,21 @@ Proof.
     constructor; auto.
 Qed.*)
 
-Lemma fupd_andp_prop : forall E1 E2 P Q, !! P && fupd E1 E2 Q |-- fupd E1 E2 (!!P && Q).
+Lemma fupd_andp_corable : forall E1 E2 P Q, corable P -> P && fupd E1 E2 Q |-- fupd E1 E2 (P && Q).
 Proof.
   unfold fupd; intros.
   rewrite <- wand_sepcon_adjoint.
-  rewrite sepcon_andp_prop1.
+  rewrite corable_andp_sepcon1 by auto.
   eapply derives_trans; [apply andp_derives; [apply derives_refl | rewrite sepcon_comm; apply modus_wand]|].
-  rewrite <- bupd_andp_prop; apply bupd_mono.
+  rewrite <- bupd_andp_corable by auto; apply bupd_mono.
   rewrite andp_comm, distrib_orp_andp; apply orp_derives.
   - apply andp_left1; auto.
-  - rewrite sepcon_andp_prop, andp_comm; auto.
+  - rewrite corable_sepcon_andp1, andp_comm; auto.
+Qed.
+
+Lemma fupd_andp_prop : forall E1 E2 P Q, !! P && fupd E1 E2 Q |-- fupd E1 E2 (!!P && Q).
+Proof.
+  intros; apply fupd_andp_corable, corable_prop.
 Qed.
 
 Lemma unfash_sepcon: forall P (Q : pred rmap), !P * Q |-- !P.
@@ -508,3 +513,6 @@ Global Opaque fupd.*)
 
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
    in veric (a la own). *)
+
+Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): pred.
+Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): pred.

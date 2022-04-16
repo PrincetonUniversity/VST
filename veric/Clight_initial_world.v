@@ -750,6 +750,10 @@ Proof.
   apply level_make_rmap.
 Qed.*)
 
+Section invs.
+
+Context {inv_names : invariants.invG}.
+
 Definition matchfunspecs (ge : genv) (G : funspecs) : pred rmap :=
   ALL b:block, ALL fs: funspec,
   func_at fs (b,0%Z) -->
@@ -832,7 +836,7 @@ Proof.
   assert (approx n' (P ts ftor garg) phi).
   split; auto.
   clear H3.
-  apply own.bupd_intro.
+  apply fupd.fupd_intro.
   exists ts.
   assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
   simpl in H5.
@@ -867,7 +871,7 @@ Proof.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
   destruct H7.
-  now apply own.bupd_intro.
+  now apply fupd.fupd_intro.
 Qed.
 
 Lemma initial_jm_ext_matchfunspecs {Z} (ora : Z) prog m G n H H1 H2:
@@ -919,7 +923,7 @@ Proof.
   assert (approx n' (P ts ftor garg) phi).
   split; auto.
   clear H3.
-  apply own.bupd_intro.
+  apply fupd.fupd_intro.
   exists ts.
   assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
   simpl in H5.
@@ -954,5 +958,7 @@ Proof.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
   destruct H7.
-  now apply own.bupd_intro.
+  now apply fupd.fupd_intro.
 Qed.
+
+End invs.

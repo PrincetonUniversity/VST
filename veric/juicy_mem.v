@@ -2,6 +2,7 @@ Require Import VST.veric.base.
 Require Import VST.veric.Memory.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
+Require Import VST.zlist.sublist.
 Import cjoins.
 Import compcert.lib.Maps.
 
@@ -615,6 +616,132 @@ Proof.
   intros.
   destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
   apply rmap_order in H as (Hl & Hr & Hg); auto.
+Qed.
+
+Definition access_of_rmap r b ofs k :=
+  match k with
+  | Max => perm_of_res' (r @ (b, ofs))
+  | Cur => perm_of_res (r @ (b, ofs))
+  end.
+
+Definition make_access (next : block) (r : rmap) :=
+  fold_right (fun b m => PTree.set b (access_of_rmap r b) m) (PTree.empty _)
+  (map Z.to_pos (tl (upto (Pos.to_nat next)))).
+
+Lemma make_access_get_aux : forall l r b t,
+  (fold_right (fun b m => PTree.set b (access_of_rmap r b) m) t l) ! b =
+  if In_dec eq_block b l then Some (access_of_rmap r b) else t ! b.
+Proof.
+  induction l; simpl; auto; intros.
+  destruct (eq_block a b).
+  - subst; apply PTree.gss.
+  - rewrite PTree.gso by auto.
+    rewrite IHl.
+    if_tac; auto.
+Qed.
+
+Lemma make_access_get : forall next r b,
+  (make_access next r) ! b =
+  if Pos.ltb b next then Some (access_of_rmap r b) else None.
+Proof.
+  intros; unfold make_access.
+  rewrite make_access_get_aux.
+  if_tac; destruct (Pos.ltb_spec0 b next); auto.
+  - rewrite in_map_iff in H; destruct H as (? & ? & Hin); subst.
+    destruct (Pos.to_nat next) eqn: Hnext.
+    { pose proof (Pos2Nat.is_pos next); lia. }
+    simpl in Hin.
+    rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
+    apply In_upto in Hin.
+    destruct x0; simpl in *; lia.
+  - contradiction H.
+    rewrite in_map_iff; do 2 eexists.
+    { apply Pos2Z.id. }
+    destruct (Pos.to_nat next) eqn: Hnext.
+    { pose proof (Pos2Nat.is_pos next); lia. }
+    simpl.
+    rewrite in_map_iff; do 2 eexists.
+    { rewrite Zminus_succ_l.
+      unfold Z.succ. rewrite Z.add_simpl_r; reflexivity. }
+    rewrite In_upto; lia.
+Qed.
+
+Program Definition deflate_mem (m : Memory.mem) (r : rmap) (Halloc : alloc_cohere m r) :=
+  {| mem_contents := mem_contents m;
+    (* original could have non-None default, so we need to 
+       reconstruct it from the blocks [1, nextblock) *)
+     mem_access := (fun _ _ => None, make_access (nextblock m) r);
+     nextblock := nextblock m |}.
+Next Obligation.
+Proof.
+  unfold PMap.get; simpl.
+  rewrite make_access_get.
+  destruct (b <? nextblock m)%positive; simpl; auto.
+  apply perm_of_res_op1.
+Qed.
+Next Obligation.
+Proof.
+  unfold PMap.get; simpl.
+  rewrite make_access_get.
+  destruct (Pos.ltb_spec0 b (nextblock m)); auto; contradiction.
+Qed.
+Next Obligation.
+Proof.
+  apply contents_default.
+Qed.
+
+Lemma join_sub_alloc_cohere : forall m jm, join_sub m (m_phi jm) ->
+  alloc_cohere (m_dry jm) m.
+Proof.
+  intros ?? [? J] ??.
+  destruct jm; simpl in *.
+  apply JMalloc in H.
+  apply (resource_at_join _ _ _ loc) in J; rewrite H in J; inv J.
+  apply split_identity in RJ; [|apply bot_identity].
+  apply identity_share_bot in RJ; subst; f_equal; apply proof_irr.
+Qed.
+
+Lemma juicy_mem_sub : forall jm m', join_sub m' (m_phi jm) -> exists jm', m_phi jm' = m'.
+Proof.
+  intros ?? Hsub.
+  unshelve eexists (mkJuicyMem (deflate_mem (m_dry jm) m' (join_sub_alloc_cohere _ _ Hsub)) m' _ _ _ _);
+    destruct jm, Hsub as [? J]; simpl in *.
+  - repeat intro.
+    unfold contents_at, deflate_mem; simpl.
+    apply (resource_at_join _ _ _ loc) in J; rewrite H in J; inv J;
+      eapply JMcontents; eauto.
+  - repeat intro.
+    unfold access_at; unfold deflate_mem; simpl.
+    unfold PMap.get; simpl.
+    rewrite make_access_get.
+    destruct (Pos.ltb_spec (fst loc) (nextblock m)).
+    + destruct loc; reflexivity.
+    + specialize (JMalloc loc).
+      apply (resource_at_join _ _ _ loc) in J; rewrite JMalloc in J.
+      inv J; simpl.
+      apply split_identity in RJ; [|apply bot_identity].
+      apply identity_share_bot in RJ; subst; rewrite if_true; auto.
+      { apply Pos.ge_le_iff; auto. }
+  - repeat intro.
+    unfold max_access_at, access_at; unfold deflate_mem; simpl.
+    unfold PMap.get; simpl.
+    rewrite make_access_get.
+    destruct (Pos.ltb_spec (fst loc) (nextblock m)).
+    + unfold access_of_rmap; destruct loc; simpl.
+      unfold perm_order''.
+      destruct (perm_of_res' _); auto; constructor.
+    + specialize (JMalloc loc).
+      apply (resource_at_join _ _ _ loc) in J; rewrite JMalloc in J.
+      inv J; simpl.
+      apply split_identity in RJ; [|apply bot_identity].
+      apply identity_share_bot in RJ; subst; rewrite if_true; auto.
+      { apply Pos.ge_le_iff; auto. }
+  - intros loc ?; pose proof (JMalloc loc); simpl in *.
+    apply (resource_at_join _ _ _ loc) in J; rewrite H0 in J by auto.
+    inv J; auto.
+    apply split_identity in RJ; [|apply bot_identity].
+    apply identity_share_bot in RJ; subst; f_equal; apply proof_irr.
+  - auto.
 Qed.
 
 #[(*export, after Coq 8.13*)global] Program Instance juicy_mem_ord: Ext_ord juicy_mem :=

@@ -15,8 +15,7 @@ Arguments Z.to_nat : simpl nomatch.
     (this is a bit annoying because of the difference in precedence of derives)
 *)
 
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.SeparationLogic.
+From VST.veric Require Import compcert_rmaps SeparationLogic.
 
 Notation "'emp'" := seplog.emp.
 

@@ -15,7 +15,7 @@ Proof.
   rewrite IHl; auto.
 Qed.
 
-Lemma nth_replace_nth : forall {A} n l a (d : A), (n < length l)%nat ->
+(*Lemma nth_replace_nth : forall {A} n l a (d : A), (n < length l)%nat ->
   nth n (replace_nth n l a) d = a.
 Proof.
   induction n; destruct l; auto; simpl; intros; try lia.
@@ -27,11 +27,9 @@ Lemma nth_replace_nth' : forall {A} n m l a (d : A), m <> n ->
 Proof.
   induction n; destruct l; auto; destruct m; auto; simpl; intros; try lia.
   apply IHn; lia.
-Qed.
+Qed.*)
 
 Section Invariants.
-
-Context {inv_names : invG}.
 
 Global Instance agree_persistent g P : Persistent (agree g P : mpred).
 Proof.

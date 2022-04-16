@@ -1,21 +1,10 @@
 From stdpp Require Export coPset.
-Require Import VST.msl.ghost.
-Require Import VST.msl.ghost_seplog.
-Require Import VST.msl.sepalg_generators.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.concurrency.ghosts.
-Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.invariants.
+From VST.veric Require Import compcert_rmaps fupd.
 Require Export VST.veric.bi.
-Require Import VST.msl.ghost_seplog.
+From VST.msl Require Import ghost ghost_seplog sepalg_generators.
+From VST.concurrent Require Import ghosts conclib invariants.
 Import Ensembles.
 Import FashNotation.
-
-(* This should use veric/fupd at some point. *)
-
-Definition timeless' (P : mpred) := forall (a a' : rmap),
-  predicates_hered.app_pred P a' -> age a a' ->
-  predicates_hered.app_pred P a.
 
 Lemma timeless'_timeless : forall P, timeless' P -> Timeless P.
 Proof.
@@ -30,63 +19,21 @@ Proof.
     eapply H; eauto.
 Qed.
 
-Lemma list_set_replace : forall {A} n l (a : A), (n < length l)%nat ->
+(*Lemma list_set_replace : forall {A} n l (a : A), (n < length l)%nat ->
   own.list_set l n a = replace_nth n l (Some a).
 Proof.
   induction n; destruct l; unfold own.list_set; auto; simpl; try lia; intros.
   setoid_rewrite IHn; auto; lia.
-Qed.
+Qed.*)
 
 #[(*export, after Coq 8.13*)global] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
 Proof.
-  intros; apply timeless'_timeless.
-  intros ?? (v & ? & Hg) ?.
-  exists v; simpl in *.
-  split.
-  + intros; eapply age1_resource_at_identity; eauto.
-  + erewrite age1_ghost_of in Hg by eauto.
-    erewrite own.ghost_fmap_singleton in *; simpl in *.
-    destruct Hg as [? Hg]; apply own.singleton_join_inv_gen in Hg as (J & ? & ? & ?).
-    rewrite (map_nth _ _ None) in H1, J.
-    destruct (nth g (ghost_of a0) None) as [(?, ?)|] eqn: Hga; [|inv J].
-    inv H1.
-    rewrite <- (own.list_set_same _ _ _ Hga).
-    assert (g < length (ghost_of a0))%nat.
-    { destruct (lt_dec g (length (ghost_of a0))); auto.
-      rewrite -> nth_overflow in Hga by lia; discriminate. }
-    inv J.
-    * erewrite list_set_replace, <- replace_nth_replace_nth, <- list_set_replace; rewrite ?replace_nth_length; auto.
-      eexists; apply own.singleton_join_gen; rewrite -> nth_replace_nth by auto.
-      destruct p; inv H7.
-      replace _f with (fun _ : list Type => tt).
-      apply lower_None2.
-      { extensionality i; destruct (_f i); auto. }
-    * destruct a2, p, H6 as (? & ? & ?); simpl in *; subst.
-      inv H6.
-      erewrite list_set_replace, <- replace_nth_replace_nth, <- list_set_replace; rewrite ?replace_nth_length; auto.
-      eexists; apply own.singleton_join_gen; rewrite -> nth_replace_nth by auto.
-      constructor.
-      instantiate (1 := (_, _)).
-      split; simpl; [|split; auto]; eauto.
-      f_equal.
-      extensionality i; destruct (_f i); auto.
+  intros; apply timeless'_timeless, own_timeless.
 Qed.
 
 Lemma address_mapsto_timeless : forall m v sh p, Timeless (res_predicates.address_mapsto m v sh p : mpred).
 Proof.
-  intros; apply timeless'_timeless.
-  repeat intro.
-  simpl in *.
-  destruct H as (b & [? HYES]); exists b; split; auto.
-  intro b'; specialize (HYES b').
-  if_tac.
-  - destruct HYES as (rsh & Ha'); exists rsh.
-    erewrite age_resource_at in Ha' by eauto.
-    destruct (a @ b'); try discriminate; inv Ha'.
-    destruct p0; inv H5; simpl.
-    f_equal.
-    apply proof_irr.
-  - rewrite age1_resource_at_identity; eauto.
+  intros; apply timeless'_timeless, address_mapsto_timeless.
 Qed.
 
 #[(*export, after Coq 8.13*)global] Instance timeless_FF : Timeless FF.
@@ -98,14 +45,7 @@ Qed.
 Lemma nonlock_permission_bytes_timeless : forall sh l z,
   Timeless (res_predicates.nonlock_permission_bytes sh l z : mpred).
 Proof.
-  intros; apply timeless'_timeless.
-  repeat intro.
-  simpl in *.
-  specialize (H b).
-  if_tac.
-  - erewrite age1_resource_at in H by (erewrite ?resource_at_approx; eauto).
-    destruct (a @ b); auto.
-  - rewrite age1_resource_at_identity; eauto.
+  intros; apply timeless'_timeless, nonlock_permission_bytes_timeless.
 Qed.
 
 Lemma mapsto_timeless : forall sh t v p, Timeless (mapsto sh t p v).
@@ -124,11 +64,7 @@ Qed.
 
 #[(*export, after Coq 8.13*)global] Instance emp_timeless : (@Timeless mpredI) emp.
 Proof.
-  apply timeless'_timeless; intros ????.
-  setoid_rewrite res_predicates.emp_no in H.
-  setoid_rewrite res_predicates.emp_no.
-  intros l.
-  eapply age1_resource_at_identity, H; auto.
+  apply timeless'_timeless, emp_timeless.
 Qed.
 
 Lemma memory_block'_timeless : forall sh n b z,
@@ -234,8 +170,6 @@ Proof.
 Qed.
 
 Section FancyUpdates.
-
-Context {inv_names : invG}.
 
 Definition coPset_to_Ensemble (E : coPset) : Ensemble nat := fun x => elem_of (Pos.of_nat (S x)) E.
 
@@ -411,8 +345,6 @@ Proof. hnf. by iIntros (E P) ">? [$ $] !> !>". Qed.
 
 Section Invariants.
 
-Context {inv_names : invG}.
-
 Lemma fupd_timeless' : forall E1 E2 P Q, Timeless P -> ((P |-- (|={E1,E2}=> Q)) ->
   |> P |-- |={E1,E2}=> Q)%I.
 Proof.
@@ -557,30 +489,6 @@ Proof.
   { unfold In, coPset_to_Ensemble.
     rewrite elem_of_subseteq_singleton; auto. }
 Qed.
-
-(*(* these last two are probably redundant *)
-Lemma inv_close : forall E i P, subseteq (inv i) E ->
-  invariant i P * |> P * ghost_list(P := exclusive_PCM _) g_dis (list_singleton i (Some tt)) |--
-  (|={difference E (inv i), E}=> TT)%I.
-Proof.
-  unfold updates.fupd, bi_fupd_fupd; simpl.
-  intros; unfold fupd; iIntros "((? & ?) & ?) ?".
-  iMod (inv_close_aux with "[-]") as ">H"; [iFrame|].
-  do 2 iModIntro.
-  erewrite (ghost_set_remove _ _ E); first by iFrame; auto.
-  { apply elem_of_subseteq_singleton; auto. }
-Qed.
-
-Lemma inv_access : forall E i P, subseteq (inv i) E ->
-  (invariant i P |-- |={E, difference E (inv i)}=>
-    |> P * (|> P -* |={difference E (inv i), E}=> TT))%I.
-Proof.
-  intros.
-  eapply derives_trans; [apply inv_open; eauto|].
-  apply fupd_mono; cancel.
-  apply wand_derives; auto.
-  apply fupd_mono; auto.
-Qed.*)
 
 End Invariants.
 

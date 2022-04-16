@@ -1,18 +1,10 @@
-Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
+From VST.veric Require Import rmaps compcert_rmaps.
 Require Export iris.bi.lib.atomic.
 Require Export VST.veric.bi.
-Require Import VST.concurrency.ghosts.
-Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.invariants.
-Require Import VST.concurrency.fupd.
+From VST.concurrency Require Import ghosts conclib invariants fupd.
 Require Import VST.floyd.library.
 Require Export VST.zlist.sublist.
 Require Import Program.Equality.
-
-Section atomics.
-
-Context {inv_names : invG}.
 
 Section atomicity.
 
@@ -49,7 +41,7 @@ Proof.
   iApply atomic_commit_fupd; eauto; iFrame.
 Qed.
 
-(* This is unsound: what we really need is fupd in WP.
+(*(* This is unsound: what we really need is fupd in WP.
    But that might not be necessary if we use atomic specs for all concurrent operations. *)
 Lemma atomic_commit : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- (|==> (EX y, b x y * R' y))%I) ->
@@ -58,7 +50,7 @@ Proof.
   intros.
   eapply atomic_commit_elim in H.
   admit.
-Admitted.
+Admitted.*)
 
 Lemma atomic_rollback_fupd : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- (|==> a x * R')%I) ->
@@ -82,14 +74,14 @@ Proof.
   iApply atomic_rollback_fupd; eauto; iFrame.
 Qed.
 
-Lemma atomic_rollback : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
+(*Lemma atomic_rollback : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- (|==> a x * R')%I) ->
   (atomic_shift a Ei Eo b Q * R |-- atomic_shift a Ei Eo b Q * R')%I.
 Proof.
   intros.
   eapply atomic_rollback_elim in H.
   admit.
-Admitted.
+Admitted.*)
 
 Lemma atomic_shift_mask_weaken {A B} Eo1 Eo2 Ei a (b : A -> B -> mpred) Q :
   Eo1 ⊆ Eo2 ->
@@ -235,11 +227,9 @@ Qed.
 
 End atomicity.
 
-End atomics.
-
 Global Hint Resolve empty_subseteq : core.
 
-Definition atomic_spec_type W T := ProdType (ProdType W (ArrowType (ConstType T) Mpred)) (ConstType invG).
+Definition atomic_spec_type W T := ProdType W (ArrowType (ConstType T) Mpred)).
 
 Definition super_non_expansive_a {A W} (a : forall ts : list Type, functors.MixVariantFunctor._functor
   (dependent_type_functor_rec ts W) (predicates_hered.pred rmap) -> A ts -> predicates_hered.pred rmap) :=
@@ -261,11 +251,11 @@ Import List.
    W is the TypeTree of the witness for the rest of the function. *)
 (*Notation atomic_spec1 T W args tz la P a t lb b Ei Eo :=
   (mk_funspec (pair args tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) '(w, Q, inv_names) =>
+   (fun (ts: list Type) '(w, Q) =>
      PROP ()
      (LOCALx (map (fun l => l ts w) la)
-     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))))
-   (fun (ts: list Type) '(w, Q, inv_names) => EX v : T,
+     (SEP (atomic_shift (a ts w) Ei Eo (b ts w) Q; P ts w))))
+   (fun (ts: list Type) '(w, Q) => EX v : T,
      PROP () (LOCALx (map (fun l => l ts w v) lb)
      (SEP (Q v)))) _ _).*)
 
@@ -277,15 +267,15 @@ Lemma atomic_spec_nonexpansive_pre' : forall {A T} {t : Inhabitant T} W P L G R 
   super_non_expansive_a S2 ->
   super_non_expansive_b SQ ->
   @args_super_non_expansive (atomic_spec_type W T)
-  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) =>
-    let '(w, Q, inv_names) := _a in
+  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred)) =>
+    let '(w, Q) := _a in
     PROPx (P ts w) (PARAMSx (L ts w) (GLOBALSx (G ts w)
-     (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))))).
+     (SEPx (atomic_shift(A := A ts) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))))).
 Proof.
   intros.
   hnf; intros.
   etransitivity; [|etransitivity; [
-    apply (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type W T) (fun ts x => P ts (fst (fst x))) (fun ts x => L ts (fst (fst x))) (fun ts x => G ts (fst (fst x))) (fun ts '(w, Q, inv_names) => atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))|]].
+    apply (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type W T) (fun ts x => P ts (fst (fst x))) (fun ts x => L ts (fst (fst x))) (fun ts x => G ts (fst (fst x))) (fun ts '(w, Q) => atomic_shift(A := A ts) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))|]].
   - instantiate (9 := x). destruct x as ((?, ?), ?). reflexivity.
   - intros ? ? ((?, ?), ?) ?; apply HP; auto.
   - intros ? ? ((?, ?), ?); apply HL; auto.
@@ -299,7 +289,7 @@ Proof.
   - destruct x as ((?, ?), ?); reflexivity.
 Qed.
 
-Definition atomic_spec_type0 W := ProdType (ProdType W Mpred) (ConstType invG).
+Definition atomic_spec_type0 W := ProdType W Mpred.
 
 Lemma atomic_spec_nonexpansive_pre0 : forall {A} W P L G R S2 Ei Eo SQ
   (HP : super_non_expansive_list (fun ts w _ => map prop (P ts w)))
@@ -309,15 +299,15 @@ Lemma atomic_spec_nonexpansive_pre0 : forall {A} W P L G R S2 Ei Eo SQ
   super_non_expansive_a S2 ->
   super_non_expansive_b SQ ->
   @args_super_non_expansive (atomic_spec_type0 W)
-  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * mpred * invG) =>
-    let '(w, Q, inv_names) := _a in
+  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * mpred) =>
+    let '(w, Q) := _a in
     PROPx (P ts w) (PARAMSx (L ts w) (GLOBALSx (G ts w)
-     (SEPx (atomic_shift(A := A ts)(B := unit)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) (fun _ => Q) :: R ts w))))).
+     (SEPx (atomic_shift(A := A ts)(B := unit) (S2 ts w) Ei Eo (SQ ts w) (fun _ => Q) :: R ts w))))).
 Proof.
   intros.
   hnf; intros.
   etransitivity; [|etransitivity; [
-    apply (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type0 W) (fun ts x => P ts (fst (fst x))) (fun ts x => L ts (fst (fst x))) (fun ts x => G ts (fst (fst x))) (fun ts '(w, Q, inv_names) => atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) (fun _ => Q) :: R ts w))|]].
+    apply (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type0 W) (fun ts x => P ts (fst (fst x))) (fun ts x => L ts (fst (fst x))) (fun ts x => G ts (fst (fst x))) (fun ts '(w, Q) => atomic_shift(A := A ts) (S2 ts w) Ei Eo (SQ ts w) (fun _ => Q) :: R ts w))|]].
   - instantiate (9 := x). destruct x as ((?, ?), ?). reflexivity.
   - intros ? ? ((?, ?), ?) ?; apply HP; auto.
   - intros ? ? ((?, ?), ?); apply HL; auto.
@@ -332,10 +322,10 @@ Proof.
 Qed.
 
 Lemma atomic_spec_nonexpansive_pre : forall {A T} {t : Inhabitant T} W P L G R S2 Ei Eo SQ Pre
-  (Heq : (forall ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG),
-   Pre ts _a = let '(w, Q, inv_names) := _a in
+  (Heq : (forall ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred)),
+   Pre ts _a = let '(w, Q) := _a in
     PROPx (P ts w) (PARAMSx (L ts w) (GLOBALSx (G ts w)
-     (SEPx (atomic_shift(A := A ts)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))))))
+     (SEPx (atomic_shift(A := A ts) (S2 ts w) Ei Eo (SQ ts w) Q :: R ts w))))))
   (HP : super_non_expansive_list (fun ts w _ => map prop (P ts w)))
   (HL: forall n ts x, L ts x = L ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
   (HG: @super_non_expansive_list W (fun ts a rho => map (fun Q0 => prop (locald_denote (gvars Q0) rho)) (G ts a)))
@@ -345,7 +335,7 @@ Lemma atomic_spec_nonexpansive_pre : forall {A T} {t : Inhabitant T} W P L G R S
   @args_super_non_expansive (atomic_spec_type W T) Pre.
 Proof.
   intros.
-  evar (Pre' : forall ts : list Type, functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG -> argsEnviron -> mpred).
+  evar (Pre' : forall ts : list Type, functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) -> argsEnviron -> mpred).
   replace Pre with Pre'; subst Pre'; [apply (atomic_spec_nonexpansive_pre'(A := A)); eauto|].
   extensionality ts x; auto.
 Qed.
@@ -354,18 +344,18 @@ Lemma atomic_spec_nonexpansive_post' : forall {T} W L R
   (HL : forall v, super_non_expansive_list (fun ts w rho => map (fun l => !! (locald_denote l rho)) (L ts w v)))
   (HR : forall v, super_non_expansive_list ((fun ts w _ => R ts w v))),
   @super_non_expansive (atomic_spec_type W T)
-  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) =>
-    let '(w, Q, inv_names) := _a in
+  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred)) =>
+    let '(w, Q) := _a in
     EX v : T,
     PROP () (LOCALx (L ts w v) (SEPx (Q v :: R ts w v)))).
 Proof.
   intros.
   hnf; intros.
-  destruct x as ((w, Q), inv_names).
+  destruct x as (w, Q).
   rewrite !approx_exp; f_equal; extensionality v.
   etransitivity; [|etransitivity; [
-    apply (PROP_LOCAL_SEP_super_non_expansive' (atomic_spec_type W T) (fun ts '(w, _, _) => []) (fun ts '(w, _, _) => L ts w v) (fun ts '(w, Q, inv_names) => Q v :: R ts w v))|]].
-  - instantiate (1 := rho); instantiate (1 := ts); instantiate (1 := (w, Q, inv_names)); reflexivity.
+    apply (PROP_LOCAL_SEP_super_non_expansive' (atomic_spec_type W T) (fun ts '(w, _, _) => []) (fun ts '(w, _, _) => L ts w v) (fun ts '(w, Q) => Q v :: R ts w v))|]].
+  - instantiate (1 := rho); instantiate (1 := ts); instantiate (1 := (w, Q)); reflexivity.
   - intros ? ? ((?, ?), ?) ?; constructor.
   - intros ? ? ((?, ?), ?) ?; apply HL; auto.
   - intros ? ? ((?, ?), ?) ?; constructor; [|apply HR; auto].
@@ -377,14 +367,14 @@ Lemma atomic_spec_nonexpansive_post0 : forall W L R
   (HL : super_non_expansive_list (fun ts w rho => map (fun l => !! (locald_denote l rho)) (L ts w)))
   (HR : super_non_expansive_list ((fun ts w _ => R ts w))),
   @super_non_expansive (atomic_spec_type0 W)
-  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * mpred * invG) =>
-    let '(w, Q, inv_names) := _a in
+  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * mpred) =>
+    let '(w, Q) := _a in
     PROP () (LOCALx (L ts w) (SEPx (Q :: R ts w)))).
 Proof.
   intros.
   hnf; intros.
   etransitivity; [|etransitivity; [
-    apply (PROP_LOCAL_SEP_super_non_expansive' (atomic_spec_type0 W) (fun ts '(w, _, _) => []) (fun ts '(w, _, _) => L ts w) (fun ts '(w, Q, inv_names) => Q :: R ts w))|]].
+    apply (PROP_LOCAL_SEP_super_non_expansive' (atomic_spec_type0 W) (fun ts '(w, _, _) => []) (fun ts '(w, _, _) => L ts w) (fun ts '(w, Q) => Q :: R ts w))|]].
   - instantiate (1 := rho); instantiate (1 := ts); instantiate (1 := x); destruct x as ((?, ?), ?); reflexivity.
   - intros ? ? ((?, ?), ?) ?; constructor.
   - intros ? ? ((?, ?), ?) ?; apply HL; auto.
@@ -394,8 +384,8 @@ Proof.
 Qed.
 
 Lemma atomic_spec_nonexpansive_post : forall {T} W L R Post
-  (Heq : (forall ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG),
-  Post ts _a = let '(w, Q, inv_names) := _a in
+  (Heq : (forall ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred)),
+  Post ts _a = let '(w, Q) := _a in
     EX v : T,
     PROP () (LOCALx (L ts w v) (SEPx (Q v :: R ts w v)))))
   (HL : forall v, super_non_expansive_list (fun ts w rho => map (fun l => !! (locald_denote l rho)) (L ts w v)))
@@ -403,7 +393,7 @@ Lemma atomic_spec_nonexpansive_post : forall {T} W L R Post
   @super_non_expansive (atomic_spec_type W T) Post.
 Proof.
   intros.
-  evar (Post' : forall ts : list Type, functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG -> environ -> mpred).
+  evar (Post' : forall ts : list Type, functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) -> environ -> mpred).
   replace Post with Post'; subst Post'; [apply atomic_spec_nonexpansive_post'; eauto|].
   extensionality ts x; auto.
 Qed.
@@ -417,11 +407,11 @@ Program Definition atomic_spec {A T} {t : Inhabitant T} W args tz la P G Qp a lb
   (HG: @super_non_expansive_list W (fun ts a rho => map (fun Q0 => prop (locald_denote (gvars Q0) rho)) (G ts a)))
   (Hlb : super_non_expansive_lb lb) (Hb : super_non_expansive_b b) :=
   mk_funspec (pair args tz) cc_default (atomic_spec_type W T)
-  (fun (ts: list Type) '(w, Q, inv_names) =>
+  (fun (ts: list Type) '(w, Q) =>
     PROP ()
     (PARAMSx (la ts w) (GLOBALSx (G ts w) (
-    (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))%assert5))))
-  (fun (ts: list Type) '(w, Q, inv_names) => EX v : T,
+    (SEP (atomic_shift (a ts w) Ei Eo (b ts w) Q; P ts w))%assert5))))
+  (fun (ts: list Type) '(w, Q) => EX v : T,
     PROP () (LOCALx (lb ts w v)
     (SEP (Q v; Qp v ts w))%assert5)) _ _.
 Next Obligation.
@@ -442,37 +432,37 @@ Proof.
     intros; apply HQp.
 Qed.
 
-Definition stable_spec_type W := ProdType (ProdType (ProdType W
-  (ArrowType (DependentType 0) (ArrowType (DependentType 1) Mpred))) (ArrowType (DependentType 1) Mpred)) (ConstType invG).
+Definition stable_spec_type W := ProdType (ProdType W
+  (ArrowType (DependentType 0) (ArrowType (DependentType 1) Mpred))) (ArrowType (DependentType 1) Mpred).
 
 (*Lemma stabilize : forall T W args tz P1 P2 Q1 Q2 neP1 neP2 neQ1 neQ2
   PP la P a lb b Ei Eo Q'
-  (Hpre1 : forall ts w Q inv_names, P1 ts (w, Q, inv_names) =
+  (Hpre1 : forall ts w Q, P1 ts (w, Q) =
      PROP (PP ts w)
      (LOCALx (map (fun l => l ts w) la)
-     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))))
-  (Hpost1 : forall ts w Q inv_names, Q1 ts (w, Q, inv_names) =
+     (SEP (atomic_shift (a ts w) Ei Eo (b ts w) Q; P ts w))))
+  (Hpost1 : forall ts w Q inv_names, Q1 ts (w, Q) =
      EX v : T, PROP () (LOCALx (map (fun l => l ts w v) lb) (SEP (Q v))))
-  (Hpre2 : forall ts w b' Q inv_names, P2 ts (w, b', Q, inv_names) =
+  (Hpre2 : forall ts w b' Q, P2 ts (w, b', Q) =
      PROP (PP ts w)
      (LOCALx (map (fun l => l ts w) la)
-     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo b' Q; P ts w))))
-  (Hpost2 : forall ts w b' Q inv_names, Q2 ts (w, b', Q, inv_names) =
+     (SEP (atomic_shift (a ts w) Ei Eo b' Q; P ts w))))
+  (Hpost2 : forall ts w b' Q, Q2 ts (w, b', Q) =
     EX v1 : _, EX v2 : _,
      PROP () (LOCALx (map (fun l => l ts w v2) lb)
-     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo b' Q; Q' ts w v1 v2))))
+     (SEP (atomic_shift (a ts w) Ei Eo b' Q; Q' ts w v1 v2))))
   (Hb : forall ts w v1 v2, b ts w v1 v2 |-- a ts w v1 * Q' ts w v1 v2),
   funspec_sub (mk_funspec (pair args tz) cc_default (atomic_spec_type W T) P1 Q1 neP1 neQ1)
     (mk_funspec (pair args tz) cc_default (stable_spec_type W) P2 Q2 neP2 neQ2).
 Proof.
   intros; apply subsume_subsume.
   unfold funspec_sub'; repeat (split; auto); intros.
-  destruct x2 as (((w, b'), Q), inv_names).
+  destruct x2 as ((w, b'), Q).
   simpl funsig_of_funspec.
   rewrite Hpre2.
   set (AS := atomic_shift _ _ _ _ _).
   eapply derives_trans, ghost_seplog.bupd_intro.
-  Exists ts2 (w, (fun v2 => AS * EX v1 : _, Q' ts2 w v1 v2), inv_names) emp.
+  Exists ts2 (w, (fun v2 => AS * EX v1 : _, Q' ts2 w v1 v2)) emp.
   simpl in *; intro.
   unfold liftx; simpl.
   unfold lift.
@@ -507,32 +497,32 @@ Qed.
 
 Lemma stabilize0 : forall W args tz P1 P2 Q1 Q2 neP1 neP2 neQ1 neQ2
   PP la P a lb b Ei Eo Q'
-  (Hpre1 : forall ts w Q inv_names, P1 ts (w, Q, inv_names) =
+  (Hpre1 : forall ts w Q, P1 ts (w, Q) =
     PROP (PP ts w)
      (LOCALx (map (fun l => l ts w) la)
-     (SEP (atomic_shift(B := unit)(inv_names := inv_names) (a ts w) Ei Eo (b ts w) (fun _ => Q); P ts w))))
-  (Hpost1 : forall ts w Q inv_names, Q1 ts (w, Q, inv_names) =
+     (SEP (atomic_shift(B := unit) (a ts w) Ei Eo (b ts w) (fun _ => Q); P ts w))))
+  (Hpost1 : forall ts w Q, Q1 ts (w, Q) =
      PROP () (LOCALx (map (fun l => l ts w) lb) ((SEPx (Q :: cons SPx%logic .. (cons SPy%logic nil) ..)))))
-  (Hpre2 : forall ts w b' Q inv_names, P2 ts (w, b', Q, inv_names) =
+  (Hpre2 : forall ts w b' Q, P2 ts (w, b', Q) =
      PROP (PP ts w)
      (LOCALx (map (fun l => l ts w) la)
-     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo b' Q; P ts w))))
-  (Hpost2 : forall ts w b' Q inv_names, Q2 ts (w, b', Q, inv_names) =
+     (SEP (atomic_shift (a ts w) Ei Eo b' Q; P ts w))))
+  (Hpost2 : forall ts w b' Q inv_names, Q2 ts (w, b', Q) =
     EX v1 : _,
      PROP () (LOCALx (map (fun l => l ts w) lb)
-     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo b' Q; Q' ts w v1))))
+     (SEP (atomic_shift (a ts w) Ei Eo b' Q; Q' ts w v1))))
   (Hb : forall ts w v1, b ts w v1 tt |-- a ts w v1 * Q' ts w v1),
   funspec_sub (mk_funspec (pair args tz) cc_default (atomic_spec_type0 W) P1 Q1 neP1 neQ1)
     (mk_funspec (pair args tz) cc_default (stable_spec_type W) P2 Q2 neP2 neQ2).
 Proof.
   intros; apply subsume_subsume.
   unfold funspec_sub'; repeat (split; auto); intros.
-  destruct x2 as (((w, b'), Q), inv_names).
+  destruct x2 as ((w, b'), Q).
   simpl funsig_of_funspec.
   rewrite Hpre2.
   set (AS := atomic_shift _ _ _ _ _).
   eapply derives_trans, ghost_seplog.bupd_intro.
-  Exists ts2 (w, (AS * EX v1 : _, Q' ts2 w v1), inv_names) emp.
+  Exists ts2 (w, (AS * EX v1 : _, Q' ts2 w v1)) emp.
   simpl in *; intro.
   unfold liftx; simpl.
   unfold lift.
@@ -607,11 +597,11 @@ Definition rev_curry {A B} (f : tuple_type A -> B) : tuple_type_rev A -> B
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x : A 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))))))) ..)))
    (@atomic_spec_nonexpansive_pre' (fun _ => A) T _ W
@@ -630,11 +620,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x : A 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))))))) ..)))
    (@atomic_spec_nonexpansive_pre' _ T _ W
@@ -653,11 +643,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCAL () (SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))))) ..)))
    (@atomic_spec_nonexpansive_pre' _ T _ W
@@ -676,11 +666,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
@@ -698,11 +688,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
@@ -720,11 +710,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))))))) ..)))
    (@atomic_spec_nonexpansive_pre' _ T _ W
@@ -743,11 +733,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCAL () (SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))))) ..)))
    (@atomic_spec_nonexpansive_pre' _ T _ W
@@ -766,11 +756,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
@@ -788,11 +778,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
@@ -810,11 +800,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx nil (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))))))) ..)))
    (@atomic_spec_nonexpansive_pre' _ T _ W
@@ -833,11 +823,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx nil (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCAL () (SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))))) ..)))
    (@atomic_spec_nonexpansive_pre' _ T _ W
@@ -856,11 +846,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx nil (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
@@ -878,11 +868,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx nil (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
@@ -900,11 +890,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx nil (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCALx (cons LQx .. (cons LQy nil) ..) ((SEPx (Q r :: cons SPx .. (cons SPy nil) ..))))))))) ..)))
    (@atomic_spec_nonexpansive_pre' _ T _ W
@@ -923,11 +913,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'EX' r : T , 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx nil (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift (fun x => S2) Ei Eo (fun x r => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) Q) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : (T -> mpred) => tcurry (fun (_ : tuple_type tnil) =>
     @exp (environ -> mpred) _ T (fun r =>
      PROP () (LOCAL () (SEPx (Q r :: cons SPx .. (cons SPy nil) ..)))))))) ..)))
    (@atomic_spec_nonexpansive_pre' _ T _ W
@@ -946,11 +936,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' ( LQx ; .. ; LQy ) 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx nil (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
@@ -968,11 +958,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'PARAMS' () 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (PARAMSx nil (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => (cons Px%type .. (cons Py%type nil) ..))) ..)))
@@ -990,11 +980,11 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ ] 
 
 Notation "'ATOMIC' 'TYPE' W 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx nil
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun _ : unit => S2) Ei Eo (fun _ _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun _ : unit => S2) Ei Eo (fun _ _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))
@@ -1012,11 +1002,11 @@ Notation "'ATOMIC' 'TYPE' W 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 , .. , xn 'PRE'  [ u , .. , v ] 'PROP' () 'PARAMS' ( Lx ; .. ; Ly ) 'GLOBALS' ( Gx ; .. ; Gy ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%type .. (cons v%type nil) ..) tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROPx nil
      (PARAMSx (cons Lx%type .. (cons Ly%type nil) ..) (GLOBALSx (cons Gx .. (cons Gy nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
-   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (inv_names : invG) (_ : tuple_type tnil) =>
+     (SEPx (cons (atomic_shift(B := unit) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..))))))))) ..)))
+   (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn => tcurry (fun Q : mpred => tcurry (fun (_ : tuple_type tnil) =>
      PROP () LOCAL () (SEPx (Q :: cons SPx .. (cons SPy nil) ..)))))) ..)))
    (@atomic_spec_nonexpansive_pre0 _ W
       (fun (ts: list Type) => rev_curry (tcurry (fun x1 => .. (tcurry (fun xn (_ : tuple_type tnil) => nil)) ..)))

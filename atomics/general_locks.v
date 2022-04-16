@@ -1,11 +1,8 @@
 (* Specifications for locks for use with general invariants, in the style of TaDA *)
-Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.concurrency.ghosts.
-Require Import VST.concurrency.conclib.
-Require Export VST.concurrency.invariants.
-Require Export VST.concurrency.fupd.
-Require Export VST.atomics.general_atomics.
+From VST.veric Require Import rmaps compcert_rmaps.
+From VST.concurrency Require Import ghosts conclib.
+From VST.concurrency Require Export invariants fupd.
+From VST.atomics Require Export general_atomics.
 
 Section locks.
 
