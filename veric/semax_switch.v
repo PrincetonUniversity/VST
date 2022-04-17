@@ -217,23 +217,22 @@ Lemma assert_safe_step_nostore:
 |-- assert_safe Espec psi f vx tx (Cont (Kseq c1 k1)) (construct_rho (filter_genv psi) vx tx).
 Proof.
 intros.
-intros w [Hw Hw'] ? J.
-eexists; split; eauto; eexists; repeat split; eauto.
-intros ora jm Hora ? ? ?. subst.
+eapply derives_trans, fupd.fupd_intro.
+intros ? [Hw Hw'] ?? Hora ???; subst.
 destruct (level (m_phi jm)) eqn:?; try lia. clear LW.
-destruct (levelS_age1 _ _ Heqn) as [phi' H1].
-destruct (can_age1_juicy_mem _ _ H1) as [jm' H9].
-clear phi' H1.
+destruct (levelS_age1 _ _ Heqn) as [phi' Hage].
+destruct (can_age1_juicy_mem _ _ Hage) as [jm' Hage'].
+clear phi' Hage.
 simpl.
 econstructor 2 with (m' := jm').
 econstructor.
-rewrite <- (age_jm_dry H9).
-apply (H _ _ H9); auto.
+rewrite <- (age_jm_dry Hage').
+apply (H _ _ Hage'); auto.
 split.
 apply age1_resource_decay; assumption.
 split; [apply age_level; assumption|].
 apply age1_ghost_of, age_jm_phi; auto.
-pose  proof (age_level _ _ H9).
+pose  proof (age_level _ _ Hage').
 rewrite <- level_juice_level_phi in Heqn.
 rewrite Heqn in H1.
 inv H1. clear Heqn.

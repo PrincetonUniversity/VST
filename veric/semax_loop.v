@@ -116,25 +116,26 @@ assert (assert_safe Espec psi f vx tx (Cont (Kseq (if b' then c else d) k))
   rewrite denote_tc_assert_andp in TC2; destruct TC2.
   destruct b'; [apply H0 | apply H1]; split; subst; auto; split; auto; do 3 eexists; eauto; split;
     auto; split; auto; apply bool_val_strict; auto; eapply typecheck_expr_sound; eauto. }
-destruct HGG as [CSUB HGG]. apply (@tc_expr_cenv_sub _ _ CSUB) in TC2'. 
-eapply own.bupd_mono, bupd_denote_tc; eauto. 
-intros r [Htc Hr] ora jm Hora Hge Hphi ?. 
+destruct HGG as [CSUB HGG]. apply (@tc_expr_cenv_sub _ _ CSUB) in TC2'.
+apply fupd.fupd_intro.
+rename TC2' into Htc.
+intros ora jm Hora Hge Hphi ?.
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
 generalize LW; intro H9.
-subst r.
+subst w0.
 change (level (m_phi jm)) with (level jm) in H9.
 revert H9; case_eq (level jm); intros.
 lia.
 apply levelS_age1 in H9. destruct H9 as [jm' ?].
 clear H10.
-apply jsafe_step'_back2 with (st' := State f (if b' then c else d) k vx tx)
-  (m' := jm').
+eapply pred_hereditary in Hw0; [|eapply age_jm_phi; eauto].
+eapply jsafeN_step, assert_safe_jsafe, Hw0.
 split3.
 assert (TCS := typecheck_expr_sound _ _ (m_phi jm) _ (guard_environ_e1 _ _ _ TC) Htc). 
 unfold tc_expr in Htc.
 simpl in Htc.
 rewrite denote_tc_assert_andp in Htc.
-clear TC2'; destruct Htc as [TC2' TC2'a].
+destruct Htc as [TC2' TC2'a].
 rewrite <- (age_jm_dry H9); econstructor; eauto.
 {
  assert (exists b': bool, Cop.bool_val (@eval_expr CS' b rho) (typeof b) (m_dry jm) = Some b') as [].
@@ -163,11 +164,6 @@ apply age1_resource_decay; auto.
 split; [apply age_level; auto|].
 erewrite (age1_ghost_of _ _ (age_jm_phi H9)) by (symmetry; apply ghost_of_approx).
 repeat intro; auto.
-change (level (m_phi jm)) with (level jm).
-replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H9; lia).
-eapply @age_safe; try apply H9.
-rewrite <- Hge in *.
-apply Hr; auto.
 Qed.
 
 Ltac inv_safe H :=
@@ -340,7 +336,7 @@ Proof.
   eapply semax_Delta_subsumption in H0; try apply TS; auto.
   clear Delta TS.
   generalize H; rewrite semax_unfold; intros H'.
-  apply own.bupd_intro.
+  apply fupd.fupd_intro.
   intros ora jm Hora RE ?; subst.
   destruct (can_age1_juicy_mem _ _ LEVa2) as [jm2 LEVa2'].
   unfold age in LEVa2.
@@ -352,7 +348,6 @@ Proof.
   }
   intro.
   subst a2.
-  rewrite (age_level _ _ LEVa2).
   apply jsafeN_step
    with (State f body (Kloop1 body incr k) vx tx)
           jm2.
@@ -522,7 +517,7 @@ Proof.
   rewrite proj_frame_ret_assert. simpl proj_ret_assert; simpl seplog.sepcon.
   rewrite sepcon_comm. rewrite (prop_true_andp (None=None)) by auto.
   eapply andp_derives; try apply H0; auto.
-  apply own.bupd_mono.
+  apply fupd.fupd_mono.
   intros ???? Hora ?? ?.
   specialize (H0 ora jm Hora H1 H2 LW). subst a.
   destruct (break_cont k) eqn:?H; try contradiction.
@@ -536,9 +531,8 @@ Proof.
     intros.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
+    inv H0; [constructor; auto | | discriminate | contradiction].
+    destruct H3.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
@@ -547,9 +541,8 @@ Proof.
     intros.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
+    inv H0; [constructor; auto | | discriminate | contradiction].
+    destruct H3.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
@@ -558,9 +551,8 @@ Proof.
     intros.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
+    inv H0; [constructor; auto | | discriminate | contradiction].
+    destruct H3.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
@@ -637,9 +629,8 @@ Proof.
     intros.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
+    inv H0; [constructor; auto | | discriminate | contradiction].
+    destruct H3.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
@@ -648,9 +639,8 @@ Proof.
     intros.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
+    inv H0; [constructor; auto | | discriminate | contradiction].
+    destruct H3.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
@@ -659,9 +649,8 @@ Proof.
     intros.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
+    inv H0; [constructor; auto | | discriminate | contradiction].
+    destruct H3.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
@@ -685,7 +674,7 @@ repeat intro.
 rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
 normalize.
-apply own.bupd_mono.
+apply fupd.fupd_mono.
 intros ???? Hora ???.
 specialize (H0 ora jm Hora H1 H2 LW). 
 subst a.
