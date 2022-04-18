@@ -859,16 +859,16 @@ Ltac find_unfold_mpred_aux' P A p :=
 Ltac find_unfold_mpred_aux2 R1 p :=
   lazymatch R1 with
   | ?A _ _ _ _ _ _ _ _ _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ _ _ _ _ _ _ _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ _ _ _ _ _ _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ _ _ _ _ _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ _ _ _ _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ _ _ _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ _ _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ _ p => find_unfold_mpred_aux' R1 A p
-  | ?A _ p => find_unfold_mpred_aux' R1 A p
-  | ?A p => find_unfold_mpred_aux' R1 A p
+  | ?A _ _ _ _ _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ p => find_unfold_mpred_aux R1 A p
+  | ?A p => find_unfold_mpred_aux R1 A p
   | context [p] => find_unfold_mpred_aux' R1 R1 p
   end.
 
