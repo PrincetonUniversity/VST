@@ -13,19 +13,15 @@ Require Import VST.veric.age_to_resource_at.
 
 Require Import VST.veric.aging_lemmas.
 
-Set Bullet Behavior "Strict Subproofs".
-
-Lemma jsafeN_age Z Jspec ge ora q n jm jmaged :
+Lemma jsafeN_age Z Jspec ge ora q jm jmaged :
   ext_spec_stable age (JE_spec _ Jspec) ->
   age jm jmaged ->
-  Peano.le n (level jmaged) ->
-  @jsafeN Z Jspec ge n ora q jm ->
-  @jsafeN Z Jspec ge n ora q jmaged.
+  @jsafeN Z Jspec ge ora q jm ->
+  @jsafeN Z Jspec ge ora q jmaged.
 Proof. intros. eapply jsafeN__age; eauto. Qed.
 
-Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
+Lemma jsafeN_age_to Z Jspec ge ora q l jm :
   ext_spec_stable age (JE_spec _ Jspec) ->
-  Peano.le n l ->
-  @jsafeN Z Jspec ge n ora q jm ->
-  @jsafeN Z Jspec ge n ora q (age_to l jm).
+  @jsafeN Z Jspec ge ora q jm ->
+  @jsafeN Z Jspec ge ora q (age_to l jm).
 Proof. intros. eapply jsafeN__age_to; eauto. Qed.

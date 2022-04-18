@@ -216,9 +216,8 @@ Lemma assert_safe_step_nostore:
  && tc_expr Delta e rho
 |-- assert_safe Espec psi f vx tx (Cont (Kseq c1 k1)) (construct_rho (filter_genv psi) vx tx).
 Proof.
-intros.
-eapply derives_trans, fupd.fupd_intro.
-intros ? [Hw Hw'] ?? Hora ???; subst.
+intros. intros ? [Hw Hw'] ?? Hora ???; subst.
+apply jm_fupd_intro'.
 destruct (level (m_phi jm)) eqn:?; try lia. clear LW.
 destruct (levelS_age1 _ _ Heqn) as [phi' Hage].
 destruct (can_age1_juicy_mem _ _ Hage) as [jm' Hage'].

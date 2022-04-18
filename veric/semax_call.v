@@ -1344,37 +1344,24 @@ Lemma assert_safe_jmupd_for_external_call {Espec psi curf vx ret ret0 tx k z' m'
 Proof.
 (* this proof is like assert_safe_jsafe *)
   repeat intro.
-  eapply AS in H1; try apply necR_jm_phi; eauto.
-  destruct (H1 _ H3) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
-  do 2 red in Hsafe.
-  destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
-  exists jm'; repeat split; auto.
-  rewrite level_juice_level_phi; destruct (level (m_phi jm')) eqn: Hl'; auto.
-  destruct Hsafe as [HF | Hsafe].
-  { symmetry in Hl'; apply levelS_age in Hl' as (? & Hage & ?).
-    rewrite later_age in HF; apply HF in Hage; contradiction. }
-  destruct Hsafe as (? & ? & ? & ? & Hsafe).
-  edestruct (juicy_mem_sub jm' x0) as [jm0 ?]; subst.
-  { eexists; eauto. }
-  right; do 3 eexists; eauto; split; auto.
-  specialize (Hsafe z' jm0).
-  spec Hsafe. {
+  destruct (level (m_phi m')) eqn: Hl.
+  { do 2 eexists; eauto; split; unfold jm_update; auto.
+    apply necR_level in H; apply join_level in H0 as []; rewrite <- !level_juice_level_phi in *; lia. }
+  assert (ext_compat z' (m_phi m')) as Hext.
+  { eapply ext_compat_unnec; [apply necR_jm_phi; eauto|].
     eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
-    eapply joins_comm, join_sub_joins_trans, joins_comm; [|eauto].
-    change (Some (ghost_PCM.ext_ref z', NoneP) :: nil) with
-      (own.ghost_approx (m_phi z) (Some (ghost_PCM.ext_ref z', NoneP) :: nil)).
-    destruct H2; eexists; apply ghost_fmap_join; eauto. }
-  do 2 (spec Hsafe; [auto|]).
-  destruct (level jm0) eqn: Hl0; [constructor; auto|].
-  spec Hsafe; [rewrite <- level_juice_level_phi; lia | clear - Hsafe].
-  destruct k; try contradiction.
+    eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
+    destruct H2 as [? J]; eapply ghost_fmap_join in J; eexists; eauto. }
+  specialize (AS _ _ Hext eq_refl eq_refl).
+  spec AS; [lia|].
+  destruct k; eapply jm_fupd_mono; eauto; intros ?? Hsafe; try contradiction.
 -
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
   inv Hsafe; [constructor; auto | | discriminate | contradiction].
-  destruct H0.
-  inv H0.
+  destruct H6.
+  inv H6.
   eapply jsafeN_step.
   split. eapply step_skip_call; eauto. hnf; auto. auto. auto.
 -
@@ -1401,8 +1388,8 @@ Proof.
   intros.
   eapply age_safe; eauto.
   inv Hsafe; [constructor; auto | | discriminate | contradiction].
-  destruct H0.
-  inv H0.
+  destruct H6.
+  inv H6.
   eapply jsafeN_step.
   split. eapply step_skip_call; eauto. hnf; auto. auto. auto.
 Qed.
@@ -1561,7 +1548,7 @@ assert (H1' : forall a' : rmap,
     eapply (HR (construct_rho (filter_genv psi) vx tx') _ LATER a1); auto.
     destruct (join_level _ _ _ J) as [-> ?]; auto. }
   eapply fupd.subp_fupd in H1; [|apply derives_refl].
-  eapply fupd.fupd_trans, H1; eauto.
+  eapply assert_safe_fupd, H1; eauto.
   rewrite andp_comm; apply fupd.fupd_andp_corable; [apply corable_funassert|].
   split; auto.
   apply fupd.fupd_andp_prop; split; auto.
@@ -2288,9 +2275,8 @@ apply andp_derives; auto. apply andp_derives; auto.
 apply andp_left2; auto.
 simpl exit_cont.
 apply derives_subp.
-apply fupd.fupd_mono.
-intros ?. simpl.
-destruct ctl; auto;
+apply assert_safe_derives; split; auto; simpl; intros.
+destruct ctl; try (apply jm_fupd_intro'; auto);
 elimtype False; clear - H; simpl in H; set (k:=ctl) in *;
 unfold k at 1 in H; clearbody k;
 induction ctl; try discriminate; eauto.
@@ -2386,8 +2372,7 @@ apply guard_fallthrough_return; auto.
    apply le_trans with (level wx); auto.
    apply ext_level in Hext as <-; auto. }
  clear wx H8 H9.
- apply fupd.fupd_intro; simpl.
- intros ora' jm' Hora' VR ?.
+ simpl; intros ora' jm' Hora' VR ?.
  subst w'.
  intro.
  case_eq (@level rmap ag_rmap (m_phi jm')); [intros; lia | intros n0 H21; clear LW ].
@@ -2449,7 +2434,7 @@ apply guard_fallthrough_return; auto.
       eapply (HR _ _ JMX a1); auto.
       destruct (join_level _ _ _ J) as [-> ?]; auto. apply necR_level in H8; rewrite <- level_juice_level_phi in *; lia. }
     eapply fupd.subp_fupd in H1; [|apply derives_refl].
-    eapply fupd.fupd_trans, H1; eauto.
+    eapply assert_safe_fupd, H1; eauto.
     rewrite andp_comm; apply fupd.fupd_andp_corable; [apply corable_funassert|].
     split; auto.
    apply fupd.fupd_andp_prop; split; auto.
@@ -3174,7 +3159,7 @@ normalize in pre. (*unfold func_ptr in *. hnf in pre.*)
 destruct pre as [preA preB]. destruct preA as [b [EvalA funcatb]].
 destruct preB as [z1 [z2 [JZ [HF0 pre]]]].
 destruct (level w) eqn: Hl.
-{ apply fupd.fupd_intro; repeat intro; lia. }
+{ repeat intro; lia. }
 destruct (levelS_age w n) as (w' & Hage & Hw'); auto.
 
 hnf in funcatb.
@@ -3367,8 +3352,8 @@ assert (ARGS: app_pred (|> fupd (EX ts1 x1 G, F0 rho *
   rewrite <- !sepcon_assoc.
   rewrite !(andp_comm _ (!!_)), !sepcon_andp_prop.
   rewrite <- !sepcon_assoc; auto. }
-apply fupd.fupd_intro.
 simpl; unfold assert_safe'_; intros; subst.
+apply jm_fupd_intro'.
 assert (CSUBpsi:cenv_sub (@cenv_cs CS) psi).
 { destruct HGG as [CSUB' HGG]. apply (cenv_sub_trans CSUB' HGG). }
 destruct HGG as [CSUB HGG].
@@ -3485,7 +3470,7 @@ normalize in pre. (*unfold func_ptr_si in *.*)
 destruct pre as [preA preB]. destruct preA as [b [EvalA funcatb]].
 destruct preB as [z1 [z2 [JZ [HF0 pre]]]].
 destruct (level w) eqn: Hl.
-{ apply fupd.fupd_intro; repeat intro; lia. }
+{ repeat intro; lia. }
 destruct (levelS_age w n) as (w' & Hage & Hw'); auto.
 
 hnf in funcatb.
@@ -3635,7 +3620,8 @@ assert (ArgsW: app_pred (|> fupd (EX ts1 x1 G, F0 rho * (F rho * G) *
   rewrite !(andp_comm _ (allp _)), <- !unfash_allp', !sepcon_andp_unfash.
   rewrite <- !sepcon_assoc; auto. }
 apply now_later in RGUARD.
-apply fupd.fupd_intro; repeat intro; subst. rename H into ORA.
+intros ??????; subst. apply jm_fupd_intro'.
+rename H into ORA.
 
 assert (CSUBpsi:cenv_sub (@cenv_cs CS) psi).
 { destruct HGG as [CSUB' HGG]. apply (cenv_sub_trans CSUB' HGG). }
@@ -3726,7 +3712,7 @@ Lemma semax_call_alt {CS Espec}:
           (fun rho => (EX old:val, substopt ret (`old) F rho * maybe_retval (Q ts x) retsig ret rho))).
 Proof. exact semax_call_si. Qed.
 
-Lemma semax_call_ext {CS Espec}:
+(*Lemma semax_call_ext {CS Espec}:
    forall (IF_ONLY: False),
      forall Delta P Q ret a tl bl a' bl',
       typeof a = typeof a' ->
@@ -3831,7 +3817,7 @@ eapply step_call; eauto.
 rewrite <- H; auto.
 destruct H25 as [H25 | H25]; inv H25.
 destruct H25 as [H25 | H25]; inv H25.
-Qed.
+Qed.*)
 
 Definition cast_expropt {CS} (e: option expr) t : environ -> option val :=
  match e with Some e' => `Some (@eval_expr CS (Ecast e' t))  | None => `None end.
@@ -3879,6 +3865,12 @@ Proof.
   specialize (tc_expr_sub _ _ _ TS); intros.
   destruct ret; [ eapply H; assumption | trivial].
 Qed.
+
+(*Lemma val_casted_sem_cast : forall v t1 t2, val_casted (force_val (sem_cast t1 t2 v)) t2.
+Proof.
+  intros; unfold sem_cast.
+  destruct (classify_cast t1 t2) eqn: Hclass; simpl; auto.
+25: { Search val_casted *)
 
 Lemma  semax_return {CS Espec}:
    forall Delta R ret,
@@ -3949,10 +3941,10 @@ Proof.
     rewrite seplog.sepcon_comm; auto.
   }
   unfold tc_expropt in TC; destruct ret; simpl in TC.
-  + eapply own.bupd_mono, bupd_denote_tc, H0; eauto.
-    clear TC; intros ? [TC Hsafe] ?? Hora ??.
+  + intros ?? Hora ??.
+    rename H0 into Hsafe.
     specialize (Hsafe ora jm Hora (eq_refl _) H6).
-    intros. subst a.
+    intros. subst w'.
     specialize (Hsafe LW e (eval_expr e rho)).
     destruct H3 as [H3a [H3b H3c]].
     rewrite H3c in Hsafe,TC.
@@ -3972,21 +3964,23 @@ Proof.
     eapply typecheck_environ_sub; try eassumption.
    }
     clear - Hsafe.
+    apply jm_fupd_intro'.
     eapply convergent_controls_jsafe; try apply Hsafe; auto.
     intros ? ? [? ?]; split; auto.
     inv H.
     1,3: destruct H9; discriminate.
     rewrite call_cont_idem.
     econstructor; eauto.
-  + eapply own.bupd_mono, H0; eauto.
-    intros ? Hsafe ?? Hora ???.
+  + intros ?? Hora ???.
+    rename H0 into Hsafe.
     specialize (Hsafe ora jm Hora (eq_refl _) H6 LW).
      simpl in Hsafe.
+    apply jm_fupd_intro'.
     eapply convergent_controls_jsafe; try apply Hsafe; auto.
     intros.
-    destruct H7; split; auto.
-    inv H7.
-    1,3: destruct H17; discriminate.
+    destruct H0; split; auto.
+    inv H0.
+    1,3: destruct H16; discriminate.
     rewrite call_cont_idem.
     econstructor; eauto.
 Qed.
