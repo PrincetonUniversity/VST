@@ -279,14 +279,6 @@ Proof.
   exists jm'; repeat split; auto.
 Qed.
 
-Lemma jm_fupd_intro' : forall {G C Z} {genv_symb : G -> injective_PTree block} coresem JE ge (ora : Z) E (c : C) m,
-  jsafeN_(genv_symb := genv_symb) coresem JE ge ora c m ->
-  jm_fupd ora E E (jsafeN_(genv_symb := genv_symb) coresem JE ge ora c) m.
-Proof.
-  intros; apply jm_fupd_intro; auto.
-  intros; eapply necR_safe; eauto.
-Qed.
-
 Lemma jsafeN_local_step:
   forall {Espec: OracleKind} ge ora s1 m s2,
   cl_step  ge s1 (m_dry m) s2 (m_dry m) ->
@@ -1476,60 +1468,6 @@ intros.
 eapply age_safe; eauto.
 Qed.
 
-Lemma denote_tc_resource: forall {cs: compspecs} rho a a' t, resource_at a = resource_at a' ->
-  denote_tc_assert t rho a -> denote_tc_assert t rho a'.
-Proof.
-  induction t; auto; intros; simpl in *.
-  - destruct H0; auto.
-  - destruct H0; auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho); auto; simpl in *; if_tac; auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho); auto; simpl in *; if_tac; auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho), (eval_expr e0 rho); auto; simpl in *.
-    + simple_if_tac; auto.
-      destruct H0; split; auto.
-      destruct H1; [left | right]; simpl in *; rewrite <- H; auto.
-    + simple_if_tac; auto.
-      destruct H0; split; auto.
-      destruct H1; [left | right]; simpl in *; rewrite <- H; auto.
-    + unfold test_eq_ptrs in *.
-      destruct (sameblock _ _), H0; split; simpl in *; rewrite <- H; auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho), (eval_expr e0 rho); auto; simpl in *.
-    unfold test_order_ptrs in *.
-    destruct (sameblock _ _), H0; split; simpl in *; rewrite <- H; auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho); auto; simpl in *; if_tac; auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho); auto; simpl in *; if_tac; auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho); auto; simpl in *.
-    + destruct (Zoffloat f); auto.
-    + destruct (Zofsingle f); auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho); auto; simpl in *.
-    + destruct (Zoffloat f); auto.
-    + destruct (Zofsingle f); auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (eval_expr e rho), (eval_expr e0 rho); auto.
-  - unfold liftx in *; simpl in *.
-    unfold lift in *; simpl in *.
-    destruct (typeof e) as [ | _ [ | ] _ | | | | | | | ],
-                  (typeof e0) as [ | _ [ | ] _ | | | | | | | ];
-    destruct (eval_expr e rho), (eval_expr e0 rho); auto.
-Qed.
-
 Lemma fupd_denote_tc: forall {cs: compspecs} P t rho a,
   denote_tc_assert t rho a -> fupd P a -> fupd (denote_tc_assert t rho && P) a.
 Proof.
@@ -1633,13 +1571,13 @@ Proof.
 Qed.
 
 Lemma assert_safe_fupd : forall {Espec: OracleKind} ge f ve te c rho,
-  (match c with Cont _ => True | _ => False end) ->
+  (match c with Ret _ _ => False | _ => True end) ->
   fupd (assert_safe Espec ge f ve te c rho) |-- assert_safe Espec ge f ve te c rho.
 Proof.
   intros.
-  destruct c; try contradiction; clear H.
-  intros ????????; subst.
-  destruct c; try (eapply fupd_jm_fupd with (P := fun ora => jsafeN OK_spec ge ora _); eauto; reflexivity).
+  destruct c; try contradiction; clear H;
+  intros ????????; subst;
+  [|destruct c; try (eapply fupd_jm_fupd with (P := fun ora => jsafeN OK_spec ge ora _); eauto; reflexivity)];
   eapply fupd_jm_fupd with (P := fun _ _ => False); eauto; reflexivity.
 Qed.
 

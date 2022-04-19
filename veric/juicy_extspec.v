@@ -288,10 +288,19 @@ Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
   exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) C) /\
     jm_update m m' /\ P m'.
 
-Lemma jm_bupd_intro: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, P m -> jm_bupd ora P m.
+Lemma jm_bupd_intro_strong: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, 
+  (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> P m) -> jm_bupd ora P m.
 Proof.
   repeat intro.
   eexists; split; eauto; repeat split; auto.
+  apply H.
+  eapply joins_comm, join_sub_joins_trans, joins_comm, H1.
+  destruct H0 as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
+Qed.
+
+Lemma jm_bupd_intro: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, P m -> jm_bupd ora P m.
+Proof.
+  intros; apply jm_bupd_intro_strong; auto.
 Qed.
 
 Lemma jm_bupd_mono : forall {Z} (ora : Z) (P1 P2 : juicy_mem -> Prop) m, jm_bupd ora P1 m ->
@@ -511,12 +520,22 @@ Definition jm_fupd {Z} (ora : Z) (E1 E2 : Ensembles.Ensemble gname) P m :=
   jm_bupd ora (fun z2 => level z2 = 0 \/ exists m2 w2, join (m_phi m2) w2 (m_phi z2) /\
     app_pred (wsat * ghost_set g_en E2) w2 /\ P m2) z.
 
+Lemma jm_fupd_intro_strong: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
+  (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> P m) -> jm_fupd ora E E P m.
+Proof.
+  intros.
+  intros ??????.
+  apply jm_bupd_intro_strong; intros J.
+  eapply join_sub_joins_trans in J; [|eexists; apply ghost_of_join; eauto].
+  erewrite necR_ghost_of in J by (apply necR_jm_phi; eauto).
+  apply ext_join_unapprox in J; eauto 8.
+Qed.
+
 Lemma jm_fupd_intro: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
   P m -> jm_fupd ora E E P m.
 Proof.
   intros.
-  intros ??????.
-  apply jm_bupd_intro; eauto 7.
+  apply jm_fupd_intro_strong; auto.
 Qed.
 
 Lemma jm_fupd_age : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m m', jm_fupd ora E1 E2 P m ->
@@ -878,6 +897,22 @@ Lemma jsafe_corestep_backward:
   Proof.
     intros. destruct (level m) eqn: Hl. constructor; auto.
     apply H. lia.
+  Qed.
+
+  Lemma jm_fupd_intro' : forall (ora : Z) E (c : C) m,
+    jsafeN_ ora c m ->
+    jm_fupd ora E E (jsafeN_ ora c) m.
+  Proof.
+    intros; apply jm_fupd_intro; auto.
+    intros; eapply necR_safe; eauto.
+  Qed.
+
+  Lemma jm_fupd_intro_strong' : forall (ora : Z) E (c : C) m,
+    (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> jsafeN_ ora c m) ->
+    jm_fupd ora E E (jsafeN_ ora c) m.
+  Proof.
+    intros; apply jm_fupd_intro_strong; auto.
+    intros; eapply necR_safe; eauto.
   Qed.
 
 End juicy_safety.
