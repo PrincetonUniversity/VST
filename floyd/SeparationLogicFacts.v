@@ -493,7 +493,7 @@ Axiom semax_conseq:
     (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
     (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|={Ensembles.Full_set}=> RA_break R)) ->
     (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (|={Ensembles.Full_set}=> RA_return R vl)) ->
+    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE.
@@ -508,11 +508,11 @@ Import CConseq.
 Lemma semax_pre_post_indexed_fupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> |> FF || P')) ->
-    (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> |> FF || RA_normal R)) ->
-    (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> |> FF || RA_break R)) ->
-    (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> |> FF || RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|={Ensembles.Full_set}=> |> FF || RA_return R vl)) ->
+    (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
+    (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
+    (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
+    (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
   intros.
@@ -529,33 +529,33 @@ Lemma semax_pre_post_fupd:
     (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
     (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
     (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|={Ensembles.Full_set}=> RA_return R vl)) ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
   intros.
   eapply semax_pre_post_indexed_fupd; [.. | exact H4]; try intros;
-  try apply derives_bupd_derives_bupd0; auto.
+  try apply derives_fupd_derives_fupd; auto.
 Qed.
 
 Lemma semax_pre_indexed_fupd:
  forall P' Espec {cs: compspecs} Delta P c R,
-     (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> |> FF || P')) ->
+     (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post_indexed_fupd; eauto;
-  intros; reduce2derives; apply derives_refl.
+  intros; reduce2derives; (apply fupd_intro || apply derives_refl).
 Qed.
 
 Lemma semax_post_indexed_fupd:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> |> FF || RA_normal R)) ->
-   (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> |> FF || RA_break R)) ->
-   (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> |> FF || RA_continue R)) ->
-   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|={Ensembles.Full_set}=> |> FF || RA_return R vl)) ->
+   (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
+   (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
+   (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
+   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post_indexed_fupd; try eassumption.
-  apply derives_bupd0_refl.
+  apply derives_fupd_refl.
 Qed.
 
 Lemma semax_post''_indexed_fupd: forall R' Espec {cs: compspecs} Delta R P c,
@@ -575,7 +575,7 @@ Lemma semax_pre_fupd:
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre_post_fupd; eauto;
-intros; apply andp_left2, bupd_intro; auto.
+intros; apply andp_left2, fupd_intro; auto.
 Qed.
 
 Lemma semax_post_fupd:
@@ -583,11 +583,11 @@ Lemma semax_post_fupd:
    (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
    (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
    (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
-   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|={Ensembles.Full_set}=> RA_return R vl)) ->
+   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post_fupd; try eassumption.
-  apply derives_bupd_refl.
+  apply derives_fupd_refl.
 Qed.
 
 Lemma semax_post'_fupd: forall R' Espec {cs: compspecs} Delta R P c,
@@ -670,7 +670,7 @@ Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
-  intros; eapply semax_pre_post_bupd; eauto; intros; eapply derives_trans, bupd_intro; auto.
+  intros; eapply semax_pre_post_fupd; eauto; intros; eapply derives_trans, fupd_intro; auto.
 Qed.
 
 End GenConseq.
@@ -852,19 +852,19 @@ Lemma semax_extract_later_prop:
 Proof.
   intros.
   apply semax_extract_prop in H.
-  eapply semax_pre_post_indexed_bupd; [.. | exact H].
+  eapply semax_pre_post_indexed_fupd; [.. | exact H].
   + apply andp_left2.
-    eapply derives_trans; [| apply bupd_intro].
+    eapply derives_trans; [| apply fupd_intro].
     rewrite orp_comm, distrib_andp_orp.
     apply andp_right.
     - apply andp_left1.
       apply later_prop.
     - apply orp_right1.
       solve_andp.
-  + apply derives_bupd0_refl.
-  + apply derives_bupd0_refl.
-  + apply derives_bupd0_refl.
-  + intros; apply derives_bupd0_refl.
+  + apply derives_fupd_refl.
+  + apply derives_fupd_refl.
+  + apply derives_fupd_refl.
+  + intros; apply derives_fupd_refl.
 Qed.
 
 End GenIExtrFacts.

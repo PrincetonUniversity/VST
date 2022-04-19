@@ -172,15 +172,6 @@ Proof.
   apply orp_right1; auto.
 Qed.
 
-(*Lemma fupd_intro_mask : forall E1 E2 P,
-  subseteq E2 E1 -> P |-- |={E1,E2}=> |={E2,E1}=> P.
-Proof.
-  intros; unfold fupd; iIntros "P Hpre".
-  erewrite ghost_set_subset with (s' := E2) by auto.
-  iDestruct "Hpre" as "(? & ? & en)".
-  iIntros "!> !>"; iSplitR "P en"; iFrame; auto.
-Qed.*)
-
 Lemma fupd_trans : forall E1 E2 E3 P, (|={E1,E2}=> |={E2,E3}=> P) |-- |={E1,E3}=> P.
 Proof.
   intros; unfold fupd.
@@ -270,6 +261,45 @@ Proof.
   eapply derives_trans, later_derives; [rewrite later_sepcon; apply sepcon_derives, now_later; auto|].
   rewrite FF_sepcon; auto.
 Qed.
+
+Lemma fupd_mask_subseteq : forall E1 E2, Included E2 E1 ->
+    emp |-- fupd E1 E2 (fupd E2 E1 emp).
+Proof.
+  intros; unfold fupd.
+  rewrite <- wand_sepcon_adjoint.
+  erewrite ghost_set_subset; eauto.
+  eapply derives_trans, bupd_intro.
+  apply orp_right2.
+  rewrite emp_sepcon, <- sepcon_assoc; apply sepcon_derives; auto.
+  rewrite <- wand_sepcon_adjoint.
+  eapply derives_trans, bupd_intro.
+  apply orp_right2.
+  rewrite sepcon_comm, sepcon_emp; auto.
+Admitted. (* decision on nat -> Prop *)
+
+Lemma except_0_fupd : forall E1 E2 P, ((|> FF) || fupd E1 E2 P) |-- fupd E1 E2 P.
+Proof.
+  intros.
+  apply fupd_except0_elim, derives_refl.
+Qed.
+
+Lemma fupd_mask_frame_r' : forall E1 E2 Ef P, Disjoint E1 Ef ->
+  fupd E1 E2 (!! (Disjoint E2 Ef) --> P) |-- fupd (Union E1 Ef) (Union E2 Ef) P.
+Proof.
+  intros; unfold fupd.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite <- (prop_true_andp _ (ghost_set _ (Union _ _)) H).
+  rewrite <- ghost_set_join.
+  rewrite <- 2sepcon_assoc.
+  eapply derives_trans; [apply sepcon_derives, derives_refl|].
+  { rewrite sepcon_assoc, sepcon_comm; apply modus_wand. }
+  eapply derives_trans; [apply bupd_frame_r | apply bupd_mono].
+  rewrite distrib_orp_sepcon; apply orp_derives.
+  { eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
+    rewrite <- later_sepcon; apply later_derives.
+    rewrite FF_sepcon; auto. }
+  
+Admitted.
 
 End FancyUpdates.
 

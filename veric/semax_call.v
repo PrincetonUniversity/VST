@@ -3309,13 +3309,13 @@ specialize (ClientAdaptation w2'). spec ClientAdaptation.
 assert (ARGS: app_pred (|> fupd (EX ts1 x1 G, F0 rho *
      (F rho * G) * deltaP ts1 x1 (ge_of rho, args) && !! (forall rho' : environ,
                             !! (ve_of rho' = Map.empty (block * type)) &&
-                            (G * nQ ts1 x1 rho') |-- fupd (Q ts x rho')))) w).
+                            (G * nQ ts1 x1 rho') |-- (Q ts x rho')))) w).
 { clear Hpost SpecOfID Prog_OK RhoID TC7' RGUARD funcatb. rewrite HARGS in *.
   assert (XX: (|> (F0 rho * F rho *
                    fupd (EX ts1 x1 G, G * deltaP ts1 x1 (ge_of rho, args) &&
               !! (forall rho' : environ,
                      !! (ve_of rho' = Map.empty (block * type)) &&
-                     (G * nQ ts1 x1 rho') |-- fupd (Q ts x rho'))))) w).
+                     (G * nQ ts1 x1 rho') |-- (Q ts x rho'))))) w).
   { rewrite later_sepcon.
     exists w1, w2; split. trivial. split. trivial. hnf; intros.
     destruct (age_later Age2 H); [ subst a' |].
@@ -3374,9 +3374,9 @@ rewrite HARGS; apply andp_derives; auto.
 intros ? HG2.
 clear - TRIV TC7' HG2.
 intros rho' u U ? m NEC Hext [v V].
+apply fupd.fupd_intro.
 hnf in TC7'.
 rewrite <- exp_sepcon1.
-apply fupd.fupd_frame_l.
 destruct ret.
 - remember ((temp_types Delta') ! i) as rr; destruct rr; try contradiction; subst t.
   simpl in V. destruct V as [m1 [m2 [JM [[u1 [u2 [JU [U1 U2]]]] M2]]]].
@@ -3385,37 +3385,16 @@ destruct ret.
   hnf in HG2. specialize (HG2 (get_result1 i rho') q1). destruct M2.
   spec HG2. {
     simpl. split; trivial. exists u2, m2; auto. }
-  eapply fupd.fupd_mono, HG2; simpl.
-  rewrite prop_true_andp; auto.
+  simpl; auto.
+(*  rewrite prop_true_andp; auto.*)
 - destruct V as [m1 [m2 [JM [[u1 [u2 [JU [U1 U2]]]] M2]]]].
   destruct (join_assoc JU JM) as [q1 [Q2 Q1]]. simpl in M2.
   exists u1, q1; split; trivial. split. exists v; apply U1.
-  hnf in HG2. destruct retty.
+  hnf in HG2. destruct retty; try solve [destruct M2 as [za [TCv M2]];
+    exists za; split; auto;
+    eapply HG2;
+    simpl; split; auto; exists u2, m2; auto].
   + apply HG2. simpl. split. hnf; simpl; intuition. exists u2, m2; auto.
-  + destruct M2 as [z [TCv M2]].
-    eapply fupd.fupd_mono, HG2; [apply exp_right with z; apply prop_andp_right; auto |
-                                simpl; split; auto; exists u2, m2; auto].
-  + destruct M2 as [z [TCv M2]].
-    eapply fupd.fupd_mono, HG2; [apply exp_right with z; apply prop_andp_right; auto |
-                                simpl; split; auto; exists u2, m2; auto].
-  + destruct M2 as [z [TCv M2]].
-    eapply fupd.fupd_mono, HG2; [apply exp_right with z; apply prop_andp_right; auto |
-                                simpl; split; auto; exists u2, m2; auto].
-  + destruct M2 as [z [TCv M2]].
-    eapply fupd.fupd_mono, HG2; [apply exp_right with z; apply prop_andp_right; auto |
-                                simpl; split; auto; exists u2, m2; auto].
-  + destruct M2 as [z0 [TCv M2]].
-    eapply fupd.fupd_mono, HG2; [apply exp_right with z0; apply prop_andp_right; auto |
-                                simpl; split; auto; exists u2, m2; auto].
-  + destruct M2 as [z [TCv M2]].
-    eapply fupd.fupd_mono, HG2; [apply exp_right with z; apply prop_andp_right; auto |
-                                simpl; split; auto; exists u2, m2; auto].
-  + destruct M2 as [z [TCv M2]].
-    eapply fupd.fupd_mono, HG2; [apply exp_right with z; apply prop_andp_right; auto |
-                                simpl; split; auto; exists u2, m2; auto].
-  + destruct M2 as [z [TCv M2]].
-    eapply fupd.fupd_mono, HG2; [apply exp_right with z; apply prop_andp_right; auto |
-                                simpl; split; auto; exists u2, m2; auto].
 Qed.
 
 Lemma semax_call_si {CS Espec}:
@@ -3594,10 +3573,10 @@ apply rmap_order in Hext as (Hl' & _ & _).
 rewrite Hl' in *; clear dependent a'.
 assert (ArgsW: app_pred (|> fupd (EX ts1 x1 G, F0 rho * (F rho * G) *
                deltaP ts1 x1 (ge_of rho, args) && (ALL rho' : environ,
-         ! (!! (ve_of rho' = Map.empty (block * type)) && (G * nQ ts1 x1 rho') >=> fupd (Q ts x rho'))))) w).
+         ! (!! (ve_of rho' = Map.empty (block * type)) && (G * nQ ts1 x1 rho') >=> (Q ts x rho'))))) w).
 { clear Hpost funcatb SpecOfID Prog_OK RhoID TC7' RGUARD. rewrite HARGS in *.
   assert (XX: (|> (F0 rho * F rho * fupd (EX ts1 x1 G, G * deltaP ts1 x1 (ge_of rho, args) && (ALL rho' : environ,
-         ! (!! (ve_of rho' = Map.empty (block * type)) && (G * nQ ts1 x1 rho') >=> fupd (Q ts x rho')))))) w).
+         ! (!! (ve_of rho' = Map.empty (block * type)) && (G * nQ ts1 x1 rho') >=> (Q ts x rho')))))) w).
   { rewrite later_sepcon.
     exists w1, w2; split. trivial. split. trivial. hnf; intros. specialize (age_later_nec _ _ _ Age2 H). intros.
     apply (pred_nec_hereditary _ _ a') in ClientAdaptation; auto.
@@ -3667,8 +3646,7 @@ destruct ret.
   specialize (HG2 (get_result1 i rho') _ LL _ _ (necR_refl _) (ext_refl _)). destruct Z2 as [Z21 Z22].
   spec HG2. {
     simpl. split; trivial. exists z1_2, z2; auto. }
-  eapply fupd.fupd_mono, HG2; simpl.
-  rewrite prop_true_andp; auto.
+  eapply fupd.fupd_intro; simpl; auto.
 - destruct Z as [z1 [z2 [JZ [Z1 Z2]]]];
     destruct (join_level _ _ _ JZ) as [Levz1 Levz2]. simpl in Z1, Z2.
   destruct Z1 as [z1_1 [z1_2 [JZ1 [Z11 Z12]]]]; destruct (join_level _ _ _ JZ1) as
@@ -3676,6 +3654,7 @@ destruct ret.
   destruct (join_assoc JZ1 JZ) as [y11 [JY1 JY2]]; destruct (join_level _ _ _ JY2) as
       [_ Levy11]. assert (LL: (level a0 >= level y11)%nat) by lia.
   exists z1_1, y11; split; trivial. split; [exists v; trivial|].
+  apply fupd.fupd_intro.
   destruct (type_eq retty Tvoid).
   + subst retty.
     apply (HG2 (globals_only rho') _ LL _ _ (necR_refl _) (ext_refl _)).
@@ -3689,7 +3668,6 @@ destruct ret.
     specialize (HG2 (env_set (globals_only rho') ret_temp vv) _ LL _ _ (necR_refl _) (ext_refl _)).
     spec HG2. {
       simpl; split. hnf; simpl; intuition. exists z1_2, z2; auto. }
-    eapply fupd.fupd_mono, HG2.
     destruct retty; try solve [congruence]; exists vv; split; trivial.
 Qed.
 

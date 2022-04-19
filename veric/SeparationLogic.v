@@ -65,8 +65,6 @@ Qed.
 
 Ltac unseal_derives := rewrite derives_eq in *.
 
-
-
 #[(*export, after Coq 8.13*)global] Program Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
   { bupd := bupd; own := @own }.
 Next Obligation.
@@ -110,6 +108,37 @@ Proof.
   constructor; apply @ghost_dealloc.
 Qed.
 
+#[(*export, after Coq 8.13*)global] Program Instance Fveric: FupdSepLog mpred gname compcert_rmaps.RML.R.preds nat :=
+  { fupd := fupd.fupd }.
+Next Obligation.
+Proof.
+  unseal_derives; apply fupd.fupd_mask_subseteq; auto.
+Qed.
+Next Obligation.
+Proof.
+  unseal_derives; apply fupd.except_0_fupd.
+Qed.
+Next Obligation.
+Proof.
+  unseal_derives; apply fupd.fupd_mono; auto.
+Qed.
+Next Obligation.
+Proof.
+  unseal_derives; apply fupd.fupd_trans.
+Qed.
+Next Obligation.
+Proof.
+  unseal_derives; apply fupd.fupd_mask_frame_r'.
+Qed.
+Next Obligation.
+Proof.
+  unseal_derives; apply fupd.fupd_frame_r.
+Qed.
+Next Obligation.
+Proof.
+  unseal_derives; apply fupd.bupd_fupd.
+Qed.
+
 #[(*export, after Coq 8.13*)global] Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
 #[(*export, after Coq 8.13*)global] Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
 #[(*export, after Coq 8.13*)global] Instance LiftClassicalSep' T {ND: NatDed T}{SL: SepLog T}{CS: ClassicalSep T} :
@@ -146,10 +175,10 @@ match f1 with
                               (rmaps.dependent_type_functor_rec ts2 A2) mpred,
              ALL gargs:genviron * list val,
         ((!!((*Forall2 tc_val' (fst tpsig1) (snd gargs)*)argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
-         >=> ghost_seplog.bupd (EX ts1:_,  EX x1:_, EX F:_, 
+         >=> ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set (EX ts1:_,  EX x1:_, EX F:_, 
             (F * (P1 ts1 x1 gargs)) &&
             ALL rho':_, (     !( ((!!(ve_of rho' = Map.empty (block * type))) && (F * (Q1 ts1 x1 rho')))
-                         >=> ghost_seplog.bupd (Q2 ts2 x2 rho')))))))
+                         >=> (Q2 ts2 x2 rho')))))))
     end
 end.
 
@@ -161,12 +190,12 @@ match f1 with
         (tpsig1=tpsig2 /\ cc1=cc2) /\
         forall ts2 x2 (gargs:argsEnviron),
         ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
-         |-- ghost_seplog.bupd (EX ts1:_,  EX x1:_, EX F:_, 
+         |-- ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set (EX ts1:_,  EX x1:_, EX F:_, 
                            (F * (P1 ts1 x1 gargs)) &&
                                (!! (forall rho',
                                            ((!!(ve_of rho' = Map.empty (block * type))) &&
                                                  (F * (Q1 ts1 x1 rho')))
-                                         |-- ghost_seplog.bupd (Q2 ts2 x2 rho')))))
+                                         |-- (Q2 ts2 x2 rho')))))
     end
 end.
 
@@ -1762,11 +1791,11 @@ Axiom semax_skip:
 Axiom semax_conseq:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta (P' : environ -> mpred) (R': ret_assert) P c (R: ret_assert) ,
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|==> |> FF || P')) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|==> |> FF || RA_normal R)) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|==> |> FF || RA_break R)) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|==> |> FF || RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (|==> |> FF || RA_return R vl)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|={Ensembles.Full_set}=> P')) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|={Ensembles.Full_set}=> RA_break R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Axiom semax_Slabel:
@@ -1961,21 +1990,21 @@ Axiom semax_extract_later_prop:
 
 Axiom semax_adapt_frame: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
-                   (EX F: assert, (!!(closed_wrt_modvars c F) && (|==> P' rho * F rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- (|==> RA_normal Q rho)) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- (|==> RA_break Q rho)) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- (|==> RA_continue Q rho)) &&
-                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- (|==> RA_return Q vl rho)))))
+                   (EX F: assert, (!!(closed_wrt_modvars c F) && (|={Ensembles.Full_set}=> P' rho * F rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- (|={Ensembles.Full_set}=> RA_normal Q rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- (|={Ensembles.Full_set}=> RA_break Q rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- (|={Ensembles.Full_set}=> RA_continue Q rho)) &&
+                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- (RA_return Q vl rho)))))
    (SEM: @semax cs Espec Delta P' c Q'),
    @semax cs Espec Delta P c Q.
 
 Axiom semax_adapt: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- ((|==> P' rho) &&
-                        !!(forall rho, RA_normal Q' rho |-- (|==> RA_normal Q rho)) &&
-                        !!(forall rho, RA_break Q' rho |-- (|==> RA_break Q rho)) &&
-                        !!(forall rho, RA_continue Q' rho |-- (|==> RA_continue Q rho)) &&
-                        !!(forall vl rho, RA_return Q' vl rho |-- (|==> RA_return Q vl rho))))
+                   |-- ((|={Ensembles.Full_set}=> P' rho) &&
+                        !!(forall rho, RA_normal Q' rho |-- (|={Ensembles.Full_set}=> RA_normal Q rho)) &&
+                        !!(forall rho, RA_break Q' rho |-- (|={Ensembles.Full_set}=> RA_break Q rho)) &&
+                        !!(forall rho, RA_continue Q' rho |-- (|={Ensembles.Full_set}=> RA_continue Q rho)) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- (RA_return Q vl rho))))
    (SEM: @semax cs Espec Delta P' c Q'),
    @semax cs Espec Delta P c Q.
 

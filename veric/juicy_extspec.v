@@ -288,27 +288,46 @@ Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
   exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) C) /\
     jm_update m m' /\ P m'.
 
-Lemma jm_bupd_intro_strong: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, 
-  (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> P m) -> jm_bupd ora P m.
+Lemma jm_bupd_ora : forall {Z} (ora : Z) (P : juicy_mem -> Prop) m,
+  (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> jm_bupd ora P m) ->
+  jm_bupd ora P m.
 Proof.
   repeat intro.
-  eexists; split; eauto; repeat split; auto.
-  apply H.
+  apply H; auto.
   eapply joins_comm, join_sub_joins_trans, joins_comm, H1.
   destruct H0 as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 Qed.
 
 Lemma jm_bupd_intro: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, P m -> jm_bupd ora P m.
 Proof.
-  intros; apply jm_bupd_intro_strong; auto.
+  repeat intro.
+  eexists; split; eauto; repeat split; auto.
+Qed.
+
+Lemma jm_bupd_intro_strong: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, 
+  (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> P m) -> jm_bupd ora P m.
+Proof.
+  intros; apply jm_bupd_ora.
+  intros; apply jm_bupd_intro; auto.
+Qed.
+
+Lemma jm_bupd_mono_strong : forall {Z} (ora : Z) (P1 P2 : juicy_mem -> Prop) m, jm_bupd ora P1 m ->
+  (forall m', jm_update m m' -> joins (ghost_of (m_phi m')) (Some (ext_ref ora, NoneP) :: nil) -> P1 m' -> P2 m') ->
+  jm_bupd ora P2 m.
+Proof.
+  intros ?????? Hmono.
+  intros ? HC J.
+  destruct (H _ HC J) as (? & J' & ? & ?).
+  do 2 eexists; eauto; split; auto.
+  apply Hmono; auto.
+  eapply joins_comm, join_sub_joins_trans, joins_comm, J'.
+  destruct HC as [? Je]; eapply ghost_fmap_join in Je; eexists; eauto.
 Qed.
 
 Lemma jm_bupd_mono : forall {Z} (ora : Z) (P1 P2 : juicy_mem -> Prop) m, jm_bupd ora P1 m ->
   (forall m', jm_update m m' -> P1 m' -> P2 m') -> jm_bupd ora P2 m.
 Proof.
-  intros ?????? Hmono.
-  intros ? HC J.
-  destruct (H _ HC J) as (? & ? & ? & ?); eauto.
+  intros; eapply jm_bupd_mono_strong; eauto.
 Qed.
 
 Lemma ext_join_approx : forall {Z} (z : Z) n g,
@@ -520,22 +539,32 @@ Definition jm_fupd {Z} (ora : Z) (E1 E2 : Ensembles.Ensemble gname) P m :=
   jm_bupd ora (fun z2 => level z2 = 0 \/ exists m2 w2, join (m_phi m2) w2 (m_phi z2) /\
     app_pred (wsat * ghost_set g_en E2) w2 /\ P m2) z.
 
-Lemma jm_fupd_intro_strong: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
-  (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> P m) -> jm_fupd ora E E P m.
+Lemma jm_fupd_ora : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m,
+  (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> jm_fupd ora E1 E2 P m) ->
+  jm_fupd ora E1 E2 P m.
 Proof.
-  intros.
-  intros ??????.
-  apply jm_bupd_intro_strong; intros J.
+  intros ?????????????.
+  apply jm_bupd_ora; intros J.
+  eapply H; eauto.
   eapply join_sub_joins_trans in J; [|eexists; apply ghost_of_join; eauto].
   erewrite necR_ghost_of in J by (apply necR_jm_phi; eauto).
-  apply ext_join_unapprox in J; eauto 8.
+  apply ext_join_unapprox in J; auto.
 Qed.
 
 Lemma jm_fupd_intro: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
   P m -> jm_fupd ora E E P m.
 Proof.
   intros.
-  apply jm_fupd_intro_strong; auto.
+  intros ??????.
+  apply jm_bupd_intro; eauto 7.
+Qed.
+
+Lemma jm_fupd_intro_strong: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
+  (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> P m) -> jm_fupd ora E E P m.
+Proof.
+  intros.
+  apply jm_fupd_ora; intros.
+  apply jm_fupd_intro; auto.
 Qed.
 
 Lemma jm_fupd_age : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m m', jm_fupd ora E1 E2 P m ->
@@ -548,22 +577,31 @@ Proof.
   constructor; auto.
 Qed.
 
-Lemma jm_fupd_mono : forall {Z} (ora : Z) E1 E2 (P1 P2 : juicy_mem -> Prop) m, jm_fupd ora E1 E2 P1 m ->
-  (forall m', level m' <= level m -> P1 m' -> P2 m') -> jm_fupd ora E1 E2 P2 m.
+Lemma jm_fupd_mono_strong : forall {Z} (ora : Z) E1 E2 (P1 P2 : juicy_mem -> Prop) m, jm_fupd ora E1 E2 P1 m ->
+  (forall m', level m' <= level m -> joins (ghost_of (m_phi m')) (Some (ext_ref ora, NoneP) :: nil) -> P1 m' -> P2 m') ->
+  jm_fupd ora E1 E2 P2 m.
 Proof.
   intros ???????? Hmono.
   intros ??? Hlater J HW.
   eapply H in HW; eauto.
-  eapply jm_bupd_mono; eauto.
-  intros ?? [|(? & ? & J2 & ? & ?)]; eauto.
+  eapply jm_bupd_mono_strong; eauto.
+  intros ?? J' [|(? & ? & J2 & ? & ?)]; eauto.
   right; do 3 eexists; eauto; split; auto.
   apply Hmono; auto.
-  apply necR_level in Hlater.
-  apply join_level in J as [Hl ?].
-  rewrite <- !level_juice_level_phi in Hl.
-  apply join_level in J2 as [Hl2 ?].
-  rewrite <- !level_juice_level_phi in Hl2.
-  destruct H0; lia.
+  - apply necR_level in Hlater.
+    apply join_level in J as [Hl ?].
+    rewrite <- !level_juice_level_phi in Hl.
+    apply join_level in J2 as [Hl2 ?].
+    rewrite <- !level_juice_level_phi in Hl2.
+    destruct H0; lia.
+  - eapply join_sub_joins_trans; eauto.
+    eexists; apply ghost_of_join; eauto.
+Qed.
+
+Lemma jm_fupd_mono : forall {Z} (ora : Z) E1 E2 (P1 P2 : juicy_mem -> Prop) m, jm_fupd ora E1 E2 P1 m ->
+  (forall m', level m' <= level m -> P1 m' -> P2 m') -> jm_fupd ora E1 E2 P2 m.
+Proof.
+  intros; eapply jm_fupd_mono_strong; eauto.
 Qed.
 
 Lemma jm_fupd_ext : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m m', jm_fupd ora E1 E2 P m ->

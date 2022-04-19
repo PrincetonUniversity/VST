@@ -2604,7 +2604,7 @@ Proof.
     EX ts1:list Type, EX x1 : dependent_type_functor_rec ts1 A mpred,
     EX FR: mpred,
     !!(forall rho' : environ,
-              !! tc_environ (rettype_tycontext (snd sig)) rho' && (FR * Q ts1 x1 rho') |-- fupd (Q' ts x rho')) &&
+              !! tc_environ (rettype_tycontext (snd sig)) rho' && (FR * Q ts1 x1 rho') |-- (Q' ts x rho')) &&
       (stackframe_of f tau * FR * P ts1 x1 (ge_of tau, vals) &&
             !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
  - intros rho m [TC [OM [m1 [m2 [JM [[vals [[MAP VUNDEF] HP']] M2]]]]]].
@@ -2670,8 +2670,8 @@ Proof.
       (fun rho => FRM)) in SB3.
     + eapply semax_pre_post_fupd.
       6: apply SB3.
-      all: clear SB3; intros; simpl; try solve [normalize]. 
-      * eapply derives_trans. 2: now apply fupd.fupd_intro.
+      all: clear SB3; intros; simpl; try solve [normalize].
+      * eapply derives_trans, fupd.fupd_intro.
         intros m [TC [[n1 [n2 [JN [N1 N2]]]] [VALS TCVals]]].
         unfold close_precondition. apply join_comm in JN. rewrite sepcon_assoc. 
         exists n2, n1; split3; trivial.
@@ -2682,7 +2682,9 @@ Proof.
                      eapply derives_trans; [| now apply fupd.fupd_intro]; auto].
         rewrite sepcon_comm, <- sepcon_assoc, <- sepcon_andp_prop1.
         eapply derives_trans, fupd.fupd_frame_r.
-        apply sepcon_derives; auto. eapply derives_trans; [|apply QPOST].
+        apply sepcon_derives; auto.
+        eapply derives_trans, fupd.fupd_intro.
+        eapply derives_trans, QPOST.
         apply andp_right; trivial.
         -- intros k K; clear; apply tc_environ_rettype.
         -- apply prop_andp_left; intros; auto.
@@ -2694,7 +2696,7 @@ Proof.
         -- destruct (fn_return f). 
            { eapply derives_trans; [ | apply QPOST]; apply andp_right; trivial.
            intros k K; clear; apply tc_environ_rettype. }
-           all: rewrite semax_lemmas.sepcon_FF; apply own.bupd_intro.
+           all: rewrite semax_lemmas.sepcon_FF; apply derives_refl.
     + do 2 red; intros; trivial.
 Qed.
 

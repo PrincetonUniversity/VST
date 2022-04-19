@@ -871,7 +871,7 @@ Proof.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
   destruct H7.
-  now apply fupd.fupd_intro.
+  auto.
 Qed.
 
 Lemma initial_jm_ext_matchfunspecs {Z} (ora : Z) prog m G n H H1 H2:
@@ -958,7 +958,7 @@ Proof.
   rewrite <- H5 in H7; clear H5.
   rewrite <- Q_ne in H7.
   destruct H7.
-  now apply fupd.fupd_intro.
+  auto.
 Qed.
 
 End invs.

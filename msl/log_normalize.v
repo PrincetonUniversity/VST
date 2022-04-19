@@ -1693,3 +1693,13 @@ Proof.
   rewrite (andp_comm _ Q), (andp_left_corable Q), sepcon_comm by auto.
   auto.
 Qed.
+
+Lemma fupd_andp2_corable: forall {A N D I: Type} {ND : NatDed A} {IA : Indir A} {SL : SepLog A} {CSL: ClassicalSep A} {BS : BupdSepLog A N D} {FS : FupdSepLog A N D I} {CoSL: CorableSepLog A},
+  forall E1 E2 P Q, corable Q -> (|={E1,E2}=> P) && Q |-- |={E1,E2}=> (P && Q).
+Proof.
+  intros.
+  rewrite (andp_comm P Q), (andp_left_corable Q), sepcon_comm by auto.
+  eapply derives_trans; [| apply fupd_frame_r].
+  rewrite (andp_comm _ Q), (andp_left_corable Q), sepcon_comm by auto.
+  auto.
+Qed.

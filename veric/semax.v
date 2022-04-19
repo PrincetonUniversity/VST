@@ -85,7 +85,7 @@ Definition assert_safe'_
        m_phi jm = w ->
        forall (LW: level w > O),
        match ctl with
-       | Stuck => False
+       | Stuck => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
        | Cont (Kseq s ctl') => 
              jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f s ctl' ve te)) jm
        | Cont (Kloop1 body incr ctl') =>
@@ -122,13 +122,7 @@ Next Obligation.
    specialize (H0 (eq_refl _) H3).
    spec H0. apply age_level in H. lia.
   subst.
-  destruct ctl; auto. destruct c; try contradiction.
-  eapply jm_fupd_age; eauto.
-  eapply jm_fupd_age; eauto.
-  eapply jm_fupd_age; eauto.
-  eapply jm_fupd_age; eauto.
-  eapply jm_fupd_age; eauto.
-  eapply jm_fupd_age; eauto.
+  destruct ctl; [|destruct c|]; try (eapply jm_fupd_age; eauto).
   destruct o; intros; auto;
   eapply age_safe; eauto.
   rewrite (age_jm_dry H2) in *.
@@ -146,13 +140,8 @@ Next Obligation.
   subst.
   rewrite <- Hjm in *.
   assert (ext_order jm0 jm) by (split; auto; congruence).
-  destruct ctl; auto. destruct c; try contradiction.
-  eapply jm_fupd_ext; eauto; intros; eapply ext_safe; eauto.
-  eapply jm_fupd_ext; eauto; intros; eapply ext_safe; eauto.
-  eapply jm_fupd_ext; eauto; intros; eapply ext_safe; eauto.
-  eapply jm_fupd_ext; eauto; intros; eapply ext_safe; eauto.
-  eapply jm_fupd_ext; eauto; intros; eapply ext_safe; eauto.
-  eapply jm_fupd_ext; eauto; intros; eapply ext_safe; eauto.
+  destruct ctl; [|destruct c|];
+    try (eapply jm_fupd_ext; eauto; intros; eapply ext_safe; eauto).
   destruct o; intros; auto;
   eapply ext_safe; eauto.
   rewrite Hdry in *; eapply H0; eauto.
@@ -166,7 +155,7 @@ Lemma assert_safe_derives : forall (Espec : OracleKind) (ge ge': genv) (f f': fu
        m_phi jm = w ->
        forall (LW: level w > O), rho = construct_rho (filter_genv ge) ve te /\
       ((match ctl with
-       | Stuck => False
+       | Stuck => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
        | Cont (Kseq s ctl') => 
              jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f s ctl' ve te)) jm
        | Cont (Kloop1 body incr ctl') =>
@@ -186,7 +175,7 @@ Lemma assert_safe_derives : forall (Espec : OracleKind) (ge ge': genv) (f f': fu
               jsafeN (@OK_spec Espec) ge ora (State f (Sreturn (Some e)) ctl' ve te) jm
        end) ->
        match ctl' with
-       | Stuck => False
+       | Stuck => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
        | Cont (Kseq s ctl') => 
              jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' s ctl' ve' te')) jm
        | Cont (Kloop1 body incr ctl') =>
