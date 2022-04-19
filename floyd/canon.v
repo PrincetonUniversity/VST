@@ -625,18 +625,8 @@ end.
 
 (* Eval compute in grab_calc 0 (3::1::5::nil) nil. *)
 
-(* Define app_alt, just like app, so we have better control
-  over which things get unfolded *)
-
-Definition app_alt {A: Type} :=
-fix app (l m : list A) : list A :=
-  match l with
-  | nil => m
-  | a :: l1 => a :: app l1 m
-  end.
-
 Definition grab_indexes {A} (ns: list Z) (xs: list A) : list A :=
-    let (al,bl) := grab_indexes' (grab_calc 0 ns nil) xs in app_alt al bl.
+    let (al,bl) := grab_indexes' (grab_calc 0 ns nil) xs in Floyd_app al bl.
 
 (* TESTING
 Variables (a b c d e f g h i j : assert).
@@ -684,7 +674,7 @@ Lemma grab_indexes_SEP {A}:
 Proof.
 intros.
 unfold SEPx; extensionality rho.
-unfold grab_indexes. change @app_alt with  @app.
+unfold grab_indexes. change @Floyd_app with  @app.
 forget (grab_calc 0 ns nil) as ks.
 revert xs; induction ks; intro.
 unfold grab_indexes'. simpl app. auto.
@@ -746,7 +736,7 @@ Ltac grab_indexes_SEP ns :=
     unfold grab_indexes; simpl grab_calc;
    unfold grab_indexes', insert;
    repeat simpl_nat_of_P; cbv beta iota;
-   unfold app_alt; fold @app_alt.
+   unfold Floyd_app; fold @Floyd_app.
 
 Tactic Notation "focus_SEP" constr(a) :=
   grab_indexes_SEP (a::nil).
@@ -1121,15 +1111,15 @@ Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL p
  grab_indexes_SEP L;
  match goal with
  | |- @semax _ _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) _ _ =>
-  rewrite <- (firstn_skipn (length L) R);
+  rewrite <- (Floyd_firstn_skipn (length L) R);
   rewrite (app_nil_end Q);
-    simpl length; unfold firstn, skipn;
+    simpl length; unfold Floyd_firstn, Floyd_skipn;
     eapply (semax_frame_PQR);
       [ unfold closed_wrt_modvars;  auto 50 with closed
      | ]
  | |- ENTAIL _ , (PROPx _ (LOCALx ?Q (SEPx ?R))) |-- _ =>
-  rewrite <- (firstn_skipn (length L) R);
-    simpl length; unfold firstn, skipn;
+  rewrite <- (Floyd_firstn_skipn (length L) R);
+    simpl length; unfold Floyd_firstn, Floyd_skipn;
     apply derives_frame_PQR
 end.
 
@@ -1171,9 +1161,9 @@ Ltac gather_SEP' L :=
     let r := fresh "R" in
     set (r := (SEPx R));
     revert r;
-     rewrite <- (firstn_skipn (length L) R);
+     rewrite <- (Floyd_firstn_skipn (length L) R);
       unfold length at 1 2;
-      unfold firstn at 1; unfold skipn at 1;
+      unfold Floyd_firstn at 1; unfold Floyd_skipn at 1;
       rewrite gather_SEP;
    unfold fold_right at 1; try  rewrite sepcon_emp;
    try (intro r; unfold r; clear r)
@@ -1530,7 +1520,7 @@ Qed.
 Lemma flatten_sepcon_in_SEP'':
   forall n P Q (R1 R2: mpred) (R: list mpred) R',
    nth_error R n = Some ((R1 * R2)) ->
-   R' = firstn n R ++ R1 :: R2 :: skipn (S n) R ->
+   R' = Floyd_firstn n R ++ R1 :: R2 :: Floyd_skipn (S n) R ->
    PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -1544,14 +1534,14 @@ clear.
 induction n; destruct R; intros.
 inv H.
 simpl nth_error in H. inv H.
-unfold firstn, skipn, app.
+unfold Floyd_firstn, Floyd_skipn, app.
 simpl.
 repeat rewrite <- sepcon_assoc.
 reflexivity.
 inv H.
 specialize (IHn _ H). clear H.
-simpl firstn.
-change (m :: firstn n R) with (app (m::nil) (firstn n R)).
+simpl Floyd_firstn.
+change (m :: Floyd_firstn n R) with (app (m::nil) (Floyd_firstn n R)).
 rewrite app_ass. unfold app at 1.
 simpl.
 f_equal.
@@ -1569,7 +1559,7 @@ Ltac flatten_in_SEP PQR :=
         let RR := fresh "RR" in set (RR := R);
         let RR1 := fresh "RR1" in set (RR1 := R1);
         let RR2 := fresh "RR2" in set (RR2 := R2);
-        unfold firstn, app, skipn; subst RR RR1 RR2; cbv beta iota;
+        unfold Floyd_firstn, app, Floyd_skipn; subst RR RR1 RR2; cbv beta iota;
         apply eq_refl
       ]
    end

@@ -4669,6 +4669,11 @@ Ltac make_compspecs_cenv cenv :=
    |}).
 
 Ltac make_compspecs prog :=
+  tryif lazymatch type of prog with
+  | Clight.program => idtac 
+  | ?t => fail 1 "Expected a Clight.program, but "prog" has type" t
+ end then idtac 
+  else fail "Expected a Clight.program, but "prog" is undefined; did you forget to import the result of clightgen?";
   let cenv := make_composite_env0 prog in
   make_compspecs_cenv cenv.
 

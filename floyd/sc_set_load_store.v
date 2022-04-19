@@ -1522,7 +1522,7 @@ Ltac SEP_field_at_unify' gfs :=
   match goal with
   | |- field_at ?shl ?tl ?gfsl ?vl ?pl = field_at ?shr ?tr ?gfsr ?vr ?pr =>
       unify tl tr;
-      unify (skipn (length gfs - length gfsl) gfs) gfsl;
+      unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
       unify shl shr;
       unify vl vr;
@@ -1548,7 +1548,7 @@ Ltac SEP_field_at_strong_unify' gfs :=
   match goal with
   | |- @field_at ?cs ?shl ?tl ?gfsl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
       unify tl tr;
-      unify (skipn (length gfs - length gfsl) gfs) gfsl;
+      unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
       unify shl shr;
       unify vl vr;
@@ -1593,7 +1593,7 @@ Ltac prove_gfs_suffix gfs :=
   match goal with
   | |- _ = ?gfs1 ++ ?gfs0 =>
        let len := fresh "len" in
-       let gfs1' := eval_list (firstn ((length gfs - length gfs0)%nat) gfs) in
+       let gfs1' := eval_list (Floyd_firstn ((length gfs - length gfs0)%nat) gfs) in
        unify gfs1 gfs1';
        reflexivity
   end.

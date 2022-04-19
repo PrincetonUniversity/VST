@@ -156,7 +156,6 @@ Ltac Znth_solve_rec :=
     Znth_solve_rec
   | |- context [Znth ?n (map ?f ?l)] =>
     unshelve erewrite @Znth_map by Zlength_solve
-      (* only 1 : auto with typeclass_instances *)
   end.
 
 Ltac Znth_solve :=
@@ -180,7 +179,6 @@ Ltac Znth_solve2 :=
   | match goal with
     | |- context [Znth ?n (map ?f ?l)] =>
           unshelve erewrite @Znth_map by Zlength_solve
-            (* only 1 : auto with typeclass_instances *)
     end
   | match goal with
     | H0 : context [Znth ?n (?al ++ ?bl)] |- _ =>
@@ -195,7 +193,6 @@ Ltac Znth_solve2 :=
   | match goal with
     | H0 : context [Znth ?n (map ?f ?l)] |- _ =>
           unshelve erewrite @Znth_map in H0 by Zlength_solve
-            (* only 1 : auto with typeclass_instances *)
     end
   ].
 
@@ -1527,10 +1524,9 @@ Ltac range_form :=
   apply_in_hyps eq_forall_range2_reverse_left_offset;
   apply_in_hyps eq_forall_range2_reverse_minus_offset;
   apply_in_hyps sorted_forall_triangle;
-  (* repeat (unshelve erewrite @Forall_Znth in *; [solve [auto with typeclass_instances] .. | idtac]); *)
   rewrite_In_Znth_iff;
   (* autorewrite with list_prop_rewrite in *. *)
-  unshelve autorewrite with list_prop_rewrite in *; [solve [auto with typeclass_instances] .. | idtac].
+  unshelve autorewrite with list_prop_rewrite in *; [solve [typeclasses eauto] .. | idtac].
 
 Ltac Zlength_solve_print_when_fail :=
   first [
@@ -2110,7 +2106,7 @@ Ltac apply_list_ext :=
   lazymatch goal with
   | |- @eq ?list_A _ _ =>
       match eval compute in list_A with list ?A =>
-        apply (@Znth_eq_ext A ltac:(auto with typeclass_instances))
+        apply (@Znth_eq_ext A ltac:(typeclasses eauto))
       end; [ Zlength_solve_with_message | .. ]
   | |- @Forall ?A ?P ?l =>
       rewrite Forall_Znth;
@@ -2129,7 +2125,7 @@ Ltac list_solve_preprocess :=
   autounfold with list_solve_unfold in *;
   list_form;
   unshelve rewrite ?app_nil_r in *; 
-  [solve [auto with typeclass_instances] .. | idtac];
+  [solve [typeclasses eauto] .. | idtac];
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 
