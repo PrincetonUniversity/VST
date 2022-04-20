@@ -841,7 +841,8 @@ Ltac find_unfold_mpred_aux P A p :=
 
 (* This tactic is needed for matches where `p` is
   not the last argument, since we have the entire mpred
-  expression. Note the two places it is called.
+  expression. Note the two places it is called in 
+  `find_unfold_mpred_aux2`.
 *)
 Ltac find_unfold_mpred_aux' P A p :=
   lazymatch A with
@@ -895,6 +896,7 @@ Lemma check_unfold_lemma: forall {cs: compspecs} Delta e goal Q T1 T2 GV e_root 
   compute_root_type (typeof e_root) lr t_root_from_e ->
   field_address_gen (t_root_from_e, gfs_from_e, p_root_from_e) (t_root_from_hint, gfs_from_hint, p_root_from_hint) ->
   p_full_from_e = p_full_from_e /\
+  p_root_from_e = p_root_from_e /\
   goal -> goal.
 Proof.
   intros.
@@ -919,9 +921,18 @@ Ltac check_unfold_mpred_for_at_aux Delta P Q R e :=
   | solve_field_address_gen
   | ];
   lazymatch goal with
-  | |- ?p = ?p /\ _ =>
-    split; [ reflexivity | ];
-    lazymatch p with
+  | |- ?p1 = ?p1 /\ ?p2 = ?p2 /\ _ =>
+    split3; [ reflexivity | reflexivity | ];
+    (tryif (
+      assert (exists t gfs p, p1 = field_address t gfs p) by eassumption
+    ) then fail else idtac);
+    first
+    [ constr_eq p1 p2
+    | tryif
+        assert (exists t gfs p, p2 = field_address t gfs p) by eassumption
+      then fail else idtac
+    ];
+    lazymatch p1 with
     | offset_val _ ?p' =>
       first
       (* `fail 1` isn't necessary, but in case `find_unfold_mpred` has unexpected side-effects *)
@@ -929,10 +940,12 @@ Ltac check_unfold_mpred_for_at_aux Delta P Q R e :=
       | find_unfold_mpred R p'
       ]
     | ?p' =>
-      first
-      [ has_at_already_aux R p; fail 1
-      | find_unfold_mpred R p
-      ]
+      tryif (is_var p')
+      then first
+        [ has_at_already_aux R p'; fail 1
+        | find_unfold_mpred R p'
+        ]
+      else fail
     end
   end;
   clear T1 T2 G LOCAL2PTREE.
