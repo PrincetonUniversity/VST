@@ -211,3 +211,48 @@ Inductive LLRR : Type :=
   | LLLL : LLRR
   | RRRR : LLRR.
 
+(* Define these so that Floyd tactics can operate on skipn/firstn
+   without damage to the user's uses of List.firstn, List.skipn *)
+Definition Floyd_skipn [A: Type] :=
+  fix skipn (n : nat) (l : list A) {struct n} : list A :=
+  match n with
+  | 0%nat => l
+  | S n0 =>
+      match l with
+      | nil => nil
+      | _ :: l0 => skipn n0 l0
+      end
+  end.
+
+Definition Floyd_firstn [A: Type] :=
+fix firstn (n : nat) (l : list A) {struct n} : list A :=
+  match n with
+  | 0%nat => nil
+  | S n0 =>
+      match l with
+      | nil => nil
+      | a :: l0 => a :: firstn n0 l0
+      end
+  end.
+
+Lemma Floyd_firstn_eq: @Floyd_firstn = @firstn.
+Proof. reflexivity. Qed.
+
+Lemma Floyd_skipn_eq: @Floyd_skipn = @skipn.
+Proof. reflexivity. Qed.
+
+Lemma Floyd_firstn_skipn: forall [A : Type] (n : nat) (l : list A),
+       Floyd_firstn n l ++ Floyd_skipn n l = l.
+Proof. rewrite Floyd_firstn_eq, Floyd_skipn_eq; exact @firstn_skipn.
+Qed.
+
+Definition Floyd_app [A: Type] :=
+fix app (l m : list A) {struct l} : list A :=
+  match l with
+  | nil => m
+  | a :: l1 => a :: app l1 m
+  end.
+
+Lemma Floyd_app_eq: @Floyd_app = @app.
+Proof. reflexivity. Qed.
+

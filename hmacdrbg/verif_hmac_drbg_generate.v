@@ -995,7 +995,7 @@ Proof.
   }
   { forward. entailer!. subst after_reseed_add_len na.
     destruct should_reseed; simpl; trivial. rewrite andb_false_r. reflexivity.
-    destruct (initial_world.EqDec_Z (Zlength contents)  0); simpl. 
+    destruct (EqDec_Z (Zlength contents)  0); simpl. 
     + rewrite e. simpl. rewrite andb_false_r. reflexivity.
     + rewrite Int.eq_false; simpl. 
       destruct (Memory.EqDec_val additional nullval); try reflexivity. contradiction. 
@@ -1023,7 +1023,7 @@ Proof.
     md_full key2 (mc1, (mc2, mc3))))).
    { change (na = true) in H. subst na.
      destruct should_reseed; simpl in PRS, H. rewrite andb_false_r in H; discriminate.
-     destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in H.
+     destruct (EqDec_Z (Zlength contents) 0); simpl in H.
      { rewrite andb_false_r in H; discriminate. }
      rewrite andb_true_r in H.
      destruct additional; simpl in PNadditional; try contradiction.
@@ -1135,7 +1135,7 @@ apply semax_pre with (P':=
   + destruct PRS as [? [? ?]]; subst stream1 key1 ctx1 after_reseed_state_abs.
     destruct (Memory.EqDec_val additional nullval); simpl in *.
     - destruct PUPD; subst ctx2 key2 na h; simpl in *. entailer!.
-    - remember (initial_world.EqDec_Z (Zlength contents) 0) as q; destruct q; simpl in *. 
+    - remember (EqDec_Z (Zlength contents) 0) as q; destruct q; simpl in *. 
       * destruct PUPD; subst ctx2 key2 na h; simpl in *. entailer!. 
       * destruct PUPD as [bb [ii [UVAL [ADD [HUPD CTX2 ]]]]]. 
         unfold contents_with_add in HUPD. simpl in HUPD; rewrite <- Heqq in HUPD; simpl in HUPD.  
