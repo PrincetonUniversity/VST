@@ -326,21 +326,21 @@ Proof.
     contradiction (H _ H0).
 Qed.
 
-Definition fupd E1 E2 P := ghost_seplog.fupd (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) P.
-
-Lemma mpred_fupd_mixin : BiFUpdMixin mpredI fupd.
+Lemma mpred_fupd_mixin : BiFUpdMixin mpredI (fun E1 E2 => ghost_seplog.fupd (coPset_to_Ensemble E1) (coPset_to_Ensemble E2)).
 Proof.
   split.
   - repeat intro; hnf in *.
     rewrite fupd_nonexpansive; setoid_rewrite fupd_nonexpansive at 2.
     rewrite H; auto.
-  - intros; apply fupd_mask_subseteq.
-    intros ?; unfold coPset_to_Ensemble, Ensembles.In.
-    set_solver.
+  - intros; unfold updates.fupd.
+    apply subseteq_disjoint_union_L in H as (E1' & ? & ?); subst.
+    rewrite coPset_to_Ensemble_union invariants.Union_comm.
+    apply fupd_mask_union, coPset_to_Ensemble_disjoint.
+    symmetry; auto.
   - intros; apply except_0_fupd.
   - intros; apply fupd_mono; auto.
   - intros; apply fupd_trans.
-  - intros; unfold updates.fupd, fupd.
+  - intros; unfold updates.fupd.
     iIntros "H".
     rewrite !coPset_to_Ensemble_union.
     rewrite <- coPset_to_Ensemble_disjoint in H |- *.
@@ -529,5 +529,7 @@ Canonical Structure env_mpredSI : sbi :=
 Ltac iVST := iStopProof; match goal with |-bi_entails ?P ?Q => change (P |-- Q) end;
   repeat match goal with |-context[bi_sep ?P ?Q] => change (bi_sep P Q) with (P * Q) end.
 
+Global Close Scope logic_upd. (* hide non-Iris update notation *)
 Global Open Scope Z.
 Global Open Scope logic.
+Global Open Scope bi_scope.

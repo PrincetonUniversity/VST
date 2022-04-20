@@ -262,20 +262,22 @@ Proof.
   rewrite FF_sepcon; auto.
 Qed.
 
-Lemma fupd_mask_subseteq : forall E1 E2, Included E2 E1 ->
-    emp |-- fupd E1 E2 (fupd E2 E1 emp).
+Lemma fupd_mask_union : forall E1 E2, Disjoint E1 E2 ->
+    emp |-- fupd (Union E1 E2) E2 (fupd E2 (Union E1 E2) emp).
 Proof.
   intros; unfold fupd.
   rewrite <- wand_sepcon_adjoint.
-  erewrite ghost_set_subset; eauto.
+  rewrite <- (prop_true_andp _ (ghost_set _ _) H) at 1.
+  rewrite <- ghost_set_join.
   eapply derives_trans, bupd_intro.
   apply orp_right2.
-  rewrite emp_sepcon, <- sepcon_assoc; apply sepcon_derives; auto.
+  rewrite emp_sepcon, (sepcon_comm _ (ghost_set _ _)), <- sepcon_assoc; apply sepcon_derives; auto.
   rewrite <- wand_sepcon_adjoint.
   eapply derives_trans, bupd_intro.
   apply orp_right2.
-  rewrite sepcon_comm, sepcon_emp; auto.
-Admitted. (* decision on nat -> Prop *)
+  rewrite sepcon_comm, sepcon_emp.
+  rewrite sepcon_assoc, (sepcon_comm (ghost_set _ _)), ghost_set_join, prop_true_andp; auto.
+Qed.
 
 Lemma except_0_fupd : forall E1 E2 P, ((|> FF) || fupd E1 E2 P) |-- fupd E1 E2 P.
 Proof.

@@ -29,7 +29,11 @@ Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
     own g a pp |-- emp
   }.
 
-Notation "|==> P" := (bupd P) (at level 99, P at level 200): logic.
+Declare Scope logic_upd. (* so we can close this scope when we import Iris *)
+
+Open Scope logic_upd.
+
+Notation "|==> P" := (bupd P) (at level 99, P at level 200): logic_upd.
 
 Section bupd_derived.
 
@@ -142,8 +146,8 @@ Defined.
 
 Class FupdSepLog (A N D I: Type) {ND: NatDed A}{IA: Indir A}{SL: SepLog A}{BSL: BupdSepLog A N D} := mkFSL {
   fupd: Ensemble I -> Ensemble I -> A -> A;
-  fupd_mask_subseteq: forall E1 E2, Included _ E2 E1 ->
-    emp |-- fupd E1 E2 (fupd E2 E1 emp);
+  fupd_mask_union: forall E1 E2, Disjoint _ E1 E2 ->
+    emp |-- fupd (Union _ E1 E2) E2 (fupd E2 (Union _ E1 E2) emp);
   except_0_fupd: forall E1 E2 P, ((|> FF) || fupd E1 E2 P) |-- fupd E1 E2 P;
   fupd_mono: forall E1 E2 P Q, (P |-- Q) -> fupd E1 E2 P |-- fupd E1 E2 Q;
   fupd_trans: forall E1 E2 E3 P, fupd E1 E2 (fupd E2 E3 P) |-- fupd E1 E3 P;
@@ -153,28 +157,44 @@ Class FupdSepLog (A N D I: Type) {ND: NatDed A}{IA: Indir A}{SL: SepLog A}{BSL: 
   bupd_fupd: forall E P, bupd P |-- fupd E E P
   }.
 
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic.
-Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic.
+Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic_upd.
+Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic_upd.
 
 Section fupd_derived.
 
 Context `{FUPD : FupdSepLog}.
 
-Lemma fupd_mask_intro_subseteq {CA : ClassicalSep A} E1 E2 P : Included _ E2 E1 ->
-  P |-- |={E1,E2}=> |={E2,E1}=> P.
+Lemma fupd_mask_intro_union {CA : ClassicalSep A} E1 E2 P : Disjoint _ E1 E2 ->
+  P |-- |={Union _ E1 E2,E2}=> |={E2,Union _ E1 E2}=> P.
 Proof.
   intros.
   rewrite <- (sepcon_emp P), sepcon_comm.
-  eapply derives_trans; [apply sepcon_derives, derives_refl; apply fupd_mask_subseteq; eauto|].
+  eapply derives_trans; [apply sepcon_derives, derives_refl; apply fupd_mask_union; eauto|].
   eapply derives_trans; [apply fupd_frame_r | apply fupd_mono].
   apply fupd_frame_r.
+Qed.
+
+Lemma Empty_set_disjoint : forall {A} (E : Ensemble A), Disjoint _ (Empty_set _) E.
+Proof.
+  constructor; intros.
+  intros Hin; inversion Hin; subst.
+  inversion H.
+Qed.
+
+Lemma Empty_set_union : forall {A} (E : Ensemble A), Union _ (Empty_set _) E = E.
+Proof.
+  intros; apply Extensionality_Ensembles; split.
+  - intros ? Hin; inversion Hin; auto; subst.
+    inversion H.
+  - intros ??; constructor 2; auto.
 Qed.
 
 Lemma fupd_intro {CA : ClassicalSep A} E P : P |-- |={E}=> P.
 Proof.
   eapply derives_trans, fupd_trans.
-  apply fupd_mask_intro_subseteq.
-  hnf; eauto.
+  eapply derives_trans; [apply (fupd_mask_intro_union (Empty_set _))|].
+  { apply Empty_set_disjoint. }
+  rewrite Empty_set_union; apply derives_refl.
 Qed.
 
 Lemma fupd_except_0 {CA : ClassicalSep A} E1 E2 (P : A) : (|={E1,E2}=> ((|> FF) || P)) |-- |={E1,E2}=> P.
@@ -254,7 +274,7 @@ End fupd_derived.
   FupdSepLog (A -> B) N D I.
  apply (mkFSL _ _ _ _ _ _ _ _ (fun E1 E2 P rho => |={E1,E2}=> P rho));
    repeat intro; simpl.
- apply fupd_mask_subseteq; auto.
+ apply fupd_mask_union; auto.
  apply except_0_fupd.
  apply fupd_mono; auto.
  apply fupd_trans.

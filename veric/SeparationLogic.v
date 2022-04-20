@@ -112,7 +112,7 @@ Qed.
   { fupd := fupd.fupd }.
 Next Obligation.
 Proof.
-  unseal_derives; apply fupd.fupd_mask_subseteq; auto.
+  unseal_derives; apply fupd.fupd_mask_union; auto.
 Qed.
 Next Obligation.
 Proof.

@@ -1671,72 +1671,34 @@ End GHist.
 
 Ltac ghost_alloc G :=
   match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-    apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
-  [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
+    apply (semax_pre_fupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
+  [go_lower; eapply derives_trans, bupd_fupd; erewrite !prop_true_andp by (repeat (split; auto));
    rewrite <- emp_sepcon at 1; eapply derives_trans, ghost_seplog.bupd_frame_r;
    apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init share ghost|] end.
 
 Ltac ghosts_alloc G n :=
   match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-    apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg) :: R)))));
-  [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
+    apply (semax_pre_fupd (PROPx P (LOCALx Q (SEPx ((EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg) :: R)))));
+  [go_lower; eapply derives_trans, bupd_fupd; erewrite !prop_true_andp by (repeat (split; auto));
    rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
    apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.
 
 Lemma wand_nonexpansive_l: forall P Q n,
   approx n (P -* Q)%logic = approx n (approx n P  -* Q)%logic.
 Proof.
-  repeat intro.
-  apply (nonexpansive_super_non_expansive (fun P => predicates_sl.wand P Q)).
-  split; intros ???? Hshift ??????.
-  - eapply Hshift; eauto.
-    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
-    apply join_level in H4 as [].
-    eapply (H y0); auto; lia.
-  - eapply Hshift; eauto.
-    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
-    apply join_level in H4 as [].
-    eapply (H y0); auto; lia.
+  apply wand_nonexpansive_l.
 Qed.
 
 Lemma wand_nonexpansive_r: forall P Q n,
   approx n (P -* Q)%logic = approx n (P  -* approx n Q)%logic.
 Proof.
-  repeat intro.
-  apply (nonexpansive_super_non_expansive (fun Q => predicates_sl.wand P Q)).
-  split; intros ???? Hshift ??????.
-  - eapply Hshift in H5; eauto.
-    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
-    apply join_level in H4 as [].
-    eapply (H z); auto; lia.
-  - eapply Hshift in H5; eauto.
-    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
-    apply join_level in H4 as [].
-    eapply (H z); auto; lia.
-Qed.
-
-Lemma approx_bupd: forall P n, (approx n (own.bupd P) = (own.bupd (approx n P)))%logic.
-Proof.
-  intros; apply predicates_hered.pred_ext.
-  - intros ? [? HP].
-    change ((own.bupd (approx n P)) a).
-    intros ? J.
-    destruct (HP _ J) as (? & ? & m' & ? & ? & ? & ?);
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto; lia.
-  - intros ? HP.
-    destruct (HP nil) as (? & ? & m' & ? & ? & ? & []).
-    { eexists; constructor. }
-    split; [lia|].
-    change ((own.bupd P) a).
-    intros ? J.
-    destruct (HP _ J) as (? & ? & m'' & ? & ? & ? & []);
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto.
+  apply wand_nonexpansive_r.
 Qed.
 
 Lemma wand_nonexpansive: forall P Q n,
   approx n (P -* Q)%logic = approx n (approx n P  -* approx n Q)%logic.
 Proof.
-  intros; rewrite wand_nonexpansive_l, wand_nonexpansive_r; reflexivity.
+  apply wand_nonexpansive.
 Qed.
 
 Corollary view_shift_nonexpansive : forall P Q n,

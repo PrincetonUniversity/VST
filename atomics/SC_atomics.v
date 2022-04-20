@@ -8,8 +8,6 @@ Require Export VST.atomics.general_atomics.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 
-Set Bullet Behavior "Strict Subproofs".
-
 (* Warning: it is UNSOUND to use both this file and acq_rel_atomics.v in the same proof! There is
    not yet an operational model that can validate the use of both SC and RA atomics. *)
 
