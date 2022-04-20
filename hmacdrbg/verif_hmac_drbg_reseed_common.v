@@ -177,7 +177,7 @@ Proof.
   { (*nonnull additional*)
     destruct additional; simpl in PNadditional; try contradiction. subst i. elim H; trivial. clear H.
     forward. entailer!. simpl.
-    destruct (initial_world.EqDec_Z (Zlength contents) 0).
+    destruct (EqDec_Z (Zlength contents) 0).
     + rewrite e. simpl. reflexivity.
     + simpl in *. rewrite Int.eq_false; simpl. reflexivity.
       intros N.
@@ -211,7 +211,7 @@ Proof.
     rewrite da_emp_ptr. Intros. rename H into addlen_pos.
     assert (contents' = contents).
     { subst contents'. unfold contents_with_add. simpl.
-        destruct (initial_world.EqDec_Z add_len 0). lia. reflexivity. }
+        destruct (EqDec_Z add_len 0). lia. reflexivity. }
     clear Heqcontents'; subst contents'. clear ZLc'.
     replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
          (map Vubyte entropy_bytes) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
@@ -456,7 +456,7 @@ Proof.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update in Heqp.
   destruct seed; simpl in Pseed; try contradiction.
   unfold contents_with_add in Heqp at 1. simpl in Heqp.
-  destruct (initial_world.EqDec_Z (Zlength entropy_bytes +
+  destruct (EqDec_Z (Zlength entropy_bytes +
                  Zlength (contents_with_add additional (Zlength contents) contents)) 0); simpl in Heqp.
   specialize (Zlength_nonneg (contents_with_add additional (Zlength contents) contents)).
   intros; lia.

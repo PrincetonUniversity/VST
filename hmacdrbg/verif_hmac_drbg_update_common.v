@@ -77,7 +77,7 @@ Lemma update_char add_len contents (HL:add_len = Zlength contents \/ add_len = 0
       (Z.to_nat
          (if
            (negb (Memory.EqDec_val additional nullval) &&
-            negb (initial_world.EqDec_Z add_len 0))%bool
+            negb (EqDec_Z add_len 0))%bool
           then 2
           else 1))):
 hmac256drbgabs_hmac_drbg_update
@@ -90,7 +90,7 @@ unfold hmac256drbgabs_hmac_drbg_update, HMAC256_DRBG_functional_prog.HMAC256_DRB
 rewrite HMAC_DRBG_update_concrete_correct. unfold HMAC_DRBG_update_concrete, contents_with_add in *; simpl in *.
 destruct (Memory.EqDec_val additional nullval); simpl in *.
 + inv H; trivial.
-+ destruct (initial_world.EqDec_Z add_len 0).
++ destruct (EqDec_Z add_len 0).
   -  subst add_len. change (negb (left eq_refl)) with false in *. simpl. simpl in H. inv H; trivial.
   - change (negb (right n0)) with true in *. simpl.
     destruct HL; try lia; subst add_len.

@@ -99,7 +99,7 @@ Proof. intros. do 2 pose proof I.
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
-      simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; lia.
+      simpl. destruct (EqDec_Z add_len 0); trivial; lia.
     }
   }
 

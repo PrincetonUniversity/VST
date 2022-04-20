@@ -616,7 +616,7 @@ Proof. start_function.
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
-      simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; lia.
+      simpl. destruct (EqDec_Z add_len 0); trivial; lia.
     }
   }
 

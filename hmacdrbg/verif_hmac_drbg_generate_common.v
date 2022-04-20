@@ -881,7 +881,7 @@ Opaque HMAC256_DRBG_generate_function.
         unfold contents_with_add in HeqCONT.
         destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT. 
         ++ rewrite e in *. rewrite (Zlength_nil_inv _ e) in *.
-           simpl in na. destruct (initial_world.EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
+           simpl in na. destruct (EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
            subst na; rewrite andb_false_r in *. 
            assert (F: (negb (Memory.EqDec_val additional nullval) &&
                             false)%bool = false).
@@ -915,7 +915,7 @@ Opaque HMAC256_DRBG_generate_function.
        destruct (eq_dec additional nullval); try discriminate.
        destruct (eq_dec (Zlength contents) 0); try discriminate.
        destruct (Memory.EqDec_val additional nullval). { subst additional. elim n; trivial. }
-       destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
+       destruct (EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
        subst na. simpl in HeqAUSA.
        Exists (mc1, (mc2, mc3),
              (map Vubyte l0,
@@ -963,7 +963,7 @@ Opaque HMAC256_DRBG_generate_function.
         unfold contents_with_add in HeqCONT.
         destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT. 
         ++ rewrite e0 in *. rewrite (Zlength_nil_inv _ e0) in *.
-           simpl in na. destruct (initial_world.EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
+           simpl in na. destruct (EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
            subst na; rewrite andb_false_r in *. 
            assert (F: (negb (Memory.EqDec_val additional nullval) &&
                             false)%bool = false).
@@ -995,7 +995,7 @@ Opaque HMAC256_DRBG_generate_function.
        destruct (eq_dec additional nullval); try discriminate.
        destruct (eq_dec (Zlength contents) 0); try discriminate.
        destruct (Memory.EqDec_val additional nullval). { subst additional. elim n; trivial. }
-       destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
+       destruct (EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
        subst na. simpl in HeqAUSA.
        Exists (mc1, (mc2, mc3),
              (map Vubyte l0,
