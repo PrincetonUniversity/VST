@@ -559,7 +559,7 @@ Proof.
 Qed.
 
 Lemma semax_post''_indexed_fupd: forall R' Espec {cs: compspecs} Delta R P c,
-           (local (tc_environ Delta) && R' |-- (|={Ensembles.Full_set}=> |> RA_normal R)) ->
+           (local (tc_environ Delta) && R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post_indexed_fupd; eauto.
@@ -575,7 +575,7 @@ Lemma semax_pre_fupd:
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre_post_fupd; eauto;
-intros; apply andp_left2, fupd_intro; auto.
+intros; apply andp_left2; try apply fupd_intro; auto.
 Qed.
 
 Lemma semax_post_fupd:
@@ -854,17 +854,14 @@ Proof.
   apply semax_extract_prop in H.
   eapply semax_pre_post_indexed_fupd; [.. | exact H].
   + apply andp_left2.
-    eapply derives_trans; [| apply fupd_intro].
-    rewrite orp_comm, distrib_andp_orp.
-    apply andp_right.
-    - apply andp_left1.
-      apply later_prop.
-    - apply orp_right1.
-      solve_andp.
+    eapply derives_trans, except_0_fupd.
+    eapply derives_trans; [apply andp_derives, orp_right1, derives_refl; apply later_prop|].
+    rewrite <- distrib_andp_orp.
+    rewrite orp_comm; apply orp_derives, fupd_intro; auto.
   + apply derives_fupd_refl.
   + apply derives_fupd_refl.
   + apply derives_fupd_refl.
-  + intros; apply derives_fupd_refl.
+  + intros; apply andp_left2; auto.
 Qed.
 
 End GenIExtrFacts.

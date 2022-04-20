@@ -988,6 +988,8 @@ Ltac derives_fupd_L2R H :=
 
 Ltac derives_full_L2R H :=
   match type of H with
+  | @derives (environ -> mpred) _ (local (tc_environ ?Delta) && (allp_fun_id ?Delta && _)) (|={_,_}=> _) =>
+      eapply derives_full_trans; [apply H |]
   | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|={_,_}=> _) =>
       eapply derives_full_trans; [apply derives_fupd_derives_full, H |]
   | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
@@ -998,6 +1000,8 @@ Ltac derives_full_L2R H :=
 
 Tactic Notation "derives_rewrite" "->" constr(H) :=
   match goal with
+  | |- @derives (environ -> mpred) _ (local (tc_environ ?Delta) && (allp_fun_id ?Delta && _)) (|={_,_}=> _) =>
+         derives_full_L2R H
   | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) (|={_,_}=> _) =>
          derives_fupd_L2R H
   | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
@@ -1027,18 +1031,10 @@ Ltac derives_fupd_R2L H :=
       eapply derives_fupd_trans; [| apply ENTAIL_derives_fupd, derives_ENTAIL, H]
   end.
 
-Ltac derives_bupd0_R2L H :=
-  match type of H with
-  | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|={_,_}=> _) =>
-      eapply derives_fupd_trans; [| apply H]
-  | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
-      eapply derives_fupd_trans; [| apply ENTAIL_derives_fupd, H]
-  | _ =>
-      eapply derives_fupd_trans; [| apply ENTAIL_derives_fupd, derives_ENTAIL, H]
-  end.
-
 Ltac derives_full_R2L H :=
   match type of H with
+  | @derives (environ -> mpred) _ (local (tc_environ ?Delta) && (allp_fun_id ?Delta && _)) (|={_,_}=> _) =>
+      eapply derives_fupd_trans; [| apply H]
   | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|={_,_}=> _) =>
       eapply derives_fupd_trans; [| apply derives_fupd_derives_full, H]
   | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
@@ -1049,6 +1045,8 @@ Ltac derives_full_R2L H :=
 
 Tactic Notation "derives_rewrite" "<-" constr(H) :=
   match goal with
+  | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) (|={_,_}=> _) =>
+         derives_fupd_R2L H
   | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) (|={_,_}=> _) =>
          derives_fupd_R2L H
   | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>

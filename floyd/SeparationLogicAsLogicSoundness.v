@@ -227,7 +227,7 @@ Theorem semax_prog_rule :
          { jm |
            m_dry jm = m /\ level jm = n /\
            nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
-           jsafeN (@OK_spec Espec) (globalenv prog) n z q jm /\
+           jsafeN (@OK_spec Espec) (globalenv prog) z q jm /\
            no_locks (m_phi jm) /\
            matchfunspecs (globalenv prog) G (m_phi jm) /\
            app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)

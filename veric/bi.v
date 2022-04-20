@@ -303,6 +303,58 @@ Proof.
 Qed.
 Global Instance mpred_bi_bupd : BiBUpd mpredI := {| bi_bupd_mixin := mpred_bupd_mixin |}.
 
+Definition coPset_to_Ensemble (E : coPset.coPset) : Ensembles.Ensemble nat := fun x => elem_of (Pos.of_nat (S x)) E.
+
+Lemma coPset_to_Ensemble_union : forall E1 E2,
+  coPset_to_Ensemble (E1 ∪ E2) = Ensembles.Union (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
+Proof.
+  intros.
+  unfold coPset_to_Ensemble; apply Ensembles.Extensionality_Ensembles; constructor; intros ? X.
+  - unfold Ensembles.In in X; apply elem_of_union in X as [|]; [left | right]; auto.
+  - unfold Ensembles.In; inv X; [apply elem_of_union_l | apply elem_of_union_r]; auto.
+Qed.
+
+Lemma coPset_to_Ensemble_disjoint : forall E1 E2,
+  Ensembles.Disjoint (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) <-> E1 ## E2.
+Proof.
+  split; intros.
+  - inv H.
+    intros x ??; contradiction (H0 (Nat.pred (Pos.to_nat x))); constructor; unfold Ensembles.In, coPset_to_Ensemble;
+      rewrite -> Nat.succ_pred_pos, Pos2Nat.id by lia; auto.
+  - constructor; intros ? X; inv X.
+    unfold Ensembles.In, coPset_to_Ensemble in *.
+    contradiction (H _ H0).
+Qed.
+
+Definition fupd E1 E2 P := ghost_seplog.fupd (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) P.
+
+Lemma mpred_fupd_mixin : BiFUpdMixin mpredI fupd.
+Proof.
+  split.
+  - repeat intro; hnf in *.
+    rewrite fupd_nonexpansive; setoid_rewrite fupd_nonexpansive at 2.
+    rewrite H; auto.
+  - intros; apply fupd_mask_subseteq.
+    intros ?; unfold coPset_to_Ensemble, Ensembles.In.
+    set_solver.
+  - intros; apply except_0_fupd.
+  - intros; apply fupd_mono; auto.
+  - intros; apply fupd_trans.
+  - intros; unfold updates.fupd, fupd.
+    iIntros "H".
+    rewrite !coPset_to_Ensemble_union.
+    rewrite <- coPset_to_Ensemble_disjoint in H |- *.
+    iApply fupd_mask_frame_r'; auto.
+  - intros; apply fupd_frame_r.
+Qed.
+Global Instance mpred_bi_fupd : BiFUpd mpredI := {| bi_fupd_mixin := mpred_fupd_mixin |}.
+
+Global Instance mpred_bi_bupd_fupd : BiBUpdFUpd mpredI.
+Proof.
+  hnf.
+  intros; apply bupd_fupd.
+Qed.
+
 (*(* Lifted instance *)
 Section lifted_cofe.
   #[local] Instance env_mpred_equiv : Equiv (environ -> mpred) := eq.

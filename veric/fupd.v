@@ -298,8 +298,14 @@ Proof.
   { eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
     rewrite <- later_sepcon; apply later_derives.
     rewrite FF_sepcon; auto. }
-  
-Admitted.
+  rewrite (sepcon_assoc _ _ (_ --> _)%pred), (sepcon_comm _ (_ --> _)%pred).
+  rewrite <- sepcon_assoc, sepcon_assoc, ghost_set_join.
+  rewrite sepcon_andp_prop; apply prop_andp_left; intros.
+  rewrite !sepcon_assoc; apply sepcon_derives; auto.
+  rewrite sepcon_comm; apply sepcon_derives; auto.
+  rewrite normalize.true_eq by auto.
+  intros ??; apply imp_lem0; auto.
+Qed.
 
 End FancyUpdates.
 

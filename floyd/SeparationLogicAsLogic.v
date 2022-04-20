@@ -263,11 +263,11 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
     @semax CS Espec Delta P c Q -> @semax CS Espec Delta P (Slabel l c) Q
 | semax_goto: forall P l, @semax CS Espec Delta FF (Sgoto l) P
 | semax_conseq: forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|==> |> FF || P')) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|==> |> FF || RA_normal R)) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|==> |> FF || RA_break R)) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|==> |> FF || RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (|==> |> FF || RA_return R vl)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|={Ensembles.Full_set}=> P')) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|={Ensembles.Full_set}=> RA_break R)) ->
+    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (RA_return R vl)) ->
     @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Definition semax_body
@@ -401,7 +401,7 @@ Import CConseq CConseqFacts Conseq ConseqFacts.
 
 Lemma semax_skip_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R,
     @semax CS Espec Delta P Sskip R ->
-    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || RA_normal R.
+    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |={Ensembles.Full_set}=> RA_normal R.
 Proof.
   intros.
   remember Sskip as c eqn:?H.
@@ -413,7 +413,7 @@ Qed.
 
 Lemma semax_break_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R,
     @semax CS Espec Delta P Sbreak R ->
-    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || RA_break R.
+    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |={Ensembles.Full_set}=> RA_break R.
 Proof.
   intros.
   remember Sbreak as c eqn:?H.
@@ -425,7 +425,7 @@ Qed.
 
 Lemma semax_continue_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R,
     @semax CS Espec Delta P Scontinue R ->
-    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || RA_continue R.
+    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |={Ensembles.Full_set}=> RA_continue R.
 Proof.
   intros.
   remember Scontinue as c eqn:?H.
@@ -437,7 +437,7 @@ Qed.
 
 Lemma semax_return_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P ret R,
   @semax CS Espec Delta P (Sreturn ret) R ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || ((tc_expropt Delta ret (ret_type Delta)) && `(|==> |> FF || RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)).
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |={Ensembles.Full_set}=> ((tc_expropt Delta ret (ret_type Delta)) && `(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)).
 Proof.
   intros.
   remember (Sreturn ret) as c eqn:?H.
@@ -446,14 +446,9 @@ Proof.
     reduce2ENTAIL.
     apply andp_ENTAIL; [apply ENTAIL_refl |].
     reduce2derives.
-    unfold_lift.
-    intro rho.
-    simpl.
-    eapply derives_trans; [| apply bupd_intro].
-    apply orp_right2; auto.
+    auto.
   + derives_rewrite -> H; clear H.
     derives_rewrite -> (IHsemax H0); clear IHsemax.
-    apply derives_bupd_derives_bupd0.
     reduceR.
     apply andp_ENTAILL; [solve_andp |].
     unfold_lift.
@@ -461,8 +456,8 @@ Proof.
     simpl.
     forget (cast_expropt ret (ret_type Delta) rho) as vl.
     revert rho.
-    change (local (tc_environ Delta) && (allp_fun_id Delta && (|==> |> FF || RA_return R' vl)) |-- |==> |> FF || RA_return R vl).
-    apply derives_full_bupd0_left, H4.
+    change (local (tc_environ Delta) && (allp_fun_id Delta && (RA_return R' vl)) |-- RA_return R vl).
+    auto.
 Qed.
 
 Lemma semax_seq_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R h t,
@@ -528,11 +523,11 @@ Qed.
 Lemma semax_assign_inv: forall {CS: compspecs} {Espec: OracleKind} Delta e1 e2 P Q,
   @semax CS Espec Delta P (Sassign e1 e2) Q ->
   local (tc_environ Delta) && (allp_fun_id Delta && P) |--
-     |==> |> FF || 
+     |={Ensembles.Full_set}=>
       ((EX sh: share, !! writable_share sh &&
              |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) *
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> |> FF || RA_normal Q))))
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |={Ensembles.Full_set}=> RA_normal Q))))
           || (EX (t2:type) (ch ch': memory_chunk) (sh: share),
              !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
                  access_mode (typeof e1) = By_value ch /\
@@ -546,7 +541,7 @@ Lemma semax_assign_inv: forall {CS: compspecs} {Espec: OracleKind} Delta e1 e2 P
                  `(mapsto sh t2) (eval_lvalue e1) (`v') -*
                     imp (local  ((`decode_encode_val )
                          ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
-                      (|==> |> FF || RA_normal Q)))))
+                      (|={Ensembles.Full_set}=> RA_normal Q)))))
        ).
 Proof.
   intros.
@@ -561,8 +556,7 @@ Proof.
       apply andp_derives; auto.
       apply sepcon_derives; auto.
       apply wand_derives; auto.
-      eapply derives_trans; [| apply bupd_intro].
-      apply orp_right2, derives_refl.
+      apply fupd_intro.
     - apply exp_derives; intro t2.
       apply exp_derives; intro ch.
       apply exp_derives; intro ch'.
@@ -574,8 +568,7 @@ Proof.
       apply allp_derives; intros v'.
       apply wand_derives; auto.
       apply imp_derives; auto.
-      eapply derives_trans; [| apply bupd_intro].
-      apply orp_right2, derives_refl.
+      apply fupd_intro.
   + subst c.
     derives_rewrite -> H.
     derives_rewrite -> (IHsemax eq_refl).
@@ -587,7 +580,7 @@ Proof.
       apply andp_ENTAILL; [reduceLL; apply ENTAIL_refl |].
       apply sepcon_ENTAILL; [reduceLL; apply ENTAIL_refl |].
       apply wand_ENTAILL; [reduceLL; apply ENTAIL_refl |].
-      apply derives_full_bupd0_left, H1.
+      apply derives_full_fupd_left, H1.
     - apply exp_ENTAILL; intro t2.
       apply exp_ENTAILL; intro ch.
       apply exp_ENTAILL; intro ch'.
@@ -599,7 +592,7 @@ Proof.
       apply allp_ENTAILL; intro v'.
       apply wand_ENTAILL; [reduceLL; apply ENTAIL_refl |].
       apply imp_ENTAILL; [reduceLL; apply ENTAIL_refl |].
-      apply derives_full_bupd0_left, H1.
+      apply derives_full_fupd_left, H1.
 Qed.
 
 Lemma tc_fn_return_temp_guard_opt: forall ret retsig Delta,
@@ -622,7 +615,7 @@ Qed.
 
 Lemma semax_call_inv: forall {CS: compspecs} {Espec: OracleKind} Delta ret a bl Pre Post,
   @semax CS Espec Delta Pre (Scall ret a bl) Post ->
-  local (tc_environ Delta) && (allp_fun_id Delta && Pre) |-- |==> |> FF ||
+  local (tc_environ Delta) && (allp_fun_id Delta && Pre) |-- |={Ensembles.Full_set}=>
          (EX argsig: _, EX retsig: _, EX cc: _,
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
@@ -631,7 +624,7 @@ Lemma semax_call_inv: forall {CS: compspecs} {Espec: OracleKind} Delta ret a bl 
              tc_fn_return Delta ret retsig) &&
           ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>((fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho)) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* |==> |> FF || RA_normal Post))).
+          |>((fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho)) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* |={Ensembles.Full_set}=> RA_normal Post))).
 Proof.
   intros.
   remember (Scall ret a bl) as c eqn:?H.
@@ -653,8 +646,7 @@ Proof.
     apply sepcon_derives; auto.
     apply oboxopt_K; auto.
     apply wand_derives; auto.
-    eapply derives_trans; [| apply bupd_intro].
-    apply orp_right2, derives_refl.
+    apply fupd_intro.
   + subst c.
     rename P into Pre, R into Post.
     derives_rewrite -> H.
@@ -677,15 +669,15 @@ Proof.
     apply sepcon_ENTAILL; [reduceLL; apply ENTAIL_refl |].
     eapply oboxopt_ENTAILL; eauto.
     apply wand_ENTAILL; [reduceLL; apply ENTAIL_refl |].
-    apply derives_full_bupd0_left, H1.
+    apply derives_full_fupd_left, H1.
 Qed.
 
 Lemma semax_Sset_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R id e,
   @semax CS Espec Delta P (Sset id e) R ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF ||
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |={Ensembles.Full_set}=>
     ( (|> ( (tc_expr Delta e) &&
              (tc_temp_id id (typeof e) Delta e) &&
-             subst id (eval_expr e) (|==> |> FF || RA_normal R))) ||
+             subst id (eval_expr e) (|={Ensembles.Full_set}=> RA_normal R))) ||
       (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
          EX ty: type, EX sh1: share, EX sh2: share,
           !! (e = Ebinop cmp e1 e2 ty /\
@@ -699,7 +691,7 @@ Lemma semax_Sset_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R id e,
           local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
           (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
           (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
-          subst id (eval_expr (Ebinop cmp e1 e2 ty)) (|==> |> FF || RA_normal R)))) ||
+          subst id (eval_expr (Ebinop cmp e1 e2 ty)) (|={Ensembles.Full_set}=> RA_normal R)))) ||
       (EX sh: share, EX t2: type, EX v2: val,
               !! (typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e) t2 = true /\
@@ -707,7 +699,7 @@ Lemma semax_Sset_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R id e,
          |> ( (tc_lvalue Delta e) &&
               local (`(tc_val (typeof e) v2)) &&
               (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2) * TT) &&
-              subst id (`v2) (|==> |> FF || RA_normal R))) ||
+              subst id (`v2) (|={Ensembles.Full_set}=> RA_normal R))) ||
       (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
               !! (e = Ecast e1 t1 /\
                   typeof_temp Delta id = Some t1 /\
@@ -716,7 +708,7 @@ Lemma semax_Sset_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R id e,
          |> ( (tc_lvalue Delta e1) &&
               local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
-              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) (|==> |> FF || RA_normal R)))).
+              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) (|={Ensembles.Full_set}=> RA_normal R)))).
 Proof.
   intros.
   remember (Sset id e) as c eqn:?H.
@@ -727,8 +719,7 @@ Proof.
     - apply later_derives.
       apply andp_derives; auto.
       apply subst_derives.
-      eapply derives_trans; [| apply bupd_intro].
-      apply orp_right2, derives_refl.
+      apply fupd_intro.
     - apply exp_derives; intros cmp.
       apply exp_derives; intros e1.
       apply exp_derives; intros e2.
@@ -739,8 +730,7 @@ Proof.
       apply later_derives; auto.
       apply andp_derives; auto.
       apply subst_derives.
-      eapply derives_trans; [| apply bupd_intro].
-      apply orp_right2, derives_refl.
+      apply fupd_intro.
     - apply exp_derives; intros sh.
       apply exp_derives; intros t2.
       apply exp_derives; intros v2.
@@ -748,8 +738,7 @@ Proof.
       apply later_derives.
       apply andp_derives; auto.
       apply subst_derives.
-      eapply derives_trans; [| apply bupd_intro].
-      apply orp_right2, derives_refl.
+      apply fupd_intro.
     - apply exp_derives; intros sh.
       apply exp_derives; intros e1.
       apply exp_derives; intros t1.
@@ -758,8 +747,7 @@ Proof.
       apply later_derives.
       apply andp_derives; auto.
       apply subst_derives.
-      eapply derives_trans; [| apply bupd_intro].
-      apply orp_right2, derives_refl.
+      apply fupd_intro.
   + subst c.
     rename P into Pre, R into Post.
     derives_rewrite -> H.
@@ -778,7 +766,7 @@ Proof.
         normalize.
         intros _.
         eapply expr2.neutral_cast_subsumption'; eauto.
-      * apply derives_full_bupd0_left.
+      * apply derives_full_fupd_left.
         auto.
     - apply exp_ENTAILL; intro cmp.
       apply exp_ENTAILL; intro e1.
@@ -803,7 +791,7 @@ Proof.
         unfold_lift.
         replace (sem_binary_operation' cmp) with (sem_cmp (expr.op_to_cmp cmp)); [| destruct cmp; inv H7; auto].
         apply binop_lemmas2.tc_val'_sem_cmp; auto.
-      * apply derives_full_bupd0_left.
+      * apply derives_full_fupd_left.
         auto.
     - apply exp_ENTAILL; intro sh.
       apply exp_ENTAILL; intro t2.
@@ -819,7 +807,7 @@ Proof.
         apply andp_left2.
         unfold_lift; unfold local, lift1; intro rho; simpl; normalize.
         intros _; eapply expr2.neutral_cast_subsumption; eauto.
-      * apply derives_full_bupd0_left.
+      * apply derives_full_fupd_left.
         auto.
     - apply exp_ENTAILL; intro sh.
       apply exp_ENTAILL; intro e1.
@@ -836,12 +824,12 @@ Proof.
         apply andp_left2.
         unfold_lift; unfold local, lift1; intro rho; simpl; normalize.
         intros _; auto.
-      * apply derives_full_bupd0_left.
+      * apply derives_full_fupd_left.
         auto.
 Qed.
 
 Lemma semax_Sbuiltin_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R opt ext tl el,
-  @semax CS Espec Delta P (Sbuiltin opt ext tl el) R -> local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || FF.
+  @semax CS Espec Delta P (Sbuiltin opt ext tl el) R -> local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |={Ensembles.Full_set}=> FF.
 Proof.
   intros.
   remember (Sbuiltin opt ext tl el) as c eqn:?H.
@@ -865,7 +853,7 @@ Proof.
 Qed.
 
 Lemma semax_Sgoto_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R l,
-  @semax CS Espec Delta P (Sgoto l) R -> local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || FF.
+  @semax CS Espec Delta P (Sgoto l) R -> local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |={Ensembles.Full_set}=> FF.
 Proof.
   intros.
   remember (Sgoto l) as c eqn:?H.
@@ -879,7 +867,7 @@ Qed.
 Lemma semax_ifthenelse_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
   local (tc_environ Delta) && (allp_fun_id Delta && P) |--
-  |==> |> FF || (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) &&
+  |={Ensembles.Full_set}=> (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) &&
   EX P': environ -> mpred,
   !! (@semax CS Espec Delta (P' && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
       @semax CS Espec Delta (P' && local (`(typed_false (typeof b)) (eval_expr b))) c2 R) &&
@@ -910,7 +898,7 @@ Qed.
 Lemma semax_loop_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R body incr,
   @semax CS Espec Delta P (Sloop body incr) R ->
   local (tc_environ Delta) && (allp_fun_id Delta && P) |--
-  |==> |> FF || EX Q: environ -> mpred, EX Q': environ -> mpred,
+  |={Ensembles.Full_set}=> EX Q: environ -> mpred, EX Q': environ -> mpred,
   !! (@semax CS Espec Delta Q body (loop1_ret_assert Q' R) /\
       @semax CS Espec Delta Q' incr (loop2_ret_assert Q R)) &&
   Q.
@@ -962,7 +950,7 @@ Qed.
 Lemma semax_switch_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R a sl,
   @semax CS Espec Delta P (Sswitch a sl) R ->
   local (tc_environ Delta) && (allp_fun_id Delta && P) |--
-        |==> |> FF || !! (is_int_type (typeof a) = true) && (tc_expr Delta a) &&
+        |={Ensembles.Full_set}=> !! (is_int_type (typeof a) = true) && (tc_expr Delta a) &&
         EX P': environ -> mpred,
   !! (forall n,
      @semax CS Espec Delta 
@@ -1024,14 +1012,15 @@ Proof.
     - apply derives_full_refl.
     - apply derives_full_refl.
     - apply derives_full_refl.
-    - intros; apply derives_full_refl.
+    - intros; apply andp_left2, andp_left2, derives_refl.
     - eapply semax_post''; [.. | apply AuxDefs.semax_skip].
       apply ENTAIL_refl.
   + pose proof (fun x => semax_assign_inv _ _ _ _ _ (H x)).
     clear H.
     apply exp_left in H0.
     rewrite <- !(exp_andp2 A) in H0.
-    eapply semax_conseq; [exact H0 | intros; apply derives_full_refl .. | clear H0 ].
+    eapply semax_conseq; [exact H0 | intros; try apply derives_full_refl .. | clear H0 ].
+    { apply andp_left2, andp_left2, derives_refl. }
     eapply semax_conseq; [apply derives_full_refl | .. | apply AuxDefs.semax_store_store_union_hack_backward].
     - reduceL. apply derives_refl.
     - reduceL. apply FF_left.
@@ -1041,7 +1030,8 @@ Proof.
     clear H.
     apply exp_left in H0.
     rewrite <- !(exp_andp2 A) in H0.
-    eapply semax_conseq; [exact H0 | intros; apply derives_full_refl .. | clear H0 ].
+    eapply semax_conseq; [exact H0 | intros; try apply derives_full_refl .. | clear H0 ].
+    { apply andp_left2, andp_left2, derives_refl. }
     eapply semax_conseq; [apply derives_full_refl | .. | apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward].
     - reduceL. apply derives_refl.
     - reduceL. apply FF_left.
@@ -1051,17 +1041,19 @@ Proof.
     clear H.
     apply exp_left in H0.
     rewrite <- !(exp_andp2 A) in H0.
-    eapply semax_conseq; [exact H0 | intros; apply derives_full_refl .. | clear H0 ].
+    eapply semax_conseq; [exact H0 | intros; try apply derives_full_refl .. | clear H0 ].
+    { apply andp_left2, andp_left2, derives_refl. }
     eapply semax_conseq; [apply derives_full_refl | .. | apply AuxDefs.semax_call_backward].
     - reduceL. apply derives_refl.
     - reduceL. apply FF_left.
     - reduceL. apply FF_left.
     - intros; reduceL. apply FF_left.
   + pose proof (fun x => semax_Sbuiltin_inv _ _ _ _ _ _ _ (H x)).
-    eapply semax_conseq; [| intros; apply derives_full_refl .. | apply AuxDefs.semax_builtin].
+    eapply semax_conseq; [| intros; try apply derives_full_refl .. | apply AuxDefs.semax_builtin].
     rewrite !exp_andp2.
     apply exp_left; intros x; specialize (H0 x).
     auto.
+    { apply andp_left2, andp_left2, derives_refl. }
   + apply AuxDefs.semax_seq with (EX Q: environ -> mpred, !! (semax Delta Q c2 R) && Q).
     - apply IHc1.
       intro x.
@@ -1076,12 +1068,13 @@ Proof.
       * apply IHc2.
         intro H0.
         auto.
-  + eapply semax_conseq; [| intros; apply derives_full_refl .. | apply (AuxDefs.semax_ifthenelse _ (EX P': environ -> mpred, !! (semax Delta (P' && local (`(typed_true (typeof e)) (eval_expr e))) c1 R /\ semax Delta (P' && local (`(typed_false (typeof e)) (eval_expr e))) c2 R) && P'))].
+  + eapply semax_conseq; [| intros; try apply derives_full_refl .. | apply (AuxDefs.semax_ifthenelse _ (EX P': environ -> mpred, !! (semax Delta (P' && local (`(typed_true (typeof e)) (eval_expr e))) c1 R /\ semax Delta (P' && local (`(typed_false (typeof e)) (eval_expr e))) c2 R) && P'))].
     - pose proof (fun x => semax_ifthenelse_inv _ _ _ _ _ _ (H x)).
       clear H.
       apply exp_left in H0.
       rewrite <- !(exp_andp2 A) in H0.
       exact H0.
+    - apply andp_left2, andp_left2, derives_refl.
     - rewrite exp_andp1.
       apply IHc1.
       intro P'.
@@ -1111,7 +1104,7 @@ Proof.
       (EX Q : environ -> mpred, EX Q' : environ -> mpred,
          EX H: semax Delta Q c1 (loop1_ret_assert Q' R),
            EX H0: semax Delta Q' c2 (loop2_ret_assert Q R), Q));
-    [| intros; apply derives_full_refl .. |].
+    [| intros; try apply derives_full_refl .. |].
     {
       rewrite !exp_andp2.
       apply exp_left.
@@ -1125,6 +1118,7 @@ Proof.
       apply (exp_right H2).
       auto.
     }
+    { apply andp_left2, andp_left2, derives_refl. }
     apply (AuxDefs.semax_loop _ _
       (EX Q : environ -> mpred, EX Q' : environ -> mpred,
          EX H: semax Delta Q c1 (loop1_ret_assert Q' R),
@@ -1172,17 +1166,19 @@ Proof.
         destruct R as [nR bR cR rR].
         apply derives_refl.
   + pose proof (fun x => semax_break_inv _ _ _ (H x)).
-    eapply semax_conseq; [| intros; apply derives_full_refl .. |].
+    eapply semax_conseq; [| intros; try apply derives_full_refl .. |].
     - rewrite !exp_andp2; apply exp_left.
       intro x; apply H0.
+    - apply andp_left2, andp_left2, derives_refl.
     - apply AuxDefs.semax_break.
   + pose proof (fun x => semax_continue_inv _ _ _ (H x)).
-    eapply semax_conseq; [| intros; apply derives_full_refl .. |].
+    eapply semax_conseq; [| intros; try apply derives_full_refl .. |].
     - rewrite !exp_andp2; apply exp_left.
       intro x; apply H0.
+    - apply andp_left2, andp_left2, derives_refl.
     - apply AuxDefs.semax_continue.
   + pose proof (fun x => semax_return_inv _ _ _ _ (H x)).
-    eapply (semax_conseq _ _ {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := |==> |> FF || RA_return R |}); [.. | apply AuxDefs.semax_return].
+    eapply (semax_conseq _ _ {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := RA_return R |}); [.. | apply AuxDefs.semax_return].
     - rewrite !exp_andp2.
       apply exp_left; intros x.
       derives_rewrite -> (H0 x).
@@ -1190,11 +1186,12 @@ Proof.
     - apply derives_full_refl.
     - apply derives_full_refl.
     - apply derives_full_refl.
-    - intros; unfold RA_return at 1. apply derives_full_bupd0_left, derives_full_refl.
+    - intros; unfold RA_return at 1. apply andp_left2, andp_left2, derives_refl.
   + pose proof (fun x => semax_switch_inv _ _ _ _ _ (H x)).
-    eapply semax_conseq; [| intros; apply derives_full_refl .. |].
+    eapply semax_conseq; [| intros; try apply derives_full_refl .. |].
     - rewrite !exp_andp2; apply exp_left.
       intro x; apply H0.
+    - apply andp_left2, andp_left2, derives_refl.
     - rewrite andp_assoc.
       apply AuxDefs.semax_switch; [intros; simpl; solve_andp |].
       intros.
@@ -1218,10 +1215,11 @@ Proof.
     apply IHc.
     auto.
   + pose proof (fun x => semax_Sgoto_inv _ _ _ _ (H x)).
-    eapply semax_conseq; [| intros; apply derives_full_refl .. | apply AuxDefs.semax_goto].
+    eapply semax_conseq; [| intros; try apply derives_full_refl .. | apply AuxDefs.semax_goto].
     rewrite !exp_andp2.
     apply exp_left; intros x; specialize (H0 x).
     auto.
+    { apply andp_left2, andp_left2, derives_refl. }
 Qed.
 
 End Extr.
@@ -1461,6 +1459,16 @@ Proof.
   + inv H0.
 Qed.
 
+Lemma allp_fun_id_sub: forall Delta Delta',
+  tycontext_sub Delta Delta' ->
+  allp_fun_id Delta' |-- allp_fun_id Delta.
+Proof.
+  intros. intro.
+  unfold allp_fun_id.
+  unseal_derives.
+  apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+Qed.
+
 Theorem semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
@@ -1644,28 +1652,28 @@ Proof.
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * apply allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H1].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * apply allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H2].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * apply allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H3].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * apply allp_fun_id_sub; auto.
     - intros.
       eapply derives_trans; [| apply H4].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; constructor; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
+      * apply allp_fun_id_sub; auto.
 Qed.
 
 Lemma rvalue_cenv_sub: forall {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta e rho,
@@ -1919,7 +1927,7 @@ Proof.
       apply exp_derives; intros ts.
       apply exp_derives; intros x. apply derives_refl.
       
-  + apply semax_pre with                        
+  + apply semax_pre with
       (@andp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric)
              (@andp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric)
                     (@tc_expropt CS Delta ret (ret_type Delta))
@@ -2094,38 +2102,17 @@ Proof.
     congruence.
 Qed.
 
-Lemma sepcon_derives_full: forall Delta P1 P2 Q1 Q2,
-  (local (tc_environ Delta) && (allp_fun_id Delta && P1) |-- (|==> |> FF || P2)) ->
-  (local (tc_environ Delta) && (allp_fun_id Delta && Q1) |-- (|==> |> FF || Q2)) ->
-  local (tc_environ Delta) && (allp_fun_id Delta && (P1 * Q1)) |-- (|==> |> FF || (P2 * Q2)).
+Lemma sepcon_derives_full: forall Delta E P1 P2 Q1 Q2,
+  (local (tc_environ Delta) && (allp_fun_id Delta && P1) |-- (|={E}=> P2)) ->
+  (local (tc_environ Delta) && (allp_fun_id Delta && Q1) |-- (|={E}=> Q2)) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && (P1 * Q1)) |-- (|={E}=> (P2 * Q2)).
 Proof.
   intros.
   pose proof sepcon_ENTAILL  _ _ _ _ _ H H0.
   eapply derives_trans; [exact H1 |].
-  clear.
-  eapply derives_trans; [apply bupd_sepcon |].
-  apply bupd_mono.
-  rewrite distrib_orp_sepcon, !distrib_orp_sepcon2.
-  repeat apply orp_left.
-  + apply orp_right1.
-    rewrite <- later_sepcon.
-    rewrite FF_sepcon; auto.
-  + apply orp_right1.
-    rewrite sepcon_comm.
-    apply wand_sepcon_adjoint.
-    eapply derives_trans; [apply now_later |].
-    apply wand_sepcon_adjoint.
-    rewrite <- later_sepcon.
-    rewrite sepcon_FF.
-    auto.
-  + apply orp_right1.
-    apply wand_sepcon_adjoint.
-    eapply derives_trans; [apply now_later |].
-    apply wand_sepcon_adjoint.
-    rewrite <- later_sepcon.
-    rewrite sepcon_FF.
-    auto.
-  + apply orp_right2; auto.
+  eapply derives_trans; [apply fupd_frame_r|].
+  eapply derives_trans, fupd_trans; apply fupd_mono.
+  apply fupd_frame_l.
 Qed.
 
 Lemma semax_frame:
@@ -2412,114 +2399,88 @@ Proof.
       reduce2derives.
       auto.
     - intros; destruct R, R'.
-      apply sepcon_derives_full; [apply H4 |].
-      reduce2derives.
-      auto.
+      apply sepcon_ENTAILL; auto.
+      apply andp_left2, andp_left2, derives_refl.
 Qed.
 
 Lemma bupd_andp_prop:
   forall P Q, bupd (!! P && Q) = !!P && bupd Q.
 Proof.
-intros.
-apply pred_ext; constructor; repeat intro.
-2:{ destruct H. rewrite prop_true_andp by auto. auto. }
-assert P. {
-hnf in H.
-specialize (H nil).
-spec H.
-exists (compcert_rmaps.RML.R.ghost_of a).
-constructor.
-destruct H as [b [? [m [_ [_ [_ [? _]]]]]]].
-auto.
-}
-rewrite prop_true_andp in * by auto.
-auto.
+  apply own.bupd_andp_prop.
+Qed.
+
+Lemma fupd_andp_prop:
+  forall E1 E2 P Q, !! P && (|={E1,E2}=> Q) |-- |={E1,E2}=> (!! P && Q).
+Proof.
+  intros; unseal_derives; apply fupd.fupd_andp_prop.
 Qed.
 
 Lemma semax_adapt_frame {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
-                   (EX F: assert, (!!(closed_wrt_modvars c F) && bupd (P' rho * F rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- bupd (RA_normal Q rho)) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- bupd (RA_break Q rho)) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- bupd (RA_continue Q rho)) &&
-                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- bupd (RA_return Q vl rho)))))
+                   (EX F: assert, (!!(closed_wrt_modvars c F) && (|={Ensembles.Full_set}=> (P' rho * F rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- |={Ensembles.Full_set}=> (RA_normal Q rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- |={Ensembles.Full_set}=> (RA_break Q rho)) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- |={Ensembles.Full_set}=> (RA_continue Q rho)) &&
+                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- (RA_return Q vl rho)))))
    (SEM: @semax cs Espec Delta P' c Q'):
    @semax cs Espec Delta P c Q.
 Proof. intros. 
-apply (@semax_conseq cs Espec Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) && (bupd (sepcon (P' rho) (F rho)) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- bupd (RA_normal Q rho)) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- bupd (RA_break Q rho)) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- bupd (RA_continue Q rho)) &&
-                         (!!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- bupd (RA_return Q vl rho))))))))
+apply (@semax_conseq cs Espec Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) && ((|={Ensembles.Full_set}=> (sepcon (P' rho) (F rho))) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- |={Ensembles.Full_set}=> (RA_normal Q rho)) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- |={Ensembles.Full_set}=> (RA_break Q rho)) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- |={Ensembles.Full_set}=> (RA_continue Q rho)) &&
+                         (!!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- (RA_return Q vl rho))))))))
    Q).
-+ intros. unfold local, tc_environ, lift1, lift; simpl; intros.  eapply derives_trans. apply H. clear H.
-  eapply derives_trans. 2: constructor; apply own.bupd_intro.
-  apply orp_right2. apply exp_derives; intros F. normalize. 
-+ clear H. intros. eapply derives_trans. 2: apply bupd_intro.
-  apply orp_right2. do 2 apply andp_left2; trivial.
-+ clear H. intros. eapply derives_trans. 2: apply bupd_intro.
-  apply orp_right2. do 2 apply andp_left2; trivial.
-+ clear H. intros. eapply derives_trans. 2: apply bupd_intro.
-  apply orp_right2. do 2 apply andp_left2; trivial.
-+ clear H. intros. eapply derives_trans. 2: apply bupd_intro.
-  apply orp_right2. do 2 apply andp_left2; trivial.
++ intros. simpl; intros.  eapply derives_trans. apply H. clear H.
+  change fupd with (ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set).
+  eapply derives_trans, fupd_intro.
+  apply exp_derives; intros F. rewrite !andp_assoc; auto.
++ clear H. intros. eapply derives_trans, fupd_intro.
+  do 2 apply andp_left2; trivial.
++ clear H. intros. eapply derives_trans, fupd_intro.
+  do 2 apply andp_left2; trivial.
++ clear H. intros. eapply derives_trans, fupd_intro.
+  do 2 apply andp_left2; trivial.
++ clear H. intros.
+  do 2 apply andp_left2; trivial.
 + apply semax_extract_exists'. intros F. clear H.
   apply semax_extract_prop'. intros.
-  eapply semax_pre_bupd. 2:{ do 4 (apply semax_extract_prop; intros). 
+  eapply semax_pre_fupd. 2:{ do 4 (apply semax_extract_prop; intros). 
     eapply semax_conseq. 6:{ apply semax_frame. exact H. apply SEM. }
-    2: { intros; eapply derives_trans; [ | apply bupd_mono; apply derives_refl]. 
+    2: { intros; eapply derives_trans; [ | apply fupd_mono; apply derives_refl]. 
          exact H0. }
-  2: { intros; eapply derives_trans; [ | apply bupd_mono; apply derives_refl]. 
+  2: { intros; eapply derives_trans; [ | apply fupd_mono; apply derives_refl]. 
        exact H1. }
-  2: { intros; eapply derives_trans; [ | apply bupd_mono; apply derives_refl].
+  2: { intros; eapply derives_trans; [ | apply fupd_mono; apply derives_refl].
        exact H2. }
-  2: { intros; eapply derives_trans; [ | apply bupd_mono; apply derives_refl].
+  2: { intros.
        revert vl. exact H3. }
-   intros; eapply derives_trans; [ | apply bupd_intro]. 
-   apply orp_right2. apply andp_left2. apply andp_left2. apply derives_refl. }
+   intros; eapply derives_trans, fupd_intro.
+   apply andp_left2. apply andp_left2. apply derives_refl. }
   intros. apply andp_left2. simpl; intros rho.
-  rewrite (andp_comm (bupd (P' rho * F rho))). rewrite !bupd_andp_prop.
-  unfold local, liftx, lift1, tc_environ; simpl.
-  rewrite <- ! andp_assoc. repeat apply andp_derives; auto.
-  * apply prop_derives. intros. rewrite <- andp_assoc. 
-    apply derives_trans with (bupd (RA_normal Q x)); [apply H0|].
-    apply bupd_mono. apply orp_right2; auto.
-  * apply prop_derives. intros. rewrite <- andp_assoc.
-    apply derives_trans with (bupd (RA_break Q x)); [apply H0|].
-    apply bupd_mono. apply orp_right2; auto.
-  * apply prop_derives. intros. rewrite <- andp_assoc.
-    apply derives_trans with (bupd (RA_continue Q x)); [apply H0|].
-    apply bupd_mono. apply orp_right2; auto.
-  * apply prop_derives. intros. rewrite <- andp_assoc.
-    apply derives_trans with (bupd (RA_return Q vl x)); [apply H0|].
-    apply bupd_mono. apply orp_right2; auto.
+  rewrite <- !prop_and, andp_comm.
+  eapply derives_trans; [apply fupd_andp_prop|].
+  change fupd with (ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set).
+  apply fupd_mono.
+  rewrite !prop_and.
+  rewrite !andp_assoc. repeat apply andp_derives; auto; apply prop_derives; intros; rewrite <- andp_assoc; auto.
 Qed.
 
 Lemma semax_adapt: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
    (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- (bupd (P' rho) &&
-                        !!(forall rho, RA_normal Q' rho |-- bupd (RA_normal Q rho)) &&
-                        !!(forall rho, RA_break Q' rho |-- bupd (RA_break Q rho)) &&
-                        !!(forall rho, RA_continue Q' rho |-- bupd (RA_continue Q rho)) &&
-                        !!(forall vl rho, RA_return Q' vl rho |-- bupd (RA_return Q vl rho))))
+                   |-- ((|={Ensembles.Full_set}=> (P' rho)) &&
+                        !!(forall rho, RA_normal Q' rho |-- |={Ensembles.Full_set}=> (RA_normal Q rho)) &&
+                        !!(forall rho, RA_break Q' rho |-- |={Ensembles.Full_set}=> (RA_break Q rho)) &&
+                        !!(forall rho, RA_continue Q' rho |-- |={Ensembles.Full_set}=> (RA_continue Q rho)) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- (RA_return Q vl rho))))
    (SEM: @semax cs Espec Delta P' c Q'),
    @semax cs Espec Delta P c Q.
 Proof.
   intros. eapply semax_adapt_frame; eauto. intros. apply (exp_right (fun rho => emp)).
-  eapply derives_trans. apply H. clear H. rewrite ! andp_assoc.  normalize.
+  eapply derives_trans. apply H. clear H. rewrite !andp_assoc.
   apply andp_right. apply prop_right. do 2 red; simpl; intros; trivial.
-  apply andp_right; trivial.
-  apply andp_right.
-  { apply prop_right; intros. apply andp_left2. eapply derives_trans; [ | apply H].
-    destruct Q'; simpl; rewrite sepcon_emp; trivial. }
-  apply andp_right.
-  { apply prop_right; intros. apply andp_left2. eapply derives_trans; [ | apply H0].
-    destruct Q'; simpl; rewrite sepcon_emp; trivial. }
-  apply andp_right.
-  { apply prop_right; intros. apply andp_left2. eapply derives_trans; [ | apply H1].
-    destruct Q'; simpl; rewrite sepcon_emp; trivial. }
-  { apply prop_right; intros. apply andp_left2. eapply derives_trans; [ | apply H2].
-    destruct Q'; simpl; rewrite sepcon_emp; trivial. }
+  rewrite sepcon_emp.
+  repeat apply andp_derives; auto; apply prop_derives; intros; destruct Q'; simpl in *; rewrite sepcon_emp; apply andp_left2; auto.
 Qed.
 
 Lemma typecheck_environ_globals_only t rho: typecheck_environ (rettype_tycontext t) (globals_only rho).
@@ -2562,7 +2523,7 @@ eapply @semax_adapt
           (@prop mpred Nveric
              (seplog.tc_environ
                 (rettype_tycontext (@snd (list (prod ident type)) type (fn_funsig f))) tau))
-          (@sepcon mpred Nveric Sveric FR (Q ts1 x1 tau))) (bupd (Q' ts x tau))) &&
+          (@sepcon mpred Nveric Sveric FR (Q ts1 x1 tau))) ((Q' ts x tau))) &&
       (stackframe_of f * (fun tau => FR * P ts1 x1 (ge_of tau, vals)) &&
                          (fun tau =>  !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals)))).
   - intros rho. clear SB3. normalize. simpl. simpl in Sub. (* rewrite SB2 in *. *)
@@ -2589,14 +2550,15 @@ eapply @semax_adapt
            intros. apply tc_val_has_type. apply (Tw H).
         * apply IHparams; trivial.
           intros. apply TE. right; trivial.
-    + apply andp_right; [|apply prop_right; intros; apply bupd_intro].
-      apply andp_right; [|apply prop_right; intros; apply bupd_intro].
-      apply andp_right; [|apply prop_right; intros; apply bupd_intro].
-      apply andp_right; [|apply prop_right; intros; apply bupd_intro].
-      eapply derives_trans; [apply bupd_frame_r|]. apply bupd_mono. normalize.
-      apply (exp_right vals). normalize. apply (exp_right ts1). normalize.
-      apply (exp_right x1). normalize. apply (exp_right F). rewrite sepcon_comm.
-      rewrite andp_TT. apply andp_right; trivial.
+    + change fupd with (ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set).
+      repeat (apply andp_right; [|apply prop_right; intros; try apply fupd_intro; auto]).
+      eapply derives_trans; [apply fupd_frame_r|]. apply fupd_mono.
+      apply (exp_right vals).
+      rewrite exp_sepcon1; apply exp_derives; intros ts1.
+      rewrite exp_sepcon1; apply exp_derives; intros x1.
+      rewrite exp_sepcon1; apply exp_derives; intros F.
+      normalize. rewrite (andp_comm (_ * _)), (prop_true_andp _ _ Hvals).
+      rewrite sepcon_comm. apply andp_right; trivial.
       apply prop_right; split.
       * subst vals; clear - Hvals VUNDEF H LNR.
         destruct H as [TC _]. simpl in TC. red in TC.
@@ -2629,11 +2591,11 @@ eapply @semax_adapt
       (fn_body f)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts1 x1)) (stackframe_of f))
       (fun rho => FRM)) in SB3.
-    + eapply semax_pre_post_bupd.
+    + eapply semax_pre_post_fupd.
       6: apply SB3.
-      all: clear SB3; intros; simpl; try solve [normalize].
+      all: clear SB3; intros; simpl; try solve [normalize]; change fupd with (ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set).
       * intros tau.
-        eapply derives_trans. 2: now apply bupd_intro.
+        eapply derives_trans, fupd_intro.
         unfold local, lift1; normalize.
         destruct H as [TC1 _]. simpl in TC1. red in TC1.
         rewrite <- sepcon_assoc, sepcon_comm, sepcon_assoc.
@@ -2646,17 +2608,16 @@ eapply @semax_adapt
         ++ unfold argsassert2assert. 
           specialize (semax_prog.typecheck_temp_environ_eval_id LNR TC1); intros X. 
           rewrite X in H0.  apply semax_prog.map_Some_inv in H0. rewrite H0; trivial.
-      * clear - QPOST; intros tau. 
+      * clear - QPOST; intros tau.
         destruct (fn_return f); normalize. simpl in QPOST. unfold local, tc_environ, lift1; normalize.
         rewrite sepcon_comm, <- sepcon_assoc.
-        eapply derives_trans; [|apply bupd_frame_r].
+        eapply derives_trans; [|apply fupd_frame_r].
         apply sepcon_derives; trivial.
-        eapply derives_trans. 2: apply QPOST.
+        eapply derives_trans, fupd_intro. eapply derives_trans, QPOST.
         apply andp_right. apply prop_right. red. apply typecheck_environ_globals_only.
         apply derives_refl.
       * clear - QPOST; intros tau. apply andp_left2. 
         rewrite sepcon_comm, <- sepcon_assoc.
-        eapply derives_trans; [|apply bupd_frame_r].
         apply sepcon_derives; trivial.
         destruct vl; simpl; normalize.
         ++ eapply derives_trans; [ | apply QPOST]; apply andp_right; trivial.
@@ -2719,7 +2680,8 @@ Lemma semax_if_seq:
 Proof.
   intros.
   apply semax_ifthenelse_inv in H.
-  eapply semax_conseq; [exact H | intros; apply derives_full_refl .. |].
+  eapply semax_conseq; [exact H | intros; try apply derives_full_refl .. |].
+  { apply andp_left2, andp_left2, derives_refl. }
   rewrite exp_andp2.
   apply semax_extract_exists.
   intros P'.
@@ -2777,7 +2739,8 @@ Proof.
       * intros.
         unfold loop1_ret_assert; destruct R.
         apply andp_left2, derives_refl.
-    - eapply semax_conseq; [exact H1 | intros; apply derives_full_refl .. |].
+    - eapply semax_conseq; [exact H1 | intros; try apply derives_full_refl .. |].
+      { apply andp_left2, andp_left2, derives_refl. }
       apply semax_extract_exists; intros Q'.
       apply semax_extract_exists; intros Q''.
       apply semax_extract_prop; intros [?H ?H].
@@ -2879,7 +2842,7 @@ Proof.
     - destruct Q; auto.
     - destruct Q; apply derives_full_refl.
     - destruct Q; apply derives_full_refl.
-    - intros; destruct Q; apply derives_full_refl.
+    - intros; destruct Q; apply andp_left2, andp_left2, derives_refl.
 Qed.
 
 Theorem semax_skip_seq:
@@ -2898,8 +2861,9 @@ Proof.
   + apply semax_seq_inv in H.
     destruct H as [? [? ?]].
     apply semax_skip_inv in H.
-    eapply semax_conseq; [| intros; apply derives_full_refl .. | exact H0].
+    eapply semax_conseq; [| intros; try apply derives_full_refl .. | exact H0].
     destruct Q; auto.
+    { apply andp_left2, andp_left2, derives_refl. }
 Qed.
 
 Theorem semax_seq_Slabel:
@@ -3068,7 +3032,7 @@ Lemma semax_fun_id:
     @semax CS Espec Delta P c Q.
 Proof.
   intros.
-  eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].
+  eapply semax_conseq; [| intros; try apply derives_full_refl .. | apply H2].
   reduceR.
   apply andp_right; [solve_andp |].
   rewrite andp_comm.
@@ -3096,6 +3060,7 @@ Proof.
     apply predicates_hered.andp_left1. 
     apply predicates_hered.exp_left; intros bb.
     apply normalize.derives_extract_prop; intros X; inv X. apply predicates_hered.derives_refl.
+  - apply andp_left2, andp_left2, derives_refl.
 Qed. (*old proof:
   intros.
   eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].
@@ -3287,8 +3252,7 @@ apply semax_loop_inv in H1.
 eapply AuxDefs.semax_conseq.
 apply H1.
 instantiate (1:=Post).
-1,2,3,4: intros; eapply derives_trans; [  | apply bupd_orp_l];
-apply orp_right2; apply andp_left2; apply andp_left2; apply bupd_intro.
+1,2,3,4: intros; do 2 apply andp_left2; (apply fupd_intro || apply derives_refl).
 apply semax_extract_exists; intro Q.
 apply semax_extract_exists; intro Q'.
 apply semax_extract_prop; intros [? ?].
@@ -3341,7 +3305,7 @@ Qed.
 Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
 
 Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.
-Definition semax_frame :=@DeepEmbeddedMinimumSeparationLogic.semax_frame.
+Definition semax_frame := @DeepEmbeddedMinimumSeparationLogic.semax_frame.
 Definition semax_adapt_frame := @DeepEmbeddedMinimumSeparationLogic.semax_adapt_frame.
 Definition semax_adapt := @DeepEmbeddedMinimumSeparationLogic.semax_adapt.
 

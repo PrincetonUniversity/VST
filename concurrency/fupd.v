@@ -19,13 +19,6 @@ Proof.
     eapply H; eauto.
 Qed.
 
-(*Lemma list_set_replace : forall {A} n l (a : A), (n < length l)%nat ->
-  own.list_set l n a = replace_nth n l (Some a).
-Proof.
-  induction n; destruct l; unfold own.list_set; auto; simpl; try lia; intros.
-  setoid_rewrite IHn; auto; lia.
-Qed.*)
-
 #[(*export, after Coq 8.13*)global] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
 Proof.
   intros; apply timeless'_timeless, own_timeless.
@@ -171,115 +164,7 @@ Qed.
 
 Section FancyUpdates.
 
-Definition coPset_to_Ensemble (E : coPset) : Ensemble nat := fun x => elem_of (Pos.of_nat (S x)) E.
-
-Definition fupd E1 E2 P :=
-  (wsat * ghost_set g_en (coPset_to_Ensemble E1)) -* (|==> bi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E2) * P))%I.
-
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic.
-Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic.
-
-Lemma fupd_mono : forall E1 E2 P Q, (P |-- Q) -> (|={E1, E2}=> P) |-- (|={E1, E2}=> Q).
-Proof.
-  intros; unfold fupd; iIntros "H Hpre".
-  iMod ("H" with "Hpre") as ">($ & P)"; do 2 iModIntro.
-  iApply (H with "P").
-Qed.
-
-Lemma bupd_fupd : forall E P, (|==> P)%I |-- |={E}=> P.
-Proof.
-  intros; unfold fupd; iIntros ">P Hpre".
-  iModIntro; iFrame; auto.
-Qed.
-
-Lemma fupd_frame_r : forall E1 E2 P Q, (|={E1,E2}=> P) * Q |-- |={E1,E2}=> (P * Q).
-Proof.
-  intros; unfold fupd; iIntros "[H Q] Hpre".
-  iMod ("H" with "Hpre") as ">($ & $)"; auto.
-Qed.
-
-Lemma fupd_intro_mask : forall E1 E2 P,
-  subseteq E2 E1 -> P |-- |={E1,E2}=> |={E2,E1}=> P.
-Proof.
-  intros; unfold fupd; iIntros "P Hpre".
-  erewrite ghost_set_subset with (s' := (coPset_to_Ensemble E2)).
-  iDestruct "Hpre" as "(? & ? & en)".
-  iIntros "!> !>"; iSplitR "P en"; iFrame; auto.
-  { intro a; destruct (coPset_elem_of_dec (Pos.of_nat (S a)) E2); auto. }
-  { unfold coPset_to_Ensemble; intros ??; unfold In in *; auto. }
-Qed.
-
-Lemma fupd_trans : forall E1 E2 E3 P, (|={E1,E2}=> |={E2,E3}=> P) |-- |={E1,E3}=> P.
-Proof.
-  intros; unfold fupd; iIntros "H Hpre".
-  iMod ("H" with "Hpre") as ">(Hpre & H)".
-  iMod ("H" with "Hpre") as ">H"; iFrame; auto.
-Qed.
-
-Lemma fupd_timeless : forall E P, Timeless P -> |> P |-- |={E}=> P.
-Proof.
-  intros; unfold fupd; iIntros ">P Hpre"; iFrame; auto.
-Qed.
-
-Lemma fupd_frame_l : forall E1 E2 P Q, P * (|={E1,E2}=> Q) |-- |={E1,E2}=> (P * Q).
-Proof.
-  intros; erewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
-Qed.
-
-Lemma core_emp : forall (w : rmap), app_pred emp (core w).
-Proof.
-  intros; setoid_rewrite res_predicates.emp_no.
-  intros l; simpl.
-  apply resource_at_core_identity.
-Qed.
-
-(* This is a generally useful pattern. *)
-Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
-  app_pred (fupd E1 E2 P) a -> app_pred (fupd E1 E2 Q) a.
-Proof.
-  intros.
-  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) emp)) a) as HP'.
-  { pose proof (fupd_frame_r E1 E2 P (approx (S (level a)) emp)) as Hframe.
-    inv Hframe; rename derivesI into Hframe; apply Hframe.
-    do 3 eexists; [apply join_comm, core_unit | split; auto].
-    split; [|apply core_emp].
-    rewrite level_core; auto. }
-  eapply fupd_mono in HP'; eauto.
-  constructor; change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
-  intros a0 (? & ? & J & HP & [? Hemp]).
-  assert (app_pred (P * emp) a0) as Ha0 by (do 3 eexists; eauto).
-  rewrite sepcon_emp in Ha0.
-  destruct (join_level _ _ _ J).
-  eapply Himp in Ha0; try apply necR_refl; try apply ext_refl; auto; lia.
-Qed.
-
-Lemma fupd_bupd : forall E1 E2 P Q, (P |-- (|==> (|={E1,E2}=> Q))) -> P |-- |={E1,E2}=> Q.
-Proof.
-  intros; eapply derives_trans, fupd_trans; eapply derives_trans, bupd_fupd; auto.
-Qed.
-
-Lemma fupd_bupd_elim : forall E1 E2 P Q, (P |-- (|={E1,E2}=> Q)) -> (|==> P) |-- |={E1,E2}=> Q.
-Proof.
-  intros; apply fupd_bupd, bupd_mono; auto.
-Qed.
-
-Lemma fupd_intro : forall E P, P |-- |={E}=> P.
-Proof.
-  intros; eapply derives_trans, bupd_fupd; apply updates.bupd_intro.
-Qed.
-
-Lemma fupd_nonexpansive: forall E1 E2 P n, approx n (|={E1,E2}=> P) = approx n (|={E1,E2}=> approx n P).
-Proof.
-  intros; unfold fupd.
-  rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 2.
-  f_equal; f_equal.
-  rewrite !approx_bupd; f_equal.
-  unfold bi_except_0.
-  setoid_rewrite approx_orp; f_equal.
-  erewrite !approx_sepcon, approx_idem; reflexivity.
-Qed.
-
-Corollary fview_shift_nonexpansive : forall E1 E2 P Q n,
+Lemma fview_shift_nonexpansive : forall E1 E2 P Q n,
   approx n (P -* |={E1,E2}=> Q)%logic = approx n (approx n P  -* |={E1,E2}=> approx n Q)%logic.
 Proof.
   intros.
@@ -290,59 +175,6 @@ Qed.
 
 End FancyUpdates.
 
-Lemma coPset_to_Ensemble_union : forall E1 E2,
-  coPset_to_Ensemble (E1 ∪ E2) = Union (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
-Proof.
-  intros.
-  unfold coPset_to_Ensemble; apply Extensionality_Ensembles; constructor; intros ? X.
-  - unfold In in X; apply elem_of_union in X as [|]; [left | right]; auto.
-  - unfold In; inv X; [apply elem_of_union_l | apply elem_of_union_r]; auto.
-Qed.
-
-Lemma coPset_to_Ensemble_disjoint : forall E1 E2,
-  Disjoint (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) <-> E1 ## E2.
-Proof.
-  split; intros.
-  - inv H.
-    intros x ??; contradiction (H0 (Nat.pred (Pos.to_nat x))); constructor; unfold In, coPset_to_Ensemble;
-      rewrite -> Nat.succ_pred_pos, Pos2Nat.id by lia; auto.
-  - constructor; intros ? X; inv X.
-    unfold In, coPset_to_Ensemble in *.
-    contradiction (H _ H0).
-Qed.
-
-Lemma mpred_fupd_mixin {inv_names : invG} : BiFUpdMixin mpredI fupd.
-Proof.
-  split.
-  - repeat intro; hnf in *.
-    setoid_rewrite fupd_nonexpansive; congruence.
-  - intros. now apply fupd_intro_mask.
-  - iIntros (E1 E2 P) ">H ?".
-    iApply "H"; auto.
-  - exact fupd_mono.
-  - exact fupd_trans.
-  - intros E1 E2 Ef P HE1Ef.
-    symmetry in HE1Ef.
-    unfold updates.fupd, fupd.
-    unfold ghost_set at 3.
-    erewrite !coPset_to_Ensemble_union, (own.ghost_op(RA := set_PCM) _ _ _ (Union (coPset_to_Ensemble E1) (coPset_to_Ensemble Ef))).
-    iIntros "Hvs (Hw & HE1 &HEf)".
-    iMod ("Hvs" with "[$Hw $HE1]") as ">(($ & HE2) & HP)".
-    iCombine "HE2 HEf" as "H"; setoid_rewrite ghost_set_join.
-    iDestruct "H" as "[% $]".
-    iPoseProof ("HP" with "[%]") as "HP"; auto.
-    apply coPset_to_Ensemble_disjoint; auto.
-    { constructor; auto.
-      apply coPset_to_Ensemble_disjoint; auto. }
-  - exact fupd_frame_r.
-Qed.
-
-#[(*export, after Coq 8.13*)global] Instance mpred_bi_fupd {inv_names : invG} : BiFUpd mpredI :=
-  {| bi_fupd_mixin := mpred_fupd_mixin |}.
-
-#[(*export, after Coq 8.13*)global] Instance mpred_bi_bupd_fupd {inv_names : invG} : BiBUpdFUpd mpredI.
-Proof. hnf. by iIntros (E P) ">? [$ $] !> !>". Qed.
-
 Section Invariants.
 
 Lemma fupd_timeless' : forall E1 E2 P Q, Timeless P -> ((P |-- (|={E1,E2}=> Q)) ->
@@ -352,12 +184,6 @@ Proof.
   eapply derives_trans; [apply fupd_timeless; auto|].
   eapply derives_trans, fupd_trans.
   apply fupd_mono; eauto.
-Qed.
-
-Lemma fupd_except0_elim : forall E1 E2 P Q, ((P |-- (|={E1,E2}=> Q)) -> bi_except_0 P |-- |={E1,E2}=> Q)%I.
-Proof.
-  intros; iIntros ">P Hpre".
-  iPoseProof (H with "P Hpre") as ">>Q"; iFrame; auto.
 Qed.
 
 Lemma wsat_fupd_elim' : forall E P, (wsat * ghost_set g_en (coPset_to_Ensemble E) * (|={E}=> P) |-- (|==> bi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E) * P)))%I.
@@ -502,6 +328,3 @@ Qed.
 Definition except0 : mpred -> mpred := bi_except_0.
 
 Global Opaque fupd.
-
-(* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
-   in veric (a la own). *)
