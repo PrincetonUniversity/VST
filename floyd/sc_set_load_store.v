@@ -530,7 +530,7 @@ Ltac solve_msubst_efield_denote :=
              rewrite (Ptrofs.to_int64_of_int64 (eq_refl _));
              reflexivity
             | |- Vptrofs _ = Vptrofs _ => reflexivity
-            | |- ?A = _ => fail 99 "Your subscript expression evaluates to" A "which is not in the form (Vint _) or (Vptrofs _).  Perhaps rewrite one of your LOCAL(temp _) clauses."
+            | |- ?A = _ => fail 4 "Your subscript expression evaluates to" A "which is not in the form (Vint _) or (Vptrofs _).  Perhaps rewrite one of your LOCAL(temp _) clauses."
            end
         ]
       | solve_Ptrofs_eqm_unsigned
@@ -839,6 +839,10 @@ Ltac find_unfold_mpred_aux P A p :=
   handle_intros;
   has_at_already p.
 
+(* This tactic is needed for matches where `p` is
+  not the last argument, since we have the entire mpred
+  expression. Note the two places it is called.
+*)
 Ltac find_unfold_mpred_aux' P A p :=
   lazymatch A with
   | ?A' _ _ _ _ => find_unfold_mpred_aux' P A' p
