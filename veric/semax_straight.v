@@ -30,7 +30,7 @@ Section extensions.
 
 Lemma semax_straight_simple:
  forall Delta (B: assert) P c Q,
-  (forall rho, boxy (@extendM rmap _ _ _ _ _ _ rmap _ _ _ _ _) (B rho)) ->
+  (forall rho, boxy extendM (B rho)) ->
   (forall jm jm1 Delta' ge ve te rho k F f,
               tycontext_sub Delta Delta' ->
               app_pred (B rho) (m_phi jm) ->

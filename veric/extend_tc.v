@@ -58,6 +58,7 @@ Proof.
 intros.
 rewrite denote_tc_assert_andp.
 apply boxy_andp; auto.
+apply extendM_refl.
 Qed.
 
 Lemma extend_tc_bool:
@@ -86,7 +87,6 @@ unfold denote_tc_Zle; try apply extend_prop;
 repeat match goal with |- boxy _ (match ?A with  _ => _ end) => destruct A end;
 try apply extend_prop.
 Qed.
-
 
 Lemma extend_tc_Zle:
  forall {CS: compspecs} v i rho,
@@ -131,8 +131,11 @@ rewrite H1 in H.
 inv H; auto.
 Qed.
 
-Lemma extend_andp: forall P Q, 
-  boxy extendM P -> boxy extendM Q -> boxy extendM (andp P Q).
+Lemma extend_andp: 
+   forall {A: Type} {JA : Join A} {PA: Perm_alg A} {SA : Sep_alg A} {AG: ageable A} 
+      {XA: Age_alg A} {EO: Ext_ord A} {EA: Ext_alg A}
+     (P Q: pred A), 
+   boxy extendM P -> boxy extendM Q -> boxy extendM (andp P Q).
 Proof.
  intros.
  apply boxy_i; intros.
@@ -140,7 +143,10 @@ Proof.
  destruct H2; split; eapply boxy_e; eauto.
 Qed.
 
-Lemma extend_orp: forall P Q, 
+Lemma extend_orp: 
+   forall {A: Type} {JA : Join A} {PA: Perm_alg A} {SA : Sep_alg A} {AG: ageable A} 
+      {XA: Age_alg A} {EO: Ext_ord A} {EA: Ext_alg A}
+     (P Q: pred A), 
   boxy extendM P -> boxy extendM Q -> boxy extendM (orp P Q).
 Proof.
  intros.
@@ -281,27 +287,14 @@ Proof.
 intros.
 unfold tc_nobinover.
 unfold if_expr_signed.
-destruct (typeof e1); try apply extend_prop.
-destruct s; try apply extend_prop.
-destruct (eval_expr e1 any_environ); try apply extend_prop;
-destruct (eval_expr e2 any_environ); try apply extend_prop;
-try apply extend_tc_nosignedover;
-simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
-destruct  (typeof e2) as [ | _ [ | ] _ | | | | | | | ];
-try apply extend_prop.
-simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
-destruct  (typeof e2) as [ | _ [ | ] _ | | | | | | | ];
-try apply extend_tc_nosignedover.
-simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
-try destruct s; try apply extend_prop; try apply extend_tc_nosignedover.
+destruct (typeof e1) as [ | _ [ | ] _ | [ | ] _ | | | | | | ],
+       (typeof e2) as [ | _ [ | ] _ | [ | ] _ | | | | | | ];
+      try apply extend_prop;
 destruct (eval_expr e1 any_environ); try apply extend_prop;
 destruct (eval_expr e2 any_environ); try apply extend_prop;
 try apply extend_tc_nosignedover.
-all: simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover;
-destruct  (typeof e2) as [ | _ [ | ] _ | | | | | | | ];
-try apply extend_prop;
-try apply extend_tc_nosignedover.
-all: simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+all:
+simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
 Qed.
 
 Lemma boxy_orp {A} `{H : ageable A}:
@@ -325,6 +318,7 @@ Proof.
 intros.
 rewrite denote_tc_assert_orp.
 apply boxy_orp; auto.
+apply extendM_refl.
 Qed.
 
 
@@ -356,6 +350,7 @@ Lemma extend_tc_andp':
 Proof.
 intros.
 apply boxy_andp; auto.
+apply extendM_refl.
 Qed.
 
 Ltac extend_tc_prover := 
@@ -675,25 +670,25 @@ Ltac tc_expr_cenv_sub_tac2 :=
   unfold if_expr_signed.
   intros.
   destruct (typeof a1) as [ | _ [ | ] | [ | ] | [ | ] | | | | | ]; 
-  destruct (typeof a2) as [ | _ [ | ] | | | | | | | ]; 
+  destruct (typeof a2) as [ | _ [ | ] | [ | ]  | | | | | | ]; 
   tc_expr_cenv_sub_tac; repeat tc_expr_cenv_sub_tac2.
  Qed.
   
-  Lemma tc_expr_cenv_sub a rho Delta w (T: @tc_expr CS Delta a rho w):
-                            @tc_expr CS' Delta a rho w
-     with tc_lvalue_cenv_sub a rho Delta w (T: @tc_lvalue CS Delta a rho w): 
-                            @tc_lvalue CS' Delta a rho w.
-  Proof.
-- clear  tc_expr_cenv_sub.
-  unfold tc_expr in *.
-  induction a;
-  try solve [apply  (denote_tc_assert_cenv_sub CSUB); auto];
-  simpl in T|-*;
+Lemma tc_expr_cenv_sub_unop:
+ forall 
+ (u : unary_operation)
+ (a : expr)
+ (t : type)
+ (rho : environ)
+ (Delta : tycontext)
+ (w : rmap)
+ (T : (@tc_expr CS Delta (Eunop u a t) rho) w)
+ (IHa : (@tc_expr CS Delta a rho) w -> (@tc_expr CS' Delta a rho) w),
+ (@tc_expr CS' Delta (Eunop u a t) rho) w.
+Proof.
+  intros.
+  unfold tc_expr in *; simpl in T|-*.
   tc_expr_cenv_sub_tac.
- + (* Ederef *)
-  destruct (access_mode t) eqn:?H; auto.
-  tc_expr_cenv_sub_tac.
- + (* Eunop *)
   destruct u; simpl in H|-*;
   destruct (typeof a) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; 
   tc_expr_cenv_sub_tac.
@@ -712,8 +707,24 @@ Ltac tc_expr_cenv_sub_tac2 :=
   apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB rho
                         (Econst_long Int64.zero (Ctypes.Tlong Signed a0)) a w Z.sub Unsigned); 
     auto.
- + (* Ebinop *)
- abstract (
+Qed.
+
+Lemma tc_expr_cenv_sub_binop:
+ forall 
+ (b : binary_operation)
+ (a1 a2 : expr)
+ (t : type)
+ (rho : environ)
+ (Delta : tycontext)
+ (w : rmap)
+ (T : (@tc_expr CS Delta (Ebinop b a1 a2 t) rho) w)
+ (IHa1 : (@tc_expr CS Delta a1 rho) w -> (@tc_expr CS' Delta a1 rho) w)
+ (IHa2 : (@tc_expr CS Delta a2 rho) w -> (@tc_expr CS' Delta a2 rho) w),
+ (@tc_expr CS' Delta (Ebinop b a1 a2 t) rho) w.
+Proof.
+  intros.
+  unfold tc_expr in *; simpl in T|-*.
+  tc_expr_cenv_sub_tac.
   rewrite den_isBinOpR;
   rewrite den_isBinOpR in H;
    destruct b; simpl in H|-*;
@@ -722,9 +733,23 @@ Ltac tc_expr_cenv_sub_tac2 :=
       destruct A; tc_expr_cenv_sub_tac
    end;
    tc_expr_cenv_sub_tac;
-  try solve [simple apply tc_nobinover_cenv_sub; auto]).
- +  (* Ecast *)
- abstract (
+  try solve [simple apply tc_nobinover_cenv_sub; auto].
+Time Qed.  (* This Qed takes a really long time *)
+
+Lemma tc_expr_cenv_sub_cast:
+ forall
+ (a : expr)
+ (t : type)
+ (rho : environ)
+ (Delta : tycontext)
+ (w : rmap)
+ (T : (@tc_expr CS Delta (Ecast a t) rho) w)
+ (IHa : (@tc_expr CS Delta a rho) w -> (@tc_expr CS' Delta a rho) w),
+ (@tc_expr CS' Delta (Ecast a t) rho) w.
+Proof.
+  intros.
+  unfold tc_expr in *; simpl in T|-*.
+  tc_expr_cenv_sub_tac.
    unfold isCastResultType in *;
    repeat match goal with |- app_pred (denote_tc_assert match ?A with _ => _ end _) _ =>
       destruct A; tc_expr_cenv_sub_tac
@@ -736,8 +761,28 @@ Ltac tc_expr_cenv_sub_tac2 :=
                   rewrite ?denote_tc_assert_iszero;
                  destruct (Val.eq (@eval_expr CS a rho) Vundef) as [e|n];
                   [rewrite e in *; contradiction | 
-                    rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n); auto]]).
- + (* Efield *)
+                    rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n); auto]].
+Qed.
+
+Lemma tc_expr_cenv_sub_field:
+ forall
+ (a : expr)
+  (tc_lvalue_cenv_sub : forall  (rho : environ)
+                       (Delta : tycontext) (w : rmap),
+                     (@tc_lvalue CS Delta a rho) w ->
+                     (@tc_lvalue CS' Delta a rho) w)
+ (i : ident)
+ (t : type) 
+ (rho : environ)
+ (Delta : tycontext)
+ (w : rmap)
+ (T : (@tc_expr CS Delta (Efield a i t) rho) w)
+ (IHa : (@tc_expr CS Delta a rho) w -> (@tc_expr CS' Delta a rho) w),
+ (@tc_expr CS' Delta (Efield a i t) rho) w.
+Proof.
+intros.
+  unfold tc_expr in *; simpl in T|-*.
+  tc_expr_cenv_sub_tac.
     destruct (access_mode t); tc_expr_cenv_sub_tac.
     destruct (typeof a); tc_expr_cenv_sub_tac.
    *
@@ -758,12 +803,23 @@ Ltac tc_expr_cenv_sub_tac2 :=
    intros. specialize (CSUB id).  hnf in CSUB.  rewrite H3 in CSUB; auto.
    apply co_consistent_complete. 
    apply (cenv_consistent i0); auto.
-- clear  tc_lvalue_cenv_sub.
-  unfold tc_lvalue in *.
-  induction a;
-  try solve [apply  (denote_tc_assert_cenv_sub CSUB); auto];
-  simpl in T|-*;
-  tc_expr_cenv_sub_tac.
+Qed.
+
+Lemma tc_lvalue_cenv_sub_field:
+ forall
+ (a : expr)
+ (i : ident)
+ (t : type)
+ (rho : environ)
+ (Delta : tycontext)
+ (w : rmap) 
+ (T : (@denote_tc_assert CS (@typecheck_lvalue CS Delta (Efield a i t)) rho) w)
+ (IHa : (@denote_tc_assert CS (@typecheck_lvalue CS Delta a) rho) w ->
+         (@denote_tc_assert CS' (@typecheck_lvalue CS' Delta a) rho) w),
+(@denote_tc_assert CS' (@typecheck_lvalue CS' Delta (Efield a i t)) rho) w.
+Proof.
+   intros.
+   simpl in T|-*;  tc_expr_cenv_sub_tac.
     destruct (typeof a); tc_expr_cenv_sub_tac.
    *
     destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
@@ -784,6 +840,38 @@ Ltac tc_expr_cenv_sub_tac2 :=
    apply co_consistent_complete. 
    apply (cenv_consistent i0); auto.
 Qed.
+
+Lemma tc_expr_cenv_sub a rho Delta w (T: @tc_expr CS Delta a rho w):
+                            @tc_expr CS' Delta a rho w
+     with tc_lvalue_cenv_sub a rho Delta w (T: @tc_lvalue CS Delta a rho w): 
+                            @tc_lvalue CS' Delta a rho w.
+  Proof.
+- clear  tc_expr_cenv_sub.
+  induction a;
+  try solve [apply  (denote_tc_assert_cenv_sub CSUB); auto];
+  try solve [unfold tc_expr in *; simpl in T|-*; tc_expr_cenv_sub_tac].
+ + (* Ederef *)
+  unfold tc_expr in *; simpl in T|-*.
+  destruct (access_mode t) eqn:?H; auto.
+  tc_expr_cenv_sub_tac.
+ + (* Eunop *) 
+    apply (tc_expr_cenv_sub_unop _ _ _ _ _ _ T IHa).
+ + (* Ebinop *)
+    apply (tc_expr_cenv_sub_binop _ _ _ _ _ _ _ T IHa1 IHa2).
+ +  (* Ecast *)
+    apply (tc_expr_cenv_sub_cast _ _ _ _ _ T IHa).
+ + (* Efield *) 
+    apply (tc_expr_cenv_sub_field a (tc_lvalue_cenv_sub a) _ _ _ _ _ T IHa).
+- clear  tc_lvalue_cenv_sub.
+  unfold tc_lvalue in *.
+  induction a;
+  try solve [apply  (denote_tc_assert_cenv_sub CSUB); auto].
+ + (* Ederef *)
+   simpl in T|-*;
+   tc_expr_cenv_sub_tac.
+ + (* Efield *) 
+   apply (tc_lvalue_cenv_sub_field _ _ _ _ _ _ T IHa).
+Time Qed.
 
   Lemma tc_exprlist_cenv_sub Delta rho w:
     forall types bl, (@tc_exprlist CS Delta types bl rho) w ->

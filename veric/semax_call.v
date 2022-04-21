@@ -3764,7 +3764,7 @@ simpl; intros ? ?. unfold cl_after_external. destruct ret0; auto.
 reflexivity.
 intros.
 destruct H8 as [w1 [w2 [H8' [_ ?]]]]. subst m'.
-assert (H8'': @extendM rmap _ _ _ _ _ _ rmap _ _ _ _ _ w2 a'') by (eexists; eauto). clear H8'.
+assert (H8'': extendM w2 a'') by (eexists; eauto). clear H8'.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (H7': typecheck_environ Delta rho).
 destruct H7; eapply typecheck_environ_sub; eauto.
