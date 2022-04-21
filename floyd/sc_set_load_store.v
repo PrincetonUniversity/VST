@@ -923,15 +923,11 @@ Ltac check_unfold_mpred_for_at_aux Delta P Q R e :=
   lazymatch goal with
   | |- ?p1 = ?p1 /\ ?p2 = ?p2 /\ _ =>
     split3; [ reflexivity | reflexivity | ];
-    (tryif (
-      assert (exists t gfs p, p1 = field_address t gfs p) by eassumption
-    ) then fail else idtac);
-    first
-    [ constr_eq p1 p2
-    | tryif
-        assert (exists t gfs p, p2 = field_address t gfs p) by eassumption
-      then fail else idtac
-    ];
+    lazymatch goal with
+    | _ : p1 = field_address _ _ _ |- _ => fail
+    | _ : p2 = field_address _ _ _ |- _ => fail
+    | _ => idtac
+    end;
     lazymatch p1 with
     | offset_val _ ?p' =>
       first
