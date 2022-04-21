@@ -538,19 +538,5 @@ Qed.*)
 
 End Invariants.
 
-(*Lemma inv_in : forall i, elem_of (Pos.of_nat (S i)) (inv i).
-Proof.
-  intros; rewrite elem_of_singleton; reflexivity.
-Qed.
-Hint Resolve inv_in : ghost.
-
-(* avoids some fragility in tactics *)
-Definition except0 : mpred -> mpred := sbi_except_0.
-
-Global Opaque fupd.*)
-
-(* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
-   in veric (a la own). *)
-
 Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): pred.
 Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): pred.

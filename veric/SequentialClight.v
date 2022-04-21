@@ -431,18 +431,18 @@ Proof.
    instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
    instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
  clear - JDE DME H4 J H6.
-  rewrite <- H4 in H6|-*.
+  rewrite <- H4.
  assert (level jm <= n)%nat by lia.
  clear H4; rename H into H4.
  forget initial_oracle as ora.
  revert ora jm q H4 J H6; induction n; simpl; intros.
  assert (level (m_phi jm) = 0%nat) by lia. rewrite H; constructor.
  inv H6.
- - constructor.
+ - rewrite <- level_juice_level_phi, H; constructor.
  -
-   rewrite <- level_juice_level_phi in H4.
-   destruct H0 as (?&?&?&Hg).
-   eapply safeN_step.
+   rewrite <- level_juice_level_phi in H4 |- *.
+   destruct H as (?&?&Hl&Hg).
+   rewrite Hl; eapply safeN_step.
    + red. red. fold (globalenv prog). eassumption.
    + destruct (H1 (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
      { eexists; apply join_comm, core_unit. }

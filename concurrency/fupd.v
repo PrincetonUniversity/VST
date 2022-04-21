@@ -164,8 +164,10 @@ Qed.
 
 Section FancyUpdates.
 
+Local Open Scope logic_upd.
+
 Lemma fview_shift_nonexpansive : forall E1 E2 P Q n,
-  approx n (P -* |={E1,E2}=> Q)%logic = approx n (approx n P  -* |={E1,E2}=> approx n Q)%logic.
+  approx n (P -* |={E1,E2}=> Q) = approx n (approx n P -* |={E1,E2}=> approx n Q).
 Proof.
   intros.
   rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 3.
@@ -356,4 +358,76 @@ End Invariants.
 (* avoids some fragility in tactics *)
 Definition except0 : mpred -> mpred := bi_except_0.
 
+Definition funspec_sub' (f1 f2 : funspec): Prop :=
+match f1 with
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+        (tpsig1=tpsig2 /\ cc1=cc2) /\
+        forall ts2 x2 (gargs:argsEnviron),
+        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
+         |-- |={⊤}=> (EX ts1:_,  EX x1:_, EX F:_, 
+                           (F * (P1 ts1 x1 gargs)) &&
+                               (!! (forall rho',
+                                           ((!!(ve_of rho' = Map.empty (Values.block * type))) &&
+                                                 (F * (Q1 ts1 x1 rho')))
+                                         |-- (Q2 ts2 x2 rho')))))
+    end
+end.
+
+Lemma coPset_to_Ensemble_top : coPset_to_Ensemble ⊤ = Full_set.
+Proof.
+  unfold coPset_to_Ensemble; apply Extensionality_Ensembles; split; intros ? Hin; unfold In in *.
+  - constructor.
+  - set_solver.
+Qed.
+
+Lemma prove_funspec_sub : forall f1 f2, funspec_sub' f1 f2 -> funspec_sub f1 f2.
+Proof.
+  unfold funspec_sub', funspec_sub; intros.
+  destruct f1, f2.
+  destruct H as [? H]; split; auto; intros.
+  eapply derives_trans; [apply H|].
+  unfold fupd, bi_fupd_fupd; simpl.
+  rewrite coPset_to_Ensemble_top.
+  apply derives_refl.
+Qed.
+
+Lemma fupd_eq : ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set = fupd ⊤ ⊤.
+Proof.
+  unfold fupd, bi_fupd_fupd; simpl. rewrite coPset_to_Ensemble_top; auto.
+Qed.
+
+Lemma replace_SEP'_fupd:
+ forall n R' Espec {cs: compspecs} Delta P Q Rs c Post,
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (canon.my_nth n Rs TT ::  nil))) |-- liftx (|={⊤}=> R') ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (canon.replace_nth n Rs R')))) c Post ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx Rs))) c Post.
+Proof.
+intros; eapply replace_SEP'_fupd; eauto.
+rewrite fupd_eq; auto.
+Qed.
+
+Tactic Notation "viewshift_SEP" constr(n) constr(R) :=
+  first [apply (replace_SEP'_fupd (Z.to_nat n) R) | apply (replace_SEP''_fupd (Z.to_nat n) R)];
+  unfold canon.my_nth,canon.replace_nth; simpl Z.to_nat;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
+
+Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic1(t):=
+  first [apply (replace_SEP'_fupd (Z.to_nat n) R) | apply (replace_SEP''_fupd (Z.to_nat n) R)];
+  unfold canon.my_nth,canon.replace_nth; simpl Z.to_nat;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
+
 Global Opaque updates.fupd.
+
+Ltac ghost_alloc G :=
+  match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
+    rewrite <- (emp_sepcon R1) at 1; Intros; viewshift_SEP 0 (EX g : _, G g);
+  [go_lowerx; eapply derives_trans, bupd_fupd; rewrite ?emp_sepcon;
+   apply own_alloc; auto; simpl; auto with init share ghost|] end.
+
+Ltac ghosts_alloc G n :=
+  match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
+    rewrite <- (emp_sepcon R1) at 1; Intros; viewshift_SEP 0 (EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg);
+  [go_lowerx; eapply derives_trans, bupd_fupd; rewrite ?emp_sepcon;
+   apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.

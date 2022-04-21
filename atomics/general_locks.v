@@ -71,8 +71,8 @@ Proof.
   contradiction H; apply share_self_join_bot; auto.
 Qed.
 
-Lemma sync_commit_simple : forall Ei Eo (Q : mpred) g (x0 x' : G),
-  (atomic_shift(B := unit) (fun x => public_half g x) Ei Eo (fun x _ => !!(x = x0) && public_half g x') (fun _ => Q) * my_half g Tsh x0 |-- |={Eo}=> Q * my_half g Tsh x')%I.
+Lemma sync_commit_simple : forall Eo Ei (Q : mpred) g (x0 x' : G),
+  (atomic_shift(B := unit) (fun x => public_half g x) Eo Ei (fun x _ => !!(x = x0) && public_half g x') (fun _ => Q) * my_half g Tsh x0 |-- |={Eo}=> Q * my_half g Tsh x')%I.
 Proof.
   intros; eapply derives_trans; [apply atomic_commit_fupd with (R' := fun _ => my_half g Tsh x')|].
   - intros.
@@ -83,9 +83,9 @@ Proof.
   - iIntros ">Q !>"; iDestruct "Q" as (_) "$".
 Qed.
 
-Lemma sync_rollback : forall {A B} a Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R' g sh (x0 : G)
+Lemma sync_rollback : forall {A B} a Eo Ei (b : A -> B -> mpred) (Q : B -> mpred) R R' g sh (x0 : G)
   (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) --> (public_half g x1 -* |==> R' * a x)))%I),
-  (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |={Eo}=> atomic_shift a Ei Eo b Q * my_half g sh x0 * R')%I.
+  (atomic_shift a Eo Ei b Q * my_half g sh x0 * R |-- |={Eo}=> atomic_shift a Eo Ei b Q * my_half g sh x0 * R')%I.
 Proof.
   intros; rewrite !sepcon_assoc; apply atomic_rollback_fupd.
   intros; iIntros "((my & R) & a)".
@@ -94,10 +94,10 @@ Proof.
   rewrite bi.sep_comm; iApply ("a'" with "[%]"); auto.
 Qed.
 
-Lemma sync_commit_gen : forall {A B} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
+Lemma sync_commit_gen : forall {A B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : G)
   (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
     |==> (EX x0' x1' : G, !!(forall b, sepalg.join x0 b x1 -> sepalg.join x0' b x1' /\ (x0 = x1 -> x0' = x1')) && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y * R' y))))%I)%I),
-  (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |={Eo}=> EX y, Q y * R' y)%I.
+  (atomic_shift a Eo Ei b Q * my_half g sh x0 * R |-- |={Eo}=> EX y, Q y * R' y)%I.
 Proof.
   intros; rewrite sepcon_assoc.
   apply @atomic_commit_fupd with (R' := fun y => R' y).
@@ -109,10 +109,10 @@ Proof.
   iApply ("H" with "[$my $public]").
 Qed.
 
-Lemma sync_commit_same : forall {A B} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
+Lemma sync_commit_same : forall {A B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : G)
   (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
     |==> (my_half g sh x0 * public_half g x1 -* |==> (EX y, b x y * R' y)))%I)%I),
-  (atomic_shift a Ei Eo b Q * my_half g sh x0 * R |-- |={Eo}=> EX y, Q y * R' y)%I.
+  (atomic_shift a Eo Ei b Q * my_half g sh x0 * R |-- |={Eo}=> EX y, Q y * R' y)%I.
 Proof.
   intros; rewrite sepcon_assoc.
   apply @atomic_commit_fupd with (R' := fun y => R' y).
@@ -123,10 +123,10 @@ Proof.
   iApply "H"; iFrame.
 Qed.
 
-Lemma sync_commit_gen1 : forall {A B} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
+Lemma sync_commit_gen1 : forall {A B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : G)
   (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
     |==> (EX x0' x1' : G, !!(forall b, sepalg.join x0 b x1 -> sepalg.join x0' b x1' /\ (x0 = x1 -> x0' = x1')) && (my_half g sh x0' * public_half g x1' -* |==> (EX y, b x y) * R')))%I)%I),
-  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g sh x0 * R |-- |={Eo}=> Q * R')%I.
+  (atomic_shift a Eo Ei b (fun _ => Q) * my_half g sh x0 * R |-- |={Eo}=> Q * R')%I.
 Proof.
   intros; rewrite sepcon_assoc; eapply derives_trans; [apply @atomic_commit_fupd with
       (R' := fun _ => R')|].
@@ -139,10 +139,10 @@ Proof.
   - iIntros ">Q !>"; iDestruct "Q" as (?) "[$ $]".
 Qed.
 
-Lemma sync_commit_same1 : forall {A B} a Ei Eo (b : A -> B -> mpred) Q R R' g sh (x0 : G)
+Lemma sync_commit_same1 : forall {A B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : G)
   (Ha : forall x, R * a x |-- (|==> EX x1, public_half g x1 * (!!(if eq_dec sh Tsh then x0 = x1 else exists x, sepalg.join x0 x x1) -->
     |==> (my_half g sh x0 * public_half g x1 -* |==> (EX y, b x y * R')))%I)%I),
-  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g sh x0 * R |-- |={Eo}=> Q * R')%I.
+  (atomic_shift a Eo Ei b (fun _ => Q) * my_half g sh x0 * R |-- |={Eo}=> Q * R')%I.
 Proof.
   intros; rewrite sepcon_assoc; eapply derives_trans; [apply @atomic_commit_fupd with
       (R' := fun _ => R')|].
@@ -155,9 +155,9 @@ Proof.
 Qed.
 
 (* These are useful when the shared resource matches the lock invariant exactly. *)
-Lemma sync_commit1 : forall Ei Eo (b : G -> unit -> mpred) Q g (x0 x' : G)
+Lemma sync_commit1 : forall Eo Ei (b : G -> unit -> mpred) Q g (x0 x' : G)
   (Hb : public_half g x' |-- (|==> b x0 tt)%I),
-  (atomic_shift (fun x => public_half g x) Ei Eo b (fun _ => Q) * my_half g Tsh x0 |-- |={Eo}=> Q * my_half g Tsh x')%I.
+  (atomic_shift (fun x => public_half g x) Eo Ei b (fun _ => Q) * my_half g Tsh x0 |-- |={Eo}=> Q * my_half g Tsh x')%I.
 Proof.
   intros; eapply derives_trans, sync_commit_simple.
   apply sepcon_derives, derives_refl.
@@ -166,9 +166,9 @@ Proof.
   iIntros "[% H]"; subst; iMod (Hb with "H"); auto.
 Qed.
 
-Lemma sync_commit2 : forall Ei Eo (b : G -> G -> mpred) Q g (x0 x' : G)
+Lemma sync_commit2 : forall Eo Ei (b : G -> G -> mpred) Q g (x0 x' : G)
   (Hb : public_half g x' |-- (|==> b x0 x0)%I),
-  (atomic_shift (fun x => public_half g x) Ei Eo b Q * my_half g Tsh x0 |-- |={Eo}=> Q x0 * my_half g Tsh x')%I.
+  (atomic_shift (fun x => public_half g x) Eo Ei b Q * my_half g Tsh x0 |-- |={Eo}=> Q x0 * my_half g Tsh x')%I.
 Proof.
   intros; eapply derives_trans, sync_commit_simple.
   apply sepcon_derives, derives_refl.
@@ -184,12 +184,12 @@ Proof.
 Qed.
 
 (* sync_commit for holding two locks simultaneously *)
-Lemma two_sync_commit : forall {A B} a Ei Eo (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : G)
+Lemma two_sync_commit : forall {A B} a Eo Ei (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : G)
   (Ha : forall x, R * a x |-- (|==> EX y1 y2, public_half g1 y1 * public_half g2 y2 *
     (!!((if eq_dec sh1 Tsh then x1 = y1 else exists z, sepalg.join x1 z y1) /\ (if eq_dec sh2 Tsh then x2 = y2 else exists z, sepalg.join x2 z y2)) -->
     |==> (EX x1' x2' y1' y2' : G, !!((forall z, sepalg.join x1 z y1 -> sepalg.join x1' z y1' /\ (x1 = y1 -> x1' = y1')) /\ (forall z, sepalg.join x2 z y2 -> sepalg.join x2' z y2' /\ (x2 = y2 -> x2' = y2'))) &&
       (my_half g1 sh1 x1' * public_half g1 y1' * my_half g2 sh2 x2' * public_half g2 y2' -* |==> (EX y, b x y * R' y))))%I)%I),
-  (atomic_shift a Ei Eo b Q * my_half g1 sh1 x1 * my_half g2 sh2 x2 * R |-- |={Eo}=> EX y, Q y * R' y)%I.
+  (atomic_shift a Eo Ei b Q * my_half g1 sh1 x1 * my_half g2 sh2 x2 * R |-- |={Eo}=> EX y, Q y * R' y)%I.
 Proof.
   intros; rewrite -> 2sepcon_assoc.
   apply @atomic_commit_fupd with (R' := fun y => R' y).
@@ -204,12 +204,12 @@ Proof.
   iApply "H"; iFrame.
 Qed.
 
-Lemma two_sync_commit1 : forall {A B} a Ei Eo (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : G)
+Lemma two_sync_commit1 : forall {A B} a Eo Ei (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : G)
   (Ha : forall x, R * a x |-- (|==> EX y1 y2, public_half g1 y1 * public_half g2 y2 *
     (!!((if eq_dec sh1 Tsh then x1 = y1 else exists z, sepalg.join x1 z y1) /\ (if eq_dec sh2 Tsh then x2 = y2 else exists z, sepalg.join x2 z y2)) -->
     |==> (EX x1' x2' y1' y2' : G, !!((forall z, sepalg.join x1 z y1 -> sepalg.join x1' z y1' /\ (x1 = y1 -> x1' = y1')) /\ (forall z, sepalg.join x2 z y2 -> sepalg.join x2' z y2' /\ (x2 = y2 -> x2' = y2'))) &&
       (my_half g1 sh1 x1' * public_half g1 y1' * my_half g2 sh2 x2' * public_half g2 y2' -* |==> ((EX y, b x y) * R'))))%I)%I),
-  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g1 sh1 x1 * my_half g2 sh2 x2 * R |-- |={Eo}=> Q * R')%I.
+  (atomic_shift a Eo Ei b (fun _ => Q) * my_half g1 sh1 x1 * my_half g2 sh2 x2 * R |-- |={Eo}=> Q * R')%I.
 Proof.
   intros; rewrite -> 2sepcon_assoc.
   eapply derives_trans; [apply @atomic_commit_fupd with (R' := fun _ => R')|].

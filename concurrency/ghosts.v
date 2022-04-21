@@ -1669,20 +1669,6 @@ End GHist.
 (*#[export] Hint Resolve ghost_var_precise ghost_var_precise'.*)
 #[export] Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
 
-Ltac ghost_alloc G :=
-  match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-    apply (semax_pre_fupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
-  [go_lower; eapply derives_trans, bupd_fupd; erewrite !prop_true_andp by (repeat (split; auto));
-   rewrite <- emp_sepcon at 1; eapply derives_trans, ghost_seplog.bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init share ghost|] end.
-
-Ltac ghosts_alloc G n :=
-  match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-    apply (semax_pre_fupd (PROPx P (LOCALx Q (SEPx ((EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg) :: R)))));
-  [go_lower; eapply derives_trans, bupd_fupd; erewrite !prop_true_andp by (repeat (split; auto));
-   rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.
-
 Lemma wand_nonexpansive_l: forall P Q n,
   approx n (P -* Q)%logic = approx n (approx n P  -* Q)%logic.
 Proof.

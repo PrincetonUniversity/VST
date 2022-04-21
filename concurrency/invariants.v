@@ -326,3 +326,20 @@ Proof.
 Qed.
 
 Global Instance into_inv_inv N P : IntoInv (inv N P) N := {}.
+
+Lemma inv_nonexpansive : forall N, nonexpansive (inv N).
+Proof.
+  intros; unfold inv.
+  apply @exists_nonexpansive; intros i.
+  apply @conj_nonexpansive, invariant_nonexpansive.
+  apply const_nonexpansive.
+Qed.
+
+Lemma inv_nonexpansive2 : forall N f, nonexpansive f ->
+  nonexpansive (fun a => inv N (f a)).
+Proof.
+  intros; unfold inv.
+  apply @exists_nonexpansive; intros i.
+  apply @conj_nonexpansive, invariant_nonexpansive2, H.
+  apply const_nonexpansive.
+Qed.
