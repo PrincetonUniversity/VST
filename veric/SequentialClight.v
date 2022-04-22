@@ -11,6 +11,7 @@ Require Import VST.veric.juicy_mem.
 Require VST.veric.NullExtension.
 (*Require Import VST.veric.Clight_sim.*)
 Require Import VST.veric.SeparationLogicSoundness.
+Require Import VST.veric.resource_decay_join.
 Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.
 
@@ -53,6 +54,34 @@ Proof.
   repeat intro.
   destruct (access_at x loc Cur); auto.
   destruct p; auto.
+Qed.
+
+Lemma access_Freeable_max : forall m l, access_at m l Cur = Some Freeable -> access_at m l Max = Some Freeable.
+Proof.
+  intros.
+  pose proof (access_cur_max m l) as Hperm; rewrite H in Hperm; simpl in Hperm.
+  destruct (access_at m l Max); try contradiction.
+  inv Hperm; auto.
+Qed.
+
+#[(*export, after Coq 8.13*)global] Instance mem_evolve_trans : RelationClasses.Transitive mem_evolve.
+Proof.
+  repeat intro.
+  specialize (H loc); specialize (H0 loc).
+  destruct (access_at x loc Cur) eqn: Hx; [destruct p|]; destruct (access_at y loc Cur) eqn: Hy; subst; auto; try contradiction.
+  - destruct H; subst.
+    destruct (access_at z loc Cur); congruence.
+  - destruct (access_at z loc Cur) eqn: Hz; auto.
+    destruct p; try contradiction.
+    apply access_Freeable_max in Hx; apply access_Freeable_max in Hz.
+    rewrite Hx, Hz; auto.
+  - destruct H; subst.
+    destruct (access_at z loc Cur); congruence.
+  - destruct H; subst.
+    destruct (access_at z loc Cur); congruence.
+  - destruct p; try contradiction.
+    destruct (access_at z loc Cur); auto.
+    destruct H0; subst; auto.
 Qed.
 
 Definition ext_spec_mem_evolve (Z: Type) 
@@ -385,6 +414,38 @@ rewrite nextblock_access_empty in * by auto.
 contradiction.
 Qed.
 
+Lemma mem_step_evolve : forall m m', mem_step m m' -> mem_evolve m m'.
+Proof.
+  induction 1; intros loc.
+  - rewrite <- (storebytes_access _ _ _ _ _ H); destruct (access_at m loc Cur); auto.
+    destruct p; auto.
+  - destruct (adr_range_dec (b', lo) (hi - lo) loc).
+    + destruct (alloc_dry_updated_on _ _ _ _ _ loc H) as [->]; auto.
+      pose proof (Mem.alloc_result _ _ _ _ _ H); subst.
+      destruct loc, a; subst.
+      rewrite nextblock_access_empty; auto; lia.
+    + eapply alloc_dry_unchanged_on in n as [Heq _]; eauto.
+      rewrite <- Heq.
+      destruct (access_at m loc Cur); auto.
+      destruct p; auto.
+  - revert dependent m; induction l; simpl; intros.
+    + inv H; destruct (access_at m' loc Cur); auto.
+      destruct p; auto.
+    + destruct a as ((b, lo), hi).
+      destruct (Mem.free m b lo hi) eqn: Hfree; inv H.
+      apply IHl in H1.
+      destruct (adr_range_dec (b, lo) (hi - lo) loc).
+      * destruct loc, a; subst.
+        eapply free_access in Hfree as [Hfree H2]; [rewrite Hfree | lia].
+        pose proof (access_cur_max m0 (b0, z)) as Hperm; rewrite H2 in Hperm; simpl in Hperm.
+        destruct (access_at m0 (b0, z) Cur); try contradiction.
+        destruct (access_at m' (b0, z) Cur) eqn: Hm'; auto.
+        destruct p; try contradiction.
+        apply access_Freeable_max in Hfree; apply access_Freeable_max in Hm'; rewrite Hfree, Hm'; auto.
+      * destruct loc; eapply free_nadr_range_eq in n as [->]; eauto.
+  - eapply mem_evolve_trans; eauto.
+Qed.
+
 Lemma whole_program_sequential_safety_ext:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
@@ -412,16 +473,17 @@ Proof.
  destruct (@semax_prog_rule Espec CS _ _ _ _ 
      0 (*additional temporary argument - TODO (Santiago): FIXME*)
      initial_oracle EXIT H H0) as [b [q [[H1 H2] H3]]].
- destruct (H3 O) as [jmx [H4x [H5x [H6x [H7x _]]]]].
+ destruct (H3 O) as [jmx [H4x [H5x [H6x [H6'x [H7x _]]]]]].
  destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
  exists b, q. (* , (m_dry jmx'). *)
  split3; auto.
  rewrite H4x in H8y. auto.
- subst. simpl. clear H5x H6x H7x H8y.
+ subst. simpl.
+ clear H5x H6x H6'x H7x H8y.
  forget (m_dry jmx) as m. clear jmx.
  intro n.
  specialize (H3 n).
- destruct H3 as [jm [? [? [? [? _]]]]].
+ destruct H3 as [jm [? [? [? [Hwsat [? _]]]]]].
  unfold semax.jsafeN in H6.
  subst m.
  assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm))
@@ -430,38 +492,78 @@ Proof.
    eexists; constructor; constructor.
    instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
    instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
- clear - JDE DME H4 J H6.
+ destruct Hwsat as (z & Jz & Hdry & Hz).
+ (* safety uses all the resources, including the ones we put inside
+    invariants (since there's no take-from-invariant step in Clight) *)
+ rewrite Hdry.
+ assert (exists w, join (m_phi jm) w (m_phi z) /\
+   (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w) as Hwsat.
+ { do 2 eexists; eauto; apply initial_world.wsat_rmap_wsat. }
+ clear - JDE DME H4 J H6 Hwsat.
   rewrite <- H4.
  assert (level jm <= n)%nat by lia.
  clear H4; rename H into H4.
  forget initial_oracle as ora.
- revert ora jm q H4 J H6; induction n; simpl; intros.
- assert (level (m_phi jm) = 0%nat) by lia. rewrite H; constructor.
+ revert ora jm z q H4 J Hwsat H6; induction n; intros.
+ assert (level jm = 0%nat) by lia. rewrite H; constructor.
  inv H6.
- - rewrite <- level_juice_level_phi, H; constructor.
- -
-   rewrite <- level_juice_level_phi in H4 |- *.
+ - rewrite H; constructor.
+ - (* in the juicy semantics, we took a step with jm *)
    destruct H as (?&?&Hl&Hg).
+   (* so we can take the same step with the full memory z *)
+   assert (Mem.extends (m_dry jm) (m_dry z)) as Hmem by admit.
+   assert (exists m'', corestep (cl_core_sem (globalenv prog)) q (m_dry z) c' m'') as [m'' ?] by admit.
    rewrite Hl; eapply safeN_step.
    + red. red. fold (globalenv prog). eassumption.
-   + destruct (H1 (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
-     { eexists; apply join_comm, core_unit. }
-     { rewrite Hg.
-       destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto. }
-     replace (m_dry m') with (m_dry m'') by auto.
-     change (level (m_phi jm)) with (level jm) in *.
-     replace n0 with (level m'') by lia.
-     apply IHn; auto. lia.
-     replace (level m'') with n0 by lia. auto.
+   + destruct Hwsat as (w & Jw & Hw).
+     (* the new full memory can be broken into the memory we got from the step,
+        and the memory we left in the invariant *)
+     assert (exists z', join (m_phi m') (age_to.age_to (level m') w) (m_phi z') /\ m_dry z' = m'') as (z' & J' & ?); subst.
+     { destruct (CLC_memsem (globalenv prog)) eqn: Hsem.
+       inv Hsem.
+       apply corestep_mem, mem_step_evolve in H2.
+       destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap z m'') as (? & ? & Hr' & Hg').
+       eapply mem_evolve_cohere in H2; [|eauto].
+       apply (age_to_cohere _ _ (level m')) in H2 as (A & B & C & D).
+       exists (mkJuicyMem _ _ A B C D); split; auto; simpl.
+       apply compcert_rmaps.RML.resource_at_join2; auto.
+       * admit.
+       * admit.
+       * intros; rewrite !age_to_resource_at.age_to_resource_at, Hr';
+           unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
+         admit.
+       * rewrite !age_to_resource_at.age_to_ghost_of, Hg, Hg'.
+         rewrite <- level_juice_level_phi; apply compcert_rmaps.RML.ghost_fmap_join, compcert_rmaps.RML.ghost_of_join; auto. }
+     assert ((invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred
+       (age_to.age_to (level m') w)).
+     { eapply pred_nec_hereditary, Hw; apply age_to.age_to_necR. }
+     assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi z'))
+       (compcert_rmaps.RML.R.ghost_fmap
+         (compcert_rmaps.RML.R.approx (level z'))
+         (compcert_rmaps.RML.R.approx (level z'))
+        (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil))).
+     { admit. }
+     edestruct H0 as (? & ? & Hz' & Hsafe); eauto.
+     { apply join_sub_refl. }
+     destruct Hsafe as [Hsafe | (m2 & ? & ? & ? & Hsafe)].
+     { admit. }
+     (* after accessing invariants, we have a new sub-memory m2, which
+        completes to the same full memory *)
+     replace (level m') with (level m2) by admit.
+     destruct Hz' as [<- ?].
+     apply IHn; eauto.
+     { admit. }
+     { admit. }
  -
    destruct dryspec as [ty pre post exit]. simpl in *. (* subst ty. *)
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
    destruct JDE as [JDE1 [JDE2 JDE3]].
    specialize (JDE1 e x (dessicate e jm x)); simpl in JDE1.
+   destruct (level jm) eqn: Hl; [constructor|].
    eapply safeN_external.
      eassumption.
-     apply JDE1. reflexivity. assumption.
+     apply JDE1. Search mem_rmap_cohere. reflexivity. assumption.
      simpl. intros.
      assert (H20: exists jm', m_dry jm' = m' 
                       /\ (level jm' = n')%nat

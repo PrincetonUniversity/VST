@@ -1556,7 +1556,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   tc_vals params args ->
   let gargs := (filter_genv (globalenv prog), args) in
   { q : CC_core |
-   (forall jm, 
+   (forall jm,
      Forall (fun v => Val.inject (Mem.flat_inj (nextblock (m_dry jm))) v v)  args->
      inject_neutral (nextblock (m_dry jm)) (m_dry jm) /\
      Coqlib.Ple (Genv.genv_next (Genv.globalenv prog)) (nextblock (m_dry jm)) ->
@@ -2057,6 +2057,7 @@ Lemma semax_prog_rule {CS: compspecs} :
          { jm |
            m_dry jm = m /\ level jm = n /\
            nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
+           (exists z, join (m_phi jm) (wsat_rmap (m_phi jm)) (m_phi z) /\ ext_order jm z) /\
            jsafeN (@OK_spec Espec) (globalenv prog) z q jm /\
            no_locks (m_phi jm) /\
            matchfunspecs (globalenv prog) G (m_phi jm) /\
@@ -2125,7 +2126,8 @@ Proof.
   assert (nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)))
     by (simpl; unfold inflate_initial_mem; rewrite ghost_of_make_rmap;
           unfold initial_core_ext; rewrite ghost_of_make_rmap;  auto).
-  split3; [ | | split3; [ | | split3]]; auto.
+  split3; [ | | split3; [ | | split3; [ | | split]]]; auto.
+  + apply initial_jm_wsat.
   + destruct H4 as [post [H4 H4']].
     unfold main_spec_ext' in H4'.
     injection H4'; intros.  subst params A.

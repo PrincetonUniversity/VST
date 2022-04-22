@@ -435,6 +435,6 @@ eapply mem_step_storebytes; eauto.
 *
  rewrite andb_true_iff in H; destruct H.
  eapply inline_external_call_mem_step; eauto.
-Qed.
+Defined.
 
 Definition at_external c := cl_at_external (fst (CC_state_to_CC_core c)). (* Temporary definition for compatibility between CompCert 3.3 and new-compcert *)

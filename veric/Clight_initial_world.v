@@ -707,6 +707,34 @@ Proof.
     constructor.
 Qed.
 
+Lemma initial_jm_wsat : forall {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
+        (H: Genv.init_mem prog = Some m)
+        (H1: list_norepet (prog_defs_names prog))
+        (H2: match_fdecs (prog_funct prog) G),
+  exists z, join (m_phi (initial_jm_ext ora prog m G n H H1 H2)) (wsat_rmap (m_phi (initial_jm_ext ora prog m G n H H1 H2))) (m_phi z) /\
+    ext_order (initial_jm_ext ora prog m G n H H1 H2) z.
+Proof.
+  intros.
+  destruct (make_rmap _ (Some (ext_ghost ora, NoneP) :: tl wsat_ghost) (level (initial_core_ext ora (Genv.globalenv prog) G n))
+    (inflate_initial_mem'_fmap m _)) as (z & Hl & Hr & Hg); auto.
+  destruct (juicy_mem_resource (initial_jm_ext ora prog m G n H H1 H2) z) as (jz & ? & ?); unfold initial_jm_ext; simpl; subst.
+  { rewrite Hr. unfold inflate_initial_mem; rewrite resource_at_make_rmap. auto. }
+  exists jz; split. apply resource_at_join2; rewrite ?inflate_initial_mem_level, ?Hl, ?Hr, ?Hg; auto.
+  - unfold wsat_rmap; rewrite level_make_rmap, inflate_initial_mem_level; auto.
+  - intros; unfold inflate_initial_mem, wsat_rmap; rewrite !resource_at_make_rmap.
+    rewrite <- core_resource_at, resource_at_make_rmap.
+    apply join_comm, core_unit.
+  - unfold inflate_initial_mem, wsat_rmap; rewrite !ghost_of_make_rmap.
+    unfold initial_core_ext; rewrite ghost_of_make_rmap.
+    repeat constructor.
+  - split; auto. apply rmap_order.
+    rewrite Hl, Hr, Hg.
+    unfold inflate_initial_mem; rewrite level_make_rmap, resource_at_make_rmap, ghost_of_make_rmap.
+    split; auto; split; auto.
+    unfold initial_core_ext; rewrite ghost_of_make_rmap.
+    eexists; repeat constructor.
+Qed.
+
 (* 
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 *)
@@ -749,10 +777,6 @@ Lemma level_initial_core ge G n : level (initial_core ge G n) = n.
 Proof.
   apply level_make_rmap.
 Qed.*)
-
-Section invs.
-
-Context {inv_names : invariants.invG}.
 
 Definition matchfunspecs (ge : genv) (G : funspecs) : pred rmap :=
   ALL b:block, ALL fs: funspec,
@@ -960,5 +984,3 @@ Proof.
   destruct H7.
   auto.
 Qed.
-
-End invs.

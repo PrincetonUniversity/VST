@@ -227,6 +227,7 @@ Theorem semax_prog_rule :
          { jm |
            m_dry jm = m /\ level jm = n /\
            nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
+           (exists z, join (m_phi jm) (wsat_rmap (m_phi jm)) (m_phi z) /\ ext_order jm z) /\
            jsafeN (@OK_spec Espec) (globalenv prog) z q jm /\
            no_locks (m_phi jm) /\
            matchfunspecs (globalenv prog) G (m_phi jm) /\
