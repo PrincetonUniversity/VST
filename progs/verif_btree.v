@@ -3,7 +3,7 @@ Require Import verif_bin_search.
 Require Import progs.btree. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Require Export VST.floyd.Funspec_old_Notation.
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Inductive bnode :=
@@ -1136,7 +1136,7 @@ Proof.
   Intro r; forward.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Existing Instance NullExtension.Espec.
+#[export] Existing Instance NullExtension.Espec.
 
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.

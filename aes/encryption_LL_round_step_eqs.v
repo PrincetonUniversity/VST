@@ -5,6 +5,7 @@
 
 Require Import aes.spec_encryption_LL.
 Require Import compcert.common.Values.
+Require Import VST.floyd.functional_base.
 Local Open Scope Z.
 
 Lemma round13eq: forall buf S12 S13,

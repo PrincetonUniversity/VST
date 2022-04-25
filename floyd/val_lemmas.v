@@ -11,7 +11,7 @@ Transparent intsize_eq.
 
 Lemma force_Vint:  forall i, force_int (Vint i) = i.
 Proof.  reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite force_Vint : norm.
+#[export] Hint Rewrite force_Vint : norm.
 
 Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
 Proof. destruct v; simpl; try solve [right; intros N; trivial].
@@ -64,7 +64,7 @@ Proof.
   rewrite Int.signed_repr by lia; auto.
   rewrite Int.unsigned_repr by lia; auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
+#[export] Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
 Lemma sem_cast_i2i_correct_range: forall sz s v,
   is_int sz s v -> sem_cast_i2i sz s v = Some v.
@@ -75,19 +75,19 @@ Proof.
   + simpl in H; destruct H; subst; reflexivity.
   + simpl in H; destruct H; subst; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite sem_cast_i2i_correct_range using (solve [auto with norm]) : norm.
+#[export] Hint Rewrite sem_cast_i2i_correct_range using (solve [auto with norm]) : norm.
 
 Lemma sem_cast_neutral_ptr:
   forall p, isptr p -> sem_cast_pointer p = Some p.
 Proof. intros. destruct p; try contradiction; reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite sem_cast_neutral_ptr using (solve [auto with norm]): norm.
+#[export] Hint Rewrite sem_cast_neutral_ptr using (solve [auto with norm]): norm.
 
 Lemma sem_cast_neutral_Vint: forall v,
   sem_cast_pointer (Vint v) = Some (Vint v).
 Proof.
   intros. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite sem_cast_neutral_Vint : norm.
+#[export] Hint Rewrite sem_cast_neutral_Vint : norm.
 
 Definition isVint v := match v with Vint _ => True | _ => False end.
 
@@ -110,36 +110,36 @@ Proof.
 destruct v; simpl; intros; try contradiction; auto.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite sem_cast_neutral_int using
+#[export] Hint Rewrite sem_cast_neutral_int using
   (auto;
    match goal with H: is_int ?i ?s ?v |- isVint ?v => apply (is_int_is_Vint i s v H) end) : norm.
 
 Lemma sizeof_tuchar: forall {cs: compspecs}, sizeof tuchar = 1%Z.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @sizeof_tuchar: norm.
+#[export] Hint Rewrite @sizeof_tuchar: norm.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r Z.sub_0_r : norm.
+#[export] Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r Z.sub_0_r : norm.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite eval_id_same : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite Ptrofs.sub_idem Ptrofs.sub_zero_l  Ptrofs.add_neg_zero : norm.
+#[export] Hint Rewrite eval_id_same : norm.
+#[export] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
+#[export] Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
+#[export] Hint Rewrite Ptrofs.sub_idem Ptrofs.sub_zero_l  Ptrofs.add_neg_zero : norm.
 
 Lemma eval_expr_Etempvar:
   forall {cs: compspecs}  i t, eval_expr (Etempvar i t) = eval_id i.
 Proof. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @eval_expr_Etempvar : eval.
+#[export] Hint Rewrite @eval_expr_Etempvar : eval.
 
 Lemma eval_expr_binop: forall {cs: compspecs}  op a1 a2 t, eval_expr (Ebinop op a1 a2 t) =
           `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @eval_expr_binop : eval.
+#[export] Hint Rewrite @eval_expr_binop : eval.
 
 Lemma eval_expr_unop: forall {cs: compspecs} op a1 t, eval_expr (Eunop op a1 t) =
           lift1 (eval_unop op (typeof a1)) (eval_expr a1).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @eval_expr_unop : eval.
+#[export] Hint Rewrite @eval_expr_unop : eval.
 
 #[export] Hint Resolve  eval_expr_Etempvar : core.
 
@@ -148,33 +148,33 @@ Proof. intros. symmetry; auto.
 Qed.
 #[export] Hint Resolve  eval_expr_Etempvar' : core.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite Ptrofs.add_zero  Ptrofs.add_zero_l Ptrofs.sub_zero_l : norm.
+#[export] Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
+#[export] Hint Rewrite Ptrofs.add_zero  Ptrofs.add_zero_l Ptrofs.sub_zero_l : norm.
 
 Lemma eval_var_env_set:
   forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite eval_var_env_set : norm.
+#[export] Hint Rewrite eval_var_env_set : norm.
 
 Lemma eval_expropt_Some: forall {cs: compspecs}  e, eval_expropt (Some e) = `Some (eval_expr e).
 Proof. reflexivity. Qed.
 Lemma eval_expropt_None: forall  {cs: compspecs} , eval_expropt None = `None.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @eval_expropt_Some @eval_expropt_None : eval.
+#[export] Hint Rewrite @eval_expropt_Some @eval_expropt_None : eval.
 
 Lemma deref_noload_tarray:
   forall ty n, deref_noload (tarray ty n) = (fun v => v).
 Proof.
  intros. extensionality v. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite deref_noload_tarray : norm.
+#[export] Hint Rewrite deref_noload_tarray : norm.
 
 Lemma deref_noload_Tarray:
   forall ty n a, deref_noload (Tarray ty n a) = (fun v => v).
 Proof.
  intros. extensionality v. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite deref_noload_Tarray : norm.
+#[export] Hint Rewrite deref_noload_Tarray : norm.
 
 Lemma flip_lifted_eq:
   forall (v1: environ -> val) (v2: val),
@@ -182,7 +182,7 @@ Lemma flip_lifted_eq:
 Proof.
 intros. unfold_lift. extensionality rho. apply prop_ext; split; intro; auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite flip_lifted_eq : norm.
+#[export] Hint Rewrite flip_lifted_eq : norm.
 
 Lemma isptr_is_pointer_or_null:
   forall v, isptr v -> is_pointer_or_null v.
@@ -310,7 +310,7 @@ Proof.
 intros.
 unfold deref_noload. rewrite H. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite isptr_deref_noload using reflexivity : norm.
+#[export] Hint Rewrite isptr_deref_noload using reflexivity : norm.
 
 Definition headptr (v: val): Prop :=
   exists b,  v = Vptr b Ptrofs.zero.

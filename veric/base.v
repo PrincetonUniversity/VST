@@ -17,7 +17,7 @@ Require Export compcert.common.Globalenvs.
 Require Export VST.msl.Coqlib2. 
 Require Export VST.veric.coqlib4.
 
-Global Set Warnings "-deprecated-hint-rewrite-without-locality". (* Delete this line after we abandon Coq 8.13 *)
+(* Global Set Warnings "-deprecated-hint-rewrite-without-locality".  Delete this line after we abandon Coq 8.13 *)
 
 (* Lemmas about ident lists *)
 

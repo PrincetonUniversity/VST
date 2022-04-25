@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.strlib.
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition strchr_spec :=
@@ -70,7 +70,7 @@ Definition strlen_spec :=
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
 
-(*after Coq 8.13: #[export]*) Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
+#[export] Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
 
 Lemma body_strlen: semax_body Vprog Gprog f_strlen strlen_spec.
 Proof.

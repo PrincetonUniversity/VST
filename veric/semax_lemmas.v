@@ -1335,8 +1335,8 @@ Section eq_dec.
 
 End eq_dec.
 
-#[(*export, after Coq 8.13*)global] Instance EqDec_statement: EqDec statement := eq_dec_statement.
-#[(*export, after Coq 8.13*)global] Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
+#[export] Instance EqDec_statement: EqDec statement := eq_dec_statement.
+#[export] Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
 
 Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
 Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.

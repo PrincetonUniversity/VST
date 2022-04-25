@@ -3,7 +3,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.progs64.object.
 
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope Z.
@@ -169,7 +169,7 @@ forward_if
           data_at_ Ews (Tstruct _foo_object noattr) p;
           object_methods foo_invariant (gv _foo_methods))).
 *
-change (Memory.EqDec_val p nullval) with (eq_dec p nullval).
+change (EqDec_val p nullval) with (eq_dec p nullval).
 if_tac; entailer!.
 *
 forward_call 1.

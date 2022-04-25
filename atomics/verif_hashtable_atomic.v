@@ -12,7 +12,7 @@ Import List.
 
 Set Bullet Behavior "Strict Subproofs".
 
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Section Proofs.

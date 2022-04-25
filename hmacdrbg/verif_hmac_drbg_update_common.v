@@ -76,7 +76,7 @@ Lemma update_char add_len contents (HL:add_len = Zlength contents \/ add_len = 0
     HMAC_DRBG_update_round HMAC256 (contents_with_add additional add_len contents) key0 V
       (Z.to_nat
          (if
-           (negb (Memory.EqDec_val additional nullval) &&
+           (negb (EqDec_val additional nullval) &&
             negb (EqDec_Z add_len 0))%bool
           then 2
           else 1))):
@@ -88,12 +88,14 @@ HMAC256DRBGabs key1 V0 reseed_counter entropy_len prediction_resistance
 Proof. rename key0 into K. rename V0 into VV. rename key1 into KK.
 unfold hmac256drbgabs_hmac_drbg_update, HMAC256_DRBG_functional_prog.HMAC256_DRBG_update.
 rewrite HMAC_DRBG_update_concrete_correct. unfold HMAC_DRBG_update_concrete, contents_with_add in *; simpl in *.
-destruct (Memory.EqDec_val additional nullval); simpl in *.
+destruct (EqDec_val additional nullval); simpl in *.
 + inv H; trivial.
 + destruct (EqDec_Z add_len 0).
-  -  subst add_len. change (negb (left eq_refl)) with false in *. simpl. simpl in H. inv H; trivial.
+  -  subst add_len. change (negb (left eq_refl)) with false in *. 
+     simpl in H. inv H; trivial.
   - change (negb (right n0)) with true in *. simpl.
     destruct HL; try lia; subst add_len.
     destruct contents. rewrite Zlength_nil in n0; lia. 
-    change  (Z.to_nat 2) with 2%nat in H. rewrite <- H; trivial.
-Qed. 
+    change  (Z.to_nat 2) with 2%nat in H.
+    rewrite <- H; trivial.
+Qed.

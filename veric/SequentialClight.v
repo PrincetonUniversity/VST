@@ -48,7 +48,7 @@ Definition mem_evolve (m m': mem) : Prop :=
  | _, _ => False
  end.
 
-#[(*export, after Coq 8.13*)global] Instance mem_evolve_refl : RelationClasses.Reflexive mem_evolve.
+#[export] Instance mem_evolve_refl : RelationClasses.Reflexive mem_evolve.
 Proof.
   repeat intro.
   destruct (access_at x loc Cur); auto.

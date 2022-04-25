@@ -99,7 +99,7 @@ Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Map.em
 (** Definitions related to function specifications and return assertions **)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
 
-#[(*export, after Coq 8.13*)global] Instance EqDec_exitkind: EqDec exitkind.
+#[export] Instance EqDec_exitkind: EqDec exitkind.
 Proof.
 hnf. intros.
 decide equality.

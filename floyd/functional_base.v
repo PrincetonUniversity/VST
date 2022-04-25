@@ -20,21 +20,21 @@ Ltac fold_Vbyte :=
       fold (Vbyte c)
 end.
 Ltac  customizable_list_solve_preprocess ::= fold_Vbyte.
-#[(*export, after Coq 8.13*)global] Instance Inhabitant_val : Inhabitant val := Vundef.
-#[(*export, after Coq 8.13*)global] Instance Inhabitant_int: Inhabitant int := Int.zero.
-#[(*export, after Coq 8.13*)global] Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
-#[(*export, after Coq 8.13*)global] Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
-#[(*export, after Coq 8.13*)global] Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
-#[(*export, after Coq 8.13*)global] Instance Inhabitant_float : Inhabitant float := Float.zero.
-#[(*export, after Coq 8.13*)global] Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
+#[export] Instance Inhabitant_val : Inhabitant val := Vundef.
+#[export] Instance Inhabitant_int: Inhabitant int := Int.zero.
+#[export] Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
+#[export] Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
+#[export] Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
+#[export] Instance Inhabitant_float : Inhabitant float := Float.zero.
+#[export] Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
-(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.
-(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_ptrofs) using Zlength_solve : Znth.
-(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_int64) using Zlength_solve : Znth.
-(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_byte) using Zlength_solve : Znth.
-(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_int) using Zlength_solve : Znth.
-(*after Coq 8.13: #[export]*) Hint Rewrite (@Znth_map _ Inhabitant_val) using Zlength_solve : Znth.
+#[export] Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
+#[export] Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.
+#[export] Hint Rewrite (@Znth_map _ Inhabitant_ptrofs) using Zlength_solve : Znth.
+#[export] Hint Rewrite (@Znth_map _ Inhabitant_int64) using Zlength_solve : Znth.
+#[export] Hint Rewrite (@Znth_map _ Inhabitant_byte) using Zlength_solve : Znth.
+#[export] Hint Rewrite (@Znth_map _ Inhabitant_int) using Zlength_solve : Znth.
+#[export] Hint Rewrite (@Znth_map _ Inhabitant_val) using Zlength_solve : Znth.
 
 Create HintDb entailer_rewrite discriminated.
 
@@ -53,7 +53,7 @@ Qed.
 Lemma cons_inv {A} (a a':A) l l': a::l = a'::l' -> a=a' /\ l=l'.
 Proof. intros. inv H; eauto. Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite 
+#[export] Hint Rewrite 
    (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)
    (@Znth_map int64 _) (@Znth_map ptrofs _) (@Znth_map float _)
    (@Znth_map float32 _)
@@ -96,7 +96,7 @@ Lemma offset_val_force_ptr:
 Proof. extensionality v. destruct v; try reflexivity.
 simpl. rewrite Ptrofs.add_zero; auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite <- offset_val_force_ptr : norm.
+#[export] Hint Rewrite <- offset_val_force_ptr : norm.
 
 Lemma offset_offset_val:
   forall v i j, offset_val j (offset_val i v) = offset_val (i + j) v.
@@ -104,14 +104,14 @@ Proof. intros; unfold offset_val.
  destruct v; auto.
  f_equal. rewrite Ptrofs.add_assoc. f_equal. apply ptrofs_add_repr.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite offset_offset_val: norm.
+#[export] Hint Rewrite offset_offset_val: norm.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite add_repr add64_repr ptrofs_add_repr : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite mul_repr mul64_repr ptrofs_mul_repr : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite sub_repr sub64_repr ptrofs_sub_repr : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite and_repr and64_repr : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite or_repr or64_repr : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite neg_repr neg64_repr : norm.
+#[export] Hint Rewrite add_repr add64_repr ptrofs_add_repr : norm.
+#[export] Hint Rewrite mul_repr mul64_repr ptrofs_mul_repr : norm.
+#[export] Hint Rewrite sub_repr sub64_repr ptrofs_sub_repr : norm.
+#[export] Hint Rewrite and_repr and64_repr : norm.
+#[export] Hint Rewrite or_repr or64_repr : norm.
+#[export] Hint Rewrite neg_repr neg64_repr : norm.
 
 Lemma ltu_repr: forall i j,
  (0 <= i <= Int.max_unsigned ->
@@ -202,7 +202,7 @@ Proof.
 intros.
 rewrite Int.add_assoc. f_equal. apply add_repr.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite int_add_assoc1 : norm.
+#[export] Hint Rewrite int_add_assoc1 : norm.
 
 Lemma ptrofs_add_assoc1:
   forall z i j, Ptrofs.add (Ptrofs.add z (Ptrofs.repr i)) (Ptrofs.repr j) = Ptrofs.add z (Ptrofs.repr (i+j)).
@@ -210,7 +210,7 @@ Proof.
 intros.
 rewrite Ptrofs.add_assoc. f_equal. apply ptrofs_add_repr.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite ptrofs_add_assoc1 : norm.
+#[export] Hint Rewrite ptrofs_add_assoc1 : norm.
 
 Lemma divide_add_align: forall a b c, Z.divide b a -> a + (align c b) = align (a + c) b.
 Proof.
@@ -233,7 +233,7 @@ Qed.
 Lemma force_val_e:
  forall v, force_val (Some v) = v.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite force_val_e: norm.
+#[export] Hint Rewrite force_val_e: norm.
 
 Definition ptr_eq (v1 v2: val) : Prop :=
       match v1,v2 with
@@ -267,7 +267,7 @@ Proof. intros.
  apply prop_ext; intuition. destruct p; inv H; simpl; auto.
  rewrite Ptrofs.eq_true. auto.
 Qed.
-(* (*after Coq 8.13: #[export]*) Hint Rewrite ptr_eq_True' using solve[auto] : norm. *)
+(* #[export] Hint Rewrite ptr_eq_True' using solve[auto] : norm. *)
 
 Lemma ptr_eq_True:
    forall p, is_pointer_or_null p -> ptr_eq p p = True.
@@ -275,7 +275,7 @@ Proof. intros.
  apply prop_ext; intuition. destruct p; inv H; simpl; auto.
  rewrite Ptrofs.eq_true. auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite ptr_eq_True using solve[auto] : norm.
+#[export] Hint Rewrite ptr_eq_True using solve[auto] : norm.
 
 Lemma ptr_eq_is_pointer_or_null: forall x y, ptr_eq x y -> is_pointer_or_null x.
 Proof.
@@ -313,7 +313,7 @@ Lemma isptr_offset_val_zero:
 Proof. intros. destruct v; inv H; subst; simpl.  rewrite Ptrofs.add_zero; reflexivity.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite isptr_offset_val_zero using solve [auto] : norm.
+#[export] Hint Rewrite isptr_offset_val_zero using solve [auto] : norm.
 
 Lemma isptr_offset_val:
  forall i p, isptr (offset_val i p) = isptr p.
@@ -322,17 +322,17 @@ intros.
 unfold isptr.
 destruct p; simpl; auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite isptr_offset_val : norm.
+#[export] Hint Rewrite isptr_offset_val : norm.
 
 Lemma isptr_force_ptr: forall v, isptr v -> force_ptr v = v.
 Proof. intros. destruct v; inv H; auto. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite isptr_force_ptr using solve [auto] : norm.
+#[export] Hint Rewrite isptr_force_ptr using solve [auto] : norm.
 
 Lemma isptr_force_ptr' : forall p, isptr (force_ptr p) =  isptr p.
 Proof.
 intros. destruct p; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite isptr_force_ptr' : norm.
+#[export] Hint Rewrite isptr_force_ptr' : norm.
 
 Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
@@ -470,8 +470,8 @@ Qed.
 #[export] Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
     (apply zero_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite sign_ext_inrange using assumption : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite zero_ext_inrange using assumption : norm.
+#[export] Hint Rewrite sign_ext_inrange using assumption : norm.
+#[export] Hint Rewrite zero_ext_inrange using assumption : norm.
 
 Definition repable_signed_dec (z: Z) : {repable_signed z}+{~repable_signed z}.
 Proof.
@@ -542,7 +542,7 @@ Qed.
 Lemma force_signed_int_e:
   forall i, force_signed_int (Vint i) = Int.signed i.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite force_signed_int_e : norm.
+#[export] Hint Rewrite force_signed_int_e : norm.
 
 Ltac const_equation x :=
   let y := eval compute in x
@@ -704,7 +704,7 @@ Proof.
   intros i l.
   apply Znth_map.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite Znth_map_Vbyte using old_list_solve : norm entailer_rewrite.
+#[export] Hint Rewrite Znth_map_Vbyte using old_list_solve : norm entailer_rewrite.
 
 Lemma Znth_map_Vubyte: forall (i : Z) (l : list byte),
   0 <= i < Zlength l -> Znth i (map Vubyte l)  = Vubyte (Znth i l).
@@ -712,7 +712,7 @@ Proof.
   intros i l.
   apply Znth_map.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite Znth_map_Vubyte using old_list_solve : norm entailer_rewrite.
+#[export] Hint Rewrite Znth_map_Vubyte using old_list_solve : norm entailer_rewrite.
 
 Lemma repr_inj_signed:
   forall i j,

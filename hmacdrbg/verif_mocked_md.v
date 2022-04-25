@@ -141,7 +141,7 @@ Proof.
   Intros vret.
 
   forward_if.
-  { simpl. destruct (Memory.EqDec_val vret nullval).
+  { simpl. destruct (EqDec_val vret nullval).
     + subst vret; entailer!.
     + entailer!.
   }

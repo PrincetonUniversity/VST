@@ -41,20 +41,20 @@ Import FashNotation.
 Import LiftNotation.
 Import Ctypes Clight expr.
 
-#[(*export, after Coq 8.13*)global] Existing Instance EqDec_ident. 
-#[(*export, after Coq 8.13*)global] Existing Instance EqDec_byte.
-#[(*export, after Coq 8.13*)global] Existing Instance EqDec_memval.
-#[(*export, after Coq 8.13*)global] Existing Instance EqDec_quantity.
+#[export] Existing Instance EqDec_ident. 
+#[export] Existing Instance EqDec_byte.
+#[export] Existing Instance EqDec_memval.
+#[export] Existing Instance EqDec_quantity.
 
-#[(*export, after Coq 8.13*)global] Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
+#[export] Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
+#[export] Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
+#[export] Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
+#[export] Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
+#[export] Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
+#[export] Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
+#[export] Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
+#[export] Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
+#[export] Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
 Lemma derives_eq : @derives _ Nveric = predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(AG := _)(EO := _).
 Proof.
@@ -67,7 +67,7 @@ Ltac unseal_derives := rewrite derives_eq in *.
 
 
 
-#[(*export, after Coq 8.13*)global] Program Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
+#[export] Program Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
   { bupd := bupd; own := @own }.
 Next Obligation.
 Proof.
@@ -110,17 +110,17 @@ Proof.
   constructor; apply @ghost_dealloc.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftClassicalSep' T {ND: NatDed T}{SL: SepLog T}{CS: ClassicalSep T} :
+#[export] Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
+#[export] Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
+#[export] Instance LiftClassicalSep' T {ND: NatDed T}{SL: SepLog T}{CS: ClassicalSep T} :
            ClassicalSep (LiftEnviron T) := LiftClassicalSep _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T} :
+#[export] Instance LiftIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T} :
            Indir (LiftEnviron T) := LiftIndir _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftSepIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T} :
+#[export] Instance LiftSepIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T} :
            SepIndir (LiftEnviron T) := LiftSepIndir _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftCorableSepLog' T {ND: NatDed T}{SL: SepLog T}{CSL: CorableSepLog T} :
+#[export] Instance LiftCorableSepLog' T {ND: NatDed T}{SL: SepLog T}{CSL: CorableSepLog T} :
            CorableSepLog (LiftEnviron T) := LiftCorableSepLog _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CSL: CorableSepLog T}{CI: CorableIndir T} :
+#[export] Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CSL: CorableSepLog T}{CI: CorableIndir T} :
            CorableIndir (LiftEnviron T) := LiftCorableIndir _ _.
 
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
@@ -1983,7 +1983,7 @@ End PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
 
 Require Import Coq.Classes.Morphisms.
 
-#[(*export, after Coq 8.13*)global] Instance prop_Proper:
+#[export] Instance prop_Proper:
   Proper (iff ==> (@eq mpred)) (prop).
 Proof.
   intros ? ? ?.

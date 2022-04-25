@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.logical_compare.
 Import compcert.lib.Maps.
 
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
 
 (****  START *)
 
@@ -140,7 +140,7 @@ start_function.
 forward.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Existing Instance NullExtension.Espec.
+#[export] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
