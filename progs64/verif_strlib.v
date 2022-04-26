@@ -336,7 +336,7 @@ forward_loop (EX i : Z,
  *
    forward_if.
    forward.
-   Exists (Int.repr 1). entailer!. simpl. intro. subst. lia.
+   Exists (Int.repr 1). entailer!.
 
    assert (H17: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by lia.
