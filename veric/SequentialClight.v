@@ -5,13 +5,13 @@ Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
+Require Import VST.veric.Clight_evsem.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
 Require VST.veric.NullExtension.
 (*Require Import VST.veric.Clight_sim.*)
 Require Import VST.veric.SeparationLogicSoundness.
-Require Import VST.veric.resource_decay_join.
 Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.
 
@@ -446,6 +446,166 @@ Proof.
   - eapply mem_evolve_trans; eauto.
 Qed.
 
+(* Require Import VST.veric.resource_decay_join.
+
+We almost certainly want event semantics here. But one more try. *)
+
+(*Lemma resource_decay_join_rebuild b jm jm' phi2 jm3 m :
+  (forall loc, (fst loc >= b)%positive -> phi2 @ loc = NO Share.bot shares.bot_unreadable) ->
+  resource_decay b (m_phi jm) (m_phi jm') ->
+  ghost_of (m_phi jm') = own.ghost_approx jm' (ghost_of (m_phi jm)) ->
+  sepalg.join (m_phi jm) phi2 (m_phi jm3) -> mem_step (m_dry jm) (m_dry jm') -> mem_step (m_dry jm3) m -> Mem.extends (m_dry jm) (m_dry jm3) -> Mem.extends (m_dry jm') m ->
+    sepalg.join (m_phi jm') (age_to.age_to (level jm') phi2) (proj1_sig (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm3 m)) /\
+    resource_decay b (m_phi jm3) (proj1_sig (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm3 m)).
+Proof.
+  intros bound [lev rd] Hg J Hev Hev' Hmem Hmem'.
+  assert (lev12 : level (m_phi jm) = level phi2) by (apply join_level in J as []; congruence).
+
+  set (phi2' := age_to.age_to (level jm') phi2).
+  unfold resource_decay in *.
+
+  set (phi3' := proj1_sig (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm3 m)).
+
+  induction Hev'.
+  - pose (storebytes_juicy_mem _ _ _ _ _ H).
+
+  assert (DESCR : forall loc,
+             sepalg.join (m_phi jm' @ loc) (phi2' @ loc) (phi3' @ loc) /\
+               resource_decay_at b (level jm') (m_phi jm @ loc) (phi3' @ loc) (fst loc) /\
+               resource_fmap (approx (level jm')) (approx (level jm')) (phi3' @ loc) = phi3' @ loc
+         ).
+  {
+    intros loc.
+    specialize (rd loc).
+    apply compcert_rmaps.RML.resource_at_join with (loc := loc) in J.
+
+    unfold phi2'; clear phi2'; rewrite age_to_resource_at.age_to_resource_at.
+    unfold phi3'; clear phi3'; unfold juicy_mem_lemmas.rebuild_juicy_mem_rmap; rewrite resource_at_make_rmap.
+    unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
+    destruct jm as [m1 phi1 contents1 access1 max1 alloc1], jm' as [m1' phi1' contents1' access1' max1' alloc1'],
+      jm3 as [m3 phi3 contents3 access3 max3 alloc3]; simpl in *.
+    specialize (access1 loc); specialize (max1 loc); specialize (alloc1 loc);
+    specialize (access1' loc); specialize (max1' loc); specialize (alloc1' loc);
+    specialize (access3 loc); specialize (max3 loc); specialize (alloc3 loc).
+    specialize (Hev loc); specialize (Hev' loc). rewrite access3 in Hev'; rewrite access1, access1' in Hev.
+    autospec bound. destruct loc as (b1, ofs).
+
+    destruct rd as [nn [E1 | [(sh & rsh & v & v' & E1 & E1') | [(pos & v & E1') | (v & pp & E1 & E1')]]]].
+
+    - rewrite <-E1 in Hev, access1', max1', alloc1' |- *.
+      split;[|split;[split|]].
+      + inversion J; simpl. rewrite <- H0 in *; rewrite <- H2 in *; simpl in *.
+        if_tac; try constructor; auto.
+        edestruct (Mem.perm_extends_inv m1') as [Hnot | Hnot]; eauto.
+        { rewrite perm_access; eauto. }
+        { rewrite perm_access in Hnot. rewrite access1' in Hnot; simpl in Hnot.
+          if_tac in Hnot; inv Hnot. }
+        rewrite perm_access in Hnot. if_tac in max1'; try contradiction; subst. rewrite max1' in Hnot.
+if_tac in Hev'. edestruct Hperm' as [Hnot | Hnot]; eauto. { if_tac in Hnot; inv Hnot. }
+        destruct (access_at m' (b1, ofs) Max) eqn: Hmax. { contradiction Hnot; constructor. }
+        { 
+ if_tac in Hmem; subst. apply ghosts.join_Bot in RJ as []; subst. rewrite if_true in Hperm by auto; simpl in Hperm.
+        Search Mem.extends "inv".
+ rewrite if_true in Hmem by admit.  Check Mem.extends'.
+      + intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
+        inv J. apply NO_ext. apply bot_identity in RJ; auto.
+      + left. auto.
+      + apply resource_fmap_approx_idempotent.
+
+    -  rewrite E1'.
+      apply res_join'_spec in J.
+      inversion J; rewr (phi1 @ loc) in E1; simpl in *.
+      all:try congruence.
+      + injection E1; intros; subst.
+        exists (YES sh3 rsh3 (VAL v') NoneP).
+        split;[|split;[split|]].
+        * constructor; assumption.
+        * intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
+          congruence.
+        * right. left. simpl. exists sh3, rsh3, v, v'. split3; auto; try congruence.
+          clear - H2 E1''. eapply join_writable01; eauto.
+        * simpl. f_equal.
+      + injection E1; intros; subst.
+        rewr (phi1 @ loc) in J.
+        apply res_join'_spec_inv in J.
+        apply YES_join_full in J.
+        exfalso. breakhyps. auto. 
+
+    - autospec nn.
+      autospec bound.
+      rewrite nn in *.
+      rewrite bound in *.
+      apply res_join'_spec in J.
+      inv J; simpl.
+      exists (phi1' @ loc).
+      rewrite E1'.
+      split;[|split;[split|]].
+      + constructor. eauto.
+      + intros _. apply NO_ext.
+        apply bot_identity in H2; auto.
+      + right. right. left. eauto.
+      + simpl. unfold NoneP in *. simpl. do 2 f_equal.
+
+    - rewrite E1 in J.
+      exists (NO _ bot_unreadable).
+      rewrite E1'.
+      inv J.
+      + simpl.
+        split;[|split;[split|]].
+        * constructor. clear - RJ. apply join_top_l in RJ. rewrite RJ. apply join_bot.
+        * intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
+          congruence.
+        * right. right. right. exists v, pp. split; f_equal.
+          revert RJ; clear.
+          intro. apply YES_ext. eapply join_top; eauto.
+        * reflexivity.
+      + exfalso.
+        clear - RJ rsh2. apply join_top_l in RJ. subst. contradiction bot_unreadable; auto.
+  }
+
+  destruct (make_rmap (fun loc => proj1_sig (DESCR loc)) (own.ghost_approx phi1' (ghost_of phi3)))
+    with (n := level phi1') as (phi3' & lev3 & at3 & Hg3).
+  {
+    (* the right level of approximation *)
+    unfold "oo".
+    extensionality loc; simpl.
+    destruct (DESCR loc) as (?&?&rd3&?); simpl; auto.
+  }
+  {
+    rewrite !ghost_fmap_fmap, approx_oo_approx; auto.
+  }
+
+  exists phi3'.
+  split;[|split; [split|]].
+  - apply resource_at_join2; auto.
+    + rewrite lev3.
+      unfold phi2'.
+      apply level_age_to.
+      eauto with *.
+    + intros loc.
+      rewrite at3.
+      destruct (DESCR loc) as (?&?&?); simpl; auto.
+    + subst phi2'; rewrite Hg, age_to_ghost_of, Hg3.
+      apply ghost_fmap_join, ghost_of_join; auto.
+  - rewrite lev3.
+    apply join_level in J.
+    auto with *.
+  - intros loc.
+    rewrite at3.
+    destruct (DESCR loc) as (?&?&rd3); simpl; auto.
+    destruct rd3 as [[NN rd3] _].
+    split; auto.
+    destruct rd3 as [R|[R|[R|R]]].
+    + left. exact_eq R; do 3 f_equal; auto.
+    + right; left. destruct R as [sh [psh [v [v' [H [H0 H1]]]]]].
+       exists sh, H1, v, v'.
+       split. replace (level phi3') with (level phi1'); rewrite H. apply YES_ext; auto.
+       rewrite H0; apply YES_ext; auto.
+    + right; right; left. auto.
+    + auto.
+  - congruence.
+Qed.*)
+
 Lemma whole_program_sequential_safety_ext:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
@@ -499,7 +659,9 @@ Proof.
  assert (exists w, join (m_phi jm) w (m_phi z) /\
    (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w) as Hwsat.
  { do 2 eexists; eauto; apply initial_world.wsat_rmap_wsat. }
- clear - JDE DME H4 J H6 Hwsat.
+ assert (mem_sub (m_dry jm) (m_dry z)) as Hmem.
+ { rewrite Hdry; repeat (split; auto). }
+ clear - JDE DME H4 J H6 Hwsat Hmem.
   rewrite <- H4.
  assert (level jm <= n)%nat by lia.
  clear H4; rename H into H4.
@@ -511,8 +673,8 @@ Proof.
  - (* in the juicy semantics, we took a step with jm *)
    destruct H as (?&?&Hl&Hg).
    (* so we can take the same step with the full memory z *)
-   assert (Mem.extends (m_dry jm) (m_dry z)) as Hmem by admit.
-   assert (exists m'', corestep (cl_core_sem (globalenv prog)) q (m_dry z) c' m'') as [m'' ?] by admit.
+   evstep???
+
    rewrite Hl; eapply safeN_step.
    + red. red. fold (globalenv prog). eassumption.
    + destruct Hwsat as (w & Jw & Hw).
@@ -527,16 +689,26 @@ Proof.
        apply (age_to_cohere _ _ (level m')) in H2 as (A & B & C & D).
        exists (mkJuicyMem _ _ A B C D); split; auto; simpl.
        apply compcert_rmaps.RML.resource_at_join2; auto.
-       * admit.
-       * admit.
+       * apply join_level in Jw as []. rewrite !level_juice_level_phi in *. rewrite age_to.level_age_to; auto; lia.
+       * apply join_level in Jw as []. rewrite !level_juice_level_phi in *. rewrite !age_to.level_age_to; auto; lia.
        * intros; rewrite !age_to_resource_at.age_to_resource_at, Hr';
            unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
-         admit.
+         clear - H1 Jw Hw.
+         destruct m', z; simpl in *.
+
+resource_decay b phi1 phi1'
+join phi1 phi2 phi3
+
+join phi1' phi2 
+
+         
+         (* Something's missing. *) admit.
        * rewrite !age_to_resource_at.age_to_ghost_of, Hg, Hg'.
          rewrite <- level_juice_level_phi; apply compcert_rmaps.RML.ghost_fmap_join, compcert_rmaps.RML.ghost_of_join; auto. }
      assert ((invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred
        (age_to.age_to (level m') w)).
      { eapply pred_nec_hereditary, Hw; apply age_to.age_to_necR. }
+Search jstep.
      assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi z'))
        (compcert_rmaps.RML.R.ghost_fmap
          (compcert_rmaps.RML.R.approx (level z'))

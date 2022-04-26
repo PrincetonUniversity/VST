@@ -3,6 +3,7 @@ Require Import compcert.cfrontend.Cop.
 Require Import compcert.cfrontend.Clight.
 Require Import VST.msl.base.
 Require Import VST.veric.base.
+Require Import VST.veric.juicy_mem.
 Require Import VST.veric.mem_lessdef.
 
 Transparent intsize_eq.
@@ -282,17 +283,58 @@ induction H0.
    econstructor 5; eauto.
 Qed.
 
+Lemma unaryop_mem_lessdef {op u t m v m2}
+      (V: sem_unary_operation op u t m = Some v)
+      (M:mem_lessdef m m2):
+      sem_unary_operation op u t m2 = Some v.
+Proof. destruct op; simpl; inv V; try econstructor.
+unfold sem_notbool, bool_val in *.
+remember (classify_bool t) as c.
+destruct c; trivial.
+destruct u; trivial.
+simple_if_tac; trivial.
+destruct (Mem.weak_valid_pointer m _ _) eqn: Hm; inv H0.
+rewrite (mem_lessdef_weak_valid_pointer _ _ _ _ M); trivial.
+Qed.
+
 Lemma unaryop_mem_lessaloc {op u t m v m2}
       (V: sem_unary_operation op u t m = Some v)
       (M:mem_lessalloc m m2):
       sem_unary_operation op u t m2 = Some v.
-Proof. destruct op; simpl; inv V; try econstructor.
-unfold sem_notbool.
-unfold bool_val.
-remember (classify_bool t) as c.
-destruct c; trivial.
-destruct u; trivial.
-rewrite (weak_valid_pointer_lessalloc M); trivial.
+Proof. eapply unaryop_mem_lessdef, mem_lessalloc_lessdef; eauto.
+Qed.
+
+Lemma unaryop_mem_sub {op u t m v m2}
+      (V: sem_unary_operation op u t m = Some v)
+      (M:mem_sub m m2):
+      sem_unary_operation op u t m2 = Some v.
+Proof. eapply unaryop_mem_lessdef, mem_sub_lessdef; eauto.
+Qed.
+
+Lemma sem_cast_mem_lessdef {v t d m m2 v'} (M:mem_lessdef m m2):
+      sem_cast v t d m = Some v' -> sem_cast v t d m2 = Some v'.
+Proof.
+unfold sem_cast; intros.
+destruct (classify_cast t d); trivial.
+destruct v; trivial.
+simple_if_tac; trivial.
+destruct (Mem.weak_valid_pointer m _ _) eqn: Hm; inv H.
+rewrite (mem_lessdef_weak_valid_pointer _ _ _ _ M); trivial.
+Qed.
+
+Lemma sem_cast_mem_sub {v t d m m2 v'} (M:mem_sub m m2):
+      sem_cast v t d m = Some v' -> sem_cast v t d m2 = Some v'.
+Proof. apply sem_cast_mem_lessdef, mem_sub_lessdef; auto.
+Qed.
+
+Lemma sem_binarith_mem_lessdef {f1 f2 f3 f4 v1 t1 v2 t2 v' m m2} (M:mem_lessdef m m2):
+  sem_binarith f1 f2 f3 f4 v1 t1 v2 t2 m = Some v' ->
+  sem_binarith f1 f2 f3 f4 v1 t1 v2 t2 m2 = Some v'.
+Proof.
+  unfold sem_binarith; intros.
+  destruct (sem_cast v1 t1 _ m) eqn: Hcast1; inv H.
+  destruct (sem_cast v2 t2 _ m) eqn: Hcast2; inv H1.
+  erewrite !(sem_cast_mem_lessdef M); eauto.
 Qed.
 
 Lemma sem_cast_mem_lessaloc {v t d m m2} (M:mem_lessalloc m m2):
@@ -313,56 +355,111 @@ Proof. unfold sem_cmp, cmp_ptr.
     do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
 Qed.
 
-Lemma binaryop_mem_lessaloc {ge op v1 t1 v2 t2 m v m2}
+
+Lemma cmplu_bool_lessdef {v1 v2 f b m m2} (M : mem_lessdef m m2):
+  Val.cmplu_bool (Mem.valid_pointer m) f v1 v2 = Some b ->
+  Val.cmplu_bool (Mem.valid_pointer m2) f v1 v2 = Some b.
+Proof.
+  unfold Val.cmplu_bool; intros. forget Archi.ptr64 as ptr64.
+  destruct v1, v2; trivial; simple_if_tac; inv H;
+    repeat match goal with H: context[if ?b then _ else _] |- _ => destruct b eqn: ?Hb; inv H;
+      try apply andb_true_iff in Hb as [-> Hp];
+      try (rewrite orb_true_iff in Hp; destruct Hp as [Hp | Hp]; rewrite (mem_lessdef_valid_pointer _ _ _ _ M Hp), ?orb_true_r; auto) end.
+  * apply andb_true_iff in Hb0 as [Hp1 Hp2].
+    apply orb_true_iff in Hp1 as [Hp1 | Hp1]; apply orb_true_iff in Hp2 as [Hp2 | Hp2];
+      rewrite (mem_lessdef_valid_pointer _ _ _ _ M Hp1), (mem_lessdef_valid_pointer _ _ _ _ M Hp2), ?orb_true_r; auto.
+  * apply andb_true_iff in Hb0 as [Hp1 Hp2].
+    rewrite (mem_lessdef_valid_pointer _ _ _ _ M Hp1), (mem_lessdef_valid_pointer _ _ _ _ M Hp2); auto.
+Qed.
+
+Lemma cmpu_bool_lessdef {v1 v2 f b m m2} (M : mem_lessdef m m2):
+  Val.cmpu_bool (Mem.valid_pointer m) f v1 v2 = Some b ->
+  Val.cmpu_bool (Mem.valid_pointer m2) f v1 v2 = Some b.
+Proof.
+  unfold Val.cmpu_bool; intros. forget Archi.ptr64 as ptr64.
+  destruct v1, v2; trivial; simple_if_tac; inv H;
+    repeat match goal with H: context[if ?b then _ else _] |- _ => destruct b eqn: ?Hb; inv H;
+      try apply andb_true_iff in Hb as [-> Hp];
+      try (rewrite orb_true_iff in Hp; destruct Hp as [Hp | Hp]; rewrite (mem_lessdef_valid_pointer _ _ _ _ M Hp), ?orb_true_r; auto) end.
+  * apply andb_true_iff in Hb0 as [Hp1 Hp2].
+    apply orb_true_iff in Hp1 as [Hp1 | Hp1]; apply orb_true_iff in Hp2 as [Hp2 | Hp2];
+      rewrite (mem_lessdef_valid_pointer _ _ _ _ M Hp1), (mem_lessdef_valid_pointer _ _ _ _ M Hp2), ?orb_true_r; auto.
+  * apply andb_true_iff in Hb0 as [Hp1 Hp2].
+    rewrite (mem_lessdef_valid_pointer _ _ _ _ M Hp1), (mem_lessdef_valid_pointer _ _ _ _ M Hp2); auto.
+Qed.
+
+Lemma cmp_ptr_lessdef {v1 v2 f b m m2} (M : mem_lessdef m m2):
+  cmp_ptr m f v1 v2 = Some b ->
+  cmp_ptr m2 f v1 v2 = Some b.
+Proof.
+  unfold cmp_ptr; simple_if_tac;
+    match goal with |- option_map _ ?c = _ -> _ => destruct c eqn: Hcmp; intros H; inv H;
+      rewrite ?(cmplu_bool_lessdef M Hcmp), ?(cmpu_bool_lessdef M Hcmp); auto end.
+Qed.
+
+Lemma sem_cmp_mem_lessdef {f v1 t1 v2 t2 b m m2} (M : mem_lessdef m m2):
+      sem_cmp f v1 t1 v2 t2 m = Some b -> sem_cmp f v1 t1 v2 t2 m2 = Some b.
+Proof. unfold sem_cmp; intros.
+  destruct (classify_cmp t1 t2);
+    try match goal with H : match v1 with _ => _ end = Some _ |- _ => destruct v1; inv H end;
+    try match goal with H : context[match v2 with _ => _ end] |- _ => destruct v2; inv H end;
+    try (simple_if_tac; trivial);
+    try match goal with H : cmp_ptr _ _ _ _ = _ |- _ => rewrite ?H, ?(cmp_ptr_lessdef M H); trivial end.
+  eapply sem_binarith_mem_lessdef; eauto.
+Qed.
+
+Lemma binaryop_mem_lessdef {ge op v1 t1 v2 t2 m v m2}
       (V: sem_binary_operation ge op v1 t1 v2 t2 m = Some v)
-      (M:mem_lessalloc m m2):
+      (M:mem_lessdef m m2):
       sem_binary_operation ge op v1 t1 v2 t2 m2 = Some v.
-Proof. destruct op; simpl; inv V; try econstructor; clear -M.
-+ unfold sem_add.
+Proof. destruct op; simpl; inv V; try econstructor.
++ unfold sem_add in *.
   remember (classify_add t1 t2) as c.
   destruct c.
   - destruct v1; trivial.
   - destruct v1; trivial.
   - destruct v1; trivial.
   - destruct v1; trivial.
-  - unfold sem_binarith.
-    do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_sub.
+  - erewrite sem_binarith_mem_lessdef; eauto.
++ unfold sem_sub in *.
   remember (classify_sub t1 t2) as c.
   destruct c.
   - destruct v1; trivial.
   - destruct v1; trivial.
   - destruct v1; trivial.
-  - unfold sem_binarith.
-    do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_mul.
-  unfold sem_binarith.
-  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_div.
-  unfold sem_binarith.
-  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_mod.
-  unfold sem_binarith.
-  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_and.
-  unfold sem_binarith.
-  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_or.
-  unfold sem_binarith.
-  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_xor.
-  unfold sem_binarith.
-  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_cmp, cmp_ptr.
-  destruct (classify_cmp t1 t2);
-  try solve [destruct Archi.ptr64; rewrite (valid_pointer_lessalloc M); trivial].
- unfold sem_binarith.
-    do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ apply (sem_cmp_mem_lessalloc M).
-+ apply (sem_cmp_mem_lessalloc M).
-+ apply (sem_cmp_mem_lessalloc M).
-+ apply (sem_cmp_mem_lessalloc M).
-+ apply (sem_cmp_mem_lessalloc M).
+  - erewrite sem_binarith_mem_lessdef; eauto.
++ unfold sem_mul in *.
+  erewrite sem_binarith_mem_lessdef; eauto.
++ unfold sem_div in *.
+  erewrite sem_binarith_mem_lessdef; eauto.
++ unfold sem_mod in *.
+  erewrite sem_binarith_mem_lessdef; eauto.
++ unfold sem_and in *.
+  erewrite sem_binarith_mem_lessdef; eauto.
++ unfold sem_or in *.
+  erewrite sem_binarith_mem_lessdef; eauto.
++ unfold sem_xor in *.
+  erewrite sem_binarith_mem_lessdef; eauto.
++ erewrite sem_cmp_mem_lessdef; eauto.
++ erewrite sem_cmp_mem_lessdef; eauto.
++ erewrite sem_cmp_mem_lessdef; eauto.
++ erewrite sem_cmp_mem_lessdef; eauto.
++ erewrite sem_cmp_mem_lessdef; eauto.
++ erewrite sem_cmp_mem_lessdef; eauto.
+Qed.
+
+Lemma binaryop_mem_lessaloc {ge op v1 t1 v2 t2 m v m2}
+      (V: sem_binary_operation ge op v1 t1 v2 t2 m = Some v)
+      (M:mem_lessalloc m m2):
+      sem_binary_operation ge op v1 t1 v2 t2 m2 = Some v.
+Proof. eapply binaryop_mem_lessdef, mem_lessalloc_lessdef; eauto.
+Qed.
+
+Lemma binaryop_mem_sub {ge op v1 t1 v2 t2 m v m2}
+      (V: sem_binary_operation ge op v1 t1 v2 t2 m = Some v)
+      (M:mem_sub m m2):
+      sem_binary_operation ge op v1 t1 v2 t2 m2 = Some v.
+Proof. eapply binaryop_mem_lessdef, mem_sub_lessdef; eauto.
 Qed.
 
 Lemma eval_expr_eval_lvalue_mem_lessalloc ge ve te m:

@@ -529,21 +529,23 @@ Proof.
 Qed.
 
 (* Just like we reserve ghost name 0 for the external ghost, we reserve 1-3 for invariants/world satisfaction.
-  Presumably we'll have to prove that this isn't vacuous somewhere in the soundness proof.
+  We'll have to prove that this isn't vacuous somewhere in the soundness proof.
   We could delay the instantiation and be generic in inv_names, but since we know we'll always need it and we get to allocate it
-  before the program starts, I don't see any reason to hold off. *)
+  before the program starts, there's no reason to delay it. *)
 #[(*export, after Coq 8.13*)global] Instance inv_names : invG := { g_inv := 1%nat; g_en := 2%nat; g_dis := 3%nat}.
 
 Definition jm_fupd {Z} (ora : Z) (E1 E2 : Ensembles.Ensemble gname) P m :=
-  forall m' w z, necR m m' -> join (m_phi m') w (m_phi z) -> app_pred (wsat * ghost_set g_en E1) w ->
+  forall m' w z, necR m m' -> join (m_phi m') w (m_phi z) -> mem_sub (m_dry m') (m_dry z) ->
+    app_pred (wsat * ghost_set g_en E1) w ->
   jm_bupd ora (fun z2 => level z2 = 0 \/ exists m2 w2, join (m_phi m2) w2 (m_phi z2) /\
+    mem_sub (m_dry m2) (m_dry z2) /\
     app_pred (wsat * ghost_set g_en E2) w2 /\ P m2) z.
 
 Lemma jm_fupd_ora : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m,
   (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> jm_fupd ora E1 E2 P m) ->
   jm_fupd ora E1 E2 P m.
 Proof.
-  intros ?????????????.
+  intros ??????????????.
   apply jm_bupd_ora; intros J.
   eapply H; eauto.
   eapply join_sub_joins_trans in J; [|eexists; apply ghost_of_join; eauto].
@@ -555,8 +557,8 @@ Lemma jm_fupd_intro: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : fora
   P m -> jm_fupd ora E E P m.
 Proof.
   intros.
-  intros ??????.
-  apply jm_bupd_intro; eauto 7.
+  intros ???????.
+  apply jm_bupd_intro; eauto 8.
 Qed.
 
 Lemma jm_fupd_intro_strong: forall {Z} (ora : Z) E (P : juicy_mem -> Prop) m (HP : forall a b, P a -> necR a b -> P b),
@@ -571,8 +573,8 @@ Lemma jm_fupd_age : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m m', jm_
   age m m' -> jm_fupd ora E1 E2 P m'.
 Proof.
   intros.
-  intros ??????.
-  eapply H; [|eauto | eauto].
+  intros ???????.
+  eapply H; [| eauto | eauto | eauto].
   eapply necR_trans; [|eauto].
   constructor; auto.
 Qed.
@@ -582,18 +584,18 @@ Lemma jm_fupd_mono_strong : forall {Z} (ora : Z) E1 E2 (P1 P2 : juicy_mem -> Pro
   jm_fupd ora E1 E2 P2 m.
 Proof.
   intros ???????? Hmono.
-  intros ??? Hlater J HW.
+  intros ??? Hlater J ? HW.
   eapply H in HW; eauto.
   eapply jm_bupd_mono_strong; eauto.
-  intros ?? J' [|(? & ? & J2 & ? & ?)]; eauto.
-  right; do 3 eexists; eauto; split; auto.
+  intros ?? J' [|(? & ? & J2 & ? & ? & ?)]; eauto.
+  right; do 3 eexists; eauto; split; auto; split; auto.
   apply Hmono; auto.
   - apply necR_level in Hlater.
     apply join_level in J as [Hl ?].
     rewrite <- !level_juice_level_phi in Hl.
     apply join_level in J2 as [Hl2 ?].
     rewrite <- !level_juice_level_phi in Hl2.
-    destruct H0; lia.
+    destruct H1; lia.
   - eapply join_sub_joins_trans; eauto.
     eexists; apply ghost_of_join; eauto.
 Qed.
@@ -610,7 +612,7 @@ Lemma jm_fupd_ext : forall {Z} (ora : Z) E1 E2 (P : juicy_mem -> Prop) m m', jm_
       P a -> P b) ->
   jm_fupd ora E1 E2 P m'.
 Proof.
-  intros ??????? H [? Hext] Hclosed ??? Hnec Hj Hwsat.
+  intros ??????? H [? Hext] Hclosed ??? Hnec Hj ? Hwsat.
   assert (exists z0, join (m_phi (age_to.age_to (level m'0) m)) w (m_phi z0) /\ ext_order z0 z) as (z0 & Hz0 & ?).
   - eapply nec_ext_commut in Hext as [? Hext' Hnec']; [|apply necR_jm_phi; eauto].
     eapply join_ext_commut in Hj as (z0 & ? & Hext''); eauto.
@@ -620,9 +622,12 @@ Proof.
     apply rmap_order in Hext' as (Hl' & _); rewrite Hl' in Hnec'; subst.
     rewrite age_to_phi in *.
     exists jz0; split; auto; split; auto.
-  - specialize (H _ _ _ (age_to.age_to_necR _ _) Hz0 Hwsat).
+  - assert (mem_sub (m_dry (age_to.age_to (level m'0) m)) (m_dry z0)) as Hmem'.
+    { rewrite age_to_dry; destruct H2 as [->].
+      erewrite H0, necR_jm_dry; eauto. }
+    specialize (H _ _ _ (age_to.age_to_necR _ _) Hz0 Hmem' Hwsat).
     eapply jm_bupd_ext; [eapply H; eauto | eauto |].
-    apply rmap_order in Hext as (Hl & _); intros ??? [? Hext] ? [? | (? & ? & Hsub & ? & HP)].
+    apply rmap_order in Hext as (Hl & _); intros ??? [Hdry Hext] ? [? | (? & ? & Hsub & ? & ? & HP)].
     { rewrite level_juice_level_phi in *.
       apply rmap_order in Hext as (<- & ? & ?); auto. }
     pose proof (ext_join_sub _ _ Hext) as [g Hsub'].
@@ -635,13 +640,15 @@ Proof.
       rewrite Hr' in Hsub'.
       apply join_comm, unit_identity in Hsub'.
       eapply Hsub'; eauto. }
-    destruct (juicy_mem_resource x x1) as (? & ? & ?); subst.
+    destruct (juicy_mem_resource x x1) as (? & ? & Hmem''); subst.
     { symmetry; apply Hid; auto. }
     right; do 3 eexists; eauto; split; auto.
+    { rewrite <- Hdry, Hmem''; auto. }
+    split; auto.
     eapply Hclosed, HP.
     + rewrite !level_juice_level_phi in *; rewrite Hl.
       apply join_level in Hj as [].
-      destruct H1 as [? Hext]; apply rmap_order in Hext as (? & _).
+      destruct H2 as [? Hext]; apply rmap_order in Hext as (? & _).
       apply join_level in Hsub as [].
       apply necR_level in Hnec.
       rewrite !level_juice_level_phi in *; lia.

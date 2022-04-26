@@ -690,6 +690,27 @@ Proof.
   apply contents_default.
 Qed.
 
+(* There are plenty of other orders on memories, but they're all either
+   way too general (Mem.extends, mem_lessdef) or way too restrictive (mem_lessalloc). *)
+Definition mem_sub m1 m2 := mem_contents m1 = mem_contents m2 /\ nextblock m1 = nextblock m2 /\
+  forall b ofs k p, Mem.perm m1 b ofs k p -> Mem.perm m2 b ofs k p.
+
+Lemma mem_sub_valid_pointer : forall m1 m2 b ofs, mem_sub m1 m2 -> valid_pointer m1 b ofs = true ->
+  valid_pointer m2 b ofs = true.
+Proof.
+  unfold mem_sub, valid_pointer; intros.
+  destruct H as (_ & _ & Hp).
+  destruct (perm_dec m1 _ _ _ _); inv H0.
+  destruct (perm_dec m2 _ _ _ _); auto.
+Qed.
+
+Lemma mem_sub_weak_valid_pointer : forall m1 m2 b ofs, mem_sub m1 m2 -> weak_valid_pointer m1 b ofs = true ->
+  weak_valid_pointer m2 b ofs = true.
+Proof.
+  unfold weak_valid_pointer; intros.
+  apply orb_true_iff in H0 as [Hp | Hp]; rewrite (mem_sub_valid_pointer _ _ _ _ H Hp), ?orb_true_r; auto.
+Qed.
+
 Lemma join_sub_alloc_cohere : forall m jm, join_sub m (m_phi jm) ->
   alloc_cohere (m_dry jm) m.
 Proof.
@@ -701,7 +722,46 @@ Proof.
   apply identity_share_bot in RJ; subst; f_equal; apply proof_irr.
 Qed.
 
-Lemma juicy_mem_sub : forall jm m', join_sub m' (m_phi jm) -> exists jm', m_phi jm' = m'.
+Local Hint Resolve perm_refl : core.
+
+Lemma perm_of_sh_join_sub'': forall (sh1 sh2: Share.t),
+  join_sub sh1 sh2 ->
+  perm_order'' (perm_of_sh sh2) (perm_of_sh sh1).
+Proof.
+intros ?? [? J].
+unfold perm_of_sh.
+destruct (writable0_share_dec sh1).
+{ eapply join_writable01 in w; eauto.
+  rewrite (if_true _ _ _ _ _ w).
+  if_tac; if_tac; simpl; try constructor.
+  subst; rewrite (@only_bot_joins_top x) in J by (eexists; eauto).
+  apply join_comm, bot_identity in J; subst; contradiction. }
+if_tac; [repeat if_tac; constructor|].
+destruct (readable_share_dec sh1).
+{ eapply join_readable1 in r; eauto.
+  rewrite (if_true _ _ _ _ _ r); constructor. }
+repeat if_tac; try constructor.
+subst; apply split_identity, identity_share_bot in J; auto; contradiction.
+Qed.
+
+Lemma perm_of_res_sub_rmap : forall r1 r2 l, join_sub r1 r2 ->
+  perm_order'' (perm_of_res (r2 @ l)) (perm_of_res (r1 @ l)) /\
+  perm_order'' (perm_of_res' (r2 @ l)) (perm_of_res' (r1 @ l)).
+Proof.
+  intros ??? [? J].
+  apply (resource_at_join _ _ _ l) in J; inv J; simpl; auto.
+  - if_tac; if_tac; simpl; auto.
+    subst; apply split_identity, identity_share_bot in RJ; auto.
+  - lapply (perm_of_sh_join_sub'' sh1 sh3); [|eexists; eauto].
+    intros; destruct k; split; simpl; auto.
+  - destruct (perm_of_sh sh3) eqn: Hsh3.
+    destruct k; if_tac; split; simpl; constructor.
+    { apply perm_of_empty_inv in Hsh3; subst; contradiction bot_unreadable. }
+  - lapply (perm_of_sh_join_sub'' sh1 sh3); [|eexists; eauto].
+    intros; destruct k; split; simpl; auto.
+Qed.
+
+Lemma juicy_mem_sub : forall jm m', join_sub m' (m_phi jm) -> exists jm', m_phi jm' = m' /\ mem_sub (m_dry jm') (m_dry jm).
 Proof.
   intros ?? Hsub.
   unshelve eexists (mkJuicyMem (deflate_mem (m_dry jm) m' (join_sub_alloc_cohere _ _ Hsub)) m' _ _ _ _);
@@ -741,7 +801,30 @@ Proof.
     inv J; auto.
     apply split_identity in RJ; [|apply bot_identity].
     apply identity_share_bot in RJ; subst; f_equal; apply proof_irr.
-  - auto.
+  - repeat (split; auto).
+    unfold deflate_mem, perm; simpl; intros.
+    unfold PMap.get in H; simpl in H.
+    rewrite make_access_get in H.
+    destruct (perm_of_res_sub_rmap m' phi (b, ofs)) as [H1 H2].
+    { eexists; eauto. }
+    destruct (Pos.ltb_spec b (nextblock m)); [destruct k; simpl in H|].
+    + specialize (JMmax_access (b, ofs)).
+      unfold max_access_at, access_at in JMmax_access; simpl in *.
+      unfold perm_order'', perm_order' in *.
+      destruct (perm_of_res' (m' @ (b, ofs))) eqn: Hperm'; [|contradiction].
+      destruct (perm_of_res' (phi @ (b, ofs))) eqn: Hperm; [|contradiction].
+      destruct ((mem_access m) !! _ _ _); [|contradiction].
+      eapply perm_order_trans, perm_order_trans; eauto.
+    + specialize (JMaccess (b, ofs)).
+      unfold access_at in JMaccess; simpl in *.
+      unfold perm_order'', perm_order' in *.
+      destruct (perm_of_res (m' @ (b, ofs))) eqn: Hperm'; [|contradiction].
+      destruct (perm_of_res (phi @ (b, ofs))) eqn: Hperm; [|contradiction].
+      rewrite JMaccess.
+      eapply perm_order_trans; eauto.
+    + apply (resource_at_join _ _ _ (b, ofs)) in J.
+      lapply (JMalloc (b, ofs)); [|simpl; lia].
+      intros Hno; rewrite Hno in *; simpl in *; contradiction.
 Qed.
 
 #[(*export, after Coq 8.13*)global] Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
