@@ -1499,7 +1499,7 @@ Proof.
   eapply ext_compat_unnec; [apply necR_jm_phi; eauto|].
   eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
   eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
-  destruct H3 as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
+  destruct H4 as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 Qed.
 
 Lemma assert_safe_jsafe': forall {Espec: OracleKind} ge f ve te k ora jm,
@@ -1514,14 +1514,14 @@ Proof.
   { eapply ext_compat_unnec; [apply necR_jm_phi; eauto|].
     eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
     eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
-    destruct H3 as [? J]; eapply ghost_fmap_join in J; eexists; eauto. }
+    destruct H4 as [? J]; eapply ghost_fmap_join in J; eexists; eauto. }
   specialize (H _ _ Hext eq_refl eq_refl).
   spec H; [lia|].
   destruct k; eapply jm_fupd_mono; eauto; intros ? Hle Hsafe; try contradiction.
   inv Hsafe; try discriminate; try contradiction.
   constructor; auto.
   eapply jsafeN_step; eauto.
-  destruct H5; split; auto. inv H5; econstructor; simpl; eauto.
+  destruct H6; split; auto. inv H6; econstructor; simpl; eauto.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
@@ -1531,7 +1531,7 @@ Proof.
   inv Hsafe; try discriminate; try contradiction.
   constructor; auto.
   eapply jsafeN_step; eauto.
-  destruct H5; split; auto. inv H5; econstructor; simpl; eauto.
+  destruct H6; split; auto. inv H6; econstructor; simpl; eauto.
 Qed.
 
 Lemma fupd_jm_fupd : forall {Espec: OracleKind} ge (ora : OK_ty) ve te P Q jm,
@@ -1544,7 +1544,7 @@ Lemma fupd_jm_fupd : forall {Espec: OracleKind} ge (ora : OK_ty) ve te P Q jm,
   jm_fupd ora Ensembles.Full_set Ensembles.Full_set (P ora) jm.
 Proof.
   intros.
-  intros ????? Hinv.
+  intros ?????? Hinv.
   pose proof Hinv; eapply H in Hinv; try apply necR_jm_phi; eauto.
   intros ???. edestruct Hinv as (? & ? & z' & ? & Hr & ? & Hsafe); eauto; subst.
   destruct (level z') eqn: Hl.
@@ -1553,7 +1553,7 @@ Proof.
   { symmetry in Hl; apply levelS_age in Hl as (? & Hage & ?).
     rewrite later_age in HF; apply HF in Hage; contradiction. }
   destruct (juicy_mem_resource _ _ Hr) as (jm0 & ? & ?); subst.
-  destruct (juicy_mem_sub jm0 m1) as [jm1 ?]; [eexists; eauto | subst].
+  destruct (juicy_mem_sub jm0 m1) as (jm1 & ? & ?); [eexists; eauto | subst].
   assert (level (m_phi jm1) > 0)%nat as LW1 by (apply join_level in J as []; lia).
   unfold app_pred in Hsafe; rewrite H0 in Hsafe.
   eapply Hsafe in LW1; eauto.
@@ -1567,7 +1567,7 @@ Proof.
   rewrite !level_juice_level_phi in *; congruence.
   + eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
     eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
-    destruct H4 as [? J']; eapply ghost_fmap_join in J'; eexists; eauto.
+    destruct H5 as [? J']; eapply ghost_fmap_join in J'; eexists; eauto.
 Qed.
 
 Lemma assert_safe_fupd : forall {Espec: OracleKind} ge f ve te c rho,

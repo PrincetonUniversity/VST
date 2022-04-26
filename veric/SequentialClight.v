@@ -609,6 +609,11 @@ Qed.*)
 Lemma whole_program_sequential_safety_ext:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
+     (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+       (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
+       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
+         mem_sub m' m1' /\ proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
+         proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
      (dryspec: ext_spec OK_ty)
      (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
@@ -646,86 +651,90 @@ Proof.
  destruct H3 as [jm [? [? [? [Hwsat [? _]]]]]].
  unfold semax.jsafeN in H6.
  subst m.
- assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm))
-   (Some (ghost_PCM.ext_ref initial_oracle, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
- { destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); inv H5.
-   eexists; constructor; constructor.
-   instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
-   instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
  destruct Hwsat as (z & Jz & Hdry & Hz).
  (* safety uses all the resources, including the ones we put inside
     invariants (since there's no take-from-invariant step in Clight) *)
  rewrite Hdry.
+ assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi z))
+   (Some (ghost_PCM.ext_ref initial_oracle, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
+ { apply compcert_rmaps.RML.ghost_of_join in Jz.
+   unfold initial_world.wsat_rmap in Jz; rewrite ghost_of_make_rmap in Jz.
+   inv Jz.
+   { rewrite <- H7 in H5; discriminate. }
+   rewrite <- H3 in H5; inv H5; inv H10.
+   eexists; constructor; constructor.
+   instantiate (1 := (_, _)); split; simpl; [|hnf; eauto].
+   apply semax_prog.ext_ref_join. }
  assert (exists w, join (m_phi jm) w (m_phi z) /\
    (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w) as Hwsat.
  { do 2 eexists; eauto; apply initial_world.wsat_rmap_wsat. }
  assert (mem_sub (m_dry jm) (m_dry z)) as Hmem.
  { rewrite Hdry; repeat (split; auto). }
- clear - JDE DME H4 J H6 Hwsat Hmem.
+ clear - Jsub JDE DME H4 J H6 Hwsat Hmem.
   rewrite <- H4.
  assert (level jm <= n)%nat by lia.
  clear H4; rename H into H4.
  forget initial_oracle as ora.
- revert ora jm z q H4 J Hwsat H6; induction n; intros.
+ revert ora jm z q H4 J Hwsat Hmem H6; induction n; intros.
  assert (level jm = 0%nat) by lia. rewrite H; constructor.
  inv H6.
  - rewrite H; constructor.
  - (* in the juicy semantics, we took a step with jm *)
    destruct H as (?&?&Hl&Hg).
    (* so we can take the same step with the full memory z *)
-   evstep???
-
+   destruct (CLC_evsem (globalenv prog)) eqn: Hevsem; inv Hevsem.
+   destruct (CLC_memsem (globalenv prog)) eqn: Hmemsem; inv Hmemsem.
+   simpl in ev_step_ax1, ev_step_ax2.
+   apply ev_step_ax2 in H as [T H].
+   eapply cl_evstep_extends in H as (m1' & H & Hmem'); eauto.
+   apply ev_step_ax1 in H.
    rewrite Hl; eapply safeN_step.
    + red. red. fold (globalenv prog). eassumption.
    + destruct Hwsat as (w & Jw & Hw).
      (* the new full memory can be broken into the memory we got from the step,
         and the memory we left in the invariant *)
-     assert (exists z', join (m_phi m') (age_to.age_to (level m') w) (m_phi z') /\ m_dry z' = m'') as (z' & J' & ?); subst.
-     { destruct (CLC_memsem (globalenv prog)) eqn: Hsem.
-       inv Hsem.
-       apply corestep_mem, mem_step_evolve in H2.
-       destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap z m'') as (? & ? & Hr' & Hg').
-       eapply mem_evolve_cohere in H2; [|eauto].
-       apply (age_to_cohere _ _ (level m')) in H2 as (A & B & C & D).
+     assert (exists z', join (m_phi m') (age_to.age_to (level m') w) (m_phi z') /\ m_dry z' = m1') as (z' & J' & ?); subst.
+     { apply corestep_mem, mem_step_evolve in H.
+       destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap z m1') as (? & ? & Hr' & Hg').
+       eapply mem_evolve_cohere in H; [|eauto].
+       apply (age_to_cohere _ _ (level m')) in H as (A & B & C & D).
        exists (mkJuicyMem _ _ A B C D); split; auto; simpl.
        apply compcert_rmaps.RML.resource_at_join2; auto.
        * apply join_level in Jw as []. rewrite !level_juice_level_phi in *. rewrite age_to.level_age_to; auto; lia.
        * apply join_level in Jw as []. rewrite !level_juice_level_phi in *. rewrite !age_to.level_age_to; auto; lia.
        * intros; rewrite !age_to_resource_at.age_to_resource_at, Hr';
            unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
-         clear - H1 Jw Hw.
-         destruct m', z; simpl in *.
-
-resource_decay b phi1 phi1'
-join phi1 phi2 phi3
-
-join phi1' phi2 
-
-         
          (* Something's missing. *) admit.
        * rewrite !age_to_resource_at.age_to_ghost_of, Hg, Hg'.
          rewrite <- level_juice_level_phi; apply compcert_rmaps.RML.ghost_fmap_join, compcert_rmaps.RML.ghost_of_join; auto. }
      assert ((invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred
        (age_to.age_to (level m') w)).
      { eapply pred_nec_hereditary, Hw; apply age_to.age_to_necR. }
-Search jstep.
      assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi z'))
        (compcert_rmaps.RML.R.ghost_fmap
          (compcert_rmaps.RML.R.approx (level z'))
          (compcert_rmaps.RML.R.approx (level z'))
         (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil))).
-     { admit. }
+     { assert (join (ghost_of (m_phi m')) (ghost_of (age_to.age_to (level m') w))
+         (ghost_of (age_to.age_to (level m') (m_phi z)))) as J1.
+       { rewrite Hg, !age_to_resource_at.age_to_ghost_of.
+         apply compcert_rmaps.RML.ghost_fmap_join, compcert_rmaps.RML.ghost_of_join; auto. }
+       eapply join_eq in J1; [|apply compcert_rmaps.RML.ghost_of_join; eauto].
+       rewrite J1. rewrite age_to_resource_at.age_to_ghost_of.
+       destruct J as [? J]; eapply compcert_rmaps.RML.ghost_fmap_join in J; simpl in *; eexists; apply J. }
      edestruct H0 as (? & ? & Hz' & Hsafe); eauto.
      { apply join_sub_refl. }
-     destruct Hsafe as [Hsafe | (m2 & ? & ? & ? & Hsafe)].
-     { admit. }
+     assert (level x = level m') as Hl'.
+     { destruct Hz' as (? & ? & ?); apply join_level in J' as [];
+         rewrite <- !level_juice_level_phi in *; lia. }
+     destruct Hsafe as [Hsafe | (m2 & ? & ? & ? & ? & Hsafe)].
+     { rewrite <- Hl', Hsafe; constructor. }
      (* after accessing invariants, we have a new sub-memory m2, which
         completes to the same full memory *)
-     replace (level m') with (level m2) by admit.
+     assert (level m' = level m2) as Hl2 by (apply join_level in H6 as []; rewrite <- !level_juice_level_phi in *; lia).
+     rewrite Hl2.
      destruct Hz' as [<- ?].
-     apply IHn; eauto.
-     { admit. }
-     { admit. }
+     apply IHn; eauto. lia.
  -
    destruct dryspec as [ty pre post exit]. simpl in *. (* subst ty. *)
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
@@ -735,7 +744,8 @@ Search jstep.
    destruct (level jm) eqn: Hl; [constructor|].
    eapply safeN_external.
      eassumption.
-     apply JDE1. Search mem_rmap_cohere. reflexivity. assumption.
+     (* ext_spec_pre must respect mem extension *) admit.
+(*     apply JDE1. Search dessicate. reflexivity. assumption.*)
      simpl. intros.
      assert (H20: exists jm', m_dry jm' = m' 
                       /\ (level jm' = n')%nat
@@ -753,10 +763,10 @@ Search jstep.
      assert (level phi1 = level phi /\ resource_at phi1 = resource_at phi) as [Hl1 Hr1].
      { subst phi1; unfold initial_world.set_ghost; rewrite level_make_rmap, resource_at_make_rmap; auto. }
      pose (phi' := age_to.age_to n' phi1).
-     assert (mem_rmap_cohere m' phi'). {
-       clear - H1 Hr1 Hl1 H8 H7 H6 H3 DME JDE1.
-       apply JDE1 in H1; [ | reflexivity].
-       specialize (DME e _ _ _ _ _ _ _ _ _ _ H1 H6).
+     assert (mem_rmap_cohere m' phi') as H10. {
+       clear - H0 Hr1 Hl1 H8 H7 H5 H2 DME JDE1.
+       apply JDE1 in H0; [ | reflexivity].
+       specialize (DME e _ _ _ _ _ _ _ _ _ _ H0 H5).
      subst phi'.
      apply age_to_cohere.
      subst phi1.
@@ -771,12 +781,12 @@ Search jstep.
      subst jm' phi'; simpl. apply age_to.level_age_to. lia.
      hnf. split. intro loc. subst jm' phi'. simpl.
      rewrite age_to_resource_at.age_to_resource_at.
-     rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
+     rewrite Hr1, H7. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
      destruct (m_phi jm @ loc); auto. rewrite age_to.level_age_to by lia.
       reflexivity.
      intro loc. subst jm' phi'. simpl.
      rewrite age_to_resource_at.age_to_resource_at.
-     rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.
+     rewrite Hr1, H7. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.
      destruct (m_phi jm @ loc); auto.
      if_tac; simpl; auto. destruct k; simpl; auto. if_tac; simpl; eauto. simpl; eauto.
      subst jm' phi'. simpl m_phi.
@@ -786,17 +796,26 @@ Search jstep.
      extensionality; unfold compose; simpl.
      rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by lia.
      unfold initial_world.set_ghost; rewrite resource_at_make_rmap.
-     rewrite H8; auto.
+     rewrite H7; auto.
      unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl.
-     rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; lia); simpl; auto.
+     rewrite age_to.level_age_to, H8 by (rewrite level_make_rmap; lia); simpl; auto.
    }
    destruct H20 as [jm'  [H26 [H27 [H28 [H29 Hg']]]]].
-   specialize (H2 ret jm' z' n' Hargsty Hretty).
-   spec H2. lia.
-    spec H2. hnf; split3; auto. lia.
-  spec H2.
-  eapply JDE2; eauto 6. lia. subst m'. apply H6.
-  destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
+   specialize (H1 ret jm' z' Hargsty Hretty).
+   spec H1. split; auto. lia.
+  spec H1.
+  eapply JDE2; eauto 6. lia. subst m'. apply H5.
+  destruct H1 as [c' [H2a H2b]]; exists c'; split; auto.
+  edestruct H2b as (? & ? & Hz' & Hsafe); eauto.
+  { apply join_sub_refl. }
+  destruct Hsafe as [Hsafe | (m2 & ? & ? & ? & ? & Hsafe)].
+  { admit. }
+  replace (level m') with (level m2) by admit.
+  destruct Hz' as [<- ?].
+  apply IHn; eauto.
+  { admit. }
+  { admit. }
+
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
   spec H2b. apply join_sub_refl.

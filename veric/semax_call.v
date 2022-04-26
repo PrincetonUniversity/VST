@@ -1351,7 +1351,7 @@ Proof.
   { eapply ext_compat_unnec; [apply necR_jm_phi; eauto|].
     eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
     eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
-    destruct H2 as [? J]; eapply ghost_fmap_join in J; eexists; eauto. }
+    destruct H3 as [? J]; eapply ghost_fmap_join in J; eexists; eauto. }
   specialize (AS _ _ Hext eq_refl eq_refl).
   spec AS; [lia|].
   destruct k; eapply jm_fupd_mono; eauto; intros ?? Hsafe; try contradiction.
@@ -1360,8 +1360,8 @@ Proof.
   intros.
   eapply age_safe; eauto.
   inv Hsafe; [constructor; auto | | discriminate | contradiction].
-  destruct H6.
-  inv H6.
+  destruct H7.
+  inv H7.
   eapply jsafeN_step.
   split. eapply step_skip_call; eauto. hnf; auto. auto. auto.
 -
@@ -1388,8 +1388,8 @@ Proof.
   intros.
   eapply age_safe; eauto.
   inv Hsafe; [constructor; auto | | discriminate | contradiction].
-  destruct H6.
-  inv H6.
+  destruct H7.
+  inv H7.
   eapply jsafeN_step.
   split. eapply step_skip_call; eauto. hnf; auto. auto. auto.
 Qed.
@@ -2867,7 +2867,7 @@ Proof.
   destruct Prog_OK' as [H5|H5].
   - pose proof (conj Funassert H14) as Hpre.
     apply fupd.fupd_andp_corable in Hpre; [|apply corable_funassert].
-    intros ????? Hw ?? J; eapply Hpre in Hw; try apply necR_jm_phi; eauto.
+    intros ?????? Hw ?? J; eapply Hpre in Hw; try apply necR_jm_phi; eauto.
     destruct (bupd_jm_bupd _ _ _ Hw J) as
         (jm' & Hupd & HR & J').
     exists jm'; repeat (split; auto).
@@ -2875,15 +2875,15 @@ Proof.
     destruct HR as [HF | (w1 & w2 & ? & ? & [Funassert' HR])].
     { symmetry in Hl; apply levelS_age in Hl as (? & Hage & ?).
       rewrite later_age in HF; apply age_jm_phi, HF in Hage; contradiction. }
-    edestruct (juicy_mem_sub jm' w2) as [jm0 ?]; subst.
+    edestruct (juicy_mem_sub jm' w2) as (jm0 & ? & ?); subst.
     { eexists; eauto. }
     destruct HR as (ts & x & F & H14' & HR).
-    right; do 3 eexists; eauto; split; auto.
+    right; do 3 eexists; eauto; split; auto; split; auto.
     assert (level jm0 <= level jm)%nat.
-    { apply join_level in H3 as []; destruct Hupd; apply join_level in H0 as []; apply necR_level in H; rewrite <- !level_juice_level_phi in *; lia. }
+    { apply join_level in H4 as []; destruct Hupd; apply join_level in H0 as []; apply necR_level in H; rewrite <- !level_juice_level_phi in *; lia. }
 
     eapply semax_call_external with (P:=deltaP)(Q:=Q)(fsig := (clientparams, retty)); try eassumption.
-    + apply (ext_join_sub_approx _ (level z)) in H1.
+    + apply (ext_join_sub_approx _ (level z)) in H3.
       eapply joins_comm, join_sub_joins_trans; eauto.
       eapply joins_comm, join_sub_joins_trans; eauto.
       eexists; apply ghost_of_join; eauto.
@@ -2905,7 +2905,7 @@ Proof.
 
     pose proof (conj Funassert H14) as Hpre.
     apply fupd.fupd_andp_corable in Hpre; [|apply corable_funassert].
-    intros ????? Hw ?? J; eapply Hpre in Hw; try apply necR_jm_phi; eauto.
+    intros ?????? Hw ?? J; eapply Hpre in Hw; try apply necR_jm_phi; eauto.
     destruct (bupd_jm_bupd _ _ _ Hw J) as
         (jm' & Hupd & HR & J').
     exists jm'; repeat (split; auto).
@@ -2913,10 +2913,10 @@ Proof.
     destruct HR as [HF | (w1 & w2 & ? & ? & [Funassert' HR])].
     { symmetry in Hl; apply levelS_age in Hl as (? & Hage & ?).
       rewrite later_age in HF; apply age_jm_phi, HF in Hage; contradiction. }
-    edestruct (juicy_mem_sub jm' w2) as [jm0 ?]; subst.
+    edestruct (juicy_mem_sub jm' w2) as (jm0 & ? & ?); subst.
     { eexists; eauto. }
     destruct HR as (ts & x & F & H14' & HR).
-    right; do 3 eexists; eauto; split; auto.
+    right; do 3 eexists; eauto; split; auto; split; auto.
     specialize (H19 Delta CS _ _ (necR_refl _) (ext_refl _)).
     spec H19. {
       intro; apply tycontext_sub_refl. }
@@ -2924,7 +2924,7 @@ Proof.
     red in H19.
 
     assert (necR (level jm) (level jm0)) as Hnec.
-    { apply nec_nat; apply join_level in H4 as []; destruct Hupd; apply join_level in H1 as []; apply necR_level in H0; rewrite <- !level_juice_level_phi in *; lia. }
+    { apply nec_nat; apply join_level in H5 as []; destruct Hupd; apply join_level in H1 as []; apply necR_level in H0; rewrite <- !level_juice_level_phi in *; lia. }
     destruct (level jm0) eqn:Hl0; [constructor; auto |].
     destruct (levelS_age1 _ _ Hl0) as [jm2 H13]. change (age jm0 jm2) in H13.
     rewrite <- Hl0 in *.
@@ -2946,7 +2946,7 @@ Proof.
     spec H19. {
       eapply semax_call_aux2 with (bl:=nil)(a:=Econst_int Int.zero tint)
                                   (Q:=Q)(fsig:=(clientparams,retty)); try apply HR; eauto.
-      + apply (ext_join_sub_approx _ (level z)) in H3.
+      + apply (ext_join_sub_approx _ (level z)) in H4.
         eapply joins_comm, join_sub_joins_trans; eauto.
         eapply joins_comm, join_sub_joins_trans; eauto.
         eexists; apply ghost_of_join; eauto.
