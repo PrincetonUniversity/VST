@@ -533,7 +533,7 @@ Lemma insert_tce: forall D P Q R,
 Proof. intros. rewrite <-  insert_local. reflexivity. Qed.
 *)
 
-(*after Coq 8.13: #[export]*) Hint Rewrite insert_local (*insert_tce*) :  norm2.
+#[export] Hint Rewrite insert_local (*insert_tce*) :  norm2.
 
 Lemma go_lower_lem20:
   forall QR QR',
@@ -637,14 +637,14 @@ Eval compute in grab_indexes (1::6::4::nil) (a::b::c::d::e::f::g::h::i::j::nil).
 Lemma fold_right_nil: forall {A B} (f: A -> B -> B) (z: B),
    fold_right f z nil = z.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @fold_right_nil : norm1.
-(*after Coq 8.13: #[export]*) Hint Rewrite @fold_right_nil : subst.
+#[export] Hint Rewrite @fold_right_nil : norm1.
+#[export] Hint Rewrite @fold_right_nil : subst.
 
 Lemma fold_right_cons: forall {A B} (f: A -> B -> B) (z: B) x y,
    fold_right f z (x::y) = f x (fold_right f z y).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @fold_right_cons : norm1.
-(*after Coq 8.13: #[export]*) Hint Rewrite @fold_right_cons : subst.
+#[export] Hint Rewrite @fold_right_cons : norm1.
+#[export] Hint Rewrite @fold_right_cons : subst.
 
 Lemma fold_right_and_app:
   forall (Q1 Q2: list (environ -> Prop)) rho,
@@ -787,7 +787,7 @@ Qed.
 
 Lemma local_unfold: forall P rho, local P rho = !! (P rho).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite local_unfold : norm2.
+#[export] Hint Rewrite local_unfold : norm2.
 
 Lemma lower_sepcon:
   forall P Q rho, @sepcon (environ->mpred) _ _ P Q rho = sepcon (P rho) (Q rho).
@@ -795,30 +795,30 @@ Proof. reflexivity. Qed.
 Lemma lower_andp:
   forall P Q rho, @andp (environ->mpred) _ P Q rho = andp (P rho) (Q rho).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite lower_sepcon lower_andp : norm2.
+#[export] Hint Rewrite lower_sepcon lower_andp : norm2.
 
 Lemma lift_prop_unfold:
    forall P z,  @prop (environ->mpred) _ P z = @prop mpred Nveric P.
 Proof.  reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite lift_prop_unfold: norm2.
+#[export] Hint Rewrite lift_prop_unfold: norm2.
 
 Lemma andp_unfold: forall (P Q: environ->mpred) rho,
   @andp (environ->mpred) _ P Q rho = @andp mpred Nveric (P rho) (Q rho).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite andp_unfold: norm2.
+#[export] Hint Rewrite andp_unfold: norm2.
 
 Lemma refold_andp:
   forall (P Q: environ -> mpred),
      (fun rho: environ => P rho && Q rho) = (P && Q).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite refold_andp : norm2.
+#[export] Hint Rewrite refold_andp : norm2.
 
 Lemma exp_unfold : forall A P rho,
  @exp (environ->mpred) _ A P rho = @exp mpred Nveric A (fun x => P x rho).
 Proof.
 intros. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite exp_unfold: norm2.
+#[export] Hint Rewrite exp_unfold: norm2.
 
 Module CConseqFacts :=
   SeparationLogicFacts.GenCConseqFacts
@@ -1464,7 +1464,7 @@ Lemma local_lift0: forall P, local (lift0 P) = prop P.
 Proof.
 intros. extensionality rho. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @local_lift0: norm2.
+#[export] Hint Rewrite @local_lift0: norm2.
 
 Lemma extract_exists_post:
   forall {Espec: OracleKind} {cs: compspecs} {A: Type} (x: A) Delta
@@ -1702,21 +1702,21 @@ Proof.
   eauto.
 Qed.
 
-(* (*after Coq 8.13: #[export]*) Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm. *)
+(* #[export] Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm. *)
 
 Lemma lower_PROP_LOCAL_SEP:
   forall P Q R rho, PROPx P (LOCALx Q (SEPx R)) rho =
      (!!fold_right and True P && (local (fold_right (`and) (`True) (map locald_denote Q)) && `(fold_right sepcon emp R))) rho.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite lower_PROP_LOCAL_SEP : norm2.
+#[export] Hint Rewrite lower_PROP_LOCAL_SEP : norm2.
 
 Lemma lower_TT: forall rho, @TT (environ->mpred) _ rho = @TT mpred Nveric.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite lower_TT : norm2.
+#[export] Hint Rewrite lower_TT : norm2.
 
 Lemma lower_FF: forall rho, @FF (environ->mpred) _ rho = @FF mpred Nveric.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite lower_FF : norm2.
+#[export] Hint Rewrite lower_FF : norm2.
 
 Lemma assert_PROP:
  forall P1 Espec {cs: compspecs} Delta PQR c Post,
@@ -1938,7 +1938,7 @@ extensionality rho.
 apply pred_ext; apply andp_derives; auto;
   apply prop_derives; tauto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @split_first_PROP using not_conj_notation : norm1.
+#[export] Hint Rewrite @split_first_PROP using not_conj_notation : norm1.
 
 Lemma perm_derives:
   forall Delta P Q R P' Q' R',

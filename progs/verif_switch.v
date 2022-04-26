@@ -1,9 +1,9 @@
 Require Import VST.floyd.proofauto.
 Require Import Recdef.
-#[(*export, after Coq 8.13*)global] Existing Instance NullExtension.Espec.
+#[export] Existing Instance NullExtension.Espec.
 Require Import VST.progs.switch.
 Require Export VST.floyd.Funspec_old_Notation.
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition twice_spec :=

@@ -323,7 +323,7 @@ Proof.
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl in *.
       + rewrite e in *. rewrite andb_false_r; trivial.
-      + destruct (Memory.EqDec_val additional nullval); simpl in *; trivial; discriminate. }
+      + destruct (EqDec_val additional nullval); simpl in *; trivial; discriminate. }
     clear Heqcontents'; subst contents'.
     rewrite Zlength_nil, Zplus_0_r.
     apply andp_right.

@@ -4,7 +4,7 @@ Local Open Scope logic.
 
 Definition prop_and_mpred := @prop_and mpred _.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite <- prop_and_mpred : gather_prop.
+#[export] Hint Rewrite <- prop_and_mpred : gather_prop.
 
 Lemma gather_prop_left:
   forall P Q (R: mpred),  !! P && (!! Q && R) = !!(P/\Q) && R.
@@ -15,7 +15,7 @@ Lemma gather_prop_right:
   forall P Q (R: mpred),  R && !! P && !! Q = !!(P/\Q) && R.
 Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
+#[export] Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
 
 Lemma andp_in_order1 {A}{NA: NatDed A}:
   forall P Q, P && Q = P && (P --> Q).
@@ -66,7 +66,7 @@ Lemma flip_prop: forall P Q,
       not_a_prop P -> (P&& !! Q = !! Q && P).
 Proof. intros. apply andp_comm. Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite flip_prop using not_a_prop : gather_prop.
+#[export] Hint Rewrite flip_prop using not_a_prop : gather_prop.
 
 Lemma gather_prop3:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> R && (!! P && Q) = !!P && (R && Q).
@@ -74,22 +74,22 @@ Proof. intros. rewrite andp_comm. rewrite andp_assoc.
         rewrite (andp_comm Q); auto.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite gather_prop3 using not_a_prop : gather_prop.
+#[export] Hint Rewrite gather_prop3 using not_a_prop : gather_prop.
 
 Lemma gather_prop4:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
 Proof. intros. rewrite andp_assoc. auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite gather_prop4 using not_a_prop : gather_prop.
+#[export] Hint Rewrite gather_prop4 using not_a_prop : gather_prop.
 
 Lemma gather_prop5:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> (R && !!P && Q) = !!P && (R && Q).
 Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
   f_equal; apply andp_comm.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite gather_prop5 using not_a_prop : gather_prop.
+#[export] Hint Rewrite gather_prop5 using not_a_prop : gather_prop.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite sepcon_andp_prop sepcon_andp_prop' : gather_prop gather_prop_core.
+#[export] Hint Rewrite sepcon_andp_prop sepcon_andp_prop' : gather_prop gather_prop_core.
 
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: mpred),
@@ -1216,7 +1216,7 @@ Ltac norm_rewrite := autorewrite with norm.
 Lemma TEST_L : forall n:nat, n=n -> (n + 1 = S n)%nat.
 Proof. intros. rewrite <- plus_n_Sm ,<- plus_n_O. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite TEST_L using reflexivity : test888.
+#[export] Hint Rewrite TEST_L using reflexivity : test888.
 Goal forall n, S n = (n + 1)%nat.
 intros.
 rewrite_strat (topdown hints test888).

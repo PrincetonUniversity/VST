@@ -237,4 +237,4 @@ Qed.
 
 End locks.
 
-#[(*export, after Coq 8.13*)global] Hint Resolve sync_inv_exclusive : exclusive.
+#[export] Hint Resolve sync_inv_exclusive : exclusive.

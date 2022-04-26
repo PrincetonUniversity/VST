@@ -2,7 +2,7 @@ Require Import VST.concurrency.conclib.
 Require Import VST.progs.cond_queue.
 
 Require Export VST.floyd.Funspec_old_Notation.
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
@@ -592,7 +592,7 @@ Qed.
 Definition extlink := ext_link_prog prog.
 
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-#[(*export, after Coq 8.13*)global] Existing Instance Espec.
+#[export] Existing Instance Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

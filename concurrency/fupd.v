@@ -37,7 +37,7 @@ Proof.
   setoid_rewrite IHn; auto; lia.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
+#[export] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
 Proof.
   intros; apply timeless'_timeless.
   intros ?? (v & ? & Hg) ?.
@@ -89,7 +89,7 @@ Proof.
   - rewrite age1_resource_at_identity; eauto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance timeless_FF : Timeless FF.
+#[export] Instance timeless_FF : Timeless FF.
 Proof.
   unfold Timeless; intros.
   iIntros ">?"; auto.
@@ -122,7 +122,7 @@ Proof.
   - apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply nonlock_permission_bytes_timeless].
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance emp_timeless : (@Timeless mpredI) emp.
+#[export] Instance emp_timeless : (@Timeless mpredI) emp.
 Proof.
   apply timeless'_timeless; intros ????.
   setoid_rewrite res_predicates.emp_no in H.
@@ -228,7 +228,7 @@ Proof.
   - apply union_pred_timeless; auto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
+#[export] Instance data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
 Proof.
   intros; apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply data_at_rec_timeless].
 Qed.
@@ -403,10 +403,10 @@ Proof.
   - exact fupd_frame_r.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance mpred_bi_fupd {inv_names : invG} : BiFUpd mpredI :=
+#[export] Instance mpred_bi_fupd {inv_names : invG} : BiFUpd mpredI :=
   {| bi_fupd_mixin := mpred_fupd_mixin |}.
 
-#[(*export, after Coq 8.13*)global] Instance mpred_bi_bupd_fupd {inv_names : invG} : BiBUpdFUpd mpredI.
+#[export] Instance mpred_bi_bupd_fupd {inv_names : invG} : BiBUpdFUpd mpredI.
 Proof. hnf. by iIntros (E P) ">? [$ $] !> !>". Qed.
 
 Section Invariants.
@@ -588,7 +588,7 @@ Lemma inv_in : forall i, elem_of (Pos.of_nat (S i)) (inv i).
 Proof.
   intros; rewrite elem_of_singleton; reflexivity.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Resolve inv_in : ghost.
+#[export] Hint Resolve inv_in : ghost.
 
 (* avoids some fragility in tactics *)
 Definition except0 : mpred -> mpred := bi_except_0.

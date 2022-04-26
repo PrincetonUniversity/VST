@@ -246,7 +246,7 @@ Proof.
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl.
         rewrite andb_false_r. left; apply Zlength_nil.
-        destruct (Memory.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
+        destruct (EqDec_val additional nullval); simpl. left; apply Zlength_nil.
         right; trivial.
     }
 

@@ -255,7 +255,7 @@ Proof. intros; subst. apply map_nth. Qed.
 Lemma Ztest_Bytetest:
  forall a, Z.testbit (Byte.unsigned a) = Byte.testbit a.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite Ztest_Bytetest : testbit.
+#[export] Hint Rewrite Ztest_Bytetest : testbit.
 
 Lemma nthD_1 {A B}: forall (f: A ->B) n l d fx dd, (n < length l)%nat ->
       nth n (map f l) d = fx ->

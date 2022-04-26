@@ -297,7 +297,7 @@ repeat forward.
 rewrite Z.add_simpl_r.
 rewrite Z2Nat.inj_add by lia.
 entailer!. 
-all: try apply derives_refl.  (* to support Coq 8.13 *)
+(* all: try apply derives_refl.   to support Coq 8.13 *)
 clear - H H0 H1.
 rewrite Round_equation.
 forget (W (nthi bb) i) as Wbbi.

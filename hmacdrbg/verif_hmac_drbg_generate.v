@@ -998,7 +998,7 @@ Proof.
     destruct (EqDec_Z (Zlength contents)  0); simpl. 
     + rewrite e. simpl. rewrite andb_false_r. reflexivity.
     + rewrite Int.eq_false; simpl. 
-      destruct (Memory.EqDec_val additional nullval); try reflexivity. contradiction. 
+      destruct (EqDec_val additional nullval); try reflexivity. contradiction. 
       intros N. assert (U: Int.unsigned (Int.repr (Zlength contents)) = Int.unsigned (Int.repr 0)). rewrite N; trivial. clear N.
       rewrite Int.unsigned_repr in U; trivial. rewrite U in n. elim n; trivial. 
   }
@@ -1133,7 +1133,7 @@ apply semax_pre with (P':=
     subst M after_reseed_state_abs. subst h; simpl in *.
     destruct PUPD; subst key2 ctx2. entailer!. 
   + destruct PRS as [? [? ?]]; subst stream1 key1 ctx1 after_reseed_state_abs.
-    destruct (Memory.EqDec_val additional nullval); simpl in *.
+    destruct (EqDec_val additional nullval); simpl in *.
     - destruct PUPD; subst ctx2 key2 na h; simpl in *. entailer!.
     - remember (EqDec_Z (Zlength contents) 0) as q; destruct q; simpl in *. 
       * destruct PUPD; subst ctx2 key2 na h; simpl in *. entailer!. 

@@ -7,7 +7,7 @@ Require Import sha.SHA256.
 
 Require Import VST.floyd.Funspec_old_Notation.
 
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Open Scope logic.
 
