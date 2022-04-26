@@ -423,8 +423,9 @@ Ltac prove_it_now :=
         | computable
         | apply Coq.Init.Logic.I
         | reflexivity
-        | rewrite ?intsigned_intrepr_bytesigned; rep_lia (* Omega0 *)
+        | rewrite ?intsigned_intrepr_bytesigned; rep_lia
         | prove_signed_range
+        | congruence
         | repeat match goal with
                       | H: ?A |- _ => has_evar A; clear H 
                       | H: @value_fits _ _ _ |- _ => clear H  (* delete these because they can cause slowness in the 'auto' *)
@@ -559,6 +560,7 @@ Ltac my_auto_reiter :=
         |eassumption].
 
 Ltac my_auto :=
+ repeat match goal with |- ?P -> _ => match type of P with Prop => intro end end;
  rewrite ?isptr_force_ptr by auto;
  let H := fresh in eapply my_auto_lem; [intro H; my_auto_iter H | ];
  try all_True;
