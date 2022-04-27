@@ -61,7 +61,6 @@ thaw FR2.
 thaw FR1.
 freeze FR3 := - (K_vector _) (data_block _ _ d) (hmacstate_ _ _ c).
 Time forward_call (Tsh, shm, hmacInit key, c, d, dl, data, gv). (*2.8*)
-  { rewrite H0_len512; assumption. }
 
 thaw FR3.
 freeze FR4 := - (K_vector _) (hmacstate_ _ _ c) (memory_block _ _ md).

@@ -18,7 +18,7 @@
 (** Additional operations and proofs about IEEE-754 binary
     floating-point numbers, on top of the Flocq library. *)
 
-From Flocq Require Import Core Digits Operations Round Bracket Sterbenz
+From Flocq3 Require Import Core Digits Operations Round Bracket Sterbenz
                           Binary Round_odd.
 Require Import Psatz.
 Require Import Bool.
