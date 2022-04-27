@@ -9,7 +9,6 @@ Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
 Require VST.veric.NullExtension.
-(*Require Import VST.veric.Clight_sim.*)
 Require Import VST.veric.SeparationLogicSoundness.
 Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.
@@ -87,7 +86,7 @@ Definition juicy_dry_ext_spec_make (Z: Type)
 destruct J.
 apply Build_external_specification with ext_spec_type.
 intros e t b tl vl x m.
-apply (forall jm, m_dry jm = m -> (* external ghost matches x -> *) ext_spec_pre e t b tl vl x jm).
+apply (forall jm, m_dry jm = m -> ext_spec_pre e t b tl vl x jm).
 intros e t b ot v x m.
 apply (forall jm, m_dry jm = m -> ext_spec_post e t b ot v x jm).
 intros v x m.
@@ -395,7 +394,7 @@ Lemma whole_program_sequential_safety_ext:
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
      prog V G m,
-     @semax_prog Espec (*NullExtension.Espec*) CS prog initial_oracle V G ->
+     @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -404,7 +403,7 @@ Lemma whole_program_sequential_safety_ext:
        forall n,
         @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
             (cl_core_sem (globalenv prog))
-            (*(dryspec  OK_ty)*) dryspec
+            dryspec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) 
              n initial_oracle q m.
 Proof.
@@ -414,7 +413,7 @@ Proof.
      initial_oracle EXIT H H0) as [b [q [[H1 H2] H3]]].
  destruct (H3 O) as [jmx [H4x [H5x [H6x [H7x _]]]]].
  destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
- exists b, q. (* , (m_dry jmx'). *)
+ exists b, q.
  split3; auto.
  rewrite H4x in H8y. auto.
  subst. simpl. clear H5x H6x H7x H8y.
@@ -454,7 +453,7 @@ Proof.
      apply IHn; auto. lia.
      replace (level m'') with n0 by lia. auto.
  -
-   destruct dryspec as [ty pre post exit]. simpl in *. (* subst ty. *)
+   destruct dryspec as [ty pre post exit]. simpl in *. 
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
    destruct JDE as [JDE1 [JDE2 JDE3]].

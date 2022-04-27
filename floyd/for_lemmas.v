@@ -27,7 +27,7 @@ Definition int_type_min_max (type_i type_hi: type): option (Z * Z) :=
   | Tint I32 Signed _, Tlong Signed _ => Some (Int.min_signed, Int.max_signed)
   | Tint I32 Unsigned _, Tlong _ _ => Some (0, Int.max_unsigned)
   | Tlong Signed _, Tint I32 Unsigned _ =>  Some (0, Int.max_unsigned)
-  | Tlong Signed _, Tint _ _ _ => Some (0 (*Int.min_signed*), Int.max_signed)
+  | Tlong Signed _, Tint _ _ _ => Some (0, Int.max_signed)
   | Tlong Unsigned _, Tint _ Unsigned _ => Some (0, Int.max_unsigned)
   | Tlong Unsigned _, Tint _ Signed _ =>  Some (0, Int.max_signed)
   | Tlong Signed _, Tlong Unsigned _ => Some (0, Int64.max_signed)
@@ -349,7 +349,6 @@ Context
 
 Hypothesis EVAL_hi: ENTAIL Delta, inv0 |-- EX n': val, !! (Int6432_val (typeof hi) n' n) && local (` (eq n') (eval_expr hi)).
 Hypothesis TC_hi: ENTAIL Delta, inv0 |-- tc_expr Delta hi.
-(*Hypothesis I32_i: (if LONG then is_long_type else is_int32_type) type_i = true. *)
 Hypothesis IMM: int_type_min_max type_i (typeof hi) = Some (int_min, int_max).
 Hypothesis Range_m: int_min <= m <= int_max.
 Hypothesis Range_n: int_min <= n <= int_max.
@@ -586,7 +585,7 @@ Lemma Sfor_inc_tc: forall i s,
       tc_temp_id _i (typeof (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) (Tint I32 s noattr)) type_i))
         Delta (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) (Tint I32 s noattr)) type_i).
 Proof.
-(*  intros until s; intro H'; *) intros.
+  intros.
   unfold tc_expr, tc_temp_id.
   destruct type_i as [| [| | |] [|] | | | | | | |]; 
   simpl typecheck_expr; unfold typecheck_temp_id;
@@ -849,8 +848,6 @@ Ltac solve_Int_eqm_unsigned :=
       | Int.mul _ _ => unfold Int.mul at 1
       | Int.and _ _ => unfold Int.and at 1
       | Int.or _ _ => unfold Int.or at 1
-(*      | Int.shl _ _ => unfold Int.shl at 1
-      | Int.shr _ _ => unfold Int.shr at 1*)
       | _ => rewrite <- (Int.repr_unsigned V) at 1
       end
     end;

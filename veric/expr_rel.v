@@ -134,7 +134,7 @@ Proof. intros. apply (field_offset_rec_cenv_sub CSUB); trivial. Qed.
 
 Lemma rel_lvalue_expr_relate:
   forall {CS: compspecs} ge te ve rho jm,
-    (*genv_cenv ge = cenv_cs*) (cenv_sub cenv_cs (genv_cenv ge)) ->
+    (cenv_sub cenv_cs (genv_cenv ge)) ->
     rho = construct_rho (filter_genv ge) ve te ->
     (forall e v,
            rel_expr e v rho (m_phi jm) ->
@@ -207,7 +207,7 @@ Qed.
 
 Lemma rel_expr_relate:
   forall {CS: compspecs} ge te ve rho e jm v,
-           (*genv_cenv ge = cenv_cs ->*) (cenv_sub cenv_cs (genv_cenv ge)) ->
+           (cenv_sub cenv_cs (genv_cenv ge)) ->
            rho = construct_rho (filter_genv ge) ve te ->
            rel_expr e v rho (m_phi jm) ->
            Clight.eval_expr ge ve te (m_dry jm) e v.
@@ -219,7 +219,7 @@ Qed.
 
 Lemma rel_lvalue_relate:
   forall {CS: compspecs}  ge te ve rho e jm b z,
-           (*genv_cenv ge = cenv_cs ->*) (cenv_sub cenv_cs (genv_cenv ge)) ->
+           (cenv_sub cenv_cs (genv_cenv ge)) ->
            rho = construct_rho (filter_genv ge) ve te ->
            rel_lvalue e (Vptr b z) rho (m_phi jm) ->
            Clight.eval_lvalue ge ve te (m_dry jm) e b z.
@@ -232,7 +232,6 @@ Qed.
 Lemma sem_cast_load_result:
  forall v1 t1 t2 v2 ch m,
   access_mode t1 = By_value ch ->
-(*  Clight.eval_expr ge ve te m e2 v1 -> *)
    Cop.sem_cast v1 t2 t1 m = Some v2 ->
   Val.load_result ch v2 = v2.
 Proof.

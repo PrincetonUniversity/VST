@@ -2,7 +2,7 @@ Require Import Coq.Sorting.Permutation.
 Require Import Coq.Sorting.Sorting.
 Require Import Coq.Structures.Orders.
 Require Import VST.veric.base.
-Require Import compcert.cfrontend.Ctypes. (*Require Import VST.veric.Clight_lemmas.*)
+Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.type_induction.
 Require Import VST.veric.composite_compute.
 Import compcert.lib.Maps.
@@ -184,7 +184,7 @@ Lemma aux1: forall T co,
                     hardware_alignof_composite T (co_members co).
 Proof.
   intros; unfold hardware_alignof_composite, hardware_alignof.
-  induction (co_members co). (* as [| [i t] ?]. *)
+  induction (co_members co).
   + auto.
   + simpl.
     f_equal; auto.
@@ -976,29 +976,6 @@ Fixpoint legal_alignas_struct_members_rec (la_env: PTree.t bool) (m: members) (p
         && (legal_alignas_type la_env t)
         && (legal_alignas_struct_members_rec la_env m' (next_field cenv pos m1))
   end.
-
-(*
-Fixpoint legal_alignas_struct_members_rec (la_env: PTree.t bool) (m: members) (pos: Z): bool :=
-  match m with
-  | nil => true
-  | Member_plain i t :: m' =>
-         (align pos (bitalignof cenv t) mod (hardware_alignof ha_env t * 8) =? 0)
-        && legal_alignas_type la_env t
-        && legal_alignas_struct_members_rec la_env m' (align pos (bitalignof cenv t) + bitsizeof cenv t)
-  | Member_bitfield i sz sg a w _ :: _ =>
-         false  (* bitfields not yet supported in VST *)
-  end.
-*)
-
-(*
-Fixpoint legal_alignas_struct_members_rec (la_env: PTree.t bool) (m: members) (pos: Z): bool :=
-  match m with
-  | nil => true
-  | m1 :: m' => let t := type_member m1 in 
-         (align pos (alignof cenv t) mod hardware_alignof ha_env t =? 0)
-        && (legal_alignas_type la_env t)
-        && (legal_alignas_struct_members_rec la_env m' (next_field env pos m1)
-*)
 
 Fixpoint legal_alignas_union_members_rec (la_env: PTree.t bool) (m: members): bool :=
   match m with

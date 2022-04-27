@@ -396,8 +396,6 @@ Proof. intros.
  destruct P; simpl; f_equal; extensionality; try extensionality; normalize.
 Qed.
 
-(*#[export] Hint Rewrite frame_ret_assert_emp : ret_assert.*)
-
 Lemma frame_ret_assert_EK_return:
  forall P Q vl, RA_return (frame_ret_assert P Q) vl =  RA_return P vl * Q.
 Proof.
