@@ -1715,7 +1715,8 @@ forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne
   (LENef: length (fst sig) = length (sig_args (ef_sig ef))),
   @semax_external Espec ef A P Q.
 
-Axiom semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
+Axiom semax_external_funspec_sub: forall 
+  (DISABLE: False) {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
                    (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 

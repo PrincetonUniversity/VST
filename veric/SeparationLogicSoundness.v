@@ -133,7 +133,8 @@ Lemma semax_external_binaryintersection: forall
   @CSHL_Def.semax_external Espec ef A P Q. 
 Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.
 
-Lemma semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
+Lemma semax_external_funspec_sub: forall 
+  (DISABLE: False) {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
                    (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
@@ -143,6 +144,7 @@ Lemma semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1
   @CSHL_Def.semax_external Espec ef A P Q.
 Proof.
   intros. intros n. eapply semax_external_funspec_sub.
+  assumption.
   rewrite <- funspec_sub_iff. apply Hsub. trivial. trivial.
 Qed.
 
