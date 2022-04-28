@@ -4,19 +4,6 @@ Import LiftNotation.
 Import compcert.lib.Maps.
 Local Open Scope logic.
 
-(*
-Lemma gvar_globals_only:
-  forall i v rho, gvar i v rho -> gvar i v (globals_only rho).
-Proof.
-unfold gvar; intros.
-unfold Map.get in *.
-destruct (ve_of rho i) as [[? ?]|] eqn:?; try contradiction.
-unfold globals_only.
-simpl. auto.
-Qed.
-#[export] Hint Resolve gvar_globals_only.
-*)
-
 Ltac safe_auto_with_closed :=
    (* won't instantiate evars by accident *)
  match goal with |- ?A =>
@@ -159,7 +146,6 @@ Proof.
 apply @closed_wrt_map_subst.
 Qed.
 
-(*#[export] Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.*)
 #[export] Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : subst.
 Lemma closed_wrt_subst_eval_expr:
   forall {cs: compspecs} j v e,
@@ -472,23 +458,6 @@ rewrite <- H1; auto.
 Qed.
 #[export] Hint Resolve closed_wrtl_eval_var : closed.
 
-(*
-Lemma closed_wrt_var:
-  forall S id t v, closed_wrt_vars S (var id t v).
-Proof.
-unfold var; intros.
-auto with closed.
-Qed.
-#[export] Hint Resolve closed_wrt_var : closed.
-
-Lemma closed_wrtl_var:
- forall S id t v, ~ S id -> closed_wrt_lvars S (var id t v).
-Proof.
-unfold var; intros; auto with closed.
-Qed.
-#[export] Hint Resolve closed_wrtl_var : closed.
-*)
-
 Lemma closed_wrt_lvar:
   forall S id t v, closed_wrt_vars S (locald_denote (lvar id t v)).
 Proof.
@@ -753,53 +722,7 @@ specialize (H x rho ve' H0);
 apply derives_refl'; congruence.
 Qed.
 #[export] Hint Resolve closed_wrt_allp closed_wrtl_allp : closed.
-(*DEAD CODE?
-Lemma closed_wrt_globvars:
-  forall S gv v, closed_wrt_vars S (globvars2pred gv v).
-Proof.
-intros.
-unfold globvars2pred.
-hnf; intros. unfold lift2. f_equal.
-induction v; simpl map; auto with closed.
-simpl.
-f_equal; auto.
-unfold globvar2pred; destruct a; simpl.
-destruct (gvar_volatile g) eqn:?; auto.
-forget (readonly2share (gvar_readonly g)) as sh.
-forget (gv i) as j.
-revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
-Qed.
 
-Lemma closed_wrtl_globvars:
-  forall S gv v, closed_wrt_lvars S (globvars2pred gv v).
-Proof.
-intros.
-unfold globvars2pred.
-hnf; intros. unfold lift2. f_equal.
-induction v; simpl map; auto with closed.
-simpl.
-f_equal; auto.
-unfold globvar2pred; destruct a; simpl.
-destruct (gvar_volatile g) eqn:?; auto.
-forget (readonly2share (gvar_readonly g)) as sh.
-forget (gv i) as j.
-revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
-Qed.
-#[export] Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.
-
-
-Lemma closed_wrt_main_pre:
-  forall {Z} prog (z : Z) v S, closed_wrt_vars S (main_pre prog z v).
-Proof.
-intros. unfold main_pre. apply closed_wrt_sepcon; [apply closed_wrt_globvars | apply closed_wrt_const].
-Qed.
-Lemma closed_wrtl_main_pre:
-  forall {Z} prog (z : Z) v S, closed_wrt_lvars S (main_pre prog z v).
-Proof.
-intros. unfold main_pre. apply closed_wrtl_sepcon; [apply closed_wrtl_globvars | apply closed_wrtl_const].
-Qed.
-#[export] Hint Resolve closed_wrt_main_pre closed_wrtl_main_pre : closed.
-*)
 Lemma closed_wrt_not1:
   forall (i j: ident),
    i<>j ->
@@ -1427,7 +1350,6 @@ unfold expr_closed_wrt_vars, closed_wrt_vars.
 intros.
 apply H; auto.
 Qed.
-(* #[export] Hint Resolve closed_wrt_eval_expr : closed. *)
 
 Lemma closed_wrt_lvalue: forall {cs: compspecs} S e,
   access_mode (typeof e) = By_reference ->
@@ -1439,7 +1361,6 @@ unfold closed_wrt_vars in *;
 intros; specialize (H0 _ _ H1); clear H1; super_unfold_lift;
 auto.
 Qed.
-(* #[export] Hint Resolve closed_wrt_lvalue : closed. *)
 
 Lemma closed_wrt_ideq: forall {cs: compspecs} a b e,
   a <> b ->
@@ -1767,22 +1688,6 @@ normalize. autorewrite with norm1 norm2; normalize.
 inv H.
 apply closed_wrtl_andp; auto with closed.
 Qed.
-(*
-Lemma closed_wrt_LOCALx:
- forall S Q R, Forall (fun q => closed_wrt_vars S (local q)) Q ->
-                    closed_wrt_vars S R ->
-                    closed_wrt_vars S (LOCALx Q R).
-Proof.
-intros.
-apply closed_wrt_andp; auto.
-clear - H.
-induction Q; simpl; intros.
-auto with closed.
-normalize.
-inv H.
-apply closed_wrt_andp; auto with closed.
-Qed.
-*)
 
 #[export] Hint Resolve closed_wrt_LOCALx closed_wrtl_LOCALx: closed.
 

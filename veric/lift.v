@@ -51,7 +51,7 @@ Tactic Notation "unfold_lift" :=
   end;
   cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota.
 
-Tactic Notation "unfold_lift" "in" hyp(H) := (* move this to veric/lift.v *)
+Tactic Notation "unfold_lift" "in" hyp(H) :=
   unfold liftx  in H;
   repeat match type of H with(* This unfolds instances of Tend *)
   | context [lift_uncurry_open (?F _)] => unfold F in H

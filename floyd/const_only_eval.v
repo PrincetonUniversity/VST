@@ -77,9 +77,6 @@ Definition const_only_isBinOpResultType {CS: compspecs} op typeof_a1 valueof_a1 
              (negb (eqb_type (typeof_a2) int_or_ptr_type)))
           (is_pointer_type ty)
     | Cop.add_default => false
-                           (*
-        andb (binarithType (typeof a1) (typeof a2) ty deferr reterr)
-          (tc_nobinover Z.add a1 a2) *)
       end
   | _ => false (* TODO *)
   end.
@@ -95,7 +92,7 @@ Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val :=
   match e with
   | Econst_int i (Tint I32 _ _) => Some (Vint i)
   | Econst_int _ _ => None
-  | Econst_long i ty => None (*Some (Vlong i) *)
+  | Econst_long i ty => None
   | Econst_float f (Tfloat F64 _) => Some (Vfloat f)
   | Econst_float _ _ => None
   | Econst_single f (Tfloat F32 _) => Some (Vsingle f)

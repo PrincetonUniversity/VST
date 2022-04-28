@@ -17,7 +17,7 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.initial_world.
 Require Import VST.msl.normalize.
 Require Import VST.veric.semax_call.
-Require Import VST.veric.semax_conseq. (*for use of semax_pre*)
+Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_initial_world.
 Require Import VST.veric.initialize.
 Require Import VST.veric.coqlib4.
@@ -256,18 +256,6 @@ Lemma semax_func_mono CS CS' (CSUB: cspecs_sub CS CS') ge ge'
 Proof.
   destruct CSUB as [CSUB _].
   eapply (@semax_func_cenv_sub _ _ CSUB); eassumption.
-  (*explicit proof:
-    destruct H as [MF [GC B]]; split; [trivial | split].
-  + hnf; intros. destruct (GC _ _ H) as [b [Hb1 Hb2]]. exists b; split.
-    specialize (Gfs id); rewrite Hb1 in Gfs; apply Gfs.
-    specialize (Gffp b); rewrite Hb2 in Gffp; apply Gffp.
-  + intros ge2; intros. 
-    assert (Q1: forall i, sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge2 i)).
-    { intros. eapply sub_option_trans. apply Gfs. apply Gfs0. }
-    assert (Q2: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge2 b)).
-    { intros. eapply sub_option_trans. apply Gffp. apply Gffp0. }
-    apply (@believe_monoL CS Espec CS' {| genv_genv := ge2; genv_cenv := cenv_cs |} (nofunc_tycontext V G) (nofunc_tycontext V G)).
-    intros; apply tycontext_sub_refl. apply CSUB. apply (B _ Q1 Q2 n).*)
 Qed.
 
 Definition main_pre {Z} (prog: program) (ora: Z) : (ident->val) -> argsassert :=
@@ -317,7 +305,6 @@ Definition semax_prog {C: compspecs}
 compute_list_norepet (prog_defs_names prog) = true  /\
 all_initializers_aligned prog /\
 PTree.elements cenv_cs = PTree.elements (prog_comp_env prog) /\
-(*  @semax_func V G C (prog_funct prog) G /\*)
 @semax_func V G C (Genv.globalenv prog) (prog_funct prog) G /\
 match_globvars (prog_vars prog) V = true /\
 match find_id prog.(prog_main) G with
@@ -331,7 +318,6 @@ forall
  V G {C: compspecs} ge, @semax_func V G C ge nil nil.
 Proof.
 intros; split. constructor. split; [ hnf; intros; inv H | intros].
-(*rename H0 into HGG.*)
 intros b fsig cc ty P Q ? w ? Hext ?.
 hnf in H0.
 destruct H0 as [b' [NEP [NEQ [? ?]]]].
@@ -556,13 +542,12 @@ destruct (eq_dec  (Vptr b Ptrofs.zero) v) as [?H|?H].
 subst v.
 right.
 exists b; exists f.
-split(*; auto*).
+split.
 +
 apply andb_true_iff in H.
 destruct H as [H H'].
 apply compute_list_norepet_e in H.
 apply compute_list_norepet_e in H'.
-(*split3; auto.*)
 rewrite Genv.find_funct_find_funct_ptr in Hb2; auto.
 split; auto.
 split. { specialize (HGG b). unfold fundef in HGG;  rewrite Hb2 in HGG; simpl in HGG.
@@ -580,7 +565,6 @@ destruct (eq_dec id id').
    simpl in FS'.
    elim (Genv.global_addresses_distinct ge' n0 H0 FS'); trivial.
 +
-(*destruct H. *) 
 intros Delta' CS' ? k NK EK HDelta' ? w KW EW CSUB.
 intros ts x.
 simpl in H1. specialize (H0 id); unfold fundef in H0; simpl in H0. rewrite Hb1 in H0; simpl in H0.
@@ -665,9 +649,7 @@ Proof. induction l; simpl; intros; trivial. rewrite IHl; trivial. Qed.
 Lemma semax_func_cons_ext:
 forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
       argsig'
-      (G': funspecs) cc (*(ids: list ident)*) b,
-  (*ids = map fst argsig' ->*) (* redundant but useful for the client,
-           to calculate ids by reflexivity *)
+      (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
@@ -683,7 +665,7 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P 
        ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 Proof.
 intros until b.
-intros (*Hids NORM*) Hargsig' Hef Hni (*Hlen*) Hinline Hretty B1 B2 H [Hf' [GC Hf]].
+intros Hargsig' Hef Hni Hinline Hretty B1 B2 H [Hf' [GC Hf]].
 subst argsig'.
 apply id_in_list_false in Hni.
 split.
@@ -902,18 +884,12 @@ inv H0.
 destruct a; simpl in *; subst.
 destruct (eq_dec i id). subst; eauto.
 specialize (IHg nil H1). inv H0.
-(*destruct (IHg). destruct g; simpl; auto.
-constructor. apply match_fdecs_nil.
-eauto. *)
 destruct a. destruct p.
 inv H0.
 simpl in H1.
 destruct (ident_eq i0 id). subst. eauto.
 destruct (IHg G); auto. rewrite PTree.gso in H1; auto.
 eauto.
-(* simpl in H1.
-destruct (IHg ((i0,f0)::G)); auto. eauto.
-*)
 }
 destruct H2 as [f ?].
 destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
@@ -944,7 +920,6 @@ clear - H0 H. unfold prog_defs_names, prog_funct in *.
 eapply match_fdecs_norepet; eauto.
 apply list_norepet_prog_funct'; auto.
 *
-(*intros loc'  [fsig' cc' A' P' Q' NEP' NEQ']; unfold func_at.*)
 intros loc'  fsig' cc'.
 intros ? w ? Hext ?.
 destruct H2 as [pp ?].
@@ -977,12 +952,6 @@ unfold filter_genv, Map.get.
 rewrite make_tycontext_s_find_id.
 split; [ | eexists]; eassumption.
 Qed.
-
-(* there's a place this lemma should be applied, perhaps in proof of semax_call;
-  or maybe this lemma is dead; or maybe it should be moved to seplog.v *)
-Lemma funassert_rho:
-forall G rho rho', ge_of rho = ge_of rho' -> funassert G rho |-- funassert G rho'.
-Proof. intros. apply funspecs_assert_rho; trivial. Qed.
 
 Lemma core_inflate_initial_mem:
 forall (m: mem) (prog: program) (G: funspecs) (n: nat)
@@ -1029,9 +998,9 @@ rewrite H2 in *. destruct fs.
 destruct H6 as [? [? ?]]. rewrite H7.
 rewrite core_PURE; auto.
 - destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-+ (*unfold fundef in *. rewrite H1,H2 in *.*)
++ 
 if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-+ (*unfold fundef in *; rewrite H1 in *.*)
++
 if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
 + rewrite ghost_of_core.
 unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core_eq; auto.
@@ -1407,13 +1376,6 @@ apply corable_core; [apply corable_funassert|].
 pose proof initial_mem_core as E.
 unfold juicy_mem_core in *. erewrite E; try reflexivity.
 Qed.
-(*
-Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext :=
-make_tycontext
-(params_of_types
-   1 ((Tfunction (type_of_params (params_of_types 2 tys)) Tvoid cc_default) :: tys))
-nil nil Tvoid V G nil.
-*)
 
 Lemma find_id_maketycontext_s G id : (make_tycontext_s G) ! id = find_id id G.
 Proof.
@@ -1587,11 +1549,6 @@ replace  {|
                genv_cenv := prog_comp_env prog |}
  with (globalenv prog) in Believe
   by (unfold globalenv; f_equal; auto).
-(*
-replace {| genv_genv := globalenv prog; genv_cenv := cenv_cs |}
-  with (globalenv prog) in *
- by (unfold globalenv; simpl; symmetry; f_equal; assumption). 
-*)
 unfold nofunc_tycontext in *.
 destruct (believe_exists_fundef Findb Believe id_in_G) as [f [Eb Ef]].
 clear Believe.
@@ -1614,8 +1571,6 @@ set (fspec := mk_funspec (params, retty) cc_default A P Q NEP NEQ) in *.
 specialize (H3 (genv_genv psi)).
 spec H3. intros; apply sub_option_refl.
 spec H3. intros; apply sub_option_refl.
-(*set (rho := make_args (map fst params) args
-                   (empty_environ psi)) in *.*)
 specialize (H3 (S (level jm))).
 apply believe_cs_ext with (ge2 := 
   {| genv_genv := genv_genv (globalenv prog);
@@ -1767,16 +1722,6 @@ destruct H5 as [H5|H5].
   eexists; apply ghost_fmap_join; eauto.
 -
 (* internal case *)
-(*
-assert (Pf : params_of_fundef f = map snd params).
-{ clear -Ef.
-destruct f. subst fspec.
-destruct f; inv Ef; simpl; auto.
-revert fn_params params H0; induction fn_params as [|[??]]; destruct params as [|[??]]; simpl; intros; try discriminate; auto.
-inv H0; f_equal; auto.
-simpl in *. inv Ef.
-induction params as [|[??]]; simpl; f_equal; auto.
-}*)
 hnf in H5.
 destruct H5 as [b' [f' [[H5 [H9 H10]] H11]]].
 symmetry in H5; inv H5.
@@ -1928,7 +1873,7 @@ assert (MATCH := alloc_juicy_variables_match_venv _ _ _ _ _ AJV).
 assert (H20 := alloc_juicy_variables_resource_decay _ _ _ _ _ _ AJV).
 destruct (build_call_temp_env f args)
 as [te' H21]; auto. 
-  { clear - H10 (*Pf*) arg_p. subst fspec; simpl in H10. 
+  { clear - H10 arg_p. subst fspec; simpl in H10. 
     destruct f; simpl in *.
     assert (Datatypes.length (map snd fn_params) =
                 Datatypes.length params). assert (params = map snd fn_params) by apply H10. subst; trivial. 
@@ -1961,16 +1906,6 @@ split.
  apply age1_ghost_of, age_jm_phi; auto.
 assert (H22: (level jm2 >= level jm'')%nat)
   by (apply age_level in H13; apply age_level in H20x; lia).
-(*pose (rho3 := mkEnviron (*(ge_of rho)*)(filter_genv psi) (make_venv ve') (make_tenv te')).
-assert (H23: app_pred (funassert Delta rho3) (m_phi jm'')). {
-  apply (resource_decay_funassert _ _ (nextblock (m_dry jm)) _ (m_phi jm'')) in m_funassert.
-  2: apply laterR_necR; apply age_laterR; auto.
-  unfold rho3; clear rho3.
-  apply m_funassert.
-  rewrite CORE. apply age_core. apply age_jm_phi; auto.
-  destruct H20;  apply resource_decay_trans with (nextblock (m_dry jm')) (m_phi jm'); auto.
-   apply age1_resource_decay; auto.
-}*)
 assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
 { apply (resource_decay_fungassert _ _ (nextblock (m_dry jm)) _ (m_phi jm'')) in m_funassert.
   2: apply laterR_necR; apply age_laterR; auto.
@@ -1984,11 +1919,6 @@ assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
   specialize (H11 te' ve' _ H22 _ _ (necR_refl _) (ext_refl _)).
   spec H11; [clear H11|]. {
   split; [split |]; auto.
-  (*3:{ unfold rho3 in H23. unfold construct_rho.
-     unfold rho in H23.
-     simpl ge_of in H23. rewrite ge_of_make_args in H23.
-    auto.
-  }*)
   split; [ | simpl; split; [ | reflexivity]; apply MATCH ].
  -
   rewrite (age_jm_dry H20x) in H15.
@@ -2003,10 +1933,7 @@ assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
  + rewrite snd_split. subst fspec; simpl in H18. destruct H18; subst. trivial.
 - 
  normalize.
- split; auto. (*unfold rho3 in H23.*) unfold construct_rho.
-(* subst rho.
- rewrite ge_of_make_args in H23. auto.
- clear H23.*)
+ split; auto. unfold construct_rho.
  rewrite <- sepcon_assoc.
  apply (pred_nec_hereditary  _ _ _ (laterR_necR (age_laterR (age_jm_phi H20x)))).
  unfold bind_args.
@@ -2020,8 +1947,7 @@ assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
  clear m_funassert.
  destruct fspec; simpl in *.
  destruct f; inv Ef; simpl in *.
- clear - (*Pf*) arg_p H21 H17.
- (*rewrite <- Pf in arg_p. clear Pf.*)
+ clear - arg_p H21 H17.
  simpl in *.
  match goal with H: tc_vals _ ?A |- tc_vals _ ?B => replace B with A; auto end.
  rewrite list_norepet_app in H17. destruct H17 as [H17 [_ _]].
@@ -2040,7 +1966,6 @@ assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
  eapply predicates_sl.sepcon_derives.
  instantiate (1:=emp); intro; simpl; auto. apply predicates_hered.derives_refl.
  setoid_rewrite emp_sepcon.
-(* apply (alloc_juicy_variables_age H13 H20x) in AJV.*)
  destruct H18 as [H18a [_ H18c]]. subst params.
  assert (list_norepet (map fst (fn_params f))).
  { apply list_norepet_app in H17. apply H17. }
@@ -2207,9 +2132,6 @@ exists i fd fspec fs, funs=cons (i,fd) fs /\ k=(i,fspec) /\
      match_fdecs fs K.
 Proof. inv M. exists i, fd, fspec, fs; intuition. Qed.
 
-(*Lemma semax_func_length V G {C: compspecs} funs K (M: semax_func V G funs K):
- length funs = length K.
-Proof. destruct M as [M _]. apply match_fdecs_length in M; trivial. Qed.*)
 Lemma semax_func_length ge V G {C: compspecs} funs K (M: semax_func V G ge funs K):
  length funs = length K.
 Proof. destruct M as [M _]. apply match_fdecs_length in M; trivial. Qed.
@@ -2499,7 +2421,7 @@ Lemma semax_func_firstn {cs ge H V n funs G}:
     @semax_func V H cs ge (firstn n funs) (firstn n G).
 Proof.
 intros. destruct SF as [SF1 [SF2 SF3]]; split; [|split].
-+ clear SF2 SF3. specialize (match_fdecs_length _ _ SF1); intros. (*clear PC.*)
++ clear SF2 SF3. specialize (match_fdecs_length _ _ SF1); intros.
 generalize dependent G. generalize dependent funs. induction n; simpl; intros. constructor.
 destruct funs; simpl in *. destruct G; simpl in *. constructor. congruence.
 destruct G; simpl in *. congruence. inv SF1. inv H0. constructor; auto.
@@ -2637,7 +2559,7 @@ Proof.
      simpl.
      rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
      unfold fn_funsig. simpl. clear - TC1 MAP LNR VUNDEF.
-     specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). simpl in TC1.  red in TC1. clear - MAP (*VUNDEF*); intros TE.
+     specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). simpl in TC1.  red in TC1. clear - MAP; intros TE.
      forget (fn_params f) as params. generalize dependent vals.
      induction params; simpl; intros.
      + destruct vals; inv MAP. constructor.

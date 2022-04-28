@@ -39,7 +39,7 @@ Lemma semax_straight_simple:
               rho = construct_rho (filter_genv ge) ve te  ->
               age jm jm1 ->
               ((F rho * |>P rho) && funassert Delta' rho) (m_phi jm) ->
-              (*genv_cenv ge = cenv_cs*) cenv_sub cenv_cs (genv_cenv ge) ->
+              cenv_sub cenv_cs (genv_cenv ge) ->
               exists jm', exists te', exists rho',
                 rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
                 level jm = S (level jm') /\
@@ -224,7 +224,7 @@ Lemma pointer_cmp_eval:
    (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT)%pred (m_phi jm) ->
    eqb_type (typeof e1) int_or_ptr_type = false ->
    eqb_type (typeof e2) int_or_ptr_type = false ->
-   Cop.sem_binary_operation (*cenv_cs*)ge cmp (eval_expr e1 rho)
+   Cop.sem_binary_operation ge cmp (eval_expr e1 rho)
      (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
   Some
      (force_val
@@ -467,7 +467,6 @@ Proof.
       destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]].
       rewrite H6. rewrite H7. unfold eval_binop.
       rewrite <- H6. rewrite <- H7. clear H6 H7.
-      (* rewrite HGG.*)
       apply (pointer_cmp_eval Delta' cmp e1 e2 sh1 sh2); auto;
       try (eauto; simpl; eauto).
     - split.
@@ -904,7 +903,7 @@ apply andp_right.
   rewrite H4.
   unfold eval_id at 1. unfold force_val; simpl.
   rewrite Map.gss. auto.
-- unfold liftx, lift; simpl. (*rewrite <- H4. simpl.*)
+- unfold liftx, lift; simpl.
   unfold subst. simpl.
   change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr e) rho)) with (eval_expr (Ecast e t) rho).
   rewrite H4; trivial.
@@ -1220,7 +1219,6 @@ split; [split3 | ].
    destruct TC'. destruct H4. rewrite H4. simpl.
   rewrite Map.override_same; subst; auto.
   unfold subst. simpl.
- (* rewrite H4.*)
   apply andp_right; auto.
   - intros ? ?; simpl. unfold liftx, lift; simpl.
     unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
@@ -1816,16 +1814,6 @@ apply address_mapsto_can_store'
    with (ch':=ch') (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
   auto.
 2: apply H77.
-(*
-2: {
-  unfold typecheck_store in *.
-  destruct TC4 as [TC4 _].
-  simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.
-  remember (eval_expr e2 rho).
-  dec_enc. rewrite DE. clear DE. subst.
-  eapply load_cast; eauto.
-}
-*)
 destruct H11 as [m' [H11 AM]].
 exists (store_juicy_mem _ _ _ _ _ _ H11).
 exists (te);  exists rho; split3; auto.

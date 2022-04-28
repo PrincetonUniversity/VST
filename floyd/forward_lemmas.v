@@ -35,8 +35,8 @@ Lemma semax_func_cons_ext_vacuous:
          sig_args := typlist_of_typelist argsig;
          sig_res := rettype_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
-       (*new*) Genv.find_symbol ge id = Some b ->
-       (*new*) Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
+       Genv.find_symbol ge id = Some b ->
+       Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
        semax_func V G ge fs G' ->
        semax_func V G ge ((id, External ef argsig retsig cc) :: fs)
          ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
@@ -87,7 +87,6 @@ Lemma semax_prog_semax_func_cons_int_vacuous
     (fs : list (ident * Clight.fundef)) (id : ident) ifunc
     (b : block) G'
   (ID: id_in_list id (map fst fs) = false)
-  (*(ID2: id_in_list id (map fst G) = true)*)
   (GfsB: Genv.find_symbol ge id = Some b)
   (GffpB: Genv.find_funct_ptr ge b = Some (Internal ifunc))
   (CTvars: Forall (fun it : ident * type => complete_type cenv_cs (snd it) = true) (fn_vars ifunc))
@@ -201,19 +200,12 @@ match (strict_bool_val t1 v1) with
 | None => Vundef
 end.
 
-(* NOTE: In both logical_or and logical_and,
-  compcert (up to 2.4) has (Etempvar tid tbool)
-  where I conjecture that it should have (Etempvar tid tint).
-  That means our lemmas here are incompatible with
-  compcert, at the moment.
-*)
-
 Definition logical_or tid e1 e2 :=
 (Sifthenelse e1
              (Sset tid (Econst_int (Int.repr 1) tint))
              (Ssequence
                 (Sset tid (Ecast e2 tbool))
-                (Sset tid (Ecast (Etempvar tid tint (*tbool*)) tint)))).
+                (Sset tid (Ecast (Etempvar tid tint) tint)))).
 
 
 
@@ -221,7 +213,7 @@ Definition logical_and tid e1 e2 :=
 (Sifthenelse e1
             (Ssequence
               (Sset tid (Ecast e2 tbool))
-              (Sset tid (Ecast (Etempvar tid tint (*tbool*)) tint)))
+              (Sset tid (Ecast (Etempvar tid tint) tint)))
             (Sset tid (Econst_int (Int.repr 0) tint))).
 
 Lemma semax_pre_flipped :
@@ -438,39 +430,6 @@ apply exp_right with a; auto.
 apply andp_left2; auto.
 Qed.
 
-(*
-Lemma field_at_mapsto__at1:
-  forall Espec Delta P Q sh ty fld e v R c Post,
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_at_ sh ty fld) e :: R)))) c Post ->
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_at sh ty fld) v e :: R)))) c Post.
-Proof.
-intros.
- eapply semax_pre0; [ | apply H].
- intro rho; unfold PROPx, LOCALx, SEPx.
- simpl.
- apply andp_derives; auto.
- apply andp_derives; auto.
- apply sepcon_derives; auto.
- unfold_lift; apply field_at_field_at_.
-Qed.
-
-Lemma later_field_at_mapsto__at1:
-  forall Espec Delta P Q sh ty fld e v R c Post,
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|>`(field_at_ sh ty fld) e :: R)))) c Post ->
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|> `(field_at sh ty fld) v e :: R)))) c Post.
-Proof.
-intros.
- eapply semax_pre0; [ | apply H].
- intro rho; unfold PROPx, LOCALx, SEPx.
- simpl.
- apply andp_derives; auto.
- apply andp_derives; auto.
- apply sepcon_derives; auto.
- apply later_derives; auto.
- unfold_lift; apply field_at_field_at_.
-Qed.
-*)
-
 Lemma forward_setx':
   forall Espec {cs: compspecs} Delta P id e,
   (P |-- (tc_expr Delta e) && (tc_temp_id id (typeof e) Delta e) ) ->
@@ -486,47 +445,6 @@ eapply semax_pre; try apply (semax_set_forward Delta P id e).
 + eapply derives_trans ; [ | apply now_later].
    apply andp_left2; apply andp_right; auto.
 Qed.
-
-(*
-Lemma forward_setx:
-  forall Espec {cs: compspecs} Delta P Q R id e,
-  (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- (tc_expr Delta e) && (tc_temp_id id (typeof e) Delta e) ) ->
-  @semax cs Espec Delta
-             (PROPx P (LOCALx Q (SEPx R)))
-             (Sset id e)
-             (normal_ret_assert
-                  (EX old:val,
-                    PROPx P
-                     (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr e)) ::
-                                     map (subst id (`old)) Q)
-                      (SEPx R)))).
-Proof.
- intros.
-intros.
-eapply semax_pre_post;
-   [ | | apply (semax_set_forward Delta (PROPx P (LOCALx (tc_environ Delta :: Q)  (SEPx R))) id e); auto].
-+  eapply derives_trans ; [ | apply now_later].
-  rewrite andp_assoc.  repeat rewrite insert_local.
- rewrite <- (andp_dup (PROPx _ (LOCALx (_ :: Q) _))) at 1.
- eapply derives_trans; [apply andp_derives  | ].
- apply H. apply derives_refl.
-  rewrite andp_assoc.  repeat rewrite insert_local.
- apply derives_refl.
-+
- intros ek vl.
- intro rho.
- unfold andp at 1. unfold LiftNatDed', LiftNatDed.
- unfold local at 1. unfold lift1.
- apply derives_extract_prop. intro.
- apply normal_ret_assert_derives'.
- apply exp_derives; intro x.
-  autorewrite with subst.
- rewrite insert_local.
- clear.
- go_lowerx. simpl. apply andp_right; auto.
- apply prop_right; repeat split; auto.
-Qed.
-*)
 
 Lemma semax_switch_PQR: 
   forall {Espec: OracleKind}{CS: compspecs} ,
@@ -627,40 +545,6 @@ Definition adjust_for_sign (s: signedness) (x: Z) :=
  | Signed => if (zlt x Int.half_modulus) then x else x - Int.modulus 
  end.
 
-(*
-Lemma normal_ret_assert_derives':
-  forall ek vl P Q,
-      P |-- Q ->
-      normal_ret_assert P ek vl |-- normal_ret_assert Q ek vl.
-Proof. intros; intro rho. apply normal_ret_assert_derives. auto.
-Qed.
-
-Lemma normal_ret_assert_derives'':
-  forall (P: environ->mpred) (Q: ret_assert),
-      (P |-- Q EK_normal None) ->
-      normal_ret_assert P |-- Q.
-Proof. intros; intros ek vl; unfold normal_ret_assert.
-  go_lowerx. subst; apply H.
-Qed.
-*)
-
-(*
-Lemma elim_redundant_Delta:
-  forall Espec {cs: compspecs} Delta P Q R c Post,
-  @semax cs Espec Delta (PROPx P (LOCALx Q R)) c Post ->
-  @semax cs Espec Delta (PROPx P (LOCALx (tc_env Delta:: Q) R)) c Post.
-Proof.
- intros.
- eapply semax_pre_simple; try apply H.
-  apply andp_left2.
- intro rho; simpl.
- unfold PROPx; simpl; apply andp_derives; auto.
-  unfold LOCALx; simpl; apply andp_derives; auto.
-  unfold local,lift1; unfold_lift; simpl.
- apply prop_derives; intros [? ?]; auto.
-Qed.
-*)
-
 Lemma semax_for_3g1 :
  forall Espec {cs: compspecs} {A} (PQR: A -> environ -> mpred) (v: A -> val) Delta P Q R test body incr Post,
      bool_type (typeof test) = true ->
@@ -724,17 +608,6 @@ apply semax_loop with (Q':= (EX a:A, PQR a)).
  all: intros; destruct Post; simpl_ret_assert; apply andp_left2; auto.
 Qed.
 
-(*
-Definition mk_ret_assert (n b c : environ -> mpred) (r: option val -> environ -> mpred) : ret_assert :=
-    fun (ek : exitkind) (vl : option val) =>
- match ek with
- | EK_normal => !! (vl=None) && n
- | EK_break => !! (vl=None) && b
- | EK_continue => !! (vl=None) && c
- | EK_return => r vl
- end.
-*)
-
 Lemma semax_for_3g2:  (* no break statements in loop *)
  forall Espec {cs: compspecs} {A} (PQR: A -> environ -> mpred) (v: A -> val) Delta P Q R test body incr Post,
      bool_type (typeof test) = true ->
@@ -763,260 +636,3 @@ Qed.
 
 Transparent tc_andp.  (* ? should leave it opaque, maybe? *)
 
-(*
-
-Lemma forward_setx_weak:
-  forall Espec {cs: compspecs} Delta P Q R id e,
-  (PROPx P (LOCALx Q (SEPx R)) |-- (tc_expr Delta e) && (tc_temp_id id (typeof e) Delta e) ) ->
-  @semax cs Espec Delta
-             (PROPx P (LOCALx Q (SEPx R)))
-             (Sset id e)
-             (normal_ret_assert
-                  (EX old:val,
-                    PROPx P
-                     (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr e)) ::
-                                     map (subst id (`old)) Q)
-                      (SEPx R)))).
-Proof.
- intros.
- eapply semax_post; [ | apply forward_setx'; auto].
- intros.
- autorewrite with ret_assert subst.
- repeat rewrite normal_ret_assert_eq.
- repeat rewrite exp_andp2. apply exp_derives; intro x.
-  autorewrite with subst.
- go_lowerx. repeat apply andp_right; try apply prop_right; auto.
-Qed.
-
-Lemma semax_logical_or:
- forall Espec Delta P Q R tid e1 e2 b
-   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
-   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_eval_expr tid e1 = true)
-   (CLOSE2 : closed_eval_expr tid e2 = true),
- bool_type (typeof e1) = true ->
- bool_type (typeof e2) = true ->
- (temp_types Delta) ! tid = Some (tint, b) ->
-  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::
-              (`or (`(typed_true (typeof e1)) (eval_expr Delta e1))  (tc_expr Delta e2))::
-              tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
-   Q) (SEPx (R))))
-    (logical_or tid e1 e2)
-  (normal_ret_assert (PROPx P (LOCALx
-((`eq (eval_id tid)
-   (`logical_or_result
-          `(typeof e1) (eval_expr Delta e1) `(typeof e2) (eval_expr Delta e2)))::Q) (SEPx (R))))).
-Proof.
-intros.
-assert (CLOSE1' := closed_eval_expr_e Delta _ _ CLOSE1).
-assert (CLOSE2' := closed_eval_expr_e Delta _ _ CLOSE2).
-apply semax_ifthenelse_PQR.
-  - auto.
-  - rewrite <- insert_local; apply andp_left2.
-    rewrite <- insert_local; apply andp_left1. auto.
-  -  eapply semax_pre. apply derives_refl.
-     eapply semax_post_flipped.
-     apply forward_setx.
-     go_lowerx. apply andp_right; apply prop_right.
-    apply Coq.Init.Logic.I.   unfold tc_temp_id, typecheck_temp_id. rewrite H1.
-     simpl. apply Coq.Init.Logic.I.
-     intros ek vl.
-    unfold normal_ret_assert. repeat rewrite exp_andp2.
-     apply exp_left;  intro.
-     autorewrite with subst.
-  rewrite (closed_wrt_subst _ _ (tc_expr Delta e1)) by auto with closed.
-  rewrite (closed_wrt_subst _ _ (tc_expr Delta e2)) by auto with closed.
-   go_lowerx. subst. apply andp_right; auto. apply prop_right; split; auto.
-   rewrite H6.
-   unfold logical_or_result.
- destruct (typeof e1) as [ | | | [ | ] |  | | | | ], (eval_expr Delta e1 rho); inv H; inv H8; simpl;
-   try rewrite H3; auto.
-  - eapply semax_seq'.
-      + eapply forward_setx_weak.
-         go_lowerx.
-         destruct H5. congruence.
-         apply andp_right; apply prop_right; auto.
-        unfold tc_expr. simpl. rewrite tc_andp_sound.
-        simpl. super_unfold_lift. split. auto.
-         destruct (typeof e2) as [ | | | [ | ] |  | | | | ] eqn:?;
-                                        inv H0; try  apply Coq.Init.Logic.I.
-      + simpl update_tycon. apply extract_exists_pre. intro oldval.
-          rewrite (@closed_wrt_subst _ tid _ (eval_expr Delta (Ecast e2 tbool)))
-    by (simpl; auto with closed).
-    rewrite (closed_wrt_map_subst _ _ R) by auto.
-   repeat rewrite map_cons.
-   rewrite closed_wrt_subst by auto with closed.
-   rewrite closed_wrt_subst by auto with closed.
-    rewrite (closed_wrt_map_subst _ _ Q) by auto.
-    unfold tc_temp_id.
-   unfold typecheck_temp_id. rewrite H1.  simpl denote_tc_assert.
-   autorewrite with subst.
-   repeat apply andp_right; auto.
-        eapply semax_post_flipped.
-        eapply forward_setx.
-        go_lowerx. apply andp_right; apply prop_right; auto.
-        unfold tc_expr. simpl. rewrite tc_andp_sound.
-        super_unfold_lift. split.
-        erewrite temp_types_init_same by eauto. simpl. apply Coq.Init.Logic.I.
-         apply Coq.Init.Logic.I.
-        simpl. unfold tc_temp_id. unfold typecheck_temp_id.
-        erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
-        simpl. super_unfold_lift; auto.
-        intros. unfold normal_ret_assert.
-        repeat rewrite exp_andp2. apply exp_left; intro.
-       simpl eval_expr.
-       autorewrite with subst.
-       go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
-       rewrite H6. rewrite H7.
-        unfold logical_or_result. rewrite H8.
-        subst ek vl. simpl in  H2.
-       apply bool_cast. destruct H10. congruence.
-      eapply expr_lemmas.typecheck_expr_sound.
-      apply tc_environ_init in H2.
-      apply tc_environ_init in H2.
-      apply H2.
-      apply H3.
-Qed.
-
-Lemma semax_logical_and:
- forall Espec Delta P Q R tid e1 e2 b
-   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
-   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_eval_expr tid e1 = true)
-   (CLOSE2 : closed_eval_expr tid e2 = true),
- bool_type (typeof e1) = true ->
- bool_type (typeof e2) = true ->
- (temp_types Delta) ! tid = Some (tint, b) ->
-  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::
-    (`or (`(typed_false (typeof e1)) (eval_expr Delta e1))  (tc_expr Delta e2))::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
-   Q) (SEPx (R))))
-    (logical_and tid e1 e2)
-  (normal_ret_assert (PROPx P (LOCALx
-((`eq (eval_id tid)
-   (`logical_and_result
-          `(typeof e1) (eval_expr Delta e1) `(typeof e2) (eval_expr Delta e2)))::Q) (SEPx (R)))))
-  .
-Proof.
-intros.
-assert (CLOSE1' := closed_eval_expr_e Delta _ _ CLOSE1).
-assert (CLOSE2' := closed_eval_expr_e Delta _ _ CLOSE2).
-apply semax_ifthenelse_PQR.
-  - auto.
-  - rewrite <- insert_local; apply andp_left2.
-    rewrite <- insert_local; apply andp_left1. auto.
-  - eapply semax_seq'.
-      + eapply forward_setx_weak.
-         go_lowerx. apply andp_right; apply prop_right; auto.
-        unfold tc_expr. simpl. rewrite tc_andp_sound.
-        simpl. super_unfold_lift. split.
-        destruct H5; auto; congruence.
-        unfold isCastResultType. destruct (typeof e2) as [ | | | [ | ] |  | | | | ];
-                                        inv H0; simpl; apply Coq.Init.Logic.I.
-      + simpl update_tycon. apply extract_exists_pre. intro oldval.
-          rewrite (@closed_wrt_subst _ tid _ (eval_expr Delta (Ecast e2 tbool)))
-    by (simpl; auto with closed).
-  autorewrite with subst.
-    unfold tc_temp_id.
-   unfold typecheck_temp_id. rewrite H1.  simpl denote_tc_assert.
-   autorewrite with subst.
-        eapply semax_post_flipped.
-        eapply forward_setx.
-        go_lowerx. apply andp_right; apply prop_right; auto.
-        unfold tc_expr. simpl. rewrite tc_andp_sound.
-        super_unfold_lift. split.
-        erewrite temp_types_init_same by eauto. simpl. apply Coq.Init.Logic.I.
-         apply Coq.Init.Logic.I.
-        simpl. unfold tc_temp_id. unfold typecheck_temp_id.
-        erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
-        simpl. super_unfold_lift; auto.
-        intros. unfold normal_ret_assert.
-        repeat rewrite exp_andp2. apply exp_left; intro.
-       simpl eval_expr.
-       autorewrite with subst.
-       go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
-       rewrite H6. rewrite H7.
-        unfold logical_and_result.
-        subst ek vl. simpl in  H2.
-        rewrite H8.
-       apply bool_cast.  destruct H10. congruence.
-      eapply expr_lemmas.typecheck_expr_sound.
-      apply tc_environ_init in H2.
-      apply tc_environ_init in H2.
-      apply H2. auto.
-- eapply semax_pre. apply derives_refl.
-     eapply semax_post_flipped.
-     apply forward_setx.
-     go_lowerx. apply andp_right; try apply prop_right; auto.
-     apply Coq.Init.Logic.I.
-     unfold tc_temp_id. unfold typecheck_temp_id. rewrite H1.
-     simpl. apply Coq.Init.Logic.I.
-     intros ek vl. unfold normal_ret_assert.
-   repeat rewrite exp_andp2. apply exp_left; intro x.
-   autorewrite with subst.
-    go_lowerx. apply andp_right; auto.
-  apply prop_right; split; auto.
-     unfold logical_and_result. unfold typed_false in *.
-    autorewrite with subst in H8. rewrite H8.
-    apply H6.
-Qed.
-
-Lemma semax_logical_and_PQR:
-  forall Espec Delta P Q R PQR tid e1 e2 b
-   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
-   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_eval_expr tid e1 = true)
-   (CLOSE2 : closed_eval_expr tid e2 = true),
- bool_type (typeof e1) = true ->
- bool_type (typeof e2) = true ->
- (temp_types Delta) ! tid = Some (tint, b) ->
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) &&
-         (local (`(typed_false (typeof e1)) (eval_expr Delta e1)) || local (tc_expr Delta e2)) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
-  (normal_ret_assert (PROPx P (LOCALx ((`eq (eval_id tid) (`logical_and_result
-          `(typeof e1) (eval_expr Delta e1) `(typeof e2) (eval_expr Delta e2)))::Q) (SEPx (R))))) |-- PQR ->
-   @semax Espec Delta (PROPx P (LOCALx (Q) (SEPx (R))))
-    (logical_and tid e1 e2) PQR.
-Proof.
-intros.
-eapply semax_pre_flipped.
-eapply semax_post_flipped.
-eapply semax_logical_and; try eassumption.
-intros.
-specialize (H3 ek vl).
-apply andp_left2. apply H3.
-intro rho. specialize (H2 rho). normalize. normalize in H2.
-apply andp_right; auto.
-eapply derives_trans; [ apply H2 | ].
-normalize. simpl. apply orp_left; normalize.
-Qed.
-
-Lemma semax_logical_or_PQR:
-  forall Espec Delta P Q R PQR tid e1 e2 b
-   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
-   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_eval_expr tid e1 = true)
-   (CLOSE2 : closed_eval_expr tid e2 = true),
- bool_type (typeof e1) = true ->
- bool_type (typeof e2) = true ->
- (temp_types Delta) ! tid = Some (tint, b) ->
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) &&
-        (local (`(typed_true (typeof e1)) (eval_expr Delta e1)) || local (tc_expr Delta e2)) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
-  (normal_ret_assert (PROPx P (LOCALx ((`eq (eval_id tid) (`logical_or_result
-          `(typeof e1) (eval_expr Delta e1) `(typeof e2) (eval_expr Delta e2)))::Q) (SEPx (R))))) |-- PQR ->
-   @semax Espec Delta (PROPx P (LOCALx (Q) (SEPx (R))))
-    (logical_or tid e1 e2) PQR.
-Proof.
-intros.
-eapply semax_pre_flipped.
-eapply semax_post_flipped.
-eapply semax_logical_or; try eassumption.
-intros.
-specialize (H3 ek vl).
-apply andp_left2. apply H3.
-intro rho. specialize (H2 rho). normalize. normalize in H2.
-apply andp_right.
-eapply derives_trans. apply H2.
-normalize. simpl.
- apply orp_left;
-normalize. normalize.
-Qed.
-*)

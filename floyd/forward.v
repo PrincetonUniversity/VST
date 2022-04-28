@@ -30,7 +30,6 @@ Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.freezer.
-(*Require Import VST.floyd.funspec_old.*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
@@ -542,7 +541,7 @@ Ltac semax_func_cons_ext :=
       try solve [apply typecheck_return_value; auto]
     | LookupID | LookupB
     | solve[ first [eapply semax_ext;
-          [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
+          [ apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
           | reflexivity ]]]
       || fail "Try 'eapply semax_func_cons_ext.'"
@@ -1024,13 +1023,9 @@ eapply (semax_call_id00_wow_nil H);
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
  | fix_up_simplified_postcondition;
-    cbv beta iota zeta; unfold_post; (* extensionality rho; *)
+    cbv beta iota zeta; unfold_post;
     repeat rewrite exp_uncurry;
 
-    (*Replaced to resolve GIT issue 385: 
-      try rewrite no_post_exists0;
-      (* apply equal_f; *)
-      apply exp_congr*)
     first [ apply exp_congr | try rewrite no_post_exists0; apply exp_congr];
 
     intros ?vret;
@@ -1050,13 +1045,9 @@ eapply (semax_call_id00_wow H);
  [ check_result_type 
  | (*match_postcondition*)
     fix_up_simplified_postcondition;
-    cbv beta iota zeta; unfold_post; (* extensionality rho; *)
+    cbv beta iota zeta; unfold_post;
     repeat rewrite exp_uncurry;
 
-    (*Replaced to resolve GIT issue 385: 
-      try rewrite no_post_exists0;
-      (* apply equal_f; *)
-      apply exp_congr*)
     first [ apply exp_congr | try rewrite no_post_exists0; apply exp_congr];
 
     intros ?vret;
@@ -1220,7 +1211,7 @@ Lemma classify_fun_ty_hack:
  (* This is needed for the varargs (printf) hack *)
   forall fs fs',
   funspec_sub fs fs' ->
-  forall ty (*argsig*)typs retty cc,
+  forall ty typs retty cc,
   ty = type_of_funspec fs ->
   type_of_funspec fs' = Tfunction typs retty cc -> 
   classify_fun ty = fun_case_f typs retty cc.
@@ -1260,7 +1251,7 @@ Use Intros  to move          the existentially bound variables above the line"
     let cR := (fun R =>
     match c with
     | context [Scall _ ?a ?bl] =>
-      exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
+      exploit (call_setup1_i CS Delta P Q R' a bl);
       [check_prove_local2ptree
       |reflexivity
       |prove_func_ptr
@@ -1280,7 +1271,7 @@ Use Intros  to move          the existentially bound variables above the line"
         | check_type_of_funspec id
         ]
       |check_subsumes subsumes
-      | try reflexivity; ((*idtac "found one"; *) eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
+      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
       |check_typecheck
       |check_typecheck
       |check_cast_params
@@ -1316,7 +1307,7 @@ Ltac prove_call_setup_aux  ts witness :=
  simpl functors.MixVariantFunctor._functor;
  [ try_convertPreElim
  | check_prove_local2ptree
- | check_vl_eq_args (*WAS: Forall_pTree_from_elements*)
+ | check_vl_eq_args
  | auto 50 with derives
  | check_gvars_spec
  | try change_compspecs CS; cancel_for_forward_call
@@ -1426,7 +1417,7 @@ Ltac get_function_witness_type func :=
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ (*OMITTED _*) -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
       ltac:(prove_call_setup_aux (@nil Type))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
@@ -1442,7 +1433,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (*_*) ->
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -1619,14 +1610,11 @@ Ltac do_compute_expr_helper_old Delta Q v e :=
                          change u with (Some v)
             end
       end;
-(* match goal with |- ?a => idtac "ONE:" a end; *)
      simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
-(* match goal with |- ?a => idtac "TWO:" a end; *)
      unfold force_val2, force_val1;
       (apply (f_equal Some) || fail 100 "Cannot evaluate expression " e "Possibly there are missing local declarations.");
      simpl;
     repeat match goal with v:=_ |- _ => subst v end;
-(*     match goal with |- ?a => idtac "THREE:" a end; *)
      reflexivity].
 
 Ltac do_compute_expr_helper Delta Q v e :=
@@ -1642,14 +1630,11 @@ Ltac do_compute_expr_helper Delta Q v e :=
                          change u with (Some v)
             end
       end;
-(* match goal with |- ?a => idtac "ONE:" a end; *)
      simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
-(* match goal with |- ?a => idtac "TWO:" a end; *)
      unfold force_val2, force_val1;
      (apply (f_equal Some) || fail 100 "Cannot evaluate expression " e "Possibly there are missing local declarations.");
      simpl;
     repeat match goal with v:=_ |- _ => subst v end;
-(*      [ match goal with |- ?A => fail "here" A end ]; *)
      reflexivity
  ].
 
@@ -1879,7 +1864,6 @@ Lemma typed_false_ptr_e:
 Proof.
  intros. destruct v; inv H; try apply Coq.Init.Logic.I.
 unfold nullval.
-(*destruct Archi.ptr64; try discriminate.*)
 f_equal.
 try (pose proof (Int64.eq_spec i Int64.zero);
       destruct (Int64.eq i Int64.zero); inv H1; auto);
@@ -1998,8 +1982,8 @@ Ltac do_repr_inj H :=
                | apply typed_true_negb_bool_val_p in H
                | apply typed_false_negb_bool_val_p in H; [| solve [auto]]
                | apply typed_false_negb_bool_val_p' in H
-               | unfold nullval in H; (*simple*) apply typed_true_tint_Vint in H
-               | unfold nullval in H; (*simple*) apply typed_false_tint_Vint in H
+               | unfold nullval in H; apply typed_true_tint_Vint in H
+               | unfold nullval in H; apply typed_false_tint_Vint in H
                ];
    rewrite ?ptrofs_to_int_repr in H;
    rewrite ?ptrofs_to_int64_repr in H by reflexivity;
@@ -2147,7 +2131,6 @@ Tactic Notation "forward_while" constr(Inv) :=
       [match goal with |- @semax ?CS _ ?Delta ?Pre (Swhile ?e ?s) _ =>
         tryif (unify (nobreaksx s) true) then idtac 
         else fail "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";
-        (* the following line was before: eapply semax_while_3g1; *)
         match goal with [ |- semax _ (@exp _ _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
         (* check if we can revert back to the previous version with coq 8.5.
            (as of December 2015 with compcert 2.6 the above fix is still necessary)
@@ -2192,7 +2175,7 @@ Loop test expression:" e
          normalize in HRE
        ]
     ]; abbreviate_semax; 
-    simpl_ret_assert (*autorewrite with ret_assert*).
+    simpl_ret_assert.
 
 Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
 Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
@@ -2817,12 +2800,12 @@ match goal with
      apply semax_seq with post;
       [forward_if'_new 
       | abbreviate_semax; 
-        simpl_ret_assert (*autorewrite with ret_assert*)]
+        simpl_ret_assert]
    | |- semax _ _ (Ssequence (Sswitch _ _) _) _ =>
      apply semax_seq with post;
       [forward_switch' 
       | abbreviate_semax; 
-        simpl_ret_assert (*autorewrite with ret_assert*)]
+        simpl_ret_assert]
 end.
 
 Ltac remove_LOCAL name Q :=
@@ -3022,8 +3005,6 @@ Lemma subst_make_args1:
   forall i e j v,
     subst i e (make_args (j::nil) (v::nil)) = make_args (j::nil) (v::nil).
 Proof. reflexivity. Qed.
-(*#[export] Hint Rewrite subst_make_args1 : norm2.*)
-(*#[export] Hint Rewrite subst_make_args1 : subst.*)
 
 Ltac check_sequential s :=
  match s with
@@ -3153,73 +3134,6 @@ Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
   [ (solve_load_rule_evaluation || fail 1000 "solve_load_rule_evaluation' failed")
   | ].
 
-(*
-Ltac solve_efield_denote CS Delta P Q R efs gfs H :=
-  evar (gfs : list gfield);
-  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (@efield_denote CS efs gfs)) as H;
-  [
-    unfold efs, gfs;
-    match goal with
-    | efs := nil |- _ =>
-      instantiate (1 := nil);
-      intros rho; apply prop_right; constructor
-    | efs := ?ef :: ?efs' |- _ =>
-      let efs0 := fresh "efs" in
-      let gfs0 := fresh "gfs" in
-      let H0 := fresh "H" in
-      pose efs' as efs0;
-      solve_efield_denote CS Delta P Q R efs0 gfs0 H0;
-      match goal with
-      | gfs0 := ?gfs0' |- _ =>
-        match ef with
-        | eArraySubsc ?ei =>
-
-          let HA := fresh "H" in
-          let vi := fresh "vi" in
-          do_compute_expr1 CS Delta constr:(PROPx P (LOCALx Q (SEPx R))) ei;
-          match goal with v' := _, H:_ |- _ => rename H into HA; rename v' into vi end;
-          revert vi HA;
-          let vvvv := fresh "vvvv" in
-          let HHHH := fresh "HHHH" in
-            match goal with
-            | |- let vi := ?V in _ => remember V as vvvv eqn:HHHH
-            end;
-          autorewrite with norm in HHHH;
-
-          match type of HHHH with
-          | _ = Vint (Int.repr _) => idtac
-          | _ = Vint (Int.sub _ _) => unfold Int.sub in HHHH
-          | _ = Vint (Int.add _ _) => unfold Int.add in HHHH
-          | _ = Vint (Int.mul _ _) => unfold Int.mul in HHHH
-          | _ = Vint (Int.and _ _) => unfold Int.and in HHHH
-          | _ = Vint (Int.or _ _) => unfold Int.or in HHHH
-          | _ = Vint ?V =>
-            replace V with (Int.repr (Int.unsigned V)) in HHHH
-              by (rewrite (Int.repr_unsigned V); reflexivity)
-          end;
-          subst vvvv; intros vi HA;
-
-          match goal with
-          | vi := Vint (Int.repr ?i) |- _ => instantiate (1 := ArraySubsc i :: gfs0')
-          end;
-
-          let HB := fresh "H" in
-          assert (is_int_type (typeof ei) = true) as HB by reflexivity;
-
-          apply (efield_denote_cons_array _ _ _ _ _ H0 HA HB)
-
-        | eStructField ?i =>
-          instantiate (1 := StructField i :: gfs0');
-          apply efield_denote_cons_struct, H0
-        | eUnionField ?i =>
-          instantiate (1 := UnionField i :: gfs0');
-          apply efield_denote_cons_union, H0
-        end
-      end
-    end
-  |].
-*)
-
 Lemma sem_add_ptr_int_lem:
  forall {cs: compspecs} v t i,
    complete_type cenv_cs t = true ->
@@ -3323,34 +3237,10 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
                | unfold Post; clear Post ]
   end.
 
-(*
-Lemma normal_ret_assert_derives'':
-  forall P Q R, P |-- R ->  normal_ret_assert (local Q && P) |-- normal_ret_assert R.
-Proof.
-  intros. intros ek vl rho. apply normal_ret_assert_derives.
- simpl. apply andp_left2. apply H.
-Qed.
-*)
-
-(*
-Lemma frame_ret_assert_derives P Q: P |-- Q -> frame_ret_assert P |-- frame_ret_assert Q.
-Proof. intros.
- unfold frame_ret_assert. intros ? ? ?. apply sepcon_derives; trivial. apply H. Qed.
-*)
-
 Lemma bind_ret_derives t P Q v: (P |-- Q) -> bind_ret v t P |-- bind_ret v t Q.
 Proof. intros. destruct v. simpl; intros. entailer!. apply H.
   destruct t; try apply derives_refl. simpl; intros. apply H. 
 Qed.
-
-(*
-Lemma function_body_ret_assert_derives t P Q: P |-- Q ->
-      function_body_ret_assert t P |-- function_body_ret_assert t Q.
-Proof. intros. intros ek v.
-  destruct ek; simpl; trivial.
-  intros. apply bind_ret_derives; trivial.
-Qed.
-*)
 
 Ltac entailer_for_return := entailer.
 
@@ -3602,19 +3492,6 @@ Ltac test_simple_bound test incr :=
        constr_eq i k
     end
  end.
-(*
-Ltac forward_if_complain :=
-           (*semax_logic_and_or
-           ||*)  fail 2 "Use this tactic:  forward_if POST, where POST is the post condition".
-
-Ltac forward_while_complain :=
-           fail 2 "Use this tactic:  forward_while INV, where INV is the loop invariant".
-
-Ltac forward_for_complain :=
-           fail 2 "Use this tactic:  forward_for INV PRE_INCR POST,
-      where INV is the loop invariant, PRE_INCR is the invariant at the increment,
-      and POST is the postcondition".
-*)
 
 Ltac forward_skip := apply semax_skip.
 
@@ -3647,7 +3524,7 @@ Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_giv
 Ltac advise_forward_call :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
   | rmaps.ConstType ?T => 
              fail "To prove this function call, use forward_call(W), where
@@ -3667,7 +3544,6 @@ Ltac advise_prepare_postcondition :=
      tryif (constr_eq Delta' Delta)
        then idtac
        else fail "Please use abbreviate_semax to put your proof goal into standard form" 
-(*  | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ => idtac *)
  | |- semax _ _ _ _ => fail "Please use abbreviate_semax to put your proof goal into standard form."
  | |- _ => fail "Proof goal is not (semax _ _ _ _)."
  end;
@@ -3763,19 +3639,17 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
 Ltac derives_after_forward :=
              first [ simple apply derives_refl
                      | simple apply ENTAIL_refl
-(*                     | simple apply normal_ret_assert_derives'' 
-                     | simple apply normal_ret_assert_derives' *)
                      | idtac].
 
 Ltac forward_break :=
 eapply semax_pre; [ | apply semax_break ];
   unfold_abbrev_ret;
-  simpl_ret_assert (*autorewrite with ret_assert*).
+  simpl_ret_assert.
 
 Ltac forward_continue :=
 eapply semax_pre; [ | apply semax_continue ];
   unfold_abbrev_ret;
-  simpl_ret_assert (*autorewrite with ret_assert*).
+  simpl_ret_assert.
 
 Ltac simpl_first_temp :=
 try match goal with
@@ -4123,22 +3997,6 @@ match x with
 | DE_nothing ?e => fail 99 "The expression " e " contains a dereference of an expression with a 'By_nothing' access mode, which is quite unexpected"
 end.
 
-(*DEAD?
-Lemma elim_close_precondition:
-  forall {CS: compspecs} {Espec: OracleKind} al Delta P F c Q,
-   closed_wrt_vars (fun i => ~ In i al) P  ->
-   closed_wrt_lvars (fun _ => True) P ->    
-   semax Delta (P * F) c Q ->
-   semax Delta (close_precondition al al P * F) c Q.
-Proof.
-intros.
- apply semax_pre with (P*F); auto.
- apply andp_left2.
- apply sepcon_derives; [ | apply derives_refl].
- intro rho.
- apply Clight_seplog.close_precondition_e'; auto.
-Qed.*)
-
 Lemma elim_close_precondition:
   forall {CS: compspecs} {Espec: OracleKind} al Delta P F c Q,
    semax Delta ((argsassert2assert al P) * F) c Q ->
@@ -4192,107 +4050,6 @@ Fixpoint rename_localdefs (olds news: list ident) (ds: list localdef) : option (
                   end
  | nil => Some nil
  end.
-
-(*DEAD?
-Lemma compute_close_precondition: 
-  forall olds news P Q Q' R,
-  compute_list_norepet olds = true ->
-  rename_localdefs olds news Q = Some Q' ->
-  Clight_seplog.close_precondition olds news (PROPx P (LOCALx Q (SEPx R))) =
-    (PROPx P (LOCALx Q' (SEPx R))).
-Proof.
-intros *. intros Hno. intros.
-apply compute_list_norepet_e in Hno.
-extensionality rho.
-apply predicates_hered.pred_ext.
--
- intros ? [ve' [te' [? ?]]].
- destruct H1; split; auto. clear H1.
- destruct H2; split; auto. clear H2.
- revert Q' H H1; induction Q; intros; destruct Q'.
- inv H.
- apply H1.
- inv H.
- elimtype False; clear - H. destruct a0; simpl in H.
- destruct (rename_ident olds news i); try discriminate.
- destruct (rename_localdefs olds news Q); try discriminate.
- destruct (rename_localdefs olds news Q); try discriminate.
- destruct (rename_localdefs olds news Q); try discriminate.
- simpl in H.
- destruct (rename_localdefs olds news Q) eqn:H3.
-2:{ destruct a0; try discriminate. destruct (rename_ident olds news i); discriminate. }
- destruct H1.
- split.
-2:{ apply IHQ; auto. clear - H. destruct a0; try solve [inv H; auto].
-     destruct (rename_ident olds news i); inv H; auto.
-  }
- clear dependent Q.
- destruct a0.
- 2,3: inv H; apply H1.
- destruct (rename_ident olds news i) eqn:?H; try discriminate.
- inv H.
- clear - H2 H1 H0.
- hnf in H1|-*. unfold_lift in *. destruct H1; subst v.
- split; auto.
- clear H1.
- unfold eval_id in *; simpl in *.
- f_equal.
- revert news H2 H0; induction olds; destruct news; simpl; intros; inv H2.
- if_tac in H1. inv H1.
- rewrite (H0 O a i0); auto.
- apply (IHolds news); auto.
- intros. apply (H0 (S n)); auto.
--
-intros ? ?.
-exists (ve_of rho).
-destruct rho as [ge ve te].
-simpl te_of.
-pose (f (i: ident) := 
-      match rename_ident olds news i with
-      | Some j => Map.get te j
-      | None => None
-      end).
-exists f.
-split; simpl.
- *
- clear - Hno.
- unfold Map.get in *.
- subst f.
- intros.
- simpl.
- revert olds news i j H H0 Hno; induction n; destruct olds, news; simpl; intros; try discriminate.
- inv H0. inv H. rewrite if_true by auto. auto.
- inv Hno.
- if_tac.
- subst.
- apply nth_error_in in H. contradiction.
- apply (IHn _ _ _ _ H H0 H4).
- *
-  destruct H0 as [? [? ?]]; split3; auto.
- clear - Hno H H1.
- revert Q' H H1; induction Q; destruct Q'; simpl; intros; auto.
- inv H.
- elimtype False; clear - H.
- destruct a0; try discriminate;
- try destruct (rename_ident olds news i); try discriminate;
- destruct (rename_localdefs olds news Q); discriminate.
- destruct H1.
- destruct (rename_localdefs olds news Q) eqn:?H.
-2:{ destruct a0; try discriminate; destruct (rename_ident olds news i); try discriminate. }
-  assert (l0 = Q'). { destruct a0; inv H; auto. 
-      destruct (rename_ident olds news i); inv H4; auto.
-  }
- subst l0. 
- split; [ | apply (IHQ Q'); auto].
- destruct a0; try solve [inv H; auto].
- destruct (rename_ident olds news i) eqn:?H; inv H.
- hnf in H0|-*. unfold_lift in *.
- destruct H0; subst. split; auto.
- unfold eval_id; simpl. f_equal.
- unfold Map.get; subst f.
- simpl. rewrite H3. reflexivity.
-Qed.
-*)
 
 Fixpoint computeQ (ids:list ident) (vals:list val) : option (list localdef) :=
   match ids, vals with
@@ -4453,9 +4210,6 @@ Ltac start_function1 :=
   repeat match goal with H: reptype _ |- _ => progress hnf in H; simpl in H; idtac "reduced a reptype" end;
 *)
  try start_func_convert_precondition.
-
-(* first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
-        | erewrite compute_close_precondition by reflexivity];*)
 
 Ltac expand_main_pre := expand_main_pre_old.
 
@@ -4953,7 +4707,6 @@ Ltac prove_semax_prog_aux tac :=
  [ fast_Qed_reflexivity || fail "duplicate identifier in prog_defs"
  | fast_Qed_reflexivity || fail "unaligned initializer"
  | solve [solve_cenvcs_goal || fail "comp_specs not equal"]
-   (*compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"*)
  |
  | fast_Qed_reflexivity || fail "match_globvars failed"
  | match goal with

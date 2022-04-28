@@ -390,15 +390,6 @@ Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: agea
   if_tac; try (eapply pred_upclosed; eauto).
  Qed.
 
-(*Lemma allp_noat_emp: allp noat = emp.
-Proof.
-  apply pred_ext; unfold derives; intros; simpl in *.
-  + apply all_resource_at_identity.
-    exact H.
-  + intros. apply resource_at_identity.
-    exact H.
-Qed.*)
-
 Lemma jam_true: forall A JA PA SA agA AgeA EO EA B (S': B -> Prop) S P Q loc, S' loc -> @jam A JA PA SA agA AgeA EO EA B S' S P Q loc = P loc.
 Proof.
 intros.
@@ -447,9 +438,7 @@ extensionality l; apply pred_ext'; extensionality w.
 unfold jam.
 simpl; rewrite if_false; auto.
 Qed.
-(*
-Implicit Arguments jam_vacuous.
-*)
+
 Lemma make_sub_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
   (forall l sh k, P l -> res_option (w @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
   {w' | level w' = level w /\ resource_at w' =
@@ -802,41 +791,7 @@ Definition LKspec lock_size (R: pred rmap) : spec :=
                (fun l' => yesat (SomeP Mpred (fun _ => R)) (LK lock_size (snd l' - snd l)) sh l')
                noat).
 
-(*Lenb: moved to veric/seplog.v
-Definition packPQ {A: rmaps.TypeTree}
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
-  forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap) :=
-  fun ts a b => if b then P ts a else Q ts a.
-*)
 Definition TTat (l: address) : pred rmap := TT.
-
-(*
-Definition FUNspec (fml: funsig) cc (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
-  (l: address): pred rmap :=
-  allp (jam (eq_dec l)
-         (pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fml cc)) TTat).
-
-Definition fun_assert (fml: funsig) cc (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
-  (v: val)  : pred rmap :=
- (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml cc A P Q (b, 0))%pred.
-*)
-
-(***********)
-
-(*Lenb: dead?
-Lemma ewand_lem1x:
-  forall S P: mpred,
-          S |-- P * TT ->
-          S |-- P * (ewand P S).
-Proof.
-intros.
-intros w ?. specialize (H w H0).
-destruct H as [w1 [w2 [? [? _]]]].
-exists w1; exists w2; split3; auto.
-exists w1; exists w; split3; auto.
-Qed.*)
 
 Lemma address_mapsto_old_parametric: forall ch v, 
    spec_parametric (fun l sh l' => yesat NoneP (VAL (nthbyte (snd l' - snd l) (encode_val ch v))) sh l').
@@ -897,23 +852,6 @@ destruct H as [k [? ?]].
 subst; auto.
 Qed.
 
-(*
-Lemma FUNspec_parametric: forall fml cc A P Q,
-   spec_parametric (fun l sh => yesat (SomeP (SpecTT A) (packPQ P Q)) (FUN fml cc) sh).
-Proof.
-intros.
-exists (SomeP (SpecTT A) (packPQ P Q)).
-exists (fun k => k=FUN fml cc).
-intros.
-simpl.
-apply exists_ext; intro p.
-unfold yesat_raw.
-apply prop_ext; split; intros.
-econstructor; eauto.
-destruct H as [k [? ?]].
-subst; auto.
-Qed.
-*)
 Definition val2address (v: val) : option AV.address := 
   match v with Vptr b ofs => Some (b, Ptrofs.signed ofs) | _ => None end.
 
@@ -1389,105 +1327,6 @@ rewrite <- H2. rewrite H3.
 subst; f_equal; auto.
 Qed.
 
-(*Lemma VALspec_range_precise: forall n sh l,  precise (VALspec_range n sh l).
-Proof.
-intros.
-intro; intros.
-apply rmap_ext; auto.
-1: destruct H1,H2; apply join_level in H1; apply join_level in H2; intuition.
-intro.
-destruct H as [H Hg], H0 as [H0 Hg0].
-specialize (H l0); specialize (H0 l0).
-unfold jam in *.
-hnf in H, H0. if_tac in H.
-+ destruct H as [v [p ?]].
-  destruct H0 as [v' [p' ?]].
-  unfold yesat_raw in *.
-  generalize (resource_at_join_sub _ _ l0 H1); rewrite H; clear H1; intro.
-  generalize (resource_at_join_sub _ _ l0 H2); rewrite H0; clear H2; intro.
-  f_equal. auto with extensionality.
-  clear - H1 H2.
-  destruct H1; destruct H2.
-  simpl in *.
-  f_equal.
-  inv H0; inv H; congruence.
-+ do 3 red in H,H0.
-  apply (resource_at_join_sub _ _ l0) in H1.
-  eapply join_sub_same_identity; eauto.
-  * apply identity_unit'; auto.
-  * apply (resource_at_join_sub _ _ l0) in H2.
-    eapply join_sub_unit_for; eauto.
-    apply identity_unit'; auto.
-+ destruct H as [_ ?%ghost_identity], H0 as [_ ?%ghost_identity]; congruence.
-Qed.*)
-
-(*Lemma nonlock_permission_bytes_precise: forall sh p n,
-  precise (nonlock_permission_bytes sh p n).
-Proof.
-  intros.
-  intro; intros.
-  destruct H as [H Hg], H0 as [H0 Hg0].
-  apply rmap_ext; auto.
-  1: destruct H1,H2; apply join_level in H1; apply join_level in H2; intuition.
-  intro.
-  specialize (H l); specialize (H0 l).
-  unfold jam in *.
-  hnf in H, H0. if_tac in H.
-  + unfold shareat, nonlockat in H, H0; simpl in H, H0.
-    apply (resource_at_join_sub _ _ l) in H1.
-    apply (resource_at_join_sub _ _ l) in H2.
-    destruct H as [? _], H0 as [? _].
-    clear - H H0 H1 H2.
-    destruct H1 as [b1 H1], H2 as [b2 H2].
-    destruct (w1 @ l), (w2 @ l); inv H1; inv H2; simpl in *;
-    repeat match goal with H: Some _ = Some _ |- _ => inv H end;
-    repeat f_equal; try apply proof_irr; try congruence;
-    try contradiction.
-  + do 3 red in H,H0.
-    apply (resource_at_join_sub _ _ l) in H1.
-    eapply join_sub_same_identity; eauto.
-    * apply identity_unit'; auto.
-    * apply (resource_at_join_sub _ _ l) in H2.
-      eapply join_sub_unit_for; eauto.
-      apply identity_unit'; auto.
-  + apply ghost_identity in Hg as ->.
-    apply ghost_identity in Hg0 as ->.
-    reflexivity.
-Qed.
-
-Lemma address_mapsto_precise: forall ch v sh l, precise (address_mapsto ch v sh l).
-Proof.
-intros.
-apply (derives_precise _ _ (address_mapsto_VALspec_range ch v sh l)).
-apply VALspec_range_precise.
-Qed.
-
-Lemma LKspec_precise lock_size: forall R sh l, precise (LKspec lock_size R sh l).
-Proof.
-intros.
-intro; intros.
-assert (level w1 = level w2) as Hlevel.
-{ destruct H1,H2; apply join_level in H1; apply join_level in H2; intuition. }
-destruct H as [H Hg], H0 as [H0 Hg0].
-apply rmap_ext; auto; intros.
--
-specialize (H l0); specialize (H0 l0).
-simpl in *.
-if_tac in H0.
-destruct H. destruct H0. rewrite H,H0.
-f_equal. proof_irr. auto.
-rewrite Hlevel; auto.
-apply (resource_at_join_sub _ _ l0) in H1.
-  eapply join_sub_same_identity; eauto.
-  * apply identity_unit'; auto.
-  * apply (resource_at_join_sub _ _ l0) in H2.
-    eapply join_sub_unit_for; eauto.
-    apply identity_unit'; auto.
-- apply ghost_identity in Hg as ->.
-  apply ghost_identity in Hg0 as ->.
-  reflexivity.
-Qed.*)
-
 Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap :=
   EX bl: list memval,
   !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
@@ -1835,24 +1674,6 @@ Qed.
 Definition almost_empty rm: Prop:=
   forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
 
-(*Lenb: moved here from veric.initial_world.v*)
 Definition no_locks phi :=
   forall addr sh sh' z z' P,
 phi @ addr <> YES sh sh' (LK z z') P.
-
-(*Lenb: moved here from veric.initial_world.v
-Definition no_locks phi :=
-  forall addr sh sh' z P,
-    phi @ addr <> YES sh sh' (LK z) P /\
-    phi @ addr <> YES sh sh' (CT z) P.
-
-Definition func_at (f: funspec): address -> pred rmap :=
-  match f with
-   | mk_funspec fsig cc A P Q _ _ => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
-  end.
-
-Definition func_at' (f: funspec) (loc: address) : pred rmap :=
-  match f with
-   | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
-  end.
-*)

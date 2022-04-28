@@ -1540,45 +1540,6 @@ auto.
   inv H. contradiction.
 Qed.
 
-(*
-Lemma field_at_field_at: forall sh t gfs0 gfs1 v v' p,
-  legal_alignas_type t = true ->
-  JMeq v v' ->
-  field_at sh t (gfs1 ++ gfs0) v p =
-  (!! (size_compatible t p)) &&
-  (!! (align_compatible t p)) &&
-  (!! (legal_nested_field t (gfs1 ++ gfs0))) &&
-  at_offset' (field_at sh (nested_field_type2 t gfs0) gfs1 v') (nested_field_offset2 t gfs0) p.
-Proof.
-  intros.
-  rewrite at_offset'_eq; [| rewrite <- field_at_offset_zero; reflexivity].
-  unfold field_at.
-  simpl.
-  revert v' H0.
-  rewrite nested_field_type2_nested_field_type2.
-  intros.
-  rewrite <- H0.
-  clear H0 v'.
-  rewrite data_at_rec_at_offset';
-   [ rewrite at_offset'_eq; [| rewrite <- data_at_rec_offset_zero; reflexivity]
-   | apply nested_field_type2_nest_pred; simpl; auto
-   | apply nested_field_offset2_type2_divide; auto].
-  rewrite data_at_rec_at_offset' with (pos := (nested_field_offset2 (nested_field_type2 t gfs0) gfs1));
-   [ rewrite at_offset'_eq; [| rewrite <- data_at_rec_offset_zero; reflexivity]
-   | apply nested_field_type2_nest_pred; simpl; auto
-   | rewrite <- nested_field_type2_nested_field_type2;
-     apply nested_field_offset2_type2_divide; apply nested_field_type2_nest_pred; simpl; auto].
-  apply pred_ext; normalize; rewrite <- nested_field_offset2_app; normalize.
-  apply andp_right; [apply prop_right | apply derives_refl].
-  split; [| split; split]; auto.
-  + apply size_compatible_nested_field, H0.
-    eapply legal_nested_field_app, H2.
-  + apply align_compatible_nested_field, H1; auto.
-    eapply legal_nested_field_app, H2.
-  + apply legal_nested_field_app', H2.
-Qed.
-*)
-
 Lemma splice_top_top: Share.splice Tsh Tsh = Tsh.
 Proof.
 unfold Share.splice.
@@ -1736,7 +1697,7 @@ Lemma valid_pointer_weak:
 Proof.
 intros.
 unfold valid_pointer, weak_valid_pointer.
-change predicates_hered.orp with orp. (* delete me *)
+change predicates_hered.orp with orp.
 apply orp_right1.
 auto.
 Qed.
@@ -1928,10 +1889,6 @@ Ltac field_at_saturate_local :=
 unfold data_at;
 match goal with |- field_at ?sh ?t ?path ?v ?c |-- _ =>
 eapply derives_trans; [apply field_at_local_facts |];
-(*  try (progress cbv beta; idtac "FASL 1");
-  try (rewrite proj_sumbool_is_true by auto; idtac "FASL 2");
-  try (rewrite proj_sumbool_is_false by auto; idtac "FASL 3");
-*)
   let p := fresh "p" in set (p := nested_field_type t path);
   simpl in p; unfold field_type in p; simpl in p; subst p;  (* these simpls are probably not dangerous *)
   try rewrite value_fits_by_value by reflexivity;
@@ -1950,33 +1907,19 @@ Ltac data_at_valid_aux :=
 #[export] Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
     (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-(*
-#[export] Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
-    (unfold data_at_, field_at_; 
-     simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
-
-#[export] Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
-    (unfold field_at_; simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
-*)
-
 #[export] Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
     (simple apply data_at__valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 #[export] Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
     (apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
-(* #[export] Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
-
-(*#[export] Hint Resolve field_at_local_facts : saturate_local.*)
 #[export] Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
 
-(* #[export] Hint Resolve data_at_local_facts : saturate_local.*)
 #[export] Hint Extern 1 (data_at _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
 
 #[export] Hint Resolve array_at_local_facts array_at__local_facts : saturate_local.
-
 
 #[export] Hint Resolve field_at__local_facts : saturate_local.
 #[export] Hint Resolve data_at__local_facts : saturate_local.
@@ -2128,53 +2071,6 @@ Ltac find_data_at N :=
 Definition protect (T: Type) (x: T) := x.
 Global Opaque protect.
 
-(* The following code is obsolete, use the version in floyd/unfold_data_at.v instead. 
-
-Ltac unfold_field_at' :=
- match goal with
- | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
-     let F := fresh "F" in
-       set (F := field_at_mark cs sh t gfs v p);
-       change field_at_mark with @field_at in F;
-     let V := fresh "V" in set (V:=v) in F;
-     let P := fresh "P" in set (P:=p) in F;
-     let T := fresh "T" in set (T:=t) in F;
-     let id := fresh "id" in evar (id: ident);
-     let Heq := fresh "Heq" in
-     assert (Heq: nested_field_type T gfs = Tstruct id noattr)
-           by (unfold id,T; reflexivity);
-     let H := fresh in
-     assert (H:= @field_at_Tstruct cs sh T gfs id noattr
-                          V V P  (eq_refl _) (JMeq_refl _));
-     unfold id in H; clear Heq id;
-     fold F in H; clearbody F;
-     simpl co_members in H;
-     lazy beta iota zeta delta  [nested_sfieldlist_at ] in H;
-     change (@field_at cs sh T) with (@field_at cs sh t) in H;
-     hnf in T; subst T;
-     change v with (protect _ v) in V;
-     simpl in H;
-     unfold withspacer in H; simpl in H;
-     change (protect _ v) with v in V;
-     subst V;
-     repeat match type of H with
-     | context[fst (?A,?B)] => change (fst (A,B)) with A in H
-     | context[snd (?A,?B)] => change (snd (A,B)) with B in H
-     end;
-     subst P;
-     subst F;
-     cbv beta;
-     repeat flatten_sepcon_in_SEP;
-     repeat simplify_project_default_val
- end.
-
-Ltac unfold_field_at_tac N  :=
-  find_field_at N; unfold_field_at'.
-
-Ltac unfold_data_at_tac N  :=
-  find_data_at N; unfold_field_at'.
-*)
-
 Lemma field_at_ptr_neq{cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,
   sepalg.nonidentity sh ->
@@ -2261,94 +2157,6 @@ Lemma data_at_rec_void:
 Proof.
  intros; subst; reflexivity.
 Qed.
-
-(*
-<<<<<<< HEAD
-=======
-Lemma snd_reptype_structlist_aux  {cs: compspecs}:
-  forall (p: ident * type) (m: list (ident * type)),
-   members_no_replicate (p :: m) = true ->
-  map (fun it : ident * type => reptype (field_type (fst it) (p :: m))) m =
-  map (fun it : ident * type => reptype (field_type (fst it) m)) m.
-  (* not useful? *)
-Proof.
-intros.
-change (p::m) with ((p::nil) ++ m) in *.
-forget (p::nil) as q.
-clear p.
-revert q H; induction m; intros.
-reflexivity.
-simpl; f_equal.
-+
-clear - H.
-induction q. reflexivity.
-simpl in H.
-destruct a0.
-rewrite fieldlist.members_no_replicate_ind in H.
-destruct H.
-rewrite <- IHq; auto.
-unfold field_type. simpl.
-rewrite if_false; auto.
-clear - H.
-contradict H. subst.
-induction q. left; auto.
-right. auto.
-+
-generalize (IHm (q++ a::nil)).
-rewrite app_ass; simpl; intro.
-rewrite H0.
-symmetry; apply (IHm (a::nil)).
-simpl.
-clear - H.
-induction q. auto. apply IHq.
-rewrite fieldlist.members_no_replicate_ind in H.
-destruct a0, H; auto.
-auto.
-Qed.
-
-(*
-(* TODO: remove this lemma? It is not used anywhere. *)
-Lemma readable_share_join:
-  forall sh1 sh2 sh,
-    sepalg.join sh1 sh2 sh ->
-    readable_share sh1 -> readable_share sh.
-Proof.
-intros.
-unfold readable_share in *.
-destruct H.
-subst sh.
-rewrite Share.distrib1.
-unfold nonempty_share, sepalg.nonidentity in *.
-contradict H0.
-apply identity_share_bot in H0.
-*)
-
-Lemma field_at_share_join_values_cohere {cs:compspecs} sh1 sh2 sh t gfs 
-    v1 v2 (R:type_is_by_value (nested_field_type t gfs)  = true) p:
-    sepalg.join sh1 sh2 sh -> 
-    type_is_volatile (nested_field_type t gfs) = false ->
-    readable_share sh1 -> readable_share sh2 ->
-    ~ (JMeq v1 Vundef) -> ~ (JMeq v2 Vundef) ->
-   (field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p) |-- !!(v1=v2).
-Proof. intros. unfold field_at, at_offset; Intros.
-  destruct H5. destruct p; inv H5.
-  unfold offset_val. 
-  apply (data_at_rec_share_join_values_cohere sh1 sh2 sh); trivial.
-Qed.
-
-Lemma data_at_share_join_values_cohere {cs:compspecs} sh1 sh2 sh t
-    v1 v2 (R:type_is_by_value (nested_field_type t nil)  = true) p:
-    sepalg.join sh1 sh2 sh -> 
-    type_is_volatile (nested_field_type t nil) = false ->
-    readable_share sh1 -> readable_share sh2 ->
-    ~ (JMeq v1 Vundef) -> ~ (JMeq v2 Vundef) ->
-   (data_at sh1 t v1 p * data_at sh2 t v2 p) |-- !!(v1=v2).
-Proof. intros. eapply field_at_share_join_values_cohere; eassumption. Qed.
-
->>>>>>> origin/master
-
-*)
-
 
 Lemma field_at_share_join{cs: compspecs}:
   forall sh1 sh2 sh t gfs v p,
@@ -2471,17 +2279,7 @@ unfold data_at.
 erewrite field_at_share_join; eauto.
 apply derives_refl.
 Qed.
-(*
-Lemma nonreadable_data_at_rec_eq {cs: compspecs} :
-  forall sh t v v' p,
-    ~readable_share sh ->
-    field_compatible t nil p ->
-     data_at_rec sh t v p = data_at_rec sh t v' p.
-Proof.
-  intros.
-  rewrite <- !(nonreadable_memory_block_data_at_rec); auto.
-Qed.
-*)
+
 Lemma nonreadable_data_at_eq {cs: compspecs}:
   forall sh t v v' p, ~readable_share sh ->
    (value_fits t v <-> value_fits t v') ->
@@ -2636,35 +2434,6 @@ Proof.
  destruct H as [b ?]; subst p.
  repeat split; auto.
 Qed.
-
-(*
-Lemma headptr_field_compatible' {cs: compspecs}: forall t p,
-  headptr p ->
-  legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  sizeof t < Ptrofs.modulus ->
-  complete_type cenv_cs t = true ->
-  field_compatible t nil p.
-Proof.
-  intros.
-  split; [| split; [| split; [| split; [| split; [| split; [| split]]]]]].
-  + apply headptr_isptr; auto.
-  + auto.
-  + auto.
-  + auto.
-  + auto.
-  + destruct H as [b ?]; subst.
-    simpl.
-    change (Ptrofs.unsigned Ptrofs.zero) with 0.
-    lia.
-  + destruct H as [b ?]; subst.
-    simpl.
-    change (Ptrofs.unsigned Ptrofs.zero) with 0.
-    apply Z.divide_0_r.
-  + simpl.
-    auto.
-Qed.
-*)
 
 Lemma mapsto_data_at'' {cs: compspecs}: forall sh t v v' p,
   ((type_is_by_value t) && (complete_legal_cosu_type t) && (negb (type_is_volatile t)) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->

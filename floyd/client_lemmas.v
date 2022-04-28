@@ -180,7 +180,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-#[export] Hint Rewrite @subst_lift0 (*@subst_lift0'*) @subst_lift0C : subst.
+#[export] Hint Rewrite @subst_lift0 @subst_lift0C : subst.
 
 Lemma subst_lift1:
   forall {A1 B} id v (f: A1 -> B) a,
@@ -203,7 +203,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-#[export] Hint Rewrite @subst_lift1 (*@subst_lift1'*) @subst_lift1C  : subst.
+#[export] Hint Rewrite @subst_lift1 @subst_lift1C  : subst.
 
 Lemma subst_lift2:
   forall {A1 A2 B} id v (f: A1 -> A2 -> B) a b,
@@ -226,7 +226,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-#[export] Hint Rewrite @subst_lift2 (*@subst_lift2'*) @subst_lift2C : subst.
+#[export] Hint Rewrite @subst_lift2 @subst_lift2C : subst.
 
 Lemma subst_lift3:
   forall {A1 A2 A3 B} id v (f: A1 -> A2 -> A3 -> B) a1 a2 a3,
@@ -251,7 +251,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-#[export] Hint Rewrite @subst_lift3 (*@subst_lift3'*) @subst_lift3C : subst.
+#[export] Hint Rewrite @subst_lift3 @subst_lift3C : subst.
 
 Lemma subst_lift4:
   forall {A1 A2 A3 A4 B} id v (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2 a3 a4,
@@ -276,7 +276,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-#[export] Hint Rewrite @subst_lift4 (*@subst_lift4'*) @subst_lift4C : subst.
+#[export] Hint Rewrite @subst_lift4 @subst_lift4C : subst.
 
 
 Lemma bool_val_int_eq_e:
@@ -354,7 +354,6 @@ Proof.
  intros. unfold retval, eval_id; simpl. unfold make_ext_rval; simpl.
 destruct t eqn:?H;  destruct v eqn:?H; simpl; auto.
 Abort.
-(* #[export] Hint Rewrite retval_ext_rval : norm. *)
 
 Lemma retval_lemma1:
   forall rho v,     retval (env_set rho ret_temp v) = v.
@@ -603,7 +602,6 @@ tc_environ Delta rho ->
 tc_lvalue Delta (Evar i t) rho |--
         !! (force_val
             match eval_var i t rho with
-(*            | Vint _ => Some (eval_var i t rho) *)
             | Vptr _ _ => Some (eval_var i t rho)
             | _ => None
             end = eval_var i t rho).
@@ -883,17 +881,6 @@ eapply derives_trans; [ | apply H; auto].
 normalize.
 Qed.
 
-(*
-Lemma ENTAIL_normal_ret_assert:
-  forall Delta P Q ek vl,
- (ek = EK_normal -> vl = None -> ENTAIL Delta, P |-- Q) ->
- ENTAIL Delta, normal_ret_assert P ek vl |-- normal_ret_assert Q ek vl.
-Proof.
-intros.
-unfold normal_ret_assert. normalize.
-Qed.
-*)
-
 Lemma local_andp_prop:  forall P Q, local P && prop Q = prop Q && local P.
 Proof. intros. apply andp_comm. Qed.
 Lemma local_andp_prop1: forall P Q R, local P && (prop Q && R) = prop Q && (local P && R).
@@ -986,7 +973,7 @@ Global Open Scope funspec_scope.
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
-Definition NDsemax_external {Hspec: OracleKind} (*(ids: list ident)*) (ef: external_function)
+Definition NDsemax_external {Hspec: OracleKind} (ef: external_function)
   (A: Type) (P:A -> argsEnviron -> mpred) (Q: A -> environ -> mpred): Prop :=
   @semax_external Hspec ef (rmaps.ConstType A) (fun _ => P) (fun _ => Q).
 
@@ -1755,17 +1742,6 @@ rewrite sepcon_prop_prop.
 auto.
 Qed.
 
-Lemma saturate_aux21:  (* obsolete? *)
-  forall (P Q: mpred) S (S': Prop),
-   (P |-- S) ->
-   S = !!S' ->
-   (!! S' && P |-- Q) -> P |-- Q.
-Proof.
-intros. subst.
-eapply derives_trans; [ | eassumption].
-apply andp_right; auto.
-Qed.
-
 Lemma saturate_aux21x:
   forall (P Q S: mpred),
    (P |-- S) ->
@@ -2097,8 +2073,6 @@ Ltac Intro a :=
   | |- semax _ _ _ _ =>
      Intro'' a
   end.
-
-(* Tactic Notation "Intros" := repeat (let x := fresh "x" in Intro x). *)
 
 Ltac finish_Intros :=
 repeat Intro_prop;

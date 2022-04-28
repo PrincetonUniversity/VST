@@ -170,7 +170,7 @@ Lemma valid_pointer_null:
 Proof.
   intros. unfold nullval, valid_pointer, valid_pointer'. 
   destruct Archi.ptr64 eqn:Hp; simpl;
- change predicates_hered.prop with prop; (* delete me *)
+ change predicates_hered.prop with prop;
  normalize.
 Qed.
 
@@ -264,7 +264,7 @@ Lemma valid_pointer_zero32:
 Proof.
  intros.
  unfold valid_pointer, valid_pointer'. rewrite H.
- change predicates_hered.prop with prop; (* delete me *)
+ change predicates_hered.prop with prop;
  normalize.
 Qed.
 
@@ -273,7 +273,7 @@ Lemma valid_pointer_zero64:
 Proof.
  intros.
  unfold valid_pointer, valid_pointer'. rewrite H.
- change predicates_hered.prop with prop; (* delete me *)
+ change predicates_hered.prop with prop;
  normalize.
 Qed.
 
@@ -744,7 +744,7 @@ Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
 Proof.
 intros. apply Z.max_r; auto.
 Qed.
-#[export] Hint Rewrite Zmax0r using (try computable; rep_lia (*Omega0*)) : norm.
+#[export] Hint Rewrite Zmax0r using (try computable; rep_lia) : norm.
 
 Import ListNotations.
 
