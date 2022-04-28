@@ -285,7 +285,9 @@ Proof.
   inv H. apply IHvals in H5. split; trivial.
 Qed.
 
-Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
+Lemma semax_external_funspec_sub
+  (DISABLE: False)
+  {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
                      (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
@@ -318,6 +320,10 @@ edestruct (N _ NM (sepcon F FRM) typs vals jm0) as [est [EST1 EST2]]; clear N; e
 { rewrite HSIG; simpl. split; trivial.
   exists z12, zz; split3. trivial. trivial.
   exists z2, z11; split3; trivial. }
+contradiction DISABLE.  (* 
+    This lemma is not true as written because it needs a ghost-state
+    update operator somewhere.  
+*)
 (*
 exists est; split.
 { simpl. intros.
@@ -332,7 +338,7 @@ exists v, w1; split3; trivial.
 apply HQ; clear HQ; split.
 + simpl. destruct b,b0; reflexivity.
 + exists w2, u1; split3; trivial.*)
-Admitted.
+Qed.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
@@ -384,7 +390,8 @@ Proof.
 + split.
   - split3; trivial. split; trivial.
     destruct N1d; [ left; trivial | right; auto].
-  - eapply semax_external_funspec_sub; eassumption.
+  - eapply semax_external_funspec_sub; try eassumption.
+     admit.
 + simpl; intros. simpl in N3. simpl in Hsub.
   destruct Hsub as [_ Hsub].
   specialize (Hsub b b0).
