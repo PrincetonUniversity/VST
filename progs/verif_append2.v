@@ -253,7 +253,7 @@ Lemma lseg_valid_pointer:
    lseg sh contents p nullval |-- valid_pointer p.
 Proof.
  destruct contents; unfold lseg; fold lseg; intros. entailer!.
- Intros. Intros y.
+ Intros!.
  auto with valid_pointer.
 Qed.
 

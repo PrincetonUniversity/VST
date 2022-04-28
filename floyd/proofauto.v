@@ -158,8 +158,7 @@ Ltac simpl_implicit :=
 
 Ltac step :=
   first
-  [ progress Intros
-  | let x := fresh "x" in Intros x
+  [ progress Intros!
   | progress simpl_implicit
   | progress autorewrite with sublist in *|-
   | progress autorewrite with sublist
@@ -179,9 +178,7 @@ Ltac step :=
 
 Tactic Notation "step!"  :=
   first
-  [ progress Intros
-  | let x := fresh "x" in
-    Intros x
+  [ progress Intros!
   | progress simpl_implicit
   | progress autorewrite with sublist in * |-
   | progress autorewrite with sublist
@@ -202,10 +199,7 @@ Tactic Notation "step!"  :=
 
 Tactic Notation "info_step!" :=
   first
-  [ progress Intros; idtac "Intros."
-  | let x := fresh "x" in
-    Intros x;
-    idtac "Intros x."
+  [ progress Intros!; idtac "Intros!."
   | progress simpl_implicit; idtac "simpl_implicit."
   | progress autorewrite with sublist in * |-; idtac "autorewrite with sublist in * |-."
   | progress autorewrite with sublist; idtac "autorewrite with sublist."
