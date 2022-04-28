@@ -422,7 +422,7 @@ Proof.
       unfold q_lock_pred, q_lock_pred'; Exists vals head addc remc h'; simpl; entailer!. }
     forward.
     Exists (vint 0); entailer!.
-    destruct (Memory.EqDec_val (vint 0) nullval); [|contradiction n; auto].
+    destruct (EqDec_val (vint 0) nullval); [|contradiction n; auto].
     unfold lqueue; simpl; entailer!. }
   { forward.
     entailer!.
@@ -482,7 +482,7 @@ Proof.
   forward.
   Exists e; entailer!.
   { rewrite Znth_head; auto; rewrite Zlength_cons, Zlength_map; lia. }
-  destruct (Memory.EqDec_val e nullval).
+  destruct (EqDec_val e nullval).
   { rewrite data_at_isptr; Intros.
     subst; contradiction. }
   Exists v; unfold lqueue; simpl; entailer!; auto.
@@ -493,7 +493,7 @@ Qed.
 Definition extlink := ext_link_prog prog.
 
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-#[(*export, after Coq 8.13*)global] Existing Instance Espec.
+#[export] Existing Instance Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

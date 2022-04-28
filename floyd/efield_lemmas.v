@@ -296,24 +296,6 @@ destruct i; inv H1.
 all: simpl; destruct (typeconv t2); auto.
 Qed.
 
-(*
-Lemma classify_add_add_case_pi: forall ei ty t n a si,
-  match typeof ei with Tint _ si' _ => si=si' | _ => False end ->
-  typeconv (Tarray t n a) = typeconv ty ->
-  Cop.classify_add ty (typeof ei) = Cop.add_case_pi t si.
-Proof.
-  intros.
-  destruct (typeof ei) eqn:?; inv H.
-  simpl in *. rewrite <- H0.
-  destruct i;auto.
-  subst.
-  simpl.
-  rewrite <- H0; clear H0.
-  simpl.
-  destruct i; try reflexivity.
-Qed.
-*)
-
 Lemma isBinOpResultType_add_ptr_long: forall e t n a t0 ei,
   is_long_type (typeof ei) = true ->
   typeconv (Tarray t0 n a) = typeconv (typeof e) ->
@@ -325,7 +307,6 @@ Proof.
   unfold isBinOpResultType.
   rewrite (classify_add_typeconv _ _ _ _ H0).
   destruct (typeof ei); inv H.
-(*  erewrite classify_add_add_case_pi by eauto. *)
   apply complete_legal_cosu_type_complete_type in H1.
   simpl.
   try destruct i; rewrite H1; simpl tc_bool; cbv iota;
@@ -344,7 +325,6 @@ Proof.
   unfold isBinOpResultType.
   rewrite (classify_add_typeconv _ _ _ _ H0).
   destruct (typeof ei); inv H.
-(*  erewrite classify_add_add_case_pi by eauto. *)
   apply complete_legal_cosu_type_complete_type in H1.
   simpl.
   try destruct i; rewrite H1; simpl tc_bool; cbv iota;
@@ -363,7 +343,6 @@ Proof.
   unfold isBinOpResultType.
   rewrite (classify_add_typeconv _ _ _ _ H0).
   destruct (typeof ei); inv H.
-(*  erewrite classify_add_add_case_pi by eauto. *)
   apply complete_legal_cosu_type_complete_type in H1.
   simpl.
   destruct i; rewrite H1; simpl tc_bool; cbv iota;
@@ -518,10 +497,6 @@ hnf in H0.
 rewrite <- H0.
 apply Ptrofs.repr_unsigned.
 Qed.
-(*
-Lemma Archi_ptr64_DEPENDENCY: Archi.ptr64=false.
-Proof. reflexivity. Qed.
-*)
 
 Definition sem_add_ptr_ptrofs t si :=
  if Archi.ptr64 then sem_add_ptr_long t else sem_add_ptr_int t si.
@@ -794,7 +769,6 @@ Qed.
 Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
-(*  is_int_type (typeof ei) = true -> *)
    match typeconv (typeof ei) with
    | Tint _ Signed _ => Int.min_signed <= i <= Int.max_signed
    | Tint _ Unsigned _ => 0 <= i <= Int.max_unsigned
@@ -872,21 +846,6 @@ Proof.
       rewrite <- H3.
       normalize.
 Qed.
-
-(*
-Lemma in_members_Ctypes_offset: forall i m e, in_members i m -> Ctypes.field_offset cenv_cs i m = Errors.Error e -> False.
-Proof.
-  intros.
-  unfold Ctypes.field_offset in H0.
-  revert H0; generalize 0; induction m as [| [? ?] ?]; intros.
-  + inv H.
-  + simpl in H0.
-    if_tac in H0; inv H0.
-    spec IHm.
-    - destruct H; [simpl in H; congruence | auto].
-    - apply IHm in H3; auto.
-Qed.
-*)
 
 Lemma struct_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho
   (PLAIN: plain_members (co_members (get_co i)) = true),

@@ -433,23 +433,6 @@ Proof.
   rewrite !(prop_true_andp (None=None)) by auto;
   rewrite assert_safe_except_0; auto.
 Qed.
-(*
-Lemma rguard_except_0:
-  forall {Espec: OracleKind} ge Delta f (F: environ -> pred rmap) Q k,
-    rguard Espec ge Delta f (frame_ret_assert Q F) k =
-    rguard Espec ge Delta f (frame_ret_assert (except_0_ret_assert Q) F) k.
-Proof.
-  intros.
-  unfold rguard.
-  f_equal; extensionality ek.
-  f_equal; extensionality vl.
-  rewrite !proj_frame.
-Abort.
-
-  rewrite proj_except_0_ret_assert.
-  apply _guard_except_0.
-Qed.
-*)
 
 Lemma _guard_allp_fun_id:
   forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
@@ -964,13 +947,6 @@ apply (semax_conseq Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) &
     2: {
     intros; constructor. eapply derives_trans; [|apply bupd_mono; apply derives_refl].
     revert rho. revert vl. exact H3. }
-    
-  (* 2: { *)
-  (*  intros; constructor. eapply derives_trans; [ | apply own.bupd_intro]. *)
-  (*  apply orp_right2. revert rho. exact H1. } *)
-  (* 2: { *)
-  (*  intros; constructor. eapply derives_trans; [ | apply own.bupd_intro].  *)
-  (*  apply orp_right2. revert rho. revert vl. exact H3. } *)
   
    intros; constructor. eapply derives_trans; [ | apply own.bupd_intro]. 
    apply orp_right2. apply andp_left2. apply andp_left2. apply derives_refl. }

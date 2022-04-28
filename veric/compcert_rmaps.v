@@ -9,34 +9,14 @@ Require Export VST.veric.Memory. (*for address, and eq_dec memval*)
 Global Instance EqDec_type: EqDec type := type_eq.
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
-(*moved to mpred
-Definition strict_bool_val (v: val) (t: type) : option bool :=
-   match v, t with
-   | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
-   | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
-   | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-             if Int.eq n Int.zero then Some false else None
-   | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-            if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None
-   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true
-   | Vfloat f, Tfloat F64 _ => Some (negb(Float.cmp Ceq f Float.zero))
-   | Vsingle f, Tfloat F32 _ => Some (negb(Float32.cmp Ceq f Float32.zero))
-   | _, _ => None
-   end.
-*)
+
 Definition typesig := (list type * type)%type. (*funsig without the identifiers*)
 Definition typesig_of_funsig (f:funsig):typesig := (map snd (fst f), snd f).
 
 Inductive kind : Type := VAL : memval -> kind
                                    | LK : forall n i : Z, kind
-                                   | FUN: (*funsig*)typesig -> calling_convention -> kind.
+                                   | FUN: typesig -> calling_convention -> kind.
 
-(*Non-Ctypes.v- using variant:
-Inductive kind : Type := VAL : memval -> kind
-                                   | LK : Z -> kind
-                                   | CT: Z -> kind
-                                   | FUN: (*funsig -> calling_convention*)signature -> kind.
- *)
 
 Definition isVAL (k: kind) := match k with | VAL _ => True | _ => False end.
 Definition isFUN (k: kind) := match k with | FUN _ _ => True | _ => False end.
@@ -97,9 +77,6 @@ Export R.
 
 Definition mk_rshare: forall p: Share.t, pure_readable_share p -> rshare := exist pure_readable_share.
 Definition rshare_sh (p: rshare) : Share.t := proj1_sig p.
-(*
-Definition mk_pshare : forall p: Share.t, nonunit p -> pshare := exist nonunit.
-*)
 
 Lemma mk_rshare_sh: forall (p:rshare) (H: pure_readable_share (rshare_sh p)),
   mk_rshare (rshare_sh p) H = p.
@@ -282,10 +259,9 @@ Proof.
   destruct H0. simpl in *. do 3 red in H. simpl in H. auto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance Cross_rmap_aux: Cross_alg (AV.address -> option (rshare * AV.kind)).
+#[export] Instance Cross_rmap_aux: Cross_alg (AV.address -> option (rshare * AV.kind)).
 Proof.
  hnf. intros a b c d z ? ?.
-(* hnf in H,H0. simpl in H,H0. *)
  destruct (cross_split_fun Share.t _ address share_cross_split
                    (share_of oo a) (share_of oo b) (share_of oo c) (share_of oo d) (share_of oo z))
   as [[[[ac ad] bc] bd] [? [? [? ?]]]].
@@ -307,7 +283,7 @@ Proof.
  exists (c x0); apply join_comm; apply H0.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance Trip_resource: Trip_alg resource.
+#[export] Instance Trip_resource: Trip_alg resource.
 Proof.
 intro; intros.
 destruct a as [ra | ra sa ka pa | ka pa].
@@ -384,7 +360,7 @@ rewrite glb_twice in H. auto.
 Qed.
 
 (* Do we need this?
-#[(*export, after Coq 8.13*)global] Instance Trip_rmap : Trip_alg rmap.
+#[export] Instance Trip_rmap : Trip_alg rmap.
 Proof.
 intro; intros.
 pose (f loc := @Trip_resource _ _ _ _ _ _

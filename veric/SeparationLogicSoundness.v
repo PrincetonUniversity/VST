@@ -69,9 +69,7 @@ Module Type MAIN_THEOREM_STATEMENT.
 Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Declare Module CSHL_MinimumLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := CSHL_Def.
-(*
-Definition corable_func_ptr: forall f v, corable (func_ptr f v) :=
-  general_assert_lemmas.corable_func_ptr.*)
+
 Declare Module CSHL_PracticalLogic: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_MinimumLogic := CSHL_MinimumLogic.
 
 Declare Module CSHL_Sound: SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := CSHL_Def.
@@ -84,12 +82,9 @@ Definition semax := @semax.
 
 Definition semax_func := @semax_func.
 
-Definition semax_external {Espec: OracleKind} (*ids*) ef A P Q :=
-  forall n, semax_external Espec (*ids*) ef A P Q n.
+Definition semax_external {Espec: OracleKind} ef A P Q :=
+  forall n, semax_external Espec ef A P Q n.
 
-(*
-Definition semax_cssub := @semax_cssub.
-  *)
 End VericDef.
 
 Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := VericDef.
@@ -102,7 +97,6 @@ Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
 Definition semax_func_nil := @semax_func_nil.
 Definition semax_func_cons := @semax_func_cons.
-(* Definition semax_func_skip := @semax_func_skip. *)
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 
@@ -129,15 +123,14 @@ Proof. intros. eapply semax_func_cons_ext; eauto. intros. apply H3. Qed.
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 
 Lemma semax_external_binaryintersection: forall
- {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne A P Q P_ne Q_ne sig cc (*ids*)}
-  (EXT1: @CSHL_Def.semax_external Espec (*ids*) ef A1 P1 Q1)
-  (EXT2: @CSHL_Def.semax_external Espec (*ids*) ef A2 P2 Q2)
+ {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne A P Q P_ne Q_ne sig cc}
+  (EXT1: @CSHL_Def.semax_external Espec ef A1 P1 Q1)
+  (EXT2: @CSHL_Def.semax_external Espec ef A2 P2 Q2)
   (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
                       (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
      Some (mk_funspec sig cc A P Q P_ne Q_ne))
-  (*(IDS: ids = map fst (fst sig))*)
   (LEN: length (fst sig) = length (sig_args (ef_sig ef))),
-  @CSHL_Def.semax_external Espec (*ids*) ef A P Q. 
+  @CSHL_Def.semax_external Espec ef A P Q. 
 Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.
 
 Lemma semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
@@ -181,11 +174,6 @@ Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
 Definition semax_switch := @semax_switch.
 Definition semax_Slabel := @semax_Slabel.
-
-(*See below
-Definition semax_call := @semax_call_si.*)
-(* Definition semax_call_ext := @semax_call_ext. *)
-
 Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
@@ -204,7 +192,7 @@ Lemma semax_call {CS Espec}:
             (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-       (fun rho => ((*|>*)(tc_expr Delta a rho && tc_exprlist Delta argsig bl rho))  &&
+       (fun rho => ((tc_expr Delta a rho && tc_exprlist Delta argsig bl rho))  &&
            (func_ptr (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) &&
           (|>(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))%pred
          (Scall ret a bl)
@@ -261,7 +249,6 @@ intros; apply semax_store; auto.
 Qed.
 
 Definition semax_store_union_hack := @semax_store_union_hack.
-(*Definition semax_store := @semax_store. *)
 
 Definition semax_load := @semax_load.
 Definition semax_cast_load := @semax_cast_load.
@@ -274,7 +261,6 @@ Definition semax_external_FF := @semax_external_FF.
 Definition juicy_ext_spec := juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.
-Definition semax_ext_void := @semax_ext_void.
 
 End VericMinimumSeparationLogic.
 

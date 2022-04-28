@@ -41,20 +41,20 @@ Import FashNotation.
 Import LiftNotation.
 Import Ctypes Clight expr.
 
-#[(*export, after Coq 8.13*)global] Existing Instance EqDec_ident. 
-#[(*export, after Coq 8.13*)global] Existing Instance EqDec_byte.
-#[(*export, after Coq 8.13*)global] Existing Instance EqDec_memval.
-#[(*export, after Coq 8.13*)global] Existing Instance EqDec_quantity.
+#[export] Existing Instance EqDec_ident. 
+#[export] Existing Instance EqDec_byte.
+#[export] Existing Instance EqDec_memval.
+#[export] Existing Instance EqDec_quantity.
 
-#[(*export, after Coq 8.13*)global] Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
-#[(*export, after Coq 8.13*)global] Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
+#[export] Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
+#[export] Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
+#[export] Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
+#[export] Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
+#[export] Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
+#[export] Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
+#[export] Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
+#[export] Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
+#[export] Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
 Lemma derives_eq : @derives _ Nveric = predicates_hered.derives(A := compcert_rmaps.RML.R.rmap)(AG := _)(EO := _).
 Proof.
@@ -67,7 +67,7 @@ Ltac unseal_derives := rewrite derives_eq in *.
 
 
 
-#[(*export, after Coq 8.13*)global] Program Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
+#[export] Program Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
   { bupd := bupd; own := @own }.
 Next Obligation.
 Proof.
@@ -110,17 +110,17 @@ Proof.
   constructor; apply @ghost_dealloc.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftClassicalSep' T {ND: NatDed T}{SL: SepLog T}{CS: ClassicalSep T} :
+#[export] Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
+#[export] Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
+#[export] Instance LiftClassicalSep' T {ND: NatDed T}{SL: SepLog T}{CS: ClassicalSep T} :
            ClassicalSep (LiftEnviron T) := LiftClassicalSep _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T} :
+#[export] Instance LiftIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T} :
            Indir (LiftEnviron T) := LiftIndir _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftSepIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T} :
+#[export] Instance LiftSepIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T} :
            SepIndir (LiftEnviron T) := LiftSepIndir _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftCorableSepLog' T {ND: NatDed T}{SL: SepLog T}{CSL: CorableSepLog T} :
+#[export] Instance LiftCorableSepLog' T {ND: NatDed T}{SL: SepLog T}{CSL: CorableSepLog T} :
            CorableSepLog (LiftEnviron T) := LiftCorableSepLog _ _.
-#[(*export, after Coq 8.13*)global] Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CSL: CorableSepLog T}{CI: CorableIndir T} :
+#[export] Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CSL: CorableSepLog T}{CI: CorableIndir T} :
            CorableIndir (LiftEnviron T) := LiftCorableIndir _ _.
 
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
@@ -145,7 +145,7 @@ match f1 with
         (|> ! (ALL ts2 :_, ALL x2:functors.MixVariantFunctor._functor 
                               (rmaps.dependent_type_functor_rec ts2 A2) mpred,
              ALL gargs:genviron * list val,
-        ((!!((*Forall2 tc_val' (fst tpsig1) (snd gargs)*)argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
+        ((!!(argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
          >=> ghost_seplog.bupd (EX ts1:_,  EX x1:_, EX F:_, 
             (F * (P1 ts1 x1 gargs)) &&
             ALL rho':_, (     !( ((!!(ve_of rho' = Map.empty (block * type))) && (F * (Q1 ts1 x1 rho')))
@@ -498,14 +498,6 @@ Definition typed_true (t: type) (v: val)  : Prop :=  strict_bool_val v t
 Definition typed_false (t: type)(v: val) : Prop :=  strict_bool_val v t =
 Some false.
 
-(*Previously, we had this in seplog/smeax_call:
-Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
-  fun s => P (env_set s x v).
-Definition substopt {A} (ret: option ident) (v: val) (P: environ -> A)  : environ -> A :=
-   match ret with
-   | Some id => subst id v P
-   | None => P
-   end.*)
 Definition substopt {A} (ret : option ident) (v : environ -> val) (P : environ -> A):=
 match ret with
 | Some id => subst id v P
@@ -623,13 +615,6 @@ Proof. reflexivity. Qed.
 
 Definition globvars2pred (gv: globals)  (vl: list (ident * globvar type)): mpred :=
   fold_right sepcon emp (map (globvar2pred gv) vl).
-
-(*
-Definition gglobvars2pred (gv: globals) (vl: list (ident * globvar type)) : argsassert :=
-  fun gvargs => globvars2pred gv vl (Clight_seplog.mkEnv (fst gvargs) nil nil).
-*)
-(*  (alift2 andp) (fun gvals => prop (gv = globals_of_genv (fst gvals)))
-  (fold_right (alift2 sepcon) (alift0 emp) (map (initialize.gglobvar2pred gv) vl)).*)
 
 Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   match d with
@@ -835,20 +820,10 @@ Qed.
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
 Proof.
   intros. apply assert_lemmas.corable_func_ptr_si.
-(*  unfold func_ptr.
-  apply corable_exp; intro.
-  apply corable_andp; auto. 
-  apply corable_exp; intro.
-  apply corable_andp. apply assert_lemmas.corable_funspec_sub.
-  apply assert_lemmas.corable_func_at.*)
 Qed.
 
 Lemma func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
-Proof. constructor; apply seplog.func_ptr_si_isptr. (*
-  intros.
-  unfold func_ptr.
-  destruct spec.
-  normalize.*)
+Proof. constructor; apply seplog.func_ptr_si_isptr.
 Qed.
 
 Definition NDmk_funspec (f: compcert_rmaps.typesig) (cc: calling_convention)
@@ -910,17 +885,7 @@ Definition get_result (ret: option ident) : environ -> environ :=
  | None => make_args nil nil
  | Some x => get_result1 x
  end.
-(*
-Definition maybe_retval (Q: environ -> mpred) retty ret :=
- match ret with
- | Some id => fun rho => Q (get_result1 id rho)
- | None =>
-    match retty with
-    | Tvoid => (fun rho => Q (globals_only rho))
-    | _ => fun rho => EX v: val, Q (make_args (ret_temp::nil) (v::nil) rho)
-    end
- end.*)
-(*now wtih type info*)
+
 Definition maybe_retval (Q: assert) retty ret :=
  match ret with
  | Some id => fun rho => !!(tc_val' retty (eval_id id rho)) && Q (get_result1 id rho)
@@ -930,6 +895,7 @@ Definition maybe_retval (Q: assert) retty ret :=
     | _ => fun rho => EX v: val, !!(tc_val' retty v) && Q (make_args (ret_temp::nil) (v::nil) rho)
     end
  end.
+
 Definition bind_ret (vl: option val) (t: type) (Q: environ -> mpred) : environ -> mpred :=
      match vl, t with
      | None, Tvoid =>`Q (make_args nil nil)
@@ -1101,17 +1067,10 @@ Definition closed_wrt_modvars c (F: environ->mpred) : Prop :=
 
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
-(*
-Definition main_pre {Z: Type} (prog: program) (ora: Z) : globals -> environ -> mpred :=
-(fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).*)
 
 Definition main_pre {Z} (prog: program) (ora: Z) : (ident->val) -> argsassert :=
 (fun gv gvals => !!(gv = initialize.genviron2globals (fst gvals) /\snd gvals=nil) 
        && globvars2pred gv (prog_vars prog) * has_ext ora).
-
-(*
-Definition main_post (prog: program) : (ident->val) -> environ->mpred :=
-  (fun _ _ => TT).*)
 
 Definition main_post (prog: program) : (ident->val) -> assert :=
 (fun _ _ => TT).
@@ -1263,10 +1222,6 @@ Proof. constructor. apply seplog.fash_func_ptr_ND. Qed.
 
 (***************LENB: ADDED THESE LEMMAS IN INTERFACE************************************)
 
-(*
-Lemma denote_tc_assert_eq {CS}: @denote_tc_assert CS = expr2.denote_tc_assert.
-Proof. reflexivity. Qed.
-*)
 Lemma tc_expr_eq CS Delta e: @tc_expr CS Delta e = @extend_tc.tc_expr CS Delta e.
 Proof. reflexivity. Qed.
 
@@ -1392,10 +1347,7 @@ Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
     tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
-(*
-Parameter semax_cssub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R,
-      @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
-*)
+
 Parameter semax_func:
     forall {Espec: OracleKind},
     forall (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t fundef type) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
@@ -1427,27 +1379,13 @@ Definition semax_prog {Espec: OracleKind}{C: compspecs}
 compute_list_norepet (prog_defs_names prog) = true  /\
 all_initializers_aligned prog /\
 PTree.elements cenv_cs = PTree.elements (prog_comp_env prog) /\
-(*  @semax_func V G C (prog_funct prog) G /\*)
   @Def.semax_func Espec V G C (Genv.globalenv prog)  (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post,
              s = main_spec_ext' prog z post
   | None => False
-end. (*
-Definition semax_prog
-    {Espec: OracleKind} {C: compspecs}
-     (prog: program) (z : OK_ty) (V: varspecs) (G: funspecs) : Prop :=
-  compute_list_norepet (prog_defs_names prog) = true  /\
-  all_initializers_aligned prog /\
-  cenv_cs = prog_comp_env prog /\
-  @Def.semax_func Espec V G C (Genv.globalenv prog)  (prog_funct prog) G /\
-  match_globvars (prog_vars prog) V = true /\
-  match initial_world.find_id prog.(prog_main) G with
-  | Some s => exists post,
-             s = main_spec_ext' prog z post
-  | None => False
-  end.*)
+end.
 
 End DerivedDefs.
 
@@ -1492,9 +1430,7 @@ Axiom semax_func_cons:
 
 Axiom semax_func_cons_ext: forall {Espec:OracleKind} (V: varspecs) (G: funspecs) 
      {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ argsig'
-      (G': funspecs) cc (*(ids: list ident)*) b,
-  (*ids = map fst argsig' ->*) (* redundant but useful for the client,
-           to calculate ids by reflexivity *)
+      (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
@@ -1604,30 +1540,6 @@ Axiom semax_switch:
      @semax CS Espec Delta Q (Sswitch a sl) R.
 
 (* THESE RULES FROM semax_call *)
-(*
-Parameter func_ptr : funspec -> val ->mpred.
-Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
-Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
-
-Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
-    compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
-
-Axiom func_ptr_def :
-  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).*)(*
-Axiom semax_call :
-  forall {CS: compspecs} {Espec: OracleKind},
-    forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
-           Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
-           (retsig = Tvoid -> ret = None) ->
-          tc_fn_return Delta ret retsig ->
-  @semax CS Espec Delta
-          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
-         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
-         (Scall ret a bl)
-         (normal_ret_assert
-          (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).*)
 
 Axiom semax_call: forall {CS Espec},
   forall Delta (A: rmaps.TypeTree) P Q
@@ -1639,7 +1551,7 @@ Axiom semax_call: forall {CS Espec},
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
+          ((((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
          (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
           (|>(F * (fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
@@ -1780,42 +1692,28 @@ Axiom semax_Slabel:
 Axiom semax_ext:
   forall  (Espec : OracleKind)
          (ext_link: Strings.String.string -> ident)
-         (id : Strings.String.string) (*(ids : list ident)*) (sig : compcert_rmaps.typesig) (sig' : signature)
+         (id : Strings.String.string) (sig : compcert_rmaps.typesig) (sig' : signature)
          cc A P Q NEP NEQ (fs : funspecs),
   let f := mk_funspec sig cc A P Q NEP NEQ in
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
-  (*ids = fst (split (fst sig)) ->*)
   sig' = semax_ext.typesig2signature sig cc ->
-  @semax_external (add_funspecs Espec ext_link fs) (*ids*) (EF_external id sig') _ P Q.
-
-Axiom semax_ext_void:
-  forall  (Espec : OracleKind)
-         (ext_link: Strings.String.string -> ident)
-         (id : Strings.String.string) (*(ids : list ident)*) sig (sig' : signature)
-         cc A P Q NEP NEQ (fs : funspecs),
-  let f := mk_funspec (sig, tvoid) cc A P Q NEP NEQ in
-  In (ext_link id,f) fs ->
-  funspecs_norepeat fs ->
-  (*ids = fst (split sig) ->*)
-  sig' = mksignature (map typ_of_type sig) AST.Tvoid cc ->
-  @semax_external (add_funspecs Espec ext_link fs) (*ids*) (EF_external id sig') _ P Q.
+  @semax_external (add_funspecs Espec ext_link fs) (EF_external id sig') _ P Q.
 
 Axiom semax_external_FF:
- forall Espec (*ids *) ef A,
-  @semax_external Espec (*ids*) ef A (fun _ _ => FF) (fun _ _ => FF).
+ forall Espec ef A,
+  @semax_external Espec ef A (fun _ _ => FF) (fun _ _ => FF).
 
 Axiom semax_external_binaryintersection: 
 forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
-      A P Q P_ne Q_ne sig cc (*ids*)}
-  (EXT1: @semax_external Espec (*ids*) ef A1 P1 Q1)
-  (EXT2: @semax_external Espec (*ids*) ef A2 P2 Q2)
+      A P Q P_ne Q_ne sig cc}
+  (EXT1: @semax_external Espec ef A1 P1 Q1)
+  (EXT2: @semax_external Espec ef A2 P2 Q2)
   (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
                       (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
      Some (mk_funspec sig cc A P Q P_ne Q_ne))
-  (LENef: length (fst sig) = length (sig_args (ef_sig ef)))
- (* (IDS: ids = map fst (fst sig))*),
-  @semax_external Espec (*ids*) ef A P Q.
+  (LENef: length (fst sig) = length (sig_args (ef_sig ef))),
+  @semax_external Espec ef A P Q.
 
 Axiom semax_external_funspec_sub: forall {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
@@ -1870,13 +1768,6 @@ Axiom semax_fun_id:
     @semax CS Espec Delta (P && `(func_ptr f) (eval_var id (type_of_funspec f)))
                   c Q ->
     @semax CS Espec Delta P c Q.
-
-(*MOVED TO MINIMUM
-Axiom semax_Delta_subsumption:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta Delta' P c R,
-       tycontext_sub Delta Delta' ->
-     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.*)
 
 Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
   unfold_Ssequence c1 = unfold_Ssequence c2 ->
@@ -1983,7 +1874,7 @@ End PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
 
 Require Import Coq.Classes.Morphisms.
 
-#[(*export, after Coq 8.13*)global] Instance prop_Proper:
+#[export] Instance prop_Proper:
   Proper (iff ==> (@eq mpred)) (prop).
 Proof.
   intros ? ? ?.

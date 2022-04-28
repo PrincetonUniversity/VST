@@ -9,8 +9,8 @@ Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac.
 Require Import VST.veric.change_compspecs.
 
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-#[(*export, after Coq 8.13*)global] Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
   make_cs_preserve spec_sha.CompSpecs CompSpecs.
 Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -448,5 +448,5 @@ Proof.
       auto.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
+#[export] Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
 

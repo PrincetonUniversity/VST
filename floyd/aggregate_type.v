@@ -17,9 +17,6 @@ Definition proj_union (i : ident) (m : members) {A: member -> Type} (v: compact_
 Definition members_union_inj {m: members} {A} (v: compact_sum (map A m)) (it: member): Prop :=
   compact_sum_inj v it member_dec.
 
-Definition upd_sublist {X: Type} (lo hi: Z) (l: list X) (l0: list X) : list X :=
-  firstn (Z.to_nat lo) l ++ l0 ++ skipn (Z.to_nat hi) l.
-
 (* TODO: We should use the following two definition in replace_refill lemmas in the future. And avoid using compact prod/sum directly. *)
 
 Definition upd_struct (i : ident) (m : members) {A: member -> Type} (v: compact_prod (map A m)) 

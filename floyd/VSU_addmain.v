@@ -598,7 +598,7 @@ Qed.
 
 Lemma delete_id_elim{A}: forall {G i x GG}, 
       @delete_id A i G = Some (x, GG) ->
-      exists n, G = firstn n GG ++ (i, x) :: skipn n GG.
+      exists n, G = Floyd_firstn n GG ++ (i, x) :: Floyd_skipn n GG.
 Proof. induction G; simpl; intros. inv H. destruct a as [j b].
 destruct (ident_eq i j); subst.
 + inv H. exists O; simpl; trivial.
@@ -719,7 +719,7 @@ Proof.
     simpl. rewrite if_false by trivial. apply IHl; trivial. 
     specialize (delete_id_elim Heqd) as [n N]. subst. clear - H0 H.
     rewrite assoclists.find_id_app_char in H0.
-    rewrite <- (firstn_skipn n GG).
+    rewrite <- (Floyd_firstn_skipn n GG).
     rewrite assoclists.find_id_app_char.
     destruct (find_id i (firstn n GG)); trivial.
     simpl in H0. rewrite if_false in H0; trivial.
@@ -849,7 +849,7 @@ Proof. destruct vsu as [G [GG CC M]]. apply (Comp_MkInitPred CC). Qed.
 
 Lemma find_id_delete_id {A} {lp p: list (ident *A)} {i j a} (IJ: i <> j):
        delete_id j lp = Some (a, p) -> find_id i lp = find_id i p.
-Proof. intros. apply  delete_id_elim in H. destruct H. rewrite <- (firstn_skipn x p); subst.
+Proof. intros. apply  delete_id_elim in H. destruct H. rewrite <- (Floyd_firstn_skipn x p); subst.
 rewrite 2 find_id_app_char; simpl. rewrite if_false; trivial.
 Qed.
  

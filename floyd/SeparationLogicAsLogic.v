@@ -306,9 +306,7 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
           argsig'
-          (G': funspecs) cc (*(ids: list ident)*) b,
-      (*ids = map fst argsig' -> (* redundant but useful for the client,
-               to calculate ids by reflexivity *)*)
+          (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
@@ -1344,15 +1342,7 @@ Module StoreUnionHackF := StoreUnionHackB2F (DeepEmbeddedDef) (Conseq) (StoreUni
 Definition semax_store_union_hack := @StoreUnionHackF.semax_store_union_hack_forward.
 
 Module StoreB := Sassign2Store (DeepEmbeddedDef) (Conseq) (Sassign).
-(*
-Module StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := DeepEmbeddedDef.
 
-Module CSHL_Def := DeepEmbeddedDef.
-
-Definition semax_store_backward := @AuxDefs.semax_store_backward.
-
-End StoreB.
-*)
 Module StoreF := StoreB2F (DeepEmbeddedDef) (Conseq) (StoreB).
 
 Definition semax_store := @StoreF.semax_store_forward.
@@ -1364,8 +1354,6 @@ Definition semax_conseq := @AuxDefs.semax_conseq.
 Definition semax_Slabel := @AuxDefs.semax_label.
 
 Definition semax_ext := @MinimumLogic.semax_ext.
-
-Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
 Definition semax_external_funspec_sub := @MinimumLogic.semax_external_funspec_sub.
@@ -1509,14 +1497,7 @@ Proof.
       destruct H0; split; [auto |].
       destruct H2; split; [auto |].
       eapply tc_fn_return_sub; eauto.
-    - (*apply later_ENTAIL.
-      apply andp_ENTAIL.
-      * intro rho; simpl; unfold local, lift1; normalize.
-        apply Clight_assert_lemmas.tc_expr_sub; auto.
-        eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro rho; simpl; unfold local, lift1; normalize.
-        apply Clight_assert_lemmas.tc_exprlist_sub; auto.
-        eapply semax_lemmas.typecheck_environ_sub; eauto.*)
+    - 
       apply andp_right. 
       * rewrite <- andp_assoc. apply andp_left1. intro rho; simpl; unfold local, lift1; normalize.
         constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
@@ -1794,7 +1775,7 @@ Definition CALLpre CS Delta ret a bl R :=
              end) A) mpred,
      !! (Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
          (retsig = Tvoid -> ret = @None ident) /\ tc_fn_return Delta ret retsig) &&
-     (*|>*) (@tc_expr CS Delta a && @tc_exprlist CS Delta argsig bl) &&
+     (@tc_expr CS Delta a && @tc_exprlist CS Delta argsig bl) &&
      (` (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ))) (@eval_expr CS a) &&
      |>  (@sepcon (lifted (LiftEnviron mpred)) (@LiftNatDed' mpred Nveric) (@LiftSepLog' mpred Nveric Sveric)
                    (fun rho => P ts x (ge_of rho, @eval_exprlist CS argsig bl rho))
@@ -2204,8 +2185,6 @@ Proof.
         apply andp_left1.
         apply wand_sepcon_adjoint.
         eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply now_later] |].
-        (*rewrite <- later_sepcon.
-        apply later_derives.*)
         intro rho.
         simpl. constructor.
         apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta a rho) (extend_tc.extend_tc_exprlist Delta argsig bl rho))).
@@ -2565,7 +2544,7 @@ eapply @semax_adapt
           (@sepcon mpred Nveric Sveric FR (Q ts1 x1 tau))) (bupd (Q' ts x tau))) &&
       (stackframe_of f * (fun tau => FR * P ts1 x1 (ge_of tau, vals)) &&
                          (fun tau =>  !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals)))).
-  - intros rho. clear SB3. normalize. simpl. simpl in Sub. (* rewrite SB2 in *. *)
+  - intros rho. clear SB3. normalize. simpl. simpl in Sub.
     apply andp_left2.
     eapply derives_trans. apply sepcon_derives. apply close_precondition_e'. apply derives_refl.
     normalize. destruct H0 as [Hvals VUNDEF].
@@ -2579,7 +2558,7 @@ eapply @semax_adapt
       clear - H VUNDEF LNR. destruct H as [TC1 [TC2 TC3]].
         unfold fn_funsig. simpl. 
         specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1).
-        clear -(*X*)VUNDEF; intros TE.
+        clear -VUNDEF; intros TE.
         forget (fn_params f) as params.
         induction params; simpl; intros. constructor.
         inv VUNDEF; constructor.
@@ -2621,7 +2600,7 @@ eapply @semax_adapt
     apply semax_extract_exists; intros x1.
     apply semax_extract_exists; intros FRM.
     apply semax_extract_prop; intros [TCvals QPOST].
-    unfold fn_funsig in *. simpl in SB1, SB2(*; rewrite SB2 in **).
+    unfold fn_funsig in *. simpl in SB1, SB2.
     apply (semax_frame (func_tycontext f V G nil)
       (fun rho : environ =>
             close_precondition (map fst (fn_params f)) (P ts1 x1) rho * 
@@ -3092,81 +3071,11 @@ Proof.
     specialize (H4 t).
     destruct H4 as [_ ?].
     specialize (H4 ltac:(eexists; eauto)). congruence.
-  - unfold func_ptr, seplog.func_ptr. (* apply predicates_hered.exp_right with (x:=f). *)
+  - unfold func_ptr, seplog.func_ptr.
     apply predicates_hered.andp_left1. 
     apply predicates_hered.exp_left; intros bb.
     apply normalize.derives_extract_prop; intros X; inv X. apply predicates_hered.derives_refl.
-Qed. (*old proof:
-  intros.
-  eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].
-  reduceR.
-  apply andp_right; [solve_andp |].
-  rewrite andp_comm.
-  rewrite imp_andp_adjoint.
-  rewrite imp_andp_adjoint.
-  apply (allp_left _ id).
-  apply (allp_left _ f).
-  rewrite prop_imp by auto.
-  apply exp_left; intros b.
-  rewrite <- imp_andp_adjoint.
-  rewrite <- imp_andp_adjoint.
-  unfold local, lift1; unfold_lift; intro rho; simpl.
-  unfold eval_var, func_ptr.
-  apply (exp_right b).
-  normalize.
-  rewrite H3.
-  apply andp_right; [| solve_andp].
-  apply prop_right.
-  destruct H4 as [_ [? _]].
-  specialize (H4 id).
-  rewrite H in H4.
-  destruct (Map.get (ve_of rho) id) as [[? ?] |]; [exfalso | auto].
-  specialize (H4 t).
-  destruct H4 as [_ ?].
-  specialize (H4 ltac:(eexists; eauto)).
-  congruence.
-Qed.
-*)
-(*Lemma semax_fun_id:
-  forall {CS: compspecs} {Espec: OracleKind},
-      forall id f Delta P Q c,
-    (var_types Delta) ! id = None ->
-    (glob_specs Delta) ! id = Some f ->
-    (glob_types Delta) ! id = Some (type_of_funspec f) ->
-    @semax CS Espec Delta (P && `(func_ptr f) (eval_var id (type_of_funspec f)))
-                  c Q ->
-    @semax CS Espec Delta P c Q.
-Proof.
-  intros.
-  eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].
-  reduceR.
-  apply andp_right; [solve_andp |].
-  rewrite andp_comm.
-  rewrite imp_andp_adjoint.
-  rewrite imp_andp_adjoint. hnf. 
-(*  apply (allp_left _ id).
-  apply (allp_left _ f).*)
-  rewrite prop_imp by auto.
-  apply exp_left; intros b.
-  rewrite <- imp_andp_adjoint.
-  rewrite <- imp_andp_adjoint.
-  unfold local, lift1; unfold_lift; intro rho; simpl.
-  unfold eval_var, func_ptr.
-  apply (exp_right b).
-  normalize.
-  rewrite H3.
-  apply andp_right; [| solve_andp].
-  apply prop_right.
-  destruct H4 as [_ [? _]].
-  specialize (H4 id).
-  rewrite H in H4.
-  destruct (Map.get (ve_of rho) id) as [[? ?] |]; [exfalso | auto].
-  specialize (H4 t).
-  destruct H4 as [_ ?].
-  specialize (H4 ltac:(eexists; eauto)).
-  congruence.
-Qed.
-*)
+Qed. 
 
 Lemma nocontinue_ls_spec: forall sl, nocontinue_ls sl = true -> nocontinue (seq_of_labeled_statement sl) = true.
 Proof.
@@ -3349,4 +3258,3 @@ End DeepEmbeddedPracticalLogic.
 
 End DeepEmbedded.
 
-(* After this succeeds, remove "weakest_pre" in veric/semax.v. *)

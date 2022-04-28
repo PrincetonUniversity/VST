@@ -98,7 +98,7 @@ Qed.
 
 (*Definition compareM  : modality
   := exist _ compareR valid_rel_compare.*)
-Definition extendM {A}{JA: Join A}{PA: Perm_alg A}{SA : Sep_alg A}{AG: ageable A}{XA: Age_alg A} : modality
+Definition extendM (*{A}{JA: Join A}{PA: Perm_alg A}{SA : Sep_alg A}{AG: ageable A}{XA: Age_alg A}*) : modality
   := exist _ extendR valid_rel_extend.
 
 (* Definitions of the BI connectives. *)

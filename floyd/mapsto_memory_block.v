@@ -100,7 +100,7 @@ Lemmas about memory_block
 
 ******************************************)
 
-(*after Coq 8.13: #[export]*) Hint Rewrite memory_block_zero_Vptr: norm.
+#[export] Hint Rewrite memory_block_zero_Vptr: norm.
 
 Definition size_compatible' (n: Z) (p: val) :=
 match p with
@@ -271,7 +271,7 @@ intros.
 destruct v; simpl; auto.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite mapsto_force_ptr: norm.
+#[export] Hint Rewrite mapsto_force_ptr: norm.
 
 (******************************************
 
@@ -460,9 +460,9 @@ Proof.
   lia.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite at_offset_eq3 : at_offset_db.
-(*after Coq 8.13: #[export]*) Hint Rewrite withspacer_spacer : at_offset_db.
-(*after Coq 8.13: #[export]*) Hint Rewrite spacer_memory_block using (simpl; auto): at_offset_db.
+#[export] Hint Rewrite at_offset_eq3 : at_offset_db.
+#[export] Hint Rewrite withspacer_spacer : at_offset_db.
+#[export] Hint Rewrite spacer_memory_block using (simpl; auto): at_offset_db.
 
 Opaque memory_block.
 

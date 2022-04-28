@@ -89,10 +89,9 @@ Proof.
   intros; repeat (apply eq_dec || decide equality).
 Qed.
 
-(*no ids argument any longer!*)
 Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
-  (*(ids: list ident)*) (id: ident) (sig : signature) (ef: external_function) x (ge_s: injective_PTree block)
+  (id: ident) (sig : signature) (ef: external_function) x (ge_s: injective_PTree block)
            (tys : list typ) args (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
@@ -112,7 +111,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
                        /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
-                       /\ necR (fst x') phi1 (*/\ ext_compat z (m_phi m)*)
+                       /\ necR (fst x') phi1
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
 
@@ -124,7 +123,7 @@ Definition funspec2post' (ext_link: Strings.String.string -> ident) (A : TypeTre
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
                        /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
-                       /\ necR (fst x') phi1 (*/\ ext_compat z (m_phi m)*)
+                       /\ necR (fst x') phi1
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
 
@@ -150,16 +149,6 @@ Definition wf_funspec (f : funspec) :=
           P ts a (filter_genv ge, args) 
          |-- P ts a (filter_genv ge', args)
   end.
-(*Dead code?
-Lemma make_ext_args_symb (ge ge' : genv)
-      (H: Genv.genv_symb ge = Genv.genv_symb ge') n args :
-  (seplog.make_args n args (empty_environ ge)) = (seplog.make_args n args (empty_environ ge')).
-Proof.
-intros.
-f_equal.
-unfold empty_environ, filter_genv, Genv.find_symbol.
-rewrite H; auto.
-Qed.*)
 
 Lemma make_ext_args_filtergenv (ge ge' : genv)
       (H: Genv.genv_symb ge = Genv.genv_symb ge'):
@@ -173,7 +162,6 @@ Qed.
 Lemma all_funspecs_wf f : wf_funspec f.
 Proof.
 destruct f; simpl; intros ts a ge ge' n args H.
-(*erewrite make_ext_args_symb; eauto.*)
 erewrite make_ext_args_filtergenv; eauto.
 Qed.
 
@@ -312,7 +300,6 @@ subst a; simpl in *.
 clear IHfs H; revert x H2 Hpre; unfold funspec2pre; simpl.
 destruct sig; simpl.
 if_tac [e0|e0].
-(*rewrite fst_split.*)
 intros x Hjoin Hp. exists (phi1, x). split; eauto.
 split; eauto 6.
 elimtype False; auto.
@@ -479,7 +466,7 @@ Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc A P Q NEP 
   let f := mk_funspec sig cc A P Q NEP NEQ in
   In (ext_link  id,f) fs ->
   funspecs_norepeat fs ->
-  (forall n, semax_external (add_funspecs Espec ext_link fs) (*(fst (split (fst sig)))*)
+  (forall n, semax_external (add_funspecs Espec ext_link fs)
                (EF_external id (typesig2signature sig cc)) _ P Q n).
 Proof.
 intros f Hin Hnorepeat.
@@ -517,71 +504,15 @@ rewrite symb2genv_ax in Hq'; auto.
 eapply pred_nec_hereditary; eauto.
 Qed.
 
-Lemma semax_ext (ext_link: Strings.String.string -> ident) id (*ids*) sig sig' cc A P Q NEP NEQ (fs : funspecs) :
+Lemma semax_ext (ext_link: Strings.String.string -> ident) id sig sig' cc A P Q NEP NEQ (fs : funspecs) :
   let f := mk_funspec sig cc A P Q NEP NEQ in
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
-  (*ids = fst (split (fst sig)) ->*)
   sig' = typesig2signature sig cc ->
-  (forall n, semax_external (add_funspecs Espec ext_link fs) (*ids*) (EF_external id sig') _ P Q n).
+  (forall n, semax_external (add_funspecs Espec ext_link fs) (EF_external id sig') _ P Q n).
 Proof.
 intros; subst.
 eapply semax_ext'; eauto.
-Qed.
-
-(* Lemmas [semax_ext'_void] and [semax_ext_void] were needed before we
-used optyp_of_type of funsig2signature, we should be able to get rid
-of them now *)
-Lemma semax_ext'_void (ext_link: Strings.String.string -> ident) id sig cc A P Q NEP NEQ (fs : funspecs) :
-  let f := mk_funspec (sig, tvoid) cc A P Q NEP NEQ in
-  In (ext_link  id,f) fs ->
-  funspecs_norepeat fs ->
-  (forall n, semax_external (add_funspecs Espec ext_link fs) (*(fst (split sig))*)
-               (EF_external id (mksignature (map typ_of_type (*(map snd sig)*)sig) Tvoid cc)) _ P Q n).
-Proof.
-intros f Hin Hnorepeat.
-unfold semax_external.
-intros n ge Ts x n0 Hlater F ts args jm H ? jm' H2 Hext [Hargsty H3].
-destruct H3 as [s [t [Hjoin [Hp Hf]]]].
-destruct Espec.
-assert (Hp'': P Ts x (filter_genv (symb2genv (genv_symb_injective ge)), args) s).
-{ generalize (all_funspecs_wf f) as Hwf2; intro.
-  specialize (Hwf2 Ts x ge (symb2genv (genv_symb_injective ge)) (*(fst (split sig))*) args).
-  spec Hwf2.
-  rewrite symb2genv_ax; auto.
-  apply Hwf2; auto. }
-
-destruct (@add_funspecs_pre_void ext_link _ _ _ _ _ _ _ _ _ _ (existT _ Ts x) _ _ OK_spec ts (genv_symb_injective ge) s t Hnorepeat Hin Hjoin Hargsty Hp'')
-  as [x' [Heq Hpre]].
-simpl.
-exists x'.
-split.
-intros z ?.
-eapply nec_hereditary, Hpre; auto.
-apply JE_pre_hered.
-
-intros tret ret z' jm2 Hlev ? jm3 Hnec Hext' Hpost.
-eapply add_funspecs_post_void in Hpost; eauto.
-destruct Hpost as [phi0 [phi1 [phi1' [x'' [Hjoin' [Hnec' [Hjmeq' Hq']]]]]]].
-exists phi0, phi1; split; auto.
-assert (E : (t, existT _ Ts x) = (phi1',x'')) by (eapply JMeq_eq, JMeq_trans; eauto).
-inv E.
-split; auto.
-unfold filter_genv, Genv.find_symbol in Hq'|-*.
-rewrite symb2genv_ax in Hq'; auto.
-eapply pred_nec_hereditary; eauto.
-Qed.
-
-Lemma semax_ext_void (ext_link: Strings.String.string -> ident) id (*ids*) sig sig' cc A P Q NEP NEQ (fs : funspecs) :
-  let f := mk_funspec (sig, tvoid) cc A P Q NEP NEQ in
-  In (ext_link id,f) fs ->
-  funspecs_norepeat fs ->
-  (*ids = fst (split sig) ->*)
-  sig' = mksignature (map typ_of_type (*(map snd sig)*)sig) Tvoid cc ->
-  (forall n, semax_external (add_funspecs Espec ext_link fs) (*ids*) (EF_external id sig') _ P Q n).
-Proof.
-intros; subst.
-eapply semax_ext'_void; eauto.
 Qed.
 
 End semax_ext.

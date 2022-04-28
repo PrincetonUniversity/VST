@@ -79,12 +79,15 @@ ifeq ($(COMPCERT),platform)
   # Platform supplied CompCert
   ifeq ($(BITSIZE),)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
+    REL_COMPCERT_INST_DIR=$(COMPCERT_INST_DIR)
     COMPCERT_EXPLICIT_PATH = false
   else ifeq ($(BITSIZE),64)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
+    REL_COMPCERT_INST_DIR=$(COMPCERT_INST_DIR)
     COMPCERT_EXPLICIT_PATH = false
   else ifeq ($(BITSIZE),32)
     COMPCERT_INST_DIR = $(COQLIB)/../coq-variant/compcert32/compcert
+    REL_COMPCERT_INST_DIR=$(COMPCERT_INST_DIR)
   else 
     $(error ILLEGAL BITSIZE $(BITSIZE))
   endif
@@ -93,11 +96,13 @@ else ifeq ($(COMPCERT),bundled)
   # Bundled CompCert
   COMPCERT_SRC_DIR = compcert
   COMPCERT_INST_DIR = compcert
+  REL_COMPCERT_INST_DIR=../../compcert
   COMPCERT_BUILD_FROM_SRC = true
 else ifeq ($(COMPCERT),bundled_new)
   # Bundled CompCert (new variant)
   COMPCERT_SRC_DIR = compcert_new
   COMPCERT_INST_DIR = compcert_new
+  REL_COMPCERT_INST_DIR=../../compcert_new
   COMPCERT_NEW = true
   COMPCERT_INFO_PATH_REF = compcert_new
   COMPCERT_BUILD_FROM_SRC = true
@@ -107,6 +112,8 @@ else ifeq ($(COMPCERT),src_dir)
     $(error COMPCERT_SRC_DIR must not be empty if COMPCERT=src_dir)
   endif
   COMPCERT_INST_DIR = $(COMPCERT_SRC_DIR)
+  # this next line is a bit dicey . . .
+  REL_COMPCERT_INST_DIR=../../$(COMPCERT_INST_DIR)
   COMPCERT_BUILD_FROM_SRC = true
 else ifeq ($(COMPCERT),inst_dir)
   # Find CompCert in install dir
@@ -876,7 +883,7 @@ progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
-	cd progs/VSUpile; $(MAKE) VST_LOC=../.. COMPCERT_LOC=$(COMPCERT_INST_DIR)
+	cd progs/VSUpile; $(MAKE) VST_LOC=../.. COMPCERT_LOC=$(REL_COMPCERT_INST_DIR)
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)

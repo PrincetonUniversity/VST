@@ -149,7 +149,7 @@ Lemma funassert_resource: forall Delta rho a a' (Hl: level a = level a')
   funassert Delta rho a -> funassert Delta rho a'.
 Proof.
   intros.
-  destruct H as [H1 H2]; split; repeat intro. (*rename H into H1; repeat intro.*)
+  destruct H as [H1 H2]; split; repeat intro.
   - destruct (H1 _ _ _ _ (rt_refl _ _ _) (ext_refl _) H3) as (b1 & ? & ?).
     exists b1; split; auto.
     destruct b0; simpl in *.
@@ -255,7 +255,6 @@ intros.
   remember (level m) as N.
   destruct N; [constructor|].
   case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
-  (* eapply jsafeN_step with (m'0 := m'). *)
   eapply jsafeN_step.
   split3.
   replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
@@ -697,28 +696,6 @@ intro; apply bupd_intro; repeat intro.
 apply age1_level0 in H. lia.
 Qed.
 
-(*Lemma pred_sub_later' {A} `{H: ageable A} {EO: Ext_ord A}:
-  forall (P Q: pred A),
-           (|> P >=> |> Q)  |--  (|> (P >=> Q)).
-Proof.
-intros.
-apply subp_later1.
-rewrite later_imp.
-auto.
-Qed.
-
-Lemma later_strengthen_safe1:
-  forall {Espec: OracleKind} (P: pred rmap) f ge ve te k rho,
-              ((|> P) >=> assert_safe Espec f ge ve te k rho) |--   |>  (P >=> assert_safe Espec f ge ve te k rho).
-Proof.
-intros.
-intros w ?.
-apply (@pred_sub_later' _ _ P  (assert_safe Espec f ge ve te k rho)); auto.
-eapply subp_trans'; try apply H.
-apply derives_subp; clear.
-apply now_later.
-Qed.*)
-
 End SemaxContext.
 
 #[export] Hint Resolve age_laterR : core.
@@ -775,63 +752,6 @@ destruct prefix; inv H1; auto.
 Qed.
 
 Definition true_expr : Clight.expr := Clight.Econst_int Int.one (Tint I32 Signed noattr).
-
-(*
-(* BEGIN Lemmas duplicated from Clight_sim. v *)
-Lemma dec_skip: forall s, {s=Sskip}+{s<>Sskip}.
-Proof.
- destruct s; try (left; congruence); right; congruence.
-Qed.
-
-Lemma strip_step:  (* This one uses equality, one in Clight_sim uses <->  *)
-  forall ge ve te k m st' m',
-     cl_step ge (State ve te (strip_skip k)) m st' m' =
-    cl_step ge (State ve te k) m st' m'.
-Proof.
-intros.
- apply prop_ext.
- induction k; intros; split; simpl; intros; try destruct IHk; auto.
- destruct a; try destruct s; auto.
-  constructor; auto.
- destruct a; try destruct s; auto.
- inv H. auto.
-Qed.
-(* END lemmas duplicated *)
-
- Lemma strip_skip_app:
-  forall k k', strip_skip k = nil -> strip_skip (k++k') = strip_skip k'.
-Proof. induction k; intros; auto. destruct a; inv H. destruct s; inv H1; auto.
-  simpl. apply IHk. auto.
-Qed.
-
-Lemma strip_strip: forall k, strip_skip (strip_skip k) = strip_skip k.
-Proof.
-induction k; simpl.
-auto.
-destruct a; simpl; auto.
-destruct (dec_skip s).
-subst; auto.
-destruct s; auto.
-Qed.
-
-Lemma strip_skip_app_cons:
- forall {k c l}, strip_skip k = c::l -> forall k', strip_skip  (k++k') = c::l++k'.
-Proof. intros. revert k H;  induction k; intros. inv H.
-  destruct a; try solve [simpl in *; auto];
-  try solve [simpl in *; rewrite cons_app'; rewrite H; auto].
- destruct (dec_skip s). subst. simpl in *; auto.
- destruct s; inv H; simpl; auto.
-Qed.
-
-Lemma filter_seq_current_function:
-  forall ctl1 ctl2, filter_seq ctl1 = filter_seq ctl2 ->
-       current_function ctl1 = current_function ctl2.
-Proof.
-  intros ? ? H0. revert ctl2 H0; induction ctl1; simpl; intros.
-  revert H0; induction ctl2; simpl; intros; try destruct a; try congruence; auto.
-  destruct a; auto; revert H0; induction ctl2; simpl; intros; try destruct a; try congruence; auto.
-Qed.
-*)
 
 Lemma filter_seq_call_cont:
   forall ctl1 ctl2, filter_seq ctl1 = filter_seq ctl2 -> call_cont ctl1 = call_cont ctl2.
@@ -891,30 +811,6 @@ Proof.
   apply IHM.
   apply age_level in H. apply age_level in H0. apply age_level in H1. lia.
 Qed.
-
-(*
-Lemma safe_seq_skip {Espec: OracleKind} ge n ora ve te k m :
-  jsafeN OK_spec ge n ora (State ve te k) m ->
-  jsafeN OK_spec ge n ora (State ve te (Kseq Sskip :: k)) m.
-Proof.
-inversion 1; subst. constructor.
-econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto.
-eapply step_skip; eauto.
-simpl in *; congruence.
-contradiction.
-Qed.
-
-Lemma safe_seq_skip' {Espec: OracleKind} ge n ora ve te k m :
-  jsafeN OK_spec ge n ora (State ve te (Kseq Sskip :: k)) m ->
-  jsafeN OK_spec ge n ora (State ve te k) m.
-Proof.
-inversion 1; subst. constructor.
-econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto.
-inv H0; auto.
-simpl in *; congruence.
-contradiction.
-Qed.
-*)
 
 Local Open Scope nat_scope.
 
@@ -1335,8 +1231,8 @@ Section eq_dec.
 
 End eq_dec.
 
-#[(*export, after Coq 8.13*)global] Instance EqDec_statement: EqDec statement := eq_dec_statement.
-#[(*export, after Coq 8.13*)global] Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
+#[export] Instance EqDec_statement: EqDec statement := eq_dec_statement.
+#[export] Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
 
 Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
 Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.

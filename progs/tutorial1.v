@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.sumarray.
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 Definition Gprog: funspecs := nil.
 Definition Delta1 : tycontext :=
@@ -63,7 +63,7 @@ rep_lia.
 Qed.
 
 
-(**  How to manage semi-opaque constants, using (*after Coq 8.13: #[export]*) Hint Rewrite : rep_lia. *)
+(**  How to manage semi-opaque constants, using #[export] Hint Rewrite : rep_lia. *)
 (* Suppose you have an uninitialized array of size N: *)
 
 Module Test1.
@@ -114,7 +114,7 @@ Abort.
 (* To tell rep_lia that N=20, just add a hint to the rep_lia database: *)
 
 Definition N_eq : N=20 := proj2_sig (opaque_constant _).
-(*after Coq 8.13: #[export]*) Hint Rewrite N_eq : rep_lia.
+#[export] Hint Rewrite N_eq : rep_lia.
 
 Lemma exercise4c:
  let Delta := @abbreviate _ Delta1 in 

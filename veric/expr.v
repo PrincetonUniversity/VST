@@ -286,15 +286,17 @@ Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert :=
                            | _ , _ => tc_nodivover' e1 e2
                           end.
 
-Definition if_expr_signed (e: expr) (tc: tc_assert) : tc_assert :=
- match typeof e with
- | Tint _ Signed _ => tc
- | Tlong Signed _ => tc
- | _ => tc_TT
+Definition if_expr_signed (e1 e2 : expr) (tc: tc_assert) : tc_assert :=
+ match typeof e1, typeof e2 with
+ | Tint _ Signed _, Tint _ Signed _ => tc
+ | Tlong Signed _, Tlong Signed _ => tc
+ | Tint _ _ _, Tlong Signed _ => tc
+ | Tlong Signed _, Tint _ _ _ => tc
+ | _, _ => tc_TT
  end.
 
 Definition tc_nobinover (op: Z->Z->Z) {CS: compspecs} (e1 e2: expr) : tc_assert :=
- if_expr_signed e1
+ if_expr_signed e1 e2
  match eval_expr e1 any_environ, eval_expr e2 any_environ with
  | Vint n1, Vint n2 => 
     if range_s32 (op (Int.signed n1) (Int.signed n2))
@@ -303,8 +305,15 @@ Definition tc_nobinover (op: Z->Z->Z) {CS: compspecs} (e1 e2: expr) : tc_assert 
     if range_s64 (op (Int64.signed n1) (Int64.signed n2))
      then tc_TT else tc_nosignedover op e1 e2
  | Vint n1, Vlong n2 =>
-    if range_s64 (op (Int.signed n1) (Int64.signed n2))
-     then tc_TT else tc_nosignedover op e1 e2
+    match typeof e1 with
+    | Tint _ Signed _ => 
+       if range_s64 (op (Int.signed n1) (Int64.signed n2))
+        then tc_TT
+        else tc_nosignedover op e1 e2
+    | _ =>
+        if range_s64 (op (Int.unsigned n1) (Int64.signed n2))
+         then tc_TT else tc_nosignedover op e1 e2
+    end
  | Vlong n1, Vint n2 =>
     match typeof e2 with
     | Tint _ Signed _ => 
@@ -811,49 +820,6 @@ match tl,el with
 end.
 
 (** Environment typechecking functions **)
-(*moved to seplog.v
-Definition typecheck_temp_environ
-(te: tenviron) (tc: PTree.t type) :=
-forall id ty , tc ! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
-
-Definition typecheck_var_environ
-(ve: venviron) (tc: PTree.t type) :=
-forall id ty, tc ! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).
-
-Definition typecheck_glob_environ
-(ge: genviron) (tc: PTree.t type) :=
-forall id  t,  tc ! id = Some t ->
-(exists b, Map.get ge id = Some b).
-*)
-(*
-Definition specs_types (Delta: tycontext) :=
-  forall id s, (glob_specs Delta) ! id = Some s ->
-                (glob_types Delta) ! id = Some (type_of_funspec s).
-*)
-(*
-Definition same_mode (ge: genviron) (ve:venviron)
-                     (gt : PTree.t global_spec) (vt : PTree.t type) id  :=
-match (vt ! id), (gt ! id), ve id  with
-| None, Some _, Some _ => false
-| _, _, _  => true
-end.
-
-Fixpoint same_env  (rho : environ) (Delta : tycontext) (ids : list positive) : bool :=
-match ids with
-| h::t => same_mode (ge_of rho) (ve_of rho) (glob_types Delta) (var_types Delta) h && same_env rho Delta t
-| nil => true
-end.
-
-Definition all_var_ids (Delta : tycontext) : list positive :=
-(fst (split (PTree.elements (glob_types Delta)))).
-*)
-
-(*moved to seplog.v
-Definition typecheck_environ (Delta: tycontext) (rho : environ) :=
-typecheck_temp_environ (te_of rho) (temp_types Delta) /\
-typecheck_var_environ  (ve_of rho) (var_types Delta) /\
-typecheck_glob_environ (ge_of rho) (glob_types Delta).
-*)
 
 Lemma typecheck_var_environ_None: forall ve vt,
   typecheck_var_environ ve vt ->
@@ -1059,22 +1025,6 @@ Definition lvalue_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : 
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
 
-(*moved to mpred
-Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
-  mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).
-
-Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
-Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite Map.gss. auto.
-Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite eval_id_same : normalize.
-
-Lemma eval_id_other: forall rho id id' v,
-   id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.
-Proof.
- unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
-Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
-*)
                                                                            
 Definition typecheck_store e1 :=
 (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
@@ -1263,7 +1213,6 @@ Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_tra
 Definition cspecs_sub (cs cs':compspecs) := cenv_sub (@cenv_cs cs) (@cenv_cs cs') /\
                                             ha_env_cs_sub (@ha_env_cs cs) (@ha_env_cs cs') /\
                                             la_env_cs_sub (@la_env_cs cs) (@la_env_cs cs').
-(*Definition cspecs_sub (cs cs':compspecs) := cenv_sub (@cenv_cs cs) (@cenv_cs cs').*)
 
 Lemma cspecs_sub_refl {cs}: cspecs_sub cs cs.
 Proof. split3; [ apply cenv_sub_refl | apply ha_env_cs_refl | apply la_env_cs_refl]. Qed.

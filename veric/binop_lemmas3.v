@@ -151,35 +151,6 @@ apply Z.le_trans with Int.max_signed; auto.
 compute; congruence.
 Qed.
 
-(*
-Lemma Int64_eq_repr_signed32_nonzero:
-  forall i, Int.eq i Int.zero = false ->
-             Int64.eq (Int64.repr (Int.signed i)) Int64.zero = false.
-Proof.
-intros.
-pose proof (Int.eq_spec i Int.zero). rewrite H in H0. clear H.
-rewrite Int64.eq_false; auto.
-contradict H0.
-unfold Int64.zero in H0.
-assert (Int64.signed (Int64.repr (Int.signed i)) = Int64.signed (Int64.repr 0)) by (f_equal; auto).
-rewrite Int64.signed_repr in H.
-rewrite Int64.signed_repr in H.
-rewrite <- (Int.repr_signed i).
-rewrite H. reflexivity.
-pose proof (Int64.signed_range Int64.zero).
-rewrite Int64.signed_zero in H1.
-auto.
-pose proof (Int.signed_range i).
-clear - H1.
-destruct H1.
-split.
-apply Z.le_trans with Int.min_signed; auto.
-compute; congruence.
-apply Z.le_trans with Int.max_signed; auto.
-compute; congruence.
-Qed.
-*)
-
 Lemma Int64_eq_repr_unsigned32_nonzero:
   forall i, i <> Int.zero ->
              Int64.repr (Int.unsigned i) <> Int64.zero.
@@ -204,34 +175,6 @@ lia.
 compute; congruence.
 Qed.
 
-(*
-
-Lemma Int64_eq_repr_unsigned32_nonzero:
-  forall i, Int.eq i Int.zero = false ->
-             Int64.eq (Int64.repr (Int.unsigned i)) Int64.zero = false.
-Proof.
-intros.
-pose proof (Int.eq_spec i Int.zero). rewrite H in H0. clear H.
-rewrite Int64.eq_false; auto.
-contradict H0.
-unfold Int64.zero in H0.
-assert (Int64.unsigned (Int64.repr (Int.unsigned i)) = Int64.unsigned (Int64.repr 0)) by (f_equal; auto).
-rewrite Int64.unsigned_repr in H.
-rewrite Int64.unsigned_repr in H.
-rewrite <- (Int.repr_unsigned i).
-rewrite H. reflexivity.
-split; compute; congruence.
-pose proof (Int.unsigned_range i).
-clear - H1.
-destruct H1.
-split; auto.
-unfold Int64.max_unsigned.
-apply Z.le_trans with Int.modulus.
-lia.
-compute; congruence.
-Qed.
-*)
-
 Lemma Int64_eq_repr_int_nonzero:
   forall s i, i <> Int.zero ->
     cast_int_long s i <> Int64.zero.
@@ -241,18 +184,6 @@ Proof.
   + apply Int64_eq_repr_signed32_nonzero; auto.
   + apply Int64_eq_repr_unsigned32_nonzero; auto.
 Qed.
-
-(*
-Lemma Int64_eq_repr_int_nonzero:
-  forall s i, Int.eq i Int.zero = false ->
-    Int64.eq (cast_int_long s i) Int64.zero = false.
-Proof.
-  intros.
-  destruct s.
-  + apply Int64_eq_repr_signed32_nonzero; auto.
-  + apply Int64_eq_repr_unsigned32_nonzero; auto.
-Qed.
-*)
 
 Lemma denote_tc_igt_e:
   forall m i j, app_pred (denote_tc_igt j (Vint i)) m ->
@@ -333,7 +264,6 @@ red in H0.
 rewrite H0.
 apply Int.repr_unsigned.
 Qed.
-
 
 Lemma Int64repr_Intsigned_zero:
   forall i, Int64.repr (Int.signed i) = Int64.zero -> i=Int.zero.

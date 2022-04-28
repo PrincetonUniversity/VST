@@ -9,7 +9,7 @@ Local Open Scope logic.
 
 
 Lemma upd_Znth_append:
- forall (t: Type) len N dd ee (v: t),
+ forall (t: Type) {d: Inhabitant t} len N dd ee (v: t),
    len = Zlength dd ->
    len < N ->
    N <= Zlength ee ->
@@ -57,7 +57,7 @@ assert (Hddlen: 0 <= Zlength (s256a_data a) < 64) by Omega1.
 forward. (* p[n] = 0x80; *)
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
 rewrite upd_Znth_append
-  by (autorewrite with sublist; Omega1).
+ by (autorewrite with sublist; try Omega1; typeclasses eauto).
 simpl.
 forward. (* n++; *)
 eapply semax_seq'.

@@ -31,20 +31,11 @@ Definition mkEnv g ids vals : environ :=
 Lemma ge_of_mkEnv {g v vals}: ge_of (mkEnv g v vals) = g.
 Proof. apply ge_of_make_args. Qed.
 
-(*Definition expr_true (e: Clight.expr) (rho: environ): Prop :=
-  bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
 
 Definition expr_true {CS: compspecs} e := lift1 (typed_true (typeof e)) (eval_expr e).
 
 Definition expr_false {CS: compspecs} e := lift1 (typed_false (typeof e)) (eval_expr e).
 
-(*
-Definition fun_assert:
-  forall (fml: funsig) cc (A: TypeTree)
-   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
-   (v: val) , pred rmap :=
-  res_predicates.fun_assert.
-*)
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
 | Some (b, ty') => if eqb_type ty ty' then Vptr b Ptrofs.zero else Vundef
@@ -68,11 +59,6 @@ Proof.
  induction vl; simpl; auto.
  rewrite IHvl; auto.
 Qed.
-
-(*
-Definition stackframe_of (f: Clight.function) : assert :=
-  fun rho => sepcon_list (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
-*)
 
 Lemma  subst_derives:
  forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.
@@ -132,54 +118,6 @@ apply (Forall_eval_id_get H2); trivial.
 apply (Forall_eval_id_get H2); trivial.
 Qed.
 
-(*
-Lemma close_precondition_e:
-   forall al (A: TypeTree) (P:  forall ts, dependent_type_functor_rec ts (AssertTT A) mpred),
-    precondition_closed al P ->
-  forall ts x rho,
-   close_precondition (map fst al) (map fst al)  (P ts x) rho |-- P ts x rho.
-Proof.
-intros.
-intros ? ?.
-destruct H0 as [ve' [te' [? ?]]].
-destruct (H ts x).
-rewrite (H2 _ te').
-rewrite (H3 _ ve').
-simpl.
-apply H1.
-intros.
-simpl; auto.
-intros.
-unfold not_a_param.
-destruct (In_dec ident_eq i (map (@fst _ _) al)); auto.
-right; symmetry.
-destruct (In_nth_error _ _ i0) as [n ?].
-apply (H0 _ _ _ H4 H4).
-Qed.
-
-Lemma close_precondition_e':
-   forall al (P:  environ-> pred rmap),
-   closed_wrt_vars (fun i => ~ In i al) P  ->
-   closed_wrt_lvars (fun _ => True) P ->
-   forall rho, close_precondition al al P rho |-- P rho.
-Proof.
-intros.
-intros ? ?.
-destruct H1 as [ve' [te' [? ?]]].
-hnf in H,H0.
-rewrite (H0 rho ve') by auto. clear H0.
-rewrite (H _ te'); auto.
-intros.
-destruct (In_dec ident_eq i al); auto.
-right; symmetry.
-destruct (In_nth_error _ _ i0) as [n ?].
-eapply H1; eauto.
-Qed.
-
-Definition bind_args (specparams bodyparams: list (ident * type)) (P: environ -> pred rmap) : assert :=
-          fun rho => !! tc_formals bodyparams rho 
-                          && close_precondition (map fst specparams) (map fst bodyparams) P rho.
-*)
 Definition bind_args (bodyparams: list (ident * type)) (P: genviron * list val -> pred rmap) : assert :=
   fun rho => !! tc_formals bodyparams rho 
      && close_precondition (map fst bodyparams) P rho.
@@ -210,14 +148,7 @@ Definition funassert (Delta: tycontext): assert := funspecs_assert (glob_specs D
   that core_load could imply partial ownership of the four bytes of the word
   using different shares that don't have a common core, whereas address_mapsto
   requires the same share on all four bytes. *)
-(*
-Record ret_assert : Type := {
- RA_normal: assert;
- RA_break: assert;
- RA_continue: assert;
- RA_return: option val -> assert
-}.
-*)
+
 Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : assert :=
  match ek with
  | EK_normal => fun rho => !! (vl=None) && RA_normal Q rho
@@ -225,8 +156,6 @@ Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : ass
  | EK_continue => fun rho => !! (vl=None) && RA_continue Q rho
  | EK_return => RA_return Q vl
  end.
-
-(* Definition ret_assert := exitkind -> option val -> assert. *)
 
 Definition overridePost  (Q: assert)  (R: ret_assert) :=
  match R with 
@@ -366,7 +295,7 @@ intros; unfold overridePost, normal_ret_assert.
 f_equal.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1
+#[export] Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=

@@ -244,7 +244,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl; auto.
-    all: rewrite Int.unsigned_repr by rep_lia; reflexivity. (* for Coq 8.13 and before *)
+(*    all: rewrite Int.unsigned_repr by rep_lia; reflexivity.  for Coq 8.13 and before *)
   }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
@@ -498,7 +498,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl; auto.
-    all: rewrite Int.unsigned_repr by rep_lia; reflexivity. (* for Coq 8.13 and before *)
+(*    all: rewrite Int.unsigned_repr by rep_lia; reflexivity.  for Coq 8.13 and before *)
   }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
@@ -796,7 +796,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl; auto.
-    all: rewrite Int.unsigned_repr by rep_lia; reflexivity. (* for Coq 8.13 and before *)
+(*    all: rewrite Int.unsigned_repr by rep_lia; reflexivity.  for Coq 8.13 and before *)
   }
 
   set (myABS := HMAC256DRBGabs VV (repeat Byte.one 32) rc 48 pr 10000) in *.

@@ -979,7 +979,7 @@ f_equal. unfold hmac_init_funspec. simpl.
         destruct args; [ | inv H]. 
         unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
       * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
-        normalize. entailer!. split; discriminate. 
+        normalize. entailer!.  discriminate. 
     - unfold convertPre. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx. change_compspecs CompSepcs.
       apply pred_ext; simpl; intros.
       * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
@@ -987,7 +987,7 @@ f_equal. unfold hmac_init_funspec. simpl.
         destruct args; [ | inv H]. 
         unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
       * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
-        normalize. entailer!. split; discriminate. 
+        normalize. entailer!.
   + extensionality ts x.
     destruct x as [[[[[c sh] l] key] gv] | [[[[[[[c sh] l] key] b] i] shk] gv]].
     - auto.

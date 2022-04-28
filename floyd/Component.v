@@ -31,7 +31,7 @@ Qed.
 
 Lemma semax_body_binaryintersection'':
   forall (V : varspecs) (G : funspecs) (cs : compspecs) (f : function) i (sp1 sp2 : funspec)
-    (*(phi : funspec)*) sg cc A1 P1 Q1 Pne1 Qne1 A2 P2 Q2 Pne2 Qne2,
+    sg cc A1 P1 Q1 Pne1 Qne1 A2 P2 Q2 Pne2 Qne2,
   semax_body V G f (i,sp1) ->
   semax_body V G f (i,sp2) -> forall
   (W1: sp1 = mk_funspec sg cc A1 P1 Q1 Pne1 Qne1)
@@ -120,7 +120,7 @@ Lemma binary_intersection_sub1 (f : compcert_rmaps.typesig) (c : calling_convent
          (phi psi : funspec) (Hphi : phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne)
          (Hpsi : psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne):
        funspec_sub (binary_intersection' phi psi Hphi Hpsi) phi.
-Proof. apply binary_intersection'_sub. (*apply funspec_sub_iff. apply binary_intersection'_sub1. *) Qed.
+Proof. apply binary_intersection'_sub. Qed.
 
 Lemma binary_intersection_sub2 (f : compcert_rmaps.typesig) (c : calling_convention) 
          (A1 : rmaps.TypeTree)
@@ -142,7 +142,7 @@ Lemma binary_intersection_sub2 (f : compcert_rmaps.typesig) (c : calling_convent
          (phi psi : funspec) (Hphi : phi = mk_funspec f c A1 P1 Q1 P1_ne Q1_ne)
          (Hpsi : psi = mk_funspec f c A2 P2 Q2 P2_ne Q2_ne):
        funspec_sub (binary_intersection' phi psi Hphi Hpsi) psi.
-Proof. apply binary_intersection'_sub. (*apply funspec_sub_iff. apply binary_intersection'_sub2.*) Qed.
+Proof. apply binary_intersection'_sub. Qed.
 
 Lemma mapsto_zeros_mapsto_nullval sh b z t:
    readable_share sh ->
@@ -797,7 +797,7 @@ Lemma Comp_Exports_sub2 Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: forall i, sub_option (find_id i Exports') (find_id i Exports)):
       @Component Espec V E Imports p Exports' GP G.
 Proof.
-  eapply Build_Component (*with (Comp_G c)*); try apply c; trivial.
+  eapply Build_Component; try apply c; trivial.
 + intros i phi' Hi. specialize (HE2 i). rewrite Hi in HE2; simpl in HE2.
   apply c; trivial.
 +apply (Comp_MkInitPred c).
@@ -870,7 +870,7 @@ Lemma Comp_Exports_sub Exports' (LNR: list_norepet (map fst Exports'))
       (HE2: funspecs_sqsub Exports Exports'):
       @Component Espec V E Imports p Exports' GP G.
 Proof.
-  eapply Build_Component (*with (Comp_G c)*); try apply c; trivial.
+  eapply Build_Component; try apply c; trivial.
   intros i phi' Hi. destruct (HE2 _ _ Hi) as [phi [H1 H2]].
   apply (Comp_G_Exports c) in H1; destruct H1 as [psi [H3 H4]].
   exists psi; split; trivial. eapply funspec_sub_trans; eassumption.
@@ -942,11 +942,6 @@ Qed.
 
 End VSU_rules.
 
-(*
-Definition VSU_G  {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP)
-  := proj1_sig v.
-*)
-
 Definition VSU_Imports {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := Imports.
 Definition VSU_Externs {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := E.
 Definition VSU_Exports {Espec E Imports p Exports GP} (v: @VSU Espec E Imports p Exports GP) := Exports.
@@ -965,7 +960,7 @@ Definition merge_specs (phi1:funspec) (sp2: option funspec): funspec :=
   match sp2 with 
     Some phi2 => match binary_intersection phi1 phi2 with
                                   Some phi => phi
-                                | None => (*None*) phi1
+                                | None => phi1
                             end
   | None => phi1
   end.
@@ -1168,7 +1163,7 @@ Proof.
   + destruct a as [j psi1]. simpl in *.  inv H3.
     destruct (ident_eq j i); subst. { elim H2. left; trivial. }
     remember (find_id i l1) as t; symmetry in Heqt; destruct t.
-    { apply find_id_In_map_fst in Heqt. elim H2. right; trivial. } clear H2 H (*SIG*) CC. 
+    { apply find_id_In_map_fst in Heqt. elim H2. right; trivial. } clear H2 H CC. 
     destruct (find_id_None_iff i l1) as [A1 A2]. specialize (IHl1 (A1 Heqt) H5).
     destruct (app_inj_length IHl1) as [X1 X2]; clear IHl1. rewrite 2 G_merge_aux_length; trivial.
     rewrite find_id_filter_char by trivial. simpl.
