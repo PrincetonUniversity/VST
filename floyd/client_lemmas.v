@@ -2074,7 +2074,7 @@ Ltac Intro a :=
      Intro'' a
   end.
 
-Tactic Notation "Intro" "_" :=
+Tactic Notation "Intro" "?" :=
   lazymatch goal with
   | |- semax _ (EX ex1 : _, _) _ _ =>
     let e1 := fresh ex1 in Intro e1
@@ -2094,27 +2094,27 @@ end.
 
 Tactic Notation "Intros" := finish_Intros.
 
-Tactic Notation "Intros" "!" :=
-  (repeat Intro _); finish_Intros.
+Tactic Notation "Intros" "*" :=
+  (repeat Intro ?); finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0) :=
  Intro x0; finish_Intros.
 
-Tactic Notation "Intros" "_" :=
- Intro _; finish_Intros.
+Tactic Notation "Intros" "?" :=
+ Intro ?; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) :=
  Intro x0; Intro x1; finish_Intros.
 
-Tactic Notation "Intros" "_" "_" :=
- Intro _; Intro _; finish_Intros.
+Tactic Notation "Intros" "?" "?" :=
+ Intro ?; Intro ?; finish_Intros.
 
-Tactic Notation "Intros" "_" simple_intropattern(x0) :=
- Intro _; Intro x0; finish_Intros.
+Tactic Notation "Intros" "?" simple_intropattern(x0) :=
+ Intro ?; Intro x0; finish_Intros.
 
-Tactic Notation "Intros" simple_intropattern(x0) "_" :=
- Intro x0; Intro _; finish_Intros.
+Tactic Notation "Intros" simple_intropattern(x0) "?" :=
+ Intro x0; Intro ?; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2) :=
@@ -2215,7 +2215,7 @@ Ltac Exists' a :=
 Tactic Notation "Exists" constr(x0) :=
  Exists' x0.
 
-Tactic Notation "Exists" "_" :=
+Tactic Notation "Exists" "?" :=
  lazymatch goal with
  | |- _ |-- ?Post =>
   lazymatch Post with context [EX ex : _, _] => Exists' ex end
@@ -2224,14 +2224,14 @@ Tactic Notation "Exists" "_" :=
 Tactic Notation "Exists" constr(x0) constr(x1) :=
  Exists' x0; Exists' x1.
 
-Tactic Notation "Exists" "_" "_" :=
- do 2 Exists _.
+Tactic Notation "Exists" "?" "?" :=
+ do 2 Exists ?.
 
-Tactic Notation "Exists" "_" constr(x0) :=
- Exists _; Exists' x0.
+Tactic Notation "Exists" "?" constr(x0) :=
+ Exists ?; Exists' x0.
 
-Tactic Notation "Exists" constr(x0) "_" :=
- Exists' x0; Exists _.
+Tactic Notation "Exists" constr(x0) "?" :=
+ Exists' x0; Exists ?.
 
 Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) :=
  Exists' x0; Exists' x1; Exists' x2.
