@@ -606,6 +606,306 @@ if_tac in Hev'. edestruct Hperm' as [Hnot | Hnot]; eauto. { if_tac in Hnot; inv 
   - congruence.
 Qed.*)
 
+Fixpoint in_alloc_trace b ofs T :=
+  match T with
+  | nil => false
+  | Alloc b' lo hi :: rest => adr_range_dec (b', lo) (hi - lo) (b, ofs) || in_alloc_trace b ofs rest
+  | _ :: rest => in_alloc_trace b ofs rest
+  end.
+
+Lemma ev_elim_perm_inv : forall l k T m m', ev_elim m T m' ->
+  (in_free_list_trace (fst l) (snd l) T /\ access_at m' l k = None) \/
+  ~in_free_list_trace (fst l) (snd l) T /\ ((in_alloc_trace (fst l) (snd l) T = true /\
+   (fst l >= Mem.nextblock m)%positive /\ access_at m' l k = Some Freeable) \/
+  (in_alloc_trace (fst l) (snd l) T = false /\
+   access_at m' l k = access_at m l k)).
+Proof.
+  induction T; simpl; intros; subst; auto.
+  destruct a.
+  - destruct H as (? & ? & ?%IHT).
+    rewrite (storebytes_access _ _ _ _ _ H), <- (Mem.nextblock_storebytes _ _ _ _ _ H); auto.
+  - destruct H as (? & ?%IHT); auto.
+  - destruct H as (? & ? & Hrest%IHT).
+    destruct Hrest as [? | [? Hrest]]; auto.
+    right; split; auto.
+    destruct (adr_range_dec _ _ _); simpl.
+    + left; split; auto.
+      destruct a; subst.
+      split; [apply Mem.alloc_result in H; lia|].
+      destruct Hrest as [(? & ? & ?) | (? & ->)]; auto.
+      destruct l; simpl in *; eapply alloc_access_same; eauto; lia.
+    + destruct Hrest as [(? & Hge & ?) | (? & ?)]; [left | right]; split; auto.
+      * split; auto.
+        erewrite Mem.nextblock_alloc in Hge by eauto; lia.
+      * destruct l; simpl in *; rewrite (alloc_access_other _ _ _ _ _ H); auto; lia.
+  - destruct H as (? & ? & Hrest%IHT).
+    destruct Hrest as [[] | [? Hrest]]; auto.
+    destruct (in_free_list_dec (fst l) (snd l) l0).
+    + left; split; auto.
+      edestruct freelist_access_2'; eauto.
+      destruct Hrest as [(? & ? & ?) | [_ ->]].
+      * unfold Mem.valid_block, Plt in *; lia.
+      * unfold access_at; auto.
+    + right; split; [tauto|].
+      destruct Hrest as [(? & Hge & ?) | (? & ?)]; [left | right]; split; auto.
+      * split; auto.
+        erewrite mem_lemmas.nextblock_freelist in Hge by eauto; lia.
+      * unfold access_at at 2; rewrite <- (freelist_access_1 _ _ _ _ n _ _ H); auto.
+Qed.
+
+Lemma ev_elim_alloc : forall l k T m m', ev_elim m T m' ->
+  in_alloc_trace (fst l) (snd l) T = true -> ~ in_free_list_trace (fst l) (snd l) T ->
+  access_at m' l k = Some Freeable.
+Proof.
+  induction T; [discriminate|]; simpl; intros.
+  destruct a.
+  - destruct H as (? & ? & ?%IHT); auto.
+  - destruct H as (? & ?%IHT); auto.
+  - destruct H as (? & ? & Helim).
+    unfold proj_sumbool in *.
+    apply orb_true_iff in H0 as [Hin | ?]; eauto.
+    if_tac in Hin; inv Hin.
+    destruct H0; subst.
+    eapply ev_elim_perm_inv in Helim as [[] | [_ Hcase]]; [contradiction H1; eauto|].
+    destruct Hcase as [(? & ? & ?) | (? & ->)]; eauto.
+    destruct l; simpl in *; eapply alloc_access_same; eauto; lia.
+  - destruct H as (? & ? & ?%IHT); auto.
+Qed.
+
+Lemma ev_elim_alloc_new : forall b lo sz T m m', ev_elim m T m' ->
+  In (Alloc b lo sz) T -> (b >= Mem.nextblock m)%positive.
+Proof.
+  induction T; simpl; [contradiction|]; intros.
+  destruct H0.
+  - subst.
+    destruct H as (? & ? & ?).
+    apply Mem.alloc_result in H; subst; lia.
+  - destruct a; (destruct H as (? & ? & Helim) || destruct H as (? & Helim)); eapply IHT in Helim; eauto.
+    + erewrite <- Mem.nextblock_storebytes; eauto.
+    + erewrite Mem.nextblock_alloc in Helim; eauto; lia.
+    + erewrite <- mem_lemmas.nextblock_freelist; eauto.
+Qed.
+
+Fixpoint in_write_trace b ofs T :=
+  match T with
+  | nil => false
+  | Write b' z lv :: rest => adr_range_dec (b', z) (Zlength lv) (b, ofs) || in_write_trace b ofs rest
+  | _ :: rest => in_write_trace b ofs rest
+  end.
+
+Lemma perm_order_total : forall p1 p2, ~perm_order p1 p2 -> perm_order p2 p1.
+Proof.
+  destruct p1, p2; try constructor; intros H; contradiction H; constructor.
+Qed.
+
+Lemma pmax_l : forall p1 p2 q : option permission,
+  Mem.perm_order'' (pmax p1 p2) q <-> Mem.perm_order'' p1 q \/ Mem.perm_order'' p2 q.
+Proof.
+  intros; unfold pmax.
+  destruct p1, p2; simpl in *; try solve [destruct q; tauto].
+  if_tac; [|apply perm_order_total in H]; destruct q; simpl; split; auto; intros [? | ?]; auto; eapply perm_order_trans; eauto.
+Qed.
+
+Lemma in_write_trace_perm : forall b ofs T, in_write_trace b ofs T = true ->
+  (exists z sz, In (Alloc b z sz) T) \/ Mem.perm_order' (cur_perm (b, ofs) T) Writable.
+Proof.
+  induction T; simpl; [discriminate|]; intros.
+  rewrite mem_lemmas.po_oo in *.
+  destruct a.
+  - rewrite pmax_l; destruct (adr_range_dec _ _ _); simpl in *; [|apply IHT in H as [(? & ? & ?) | ?]; eauto].
+    destruct a; subst.
+    right; left; setoid_rewrite if_true; auto; [|lia]; simpl.
+    destruct (zle _ _); try lia; constructor.
+  - rewrite pmax_l; apply IHT in H as [(? & ? & ?) | ?]; eauto.
+  - if_tac; [|apply IHT in H as [(? & ? & ?) | ?]; eauto].
+    subst; eauto.
+  - apply IHT in H as [(? & ? & ?) | ?]; eauto.
+    right.
+    induction l; auto; simpl.
+    destruct a as ((?, ?), ?); simple_if_tac; auto; constructor.
+Qed.
+
+Lemma free_contents : forall m b lo hi m', Mem.free m b lo hi = Some m' ->
+  contents_at m' = contents_at m.
+Proof.
+  intros; apply Mem.free_result in H; subst; auto.
+Qed.
+
+Lemma free_list_contents : forall l m m', Mem.free_list m l = Some m' ->
+  contents_at m' = contents_at m.
+Proof.
+  induction l; simpl; intros.
+  { inv H; auto. }
+  destruct a as ((?, ?), ?).
+  destruct (Mem.free _ _ _ _) eqn: Hfree; inv H.
+  apply free_contents in Hfree as <-; auto.
+Qed.
+
+Lemma ev_elim_nostore : forall l T m m', ev_elim m T m' ->
+  in_write_trace (fst l) (snd l) T = false ->
+  (exists z sz, In (Alloc (fst l) z sz) T) \/ contents_at m' l = contents_at m l.
+Proof.
+  induction T; simpl; intros; subst; auto.
+  destruct a.
+  - destruct (adr_range_dec _ _ _); [discriminate|].
+    destruct H as (? & ? & Helim).
+    apply IHT in Helim as [(? & ? & ?) | ->]; eauto.
+    unfold contents_at; erewrite Mem.storebytes_mem_contents by eauto.
+    destruct (eq_block b (fst l)).
+    + subst; rewrite Maps.PMap.gss, Mem.setN_outside; auto.
+      rewrite <- Zlength_correct.
+      unfold adr_range in n.
+      destruct (zlt (snd l) ofs); auto.
+      destruct (zlt (snd l) (ofs + Zlength bytes)); auto; lia.
+    + rewrite Maps.PMap.gso; auto.
+  - destruct H as (? & Helim).
+    apply IHT in Helim as [(? & ? & ?) | ->]; eauto.
+  - destruct H as (? & ? & Helim).
+    apply IHT in Helim as [(? & ? & ?) | ->]; eauto.
+    destruct (eq_block b (fst l)); subst; eauto.
+    unfold contents_at; erewrite mem_lemmas.AllocContentsOther; eauto.
+  - destruct H as (? & ? & Helim).
+    apply IHT in Helim as [(? & ? & ?) | ->]; eauto.
+    erewrite free_list_contents; eauto.
+Qed.
+
+Lemma ev_elim_contents' : forall l T m m', ev_elim m T m' -> (fst l < Mem.nextblock m)%positive ->
+  ~Mem.perm m (fst l) (snd l) Cur Writable ->
+  (forall m1 m1', ev_elim m1 T m1' -> contents_at m1' l = contents_at m1 l).
+Proof.
+  intros.
+  destruct (in_write_trace (fst l) (snd l) T) eqn: Hwrite.
+  - apply in_write_trace_perm in Hwrite as [(? & ? & Halloc) | ?].
+    { eapply (ev_elim_alloc_new _ _ _ _ _ _ H) in Halloc; eauto; lia. }
+    eapply ev_perm in H.
+    unfold Mem.perm in *.
+    rewrite mem_lemmas.po_oo in *; eapply mem_lemmas.po_trans in H3; eauto; contradiction.
+  - eapply ev_elim_nostore in Hwrite as [(? & ? & Halloc) | ?]; eauto.
+    eapply (ev_elim_alloc_new _ _ _ _ _ _ H) in Halloc; eauto.
+    apply Pos.lt_nle in H0; apply Pos.ge_le in Halloc; contradiction.
+Qed.
+
+Lemma join_ev_elim_commut : forall jm1 x jm2 T jm1' m2', join (m_phi jm1) x (m_phi jm2) ->
+  mem_sub (m_dry jm1) (m_dry jm2) -> ev_elim (m_dry jm1) T (m_dry jm1') -> mem_sub (m_dry jm1') m2' ->
+  resource_decay (Mem.nextblock (m_dry jm1)) (m_phi jm1) (m_phi jm1') -> ev_elim (m_dry jm2) T m2' ->
+  forall l, join (m_phi jm1' @ l)
+    (compcert_rmaps.RML.R.resource_fmap (compcert_rmaps.RML.R.approx (level jm1')) (compcert_rmaps.RML.R.approx (level jm1')) (x @ l))
+    (compcert_rmaps.RML.R.resource_fmap (compcert_rmaps.RML.R.approx (level jm1')) (compcert_rmaps.RML.R.approx (level jm1')) (juicy_mem_lemmas.rebuild_juicy_mem_fmap jm2 m2' l)).
+Proof.
+  intros ?????? J Hmem Helim1 Hmem' Hdecay Helim2 l.
+  unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
+  apply (compcert_rmaps.RML.resource_at_join _ _ _ l) in J.
+  edestruct ev_elim_perm_inv as [[? Hnone] | [? [(? & ? & Hnew) | (? & Hsame)]]]; eauto.
+  - (* location was freed *)
+    rewrite Hnone; simpl.
+    destruct jm1'; simpl in *.
+    specialize (JMaccess l).
+    eapply ev_elim_free_1 in H as (Hcase & Hnone1 & ? & ?); [|apply Helim1].
+    unfold access_at in JMaccess; rewrite Hnone1 in JMaccess.
+    unfold perm_of_res in JMaccess.
+    destruct (phi @ l); try discriminate.
+    if_tac in JMaccess; inv JMaccess.
+    destruct Hcase as [Hm1 | Hm1].
+    + destruct l; simpl in *.
+      rewrite perm_access, (juicy_mem_access jm1) in Hm1.
+      assert (perm_of_res (m_phi jm1 @ (b, z)) = Some Freeable) as Hperm1
+        by (destruct (perm_of_res _); inv Hm1; auto).
+      apply semax_call.perm_of_res_val in Hperm1 as (? & ? & Hp); rewrite Hp in J.
+      inv J.
+      * apply ghosts.join_Tsh in RJ as []; subst.
+        constructor; auto.
+      * apply ghosts.join_Tsh in RJ as []; subst.
+        contradiction bot_unreadable.
+    + assert (fst l >= Mem.nextblock (m_dry jm2))%positive.
+      { destruct Hmem as (_ & <- & _); auto. }
+      rewrite (juicy_mem_alloc_cohere jm2) in * by auto.
+      inv J; constructor.
+      apply ghosts.join_Bot in RJ as []; subst; auto.
+    + destruct k; try discriminate.
+      unfold perm_of_sh in JMaccess; repeat if_tac in JMaccess; try discriminate; subst.
+      contradiction.
+  - (* location was newly allocated and not freed *)
+    rewrite Hnew; simpl.
+    rewrite (juicy_mem_alloc_cohere jm2) in * by auto.
+    inv J; simpl.
+    apply ghosts.join_Bot in RJ as []; subst.
+    eapply ev_elim_alloc in Helim1; eauto.
+    rewrite juicy_mem_access in Helim1.
+    apply semax_call.perm_of_res_val in Helim1 as (? & ? & Hp); rewrite Hp.
+    apply juicy_mem_contents in Hp as []; subst.
+    unfold contents_at; destruct Hmem' as [-> _].
+    constructor; auto.
+  - (* location was only read and written *)
+    rewrite Hsame, juicy_mem_access.
+    destruct (ev_elim_perm_inv l Cur _ _ _ Helim1) as [[? ?] | [_ [(? & ? & Hnew) | (_ & Hsame1)]]].
+    { contradiction H; eauto. }
+    { congruence. }
+    pose proof (juicy_mem_access jm1' l) as Hperm; rewrite Hsame1, juicy_mem_access in Hperm.
+    destruct Hdecay as [_ Hdecay]; specialize (Hdecay l); destruct Hdecay as [_ Hdecay].
+    inv J; rewrite <- H2 in Hperm, Hdecay; simpl in *.
+    + rewrite if_false by (if_tac; simpl; auto; intros X; inv X).
+      destruct (m_phi jm1' @ l); try discriminate; simpl in Hperm.
+      destruct Hdecay as [Heq | [(? & ? & ? & ? & ? & ?) | [(? & ? & ?) | (? & ? & ? & ?)]]]; try discriminate; inv Heq.
+      constructor; auto.
+      { destruct Hdecay as [? | [(? & ? & ? & ? & ? & ?) | [(? & ? & Heq) | (? & ? & ? & ?)]]]; try discriminate; inv Heq.
+        rewrite perm_of_freeable in Hperm; if_tac in Hperm; discriminate. }
+      { destruct Hdecay as [Heq | [(? & ? & ? & ? & ? & ?) | [(? & ? & ?) | (? & ? & ? & ?)]]]; discriminate. }
+    + destruct (Pos.ltb_spec (fst l) (Mem.nextblock (m_dry jm1))).
+      destruct k.
+      rewrite if_true by (unfold perm_of_sh; if_tac; if_tac; try contradiction; constructor).
+      unfold perm_of_sh in Hperm; rewrite (if_true _ _ _ _ _ rsh1) in Hperm.
+      destruct (m_phi jm1' @ l) eqn: H1'; simpl in Hperm; try (repeat if_tac in Hperm; discriminate).
+      destruct k; try (repeat if_tac in Hperm; discriminate).
+      apply juicy_mem_contents in H1' as []; subst.
+      unfold contents_at; destruct Hmem' as (-> & _ & _).
+      constructor.
+      destruct Hdecay as [Heq | [(? & ? & ? & ? & Heq & Heq1) | [(? & ? & Heq) | (? & ? & ? & ?)]]]; try discriminate; inv Heq; try inv Heq1; auto.
+      rewrite perm_of_freeable in Hperm; repeat if_tac in Hperm; try discriminate; subst; auto.
+      { destruct Hdecay as [<- | [(? & ? & ? & ? & ? & ?) | [(? & ? & ?) | (? & ? & ? & ?)]]]; try discriminate; try lia; constructor; auto. }
+      { destruct Hdecay as [<- | [(? & ? & ? & ? & ? & ?) | [(? & ? & ?) | (? & ? & ? & ?)]]]; try discriminate; try lia; constructor; auto. }
+      { rewrite juicy_mem_alloc_cohere in H2 by (apply Pos.le_ge; auto). inv H2. }
+    + destruct Hdecay as [Heq | [(? & ? & ? & ? & Heq & Heq1) | [(? & ? & Heq) | (? & ? & ? & ?)]]]; try discriminate.
+      rewrite <- Heq.
+      destruct k; try constructor; auto.
+      rewrite if_true by (unfold perm_of_sh; if_tac; if_tac; try contradiction; constructor).
+      rewrite (juicy_mem_access jm1'), <- Hperm in Hsame1.
+      eapply (ev_elim_contents' _ _ _ _ Helim1) in Helim2 as ->; auto.
+      symmetry in H4; apply juicy_mem_contents in H4 as []; subst.
+      constructor; auto.
+      { destruct (Pos.ltb_spec (fst l) (Mem.nextblock (m_dry jm1))); auto.
+        erewrite juicy_mem_alloc_cohere in H4. inv H4.
+        destruct Hmem as (_ & <- & _); apply Pos.le_ge; auto. }
+      { unfold Mem.perm; unfold access_at in Hsame1.
+        setoid_rewrite <- Hsame1.
+        if_tac; intros X; inv X. }
+      { erewrite juicy_mem_alloc_cohere in H4. inv H4.
+        destruct Hmem as (_ & <- & _); auto. }
+    + destruct (Pos.ltb_spec (fst l) (Mem.nextblock (m_dry jm1))).
+      destruct k.
+      rewrite if_true by (unfold perm_of_sh; if_tac; if_tac; try contradiction; constructor).
+      unfold perm_of_sh in Hperm; rewrite (if_true _ _ _ _ _ rsh1) in Hperm.
+      destruct (m_phi jm1' @ l) eqn: H1'; simpl in Hperm; try (repeat if_tac in Hperm; discriminate).
+      destruct k; try (repeat if_tac in Hperm; discriminate).
+      rewrite (juicy_mem_access jm1'), H1' in Hsame1.
+      apply juicy_mem_contents in H1' as []; subst.
+      unfold contents_at; destruct Hmem' as (-> & _ & _).
+      fold (contents_at m2' l).
+      eapply (ev_elim_contents' _ _ _ _ Helim1) in Helim2 as ->; auto.
+      symmetry in H4; apply juicy_mem_contents in H4 as []; subst.
+      constructor; auto.
+      { destruct Hdecay as [Heq | [(? & ? & ? & ? & Heq & Heq1) | [(? & ? & Heq) | (? & ? & ? & ?)]]]; try discriminate; inv Heq; try inv Heq1; auto; lia. }
+      { unfold Mem.perm. unfold access_at in Hsame1; setoid_rewrite <- Hsame1; simpl.
+        rewrite <- Hperm; if_tac; [|intros X; inv X].
+        apply join_writable0_readable in RJ; auto. }
+      { destruct Hdecay as [<- | [(? & ? & ? & ? & ? & ?) | [(? & ? & ?) | (? & ? & ? & ?)]]]; try discriminate; try lia; constructor; auto. }
+      { destruct Hdecay as [<- | [(? & ? & ? & ? & ? & ?) | [(? & ? & ?) | (? & ? & ? & ?)]]]; try discriminate; try lia; constructor; auto. }
+      { rewrite juicy_mem_alloc_cohere in H2 by (apply Pos.le_ge; auto). inv H2. }
+    + destruct Hdecay as [<- | [(? & ? & ? & ? & ? & ?) | [(? & ? & ?) | (? & ? & ? & ?)]]]; try discriminate.
+      constructor; auto.
+      erewrite juicy_mem_alloc_cohere in H4. inv H4.
+      destruct Hmem as (_ & <- & _); auto.
+Qed.
+
 Lemma whole_program_sequential_safety_ext:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
@@ -686,7 +986,9 @@ Proof.
    destruct (CLC_memsem (globalenv prog)) eqn: Hmemsem; inv Hmemsem.
    simpl in ev_step_ax1, ev_step_ax2.
    apply ev_step_ax2 in H as [T H].
+   pose proof (ev_step_elim _ _ _ _ _ H) as Helim.
    eapply cl_evstep_extends in H as (m1' & H & Hmem'); eauto.
+   pose proof (ev_step_elim _ _ _ _ _ H) as Helim1; clear ev_step_elim.
    apply ev_step_ax1 in H.
    rewrite Hl; eapply safeN_step.
    + red. red. fold (globalenv prog). eassumption.
@@ -702,9 +1004,8 @@ Proof.
        apply compcert_rmaps.RML.resource_at_join2; auto.
        * apply join_level in Jw as []. rewrite !level_juice_level_phi in *. rewrite age_to.level_age_to; auto; lia.
        * apply join_level in Jw as []. rewrite !level_juice_level_phi in *. rewrite !age_to.level_age_to; auto; lia.
-       * intros; rewrite !age_to_resource_at.age_to_resource_at, Hr';
-           unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
-         (* Something's missing. *) admit.
+       * intros; rewrite !age_to_resource_at.age_to_resource_at, Hr'.
+         eapply join_ev_elim_commut; eauto.
        * rewrite !age_to_resource_at.age_to_ghost_of, Hg, Hg'.
          rewrite <- level_juice_level_phi; apply compcert_rmaps.RML.ghost_fmap_join, compcert_rmaps.RML.ghost_of_join; auto. }
      assert ((invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred
