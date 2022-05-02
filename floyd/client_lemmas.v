@@ -2076,8 +2076,10 @@ Ltac Intro a :=
 
 Tactic Notation "Intro" "?" :=
   lazymatch goal with
-  | |- semax _ (EX ex1 : _, _) _ _ =>
-    let e1 := fresh ex1 in Intro e1
+  | |- semax _ ?x _ _ =>
+    lazymatch x with context [EX ex1 : _, _] =>
+      let e1 := fresh ex1 in Intro e1
+    end
   | |- context [?Pre |-- _] =>
     lazymatch Pre with context [EX ex1 : _, _] =>
       let e1 := fresh ex1 in Intro e1
@@ -2095,7 +2097,7 @@ end.
 Tactic Notation "Intros" := finish_Intros.
 
 Tactic Notation "Intros" "*" :=
-  (repeat Intro ?); finish_Intros.
+  repeat Intro ?; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0) :=
  Intro x0; finish_Intros.

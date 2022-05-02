@@ -821,22 +821,12 @@ Ltac has_at_already p :=
     has_at_already_aux R p
   end.
 
-Ltac handle_intros :=
-  try Intros;
-  repeat lazymatch goal with
-  | |- semax _ (PROPx _ (LOCALx _ (SEPx ?X))) _ _=>
-    lazymatch X with
-    | context [EX X', _] =>
-      let x := fresh X' in Intros x
-    end
-  end.
-
 Ltac find_unfold_mpred_aux P A p :=
   let x := fresh "x" in
   set (x := P);
   unfold A in x;
   subst x;
-  handle_intros;
+  Intros *;
   has_at_already p.
 
 (* This tactic is needed for matches where `p` is
