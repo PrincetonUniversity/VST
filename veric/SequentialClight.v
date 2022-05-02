@@ -767,6 +767,56 @@ Proof.
     rewrite compcert_rmaps.RML.preds_fmap_fmap, H, compcert_rmaps.RML.approx_oo_approx; reflexivity.
 Qed.
 
+(* frame property for juicy extspecs *)
+Definition extspec_frame {Z} (JE : juicy_ext_spec Z) := forall e t b lt lv z jm w jm1, ext_spec_pre JE e t b lt lv z jm ->
+        mem_sub (m_dry jm) (m_dry jm1) -> join (m_phi jm) w (m_phi jm1) -> semax.ext_compat z (m_phi jm1) ->
+        exists t1, ext_spec_pre JE e t1 b lt lv z jm1 /\
+        forall ot v z' jm1', ext_spec_post JE e t1 b ot v z' jm1' ->
+          exists jm', ext_spec_post JE e t b ot v z' jm' /\ mem_sub (m_dry jm') (m_dry jm1') /\
+            join (m_phi jm') (age_to.age_to (level jm') w) (m_phi jm1').
+
+Lemma funspec2jspec_frame : forall {Z} (JE : juicy_ext_spec Z) extlink f,
+  extspec_frame JE -> extspec_frame (semax_ext.funspec2jspec _ JE extlink f).
+Proof.
+  unfold semax_ext.funspec2jspec, semax_ext.funspec2extspec, extspec_frame; simpl; intros.
+  destruct f as (?, []), t0; simpl in *.
+  unfold semax_ext.funspec2pre, semax_ext.funspec2post in *; if_tac; [|eauto].
+  destruct t as (frame, t); simpl in *.
+  destruct H0 as (? & ? & ? & J & ? & ? & ?).
+  destruct (join_assoc J H2) as (frame' & Jframe & ?).
+  exists (frame', t); simpl; split; eauto 7.
+  intros ???? (? & ? & J' & ? & ?).
+  eapply join_comm, nec_join2 in Jframe as (? & frame1 & Jframe & Hnecw & ?); eauto.
+  destruct (join_assoc (join_comm Jframe) (join_comm J')) as (? & J1 & J1').
+  destruct (join_assoc J1 (join_comm J1')) as (? & J'' & Jtop%join_comm).
+  edestruct juicy_mem_sub as (? & ? & ?); [eexists; eauto | subst].
+  eexists; split; [do 3 eexists; [apply J''|]|]; split; auto.
+  - eapply rt_trans; eauto.
+  - pose proof (necR_level _ _ Hnecw).
+    apply age_to.necR_age_to in Hnecw; rewrite Hnecw in Jtop.
+    destruct (join_level _ _ _ Jtop) as [-> <-].
+    rewrite age_to.level_age_to; auto.
+Qed.
+
+Lemma add_funspecs_frame' : forall {Espec : OracleKind} extlink fs,
+  extspec_frame OK_spec -> extspec_frame (@OK_spec (add_funspecs Espec extlink fs)).
+Proof.
+  destruct Espec; simpl; intros.
+  revert dependent OK_spec; induction fs; simpl; auto; intros.
+  destruct a; apply funspec2jspec_frame; auto.
+Qed.
+
+Lemma void_spec_frame : forall {Z}, extspec_frame (@OK_spec (ok_void_spec Z)).
+Proof.
+  unfold ok_void_spec; simpl; repeat intro; contradiction.
+Qed.
+
+Lemma add_funspecs_frame : forall {Z} extlink fs,
+  extspec_frame (@OK_spec (add_funspecs (ok_void_spec Z) extlink fs)).
+Proof.
+  intros; apply add_funspecs_frame', void_spec_frame.
+Qed.
+
 Lemma whole_program_sequential_safety_ext:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
@@ -775,14 +825,9 @@ Lemma whole_program_sequential_safety_ext:
        exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
          mem_sub m' m1' /\ proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
          proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
-     (Jframe: forall e t b lt lv z jm w jm1, ext_spec_pre (@JE_spec OK_ty OK_spec) e t b lt lv z jm ->
-        mem_sub (m_dry jm) (m_dry jm1) -> join (m_phi jm) w (m_phi jm1) ->
-        exists t1, ext_spec_pre (@JE_spec OK_ty OK_spec) e t1 b lt lv z jm1 /\
-        forall ot v z' jm1', ext_spec_post (@JE_spec OK_ty OK_spec) e t1 b ot v z' jm1' ->
-          exists jm', ext_spec_post (@JE_spec OK_ty OK_spec) e t b ot v z' jm' /\ mem_sub (m_dry jm') (m_dry jm1') /\
-            join (m_phi jm') (age_to.age_to (level jm') w) (m_phi jm1'))
+     (Jframe: extspec_frame OK_spec)
      (dryspec: ext_spec OK_ty)
-     (dessicate : forall (ef : external_function) m,
+     (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
@@ -905,6 +950,7 @@ Proof.
      destruct Hz' as [<- ?].
      apply IHn; eauto. lia.
  -
+   unfold extspec_frame in Jframe.
    destruct dryspec as [ty pre post exit]. (* subst ty. *)
    destruct JE_spec as [ty' pre' post' exit'].
    change (level (m_phi jm)) with (level jm) in *.
