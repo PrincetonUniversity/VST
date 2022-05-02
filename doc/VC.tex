@@ -1508,19 +1508,22 @@ ENTAIL $\Delta$,
      PROP($0<u$) LOCAL()
      SEP (data_at $\pi$ tint (Vint (Int.repr $u$)) p)
 \end{lstlisting}
-One might just as well say \lstinline{Intros x y}
-to use those names instead of \lstinline{a b}.
-Note that the propositions (previously hidden inside
-existential quantifiers) have been moved above the line
-by \lstinline{Intros}.  Also, if there had been any
-separating-conjunction operators $*$ within the \lstinline{SEP}
-clause, those will be ``flattened'' into semicolon-separated
-conjuncts within \lstinline{SEP}.
+One might just as well say \lstinline{Intros x y} to use those
+names instead of \lstinline{a b}, or \lstinline{Intros ? ?} to
+use \lstinline{x y} automatically. Note that the propositions
+(previously hidden inside existential quantifiers) have been
+moved above the line by \lstinline{Intros}.  Also, if there had
+been any separating-conjunction operators $*$ within the
+\lstinline{SEP} clause, those will be ``flattened'' into
+semicolon-separated conjuncts within \lstinline{SEP}.
 
 Sometimes, even when there are no existentials to introduce,
 one wants to move \lstinline{PROP} propositions
 above the line and flatten the $*$ operators into semicolons.
 One can just say \lstinline{Intros} with no arguments to do that.
+One can also say \lstinline{Intros *} to introduce all existentials,
+without specifying names, as well as moving \lstinline{PROP}
+propositions and flattening $*$ operators.
 
 If you want to Intro an existential \emph{without}
 \lstinline{PROP}-introduction and \linebreak $*$-flattening, you can
@@ -1546,6 +1549,10 @@ The \lstinline{EExists} tactic takes no argument; it instantiates
 the existential with a unification variable (much like Coq's
 \lstinline{eex$$ists} versus \lstinline{exi$$sts}).
 
+\lstinline{Exists ?} uses the binder name to instantiate the
+existential with the variable of the same name, if it exists.
+So using \lstinline{Exists ?} instead of \lstinline{Exists b}
+would've looked for a variable named \lstinline{u}.
 
 \ychapter{Integers: \upshape\textsf{nat, Z, int}}
 {(\file{compcert/lib/Integers.v})}
