@@ -1,3 +1,4 @@
+Require Import stdpp.namespaces.
 Require Export VST.veric.invariants.
 Require Import VST.msl.ghost_seplog.
 Require Import VST.msl.sepalg_generators.
@@ -15,7 +16,7 @@ Proof.
   rewrite IHl; auto.
 Qed.
 
-Lemma nth_replace_nth : forall {A} n l a (d : A), (n < length l)%nat ->
+(*Lemma nth_replace_nth : forall {A} n l a (d : A), (n < length l)%nat ->
   nth n (replace_nth n l a) d = a.
 Proof.
   induction n; destruct l; auto; simpl; intros; try lia.
@@ -27,33 +28,33 @@ Lemma nth_replace_nth' : forall {A} n m l a (d : A), m <> n ->
 Proof.
   induction n; destruct l; auto; destruct m; auto; simpl; intros; try lia.
   apply IHn; lia.
-Qed.
+Qed.*)
 
 Section Invariants.
 
-Context {inv_names : invG}.
+Definition inv (N : namespace) P := EX i : iname, !!(N = nroot .@ (Pos.of_nat (S i))) && invariant i P.
 
 Global Instance agree_persistent g P : Persistent (agree g P : mpred).
 Proof.
   apply core_persistent; auto.
 Qed.
 
-Global Instance inv_persistent i P : Persistent (invariant i P).
+Global Instance inv_persistent N P : Persistent (inv N P).
 Proof.
   apply _.
 Qed.
 
-Global Instance inv_affine i P : Affine (invariant i P).
+Global Instance inv_affine N P : Affine (inv N P).
 Proof.
   apply _.
 Qed.
 
-Lemma invariant_dup : forall i P, invariant i P = invariant i P * invariant i P.
+Lemma invariant_dup : forall N P, inv N P = (inv N P * inv N P)%logic.
 Proof.
-  intros; apply pred_ext; rewrite <- (bi.persistent_sep_dup (invariant i P)); auto.
+  intros; apply pred_ext; rewrite <- (bi.persistent_sep_dup (inv N P)); auto.
 Qed.
 
-Lemma wsat_alloc : forall P, wsat * |> P |-- (|==> wsat * EX i : _, invariant i P)%I.
+Lemma wsat_alloc : forall P, wsat * |> P |-- (|==> wsat * EX N : _, inv N P)%I.
 Proof.
   intros; iIntros "[wsat P]".
   unfold wsat.
@@ -144,7 +145,8 @@ Proof.
         rewrite <- Zlength_correct, <- app_assoc, app_Znth2 by lia.
         erewrite app_Znth1, Znth_repeat'; auto; try lia.
         rewrite coqlib4.Zlength_repeat; lia.
-  - iExists (length l + i)%nat; unfold invariant.
+  - unfold inv. iExists (nroot .@ (Pos.of_nat (S (length l + i))))%nat; unfold invariant.
+    iExists (length l + i)%nat; iSplit; auto.
     iExists g; rewrite H; iFrame.
 Qed.
 
@@ -307,23 +309,7 @@ Proof.
   - unfold Ensembles.In; auto.
 Qed.
 
-(* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
-   in veric (a la own). *)
-
-(*
-
-need to do namespaces if we want to use iInv!
-
-Global Instance into_inv_inv N P : IntoInv (invariant N P) N := {}.
-
-Global Instance into_acc_inv N P E:
-  IntoAcc (X := unit) (inv N P)
-          (↑N ⊆ E) True (fupd E (E ∖ ↑N)) (fupd (E ∖ ↑N) E)
-          (λ _ : (), (▷ P)%I) (λ _ : (), (▷ P)%I) (λ _ : (), None).
-Proof.
-  rewrite inv_eq /IntoAcc /accessor bi.exist_unit.
-  iIntros (?) "#Hinv _". iApply "Hinv"; done.
-Qed.*)
+(* Consider putting rules for invariants in msl/ghost_seplog.v. *)
 
 End Invariants.
 
@@ -337,4 +323,23 @@ Proof.
   iModIntro.
   iExists {| g_inv := g_inv; g_dis := g_dis; g_en := g_en |}.
   iExists nil, nil, nil; simpl; iFrame "inv dis en"; auto.
+Qed.
+
+Global Instance into_inv_inv N P : IntoInv (inv N P) N := {}.
+
+Lemma inv_nonexpansive : forall N, nonexpansive (inv N).
+Proof.
+  intros; unfold inv.
+  apply @exists_nonexpansive; intros i.
+  apply @conj_nonexpansive, invariant_nonexpansive.
+  apply const_nonexpansive.
+Qed.
+
+Lemma inv_nonexpansive2 : forall N f, nonexpansive f ->
+  nonexpansive (fun a => inv N (f a)).
+Proof.
+  intros; unfold inv.
+  apply @exists_nonexpansive; intros i.
+  apply @conj_nonexpansive, invariant_nonexpansive2, H.
+  apply const_nonexpansive.
 Qed.

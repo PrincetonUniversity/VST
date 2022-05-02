@@ -8,8 +8,6 @@ Require Export VST.atomics.general_atomics.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 
-Set Bullet Behavior "Strict Subproofs".
-
 (* Warning: it is UNSOUND to use both this file and acq_rel_atomics.v in the same proof! There is
    not yet an operational model that can validate the use of both SC and RA atomics. *)
 
@@ -76,12 +74,12 @@ Definition free_atomic_int_spec :=
     LOCAL ()
     SEP ().
 
-Definition AL_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
+Definition AL_type := ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+  (ArrowType (ConstType val) Mpred).
 
 Program Definition atomic_load_spec := TYPE AL_type
-  WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_int ]
    PROP (subseteq Ei Eo)
    PARAMS (p)
@@ -111,11 +109,11 @@ Proof.
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition AS_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * val))
-  (ConstType coPset)) (ConstType coPset)) Mpred) (ConstType invG).
+Definition AS_type := ProdType (ProdType (ProdType (ConstType (val * val))
+  (ConstType coPset)) (ConstType coPset)) Mpred.
 
 Program Definition atomic_store_spec := TYPE AS_type
-  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : mpred, inv_names : invG
+  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : mpred
   PRE [ tptr atomic_int, tint ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
@@ -142,12 +140,12 @@ Proof.
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition ACAS_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * share * val * val * val))
+Definition ACAS_type := ProdType (ProdType (ProdType (ConstType (val * share * val * val * val))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+  (ArrowType (ConstType val) Mpred).
 
 Program Definition atomic_CAS_spec := TYPE ACAS_type
-  WITH p : val, shc : share, pc : val, c : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  WITH p : val, shc : share, pc : val, c : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_int, tptr tint, tint ]
    PROP (readable_share shc; subseteq Ei Eo)
    PARAMS (p; pc; v)
@@ -179,12 +177,12 @@ Proof.
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition AEX_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * val))
+Definition AEX_type := ProdType (ProdType (ProdType (ConstType (val * val))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+  (ArrowType (ConstType val) Mpred).
 
 Program Definition atomic_exchange_spec := TYPE AEX_type
-  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr tint, tint ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
@@ -217,12 +215,12 @@ Proof.
 Qed.
 
 (* subspecs for integer operations *)
-Definition ALI_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
+Definition ALI_type := ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType Z) Mpred)) (ConstType invG).
+  (ArrowType (ConstType Z) Mpred).
 
 Program Definition atomic_load_int_spec := TYPE ALI_type
-  WITH p : val, Eo : coPset, Ei : coPset, Q : Z -> mpred, inv_names : invG
+  WITH p : val, Eo : coPset, Ei : coPset, Q : Z -> mpred
   PRE [ tptr atomic_int ]
    PROP (subseteq Ei Eo)
    PARAMS (p)
@@ -254,11 +252,11 @@ Qed.
 
 Lemma atomic_load_int : funspec_sub atomic_load_spec atomic_load_int_spec.
 Proof.
+  apply prove_funspec_sub.
   split; auto; intros; simpl in *.
-  destruct x2 as ((((p, Eo), Ei), Q), inv_names).
-  intros; match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
+  destruct x2 as (((p, Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
-  iExists nil, (p, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end, inv_names), emp.
+  iExists nil, (p, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end), emp.
   rewrite emp_sepcon; iSplit.
   - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
     iDestruct "H" as "($ & $ & $ & H & $)".
@@ -268,8 +266,7 @@ Proof.
     iExists sh, (vint v); iFrame.
     rewrite Int.signed_repr; auto.
   - iPureIntro.
-    intros; match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
-    iIntros "(_ & _ & H) !>".
+    iIntros (?) "(_ & _ & H)".
     unfold PROPx, LOCALx, SEPx; simpl.
     iDestruct "H" as (r) "(_ & % & Q & _)".
     destruct H, r; try done.
@@ -281,11 +278,11 @@ Proof.
     rewrite sepcon_emp; auto.
 Qed.
 
-Definition ASI_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
-  (ConstType coPset)) (ConstType coPset)) Mpred) (ConstType invG).
+Definition ASI_type := ProdType (ProdType (ProdType (ConstType (val * Z))
+  (ConstType coPset)) (ConstType coPset)) Mpred.
 
 Program Definition atomic_store_int_spec := TYPE ASI_type
-  WITH p : val, v : Z, Eo : coPset, Ei : coPset, Q : mpred, inv_names : invG
+  WITH p : val, v : Z, Eo : coPset, Ei : coPset, Q : mpred
   PRE [ tptr atomic_int, tint ]
    PROP (repable_signed v; subseteq Ei Eo)
    PARAMS (p; vint v)
@@ -314,26 +311,25 @@ Qed.
 
 Lemma atomic_store_int : funspec_sub atomic_store_spec atomic_store_int_spec.
 Proof.
+  apply prove_funspec_sub.
   split; auto; intros; simpl in *.
-  destruct x2 as (((((p, v), Eo), Ei), Q), inv_names).
-  intros; match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
+  destruct x2 as ((((p, v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
-  iExists nil, (p, vint v, Eo, Ei, Q, inv_names), emp.
+  iExists nil, (p, vint v, Eo, Ei, Q), emp.
   rewrite emp_sepcon; iSplit.
   - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl.
     iDestruct "H" as "(% & $ & $ & H & $)".
     destruct H; auto.
   - iPureIntro.
-    intros; match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
-    by iIntros "(_ & _ & $)".
+    by iIntros (?) "(_ & _ & $)".
 Qed.
 
-Definition ACASI_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * share * val * Z * Z))
+Definition ACASI_type := ProdType (ProdType (ProdType (ConstType (val * share * val * Z * Z))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType Z) Mpred)) (ConstType invG).
+  (ArrowType (ConstType Z) Mpred).
 
 Program Definition atomic_CAS_int_spec := TYPE ACASI_type
-  WITH p : val, shc : share, pc : val, c : Z, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred, inv_names : invG
+  WITH p : val, shc : share, pc : val, c : Z, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred
   PRE [ tptr atomic_int, tptr tint, tint ]
    PROP (repable_signed c; repable_signed v; readable_share shc; subseteq Ei Eo)
    PARAMS (p; pc; vint v)
@@ -367,11 +363,11 @@ Qed.
 
 Lemma atomic_CAS_int : funspec_sub atomic_CAS_spec atomic_CAS_int_spec.
 Proof.
+  apply prove_funspec_sub.
   split; auto; intros; simpl in *.
-  destruct x2 as ((((((((p, shc), pc), c), v), Eo), Ei), Q), inv_names).
-  intros; match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
+  destruct x2 as (((((((p, shc), pc), c), v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
-  iExists nil, (p, shc, pc, vint c, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end, inv_names), emp.
+  iExists nil, (p, shc, pc, vint c, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end), emp.
   rewrite emp_sepcon; iSplit.
   - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl.
     iDestruct "H" as "(% & $ & $ & $ & H & $)".
@@ -390,8 +386,7 @@ Proof.
     iDestruct "H" as "[% _]".
     destruct H as [Hc _].
     iPureIntro.
-    intros; match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
-    iIntros "(_ & _ & H) !>".
+    iIntros (?) "(_ & _ & H)".
     iDestruct "H" as (r) "(_ & % & ? & Q & _)".
     destruct H, r; try done.
     iExists (Int.signed i); iSplit; auto.
@@ -405,12 +400,12 @@ Proof.
     rewrite Int.repr_signed sepcon_emp; iFrame.
 Qed.
 
-Definition AEXI_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
+Definition AEXI_type := ProdType (ProdType (ProdType (ConstType (val * Z))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType Z) Mpred)) (ConstType invG).
+  (ArrowType (ConstType Z) Mpred).
 
 Program Definition atomic_exchange_int_spec := TYPE AEXI_type
-  WITH p : val, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred, inv_names : invG
+  WITH p : val, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred
   PRE [ tptr tint, tint ]
    PROP (repable_signed v; subseteq Ei Eo)
    PARAMS (p; vint v)
@@ -443,11 +438,11 @@ Qed.
 
 Lemma atomic_exchange_int : funspec_sub atomic_exchange_spec atomic_exchange_int_spec.
 Proof.
+  apply prove_funspec_sub.
   split; auto; intros; simpl in *.
-  destruct x2 as (((((p, v), Eo), Ei), Q), inv_names).
-  intros; match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
+  destruct x2 as ((((p, v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
-  iExists nil, (p, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end, inv_names), emp.
+  iExists nil, (p, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end), emp.
   rewrite emp_sepcon; iSplit.
   - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl.
     iDestruct "H" as "(% & $ & $ & H & $)".
@@ -459,8 +454,7 @@ Proof.
     rewrite -> Int.signed_repr; auto.
   - unfold PROPx, LOCALx, SEPx; simpl.
     iPureIntro.
-    intros; match goal with |- ?P |-- |==> ?Q => change (P |-- (|==> Q)%I) end.
-    iIntros "(_ & _ & H) !>".
+    iIntros (?) "(_ & _ & H)".
     iDestruct "H" as (r) "(_ & % & Q & _)".
     destruct H, r; try done.
     iExists (Int.signed i); iSplit; auto.
@@ -473,12 +467,12 @@ Qed.
 
 (* specs for pointer operations *)
 
-Definition ALI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
+Definition ALI_ptr_type := ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+  (ArrowType (ConstType val) Mpred).
 
 Program Definition atomic_load_ptr_spec := TYPE ALI_ptr_type
-  WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_ptr ]
    PROP (subseteq Ei Eo)
    PARAMS (p)
@@ -509,11 +503,11 @@ Proof.
 Qed.
 
 
-Definition ASI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * val))
-  (ConstType coPset)) (ConstType coPset)) Mpred) (ConstType invG).
+Definition ASI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * val))
+  (ConstType coPset)) (ConstType coPset)) Mpred.
 
 Program Definition atomic_store_ptr_spec := TYPE ASI_ptr_type
-  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : mpred, inv_names : invG
+  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : mpred
   PRE [ tptr atomic_ptr, tptr Tvoid ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
@@ -541,12 +535,12 @@ Proof.
 Qed.
 
 
-Definition ACASI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * share * val * val * val))
+Definition ACASI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * share * val * val * val))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+  (ArrowType (ConstType val) Mpred).
 
 Program Definition atomic_CAS_ptr_spec := TYPE ACASI_ptr_type
-  WITH p : val, shc : share, pc : val, c : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  WITH p : val, shc : share, pc : val, c : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_ptr, tptr (tptr Tvoid), tptr Tvoid ]
    PROP (readable_share shc; subseteq Ei Eo)
    PARAMS (p; pc; v)
@@ -579,12 +573,12 @@ Proof.
 Qed.
 
 
-Definition AEXI_ptr_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * val))
+Definition AEXI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * val))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred)) (ConstType invG).
+  (ArrowType (ConstType val) Mpred).
 
 Program Definition atomic_exchange_ptr_spec := TYPE AEXI_ptr_type
-  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred, inv_names : invG
+  WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_ptr, tptr Tvoid ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)

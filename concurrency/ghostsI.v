@@ -7,6 +7,15 @@ Import List.
 
 (* Lemmas about ghost state, proved with Iris bupd *)
 
+Instance unfash_persistent P : Persistent (alg_seplog.unfash P).
+Proof.
+  change unfash with (@subtypes.unfash rmap _ _).
+  constructor; intros ??; hnf.
+  unfold bi_persistently; simpl.
+  unfold unfash in *; simpl in *.
+  rewrite level_core; auto.
+Qed.
+
 Section ghost.
 
 Context {RA: Ghost}.

@@ -854,40 +854,36 @@ Proof.
   apply extract_exists_pre in H.
   eapply semax_conseq; [.. | exact H].
   + reduceL.
-    eapply derives_trans; [| apply bupd_intro].
-    rewrite andp_comm.
-    apply imp_andp_adjoint.
-    eapply derives_trans; [apply later_exp'' |].
+    eapply derives_trans, except_0_fupd.
+    eapply derives_trans; [apply andp_derives, later_exp''; apply derives_refl|].
+    rewrite andp_comm, distrib_orp_andp.
     apply orp_left.
-    - apply imp_andp_adjoint.
-      rewrite andp_comm.
-      apply orp_right2.
-      rewrite exp_andp2.
-      apply derives_refl.
-    - apply imp_andp_adjoint.
-      apply andp_left1, orp_right1, derives_refl.
+    - apply orp_right2.
+      eapply derives_trans, fupd_intro.
+      rewrite <- exp_andp2, andp_comm; apply derives_refl.
+    - apply orp_right1, andp_left1, derives_refl.
   + reduce2derives; apply derives_refl.
   + reduce2derives; apply derives_refl.
   + reduce2derives; apply derives_refl.
   + intros; reduce2derives; apply derives_refl.
 Qed.
 
-Lemma semax_pre_post_bupd:
+Lemma semax_pre_post_fupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- (|==> P')) ->
-    (local (tc_environ Delta) && RA_normal R' |-- (|==> RA_normal R)) ->
-    (local (tc_environ Delta) && RA_break R' |-- (|==> RA_break R)) ->
-    (local (tc_environ Delta) && RA_continue R' |-- (|==> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|==> RA_return R vl)) ->
+    (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
+    (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
+    (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
+    (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
-Proof. exact @CConseqFacts.semax_pre_post_bupd. Qed.
+Proof. exact @CConseqFacts.semax_pre_post_fupd. Qed.
 
-Lemma semax_pre_bupd:
+Lemma semax_pre_fupd:
  forall P' Espec {cs: compspecs} Delta P c R,
-     ENTAIL Delta , P |-- (|==> P') ->
+     ENTAIL Delta , P |-- (|={Ensembles.Full_set}=> P') ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
-Proof. exact @CConseqFacts.semax_pre_bupd. Qed.
+Proof. exact @CConseqFacts.semax_pre_fupd. Qed.
 
 Lemma semax_pre:
  forall P' Espec {cs: compspecs} Delta P c R,
@@ -921,7 +917,7 @@ Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
-  intros; eapply semax_pre_post_bupd; eauto; intros; eapply derives_trans, bupd_intro; auto.
+  intros; eapply semax_pre_post_fupd; eauto; intros; eapply derives_trans, fupd_intro; auto.
 Qed.
 
 Lemma semax_frame_PQR:
@@ -976,16 +972,16 @@ apply H1.
 apply semax_frame_PQR; auto.
 Qed.
 
-Lemma semax_post_bupd:
+Lemma semax_post_fupd:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   ENTAIL Delta, RA_normal R' |-- (|==> RA_normal R) ->
-   ENTAIL Delta, RA_break R' |-- (|==> RA_break R) ->
-   ENTAIL Delta, RA_continue R' |-- (|==> RA_continue R) ->
-   (forall vl, ENTAIL Delta, RA_return R' vl |-- (|==> RA_return R vl)) ->
+   ENTAIL Delta, RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R) ->
+   ENTAIL Delta, RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R) ->
+   ENTAIL Delta, RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R) ->
+   (forall vl, ENTAIL Delta, RA_return R' vl |-- (RA_return R vl)) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
-intros; eapply semax_pre_post_bupd; try eassumption.
-apply andp_left2, bupd_intro; auto.
+intros; eapply semax_pre_post_fupd; try eassumption.
+apply andp_left2, fupd_intro; auto.
 Qed.
 
 Lemma semax_post:
@@ -1209,7 +1205,7 @@ Fixpoint replace_nth {A} (n: nat) (al: list A) (x: A) {struct n}: list A :=
  | _, nil => nil
  end.
 
-Fixpoint my_nth{A} (n: nat) (al: list A) (default: A) {struct n} : A :=
+Fixpoint my_nth {A} (n: nat) (al: list A) (default: A) {struct n} : A :=
   (* just like nth; make a new copy, for better control of unfolding *)
 match n, al with
 | O, a::al' => a
@@ -1346,14 +1342,14 @@ Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic1(t):=
   unfold my_nth,replace_nth; simpl Z.to_nat;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
 
-Lemma replace_SEP'_bupd:
+Lemma replace_SEP'_fupd:
  forall n R' Espec {cs: compspecs} Delta P Q Rs c Post,
- ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|==> R') ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|={Ensembles.Full_set}=> R') ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (replace_nth n Rs R')))) c Post ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx Rs))) c Post.
 Proof.
 intros.
-eapply semax_pre_bupd; [ | apply H0].
+eapply semax_pre_fupd; [ | apply H0].
 clear - H.
 unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
 unfold local, lift1 in *.
@@ -1362,20 +1358,21 @@ normalize.
 rewrite !prop_true_andp in H by auto.
 rewrite sepcon_emp in H.
 rewrite prop_true_andp by auto.
-revert Rs H; induction n; destruct Rs; simpl ; intros; auto; try solve [apply bupd_intro; auto].
-- eapply derives_trans, bupd_frame_r; apply sepcon_derives; auto.
-- eapply derives_trans, bupd_frame_l; apply sepcon_derives; auto.
+change fupd with (ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set).
+revert Rs H; induction n; destruct Rs; intros; auto; try solve [apply fupd_intro; auto].
+- eapply derives_trans, fupd_frame_r; apply sepcon_derives; auto.
+- eapply derives_trans, fupd_frame_l; apply sepcon_derives; auto.
 Qed.
 
-Lemma replace_SEP''_bupd:
+Lemma replace_SEP''_fupd:
  forall n R' Delta P Q Rs Post,
- ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|==> R') ->
- ENTAIL Delta, PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- (|==> Post) ->
- ENTAIL Delta, PROPx P (LOCALx Q (SEPx Rs)) |-- (|==> Post).
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|={Ensembles.Full_set}=> R') ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- (|={Ensembles.Full_set}=> Post) ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx Rs)) |-- (|={Ensembles.Full_set}=> Post).
 Proof.
 intros.
-eapply derives_trans, bupd_trans.
-eapply derives_trans; [ | apply bupd_mono, H0].
+eapply derives_trans, fupd_trans.
+eapply derives_trans; [ | apply fupd_mono, H0].
 clear - H.
 unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
 unfold local, lift1 in *.
@@ -1384,18 +1381,19 @@ normalize.
 rewrite !prop_true_andp in H by auto.
 rewrite sepcon_emp in H.
 rewrite !prop_true_andp by auto.
-revert Rs H; induction n; destruct Rs; simpl ; intros; auto; try solve [apply bupd_intro; auto].
-- eapply derives_trans, bupd_frame_r; apply sepcon_derives; auto.
-- eapply derives_trans, bupd_frame_l; apply sepcon_derives; auto.
+change fupd with (ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set).
+revert Rs H; induction n; destruct Rs; intros; auto; try solve [apply fupd_intro; auto].
+- eapply derives_trans, fupd_frame_r; apply sepcon_derives; auto.
+- eapply derives_trans, fupd_frame_l; apply sepcon_derives; auto.
 Qed.
 
 Tactic Notation "viewshift_SEP" constr(n) constr(R) :=
-  first [apply (replace_SEP'_bupd (Z.to_nat n) R) | apply (replace_SEP''_bupd (Z.to_nat n) R)];
+  first [apply (replace_SEP'_fupd (Z.to_nat n) R) | apply (replace_SEP''_fupd (Z.to_nat n) R)];
   unfold my_nth,replace_nth; simpl Z.to_nat;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 
 Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic1(t):=
-  first [apply (replace_SEP'_bupd (Z.to_nat n) R) | apply (replace_SEP''_bupd (Z.to_nat n) R)];
+  first [apply (replace_SEP'_fupd (Z.to_nat n) R) | apply (replace_SEP''_fupd (Z.to_nat n) R)];
   unfold my_nth,replace_nth; simpl Z.to_nat;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
 

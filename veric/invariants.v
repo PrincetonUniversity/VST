@@ -1,12 +1,5 @@
-Require Import VST.msl.ghost.
-Require Import VST.msl.ghost_seplog.
-Require Import VST.msl.sepalg_generators.
-Require Import VST.msl.sepalg.
-Require Import VST.veric.seplog.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.own.
-Require Import VST.veric.mpred.
-Require Import VST.veric.ghosts.
+From VST.msl Require Import ghost ghost_seplog sepalg_generators sepalg.
+From VST.veric Require Import compcert_rmaps shares own mpred ghosts.
 Require Import VST.zlist.sublist.
 Import List ListNotations.
 
@@ -138,9 +131,10 @@ Qed.
 #[global] Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join }.
 Next Obligation.
 Proof.
-  apply fsep_sep; exists (fun _ => nil); auto; constructor.
+  intros; exists (fun _ => nil); auto; intros; repeat econstructor.
 Defined.
 Next Obligation.
+Proof.
   constructor.
     + intros until 1.
       revert z'; induction H; inversion 1; auto; subst.
@@ -632,9 +626,9 @@ Next Obligation.
       rewrite H2; left; auto.
 Qed.
 
-Polymorphic Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
+Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
 
-Polymorphic Lemma ghost_set_join : forall g s1 s2,
+Lemma ghost_set_join : forall g s1 s2,
   (ghost_set g s1 * ghost_set g s2 = !!(Disjoint s1 s2) && ghost_set g (Union s1 s2))%pred.
 Proof.
   intros.
@@ -649,7 +643,7 @@ Proof.
   - intros (? & H & ?); inv H; split; auto.
 Qed.
 
-Polymorphic Lemma ghost_set_subset : forall g s s' (Hdec : forall a, In s' a \/ ~In s' a),
+Lemma ghost_set_subset : forall g s s' (Hdec : forall a, In s' a \/ ~In s' a),
   (Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Setminus s s'))%pred.
 Proof.
   intros.
@@ -663,7 +657,7 @@ Proof.
       inv H0; auto.
 Qed.
 
-Polymorphic Corollary ghost_set_remove : forall g a s,
+Corollary ghost_set_remove : forall g a s,
   In s a -> (ghost_set g s = ghost_set g (Singleton a) * ghost_set g (Subtract s a))%pred.
 Proof.
   intros; apply ghost_set_subset.
@@ -695,7 +689,7 @@ Typeclasses eauto := 1.
 
 #[global] Instance Inhabitant_mpred : Inhabitant mpred := emp.
 
-Polymorphic Definition wsat : mpred := (EX I : list mpred, EX lg : list gname, EX lb : list (option bool),
+Definition wsat : mpred := (EX I : list mpred, EX lg : list gname, EX lb : list (option bool),
   !!(length lg = length I /\ length lb = length I) &&
   master_list g_inv (map (fun i => match Znth i lb with Some _ => Some (Znth i lg)
                                    | None => None end) (upto (length I))) *
@@ -857,7 +851,7 @@ Proof.
   intros; apply H; simpl; auto.
 Qed.
 
-Polymorphic Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
+Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
 Proof.
   intros; unfold wsat.
   rewrite !exp_sepcon1; apply exp_left; intro l.
@@ -968,6 +962,20 @@ Proof.
     rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
     rewrite sepcon_comm, sepcon_assoc; auto.
 Qed.
+
+(*Lemma wsat_open_all : wsat * ghost_set g_en Full_set |--
+  |==> wsat * ghost_set g_en Empty_set *
+    (wsat * ghost_set g_en Empty_set -* |==> wsat * ghost_set g_en Full_set).
+Proof.
+  unfold wsat.
+  rewrite exp_sepcon1; apply exp_left; intros I.
+  rewrite exp_sepcon1; apply exp_left; intros lg.
+  rewrite exp_sepcon1; apply exp_left; intros lb.
+  rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [].
+  rewrite (sepcon_comm _ (iter_sepcon _ _)).
+  rewrite !sepcon_assoc, ghost_set_join.
+  rewrite !sepcon_andp_prop; apply prop_andp_left; intros.
+Admitted. (* should be provable *)*)
 
 (*Lemma wsat_open : forall i P,
   (wsat * invariant i P * ghost_set g_en (Singleton _ i) |--
@@ -1136,8 +1144,6 @@ Proof.
     apply in_seq; lia.
 Qed.*)
 
-Check (Ensemble (Maps.ZMap.t nat)).
-
 Lemma invariant_dealloc : forall i P, invariant i P |-- emp.
 Proof.
   intros; unfold invariant.
@@ -1214,19 +1220,10 @@ Proof.
   - now apply agree_nonexpansive2.
 Qed.
 
-Lemma invariant_super_non_expansive : forall n N P,
-  approx n (invariant N P) = approx n (invariant N (approx n P)).
-Proof.
-  intros; unfold invariant.
-  rewrite !approx_exp; f_equal; extensionality g.
-  rewrite !approx_sepcon; f_equal.
-  apply own_super_non_expansive.
-Qed.
-
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
    in veric (a la own). *)
 
-Polymorphic Lemma ghost_set_empty : forall g s,
+Lemma ghost_set_empty : forall g s,
   (ghost_set g s = ghost_set g s * ghost_set g (Empty_set))%pred.
 Proof.
   intros.
@@ -1240,7 +1237,7 @@ Proof.
     inv H.
 Qed.
 
-Polymorphic Lemma wsat_empty_eq : (wsat = wsat * ghost_set g_en (Empty_set))%pred.
+Lemma wsat_empty_eq : (wsat = wsat * ghost_set g_en (Empty_set))%pred.
 Proof.
   unfold wsat.
   repeat (rewrite exp_sepcon1; f_equal; extensionality).
@@ -1252,7 +1249,7 @@ Qed.
 
 End Invariants.
 
-Polymorphic Lemma make_wsat : emp |-- |==> EX inv_names : invG, wsat.
+Lemma make_wsat : emp |-- |==> EX inv_names : invG, wsat.
 Proof.
   unfold wsat.
   eapply derives_trans with (Q := (_ * emp)%pred); [rewrite sepcon_emp; apply (ghost_alloc(RA := snap_PCM(ORD := list_order gname)) (Tsh, nil) NoneP); simpl; auto|].

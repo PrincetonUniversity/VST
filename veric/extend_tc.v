@@ -34,7 +34,7 @@ Definition tc_temp_id_load id tfrom Delta v : environ -> mpred  :=
 fun rho => !! (exists tto, (temp_types Delta) ! id = Some tto
                       /\ tc_val tto (eval_cast tfrom tto (v rho))).
 
-Lemma extend_prop: forall P, boxy extendM (prop P).
+Lemma extend_prop: forall P, boxy extendM (prop P : mpred).
 Proof.
 intros.
 hnf.
@@ -58,6 +58,8 @@ Proof.
 intros.
 rewrite denote_tc_assert_andp.
 apply boxy_andp; auto.
+intros ?; hnf.
+exists (core x); apply join_comm, core_unit.
 Qed.
 
 Lemma extend_tc_bool:
@@ -131,7 +133,7 @@ rewrite H1 in H.
 inv H; auto.
 Qed.
 
-Lemma extend_andp: forall P Q, 
+Lemma extend_andp: forall (P Q : mpred),
   boxy extendM P -> boxy extendM Q -> boxy extendM (andp P Q).
 Proof.
  intros.
@@ -140,7 +142,7 @@ Proof.
  destruct H2; split; eapply boxy_e; eauto.
 Qed.
 
-Lemma extend_orp: forall P Q, 
+Lemma extend_orp: forall (P Q : mpred), 
   boxy extendM P -> boxy extendM Q -> boxy extendM (orp P Q).
 Proof.
  intros.
@@ -325,6 +327,7 @@ Proof.
 intros.
 rewrite denote_tc_assert_orp.
 apply boxy_orp; auto.
+intros ?; eexists; apply join_comm, core_unit.
 Qed.
 
 
@@ -356,6 +359,7 @@ Lemma extend_tc_andp':
 Proof.
 intros.
 apply boxy_andp; auto.
+intros ?; eexists; apply join_comm, core_unit.
 Qed.
 
 Ltac extend_tc_prover := 

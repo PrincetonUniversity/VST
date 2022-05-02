@@ -1,23 +1,12 @@
-From stdpp Require Export coPset.
-Require Import VST.msl.ghost.
-Require Import VST.msl.ghost_seplog.
-Require Import VST.msl.sepalg_generators.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.concurrency.ghosts.
-Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.invariants.
+From stdpp Require Export namespaces coPset.
+From VST.veric Require Import compcert_rmaps fupd.
+From VST.msl Require Import ghost ghost_seplog sepalg_generators.
+From VST.concurrency Require Import ghosts conclib invariants.
 Require Export VST.veric.bi.
-Require Import VST.msl.ghost_seplog.
 Import Ensembles.
 Import FashNotation.
 
-(* This should use veric/fupd at some point. *)
-
-Definition timeless' (P : mpred) := forall (a a' : rmap),
-  predicates_hered.app_pred P a' -> age a a' ->
-  predicates_hered.app_pred P a.
-
-Lemma timeless'_timeless : forall P, timeless' P -> Timeless P.
+Lemma timeless'_timeless : forall (P : mpred), timeless' P -> Timeless P.
 Proof.
   unfold Timeless; intros; simpl.
   constructor; change (predicates_hered.derives (|>P) (|>FF || P)%pred); intros ? HP.
@@ -30,63 +19,14 @@ Proof.
     eapply H; eauto.
 Qed.
 
-Lemma list_set_replace : forall {A} n l (a : A), (n < length l)%nat ->
-  own.list_set l n a = replace_nth n l (Some a).
-Proof.
-  induction n; destruct l; unfold own.list_set; auto; simpl; try lia; intros.
-  setoid_rewrite IHn; auto; lia.
-Qed.
-
 #[(*export, after Coq 8.13*)global] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
 Proof.
-  intros; apply timeless'_timeless.
-  intros ?? (v & ? & Hg) ?.
-  exists v; simpl in *.
-  split.
-  + intros; eapply age1_resource_at_identity; eauto.
-  + erewrite age1_ghost_of in Hg by eauto.
-    erewrite own.ghost_fmap_singleton in *; simpl in *.
-    destruct Hg as [? Hg]; apply own.singleton_join_inv_gen in Hg as (J & ? & ? & ?).
-    rewrite (map_nth _ _ None) in H1, J.
-    destruct (nth g (ghost_of a0) None) as [(?, ?)|] eqn: Hga; [|inv J].
-    inv H1.
-    rewrite <- (own.list_set_same _ _ _ Hga).
-    assert (g < length (ghost_of a0))%nat.
-    { destruct (lt_dec g (length (ghost_of a0))); auto.
-      rewrite -> nth_overflow in Hga by lia; discriminate. }
-    inv J.
-    * erewrite list_set_replace, <- replace_nth_replace_nth, <- list_set_replace; rewrite ?replace_nth_length; auto.
-      eexists; apply own.singleton_join_gen; rewrite -> nth_replace_nth by auto.
-      destruct p; inv H7.
-      replace _f with (fun _ : list Type => tt).
-      apply lower_None2.
-      { extensionality i; destruct (_f i); auto. }
-    * destruct a2, p, H6 as (? & ? & ?); simpl in *; subst.
-      inv H6.
-      erewrite list_set_replace, <- replace_nth_replace_nth, <- list_set_replace; rewrite ?replace_nth_length; auto.
-      eexists; apply own.singleton_join_gen; rewrite -> nth_replace_nth by auto.
-      constructor.
-      instantiate (1 := (_, _)).
-      split; simpl; [|split; auto]; eauto.
-      f_equal.
-      extensionality i; destruct (_f i); auto.
+  intros; apply timeless'_timeless, own_timeless.
 Qed.
 
 Lemma address_mapsto_timeless : forall m v sh p, Timeless (res_predicates.address_mapsto m v sh p : mpred).
 Proof.
-  intros; apply timeless'_timeless.
-  repeat intro.
-  simpl in *.
-  destruct H as (b & [? HYES]); exists b; split; auto.
-  intro b'; specialize (HYES b').
-  if_tac.
-  - destruct HYES as (rsh & Ha'); exists rsh.
-    erewrite age_resource_at in Ha' by eauto.
-    destruct (a @ b'); try discriminate; inv Ha'.
-    destruct p0; inv H5; simpl.
-    f_equal.
-    apply proof_irr.
-  - rewrite age1_resource_at_identity; eauto.
+  intros; apply timeless'_timeless, address_mapsto_timeless.
 Qed.
 
 #[(*export, after Coq 8.13*)global] Instance timeless_FF : Timeless FF.
@@ -98,14 +38,7 @@ Qed.
 Lemma nonlock_permission_bytes_timeless : forall sh l z,
   Timeless (res_predicates.nonlock_permission_bytes sh l z : mpred).
 Proof.
-  intros; apply timeless'_timeless.
-  repeat intro.
-  simpl in *.
-  specialize (H b).
-  if_tac.
-  - erewrite age1_resource_at in H by (erewrite ?resource_at_approx; eauto).
-    destruct (a @ b); auto.
-  - rewrite age1_resource_at_identity; eauto.
+  intros; apply timeless'_timeless, nonlock_permission_bytes_timeless.
 Qed.
 
 Lemma mapsto_timeless : forall sh t v p, Timeless (mapsto sh t p v).
@@ -124,11 +57,7 @@ Qed.
 
 #[(*export, after Coq 8.13*)global] Instance emp_timeless : (@Timeless mpredI) emp.
 Proof.
-  apply timeless'_timeless; intros ????.
-  setoid_rewrite res_predicates.emp_no in H.
-  setoid_rewrite res_predicates.emp_no.
-  intros l.
-  eapply age1_resource_at_identity, H; auto.
+  apply timeless'_timeless, emp_timeless.
 Qed.
 
 Lemma memory_block'_timeless : forall sh n b z,
@@ -235,118 +164,10 @@ Qed.
 
 Section FancyUpdates.
 
-Context {inv_names : invG}.
+Local Open Scope logic_upd.
 
-Definition coPset_to_Ensemble (E : coPset) : Ensemble nat := fun x => elem_of (Pos.of_nat (S x)) E.
-
-Definition fupd E1 E2 P :=
-  (wsat * ghost_set g_en (coPset_to_Ensemble E1)) -* (|==> bi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E2) * P))%I.
-
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic.
-Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic.
-
-Lemma fupd_mono : forall E1 E2 P Q, (P |-- Q) -> (|={E1, E2}=> P) |-- (|={E1, E2}=> Q).
-Proof.
-  intros; unfold fupd; iIntros "H Hpre".
-  iMod ("H" with "Hpre") as ">($ & P)"; do 2 iModIntro.
-  iApply (H with "P").
-Qed.
-
-Lemma bupd_fupd : forall E P, (|==> P)%I |-- |={E}=> P.
-Proof.
-  intros; unfold fupd; iIntros ">P Hpre".
-  iModIntro; iFrame; auto.
-Qed.
-
-Lemma fupd_frame_r : forall E1 E2 P Q, (|={E1,E2}=> P) * Q |-- |={E1,E2}=> (P * Q).
-Proof.
-  intros; unfold fupd; iIntros "[H Q] Hpre".
-  iMod ("H" with "Hpre") as ">($ & $)"; auto.
-Qed.
-
-Lemma fupd_intro_mask : forall E1 E2 P,
-  subseteq E2 E1 -> P |-- |={E1,E2}=> |={E2,E1}=> P.
-Proof.
-  intros; unfold fupd; iIntros "P Hpre".
-  erewrite ghost_set_subset with (s' := (coPset_to_Ensemble E2)).
-  iDestruct "Hpre" as "(? & ? & en)".
-  iIntros "!> !>"; iSplitR "P en"; iFrame; auto.
-  { intro a; destruct (coPset_elem_of_dec (Pos.of_nat (S a)) E2); auto. }
-  { unfold coPset_to_Ensemble; intros ??; unfold In in *; auto. }
-Qed.
-
-Lemma fupd_trans : forall E1 E2 E3 P, (|={E1,E2}=> |={E2,E3}=> P) |-- |={E1,E3}=> P.
-Proof.
-  intros; unfold fupd; iIntros "H Hpre".
-  iMod ("H" with "Hpre") as ">(Hpre & H)".
-  iMod ("H" with "Hpre") as ">H"; iFrame; auto.
-Qed.
-
-Lemma fupd_timeless : forall E P, Timeless P -> |> P |-- |={E}=> P.
-Proof.
-  intros; unfold fupd; iIntros ">P Hpre"; iFrame; auto.
-Qed.
-
-Lemma fupd_frame_l : forall E1 E2 P Q, P * (|={E1,E2}=> Q) |-- |={E1,E2}=> (P * Q).
-Proof.
-  intros; erewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
-Qed.
-
-Lemma core_emp : forall (w : rmap), app_pred emp (core w).
-Proof.
-  intros; setoid_rewrite res_predicates.emp_no.
-  intros l; simpl.
-  apply resource_at_core_identity.
-Qed.
-
-(* This is a generally useful pattern. *)
-Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
-  app_pred (fupd E1 E2 P) a -> app_pred (fupd E1 E2 Q) a.
-Proof.
-  intros.
-  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) emp)) a) as HP'.
-  { pose proof (fupd_frame_r E1 E2 P (approx (S (level a)) emp)) as Hframe.
-    inv Hframe; rename derivesI into Hframe; apply Hframe.
-    do 3 eexists; [apply join_comm, core_unit | split; auto].
-    split; [|apply core_emp].
-    rewrite level_core; auto. }
-  eapply fupd_mono in HP'; eauto.
-  constructor; change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
-  intros a0 (? & ? & J & HP & [? Hemp]).
-  assert (app_pred (P * emp) a0) as Ha0 by (do 3 eexists; eauto).
-  rewrite sepcon_emp in Ha0.
-  destruct (join_level _ _ _ J).
-  eapply Himp in Ha0; try apply necR_refl; try apply ext_refl; auto; lia.
-Qed.
-
-Lemma fupd_bupd : forall E1 E2 P Q, (P |-- (|==> (|={E1,E2}=> Q))) -> P |-- |={E1,E2}=> Q.
-Proof.
-  intros; eapply derives_trans, fupd_trans; eapply derives_trans, bupd_fupd; auto.
-Qed.
-
-Lemma fupd_bupd_elim : forall E1 E2 P Q, (P |-- (|={E1,E2}=> Q)) -> (|==> P) |-- |={E1,E2}=> Q.
-Proof.
-  intros; apply fupd_bupd, bupd_mono; auto.
-Qed.
-
-Lemma fupd_intro : forall E P, P |-- |={E}=> P.
-Proof.
-  intros; eapply derives_trans, bupd_fupd; apply updates.bupd_intro.
-Qed.
-
-Lemma fupd_nonexpansive: forall E1 E2 P n, approx n (|={E1,E2}=> P) = approx n (|={E1,E2}=> approx n P).
-Proof.
-  intros; unfold fupd.
-  rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 2.
-  f_equal; f_equal.
-  rewrite !approx_bupd; f_equal.
-  unfold bi_except_0.
-  setoid_rewrite approx_orp; f_equal.
-  erewrite !approx_sepcon, approx_idem; reflexivity.
-Qed.
-
-Corollary fview_shift_nonexpansive : forall E1 E2 P Q n,
-  approx n (P -* |={E1,E2}=> Q)%logic = approx n (approx n P  -* |={E1,E2}=> approx n Q)%logic.
+Lemma fview_shift_nonexpansive : forall E1 E2 P Q n,
+  approx n (P -* |={E1,E2}=> Q) = approx n (approx n P -* |={E1,E2}=> approx n Q).
 Proof.
   intros.
   rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 3.
@@ -356,79 +177,16 @@ Qed.
 
 End FancyUpdates.
 
-Lemma coPset_to_Ensemble_union : forall E1 E2,
-  coPset_to_Ensemble (E1 ∪ E2) = Union (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
-Proof.
-  intros.
-  unfold coPset_to_Ensemble; apply Extensionality_Ensembles; constructor; intros ? X.
-  - unfold In in X; apply elem_of_union in X as [|]; [left | right]; auto.
-  - unfold In; inv X; [apply elem_of_union_l | apply elem_of_union_r]; auto.
-Qed.
-
-Lemma coPset_to_Ensemble_disjoint : forall E1 E2,
-  Disjoint (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) <-> E1 ## E2.
-Proof.
-  split; intros.
-  - inv H.
-    intros x ??; contradiction (H0 (Nat.pred (Pos.to_nat x))); constructor; unfold In, coPset_to_Ensemble;
-      rewrite -> Nat.succ_pred_pos, Pos2Nat.id by lia; auto.
-  - constructor; intros ? X; inv X.
-    unfold In, coPset_to_Ensemble in *.
-    contradiction (H _ H0).
-Qed.
-
-Lemma mpred_fupd_mixin {inv_names : invG} : BiFUpdMixin mpredI fupd.
-Proof.
-  split.
-  - repeat intro; hnf in *.
-    setoid_rewrite fupd_nonexpansive; congruence.
-  - intros. now apply fupd_intro_mask.
-  - iIntros (E1 E2 P) ">H ?".
-    iApply "H"; auto.
-  - exact fupd_mono.
-  - exact fupd_trans.
-  - intros E1 E2 Ef P HE1Ef.
-    symmetry in HE1Ef.
-    unfold updates.fupd, fupd.
-    unfold ghost_set at 3.
-    erewrite !coPset_to_Ensemble_union, (own.ghost_op(RA := set_PCM) _ _ _ (Union (coPset_to_Ensemble E1) (coPset_to_Ensemble Ef))).
-    iIntros "Hvs (Hw & HE1 &HEf)".
-    iMod ("Hvs" with "[$Hw $HE1]") as ">(($ & HE2) & HP)".
-    iCombine "HE2 HEf" as "H"; setoid_rewrite ghost_set_join.
-    iDestruct "H" as "[% $]".
-    iPoseProof ("HP" with "[%]") as "HP"; auto.
-    apply coPset_to_Ensemble_disjoint; auto.
-    { constructor; auto.
-      apply coPset_to_Ensemble_disjoint; auto. }
-  - exact fupd_frame_r.
-Qed.
-
-#[(*export, after Coq 8.13*)global] Instance mpred_bi_fupd {inv_names : invG} : BiFUpd mpredI :=
-  {| bi_fupd_mixin := mpred_fupd_mixin |}.
-
-#[(*export, after Coq 8.13*)global] Instance mpred_bi_bupd_fupd {inv_names : invG} : BiBUpdFUpd mpredI.
-Proof. hnf. by iIntros (E P) ">? [$ $] !> !>". Qed.
-
 Section Invariants.
 
-Context {inv_names : invG}.
-
-Lemma fupd_timeless' : forall E1 E2 P Q, Timeless P -> ((P |-- (|={E1,E2}=> Q)) ->
-  |> P |-- |={E1,E2}=> Q)%I.
+Lemma fupd_timeless' : forall E1 E2 P Q, Timeless P -> (P |-- |={E1,E2}=> Q) ->
+  |> P |-- |={E1,E2}=> Q.
 Proof.
   intros.
-  eapply derives_trans; [apply fupd_timeless; auto|].
-  eapply derives_trans, fupd_trans.
-  apply fupd_mono; eauto.
+  iIntros ">P"; iApply H0; auto.
 Qed.
 
-Lemma fupd_except0_elim : forall E1 E2 P Q, ((P |-- (|={E1,E2}=> Q)) -> bi_except_0 P |-- |={E1,E2}=> Q)%I.
-Proof.
-  intros; iIntros ">P Hpre".
-  iPoseProof (H with "P Hpre") as ">>Q"; iFrame; auto.
-Qed.
-
-Lemma wsat_fupd_elim' : forall E P, (wsat * ghost_set g_en (coPset_to_Ensemble E) * (|={E}=> P) |-- (|==> bi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E) * P)))%I.
+(*Lemma wsat_fupd_elim' : forall E P, (wsat * ghost_set g_en (coPset_to_Ensemble E) * (|={E}=> P)%I |-- (|==> bi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E) * P)))%I.
 Proof.
   intros; unfold updates.fupd, bi_fupd_fupd; simpl; unfold fupd.
   apply modus_ponens_wand.
@@ -439,9 +197,9 @@ Proof.
   intros; rewrite wsat_empty_eq.
   replace Empty_set with (coPset_to_Ensemble empty); [apply wsat_fupd_elim'|].
   apply Extensionality_Ensembles; constructor; intros ? X; inv X.
-Qed.
+Qed.*)
 
-Lemma bupd_except_0 : forall P, ((|==> bi_except_0 P) |-- bi_except_0 (|==> P))%I.
+Lemma bupd_except_0 : forall P, (|==> bi_except_0 P) |-- bi_except_0 (|==> P).
 Proof.
   intros; constructor; change (predicates_hered.derives (own.bupd (bi_except_0 P)) (bi_except_0 (own.bupd P : mpred))).
   intros ??; simpl in H.
@@ -460,7 +218,7 @@ Proof.
     constructor; auto.
 Qed.
 
-Lemma fupd_prop' : forall E1 E2 E2' P Q, subseteq E1 E2 ->
+(*Lemma fupd_prop' : forall E1 E2 E2' P Q, subseteq E1 E2 ->
   ((Q |-- (|={E1,E2'}=> !!P)) ->
   (|={E1, E2}=> Q) |-- |={E1}=> !!P && (|={E1, E2}=> Q))%I.
 Proof.
@@ -491,22 +249,23 @@ Proof.
   intros; eapply fupd_prop'; auto.
   eapply derives_trans; eauto.
   apply fupd_intro.
-Qed.
+Qed.*)
 
-Lemma inv_alloc : forall E P, |> P |-- (|={E}=> EX i : _, invariant i P)%I.
+Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, inv i P.
 Proof.
   intros; unfold fupd; iIntros "P (wsat & ?)".
-  iMod (wsat_alloc with "[$]") as "(? & ?)"; iFrame; auto.
+  iMod (wsat_alloc with "[$]") as "(? & ?)".
+  iRight; iFrame; auto.
 Qed.
 
-Lemma make_inv : forall E P Q, (P |-- Q) -> (P |-- |={E}=> EX i : _, invariant i Q)%I.
+Lemma make_inv : forall E P Q, (P |-- Q) -> P |-- |={E}=> EX i : _, inv i Q.
 Proof.
   intros.
   eapply derives_trans, inv_alloc; auto.
   eapply derives_trans, now_later; auto.
 Qed.
 
-Lemma make_inv' : forall P Q, (P |-- Q) -> (wsat * P |-- |==> EX i : _, |> (wsat * (invariant i Q)))%I.
+(*Lemma make_inv' : forall P Q, (P |-- Q) -> (wsat * P |-- |==> EX i : _, |> (wsat * (inv i Q)))%I.
 Proof.
   intros.
   iIntros "[wsat P]".
@@ -520,80 +279,155 @@ Proof.
 Qed.
 
 Lemma inv_close_aux : forall E (i : iname) P,
-  (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * invariant i P * |> P *
+  (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * inv i P * |> P *
   (wsat * ghost_set g_en (Subtract E i))
   |-- |==> bi_except_0 (wsat * (ghost_set g_en (Singleton i) * ghost_set g_en (Subtract E i))))%I.
 Proof.
   intros.
   iIntros "(((? & ?) & ?) & ? & en)".
   iMod (wsat_close with "[-en]") as "[$ $]"; iFrame; auto.
-Qed.
-
-Definition inv i : coPset := base.singleton (Pos.of_nat (S i)).
-
-Lemma inv_open : forall E i P, subseteq (inv i) E ->
-  (invariant i P |-- |={E, difference E (inv i)}=> (|> P) * (|>P -* |={difference E (inv i), E}=> emp))%I.
-Proof.
-  unfold updates.fupd, bi_fupd_fupd; simpl.
-  intros; unfold fupd.
-  rewrite -> invariant_dup.
-  erewrite ghost_set_remove.
-  iIntros "[I ?] (wsat & i & en)".
-  iMod (wsat_open with "[$wsat $I $i]") as "([$ $] & ?)".
-  assert (Subtract (coPset_to_Ensemble E) i = (coPset_to_Ensemble (E ∖ inv i))) as Heq.
-  { apply Extensionality_Ensembles; constructor; intros ? X.
-    * inv X; unfold In, coPset_to_Ensemble in *.
-      rewrite elem_of_difference; split; auto.
-      unfold inv; intros X%elem_of_singleton%Nat2Pos.inj; auto.
-      inv X; contradiction.
-    * unfold In, coPset_to_Ensemble in *.
-      apply elem_of_difference in X as [].
-      constructor; auto.
-      intro X; inv X; contradiction H1.
-      unfold inv; apply elem_of_singleton; auto. }
-  rewrite <- Heq; iFrame "en".
-  iIntros "!> !> ? [? ?]".
-  rewrite sepcon_emp; iApply inv_close_aux; iFrame.
-  { unfold In, coPset_to_Ensemble.
-    rewrite elem_of_subseteq_singleton; auto. }
-Qed.
-
-(*(* these last two are probably redundant *)
-Lemma inv_close : forall E i P, subseteq (inv i) E ->
-  invariant i P * |> P * ghost_list(P := exclusive_PCM _) g_dis (list_singleton i (Some tt)) |--
-  (|={difference E (inv i), E}=> TT)%I.
-Proof.
-  unfold updates.fupd, bi_fupd_fupd; simpl.
-  intros; unfold fupd; iIntros "((? & ?) & ?) ?".
-  iMod (inv_close_aux with "[-]") as ">H"; [iFrame|].
-  do 2 iModIntro.
-  erewrite (ghost_set_remove _ _ E); first by iFrame; auto.
-  { apply elem_of_subseteq_singleton; auto. }
-Qed.
-
-Lemma inv_access : forall E i P, subseteq (inv i) E ->
-  (invariant i P |-- |={E, difference E (inv i)}=>
-    |> P * (|> P -* |={difference E (inv i), E}=> TT))%I.
-Proof.
-  intros.
-  eapply derives_trans; [apply inv_open; eauto|].
-  apply fupd_mono; cancel.
-  apply wand_derives; auto.
-  apply fupd_mono; auto.
 Qed.*)
 
-End Invariants.
+(* hack because we don't have namespaces in wsat *)
+Definition to_coPset (N : namespace) : coPset :=
+  match N with
+  | [p] => {[p]}
+  | _ => ∅
+  end.
 
-Lemma inv_in : forall i, elem_of (Pos.of_nat (S i)) (inv i).
+Lemma coPset_to_Ensemble_minus : forall E1 E2, coPset_to_Ensemble (E1 ∖ E2) = Setminus (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
 Proof.
-  intros; rewrite elem_of_singleton; reflexivity.
+  intros; unfold coPset_to_Ensemble.
+  apply Extensionality_Ensembles; split; intros ? Hin; unfold In in *.
+  - apply elem_of_difference in Hin as []; constructor; auto.
+  - inv Hin. apply elem_of_difference; auto.
 Qed.
-#[(*export, after Coq 8.13*)global] Hint Resolve inv_in : ghost.
+
+Lemma coPset_to_Ensemble_single : forall x, coPset_to_Ensemble {[Pos.of_nat (S x)]} = Singleton x.
+Proof.
+  intros; unfold coPset_to_Ensemble.
+  apply Extensionality_Ensembles; split; intros ? Hin; unfold In in *.
+  - apply elem_of_singleton in Hin.
+    apply (f_equal Pos.to_nat) in Hin.
+    rewrite -> !Nat2Pos.id in Hin by auto; inv Hin; constructor.
+  - inv Hin.
+    apply elem_of_singleton; auto.
+Qed.
+
+Lemma Union_Readd : forall {A} E (x : A), EqDec A -> In E x ->
+  Union (Subtract E x) (Singleton x) = E.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? Hin.
+  - inv Hin; auto.
+    + inv H0; auto.
+    + inv H0; auto.
+  - destruct (eq_dec x x0).
+    + subst; constructor 2; constructor.
+    + constructor 1; constructor; auto.
+      intros Hs; inv Hs; auto.
+Qed.
+
+Global Instance into_acc_inv N P E:
+  IntoAcc (X := unit) (inv N P)
+          (to_coPset N ⊆ E) emp (updates.fupd E (E ∖ to_coPset N)) (updates.fupd (E ∖ to_coPset N) E)
+          (λ _ : (), (▷ P)%I) (λ _ : (), (▷ P)%I) (λ _ : (), None).
+Proof.
+  rewrite /inv /IntoAcc /accessor bi.exist_unit.
+  iIntros (?) "Hinv _".
+  iDestruct "Hinv" as (i) "[% #inv]".
+  subst; unfold to_coPset in *.
+  rewrite ndot_eq in H |- *; simpl in *.
+  iIntros "[wsat en]".
+  assert (In (coPset_to_Ensemble E) i) as Hin.
+  { unfold coPset_to_Ensemble; apply elem_of_subseteq_singleton, H. }
+  erewrite ghost_set_remove by eauto.
+  iDestruct "en" as "[eni en]".
+  iMod (wsat_open with "[$wsat $inv $eni]") as "((wsat & P) & dis)".
+  rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single; unfold Subtract.
+  iRight; iFrame.
+  iIntros "!> P [wsat en]".
+  iMod (wsat_close with "[$wsat $inv $P $dis]") as "[wsat eni]".
+  iCombine "en eni" as "en"; setoid_rewrite ghost_set_join.
+  iDestruct "en" as "[_ en]".
+  rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single Union_Readd; last done.
+  iRight; iFrame; auto.
+Qed.
+
+End Invariants.
 
 (* avoids some fragility in tactics *)
 Definition except0 : mpred -> mpred := bi_except_0.
 
-Global Opaque fupd.
+Definition funspec_sub' (f1 f2 : funspec): Prop :=
+match f1 with
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+        (tpsig1=tpsig2 /\ cc1=cc2) /\
+        forall ts2 x2 (gargs:argsEnviron),
+        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
+         |-- |={⊤}=> (EX ts1:_,  EX x1:_, EX F:_, 
+                           (F * (P1 ts1 x1 gargs)) &&
+                               (!! (forall rho',
+                                           ((!!(ve_of rho' = Map.empty (Values.block * type))) &&
+                                                 (F * (Q1 ts1 x1 rho')))
+                                         |-- (Q2 ts2 x2 rho')))))
+    end
+end.
 
-(* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
-   in veric (a la own). *)
+Lemma coPset_to_Ensemble_top : coPset_to_Ensemble ⊤ = Full_set.
+Proof.
+  unfold coPset_to_Ensemble; apply Extensionality_Ensembles; split; intros ? Hin; unfold In in *.
+  - constructor.
+  - set_solver.
+Qed.
+
+Lemma prove_funspec_sub : forall f1 f2, funspec_sub' f1 f2 -> funspec_sub f1 f2.
+Proof.
+  unfold funspec_sub', funspec_sub; intros.
+  destruct f1, f2.
+  destruct H as [? H]; split; auto; intros.
+  eapply derives_trans; [apply H|].
+  unfold fupd, bi_fupd_fupd; simpl.
+  rewrite coPset_to_Ensemble_top.
+  apply derives_refl.
+Qed.
+
+Lemma fupd_eq : ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set = fupd ⊤ ⊤.
+Proof.
+  unfold fupd, bi_fupd_fupd; simpl. rewrite coPset_to_Ensemble_top; auto.
+Qed.
+
+Lemma replace_SEP'_fupd:
+ forall n R' Espec {cs: compspecs} Delta P Q Rs c Post,
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (canon.my_nth n Rs TT ::  nil))) |-- liftx (|={⊤}=> R') ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (canon.replace_nth n Rs R')))) c Post ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx Rs))) c Post.
+Proof.
+intros; eapply replace_SEP'_fupd; eauto.
+rewrite fupd_eq; auto.
+Qed.
+
+Tactic Notation "viewshift_SEP" constr(n) constr(R) :=
+  first [apply (replace_SEP'_fupd (Z.to_nat n) R) | apply (replace_SEP''_fupd (Z.to_nat n) R)];
+  unfold canon.my_nth,canon.replace_nth; simpl Z.to_nat;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
+
+Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic1(t):=
+  first [apply (replace_SEP'_fupd (Z.to_nat n) R) | apply (replace_SEP''_fupd (Z.to_nat n) R)];
+  unfold canon.my_nth,canon.replace_nth; simpl Z.to_nat;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
+
+Global Opaque updates.fupd.
+
+Ltac ghost_alloc G :=
+  match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
+    rewrite <- (emp_sepcon R1) at 1; Intros; viewshift_SEP 0 (EX g : _, G g);
+  [go_lowerx; eapply derives_trans, bupd_fupd; rewrite ?emp_sepcon;
+   apply own_alloc; auto; simpl; auto with init share ghost|] end.
+
+Ltac ghosts_alloc G n :=
+  match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
+    rewrite <- (emp_sepcon R1) at 1; Intros; viewshift_SEP 0 (EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg);
+  [go_lowerx; eapply derives_trans, bupd_fupd; rewrite ?emp_sepcon;
+   apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.

@@ -116,25 +116,26 @@ assert (assert_safe Espec psi f vx tx (Cont (Kseq (if b' then c else d) k))
   rewrite denote_tc_assert_andp in TC2; destruct TC2.
   destruct b'; [apply H0 | apply H1]; split; subst; auto; split; auto; do 3 eexists; eauto; split;
     auto; split; auto; apply bool_val_strict; auto; eapply typecheck_expr_sound; eauto. }
-destruct HGG as [CSUB HGG]. apply (@tc_expr_cenv_sub _ _ CSUB) in TC2'. 
-eapply own.bupd_mono, bupd_denote_tc; eauto. 
-intros r [Htc Hr] ora jm Hora Hge Hphi ?. 
+destruct HGG as [CSUB HGG]. apply (@tc_expr_cenv_sub _ _ CSUB) in TC2'.
+rename TC2' into Htc.
+intros ora jm Hora Hge Hphi ?.
+apply jm_fupd_intro'.
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
 generalize LW; intro H9.
-subst r.
+subst w0.
 change (level (m_phi jm)) with (level jm) in H9.
 revert H9; case_eq (level jm); intros.
 lia.
 apply levelS_age1 in H9. destruct H9 as [jm' ?].
 clear H10.
-apply jsafe_step'_back2 with (st' := State f (if b' then c else d) k vx tx)
-  (m' := jm').
+eapply pred_hereditary in Hw0; [|eapply age_jm_phi; eauto].
+eapply jsafeN_step, assert_safe_jsafe, Hw0.
 split3.
 assert (TCS := typecheck_expr_sound _ _ (m_phi jm) _ (guard_environ_e1 _ _ _ TC) Htc). 
 unfold tc_expr in Htc.
 simpl in Htc.
 rewrite denote_tc_assert_andp in Htc.
-clear TC2'; destruct Htc as [TC2' TC2'a].
+destruct Htc as [TC2' TC2'a].
 rewrite <- (age_jm_dry H9); econstructor; eauto.
 {
  assert (exists b': bool, Cop.bool_val (@eval_expr CS' b rho) (typeof b) (m_dry jm) = Some b') as [].
@@ -163,11 +164,6 @@ apply age1_resource_decay; auto.
 split; [apply age_level; auto|].
 erewrite (age1_ghost_of _ _ (age_jm_phi H9)) by (symmetry; apply ghost_of_approx).
 repeat intro; auto.
-change (level (m_phi jm)) with (level jm).
-replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H9; lia).
-eapply @age_safe; try apply H9.
-rewrite <- Hge in *.
-apply Hr; auto.
 Qed.
 
 Ltac inv_safe H :=
@@ -340,8 +336,8 @@ Proof.
   eapply semax_Delta_subsumption in H0; try apply TS; auto.
   clear Delta TS.
   generalize H; rewrite semax_unfold; intros H'.
-  apply own.bupd_intro.
-  intros ora jm Hora RE ?; subst.
+  intros ora jm Hora RE ??; subst.
+  apply jm_fupd_intro'.
   destruct (can_age1_juicy_mem _ _ LEVa2) as [jm2 LEVa2'].
   unfold age in LEVa2.
   assert (a2 = m_phi jm2).
@@ -350,9 +346,7 @@ Proof.
     change R.ag_rmap with ag_rmap; rewrite LEVa2.
     intro Hx; inv Hx; auto.
   }
-  intro.
   subst a2.
-  rewrite (age_level _ _ LEVa2).
   apply jsafeN_step
    with (State f body (Kloop1 body incr k) vx tx)
           jm2.
@@ -522,107 +516,98 @@ Proof.
   rewrite proj_frame_ret_assert. simpl proj_ret_assert; simpl seplog.sepcon.
   rewrite sepcon_comm. rewrite (prop_true_andp (None=None)) by auto.
   eapply andp_derives; try apply H0; auto.
-  apply own.bupd_mono.
-  intros ???? Hora ?? ?.
-  specialize (H0 ora jm Hora H1 H2 LW). subst a.
-  destruct (break_cont k) eqn:?H; try contradiction.
-2:{ elimtype False; clear - H2. revert o c H2; induction k; simpl; intros; try discriminate. eauto. }
-  destruct c; try contradiction.
+  apply assert_safe_derives; split; auto.
+  rename H0 into Hora; intros.
+  destruct (break_cont k) eqn: Hcont.
+  { eapply jm_fupd_mono; [apply H0 | contradiction]. }
+2:{ elimtype False; clear - Hcont. revert k c Hcont; induction k; simpl; intros; try discriminate. eauto. }
+  destruct c; eapply jm_fupd_mono; eauto; clear H0; intros; try contradiction.
 - 
   induction k; try discriminate.
- + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. apply IHk in Hcont. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_break_loop1.
     intros.
     eapply age_safe; eauto.
-    change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
-    inv H0.
+    inv H3; [constructor; auto | | discriminate | contradiction].
+    destruct H4 as [Hstep ?]; inv Hstep.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_break_loop2.
     intros.
     eapply age_safe; eauto.
-    change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
-    inv H0.
+    inv H3; [constructor; auto | | discriminate | contradiction].
+    destruct H4 as [Hstep ?]; inv Hstep.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. econstructor; auto. 
     intros.
     eapply age_safe; eauto.
-    change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
-    inv H0.
+    inv H3; [constructor; auto | | discriminate | contradiction].
+    destruct H4 as [Hstep ?]; inv Hstep.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
 -
   rename c into k'.
-  revert s k' H2 H0.
+  revert s k' Hcont H3.
   induction k; simpl; intros; try discriminate.
  +
   eapply jsafeN_local_step. constructor. intros.
   eapply age_safe; try eassumption.
   eapply IHk; eauto.
  +
-  inv H2.
+  inv Hcont.
   eapply jsafeN_local_step. apply step_break_loop1. intros.
   eapply age_safe; try eassumption.
   eapply jsafeN_local_step. apply step_skip_seq. intros.
   eapply age_safe; try eassumption.
  +
-  inv H2.
+  inv Hcont.
   eapply jsafeN_local_step. apply step_break_loop2. intros.
   eapply age_safe; try eassumption.
   eapply jsafeN_local_step. apply step_skip_seq. intros.
   eapply age_safe; try eassumption.
  +
-  inv H2.
+  inv Hcont.
   eapply jsafeN_local_step. apply step_skip_break_switch; auto. intros.
   eapply age_safe; try eassumption.
   eapply jsafeN_local_step. apply step_skip_seq. intros.
   eapply age_safe; try eassumption.
 -
   induction k; try discriminate.
- + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. apply IHk in Hcont. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_break_loop1.
     intros.
     eapply age_safe; eauto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_break_loop2.
     intros.
     eapply age_safe; eauto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_skip_break_switch; auto.
     intros.
     eapply age_safe; eauto.
 -
   induction k; try discriminate.
- + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. apply IHk in Hcont. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_break_loop1.
     intros.
     eapply age_safe; eauto.
     eapply jsafeN_local_step. apply step_skip_loop2.
     intros.
     eapply age_safe; eauto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_break_loop2.
     intros.
     eapply age_safe; eauto.
     eapply jsafeN_local_step. apply step_skip_loop2.
     intros.
     eapply age_safe; eauto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_skip_break_switch; auto.
     intros.
     eapply age_safe; eauto.
@@ -631,38 +616,29 @@ Proof.
     eapply age_safe; eauto.
 -
   induction k; try discriminate.
- + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. apply IHk in Hcont. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_break_loop1.
     intros.
     eapply age_safe; eauto.
-    change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
-    inv H0.
+    inv H3; [constructor; auto | | discriminate | contradiction].
+    destruct H4 as [Hstep ?]; inv Hstep.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. apply step_break_loop2.
     intros.
     eapply age_safe; eauto.
-    change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
-    inv H0.
+    inv H3; [constructor; auto | | discriminate | contradiction].
+    destruct H4 as [Hstep ?]; inv Hstep.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
- + simpl in H2. inv H2. clear IHk.
+ + simpl in Hcont. inv Hcont. clear IHk.
     eapply jsafeN_local_step. econstructor; auto. 
     intros.
     eapply age_safe; eauto.
-    change (level (m_phi jm)) with (level jm) in H0.
-    destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
-    destruct H4.
-    inv H0.
+    inv H3; [constructor; auto | | discriminate | contradiction].
+    destruct H4 as [Hstep ?]; inv Hstep.
     eapply jsafeN_step.  split. econstructor; try eassumption.
     hnf; auto. auto. auto.
 Qed.
@@ -685,21 +661,24 @@ repeat intro.
 rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
 normalize.
-apply own.bupd_mono.
-intros ???? Hora ???.
-specialize (H0 ora jm Hora H1 H2 LW). 
-subst a.
-destruct (continue_cont k) eqn:?H; try contradiction.
+apply assert_safe_derives; split; auto.
+rename H0 into Hora; intros.
+subst w.
+destruct (continue_cont k) eqn:Hcont; try (eapply jm_fupd_mono; eauto; contradiction).
 -
  rename c into k'.
- revert k' H2 H0.
+ assert (exists s c, k' = Kseq s c) as (? & ? & Hcase).
+ { induction k; inv Hcont; eauto. }
+ rewrite Hcase in H0.
+ eapply jm_fupd_mono; eauto; clear H0; intros.
+ revert k' Hcont Hcase H2.
  induction k; simpl; intros; try discriminate.
  +
   eapply jsafeN_local_step. constructor. intros.
   eapply age_safe; try eassumption.
   eapply IHk; eauto.
  +
-  inv H2.
+  inv Hcont. inv H4.
   eapply jsafeN_local_step. apply step_skip_or_continue_loop1; auto. intros.
   eapply age_safe; try eassumption.
  +
@@ -707,8 +686,8 @@ destruct (continue_cont k) eqn:?H; try contradiction.
   eapply age_safe; try eassumption.
   eapply IHk; eauto.
 -
-  elimtype False; clear - H2.
-  revert c o H2; induction k; simpl; intros; try discriminate; eauto.
+  elimtype False; clear - Hcont.
+  revert c o Hcont; induction k; simpl; intros; try discriminate; eauto.
 Qed.
 
 End extensions.

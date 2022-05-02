@@ -491,6 +491,12 @@ Proof. intros.
  hnf. apply ext_level in H3 as <-. auto.
 Qed.
 
+Lemma subp_eq :
+  forall (P : pred nat) (Q R: pred A ), (!P && Q |-- R) <-> (P |-- Q >=> R).
+Proof. intros. split; [apply subp_i1|].
+  intros ?? []. eapply H; eauto. auto.
+Qed.
+
 Lemma eqp_nat: forall P Q: pred nat, (P <=> Q) = (P <--> Q).
 Proof.
 intros.

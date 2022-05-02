@@ -30,7 +30,7 @@ Section extensions.
 
 Lemma semax_straight_simple:
  forall Delta (B: assert) P c Q,
-  (forall rho, boxy (@extendM rmap _ _ _ _ _ _ rmap _ _ _ _ _) (B rho)) ->
+  (forall rho, boxy (@extendM rmap _ _ _ _ _ _) (B rho)) ->
   (forall jm jm1 Delta' ge ve te rho k F f,
               tycontext_sub Delta Delta' ->
               app_pred (B rho) (m_phi jm) ->
@@ -60,7 +60,6 @@ apply (pred_nec_hereditary _ _ _ (necR_nat H)) in Hsafe.
 clear H w.
 rename w0 into w.
 apply assert_safe_last'; intro Hage.
-apply own.bupd_intro.
 intros ora jm Hora _ H2. subst w.
 destruct Hglob as [[TC' Hglob] Hglob'].
 apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
@@ -73,6 +72,7 @@ change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
 apply rmap_order in Hext as (Hl & Hr & _); rewrite Hl in *.
 rewrite H2 in Hsafe.
 rewrite <- level_juice_level_phi, (age_level _ _ Hage).
+intros; apply jm_fupd_intro'.
 econstructor; [eassumption | ].
 unfold rguard in Hsafe.
 specialize (Hsafe EK_normal None te' ve).
@@ -90,11 +90,8 @@ split; auto.
 subst rho'; auto.
 rewrite sepcon_comm; subst rho'; auto.
 subst rho'.
-replace (level jm1) with (level jm').
 simpl exit_cont in Hsafe.
 apply assert_safe_jsafe'; auto.
-rewrite <- !level_juice_level_phi in H2.
-apply age_level in Hage; lia.
 Qed.
 
 Definition force_valid_pointers m v1 v2 :=

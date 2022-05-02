@@ -99,6 +99,7 @@ Section ext_trace.
     OS_valid s' /\ exists z', consume_trace z z' t' /\
     ext_spec_post dryspec e w b (sig_res (ef_sig e)) ret z' (extr_mem e args m s').
 
+
   Lemma dry_safe_ext_trace_safe : forall n t z q m,
     step_lemmas.dry_safeN(genv_symb := semax.genv_symb_injective)
      (cl_core_sem (globalenv prog)) dryspec
@@ -127,11 +128,18 @@ Section ext_trace.
   Lemma safety_trace:
    forall {CS: compspecs} (initial_oracle: OK_ty)
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
+     (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+       (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
+       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
+         mem_sub m' m1' /\ proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
+         proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
+     (Jframe: extspec_frame OK_spec)
      (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
+     (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m')
      V G m,
      @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
@@ -167,11 +175,18 @@ Section ext_trace.
   Theorem OS_soundness:
    forall {CS: compspecs} (initial_oracle: OK_ty)
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
+     (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+       (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
+       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
+         mem_sub m' m1' /\ proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
+         proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
+     (Jframe: extspec_frame OK_spec)
      (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
+     (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m')
      V G m,
      @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->

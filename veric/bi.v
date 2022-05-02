@@ -15,8 +15,7 @@ Arguments Z.to_nat : simpl nomatch.
     (this is a bit annoying because of the difference in precedence of derives)
 *)
 
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.SeparationLogic.
+From VST.veric Require Import compcert_rmaps SeparationLogic.
 
 Notation "'emp'" := seplog.emp.
 
@@ -81,32 +80,6 @@ Proof.
   - destruct HP; split; eauto.
   - eapply Himp; eauto; split; auto.
     pose proof (necR_level _ _ Ha'); apply ext_level in Hext; lia.
-Qed.
-
-Lemma wand_nonexpansive_l: forall P Q n,
-  approx n (P -* Q)%pred = approx n (approx n P  -* Q)%pred.
-Proof.
-  repeat intro.
-  apply predicates_hered.pred_ext; intros ? [? Hshift]; split; auto; intros ??????.
-  - destruct H2; eauto.
-  - eapply Hshift; eauto; split; auto.
-    apply necR_level in H0; apply join_level in H1 as []; lia.
-Qed.
-
-Lemma wand_nonexpansive_r: forall P Q n,
-  approx n (P -* Q)%pred = approx n (P  -* approx n Q)%pred.
-Proof.
-  repeat intro.
-  apply predicates_hered.pred_ext; intros ? [? Hshift]; split; auto; intros ??????.
-  - split; eauto.
-    apply necR_level in H0; apply join_level in H1 as []; lia.
-  - eapply Hshift; eauto.
-Qed.
-
-Lemma wand_nonexpansive: forall P Q n,
-  approx n (P -* Q)%pred = approx n (approx n P  -* approx n Q)%pred.
-Proof.
-  intros; rewrite wand_nonexpansive_l wand_nonexpansive_r; reflexivity.
 Qed.
 
 Lemma core_ext_ord : forall (a b : rmap), join_sub a b -> ext_order (core a) (core b).
@@ -330,6 +303,58 @@ Proof.
 Qed.
 Global Instance mpred_bi_bupd : BiBUpd mpredI := {| bi_bupd_mixin := mpred_bupd_mixin |}.
 
+Definition coPset_to_Ensemble (E : coPset.coPset) : Ensembles.Ensemble nat := fun x => elem_of (Pos.of_nat (S x)) E.
+
+Lemma coPset_to_Ensemble_union : forall E1 E2,
+  coPset_to_Ensemble (E1 ∪ E2) = Ensembles.Union (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
+Proof.
+  intros.
+  unfold coPset_to_Ensemble; apply Ensembles.Extensionality_Ensembles; constructor; intros ? X.
+  - unfold Ensembles.In in X; apply elem_of_union in X as [|]; [left | right]; auto.
+  - unfold Ensembles.In; inv X; [apply elem_of_union_l | apply elem_of_union_r]; auto.
+Qed.
+
+Lemma coPset_to_Ensemble_disjoint : forall E1 E2,
+  Ensembles.Disjoint (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) <-> E1 ## E2.
+Proof.
+  split; intros.
+  - inv H.
+    intros x ??; contradiction (H0 (Nat.pred (Pos.to_nat x))); constructor; unfold Ensembles.In, coPset_to_Ensemble;
+      rewrite -> Nat.succ_pred_pos, Pos2Nat.id by lia; auto.
+  - constructor; intros ? X; inv X.
+    unfold Ensembles.In, coPset_to_Ensemble in *.
+    contradiction (H _ H0).
+Qed.
+
+Lemma mpred_fupd_mixin : BiFUpdMixin mpredI (fun E1 E2 => ghost_seplog.fupd (coPset_to_Ensemble E1) (coPset_to_Ensemble E2)).
+Proof.
+  split.
+  - repeat intro; hnf in *.
+    rewrite fupd_nonexpansive; setoid_rewrite fupd_nonexpansive at 2.
+    rewrite H; auto.
+  - intros; unfold updates.fupd.
+    apply subseteq_disjoint_union_L in H as (E1' & ? & ?); subst.
+    rewrite coPset_to_Ensemble_union invariants.Union_comm.
+    apply fupd_mask_union, coPset_to_Ensemble_disjoint.
+    symmetry; auto.
+  - intros; apply except_0_fupd.
+  - intros; apply fupd_mono; auto.
+  - intros; apply fupd_trans.
+  - intros; unfold updates.fupd.
+    iIntros "H".
+    rewrite !coPset_to_Ensemble_union.
+    rewrite <- coPset_to_Ensemble_disjoint in H |- *.
+    iApply fupd_mask_frame_r'; auto.
+  - intros; apply fupd_frame_r.
+Qed.
+Global Instance mpred_bi_fupd : BiFUpd mpredI := {| bi_fupd_mixin := mpred_fupd_mixin |}.
+
+Global Instance mpred_bi_bupd_fupd : BiBUpdFUpd mpredI.
+Proof.
+  hnf.
+  intros; apply bupd_fupd.
+Qed.
+
 (*(* Lifted instance *)
 Section lifted_cofe.
   #[local] Instance env_mpred_equiv : Equiv (environ -> mpred) := eq.
@@ -504,5 +529,7 @@ Canonical Structure env_mpredSI : sbi :=
 Ltac iVST := iStopProof; match goal with |-bi_entails ?P ?Q => change (P |-- Q) end;
   repeat match goal with |-context[bi_sep ?P ?Q] => change (bi_sep P Q) with (P * Q) end.
 
+Global Close Scope logic_upd. (* hide non-Iris update notation *)
 Global Open Scope Z.
 Global Open Scope logic.
+Global Open Scope bi_scope.
