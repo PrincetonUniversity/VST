@@ -569,7 +569,6 @@ forward_loop (EX i : Z,
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
 - repeat step!.
 - repeat step!.
-  rename x into i.
   forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   (* these two parts are not much simplified *)
   { repeat step!.

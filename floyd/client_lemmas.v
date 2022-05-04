@@ -2074,6 +2074,18 @@ Ltac Intro a :=
      Intro'' a
   end.
 
+Tactic Notation "Intro" "?" :=
+  lazymatch goal with
+  | |- semax _ ?x _ _ =>
+    lazymatch x with context [EX ex1 : _, _] =>
+      let e1 := fresh ex1 in Intro e1
+    end
+  | |- context [?Pre |-- _] =>
+    lazymatch Pre with context [EX ex1 : _, _] =>
+      let e1 := fresh ex1 in Intro e1
+    end
+  end.
+
 Ltac finish_Intros :=
 repeat Intro_prop;
 (* Do this next part for backwards compatibility *)
@@ -2084,12 +2096,27 @@ end.
 
 Tactic Notation "Intros" := finish_Intros.
 
+Tactic Notation "Intros" "*" :=
+  repeat Intro ?; finish_Intros.
+
 Tactic Notation "Intros" simple_intropattern(x0) :=
  Intro x0; finish_Intros.
+
+Tactic Notation "Intros" "?" :=
+ Intro ?; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) :=
  Intro x0; Intro x1; finish_Intros.
+
+Tactic Notation "Intros" "?" "?" :=
+ Intro ?; Intro ?; finish_Intros.
+
+Tactic Notation "Intros" "?" simple_intropattern(x0) :=
+ Intro ?; Intro x0; finish_Intros.
+
+Tactic Notation "Intros" simple_intropattern(x0) "?" :=
+ Intro x0; Intro ?; finish_Intros.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2) :=
@@ -2190,8 +2217,23 @@ Ltac Exists' a :=
 Tactic Notation "Exists" constr(x0) :=
  Exists' x0.
 
+Tactic Notation "Exists" "?" :=
+ lazymatch goal with
+ | |- _ |-- ?Post =>
+  lazymatch Post with context [EX ex : _, _] => Exists' ex end
+ end.
+
 Tactic Notation "Exists" constr(x0) constr(x1) :=
- Exists' x0; Exists x1.
+ Exists' x0; Exists' x1.
+
+Tactic Notation "Exists" "?" "?" :=
+ do 2 Exists ?.
+
+Tactic Notation "Exists" "?" constr(x0) :=
+ Exists ?; Exists' x0.
+
+Tactic Notation "Exists" constr(x0) "?" :=
+ Exists' x0; Exists ?.
 
 Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) :=
  Exists' x0; Exists' x1; Exists' x2.
