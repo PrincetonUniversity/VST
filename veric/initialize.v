@@ -356,7 +356,6 @@ transitivity
 apply loadbytes_load; auto.
 clear H2.
 rewrite size_chunk_conv in *.
-(* pose proof (loadbytes_load Mint8unsigned m b). *)
 forget (size_chunk_nat chunk) as n.
 assert (forall i, p <= i < p + (Z.of_nat n) ->
                      loadbytes m b i 1 = Some (Byte Byte.zero::nil)).
@@ -1368,7 +1367,6 @@ Proof.
  inv H0.
  destruct H. inv H. simpl; auto.
  right. apply (IHvl G0); auto.
-(* EXPERIMENT right; apply (IHvl G); auto. *)
 Qed.
 
 Lemma match_fdecs_norepet:
@@ -1383,7 +1381,6 @@ Proof.
  simpl.
  constructor; auto.
  contradict H2. eapply match_fdecs_in; eauto.
-(* EXPERIMENT  inv H; eauto. *)
 Qed.
 
 Lemma list_norepet_prog_funct':
@@ -1770,7 +1767,7 @@ Proof.
  unfold upto_block. rewrite only_blocks_at. rewrite if_true by auto.
  replace (inflate_initial_mem m0 (initial_core gev G n) @ loc)
    with (inflate_initial_mem m (initial_core gev G n) @ loc); auto.
- try rename p into z.   (* Coq 8.3/8.4 compatibility *)
+  rename p into z.
  clear - z H0.
  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
  unfold inflate_initial_mem'.
@@ -2074,7 +2071,7 @@ rewrite Pos_to_nat_eq_S.
   destruct g.
 * (* Gfun case *)
   simpl.
-  specialize (IHvl m0 (G0(*++(p::nil)*)) G).
+  specialize (IHvl m0 G0 G).
   apply IHvl; auto.
  - clear - H2. apply list_norepet_app in H2. destruct H2 as [? [? ?]].
     inv H0.
@@ -2143,7 +2140,6 @@ rewrite Pos_to_nat_eq_S.
   | Some t => Some (Vptr (nextblock m0) Ptrofs.zero, t)
   | None => Some (Vptr (nextblock m0) Ptrofs.zero, Tvoid)
   end = Some (Vptr (nextblock m0) Ptrofs.zero, t)) by (destruct (type_of_global {| genv_genv := gev; genv_cenv := cenv |} (nextblock m0)); eauto).
-(* destruct H99 as [t H99]; rewrite H99; clear t H99.*)
  case_eq (gvar_volatile v); intros; auto. rename H5 into H10.
   hnf; auto.
 
@@ -2192,290 +2188,9 @@ pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1
  eapply another_hackfun_lemma; eauto.
 Qed.
 
-(*
-Definition ginit_data2pred (gvals: argsEnviron) : init_data -> share -> val -> mpred :=
- init_data2pred (genviron2globals (fst gvals)).
-
-Fixpoint ginit_data_list2pred (gvals: argsEnviron): list init_data -> share -> val -> mpred :=
-   init_data_list2pred  (genviron2globals (fst gvals)).
-
-Definition gglobvar2pred (gv: ident->val) (idv: ident * globvar type) : mpred :=
-   if (gvar_volatile (snd idv))
-   then TT
-   else ginit_data_list2pred gv (gvar_init (snd idv))
-                             (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
-*)
-
 Definition globals_of_genv (g : genviron) (i : ident):=
   match Map.get g i with
 | Some b => Vptr b Ptrofs.zero
 | None => Vundef
 end.
 
-(*
-Lemma gginit_data_list2pred_char: forall gv l sh v x, 
-   ginit_data_list2pred l sh v x = init_data_list2pred l sh v (mkEnv (fst x) nil nil).
-Proof. induction l; simpl; intros.
-+ unfold alift0, lift0; trivial.
-+ unfold alift2, lift2; simpl. rewrite IHl; clear IHl. trivial.
-Qed.
-
-Lemma gglobvar2pred_char {gv a x}:
-      gglobvar2pred gv a x = globvar2pred gv a (mkEnv (fst x) nil nil).
-Proof.  
- unfold gglobvar2pred, globvar2pred. destruct a as [a gt]; simpl.
- destruct (gvar_volatile gt). 
- - unfold alift0, lift0; trivial.
- - apply gginit_data_list2pred_char.
-Qed.
-
-Lemma globals_of_genv_char {g v t}: globals_of_env (mkEnviron g v t) = globals_of_genv g.
-Proof. unfold globals_of_env. simpl. trivial. Qed.
-
-Lemma globals_of_genv_mkEnv {g l vals}: globals_of_env (mkEnv g l vals) = globals_of_genv g.
-Proof. unfold globals_of_env. rewrite ge_of_mkEnv. trivial. Qed.
-
-Definition gglobvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : argsassert :=
-  fun gvargs => globvars2pred gv vl (Clight_seplog.mkEnv (fst gvargs) nil nil).
-
-Definition gglobvars2pred_explicit (gv: ident->val) (vl: list (ident * globvar type)) : argsassert :=
-  (alift2 andp) (fun gvals => prop (gv = globals_of_genv (fst gvals)))
-  (fold_right (alift2 sepcon) (alift0 emp) (map (gglobvar2pred gv) vl)).
-
-Lemma gglobvars2pred_char gv vl gvargs: gglobvars2pred gv vl gvargs = 
-      gglobvars2pred_explicit gv vl gvargs.
-Proof. unfold gglobvars2pred_explicit, gglobvars2pred, globvars2pred, mkEnv. simpl.
- unfold alift2, lift2, alift0, lift0; simpl.
- destruct gvargs; simpl. unfold globals_only; simpl. rewrite globals_of_genv_char.
- f_equal. 
- induction vl; simpl. trivial. 
- rewrite IHvl; clear IHvl. f_equal.
- rewrite gglobvar2pred_char; reflexivity.
-Qed.
-
-Definition argsassert2assert (ids: list ident) (M:argsassert):assert :=
-  fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids).
-
-Fixpoint make_args' (il: list ident) (vl: list val)  : tenviron :=
-  match il, vl with
-  | i::il', v::vl' => Map.set i v (make_args' il' vl') 
-  | _, _ => Map.empty _
-  end.
-
-Lemma make_args_eq:  forall il vl, length il = length vl ->
-    forall rho,
-    make_args il vl rho = mkEnviron (ge_of rho) (Map.empty _) (make_args' il vl).
-Proof.
-induction il; destruct vl; intros; inv H; simpl.
-auto.
-unfold env_set.
-rewrite IHil; auto.
-Qed.
-
-Lemma gg1 {a sh v rho vals}: ginit_data2pred a sh v (ge_of rho, vals) =
-         init_data2pred a sh v rho.
-Proof. reflexivity. Qed.
-
-Lemma gg2 {sh rho vals}: forall data v,
-      ginit_data_list2pred data sh v (ge_of rho, vals) =
-      init_data_list2pred data sh v rho.
-Proof. induction data; simpl; trivial. intros.
-  unfold alift2. rewrite IHdata; trivial.
-Qed.
-
-Lemma gg3 {gv a vals rho}: gglobvar2pred gv a (ge_of rho, vals) = globvar2pred gv a rho.
-Proof.
-  intros. unfold gglobvar2pred, globvar2pred, lift0, lift0.
-  destruct (gvar_volatile (snd a)); simpl; trivial. apply gg2.
-Qed.
-
-Lemma gg3' {gv a g v t vals}: gglobvar2pred gv a (g, vals) = globvar2pred gv a (mkEnviron g v t).
-Proof. erewrite <- gg3. reflexivity. Qed.
-
-Lemma gglobvar2pred_vals_irrel {gv a g vals1 vals2}: 
-      gglobvar2pred gv a (g, vals1) = gglobvar2pred gv a (g, vals2).
-Proof. rewrite 2 (@gg3' _ _ _ (Map.empty (block * type)) (make_args' nil nil)); trivial. Qed.
-
-Lemma gg4 {gv l ids}: argsassert2assert ids (gglobvars2pred gv l) = globvars2pred gv l.
-Proof.
-  unfold gglobvars2pred, globvars2pred, argsassert2assert.
-  unfold lift2, alift2, lift0, alift0. simpl.
-  extensionality rho. destruct rho. 
-  rewrite globals_of_genv_char. simpl.
-  f_equal.
-  induction l; simpl; trivial. f_equal; simpl; trivial.
-  (*erewrite <- gg3; reflexivity.*)
-  clear. unfold mkEnv; simpl; unfold globals_only. simpl.
-  unfold globvar2pred. destruct (gvar_volatile (snd a)); trivial. destruct a; simpl. forget (readonly2share (gvar_readonly g)) as sh.
-  forget (gvar_init g) as data. forget (gv i) as v. generalize dependent v. generalize dependent sh.
-  induction data; simpl; trivial. intros.
-  unfold alift2. unfold lift2; simpl.  f_equal.  rewrite IHdata; trivial.
-Qed.
-
-Lemma gglobvars2pred_vals_irrel {gv l g vals1 vals2}:
-      gglobvars2pred gv l (g, vals1) = gglobvars2pred gv l (g, vals2).
-Proof.
-  unfold gglobvars2pred, alift2, alift0. simpl. f_equal. 
-  (*induction l; simpl; trivial. f_equal; trivial. apply gglobvar2pred_vals_irrel.*)
-Qed.
-
-Lemma gglobvars2pred_rev:
-  forall gv l, gglobvars2pred gv (rev l) = gglobvars2pred gv l.
-Proof.
- intros. extensionality gvargs. rewrite 2 gglobvars2pred_char. unfold gglobvars2pred_explicit.
- rewrite map_rev.
-  rewrite fold_left_rev_right.
- rewrite fold_symmetric.
- f_equal.
- f_equal. extensionality x y rho; apply sepcon_comm.
- intros; extensionality rho; apply sepcon_assoc.
- intros; extensionality rho; apply sepcon_comm.
-Qed.
-
-Lemma ginit_data_lem:
-forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
-  (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z) (rho: argsEnviron)
-  (w1 wf : rmap),
-   load_store_init_data1 ge m3 b z a ->
-   contents_at m4 = contents_at m3 ->
-   join w1 wf (beyond_block b (inflate_initial_mem m4 phi0)) ->
-   (forall loc : address,
-     if adr_range_dec (b, z) (init_data_size a) loc
-     then identity (wf @ loc) /\ access_at m4 loc Cur = Some (Genv.perm_globvar v)
-     else identity (w1 @ loc)) ->
-   forall (VOL:  gvar_volatile v = false)
-          (AL: initializer_aligned z a = true)
-           (LO:   0 <= z) (HI: z + init_data_size a < Ptrofs.modulus)
-         (RHO: fst rho = filter_genv ge),
-  (ginit_data2pred a  (readonly2share (gvar_readonly v))
-       (Vptr b (Ptrofs.repr z))) rho w1.
-Proof.
-  intros. destruct rho. exploit init_data_lem; try eassumption.
-  instantiate (1:= mkEnv g nil nil); trivial.
-  erewrite <- gg1. intros. apply H3.
-Qed.
-
-Lemma ginit_data_list_lem:
-  forall (ge: genv) m0 (v: globvar type) m1 b m2 m3 m4  phi0 gvals,
-     alloc m0 0 (init_data_list_size (gvar_init v)) = (m1,b) ->
-     store_zeros m1 b 0 (init_data_list_size (gvar_init v)) = Some m2 ->
-     Genv.store_init_data_list ge m2 b 0 (gvar_init v) = Some m3 ->
-     drop_perm m3 b 0 (init_data_list_size (gvar_init v))
-               (Genv.perm_globvar v) = Some m4 ->
-  forall
-   (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
-   (VOL:  gvar_volatile v = false)
-   (AL: initializers_aligned 0 (gvar_init v) = true)
-   (RHO: (fst gvals) = filter_genv ge),
-     ginit_data_list2pred (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Ptrofs.zero)
-            gvals (beyond_block b (inflate_initial_mem m4 phi0)).
-Proof.
-intros. destruct gvals. exploit init_data_list_lem; try eassumption.
-instantiate (1:= (mkEnv g nil nil)). trivial.
-rewrite gginit_data_list2pred_char; trivial. 
-Qed.
-
-Lemma ginit_datalist_hack:
-  forall b sh rho dl phi0 z,
-   (ginit_data_list2pred dl sh (Vptr b z) rho) phi0 ->
-  forall phi,
-     hackfun phi0 phi ->
-   readable_share sh ->
-   (ginit_data_list2pred dl sh (Vptr b z) rho) phi.
-Proof.
- intros. destruct rho. rewrite gginit_data_list2pred_char in H.
- exploit (init_datalist_hack b sh (mkEnv g nil nil) dl phi0 z); try eassumption.
- rewrite gginit_data_list2pred_char. trivial.
-Qed.
-
-Lemma gglobal_initializers:
-  forall (prog: program) G m n (gvals:genviron * list val),
-     list_norepet (prog_defs_names prog) ->
-     all_initializers_aligned prog ->
-    match_fdecs (prog_funct prog) G ->
-    (fst gvals) = filter_genv (globalenv prog) ->
-    Genv.init_mem prog = Some m ->
-     app_pred (gglobvars2pred (globals_of_genv (fst gvals)) (prog_vars prog) gvals)
-  (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
-Proof.
-  intros. exploit global_initializers; try eassumption.
-  instantiate (1:=(mkEnv (fst gvals) nil nil)). apply H2.
-  instantiate (1:=n). trivial.
-Qed. 
-
-(*The most fundamental notion is gv_init_data2pred*)
-Notation globals := (ident -> val).
-Definition gv_init_data2pred  (gv:globals) (d: init_data)  (sh: share) (a: val) : mpred :=
- match d with
-  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
-  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
-  | Init_int64 i => mapsto sh (Tlong Unsigned noattr) a (Vlong i)
-  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vsingle r)
-  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
-  | Init_space n => mapsto_zeros n sh a
-  | Init_addrof symb ofs =>
-       match gv symb with
-         Vptr b z => if Ptrofs.eq z Ptrofs.zero
-                     then mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
-                     else FF
-       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
-       end
- end.
-
-Definition genv_init_data2pred  g d sh a: mpred := gv_init_data2pred  (globals_of_genv g) d sh a.
-
-Lemma ginit_data2pred_char_genv gvals d sh a: ginit_data2pred d sh a gvals = genv_init_data2pred  (fst gvals) d sh a.
-Proof. destruct d; simpl; trivial. unfold globals_of_genv. destruct (Map.get (fst gvals) i); trivial. Qed.
-
-Lemma ginit_data2pred_char_gv gvals d sh a: ginit_data2pred d sh a gvals = gv_init_data2pred  (globals_of_genv (fst gvals)) d sh a.
-Proof. rewrite ginit_data2pred_char_genv. trivial. Qed.
-
-Lemma init_data2pred_char_genv d sh a rho: 
-     init_data2pred d sh a rho = genv_init_data2pred  (ge_of rho) d sh a.
-Proof. rewrite <- (@gg1 d sh a rho nil), ginit_data2pred_char_genv. trivial.
-      (*alternative proof: destruct d; simpl; trivial. unfold globals_of_genv. 
-           destruct (Map.get (ge_of rho) i); trivial.*)
-Qed.
-
-
-Lemma init_data2pred_char_gv d sh a rho:
-    init_data2pred d sh a rho = gv_init_data2pred  (globals_of_genv (ge_of rho)) d sh a.
-Proof. rewrite init_data2pred_char_genv. trivial. Qed.
-
-Fixpoint gv_init_data_list2pred (gv: globals) (dl: list init_data) (sh: share) (v: val): mpred :=
-  match dl with
-  | d::dl' => 
-       sepcon (gv_init_data2pred gv d sh v) 
-                  (gv_init_data_list2pred gv dl' sh (offset_val (init_data_size d) v))
-  | nil => emp
- end.
-
-Lemma init_data_list2pred_char_gv dl sh rho: forall v,
-      init_data_list2pred dl sh v rho = gv_init_data_list2pred  (globals_of_genv (ge_of rho)) dl sh v.
-Proof.
-  induction dl; simpl; intros; trivial.
-  unfold lift2. f_equal. apply init_data2pred_char_gv.
-  auto.
-Qed.
-
-Definition gv_globvar2pred (gv: ident->val) (idv: ident * globvar type): mpred :=
-   if (gvar_volatile (snd idv))
-   then TT
-   else gv_init_data_list2pred gv (gvar_init (snd idv))
-                             (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
-
-Lemma globvar2pred_char_gv gv idv rho:
-    gv =
-    (fun i : ident => match Map.get (ge_of rho) i with
-                              | Some b => Vptr b Ptrofs.zero
-                              | None => Vundef
-                              end) ->
-      globvar2pred gv idv rho = gv_globvar2pred gv idv.
-Proof.
-  intros. subst.
-  unfold gv_globvar2pred, globvar2pred.
-  destruct (gvar_volatile (snd idv)); trivial.
-  rewrite init_data_list2pred_char_gv. trivial.
-Qed.
-*)

@@ -1,7 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.odd.
 Require Import VST.progs.verif_evenodd_spec.
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Definition Gprog : funspecs :=
      ltac:(with_library prog [odd_spec; even_spec]).
@@ -25,7 +25,7 @@ Qed.
 (* The Espec for odd is different from the Espec for even;
   the former has only "even" as an external function, and vice versa. *)
 Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog odd.prog) Gprog.
-#[(*export, after Coq 8.13*)global] Existing Instance Espec.
+#[export] Existing Instance Espec.
 
 (* Can't prove   prog_correct: semax_prog prog Vprog Gprog
   because there is no _main function, so prove all_funcs_correct instead. *)

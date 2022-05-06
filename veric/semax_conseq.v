@@ -700,14 +700,7 @@ apply (semax_conseq Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) &
     2: {
     intros; constructor.
     revert rho. revert vl. exact H3. }
-    
-  (* 2: { *)
-  (*  intros; constructor. eapply derives_trans; [ | apply fupd.fupd_intro]. *)
-  (*  apply orp_right2. revert rho. exact H1. } *)
-  (* 2: { *)
-  (*  intros; constructor. eapply derives_trans; [ | apply fupd.fupd_intro].  *)
-  (*  apply orp_right2. revert rho. revert vl. exact H3. } *)
-  
+
    intros; constructor. eapply derives_trans; [ | apply fupd.fupd_intro].
    apply andp_left2. apply andp_left2. apply derives_refl. }
   intros. unfold local, liftx, lift1, tc_environ; simpl. apply andp_left2.

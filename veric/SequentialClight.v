@@ -10,7 +10,6 @@ Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
 Require VST.veric.NullExtension.
-(*Require Import VST.veric.Clight_sim.*)
 Require Import VST.veric.SeparationLogicSoundness.
 Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.
@@ -49,7 +48,7 @@ Definition mem_evolve (m m': mem) : Prop :=
  | _, _ => False
  end.
 
-#[(*export, after Coq 8.13*)global] Instance mem_evolve_refl : RelationClasses.Reflexive mem_evolve.
+#[export] Instance mem_evolve_refl : RelationClasses.Reflexive mem_evolve.
 Proof.
   repeat intro.
   destruct (access_at x loc Cur); auto.
@@ -834,7 +833,7 @@ Lemma whole_program_sequential_safety_ext:
      (DME: ext_spec_mem_evolve _ dryspec)
      (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m')
      prog V G m,
-     @semax_prog Espec (*NullExtension.Espec*) CS prog initial_oracle V G ->
+     @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -843,7 +842,7 @@ Lemma whole_program_sequential_safety_ext:
        forall n,
         @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
             (cl_core_sem (globalenv prog))
-            (*(dryspec  OK_ty)*) dryspec
+            dryspec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) 
              n initial_oracle q m.
 Proof.
@@ -853,7 +852,7 @@ Proof.
      initial_oracle EXIT H H0) as [b [q [[H1 H2] H3]]].
  destruct (H3 O) as [jmx [H4x [H5x [H6x [H6'x [H7x _]]]]]].
  destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
- exists b, q. (* , (m_dry jmx'). *)
+ exists b, q.
  split3; auto.
  rewrite H4x in H8y. auto.
  subst. simpl.
@@ -951,7 +950,7 @@ Proof.
      apply IHn; eauto. lia.
  -
    unfold extspec_frame in Jframe.
-   destruct dryspec as [ty pre post exit]. (* subst ty. *)
+   destruct dryspec as [ty pre post exit].
    destruct JE_spec as [ty' pre' post' exit'].
    change (level (m_phi jm)) with (level jm) in *.
    destruct JDE as [JDE1 [JDE2 JDE3]].

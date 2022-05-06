@@ -3,7 +3,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs64.revarray.
 Require Import VST.zlist.sublist.
 
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition reverse_spec :=
@@ -46,7 +46,7 @@ intros.
 unfold flip_ends.
 autorewrite with sublist. lia.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; lia) : sublist.
+#[export] Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; lia) : sublist.
 
 Lemma flip_fact_1: forall A {d: Inhabitant A} size (contents: list A) j,
   Zlength contents = size ->
@@ -184,7 +184,7 @@ rewrite rev_involutive.
 forward. (* return s; *)
 Qed.
 
-#[(*export, after Coq 8.13*)global] Existing Instance NullExtension.Espec.
+#[export] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
@@ -213,8 +213,8 @@ Ltac calc_Zlength_extra l ::=
     add_Zlength_res (calc_Zlength_rev A l _ H)
   end. *)
 
-(*after Coq 8.13: #[export]*) Hint Rewrite Zlength_rev : Zlength.
-(*after Coq 8.13: #[export]*) Hint Rewrite @Znth_rev using Zlength_solve : Znth.
+#[export] Hint Rewrite Zlength_rev : Zlength.
+#[export] Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 #[export] Hint Unfold flip_ends : list_solve_unfold.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.

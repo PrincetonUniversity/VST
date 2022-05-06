@@ -266,7 +266,7 @@ Proof.
       by (rewrite Zlength_combine, Z.min_l; lia).
     rewrite Znth_combine, remove_Znth_combine by auto.
     rewrite H1, H2, combine_eq; unfold uncurry; entailer!.
-all:    apply derives_refl.  (* do we need this for Coq 8.13 compatibility? not sure. *)
+all:    apply derives_refl.  (*  We need this for Coq 8.14 and before. *)
 Qed.
 
 Lemma iter_sepcon_Znth_remove : forall {A} {d : Inhabitant A} f l i j,

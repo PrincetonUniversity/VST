@@ -5,7 +5,6 @@ Require Export compcert.lib.Axioms.
 Require Export compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
 Require Export compcert.lib.Floats.
-(*Require Export compcert.lib.Maps.*)
 Require Export compcert.common.AST.
 Require Export compcert.common.Values.
 Require Export compcert.common.Memdata.
@@ -16,8 +15,6 @@ Require Export compcert.common.Globalenvs.
 
 Require Export VST.msl.Coqlib2. 
 Require Export VST.veric.coqlib4.
-
-Global Set Warnings "-deprecated-hint-rewrite-without-locality". (* Delete this line after we abandon Coq 8.13 *)
 
 (* Lemmas about ident lists *)
 

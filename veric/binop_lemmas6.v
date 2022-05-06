@@ -123,7 +123,8 @@ Proof.
     simpl;
     unfold sem_cmp_pi, sem_cmp_ip, sem_cmp_pl, sem_cmp_lp,
                      sem_cmp_pp, Val.cmplu_bool, Val.cmpu_bool; rewrite ?Hp.
-all: try abstract (
+Time (* 27.5 sec *)
+all: try (
     destruct (typeof e1) as [| [| | |] [|] | | | | | | |];
     destruct (typeof e2) as [| [| | |] [|] | | | | | | |];
     simpl in H; inv H; hnf in TV1,TV2;
@@ -149,7 +150,8 @@ all: try abstract (
    simpl in H1; unfold test_order_ptrs, sameblock in H1;
    destruct (peq b b0); try contradiction; subst b0; clear H1;
    rewrite if_true by auto; apply int_type_tc_val_of_bool; auto).
- 
+
+Time (* 3.0 sec *)
 all:
  repeat rewrite andb_true_iff in IBR; destruct IBR as [[? ?] ?];
  destruct (typeof e1) as [|  [| | |] [|] | [|] | [ | ] ? | | | | |]; inv H0;
@@ -162,4 +164,4 @@ all:
     try (apply int_type_tc_val_Vtrue; auto);
     try (apply int_type_tc_val_Vfalse; auto);
     try (apply int_type_tc_val_of_bool; auto).
-Qed.
+Time Qed. (* 11.08 sec *)

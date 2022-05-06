@@ -1,7 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.cast_test.
 
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs.
+#[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
 Local Open Scope logic.

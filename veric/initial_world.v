@@ -7,14 +7,6 @@ Require Import VST.veric.res_predicates.
 
 Require Import VST.veric.shares.
 Require Import VST.veric.mpred.
-(*Clight-specific:
-Require Import VST.veric.extend_tc. 
-Require Import VST.veric.Clight_seplog.
-Require Import VST.veric.Clight_assert_lemmas.
-Require Import VST.veric.tycontext. 
-Require Import VST.veric.expr2.
-Require Import VST.veric.expr_lemmas. *)
-
 Require Import VST.veric.age_to_resource_at.
 Import compcert.lib.Maps.
 
@@ -62,7 +54,7 @@ Lemma store_init_data_outside':
   /\ nextblock m = nextblock m'.
 Proof.
 intros.
-  unfold (*access_at,*) max_access_at (*, contents_at*). simpl.
+  unfold max_access_at. simpl.
   destruct a; simpl in H; try apply store_outside' in H; auto.
   inv H; auto.
   invSome. apply store_outside' in H2; auto.
@@ -124,14 +116,13 @@ Qed.
 Lemma store_init_data_list_lem:
   forall F V (ge: Genv.t F V) m b lo d m',
         Genv.store_init_data_list ge m b lo d = Some m' ->
-    (* b > 0 -> *)
     forall w IOK IOK' P sh (wsh: writable_share sh),
      ((P * VALspec_range (init_data_list_size d) sh (b,lo))%pred
              (m_phi (initial_mem m w IOK))) ->
      ((P * VALspec_range (init_data_list_size d) sh (b,lo))%pred
               (m_phi (initial_mem m' w IOK'))).
 Proof.
-intros until 1. (* intro Hb;*) intros.
+intros until 1. intros.
 destruct H0 as [m0 [m1 [H4 [H1 H2]]]].
 cut (exists m2,
          join m0 m2 (m_phi (initial_mem m' w IOK')) /\
@@ -139,7 +130,7 @@ cut (exists m2,
   [intros [m2 [H0 H3]] | ].
 exists m0; exists m2; split3; auto.
 rename H2 into H3.
-clear -  (*Hb*)  H H4 H3 wsh.
+clear -  H H4 H3 wsh.
 assert (MA: max_access_at m = max_access_at m'). {
  clear - H.
  revert m lo H; induction d; simpl; intros. inv H; auto.
@@ -152,7 +143,7 @@ assert (MA: max_access_at m = max_access_at m'). {
  }
 apply store_init_data_list_outside' in H.
 forget (init_data_list_size d) as N.
-clear - H4  H3 (*Hb*) H MA wsh.
+clear - H4  H3 H MA wsh.
 pose (f loc :=
    if adr_range_dec (b,lo) N loc
    then YES sh (writable_readable_share wsh) (VAL (contents_at m' loc)) NoneP
@@ -196,7 +187,7 @@ clear H6 m0.
 rename H12 into H4.
 rewrite H2.
 rewrite if_true  by (split; auto; lia).
-clear - H4 H5 H7 (*Hb*) RJ wsh.
+clear - H4 H5 H7 RJ wsh.
 replace (m_phi (initial_mem m' w IOK') @ (b, z'))
   with (YES sh3 rsh3 (VAL (contents_at m' (b, z'))) NoneP); [ constructor; auto |].
 revert H4.
@@ -251,119 +242,6 @@ do 3 red. rewrite H2.
 rewrite if_false; auto.
 apply core_identity.
 Qed.
-
-(*Lemma mem_alloc_juicy:
-  forall m lo hi m' b,
-     Mem.alloc m lo hi = (m',b) ->
-    forall w P IOK IOK',
-     (app_pred P (m_phi (initial_mem m w IOK))) ->
-     (app_pred (P * VALspec_range (hi-lo) Share.top (b,lo))
-               (m_phi (initial_mem m' w IOK'))).
-Proof.
-intros.
-change m with (m_dry (initial_mem m w IOK)) in H.
-assert (AV.valid  (res_option oo (fun loc => if adr_range_dec (b,lo) (hi-lo) loc
-                                      then YES Share.top readable_share_top (VAL Undef) NoneP
-                                      else core w @ loc))).
-apply VAL_valid; unfold compose; intros.
-if_tac in H1. inv H1; eauto.
-elimtype False; revert H1; clear; rewrite <- core_resource_at.
-destruct (w @ l); simpl; [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; intro H; inv H.
-destruct (make_rmap _ H1 (level w)) as [phi [? ?]].
-extensionality loc; unfold compose; if_tac.
-unfold resource_fmap. f_equal.
-rewrite <- level_core.  apply resource_at_approx.
-exists (m_phi (initial_mem m w IOK)); exists phi; split3; auto.
-apply resource_at_join2.
-simpl. unfold inflate_initial_mem. do 2 rewrite level_make_rmap. auto.
-simpl. unfold inflate_initial_mem. rewrite level_make_rmap. auto.
-intro.
-simpl.
-unfold inflate_initial_mem.
-do 2 rewrite resource_at_make_rmap.
-rewrite H3; clear H3 H1 H0.
-unfold inflate_initial_mem'.
-destruct loc as [b' z'].
-destruct (eq_dec b b').
-subst b'.
-pose proof (alloc_result _ _ _ _ _ H).
-simpl in H0.
-unfold access_at at 1.
-simpl.
-rewrite (nextblock_noaccess) by (subst; lia).
-unfold access_at.
-simpl.
-change R.rmap with rmap in *.
-change R.Join_rmap with Join_rmap in *.
-change R.Sep_rmap with Sep_rmap in *.
-replace (core w @ (b,z')) with (NO Share.bot bot_unreadable).
-Transparent alloc.
-replace (match max_access_at m (b, z') with
-  | Some _ => NO Share.bot
-  | None => NO Share.bot
-  end) with (NO Share.bot) by (destruct (max_access_at m (b, z')); auto).
-replace (match max_access_at m' (b, z') with
-  | Some _ => NO Share.bot
-  | None => NO Share.bot
-  end) with (NO Share.bot) by (destruct (max_access_at m' (b, z')); auto).
-unfold contents_at.
-inv H.
-simpl.
-rewrite PMap.gss.
-rewrite PMap.gss.
-rewrite ZMap.gi.
-if_tac.
-destruct H.
-destruct H0.
-destruct (zle lo z'); [ | lia].
-destruct (zlt z' hi); [ | lia].
-simpl.
-constructor.
-apply join_unit1; auto.
-replace (zle lo z' && zlt z' hi)%bool with false.
-
-simpl.
-constructor.
-apply join_unit1; auto.
-destruct (zle lo z'); simpl; auto.
-destruct (zlt z' hi); simpl; auto.
-contradiction H; split; auto. lia.
-clear - IOK H0.
-symmetry; apply IOK.
-simpl. (*generalize (nextblock_pos m);*) subst; lia.
-rewrite if_false by (contradict n; destruct n; auto).
-replace (access_at m' (b',z')) with (access_at m (b',z')).
-replace (contents_at m' (b',z')) with (contents_at m (b',z')).
-rewrite <- core_resource_at.
-case_eq (w @ (b',z')); intros.
-rewrite core_NO.
-destruct (access_at m (b', z')).
-destruct p; constructor; auto.
-destruct (max_access_at m (b', z')); destruct (max_access_at m' (b', z')); constructor; auto.
-rewrite core_YES.
-destruct (access_at m (b', z')).
-destruct p0; constructor; auto.
-destruct (max_access_at m (b', z')); destruct (max_access_at m' (b', z')); constructor; auto.
-rewrite core_PURE.
-destruct (IOK (b',z')).
-rewrite H0 in H3. destruct H3 as [? [? ?]].
-rewrite H4. constructor.
-unfold contents_at; inv H; simpl; auto.
-rewrite PMap.gso; auto.
-unfold access_at; inv H; simpl; auto.
-rewrite PMap.gso; auto.
-
-intros (b',z').
-hnf.
-unfold yesat.
-simpl. rewrite H3.
-if_tac.
-exists Undef. 
-exists readable_share_top.
-f_equal.
-rewrite <- core_resource_at.
-apply core_identity.
-Qed.*)
 
 Lemma fold_right_rev_left:
   forall (A B: Type) (f: A -> B -> A) (l: list B) (i: A),
@@ -693,7 +571,7 @@ intros.
   revert ge n H H0 H1 H2 HD; induction dl; intros.
   (*base case*)
         simpl in *. rewrite Zlength_nil in HD. lia.
-  (*indcution step*)
+  (*induction step*)
         simpl; auto.
         rewrite Zlength_cons in *.
         destruct a as [a ag]; simpl in *.
@@ -803,56 +681,6 @@ destruct dl.
     rewrite Pos.of_nat_succ. apply Pos2Z.is_pos.
 Qed.
 
-(*Prior to block := Z, the lemma as like this:
-Lemma find_symbol_add_globals:
-  forall {F V} i g id dl, ~ In i (map fst dl) -> list_norepet (map fst dl) ->
-   (Genv.find_symbol
-      (Genv.add_globals (Genv.empty_genv F V) (dl ++ (i, g) :: nil)) id =
-          Some (1 + Zlength dl) <-> i = id).
-Proof.
-intros.
-  assert (Genv.genv_next (Genv.empty_genv F V) = 1)  by reflexivity.
-  assert (Genv.find_symbol (Genv.empty_genv F V)  id = None) by (intros; apply PTree.gempty).
- forget (Genv.empty_genv F V) as ge. forget 1 as n.
-  revert ge n H H0 H1 H2; induction dl; intros.
-        simpl. rewrite Zlength_nil.
-        unfold Genv.find_symbol, Genv.add_global in *; simpl.
-        destruct (eq_dec i id); subst. rewrite PTree.gss.         intuition.
-        rewrite PTree.gso by auto. rewrite H2.  split; intro Hx; inv Hx; congruence.
-        simpl; auto.
-        rewrite Zlength_cons.
-        replace (n + Z.succ (Zlength dl)) with (Z.succ n + Zlength dl) by lia.
-        simpl. simpl in H0. inv H0.
-         simpl in H.
-         destruct a as [a ag]; simpl in *.
-          assert (a<>i /\ ~ In i (map fst dl)) by (clear - H; intuition). clear H; destruct H0.
-         destruct (eq_dec id a).
-         subst id.
-         split; intro; try congruence. elimtype False.
-         clear IHdl.
-        assert (~In a (map fst ((dl++(i,g)::nil)))).
-            rewrite map_app. rewrite in_app_iff.
-          intros [?|?]; try contradiction. simpl in H3. destruct H3; try congruence.
-         forget   (dl ++ (i, g) :: nil) as vl.
-         assert (Genv.find_symbol (Genv.add_global ge (a,ag)) a = Some (Genv.genv_next ge)).
-        unfold Genv.find_symbol, Genv.add_global; simpl. rewrite PTree.gss; auto.
-        forget (Genv.add_global ge (a,ag)) as ge1.
-        forget (Genv.genv_next ge) as N; clear ge H2.
-         assert (Z.succ N + Zlength dl > N).
-         rewrite Zlength_correct; unfold block in *; lia.
-         forget (Z.succ N + Zlength dl) as K.
-         clear - H1 H3 H2 H4.
-         revert ge1 K H2 H1 H3 H4; induction vl; simpl; intros.
-        inversion2 H1 H4; lia.
-         apply (IHvl (Genv.add_global ge1 a0) K H2); auto.
-        unfold Genv.find_symbol, Genv.add_global in H4|-*; simpl in *.
-        rewrite PTree.gso; auto.
-         apply IHdl; auto.
-        unfold Genv.find_symbol, Genv.add_global in H2|-*; simpl.
-                 rewrite PTree.gso; auto.
-Qed.
-*)
-
 Lemma nth_error_app: forall {T} (al bl : list T) (j: nat),
      nth_error (al++bl) (length al + j) = nth_error bl j.
 Proof.
@@ -904,7 +732,7 @@ Lemma Zlength_map: forall A B (f: A -> B) l, Zlength (map f l) = Zlength l.
 Proof. induction l; simpl; auto. repeat rewrite Zlength_cons. f_equal; auto.
 Qed.
 
-(*Partial attempt at porting add_globales_hack*)
+(*Partial attempt at porting add_globals_hack*)
 Lemma add_globals_hack_nil {F}:
    forall gev prog_pub,
     gev = Genv.add_globals (Genv.empty_genv (fundef F) type prog_pub) (rev nil) ->

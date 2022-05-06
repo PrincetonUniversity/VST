@@ -1,30 +1,6 @@
-# Continuous Integration Provider Travis
+# Continuous Integration Provider: GitHub actions
 
-Travis CI is controlled by the files `.travis.yml`.
-See [Travis Doc](https://docs.travis-ci.com) for reference.
-
-The main actions of the YAML script are:
-
-- Add the coq/core-dev, coq/released and the local opam-prerelease repos to opam.
-- Install opam packages coq-compcert and coq-compcert-32.
-- For BITSIZE=32 run the shell script .travis-script with these options:
-  - `./.travis-script floyd`
-  - `./.travis-script progs`
-  - `./.travis-script sha-hmac`
-  - `./.travis-script mailbox`
-  - `./.travis-script VSUpile`
-- For BITSIZE=64 run the shell script .travis-script with these options:
-  - `./.travis-script floyd`
-  - `./.travis-script progs64`
-
-Travis CI uses a **build cache** to speed up CI.
-The build cache is kept per branch/PR.
-The build cache can lead to **issues** if substantial changes to the directory structure are made.
-In this case the travis build cache should be reset.
-If you need to reset the cache, navigate to (https://travis-ci.com/github/PrincetonUniversity/VST) and sign in (typically using your GitHub account).
-At the top right of the list there is "More options" menu - select "Caches".
-
-# Continuous Integration Provider GitHub actions
+[in early 2022 we discontinued the use of Travis-CI]
 
 GitHub Actions CI is controlled by the file `.github/workflows/coq-action.yml`.
 See [GitHub Actions Doc](https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions) for reference.

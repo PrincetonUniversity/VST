@@ -530,7 +530,7 @@ Ltac solve_msubst_efield_denote :=
              rewrite (Ptrofs.to_int64_of_int64 (eq_refl _));
              reflexivity
             | |- Vptrofs _ = Vptrofs _ => reflexivity
-            | |- ?A = _ => fail 99 "Your subscript expression evaluates to" A "which is not in the form (Vint _) or (Vptrofs _).  Perhaps rewrite one of your LOCAL(temp _) clauses."
+            | |- ?A = _ => fail 4 "Your subscript expression evaluates to" A "which is not in the form (Vint _) or (Vptrofs _).  Perhaps rewrite one of your LOCAL(temp _) clauses."
            end
         ]
       | solve_Ptrofs_eqm_unsigned
@@ -799,6 +799,156 @@ then use assert_PROP to prove an equality of the form" eq1
     end
   end
  end.
+
+Ltac has_at_already_aux R p :=
+  lazymatch R with
+  | nil => fail
+  | ?R1::?R' =>
+    first
+    [ lazymatch R1 with
+      | data_at _ _ _ p => idtac
+      | field_at _ _ _ _ p => idtac
+      | data_at_ _ _ p => idtac
+      | field_at_ _ _ _ p => idtac
+      | memory_block _ _ p => idtac
+      end
+    | has_at_already_aux R' p
+    ]
+  end.
+
+Ltac has_at_already p :=
+  lazymatch goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+    has_at_already_aux R p
+  end.
+
+Ltac find_unfold_mpred_aux P A p :=
+  let x := fresh "x" in
+  set (x := P);
+  unfold A in x;
+  subst x;
+  Intros *;
+  has_at_already p.
+
+(* This tactic is needed for matches where `p` is
+  not the last argument, since we have the entire mpred
+  expression. Note the two places it is called in 
+  `find_unfold_mpred_aux2`.
+*)
+Ltac find_unfold_mpred_aux' P A p :=
+  lazymatch A with
+  | ?A' _ _ _ _ => find_unfold_mpred_aux' P A' p
+  | ?A' _ _ _ => find_unfold_mpred_aux' P A' p
+  | ?A' _ _ => find_unfold_mpred_aux' P A' p
+  | ?A' _ => find_unfold_mpred_aux' P A' p
+  | ?A' =>
+    lazymatch A' with
+    | data_at => fail
+    | field_at => fail
+    | data_at_ => fail
+    | field_at_ => fail
+    | memory_block => fail
+    | _ => find_unfold_mpred_aux P A' p
+    end
+  end.
+
+Ltac find_unfold_mpred_aux2 R1 p :=
+  lazymatch R1 with
+  | ?A _ _ _ _ _ _ _ _ _ _ p => find_unfold_mpred_aux' R1 A p
+  | ?A _ _ _ _ _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ _ p => find_unfold_mpred_aux R1 A p
+  | ?A _ p => find_unfold_mpred_aux R1 A p
+  | ?A p => find_unfold_mpred_aux R1 A p
+  | context [p] => find_unfold_mpred_aux' R1 R1 p
+  end.
+
+Ltac find_unfold_mpred R p :=
+  lazymatch R with
+   | nil => fail
+   | ?R1 :: ?R' =>
+    first
+    [ find_unfold_mpred_aux2 R1 p
+    | find_unfold_mpred R' p
+    ]
+  end.
+
+Lemma check_unfold_lemma: forall {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint,
+  local2ptree Q = (T1, T2, nil, GV) ->
+  compute_nested_efield e = (e_root, efs, lr) ->
+  msubst_eval_lvalue Delta T1 T2 GV e = Some p_full_from_e ->
+  msubst_eval_LR Delta T1 T2 GV e_root lr = Some p_root_from_e ->
+  msubst_efield_denote Delta T1 T2 GV efs gfs_from_e ->
+  compute_root_type (typeof e_root) lr t_root_from_e ->
+  field_address_gen (t_root_from_e, gfs_from_e, p_root_from_e) (t_root_from_hint, gfs_from_hint, p_root_from_hint) ->
+  p_full_from_e = p_full_from_e /\
+  p_root_from_e = p_root_from_e /\
+  goal -> goal.
+Proof.
+  intros.
+  destruct H6 as [_ ?].
+  apply H6.
+Qed.
+
+Ltac check_unfold_mpred_for_at_aux Delta P Q R e :=
+  let T1 := fresh "T1" in evar (T1: PTree.t val);
+  let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
+  let G := fresh "GV" in evar (G: option globals);
+  let LOCAL2PTREE := fresh "LOCAL2PTREE" in
+  assert (local2ptree Q = (T1, T2, nil, G)) as LOCAL2PTREE;
+  [subst T1 T2 G; prove_local2ptree |];
+  eapply (check_unfold_lemma Delta e);
+  [ exact LOCAL2PTREE
+  | reflexivity
+  | solve_msubst_eval_lvalue
+  | solve_msubst_eval_LR
+  | solve_msubst_efield_denote
+  | econstructor
+  | solve_field_address_gen
+  | ];
+  lazymatch goal with
+  | |- ?p1 = ?p1 /\ ?p2 = ?p2 /\ _ =>
+    split3; [ reflexivity | reflexivity | ];
+    lazymatch goal with
+    | _ : p1 = field_address _ _ _ |- _ => fail
+    | _ : p2 = field_address _ _ _ |- _ => fail
+    | _ => idtac
+    end;
+    lazymatch p1 with
+    | offset_val _ ?p' =>
+      first
+      (* `fail 1` isn't necessary, but in case `find_unfold_mpred` has unexpected side-effects *)
+      [ has_at_already_aux R p'; fail 1
+      | find_unfold_mpred R p'
+      ]
+    | ?p' =>
+      tryif (is_var p')
+      then first
+        [ has_at_already_aux R p'; fail 1
+        | find_unfold_mpred R p'
+        ]
+      else fail
+    end
+  end;
+  clear T1 T2 G LOCAL2PTREE.
+
+Ltac check_unfold_mpred_for_at_aux2 Delta P Q R e :=
+  try lazymatch e with
+  | Ssequence ?e' _ => check_unfold_mpred_for_at_aux2 Delta P Q R e'
+  | Sset _ (Ecast ?e' _) => check_unfold_mpred_for_at_aux Delta P Q R e'
+  | Sset _ ?e' => check_unfold_mpred_for_at_aux Delta P Q R e'
+  | Sassign ?e' _ => check_unfold_mpred_for_at_aux Delta P Q R e'
+  end.
+
+Ltac check_unfold_mpred_for_at :=
+  lazymatch goal with
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e _ =>
+    check_unfold_mpred_for_at_aux2 Delta P Q R e
+  end.
 
 Section SEMAX_PTREE.
 
@@ -1522,7 +1672,7 @@ Ltac SEP_field_at_unify' gfs :=
   match goal with
   | |- field_at ?shl ?tl ?gfsl ?vl ?pl = field_at ?shr ?tr ?gfsr ?vr ?pr =>
       unify tl tr;
-      unify (skipn (length gfs - length gfsl) gfs) gfsl;
+      unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
       unify shl shr;
       unify vl vr;
@@ -1548,7 +1698,7 @@ Ltac SEP_field_at_strong_unify' gfs :=
   match goal with
   | |- @field_at ?cs ?shl ?tl ?gfsl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
       unify tl tr;
-      unify (skipn (length gfs - length gfsl) gfs) gfsl;
+      unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
       unify shl shr;
       unify vl vr;
@@ -1593,7 +1743,7 @@ Ltac prove_gfs_suffix gfs :=
   match goal with
   | |- _ = ?gfs1 ++ ?gfs0 =>
        let len := fresh "len" in
-       let gfs1' := eval_list (firstn ((length gfs - length gfs0)%nat) gfs) in
+       let gfs1' := eval_list (Floyd_firstn ((length gfs - length gfs0)%nat) gfs) in
        unify gfs1 gfs1';
        reflexivity
   end.

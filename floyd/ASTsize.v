@@ -1,18 +1,3 @@
-(*Require Import VST.floyd.proofauto.
-Import ListNotations.
-Require sha.sha.
-Require sha.SHA256.
-Local Open Scope logic.
-
-Require Import sha.spec_sha.
-Require Import sha.sha_lemmas.
-Require Import sha.vst_lemmas.
-Require Import sha.hmac_pure_lemmas.
-Require Import sha.hmac_common_lemmas.
-
-Require Import sha.hmac.
-Require Import sha.spec_hmac.
-*)
 Require Import compcert.cfrontend.Clight.
 Require Import Coq.Lists.List.
 

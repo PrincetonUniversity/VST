@@ -90,7 +90,7 @@ Definition loop1x_ret_assert (Inv : environ -> mpred) (R : ret_assert) :=
 Lemma loop1x_ret_assert_EK_normal:
  forall Inv R, RA_normal (loop1x_ret_assert Inv R) = Inv.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite loop1x_ret_assert_EK_normal: ret_assert.
+#[export] Hint Rewrite loop1x_ret_assert_EK_normal: ret_assert.
 
 
 Definition loop1y_ret_assert (Inv : environ -> mpred) :=
@@ -113,7 +113,7 @@ Ltac simpl_ret_assert :=
 Lemma RA_normal_loop2_ret_assert: (* MOVE TO assert_lemmas *)
   forall Inv R, RA_normal (loop2_ret_assert Inv R) = Inv.
 Proof. destruct R; reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite RA_normal_loop2_ret_assert : ret_assert.
+#[export] Hint Rewrite RA_normal_loop2_ret_assert : ret_assert.
 
 Lemma liftTrue: forall rho, `True rho.
 Proof. intro. unfold_lift; apply Coq.Init.Logic.I. Qed.
@@ -155,7 +155,7 @@ f_equal; try solve [extensionality rho; normalize].
 Qed.
 
 
-(*after Coq 8.13: #[export]*) Hint Rewrite frame_normal frame_for1 frame_loop1
+#[export] Hint Rewrite frame_normal frame_for1 frame_loop1
                  overridePost_normal: ret_assert.
 #[export] Hint Resolve TT_right : core.
 
@@ -165,21 +165,21 @@ Proof.
 intros.
 destruct R; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite overridePost_overridePost : ret_assert.
+#[export] Hint Rewrite overridePost_overridePost : ret_assert.
 
 Lemma overridePost_normal':
   forall P R, RA_normal (overridePost P R) = P.
 Proof.
  intros. destruct R; reflexivity. 
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite overridePost_normal' : ret_assert.
+#[export] Hint Rewrite overridePost_normal' : ret_assert.
 
 Lemma liftx_id:
     forall {T} e, @liftx (Tarrow T (LiftEnviron T)) (fun v => v) e = e.
 Proof.
  intros. extensionality rho; simpl; auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @liftx_id : norm2.
+#[export] Hint Rewrite @liftx_id : norm2.
 
 Lemma liftx3_liftx2:
  forall {A1 A2 A3 B} f (x: A1),
@@ -199,24 +199,24 @@ Lemma liftx1_liftx0:
   @liftx (LiftEnviron B) (f x).
 Proof. reflexivity. Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite @liftx3_liftx2 @liftx2_liftx1 @liftx1_liftx0 : norm2.
+#[export] Hint Rewrite @liftx3_liftx2 @liftx2_liftx1 @liftx1_liftx0 : norm2.
 
 Lemma lift1_lift0:
  forall {A1 B} (f: A1 -> B) (x: A1), lift1 f (lift0 x) = lift0 (f x).
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @lift1_lift0 : norm2.
+#[export] Hint Rewrite @lift1_lift0 : norm2.
 
 Lemma const_liftx0:
   forall B (P: B), (fun _ : environ => P) = `P.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite const_liftx0 : norm2.
+#[export] Hint Rewrite const_liftx0 : norm2.
 
 Lemma lift_identity:
   forall A f, `(fun v: A => v) f = f.
 Proof. intros. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite lift_identity : norm2.
+#[export] Hint Rewrite lift_identity : norm2.
 
 Lemma tc_eval_gvar_zero:
   forall Delta t i rho, tc_environ Delta rho ->
@@ -249,7 +249,7 @@ Proof. intros; extensionality rho. unfold local; super_unfold_lift.
 simpl.
  apply pred_ext; normalize. destruct H; normalize.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite local_lift2_and : norm2.
+#[export] Hint Rewrite local_lift2_and : norm2.
 
 Lemma subst_TT {A}{NA: NatDed A}: forall i v, subst i v TT = TT.
 Proof.
@@ -260,18 +260,18 @@ Lemma subst_FF {A}{NA: NatDed A}: forall i v, subst i v FF = FF.
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @subst_TT @subst_FF: subst.
-(*after Coq 8.13: #[export]*) Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
+#[export] Hint Rewrite @subst_TT @subst_FF: subst.
+#[export] Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
 Lemma subst_sepcon: forall i v (P Q: environ->mpred),
   subst i v (P * Q) = (subst i v P * subst i v Q).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite subst_sepcon : subst.
+#[export] Hint Rewrite subst_sepcon : subst.
 
 Lemma subst_wand: forall i v (P Q: environ->mpred),
   subst i v (P -* Q) = (subst i v P -* subst i v Q).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite subst_wand : subst.
+#[export] Hint Rewrite subst_wand : subst.
 
 Lemma subst_exp:
   forall (A B: Type) (NA : NatDed A) (a : ident) (v : environ -> val) (P: B -> environ -> A),
@@ -322,7 +322,7 @@ Proof.
  repeat rewrite Map.gso by auto. auto.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite @resubst : subst.
+#[export] Hint Rewrite @resubst : subst.
 
 Lemma resubst_full: forall {A} i (v: environ -> val) v1 (e: environ -> A), subst i v1 (subst i v e) = subst i (subst i v1 v) e.
 Proof.
@@ -340,7 +340,7 @@ Qed.
 Lemma subst_ewand: forall i v (P Q: environ->mpred),
   subst i v (ewand P Q) = ewand (subst i v P) (subst i v Q).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite subst_ewand : subst.
+#[export] Hint Rewrite subst_ewand : subst.
 
 Lemma subst_andp {A}{NA: NatDed A}:
   forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
@@ -355,11 +355,11 @@ Lemma subst_prop {A}{NA: NatDed A}: forall i v P,
 Proof.
 intros; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @subst_andp subst_prop : subst.
+#[export] Hint Rewrite @subst_andp subst_prop : subst.
 
 Lemma eval_expr_Econst_int: forall {cs: compspecs}  i t, eval_expr (Econst_int i t) = `(Vint i).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @eval_expr_Econst_int : eval.
+#[export] Hint Rewrite @eval_expr_Econst_int : eval.
 
 Lemma subst_eval_var:
   forall id v id' t, subst id v (eval_var id' t) = eval_var id' t.
@@ -367,28 +367,28 @@ Proof.
 intros. unfold subst, eval_var. extensionality rho.
 simpl. auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite subst_eval_var : subst.
+#[export] Hint Rewrite subst_eval_var : subst.
 
 Lemma subst_local: forall id v P,
   subst id v (local P) = local (subst id v P).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite subst_local : subst.
+#[export] Hint Rewrite subst_local : subst.
 
 Lemma eval_lvalue_Ederef:
   forall {cs: compspecs}  e t, eval_lvalue (Ederef e t) = eval_expr e.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @eval_lvalue_Ederef : eval.
+#[export] Hint Rewrite @eval_lvalue_Ederef : eval.
 
 Lemma local_lift0_True:     local (`True) = TT.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite local_lift0_True : norm2.
+#[export] Hint Rewrite local_lift0_True : norm2.
 
 Lemma overridePost_EK_return:
   forall Q P, RA_return (overridePost Q P) = RA_return P.
 Proof.
  destruct P; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite overridePost_EK_return : ret_assert.
+#[export] Hint Rewrite overridePost_EK_return : ret_assert.
 
 Lemma frame_ret_assert_emp:
   forall P, frame_ret_assert P emp = P.
@@ -396,24 +396,22 @@ Proof. intros.
  destruct P; simpl; f_equal; extensionality; try extensionality; normalize.
 Qed.
 
-(*(*after Coq 8.13: #[export]*) Hint Rewrite frame_ret_assert_emp : ret_assert.*)
-
 Lemma frame_ret_assert_EK_return:
  forall P Q vl, RA_return (frame_ret_assert P Q) vl =  RA_return P vl * Q.
 Proof.
  destruct P; simpl; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite frame_ret_assert_EK_return : ret_assert.
+#[export] Hint Rewrite frame_ret_assert_EK_return : ret_assert.
 
 Lemma function_body_ret_assert_EK_return:
   forall t P vl, RA_return (function_body_ret_assert t P) vl = bind_ret vl t P.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite function_body_ret_assert_EK_return : ret_assert.
+#[export] Hint Rewrite function_body_ret_assert_EK_return : ret_assert.
 
 Lemma bind_ret1_unfold:
   forall v t Q, bind_ret (Some v) t Q = !!tc_val t v && `Q (make_args (ret_temp :: nil)(v::nil)).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite bind_ret1_unfold : norm2.
+#[export] Hint Rewrite bind_ret1_unfold : norm2.
 
 Lemma bind_ret1_unfold':
   forall v t Q rho,
@@ -421,7 +419,7 @@ Lemma bind_ret1_unfold':
 Proof.
  intros. reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite bind_ret1_unfold' : norm2.  (* put this in AFTER the unprimed version, for higher priority *)
+#[export] Hint Rewrite bind_ret1_unfold' : norm2.  (* put this in AFTER the unprimed version, for higher priority *)
 
 Lemma normal_ret_assert_elim:
  forall P, RA_normal (normal_ret_assert P) = P.
@@ -439,7 +437,7 @@ Lemma loop1_ret_assert_EK_break:
 Proof. destruct Q;   reflexivity.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite overridePost_EK_break loop1_ret_assert_EK_break
+#[export] Hint Rewrite overridePost_EK_break loop1_ret_assert_EK_break
   normal_ret_assert_elim : ret_assert.
 
 Lemma loop1_ret_assert_normal:
@@ -447,18 +445,18 @@ Lemma loop1_ret_assert_normal:
 Proof. 
   destruct Q; reflexivity.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite loop1_ret_assert_normal: ret_assert.
+#[export] Hint Rewrite loop1_ret_assert_normal: ret_assert.
 
 Lemma unfold_make_args': forall fsig args rho,
     make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite unfold_make_args' : norm2.
+#[export] Hint Rewrite unfold_make_args' : norm2.
 Lemma unfold_make_args_cons: forall i il v vl rho,
    make_args (i::il) (v::vl) rho = env_set (make_args il vl rho) i v.
 Proof. reflexivity. Qed.
 Lemma unfold_make_args_nil: make_args nil nil = globals_only.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite unfold_make_args_cons unfold_make_args_nil : norm2.
+#[export] Hint Rewrite unfold_make_args_cons unfold_make_args_nil : norm2.
 
 Lemma clear_rhox:  (* replaces clear_make_args' *)
  forall (P: mpred) (f: environ -> environ),
@@ -466,7 +464,7 @@ Lemma clear_rhox:  (* replaces clear_make_args' *)
                     (@liftx (LiftEnviron mpred) P) f
        = `P.
 Proof. intros. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite clear_rhox: norm2.
+#[export] Hint Rewrite clear_rhox: norm2.
 
 Lemma eval_make_args':
   forall (Q: val -> Prop) i fsig args,
@@ -475,7 +473,7 @@ Lemma eval_make_args':
    (make_args' fsig args) =
   `Q (`(eval_id i) (make_args' fsig args)).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite eval_make_args' : norm2.
+#[export] Hint Rewrite eval_make_args' : norm2.
 
 Lemma eval_make_args_same:
  forall {cs: compspecs}  i t fsig t0 tl (e: expr) el,
@@ -510,8 +508,8 @@ simpl.
 rewrite Map.gso; auto.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite @eval_make_args_same : norm2.
-(*after Coq 8.13: #[export]*) Hint Rewrite @eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
+#[export] Hint Rewrite @eval_make_args_same : norm2.
+#[export] Hint Rewrite @eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
 
 Infix "oo" := Basics.compose (at level 54, right associativity).
 Arguments Basics.compose {A B C} g f x / .
@@ -520,7 +518,7 @@ Lemma compose_backtick:
   forall A B C (F: B -> C) (G: A -> B) (J: environ -> A),
    `F (`G  J) = `(Basics.compose F G) J.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite compose_backtick : norm.
+#[export] Hint Rewrite compose_backtick : norm.
 
 Lemma compose_eval_make_args_same:
   forall {cs: compspecs}  (Q: val -> Prop) i t fsig t0 tl e el,
@@ -545,20 +543,20 @@ Proof.
   f_equal. apply eval_make_args_other; auto.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite @compose_eval_make_args_same : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite @compose_eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
+#[export] Hint Rewrite @compose_eval_make_args_same : norm.
+#[export] Hint Rewrite @compose_eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
 
 Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
 Proof. reflexivity. Qed.
 Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = P.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @substopt_unfold @substopt_unfold_nil : subst.
+#[export] Hint Rewrite @substopt_unfold @substopt_unfold_nil : subst.
 
 Lemma get_result_unfold: forall id, get_result (Some id) = get_result1 id.
 Proof. reflexivity. Qed.
 Lemma get_result_None: get_result None = globals_only.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite get_result_unfold get_result_None : norm.
+#[export] Hint Rewrite get_result_unfold get_result_None : norm.
 
 Lemma elim_globals_only:
   forall Delta g i t rho,
@@ -574,13 +572,13 @@ destruct_glob_types i.
 rewrite Heqo0, Heqo1.
 auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite elim_globals_only using (split3; [eassumption | reflexivity.. ]) : norm.
+#[export] Hint Rewrite elim_globals_only using (split3; [eassumption | reflexivity.. ]) : norm.
 
 Lemma elim_globals_only':
  forall a: mpred,
  (@liftx (Tarrow environ (LiftEnviron mpred)) (`a) globals_only) = `a.
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite elim_globals_only' : norm.
+#[export] Hint Rewrite elim_globals_only' : norm.
 
 Lemma globvar_eval_var:
   forall Delta rho id t,
@@ -601,8 +599,8 @@ Qed.
 Lemma globvars2pred_unfold: forall gv vl,
     globvars2pred gv vl = fold_right sepcon emp (map (globvar2pred gv) vl).
 Proof. easy. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite globvars2pred_unfold : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite @exp_trivial : norm.
+#[export] Hint Rewrite globvars2pred_unfold : norm.
+#[export] Hint Rewrite @exp_trivial : norm.
 
 Lemma eval_var_isptr:
   forall Delta t i rho,

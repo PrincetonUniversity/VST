@@ -410,7 +410,7 @@ Qed.
 
 
 Program Definition CLC_memsem (ge: genv):
-  @MemSem (*(Genv.t fundef type)*) CC_core.
+  @MemSem CC_core.
 apply Build_MemSem with (csem := cl_core_sem ge).
   intros.
   induction CS;

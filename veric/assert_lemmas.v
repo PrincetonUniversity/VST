@@ -120,49 +120,12 @@ cut (0 <= Z_of_nat i < Z_of_nat (length bl)). intro H6.
 lia.
 Qed.
 
-(*Lemma extensible_core_load': forall ch loc v
-  w w', extendR w w' -> core_load ch loc v w -> core_load ch loc v w'.
-Proof.
-intros.
-unfold core_load in *.
-destruct H0 as [bl ?].
-exists bl.
-destruct H0 as [[? [? Halign]] ?].
-destruct H as [wx ?].
-repeat split; auto.
-unfold allp, jam in *.
-intro loc'.
-specialize (H2 loc').
-apply resource_at_join with (loc := loc') in H.
-hnf in H2|-*.
-if_tac; auto.
-hnf in H2|-*.
-destruct H2 as [sh [rsh H2]].
-rewrite H2 in H.
-inv H; subst; eauto.
-Qed.*)
-
-(*
-Lenb: should be moved to tycontext or some other Clight-dependent file- but is in fact dead
-Definition Dbool {CS: compspecs} (Delta: tycontext) (e: Clight.expr) : assert :=
-  fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr e rho) = Some b).
-*)
-                             
 Lemma assert_truth:  forall {A} `{ageable A} {EO: Ext_ord A} (P:  Prop), P -> forall (Q: pred A), Q |-- (!! P) && Q.
 Proof.
 intros.
 intros st ?.
 split; auto.
 Qed.
-
-(*   Lemma assert_Val_is_true:
-   forall {A} `{ageable A} (P: pred A), P |-- !!(is_true Vtrue) && P.
-  Proof.  intros. apply assert_truth. apply Val_is_true_Vtrue. Qed.
-
-#[export] Hint Resolve Val_is_true_Vtrue  assert_Val_is_true : core.
-*)
-
-(****************** stuff moved from semax_prog  *****************)
 
 Lemma rmap_unage_age:
   forall r, age (rmap_unage r) r.
@@ -261,14 +224,6 @@ Proof.
  destruct f, g. apply corable_andp; [apply corable_prop|].
  eapply corable_later, corable_unfash; typeclasses eauto.
 Qed.
-(*
-Lemma corable_funspec_sub_early f g: corable (funspec_sub_early f g).
-Proof.
- intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
-+ intros ts. rewrite level_core. specialize (H0 ts); auto.
-+ intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
-Qed.
-*)
 
 Lemma ext_join_sub : forall (a b : rmap), ext_order a b -> join_sub a b.
 Proof.
@@ -308,10 +263,7 @@ Lemma corable_func_at: forall f l, corable (func_at f l).
 Proof.
   intros.
   unfold func_at.
-  destruct f as [fsig0 cc A P Q]. 
-  (*apply corable_exp; intro.
-  apply corable_andp. apply corable_funspec_sub.
-  destruct b.*) apply corable_pureat.
+  destruct f as [fsig0 cc A P Q]. apply corable_pureat.
 Qed.
 
 Lemma corable_func_at': forall f l, corable (func_at' f l).
@@ -341,17 +293,7 @@ Proof.
   apply corable_andp. apply corable_funspec_sub_si.
   apply corable_func_at.
 Qed.
-(*
-Lemma corable_func_ptr_early : forall f v, corable (func_ptr_early f v).
-Proof.
-  intros.
-  unfold func_ptr_early.
-  apply corable_exp; intro.
-  apply corable_andp; auto.
-  apply corable_exp; intro.
-  apply corable_andp. apply corable_funspec_sub_early.
-  apply corable_func_at.
-Qed.*)
+
 Lemma corable_func_ptr : forall f v, corable (func_ptr f v).
 Proof.
   intros.
@@ -365,7 +307,7 @@ Qed.
 
 End invs.
 
-#[export] Hint Resolve corable_func_ptr corable_func_ptr_si (*corable_func_ptr_early*) : core.
+#[export] Hint Resolve corable_func_ptr corable_func_ptr_si : core.
 
 Lemma corable_funspecs_assert:
   forall FS rho, corable (funspecs_assert FS rho).
@@ -379,9 +321,8 @@ Proof.
    apply corable_allp; intro|
    apply corable_prop|
    apply corable_imp].
- + (*apply corable_funspec_sub.*) apply corable_func_at.
+ + apply corable_func_at.
  + destruct b2; apply corable_pureat.
-(* + apply corable_pureat.*)
 Qed.
 
 #[export] Hint Resolve corable_funspecs_assert : core.
@@ -399,24 +340,7 @@ if_tac.
 apply H.
 apply H0.
 Qed.
-(*Lenb: add Hint Resolve corable_jam?*)
 
-(*
-Lemma corable_fun_assert: forall v fsig cc A P Q, corable (fun_assert v fsig cc A P Q).
-Proof.
-intros.
-unfold fun_assert, res_predicates.fun_assert.
-apply corable_exp; intro.
-apply corable_andp; auto.
-unfold FUNspec.
-apply corable_allp; intro.
-apply corable_jam; intro loc.
-apply corable_pureat.
-intro w. unfold TTat. apply prop_ext; split; intros; hnf in H|-*; auto.
-Qed.
-
-#[export] Hint Resolve corable_fun_assert : normalize.
-*)
 Lemma prop_derives {A}{H: ageable A}{EO: Ext_ord A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.

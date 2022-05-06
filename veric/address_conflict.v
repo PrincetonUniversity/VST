@@ -64,7 +64,6 @@ Proof.
   destruct (zlt 0 n1); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; lia].
   destruct (zlt 0 n2); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; lia].
   destruct (eq_block b b0).
-  (*destruct (Clight_lemmas.block_eq_dec b b0).*)
   + subst b0.
     unfold val2adr.
     forget (Ptrofs.unsigned i) as i1;

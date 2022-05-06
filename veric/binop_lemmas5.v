@@ -94,6 +94,7 @@ Proof.
                    (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
     in IBR
     by (unfold check_pp_int'; destruct OP; subst; auto).
+Time (* 71 sec *)
   destruct Archi.ptr64 eqn:Hp;
   destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?H; try solve [inv IBR];
 try abstract (
@@ -151,7 +152,7 @@ try abstract (
    try solve [apply int_type_tc_val_Vfalse; auto];
    try solve [apply int_type_tc_val_Vtrue; auto]).
 
-all: try (
+1,4:
  apply tc_bool_e in IBR;
  repeat rewrite andb_true_iff in IBR; destruct IBR as [[? ?] ?];
     destruct (typeof e1) as [| [| | |] [|] | | | | | | |]; inv TV1; inv H0;
@@ -166,7 +167,7 @@ all: try (
   simpl; rewrite ?Hp;
     try (apply int_type_tc_val_Vtrue; auto);
     try (apply int_type_tc_val_Vfalse; auto);
-    try (apply int_type_tc_val_of_bool; auto)).
+    try (apply int_type_tc_val_of_bool; auto).
 
 all:
 destruct IBR as [IBR ?];
@@ -185,9 +186,7 @@ unfold Vptrofs; rewrite Hp;
 destruct (eval_expr e1 rho); try contradiction;
 destruct (eval_expr e2 rho); try contradiction;
 unfold size_t in H0; rewrite ?Hp,?He1,?He2 in H0; simpl in H0; destruct H0; subst; simpl;
-try solve [apply int_type_tc_val_of_bool; auto].
-all:
-try solve [
+try solve [apply int_type_tc_val_of_bool; auto];
 rewrite Ptrofs_to_of64_lemma by assumption; rewrite  H; 
-apply int_type_tc_val_of_bool; auto].
-Qed.
+apply int_type_tc_val_of_bool; auto.
+Time Qed.  (* 23.5 sec *)

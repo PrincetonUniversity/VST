@@ -7,7 +7,7 @@ Require Import VST.veric.composite_compute.
 Require Import VST.veric.align_mem.
 Require Import VST.veric.val_lemmas.
 
-Require Export VST.veric.compspecs. (*new*)
+Require Export VST.veric.compspecs.
 Import compcert.lib.Maps.
 
 Open Scope Z_scope.
@@ -261,8 +261,8 @@ Fixpoint typelist_of_type_list (params : list type) : typelist :=
   end.
 
 Definition type_of_funspec (fs: funspec) : type :=
-  match fs with mk_funspec fsig cc _ _ _ _ _ => (*Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.*)
-Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
+  match fs with mk_funspec fsig cc _ _ _ _ _ => 
+     Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
 
 (*same definition as in Clight_core?*)
 Fixpoint typelist2list (tl: typelist) : list type :=
@@ -273,10 +273,7 @@ Proof. induction l; simpl; trivial. destruct a. f_equal; trivial. Qed.
 
 Lemma TTL2 l: (typlist_of_typelist (typelist_of_type_list l)) = map typ_of_type l.
 Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
-(*
-Lemma TTL3 l: typelist_of_type_list (Clight_core.typelist2list l) = l.
-Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
-*)
+
 Lemma TTL4 l: map snd l = typelist2list (type_of_params l).
 Proof. induction l; simpl; trivial. destruct a. simpl. f_equal; trivial. Qed.
 
@@ -298,14 +295,14 @@ Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
 Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
 Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite Map.gss. auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite eval_id_same : normalize norm.
+#[export] Hint Rewrite eval_id_same : normalize norm.
 
 Lemma eval_id_other: forall rho id id' v,
    id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.
 Proof.
  unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize norm.
+#[export] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize norm.
 
 Fixpoint make_tycontext_s (G: funspecs) :=
  match G with

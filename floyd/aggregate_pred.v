@@ -1,9 +1,7 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.type_induction.
-(*Require Import VST.floyd.fieldlist.*)
 Require Import VST.floyd.compact_prod_sum.
-(*Require Import VST.floyd.aggregate_type.*)
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
@@ -1758,7 +1756,6 @@ Proof.
             (field_offset_next cenv_cs (name_member a0) m0 sz)
             (at_offset (a v) (field_offset cenv_cs (name_member a0) m0))).
   + simpl in v, P.
-(*    destruct (ident_eq (name_member a1) (name_member a1)); [| congruence]. *)
     inversion P; subst.
     exact (withspacer sh
             (field_offset cenv_cs (name_member a1) m0 + sizeof (field_type (name_member a1) m0))

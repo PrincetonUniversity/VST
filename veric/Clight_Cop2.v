@@ -647,13 +647,6 @@ Definition sem_shr (t1:type) (t2:type) (v1:val) (v2: val)  : option val :=
 
 (** *** Comparisons *)
 
-(*  obsolete since CompCert 3.0
-Definition cast_out_long (v: val) : val :=
-  match v with
-  | Vlong l => Vint (Int.repr (Int64.unsigned l))
-  | _ => v
-  end.
-*)
 Definition true2 (b : block) (i : Z) := true.
 
 Definition sem_cmp_pp c v1 v2 :=
@@ -779,7 +772,6 @@ Arguments Cop.classify_shift ty1 ty2 / .
 Arguments Cop.classify_cmp ty1 ty2 / .
 Arguments Cop.classify_fun ty / .
 Arguments sem_cast t1 t2 / v : simpl nomatch.
-(*moved to Cop2: Arguments bool_val t / v  : simpl nomatch.*)
 Arguments sem_notbool t / v  : simpl nomatch.
 Arguments sem_neg t / v : simpl nomatch.
 Arguments sem_notint t / v : simpl nomatch.
@@ -791,7 +783,6 @@ Arguments sem_shr t1 t2  / v1 v2 : simpl nomatch.
 Arguments sem_cmp c t1 t2 / v1 v2 : simpl nomatch.
 Arguments sem_unary_operation op ty / v : simpl nomatch.
 Arguments sem_binary_operation' CS op t1 t2 / v1 v2 : simpl nomatch.
-(*Arguments sem_binary_operation CS op t1 t2 / m v1 v2 : simpl nomatch.*)
 Arguments sem_cmp_default c t1 t2 / v1 v2 : simpl nomatch.
 Arguments sem_binarith sem_int sem_long sem_float sem_single t1 t2 / v1 v2 : simpl nomatch.
 Arguments Cop.sem_cast v !t1 !t2 m / .

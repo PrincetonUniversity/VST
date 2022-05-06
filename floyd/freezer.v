@@ -565,7 +565,7 @@ Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) u
 Lemma flatten_emp_in_mpreds' {A}:
   forall n (R: list mpred),
    nth_error R n = Some emp ->
-   @SEPx A R = SEPx (firstn n R ++ skipn (S n) R).
+   @SEPx A R = SEPx (Floyd_firstn n R ++ Floyd_skipn (S n) R).
 Proof.
 unfold SEPx. intros. extensionality rho.
 revert R H. clear.
@@ -574,8 +574,8 @@ induction n; destruct R; intros.
 + simpl nth_error in H. inv H. simpl. apply emp_sepcon.
 + reflexivity.
 + inv H.
-  specialize (IHn _ H1). clear H1. simpl firstn.
-  change (m :: firstn n R) with (app (m::nil) (firstn n R)).
+  specialize (IHn _ H1). clear H1. simpl Floyd_firstn.
+  change (m :: Floyd_firstn n R) with (app (m::nil) (Floyd_firstn n R)).
   rewrite app_ass. unfold app at 1.
   simpl; f_equal; auto.
 Qed.
@@ -583,7 +583,7 @@ Qed.
 Lemma flatten_emp_in_SEP':
   forall n P Q (R: list mpred) R',
    nth_error R n = Some emp ->
-   R' = firstn n R ++ skipn (S n) R ->
+   R' = Floyd_firstn n R ++ Floyd_skipn (S n) R ->
    PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -600,7 +600,7 @@ Ltac flatten_emp_in_mpreds RR :=
       erewrite(@flatten_emp_in_mpreds' n' R _ (eq_refl _));
       [ |
         let RR := fresh "RR" in set (RR := R);
-        unfold firstn, app, skipn; subst RR; cbv beta iota;
+        unfold Floyd_firstn, app, Floyd_skipn; subst RR; cbv beta iota;
         apply eq_refl
       ]
    end
@@ -623,7 +623,7 @@ Ltac flatten_emp_in_SEP PQR :=
       erewrite(@flatten_emp_in_SEP' n' P Q R _ (eq_refl _));
       [ |
         let RR := fresh "RR" in set (RR := R);
-        unfold firstn, app, skipn; subst RR; cbv beta iota;
+        unfold Floyd_firstn, app, Floyd_skipn; subst RR; cbv beta iota;
         apply eq_refl
       ]
    end

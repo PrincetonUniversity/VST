@@ -9,7 +9,7 @@ Require Import Lia.
 Set Bullet Behavior "Strict Subproofs".
 
 (* standard VST prelude *)
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (* import funspecs from concurrency library *)

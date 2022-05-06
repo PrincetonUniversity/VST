@@ -881,9 +881,9 @@ Opaque HMAC256_DRBG_generate_function.
         unfold contents_with_add in HeqCONT.
         destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT. 
         ++ rewrite e in *. rewrite (Zlength_nil_inv _ e) in *.
-           simpl in na. destruct (initial_world.EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
+           simpl in na. destruct (EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
            subst na; rewrite andb_false_r in *. 
-           assert (F: (negb (Memory.EqDec_val additional nullval) &&
+           assert (F: (negb (EqDec_val additional nullval) &&
                             false)%bool = false).
            { rewrite andb_false_r. trivial. }
            subst after_update_state_abs; rewrite F in *.
@@ -897,7 +897,7 @@ Opaque HMAC256_DRBG_generate_function.
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
            }
-        ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
+        ++ destruct (EqDec_val additional nullval); simpl in na, HeqCONT.
            2: subst contents; elim n; apply Zlength_nil.
            subst na. simpl in *.
            inv HeqUPD. inv HeqAUSA. inv Heqq.
@@ -914,8 +914,8 @@ Opaque HMAC256_DRBG_generate_function.
        destruct Heqf as [Heqf1 Heqf2]. apply negb_true_iff in Heqf1. apply negb_true_iff in Heqf2.
        destruct (eq_dec additional nullval); try discriminate.
        destruct (eq_dec (Zlength contents) 0); try discriminate.
-       destruct (Memory.EqDec_val additional nullval). { subst additional. elim n; trivial. }
-       destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
+       destruct (EqDec_val additional nullval). { subst additional. elim n; trivial. }
+       destruct (EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
        subst na. simpl in HeqAUSA.
        Exists (mc1, (mc2, mc3),
              (map Vubyte l0,
@@ -963,9 +963,9 @@ Opaque HMAC256_DRBG_generate_function.
         unfold contents_with_add in HeqCONT.
         destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT. 
         ++ rewrite e0 in *. rewrite (Zlength_nil_inv _ e0) in *.
-           simpl in na. destruct (initial_world.EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
+           simpl in na. destruct (EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
            subst na; rewrite andb_false_r in *. 
-           assert (F: (negb (Memory.EqDec_val additional nullval) &&
+           assert (F: (negb (EqDec_val additional nullval) &&
                             false)%bool = false).
            { rewrite andb_false_r. trivial. }
            subst after_update_state_abs; rewrite F in *.
@@ -977,7 +977,7 @@ Opaque HMAC256_DRBG_generate_function.
              apply hmac_common_lemmas.HMAC_Zlength. }
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
-        ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
+        ++ destruct (EqDec_val additional nullval); simpl in na, HeqCONT.
            2: subst contents; elim n; apply Zlength_nil.
            subst na. simpl in *.
            inv HeqUPD. inv HeqAUSA. inv Heqq.
@@ -994,8 +994,8 @@ Opaque HMAC256_DRBG_generate_function.
        destruct Heqf as [Heqf1 Heqf2]. apply negb_true_iff in Heqf1. apply negb_true_iff in Heqf2.
        destruct (eq_dec additional nullval); try discriminate.
        destruct (eq_dec (Zlength contents) 0); try discriminate.
-       destruct (Memory.EqDec_val additional nullval). { subst additional. elim n; trivial. }
-       destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
+       destruct (EqDec_val additional nullval). { subst additional. elim n; trivial. }
+       destruct (EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
        subst na. simpl in HeqAUSA.
        Exists (mc1, (mc2, mc3),
              (map Vubyte l0,

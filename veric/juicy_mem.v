@@ -549,7 +549,7 @@ apply level1_juicy_mem.
 apply level2_juicy_mem.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance juicy_mem_ageable: ageable juicy_mem :=
+#[export] Instance juicy_mem_ageable: ageable juicy_mem :=
   mkAgeable _ (fun j => level (m_phi j)) age1_juicy_mem juicy_mem_ageable_facts.
 
 Lemma level_juice_level_phi: forall (j: juicy_mem), level j = level (m_phi j).
@@ -827,7 +827,7 @@ Proof.
       intros Hno; rewrite Hno in *; simpl in *; contradiction.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
+#[export] Program Instance juicy_mem_ord: Ext_ord juicy_mem :=
   { ext_order a b := m_dry a = m_dry b /\ ext_order (m_phi a) (m_phi b) }.
 Next Obligation.
 Proof.

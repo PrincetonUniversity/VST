@@ -505,12 +505,12 @@ Lemma align_0: forall z,
     z > 0 -> align 0 z = 0.
 Proof. unfold align; intros. rewrite Zdiv_small; lia.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite align_0 using lia : norm.
+#[export] Hint Rewrite align_0 using lia : norm.
 
 Lemma align_1: forall n, align n 1 = n.
 Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. lia.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite align_1 using lia : norm.
+#[export] Hint Rewrite align_1 using lia : norm.
 
 Lemma fold_right_andb: forall bl b, fold_right andb b bl = true -> forall b0, In b0 bl -> b0 = true.
 Proof.
@@ -572,8 +572,8 @@ Lemma proj_sumbool_is_false:
 Proof.
 intros. destruct a; auto; contradiction.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
+#[export] Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
+#[export] Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
 
 Lemma ptrofs_to_int_repr: 
  forall x, (Ptrofs.to_int (Ptrofs.repr x)) = Int.repr x.

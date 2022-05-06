@@ -62,7 +62,6 @@ Proof.
    apply Int.eq_true.
 Qed.
 
-
 Lemma denote_tc_test_eq_Vlong_l': forall m i v,
   (denote_tc_test_eq (Vlong i) v) m ->
   Int64.eq i Int64.zero = true.
@@ -139,7 +138,6 @@ assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur 
 rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
 destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 Qed.
-
 
 Lemma weak_valid_pointer_dry:
   forall b ofs m, app_pred (weak_valid_pointer (Vptr b ofs)) (m_phi m) ->
@@ -253,7 +251,6 @@ intros.
 unfold sem_cast, classify_cast, tint, sem_cast_pointer, sem_cast_i2l.
 auto.
 Qed.
-
 
 Lemma denote_tc_test_eq_xx:
  forall v si i phi,
@@ -623,7 +620,6 @@ destruct (Classical_Prop.not_and_or _ _ (denote_tc_nodivover_e64_li s _ _ _ H));
  apply Int64.eq_false; auto.
 Qed.
 
-
 Lemma Int64_eq_repr_signed32_nonzero':
   forall i, Int.eq i Int.zero = false ->
              Int64.eq (Int64.repr (Int.signed i)) Int64.zero = false.
@@ -711,6 +707,31 @@ unfold Cop.sem_add_ptr_int, Cop.sem_add_ptr_long in *;
 simpl in *;
 rewrite <- (sizeof_stable _ _ CSUB) in H0 by auto; auto.
 Qed.
+
+Lemma eq_block_lem':
+ forall a, eq_block a a = left (eq_refl a).
+Proof.
+intros.
+destruct (eq_block a). f_equal. apply proof_irr.
+congruence.
+Qed.
+
+Lemma isptr_e:
+ forall {v}, isptr v -> exists b ofs, v = Vptr b ofs.
+Proof. destruct v; try contradiction; eauto. Qed.
+
+Lemma is_int_e': forall {sz sg v}, 
+  is_int sz sg v -> exists i, v = Vint i.
+Proof. destruct v; try contradiction; eauto. Qed.
+
+Lemma is_long_e: forall {v}, is_long v -> exists i, v = Vlong i.
+Proof. destruct v; try contradiction; eauto. Qed.
+
+Lemma is_single_e: forall {v}, is_single v -> exists f, v = Vsingle f.
+Proof. destruct v; try contradiction; eauto. Qed.
+
+Lemma is_float_e: forall {v}, is_float v -> exists f, v = Vfloat f.
+Proof. destruct v; try contradiction; eauto. Qed.
 
 Lemma eval_binop_relate':
  forall {CS: compspecs} (ge: genv) te ve rho b e1 e2 t m
@@ -801,8 +822,8 @@ try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?
             end;
  try clear CS; try clear m;
  try change (Ctypes.sizeof ty) with (sizeof ty).
-
-all: try abstract ( (
+Time
+all: try ( (
 red in TC1,TC2;
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
 try discriminate C;
@@ -813,12 +834,13 @@ try discriminate C; try discriminate C0;
 repeat match goal with
  | H: typecheck_error _ |- _ => contradiction H
  | H: andb _ _ = true |- _ => rewrite andb_true_iff in H; destruct H
- | H: isptr ?A |- _ => destruct A; simpl in H; try contradiction H
- | H: is_int _ _ ?A |- _ => unfold is_int in H; destruct A; try solve [contradiction H]
- | H: is_long ?A |- _ => unfold is_long in H; destruct A; try solve [contradiction H]
- | H: is_single ?A |- _ => unfold is_single in H; destruct A; try contradiction H
- | H: is_float ?A |- _ => unfold is_float in H; destruct A; try contradiction H
- | H: is_true (sameblock _ _) |- _ => apply sameblock_eq_block in H; subst
+ | H: isptr ?A |- _ => destruct (isptr_e H) as [?b [?ofs ?]]; clear H; subst A
+ | H: is_int _ _ ?A |- _ => destruct (is_int_e' H) as [?i ?]; clear H; subst A
+ | H: is_long ?A |- _ =>  destruct (is_long_e H) as [?i ?]; clear H; subst A
+ | H: is_single ?A |- _ => destruct (is_single_e H) as [?f ?]; clear H; subst A
+ | H: is_float ?A |- _ => destruct (is_float_e H) as [?f ?]; clear H; subst A
+ | H: is_true (sameblock _ _) |- _ => apply sameblock_eq_block in H; subst;
+                                                         rewrite ?eq_block_lem'
  | H: is_numeric_type _ = true |- _  => inv H
  end;
  try simple apply eq_refl;
@@ -853,6 +875,6 @@ repeat match goal with
  erewrite ?denote_tc_test_eq_Vint_r' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_l' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_r' by eassumption;
- reflexivity)).
+ reflexivity)).  (* 292 sec *)
 
-Qed.
+Time Qed.  (* 31.5 sec *)

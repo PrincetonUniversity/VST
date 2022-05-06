@@ -33,22 +33,8 @@ eapply Genv.genv_vars_inj; eauto.
 Defined.
 
 Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) (ge: genv) :=
-  @jsafeN_ genv _ _ genv_symb_injective (*(genv_symb := fun ge: genv => Genv.genv_symb ge)*)
+  @jsafeN_ genv _ _ genv_symb_injective 
                (cl_core_sem ge) Hspec ge.
-
-(*Program Definition ext_compat {Z} (ora : Z) : mpred :=
-  fun w => joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
-Next Obligation.
-Proof.
-  split; repeat intro.
-  erewrite age1_ghost_of by eauto.
-  apply ext_join_approx; auto.
-
-  apply rmap_order in H as (_ & _ & ? & Hg).
-  destruct H0.
-  inv H.
-  - rewrite <- H1 in Hg; inv Hg.
-Qed.*)
 
 Definition ext_compat {Z} (ora : Z) (w : rmap) :=
   joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
@@ -341,11 +327,13 @@ Proof.
   inv H. apply IHvals in H5. split; trivial.
 Qed.
 
-Lemma semax_external_funspec_sub {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
+Lemma semax_external_funspec_sub
+  (DISABLE: False)
+  {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
                      (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
-         mksignature (*(typlist_of_typelist (typelist_of_type_list argtypes))*)
+         mksignature
                      (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc):
   @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
@@ -377,6 +365,10 @@ edestruct (N _ NM (sepcon F FRM) typs vals jm0) as [est [EST1 EST2]]; clear N; e
   exists z2, z11; split3; trivial. }
 exists est; split.
 { simpl. intros. apply EST1; auto. apply necR_trans with z; auto.
+contradiction DISABLE.  (* 
+    This lemma is not true as written because it needs a ghost-state
+    update operator somewhere.  
+*)
   rewrite age_to.necR_age_to_iff. admit.
 simpl; intros.
 destruct (EST2 b b0 b1 _ H _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
@@ -386,7 +378,7 @@ exists v, w1; split3; trivial.
 apply HQ; clear HQ; split.
 + simpl. destruct b,b0; reflexivity.
 + exists w2, u1; split3; trivial.*)
-Admitted.
+Qed.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
@@ -415,7 +407,7 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: types
                            (typlist_of_typelist (typelist_of_type_list (fst fsig)))
                            (rettype_of_type (snd fsig)) cc
            /\ (ef_inline ef = false \/ withtype_empty A))
-        && semax_external Hspec (*ids*) ef A P Q
+        && semax_external Hspec ef A P Q
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),
               ALL ret:option val,
@@ -427,7 +419,7 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: types
 
 Lemma believe_external_funspec_sub {Espec gx v sig cc A P Q Pne Qne A' P' Q' Pne' Qne'}
       (Hsub: funspec_sub (mk_funspec sig cc A P Q Pne Qne)(mk_funspec sig cc A' P' Q' Pne' Qne') )
-      (WTE: withtype_empty A -> (*ef_inline e = false \/*) withtype_empty A'):
+      (WTE: withtype_empty A -> withtype_empty A'):
       believe_external Espec gx v sig cc A P Q |-- believe_external Espec gx v sig cc A' P' Q'.
 Proof.
   unfold believe_external; intros n N.
@@ -438,7 +430,8 @@ Proof.
 + split.
   - split3; trivial. split; trivial.
     destruct N1d; [ left; trivial | right; auto].
-  - eapply semax_external_funspec_sub; eassumption.
+  - eapply semax_external_funspec_sub; try eassumption.
+     admit.
 + simpl; intros. simpl in N3. simpl in Hsub.
   destruct Hsub as [_ Hsub].
   specialize (Hsub b b0).
@@ -480,7 +473,7 @@ Definition believe_internal_ CS
       (ALL ts: list Type,
        ALL x : dependent_type_functor_rec ts A (pred rmap),
         |> semax (SemaxArg CS' (func_tycontext' f Delta')
-                         (fun rho => (bind_args (*(fst fsig)*) (f.(fn_params)) (P ts x) rho 
+                         (fun rho => (bind_args (f.(fn_params)) (P ts x) rho 
                                               * stackframe_of' (@cenv_cs CS') f rho)
                                         && funassert (func_tycontext' f Delta') rho)
                           (f.(fn_body))
@@ -542,7 +535,7 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
        (ALL ts: list Type,
      ALL x : dependent_type_functor_rec ts A (pred rmap),
      |> @semax' CS' Espec (func_tycontext' f Delta')
-                                (fun rho => (bind_args (*(fst fsig)*) (f.(fn_params)) (P ts x) rho * stackframe_of' (@cenv_cs CS') f rho)
+                                (fun rho => (bind_args (f.(fn_params)) (P ts x) rho * stackframe_of' (@cenv_cs CS') f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                                (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') f))))).
@@ -612,18 +605,6 @@ Proof.
   apply (@semax'_cenv_sub _ _ CSUB).
 Qed.
 
-Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c Q: assert :=
-  fun rho: environ =>
-  ALL gx: genv, ALL Delta': tycontext,
-       !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
-       unfash (believe Espec Delta' gx Delta') -->
-     ALL k: cont, ALL F: assert, ALL f: function, 
-        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' f (frame_ret_assert Q F) k) -->
-        ALL tx : Clight.temp_env, ALL vx : env,
-          (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
-          ((!! guard_environ Delta' f rho && funassert Delta' rho) -->
-             (F rho -* assert_safe Espec gx f vx tx (Cont (Kseq c k)) rho)).
-
 Opaque semax'.
 
 Definition semax {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) P c Q :=
@@ -636,39 +617,6 @@ Proof.
   + hnf; intros; auto.
   + hnf in H; auto.
 Qed.
-
-Lemma semax_weakest_pre_aux: forall {A: Type} (P: pred nat) (Q R: A -> pred rmap),
-  P = fash (ALL x: A, Q x --> R x) ->
-  ((TT |-- P) <-> forall x, Q x |-- R x).
-Proof.
-  intros.
-  assert ((TT |-- ALL x: A, Q x --> R x) <-> (forall x : A, Q x |-- R x)).
-  + split; intros.
-    - rewrite <- (TT_and (Q x)).
-      rewrite imp_andp_adjoint.
-      eapply derives_trans; [exact H0 |].
-      apply (allp_left _ x); intros.
-      auto.
-    - apply allp_right; intros.
-      rewrite <- imp_andp_adjoint.
-      rewrite (TT_and (Q v)).
-      auto.
-  + rewrite <- H0, H.
-    clear; forget (ALL x : A , Q x --> R x) as P; clear.
-    split; intros.
-    - unfold fash in H.
-      hnf in H |- *.
-      intros; simpl in H.
-      eapply H; auto.
-    - unfold fash.
-      hnf in H |- *.
-      intros; simpl.
-      intros.
-      apply H.
-      auto.
-Qed.
-
-(* Copied from semax_switch. *)
 
 Lemma fash_TT: forall {A} {agA: ageable A} {EO: Ext_ord A}, @unfash A agA EO TT = TT.
 Proof.
@@ -740,8 +688,6 @@ apply andp_left1; auto.
 intros ? [? ?].
 eapply H0; auto.
 Qed.
-
-(* End copied from semax_switch. *)
 
 Lemma unfash_fash:
   forall (A : Type) (agA : ageable A) (EO : Ext_ord A) (P : pred A),
@@ -931,13 +877,6 @@ Lemma believe_monoL {CS'} gx Delta Delta' Gamma
 Proof.
   destruct CSUB as [CSUB _].
   eapply (@believe_cenv_sub_L CS'). apply SUB. apply CSUB.
-  (*explicit proof:
- intros n B v sig cc A P Q k nec CL.
- destruct (B v sig cc A P Q k nec).
-+ eapply claims_antimono; eauto.
-+ left; trivial.
-+ right. clear -SUB CSUB H.
-  apply (@believe_internal_mono CS' gx Delta); eauto.*)
 Qed.
 
 Lemma believe_internal__mono sem gx Delta Delta' v sig cc A P Q

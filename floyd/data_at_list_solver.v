@@ -83,7 +83,7 @@ Ltac apply_list_ext ::=
        [ Zlength_solve | Zlength_solve | .. ]
   | |- @eq ?list_A _ _ =>
       match eval compute in list_A with list ?A =>
-        apply (@Znth_eq_ext A ltac:(auto with typeclass_instances))
+        apply (@Znth_eq_ext A ltac:(typeclasses eauto))
       end; [ Zlength_solve_with_message | .. ]
   | |- @Forall ?A ?P ?l =>
       rewrite Forall_Znth;

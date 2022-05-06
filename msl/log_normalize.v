@@ -4,7 +4,7 @@ Require Import VST.msl.seplog.
 Require Import VST.msl.Extensionality.
 Require Import Coq.Setoids.Setoid.
 
-Set Warnings "-deprecated-hint-rewrite-without-locality". (* Delete this line after we abandon Coq 8.13 *)
+(* Set Warnings "-deprecated-hint-rewrite-without-locality".  Delete this line after we abandon Coq 8.13 *)
 
 Create HintDb norm discriminated.
 
@@ -292,7 +292,7 @@ Proof.
   apply sepcon_wand_CCC.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite @FF_sepcon @sepcon_FF : norm.
+#[export] Hint Rewrite @FF_sepcon @sepcon_FF : norm.
 
 Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
 Proof.
@@ -307,7 +307,7 @@ Proof.
   eapply CCC_prod_FF.
   apply andp_imp_CCC.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @FF_andp @andp_FF : norm.
+#[export] Hint Rewrite @FF_andp @andp_FF : norm.
 
 Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
 Proof.
@@ -778,16 +778,16 @@ Qed.
 
 Ltac immediate := (assumption || reflexivity).
 
-(*after Coq 8.13: #[export]*) Hint Rewrite @prop_true_andp using (solve [immediate]) : norm.
+#[export] Hint Rewrite @prop_true_andp using (solve [immediate]) : norm.
 
 Lemma true_eq {A} {NA: NatDed A}:  forall P: Prop, P -> (!! P) = (TT: A).
 Proof with norm.
 intros. apply pred_ext...
 apply prop_right...
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite @true_eq using (solve [immediate]) : norm.
+#[export] Hint Rewrite @true_eq using (solve [immediate]) : norm.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite @andp_dup : norm.
+#[export] Hint Rewrite @andp_dup : norm.
 
 Lemma sepcon_TT {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall (P: A), P |-- (P * TT).
@@ -813,7 +813,7 @@ intros.
 apply exp_left. auto.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
+#[export] Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
              @exp_sepcon1 @exp_sepcon2
                @exp_andp1 @exp_andp2
          @sepcon_andp_prop @sepcon_andp_prop'

@@ -1,7 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.append.
 
-#[(*export, after Coq 8.13*)global] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
 
@@ -253,7 +253,7 @@ Lemma lseg_valid_pointer:
    lseg sh contents p nullval |-- valid_pointer p.
 Proof.
  destruct contents; unfold lseg; fold lseg; intros. entailer!.
- Intros. Intros y.
+ Intros *.
  auto with valid_pointer.
 Qed.
 

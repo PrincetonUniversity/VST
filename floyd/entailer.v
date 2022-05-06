@@ -11,12 +11,12 @@ Local Open Scope logic.
 Lemma ptrofs_of_ints_unfold: 
   forall x, Ptrofs.of_ints x = Ptrofs.repr (Int.signed x).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite ptrofs_of_ints_unfold : norm.
+#[export] Hint Rewrite ptrofs_of_ints_unfold : norm.
 
 Lemma ptrofs_of_intu_unfold: 
   forall x, Ptrofs.of_intu x = Ptrofs.repr (Int.unsigned x).
 Proof. reflexivity. Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite ptrofs_of_intu_unfold : norm.
+#[export] Hint Rewrite ptrofs_of_intu_unfold : norm.
 
 Lemma isptr_force_val_sem_cast_neutral :
   forall p, isptr p -> isptr (force_val (sem_cast_pointer p)).
@@ -170,7 +170,7 @@ Lemma valid_pointer_null:
 Proof.
   intros. unfold nullval, valid_pointer, valid_pointer'. 
   destruct Archi.ptr64 eqn:Hp; simpl;
- change predicates_hered.prop with prop; (* delete me *)
+ change predicates_hered.prop with prop;
  normalize.
 Qed.
 
@@ -264,7 +264,7 @@ Lemma valid_pointer_zero32:
 Proof.
  intros.
  unfold valid_pointer, valid_pointer'. rewrite H.
- change predicates_hered.prop with prop; (* delete me *)
+ change predicates_hered.prop with prop;
  normalize.
 Qed.
 
@@ -273,7 +273,7 @@ Lemma valid_pointer_zero64:
 Proof.
  intros.
  unfold valid_pointer, valid_pointer'. rewrite H.
- change predicates_hered.prop with prop; (* delete me *)
+ change predicates_hered.prop with prop;
  normalize.
 Qed.
 
@@ -306,8 +306,8 @@ match goal with
               auto 50 with valid_pointer
 end.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite (@TT_andp mpred _) : gather_prop.
-(*after Coq 8.13: #[export]*) Hint Rewrite (@andp_TT mpred _) : gather_prop.
+#[export] Hint Rewrite (@TT_andp mpred _) : gather_prop.
+#[export] Hint Rewrite (@andp_TT mpred _) : gather_prop.
 
 Ltac pull_out_props :=
     repeat (( simple apply derives_extract_prop
@@ -416,15 +416,16 @@ Proof.
   eapply Z.le_trans; [eassumption | ]. compute; intros Hx; inv Hx.
 Qed.
 
-(*after Coq 8.13: #[export]*) Hint Rewrite intsigned_intrepr_bytesigned : rep_lia.
+#[export] Hint Rewrite intsigned_intrepr_bytesigned : rep_lia.
 
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
         | apply Coq.Init.Logic.I
         | reflexivity
-        | rewrite ?intsigned_intrepr_bytesigned; rep_lia (* Omega0 *)
+        | rewrite ?intsigned_intrepr_bytesigned; rep_lia
         | prove_signed_range
+        | congruence
         | repeat match goal with
                       | H: ?A |- _ => has_evar A; clear H 
                       | H: @value_fits _ _ _ |- _ => clear H  (* delete these because they can cause slowness in the 'auto' *)
@@ -559,6 +560,7 @@ Ltac my_auto_reiter :=
         |eassumption].
 
 Ltac my_auto :=
+ repeat match goal with |- ?P -> _ => match type of P with Prop => intro end end;
  rewrite ?isptr_force_ptr by auto;
  let H := fresh in eapply my_auto_lem; [intro H; my_auto_iter H | ];
  try all_True;
@@ -658,10 +660,10 @@ Ltac elim_hyps :=  (* not in use anywhere? *)
 
 (**** try this out here, for now ****)
 
-(*after Coq 8.13: #[export]*) Hint Rewrite Int.signed_repr using rep_lia : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite Int.unsigned_repr using rep_lia : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite Int64.signed_repr using rep_lia : norm.
-(*after Coq 8.13: #[export]*) Hint Rewrite Int64.unsigned_repr using rep_lia : norm.
+#[export] Hint Rewrite Int.signed_repr using rep_lia : norm.
+#[export] Hint Rewrite Int.unsigned_repr using rep_lia : norm.
+#[export] Hint Rewrite Int64.signed_repr using rep_lia : norm.
+#[export] Hint Rewrite Int64.unsigned_repr using rep_lia : norm.
 
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 
@@ -707,7 +709,7 @@ simpl. rewrite Z.mul_0_r.
 rewrite Ptrofs.add_zero.
 apply prop_ext; tauto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite offset_val_sizeof_hack : norm.
+#[export] Hint Rewrite offset_val_sizeof_hack : norm.
 
 Lemma offset_val_sizeof_hack2:
  forall cenv t i j p,
@@ -719,7 +721,7 @@ intros.
 subst.
 apply prop_ext; tauto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite offset_val_sizeof_hack2 : norm.
+#[export] Hint Rewrite offset_val_sizeof_hack2 : norm.
 
 Lemma offset_val_sizeof_hack3:
  forall cenv t i p,
@@ -732,7 +734,7 @@ subst.
 rewrite Z.mul_1_r.
 apply prop_ext; tauto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite offset_val_sizeof_hack3 : norm.
+#[export] Hint Rewrite offset_val_sizeof_hack3 : norm.
 
 Ltac make_Vptr c :=
   let H := fresh in assert (isptr c) by auto;
@@ -742,7 +744,7 @@ Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
 Proof.
 intros. apply Z.max_r; auto.
 Qed.
-(*after Coq 8.13: #[export]*) Hint Rewrite Zmax0r using (try computable; rep_lia (*Omega0*)) : norm.
+#[export] Hint Rewrite Zmax0r using (try computable; rep_lia) : norm.
 
 Import ListNotations.
 

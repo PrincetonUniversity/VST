@@ -19,7 +19,7 @@ Proof.
     eapply H; eauto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
+#[export] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
 Proof.
   intros; apply timeless'_timeless, own_timeless.
 Qed.
@@ -29,7 +29,7 @@ Proof.
   intros; apply timeless'_timeless, address_mapsto_timeless.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance timeless_FF : Timeless FF.
+#[export] Instance timeless_FF : Timeless FF.
 Proof.
   unfold Timeless; intros.
   iIntros ">?"; auto.
@@ -55,7 +55,7 @@ Proof.
   - apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply nonlock_permission_bytes_timeless].
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance emp_timeless : (@Timeless mpredI) emp.
+#[export] Instance emp_timeless : (@Timeless mpredI) emp.
 Proof.
   apply timeless'_timeless, emp_timeless.
 Qed.
@@ -157,7 +157,7 @@ Proof.
   - apply union_pred_timeless; auto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
+#[export] Instance data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
 Proof.
   intros; apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply data_at_rec_timeless].
 Qed.
@@ -327,7 +327,7 @@ Proof.
       intros Hs; inv Hs; auto.
 Qed.
 
-Global Instance into_acc_inv N P E:
+#[export] Instance into_acc_inv N P E:
   IntoAcc (X := unit) (inv N P)
           (to_coPset N ⊆ E) emp (updates.fupd E (E ∖ to_coPset N)) (updates.fupd (E ∖ to_coPset N) E)
           (λ _ : (), (▷ P)%I) (λ _ : (), (▷ P)%I) (λ _ : (), None).
