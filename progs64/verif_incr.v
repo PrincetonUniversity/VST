@@ -124,11 +124,11 @@ Proof.
     destruct left.
     - rewrite (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.
       erewrite ghost_var_share_join' by eauto with share.
-      Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
-      apply ghost_var_update.
+      Intros; rewrite prop_true_andp by auto; eapply derives_trans, fupd_frame_r; cancel.
+      eapply derives_trans, bupd_fupd; apply ghost_var_update.
     - erewrite ghost_var_share_join' by eauto with share.
-      Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
-      apply ghost_var_update. }
+      Intros; rewrite prop_true_andp by auto; eapply derives_trans, fupd_frame_r; cancel.
+      eapply derives_trans, bupd_fupd; apply ghost_var_update. }
   Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).

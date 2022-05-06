@@ -297,7 +297,7 @@ Definition t_lock := Tstruct _atom_int noattr.
       + iPureIntro. auto.
       + iSplit; auto. unfold argsassert2assert. iSplitL "H3"; auto. unfold lock_inv.
         iDestruct "H3" as (i) "# H". unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
-        iInv "H" as "inv" "Hclose"; first set_solver.
+        iInv "H" as "inv" "Hclose".
         iDestruct "inv" as "[[> H1 R]|> H1]".
         * iApply fupd_mask_intro; try set_solver. iIntros "H2". iExists true.
           normalize. iSplitL "H1".

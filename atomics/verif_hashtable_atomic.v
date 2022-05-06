@@ -1306,7 +1306,7 @@ Proof.
     { rewrite -> 5sepcon_assoc; apply sepcon_derives; [|cancel].
       iIntros "[#inv hist]"; unfold atomic_shift; iAuIntro.
       rewrite /atomic_acc /=.
-      iInv "inv" as ">I" "Hclose"; [set_solver|].
+      iInv "inv" as ">I" "Hclose".
       unfold hashtable_inv.
       iDestruct "I" as (HT) "[hashtable I]"; iDestruct "I" as (hr) "[% ref]".
       iExists HT; iFrame "hashtable".

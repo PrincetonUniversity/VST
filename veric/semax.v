@@ -364,12 +364,12 @@ edestruct (N _ NM (sepcon F FRM) typs vals jm0) as [est [EST1 EST2]]; clear N; e
   exists z12, zz; split3. trivial. trivial.
   exists z2, z11; split3; trivial. }
 exists est; split.
-{ simpl. intros. apply EST1; auto. apply necR_trans with z; auto.
+{ simpl. intros. apply EST1; auto. apply necR_trans with z; auto.*)
 contradiction DISABLE.  (* 
     This lemma is not true as written because it needs a ghost-state
     update operator somewhere.  
 *)
-  rewrite age_to.necR_age_to_iff. admit.
+  (*rewrite age_to.necR_age_to_iff. admit.
 simpl; intros.
 destruct (EST2 b b0 b1 _ H _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
 destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.

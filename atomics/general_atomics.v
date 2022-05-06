@@ -236,7 +236,7 @@ Proof.
   hnf; intros.
   etransitivity; [|etransitivity; [
     apply (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type W T) (fun ts x => P ts (fst x)) (fun ts x => L ts (fst x)) (fun ts x => G ts (fst x)) (fun ts '(w, Q) => atomic_shift(A := A ts) (S2 ts w) (⊤ ∖ E) ∅ (SQ ts w) Q :: R ts w))|]].
-  - instantiate (9 := x). destruct x. reflexivity.
+  - instantiate (8 := x). destruct x. reflexivity.
   - intros ? ? (?, ?) ?; apply HP; auto.
   - intros ? ? (?, ?); apply HL; auto.
   - intros ? ? (?, ?); apply HG; auto.
@@ -268,7 +268,7 @@ Proof.
   hnf; intros.
   etransitivity; [|etransitivity; [
     apply (PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive' (atomic_spec_type0 W) (fun ts x => P ts (fst x)) (fun ts x => L ts (fst x)) (fun ts x => G ts (fst x)) (fun ts '(w, Q) => atomic_shift(A := A ts) (S2 ts w) (⊤ ∖ E) ∅ (SQ ts w) (fun _ => Q) :: R ts w))|]].
-  - instantiate (9 := x). destruct x. reflexivity.
+  - instantiate (8 := x). destruct x. reflexivity.
   - intros ? ? (?, ?) ?; apply HP; auto.
   - intros ? ? (?, ?); apply HL; auto.
   - intros ? ? (?, ?); apply HG; auto.

@@ -1507,11 +1507,11 @@ Ltac rewrite_list_eq :=
 
 (* These must be Global because they are inside Module range_rewrite.
   That's a problem; we should fix this somehow. *)
-(*after Coq 8.13: Global*) Hint Rewrite @Forall_forall_range : list_prop_rewrite.
-(*after Coq 8.13: Global*) Hint Rewrite @forall_range_fold : list_prop_rewrite.
-(*after Coq 8.13: Global*) Hint Rewrite @forall_range2_fold : list_prop_rewrite.
-(*after Coq 8.13: Global*) Hint Rewrite @forall_triangle_fold : list_prop_rewrite.
-(*after Coq 8.13: Global*) Hint Rewrite Sorted_Znth : list_prop_rewrite.
+Global Hint Rewrite @Forall_forall_range : list_prop_rewrite.
+Global Hint Rewrite @forall_range_fold : list_prop_rewrite.
+Global Hint Rewrite @forall_range2_fold : list_prop_rewrite.
+Global Hint Rewrite @forall_triangle_fold : list_prop_rewrite.
+Global Hint Rewrite Sorted_Znth : list_prop_rewrite.
 
 Ltac range_form :=
   rewrite_list_eq;
@@ -1754,9 +1754,9 @@ Proof. intros. apply I. Qed.
 
 (* These must be Global because they are inside a Module.
   That's a problem; we should fix this somehow. *)
-(*after Coq 8.13: Global*) Hint Rewrite Z.add_0_r : Z_normalize_0.
-(*after Coq 8.13: Global*) Hint Rewrite Z.add_0_l : Z_normalize_0.
-(*after Coq 8.13: Global*) Hint Rewrite Z.sub_0_r : Z_normalize_0.
+Global Hint Rewrite Z.add_0_r : Z_normalize_0.
+Global Hint Rewrite Z.add_0_l : Z_normalize_0.
+Global Hint Rewrite Z.sub_0_r : Z_normalize_0.
 
 Ltac pose_range_saturate_shift l s :=
   let H := fresh in

@@ -575,7 +575,7 @@ Qed.
 
 Definition main_block := proj1_sig main_block_exists.
 
-Hypothesis (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+Axiom (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
        (EFC : Events.external_call ef se lv m t v m'), juicy_mem.mem_sub m m1 ->
        exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
          juicy_mem.mem_sub m' m1' /\ proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
