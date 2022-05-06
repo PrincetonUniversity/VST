@@ -395,15 +395,16 @@ Definition t_lock := Tstruct _atom_int noattr.
       + iPureIntro. auto.
       + iSplit; auto. unfold argsassert2assert. iSplitR "H2"; auto. unfold lock_inv.
         iDestruct "H4" as (i) "#H". unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
-        iInv "H" as "inv" "Hclose"; first set_solver.
+        iInv "H" as "inv" "Hclose".
         iDestruct "inv" as "[[> H2 R]|> H2]".
         * iAssert (|>FF) with "[H3 H5 R]" as ">[]".
           iNext; iApply weak_exclusive_conflict; iFrame; iFrame.
         * iExists tt. iApply fupd_mask_intro; try set_solver. iIntros "H4".
           iSplitL "H2"; auto. iSplit.
           -- iIntros "H2". iFrame. iMod "H4". iApply "Hclose". iRight. iFrame. auto.
-          -- iIntros (_) "H2". iFrame. iExists i. iFrame "#". iMod "H4". iApply "Hclose".
-             iLeft. iFrame. auto.
+          -- iIntros (_) "H2". iFrame. iExists i. iFrame "#".
+             iDestruct "H3" as "[_ >_]". iMod "H4". iApply "Hclose".
+             iLeft. iFrame.
     - iPureIntro. iIntros (rho') "[% [_ H]]".
       unfold PROPx, LOCALx, SEPx; simpl. normalize. rewrite sepcon_comm. auto.
   Qed.
@@ -473,7 +474,7 @@ Definition t_lock := Tstruct _atom_int noattr.
       do 3 (iSplit; auto). unfold lock_inv. iDestruct "H2" as "(% & H2)". admit.
     - iPureIntro. intros. Intros.
       unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
-      normalize. iIntros "H". auto.
+      entailer!.
   Abort.
 
 End PROOFS.

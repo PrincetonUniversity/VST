@@ -1697,11 +1697,11 @@ Qed.
 Ltac ghost_alloc G :=
   match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
     rewrite <- (emp_sepcon R1) at 1; Intros; viewshift_SEP 0 (EX g : _, G g);
-  [go_lowerx; eapply derives_trans, bupd_fupd; rewrite ?emp_sepcon;
+  [go_lowerx; eapply derives_trans; [|unseal_derives; apply fupd.bupd_fupd]; rewrite ?emp_sepcon;
    apply own_alloc; auto; simpl; auto with init share ghost|] end.
 
 Ltac ghosts_alloc G n :=
   match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
     rewrite <- (emp_sepcon R1) at 1; Intros; viewshift_SEP 0 (EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg);
-  [go_lowerx; eapply derives_trans, bupd_fupd; rewrite ?emp_sepcon;
+  [go_lowerx; eapply derives_trans; [|unseal_derives; apply fupd.bupd_fupd]; rewrite ?emp_sepcon;
    apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.

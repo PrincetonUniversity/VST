@@ -227,7 +227,7 @@ Proof.
     unfold atomic_shift.
     iIntros "[[#I g1] g2]"; iAuIntro.
     rewrite /atomic_acc /=.
-    iInv "I" as ">c" "H"; first set_solver.
+    iInv "I" as ">c" "H".
     iDestruct "c" as (x y) "[gs c]"; iExists (x + y)%nat; iFrame "c".
     iApply fupd_mask_intro; first set_solver.
     iIntros "mask"; iSplit.

@@ -7,7 +7,7 @@ Import List.
 
 (* Lemmas about ghost state, proved with Iris bupd *)
 
-Instance unfash_persistent P : Persistent (alg_seplog.unfash P).
+#[export] Instance unfash_persistent P : Persistent (alg_seplog.unfash P).
 Proof.
   change unfash with (@subtypes.unfash rmap _ _).
   constructor; intros ??; hnf.
