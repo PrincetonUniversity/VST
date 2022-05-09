@@ -33,25 +33,17 @@ Proof.
 start_function.
 forward_call (malloc_spec_sub t) gv.
 Intros p.
-if_tac.
-{ subst.
-  forward_if False.
-  - forward_call 1. contradiction.
-  - congruence. }
-forward_if True.
-+ contradiction.
-+ forward. entailer!.
-+ forward. Exists p. entailer!.
+if_tac; [ forward_if False | forward_if True ].
+all: finish.
 Qed.
 
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new Pile_new_spec.
 Proof.
 start_function.
 forward_call (tpile, gv).
-Intros p.
-repeat step!.
+fastforward.
 unfold pilerep, listrep, pile_freeable.
-repeat step!.
+finish.
 Qed.
 
 Lemma body_Pile_add: semax_body PileVprog PileGprog f_Pile_add Pile_add_spec.
@@ -61,10 +53,7 @@ forward_call (tlist, gv).
 Intros q.
 unfold pilerep.
 Intros head.
-forward.
-forward.
-forward.
-forward.
+fastforward.
 unfold pilerep.
 Exists q.
 unfold listrep at 2; fold listrep.
