@@ -195,21 +195,21 @@ Require Import ZArith.
 Import Binary Zaux Generic_fmt.
 
 Lemma binary_normalize_inj:
-  forall s1 m1 e1 (h1 : bounded 24 128 m1 e1 = true),
-  forall s2 m2 e2 (h2 : bounded 24 128 m2 e2 = true),
-   binary_normalize 53 1024 (eq_refl _) (eq_refl _) mode_NE (cond_Zopp s1 (Zpos m1)) e1 s1 =
-   binary_normalize 53 1024 (eq_refl _) (eq_refl _) mode_NE (cond_Zopp s2 (Zpos m2)) e2 s2 ->
+  forall s1 m1 e1 (h1 : SpecFloat.bounded 24 128 m1 e1 = true),
+  forall s2 m2 e2 (h2 : SpecFloat.bounded 24 128 m2 e2 = true),
+   binary_normalize 53 1024 (eq_refl _) (eq_refl _) BSN.mode_NE (cond_Zopp s1 (Zpos m1)) e1 s1 =
+   binary_normalize 53 1024 (eq_refl _) (eq_refl _) BSN.mode_NE (cond_Zopp s2 (Zpos m2)) e2 s2 ->
   B754_finite 24 128 s1 m1 e1 h1 = B754_finite 24 128 s2 m2 e2 h2.
 Proof.
 intros s1 m1 e1 h1 s2 m2 e2 h2 Hn.
 apply B2R_inj ; try easy.
 assert (H: forall s m e h,
   B2R 24 128 (B754_finite 24 128 s m e h) =
-  B2R 53 1024 (binary_normalize 53 1024 (eq_refl _) (eq_refl _) mode_NE (cond_Zopp s (Zpos m)) e s)).
+  B2R 53 1024 (binary_normalize 53 1024 (eq_refl _) (eq_refl _) BSN.mode_NE (cond_Zopp s (Zpos m)) e s)).
 2: now rewrite 2!H, Hn.
 clear.
 intros s m e h.
-generalize (binary_normalize_correct 53 1024 (eq_refl _) (eq_refl _) mode_NE (cond_Zopp s (Zpos m)) e s).
+generalize (binary_normalize_correct 53 1024 (eq_refl _) (eq_refl _) BSN.mode_NE (cond_Zopp s (Zpos m)) e s).
 rewrite round_generic ; auto with typeclass_instances.
 rewrite Raux.Rlt_bool_true.
 intros [-> _].
@@ -231,20 +231,20 @@ Qed.
 
 Lemma binary_normalize_finite:
   forall b m e,
-  bounded (23 + 1) (2 ^ (8 - 1)) m e = true ->
+  SpecFloat.bounded (23 + 1) (2 ^ (8 - 1)) m e = true ->
  match
-     binary_normalize 53 1024 eq_refl eq_refl mode_NE
+     binary_normalize 53 1024 eq_refl eq_refl BSN.mode_NE
           (cond_Zopp b (Z.pos m)) e b
  with B754_finite _ _ _ _ => True | _ => False
  end.
 Proof.
 intros s m e h.
-generalize (binary_normalize_correct 53 1024 (eq_refl _) (eq_refl _) mode_NE (cond_Zopp s (Zpos m)) e s).
+generalize (binary_normalize_correct 53 1024 (eq_refl _) (eq_refl _) BSN.mode_NE (cond_Zopp s (Zpos m)) e s).
 rewrite round_generic ; auto with typeclass_instances.
 rewrite Raux.Rlt_bool_true.
 (****)
 intros [H _].
-assert (H': B2R 53 1024 (binary_normalize 53 1024 eq_refl eq_refl mode_NE (cond_Zopp s (Z.pos m)) e s) <> 0%R).
+assert (H': B2R 53 1024 (binary_normalize 53 1024 eq_refl eq_refl BSN.mode_NE (cond_Zopp s (Z.pos m)) e s) <> 0%R).
   rewrite H, <- (Float_prop.F2R_0 radix2 e).
   case s.
 (* This code worked until CompCert 3.5,
