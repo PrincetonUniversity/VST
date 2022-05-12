@@ -4,6 +4,12 @@ Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
 Require Import stdlib.
 Require Import spec_stdlib.
 
+Require VST.veric.version.
+Lemma version_test: False.
+ assert (VST.veric.version.compcert_version = stdlib.Info.version) by reflexivity.
+ assert (VST.veric.version.bitsize = stdlib.Info.bitsize) by reflexivity.
+Abort.
+
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Parameter M: MallocFreeAPD.
