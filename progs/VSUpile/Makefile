@@ -88,7 +88,7 @@ ifneq ($(COMPCERT_SRC_DIR),__NONE__)
   ARCH ?= x86
   BITSIZE ?= 32
 else
-  include $(COMPCERT_INST_DIR)/compcert.config
+  -include $(COMPCERT_INST_DIR)/compcert.config
   ifneq ($(BITSIZE),)
     ifneq ($(BITSIZE),$(COMPCERT_BITSIZE))
       $(warning The compcert found in $(COMPCERT_INST_DIR) has bitsize $(COMPCERT_BITSIZE) but you requested $(BITSIZE))
