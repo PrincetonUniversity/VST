@@ -91,7 +91,7 @@ else
   include $(COMPCERT_INST_DIR)/compcert.config
   ifneq ($(BITSIZE),)
     ifneq ($(BITSIZE),$(COMPCERT_BITSIZE))
-      $(error The compcert found in $(COMPCERT_INST_DIR) has bitsize $(COMPCERT_BITSIZE) but you requested $(BITSIZE))
+      $(warning The compcert found in $(COMPCERT_INST_DIR) has bitsize $(COMPCERT_BITSIZE) but you requested $(BITSIZE))
     endif
   else
     BITSIZE = $(COMPCERT_BITSIZE)
@@ -99,7 +99,7 @@ else
 
   ifneq ($(ARCH),)
     ifneq ($(ARCH),$(COMPCERT_ARCH))
-      $(error The compcert found in $(COMPCERT_INST_DIR) has bitsize $(COMPCERT_ARCH) but you requested $(ARCH))
+      $(warning The compcert found in $(COMPCERT_INST_DIR) has architecture $(COMPCERT_ARCH) but you requested $(ARCH))
     endif
   else
     ARCH = $(COMPCERT_ARCH)
