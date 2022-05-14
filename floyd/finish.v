@@ -35,7 +35,7 @@ Ltac2 rec simpl_entailment_aux (part : constr) :=
   | exp _ => ()
   | allp _ => ()
   | _ =>
-    let p := Fresh.in_goal (Option.get (Ident.of_string "part")) in
+    let p := Fresh.in_goal @part in
     set (p := $part);
     simpl in p;
     subst p
@@ -230,25 +230,25 @@ Ltac2 simpl_hyps () := Control.enter (fun () =>
       ltac1:(H |- contradiction H) (Ltac1.of_constr h); fin_log "contradiction H."
     | [ h : _ /\ _ |- _ ] =>
       (* Based on stdpp solution to bug: https://coq.inria.fr/bugs/show_bug.cgi?id=2901 *)
-      let h_1 := Fresh.in_goal ident:(H_1) in
-      let h_2 := Fresh.in_goal ident:(H_2) in
+      let h_1 := Fresh.in_goal @H_1 in
+      let h_2 := Fresh.in_goal @H_2 in
       destruct h as [h_1 h_2]; try (clear h); fin_log "destruct and in H."
     | [ h : _ \/ _ |- _ ] =>
-      let h' := Fresh.in_goal ident:(H') in
+      let h' := Fresh.in_goal @H' in
       destruct h as [ h' | h' ]; try (clear h); fin_log "destruct or in H."
     | [ h_1 : ?p -> ?q, h_2 : ?p |- _ ] =>
       let h_1 := Control.hyp h_1 in
       let h_2 := Control.hyp h_2 in
       specialize ($h_1 $h_2); fin_log "specialize (H_1 H_2)."
     | [ h : exists _, _ |- _ ] =>
-      let x := Fresh.in_goal ident:(x) in
+      let x := Fresh.in_goal @x in
       destruct h as [x hx]; try (clear h); fin_log "destruct exists in H."
     | [ h : andb _ _ = true |- _ ] => rewrite andb_true_iff in h; fin_log "rewrite andb_true_iff in H."
     | [ h : andb _ _ = false |- _ ] => rewrite andb_false_iff in h; fin_log "rewrite andb_false_iff in H."
     | [ h : orb _ _ = true |- _ ] => rewrite orb_true_iff in h; fin_log "rewrite orb_true_iff in H."
     | [ h : orb _ _ = false |- _ ] => rewrite orb_false_iff in h; fin_log "rewrite orb_false_iff in H."
-    | [ h : context [Is_true] |- _ ] => rewrite Is_true_eq_true in h; fin_log "rewrite Is_true_eq_true in H."
-    | [ |- context [_ |-- _] ] => progress ltac1:(autorewrite with sublist in * |-); fin_log "autorewrite with * |-."
+    | [ h : context [ Is_true ] |- _ ] => rewrite Is_true_eq_true in h; fin_log "rewrite Is_true_eq_true in H."
+    | [ |- context [ _ |-- _ ] ] => progress ltac1:(autorewrite with sublist in * |-); fin_log "autorewrite with sublist in * |-."
     end
   )).
 

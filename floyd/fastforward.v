@@ -26,22 +26,15 @@ Ltac2 fastforward_ss () :=
   [ progress ltac1:(Intros *); ff_log "Intros *."
   | progress (ltac1:(simpl_implicit)); ff_log "simpl_implicit."
   | progress ltac1:(fold_Vbyte); ff_log "fold_Vbyte"
-  | first
-    [ ltac1:(EExists_unify); ff_log "EExists_unify."
-    | ltac1:(EExists); ff_log "EExists."
-    ]
   | progress ltac1:(fastforward_semax_pre_simpl)
   | ltac1:(forward); ff_log "forward."
   | ltac1:(forward_if); ff_log "forward_if."
   | ltac1:(forward_call); ff_log "forward_call."
   | ltac1:(cstring1); ff_log "cstring1."
-  | ltac1:(progress_entailer); ff_log "progress_entailer."
   | progress ltac1:(autorewrite with norm); ff_log "autorewrite with norm."
-  (*| match goal with |- ENTAIL _, _ |-- _ =>  go_lower end; idtac "go_lower."*)
   | progress ltac1:(autorewrite with sublist in * |-); ff_log "autorewrite with sublist in * |-."
   | progress ltac1:(autorewrite with sublist); ff_log "autorewrite with sublist."
   | progress ltac1:(fastforward_semax_post_simpl)
-  (* | lazy_match! goal with [ |- context [if _ then _ else _] ] => ltac1:(if_tac) end; print (of_string "if_tac.") *)
   ].
 
 Ltac2 fastforward_ss' () :=
@@ -53,18 +46,11 @@ Ltac2 fastforward_ss' () :=
   | progress ltac1:(autorewrite with norm); ff_log "autorewrite with norm."
   | progress ltac1:(autorewrite with sublist); ff_log "autorewrite with sublist."
   | progress ltac1:(autorewrite with sublist in * |-); ff_log "autorewrite with sublist in * |-."
-  | first
-    [ ltac1:(EExists_unify); ff_log "EExists_unify."
-    | ltac1:(EExists); ff_log "EExists."
-    ]
   | ltac1:(cstring1); ff_log "cstring1."
   | ltac1:(forward); ff_log "forward."
   | ltac1:(forward_if); ff_log "forward_if."
   | ltac1:(forward_call); ff_log "forward_call."
-  | ltac1:(progress_entailer); ff_log "progress_entailer."
-  (*| match goal with |- ENTAIL _, _ |-- _ =>  go_lower end; idtac "go_lower."*)
   | progress ltac1:(fastforward_semax_post_simpl)
-  (* | lazy_match! goal with [ |- context [if _ then _ else _] ] => ltac1:(if_tac) end; print (of_string "if_tac.") *)
   ].
 
 Ltac2 simplstep (agro : bool) := Control.enter (fun () =>
@@ -92,28 +78,72 @@ Ltac2 simplstep (agro : bool) := Control.enter (fun () =>
     )
   end).
 
-Ltac2 fastforward (agro : bool) :=
-  progress (repeat (lazy_match! goal with
-  | [ |- semax _ _ _ _ ] => simplstep agro
-  | [ |- _ ] => ltac1:(clear_MORE_POST)
-  end)).
+Ltac2 fastforward (agro : bool) := 
+  progress (repeat (Control.enter(fun () =>
+    lazy_match! goal with
+    | [ |- semax _ _ _ _ ] => simplstep agro
+    | [ |- _ ] => ltac1:(clear_MORE_POST)
+    end))).
 
-Ltac2 fastforward_n (agro : bool) (n : int) :=
-  do n (lazy_match! goal with
-  | [ |- semax _ _ ?cmds _ ] => simplstep agro
-  | [ |- _ ] => ltac1:(clear_MORE_POST)
-  end).
+Ltac2 rec fastforward_n (agro : bool) (n : int) :=
+  match Int.equal n 0 with
+  | true => Control.enter (fun () =>
+    lazy_match! goal with
+    | [ |- semax _ _ _ _ ] => ()
+    | [ |- _ ] => ltac1:(clear_MORE_POST)
+    end)
+  | false =>
+    let f := { contents := false } in
+    Control.enter(fun () =>
+      lazy_match! goal with
+      | [ |- semax _ _ _ _ ] => simplstep agro; f.(contents) := true
+      | [ |- _ ] => ()
+      end
+    );
+    match f.(contents) with
+    | true => fastforward_n agro (Int.sub n 1)
+    | false => Control.zero (Tactic_failure (Some (Message.of_string "`n` is too large")))
+    end
+  end.
 
 Tactic Notation "fastforward" := ltac2:(fastforward false).
 Tactic Notation "fastforward" integer(n) :=
-  do n (lazymatch goal with
-  | |- semax _ _ ?cmds _ => ltac2:(simplstep false)
+  let step := idtac; ltac2:(
+    let f := { contents := false } in
+    Control.enter(fun () =>
+      lazy_match! goal with
+      | [ |- semax _ _ _ _ ] => simplstep false; f.(contents) := true
+      | [ |- _ ] => ()
+      end
+    );
+    match f.(contents) with
+    | true => ()
+    | false => Control.zero (Tactic_failure (Some (Message.of_string "`n` is too large")))
+    end
+  ) in 
+  do n step;
+  lazymatch goal with
+  | |- semax _ _ _ _ => idtac
   | |- _ => clear_MORE_POST
-  end).
+  end.
 
 Tactic Notation "fastforward!" := ltac2:(fastforward true).
 Tactic Notation "fastforward!" integer(n) :=
-  do n (lazymatch goal with
-  | |- semax _ _ ?cmds _ => ltac2:(simplstep true)
+  let step := idtac; ltac2:(
+    let f := { contents := false } in
+    Control.enter(fun () =>
+      lazy_match! goal with
+      | [ |- semax _ _ _ _ ] => simplstep true; f.(contents) := true
+      | [ |- _ ] => ()
+      end
+    );
+    match f.(contents) with
+    | true => ()
+    | false => Control.zero (Tactic_failure (Some (Message.of_string "`n` is too large")))
+    end
+  ) in 
+  do n step;
+  lazymatch goal with
+  | |- semax _ _ _ _ => idtac
   | |- _ => clear_MORE_POST
-  end).
+  end.
