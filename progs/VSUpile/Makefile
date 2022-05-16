@@ -28,7 +28,6 @@ CFLAGS=-O
 
 # BEGINNING OF LOGIC TO HANDLE BUNDLED=true OPTION
 # Most of this is based on ../../Makefile, and documented there
-COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 -include CONFIGURE
 ifeq ($(BUNDLED),true)
 -include ../../CONFIGURE
@@ -39,6 +38,8 @@ COMPCERT_EXPLICIT_PATH = true
 COMPCERT_BUILD_FROM_SRC = false
 ifeq ($(COMPCERT),platform)
   # Platform supplied CompCert
+  COQLIB=$(shell coqc -where | tr -d '\r' | tr '\\' '/')
+  $(info COQLIB=$(COQLIB))
   ifeq ($(BITSIZE),)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
     COMPCERT_EXPLICIT_PATH = false
