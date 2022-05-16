@@ -28,6 +28,7 @@ CFLAGS=-O
 
 # BEGINNING OF LOGIC TO HANDLE BUNDLED=true OPTION
 # Most of this is based on ../../Makefile, and documented there
+COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 -include CONFIGURE
 ifeq ($(BUNDLED),true)
 -include ../../CONFIGURE
