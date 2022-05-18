@@ -56,98 +56,13 @@ Qed.
 
 Lemma wsat_alloc : forall P, wsat * |> P |-- (|==> wsat * EX N : _, inv N P)%I.
 Proof.
-  intros; iIntros "[wsat P]".
-  unfold wsat.
-  iDestruct "wsat" as (l lg lb) "((((% & inv) & dis) & en) & I)".
-  iMod (own_alloc(RA := unit_PCM) tt (pred_of P) with "[$]") as (g) "agree"; first (simpl; auto).
-  replace (own(RA := unit_PCM) g () (pred_of P)) with (agree g P) by reflexivity.
-  rewrite agree_dup.
-  iDestruct "agree" as "[agree1 agree2]".
-  iMod (own_update_ND(RA := list_PCM token_PCM) _ _ (fun l => exists i, l =
-      map (fun o => match o with Some true => Some (Some tt) | _ => None end)
-          ((lb ++ repeat None i) ++ [Some true])) with "dis") as (disb) "[% dis]".
-  { intros ? (? & ? & _).
-    exists (map (fun o => match o with Some true => Some (Some tt) | _ => None end)
-      ((lb ++ repeat None (length x - length lb)) ++ [Some true])).
-    split; [eauto|].
-    exists (x ++ [Some (Some tt)]); split; simpl; auto.
-    erewrite !map_app, own.map_repeat; simpl.
-    pose proof (list_join_length _ _ _ H0) as Hlen.
-    rewrite map_length in Hlen.
-    apply join_comm in H0.
-    pose proof (list_join_length _ _ _ H0) as Hlen'.
-    apply (join_comm(Perm_alg := list_Perm)), (list_join_over c).
-    { erewrite app_length, map_length, repeat_length, le_plus_minus_r; auto. }
-    apply (join_comm(Perm_alg := list_Perm)), (list_join_filler(P := token_PCM));
-      [|rewrite map_length; auto].
-    apply join_comm in H0; auto. }
-  destruct H0 as [i ?]; subst.
-  destruct H.
-  assert (Zlength lg = Zlength l) as Hlg by (apply Zlength_eq; auto).
-  assert (Zlength lb = Zlength l) as Hlb by (apply Zlength_eq; auto).
-  iMod (master_update(ORD := list_order _) _
-        (map (fun j => match Znth j ((lb ++ repeat None i) ++ [Some true]) with
-                       | Some _ => Some (Znth j ((lg ++ repeat O i) ++ [g]))
-                       | None => None
-                       end) (sublist.upto (length ((l ++ repeat emp i) ++ [P])))) with "inv") as "inv".
-  { rewrite <- !app_assoc, app_length, sublist.upto_app, map_app.
-    split.
-    { erewrite app_length, !map_length; lia. }
-    intros ?? Hn.
-    erewrite app_nth, map_length.
-    if_tac; [|erewrite nth_overflow in Hn by (rewrite map_length; lia); discriminate].
-    erewrite nth_map' with (d' := 0) in * by auto.
-    erewrite sublist.upto_length in *.
-    assert (Z.of_nat n < Zlength l).
-    { rewrite Zlength_correct; apply Nat2Z.inj_lt; auto. }
-    erewrite nth_upto in * by auto.
-    erewrite !app_Znth1 by lia; auto. }
-  iMod (make_snap(ORD := list_order _) with "inv") as "[snap inv]".
-  iMod (ghost_snap_forget(ORD := list_order _) (list_singleton (length lg + i) g) with "snap") as "snap".
-  { apply list_incl_singleton.
-    erewrite app_length, upto_app, map_app, app_nth2; erewrite map_length, upto_length, app_length,
-      repeat_length; try lia.
-    replace (_ - _)%nat with O by lia; simpl.
-    rewrite Nat2Z.inj_add Z.add_0_r.
-    rewrite !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat, <- Zlength_correct; try lia.
-    replace (_ - _) with 0 by lia; replace (_ - _) with 0 by lia; auto. }
-  iModIntro; iSplitR "agree2 snap".
-  - iExists ((l ++ repeat emp i) ++ [P]), ((lg ++ repeat O i) ++ [g]),
-         ((lb ++ repeat None i) ++ [Some true]).
-    erewrite !(app_length (_ ++ _)); simpl.
-    erewrite !iter_sepcon_eq, sublist.upto_app, iter_sepcon_app; simpl.
-    erewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat; try lia.
-    erewrite Hlg, Hlb, Zminus_diag, !Znth_0_cons.
-    erewrite predicates_hered.prop_true_andp by (erewrite !app_length, !repeat_length; lia).
-    iFrame.
-    iSplitL "en".
-    + erewrite Ensembles.Extensionality_Ensembles at 1; [iApply "en"|].
-      constructor; intros ? X; unfold Ensembles.In in *.
-      * destruct (lt_dec x (length lb)).
-      rewrite !app_nth app_length.
-      destruct (lt_dec _ _); [|lia].
-      destruct (lt_dec _ _); [auto | lia].
-      { rewrite -> nth_overflow in X by lia; discriminate. }
-      * rewrite !app_nth nth_repeat in X.
-      repeat destruct (lt_dec _ _); auto; try discriminate.
-      destruct (x - _)%nat; [|destruct n0]; inv X.
-    + erewrite app_length, upto_app, iter_sepcon_app.
-      rewrite <- sepcon_emp at 1; iDestruct "I" as "[I emp]".
-      iSplitL "I".
-      * erewrite iter_sepcon_func_strong; [iApply "I"|].
-        intros ??%In_upto.
-        rewrite <- Zlength_correct in *.
-        rewrite <- !app_assoc, !app_Znth1 by (rewrite ?Zlength_app; lia); auto.
-      * rewrite iter_sepcon_emp'; auto.
-        intros ? Hin.
-        eapply in_map_iff in Hin as (? & ? & Hin%In_upto); subst.
-        rewrite <- Zlength_correct, coqlib4.Zlength_repeat in Hin.
-        rewrite <- Zlength_correct, <- app_assoc, app_Znth2 by lia.
-        erewrite app_Znth1, Znth_repeat'; auto; try lia.
-        rewrite coqlib4.Zlength_repeat; lia.
-  - unfold inv. iExists (nroot .@ (Pos.of_nat (S (length l + i))))%nat; unfold invariant.
-    iExists (length l + i)%nat; iSplit; auto.
-    iExists g; rewrite H; iFrame.
+  intros.
+  eapply derives_trans; [unseal_derives; apply wsat_alloc|].
+  unfold inv.
+  match goal with |- context[(|==> ?P)%pred] => change (|==> P)%pred with (|==> (P : mpred))%I end.
+  iIntros ">[$ I]".
+  iDestruct "I" as (i) "I".
+  iExists _, i; iFrame; eauto.
 Qed.
 
 Lemma agree_join : forall g P1 P2, agree g P1 * agree g P2 |-- (|> P1 -* |> P2) * agree g P1.
@@ -308,8 +223,6 @@ Proof.
     apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia.
   - unfold Ensembles.In; auto.
 Qed.
-
-(* Consider putting rules for invariants in msl/ghost_seplog.v. *)
 
 End Invariants.
 

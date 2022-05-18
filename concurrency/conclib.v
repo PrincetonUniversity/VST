@@ -349,6 +349,19 @@ Qed. *)
 #[export] Hint Resolve lock_inv_exclusive selflock_exclusive cond_var_exclusive data_at_exclusive
   data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec : core.
 
+Lemma wsat_fupd : forall E P Q, (invariants.wsat * P |-- |==> invariants.wsat * Q) -> P |-- fupd.fupd E E Q.
+Proof.
+  intros; unfold fupd.
+  unseal_derives.
+  rewrite <- predicates_sl.wand_sepcon_adjoint.
+  rewrite <- predicates_sl.sepcon_assoc; eapply predicates_hered.derives_trans.
+  { apply predicates_sl.sepcon_derives, predicates_hered.derives_refl.
+    rewrite predicates_sl.sepcon_comm; apply H. }
+  eapply predicates_hered.derives_trans; [apply own.bupd_frame_r | apply own.bupd_mono].
+  apply predicates_hered.orp_right2.
+  setoid_rewrite (predicates_sl.sepcon_comm _ Q).
+  rewrite <- predicates_sl.sepcon_assoc; apply predicates_hered.derives_refl.
+Qed.
 
 (* shares *)
 Lemma LKspec_readable lock_size :
@@ -456,6 +469,15 @@ eapply (semax_fun_id'' _f); try reflexivity.
 Ltac start_dep_function := start_function.
 
 (* Notations for dependent funspecs *)
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2) =>
+     match x with (x1,x2) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2) =>
+     match x with (x1,x2) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0,
+             P at level 100, Q at level 100).
+
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
   (fun (ts: list Type) (x: t1*t2) =>

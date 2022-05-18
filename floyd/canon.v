@@ -171,6 +171,15 @@ Proof.
   apply approx_andp.
 Qed.
 
+Lemma approx_orp: forall (P Q: mpred) n,
+  compcert_rmaps.RML.R.approx n (P || Q) =
+  compcert_rmaps.RML.R.approx n P ||
+  compcert_rmaps.RML.R.approx n Q.
+Proof.
+  intros.
+  apply approx_orp.
+Qed.
+
 Lemma approx_exp: forall A (P: A -> mpred) n,
   compcert_rmaps.RML.R.approx n (exp P) =
   EX a: A, compcert_rmaps.RML.R.approx n (P a).

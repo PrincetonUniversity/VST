@@ -2,20 +2,29 @@
 #include <pthread.h>
 #include "threads.h"
 
-/* gcc -Wall -pthread */
+lock_t* makelock(void) {
+    return make_atomic(1);
+}
 
-void makelock(void *lock) {
-  pthread_mutex_init((pthread_mutex_t*)lock, NULL);
-  pthread_mutex_lock((pthread_mutex_t*)lock);
+void freelock(lock_t *lock) {
+    free_atomic(lock);
+}
+
+void acquire(lock_t *lock) {
+    int b = 0;
+    int expected;
+    do {
+        expected = 0;
+        b = atom_CAS(lock, &expected, 1);
+    } while (b == 0);
+}
+
+void release(lock_t *lock) {
+    atom_store(lock, 0);
 }
 
 void freelock(void *lock) {
-  pthread_mutex_destroy((pthread_mutex_t*)lock);
-  return;
-}
-
-void acquire(void *lock) {
-  pthread_mutex_lock((pthread_mutex_t*)lock);
+  free_atomic(lock);
   return;
 }
 
@@ -44,6 +53,7 @@ void release2(void *lock) {
   return;
 }
 
+// is there a non-Pthread way we want to do this?
 void spawn(void* (*f)(void*), void* args) {
   pthread_t t;
   pthread_create(&t, NULL, f, args);

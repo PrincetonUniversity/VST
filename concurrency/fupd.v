@@ -186,19 +186,6 @@ Proof.
   iIntros ">P"; iApply H0; auto.
 Qed.
 
-(*Lemma wsat_fupd_elim' : forall E P, (wsat * ghost_set g_en (coPset_to_Ensemble E) * (|={E}=> P)%I |-- (|==> bi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E) * P)))%I.
-Proof.
-  intros; unfold updates.fupd, bi_fupd_fupd; simpl; unfold fupd.
-  apply modus_ponens_wand.
-Qed.
-
-Corollary wsat_fupd_elim : forall P, wsat * (|={empty}=> P)%I |-- (|==> bi_except_0 (wsat * P))%I.
-Proof.
-  intros; rewrite wsat_empty_eq.
-  replace Empty_set with (coPset_to_Ensemble empty); [apply wsat_fupd_elim'|].
-  apply Extensionality_Ensembles; constructor; intros ? X; inv X.
-Qed.*)
-
 Lemma bupd_except_0 : forall P, (|==> bi_except_0 P) |-- bi_except_0 (|==> P).
 Proof.
   intros; constructor; change (predicates_hered.derives (own.bupd (bi_except_0 P)) (bi_except_0 (own.bupd P : mpred))).
@@ -352,6 +339,19 @@ Proof.
   rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single Union_Readd; last done.
   iRight; iFrame; auto.
 Qed.
+
+#[export] Instance into_inv_cinv N γ P : IntoInv (cinv N g P) N := {}.
+
+#[export] Instance into_acc_cinv E N g P p :
+  IntoAcc (X:=unit) (cinv N g P)
+          (↑N ⊆ E) (own g p) (fupd E (E∖↑N)) (fupd (E∖↑N) E)
+          (λ _, ▷ P ∗ own g p)%I (λ _, ▷ P)%I (λ _, None)%I.
+Proof.
+  rewrite /IntoAcc /accessor. iIntros (?) "#Hinv Hown".
+  rewrite exist_unit -assoc.
+  iApply (cinv_acc with "Hinv"); done.
+Qed.
+
 
 End Invariants.
 

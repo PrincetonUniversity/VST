@@ -963,25 +963,11 @@ Proof.
     rewrite sepcon_comm, sepcon_assoc; auto.
 Qed.
 
-(*Lemma wsat_open_all : wsat * ghost_set g_en Full_set |--
-  |==> wsat * ghost_set g_en Empty_set *
-    (wsat * ghost_set g_en Empty_set -* |==> wsat * ghost_set g_en Full_set).
-Proof.
-  unfold wsat.
-  rewrite exp_sepcon1; apply exp_left; intros I.
-  rewrite exp_sepcon1; apply exp_left; intros lg.
-  rewrite exp_sepcon1; apply exp_left; intros lb.
-  rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [].
-  rewrite (sepcon_comm _ (iter_sepcon _ _)).
-  rewrite !sepcon_assoc, ghost_set_join.
-  rewrite !sepcon_andp_prop; apply prop_andp_left; intros.
-Admitted. (* should be provable *)*)
-
-(*Lemma wsat_open : forall i P,
-  (wsat * invariant i P * ghost_set g_en (Singleton _ i) |--
+Lemma wsat_open : forall i P,
+  (wsat * invariant i P * ghost_set g_en (Singleton i) |--
   |==> wsat * |> P * ghost_list g_dis (list_singleton i (Some tt))).
 Proof.
-  intros; unfold wsat, invariant.
+(*  intros; unfold wsat, invariant.
   iIntros "((H & inv1) & en1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".
   iAssert (!! (i < length lg /\ Znth (Z.of_nat i) lg = g /\
     exists b, Znth (Z.of_nat i) lb = Some b)%nat) as %Hi.
@@ -1053,9 +1039,10 @@ Proof.
       rewrite filter_In; split; [|rewrite Hi'; auto].
       apply in_seq; lia.
     + apply elem_of_singleton; auto.
-Qed.
+Qed.*)
+Admitted.
 
-(* up *)
+(*(* up *)
 Lemma replace_nth_same' : forall {A} n l (a d : A), nth n l d = a -> replace_nth n l a = l.
 Proof.
   intros; subst; apply replace_nth_same.

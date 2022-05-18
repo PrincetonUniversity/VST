@@ -1,9 +1,9 @@
+Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
-Require Import VST.concurrency.invariants.
+Require Import VST.concurrency.cancelable_invariants.
 Require Import VST.floyd.library.
 Require Import VST.atomics.SC_atomics.
-Require Import VST.atomics.general_atomics.
 Require Import VST.atomics.lock.
 
 Section PROOFS.
@@ -29,56 +29,158 @@ Definition t_lock := Tstruct _atom_int noattr.
   Definition atom_CAS_spec :=
     DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic_int_at).
 
-  Definition makelock_spec :=
+  Definition inv_for_lock v R := EX b, atomic_int_at Ews (Val.of_bool b) v * if b then emp else R.
+
+  Definition lock_inv sh i g v R := cinvariant i g (inv_for_lock v R) * cinv_own g sh.
+
+  Lemma lock_inv_share_join : forall sh1 sh2 sh3 i g v R, sepalg.join sh1 sh2 sh3 ->
+    lock_inv sh1 i g v R * lock_inv sh2 i g v R = lock_inv sh3 i g v R.
+  Proof.
+    intros; unfold lock_inv, cinvariant.
+    rewrite <- !sepcon_assoc, (sepcon_comm (_ * cinv_own _ _)), !sepcon_assoc.
+    unfold cinv_own at 3 4; erewrite <- own_op by eauto.
+    rewrite <- sepcon_assoc; f_equal.
+    symmetry; apply invariants.invariant_dup.
+  Qed.
+
+  Lemma lock_inv_super_non_expansive : forall sh i g v R n,
+    compcert_rmaps.RML.R.approx n (lock_inv sh i g v R) = compcert_rmaps.RML.R.approx n (lock_inv sh i g v (compcert_rmaps.RML.R.approx n R)).
+  Proof.
+    intros; unfold lock_inv.
+    rewrite !approx_sepcon; f_equal.
+    rewrite cinvariant_super_non_expansive; setoid_rewrite cinvariant_super_non_expansive at 2; do 2 f_equal.
+    rewrite !approx_exp; f_equal; extensionality.
+    rewrite !approx_sepcon; f_equal.
+    destruct x; auto.
+    rewrite approx_idem; auto.
+  Qed.
+
+  Program Definition makelock_spec :=
     DECLARE _makelock
-    WITH gv: globals
-    PRE []
+    TYPE (ProdType (ConstType globals) Mpred) WITH gv: globals, R : mpred
+    PRE [ ]
        PROP ()
        PARAMS () GLOBALS (gv)
        SEP (mem_mgr gv)
-    POST [ tptr t_lock ] EX p: val,
+    POST [ tptr t_lock ] EX p i g,
        PROP ()
        RETURN (p)
-       SEP (mem_mgr gv; atomic_int_at Ews (vint 1) p).
+       SEP (mem_mgr gv; lock_inv Tsh i g p R).
+  Next Obligation.
+  Proof.
+    repeat intro.
+    destruct x; simpl.
+    reflexivity.
+  Qed.
+  Next Obligation.
+  Proof.
+    repeat intro.
+    destruct x; simpl.
+    rewrite !approx_exp; f_equal; extensionality.
+    rewrite !approx_exp; f_equal; extensionality.
+    rewrite !approx_exp; f_equal; extensionality.
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 2 f_equal;
+      rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal; apply lock_inv_super_non_expansive.
+  Qed.
 
-  Definition freelock_spec :=
+  Program Definition freelock_spec :=
     DECLARE _freelock
-    WITH p : val
+    TYPE (ProdType (ConstType _) Mpred)
+    WITH i : _, g : _, p : val, R : mpred
     PRE [ tptr t_lock ]
      PROP ()
      PARAMS (p)
-     SEP (EX v : val, atomic_int_at Ews v p)
+     SEP (weak_exclusive_mpred R && emp; lock_inv Tsh i g p R; R)
    POST[ tvoid ]
      PROP ()
      LOCAL ()
-     SEP ().
+     SEP (R).
+  Next Obligation.
+  Proof.
+    repeat intro.
+    destruct x as (((?, ?), ?), ?); simpl.
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
+      rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal.
+    { apply (nonexpansive_super_non_expansive (fun R => weak_exclusive_mpred R && emp))%logic.
+      apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
+      - apply exclusive_mpred_nonexpansive.
+      - apply const_nonexpansive. }
+    f_equal; apply lock_inv_super_non_expansive.
+  Qed.
+  Next Obligation.
+  Proof.
+    repeat intro.
+    destruct x as (((?, ?), ?), ?); simpl.
+    unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
+      rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    reflexivity.
+  Qed.
+
+  (* Do we need mem_mgr? *)
+  Program Definition acquire_spec :=
+    DECLARE _acquire
+    TYPE (ProdType (ConstType _) Mpred)
+    WITH gv : globals, sh : _, i : _, g : _, p : _, R : mpred
+    PRE [ tptr t_lock ]
+       PROP (readable_share sh)
+       PARAMS (p) GLOBALS (gv)
+       SEP (mem_mgr gv; lock_inv sh i g p R)
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (mem_mgr gv; lock_inv sh i g p R; R).
+  Next Obligation.
+  Proof.
+    repeat intro.
+    destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
+      rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal; apply lock_inv_super_non_expansive.
+  Qed.
+  Next Obligation.
+  Proof.
+    repeat intro.
+    destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
+    unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
+      rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    do 2 f_equal. apply lock_inv_super_non_expansive.
+  Qed.
 
   Program Definition release_spec :=
     DECLARE _release
-    ATOMIC TYPE (rmaps.ConstType _) INVS empty
-    WITH p, gv
+    TYPE (ProdType (ConstType _) Mpred)
+    WITH gv : globals, sh : _, i : _, g : _, p : _, R : mpred
     PRE [ tptr t_lock ]
-       PROP ()
+       PROP (readable_share sh)
        PARAMS (p) GLOBALS (gv)
-       SEP (mem_mgr gv) | (atomic_int_at Ews (vint 1) p)
+       SEP (mem_mgr gv; weak_exclusive_mpred R && emp; lock_inv sh i g p R; R)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mem_mgr gv) | (atomic_int_at Ews (vint 0) p).
-
-  Program Definition acquire_spec :=
-    DECLARE _acquire
-    ATOMIC TYPE (rmaps.ConstType _) OBJ l INVS empty
-    WITH p, gv
-    PRE [ tptr t_lock ]
-       PROP ()
-       PARAMS (p) GLOBALS (gv)
-       SEP (mem_mgr gv) | ((!! (l = true) && atomic_int_at Ews (vint 0) p) ||
-                           (!! (l = false) && atomic_int_at Ews (vint 1) p))
-    POST [ tvoid ]
-       PROP ()
-       LOCAL ()
-       SEP (mem_mgr gv) | (!! (l = true) && atomic_int_at Ews (vint 1) p).
+       SEP (mem_mgr gv; lock_inv sh i g p R).
+  Next Obligation.
+  Proof.
+    repeat intro.
+    destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
+      rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    do 2 f_equal.
+    { apply (nonexpansive_super_non_expansive (fun R => weak_exclusive_mpred R && emp))%logic.
+      apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
+      - apply exclusive_mpred_nonexpansive.
+      - apply const_nonexpansive. }
+    f_equal; apply lock_inv_super_non_expansive.
+  Qed.
+  Next Obligation.
+  Proof.
+    repeat intro.
+    destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
+    unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
+      rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal. apply lock_inv_super_non_expansive.
+  Qed.
 
   Definition Gprog : funspecs :=
     ltac:(with_library prog [make_atomic_spec; atom_store_spec; atom_CAS_spec;
@@ -90,28 +192,44 @@ Definition t_lock := Tstruct _atom_int noattr.
     start_function.
     forward_call (vint 1).
     Intros p.
+    viewshift_SEP 0 (EX i g, lock_inv Tsh i g p R).
+    { go_lower.
+      unfold lock_inv.
+      eapply derives_trans, cinv_alloc.
+      unfold inv_for_lock.
+      eapply derives_trans, now_later.
+      Exists true; cancel. }
+    simpl.
     forward.
-    Exists p.
-    entailer !.
+    Exists p i g; entailer!.
   Qed.
 
   Lemma body_freelock: semax_body Vprog Gprog f_freelock freelock_spec.
   Proof.
     start_function.
-    Intros v.
-    assert_PROP (is_pointer_or_null p) by entailer.
+    viewshift_SEP 1 (|> inv_for_lock p R).
+    { go_lower.
+      unfold lock_inv.
+      apply cinv_cancel. }
+    unfold inv_for_lock.
+    rewrite (later_exp' _ true); Intros b.
+    assert_PROP (is_pointer_or_null p) by entailer!.
     forward_call (p).
-    - Exists v. cancel.
-    - entailer !.
+    - EExists; cancel.
+    - destruct b; [entailer!|].
+      + apply andp_left2; auto.
+      + eapply derives_trans, FF_left.
+        entailer!.
+        apply weak_exclusive_conflict.
   Qed.
 
   Lemma body_release: semax_body Vprog Gprog f_release release_spec.
   Proof.
     start_function.
-    forward_call (p, (vint 0), top: coPset, empty: coPset, Q).
-    - assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H].
-      simpl fold_right_sepcon. cancel.
-      iIntros ">AS".
+    forward_call (p, (vint 0), @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname, lock_inv sh i g p R).
+    - unfold lock_inv.
+      subst Frame; instantiate (1 := [mem_mgr gv]); simpl fold_right_sepcon; cancel.
+(*      iIntros ">AS".
       iDestruct "AS" as (x) "[a [_ H]]".
       iExists Ews. iModIntro. iSplitL "a".
       + iSplit.
@@ -119,29 +237,27 @@ Definition t_lock := Tstruct _atom_int noattr.
         * iApply atomic_int_at__. iAssumption.
       + iIntros "AA".
         iPoseProof (sepcon_emp (atomic_int_at Ews (vint 0) p)) as "HA".
-        iSpecialize ("HA" with "AA"). iMod ("H" $! tt with "HA"). auto.
-    - entailer !.
-  Qed.
+        iSpecialize ("HA" with "AA"). iMod ("H" $! tt with "HA"). auto.*) admit.
+    - hnf; inversion 1.
+    - entailer!.
+  Admitted.
 
   Lemma body_acquire: semax_body Vprog Gprog f_acquire acquire_spec.
   Proof.
     start_function.
     forward.
-    set (AS := atomic_shift _ _ _ _ _).
     forward_loop (PROP ( )
                        LOCAL (temp _b (vint 0); lvar _expected tint v_expected;
                               gvars gv; temp _lock p)
-                       SEP (data_at_ Tsh tint v_expected; AS; mem_mgr gv)).
-    - entailer !.
+                       SEP (data_at_ Tsh tint v_expected; mem_mgr gv; lock_inv sh i g p R)).
+    - entailer!.
     - forward.
       forward_call
-        (p , Tsh, v_expected, (vint 0), (vint 1), top : coPset,
-            empty : coPset,
+        (p , Tsh, v_expected, (vint 0), (vint 1), @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname,
               fun v':val =>
-                if (eq_dec v' (vint 0)) then Q else AS).
-      + assert (Frame = [mem_mgr gv]); subst Frame; [ reflexivity | clear H].
-        simpl fold_right_sepcon. cancel.
-        iIntros ">AS". iExists Ews.
+                lock_inv sh i g p R * if (eq_dec v' (vint 0)) then R else emp).
+      + subst Frame; instantiate (1 := [mem_mgr gv]); simpl fold_right_sepcon; cancel.
+        (*iIntros ">AS". iExists Ews.
         iDestruct "AS" as (x) "[[a | a] H]".
         * iDestruct "H" as "[_ H]". iDestruct "a" as (a) "b".
           iExists (vint 0). iModIntro. iSplitL "b".
@@ -155,326 +271,11 @@ Definition t_lock := Tstruct _atom_int noattr.
           -- iDestruct "a" as (Hx) "a". iSplitL "a"; first auto. iIntros "AS".
              iMod ("H" with "[AS]").
              { iRight; iFrame; auto. }
-             iFrame; auto.
-      + Intros r. destruct (eq_dec r (vint 0)).
-        * forward_if. 1: exfalso; apply H'; auto. forward. entailer !.
-        * forward_if. 2: inversion H. forward. entailer !.
-  Qed.
-
-  Definition lock_inv (l: val) (R: mpred): mpred :=
-    EX i, inv i (atomic_int_at Ews (vint 0) l * R || atomic_int_at Ews (vint 1) l).
-
-  Lemma nonexpansive_lock_inv : forall p, nonexpansive (lock_inv p).
-  Proof.
-    intros.
-    unfold lock_inv.
-    apply @exists_nonexpansive; intros i.
-    apply inv_nonexpansive2.
-    apply @disj_nonexpansive.
-    - apply @sepcon_nonexpansive.
-      + apply _.
-      + apply const_nonexpansive.
-      + apply identity_nonexpansive.
-    - apply const_nonexpansive.
-  Qed.
-
-  Program Definition makelock_spec2: funspec :=
-    mk_funspec
-      (nil, tptr t_lock)
-      cc_default
-      (rmaps.ProdType (rmaps.ConstType (globals)) rmaps.Mpred)
-      (fun _ x =>
-         match x with
-         | (gv, R) =>
-             PROP ()
-                  PARAMS () GLOBALS (gv)
-                  SEP (mem_mgr gv)
-         end)%argsassert
-      (fun _ x =>
-         match x with
-         | (gv, R) =>
-             EX v, PROP ()
-                   LOCAL ()
-                   SEP (mem_mgr gv; |={⊤}=> lock_inv v R)
-         end)
-      _
-      _
-  .
-  Next Obligation.
-    intros. simpl in *.
-    unfold PROPx, LOCALx, SEPx; simpl.
-    rewrite -> 2approx_exp; f_equal; extensionality v.
-    rewrite !approx_andp; f_equal; f_equal.
-    rewrite !sepcon_emp !approx_sepcon; f_equal.
-    rewrite fupd_nonexpansive; setoid_rewrite fupd_nonexpansive at 2; f_equal; f_equal.
-    apply nonexpansive_super_non_expansive, nonexpansive_lock_inv.
-  Qed.
-
-  Lemma makelock_funspec_sub: funspec_sub (snd makelock_spec) makelock_spec2.
-  Proof.
-    apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as [gv R]. Intros.
-    iIntros "H !>". iExists nil, gv, emp. rewrite emp_sepcon. iSplit; auto.
-    iPureIntro. intros. Intros. rewrite emp_sepcon. Intros x.
-    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
-    rewrite <- !exp_andp2. normalize. rewrite <- exp_sepcon2.
-    iIntros "(% & H1 & H2)". iSplitL "H1"; auto. iExists x. rewrite sepcon_emp.
-    unfold lock_inv. iApply (make_inv with "H2"). apply orp_right2. cancel.
-  Qed.
-
-  Definition acquire_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * globals)) rmaps.Mpred.
-
-  Definition acquire_pre: val * globals * mpred -> argsEnviron -> mpred :=
-    fun args =>
-      match args with
-      | (v, gv, R) =>
-          PROP ()
-               PARAMS (v) GLOBALS (gv)
-               SEP (mem_mgr gv; lock_inv v R)
-      end%argsassert.
-
-  Notation acquire_post :=
-    (fun args =>
-       match args with
-       | (v, gv, R) =>
-           PROP ()
-                LOCAL ()
-                SEP (mem_mgr gv; lock_inv v R; |> R)
-       end).
-
-  Lemma NP_acquire_pre: @args_super_non_expansive acquire_arg_type (fun _ => acquire_pre).
-  Proof.
-    hnf.
-    intros.
-    destruct x as [[v gv] R]; simpl in *.
-    unfold PROPx. simpl. do 2 rewrite approx_andp. f_equal.
-    unfold LAMBDAx. do 2 rewrite approx_andp. f_equal.
-    unfold GLOBALSx, LOCALx. simpl. do 2 rewrite approx_andp. f_equal.
-    unfold argsassert2assert, SEPx. simpl. do 2 rewrite sepcon_emp.
-    do 2 rewrite approx_sepcon. f_equal.
-    apply nonexpansive_super_non_expansive. apply nonexpansive_lock_inv.
-  Qed.
-
-  Lemma NP_acquire_post: @super_non_expansive acquire_arg_type (fun _ => acquire_post).
-  Proof.
-    hnf.
-    intros.
-    destruct x as [[v gv] R]; simpl in *.
-    apply (nonexpansive_super_non_expansive
-             (fun R => (PROP ()  LOCAL ()  SEP (mem_mgr gv; lock_inv v R; |> R)) rho)).
-    apply (PROP_LOCAL_SEP_nonexpansive
-             nil
-             nil
-             ((fun R: mpred => mem_mgr gv) :: (fun R => lock_inv v R) :: (fun R => |> R) :: nil));
-      constructor.
-    - apply const_nonexpansive.
-    - constructor.
-      + apply nonexpansive_lock_inv.
-      + constructor; [apply later_nonexpansive' | constructor].
-  Qed.
-
-  Definition acquire_spec2: funspec := mk_funspec
-                                        (tptr t_lock :: nil, tvoid)
-                                        cc_default
-                                        acquire_arg_type
-                                        (fun _ => acquire_pre)
-                                        (fun _ => acquire_post)
-                                        NP_acquire_pre
-                                        NP_acquire_post.
-
-  Hypothesis atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p).
-  Existing Instance atomic_int_timeless.
-
-  Lemma acquire_funspec_sub: funspec_sub (snd acquire_spec) acquire_spec2.
-  Proof.
-    apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as [[v gv] R]. Intros.
-    unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
-    iExists (((v, gv), lock_inv v R * |> R)), emp. simpl in *.
-    rewrite emp_sepcon. iSplit.
-    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. normalize.
-      iDestruct "H" as "(% & H1 & H2 & H3)". iSplit.
-      + iPureIntro. auto.
-      + iSplit; auto. unfold argsassert2assert. iSplitL "H3"; auto. unfold lock_inv.
-        iDestruct "H3" as (i) "# H". unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
-        iInv "H" as "inv" "Hclose".
-        iDestruct "inv" as "[[> H1 R]|> H1]".
-        * iApply fupd_mask_intro; try set_solver. iIntros "H2". iExists true.
-          normalize. iSplitL "H1".
-          -- iLeft; auto.
-          -- iSplit.
-             ++ iIntros "[H1 | [% H3]]". 2: exfalso; inversion H1.
-                 iMod "H2". iApply "Hclose". iLeft; iFrame; auto.
-             ++ iIntros (_) "H1". iMod "H2". iExists i. iFrame "#". iFrame. iApply "Hclose".
-                iRight. iFrame. auto.
-        * iExists false. iApply fupd_mask_intro; try set_solver. iIntros "H2". iSplitL "H1".
-          -- iRight; iFrame; auto.
-          -- iSplit.
-             ++ iIntros "[[% H1] | [% H1]]". 1: inversion H1. iMod "H2". iApply "Hclose".
-                iRight. iFrame; auto.
-             ++ iIntros (_) "[[% ?] _]"; discriminate.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. normalize. rewrite sepcon_comm. auto.
-  Qed.
-
-  Definition release_arg_type: rmaps.TypeTree :=
-    rmaps.ProdType (rmaps.ConstType (val * globals)) rmaps.Mpred.
-
-  Definition release_pre: val * globals * mpred -> argsEnviron -> mpred :=
-    fun args =>
-      match args with
-      | (v, gv, R) =>
-          PROP ()
-               PARAMS (v) GLOBALS (gv)
-               SEP (mem_mgr gv; weak_exclusive_mpred R && emp; lock_inv v R; R)
-      end%argsassert.
-
-  Notation release_post :=
-    (fun args =>
-       match args with
-       | (v, gv, R) =>
-           PROP ()
-                LOCAL ()
-                SEP (mem_mgr gv; lock_inv v R)
-       end).
-
-  Lemma NP_release_pre: @args_super_non_expansive release_arg_type (fun _ => release_pre).
-  Proof.
-    hnf.
-    intros.
-    destruct x as [[v gv] R]; simpl in *.
-    unfold PROPx. simpl. do 2 rewrite approx_andp. f_equal.
-    unfold LAMBDAx. simpl. do 2 rewrite approx_andp. f_equal.
-    unfold GLOBALSx, LOCALx. simpl. do 2 rewrite approx_andp. f_equal.
-    unfold argsassert2assert. simpl. unfold SEPx; simpl. do 2 rewrite sepcon_emp.
-    repeat rewrite -> approx_sepcon. do 2 f_equal; [|f_equal].
-    - apply (nonexpansive_super_non_expansive (fun R => weak_exclusive_mpred R && emp))%logic.
-      apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
-      + apply exclusive_mpred_nonexpansive.
-      + apply const_nonexpansive.
-    - apply (nonexpansive_super_non_expansive). apply nonexpansive_lock_inv.
-    - remember (compcert_rmaps.RML.R.approx
-                  n (compcert_rmaps.RML.R.approx n R)).
-      rewrite <- (compcert_rmaps.RML.approx_oo_approx n). subst. reflexivity.
-  Qed.
-
-  Lemma NP_release_post: @super_non_expansive release_arg_type (fun _ => release_post).
-  Proof.
-    hnf.
-    intros.
-    destruct x as [[v gv] R]; simpl in *.
-    apply (nonexpansive_super_non_expansive
-             (fun R => (PROP ()  LOCAL ()  SEP (mem_mgr gv; lock_inv v R)) rho)).
-    apply (PROP_LOCAL_SEP_nonexpansive
-             nil
-             nil
-             ((fun R: mpred => mem_mgr gv) :: (fun R => lock_inv v R) :: nil)); constructor.
-    - apply const_nonexpansive.
-    - constructor; [apply nonexpansive_lock_inv | constructor].
-  Qed.
-
-  Definition release_spec2: funspec := mk_funspec
-                                         (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-                                         ((tptr t_lock) :: nil, tvoid)
-                                         cc_default
-                                         release_arg_type
-                                         (fun _ => release_pre)
-                                         (fun _ => release_post)
-                                         NP_release_pre
-                                         NP_release_post.
-
-  Lemma release_funspec_sub: funspec_sub (snd release_spec) release_spec2.
-  Proof.
-    apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as [[v gv] R]. Intros.
-    unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
-    iExists (((v, gv), lock_inv v R)), emp. simpl in *.
-    rewrite emp_sepcon. iSplit.
-    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. normalize.
-      iDestruct "H" as "(% & H1 & H2 & H3 & H4 & H5)". iSplit.
-      + iPureIntro. auto.
-      + iSplit; auto. unfold argsassert2assert. iSplitR "H2"; auto. unfold lock_inv.
-        iDestruct "H4" as (i) "#H". unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
-        iInv "H" as "inv" "Hclose".
-        iDestruct "inv" as "[[> H2 R]|> H2]".
-        * iAssert (|>FF) with "[H3 H5 R]" as ">[]".
-          iNext; iApply weak_exclusive_conflict; iFrame; iFrame.
-        * iExists tt. iApply fupd_mask_intro; try set_solver. iIntros "H4".
-          iSplitL "H2"; auto. iSplit.
-          -- iIntros "H2". iFrame. iMod "H4". iApply "Hclose". iRight. iFrame. auto.
-          -- iIntros (_) "H2". iFrame. iExists i. iFrame "#".
-             iDestruct "H3" as "[_ >_]". iMod "H4". iApply "Hclose".
-             iLeft. iFrame.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. normalize. rewrite sepcon_comm. auto.
-  Qed.
-
-  Program Definition freelock_spec2: funspec :=
-    mk_funspec
-      ((tptr t_lock) :: nil, tvoid)
-      cc_default
-      (rmaps.ProdType (rmaps.ConstType val) rmaps.Mpred)
-      (fun _ x =>
-         match x with
-         | (v,R) =>
-             PROP ()
-                  PARAMS (v) GLOBALS()
-                  SEP (weak_exclusive_mpred R && emp; lock_inv v R; R)
-         end)%argsassert
-      (fun _ x =>
-         match x with
-         | (v, R) =>
-             PROP ()
-                  LOCAL ()
-                  SEP (R)
-         end)
-      _
-      _.
-  Next Obligation.
-    intros. simpl in *. rename x into v. rename _f into R.
-    apply (nonexpansive_super_non_expansive
-             (fun R => (PROP () PARAMS(v) GLOBALS()
-                     SEP (weak_exclusive_mpred R && emp; lock_inv v R; R))%argsassert gargs)).
-    unfold PARAMSx, GLOBALSx, SEPx, PROPx, LOCALx, argsassert2assert. simpl.
-    apply @conj_nonexpansive.
-    - apply const_nonexpansive.
-    - apply @conj_nonexpansive.
-      + apply const_nonexpansive.
-      + apply @conj_nonexpansive.
-        * apply const_nonexpansive.
-        * apply sepcon_nonexpansive.
-          -- apply @conj_nonexpansive.
-             ++ apply exclusive_mpred_nonexpansive.
-             ++ apply const_nonexpansive.
-          -- apply sepcon_nonexpansive.
-             ++ apply nonexpansive_lock_inv.
-             ++ apply sepcon_nonexpansive.
-                ** apply identity_nonexpansive.
-                ** apply const_nonexpansive.
-  Qed.
-  Next Obligation.
-    intros. rename x into v. rename _f into R. simpl in *.
-    apply (nonexpansive_super_non_expansive
-             (fun R => (PROP ()  LOCAL ()  SEP (R)) rho)).
-    apply (PROP_LOCAL_SEP_nonexpansive
-             nil
-             nil
-             ((fun R => R) :: nil)); constructor.
-    - apply identity_nonexpansive.
-    - constructor.
-  Qed.
-
-  Lemma freelock_funspec_sub: funspec_sub (snd freelock_spec) freelock_spec2.
-  Proof.
-    apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as [p R]. Intros.
-    iIntros "H !>". iExists nil, p, R. iSplit.
-    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. unfold argsassert2assert.
-      rewrite !sepcon_emp. iDestruct "H" as "(_ & % & % & H1 & H2 & R)". iSplitL "R"; auto.
-      do 3 (iSplit; auto). unfold lock_inv. iDestruct "H2" as "(% & H2)". admit.
-    - iPureIntro. intros. Intros.
-      unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
-      entailer!.
-  Abort.
+             iFrame; auto.*) admit.
+      + hnf; inversion 1.
+      + Intros r. forward_if.
+        * if_tac; try discriminate. forward. entailer!.
+        * if_tac; try contradiction. forward. entailer!.
+  Admitted.
 
 End PROOFS.

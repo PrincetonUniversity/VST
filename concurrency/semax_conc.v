@@ -29,16 +29,6 @@ Import FashNotation.
 Import String.
 Open Scope funspec_scope.
 
-Set Bullet Behavior "Strict Subproofs".
-
-(* Variables to be instantiated once the program is known. *)
-Definition _f := 1%positive.      (* alpha-convertible *)
-Definition _args := 2%positive.   (* alpha-convertible *)
-Definition _lock := 1%positive.   (* alpha-convertible *)
-Definition _cond := 2%positive.   (* alpha-convertible *)
-(*Definition _lock_t := 2%positive. (* 2 (* or sometimes 3 -WM *) is the number given by
-clightgen when threads.h is included first *)*)
-
 Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
 (* Definition tlock := Tstruct _lock_t noattr. *)
 Definition tlock := (Tarray (Tpointer Ctypes.Tvoid noattr) 2 noattr).
@@ -232,7 +222,6 @@ Proof.
 Qed.
 
 (* Condition variables *)
-(*Definition _cond_t := 4%positive.*)
 Definition tcond := tint.
 
 (* Does this need to be anything special? *)
