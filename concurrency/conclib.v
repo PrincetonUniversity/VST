@@ -1,5 +1,7 @@
 Require Import VST.msl.predicates_hered.
 Require Import VST.veric.ghosts.
+Require Import VST.veric.invariants.
+Require Import VST.veric.fupd.
 Require Export VST.msl.iter_sepcon.
 Require Import VST.msl.ageable.
 Require Import VST.msl.age_sepalg.
@@ -349,7 +351,7 @@ Qed. *)
 #[export] Hint Resolve lock_inv_exclusive selflock_exclusive cond_var_exclusive data_at_exclusive
   data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec : core.
 
-Lemma wsat_fupd : forall E P Q, (invariants.wsat * P |-- |==> invariants.wsat * Q) -> P |-- fupd.fupd E E Q.
+Lemma wsat_fupd : forall E P Q, (wsat * P |-- |==> wsat * Q) -> P |-- fupd.fupd E E Q.
 Proof.
   intros; unfold fupd.
   unseal_derives.
@@ -361,6 +363,28 @@ Proof.
   apply predicates_hered.orp_right2.
   setoid_rewrite (predicates_sl.sepcon_comm _ Q).
   rewrite <- predicates_sl.sepcon_assoc; apply predicates_hered.derives_refl.
+Qed.
+
+Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
+Proof.
+  intros; unseal_derives; apply wsat_alloc.
+Qed.
+
+Corollary inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, invariant i P.
+Proof.
+  intros.
+  apply wsat_fupd, wsat_alloc.
+Qed.
+
+Lemma inv_open : forall E i P, Ensembles.In E i ->
+  invariant i P |-- |={E, Ensembles.Subtract E i}=> |> P * (|>P -* |={Ensembles.Subtract E i, E}=> emp).
+Proof.
+  intros; unseal_derives; apply inv_open; auto.
+Qed.
+
+Lemma fupd_timeless : forall E (P : mpred), timeless' P -> |> P |-- |={E}=> P.
+Proof.
+  intros; unseal_derives; apply fupd_timeless; auto.
 Qed.
 
 (* shares *)

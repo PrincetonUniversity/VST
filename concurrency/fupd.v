@@ -1,22 +1,14 @@
 From stdpp Require Export namespaces coPset.
 From VST.veric Require Import compcert_rmaps fupd.
 From VST.msl Require Import ghost ghost_seplog sepalg_generators.
-From VST.concurrency Require Import ghosts conclib invariants.
+From VST.concurrency Require Import ghosts conclib invariants cancelable_invariants.
 Require Export VST.veric.bi.
 Import Ensembles.
 Import FashNotation.
 
 Lemma timeless'_timeless : forall (P : mpred), timeless' P -> Timeless P.
 Proof.
-  unfold Timeless; intros; simpl.
-  constructor; change (predicates_hered.derives (|>P) (|>FF || P)%pred); intros ? HP.
-  destruct (level a) eqn: Ha.
-  - left; intros ? Hl%laterR_level.
-    rewrite Ha in Hl; apply Nat.nlt_0_r in Hl; contradiction Hl.
-  - right.
-    destruct (levelS_age a n) as [b [Hb]]; auto.
-    specialize (HP _ (semax_lemmas.age_laterR Hb)).
-    eapply H; eauto.
+  apply timeless'_except_0.
 Qed.
 
 #[export] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).

@@ -963,86 +963,130 @@ Proof.
     rewrite sepcon_comm, sepcon_assoc; auto.
 Qed.
 
+Definition remove_Znth {A} i (al : list A) := sublist 0 i al ++ sublist (i + 1) (Zlength al) al.
+
+Lemma iter_sepcon_Znth: forall {A} {d : Inhabitant A} f (l : list A) i, 0 <= i < Zlength l ->
+  iter_sepcon f l = (f (Znth i l) * iter_sepcon f (remove_Znth i l))%pred.
+Proof.
+  intros; unfold remove_Znth.
+  transitivity (iter_sepcon f (sublist 0 (Zlength l) l)); [rewrite sublist_same; auto|].
+  rewrite sublist_split with (mid := i) by lia.
+  rewrite (sublist_next i) by lia.
+  rewrite !iter_sepcon_app; simpl.
+  rewrite <- !sepcon_assoc, (sepcon_comm (f _)); reflexivity.
+Qed.
+
+Lemma map_replace_nth:
+  forall {A B} (f: A -> B) n R X, map f (replace_nth n R X) =
+       replace_nth n (map f R) (f X).
+Proof.
+  intros.
+  revert R; induction n; destruct R; simpl; auto.
+  f_equal; auto.
+Qed.
+
+Lemma In_sublist_upto : forall n x i j, List.In x (sublist i j (upto n)) -> 0 <= i ->
+  i <= x < j /\ x < Z.of_nat n.
+Proof.
+  induction n; intros.
+  - unfold sublist in H; simpl in H; rewrite firstn_nil, skipn_nil in H; contradiction.
+  - rewrite Nat2Z.inj_succ; simpl in *.
+    destruct (zlt 0 j).
+    destruct (eq_dec i 0).
+    + subst; rewrite sublist_0_cons in H; try lia; destruct H; [lia|].
+      rewrite sublist_map, in_map_iff in H; destruct H as (? & ? & H); subst.
+      destruct (zlt 0 (j - 1)).
+      exploit IHn; eauto; lia.
+      { rewrite sublist_nil_gen in H; [contradiction | lia]. }
+    + rewrite sublist_S_cons in H; [|lia].
+      rewrite sublist_map, in_map_iff in H; destruct H as (? & ? & H); subst.
+      destruct (zlt 0 (j - 1)).
+      exploit IHn; eauto; lia.
+      { rewrite sublist_nil_gen in H; [contradiction | lia]. }
+    + rewrite sublist_nil_gen in H; [contradiction | lia].
+Qed.
+
 Lemma wsat_open : forall i P,
   (wsat * invariant i P * ghost_set g_en (Singleton i) |--
   |==> wsat * |> P * ghost_list g_dis (list_singleton i (Some tt))).
 Proof.
-(*  intros; unfold wsat, invariant.
-  iIntros "((H & inv1) & en1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".
-  iAssert (!! (i < length lg /\ Znth (Z.of_nat i) lg = g /\
-    exists b, Znth (Z.of_nat i) lb = Some b)%nat) as %Hi.
-  { iCombine "snap" "inv" as "inv"; unfold master_list; erewrite snap_master_join1.
-    iDestruct "inv" as "[% inv]".
-    apply list_incl_singleton in H0.
+  intros; unfold wsat, invariant.
+  rewrite !exp_sepcon1; apply exp_left; intros l.
+  rewrite !exp_sepcon1; apply exp_left; intros lg.
+  rewrite !exp_sepcon1; apply exp_left; intros lb.
+  rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [].
+  rewrite !exp_sepcon2, exp_sepcon1; apply exp_left; intros g.
+  eapply derives_trans, (prop_andp_left (i < length lg /\ Znth (Z.of_nat i) lg = g /\
+    exists b, Znth (Z.of_nat i) lb = Some b)%nat).
+  { rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
+    unfold master_list; rewrite snap_master_join1.
+    rewrite !sepcon_andp_prop1; apply andp_derives, derives_refl.
+    apply prop_derives; intros Hincl.
+    apply list_incl_singleton in Hincl.
     destruct (lt_dec i (length lg));
-      [|erewrite nth_overflow in H0 by (erewrite map_length, upto_length; lia); discriminate].
-    erewrite nth_map' with (d' := 0) in H0 by (rewrite upto_length; lia).
-    erewrite nth_upto in H0 by lia.
-    destruct (Znth (Z.of_nat i) lb); inv H0; iPureIntro; eauto. }
-  iMod (@own_dealloc (snap_PCM(ORD := list_order _)) with "snap").
-  iModIntro.
-  destruct Hi as (? & ? & b & Hi).
-  assert (nth i lb None = Some b) as Hi' by (rewrite <- nth_Znth in Hi; auto).
+      [|rewrite nth_overflow in Hincl by (rewrite map_length, upto_length; lia); discriminate].
+    rewrite nth_map' with (d' := 0) in Hincl by (rewrite upto_length; lia).
+    rewrite nth_upto in Hincl by lia.
+    destruct (Znth (Z.of_nat i) lb); inversion Hincl; eauto. }
+  intros (? & ? & b & Hi).
+  eapply derives_trans, bupd_intro.
+  assert (nth i lb None = Some b) as Hi'.
+  { rewrite <- nth_Znth, Nat2Z.id in Hi; auto.
+    rewrite Zlength_correct; lia. }
   destruct b.
-  erewrite ghost_list_nth with (n := i) by (erewrite nth_map' with (d' := None), Hi'; eauto; lia).
-  iDestruct "dis" as "[token dis]".
-  erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)
+  erewrite ghost_list_nth with (n := i) by (rewrite nth_map' with (d' := None), Hi'; eauto; lia).
+  rewrite iter_sepcon_Znth with (i := Z.of_nat i)
     by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
-  erewrite Znth_upto, Hi by lia.
-  iDestruct "I" as "((agree' & HP) & I)".
-  subst; iDestruct (agree_join with "[agree agree']") as "[imp agree]"; first iFrame.
-  iSplitR "token"; last auto.
-  iSplitR "HP imp"; last (iApply "imp"; auto).
-  iExists l, lg, (replace_nth i lb (Some false)).
-  rewrite replace_nth_length prop_true_andp; last auto.
-  iSplitR "I agree".
-  iSplitR "en en1".
-  iSplitR "dis".
-  - erewrite map_ext; eauto.
+  rewrite Znth_upto, Hi by lia.
+  rewrite (sepcon_assoc (agree _ _)), (sepcon_comm (agree _ _)), <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc, sepcon_assoc.
+  subst; eapply derives_trans; [apply sepcon_derives, agree_join; apply derives_refl|].
+  apply exp_right with l.
+  rewrite !exp_sepcon1; apply exp_right with lg.
+  rewrite !exp_sepcon1; apply exp_right with (replace_nth i lb (Some false)).
+  rewrite prop_true_andp.
+  rewrite (sepcon_comm _ (ghost_master1 _ _)), !sepcon_assoc; apply sepcon_derives.
+  { erewrite map_ext; [apply derives_refl|].
     intros; simpl.
     destruct (eq_dec a (Z.of_nat i)); [subst; rewrite Znth_replace_nth | rewrite Znth_replace_nth'];
       auto; try lia.
-    rewrite Hi; auto.
-  - rewrite map_replace_nth; auto.
-  - iCombine "en en1" as "en"; erewrite ghost_set_join.
-    iDestruct "en" as "[% en]".
-    erewrite coPset_leibniz; auto; split.
-    + intros Hin%elem_of_union; rewrite -> elem_of_list_to_set, elem_of_list_In, in_map_iff in *; destruct Hin as [Hin | Hin].
-      * destruct Hin as (x' & ? & Hin); subst.
-        apply filter_In in Hin as [Hin ?].
-        do 2 eexists; eauto; apply filter_In; split; auto.
-        destruct (decide (x' = i)); [subst; rewrite nth_replace_nth | rewrite nth_replace_nth']; auto; lia.
-      * apply elem_of_singleton in Hin; subst.
-        do 2 eexists; eauto; apply filter_In.
-        split; [|rewrite nth_replace_nth; auto; lia].
-        apply in_seq; lia.
-    + intros Hin; rewrite elem_of_union; rewrite -> elem_of_list_to_set, elem_of_list_In, in_map_iff in *.
-      destruct Hin as (x' & ? & Hin); subst.
-      destruct (decide (x' = i)); [subst; rewrite elem_of_singleton; auto|].
-      left; do 2 eexists; eauto.
-      apply filter_In in Hin as [Hin ?]; rewrite filter_In; split; auto.
-      erewrite nth_replace_nth' in H2; auto.
-  - erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l0 := upto _)
+    rewrite Hi; auto. }
+  rewrite sepcon_comm, (sepcon_comm (ghost_list _ _)), !sepcon_assoc; apply sepcon_derives.
+  { rewrite map_replace_nth; auto. }
+  rewrite <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc.
+  rewrite ghost_set_join, !sepcon_andp_prop1; apply prop_andp_left; intros.
+  rewrite !sepcon_assoc; apply sepcon_derives.
+  { match goal with |- ghost_set _ ?A |-- ghost_set _ ?B =>
+      rewrite (Extensionality_Ensembles _ A B) end; [apply derives_refl|].
+    split.
+    + intros ? Hin; inv Hin; unfold In in *.
+      * inv H3. rewrite nth_replace_nth; auto; lia.
+      * destruct (eq_dec x i); [subst; rewrite nth_replace_nth | rewrite nth_replace_nth']; auto; lia.
+    + intros ? Hin; unfold In in Hin.
+      destruct (eq_dec x i); [subst; constructor 1; constructor|].
+      rewrite nth_replace_nth' in Hin; auto; constructor 2; auto. }
+  rewrite <- !sepcon_assoc; apply sepcon_derives, derives_refl.
+  rewrite sepcon_comm, (sepcon_comm _ (iter_sepcon _ _)), <- !sepcon_assoc.
+  rewrite sepcon_assoc; apply sepcon_derives.
+  { rewrite iter_sepcon_Znth with (i := Z.of_nat i)(l := upto _)
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
-    erewrite Znth_upto, Znth_replace_nth by lia; iFrame.
+    rewrite Znth_upto, Znth_replace_nth by lia.
+    apply sepcon_derives; [apply derives_refl|].
     erewrite iter_sepcon_func_strong; auto.
     unfold remove_Znth; intros ? Hin.
     rewrite Znth_replace_nth'; auto.
     intro; subst.
     apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia.
-  - iCombine "en en1" as "en"; erewrite ghost_set_join.
-    iDestruct "en" as "[% en]".
-    rewrite -> elem_of_disjoint in H2.
-    contradiction (H2 (Pos.of_nat (S i))).
-    + rewrite -> elem_of_list_to_set, elem_of_list_In, in_map_iff.
-      do 2 eexists; eauto.
-      rewrite filter_In; split; [|rewrite Hi'; auto].
-      apply in_seq; lia.
-    + apply elem_of_singleton; auto.
-Qed.*)
-Admitted.
+ }
+  { rewrite sepcon_comm, wand_sepcon_adjoint; apply derives_refl. }
+  { rewrite replace_nth_length; split; auto. }
+  { rewrite !sepcon_assoc, (sepcon_comm (ghost_set _ _)), <- !sepcon_assoc, sepcon_assoc.
+    eapply derives_trans, FF_derives.
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl|] | rewrite sepcon_comm, FF_sepcon; apply derives_refl].
+    rewrite ghost_set_join; apply prop_andp_left; intros X.
+    inv X. contradiction (H3 i). constructor; auto; constructor. }
+Qed.
 
-(*(* up *)
+(* up *)
 Lemma replace_nth_same' : forall {A} n l (a d : A), nth n l d = a -> replace_nth n l a = l.
 Proof.
   intros; subst; apply replace_nth_same.
@@ -1050,86 +1094,90 @@ Qed.
 
 Lemma wsat_close : forall i P,
   (wsat * invariant i P * |> P * ghost_list g_dis (list_singleton i (Some tt)) |--
-  |==> wsat * ghost_set g_en (base.singleton (Pos.of_nat (S i))))%I.
+  |==> wsat * ghost_set g_en (Singleton i)).
 Proof.
   intros; unfold wsat, invariant.
-  iIntros "(((H & inv1) & HP) & dis1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".
-  iAssert (!!(i < length lg /\ Znth (Z.of_nat i) lg = g /\
-    exists b, Znth (Z.of_nat i) lb = Some b)%nat) as %Hi.
-  { iCombine "snap inv" as "inv"; unfold master_list; erewrite snap_master_join1.
-    iDestruct "inv" as "[% inv]".
-    apply list_incl_singleton in H0.
+  rewrite !exp_sepcon1; apply exp_left; intros l.
+  rewrite !exp_sepcon1; apply exp_left; intros lg.
+  rewrite !exp_sepcon1; apply exp_left; intros lb.
+  rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [].
+  rewrite !exp_sepcon2, !exp_sepcon1; apply exp_left; intros g.
+  eapply derives_trans, (prop_andp_left (i < length lg /\ Znth (Z.of_nat i) lg = g /\
+    exists b, Znth (Z.of_nat i) lb = Some b)%nat).
+  { rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
+    unfold master_list; rewrite snap_master_join1.
+    rewrite !sepcon_andp_prop1; apply andp_derives, derives_refl.
+    apply prop_derives; intros Hincl.
+    apply list_incl_singleton in Hincl.
     destruct (lt_dec i (length lg));
-      [|erewrite nth_overflow in H0 by (erewrite map_length, upto_length; lia); discriminate].
-    erewrite nth_map' with (d' := 0) in H0 by (rewrite upto_length; lia).
-    erewrite nth_upto in H0 by lia.
-    destruct (Znth (Z.of_nat i) lb); inv H0; eauto. }
-  iMod (@own_dealloc (snap_PCM(ORD := list_order _)) with "snap").
-  iModIntro.
-  destruct Hi as (? & ? & b & Hi).
-  assert (nth i lb None = Some b) as Hi' by (rewrite <- nth_Znth in Hi; auto).
+      [|rewrite nth_overflow in Hincl by (rewrite map_length, upto_length; lia); discriminate].
+    rewrite nth_map' with (d' := 0) in Hincl by (rewrite upto_length; lia).
+    rewrite nth_upto in Hincl by lia.
+    destruct (Znth (Z.of_nat i) lb); inversion Hincl; eauto. }
+  intros (? & ? & b & Hi).
+  eapply derives_trans, bupd_intro.
+  assert (nth i lb None = Some b) as Hi'.
+  { rewrite <- nth_Znth, Nat2Z.id in Hi; auto.
+    rewrite Zlength_correct; lia. }
   destruct b.
-  { iCombine "dis dis1" as "dis".
-    iDestruct (own_valid_2(RA := list_PCM _) with "dis") as %H2.
-    destruct H2 as (? & J & _).
+  { rewrite (sepcon_comm (ghost_master1 _ _)), sepcon_comm, <- !sepcon_assoc.
+    rewrite 4sepcon_assoc; eapply derives_trans, FF_derives.
+    eapply derives_trans; [apply sepcon_derives, derives_refl | rewrite FF_sepcon; apply derives_refl].
+    eapply derives_trans; [apply andp_right, derives_refl; apply ghost_valid_2|].
+    apply prop_andp_left; intros (? & J & ?).
     apply list_join_nth with (n := i) in J.
     erewrite nth_singleton, nth_map' with (d' := None) in J by lia.
     rewrite Hi' in J; inv J.
-    inv H5.
-    inv H3. }
-  erewrite ghost_set_remove with (a := Pos.of_nat (S i)).
-  iDestruct "en" as "[$ en]".
-  iExists l, lg, (replace_nth i lb (Some true)).
-  rewrite replace_nth_length prop_true_andp; last auto.
-  iSplitR "I agree HP".
-  iSplitR "en".
-  iSplitR "dis dis1".
-  - erewrite map_ext; eauto.
+    inv H7.
+    inv H5. }
+  rewrite ghost_set_remove with (a := i) by auto.
+  apply exp_right with l.
+  rewrite exp_sepcon1; apply exp_right with lg.
+  rewrite exp_sepcon1; apply exp_right with (replace_nth i lb (Some true)).
+  rewrite replace_nth_length, prop_true_andp by auto.
+  rewrite !sepcon_assoc; apply sepcon_derives.
+  { erewrite map_ext; [apply derives_refl|].
     intros.
     destruct (eq_dec a (Z.of_nat i)); [subst; rewrite Znth_replace_nth | rewrite Znth_replace_nth'];
       auto; try lia.
-    rewrite Hi; auto.
-  - iCombine "dis1 dis" as "dis"; setoid_rewrite <- own_op; auto.
+    rewrite Hi; auto. }
+  rewrite sepcon_comm, sepcon_assoc, sepcon_comm, <- !sepcon_assoc; apply sepcon_derives, derives_refl.
+  rewrite !sepcon_assoc, (sepcon_comm (ghost_list _ _) (_ * _)%pred), <- !sepcon_assoc, sepcon_assoc.
+  apply sepcon_derives.
+  rewrite !sepcon_assoc; apply sepcon_derives.
+  { match goal with |- ghost_set _ ?A |-- ghost_set _ ?B =>
+      rewrite (Extensionality_Ensembles _ A B) end; [apply derives_refl|].
+    split.
+    + intros ? Hin; inv Hin; unfold In in *.
+      destruct (eq_dec x i); [subst; contradiction H4; constructor|].
+      rewrite nth_replace_nth'; auto.
+    + intros ? Hin; unfold In in Hin.
+      destruct (eq_dec x i); [subst; rewrite nth_replace_nth in Hin by lia; discriminate|].
+      rewrite nth_replace_nth' in Hin by auto; constructor; auto.
+      intros X; inv X; contradiction. }
+  { rewrite iter_sepcon_Znth with (i := Z.of_nat i)
+      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
+    rewrite iter_sepcon_Znth with (i := Z.of_nat i)(l := upto _)
+      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
+    rewrite !Znth_upto, !Znth_replace_nth by lia.
+    rewrite Hi.
+    rewrite (sepcon_comm _ (|> P)%pred), <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc, sepcon_assoc.
+    subst; eapply derives_trans; [apply sepcon_derives, derives_refl; apply agree_join2|].
+    rewrite (sepcon_comm _ (agree _ _)), !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+    rewrite <- sepcon_assoc, sepcon_comm, <- sepcon_assoc; apply sepcon_derives.
+    + rewrite sepcon_comm, wand_sepcon_adjoint; apply derives_refl.
+    + erewrite iter_sepcon_func_strong; eauto.
+      unfold remove_Znth; intros ? Hin.
+      rewrite Znth_replace_nth'; auto.
+      intro; subst.
+      apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia. }
+  { unfold ghost_list. erewrite <- ghost_op; [apply derives_refl|].
     rewrite map_replace_nth.
     apply (list_join_singleton(P := token_PCM)).
     { rewrite map_length; lia. }
-    erewrite nth_map' with (d' := None) by lia.
-    rewrite Hi'; constructor.
-  - erewrite coPset_leibniz; auto; split.
-    + rewrite -> elem_of_difference, !elem_of_list_to_set, !elem_of_list_In, !in_map_iff.
-      intros ((? & ? & Hin) & Hout); subst.
-      do 2 eexists; eauto.
-      rewrite -> filter_In in *; destruct Hin; split; auto.
-      rewrite nth_replace_nth'; auto.
-      intro; subst; contradiction Hout; apply elem_of_singleton; auto.
-    + rewrite -> elem_of_difference, !elem_of_list_to_set, !elem_of_list_In, !in_map_iff.
-      intros (x' & ? & Hin) ; subst.
-      rewrite -> filter_In in *; destruct Hin as [? Hin].
-      destruct (decide (x' = i)); [subst; erewrite nth_replace_nth in Hin by lia; discriminate|].
-      erewrite nth_replace_nth' in Hin by auto.
-      split; [|rewrite elem_of_singleton; auto].
-      do 2 eexists; eauto.
-      rewrite filter_In; split; auto.
-      intros X%Nat2Pos.inj; congruence.
-  - erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)
-      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
-    erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l0 := upto _)
-      by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
-    erewrite !Znth_upto, !Znth_replace_nth by lia.
-    rewrite Hi.
-    iDestruct "I" as "[agree' I]".
-    subst; iDestruct (agree_join2 with "[agree' agree]") as "[imp agree]"; first iFrame.
-    iPoseProof ("imp" with "HP") as "?"; iFrame.
-    erewrite iter_sepcon_func_strong; eauto.
-    unfold remove_Znth; intros ? Hin.
-    rewrite Znth_replace_nth'; auto.
-    intro; subst.
-    apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia.
-  - rewrite -> elem_of_list_to_set, elem_of_list_In, in_map_iff.
-    do 2 eexists; eauto.
-    rewrite filter_In; split; [|rewrite Hi'; auto].
-    apply in_seq; lia.
-Qed.*)
+    rewrite nth_map' with (d' := None) by lia.
+    rewrite Hi'; constructor. }
+Qed.
 
 Lemma invariant_dealloc : forall i P, invariant i P |-- emp.
 Proof.

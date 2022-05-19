@@ -182,11 +182,6 @@ Proof.
   - apply modus_wand.
 Qed.
 
-(*Lemma fupd_timeless : forall E P, Timeless P -> |> P |-- |={E}=> P.
-Proof.
-  intros; unfold fupd; iIntros ">P Hpre"; iFrame; auto.
-Qed.*)
-
 Lemma fupd_frame_l : forall E1 E2 P Q, P * (|={E1,E2}=> Q) |-- |={E1,E2}=> (P * Q).
 Proof.
   intros; erewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
@@ -283,6 +278,26 @@ Lemma except_0_fupd : forall E1 E2 P, ((|> FF) || fupd E1 E2 P) |-- fupd E1 E2 P
 Proof.
   intros.
   apply fupd_except0_elim, derives_refl.
+Qed.
+
+Lemma timeless'_except_0 : forall P, timeless' P -> |> P |-- |> FF || P.
+Proof.
+  intros; intros ? HP.
+  destruct (level a) eqn: Ha.
+  - left; intros ? Hl%laterR_level.
+    rewrite Ha in Hl; apply Nat.nlt_0_r in Hl; contradiction Hl.
+  - right.
+    destruct (levelS_age a n) as [b [Hb]]; auto.
+    eapply H; eauto.
+    apply HP; constructor; auto.
+Qed.
+
+Lemma fupd_timeless : forall E P, timeless' P -> |> P |-- |={E}=> P.
+Proof.
+  intros.
+  eapply derives_trans, except_0_fupd.
+  eapply derives_trans; [apply timeless'_except_0; auto|].
+  apply orp_derives, fupd_intro; auto.
 Qed.
 
 Lemma fupd_mask_frame_r' : forall E1 E2 Ef P, Disjoint E1 Ef ->
@@ -481,60 +496,39 @@ Proof.
   iIntros "!> !>".
   iDestruct "wsat" as "[? | $]"; auto.
   iDestruct "inv" as "[? | ?]"; auto.
-Qed.
+Qed.*)
 
 Lemma inv_close_aux : forall E (i : iname) P,
   (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * invariant i P * |> P *
-  (wsat * ghost_set g_en (difference E (base.singleton (Pos.of_nat (S i)))))
-  |-- |==> sbi_except_0 (wsat * (ghost_set g_en (base.singleton (Pos.of_nat (S i))) * ghost_set g_en (difference E (base.singleton (Pos.of_nat (S i)))))))%I.
+  (wsat * ghost_set g_en (Subtract E i)))
+  |-- |==> |> FF || (wsat * (ghost_set g_en (Singleton i) * ghost_set g_en (Subtract E i))).
 Proof.
   intros.
-  sep_apply (wsat_close i P).
-  eapply derives_trans; [apply updates.bupd_frame_r | apply updates.bupd_mono].
-  rewrite <- sepcon_assoc; apply bi.except_0_intro.
+  rewrite (sepcon_comm wsat), <- !sepcon_assoc, sepcon_comm.
+  rewrite (sepcon_assoc (ghost_list _ _)), (sepcon_comm (ghost_list _ _)).
+  rewrite <- !sepcon_assoc; eapply derives_trans; [apply sepcon_derives, derives_refl; apply wsat_close|].
+  eapply derives_trans, bupd_mono; [apply bupd_frame_r|].
+  apply orp_right2; auto.
 Qed.
 
-Definition inv i : coPset := base.singleton (Pos.of_nat (S i)).
-
-Lemma inv_open : forall E i P, subseteq (inv i) E ->
-  (invariant i P |-- |={E, difference E (inv i)}=> (|> P) * (|>P -* |={difference E (inv i), E}=> emp))%I.
+Lemma inv_open : forall E i P, In E i ->
+  invariant i P |-- fupd E (Subtract E i) (|> P * (|>P -* fupd (Subtract E i) E emp)).
 Proof.
-  unfold updates.fupd, bi_fupd_fupd; simpl.
   intros; unfold fupd.
   rewrite -> invariant_dup, <- wand_sepcon_adjoint.
-  erewrite ghost_set_remove by (apply elem_of_subseteq_singleton; eauto).
-  sep_apply (wsat_open i P).
-  eapply derives_trans; [apply updates.bupd_frame_r | apply updates.bupd_mono].
-  eapply derives_trans, bi.except_0_intro.
-  unfold bi_sep; simpl; cancel.
-  rewrite <- !wand_sepcon_adjoint.
-  rewrite sepcon_emp.
+  erewrite ghost_set_remove by eauto.
+  rewrite <- !sepcon_assoc, !sepcon_assoc.
+  rewrite <- (sepcon_assoc wsat), <- (sepcon_assoc _ (_ * _)%pred), sepcon_comm, sepcon_assoc.
+  rewrite <- (sepcon_assoc _ wsat), (sepcon_comm _ wsat).
+  eapply derives_trans; [apply sepcon_derives, derives_refl; apply wsat_open|].
+  eapply derives_trans, bupd_mono; [apply bupd_frame_r|].
+  apply orp_right2.
+  rewrite !sepcon_assoc; apply sepcon_derives; auto.
+  rewrite (sepcon_comm _ (_ * (_ -* _))%pred), sepcon_assoc; apply sepcon_derives; auto.
+  rewrite (sepcon_comm _ (invariant _ _)), <- sepcon_assoc; apply sepcon_derives; auto.
+  rewrite <- !wand_sepcon_adjoint, sepcon_emp.
   apply inv_close_aux.
 Qed.
-
-(* these last two are probably redundant *)
-Lemma inv_close : forall E i P, subseteq (inv i) E ->
-  invariant i P * |> P * ghost_list(P := exclusive_PCM _) g_dis (list_singleton i (Some tt)) |--
-  (|={difference E (inv i), E}=> TT)%I.
-Proof.
-  unfold updates.fupd, bi_fupd_fupd; simpl.
-  intros; unfold fupd; iIntros "((? & ?) & ?) ?".
-  iMod (inv_close_aux with "[-]") as ">H"; [iFrame|].
-  do 2 iModIntro.
-  erewrite (ghost_set_remove _ _ E); first by iFrame; auto.
-  { apply elem_of_subseteq_singleton; auto. }
-Qed.
-
-Lemma inv_access : forall E i P, subseteq (inv i) E ->
-  (invariant i P |-- |={E, difference E (inv i)}=>
-    |> P * (|> P -* |={difference E (inv i), E}=> TT))%I.
-Proof.
-  intros.
-  eapply derives_trans; [apply inv_open; eauto|].
-  apply fupd_mono; cancel.
-  apply wand_derives; auto.
-  apply fupd_mono; auto.
-Qed.*)
 
 End Invariants.
 

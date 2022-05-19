@@ -3,6 +3,7 @@ Require Import Coq.micromega.Lia.
 Require Import Coq.ZArith.ZArith.
 
 Require Import VST.zlist.sublist.
+Require Import VST.veric.invariants.
 Require Import VST.floyd.proofauto.
 
 Import ListNotations.
@@ -788,27 +789,6 @@ Proof.
   destruct Hin; destruct (in_dec eq_dec z l); try discriminate; eauto.
 Qed.
 
-Lemma In_sublist_upto : forall n x i j, In x (sublist i j (upto n)) -> 0 <= i ->
-  i <= x < j /\ x < Z.of_nat n.
-Proof.
-  induction n; intros.
-  - unfold sublist in H; simpl in H; rewrite firstn_nil, skipn_nil in H; contradiction.
-  - rewrite Nat2Z.inj_succ; simpl in *.
-    destruct (zlt 0 j).
-    destruct (eq_dec i 0).
-    + subst; rewrite sublist_0_cons in H; try lia; destruct H; [lia|].
-      rewrite sublist_map, in_map_iff in H; destruct H as (? & ? & H); subst.
-      destruct (zlt 0 (j - 1)).
-      exploit IHn; eauto; lia.
-      { rewrite sublist_nil_gen in H; [contradiction | lia]. }
-    + rewrite sublist_S_cons in H; [|lia].
-      rewrite sublist_map, in_map_iff in H; destruct H as (? & ? & H); subst.
-      destruct (zlt 0 (j - 1)).
-      exploit IHn; eauto; lia.
-      { rewrite sublist_nil_gen in H; [contradiction | lia]. }
-    + rewrite sublist_nil_gen in H; [contradiction | lia].
-Qed.
-
 Lemma lt_le_1 : forall i j, i < j <-> i + 1 <= j.
 Proof.
   intros; lia.
@@ -1072,8 +1052,6 @@ Proof.
   rewrite Zlength_correct in *; rep_lia.
 Qed.
 
-
-Definition remove_Znth {A} i (al : list A) := sublist 0 i al ++ sublist (i + 1) (Zlength al) al.
 
 Lemma remove_Znth0 : forall {A} (l : list A), remove_Znth 0 l = sublist 1 (Zlength l) l.
 Proof.

@@ -160,6 +160,32 @@ Class FupdSepLog (A N D I: Type) {ND: NatDed A}{IA: Indir A}{SL: SepLog A}{BSL: 
 Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic_upd.
 Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic_upd.
 
+Lemma Empty_set_Union : forall {A} S, Union A (Empty_set A) S = S.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? H.
+  - inversion H; auto; contradiction.
+  - constructor 2; auto.
+Qed.
+
+Lemma Union_Empty_set : forall {A} S, Union A S (Empty_set A) = S.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? H.
+  - inversion H; auto; contradiction.
+  - constructor 1; auto.
+Qed.
+
+Lemma Empty_set_disjoint1 : forall {A} (E : Ensemble A), Disjoint _ (Empty_set _) E.
+Proof.
+  constructor; intros.
+  intros Hin; inversion Hin; subst; contradiction.
+Qed.
+
+Lemma Empty_set_disjoint2 : forall {A} (E : Ensemble A), Disjoint _ E (Empty_set _).
+Proof.
+  constructor; intros.
+  intros Hin; inversion Hin; subst; contradiction.
+Qed.
+
 Section fupd_derived.
 
 Context `{FUPD : FupdSepLog}.
@@ -174,27 +200,12 @@ Proof.
   apply fupd_frame_r.
 Qed.
 
-Lemma Empty_set_disjoint : forall {A} (E : Ensemble A), Disjoint _ (Empty_set _) E.
-Proof.
-  constructor; intros.
-  intros Hin; inversion Hin; subst.
-  inversion H.
-Qed.
-
-Lemma Empty_set_union : forall {A} (E : Ensemble A), Union _ (Empty_set _) E = E.
-Proof.
-  intros; apply Extensionality_Ensembles; split.
-  - intros ? Hin; inversion Hin; auto; subst.
-    inversion H.
-  - intros ??; constructor 2; auto.
-Qed.
-
 Lemma fupd_intro {CA : ClassicalSep A} E P : P |-- |={E}=> P.
 Proof.
   eapply derives_trans, fupd_trans.
   eapply derives_trans; [apply (fupd_mask_intro_union (Empty_set _))|].
-  { apply Empty_set_disjoint. }
-  rewrite Empty_set_union; apply derives_refl.
+  { apply Empty_set_disjoint1. }
+  rewrite Empty_set_Union. apply derives_refl.
 Qed.
 
 Lemma fupd_except_0 {CA : ClassicalSep A} E1 E2 (P : A) : (|={E1,E2}=> ((|> FF) || P)) |-- |={E1,E2}=> P.
@@ -215,6 +226,24 @@ Qed.
 Lemma fupd_frame_l E1 E2 P Q : (P * |={E1,E2}=> Q) |-- |={E1,E2}=> P * Q.
 Proof.
   rewrite !(sepcon_comm P); apply fupd_frame_r.
+Qed.
+
+Lemma fupd_mask_intro {CA : ClassicalSep A} E1 E2 P : Disjoint _ E1 E2 ->
+  ((|={E2,Union _ E1 E2}=> emp) -* P) |-- |={Union _ E1 E2,E2}=> P.
+Proof.
+  intros.
+  rewrite <- sepcon_emp at 1.
+  eapply derives_trans; [apply sepcon_derives, fupd_mask_intro_union; eauto; apply derives_refl|].
+  eapply derives_trans, fupd_mono; [apply fupd_frame_l|].
+  rewrite wand_sepcon_adjoint; apply derives_refl.
+Qed.
+
+Lemma fupd_mask_intro_all {CA : ClassicalSep A} E P :
+  ((|={Empty_set _,E}=> emp) -* P) |-- |={E,Empty_set _}=> P.
+Proof.
+  intros.
+  rewrite <- (Union_Empty_set E); apply fupd_mask_intro.
+  apply Empty_set_disjoint2.
 Qed.
 
 Lemma fupd_elim E1 E2 E3 P Q :
