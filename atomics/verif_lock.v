@@ -31,22 +31,25 @@ Definition t_lock := Tstruct _atom_int noattr.
 
   Definition inv_for_lock v R := EX b, atomic_int_at Ews (Val.of_bool b) v * if b then emp else R.
 
-  Definition lock_inv sh i g v R := cinvariant i g (inv_for_lock v R) * cinv_own g sh.
+  (* Combine all the names for the lock into a single handle *)
+  Definition lock_handle : Type := val * invariants.iname * ghosts.gname.
 
-  Lemma lock_inv_share_join : forall sh1 sh2 sh3 i g v R, sepalg.join sh1 sh2 sh3 ->
-    lock_inv sh1 i g v R * lock_inv sh2 i g v R = lock_inv sh3 i g v R.
+  Definition lock_inv sh (h : lock_handle) R := let '(v, i, g) := h in cinvariant i g (inv_for_lock v R) * cinv_own g sh.
+
+  Lemma lock_inv_share_join : forall sh1 sh2 sh3 h R, sepalg.join sh1 sh2 sh3 ->
+    lock_inv sh1 h R * lock_inv sh2 h R = lock_inv sh3 h R.
   Proof.
-    intros; unfold lock_inv, cinvariant.
+    intros; unfold lock_inv, cinvariant; destruct h as ((?, ?), ?).
     rewrite <- !sepcon_assoc, (sepcon_comm (_ * cinv_own _ _)), !sepcon_assoc.
     unfold cinv_own at 3 4; erewrite <- own_op by eauto.
     rewrite <- sepcon_assoc; f_equal.
     symmetry; apply invariants.invariant_dup.
   Qed.
 
-  Lemma lock_inv_super_non_expansive : forall sh i g v R n,
-    compcert_rmaps.RML.R.approx n (lock_inv sh i g v R) = compcert_rmaps.RML.R.approx n (lock_inv sh i g v (compcert_rmaps.RML.R.approx n R)).
+  Lemma lock_inv_super_non_expansive : forall sh h R n,
+    compcert_rmaps.RML.R.approx n (lock_inv sh h R) = compcert_rmaps.RML.R.approx n (lock_inv sh h (compcert_rmaps.RML.R.approx n R)).
   Proof.
-    intros; unfold lock_inv.
+    intros; unfold lock_inv; destruct h as ((?, ?), ?).
     rewrite !approx_sepcon; f_equal.
     rewrite cinvariant_super_non_expansive; setoid_rewrite cinvariant_super_non_expansive at 2; do 2 f_equal.
     unfold inv_for_lock.
@@ -56,6 +59,8 @@ Definition t_lock := Tstruct _atom_int noattr.
     rewrite approx_idem; auto.
   Qed.
 
+  Definition ptr_of (h : lock_handle) := let '(v, i, g) := h in v.
+
   Program Definition makelock_spec :=
     DECLARE _makelock
     TYPE (ProdType (ConstType globals) Mpred) WITH gv: globals, R : mpred
@@ -63,10 +68,10 @@ Definition t_lock := Tstruct _atom_int noattr.
        PROP ()
        PARAMS () GLOBALS (gv)
        SEP (mem_mgr gv)
-    POST [ tptr t_lock ] EX p i g,
+    POST [ tptr t_lock ] EX h,
        PROP ()
-       RETURN (p)
-       SEP (mem_mgr gv; lock_inv Tsh i g p R).
+       RETURN (ptr_of h)
+       SEP (mem_mgr gv; lock_inv Tsh h R).
   Next Obligation.
   Proof.
     repeat intro.
@@ -77,8 +82,6 @@ Definition t_lock := Tstruct _atom_int noattr.
   Proof.
     repeat intro.
     destruct x; simpl.
-    rewrite !approx_exp; f_equal; extensionality.
-    rewrite !approx_exp; f_equal; extensionality.
     rewrite !approx_exp; f_equal; extensionality.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 2 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
@@ -88,11 +91,11 @@ Definition t_lock := Tstruct _atom_int noattr.
   Program Definition freelock_spec :=
     DECLARE _freelock
     TYPE (ProdType (ConstType _) Mpred)
-    WITH i : _, g : _, p : val, R : mpred
+    WITH h : _, R : mpred
     PRE [ tptr t_lock ]
      PROP ()
-     PARAMS (p)
-     SEP (weak_exclusive_mpred R && emp; lock_inv Tsh i g p R; R)
+     PARAMS (ptr_of h)
+     SEP (weak_exclusive_mpred R && emp; lock_inv Tsh h R; R)
    POST[ tvoid ]
      PROP ()
      LOCAL ()
@@ -100,7 +103,7 @@ Definition t_lock := Tstruct _atom_int noattr.
   Next Obligation.
   Proof.
     repeat intro.
-    destruct x as (((?, ?), ?), ?); simpl.
+    destruct x; simpl.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
     f_equal.
@@ -108,12 +111,12 @@ Definition t_lock := Tstruct _atom_int noattr.
       apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
       - apply exclusive_mpred_nonexpansive.
       - apply const_nonexpansive. }
-    f_equal; apply lock_inv_super_non_expansive.
+    f_equal. apply lock_inv_super_non_expansive.
   Qed.
   Next Obligation.
   Proof.
     repeat intro.
-    destruct x as (((?, ?), ?), ?); simpl.
+    destruct x; simpl.
     unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
     reflexivity.
@@ -122,19 +125,19 @@ Definition t_lock := Tstruct _atom_int noattr.
   Program Definition acquire_spec :=
     DECLARE _acquire
     TYPE (ProdType (ConstType _) Mpred)
-    WITH sh : _, i : _, g : _, p : _, R : mpred
+    WITH sh : _, h : _, R : mpred
     PRE [ tptr t_lock ]
        PROP (readable_share sh)
-       PARAMS (p)
-       SEP (lock_inv sh i g p R)
+       PARAMS (ptr_of h)
+       SEP (lock_inv sh h R)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (lock_inv sh i g p R; R).
+       SEP (lock_inv sh h R; R).
   Next Obligation.
   Proof.
     repeat intro.
-    destruct x as ((((?, ?), ?), ?), ?); simpl.
+    destruct x as ((?, ?), ?); simpl.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
     apply lock_inv_super_non_expansive.
@@ -142,7 +145,7 @@ Definition t_lock := Tstruct _atom_int noattr.
   Next Obligation.
   Proof.
     repeat intro.
-    destruct x as ((((?, ?), ?), ?), ?); simpl.
+    destruct x as ((?, ?), ?); simpl.
     unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
     f_equal. apply lock_inv_super_non_expansive.
@@ -151,19 +154,19 @@ Definition t_lock := Tstruct _atom_int noattr.
   Program Definition release_spec :=
     DECLARE _release
     TYPE (ProdType (ConstType _) Mpred)
-    WITH sh : _, i : _, g : _, p : _, R : mpred
+    WITH sh : _, h : _, R : mpred
     PRE [ tptr t_lock ]
        PROP (readable_share sh)
-       PARAMS (p)
-       SEP (weak_exclusive_mpred R && emp; lock_inv sh i g p R; R)
+       PARAMS (ptr_of h)
+       SEP (weak_exclusive_mpred R && emp; lock_inv sh h R; R)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (lock_inv sh i g p R).
+       SEP (lock_inv sh h R).
   Next Obligation.
   Proof.
     repeat intro.
-    destruct x as ((((?, ?), ?), ?), ?); simpl.
+    destruct x as ((?, ?), ?); simpl.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
     f_equal.
@@ -176,7 +179,7 @@ Definition t_lock := Tstruct _atom_int noattr.
   Next Obligation.
   Proof.
     repeat intro.
-    destruct x as ((((?, ?), ?), ?), ?); simpl.
+    destruct x as ((?, ?), ?); simpl.
     unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
     apply lock_inv_super_non_expansive.
@@ -192,7 +195,7 @@ Definition t_lock := Tstruct _atom_int noattr.
     start_function.
     forward_call (vint 1).
     Intros p.
-    viewshift_SEP 0 (EX i g, lock_inv Tsh i g p R).
+    viewshift_SEP 0 (EX i g, lock_inv Tsh (p, i, g) R).
     { go_lower.
       unfold lock_inv.
       eapply derives_trans, cinv_alloc.
@@ -201,7 +204,7 @@ Definition t_lock := Tstruct _atom_int noattr.
       Exists true; cancel. }
     simpl.
     forward.
-    Exists p i g; entailer!.
+    Exists (p, i, g); unfold lock_inv; entailer!.
   Qed.
 
   #[local] Hint Resolve Ensembles.Full_intro : core.
@@ -209,9 +212,9 @@ Definition t_lock := Tstruct _atom_int noattr.
   Lemma body_freelock: semax_body Vprog Gprog f_freelock freelock_spec.
   Proof.
     start_function.
+    destruct h as ((p, i), g).
     viewshift_SEP 1 (|> inv_for_lock p R).
     { go_lower.
-      unfold lock_inv.
       apply cinv_cancel; auto. }
     unfold inv_for_lock.
     rewrite (later_exp' _ true); Intros b.
@@ -228,8 +231,8 @@ Definition t_lock := Tstruct _atom_int noattr.
   Lemma body_release: semax_body Vprog Gprog f_release release_spec.
   Proof.
     start_function.
-    forward_call (p, (vint 0), @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname, lock_inv sh i g p R).
-    - unfold lock_inv.
+    forward_call (ptr_of h, vint 0, @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname, lock_inv sh h R).
+    - unfold lock_inv; destruct h as ((p, i), g).
       subst Frame; instantiate (1 := []); simpl fold_right_sepcon; cancel.
       rewrite cinvariant_dup at 1.
       sep_apply (cinv_open Ensembles.Full_set); auto.
@@ -242,7 +245,7 @@ Definition t_lock := Tstruct _atom_int noattr.
         Exists Ews; entailer!.
         rewrite <- wand_sepcon_adjoint.
         sep_apply fupd_frame_l; repeat sep_apply fupd_frame_r; apply fupd_elim.
-        sep_apply (modus_ponens_wand' (R * atomic_int_at Ews (vint 0) p)).
+        unfold ptr_of; sep_apply (modus_ponens_wand' (R * atomic_int_at Ews (vint 0) p)).
         { unfold inv_for_lock.
           eapply derives_trans, now_later.
           Exists false; cancel. }
@@ -263,15 +266,15 @@ Definition t_lock := Tstruct _atom_int noattr.
     forward.
     forward_loop (PROP ( )
                        LOCAL (temp _b (vint 0); lvar _expected tint v_expected;
-                              temp _lock p)
-                       SEP (data_at_ Tsh tint v_expected; lock_inv sh i g p R)).
+                              temp _lock (ptr_of h))
+                       SEP (data_at_ Tsh tint v_expected; lock_inv sh h R)).
     { entailer!. }
     forward.
     forward_call
-      (p , Tsh, v_expected, (vint 0), (vint 1), @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname,
+      (ptr_of h, Tsh, v_expected, (vint 0), (vint 1), @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname,
             fun v':val =>
-              lock_inv sh i g p R * if (eq_dec v' (vint 0)) then |> R else emp).
-    - unfold lock_inv.
+              lock_inv sh h R * if (eq_dec v' (vint 0)) then |> R else emp).
+    - unfold lock_inv; destruct h as ((p, i), g).
       subst Frame; instantiate (1 := []); simpl fold_right_sepcon; cancel.
       rewrite cinvariant_dup at 1.
       sep_apply (cinv_open Ensembles.Full_set); auto.
@@ -280,7 +283,7 @@ Definition t_lock := Tstruct _atom_int noattr.
       rewrite (later_exp' _ true); Intros b.
       rewrite later_sepcon; sep_eapply fupd_timeless; auto; repeat sep_eapply fupd_frame_r; apply fupd_elim.
       eapply derives_trans, fupd_mask_intro_all; rewrite <- wand_sepcon_adjoint.
-      Exists Ews (Val.of_bool b); entailer!.
+      Exists Ews (Val.of_bool b); unfold ptr_of; entailer!.
       rewrite <- wand_sepcon_adjoint.
       sep_apply fupd_frame_l; repeat sep_apply fupd_frame_r; apply fupd_elim.
       destruct b; simpl eq_dec.
