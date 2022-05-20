@@ -9,6 +9,8 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope Z.
 
+Notation remove_Znth := remove_Znth.
+
 Lemma Znth_app : forall {A}{d: Inhabitant A} (l1 l2 : list A) i,
       Zlength l1 = i -> Znth i (l1 ++ l2) = Znth 0 l2.
 (* should use app_Znth2 instead *)

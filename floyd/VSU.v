@@ -3302,11 +3302,11 @@ split; [ split; trivial | intros].
 subst.
 unfold binarySUMArgs. destruct x2; simpl. destruct x.
 + clear Hpsi. destruct Hphi as [_ Hphi].
-  eapply derives_trans. apply (Hphi ts2 _f gargs). clear Hphi. apply bupd_mono.
+  eapply derives_trans. apply (Hphi ts2 _f gargs). clear Hphi. apply fupd_mono.
   Intros ts1 x1 F. Exists ts1 (@sigBool_left A1 B1 ts1 x1) F; simpl.
   entailer.
 + clear Hphi. destruct Hpsi as [_ Hpsi].
-  eapply derives_trans. apply (Hpsi ts2 _f gargs). clear Hpsi. apply bupd_mono.
+  eapply derives_trans. apply (Hpsi ts2 _f gargs). clear Hpsi. apply fupd_mono.
   Intros ts1 x1 F. Exists ts1 (@sigBool_right A1 B1 ts1 x1) F; simpl.
   entailer.
 Qed.

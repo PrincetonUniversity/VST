@@ -29,29 +29,25 @@ Definition t_lock := Tstruct _atom_int noattr.
   Definition atom_CAS_spec :=
     DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic_int_at).
 
-  Definition lock_inv sh i g v R := cinv_own g sh * cinvariant i g
-    (EX b, atomic_int_at Ews (Val.of_bool b) v * if b then TT else R).
-
   Definition makelock_spec :=
     DECLARE _makelock
-    TYPE (ProdType (ConstType globals) Mpred) WITH gv: globals, R : mpred
+    WITH gv: globals
     PRE [ ]
        PROP ()
        PARAMS () GLOBALS (gv)
        SEP (mem_mgr gv)
-    POST [ tptr t_lock ] EX p i g,
+    POST [ tptr t_lock ] EX p,
        PROP ()
        RETURN (p)
-       SEP (mem_mgr gv; lock_inv Ews i g p R).
+       SEP (mem_mgr gv; atomic_int_at Ews (vint 1) p).
 
   Definition freelock_spec :=
     DECLARE _freelock
-    TYPE (ProdType (ConstType _) Mpred)
-    WITH i : _, g : _, p : val, R : mpred
+    WITH p : val
     PRE [ tptr t_lock ]
      PROP ()
      PARAMS (p)
-     SEP (lock_inv Ews i g p R)
+     SEP (EX v : val, atomic_int_at Ews v p)
    POST[ tvoid ]
      PROP ()
      LOCAL ()
