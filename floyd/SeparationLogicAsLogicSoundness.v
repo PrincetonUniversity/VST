@@ -136,8 +136,7 @@ Theorem semax_sound: forall Espec CS Delta P c Q,
 Proof.
   intros.
   induction H.
-  + rewrite log_normalize.andp_assoc.
-    apply semax_extract_prop.
+  + apply semax_extract_prop.
     intros.
     apply MinimumLogic.semax_ifthenelse; auto.
   + eapply MinimumLogic.semax_seq; eauto.

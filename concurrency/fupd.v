@@ -8,7 +8,9 @@ Import FashNotation.
 
 Lemma timeless'_timeless : forall (P : mpred), timeless' P -> Timeless P.
 Proof.
-  apply timeless'_except_0.
+  intros; unfold Timeless.
+  constructor.
+  apply timeless'_except_0; auto.
 Qed.
 
 #[export] Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
@@ -232,9 +234,9 @@ Qed.*)
 
 Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, inv i P.
 Proof.
-  intros; unfold fupd; iIntros "P (wsat & ?)".
-  iMod (wsat_alloc with "[$]") as "(? & ?)".
-  iRight; iFrame; auto.
+  intros; eapply derives_trans, fupd_mono; [apply inv_alloc|].
+  iIntros "I"; iDestruct "I" as (i) "I".
+  unfold inv; iExists _, i; iFrame; auto.
 Qed.
 
 Lemma make_inv : forall E P Q, (P |-- Q) -> P |-- |={E}=> EX i : _, inv i Q.
@@ -312,38 +314,50 @@ Qed.
           (λ _ : (), (▷ P)%I) (λ _ : (), (▷ P)%I) (λ _ : (), None).
 Proof.
   rewrite /inv /IntoAcc /accessor bi.exist_unit.
-  iIntros (?) "Hinv _".
-  iDestruct "Hinv" as (i) "[% #inv]".
-  subst; unfold to_coPset in *.
-  rewrite ndot_eq in H |- *; simpl in *.
-  iIntros "[wsat en]".
-  assert (In (coPset_to_Ensemble E) i) as Hin.
-  { unfold coPset_to_Ensemble; apply elem_of_subseteq_singleton, H. }
-  erewrite ghost_set_remove by eauto.
-  iDestruct "en" as "[eni en]".
-  iMod (wsat_open with "[$wsat $inv $eni]") as "((wsat & P) & dis)".
-  rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single; unfold Subtract.
-  iRight; iFrame.
-  iIntros "!> P [wsat en]".
-  iMod (wsat_close with "[$wsat $inv $P $dis]") as "[wsat eni]".
-  iCombine "en eni" as "en"; setoid_rewrite ghost_set_join.
-  iDestruct "en" as "[_ en]".
-  rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single Union_Readd; last done.
-  iRight; iFrame; auto.
+  intros; unfold bi_entails, bi_wand, fupd, bi_fupd_fupd; simpl.
+  Intros i; subst.
+  unfold to_coPset in *; rewrite -> ndot_eq in *; simpl in *.
+  sep_apply (inv_open (coPset_to_Ensemble E)).
+  { unfold coPset_to_Ensemble, In; apply elem_of_subseteq_singleton, H. }
+  rewrite -wand_sepcon_adjoint sepcon_emp.
+  rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single.
+  apply derives_refl.
 Qed.
 
-#[export] Instance into_inv_cinv N γ P : IntoInv (cinv N g P) N := {}.
+Definition cinv (N : namespace) g P := EX i : iname, !!(N = nroot .@ (Pos.of_nat (S i))) && cinvariant i g P.
 
-#[export] Instance into_acc_cinv E N g P p :
-  IntoAcc (X:=unit) (cinv N g P)
-          (↑N ⊆ E) (own g p) (fupd E (E∖↑N)) (fupd (E∖↑N) E)
-          (λ _, ▷ P ∗ own g p)%I (λ _, ▷ P)%I (λ _, None)%I.
+Lemma cinv_alloc : forall E P, |> P |-- |={E}=> EX i : _, EX g : _, cinv i g P * cinv_own g Tsh.
 Proof.
-  rewrite /IntoAcc /accessor. iIntros (?) "#Hinv Hown".
-  rewrite exist_unit -assoc.
-  iApply (cinv_acc with "Hinv"); done.
+  intros; eapply derives_trans, fupd_mono; [apply cinv_alloc|].
+  unfold bi_entails, cinv; simpl.
+  Intros i g; EExists; Exists g i; entailer!.
 Qed.
 
+Lemma make_cinv : forall E P Q, (P |-- Q) -> P |-- |={E}=> EX i : _, EX g : _, cinv i g Q * cinv_own g Tsh.
+Proof.
+  intros.
+  eapply derives_trans, cinv_alloc; auto.
+  eapply derives_trans, now_later; auto.
+Qed.
+
+(* These seem reasonable, but for some reason cause iInv to hang if exported. *)
+#[local] Instance into_inv_cinv N g P : IntoInv (cinv N g P) N := {}.
+
+#[local] Instance into_acc_cinv E N g P p :
+  IntoAcc (X:=unit) (cinv N g P)
+          (to_coPset N ⊆ E /\ readable_share p) (cinv_own g p) (fupd E (E ∖ to_coPset N)) (fupd (E ∖ to_coPset N) E)
+          (λ _, ▷ P ∗ cinv_own g p)%I (λ _, ▷ P)%I (λ _, None)%I.
+Proof.
+  rewrite /IntoAcc /accessor; intros [].
+  unfold bi_entails, fupd, bi_fupd_fupd, bi_wand, cinv; simpl.
+  Intros i; subst.
+  unfold to_coPset in *; rewrite -> ndot_eq in *; simpl in *.
+  rewrite -wand_sepcon_adjoint.
+  sep_apply (cinv_open (coPset_to_Ensemble E)).
+  { unfold coPset_to_Ensemble, In; apply elem_of_subseteq_singleton, H. }
+  rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single.
+  rewrite bi.exist_unit; apply derives_refl.
+Qed.
 
 End Invariants.
 

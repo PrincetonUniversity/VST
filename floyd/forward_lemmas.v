@@ -160,12 +160,14 @@ Lemma semax_ifthenelse_PQR' :
                         c Post ->
      @semax cs Espec Delta (PROPx (typed_false (typeof b) v :: P) (LOCALx Q (SEPx R)))
                         d Post ->
-     @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
                          (Sifthenelse b c d) Post.
 Proof.
  intros.
  eapply semax_pre;  [ | apply semax_ifthenelse]; auto.
  instantiate (1:=(local (`(eq v) (eval_expr b)) && PROPx P (LOCALx Q (SEPx R)))).
+ eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
+ rewrite <- later_andp; apply later_derives.
  apply andp_right; try assumption. apply andp_right; try assumption.
  apply andp_left2; auto.
  eapply semax_pre; [ | eassumption].
@@ -247,7 +249,8 @@ apply (@semax_loop cs Espec Delta Q Q).
 } 
 apply semax_seq with
  (local (`(typed_true (typeof test)) (eval_expr test)) && Q).
-apply semax_pre_simple with ( (tc_expr Delta (Eunop Cop.Onotbool test tint)) && Q).
+apply semax_pre_simple with (|>( (tc_expr Delta (Eunop Cop.Onotbool test tint)) && Q)).
+eapply derives_trans, now_later.
 apply andp_right. apply TC.
 apply andp_left2.
 intro; auto.
@@ -338,7 +341,8 @@ intros.
 apply semax_loop with PreIncr.
 apply semax_seq with (local (tc_environ Delta) &&
    (Q && local (` (typed_true (typeof test)) (eval_expr test)))) .
-apply semax_pre_simple with  ( (tc_expr Delta (Eunop Cop.Onotbool test tint)) && Q).
+apply semax_pre_simple with (|> ((tc_expr Delta (Eunop Cop.Onotbool test tint)) && Q)).
+eapply derives_trans, now_later.
 apply andp_right; auto.
 apply andp_left2; auto.
 apply semax_ifthenelse; auto.
@@ -565,9 +569,10 @@ apply semax_loop with (Q':= (EX a:A, PQR a)).
 *
  apply extract_exists_pre; intro a.
  apply @semax_seq with (Q := PROPx (typed_true (typeof test) (v a) :: P a) (LOCALx (Q a) (SEPx (R a)))).
- apply semax_pre with (tc_expr Delta (Eunop Onotbool test (Tint I32 Signed noattr)) 
-                                        && (local (`(eq (v a)) (eval_expr test)) && (PROPx (P a) (LOCALx (Q a) (SEPx (R a))))));
+ apply semax_pre with (|> (tc_expr Delta (Eunop Onotbool test (Tint I32 Signed noattr)) 
+                                        && (local (`(eq (v a)) (eval_expr test)) && (PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))));
    [ | apply semax_ifthenelse; auto].
+ eapply derives_trans, now_later.
  apply andp_right; auto.
  apply andp_right; auto.
  apply andp_left2; auto.

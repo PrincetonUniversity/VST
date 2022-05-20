@@ -49,7 +49,7 @@ Lemma semax_ifthenelse:
      semax Espec Delta (fun rho => P rho && !! expr_true b rho) c R ->
      semax Espec Delta (fun rho => P rho && !! expr_false b rho) d R ->
      semax Espec Delta
-              (fun rho => tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho && P rho)
+              (fun rho => |> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho && P rho))
               (Sifthenelse b c d) R.
 Proof.
 intros.
@@ -93,52 +93,60 @@ rewrite <- fash_and.
 intros a' a'' ? Hext. clear w H0.
 apply fash_derives.
 intros w [? ?].
-intros ? ?w ? Hext' [[?TC  ?] ?].
+intros ? w0 ? Hext' [[?TC  ?] ?].
 assert (typecheck_environ Delta rho) as TC_ENV. {
   destruct TC as [TC _].
   eapply typecheck_environ_sub; eauto.
 }
+destruct (level w0) eqn: Hl.
+{ intros ?; lia. }
+symmetry in Hl; apply levelS_age in Hl as (w0' & Hage & ?); subst n.
+eapply sepcon_derives in H4; [| apply now_later | apply derives_refl].
+rewrite <- later_sepcon in H4.
+specialize (H4 w0'); spec H4; [constructor; auto|].
 apply extend_sepcon_andp in H4; auto.
 destruct H4 as [TC2 H4].
 pose proof TC2 as TC2'.
 apply (tc_expr_sub _ _ _ TS) in TC2'; [| auto].
 destruct H4 as [w1 [w2 [? [? ?]]]].
-specialize (H0 _ _ H3 Hext').
-specialize (H1 _ _ H3 Hext').
+eapply age_ext_commut in Hext' as [a0 Hext' Hage']; eauto.
+assert (necR w a0) as Hnec by (eapply rt_trans; eauto; constructor; auto); clear Hage'.
+specialize (H0 _ _ Hnec Hext').
+specialize (H1 _ _ Hnec Hext').
 unfold expr_true, expr_false, Cnot in *.
 
 pose proof (typecheck_expr_sound _ _ _ _ TC_ENV TC2) as HTCb; simpl in HTCb.
 unfold liftx, lift, eval_unop in HTCb; simpl in HTCb.
 destruct (bool_val (typeof b) (eval_expr b rho)) as [b'|] eqn: Hb; [|contradiction].
-assert (assert_safe Espec psi f vx tx (Cont (Kseq (if b' then c else d) k))
-  (construct_rho (filter_genv psi) vx tx) w0) as Hw0.
+assert ((assert_safe Espec psi f vx tx (Cont (Kseq (if b' then c else d) k))
+  (construct_rho (filter_genv psi) vx tx)) w0') as Hw0.
 { unfold tc_expr in TC2; simpl in TC2.
   rewrite denote_tc_assert_andp in TC2; destruct TC2.
-  destruct b'; [apply H0 | apply H1]; split; subst; auto; split; auto; do 3 eexists; eauto; split;
+  destruct b'; [apply H0 | apply H1]; split; subst; try solve [eapply pred_hereditary; eauto]; split; auto; do 3 eexists; eauto; split;
     auto; split; auto; apply bool_val_strict; auto; eapply typecheck_expr_sound; eauto. }
 destruct HGG as [CSUB HGG]. apply (@tc_expr_cenv_sub _ _ CSUB) in TC2'.
 rename TC2' into Htc.
 intros ora jm Hora Hge Hphi ?.
 apply jm_fupd_intro'.
-generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
 generalize LW; intro H9.
 subst w0.
 change (level (m_phi jm)) with (level jm) in H9.
-revert H9; case_eq (level jm); intros.
+revert H9; case_eq (level jm); intros ? Hl.
 lia.
-apply levelS_age1 in H9. destruct H9 as [jm' ?].
-clear H10.
-eapply pred_hereditary in Hw0; [|eapply age_jm_phi; eauto].
+apply levelS_age1 in Hl. destruct Hl as [jm' Hage'].
+unfold age in Hage; erewrite age_jm_phi in Hage by eauto; inversion Hage; clear Hage; subst w0'.
+generalize (eval_expr_relate _ _ _ _ _ b jm' HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
+intros _.
 eapply jsafeN_step, assert_safe_jsafe, Hw0.
 split3.
-assert (TCS := typecheck_expr_sound _ _ (m_phi jm) _ (guard_environ_e1 _ _ _ TC) Htc). 
+assert (TCS := typecheck_expr_sound _ _ (m_phi jm') _ (guard_environ_e1 _ _ _ TC) Htc). 
 unfold tc_expr in Htc.
 simpl in Htc.
 rewrite denote_tc_assert_andp in Htc.
 destruct Htc as [TC2' TC2'a].
-rewrite <- (age_jm_dry H9); econstructor; eauto.
+rewrite (age_jm_dry Hage'); econstructor; eauto.
 {
- assert (exists b': bool, Cop.bool_val (@eval_expr CS' b rho) (typeof b) (m_dry jm) = Some b') as [].
+ assert (exists b': bool, Cop.bool_val (@eval_expr CS' b rho) (typeof b) (m_dry jm') = Some b') as [].
   { clear - TS TC H TC2 TC2' TC2'a TCS CSUB.
     simpl in TCS. unfold_lift in TCS.
     unfold Cop.bool_val;
@@ -159,10 +167,10 @@ rewrite <- (age_jm_dry H9); econstructor; eauto.
     all: try (apply tc_test_eq1 in TC2'; simpl; rewrite TC2'; eauto).
   }
   apply (bool_val_cenv_sub CSUB) in Hb.
-  rewrite H10; symmetry; eapply f_equal, bool_val_Cop; eauto. }
+  rewrite H9; symmetry; eapply f_equal, bool_val_Cop; eauto. }
 apply age1_resource_decay; auto.
 split; [apply age_level; auto|].
-erewrite (age1_ghost_of _ _ (age_jm_phi H9)) by (symmetry; apply ghost_of_approx).
+erewrite (age1_ghost_of _ _ (age_jm_phi Hage')) by (symmetry; apply ghost_of_approx).
 repeat intro; auto.
 Qed.
 

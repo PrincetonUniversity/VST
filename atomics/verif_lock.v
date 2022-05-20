@@ -2,7 +2,7 @@ Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.cancelable_invariants.
 Require Import VST.floyd.library.
-Require Import VST.atomics.SC_atomics.
+Require Import VST.atomics.SC_atomics_base.
 Require Import VST.atomics.lock.
 
 Section PROOFS.
@@ -231,7 +231,7 @@ Definition t_lock := Tstruct _atom_int noattr.
     forward_call (p, (vint 0), @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname, lock_inv sh i g p R).
     - unfold lock_inv.
       subst Frame; instantiate (1 := []); simpl fold_right_sepcon; cancel.
-      rewrite cinvariant_dup.
+      rewrite cinvariant_dup at 1.
       sep_apply (cinv_open Ensembles.Full_set); auto.
       repeat sep_apply fupd_frame_r; apply fupd_elim.
       unfold inv_for_lock at 1.
@@ -246,8 +246,8 @@ Definition t_lock := Tstruct _atom_int noattr.
         { unfold inv_for_lock.
           eapply derives_trans, now_later.
           Exists false; cancel. }
-        repeat sep_apply fupd_frame_r; apply fupd_mono.
-        
+        repeat sep_apply fupd_frame_r; apply fupd_mono; cancel.
+        apply andp_left2; auto.
       + eapply derives_trans, except_0_fupd; apply orp_right1.
         rewrite !sepcon_assoc; eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
         rewrite <- later_sepcon; apply later_derives.
@@ -255,7 +255,7 @@ Definition t_lock := Tstruct _atom_int noattr.
         rewrite FF_sepcon; auto.
     - hnf; inversion 1.
     - entailer!.
-  Admitted.
+  Qed.
 
   Lemma body_acquire: semax_body Vprog Gprog f_acquire acquire_spec.
   Proof.
@@ -265,32 +265,43 @@ Definition t_lock := Tstruct _atom_int noattr.
                        LOCAL (temp _b (vint 0); lvar _expected tint v_expected;
                               temp _lock p)
                        SEP (data_at_ Tsh tint v_expected; lock_inv sh i g p R)).
-    - entailer!.
-    - forward.
-      forward_call
-        (p , Tsh, v_expected, (vint 0), (vint 1), @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname,
-              fun v':val =>
-                lock_inv sh i g p R * if (eq_dec v' (vint 0)) then R else emp).
-      + subst Frame; instantiate (1 := []); simpl fold_right_sepcon; cancel.
-        (*iIntros ">AS". iExists Ews.
-        iDestruct "AS" as (x) "[[a | a] H]".
-        * iDestruct "H" as "[_ H]". iDestruct "a" as (a) "b".
-          iExists (vint 0). iModIntro. iSplitL "b".
-          -- iSplit; auto.
-          -- iSpecialize ("H" $! tt). iIntros "AA". iApply "H".
-             destruct (eq_dec (vint 0) (vint 0)). 2: exfalso; now apply n.
-             iSplit; [iSplit|]; auto.
-        * iExists (vint 1). iModIntro. destruct (eq_dec (vint 1) (vint 0)).
-          1: inversion e. rewrite sepcon_andp_prop'. iSplit.
-          -- iPureIntro. apply writable_Ews.
-          -- iDestruct "a" as (Hx) "a". iSplitL "a"; first auto. iIntros "AS".
-             iMod ("H" with "[AS]").
-             { iRight; iFrame; auto. }
-             iFrame; auto.*) admit.
-      + hnf; inversion 1.
-      + Intros r. forward_if.
-        * if_tac; try discriminate. forward. entailer!.
-        * if_tac; try contradiction. forward. entailer!.
-  Admitted.
+    { entailer!. }
+    forward.
+    forward_call
+      (p , Tsh, v_expected, (vint 0), (vint 1), @Ensembles.Full_set invariants.iname, @Ensembles.Empty_set invariants.iname,
+            fun v':val =>
+              lock_inv sh i g p R * if (eq_dec v' (vint 0)) then |> R else emp).
+    - unfold lock_inv.
+      subst Frame; instantiate (1 := []); simpl fold_right_sepcon; cancel.
+      rewrite cinvariant_dup at 1.
+      sep_apply (cinv_open Ensembles.Full_set); auto.
+      repeat sep_apply fupd_frame_r; apply fupd_elim.
+      unfold inv_for_lock at 1.
+      rewrite (later_exp' _ true); Intros b.
+      rewrite later_sepcon; sep_eapply fupd_timeless; auto; repeat sep_eapply fupd_frame_r; apply fupd_elim.
+      eapply derives_trans, fupd_mask_intro_all; rewrite <- wand_sepcon_adjoint.
+      Exists Ews (Val.of_bool b); entailer!.
+      rewrite <- wand_sepcon_adjoint.
+      sep_apply fupd_frame_l; repeat sep_apply fupd_frame_r; apply fupd_elim.
+      destruct b; simpl eq_dec.
+      + rewrite !if_false by discriminate.
+        sep_eapply fupd_timeless; [apply fupd.emp_timeless|]; repeat sep_eapply fupd_frame_r; apply fupd_elim.
+        rewrite emp_sepcon.
+        sep_apply (modus_ponens_wand' (atomic_int_at Ews (Val.of_bool true) p)).
+        { unfold inv_for_lock.
+          eapply derives_trans, now_later.
+          Exists true; cancel. }
+        repeat sep_apply fupd_frame_r; apply fupd_mono; cancel.
+      + rewrite !if_true by auto.
+        sep_apply (modus_ponens_wand' (atomic_int_at Ews (vint 1) p)).
+        { unfold inv_for_lock.
+          eapply derives_trans, now_later.
+          Exists true; cancel. }
+        repeat sep_apply fupd_frame_r; apply fupd_mono; cancel.
+    - hnf; inversion 1.
+    - Intros r. if_tac; forward_if; try discriminate; try contradiction.
+      + forward. entailer!.
+      + forward. entailer!.
+  Qed.
 
 End PROOFS.

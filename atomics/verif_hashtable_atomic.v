@@ -1,11 +1,8 @@
 Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.atomics.SC_atomics.
-Require Import VST.veric.bi.
 Require Import VST.floyd.library.
-Require Import VST.zlist.sublist.
 Require Import VST.atomics.hashtable_atomic.
-Require Import VST.atomics.general_atomics.
 Require Import VST.atomics.hashtable.
 Require Import VST.msl.iter_sepcon.
 Import List.

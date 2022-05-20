@@ -144,7 +144,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
    forall P (b: expr) c d R,
      @semax CS Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c R ->
      @semax CS Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) d R ->
-     @semax CS Espec Delta (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R
+     @semax CS Espec Delta (!! (bool_type (typeof b) = true) && |> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P)) (Sifthenelse b c d) R
 | semax_seq:
   forall R P Q h t,
     @semax CS Espec Delta P h (overridePost Q R) ->
@@ -865,11 +865,11 @@ Qed.
 Lemma semax_ifthenelse_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
   local (tc_environ Delta) && (allp_fun_id Delta && P) |--
-  |={Ensembles.Full_set}=> (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) &&
-  EX P': environ -> mpred,
+  |={Ensembles.Full_set}=> (!! (bool_type (typeof b) = true) && |> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) &&
+  (EX P': environ -> mpred,
   !! (@semax CS Espec Delta (P' && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
       @semax CS Espec Delta (P' && local (`(typed_false (typeof b)) (eval_expr b))) c2 R) &&
-  P').
+  P'))).
 Proof.
   intros.
   remember (Sifthenelse b c1 c2) as c eqn:?H.
@@ -877,12 +877,16 @@ Proof.
   + inv H0; clear IHsemax1 IHsemax2.
     reduce2derives.
     apply andp_derives; auto.
+    apply later_derives.
+    apply andp_derives; auto.
     apply (exp_right P).
     apply andp_right; [apply prop_right; auto |].
     auto.
   + derives_rewrite -> H.
     derives_rewrite -> (IHsemax H0); clear IHsemax.
     reduce2derives.
+    apply andp_derives; auto.
+    apply later_derives.
     apply andp_derives; auto.
     apply exp_derives; intros P''.
     normalize.
@@ -1247,7 +1251,7 @@ Theorem semax_ifthenelse :
       bool_type (typeof b) = true ->
      @semax CS Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c R ->
      @semax CS Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) d R ->
-     @semax CS Espec Delta (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R.
+     @semax CS Espec Delta (|> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P)) (Sifthenelse b c d) R.
 Proof.
   intros.
   pose proof @AuxDefs.semax_ifthenelse _ _ _ _ _ _ _ _ H0 H1.
@@ -1465,12 +1469,12 @@ Theorem semax_Delta_subsumption:
 Proof.
   intros.
   induction H0.
-  + apply semax_pre with (!! (bool_type (typeof b) = true) && tc_expr Delta' (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P); [| apply AuxDefs.semax_ifthenelse; auto].
-    apply andp_ENTAIL; [| apply ENTAIL_refl].
+  + apply semax_pre with (!! (bool_type (typeof b) = true) && |> (tc_expr Delta' (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P)); [| apply AuxDefs.semax_ifthenelse; auto].
     apply andp_ENTAIL; [apply ENTAIL_refl |].
+    rewrite !later_andp; apply andp_ENTAIL, ENTAIL_refl.
     intro rho; simpl.
     unfold local, lift1; normalize.
-    constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
+    apply later_derives; constructor; apply Clight_assert_lemmas.tc_expr_sub; auto.
     eapply semax_lemmas.typecheck_environ_sub; eauto.
   + eapply AuxDefs.semax_seq; eauto.
   + eapply AuxDefs.semax_break; eauto.
@@ -1795,15 +1799,15 @@ Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
 Proof.
   intros.
   induction H.
-  + apply semax_pre with (!! (bool_type (typeof b) = true) && @tc_expr CS' Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && (@tc_expr CS Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P)); [| apply AuxDefs.semax_ifthenelse; auto].
+  + apply semax_pre with (!! (bool_type (typeof b) = true) && |> (@tc_expr CS' Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && (@tc_expr CS Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P))); [| apply AuxDefs.semax_ifthenelse; auto].
     {
-    apply andp_right; [| solve_andp].
-    rewrite <- andp_assoc.
+    apply andp_right. { apply andp_left2, andp_left1; auto. }
+    rewrite !later_andp; apply andp_right, andp_left2, andp_left2; auto.
+    rewrite <- 2andp_assoc.
     apply andp_left1.
-    apply andp_ENTAIL; [apply ENTAIL_refl |].
     intro rho; simpl.
     unfold local, lift1; normalize.
-    apply tc_expr_cspecs_sub; auto.
+    apply later_derives, tc_expr_cspecs_sub; auto.
     }
     {
       eapply semax_pre; [| exact IHsemax1].
@@ -2105,14 +2109,15 @@ Lemma semax_frame:
 Proof.
   intros.
   induction H0.
-  + apply semax_pre with (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && (P * F)).
+  + apply semax_pre with (!! (bool_type (typeof b) = true) && (|> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && (P * F)))).
     - normalize.
-      apply andp_left2, andp_right.
-      * eapply derives_trans; [apply sepcon_derives; [apply andp_left1 |]; apply derives_refl |].
+      eapply derives_trans; [apply andp_derives, sepcon_derives, now_later; apply derives_refl|].
+      apply andp_left2; rewrite <- later_sepcon; apply later_derives.
+      apply andp_right.
+      * eapply derives_trans; [apply sepcon_derives, derives_refl; apply andp_left1, derives_refl |].
         intro rho.
         constructor; apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho)).
-      * eapply derives_trans; [apply sepcon_derives; [apply andp_left2 |]; apply derives_refl |].
-        auto.
+      * apply sepcon_derives; [apply andp_left2|]; auto.
     - rewrite semax_lemmas.closed_Sifthenelse in H; destruct H.
       apply AuxDefs.semax_ifthenelse.
       * eapply semax_pre; [| apply IHsemax1; auto].
@@ -2661,15 +2666,18 @@ Proof.
   apply semax_ifthenelse_inv in H.
   eapply semax_conseq; [exact H | intros; try apply derives_full_refl .. |].
   { apply andp_left2, andp_left2, derives_refl. }
-  rewrite exp_andp2.
+  rewrite later_andp, (later_exp' _ (fun _ => emp)).
+  rewrite !exp_andp2.
   apply semax_extract_exists.
   intros P'.
-  rewrite andp_comm, andp_assoc.
-  apply semax_extract_prop; intros [? ?].
+  rewrite later_andp.
+  rewrite andp_comm, andp_assoc, andp_comm, !andp_assoc.
+  apply semax_extract_later_prop; intros [? ?].
   rewrite andp_comm.
   apply semax_seq_inv in H0.
   apply semax_seq_inv in H1.
   destruct H0 as [Q1 [? ?]], H1 as [Q2 [? ?]].
+  rewrite andp_assoc, <- later_andp.
   apply AuxDefs.semax_seq with (orp Q1 Q2); [apply AuxDefs.semax_ifthenelse |].
   + eapply semax_post; [| | | | exact H0].
     - destruct Q; apply andp_left2, orp_right1, derives_refl.

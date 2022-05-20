@@ -1532,7 +1532,7 @@ Axiom semax_ifthenelse :
       bool_type (typeof b) = true ->
      @semax CS Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c R ->
      @semax CS Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) d R ->
-     @semax CS Espec Delta (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R.
+     @semax CS Espec Delta (|> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P)) (Sifthenelse b c d) R.
 
 Axiom semax_seq:
   forall{CS: compspecs} {Espec: OracleKind},
