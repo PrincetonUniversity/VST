@@ -345,7 +345,7 @@ Qed.
 
 #[local] Instance into_acc_cinv E N g P p :
   IntoAcc (X:=unit) (cinv N g P)
-          (to_coPset N ⊆ E /\ readable_share p) (cinv_own g p) (fupd E (E ∖ to_coPset N)) (fupd (E ∖ to_coPset N) E)
+          (to_coPset N ⊆ E /\ p <> Share.bot) (cinv_own g p) (fupd E (E ∖ to_coPset N)) (fupd (E ∖ to_coPset N) E)
           (λ _, ▷ P ∗ cinv_own g p)%I (λ _, ▷ P)%I (λ _, None)%I.
 Proof.
   rewrite /IntoAcc /accessor; intros [].

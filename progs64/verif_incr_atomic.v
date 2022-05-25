@@ -1,4 +1,5 @@
 Require Import VST.concurrency.conclib.
+Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.concurrency.ghosts.
 Require Import VST.progs64.incr.
 Require Import VST.atomics.general_locks.
@@ -6,64 +7,60 @@ Require Import VST.atomics.general_locks.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release_spec := DECLARE _release release_spec.
-Definition makelock_spec := DECLARE _makelock (makelock_spec _).
-Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 Definition spawn_spec := DECLARE _spawn spawn_spec.
-Definition release2_spec := DECLARE _release2 release2_spec.
-Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 
-Definition ctr_state ctr (g : gname) n := data_at Ews tuint (Vint (Int.repr (Z.of_nat n))) ctr.
+Definition t_counter := Tstruct _counter noattr.
+
+Definition ctr_state gv (g : gname) n := field_at Ews t_counter [StructField _ctr] (Vint (Int.repr (Z.of_nat n))) (gv _c).
 
 Program Definition incr_spec :=
  DECLARE _incr
   ATOMIC TYPE (rmaps.ConstType _) OBJ n INVS ∅
-  WITH sh, g, gv
+  WITH sh1, sh, h, g, gv
   PRE [ ]
-         PROP  (readable_share sh)
+         PROP  (readable_share sh1; sh <> Share.bot)
          PARAMS () GLOBALS (gv)
-         SEP   (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g n)
+         SEP   (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c); lock_inv sh h (sync_inv g Tsh (ctr_state gv))) | (public_half g n)
   POST [ tvoid ]
          PROP ()
          LOCAL ()
-         SEP (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g (n + 1)%nat).
+         SEP (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c); lock_inv sh h (sync_inv g Tsh (ctr_state gv))) | (public_half g (n + 1)%nat).
 
-Program Definition read_spec :=
+(*Program Definition read_spec :=
  DECLARE _read
   ATOMIC TYPE (rmaps.ConstType (_ * _ * _)) OBJ n INVS ∅
-  WITH sh, g, gv
+  WITH sh, h, g, gv
   PRE [ ]
-         PROP  (readable_share sh)
+         PROP  (sh <> Share.bot; ptr_of h = gv _ctr_lock)
          PARAMS () GLOBALS (gv)
-         SEP   (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g n)
+         SEP   (lock_inv sh h (sync_inv g Tsh (ctr_state (gv _ctr)))) | (public_half g n)
   POST [ tuint ]
     EX n' : nat,
          PROP ()
          LOCAL (temp ret_temp (Vint (Int.repr (Z.of_nat n'))))
-         SEP (lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)))) | (!!(n' = n) && public_half g n).
+         SEP (lock_inv sh h (sync_inv g Tsh (ctr_state (gv _ctr)))) | (!!(n' = n) && public_half g n).*)
 
 Definition cptr_inv g g1 g2 :=
   EX x y : nat, ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * public_half g (x + y)%nat.
 
-Definition thread_lock_R sh g g1 gv := ghost_var gsh2 1%nat g1 * lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr))).
+Definition thread_lock_R sh h g g1 gv := ghost_var gsh2 1%nat g1 * lock_inv sh h (sync_inv g Tsh (ctr_state (gv _ctr))).
 
-Definition thread_lock_inv sh g g1 gv lockt := selflock (thread_lock_R sh g g1 gv) sh lockt.
+Definition thread_lock_inv sh h g g1 gv lockt := selflock (thread_lock_R sh h g g1 gv) sh lockt.
 
-Definition thread_func_spec :=
+(*Definition thread_func_spec :=
  DECLARE _thread_func
-  WITH y : val, x : namespace * share * gname * gname * gname * globals
+  WITH y : val, x : namespace * share * lock_handle * lock_handle * gname * gname * gname * globals
   PRE [ tptr tvoid ]
-         let '(i, sh, g, g1, g2, gv) := x in
-         PROP  (readable_share sh)
+         let '(i, sh, hc, ht, g, g1, g2, gv) := x in
+         PROP  (sh <> Share.bot; ptr_of hc = gv _ctr_lock; ptr_of ht = gv _thread_lock)
          PARAMS (y) GLOBALS (gv)
          SEP   (inv i (cptr_inv g g1 g2); ghost_var gsh2 O g1;
-                    lock_inv sh (gv _ctr_lock) (sync_inv g Tsh (ctr_state (gv _ctr)));
-                lock_inv sh (gv _thread_lock) (thread_lock_inv sh g g1 gv (gv _thread_lock)))
-  POST [ tptr tvoid ]
+                    lock_inv sh hc (sync_inv g Tsh (ctr_state (gv _ctr)));
+                lock_inv sh ht (thread_lock_inv sh hc g g1 gv ht))
+  POST [ tint ]
          PROP ()
-         LOCAL ()
-         SEP (). (* really the thread lock invariant is the postcondition of the spawned thread *)
+         RETURN (Vint Int.zero)
+         SEP ().*)
 
 Definition main_spec :=
  DECLARE _main
@@ -72,10 +69,10 @@ Definition main_spec :=
   POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
-  freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
+  freelock_spec; (*freelock2_spec;*) spawn_spec; incr_spec(*; read_spec; thread_func_spec*); main_spec]).
 
-Lemma thread_inv_exclusive : forall sh g g1 gv lockt, sh <> Share.bot ->
-  exclusive_mpred (thread_lock_inv sh g g1 gv lockt).
+Lemma thread_inv_exclusive : forall sh hc g g1 gv lockt,
+  exclusive_mpred (thread_lock_inv sh hc g g1 gv lockt).
 Proof.
   intros; apply selflock_exclusive.
   unfold thread_lock_R.
@@ -87,6 +84,23 @@ Qed.
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
   start_function.
+match goal with |- context[lock_inv ?a ?h ?c] =>
+  gather_SEP (lock_inv a h c); viewshift_SEP 0 (!!(isptr (ptr_of h)) && lock_inv a h c);
+    [go_lower; apply lock_inv_isptr | Intros] end.
+  lock_isptr.
+  viewshift_SEP 2 (!!isptr (ptr_of h) && lock_inv sh h (sync_inv g Tsh (ctr_state gv))).
+  { entailer!. apply lock_inv_isptr.
+  assert_PROP (isptr (ptr_of h)).
+  { 
+  forward.
+  { entailer!.
+  unfold t_lock.
+  change threads._atom_int with _atom_int.
+
+  forward.
+410619246905162
+  assert_PROP (gv _ctr_lock = field_address (tptr t_lock) [] (gv _ctr_lock)).
+  entailer!. rewrite field_compatible_field_address; auto. simpl. rewrite isptr_offset_val_zero; auto.
   forward.
   forward_call (gv _ctr_lock, sh, sync_inv g Tsh (ctr_state (gv _ctr))).
   unfold sync_inv at 2; Intros n.
@@ -287,3 +301,5 @@ semax_func_cons body_read.
 semax_func_cons body_thread_func.
 semax_func_cons body_main.
 Qed.
+
+End proofs.

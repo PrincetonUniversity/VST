@@ -1,4 +1,5 @@
 Require Import VST.concurrency.conclib.
+Require Import VST.atomics.lock_specs.
 Require Import VST.concurrency.ghosts.
 Require Import VST.progs.incrN.
 

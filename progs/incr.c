@@ -1,45 +1,37 @@
-#include "threads.h"
+#include "../concurrency/threads.h"
 //#include <stdio.h>
-//#include <stdlib.h>
 
-#define NULL 0
-
-lock_t ctr_lock;
-lock_t thread_lock;
+lock_t *ctr_lock;
+lock_t *thread_lock;
 unsigned ctr;
 
 void incr() {
-  lock_t *l = &ctr_lock;
-  acquire((void*)l);
-  unsigned t = ctr;
-  ctr = t + 1;
-  release((void*)l);
+  acquire(ctr_lock);
+  ctr = ctr + 1;
+  release(ctr_lock);
 }
 
 unsigned read() {
-  acquire( (void*)&ctr_lock );
+  acquire(ctr_lock);
   unsigned t = ctr;
-  release ( (void*)&ctr_lock );
+  release (ctr_lock);
   return t;
 }
 
-void *thread_func(void *args) {
-  lock_t *l = &thread_lock;
+int thread_func(void *args) {
   //Increment the counter
   incr();
   //Yield: 'ready to join'.
-  release2((void*)l);
-  return (void *)NULL;
+  release2(thread_lock);
+  return 0;
 }
 
 int main(void)
 {
   ctr = 0;
-  lock_t *lockc = &ctr_lock;
-  lock_t *lockt = &thread_lock;
-  makelock((void*)lockc);
-  release((void*)lockc);
-  makelock((void*)lockt);
+  ctr_lock = makelock();
+  release(ctr_lock);
+  thread_lock = makelock();
   /* Spawn */
   spawn((void *)&thread_func, (void *)NULL);
 
@@ -47,12 +39,12 @@ int main(void)
   incr();
 
   /*JOIN */
-  acquire((void*)lockt);
+  acquire(thread_lock);
   unsigned t = read();
-  acquire((void*)lockc);
+  acquire(ctr_lock);
   /* free the locks */
-  freelock2((void*)lockt);
-  freelock((void*)lockc);
+  freelock2(thread_lock);
+  freelock(ctr_lock);
 
   /*printf("I'm done with a final counter of: %d\n", t);*/
 

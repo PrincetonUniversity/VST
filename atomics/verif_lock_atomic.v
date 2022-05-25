@@ -4,7 +4,7 @@ Require Import VST.concurrency.ghosts.
 Require Import VST.concurrency.cancelable_invariants.
 Require Import VST.floyd.library.
 Require Import VST.atomics.SC_atomics.
-Require Import VST.atomics.lock.
+Require Import VST.concurrency.threads.
 
 Section PROOFS.
 

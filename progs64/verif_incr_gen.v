@@ -2,6 +2,7 @@
    Subjective Auxiliary State for Coarse-Grained Concurrency, Ley-Wild and Nanevski, POPL 2013. *)
 
 Require Import VST.concurrency.conclib.
+Require Import VST.atomics.lock_specs.
 Require Import VST.concurrency.ghosts.
 Require Import VST.progs64.incrN.
 

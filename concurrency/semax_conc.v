@@ -12,7 +12,6 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_safety.
-(*Require Import VST.veric.Clight_new.*)
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.sepcomp.semantics.
@@ -22,26 +21,12 @@ Require Import VST.floyd.field_at.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
-Require Import VST.floyd.funspec_old.
-Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.semax_conc_pred.
 Import FashNotation.
 Import String.
 Open Scope funspec_scope.
 
-Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
-(* Definition tlock := Tstruct _lock_t noattr. *)
-Definition tlock := (Tarray (Tpointer Ctypes.Tvoid noattr) 2 noattr).
-(* Notation tlock := tuint (only parsing). *)
-
-Goal forall (cs: compspecs), @sizeof cs tlock = LKSIZE.
-Proof. reflexivity. Qed.
-
-Definition selflock_fun Q sh p : (unit -> mpred) -> (unit -> mpred) :=
-  fun R _ => (Q * |>lock_inv sh p (R tt))%logic.
-
-Definition selflock' Q sh p : unit -> mpred := HORec (selflock_fun Q sh p).
-Definition selflock Q sh p : mpred := selflock' Q sh p tt.
+Definition spawned_funtype := Tfunction (Tcons (tptr tvoid) Tnil) tint cc_default.
 
 Lemma nonexpansive_entail (F: pred rmap -> pred rmap) : nonexpansive F -> forall P Q, (P <=> Q |-- F P <=> F Q)%logic.
 Proof.
@@ -63,38 +48,6 @@ Proof.
     specialize (H (fun x => P) (fun x => Q)).
     rewrite !allp_unit in H.
     inv H; auto.
-Qed.
-
-Lemma selflock'_eq Q sh p : selflock' Q sh p =
-  selflock_fun Q sh p (selflock' Q sh p).
-Proof.
-  apply HORec_fold_unfold, prove_HOcontractive'.
-  intros P1 P2 u.
-  apply subp_sepcon; [ apply subp_refl | ].
-  eapply derives_trans, subp_later1.
-  constructor; repeat intro.
-  match goal with |- app_pred (?P >=> ?Q)%logic ?a => change (subtypes.fash (P --> Q)%pred a) end.
-  unfold lock_inv; repeat intro.
-  destruct H4 as (b & ofs & ? & Hl); exists b, ofs; split; auto.
-  intro l; specialize (Hl l); simpl in *.
-  if_tac; auto.
-  destruct Hl as [rsh Hl]; exists rsh; rewrite Hl; repeat f_equal.
-  extensionality.
-  specialize (H tt).
-  specialize (H _ H0).
-  apply necR_level in H2. apply ext_level in H3.
-  apply predicates_hered.pred_ext; intros ? []; split; auto.
-  - destruct (H a0) as [X _]; [lia|].
-    specialize (X _ _ (necR_refl _) (ext_refl _)); auto.
-  - destruct (H a0) as [_ X]; [lia|].
-    specialize (X _ _ (necR_refl _) (ext_refl _)); auto.
-Qed.
-
-Lemma selflock_eq Q sh p : selflock Q sh p = (Q * |>lock_inv sh p (selflock Q sh p))%logic.
-Proof.
-  unfold selflock at 1.
-  rewrite selflock'_eq.
-  reflexivity.
 Qed.
 
 Lemma eqp_refl : forall (G : Triv) P, G |-- (P <=> P)%logic.
@@ -132,31 +85,7 @@ Proof.
     inv H; rename derivesI into H; constructor; intros ? Ha; destruct (H _ Ha); auto.
 Qed.
 
-Lemma lock_inv_nonexpansive2 : forall {A} (P Q : A -> mpred) sh p x, (ALL x : _, |> (P x <=> Q x) |--
-  |> lock_inv sh p (P x) <=> |> lock_inv sh p (Q x))%logic.
-Proof.
-  intros.
-  apply allp_left with x.
-  eapply derives_trans, eqp_later1; apply later_derives.
-  apply nonexpansive_entail; apply nonexpansive_lock_inv.
-Qed.
-
-Lemma selflock_nonexpansive : forall sh p, nonexpansive (fun P => selflock P sh p).
-Proof.
-  intros ????.
-  unfold selflock, selflock'.
-  apply (HORec_nonexpansive _ (fun P => selflock_fun P sh p)).
-  - intros ???.
-    unfold selflock_fun.
-    apply predicates_hered.allp_right; intro.
-    apply eqp_sepcon; [apply eqp_refl|].
-    match goal with |- _ |-- ?Q => change ((ALL x : _, |> (P0 x <=> Q0 x))%logic |-- Q) end.
-    apply lock_inv_nonexpansive2.
-  - intros ????.
-    unfold selflock_fun.
-    apply eqp_sepcon, eqp_refl.
-    apply derives_refl.
-Qed.
+(*
 
 (* In fact we need locks to two resources:
    1) the resource invariant, for passing the resources
@@ -219,13 +148,13 @@ Proof.
   unfold join_res_invariant at 1.
   rewrite res_invariants_eq.
   reflexivity.
-Qed.
+Qed.*)
 
-(* Condition variables *)
+(*(* Condition variables *)
 Definition tcond := tint.
 
 (* Does this need to be anything special? *)
-Definition cond_var {cs} sh v := @data_at_ cs sh tcond v.
+Definition cond_var {cs} sh v := @data_at_ cs sh tcond v.*)
 
 (*+ Specification of each concurrent primitive *)
 
@@ -305,407 +234,8 @@ Lemma nonexpansive_2super_non_expansive: forall {A B: Type} (F: (A -> B -> mpred
   forall P Q n,
   approx n (F P Q) = approx n (F (approx n P) (approx n Q)).
 *)
-Definition acquire_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred.
 
-Definition acquire_pre: val * share * mpred -> argsEnviron -> mpred :=
-  fun args =>
-  match args with
-  | (v, sh, R) =>
-     PROP (readable_share sh)
-     PARAMS (v) GLOBALS ()
-     SEP (lock_inv sh v R)
-  end%argsassert.
-
-Notation acquire_post :=
-  (fun args =>
-  match args with
-  | (v, sh, R) =>
-     PROP ()
-     LOCAL ()
-     SEP (lock_inv sh v R; R)
-  end).
-(*
-Lemma NP_acquire_pre: @super_non_expansive acquire_arg_type (fun _ => acquire_pre).
-Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP (readable_share sh)  LOCAL (temp _lock v)  SEP (lock_inv sh v R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          ((fun _ => readable_share sh) :: nil)
-          ((temp _lock v) :: nil)
-          ((fun R => lock_inv sh v R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  + unfold compose. apply const_nonexpansive.
-  + apply nonexpansive_lock_inv.
-Qed.*)
-
-Lemma NP_acquire_pre: @args_super_non_expansive acquire_arg_type (fun _ => acquire_pre).
-Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  unfold PROPx. simpl. rewrite 2 approx_andp. f_equal.
-  unfold LAMBDAx. simpl. rewrite 2 approx_andp. f_equal.
-  unfold GLOBALSx, LOCALx. simpl. rewrite 2 approx_andp. f_equal. 
-  unfold argsassert2assert, SEPx. simpl. rewrite 2 sepcon_emp.
-  apply nonexpansive_super_non_expansive. apply nonexpansive_lock_inv.
-Qed.
-
-Lemma NP_acquire_post: @super_non_expansive acquire_arg_type (fun _ => acquire_post).
-Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP ()  LOCAL ()  SEP (lock_inv sh v R; R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          nil
-          nil
-          ((fun R => lock_inv sh v R) :: (fun R => R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply nonexpansive_lock_inv.
-  + apply identity_nonexpansive.
-Qed.
-
-Definition acquire_spec: funspec := mk_funspec
-  (tptr Ctypes.Tvoid :: nil, tvoid)
-  cc_default
-  acquire_arg_type
-  (fun _ => acquire_pre)
-  (fun _ => acquire_post)
-  NP_acquire_pre
-  NP_acquire_post
-.
-
-Definition release_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred.
-
-Definition release_pre: val * share * mpred -> argsEnviron -> mpred :=
-  fun args =>
-  match args with
-  | (v, sh, R) =>
-     PROP (readable_share sh)
-     PARAMS (v) GLOBALS ()
-     SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)
-  end%argsassert.
-
-Notation release_post :=
-  (fun args =>
-  match args with
-  | (v, sh, R) =>
-     PROP ()
-     LOCAL ()
-     SEP (lock_inv sh v R)
-  end).
-
-(*
-Lemma NP_release_pre: @super_non_expansive release_arg_type (fun _ => release_pre).
-Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP (readable_share sh)  LOCAL (temp _lock v)  SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          ((fun _ => readable_share sh) :: nil)
-          ((temp _lock v) :: nil)
-          ((fun R => weak_exclusive_mpred R && emp)%logic :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
-    - apply exclusive_mpred_nonexpansive.
-    - apply const_nonexpansive.
-  + apply nonexpansive_lock_inv.
-  + apply identity_nonexpansive.
-Qed.*)
-
-Lemma NP_release_pre: @args_super_non_expansive release_arg_type (fun _ => release_pre).
-Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  unfold PROPx. simpl. rewrite 2 approx_andp. f_equal.
-  unfold LAMBDAx. simpl. rewrite 2 approx_andp. f_equal.
-  unfold GLOBALSx, LOCALx. simpl. rewrite 2 approx_andp. f_equal. 
-  unfold argsassert2assert. simpl. unfold SEPx; simpl. rewrite 2 sepcon_emp.
-  rewrite -> ! approx_sepcon. f_equal. 
-  + apply (nonexpansive_super_non_expansive (fun R => weak_exclusive_mpred R && emp))%logic.
-    apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
-    - apply exclusive_mpred_nonexpansive.
-    - apply const_nonexpansive.
-  + f_equal.
-    - apply (nonexpansive_super_non_expansive). apply nonexpansive_lock_inv.
-    - remember (approx n (approx n R)). rewrite <- (approx_oo_approx n). subst.
-      reflexivity.
-Qed. 
-
-Lemma NP_release_post: @super_non_expansive release_arg_type (fun _ => release_post).
-Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP ()  LOCAL ()  SEP (lock_inv sh v R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          nil
-          nil
-          ((fun R => lock_inv sh v R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  apply nonexpansive_lock_inv.
-Qed.
-
-Definition release_spec: funspec := mk_funspec
-  (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Ctypes.Tvoid) :: nil, tvoid)
-  cc_default
-  release_arg_type
-  (fun _ => release_pre)
-  (fun _ => release_post)
-  NP_release_pre
-  NP_release_post
-.
-
-Program Definition makelock_spec cs: funspec := mk_funspec
-  (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Ctypes.Tvoid) :: nil, tvoid)
-  cc_default
-  (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
-  (fun _ x =>
-   match x with
-   | (v, sh, R) =>
-     PROP (writable_share sh)
-     PARAMS (v) GLOBALS ()
-     SEP (@data_at_ cs sh tlock v)
-   end)%argsassert
-  (fun _ x =>
-   match x with
-   | (v, sh, R) =>
-     PROP ()
-     LOCAL ()
-     SEP (lock_inv sh v R)
-   end)
-  _
-  _
-.
-Next Obligation.
-  intros cs; hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  auto.
-Qed.
-Next Obligation.
-  intro cs; hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP ()  LOCAL ()  SEP (lock_inv sh v R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          nil
-          nil
-          ((fun R => lock_inv sh v R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  apply nonexpansive_lock_inv.
-Qed.
-
-Program Definition freelock_spec cs: funspec := mk_funspec
-  (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Ctypes.Tvoid) :: nil, tvoid)
- cc_default
-  (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
-  (fun _ x =>
-   match x with
-   | (v, sh, R) =>
-     PROP (writable_share sh)
-     PARAMS (v) GLOBALS()
-     SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)
-   end)%argsassert
-  (fun _ x =>
-   match x with
-   | (v, sh, R) =>
-     PROP ()
-     LOCAL ()
-     SEP (@data_at_ cs sh tlock v; R)
-   end)
-  _
-  _
-.
-Next Obligation.
-  intro cs; hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive (fun R => (PROP (writable_share sh)
-    PARAMS(v) GLOBALS()
-    SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R))%argsassert gargs)).
-  unfold PARAMSx, GLOBALSx, SEPx, PROPx, LOCALx, argsassert2assert. simpl. 
-  apply (conj_nonexpansive (fun R0 : mpred => (!! (writable_share sh /\ True)))
-    (fun R0 => (!! (snd gargs = v :: nil) &&
-     (local (liftx True) (Clight_seplog.mkEnv (fst gargs) nil nil) &&
-      (weak_exclusive_mpred R0 && emp * (lock_inv sh v R0 * (R0 * emp)))))))%logic.
-  apply const_nonexpansive.
-  apply (conj_nonexpansive (fun R0 : pred rmap => (!! (snd gargs = v :: nil)))
-          (fun R0 => (local (liftx True) (Clight_seplog.mkEnv (fst gargs) nil nil) &&
-     (weak_exclusive_mpred R0 && emp * (lock_inv sh v R0 * (R0 * emp))))))%logic.
-  apply const_nonexpansive.
-  apply (conj_nonexpansive
-         (fun R0 : pred rmap => (local (liftx True) (Clight_seplog.mkEnv (fst gargs) nil nil)))
-         (fun R0 : pred rmap => (weak_exclusive_mpred R0 && emp * (lock_inv sh v R0 * (R0 * emp)))))%logic.
-  apply const_nonexpansive.
-  apply sepcon_nonexpansive.
-  apply (conj_nonexpansive (fun x =>weak_exclusive_mpred x) (fun x => emp)). apply exclusive_mpred_nonexpansive.
-  apply const_nonexpansive.
-  apply sepcon_nonexpansive.
-  apply nonexpansive_lock_inv.
-  apply sepcon_nonexpansive. 
-  apply identity_nonexpansive.
-  apply const_nonexpansive.
-Qed.
-Next Obligation.
-  intro cs; hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP ()  LOCAL ()  SEP (data_at_ sh tlock v; R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          nil
-          nil
-          ((fun _ => data_at_ sh tlock v) :: (fun R => R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply const_nonexpansive.
-  + apply identity_nonexpansive.
-Qed.
-
-(* versions that give away all their resources *)
-
-Lemma selflock_rec : forall sh v R, rec_inv sh v R (selflock R sh v).
-Proof.
-  intros; unfold rec_inv.
-  apply selflock_eq.
-Qed.
-
-Program Definition freelock2_spec cs: funspec := mk_funspec
-  (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Ctypes.Tvoid)%formals :: nil, tvoid)
-  cc_default
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share * share)) rmaps.Mpred) rmaps.Mpred)
-  (fun _ x =>
-   match x with
-   | (v, sh, sh', Q, R) =>
-     PROP (writable_share sh)
-     PARAMS (v) GLOBALS ()
-     SEP (weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)
-   end)%argsassert
-  (fun _ x =>
-   match x with
-   | (v, sh, sh', Q, R) =>
-     PROP ()
-     LOCAL ()
-     SEP (@data_at_ cs sh tlock v)
-   end)
-  _
-  _
-.
-Next Obligation.
-  intro cs; hnf.
-  intros.
-  destruct x as [[[[v sh] sh'] Q] R]; simpl in *.
-  apply (nonexpansive2_super_non_expansive
-   (fun Q R => (PROP (writable_share sh)
-     PARAMS (v) GLOBALS()
-     SEP (weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R))%argsassert gargs));
-  [ clear Q R; intros Q;
-    apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
-            ((fun _ => writable_share sh) :: nil)
-            (v :: nil) nil
-            ((fun R => weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun R => lock_inv sh v R) :: nil) gargs)
-  | clear Q R; intros R;
-    apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
-            ((fun _ => writable_share sh) :: nil)
-            (v :: nil) nil
-            ((fun Q => weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun _ => lock_inv sh v R) :: nil) gargs)];
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive weak_exclusive_mpred) |].
-    - apply exclusive_mpred_nonexpansive.
-    - apply rec_inv1_nonexpansive.
-    - apply const_nonexpansive.
-  + apply nonexpansive_lock_inv.
-  + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive (fun _ => weak_exclusive_mpred R)) |].
-    - apply const_nonexpansive.
-    - apply rec_inv2_nonexpansive.
-    - apply const_nonexpansive.
-  + apply const_nonexpansive. 
-Qed. 
-Next Obligation.
-  intro cs; hnf.
-  intros.
-  destruct x as [[[[v sh] sh'] Q] R]; simpl in *.
-  auto.
-Qed.
-
-Program Definition release2_spec: funspec := mk_funspec
-  (*((_lock OF tptr Tvoid)%formals :: nil, tvoid)*)
-  ((tptr Ctypes.Tvoid) :: nil, tvoid)
- cc_default
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
-  (fun _ x =>
-   match x with
-   | (v, sh, Q, R) =>
-     PROP (readable_share sh)
-     PARAMS (v) GLOBALS ()
-     SEP (weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp; R)
-   end)%argsassert
-  (fun _ x =>
-   match x with
-   | (v, sh, Q, R) =>
-     PROP ()
-     LOCAL ()
-     SEP (emp)
-   end)
-  _
-  _
-.
-Next Obligation.
-  intro cs; hnf.
-  intros.
-  destruct x as [[[v sh] Q] R]; simpl in *.
-  apply (nonexpansive2_super_non_expansive
-   (fun Q R => (PROP (readable_share sh)
-            PARAMS (v) GLOBALS()
-     SEP (weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp; R))%argsassert gargs));
-  [ clear Q R; intros Q;
-    apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
-            ((fun _ => readable_share sh) :: nil)
-            (v :: nil) nil
-            ((fun R => weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun R => R) :: nil))
-  | clear Q R; intros R;
-    apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
-            ((fun _ => readable_share sh) :: nil)
-            (v :: nil) nil
-            ((fun Q => weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun _ => R) :: nil))];
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic) |].
-    - apply exclusive_mpred_nonexpansive.
-    - apply rec_inv1_nonexpansive.
-    - apply const_nonexpansive.
-  + apply identity_nonexpansive.
-  + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R)%logic) |].
-    - apply const_nonexpansive.
-    - apply rec_inv2_nonexpansive.
-    - apply const_nonexpansive.
-  + apply const_nonexpansive.
-Qed.
-Next Obligation.
-  intro cs; hnf.
-  intros.
-  destruct x as [[[v sh] Q] R]; simpl in *.
-  auto.
-Qed.
-
-(* condition variables *)
+(*(* condition variables *)
 Definition makecond_spec cs :=
    WITH v : val, sh : share
    PRE [ (*_cond OF*) tptr tcond ]
@@ -854,26 +384,10 @@ Definition signal_spec cs :=
      PROP ()
      LOCAL ()
      SEP (@cond_var cs shc c).
+*)
 
 
-
-(* Notes about spawn_thread:
-
-The spawned function has for argument name [_y], which is
-existentially quantified.  The function also can use a list of global
-variables [globals].
-
-For now, the specification of the spawned function has to be exactly
-of the form that you can see below (inside the "match ...").
-Cao Qinxiang is working on a notion of sub-specification that might
-enable us to have smoother specifications. (Now that Lennart has added
-this, can we make it better? -WM)
-
-The postcondition might not be emp, so we have potential memory leaks
-when a thread exists (those maps are still handled by the concurrent
-machine).
-
-To enable joinable threads, the postcondition would be [tptr tthread]
+(* To enable joinable threads, the postcondition would be [tptr tthread]
 with a type [tthread] related to the postcondition through a [thread]
 predicate in the logic.  The [join] would then also be implemented
 using the oracle, as [acquire] is.  The postcondition would be [match
@@ -894,21 +408,20 @@ Definition spawn_pre :=
    match x with
    | (f, b, gv, w, pre) =>
      PROP (tc_val (tptr Ctypes.Tvoid) b)
-     (*(LOCALx (temp _f f :: temp _args b :: gvars (gv w) :: nil)*)
      PARAMS (f;b) GLOBALS (gv w)
      (SEP (
          (func_ptr'
            (WITH y : val, x : nth 0 ts unit
-             PRE [ (*_y OF *)tptr tvoid ]
+             PRE [ tptr tvoid ]
                PROP ()
-               (*(LOCALx (temp _y y :: gvars (gv x) :: nil)*) PARAMS (y) GLOBALS (gv x)
-               (SEP   (pre x y)) (*)*)
-             POST [tptr tvoid] (* should be tvoid, since no one sees its return value *)
+               PARAMS (y) GLOBALS (gv x)
+               (SEP   (pre x y))
+             POST [ tint ]
                PROP  ()
-               LOCAL ()
+               RETURN (Vint Int.zero) (* spawned functions must return 0 for now *)
                SEP   ())
            f);
-         pre w b)) (*)*)
+         pre w b))
    end)%argsassert.
 
 Definition spawn_post :=
@@ -918,7 +431,7 @@ Definition spawn_post :=
    | (f, b, w, pre) =>
      PROP ()
      LOCAL ()
-     SEP ()
+     SEP () (* here's where we'd put a join condition *)
    end).
 
 Lemma approx_idem : forall n P, compcert_rmaps.R.approx n (compcert_rmaps.R.approx n P) =
@@ -1011,8 +524,7 @@ Proof.
 Qed.
 
 Definition spawn_spec := mk_funspec
-  (*((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)*)
-  ((tptr voidstar_funtype)%formals :: (tptr tvoid)%formals :: nil, tvoid)
+  ((tptr spawned_funtype) :: (tptr tvoid) :: nil, tvoid)
   cc_default
   spawn_arg_type
   spawn_pre
@@ -1022,7 +534,7 @@ Definition spawn_spec := mk_funspec
 
 (*+ Adding the specifications to a void ext_spec *)
 
-Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident) :=
+(*Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
   (ext_link "release"%string, release_spec) ::
   nil.
@@ -1037,7 +549,7 @@ Definition concurrent_simple_ext_spec Z (cs : compspecs) (ext_link : string -> i
 Definition Concurrent_Simple_Espec Z cs ext_link :=
   Build_OracleKind
     Z
-    (concurrent_simple_ext_spec Z cs ext_link).
+    (concurrent_simple_ext_spec Z cs ext_link).*)
 
 Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i) -> P n) n : P n.
 Proof.
@@ -1045,10 +557,6 @@ Proof.
 Qed.
 
 Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
-  (ext_link "acquire"%string, acquire_spec) ::
-  (ext_link "release"%string, release_spec) ::
-  (ext_link "makelock"%string, makelock_spec cs) ::
-  (ext_link "freelock"%string, freelock_spec cs) ::
   (ext_link "spawn"%string, spawn_spec) ::
   nil.
 
