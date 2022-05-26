@@ -29,15 +29,15 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
   Definition inv_for_lock v R := EX b, atomic_int_at Ews (Val.of_bool b) v * if b then emp else R.
 
-  Definition atomic_lock_inv sh h R := !!(sh <> Share.bot) && let '(v, i, g) := h in cinvariant i g (inv_for_lock v R) * cinv_own g sh.
+  Definition atomic_lock_inv sh h R := let '(v, i, g) := h in !!(sh <> Share.bot /\ isptr v) && cinvariant i g (inv_for_lock v R) * cinv_own g sh.
 
   #[export] Program Instance atomic_impl : lock_impl := { t_lock := Tstruct _atom_int noattr; lock_handle := val * invariants.iname * ghosts.gname;
     ptr_of h := let '(v, i, g) := h in v; lock_inv := atomic_lock_inv }.
   Next Obligation.
   Proof.
     unfold atomic_lock_inv.
-    apply @conj_nonexpansive; [apply const_nonexpansive|].
     apply sepcon_nonexpansive, const_nonexpansive.
+    apply @conj_nonexpansive; [apply const_nonexpansive|].
     apply cinvariant_nonexpansive2.
     unfold inv_for_lock.
     apply @exists_nonexpansive; intros.
@@ -47,12 +47,14 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
   Next Obligation.
   Proof.
     unfold atomic_lock_inv.
+    destruct (isptr_dec v).
     rewrite !prop_true_andp; auto.
     rewrite <- !sepcon_assoc, (sepcon_comm (_ * cinv_own _ _)), !sepcon_assoc.
     unfold cinv_own at 1 2; erewrite <- own_op by eauto.
     rewrite <- sepcon_assoc; f_equal.
     symmetry; apply cinvariant_dup.
-    { intros ?; subst. apply join_Bot in H1 as []; contradiction. }
+    { split; auto; intros ?; subst. apply join_Bot in H1 as []; contradiction. }
+    { rewrite prop_false_andp, !FF_sepcon, prop_false_andp, FF_sepcon; auto; intros []; contradiction. }
   Qed.
   Next Obligation.
   Proof.
@@ -63,17 +65,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
   Qed.
   Next Obligation.
   Proof.
-    unfold atomic_lock_inv; Intros.
-    rewrite cinvariant_dup at 1.
-    sep_eapply cinv_open; [apply Ensembles.Full_intro|].
-    sep_apply fupd_frame_r; apply fupd_elim.
-    unfold inv_for_lock at 1 2.
-    rewrite (later_exp' _ true); Intros ?.
-    rewrite later_sepcon; sep_eapply fupd_timeless; auto; repeat sep_eapply fupd_frame_r; apply fupd_elim.
-    sep_apply atomic_int_isptr; Intros.
-    sep_apply (modus_ponens_wand' (atomic_int_at Ews (Val.of_bool x) v * |> (if x then emp else R))).
-    { Exists x; rewrite later_sepcon; cancel. }
-    do 2 sep_apply fupd_frame_r; apply fupd_mono; entailer!.
+    unfold atomic_lock_inv; entailer!.
   Qed.
 
   (* We can use self_part sh h * R instead of selflock sh h R. *)
@@ -92,11 +84,13 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
     intros.
     simpl; unfold atomic_lock_inv; destruct h as ((?, ?), ?).
     destruct (eq_dec sh1 Share.bot).
-    { rewrite prop_false_andp, !FF_sepcon; auto. }
+    { rewrite prop_false_andp, !FF_sepcon; auto; intros []; contradiction. }
+    destruct (isptr_dec v).
     rewrite !prop_true_andp by auto.
     unfold self_part at 2; rewrite cinvariant_dup at 1.
     rewrite <- !sepcon_assoc; do 2 f_equal.
     rewrite (sepcon_comm (_ * _) (cinvariant _ _ _)), <- sepcon_assoc; reflexivity.
+    { rewrite prop_false_andp, !FF_sepcon; auto; intros []; contradiction. }
   Qed.
 
   Definition makelock_spec := DECLARE _makelock makelock_spec.
@@ -116,8 +110,8 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
     Intros p.
     viewshift_SEP 0 (EX i g, lock_inv Tsh (p, i, g) (R (p, i, g))).
     { go_lower; simpl.
-      unfold atomic_lock_inv.
-      eapply derives_trans, fupd_mono; [|apply exp_derives; intros; apply exp_derives; intros; apply andp_right; [entailer! | apply derives_refl]].
+      entailer!.
+      eapply derives_trans, fupd_mono; [|apply exp_derives; intros; apply exp_derives; intros; apply sepcon_derives, derives_refl; apply andp_right, derives_refl; entailer!].
       eapply derives_trans, cinv_alloc_dep.
       unfold inv_for_lock.
       do 2 (apply allp_right; intros).
@@ -125,7 +119,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
       Exists true; simpl; cancel. apply derives_refl. }
     simpl.
     forward.
-    simpl; Exists (p, i, g); unfold lock_inv; entailer!.
+    simpl; Exists (p, i, g); unfold atomic_lock_inv; entailer!.
   Qed.
 
   #[local] Hint Resolve Ensembles.Full_intro : core.
@@ -135,8 +129,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
     start_function.
     destruct h as ((p, i), g).
     viewshift_SEP 0 (|> inv_for_lock p R).
-    { go_lower; simpl.
-      unfold atomic_lock_inv; rewrite prop_true_andp by auto.
+    { go_lower; simpl; Intros.
       apply cinv_cancel; auto. }
     unfold inv_for_lock.
     rewrite (later_exp' _ true); Intros b.

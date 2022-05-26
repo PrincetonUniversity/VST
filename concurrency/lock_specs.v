@@ -138,7 +138,7 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
   lock_inv_share_join : forall sh1 sh2 sh3 h R, sh1 <> Share.bot -> sh2 <> Share.bot ->
     sepalg.join sh1 sh2 sh3 -> lock_inv sh1 h R * lock_inv sh2 h R = lock_inv sh3 h R;
   lock_inv_exclusive : forall sh h R, exclusive_mpred (lock_inv sh h R);
-  lock_inv_isptr : forall sh h R, lock_inv sh h R |-- |={Ensembles.Full_set}=> !!isptr (ptr_of h) && lock_inv sh h R }.
+  lock_inv_isptr : forall sh h R, lock_inv sh h R |-- !! isptr (ptr_of h) }.
 
 Section lock_specs.
 
@@ -361,11 +361,8 @@ Section lock_specs.
 
 End lock_specs.
 
+#[export] Hint Resolve lock_inv_isptr : saturate_local.
 #[export] Hint Resolve lock_inv_exclusive data_at_exclusive data_at__exclusive field_at_exclusive field_at__exclusive : core.
-
-Ltac lock_isptr := match goal with |- context[lock_inv ?a ?h ?c] =>
-  gather_SEP (lock_inv a h c); viewshift_SEP 0 (!!(isptr (ptr_of h)) && lock_inv a h c);
-    [go_lower; apply lock_inv_isptr | Intros] end.
 
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;

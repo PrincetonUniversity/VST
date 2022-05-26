@@ -106,7 +106,6 @@ Qed.
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
   start_function.
-  lock_isptr.
   forward.
   forward_call (sh, h, cptr_lock_inv g1 g2 (gv _c)).
   unfold cptr_lock_inv at 2. simpl.
@@ -139,7 +138,6 @@ Qed.
 Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_function.
-  lock_isptr.
   forward.
   forward_call (sh, h, cptr_lock_inv g1 g2 (gv _c)).
   unfold cptr_lock_inv at 2; simpl.
@@ -191,7 +189,7 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (gv, fun lockt => thread_lock_inv sh2 gsh2 lock g1 g2 ctr lockt).
   Intros lockt.
-  lock_isptr.
+  sep_apply lock_inv_isptr; Intros.
   forward_spawn _thread_func (ptr_of lockt) (sh2, gsh2, lock, lockt, g1, g2, gv).
   { erewrite <- lock_inv_share_join; try apply gsh1_gsh2_join; auto.
     erewrite <- (lock_inv_share_join _ _ Tsh); try apply gsh1_gsh2_join; auto.
@@ -221,7 +219,7 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 #[export] Existing Instance Espec.
 
-(*Lemma prog_correct:
+Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
@@ -229,9 +227,9 @@ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 { simpl.
   Intros h.
-Search lock_inv isptr.
-semax_func_cons_ext.
-semax_func_cons_ext.
+  unfold PROPx, LOCALx, SEPx, local, lift1; simpl; unfold liftx; simpl; unfold lift; Intros.
+  destruct ret; unfold eval_id in H0; simpl in H0; subst; simpl; [|contradiction].
+  saturate_local; apply prop_right; auto. }
 semax_func_cons_ext.
 semax_func_cons_ext.
 semax_func_cons_ext.
@@ -240,4 +238,4 @@ semax_func_cons body_incr.
 semax_func_cons body_read.
 semax_func_cons body_thread_func.
 semax_func_cons body_main.
-Qed.*)
+Qed.
