@@ -151,7 +151,7 @@ Proof.
   - apply union_pred_timeless; auto.
 Qed.
 
-#[export] Instance data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
+#[export] Instance field_at_timeless : forall {CS : compspecs} sh t gfs v p, Timeless (field_at sh t gfs v p).
 Proof.
   intros; apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply data_at_rec_timeless].
 Qed.

@@ -273,25 +273,31 @@ Proof.
   Intros x; destruct x as (lock, lg); simpl.
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
-  destruct (split_shares (Z.to_nat N) Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
+  destruct (split_shares (Z.to_nat N) Ews) as (sh01 & shs1 & ? & ? & ? & Hshs1); auto.
+  destruct (split_shares (Z.to_nat N) Tsh) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   rewrite Z2Nat.id in * by (unfold N; computable).
-  assert_PROP (field_compatible (tarray tlock N) [] (gv _thread_lock)) by entailer!.
-  set (thread_lock i := offset_val (sizeof tlock * i) (gv _thread_lock)).
-  forward_for_simple_bound N (EX i : Z, EX sh : share,
-    PROP (sepalg_list.list_join sh0 (sublist i N shs) sh) LOCAL (gvars gv)
-    SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv lg (gv _ctr));
+  assert_PROP (field_compatible (tarray (tptr t_lock) N) [] v_thread_lock) by entailer!.
+  set (thread_lock i := offset_val (sizeof (tptr t_lock) * i) v_thread_lock).
+  forward_for_simple_bound N (EX i : Z, EX sh : share, EX fsh : share, EX lh : list lock_handle,
+    PROP (sepalg_list.list_join sh0 (sublist i N shs) sh;
+          sepalg_list.list_join sh01 (sublist i N shs1) fsh;
+          forall j, 0 <= j < i -> ptr_of (Znth j lh) = thread_lock j)
+    LOCAL (lvar _thread_lock (tarray (tptr (Tstruct _atom_int noattr)) N) v_thread_lock; gvars gv)
+    SEP (library.mem_mgr gv; @field_at CompSpecs fsh t_counter (DOT _lock) (ptr_of lock) (gv _c);
+         spacer Ews 4 8 (gv _c); lock_inv sh lock (cptr_lock_inv lg (gv _c));
          iter_sepcon (ghost_var gsh2 0) (sublist i N lg);
-         iter_sepcon (fun j => lock_inv sh2 (thread_lock j)
-           (thread_lock_inv sh1 (Znth j shs) lg j (gv _ctr) (gv _ctr_lock) (thread_lock j)))
+         iter_sepcon (fun j => lock_inv gsh2 (Znth j lh)
+           (thread_lock_inv (Znth j shs1) (Znth j shs) gsh2 lg j (gv _c) lock (Znth j lh)))
            (upto (Z.to_nat i));
-         data_at_ Ews (tarray tlock (N - i)) (thread_lock i);
-          has_ext tt)).
+         data_at_ Tsh (tarray (tptr t_lock) (N - i)) (thread_lock i);
+         has_ext tt)).
   { unfold N; computable. }
-  { Exists Ews.
+  { Exists Tsh Ews (@nil lock_handle).
     subst thread_lock.
-    rewrite !sublist_same by auto; entailer!.
-    apply derives_refl. }
+    rewrite !sublist_same by auto; entailer!. }
   { (* first loop *)
+    forward_call (gv, thread_lock_inv (Znth i shs1) (Znth i shs) gsh2 lg i (gv _ctr) lock).
+    Intros hi.
     forward.
     (*replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).*)
     rewrite data_at__tarray.

@@ -49,7 +49,7 @@ Section PROOFS.
 
   Program Definition release_spec :=
     DECLARE _release
-    ATOMIC TYPE (rmaps.ConstType _) INVS empty
+    ATOMIC TYPE (rmaps.ConstType val) INVS empty
     WITH p
     PRE [ tptr t_lock ]
        PROP ()
@@ -67,12 +67,11 @@ Section PROOFS.
     PRE [ tptr t_lock ]
        PROP ()
        PARAMS (p)
-       SEP () | ((!! (l = true) && atomic_int_at Ews (vint 0) p) ||
-                           (!! (l = false) && atomic_int_at Ews (vint 1) p))
+       SEP () | (atomic_int_at Ews (Val.of_bool l) p)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP () | (!! (l = true) && atomic_int_at Ews (vint 1) p).
+       SEP () | (!!(l = false) && atomic_int_at Ews (vint 1) p).
 
   Definition Gprog : funspecs :=
     ltac:(with_library prog [make_atomic_spec; atom_store_spec; atom_CAS_spec;
@@ -86,7 +85,7 @@ Section PROOFS.
     Intros p.
     forward.
     Exists p.
-    entailer !.
+    entailer!.
   Qed.
 
   Lemma body_freelock: semax_body Vprog Gprog f_freelock freelock_spec.
@@ -96,7 +95,7 @@ Section PROOFS.
     assert_PROP (is_pointer_or_null p) by entailer.
     forward_call (p).
     - Exists v. cancel.
-    - entailer !.
+    - entailer!.
   Qed.
 
   Lemma body_release: semax_body Vprog Gprog f_release release_spec.
@@ -126,33 +125,22 @@ Section PROOFS.
                        LOCAL (temp _b (vint 0); lvar _expected tint v_expected;
                               temp _lock p)
                        SEP (data_at_ Tsh tint v_expected; AS)).
-    - entailer !.
+    - entailer!.
     - forward.
       forward_call
-        (p , Tsh, v_expected, (vint 0), (vint 1), top : coPset,
-            empty : coPset,
-              fun v':val =>
-                if (eq_dec v' (vint 0)) then Q else AS).
+        (p, Tsh, v_expected, (vint 0), (vint 1), top : coPset, empty : coPset,
+              fun v':val => if (eq_dec v' (vint 0)) then Q else AS).
       + assert (Frame = []); subst Frame; [ reflexivity | clear H].
         simpl fold_right_sepcon. cancel.
-        iIntros ">AS". iExists Ews.
-        iDestruct "AS" as (x) "[[a | a] H]".
-        * iDestruct "H" as "[_ H]". iDestruct "a" as (a) "b".
-          iExists (vint 0). iModIntro. iSplitL "b".
-          -- iSplit; auto.
-          -- iSpecialize ("H" $! tt). iIntros "AA". iApply "H".
-             destruct (eq_dec (vint 0) (vint 0)). 2: exfalso; now apply n.
-             iSplit; [iSplit|]; auto.
-        * iExists (vint 1). iModIntro. destruct (eq_dec (vint 1) (vint 0)).
-          1: inversion e. rewrite sepcon_andp_prop'. iSplit.
-          -- iPureIntro. apply writable_Ews.
-          -- iDestruct "a" as (Hx) "a". iSplitL "a"; first auto. iIntros "AS".
-             iMod ("H" with "[AS]").
-             { iRight; iFrame; auto. }
-             iFrame; auto.
+        iIntros ">AS !>".
+        iDestruct "AS" as (x) "[a H]".
+        iExists Ews, (Val.of_bool x); iFrame "a"; iSplit; first done.
+        iIntros "a"; destruct x; simpl.
+        * iApply "H"; auto.
+        * iDestruct "H" as "[_ H]"; iApply ("H" $! tt); iFrame; auto.
       + Intros r. destruct (eq_dec r (vint 0)).
-        * forward_if. 1: exfalso; apply H'; auto. forward. entailer !.
-        * forward_if. 2: inversion H. forward. entailer !.
+        * forward_if; try contradiction. forward. entailer!.
+        * forward_if; try discriminate. forward. entailer!.
   Qed.
 
   (* Asymmetric consequence means we can't prove the specs from lock_specs directly,
@@ -277,6 +265,121 @@ Section PROOFS.
     apply timeless'_timeless; auto.
   Qed.
 
+  Global Obligation Tactic := atomic_nonexpansive_tac.
+
+  Lemma inv_for_lock_super_non_expansive : forall p R n,
+    compcert_rmaps.RML.R.approx n (inv_for_lock p R) =
+    compcert_rmaps.RML.R.approx n (inv_for_lock p (compcert_rmaps.RML.R.approx n R)).
+  Proof.
+    intros; unfold inv_for_lock.
+    intros; rewrite !approx_exp; f_equal; extensionality.
+    rewrite !approx_sepcon; f_equal.
+    simple_if_tac; rewrite ?approx_idem; auto.
+  Qed.
+  #[local] Hint Resolve inv_for_lock_super_non_expansive : core.
+
+  Program Definition acquire_spec_inv_atomic :=
+    ATOMIC TYPE (ProdType (ConstType _) Mpred) INVS empty
+    WITH p, R
+    PRE [ tptr t_lock ]
+       PROP ()
+       PARAMS (p)
+       SEP () | (inv_for_lock p R)
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (R) | (inv_for_lock p R).
+  Next Obligation.
+  Proof.
+    intros; rewrite !approx_sepcon; f_equal; auto.
+  Qed.
+  Next Obligation.
+  Proof.
+    rewrite approx_idem; auto.
+  Qed.
+
+  Lemma acquire_inv: funspec_sub (snd acquire_spec) acquire_spec_inv_atomic.
+  Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. destruct x2 as ((p, R), Q). Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists nil.
+    iExists (p, Q * R), emp; simpl.
+    rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+      iDestruct "H" as "(% & % & _ & H & _)".
+      do 4 (iSplit; auto).
+      unfold atomic_shift; iAuIntro; unfold atomic_acc; simpl.
+      iMod "H" as (_) "[H Hclose]".
+      unfold inv_for_lock at 1.
+      iDestruct "H" as (b) "[H1 R]"; iExists b; iFrame "H1".
+      iModIntro; iSplit.
+      + iIntros "H1"; iApply "Hclose".
+        iExists b; iFrame.
+      + iIntros (_) "[[% H1] _]"; subst.
+        iFrame "R".
+        iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
+        rewrite sepcon_emp; iExists true; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl. rewrite <- sepcon_assoc; auto.
+  Qed.
+
+  Program Definition release_spec_inv_atomic :=
+    ATOMIC TYPE (ProdType (ConstType _) Mpred) INVS empty
+    WITH p, R
+    PRE [ tptr t_lock ]
+       PROP ()
+       PARAMS (p)
+       SEP (weak_exclusive_mpred R && emp) | (R * inv_for_lock p R)
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP () | (inv_for_lock p R).
+  Next Obligation.
+  Proof.
+    - rewrite !approx_andp; f_equal.
+      apply nonexpansive_super_non_expansive, exclusive_mpred_nonexpansive.
+  Qed.
+  Next Obligation.
+  Proof.
+    intros; rewrite !approx_sepcon approx_idem; f_equal.
+    apply inv_for_lock_super_non_expansive.
+  Qed.
+  Next Obligation.
+  Proof.
+    intros; rewrite !approx_sepcon; f_equal.
+    apply inv_for_lock_super_non_expansive.
+  Qed.
+
+  Lemma release_inv: funspec_sub (snd release_spec) release_spec_inv_atomic.
+  Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. destruct x2 as ((p, R), Q). Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists nil.
+    iExists (p, Q), emp; simpl.
+    rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+      iDestruct "H" as "(% & % & _ & H & excl & _)".
+      do 4 (iSplit; auto).
+      unfold atomic_shift; iAuIntro; unfold atomic_acc; simpl.
+      iMod "H" as (_) "[[R H] Hclose]".
+      unfold inv_for_lock at 1.
+      iDestruct "H" as (b) "[H1 R1]"; destruct b.
+      + iExists tt; iFrame "H1".
+        iModIntro; iSplit.
+        * iIntros "H1"; iFrame "excl"; iApply "Hclose".
+          iFrame "R"; iExists true; iFrame.
+        * iIntros (_) "[H1 _]".
+          iDestruct "excl" as "[_ >_]".
+          iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
+          rewrite sepcon_emp; iExists false; iFrame.
+      + iAssert (|> FF) with "[excl R R1]" as ">[]".
+        iNext. iApply weak_exclusive_conflict; iFrame; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
+  Qed.
+
+  #[local] Obligation Tactic := intros.
+
   Program Definition acquire_spec_inv :=
     TYPE (ProdType (ConstType _) Mpred)
     WITH sh : _, h : _, R : _
@@ -306,7 +409,7 @@ Section PROOFS.
     setoid_rewrite later_nonexpansive; rewrite approx_idem; auto.
   Qed.
 
-  Lemma acquire_inv: funspec_sub (snd acquire_spec) acquire_spec_inv.
+  Lemma acquire_inv_simple: funspec_sub (snd acquire_spec) acquire_spec_inv.
   Proof.
     apply prove_funspec_sub.
     split; auto. intros. simpl in *. destruct x2 as ((sh, h), R). Intros.
@@ -323,21 +426,15 @@ Section PROOFS.
       iDestruct "inv" as "[inv | >inv]".
       iDestruct "inv" as (b) "[>H1 R]".
       iApply fupd_mask_intro; try set_solver. iIntros "Hclose'".
-      iExists (negb b); destruct b; simpl.
-      + iSplitL "H1"; first by (iRight; iFrame).
-        iSplit; [|iIntros (_) "[[% ?] _]"; discriminate].
-        iIntros "[[% ?] | [% H1]]"; try discriminate.
-        iMod "Hclose'"; iFrame "H2"; iApply "Hclose".
-        iLeft; unfold inv_for_lock; iExists true; iFrame.
-      + iSplitL "H1"; first by (iLeft; iFrame).
-        iSplit.
-        * iIntros "[[% H1] | [% H1]]"; try discriminate.
-          iMod "Hclose'"; iFrame "H2"; iApply "Hclose".
-          iLeft; unfold inv_for_lock; iExists false; iFrame.
-        * iIntros (_) "[[% H1] _]".
-          rewrite -> prop_true_andp by auto.
-          iMod "Hclose'"; iFrame "H H2 R"; iApply "Hclose".
-          iLeft; unfold inv_for_lock; iExists true; iFrame; auto.
+      iExists b; iFrame "H1"; iSplit.
+      + iIntros "H1"; iFrame "H2".
+        iMod "Hclose'"; iApply "Hclose".
+        iLeft; iExists b; iFrame.
+      + iIntros (_) "[[% H1] _]"; subst.
+        rewrite -> prop_true_andp by auto.
+        iFrame "H H2 R".
+        iMod "Hclose'"; iApply "Hclose".
+        iLeft; iExists true; iFrame; auto.
       + iDestruct (own_valid_2 with "[$H2 $inv]") as %(? & J & ?).
         apply sepalg.join_comm, join_Tsh in J as []; contradiction.
     - iPureIntro. iIntros (rho') "[% [_ H]]".
@@ -379,7 +476,7 @@ Section PROOFS.
     setoid_rewrite later_nonexpansive; rewrite approx_idem; auto.
   Qed.
 
-  Lemma release_inv: funspec_sub (snd release_spec) release_spec_inv.
+  Lemma release_inv_simple: funspec_sub (snd release_spec) release_spec_inv.
   Proof.
     apply prove_funspec_sub.
     split; auto. intros. simpl in *. destruct x2 as ((((sh, h), R), P), Q). Intros.
@@ -600,5 +697,7 @@ Section PROOFS.
   Qed.
 
 End PROOFS.
+
+Definition selflock R sh h := self_part sh h * R.
 
 #[export] Hint Resolve self_part_exclusive : core.
