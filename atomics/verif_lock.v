@@ -7,20 +7,20 @@ Require Import VST.atomics.SC_atomics_base.
 Require Import VST.concurrency.lock_specs.
 Require Import VST.concurrency.threads.
 
-  #[export] Program Instance atom_impl : atomic_int_impl := { atomic_int := Tstruct _atom_int noattr }.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Axiom atomic_int_isptr : forall sh v p, atomic_int_at sh v p |-- !! isptr p.
-  #[export] Hint Resolve atomic_int_isptr : saturate_local.
-  Axiom atomic_int_timeless : forall sh v p, fupd.timeless' (atomic_int_at sh v p).
-  #[export] Hint Resolve atomic_int_timeless : core.
+#[export] Program Instance atom_impl : atomic_int_impl := { atomic_int := Tstruct _atom_int noattr }.
+Next Obligation. Admitted.
+Next Obligation. Admitted.
+Axiom atomic_int_isptr : forall sh v p, atomic_int_at sh v p |-- !! isptr p.
+#[export] Hint Resolve atomic_int_isptr : saturate_local.
+Axiom atomic_int_timeless : forall sh v p, fupd.timeless' (atomic_int_at sh v p).
+#[export] Hint Resolve atomic_int_timeless : core.
 
-  Opaque atomic_int_at.
+#[global] Opaque atomic_int_at.
 
 Section PROOFS.
 
-#[local] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
+  #[local] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+  Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
   Definition make_atomic_spec := DECLARE _make_atomic make_atomic_spec.
   Definition free_atomic_spec := DECLARE _free_atomic free_atomic_int_spec.

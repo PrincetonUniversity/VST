@@ -326,6 +326,14 @@ Qed.
 
 Definition cinv (N : namespace) g P := EX i : iname, !!(N = nroot .@ (Pos.of_nat (S i))) && cinvariant i g P.
 
+Lemma cinv_alloc_dep : forall E P, (ALL i g, |> P i g) |-- |={E}=> EX i : _, EX g : _, cinv i g (P i g) * cinv_own g Tsh.
+Proof.
+  intros; eapply derives_trans, fupd_mono; [eapply derives_trans, cinv_alloc_dep with (P := fun i g => P (nroot .@ (Pos.of_nat (S i))) g)|].
+  { apply allp_right; intros; eapply allp_left, derives_refl. }
+  unfold bi_entails, cinv; simpl.
+  Intros i g; EExists; Exists g i; entailer!.
+Qed.
+
 Lemma cinv_alloc : forall E P, |> P |-- |={E}=> EX i : _, EX g : _, cinv i g P * cinv_own g Tsh.
 Proof.
   intros; eapply derives_trans, fupd_mono; [apply cinv_alloc|].
@@ -338,6 +346,16 @@ Proof.
   intros.
   eapply derives_trans, cinv_alloc; auto.
   eapply derives_trans, now_later; auto.
+Qed.
+
+Lemma cinv_cancel : forall E i g P,
+  to_coPset i ⊆ E -> cinv i g P * cinv_own g Tsh |-- |={E}=> (|> P).
+Proof.
+  intros; unfold cinv.
+  Intros i1; subst.
+  eapply derives_trans, cinv_cancel.
+  apply derives_refl.
+  { unfold In, coPset_to_Ensemble. unfold to_coPset in H; rewrite ndot_eq in H; simpl in H; apply singleton_subseteq_l; unfold encode in H; simpl in H; eauto. }
 Qed.
 
 (* These seem reasonable, but for some reason cause iInv to hang if exported. *)
@@ -357,6 +375,23 @@ Proof.
   { unfold coPset_to_Ensemble, In; apply elem_of_subseteq_singleton, H. }
   rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single.
   rewrite bi.exist_unit; apply derives_refl.
+Qed.
+
+Lemma cinv_nonexpansive : forall N g, nonexpansive (cinv N g).
+Proof.
+  intros; unfold cinv.
+  apply @exists_nonexpansive; intros i.
+  apply @conj_nonexpansive, cinvariant_nonexpansive.
+  apply const_nonexpansive.
+Qed.
+
+Lemma cinv_nonexpansive2 : forall N g f, nonexpansive f ->
+  nonexpansive (fun a => cinv N g (f a)).
+Proof.
+  intros; unfold cinv.
+  apply @exists_nonexpansive; intros i.
+  apply @conj_nonexpansive, cinvariant_nonexpansive2, H.
+  apply const_nonexpansive.
 Qed.
 
 End Invariants.

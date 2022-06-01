@@ -1,5 +1,7 @@
 Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
+Require Import VST.concurrency.lock_specs.
+Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.floyd.library.
 Require Import VST.atomics.hashtable_atomic.

@@ -1,23 +1,19 @@
 Require Import VST.concurrency.conclib.
-Require Import VST.atomics.lock_specs.
+Require Import VST.concurrency.lock_specs.
+Require Import VST.atomics.verif_lock.
 Require Import VST.concurrency.ghosts.
-Require Import VST.progs.incrN.
+Require Import VST.progs64.incrN.
 
-Require Export VST.floyd.Funspec_old_Notation.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release_spec := DECLARE _release release_spec.
-Definition makelock_spec := DECLARE _makelock (makelock_spec _).
-Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 Definition spawn_spec := DECLARE _spawn spawn_spec.
-Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
-Definition release2_spec := DECLARE _release2 release2_spec.
+
+Definition t_counter := Tstruct _counter noattr.
 
 Notation sum := (fold_right Z.add 0).
 
-Definition cptr_lock_inv lg ctr := EX z : Z, data_at Ews tuint (Vint (Int.repr z)) ctr *
+Definition cptr_lock_inv lg ctr := EX z : Z, field_at Ews t_counter [StructField _ctr] (Vint (Int.repr z)) ctr *
   EX lv : list Z, !!(z = sum lv) && iter_sepcon2 (fun g v => ghost_var gsh1 v g) lg lv.
 
 Definition init_ctr_spec :=
@@ -25,92 +21,102 @@ Definition init_ctr_spec :=
   WITH N : Z, gv: globals
   PRE [ ]
          PROP  (0 <= N)
-         LOCAL (gvars gv)
-         SEP   (data_at_ Ews tuint (gv _ctr); data_at_ Ews tlock (gv _ctr_lock))
+         PARAMS ()
+         GLOBALS (gv)
+         SEP   (library.mem_mgr gv; data_at_ Ews t_counter (gv _c))
   POST [ tvoid ]
-    EX lg : list gname,
+    EX h : lock_handle, EX lg : list gname,
          PROP (Zlength lg = N)
          LOCAL ()
-         SEP (lock_inv Ews (gv _ctr_lock) (cptr_lock_inv lg (gv _ctr));
+         SEP (library.mem_mgr gv;
+              field_at Ews t_counter [StructField _lock] (ptr_of h) (gv _c); spacer Ews 4 8 (gv _c);
+              lock_inv Tsh h (cptr_lock_inv lg (gv _c));
               iter_sepcon (ghost_var gsh2 0) lg).
 
 Definition dest_ctr_spec :=
  DECLARE _dest_ctr
-  WITH lg : list gname, lv : list Z, gv: globals
+  WITH h : lock_handle, lg : list gname, lv : list Z, gv: globals
   PRE [ ]
          PROP  ()
-         LOCAL (gvars gv)
-         SEP   (lock_inv Ews (gv _ctr_lock) (cptr_lock_inv lg (gv _ctr));
+         PARAMS ()
+         GLOBALS (gv)
+         SEP   (field_at Ews t_counter [StructField _lock] (ptr_of h) (gv _c); spacer Ews 4 8 (gv _c);
+                lock_inv Tsh h (cptr_lock_inv lg (gv _c));
                 iter_sepcon2 (fun g v => ghost_var gsh2 v g) lg lv)
   POST [ tvoid ]
          PROP ()
          LOCAL ()
-         SEP (data_at Ews tuint (vint (sum lv)) (gv _ctr);
-              data_at_ Ews tlock (gv _ctr_lock)).
+         SEP (data_at Ews t_counter (vint (sum lv), ptr_of h) (gv _c)).
 
 Definition incr_spec :=
  DECLARE _incr
-  WITH sh : share, lg : list gname, i : Z, n : Z, gv: globals
+  WITH sh1 : share, sh : share, h : lock_handle, lg : list gname, i : Z, n : Z, gv: globals
   PRE [ ]
-         PROP  (readable_share sh; 0 <= i < Zlength lg)
-         LOCAL (gvars gv)
-         SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv lg (gv _ctr)); ghost_var gsh2 n (Znth i lg))
+         PROP  (readable_share sh1; sh <> Share.bot; 0 <= i < Zlength lg)
+         PARAMS ()
+         GLOBALS (gv)
+         SEP   (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c);
+                lock_inv sh h (cptr_lock_inv lg (gv _c)); ghost_var gsh2 n (Znth i lg))
   POST [ tvoid ]
          PROP ()
          LOCAL ()
-         SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv lg (gv _ctr)); ghost_var gsh2 (n+1) (Znth i lg)).
+         SEP (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c);
+              lock_inv sh h (cptr_lock_inv lg (gv _c)); ghost_var gsh2 (n+1) (Znth i lg)).
 
 
-Definition thread_lock_R sh lg i ctr lockc :=
+Definition thread_lock_R sh1 sh lg i ctr lockc :=
+  field_at sh1 t_counter [StructField _lock] (ptr_of lockc) ctr *
   lock_inv sh lockc (cptr_lock_inv lg ctr) * ghost_var gsh2 1 (Znth i lg).
 
-Definition thread_lock_inv tsh sh lg i ctr lockc lockt :=
-  selflock (thread_lock_R sh lg i ctr lockc) tsh lockt.
+Definition thread_lock_inv sh1 tsh sh lg i ctr lockc lockt :=
+  selflock (thread_lock_R sh1 sh lg i ctr lockc) tsh lockt.
 
 Definition thread_func_spec :=
  DECLARE _thread_func
-  WITH y : val, x : share * share * list gname * Z * val * globals
-  PRE [ _args OF (tptr tvoid) ]
-         let '(tsh, sh, lg, i, l, gv) := x in
-         PROP  (readable_share tsh; readable_share sh; 0 <= i < Zlength lg)
-         LOCAL (temp _args y; gvars gv)
-         SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv lg (gv _ctr));
+  WITH y : val, x : share * share * share * lock_handle * lock_handle * list gname * Z * val * globals
+  PRE [ tptr tvoid ]
+         let '(sh1, tsh, sh, h, ht, lg, i, l, gv) := x in
+         PROP  (readable_share sh1; tsh <> Share.bot; sh <> Share.bot; ptr_of ht = y; 0 <= i < Zlength lg)
+         PARAMS (y)
+         GLOBALS (gv)
+         SEP   (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c);
+                lock_inv sh h (cptr_lock_inv lg (gv _c));
                 ghost_var gsh2 0 (Znth i lg);
-                lock_inv tsh y (thread_lock_inv tsh sh lg i (gv _ctr) (gv _ctr_lock) y))
-  POST [ tptr tvoid ]
+                lock_inv tsh ht (thread_lock_inv sh1 tsh sh lg i (gv _c) h ht))
+  POST [ tint ]
          PROP ()
-         LOCAL ()
+         RETURN (Vint Int.zero)
          SEP ().
 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
-Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
-  freelock_spec; freelock2_spec; spawn_spec; init_ctr_spec; dest_ctr_spec; incr_spec; thread_func_spec; main_spec]).
+Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
+  freelock_spec; spawn_spec; init_ctr_spec; dest_ctr_spec; incr_spec; thread_func_spec; main_spec]).
 
 Lemma ctr_inv_exclusive : forall lg p,
   exclusive_mpred (cptr_lock_inv lg p).
 Proof.
   intros; unfold cptr_lock_inv.
   eapply derives_exclusive, exclusive_sepcon1 with (Q := EX lv : list Z, _),
-    data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try lia.
+    field_at__exclusive with (sh := Ews)(t := t_counter); auto; simpl; try lia.
   Intro z; apply sepcon_derives; [cancel|].
   Intros lv; Exists lv; apply derives_refl.
+  { simpl; lia. }
 Qed.
-#[export] Hint Resolve ctr_inv_exclusive.
+#[export] Hint Resolve ctr_inv_exclusive : core.
 
-Lemma thread_inv_exclusive : forall tsh sh lg i ctr lock lockt,
-  exclusive_mpred (thread_lock_inv tsh sh lg i ctr lock lockt).
+Lemma thread_inv_exclusive : forall sh1 sh lg i ctr lock,
+  exclusive_mpred (thread_lock_R sh1 sh lg i ctr lock).
 Proof.
-  intros; apply selflock_exclusive.
-  unfold thread_lock_R.
-  apply exclusive_sepcon1; auto with exclusive.
+  intros; unfold thread_lock_R.
+  apply exclusive_sepcon2; auto with exclusive.
 Qed.
 
-#[export] Hint Resolve thread_inv_exclusive.
+#[export] Hint Resolve thread_inv_exclusive : core.
 
 Lemma sum_repeat: forall i n, sum (repeat i n) = (i * Z.of_nat n)%Z.
 Proof.
@@ -136,11 +142,13 @@ Lemma body_init_ctr: semax_body Vprog Gprog f_init_ctr init_ctr_spec.
 Proof.
   start_function.
   forward.
-  forward.
   ghosts_alloc (ghost_var Tsh 0) N.
   Intros lg.
-  forward_call (gv _ctr_lock, Ews, cptr_lock_inv lg (gv _ctr)).
-  forward_call (gv _ctr_lock, Ews, cptr_lock_inv lg (gv _ctr)).
+  forward_call (gv, fun _ : lock_handle => cptr_lock_inv lg (gv _c)).
+  Intros h.
+  forward.
+  forward.
+  forward_call release_simple (Tsh, h, cptr_lock_inv lg (gv _c)).
   { lock_props.
     unfold cptr_lock_inv.
     Exists 0 (repeat 0 (length lg)); entailer!.
@@ -151,22 +159,23 @@ Proof.
     Exists (map (fun g => (g, 0)) lg); entailer!.
     { rewrite !map_map; simpl.
       rewrite map_id_eq, map_const; auto. }
-    apply sepcon_derives; [|cancel].
-    clear; induction lg; unfold uncurry; simpl; entailer!. }
-  (*forward.*)
-  Exists lg; entailer!.
+    rewrite <- iter_sepcon_map; unfold uncurry; simpl.
+    change (fun x => ghost_var gsh1 0 x) with (ghost_var gsh1 0).
+    unfold_data_at (data_at _ _ _ _); cancel. }
+  Exists h lg; entailer!.
 Qed.
 
 Lemma body_dest_ctr: semax_body Vprog Gprog f_dest_ctr dest_ctr_spec.
 Proof.
   start_function.
   forward.
-  forward_call (gv _ctr_lock, Ews, cptr_lock_inv lg (gv _ctr)).
-  forward_call (gv _ctr_lock, Ews, cptr_lock_inv lg (gv _ctr)).
+  forward_call (Tsh, h, cptr_lock_inv lg (gv _c)).
+  forward.
+  forward_call freelock_simple (h, cptr_lock_inv lg (gv _c)).
   { lock_props. }
   unfold cptr_lock_inv.
   Intros z lv'.
-  gather_SEP 2 3; replace_SEP 0 (!!(lv' = lv) && iter_sepcon2 (fun g v => ghost_var Tsh v g) lg lv).
+  gather_SEP (iter_sepcon2 _ _ _) (iter_sepcon2 _ _ _); replace_SEP 0 (!!(lv' = lv) && iter_sepcon2 (fun g v => ghost_var Tsh v g) lg lv).
   { go_lower; clear.
     rewrite !iter_sepcon2_spec.
     Intros l1 l2; subst.
@@ -178,16 +187,12 @@ Proof.
       unfold uncurry at 2 3; simpl.
       erewrite ghost_var_share_join' by (eauto with share); Intros; subst.
       Exists ((g', v') :: l); simpl; entailer!.
-      { repeat split; congruence. }
       apply derives_refl. }
   Intros; subst.
-  viewshift_SEP 0 emp.
-  { go_lower.
-    rewrite iter_sepcon2_spec.
-    Intros l; apply own_list_dealloc'. }
-
-  forward.
-  cancel.
+  entailer!.
+  unfold_data_at (data_at _ _ _ _); cancel.
+  rewrite iter_sepcon2_spec.
+  Intros l; apply own_list_dealloc'.
 Qed.
 
 Lemma sum_add: forall l n, fold_right Z.add n l = sum l + n.
@@ -203,8 +208,8 @@ Proof.
   intros.
   rewrite <- sublist_same with (al := l) at 2 by auto.
   rewrite sublist_split with (mid := i) by lia.
-  rewrite sublist_next with (i0 := i) by lia.
-  unfold upd_Znth; rewrite !fold_right_app; simpl.
+  rewrite sublist_next with (i := i) by lia.
+  rewrite upd_Znth_unfold, !fold_right_app by auto; simpl.
   rewrite !sum_add with (n := _ + _); lia.
 Qed.
 
@@ -212,7 +217,7 @@ Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
   start_function.
   forward.
-  forward_call (gv _ctr_lock, sh, cptr_lock_inv lg (gv _ctr)).
+  forward_call (sh, h, cptr_lock_inv lg (gv _c)).
   unfold cptr_lock_inv at 2; simpl.
   Intros z lv.
   assert_PROP (Zlength lv = Zlength lg).
@@ -220,28 +225,29 @@ Proof.
     rewrite !Zlength_map; entailer!. }
   forward.
   forward.
-  gather_SEP 2 3.
+  forward.
+  gather_SEP (iter_sepcon2 _ _ _) (ghost_var _ _ _).
   viewshift_SEP 0 (!!(Znth i lv = n) && ghost_var Tsh (n+1) (Znth i lg) *
     iter_sepcon2 (fun g v => ghost_var gsh1 v g) (remove_Znth i lg) (remove_Znth i lv)).
   { go_lower.
-    rewrite iter_sepcon2_Znth with (i0 := i) by auto.
+    rewrite iter_sepcon2_Znth with (i := i) by auto.
     rewrite sepcon_comm, <- sepcon_assoc, (sepcon_comm _ (ghost_var _ _ _)).
     erewrite ghost_var_share_join' by eauto; Intros; subst.
-    rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r.
+    rewrite prop_true_andp by auto; eapply derives_trans, fupd_frame_r.
     apply sepcon_derives, derives_refl.
-    apply ghost_var_update. }
-  Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv lg (gv _ctr)).
+    eapply derives_trans, bupd_fupd; apply ghost_var_update. }
+  Intros; forward_call release_simple (sh, h, cptr_lock_inv lg (gv _c)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
     erewrite <- ghost_var_share_join by eauto.
     Exists (upd_Znth i lv (n+1)); entailer!.
     { rewrite upd_Znth_sum; lia. }
-    rewrite iter_sepcon2_Znth with (i0 := i)(l2 := upd_Znth _ _ _)
+    rewrite iter_sepcon2_Znth with (i := i)(l2 := upd_Znth _ _ _)
       by (rewrite ?upd_Znth_Zlength; auto; lia).
     rewrite upd_Znth_same, remove_upd_Znth by lia.
-    rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
-    rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
+    cancel. }
   forward.
+  cancel.
 Qed.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
@@ -249,27 +255,12 @@ Proof.
   start_function.
   Intros.
   forward.
-  forward_call (sh, lg, i, 0, gv).
+  forward_call (sh1, sh, h, lg, i, 0, gv).
   simpl.
-  forward_call (y, tsh, thread_lock_R sh lg i (gv _ctr) (gv _ctr_lock), thread_lock_inv tsh sh lg i (gv _ctr) (gv _ctr_lock) y).
-  { lock_props.
-    unfold thread_lock_inv, thread_lock_R.
-    rewrite selflock_eq at 2; cancel.
-    (*rewrite <- sepcon_emp at 1; apply sepcon_derives; [apply derives_refl | cancel].*) }
+  forward_call release_self (tsh, ht, thread_lock_R sh1 sh lg i (gv _c) h).
+  { unfold thread_lock_inv, thread_lock_R, selflock; cancel. }
   forward.
 Qed.
-
-(*Ltac cancel_for_forward_call ::=
-  match goal with
-  | gv: globals |- _ =>
-    repeat
-    match goal with
-    | x := gv ?i |- context [gv ?i] =>
-        change (gv i) with x
-    end
-  | _ => idtac
-  end;
-  cancel_for_evar_frame.*)
 
 Definition N := 5.
 
@@ -277,10 +268,9 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   fold N.
+  sep_apply (library.create_mem_mgr gv).
   forward_call (N, gv).
-  (*{ rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }*)
-  { unfold N; lia. }
-  Intros lg.
+  Intros x; destruct x as (lock, lg); simpl.
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   destruct (split_shares (Z.to_nat N) Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.

@@ -366,5 +366,5 @@ End lock_specs.
 
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
-   try (apply exclusive_weak_exclusive); auto with share exclusive |
+   try (apply exclusive_weak_exclusive); auto with share |
    try timeout 20 cancel].
