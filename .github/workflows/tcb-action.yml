@@ -15,6 +15,7 @@ on:
 
 jobs:
   run:
+    runs-on: ubuntu-latest
     steps:
       - name: 'Fail because TCB is modified'
         run: echo 'TCB modified -- automatic failure' ; exit 1
