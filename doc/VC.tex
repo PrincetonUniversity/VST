@@ -2749,6 +2749,57 @@ then the left-hand-side is not deleted.
 \lstinline{P*Q = R} then \lstinline{sep_apply} will apply
 \lstinline{P*Q |-- R}.
 
+\chapter{Larger steps of automation}
+
+\label{refcard:fastforward}
+Sometimes one may not want to deal with each step of symbolic execution.
+In these cases, one can use \lstinline{fastforward}, which will symbolically execute
+as many commands as it can.
+
+If one wants to control how many commands \lstinline{fastforward} executes, one can use
+\lstinline{fastforward n}, where \lstinline{n} is the amount desired. If one wants a
+more aggressive version, which normalizes more often, one can use \lstinline{fastforward!}
+or \lstinline{fastforward! n} instead.
+
+If one wants to expand the tactic, one can redefine
+\lstinline{fastforward_semax_pre_simpl} to run before calling \lstinline{forward} or
+other related tactics like \lstinline{forward_if}. One can also redefine
+\lstinline{fastforward_semax_post_simpl} to run after all the other tactics tried fail.
+
+One can also enable printing of the tactics being executed by,
+\begin{lstlisting}
+Ltac2 Set fastforward_debug := true.
+\end{lstlisting}
+
+\label{refcard:finish}
+Another option is to attempt to fully solve the current goal, by using
+\lstinline{finish}. Similarly to \lstinline{fastforward}, there is a more
+aggressive variant of \lstinline{finish} as well, \lstinline{finish!}.
+
+There are a variety of tactics that one can redefine to add to \lstinline{finish}'s
+functionality, as follows.
+
+\lstinline{finish_pre_solve_simpl}: To simplify the goal before trying to solve it
+
+\lstinline{finish_retry_solve_simpl}: To simplify the goal before trying to solve it
+  again after failing. Used for more costly tactics.
+
+\lstinline{finish_fast_solve}: Like the name suggests, for tactics that solve and are
+  fast. Not for entailments.
+
+\lstinline{finish_slow_solve}: Similarly, for tactics that solve and are slow. Not
+  for entailments.
+
+\lstinline{finish_entailer_solve}: For tactics that solve entailments
+
+There is also a \lstinline{HintDb} named \lstinline{finish}, which can be used to add
+\lstinline{Resolve}, \lstinline{Rewrite} and \lstinline{Unfold} hints.
+
+Similar to \lstinline{fastforward}, one can also enable printing of the tactics being
+executed by,
+\begin{lstlisting}
+Ltac2 Set finish_debug := true.
+\end{lstlisting}
 
 \ychapter{Welltypedness of variables}{}
 \label{refcard:tcval2}
@@ -4911,6 +4962,14 @@ it sometimes turns a provable goal into an unprovable goal.
   Instantiate an \textsf{EX} existential on the right-hand side of
   an entailment.
 
+\item[\textsf{fastforward $n$}]
+  (tactic; \autopageref{refcard:fastforward})
+  Do forward symbolic execution through $n$ C statements.
+
+\item[\textsf{fastforward! $n$}]
+  (tactic; \autopageref{refcard:fastforward})
+  Like \lstinline{fastforward $n$}, but more aggressive and slower.
+
 \item[\textsf{field\_at\_conflict $p$ $\mathit{fld}$}]
   (tactic) Solves an entailment of the form \newline
   \lstinline{$\ldots$ * field_at $\mathit{sh}$ $t$ $\mathit{fld}$ $v_1$ $p$ * $\ldots$ * field_at $\mathit{sh}$ $t$ $\mathit{fld}$ $v_2$ $p$ * $\ldots$ |-- _}\newline
@@ -4922,6 +4981,14 @@ it sometimes turns a provable goal into an unprovable goal.
   \newline
   for \lstinline{data_at_conflict} that's equivalent to
   \lstinline{0 < sizeof $t$}.
+
+\item[\textsf{finish}]
+  (tactic; \autopageref{refcard:finish})
+  Attempts to solve a goal of any form.
+
+\item[\textsf{finish!}]
+  (tactic; \autopageref{refcard:finish})
+  Like \lstinline{finish}, but more aggressive and slower.
 
 \item[\textsf{forward}]
   (tactic; \autopageref{refcard:forward})
