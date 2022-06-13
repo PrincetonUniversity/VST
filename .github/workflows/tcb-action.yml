@@ -17,5 +17,5 @@ jobs:
   run:
     steps:
       - name: "Fail because TCB is modified"
-        id: tcb-fail
+        id: tcb_fail
 	run: echo "TCB modified -- automatic failure" ; exit 1
