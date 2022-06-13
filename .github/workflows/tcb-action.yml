@@ -1,0 +1,21 @@
+---
+name: TCB
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - veric/NullExtension.v
+  pull_request:
+    branches:
+      - '**'
+    paths:
+      - veric/NullExtension.v
+
+jobs:
+  run:
+    steps:
+      - name: "Fail because TCB is modified"
+        id: tcb-fail
+	run: echo "TCB modified -- automatic failure" ; exit 1
