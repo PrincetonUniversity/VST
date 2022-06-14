@@ -84,6 +84,7 @@ jobs:
           - '8.14'
           - '8.15'
         make_target:
+          - assumptions.txt
           - test
           - test2
           - test3

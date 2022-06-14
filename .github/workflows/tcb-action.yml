@@ -6,12 +6,12 @@ on:
     branches:
       - master
     paths:
-      - veric/NullExtension.v
+      - veric/tcb.v
   pull_request:
     branches:
       - '**'
     paths:
-      - veric/NullExtension.v
+      - veric/tcb.v
 
 jobs:
   run:

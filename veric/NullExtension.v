@@ -29,16 +29,7 @@ repeat intro; auto.
 repeat intro; auto.  
 Defined.
 
-Definition dryspec : external_specification mem external_function unit
-  := Build_external_specification mem external_function unit
-     (*ext_spec_type*)
-     (fun ef => False)
-     (*ext_spec_pre*)
-     (fun ef Hef ge tys vl m z => False)
-     (*ext_spec_post*)
-     (fun ef Hef ge ty vl m z => False)
-     (*ext_spec_exit*)
-     (fun rv m z => True).
+Definition dryspec := juicy_dry_ext_spec_make _ juicyspec.
 
 Lemma NullExtension_whole_program_sequential_safety:
    forall {CS: compspecs}
@@ -68,9 +59,10 @@ assert (dessicate : forall ef : external_function,
 apply (@whole_program_sequential_safety CS NullExtension.Espec
  tt dryspec dessicate) with (V:=V) (G:=G); auto.
 -
+split; intros; try assumption; try contradiction.
 split; intros; try assumption.
-split; intros; try assumption.
-split; intros; try assumption.
+split; repeat intro; auto.
+split; repeat intro; auto.
 -
 hnf; intros; contradiction.
 -

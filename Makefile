@@ -440,7 +440,7 @@ VERIC_FILES= \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_conseq.v semax_call.v semax_straight.v semax_loop.v semax_switch.v \
   initial_world.v Clight_initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
-  NullExtension.v SequentialClight.v SequentialClight2.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
+  NullExtension.v SequentialClight.v SequentialClight2.v tcb.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
   semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v ghosts.v invariants.v
 
 ZLIST_FILES= \
@@ -878,6 +878,10 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
 	cd progs/VSUpile; $(MAKE) BUNDLED=true
+
+assumptions.txt: veric/tcb.vo
+	$(COQC) $(COQFLAGS) veric/tcb.v > assumptions.txt
+	bash util/check_assumptions.sh
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)
