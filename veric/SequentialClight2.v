@@ -8,8 +8,7 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
-Require VST.veric.NullExtension.
-(*Require Import VST.veric.Clight_sim.*)
+(*Require VST.veric.NullExtension. *)
 Require Import VST.veric.SeparationLogicSoundness.
 Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.
@@ -384,26 +383,25 @@ Qed.
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
-     prog V G m,
-     @semax_prog Espec (*NullExtension.Espec*) CS prog V G ->
+     (PAE: semax_prog.postcondition_allows_exit Espec tint)
+     (prog: Clight.program) V G m,
+     @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, exists m',
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core  (cl_core_sem (globalenv prog))
            0 m q m' (Vptr b Ptrofs.zero) nil /\
        forall n,
-        @dry_safeN _ _ _ OK_ty (genv_symb_injective)
-            (coresem_extract_cenv  (cl_core_sem (globalenv prog))
-                (prog_comp_env prog)) 
-            (*(dryspec  OK_ty)*) dryspec
+        @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
+          (cl_core_sem (globalenv prog)) dryspec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) 
              n initial_oracle q m'.
 Proof.
  intros.
- destruct (@semax_prog_rule' (*NullExtension.*)Espec CS _ _ _ _ 
+ destruct (@semax_prog_rule Espec CS _ _ _ _ 
      0 (*additional temporary argument - TODO (Santiago): FIXME*)
-     H H0) as [b [q [[H1 H2] H3]]].
- destruct (H3 O initial_oracle) as [jmx [H4x [H5x [H6x [H7x _]]]]].
+     initial_oracle PAE H H0) as [b [q [[H1 H2] H3]]].
+ destruct (H3 O) as [jmx [H4x [H5x [H6x [H7x _]]]]].
  destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
  exists b, q, (m_dry jmx').
  split3; auto.
@@ -411,7 +409,7 @@ Proof.
  subst. simpl. clear H5x H6x H7x H8y.
  forget (m_dry jmx) as m. clear jmx.
  intro n.
- specialize (H3 n initial_oracle).
+ specialize (H3 n).
  destruct H3 as [jm [? [? [? [? _]]]]].
  unfold semax.jsafeN in H6.
  subst m.
@@ -445,12 +443,7 @@ Proof.
      apply IHn; auto. lia.
      replace (level m'') with n0 by lia. auto.
  -
-(*
-   assert (JDE1': ext_spec_type dryspec = ext_spec_type OK_spec)
-      by apply JDE.
-*)
-(*   destruct JDE as [JDE1 [JDE2 [JDE3 JDE4]]]. *)
-   destruct dryspec as [ty pre post exit]. simpl in *. (* subst ty. *)
+   destruct dryspec as [ty pre post exit]. simpl in *.
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
    destruct JDE as [JDE1 [JDE2 JDE3]].
@@ -537,35 +530,9 @@ Proof.
  - eapply safeN_halted; eauto.
     apply JDE. auto.
  Unshelve. simpl. split; [apply Share.nontrivial | hnf]. exists None; constructor.
-all: fail.
 Qed.
 
 Require Import VST.veric.juicy_safety.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some (ext_link id) | _ => None end.
-
-Print genv.
-
-Lemma module_sequential_safety : (*TODO*)
-   forall {CS: compspecs} (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
-     let ge := Genv.globalenv prog in
-     let ext_link := ext_link_prog prog in
-     let spec := add_funspecs NullExtension.Espec ext_link G in
-     let tys := sig_args (ef_sig f) in
-     let rty := sig_res (ef_sig f) in
-     let sem := juicy_core_sem (cl_core_sem (Build_genv ge (prog_comp_env prog))) in
-     @semax_prog spec CS prog V G ->
-     fun_id ext_link f = Some f_id ->
-     Genv.find_symbol ge f_id = Some f_b ->
-     Genv.find_funct  ge (Vptr f_b Ptrofs.zero) = Some f_body ->
-     forall x : ext_spec_type (@OK_spec spec) f,
-     ext_spec_pre (@OK_spec spec) f x (genv_symb_injective ge) tys args ora m ->
-     exists q,
-       initial_core sem 
-         0 (*additional temporary argument - TODO (Santiago): FIXME*)
-             m q m
-              (Vptr f_b Ptrofs.zero) args /\
-       forall n, safeN_(genv_symb := @genv_symb_injective _ _)(Hrel := juicy_extspec.Hrel) (coresem_extract_cenv sem (prog_comp_env prog))
-(upd_exit (@OK_spec spec) x (genv_symb_injective ge)) ge n ora q m.
-Abort.
