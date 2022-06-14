@@ -20,8 +20,8 @@ Definition null_extension_juicyspec : external_specification juicy_mem external_
      (fun rv m z => True).
 
 Theorem VST_sound: 
-  exists Espec : OracleKind,
-  JMeq.JMeq (JE_spec _ (@OK_spec Espec)) null_extension_juicyspec /\
+  {Espec : OracleKind 
+  | JMeq.JMeq (JE_spec _ (@OK_spec Espec)) null_extension_juicyspec /\
   let dryspec :=  juicy_dry_ext_spec_make _ null_extension_juicyspec in 
   forall (CS: compspecs)
      (prog: Clight.program) (initial_oracle: OK_ty)
@@ -37,7 +37,7 @@ Theorem VST_sound:
           (Clight_core.cl_core_sem (Clight.globalenv prog)) dryspec
            (Clight.genv_genv 
             (Clight.Build_genv (Genv.globalenv prog) (Ctypes.prog_comp_env prog)) )
-             n tt q m'.
+             n tt q m'}.
 Proof.
 intros.
 exists NullExtension.Espec.
