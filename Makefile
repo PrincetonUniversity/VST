@@ -879,6 +879,8 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
 	cd progs/VSUpile; $(MAKE) BUNDLED=true
 
+nothing: # need this target for the degenerate case of "make -tk */*.vo" in coq-action.yml
+
 assumptions.txt: veric/tcb.vo
 	$(COQC) $(COQFLAGS) veric/tcb.v > assumptions.txt
 	bash util/check_assumptions.sh
