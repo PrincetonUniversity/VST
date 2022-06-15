@@ -110,7 +110,7 @@ jobs:
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
       - name: 'Extract archive'
-        run: tar -xvpzf archive.tgz; make -kt -f util/make-touch */*.vo
+        run: tar -xvpzf archive.tgz; (make -kt -f util/make-touch */*.vo || true)
       - uses: coq-community/docker-coq-action@v1
         with:
           coq_version: ${{ matrix.coq_version }}
