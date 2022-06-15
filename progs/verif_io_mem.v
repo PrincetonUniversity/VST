@@ -8,8 +8,8 @@ Local Open Scope itree_scope.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition putchars_spec := DECLARE _putchars putchars_spec.
-Definition getchars_spec := DECLARE _getchars getchars_spec.
+Definition putchars_spec := DECLARE _putchars (@putchars_spec (@IO_event nat) _ _).
+Definition getchars_spec := DECLARE _getchars (@getchars_spec (@IO_event nat) _ _).
 
 Lemma div_10_dec : forall n, 0 < n ->
   (Z.to_nat (n / 10) < Z.to_nat n)%nat.
@@ -70,7 +70,7 @@ Definition print_int_spec :=
     PROP (0 <= i < 10000)
     PARAMS (Vint (Int.repr i))
     GLOBALS (gv)
-    SEP (mem_mgr gv; ITREE (write_list stdout (chars_of_Z i ++ [Byte.repr newline]) ;; tr))
+    SEP (mem_mgr gv; ITREE (@write_list _ (@IO_event nat) _ stdout (chars_of_Z i ++ [Byte.repr newline]) ;; tr))
   POST [ tvoid ]
     PROP ()
     LOCAL ()
@@ -83,7 +83,7 @@ Definition sum_Z l := fold_right Z.add 0 l.
 
 Definition read_sum_inner n nums j :=
   if orb (10 <=? Znth j nums) (Znth j nums <? 0) then Ret true
-  else write_list stdout (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Byte.repr newline]);; Ret false.
+  else @write_list _ (@IO_event nat) _ stdout (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Byte.repr newline]);; Ret false.
 
 Definition read_sum n lc : IO_itree :=
   ITree.iter (fun '(b, n, lc) => if (b : bool) then Ret (inr tt) else
@@ -523,7 +523,7 @@ Qed.
 
 Definition ext_link := ext_link_prog prog.
 
-#[export] Instance Espec : OracleKind := IO_Espec ext_link.
+#[export] Instance Espec : OracleKind := @IO_Espec (@IO_event nat) _ _ ext_link.
 
 Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.

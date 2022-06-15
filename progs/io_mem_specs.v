@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.veric.juicy_extspec.
 Require Export VST.floyd.io_events.
 Require Export ITree.ITree.
-Require Export ITree.Eq.Eq.
+Require Export ITree.Eq.
 Require Export ITree.Eq.SimUpToTaus.
 (* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
 
@@ -16,7 +16,7 @@ Notation "' p <- t1 ;; t2" :=
 
 Section specs.
 
-Context {E : Type -> Type} `{IO_event(file_id := nat) -< E}.
+Context {E : Type -> Type} {IO_E: IO_event(file_id := nat) -< E}.
 
 Fixpoint read_list_aux f n d : itree E (list byte) :=
   match n with
@@ -34,7 +34,7 @@ Definition putchars_spec {CS : compspecs} :=
   PRE [ tptr tuchar, tint ]
     PROP (readable_share sh)
     PARAMS (buf; Vint (Int.repr (Zlength msg))) GLOBALS ()
-    SEP (ITREE (write_list stdout msg ;; k);
+    SEP (ITREE (@write_list _ E _ stdout msg ;; k);
            data_at sh (tarray tuchar len) (map Vubyte msg ++ rest) buf)
   POST [ tint ]
     PROP ()

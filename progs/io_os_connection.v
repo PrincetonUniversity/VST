@@ -18,7 +18,7 @@ Import ExtLib.Structures.Monad.
 
 Local Ltac inj :=
   repeat match goal with
-  | H: _ = _ |- _ => assert_succeeds (injection H); inv H
+  | H: _ = _ |- _ => assert_succeeds (injection H); Coqlib.inv H
   end.
 
 Local Ltac prename' pat H name :=
@@ -241,7 +241,7 @@ Local Open Scope Z.
 
 (* Weaker pre condition using trace_incl instead of eutt. *)
 Definition getchar_pre' (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
-  let k := witness in trace_incl (r <- read stdin;; k r) z.
+  let k := witness in trace_incl (r <- @read _ (@IO_event nat) _ stdin;; k r) z.
 
 (* CertiKOS specs must terminate. Could get blocking version back by
    wrapping getchar in a loop. *)
@@ -558,7 +558,7 @@ Section Invariants.
   Lemma combine_NoDup {A B} : forall (xs : list A) (ys : list B),
     NoDup xs -> NoDup (combine xs ys).
   Proof.
-    induction xs; intros * Hnodup; cbn in *; [constructor | inv Hnodup].
+    induction xs; intros * Hnodup; cbn in *; [constructor | Coqlib.inv Hnodup].
     destruct ys; cbn; constructor; auto.
     intros Hin; apply in_combine_l in Hin; easy.
   Qed.
@@ -814,7 +814,7 @@ Section Invariants.
     valid_trace st ->
     valid_trace (st {io_log : st.(io_log) ++ ev :: nil}).
   Proof.
-    destruct ev; try easy; intros _ Hvalid; inv Hvalid; constructor; red; destruct st; cbn in *.
+    destruct ev; try easy; intros _ Hvalid; Coqlib.inv Hvalid; constructor; red; destruct st; cbn in *.
     - intros * Heq.
       apply in_app_case in Heq; cbn in Heq; intuition (try easy).
       all: destruct H2; subst; eapply vt_trace_serial0; eauto.
@@ -848,7 +848,7 @@ Section Invariants.
   Proof.
     unfold cons_intr_aux; intros * Hvalid Hspec; destruct_spec Hspec.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
-      destruct st; inv Hvalid; constructor; cbn in *; subst; red; cbn in *.
+      destruct st; Coqlib.inv Hvalid; constructor; cbn in *; subst; red; cbn in *.
       + (* valid_trace_serial *)
         intros * Heq.
         rewrite Zlength_map.
@@ -908,7 +908,7 @@ Section Invariants.
           destruct Hin as (? & ? & ? & ? & ?); inj; subst; eauto.
         * unfold mkRecvEvents; rewrite Zlength_map; auto.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
-      destruct st; inv Hvalid; constructor; cbn in *; subst; red; cbn in *.
+      destruct st; Coqlib.inv Hvalid; constructor; cbn in *; subst; red; cbn in *.
       + (* valid_trace_serial *)
         intros * Heq.
         rewrite Zlength_map.
@@ -990,8 +990,8 @@ Section Invariants.
     unfold serial_intr_enable_spec; intros * Hvalid Hspec; destruct_spec Hspec.
     prename serial_intr_enable_aux into Hspec.
     eapply serial_intr_enable_aux_preserve_valid_trace in Hspec.
-    2: destruct st; inv Hvalid; constructor; auto.
-    destruct r; inv Hspec; constructor; auto.
+    2: destruct st; Coqlib.inv Hvalid; constructor; auto.
+    destruct r; Coqlib.inv Hspec; constructor; auto.
   Qed.
 
   Lemma serial_intr_disable_aux_preserve_valid_trace : forall n mask st st',
@@ -1006,10 +1006,10 @@ Section Invariants.
       destruct o.
       + enough (Hvalid': valid_trace (st {io_log : io_log st ++ IOEvSend 0 z :: nil}));
           auto using valid_trace_tx_event.
-        destruct st; inv Hvalid'; constructor; cbn in *; auto.
+        destruct st; Coqlib.inv Hvalid'; constructor; cbn in *; auto.
         destruct com1; cbn in *; red; intros; subst; edestruct vt_trace_serial0; eauto.
         cbn; split; auto; lia.
-      + rewrite app_nil_r; destruct st; inv Hvalid; constructor; cbn in *; auto.
+      + rewrite app_nil_r; destruct st; Coqlib.inv Hvalid; constructor; cbn in *; auto.
         destruct com1; cbn in *; red; intros; subst; edestruct vt_trace_serial0; eauto.
         cbn; split; auto; lia.
     - eapply IHn; [| eauto].
@@ -1018,10 +1018,10 @@ Section Invariants.
       destruct o.
       + enough (Hvalid': valid_trace (st {io_log : io_log st ++ IOEvSend 0 z :: nil}));
           auto using valid_trace_tx_event.
-        destruct st; inv Hvalid'; constructor; cbn in *; auto.
+        destruct st; Coqlib.inv Hvalid'; constructor; cbn in *; auto.
         destruct com1; cbn in *; red; intros; subst; edestruct vt_trace_serial0; eauto.
         cbn; split; auto; lia.
-      + rewrite app_nil_r; destruct st; inv Hvalid; constructor; cbn in *; auto.
+      + rewrite app_nil_r; destruct st; Coqlib.inv Hvalid; constructor; cbn in *; auto.
         destruct com1; cbn in *; red; intros; subst; edestruct vt_trace_serial0; eauto.
         cbn; split; auto; lia.
   Qed.
@@ -1034,8 +1034,8 @@ Section Invariants.
     unfold serial_intr_disable_spec; intros * Hvalid Hspec; destruct_spec Hspec.
     prename serial_intr_disable_aux into Hspec.
     eapply serial_intr_disable_aux_preserve_valid_trace in Hspec.
-    2: destruct st; inv Hvalid; constructor; auto.
-    destruct r; inv Hspec; constructor; auto.
+    2: destruct st; Coqlib.inv Hvalid; constructor; auto.
+    destruct r; Coqlib.inv Hspec; constructor; auto.
   Qed.
 
   Lemma thread_serial_intr_enable_preserve_valid_trace : forall st st',
@@ -1062,7 +1062,7 @@ Section Invariants.
     valid_trace st'.
   Proof.
     unfold uctx_set_retval1_spec; intros * Hvalid Hspec; destruct_spec Hspec.
-    destruct st; inv Hvalid; constructor; cbn in *; auto.
+    destruct st; Coqlib.inv Hvalid; constructor; cbn in *; auto.
   Qed.
 
   Lemma uctx_set_errno_preserve_valid_trace : forall st e st',
@@ -1071,7 +1071,7 @@ Section Invariants.
     valid_trace st'.
   Proof.
     unfold uctx_set_errno_spec; intros * Hvalid Hspec; destruct_spec Hspec.
-    destruct st; inv Hvalid; constructor; cbn in *; auto.
+    destruct st; Coqlib.inv Hvalid; constructor; cbn in *; auto.
   Qed.
 
   Lemma serial_putc_preserve_valid_trace : forall st c st' r,
@@ -1082,7 +1082,7 @@ Section Invariants.
     unfold serial_putc_spec; intros * Hvalid Hspec; destruct_spec Hspec; eauto.
     all: enough (Hvalid': valid_trace (st {io_log : io_log st ++ IOEvPutc l2 c :: nil}));
       auto using valid_trace_tx_event.
-    all: destruct st; inv Hvalid'; constructor; cbn in *; subst; auto.
+    all: destruct st; Coqlib.inv Hvalid'; constructor; cbn in *; subst; auto.
   Qed.
 
   Lemma cons_buf_read_preserve_valid_trace : forall st st' c,
@@ -1092,7 +1092,7 @@ Section Invariants.
   Proof.
     unfold cons_buf_read_spec; intros * Hvalid Hspec; destruct_spec Hspec; eauto.
     prename (cons_buf _ = _) into Hcons.
-    destruct st; inv Hvalid; constructor; cbn in *; subst; red.
+    destruct st; Coqlib.inv Hvalid; constructor; cbn in *; subst; red.
     - (* valid_trace_serial *)
       intros * Heq.
       apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq.
@@ -1140,7 +1140,7 @@ Section Invariants.
     eapply IHn in Hspec; eauto.
     prename cons_buf_read_spec into Hspec'.
     eapply cons_buf_read_preserve_valid_trace in Hspec'; auto.
-    inv Hspec'; destruct r; constructor; auto.
+    Coqlib.inv Hspec'; destruct r; constructor; auto.
   Qed.
 
   Lemma thread_cons_buf_read_preserve_valid_trace : forall st st' c,
@@ -1239,7 +1239,7 @@ Section Invariants.
     unfold serial_intr_enable_spec; intros * Hspec; destruct_spec Hspec.
     prename serial_intr_enable_aux into Hspec.
     eapply serial_intr_enable_aux_mem_unchanged in Hspec.
-    destruct r, st; inv Hspec; auto.
+    destruct r, st; Coqlib.inv Hspec; auto.
   Qed.
 
   Lemma serial_intr_disable_aux_mem_unchanged : forall n mask st st',
@@ -1262,7 +1262,7 @@ Section Invariants.
     unfold serial_intr_disable_spec; intros * Hspec; destruct_spec Hspec.
     prename serial_intr_disable_aux into Hspec.
     eapply serial_intr_disable_aux_mem_unchanged in Hspec.
-    destruct r, st; inv Hspec; auto.
+    destruct r, st; Coqlib.inv Hspec; auto.
   Qed.
 
   Lemma thread_serial_intr_enable_mem_unchanged : forall st st',
@@ -1660,7 +1660,7 @@ Section Invariants.
     unfold strip_common_prefix.
     rewrite common_prefix_app, app_length, leb_correct by lia.
     rewrite skipn_app1, skipn_exact_length; cbn; auto.
-    inv Hvalid; cbn in *.
+    Coqlib.inv Hvalid; cbn in *.
     rewrite vt_trace_console0 in Hcons.
     assert (Hin: In (c, z0, n) (compute_console io_log)) by (rewrite Hcons; cbn; auto).
     apply in_console_in_trace in Hin.
