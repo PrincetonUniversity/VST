@@ -110,7 +110,7 @@ jobs:
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
       - name: 'Extract archive'
-        run: tar -xvpzf archive.tgz; make -tk {msl,veric,floyd}/*.vo
+        run: tar -xvpzf archive.tgz; make IGNORECOQVERSION=true -tk {msl,veric,floyd}/*.vo
       - uses: coq-community/docker-coq-action@v1
         with:
           coq_version: ${{ matrix.coq_version }}
