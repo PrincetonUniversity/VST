@@ -110,7 +110,7 @@ jobs:
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
       - name: 'Extract archive'
-        run: tar -xvpzf archive.tgz; make -f util/make-touch
+        run: tar -xvpzf archive.tgz
       - uses: coq-community/docker-coq-action@v1
         with:
           coq_version: ${{ matrix.coq_version }}
@@ -126,6 +126,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
+	      make -f util/make-touch
               make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
             endGroup
           uninstall:
