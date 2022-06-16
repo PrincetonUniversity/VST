@@ -126,7 +126,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-	      make -f util/make-touch
+              make -f util/make-touch
               make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
             endGroup
           uninstall:
