@@ -23,7 +23,7 @@ jobs:
           - '8.15'
         bit_size:
           - 32
-          - 64
+#          - 64
         make_target:
           - vst
         exclude:
@@ -66,7 +66,7 @@ jobs:
             endGroup
           uninstall:
       - name: 'Create archive'
-        run: tar -cpvzf archive.tgz * .depend
+        run: ls -ltRa; tar -cpvzf archive.tgz * .depend
       - name: 'Upload archive'
         uses: actions/upload-artifact@v2
         with:
@@ -92,7 +92,7 @@ jobs:
           - test5
         bit_size:
           - 32
-          - 64
+#          - 64
         exclude:
           - coq_version: 8.14
             bit_size: 32
@@ -110,7 +110,7 @@ jobs:
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
       - name: 'Extract archive'
-        run: tar -xvpzf archive.tgz; (make -kt -f util/make-touch */*.vo || true)
+        run: ls -ltRa; tar -xvpzf archive.tgz; ls -ltRa; (make -kt -f util/make-touch */*.vo || true); ls -ltRa; 
       - uses: coq-community/docker-coq-action@v1
         with:
           coq_version: ${{ matrix.coq_version }}
