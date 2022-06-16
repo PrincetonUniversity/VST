@@ -21,12 +21,12 @@ Proof.
   rewrite !Zlength_correct; f_equal.
   unfold bytes_to_memvals.
   rewrite <- map_map, encode_vals_length, map_length; auto.
-Qed. 
+Qed.
 
 Context {E : Type -> Type} {IO_E : @IO_event nat -< E}.
 
 Definition getchars_pre (m : mem) (witness : share * val * Z * (list byte -> IO_itree)) (z : IO_itree) :=
-  let '(sh, buf, len, k) := witness in (sutt eq (r <- @read_list E _ stdin (Z.to_nat len);; k r) z) /\
+  let '(sh, buf, len, k) := witness in (sutt eq (r <- read_list stdin (Z.to_nat len);; k r) z) /\
     match buf with Vptr b ofs =>
       Mem.range_perm m b (Ptrofs.unsigned ofs) (Ptrofs.unsigned ofs + Z.max 0 len) Memtype.Cur Memtype.Writable
       | _ => False end.
@@ -39,7 +39,7 @@ Definition getchars_post (m0 m : mem) r (witness : share * val * Z * (list byte 
     | _ => False end.
 
 Definition putchars_pre (m : mem) (witness : share * val * list byte * Z * list val * IO_itree) (z : IO_itree) :=
-  let '(sh, buf, msg, _, _, k) := witness in (sutt eq (@write_list _ E _ stdout msg;; k) z) /\
+  let '(sh, buf, msg, _, _, k) := witness in (sutt eq (write_list stdout msg;; k) z) /\
   match buf with Vptr b ofs =>
     Mem.loadbytes m b (Ptrofs.unsigned ofs) (Zlength msg) =
       Some (bytes_to_memvals msg)
@@ -50,7 +50,7 @@ Definition putchars_post (m0 m : mem) r (witness : share * val * list byte * Z *
 
 Context {CS : compspecs} (ext_link : String.string -> ident).
 
-Instance Espec : OracleKind := @IO_Espec E _ _ ext_link.
+Instance Espec : OracleKind := IO_Espec ext_link.
 
 Definition io_ext_spec := OK_spec.
 

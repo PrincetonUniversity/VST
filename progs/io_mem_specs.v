@@ -34,7 +34,7 @@ Definition putchars_spec {CS : compspecs} :=
   PRE [ tptr tuchar, tint ]
     PROP (readable_share sh)
     PARAMS (buf; Vint (Int.repr (Zlength msg))) GLOBALS ()
-    SEP (ITREE (@write_list _ E _ stdout msg ;; k);
+    SEP (ITREE (write_list stdout msg ;; k);
            data_at sh (tarray tuchar len) (map Vubyte msg ++ rest) buf)
   POST [ tint ]
     PROP ()

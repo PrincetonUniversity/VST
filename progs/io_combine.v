@@ -77,7 +77,7 @@ Definition OS_mem (e : external_function) (args : list val) m (s : RData) : mem 
   else ...
 *)
 
-#[export] Instance IO_Espec : OracleKind := @IO_Espec (@IO_event nat) _ ext_link.
+#[export] Instance IO_Espec : OracleKind := IO_Espec ext_link.
 
 Theorem IO_OS_soundness:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,

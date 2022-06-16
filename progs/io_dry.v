@@ -16,23 +16,23 @@ Section IO_Dry.
 Context {E : Type -> Type} {IO_E : @IO_event nat -< E}.
 
 Definition getchar_pre (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
-  let k := witness in (sutt eq (r <- @read _ E _ stdin;; k r) z).
+  let k := witness in (sutt eq (r <- read stdin;; k r) z).
 
 Definition getchar_post (m0 m : mem) (r : int) (witness : byte -> IO_itree) (z : IO_itree) :=
   m0 = m /\ -1 <= Int.signed r <= Byte.max_unsigned /\
-  let k := witness in if eq_dec (Int.signed r) (-1) then sutt eq (r <- @read _ E _ stdin;; k r) z else z = k (Byte.repr (Int.signed r)).
+  let k := witness in if eq_dec (Int.signed r) (-1) then sutt eq (r <- read stdin;; k r) z else z = k (Byte.repr (Int.signed r)).
 
 Definition putchar_pre (m : mem) (witness : byte * IO_itree) (z : IO_itree) :=
-  let '(c, k) := witness in (sutt eq (@write _ E _ stdout c;; k) z).
+  let '(c, k) := witness in (sutt eq (write stdout c;; k) z).
 
 Definition putchar_post (m0 m : mem) (r : int) (witness : byte * IO_itree) (z : IO_itree) :=
   m0 = m /\ let '(c, k) := witness in
   (Int.signed r = -1 \/ Int.signed r = Byte.unsigned c) /\
-  if eq_dec (Int.signed r) (-1) then sutt eq (@write _ E _ stdout c;; k) z else z = k.
+  if eq_dec (Int.signed r) (-1) then sutt eq (write stdout c;; k) z else z = k.
 
 Context (ext_link : String.string -> ident).
 
-Instance Espec : OracleKind := @IO_Espec E _ ext_link.
+Instance Espec : OracleKind := IO_Espec ext_link.
 
 Definition io_ext_spec := OK_spec.
 

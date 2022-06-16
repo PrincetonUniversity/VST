@@ -8,6 +8,7 @@ Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
   (at level 100, right associativity) : itree_scope.
 Require Import Morphisms.
 
+#[global] Hint Mode ReSum - - - - : typeclass_instances.
 
 Section IO_events.
 

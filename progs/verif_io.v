@@ -7,8 +7,8 @@ Local Open Scope itree_scope.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition putchar_spec := DECLARE _putchar (@putchar_spec (@IO_event nat) _).
-Definition getchar_spec := DECLARE _getchar (@getchar_spec (@IO_event nat) _).
+Definition putchar_spec := DECLARE _putchar putchar_spec.
+Definition getchar_spec := DECLARE _getchar getchar_spec.
 
 Definition getchar_blocking_spec :=
  DECLARE _getchar_blocking
@@ -17,7 +17,7 @@ Definition getchar_blocking_spec :=
     PROP ()
     PARAMS ()
     GLOBALS ()
-    SEP (ITREE (r <- @read _ (@IO_event nat) _ stdin;; k r))
+    SEP (ITREE (r <- read stdin;; k r))
   POST [ tint ]
    EX i : byte,
     PROP ()
@@ -31,7 +31,7 @@ Definition putchar_blocking_spec :=
     PROP ()
     PARAMS (Vubyte c)
     GLOBALS ()
-    SEP (ITREE (r <- @write _ (@IO_event nat) _ stdout c ;; k))
+    SEP (ITREE (r <- write stdout c ;; k))
   POST [ tint ]
     PROP ()
     LOCAL (temp ret_temp (Vubyte c))
@@ -81,7 +81,7 @@ Definition print_intr_spec :=
     PROP (0 <= i <= Int.max_unsigned)
     PARAMS (Vint (Int.repr i))
     GLOBALS ()
-    SEP (ITREE (@write_list _ (@IO_event nat) _  stdout (intr i) ;; tr))
+    SEP (ITREE (write_list stdout (intr i) ;; tr))
   POST [ tvoid ]
     PROP ()
     LOCAL ()
@@ -94,7 +94,7 @@ Definition print_int_spec :=
     PROP (0 <= i <= Int.max_unsigned)
     PARAMS (Vint (Int.repr i))
     GLOBALS ()
-    SEP (ITREE (@write_list _ (@IO_event nat) _ stdout (chars_of_Z i) ;; tr))
+    SEP (ITREE (write_list stdout (chars_of_Z i) ;; tr))
   POST [ tvoid ]
     PROP ()
     LOCAL ()
@@ -345,7 +345,7 @@ Qed.
 
 Definition ext_link := ext_link_prog prog.
 
-#[export] Instance Espec : OracleKind := @IO_Espec (@IO_event nat) _ ext_link.
+#[export] Instance Espec : OracleKind := IO_Espec ext_link.
 
 Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.
