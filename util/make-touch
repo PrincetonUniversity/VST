@@ -1,13 +1,14 @@
 # This file touches all vo files to bring them up to date. 
 # It's used in .github/workflows/coq-action.yml
 # Usage:  in VST root directory (parent of this one),
-#   make -kt -f util/make-touch */*.vo
+#   make -f util/make-touch
 
-ifeq ($(MAKECMDGOALS),)
- $(error FAILURE: no targets specified)
-endif
+target: floyd/proofauto.vo veric/tcb.vo floyd/VSU.vo
 
 %.vo:
+	-touch -c $@
+
+%:
 	@# do nothing
 
 include .depend
