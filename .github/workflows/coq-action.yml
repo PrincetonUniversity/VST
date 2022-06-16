@@ -66,7 +66,7 @@ jobs:
             endGroup
           uninstall:
       - name: 'Create archive'
-        run: ls -ltRa; tar -cpvzf archive.tgz * .depend
+        run: tar -cpvzf archive.tgz * .depend
       - name: 'Upload archive'
         uses: actions/upload-artifact@v2
         with:
@@ -110,7 +110,7 @@ jobs:
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
       - name: 'Extract archive'
-        run: ls -ltRa; tar -xvpzf archive.tgz; ls -ltRa; (make -kt -f util/make-touch */*.vo || true); ls -ltRa; 
+        run: tar -xvpzf archive.tgz; (make -kt -f util/make-touch */*.vo || true)
       - uses: coq-community/docker-coq-action@v1
         with:
           coq_version: ${{ matrix.coq_version }}
