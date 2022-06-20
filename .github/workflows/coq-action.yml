@@ -66,7 +66,7 @@ jobs:
             endGroup
           uninstall:
       - name: 'Create archive'
-        run: tar -cpvzf archive.tgz *
+        run: tar -cpvzf archive.tgz * .depend
       - name: 'Upload archive'
         uses: actions/upload-artifact@v2
         with:
@@ -126,6 +126,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
+              make -f util/make-touch
               make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
             endGroup
           uninstall:

@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.veric.juicy_extspec.
 Require Export VST.floyd.io_events.
 Require Export ITree.ITree.
-Require Export ITree.Eq.Eq.
+Require Export ITree.Eq.
 Require Export ITree.Eq.SimUpToTaus.
 (* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
 

@@ -103,7 +103,7 @@ Definition print_int_spec :=
 Definition read_sum n d : IO_itree :=
    ITree.iter (fun '(n, d) =>
        if zlt n 1000 then if zlt d 10 then
-         write_list stdout (chars_of_Z (n + d));; write stdout (Byte.repr newline);;
+         write_list stdout (chars_of_Z (n + d));; @write _ (@IO_event nat) _ stdout (Byte.repr newline);;
               c <- read stdin;;
               Ret (inl (n + d, Byte.unsigned c - char0)) (* loop again with these parameters *)
        else Ret (inr tt) else Ret (inr tt)) (* inr to end the loop *)

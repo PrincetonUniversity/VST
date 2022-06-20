@@ -131,7 +131,7 @@ Proof.
         -- unfold SEPx; simpl.
            rewrite seplog.sepcon_emp.
            unfold ITREE; exists x; split; [if_tac; auto|].
-           { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
+           { subst; apply eutt_sutt, Reflexive_eqit_eq. }
            eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
     + unfold funspec2pre, funspec2post, dessicate; simpl.
@@ -165,7 +165,7 @@ Proof.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
              unfold ITREE; exists x; split; [if_tac; auto|].
-             { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
+             { subst; apply eutt_sutt, Reflexive_eqit_eq. }
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
 Qed.

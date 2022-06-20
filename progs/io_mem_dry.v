@@ -196,7 +196,7 @@ Proof.
           apply ghost_not_both in H10; contradiction. }
         { unfold set_ghost; rewrite level_make_rmap; lia. }
         split.
-        -- unfold ITREE; exists k; split; [apply eutt_sutt, Eq.Reflexive_eqit_eq|].
+        -- unfold ITREE; exists k; split; [apply eutt_sutt, Reflexive_eqit_eq|].
              eapply age_to.age_to_pred, change_has_ext; eauto.
         -- apply age_to.age_to_pred; auto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
@@ -279,7 +279,7 @@ Proof.
               destruct a0, H17 as (? & ? & ?); simpl in *; subst; eauto.
               apply ghost_not_both in H10; contradiction.
               apply ghost_fmap_join; auto.
-           ++ unfold ITREE; exists (k msg); split; [apply eutt_sutt, Eq.Reflexive_eqit_eq|].
+           ++ unfold ITREE; exists (k msg); split; [apply eutt_sutt, Reflexive_eqit_eq|].
               eapply change_has_ext, age_to.age_to_pred; eauto.
            ++ apply age_to.age_to_pred.
               rewrite <- (Zlength_map _ _ Vubyte).

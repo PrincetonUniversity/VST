@@ -175,7 +175,7 @@ Section file_id.
 
 Class FileId := { file_id : Type; stdin : file_id; stdout : file_id }.
 Context {FI : FileId}.
-Context {E : Type -> Type} `{IO_event(file_id := file_id) -< E} {CS : compspecs}.
+Context {E : Type -> Type} {IO_E: IO_event(file_id := file_id) -< E} {CS : compspecs}.
 
 Axiom file_at : file_id -> val -> mpred.
 
