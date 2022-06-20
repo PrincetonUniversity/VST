@@ -1122,7 +1122,7 @@ intros.
 Qed.
 
 Lemma replist'_succ:
- forall {A} {d:Inhabitant A} lo n r al,
+ forall {A} {d:Inhabitant A} lo n r (al: list A),
    (lo>=0) -> replist' (Z.succ lo) n (r::al) = replist' lo n al.
 Proof.
 intros.

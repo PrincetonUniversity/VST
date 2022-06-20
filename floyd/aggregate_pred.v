@@ -194,7 +194,7 @@ Properties
 
 Lemma array_pred_len_0: forall {A}{d: Inhabitant A} lo hi P p,
   hi = lo ->
-  array_pred lo hi P nil p = emp.
+  array_pred lo hi P (@nil A) p = emp.
 Proof.
   intros.
   unfold array_pred.
@@ -204,7 +204,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma array_pred_len_1: forall {A}{d: Inhabitant A} i P v p,
+Lemma array_pred_len_1: forall {A}{d: Inhabitant A} i P (v: A) p,
   array_pred i (i + 1) P (v :: nil) p = P i v p.
 Proof.
   intros.
@@ -215,7 +215,7 @@ Proof.
   unfold Znth. rewrite Z.sub_diag. rewrite if_false by lia. change (Z.to_nat 0) with 0%nat. auto.
 Qed.
 
-Lemma split_array_pred: forall {A}{d: Inhabitant A} lo mid hi P v p,
+Lemma split_array_pred: forall {A}{d: Inhabitant A} lo mid hi P (v: list A) p,
   lo <= mid <= hi ->
   Zlength v = hi - lo ->
   array_pred lo hi P v p =
@@ -281,7 +281,7 @@ Proof.
          f_equal; lia.
 Qed.
 
-Lemma array_pred_shift: forall {A}{d: Inhabitant A} (lo hi lo' hi' mv : Z) P' P v p,
+Lemma array_pred_shift: forall {A}{d: Inhabitant A} (lo hi lo' hi' mv : Z) P' P (v: list A) p,
   lo - lo' = mv ->
   hi - hi' = mv ->
  (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i-lo) v) p = P i (Znth (i-lo) v) p) ->
@@ -300,7 +300,7 @@ Proof.
 Qed.
 
 Lemma array_pred_ext_derives: forall {A B} (dA: Inhabitant A) (dB: Inhabitant B)
-         lo hi P0 P1 (v0: list A) v1 p,
+         lo hi P0 P1 (v0: list A) (v1: list B) p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
   (forall i, lo <= i < hi ->
     P0 i (Znth (i-lo) v0) p |-- P1 i (Znth (i-lo) v1) p) ->
@@ -330,7 +330,7 @@ Proof.
   rewrite H0; auto.
 Qed.
 
-Lemma at_offset_array_pred: forall  {A} {d: Inhabitant A} lo hi P v ofs p,
+Lemma at_offset_array_pred: forall  {A} {d: Inhabitant A} lo hi P (v: list A) ofs p,
   at_offset (array_pred lo hi P v) ofs p = array_pred lo hi (fun i v => at_offset (P i v) ofs) v p.
 Proof.
   intros.
@@ -344,7 +344,7 @@ Proof.
   auto.
 Qed.
 
-Lemma array_pred_sepcon: forall  {A} {d: Inhabitant A} lo hi P Q v p,
+Lemma array_pred_sepcon: forall  {A} {d: Inhabitant A} lo hi P Q (v: list A) p,
   array_pred lo hi P v p * array_pred lo hi Q v p = array_pred lo hi (P * Q) v p.
 Proof.
   intros.
@@ -1095,7 +1095,7 @@ Proof.
       apply IHm; auto.
 Qed.
 
-Lemma array_pred_local_facts: forall {A}{d: Inhabitant A} lo hi P v p Q,
+Lemma array_pred_local_facts: forall {A}{d: Inhabitant A} lo hi P (v: list A) p Q,
   (forall i x, lo <= i < hi -> P i x p |-- !! Q x) ->
   array_pred lo hi P v p |-- !! (Zlength v = hi - lo /\ Forall Q v).
 Proof.
@@ -1210,7 +1210,7 @@ Section MEMORY_BLOCK_AGGREGATE.
 
 Context {cs: compspecs}.
 
-Lemma memory_block_array_pred: forall  {A}{d: Inhabitant A} sh t lo hi v b ofs,
+Lemma memory_block_array_pred: forall  {A}{d: Inhabitant A} sh t lo hi (v: list A) b ofs,
   0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi < Ptrofs.modulus ->
   0 <= lo <= hi ->
   Zlength v = hi - lo ->
@@ -1268,7 +1268,7 @@ rewrite !Z2Nat.id by lia.
 apply mapsto_memory_block.address_mapsto_zeros'_split; lia.
 Qed.
 
-Lemma mapsto_zeros_array_pred: forall  {A}{d: Inhabitant A} sh t lo hi v b ofs,
+Lemma mapsto_zeros_array_pred: forall  {A}{d: Inhabitant A} sh t lo hi (v: list A) b ofs,
   0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi < Ptrofs.modulus ->
   0 <= lo <= hi ->
   Zlength v = hi - lo ->
@@ -1598,7 +1598,7 @@ Definition at_offset_array_pred: forall {A} {d: Inhabitant A} lo hi P v ofs p,
   at_offset (array_pred lo hi P v) ofs p = array_pred lo hi (fun i v => at_offset (P i v) ofs) v p
 := @at_offset_array_pred.
 
-Definition array_pred_sepcon: forall  {A} {d: Inhabitant A} lo hi P Q v p,
+Definition array_pred_sepcon: forall  {A} {d: Inhabitant A} lo hi P Q (v: list A) p,
   array_pred lo hi P v p * array_pred lo hi Q v p = array_pred lo hi (P * Q) v p
 := @array_pred_sepcon.
 
