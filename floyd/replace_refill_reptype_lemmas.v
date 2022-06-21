@@ -105,7 +105,7 @@ End SINGLE_HOLE.
 
 Module zlist_hint_db.
 
-Lemma Znth_sub_0_r: forall A {d: Inhabitant A} i l, Znth (i - 0) l = Znth i l.
+Lemma Znth_sub_0_r: forall A {d: Inhabitant A} i (l: list A), Znth (i - 0) l = Znth i l.
   intros.
   rewrite Z.sub_0_r by lia.
   auto.

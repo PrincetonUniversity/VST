@@ -8,7 +8,6 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
-Require VST.veric.NullExtension.
 Require Import VST.veric.SeparationLogicSoundness.
 Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.

@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - tcarstens/conclib
   pull_request:
     branches:
       - '**'
@@ -67,7 +66,7 @@ jobs:
             endGroup
           uninstall:
       - name: 'Create archive'
-        run: tar -cpvzf archive.tgz *
+        run: tar -cpvzf archive.tgz * .depend
       - name: 'Upload archive'
         uses: actions/upload-artifact@v2
         with:
@@ -85,6 +84,7 @@ jobs:
           - '8.14'
           - '8.15'
         make_target:
+          - assumptions.txt
           - test
           - test2
           - test3
@@ -126,6 +126,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
+              make -f util/make-touch
               make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
             endGroup
           uninstall:

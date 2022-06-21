@@ -1,0 +1,21 @@
+---
+name: TCB
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - veric/tcb.v
+  pull_request:
+    branches:
+      - '**'
+    paths:
+      - veric/tcb.v
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Fail because TCB is modified'
+        run: echo 'TCB modified -- automatic failure' ; exit 1
