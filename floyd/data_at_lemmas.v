@@ -158,7 +158,6 @@ Arguments Z.mul !x !y.
 Arguments Z.sub !m !n.
 Arguments Z.add !x !y.
 Global Transparent peq.
-Global Transparent Archi.ptr64.
 
 Lemma data_at_tarray_tschar_tuchar {cs: compspecs}:
   forall sh n bytes p,
@@ -821,7 +820,7 @@ Lemma address_mapsto_4bytes_aux:
    (b0 b1 b2 b3 : byte)
    (b : block) (i : ptrofs)
    (SZ : Ptrofs.unsigned i + 4 < Ptrofs.modulus)
-   (AL : (4 | Ptrofs.unsigned i))
+(*   (AL : (4 | Ptrofs.unsigned i)) *)
    (r : readable_share sh),
 predicates_sl.sepcon
   (predicates_sl.sepcon
@@ -1002,6 +1001,7 @@ intros.
         assert (Z.to_nat (z - Ptrofs.unsigned i) < 3)%nat by rep_lia.
         clear - H1. destruct (Z.to_nat (z - Ptrofs.unsigned i)) as [|[|[|]]]; inv H1; apply I.
        }
+
    f_equal.
 
     rewrite  (res_predicates.allp_jam_split2 _ _ _ 
@@ -1200,54 +1200,31 @@ Lemma data_at_int_bytes:
 Proof.
   intros AP sh b0 b1 b2 b3 p. unfold data_at. unfold field_at.
   intro.
-  assert (H': field_compatible tuchar [] p). {
-    destruct H as [? [? [? [? ?]]]].
-    split3; auto. destruct p; try contradiction.
-    red in H1,H2,H3. split3; auto.
-   red; simpl sizeof in *. lia.
-   red. eapply align_compatible_rec_by_value; [reflexivity | ].
-   apply Z.divide_1_l.
-  }
- rewrite !(prop_true_andp _ _ H).
- rewrite !(prop_true_andp _ _ H').
- simpl. rewrite !data_at_rec_eq. simpl.
-    unfold at_offset. normalize. change (unfold_reptype ?x) with x.
-   assert (isptr p) by apply H.
+  rewrite !prop_true_andp by auto with field_compatible.
+ destruct H as [H0 [_ [SZ [AL _]]]]. red in SZ. simpl sizeof in SZ.
    destruct p; inversion H0. clear H0.
-    unfold mapsto. simpl.
-    destruct H as [_ [_ [SZ [AL _]]]]. red in SZ. simpl sizeof in SZ.
-    apply align_compatible_rec_by_value_inv with (ch := Mint32) in AL; auto.
-    simpl in AL.
-    destruct (readable_share_dec sh); simpl; normalize.
-    rewrite !Int.unsigned_repr by rep_lia.
-    + 
-      rewrite !(prop_true_andp (Byte.unsigned _ <= _)) by rep_lia.
-      repeat rewrite (prop_false_andp (_ = _)) by (intro Hx; inv Hx).
-      rewrite (prop_true_andp True) by auto.
-   rewrite !prop_true_andp
-     by (split3; [ | | split3]; simpl; auto;
-     [ unfold Ptrofs.add; rewrite !Ptrofs.unsigned_repr; try rep_lia;
-       rewrite !Ptrofs.unsigned_repr by rep_lia; rep_lia
-     | eapply align_compatible_rec_by_value; [reflexivity | apply Z.divide_1_l]
-     ]).
-   rewrite ?ptrofs_add_repr_0_r.
-   repeat change (?A * ?B)%logic with (predicates_sl.sepcon A B).
-   rewrite <- address_mapsto_4bytes; auto.
-   rewrite !orp_FF.
-   f_equal.
-   + rewrite ?prop_and_mpred.
-     rewrite ?(prop_true_andp _ _ (tc_val_tc_val' _ _ (tc_val_Vubyte _))).
-     rewrite ?(prop_true_andp _ _ (Z.divide_1_l _)).
-   rewrite !prop_true_andp
-     by (split3; [ | | split3]; simpl; auto;
-     [ unfold Ptrofs.add; rewrite !Ptrofs.unsigned_repr; try rep_lia;
-       rewrite !Ptrofs.unsigned_repr by rep_lia; rep_lia
-     | eapply align_compatible_rec_by_value; [reflexivity | apply Z.divide_1_l]
-     ]).
-   rewrite ?ptrofs_add_repr_0_r.
-  rewrite prop_true_andp by (apply tc_val_tc_val'; apply I).
-  rewrite (prop_true_andp _ _ AL).
-  apply nonlock_permission_4bytes; auto.
+ assert (4 | Ptrofs.unsigned i)
+   by (eapply align_compatible_rec_by_value_inv in AL; [ | reflexivity]; assumption).
+ clear AL.
+ unfold at_offset. 
+ rewrite !offset_offset_val. rewrite !Z.add_0_r.
+ simpl offset_val. rewrite !ptrofs_add_repr_0_r.
+ rewrite !data_at_rec_eq. simpl.
+ change (unfold_reptype ?x) with x.
+ unfold mapsto.
+ simpl access_mode; simpl type_is_volatile; cbv iota.
+ rewrite !(prop_true_andp _ _ (tc_val_Vubyte _)).
+ rewrite !(prop_false_andp (_ = _)) by (intro Hx; inv Hx).
+ rewrite !(prop_true_andp (tc_val tuint _)) by (apply Logic.I).
+ rewrite ?prop_and_mpred.
+ rewrite ?(prop_true_andp _ _ (tc_val_tc_val' _ _ (tc_val_Vubyte _))).
+ rewrite !(prop_true_andp (tc_val' tuint _)) by (apply tc_val_tc_val'; apply Logic.I).
+ rewrite ?(prop_true_andp _ _ (Z.divide_1_l _)).
+ rewrite !orp_FF.
+ rewrite (prop_true_andp (_ | _)) by apply H.
+ if_tac.
+- apply address_mapsto_4bytes; auto.
+- apply nonlock_permission_4bytes; auto.
 Qed.
 
 

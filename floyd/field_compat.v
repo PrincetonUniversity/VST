@@ -1037,3 +1037,103 @@ Qed.
 
 Lemma mapsto_zeros_isptr z sh p : mapsto_zeros z sh p |-- !! isptr p.
 Proof. unfold mapsto_zeros. destruct p; try apply FF_left. apply prop_right. simpl; trivial. Qed.
+
+Lemma field_compatible_byvalue {cs: compspecs}:
+ forall big b small s gfs p k,
+  access_mode small = By_value s ->
+  field_compatible big gfs p ->
+  access_mode big = By_value b ->
+  (size_chunk s | size_chunk b) ->
+  (align_chunk s | align_chunk b) ->
+  (size_chunk s | k) ->
+  (0 <= k) ->
+  (k + size_chunk s <= size_chunk b) ->
+  field_compatible small gfs (offset_val k p).
+Proof.
+intros * NS ? NB ? AL ? ? ?.
+destruct H as [? [? [? [? ?]]]].
+split3; auto.
+destruct small; inv NS; simpl; auto.
+destruct p; try contradiction. clear H.
+unfold offset_val in *.
+unfold size_compatible, align_compatible in *.
+replace (sizeof big) with (size_chunk b) in *
+ by (destruct big as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | |  ]; inv NB; reflexivity).
+replace (sizeof small) with (size_chunk s) in *
+ by (destruct small as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | |  ]; inv NS; reflexivity).
+unfold Ptrofs.add.
+assert (0 < size_chunk b < Ptrofs.modulus) by (destruct b; simpl; rep_lia).
+assert (0 < size_chunk s) by (destruct s; simpl; rep_lia).
+rewrite (Ptrofs.unsigned_repr k) by rep_lia.
+ rewrite Ptrofs.unsigned_repr by rep_lia.
+split3.
+- rep_lia.
+-
+ eapply align_compatible_rec_by_value_inv in H6; [ | eassumption ].
+ eapply align_compatible_rec_by_value; [ eassumption | ].
+ apply Z.divide_add_r.
+ eapply Z.divide_trans; eassumption.
+ eapply Z.divide_trans; try apply align_size_chunk_divides; eassumption.
+-
+  clear - H7 NS NB.
+  destruct gfs. apply I.
+  elimtype False.
+  revert g H7; induction gfs; intros. destruct H7.
+   unfold nested_field_type in H0. simpl in H0.
+ destruct big as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | |  ]; inv NB; contradiction.
+ destruct H7 as [[? ?] ?].
+  apply IHgfs with a. split; auto.
+Qed.
+
+Lemma field_compatible_byvalue' {cs: compspecs}:
+ forall big b small s gfs p k,
+  access_mode small = By_value s ->
+  field_compatible big gfs p ->
+  access_mode big = By_value b ->
+  (size_chunk b) mod (size_chunk s) = 0 ->
+  (align_chunk b) mod (align_chunk s) = 0 ->
+  k mod (size_chunk s) = 0 ->
+  Z.leb 0 k = true ->
+  Z.leb (k + size_chunk s) (size_chunk b) = true ->
+  field_compatible small gfs (offset_val k p).
+Proof.
+intros.
+pose proof (size_chunk_pos s).
+eapply field_compatible_byvalue; eauto;
+try (apply Zmod_divide; [ try lia | auto ]).
+pose proof (align_chunk_pos s); lia.
+apply Z.leb_le; auto.
+apply Z.leb_le; auto.
+Qed.
+
+Lemma field_compatible_byvalue0 {cs: compspecs}:
+ forall big b small s gfs p,
+  access_mode small = By_value s ->
+  field_compatible big gfs p ->
+  access_mode big = By_value b ->
+  (size_chunk b) mod (size_chunk s) = 0 ->
+  (align_chunk b) mod (align_chunk s) = 0 ->
+  field_compatible small gfs p.
+Proof.
+intros.
+rewrite <- (isptr_offset_val_zero p) by (destruct H; auto).
+eapply field_compatible_byvalue'; eauto.
+apply Z.leb_le.
+rewrite Z.add_0_l.
+pose proof (size_chunk_pos s).
+apply Zmod_divide in H2; [ | lia].
+destruct H2.
+pose proof (size_chunk_pos b).
+assert (0 < x) by lia.
+rewrite H2 in *. clear b H2 H1 H3.
+assert (1 * size_chunk s <= x * size_chunk s); [ | lia].
+apply Zmult_le_compat_r; [ | lia].
+lia.
+Qed.
+
+#[export] Hint Extern 2 (field_compatible _ _ _) =>
+  (eapply field_compatible_byvalue0; [ reflexivity | eassumption | reflexivity..]) : field_compatible.
+#[export] Hint Extern 2 (field_compatible _ _ (offset_val _ _)) =>
+  (eapply field_compatible_byvalue'; [ reflexivity | eassumption | reflexivity..]) : field_compatible.
+
+
