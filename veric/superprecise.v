@@ -194,6 +194,9 @@ Qed.
 Require Import ZArith.
 Import Binary Zaux Generic_fmt.
 
+(* This lemma could be edited slightly to work again, but it's in support of
+   Lemma decode_val_uniq    which simply isn't true any more (since Fragments) 
+  
 Lemma binary_normalize_inj:
   forall s1 m1 e1 (h1 : SpecFloat.bounded 24 128 m1 e1 = true),
   forall s2 m2 e2 (h2 : SpecFloat.bounded 24 128 m2 e2 = true),
@@ -270,6 +273,7 @@ easy.
 Qed.
 *)
 Abort.
+*)
 
 (*
 Lemma float32_preserves_payload:
@@ -295,9 +299,10 @@ intros.
 Abort.
 *)
 
-Inductive wishes_eq_horses := .
 
 (*
+Inductive wishes_eq_horses := .
+
 Lemma float32_payload_inj:
   wishes_eq_horses ->
   forall s1 pl1 s2 pl2,
