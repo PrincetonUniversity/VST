@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.11".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
