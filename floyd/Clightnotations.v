@@ -140,7 +140,12 @@ Notation "" := LSnil (only printing, left associativity, at level 26, format "")
 Notation "'case' lbl" := (Some lbl%Z) (only printing, lbl at level 26, left associativity, at level 26, format "'case'  lbl") : print_case_label_scope.
 Notation "'default'" := None (only printing, format "'default'", at level 10) : print_case_label_scope.
 
-Notation "p_val -> f_val" := (Efield (Ederef p_val%expr _) f_val%extern_atom _) (only printing, right associativity, at level 99, f_val at level 200, format "p_val -> f_val") : expr_scope.
+Notation "p_val -> f_val" := (Efield (Ederef p_val%expr _) f_val%extern_atom _) (only printing, right associativity, at level 99, f_val at level 200
+    (*, format "p_val -> f_val" *) (* commented out,
+                    see https://github.com/PrincetonUniversity/VST/issues/594
+                    and https://github.com/coq/coq/issues/16262
+    *)
+   ) : expr_scope.
 Notation "p_val [ i_val ]" := (Ederef (Ebinop Oadd p_val%expr i_val%expr _) _) (only printing, left associativity, at level 26, format "p_val [ i_val ]") : expr_scope.
 Notation "x , .. , y" := (@cons expr x%expr .. (@cons expr y%expr (@nil expr)) .. ) (only printing, at level 26, x at level 24, y at level 24) : print_expr_list_true_scope.
 Notation "'while' ( e_val ) { s1 }" := (Swhile e_val%expr s1%C) (only printing, s1 at level 26, left associativity, at level 26, format "'[v' 'while'  ( e_val )  {  '/  ' s1 '/' } ']'") : C_scope.

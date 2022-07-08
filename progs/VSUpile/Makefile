@@ -170,6 +170,7 @@ _CoqProject: Makefile
 clean:
 	rm -f *.vo *.o *.aux *.vok *.vos
 	rm -f fast/*.vo fast/*.o fast/*.aux fast/*.vok fast/*.vos
+	rm -f incr/*.vo incr/*.o incr/*.aux incr/*.vok incr/*.vos
 
 # .depend depend:
 # 	coqdep $(VSTFLAGS) *.v >.depend
