@@ -244,6 +244,15 @@ Proof.
   sep_apply (library.create_mem_mgr gv).
   forward_call (gv).
   (* how do we want to make atomic locks? *)
+  Intros lock.
+  forward.
+  forward.
+  forward_call release_nonatomic (lock).
+  forward_call (gv).
+  Intros lockt.
+  forward_spawn _thread_func lockt (i, sh1, g, g1, g2, gv).
+  forward_spawn .
+  
   forward_call (lock, Ews, sync_inv g Tsh (ctr_state ctr)).
   forward_call (lock, Ews, sync_inv g Tsh (ctr_state ctr)).
   { lock_props.

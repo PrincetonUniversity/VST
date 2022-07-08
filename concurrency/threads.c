@@ -10,7 +10,7 @@ void freelock(lock_t *lock) {
   free_atomic(lock);
 }
 
-void acquire(lock_t *lock) {
+void acquire(lock_t *lock) { // to really be efficient, this should use futex, at least on Linux
   int b = 0;
   int expected;
   do {

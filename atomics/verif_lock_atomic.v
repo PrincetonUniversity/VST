@@ -143,6 +143,40 @@ Section PROOFS.
         * forward_if; try discriminate. forward. entailer!.
   Qed.
 
+  Program Definition release_spec_nonatomic :=
+    WITH p : val
+    PRE [ tptr t_lock ]
+       PROP ()
+       PARAMS (p)
+       SEP (atomic_int_at Ews (vint 1) p)
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (atomic_int_at Ews (vint 0) p).
+
+  #[global] Instance atomic_int_timeless sh v p : Timeless (atomic_int_at sh v p).
+  Proof.
+    apply timeless'_timeless; auto.
+  Qed.
+
+  Lemma release_nonatomic: funspec_sub (snd release_spec) release_spec_nonatomic.
+  Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists nil, (x2, atomic_int_at Ews (vint 0) x2), emp.
+    rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+      iDestruct "H" as "(% & % & _ & H & _)".
+      do 4 (iSplit; auto).
+      unfold atomic_shift; iAuIntro; unfold atomic_acc; simpl.
+      iExists tt; iFrame "H".
+      iApply fupd_mask_intro; first done; iIntros "Hclose".
+      iSplit; [iIntros "$" | iIntros (_) "[$ _]"]; auto.
+    - iPureIntro. intros. Intros. rewrite emp_sepcon. auto.
+  Qed.
+
+
+
   (* Asymmetric consequence means we can't prove the specs from lock_specs directly,
      but we can wrap a view shift around them. Paradoxically, as shown in verif_lock,
      we would be able to prove lock_specs directly (without using funspec_sub), but
@@ -258,11 +292,6 @@ Section PROOFS.
       [| iExists (x, i, g); unfold lock_inv; simpl; unfold atomic_lock_inv; iFrame "Hi Hg"; auto].
     iIntros (??) "!>"; unfold inv_for_lock.
     iExists true; iFrame.
-  Qed.
-
-  #[global] Instance atomic_int_timeless sh v p : Timeless (atomic_int_at sh v p).
-  Proof.
-    apply timeless'_timeless; auto.
   Qed.
 
   Global Obligation Tactic := atomic_nonexpansive_tac.
