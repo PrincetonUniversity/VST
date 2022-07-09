@@ -300,12 +300,11 @@ Proof.
   Exists (nil : list Type) (sh, h, self_part sh h * R, R, emp) emp; entailer!.
   { intros; unfold PROPx, LOCALx, SEPx; simpl; entailer!. }
   unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; entailer!.
-  rewrite <- emp_sepcon at 1; apply sepcon_derives.
-  - apply andp_right; auto; eapply derives_trans, exclusive_weak_exclusive; auto.
-    apply exclusive_sepcon1; auto.
-  - rewrite <- wand_sepcon_adjoint, emp_sepcon; cancel.
-    unfold atomic_lock_inv, self_part; destruct h as ((?, ?), ?); Intros; cancel.
-    apply inv_dealloc.
+  lock_props.
+  { apply exclusive_sepcon1; auto. }
+  rewrite <- wand_sepcon_adjoint, emp_sepcon; cancel.
+  unfold atomic_lock_inv, self_part; destruct h as ((?, ?), ?); Intros; cancel.
+  apply inv_dealloc.
 Qed.
 
 Lemma freelock_self : funspec_sub lock_specs.freelock_spec freelock_spec_self.

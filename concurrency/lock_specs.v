@@ -27,12 +27,19 @@ Proof.
   apply nonexpansive_super_non_expansive, exclusive_mpred_nonexpansive.
 Qed.
 
-Lemma exclusive_weak_exclusive: forall R,
+Lemma exclusive_weak_exclusive1: forall R P,
   exclusive_mpred R ->
-  TT |-- weak_exclusive_mpred R.
+  P |-- weak_exclusive_mpred R.
 Proof.
   intros; unfold weak_exclusive_mpred; unfold exclusive_mpred in H.
   unseal_derives; apply derives_unfash_fash; auto.
+Qed.
+
+Lemma exclusive_weak_exclusive: forall R,
+  exclusive_mpred R ->
+  emp |-- weak_exclusive_mpred R && emp.
+Proof.
+  intros; apply andp_right; auto; apply exclusive_weak_exclusive1; auto.
 Qed.
 
 Lemma weak_exclusive_conflict : forall P,
@@ -364,7 +371,4 @@ End lock_specs.
 #[export] Hint Resolve lock_inv_isptr : saturate_local.
 #[export] Hint Resolve lock_inv_exclusive data_at_exclusive data_at__exclusive field_at_exclusive field_at__exclusive : core.
 
-Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
-  [repeat apply andp_right; auto; eapply derives_trans;
-   try (apply exclusive_weak_exclusive); auto with share |
-   try timeout 20 cancel].
+Ltac lock_props := match goal with |-context[weak_exclusive_mpred ?P && emp] => sep_apply (exclusive_weak_exclusive P); [auto with share | try timeout 20 cancel] end.

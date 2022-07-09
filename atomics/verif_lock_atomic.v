@@ -159,6 +159,12 @@ Section PROOFS.
     apply timeless'_timeless; auto.
   Qed.
 
+  #[global] Instance inv_for_lock_timeless v R {H : Timeless R} : Timeless (inv_for_lock v R).
+  Proof.
+    unfold inv_for_lock.
+    apply bi.exist_timeless; intros []; apply _.
+  Qed.
+
   Lemma release_nonatomic: funspec_sub (snd release_spec) release_spec_nonatomic.
   Proof.
     apply prove_funspec_sub.
@@ -277,6 +283,37 @@ Section PROOFS.
     apply lock_inv_super_non_expansive.
   Qed.
 
+  (* These lemmas can also be used to attach an invariant to an existing lock. *)
+  Lemma make_lock_inv_1 : forall v R, atomic_int_at Ews (vint 1) v |-- |={⊤}=> EX h, !!(ptr_of h = v) && lock_inv Tsh h (R h).
+  Proof.
+    intros.
+    iIntros "a".
+    iDestruct (atomic_int_isptr with "a") as %Ha.
+    iMod (cinv_alloc_dep with "[a]") as (i g) "[Hi Hg]";
+      [| iExists (v, i, g); unfold lock_inv; simpl; unfold atomic_lock_inv; iFrame "Hi Hg"; auto].
+    iIntros (??) "!>"; unfold inv_for_lock.
+    iExists true; iFrame.
+  Qed.
+
+  Lemma make_lock_inv_0' : forall v (R : lock_handle -> mpred), (atomic_int_at Ews (vint 0) v * ALL i g, R (v, i, g)) |-- |={⊤}=> EX h, !!(ptr_of h = v) && lock_inv Tsh h (R h).
+  Proof.
+    intros.
+    iIntros "[a R]".
+    iDestruct (atomic_int_isptr with "a") as %Ha.
+    iMod (cinv_alloc_dep with "[a R]") as (i g) "[Hi Hg]";
+      [| iExists (v, i, g); unfold lock_inv; simpl; unfold atomic_lock_inv; iFrame "Hi Hg"; auto].
+    iIntros (??) "!>"; unfold inv_for_lock.
+    iExists false; iFrame; auto.
+  Qed.
+
+  Lemma make_lock_inv_0 : forall v R, atomic_int_at Ews (vint 0) v * R |-- |={⊤}=> EX h, !!(ptr_of h = v) && lock_inv Tsh h R.
+  Proof.
+    intros.
+    eapply derives_trans, make_lock_inv_0'.
+    cancel.
+    apply allp_right; intros; apply allp_right; intros; auto.
+  Qed.
+
   Lemma makelock_inv: funspec_sub (snd makelock_spec) makelock_spec_inv.
   Proof.
     apply prove_funspec_sub.
@@ -286,12 +323,7 @@ Section PROOFS.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
     apply andp_right; [apply andp_left1, derives_refl | apply andp_left2].
     cancel.
-    iIntros "a".
-    iDestruct (atomic_int_isptr with "a") as %Ha.
-    iMod (cinv_alloc_dep with "[a]") as (i g) "[Hi Hg]";
-      [| iExists (x, i, g); unfold lock_inv; simpl; unfold atomic_lock_inv; iFrame "Hi Hg"; auto].
-    iIntros (??) "!>"; unfold inv_for_lock.
-    iExists true; iFrame.
+    apply make_lock_inv_1.
   Qed.
 
   Global Obligation Tactic := atomic_nonexpansive_tac.
@@ -352,6 +384,48 @@ Section PROOFS.
       unfold PROPx, LOCALx, SEPx; simpl. rewrite <- sepcon_assoc; auto.
   Qed.
 
+  (* "lock variant" version where the lock has a parameter held in the global state *)
+  Program Definition acquire_spec_inv_variant :=
+    ATOMIC TYPE (ProdType (ConstType _) (ArrowType (DependentType 0) Mpred)) OBJ x INVS empty
+    WITH p, R
+    PRE [ tptr t_lock ]
+       PROP ()
+       PARAMS (p)
+       SEP () | (inv_for_lock p (R x))
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP () | (inv_for_lock p (R x) * R x).
+  Next Obligation.
+  Proof.
+    intros; rewrite !approx_sepcon; do 2 f_equal; auto.
+    rewrite approx_idem; auto.
+  Qed.
+
+  Lemma acquire_inv_variant: funspec_sub (snd acquire_spec) acquire_spec_inv_variant.
+  Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. destruct x2 as ((p, R), Q). Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists nil.
+    iExists (p, Q), emp; simpl.
+    rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+      iDestruct "H" as "(% & % & _ & H & _)".
+      do 4 (iSplit; auto).
+      unfold atomic_shift; iAuIntro; unfold atomic_acc; simpl.
+      iMod "H" as (x) "[H Hclose]".
+      unfold inv_for_lock at 1.
+      iDestruct "H" as (b) "[H1 R]"; iExists b; iFrame "H1".
+      iModIntro; iSplit.
+      + iIntros "H1"; iApply "Hclose".
+        iExists b; iFrame.
+      + iIntros (_) "[[% H1] _]"; subst.
+        iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
+        rewrite sepcon_emp; iFrame "R"; iExists true; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
+  Qed.
+
   Program Definition release_spec_inv_atomic :=
     ATOMIC TYPE (ProdType (ConstType _) Mpred) INVS empty
     WITH p, R
@@ -365,8 +439,8 @@ Section PROOFS.
        SEP () | (inv_for_lock p R).
   Next Obligation.
   Proof.
-    - rewrite !approx_andp; f_equal.
-      apply nonexpansive_super_non_expansive, exclusive_mpred_nonexpansive.
+    rewrite !approx_andp; f_equal.
+    apply nonexpansive_super_non_expansive, exclusive_mpred_nonexpansive.
   Qed.
   Next Obligation.
   Proof.
@@ -403,6 +477,124 @@ Section PROOFS.
           rewrite sepcon_emp; iExists false; iFrame.
       + iAssert (|> FF) with "[excl R R1]" as ">[]".
         iNext. iApply weak_exclusive_conflict; iFrame; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
+  Qed.
+
+  Definition exclusive_mpred' {A} (P : A -> mpred) := forall x y, P x * P y |-- FF.
+
+  Definition weak_exclusive_mpred' {A} (P : A -> mpred) := unfash (fash (ALL x y, P x * P y --> FF)).
+
+  Lemma approx_unfash_fash : forall n P, compcert_rmaps.RML.R.approx n (unfash (fash P)) = unfash (fash (compcert_rmaps.RML.R.approx n P)).
+  Proof.
+    intros; change unfash with subtypes.unfash; change fash with subtypes.fash; apply predicates_hered.pred_ext; intros ??.
+    - destruct H; intros ??; split; [lia | apply H0; auto].
+    - destruct (H a); auto; split; auto.
+      intros ??; apply H; auto.
+  Qed.
+
+  Lemma exclusive_mpred'_super_non_expansive:
+    forall {A} (R : A -> mpred) n, compcert_rmaps.RML.R.approx n (weak_exclusive_mpred' R) =
+      compcert_rmaps.RML.R.approx n (weak_exclusive_mpred' (fun a => compcert_rmaps.RML.R.approx n (R a))).
+  Proof.
+    intros; unfold weak_exclusive_mpred'.
+    rewrite !approx_unfash_fash; do 2 f_equal.
+    setoid_rewrite allp_nonexpansive; do 2 f_equal; extensionality.
+    setoid_rewrite allp_nonexpansive; do 2 f_equal; extensionality.
+    rewrite approx_imp; do 2 f_equal.
+    - apply approx_sepcon.
+    - apply approx_FF.
+  Qed.
+
+  Lemma fash_allp : forall {B} (F : B -> mpred), fash (allp F) = ALL x, fash (F x).
+  Proof.
+    intros; apply (subtypes.fash_allp B F).
+  Qed.
+
+  Lemma exclusive_weak_exclusive1' : forall {A} (R : A -> mpred) P,
+    exclusive_mpred' R ->
+    P |-- weak_exclusive_mpred' R.
+  Proof.
+    intros; unfold weak_exclusive_mpred'; unfold exclusive_mpred' in H.
+    rewrite fash_allp unfash_allp; apply allp_right; intros x.
+    rewrite fash_allp unfash_allp; apply allp_right; intros y.
+    specialize (H x y).
+    unseal_derives; apply derives_unfash_fash; auto.
+  Qed.
+
+  Lemma exclusive_weak_exclusive' : forall {A} (R : A -> mpred),
+    exclusive_mpred' R ->
+    seplog.emp |-- weak_exclusive_mpred' R && emp.
+  Proof.
+    intros; apply andp_right, derives_refl; apply exclusive_weak_exclusive1'; auto.
+  Qed.
+
+  Lemma corable_weak_exclusive' : forall {A} (R : A -> mpred), corable (weak_exclusive_mpred' R).
+  Proof.
+    intros; apply assert_lemmas.corable_unfash, _.
+  Qed.
+
+  Lemma weak_exclusive'_conflict : forall {A} P (x y : A),
+    (weak_exclusive_mpred' P && emp) * P x * P y |-- FF.
+  Proof.
+    intros.
+    rewrite sepcon_assoc -andp_left_corable; last by (apply corable_weak_exclusive').
+    unseal_derives; intros ? [].
+    unfold weak_exclusive_mpred in H; specialize (H a ltac:(lia) x y _ _ (ageable.necR_refl _) (predicates_hered.ext_refl _)).
+    apply H; auto.
+  Qed.
+
+  Program Definition release_spec_inv_variant :=
+    ATOMIC TYPE (ProdType (ProdType (ConstType _) (ArrowType (DependentType 0) Mpred)) (DependentType 0)) OBJ y INVS empty
+    WITH p, R, x
+    PRE [ tptr t_lock ]
+       PROP ()
+       PARAMS (p)
+       SEP (weak_exclusive_mpred' R && emp) | (R x * inv_for_lock p (R y))
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP () | (inv_for_lock p (R x)).
+  Next Obligation.
+  Proof.
+    rewrite !approx_andp; f_equal.
+    apply exclusive_mpred'_super_non_expansive.
+  Qed.
+  Next Obligation.
+  Proof.
+    intros; rewrite !approx_sepcon approx_idem; f_equal.
+    apply inv_for_lock_super_non_expansive.
+  Qed.
+  Next Obligation.
+  Proof.
+    intros; rewrite !approx_sepcon; f_equal.
+    apply inv_for_lock_super_non_expansive.
+  Qed.
+
+  Lemma release_inv_variant: funspec_sub (snd release_spec) release_spec_inv_variant.
+  Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. destruct x2 as (((p, R), x), Q). Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists nil.
+    iExists (p, Q), emp; simpl.
+    rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+      iDestruct "H" as "(% & % & _ & H & excl & _)".
+      do 4 (iSplit; auto).
+      unfold atomic_shift; iAuIntro; unfold atomic_acc; simpl.
+      iMod "H" as (y) "[[R H] Hclose]".
+      unfold inv_for_lock at 1.
+      iDestruct "H" as (b) "[H1 R1]"; destruct b.
+      + iExists tt; iFrame "H1".
+        iModIntro; iSplit.
+        * iIntros "H1"; iFrame "excl"; iApply "Hclose".
+          iFrame "R"; iExists true; iFrame.
+        * iIntros (_) "[H1 _]".
+          iDestruct "excl" as "[_ >_]".
+          iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
+          rewrite sepcon_emp; iExists false; iFrame.
+      + iAssert (|> FF) with "[excl R R1]" as ">[]".
+        iNext. iApply weak_exclusive'_conflict; iFrame; iFrame.
     - iPureIntro. iIntros (rho') "[% [_ H]]".
       unfold PROPx, LOCALx, SEPx; simpl; auto.
   Qed.
@@ -730,3 +922,6 @@ End PROOFS.
 Definition selflock R sh h := self_part sh h * R.
 
 #[export] Hint Resolve self_part_exclusive : core.
+
+Ltac lock_props ::= match goal with |-context[weak_exclusive_mpred ?P && _] => sep_apply (exclusive_weak_exclusive P); [auto with share | try timeout 20 cancel]
+  | |-context[weak_exclusive_mpred' ?P && _] => sep_apply (exclusive_weak_exclusive' P); [auto with share | try timeout 20 cancel] end.

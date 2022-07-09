@@ -40,22 +40,22 @@ Program Definition read_spec :=
          LOCAL (temp ret_temp (vint (Z.of_nat n')))
          SEP (field_at sh t_counter [StructField _lock] l (gv _c)) | (!!(n' = n) && ctr_state gv l g n).
 
-Definition cptr_inv gv l g g1 g2 :=
-  EX x y : nat, ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * ctr_state gv l g (x + y)%nat.
+Definition cptr_inv g g1 g2 :=
+  EX x y : nat, ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * ghost_var gsh1 (x + y)%nat g.
 
-Definition thread_lock_R sh1 gv l g1 := field_at sh1 t_counter [StructField _lock] l (gv _c) * ghost_var gsh2 1%nat g1.
+Definition thread_lock_R sh1 sh gv l g g1 := lock_inv sh l (ctr_inv gv g) * field_at sh1 t_counter [StructField _lock] (ptr_of l) (gv _c) * ghost_var gsh2 1%nat g1.
 
-Definition thread_lock_inv sh1 sh gv l g1 lockt := selflock (thread_lock_R sh1 gv l g1) sh lockt.
+Definition thread_lock_inv sh1 sh gv l g g1 lockt := selflock (thread_lock_R sh1 sh gv l g g1) sh lockt.
 
 Definition thread_func_spec :=
  DECLARE _thread_func
-  WITH y : val, x : namespace * share * share * val * lock_handle * gname * gname * gname * globals
+  WITH y : val, x : namespace * share * share * lock_handle * lock_handle * gname * gname * gname * globals
   PRE [ tptr tvoid ]
          let '(i, sh1, sh, l, ht, g, g1, g2, gv) := x in
-         PROP  (readable_share sh1; sh <> Share.bot; isptr l; ptr_of ht = y)
+         PROP  (readable_share sh1; ptr_of ht = y)
          PARAMS (y) GLOBALS (gv)
-         SEP   (inv i (cptr_inv gv l g g1 g2); field_at sh1 t_counter [StructField _lock] l (gv _c);
-                ghost_var gsh2 O g1; lock_inv sh ht (thread_lock_inv sh1 sh gv l g1 ht))
+         SEP   (inv i (cptr_inv g g1 g2); lock_inv sh l (ctr_inv gv g); field_at sh1 t_counter [StructField _lock] (ptr_of l) (gv _c);
+                ghost_var gsh2 O g1; lock_inv sh ht (thread_lock_inv sh1 sh gv l g g1 ht))
   POST [ tint ]
          PROP ()
          RETURN (Vint Int.zero)
@@ -81,20 +81,13 @@ Proof.
 Qed.
 #[local] Hint Resolve ctr_inv_exclusive : core.
 
-Lemma thread_inv_exclusive : forall sh1 gv l g1,
-  exclusive_mpred (thread_lock_R sh1 gv l g1).
+Lemma thread_inv_exclusive : forall sh1 sh gv l g g1,
+  exclusive_mpred (thread_lock_R sh1 sh gv l g g1).
 Proof.
   intros; unfold thread_lock_R.
   apply exclusive_sepcon2, ghost_var_exclusive; auto with share.
 Qed.
 #[local] Hint Resolve thread_inv_exclusive : core.
-
-(* up *)
-Lemma exclusive_weak_exclusive : forall P, exclusive_mpred P -> emp |-- weak_exclusive_mpred P && emp.
-Proof.
-  intros; apply andp_right; auto.
-  eapply derives_trans, exclusive_weak_exclusive; auto.
-Qed.
 
 (* up *)
 Lemma ghost_var_update' : forall {A} g (v1 v2 v : A), ghost_var gsh1 v1 g * ghost_var gsh2 v2 g |--
@@ -126,8 +119,8 @@ Proof.
   forward.
   forward_call release_inv (l, ctr_inv gv g, Q).
   { apply sepcon_derives; [|cancel].
-    rewrite -> !sepcon_assoc, <- sepcon_emp at 1; apply sepcon_derives, exclusive_weak_exclusive; auto. (* fix *)
-    unfold atomic_shift; iIntros "(AU & ctr & g)"; iAuIntro; unfold atomic_acc; simpl.
+    lock_props.
+    unfold atomic_shift; iIntros "((AU & ctr) & g)"; iAuIntro; unfold atomic_acc; simpl.
     iMod "AU" as (n') "[ctr_state Hclose]"; unfold ctr_state at 1.
     iExists tt; iDestruct "ctr_state" as "[g' $]".
     rewrite add_repr.
@@ -167,8 +160,8 @@ Proof.
   forward.
   forward_call release_inv (l, ctr_inv gv g, Q n).
   { apply sepcon_derives; [|cancel].
-    rewrite -> !sepcon_assoc, <- sepcon_emp at 1; apply sepcon_derives, exclusive_weak_exclusive; auto. (* fix *)
-    unfold atomic_shift; iIntros "(AU & ctr & g)"; iAuIntro; unfold atomic_acc; simpl.
+    lock_props.
+    unfold atomic_shift; iIntros "((AU & ctr) & g)"; iAuIntro; unfold atomic_acc; simpl.
     iMod "AU" as (n') "[ctr_state Hclose]"; unfold ctr_state at 1.
     iExists tt; iDestruct "ctr_state" as "[g' $]".
     simpl; iDestruct (ghost_var_inj with "[$g' $g]") as %?; auto; subst n'.
@@ -187,51 +180,63 @@ Proof.
   Exists n; entailer!.
 Qed.
 
-#[local] Instance ctr_state_timeless : forall gv l g n, Timeless (ctr_state gv l g n).
+#[local] Instance ctr_inv_timeless : forall gv g, Timeless (ctr_inv gv g).
 Proof.
-  intros; unfold ctr_state.
-  apply bi.sep_timeless; [apply _|].
-  unfold inv_for_lock.
+  intros; unfold ctr_inv.
   apply bi.exist_timeless; intros []; apply _.
 Qed.
 
+(* In this client, the ctr_state is assembled from the combination of the counter's lock assertion
+   and a global invariant for the ghost state. In theory we could put it all in a global invariant,
+   but this wouldn't allow us to deallocate the lock at the end. *)
+
 (* prove a lemma about our specific use pattern of incr *)
-Lemma incr_inv_shift : forall gv i g l g1 g2 gvar, (gvar = g1 \/ gvar = g2) ->
-  inv i (cptr_inv gv l g g1 g2) * ghost_var gsh2 0%nat gvar |--
-  atomic_shift (λ n : nat, ctr_state gv l g n) (to_coPset i) ∅
-      (λ (n : nat) (_ : ()), fold_right_sepcon [ctr_state gv l g (n + 1)%nat]) (λ _ : (), ghost_var gsh2 1%nat gvar).
+Lemma incr_inv_shift : forall i gv sh g l g1 g2 gvar, (gvar = g1 \/ gvar = g2) ->
+  lock_inv sh l (ctr_inv gv g) * inv i (cptr_inv g g1 g2) * ghost_var gsh2 0%nat gvar |--
+  atomic_shift (λ n : nat, ctr_state gv (ptr_of l) g n) ⊤ ∅
+      (λ (n : nat) (_ : ()), fold_right_sepcon [ctr_state gv (ptr_of l) g (n + 1)%nat]) (λ _ : (), lock_inv sh l (ctr_inv gv g) * ghost_var gsh2 1%nat gvar).
 Proof.
-  intros; unfold cptr_inv.
-  iIntros "[#inv g]".
+  intros.
+  unfold lock_inv; simpl; unfold atomic_lock_inv.
+  destruct l as ((v, i0), g0); Intros.
+  rewrite -> prop_true_andp by auto.
+  iIntros "[[[#inv0 sh] #inv] g]".
   iAuIntro; rewrite /atomic_acc /=.
-  iInv "inv" as (x y) ">[[g1 g2] c]" "Hclose"; auto.
-  rewrite difference_diag_L; iModIntro.
-  iExists (x + y)%nat; iFrame "c"; iSplit.
-  - iIntros "c". iFrame.
-    iApply "Hclose".
-    iExists x, y; iFrame; auto.
-  - iIntros (_) "(c & _)".
+  iMod (into_acc_cinv with "inv0 sh") as (_) "[[>i sh] Hclose0]". done.
+  iInv "inv" as (x y) ">[[g1 g2] c]" "Hclose"; auto. admit. (* need to know the namespaces are distinct *)
+  unfold ctr_state at 1.
+  iExists (x + y)%nat; iFrame "c i sh inv0".
+  iApply fupd_mask_intro; first by set_solver. iIntros "mask"; iSplit.
+  - iIntros "[g' c]". iFrame "g".
+    iMod "mask"; iMod ("Hclose" with "[g1 g2 g']").
+    { unfold cptr_inv; iExists x, y; iFrame; auto. }
+    iApply "Hclose0"; auto.
+  - iIntros (_) "([g' c] & _)".
     destruct H; subst.
     + iMod (ghost_var_update' with "[$g1 $g]") as "(% & g1 & $)"; subst.
-      iApply "Hclose".
-      iExists 1%nat, y; iFrame; auto.
-      rewrite Nat.add_0_l Nat.add_comm; auto.
+      iMod "mask"; iMod ("Hclose" with "[g1 g2 g']").
+      { iExists 1%nat, y; iFrame; auto.
+        rewrite Nat.add_0_l Nat.add_comm; auto. }
+      iApply "Hclose0"; auto.
     + iMod (ghost_var_update' with "[$g2 $g]") as "(% & g2 & $)"; subst.
-      iApply "Hclose".
-      iExists x, 1%nat; iFrame; auto.
-      rewrite Nat.add_0_r; auto.
-Qed.
+      iMod "mask"; iMod ("Hclose" with "[g1 g2 g']").
+      { iExists x, 1%nat; iFrame; auto.
+        rewrite Nat.add_0_r; auto. }
+      iApply "Hclose0"; auto.
+Admitted.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
   start_function.
-  forward_call (sh1, l, g, gv, ghost_var gsh2 1%nat g1).
+  sep_apply lock_inv_isptr; Intros.
+  forward_call (sh1, ptr_of l, g, gv, lock_inv sh l (ctr_inv gv g) * ghost_var gsh2 1%nat g1).
   { sep_apply incr_inv_shift; auto.
-    apply sepcon_derives; [apply atomic_update_mask_weaken; set_solver | cancel]. }
-  forward_call release_self (sh, ht, thread_lock_R sh1 gv l g1).
+    replace (⊤ ∖ ∅) with (⊤ : coPset) by set_solver; cancel. }
+  forward_call release_self (sh, ht, thread_lock_R sh1 sh gv l g g1).
   { unfold thread_lock_inv, thread_lock_R, selflock; cancel. }
+  { (* type error? *) admit. }
   forward.
-Qed.
+Admitted.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -241,51 +246,56 @@ Proof.
   Intro g1.
   ghost_alloc (ghost_var Tsh O).
   Intro g2.
+  ghost_alloc (ghost_var Tsh O).
+  Intro g.
   sep_apply (library.create_mem_mgr gv).
+  (* We allocate the lock here, but give it an invariant later. *)
   forward_call (gv).
-  (* how do we want to make atomic locks? *)
-  Intros lock.
+  Intros lockp.
+  sep_apply atomic_int_isptr; Intros.
   forward.
   forward.
-  forward_call release_nonatomic (lock).
-  forward_call (gv).
+  forward_call release_nonatomic (lockp).
+  (* make lock invariant *)
+  unfold_data_at (data_at _ _ _ (gv _c)).
+  rewrite <- 3(ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; Intros.
+  gather_SEP (atomic_int_at _ _ lockp) (field_at _ _ [StructField _ctr] _ _) (ghost_var gsh2 _ g);
+    viewshift_SEP 0 (EX h, !!(ptr_of h = lockp) && lock_inv Tsh h (ctr_inv gv g)).
+  { go_lower; eapply derives_trans, make_lock_inv_0.
+    unfold ctr_inv; Exists O; cancel. }
+  Intros lock; subst.
+  (* need to split off shares for the locks here *)
+  destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
+  forward_call makelock_inv (gv, fun lockt => thread_lock_inv sh2 gsh2 gv lock g g1 lockt).
   Intros lockt.
-  forward_spawn _thread_func lockt (i, sh1, g, g1, g2, gv).
-  forward_spawn .
-  
-  forward_call (lock, Ews, sync_inv g Tsh (ctr_state ctr)).
-  forward_call (lock, Ews, sync_inv g Tsh (ctr_state ctr)).
-  { lock_props.
-    unfold sync_inv, ctr_state.
-    Exists O; cancel. }
-  rewrite <- 2(ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; Intros.
-  gather_SEP (public_half _ _) (ghost_var gsh1 _ _) (ghost_var gsh1 _ _); viewshift_SEP 0 (EX i, inv i (cptr_inv g g1 g2)).
-  { go_lower; apply make_inv.
+  match goal with |-context[|={⊤}=> ?P] => viewshift_SEP 1 P by entailer! end.
+  Intros ht; subst.
+  sep_apply lock_inv_isptr; Intros.
+  gather_SEP (ghost_var gsh1 _ g) (ghost_var gsh1 _ g1) (ghost_var gsh1 _ g2).
+  viewshift_SEP 0 (EX i : _, inv i (cptr_inv g g1 g2)).
+  { go_lower.
+    eapply derives_trans, inv_alloc.
+    eapply derives_trans, now_later.
     unfold cptr_inv.
     Exists O O; simpl; cancel. }
   Intros i.
-  (* need to split off shares for the locks here *)
-  destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
-  forward_call (lockt, Ews, thread_lock_inv sh1 g g1 gv lockt).
   rewrite invariant_dup; Intros.
-  forward_spawn _thread_func nullval (i, sh1, g, g1, g2, gv).
-  { erewrite <- 2(lock_inv_share_join sh1 sh2 Ews) by (try apply Hsh; auto).
-    subst ctr lock lockt; entailer!. }
+  forward_spawn _thread_func (ptr_of ht) (i, sh2, gsh2, lock, ht, g, g1, g2, gv).
+  { entailer!.
+    erewrite <- lock_inv_share_join; try apply gsh1_gsh2_join; auto.
+    erewrite <- (lock_inv_share_join _ _ Tsh); try apply gsh1_gsh2_join; auto.
+    erewrite <- field_at_share_join; try apply Hsh; auto.
+    cancel. }
+  { simpl; auto. }
   rewrite invariant_dup; Intros.
-  gather_SEP (inv _ _) (ghost_var _ _ _).
-  forward_call (sh2, g, gv, ghost_var gsh2 1%nat g2).
+  forward_call (sh1, ptr_of lock, g, gv, lock_inv gsh1 lock (ctr_inv gv g) * ghost_var gsh2 1%nat g2).
   { sep_apply incr_inv_shift; auto.
-    apply sepcon_derives; [apply atomic_update_mask_weaken; set_solver | cancel]. }
-  forward_call (lockt, sh2, thread_lock_inv sh1 g g1 gv lockt).
-  { subst ctr lock lockt; cancel. }
-  unfold thread_lock_inv at 2; unfold thread_lock_R.
-  rewrite selflock_eq.
-  Intros.
-  gather_SEP (inv _ _) (ghost_var _ _ g1) (ghost_var _ _ g2).
-  forward_call (sh2, g, gv, fun n => !!(n = 2)%nat && ghost_var gsh2 1%nat g1 * ghost_var gsh2 1%nat g2).
-  { rewrite -> 3sepcon_assoc; apply sepcon_derives; cancel.
-    unfold atomic_shift.
-    iIntros "[[#I g1] g2]"; iAuIntro.
+    replace (⊤ ∖ ∅) with (⊤ : coPset) by set_solver; cancel. }
+  forward_call acquire_inv_simple (gsh1, ht, thread_lock_inv sh2 gsh2 gv lock g g1 ht).
+  unfold thread_lock_inv at 2; unfold selflock, thread_lock_R; rewrite !later_sepcon; Intros.
+  forward_call (sh1, ptr_of lock, g, gv, fun n => !!(n = 2)%nat && lock_inv gsh1 lock (ctr_inv gv g)).
+  { rewrite -> 2sepcon_assoc, sepcon_comm, <- !sepcon_assoc, 2sepcon_assoc, sepcon_comm; apply sepcon_derives; [|cancel].
+    iIntros "(g1 & g2 & #I)"; iAuIntro.
     rewrite /atomic_acc /=.
     iInv "I" as ">c" "H".
     iDestruct "c" as (x y) "[gs c]"; iExists (x + y)%nat; iFrame "c".
@@ -305,15 +315,17 @@ Proof.
       iMod (ghost_var_update with "[g2' g2]") as "g2".
       { rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; iFrame. }
       rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
-      iDestruct "g1" as "[? $]".
+      iDestruct "g1" as "[g1 _]".
       rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
-      iDestruct "g2" as "[? $]".
-      iMod ("H" with "[-]"); [|auto].
+      iDestruct "g2" as "[g2 _]".
+      iMod ("H" with "[-]"); [|iFrame "I"; auto].
       unfold cptr_inv.
-      iExists 1%nat, 1%nat; iFrame; auto. }
+      iExists 1%nat, 1%nat; iFrame "g1 g2 c"; auto. }
   (* We've proved that t is 2! *)
   Intros v; subst.
-  forward_call (lock, sh2, sync_inv g Tsh (ctr_state ctr)).
+  forward.
+  (* need the invariant for the counter lock to be cancelable so we can free it at the end *)
+  forward_call acquire_inv (lock, ctr_inv gv g, ).
   { subst ctr lock; cancel. }
   forward_call (lockt, Ews, sh1, thread_lock_R sh1 g g1 gv, thread_lock_inv sh1 g g1 gv lockt).
   { lock_props.
