@@ -293,19 +293,23 @@ Proof.
     replace (⊤ ∖ ∅) with (⊤ : coPset) by set_solver; cancel. }
   forward_call acquire_inv_simple (gsh1, ht, thread_lock_inv sh2 gsh2 gv lock g g1 ht).
   unfold thread_lock_inv at 2; unfold selflock, thread_lock_R; rewrite !later_sepcon; Intros.
-  forward_call (sh1, ptr_of lock, g, gv, fun n => !!(n = 2)%nat && lock_inv gsh1 lock (ctr_inv gv g)).
-  { rewrite -> 2sepcon_assoc, sepcon_comm, <- !sepcon_assoc, 2sepcon_assoc, sepcon_comm; apply sepcon_derives; [|cancel].
-    iIntros "(g1 & g2 & #I)"; iAuIntro.
-    rewrite /atomic_acc /=.
-    iInv "I" as ">c" "H".
-    iDestruct "c" as (x y) "[gs c]"; iExists (x + y)%nat; iFrame "c".
+  forward_call (sh1, ptr_of lock, g, gv, fun n => !!(n = 2)%nat && lock_inv gsh1 lock (ctr_inv gv g) * ghost_var gsh2 1%nat g1).
+  { rewrite !sepcon_assoc; iIntros "(? & ? & ? & ? & g1 & lock & g2 & inv & ? & ? & ?)"; iSplitL "g1 g2 inv lock"; [|iVST; cancel_frame].
+    unfold lock_inv; simpl. unfold atomic_lock_inv. (* tactic *)
+    destruct lock as ((v, i0), g0). iDestruct "lock" as "[[[% %] #inv0] sh]".
+    iDestruct "inv" as "#inv".
+    iAuIntro; rewrite /atomic_acc /=.
+    iMod (into_acc_cinv with "inv0 sh") as (_) "[[>i sh] Hclose0]". done.
+    iInv "inv" as (x y) ">[gs c]" "Hclose"; auto. admit. (* need to know the namespaces are distinct *)
+    iExists (x + y)%nat; iFrame "c i".
     iApply fupd_mask_intro; first set_solver.
+    iFrame "sh".
     iIntros "mask"; iSplit.
-    - iIntros "lock"; iMod "mask" as "_".
-      iMod ("H" with "[-g1 g2]"); last by iFrame.
-      unfold cptr_inv.
-      iExists x, y; iFrame; auto.
-    - iIntros (z) "[[% c] _]".
+    - unfold ctr_state. iIntros "[g i]".
+      iFrame "g1 g2"; iMod "mask"; iMod ("Hclose" with "[gs g]").
+      { iExists x, y; iFrame; auto. }
+      iApply "Hclose0"; auto.
+    - iIntros (z) "[[% [g i]] _]".
       iMod "mask" as "_".
       iDestruct "gs" as "[g1' g2']".
       iPoseProof (ghost_var_inj(A := nat) with "[$g1' $g1]") as "%"; auto with share; subst.
@@ -315,27 +319,27 @@ Proof.
       iMod (ghost_var_update with "[g2' g2]") as "g2".
       { rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; iFrame. }
       rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
-      iDestruct "g1" as "[g1 _]".
+      iFrame "inv0".
+      iDestruct "g1" as "[g1 $]".
       rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
       iDestruct "g2" as "[g2 _]".
-      iMod ("H" with "[-]"); [|iFrame "I"; auto].
-      unfold cptr_inv.
-      iExists 1%nat, 1%nat; iFrame "g1 g2 c"; auto. }
+      iMod ("Hclose" with "[g1 g2 g]").
+      { iExists 1%nat, 1%nat; iFrame "g1 g2 g"; auto. }
+      iMod ("Hclose0" with "i"); auto. }
   (* We've proved that t is 2! *)
   Intros v; subst.
   forward.
-  (* need the invariant for the counter lock to be cancelable so we can free it at the end *)
-  forward_call acquire_inv (lock, ctr_inv gv g, ).
-  { subst ctr lock; cancel. }
-  forward_call (lockt, Ews, sh1, thread_lock_R sh1 g g1 gv, thread_lock_inv sh1 g g1 gv lockt).
+  forward_call acquire_inv_simple (gsh1, lock, ctr_inv gv g).
+  forward_call freelock_self (gsh1, gsh2, ht, thread_lock_R sh2 gsh2 gv lock g g1).
   { lock_props.
-    unfold thread_lock_inv, thread_lock_R.
-    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst ctr lock; cancel. }
-  forward_call (lock, Ews, sync_inv g Tsh (ctr_state ctr)).
-  { lock_props.
-    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst lock ctr; cancel. }
+    unfold thread_lock_inv, thread_lock_R, selflock; cancel. }
+  unfold thread_lock_R; Intros.
   forward.
-Qed.
+  forward_call freelock_simple (lock, ctr_inv gv g).
+  { lock_props.
+    erewrite <- (lock_inv_share_join gsh1 gsh2 Tsh); auto; cancel. }
+  forward.
+Admitted.
 
 Definition extlink := ext_link_prog prog.
 
