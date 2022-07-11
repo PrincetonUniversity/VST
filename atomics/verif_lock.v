@@ -29,6 +29,14 @@ Section PROOFS.
 
   Definition inv_for_lock v R := EX b, atomic_int_at Ews (Val.of_bool b) v * if b then emp else R.
 
+  Lemma inv_for_lock_nonexpansive : forall v, nonexpansive (inv_for_lock v).
+  Proof.
+    intros.
+    apply @exists_nonexpansive; intros.
+    apply sepcon_nonexpansive; [apply const_nonexpansive|].
+    destruct x; [apply const_nonexpansive | apply identity_nonexpansive].
+  Qed.
+
   Definition atomic_lock_inv sh h R := let '(v, i, g) := h in !!(sh <> Share.bot /\ isptr v) && cinvariant i g (inv_for_lock v R) * cinv_own g sh.
 
   #[export] Program Instance atomic_impl : lock_impl := { t_lock := Tstruct _atom_int noattr; lock_handle := val * invariants.iname * ghosts.gname;
@@ -38,11 +46,7 @@ Section PROOFS.
     unfold atomic_lock_inv.
     apply sepcon_nonexpansive, const_nonexpansive.
     apply @conj_nonexpansive; [apply const_nonexpansive|].
-    apply cinvariant_nonexpansive2.
-    unfold inv_for_lock.
-    apply @exists_nonexpansive; intros.
-    apply sepcon_nonexpansive; [apply const_nonexpansive|].
-    destruct x; [apply const_nonexpansive | apply identity_nonexpansive].
+    apply cinvariant_nonexpansive2, inv_for_lock_nonexpansive.
   Qed.
   Next Obligation.
   Proof.
@@ -234,7 +238,7 @@ Program Definition freelock_spec_self :=
   TYPE (ProdType (ConstType _) Mpred)
   WITH sh1 : _, sh2 : _, h : _, R : _
   PRE [ tptr t_lock ]
-     PROP (sh1 <> Share.bot; sh2 <> Share.bot; sepalg.join sh1 sh2 Tsh)
+     PROP (sh2 <> Share.bot; sepalg.join sh1 sh2 Tsh)
      PARAMS (ptr_of h)
      SEP (weak_exclusive_mpred R && emp; lock_inv sh1 h (self_part sh2 h * R); self_part sh2 h; R)
   POST [ tvoid ]
@@ -266,7 +270,7 @@ Program Definition release_spec_self :=
   TYPE (ProdType (ConstType _) Mpred)
   WITH sh : _, h : _, R : _
   PRE [ tptr t_lock ]
-     PROP (sh <> Share.bot)
+     PROP ()
      PARAMS (ptr_of h)
      SEP (lock_inv sh h (self_part sh h * R); R)
   POST [ tvoid ]
@@ -299,13 +303,21 @@ Proof.
   eapply derives_trans, fupd_intro.
   Exists (nil : list Type) (sh, h, self_part sh h * R, R, emp) emp; entailer!.
   { intros; unfold PROPx, LOCALx, SEPx; simpl; entailer!. }
+  unfold atomic_lock_inv; destruct h as ((?, ?), ?).
   unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; entailer!.
   lock_props.
-  { apply exclusive_sepcon1; auto. }
+  { fold (self_part sh (v, i, g)); apply exclusive_sepcon1; auto. }
+  rewrite <- sepcon_emp at 1; apply sepcon_derives; [apply now_later|].
   rewrite <- wand_sepcon_adjoint, emp_sepcon; cancel.
-  unfold atomic_lock_inv, self_part; destruct h as ((?, ?), ?); Intros; cancel.
   apply inv_dealloc.
 Qed.
+
+Lemma lock_inv_share : forall sh h R, lock_inv sh h R |-- !!(sh <> Share.bot).
+Proof.
+  intros; destruct h as ((?, ?), ?); simpl; Intros; entailer!.
+Qed.
+
+#[export] Hint Resolve lock_inv_share : saturate_local.
 
 Lemma freelock_self : funspec_sub lock_specs.freelock_spec freelock_spec_self.
 Proof.
@@ -316,6 +328,7 @@ Proof.
   unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
   set (P := _ * _); entailer!; subst P.
   rewrite sepcon_emp, <- (sepcon_assoc _ _ R); setoid_rewrite self_part_eq; auto.
+  saturate_local.
   erewrite lock_inv_share_join by eauto; simpl; cancel.
   apply andp_right, andp_left2; auto.
   rewrite <- wand_sepcon_adjoint.
@@ -324,6 +337,8 @@ Proof.
 Qed.
 
 Definition selflock R sh h := self_part sh h * R.
+
+#[export] Hint Resolve lock_inv_share : saturate_local.
 
 Opaque t_lock.
 Opaque lock_handle.

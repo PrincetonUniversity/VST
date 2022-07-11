@@ -43,6 +43,13 @@ Proof.
   do 2 (apply allp_right; intros); auto.
 Qed.
 
+Lemma cinv_own_excl : forall g sh, sh <> Share.bot -> cinv_own g Tsh * cinv_own g sh |-- FF.
+Proof.
+  intros; unfold cinv_own; sep_apply own_valid_2; Intros.
+  destruct H0 as (? & J & ?).
+  apply join_Tsh in J as []; contradiction.
+Qed.
+
 Lemma cinv_cancel : forall E i g P, Ensembles.In E i -> cinvariant i g P * cinv_own g Tsh |-- |={E}=> |> P.
 Proof.
   intros.
@@ -58,10 +65,8 @@ Proof.
     rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
     rewrite <- later_sepcon; apply later_derives.
     rewrite (sepcon_comm _ (cinv_own g Tsh)), <- sepcon_assoc.
-    rewrite sepcon_comm; apply sepcon_FF_derives'.
-    unfold cinv_own; sep_apply own_valid_2; Intros.
-    destruct H0 as (? & J & ?).
-    apply join_Tsh in J as []; contradiction Share.nontrivial.
+    sep_apply cinv_own_excl; auto with share.
+    rewrite FF_sepcon; auto.
 Qed.
 
 Lemma cinv_open : forall E sh i g P, sh <> Share.bot -> Ensembles.In E i ->
@@ -80,10 +85,8 @@ Proof.
     rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
     rewrite <- later_sepcon; apply later_derives.
     rewrite (sepcon_comm _ (cinv_own g sh)), <- sepcon_assoc.
-    rewrite sepcon_comm; apply sepcon_FF_derives'.
-    unfold cinv_own; sep_apply own_valid_2; Intros.
-    destruct H1 as (? & J & ?).
-    apply join_Tsh in J as []; contradiction.
+    sep_apply cinv_own_excl.
+    rewrite FF_sepcon; auto.
 Qed.
 
 Lemma cinvariant_nonexpansive : forall i g, nonexpansive (cinvariant i g).

@@ -158,6 +158,12 @@ Proof.
   exact ghost_var_update.
 Qed.
 
+Lemma ghost_var_update' : forall g (v1 v2 v : A), ghost_var gsh1 v1 g * ghost_var gsh2 v2 g |--
+  |==> !!(v1 = v2) && (ghost_var gsh1 v g * ghost_var gsh2 v g).
+Proof.
+  exact ghost_var_update'.
+Qed.
+
 End GVar.
 
 Section PVar.

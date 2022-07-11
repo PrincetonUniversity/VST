@@ -486,6 +486,14 @@ Proof.
   - exists (Some (Tsh, v')); split; [constructor | auto].
 Qed.
 
+Lemma ghost_var_update' : forall g (v1 v2 v : A), ghost_var gsh1 v1 g * ghost_var gsh2 v2 g |--
+  |==> !!(v1 = v2) && (ghost_var gsh1 v g * ghost_var gsh2 v g).
+Proof.
+  intros; erewrite ghost_var_share_join' by eauto.
+  Intros; subst; erewrite ghost_var_share_join by eauto.
+  rewrite -> prop_true_andp by auto; apply ghost_var_update.
+Qed.
+
 Lemma ghost_var_exclusive : forall sh v p, sh <> Share.bot -> exclusive_mpred (ghost_var sh v p).
 Proof.
   intros; unfold exclusive_mpred.

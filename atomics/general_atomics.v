@@ -52,11 +52,11 @@ Proof.
 Qed.
 
 (* use iInv instead of applying this lemma *)
-Lemma inv_atomic_shift : forall {A B} a Eo Ei (b : A -> B -> mpred) Q i R P
-  (Hi : to_coPset i ⊆ Eo) (Hio : Ei ⊆ Eo ∖ to_coPset i)
-  (Ha1 : (inv i R * |>R |-- |={Eo ∖ to_coPset i}=> EX x, a x * ((a x -* |={Ei}=> |>R) &&
+Lemma inv_atomic_shift : forall {A B} a Eo Ei (b : A -> B -> mpred) Q N R P
+  (Hi : ↑N ⊆ Eo) (Hio : Ei ⊆ Eo ∖ ↑N)
+  (Ha1 : (inv N R * |>R |-- |={Eo ∖ ↑N}=> EX x, a x * ((a x -* |={Ei}=> |>R) &&
     (ALL y, |> P * b x y -* |={Ei}=> |>R * Q y)))),
-  inv i R * |> P |-- atomic_shift a Eo Ei b Q.
+  inv N R * |> P |-- atomic_shift a Eo Ei b Q.
 Proof.
   intros; unfold atomic_shift.
   iIntros "[#I P]". iAuIntro.

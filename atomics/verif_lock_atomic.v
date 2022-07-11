@@ -190,24 +190,18 @@ Section PROOFS.
 
   #[local] Obligation Tactic := intros.
 
-  Definition atomic_lock_inv sh h R := let '(v, i, g) := h in !!(sh <> Share.bot /\ isptr v) && cinv i g (inv_for_lock v R) * cinv_own g sh.
-
   #[export] Program Instance atomic_impl : lock_impl := { t_lock := Tstruct _atom_int noattr; lock_handle := val * namespace * ghosts.gname;
-    ptr_of h := let '(v, i, g) := h in v; lock_inv := atomic_lock_inv }.
+    ptr_of h := let '(v, _, _) := h in v; lock_inv sh h R := let '(v, N, g) := h in !!(sh <> Share.bot /\ isptr v) && cinv N g (inv_for_lock v R) * cinv_own g sh }.
   Next Obligation.
   Proof.
-    unfold atomic_lock_inv; destruct h as ((?, ?), ?).
+    destruct h as ((?, ?), ?).
     apply sepcon_nonexpansive, const_nonexpansive.
     apply @conj_nonexpansive; [apply const_nonexpansive|].
-    apply cinv_nonexpansive2.
-    unfold inv_for_lock.
-    apply @exists_nonexpansive; intros.
-    apply sepcon_nonexpansive; [apply const_nonexpansive|].
-    destruct x; [apply const_nonexpansive | apply identity_nonexpansive].
+    apply cinv_nonexpansive2, inv_for_lock_nonexpansive.
   Qed.
   Next Obligation.
   Proof.
-    unfold atomic_lock_inv; destruct h as ((?, ?), ?).
+    destruct h as ((?, ?), ?); simpl.
     destruct (isptr_dec v).
     rewrite !prop_true_andp; auto.
     rewrite <- !sepcon_assoc, (sepcon_comm (_ * cinv_own _ _)), !sepcon_assoc.
@@ -219,43 +213,46 @@ Section PROOFS.
   Qed.
   Next Obligation.
   Proof.
-    unfold exclusive_mpred, atomic_lock_inv; destruct h as ((?, ?), ?); Intros.
+    unfold exclusive_mpred; destruct h as ((?, ?), ?); Intros.
     unfold cinv_own; sep_apply own_op'.
     Intros ?; Intros.
     apply sepalg.join_self, identity_share_bot in H0; contradiction.
   Qed.
   Next Obligation.
   Proof.
-    unfold atomic_lock_inv; destruct h as ((?, ?), ?); entailer!.
+    destruct h as ((?, ?), ?); simpl; entailer!.
   Qed.
 
-  (* We can use self_part sh h * R instead of selflock sh h R. *)
-  Definition self_part sh (h : lock_handle) := let '(v, i, g) := h in cinv_own g sh.
+  Definition name_of (h : lock_handle) := let '(_, N, _) := h in N.
+  Definition ghost_of (h : lock_handle) := let '(_, _, g) := h in g.
+
+  (* Since a lock's namespace is known, the ghost name is the only part that needs to be existentially quantified. *)
+  Definition self_part sh g := cinv_own g sh.
 
   Lemma self_part_exclusive : forall sh h, sh <> Share.bot -> exclusive_mpred (self_part sh h).
   Proof.
-    intros; unfold exclusive_mpred, self_part; destruct h as ((?, ?), ?).
+    intros; unfold exclusive_mpred, self_part.
     unfold cinv_own; rewrite own_op'; Intros ?.
     apply sepalg.join_self, identity_share_bot in H0; contradiction.
   Qed.
 
-  Lemma self_part_eq : forall sh1 sh2 h R, sh2 <> Share.bot -> lock_inv sh1 h (self_part sh2 h * R) * self_part sh2 h * R =
-    lock_inv sh1 h (self_part sh2 h * R) * lock_inv sh2 h (self_part sh2 h * R) * R.
+  Lemma self_part_eq : forall sh1 sh2 h R, sh2 <> Share.bot -> lock_inv sh1 h (self_part sh2 (ghost_of h) * R) * self_part sh2 (ghost_of h) * R =
+    lock_inv sh1 h (self_part sh2 (ghost_of h) * R) * lock_inv sh2 h (self_part sh2 (ghost_of h) * R) * R.
   Proof.
-    intros; unfold lock_inv; simpl.
-    unfold atomic_lock_inv; destruct h as ((?, ?), ?).
+    intros; unfold lock_inv; destruct h as ((v, N), g); simpl.
     destruct (eq_dec sh1 Share.bot).
     { rewrite -> prop_false_andp, !FF_sepcon; auto; intros []; contradiction. }
     destruct (isptr_dec v).
     rewrite -> !prop_true_andp by auto.
-    unfold self_part at 2; rewrite {1}(bi.persistent_sep_dup (cinv n g _)).
+    unfold self_part at 2; rewrite {1}(bi.persistent_sep_dup (cinv N g _)).
     rewrite <- !sepcon_assoc; do 2 f_equal.
     rewrite -> (sepcon_comm (_ * _) (cinv _ _ _)), <- sepcon_assoc; reflexivity.
     { rewrite -> prop_false_andp, !FF_sepcon; auto; intros []; contradiction. }
   Qed.
 
+  (* caller can request the lock's namespace *)
   Program Definition makelock_spec_inv :=
-    TYPE (ProdType (ConstType globals) (ArrowType (ConstType lock_handle) Mpred)) WITH gv: _, R : _
+    TYPE (ProdType (ConstType (globals * namespace)) (ArrowType (ConstType gname) Mpred)) WITH gv: _, N : _, R : _
     PRE [ ]
        PROP ()
        PARAMS () GLOBALS (gv)
@@ -263,61 +260,60 @@ Section PROOFS.
     POST [ tptr t_lock ] EX v,
        PROP ()
        RETURN (v)
-       SEP (mem_mgr gv; |={⊤}=> EX h, !!(ptr_of h = v) && lock_inv Tsh h (R h)).
+       SEP (mem_mgr gv; |={⊤}=> EX g, lock_inv Tsh (v, N, g) (R g)).
   Next Obligation.
   Proof.
     repeat intro.
-    destruct x; simpl.
+    destruct x as ((?, ?), ?); simpl.
     reflexivity.
   Qed.
   Next Obligation.
   Proof.
     repeat intro.
-    destruct x; simpl.
+    destruct x as ((?, ?), ?); simpl.
     rewrite -> 2approx_exp; apply f_equal; extensionality.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite -> !approx_andp; do 2 apply f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
     apply f_equal. setoid_rewrite fupd_nonexpansive; do 2 apply f_equal.
     rewrite !approx_exp; f_equal; extensionality.
-    rewrite !approx_andp; f_equal.
     apply lock_inv_super_non_expansive.
   Qed.
 
-  (* These lemmas can also be used to attach an invariant to an existing lock. *)
-  Lemma make_lock_inv_1 : forall v R, atomic_int_at Ews (vint 1) v |-- |={⊤}=> EX h, !!(ptr_of h = v) && lock_inv Tsh h (R h).
+  (* These lemmas can be used to attach an invariant to an existing lock. *)
+  Lemma make_lock_inv_1 : forall v N (R : gname -> mpred), atomic_int_at Ews (vint 1) v |-- (*|={⊤}=>*) @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX g, lock_inv Tsh (v, N, g) (R g)).
   Proof.
     intros.
     iIntros "a".
     iDestruct (atomic_int_isptr with "a") as %Ha.
-    iMod (cinv_alloc_dep with "[a]") as (i g) "[Hi Hg]";
-      [| iExists (v, i, g); unfold lock_inv; simpl; unfold atomic_lock_inv; iFrame "Hi Hg"; auto].
-    iIntros (??) "!>"; unfold inv_for_lock.
+    iMod (cinv_alloc_dep with "[a]") as (g) "[Hi Hg]";
+      [| iExists g; unfold lock_inv; simpl; iFrame "Hi Hg"; auto].
+    iIntros (?) "!>"; unfold inv_for_lock.
     iExists true; iFrame.
   Qed.
 
-  Lemma make_lock_inv_0' : forall v (R : lock_handle -> mpred), (atomic_int_at Ews (vint 0) v * ALL i g, R (v, i, g)) |-- |={⊤}=> EX h, !!(ptr_of h = v) && lock_inv Tsh h (R h).
+  Lemma make_lock_inv_0' : forall v N (R : gname -> mpred), (atomic_int_at Ews (vint 0) v * ALL g, R g) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX g, lock_inv Tsh (v, N, g) (R g)).
   Proof.
     intros.
     iIntros "[a R]".
     iDestruct (atomic_int_isptr with "a") as %Ha.
-    iMod (cinv_alloc_dep with "[a R]") as (i g) "[Hi Hg]";
-      [| iExists (v, i, g); unfold lock_inv; simpl; unfold atomic_lock_inv; iFrame "Hi Hg"; auto].
-    iIntros (??) "!>"; unfold inv_for_lock.
+    iMod (cinv_alloc_dep with "[a R]") as (g) "[Hi Hg]";
+      [| iExists g; unfold lock_inv; simpl; iFrame "Hi Hg"; auto].
+    iIntros (?) "!>"; unfold inv_for_lock.
     iExists false; iFrame; auto.
   Qed.
 
-  Lemma make_lock_inv_0 : forall v R, atomic_int_at Ews (vint 0) v * R |-- |={⊤}=> EX h, !!(ptr_of h = v) && lock_inv Tsh h R.
+  Lemma make_lock_inv_0 : forall v N R, atomic_int_at Ews (vint 0) v * R |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX g, lock_inv Tsh (v, N, g) R).
   Proof.
     intros.
     eapply derives_trans, make_lock_inv_0'.
     cancel.
-    apply allp_right; intros; apply allp_right; intros; auto.
+    apply allp_right; intros; auto.
   Qed.
 
   Lemma makelock_inv: funspec_sub (snd makelock_spec) makelock_spec_inv.
   Proof.
     apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as [gv R]. Intros.
+    split; auto. intros. simpl in *. destruct x2 as [[gv N] R]. Intros.
     iIntros "H !>". iExists nil, gv, emp. rewrite emp_sepcon. iSplit; auto.
     iPureIntro. intros. Intros. rewrite emp_sepcon. Intros x; Exists x.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl. Intros.
@@ -332,10 +328,7 @@ Section PROOFS.
     compcert_rmaps.RML.R.approx n (inv_for_lock p R) =
     compcert_rmaps.RML.R.approx n (inv_for_lock p (compcert_rmaps.RML.R.approx n R)).
   Proof.
-    intros; unfold inv_for_lock.
-    intros; rewrite !approx_exp; f_equal; extensionality.
-    rewrite !approx_sepcon; f_equal.
-    simple_if_tac; rewrite ?approx_idem; auto.
+    intros; apply nonexpansive_super_non_expansive, inv_for_lock_nonexpansive.
   Qed.
   #[local] Hint Resolve inv_for_lock_super_non_expansive : core.
 
@@ -605,7 +598,7 @@ Section PROOFS.
     TYPE (ProdType (ConstType _) Mpred)
     WITH sh : _, h : _, R : _
     PRE [ tptr t_lock ]
-       PROP (sh <> Share.bot)
+       PROP ()
        PARAMS (ptr_of h)
        SEP (lock_inv sh h R)
     POST [ tvoid ]
@@ -638,10 +631,10 @@ Section PROOFS.
     iExists (@ptr_of atomic_impl h, @lock_inv atomic_impl sh h R * |> R), emp; simpl.
     rewrite emp_sepcon. iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl.
-      iDestruct "H" as "([% _] & % & _ & H & _)".
+      iDestruct "H" as "(_ & % & _ & H & _)".
       do 4 (iSplit; auto).
-      unfold lock_inv; simpl; unfold atomic_lock_inv; destruct h as ((v, i), g).
-      iDestruct "H" as "(([_ %] & #H) & H2)".
+      unfold lock_inv; simpl; destruct h as ((v, i), g).
+      iDestruct "H" as "(([% %] & #H) & H2)".
       unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
       iInv "H" as "inv" "Hclose".
       iDestruct "inv" as "[inv | >inv]".
@@ -666,7 +659,7 @@ Section PROOFS.
     TYPE (ProdType (ProdType (ProdType (ConstType _) Mpred) Mpred) Mpred)
     WITH sh : _, h : _, R : _, P : _, Q : _
     PRE [ tptr t_lock ]
-       PROP (sh <> Share.bot)
+       PROP ()
        PARAMS (ptr_of h)
        SEP (weak_exclusive_mpred R && emp; lock_inv sh h R; P; lock_inv sh h R * P -* Q * R)
     POST [ tvoid ]
@@ -705,11 +698,11 @@ Section PROOFS.
     iExists (@ptr_of atomic_impl h, |> Q), emp. simpl in *.
     rewrite emp_sepcon. iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
-      iDestruct "H" as "([% _] & % & _ & H)".
+      iDestruct "H" as "(_ & % & _ & H)".
       do 4 (iSplit; auto).
       iDestruct "H" as "(H5 & H2 & H3 & H4 & _)".
       unfold lock_inv; simpl; unfold atomic_lock_inv; destruct h as ((v, i), g).
-      iDestruct "H2" as "(([_ %] & #H) & H2)".
+      iDestruct "H2" as "(([% %] & #H) & H2)".
       rewrite -> prop_true_andp by auto.
       unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
       iInv "H" as "inv" "Hclose".
@@ -774,9 +767,9 @@ Section PROOFS.
     TYPE (ProdType (ConstType _) Mpred)
     WITH sh : _, h : _, R : _
     PRE [ tptr t_lock ]
-       PROP (sh <> Share.bot)
+       PROP ()
        PARAMS (ptr_of h)
-       SEP (lock_inv sh h (self_part sh h * R); R)
+       SEP (lock_inv sh h (self_part sh (ghost_of h) * R); R)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
@@ -805,14 +798,15 @@ Section PROOFS.
     apply prove_funspec_sub.
     split; auto. intros. simpl in *. destruct x2 as ((sh, h), R). Intros.
     unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
-    iExists (@ptr_of atomic_impl h, emp), emp. simpl in *.
+    destruct h as ((v, N), g).
+    iExists (v, emp), emp. simpl in *.
     rewrite emp_sepcon. iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
-      iDestruct "H" as "([% _] & % & _ & H)".
+      iDestruct "H" as "(_ & % & _ & H)".
       do 4 (iSplit; auto).
       iDestruct "H" as "(H & R & _)".
-      unfold lock_inv; simpl; unfold atomic_lock_inv; destruct h as ((v, i), g).
-      iDestruct "H" as "(([_ %] & #H) & H2)".
+      unfold lock_inv; simpl.
+      iDestruct "H" as "(([% %] & #H) & H2)".
       unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
       iInv "H" as "inv" "Hclose".
       iDestruct "inv" as "[inv | >inv]".
@@ -868,9 +862,9 @@ Section PROOFS.
     TYPE (ProdType (ConstType _) Mpred)
     WITH sh1 : _, sh2 : _, h : _, R : _
     PRE [ tptr t_lock ]
-       PROP (sh1 <> Share.bot; sh2 <> Share.bot; sepalg.join sh1 sh2 Tsh)
+       PROP (sh2 <> Share.bot; sepalg.join sh1 sh2 Tsh)
        PARAMS (ptr_of h)
-       SEP (weak_exclusive_mpred R && emp; lock_inv sh1 h (self_part sh2 h * R); self_part sh2 h; R)
+       SEP (weak_exclusive_mpred R && emp; lock_inv sh1 h (self_part sh2 (ghost_of h) * R); self_part sh2 (ghost_of h); R)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
@@ -896,19 +890,26 @@ Section PROOFS.
     reflexivity.
   Qed.
 
+  Lemma lock_inv_share : forall sh h R, lock_inv sh h R |-- !!(sh <> Share.bot).
+  Proof.
+    intros; destruct h as ((?, ?), ?); unfold lock_inv; simpl; Intros; entailer!.
+  Qed.
+
   Lemma freelock_self : funspec_sub (snd freelock_spec) freelock_spec_self.
   Proof.
     eapply funspec_sub_trans; [apply freelock_inv|].
     apply prove_funspec_sub.
-    split; auto; intros ? (((sh1, sh2), h), R) ?; Intros; simpl.
+    split; auto; intros ? (((sh1, sh2), ((v, N), g)), R) ?; Intros; simpl.
     iIntros "H !>".
-    iExists nil, (h, self_part sh2 h * R, R), emp.
+    iExists nil, ((v, N, g), self_part sh2 g * R, R), emp.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
     rewrite !emp_sepcon !sepcon_emp.
-    iDestruct "H" as "((% & % & % & _) & % & % & H1 & H)".
-    repeat (iSplit; auto).
+    iDestruct "H" as "((% & % & _) & % & % & H1 & H)".
+    iSplit; [do 3 (iSplit; [auto|])|].
     - rewrite <- sepcon_assoc, self_part_eq by auto.
-      erewrite lock_inv_share_join; eauto.
+      iAssert (⌜sh1 <> Share.bot⌝) with "[H]" as %?.
+      { iDestruct "H" as "[[l _] _]"; iApply lock_inv_share; eauto. }
+      erewrite lock_inv_share_join by eauto.
       iDestruct "H" as "[$ $]".
       iSplit; auto.
       iIntros "(R1 & ? & R2)".
@@ -919,9 +920,14 @@ Section PROOFS.
 
 End PROOFS.
 
-Definition selflock R sh h := self_part sh h * R.
+Notation selflock R sh g := (self_part sh g * R).
 
 #[export] Hint Resolve self_part_exclusive : core.
+#[export] Hint Resolve lock_inv_share : saturate_local.
 
 Ltac lock_props ::= match goal with |-context[weak_exclusive_mpred ?P && _] => sep_apply (exclusive_weak_exclusive P); [auto with share | try timeout 20 cancel]
   | |-context[weak_exclusive_mpred' ?P && _] => sep_apply (exclusive_weak_exclusive' P); [auto with share | try timeout 20 cancel] end.
+
+(* when interacting with atomic updates, we need to unfold the definition of lock_inv and split its pieces *)
+Ltac unfold_lock_inv := match goal with |-context[lock_inv _ ?h _] =>
+  unfold lock_inv; simpl; let v := fresh "v" in let N := fresh "N" in let g := fresh "g" in destruct h as ((v, N), g) end.

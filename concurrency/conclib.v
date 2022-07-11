@@ -231,6 +231,12 @@ Proof.
   intros; unseal_derives; apply wsat_alloc.
 Qed.
 
+Lemma wsat_alloc_strong : forall P Pi (Hfresh : forall n, exists i, (n <= i)%nat /\ Pi i),
+  (wsat * |> P) |-- |==> wsat * EX i : _, !!(Pi i) && invariant i P.
+Proof.
+  intros; unseal_derives; apply wsat_alloc_strong; auto.
+Qed.
+
 Lemma inv_alloc_dep : forall E P, ALL i, |> P i |-- |={E}=> EX i : _, invariant i (P i).
 Proof.
   intros.
@@ -241,6 +247,13 @@ Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, invariant i P.
 Proof.
   intros.
   apply wsat_fupd, wsat_alloc.
+Qed.
+
+Lemma inv_alloc_strong : forall E P Pi (Hfresh : forall n, exists i, (n <= i)%nat /\ Pi i),
+  |> P |-- |={E}=> EX i : _, !!(Pi i) && invariant i P.
+Proof.
+  intros.
+  apply wsat_fupd, wsat_alloc_strong; auto.
 Qed.
 
 Lemma inv_open : forall E i P, Ensembles.In E i ->
@@ -385,6 +398,15 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3) =>
      match x with (x1,x2,x3) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3) =>

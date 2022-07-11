@@ -3,7 +3,6 @@ From VST.veric Require Import compcert_rmaps fupd.
 From VST.msl Require Import ghost ghost_seplog sepalg_generators.
 From VST.concurrency Require Import ghosts conclib invariants cancelable_invariants.
 Require Export VST.veric.bi.
-Import Ensembles.
 Import FashNotation.
 
 Lemma timeless'_timeless : forall (P : mpred), timeless' P -> Timeless P.
@@ -156,6 +155,46 @@ Proof.
   intros; apply (@bi.and_timeless mpredI); [apply (@bi.pure_timeless mpredI) | apply data_at_rec_timeless].
 Qed.
 
+Definition funspec_sub' (f1 f2 : funspec): Prop :=
+match f1 with
+| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+    match f2 with
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+        (tpsig1=tpsig2 /\ cc1=cc2) /\
+        forall ts2 x2 (gargs:argsEnviron),
+        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
+         |-- |={⊤}=> (EX ts1:_,  EX x1:_, EX F:_, 
+                           (F * (P1 ts1 x1 gargs)) &&
+                               (!! (forall rho',
+                                           ((!!(ve_of rho' = Map.empty (Values.block * type))) &&
+                                                 (F * (Q1 ts1 x1 rho')))
+                                         |-- (Q2 ts2 x2 rho')))))
+    end
+end.
+
+Lemma coPset_to_Ensemble_top : coPset_to_Ensemble ⊤ = Ensembles.Full_set.
+Proof.
+  unfold coPset_to_Ensemble; apply Ensembles.Extensionality_Ensembles; split; intros ? Hin; unfold Ensembles.In in *.
+  - constructor.
+  - set_solver.
+Qed.
+
+Lemma prove_funspec_sub : forall f1 f2, funspec_sub' f1 f2 -> funspec_sub f1 f2.
+Proof.
+  unfold funspec_sub', funspec_sub; intros.
+  destruct f1, f2.
+  destruct H as [? H]; split; auto; intros.
+  eapply derives_trans; [apply H|].
+  unfold fupd, bi_fupd_fupd; simpl.
+  rewrite coPset_to_Ensemble_top.
+  apply derives_refl.
+Qed.
+
+Lemma fupd_eq : ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set = fupd ⊤ ⊤.
+Proof.
+  unfold fupd, bi_fupd_fupd; simpl. rewrite coPset_to_Ensemble_top; auto.
+Qed.
+
 Section FancyUpdates.
 
 Local Open Scope logic_upd.
@@ -232,130 +271,41 @@ Proof.
   apply fupd_intro.
 Qed.*)
 
-Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, inv i P.
+Global Opaque updates.fupd.
+
+Definition cinv (N : namespace) g (P : mpred) : mpred := inv N (P || cinv_own g Tsh).
+
+Lemma cinv_alloc_dep : forall N E P, (ALL g, |> P g) |-- |={E}=> EX g : _, cinv N g (P g) * cinv_own g Tsh.
 Proof.
-  intros; eapply derives_trans, fupd_mono; [apply inv_alloc|].
-  iIntros "I"; iDestruct "I" as (i) "I".
-  unfold inv; iExists _, i; iFrame; auto.
+  intros; iIntros "HP".
+  iMod (own_alloc(RA := share_ghost) with "[$]") as (g) "?"; first done.
+  iExists g.
+  iMod (inv_alloc with "[HP]"); last by iFrame.
+  iNext; iLeft; auto.
 Qed.
 
-Lemma make_inv : forall E P Q, (P |-- Q) -> P |-- |={E}=> EX i : _, inv i Q.
+Lemma cinv_alloc : forall N E P, |> P |-- |={E}=> EX g : _, cinv N g P * cinv_own g Tsh.
 Proof.
-  intros.
-  eapply derives_trans, inv_alloc; auto.
-  eapply derives_trans, now_later; auto.
+  intros; iIntros "HP".
+  iApply cinv_alloc_dep.
+  iIntros (_); auto.
 Qed.
 
-(*Lemma make_inv' : forall P Q, (P |-- Q) -> (wsat * P |-- |==> EX i : _, |> (wsat * (inv i Q)))%I.
-Proof.
-  intros.
-  iIntros "[wsat P]".
-  iPoseProof (make_inv empty _ _ H with "P") as "inv".
-  iMod (wsat_fupd_elim with "[$wsat $inv]") as "[wsat inv]".
-  iDestruct "inv" as (i) "inv"; iExists i.
-  unfold bi_except_0.
-  iIntros "!> !>".
-  iDestruct "wsat" as "[? | $]"; auto.
-  iDestruct "inv" as "[? | ?]"; auto.
-Qed.
-
-Lemma inv_close_aux : forall E (i : iname) P,
-  (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * inv i P * |> P *
-  (wsat * ghost_set g_en (Subtract E i))
-  |-- |==> bi_except_0 (wsat * (ghost_set g_en (Singleton i) * ghost_set g_en (Subtract E i))))%I.
-Proof.
-  intros.
-  iIntros "(((? & ?) & ?) & ? & en)".
-  iMod (wsat_close with "[-en]") as "[$ $]"; iFrame; auto.
-Qed.*)
-
-(* hack because we don't have namespaces in wsat *)
-Definition to_coPset (N : namespace) : coPset :=
-  match N with
-  | [p] => {[p]}
-  | _ => ∅
-  end.
-
-Lemma coPset_to_Ensemble_minus : forall E1 E2, coPset_to_Ensemble (E1 ∖ E2) = Setminus (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
-Proof.
-  intros; unfold coPset_to_Ensemble.
-  apply Extensionality_Ensembles; split; intros ? Hin; unfold In in *.
-  - apply elem_of_difference in Hin as []; constructor; auto.
-  - inv Hin. apply elem_of_difference; auto.
-Qed.
-
-Lemma coPset_to_Ensemble_single : forall x, coPset_to_Ensemble {[Pos.of_nat (S x)]} = Singleton x.
-Proof.
-  intros; unfold coPset_to_Ensemble.
-  apply Extensionality_Ensembles; split; intros ? Hin; unfold In in *.
-  - apply elem_of_singleton in Hin.
-    apply (f_equal Pos.to_nat) in Hin.
-    rewrite -> !Nat2Pos.id in Hin by auto; inv Hin; constructor.
-  - inv Hin.
-    apply elem_of_singleton; auto.
-Qed.
-
-Lemma Union_Readd : forall {A} E (x : A), EqDec A -> In E x ->
-  Union (Subtract E x) (Singleton x) = E.
-Proof.
-  intros; apply Extensionality_Ensembles; split; intros ? Hin.
-  - inv Hin; auto.
-    + inv H0; auto.
-    + inv H0; auto.
-  - destruct (eq_dec x x0).
-    + subst; constructor 2; constructor.
-    + constructor 1; constructor; auto.
-      intros Hs; inv Hs; auto.
-Qed.
-
-#[export] Instance into_acc_inv N P E:
-  IntoAcc (X := unit) (inv N P)
-          (to_coPset N ⊆ E) emp (updates.fupd E (E ∖ to_coPset N)) (updates.fupd (E ∖ to_coPset N) E)
-          (λ _ : (), (▷ P)%I) (λ _ : (), (▷ P)%I) (λ _ : (), None).
-Proof.
-  rewrite /inv /IntoAcc /accessor bi.exist_unit.
-  intros; unfold bi_entails, bi_wand, fupd, bi_fupd_fupd; simpl.
-  Intros i; subst.
-  unfold to_coPset in *; rewrite -> ndot_eq in *; simpl in *.
-  sep_apply (inv_open (coPset_to_Ensemble E)).
-  { unfold coPset_to_Ensemble, In; apply elem_of_subseteq_singleton, H. }
-  rewrite -wand_sepcon_adjoint sepcon_emp.
-  rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single.
-  apply derives_refl.
-Qed.
-
-Definition cinv (N : namespace) g P := EX i : iname, !!(N = nroot .@ (Pos.of_nat (S i))) && cinvariant i g P.
-
-Lemma cinv_alloc_dep : forall E P, (ALL i g, |> P i g) |-- |={E}=> EX i : _, EX g : _, cinv i g (P i g) * cinv_own g Tsh.
-Proof.
-  intros; eapply derives_trans, fupd_mono; [eapply derives_trans, cinv_alloc_dep with (P := fun i g => P (nroot .@ (Pos.of_nat (S i))) g)|].
-  { apply allp_right; intros; eapply allp_left, derives_refl. }
-  unfold bi_entails, cinv; simpl.
-  Intros i g; EExists; Exists g i; entailer!.
-Qed.
-
-Lemma cinv_alloc : forall E P, |> P |-- |={E}=> EX i : _, EX g : _, cinv i g P * cinv_own g Tsh.
-Proof.
-  intros; eapply derives_trans, fupd_mono; [apply cinv_alloc|].
-  unfold bi_entails, cinv; simpl.
-  Intros i g; EExists; Exists g i; entailer!.
-Qed.
-
-Lemma make_cinv : forall E P Q, (P |-- Q) -> P |-- |={E}=> EX i : _, EX g : _, cinv i g Q * cinv_own g Tsh.
+Lemma make_cinv : forall N E P Q, (P |-- Q) -> P |-- |={E}=> EX g : _, cinv N g Q * cinv_own g Tsh.
 Proof.
   intros.
   eapply derives_trans, cinv_alloc; auto.
   eapply derives_trans, now_later; auto.
 Qed.
 
-Lemma cinv_cancel : forall E i g P,
-  to_coPset i ⊆ E -> cinv i g P * cinv_own g Tsh |-- |={E}=> (|> P).
+Lemma cinv_cancel : forall N E g P,
+  ↑N ⊆ E -> cinv N g P * cinv_own g Tsh |-- |={E}=> (|> P).
 Proof.
-  intros; unfold cinv.
-  Intros i1; subst.
-  eapply derives_trans, cinv_cancel.
-  apply derives_refl.
-  { unfold In, coPset_to_Ensemble. unfold to_coPset in H; rewrite ndot_eq in H; simpl in H; apply singleton_subseteq_l; unfold encode in H; simpl in H; eauto. }
+  intros; iIntros "[#I g]".
+  iInv "I" as "H" "Hclose".
+  iDestruct "H" as "[$ | >g']".
+  - iApply "Hclose"; iRight; auto.
+  - iDestruct (cinv_own_excl with "[$g $g']") as "[]"; auto with share.
 Qed.
 
 (* These seem reasonable, but for some reason cause iInv to hang if exported. *)
@@ -363,81 +313,36 @@ Qed.
 
 #[local] Instance into_acc_cinv E N g P p :
   IntoAcc (X:=unit) (cinv N g P)
-          (to_coPset N ⊆ E /\ p <> Share.bot) (cinv_own g p) (fupd E (E ∖ to_coPset N)) (fupd (E ∖ to_coPset N) E)
+          (↑N ⊆ E /\ p <> Share.bot) (cinv_own g p) (fupd E (E ∖ ↑N)) (fupd (E ∖ ↑N) E)
           (λ _, ▷ P ∗ cinv_own g p)%I (λ _, ▷ P)%I (λ _, None)%I.
 Proof.
   rewrite /IntoAcc /accessor; intros [].
-  unfold bi_entails, fupd, bi_fupd_fupd, bi_wand, cinv; simpl.
-  Intros i; subst.
-  unfold to_coPset in *; rewrite -> ndot_eq in *; simpl in *.
-  rewrite -wand_sepcon_adjoint.
-  sep_apply (cinv_open (coPset_to_Ensemble E)).
-  { unfold coPset_to_Ensemble, In; apply elem_of_subseteq_singleton, H. }
-  rewrite coPset_to_Ensemble_minus coPset_to_Ensemble_single.
-  rewrite bi.exist_unit; apply derives_refl.
+  iIntros "#I g".
+  iInv "I" as "H" "Hclose".
+  iDestruct "H" as "[$ | >g']".
+  - iFrame "g"; iExists tt; iIntros "!> HP".
+    iApply "Hclose"; iLeft; auto.
+  - iDestruct (cinv_own_excl with "[$g' $g]") as "[]"; auto.
 Qed.
 
 Lemma cinv_nonexpansive : forall N g, nonexpansive (cinv N g).
 Proof.
-  intros; unfold cinv.
-  apply @exists_nonexpansive; intros i.
-  apply @conj_nonexpansive, cinvariant_nonexpansive.
-  apply const_nonexpansive.
+  intros; apply inv_nonexpansive2.
+  apply @disj_nonexpansive, const_nonexpansive.
+  apply identity_nonexpansive.
 Qed.
 
 Lemma cinv_nonexpansive2 : forall N g f, nonexpansive f ->
   nonexpansive (fun a => cinv N g (f a)).
 Proof.
-  intros; unfold cinv.
-  apply @exists_nonexpansive; intros i.
-  apply @conj_nonexpansive, cinvariant_nonexpansive2, H.
-  apply const_nonexpansive.
+  intros; apply inv_nonexpansive2.
+  apply @disj_nonexpansive, const_nonexpansive; auto.
 Qed.
 
 End Invariants.
 
 (* avoids some fragility in tactics *)
 Definition except0 : mpred -> mpred := bi_except_0.
-
-Definition funspec_sub' (f1 f2 : funspec): Prop :=
-match f1 with
-| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
-    match f2 with
-    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
-        (tpsig1=tpsig2 /\ cc1=cc2) /\
-        forall ts2 x2 (gargs:argsEnviron),
-        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
-         |-- |={⊤}=> (EX ts1:_,  EX x1:_, EX F:_, 
-                           (F * (P1 ts1 x1 gargs)) &&
-                               (!! (forall rho',
-                                           ((!!(ve_of rho' = Map.empty (Values.block * type))) &&
-                                                 (F * (Q1 ts1 x1 rho')))
-                                         |-- (Q2 ts2 x2 rho')))))
-    end
-end.
-
-Lemma coPset_to_Ensemble_top : coPset_to_Ensemble ⊤ = Full_set.
-Proof.
-  unfold coPset_to_Ensemble; apply Extensionality_Ensembles; split; intros ? Hin; unfold In in *.
-  - constructor.
-  - set_solver.
-Qed.
-
-Lemma prove_funspec_sub : forall f1 f2, funspec_sub' f1 f2 -> funspec_sub f1 f2.
-Proof.
-  unfold funspec_sub', funspec_sub; intros.
-  destruct f1, f2.
-  destruct H as [? H]; split; auto; intros.
-  eapply derives_trans; [apply H|].
-  unfold fupd, bi_fupd_fupd; simpl.
-  rewrite coPset_to_Ensemble_top.
-  apply derives_refl.
-Qed.
-
-Lemma fupd_eq : ghost_seplog.fupd Ensembles.Full_set Ensembles.Full_set = fupd ⊤ ⊤.
-Proof.
-  unfold fupd, bi_fupd_fupd; simpl. rewrite coPset_to_Ensemble_top; auto.
-Qed.
 
 Lemma replace_SEP'_fupd:
  forall n R' Espec {cs: compspecs} Delta P Q Rs c Post,
@@ -458,8 +363,6 @@ Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic1(t):=
   first [apply (replace_SEP'_fupd (Z.to_nat n) R) | apply (replace_SEP''_fupd (Z.to_nat n) R)];
   unfold canon.my_nth,canon.replace_nth; simpl Z.to_nat;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
-
-Global Opaque updates.fupd.
 
 Ltac ghost_alloc G ::=
   match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
