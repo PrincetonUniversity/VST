@@ -5,7 +5,7 @@ Ideally, many of the following requirements should be satisfied.  Henceforth we 
 - **Multilevel:**  The C program must not only be proved to implement a functional mode, the functional model must be proved to actually do the desired thing.
 - **Unified:**  The C-program proof and high-level proof should be done in the same logical framework so that they can be composed into a single, machine-checkable, end-to-end theorem.
 - **Composable:** Even if they are not in the same logical framework, the _specification_ of the C-program proof should be able to mention operators from the functional model (function names and other abstractions) so that the low-level and high-level theorems can be composed "on paper".
-- **Low-expressive:** The proof system for C-program proofs should be expressive enough to verify "dusty deck" programs that do all-to-clever things with data representations.
+- **Low-expressive:** The proof system for C-program proofs should be expressive enough to verify "dusty deck" programs that do all-too-clever things with data representations.
 - **High-expressive:** The proof system for high-level proofs should be expressive enough to verify high-level specifications with entirely nontrivial application-specific mathematics.
 - **Open-source:** The C program and its proofs (low-level and high-level) should be open-source so that people can examine and compare them.
 - **Documented:** The verification should be (if possible) documented in a paper so people can understand what it's about.
@@ -36,7 +36,7 @@ variables and data structures of the C program encode the values of the function
 
 Secure Hash Algorithm from an early release of OpenSSL.
 We include this here because it is an important component of HMAC and HMAC-DRBG.
-Even though nobody knows how to do the high-level proof (whether in a proof assistant or in just "mathematics) that SHA-256 is collision-resistant, everybody assumes that's true, and based on that assumption one can do high-level proofs (in math or in Coq) of the properties of HMAC and HMAC-DRBG; see below.
+Even though nobody knows how to do the high-level proof (whether in a proof assistant or in just "mathematics") that SHA-256 is collision-resistant, everybody assumes that's true, and based on that assumption one can do high-level proofs (in math or in Coq) of the properties of HMAC and HMAC-DRBG; see below.
 
 Where to find it:
 - The paper: [Second Edition: Verification of a Cryptographic Primitive: SHA-256](https://www.cs.princeton.edu/~appel/papers/verif-sha-2.pdf). This is a very minor revision of Verification of a Cryptographic Primitive: SHA-256, by Andrew W. Appel, *ACM Transactions on Programming Languages and Systems* 37(2) 7:1-7:31, April 2015.
