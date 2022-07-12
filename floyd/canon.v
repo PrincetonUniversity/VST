@@ -1582,7 +1582,7 @@ intros.
 unfold SEPx; extensionality rho.
 revert R H; induction n; destruct R; simpl; intros; auto.
 inv H. rewrite emp_sepcon; auto.
-f_equal; auto.
+f_equal.
 etransitivity.
 apply IHn; auto.
 reflexivity.
@@ -2212,7 +2212,7 @@ Proof.
   eapply semax_post; eauto; try solve [intro rho; simpl; normalize].
   intros.
   intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
-  simpl; rewrite !sepcon_emp. unfold local, lift1.
+  simpl; rewrite ?sepcon_emp. unfold local, lift1.
   rewrite H.
   unfold_lift.
   normalize.

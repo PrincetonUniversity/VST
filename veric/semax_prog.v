@@ -1591,7 +1591,7 @@ assert (Hora: ext_compat ora (m_phi jm)). {
  simpl in HZ. inv HZ.
  constructor; auto.
  constructor.
- constructor; auto. simpl. constructor; auto.
+ constructor; [auto|]. simpl. constructor; auto.
  simpl.
  apply ghost_join_nil_r.
 }

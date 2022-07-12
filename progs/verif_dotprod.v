@@ -165,7 +165,7 @@ forward_for_simple_bound 3
    data_at Tsh (tarray tdouble 3) (map Vfloat fy) y;
    data_at Tsh (tarray tdouble 3) (map Vfloat fz) z)).
 * (* initializer *)
-entailer!. simpl; entailer!.
+entailer!; simpl; entailer!.
 * (* body *)
 forward. (* x[i] = y[i] + z[i]; *)
 forward.
