@@ -35,14 +35,15 @@ variables and data structures of the C program encode the values of the function
 - Not: Multilevel, hence not Unified or High-Expressive
 
 Secure Hash Algorithm from an early release of OpenSSL.
-We include this here because it is an important component of HMAC and HMAC-DRBG, even though nobody knows how to do the high-level proof whether in a proof assistant or in just "mathematics".
+We include this here because it is an important component of HMAC and HMAC-DRBG.
+Even though nobody knows how to do the high-level proof (whether in a proof assistant or in just "mathematics) that SHA-256 is collision-resistant, everybody assumes that's true, and based on that assumption one can do high-level proofs (in math or in Coq) of the properties of HMAC and HMAC-DRBG; see below.
 
 Where to find it:
 - The paper: [Second Edition: Verification of a Cryptographic Primitive: SHA-256](https://www.cs.princeton.edu/~appel/papers/verif-sha-2.pdf). This is a very minor revision of Verification of a Cryptographic Primitive: SHA-256, by Andrew W. Appel, *ACM Transactions on Programming Languages and Systems* 37(2) 7:1-7:31, April 2015.
-- [C program](https://github.com/PrincetonUniversity/VST/blob/master/sha/sha.c)
-- [Functional model](https://github.com/PrincetonUniversity/VST/blob/master/sha/SHA256.v)
-- [Low-level spec](https://github.com/PrincetonUniversity/VST/blob/master/sha/spec_sha.v)
-- [Low-level proof](https://github.com/PrincetonUniversity/VST/blob/master/sha/verif_SHA256.v)
+- [C program: sha.c](https://github.com/PrincetonUniversity/VST/blob/master/sha/sha.c)
+- [Functional model: SHA256.v](https://github.com/PrincetonUniversity/VST/blob/master/sha/SHA256.v)
+- [Low-level spec: spec_sha.v](https://github.com/PrincetonUniversity/VST/blob/master/sha/spec_sha.v)
+- [Low-level proof: verif_SHA256.v](https://github.com/PrincetonUniversity/VST/blob/master/sha/verif_SHA256.v)
 - High-level spec: N/A
 - High-level proof: N/A
 
@@ -58,12 +59,12 @@ subject to the usual assumptions about SHA.
 
 Where to find it:
 - The paper: [Verified Correctness and Security of OpenSSL HMAC](https://www.cs.princeton.edu/~appel/papers/verified-hmac.pdf), by Lennart Beringer, Adam Petcher, Katherine Q. Ye, and Andrew W. Appel. *24th USENIX Security Symposium,* pages 207-221, August 2015.
-- [C program](https://github.com/PrincetonUniversity/VST/blob/master/sha/hmac.c)
-- [Functional model](https://github.com/PrincetonUniversity/VST/blob/master/sha/HMAC_functional_prog.v)
-- [Low-level spec](https://github.com/PrincetonUniversity/VST/blob/master/sha/spec_hmac.v)
-- [Low-level proof](https://github.com/PrincetonUniversity/VST/blob/master/sha/verif_hmac_simple.v)
-- [High-level spec](https://github.com/PrincetonUniversity/VST/blob/master/hmacfcf/HMAC_PRF.v)
-- [High-level proof](https://github.com/PrincetonUniversity/VST/blob/master/hmacfcf/HMAC_PRF.v)
+- [C program: hmac.c](https://github.com/PrincetonUniversity/VST/blob/master/sha/hmac.c)
+- [Functional model: HMAC_functional_prog.v](https://github.com/PrincetonUniversity/VST/blob/master/sha/HMAC_functional_prog.v)
+- [Low-level spec: spec_hmac.v](https://github.com/PrincetonUniversity/VST/blob/master/sha/spec_hmac.v)
+- [Low-level proof: verif_hmac_simple.v](https://github.com/PrincetonUniversity/VST/blob/master/sha/verif_hmac_simple.v)
+- [High-level spec: in HMAC_PRF.v](https://github.com/PrincetonUniversity/VST/blob/master/hmacfcf/HMAC_PRF.v)
+- [High-level proof: HMAC_PRF.v](https://github.com/PrincetonUniversity/VST/blob/master/hmacfcf/HMAC_PRF.v)
 
 ### HMAC-DRBG
 - Yes:  Low-expressive, Open-source, Documented, Multilevel, Unified, High-Expressive
@@ -75,7 +76,7 @@ Widely used cryptographic random number generator standardized by NIST and imple
 HMAC-DRBG correctly implements the NIST 800-90A standard, and
 2. HMAC-DRBG Generate and Update as described in that same NIST
 800-90A standard *indeed produces pseudorandom output,* subject to
-the standard assumptions2 about SHA-2, as well as certain assumptions about the adversary and the HMAC-DRBG instantiation that
+the standard assumptions about SHA-2, as well as certain assumptions about the adversary and the HMAC-DRBG instantiation that
 we state formally and explicitly.
 3. An adversary with a thousand million terabytes (< 2^78 bits), 
 and a million 1-gigahertz processors running for a year (< 2^78 cycles) has a 
@@ -84,10 +85,10 @@ and a million 1-gigahertz processors running for a year (< 2^78 cycles) has a
 Where to find it:
 - The paper: [Verified Correctness and Security of mbedTLS HMAC-DRBG](https://www.cs.princeton.edu/~appel/papers/verified-hmac-drbg.pdf)
 by Katherine Q. Ye, Matthew Green, Naphat Sanguansin, Lennart Beringer, Adam Petcher, and Andrew W. Appel. *CCS'17: ACM Conference on Computer and Communications Security,* October 2017.
-- [C program](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/hmac_drbg.c)
-- [Functional model](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/HMAC_DRBG_algorithms.v)
+- [C program: hmac_drbg.c](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/hmac_drbg.c)
+- [Functional model: HMAC_DRBG_algorithms.v](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/HMAC_DRBG_algorithms.v)
 - [Low-level spec](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/spec_hmac_drbg.v)
-- [Low-level proof](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/verif_hmac_drbg_update.v) and also other files in the same directory of the form `verif_hmac_drbg_*.v`
+- [Low-level proof: verif_hmac_drbg_update.v](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/verif_hmac_drbg_update.v) and also other files in the same directory of the form `verif_hmac_drbg_*.v`
 - [High-level spec] ??? Probably in a 2018-vintage commit of VST, in the fcf directory, before fcf was made a submodule link to Petcher's repo
 - [High-level proof] ??? ditto
 
@@ -98,12 +99,12 @@ Reconstruct missing network packets (or RAID disks) by using Reed-Solomon coding
 
 Where to find it:
 - The paper: [Verified Erasure Correction in Coq with MathComp and VST](https://www.cs.princeton.edu/~appel/papers/FECVerification.pdf), by Joshua M. Cohen, Qinshi Wang, and Andrew W. Appel, in *CAV'22: 34th International Conference on Computer Aided Verification,* August 2022.
-- [C program](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/src/fecActuator/fec.c)
-- [Functional model](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomonList.v)
-- [Low-level spec](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/VST/Specs.v)
-- [Low-level proof](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/VST/Verif_encode.v) and other `Verif_*.v` in the same directory.
-- [High-level spec](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
-- [High-level proof](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
+- [C program: fec.c](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/src/fecActuator/fec.c)
+- [Functional model: ReedSolomonList.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomonList.v)
+- [Low-level spec: Specs.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/VST/Specs.v)
+- [Low-level proof: Verif_encode.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/VST/Verif_encode.v) and other `Verif_*.v` in the same directory.
+- [High-level spec: in ReedSolomon.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
+- [High-level proof: ReedSolomon.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
 
 ### Quicksort
 - Yes:  Low-expressive, Open-source, Documented, Unified, High-Expressive
@@ -134,12 +135,12 @@ Compute floating-point square roots using Newton's method, with a proof of termi
 The C program is from [Freek Wiedijk's benchmark suite](https://github.com/cverified/cbench).
 
 - The paper: [C-language floating-point proofs layered with VST and Flocq](https://doi.org/10.6092/issn.1972-5787/11442), by Andrew W. Appel and Yves Bertot, Journal of Formalized Reasoning 13(1), December 2020.
-- [C program](https://github.com/cverified/cbench-vst/blob/master/sqrt/sqrt1.c)
-- [Functional model](https://github.com/cverified/cbench-vst/blob/master/sqrt/sqrt1_f.v)
-- [Low-level spec](https://github.com/cverified/cbench-vst/blob/master/sqrt/verif_sqrt1.v)
-- [Low-level proof](https://github.com/cverified/cbench-vst/blob/master/sqrt/verif_sqrt1.v)
-- [High-level spec](https://github.com/cverified/cbench-vst/blob/master/sqrt/sqrt1_f_correct.v)
-- [High-level proof](https://github.com/cverified/cbench-vst/blob/master/sqrt/sqrt1_f_correct.v)
+- [C program: sqrt1.c](https://github.com/cverified/cbench-vst/blob/master/sqrt/sqrt1.c)
+- [Functional model: sqrt1_f.v](https://github.com/cverified/cbench-vst/blob/master/sqrt/sqrt1_f.v)
+- [Low-level spec: verif_sqrt1.v](https://github.com/cverified/cbench-vst/blob/master/sqrt/verif_sqrt1.v)
+- [Low-level proof: verif_sqrt1.v](https://github.com/cverified/cbench-vst/blob/master/sqrt/verif_sqrt1.v)
+- [High-level spec: sqrt1_f_correct.v](https://github.com/cverified/cbench-vst/blob/master/sqrt/sqrt1_f_correct.v)
+- [High-level proof: sqrt1_f_correct.v](https://github.com/cverified/cbench-vst/blob/master/sqrt/sqrt1_f_correct.v)
 
 ### Ordinary Differential Equation by Leapfrog integration
 - Yes:  Low-expressive, Open-source, Documented, Multilevel, Unified, High-Expressive
@@ -147,12 +148,12 @@ The C program is from [Freek Wiedijk's benchmark suite](https://github.com/cveri
 Numerical-method Stoermer-Verlet integration of the differential equation for a harmonic oscillator, proved to produce a correct solution within a specified accuracy bound, including both discretization error and floating-point round-off error.
 
 - The paper: [Verified Numerical Methods for Ordinary Differential Equations](https://www.cs.princeton.edu/~appel/papers/VerifiedODE.pdf), by Ariel E. Kellison and Andrew W. Appel, in *NSV'22: 15th International Workshop on Numerical Software Verification,* August 2022.
-- [C program](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/lfharm.c)
-- [Functional model](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/float_model.v)
-- [Low-level spec](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/verif_lfharm.v)
-- [Low-level proof](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/verif_lfharm.v)
-- [High-level spec](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/total_error.v)
-- [High-level proof](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/total_error.v)
+- [C program: lfharm.c](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/lfharm.c)
+- [Functional model: float_model.v](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/float_model.v)
+- [Low-level spec: verif_lfharm.v](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/verif_lfharm.v)
+- [Low-level proof: verif_lfharm.v](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/verif_lfharm.v)
+- [High-level spec: total_error.v](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/total_error.v)
+- [High-level proof: total_error.v](https://github.com/VeriNum/VerifiedLeapfrog/blob/main/leapfrog_project/total_error.v)
 
 ### Binary Search Trees
 
@@ -161,12 +162,12 @@ Numerical-method Stoermer-Verlet integration of the differential equation for a 
 - The papers:
   - [Proof pearl: Magic wand as frame](https://www.cs.princeton.edu/~appel/papers/wand-frame.pdf), by Qinxiang Cao, Shengyi Wang, Aquinas Hobor, and Andrew W. Appel, February 2018.
   - [Binary Search Trees](https://softwarefoundations.cis.upenn.edu/vfa-current/SearchTree.html), by Andrew W. Appel, in *Verified Functional Algorithms*, Volume 3 of Software Foundations, softwarefoundations.org, 2017.
-- [C program](https://github.com/PrincetonUniversity/VST/blob/master/progs64/bst.c)
-- [Functional model](https://github.com/PrincetonUniversity/VST/blob/master/progs64/verif_bst.v)
-- [Low-level spec](https://github.com/PrincetonUniversity/VST/blob/master/progs64/verif_bst.v)
-- [Low-level proog](https://github.com/PrincetonUniversity/VST/blob/master/progs64/verif_bst.v)
-- [High-level spec](https://softwarefoundations.cis.upenn.edu/vfa-current/SearchTree.html)
-- [High-level proof](https://softwarefoundations.cis.upenn.edu/vfa-current/SearchTree.html)
+- [C program: bst.c](https://github.com/PrincetonUniversity/VST/blob/master/progs64/bst.c)
+- [Functional model: verif_bst.v](https://github.com/PrincetonUniversity/VST/blob/master/progs64/verif_bst.v)
+- [Low-level spec: verif_bst.v](https://github.com/PrincetonUniversity/VST/blob/master/progs64/verif_bst.v)
+- [Low-level proof: verif_bst.v](https://github.com/PrincetonUniversity/VST/blob/master/progs64/verif_bst.v)
+- [High-level spec: SearchTree.v](https://softwarefoundations.cis.upenn.edu/vfa-current/SearchTree.html)
+- [High-level proof: SearchTree.v](https://softwarefoundations.cis.upenn.edu/vfa-current/SearchTree.html)
 
 ### Concurrent messaging system
 
@@ -174,28 +175,28 @@ Numerical-method Stoermer-Verlet integration of the differential equation for a 
 - Not: Multilevel; that is, a single-layer proof directly proves the high-level spec from the C program, there is no functional model in between.
 
 - The paper: [A verified messaging system](https://dl.acm.org/doi/10.1145/3133911), by William Mansky, Andrew W. Appel, and Aleksey Nogin. *Proceedings of the ACM on Programming Languages (PACM/PL)* volume 1, issue OOPSLA, paper 87, 2017.
-- [C program](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/mailbox.c)
-- [Low+High-level spec](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/verif_mailbox_specs.v)
-- [Low+High-level proofs](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/verif_mailbox_all.v)
+- [C program: mailbox.c](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/mailbox.c)
+- [Low+High-level spec: verif_mailbox_specs.v](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/verif_mailbox_specs.v)
+- [Low+High-level proofs: verif_mailbox_all.v](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/verif_mailbox_all.v)
 
 ### Generational garbage collector
 - Yes:  Low-expressive, Open-source, Documented, Unified, High-Expressive
 - Not: Multilevel; that is, a single-layer proof directly proves high-level spec from the C program, there is no functional model in between.
 
 - The paper: [Certifying Graph-Manipulating C Programs via Localizations within Data Structures](https://dl.acm.org/doi/abs/10.1145/3360597), by Shengyi Wang, Qinxiang Cao, Anshuman Mohan, Aquinas Hobor. *Proceedings of the ACM on Programming Languages* volume 3, issue OOPSLA, October 2019, Article 171, pp 1–30.
-- [C program](https://github.com/CertiGraph/CertiGraph/blob/live/CertiGC/GC%20Source/gc.c)
+- [C program: gc.c](https://github.com/CertiGraph/CertiGraph/blob/live/CertiGC/GC%20Source/gc.c)
 - Functional model expressed using the [CertiGraph](https://github.com/CertiGraph/CertiGraph/) abstraction (not as a functional program *per se*)
-- [Low+High-level spec](https://github.com/CertiGraph/CertiGraph/blob/live/CertiGC/gc_spec.v)
-- [Low+High-level proof](https://github.com/CertiGraph/CertiGraph/blob/live/CertiGC/gc_correct.v)
+- [Low+High-level spec: gc_spec.v](https://github.com/CertiGraph/CertiGraph/blob/live/CertiGC/gc_spec.v)
+- [Low+High-level proof: gc_correct.v](https://github.com/CertiGraph/CertiGraph/blob/live/CertiGC/gc_correct.v)
 
 ### Malloc-free system with size classes
 - Yes:  Low-expressive, Open-source, Documented, Unified, High-Expressive
 - Not: Multilevel; that is, a single-layer proof directly proves high-level spec from the C program, there is no functional model in between.
 
 - The paper: [Verified sequential malloc/free](https://www.cs.princeton.edu/~appel/papers/memmgr.pdf), by Andrew W. Appel and David A. Naumann, in *2020 ACM SIGPLAN International Symposium on Memory Management,* June 2020.
-- [C program](https://github.com/PrincetonUniversity/DeepSpecDB/blob/master/memmgr/malloc.c)
-- [Low+High-level spec](https://github.com/PrincetonUniversity/DeepSpecDB/blob/master/memmgr/spec_malloc.v)
-- [Low+High-level proof](https://github.com/PrincetonUniversity/DeepSpecDB/blob/master/memmgr/verif_malloc_free.v)
+- [C program: malloc.c](https://github.com/PrincetonUniversity/DeepSpecDB/blob/master/memmgr/malloc.c)
+- [Low+High-level spec: spec_malloc.v](https://github.com/PrincetonUniversity/DeepSpecDB/blob/master/memmgr/spec_malloc.v)
+- [Low+High-level proof: verif_malloc_free.v](https://github.com/PrincetonUniversity/DeepSpecDB/blob/master/memmgr/verif_malloc_free.v)
 
 
 
