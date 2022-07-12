@@ -89,8 +89,8 @@ by Katherine Q. Ye, Matthew Green, Naphat Sanguansin, Lennart Beringer, Adam Pet
 - [Functional model: HMAC_DRBG_algorithms.v](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/HMAC_DRBG_algorithms.v)
 - [Low-level spec](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/spec_hmac_drbg.v)
 - [Low-level proof: verif_hmac_drbg_update.v](https://github.com/PrincetonUniversity/VST/blob/master/hmacdrbg/verif_hmac_drbg_update.v) and also other files in the same directory of the form `verif_hmac_drbg_*.v`
-- [High-level spec] ??? Probably in a 2018-vintage commit of VST, in the fcf directory, before fcf was made a submodule link to Petcher's repo
-- [High-level proof] ??? ditto
+- [High-level spec: HMAC_DRBG_nonadaptive_result.v](https://github.com/PrincetonUniversity/VST/blob/catalog/hmacdrbg/HMAC_DRBG_nonadaptive_result.v)  (should update link to master after merge)
+- [High-level proof: HMAC_DRBG_nonadaptive_result.v](https://github.com/PrincetonUniversity/VST/blob/catalog/hmacdrbg/HMAC_DRBG_nonadaptive_result.v)  (should update link to master after merge)
 
 ### Forward Erasure Correction
 - Yes:  Low-expressive, Open-source, Documented, Multilevel, Unified, High-Expressive
