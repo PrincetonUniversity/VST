@@ -1,34 +1,16 @@
-Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.lock_specs.
-Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.atomics.SC_atomics.
+Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 Require Import VST.atomics.hashtable_atomic.
 Require Import VST.atomics.hashtable.
-Require Import VST.msl.iter_sepcon.
 Import List.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Section Proofs.
-
-Definition atomic_int := Tstruct _atom_int noattr.
-Variable atomic_int_at : share -> val -> val -> mpred.
-Hypothesis atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p.
-Hypothesis atomic_int_isptr : forall sh v p, atomic_int_at sh v p |-- !! isptr p.
-Hint Resolve atomic_int_isptr : saturate_local.
-
-Definition makelock_spec := DECLARE _makelock (makelock_spec _).
-Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
-Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release2_spec := DECLARE _release2 release2_spec.
 Definition spawn_spec := DECLARE _spawn spawn_spec.
-Definition make_atomic_spec := DECLARE _make_atomic (make_atomic_spec atomic_int atomic_int_at).
-Definition atom_load_spec := DECLARE _atom_load (atomic_load_spec atomic_int atomic_int_at).
-Definition atom_store_spec := DECLARE _atom_store (atomic_store_spec atomic_int atomic_int_at).
-Definition atom_CAS_spec := DECLARE _atom_CAS (atomic_CAS_spec atomic_int atomic_int_at).
+Definition atom_load_spec := DECLARE _atom_load atomic_load_spec.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -62,7 +44,7 @@ Proof.
   eexists; eauto.
 Qed.
 
-Program Instance hf1 : hash_fun := { size := proj1_sig has_size; hash i := (i * 654435761) mod (proj1_sig has_size) }.
+Local Program Instance hf1 : hash_fun := { size := proj1_sig has_size; hash i := (i * 654435761) mod (proj1_sig has_size) }.
 Next Obligation.
 Proof.
   rewrite (proj2_sig has_size); computable.
@@ -79,7 +61,7 @@ Qed.
 
 (* We don't need histories, but we do need to know that a non-zero key is persistent. *)
 
-Instance zero_perm : @sepalg.Perm_alg Z (fun a b c => if eq_dec a 0 then c = b else c = a /\ (b = 0 \/ a = b)).
+Local Instance zero_perm : @sepalg.Perm_alg Z (fun a b c => if eq_dec a 0 then c = b else c = a /\ (b = 0 \/ a = b)).
 Proof.
   constructor.
   + intros; hnf in *.
@@ -107,7 +89,7 @@ Proof.
     destruct H; auto.
 Qed.
 
-Program Instance zero_PCM : Ghost := { valid a := True : Prop;
+Local Program Instance zero_PCM : Ghost := { valid a := True : Prop;
   Join_G a b c := if eq_dec a 0 then c = b else c = a /\ (b = 0 \/ a = b) }.
 Next Obligation.
 Proof.
@@ -116,7 +98,7 @@ Proof.
   - intros; exists O; hnf; auto.
 Defined.
 
-Instance zero_order : PCM_order (fun a b => a = 0 \/ a = b).
+Local Instance zero_order : PCM_order (fun a b => a = 0 \/ a = b).
 Proof.
   constructor; simpl; intros.
   - constructor.
@@ -150,7 +132,7 @@ Definition hashtable H g lg entries := EX T : list (Z * Z),
   !!(Zlength T = size /\ wf_table T /\ forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) &&
   excl g H * iter_sepcon (hashtable_entry T lg entries) (upto (Z.to_nat size)).
 
-Instance Inhabitant_unit : Inhabitant unit := tt.
+Global Instance Inhabitant_unit : Inhabitant unit := tt.
 
 Program Definition set_item_spec := DECLARE _set_item
   ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty
@@ -230,27 +212,27 @@ Definition f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv :=
   EX b1 : bool, EX b2 : bool, EX b3 : bool, EX h : _,
     !!(add_events empty_map [HAdd 1 1 b1; HAdd 2 1 b2; HAdd 3 1 b3] h) && ghost_hist gsh h gh *
     data_at sh (tarray tentry size) entries p *
-    data_at sh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp *
+    data_at sh (tarray (tptr t_lock) 3) (upd_Znth t (repeat Vundef 3) (ptr_of lockt)) locksp *
     data_at sh (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp *
     data_at Ews tint (vint (Zlength (List.filter id [b1; b2; b3]))) res * mem_mgr gv.
 
 Definition f_lock_pred tsh sh gsh entries gh p t locksp lockt resultsp res gv :=
-  selflock (f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv) tsh lockt.
+  selflock (f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv) tsh (ghost_of lockt).
 
 Definition f_spec :=
  DECLARE _f
   WITH tid : val, x : share * share * share * list (val * val) * namespace * gname * gname * list gname * globals * Z * val *
-                      val * val * val
+                      lock_handle * val * val
   PRE [ tptr tvoid ]
    let '(sh, gsh, tsh, entries, i, gh, g, lg, gv, t, locksp, lockt, resultsp, res) := x in
-   PROP (0 <= t < 3; isptr lockt; readable_share sh; readable_share tsh; gsh <> Share.bot;
+   PROP (0 <= t < 3; readable_share sh; readable_share tsh; gsh <> Share.bot;
          Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
    PARAMS (tid)  GLOBALS (gv)
    SEP (mem_mgr gv; data_at sh (tarray tentry size) entries (gv _m_entries);
         inv i (hashtable_inv gh g lg entries);
         ghost_hist(hist_el := hashtable_hist_el) gsh empty_map gh;
         data_at Ews tint (vint t) tid; malloc_token Ews tint tid;
-        data_at sh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) (gv _thread_locks);
+        data_at sh (tarray (tptr t_lock) 3) (upd_Znth t (repeat Vundef 3) (ptr_of lockt)) (gv _thread_locks);
         data_at sh (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) (gv _results);
         data_at_ Ews tint res;
         lock_inv tsh lockt (f_lock_pred tsh sh gsh entries gh (gv _m_entries) t
@@ -263,8 +245,8 @@ Definition main_spec :=
   PRE  [] main_pre prog tt gv
   POST [ tint ] main_post prog gv.
 
-Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; freelock2_spec; acquire_spec;
-  release2_spec; spawn_spec; surely_malloc_spec; make_atomic_spec; atom_load_spec; atom_store_spec; atom_CAS_spec;
+Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; freelock_spec; acquire_spec;
+  release_spec; spawn_spec; surely_malloc_spec; make_atomic_spec; atom_load_spec; atom_store_spec; atom_CAS_spec;
   integer_hash_spec; set_item_spec; get_item_spec; add_item_spec; init_table_spec; f_spec; main_spec]).
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
@@ -1187,7 +1169,7 @@ Qed.
 
 Lemma lock_struct_array : forall sh z (v : list val) p,
   data_at sh (tarray (tptr (Tstruct _lock_t noattr)) z) v p =
-  data_at sh (tarray (tptr tlock) z) v p.
+  data_at sh (tarray (tptr t_lock) z) v p.
 Proof.
   intros.
   unfold data_at, field_at, at_offset; rewrite !data_at_rec_eq; simpl; f_equal.
@@ -1371,7 +1353,7 @@ Proof.
     forward.
 Qed.
 
-Lemma lock_struct : forall sh p, data_at_ sh (Tstruct _lock_t noattr) p = data_at_ sh tlock p.
+Lemma lock_struct : forall sh p, data_at_ sh (Tstruct _lock_t noattr) p = data_at_ sh t_lock p.
 Proof.
   intros.
   rewrite !data_at__eq.
@@ -1879,7 +1861,7 @@ Proof.
       inversion H as [|??? w1' ? Hj1']; subst end.
     gather_SEP 0 5; rewrite <- mem_mgr_dup.
     gather_SEP (data_at sh3 (tarray (tptr (Tstruct _lock_t noattr)) 3) _ _)
-               (data_at (Znth (Zlength lr) shs) (tarray (tptr tlock) 3) _ _).
+               (data_at (Znth (Zlength lr) shs) (tarray (tptr t_lock) 3) _ _).
     replace_SEP 0 (data_at w1 (tarray (tptr (Tstruct _lock_t noattr)) 3) locks (gv _thread_locks)).
     { go_lower.
       rewrite <- lock_struct_array.
@@ -1947,5 +1929,3 @@ Proof.
   Intros. (* We have the pure fact that 3 adds succeeded! *)
   forward.
 Qed.
-
-End Proofs.

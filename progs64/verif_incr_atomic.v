@@ -351,5 +351,3 @@ semax_func_cons body_read.
 semax_func_cons body_thread_func.
 semax_func_cons body_main.
 Qed.
-
-End proofs.

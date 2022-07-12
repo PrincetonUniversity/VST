@@ -19,7 +19,7 @@ Definition incr_spec :=
  DECLARE _incr
   WITH sh1 : share, sh : share, h : lock_handle, g1 : gname, g2 : gname, left : bool, n : Z, gv: globals
   PRE [ ]
-         PROP  (readable_share sh1; sh <> Share.bot)
+         PROP  (readable_share sh1)
          PARAMS () GLOBALS (gv)
          SEP   (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c); lock_inv sh h (cptr_lock_inv g1 g2 (gv _c)); ghost_var gsh2 n (if left then g1 else g2))
   POST [ tvoid ]
@@ -31,7 +31,7 @@ Definition read_spec :=
  DECLARE _read
   WITH sh1 : share, sh : share, h : lock_handle, g1 : gname, g2 : gname, n1 : Z, n2 : Z, gv: globals
   PRE [ ]
-         PROP  (readable_share sh1; sh <> Share.bot)
+         PROP  (readable_share sh1)
          PARAMS () GLOBALS (gv)
          SEP   (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c); lock_inv sh h (cptr_lock_inv g1 g2 (gv _c)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2)
   POST [ tuint ]
@@ -50,7 +50,7 @@ Definition thread_func_spec :=
   WITH y : val, x : share * share * lock_handle * lock_handle * gname * gname * globals
   PRE [ tptr tvoid ]
          let '(sh1, sh, h, ht, g1, g2, gv) := x in
-         PROP  (readable_share sh1; sh <> Share.bot; ptr_of ht = y)
+         PROP  (readable_share sh1; ptr_of ht = y)
          PARAMS (y) GLOBALS (gv)
          SEP   (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c);
                 lock_inv sh h (cptr_lock_inv g1 g2 (gv _c));
@@ -107,6 +107,7 @@ Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
   start_function.
   forward.
+  assert_PROP (sh <> Share.bot) by entailer!.
   forward_call (sh, h, cptr_lock_inv g1 g2 (gv _c)).
   unfold cptr_lock_inv at 2. simpl.
   Intros z x y.
@@ -115,7 +116,8 @@ Proof.
 
   gather_SEP (ghost_var _ x g1) (ghost_var _ y g2) (ghost_var _ n _).
   rewrite sepcon_assoc.
-  viewshift_SEP 0 (!!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) *
+  viewshift_SEP 0 (!!((if left then x else y) = n) &&
+    ghost_var Tsh (n+1) (if left then g1 else g2) *
     ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).
   { go_lower.
     eapply derives_trans, bupd_fupd.
@@ -139,6 +141,7 @@ Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_function.
   forward.
+  assert_PROP (sh <> Share.bot) by entailer!.
   forward_call (sh, h, cptr_lock_inv g1 g2 (gv _c)).
   unfold cptr_lock_inv at 2; simpl.
   Intros z x y.

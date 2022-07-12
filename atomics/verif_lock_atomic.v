@@ -890,7 +890,7 @@ Section PROOFS.
     reflexivity.
   Qed.
 
-  Lemma lock_inv_share : forall sh h R, lock_inv sh h R |-- !!(sh <> Share.bot).
+  Lemma lock_inv_share : forall sh h R, lock_inv sh h R |-- !!(sh <> Share.bot /\ isptr (ptr_of h)).
   Proof.
     intros; destruct h as ((?, ?), ?); unfold lock_inv; simpl; Intros; entailer!.
   Qed.
@@ -908,7 +908,7 @@ Section PROOFS.
     iSplit; [do 3 (iSplit; [auto|])|].
     - rewrite <- sepcon_assoc, self_part_eq by auto.
       iAssert (⌜sh1 <> Share.bot⌝) with "[H]" as %?.
-      { iDestruct "H" as "[[l _] _]"; iApply lock_inv_share; eauto. }
+      { iDestruct "H" as "[[l _] _]"; iDestruct (lock_inv_share with "l") as %[]; auto. }
       erewrite lock_inv_share_join by eauto.
       iDestruct "H" as "[$ $]".
       iSplit; auto.

@@ -1,5 +1,5 @@
 #include "SC_atomics.h"
-#include "threads.h"
+#include "../concurrency/threads.h"
 
 typedef struct entry { atom_int *key; atom_int *value; } entry;
 
@@ -108,7 +108,7 @@ void *f(void *arg){
   }
 
   *res = total;
-  release2(l);
+  release(l);
   return NULL;
 }
 
@@ -133,7 +133,7 @@ int main(void){
   for(int i = 0; i < 3; i++){
     lock_t *l = thread_locks[i];
     acquire(l);
-    freelock2(l);
+    freelock(l);
     free(l);
     int *r = results[i];
     int i = *r;

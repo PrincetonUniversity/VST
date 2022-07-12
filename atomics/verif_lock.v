@@ -312,7 +312,7 @@ Proof.
   apply inv_dealloc.
 Qed.
 
-Lemma lock_inv_share : forall sh h R, lock_inv sh h R |-- !!(sh <> Share.bot).
+Lemma lock_inv_share : forall sh h R, lock_inv sh h R |-- !!(sh <> Share.bot /\ isptr (ptr_of h)).
 Proof.
   intros; destruct h as ((?, ?), ?); simpl; Intros; entailer!.
 Qed.
@@ -337,8 +337,6 @@ Proof.
 Qed.
 
 Definition selflock R sh h := self_part sh h * R.
-
-#[export] Hint Resolve lock_inv_share : saturate_local.
 
 Opaque t_lock.
 Opaque lock_handle.
