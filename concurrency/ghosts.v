@@ -111,6 +111,29 @@ Proof.
   inv H1.
 Qed.
 
+(* lift from veric.invariants *)
+#[export] Instance set_PCM : Ghost := invariants.set_PCM.
+
+Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
+
+Lemma ghost_set_join : forall g s1 s2,
+  ghost_set g s1 * ghost_set g s2 = !!(Ensembles.Disjoint s1 s2) && ghost_set g (Ensembles.Union s1 s2).
+Proof.
+  apply invariants.ghost_set_join.
+Qed.
+
+Lemma ghost_set_subset : forall g s s' (Hdec : forall a, Ensembles.In s' a \/ ~Ensembles.In s' a),
+  Ensembles.Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Ensembles.Setminus s s').
+Proof.
+  apply invariants.ghost_set_subset.
+Qed.
+
+Corollary ghost_set_remove : forall g a s,
+  Ensembles.In s a -> ghost_set g s = ghost_set g (Ensembles.Singleton a) * ghost_set g (Ensembles.Subtract s a).
+Proof.
+  apply invariants.ghost_set_remove.
+Qed.
+
 Section Snapshot.
 
 Context `{ORD : PCM_order}.

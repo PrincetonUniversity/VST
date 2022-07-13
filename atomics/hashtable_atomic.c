@@ -95,7 +95,7 @@ void init_table(){
   }
   }*/
 
-void *f(void *arg){
+int f(void *arg){
   int t = *(int *)arg;
   lock_t *l = thread_locks[t];
   int *res = results[t];
@@ -109,7 +109,7 @@ void *f(void *arg){
 
   *res = total;
   release(l);
-  return NULL;
+  return 0;
 }
 
 int main(void){
@@ -118,10 +118,9 @@ int main(void){
   init_table();
 
   for(int i = 0; i < 3; i++){
-    lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
-    thread_locks[i] = l;
     results[i] = (int *) surely_malloc (sizeof(int));
-    makelock((void *)l);
+    lock_t *l = makelock();
+    thread_locks[i] = l;
   }
 
   for(int i = 0; i < 3; i++){
@@ -134,7 +133,6 @@ int main(void){
     lock_t *l = thread_locks[i];
     acquire(l);
     freelock(l);
-    free(l);
     int *r = results[i];
     int i = *r;
     free(r);

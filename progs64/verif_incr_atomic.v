@@ -55,7 +55,7 @@ Definition thread_func_spec :=
          PROP  (readable_share sh1; ptr_of ht = y; i ## name_of l)
          PARAMS (y) GLOBALS (gv)
          SEP   (inv i (cptr_inv g g1 g2); lock_inv sh l (ctr_inv gv g); field_at sh1 t_counter [StructField _lock] (ptr_of l) (gv _c);
-                ghost_var gsh2 O g1; lock_inv sh ht (thread_lock_inv sh1 sh gv l g g1 (ghost_of ht)))
+                ghost_var gsh2 O g1; lock_inv sh ht (thread_lock_inv sh1 sh gv l g g1 ht))
   POST [ tint ]
          PROP ()
          RETURN (Vint Int.zero)
@@ -226,7 +226,7 @@ Proof.
   forward.
 Qed.
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   forward.
@@ -248,16 +248,16 @@ Proof.
   unfold_data_at (data_at _ _ _ (gv _c)).
   rewrite <- 3(ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; Intros.
   gather_SEP (atomic_int_at _ _ lockp) (field_at _ _ [StructField _ctr] _ _) (ghost_var gsh2 _ g);
-    viewshift_SEP 0 (EX lockg, lock_inv Tsh (lockp, nroot .@ "ctr", lockg) (ctr_inv gv g)).
+    viewshift_SEP 0 (EX lock, !!(ptr_of lock = lockp /\ name_of lock = nroot .@ "ctr") && lock_inv Tsh lock (ctr_inv gv g)).
   { go_lower; eapply derives_trans, make_lock_inv_0.
     unfold ctr_inv; Exists O; cancel. }
-  Intros lockg; set (lock := (lockp, nroot .@ "ctr", lockg)).
+  Intros lock.
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call makelock_inv (gv, nroot .@ "tlock", fun lockt => thread_lock_inv sh2 gsh2 gv lock g g1 lockt).
   Intros lockt.
   match goal with |-context[|={⊤}=> ?P] => viewshift_SEP 1 P by entailer! end.
-  Intros gt; set (ht := (lockt, nroot .@ "tlock", gt)).
+  Intros ht.
   sep_apply lock_inv_isptr; Intros.
   gather_SEP (ghost_var gsh1 _ g) (ghost_var gsh1 _ g1) (ghost_var gsh1 _ g2).
   viewshift_SEP 0 (inv (nroot .@ "ctr_inv") (cptr_inv g g1 g2)).
@@ -267,7 +267,7 @@ Proof.
     unfold cptr_inv.
     Exists O O; simpl; cancel. }
   rewrite invariant_dup; Intros.
-  assert (nroot.@"ctr_inv" ## nroot.@"ctr") by solve_ndisj.
+  assert (nroot.@"ctr_inv" ## name_of lock) by (rewrite H0; solve_ndisj).
   forward_spawn _thread_func (ptr_of ht) (nroot .@ "ctr_inv", sh2, gsh2, lock, ht, g, g1, g2, gv).
   { entailer!.
     erewrite <- lock_inv_share_join; try apply gsh1_gsh2_join; auto.
@@ -278,11 +278,11 @@ Proof.
   rewrite invariant_dup; Intros.
   forward_call (sh1, ptr_of lock, g, gv, lock_inv gsh1 lock (ctr_inv gv g) * ghost_var gsh2 1%nat g2).
   { sep_apply incr_inv_shift; auto; cancel. }
-  forward_call acquire_inv_simple (gsh1, ht, thread_lock_inv sh2 gsh2 gv lock g g1 gt).
+  forward_call acquire_inv_simple (gsh1, ht, thread_lock_inv sh2 gsh2 gv lock g g1 ht).
   unfold thread_lock_inv at 2; unfold thread_lock_R; rewrite -> 3later_sepcon; Intros.
   forward_call (sh1, ptr_of lock, g, gv, fun n => !!(n = 2)%nat && lock_inv gsh1 lock (ctr_inv gv g) * ghost_var gsh2 1%nat g1).
   { iIntros "(((((((? & g1) & lock) & g2) & inv) & ?) & ?) & ?)"; iSplitL "g1 g2 inv lock"; [|iVST; cancel_frame].
-    iDestruct "lock" as "[[[% %] #inv0] sh]".
+    unfold_lock_inv; iDestruct "lock" as "[[[% %] #inv0] sh]".
     iDestruct "inv" as "#inv".
     iAuIntro; rewrite /atomic_acc /=.
     iMod (into_acc_cinv with "inv0 sh") as (_) "[[>i sh] Hclose0]". done.
@@ -318,7 +318,7 @@ Proof.
   forward_call acquire_inv_simple (gsh1, lock, ctr_inv gv g).
   forward_call freelock_self (gsh1, gsh2, ht, thread_lock_R sh2 gsh2 gv lock g g1).
   { lock_props.
-    unfold thread_lock_inv, thread_lock_R; subst ht; simpl; cancel. }
+    unfold thread_lock_inv, thread_lock_R; cancel. }
   unfold thread_lock_R; Intros.
   forward.
   forward_call freelock_simple (lock, ctr_inv gv g).
