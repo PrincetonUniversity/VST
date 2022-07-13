@@ -62,7 +62,7 @@ Proof.
   inv Hperm; auto.
 Qed.
 
-#[(*export, after Coq 8.13*)global] Instance mem_evolve_trans : RelationClasses.Transitive mem_evolve.
+#[export] Instance mem_evolve_trans : RelationClasses.Transitive mem_evolve.
 Proof.
   repeat intro.
   specialize (H loc); specialize (H0 loc).

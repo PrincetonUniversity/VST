@@ -33,6 +33,11 @@ Definition dryspec := juicy_dry_ext_spec_make _ juicyspec.
 
 Lemma NullExtension_whole_program_sequential_safety:
    forall {CS: compspecs}
+     (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+       (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
+       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
+         mem_sub m' m1' /\ proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
+         proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
      (prog: Clight.program) V G m,
      @semax_prog Espec CS prog tt V G ->
      Genv.init_mem prog = Some m ->
@@ -59,6 +64,8 @@ assert (dessicate : forall ef : external_function,
 apply (@whole_program_sequential_safety CS NullExtension.Espec
  tt dryspec dessicate) with (V:=V) (G:=G); auto.
 -
+intros ??; contradiction.
+-
 split; intros; try assumption; try contradiction.
 split; intros; try assumption.
 split; repeat intro; auto.
@@ -68,6 +75,7 @@ hnf; intros; contradiction.
 -
 repeat intro; auto.
 hnf. auto.
+- intros ????????; auto.
 Qed.
 
 Lemma module_sequential_safety : (*TODO*)
@@ -90,7 +98,7 @@ Lemma module_sequential_safety : (*TODO*)
          0 (*additional temporary argument - TODO (Santiago): FIXME*)
              m q m
               (Vptr f_b Ptrofs.zero) args /\
-       forall n, safeN_(genv_symb := @semax.genv_symb_injective _ _)(Hrel := juicy_extspec.Hrel)
+       forall n, safeN_(genv_symb := @semax.genv_symb_injective _ _)(Hrel := fun _ => juicy_extspec.Hrel)
             sem  (upd_exit (@OK_spec spec) x (semax.genv_symb_injective ge)) 
            ge n ora q m.
 Abort.
