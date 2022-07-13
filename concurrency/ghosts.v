@@ -2,10 +2,10 @@ Require Export VST.msl.ghost.
 Require Export VST.veric.ghosts.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.concurrency.conclib.
+Require Import VST.concurrency.lock_specs.
 Import List.
 
 (* Lemmas about ghost state and common instances, part 2 *)
-(* Where should this sit? *)
 
 #[export] Hint Resolve Share.nontrivial : core.
 
@@ -109,6 +109,29 @@ Proof.
   intros ? (? & ? & _).
   exists (Some v'); split; simpl; auto; inv H; constructor.
   inv H1.
+Qed.
+
+(* lift from veric.invariants *)
+#[export] Instance set_PCM : Ghost := invariants.set_PCM.
+
+Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
+
+Lemma ghost_set_join : forall g s1 s2,
+  ghost_set g s1 * ghost_set g s2 = !!(Ensembles.Disjoint s1 s2) && ghost_set g (Ensembles.Union s1 s2).
+Proof.
+  apply invariants.ghost_set_join.
+Qed.
+
+Lemma ghost_set_subset : forall g s s' (Hdec : forall a, Ensembles.In s' a \/ ~Ensembles.In s' a),
+  Ensembles.Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Ensembles.Setminus s s').
+Proof.
+  apply invariants.ghost_set_subset.
+Qed.
+
+Corollary ghost_set_remove : forall g a s,
+  Ensembles.In s a -> ghost_set g s = ghost_set g (Ensembles.Singleton a) * ghost_set g (Ensembles.Subtract s a).
+Proof.
+  apply invariants.ghost_set_remove.
 Qed.
 
 Section Snapshot.
@@ -484,6 +507,14 @@ Proof.
   intros [[]|] ([[]|] & J & ?); inv J.
   - destruct H1 as (? & ?%join_Tsh & ?); tauto.
   - exists (Some (Tsh, v')); split; [constructor | auto].
+Qed.
+
+Lemma ghost_var_update' : forall g (v1 v2 v : A), ghost_var gsh1 v1 g * ghost_var gsh2 v2 g |--
+  |==> !!(v1 = v2) && (ghost_var gsh1 v g * ghost_var gsh2 v g).
+Proof.
+  intros; erewrite ghost_var_share_join' by eauto.
+  Intros; subst; erewrite ghost_var_share_join by eauto.
+  rewrite -> prop_true_andp by auto; apply ghost_var_update.
 Qed.
 
 Lemma ghost_var_exclusive : forall sh v p, sh <> Share.bot -> exclusive_mpred (ghost_var sh v p).

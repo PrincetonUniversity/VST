@@ -851,19 +851,14 @@ Proof.
   intros; apply H; simpl; auto.
 Qed.
 
-Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
+Lemma wsat_alloc_dep : forall P, wsat * (ALL i, |> P i) |-- |==> wsat * EX i : _, invariant i (P i).
 Proof.
   intros; unfold wsat.
   rewrite !exp_sepcon1; apply exp_left; intro l.
   rewrite !exp_sepcon1; apply exp_left; intro lg.
   rewrite !exp_sepcon1; apply exp_left; intro lb.
   rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [].
-  eapply derives_trans with (emp * _)%pred; [rewrite emp_sepcon; apply derives_refl|].
-  view_shift (ghost_alloc(RA := unit_PCM) tt (pred_of P)); [simpl; auto|].
-  rewrite !exp_sepcon1; apply exp_left; intro g.
-  replace (own(RA := unit_PCM) g tt (pred_of P)) with (agree g P) by reflexivity.
-  rewrite agree_dup.
-  rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_list _ _)), !sepcon_assoc.
+  rewrite (sepcon_comm _ (ghost_list _ _)), !sepcon_assoc.
   view_shift (ghost_update_ND(RA := list_PCM token_PCM) g_dis (map
      (fun o => match o with Some true => Some (Some tt) | _ => None end) lb)
      (fun l => exists i, l =
@@ -886,6 +881,141 @@ Proof.
     apply join_comm in H1; auto. }
   rewrite exp_sepcon1; apply exp_left; intro.
   rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [i ?]; subst.
+  eapply derives_trans with (emp * _)%pred; [rewrite emp_sepcon; apply derives_refl|].
+  set (P' := P (length lg + i)%nat).
+  view_shift (ghost_alloc(RA := unit_PCM) tt (pred_of P')); [simpl; auto|].
+  rewrite !exp_sepcon1; apply exp_left; intro g.
+  replace (own(RA := unit_PCM) g tt (pred_of P')) with (agree g P') by reflexivity.
+  rewrite agree_dup.
+  assert (Zlength lg = Zlength l) as Hlg by (apply Zlength_eq; auto).
+  assert (Zlength lb = Zlength l) as Hlb by (apply Zlength_eq; auto).
+  rewrite <- !sepcon_assoc, (sepcon_comm _ (master_list _ _)), !sepcon_assoc.
+  view_shift (master_update(ORD := list_order _) ((map (fun i0 : Z =>
+      match Znth i0 lb with Some _ => Some (Znth i0 lg) | None => None end) (upto (Datatypes.length l))))
+        (map (fun j => match Znth j ((lb ++ repeat None i) ++ [Some true]) with
+                       | Some _ => Some (Znth j ((lg ++ repeat O i) ++ [g]))
+                       | None => None
+                       end) (upto (length ((l ++ repeat emp i) ++ [P']))))).
+  { rewrite <- !app_assoc, app_length, upto_app, map_app.
+    split.
+    { erewrite app_length, !map_length; lia. }
+    intros ?? Hn.
+    erewrite app_nth, map_length.
+    if_tac; [|erewrite nth_overflow in Hn by (rewrite map_length; lia); discriminate].
+    erewrite nth_map' with (d' := 0) in * by auto.
+    erewrite upto_length in *.
+    assert (Z.of_nat n < Zlength l).
+    { rewrite Zlength_correct; apply Nat2Z.inj_lt; auto. }
+    erewrite nth_upto in * by auto.
+    erewrite !app_Znth1 by lia; auto. }
+  view_shift (make_snap(ORD := list_order gname)).
+  rewrite !sepcon_assoc.
+  view_shift (ghost_snap_forget(ORD := list_order _) (list_singleton (length lg + i) g)).
+  { apply list_incl_singleton.
+    erewrite app_length, upto_app, map_app, app_nth2; erewrite map_length, upto_length, app_length,
+      repeat_length; try lia.
+    replace (_ - _)%nat with O by lia; simpl.
+    rewrite Nat2Z.inj_add, Z.add_0_r.
+    rewrite !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat, <- Zlength_correct; try lia.
+    replace (_ - _) with 0 by lia; replace (_ - _) with 0 by lia; auto. }
+  eapply derives_trans, bupd_intro.
+  apply exp_right with ((l ++ repeat emp i) ++ [P']).
+  rewrite exp_sepcon1; apply exp_right with ((lg ++ repeat O i) ++ [g]).
+  rewrite exp_sepcon1; apply exp_right with ((lb ++ repeat None i) ++ [Some true]).
+  erewrite !(app_length (_ ++ _)); simpl.
+  erewrite prop_true_andp by (erewrite !app_length, !repeat_length; lia).
+  erewrite upto_app, iter_sepcon_app; simpl.
+  erewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat; try lia.
+  erewrite Hlg, Hlb, Zminus_diag, !Znth_0_cons.
+  rewrite sepcon_comm, !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+  rewrite <- sepcon_assoc, sepcon_comm, sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+  rewrite sepcon_assoc; apply sepcon_derives.
+  { match goal with |-?P |-- ?Q => replace P with Q; [apply derives_refl|] end.
+    f_equal; apply Extensionality_Ensembles.
+    constructor; intros ? X; unfold In in *.
+    - rewrite !app_nth, nth_repeat in X.
+      repeat destruct (lt_dec _ _); auto; try discriminate.
+      destruct (x - _)%nat; [|destruct n0]; inv X.
+    - destruct (lt_dec x (length lb)).
+      rewrite !app_nth, app_length.
+      destruct (lt_dec _ _); [|lia].
+      destruct (lt_dec _ _); [auto | lia].
+      { rewrite nth_overflow in X by lia; discriminate. } }
+  erewrite app_length, upto_app, iter_sepcon_app.
+  rewrite sepcon_assoc; apply sepcon_derives.
+  - eapply derives_trans with (_ * emp)%pred; [rewrite sepcon_emp; apply derives_refl|].
+    apply sepcon_derives.
+    + erewrite iter_sepcon_func_strong; auto.
+      intros ??%In_upto.
+      rewrite <- Zlength_correct in *.
+      rewrite <- !app_assoc, !app_Znth1 by (rewrite ?Zlength_app; lia); auto.
+    + rewrite iter_sepcon_emp'; auto.
+      intros ? Hin.
+      eapply in_map_iff in Hin as (? & ? & Hin%In_upto); subst.
+      rewrite <- Zlength_correct, coqlib4.Zlength_repeat in Hin.
+      rewrite <- Zlength_correct, <- app_assoc, app_Znth2 by lia.
+      erewrite app_Znth1 by (rewrite coqlib4.Zlength_repeat; lia).
+      unfold Znth; destruct (Z_lt_dec _ _); auto.
+      rewrite nth_repeat; auto.
+  - unfold invariant.
+    rewrite emp_sepcon, !exp_sepcon2; apply exp_right with (length lg + i)%nat.
+    rewrite !exp_sepcon2; apply exp_right with g.
+    rewrite <- !sepcon_assoc, sepcon_comm, !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+    apply sepcon_derives, derives_refl.
+    eapply allp_left, derives_refl.
+Qed.
+
+Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
+Proof.
+  intros; eapply derives_trans, wsat_alloc_dep.
+  apply sepcon_derives; [apply derives_refl|].
+  apply allp_right; auto.
+Qed.
+
+(* request an iname with a particular property *)
+Lemma wsat_alloc_strong : forall P Pi (Hfresh : forall n, exists i, (n <= i)%nat /\ Pi i),
+  wsat * |> P |-- |==> wsat * EX i : _, !!(Pi i) && invariant i P.
+Proof.
+  intros; unfold wsat.
+  rewrite !exp_sepcon1; apply exp_left; intro l.
+  rewrite !exp_sepcon1; apply exp_left; intro lg.
+  rewrite !exp_sepcon1; apply exp_left; intro lb.
+  rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [].
+  rewrite (sepcon_comm _ (ghost_list _ _)), !sepcon_assoc.
+  view_shift (ghost_update_ND(RA := list_PCM token_PCM) g_dis (map
+     (fun o => match o with Some true => Some (Some tt) | _ => None end) lb)
+     (fun l => exists i, Pi (length lg + i)%nat /\ l =
+      map (fun o => match o with Some true => Some (Some tt) | _ => None end)
+          ((lb ++ repeat None i) ++ [Some true]))).
+  { intros ? (? & ? & _).
+    destruct (Hfresh (length x)) as (i & ? & ?).
+    exists (map (fun o => match o with Some true => Some (Some tt) | _ => None end)
+      ((lb ++ repeat None (i - length lb)) ++ [Some true])).
+    pose proof (list_join_length _ _ _ H1) as Hlen.
+    rewrite map_length in Hlen.
+    split.
+    { exists (i - length lg)%nat; rewrite H, H0; split; auto.
+      rewrite le_plus_minus_r; auto; lia. }
+    exists (x ++ repeat None (i - length x) ++ [Some (Some tt)]); split; simpl; auto.
+    erewrite !map_app, own.map_repeat; simpl.
+    apply join_comm in H1.
+    rewrite app_assoc; apply (join_comm(Perm_alg := list_Perm)), (list_join_over c).
+    { apply list_join_length in H1.
+      rewrite app_length, map_length, repeat_length, le_plus_minus_r; auto; lia. }
+    replace (i - length lb)%nat with ((length x - length lb) + (i - length x))%nat by lia.
+    rewrite repeat_app, app_assoc; apply (list_join_over c).
+    { apply list_join_length in H1.
+      rewrite app_length, map_length, repeat_length; lia. }
+    apply (join_comm(Perm_alg := list_Perm)), (list_join_filler(P := token_PCM));
+      [|rewrite map_length; auto].
+    apply join_comm in H1; auto. }
+  rewrite exp_sepcon1; apply exp_left; intro.
+  rewrite !sepcon_andp_prop1; apply prop_andp_left; intros [i []]; subst.
+  eapply derives_trans with (emp * _)%pred; [rewrite emp_sepcon; apply derives_refl|].
+  view_shift (ghost_alloc(RA := unit_PCM) tt (pred_of P)); [simpl; auto|].
+  rewrite !exp_sepcon1; apply exp_left; intro g.
+  replace (own(RA := unit_PCM) g tt (pred_of P)) with (agree g P) by reflexivity.
+  rewrite agree_dup.
   assert (Zlength lg = Zlength l) as Hlg by (apply Zlength_eq; auto).
   assert (Zlength lb = Zlength l) as Hlb by (apply Zlength_eq; auto).
   rewrite <- !sepcon_assoc, (sepcon_comm _ (master_list _ _)), !sepcon_assoc.
@@ -927,8 +1057,8 @@ Proof.
   erewrite Z.add_0_r, <- Zlength_correct, !app_Znth2; erewrite !Zlength_app, !coqlib4.Zlength_repeat; try lia.
   erewrite Hlg, Hlb, Zminus_diag, !Znth_0_cons.
   rewrite sepcon_comm, !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
-  apply sepcon_derives; [apply derives_refl|].
-  rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_set _ _)), !sepcon_assoc; apply sepcon_derives.
+  rewrite <- sepcon_assoc, sepcon_comm, sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+  rewrite sepcon_assoc; apply sepcon_derives.
   { match goal with |-?P |-- ?Q => replace P with Q; [apply derives_refl|] end.
     f_equal; apply Extensionality_Ensembles.
     constructor; intros ? X; unfold In in *.
@@ -941,7 +1071,7 @@ Proof.
       destruct (lt_dec _ _); [auto | lia].
       { rewrite nth_overflow in X by lia; discriminate. } }
   erewrite app_length, upto_app, iter_sepcon_app.
-  rewrite <- 2sepcon_assoc, (sepcon_comm _ (iter_sepcon _ _)), sepcon_assoc; apply sepcon_derives.
+  rewrite sepcon_assoc; apply sepcon_derives.
   - eapply derives_trans with (_ * emp)%pred; [rewrite sepcon_emp; apply derives_refl|].
     apply sepcon_derives.
     + erewrite iter_sepcon_func_strong; auto.
@@ -958,9 +1088,9 @@ Proof.
       rewrite nth_repeat; auto.
   - unfold invariant.
     rewrite emp_sepcon, !exp_sepcon2; apply exp_right with (length lg + i)%nat.
+    rewrite prop_true_andp by auto.
     rewrite !exp_sepcon2; apply exp_right with g.
-    rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
-    rewrite sepcon_comm, sepcon_assoc; auto.
+    rewrite <- !sepcon_assoc, sepcon_comm, !sepcon_assoc; apply derives_refl.
 Qed.
 
 Definition remove_Znth {A} i (al : list A) := sublist 0 i al ++ sublist (i + 1) (Zlength al) al.

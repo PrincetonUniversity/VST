@@ -11,22 +11,17 @@ Require Import VST.zlist.sublist.
 (* Warning: it is UNSOUND to use both this file and acq_rel_atomics.v in the same proof! There is
    not yet an operational model that can validate the use of both SC and RA atomics. *)
 
-(* At present, due to complexities in the specifications of the C11 atomics (generics, _Atomic types, etc.), these are specs for wrapper functions for common cases. *)
+(* At present, due to complexities in the specifications of the C11 atomics (generics, _Atomic types, etc.), these are specs for wrapper functions for common cases.
+   There's probably a more systematic approach possible. *)
+
+Class atomic_int_impl := { atomic_int : type; atomic_int_at : share -> val -> val -> mpred;
+  atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p }.
+
+Class atomic_ptr_impl := { atomic_ptr : type; atomic_ptr_at : share -> val -> val -> mpred }.
 
 Section SC_atomics.
 
-Context {CS : compspecs}.
-(*Definition atom_int := Tint I32 Signed {| attr_volatile := false; attr_alignas := Some 32%N |}.*)
-(* Is this what _Atomic int actually should parse to? ask Xavier?
-    In fact, it is almost certainly wrong, and implementation-dependent. *)
-
-Variable atomic_int : type.
-Variable atomic_ptr : type.
-(* Variable is_atomic_version : type -> type -> Prop.
-   Variable _Atomic : type -> type. *)
-Variable atomic_int_at : share -> val -> val -> mpred.
-Hypothesis atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p.
-Variable atomic_ptr_at : share -> val -> val -> mpred.
+Context {CS : compspecs} {AI : atomic_int_impl} {AP : atomic_ptr_impl}.
 
 Definition make_atomic_spec :=
   WITH v : val

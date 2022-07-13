@@ -19,7 +19,7 @@ Proof.
   intros; apply invariant_dup.
 Qed.
 
-Lemma cinv_alloc : forall E P, |> P |-- |={E}=> EX i : _, EX g : _, cinvariant i g P * cinv_own g Tsh.
+Lemma cinv_alloc_dep : forall E P, (ALL i g, |> P i g) |-- |={E}=> EX i : _, EX g : _, cinvariant i g (P i g) * cinv_own g Tsh.
 Proof.
   intros.
   rewrite <- emp_sepcon at 1.
@@ -28,11 +28,26 @@ Proof.
   eapply derives_trans, fupd_trans.
   eapply derives_trans, bupd_fupd; apply bupd_mono.
   Intros g.
-  eapply derives_trans; [eapply sepcon_derives, derives_trans, inv_alloc; [apply derives_refl|]|].
+  eapply derives_trans; [eapply sepcon_derives, derives_trans, inv_alloc_dep; [apply derives_refl|]|].
   2: { sep_eapply fupd_frame_l; apply fupd_mono.
        Intros i; Exists i g.
        rewrite sepcon_comm; apply derives_refl. }
+  apply allp_derives; intros.
+  apply allp_left with g.
   apply later_derives, orp_right1, derives_refl.
+Qed.
+
+Lemma cinv_alloc : forall E P, |> P |-- |={E}=> EX i : _, EX g : _, cinvariant i g P * cinv_own g Tsh.
+Proof.
+  intros; eapply derives_trans, cinv_alloc_dep.
+  do 2 (apply allp_right; intros); auto.
+Qed.
+
+Lemma cinv_own_excl : forall g sh, sh <> Share.bot -> cinv_own g Tsh * cinv_own g sh |-- FF.
+Proof.
+  intros; unfold cinv_own; sep_apply own_valid_2; Intros.
+  destruct H0 as (? & J & ?).
+  apply join_Tsh in J as []; contradiction.
 Qed.
 
 Lemma cinv_cancel : forall E i g P, Ensembles.In E i -> cinvariant i g P * cinv_own g Tsh |-- |={E}=> |> P.
@@ -50,13 +65,11 @@ Proof.
     rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
     rewrite <- later_sepcon; apply later_derives.
     rewrite (sepcon_comm _ (cinv_own g Tsh)), <- sepcon_assoc.
-    rewrite sepcon_comm; apply sepcon_FF_derives'.
-    unfold cinv_own; sep_apply own_valid_2; Intros.
-    destruct H0 as (? & J & ?).
-    apply join_Tsh in J as []; contradiction Share.nontrivial.
+    sep_apply cinv_own_excl; auto with share.
+    rewrite FF_sepcon; auto.
 Qed.
 
-Lemma cinv_open : forall E sh i g P, readable_share sh -> Ensembles.In E i ->
+Lemma cinv_open : forall E sh i g P, sh <> Share.bot -> Ensembles.In E i ->
   cinvariant i g P * cinv_own g sh |-- |={E, Ensembles.Subtract E i}=> |> P * cinv_own g sh * (|> P -* |={Ensembles.Subtract E i, E}=> emp).
 Proof.
   intros.
@@ -72,10 +85,8 @@ Proof.
     rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
     rewrite <- later_sepcon; apply later_derives.
     rewrite (sepcon_comm _ (cinv_own g sh)), <- sepcon_assoc.
-    rewrite sepcon_comm; apply sepcon_FF_derives'.
-    unfold cinv_own; sep_apply own_valid_2; Intros.
-    destruct H1 as (? & J & ?).
-    apply join_Tsh in J as []; subst; contradiction ghosts.unreadable_bot.
+    sep_apply cinv_own_excl.
+    rewrite FF_sepcon; auto.
 Qed.
 
 Lemma cinvariant_nonexpansive : forall i g, nonexpansive (cinvariant i g).

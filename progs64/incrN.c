@@ -1,65 +1,55 @@
-#include "threads.h"
+#include "../concurrency/threads.h"
 //#include <stdio.h>
-//#include <stdlib.h>
-
-#define NULL 0
 
 #define N 5
 
-lock_t ctr_lock;
-unsigned ctr;
-
-lock_t thread_lock[N];
+typedef struct counter { unsigned ctr; lock_t *lock; } counter;
+counter c;
 
 void init_ctr(){
-  ctr = 0;
-  lock_t *lockc = &ctr_lock;
-  makelock((void*)lockc);
-  release((void*)lockc);
+  c.ctr = 0;
+  c.lock = makelock();
+  release(c.lock);
 }
 
 void dest_ctr(){
-  lock_t *lockc = &ctr_lock;
-  acquire((void*)ctr_lock);
-  freelock((void*)ctr_lock);
+  acquire(c.lock);
+  freelock(c.lock);
 }
 
 void incr() {
-  lock_t *l = &ctr_lock;
-  acquire((void*)l);
-  unsigned t = ctr;
-  ctr = t + 1;
-  release((void*)l);
+  acquire(c.lock);
+  c.ctr = c.ctr + 1;
+  release(c.lock);
 }
 
-void *thread_func(void *args) {
+int thread_func(void *args) {
   lock_t *l = (lock_t*)args;
   //Increment the counter
   incr();
   //Yield: 'ready to join'.
-  release2((void*)l);
-  return (void *)NULL;
+  release(l);
+  return 0;
 }
 
 int main(void)
 {
   init_ctr();
 
+  lock_t *thread_lock[N];
   for(int i = 0; i < N; i++){
-    lock_t *l = &(thread_lock[i]);
-    makelock((void*)l);
-    spawn((void*)&thread_func, (void*)l);
+    thread_lock[i] = makelock();
+    spawn((void*)&thread_func, (void*)thread_lock[i]);
   }
   
   /*JOIN */
   for(int i = 0; i < N; i++){
-    lock_t *l = &(thread_lock[i]);
-    acquire((void*)l);
-    freelock2((void*)l);
+    acquire(thread_lock[i]);
+    freelock(thread_lock[i]);
   }
 
   dest_ctr();
-  unsigned t = ctr;
+  unsigned t = c.ctr;
   /*printf("I'm done with a final counter of: %d\n", t);*/
 
   return t;

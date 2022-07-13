@@ -5,6 +5,7 @@ Require Import VST.concurrency.ghosts.
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.fupd.
 Require Export VST.atomics.general_atomics.
+Require Import VST.atomics.SC_atomics_base.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 
@@ -15,18 +16,7 @@ Require Import VST.zlist.sublist.
 
 Section SC_atomics.
 
-Context {CS : compspecs}.
-(*Definition atom_int := Tint I32 Signed {| attr_volatile := false; attr_alignas := Some 32%N |}.*)
-(* Is this what _Atomic int actually should parse to? ask Xavier?
-    In fact, it is almost certainly wrong, and implementation-dependent. *)
-
-Variable atomic_int : type.
-Variable atomic_ptr : type.
-(* Variable is_atomic_version : type -> type -> Prop.
-   Variable _Atomic : type -> type. *)
-Variable atomic_int_at : share -> val -> val -> mpred.
-Hypothesis atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p.
-Variable atomic_ptr_at : share -> val -> val -> mpred.
+Context {CS : compspecs}  {AI : atomic_int_impl} {AP : atomic_ptr_impl}.
 
 Definition make_atomic_spec :=
   WITH v : val

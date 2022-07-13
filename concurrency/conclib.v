@@ -18,148 +18,7 @@ Require Export VST.concurrency.conclib_coqlib.
 Require Export VST.concurrency.conclib_sublist.
 Require Export VST.concurrency.conclib_veric.
 
-(* exclusive *)
-Lemma weak_exclusive_conflict : forall P,
-  (weak_exclusive_mpred P && emp) * P * P |-- FF.
-Proof.
-  intros; unfold weak_exclusive_mpred.
-  rewrite sepcon_assoc.
-  constructor; intros ? (r1 & r2 & ? & [Hexclusive _] & HP).
-  eapply (Hexclusive r2) in HP; eauto.
-  apply join_level in H as [-> ->]; auto.
-Qed.
-
-Lemma exclusive_sepcon1 : forall (P Q : mpred) (HP : exclusive_mpred P), exclusive_mpred (P * Q).
-Proof.
-  unfold exclusive_mpred; intros.
-  eapply derives_trans, sepcon_FF_derives' with (P := Q * Q), HP; cancel.
-Qed.
-
-Lemma exclusive_sepcon2 : forall (P Q : mpred) (HP : exclusive_mpred Q), exclusive_mpred (P * Q).
-Proof.
-  intros; rewrite sepcon_comm; apply exclusive_sepcon1; auto.
-Qed.
-
-Lemma exclusive_andp1 : forall P Q (HP : exclusive_mpred P), exclusive_mpred (P && Q).
-Proof.
-  unfold exclusive_mpred; intros.
-  eapply derives_trans, HP.
-  apply sepcon_derives; apply andp_left1; auto.
-Qed.
-
-Lemma exclusive_andp2 : forall P Q (HQ : exclusive_mpred Q), exclusive_mpred (P && Q).
-Proof.
-  intros; rewrite andp_comm; apply exclusive_andp1; auto.
-Qed.
-
-Lemma lock_inv_exclusive : forall v sh R, exclusive_mpred (lock_inv sh v R).
-Proof.
-  intros; unfold exclusive_mpred, lock_inv.
-  Transparent mpred. Intros b1 ofs1 b2 ofs2. Opaque mpred.
-  subst.
-  inv H0.
-  match goal with |- ?P |-- ?Q => constructor; change (predicates_hered.derives P Q) end.
-  intros ? (? & ? & ? & Hlock1 & Hlock2).
-  set (l := (b2, Ptrofs.unsigned ofs2)).
-  apply (compcert_rmaps.RML.resource_at_join _ _ _ l) in H.
-  specialize (Hlock1 l); specialize (Hlock2 l).
-  simpl in *.
-  if_tac in Hlock1.
-  destruct Hlock1 as [? H1], Hlock2 as [? H2]; rewrite H1, H2 in H; inv H.
-  apply sepalg.join_self in RJ.
-  eapply readable_not_identity; eauto.
-  { contradiction H0.
-    subst l; unfold adr_range. pose proof lksize.LKSIZE_pos; lia. }
-Qed.
-
-Lemma selflock_exclusive : forall R sh v, exclusive_mpred R -> exclusive_mpred (selflock R v sh).
-Proof.
-  intros.
-  rewrite selflock_eq.
-  apply exclusive_sepcon1; auto.
-Qed.
-
-Lemma exclusive_FF : exclusive_mpred FF.
-Proof.
-  unfold exclusive_mpred.
-  rewrite FF_sepcon; auto.
-Qed.
-
-Lemma derives_exclusive : forall P Q (Hderives : P |-- Q) (HQ : exclusive_mpred Q),
-  exclusive_mpred P.
-Proof.
-  unfold exclusive_mpred; intros.
-  eapply derives_trans, HQ.
-  apply sepcon_derives; auto.
-Qed.
-
-Lemma mapsto_exclusive : forall (sh : Share.t) (t : type) (v : val),
-  sepalg.nonunit sh -> exclusive_mpred (EX v2 : _, mapsto sh t v v2).
-Proof.
-  intros; unfold exclusive_mpred.
-  Intros v1 v2; apply mapsto_conflict; auto.
-Qed.
-
-Lemma field_at__exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (fld : list gfield) (p : val),
-  sepalg.nonidentity sh ->
-  0 < sizeof (nested_field_type t fld) -> exclusive_mpred (field_at_ sh t fld p).
-Proof.
-  intros; apply field_at__conflict; auto.
-Qed.
-
-Lemma ex_field_at_exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (fld : list gfield) (p : val),
-  sepalg.nonidentity sh ->
-  0 < sizeof (nested_field_type t fld) -> exclusive_mpred (EX v : _, field_at sh t fld v p).
-Proof.
-  intros; unfold exclusive_mpred.
-  Intros v v'; apply field_at_conflict; auto.
-Qed.
-
-Corollary field_at_exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (fld : list gfield) v (p : val),
-  sepalg.nonidentity sh -> 0 < sizeof (nested_field_type t fld) -> exclusive_mpred (field_at sh t fld v p).
-Proof.
-  intros; eapply derives_exclusive, ex_field_at_exclusive; eauto.
-  Exists v; apply derives_refl.
-Qed.
-
-Lemma ex_data_at_exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (p : val),
-  sepalg.nonidentity sh -> 0 < sizeof t -> exclusive_mpred (EX v : _, data_at sh t v p).
-Proof.
-  intros; unfold exclusive_mpred.
-  Intros v v'; apply data_at_conflict; auto.
-Qed.
-
-Corollary data_at_exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) v (p : val),
-  sepalg.nonidentity sh -> 0 < sizeof t -> exclusive_mpred (data_at sh t v p).
-Proof.
-  intros; eapply derives_exclusive, ex_data_at_exclusive; eauto.
-  Exists v; apply derives_refl.
-Qed.
-
-Corollary data_at__exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (p : val),
-  sepalg.nonidentity sh -> 0 < sizeof t -> exclusive_mpred (data_at_ sh t p).
-Proof.
-  intros; eapply derives_exclusive, data_at_exclusive; eauto.
-  apply data_at__data_at; eauto.
-Qed.
-
-Lemma cond_var_exclusive : forall {cs} sh p, sepalg.nonidentity sh ->
-  exclusive_mpred (@cond_var cs sh p).
-Proof.
-  intros; apply data_at__exclusive; auto. computable.
-Qed.
-
-Lemma lock_inv_isptr : forall sh v R, lock_inv sh v R = !!isptr v && lock_inv sh v R.
-Proof.
-  intros.
-  eapply local_facts_isptr with (P := fun v => lock_inv sh v R); eauto.
-  Transparent mpred.
-  unfold lock_inv; Intros b o.
-  subst; simpl. apply prop_right; auto.
-  Opaque mpred.
-Qed.
-
-Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_var sh v.
+(*Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_var sh v.
 Proof.
   intros; apply data_at__isptr.
 Qed.
@@ -169,7 +28,7 @@ Lemma cond_var_share_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh
   @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
 Proof.
   intros; unfold cond_var; apply data_at__share_join; auto.
-Qed.
+Qed.*)
 
 (* Sometimes, in order to prove precise, we actually need to know that the data is the same as well. *)
 (* Do we still need this? Probably not.
@@ -348,9 +207,6 @@ Proof.
     split; [eapply sepalg.join_eq|]; auto.
 Qed. *)
 
-#[export] Hint Resolve lock_inv_exclusive selflock_exclusive cond_var_exclusive data_at_exclusive
-  data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec : core.
-
 Lemma wsat_fupd : forall E P Q, (wsat * P |-- |==> wsat * Q) -> P |-- fupd.fupd E E Q.
 Proof.
   intros; unfold fupd.
@@ -365,15 +221,39 @@ Proof.
   rewrite <- predicates_sl.sepcon_assoc; apply predicates_hered.derives_refl.
 Qed.
 
+Lemma wsat_alloc_dep : forall P, (wsat * ALL i, |> P i) |-- |==> wsat * EX i : _, invariant i (P i).
+Proof.
+  intros; unseal_derives; apply wsat_alloc_dep.
+Qed.
+
 Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
 Proof.
   intros; unseal_derives; apply wsat_alloc.
 Qed.
 
-Corollary inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, invariant i P.
+Lemma wsat_alloc_strong : forall P Pi (Hfresh : forall n, exists i, (n <= i)%nat /\ Pi i),
+  (wsat * |> P) |-- |==> wsat * EX i : _, !!(Pi i) && invariant i P.
+Proof.
+  intros; unseal_derives; apply wsat_alloc_strong; auto.
+Qed.
+
+Lemma inv_alloc_dep : forall E P, ALL i, |> P i |-- |={E}=> EX i : _, invariant i (P i).
+Proof.
+  intros.
+  apply wsat_fupd, wsat_alloc_dep.
+Qed.
+
+Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, invariant i P.
 Proof.
   intros.
   apply wsat_fupd, wsat_alloc.
+Qed.
+
+Lemma inv_alloc_strong : forall E P Pi (Hfresh : forall n, exists i, (n <= i)%nat /\ Pi i),
+  |> P |-- |={E}=> EX i : _, !!(Pi i) && invariant i P.
+Proof.
+  intros.
+  apply wsat_fupd, wsat_alloc_strong; auto.
 Qed.
 
 Lemma inv_open : forall E i P, Ensembles.In E i ->
@@ -382,13 +262,18 @@ Proof.
   intros; unseal_derives; apply inv_open; auto.
 Qed.
 
+Lemma inv_dealloc : forall i P, invariant i P |-- emp.
+Proof.
+  intros; unseal_derives; apply invariant_dealloc.
+Qed.
+
 Lemma fupd_timeless : forall E (P : mpred), timeless' P -> |> P |-- |={E}=> P.
 Proof.
   intros; unseal_derives; apply fupd_timeless; auto.
 Qed.
 
 (* shares *)
-Lemma LKspec_readable lock_size :
+(*Lemma LKspec_readable lock_size :
   0 < lock_size ->
   forall R sh p, predicates_hered.derives (res_predicates.LKspec lock_size R sh p)
   (!!(readable_share sh)).
@@ -426,12 +311,12 @@ Proof.
       repeat rewrite prop_false_andp; try (intro X; inv X; contradiction n); auto].
     destruct (eq_dec i o); [|repeat rewrite prop_false_andp; try (intro X; inv X; contradiction n); auto].
     subst; repeat rewrite prop_true_andp; auto.
-Qed.
+Qed.*)
 
-Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
+(*Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
    try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto with share exclusive |
-   try timeout 20 cancel].
+   try timeout 20 cancel].*)
 
 Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
   [eexists; first [eassumption | simple eapply sepalg.join_comm; eassumption]|]); eassumption.
@@ -513,6 +398,15 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) cc_default A
   (fun (ts: list Type) (x: t1*t2*t3) =>
      match x with (x1,x2,x3) => P%argsassert end)
   (fun (ts: list Type) (x: t1*t2*t3) =>

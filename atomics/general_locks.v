@@ -1,6 +1,6 @@
-(* Specifications for locks for use with general invariants, in the style of TaDA *)
+(* Specifications for locks for use with general invariants, in the style of the atomic syncer *)
 From VST.veric Require Import rmaps compcert_rmaps.
-From VST.concurrency Require Import ghosts conclib.
+From VST.concurrency Require Import ghosts conclib lock_specs.
 From VST.concurrency Require Export invariants fupd.
 From VST.atomics Require Export general_atomics.
 
@@ -228,4 +228,4 @@ Qed.
 
 End locks.
 
-#[export] Hint Resolve sync_inv_exclusive : exclusive.
+#[export] Hint Resolve sync_inv_exclusive : core.

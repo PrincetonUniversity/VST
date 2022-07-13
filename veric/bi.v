@@ -527,7 +527,7 @@ Canonical Structure env_mpredSI : sbi :=
 
 (* Return from IPM to VST entailment. *)
 Ltac iVST := iStopProof; match goal with |-bi_entails ?P ?Q => change (P |-- Q) end;
-  repeat match goal with |-context[bi_sep ?P ?Q] => change (bi_sep P Q) with (P * Q) end.
+  repeat match goal with |-context[bi_sep ?P ?Q] => change (bi_sep P Q) with (P * Q)%logic end.
 
 Global Close Scope logic_upd. (* hide non-Iris update notation *)
 Global Open Scope Z.

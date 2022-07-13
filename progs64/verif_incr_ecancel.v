@@ -1,17 +1,12 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
+Require Import VST.atomics.verif_lock.
 Require Import VST.progs64.incr.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release_spec := DECLARE _release release_spec.
-Definition makelock_spec := DECLARE _makelock (makelock_spec _).
-Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 Definition spawn_spec := DECLARE _spawn spawn_spec.
-Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
-Definition release2_spec := DECLARE _release2 release2_spec.
 
 Definition cptr_lock_inv g1 g2 ctr := EX z : Z, data_at Ews tuint (Vint (Int.repr z)) ctr *
   EX x : Z, EX y : Z, !!(z = x + y) && ghost_var gsh1 x g1 * ghost_var gsh1 y g2.
