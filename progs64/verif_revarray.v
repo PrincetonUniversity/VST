@@ -220,26 +220,26 @@ Ltac calc_Zlength_extra l ::=
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
-repeat step.
+fastforward.
 
 assert_PROP (Zlength (map Vint contents) = size)
     as ZL by entailer!.
 forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 simpl (data_at _ _ _).
-Time repeat step!.
+Time finish.
 * (* Prove that loop invariant implies typechecking condition *)
-Time repeat step!.
+Time finish.
 * (* Prove that loop body preserves invariant *)
 (* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
-Time repeat step!.
-(* Finished transaction in 32.154 secs (32.031u,0.s) (successful) *)
+Time finish.
+(* Finished transaction in 14.318 secs (14.043u,0.165s) (successful) *)
 (* solved in step! *)
 * (* after the loop *)
-repeat step!.
-(* Finished transaction in 2.587 secs (2.593u,0.s) (successful) *) 
+Time finish.
+(* Finished transaction in 2.409 secs (2.379u,0.014s) (successful) *) 
 Time Qed.
-(* Finished transaction in 6.801 secs (6.796u,0.015s) (successful) *)
+(* Finished transaction in 0.718 secs (0.714u,0.002s) (successful) *)
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 

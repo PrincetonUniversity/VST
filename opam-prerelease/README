@@ -1,0 +1,5 @@
+This folder contains a local opam repository used ONLY for the purpose of allowing VST's continuous
+integration script (in .github/workflows/coq-action.yml) to use pre-release or patched versions
+of CompCert or other opam packages. This is usually a transitional situation, so in most commits
+you will find that the packages/ directory is empty except for the .dummy placeholder.
+For a nonempty example, see commit f113a54.

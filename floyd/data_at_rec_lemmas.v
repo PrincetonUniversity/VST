@@ -451,7 +451,7 @@ Proof.
     apply Z.divide_0_r.
 Qed.
 *)
-Lemma Znth_nil: forall {A}{d: Inhabitant A} n, Znth n nil = default.
+Lemma Znth_nil: forall {A}{d: Inhabitant A} n, Znth n (@nil A) = default.
 Proof.
   intros.
   unfold Znth.
@@ -681,8 +681,6 @@ Proof.
           simpl fst. eapply align_compatible_rec_Tunion_inv'; eauto.
         }
 Qed.
-
-Print rank_type.
 
 Fixpoint fully_nonvolatile {cs: compspecs} (rank: nat) (t: type) : bool :=
  match rank with

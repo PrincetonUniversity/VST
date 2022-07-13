@@ -2533,3 +2533,4 @@ Proof.
   - destruct H; intros ? [? | ?]; subst; auto.
 Qed.
 
+#[global] Hint Mode Inhabitant + : typeclass_instances.

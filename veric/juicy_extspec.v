@@ -133,11 +133,15 @@ Section upd_exit.
   Definition upd_exit'' (ef : external_function) (x : ext_spec_type spec ef) ge :=
     upd_exit' (ext_spec_post spec ef x ge (sig_res (ef_sig ef))).
 
-  Program Definition upd_exit {ef : external_function} (x : ext_spec_type spec ef) ge :=
-    Build_juicy_ext_spec _ (upd_exit'' _ x ge) _ _ _.
+  Program Definition upd_exit {ef : external_function} (x : ext_spec_type spec ef) ge
+   : juicy_ext_spec Z :=
+    Build_juicy_ext_spec _ (upd_exit'' _ x ge) _ _ _ _ _ _.
   Next Obligation. intros. eapply JE_pre_hered; eauto. Qed.
   Next Obligation. intros. eapply JE_pre_ext; eauto. Qed.
   Next Obligation. intros. eapply JE_post_hered; eauto. Qed.
+  Next Obligation. intros. eapply JE_post_ext; eauto. Qed.
+  Next Obligation. intros. eapply JE_post_hered; eauto. Qed. 
+  Next Obligation. intros. eapply JE_post_ext; eauto. Qed.
 End upd_exit.
 
 Obligation Tactic := Tactics.program_simpl.

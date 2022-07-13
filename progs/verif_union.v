@@ -136,23 +136,24 @@ match f with
 end.
 
 Lemma bounded_mantissa:
-  forall prec emax m e, Binary.bounded prec emax m e = true ->
+  forall prec emax m e, SpecFloat.bounded prec emax m e = true ->
     Z.pos m < 2 ^ prec.
 Proof.
 intros.
-unfold Binary.bounded in H.
+unfold SpecFloat.bounded in H.
 rewrite andb_true_iff in H.
 destruct H as [H H0].
 apply Z.leb_le in H0.
-unfold Binary.canonical_mantissa in H.
+unfold SpecFloat.canonical_mantissa in H.
 apply Zeq_bool_eq in H.
 unfold FLT.FLT_exp in H.
 rewrite Digits.Zpos_digits2_pos in H.
 pose proof (Z.max_lub_l (Digits.Zdigits Zaux.radix2 (Z.pos m) + e - prec)
       (3 - emax - prec) e).
-spec H1; [ lia | ].
+spec H1.
+  unfold SpecFloat.fexp, SpecFloat.emin in H. lia. 
 clear H.
-assert (Digits.Zdigits Zaux.radix2 (Z.pos m) <= prec) by lia.
+assert (Digits.Zdigits Zaux.radix2 (Z.pos m) <= prec) by  lia.
 clear - H.
 apply Digits.Zpower_gt_Zdigits in H.
 apply H.
@@ -205,24 +206,25 @@ destruct (0 <=? Z.pos m - 2 ^ 23) eqn:?H.
 apply Z.leb_le in H0.
 assert (Z.pos m - 2^23 < 2^23) by lia.
 replace (Bits.join_bits 23 8 s (Z.pos m - 2 ^ 23)
-                 (e - (3 - 2 ^ (8 - 1) - (23 + 1)) + 1) mod  2 ^ 31)
+                 _ mod  2 ^ 31)
    with (Bits.bits_of_binary_float 23 8 (Binary.B754_finite 24 128 false m e e0)).
 apply (Bits.binary_float_of_bits_of_binary_float 23 8 eq_refl eq_refl eq_refl).
 unfold Bits.bits_of_binary_float.
 pose proof H0.
 apply Z.leb_le in H2. rewrite H2. clear H2.
 forget (Z.pos m - 2^23)  as i.
-unfold Binary.bounded in e0.
+unfold SpecFloat.bounded, SpecFloat.emin in *.
 rewrite andb_true_iff in e0.
 destruct e0 as [H' ?H].
 assert (-149 <= e). {
  clear - H'.
- unfold Binary.canonical_mantissa in H'.
+ unfold SpecFloat.canonical_mantissa in H'.
 apply Zeq_bool_eq in H'.
 unfold FLT.FLT_exp in H'.
 rewrite Digits.Zpos_digits2_pos in H'.
 pose proof (Z.max_lub_r (Digits.Zdigits Zaux.radix2 (Z.pos m) + e - 24)
       (3 - 128 - 24) e).
+unfold SpecFloat.fexp, SpecFloat.emin in *. 
 spec H; lia.
 }
 clear H'.

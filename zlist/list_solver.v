@@ -976,7 +976,7 @@ Proof.
   - destruct H as [i []]. subst x. apply Znth_In. auto.
 Qed.
 
-Lemma list_eq_forall_range2 : forall {A} {d : Inhabitant A} al bl,
+Lemma list_eq_forall_range2 : forall {A} {d : Inhabitant A} (al bl : list A),
   al = bl ->
   Zlength al = Zlength bl /\ forall_range2 0 (Zlength al) 0 al bl eq.
 Proof.
@@ -997,7 +997,7 @@ Lemma forall_triangle_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {d
   (forall i j, x1 <= i < x2 /\ y1 <= j < y2 /\ i <= j + offset -> P (Znth i al) (Znth j bl)) = forall_triangle x1 x2 y1 y2 offset al bl P.
 Proof. auto. Qed.
 
-Lemma Forall_Znth : forall {A} {d : Inhabitant A} l P,
+Lemma Forall_Znth : forall {A} {d : Inhabitant A} (l : list A) P,
   Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l).
 Proof.
   intros *.
@@ -1015,7 +1015,7 @@ Proof.
     - fapply (H (i+1) ltac:(Zlength_solve)). list_form; Znth_solve.
 Qed.
 
-Lemma Forall_forall_range : forall {A} {d : Inhabitant A} l P,
+Lemma Forall_forall_range : forall {A} {d : Inhabitant A} (l : list A) P,
   Forall P l <-> forall_range 0 (Zlength l) l P.
 Proof.
   intros. rewrite Forall_Znth. reflexivity.
@@ -1505,8 +1505,6 @@ Ltac rewrite_list_eq :=
     destruct H
   end.
 
-(* These must be Global because they are inside Module range_rewrite.
-  That's a problem; we should fix this somehow. *)
 Global Hint Rewrite @Forall_forall_range : list_prop_rewrite.
 Global Hint Rewrite @forall_range_fold : list_prop_rewrite.
 Global Hint Rewrite @forall_range2_fold : list_prop_rewrite.

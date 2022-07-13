@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.13.0 or-else 8.13.1 or-else 8.13.2 or-else 8.14.0 or-else 8.14.1 or-else 8.15.0 or-else 8.15.1
+COQVERSION= 8.14.0 or-else 8.14.1 or-else 8.15.0 or-else 8.15.1 or-else 8.15.2
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -38,7 +38,7 @@ endif
 # # Choosing compcert #
 # COMPCERT=platform     (default, choose 32 or 64 bit platform supplied x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
 # COMPCERT=bundled      (build and use bundled 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
-# COMPCERT=nundled_new  (build and use bundled compcert_new 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
+# COMPCERT=bundled_new  (build and use bundled compcert_new 32 or 64 x86 variant, dependent on BITSIZE, ARCH can be left empty or must be x86)
 # COMPCERT=src_dir      (build and use in source folder COMPCERT_SRC_DIR the variant specified by ARCH and BITSIZE)
 # COMPCERT=inst_dir     (use prebuilt CompCert in COMPCERT_INST_DIR - BITSIZE and ARCH can be left empty or must match)
 #
@@ -79,15 +79,12 @@ ifeq ($(COMPCERT),platform)
   # Platform supplied CompCert
   ifeq ($(BITSIZE),)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
-    REL_COMPCERT_INST_DIR=$(COMPCERT_INST_DIR)
     COMPCERT_EXPLICIT_PATH = false
   else ifeq ($(BITSIZE),64)
     COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
-    REL_COMPCERT_INST_DIR=$(COMPCERT_INST_DIR)
     COMPCERT_EXPLICIT_PATH = false
   else ifeq ($(BITSIZE),32)
     COMPCERT_INST_DIR = $(COQLIB)/../coq-variant/compcert32/compcert
-    REL_COMPCERT_INST_DIR=$(COMPCERT_INST_DIR)
   else 
     $(error ILLEGAL BITSIZE $(BITSIZE))
   endif
@@ -96,13 +93,11 @@ else ifeq ($(COMPCERT),bundled)
   # Bundled CompCert
   COMPCERT_SRC_DIR = compcert
   COMPCERT_INST_DIR = compcert
-  REL_COMPCERT_INST_DIR=../../compcert
   COMPCERT_BUILD_FROM_SRC = true
 else ifeq ($(COMPCERT),bundled_new)
   # Bundled CompCert (new variant)
   COMPCERT_SRC_DIR = compcert_new
   COMPCERT_INST_DIR = compcert_new
-  REL_COMPCERT_INST_DIR=../../compcert_new
   COMPCERT_NEW = true
   COMPCERT_INFO_PATH_REF = compcert_new
   COMPCERT_BUILD_FROM_SRC = true
@@ -112,8 +107,6 @@ else ifeq ($(COMPCERT),src_dir)
     $(error COMPCERT_SRC_DIR must not be empty if COMPCERT=src_dir)
   endif
   COMPCERT_INST_DIR = $(COMPCERT_SRC_DIR)
-  # this next line is a bit dicey . . .
-  REL_COMPCERT_INST_DIR=../../$(COMPCERT_INST_DIR)
   COMPCERT_BUILD_FROM_SRC = true
 else ifeq ($(COMPCERT),inst_dir)
   # Find CompCert in install dir
@@ -134,11 +127,12 @@ endif
 
 # Verify that the version of the supplied clightgen matches the version of the internal compcert
 
+COMPCERT_VERSION=$(subst version=,,$(shell grep version $(COMPCERT_INFO_PATH_REF)/VERSION))
+
 ifdef CLIGHTGEN
   VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
-  VERSION2= $(subst version=,,$(shell grep version $(COMPCERT_INFO_PATH_REF)/VERSION))
-  ifneq ($(VERSION1),$(VERSION2))
-    $(warning clightgen version $(VERSION1) does not match VST/$(COMPCERT_INFO_PATH_REF)/VERSION $(VERSION2))
+  ifneq ($(VERSION1),$(COMPCERT_VERSION))
+    $(warning clightgen version $(VERSION1) does not match VST/$(COMPCERT_INFO_PATH_REF)/VERSION $(COMPCERT_VERSION))
   endif
 endif
 
@@ -446,7 +440,7 @@ VERIC_FILES= \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_conseq.v semax_call.v semax_straight.v semax_loop.v semax_switch.v \
   initial_world.v Clight_initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
-  NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
+  NullExtension.v SequentialClight.v SequentialClight2.v tcb.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
   semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v ghosts.v invariants.v
 
 ZLIST_FILES= \
@@ -471,7 +465,7 @@ FLOYD_FILES= \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
    subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v quickprogram.v PTops.v Component.v QPcomposite.v \
-  data_at_list_solver.v
+   data_at_list_solver.v step.v fastforward.v finish.v
 #real_forward.v
 
 
@@ -807,7 +801,7 @@ $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES)): $(PROGSDIR)/%.v: $(PROGSDIR)
 endif
 
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
-	sh util/make_version ${BITSIZE}
+	sh util/make_version ${BITSIZE} ${COMPCERT_VERSION}
 
 _CoqProject _CoqProject-export: Makefile util/coqflags $(COMPCERT_CONFIG)
 	echo $(COQFLAGS) > _CoqProject
@@ -883,7 +877,13 @@ progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
-	cd progs/VSUpile; $(MAKE) VST_LOC=../.. COMPCERT_LOC=$(REL_COMPCERT_INST_DIR)
+	cd progs/VSUpile; $(MAKE) BUNDLED=true
+
+nothing: # need this target for the degenerate case of "make -tk */*.vo" in coq-action.yml
+
+assumptions.txt: veric/tcb.vo
+	$(COQC) $(COQFLAGS) veric/tcb.v > assumptions.txt
+	bash util/check_assumptions.sh
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)

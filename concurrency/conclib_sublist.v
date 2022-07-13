@@ -140,7 +140,7 @@ Proof.
     f_equal; f_equal; lia.
 Qed.
 
-Lemma Znth_last : forall {A}{d: Inhabitant A} l, Znth (Zlength l - 1) l = last l default.
+Lemma Znth_last : forall {A}{d: Inhabitant A} (l: list A), Znth (Zlength l - 1) l = last l default.
 Proof.
   intros; unfold Znth.
   destruct (Z_lt_dec (Zlength l - 1) 0).
@@ -176,7 +176,7 @@ Proof.
     replace (i - (Zlength l - (m - n))) with (i - n - 0) by lia; auto.
 Qed.
 
-Lemma Znth_cons_eq : forall {A}{d : Inhabitant A} i x l, 
+Lemma Znth_cons_eq : forall {A}{d : Inhabitant A} i x (l: list A), 
    Znth i (x :: l) = if eq_dec i 0 then x else Znth (i - 1) l.
 Proof.
   intros.
@@ -185,7 +185,7 @@ Proof.
   apply Znth_pos_cons; lia.
 Qed.
 
-Lemma Znth_rotate : forall {A} {d : Inhabitant A} i l n, 
+Lemma Znth_rotate : forall {A} {d : Inhabitant A} i (l: list A) n, 
     0 <= n <= Zlength l -> 0 <= i < Zlength l ->
   Znth i (rotate l n (Zlength l)) = Znth ((i - n) mod Zlength l) l.
 Proof.
@@ -227,7 +227,7 @@ Proof.
   apply Z.le_antisymm; eapply Forall_sublist_le; eauto; lia.
 Qed.
 
-Lemma NoDup_Znth_inj : forall {A} {d : Inhabitant A} l i j (HNoDup : NoDup l)
+Lemma NoDup_Znth_inj : forall {A} {d : Inhabitant A} (l: list A) i j (HNoDup : NoDup l)
   (Hi : 0 <= i < Zlength l) (Hj : 0 <= j < Zlength l) (Heq : Znth i l = Znth j l ),
   i = j.
 Proof.
@@ -391,7 +391,7 @@ rewrite Zlength_sublist; rewrite Zlength_complete; lia. }
   rewrite Znth_complete; auto; lia.
 Qed.
 
-Lemma Znth_repeat : forall {A} {x : Inhabitant A} n i, Znth i (repeat default n) = default.
+Lemma Znth_repeat : forall {A} {x : Inhabitant A} n i, Znth i (@repeat A default n) = default.
 Proof.
   induction n; simpl; intro.
   - apply Znth_nil.
@@ -485,7 +485,7 @@ Proof.
   intros; rewrite !Zlength_correct, combine_length, Nat2Z.inj_min; auto.
 Qed.
 
-Lemma nth_Znth : forall {A}{d: Inhabitant A} i l, nth i l default = Znth (Z.of_nat i) l.
+Lemma nth_Znth : forall {A}{d: Inhabitant A} i (l: list A), nth i l default = Znth (Z.of_nat i) l.
 (* This is the same as zlist.sublist.nth_Znth'  *)
 Proof.
   intros; unfold Znth.

@@ -270,7 +270,7 @@ Proof.
 all:    apply derives_refl.  (*  We need this for Coq 8.14 and before. *)
 Qed.
 
-Lemma iter_sepcon_Znth_remove : forall {A} {d : Inhabitant A} f l i j,
+Lemma iter_sepcon_Znth_remove : forall {A} {d : Inhabitant A} f (l: list A) i j,
   0 <= i < Zlength l -> 0 <= j < Zlength l -> i <> j ->
   iter_sepcon f (remove_Znth j l) =
   f (Znth i l) * iter_sepcon f (remove_Znth (if zlt i j then i else i - 1) (remove_Znth j l)).
@@ -298,20 +298,20 @@ Proof.
     apply pred_ext; cancel.
 Qed.
 
-Lemma iter_sepcon_Znth' : forall {A} {d : Inhabitant A} (f : A -> mpred) l i,
+Lemma iter_sepcon_Znth' : forall {A} {d : Inhabitant A} (f : A -> mpred) (l: list A) i,
   0 <= i < Zlength l -> iter_sepcon f l = f (Znth i l) * (f (Znth i l) -* iter_sepcon f l).
 Proof.
   intros; eapply wand_eq, iter_sepcon_Znth; auto.
 Qed.
 
-Lemma iter_sepcon_remove_wand : forall {A} {d : Inhabitant A} (f : A -> mpred) l i,
+Lemma iter_sepcon_remove_wand : forall {A} {d : Inhabitant A} (f : A -> mpred) (l: list A) i,
   0 <= i < Zlength l -> iter_sepcon f (remove_Znth i l) |-- f (Znth i l) -* iter_sepcon f l.
 Proof.
   intros; rewrite <- wand_sepcon_adjoint.
   erewrite (iter_sepcon_Znth _ l) by eauto; cancel.
 Qed.
 
-Lemma iter_sepcon_In : forall {B} (x : B) f l, In x l -> iter_sepcon f l = f x * (f x -* iter_sepcon f l).
+Lemma iter_sepcon_In : forall {B} (x : B) f (l: list B), In x l -> iter_sepcon f l = f x * (f x -* iter_sepcon f l).
 Proof.
   intros.
   apply (@In_Znth _ x) in H as (? & ? & Heq).

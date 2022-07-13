@@ -4,7 +4,7 @@ Require Import VST.progs64.printf.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Require Import VST.floyd.printf.
-Require Import ITree.Eq.Eq.
+Require Import ITree.Eq.
 
 #[export] Instance nat_id : FileId := { file_id := nat; stdin := 0%nat; stdout := 1%nat }.
 #[export] Instance file_struct : FileStruct := {| FILEid := ___sFILE64; reent := __reent; f_stdin := __stdin; f_stdout := __stdout |}.
