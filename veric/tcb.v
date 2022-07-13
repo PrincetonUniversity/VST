@@ -24,6 +24,11 @@ Theorem VST_sound:
   | JMeq.JMeq (JE_spec _ (@OK_spec Espec)) null_extension_juicyspec /\
   let dryspec :=  juicy_dry_ext_spec_make _ null_extension_juicyspec in 
   forall (CS: compspecs)
+     (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+       (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
+       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
+         mem_sub m' m1' /\ proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
+         proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
      (prog: Clight.program) (initial_oracle: OK_ty)
      (V : mpred.varspecs) (G : mpred.funspecs) (m: mem),
      @semax_prog Espec CS prog initial_oracle V G ->
