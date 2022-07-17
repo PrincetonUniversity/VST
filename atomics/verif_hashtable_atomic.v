@@ -1580,14 +1580,6 @@ Qed.
 
 #[global] Instance lock_handle_inhabited : Inhabitant lock_handle := (Vundef, nroot, O).
 
-Lemma upd_complete_gen' : forall {A B} (f : A -> B) (l : list A) x n y, Zlength l < n ->
-  upd_Znth (Zlength l) (map f l ++ repeat y (Z.to_nat (n - Zlength l))) (f x) =
-  map f (l ++ [x]) ++ repeat y (Z.to_nat (n - Zlength (l ++ [x]))).
-Proof.
-  intros.
-  rewrite <- (Zlength_map _ _ f l), upd_complete_gen, map_app, !Zlength_app; rewrite Zlength_map; auto.
-Qed.
-
 Axiom mem_mgr_dup : forall gv, mem_mgr gv = mem_mgr gv * mem_mgr gv.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.

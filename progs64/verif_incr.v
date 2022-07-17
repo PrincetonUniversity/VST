@@ -36,7 +36,7 @@ Definition read_spec :=
          SEP   (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c); lock_inv sh h (cptr_lock_inv g1 g2 (gv _c)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2)
   POST [ tuint ]
          PROP ()
-         LOCAL (temp ret_temp (Vint (Int.repr (n1 + n2))))
+         RETURN (Vint (Int.repr (n1 + n2)))
          SEP (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c); lock_inv sh h (cptr_lock_inv g1 g2 (gv _c)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2).
 
 Definition thread_lock_R sh1 sh h g1 g2 ctr :=
@@ -91,16 +91,13 @@ Qed.
 #[export] Hint Resolve thread_inv_exclusive : core.
 
 Lemma ghost_var_incr : forall g1 g2 x y n (left : bool), ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * ghost_var gsh2 n (if left then g1 else g2) |--
-  |==> !!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) * ghost_var gsh1 (if left then y else x) (if left then g2 else g1).
+  |==> !!((if left then x else y) = n) && ghost_var gsh1 (n+1) (if left then g1 else g2) * ghost_var gsh2 (n+1) (if left then g1 else g2) * ghost_var gsh1 (if left then y else x) (if left then g2 else g1).
 Proof.
   destruct left.
-  - rewrite sepcon_assoc, (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.
-    erewrite ghost_var_share_join' by eauto with share.
-    Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
-    apply ghost_var_update.
-  - erewrite sepcon_assoc, ghost_var_share_join' by eauto with share.
-    Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
-    apply ghost_var_update.
+  - eapply derives_trans, bupd_frame_r; cancel.
+    rewrite sepcon_andp_prop'; apply ghost_var_update'.
+  - eapply derives_trans, bupd_frame_r; cancel.
+    rewrite sepcon_andp_prop'; apply ghost_var_update'.
 Qed.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
@@ -117,7 +114,8 @@ Proof.
   gather_SEP (ghost_var _ x g1) (ghost_var _ y g2) (ghost_var _ n _).
   rewrite sepcon_assoc.
   viewshift_SEP 0 (!!((if left then x else y) = n) &&
-    ghost_var Tsh (n+1) (if left then g1 else g2) *
+    ghost_var gsh1 (n+1) (if left then g1 else g2) *
+    ghost_var gsh2 (n+1) (if left then g1 else g2) *
     ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).
   { go_lower.
     eapply derives_trans, bupd_fupd.
@@ -127,7 +125,6 @@ Proof.
   forward_call release_simple (sh, h, cptr_lock_inv g1 g2 (gv _c)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
-    rewrite <- (ghost_var_share_join gsh1 gsh2) by auto with share.
     unfold Frame; instantiate (1 := [ghost_var gsh2 (n+1) (if left then g1 else g2);
       field_at sh1 t_counter (DOT _lock) (ptr_of h) (gv _c)]); simpl.
     destruct left.
@@ -147,10 +144,8 @@ Proof.
   Intros z x y.
   forward.
   assert_PROP (x = n1 /\ y = n2) as Heq.
-  { gather_SEP (ghost_var _ x g1) (ghost_var _ n1 g1).
-    erewrite ghost_var_share_join' by eauto.
-    gather_SEP (ghost_var _ y g2) (ghost_var _ n2 g2).
-    erewrite ghost_var_share_join' by eauto.
+  { sep_apply (ghost_var_inj gsh1 gsh2 x); auto.
+    sep_apply (ghost_var_inj gsh1 gsh2 y); auto.
     entailer!. }
   forward.
   forward_call release_simple (sh, h, cptr_lock_inv g1 g2 (gv _c)).

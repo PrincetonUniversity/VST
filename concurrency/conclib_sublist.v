@@ -454,6 +454,14 @@ Proof.
   rewrite upd_Znth0, !map_app, <- app_assoc; auto.
 Qed.
 
+Lemma upd_complete_gen' : forall {A B} (f : A -> B) (l : list A) x n y, Zlength l < n ->
+  upd_Znth (Zlength l) (map f l ++ repeat y (Z.to_nat (n - Zlength l))) (f x) =
+  map f (l ++ [x]) ++ repeat y (Z.to_nat (n - Zlength (l ++ [x]))).
+Proof.
+  intros.
+  rewrite <- (Zlength_map _ _ f l), upd_complete_gen, map_app, !Zlength_app; rewrite Zlength_map; auto.
+Qed.
+
 Lemma In_upd_Znth_old : forall {A}{d: Inhabitant A} i (x y : A) l, In x l -> x <> Znth i l -> 0 <= i <= Zlength l ->
   In x (upd_Znth i l y).
 Proof.
