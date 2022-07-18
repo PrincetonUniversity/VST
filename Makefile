@@ -698,7 +698,7 @@ test3: sha hmac
 test4: mailbox 
 test5: VSUpile
 tests: test test2 test3 test4 test5
-all: vst files tests hmacdrbg tweetnacl aes
+all: vst files tests memmgr hmacdrbg tweetnacl aes
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
@@ -842,6 +842,7 @@ endif
 clean:
 	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok) compcert/*/*.{vo,vos,vok} compcert/*/*/*.{vo,vos,vok}  compcert_new/*/*.{vo,vos,vok} compcert_new/*/*/*.{vo,vos,vok}
 	rm -f progs/VSUpile/{*,*/*}.{vo,vos,vok,glob}
+	rm -f progs/memmgr/*.{vo,vos,vok,glob}
 	rm -f coq-ext-lib/theories/*.{vo,vos,vok,glob} InteractionTrees/theories/{*,*/*}.{vo,vos,vok,glob}
 	rm -f paco/src/*.{vo,vos,vok,glob}
 	rm -f fcf/src/FCF/*.{vo,vos,vok,glob}
@@ -877,7 +878,9 @@ progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
-	cd progs/VSUpile; $(MAKE) BUNDLED=true
+	cd progs/VSUpile; $(MAKE) VST_LOC=../..
+memmgr:  floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
+	cd progs/memmgr; $(MAKE) VST_LOC=../..
 
 nothing: # need this target for the degenerate case of "make -tk */*.vo" in coq-action.yml
 
