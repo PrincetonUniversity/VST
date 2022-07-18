@@ -688,16 +688,16 @@ ifeq ($(BITSIZE),64)
 test: vst progs64
 	@# need this tab here to turn of special behavior of 'test' target
 test2: io
-tests: test test2
+test4: mailbox 
+tests: test test2 test4
 all: tests
 else
 test: vst progs
 	@# need this tab here to turn of special behavior of 'test' target
 test2: io
 test3: sha hmac 
-test4: mailbox 
 test5: VSUpile
-tests: test test2 test3 test4 test5
+tests: test test2 test3 test5
 all: vst files tests hmacdrbg tweetnacl aes
 endif
 
