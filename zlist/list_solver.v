@@ -8,6 +8,9 @@ Require Export VST.zlist.sublist.
 Import SublistInternalLib.
 Require Export VST.zlist.Zlength_solver.
 
+(** Ignore Hint Rewrite global attribute for Coq 8.13 *)
+Set Warnings "-unsupported-attributes".
+
 (** This file provides a almost-complete solver for list with concatenation.
   Its core symbols include:
     Zlength
@@ -1752,9 +1755,12 @@ Proof. intros. apply I. Qed.
 
 (* These must be Global because they are inside a Module.
   That's a problem; we should fix this somehow. *)
-(*after Coq 8.13: Global*) Hint Rewrite Z.add_0_r : Z_normalize_0.
-(*after Coq 8.13: Global*) Hint Rewrite Z.add_0_l : Z_normalize_0.
-(*after Coq 8.13: Global*) Hint Rewrite Z.sub_0_r : Z_normalize_0.
+#[global]
+Hint Rewrite Z.add_0_r : Z_normalize_0.
+#[global]
+Hint Rewrite Z.add_0_l : Z_normalize_0.
+#[global]
+Hint Rewrite Z.sub_0_r : Z_normalize_0.
 
 Ltac pose_range_saturate_shift l s :=
   let H := fresh in
