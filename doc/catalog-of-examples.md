@@ -207,8 +207,8 @@ A size-class-array implementation of the C malloc/free library.
 
 - The paper: [Verified sequential malloc/free](https://www.cs.princeton.edu/~appel/papers/memmgr.pdf), by Andrew W. Appel and David A. Naumann, in *2020 ACM SIGPLAN International Symposium on Memory Management,* June 2020.
 - [C program: malloc.c](https://github.com/PrincetonUniversity/VST/blob/master/progs/memmgr/malloc.c)
-- [Low+High-level spec: spec_malloc.v](https://github.com/PrincetonUniversity/VST/blob/master/progs/memmgr/ASI_malloc.v)
-- [Low+High-level proof: verif_malloc_free.v](https://github.com/PrincetonUniversity/VST/blob/master/progs/memmgr/VSU_malloc.v)
+- [Low+High-level spec: ASI_malloc.v](https://github.com/PrincetonUniversity/VST/blob/master/progs/memmgr/ASI_malloc.v)
+- [Low+High-level proof: VSU_malloc.v](https://github.com/PrincetonUniversity/VST/blob/master/progs/memmgr/VSU_malloc.v)
 
 ### Abstract and concrete data types
 - Yes:  Low-expressive, Open-source, Documented, Multilevel, Unified, High-Expressive, Modular, 32-bit
@@ -224,3 +224,17 @@ verified in the style of Verified Software Units.
  these are done on a per-module basis.  These specs are all in
  the same directory;  the paper explains the structure of specification
  and proof.
+
+### Many small program examples
+
+- Yes: Low-expressive, Open-source, Semimodular, 32-bit or 32/64-bit
+- No: not documented or very well organized.
+
+These are small C programs of just one or two functions each,
+that serve as primitive test cases for VST verifications.
+
+- [32/64-bit portable C programs](https://github.com/PrincetonUniversity/VST/tree/master/progs64): reverse.c revarray.c sumarray.c append.c bin_search.c 
+    bst.c field_loadstore.c float.c object.c global.c min.c min64.c nest2.c
+    nest3.c logical_compare.c strlib.c switch.c union.c message.c incr.c
+- [32-bit-only C programs](https://github.com/PrincetonUniversity/VST/tree/master/progs) incr.c io.c io_mem.c printf.c ptr_cmp.c queue.c
+- [Specifications and verifications](https://github.com/PrincetonUniversity/VST/tree/master/progs): in the various `verif_*.v` files in these directories.
