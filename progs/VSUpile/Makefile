@@ -1,11 +1,6 @@
-#  This development can be built in either of two ways:
-# BUNDLED=true
-#   means that VST is located at ../..
-#   Furthermore, in this mode, the file ../../CONFIGURE gives information
-#   about how to access CompCert files
-# BUNDLED != true   (the default)
-#   means that coqc has access to VST without any -Q or -R flags,
-#   for example via opam or the Coq Platform
+ifdef VST_LOC
+include $(VST_LOC)/Makefile.bundled
+endif
 
 HFILES = pile.h pile_private.h onepile.h apile.h triang.h stdlib.h \
          fast/fastpile_private.h
@@ -26,119 +21,11 @@ VFILES = PileModel.v spec_stdlib.v verif_stdlib.v spec_pile.v spec_pile_private.
 CC=ccomp
 CFLAGS=-O
 
-# BEGINNING OF LOGIC TO HANDLE BUNDLED=true OPTION
-# Most of this is based on ../../Makefile, and documented there
--include CONFIGURE
-ifeq ($(BUNDLED),true)
--include ../../CONFIGURE
-COMPCERT ?= platform
-COMPCERT_NEW = false
-COMPCERT_INFO_PATH_REF = compcert
-COMPCERT_EXPLICIT_PATH = true
-COMPCERT_BUILD_FROM_SRC = false
-ifeq ($(COMPCERT),platform)
-  # Platform supplied CompCert
-  COQLIB=$(shell coqc -where | tr -d '\r' | tr '\\' '/')
-  $(info COQLIB=$(COQLIB))
-  ifeq ($(BITSIZE),)
-    COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
-    COMPCERT_EXPLICIT_PATH = false
-  else ifeq ($(BITSIZE),64)
-    COMPCERT_INST_DIR = $(COQLIB)/user-contrib/compcert
-    COMPCERT_EXPLICIT_PATH = false
-  else ifeq ($(BITSIZE),32)
-    COMPCERT_INST_DIR = $(COQLIB)/../coq-variant/compcert32/compcert
-  else 
-    $(error ILLEGAL BITSIZE $(BITSIZE))
-  endif
-  COMPCERT_SRC_DIR = __NONE__
-else ifeq ($(COMPCERT),bundled)
-  # Bundled CompCert
-  COMPCERT_SRC_DIR = ../../compcert
-  COMPCERT_INST_DIR = ../../compcert
-  COMPCERT_BUILD_FROM_SRC = true
-else ifeq ($(COMPCERT),bundled_new)
-  # Bundled CompCert (new variant)
-  COMPCERT_SRC_DIR = ../../compcert_new
-  COMPCERT_INST_DIR = ../../compcert_new
-  COMPCERT_NEW = true
-  COMPCERT_INFO_PATH_REF = ../../compcert_new
-  COMPCERT_BUILD_FROM_SRC = true
-else ifeq ($(COMPCERT),src_dir)
-  # Compile CompCert from source dir
-  ifeq ($(COMPCERT_SRC_DIR),)
-    $(error COMPCERT_SRC_DIR must not be empty if COMPCERT=src_dir)
-  endif
-  IS_ROOT    := $(if $(patsubst /%,,$(COMPCERT_SRC_DIR)),,yes)
-  IS_HOME    := $(if $(patsubst ~%,,$(COMPCERT_SRC_DIR)),,yes)
-  IS_NETWORK := $(if $(patsubst \\\\%,,$(COMPCERT_SRC_DIR)),,yes)
-  IS_DRIVE   := $(foreach d,A B C D E...Z,$(if $(patsubst $(d):/%,,$(COMPCERT_SRC_DIR)),,yes))
-  ifeq ($(strip $(IS_ROOT)$(IS_HOME)$(IS_NETWORK)$(IS_DRIVE)),)
-	# it's a relative path
-	COMPCERT_SRC_DIR := ../../$(COMPCERT_SRC_DIR)
-  endif
-  COMPCERT_INST_DIR = $(COMPCERT_SRC_DIR)
-  COMPCERT_BUILD_FROM_SRC = true
-else ifeq ($(COMPCERT),inst_dir)
-  # Find CompCert in install dir
-  COMPCERT_SRC_DIR = __NONE__
-  ifeq ($(COMPCERT_INST_DIR),)
-    $(error COMPCERT_INST_DIR must not be empty if COMPCERT=inst_dir)
-  endif
-endif
-ifneq ($(COMPCERT_SRC_DIR),__NONE__)
-  ARCH ?= x86
-  BITSIZE ?= 32
-else
-  -include $(COMPCERT_INST_DIR)/compcert.config
-  ifneq ($(BITSIZE),)
-    ifneq ($(BITSIZE),$(COMPCERT_BITSIZE))
-      $(warning The compcert found in $(COMPCERT_INST_DIR) has bitsize $(COMPCERT_BITSIZE) but you requested $(BITSIZE))
-    endif
-  else
-    BITSIZE = $(COMPCERT_BITSIZE)
-  endif
-
-  ifneq ($(ARCH),)
-    ifneq ($(ARCH),$(COMPCERT_ARCH))
-      $(warning The compcert found in $(COMPCERT_INST_DIR) has architecture $(COMPCERT_ARCH) but you requested $(ARCH))
-    endif
-  else
-    ARCH = $(COMPCERT_ARCH)
-  endif
-endif
-ifeq ($(wildcard $(COMPCERT_INST_DIR)/$(ARCH)_$(BITSIZE)),)
-  ARCHDIRS=$(ARCH)
-else
-  ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
-endif
-COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend export
-COMPCERT_FLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d))
-VST_DIRS= msl sepcomp veric zlist floyd 
-else
-COMPCERTFLAGS=
-VST_DIRS=
-endif
-
-VST_LOC ?= ../..
-
-ifdef CLIGHTGEN
-VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
-VERSION2= $(subst version=,,$(shell grep version $(COMPCERT_SRC_DIR)/VERSION))
-ifneq ($(VERSION1),$(VERSION2))
-$(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
-endif
-endif
-
 CVFILES = $(patsubst %.c,%.v,$(CFILES))
 OFILES = $(patsubst %.c,%.o,$(CFILES))
 VOFILES = $(patsubst %.v,%.vo,$(CVFILES) $(VFILES))
 
-VSTFLAGS= $(COMPCERT_FLAGS) $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
-
-# $(error VSTFLAGS=$(VSTFLAGS))
-
-target: _CoqProject verif_main.vo simple_verif_main.vo fast/verif_fastmain.vo incr/verif_incr.vo
+all: _CoqProject verif_main.vo simple_verif_main.vo fast/verif_fastmain.vo incr/verif_incr.vo
 
 cvfiles: $(CVFILES)
 
@@ -164,17 +51,12 @@ endif
 
 incr/verif_incr.vo: incr/verif_incr.v incr/incr.vo
 
-_CoqProject: Makefile
-	@echo $(VSTFLAGS) > _CoqProject
-
 clean:
 	rm -f *.vo *.o *.aux *.vok *.vos
 	rm -f fast/*.vo fast/*.o fast/*.aux fast/*.vok fast/*.vos
 
 # .depend depend:
 # 	coqdep $(VSTFLAGS) *.v >.depend
-
-FLOYD= $(VST_LOC)/floyd/proofauto.vo $(VST_LOC)/floyd/VSU.vo
 
 PileModel.vo: PileModel.v $(FLOYD)
 spec_apile.vo: apile.vo spec_stdlib.vo spec_pile.vo $(FLOYD)
